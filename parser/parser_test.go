@@ -13,8 +13,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	. "github.com/ozanh/ugo/parser"
-	"github.com/ozanh/ugo/token"
+	"github.com/gad-lang/gad/token"
+
+	. "github.com/gad-lang/gad/parser"
 )
 
 var update = flag.Bool("update", false, "update golden files")

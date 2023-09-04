@@ -1,41 +1,41 @@
-# uGO Tutorial
+# Gad Tutorial
 
-uGO is another script language for Go applications to make Go more dynamic with
-scripts. uGO is inspired by script language [Tengo](https://github.com/d5/tengo)
+Gad is another script language for Go applications to make Go more dynamic with
+scripts. Gad is inspired by script language [Tengo](https://github.com/d5/tengo)
 by Daniel Kang.
 
-uGO source code is compiled to bytecode and run in a Virtual Machine (VM).
+Gad source code is compiled to bytecode and run in a Virtual Machine (VM).
 Compiled bytecode can be serialized/deserialized for wire to remove compilation
 step before execution for remote processes, and deserialization will solve
 version differences to a certain degree.
 
-Main script and uGO source modules in uGO are all functions which have
+Main script and Gad source modules in Gad are all functions which have
 `compiledFunction` type name. Parameters can be defined for main function with
 [`param`](#param) statement and main function returns a value with `return`
 statement as well. If return statement is missing, `undefined` value is returned
 by default. All functions return single value but thanks to
-[destructuring](destructuring.md) feature uGO allows to return multiple values
+[destructuring](destructuring.md) feature Gad allows to return multiple values
 as an array and set returning array elements to multiple variables.
 
-uGO relies on Go's garbage collector and there is no allocation limit for
+Gad relies on Go's garbage collector and there is no allocation limit for
 objects like Tengo. To run scripts which are not safe must be run in a sandboxed
 environment which is the only way for Go applications. Note: Builtin objects can
 be disabled before compilation.
 
-uGO can handle runtime errors and Go panic with `try-catch-finally` statements
+Gad can handle runtime errors and Go panic with `try-catch-finally` statements
 which is similar to Ecmascript implementation with a few minor differences.
 Although Go developers are not fan of `try-catch-finally`, they are well known
 statements to work with.
 
-uGO does not use reflect package during execution and avoids unsafe function
-calls. uGO objects most of the time escape to heap inevitably because they are
+Gad does not use reflect package during execution and avoids unsafe function
+calls. Gad objects most of the time escape to heap inevitably because they are
 of interface types but it is minimized.
 
-uGO is developed to be an embedded script language for Go applications, and
+Gad is developed to be an embedded script language for Go applications, and
 importing source modules from files will not be added in near future but one can
 implement a custom module to return file content to the compiler.
 
-uGO currently has a simple optimizer for constant folding and evaluating
+Gad currently has a simple optimizer for constant folding and evaluating
 expressions which do not have side effects. Optimizer greedily evaluates
 expressions having only literals (int, uint, char, float, bool, string).
 Optimizer can be disabled with compiler options.
@@ -43,7 +43,7 @@ Optimizer can be disabled with compiler options.
 ## Run Scripts
 
 To run a script, it must be compiled to create a `Bytecode` object then it is
-provided to Virtual Machine (VM). uGO has a simple optimizer enabled by default
+provided to Virtual Machine (VM). Gad has a simple optimizer enabled by default
 in the compiler. Optimizer evaluates simple expressions not having side effects
 to replace expressions with constant values. Note that, optimizer can be
 disabled to speed up compilation process.
@@ -54,7 +54,7 @@ package main
 import (
   "fmt"
 
-  "github.com/ozanh/ugo"
+  "github.com/gad-lang/gad"
 )
 
 func main() {
@@ -72,13 +72,13 @@ func main() {
     }
   return fib(num, 0, 1)
   `
-  bytecode, err := ugo.Compile([]byte(script), ugo.DefaultCompilerOptions)
+  bytecode, err := gad.Compile([]byte(script), gad.DefaultCompilerOptions)
 
   if err != nil {
     panic(err)
   }
 
-  retValue, err := ugo.NewVM(bytecode).Run(nil,  ugo.Int(35))
+  retValue, err := gad.NewVM(bytecode).Run(nil,  gad.Int(35))
 
   if err != nil {
     panic(err)
@@ -96,12 +96,12 @@ Compiler options hold all customizable options for the compiler.
 debugging and testing purposes like below;
 
 ```go
-bytecode, err := ugo.Compile([]byte(script), ugo.TraceCompilerOptions)
+bytecode, err := gad.Compile([]byte(script), gad.TraceCompilerOptions)
 // or change output and disable tracing parser
-// opts := ugo.TraceCompilerOptions
+// opts := gad.TraceCompilerOptions
 // opts.Trace = os.Stderr
 // opts.TraceParser = false
-// bytecode, err := ugo.Compile([]byte(script), opts)
+// bytecode, err := gad.Compile([]byte(script), opts)
 ```
 
 VM execution can be aborted by using `Abort` method which cause `Run` method to
@@ -115,11 +115,11 @@ Go's `errors.Is` function in `errors` package.
 and ensures stack and module cache is cleaned.
 
 ```go
-vm := ugo.NewVM(bytecode)
-retValue, err := vm.Run(nil,  ugo.Int(35))
+vm := gad.NewVM(bytecode)
+retValue, err := vm.Run(nil,  gad.Int(35))
 /* ... */
 // vm.Clear()
-retValue, err := vm.Run(nil,  ugo.Int(34))
+retValue, err := vm.Run(nil,  gad.Int(34))
 /* ... */
 ```
 
@@ -133,18 +133,18 @@ param num
 global upperBound
 return num > upperBound ? "big" : "small"
 `
-bytecode, err := ugo.Compile([]byte(script), ugo.DefaultCompilerOptions)
+bytecode, err := gad.Compile([]byte(script), gad.DefaultCompilerOptions)
 
 if err != nil {
   panic(err)
 }
 
-g := ugo.Map{"upperBound": ugo.Int(1984)}
-retValue, err := ugo.NewVM(bytecode).Run(g,  ugo.Int(2018))
-// retValue == ugo.String("big")
+g := gad.Map{"upperBound": gad.Int(1984)}
+retValue, err := gad.NewVM(bytecode).Run(g,  gad.Int(2018))
+// retValue == gad.String("big")
 ```
 
-There is a special type `SyncMap` in uGO to make goroutine safe map object where
+There is a special type `SyncMap` in Gad to make goroutine safe map object where
 scripts/Go might need to interact with each other concurrently, e.g. one can
 collect statistics or data within maps. Underlying map of `SyncMap` is guarded
 with a `sync.RWMutex`.
@@ -171,22 +171,22 @@ fn1()
 fn2 := import("module")
 fn2()
 `
-mm := ugo.NewModuleMap()
+mm := gad.NewModuleMap()
 mm.AddSourceModule("module", []byte(module))
 
-opts := ugo.DefaultCompilerOptions
+opts := gad.DefaultCompilerOptions
 opts.ModuleMap = mm
 
-bytecode, err := ugo.Compile([]byte(script), opts)
+bytecode, err := gad.Compile([]byte(script), opts)
 
 if err != nil {
   panic(err)
 }
 
-g := &ugo.SyncMap{
-    Map: ugo.Map{"stats": ugo.Map{"fn1": ugo.Int(0), "fn2": ugo.Int(0)}},
+g := &gad.SyncMap{
+    Map: gad.Map{"stats": gad.Map{"fn1": gad.Int(0), "fn2": gad.Int(0)}},
 }
-_, err = ugo.NewVM(bytecode).Run(g)
+_, err = gad.NewVM(bytecode).Run(g)
 /* ... */
 ```
 
@@ -486,7 +486,7 @@ println(y) // foo
 
 ## Values and Value Types
 
-In uGO, everything is a value, and, all values are associated with a type.
+In Gad, everything is a value, and, all values are associated with a type.
 
 ```go
 19 + 84                 // int values
@@ -500,10 +500,10 @@ true || false           // bool values
 func() { /*...*/ }      // function value
 ```
 
-Here's a list of all available value types in uGO. See [runtime
+Here's a list of all available value types in Gad. See [runtime
 types](runtime-types.md) for more information.
 
-| uGO Type          | Description                          | Equivalent Type in Go |
+| Gad Type          | Description                          | Equivalent Type in Go |
 |:------------------|:-------------------------------------|:----------------------|
 | int               | signed 64-bit integer value          | `int64`               |
 | uint              | unsigned 64-bit integer value        | `uint64`              |
@@ -520,7 +520,7 @@ types](runtime-types.md) for more information.
 
 ### Error Values
 
-In uGO, an error can be represented using "error" typed values. An error value
+In Gad, an error can be represented using "error" typed values. An error value
 is created using `error` builtin function, and, it has an underlying message.
 The underlying message of an error can be accessed using `.Message` selector.
 Error has also a name which is accessed using `.Name`. Errors created with
@@ -559,7 +559,7 @@ Note: See [error handling](error-handling.md) for more information about errors.
 
 ### Undefined Values
 
-In uGO, an `undefined` value can be used to represent an unexpected or
+In Gad, an `undefined` value can be used to represent an unexpected or
 non-existing value:
 
 * A function that does not return a value explicitly considered to return
@@ -580,7 +580,7 @@ undefined.
 
 ### Array Values
 
-In uGO, array is an ordered list of values of any types. Elements of an array
+In Gad, array is an ordered list of values of any types. Elements of an array
 can be accessed using indexer `[]`.
 
 ```go
@@ -593,7 +593,7 @@ can be accessed using indexer `[]`.
 
 ### Map Values
 
-In uGO, map is a set of key-value pairs where key is string and the value is
+In Gad, map is a set of key-value pairs where key is string and the value is
 of any value types. Value of a map can be accessed using indexer `[]` or
 selector '.' operators.
 
@@ -608,7 +608,7 @@ m.x                                   // == undefined
 
 ### Function Values
 
-In uGO, function is a callable value with a number of function arguments and
+In Gad, function is a callable value with a number of function arguments and
 a return value. Just like any other values, functions can be passed into or
 returned from another function.
 
@@ -628,7 +628,7 @@ add5 := adder(5)
 nine := add5(4)    // == 9
 ```
 
-Unlike Go, uGO does not have function declarations. All functions are anonymous
+Unlike Go, Gad does not have function declarations. All functions are anonymous
 functions. So the following code is illegal:
 
 ```go
@@ -637,7 +637,7 @@ func foo(arg1, arg2) {  // illegal
 }
 ```
 
-uGO also supports variadic functions:
+Gad also supports variadic functions:
 
 ```go
 variadic := func (a, b, ...c) {
@@ -687,7 +687,7 @@ f2(...[1, 2, 3])    // valid; a == 1, b == [2, 3]
 
 ## Type Conversions
 
-Although the type is not directly specified in uGO, one can use type conversion
+Although the type is not directly specified in Gad, one can use type conversion
 [builtin functions](builtins.md) to convert between value types and see
 [conversion/coersion table](runtime-types.md) for more information.
 
@@ -737,7 +737,7 @@ return d    // d == {"40": [2, 4]}
 | `^`      | bitwise complement `^x` | int(int), uint(uint), char(char), bool(int)               |
 | `!`      | logical NOT             | all types*                                                |
 
-_* In uGO, all values can be either
+_* In Gad, all values can be either
 [truthy or falsy](runtime-types.md#objectisfalsy)._
 
 ### Binary Operators
@@ -767,7 +767,7 @@ _See [Operators](operators.md) for more details._
 
 ### Ternary Operators
 
-uGO has a ternary conditional operator
+Gad has a ternary conditional operator
 `(condition expression) ? (true expression) : (false expression)`.
 
 ```go
@@ -940,11 +940,11 @@ for i, v in "foo" {           // array: index and element
 
 ## Modules
 
-Module is the basic compilation unit in uGO. A module can import another module
+Module is the basic compilation unit in Gad. A module can import another module
 using `import` expression. There 3 types of modules. Source modules, builtin
-modules and custom modules. Source module is in the form uGO code. Builtin
+modules and custom modules. Source module is in the form Gad code. Builtin
 module type is `map[string]Object`. Lastly, any value implementing Go
-`Importable` interface can be a module. `Import` method must return a valid uGO
+`Importable` interface can be a module. `Import` method must return a valid Gad
 Object or `[]byte`. Source module is called like a compiled function and
 returned value is stored for future use. Other module values are copied while
 importing in VM if `Copier` interface is implemented.
@@ -978,7 +978,7 @@ return func(x) {
 }
 ```
 
-In uGO, modules are very similar to functions.
+In Gad, modules are very similar to functions.
 
 * `import` expression loads the module code and execute it like a function.
 * Module should return a value using `return` statement.
@@ -995,7 +995,7 @@ In uGO, modules are very similar to functions.
 
 ## Comments
 
-Like Go, uGO supports line comments (`//...`) and block comments
+Like Go, Gad supports line comments (`//...`) and block comments
 (`/* ... */`).
 
 ```go
@@ -1008,14 +1008,14 @@ a := 5    // line comments
 
 ## Differences from Go
 
-Unlike Go, uGO does not have the following:
+Unlike Go, Gad does not have the following:
 
 * Imaginary values
 * Structs
 * Pointers
 * Channels
 * Goroutines
-* Tuple assignment (uGO supports [destructuring](destructuring.md) array)
+* Tuple assignment (Gad supports [destructuring](destructuring.md) array)
 * Switch statement
 * Goto statement
 * Defer statement
@@ -1024,8 +1024,8 @@ Unlike Go, uGO does not have the following:
 
 ## Interfaces
 
-uGO types implement `Object` interface. Any Go type implementing `Object`
-interface can be provided to uGO VM.
+Gad types implement `Object` interface. Any Go type implementing `Object`
+interface can be provided to Gad VM.
 
 ### Object interface
 
@@ -1105,7 +1105,7 @@ type Iterator interface {
 
 ### Copier interface
 
-Assignments to uGO values copy the values except array, map or bytes like Go.
+Assignments to Gad values copy the values except array, map or bytes like Go.
 `copy` builtin function returns the copy of a value if Copier interface is
 implemented by object. If not implemented, same object is returned which copies
 the value under the hood by Go.

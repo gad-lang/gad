@@ -2,16 +2,16 @@
 // Use of this source code is governed by a MIT License
 // that can be found in the LICENSE file.
 
-package ugo
+package gad
 
-//go:generate go run ./cmd/mkcallable -output zfuncs.go ugo.go
+//go:generate go run ./cmd/mkcallable -output zfuncs.go gad.go
 
 import (
 	"fmt"
 	"strconv"
 	"unicode/utf8"
 
-	"github.com/ozanh/ugo/registry"
+	"github.com/gad-lang/gad/registry"
 )
 
 const (
@@ -271,7 +271,7 @@ func ToInterface(o Object) (ret interface{}) {
 	return
 }
 
-// ToString will try to convert an Object to uGO string value.
+// ToString will try to convert an Object to Gad string value.
 func ToString(o Object) (v String, ok bool) {
 	if v, ok = o.(String); ok {
 		return
@@ -283,7 +283,7 @@ func ToString(o Object) (v String, ok bool) {
 	return
 }
 
-// ToBytes will try to convert an Object to uGO bytes value.
+// ToBytes will try to convert an Object to Gad bytes value.
 func ToBytes(o Object) (v Bytes, ok bool) {
 	if v, ok = o.(Bytes); ok {
 		return
@@ -295,7 +295,7 @@ func ToBytes(o Object) (v Bytes, ok bool) {
 	return
 }
 
-// ToInt will try to convert an Object to uGO int value.
+// ToInt will try to convert an Object to Gad int value.
 func ToInt(o Object) (v Int, ok bool) {
 	if v, ok = o.(Int); ok {
 		return
@@ -307,7 +307,7 @@ func ToInt(o Object) (v Int, ok bool) {
 	return
 }
 
-// ToUint will try to convert an Object to uGO uint value.
+// ToUint will try to convert an Object to Gad uint value.
 func ToUint(o Object) (v Uint, ok bool) {
 	if v, ok = o.(Uint); ok {
 		return
@@ -319,7 +319,7 @@ func ToUint(o Object) (v Uint, ok bool) {
 	return
 }
 
-// ToFloat will try to convert an Object to uGO float value.
+// ToFloat will try to convert an Object to Gad float value.
 func ToFloat(o Object) (v Float, ok bool) {
 	if v, ok = o.(Float); ok {
 		return
@@ -331,7 +331,7 @@ func ToFloat(o Object) (v Float, ok bool) {
 	return
 }
 
-// ToChar will try to convert an Object to uGO char value.
+// ToChar will try to convert an Object to Gad char value.
 func ToChar(o Object) (v Char, ok bool) {
 	if v, ok = o.(Char); ok {
 		return
@@ -343,7 +343,7 @@ func ToChar(o Object) (v Char, ok bool) {
 	return
 }
 
-// ToBool will try to convert an Object to uGO bool value.
+// ToBool will try to convert an Object to Gad bool value.
 func ToBool(o Object) (v Bool, ok bool) {
 	if v, ok = o.(Bool); ok {
 		return
@@ -353,19 +353,19 @@ func ToBool(o Object) (v Bool, ok bool) {
 	return
 }
 
-// ToArray will try to convert an Object to uGO array value.
+// ToArray will try to convert an Object to Gad array value.
 func ToArray(o Object) (v Array, ok bool) {
 	v, ok = o.(Array)
 	return
 }
 
-// ToMap will try to convert an Object to uGO map value.
+// ToMap will try to convert an Object to Gad map value.
 func ToMap(o Object) (v Map, ok bool) {
 	v, ok = o.(Map)
 	return
 }
 
-// ToSyncMap will try to convert an Object to uGO syncMap value.
+// ToSyncMap will try to convert an Object to Gad syncMap value.
 func ToSyncMap(o Object) (v *SyncMap, ok bool) {
 	v, ok = o.(*SyncMap)
 	return
@@ -528,38 +528,38 @@ func ToGoBool(o Object) (v bool, ok bool) {
 
 // builtin delete
 //
-//ugo:callable func(o Object, k string) (err error)
+//gad:callable func(o Object, k string) (err error)
 
 // builtin copy, len, error, typeName, bool, string, isInt, isUint
 // isFloat, isChar, isBool, isString, isBytes, isMap, isSyncMap, isArray
 // isUndefined, isFunction, isCallable, isIterable
 //
-//ugo:callable func(o Object) (ret Object)
+//gad:callable func(o Object) (ret Object)
 
 // builtin repeat
 //
-//ugo:callable func(o Object, n int) (ret Object, err error)
+//gad:callable func(o Object, n int) (ret Object, err error)
 
 // builtin :makeArray
 //
-//ugo:callable func(n int, o Object) (ret Object, err error)
+//gad:callable func(n int, o Object) (ret Object, err error)
 
 // builtin contains
 //
-//ugo:callable func(o Object, v Object) (ret Object, err error)
+//gad:callable func(o Object, v Object) (ret Object, err error)
 
 // builtin sort, sortReverse, int, uint, float, char, chars
 //
-//ugo:callable func(o Object) (ret Object, err error)
+//gad:callable func(o Object) (ret Object, err error)
 
 // builtin int
 //
-//ugo:callable func(v int64) (ret Object)
+//gad:callable func(v int64) (ret Object)
 
 // builtin uint
 //
-//ugo:callable func(v uint64) (ret Object)
+//gad:callable func(v uint64) (ret Object)
 
 // builtin float
 //
-//ugo:callable func(v float64) (ret Object)
+//gad:callable func(v float64) (ret Object)

@@ -5,72 +5,72 @@ package stdlib
 // time module IsTime
 // json module Marshal, Quote, NoQuote, NoEscape
 //
-//ugo:callable func(o ugo.Object) (ret ugo.Object)
+//gad:callable func(o gad.Object) (ret gad.Object)
 
 // time module MountString, WeekdayString
 //
-//ugo:callable func(i1 int) (ret ugo.Object)
+//gad:callable func(i1 int) (ret gad.Object)
 
 // time module DurationString, DurationHours, DurationMinutes, DurationSeconds
 // DurationMilliseconds, DurationMicroseconds, DurationNanoseconds
 //
-//ugo:callable func(i1 int64) (ret ugo.Object)
+//gad:callable func(i1 int64) (ret gad.Object)
 
 // time module Sleep
 //
-//ugo:callable func(i1 int64)
+//gad:callable func(i1 int64)
 
 // time module ParseDuration, LoadLocation
 //
-//ugo:callable func(s string) (ret ugo.Object, err error)
+//gad:callable func(s string) (ret gad.Object, err error)
 
 // time module FixedZone
 // strings module Repeat
 //
-//ugo:callable func(s string, i1 int) (ret ugo.Object)
+//gad:callable func(s string, i1 int) (ret gad.Object)
 
 // time module Time, Now
 //
-//ugo:callable func() (ret ugo.Object)
+//gad:callable func() (ret gad.Object)
 
 // time module DurationRound, DurationTruncate
 //
-//ugo:callable func(i1 int64, i2 int64) (ret ugo.Object)
+//gad:callable func(i1 int64, i2 int64) (ret gad.Object)
 
 // json module Unmarshal, RawMessage, Valid
 //
-//ugo:callable func(b []byte) (ret ugo.Object)
+//gad:callable func(b []byte) (ret gad.Object)
 
 // json module MarshalIndent
 //
-//ugo:callable func(o ugo.Object, s1 string, s2 string) (ret ugo.Object)
+//gad:callable func(o gad.Object, s1 string, s2 string) (ret gad.Object)
 
 // json module Compact
 //
-//ugo:callable func(p []byte, b bool) (ret ugo.Object)
+//gad:callable func(p []byte, b bool) (ret gad.Object)
 
 // json module Indent
 //
-//ugo:callable func(p []byte, s1 string, s2 string) (ret ugo.Object)
+//gad:callable func(p []byte, s1 string, s2 string) (ret gad.Object)
 
 // strings module Contains, ContainsAny, Count, EqualFold, HasPrefix, HasSuffix
 // Index, IndexAny, LastIndex, LastIndexAny, Trim, TrimLeft, TrimPrefix,
 // TrimRight, TrimSuffix
 //
-//ugo:callable func(s1 string, s2 string) (ret ugo.Object)
+//gad:callable func(s1 string, s2 string) (ret gad.Object)
 
 // strings module Fields, Title, ToLower, ToTitle, ToUpper, TrimSpace
 //
-//ugo:callable func(s string) (ret ugo.Object)
+//gad:callable func(s string) (ret gad.Object)
 
 // strings module ContainsChar, IndexByte, IndexChar, LastIndexByte
 //
-//ugo:callable func(s string, r rune) (ret ugo.Object)
+//gad:callable func(s string, r rune) (ret gad.Object)
 
 // strings module Join
 //
-//ugo:callable func(arr ugo.Array, s string) (ret ugo.Object)
+//gad:callable func(arr gad.Array, s string) (ret gad.Object)
 
 // misc. functions
 //
-//ugo:callable func(o ugo.Object, i int64) (ret ugo.Object, err error)
+//gad:callable func(o gad.Object, i int64) (ret gad.Object, err error)

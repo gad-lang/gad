@@ -15,7 +15,7 @@ package parser
 import (
 	"strings"
 
-	"github.com/ozanh/ugo/token"
+	"github.com/gad-lang/gad/token"
 )
 
 // Stmt represents a statement in the AST.

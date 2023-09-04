@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	. "github.com/ozanh/ugo"
-	. "github.com/ozanh/ugo/stdlib/strings"
+	. "github.com/gad-lang/gad"
+	. "github.com/gad-lang/gad/stdlib/strings"
 )
 
 func TestModuleStrings(t *testing.T) {
@@ -50,10 +50,10 @@ func TestModuleStrings(t *testing.T) {
 	require.EqualValues(t, 0, ret)
 
 	equalFold := Module["EqualFold"]
-	ret, err = equalFold.Call(String("UGO"), String("ugo"))
+	ret, err = equalFold.Call(String("GAD"), String("gad"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
-	ret, err = equalFold.Call(String("UGO"), String("go"))
+	ret, err = equalFold.Call(String("GAD"), String("go"))
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
@@ -479,12 +479,12 @@ func TestScript(t *testing.T) {
 			func(c){
 				if c == 't' { return 'I' }
 				if c == 'e' { return '❤' }
-				if c == 'n' { return 'u' }
-				if c == 'g' { return 'G' }
-				if c == 'o' { return 'O' }
+				if c == 'n' { return 'G' }
+				if c == 'g' { return 'a' }
+				if c == 'o' { return 'd' }
 				return c
 			},
-			"tengo")`, e: String("I❤uGO")},
+			"tengo")`, e: String("I❤Gad")},
 		{s: `strings.Map(func(c){return c}, "test")`,
 			m: catch, e: String("test")},
 

@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ozanh/ugo/parser"
-	"github.com/ozanh/ugo/token"
+	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/token"
 )
 
 var testFileSet = parser.NewFileSet()
@@ -170,7 +170,7 @@ func TestScanner_Scan(t *testing.T) {
 			expectedLiteral = string(parser.StripCR([]byte(tc.literal),
 				tc.literal[1] == '*'))
 
-			//-style comment literal doesn't contain newline
+			// -style comment literal doesn't contain newline
 			if expectedLiteral[1] == '/' {
 				expectedLiteral = expectedLiteral[:len(expectedLiteral)-1]
 			}

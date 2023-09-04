@@ -2,15 +2,15 @@
 // Use of this source code is governed by a MIT License
 // that can be found in the LICENSE file.
 
-package ugo
+package gad
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/ozanh/ugo/internal/compat"
-	"github.com/ozanh/ugo/token"
+	"github.com/gad-lang/gad/internal/compat"
+	"github.com/gad-lang/gad/token"
 )
 
 // Int represents signed integer values and implements Object interface.

@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	. "github.com/ozanh/ugo"
-	. "github.com/ozanh/ugo/stdlib/json"
+	. "github.com/gad-lang/gad"
+	. "github.com/gad-lang/gad/stdlib/json"
 )
 
 func TestModuleTypes(t *testing.T) {

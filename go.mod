@@ -1,6 +1,6 @@
-module github.com/ozanh/ugo
+module github.com/gad-lang/gad
 
-go 1.15
+go 1.20
 
 require (
 	github.com/peterh/liner v1.2.2
@@ -8,6 +8,11 @@ require (
 )
 
 require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
-	golang.org/x/sys v0.7.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+	honnef.co/go/tools v0.4.5 // indirect
 )

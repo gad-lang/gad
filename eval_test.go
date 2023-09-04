@@ -1,4 +1,4 @@
-package ugo_test
+package gad_test
 
 import (
 	"context"
@@ -7,8 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	. "github.com/ozanh/ugo"
-	ugotime "github.com/ozanh/ugo/stdlib/time"
+	gadtime "github.com/gad-lang/gad/stdlib/time"
+
+	. "github.com/gad-lang/gad"
 )
 
 func TestEval(t *testing.T) {
@@ -39,17 +40,17 @@ func TestEval(t *testing.T) {
 			name: "import",
 			opts: CompilerOptions{
 				ModuleMap: NewModuleMap().
-					AddBuiltinModule("time", ugotime.Module),
+					AddBuiltinModule("time", gadtime.Module),
 			},
 			sr: []scriptResult{
 				{`time := import("time")`, Undefined},
-				{`time.Second`, ugotime.Module["Second"]},
+				{`time.Second`, gadtime.Module["Second"]},
 				{`tmp := time.Second`, Undefined},
-				{`tmp`, ugotime.Module["Second"]},
+				{`tmp`, gadtime.Module["Second"]},
 				{`time.Second = ""`, Undefined},
 				{`time.Second`, String("")},
 				{`time.Second = tmp`, Undefined},
-				{`time.Second`, ugotime.Module["Second"]},
+				{`time.Second`, gadtime.Module["Second"]},
 			},
 		},
 		{

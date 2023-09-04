@@ -1,4 +1,4 @@
-package ugo_test
+package gad_test
 
 import (
 	"bytes"
@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ozanh/ugo/tests"
-	"github.com/ozanh/ugo/token"
+	"github.com/gad-lang/gad/tests"
+	"github.com/gad-lang/gad/token"
 
-	. "github.com/ozanh/ugo"
+	. "github.com/gad-lang/gad"
 )
 
 func makeInst(op Opcode, args ...int) []byte {

@@ -1,4 +1,4 @@
-# uGO Runtime Types
+# Gad Runtime Types
 
 - **int**: signed 64bit integer (`int64` in Go)
 - **uint**: unsigned 64bit integer (`uint64` in Go)
@@ -12,7 +12,7 @@
 - **error**: an error with a string Name and Message
 - **undefined**: undefined
 
-Note: uGO does not have `byte` type. `uint`, `int` or `string` values can be
+Note: Gad does not have `byte` type. `uint`, `int` or `string` values can be
 used to create/modify `bytes` values.
 
 ## Go Type Definitions

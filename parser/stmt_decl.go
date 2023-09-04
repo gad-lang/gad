@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ozanh/ugo/token"
+	"github.com/gad-lang/gad/token"
 )
 
 // ----------------------------------------------------------------------------

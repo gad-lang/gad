@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/ozanh/ugo"
-	"github.com/ozanh/ugo/registry"
+	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/registry"
 )
 
 func init() {
@@ -18,7 +18,7 @@ func init() {
 		func(in interface{}) (interface{}, bool) {
 			rm := in.(json.RawMessage)
 			if rm == nil {
-				return &RawMessage{Value: ugo.Bytes{}}, true
+				return &RawMessage{Value: gad.Bytes{}}, true
 			}
 			return &RawMessage{Value: rm}, true
 		},
@@ -32,7 +32,7 @@ func init() {
 	)
 }
 
-// ugo:doc
+// gad:doc
 // ## Types
 // ### encoderOptions
 //
@@ -42,8 +42,8 @@ func init() {
 // // EncoderOptions represents the encoding options (quote, html escape) to
 // // Marshal any Object.
 // type EncoderOptions struct {
-// 	ugo.ObjectImpl
-// 	Value      ugo.Object
+// 	gad.ObjectImpl
+// 	Value      gad.Object
 // 	Quote      bool
 // 	EscapeHTML bool
 // }
@@ -52,24 +52,24 @@ func init() {
 // EncoderOptions represents the encoding options (quote, html escape) to
 // Marshal any Object.
 type EncoderOptions struct {
-	ugo.ObjectImpl
-	Value      ugo.Object
+	gad.ObjectImpl
+	Value      gad.Object
 	Quote      bool
 	EscapeHTML bool
 }
 
-// TypeName implements ugo.Object interface.
+// TypeName implements gad.Object interface.
 func (eo *EncoderOptions) TypeName() string {
 	return "encoderOptions"
 }
 
-// String implements ugo.Object interface.
+// String implements gad.Object interface.
 func (eo *EncoderOptions) String() string {
 	return fmt.Sprintf("encoderOptions{Quote:%t EscapeHTML:%t Value:%s}",
 		eo.Quote, eo.EscapeHTML, eo.Value)
 }
 
-// ugo:doc
+// gad:doc
 // #### encoderOptions Getters
 //
 //
@@ -79,22 +79,22 @@ func (eo *EncoderOptions) String() string {
 // |.Quote     | bool        |
 // |.EscapeHTML| bool        |
 
-// IndexGet implements ugo.Object interface.
-func (eo *EncoderOptions) IndexGet(index ugo.Object) (ret ugo.Object, err error) {
+// IndexGet implements gad.Object interface.
+func (eo *EncoderOptions) IndexGet(index gad.Object) (ret gad.Object, err error) {
 	switch index.String() {
 	case "Value":
 		ret = eo.Value
 	case "Quote":
-		ret = ugo.Bool(eo.Quote)
+		ret = gad.Bool(eo.Quote)
 	case "EscapeHTML":
-		ret = ugo.Bool(eo.EscapeHTML)
+		ret = gad.Bool(eo.EscapeHTML)
 	default:
-		ret = ugo.Undefined
+		ret = gad.Undefined
 	}
 	return
 }
 
-// ugo:doc
+// gad:doc
 // #### encoderOptions Setters
 //
 //
@@ -104,8 +104,8 @@ func (eo *EncoderOptions) IndexGet(index ugo.Object) (ret ugo.Object, err error)
 // |.Quote     | bool        |
 // |.EscapeHTML| bool        |
 
-// IndexSet implements ugo.Object interface.
-func (eo *EncoderOptions) IndexSet(index, value ugo.Object) error {
+// IndexSet implements gad.Object interface.
+func (eo *EncoderOptions) IndexSet(index, value gad.Object) error {
 	switch index.String() {
 	case "Value":
 		eo.Value = value
@@ -114,12 +114,12 @@ func (eo *EncoderOptions) IndexSet(index, value ugo.Object) error {
 	case "EscapeHTML":
 		eo.EscapeHTML = !value.IsFalsy()
 	default:
-		return ugo.ErrInvalidIndex
+		return gad.ErrInvalidIndex
 	}
 	return nil
 }
 
-// ugo:doc
+// gad:doc
 // ## Types
 // ### rawMessage
 //
@@ -129,7 +129,7 @@ func (eo *EncoderOptions) IndexSet(index, value ugo.Object) error {
 // // RawMessage represents raw encoded json message to directly use value of
 // // MarshalJSON without encoding.
 // type RawMessage struct {
-// 	ugo.ObjectImpl
+// 	gad.ObjectImpl
 // 	Value []byte
 // }
 // ```
@@ -137,18 +137,18 @@ func (eo *EncoderOptions) IndexSet(index, value ugo.Object) error {
 // RawMessage represents raw encoded json message to directly use value of
 // MarshalJSON without encoding.
 type RawMessage struct {
-	ugo.ObjectImpl
+	gad.ObjectImpl
 	Value []byte
 }
 
 var _ Marshaler = (*RawMessage)(nil)
 
-// TypeName implements ugo.Object interface.
+// TypeName implements gad.Object interface.
 func (rm *RawMessage) TypeName() string {
 	return "rawMessage"
 }
 
-// String implements ugo.Object interface.
+// String implements gad.Object interface.
 func (rm *RawMessage) String() string {
 	return string(rm.Value)
 }
@@ -162,7 +162,7 @@ func (rm *RawMessage) MarshalJSON() ([]byte, error) {
 	return rm.Value, nil
 }
 
-// ugo:doc
+// gad:doc
 // #### rawMessage Getters
 //
 //
@@ -170,18 +170,18 @@ func (rm *RawMessage) MarshalJSON() ([]byte, error) {
 // |:----------|:------------|
 // |.Value     | bytes       |
 
-// IndexGet implements ugo.Object interface.
-func (rm *RawMessage) IndexGet(index ugo.Object) (ret ugo.Object, err error) {
+// IndexGet implements gad.Object interface.
+func (rm *RawMessage) IndexGet(index gad.Object) (ret gad.Object, err error) {
 	switch index.String() {
 	case "Value":
-		ret = ugo.Bytes(rm.Value)
+		ret = gad.Bytes(rm.Value)
 	default:
-		ret = ugo.Undefined
+		ret = gad.Undefined
 	}
 	return
 }
 
-// ugo:doc
+// gad:doc
 // #### rawMessage Setters
 //
 //
@@ -189,17 +189,17 @@ func (rm *RawMessage) IndexGet(index ugo.Object) (ret ugo.Object, err error) {
 // |:----------|:------------|
 // |.Value     | bytes       |
 
-// IndexSet implements ugo.Object interface.
-func (rm *RawMessage) IndexSet(index, value ugo.Object) error {
+// IndexSet implements gad.Object interface.
+func (rm *RawMessage) IndexSet(index, value gad.Object) error {
 	switch index.String() {
 	case "Value":
-		if v, ok := ugo.ToBytes(value); ok {
+		if v, ok := gad.ToBytes(value); ok {
 			rm.Value = v
 		} else {
-			return ugo.ErrType
+			return gad.ErrType
 		}
 	default:
-		return ugo.ErrInvalidIndex
+		return gad.ErrInvalidIndex
 	}
 	return nil
 }

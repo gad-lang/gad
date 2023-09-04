@@ -15,7 +15,7 @@ package parser
 import (
 	"strings"
 
-	"github.com/ozanh/ugo/token"
+	"github.com/gad-lang/gad/token"
 )
 
 // Expr represents an expression node in the AST.

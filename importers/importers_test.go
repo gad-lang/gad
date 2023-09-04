@@ -8,75 +8,75 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gad-lang/gad"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ozanh/ugo"
-	"github.com/ozanh/ugo/importers"
+	"github.com/gad-lang/gad/importers"
 )
 
 func TestFileImporter(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	orig := ugo.PrintWriter
-	ugo.PrintWriter = buf
+	orig := gad.PrintWriter
+	gad.PrintWriter = buf
 	defer func() {
-		ugo.PrintWriter = orig
+		gad.PrintWriter = orig
 	}()
 
 	files := map[string]string{
-		"./test1.ugo": `
-import("./test2.ugo")
+		"./test1.gad": `
+import("./test2.gad")
 println("test1")
 `,
-		"./test2.ugo": `
-import("./foo/test3.ugo")
+		"./test2.gad": `
+import("./foo/test3.gad")
 println("test2")
 `,
-		"./foo/test3.ugo": `
-import("./test4.ugo")
+		"./foo/test3.gad": `
+import("./test4.gad")
 println("test3")
 `,
-		"./foo/test4.ugo": `
-import("./bar/test5.ugo")
+		"./foo/test4.gad": `
+import("./bar/test5.gad")
 println("test4")
 `,
-		"./foo/bar/test5.ugo": `
-import("../test6.ugo")
+		"./foo/bar/test5.gad": `
+import("../test6.gad")
 println("test5")
 `,
-		"./foo/test6.ugo": `
+		"./foo/test6.gad": `
 import("sourcemod")
 println("test6")
 `,
-		"./test7.ugo": `
+		"./test7.gad": `
 println("test7")
 `,
 	}
 
 	script := `
-import("test1.ugo")
+import("test1.gad")
 println("main")
 
 // modules have been imported already, so these imports will not trigger a print.
-import("test1.ugo")
-import("test2.ugo")
-import("foo/test3.ugo")
-import("foo/test4.ugo")
-import("foo/bar/test5.ugo")
-import("foo/test6.ugo")
+import("test1.gad")
+import("test2.gad")
+import("foo/test3.gad")
+import("foo/test4.gad")
+import("foo/bar/test5.gad")
+import("foo/test6.gad")
 
 func() {
-	import("test1.ugo")
-	import("test2.ugo")
-	import("foo/test3.ugo")
-	import("foo/test4.ugo")
-	import("foo/bar/test5.ugo")
-	import("foo/test6.ugo")
+	import("test1.gad")
+	import("test2.gad")
+	import("foo/test3.gad")
+	import("foo/test4.gad")
+	import("foo/bar/test5.gad")
+	import("foo/test6.gad")
 }()
 
 `
-	moduleMap := ugo.NewModuleMap().
+	moduleMap := gad.NewModuleMap().
 		AddSourceModule("sourcemod", []byte(`
-import("./test7.ugo")
+import("./test7.gad")
 println("sourcemod")`))
 
 	t.Run("default", func(t *testing.T) {
@@ -86,14 +86,14 @@ println("sourcemod")`))
 
 		createModules(t, tempDir, files)
 
-		opts := ugo.DefaultCompilerOptions
+		opts := gad.DefaultCompilerOptions
 		opts.ModuleMap = moduleMap.Copy()
 		opts.ModuleMap.SetExtImporter(&importers.FileImporter{WorkDir: tempDir})
-		bc, err := ugo.Compile([]byte(script), opts)
+		bc, err := gad.Compile([]byte(script), opts)
 		require.NoError(t, err)
-		ret, err := ugo.NewVM(bc).Run(nil)
+		ret, err := gad.NewVM(bc).Run(nil)
 		require.NoError(t, err)
-		require.Equal(t, ugo.Undefined, ret)
+		require.Equal(t, gad.Undefined, ret)
 		require.Equal(t,
 			"test7\nsourcemod\ntest6\ntest5\ntest4\ntest3\ntest2\ntest1\nmain\n",
 			strings.ReplaceAll(buf.String(), "\r", ""),
@@ -103,7 +103,7 @@ println("sourcemod")`))
 	t.Run("shebang", func(t *testing.T) {
 		buf.Reset()
 
-		const shebangline = "#!/usr/bin/ugo\n"
+		const shebangline = "#!/usr/bin/gad\n"
 
 		mfiles := make(map[string]string)
 		for k, v := range files {
@@ -114,7 +114,7 @@ println("sourcemod")`))
 
 		createModules(t, tempDir, mfiles)
 
-		opts := ugo.DefaultCompilerOptions
+		opts := gad.DefaultCompilerOptions
 		opts.ModuleMap = moduleMap.Copy()
 		opts.ModuleMap.SetExtImporter(
 			&importers.FileImporter{
@@ -126,11 +126,11 @@ println("sourcemod")`))
 		script := append([]byte(shebangline), script...)
 		importers.Shebang2Slashes(script)
 
-		bc, err := ugo.Compile(script, opts)
+		bc, err := gad.Compile(script, opts)
 		require.NoError(t, err)
-		ret, err := ugo.NewVM(bc).Run(nil)
+		ret, err := gad.NewVM(bc).Run(nil)
 		require.NoError(t, err)
-		require.Equal(t, ugo.Undefined, ret)
+		require.Equal(t, gad.Undefined, ret)
 		require.Equal(t,
 			"test7\nsourcemod\ntest6\ntest5\ntest4\ntest3\ntest2\ntest1\nmain\n",
 			strings.ReplaceAll(buf.String(), "\r", ""),

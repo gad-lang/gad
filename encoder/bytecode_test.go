@@ -7,44 +7,44 @@ import (
 	"testing"
 	gotime "time"
 
+	"github.com/gad-lang/gad"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ozanh/ugo"
-	"github.com/ozanh/ugo/stdlib/fmt"
-	"github.com/ozanh/ugo/stdlib/json"
-	"github.com/ozanh/ugo/stdlib/strings"
-	"github.com/ozanh/ugo/stdlib/time"
-	"github.com/ozanh/ugo/tests"
+	"github.com/gad-lang/gad/stdlib/fmt"
+	"github.com/gad-lang/gad/stdlib/json"
+	"github.com/gad-lang/gad/stdlib/strings"
+	"github.com/gad-lang/gad/stdlib/time"
+	"github.com/gad-lang/gad/tests"
 
-	. "github.com/ozanh/ugo/encoder"
+	. "github.com/gad-lang/gad/encoder"
 )
 
-var baz ugo.Object = ugo.String("baz")
-var testObjects = []ugo.Object{
-	ugo.Undefined,
-	ugo.Int(-1), ugo.Int(0), ugo.Int(1),
-	ugo.Uint(0), ^ugo.Uint(0),
-	ugo.Char('x'),
-	ugo.Bool(true), ugo.Bool(false),
-	ugo.Float(0), ugo.Float(1.2),
-	ugo.String(""), ugo.String("abc"),
-	ugo.Bytes{}, ugo.Bytes("foo"),
-	ugo.ErrIndexOutOfBounds,
-	&ugo.RuntimeError{Err: ugo.ErrInvalidIndex},
-	ugo.Map{"key": &ugo.Function{Name: "f"}},
-	&ugo.SyncMap{Value: ugo.Map{"k": ugo.String("")}},
-	ugo.Array{ugo.Undefined, ugo.True, ugo.False},
+var baz gad.Object = gad.String("baz")
+var testObjects = []gad.Object{
+	gad.Undefined,
+	gad.Int(-1), gad.Int(0), gad.Int(1),
+	gad.Uint(0), ^gad.Uint(0),
+	gad.Char('x'),
+	gad.Bool(true), gad.Bool(false),
+	gad.Float(0), gad.Float(1.2),
+	gad.String(""), gad.String("abc"),
+	gad.Bytes{}, gad.Bytes("foo"),
+	gad.ErrIndexOutOfBounds,
+	&gad.RuntimeError{Err: gad.ErrInvalidIndex},
+	gad.Map{"key": &gad.Function{Name: "f"}},
+	&gad.SyncMap{Value: gad.Map{"k": gad.String("")}},
+	gad.Array{gad.Undefined, gad.True, gad.False},
 	&time.Time{Value: gotime.Time{}},
-	&json.EncoderOptions{Value: ugo.Int(1)},
-	&json.RawMessage{Value: ugo.Bytes("bar")},
-	&ugo.ObjectPtr{Value: &baz},
+	&json.EncoderOptions{Value: gad.Int(1)},
+	&json.RawMessage{Value: gad.Bytes("bar")},
+	&gad.ObjectPtr{Value: &baz},
 }
 
 func TestBytecode_Encode(t *testing.T) {
-	testBytecodeSerialization(t, &ugo.Bytecode{Main: compFunc(nil)}, nil)
+	testBytecodeSerialization(t, &gad.Bytecode{Main: compFunc(nil)}, nil)
 
 	testBytecodeSerialization(t,
-		&ugo.Bytecode{Constants: testObjects,
+		&gad.Bytecode{Constants: testObjects,
 			Main: compFunc(
 				[]byte("test instructions"),
 				withLocals(1), withParams(1), withVariadic(),
@@ -57,14 +57,14 @@ func TestBytecode_Encode(t *testing.T) {
 func TestBytecode_file(t *testing.T) {
 	temp := t.TempDir()
 
-	bc := &ugo.Bytecode{Constants: testObjects,
+	bc := &gad.Bytecode{Constants: testObjects,
 		Main: compFunc(
 			[]byte("test instructions"),
 			withLocals(4), withParams(0), withVariadic(),
 			withSourceMap(map[int]int{0: 1, 1: 2}),
 		),
 	}
-	f, err := ioutil.TempFile(temp, "mod.ugoc")
+	f, err := ioutil.TempFile(temp, "mod.gadc")
 	require.NoError(t, err)
 	defer f.Close()
 
@@ -95,8 +95,8 @@ v = int(fmt.Sprintf("%d", v))
 return v*time.Second/time.Second // 1
 `
 
-	opts := ugo.DefaultCompilerOptions
-	opts.ModuleMap = ugo.NewModuleMap().
+	opts := gad.DefaultCompilerOptions
+	opts.ModuleMap = gad.NewModuleMap().
 		AddBuiltinModule("fmt", fmt.Module).
 		AddBuiltinModule("strings", strings.Module).
 		AddBuiltinModule("time", time.Module).
@@ -110,15 +110,15 @@ return {
 
 	mmCopy := opts.ModuleMap.Copy()
 
-	bc, err := ugo.Compile([]byte(src), opts)
+	bc, err := gad.Compile([]byte(src), opts)
 	require.NoError(t, err)
 
-	wantRet, err := ugo.NewVM(bc).Run(nil)
+	wantRet, err := gad.NewVM(bc).Run(nil)
 	require.NoError(t, err)
-	require.Equal(t, ugo.Int(1), wantRet)
+	require.Equal(t, gad.Int(1), wantRet)
 
 	temp := t.TempDir()
-	f, err := ioutil.TempFile(temp, "program.ugoc")
+	f, err := ioutil.TempFile(temp, "program.gadc")
 	require.NoError(t, err)
 	defer f.Close()
 
@@ -137,37 +137,37 @@ return {
 	_, err = f.Seek(0, io.SeekStart)
 	require.NoError(t, err)
 
-	var gotBc *ugo.Bytecode
+	var gotBc *gad.Bytecode
 	logmicros(t, "decode time: %d microsecs", func() {
 		gotBc, err = DecodeBytecodeFrom(f, mmCopy)
 	})
 	require.NoError(t, err)
 	require.NotNil(t, gotBc)
 
-	var gotRet ugo.Object
+	var gotRet gad.Object
 	logmicros(t, "run time: %d microsecs", func() {
-		gotRet, err = ugo.NewVM(gotBc).Run(nil)
+		gotRet, err = gad.NewVM(gotBc).Run(nil)
 	})
 	require.NoError(t, err)
 
 	require.Equal(t, wantRet, gotRet)
 }
 
-func testBytecodeSerialization(t *testing.T, b *ugo.Bytecode, modules *ugo.ModuleMap) {
+func testBytecodeSerialization(t *testing.T, b *gad.Bytecode, modules *gad.ModuleMap) {
 	t.Helper()
 
 	var buf bytes.Buffer
 	err := (*Bytecode)(b).Encode(&buf)
 	require.NoError(t, err)
 
-	r := &ugo.Bytecode{}
+	r := &gad.Bytecode{}
 	err = (*Bytecode)(r).Decode(bytes.NewReader(buf.Bytes()), modules)
 	require.NoError(t, err)
 
 	testBytecodesEqual(t, b, r)
 }
 
-func testBytecodesEqual(t *testing.T, want, got *ugo.Bytecode) {
+func testBytecodesEqual(t *testing.T, want, got *gad.Bytecode) {
 	t.Helper()
 
 	require.Equal(t, want.FileSet, got.FileSet)

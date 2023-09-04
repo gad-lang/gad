@@ -1,9 +1,9 @@
-package ugo_test
+package gad_test
 
 import (
 	"testing"
 
-	. "github.com/ozanh/ugo"
+	. "github.com/gad-lang/gad"
 )
 
 func TestBuiltinTypes(t *testing.T) {

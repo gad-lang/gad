@@ -2,8 +2,8 @@
 .*
 
 # repl binary
-/ugo
-/cmd/ugo/ugo
+/gad
+/cmd/gad/gad
 
 # Binaries for programs and plugins
 *.exe

@@ -21,11 +21,11 @@ import (
 	"strconv"
 	"unicode/utf8"
 
-	"github.com/ozanh/ugo"
+	"github.com/gad-lang/gad"
 )
 
 // Marshal returns the JSON encoding of v.
-func Marshal(v ugo.Object) ([]byte, error) {
+func Marshal(v gad.Object) ([]byte, error) {
 	e := newEncodeState()
 
 	err := e.marshal(v, encOpts{escapeHTML: true})
@@ -40,7 +40,7 @@ func Marshal(v ugo.Object) ([]byte, error) {
 // MarshalIndent is like Marshal but applies Indent to format the output.
 // Each JSON element in the output will begin on a new line beginning with prefix
 // followed by one or more copies of indent according to the indentation nesting.
-func MarshalIndent(v ugo.Object, prefix, indent string) ([]byte, error) {
+func MarshalIndent(v gad.Object, prefix, indent string) ([]byte, error) {
 	b, err := Marshal(v)
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ type Marshaler interface {
 // An UnsupportedValueError is returned by Marshal when attempting
 // to encode an unsupported value.
 type UnsupportedValueError struct {
-	Object ugo.Object
+	Object gad.Object
 	Str    string
 }
 
@@ -72,7 +72,7 @@ func (e *UnsupportedValueError) Error() string {
 
 // A MarshalerError represents an error from calling a MarshalJSON or MarshalText method.
 type MarshalerError struct {
-	Object     ugo.Object
+	Object     gad.Object
 	Err        error
 	sourceFunc string
 }
@@ -116,7 +116,7 @@ func newEncodeState() *encodeState {
 // can distinguish intentional panics from this package.
 type jsonError struct{ error }
 
-func (e *encodeState) marshal(v ugo.Object, opts encOpts) (err error) {
+func (e *encodeState) marshal(v gad.Object, opts encOpts) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if je, ok := r.(jsonError); ok {
@@ -135,7 +135,7 @@ func (e *encodeState) error(err error) {
 	panic(jsonError{err})
 }
 
-func (e *encodeState) encode(v ugo.Object, opts encOpts) {
+func (e *encodeState) encode(v gad.Object, opts encOpts) {
 	objectEncoder(v)(e, v, opts)
 }
 
@@ -146,34 +146,34 @@ type encOpts struct {
 	escapeHTML bool
 }
 
-type encoderFunc func(e *encodeState, v ugo.Object, opts encOpts)
+type encoderFunc func(e *encodeState, v gad.Object, opts encOpts)
 
-// objectEncoder constructs an encoderFunc for a ugo.Object.
-func objectEncoder(v ugo.Object) encoderFunc {
+// objectEncoder constructs an encoderFunc for a gad.Object.
+func objectEncoder(v gad.Object) encoderFunc {
 	switch v.(type) {
-	case ugo.Bool:
+	case gad.Bool:
 		return boolEncoder
-	case ugo.Int:
+	case gad.Int:
 		return intEncoder
-	case ugo.Uint:
+	case gad.Uint:
 		return uintEncoder
-	case ugo.Float:
+	case gad.Float:
 		return floatEncoder
-	case ugo.String:
+	case gad.String:
 		return stringEncoder
-	case ugo.Bytes:
+	case gad.Bytes:
 		return bytesEncoder
-	case ugo.Map, *ugo.SyncMap:
+	case gad.Map, *gad.SyncMap:
 		return mapEncoder
-	case ugo.Array:
+	case gad.Array:
 		return arrayEncoder
-	case ugo.Char:
+	case gad.Char:
 		return charEncoder
 	case *EncoderOptions:
 		return optionsEncoder
-	case *ugo.ObjectPtr:
+	case *gad.ObjectPtr:
 		return objectPtrEncoder
-	case *ugo.UndefinedType:
+	case *gad.UndefinedType:
 		return invalidValueEncoder
 	case encoding.TextMarshaler:
 		return textMarshalerEncoder
@@ -184,23 +184,23 @@ func objectEncoder(v ugo.Object) encoderFunc {
 	}
 }
 
-func invalidValueEncoder(e *encodeState, _ ugo.Object, _ encOpts) {
+func invalidValueEncoder(e *encodeState, _ gad.Object, _ encOpts) {
 	e.WriteString("null")
 }
 
-func noopEncoder(_ *encodeState, _ ugo.Object, _ encOpts) {}
+func noopEncoder(_ *encodeState, _ gad.Object, _ encOpts) {}
 
-func optionsEncoder(e *encodeState, v ugo.Object, opts encOpts) {
+func optionsEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	opts.quoted = v.(*EncoderOptions).Quote
 	opts.escapeHTML = v.(*EncoderOptions).EscapeHTML
 	e.encode(v.(*EncoderOptions).Value, opts)
 }
 
-func boolEncoder(e *encodeState, v ugo.Object, opts encOpts) {
+func boolEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	if opts.quoted {
 		e.WriteByte('"')
 	}
-	if v.(ugo.Bool) {
+	if v.(gad.Bool) {
 		e.WriteString("true")
 	} else {
 		e.WriteString("false")
@@ -210,8 +210,8 @@ func boolEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 	}
 }
 
-func intEncoder(e *encodeState, v ugo.Object, opts encOpts) {
-	b := strconv.AppendInt(e.scratch[:0], int64(v.(ugo.Int)), 10)
+func intEncoder(e *encodeState, v gad.Object, opts encOpts) {
+	b := strconv.AppendInt(e.scratch[:0], int64(v.(gad.Int)), 10)
 	if opts.quoted {
 		e.WriteByte('"')
 	}
@@ -221,8 +221,8 @@ func intEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 	}
 }
 
-func uintEncoder(e *encodeState, v ugo.Object, opts encOpts) {
-	b := strconv.AppendUint(e.scratch[:0], uint64(v.(ugo.Uint)), 10)
+func uintEncoder(e *encodeState, v gad.Object, opts encOpts) {
+	b := strconv.AppendUint(e.scratch[:0], uint64(v.(gad.Uint)), 10)
 	if opts.quoted {
 		e.WriteByte('"')
 	}
@@ -232,8 +232,8 @@ func uintEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 	}
 }
 
-func floatEncoder(e *encodeState, v ugo.Object, opts encOpts) {
-	f := float64(v.(ugo.Float))
+func floatEncoder(e *encodeState, v gad.Object, opts encOpts) {
+	f := float64(v.(gad.Float))
 	if math.IsInf(f, 0) || math.IsNaN(f) {
 		e.error(&UnsupportedValueError{v, strconv.FormatFloat(f, 'g', -1, 64)})
 	}
@@ -271,8 +271,8 @@ func floatEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 	}
 }
 
-func charEncoder(e *encodeState, v ugo.Object, opts encOpts) {
-	b := strconv.AppendInt(e.scratch[:0], int64(v.(ugo.Char)), 10)
+func charEncoder(e *encodeState, v gad.Object, opts encOpts) {
+	b := strconv.AppendInt(e.scratch[:0], int64(v.(gad.Char)), 10)
 	if opts.quoted {
 		e.WriteByte('"')
 	}
@@ -282,7 +282,7 @@ func charEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 	}
 }
 
-func stringEncoder(e *encodeState, v ugo.Object, opts encOpts) {
+func stringEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	if opts.quoted {
 		e2 := newEncodeState()
 		// Since we encode the string twice, we only need to escape HTML
@@ -294,7 +294,7 @@ func stringEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 	}
 }
 
-func mapEncoder(e *encodeState, v ugo.Object, opts encOpts) {
+func mapEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	if v == nil {
 		e.WriteString("null")
 		return
@@ -302,7 +302,7 @@ func mapEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 	if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
 		// Start checking if we've run into a pointer cycle.
 		var ptr interface{}
-		if _, ok := v.(ugo.Map); ok {
+		if _, ok := v.(gad.Map); ok {
 			ptr = reflect.ValueOf(v).Pointer()
 		} else { // *SyncMap
 			ptr = v
@@ -314,10 +314,10 @@ func mapEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 		defer delete(e.ptrSeen, ptr)
 	}
 
-	var m ugo.Map
+	var m gad.Map
 	var ok bool
-	if m, ok = v.(ugo.Map); !ok {
-		sm := v.(*ugo.SyncMap)
+	if m, ok = v.(gad.Map); !ok {
+		sm := v.(*gad.SyncMap)
 		if sm == nil {
 			e.WriteString("null")
 			e.ptrLevel--
@@ -352,12 +352,12 @@ func mapEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 	e.ptrLevel--
 }
 
-func bytesEncoder(e *encodeState, v ugo.Object, _ encOpts) {
+func bytesEncoder(e *encodeState, v gad.Object, _ encOpts) {
 	if v == nil {
 		e.WriteString("null")
 		return
 	}
-	s := v.(ugo.Bytes)
+	s := v.(gad.Bytes)
 	e.WriteByte('"')
 	encodedLen := base64.StdEncoding.EncodedLen(len(s))
 	if encodedLen <= len(e.scratch) {
@@ -382,7 +382,7 @@ func bytesEncoder(e *encodeState, v ugo.Object, _ encOpts) {
 	e.WriteByte('"')
 }
 
-func arrayEncoder(e *encodeState, v ugo.Object, opts encOpts) {
+func arrayEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	if v == nil {
 		e.WriteString("null")
 		return
@@ -402,7 +402,7 @@ func arrayEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 		e.ptrSeen[ptr] = struct{}{}
 		defer delete(e.ptrSeen, ptr)
 	}
-	arr := v.(ugo.Array)
+	arr := v.(gad.Array)
 	if arr == nil {
 		e.WriteString("null")
 		e.ptrLevel--
@@ -420,7 +420,7 @@ func arrayEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 	e.ptrLevel--
 }
 
-func objectPtrEncoder(e *encodeState, v ugo.Object, opts encOpts) {
+func objectPtrEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	if v == nil {
 		e.WriteString("null")
 		return
@@ -433,7 +433,7 @@ func objectPtrEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 		e.ptrSeen[v] = struct{}{}
 		defer delete(e.ptrSeen, v)
 	}
-	vv := v.(*ugo.ObjectPtr).Value
+	vv := v.(*gad.ObjectPtr).Value
 	if vv == nil {
 		e.WriteString("null")
 	} else {
@@ -442,7 +442,7 @@ func objectPtrEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 	e.ptrLevel--
 }
 
-func textMarshalerEncoder(e *encodeState, v ugo.Object, opts encOpts) {
+func textMarshalerEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	if v == nil {
 		e.WriteString("null")
 		return
@@ -459,7 +459,7 @@ func textMarshalerEncoder(e *encodeState, v ugo.Object, opts encOpts) {
 	e.stringBytes(b, opts.escapeHTML)
 }
 
-func marshalerEncoder(e *encodeState, v ugo.Object, opts encOpts) {
+func marshalerEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	if v == nil {
 		e.WriteString("null")
 		return

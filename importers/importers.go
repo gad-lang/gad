@@ -5,10 +5,10 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/ozanh/ugo"
+	"github.com/gad-lang/gad"
 )
 
-// FileImporter is an implemention of ugo.ExtImporter to import files from file
+// FileImporter is an implemention of gad.ExtImporter to import files from file
 // system. It uses absolute paths of module as import names.
 type FileImporter struct {
 	WorkDir    string
@@ -16,10 +16,10 @@ type FileImporter struct {
 	name       string
 }
 
-var _ ugo.ExtImporter = (*FileImporter)(nil)
+var _ gad.ExtImporter = (*FileImporter)(nil)
 
-// Get impelements ugo.ExtImporter and returns itself if name is not empty.
-func (m *FileImporter) Get(name string) ugo.ExtImporter {
+// Get impelements gad.ExtImporter and returns itself if name is not empty.
+func (m *FileImporter) Get(name string) gad.ExtImporter {
 	if name == "" {
 		return nil
 	}
@@ -56,10 +56,10 @@ func (m *FileImporter) Import(moduleName string) (interface{}, error) {
 	return m.FileReader(moduleName)
 }
 
-// Fork returns a new instance of FileImporter as ugo.ExtImporter by capturing
+// Fork returns a new instance of FileImporter as gad.ExtImporter by capturing
 // the working directory of the module. moduleName should be the same value
 // provided by Name call.
-func (m *FileImporter) Fork(moduleName string) ugo.ExtImporter {
+func (m *FileImporter) Fork(moduleName string) gad.ExtImporter {
 	// Note that; moduleName == Name()
 	return &FileImporter{
 		WorkDir:    filepath.Dir(moduleName),

@@ -1,6 +1,6 @@
 # Operators
 
-uGO uses same binary and unary operators with Go. uGO relies on Go's wrap-around
+Gad uses same binary and unary operators with Go. Gad relies on Go's wrap-around
 behavior if compiler does not catch any overflow. Floating point numbers may be
 rounded due to conversions. It is a good practice to use [builtin conversion
 functions](builtins.md) to resolve ambiguities. If optimizer is enabled in
@@ -23,7 +23,7 @@ Relational operators yields bool values.
 |   >=   | greater than or equal |
 
 All relational operators apply to int, uint, float, char, bool, string, bytes.
-uGO's [Object](tutorial.md#interfaces) interface methods `Equal and BinaryOp`
+Gad's [Object](tutorial.md#interfaces) interface methods `Equal and BinaryOp`
 evaluates these operations. A runtime error is thrown if types are not
 comparable. Note that, bool values are converted to untyped 1 or 0 for true or
 false to compare with numeric values.

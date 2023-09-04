@@ -19,7 +19,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/ozanh/ugo/token"
+	"github.com/gad-lang/gad/token"
 )
 
 // byte order mark
@@ -37,7 +37,7 @@ const (
 // ScannerErrorHandler is an error handler for the scanner.
 type ScannerErrorHandler func(pos SourceFilePos, msg string)
 
-// Scanner reads the uGO source text. It's based on Go's scanner
+// Scanner reads the Gad source text. It's based on Go's scanner
 // implementation.
 type Scanner struct {
 	file         *SourceFile         // source file handle
@@ -298,7 +298,7 @@ func (s *Scanner) scanComment() string {
 	var numCR int
 
 	if s.ch == '/' {
-		//-style comment
+		// -style comment
 		// (the final '\n' is not considered part of the comment)
 		s.next()
 		for s.ch != '\n' && s.ch >= 0 {
@@ -356,7 +356,7 @@ func (s *Scanner) findLineEnd() bool {
 	// read ahead until a newline, EOF, or non-comment tok is found
 	for s.ch == '/' || s.ch == '*' {
 		if s.ch == '/' {
-			//-style comment always contains a newline
+			// -style comment always contains a newline
 			return true
 		}
 		/*-style comment: look for newline */

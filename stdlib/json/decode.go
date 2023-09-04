@@ -16,32 +16,32 @@ import (
 	"unicode/utf16"
 	"unicode/utf8"
 
-	"github.com/ozanh/ugo"
+	"github.com/gad-lang/gad"
 )
 
 // Unmarshal parses the JSON-encoded data and stores the result
 // in the value pointed to by v. If v is nil or not a pointer,
 // Unmarshal returns an InvalidUnmarshalError.
-func Unmarshal(data []byte) (ugo.Object, error) {
+func Unmarshal(data []byte) (gad.Object, error) {
 	// Check for well-formedness.
 	// Avoids filling out half a data structure
 	// before discovering a JSON syntax error.
 	var d decodeState
 	err := checkValid(data, &d.scan)
 	if err != nil {
-		return ugo.Undefined, err
+		return gad.Undefined, err
 	}
 
 	return d.init(data).unmarshal()
 }
 
-func (d *decodeState) unmarshal() (ugo.Object, error) {
+func (d *decodeState) unmarshal() (gad.Object, error) {
 	d.scan.reset()
 	d.scanWhile(scanSkipSpace)
 
 	v, err := d.value()
 	if v == nil {
-		v = ugo.Undefined
+		v = gad.Undefined
 	}
 	return v, err
 }
@@ -99,7 +99,7 @@ func (d *decodeState) scanWhile(op int) {
 	d.opcode = d.scan.eof()
 }
 
-func (d *decodeState) value() (ugo.Object, error) {
+func (d *decodeState) value() (gad.Object, error) {
 	switch d.opcode {
 	default:
 		panic(phasePanicMsg)
@@ -128,8 +128,8 @@ func (d *decodeState) value() (ugo.Object, error) {
 	}
 }
 
-func (d *decodeState) array() (ugo.Object, error) {
-	object := ugo.Array{}
+func (d *decodeState) array() (gad.Object, error) {
+	object := gad.Array{}
 	for {
 		// Look ahead for ] - can only happen on first iteration.
 		d.scanWhile(scanSkipSpace)
@@ -157,8 +157,8 @@ func (d *decodeState) array() (ugo.Object, error) {
 	return object, nil
 }
 
-func (d *decodeState) object() (ugo.Object, error) {
-	object := ugo.Map{}
+func (d *decodeState) object() (gad.Object, error) {
+	object := gad.Map{}
 	for {
 		// Read opening " of string key or closing }.
 		d.scanWhile(scanSkipSpace)
@@ -209,7 +209,7 @@ func (d *decodeState) object() (ugo.Object, error) {
 	return object, nil
 }
 
-func (d *decodeState) literal() (ugo.Object, error) {
+func (d *decodeState) literal() (gad.Object, error) {
 	// All bytes inside literal return scanContinue op code.
 	start := d.readIndex()
 	d.scanWhile(scanContinue)
@@ -218,20 +218,20 @@ func (d *decodeState) literal() (ugo.Object, error) {
 
 	switch c := item[0]; c {
 	case 'n': // null
-		return ugo.Undefined, nil
+		return gad.Undefined, nil
 
 	case 't', 'f': // true, false
 		if c == 't' {
-			return ugo.True, nil
+			return gad.True, nil
 		}
-		return ugo.False, nil
+		return gad.False, nil
 
 	case '"': // string
 		s, ok := unquote(item)
 		if !ok {
 			panic(phasePanicMsg)
 		}
-		return ugo.String(s), nil
+		return gad.String(s), nil
 
 	default: // number
 		if c != '-' && (c < '0' || c > '9') {
@@ -239,7 +239,7 @@ func (d *decodeState) literal() (ugo.Object, error) {
 		}
 
 		n, err := strconv.ParseFloat(string(item), 64)
-		return ugo.Float(n), err
+		return gad.Float(n), err
 	}
 }
 

@@ -1,4 +1,4 @@
-package ugo_test
+package gad_test
 
 import (
 	"errors"
@@ -7,8 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	. "github.com/ozanh/ugo"
-	"github.com/ozanh/ugo/token"
+	"github.com/gad-lang/gad/token"
+
+	. "github.com/gad-lang/gad"
 )
 
 func TestObjects(t *testing.T) {

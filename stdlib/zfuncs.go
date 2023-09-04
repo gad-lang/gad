@@ -5,15 +5,15 @@ package stdlib
 import (
 	"strconv"
 
-	"github.com/ozanh/ugo"
+	"github.com/gad-lang/gad"
 )
 
-// FuncPOROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(o ugo.Object) (ret ugo.Object)
-func FuncPOROEx(fn func(ugo.Object) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPOROEx is a generated function to make gad.CallableExFunc.
+// Source: func(o gad.Object) (ret gad.Object)
+func FuncPOROEx(fn func(gad.Object) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
 		o := args.Get(0)
@@ -23,17 +23,17 @@ func FuncPOROEx(fn func(ugo.Object) ugo.Object) ugo.CallableExFunc {
 	}
 }
 
-// FuncPiROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(i1 int) (ret ugo.Object)
-func FuncPiROEx(fn func(int) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPiROEx is a generated function to make gad.CallableExFunc.
+// Source: func(i1 int) (ret gad.Object)
+func FuncPiROEx(fn func(int) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		i1, ok := ugo.ToGoInt(args.Get(0))
+		i1, ok := gad.ToGoInt(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
 		}
 
 		ret = fn(i1)
@@ -41,17 +41,17 @@ func FuncPiROEx(fn func(int) ugo.Object) ugo.CallableExFunc {
 	}
 }
 
-// FuncPi64ROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(i1 int64) (ret ugo.Object)
-func FuncPi64ROEx(fn func(int64) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPi64ROEx is a generated function to make gad.CallableExFunc.
+// Source: func(i1 int64) (ret gad.Object)
+func FuncPi64ROEx(fn func(int64) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		i1, ok := ugo.ToGoInt64(args.Get(0))
+		i1, ok := gad.ToGoInt64(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
 		}
 
 		ret = fn(i1)
@@ -59,36 +59,36 @@ func FuncPi64ROEx(fn func(int64) ugo.Object) ugo.CallableExFunc {
 	}
 }
 
-// FuncPi64REx is a generated function to make ugo.CallableExFunc.
+// FuncPi64REx is a generated function to make gad.CallableExFunc.
 // Source: func(i1 int64)
-func FuncPi64REx(fn func(int64)) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+func FuncPi64REx(fn func(int64)) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		i1, ok := ugo.ToGoInt64(args.Get(0))
+		i1, ok := gad.ToGoInt64(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
 		}
 
 		fn(i1)
-		ret = ugo.Undefined
+		ret = gad.Undefined
 		return
 	}
 }
 
-// FuncPsROeEx is a generated function to make ugo.CallableExFunc.
-// Source: func(s string) (ret ugo.Object, err error)
-func FuncPsROeEx(fn func(string) (ugo.Object, error)) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPsROeEx is a generated function to make gad.CallableExFunc.
+// Source: func(s string) (ret gad.Object, err error)
+func FuncPsROeEx(fn func(string) (gad.Object, error)) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		s, ok := ugo.ToGoString(args.Get(0))
+		s, ok := gad.ToGoString(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
 		}
 
 		ret, err = fn(s)
@@ -96,21 +96,21 @@ func FuncPsROeEx(fn func(string) (ugo.Object, error)) ugo.CallableExFunc {
 	}
 }
 
-// FuncPsiROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(s string, i1 int) (ret ugo.Object)
-func FuncPsiROEx(fn func(string, int) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPsiROEx is a generated function to make gad.CallableExFunc.
+// Source: func(s string, i1 int) (ret gad.Object)
+func FuncPsiROEx(fn func(string, int) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		s, ok := ugo.ToGoString(args.Get(0))
+		s, ok := gad.ToGoString(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
 		}
-		i1, ok := ugo.ToGoInt(args.Get(1))
+		i1, ok := gad.ToGoInt(args.Get(1))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
 		}
 
 		ret = fn(s, i1)
@@ -118,12 +118,12 @@ func FuncPsiROEx(fn func(string, int) ugo.Object) ugo.CallableExFunc {
 	}
 }
 
-// FuncPROEx is a generated function to make ugo.CallableExFunc.
-// Source: func() (ret ugo.Object)
-func FuncPROEx(fn func() ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPROEx is a generated function to make gad.CallableExFunc.
+// Source: func() (ret gad.Object)
+func FuncPROEx(fn func() gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(0); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
 		ret = fn()
@@ -131,21 +131,21 @@ func FuncPROEx(fn func() ugo.Object) ugo.CallableExFunc {
 	}
 }
 
-// FuncPi64i64ROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(i1 int64, i2 int64) (ret ugo.Object)
-func FuncPi64i64ROEx(fn func(int64, int64) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPi64i64ROEx is a generated function to make gad.CallableExFunc.
+// Source: func(i1 int64, i2 int64) (ret gad.Object)
+func FuncPi64i64ROEx(fn func(int64, int64) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		i1, ok := ugo.ToGoInt64(args.Get(0))
+		i1, ok := gad.ToGoInt64(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
 		}
-		i2, ok := ugo.ToGoInt64(args.Get(1))
+		i2, ok := gad.ToGoInt64(args.Get(1))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
 		}
 
 		ret = fn(i1, i2)
@@ -153,17 +153,17 @@ func FuncPi64i64ROEx(fn func(int64, int64) ugo.Object) ugo.CallableExFunc {
 	}
 }
 
-// FuncPb2ROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(b []byte) (ret ugo.Object)
-func FuncPb2ROEx(fn func([]byte) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPb2ROEx is a generated function to make gad.CallableExFunc.
+// Source: func(b []byte) (ret gad.Object)
+func FuncPb2ROEx(fn func([]byte) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		b, ok := ugo.ToGoByteSlice(args.Get(0))
+		b, ok := gad.ToGoByteSlice(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "bytes", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "bytes", args.Get(0).TypeName())
 		}
 
 		ret = fn(b)
@@ -171,22 +171,22 @@ func FuncPb2ROEx(fn func([]byte) ugo.Object) ugo.CallableExFunc {
 	}
 }
 
-// FuncPOssROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(o ugo.Object, s1 string, s2 string) (ret ugo.Object)
-func FuncPOssROEx(fn func(ugo.Object, string, string) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPOssROEx is a generated function to make gad.CallableExFunc.
+// Source: func(o gad.Object, s1 string, s2 string) (ret gad.Object)
+func FuncPOssROEx(fn func(gad.Object, string, string) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(3); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
 		o := args.Get(0)
-		s1, ok := ugo.ToGoString(args.Get(1))
+		s1, ok := gad.ToGoString(args.Get(1))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
 		}
-		s2, ok := ugo.ToGoString(args.Get(2))
+		s2, ok := gad.ToGoString(args.Get(2))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("3rd", "string", args.Get(2).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("3rd", "string", args.Get(2).TypeName())
 		}
 
 		ret = fn(o, s1, s2)
@@ -194,21 +194,21 @@ func FuncPOssROEx(fn func(ugo.Object, string, string) ugo.Object) ugo.CallableEx
 	}
 }
 
-// FuncPb2bROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(p []byte, b bool) (ret ugo.Object)
-func FuncPb2bROEx(fn func([]byte, bool) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPb2bROEx is a generated function to make gad.CallableExFunc.
+// Source: func(p []byte, b bool) (ret gad.Object)
+func FuncPb2bROEx(fn func([]byte, bool) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		p, ok := ugo.ToGoByteSlice(args.Get(0))
+		p, ok := gad.ToGoByteSlice(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "bytes", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "bytes", args.Get(0).TypeName())
 		}
-		b, ok := ugo.ToGoBool(args.Get(1))
+		b, ok := gad.ToGoBool(args.Get(1))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "bool", args.Get(1).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "bool", args.Get(1).TypeName())
 		}
 
 		ret = fn(p, b)
@@ -216,25 +216,25 @@ func FuncPb2bROEx(fn func([]byte, bool) ugo.Object) ugo.CallableExFunc {
 	}
 }
 
-// FuncPb2ssROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(p []byte, s1 string, s2 string) (ret ugo.Object)
-func FuncPb2ssROEx(fn func([]byte, string, string) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPb2ssROEx is a generated function to make gad.CallableExFunc.
+// Source: func(p []byte, s1 string, s2 string) (ret gad.Object)
+func FuncPb2ssROEx(fn func([]byte, string, string) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(3); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		p, ok := ugo.ToGoByteSlice(args.Get(0))
+		p, ok := gad.ToGoByteSlice(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "bytes", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "bytes", args.Get(0).TypeName())
 		}
-		s1, ok := ugo.ToGoString(args.Get(1))
+		s1, ok := gad.ToGoString(args.Get(1))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
 		}
-		s2, ok := ugo.ToGoString(args.Get(2))
+		s2, ok := gad.ToGoString(args.Get(2))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("3rd", "string", args.Get(2).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("3rd", "string", args.Get(2).TypeName())
 		}
 
 		ret = fn(p, s1, s2)
@@ -242,21 +242,21 @@ func FuncPb2ssROEx(fn func([]byte, string, string) ugo.Object) ugo.CallableExFun
 	}
 }
 
-// FuncPssROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(s1 string, s2 string) (ret ugo.Object)
-func FuncPssROEx(fn func(string, string) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPssROEx is a generated function to make gad.CallableExFunc.
+// Source: func(s1 string, s2 string) (ret gad.Object)
+func FuncPssROEx(fn func(string, string) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		s1, ok := ugo.ToGoString(args.Get(0))
+		s1, ok := gad.ToGoString(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
 		}
-		s2, ok := ugo.ToGoString(args.Get(1))
+		s2, ok := gad.ToGoString(args.Get(1))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
 		}
 
 		ret = fn(s1, s2)
@@ -264,17 +264,17 @@ func FuncPssROEx(fn func(string, string) ugo.Object) ugo.CallableExFunc {
 	}
 }
 
-// FuncPsROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(s string) (ret ugo.Object)
-func FuncPsROEx(fn func(string) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPsROEx is a generated function to make gad.CallableExFunc.
+// Source: func(s string) (ret gad.Object)
+func FuncPsROEx(fn func(string) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		s, ok := ugo.ToGoString(args.Get(0))
+		s, ok := gad.ToGoString(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
 		}
 
 		ret = fn(s)
@@ -282,21 +282,21 @@ func FuncPsROEx(fn func(string) ugo.Object) ugo.CallableExFunc {
 	}
 }
 
-// FuncPsrROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(s string, r rune) (ret ugo.Object)
-func FuncPsrROEx(fn func(string, rune) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPsrROEx is a generated function to make gad.CallableExFunc.
+// Source: func(s string, r rune) (ret gad.Object)
+func FuncPsrROEx(fn func(string, rune) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		s, ok := ugo.ToGoString(args.Get(0))
+		s, ok := gad.ToGoString(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
 		}
-		r, ok := ugo.ToGoRune(args.Get(1))
+		r, ok := gad.ToGoRune(args.Get(1))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "char", args.Get(1).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "char", args.Get(1).TypeName())
 		}
 
 		ret = fn(s, r)
@@ -304,21 +304,21 @@ func FuncPsrROEx(fn func(string, rune) ugo.Object) ugo.CallableExFunc {
 	}
 }
 
-// FuncPAsROEx is a generated function to make ugo.CallableExFunc.
-// Source: func(arr ugo.Array, s string) (ret ugo.Object)
-func FuncPAsROEx(fn func(ugo.Array, string) ugo.Object) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPAsROEx is a generated function to make gad.CallableExFunc.
+// Source: func(arr gad.Array, s string) (ret gad.Object)
+func FuncPAsROEx(fn func(gad.Array, string) gad.Object) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
-		arr, ok := ugo.ToArray(args.Get(0))
+		arr, ok := gad.ToArray(args.Get(0))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "array", args.Get(0).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "array", args.Get(0).TypeName())
 		}
-		s, ok := ugo.ToGoString(args.Get(1))
+		s, ok := gad.ToGoString(args.Get(1))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
 		}
 
 		ret = fn(arr, s)
@@ -326,18 +326,18 @@ func FuncPAsROEx(fn func(ugo.Array, string) ugo.Object) ugo.CallableExFunc {
 	}
 }
 
-// FuncPOi64ROeEx is a generated function to make ugo.CallableExFunc.
-// Source: func(o ugo.Object, i int64) (ret ugo.Object, err error)
-func FuncPOi64ROeEx(fn func(ugo.Object, int64) (ugo.Object, error)) ugo.CallableExFunc {
-	return func(args ugo.Call) (ret ugo.Object, err error) {
+// FuncPOi64ROeEx is a generated function to make gad.CallableExFunc.
+// Source: func(o gad.Object, i int64) (ret gad.Object, err error)
+func FuncPOi64ROeEx(fn func(gad.Object, int64) (gad.Object, error)) gad.CallableExFunc {
+	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return ugo.Undefined, err
+			return gad.Undefined, err
 		}
 
 		o := args.Get(0)
-		i, ok := ugo.ToGoInt64(args.Get(1))
+		i, ok := gad.ToGoInt64(args.Get(1))
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
 		}
 
 		ret, err = fn(o, i)
@@ -345,12 +345,12 @@ func FuncPOi64ROeEx(fn func(ugo.Object, int64) (ugo.Object, error)) ugo.Callable
 	}
 }
 
-// FuncPORO is a generated function to make ugo.CallableFunc.
-// Source: func(o ugo.Object) (ret ugo.Object)
-func FuncPORO(fn func(ugo.Object) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPORO is a generated function to make gad.CallableFunc.
+// Source: func(o gad.Object) (ret gad.Object)
+func FuncPORO(fn func(gad.Object) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
 		o := args[0]
@@ -360,17 +360,17 @@ func FuncPORO(fn func(ugo.Object) ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPiRO is a generated function to make ugo.CallableFunc.
-// Source: func(i1 int) (ret ugo.Object)
-func FuncPiRO(fn func(int) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPiRO is a generated function to make gad.CallableFunc.
+// Source: func(i1 int) (ret gad.Object)
+func FuncPiRO(fn func(int) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
-		i1, ok := ugo.ToGoInt(args[0])
+		i1, ok := gad.ToGoInt(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "int", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args[0].TypeName())
 		}
 
 		ret = fn(i1)
@@ -378,17 +378,17 @@ func FuncPiRO(fn func(int) ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPi64RO is a generated function to make ugo.CallableFunc.
-// Source: func(i1 int64) (ret ugo.Object)
-func FuncPi64RO(fn func(int64) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPi64RO is a generated function to make gad.CallableFunc.
+// Source: func(i1 int64) (ret gad.Object)
+func FuncPi64RO(fn func(int64) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
-		i1, ok := ugo.ToGoInt64(args[0])
+		i1, ok := gad.ToGoInt64(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "int", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args[0].TypeName())
 		}
 
 		ret = fn(i1)
@@ -396,36 +396,36 @@ func FuncPi64RO(fn func(int64) ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPi64R is a generated function to make ugo.CallableFunc.
+// FuncPi64R is a generated function to make gad.CallableFunc.
 // Source: func(i1 int64)
-func FuncPi64R(fn func(int64)) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+func FuncPi64R(fn func(int64)) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
-		i1, ok := ugo.ToGoInt64(args[0])
+		i1, ok := gad.ToGoInt64(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "int", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args[0].TypeName())
 		}
 
 		fn(i1)
-		ret = ugo.Undefined
+		ret = gad.Undefined
 		return
 	}
 }
 
-// FuncPsROe is a generated function to make ugo.CallableFunc.
-// Source: func(s string) (ret ugo.Object, err error)
-func FuncPsROe(fn func(string) (ugo.Object, error)) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPsROe is a generated function to make gad.CallableFunc.
+// Source: func(s string) (ret gad.Object, err error)
+func FuncPsROe(fn func(string) (gad.Object, error)) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
-		s, ok := ugo.ToGoString(args[0])
+		s, ok := gad.ToGoString(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "string", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
 		}
 
 		ret, err = fn(s)
@@ -433,21 +433,21 @@ func FuncPsROe(fn func(string) (ugo.Object, error)) ugo.CallableFunc {
 	}
 }
 
-// FuncPsiRO is a generated function to make ugo.CallableFunc.
-// Source: func(s string, i1 int) (ret ugo.Object)
-func FuncPsiRO(fn func(string, int) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPsiRO is a generated function to make gad.CallableFunc.
+// Source: func(s string, i1 int) (ret gad.Object)
+func FuncPsiRO(fn func(string, int) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
-		s, ok := ugo.ToGoString(args[0])
+		s, ok := gad.ToGoString(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "string", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
 		}
-		i1, ok := ugo.ToGoInt(args[1])
+		i1, ok := gad.ToGoInt(args[1])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "int", args[1].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "int", args[1].TypeName())
 		}
 
 		ret = fn(s, i1)
@@ -455,12 +455,12 @@ func FuncPsiRO(fn func(string, int) ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPRO is a generated function to make ugo.CallableFunc.
-// Source: func() (ret ugo.Object)
-func FuncPRO(fn func() ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPRO is a generated function to make gad.CallableFunc.
+// Source: func() (ret gad.Object)
+func FuncPRO(fn func() gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 0 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=0 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=0 got=" + strconv.Itoa(len(args)))
 		}
 
 		ret = fn()
@@ -468,21 +468,21 @@ func FuncPRO(fn func() ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPi64i64RO is a generated function to make ugo.CallableFunc.
-// Source: func(i1 int64, i2 int64) (ret ugo.Object)
-func FuncPi64i64RO(fn func(int64, int64) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPi64i64RO is a generated function to make gad.CallableFunc.
+// Source: func(i1 int64, i2 int64) (ret gad.Object)
+func FuncPi64i64RO(fn func(int64, int64) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
-		i1, ok := ugo.ToGoInt64(args[0])
+		i1, ok := gad.ToGoInt64(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "int", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args[0].TypeName())
 		}
-		i2, ok := ugo.ToGoInt64(args[1])
+		i2, ok := gad.ToGoInt64(args[1])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "int", args[1].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "int", args[1].TypeName())
 		}
 
 		ret = fn(i1, i2)
@@ -490,17 +490,17 @@ func FuncPi64i64RO(fn func(int64, int64) ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPb2RO is a generated function to make ugo.CallableFunc.
-// Source: func(b []byte) (ret ugo.Object)
-func FuncPb2RO(fn func([]byte) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPb2RO is a generated function to make gad.CallableFunc.
+// Source: func(b []byte) (ret gad.Object)
+func FuncPb2RO(fn func([]byte) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
-		b, ok := ugo.ToGoByteSlice(args[0])
+		b, ok := gad.ToGoByteSlice(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "bytes", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "bytes", args[0].TypeName())
 		}
 
 		ret = fn(b)
@@ -508,22 +508,22 @@ func FuncPb2RO(fn func([]byte) ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPOssRO is a generated function to make ugo.CallableFunc.
-// Source: func(o ugo.Object, s1 string, s2 string) (ret ugo.Object)
-func FuncPOssRO(fn func(ugo.Object, string, string) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPOssRO is a generated function to make gad.CallableFunc.
+// Source: func(o gad.Object, s1 string, s2 string) (ret gad.Object)
+func FuncPOssRO(fn func(gad.Object, string, string) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 3 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=3 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=3 got=" + strconv.Itoa(len(args)))
 		}
 
 		o := args[0]
-		s1, ok := ugo.ToGoString(args[1])
+		s1, ok := gad.ToGoString(args[1])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "string", args[1].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
 		}
-		s2, ok := ugo.ToGoString(args[2])
+		s2, ok := gad.ToGoString(args[2])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("3rd", "string", args[2].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("3rd", "string", args[2].TypeName())
 		}
 
 		ret = fn(o, s1, s2)
@@ -531,21 +531,21 @@ func FuncPOssRO(fn func(ugo.Object, string, string) ugo.Object) ugo.CallableFunc
 	}
 }
 
-// FuncPb2bRO is a generated function to make ugo.CallableFunc.
-// Source: func(p []byte, b bool) (ret ugo.Object)
-func FuncPb2bRO(fn func([]byte, bool) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPb2bRO is a generated function to make gad.CallableFunc.
+// Source: func(p []byte, b bool) (ret gad.Object)
+func FuncPb2bRO(fn func([]byte, bool) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
-		p, ok := ugo.ToGoByteSlice(args[0])
+		p, ok := gad.ToGoByteSlice(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "bytes", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "bytes", args[0].TypeName())
 		}
-		b, ok := ugo.ToGoBool(args[1])
+		b, ok := gad.ToGoBool(args[1])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "bool", args[1].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "bool", args[1].TypeName())
 		}
 
 		ret = fn(p, b)
@@ -553,25 +553,25 @@ func FuncPb2bRO(fn func([]byte, bool) ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPb2ssRO is a generated function to make ugo.CallableFunc.
-// Source: func(p []byte, s1 string, s2 string) (ret ugo.Object)
-func FuncPb2ssRO(fn func([]byte, string, string) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPb2ssRO is a generated function to make gad.CallableFunc.
+// Source: func(p []byte, s1 string, s2 string) (ret gad.Object)
+func FuncPb2ssRO(fn func([]byte, string, string) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 3 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=3 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=3 got=" + strconv.Itoa(len(args)))
 		}
 
-		p, ok := ugo.ToGoByteSlice(args[0])
+		p, ok := gad.ToGoByteSlice(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "bytes", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "bytes", args[0].TypeName())
 		}
-		s1, ok := ugo.ToGoString(args[1])
+		s1, ok := gad.ToGoString(args[1])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "string", args[1].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
 		}
-		s2, ok := ugo.ToGoString(args[2])
+		s2, ok := gad.ToGoString(args[2])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("3rd", "string", args[2].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("3rd", "string", args[2].TypeName())
 		}
 
 		ret = fn(p, s1, s2)
@@ -579,21 +579,21 @@ func FuncPb2ssRO(fn func([]byte, string, string) ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPssRO is a generated function to make ugo.CallableFunc.
-// Source: func(s1 string, s2 string) (ret ugo.Object)
-func FuncPssRO(fn func(string, string) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPssRO is a generated function to make gad.CallableFunc.
+// Source: func(s1 string, s2 string) (ret gad.Object)
+func FuncPssRO(fn func(string, string) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
-		s1, ok := ugo.ToGoString(args[0])
+		s1, ok := gad.ToGoString(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "string", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
 		}
-		s2, ok := ugo.ToGoString(args[1])
+		s2, ok := gad.ToGoString(args[1])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "string", args[1].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
 		}
 
 		ret = fn(s1, s2)
@@ -601,17 +601,17 @@ func FuncPssRO(fn func(string, string) ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPsRO is a generated function to make ugo.CallableFunc.
-// Source: func(s string) (ret ugo.Object)
-func FuncPsRO(fn func(string) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPsRO is a generated function to make gad.CallableFunc.
+// Source: func(s string) (ret gad.Object)
+func FuncPsRO(fn func(string) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
-		s, ok := ugo.ToGoString(args[0])
+		s, ok := gad.ToGoString(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "string", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
 		}
 
 		ret = fn(s)
@@ -619,21 +619,21 @@ func FuncPsRO(fn func(string) ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPsrRO is a generated function to make ugo.CallableFunc.
-// Source: func(s string, r rune) (ret ugo.Object)
-func FuncPsrRO(fn func(string, rune) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPsrRO is a generated function to make gad.CallableFunc.
+// Source: func(s string, r rune) (ret gad.Object)
+func FuncPsrRO(fn func(string, rune) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
-		s, ok := ugo.ToGoString(args[0])
+		s, ok := gad.ToGoString(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "string", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
 		}
-		r, ok := ugo.ToGoRune(args[1])
+		r, ok := gad.ToGoRune(args[1])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "char", args[1].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "char", args[1].TypeName())
 		}
 
 		ret = fn(s, r)
@@ -641,21 +641,21 @@ func FuncPsrRO(fn func(string, rune) ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPAsRO is a generated function to make ugo.CallableFunc.
-// Source: func(arr ugo.Array, s string) (ret ugo.Object)
-func FuncPAsRO(fn func(ugo.Array, string) ugo.Object) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPAsRO is a generated function to make gad.CallableFunc.
+// Source: func(arr gad.Array, s string) (ret gad.Object)
+func FuncPAsRO(fn func(gad.Array, string) gad.Object) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
-		arr, ok := ugo.ToArray(args[0])
+		arr, ok := gad.ToArray(args[0])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("1st", "array", args[0].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("1st", "array", args[0].TypeName())
 		}
-		s, ok := ugo.ToGoString(args[1])
+		s, ok := gad.ToGoString(args[1])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "string", args[1].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
 		}
 
 		ret = fn(arr, s)
@@ -663,18 +663,18 @@ func FuncPAsRO(fn func(ugo.Array, string) ugo.Object) ugo.CallableFunc {
 	}
 }
 
-// FuncPOi64ROe is a generated function to make ugo.CallableFunc.
-// Source: func(o ugo.Object, i int64) (ret ugo.Object, err error)
-func FuncPOi64ROe(fn func(ugo.Object, int64) (ugo.Object, error)) ugo.CallableFunc {
-	return func(args ...ugo.Object) (ret ugo.Object, err error) {
+// FuncPOi64ROe is a generated function to make gad.CallableFunc.
+// Source: func(o gad.Object, i int64) (ret gad.Object, err error)
+func FuncPOi64ROe(fn func(gad.Object, int64) (gad.Object, error)) gad.CallableFunc {
+	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return ugo.Undefined, ugo.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
 		o := args[0]
-		i, ok := ugo.ToGoInt64(args[1])
+		i, ok := gad.ToGoInt64(args[1])
 		if !ok {
-			return ugo.Undefined, ugo.NewArgumentTypeError("2nd", "int", args[1].TypeName())
+			return gad.Undefined, gad.NewArgumentTypeError("2nd", "int", args[1].TypeName())
 		}
 
 		ret, err = fn(o, i)

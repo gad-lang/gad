@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT License
 // that can be found in the LICENSE file.
 
-package ugo
+package gad
 
 import (
 	"bytes"
@@ -13,9 +13,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ozanh/ugo/internal/compat"
-	"github.com/ozanh/ugo/parser"
-	"github.com/ozanh/ugo/token"
+	"github.com/gad-lang/gad/internal/compat"
+	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/token"
 )
 
 const (

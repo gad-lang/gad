@@ -7,50 +7,50 @@ package time
 import (
 	"time"
 
-	"github.com/ozanh/ugo"
+	"github.com/gad-lang/gad"
 )
 
-// ugo:doc
+// gad:doc
 // ## Types
 // ### location
 //
 // Go Type
 //
 // ```go
-// // Location represents location values and implements ugo.Object interface.
+// // Location represents location values and implements gad.Object interface.
 // type Location struct {
-//    ugo.ObjectImpl
+//    gad.ObjectImpl
 //    Value *time.Location
 // }
 // ```
 
-// Location represents location values and implements ugo.Object interface.
+// Location represents location values and implements gad.Object interface.
 type Location struct {
-	ugo.ObjectImpl
+	gad.ObjectImpl
 	Value *time.Location
 }
 
-// TypeName implements ugo.Object interface.
+// TypeName implements gad.Object interface.
 func (*Location) TypeName() string {
 	return "location"
 }
 
-// String implements ugo.Object interface.
+// String implements gad.Object interface.
 func (o *Location) String() string {
 	return o.Value.String()
 }
 
-// IsFalsy implements ugo.Object interface.
+// IsFalsy implements gad.Object interface.
 func (o *Location) IsFalsy() bool {
 	return o.Value == nil
 }
 
-// Equal implements ugo.Object interface.
-func (o *Location) Equal(right ugo.Object) bool {
+// Equal implements gad.Object interface.
+func (o *Location) Equal(right gad.Object) bool {
 	if v, ok := right.(*Location); ok {
 		return v == o || v.String() == o.String()
 	}
-	if v, ok := right.(ugo.String); ok {
+	if v, ok := right.(gad.String); ok {
 		return o.String() == v.String()
 	}
 	return false

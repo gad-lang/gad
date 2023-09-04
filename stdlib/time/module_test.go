@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	. "github.com/ozanh/ugo"
-	. "github.com/ozanh/ugo/stdlib/time"
+	. "github.com/gad-lang/gad"
+	. "github.com/gad-lang/gad/stdlib/time"
 )
 
 func TestModuleTypes(t *testing.T) {
@@ -57,7 +57,7 @@ func TestModuleTypes(t *testing.T) {
 		tm3.Value.Format(time.RFC3339Nano))
 
 	// test registers
-	//time
+	// time
 	ret, err := ToObject(now)
 	require.NoError(t, err)
 	require.IsType(t, &Time{}, ret)
@@ -75,13 +75,13 @@ func TestModuleTypes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, Undefined, ret)
 
-	//duration
+	// duration
 	ret, err = ToObject(time.Second)
 	require.NoError(t, err)
 	require.IsType(t, Int(0), ret)
 	require.Equal(t, Int(time.Second), ret)
 
-	//location
+	// location
 	ret, err = ToObject(time.UTC)
 	require.NoError(t, err)
 	require.IsType(t, &Location{}, ret)

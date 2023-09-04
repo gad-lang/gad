@@ -1,4 +1,4 @@
-package ugo_test
+package gad_test
 
 import (
 	"bytes"
@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ozanh/ugo/tests"
+	"github.com/gad-lang/gad/tests"
 
-	. "github.com/ozanh/ugo"
+	. "github.com/gad-lang/gad"
 )
 
 func TestVMArray(t *testing.T) {
@@ -1237,7 +1237,7 @@ func TestBytes(t *testing.T) {
 	expectRun(t, `return "Hello " + bytes("World!")`,
 		nil, String("Hello World!"))
 
-	//slice
+	// slice
 	expectRun(t, `return bytes("")[:]`, nil, Bytes{})
 	expectRun(t, `return bytes("abcde")[:]`, nil, Bytes(String("abcde")))
 	expectRun(t, `return bytes("abcde")[0:]`, nil, Bytes(String("abcde")))
@@ -3222,7 +3222,7 @@ func TestVMCallCompiledFunction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	//locals := vm.GetLocals(nil)
+	// locals := vm.GetLocals(nil)
 	// t.Log(f)
 	require.Contains(t, f.(Map), "add")
 	require.Contains(t, f.(Map), "sub")

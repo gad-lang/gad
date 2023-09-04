@@ -1,11 +1,11 @@
 // Put relatively new features' tests in this test file.
 
-package ugo_test
+package gad_test
 
 import (
 	"testing"
 
-	. "github.com/ozanh/ugo"
+	. "github.com/gad-lang/gad"
 )
 
 func TestVMDestructuring(t *testing.T) {

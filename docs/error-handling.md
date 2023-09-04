@@ -1,6 +1,6 @@
 # Error Handling
 
-uGO's `try-catch-finally` statements can handle all kinds of runtime errors even
+Gad's `try-catch-finally` statements can handle all kinds of runtime errors even
 runtime `panic` in Go. It is similar to Ecmascript's error handling statements.
 Although `try-catch-finally` statements are not a must to handle all kinds of
 errors, one often needs finalizers for cleanup operations while interacting with
@@ -61,8 +61,8 @@ catch {} finally {}
 
 Runtime errors stop Virtual Machine (VM) execution if they are not handled. Some
 [Object interface](tutorial.md#interfaces) methods have `error` typed return
-parameters which generates runtime error. uGO tries to minimize the runtime
-errors in builtin functions and modules but dynamic nature of uGO requires
+parameters which generates runtime error. Gad tries to minimize the runtime
+errors in builtin functions and modules but dynamic nature of Gad requires
 proper error handling. Runtime errors can also be generated with `throw`
 statements in scripts.
 
@@ -153,10 +153,10 @@ Stack overflow errors is not handled even if they are thrown in a `try` block,
 because of zero stack size. Unhandled panic is propagated if it is not handled.
 
 ```go
-bytecode, _ := ugo.Compile(script, options)
+bytecode, _ := gad.Compile(script, options)
 // handle error here
 
-vm := ugo.NewVM(bytecode).SetRecover(true)
+vm := gad.NewVM(bytecode).SetRecover(true)
 ```
 
 ## Stack Trace
@@ -165,11 +165,11 @@ Generated runtime errors holds stack trace information which can be printed
 using `%+v` format specifier.
 
 ```go
-val, err := ugo.NewVM(bytecode).Run(nil)
+val, err := gad.NewVM(bytecode).Run(nil)
 if err != nil {
     fmt.Printf("%+v\n", err)
     /*
-    e := err.(*ugo.RuntimeError)
+    e := err.(*gad.RuntimeError)
     _ = e.StackTrace()
     */
 }

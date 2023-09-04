@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ozanh/ugo/token"
+	"github.com/gad-lang/gad/token"
 )
 
 // Mode value is a set of flags for parser.
@@ -1181,7 +1181,7 @@ func (p *Parser) parseSimpleStmt(forIn bool) Stmt {
 					p.errorExpected(x[1].Pos(), "identifier")
 					value = &Ident{Name: "_", NamePos: x[1].Pos()}
 				}
-				//TODO: no more than 2 idents
+				// TODO: no more than 2 idents
 			}
 			return &ForInStmt{
 				Key:      key,

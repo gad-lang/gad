@@ -1,8 +1,8 @@
 # Destructuring
 
-Currently, uGO supports only destructuring array assignments to handle multi
+Currently, Gad supports only destructuring array assignments to handle multi
 variable assignments.
-Following examples will help you to understand how it works in uGO.
+Following examples will help you to understand how it works in Gad.
 
 **Important Warnings**
 
@@ -99,20 +99,20 @@ if err != undefined {
 // ...
 `
 
-bytecode, err := ugo.Compile([]byte(script), ugo.DefaultCompilerOptions)
+bytecode, err := gad.Compile([]byte(script), gad.DefaultCompilerOptions)
 if err != nil {
     log.Fatal(err)
 }
 
-g := ugo.Map{
-    "goFunc": &ugo.Function{
-        Value: func(args ...ugo.Object) (ugo.Object, error) {
+g := gad.Map{
+    "goFunc": &gad.Function{
+        Value: func(args ...gad.Object) (gad.Object, error) {
             // ...
-            return ugo.Array{ugo.Undefined, ugo.ErrIndexOutOfBounds}, nil
+            return gad.Array{gad.Undefined, gad.ErrIndexOutOfBounds}, nil
         },
     },
 }
 
-ret, err := ugo.NewVM(bytecode).Run(g)
+ret, err := gad.NewVM(bytecode).Run(g)
 // ...
 ```

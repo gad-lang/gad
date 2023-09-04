@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT License
 // that can be found in the LICENSE file.
 
-package ugo
+package gad
 
 import (
 	"errors"
@@ -112,7 +112,7 @@ func (m *ModuleMap) Copy() *ModuleMap {
 	return c
 }
 
-// SourceModule is an importable module that's written in uGO.
+// SourceModule is an importable module that's written in Gad.
 type SourceModule struct {
 	Src []byte
 }

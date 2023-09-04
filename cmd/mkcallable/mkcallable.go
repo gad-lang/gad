@@ -27,33 +27,33 @@ import (
 	"text/template"
 )
 
-// We support (ugo.Object) or (ugo.Object, error) or (error) results.
+// We support (gad.Object) or (gad.Object, error) or (error) results.
 
-const ugoCallablePrefix = "//ugo:callable"
-const ugoDot = "ugo."
+const gadCallablePrefix = "//gad:callable"
+const gadDot = "gad."
 
 type converterFunc func(index int, argsName string, p *Param, extended bool) string
 
 var converters = map[string]interface{}{
-	"string":       "ugo.ToGoString",
-	"[]byte":       "ugo.ToGoByteSlice",
-	"int":          "ugo.ToGoInt",
-	"int64":        "ugo.ToGoInt64",
-	"uint64":       "ugo.ToGoUint64",
-	"float64":      "ugo.ToGoFloat64",
-	"rune":         "ugo.ToGoRune",
-	"bool":         "ugo.ToGoBool",
-	"ugo.String":   "ugo.ToString",
-	"ugo.Bytes":    "ugo.ToBytes",
-	"ugo.Int":      "ugo.ToInt",
-	"ugo.Uint":     "ugo.ToUint",
-	"ugo.Float":    "ugo.ToFloat",
-	"ugo.Char":     "ugo.ToChar",
-	"ugo.Bool":     "ugo.ToBool",
-	"ugo.Array":    "ugo.ToArray",
-	"ugo.Map":      "ugo.ToMap",
-	"*ugo.SyncMap": "ugo.ToSyncMap",
-	"ugo.Object": converterFunc(func(index int, argsName string, p *Param, extended bool) string {
+	"string":       "gad.ToGoString",
+	"[]byte":       "gad.ToGoByteSlice",
+	"int":          "gad.ToGoInt",
+	"int64":        "gad.ToGoInt64",
+	"uint64":       "gad.ToGoUint64",
+	"float64":      "gad.ToGoFloat64",
+	"rune":         "gad.ToGoRune",
+	"bool":         "gad.ToGoBool",
+	"gad.String":   "gad.ToString",
+	"gad.Bytes":    "gad.ToBytes",
+	"gad.Int":      "gad.ToInt",
+	"gad.Uint":     "gad.ToUint",
+	"gad.Float":    "gad.ToFloat",
+	"gad.Char":     "gad.ToChar",
+	"gad.Bool":     "gad.ToBool",
+	"gad.Array":    "gad.ToArray",
+	"gad.Map":      "gad.ToMap",
+	"*gad.SyncMap": "gad.ToSyncMap",
+	"gad.Object": converterFunc(func(index int, argsName string, p *Param, extended bool) string {
 		if extended {
 			return fmt.Sprintf("%s := %s.Get(%d)", p.Name, argsName, index)
 		}
@@ -63,16 +63,16 @@ var converters = map[string]interface{}{
 
 var builtinTypeAlias = map[string]string{
 	"_":           "p", // p is reserved for pointer prefix
-	"ugo.Object":  "O",
-	"ugo.String":  "S",
-	"ugo.Bytes":   "B",
-	"ugo.Map":     "M",
-	"ugo.SyncMap": "M2",
-	"ugo.Array":   "A",
-	"ugo.Float":   "F",
-	"ugo.Int":     "I",
-	"ugo.Uint":    "U",
-	"ugo.Char":    "C",
+	"gad.Object":  "O",
+	"gad.String":  "S",
+	"gad.Bytes":   "B",
+	"gad.Map":     "M",
+	"gad.SyncMap": "M2",
+	"gad.Array":   "A",
+	"gad.Float":   "F",
+	"gad.Int":     "I",
+	"gad.Uint":    "U",
+	"gad.Char":    "C",
 	"string":      "s",
 	"bool":        "b",
 	"byte":        "b1",
@@ -85,17 +85,17 @@ var builtinTypeAlias = map[string]string{
 	"error":       "e",
 }
 
-var ugoTypeNames = map[string]string{
-	"ugo.Object":  "object",
-	"ugo.String":  "string",
-	"ugo.Bytes":   "bytes",
-	"ugo.Map":     "map",
-	"ugo.SyncMap": "syncMap",
-	"ugo.Array":   "array",
-	"ugo.Float":   "float",
-	"ugo.Int":     "int",
-	"ugo.Uint":    "uint",
-	"ugo.Char":    "char",
+var gadTypeNames = map[string]string{
+	"gad.Object":  "object",
+	"gad.String":  "string",
+	"gad.Bytes":   "bytes",
+	"gad.Map":     "map",
+	"gad.SyncMap": "syncMap",
+	"gad.Array":   "array",
+	"gad.Float":   "float",
+	"gad.Int":     "int",
+	"gad.Uint":    "uint",
+	"gad.Char":    "char",
 	"string":      "string",
 	"byte":        "char",
 	"[]byte":      "bytes",
@@ -141,11 +141,11 @@ func packagename() string {
 	return packageName
 }
 
-func ugodot() string {
-	if packageName == "ugo" {
+func gaddot() string {
+	if packageName == "gad" {
 		return ""
 	}
-	return ugoDot
+	return gadDot
 }
 
 func trim(s string) string {
@@ -195,7 +195,7 @@ func main() {
 }
 
 // ParseFiles parses files listed in files and extracts all directives listed in
-// ugo:callable comments. It returns *Source if successful.
+// gad:callable comments. It returns *Source if successful.
 func ParseFiles(extendedOnly bool, files []string) (*Source, error) {
 	src := &Source{
 		Funcs:           make([]*Fn, 0),
@@ -208,8 +208,8 @@ func ParseFiles(extendedOnly bool, files []string) (*Source, error) {
 			return nil, err
 		}
 	}
-	if ugodot() != "" {
-		src.ExternalImports = append(src.ExternalImports, Pkg{Path: "github.com/ozanh/ugo"})
+	if gaddot() != "" {
+		src.ExternalImports = append(src.ExternalImports, Pkg{Path: "github.com/gad-lang/gad"})
 	}
 	err := src.checkConverters()
 	return src, err
@@ -242,7 +242,7 @@ type Source struct {
 func (src *Source) Generate(w io.Writer) error {
 	funcMap := template.FuncMap{
 		"packagename": packagename,
-		"ugodot":      ugodot,
+		"gaddot":      gaddot,
 	}
 	t := template.Must(template.New("main").Funcs(funcMap).Parse(srcTemplate))
 	err := t.Execute(w, src)
@@ -281,10 +281,10 @@ func (src *Source) ParseFile(path string) error {
 	s := bufio.NewScanner(file)
 	for s.Scan() {
 		t := trim(s.Text())
-		if !strings.HasPrefix(t, ugoCallablePrefix) {
+		if !strings.HasPrefix(t, gadCallablePrefix) {
 			continue
 		}
-		tt := t[len(ugoCallablePrefix):]
+		tt := t[len(gadCallablePrefix):]
 		if tt[0] == ':' {
 			if strings.HasPrefix(tt, ":import") {
 				if err := src.parseImport(tt[7:]); err != nil {
@@ -338,10 +338,10 @@ func (src *Source) parseImport(s string) error {
 
 	// Two ways to define imports
 	// 1.
-	// //ugo:callable:import "path/to/package"
+	// //gad:callable:import "path/to/package"
 	//
 	// 2.
-	// //ugo:callable:import alias "path/to/package"
+	// //gad:callable:import alias "path/to/package"
 
 	// Check first char is " to determine if alias is provided
 	if path[0] == '"' {
@@ -397,9 +397,9 @@ func (src *Source) checkImports(alias, path string) (bool, error) {
 func (src *Source) parseConvert(s string) error {
 	// Examples
 	//
-	// //ugo:callable:convert *Time ToTime
+	// //gad:callable:convert *Time ToTime
 	//
-	// //ugo:callable:convert *string ToStringPointer
+	// //gad:callable:convert *string ToStringPointer
 	//
 
 	s = trim(s)
@@ -422,7 +422,7 @@ func (src *Source) checkConverters() error {
 			if _, ok := converters[p.Type]; ok {
 				continue
 			}
-			if _, ok := converters[ugoDot+p.Type]; !ok {
+			if _, ok := converters[gadDot+p.Type]; !ok {
 				return fmt.Errorf("converter is not found for type: %s", p.Type)
 			}
 		}
@@ -448,7 +448,7 @@ func (p *Param) IsError() bool {
 func (p *Param) HelperAssignVar() string {
 	conv := converters[p.Type]
 	if conv == nil {
-		conv = converters[ugoDot+p.Type]
+		conv = converters[gadDot+p.Type]
 		if conv == nil {
 			conv = "CONVERTER_NOT_FOUND"
 		}
@@ -458,18 +458,18 @@ func (p *Param) HelperAssignVar() string {
 			return fn(p.idx, p.fn.argsName, p, false)
 		}
 	}
-	if ugodot() == "" {
-		conv = strings.TrimPrefix(conv.(string), ugoDot)
+	if gaddot() == "" {
+		conv = strings.TrimPrefix(conv.(string), gadDot)
 	}
 
-	ugoTypeName := p.ugoTypeName()
+	gadTypeName := p.gadTypeName()
 
 	return fmt.Sprintf(`%s, ok := %s(%s[%d])
 		if !ok {
 			return %sUndefined, %sNewArgumentTypeError("%s", "%s", %s[%d].TypeName())
 		}`,
 		p.Name, conv, p.fn.argsName, p.idx,
-		ugodot(), ugodot(), ordinalize(p.idx+1), ugoTypeName, p.fn.argsName, p.idx,
+		gaddot(), gaddot(), ordinalize(p.idx+1), gadTypeName, p.fn.argsName, p.idx,
 	)
 }
 
@@ -478,7 +478,7 @@ func (p *Param) HelperAssignVar() string {
 func (p *Param) HelperAssignVarEx() string {
 	conv := converters[p.Type]
 	if conv == nil {
-		conv = converters[ugoDot+p.Type]
+		conv = converters[gadDot+p.Type]
 		if conv == nil {
 			conv = "CONVERTER_NOT_FOUND"
 		}
@@ -488,25 +488,25 @@ func (p *Param) HelperAssignVarEx() string {
 			return fn(p.idx, p.fn.argsName, p, true)
 		}
 	}
-	if ugodot() == "" {
-		conv = strings.TrimPrefix(conv.(string), ugoDot)
+	if gaddot() == "" {
+		conv = strings.TrimPrefix(conv.(string), gadDot)
 	}
 
-	ugoTypeName := p.ugoTypeName()
+	gadTypeName := p.gadTypeName()
 
 	return fmt.Sprintf(`%s, ok := %s(%s.Get(%d))
 		if !ok {
 			return %sUndefined, %sNewArgumentTypeError("%s", "%s", %s.Get(%d).TypeName())
 		}`,
 		p.Name, conv, p.fn.argsName, p.idx,
-		ugodot(), ugodot(), ordinalize(p.idx+1), ugoTypeName, p.fn.argsName, p.idx,
+		gaddot(), gaddot(), ordinalize(p.idx+1), gadTypeName, p.fn.argsName, p.idx,
 	)
 }
 
-func (p *Param) ugoTypeName() string {
-	n := ugoTypeNames[p.Type]
+func (p *Param) gadTypeName() string {
+	n := gadTypeNames[p.Type]
 	if n == "" {
-		n = ugoTypeNames[ugoDot+p.Type]
+		n = gadTypeNames[gadDot+p.Type]
 		if n == "" {
 			return p.Type
 		}
@@ -652,7 +652,7 @@ func (f *Fn) SourceString() string { return f.src }
 func (f *Fn) HelperCheckNumArgs() string {
 	return fmt.Sprintf(`if len(%s)!=%d {
 			return %sUndefined, %sErrWrongNumArguments.NewError("want=%d got=" + strconv.Itoa(len(%s)))
-	    }`, f.argsName, len(f.Params), ugodot(), ugodot(), len(f.Params), f.argsName)
+	    }`, f.argsName, len(f.Params), gaddot(), gaddot(), len(f.Params), f.argsName)
 }
 
 // HelperCheckNumArgsEx is an helper used in template to return code block to
@@ -660,7 +660,7 @@ func (f *Fn) HelperCheckNumArgs() string {
 func (f *Fn) HelperCheckNumArgsEx() string {
 	return fmt.Sprintf(`if err := %s.CheckLen(%d); err!=nil {
 			return %sUndefined, err
-	    }`, f.argsName, len(f.Params), ugodot())
+	    }`, f.argsName, len(f.Params), gaddot())
 }
 
 // HelperCall is an helper used in template to return function call block with
@@ -669,14 +669,14 @@ func (f *Fn) HelperCall() string {
 	const retPrefix = "\n        " // just for formatting reasons.
 	var (
 		left string
-		ret  = retPrefix + f.retName + " = " + ugodot() + "Undefined"
+		ret  = retPrefix + f.retName + " = " + gaddot() + "Undefined"
 	)
 	if rets := f.Rets.ToParams(); len(rets) > 0 {
 		switch len(rets) {
 		case 1:
 			if f.Rets.ReturnsError {
 				left = f.errName + " = "
-				ret = retPrefix + f.retName + " = " + ugodot() + "Undefined"
+				ret = retPrefix + f.retName + " = " + gaddot() + "Undefined"
 			} else {
 				left = f.retName + " = "
 				ret = ""
@@ -741,7 +741,7 @@ func (f *Fn) genFuncName() {
 
 			n := builtinTypeAlias[param.Type]
 			if n == "" {
-				n = builtinTypeAlias[ugoDot+param.Type]
+				n = builtinTypeAlias[gadDot+param.Type]
 			}
 			if n == "" {
 				i := strings.Index(param.Type, ".")
@@ -836,10 +836,10 @@ import ({{range .GoImports}}
 {{end}}
 
 {{define "funcbodyEx"}}
-// {{.FuncNameEx}} is a generated function to make {{ugodot}}CallableExFunc.
+// {{.FuncNameEx}} is a generated function to make {{gaddot}}CallableExFunc.
 // Source: {{.SourceString}}
-func {{.FuncNameEx}}({{.FnName}} func({{.ParamList}}) {{.Rets.List}}) {{ugodot}}CallableExFunc {
-	return func{{template "ugocallparamsEx" .}} {{template "ugoresults" .}} {
+func {{.FuncNameEx}}({{.FnName}} func({{.ParamList}}) {{.Rets.List}}) {{gaddot}}CallableExFunc {
+	return func{{template "gadcallparamsEx" .}} {{template "gadresults" .}} {
 		{{template "checknumargsEx" .}}
 		{{template "assignvarsEx" .}}
 		{{template "call" .}}
@@ -848,7 +848,7 @@ func {{.FuncNameEx}}({{.FnName}} func({{.ParamList}}) {{.Rets.List}}) {{ugodot}}
 }
 {{end}}
 
-{{define "ugocallparamsEx"}}({{.ArgsName}} {{ugodot}}Call){{end}}
+{{define "gadcallparamsEx"}}({{.ArgsName}} {{gaddot}}Call){{end}}
 
 {{define "checknumargsEx"}}{{.HelperCheckNumArgsEx}}{{end}}
 
@@ -858,10 +858,10 @@ func {{.FuncNameEx}}({{.FnName}} func({{.ParamList}}) {{.Rets.List}}) {{ugodot}}
 
 
 {{define "funcbody"}}
-// {{.FuncName}} is a generated function to make {{ugodot}}CallableFunc.
+// {{.FuncName}} is a generated function to make {{gaddot}}CallableFunc.
 // Source: {{.SourceString}}
-func {{.FuncName}}({{.FnName}} func({{.ParamList}}) {{.Rets.List}}) {{ugodot}}CallableFunc {
-	return func{{template "ugocallparams" .}} {{template "ugoresults" .}} {
+func {{.FuncName}}({{.FnName}} func({{.ParamList}}) {{.Rets.List}}) {{gaddot}}CallableFunc {
+	return func{{template "gadcallparams" .}} {{template "gadresults" .}} {
 		{{template "checknumargs" .}}
 		{{template "assignvars" .}}
 		{{template "call" .}}
@@ -870,9 +870,9 @@ func {{.FuncName}}({{.FnName}} func({{.ParamList}}) {{.Rets.List}}) {{ugodot}}Ca
 }
 {{end}}
 
-{{define "ugocallparams"}}({{.ArgsName}} ...{{ugodot}}Object){{end}}
+{{define "gadcallparams"}}({{.ArgsName}} ...{{gaddot}}Object){{end}}
 
-{{define "ugoresults"}}({{.RetName}} {{ugodot}}Object, {{.ErrName}} error){{end}}
+{{define "gadresults"}}({{.RetName}} {{gaddot}}Object, {{.ErrName}} error){{end}}
 
 {{define "checknumargs"}}{{.HelperCheckNumArgs}}{{end}}
 

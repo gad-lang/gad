@@ -103,10 +103,10 @@ jobs:
     - name: Build CLI
       run: |
         make build-cli
-        out=ugo_go${{ matrix.go }}_$(go env GOOS)_$(go env GOARCH)
+        out=gad_go${{ matrix.go }}_$(go env GOOS)_$(go env GOARCH)
         echo "artifactPath=$out" >> "$GITHUB_ENV"
-        mv ugo $out || true
-        mv ugo.exe $out.exe || true
+        mv gad $out || true
+        mv gad.exe $out.exe || true
     
     - name: 'Upload Artifact'
       uses: actions/upload-artifact@v3

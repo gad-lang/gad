@@ -1,14 +1,14 @@
-package ugo_test
+package gad_test
 
 import (
 	"bytes"
 	"errors"
 	"testing"
 
-	"github.com/ozanh/ugo/parser"
+	"github.com/gad-lang/gad/parser"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/ozanh/ugo"
+	. "github.com/gad-lang/gad"
 )
 
 func TestVMErrorHandlers(t *testing.T) {
@@ -670,7 +670,7 @@ func TestVMExamples(t *testing.T) {
 	}
 `
 	ex1MainScript := `
-	// This example is to show some features of uGO.
+	// This example is to show some features of Gad.
 
 	// provide arguments as if main module body is a function.
 	param (a0, a1, ...args)

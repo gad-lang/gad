@@ -2,10 +2,10 @@
 
 ## Module List
 
-* [fmt](stdlib-fmt.md) module at `github.com/ozanh/ugo/stdlib/fmt`
-* [strings](stdlib-strings.md) module at `github.com/ozanh/ugo/stdlib/strings`
-* [time](stdlib-time.md) module at `github.com/ozanh/ugo/stdlib/time`
-* [json](stdlib-json.md) module at `github.com/ozanh/ugo/stdlib/json`
+* [fmt](stdlib-fmt.md) module at `github.com/gad-lang/gad/stdlib/fmt`
+* [strings](stdlib-strings.md) module at `github.com/gad-lang/gad/stdlib/strings`
+* [time](stdlib-time.md) module at `github.com/gad-lang/gad/stdlib/time`
+* [json](stdlib-json.md) module at `github.com/gad-lang/gad/stdlib/json`
 
 ## How-To
 
@@ -21,11 +21,11 @@ is deeply copied then.
 package main
 
 import (
-    "github.com/ozanh/ugo"
-    "github.com/ozanh/ugo/stdlib/fmt"
-    "github.com/ozanh/ugo/stdlib/json"
-    "github.com/ozanh/ugo/stdlib/strings"
-    "github.com/ozanh/ugo/stdlib/time"
+    "github.com/gad-lang/gad"
+    "github.com/gad-lang/gad/stdlib/fmt"
+    "github.com/gad-lang/gad/stdlib/json"
+    "github.com/gad-lang/gad/stdlib/strings"
+    "github.com/gad-lang/gad/stdlib/time"
 )
 
 func main() {
@@ -47,17 +47,17 @@ func main() {
     fn()
     /* ... */
     `
-    moduleMap := ugo.NewModuleMap()
+    moduleMap := gad.NewModuleMap()
     moduleMap.AddBuiltinModule("fmt", fmt.Module)
     moduleMap.AddBuiltinModule("strings", strings.Module)
     moduleMap.AddBuiltinModule("time", time.Module)
     moduleMap.AddBuiltinModule("json", json.Module)
 
-    opts := ugo.DefaultCompilerOptions
+    opts := gad.DefaultCompilerOptions
     opts.ModuleMap = moduleMap
 
-    byteCode, err := ugo.Compile([]byte(script), opts)
-    ret, err := ugo.NewVM(byteCode).Run(nil)
+    byteCode, err := gad.Compile([]byte(script), opts)
+    ret, err := gad.NewVM(byteCode).Run(nil)
     /* ... */
 }
 ```
