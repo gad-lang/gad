@@ -139,6 +139,7 @@ return v
 
 ## TODO
 
+- [ ] Dollar as valid ident char
 - [ ] Nullisch Coalescing
 - [ ] Named arguments
 - [ ] Array Expansion
