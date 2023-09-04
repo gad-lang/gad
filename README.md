@@ -137,19 +137,19 @@ return v
 }
 ```
 
-## Roadmap
+## TODO
 
-Examples for best practices (2023).
-
-Better Playground (2023).
-
-More standard library modules (2023).
-
-Configurable Stdin, Stdout and Stderr per Virtual Machine (2023).
-
-Deferring function calls (2024).
-
-Concurrency support (2024).
+- [ ] Nullisch Coalescing
+- [ ] Named arguments
+- [ ] Array Expansion
+- [ ] Array Comprehensions
+- [ ] Map Expansion
+- [ ] Map Comprehensions
+- [ ] Examples for best practices
+- [ ] Better Playground
+- [ ] Configurable Stdin, Stdout and Stderr per Virtual Machine
+- [ ] Deferring function calls
+- [ ] Concurrency support
 
 ## Documentation
 
