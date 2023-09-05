@@ -490,7 +490,7 @@ func initSuggestions() {
 	}
 
 	// add keywords to suggestions
-	for tok := token.Question + 3; tok.IsKeyword(); tok++ {
+	for tok := token.KeyworkBegin_ + 1; tok.IsKeyword(); tok++ {
 		s := tok.String()
 		suggestions = append(suggestions, suggest{
 			text: s,

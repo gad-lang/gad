@@ -370,6 +370,25 @@ func (c *Compiler) compileAssignStmt(
 		c.emit(node, OpConstant, c.addConstant(Int(len(lhs))))
 	}
 
+	if op == token.NullichAssign || op == token.LOrAssign {
+		op2 := OpJumpNotNull
+		if op == token.LOrAssign {
+			op2 = OpOrJump
+		}
+		jumpPos := c.emit(node, op2, 0)
+		// compile RHSs
+		for _, expr := range rhs {
+			if err := c.Compile(expr); err != nil {
+				return err
+			}
+		}
+		if err := c.compileDefineAssign(node, lhs[0], keyword, token.Assign, false); err != nil {
+			return err
+		}
+		c.changeOperand(jumpPos, len(c.instructions))
+		return nil
+	}
+
 	// compile RHSs
 	for _, expr := range rhs {
 		if err := c.Compile(expr); err != nil {
@@ -869,9 +888,12 @@ func (c *Compiler) compileLogical(node *parser.BinaryExpr) error {
 
 	// jump position
 	var jumpPos int
-	if node.Token == token.LAnd {
+	switch node.Token {
+	case token.LAnd:
 		jumpPos = c.emit(node, OpAndJump, 0)
-	} else {
+	case token.NullichCoalesce:
+		jumpPos = c.emit(node, OpJumpNotNull, 0)
+	default:
 		jumpPos = c.emit(node, OpOrJump, 0)
 	}
 
@@ -929,7 +951,9 @@ func (c *Compiler) compileUnaryExpr(node *parser.UnaryExpr) error {
 }
 
 func (c *Compiler) compileSelectorExpr(node *parser.SelectorExpr) error {
+	defer c.pushSelector()()
 	expr, selectors := resolveSelectorExprs(node)
+
 	if err := c.Compile(expr); err != nil {
 		return err
 	}
@@ -942,9 +966,72 @@ func (c *Compiler) compileSelectorExpr(node *parser.SelectorExpr) error {
 	return nil
 }
 
+func (c *Compiler) pushSelector() func() {
+	var (
+		increases bool
+		stackLen  = len(c.stack)
+	)
+	switch c.stack[stackLen-2].(type) {
+	case *parser.SelectorExpr, *parser.NullishSelectorExpr:
+	default:
+		increases = true
+		c.selectorStack = append(c.selectorStack, nil)
+	}
+	i := len(c.selectorStack) - 1
+	j := len(c.selectorStack[i])
+	c.selectorStack[i] = append(c.selectorStack[i], nil)
+	return func() {
+		for _, f := range c.selectorStack[i][j] {
+			f()
+		}
+		c.selectorStack[i] = c.selectorStack[i][:j]
+		if increases {
+			c.selectorStack = c.selectorStack[:i]
+		}
+	}
+}
+
+func (c *Compiler) selectorHandler(f func()) {
+	l := len(c.selectorStack) - 1
+	c.selectorStack[l][0] = append(c.selectorStack[l][0], f)
+}
+
+func (c *Compiler) compileNullishSelectorExpr(node *parser.NullishSelectorExpr) error {
+	defer c.pushSelector()()
+
+	expr, selectors := resolveSelectorExprs(node)
+
+	var jumpPos int
+
+	if err := c.Compile(expr); err != nil {
+		return err
+	}
+
+	for _, selector := range selectors[0 : len(selectors)-1] {
+		if err := c.Compile(selector); err != nil {
+			return err
+		}
+	}
+
+	jumpPos = c.emit(node, OpJumpNull, 0)
+	c.selectorHandler(func() {
+		c.changeOperand(jumpPos, len(c.instructions))
+	})
+
+	if err := c.Compile(selectors[len(selectors)-1]); err != nil {
+		return err
+	}
+	c.emit(node, OpGetIndex, len(selectors))
+	return nil
+}
+
 func resolveSelectorExprs(node parser.Expr) (expr parser.Expr, selectors []parser.Expr) {
 	expr = node
-	if v, ok := node.(*parser.SelectorExpr); ok {
+	switch v := node.(type) {
+	case *parser.SelectorExpr:
+		expr, selectors = resolveIndexExprs(v.Expr)
+		selectors = append(selectors, v.Sel)
+	case *parser.NullishSelectorExpr:
 		expr, selectors = resolveIndexExprs(v.Expr)
 		selectors = append(selectors, v.Sel)
 	}

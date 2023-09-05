@@ -42,6 +42,14 @@ func TestVMArray(t *testing.T) {
 			nil, arr[idx])
 		expectRun(t, fmt.Sprintf("idx := %d; return %s[idx]", idx, arrStr),
 			nil, arr[idx])
+		expectRun(t, fmt.Sprintf("return %s.(%d)", arrStr, idx),
+			nil, arr[idx])
+		expectRun(t, fmt.Sprintf("return %s.(0 + %d)", arrStr, idx),
+			nil, arr[idx])
+		expectRun(t, fmt.Sprintf("return %s.(1 + %d - 1)", arrStr, idx),
+			nil, arr[idx])
+		expectRun(t, fmt.Sprintf("idx := %d; return %s.(idx)", idx, arrStr),
+			nil, arr[idx])
 	}
 	expectErrIs(t, fmt.Sprintf("%s[%d]", arrStr, -1), nil, ErrIndexOutOfBounds)
 	expectErrIs(t, fmt.Sprintf("%s[%d]", arrStr, arrLen), nil, ErrIndexOutOfBounds)
@@ -487,6 +495,19 @@ func TestVMAssignment(t *testing.T) {
 	d[f()] = [g(), h()]
 	return d
 	`, nil, Map{"40": Array{Int(2), Int(4)}})
+
+	expectRun(t, `a := undefined; a ||= 1; return a`, nil, Int(1))
+	expectRun(t, `a := 0; a ||= 1; return a`, nil, Int(1))
+	expectRun(t, `a := ""; a ||= 1; return a`, nil, Int(1))
+	expectRun(t, `a := 1; a ||= 2; return a`, nil, Int(1))
+	expectRun(t, `c := false; a := 1; a ||= func(){c=true;return 2}(); return [c,a]`, nil, Array{False, Int(1)})
+	expectRun(t, `c := false; a := 0; a ||= func(){c=true;return 2}(); return [c,a]`, nil, Array{True, Int(2)})
+
+	expectRun(t, `a := 1; a ??= 2; return a`, nil, Int(1))
+	expectRun(t, `a := 0; a ??= 2; return a`, nil, Int(0))
+	expectRun(t, `a := undefined; a ??= 2; return a`, nil, Int(2))
+	expectRun(t, `c := false; a := 1; a ??= func(){c=true;return 2}(); return [c,a]`, nil, Array{False, Int(1)})
+	expectRun(t, `c := false; a := undefined; a ??= func(){c=true;return 2}(); return [c,a]`, nil, Array{True, Int(2)})
 }
 
 func TestVMBitwise(t *testing.T) {
@@ -2325,6 +2346,19 @@ func TestVMLogical(t *testing.T) {
 		nil, Int(7))
 	expectRun(t, `var out; t:=func() {out = 3; return true}; f:=func() {out = 7; return false}; !t() || f(); return out`,
 		nil, Int(7))
+
+	expectRun(t, `false ?? true`, nil, Undefined)
+	expectRun(t, `return true ?? true`, nil, True)
+	expectRun(t, `return undefined ?? 1`, nil, Int(1))
+	expectRun(t, `return false ?? 1`, nil, False)
+	expectRun(t, `return undefined ?? 1 ?? 2`, nil, Int(1))
+	expectRun(t, `return undefined ?? undefined ?? 2`, nil, Int(2))
+	expectRun(t, `var (called = false, f = func() {called = true;return 1}); return [f() ?? 2, called]`, nil, Array{Int(1), True})
+	expectRun(t, `var (c = "", f = func(v,r) {c += v;return r}); return [f("u",undefined) ?? f("1",1) ?? f("2",2) , c]`, nil, Array{Int(1), String("u1")})
+	expectRun(t, `var (c = "", f = func(v,r) {c += v;return r}); return [f("1",1) ?? f("2",2) , c]`, nil, Array{Int(1), String("1")})
+	expectRun(t, `return undefined ?? 0 || 2`, nil, Int(2))
+	expectRun(t, `return undefined ?? 1 || 2`, nil, Int(1))
+	expectRun(t, `return 3 ?? 1 || 2`, nil, Int(3))
 }
 
 func TestVMMap(t *testing.T) {
@@ -2741,6 +2775,29 @@ func TestVMScopes(t *testing.T) {
 		a = 10
 		return a	
 	}`, nil, Int(10))
+}
+
+func TestVMNullishSelector(t *testing.T) {
+	expectRun(t, `a := {b: 1}; return a?.b`, nil, Int(1))
+	expectRun(t, `a := {b: {c:{d:1}}}; return a?.b.c.d`, nil, Int(1))
+	expectRun(t, `a := {b: {c:{d:1}}}; k := "c"; return a?.b.(k).d`, nil, Int(1))
+	expectRun(t, `a := {b: {c:{d:1}}}; k := "x"; return a?.b.(k)?.d`, nil, Undefined)
+	expectRun(t, `a := {b: {c:{d:{}}}}; return a?.b.c.d.e`, nil, Undefined)
+	expectRun(t, `a := {b: {c:{d:{}}}}; return a?.b.c.d.e?.f.g`, nil, Undefined)
+	expectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return a?.b?.c.d.e.f.g`, nil, Int(1))
+	expectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return a?.(""+"b")?.c.d?.e.f.g`, nil, Int(1))
+	expectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return a[""+"b"]?.c.d?.e.f.g`, nil, Int(1))
+	expectRun(t, `var (a = {b: {c: {d: {e: {f: {g: 1} } } } } }, b); 
+		return a?.("b").c.d.e.f.g,
+               a?.("b"+"").c.d.e.f.g,
+               a?.("" || "b").c.d.e.f.g,
+               a?.("" || "b").c.d.(undefined ?? "e").f.g,
+               a?.("b" || "x").c.d.("e" ?? "z").f.g`, nil,
+		Array{Int(1), Int(1), Int(1), Int(1), Int(1)})
+	expectRun(t, `a := {}; return a[""+"b"]?.c.d?.e.f.g`, nil, Undefined)
+	expectRun(t, `a := undefined; return a?.b`, nil, Undefined)
+	expectRun(t, `a := undefined; return a?.b.c.d`, nil, Undefined)
+	expectRun(t, `a := {}; return a?.b.c.d`, nil, Undefined)
 }
 
 func TestVMSelector(t *testing.T) {

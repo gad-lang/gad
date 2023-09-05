@@ -61,6 +61,8 @@ type (
 		opts          CompilerOptions
 		trace         io.Writer
 		indent        int
+		stack         []parser.Node
+		selectorStack [][][]func()
 	}
 
 	// CompilerOptions represents customizable options for Compile().
@@ -253,8 +255,8 @@ func (c *Compiler) Bytecode() *Bytecode {
 			operands,
 		)
 
-		if lastOp == OpJump || lastOp == OpJumpFalsy ||
-			lastOp == OpAndJump || lastOp == OpOrJump {
+		switch lastOp {
+		case OpJump, OpJumpFalsy, OpAndJump, OpOrJump, OpJumpNotNull:
 			jumpPos[operands[0]] = struct{}{}
 		}
 
@@ -282,6 +284,7 @@ func (c *Compiler) Bytecode() *Bytecode {
 
 // Compile compiles parser.Node and builds Bytecode.
 func (c *Compiler) Compile(node parser.Node) error {
+	defer c.at(node)()
 	if c.trace != nil {
 		if node != nil {
 			defer untracec(tracec(c, fmt.Sprintf("%s (%s)",
@@ -318,10 +321,12 @@ func (c *Compiler) Compile(node parser.Node) error {
 	case *parser.ParenExpr:
 		return c.Compile(node.Expr)
 	case *parser.BinaryExpr:
-		if node.Token == token.LAnd || node.Token == token.LOr {
+		switch node.Token {
+		case token.LAnd, token.LOr, token.NullichCoalesce:
 			return c.compileLogical(node)
+		default:
+			return c.compileBinaryExpr(node)
 		}
-		return c.compileBinaryExpr(node)
 	case *parser.IntLit:
 		c.emit(node, OpConstant, c.addConstant(Int(node.Value)))
 	case *parser.UintLit:
@@ -373,6 +378,8 @@ func (c *Compiler) Compile(node parser.Node) error {
 		return c.compileMapLit(node)
 	case *parser.SelectorExpr: // selector on RHS side
 		return c.compileSelectorExpr(node)
+	case *parser.NullishSelectorExpr: // selector on RHS side
+		return c.compileNullishSelectorExpr(node)
 	case *parser.IndexExpr:
 		return c.compileIndexExpr(node)
 	case *parser.SliceExpr:
@@ -393,6 +400,13 @@ func (c *Compiler) Compile(node parser.Node) error {
 		return c.errorf(node, `%[1]T "%[1]v" not implemented`, node)
 	}
 	return nil
+}
+
+func (c *Compiler) at(node parser.Node) func() {
+	c.stack = append(c.stack, node)
+	return func() {
+		c.stack = c.stack[:len(c.stack)-1]
+	}
 }
 
 func (c *Compiler) changeOperand(opPos int, operand ...int) {
@@ -704,7 +718,8 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	buf = append(buf[:0], op)
 	switch op {
 	case OpConstant, OpMap, OpArray, OpGetGlobal, OpSetGlobal, OpJump,
-		OpJumpFalsy, OpAndJump, OpOrJump, OpStoreModule:
+		OpJumpFalsy, OpAndJump, OpOrJump, OpStoreModule,
+		OpJumpNull, OpJumpNotNull:
 		buf = append(buf, byte(args[0]>>8))
 		buf = append(buf, byte(args[0]))
 		return buf, nil

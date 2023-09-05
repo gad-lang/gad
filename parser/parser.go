@@ -285,11 +285,23 @@ func (p *Parser) parsePrimaryExpr() Expr {
 L:
 	for {
 		switch p.token {
+		case token.NullishSelector:
+			p.next()
+
+			switch p.token {
+			case token.Ident, token.LParen:
+				x = p.parseNullishSelector(x)
+			default:
+				pos := p.pos
+				p.errorExpected(pos, "nullish selector")
+				p.advance(stmtStart)
+				return &BadExpr{From: pos, To: p.pos}
+			}
 		case token.Period:
 			p.next()
 
 			switch p.token {
-			case token.Ident:
+			case token.Ident, token.LParen:
 				x = p.parseSelector(x)
 			default:
 				pos := p.pos
@@ -409,12 +421,46 @@ func (p *Parser) parseSelector(x Expr) Expr {
 		defer untracep(tracep(p, "Selector"))
 	}
 
-	sel := p.parseIdent()
-	return &SelectorExpr{Expr: x, Sel: &StringLit{
-		Value:    sel.Name,
-		ValuePos: sel.NamePos,
-		Literal:  sel.Name,
-	}}
+	var sel Expr
+	if p.token == token.LParen {
+		lparen := p.pos
+		p.next()
+		sel = p.parseExpr()
+		rparen := p.expect(token.RParen)
+		sel = &ParenExpr{sel, lparen, rparen}
+	} else {
+		ident := p.parseIdent()
+		sel = &StringLit{
+			Value:    ident.Name,
+			ValuePos: ident.NamePos,
+			Literal:  ident.Name,
+		}
+	}
+	return &SelectorExpr{Expr: x, Sel: sel}
+}
+
+func (p *Parser) parseNullishSelector(x Expr) Expr {
+	if p.trace {
+		defer untracep(tracep(p, "NullishSelector"))
+	}
+
+	var sel Expr
+	if p.token == token.LParen {
+		lparen := p.pos
+		p.next()
+		sel = p.parseExpr()
+		rparen := p.expect(token.RParen)
+		sel = &ParenExpr{sel, lparen, rparen}
+	} else {
+		ident := p.parseIdent()
+		sel = &StringLit{
+			Value:    ident.Name,
+			ValuePos: ident.NamePos,
+			Literal:  ident.Name,
+		}
+	}
+
+	return &NullishSelectorExpr{Expr: x, Sel: sel}
 }
 
 func (p *Parser) parseOperand() Expr {
@@ -1200,7 +1246,8 @@ func (p *Parser) parseSimpleStmt(forIn bool) Stmt {
 	case token.Define,
 		token.AddAssign, token.SubAssign, token.MulAssign, token.QuoAssign,
 		token.RemAssign, token.AndAssign, token.OrAssign, token.XorAssign,
-		token.ShlAssign, token.ShrAssign, token.AndNotAssign:
+		token.ShlAssign, token.ShrAssign, token.AndNotAssign,
+		token.NullichAssign, token.LOrAssign:
 		pos, tok := p.pos, p.token
 		p.next()
 		y := p.parseExpr()

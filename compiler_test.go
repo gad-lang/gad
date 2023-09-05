@@ -1489,6 +1489,88 @@ func TestCompiler_Compile(t *testing.T) {
 	} catch {}
 	finally {}`, `Parse Error: expected statement, found 'finally'`)
 
+	expectCompile(t, `undefined || 1`, bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpOrJump, 7),   // 0020
+			makeInst(OpConstant, 0), // 0025
+			makeInst(OpPop),         // 0030
+			makeInst(OpReturn, 0),   // 0031
+		)),
+	))
+
+	expectCompile(t, `undefined ?? 1`, bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpJumpNotNull, 7), // 0020
+			makeInst(OpConstant, 0),    // 0025
+			makeInst(OpPop),            // 0030
+			makeInst(OpReturn, 0),      // 0031
+		)),
+	))
+
+	expectCompile(t, `a := 1; a ??= 2`, bytecode(
+		Array{Int(1), Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNotNull, 15),
+			makeInst(OpConstant, 1),
+			makeInst(OpSetLocal, 0),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		)))
+
+	expectCompile(t, `a := 1; b := 2; a ??= b`, bytecode(
+		Array{Int(1), Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpDefineLocal, 1),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNotNull, 19),
+			makeInst(OpGetLocal, 1),
+			makeInst(OpSetLocal, 0),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(2),
+		)))
+
+	expectCompile(t, `a := 1; a ||= 2`, bytecode(
+		Array{Int(1), Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpOrJump, 15),
+			makeInst(OpConstant, 1),
+			makeInst(OpSetLocal, 0),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		)))
+
+	expectCompile(t, `a := 1; b := 2; a ||= b`, bytecode(
+		Array{Int(1), Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpDefineLocal, 1),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpOrJump, 19),
+			makeInst(OpGetLocal, 1),
+			makeInst(OpSetLocal, 0),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(2),
+		)))
+
 	// 4 instructions are generated for every source module import.
 	// If module's returned value is already stored, ignore storing.
 	moduleMap := NewModuleMap()
@@ -1649,6 +1731,292 @@ func TestCompiler_Compile(t *testing.T) {
 			),
 		),
 	)
+}
+
+func TestCompilerNullishSelector(t *testing.T) {
+	expectCompile(t, `var a; a["I"+"DX"]?.d`, bytecode(
+		Array{
+			String("I"),  // 1
+			String("DX"), // 2
+			String("d"),  // 3
+		},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 0), // b
+			makeInst(OpConstant, 1),
+			makeInst(OpBinaryOp, 12),
+			makeInst(OpJumpNull, 21),
+			makeInst(OpConstant, 2), // I
+			makeInst(OpGetIndex, 2), // DX
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		)))
+
+	expectCompile(t, `var a; a?.b["c"]?.d.e?.f.g`, bytecode(
+		Array{String("b"), String("c"), String("d"), String("e"), String("f"), String("g")},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0), // a
+			makeInst(OpGetLocal, 0),    // a
+			makeInst(OpJumpNull, 42),   // 44
+			makeInst(OpConstant, 0),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpConstant, 1),
+			makeInst(OpJumpNull, 42),
+			makeInst(OpConstant, 2),
+			makeInst(OpGetIndex, 2),
+			makeInst(OpConstant, 3),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNull, 42),
+			makeInst(OpConstant, 4),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpConstant, 5),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		)))
+
+	expectCompile(t, `var a; a?.b.c?.d.e?.f.g`, bytecode(
+		Array{String("b"), String("c"), String("d"), String("e"), String("f"), String("g")},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0), // a
+			makeInst(OpGetLocal, 0),    // a
+			makeInst(OpJumpNull, 44),   // 44
+			makeInst(OpConstant, 0),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpConstant, 1),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNull, 44),
+			makeInst(OpConstant, 2),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpConstant, 3),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNull, 44),
+			makeInst(OpConstant, 4),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpConstant, 5),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		)))
+
+	expectCompile(t, `var a; a?.b.c`, bytecode(
+		Array{String("b"), String("c")},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0), // a
+			makeInst(OpGetLocal, 0),    // a
+			makeInst(OpJumpNull, 18),   // 44
+			makeInst(OpConstant, 0),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpConstant, 1),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		)))
+
+	expectCompile(t, `var a; a?.b`, bytecode(
+		Array{String("b")},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNull, 13),
+			makeInst(OpConstant, 0),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		)))
+
+	expectCompile(t, `var a; a?.b.c`, bytecode(
+		Array{String("b"), String("c")},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNull, 18),
+			makeInst(OpConstant, 0),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpConstant, 1),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		)))
+
+	expectCompile(t, `var a; a?.b?.c`, bytecode(
+		Array{String("b"), String("c")},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNull, 21),
+			makeInst(OpConstant, 0),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNull, 21),
+			makeInst(OpConstant, 1),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		)))
+
+	expectCompile(t, `var a; a.("I"+"DX")?.d`, bytecode(
+		Array{
+			String("I"),  // 1
+			String("DX"), // 2
+			String("d"),  // 3
+		},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpBinaryOp, 12),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNull, 23),
+			makeInst(OpConstant, 2),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		)))
+
+	expectCompile(t, `var a; a?.("I"+"DX")?.d`, bytecode(
+		Array{
+			String("I"),  // 1
+			String("DX"), // 2
+			String("d"),  // 3
+		},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNull, 26),
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpBinaryOp, 12),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNull, 26),
+			makeInst(OpConstant, 2),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		)))
+
+	expectCompile(t, `var (a, k = "b"); a?.(k)?.c`, bytecode(
+		Array{
+			String("b"),
+			String("c"),
+		},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 1),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNull, 25),
+			makeInst(OpGetLocal, 1),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNull, 25),
+			makeInst(OpConstant, 1),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(2),
+		)))
+
+	expectCompile(t, `var a; a?.("I"+"DX")?.d.e?.f.g`, bytecode(
+		Array{
+			String("I"),
+			String("DX"),
+			String("d"),
+			String("e"),
+			String("f"),
+			String("g"),
+		},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNull, 44),
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpBinaryOp, 12),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNull, 44),
+			makeInst(OpConstant, 2),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpConstant, 3),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNull, 44),
+			makeInst(OpConstant, 4),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpConstant, 5),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		)))
+
+	expectCompile(t, `var (a, b); a?.("" || "b")?.d.e?.(b ?? "f").g`, bytecode(
+		Array{
+			String(""),
+			String("b"),
+			String("d"),
+			String("e"),
+			String("f"),
+			String("g"),
+		},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 1),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNull, 53),
+			makeInst(OpConstant, 0),
+			makeInst(OpOrJump, 20),
+			makeInst(OpConstant, 1),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNull, 53),
+			makeInst(OpConstant, 2),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpConstant, 3),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNull, 53),
+			makeInst(OpGetLocal, 1),
+			makeInst(OpJumpNotNull, 46),
+			makeInst(OpConstant, 4),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpConstant, 5),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(2),
+		)))
 }
 
 func TestCompilerScopes(t *testing.T) {

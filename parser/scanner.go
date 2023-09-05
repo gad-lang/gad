@@ -153,7 +153,22 @@ func (s *Scanner) Scan() (
 		case ',':
 			tok = token.Comma
 		case '?':
-			tok = token.Question
+			switch s.ch {
+			case '.':
+				s.next()
+				tok = token.NullishSelector
+			case '?':
+				if s.peek() == '=' {
+					s.next()
+					s.next()
+					tok = token.NullichAssign
+				} else {
+					s.next()
+					tok = token.NullichCoalesce
+				}
+			default:
+				tok = token.Question
+			}
 		case ';':
 			tok = token.Semicolon
 			literal = ";"
@@ -228,7 +243,21 @@ func (s *Scanner) Scan() (
 				tok = s.switch3(token.And, token.AndAssign, '&', token.LAnd)
 			}
 		case '|':
-			tok = s.switch3(token.Or, token.OrAssign, '|', token.LOr)
+			if s.ch == '=' {
+				s.next()
+				tok = token.OrAssign
+			} else if s.ch == '|' {
+				if s.peek() == '=' {
+					s.next()
+					s.next()
+					tok = token.LOrAssign
+				} else {
+					s.next()
+					tok = token.LOr
+				}
+			} else {
+				tok = token.Or
+			}
 		default:
 			// next reports unexpected BOMs - don't repeat
 			if ch != bom {

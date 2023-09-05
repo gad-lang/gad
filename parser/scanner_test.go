@@ -88,8 +88,11 @@ func TestScanner_Scan(t *testing.T) {
 		{token.ShlAssign, "<<="},
 		{token.ShrAssign, ">>="},
 		{token.AndNotAssign, "&^="},
+		{token.LOrAssign, "||="},
+		{token.NullichAssign, "??="},
 		{token.LAnd, "&&"},
 		{token.LOr, "||"},
+		{token.NullichCoalesce, "??"},
 		{token.Inc, "++"},
 		{token.Dec, "--"},
 		{token.Equal, "=="},
@@ -132,6 +135,7 @@ func TestScanner_Scan(t *testing.T) {
 		{token.Catch, "catch"},
 		{token.Finally, "finally"},
 		{token.Throw, "throw"},
+		{token.NullishSelector, "?."},
 	}
 
 	// combine

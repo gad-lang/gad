@@ -299,6 +299,21 @@ VMLoop:
 			}
 			pos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			vm.ip = pos - 1
+		case OpJumpNull:
+			if vm.stack[vm.sp-1] != Undefined {
+				vm.ip += 2
+				continue
+			}
+			pos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+			vm.ip = pos - 1
+		case OpJumpNotNull:
+			if vm.stack[vm.sp-1] == Undefined {
+				vm.sp--
+				vm.ip += 2
+				continue
+			}
+			pos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+			vm.ip = pos - 1
 		case OpEqual:
 			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
 

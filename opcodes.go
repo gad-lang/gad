@@ -53,6 +53,8 @@ const (
 	OpTrue
 	OpFalse
 	OpCallName
+	OpJumpNull
+	OpJumpNotNull
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -101,6 +103,8 @@ var OpcodeNames = [...]string{
 	OpTrue:         "TRUE",
 	OpFalse:        "FALSE",
 	OpCallName:     "CALLNAME",
+	OpJumpNull:     "JUMPNULL",
+	OpJumpNotNull:  "JUMPNOTNULL",
 }
 
 // OpcodeOperands is the number of operands.
@@ -149,6 +153,8 @@ var OpcodeOperands = [...][]int{
 	OpTrue:         {},
 	OpFalse:        {},
 	OpCallName:     {1, 1}, // number of arguments, flags
+	OpJumpNull:     {2},    // position
+	OpJumpNotNull:  {2},    // position
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

@@ -466,6 +466,11 @@ func (e *ParenExpr) String() string {
 	return "(" + e.Expr.String() + ")"
 }
 
+type ExprSelector interface {
+	Expr
+	SelectorExpr() Expr
+}
+
 // SelectorExpr represents a selector expression.
 type SelectorExpr struct {
 	Expr Expr
@@ -485,7 +490,51 @@ func (e *SelectorExpr) End() Pos {
 }
 
 func (e *SelectorExpr) String() string {
-	return e.Expr.String() + "." + e.Sel.String()
+	r := e.Expr.String() + "."
+	if s, _ := e.Sel.(*StringLit); s != nil {
+		if s.CanIdent() {
+			return r + s.Value
+		}
+		return r + "(" + s.Literal + ")"
+	}
+	return r + e.Sel.String()
+}
+
+func (e *SelectorExpr) SelectorExpr() Expr {
+	return e.Expr
+}
+
+// NullishSelectorExpr represents a selector expression.
+type NullishSelectorExpr struct {
+	Expr Expr
+	Sel  Expr
+}
+
+func (e *NullishSelectorExpr) exprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *NullishSelectorExpr) Pos() Pos {
+	return e.Expr.Pos()
+}
+
+// End returns the position of first character immediately after the node.
+func (e *NullishSelectorExpr) End() Pos {
+	return e.Sel.End()
+}
+
+func (e *NullishSelectorExpr) String() string {
+	r := e.Expr.String() + "?."
+	if s, _ := e.Sel.(*StringLit); s != nil {
+		if s.CanIdent() {
+			return r + s.Value
+		}
+		return r + "(" + s.Literal + ")"
+	}
+	return r + e.Sel.String()
+}
+
+func (e *NullishSelectorExpr) SelectorExpr() Expr {
+	return e.Expr
 }
 
 // SliceExpr represents a slice expression.
@@ -525,6 +574,15 @@ type StringLit struct {
 	Value    string
 	ValuePos Pos
 	Literal  string
+}
+
+func (e *StringLit) CanIdent() bool {
+	for _, r := range e.Value {
+		if !isLetter(r) {
+			return false
+		}
+	}
+	return true
 }
 
 func (e *StringLit) exprNode() {}

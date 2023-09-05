@@ -16,64 +16,68 @@ const (
 	Illegal Token = iota
 	EOF
 	Comment
-	_literalBeg
+	LiteralBegin_
 	Ident
 	Int
 	Uint
 	Float
 	Char
 	String
-	_literalEnd
-	_operatorBeg
-	Add          // +
-	Sub          // -
-	Mul          // *
-	Quo          // /
-	Rem          // %
-	And          // &
-	Or           // |
-	Xor          // ^
-	Shl          // <<
-	Shr          // >>
-	AndNot       // &^
-	AddAssign    // +=
-	SubAssign    // -=
-	MulAssign    // *=
-	QuoAssign    // /=
-	RemAssign    // %=
-	AndAssign    // &=
-	OrAssign     // |=
-	XorAssign    // ^=
-	ShlAssign    // <<=
-	ShrAssign    // >>=
-	AndNotAssign // &^=
-	LAnd         // &&
-	LOr          // ||
-	Inc          // ++
-	Dec          // --
-	Equal        // ==
-	Less         // <
-	Greater      // >
-	Assign       // =
-	Not          // !
-	NotEqual     // !=
-	LessEq       // <=
-	GreaterEq    // >=
-	Define       // :=
-	Ellipsis     // ...
-	LParen       // (
-	LBrack       // [
-	LBrace       // {
-	Comma        // ,
-	Period       // .
-	RParen       // )
-	RBrack       // ]
-	RBrace       // }
-	Semicolon    // ;
-	Colon        // :
-	Question     // ?
-	_operatorEnd
-	_keywordBeg
+	LiteralEnd_
+	OperatorBegin_
+	Add             // +
+	Sub             // -
+	Mul             // *
+	Quo             // /
+	Rem             // %
+	And             // &
+	Or              // |
+	Xor             // ^
+	Shl             // <<
+	Shr             // >>
+	AndNot          // &^
+	AddAssign       // +=
+	SubAssign       // -=
+	MulAssign       // *=
+	QuoAssign       // /=
+	RemAssign       // %=
+	AndAssign       // &=
+	OrAssign        // |=
+	XorAssign       // ^=
+	ShlAssign       // <<=
+	ShrAssign       // >>=
+	AndNotAssign    // &^=
+	LOrAssign       // ||=
+	NullichAssign   // ??=
+	NullichCoalesce // ??
+	LAnd            // &&
+	LOr             // ||
+	Inc             // ++
+	Dec             // --
+	Equal           // ==
+	Less            // <
+	Greater         // >
+	Assign          // =
+	Not             // !
+	NotEqual        // !=
+	LessEq          // <=
+	GreaterEq       // >=
+	Define          // :=
+	Ellipsis        // ...
+	LParen          // (
+	LBrack          // [
+	LBrace          // {
+	Comma           // ,
+	Period          // .
+	RParen          // )
+	RBrack          // ]
+	RBrace          // }
+	Semicolon       // ;
+	Colon           // :
+	Question        // ?
+	NullishSelector // ?.
+	OperatorEnd_
+	KeyworkBegin_
 	Break
 	Continue
 	Else
@@ -94,86 +98,90 @@ const (
 	Catch
 	Finally
 	Throw
-	_keywordEnd
+	KeywordEnd_
 )
 
 var tokens = [...]string{
-	Illegal:      "ILLEGAL",
-	EOF:          "EOF",
-	Comment:      "COMMENT",
-	Ident:        "IDENT",
-	Int:          "INT",
-	Uint:         "UINT",
-	Float:        "FLOAT",
-	Char:         "CHAR",
-	String:       "STRING",
-	Add:          "+",
-	Sub:          "-",
-	Mul:          "*",
-	Quo:          "/",
-	Rem:          "%",
-	And:          "&",
-	Or:           "|",
-	Xor:          "^",
-	Shl:          "<<",
-	Shr:          ">>",
-	AndNot:       "&^",
-	AddAssign:    "+=",
-	SubAssign:    "-=",
-	MulAssign:    "*=",
-	QuoAssign:    "/=",
-	RemAssign:    "%=",
-	AndAssign:    "&=",
-	OrAssign:     "|=",
-	XorAssign:    "^=",
-	ShlAssign:    "<<=",
-	ShrAssign:    ">>=",
-	AndNotAssign: "&^=",
-	LAnd:         "&&",
-	LOr:          "||",
-	Inc:          "++",
-	Dec:          "--",
-	Equal:        "==",
-	Less:         "<",
-	Greater:      ">",
-	Assign:       "=",
-	Not:          "!",
-	NotEqual:     "!=",
-	LessEq:       "<=",
-	GreaterEq:    ">=",
-	Define:       ":=",
-	Ellipsis:     "...",
-	LParen:       "(",
-	LBrack:       "[",
-	LBrace:       "{",
-	Comma:        ",",
-	Period:       ".",
-	RParen:       ")",
-	RBrack:       "]",
-	RBrace:       "}",
-	Semicolon:    ";",
-	Colon:        ":",
-	Question:     "?",
-	Break:        "break",
-	Continue:     "continue",
-	Else:         "else",
-	For:          "for",
-	Func:         "func",
-	If:           "if",
-	Return:       "return",
-	True:         "true",
-	False:        "false",
-	In:           "in",
-	Undefined:    "undefined",
-	Import:       "import",
-	Param:        "param",
-	Global:       "global",
-	Var:          "var",
-	Const:        "const",
-	Try:          "try",
-	Catch:        "catch",
-	Finally:      "finally",
-	Throw:        "throw",
+	Illegal:         "ILLEGAL",
+	EOF:             "EOF",
+	Comment:         "COMMENT",
+	Ident:           "IDENT",
+	Int:             "INT",
+	Uint:            "UINT",
+	Float:           "FLOAT",
+	Char:            "CHAR",
+	String:          "STRING",
+	Add:             "+",
+	Sub:             "-",
+	Mul:             "*",
+	Quo:             "/",
+	Rem:             "%",
+	And:             "&",
+	Or:              "|",
+	Xor:             "^",
+	Shl:             "<<",
+	Shr:             ">>",
+	AndNot:          "&^",
+	AddAssign:       "+=",
+	SubAssign:       "-=",
+	MulAssign:       "*=",
+	QuoAssign:       "/=",
+	RemAssign:       "%=",
+	AndAssign:       "&=",
+	OrAssign:        "|=",
+	XorAssign:       "^=",
+	ShlAssign:       "<<=",
+	ShrAssign:       ">>=",
+	AndNotAssign:    "&^=",
+	LOrAssign:       "||=",
+	NullichAssign:   "??=",
+	LAnd:            "&&",
+	LOr:             "||",
+	NullichCoalesce: "??",
+	Inc:             "++",
+	Dec:             "--",
+	Equal:           "==",
+	Less:            "<",
+	Greater:         ">",
+	Assign:          "=",
+	Not:             "!",
+	NotEqual:        "!=",
+	LessEq:          "<=",
+	GreaterEq:       ">=",
+	Define:          ":=",
+	Ellipsis:        "...",
+	LParen:          "(",
+	LBrack:          "[",
+	LBrace:          "{",
+	Comma:           ",",
+	Period:          ".",
+	RParen:          ")",
+	RBrack:          "]",
+	RBrace:          "}",
+	Semicolon:       ";",
+	Colon:           ":",
+	Question:        "?",
+	NullishSelector: "?.",
+	Break:           "break",
+	Continue:        "continue",
+	Else:            "else",
+	For:             "for",
+	Func:            "func",
+	If:              "if",
+	Return:          "return",
+	True:            "true",
+	False:           "false",
+	In:              "in",
+	Undefined:       "undefined",
+	Import:          "import",
+	Param:           "param",
+	Global:          "global",
+	Var:             "var",
+	Const:           "const",
+	Try:             "try",
+	Catch:           "catch",
+	Finally:         "finally",
+	Throw:           "throw",
 }
 
 func (tok Token) String() string {
@@ -196,7 +204,7 @@ const LowestPrec = 0
 // Precedence returns the precedence for the operator token.
 func (tok Token) Precedence() int {
 	switch tok {
-	case LOr:
+	case LOr, NullichCoalesce:
 		return 1
 	case LAnd:
 		return 2
@@ -212,12 +220,12 @@ func (tok Token) Precedence() int {
 
 // IsLiteral returns true if the token is a literal.
 func (tok Token) IsLiteral() bool {
-	return _literalBeg < tok && tok < _literalEnd
+	return LiteralBegin_ < tok && tok < LiteralEnd_
 }
 
 // IsOperator returns true if the token is an operator.
 func (tok Token) IsOperator() bool {
-	return _operatorBeg < tok && tok < _operatorEnd
+	return OperatorBegin_ < tok && tok < OperatorEnd_
 }
 
 // IsBinaryOperator reports whether token is a binary operator.
@@ -247,7 +255,7 @@ func (tok Token) IsBinaryOperator() bool {
 
 // IsKeyword returns true if the token is a keyword.
 func (tok Token) IsKeyword() bool {
-	return _keywordBeg < tok && tok < _keywordEnd
+	return KeyworkBegin_ < tok && tok < KeywordEnd_
 }
 
 // Lookup returns corresponding keyword if ident is a keyword.
@@ -260,7 +268,7 @@ func Lookup(ident string) Token {
 
 func init() {
 	keywords = make(map[string]Token)
-	for i := _keywordBeg + 1; i < _keywordEnd; i++ {
+	for i := KeyworkBegin_ + 1; i < KeywordEnd_; i++ {
 		keywords[tokens[i]] = i
 	}
 }

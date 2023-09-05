@@ -74,6 +74,9 @@ _ := import("strings")
 time := import("time")
 time.Now() + 10 * time.Second
 c := counter ? v3 : undefined
+c ||= 1
+d := c ?? 2 || 1
+x := d?.a.b.("c")?.e ?? 5
 `
 	goldenFile := "testdata/trace.golden"
 	f, err := os.Open(goldenFile)
@@ -83,7 +86,7 @@ c := counter ? v3 : undefined
 	}()
 	if *update {
 		require.NoError(t, f.Close())
-		f, err = os.OpenFile(goldenFile, os.O_CREATE|os.O_WRONLY, 0644)
+		f, err = os.OpenFile(goldenFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		require.NoError(t, err)
 		parse(sample, f)
 		require.NoError(t, f.Close())
@@ -803,6 +806,52 @@ func TestParseAssignment(t *testing.T) {
 						token.Add,
 						p(1, 8))),
 				token.MulAssign,
+				p(1, 3)))
+	})
+
+	expectParse(t, "a ||= 5", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(ident("a", p(1, 1))),
+				exprs(intLit(5, p(1, 7))),
+				token.LOrAssign,
+				p(1, 3)))
+	})
+
+	expectParse(t, "a ||= 5 + 10", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(ident("a", p(1, 1))),
+				exprs(
+					binaryExpr(
+						intLit(5, p(1, 7)),
+						intLit(10, p(1, 11)),
+						token.Add,
+						p(1, 9))),
+				token.LOrAssign,
+				p(1, 3)))
+	})
+
+	expectParse(t, "a ??= 5", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(ident("a", p(1, 1))),
+				exprs(intLit(5, p(1, 7))),
+				token.NullichAssign,
+				p(1, 3)))
+	})
+
+	expectParse(t, "a ??= 5 + 10", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(ident("a", p(1, 1))),
+				exprs(
+					binaryExpr(
+						intLit(5, p(1, 7)),
+						intLit(10, p(1, 11)),
+						token.Add,
+						p(1, 9))),
+				token.NullichAssign,
 				p(1, 3)))
 	})
 }
@@ -1864,6 +1913,81 @@ func TestParsePrecedence(t *testing.T) {
 	expectParseString(t, `x = 2 * 1 + 3 / 4`, `x = ((2 * 1) + (3 / 4))`)
 }
 
+func TestParseNullishSelector(t *testing.T) {
+	expectParseString(t, `a?.(k)`, `a?.(k)`)
+	expectParseString(t, `a?.(k+x)`, `a?.((k + x))`)
+	expectParse(t, "a?.b.c?.d", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				nullishSelector(
+					selectorExpr(
+						nullishSelector(
+							ident("a", p(1, 1)),
+							stringLit("b", p(1, 4))),
+						stringLit("c", p(1, 6))),
+					stringLit("d", p(1, 9)))))
+	})
+	expectParse(t, "a?.b.c?.d.e", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				selectorExpr(
+					nullishSelector(
+						selectorExpr(
+							nullishSelector(
+								ident("a", p(1, 1)),
+								stringLit("b", p(1, 4))),
+							stringLit("c", p(1, 6))),
+						stringLit("d", p(1, 9))),
+					stringLit("e", p(1, 11)))))
+	})
+	expectParse(t, "a?.b.c?.d.e?.f.g", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				selectorExpr(
+					nullishSelector(
+						selectorExpr(
+							nullishSelector(
+								selectorExpr(
+									nullishSelector(
+										ident("a", p(1, 1)),
+										stringLit("b", p(1, 4))),
+									stringLit("c", p(1, 6))),
+								stringLit("d", p(1, 9))),
+							stringLit("e", p(1, 11))),
+						stringLit("f", p(1, 14))),
+					stringLit("g", p(1, 16)))))
+	})
+	expectParse(t, "a?.b?.c", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				nullishSelector(
+					nullishSelector(
+						ident("a", p(1, 1)),
+						stringLit("b", p(1, 4))),
+					stringLit("c", p(1, 7)))))
+	})
+	expectParse(t, "a?.b", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				nullishSelector(
+					ident("a", p(1, 1)),
+					stringLit("b", p(1, 4)))))
+	})
+	expectParseString(t, "a?.b", "a?.b")
+	expectParseString(t, `a?.b["c"+x]?.d`, `a?.b[("c" + x)]?.d`)
+	expectParseString(t, "a?.b.c", "a?.b.c")
+	expectParseString(t, "a?.b.c?.d.e?.f.g", "a?.b.c?.d.e?.f.g")
+	expectParseString(t, `a["b"+"c"]?.d`, `a[("b" + "c")]?.d`)
+	expectParseString(t, `a.b["b"+"c"]?.d`, `a.b[("b" + "c")]?.d`)
+	expectParseString(t, `a?.("b"+"c")?.d`, `a?.(("b" + "c"))?.d`)
+	expectParseString(t, `d.("a").e`, `d.("a").e`)
+	expectParseString(t, `d.("a"+"b").e`, `d.(("a" + "b")).e`)
+	expectParseString(t, `d.("a").e ?? 1`, `(d.("a").e ?? 1)`)
+	expectParseString(t, `d.("a"+"b").e ?? 1`, `(d.(("a" + "b")).e ?? 1)`)
+	expectParseString(t, `a?.("" || "b")?.d.e?.(b ?? "f")`, `a?.(("" || "b"))?.d.e?.((b ?? "f"))`)
+	expectParseString(t, `a?.(k)?.c`, `a?.(k)?.c`)
+}
+
 func TestParseSelector(t *testing.T) {
 	expectParse(t, "a.b", func(p pfn) []Stmt {
 		return stmts(
@@ -1881,6 +2005,16 @@ func TestParseSelector(t *testing.T) {
 						ident("a", p(1, 1)),
 						stringLit("b", p(1, 3))),
 					stringLit("c", p(1, 5)))))
+	})
+
+	expectParse(t, "a.(b).c", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				selectorExpr(
+					selectorExpr(
+						ident("a", p(1, 1)),
+						parenExpr(ident("b", p(1, 4)), p(1, 3), p(1, 5))),
+					stringLit("c", p(1, 7)))))
 	})
 
 	expectParse(t, "{k1:1}.k1", func(p pfn) []Stmt {
@@ -2038,8 +2172,6 @@ func TestParseSelector(t *testing.T) {
 				exprs(intLit(4, p(1, 15))),
 				token.Assign, p(1, 13)))
 	})
-
-	expectParseError(t, `a.(b.c)`)
 }
 
 func TestParseSemicolon(t *testing.T) {
@@ -2448,6 +2580,13 @@ func identList(
 	}
 }
 
+func nullishSelector(
+	sel,
+	expr Expr,
+) *NullishSelectorExpr {
+	return &NullishSelectorExpr{sel, expr}
+}
+
 func binaryExpr(
 	x, y Expr,
 	op token.Token,
@@ -2749,6 +2888,11 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 	case *UndefinedLit:
 		require.Equal(t, expected.TokenPos,
 			actual.(*UndefinedLit).TokenPos)
+	case *NullishSelectorExpr:
+		equalExpr(t, expected.Expr,
+			actual.(*NullishSelectorExpr).Expr)
+		equalExpr(t, expected.Sel,
+			actual.(*NullishSelectorExpr).Sel)
 	case *BinaryExpr:
 		equalExpr(t, expected.LHS,
 			actual.(*BinaryExpr).LHS)
