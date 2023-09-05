@@ -2627,6 +2627,11 @@ func TestVMUnary(t *testing.T) {
 	expectRun(t, `return -0.0`, nil, Float(0.0))
 	expectRun(t, `return +0.0`, nil, Float(0.0))
 
+	expectRun(t, `return undefined == undefined`, nil, True)
+	expectRun(t, `return 1 == undefined`, nil, False)
+	expectRun(t, `return undefined != undefined`, nil, False)
+	expectRun(t, `return 1 != undefined`, nil, True)
+
 	expectErrIs(t, `return ^1.0`, nil, ErrType)
 	expectErrHas(t, `return ^1.0`, nil, `TypeError: invalid type for unary '^': 'float'`)
 }

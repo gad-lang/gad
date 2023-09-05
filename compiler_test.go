@@ -83,6 +83,45 @@ func concatInsts(insts ...[]byte) []byte {
 	return out
 }
 
+func TestCompiler_CompileIfNull(t *testing.T) {
+	// all local variables are initialized as undefined
+	expectCompile(t, `var a; a == undefined ? 1 : 2`, bytecode(
+		Array{Int(1), Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpUnary, int(token.Null)),
+			makeInst(OpJumpFalsy, 16),
+			makeInst(OpConstant, 0),
+			makeInst(OpJump, 19),
+			makeInst(OpConstant, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		),
+	))
+	// all local variables are initialized as undefined
+	expectCompile(t, `var a; a != undefined ? 1 : 2`, bytecode(
+		Array{Int(1), Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpUnary, int(token.NotNull)),
+			makeInst(OpJumpFalsy, 16),
+			makeInst(OpConstant, 0),
+			makeInst(OpJump, 19),
+			makeInst(OpConstant, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		),
+	))
+}
+
 func TestCompiler_Compile(t *testing.T) {
 	// all local variables are initialized as undefined
 	expectCompile(t, `var a`, bytecode(

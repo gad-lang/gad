@@ -935,14 +935,8 @@ func (c *Compiler) compileUnaryExpr(node *parser.UnaryExpr) error {
 	}
 
 	switch node.Token {
-	case token.Not:
-		c.emit(node, OpUnary, int(token.Not))
-	case token.Sub:
-		c.emit(node, OpUnary, int(token.Sub))
-	case token.Xor:
-		c.emit(node, OpUnary, int(token.Xor))
-	case token.Add:
-		c.emit(node, OpUnary, int(token.Add))
+	case token.Not, token.Sub, token.Xor, token.Add, token.Null, token.NotNull:
+		c.emit(node, OpUnary, int(node.Token))
 	default:
 		return c.errorf(node,
 			"invalid unary operator: %s", node.Token.String())

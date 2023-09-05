@@ -1344,6 +1344,14 @@ func (vm *VM) xOpUnary() error {
 		default:
 			goto invalidType
 		}
+	case token.Null:
+		vm.stack[vm.sp-1] = Bool(right == Undefined)
+		vm.ip++
+		return nil
+	case token.NotNull:
+		vm.stack[vm.sp-1] = Bool(right != Undefined)
+		vm.ip++
+		return nil
 	default:
 		return ErrInvalidOperator.NewError(
 			fmt.Sprintf("invalid for '%s': '%s'",

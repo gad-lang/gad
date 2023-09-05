@@ -858,6 +858,62 @@ func TestParseAssignment(t *testing.T) {
 	})
 }
 
+func TestParseUnaryNulls(t *testing.T) {
+	expectParse(t, "false == undefined", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				unaryExpr(
+					boolLit(false, p(1, 1)),
+					token.Null,
+					p(1, 7))))
+	})
+
+	expectParse(t, "false != undefined", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				unaryExpr(
+					boolLit(false, p(1, 1)),
+					token.NotNull,
+					p(1, 7))))
+	})
+
+	expectParseString(t, "false == undefined", "(false == undefined)")
+	expectParseString(t, "false != undefined", "(false != undefined)")
+	expectParseString(t, "undefined == undefined", "(undefined == undefined)")
+	expectParseString(t, "undefined != undefined", "(undefined != undefined)")
+
+	expectParse(t, "a == undefined ? b : c", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				condExpr(
+					unaryExpr(
+						ident("a", p(1, 1)),
+						token.Null,
+						p(1, 3)),
+					ident("b", p(1, 18)),
+					ident("c", p(1, 22)),
+					p(1, 16),
+					p(1, 20))))
+	})
+
+	expectParse(t, "a != undefined ? b : c", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				condExpr(
+					unaryExpr(
+						ident("a", p(1, 1)),
+						token.NotNull,
+						p(1, 3)),
+					ident("b", p(1, 18)),
+					ident("c", p(1, 22)),
+					p(1, 16),
+					p(1, 20))))
+	})
+
+	expectParseString(t, "a == undefined ? b : c", "((a == undefined) ? b : c)")
+	expectParseString(t, "a != undefined ? b : c", "((a != undefined) ? b : c)")
+}
+
 func TestParseBoolean(t *testing.T) {
 	expectParse(t, "true", func(p pfn) []Stmt {
 		return stmts(
@@ -1431,6 +1487,32 @@ func TestParseVariadicFunctionWithArgs(t *testing.T) {
 }
 
 func TestParseIf(t *testing.T) {
+	expectParse(t, "if a == undefined {}", func(p pfn) []Stmt {
+		return stmts(
+			ifStmt(
+				nil,
+				unaryExpr(ident("a", p(1, 4)),
+					token.Null,
+					p(1, 6)),
+				blockStmt(
+					p(1, 19), p(1, 20)),
+				nil,
+				p(1, 1)))
+	})
+
+	expectParse(t, "if a != undefined {}", func(p pfn) []Stmt {
+		return stmts(
+			ifStmt(
+				nil,
+				unaryExpr(ident("a", p(1, 4)),
+					token.NotNull,
+					p(1, 6)),
+				blockStmt(
+					p(1, 19), p(1, 20)),
+				nil,
+				p(1, 1)))
+	})
+
 	expectParse(t, "if a == 5 {}", func(p pfn) []Stmt {
 		return stmts(
 			ifStmt(

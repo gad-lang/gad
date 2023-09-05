@@ -232,6 +232,34 @@ func (p *Parser) parseBinaryExpr(prec1 int) Expr {
 
 		y := p.parseBinaryExpr(prec + 1)
 
+		if op == token.Equal || op == token.NotEqual {
+			if _, ok := x.(*UndefinedLit); ok {
+				if op == token.Equal {
+					op = token.Null
+				} else {
+					op = token.NotNull
+				}
+				x = &UnaryExpr{
+					Expr:     y,
+					Token:    op,
+					TokenPos: pos,
+				}
+				continue
+			} else if _, ok := y.(*UndefinedLit); ok {
+				if op == token.Equal {
+					op = token.Null
+				} else {
+					op = token.NotNull
+				}
+				x = &UnaryExpr{
+					Expr:     x,
+					Token:    op,
+					TokenPos: pos,
+				}
+				continue
+			}
+		}
+
 		x = &BinaryExpr{
 			LHS:      x,
 			RHS:      y,

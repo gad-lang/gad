@@ -60,6 +60,8 @@ const (
 	Assign          // =
 	Not             // !
 	NotEqual        // !=
+	Null            // a == undefined || undefined == a
+	NotNull         // a != undefined || undefined != a
 	LessEq          // <=
 	GreaterEq       // >=
 	Define          // :=
@@ -111,6 +113,8 @@ var tokens = [...]string{
 	Float:           "FLOAT",
 	Char:            "CHAR",
 	String:          "STRING",
+	Null:            "NULL",
+	NotNull:         "NOTNULL",
 	Add:             "+",
 	Sub:             "-",
 	Mul:             "*",
@@ -208,7 +212,7 @@ func (tok Token) Precedence() int {
 		return 1
 	case LAnd:
 		return 2
-	case Equal, NotEqual, Less, LessEq, Greater, GreaterEq:
+	case Equal, NotEqual, Less, LessEq, Greater, GreaterEq, Null, NotNull:
 		return 3
 	case Add, Sub, Or, Xor:
 		return 4

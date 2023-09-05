@@ -621,6 +621,12 @@ func (e *UnaryExpr) End() Pos {
 }
 
 func (e *UnaryExpr) String() string {
+	if e.Token == token.Null {
+		return "(" + e.Expr.String() + " == undefined)"
+	}
+	if e.Token == token.NotNull {
+		return "(" + e.Expr.String() + " != undefined)"
+	}
 	return "(" + e.Token.String() + e.Expr.String() + ")"
 }
 
