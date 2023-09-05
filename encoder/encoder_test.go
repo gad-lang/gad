@@ -22,7 +22,7 @@ import (
 
 func TestGobEncoder(t *testing.T) {
 	objects := []gad.Object{
-		gad.Undefined,
+		gad.Nil,
 		gad.Bool(true),
 		gad.Int(0),
 		gad.Uint(0),
@@ -46,12 +46,12 @@ func TestGobEncoder(t *testing.T) {
 }
 
 func TestEncDecObjects(t *testing.T) {
-	data, err := (*UndefinedType)(gad.Undefined.(*gad.UndefinedType)).MarshalBinary()
+	data, err := (*NilType)(gad.Nil.(*gad.NilType)).MarshalBinary()
 	require.NoError(t, err)
 	if obj, err := DecodeObject(bytes.NewReader(data)); err != nil {
 		t.Fatal(err)
 	} else {
-		require.Equal(t, gad.Undefined, obj)
+		require.Equal(t, gad.Nil, obj)
 	}
 
 	boolObjects := []gad.Bool{gad.True, gad.False, gad.Bool(true), gad.Bool(false)}
@@ -241,7 +241,7 @@ func TestEncDecObjects(t *testing.T) {
 		temp7 = append(temp7, boolObjects[i])
 	}
 	arrays = append(arrays, temp7)
-	arrays = append(arrays, gad.Array{gad.Undefined})
+	arrays = append(arrays, gad.Array{gad.Nil})
 
 	for _, tC := range arrays {
 		msg := fmt.Sprintf("Array(%v)", tC)
@@ -369,10 +369,10 @@ func TestEncDecObjects(t *testing.T) {
 func TestEncDecBytecode(t *testing.T) {
 	testEncDecBytecode(t, `
 	f := func() {
-		return [undefined, true, false, "", -1, 0, 1, 2u, 3.0, 'a', bytes(0, 1, 2)]
+		return [nil, true, false, "", -1, 0, 1, 2u, 3.0, 'a', bytes(0, 1, 2)]
 	}
 	f()
-	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}`, nil, gad.Undefined)
+	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}`, nil, gad.Nil)
 }
 
 func TestEncDecBytecode_modules(t *testing.T) {

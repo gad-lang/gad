@@ -114,7 +114,7 @@ func (c *Compiler) compileTryStmt(node *parser.TryStmt) error {
 
 	var opjump int
 	if node.Catch != nil {
-		// if there is no thrown error before catch statement, set catch ident to undefined
+		// if there is no thrown error before catch statement, set catch ident to nil
 		// otherwise jumping to finally and accessing ident in finally access previous set same index variable.
 		if node.Catch.Ident != nil {
 			c.emit(node.Catch, OpNull)
@@ -291,7 +291,7 @@ func (c *Compiler) compileDeclValue(node *parser.GenDecl) error {
 				if isConst && lastExpr != nil {
 					v = lastExpr
 				} else {
-					v = &parser.UndefinedLit{TokenPos: ident.Pos()}
+					v = &parser.NilLit{TokenPos: ident.Pos()}
 				}
 			} else {
 				lastExpr = v
@@ -470,7 +470,7 @@ func (c *Compiler) compileDestructuring(
 	}
 
 	if !c.symbolTable.InBlock() {
-		// blocks set undefined to variables defined in it after block
+		// blocks set nil to variables defined in it after block
 		c.emit(node, OpNull)
 		c.emit(node, OpSetLocal, tempArrSymbol.Index)
 	}
@@ -1180,7 +1180,7 @@ func (c *Compiler) compileImportExpr(node *parser.ImportExpr) error {
 		c.emit(node, OpLoadModule, module.constantIndex, module.moduleIndex)
 		jumpPos := c.emit(node, OpJumpFalsy, 0)
 		// modules should not accept parameters, to suppress the wrong number of arguments error
-		// set all params to undefined
+		// set all params to nil
 		for i := 0; i < numParams; i++ {
 			c.emit(node, OpNull)
 		}

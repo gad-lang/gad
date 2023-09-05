@@ -214,7 +214,7 @@ var Module = map[string]gad.Object{
 		ValueEx: stdlib.FuncPi64ROEx(durationHoursFunc),
 	},
 	// gad:doc
-	// Sleep(duration int) -> undefined
+	// Sleep(duration int) -> nil
 	// Pauses the current goroutine for at least the duration.
 	"Sleep": &gad.Function{
 		Name: "Sleep",
@@ -471,7 +471,7 @@ func durationHoursFunc(d int64) gad.Object {
 
 func sleepFunc(c gad.Call) (gad.Object, error) {
 	if err := c.CheckLen(1); err != nil {
-		return gad.Undefined, err
+		return gad.Nil, err
 	}
 	arg0 := c.Get(0)
 
@@ -490,10 +490,10 @@ func sleepFunc(c gad.Call) (gad.Object, error) {
 		dur -= 10 * time.Millisecond
 		time.Sleep(10 * time.Millisecond)
 		if c.VM().Aborted() {
-			return gad.Undefined, gad.ErrVMAborted
+			return gad.Nil, gad.ErrVMAborted
 		}
 	}
-	return gad.Undefined, nil
+	return gad.Nil, nil
 }
 
 func parseDurationFunc(s string) (gad.Object, error) {
@@ -519,7 +519,7 @@ func fixedZoneFunc(name string, sec int) gad.Object {
 func loadLocationFunc(name string) (gad.Object, error) {
 	l, err := time.LoadLocation(name)
 	if err != nil {
-		return gad.Undefined, err
+		return gad.Nil, err
 	}
 	return &Location{Value: l}, nil
 }
@@ -542,7 +542,7 @@ func dateFunc(args ...gad.Object) (gad.Object, error) {
 func dateFuncEx(c gad.Call) (gad.Object, error) {
 	size := c.Len()
 	if size < 3 || size > 8 {
-		return gad.Undefined, gad.ErrWrongNumArguments.NewError(
+		return gad.Nil, gad.ErrWrongNumArguments.NewError(
 			"want=3..8 got=" + strconv.Itoa(size))
 	}
 	ymdHmsn := [7]int{}
@@ -578,7 +578,7 @@ func parseFunc(args ...gad.Object) (gad.Object, error) {
 func parseFuncEx(c gad.Call) (gad.Object, error) {
 	size := c.Len()
 	if size != 2 && size != 3 {
-		return gad.Undefined, gad.ErrWrongNumArguments.NewError(
+		return gad.Nil, gad.ErrWrongNumArguments.NewError(
 			"want=2..3 got=" + strconv.Itoa(size))
 	}
 	layout, ok := gad.ToGoString(c.Get(0))
@@ -592,7 +592,7 @@ func parseFuncEx(c gad.Call) (gad.Object, error) {
 	if size == 2 {
 		tm, err := time.Parse(layout, value)
 		if err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 		return &Time{Value: tm}, nil
 	}
@@ -602,7 +602,7 @@ func parseFuncEx(c gad.Call) (gad.Object, error) {
 	}
 	tm, err := time.ParseInLocation(layout, value, loc.Value)
 	if err != nil {
-		return gad.Undefined, err
+		return gad.Nil, err
 	}
 	return &Time{Value: tm}, nil
 }
@@ -614,7 +614,7 @@ func unixFunc(args ...gad.Object) (gad.Object, error) {
 func unixFuncEx(c gad.Call) (gad.Object, error) {
 	size := c.Len()
 	if size != 1 && size != 2 {
-		return gad.Undefined, gad.ErrWrongNumArguments.NewError(
+		return gad.Nil, gad.ErrWrongNumArguments.NewError(
 			"want=1..2 got=" + strconv.Itoa(size))
 	}
 

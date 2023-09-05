@@ -466,7 +466,7 @@ func (p *Param) HelperAssignVar() string {
 
 	return fmt.Sprintf(`%s, ok := %s(%s[%d])
 		if !ok {
-			return %sUndefined, %sNewArgumentTypeError("%s", "%s", %s[%d].TypeName())
+			return %sNil, %sNewArgumentTypeError("%s", "%s", %s[%d].TypeName())
 		}`,
 		p.Name, conv, p.fn.argsName, p.idx,
 		gaddot(), gaddot(), ordinalize(p.idx+1), gadTypeName, p.fn.argsName, p.idx,
@@ -496,7 +496,7 @@ func (p *Param) HelperAssignVarEx() string {
 
 	return fmt.Sprintf(`%s, ok := %s(%s.Get(%d))
 		if !ok {
-			return %sUndefined, %sNewArgumentTypeError("%s", "%s", %s.Get(%d).TypeName())
+			return %sNil, %sNewArgumentTypeError("%s", "%s", %s.Get(%d).TypeName())
 		}`,
 		p.Name, conv, p.fn.argsName, p.idx,
 		gaddot(), gaddot(), ordinalize(p.idx+1), gadTypeName, p.fn.argsName, p.idx,
@@ -651,7 +651,7 @@ func (f *Fn) SourceString() string { return f.src }
 // check number of arguments.
 func (f *Fn) HelperCheckNumArgs() string {
 	return fmt.Sprintf(`if len(%s)!=%d {
-			return %sUndefined, %sErrWrongNumArguments.NewError("want=%d got=" + strconv.Itoa(len(%s)))
+			return %sNil, %sErrWrongNumArguments.NewError("want=%d got=" + strconv.Itoa(len(%s)))
 	    }`, f.argsName, len(f.Params), gaddot(), gaddot(), len(f.Params), f.argsName)
 }
 
@@ -659,7 +659,7 @@ func (f *Fn) HelperCheckNumArgs() string {
 // check number of arguments for extended API.
 func (f *Fn) HelperCheckNumArgsEx() string {
 	return fmt.Sprintf(`if err := %s.CheckLen(%d); err!=nil {
-			return %sUndefined, err
+			return %sNil, err
 	    }`, f.argsName, len(f.Params), gaddot())
 }
 
@@ -669,14 +669,14 @@ func (f *Fn) HelperCall() string {
 	const retPrefix = "\n        " // just for formatting reasons.
 	var (
 		left string
-		ret  = retPrefix + f.retName + " = " + gaddot() + "Undefined"
+		ret  = retPrefix + f.retName + " = " + gaddot() + "Nil"
 	)
 	if rets := f.Rets.ToParams(); len(rets) > 0 {
 		switch len(rets) {
 		case 1:
 			if f.Rets.ReturnsError {
 				left = f.errName + " = "
-				ret = retPrefix + f.retName + " = " + gaddot() + "Undefined"
+				ret = retPrefix + f.retName + " = " + gaddot() + "Nil"
 			} else {
 				left = f.retName + " = "
 				ret = ""

@@ -28,10 +28,10 @@ func TestEval(t *testing.T) {
 		{
 			name: "simple",
 			sr: []scriptResult{
-				{`var a`, Undefined},
+				{`var a`, Nil},
 				{`1`, Int(1)},
 				{`return 10`, Int(10)},
-				{`a = 10`, Undefined},
+				{`a = 10`, Nil},
 				{`return a`, Int(10)},
 				{`return a*a`, Int(100)},
 			},
@@ -43,13 +43,13 @@ func TestEval(t *testing.T) {
 					AddBuiltinModule("time", gadtime.Module),
 			},
 			sr: []scriptResult{
-				{`time := import("time")`, Undefined},
+				{`time := import("time")`, Nil},
 				{`time.Second`, gadtime.Module["Second"]},
-				{`tmp := time.Second`, Undefined},
+				{`tmp := time.Second`, Nil},
 				{`tmp`, gadtime.Module["Second"]},
-				{`time.Second = ""`, Undefined},
+				{`time.Second = ""`, Nil},
 				{`time.Second`, String("")},
-				{`time.Second = tmp`, Undefined},
+				{`time.Second = tmp`, Nil},
 				{`time.Second`, gadtime.Module["Second"]},
 			},
 		},
@@ -57,7 +57,7 @@ func TestEval(t *testing.T) {
 			name:   "globals",
 			global: Map{"g": String("test")},
 			sr: []scriptResult{
-				{`global g`, Undefined},
+				{`global g`, Nil},
 				{`return g`, String("test")},
 				{`globals()["g"]`, String("test")},
 			},
@@ -66,20 +66,20 @@ func TestEval(t *testing.T) {
 			name: "locals",
 			args: []Object{Int(1), Int(2)},
 			sr: []scriptResult{
-				{`var (a, b, c)`, Undefined},
-				{`a`, Undefined},
-				{`b`, Undefined},
-				{`c`, Undefined},
+				{`var (a, b, c)`, Nil},
+				{`a`, Nil},
+				{`b`, Nil},
+				{`c`, Nil},
 			},
 		},
 		{
 			name: "params",
 			args: []Object{Int(1), Int(2)},
 			sr: []scriptResult{
-				{`param (a, b, c)`, Undefined},
+				{`param (a, b, c)`, Nil},
 				{`a`, Int(1)},
 				{`b`, Int(2)},
-				{`c`, Undefined},
+				{`c`, Nil},
 			},
 		},
 	}
@@ -100,7 +100,7 @@ func TestEval(t *testing.T) {
 			"Gosched": &Function{
 				Value: func(args ...Object) (Object, error) {
 					runtime.Gosched()
-					return Undefined, nil
+					return Nil, nil
 				},
 			},
 		}

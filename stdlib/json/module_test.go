@@ -47,7 +47,7 @@ func TestScript(t *testing.T) {
 		).String())
 	}
 
-	expectRun(t, scriptf(""), nil, Undefined)
+	expectRun(t, scriptf(""), nil, Nil)
 
 	for key, val := range Module {
 		expectRun(t, scriptf("typeName(json.%s)", key), nil, String("function"))
@@ -57,8 +57,8 @@ func TestScript(t *testing.T) {
 	}
 
 	expectRun(t, catchf(`json.Marshal()`), nil, errnarg(1, 0))
-	expectRun(t, catchf(`typeName(json.Marshal(undefined))`), nil, String("bytes"))
-	expectRun(t, catchf(`string(json.Marshal(undefined))`), nil, String("null"))
+	expectRun(t, catchf(`typeName(json.Marshal(nil))`), nil, String("bytes"))
+	expectRun(t, catchf(`string(json.Marshal(nil))`), nil, String("null"))
 	expectRun(t, catchf(`string(json.Marshal(error("test")))`), nil, String("")) // ignore error
 	expectRun(t, catchf(`string(json.Marshal(true))`), nil, String("true"))
 	expectRun(t, catchf(`string(json.Marshal(false))`), nil, String("false"))
@@ -70,7 +70,7 @@ func TestScript(t *testing.T) {
 	expectRun(t, catchf(`string(json.Marshal(bytes(0,1)))`), nil, String(`"AAE="`))
 	expectRun(t, catchf(`string(json.Marshal([]))`), nil, String("[]"))
 	expectRun(t, catchf(`string(json.Marshal([1, "a", 2u, 'x',3.4,true,false,
-	{a:[],"b":0,ç:undefined},bytes(0,1),
+	{a:[],"b":0,ç:nil},bytes(0,1),
 	]))`), nil, String(`[1,"a",2,120,3.4,true,false,{"a":[],"b":0,"ç":null},"AAE="]`))
 	expectRun(t, catchf(`string(json.Marshal({}))`), nil, String("{}"))
 	expectRun(t, catchf(`string(json.Marshal({_: 1, k2:[3,true,"a"]}))`),

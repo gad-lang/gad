@@ -131,7 +131,7 @@ func NewCompiler(file *parser.SourceFile, opts CompilerOptions) *Compiler {
 		opts.constsCache = make(map[Object]int)
 		for i := range opts.Constants {
 			switch opts.Constants[i].(type) {
-			case Int, Uint, String, Bool, Float, Char, *UndefinedType:
+			case Int, Uint, String, Bool, Float, Char, *NilType:
 				opts.constsCache[opts.Constants[i]] = i
 			}
 		}
@@ -343,7 +343,7 @@ func (c *Compiler) Compile(node parser.Node) error {
 		c.emit(node, OpConstant, c.addConstant(String(node.Value)))
 	case *parser.CharLit:
 		c.emit(node, OpConstant, c.addConstant(Char(node.Value)))
-	case *parser.UndefinedLit:
+	case *parser.NilLit:
 		c.emit(node, OpNull)
 	case *parser.UnaryExpr:
 		return c.compileUnaryExpr(node)
@@ -436,7 +436,7 @@ func (c *Compiler) addConstant(obj Object) (index int) {
 	}()
 
 	switch obj.(type) {
-	case Int, Uint, String, Bool, Float, Char, *UndefinedType:
+	case Int, Uint, String, Bool, Float, Char, *NilType:
 		i, ok := c.constsCache[obj]
 		if ok {
 			index = i

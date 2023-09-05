@@ -9,43 +9,43 @@ import (
 )
 
 func TestVMDestructuring(t *testing.T) {
-	expectErrHas(t, `x, y = undefined; return x`,
+	expectErrHas(t, `x, y = nil; return x`,
 		newOpts().CompilerError(), `Compile Error: unresolved reference "x"`)
-	expectErrHas(t, `var (x, y); x, y := undefined; return x`,
+	expectErrHas(t, `var (x, y); x, y := nil; return x`,
 		newOpts().CompilerError(), `Compile Error: no new variable on left side`)
 	expectErrHas(t, `x, y = 1, 2`, newOpts().CompilerError(),
 		`Compile Error: multiple expressions on the right side not supported`)
 
-	expectRun(t, `x, y := undefined; return x`, nil, Undefined)
-	expectRun(t, `x, y := undefined; return y`, nil, Undefined)
+	expectRun(t, `x, y := nil; return x`, nil, Nil)
+	expectRun(t, `x, y := nil; return y`, nil, Nil)
 	expectRun(t, `x, y := 1; return x`, nil, Int(1))
-	expectRun(t, `x, y := 1; return y`, nil, Undefined)
-	expectRun(t, `x, y := []; return x`, nil, Undefined)
-	expectRun(t, `x, y := []; return y`, nil, Undefined)
+	expectRun(t, `x, y := 1; return y`, nil, Nil)
+	expectRun(t, `x, y := []; return x`, nil, Nil)
+	expectRun(t, `x, y := []; return y`, nil, Nil)
 	expectRun(t, `x, y := [1]; return x`, nil, Int(1))
-	expectRun(t, `x, y := [1]; return y`, nil, Undefined)
+	expectRun(t, `x, y := [1]; return y`, nil, Nil)
 	expectRun(t, `x, y := [1, 2]; return x`, nil, Int(1))
 	expectRun(t, `x, y := [1, 2]; return y`, nil, Int(2))
 	expectRun(t, `x, y := [1, 2, 3]; return x`, nil, Int(1))
 	expectRun(t, `x, y := [1, 2, 3]; return y`, nil, Int(2))
 	expectRun(t, `var x; x, y := [1]; return x`, nil, Int(1))
-	expectRun(t, `var x; x, y := [1]; return y`, nil, Undefined)
+	expectRun(t, `var x; x, y := [1]; return y`, nil, Nil)
 
-	expectRun(t, `x, y, z := undefined; return x`, nil, Undefined)
-	expectRun(t, `x, y, z := undefined; return y`, nil, Undefined)
-	expectRun(t, `x, y, z := undefined; return z`, nil, Undefined)
+	expectRun(t, `x, y, z := nil; return x`, nil, Nil)
+	expectRun(t, `x, y, z := nil; return y`, nil, Nil)
+	expectRun(t, `x, y, z := nil; return z`, nil, Nil)
 	expectRun(t, `x, y, z := 1; return x`, nil, Int(1))
-	expectRun(t, `x, y, z := 1; return y`, nil, Undefined)
-	expectRun(t, `x, y, z := 1; return z`, nil, Undefined)
-	expectRun(t, `x, y, z := []; return x`, nil, Undefined)
-	expectRun(t, `x, y, z := []; return y`, nil, Undefined)
-	expectRun(t, `x, y, z := []; return z`, nil, Undefined)
+	expectRun(t, `x, y, z := 1; return y`, nil, Nil)
+	expectRun(t, `x, y, z := 1; return z`, nil, Nil)
+	expectRun(t, `x, y, z := []; return x`, nil, Nil)
+	expectRun(t, `x, y, z := []; return y`, nil, Nil)
+	expectRun(t, `x, y, z := []; return z`, nil, Nil)
 	expectRun(t, `x, y, z := [1]; return x`, nil, Int(1))
-	expectRun(t, `x, y, z := [1]; return y`, nil, Undefined)
-	expectRun(t, `x, y, z := [1]; return z`, nil, Undefined)
+	expectRun(t, `x, y, z := [1]; return y`, nil, Nil)
+	expectRun(t, `x, y, z := [1]; return z`, nil, Nil)
 	expectRun(t, `x, y, z := [1, 2]; return x`, nil, Int(1))
 	expectRun(t, `x, y, z := [1, 2]; return y`, nil, Int(2))
-	expectRun(t, `x, y, z := [1, 2]; return z`, nil, Undefined)
+	expectRun(t, `x, y, z := [1, 2]; return z`, nil, Nil)
 	expectRun(t, `x, y, z := [1, 2, 3]; return x`, nil, Int(1))
 	expectRun(t, `x, y, z := [1, 2, 3]; return y`, nil, Int(2))
 	expectRun(t, `x, y, z := [1, 2, 3]; return z`, nil, Int(3))
@@ -105,13 +105,13 @@ func TestVMDestructuring(t *testing.T) {
 		return [1]
 	}
 	x, y := fn()
-	return [x, y]`, nil, Array{Int(1), Undefined})
+	return [x, y]`, nil, Array{Int(1), Nil})
 	expectRun(t, `
 	fn := func() { 
 		return
 	}
 	x, y := fn()
-	return [x, y]`, nil, Array{Undefined, Undefined})
+	return [x, y]`, nil, Array{Nil, Nil})
 	expectRun(t, `
 	fn := func() { 
 		return [1, 2, 3]
@@ -124,7 +124,7 @@ func TestVMDestructuring(t *testing.T) {
 		return {}
 	}
 	x, y := fn()
-	return [x, y]`, nil, Array{Map{}, Undefined})
+	return [x, y]`, nil, Array{Map{}, Nil})
 	expectRun(t, `
 	fn := func(v) { 
 		return [1, v, 3]
@@ -135,7 +135,7 @@ func TestVMDestructuring(t *testing.T) {
 	return [x, y, t]`, nil, Array{Int(1), Int(10), Map{"a": Int(1)}})
 
 	// test any expression
-	expectRun(t, `x, y :=  {}; return [x, y]`, nil, Array{Map{}, Undefined})
+	expectRun(t, `x, y :=  {}; return [x, y]`, nil, Array{Map{}, Nil})
 	expectRun(t, `
 	var x = 2
 	if x > 0 {
@@ -175,7 +175,7 @@ func TestVMDestructuring(t *testing.T) {
 			} catch err {
 				return [0, err]
 			} finally {
-				if err == undefined {
+				if err == nil {
 					return ret
 				}
 			}
@@ -188,7 +188,7 @@ func TestVMDestructuring(t *testing.T) {
 			throw "a is not 0"
 		}
 		a, err = fn(6)
-		if err != undefined {
+		if err != nil {
 			throw sprintf("unexpected error: %s", err)
 		}
 		if a != 3 {
@@ -230,7 +230,7 @@ func TestVMDestructuring(t *testing.T) {
 	a, b := func(n) {
 		x = n
 	}(3)
-	return [x, a, b]`, nil, Array{Int(3), Undefined, Undefined})
+	return [x, a, b]`, nil, Array{Int(3), Nil, Nil})
 	expectRun(t, `
 	var x = 10
 	a, b := func(...args) {
@@ -351,7 +351,7 @@ func TestVMDestructuring(t *testing.T) {
 	global multiplier
 	
 	v, err := mapEach(args, func(x) { return x*multiplier })
-	if err != undefined {
+	if err != nil {
 		return err
 	}
 	return v
@@ -364,7 +364,7 @@ func TestVMDestructuring(t *testing.T) {
 	global goFunc
 	// ...
 	v, err := goFunc(2)
-	if err != undefined {
+	if err != nil {
 		return string(err)
 	}
 	`, newOpts().
@@ -372,7 +372,7 @@ func TestVMDestructuring(t *testing.T) {
 			Value: func(args ...Object) (Object, error) {
 				// ...
 				return Array{
-					Undefined,
+					Nil,
 					ErrIndexOutOfBounds.NewError("message"),
 				}, nil
 			},
@@ -394,7 +394,7 @@ func TestVMConst(t *testing.T) {
 
 	// After iota support, `const (x=1,y)` does not throw error, like Go. It
 	// uses last expression as initializer.
-	expectRun(t, `const (x = 1, y)`, nil, Undefined)
+	expectRun(t, `const (x = 1, y)`, nil, Nil)
 
 	expectErrHas(t, `const (x, y)`, newOpts().CompilerError(),
 		`Parse Error: missing initializer in const declaration`)
@@ -506,7 +506,7 @@ func TestVMConst(t *testing.T) {
 	expectRun(t, `const x = "1"; return x`, nil, String("1"))
 	expectRun(t, `const x = []; return x`, nil, Array{})
 	expectRun(t, `const x = []; return x`, nil, Array{})
-	expectRun(t, `const x = undefined; return x`, nil, Undefined)
+	expectRun(t, `const x = nil; return x`, nil, Nil)
 	expectRun(t, `const (x = 1, y = "2"); return x, y`, nil,
 		Array{Int(1), String("2")})
 	expectRun(t, `

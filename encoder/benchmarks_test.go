@@ -13,7 +13,7 @@ func BenchmarkBytecodeUnmarshal(b *testing.B) {
 	b.ReportAllocs()
 	script := `
 	f := func() {
-		return [undefined, true, false, "", -1, 0, 1, 2u, 3.0, 'a', bytes(0, 1, 2)]
+		return [nil, true, false, "", -1, 0, 1, 2u, 3.0, 'a', bytes(0, 1, 2)]
 	}
 	f()
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}
@@ -44,7 +44,7 @@ func BenchmarkBytecodeDecode(b *testing.B) {
 	b.ReportAllocs()
 	script := `
 	f := func() {
-		return [undefined, true, false, "", -1, 0, 1, 2u, 3.0, 'a', bytes(0, 1, 2)]
+		return [nil, true, false, "", -1, 0, 1, 2u, 3.0, 'a', bytes(0, 1, 2)]
 	}
 	f()
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}
@@ -76,7 +76,7 @@ func BenchmarkBytecodeEncDec(b *testing.B) {
 	b.ReportAllocs()
 	script := `
 	f := func() {
-		return [undefined, true, false, "", -1, 0, 1, 2u, 3.0, 'a', bytes(0, 1, 2)]
+		return [nil, true, false, "", -1, 0, 1, 2u, 3.0, 'a', bytes(0, 1, 2)]
 	}
 	f()
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}

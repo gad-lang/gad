@@ -138,7 +138,7 @@ func (*CompiledFunction) CanCall() bool { return true }
 // You should use Invoker to call it with a Virtual Machine. Because of this, it
 // always returns an error.
 func (*CompiledFunction) Call(...Object) (Object, error) {
-	return Undefined, ErrNotCallable
+	return Nil, ErrNotCallable
 }
 
 // BinaryOp implements Object interface.

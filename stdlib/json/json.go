@@ -89,7 +89,7 @@ func (eo *EncoderOptions) IndexGet(index gad.Object) (ret gad.Object, err error)
 	case "EscapeHTML":
 		ret = gad.Bool(eo.EscapeHTML)
 	default:
-		ret = gad.Undefined
+		ret = gad.Nil
 	}
 	return
 }
@@ -176,7 +176,7 @@ func (rm *RawMessage) IndexGet(index gad.Object) (ret gad.Object, err error) {
 	case "Value":
 		ret = gad.Bytes(rm.Value)
 	default:
-		ret = gad.Undefined
+		ret = gad.Nil
 	}
 	return
 }

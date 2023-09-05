@@ -13,10 +13,10 @@ variables.
 ```go
 f := func() {
     // ...
-    return 0, undefined, error("message")
+    return 0, nil, error("message")
 }
 
-x, y, z := f() // x == 0    y == undefined   z == error("message")
+x, y, z := f() // x == 0    y == nil   z == error("message")
 ```
 
 The example above is similar to the code below with boilerplate code and it
@@ -26,14 +26,14 @@ omitted for brevity.
 ```go
 f := func() {
     // ...
-    return [0, undefined, error("message")]
+    return [0, nil, error("message")]
 }
 
 temp := f()
 x := temp[0]
 y := temp[1]
 z := temp[2]
-temp = undefined
+temp = nil
 ```
 
 Some examples:
@@ -41,7 +41,7 @@ Some examples:
 ```go
 x, y := [1, 2]  // x == 1   y == 2
 
-x, y, z := [1, 2]  // x == 1   y == 2   z == undefined
+x, y, z := [1, 2]  // x == 1   y == 2   z == nil
 
 x = [1, 2]  // x == [1, 2]  normal assignment :)
 ```
@@ -72,15 +72,15 @@ x.y, z = [1, 2] // x == {"y": 1}    z == 2
 
 ```go
 // If the array holds less elements than left hand side variables,
-// undefined value is set to those which don't have corresponding array element.
-x, y := [1] // x == 1   y == undefined
+// nil value is set to those which don't have corresponding array element.
+x, y := [1] // x == 1   y == nil
 ```
 
 ```go
 // Right hand side of the assignment can be of any type but only arrays
 // let assignment of array elements to corresponding variables.
 var (x, y)
-x, y = 1    //  x == 1  y == undefined
+x, y = 1    //  x == 1  y == nil
 ```
 
 To take the advantage of destructuring arrays, an array must be returned from
@@ -93,7 +93,7 @@ global goFunc
 // ...
 
 v, err := goFunc(2)
-if err != undefined {
+if err != nil {
     // ...
 }
 // ...
@@ -108,7 +108,7 @@ g := gad.Map{
     "goFunc": &gad.Function{
         Value: func(args ...gad.Object) (gad.Object, error) {
             // ...
-            return gad.Array{gad.Undefined, gad.ErrIndexOutOfBounds}, nil
+            return gad.Array{gad.Nil, gad.ErrIndexOutOfBounds}, nil
         },
     },
 }

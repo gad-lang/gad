@@ -42,7 +42,7 @@ func TestREPL(t *testing.T) {
 		require.NoError(t, r.execute(".keywords"))
 		testHasPrefix(t, string(cw.consume()),
 			"break\ncontinue\nelse\nfor\nfunc\nif\nreturn\ntrue\nfalse\nin\n"+
-				"undefined\nimport\nparam\nglobal\nvar\nconst\ntry\ncatch\n"+
+				"nil\nimport\nparam\nglobal\nvar\nconst\ntry\ncatch\n"+
 				"finally\nthrow\n",
 		)
 	})
@@ -53,7 +53,7 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("assignment", func(t *testing.T) {
 		require.NoError(t, r.execute("test := 1"))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   undefined\n")
+		testHasPrefix(t, string(cw.consume()), "\n⇦   nil\n")
 	})
 	t.Run("bytecode", func(t *testing.T) {
 		require.NoError(t, r.execute("func(){}"))

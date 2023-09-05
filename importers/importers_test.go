@@ -93,7 +93,7 @@ println("sourcemod")`))
 		require.NoError(t, err)
 		ret, err := gad.NewVM(bc).Run(nil)
 		require.NoError(t, err)
-		require.Equal(t, gad.Undefined, ret)
+		require.Equal(t, gad.Nil, ret)
 		require.Equal(t,
 			"test7\nsourcemod\ntest6\ntest5\ntest4\ntest3\ntest2\ntest1\nmain\n",
 			strings.ReplaceAll(buf.String(), "\r", ""),
@@ -130,7 +130,7 @@ println("sourcemod")`))
 		require.NoError(t, err)
 		ret, err := gad.NewVM(bc).Run(nil)
 		require.NoError(t, err)
-		require.Equal(t, gad.Undefined, ret)
+		require.Equal(t, gad.Nil, ret)
 		require.Equal(t,
 			"test7\nsourcemod\ntest6\ntest5\ntest4\ntest3\ntest2\ntest1\nmain\n",
 			strings.ReplaceAll(buf.String(), "\r", ""),

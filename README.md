@@ -115,7 +115,7 @@ mapEach := func(seq, fn) {
 global multiplier
 
 v, err := mapEach(args, func(x) { return x*multiplier })
-if err != undefined {
+if err != nil {
     return err
 }
 return v

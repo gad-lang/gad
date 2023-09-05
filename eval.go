@@ -69,7 +69,7 @@ func (r *Eval) Run(ctx context.Context, script []byte) (Object, *Bytecode, error
 }
 
 func (r *Eval) run(ctx context.Context) (ret Object, err error) {
-	ret = Undefined
+	ret = Nil
 	doneCh := make(chan struct{})
 	// Always check whether context is done before running VM because
 	// parser and compiler may take longer than expected or context may be

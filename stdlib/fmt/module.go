@@ -44,7 +44,7 @@ var Module = map[string]gad.Object{
 	// fmt.Println(bool(arg1))  // true
 	// fmt.Println(arg2.Value)  // 123
 	// fmt.Println(bool(arg2))  // true
-	// fmt.Println(arg3.Value)  // undefined
+	// fmt.Println(arg3.Value)  // nil
 	// fmt.Println(bool(arg2))  // false, not scanned
 	//
 	// // Use if statement or a ternary expression to get the scanned value or a default value.
@@ -191,7 +191,7 @@ func newPrint(fn func(...interface{}) (int, error)) gad.CallableExFunc {
 func newPrintf(fn func(string, ...interface{}) (int, error)) gad.CallableExFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
 		if c.Len() < 1 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError(
+			return gad.Nil, gad.ErrWrongNumArguments.NewError(
 				"want>=1 got=" + strconv.Itoa(c.Len()))
 		}
 		vargs := toPrintArgs(1, c)
@@ -210,7 +210,7 @@ func newSprint(fn func(...interface{}) string) gad.CallableExFunc {
 func newSprintf(fn func(string, ...interface{}) string) gad.CallableExFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
 		if c.Len() < 1 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError(
+			return gad.Nil, gad.ErrWrongNumArguments.NewError(
 				"want>=1 got=" + strconv.Itoa(c.Len()))
 		}
 		vargs := toPrintArgs(1, c)
@@ -221,12 +221,12 @@ func newSprintf(fn func(string, ...interface{}) string) gad.CallableExFunc {
 func newSscan(fn func(string, ...interface{}) (int, error)) gad.CallableExFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
 		if c.Len() < 2 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError(
+			return gad.Nil, gad.ErrWrongNumArguments.NewError(
 				"want>=2 got=" + strconv.Itoa(c.Len()))
 		}
 		vargs, err := toScanArgs(1, c)
 		if err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 		n, err := fn(c.Get(0).String(), vargs...)
 		return postScan(1, n, err, c), nil
@@ -238,12 +238,12 @@ func newSscanf(
 ) gad.CallableExFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
 		if c.Len() < 3 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError(
+			return gad.Nil, gad.ErrWrongNumArguments.NewError(
 				"want>=3 got=" + strconv.Itoa(c.Len()))
 		}
 		vargs, err := toScanArgs(2, c)
 		if err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 		n, err := fn(c.Get(0).String(), c.Get(1).String(), vargs...)
 		return postScan(2, n, err, c), nil

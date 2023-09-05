@@ -85,12 +85,12 @@ func TestVMArray(t *testing.T) {
 }
 
 func TestVMDecl(t *testing.T) {
-	expectRun(t, `param a; return a`, nil, Undefined)
-	expectRun(t, `param (a); return a`, nil, Undefined)
+	expectRun(t, `param a; return a`, nil, Nil)
+	expectRun(t, `param (a); return a`, nil, Nil)
 	expectRun(t, `param ...a; return a`, nil, Array{})
 	expectRun(t, `param (a, ...b); return b`, nil, Array{})
 	expectRun(t, `param (a, b); return [a, b]`,
-		nil, Array{Undefined, Undefined})
+		nil, Array{Nil, Nil})
 	expectRun(t, `param a; return a`,
 		newOpts().Args(Int(1)), Int(1))
 	expectRun(t, `param (a, b); return a + b`,
@@ -104,10 +104,10 @@ func TestVMDecl(t *testing.T) {
 	expectErrHas(t, `func(){ param x; }`, newOpts().CompilerError(),
 		`Compile Error: param not allowed in this scope`)
 
-	expectRun(t, `global a; return a`, nil, Undefined)
-	expectRun(t, `global (a); return a`, nil, Undefined)
+	expectRun(t, `global a; return a`, nil, Nil)
+	expectRun(t, `global (a); return a`, nil, Nil)
 	expectRun(t, `global (a, b); return [a, b]`,
-		nil, Array{Undefined, Undefined})
+		nil, Array{Nil, Nil})
 	expectRun(t, `global a; return a`,
 		newOpts().Globals(Map{"a": String("ok")}), String("ok"))
 	expectRun(t, `global (a, b); return a+b`,
@@ -115,24 +115,24 @@ func TestVMDecl(t *testing.T) {
 	expectErrHas(t, `func() { global a }`, newOpts().CompilerError(),
 		`Compile Error: global not allowed in this scope`)
 
-	expectRun(t, `var a; return a`, nil, Undefined)
-	expectRun(t, `var (a); return a`, nil, Undefined)
+	expectRun(t, `var a; return a`, nil, Nil)
+	expectRun(t, `var (a); return a`, nil, Nil)
 	expectRun(t, `var (a = 1); return a`, nil, Int(1))
-	expectRun(t, `var (a, b = 1); return a`, nil, Undefined)
+	expectRun(t, `var (a, b = 1); return a`, nil, Nil)
 	expectRun(t, `var (a, b = 1); return b`, nil, Int(1))
 	expectRun(t, `var (a,
-		b = 1); return a`, nil, Undefined)
+		b = 1); return a`, nil, Nil)
 	expectRun(t, `var (a,
 		b = 1); return b`, nil, Int(1))
 	expectRun(t, `var (a = 1, b = "x"); return b`, nil, String("x"))
 	expectRun(t, `var (a = 1, b = "x"); return a`, nil, Int(1))
 	expectRun(t, `var (a = 1, b); return a`, nil, Int(1))
-	expectRun(t, `var (a = 1, b); return b`, nil, Undefined)
+	expectRun(t, `var (a = 1, b); return b`, nil, Nil)
 	expectRun(t, `var b = 1; return b`, nil, Int(1))
 	expectRun(t, `var (a, b, c); return [a, b, c]`,
-		nil, Array{Undefined, Undefined, Undefined})
+		nil, Array{Nil, Nil, Nil})
 	expectRun(t, `return func(a) { var (b = 2,c); return [a, b, c] }(1)`,
-		nil, Array{Int(1), Int(2), Undefined})
+		nil, Array{Int(1), Int(2), Nil})
 
 	expectErrHas(t, `param x; global x`, newOpts().CompilerError(),
 		`Compile Error: "x" redeclared in this block`)
@@ -496,7 +496,7 @@ func TestVMAssignment(t *testing.T) {
 	return d
 	`, nil, Map{"40": Array{Int(2), Int(4)}})
 
-	expectRun(t, `a := undefined; a ||= 1; return a`, nil, Int(1))
+	expectRun(t, `a := nil; a ||= 1; return a`, nil, Int(1))
 	expectRun(t, `a := 0; a ||= 1; return a`, nil, Int(1))
 	expectRun(t, `a := ""; a ||= 1; return a`, nil, Int(1))
 	expectRun(t, `a := 1; a ||= 2; return a`, nil, Int(1))
@@ -505,9 +505,9 @@ func TestVMAssignment(t *testing.T) {
 
 	expectRun(t, `a := 1; a ??= 2; return a`, nil, Int(1))
 	expectRun(t, `a := 0; a ??= 2; return a`, nil, Int(0))
-	expectRun(t, `a := undefined; a ??= 2; return a`, nil, Int(2))
+	expectRun(t, `a := nil; a ??= 2; return a`, nil, Int(2))
 	expectRun(t, `c := false; a := 1; a ??= func(){c=true;return 2}(); return [c,a]`, nil, Array{False, Int(1)})
-	expectRun(t, `c := false; a := undefined; a ??= func(){c=true;return 2}(); return [c,a]`, nil, Array{True, Int(2)})
+	expectRun(t, `c := false; a := nil; a ??= func(){c=true;return 2}(); return [c,a]`, nil, Array{True, Int(2)})
 }
 
 func TestVMBitwise(t *testing.T) {
@@ -618,18 +618,18 @@ func TestVMBoolean(t *testing.T) {
 	expectErrIs(t, `return 1/false`, nil, ErrZeroDivision)
 }
 
-func TestVMUndefined(t *testing.T) {
-	expectRun(t, `return undefined`, nil, Undefined)
-	expectRun(t, `return undefined.a`, nil, Undefined)
-	expectRun(t, `return undefined[1]`, nil, Undefined)
-	expectRun(t, `return undefined.a.b`, nil, Undefined)
-	expectRun(t, `return undefined[1][2]`, nil, Undefined)
-	expectRun(t, `return undefined ? 1 : 2`, nil, Int(2))
-	expectRun(t, `return undefined == undefined`, nil, True)
-	expectRun(t, `return undefined == (undefined ? 1 : undefined)`,
+func TestVMNil(t *testing.T) {
+	expectRun(t, `return nil`, nil, Nil)
+	expectRun(t, `return nil.a`, nil, Nil)
+	expectRun(t, `return nil[1]`, nil, Nil)
+	expectRun(t, `return nil.a.b`, nil, Nil)
+	expectRun(t, `return nil[1][2]`, nil, Nil)
+	expectRun(t, `return nil ? 1 : 2`, nil, Int(2))
+	expectRun(t, `return nil == nil`, nil, True)
+	expectRun(t, `return nil == (nil ? 1 : nil)`,
 		nil, True)
-	expectRun(t, `return copy(undefined)`, nil, Undefined)
-	expectRun(t, `return len(undefined)`, nil, Int(0))
+	expectRun(t, `return copy(nil)`, nil, Nil)
+	expectRun(t, `return len(nil)`, nil, Int(0))
 
 	testCases := []string{
 		"true", "false", "0", "1", "1u", `""`, `"a"`, `bytes(0)`, "[]", "{}",
@@ -637,27 +637,27 @@ func TestVMUndefined(t *testing.T) {
 	}
 	for _, tC := range testCases {
 		t.Run(tC, func(t *testing.T) {
-			expectRun(t, fmt.Sprintf(`return undefined == %s`, tC), nil, False)
-			expectRun(t, fmt.Sprintf(`return undefined != %s`, tC), nil, True)
-			expectRun(t, fmt.Sprintf(`return undefined < %s`, tC), nil, True)
-			expectRun(t, fmt.Sprintf(`return undefined <= %s`, tC), nil, True)
-			expectRun(t, fmt.Sprintf(`return undefined > %s`, tC), nil, False)
-			expectRun(t, fmt.Sprintf(`return undefined >= %s`, tC), nil, False)
+			expectRun(t, fmt.Sprintf(`return nil == %s`, tC), nil, False)
+			expectRun(t, fmt.Sprintf(`return nil != %s`, tC), nil, True)
+			expectRun(t, fmt.Sprintf(`return nil < %s`, tC), nil, True)
+			expectRun(t, fmt.Sprintf(`return nil <= %s`, tC), nil, True)
+			expectRun(t, fmt.Sprintf(`return nil > %s`, tC), nil, False)
+			expectRun(t, fmt.Sprintf(`return nil >= %s`, tC), nil, False)
 
-			expectRun(t, fmt.Sprintf(`return %s == undefined`, tC), nil, False)
-			expectRun(t, fmt.Sprintf(`return %s != undefined`, tC), nil, True)
-			expectRun(t, fmt.Sprintf(`return %s > undefined`, tC), nil, True)
-			expectRun(t, fmt.Sprintf(`return %s >= undefined`, tC), nil, True)
-			expectRun(t, fmt.Sprintf(`return %s < undefined`, tC), nil, False)
-			expectRun(t, fmt.Sprintf(`return %s <= undefined`, tC), nil, False)
+			expectRun(t, fmt.Sprintf(`return %s == nil`, tC), nil, False)
+			expectRun(t, fmt.Sprintf(`return %s != nil`, tC), nil, True)
+			expectRun(t, fmt.Sprintf(`return %s > nil`, tC), nil, True)
+			expectRun(t, fmt.Sprintf(`return %s >= nil`, tC), nil, True)
+			expectRun(t, fmt.Sprintf(`return %s < nil`, tC), nil, False)
+			expectRun(t, fmt.Sprintf(`return %s <= nil`, tC), nil, False)
 		})
 	}
 }
 
 func TestVMBuiltinFunction(t *testing.T) {
-	expectRun(t, `return append(undefined)`,
+	expectRun(t, `return append(nil)`,
 		nil, Array{})
-	expectRun(t, `return append(undefined, 1)`,
+	expectRun(t, `return append(nil, 1)`,
 		nil, Array{Int(1)})
 	expectRun(t, `return append([], 1)`,
 		nil, Array{Int(1)})
@@ -681,13 +681,13 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectErrIs(t, `delete({})`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `delete({}, "", "")`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `delete([], "")`, nil, ErrType)
-	expectRun(t, `delete({}, 1)`, nil, Undefined)
+	expectRun(t, `delete({}, 1)`, nil, Nil)
 
 	g := &SyncMap{Value: Map{"out": &SyncMap{Value: Map{"a": Int(1)}}}}
 	expectRun(t, `global out; delete(out, "a"); return out`,
 		newOpts().Globals(g).Skip2Pass(), &SyncMap{Value: Map{}})
 
-	expectRun(t, `return copy(undefined)`, nil, Undefined)
+	expectRun(t, `return copy(nil)`, nil, Nil)
 	expectRun(t, `return copy(1)`, nil, Int(1))
 	expectRun(t, `return copy(1u)`, nil, Uint(1))
 	expectRun(t, `return copy('a')`, nil, Char('a'))
@@ -745,7 +745,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectErrIs(t, `return repeat("abc", "")`, nil, ErrType)
 	expectErrIs(t, `return repeat(bytes(1), [])`, nil, ErrType)
 	expectErrIs(t, `return repeat([1], {})`, nil, ErrType)
-	expectErrIs(t, `return repeat(undefined, 1)`, nil, ErrType)
+	expectErrIs(t, `return repeat(nil, 1)`, nil, ErrType)
 	expectErrIs(t, `return repeat(true, 1)`, nil, ErrType)
 	expectErrIs(t, `return repeat(false, 1)`, nil, ErrType)
 	expectErrIs(t, `return repeat(1, 1)`, nil, ErrType)
@@ -766,8 +766,8 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return contains(bytes("abc"), "d")`, nil, False)
 	expectRun(t, `return contains(bytes(1, 2, 3, 4), bytes(2, 3))`, nil, True)
 	expectRun(t, `return contains(bytes(1, 2, 3, 4), bytes(1, 3))`, nil, False)
-	expectRun(t, `return contains(undefined, "")`, nil, False)
-	expectRun(t, `return contains(undefined, 1)`, nil, False)
+	expectRun(t, `return contains(nil, "")`, nil, False)
+	expectRun(t, `return contains(nil, 1)`, nil, False)
 	g = &SyncMap{Value: Map{"a": Int(1)}}
 	expectRun(t, `return contains(globals(), "a")`,
 		newOpts().Globals(g).Skip2Pass(), True)
@@ -775,7 +775,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectErrIs(t, `contains("", "", "")`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `contains(1, 2)`, nil, ErrType)
 
-	expectRun(t, `return len(undefined)`, nil, Int(0))
+	expectRun(t, `return len(nil)`, nil, Int(0))
 	expectRun(t, `return len(1)`, nil, Int(0))
 	expectRun(t, `return len(1u)`, nil, Int(0))
 	expectRun(t, `return len(true)`, nil, Int(0))
@@ -796,7 +796,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectErrIs(t, `len()`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `len([], [])`, nil, ErrWrongNumArguments)
 
-	expectRun(t, `return cap(undefined)`, nil, Int(0))
+	expectRun(t, `return cap(nil)`, nil, Int(0))
 	expectRun(t, `return cap(1)`, nil, Int(0))
 	expectRun(t, `return cap(1u)`, nil, Int(0))
 	expectRun(t, `return cap(true)`, nil, Int(0))
@@ -812,8 +812,8 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return cap([1,2,3])>=3`, nil, True)
 	expectRun(t, `return cap([1,2,3][:3])>=3`, nil, True)
 
-	expectRun(t, `return sort(undefined)`,
-		nil, Undefined)
+	expectRun(t, `return sort(nil)`,
+		nil, Nil)
 	expectRun(t, `return sort("acb")`,
 		nil, String("abc"))
 	expectRun(t, `return sort(bytes("acb"))`,
@@ -828,8 +828,8 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectErrIs(t, `sort([], [])`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `sort({})`, nil, ErrType)
 
-	expectRun(t, `return sortReverse(undefined)`,
-		nil, Undefined)
+	expectRun(t, `return sortReverse(nil)`,
+		nil, Nil)
 	expectRun(t, `return sortReverse("acb")`,
 		nil, String("cba"))
 	expectRun(t, `return sortReverse(bytes("acb"))`,
@@ -846,13 +846,13 @@ func TestVMBuiltinFunction(t *testing.T) {
 		&Error{Name: "error", Message: "x"})
 	expectRun(t, `return error(1)`, nil,
 		&Error{Name: "error", Message: "1"})
-	expectRun(t, `return error(undefined)`, nil,
-		&Error{Name: "error", Message: "undefined"})
+	expectRun(t, `return error(nil)`, nil,
+		&Error{Name: "error", Message: "nil"})
 	expectErrIs(t, `error()`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `error(1,2,3)`, nil, ErrWrongNumArguments)
 
 	expectRun(t, `return typeName(true)`, nil, String("bool"))
-	expectRun(t, `return typeName(undefined)`, nil, String("undefined"))
+	expectRun(t, `return typeName(nil)`, nil, String("nil"))
 	expectRun(t, `return typeName(1)`, nil, String("int"))
 	expectRun(t, `return typeName(1u)`, nil, String("uint"))
 	expectRun(t, `return typeName(1.1)`, nil, String("float"))
@@ -914,7 +914,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				"true":   Char(1),
 				"false":  Char(0),
 				`"1"`:    Char('1'),
-				`""`:     Undefined,
+				`""`:     Nil,
 			},
 		},
 		{
@@ -941,7 +941,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				"false":             String("false"),
 				`"1"`:               String("1"),
 				`"1.1"`:             String("1.1"),
-				`undefined`:         String("undefined"),
+				`nil`:               String("nil"),
 				`[]`:                String("[]"),
 				`[1]`:               String("[1]"),
 				`[1, 2]`:            String("[1, 2]"),
@@ -971,8 +971,8 @@ func TestVMBuiltinFunction(t *testing.T) {
 				`""`:             Array{},
 				`"abc"`:          Array{Char('a'), Char('b'), Char('c')},
 				`bytes("abc")`:   Array{Char('a'), Char('b'), Char('c')},
-				`"a\xc5"`:        Undefined, // incorrect UTF-8
-				`bytes("a\xc5")`: Undefined, // incorrect UTF-8
+				`"a\xc5"`:        Nil, // incorrect UTF-8
+				`bytes("a\xc5")`: Nil, // incorrect UTF-8
 			},
 		},
 	}
@@ -1012,7 +1012,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				`error("test")`,
 			},
 			falseValues{
-				"1", "1u", `""`, "1.1", "'\x01'", `bytes()`, "undefined",
+				"1", "1u", `""`, "1.1", "'\x01'", `bytes()`, "nil",
 				"true", "false", "[]", "{}",
 			},
 		},
@@ -1022,7 +1022,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				"0", "1", "-1",
 			},
 			falseValues{
-				"1u", `""`, "1.1", "'\x01'", `bytes()`, "undefined",
+				"1u", `""`, "1.1", "'\x01'", `bytes()`, "nil",
 				`error("x")`,
 				"true", "false", "[]", "{}",
 			},
@@ -1033,7 +1033,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				"0u", "1u", "-1u",
 			},
 			falseValues{
-				"1", "-1", `""`, "1.1", "'\x01'", `bytes()`, "undefined",
+				"1", "-1", `""`, "1.1", "'\x01'", `bytes()`, "nil",
 				`error("x")`, "true", "false", "[]", "{}",
 			},
 		},
@@ -1043,7 +1043,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				"0.0", "1.0", "-1.0",
 			},
 			falseValues{
-				"1", "-1", `""`, "1u", "'\x01'", `bytes()`, "undefined",
+				"1", "-1", `""`, "1u", "'\x01'", `bytes()`, "nil",
 				`error("x")`, "true", "false", "[]", "{}",
 			},
 		},
@@ -1053,7 +1053,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				"'\x01'", `'a'`, `'b'`,
 			},
 			falseValues{
-				"1", "-1", `""`, "1u", "1.1", `bytes()`, "undefined",
+				"1", "-1", `""`, "1u", "1.1", `bytes()`, "nil",
 				`error("x")`, "true", "false", "[]", "{}",
 			},
 		},
@@ -1063,7 +1063,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				"true", "false",
 			},
 			falseValues{
-				"1", "-1", `""`, "1u", "1.1", "'\x01'", `bytes()`, "undefined",
+				"1", "-1", `""`, "1u", "1.1", "'\x01'", `bytes()`, "nil",
 				`error("x")`, "[]", "{}",
 			},
 		},
@@ -1073,7 +1073,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				`""`, `"abc"`,
 			},
 			falseValues{
-				"1", "-1", "1u", "1.1", "'\x01'", `bytes()`, "undefined",
+				"1", "-1", "1u", "1.1", "'\x01'", `bytes()`, "nil",
 				`error("x")`, "true", "false", "[]", "{}",
 			},
 		},
@@ -1083,7 +1083,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				`bytes()`, `bytes(1, 2)`,
 			},
 			falseValues{
-				"1", "-1", "1u", "1.1", "'\x01'", `""`, "undefined",
+				"1", "-1", "1u", "1.1", "'\x01'", `""`, "nil",
 				`error("x")`, "true", "false", "[]", "{}",
 			},
 		},
@@ -1093,7 +1093,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				`{}`, `{a: 1}`,
 			},
 			falseValues{
-				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "undefined",
+				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "nil",
 				`error("x")`, "true", "false", "[]",
 			},
 		},
@@ -1101,7 +1101,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 			`isSyncMap`,
 			trueValues{},
 			falseValues{
-				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "undefined",
+				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "nil",
 				`error("x")`, "true", "false", "[]", "{}",
 			},
 		},
@@ -1111,14 +1111,14 @@ func TestVMBuiltinFunction(t *testing.T) {
 				`[]`, `[0]`,
 			},
 			falseValues{
-				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "undefined",
+				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "nil",
 				`error("x")`, "true", "false", "{}",
 			},
 		},
 		{
-			`isUndefined`,
+			`isNil`,
 			trueValues{
-				`undefined`,
+				`nil`,
 			},
 			falseValues{
 				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, `error("x")`,
@@ -1131,7 +1131,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				`len`, `append`, `func(){}`,
 			},
 			falseValues{
-				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "undefined",
+				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "nil",
 				`error("x")`, "true", "false", "{}", "[]",
 			},
 		},
@@ -1141,7 +1141,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				`len`, `append`,
 			},
 			falseValues{
-				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "undefined",
+				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "nil",
 				`error("x")`, "true", "false", "{}", "[]",
 			},
 		},
@@ -1151,7 +1151,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				`[]`, `{}`, `"abc"`, `""`, `bytes()`,
 			},
 			falseValues{
-				"1", "-1", "1u", "1.1", "'\x01'", "undefined", `error("x")`,
+				"1", "-1", "1u", "1.1", "'\x01'", "nil", `error("x")`,
 				"true", "false",
 			},
 		},
@@ -1161,7 +1161,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				"1", "1u", "-1", "1.1", "'\x01'", "true", `"abc"`, `bytes(1)`,
 			},
 			falseValues{
-				"0", "0u", "undefined", `error("x")`, "false", `[]`, `{}`, `""`, `bytes()`,
+				"0", "0u", "nil", `error("x")`, "false", `[]`, `{}`, `""`, `bytes()`,
 			},
 		},
 	}
@@ -1178,12 +1178,12 @@ func TestVMBuiltinFunction(t *testing.T) {
 		}
 		if isfunc.f != "isError" {
 			t.Run(fmt.Sprintf("%s#%d 2args", isfunc.f, i), func(t *testing.T) {
-				expectErrIs(t, fmt.Sprintf(`%s(undefined, undefined)`, isfunc.f),
+				expectErrIs(t, fmt.Sprintf(`%s(nil, nil)`, isfunc.f),
 					nil, ErrWrongNumArguments)
 			})
 		} else {
 			t.Run(fmt.Sprintf("%s#%d 3args", isfunc.f, i), func(t *testing.T) {
-				expectErrIs(t, fmt.Sprintf(`%s(undefined, undefined, undefined)`, isfunc.f),
+				expectErrIs(t, fmt.Sprintf(`%s(nil, nil, nil)`, isfunc.f),
 					nil, ErrWrongNumArguments)
 			})
 		}
@@ -1211,31 +1211,31 @@ func TestVMBuiltinFunction(t *testing.T) {
 		PrintWriter = oldWriter
 	}()
 	stdOut.Reset()
-	expectRun(t, `printf("test")`, newOpts().Skip2Pass(), Undefined)
+	expectRun(t, `printf("test")`, newOpts().Skip2Pass(), Nil)
 	require.Equal(t, "test", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `printf("test %d", 1)`, newOpts().Skip2Pass(), Undefined)
+	expectRun(t, `printf("test %d", 1)`, newOpts().Skip2Pass(), Nil)
 	require.Equal(t, "test 1", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `printf("test %d %d", 1, 2u)`, newOpts().Skip2Pass(), Undefined)
+	expectRun(t, `printf("test %d %d", 1, 2u)`, newOpts().Skip2Pass(), Nil)
 	require.Equal(t, "test 1 2", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `println()`, newOpts().Skip2Pass(), Undefined)
+	expectRun(t, `println()`, newOpts().Skip2Pass(), Nil)
 	require.Equal(t, "\n", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `println("test")`, newOpts().Skip2Pass(), Undefined)
+	expectRun(t, `println("test")`, newOpts().Skip2Pass(), Nil)
 	require.Equal(t, "test\n", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `println("test", 1)`, newOpts().Skip2Pass(), Undefined)
+	expectRun(t, `println("test", 1)`, newOpts().Skip2Pass(), Nil)
 	require.Equal(t, "test 1\n", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `println("test", 1, 2u)`, newOpts().Skip2Pass(), Undefined)
+	expectRun(t, `println("test", 1, 2u)`, newOpts().Skip2Pass(), Nil)
 	require.Equal(t, "test 1 2\n", stdOut.String())
 
 	expectRun(t, `return sprintf("test")`,
@@ -1309,8 +1309,8 @@ func TestVMChar(t *testing.T) {
 }
 
 func TestVMCondExpr(t *testing.T) {
-	expectRun(t, `true ? 5 : 10`, nil, Undefined)
-	expectRun(t, `false ? 5 : 10; var a; return a`, nil, Undefined)
+	expectRun(t, `true ? 5 : 10`, nil, Nil)
+	expectRun(t, `false ? 5 : 10; var a; return a`, nil, Nil)
 	expectRun(t, `return true ? 5 : 10`, nil, Int(5))
 	expectRun(t, `return false ? 5 : 10`, nil, Int(10))
 	expectRun(t, `return (1 == 1) ? 2 + 3 : 12 - 2`, nil, Int(5))
@@ -1417,9 +1417,9 @@ func TestVMBuiltinError(t *testing.T) {
 	expectRun(t, `return error("some error").Message`, nil, String("some error"))
 	expectRun(t, `return error("some error")["Message"]`, nil, String("some error"))
 
-	expectRun(t, `error("error").err`, nil, Undefined)
-	expectRun(t, `error("error").value_`, nil, Undefined)
-	expectRun(t, `error([1,2,3])[1]`, nil, Undefined)
+	expectRun(t, `error("error").err`, nil, Nil)
+	expectRun(t, `error("error").value_`, nil, Nil)
+	expectRun(t, `error([1,2,3])[1]`, nil, Nil)
 }
 
 func TestVMFloat(t *testing.T) {
@@ -1721,11 +1721,11 @@ func TestFor(t *testing.T) {
 }
 
 func TestVMFunction(t *testing.T) {
-	// function with no "return" statement returns undefined value.
-	expectRun(t, `f1 := func() {}; return f1()`, nil, Undefined)
+	// function with no "return" statement returns nil value.
+	expectRun(t, `f1 := func() {}; return f1()`, nil, Nil)
 	expectRun(t, `f1 := func() {}; f2 := func() { return f1(); }; f1(); return f2()`,
-		nil, Undefined)
-	expectRun(t, `f := func(x) { x; }; return f(5);`, nil, Undefined)
+		nil, Nil)
+	expectRun(t, `f := func(x) { x; }; return f(5);`, nil, Nil)
 
 	expectRun(t, `f := func(...x) { return x; }; return f(1, 2, 3);`,
 		nil, Array{Int(1), Int(2), Int(3)})
@@ -1770,7 +1770,7 @@ func TestVMFunction(t *testing.T) {
 
 	expectRun(t, `
 	f1 := func(f) {
-		a := [undefined]
+		a := [nil]
 		a[0] = func() { return f(a) }
 		return a[0]()
 	}
@@ -2024,15 +2024,15 @@ func TestVMFunction(t *testing.T) {
 		}()
 	}(); return out`, nil, Int(15))
 
-	expectRun(t, `return func() {}()`, nil, Undefined)
+	expectRun(t, `return func() {}()`, nil, Nil)
 	expectRun(t, `return func(v) { if v { return true } }(1)`, nil, True)
-	expectRun(t, `return func(v) { if v { return true } }(0)`, nil, Undefined)
-	expectRun(t, `return func(v) { if v { } else { return true } }(1)`, nil, Undefined)
-	expectRun(t, `return func(v) { if v { return } }(1)`, nil, Undefined)
-	expectRun(t, `return func(v) { if v { return } }(0)`, nil, Undefined)
-	expectRun(t, `return func(v) { if v { } else { return } }(1)`, nil, Undefined)
+	expectRun(t, `return func(v) { if v { return true } }(0)`, nil, Nil)
+	expectRun(t, `return func(v) { if v { } else { return true } }(1)`, nil, Nil)
+	expectRun(t, `return func(v) { if v { return } }(1)`, nil, Nil)
+	expectRun(t, `return func(v) { if v { return } }(0)`, nil, Nil)
+	expectRun(t, `return func(v) { if v { } else { return } }(1)`, nil, Nil)
 	expectRun(t, `return func(v) { for ;;v++ { if v == 3 { return true } } }(1)`, nil, True)
-	expectRun(t, `return func(v) { for ;;v++ { if v == 3 { break } } }(1)`, nil, Undefined)
+	expectRun(t, `return func(v) { for ;;v++ { if v == 3 { break } } }(1)`, nil, Nil)
 	expectRun(t, `
 	f := func() { return 2 }
 	return (func() {
@@ -2057,7 +2057,7 @@ func TestBlocksScope(t *testing.T) {
 	expectRun(t, `
 	var out
 	func() {
-		f := undefined
+		f := nil
 		if true {
 			a := 10
 			f = func() {
@@ -2071,7 +2071,7 @@ func TestBlocksScope(t *testing.T) {
 	return out`, nil, Int(5))
 
 	expectRun(t, `
-	f := undefined
+	f := nil
 	if true {
 		a := 1
 		b := 2
@@ -2086,7 +2086,7 @@ func TestBlocksScope(t *testing.T) {
 	return c + d`, nil, Int(11))
 
 	expectRun(t, `
-	fn := undefined
+	fn := nil
 	if true {
 		a := 1
 		b := 2
@@ -2152,7 +2152,7 @@ func TestVMIf(t *testing.T) {
 	expectRun(t, `var out; if (true) { out = 10 }; return out`,
 		nil, Int(10))
 	expectRun(t, `var out; if (false) { out = 10 }; return out`,
-		nil, Undefined)
+		nil, Nil)
 	expectRun(t, `var out; if (false) { out = 10 } else { out = 20 }; return out`,
 		nil, Int(20))
 	expectRun(t, `var out; if (1) { out = 10 }; return out`,
@@ -2162,7 +2162,7 @@ func TestVMIf(t *testing.T) {
 	expectRun(t, `var out; if (1 < 2) { out = 10 }; return out`,
 		nil, Int(10))
 	expectRun(t, `var out; if (1 > 2) { out = 10 }; return out`,
-		nil, Undefined)
+		nil, Nil)
 	expectRun(t, `var out; if (1 < 2) { out = 10 } else { out = 20 }; return out`,
 		nil, Int(10))
 	expectRun(t, `var out; if (1 > 2) { out = 10 } else { out = 20 }; return out`,
@@ -2301,8 +2301,8 @@ func TestVMInteger(t *testing.T) {
 }
 
 func TestVMLogical(t *testing.T) {
-	expectRun(t, `true && true`, nil, Undefined)
-	expectRun(t, `false || true`, nil, Undefined)
+	expectRun(t, `true && true`, nil, Nil)
+	expectRun(t, `false || true`, nil, Nil)
 	expectRun(t, `return true && true`, nil, True)
 	expectRun(t, `return true && false`, nil, False)
 	expectRun(t, `return false && true`, nil, False)
@@ -2347,17 +2347,17 @@ func TestVMLogical(t *testing.T) {
 	expectRun(t, `var out; t:=func() {out = 3; return true}; f:=func() {out = 7; return false}; !t() || f(); return out`,
 		nil, Int(7))
 
-	expectRun(t, `false ?? true`, nil, Undefined)
+	expectRun(t, `false ?? true`, nil, Nil)
 	expectRun(t, `return true ?? true`, nil, True)
-	expectRun(t, `return undefined ?? 1`, nil, Int(1))
+	expectRun(t, `return nil ?? 1`, nil, Int(1))
 	expectRun(t, `return false ?? 1`, nil, False)
-	expectRun(t, `return undefined ?? 1 ?? 2`, nil, Int(1))
-	expectRun(t, `return undefined ?? undefined ?? 2`, nil, Int(2))
+	expectRun(t, `return nil ?? 1 ?? 2`, nil, Int(1))
+	expectRun(t, `return nil ?? nil ?? 2`, nil, Int(2))
 	expectRun(t, `var (called = false, f = func() {called = true;return 1}); return [f() ?? 2, called]`, nil, Array{Int(1), True})
-	expectRun(t, `var (c = "", f = func(v,r) {c += v;return r}); return [f("u",undefined) ?? f("1",1) ?? f("2",2) , c]`, nil, Array{Int(1), String("u1")})
+	expectRun(t, `var (c = "", f = func(v,r) {c += v;return r}); return [f("u",nil) ?? f("1",1) ?? f("2",2) , c]`, nil, Array{Int(1), String("u1")})
 	expectRun(t, `var (c = "", f = func(v,r) {c += v;return r}); return [f("1",1) ?? f("2",2) , c]`, nil, Array{Int(1), String("1")})
-	expectRun(t, `return undefined ?? 0 || 2`, nil, Int(2))
-	expectRun(t, `return undefined ?? 1 || 2`, nil, Int(1))
+	expectRun(t, `return nil ?? 0 || 2`, nil, Int(2))
+	expectRun(t, `return nil ?? 1 || 2`, nil, Int(1))
 	expectRun(t, `return 3 ?? 1 || 2`, nil, Int(3))
 }
 
@@ -2385,9 +2385,9 @@ func TestVMMap(t *testing.T) {
 	})
 
 	expectRun(t, `return {foo: 5}["foo"]`, nil, Int(5))
-	expectRun(t, `return {foo: 5}["bar"]`, nil, Undefined)
+	expectRun(t, `return {foo: 5}["bar"]`, nil, Nil)
 	expectRun(t, `key := "foo"; return {foo: 5}[key]`, nil, Int(5))
-	expectRun(t, `return {}["foo"]`, nil, Undefined)
+	expectRun(t, `return {}["foo"]`, nil, Nil)
 
 	expectRun(t, `
 	m := {
@@ -2413,7 +2413,7 @@ func TestVMSourceModules(t *testing.T) {
 	// module return none
 	expectRun(t, `out := import("mod1"); return out`,
 		newOpts().Module("mod1", `fn := func() { return 5.0 }; a := 2`),
-		Undefined)
+		Nil)
 
 	// module return values
 	expectRun(t, `return import("mod1")`,
@@ -2543,13 +2543,13 @@ func TestVMSourceModules(t *testing.T) {
 
 	// module with no return
 	expectRun(t, `out := import("mod0"); return out`,
-		newOpts().Module("mod0", ``), Undefined)
+		newOpts().Module("mod0", ``), Nil)
 	expectRun(t, `out := import("mod0"); return out`,
-		newOpts().Module("mod0", `if 0 { return true }`), Undefined)
+		newOpts().Module("mod0", `if 0 { return true }`), Nil)
 	expectRun(t, `out := import("mod0"); return out`,
-		newOpts().Module("mod0", `if 1 { } else { }`), Undefined)
+		newOpts().Module("mod0", `if 1 { } else { }`), Nil)
 	expectRun(t, `out := import("mod0"); return out`,
-		newOpts().Module("mod0", `for v:=0;;v++ { if v == 3 { break } }`), Undefined)
+		newOpts().Module("mod0", `for v:=0;;v++ { if v == 3 { break } }`), Nil)
 
 	// importing same module multiple times returns same object
 	expectRun(t, `
@@ -2576,10 +2576,10 @@ func TestVMSourceModules(t *testing.T) {
 }
 
 func TestVMUnary(t *testing.T) {
-	expectRun(t, `!true`, nil, Undefined)
-	expectRun(t, `true`, nil, Undefined)
-	expectRun(t, `!false`, nil, Undefined)
-	expectRun(t, `false`, nil, Undefined)
+	expectRun(t, `!true`, nil, Nil)
+	expectRun(t, `true`, nil, Nil)
+	expectRun(t, `!false`, nil, Nil)
+	expectRun(t, `false`, nil, Nil)
 	expectRun(t, `return !false`, nil, True)
 	expectRun(t, `return !0`, nil, True)
 	expectRun(t, `return !5`, nil, False)
@@ -2587,8 +2587,8 @@ func TestVMUnary(t *testing.T) {
 	expectRun(t, `return !!false`, nil, False)
 	expectRun(t, `return !!5`, nil, True)
 
-	expectRun(t, `-1`, nil, Undefined)
-	expectRun(t, `+1`, nil, Undefined)
+	expectRun(t, `-1`, nil, Nil)
+	expectRun(t, `+1`, nil, Nil)
 	expectRun(t, `return -1`, nil, Int(-1))
 	expectRun(t, `return +1`, nil, Int(1))
 	expectRun(t, `return -0`, nil, Int(0))
@@ -2596,8 +2596,8 @@ func TestVMUnary(t *testing.T) {
 	expectRun(t, `return ^1`, nil, Int(^int64(1)))
 	expectRun(t, `return ^0`, nil, Int(^int64(0)))
 
-	expectRun(t, `-1u`, nil, Undefined)
-	expectRun(t, `+1u`, nil, Undefined)
+	expectRun(t, `-1u`, nil, Nil)
+	expectRun(t, `+1u`, nil, Nil)
 	expectRun(t, `return -1u`, nil, Uint(^uint64(0)))
 	expectRun(t, `return +1u`, nil, Uint(1))
 	expectRun(t, `return -0u`, nil, Uint(0))
@@ -2605,8 +2605,8 @@ func TestVMUnary(t *testing.T) {
 	expectRun(t, `return ^1u`, nil, Uint(^uint64(1)))
 	expectRun(t, `return ^0u`, nil, Uint(^uint64(0)))
 
-	expectRun(t, `-true`, nil, Undefined)
-	expectRun(t, `+false`, nil, Undefined)
+	expectRun(t, `-true`, nil, Nil)
+	expectRun(t, `+false`, nil, Nil)
 	expectRun(t, `return -true`, nil, Int(-1))
 	expectRun(t, `return +true`, nil, Int(1))
 	expectRun(t, `return -false`, nil, Int(0))
@@ -2614,23 +2614,23 @@ func TestVMUnary(t *testing.T) {
 	expectRun(t, `return ^true`, nil, Int(^int64(1)))
 	expectRun(t, `return ^false`, nil, Int(^int64(0)))
 
-	expectRun(t, `-'a'`, nil, Undefined)
-	expectRun(t, `+'a'`, nil, Undefined)
+	expectRun(t, `-'a'`, nil, Nil)
+	expectRun(t, `+'a'`, nil, Nil)
 	expectRun(t, `return -'a'`, nil, Int(-rune('a')))
 	expectRun(t, `return +'a'`, nil, Char('a'))
 	expectRun(t, `return ^'a'`, nil, Int(^rune('a')))
 
-	expectRun(t, `-1.0`, nil, Undefined)
-	expectRun(t, `+1.0`, nil, Undefined)
+	expectRun(t, `-1.0`, nil, Nil)
+	expectRun(t, `+1.0`, nil, Nil)
 	expectRun(t, `return -1.0`, nil, Float(-1.0))
 	expectRun(t, `return +1.0`, nil, Float(1.0))
 	expectRun(t, `return -0.0`, nil, Float(0.0))
 	expectRun(t, `return +0.0`, nil, Float(0.0))
 
-	expectRun(t, `return undefined == undefined`, nil, True)
-	expectRun(t, `return 1 == undefined`, nil, False)
-	expectRun(t, `return undefined != undefined`, nil, False)
-	expectRun(t, `return 1 != undefined`, nil, True)
+	expectRun(t, `return nil == nil`, nil, True)
+	expectRun(t, `return 1 == nil`, nil, False)
+	expectRun(t, `return nil != nil`, nil, False)
+	expectRun(t, `return 1 != nil`, nil, True)
 
 	expectErrIs(t, `return ^1.0`, nil, ErrType)
 	expectErrHas(t, `return ^1.0`, nil, `TypeError: invalid type for unary '^': 'float'`)
@@ -2748,7 +2748,7 @@ func TestVMScopes(t *testing.T) {
 		}
 	}()
 	var (b, c, d)
-	return [a, b, c, d]`, nil, Array{Int(5), Undefined, Undefined, Undefined})
+	return [a, b, c, d]`, nil, Array{Int(5), Nil, Nil, Nil})
 	expectRun(t, `
 	var f
 	a := 5
@@ -2786,9 +2786,9 @@ func TestVMNullishSelector(t *testing.T) {
 	expectRun(t, `a := {b: 1}; return a?.b`, nil, Int(1))
 	expectRun(t, `a := {b: {c:{d:1}}}; return a?.b.c.d`, nil, Int(1))
 	expectRun(t, `a := {b: {c:{d:1}}}; k := "c"; return a?.b.(k).d`, nil, Int(1))
-	expectRun(t, `a := {b: {c:{d:1}}}; k := "x"; return a?.b.(k)?.d`, nil, Undefined)
-	expectRun(t, `a := {b: {c:{d:{}}}}; return a?.b.c.d.e`, nil, Undefined)
-	expectRun(t, `a := {b: {c:{d:{}}}}; return a?.b.c.d.e?.f.g`, nil, Undefined)
+	expectRun(t, `a := {b: {c:{d:1}}}; k := "x"; return a?.b.(k)?.d`, nil, Nil)
+	expectRun(t, `a := {b: {c:{d:{}}}}; return a?.b.c.d.e`, nil, Nil)
+	expectRun(t, `a := {b: {c:{d:{}}}}; return a?.b.c.d.e?.f.g`, nil, Nil)
 	expectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return a?.b?.c.d.e.f.g`, nil, Int(1))
 	expectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return a?.(""+"b")?.c.d?.e.f.g`, nil, Int(1))
 	expectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return a[""+"b"]?.c.d?.e.f.g`, nil, Int(1))
@@ -2796,19 +2796,19 @@ func TestVMNullishSelector(t *testing.T) {
 		return a?.("b").c.d.e.f.g,
                a?.("b"+"").c.d.e.f.g,
                a?.("" || "b").c.d.e.f.g,
-               a?.("" || "b").c.d.(undefined ?? "e").f.g,
+               a?.("" || "b").c.d.(nil ?? "e").f.g,
                a?.("b" || "x").c.d.("e" ?? "z").f.g`, nil,
 		Array{Int(1), Int(1), Int(1), Int(1), Int(1)})
-	expectRun(t, `a := {}; return a[""+"b"]?.c.d?.e.f.g`, nil, Undefined)
-	expectRun(t, `a := undefined; return a?.b`, nil, Undefined)
-	expectRun(t, `a := undefined; return a?.b.c.d`, nil, Undefined)
-	expectRun(t, `a := {}; return a?.b.c.d`, nil, Undefined)
+	expectRun(t, `a := {}; return a[""+"b"]?.c.d?.e.f.g`, nil, Nil)
+	expectRun(t, `a := nil; return a?.b`, nil, Nil)
+	expectRun(t, `a := nil; return a?.b.c.d`, nil, Nil)
+	expectRun(t, `a := {}; return a?.b.c.d`, nil, Nil)
 }
 
 func TestVMSelector(t *testing.T) {
 	expectRun(t, `a := {k1: 5, k2: "foo"}; return a.k1`, nil, Int(5))
 	expectRun(t, `a := {k1: 5, k2: "foo"}; return a.k2`, nil, String("foo"))
-	expectRun(t, `a := {k1: 5, k2: "foo"}; return a.k3`, nil, Undefined)
+	expectRun(t, `a := {k1: 5, k2: "foo"}; return a.k3`, nil, Nil)
 
 	expectRun(t, `
 	a := {
@@ -2830,7 +2830,7 @@ func TestVMSelector(t *testing.T) {
 		c: "foo bar",
 	}
 	_ := a.x.c
-	return a.x.c`, nil, Undefined)
+	return a.x.c`, nil, Nil)
 
 	expectRun(t, `
 	a := {
@@ -2841,7 +2841,7 @@ func TestVMSelector(t *testing.T) {
 		c: "foo bar",
 	}
 	_ := a.x.y
-	return a.x.y`, nil, Undefined)
+	return a.x.y`, nil, Nil)
 
 	expectRun(t, `a := {b: 1, c: "foo"}; a.b = 2; return a.b`, nil, Int(2))
 	expectRun(t, `a := {b: 1, c: "foo"}; a.c = 2; return a.c`, nil, Int(2))
@@ -2981,8 +2981,8 @@ func TestVMString(t *testing.T) {
 	expectRun(t, `return "foo" + 'X'`, nil, String("fooX"))
 	expectRun(t, `return 'X' + "foo"`, nil, String("Xfoo"))
 	expectRun(t, `return "foo" + error(5)`, nil, String("fooerror: 5"))
-	expectRun(t, `return "foo" + undefined`, nil, String("fooundefined"))
-	expectErrIs(t, `return undefined + "foo"`, nil, ErrType)
+	expectRun(t, `return "foo" + nil`, nil, String("foonil"))
+	expectErrIs(t, `return nil + "foo"`, nil, ErrType)
 	// array adds rhs object to the array
 	expectRun(t, `return [1, 2, 3] + "foo"`,
 		nil, Array{Int(1), Int(2), Int(3), String("foo")})
@@ -3120,13 +3120,13 @@ func TestVMCall(t *testing.T) {
 	require.Equal(t, "invalid type for argument 'last': expected array, found string", invErr.Err.Message)
 
 	invErr = nil
-	expectErrAs(t, `f := func() {}; return f(...undefined)`, nil, &invErr, nil)
+	expectErrAs(t, `f := func() {}; return f(...nil)`, nil, &invErr, nil)
 	require.NotNil(t, invErr)
 	require.NotNil(t, invErr.Err)
 	require.Equal(t, ErrType, invErr.Err.Cause)
-	require.Equal(t, "invalid type for argument 'last': expected array, found undefined", invErr.Err.Message)
+	require.Equal(t, "invalid type for argument 'last': expected array, found nil", invErr.Err.Message)
 
-	expectRun(t, `f := func() {}; return f()`, nil, Undefined)
+	expectRun(t, `f := func() {}; return f()`, nil, Nil)
 	expectRun(t, `f := func(a) { return a; }; return f(1)`, nil, Int(1))
 	expectRun(t, `f := func(a, b) { return [a, b]; }; return f(1, 2)`, nil, Array{Int(1), Int(2)})
 	expectErrIs(t, `f := func() { return; }; return f(1)`, nil, ErrWrongNumArguments)
@@ -3153,7 +3153,7 @@ func TestVMCall(t *testing.T) {
 	expectRun(t, `f := func(a) { return a; }; return f(...[1])`, nil, Int(1))
 	expectRun(t, `f := func(a, b) { return [a, b]; }; return f(...[1, 2])`, nil, Array{Int(1), Int(2)})
 	expectRun(t, `f := func(a, b) { return [a, b]; }; return f(1, ...[2])`, nil, Array{Int(1), Int(2)})
-	expectRun(t, `f := func() { return; }; return f(...[])`, nil, Undefined)
+	expectRun(t, `f := func() { return; }; return f(...[])`, nil, Nil)
 
 	expectRun(t, `f := func(a, ...b) { return a; }; return f(1, ...[2])`, nil, Int(1))
 	expectRun(t, `f := func(a, ...b) { return b; }; return f(1, ...[2])`, nil, Array{Int(2)})
@@ -3165,7 +3165,7 @@ func TestVMCall(t *testing.T) {
 	expectRun(t, `f := func(a, ...b) { return a; }; return f(1, 2, ...[3, 4])`, nil, Int(1))
 	expectRun(t, `f := func(a, ...b) { return b; }; return f(1, 2, ...[3, 4])`, nil, Array{Int(2), Int(3), Int(4)})
 	expectRun(t, `f := func(a, ...b) { return b; }; return f(1, 2, ...[])`, nil, Array{Int(2)})
-	// if args and params match, 'c' points to the given array not undefined.
+	// if args and params match, 'c' points to the given array not nil.
 	expectRun(t, `f := func(a, b, ...c) { return c; }; return f(1, 2, ...[])`, nil, Array{})
 
 	expectErrIs(t, `f := func(a, ...b) { return a; }; return f(...[])`, nil, ErrWrongNumArguments)
@@ -3181,8 +3181,8 @@ func TestVMCall(t *testing.T) {
 	expectErrHas(t, `f := func(a, b) { return a; }; return f(1, ...[2, 3])`, nil, `want=2 got=3`)
 	expectErrHas(t, `f := func(a, b) { return a; }; return f(...[1, 2, 3])`, nil, `want=2 got=3`)
 
-	expectRun(t, `f := func(a, ...b) { var x; return [x, a]; }; return f(1, 2)`, nil, Array{Undefined, Int(1)})
-	expectRun(t, `f := func(a, ...b) { var x; return [x, b]; }; return f(1, 2)`, nil, Array{Undefined, Array{Int(2)}})
+	expectRun(t, `f := func(a, ...b) { var x; return [x, a]; }; return f(1, 2)`, nil, Array{Nil, Int(1)})
+	expectRun(t, `f := func(a, ...b) { var x; return [x, b]; }; return f(1, 2)`, nil, Array{Nil, Array{Int(2)}})
 
 	expectRun(t, `global f; return f()`, newOpts().Globals(
 		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
@@ -3224,7 +3224,7 @@ func TestVMCall(t *testing.T) {
 	invErr = nil
 	expectErrAs(t, `global f; var a = {}; return f(1, ...a)`, newOpts().Globals(
 		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
-			return Undefined, nil
+			return Nil, nil
 		}}}), &invErr, nil)
 	require.NotNil(t, invErr)
 	require.NotNil(t, invErr.Err)
@@ -3236,7 +3236,7 @@ func TestVMCall(t *testing.T) {
 		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
 			return nil, ErrWrongNumArguments
 		}}}), ErrWrongNumArguments)
-	expectErrIs(t, `global f; return f()`, newOpts().Globals(Map{"f": Undefined}),
+	expectErrIs(t, `global f; return f()`, newOpts().Globals(Map{"f": Nil}),
 		ErrNotCallable)
 
 	expectRun(t, `a := { b: func(x) { return x + 2 } }; return a.b(5)`, nil, Int(7))

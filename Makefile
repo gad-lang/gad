@@ -1,6 +1,6 @@
 SHELL       := bash
 .SHELLFLAGS := -e -o pipefail -c
-MAKEFLAGS   += --warn-undefined-variables
+MAKEFLAGS   += --warn-nil-variables
 
 all: version depcheck generate lint test
 

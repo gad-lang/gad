@@ -31,7 +31,7 @@ type CallableExFunc = func(Call) (ret Object, err error)
 func ToObject(v interface{}) (ret Object, err error) {
 	switch v := v.(type) {
 	case nil:
-		ret = Undefined
+		ret = Nil
 	case string:
 		ret = String(v)
 	case int64:
@@ -102,7 +102,7 @@ func ToObject(v interface{}) (ret Object, err error) {
 		if v != nil {
 			ret = &Function{Value: v}
 		} else {
-			ret = Undefined
+			ret = Nil
 		}
 	case error:
 		ret = &Error{Message: v.Error(), Cause: v}
@@ -124,7 +124,7 @@ func ToObject(v interface{}) (ret Object, err error) {
 func ToObjectAlt(v interface{}) (ret Object, err error) {
 	switch v := v.(type) {
 	case nil:
-		ret = Undefined
+		ret = Nil
 	case string:
 		ret = String(v)
 	case bool:
@@ -203,7 +203,7 @@ func ToObjectAlt(v interface{}) (ret Object, err error) {
 		if v != nil {
 			ret = &Function{Value: v}
 		} else {
-			ret = Undefined
+			ret = Nil
 		}
 	case error:
 		ret = &Error{Message: v.Error(), Cause: v}
@@ -259,7 +259,7 @@ func ToInterface(o Object) (ret interface{}) {
 			m[key] = ToInterface(v)
 		}
 		ret = m
-	case *UndefinedType:
+	case *NilType:
 		ret = nil
 	default:
 		if out, ok := registry.ToInterface(o); ok {
@@ -373,7 +373,7 @@ func ToSyncMap(o Object) (v *SyncMap, ok bool) {
 
 // ToGoString will try to convert an Object to Go string value.
 func ToGoString(o Object) (v string, ok bool) {
-	if o == Undefined {
+	if o == Nil {
 		return
 	}
 	v, ok = o.String(), true
@@ -532,7 +532,7 @@ func ToGoBool(o Object) (v bool, ok bool) {
 
 // builtin copy, len, error, typeName, bool, string, isInt, isUint
 // isFloat, isChar, isBool, isString, isBytes, isMap, isSyncMap, isArray
-// isUndefined, isFunction, isCallable, isIterable
+// isNil, isFunction, isCallable, isIterable
 //
 //gad:callable func(o Object) (ret Object)
 

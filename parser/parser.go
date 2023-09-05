@@ -233,7 +233,7 @@ func (p *Parser) parseBinaryExpr(prec1 int) Expr {
 		y := p.parseBinaryExpr(prec + 1)
 
 		if op == token.Equal || op == token.NotEqual {
-			if _, ok := x.(*UndefinedLit); ok {
+			if _, ok := x.(*NilLit); ok {
 				if op == token.Equal {
 					op = token.Null
 				} else {
@@ -245,7 +245,7 @@ func (p *Parser) parseBinaryExpr(prec1 int) Expr {
 					TokenPos: pos,
 				}
 				continue
-			} else if _, ok := y.(*UndefinedLit); ok {
+			} else if _, ok := y.(*NilLit); ok {
 				if op == token.Equal {
 					op = token.Null
 				} else {
@@ -553,8 +553,8 @@ func (p *Parser) parseOperand() Expr {
 		}
 		p.next()
 		return x
-	case token.Undefined:
-		x := &UndefinedLit{TokenPos: p.pos}
+	case token.Nil:
+		x := &NilLit{TokenPos: p.pos}
 		p.next()
 		return x
 	case token.Import:
@@ -768,7 +768,7 @@ func (p *Parser) parseStmt() (stmt Stmt) {
 		return &DeclStmt{Decl: p.parseDecl()}
 	case // simple statements
 		token.Func, token.Ident, token.Int, token.Uint, token.Float,
-		token.Char, token.String, token.True, token.False, token.Undefined,
+		token.Char, token.String, token.True, token.False, token.Nil,
 		token.LParen, token.LBrace, token.LBrack, token.Add, token.Sub,
 		token.Mul, token.And, token.Xor, token.Not, token.Import:
 		s := p.parseSimpleStmt(false)

@@ -40,7 +40,7 @@ func TestModuleTypes(t *testing.T) {
 	require.Equal(t, ErrNotIndexAssignable, tm.IndexSet(nil, nil))
 	r, err := tm.IndexGet(String(""))
 	require.NoError(t, err)
-	require.Equal(t, Undefined, r)
+	require.Equal(t, Nil, r)
 
 	now := time.Now()
 	tm2 := &Time{Value: now}
@@ -73,7 +73,7 @@ func TestModuleTypes(t *testing.T) {
 
 	ret, err = ToObject((*time.Time)(nil))
 	require.NoError(t, err)
-	require.Equal(t, Undefined, ret)
+	require.Equal(t, Nil, ret)
 
 	// duration
 	ret, err = ToObject(time.Second)
@@ -92,7 +92,7 @@ func TestModuleTypes(t *testing.T) {
 
 	ret, err = ToObject((*time.Location)(nil))
 	require.NoError(t, err)
-	require.Equal(t, Undefined, ret)
+	require.Equal(t, Nil, ret)
 }
 
 func TestModuleMonthWeekday(t *testing.T) {
@@ -521,7 +521,7 @@ func TestModuleTime(t *testing.T) {
 	name, offset := now.Zone()
 	testTimeSelector(t, &Time{Value: now}, "Zone",
 		Map{"name": String(name), "offset": Int(offset)})
-	testTimeSelector(t, &Time{Value: now}, "XYZ", Undefined)
+	testTimeSelector(t, &Time{Value: now}, "XYZ", Nil)
 }
 
 func testTimeSelector(t *testing.T, tm Object,
@@ -562,7 +562,7 @@ func TestScript(t *testing.T) {
 		}
 		return String(ErrWrongNumArguments.NewError(msg).String())
 	}
-	expectRun(t, `import("time")`, nil, Undefined)
+	expectRun(t, `import("time")`, nil, Nil)
 
 	expectRun(t, catch(`time.Now()[1]`),
 		nil, idxTypeErr("string", "int"))
@@ -651,11 +651,11 @@ func TestScript(t *testing.T) {
 	expectRun(t, `time := import("time"); return (time.Now()+time.Second)>=time.Now()`, nil, True)
 	expectRun(t, `time := import("time"); return (time.Now()+time.Second)<=time.Now()`, nil, False)
 	expectRun(t, `time := import("time"); return (time.Now()-10*time.Second)<=time.Now()`, nil, True)
-	expectRun(t, `time := import("time"); return time.Now() == undefined`, nil, False)
-	expectRun(t, `time := import("time"); return time.Now() > undefined`, nil, True)
-	expectRun(t, `time := import("time"); return time.Now() >= undefined`, nil, True)
-	expectRun(t, `time := import("time"); return time.Now() < undefined`, nil, False)
-	expectRun(t, `time := import("time"); return time.Now() <= undefined`, nil, False)
+	expectRun(t, `time := import("time"); return time.Now() == nil`, nil, False)
+	expectRun(t, `time := import("time"); return time.Now() > nil`, nil, True)
+	expectRun(t, `time := import("time"); return time.Now() >= nil`, nil, True)
+	expectRun(t, `time := import("time"); return time.Now() < nil`, nil, False)
+	expectRun(t, `time := import("time"); return time.Now() <= nil`, nil, False)
 	expectRun(t, `
 	time := import("time")
 	t1 := time.Now()
@@ -669,7 +669,7 @@ func TestScript(t *testing.T) {
 		nil, &Time{Value: time.Time{}.Add(10 * time.Second)})
 	expectRun(t, catch(`time.Time().Add()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.Time().Add(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Add(undefined)`), nil, typeErr("1st", "int", "undefined"))
+	expectRun(t, catch(`time.Time().Add(nil)`), nil, typeErr("1st", "int", "nil"))
 
 	// .Sub
 	expectRun(t, `time := import("time");
@@ -679,7 +679,7 @@ func TestScript(t *testing.T) {
 		nil, Int(10*time.Second))
 	expectRun(t, catch(`time.Time().Sub()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.Time().Sub(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Sub(undefined)`), nil, typeErr("1st", "time", "undefined"))
+	expectRun(t, catch(`time.Time().Sub(nil)`), nil, typeErr("1st", "time", "nil"))
 
 	// .AddDate
 	expectRun(t, `time := import("time"); return time.Time().AddDate(1, 2, 3)`,
@@ -687,55 +687,55 @@ func TestScript(t *testing.T) {
 	expectRun(t, catch(`time.Time().AddDate()`), nil, nwrongArgs(3, -1, 0))
 	expectRun(t, catch(`time.Time().AddDate(1, 2)`), nil, nwrongArgs(3, -1, 2))
 	expectRun(t, catch(`time.Time().AddDate(1, 2, 3, 4)`), nil, nwrongArgs(3, -1, 4))
-	expectRun(t, catch(`time.Time().AddDate(undefined, 2, 3)`), nil, typeErr("1st", "int", "undefined"))
+	expectRun(t, catch(`time.Time().AddDate(nil, 2, 3)`), nil, typeErr("1st", "int", "nil"))
 
 	// .After
 	expectRun(t, `time := import("time"); return time.Time().After(time.Time())`, nil, False)
 	expectRun(t, `time := import("time"); return time.Time().Add(time.Second).After(time.Time())`, nil, True)
 	expectRun(t, catch(`time.Time().After()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.Time().After(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().After(undefined)`), nil, typeErr("1st", "time", "undefined"))
+	expectRun(t, catch(`time.Time().After(nil)`), nil, typeErr("1st", "time", "nil"))
 
 	// .Before
 	expectRun(t, `time := import("time"); return time.Time().Before(time.Time())`, nil, False)
 	expectRun(t, `time := import("time"); return time.Time().Add(-time.Second).Before(time.Time())`, nil, True)
 	expectRun(t, catch(`time.Time().Before()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.Time().Before(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Before(undefined)`), nil, typeErr("1st", "time", "undefined"))
+	expectRun(t, catch(`time.Time().Before(nil)`), nil, typeErr("1st", "time", "nil"))
 
 	// .Format
 	expectRun(t, `time := import("time"); return time.Time().Format("2006-01-02")`, nil, String("0001-01-01"))
 	expectRun(t, catch(`time.Time().Format()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.Time().Format(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Format(undefined)`), nil, typeErr("1st", "string", "undefined"))
+	expectRun(t, catch(`time.Time().Format(nil)`), nil, typeErr("1st", "string", "nil"))
 
 	// .AppendFormat
 	expectRun(t, `time := import("time"); return time.Time().AppendFormat("", "2006-01-02")`, nil, Bytes("0001-01-01"))
 	expectRun(t, catch(`time.Time().AppendFormat()`), nil, nwrongArgs(2, -1, 0))
 	expectRun(t, catch(`time.Time().AppendFormat(1)`), nil, nwrongArgs(2, -1, 1))
 	expectRun(t, catch(`time.Time().AppendFormat(1, 2, 3)`), nil, nwrongArgs(2, -1, 3))
-	expectRun(t, catch(`time.Time().AppendFormat(undefined, "2006-01-02")`), nil, typeErr("1st", "bytes", "undefined"))
+	expectRun(t, catch(`time.Time().AppendFormat(nil, "2006-01-02")`), nil, typeErr("1st", "bytes", "nil"))
 
 	// .In
 	expectRun(t, `param p1; time := import("time"); return p1.In(time.UTC())`,
 		newOpts().Args(&Time{Value: tm}), &Time{Value: tm.In(time.UTC)})
 	expectRun(t, catch(`time.Time().In()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.Time().In(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().In(undefined)`), nil, typeErr("1st", "location", "undefined"))
+	expectRun(t, catch(`time.Time().In(nil)`), nil, typeErr("1st", "location", "nil"))
 
 	// .Round
 	expectRun(t, `param p1; time := import("time"); return p1.Round(time.Second)`,
 		newOpts().Args(&Time{Value: tm}), &Time{Value: tm.Round(time.Second)})
 	expectRun(t, catch(`time.Time().Round()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.Time().Round(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Round(undefined)`), nil, typeErr("1st", "int", "undefined"))
+	expectRun(t, catch(`time.Time().Round(nil)`), nil, typeErr("1st", "int", "nil"))
 
 	// .Truncate
 	expectRun(t, `param p1; time := import("time"); return p1.Truncate(time.Second)`,
 		newOpts().Args(&Time{Value: tm}), &Time{Value: tm.Truncate(time.Second)})
 	expectRun(t, catch(`time.Time().Truncate()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.Time().Truncate(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Truncate(undefined)`), nil, typeErr("1st", "int", "undefined"))
+	expectRun(t, catch(`time.Time().Truncate(nil)`), nil, typeErr("1st", "int", "nil"))
 
 	// .Equal
 	expectRun(t, `time := import("time"); return time.Time().Equal(time.Time())`, nil, True)
@@ -745,7 +745,7 @@ func TestScript(t *testing.T) {
 		newOpts().Args(&Time{Value: tm}, &Time{Value: tm.Add(time.Second)}), False)
 	expectRun(t, catch(`time.Time().Equal()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.Time().Equal(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Equal(undefined)`), nil, typeErr("1st", "time", "undefined"))
+	expectRun(t, catch(`time.Time().Equal(nil)`), nil, typeErr("1st", "time", "nil"))
 
 	// .Date
 	expectRun(t, `time := import("time"); return time.Time().Date()`,

@@ -10,7 +10,7 @@
 - **array**: objects array (`[]Object` in Go)
 - **map**: objects map with string keys (`map[string]Object` in Go)
 - **error**: an error with a string Name and Message
-- **undefined**: undefined
+- **nil**: nil
 
 Note: Gad does not have `byte` type. `uint`, `int` or `string` values can be
 used to create/modify `bytes` values.
@@ -94,7 +94,7 @@ type SyncMap struct {
 
 ## Type Conversion/Coercion Table
 
-|           |    int    |    uint   |    float   |    bool    |             char            |      string      |   bytes   | array |  map  |   error  | undefined |
+|           |    int    |    uint   |    float   |    bool    |             char            |      string      |   bytes   | array |  map  |   error  | nil |
 |-----------|:---------:|:---------:|:----------:|:----------:|:---------------------------:|:----------------:|:---------:|:-----:|:-----:|:--------:|:---------:|
 | int       |     -     | uint64(v) | float64(v) | !IsFalsy() |           rune(v)           |     _strconv_    |   **X**   | **X** | **X** | String() |   **X**   |
 | uint      |  int64(v) |     -     | float64(v) | !IsFalsy() |           rune(v)           |     _strconv_    |   **X**   | **X** | **X** | String() |   **X**   |
@@ -106,7 +106,7 @@ type SyncMap struct {
 | array     |   **X**   |   **X**   |    **X**   | !IsFalsy() |            **X**            |     String()     |   **X**   |   -   | **X** | String() |   **X**   |
 | map       |   **X**   |   **X**   |    **X**   | !IsFalsy() |            **X**            |     String()     |   **X**   | **X** |   -   | String() |   **X**   |
 | error     |   **X**   |   **X**   |    **X**   |    **X**   |            **X**            |     String()     |   **X**   | **X** | **X** |     -    |   **X**   |
-| undefined |   **X**   |   **X**   |    **X**   | !IsFalsy() |            **X**            |     String()     |   **X**   | **X** | **X** |   **X**  |     -     |
+| nil |   **X**   |   **X**   |    **X**   | !IsFalsy() |            **X**            |     String()     |   **X**   | **X** | **X** |   **X**  |     -     |
 
 - **X**: No conversion. Conversion function will throw runtime error, TypeError.
 - strconv: converted using Go's conversion functions from `strconv` package.
@@ -128,6 +128,6 @@ should evaluate to `false` (e.g. for condition expression of `if` statement).
 - **array**: `len(v) == 0`
 - **map**: `len(v) == 0`
 - **error**: `true` _(error is always falsy)_
-- **undefined**: `true` _(undefined is always falsy)_
+- **nil**: `true` _(nil is always falsy)_
 
 _See [builtins](builtins.md) for conversion and type checking functions_

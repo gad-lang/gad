@@ -20,7 +20,7 @@ func TestToObject(t *testing.T) {
 		want    Object
 		wantErr bool
 	}{
-		{iface: nil, want: Undefined},
+		{iface: nil, want: Nil},
 		{iface: "a", want: String("a")},
 		{iface: int64(-1), want: Int(-1)},
 		{iface: int(1), want: Int(1)},
@@ -43,12 +43,12 @@ func TestToObject(t *testing.T) {
 		{iface: []Object{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
 		{iface: []interface{}{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
 		{iface: []interface{}{uint32(1)}, wantErr: true},
-		{iface: Object(nil), want: Undefined},
+		{iface: Object(nil), want: Nil},
 		{iface: String("a"), want: String("a")},
-		{iface: CallableFunc(nil), want: Undefined},
+		{iface: CallableFunc(nil), want: Nil},
 		{iface: fn, want: &Function{Value: fn}},
 		{iface: err, want: &Error{Message: err.Error(), Cause: err}},
-		{iface: error(nil), want: Undefined},
+		{iface: error(nil), want: Nil},
 		{iface: uint16(1), wantErr: true},
 	}
 
@@ -77,7 +77,7 @@ func TestToInterface(t *testing.T) {
 		want   interface{}
 	}{
 		{object: nil, want: nil},
-		{object: Undefined, want: nil},
+		{object: Nil, want: nil},
 		{object: Int(1), want: int64(1)},
 		{object: String(""), want: ""},
 		{object: String("a"), want: "a"},
@@ -87,10 +87,10 @@ func TestToInterface(t *testing.T) {
 		{object: Array(nil), want: []interface{}{}},
 		{object: Array{}, want: []interface{}{}},
 		{object: Array{Int(1)}, want: []interface{}{int64(1)}},
-		{object: Array{Undefined}, want: []interface{}{nil}},
+		{object: Array{Nil}, want: []interface{}{nil}},
 		{object: Map(nil), want: map[string]interface{}{}},
 		{object: Map{}, want: map[string]interface{}{}},
-		{object: Map{"a": Undefined}, want: map[string]interface{}{"a": nil}},
+		{object: Map{"a": Nil}, want: map[string]interface{}{"a": nil}},
 		{object: Map{"a": Int(1)}, want: map[string]interface{}{"a": int64(1)}},
 		{object: Uint(1), want: uint64(1)},
 		{object: Char(1), want: rune(1)},
@@ -121,7 +121,7 @@ func TestToObjectAlt(t *testing.T) {
 		want    Object
 		wantErr bool
 	}{
-		{iface: nil, want: Undefined},
+		{iface: nil, want: Nil},
 		{iface: "a", want: String("a")},
 		{iface: int64(-1), want: Int(-1)},
 		{iface: int32(-1), want: Int(-1)},
@@ -150,12 +150,12 @@ func TestToObjectAlt(t *testing.T) {
 		{iface: []Object{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
 		{iface: []interface{}{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
 		{iface: []interface{}{uint32(1)}, want: Array{Uint(1)}},
-		{iface: Object(nil), want: Undefined},
+		{iface: Object(nil), want: Nil},
 		{iface: String("a"), want: String("a")},
-		{iface: CallableFunc(nil), want: Undefined},
+		{iface: CallableFunc(nil), want: Nil},
 		{iface: fn, want: &Function{Value: fn}},
 		{iface: err, want: &Error{Message: err.Error(), Cause: err}},
-		{iface: error(nil), want: Undefined},
+		{iface: error(nil), want: Nil},
 		{iface: struct{}{}, wantErr: true},
 	}
 

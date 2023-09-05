@@ -29,7 +29,7 @@ func Unmarshal(data []byte) (gad.Object, error) {
 	var d decodeState
 	err := checkValid(data, &d.scan)
 	if err != nil {
-		return gad.Undefined, err
+		return gad.Nil, err
 	}
 
 	return d.init(data).unmarshal()
@@ -41,7 +41,7 @@ func (d *decodeState) unmarshal() (gad.Object, error) {
 
 	v, err := d.value()
 	if v == nil {
-		v = gad.Undefined
+		v = gad.Nil
 	}
 	return v, err
 }
@@ -218,7 +218,7 @@ func (d *decodeState) literal() (gad.Object, error) {
 
 	switch c := item[0]; c {
 	case 'n': // null
-		return gad.Undefined, nil
+		return gad.Nil, nil
 
 	case 't', 'f': // true, false
 		if c == 't' {

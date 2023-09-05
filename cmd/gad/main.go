@@ -64,7 +64,7 @@ var scriptGlobals = &gad.SyncMap{
 			Name: "Gosched",
 			Value: func(args ...gad.Object) (gad.Object, error) {
 				runtime.Gosched()
-				return gad.Undefined, nil
+				return gad.Nil, nil
 			},
 		},
 	},

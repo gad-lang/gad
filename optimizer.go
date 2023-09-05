@@ -117,7 +117,7 @@ func canOptimizeExpr(expr parser.Expr) bool {
 		*parser.FloatLit,
 		*parser.CharLit,
 		*parser.StringLit,
-		*parser.UndefinedLit:
+		*parser.NilLit:
 		return false
 	}
 	return true
@@ -147,7 +147,7 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		BuiltinIsError: true, BuiltinIsInt: true, BuiltinIsUint: true,
 		BuiltinIsFloat: true, BuiltinIsChar: true, BuiltinIsBool: true,
 		BuiltinIsString: true, BuiltinIsBytes: true, BuiltinIsMap: true,
-		BuiltinIsArray: true, BuiltinIsUndefined: true, BuiltinIsIterable: true,
+		BuiltinIsArray: true, BuiltinIsNil: true, BuiltinIsIterable: true,
 		^byte(0): false,
 	}
 
@@ -269,8 +269,8 @@ func (so *SimpleOptimizer) slowEvalExpr(expr parser.Expr) (parser.Expr, bool) {
 			Literal:  l,
 			ValuePos: expr.Pos(),
 		}
-	case *UndefinedType:
-		expr = &parser.UndefinedLit{TokenPos: expr.Pos()}
+	case *NilType:
+		expr = &parser.NilLit{TokenPos: expr.Pos()}
 	case Bool:
 		l := strconv.FormatBool(bool(v))
 		expr = &parser.BoolLit{
@@ -892,7 +892,7 @@ func untraceoptim(so *SimpleOptimizer) {
 
 func isObjectConstant(obj Object) bool {
 	switch obj.(type) {
-	case Bool, Int, Uint, Float, Char, String, *UndefinedType:
+	case Bool, Int, Uint, Float, Char, String, *NilType:
 		return true
 	}
 	return false
@@ -916,8 +916,8 @@ func isLitFalsy(expr parser.Expr) (bool, bool) {
 		return String(v.Value).IsFalsy(), true
 	case *parser.CharLit:
 		return Char(v.Value).IsFalsy(), true
-	case *parser.UndefinedLit:
-		return Undefined.IsFalsy(), true
+	case *parser.NilLit:
+		return Nil.IsFalsy(), true
 	}
 	return false, false
 }

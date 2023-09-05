@@ -12,7 +12,7 @@ version differences to a certain degree.
 Main script and Gad source modules in Gad are all functions which have
 `compiledFunction` type name. Parameters can be defined for main function with
 [`param`](#param) statement and main function returns a value with `return`
-statement as well. If return statement is missing, `undefined` value is returned
+statement as well. If return statement is missing, `nil` value is returned
 by default. All functions return single value but thanks to
 [destructuring](destructuring.md) feature Gad allows to return multiple values
 as an array and set returning array elements to multiple variables.
@@ -214,7 +214,7 @@ var (_, _a, $_a, a, A, $b, $, a1, $1, $b1, $$, ŝ, $ŝ)
 Parenthesis is required for multiple declarations. Last argument can also be
 variadic. Unlike `var` keyword, initializing value is illegal. Variadic
 argument initialized as an empty array `[]`, and others are initialized as
-`undefined` if not provided. `param` keyword can be used only once in main
+`nil` if not provided. `param` keyword can be used only once in main
 function.
 
 ```go
@@ -280,8 +280,8 @@ multiple declaration. Note: Tuple assignment is not supported with var
 statements.
 
 ```go
-var foo               // foo == undefined
-var (bar, baz = 1)    // bar == undefined, baz == 1
+var foo               // foo == nil
+var (bar, baz = 1)    // bar == nil, baz == 1
 var (bar,
      baz = 1)         // valid
 var (
@@ -521,7 +521,7 @@ types](runtime-types.md) for more information.
 | error             | [error](#error-values) value         | -                     |
 | array             | value array                          | `[]Object`            |
 | map               | value map with string keys           | `map[string]Object`   |
-| undefined         | [undefined](#undefined-values) value | -                     |
+| nil         | [nil](#nil-values) value | -                     |
 | compiledFunction  | [function](#function-values) value   | -                     |
 
 ### Error Values
@@ -563,26 +563,26 @@ Note: See [error handling](error-handling.md) for more information about errors.
 * ZeroDivisionError
 * TypeError
 
-### Undefined Values
+### Nil Values
 
-In Gad, an `undefined` value can be used to represent an unexpected or
+In Gad, an `nil` value can be used to represent an unexpected or
 non-existing value:
 
 * A function that does not return a value explicitly considered to return
-`undefined` value.
-* Indexer or selector on composite value types may return `undefined` if the
+`nil` value.
+* Indexer or selector on composite value types may return `nil` if the
 key or index does not exist.  
-* Builtin functions may return `undefined`.
+* Builtin functions may return `nil`.
 
 ```go
-a := func() { b := 4 }()    // a == undefined
-c := {a: "foo"}["b"]        // c == undefined
-d := sort(undefined)        // d == undefined
-e := delete({}, "foo")      // "delete" always returns undefined
+a := func() { b := 4 }()    // a == nil
+c := {a: "foo"}["b"]        // c == nil
+d := sort(nil)        // d == nil
+e := delete({}, "foo")      // "delete" always returns nil
 ```
 
-Builtin function `isUndefined` or `==` operator can be used to check value is
-undefined.
+Builtin function `isNil` or `==` operator can be used to check value is
+nil.
 
 ### Array Values
 
@@ -598,7 +598,7 @@ i := 2
 [1, 2, 3].(i)       // == 3
 [1, 2, 3].(i-1)       // == 2
 
-["foo", 'x', [1, 2, 3], {bar: 2u}, true, undefined, bytes()]   // ok
+["foo", 'x', [1, 2, 3], {bar: 2u}, true, nil, bytes()]   // ok
 ```
 
 ### Map Values
@@ -611,9 +611,9 @@ selector '.' operators.
 m := { a: 1, "b": false, c: "foo" }
 m["b"]                                // == false
 m.c                                   // == "foo"
-m.x                                   // == undefined
-m?.x.y.z                              // == undefined
-m.x?.y.z                              // == undefined
+m.x                                   // == nil
+m?.x.y.z                              // == nil
+m.x?.y.z                              // == nil
 
 m.x = {y:{z: 1}}
 m.x?.y.z                              // == 1
@@ -854,7 +854,7 @@ m := {
 m.a              // == 1
 m["b"][1]        // == 3
 m.c()            // == 10
-m.x.y.z          // == undefined
+m.x.y.z          // == nil
 m.x.y.z = 1      // RuntimeError: NotIndexAssignableError
 m.x = 5          // add 'x' to map 'm'
 ```
@@ -1004,7 +1004,7 @@ In Gad, modules are very similar to functions.
   * `return` in a module stops execution and return a value to the importing
     code.
   * If the module does not have any `return` statement, `import` expression
-  simply returns `undefined`. _(Just like the function that has no `return`.)_  
+  simply returns `nil`. _(Just like the function that has no `return`.)_  
 * importing same module multiple times at different places or in different
   modules returns the same object so it preserves the state of imported object.
 * Arguments cannot be provided to source modules while importing although it is

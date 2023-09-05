@@ -12,10 +12,10 @@ import (
 )
 
 func TestVMErrorHandlers(t *testing.T) {
-	expectRun(t, `try {} catch err {} finally {}`, newOpts().Skip2Pass(), Undefined)
-	expectRun(t, `try {} finally {}`, newOpts().Skip2Pass(), Undefined)
-	expectRun(t, `try {} catch err {}`, newOpts().Skip2Pass(), Undefined)
-	expectRun(t, `try {} catch {}`, newOpts().Skip2Pass(), Undefined)
+	expectRun(t, `try {} catch err {} finally {}`, newOpts().Skip2Pass(), Nil)
+	expectRun(t, `try {} finally {}`, newOpts().Skip2Pass(), Nil)
+	expectRun(t, `try {} catch err {}`, newOpts().Skip2Pass(), Nil)
+	expectRun(t, `try {} catch {}`, newOpts().Skip2Pass(), Nil)
 	// test symbol scope
 	expectRun(t, `var a = 1; try { a := 2 } catch err {} finally {}; return a`,
 		newOpts().Skip2Pass(), Int(1))
@@ -36,16 +36,16 @@ func TestVMErrorHandlers(t *testing.T) {
 	expectRun(t, `var a = 1; try { a := 2 } catch err { a = 3 } finally { return a }`,
 		newOpts().Skip2Pass(), Int(2))
 	expectRun(t, `try {} catch err {} finally { return err }`,
-		newOpts().Skip2Pass(), Undefined)
+		newOpts().Skip2Pass(), Nil)
 	expectRun(t, `try { a := 1 } catch err {} finally { return err }; return 0`,
-		newOpts().Skip2Pass(), Undefined)
+		newOpts().Skip2Pass(), Nil)
 	expectErrHas(t, `try {} catch err {} finally { err := 1 }`,
 		newOpts().Skip2Pass().CompilerError(), `Compile Error: "err" redeclared in this block`)
 	expectRun(t, `
 	try {
 		a := 1; try {} catch err {} finally { err = 2 }
 	} catch err {} finally { return err }; return 0`,
-		newOpts().Skip2Pass(), Undefined)
+		newOpts().Skip2Pass(), Nil)
 
 	// return
 	expectRun(t, `var a = 1; try { return a } finally { a = 2 }`,
@@ -297,7 +297,7 @@ func TestVMCatchAll(t *testing.T) {
 				ret = err2
 			}
 		} finally {
-			if err != undefined {
+			if err != nil {
 				return ret
 			}
 		}
@@ -352,7 +352,7 @@ func TestVMAssert(t *testing.T) {
 		}
 	}
 
-	assertTrue(errs == undefined, "errs must be undefined")
+	assertTrue(errs == nil, "errs must be nil")
 	assertTrue(isCallable(sprintf), "sprintf is not a callable")
 	assertTrue(isFunction(sprintf), "sprintf is not a function")
 	assertTrue(isCallable(assertTrue), "assertTrue is not a callable")
@@ -648,7 +648,7 @@ func TestVMExamples(t *testing.T) {
 		try {
 			i := 0
 			for i, v in args {
-				if err := check.Value(v); err != undefined {
+				if err := check.Value(v); err != nil {
 					throw err
 				}
 				total += v
@@ -657,7 +657,7 @@ func TestVMExamples(t *testing.T) {
 			printf("sum func has error: %v at index %d\n", err, i)
 			throw err // re-throw error after printing
 		} finally {
-			if err != undefined {
+			if err != nil {
 				numOfErrors++ // free variable
 			}
 		}
@@ -722,11 +722,11 @@ func TestVMExamples(t *testing.T) {
 				Value: func(args ...Object) (Object, error) {
 					// a dummy callable to export to script
 					cleanupCall++
-					return Undefined, nil
+					return Nil, nil
 				},
 			},
 		}).Args(Int(1), Int(2), Int(3)).Skip2Pass(),
-		Map{"Total": Int(6), "ModuleErrors": Int(0), "Error": String("undefined")})
+		Map{"Total": Int(6), "ModuleErrors": Int(0), "Error": String("nil")})
 	require.Equal(t, 1, cleanupCall)
 
 	oldPrintWriter := PrintWriter
@@ -742,14 +742,14 @@ func TestVMExamples(t *testing.T) {
 				Value: func(args ...Object) (Object, error) {
 					// a dummy callable to export to script
 					cleanupCall++
-					return Undefined, nil
+					return Nil, nil
 				},
 			},
-		}).Args(Undefined, Undefined).Skip2Pass(),
+		}).Args(Nil, Nil).Skip2Pass(),
 		Map{
-			"Total":        Undefined,
+			"Total":        Nil,
 			"ModuleErrors": Int(1),
-			"Error": String(`TypeError: want int, got undefined
+			"Error": String(`TypeError: want int, got nil
 	at (main):27:4
 	   (main):16:3
 	   module:16:4
@@ -757,7 +757,7 @@ func TestVMExamples(t *testing.T) {
 		})
 	require.Equal(t, 1, cleanupCall)
 	require.Equal(t,
-		"sum func has error: TypeError: want int, got undefined at index 0\n",
+		"sum func has error: TypeError: want int, got nil at index 0\n",
 		printWriter.String())
 
 	expectRun(t, `
@@ -782,7 +782,7 @@ func TestVMExamples(t *testing.T) {
 		} catch err {
 			println(err)
 		} finally {
-			return err == undefined ? out : err
+			return err == nil ? out : err
 		}
 	}
 
@@ -819,14 +819,14 @@ func TestVMExamples(t *testing.T) {
 		}
 	
 	} finally {
-		if myerr != undefined {
+		if myerr != nil {
 			return -1
 		}
 		return result
 	}
 `
 	var g Object = Map{}
-	expectRun(t, scr, newOpts().Globals(g).Args(Undefined), Int(-1))
+	expectRun(t, scr, newOpts().Globals(g).Args(Nil), Int(-1))
 	require.Equal(t, 1, len(g.(Map)))
 	require.Equal(t, True, g.(Map)["notAnInt"])
 
@@ -857,7 +857,7 @@ func TestVMExamples(t *testing.T) {
 		stats.fn2++
 		/* ... */
 	}
-	`).Globals(g).Skip2Pass(), Undefined)
+	`).Globals(g).Skip2Pass(), Nil)
 	require.Equal(t, Int(1), g.(*SyncMap).Value["stats"].(Map)["fn1"])
 	require.Equal(t, Int(1), g.(*SyncMap).Value["stats"].(Map)["fn2"])
 }

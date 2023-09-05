@@ -24,7 +24,7 @@ try {
 	// re-throw error for non-zero exit code
 	throw sprintf("fibonacci test failed\n %+v\n", err)
 } finally {
-	if err == undefined {
+	if err == nil {
 		println("fibonacci test ok")
 	}
 }

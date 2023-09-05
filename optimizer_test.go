@@ -138,8 +138,8 @@ func TestOptimizer(t *testing.T) {
 		{s: `"a" + 1 + "c"`, c: String("a1c"), cf: defF},
 		{s: `char(0)`, c: Char(0), cf: defF},
 
-		{s: `!undefined`, cf: trueF},
-		{s: `!!undefined`, cf: falseF},
+		{s: `!nil`, cf: trueF},
+		{s: `!!nil`, cf: falseF},
 	}
 
 	for _, tC := range testCases {

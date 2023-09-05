@@ -226,7 +226,7 @@ Returns the duration d as a floating point number of hours.
 
 ---
 
-`Sleep(duration int) -> undefined`
+`Sleep(duration int) -> nil`
 
 Pauses the current goroutine for at least the duration.
 

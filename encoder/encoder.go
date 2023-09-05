@@ -34,7 +34,7 @@ type (
 	CompiledFunction gad.CompiledFunction
 	BuiltinFunction  gad.BuiltinFunction
 	Function         gad.Function
-	UndefinedType    gad.UndefinedType
+	NilType          gad.NilType
 	String           gad.String
 	Bytes            gad.Bytes
 	Array            gad.Array
@@ -50,7 +50,7 @@ type (
 )
 
 const (
-	binUndefinedV1 byte = iota
+	binNilV1 byte = iota
 	binTrueV1
 	binFalseV1
 	binIntV1
@@ -75,7 +75,7 @@ var (
 )
 
 func init() {
-	gob.Register(gad.Undefined)
+	gob.Register(gad.Nil)
 	gob.Register(gad.Bool(true))
 	gob.Register(gad.Int(0))
 	gob.Register(gad.Uint(0))
@@ -286,8 +286,8 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 	}
 
 	switch btype {
-	case binUndefinedV1:
-		return gad.Undefined, nil
+	case binNilV1:
+		return gad.Nil, nil
 	case binTrueV1:
 		return gad.True, nil
 	case binFalseV1:
@@ -430,14 +430,14 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 }
 
 // MarshalBinary implements encoding.BinaryMarshaler
-func (o *UndefinedType) MarshalBinary() ([]byte, error) {
-	return []byte{binUndefinedV1}, nil
+func (o *NilType) MarshalBinary() ([]byte, error) {
+	return []byte{binNilV1}, nil
 }
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaler
-func (o *UndefinedType) UnmarshalBinary(data []byte) error {
-	if len(data) < 1 || data[0] != binUndefinedV1 {
-		return errors.New("invalid gad.Undefined data")
+func (o *NilType) UnmarshalBinary(data []byte) error {
+	if len(data) < 1 || data[0] != binNilV1 {
+		return errors.New("invalid gad.Nil data")
 	}
 	return nil
 }
@@ -1460,8 +1460,8 @@ func marshaler(o gad.Object) encoding.BinaryMarshaler {
 		return (*Function)(v)
 	case *gad.BuiltinFunction:
 		return (*BuiltinFunction)(v)
-	case *gad.UndefinedType:
-		return (*UndefinedType)(v)
+	case *gad.NilType:
+		return (*NilType)(v)
 	default:
 		return nil
 	}

@@ -84,8 +84,8 @@ func concatInsts(insts ...[]byte) []byte {
 }
 
 func TestCompiler_CompileIfNull(t *testing.T) {
-	// all local variables are initialized as undefined
-	expectCompile(t, `var a; a == undefined ? 1 : 2`, bytecode(
+	// all local variables are initialized as nil
+	expectCompile(t, `var a; a == nil ? 1 : 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -102,8 +102,8 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 			withLocals(1),
 		),
 	))
-	// all local variables are initialized as undefined
-	expectCompile(t, `var a; a != undefined ? 1 : 2`, bytecode(
+	// all local variables are initialized as nil
+	expectCompile(t, `var a; a != nil ? 1 : 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -123,7 +123,7 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 }
 
 func TestCompiler_Compile(t *testing.T) {
-	// all local variables are initialized as undefined
+	// all local variables are initialized as nil
 	expectCompile(t, `var a`, bytecode(
 		Array{},
 		compFunc(concatInsts(
@@ -148,7 +148,7 @@ func TestCompiler_Compile(t *testing.T) {
 			withLocals(3),
 		),
 	))
-	expectCompile(t, `var a = undefined`, bytecode(
+	expectCompile(t, `var a = nil`, bytecode(
 		Array{},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -158,7 +158,7 @@ func TestCompiler_Compile(t *testing.T) {
 			withLocals(1),
 		),
 	))
-	expectCompile(t, `a := undefined`, bytecode(
+	expectCompile(t, `a := nil`, bytecode(
 		Array{},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -176,8 +176,8 @@ func TestCompiler_Compile(t *testing.T) {
 	// param declaration can only be at the top scope
 	expectCompileError(t, `func() { param a }`, `Compile Error: param not allowed in this scope`)
 
-	// force to set undefined
-	expectCompile(t, `a := (undefined)`, bytecode(
+	// force to set nil
+	expectCompile(t, `a := (nil)`, bytecode(
 		Array{},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -201,7 +201,7 @@ func TestCompiler_Compile(t *testing.T) {
 			withLocals(3),
 		),
 	))
-	// parameters are initialized as undefined
+	// parameters are initialized as nil
 	expectCompile(t, `param a`, bytecode(
 		Array{},
 		compFunc(concatInsts(
@@ -1385,7 +1385,7 @@ func TestCompiler_Compile(t *testing.T) {
 		),
 	))
 
-	// Block variables not used as free variable is set to undefined after loop.
+	// Block variables not used as free variable is set to nil after loop.
 	// If block variable is not used as free variable it is reused.
 	expectCompile(t, `for i:=0; i<10; i++ {}; j := 1`, bytecode(
 		Array{Int(0), Int(10), Int(1)},
@@ -1528,7 +1528,7 @@ func TestCompiler_Compile(t *testing.T) {
 	} catch {}
 	finally {}`, `Parse Error: expected statement, found 'finally'`)
 
-	expectCompile(t, `undefined || 1`, bytecode(
+	expectCompile(t, `nil || 1`, bytecode(
 		Array{Int(1)},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -1539,7 +1539,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `undefined ?? 1`, bytecode(
+	expectCompile(t, `nil ?? 1`, bytecode(
 		Array{Int(1)},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -1727,8 +1727,8 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpConstant, 2),    // load 1 (array index)
 				makeInst(OpGetIndex, 1),    // :array[1]
 				makeInst(OpDefineLocal, 2), // y = :array[1]
-				makeInst(OpNull),           // load undefined
-				makeInst(OpSetLocal, 0),    // cleanup -> :array = undefined
+				makeInst(OpNull),           // load nil
+				makeInst(OpSetLocal, 0),    // cleanup -> :array = nil
 				makeInst(OpReturn, 0),
 			),
 				// x,y and :array hidden variable

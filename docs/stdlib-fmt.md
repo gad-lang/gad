@@ -31,7 +31,7 @@ fmt.Println(arg1.Value)  // abc
 fmt.Println(bool(arg1))  // true
 fmt.Println(arg2.Value)  // 123
 fmt.Println(bool(arg2))  // true
-fmt.Println(arg3.Value)  // undefined
+fmt.Println(arg3.Value)  // nil
 fmt.Println(bool(arg2))  // false, not scanned
 
 // Use if statement or a ternary expression to get the scanned value or a default value.

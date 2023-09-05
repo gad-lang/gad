@@ -300,14 +300,14 @@ VMLoop:
 			pos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			vm.ip = pos - 1
 		case OpJumpNull:
-			if vm.stack[vm.sp-1] != Undefined {
+			if vm.stack[vm.sp-1] != Nil {
 				vm.ip += 2
 				continue
 			}
 			pos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			vm.ip = pos - 1
 		case OpJumpNotNull:
-			if vm.stack[vm.sp-1] == Undefined {
+			if vm.stack[vm.sp-1] == Nil {
 				vm.sp--
 				vm.ip += 2
 				continue
@@ -389,7 +389,7 @@ VMLoop:
 			if numRet == 1 {
 				vm.stack[bp-1] = vm.stack[vm.sp-1]
 			} else {
-				vm.stack[bp-1] = Undefined
+				vm.stack[bp-1] = Nil
 			}
 
 			for i := vm.sp - 1; i >= bp; i-- {
@@ -483,7 +483,7 @@ VMLoop:
 			}
 
 			if ret == nil {
-				vm.stack[vm.sp] = Undefined
+				vm.stack[vm.sp] = Nil
 			} else {
 				vm.stack[vm.sp] = ret
 			}
@@ -543,7 +543,7 @@ VMLoop:
 			numSel := int(vm.curInsts[vm.ip+1])
 			tp := vm.sp - 1 - numSel
 			target := vm.stack[tp]
-			value := Undefined
+			value := Nil
 
 			for ; numSel > 0; numSel-- {
 				ptr := vm.sp - numSel
@@ -642,7 +642,7 @@ VMLoop:
 			vm.stack[vm.sp] = nil
 			vm.ip++
 		case OpNull:
-			vm.stack[vm.sp] = Undefined
+			vm.stack[vm.sp] = Nil
 			vm.sp++
 		case OpPop:
 			vm.sp--
@@ -764,13 +764,13 @@ func (vm *VM) initGlobals(globals Object) {
 }
 
 func (vm *VM) initLocals(args []Object) {
-	// init all params as undefined
+	// init all params as nil
 	numParams := vm.bytecode.Main.NumParams
 	locals := vm.stack[:vm.bytecode.Main.NumLocals]
 
 	// TODO (ozan): check why setting numParams fails some tests!
 	for i := 0; i < vm.bytecode.Main.NumLocals; i++ {
-		locals[i] = Undefined
+		locals[i] = Nil
 	}
 	if numParams <= 0 {
 		return
@@ -863,7 +863,7 @@ func (vm *VM) xOpSetupTry() {
 }
 
 func (vm *VM) xOpSetupCatch() {
-	value := Undefined
+	value := Nil
 	errHandlers := vm.curFrame.errHandlers
 
 	if errHandlers.hasHandler() {
@@ -1161,7 +1161,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs, flags int) error
 	}
 
 	for i := numParams; i < numLocals; i++ {
-		vm.stack[basePointer+i] = Undefined
+		vm.stack[basePointer+i] = Nil
 	}
 
 	// test if it's tail-call
@@ -1345,11 +1345,11 @@ func (vm *VM) xOpUnary() error {
 			goto invalidType
 		}
 	case token.Null:
-		vm.stack[vm.sp-1] = Bool(right == Undefined)
+		vm.stack[vm.sp-1] = Bool(right == Nil)
 		vm.ip++
 		return nil
 	case token.NotNull:
-		vm.stack[vm.sp-1] = Bool(right != Undefined)
+		vm.stack[vm.sp-1] = Bool(right != Nil)
 		vm.ip++
 		return nil
 	default:
@@ -1394,7 +1394,7 @@ func (vm *VM) xOpSliceIndex() error {
 
 	var low int
 	switch v := left.(type) {
-	case *UndefinedType:
+	case *NilType:
 		low = 0
 	case Int:
 		low = int(v)
@@ -1408,7 +1408,7 @@ func (vm *VM) xOpSliceIndex() error {
 
 	var high int
 	switch v := right.(type) {
-	case *UndefinedType:
+	case *NilType:
 		high = objlen
 	case Int:
 		high = int(v)
@@ -1651,7 +1651,7 @@ func (inv *Invoker) Invoke(args ...Object) (Object, error) {
 		inv.acquire(false)
 	}
 	if inv.child.Aborted() {
-		return Undefined, ErrVMAborted
+		return Nil, ErrVMAborted
 	}
 	if inv.isCompiled {
 		return inv.child.Run(inv.vm.globals, args...)
@@ -1661,7 +1661,7 @@ func (inv *Invoker) Invoke(args ...Object) (Object, error) {
 
 func (inv *Invoker) invokeObject(callee Object, args ...Object) (Object, error) {
 	if !callee.CanCall() {
-		return Undefined, ErrNotCallable.NewError(callee.TypeName())
+		return Nil, ErrNotCallable.NewError(callee.TypeName())
 	}
 	if c, ok := callee.(ExCallerObject); ok {
 		return c.CallEx(

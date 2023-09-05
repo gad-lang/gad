@@ -21,7 +21,7 @@ func TestObjects(t *testing.T) {
 	comparables := []Object{
 		True,
 		False,
-		Undefined,
+		Nil,
 		Int(-1),
 		Int(0),
 		Int(1),
@@ -54,7 +54,7 @@ func TestObjectIterable(t *testing.T) {
 	require.False(t, Char(0).CanIterate())
 	require.False(t, Float(0).CanIterate())
 	require.False(t, Bool(true).CanIterate())
-	require.False(t, Undefined.CanIterate())
+	require.False(t, Nil.CanIterate())
 	require.False(t, (&Error{}).CanIterate())
 	require.False(t, (&RuntimeError{}).CanIterate())
 	require.False(t, (&Function{}).CanIterate())
@@ -66,7 +66,7 @@ func TestObjectIterable(t *testing.T) {
 	require.Nil(t, Char(0).Iterate())
 	require.Nil(t, Float(0).Iterate())
 	require.Nil(t, Bool(true).Iterate())
-	require.Nil(t, Undefined.Iterate())
+	require.Nil(t, Nil.Iterate())
 	require.Nil(t, (&Error{}).Iterate())
 	require.Nil(t, (&RuntimeError{}).Iterate())
 	require.Nil(t, (&Function{}).Iterate())
@@ -92,7 +92,7 @@ func TestObjectCallable(t *testing.T) {
 	require.False(t, Char(0).CanCall())
 	require.False(t, Float(0).CanCall())
 	require.False(t, Bool(true).CanCall())
-	require.False(t, Undefined.CanCall())
+	require.False(t, Nil.CanCall())
 	require.False(t, (&Error{}).CanCall())
 	require.False(t, (&RuntimeError{}).CanCall())
 	require.False(t, String("").CanCall())
@@ -120,7 +120,7 @@ func TestObjectCallable(t *testing.T) {
 	v, err = Bool(true).Call()
 	require.Nil(t, v)
 	require.Equal(t, ErrNotCallable, err)
-	v, err = Undefined.Call()
+	v, err = Nil.Call()
 	require.Nil(t, v)
 	require.Equal(t, ErrNotCallable, err)
 	v, err = (&Error{}).Call()
@@ -153,7 +153,7 @@ func TestObjectString(t *testing.T) {
 	require.Equal(t, "0", Float(0).String())
 	require.Equal(t, "true", Bool(true).String())
 	require.Equal(t, "false", Bool(false).String())
-	require.Equal(t, "undefined", Undefined.String())
+	require.Equal(t, "nil", Nil.String())
 
 	require.Equal(t, "error: ", (&Error{}).String())
 	require.Equal(t, "error: message", (&Error{Message: "message"}).String())
@@ -192,7 +192,7 @@ func TestObjectTypeName(t *testing.T) {
 	require.Equal(t, "char", Char(0).TypeName())
 	require.Equal(t, "float", Float(0).TypeName())
 	require.Equal(t, "bool", Bool(true).TypeName())
-	require.Equal(t, "undefined", Undefined.TypeName())
+	require.Equal(t, "nil", Nil.TypeName())
 	require.Equal(t, "error", (&Error{}).TypeName())
 	require.Equal(t, "error", (&RuntimeError{}).TypeName())
 	require.Equal(t, "string", String("").TypeName())
@@ -213,7 +213,7 @@ func TestObjectIsFalsy(t *testing.T) {
 	require.True(t, Float(math.NaN()).IsFalsy())
 	require.False(t, Bool(true).IsFalsy())
 	require.True(t, Bool(false).IsFalsy())
-	require.True(t, Undefined.IsFalsy())
+	require.True(t, Nil.IsFalsy())
 	require.True(t, (&Error{}).IsFalsy())
 	require.True(t, (&RuntimeError{}).IsFalsy())
 	require.True(t, String("").IsFalsy())
@@ -266,56 +266,56 @@ func TestObjectImpl(t *testing.T) {
 	require.NotNil(t, err)
 	require.Equal(t, ErrInvalidOperator, err)
 
-	v, err = impl.IndexGet(Undefined)
+	v, err = impl.IndexGet(Nil)
 	require.Nil(t, v)
 	require.NotNil(t, err)
 	require.Equal(t, ErrNotIndexable, err)
 
-	err = impl.IndexSet(Undefined, Undefined)
+	err = impl.IndexSet(Nil, Nil)
 	require.NotNil(t, err)
 	require.Equal(t, ErrNotIndexAssignable, err)
 }
 
 func TestObjectIndexGet(t *testing.T) {
-	v, err := Int(0).IndexGet(Undefined)
+	v, err := Int(0).IndexGet(Nil)
 	require.Nil(t, v)
 	require.Equal(t, ErrNotIndexable, err)
 
-	v, err = Uint(0).IndexGet(Undefined)
+	v, err = Uint(0).IndexGet(Nil)
 	require.Nil(t, v)
 	require.Equal(t, ErrNotIndexable, err)
 
-	v, err = Char(0).IndexGet(Undefined)
+	v, err = Char(0).IndexGet(Nil)
 	require.Nil(t, v)
 	require.Equal(t, ErrNotIndexable, err)
 
-	v, err = Float(0).IndexGet(Undefined)
+	v, err = Float(0).IndexGet(Nil)
 	require.Nil(t, v)
 	require.Equal(t, ErrNotIndexable, err)
 
-	v, err = Bool(true).IndexGet(Undefined)
+	v, err = Bool(true).IndexGet(Nil)
 	require.Nil(t, v)
 	require.Equal(t, ErrNotIndexable, err)
 
-	v, err = (&Function{}).IndexGet(Undefined)
+	v, err = (&Function{}).IndexGet(Nil)
 	require.Nil(t, v)
 	require.Equal(t, ErrNotIndexable, err)
 
-	v, err = (&BuiltinFunction{}).IndexGet(Undefined)
+	v, err = (&BuiltinFunction{}).IndexGet(Nil)
 	require.Nil(t, v)
 	require.Equal(t, ErrNotIndexable, err)
 
-	v, err = (&CompiledFunction{}).IndexGet(Undefined)
+	v, err = (&CompiledFunction{}).IndexGet(Nil)
 	require.Nil(t, v)
 	require.Equal(t, ErrNotIndexable, err)
 
-	v, err = Undefined.IndexGet(Undefined)
-	require.Equal(t, Undefined, v)
+	v, err = Nil.IndexGet(Nil)
+	require.Equal(t, Nil, v)
 	require.NoError(t, err)
 
-	v, err = (&Error{}).IndexGet(Undefined)
+	v, err = (&Error{}).IndexGet(Nil)
 	require.NoError(t, err)
-	require.Equal(t, Undefined, v)
+	require.Equal(t, Nil, v)
 
 	v, err = (&Error{}).IndexGet(String("Name"))
 	require.NoError(t, err)
@@ -333,8 +333,8 @@ func TestObjectIndexGet(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, String("x"), v)
 
-	v, err = (&RuntimeError{}).IndexGet(Undefined)
-	require.Equal(t, Undefined, v)
+	v, err = (&RuntimeError{}).IndexGet(Nil)
+	require.Equal(t, Nil, v)
 	require.NoError(t, err)
 
 	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(String("Name"))
@@ -353,7 +353,7 @@ func TestObjectIndexGet(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, String("x"), v)
 
-	v, err = String("").IndexGet(Undefined)
+	v, err = String("").IndexGet(Nil)
 	require.Nil(t, v)
 	require.NotNil(t, err)
 	require.True(t, errors.Is(err, ErrType))
@@ -372,7 +372,7 @@ func TestObjectIndexGet(t *testing.T) {
 	require.Nil(t, v)
 	require.Equal(t, ErrIndexOutOfBounds, err)
 
-	v, err = Array{Int(1)}.IndexGet(Undefined)
+	v, err = Array{Int(1)}.IndexGet(Nil)
 	require.NotNil(t, err)
 	require.Nil(t, v)
 	require.True(t, errors.Is(err, ErrType))
@@ -387,7 +387,7 @@ func TestObjectIndexGet(t *testing.T) {
 	require.NotNil(t, err)
 	require.Equal(t, ErrIndexOutOfBounds, err)
 
-	v, err = Bytes{1}.IndexGet(Undefined)
+	v, err = Bytes{1}.IndexGet(Nil)
 	require.NotNil(t, err)
 	require.Nil(t, v)
 	require.True(t, errors.Is(err, ErrType))
@@ -402,25 +402,25 @@ func TestObjectIndexGet(t *testing.T) {
 	require.NotNil(t, err)
 	require.Equal(t, ErrIndexOutOfBounds, err)
 
-	v, err = Map{}.IndexGet(Undefined)
+	v, err = Map{}.IndexGet(Nil)
 	require.Nil(t, err)
-	require.Equal(t, Undefined, v)
+	require.Equal(t, Nil, v)
 
 	v, err = Map{"a": Int(1)}.IndexGet(Int(0))
 	require.Nil(t, err)
-	require.Equal(t, Undefined, v)
+	require.Equal(t, Nil, v)
 
 	v, err = Map{"a": Int(1)}.IndexGet(String("a"))
 	require.Nil(t, err)
 	require.Equal(t, Int(1), v)
 
-	v, err = (&SyncMap{Value: Map{}}).IndexGet(Undefined)
+	v, err = (&SyncMap{Value: Map{}}).IndexGet(Nil)
 	require.Nil(t, err)
-	require.Equal(t, Undefined, v)
+	require.Equal(t, Nil, v)
 
 	v, err = (&SyncMap{Value: Map{"a": Int(1)}}).IndexGet(Int(0))
 	require.Nil(t, err)
-	require.Equal(t, Undefined, v)
+	require.Equal(t, Nil, v)
 
 	v, err = (&SyncMap{Value: Map{"a": Int(1)}}).IndexGet(String("a"))
 	require.Nil(t, err)
@@ -428,40 +428,40 @@ func TestObjectIndexGet(t *testing.T) {
 }
 
 func TestObjectIndexSet(t *testing.T) {
-	err := Int(0).IndexSet(Undefined, Undefined)
+	err := Int(0).IndexSet(Nil, Nil)
 	require.Equal(t, ErrNotIndexAssignable, err)
 
-	err = Uint(0).IndexSet(Undefined, Undefined)
+	err = Uint(0).IndexSet(Nil, Nil)
 	require.Equal(t, ErrNotIndexAssignable, err)
 
-	err = Char(0).IndexSet(Undefined, Undefined)
+	err = Char(0).IndexSet(Nil, Nil)
 	require.Equal(t, ErrNotIndexAssignable, err)
 
-	err = Float(0).IndexSet(Undefined, Undefined)
+	err = Float(0).IndexSet(Nil, Nil)
 	require.Equal(t, ErrNotIndexAssignable, err)
 
-	err = Bool(true).IndexSet(Undefined, Undefined)
+	err = Bool(true).IndexSet(Nil, Nil)
 	require.Equal(t, ErrNotIndexAssignable, err)
 
-	err = (&Function{}).IndexSet(Undefined, Undefined)
+	err = (&Function{}).IndexSet(Nil, Nil)
 	require.Equal(t, ErrNotIndexAssignable, err)
 
-	err = (&BuiltinFunction{}).IndexSet(Undefined, Undefined)
+	err = (&BuiltinFunction{}).IndexSet(Nil, Nil)
 	require.Equal(t, ErrNotIndexAssignable, err)
 
-	err = (&CompiledFunction{}).IndexSet(Undefined, Undefined)
+	err = (&CompiledFunction{}).IndexSet(Nil, Nil)
 	require.Equal(t, ErrNotIndexAssignable, err)
 
-	err = Undefined.IndexSet(Undefined, Undefined)
+	err = Nil.IndexSet(Nil, Nil)
 	require.Equal(t, ErrNotIndexAssignable, err)
 
-	err = (&Error{}).IndexSet(Undefined, Undefined)
+	err = (&Error{}).IndexSet(Nil, Nil)
 	require.Equal(t, ErrNotIndexAssignable, err)
 
-	err = (&RuntimeError{}).IndexSet(Undefined, Undefined)
+	err = (&RuntimeError{}).IndexSet(Nil, Nil)
 	require.Equal(t, ErrNotIndexAssignable, err)
 
-	err = (&RuntimeError{Err: &Error{}}).IndexSet(Undefined, Undefined)
+	err = (&RuntimeError{Err: &Error{}}).IndexSet(Nil, Nil)
 	require.Equal(t, ErrNotIndexAssignable, err)
 
 	err = String("x").IndexSet(Int(0), String("y"))
@@ -503,9 +503,9 @@ func TestObjectIndexSet(t *testing.T) {
 	require.True(t, errors.Is(err, ErrType))
 
 	v = Map{}
-	err = v.IndexSet(Undefined, Undefined)
+	err = v.IndexSet(Nil, Nil)
 	require.Nil(t, err)
-	require.Equal(t, Undefined, v.(Map)["undefined"])
+	require.Equal(t, Nil, v.(Map)["nil"])
 
 	v = Map{"a": Int(1)}
 	err = v.IndexSet(String("a"), Int(2))
@@ -513,9 +513,9 @@ func TestObjectIndexSet(t *testing.T) {
 	require.Equal(t, Int(2), v.(Map)["a"])
 
 	v = &SyncMap{Value: Map{}}
-	err = v.IndexSet(Undefined, Undefined)
+	err = v.IndexSet(Nil, Nil)
 	require.Nil(t, err)
-	require.Equal(t, Undefined, v.(*SyncMap).Value["undefined"])
+	require.Equal(t, Nil, v.(*SyncMap).Value["nil"])
 
 	v = &SyncMap{Value: Map{"a": Int(1)}}
 	err = v.IndexSet(String("a"), Int(2))

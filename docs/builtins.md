@@ -36,9 +36,9 @@ v = append(v, 2, 3)    // v == [1, 2, 3]
 b := bytes()
 b = append(b, 0, 1, 2)    // b == [0 1 2] Go equivalent []byte{0, 1, 2}
 
-// if first argument is undefined, an array is created and
+// if first argument is nil, an array is created and
 // rest of arguments is appended to the new array
-c := append(undefined, "a", "b", 'c')    // c == ["a", "b", 'c']
+c := append(nil, "a", "b", 'c')    // c == ["a", "b", 'c']
 ```
 
 ---
@@ -48,7 +48,7 @@ c := append(undefined, "a", "b", 'c')    // c == ["a", "b", 'c']
 Deletes the element with the specified key from an object type. First argument
 should implement `IndexDeleter` interface and second argument is converted to
 string to delete specified string index. `map` and `syncMap` types implement
-`IndexDeleter` interface. `delete` returns `undefined` value if successful and
+`IndexDeleter` interface. `delete` returns `nil` value if successful and
 it mutates given object.
 
 **Syntax**
@@ -63,7 +63,7 @@ it mutates given object.
 
 **Return Value**
 
-> `undefined`
+> `nil`
 
 **Runtime Errors**
 
@@ -177,7 +177,7 @@ Reports whether given element is in object.
   - bytes
   - map
   - syncMap
-  - undefined: contains returns false if object value is undefined
+  - nil: contains returns false if object value is nil
 - > `element`:
   - if object's type is array, element can be of any type and sequential search
     is applied in array.
@@ -187,7 +187,7 @@ Reports whether given element is in object.
     bytes type.
   - if object's type is map or syncMap, element's string representation is
     looked up in the map's keys.
-  - if object value is undefined, element is ignored.
+  - if object value is nil, element is ignored.
 
 **Return Value**
 
@@ -304,7 +304,7 @@ sorted rune slice is converted back to string.
   - array
   - string
   - bytes
-  - undefined
+  - nil
 
 **Return Value**
 
@@ -327,7 +327,7 @@ v4 := sort(v3)        // v4 == "xyz", v3 == "zyx"
 v5 := bytes("cba")
 v6 := sort(v5)        // v5 == v6, v5 == bytes("abc")
 
-v7 := sort(undefined) // v7 == undefined
+v7 := sort(nil) // v7 == nil
 
 // if array elements are not comparable, a runtime error is thrown.
 sort(["a", 1])        // RuntimeError: TypeError
@@ -351,7 +351,7 @@ sorted rune slice is converted back to string.
   - array
   - string
   - bytes
-  - undefined
+  - nil
 
 **Return Value**
 
@@ -374,7 +374,7 @@ v4 := sortReverse(v3)        // v4 == "zyx", v3 == "xyz"
 v5 := bytes("abc")
 v6 := sortReverse(v5)        // v5 == v6, v5 == bytes("cba")
 
-v7 := sortReverse(undefined) // v7 == undefined
+v7 := sortReverse(nil) // v7 == nil
 
 // if array elements are not comparable, a runtime error is thrown.
 sortReverse(["a", 1])        // RuntimeError: TypeError
@@ -573,7 +573,7 @@ v9 := uint(false)          // v9 == 0u
 ### char
 
 Tries to convert the given object to a char value and returns it. Note that, if
-string object is provided and encoding is invalid or string is empty, undefined
+string object is provided and encoding is invalid or string is empty, nil
 is returned. Note that, `char` type is derived from Go's rune type, see numeric
 conversions in [Go spec.](https://golang.org/ref/spec#Conversions) and
 conversion relies on Go's "wrap around".
@@ -594,7 +594,7 @@ conversion relies on Go's "wrap around".
 
 **Return Value**
 
-> char value / undefined
+> char value / nil
 
 **Runtime Errors**
 
@@ -610,7 +610,7 @@ v3 := char(1u)             // v3 == '\x01'
 v4 := char(1.1)            // v4 == '\x01'
 v5 := char(true)           // v5 == '\x01'
 v6 := char(false)          // v6 == '\x00'
-v7 := char("")             // v7 == undefined
+v7 := char("")             // v7 == nil
 ```
 
 ---
@@ -688,7 +688,7 @@ v2 := string(12)         // v2 == "12"
 v3 := string('a')        // v3 == "a"
 v4 := string(1.0)        // v4 == "1"
 v5 := string(1.1)        // v5 == "1.1"
-v6 := string(undefined)  // v6 == "undefined"
+v6 := string(nil)  // v6 == "nil"
 v7 := string(true)       // v7 == "true"
 ```
 
@@ -736,7 +736,7 @@ v5 := bytes(256, 257)      // v5 == bytes [0 1] wrapped around
 ### chars
 
 Returns an array containing chars of given string or bytes. If given
-string/bytes has invalid encoding (incorrect UTF-8), it returns undefined.
+string/bytes has invalid encoding (incorrect UTF-8), it returns nil.
 
 **Syntax**
 
@@ -748,7 +748,7 @@ string/bytes has invalid encoding (incorrect UTF-8), it returns undefined.
 
 **Return Value**
 
-> array of char values or undefined
+> array of char values or nil
 
 **Runtime Errors**
 
@@ -760,7 +760,7 @@ string/bytes has invalid encoding (incorrect UTF-8), it returns undefined.
 ```go
 v1 := chars("abc")              // v1 == ['a', 'b', 'c']
 v2 := chars(bytes(0, 1, 2))     // v2 == ['\x00', '\x01', '\x02']
-v3 := chars("a\xc5")            // v3 == undefined, incorrect UTF-8
+v3 := chars("a\xc5")            // v3 == nil, incorrect UTF-8
 ```
 
 ---
@@ -783,7 +783,7 @@ converting first argument to a string value and optional arguments to
 
 **Return Value**
 
-> undefined
+> nil
 
 **Runtime Errors**
 
@@ -814,7 +814,7 @@ after converting arguments to `interface{}`.
 
 **Return Value**
 
-> undefined
+> nil
 
 **Runtime Errors**
 
@@ -1120,13 +1120,13 @@ Reports whether given object is of array type.
 
 ---
 
-### isUndefined
+### isNil
 
-Reports whether given object value is undefined.
+Reports whether given object value is nil.
 
 **Syntax**
 
-> `isUndefined(object)`
+> `isNil(object)`
 
 **Parameters**
 

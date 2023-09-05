@@ -622,31 +622,31 @@ func (e *UnaryExpr) End() Pos {
 
 func (e *UnaryExpr) String() string {
 	if e.Token == token.Null {
-		return "(" + e.Expr.String() + " == undefined)"
+		return "(" + e.Expr.String() + " == nil)"
 	}
 	if e.Token == token.NotNull {
-		return "(" + e.Expr.String() + " != undefined)"
+		return "(" + e.Expr.String() + " != nil)"
 	}
 	return "(" + e.Token.String() + e.Expr.String() + ")"
 }
 
-// UndefinedLit represents an undefined literal.
-type UndefinedLit struct {
+// NilLit represents an nil literal.
+type NilLit struct {
 	TokenPos Pos
 }
 
-func (e *UndefinedLit) exprNode() {}
+func (e *NilLit) exprNode() {}
 
 // Pos returns the position of first character belonging to the node.
-func (e *UndefinedLit) Pos() Pos {
+func (e *NilLit) Pos() Pos {
 	return e.TokenPos
 }
 
 // End returns the position of first character immediately after the node.
-func (e *UndefinedLit) End() Pos {
-	return e.TokenPos + 9 // len(undefined) == 9
+func (e *NilLit) End() Pos {
+	return e.TokenPos + 9 // len(nil) == 9
 }
 
-func (e *UndefinedLit) String() string {
-	return "undefined"
+func (e *NilLit) String() string {
+	return "nil"
 }

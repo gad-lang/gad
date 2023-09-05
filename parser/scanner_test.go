@@ -130,7 +130,7 @@ func TestScanner_Scan(t *testing.T) {
 		{token.True, "true"},
 		{token.False, "false"},
 		{token.In, "in"},
-		{token.Undefined, "undefined"},
+		{token.Nil, "nil"},
 		{token.Import, "import"},
 		{token.Param, "param"},
 		{token.Global, "global"},

@@ -138,7 +138,7 @@ func (o Int) BinaryOp(tok token.Token, right Object) (Object, error) {
 			right = Int(0)
 		}
 		return o.BinaryOp(tok, right)
-	case *UndefinedType:
+	case *NilType:
 		switch tok {
 		case token.Less, token.LessEq:
 			return False, nil
@@ -284,7 +284,7 @@ func (o Uint) BinaryOp(tok token.Token, right Object) (Object, error) {
 			right = Uint(0)
 		}
 		return o.BinaryOp(tok, right)
-	case *UndefinedType:
+	case *NilType:
 		switch tok {
 		case token.Less, token.LessEq:
 			return False, nil
@@ -404,7 +404,7 @@ func (o Float) BinaryOp(tok token.Token, right Object) (Object, error) {
 			right = Float(0)
 		}
 		return o.BinaryOp(tok, right)
-	case *UndefinedType:
+	case *NilType:
 		switch tok {
 		case token.Less, token.LessEq:
 			return False, nil
@@ -569,7 +569,7 @@ func (o Char) BinaryOp(tok token.Token, right Object) (Object, error) {
 			sb.WriteString(string(v))
 			return String(sb.String()), nil
 		}
-	case *UndefinedType:
+	case *NilType:
 		switch tok {
 		case token.Less, token.LessEq:
 			return False, nil

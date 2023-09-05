@@ -21,7 +21,7 @@ import (
 
 var baz gad.Object = gad.String("baz")
 var testObjects = []gad.Object{
-	gad.Undefined,
+	gad.Nil,
 	gad.Int(-1), gad.Int(0), gad.Int(1),
 	gad.Uint(0), ^gad.Uint(0),
 	gad.Char('x'),
@@ -33,7 +33,7 @@ var testObjects = []gad.Object{
 	&gad.RuntimeError{Err: gad.ErrInvalidIndex},
 	gad.Map{"key": &gad.Function{Name: "f"}},
 	&gad.SyncMap{Value: gad.Map{"k": gad.String("")}},
-	gad.Array{gad.Undefined, gad.True, gad.False},
+	gad.Array{gad.Nil, gad.True, gad.False},
 	&time.Time{Value: gotime.Time{}},
 	&json.EncoderOptions{Value: gad.Int(1)},
 	&json.RawMessage{Value: gad.Bytes("bar")},

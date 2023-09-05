@@ -127,7 +127,7 @@ try {
     }
 
 } finally {
-    if myerr != undefined {
+    if myerr != nil {
         return -1
     }
     return result

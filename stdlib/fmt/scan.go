@@ -15,7 +15,7 @@ func init() {
 			if sa.argValue != nil {
 				return sa.Arg(), true
 			}
-			return gad.Undefined, false
+			return gad.Nil, false
 		},
 	)
 }
@@ -61,7 +61,7 @@ func (o *scanArg) IndexGet(index gad.Object) (gad.Object, error) {
 	if o.ok && index.String() == "Value" {
 		return o.Value(), nil
 	}
-	return gad.Undefined, nil
+	return gad.Nil, nil
 }
 
 func (o *scanArg) Set(scanned bool) { o.ok = scanned }

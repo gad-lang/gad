@@ -472,7 +472,7 @@ func fieldsFuncInv(c gad.Call) (gad.Object, error) {
 				return !ret.IsFalsy()
 			})
 			if err != nil {
-				return gad.Undefined, err
+				return gad.Nil, err
 			}
 			out := make(gad.Array, 0, len(fields))
 			for _, s := range fields {
@@ -560,13 +560,13 @@ func mapFuncInv(c gad.Call) (gad.Object, error) {
 func pad(c gad.Call, left bool) (gad.Object, error) {
 	size := c.Len()
 	if size != 2 && size != 3 {
-		return gad.Undefined,
+		return gad.Nil,
 			gad.ErrWrongNumArguments.NewError("want=2..3 got=" + strconv.Itoa(size))
 	}
 	s := c.Get(0).String()
 	padLen, ok := gad.ToGoInt(c.Get(1))
 	if !ok {
-		return gad.Undefined,
+		return gad.Nil,
 			gad.NewArgumentTypeError("2nd", "int", c.Get(1).TypeName())
 	}
 	diff := padLen - len(s)
@@ -606,7 +606,7 @@ func repeatFunc(s string, count int) gad.Object {
 func replaceFunc(c gad.Call) (gad.Object, error) {
 	size := c.Len()
 	if size != 3 && size != 4 {
-		return gad.Undefined,
+		return gad.Nil,
 			gad.ErrWrongNumArguments.NewError("want=3..4 got=" + strconv.Itoa(size))
 	}
 	s := c.Get(0).String()
@@ -616,7 +616,7 @@ func replaceFunc(c gad.Call) (gad.Object, error) {
 	if size == 4 {
 		v, ok := gad.ToGoInt(c.Get(3))
 		if !ok {
-			return gad.Undefined,
+			return gad.Nil,
 				gad.NewArgumentTypeError("4th", "int", c.Get(3).TypeName())
 		}
 		n = v
@@ -638,7 +638,7 @@ func toUpperFunc(s string) gad.Object { return gad.String(strings.ToUpper(s)) }
 func toValidUTF8Func(c gad.Call) (gad.Object, error) {
 	size := c.Len()
 	if size != 1 && size != 2 {
-		return gad.Undefined,
+		return gad.Nil,
 			gad.ErrWrongNumArguments.NewError("want=1..2 got=" + strconv.Itoa(size))
 	}
 	s := c.Get(0).String()
@@ -677,7 +677,7 @@ func newSplitFunc(fn func(string, string, int) []string) gad.CallableExFunc {
 	return func(c gad.Call) (gad.Object, error) {
 		size := c.Len()
 		if size != 2 && size != 3 {
-			return gad.Undefined,
+			return gad.Nil,
 				gad.ErrWrongNumArguments.NewError("want=2..3 got=" + strconv.Itoa(size))
 		}
 		s := c.Get(0).String()
@@ -686,7 +686,7 @@ func newSplitFunc(fn func(string, string, int) []string) gad.CallableExFunc {
 		if size == 3 {
 			v, ok := gad.ToGoInt(c.Get(2))
 			if !ok {
-				return gad.Undefined,
+				return gad.Nil,
 					gad.NewArgumentTypeError("3rd", "int", c.Get(2).TypeName())
 			}
 			n = v
@@ -752,17 +752,17 @@ func stringInvoke(
 ) (gad.Object, error) {
 	err := c.CheckLen(2)
 	if err != nil {
-		return gad.Undefined, err
+		return gad.Nil, err
 	}
 
 	str := c.Get(sidx).String()
 	callee := c.Get(cidx)
 	if !callee.CanCall() {
-		return gad.Undefined, gad.ErrNotCallable
+		return gad.Nil, gad.ErrNotCallable
 	}
 	if c.VM() == nil {
 		if _, ok := callee.(*gad.CompiledFunction); ok {
-			return gad.Undefined, gad.ErrNotCallable
+			return gad.Nil, gad.ErrNotCallable
 		}
 	}
 

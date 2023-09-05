@@ -13,7 +13,7 @@ import (
 func FuncPOROEx(fn func(gad.Object) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		o := args.Get(0)
@@ -28,12 +28,12 @@ func FuncPOROEx(fn func(gad.Object) gad.Object) gad.CallableExFunc {
 func FuncPiROEx(fn func(int) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		i1, ok := gad.ToGoInt(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
 		}
 
 		ret = fn(i1)
@@ -46,12 +46,12 @@ func FuncPiROEx(fn func(int) gad.Object) gad.CallableExFunc {
 func FuncPi64ROEx(fn func(int64) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		i1, ok := gad.ToGoInt64(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
 		}
 
 		ret = fn(i1)
@@ -64,16 +64,16 @@ func FuncPi64ROEx(fn func(int64) gad.Object) gad.CallableExFunc {
 func FuncPi64REx(fn func(int64)) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		i1, ok := gad.ToGoInt64(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
 		}
 
 		fn(i1)
-		ret = gad.Undefined
+		ret = gad.Nil
 		return
 	}
 }
@@ -83,12 +83,12 @@ func FuncPi64REx(fn func(int64)) gad.CallableExFunc {
 func FuncPsROeEx(fn func(string) (gad.Object, error)) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		s, ok := gad.ToGoString(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
 		}
 
 		ret, err = fn(s)
@@ -101,16 +101,16 @@ func FuncPsROeEx(fn func(string) (gad.Object, error)) gad.CallableExFunc {
 func FuncPsiROEx(fn func(string, int) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		s, ok := gad.ToGoString(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
 		}
 		i1, ok := gad.ToGoInt(args.Get(1))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
 		}
 
 		ret = fn(s, i1)
@@ -123,7 +123,7 @@ func FuncPsiROEx(fn func(string, int) gad.Object) gad.CallableExFunc {
 func FuncPROEx(fn func() gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(0); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		ret = fn()
@@ -136,16 +136,16 @@ func FuncPROEx(fn func() gad.Object) gad.CallableExFunc {
 func FuncPi64i64ROEx(fn func(int64, int64) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		i1, ok := gad.ToGoInt64(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
 		}
 		i2, ok := gad.ToGoInt64(args.Get(1))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
 		}
 
 		ret = fn(i1, i2)
@@ -158,12 +158,12 @@ func FuncPi64i64ROEx(fn func(int64, int64) gad.Object) gad.CallableExFunc {
 func FuncPb2ROEx(fn func([]byte) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		b, ok := gad.ToGoByteSlice(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "bytes", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "bytes", args.Get(0).TypeName())
 		}
 
 		ret = fn(b)
@@ -176,17 +176,17 @@ func FuncPb2ROEx(fn func([]byte) gad.Object) gad.CallableExFunc {
 func FuncPOssROEx(fn func(gad.Object, string, string) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(3); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		o := args.Get(0)
 		s1, ok := gad.ToGoString(args.Get(1))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
 		}
 		s2, ok := gad.ToGoString(args.Get(2))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("3rd", "string", args.Get(2).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", args.Get(2).TypeName())
 		}
 
 		ret = fn(o, s1, s2)
@@ -199,16 +199,16 @@ func FuncPOssROEx(fn func(gad.Object, string, string) gad.Object) gad.CallableEx
 func FuncPb2bROEx(fn func([]byte, bool) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		p, ok := gad.ToGoByteSlice(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "bytes", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "bytes", args.Get(0).TypeName())
 		}
 		b, ok := gad.ToGoBool(args.Get(1))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "bool", args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "bool", args.Get(1).TypeName())
 		}
 
 		ret = fn(p, b)
@@ -221,20 +221,20 @@ func FuncPb2bROEx(fn func([]byte, bool) gad.Object) gad.CallableExFunc {
 func FuncPb2ssROEx(fn func([]byte, string, string) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(3); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		p, ok := gad.ToGoByteSlice(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "bytes", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "bytes", args.Get(0).TypeName())
 		}
 		s1, ok := gad.ToGoString(args.Get(1))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
 		}
 		s2, ok := gad.ToGoString(args.Get(2))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("3rd", "string", args.Get(2).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", args.Get(2).TypeName())
 		}
 
 		ret = fn(p, s1, s2)
@@ -247,16 +247,16 @@ func FuncPb2ssROEx(fn func([]byte, string, string) gad.Object) gad.CallableExFun
 func FuncPssROEx(fn func(string, string) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		s1, ok := gad.ToGoString(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
 		}
 		s2, ok := gad.ToGoString(args.Get(1))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
 		}
 
 		ret = fn(s1, s2)
@@ -269,12 +269,12 @@ func FuncPssROEx(fn func(string, string) gad.Object) gad.CallableExFunc {
 func FuncPsROEx(fn func(string) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(1); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		s, ok := gad.ToGoString(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
 		}
 
 		ret = fn(s)
@@ -287,16 +287,16 @@ func FuncPsROEx(fn func(string) gad.Object) gad.CallableExFunc {
 func FuncPsrROEx(fn func(string, rune) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		s, ok := gad.ToGoString(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "string", args.Get(0).TypeName())
 		}
 		r, ok := gad.ToGoRune(args.Get(1))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "char", args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "char", args.Get(1).TypeName())
 		}
 
 		ret = fn(s, r)
@@ -309,16 +309,16 @@ func FuncPsrROEx(fn func(string, rune) gad.Object) gad.CallableExFunc {
 func FuncPAsROEx(fn func(gad.Array, string) gad.Object) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		arr, ok := gad.ToArray(args.Get(0))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "array", args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "array", args.Get(0).TypeName())
 		}
 		s, ok := gad.ToGoString(args.Get(1))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
 		}
 
 		ret = fn(arr, s)
@@ -331,13 +331,13 @@ func FuncPAsROEx(fn func(gad.Array, string) gad.Object) gad.CallableExFunc {
 func FuncPOi64ROeEx(fn func(gad.Object, int64) (gad.Object, error)) gad.CallableExFunc {
 	return func(args gad.Call) (ret gad.Object, err error) {
 		if err := args.CheckLen(2); err != nil {
-			return gad.Undefined, err
+			return gad.Nil, err
 		}
 
 		o := args.Get(0)
 		i, ok := gad.ToGoInt64(args.Get(1))
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
 		}
 
 		ret, err = fn(o, i)
@@ -350,7 +350,7 @@ func FuncPOi64ROeEx(fn func(gad.Object, int64) (gad.Object, error)) gad.Callable
 func FuncPORO(fn func(gad.Object) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
 		o := args[0]
@@ -365,12 +365,12 @@ func FuncPORO(fn func(gad.Object) gad.Object) gad.CallableFunc {
 func FuncPiRO(fn func(int) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
 		i1, ok := gad.ToGoInt(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "int", args[0].TypeName())
 		}
 
 		ret = fn(i1)
@@ -383,12 +383,12 @@ func FuncPiRO(fn func(int) gad.Object) gad.CallableFunc {
 func FuncPi64RO(fn func(int64) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
 		i1, ok := gad.ToGoInt64(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "int", args[0].TypeName())
 		}
 
 		ret = fn(i1)
@@ -401,16 +401,16 @@ func FuncPi64RO(fn func(int64) gad.Object) gad.CallableFunc {
 func FuncPi64R(fn func(int64)) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
 		i1, ok := gad.ToGoInt64(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "int", args[0].TypeName())
 		}
 
 		fn(i1)
-		ret = gad.Undefined
+		ret = gad.Nil
 		return
 	}
 }
@@ -420,12 +420,12 @@ func FuncPi64R(fn func(int64)) gad.CallableFunc {
 func FuncPsROe(fn func(string) (gad.Object, error)) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
 		s, ok := gad.ToGoString(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
 		}
 
 		ret, err = fn(s)
@@ -438,16 +438,16 @@ func FuncPsROe(fn func(string) (gad.Object, error)) gad.CallableFunc {
 func FuncPsiRO(fn func(string, int) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
 		s, ok := gad.ToGoString(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
 		}
 		i1, ok := gad.ToGoInt(args[1])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "int", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", args[1].TypeName())
 		}
 
 		ret = fn(s, i1)
@@ -460,7 +460,7 @@ func FuncPsiRO(fn func(string, int) gad.Object) gad.CallableFunc {
 func FuncPRO(fn func() gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 0 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=0 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=0 got=" + strconv.Itoa(len(args)))
 		}
 
 		ret = fn()
@@ -473,16 +473,16 @@ func FuncPRO(fn func() gad.Object) gad.CallableFunc {
 func FuncPi64i64RO(fn func(int64, int64) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
 		i1, ok := gad.ToGoInt64(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "int", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "int", args[0].TypeName())
 		}
 		i2, ok := gad.ToGoInt64(args[1])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "int", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", args[1].TypeName())
 		}
 
 		ret = fn(i1, i2)
@@ -495,12 +495,12 @@ func FuncPi64i64RO(fn func(int64, int64) gad.Object) gad.CallableFunc {
 func FuncPb2RO(fn func([]byte) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
 		b, ok := gad.ToGoByteSlice(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "bytes", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "bytes", args[0].TypeName())
 		}
 
 		ret = fn(b)
@@ -513,17 +513,17 @@ func FuncPb2RO(fn func([]byte) gad.Object) gad.CallableFunc {
 func FuncPOssRO(fn func(gad.Object, string, string) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 3 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=3 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=3 got=" + strconv.Itoa(len(args)))
 		}
 
 		o := args[0]
 		s1, ok := gad.ToGoString(args[1])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
 		}
 		s2, ok := gad.ToGoString(args[2])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("3rd", "string", args[2].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", args[2].TypeName())
 		}
 
 		ret = fn(o, s1, s2)
@@ -536,16 +536,16 @@ func FuncPOssRO(fn func(gad.Object, string, string) gad.Object) gad.CallableFunc
 func FuncPb2bRO(fn func([]byte, bool) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
 		p, ok := gad.ToGoByteSlice(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "bytes", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "bytes", args[0].TypeName())
 		}
 		b, ok := gad.ToGoBool(args[1])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "bool", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "bool", args[1].TypeName())
 		}
 
 		ret = fn(p, b)
@@ -558,20 +558,20 @@ func FuncPb2bRO(fn func([]byte, bool) gad.Object) gad.CallableFunc {
 func FuncPb2ssRO(fn func([]byte, string, string) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 3 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=3 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=3 got=" + strconv.Itoa(len(args)))
 		}
 
 		p, ok := gad.ToGoByteSlice(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "bytes", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "bytes", args[0].TypeName())
 		}
 		s1, ok := gad.ToGoString(args[1])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
 		}
 		s2, ok := gad.ToGoString(args[2])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("3rd", "string", args[2].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", args[2].TypeName())
 		}
 
 		ret = fn(p, s1, s2)
@@ -584,16 +584,16 @@ func FuncPb2ssRO(fn func([]byte, string, string) gad.Object) gad.CallableFunc {
 func FuncPssRO(fn func(string, string) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
 		s1, ok := gad.ToGoString(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
 		}
 		s2, ok := gad.ToGoString(args[1])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
 		}
 
 		ret = fn(s1, s2)
@@ -606,12 +606,12 @@ func FuncPssRO(fn func(string, string) gad.Object) gad.CallableFunc {
 func FuncPsRO(fn func(string) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 1 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
 		}
 
 		s, ok := gad.ToGoString(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
 		}
 
 		ret = fn(s)
@@ -624,16 +624,16 @@ func FuncPsRO(fn func(string) gad.Object) gad.CallableFunc {
 func FuncPsrRO(fn func(string, rune) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
 		s, ok := gad.ToGoString(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "string", args[0].TypeName())
 		}
 		r, ok := gad.ToGoRune(args[1])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "char", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "char", args[1].TypeName())
 		}
 
 		ret = fn(s, r)
@@ -646,16 +646,16 @@ func FuncPsrRO(fn func(string, rune) gad.Object) gad.CallableFunc {
 func FuncPAsRO(fn func(gad.Array, string) gad.Object) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
 		arr, ok := gad.ToArray(args[0])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("1st", "array", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "array", args[0].TypeName())
 		}
 		s, ok := gad.ToGoString(args[1])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
 		}
 
 		ret = fn(arr, s)
@@ -668,13 +668,13 @@ func FuncPAsRO(fn func(gad.Array, string) gad.Object) gad.CallableFunc {
 func FuncPOi64ROe(fn func(gad.Object, int64) (gad.Object, error)) gad.CallableFunc {
 	return func(args ...gad.Object) (ret gad.Object, err error) {
 		if len(args) != 2 {
-			return gad.Undefined, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
 		}
 
 		o := args[0]
 		i, ok := gad.ToGoInt64(args[1])
 		if !ok {
-			return gad.Undefined, gad.NewArgumentTypeError("2nd", "int", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", args[1].TypeName())
 		}
 
 		ret, err = fn(o, i)

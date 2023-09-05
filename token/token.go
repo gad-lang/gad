@@ -60,8 +60,8 @@ const (
 	Assign          // =
 	Not             // !
 	NotEqual        // !=
-	Null            // a == undefined || undefined == a
-	NotNull         // a != undefined || undefined != a
+	Null            // a == nil || nil == a
+	NotNull         // a != nil || nil != a
 	LessEq          // <=
 	GreaterEq       // >=
 	Define          // :=
@@ -90,7 +90,7 @@ const (
 	True
 	False
 	In
-	Undefined
+	Nil
 	Import
 	Param
 	Global
@@ -176,7 +176,7 @@ var tokens = [...]string{
 	True:            "true",
 	False:           "false",
 	In:              "in",
-	Undefined:       "undefined",
+	Nil:             "nil",
 	Import:          "import",
 	Param:           "param",
 	Global:          "global",

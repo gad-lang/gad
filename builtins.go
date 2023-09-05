@@ -62,7 +62,7 @@ const (
 	BuiltinIsMap
 	BuiltinIsSyncMap
 	BuiltinIsArray
-	BuiltinIsUndefined
+	BuiltinIsNil
 	BuiltinIsFunction
 	BuiltinIsCallable
 	BuiltinIsIterable
@@ -107,21 +107,21 @@ var BuiltinsMap = map[string]BuiltinType{
 	"sprintf":     BuiltinSprintf,
 	"globals":     BuiltinGlobals,
 
-	"isError":     BuiltinIsError,
-	"isInt":       BuiltinIsInt,
-	"isUint":      BuiltinIsUint,
-	"isFloat":     BuiltinIsFloat,
-	"isChar":      BuiltinIsChar,
-	"isBool":      BuiltinIsBool,
-	"isString":    BuiltinIsString,
-	"isBytes":     BuiltinIsBytes,
-	"isMap":       BuiltinIsMap,
-	"isSyncMap":   BuiltinIsSyncMap,
-	"isArray":     BuiltinIsArray,
-	"isUndefined": BuiltinIsUndefined,
-	"isFunction":  BuiltinIsFunction,
-	"isCallable":  BuiltinIsCallable,
-	"isIterable":  BuiltinIsIterable,
+	"isError":    BuiltinIsError,
+	"isInt":      BuiltinIsInt,
+	"isUint":     BuiltinIsUint,
+	"isFloat":    BuiltinIsFloat,
+	"isChar":     BuiltinIsChar,
+	"isBool":     BuiltinIsBool,
+	"isString":   BuiltinIsString,
+	"isBytes":    BuiltinIsBytes,
+	"isMap":      BuiltinIsMap,
+	"isSyncMap":  BuiltinIsSyncMap,
+	"isArray":    BuiltinIsArray,
+	"isNil":      BuiltinIsNil,
+	"isFunction": BuiltinIsFunction,
+	"isCallable": BuiltinIsCallable,
+	"isIterable": BuiltinIsIterable,
 
 	"WrongNumArgumentsError":  BuiltinWrongNumArgumentsError,
 	"InvalidOperatorError":    BuiltinInvalidOperatorError,
@@ -316,10 +316,10 @@ var BuiltinObjects = [...]Object{
 		Value:   funcPORO(builtinIsArrayFunc),
 		ValueEx: funcPOROEx(builtinIsArrayFunc),
 	},
-	BuiltinIsUndefined: &BuiltinFunction{
-		Name:    "isUndefined",
-		Value:   funcPORO(builtinIsUndefinedFunc),
-		ValueEx: funcPOROEx(builtinIsUndefinedFunc),
+	BuiltinIsNil: &BuiltinFunction{
+		Name:    "isNil",
+		Value:   funcPORO(builtinIsNilFunc),
+		ValueEx: funcPOROEx(builtinIsNilFunc),
 	},
 	BuiltinIsFunction: &BuiltinFunction{
 		Name:    "isFunction",
@@ -358,7 +358,7 @@ func builtinMakeArrayFunc(n int, arg Object) (Object, error) {
 	if !ok {
 		ret := make(Array, n)
 		for i := 1; i < n; i++ {
-			ret[i] = Undefined
+			ret[i] = Nil
 		}
 		ret[0] = arg
 		return ret, nil
@@ -372,7 +372,7 @@ func builtinMakeArrayFunc(n int, arg Object) (Object, error) {
 	ret := make(Array, n)
 	x := copy(ret, arr)
 	for i := x; i < n; i++ {
-		ret[i] = Undefined
+		ret[i] = Nil
 	}
 	return ret, nil
 }
@@ -380,7 +380,7 @@ func builtinMakeArrayFunc(n int, arg Object) (Object, error) {
 func builtinAppendFunc(c Call) (Object, error) {
 	target, ok := c.shift()
 	if !ok {
-		return Undefined, ErrWrongNumArguments.NewError("want>=1 got=0")
+		return Nil, ErrWrongNumArguments.NewError("want>=1 got=0")
 	}
 
 	switch obj := target.(type) {
@@ -401,7 +401,7 @@ func builtinAppendFunc(c Call) (Object, error) {
 				case Char:
 					obj = append(obj, byte(vv))
 				default:
-					return Undefined, NewArgumentTypeError(
+					return Nil, NewArgumentTypeError(
 						strconv.Itoa(n),
 						"int|uint|char",
 						vv.TypeName(),
@@ -410,13 +410,13 @@ func builtinAppendFunc(c Call) (Object, error) {
 			}
 		}
 		return obj, nil
-	case *UndefinedType:
+	case *NilType:
 		ret := make(Array, 0, c.Len())
 		ret = append(ret, c.args...)
 		ret = append(ret, c.vargs...)
 		return ret, nil
 	default:
-		return Undefined, NewArgumentTypeError(
+		return Nil, NewArgumentTypeError(
 			"1st",
 			"array",
 			obj.TypeName(),
@@ -503,15 +503,15 @@ func builtinContainsFunc(arg0, arg1 Object) (Object, error) {
 		case Bytes:
 			ok = bytes.Contains(obj, v)
 		default:
-			return Undefined, NewArgumentTypeError(
+			return Nil, NewArgumentTypeError(
 				"2nd",
 				"int|uint|string|char|bytes",
 				arg1.TypeName(),
 			)
 		}
-	case *UndefinedType:
+	case *NilType:
 	default:
-		return Undefined, NewArgumentTypeError(
+		return Nil, NewArgumentTypeError(
 			"1st",
 			"map|array|string|bytes",
 			arg0.TypeName(),
@@ -565,10 +565,10 @@ func builtinSortFunc(arg Object) (ret Object, err error) {
 			return obj[i] < obj[j]
 		})
 		ret = arg
-	case *UndefinedType:
-		ret = Undefined
+	case *NilType:
+		ret = Nil
 	default:
-		ret = Undefined
+		ret = Nil
 		err = NewArgumentTypeError(
 			"1st",
 			"array|string|bytes",
@@ -609,11 +609,11 @@ func builtinSortReverseFunc(arg Object) (Object, error) {
 			return obj[j] < obj[i]
 		})
 		return obj, nil
-	case *UndefinedType:
-		return Undefined, nil
+	case *NilType:
+		return Nil, nil
 	}
 
-	return Undefined, NewArgumentTypeError(
+	return Nil, NewArgumentTypeError(
 		"1st",
 		"array|string|bytes",
 		arg.TypeName(),
@@ -639,10 +639,10 @@ func builtinCharFunc(arg Object) (Object, error) {
 	if ok && v != utf8.RuneError {
 		return v, nil
 	}
-	if v == utf8.RuneError || arg == Undefined {
-		return Undefined, nil
+	if v == utf8.RuneError || arg == Nil {
+		return Nil, nil
 	}
-	return Undefined, NewArgumentTypeError(
+	return Nil, NewArgumentTypeError(
 		"1st",
 		"numeric|string|bool",
 		arg.TypeName(),
@@ -674,7 +674,7 @@ func builtinBytesFunc(c Call) (Object, error) {
 			case Char:
 				out = append(out, byte(v))
 			default:
-				return Undefined, NewArgumentTypeError(
+				return Nil, NewArgumentTypeError(
 					strconv.Itoa(i+1),
 					"int|uint|char",
 					args[i].TypeName(),
@@ -696,7 +696,7 @@ func builtinCharsFunc(arg Object) (ret Object, err error) {
 		for i < sz {
 			r, w := utf8.DecodeRuneInString(s[i:])
 			if r == utf8.RuneError {
-				return Undefined, nil
+				return Nil, nil
 			}
 			ret = append(ret.(Array), Char(r))
 			i += w
@@ -709,13 +709,13 @@ func builtinCharsFunc(arg Object) (ret Object, err error) {
 		for i < sz {
 			r, w := utf8.DecodeRune(obj[i:])
 			if r == utf8.RuneError {
-				return Undefined, nil
+				return Nil, nil
 			}
 			ret = append(ret.(Array), Char(r))
 			i += w
 		}
 	default:
-		ret = Undefined
+		ret = Nil
 		err = NewArgumentTypeError(
 			"1st",
 			"string|bytes",
@@ -726,7 +726,7 @@ func builtinCharsFunc(arg Object) (ret Object, err error) {
 }
 
 func builtinPrintfFunc(c Call) (ret Object, err error) {
-	ret = Undefined
+	ret = Nil
 	switch size := c.Len(); size {
 	case 0:
 		err = ErrWrongNumArguments.NewError("want>=1 got=0")
@@ -744,7 +744,7 @@ func builtinPrintfFunc(c Call) (ret Object, err error) {
 }
 
 func builtinPrintlnFunc(c Call) (ret Object, err error) {
-	ret = Undefined
+	ret = Nil
 	switch size := c.Len(); size {
 	case 0:
 		_, err = fmt.Fprintln(PrintWriter)
@@ -761,7 +761,7 @@ func builtinPrintlnFunc(c Call) (ret Object, err error) {
 }
 
 func builtinSprintfFunc(c Call) (ret Object, err error) {
-	ret = Undefined
+	ret = Nil
 	switch size := c.Len(); size {
 	case 0:
 		err = ErrWrongNumArguments.NewError("want>=1 got=0")
@@ -853,8 +853,8 @@ func builtinIsArrayFunc(arg Object) Object {
 	return Bool(ok)
 }
 
-func builtinIsUndefinedFunc(arg Object) Object {
-	_, ok := arg.(*UndefinedType)
+func builtinIsNilFunc(arg Object) Object {
+	_, ok := arg.(*NilType)
 	return Bool(ok)
 }
 

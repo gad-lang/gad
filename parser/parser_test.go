@@ -73,7 +73,7 @@ v3[:]
 _ := import("strings")
 time := import("time")
 time.Now() + 10 * time.Second
-c := counter ? v3 : undefined
+c := counter ? v3 : nil
 c ||= 1
 d := c ?? 2 || 1
 x := d?.a.b.("c")?.e ?? 5
@@ -859,7 +859,7 @@ func TestParseAssignment(t *testing.T) {
 }
 
 func TestParseUnaryNulls(t *testing.T) {
-	expectParse(t, "false == undefined", func(p pfn) []Stmt {
+	expectParse(t, "false == nil", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				unaryExpr(
@@ -868,7 +868,7 @@ func TestParseUnaryNulls(t *testing.T) {
 					p(1, 7))))
 	})
 
-	expectParse(t, "false != undefined", func(p pfn) []Stmt {
+	expectParse(t, "false != nil", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				unaryExpr(
@@ -877,12 +877,12 @@ func TestParseUnaryNulls(t *testing.T) {
 					p(1, 7))))
 	})
 
-	expectParseString(t, "false == undefined", "(false == undefined)")
-	expectParseString(t, "false != undefined", "(false != undefined)")
-	expectParseString(t, "undefined == undefined", "(undefined == undefined)")
-	expectParseString(t, "undefined != undefined", "(undefined != undefined)")
+	expectParseString(t, "false == nil", "(false == nil)")
+	expectParseString(t, "false != nil", "(false != nil)")
+	expectParseString(t, "nil == nil", "(nil == nil)")
+	expectParseString(t, "nil != nil", "(nil != nil)")
 
-	expectParse(t, "a == undefined ? b : c", func(p pfn) []Stmt {
+	expectParse(t, "a == nil ? b : c", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				condExpr(
@@ -890,13 +890,13 @@ func TestParseUnaryNulls(t *testing.T) {
 						ident("a", p(1, 1)),
 						token.Null,
 						p(1, 3)),
-					ident("b", p(1, 18)),
-					ident("c", p(1, 22)),
-					p(1, 16),
-					p(1, 20))))
+					ident("b", p(1, 12)),
+					ident("c", p(1, 16)),
+					p(1, 10),
+					p(1, 14))))
 	})
 
-	expectParse(t, "a != undefined ? b : c", func(p pfn) []Stmt {
+	expectParse(t, "a != nil ? b : c", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				condExpr(
@@ -904,14 +904,14 @@ func TestParseUnaryNulls(t *testing.T) {
 						ident("a", p(1, 1)),
 						token.NotNull,
 						p(1, 3)),
-					ident("b", p(1, 18)),
-					ident("c", p(1, 22)),
-					p(1, 16),
-					p(1, 20))))
+					ident("b", p(1, 12)),
+					ident("c", p(1, 16)),
+					p(1, 10),
+					p(1, 14))))
 	})
 
-	expectParseString(t, "a == undefined ? b : c", "((a == undefined) ? b : c)")
-	expectParseString(t, "a != undefined ? b : c", "((a != undefined) ? b : c)")
+	expectParseString(t, "a == nil ? b : c", "((a == nil) ? b : c)")
+	expectParseString(t, "a != nil ? b : c", "((a != nil) ? b : c)")
 }
 
 func TestParseBoolean(t *testing.T) {
@@ -1487,7 +1487,7 @@ func TestParseVariadicFunctionWithArgs(t *testing.T) {
 }
 
 func TestParseIf(t *testing.T) {
-	expectParse(t, "if a == undefined {}", func(p pfn) []Stmt {
+	expectParse(t, "if a == nil {}", func(p pfn) []Stmt {
 		return stmts(
 			ifStmt(
 				nil,
@@ -1495,12 +1495,12 @@ func TestParseIf(t *testing.T) {
 					token.Null,
 					p(1, 6)),
 				blockStmt(
-					p(1, 19), p(1, 20)),
+					p(1, 13), p(1, 14)),
 				nil,
 				p(1, 1)))
 	})
 
-	expectParse(t, "if a != undefined {}", func(p pfn) []Stmt {
+	expectParse(t, "if a != nil {}", func(p pfn) []Stmt {
 		return stmts(
 			ifStmt(
 				nil,
@@ -1508,7 +1508,7 @@ func TestParseIf(t *testing.T) {
 					token.NotNull,
 					p(1, 6)),
 				blockStmt(
-					p(1, 19), p(1, 20)),
+					p(1, 13), p(1, 14)),
 				nil,
 				p(1, 1)))
 	})
@@ -2969,9 +2969,9 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 			actual.(*MapLit).RBrace)
 		equalMapElements(t, expected.Elements,
 			actual.(*MapLit).Elements)
-	case *UndefinedLit:
+	case *NilLit:
 		require.Equal(t, expected.TokenPos,
-			actual.(*UndefinedLit).TokenPos)
+			actual.(*NilLit).TokenPos)
 	case *NullishSelectorExpr:
 		equalExpr(t, expected.Expr,
 			actual.(*NullishSelectorExpr).Expr)

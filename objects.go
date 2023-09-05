@@ -165,7 +165,7 @@ switchpos:
 			right = Int(0)
 		}
 		goto switchpos
-	case *UndefinedType:
+	case *NilType:
 		switch tok {
 		case token.Less, token.LessEq:
 			return False, nil
@@ -285,7 +285,7 @@ func (o String) BinaryOp(tok token.Token, right Object) (Object, error) {
 		case token.GreaterEq:
 			return Bool(string(o) >= string(v)), nil
 		}
-	case *UndefinedType:
+	case *NilType:
 		switch tok {
 		case token.Less, token.LessEq:
 			return False, nil
@@ -446,7 +446,7 @@ func (o Bytes) BinaryOp(tok token.Token, right Object) (Object, error) {
 		case token.GreaterEq:
 			return Bool(string(o) >= string(v)), nil
 		}
-	case *UndefinedType:
+	case *NilType:
 		switch tok {
 		case token.Less, token.LessEq:
 			return False, nil
@@ -721,11 +721,11 @@ func (o Array) BinaryOp(tok token.Token, right Object) (Object, error) {
 		arr = append(arr, right)
 		return arr, nil
 	case token.Less, token.LessEq:
-		if right == Undefined {
+		if right == Nil {
 			return False, nil
 		}
 	case token.Greater, token.GreaterEq:
-		if right == Undefined {
+		if right == Nil {
 			return True, nil
 		}
 	}
@@ -882,7 +882,7 @@ func (o Map) IndexGet(index Object) (Object, error) {
 	if ok {
 		return v, nil
 	}
-	return Undefined, nil
+	return Nil, nil
 }
 
 // Equal implements Object interface.
@@ -921,7 +921,7 @@ func (Map) Call(...Object) (Object, error) {
 
 // BinaryOp implements Object interface.
 func (o Map) BinaryOp(tok token.Token, right Object) (Object, error) {
-	if right == Undefined {
+	if right == Nil {
 		switch tok {
 		case token.Less, token.LessEq:
 			return False, nil
@@ -1188,7 +1188,7 @@ func (o *Error) IndexGet(index Object) (Object, error) {
 			},
 		}, nil
 	}
-	return Undefined, nil
+	return Nil, nil
 }
 
 // NewError creates a new Error and sets original Error as its cause which can be unwrapped.
@@ -1320,7 +1320,7 @@ func (o *RuntimeError) IndexGet(index Object) (Object, error) {
 		return o.Err.IndexGet(index)
 	}
 
-	return Undefined, nil
+	return Nil, nil
 }
 
 // NewError creates a new Error and sets original Error as its cause which can be unwrapped.

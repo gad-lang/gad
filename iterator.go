@@ -54,7 +54,7 @@ func (it *ArrayIterator) Value() Object {
 	if i > -1 && i < len(it.V) {
 		return it.V[i]
 	}
-	return Undefined
+	return Nil
 }
 
 // BytesIterator represents an iterator for the bytes.
@@ -82,7 +82,7 @@ func (it *BytesIterator) Value() Object {
 	if i > -1 && i < len(it.V) {
 		return Int(it.V[i])
 	}
-	return Undefined
+	return Nil
 }
 
 // MapIterator represents an iterator for the map.
@@ -109,7 +109,7 @@ func (it *MapIterator) Key() Object {
 func (it *MapIterator) Value() Object {
 	v, ok := it.V[it.keys[it.i-1]]
 	if !ok {
-		return Undefined
+		return Nil
 	}
 	return v
 }

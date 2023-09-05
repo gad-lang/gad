@@ -166,7 +166,7 @@ func TestScript(t *testing.T) {
 				String("error: EOF"),
 				Array{True, String("abc")},
 				Array{True, String("xyz")},
-				Array{False, Undefined},
+				Array{False, Nil},
 			},
 		},
 		{
@@ -186,7 +186,7 @@ func TestScript(t *testing.T) {
 				String("error: too many operands"),
 				Array{True, String("abc")},
 				Array{True, Int(3)},
-				Array{False, Undefined},
+				Array{False, Nil},
 			},
 		},
 		{
@@ -206,7 +206,7 @@ func TestScript(t *testing.T) {
 				String("error: unexpected newline"),
 				Array{True, String("abc")},
 				Array{True, Int(3)},
-				Array{False, Undefined},
+				Array{False, Nil},
 			},
 		},
 		// sprint

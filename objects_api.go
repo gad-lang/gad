@@ -15,8 +15,8 @@ const (
 )
 
 var (
-	// Undefined represents undefined value.
-	Undefined Object = &UndefinedType{}
+	// Nil represents nil value.
+	Nil Object = &NilType{}
 )
 
 // Object represents an object in the VM.
@@ -238,36 +238,36 @@ func (ObjectImpl) BinaryOp(_ token.Token, _ Object) (Object, error) {
 	return nil, ErrInvalidOperator
 }
 
-// UndefinedType represents the type of global Undefined Object. One should use
-// the UndefinedType in type switches only.
-type UndefinedType struct {
+// NilType represents the type of global Nil Object. One should use
+// the NilType in type switches only.
+type NilType struct {
 	ObjectImpl
 }
 
 // TypeName implements Object interface.
-func (o *UndefinedType) TypeName() string {
-	return "undefined"
+func (o *NilType) TypeName() string {
+	return "nil"
 }
 
 // String implements Object interface.
-func (o *UndefinedType) String() string {
-	return "undefined"
+func (o *NilType) String() string {
+	return "nil"
 }
 
 // Call implements Object interface.
-func (*UndefinedType) Call(_ ...Object) (Object, error) {
+func (*NilType) Call(_ ...Object) (Object, error) {
 	return nil, ErrNotCallable
 }
 
 // Equal implements Object interface.
-func (o *UndefinedType) Equal(right Object) bool {
-	return right == Undefined
+func (o *NilType) Equal(right Object) bool {
+	return right == Nil
 }
 
 // BinaryOp implements Object interface.
-func (o *UndefinedType) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o *NilType) BinaryOp(tok token.Token, right Object) (Object, error) {
 	switch right.(type) {
-	case *UndefinedType:
+	case *NilType:
 		switch tok {
 		case token.Less, token.Greater:
 			return False, nil
@@ -284,16 +284,16 @@ func (o *UndefinedType) BinaryOp(tok token.Token, right Object) (Object, error) 
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		Undefined.TypeName(),
+		Nil.TypeName(),
 		right.TypeName())
 }
 
 // IndexGet implements Object interface.
-func (*UndefinedType) IndexGet(key Object) (Object, error) {
-	return Undefined, nil
+func (*NilType) IndexGet(Object) (Object, error) {
+	return Nil, nil
 }
 
 // IndexSet implements Object interface.
-func (*UndefinedType) IndexSet(key, value Object) error {
+func (*NilType) IndexSet(_, _ Object) error {
 	return ErrNotIndexAssignable
 }

@@ -173,7 +173,7 @@ func objectEncoder(v gad.Object) encoderFunc {
 		return optionsEncoder
 	case *gad.ObjectPtr:
 		return objectPtrEncoder
-	case *gad.UndefinedType:
+	case *gad.NilType:
 		return invalidValueEncoder
 	case encoding.TextMarshaler:
 		return textMarshalerEncoder

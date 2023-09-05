@@ -108,38 +108,38 @@ operands. The right operand is evaluated conditionally.
 |:------:|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |   &&   | Logical AND  `p && q  is  "if p then q else false"`                                                                                                                                                                           |
 |  \|\|  | Logical OR  `p \|\| q  is  "if p then true else q"`                                                                                                                                                                           |
-|   ??   | Logical NULLISH. The nullish coalescing (??) operator is a logical operator that returns its right-hand side operand when its left-hand side operand is null or undefined, and otherwise returns its left-hand side operand.  |
+|   ??   | Logical NULLISH. The nullish coalescing (??) operator is a logical operator that returns its right-hand side operand when its left-hand side operand is null or nil, and otherwise returns its left-hand side operand.  |
 
 ### Nullish coalescing examples
 
 ```go
-undefined ?? 1 // 1
+nil ?? 1 // 1
 0 ?? 1 // 0
 
-a := undefined
-b := undefined
+a := nil
+b := nil
 a ?? b ?? 2 // 2
 
 b = 1
 a ?? b ?? 2 // 1
 ```
 
-**Assign to undefined variable value**
+**Assign to nil variable value**
 
 ```go
-a := undefined
+a := nil
 a ??= 2 // set a to 2
 a // 2
 
-a ??= 3 // don't set a, a isn't undefined
+a ??= 3 // don't set a, a isn't nil
 a // 2
 ```
 
 **Assign to FALSYS variable value**
 
 ```go
-a := undefined
-a ||= 2 // set a because undefined is a falsy value
+a := nil
+a ||= 2 // set a because nil is a falsy value
 a // 2
 
 a ||= 3 // don't set a, a isn't falsy
