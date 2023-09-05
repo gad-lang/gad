@@ -28,47 +28,12 @@ jobs:
     - name: Run govulncheck
       run: govulncheck -v ./...
 
-  build-old:
-      needs: govulncheck
-      strategy:
-        matrix:
-          os:  [ 'ubuntu-latest', 'macOS-latest' ]
-          go: [ '1.15', '1.16' ]
-      runs-on: ${{ matrix.os }}
-      name: Test and Build Go ${{ matrix.go }}  ${{ matrix.os }}
-
-      steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Setup Go ${{ matrix.go }}
-        uses: actions/setup-go@v3
-        with:
-          go-version: ${{ matrix.go }}
-
-      - name: Install Staticcheck
-        run: |
-          GOBIN=${GOBIN:-"$HOME/go/bin"}
-          mkdir -p "$GOBIN"
-          echo "$GOBIN" >> "$GITHUB_PATH"
-          export GO111MODULE=on
-          cd "$GOBIN" && go get honnef.co/go/tools/cmd/staticcheck@2021.1
-
-      - name: Test
-        run: make test
-
-      - name: Build CLI
-        run: make build-cli
-      
-      - name: Generate
-        run: make generate-all
-
-  build-new:
+  build:
     needs: govulncheck
     strategy:
       matrix:
         os:  [ 'ubuntu-latest', 'windows-latest' ]
-        go: [ '1.20', '1.19', '1.18', '1.17' ]
+        go: [ '1.20' ]
         arch: [ 'amd64', 'arm64', '386' ]
     runs-on: ${{ matrix.os }}
     name: Test and Build go${{ matrix.go }}_${{ matrix.os }}_${{ matrix.arch }}
