@@ -1571,6 +1571,28 @@ func TestCompiler_Compile(t *testing.T) {
 			withLocals(2),
 		)))
 
+	expectCompile(t, `var $a`, bytecode(
+		Array{},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		),
+	))
+
+	expectCompile(t, `$ := 1`, bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		),
+	))
+
 	// 4 instructions are generated for every source module import.
 	// If module's returned value is already stored, ignore storing.
 	moduleMap := NewModuleMap()

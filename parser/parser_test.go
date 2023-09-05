@@ -403,6 +403,8 @@ b=2)`, func(p pfn) []Stmt {
 	expectParseString(t, "var (x=1,\ny)", "var (x = 1, y)")
 	expectParseString(t, "var (x,\ny = 2)", "var (x, y = 2)")
 	expectParseString(t, "var (x\ny)", "var (x, y)")
+	expectParseString(t, `var (_, _a, $_a, a, A, $b, $, a1, $1, $b1, $$, ŝ, $ŝ)`,
+		`var (_, _a, $_a, a, A, $b, $, a1, $1, $b1, $$, ŝ, $ŝ)`)
 
 	expectParse(t, `const a = 1`, func(p pfn) []Stmt {
 		return stmts(

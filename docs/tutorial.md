@@ -202,6 +202,12 @@ func (vm *VM) Run(globals Object, args ...Object) (Object, error)
 
 ## Variables Declaration and Scopes
 
+Valid identifier examples:
+
+```go
+var (_, _a, $_a, a, A, $b, $, a1, $1, $b1, $$, ŝ, $ŝ)
+```
+
 ### param
 
 `param` keyword is used to declare a parameter for main function (main script).

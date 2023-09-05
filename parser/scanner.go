@@ -718,7 +718,7 @@ func (s *Scanner) switch4(
 }
 
 func isLetter(ch rune) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' ||
+	return ch == '$' || 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' ||
 		ch >= utf8.RuneSelf && unicode.IsLetter(ch)
 }
 
