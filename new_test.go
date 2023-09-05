@@ -369,7 +369,7 @@ func TestVMDestructuring(t *testing.T) {
 	}
 	`, newOpts().
 		Globals(Map{"goFunc": &Function{
-			Value: func(args ...Object) (Object, error) {
+			Value: func(Call) (Object, error) {
 				// ...
 				return Array{
 					Nil,
@@ -926,26 +926,22 @@ func TestConstIota(t *testing.T) {
 func TestVM_Invoke(t *testing.T) {
 	applyPool := &Function{
 		Name: "applyPool",
-		ValueEx: func(c Call) (Object, error) {
-			args := make([]Object, 0, c.Len()-1)
-			for i := 1; i < c.Len(); i++ {
-				args = append(args, c.Get(i))
-			}
-			inv := NewInvoker(c.VM(), c.Get(0))
+		Value: func(c Call) (Object, error) {
+			inv := NewInvoker(c.VM(), c.Args.Shift())
 			inv.Acquire()
 			defer inv.Release()
-			return inv.Invoke(args...)
+			return inv.Invoke(c.Args)
 		},
 	}
 	applyNoPool := &Function{
 		Name: "applyNoPool",
-		ValueEx: func(c Call) (Object, error) {
-			args := make([]Object, 0, c.Len()-1)
-			for i := 1; i < c.Len(); i++ {
-				args = append(args, c.Get(i))
+		Value: func(c Call) (Object, error) {
+			args := make([]Object, 0, c.Args.Len()-1)
+			for i := 1; i < c.Args.Len(); i++ {
+				args = append(args, c.Args.Get(i))
 			}
-			inv := NewInvoker(c.VM(), c.Get(0))
-			return inv.Invoke(args...)
+			inv := NewInvoker(c.VM(), c.Args.Get(0))
+			return inv.Invoke(Args{args})
 		},
 	}
 	for _, apply := range []*Function{applyPool, applyNoPool} {
@@ -1018,10 +1014,10 @@ return apply(f, sum, 1, 2, 3)
 
 			t.Run("apply go func", func(t *testing.T) {
 				sum := &Function{
-					ValueEx: func(c Call) (Object, error) {
+					Value: func(c Call) (Object, error) {
 						s := Int(0)
-						for i := 0; i < c.Len(); i++ {
-							s += c.Get(i).(Int)
+						for i := 0; i < c.Args.Len(); i++ {
+							s += c.Args.Get(i).(Int)
 						}
 						return s, nil
 					},
@@ -1127,11 +1123,11 @@ type nameCaller struct {
 
 func (n *nameCaller) CallName(name string, c Call) (Object, error) {
 	fn := n.Map[name]
-	args := make([]Object, 0, c.Len())
-	for i := 0; i < c.Len(); i++ {
-		args = append(args, c.Get(i))
+	args := make([]Object, 0, c.Args.Len())
+	for i := 0; i < c.Args.Len(); i++ {
+		args = append(args, c.Args.Get(i))
 	}
-	ret, err := NewInvoker(c.VM(), fn).Invoke(args...)
+	ret, err := NewInvoker(c.VM(), fn).Invoke(Args{args})
 	n.counts[name]++
 	return ret, err
 }
@@ -1139,20 +1135,11 @@ func (n *nameCaller) CallName(name string, c Call) (Object, error) {
 var _ NameCallerObject = &nameCaller{}
 
 func TestVMCallName(t *testing.T) {
-	newobject := func(extended bool) *nameCaller {
-		var f *Function
-		if extended {
-			f = &Function{
-				ValueEx: func(c Call) (Object, error) {
-					return c.Get(0).(Int) + 1, nil
-				},
-			}
-		} else {
-			f = &Function{
-				Value: func(args ...Object) (Object, error) {
-					return args[0].(Int) + 1, nil
-				},
-			}
+	newobject := func() *nameCaller {
+		var f = &Function{
+			Value: func(c Call) (Object, error) {
+				return c.Args.Get(0).(Int) + 1, nil
+			},
 		}
 
 		return &nameCaller{Map: Map{"add1": f}, counts: map[string]int{}}
@@ -1167,42 +1154,38 @@ object.sub1 = func(a) {
 return [object.add1(10), object.sub1(10)]
 `
 
-	for _, extended := range []bool{false, true} {
-		t.Run("extended "+Bool(extended).String(), func(t *testing.T) {
-			t.Run("basic", func(t *testing.T) {
-				expectRun(t, scr,
-					newOpts().Globals(Map{"object": newobject(extended)}),
-					Array{Int(11), Int(9)},
-				)
-			})
+	t.Run("basic", func(t *testing.T) {
+		expectRun(t, scr,
+			newOpts().Globals(Map{"object": newobject()}),
+			Array{Int(11), Int(9)},
+		)
+	})
 
-			t.Run("counts single pass", func(t *testing.T) {
-				object := newobject(extended)
-				expectRun(t, scr,
-					newOpts().Globals(Map{"object": object}).Skip2Pass(),
-					Array{Int(11), Int(9)},
-				)
-				if object.counts["add1"] != 1 {
-					t.Fatalf("expected 1, got %d", object.counts["add1"])
-				}
-				if object.counts["sub1"] != 1 {
-					t.Fatalf("expected 1, got %d", object.counts["sub1"])
-				}
-			})
+	t.Run("counts single pass", func(t *testing.T) {
+		object := newobject()
+		expectRun(t, scr,
+			newOpts().Globals(Map{"object": object}).Skip2Pass(),
+			Array{Int(11), Int(9)},
+		)
+		if object.counts["add1"] != 1 {
+			t.Fatalf("expected 1, got %d", object.counts["add1"])
+		}
+		if object.counts["sub1"] != 1 {
+			t.Fatalf("expected 1, got %d", object.counts["sub1"])
+		}
+	})
 
-			t.Run("counts all pass", func(t *testing.T) {
-				object := newobject(extended)
-				expectRun(t, scr,
-					newOpts().Globals(Map{"object": object}),
-					Array{Int(11), Int(9)},
-				)
-				if object.counts["add1"] <= 0 {
-					t.Fatalf("expected >0, got %d", object.counts["add1"])
-				}
-				if object.counts["sub1"] <= 0 {
-					t.Fatalf("expected >0, got %d", object.counts["sub1"])
-				}
-			})
-		})
-	}
+	t.Run("counts all pass", func(t *testing.T) {
+		object := newobject()
+		expectRun(t, scr,
+			newOpts().Globals(Map{"object": object}),
+			Array{Int(11), Int(9)},
+		)
+		if object.counts["add1"] <= 0 {
+			t.Fatalf("expected >0, got %d", object.counts["add1"])
+		}
+		if object.counts["sub1"] <= 0 {
+			t.Fatalf("expected >0, got %d", object.counts["sub1"])
+		}
+	})
 }

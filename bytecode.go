@@ -71,7 +71,10 @@ type CompiledFunction struct {
 	SourceMap map[int]int
 }
 
-var _ Object = (*CompiledFunction)(nil)
+var (
+	_ Object       = (*CompiledFunction)(nil)
+	_ CallerObject = (*CompiledFunction)(nil)
+)
 
 // TypeName implements Object interface
 func (*CompiledFunction) TypeName() string {
@@ -122,23 +125,13 @@ func (*CompiledFunction) CanIterate() bool { return false }
 func (*CompiledFunction) Iterate() Iterator { return nil }
 
 // IndexGet represents string values and implements Object interface.
-func (*CompiledFunction) IndexGet(index Object) (Object, error) {
+func (*CompiledFunction) IndexGet(Object) (Object, error) {
 	return nil, ErrNotIndexable
 }
 
 // IndexSet implements Object interface.
-func (*CompiledFunction) IndexSet(index, value Object) error {
+func (*CompiledFunction) IndexSet(_, _ Object) error {
 	return ErrNotIndexAssignable
-}
-
-// CanCall implements Object interface.
-func (*CompiledFunction) CanCall() bool { return true }
-
-// Call implements Object interface. CompiledFunction is not directly callable.
-// You should use Invoker to call it with a Virtual Machine. Because of this, it
-// always returns an error.
-func (*CompiledFunction) Call(...Object) (Object, error) {
-	return Nil, ErrNotCallable
 }
 
 // BinaryOp implements Object interface.
@@ -239,6 +232,10 @@ func (o *CompiledFunction) hash32() uint32 {
 	}
 	hash = hashData32(hash, o.Instructions)
 	return hash
+}
+
+func (o *CompiledFunction) Call(c Call) (Object, error) {
+	return NewInvoker(c.vm, o).Invoke(c.Args)
 }
 
 func hashData32(hash uint32, data []byte) uint32 {

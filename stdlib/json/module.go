@@ -20,50 +20,44 @@ var Module = map[string]gad.Object{
 	// Marshal(v any) -> bytes
 	// Returns the JSON encoding v or error.
 	"Marshal": &gad.Function{
-		Name:    "Marshal",
-		Value:   stdlib.FuncPORO(marshalFunc),
-		ValueEx: stdlib.FuncPOROEx(marshalFunc),
+		Name:  "Marshal",
+		Value: stdlib.FuncPORO(marshalFunc),
 	},
 	// gad:doc
 	// MarshalIndent(v any, prefix string, indent string) -> bytes
 	// MarshalIndent is like Marshal but applies Indent to format the output.
 	"MarshalIndent": &gad.Function{
-		Name:    "MarshalIndent",
-		Value:   stdlib.FuncPOssRO(marshalIndentFunc),
-		ValueEx: stdlib.FuncPOssROEx(marshalIndentFunc),
+		Name:  "MarshalIndent",
+		Value: stdlib.FuncPOssRO(marshalIndentFunc),
 	},
 	// gad:doc
 	// Indent(src bytes, prefix string, indent string) -> bytes
 	// Returns indented form of the JSON-encoded src or error.
 	"Indent": &gad.Function{
-		Name:    "Indent",
-		Value:   stdlib.FuncPb2ssRO(indentFunc),
-		ValueEx: stdlib.FuncPb2ssROEx(indentFunc),
+		Name:  "Indent",
+		Value: stdlib.FuncPb2ssRO(indentFunc),
 	},
 	// gad:doc
 	// RawMessage(v bytes) -> rawMessage
 	// Returns a wrapped bytes to provide raw encoded JSON value to Marshal
 	// functions.
 	"RawMessage": &gad.Function{
-		Name:    "RawMessage",
-		Value:   stdlib.FuncPb2RO(rawMessageFunc),
-		ValueEx: stdlib.FuncPb2ROEx(rawMessageFunc),
+		Name:  "RawMessage",
+		Value: stdlib.FuncPb2RO(rawMessageFunc),
 	},
 	// gad:doc
 	// Compact(data bytes, escape bool) -> bytes
 	// Returns elided insignificant space characters from data or error.
 	"Compact": &gad.Function{
-		Name:    "Compact",
-		Value:   stdlib.FuncPb2bRO(compactFunc),
-		ValueEx: stdlib.FuncPb2bROEx(compactFunc),
+		Name:  "Compact",
+		Value: stdlib.FuncPb2bRO(compactFunc),
 	},
 	// gad:doc
 	// Quote(v any) -> encoderOptions
 	// Returns a wrapped object to provide Marshal functions to quote v.
 	"Quote": &gad.Function{
-		Name:    "Quote",
-		Value:   stdlib.FuncPORO(quoteFunc),
-		ValueEx: stdlib.FuncPOROEx(quoteFunc),
+		Name:  "Quote",
+		Value: stdlib.FuncPORO(quoteFunc),
 	},
 	// gad:doc
 	// NoQuote(v any) -> encoderOptions
@@ -71,34 +65,30 @@ var Module = map[string]gad.Object{
 	// encoding.
 	// This can be used not to quote all array or map items.
 	"NoQuote": &gad.Function{
-		Name:    "NoQuote",
-		Value:   stdlib.FuncPORO(noQuoteFunc),
-		ValueEx: stdlib.FuncPOROEx(noQuoteFunc),
+		Name:  "NoQuote",
+		Value: stdlib.FuncPORO(noQuoteFunc),
 	},
 	// gad:doc
 	// NoEscape(v any) -> encoderOptions
 	// Returns a wrapped object to provide Marshal functions not to escape html
 	// while encoding.
 	"NoEscape": &gad.Function{
-		Name:    "NoEscape",
-		Value:   stdlib.FuncPORO(noEscapeFunc),
-		ValueEx: stdlib.FuncPOROEx(noEscapeFunc),
+		Name:  "NoEscape",
+		Value: stdlib.FuncPORO(noEscapeFunc),
 	},
 	// gad:doc
 	// Unmarshal(p bytes) -> any
 	// Unmarshal parses the JSON-encoded p and returns the result or error.
 	"Unmarshal": &gad.Function{
-		Name:    "Unmarshal",
-		Value:   stdlib.FuncPb2RO(unmarshalFunc),
-		ValueEx: stdlib.FuncPb2ROEx(unmarshalFunc),
+		Name:  "Unmarshal",
+		Value: stdlib.FuncPb2RO(unmarshalFunc),
 	},
 	// gad:doc
 	// Valid(p bytes) -> bool
 	// Reports whether p is a valid JSON encoding.
 	"Valid": &gad.Function{
-		Name:    "Valid",
-		Value:   stdlib.FuncPb2RO(validFunc),
-		ValueEx: stdlib.FuncPb2ROEx(validFunc),
+		Name:  "Valid",
+		Value: stdlib.FuncPb2RO(validFunc),
 	},
 }
 

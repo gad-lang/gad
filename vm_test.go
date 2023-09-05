@@ -3185,45 +3185,45 @@ func TestVMCall(t *testing.T) {
 	expectRun(t, `f := func(a, ...b) { var x; return [x, b]; }; return f(1, 2)`, nil, Array{Nil, Array{Int(2)}})
 
 	expectRun(t, `global f; return f()`, newOpts().Globals(
-		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
-			return Int(len(args)), nil
+		Map{"f": &Function{Value: func(c Call) (Object, error) {
+			return Int(c.Args.Len()), nil
 		}}}), Int(0))
 	expectRun(t, `global f; return f(1)`, newOpts().Globals(
-		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
-			return Array{Int(len(args)), args[0]}, nil
+		Map{"f": &Function{Value: func(c Call) (Object, error) {
+			return Array{Int(c.Args.Len()), c.Args.Get(0)}, nil
 		}}}), Array{Int(1), Int(1)})
 	expectRun(t, `global f; return f(1, 2)`, newOpts().Globals(
-		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
-			return Array{Int(len(args)), args[0], args[1]}, nil
+		Map{"f": &Function{Value: func(c Call) (Object, error) {
+			return Array{Int(c.Args.Len()), c.Args.Get(0), c.Args.Get(1)}, nil
 		}}}), Array{Int(2), Int(1), Int(2)})
 	expectRun(t, `global f; return f(...[])`, newOpts().Globals(
-		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
-			return Array{Int(len(args)), Array(args)}, nil
+		Map{"f": &Function{Value: func(c Call) (Object, error) {
+			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(0), Array{}})
 	expectRun(t, `global f; return f(...[1])`, newOpts().Globals(
-		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
-			return Array{Int(len(args)), Array(args)}, nil
+		Map{"f": &Function{Value: func(c Call) (Object, error) {
+			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(1), Array{Int(1)}})
 	expectRun(t, `global f; return f(1, ...[])`, newOpts().Globals(
-		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
-			return Array{Int(len(args)), Array(args)}, nil
+		Map{"f": &Function{Value: func(c Call) (Object, error) {
+			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(1), Array{Int(1)}})
 	expectRun(t, `global f; return f(1, ...[2])`, newOpts().Globals(
-		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
-			return Array{Int(len(args)), Array(args)}, nil
+		Map{"f": &Function{Value: func(c Call) (Object, error) {
+			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(2), Array{Int(1), Int(2)}})
 	expectRun(t, `global f; return f(1, 2, ...[3])`, newOpts().Globals(
-		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
-			return Array{Int(len(args)), Array(args)}, nil
+		Map{"f": &Function{Value: func(c Call) (Object, error) {
+			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(3), Array{Int(1), Int(2), Int(3)}})
 	expectRun(t, `global f; return f(1, 2, 3)`, newOpts().Globals(
-		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
-			return Array{Int(len(args)), Array(args)}, nil
+		Map{"f": &Function{Value: func(c Call) (Object, error) {
+			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(3), Array{Int(1), Int(2), Int(3)}})
 
 	invErr = nil
 	expectErrAs(t, `global f; var a = {}; return f(1, ...a)`, newOpts().Globals(
-		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
+		Map{"f": &Function{Value: func(c Call) (Object, error) {
 			return Nil, nil
 		}}}), &invErr, nil)
 	require.NotNil(t, invErr)
@@ -3233,7 +3233,7 @@ func TestVMCall(t *testing.T) {
 		invErr.Err.Message)
 
 	expectErrIs(t, `global f; return f()`, newOpts().Globals(
-		Map{"f": &Function{Value: func(args ...Object) (Object, error) {
+		Map{"f": &Function{Value: func(c Call) (Object, error) {
 			return nil, ErrWrongNumArguments
 		}}}), ErrWrongNumArguments)
 	expectErrIs(t, `global f; return f()`, newOpts().Globals(Map{"f": Nil}),

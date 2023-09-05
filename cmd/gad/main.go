@@ -62,7 +62,7 @@ var scriptGlobals = &gad.SyncMap{
 	Value: gad.Map{
 		"Gosched": &gad.Function{
 			Name: "Gosched",
-			Value: func(args ...gad.Object) (gad.Object, error) {
+			Value: func(gad.Call) (gad.Object, error) {
 				runtime.Gosched()
 				return gad.Nil, nil
 			},

@@ -1035,9 +1035,8 @@ func (vm *VM) xOpCallName() error {
 			}
 		}
 		c := Call{
-			vm:    vm,
-			args:  vm.stack[vm.sp-numArgs : vm.sp-flags],
-			vargs: vargs,
+			vm:   vm,
+			Args: Args{vm.stack[vm.sp-numArgs : vm.sp-flags], vargs},
 		}
 		ret, err := nameCaller.CallName(name.String(), c)
 
@@ -1203,46 +1202,12 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs, flags int) error
 	return nil
 }
 
-func (vm *VM) xOpCallObject(callee Object, numArgs, flags int) error {
-	if !callee.CanCall() {
-		return ErrNotCallable.NewError(callee.TypeName())
+func (vm *VM) xOpCallObject(co Object, numArgs, flags int) error {
+	callee, _ := co.(CallerObject)
+	if callee == nil {
+		return ErrNotCallable.NewError(co.TypeName())
 	}
 
-	if c, ok := callee.(ExCallerObject); ok {
-		return vm.xOpCallExCaller(c, numArgs, flags)
-	}
-
-	var args []Object
-
-	if flags > 0 {
-		last, err := lastAsSlice(vm)
-		if err != nil {
-			return err
-		}
-		args = make([]Object, 0, numArgs-1+len(last))
-		args = append(args, vm.stack[vm.sp-numArgs:vm.sp-1]...)
-		args = append(args, last...)
-	} else {
-		args = make([]Object, 0, numArgs)
-		args = append(args, vm.stack[vm.sp-numArgs:vm.sp]...)
-	}
-
-	for i := 0; i < numArgs; i++ {
-		vm.sp--
-		vm.stack[vm.sp] = nil
-	}
-
-	result, err := callee.Call(args...)
-	if err != nil {
-		return err
-	}
-
-	vm.stack[vm.sp-1] = result
-	vm.ip += 2
-	return nil
-}
-
-func (vm *VM) xOpCallExCaller(callee ExCallerObject, numArgs, flags int) error {
 	var err error
 	var vargs []Object
 	var args = vm.stack[vm.sp-numArgs : vm.sp-flags]
@@ -1255,12 +1220,11 @@ func (vm *VM) xOpCallExCaller(callee ExCallerObject, numArgs, flags int) error {
 	}
 
 	c := Call{
-		vm:    vm,
-		args:  args,
-		vargs: vargs,
+		vm:   vm,
+		Args: Args{args, vargs},
 	}
 
-	result, err := callee.CallEx(c)
+	result, err := callee.Call(c)
 
 	for i := 0; i < numArgs; i++ {
 		vm.sp--
@@ -1646,7 +1610,7 @@ func (inv *Invoker) Release() {
 }
 
 // Invoke invokes the callee object with the given arguments.
-func (inv *Invoker) Invoke(args ...Object) (Object, error) {
+func (inv *Invoker) Invoke(args Args) (Object, error) {
 	if inv.child == nil {
 		inv.acquire(false)
 	}
@@ -1654,24 +1618,20 @@ func (inv *Invoker) Invoke(args ...Object) (Object, error) {
 		return Nil, ErrVMAborted
 	}
 	if inv.isCompiled {
-		return inv.child.Run(inv.vm.globals, args...)
+		return inv.child.Run(inv.vm.globals, args.Values()...)
 	}
-	return inv.invokeObject(inv.callee, args...)
+	return inv.invokeObject(inv.callee, args)
 }
 
-func (inv *Invoker) invokeObject(callee Object, args ...Object) (Object, error) {
-	if !callee.CanCall() {
-		return Nil, ErrNotCallable.NewError(callee.TypeName())
+func (inv *Invoker) invokeObject(co Object, args Args) (Object, error) {
+	callee, _ := co.(CallerObject)
+	if callee == nil {
+		return Nil, ErrNotCallable.NewError(co.TypeName())
 	}
-	if c, ok := callee.(ExCallerObject); ok {
-		return c.CallEx(
-			Call{
-				vm:    inv.vm,
-				vargs: args,
-			},
-		)
-	}
-	return callee.Call(args...)
+	return callee.Call(Call{
+		vm:   inv.vm,
+		Args: args,
+	})
 }
 
 type vmPool struct {

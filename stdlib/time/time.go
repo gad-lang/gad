@@ -99,14 +99,6 @@ func (o *Time) Equal(right gad.Object) bool {
 	return false
 }
 
-// CanCall implements gad.Object interface.
-func (*Time) CanCall() bool { return false }
-
-// Call implements gad.Object interface.
-func (*Time) Call(args ...gad.Object) (gad.Object, error) {
-	return nil, gad.ErrNotCallable
-}
-
 // CanIterate implements gad.Object interface.
 func (*Time) CanIterate() bool { return false }
 
@@ -264,129 +256,129 @@ func (o *Time) CallName(name string, c gad.Call) (gad.Object, error) {
 
 var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 	"Add": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(1); err != nil {
+		if err := c.Args.CheckLen(1); err != nil {
 			return gad.Nil, err
 		}
-		d, ok := gad.ToGoInt64(c.Get(0))
+		d, ok := gad.ToGoInt64(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "int", c.Get(0).TypeName())
+			return newArgTypeErr("1st", "int", c.Args.Get(0).TypeName())
 		}
 		return timeAdd(o, d), nil
 	},
 	"Sub": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(1); err != nil {
+		if err := c.Args.CheckLen(1); err != nil {
 			return gad.Nil, err
 		}
-		t2, ok := ToTime(c.Get(0))
+		t2, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "time", c.Get(0).TypeName())
+			return newArgTypeErr("1st", "time", c.Args.Get(0).TypeName())
 		}
 		return timeSub(o, t2), nil
 	},
 	"AddDate": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(3); err != nil {
+		if err := c.Args.CheckLen(3); err != nil {
 			return gad.Nil, err
 		}
-		year, ok := gad.ToGoInt(c.Get(0))
+		year, ok := gad.ToGoInt(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "int", c.Get(0).TypeName())
+			return newArgTypeErr("1st", "int", c.Args.Get(0).TypeName())
 		}
-		month, ok := gad.ToGoInt(c.Get(1))
+		month, ok := gad.ToGoInt(c.Args.Get(1))
 		if !ok {
-			return newArgTypeErr("2nd", "int", c.Get(1).TypeName())
+			return newArgTypeErr("2nd", "int", c.Args.Get(1).TypeName())
 		}
-		day, ok := gad.ToGoInt(c.Get(2))
+		day, ok := gad.ToGoInt(c.Args.Get(2))
 		if !ok {
-			return newArgTypeErr("3rd", "int", c.Get(2).TypeName())
+			return newArgTypeErr("3rd", "int", c.Args.Get(2).TypeName())
 		}
 		return timeAddDate(o, year, month, day), nil
 	},
 	"After": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(1); err != nil {
+		if err := c.Args.CheckLen(1); err != nil {
 			return gad.Nil, err
 		}
-		t2, ok := ToTime(c.Get(0))
+		t2, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "time", c.Get(0).TypeName())
+			return newArgTypeErr("1st", "time", c.Args.Get(0).TypeName())
 		}
 		return timeAfter(o, t2), nil
 	},
 	"Before": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(1); err != nil {
+		if err := c.Args.CheckLen(1); err != nil {
 			return gad.Nil, err
 		}
-		t2, ok := ToTime(c.Get(0))
+		t2, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "time", c.Get(0).TypeName())
+			return newArgTypeErr("1st", "time", c.Args.Get(0).TypeName())
 		}
 		return timeBefore(o, t2), nil
 	},
 	"Format": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(1); err != nil {
+		if err := c.Args.CheckLen(1); err != nil {
 			return gad.Nil, err
 		}
-		format, ok := gad.ToGoString(c.Get(0))
+		format, ok := gad.ToGoString(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "string", c.Get(0).TypeName())
+			return newArgTypeErr("1st", "string", c.Args.Get(0).TypeName())
 		}
 		return timeFormat(o, format), nil
 	},
 	"AppendFormat": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(2); err != nil {
+		if err := c.Args.CheckLen(2); err != nil {
 			return gad.Nil, err
 		}
-		b, ok := gad.ToGoByteSlice(c.Get(0))
+		b, ok := gad.ToGoByteSlice(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "bytes", c.Get(0).TypeName())
+			return newArgTypeErr("1st", "bytes", c.Args.Get(0).TypeName())
 		}
-		format, ok := gad.ToGoString(c.Get(1))
+		format, ok := gad.ToGoString(c.Args.Get(1))
 		if !ok {
-			return newArgTypeErr("2nd", "string", c.Get(1).TypeName())
+			return newArgTypeErr("2nd", "string", c.Args.Get(1).TypeName())
 		}
 		return timeAppendFormat(o, b, format), nil
 	},
 	"In": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(1); err != nil {
+		if err := c.Args.CheckLen(1); err != nil {
 			return gad.Nil, err
 		}
-		loc, ok := ToLocation(c.Get(0))
+		loc, ok := ToLocation(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "location", c.Get(0).TypeName())
+			return newArgTypeErr("1st", "location", c.Args.Get(0).TypeName())
 		}
 		return timeIn(o, loc), nil
 	},
 	"Round": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(1); err != nil {
+		if err := c.Args.CheckLen(1); err != nil {
 			return gad.Nil, err
 		}
-		d, ok := gad.ToGoInt64(c.Get(0))
+		d, ok := gad.ToGoInt64(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "int", c.Get(0).TypeName())
+			return newArgTypeErr("1st", "int", c.Args.Get(0).TypeName())
 		}
 		return timeRound(o, d), nil
 	},
 	"Truncate": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(1); err != nil {
+		if err := c.Args.CheckLen(1); err != nil {
 			return gad.Nil, err
 		}
-		d, ok := gad.ToGoInt64(c.Get(0))
+		d, ok := gad.ToGoInt64(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "int", c.Get(0).TypeName())
+			return newArgTypeErr("1st", "int", c.Args.Get(0).TypeName())
 		}
 		return timeTruncate(o, d), nil
 	},
 	"Equal": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(1); err != nil {
+		if err := c.Args.CheckLen(1); err != nil {
 			return gad.Nil, err
 		}
-		t2, ok := ToTime(c.Get(0))
+		t2, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "time", c.Get(0).TypeName())
+			return newArgTypeErr("1st", "time", c.Args.Get(0).TypeName())
 		}
 		return timeEqual(o, t2), nil
 	},
 	"Date": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		y, m, d := o.Value.Date()
@@ -394,7 +386,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 			"day": gad.Int(d)}, nil
 	},
 	"Clock": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		h, m, s := o.Value.Clock()
@@ -402,104 +394,104 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 			"second": gad.Int(s)}, nil
 	},
 	"UTC": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return &Time{Value: o.Value.UTC()}, nil
 	},
 	"Unix": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return gad.Int(o.Value.Unix()), nil
 	},
 	"UnixNano": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return gad.Int(o.Value.UnixNano()), nil
 	},
 	"Year": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return gad.Int(o.Value.Year()), nil
 	},
 	"Month": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return gad.Int(o.Value.Month()), nil
 	},
 	"Day": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return gad.Int(o.Value.Day()), nil
 	},
 	"Hour": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return gad.Int(o.Value.Hour()), nil
 	},
 	"Minute": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return gad.Int(o.Value.Minute()), nil
 	},
 	"Second": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return gad.Int(o.Value.Second()), nil
 	},
 	"Nanosecond": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return gad.Int(o.Value.Nanosecond()), nil
 	},
 	"IsZero": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return gad.Bool(o.Value.IsZero()), nil
 	},
 	"Local": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return &Time{Value: o.Value.Local()}, nil
 	},
 	"Location": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return &Location{Value: o.Value.Location()}, nil
 	},
 	"YearDay": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return gad.Int(o.Value.YearDay()), nil
 	},
 	"Weekday": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		return gad.Int(o.Value.Weekday()), nil
 	},
 	"ISOWeek": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		y, w := o.Value.ISOWeek()
 		return gad.Map{"year": gad.Int(y), "week": gad.Int(w)}, nil
 	},
 	"Zone": func(o *Time, c *gad.Call) (gad.Object, error) {
-		if err := c.CheckLen(0); err != nil {
+		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		name, offset := o.Value.Zone()

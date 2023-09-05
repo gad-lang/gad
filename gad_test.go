@@ -13,7 +13,7 @@ import (
 
 func TestToObject(t *testing.T) {
 	err := errors.New("test error")
-	fn := func(...Object) (Object, error) { return nil, nil }
+	fn := func(Call) (Object, error) { return nil, nil }
 
 	testCases := []struct {
 		iface   interface{}
@@ -114,7 +114,7 @@ func TestToInterface(t *testing.T) {
 
 func TestToObjectAlt(t *testing.T) {
 	err := errors.New("test error")
-	fn := func(...Object) (Object, error) { return nil, nil }
+	fn := func(Call) (Object, error) { return nil, nil }
 
 	testCases := []struct {
 		iface   interface{}

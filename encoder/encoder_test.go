@@ -383,7 +383,7 @@ func TestEncDecBytecode_modules(t *testing.T) {
 	`, newOpts().Module("mod1", gad.Map{
 		"run": &gad.Function{
 			Name: "run",
-			Value: func(args ...gad.Object) (gad.Object, error) {
+			Value: func(gad.Call) (gad.Object, error) {
 				return gad.String("mod1"), nil
 			},
 		},
@@ -484,7 +484,7 @@ func testBytecodeConstants(t *testing.T, expected, decoded []gad.Object) {
 		t.Fatalf("constants length not equal want %d, got %d", len(decoded), len(expected))
 	}
 	Len := func(v gad.Object) gad.Object {
-		ret, err := gad.BuiltinObjects[gad.BuiltinLen].Call(v)
+		ret, err := gad.MustCall(gad.BuiltinObjects[gad.BuiltinLen], v)
 		if err != nil {
 			t.Fatalf("%v: length error for '%v'", err, v)
 		}

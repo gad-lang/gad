@@ -125,176 +125,153 @@ var Module = map[string]gad.Object{
 	// UTC() -> location
 	// Returns Universal Coordinated Time (UTC) location.
 	"UTC": &gad.Function{
-		Name:    "UTC",
-		Value:   stdlib.FuncPRO(utcFunc),
-		ValueEx: stdlib.FuncPROEx(utcFunc),
+		Name:  "UTC",
+		Value: stdlib.FuncPRO(utcFunc),
 	},
 
 	// gad:doc
 	// Local() -> location
 	// Returns the system's local time zone location.
 	"Local": &gad.Function{
-		Name:    "Local",
-		Value:   stdlib.FuncPRO(localFunc),
-		ValueEx: stdlib.FuncPROEx(localFunc),
+		Name:  "Local",
+		Value: stdlib.FuncPRO(localFunc),
 	},
 
 	// gad:doc
 	// MonthString(m int) -> month string
 	// Returns English name of the month m ("January", "February", ...).
 	"MonthString": &gad.Function{
-		Name:    "MonthString",
-		Value:   stdlib.FuncPiRO(monthStringFunc),
-		ValueEx: stdlib.FuncPiROEx(monthStringFunc),
+		Name:  "MonthString",
+		Value: stdlib.FuncPiRO(monthStringFunc),
 	},
 
 	// gad:doc
 	// WeekdayString(w int) -> weekday string
 	// Returns English name of the int weekday w, note that 0 is Sunday.
 	"WeekdayString": &gad.Function{
-		Name:    "WeekdayString",
-		Value:   stdlib.FuncPiRO(weekdayStringFunc),
-		ValueEx: stdlib.FuncPiROEx(weekdayStringFunc),
+		Name:  "WeekdayString",
+		Value: stdlib.FuncPiRO(weekdayStringFunc),
 	},
 
 	// gad:doc
 	// DurationString(d int) -> string
 	// Returns a string representing the duration d in the form "72h3m0.5s".
 	"DurationString": &gad.Function{
-		Name:    "DurationString",
-		Value:   stdlib.FuncPi64RO(durationStringFunc),
-		ValueEx: stdlib.FuncPi64ROEx(durationStringFunc),
+		Name:  "DurationString",
+		Value: stdlib.FuncPi64RO(durationStringFunc),
 	},
 	// gad:doc
 	// DurationNanoseconds(d int) -> int
 	// Returns the duration d as an int nanosecond count.
 	"DurationNanoseconds": &gad.Function{
-		Name:    "DurationNanoseconds",
-		Value:   stdlib.FuncPi64RO(durationNanosecondsFunc),
-		ValueEx: stdlib.FuncPi64ROEx(durationNanosecondsFunc),
+		Name:  "DurationNanoseconds",
+		Value: stdlib.FuncPi64RO(durationNanosecondsFunc),
 	},
 	// gad:doc
 	// DurationMicroseconds(d int) -> int
 	// Returns the duration d as an int microsecond count.
 	"DurationMicroseconds": &gad.Function{
-		Name:    "DurationMicroseconds",
-		Value:   stdlib.FuncPi64RO(durationMicrosecondsFunc),
-		ValueEx: stdlib.FuncPi64ROEx(durationMicrosecondsFunc),
+		Name:  "DurationMicroseconds",
+		Value: stdlib.FuncPi64RO(durationMicrosecondsFunc),
 	},
 	// gad:doc
 	// DurationMilliseconds(d int) -> int
 	// Returns the duration d as an int millisecond count.
 	"DurationMilliseconds": &gad.Function{
-		Name:    "DurationMilliseconds",
-		Value:   stdlib.FuncPi64RO(durationMillisecondsFunc),
-		ValueEx: stdlib.FuncPi64ROEx(durationMillisecondsFunc),
+		Name:  "DurationMilliseconds",
+		Value: stdlib.FuncPi64RO(durationMillisecondsFunc),
 	},
 	// gad:doc
 	// DurationSeconds(d int) -> float
 	// Returns the duration d as a floating point number of seconds.
 	"DurationSeconds": &gad.Function{
-		Name:    "DurationSeconds",
-		Value:   stdlib.FuncPi64RO(durationSecondsFunc),
-		ValueEx: stdlib.FuncPi64ROEx(durationSecondsFunc),
+		Name:  "DurationSeconds",
+		Value: stdlib.FuncPi64RO(durationSecondsFunc),
 	},
 	// gad:doc
 	// DurationMinutes(d int) -> float
 	// Returns the duration d as a floating point number of minutes.
 	"DurationMinutes": &gad.Function{
-		Name:    "DurationMinutes",
-		Value:   stdlib.FuncPi64RO(durationMinutesFunc),
-		ValueEx: stdlib.FuncPi64ROEx(durationMinutesFunc),
+		Name:  "DurationMinutes",
+		Value: stdlib.FuncPi64RO(durationMinutesFunc),
 	},
 	// gad:doc
 	// DurationHours(d int) -> float
 	// Returns the duration d as a floating point number of hours.
 	"DurationHours": &gad.Function{
-		Name:    "DurationHours",
-		Value:   stdlib.FuncPi64RO(durationHoursFunc),
-		ValueEx: stdlib.FuncPi64ROEx(durationHoursFunc),
+		Name:  "DurationHours",
+		Value: stdlib.FuncPi64RO(durationHoursFunc),
 	},
 	// gad:doc
 	// Sleep(duration int) -> nil
 	// Pauses the current goroutine for at least the duration.
 	"Sleep": &gad.Function{
-		Name: "Sleep",
-		Value: stdlib.FuncPi64R(func(duration int64) {
-			time.Sleep(time.Duration(duration))
-		}),
-		ValueEx: sleepFunc,
+		Name:  "Sleep",
+		Value: sleepFunc,
 	},
 	// gad:doc
 	// ParseDuration(s string) -> duration int
 	// Parses duration s and returns duration as int or error.
 	"ParseDuration": &gad.Function{
-		Name:    "ParseDuration",
-		Value:   stdlib.FuncPsROe(parseDurationFunc),
-		ValueEx: stdlib.FuncPsROeEx(parseDurationFunc),
+		Name:  "ParseDuration",
+		Value: stdlib.FuncPsROe(parseDurationFunc),
 	},
 	// gad:doc
 	// DurationRound(duration int, m int) -> duration int
 	// Returns the result of rounding duration to the nearest multiple of m.
 	"DurationRound": &gad.Function{
-		Name:    "DurationRound",
-		Value:   stdlib.FuncPi64i64RO(durationRoundFunc),
-		ValueEx: stdlib.FuncPi64i64ROEx(durationRoundFunc),
+		Name:  "DurationRound",
+		Value: stdlib.FuncPi64i64RO(durationRoundFunc),
 	},
 	// gad:doc
 	// DurationTruncate(duration int, m int) -> duration int
 	// Returns the result of rounding duration toward zero to a multiple of m.
 	"DurationTruncate": &gad.Function{
-		Name:    "DurationTruncate",
-		Value:   stdlib.FuncPi64i64RO(durationTruncateFunc),
-		ValueEx: stdlib.FuncPi64i64ROEx(durationTruncateFunc),
+		Name:  "DurationTruncate",
+		Value: stdlib.FuncPi64i64RO(durationTruncateFunc),
 	},
 	// gad:doc
 	// FixedZone(name string, sec int) -> location
 	// Returns a Location that always uses the given zone name and offset
 	// (seconds east of UTC).
 	"FixedZone": &gad.Function{
-		Name:    "FixedZone",
-		Value:   stdlib.FuncPsiRO(fixedZoneFunc),
-		ValueEx: stdlib.FuncPsiROEx(fixedZoneFunc),
+		Name:  "FixedZone",
+		Value: stdlib.FuncPsiRO(fixedZoneFunc),
 	},
 	// gad:doc
 	// LoadLocation(name string) -> location
 	// Returns the Location with the given name.
 	"LoadLocation": &gad.Function{
-		Name:    "LoadLocation",
-		Value:   stdlib.FuncPsROe(loadLocationFunc),
-		ValueEx: stdlib.FuncPsROeEx(loadLocationFunc),
+		Name:  "LoadLocation",
+		Value: stdlib.FuncPsROe(loadLocationFunc),
 	},
 	// gad:doc
 	// IsLocation(any) -> bool
 	// Reports whether any value is of location type.
 	"IsLocation": &gad.Function{
-		Name:    "IsLocation",
-		Value:   stdlib.FuncPORO(isLocationFunc),
-		ValueEx: stdlib.FuncPOROEx(isLocationFunc),
+		Name:  "IsLocation",
+		Value: stdlib.FuncPORO(isLocationFunc),
 	},
 	// gad:doc
 	// Time() -> time
 	// Returns zero time.
 	"Time": &gad.Function{
-		Name:    "Time",
-		Value:   stdlib.FuncPRO(zerotimeFunc),
-		ValueEx: stdlib.FuncPROEx(zerotimeFunc),
+		Name:  "Time",
+		Value: stdlib.FuncPRO(zerotimeFunc),
 	},
 	// gad:doc
 	// Since(t time) -> duration int
 	// Returns the time elapsed since t.
 	"Since": &gad.Function{
-		Name:    "Since",
-		Value:   funcPTRO(sinceFunc),
-		ValueEx: funcPTROEx(sinceFunc),
+		Name:  "Since",
+		Value: funcPTRO(sinceFunc),
 	},
 	// gad:doc
 	// Until(t time) -> duration int
 	// Returns the duration until t.
 	"Until": &gad.Function{
-		Name:    "Until",
-		Value:   funcPTRO(untilFunc),
-		ValueEx: funcPTROEx(untilFunc),
+		Name:  "Until",
+		Value: funcPTRO(untilFunc),
 	},
 	// gad:doc
 	// Date(year int, month int, day int[, hour int, min int, sec int, nsec int, loc location]) -> time
@@ -302,17 +279,15 @@ var Module = map[string]gad.Object{
 	// in the appropriate zone for that time in the given location. Zero values
 	// of optional arguments are used if not provided.
 	"Date": &gad.Function{
-		Name:    "Date",
-		Value:   dateFunc,
-		ValueEx: dateFuncEx,
+		Name:  "Date",
+		Value: dateFunc,
 	},
 	// gad:doc
 	// Now() -> time
 	// Returns the current local time.
 	"Now": &gad.Function{
-		Name:    "Now",
-		Value:   stdlib.FuncPRO(nowFunc),
-		ValueEx: stdlib.FuncPROEx(nowFunc),
+		Name:  "Now",
+		Value: stdlib.FuncPRO(nowFunc),
 	},
 	// gad:doc
 	// Parse(layout string, value string[, loc location]) -> time
@@ -320,9 +295,8 @@ var Module = map[string]gad.Object{
 	// If location is not provided, Go's `time.Parse` function is called
 	// otherwise `time.ParseInLocation` is called.
 	"Parse": &gad.Function{
-		Name:    "Parse",
-		Value:   parseFunc,
-		ValueEx: parseFuncEx,
+		Name:  "Parse",
+		Value: parseFunc,
 	},
 	// gad:doc
 	// Unix(sec int[, nsec int]) -> time
@@ -330,9 +304,8 @@ var Module = map[string]gad.Object{
 	// sec seconds and nsec nanoseconds since January 1, 1970 UTC.
 	// Zero values of optional arguments are used if not provided.
 	"Unix": &gad.Function{
-		Name:    "Unix",
-		Value:   unixFunc,
-		ValueEx: unixFuncEx,
+		Name:  "Unix",
+		Value: unixFunc,
 	},
 	// gad:doc
 	// Add(t time, duration int) -> time
@@ -423,9 +396,8 @@ var Module = map[string]gad.Object{
 	// IsTime(any) -> bool
 	// Reports whether any value is of time type.
 	"IsTime": &gad.Function{
-		Name:    "IsTime",
-		Value:   stdlib.FuncPORO(isTimeFunc),
-		ValueEx: stdlib.FuncPOROEx(isTimeFunc),
+		Name:  "IsTime",
+		Value: stdlib.FuncPORO(isTimeFunc),
 	},
 }
 
@@ -470,10 +442,10 @@ func durationHoursFunc(d int64) gad.Object {
 }
 
 func sleepFunc(c gad.Call) (gad.Object, error) {
-	if err := c.CheckLen(1); err != nil {
+	if err := c.Args.CheckLen(1); err != nil {
 		return gad.Nil, err
 	}
-	arg0 := c.Get(0)
+	arg0 := c.Args.Get(0)
 
 	var dur time.Duration
 	if v, ok := gad.ToGoInt64(arg0); !ok {
@@ -535,12 +507,8 @@ func sinceFunc(t *Time) gad.Object { return gad.Int(time.Since(t.Value)) }
 
 func untilFunc(t *Time) gad.Object { return gad.Int(time.Until(t.Value)) }
 
-func dateFunc(args ...gad.Object) (gad.Object, error) {
-	return dateFuncEx(gad.NewCall(nil, args))
-}
-
-func dateFuncEx(c gad.Call) (gad.Object, error) {
-	size := c.Len()
+func dateFunc(c gad.Call) (gad.Object, error) {
+	size := c.Args.Len()
 	if size < 3 || size > 8 {
 		return gad.Nil, gad.ErrWrongNumArguments.NewError(
 			"want=3..8 got=" + strconv.Itoa(size))
@@ -549,7 +517,7 @@ func dateFuncEx(c gad.Call) (gad.Object, error) {
 	loc := &Location{Value: time.Local}
 	var ok bool
 	for i := 0; i < size; i++ {
-		arg := c.Get(i)
+		arg := c.Args.Get(i)
 		if i < 7 {
 			ymdHmsn[i], ok = gad.ToGoInt(arg)
 			if !ok {
@@ -571,23 +539,19 @@ func dateFuncEx(c gad.Call) (gad.Object, error) {
 
 func nowFunc() gad.Object { return &Time{Value: time.Now()} }
 
-func parseFunc(args ...gad.Object) (gad.Object, error) {
-	return parseFuncEx(gad.NewCall(nil, args))
-}
-
-func parseFuncEx(c gad.Call) (gad.Object, error) {
-	size := c.Len()
+func parseFunc(c gad.Call) (gad.Object, error) {
+	size := c.Args.Len()
 	if size != 2 && size != 3 {
 		return gad.Nil, gad.ErrWrongNumArguments.NewError(
 			"want=2..3 got=" + strconv.Itoa(size))
 	}
-	layout, ok := gad.ToGoString(c.Get(0))
+	layout, ok := gad.ToGoString(c.Args.Get(0))
 	if !ok {
-		return newArgTypeErr("1st", "string", c.Get(0).TypeName())
+		return newArgTypeErr("1st", "string", c.Args.Get(0).TypeName())
 	}
-	value, ok := gad.ToGoString(c.Get(1))
+	value, ok := gad.ToGoString(c.Args.Get(1))
 	if !ok {
-		return newArgTypeErr("2nd", "string", c.Get(1).TypeName())
+		return newArgTypeErr("2nd", "string", c.Args.Get(1).TypeName())
 	}
 	if size == 2 {
 		tm, err := time.Parse(layout, value)
@@ -596,9 +560,9 @@ func parseFuncEx(c gad.Call) (gad.Object, error) {
 		}
 		return &Time{Value: tm}, nil
 	}
-	loc, ok := ToLocation(c.Get(2))
+	loc, ok := ToLocation(c.Args.Get(2))
 	if !ok {
-		return newArgTypeErr("3rd", "location", c.Get(2).TypeName())
+		return newArgTypeErr("3rd", "location", c.Args.Get(2).TypeName())
 	}
 	tm, err := time.ParseInLocation(layout, value, loc.Value)
 	if err != nil {
@@ -607,27 +571,23 @@ func parseFuncEx(c gad.Call) (gad.Object, error) {
 	return &Time{Value: tm}, nil
 }
 
-func unixFunc(args ...gad.Object) (gad.Object, error) {
-	return unixFuncEx(gad.NewCall(nil, args))
-}
-
-func unixFuncEx(c gad.Call) (gad.Object, error) {
-	size := c.Len()
+func unixFunc(c gad.Call) (gad.Object, error) {
+	size := c.Args.Len()
 	if size != 1 && size != 2 {
 		return gad.Nil, gad.ErrWrongNumArguments.NewError(
 			"want=1..2 got=" + strconv.Itoa(size))
 	}
 
-	sec, ok := gad.ToGoInt64(c.Get(0))
+	sec, ok := gad.ToGoInt64(c.Args.Get(0))
 	if !ok {
-		return newArgTypeErr("1st", "int", c.Get(0).TypeName())
+		return newArgTypeErr("1st", "int", c.Args.Get(0).TypeName())
 	}
 
 	var nsec int64
 	if size > 1 {
-		nsec, ok = gad.ToGoInt64(c.Get(1))
+		nsec, ok = gad.ToGoInt64(c.Args.Get(1))
 		if !ok {
-			return newArgTypeErr("2nd", "int", c.Get(1).TypeName())
+			return newArgTypeErr("2nd", "int", c.Args.Get(1).TypeName())
 		}
 	}
 	return &Time{Value: time.Unix(sec, nsec)}, nil

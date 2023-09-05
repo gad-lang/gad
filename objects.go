@@ -53,14 +53,6 @@ func (o Bool) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Bool) IsFalsy() bool { return bool(!o) }
 
-// CanCall implements Object interface.
-func (Bool) CanCall() bool { return false }
-
-// Call implements Object interface.
-func (Bool) Call(_ ...Object) (Object, error) {
-	return nil, ErrNotCallable
-}
-
 // CanIterate implements Object interface.
 func (Bool) CanIterate() bool { return false }
 
@@ -245,14 +237,6 @@ func (o String) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o String) IsFalsy() bool { return len(o) == 0 }
 
-// CanCall implements Object interface.
-func (o String) CanCall() bool { return false }
-
-// Call implements Object interface.
-func (o String) Call(_ ...Object) (Object, error) {
-	return nil, ErrNotCallable
-}
-
 // BinaryOp implements Object interface.
 func (o String) BinaryOp(tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
@@ -407,14 +391,6 @@ func (o Bytes) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Bytes) IsFalsy() bool { return len(o) == 0 }
 
-// CanCall implements Object interface.
-func (o Bytes) CanCall() bool { return false }
-
-// Call implements Object interface.
-func (o Bytes) Call(_ ...Object) (Object, error) {
-	return nil, ErrNotCallable
-}
-
 // BinaryOp implements Object interface.
 func (o Bytes) BinaryOp(tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
@@ -474,9 +450,8 @@ func (o Bytes) Format(s fmt.State, verb rune) {
 // Function represents a function object and implements Object interface.
 type Function struct {
 	ObjectImpl
-	Name    string
-	Value   func(args ...Object) (Object, error)
-	ValueEx func(Call) (Object, error)
+	Name  string
+	Value func(Call) (Object, error)
 }
 
 var _ Object = (*Function)(nil)
@@ -494,9 +469,8 @@ func (o *Function) String() string {
 // Copy implements Copier interface.
 func (o *Function) Copy() Object {
 	return &Function{
-		Name:    o.Name,
-		Value:   o.Value,
-		ValueEx: o.ValueEx,
+		Name:  o.Name,
+		Value: o.Value,
 	}
 }
 
@@ -512,30 +486,18 @@ func (o *Function) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (*Function) IsFalsy() bool { return false }
 
-// CanCall implements Object interface.
-func (*Function) CanCall() bool { return true }
-
-// Call implements Object interface.
-func (o *Function) Call(args ...Object) (Object, error) {
-	return o.Value(args...)
-}
-
-func (o *Function) CallEx(call Call) (Object, error) {
-	if o.ValueEx != nil {
-		return o.ValueEx(call)
-	}
-	return o.Value(call.callArgs()...)
+func (o *Function) Call(call Call) (Object, error) {
+	return o.Value(call)
 }
 
 // BuiltinFunction represents a builtin function object and implements Object interface.
 type BuiltinFunction struct {
 	ObjectImpl
-	Name    string
-	Value   func(args ...Object) (Object, error)
-	ValueEx func(Call) (Object, error)
+	Name  string
+	Value func(Call) (Object, error)
 }
 
-var _ ExCallerObject = (*BuiltinFunction)(nil)
+var _ CallerObject = (*BuiltinFunction)(nil)
 
 // TypeName implements Object interface.
 func (*BuiltinFunction) TypeName() string {
@@ -550,9 +512,8 @@ func (o *BuiltinFunction) String() string {
 // Copy implements Copier interface.
 func (o *BuiltinFunction) Copy() Object {
 	return &BuiltinFunction{
-		Name:    o.Name,
-		Value:   o.Value,
-		ValueEx: o.ValueEx,
+		Name:  o.Name,
+		Value: o.Value,
 	}
 }
 
@@ -568,27 +529,17 @@ func (o *BuiltinFunction) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (*BuiltinFunction) IsFalsy() bool { return false }
 
-// CanCall implements Object interface.
-func (*BuiltinFunction) CanCall() bool { return true }
-
-// Call implements Object interface.
-func (o *BuiltinFunction) Call(args ...Object) (Object, error) {
-	return o.Value(args...)
-}
-
-func (o *BuiltinFunction) CallEx(c Call) (Object, error) {
-	if o.ValueEx != nil {
-		return o.ValueEx(c)
-	}
-	return o.Value(c.callArgs()...)
+func (o *BuiltinFunction) Call(c Call) (Object, error) {
+	return o.Value(c)
 }
 
 // Array represents array of objects and implements Object interface.
 type Array []Object
 
 var (
-	_ Object       = Array{}
-	_ LengthGetter = Array{}
+	_ Object                = Array{}
+	_ LengthGetter          = Array{}
+	_ ToArrayAppenderObject = Array{}
 )
 
 // TypeName implements Object interface.
@@ -697,14 +648,6 @@ func (o Array) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Array) IsFalsy() bool { return len(o) == 0 }
 
-// CanCall implements Object interface.
-func (Array) CanCall() bool { return false }
-
-// Call implements Object interface.
-func (Array) Call(...Object) (Object, error) {
-	return nil, ErrNotCallable
-}
-
 // BinaryOp implements Object interface.
 func (o Array) BinaryOp(tok token.Token, right Object) (Object, error) {
 	switch tok {
@@ -737,6 +680,10 @@ func (o Array) BinaryOp(tok token.Token, right Object) (Object, error) {
 
 // CanIterate implements Object interface.
 func (Array) CanIterate() bool { return true }
+
+func (o Array) AppendToArray(arr *Array) {
+	*arr = append(*arr, o...)
+}
 
 // Iterate implements Iterable interface.
 func (o Array) Iterate() Iterator {
@@ -801,15 +748,15 @@ func (o *ObjectPtr) CanCall() bool {
 	if o.Value == nil {
 		return false
 	}
-	return (*o.Value).CanCall()
+	return Callable(*o.Value)
 }
 
 // Call implements Object interface.
-func (o *ObjectPtr) Call(args ...Object) (Object, error) {
+func (o *ObjectPtr) Call(c Call) (Object, error) {
 	if o.Value == nil {
 		return nil, errors.New("nil pointer")
 	}
-	return (*o.Value).Call(args...)
+	return (*o.Value).(CallerObject).Call(c)
 }
 
 // Map represents map of objects and implements Object interface.
@@ -910,14 +857,6 @@ func (o Map) Equal(right Object) bool {
 
 // IsFalsy implements Object interface.
 func (o Map) IsFalsy() bool { return len(o) == 0 }
-
-// CanCall implements Object interface.
-func (Map) CanCall() bool { return false }
-
-// Call implements Object interface.
-func (Map) Call(...Object) (Object, error) {
-	return nil, ErrNotCallable
-}
 
 // BinaryOp implements Object interface.
 func (o Map) BinaryOp(tok token.Token, right Object) (Object, error) {
@@ -1095,14 +1034,6 @@ func (o *SyncMap) BinaryOp(tok token.Token, right Object) (Object, error) {
 	return o.Value.BinaryOp(tok, right)
 }
 
-// CanCall implements Object interface.
-func (*SyncMap) CanCall() bool { return false }
-
-// Call implements Object interface.
-func (*SyncMap) Call(...Object) (Object, error) {
-	return nil, ErrNotCallable
-}
-
 // Error represents Error Object and implements error and Object interfaces.
 type Error struct {
 	Name    string
@@ -1172,16 +1103,17 @@ func (o *Error) IndexGet(index Object) (Object, error) {
 	if s == "New" {
 		return &Function{
 			Name: "New",
-			Value: func(args ...Object) (Object, error) {
-				switch len(args) {
+			Value: func(c Call) (Object, error) {
+				l := c.Args.Len()
+				switch l {
 				case 1:
-					return o.NewError(args[0].String()), nil
+					return o.NewError(c.Args.Get(0).String()), nil
 				case 0:
 					return o.NewError(o.Message), nil
 				default:
-					msgs := make([]string, len(args))
-					for i := range args {
-						msgs[i] = args[0].String()
+					msgs := make([]string, l)
+					for i := range msgs {
+						msgs[i] = c.Args.Get(i).String()
 					}
 					return o.NewError(msgs...), nil
 				}
@@ -1207,14 +1139,6 @@ func (*Error) IndexSet(index, value Object) error {
 // BinaryOp implements Object interface.
 func (o *Error) BinaryOp(tok token.Token, right Object) (Object, error) {
 	return nil, ErrInvalidOperator
-}
-
-// CanCall implements Object interface.
-func (*Error) CanCall() bool { return false }
-
-// Call implements Object interface.
-func (*Error) Call(_ ...Object) (Object, error) {
-	return nil, ErrNotCallable
 }
 
 // CanIterate implements Object interface.
@@ -1301,16 +1225,17 @@ func (o *RuntimeError) IndexGet(index Object) (Object, error) {
 		if s == "New" {
 			return &Function{
 				Name: "New",
-				Value: func(args ...Object) (Object, error) {
-					switch len(args) {
+				Value: func(c Call) (Object, error) {
+					l := c.Args.Len()
+					switch l {
 					case 1:
-						return o.NewError(args[0].String()), nil
+						return o.NewError(c.Args.Get(0).String()), nil
 					case 0:
 						return o.NewError(o.Err.Message), nil
 					default:
-						msgs := make([]string, len(args))
-						for i := range args {
-							msgs[i] = args[0].String()
+						msgs := make([]string, l)
+						for i := range msgs {
+							msgs[i] = c.Args.Get(i).String()
 						}
 						return o.NewError(msgs...), nil
 					}
@@ -1339,14 +1264,6 @@ func (*RuntimeError) IndexSet(index, value Object) error {
 // BinaryOp implements Object interface.
 func (o *RuntimeError) BinaryOp(tok token.Token, right Object) (Object, error) {
 	return nil, ErrInvalidOperator
-}
-
-// CanCall implements Object interface.
-func (*RuntimeError) CanCall() bool { return false }
-
-// Call implements Object interface.
-func (*RuntimeError) Call(_ ...Object) (Object, error) {
-	return nil, ErrNotCallable
 }
 
 // CanIterate implements Object interface.

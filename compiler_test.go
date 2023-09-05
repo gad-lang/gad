@@ -34,7 +34,6 @@ func bytecode(
 	cf *CompiledFunction,
 	opts ...bytecodeOption,
 ) *Bytecode {
-
 	bc := &Bytecode{
 		Constants: consts,
 		Main:      cf,

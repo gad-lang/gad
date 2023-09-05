@@ -1068,16 +1068,6 @@ type Object interface {
   // Equal checks equality of objects.
   Equal(right Object) bool
 
-  // Call is called from VM if CanCall() returns true. Check the number of
-  // arguments provided and their types in the method. Returned error stops VM
-  // execution if not handled with an error handler and VM.Run returns the
-  // same error as wrapped.
-  Call(args ...Object) (Object, error)
-
-  // CanCall returns true if type can be called with Call() method.
-  // VM returns an error if one tries to call a noncallable object.
-  CanCall() bool
-
   // Iterate should return an Iterator for the type.
   Iterate() Iterator
 

@@ -68,8 +68,8 @@ func (o *scanArg) Set(scanned bool) { o.ok = scanned }
 
 func newScanArgFunc(c gad.Call) (gad.Object, error) {
 	typ := "string"
-	if c.Len() > 0 {
-		v := c.Get(0)
+	if c.Args.Len() > 0 {
+		v := c.Args.Get(0)
 		if b, ok := v.(*gad.BuiltinFunction); ok {
 			typ = b.Name
 		} else {

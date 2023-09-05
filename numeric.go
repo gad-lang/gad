@@ -49,9 +49,6 @@ func (o Int) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Int) IsFalsy() bool { return o == 0 }
 
-// CanCall implements Object interface.
-func (o Int) CanCall() bool { return false }
-
 // Call implements Object interface.
 func (o Int) Call(_ ...Object) (Object, error) {
 	return nil, ErrNotCallable
@@ -195,14 +192,6 @@ func (o Uint) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Uint) IsFalsy() bool { return o == 0 }
 
-// CanCall implements Object interface.
-func (o Uint) CanCall() bool { return false }
-
-// Call implements Object interface.
-func (o Uint) Call(_ ...Object) (Object, error) {
-	return nil, ErrNotCallable
-}
-
 // CanIterate implements Object interface.
 func (Uint) CanIterate() bool { return false }
 
@@ -344,9 +333,6 @@ func (o Float) IsFalsy() bool {
 	return f != f
 }
 
-// CanCall implements Object interface.
-func (o Float) CanCall() bool { return false }
-
 // Call implements Object interface.
 func (o Float) Call(_ ...Object) (Object, error) {
 	return nil, ErrNotCallable
@@ -460,14 +446,6 @@ func (o Char) Equal(right Object) bool {
 
 // IsFalsy implements Object interface.
 func (o Char) IsFalsy() bool { return o == 0 }
-
-// CanCall implements Object interface.
-func (o Char) CanCall() bool { return false }
-
-// Call implements Object interface.
-func (o Char) Call(_ ...Object) (Object, error) {
-	return nil, ErrNotCallable
-}
 
 // CanIterate implements Object interface.
 func (Char) CanIterate() bool { return false }

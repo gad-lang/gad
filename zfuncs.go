@@ -2,180 +2,20 @@
 
 package gad
 
-import (
-	"strconv"
-)
-
-// funcPOsReEx is a generated function to make CallableExFunc.
-// Source: func(o Object, k string) (err error)
-func funcPOsReEx(fn func(Object, string) error) CallableExFunc {
-	return func(args Call) (ret Object, err error) {
-		if err := args.CheckLen(2); err != nil {
-			return Nil, err
-		}
-
-		o := args.Get(0)
-		k, ok := ToGoString(args.Get(1))
-		if !ok {
-			return Nil, NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
-		}
-
-		err = fn(o, k)
-		ret = Nil
-		return
-	}
-}
-
-// funcPOROEx is a generated function to make CallableExFunc.
-// Source: func(o Object) (ret Object)
-func funcPOROEx(fn func(Object) Object) CallableExFunc {
-	return func(args Call) (ret Object, err error) {
-		if err := args.CheckLen(1); err != nil {
-			return Nil, err
-		}
-
-		o := args.Get(0)
-
-		ret = fn(o)
-		return
-	}
-}
-
-// funcPOiROeEx is a generated function to make CallableExFunc.
-// Source: func(o Object, n int) (ret Object, err error)
-func funcPOiROeEx(fn func(Object, int) (Object, error)) CallableExFunc {
-	return func(args Call) (ret Object, err error) {
-		if err := args.CheckLen(2); err != nil {
-			return Nil, err
-		}
-
-		o := args.Get(0)
-		n, ok := ToGoInt(args.Get(1))
-		if !ok {
-			return Nil, NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
-		}
-
-		ret, err = fn(o, n)
-		return
-	}
-}
-
-// funcPiOROeEx is a generated function to make CallableExFunc.
-// Source: func(n int, o Object) (ret Object, err error)
-func funcPiOROeEx(fn func(int, Object) (Object, error)) CallableExFunc {
-	return func(args Call) (ret Object, err error) {
-		if err := args.CheckLen(2); err != nil {
-			return Nil, err
-		}
-
-		n, ok := ToGoInt(args.Get(0))
-		if !ok {
-			return Nil, NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
-		}
-		o := args.Get(1)
-
-		ret, err = fn(n, o)
-		return
-	}
-}
-
-// funcPOOROeEx is a generated function to make CallableExFunc.
-// Source: func(o Object, v Object) (ret Object, err error)
-func funcPOOROeEx(fn func(Object, Object) (Object, error)) CallableExFunc {
-	return func(args Call) (ret Object, err error) {
-		if err := args.CheckLen(2); err != nil {
-			return Nil, err
-		}
-
-		o := args.Get(0)
-		v := args.Get(1)
-
-		ret, err = fn(o, v)
-		return
-	}
-}
-
-// funcPOROeEx is a generated function to make CallableExFunc.
-// Source: func(o Object) (ret Object, err error)
-func funcPOROeEx(fn func(Object) (Object, error)) CallableExFunc {
-	return func(args Call) (ret Object, err error) {
-		if err := args.CheckLen(1); err != nil {
-			return Nil, err
-		}
-
-		o := args.Get(0)
-
-		ret, err = fn(o)
-		return
-	}
-}
-
-// funcPi64ROEx is a generated function to make CallableExFunc.
-// Source: func(v int64) (ret Object)
-func funcPi64ROEx(fn func(int64) Object) CallableExFunc {
-	return func(args Call) (ret Object, err error) {
-		if err := args.CheckLen(1); err != nil {
-			return Nil, err
-		}
-
-		v, ok := ToGoInt64(args.Get(0))
-		if !ok {
-			return Nil, NewArgumentTypeError("1st", "int", args.Get(0).TypeName())
-		}
-
-		ret = fn(v)
-		return
-	}
-}
-
-// funcPu64ROEx is a generated function to make CallableExFunc.
-// Source: func(v uint64) (ret Object)
-func funcPu64ROEx(fn func(uint64) Object) CallableExFunc {
-	return func(args Call) (ret Object, err error) {
-		if err := args.CheckLen(1); err != nil {
-			return Nil, err
-		}
-
-		v, ok := ToGoUint64(args.Get(0))
-		if !ok {
-			return Nil, NewArgumentTypeError("1st", "uint", args.Get(0).TypeName())
-		}
-
-		ret = fn(v)
-		return
-	}
-}
-
-// funcPf64ROEx is a generated function to make CallableExFunc.
-// Source: func(v float64) (ret Object)
-func funcPf64ROEx(fn func(float64) Object) CallableExFunc {
-	return func(args Call) (ret Object, err error) {
-		if err := args.CheckLen(1); err != nil {
-			return Nil, err
-		}
-
-		v, ok := ToGoFloat64(args.Get(0))
-		if !ok {
-			return Nil, NewArgumentTypeError("1st", "float", args.Get(0).TypeName())
-		}
-
-		ret = fn(v)
-		return
-	}
-}
+import ()
 
 // funcPOsRe is a generated function to make CallableFunc.
 // Source: func(o Object, k string) (err error)
 func funcPOsRe(fn func(Object, string) error) CallableFunc {
-	return func(args ...Object) (ret Object, err error) {
-		if len(args) != 2 {
-			return Nil, ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(2); err != nil {
+			return Nil, err
 		}
 
-		o := args[0]
-		k, ok := ToGoString(args[1])
+		o := c.Args.Get(0)
+		k, ok := ToGoString(c.Args.Get(1))
 		if !ok {
-			return Nil, NewArgumentTypeError("2nd", "string", args[1].TypeName())
+			return Nil, NewArgumentTypeError("2nd", "string", c.Args.Get(1).TypeName())
 		}
 
 		err = fn(o, k)
@@ -187,12 +27,12 @@ func funcPOsRe(fn func(Object, string) error) CallableFunc {
 // funcPORO is a generated function to make CallableFunc.
 // Source: func(o Object) (ret Object)
 func funcPORO(fn func(Object) Object) CallableFunc {
-	return func(args ...Object) (ret Object, err error) {
-		if len(args) != 1 {
-			return Nil, ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return Nil, err
 		}
 
-		o := args[0]
+		o := c.Args.Get(0)
 
 		ret = fn(o)
 		return
@@ -202,15 +42,15 @@ func funcPORO(fn func(Object) Object) CallableFunc {
 // funcPOiROe is a generated function to make CallableFunc.
 // Source: func(o Object, n int) (ret Object, err error)
 func funcPOiROe(fn func(Object, int) (Object, error)) CallableFunc {
-	return func(args ...Object) (ret Object, err error) {
-		if len(args) != 2 {
-			return Nil, ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(2); err != nil {
+			return Nil, err
 		}
 
-		o := args[0]
-		n, ok := ToGoInt(args[1])
+		o := c.Args.Get(0)
+		n, ok := ToGoInt(c.Args.Get(1))
 		if !ok {
-			return Nil, NewArgumentTypeError("2nd", "int", args[1].TypeName())
+			return Nil, NewArgumentTypeError("2nd", "int", c.Args.Get(1).TypeName())
 		}
 
 		ret, err = fn(o, n)
@@ -221,16 +61,16 @@ func funcPOiROe(fn func(Object, int) (Object, error)) CallableFunc {
 // funcPiOROe is a generated function to make CallableFunc.
 // Source: func(n int, o Object) (ret Object, err error)
 func funcPiOROe(fn func(int, Object) (Object, error)) CallableFunc {
-	return func(args ...Object) (ret Object, err error) {
-		if len(args) != 2 {
-			return Nil, ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(2); err != nil {
+			return Nil, err
 		}
 
-		n, ok := ToGoInt(args[0])
+		n, ok := ToGoInt(c.Args.Get(0))
 		if !ok {
-			return Nil, NewArgumentTypeError("1st", "int", args[0].TypeName())
+			return Nil, NewArgumentTypeError("1st", "int", c.Args.Get(0).TypeName())
 		}
-		o := args[1]
+		o := c.Args.Get(1)
 
 		ret, err = fn(n, o)
 		return
@@ -240,13 +80,13 @@ func funcPiOROe(fn func(int, Object) (Object, error)) CallableFunc {
 // funcPOOROe is a generated function to make CallableFunc.
 // Source: func(o Object, v Object) (ret Object, err error)
 func funcPOOROe(fn func(Object, Object) (Object, error)) CallableFunc {
-	return func(args ...Object) (ret Object, err error) {
-		if len(args) != 2 {
-			return Nil, ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(2); err != nil {
+			return Nil, err
 		}
 
-		o := args[0]
-		v := args[1]
+		o := c.Args.Get(0)
+		v := c.Args.Get(1)
 
 		ret, err = fn(o, v)
 		return
@@ -256,12 +96,12 @@ func funcPOOROe(fn func(Object, Object) (Object, error)) CallableFunc {
 // funcPOROe is a generated function to make CallableFunc.
 // Source: func(o Object) (ret Object, err error)
 func funcPOROe(fn func(Object) (Object, error)) CallableFunc {
-	return func(args ...Object) (ret Object, err error) {
-		if len(args) != 1 {
-			return Nil, ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return Nil, err
 		}
 
-		o := args[0]
+		o := c.Args.Get(0)
 
 		ret, err = fn(o)
 		return
@@ -271,14 +111,14 @@ func funcPOROe(fn func(Object) (Object, error)) CallableFunc {
 // funcPi64RO is a generated function to make CallableFunc.
 // Source: func(v int64) (ret Object)
 func funcPi64RO(fn func(int64) Object) CallableFunc {
-	return func(args ...Object) (ret Object, err error) {
-		if len(args) != 1 {
-			return Nil, ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return Nil, err
 		}
 
-		v, ok := ToGoInt64(args[0])
+		v, ok := ToGoInt64(c.Args.Get(0))
 		if !ok {
-			return Nil, NewArgumentTypeError("1st", "int", args[0].TypeName())
+			return Nil, NewArgumentTypeError("1st", "int", c.Args.Get(0).TypeName())
 		}
 
 		ret = fn(v)
@@ -289,14 +129,14 @@ func funcPi64RO(fn func(int64) Object) CallableFunc {
 // funcPu64RO is a generated function to make CallableFunc.
 // Source: func(v uint64) (ret Object)
 func funcPu64RO(fn func(uint64) Object) CallableFunc {
-	return func(args ...Object) (ret Object, err error) {
-		if len(args) != 1 {
-			return Nil, ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return Nil, err
 		}
 
-		v, ok := ToGoUint64(args[0])
+		v, ok := ToGoUint64(c.Args.Get(0))
 		if !ok {
-			return Nil, NewArgumentTypeError("1st", "uint", args[0].TypeName())
+			return Nil, NewArgumentTypeError("1st", "uint", c.Args.Get(0).TypeName())
 		}
 
 		ret = fn(v)
@@ -307,14 +147,14 @@ func funcPu64RO(fn func(uint64) Object) CallableFunc {
 // funcPf64RO is a generated function to make CallableFunc.
 // Source: func(v float64) (ret Object)
 func funcPf64RO(fn func(float64) Object) CallableFunc {
-	return func(args ...Object) (ret Object, err error) {
-		if len(args) != 1 {
-			return Nil, ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return Nil, err
 		}
 
-		v, ok := ToGoFloat64(args[0])
+		v, ok := ToGoFloat64(c.Args.Get(0))
 		if !ok {
-			return Nil, NewArgumentTypeError("1st", "float", args[0].TypeName())
+			return Nil, NewArgumentTypeError("1st", "float", c.Args.Get(0).TypeName())
 		}
 
 		ret = fn(v)

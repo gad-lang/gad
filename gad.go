@@ -20,12 +20,9 @@ const (
 	AttrModuleName = "__module_name__"
 )
 
-// CallableFunc is a function signature for a callable function.
-type CallableFunc = func(args ...Object) (ret Object, err error)
-
-// CallableExFunc is a function signature for a callable function that accepts
+// CallableFunc is a function signature for a callable function that accepts
 // a Call struct.
-type CallableExFunc = func(Call) (ret Object, err error)
+type CallableFunc = func(Call) (ret Object, err error)
 
 // ToObject will try to convert an interface{} v to an Object.
 func ToObject(v interface{}) (ret Object, err error) {

@@ -1,8 +1,6 @@
 package gad
 
 import (
-	"fmt"
-
 	"github.com/gad-lang/gad/token"
 )
 
@@ -37,16 +35,6 @@ type Object interface {
 
 	// Equal checks equality of objects.
 	Equal(right Object) bool
-
-	// Call is called from VM if CanCall() returns true. Check the number of
-	// arguments provided and their types in the method. Returned error stops VM
-	// execution if not handled with an error handler and VM.Run returns the
-	// same error as wrapped.
-	Call(args ...Object) (Object, error)
-
-	// CanCall returns true if type can be called with Call() method.
-	// VM returns an error if one tries to call a noncallable object.
-	CanCall() bool
 
 	// Iterate should return an Iterator for the type.
 	Iterate() Iterator
@@ -86,15 +74,21 @@ type LengthGetter interface {
 	Len() int
 }
 
-// ExCallerObject is an interface for objects that can be called with CallEx
-// method. It is an extended version of the Call method that can be used to
-// call an object with a Call struct. Objects implementing this interface is
-// called with CallEx method instead of Call method.
-// Note that CanCall() should return true for objects implementing this
-// interface.
-type ExCallerObject interface {
+// CallerObject is an interface for objects that can be called with Call
+// method.
+type CallerObject interface {
 	Object
-	CallEx(c Call) (Object, error)
+	Call(c Call) (Object, error)
+}
+
+// CanCallerObject is an interface for objects that can be objects implements
+// this CallerObject interface.
+// Note if CallerObject implements this interface, CanCall() is called for check
+// if object is callable.
+type CanCallerObject interface {
+	// CanCall returns true if type can be called with Call() method.
+	// VM returns an error if one tries to call a noncallable object.
+	CanCall() bool
 }
 
 // NameCallerObject is an interface for objects that can be called with CallName
@@ -105,84 +99,9 @@ type NameCallerObject interface {
 	CallName(name string, c Call) (Object, error)
 }
 
-// Call is a struct to pass arguments to CallEx and CallName methods.
-// It provides VM for various purposes.
-//
-// Call struct intentionally does not provide access to normal and variadic
-// arguments directly. Using Len() and Get() methods is preferred. It is safe to
-// create Call with a nil VM as long as VM is not required by the callee.
-type Call struct {
-	vm    *VM
-	args  []Object
-	vargs []Object
-}
-
-// NewCall creates a new Call struct with the given arguments.
-func NewCall(vm *VM, args []Object, vargs ...Object) Call {
-	return Call{
-		vm:    vm,
-		args:  args,
-		vargs: vargs,
-	}
-}
-
-// VM returns the VM of the call.
-func (c *Call) VM() *VM {
-	return c.vm
-}
-
-// Get returns the nth argument. If n is greater than the number of arguments,
-// it returns the nth variadic argument.
-// If n is greater than the number of arguments and variadic arguments, it
-// panics!
-func (c *Call) Get(n int) Object {
-	if n < len(c.args) {
-		return c.args[n]
-	}
-	return c.vargs[n-len(c.args)]
-}
-
-// Len returns the number of arguments including variadic arguments.
-func (c *Call) Len() int {
-	return len(c.args) + len(c.vargs)
-}
-
-// CheckLen checks the number of arguments and variadic arguments. If the number
-// of arguments is not equal to n, it returns an error.
-func (c *Call) CheckLen(n int) error {
-	if n != c.Len() {
-		return ErrWrongNumArguments.NewError(
-			fmt.Sprintf("want=%d got=%d", n, c.Len()),
-		)
-	}
-	return nil
-}
-
-// shift returns the first argument and removes it from the arguments.
-// It updates the arguments and variadic arguments accordingly.
-// If it cannot shift, it returns nil and false.
-func (c *Call) shift() (Object, bool) {
-	if len(c.args) == 0 {
-		if len(c.vargs) == 0 {
-			return nil, false
-		}
-		v := c.vargs[0]
-		c.vargs = c.vargs[1:]
-		return v, true
-	}
-	v := c.args[0]
-	c.args = c.args[1:]
-	return v, true
-}
-
-func (c *Call) callArgs() []Object {
-	if len(c.args) == 0 {
-		return c.vargs
-	}
-	args := make([]Object, 0, c.Len())
-	args = append(args, c.args...)
-	args = append(args, c.vargs...)
-	return args
+type ToArrayAppenderObject interface {
+	Object
+	AppendToArray(arr *Array)
 }
 
 // ObjectImpl is the basic Object implementation and it does not nothing, and
@@ -208,14 +127,6 @@ func (ObjectImpl) Equal(Object) bool { return false }
 
 // IsFalsy implements Object interface.
 func (ObjectImpl) IsFalsy() bool { return true }
-
-// CanCall implements Object interface.
-func (ObjectImpl) CanCall() bool { return false }
-
-// Call implements Object interface.
-func (ObjectImpl) Call(_ ...Object) (Object, error) {
-	return nil, ErrNotCallable
-}
 
 // CanIterate implements Object interface.
 func (ObjectImpl) CanIterate() bool { return false }
@@ -252,11 +163,6 @@ func (o *NilType) TypeName() string {
 // String implements Object interface.
 func (o *NilType) String() string {
 	return "nil"
-}
-
-// Call implements Object interface.
-func (*NilType) Call(_ ...Object) (Object, error) {
-	return nil, ErrNotCallable
 }
 
 // Equal implements Object interface.
@@ -296,4 +202,13 @@ func (*NilType) IndexGet(Object) (Object, error) {
 // IndexSet implements Object interface.
 func (*NilType) IndexSet(_, _ Object) error {
 	return ErrNotIndexAssignable
+}
+
+func Callable(o Object) (ok bool) {
+	if _, ok = o.(CallerObject); ok {
+		if cc, _ := o.(CanCallerObject); cc != nil {
+			ok = cc.CanCall()
+		}
+	}
+	return
 }

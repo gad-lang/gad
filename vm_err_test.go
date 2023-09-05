@@ -142,8 +142,8 @@ func TestVMErrorHandlers(t *testing.T) {
 func TestVMNoPanic(t *testing.T) {
 	panicFunc := &Function{
 		Name: "panicFunc",
-		Value: func(args ...Object) (Object, error) {
-			panic("panic:" + args[0].String())
+		Value: func(call Call) (Object, error) {
+			panic("panic:" + call.Args.Get(0).String())
 		},
 	}
 	func() {
@@ -604,7 +604,7 @@ func TestVMLoop(t *testing.T) {
 func TestVMErrorUnwrap(t *testing.T) {
 	err1 := errors.New("err1")
 	var g Object = Map{"fn": &Function{
-		Value: func(args ...Object) (Object, error) {
+		Value: func(Call) (Object, error) {
 			return nil, err1
 		},
 	}}
@@ -613,14 +613,14 @@ func TestVMErrorUnwrap(t *testing.T) {
 		newOpts().Globals(g).Module("module", `global fn; return fn`), err1)
 
 	g.(Map)["fn"] = &Function{
-		Value: func(args ...Object) (Object, error) {
+		Value: func(Call) (Object, error) {
 			return &Error{Cause: err1}, nil
 		},
 	}
 	expectErrIs(t, `global fn; throw fn()`, newOpts().Globals(g), err1)
 
 	g.(Map)["fn"] = &Function{
-		Value: func(args ...Object) (Object, error) {
+		Value: func(Call) (Object, error) {
 			return ErrZeroDivision, nil
 		},
 	}
@@ -628,7 +628,7 @@ func TestVMErrorUnwrap(t *testing.T) {
 		newOpts().Globals(g), ErrZeroDivision)
 
 	g.(Map)["fn"] = &Function{
-		Value: func(args ...Object) (Object, error) {
+		Value: func(Call) (Object, error) {
 			return nil, ErrZeroDivision
 		},
 	}
@@ -719,7 +719,7 @@ func TestVMExamples(t *testing.T) {
 	expectRun(t, ex1MainScript,
 		newOpts().Module("module", ex1Module).Globals(Map{
 			"DoCleanup": &Function{
-				Value: func(args ...Object) (Object, error) {
+				Value: func(Call) (Object, error) {
 					// a dummy callable to export to script
 					cleanupCall++
 					return Nil, nil
@@ -739,7 +739,7 @@ func TestVMExamples(t *testing.T) {
 	expectRun(t, ex1MainScript,
 		newOpts().Module("module", ex1Module).Globals(Map{
 			"DoCleanup": &Function{
-				Value: func(args ...Object) (Object, error) {
+				Value: func(Call) (Object, error) {
 					// a dummy callable to export to script
 					cleanupCall++
 					return Nil, nil

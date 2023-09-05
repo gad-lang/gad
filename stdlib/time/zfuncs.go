@@ -3,184 +3,20 @@
 package time
 
 import (
-	"strconv"
-
 	"github.com/gad-lang/gad"
 )
-
-// funcPTROEx is a generated function to make gad.CallableExFunc.
-// Source: funcPTRO(t *Time) (ret gad.Object)
-func funcPTROEx(fn func(*Time) gad.Object) gad.CallableExFunc {
-	return func(args gad.Call) (ret gad.Object, err error) {
-		if err := args.CheckLen(1); err != nil {
-			return gad.Nil, err
-		}
-
-		t, ok := ToTime(args.Get(0))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args.Get(0).TypeName())
-		}
-
-		ret = fn(t)
-		return
-	}
-}
-
-// funcPTi64ROEx is a generated function to make gad.CallableExFunc.
-// Source: funcPTi64RO(t *Time, d int64) (ret gad.Object)
-func funcPTi64ROEx(fn func(*Time, int64) gad.Object) gad.CallableExFunc {
-	return func(args gad.Call) (ret gad.Object, err error) {
-		if err := args.CheckLen(2); err != nil {
-			return gad.Nil, err
-		}
-
-		t, ok := ToTime(args.Get(0))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args.Get(0).TypeName())
-		}
-		d, ok := gad.ToGoInt64(args.Get(1))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
-		}
-
-		ret = fn(t, d)
-		return
-	}
-}
-
-// funcPTTROEx is a generated function to make gad.CallableExFunc.
-// Source: funcPTTRO(t1 *Time, t2 *Time) (ret gad.Object)
-func funcPTTROEx(fn func(*Time, *Time) gad.Object) gad.CallableExFunc {
-	return func(args gad.Call) (ret gad.Object, err error) {
-		if err := args.CheckLen(2); err != nil {
-			return gad.Nil, err
-		}
-
-		t1, ok := ToTime(args.Get(0))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args.Get(0).TypeName())
-		}
-		t2, ok := ToTime(args.Get(1))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "time", args.Get(1).TypeName())
-		}
-
-		ret = fn(t1, t2)
-		return
-	}
-}
-
-// funcPTiiiROEx is a generated function to make gad.CallableExFunc.
-// Source: funcPTiiiRO(t *Time, i1 int, i2 int, i3 int) (ret gad.Object)
-func funcPTiiiROEx(fn func(*Time, int, int, int) gad.Object) gad.CallableExFunc {
-	return func(args gad.Call) (ret gad.Object, err error) {
-		if err := args.CheckLen(4); err != nil {
-			return gad.Nil, err
-		}
-
-		t, ok := ToTime(args.Get(0))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args.Get(0).TypeName())
-		}
-		i1, ok := gad.ToGoInt(args.Get(1))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", args.Get(1).TypeName())
-		}
-		i2, ok := gad.ToGoInt(args.Get(2))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("3rd", "int", args.Get(2).TypeName())
-		}
-		i3, ok := gad.ToGoInt(args.Get(3))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("4th", "int", args.Get(3).TypeName())
-		}
-
-		ret = fn(t, i1, i2, i3)
-		return
-	}
-}
-
-// funcPTsROEx is a generated function to make gad.CallableExFunc.
-// Source: funcPTsRO(t *Time, s string) (ret gad.Object)
-func funcPTsROEx(fn func(*Time, string) gad.Object) gad.CallableExFunc {
-	return func(args gad.Call) (ret gad.Object, err error) {
-		if err := args.CheckLen(2); err != nil {
-			return gad.Nil, err
-		}
-
-		t, ok := ToTime(args.Get(0))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args.Get(0).TypeName())
-		}
-		s, ok := gad.ToGoString(args.Get(1))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", args.Get(1).TypeName())
-		}
-
-		ret = fn(t, s)
-		return
-	}
-}
-
-// funcPTb2sROEx is a generated function to make gad.CallableExFunc.
-// Source: funcPTb2sRO(t *Time, b []byte, s string) (ret gad.Object)
-func funcPTb2sROEx(fn func(*Time, []byte, string) gad.Object) gad.CallableExFunc {
-	return func(args gad.Call) (ret gad.Object, err error) {
-		if err := args.CheckLen(3); err != nil {
-			return gad.Nil, err
-		}
-
-		t, ok := ToTime(args.Get(0))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args.Get(0).TypeName())
-		}
-		b, ok := gad.ToGoByteSlice(args.Get(1))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "bytes", args.Get(1).TypeName())
-		}
-		s, ok := gad.ToGoString(args.Get(2))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", args.Get(2).TypeName())
-		}
-
-		ret = fn(t, b, s)
-		return
-	}
-}
-
-// funcPTLROEx is a generated function to make gad.CallableExFunc.
-// Source: funcPTLRO(t *Time, loc *Location) (ret gad.Object)
-func funcPTLROEx(fn func(*Time, *Location) gad.Object) gad.CallableExFunc {
-	return func(args gad.Call) (ret gad.Object, err error) {
-		if err := args.CheckLen(2); err != nil {
-			return gad.Nil, err
-		}
-
-		t, ok := ToTime(args.Get(0))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args.Get(0).TypeName())
-		}
-		loc, ok := ToLocation(args.Get(1))
-		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "location", args.Get(1).TypeName())
-		}
-
-		ret = fn(t, loc)
-		return
-	}
-}
 
 // funcPTRO is a generated function to make gad.CallableFunc.
 // Source: funcPTRO(t *Time) (ret gad.Object)
 func funcPTRO(fn func(*Time) gad.Object) gad.CallableFunc {
-	return func(args ...gad.Object) (ret gad.Object, err error) {
-		if len(args) != 1 {
-			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=1 got=" + strconv.Itoa(len(args)))
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return gad.Nil, err
 		}
 
-		t, ok := ToTime(args[0])
+		t, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
 		}
 
 		ret = fn(t)
@@ -191,18 +27,18 @@ func funcPTRO(fn func(*Time) gad.Object) gad.CallableFunc {
 // funcPTi64RO is a generated function to make gad.CallableFunc.
 // Source: funcPTi64RO(t *Time, d int64) (ret gad.Object)
 func funcPTi64RO(fn func(*Time, int64) gad.Object) gad.CallableFunc {
-	return func(args ...gad.Object) (ret gad.Object, err error) {
-		if len(args) != 2 {
-			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(2); err != nil {
+			return gad.Nil, err
 		}
 
-		t, ok := ToTime(args[0])
+		t, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
 		}
-		d, ok := gad.ToGoInt64(args[1])
+		d, ok := gad.ToGoInt64(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).TypeName())
 		}
 
 		ret = fn(t, d)
@@ -213,18 +49,18 @@ func funcPTi64RO(fn func(*Time, int64) gad.Object) gad.CallableFunc {
 // funcPTTRO is a generated function to make gad.CallableFunc.
 // Source: funcPTTRO(t1 *Time, t2 *Time) (ret gad.Object)
 func funcPTTRO(fn func(*Time, *Time) gad.Object) gad.CallableFunc {
-	return func(args ...gad.Object) (ret gad.Object, err error) {
-		if len(args) != 2 {
-			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(2); err != nil {
+			return gad.Nil, err
 		}
 
-		t1, ok := ToTime(args[0])
+		t1, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
 		}
-		t2, ok := ToTime(args[1])
+		t2, ok := ToTime(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "time", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "time", c.Args.Get(1).TypeName())
 		}
 
 		ret = fn(t1, t2)
@@ -235,26 +71,26 @@ func funcPTTRO(fn func(*Time, *Time) gad.Object) gad.CallableFunc {
 // funcPTiiiRO is a generated function to make gad.CallableFunc.
 // Source: funcPTiiiRO(t *Time, i1 int, i2 int, i3 int) (ret gad.Object)
 func funcPTiiiRO(fn func(*Time, int, int, int) gad.Object) gad.CallableFunc {
-	return func(args ...gad.Object) (ret gad.Object, err error) {
-		if len(args) != 4 {
-			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=4 got=" + strconv.Itoa(len(args)))
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(4); err != nil {
+			return gad.Nil, err
 		}
 
-		t, ok := ToTime(args[0])
+		t, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
 		}
-		i1, ok := gad.ToGoInt(args[1])
+		i1, ok := gad.ToGoInt(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).TypeName())
 		}
-		i2, ok := gad.ToGoInt(args[2])
+		i2, ok := gad.ToGoInt(c.Args.Get(2))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("3rd", "int", args[2].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "int", c.Args.Get(2).TypeName())
 		}
-		i3, ok := gad.ToGoInt(args[3])
+		i3, ok := gad.ToGoInt(c.Args.Get(3))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("4th", "int", args[3].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("4th", "int", c.Args.Get(3).TypeName())
 		}
 
 		ret = fn(t, i1, i2, i3)
@@ -265,18 +101,18 @@ func funcPTiiiRO(fn func(*Time, int, int, int) gad.Object) gad.CallableFunc {
 // funcPTsRO is a generated function to make gad.CallableFunc.
 // Source: funcPTsRO(t *Time, s string) (ret gad.Object)
 func funcPTsRO(fn func(*Time, string) gad.Object) gad.CallableFunc {
-	return func(args ...gad.Object) (ret gad.Object, err error) {
-		if len(args) != 2 {
-			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(2); err != nil {
+			return gad.Nil, err
 		}
 
-		t, ok := ToTime(args[0])
+		t, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
 		}
-		s, ok := gad.ToGoString(args[1])
+		s, ok := gad.ToGoString(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", c.Args.Get(1).TypeName())
 		}
 
 		ret = fn(t, s)
@@ -287,22 +123,22 @@ func funcPTsRO(fn func(*Time, string) gad.Object) gad.CallableFunc {
 // funcPTb2sRO is a generated function to make gad.CallableFunc.
 // Source: funcPTb2sRO(t *Time, b []byte, s string) (ret gad.Object)
 func funcPTb2sRO(fn func(*Time, []byte, string) gad.Object) gad.CallableFunc {
-	return func(args ...gad.Object) (ret gad.Object, err error) {
-		if len(args) != 3 {
-			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=3 got=" + strconv.Itoa(len(args)))
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(3); err != nil {
+			return gad.Nil, err
 		}
 
-		t, ok := ToTime(args[0])
+		t, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
 		}
-		b, ok := gad.ToGoByteSlice(args[1])
+		b, ok := gad.ToGoByteSlice(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "bytes", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "bytes", c.Args.Get(1).TypeName())
 		}
-		s, ok := gad.ToGoString(args[2])
+		s, ok := gad.ToGoString(c.Args.Get(2))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", args[2].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", c.Args.Get(2).TypeName())
 		}
 
 		ret = fn(t, b, s)
@@ -313,18 +149,18 @@ func funcPTb2sRO(fn func(*Time, []byte, string) gad.Object) gad.CallableFunc {
 // funcPTLRO is a generated function to make gad.CallableFunc.
 // Source: funcPTLRO(t *Time, loc *Location) (ret gad.Object)
 func funcPTLRO(fn func(*Time, *Location) gad.Object) gad.CallableFunc {
-	return func(args ...gad.Object) (ret gad.Object, err error) {
-		if len(args) != 2 {
-			return gad.Nil, gad.ErrWrongNumArguments.NewError("want=2 got=" + strconv.Itoa(len(args)))
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(2); err != nil {
+			return gad.Nil, err
 		}
 
-		t, ok := ToTime(args[0])
+		t, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", args[0].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
 		}
-		loc, ok := ToLocation(args[1])
+		loc, ok := ToLocation(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "location", args[1].TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "location", c.Args.Get(1).TypeName())
 		}
 
 		ret = fn(t, loc)

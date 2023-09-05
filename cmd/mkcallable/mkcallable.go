@@ -32,7 +32,7 @@ import (
 const gadCallablePrefix = "//gad:callable"
 const gadDot = "gad."
 
-type converterFunc func(index int, argsName string, p *Param, extended bool) string
+type converterFunc func(index int, argsName string, p *Param) string
 
 var converters = map[string]interface{}{
 	"string":       "gad.ToGoString",
@@ -53,11 +53,8 @@ var converters = map[string]interface{}{
 	"gad.Array":    "gad.ToArray",
 	"gad.Map":      "gad.ToMap",
 	"*gad.SyncMap": "gad.ToSyncMap",
-	"gad.Object": converterFunc(func(index int, argsName string, p *Param, extended bool) string {
-		if extended {
-			return fmt.Sprintf("%s := %s.Get(%d)", p.Name, argsName, index)
-		}
-		return fmt.Sprintf("%s := %s[%d]", p.Name, argsName, index)
+	"gad.Object": converterFunc(func(index int, argsName string, p *Param) string {
+		return fmt.Sprintf("%s := %s.Args.Get(%d)", p.Name, argsName, index)
 	}),
 }
 
@@ -132,7 +129,6 @@ func ordinalize(num int) string {
 var (
 	filename = flag.String("output", "", "output file name (standard output if omitted)")
 	export   = flag.Bool("export", false, "export auto generated function names")
-	extended = flag.Bool("extended", false, "generate only extended functions")
 )
 
 var packageName string
@@ -168,7 +164,7 @@ func main() {
 		usage()
 	}
 
-	src, err := ParseFiles(*extended, flag.Args())
+	src, err := ParseFiles(flag.Args())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -196,12 +192,11 @@ func main() {
 
 // ParseFiles parses files listed in files and extracts all directives listed in
 // gad:callable comments. It returns *Source if successful.
-func ParseFiles(extendedOnly bool, files []string) (*Source, error) {
+func ParseFiles(files []string) (*Source, error) {
 	src := &Source{
 		Funcs:           make([]*Fn, 0),
-		GoImports:       []Pkg{{Path: "strconv"}},
+		GoImports:       []Pkg{},
 		ExternalImports: []Pkg{},
-		ExtendedOnly:    extendedOnly,
 	}
 	for _, file := range files {
 		if err := src.ParseFile(file); err != nil {
@@ -455,7 +450,7 @@ func (p *Param) HelperAssignVar() string {
 	}
 	if conv != nil {
 		if fn, ok := conv.(converterFunc); ok {
-			return fn(p.idx, p.fn.argsName, p, false)
+			return fn(p.idx, p.fn.argsName, p)
 		}
 	}
 	if gaddot() == "" {
@@ -485,7 +480,7 @@ func (p *Param) HelperAssignVarEx() string {
 	}
 	if conv != nil {
 		if fn, ok := conv.(converterFunc); ok {
-			return fn(p.idx, p.fn.argsName, p, true)
+			return fn(p.idx, p.fn.argsName, p)
 		}
 	}
 	if gaddot() == "" {
@@ -494,9 +489,9 @@ func (p *Param) HelperAssignVarEx() string {
 
 	gadTypeName := p.gadTypeName()
 
-	return fmt.Sprintf(`%s, ok := %s(%s.Get(%d))
+	return fmt.Sprintf(`%s, ok := %s(%s.Args.Get(%d))
 		if !ok {
-			return %sNil, %sNewArgumentTypeError("%s", "%s", %s.Get(%d).TypeName())
+			return %sNil, %sNewArgumentTypeError("%s", "%s", %s.Args.Get(%d).TypeName())
 		}`,
 		p.Name, conv, p.fn.argsName, p.idx,
 		gaddot(), gaddot(), ordinalize(p.idx+1), gadTypeName, p.fn.argsName, p.idx,
@@ -629,9 +624,6 @@ func (f *Fn) ParamList() string {
 // FuncName returns the Fn's Name field.
 func (f *Fn) FuncName() string { return f.Name }
 
-// FuncNameEx returns the Fn's Name field with Ex suffix.
-func (f *Fn) FuncNameEx() string { return f.Name + "Ex" }
-
 // FnName returns the fn parameter name.
 func (f *Fn) FnName() string { return f.fnName }
 
@@ -658,7 +650,7 @@ func (f *Fn) HelperCheckNumArgs() string {
 // HelperCheckNumArgsEx is an helper used in template to return code block to
 // check number of arguments for extended API.
 func (f *Fn) HelperCheckNumArgsEx() string {
-	return fmt.Sprintf(`if err := %s.CheckLen(%d); err!=nil {
+	return fmt.Sprintf(`if err := %s.Args.CheckLen(%d); err!=nil {
 			return %sNil, err
 	    }`, f.argsName, len(f.Params), gaddot())
 }
@@ -703,7 +695,7 @@ func (f *Fn) setVarNames() {
 
 	// Check parameter names to create unique name for default variable names.
 	f.fnName = genVarName("fn", names)
-	f.argsName = genVarName("args", names)
+	f.argsName = genVarName("c", names)
 	f.retName = genVarName("ret", names)
 	f.errName = genVarName("err", names)
 }
@@ -826,26 +818,8 @@ import ({{range .GoImports}}
 	{{.HelperImport}}{{end}}
 )
 
-{{if .ExtendedOnly}}
-{{range .Funcs}}{{template "funcbodyEx" .}}{{end}}
-{{else}}
-{{range .Funcs}}{{template "funcbodyEx" .}}{{end}}
 {{range .Funcs}}{{template "funcbody" .}}{{end}}
-{{end}}
 
-{{end}}
-
-{{define "funcbodyEx"}}
-// {{.FuncNameEx}} is a generated function to make {{gaddot}}CallableExFunc.
-// Source: {{.SourceString}}
-func {{.FuncNameEx}}({{.FnName}} func({{.ParamList}}) {{.Rets.List}}) {{gaddot}}CallableExFunc {
-	return func{{template "gadcallparamsEx" .}} {{template "gadresults" .}} {
-		{{template "checknumargsEx" .}}
-		{{template "assignvarsEx" .}}
-		{{template "call" .}}
-		return
-	}
-}
 {{end}}
 
 {{define "gadcallparamsEx"}}({{.ArgsName}} {{gaddot}}Call){{end}}
@@ -861,9 +835,9 @@ func {{.FuncNameEx}}({{.FnName}} func({{.ParamList}}) {{.Rets.List}}) {{gaddot}}
 // {{.FuncName}} is a generated function to make {{gaddot}}CallableFunc.
 // Source: {{.SourceString}}
 func {{.FuncName}}({{.FnName}} func({{.ParamList}}) {{.Rets.List}}) {{gaddot}}CallableFunc {
-	return func{{template "gadcallparams" .}} {{template "gadresults" .}} {
-		{{template "checknumargs" .}}
-		{{template "assignvars" .}}
+	return func{{template "gadcallparamsEx" .}} {{template "gadresults" .}} {
+		{{template "checknumargsEx" .}}
+		{{template "assignvarsEx" .}}
 		{{template "call" .}}
 		return
 	}

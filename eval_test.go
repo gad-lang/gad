@@ -98,7 +98,7 @@ func TestEval(t *testing.T) {
 	t.Run("context", func(t *testing.T) {
 		globals := Map{
 			"Gosched": &Function{
-				Value: func(args ...Object) (Object, error) {
+				Value: func(Call) (Object, error) {
 					runtime.Gosched()
 					return Nil, nil
 				},

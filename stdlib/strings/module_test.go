@@ -12,53 +12,53 @@ import (
 
 func TestModuleStrings(t *testing.T) {
 	contains := Module["Contains"]
-	ret, err := contains.Call(String("abc"), String("b"))
+	ret, err := MustCall(contains, String("abc"), String("b"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
-	ret, err = contains.Call(String("abc"), String("d"))
+	ret, err = MustCall(contains, String("abc"), String("d"))
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
-	_, err = contains.Call(String("abc"), String("d"), String("x"))
+	_, err = MustCall(contains, String("abc"), String("d"), String("x"))
 	require.Error(t, err)
-	_, err = contains.Call(String("abc"))
+	_, err = MustCall(contains, String("abc"))
 	require.Error(t, err)
-	_, err = contains.Call()
+	_, err = MustCall(contains)
 	require.Error(t, err)
 
 	containsAny := Module["ContainsAny"]
-	ret, err = containsAny.Call(String("abc"), String("ax"))
+	ret, err = MustCall(containsAny, String("abc"), String("ax"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
-	ret, err = containsAny.Call(String("abc"), String("d"))
+	ret, err = MustCall(containsAny, String("abc"), String("d"))
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
 	containsChar := Module["ContainsChar"]
-	ret, err = containsChar.Call(String("abc"), Char('a'))
+	ret, err = MustCall(containsChar, String("abc"), Char('a'))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
-	ret, err = containsChar.Call(String("abc"), Char('d'))
+	ret, err = MustCall(containsChar, String("abc"), Char('d'))
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
 	count := Module["Count"]
-	ret, err = count.Call(String("cheese"), String("e"))
+	ret, err = MustCall(count, String("cheese"), String("e"))
 	require.NoError(t, err)
 	require.EqualValues(t, 3, ret)
-	ret, err = count.Call(String("cheese"), String("d"))
+	ret, err = MustCall(count, String("cheese"), String("d"))
 	require.NoError(t, err)
 	require.EqualValues(t, 0, ret)
 
 	equalFold := Module["EqualFold"]
-	ret, err = equalFold.Call(String("GAD"), String("gad"))
+	ret, err = MustCall(equalFold, String("GAD"), String("gad"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
-	ret, err = equalFold.Call(String("GAD"), String("go"))
+	ret, err = MustCall(equalFold, String("GAD"), String("go"))
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
 	fields := Module["Fields"]
-	ret, err = fields.Call(String("\tfoo bar\nbaz"))
+	ret, err = MustCall(fields, String("\tfoo bar\nbaz"))
 	require.NoError(t, err)
 	require.Equal(t, 3, len(ret.(Array)))
 	require.EqualValues(t, "foo", ret.(Array)[0].(String))
@@ -66,229 +66,229 @@ func TestModuleStrings(t *testing.T) {
 	require.EqualValues(t, "baz", ret.(Array)[2].(String))
 
 	hasPrefix := Module["HasPrefix"]
-	ret, err = hasPrefix.Call(String("foobarbaz"), String("foo"))
+	ret, err = MustCall(hasPrefix, String("foobarbaz"), String("foo"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
-	ret, err = hasPrefix.Call(String("foobarbaz"), String("baz"))
+	ret, err = MustCall(hasPrefix, String("foobarbaz"), String("baz"))
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
 	hasSuffix := Module["HasSuffix"]
-	ret, err = hasSuffix.Call(String("foobarbaz"), String("baz"))
+	ret, err = MustCall(hasSuffix, String("foobarbaz"), String("baz"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
-	ret, err = hasSuffix.Call(String("foobarbaz"), String("foo"))
+	ret, err = MustCall(hasSuffix, String("foobarbaz"), String("foo"))
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
 	index := Module["Index"]
-	ret, err = index.Call(String("foobarbaz"), String("bar"))
+	ret, err = MustCall(index, String("foobarbaz"), String("bar"))
 	require.NoError(t, err)
 	require.EqualValues(t, 3, ret)
-	ret, err = index.Call(String("foobarbaz"), String("x"))
+	ret, err = MustCall(index, String("foobarbaz"), String("x"))
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
 	indexAny := Module["IndexAny"]
-	ret, err = indexAny.Call(String("foobarbaz"), String("xz"))
+	ret, err = MustCall(indexAny, String("foobarbaz"), String("xz"))
 	require.NoError(t, err)
 	require.EqualValues(t, 8, ret)
-	ret, err = indexAny.Call(String("foobarbaz"), String("x"))
+	ret, err = MustCall(indexAny, String("foobarbaz"), String("x"))
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
 	indexByte := Module["IndexByte"]
-	ret, err = indexByte.Call(String("foobarbaz"), Char('z'))
+	ret, err = MustCall(indexByte, String("foobarbaz"), Char('z'))
 	require.NoError(t, err)
 	require.EqualValues(t, 8, ret)
-	ret, err = indexByte.Call(String("foobarbaz"), Int('z'))
+	ret, err = MustCall(indexByte, String("foobarbaz"), Int('z'))
 	require.NoError(t, err)
 	require.EqualValues(t, 8, ret)
-	ret, err = indexByte.Call(String("foobarbaz"), Char('x'))
+	ret, err = MustCall(indexByte, String("foobarbaz"), Char('x'))
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
 	indexChar := Module["IndexChar"]
-	ret, err = indexChar.Call(String("foobarbaz"), Char('z'))
+	ret, err = MustCall(indexChar, String("foobarbaz"), Char('z'))
 	require.NoError(t, err)
 	require.EqualValues(t, 8, ret)
-	ret, err = indexChar.Call(String("foobarbaz"), Char('x'))
+	ret, err = MustCall(indexChar, String("foobarbaz"), Char('x'))
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
 	join := Module["Join"]
-	ret, err = join.Call(Array{String("foo"), String("bar")}, String(";"))
+	ret, err = MustCall(join, Array{String("foo"), String("bar")}, String(";"))
 	require.NoError(t, err)
 	require.EqualValues(t, "foo;bar", ret)
 
 	lastIndex := Module["LastIndex"]
-	ret, err = lastIndex.Call(String("zfoobarbaz"), String("z"))
+	ret, err = MustCall(lastIndex, String("zfoobarbaz"), String("z"))
 	require.NoError(t, err)
 	require.EqualValues(t, 9, ret)
-	ret, err = lastIndex.Call(String("zfoobarbaz"), String("x"))
+	ret, err = MustCall(lastIndex, String("zfoobarbaz"), String("x"))
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
 	lastIndexAny := Module["LastIndexAny"]
-	ret, err = lastIndexAny.Call(String("zfoobarbaz"), String("xz"))
+	ret, err = MustCall(lastIndexAny, String("zfoobarbaz"), String("xz"))
 	require.NoError(t, err)
 	require.EqualValues(t, 9, ret)
-	ret, err = lastIndexAny.Call(String("foobarbaz"), String("o"))
+	ret, err = MustCall(lastIndexAny, String("foobarbaz"), String("o"))
 	require.NoError(t, err)
 	require.EqualValues(t, 2, ret)
-	ret, err = lastIndexAny.Call(String("foobarbaz"), String("p"))
+	ret, err = MustCall(lastIndexAny, String("foobarbaz"), String("p"))
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
 	lastIndexByte := Module["LastIndexByte"]
-	ret, err = lastIndexByte.Call(String("zfoobarbaz"), Char('z'))
+	ret, err = MustCall(lastIndexByte, String("zfoobarbaz"), Char('z'))
 	require.NoError(t, err)
 	require.EqualValues(t, 9, ret)
-	ret, err = lastIndexByte.Call(String("zfoobarbaz"), Int('z'))
+	ret, err = MustCall(lastIndexByte, String("zfoobarbaz"), Int('z'))
 	require.NoError(t, err)
 	require.EqualValues(t, 9, ret)
-	ret, err = lastIndexByte.Call(String("zfoobarbaz"), Char('x'))
+	ret, err = MustCall(lastIndexByte, String("zfoobarbaz"), Char('x'))
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
 	padLeft := Module["PadLeft"]
-	ret, err = padLeft.Call(String("abc"), Int(3))
+	ret, err = MustCall(padLeft, String("abc"), Int(3))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc", ret)
-	ret, err = padLeft.Call(String("abc"), Int(4))
+	ret, err = MustCall(padLeft, String("abc"), Int(4))
 	require.NoError(t, err)
 	require.EqualValues(t, " abc", ret)
-	ret, err = padLeft.Call(String("abc"), Int(5))
+	ret, err = MustCall(padLeft, String("abc"), Int(5))
 	require.NoError(t, err)
 	require.EqualValues(t, "  abc", ret)
-	ret, err = padLeft.Call(String("abc"), Int(5), String("="))
+	ret, err = MustCall(padLeft, String("abc"), Int(5), String("="))
 	require.NoError(t, err)
 	require.EqualValues(t, "==abc", ret)
-	ret, err = padLeft.Call(String(""), Int(6), String("="))
+	ret, err = MustCall(padLeft, String(""), Int(6), String("="))
 	require.NoError(t, err)
 	require.EqualValues(t, "======", ret)
 
 	padRight := Module["PadRight"]
-	ret, err = padRight.Call(String("abc"), Int(3))
+	ret, err = MustCall(padRight, String("abc"), Int(3))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc", ret)
-	ret, err = padRight.Call(String("abc"), Int(4))
+	ret, err = MustCall(padRight, String("abc"), Int(4))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc ", ret)
-	ret, err = padRight.Call(String("abc"), Int(5))
+	ret, err = MustCall(padRight, String("abc"), Int(5))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc  ", ret)
-	ret, err = padRight.Call(String("abc"), Int(5), String("="))
+	ret, err = MustCall(padRight, String("abc"), Int(5), String("="))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc==", ret)
-	ret, err = padRight.Call(String(""), Int(6), String("="))
+	ret, err = MustCall(padRight, String(""), Int(6), String("="))
 	require.NoError(t, err)
 	require.EqualValues(t, "======", ret)
 
 	repeat := Module["Repeat"]
-	ret, err = repeat.Call(String("abc"), Int(3))
+	ret, err = MustCall(repeat, String("abc"), Int(3))
 	require.NoError(t, err)
 	require.EqualValues(t, "abcabcabc", ret)
-	ret, err = repeat.Call(String("abc"), Int(-1))
+	ret, err = MustCall(repeat, String("abc"), Int(-1))
 	require.NoError(t, err)
 	require.EqualValues(t, "", ret)
 
 	replace := Module["Replace"]
-	ret, err = replace.Call(String("abcdefbc"), String("bc"), String("(bc)"))
+	ret, err = MustCall(replace, String("abcdefbc"), String("bc"), String("(bc)"))
 	require.NoError(t, err)
 	require.EqualValues(t, "a(bc)def(bc)", ret)
-	ret, err = replace.Call(
+	ret, err = MustCall(replace,
 		String("abcdefbc"), String("bc"), String("(bc)"), Int(1))
 	require.NoError(t, err)
 	require.EqualValues(t, "a(bc)defbc", ret)
 
 	split := Module["Split"]
-	ret, err = split.Call(String("abc;def;"), String(";"))
+	ret, err = MustCall(split, String("abc;def;"), String(";"))
 	require.NoError(t, err)
 	require.Equal(t, 3, len(ret.(Array)))
 	require.EqualValues(t, "abc", ret.(Array)[0])
 	require.EqualValues(t, "def", ret.(Array)[1])
 	require.EqualValues(t, "", ret.(Array)[2])
-	ret, err = split.Call(String("abc;def;"), String("!"), Int(0))
+	ret, err = MustCall(split, String("abc;def;"), String("!"), Int(0))
 	require.NoError(t, err)
 	require.Equal(t, 0, len(ret.(Array)))
-	ret, err = split.Call(String("abc;def;"), String(";"), Int(1))
+	ret, err = MustCall(split, String("abc;def;"), String(";"), Int(1))
 	require.NoError(t, err)
 	require.Equal(t, 1, len(ret.(Array)))
 	require.EqualValues(t, "abc;def;", ret.(Array)[0])
-	ret, err = split.Call(String("abc;def;"), String(";"), Int(2))
+	ret, err = MustCall(split, String("abc;def;"), String(";"), Int(2))
 	require.NoError(t, err)
 	require.Equal(t, 2, len(ret.(Array)))
 	require.EqualValues(t, "abc", ret.(Array)[0])
 	require.EqualValues(t, "def;", ret.(Array)[1])
 
 	splitAfter := Module["SplitAfter"]
-	ret, err = splitAfter.Call(String("abc;def;"), String(";"))
+	ret, err = MustCall(splitAfter, String("abc;def;"), String(";"))
 	require.NoError(t, err)
 	require.Equal(t, 3, len(ret.(Array)))
 	require.EqualValues(t, "abc;", ret.(Array)[0])
 	require.EqualValues(t, "def;", ret.(Array)[1])
 	require.EqualValues(t, "", ret.(Array)[2])
-	ret, err = splitAfter.Call(String("abc;def;"), String("!"), Int(0))
+	ret, err = MustCall(splitAfter, String("abc;def;"), String("!"), Int(0))
 	require.NoError(t, err)
 	require.Equal(t, 0, len(ret.(Array)))
-	ret, err = splitAfter.Call(String("abc;def;"), String(";"), Int(1))
+	ret, err = MustCall(splitAfter, String("abc;def;"), String(";"), Int(1))
 	require.NoError(t, err)
 	require.Equal(t, 1, len(ret.(Array)))
 	require.EqualValues(t, "abc;def;", ret.(Array)[0])
-	ret, err = splitAfter.Call(String("abc;def;"), String(";"), Int(2))
+	ret, err = MustCall(splitAfter, String("abc;def;"), String(";"), Int(2))
 	require.NoError(t, err)
 	require.Equal(t, 2, len(ret.(Array)))
 	require.EqualValues(t, "abc;", ret.(Array)[0])
 	require.EqualValues(t, "def;", ret.(Array)[1])
 
 	title := Module["Title"]
-	ret, err = title.Call(String("хлеб"))
+	ret, err = MustCall(title, String("хлеб"))
 	require.NoError(t, err)
 	require.EqualValues(t, "Хлеб", ret)
 
 	toLower := Module["ToLower"]
-	ret, err = toLower.Call(String("ÇİĞÖŞÜ"))
+	ret, err = MustCall(toLower, String("ÇİĞÖŞÜ"))
 	require.NoError(t, err)
 	require.EqualValues(t, "çiğöşü", ret)
 
 	toTitle := Module["ToTitle"]
-	ret, err = toTitle.Call(String("хлеб"))
+	ret, err = MustCall(toTitle, String("хлеб"))
 	require.NoError(t, err)
 	require.EqualValues(t, "ХЛЕБ", ret)
 
 	toUpper := Module["ToUpper"]
-	ret, err = toUpper.Call(String("çığöşü"))
+	ret, err = MustCall(toUpper, String("çığöşü"))
 	require.NoError(t, err)
 	require.EqualValues(t, "ÇIĞÖŞÜ", ret)
 
 	trim := Module["Trim"]
-	ret, err = trim.Call(String("!!??abc?!"), String("!?"))
+	ret, err = MustCall(trim, String("!!??abc?!"), String("!?"))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc", ret)
 
 	trimLeft := Module["TrimLeft"]
-	ret, err = trimLeft.Call(String("!!??abc?!"), String("!?"))
+	ret, err = MustCall(trimLeft, String("!!??abc?!"), String("!?"))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc?!", ret)
 
 	trimPrefix := Module["TrimPrefix"]
-	ret, err = trimPrefix.Call(String("abcdef"), String("abc"))
+	ret, err = MustCall(trimPrefix, String("abcdef"), String("abc"))
 	require.NoError(t, err)
 	require.EqualValues(t, "def", ret)
 
 	trimRight := Module["TrimRight"]
-	ret, err = trimRight.Call(String("!!??abc?!"), String("!?"))
+	ret, err = MustCall(trimRight, String("!!??abc?!"), String("!?"))
 	require.NoError(t, err)
 	require.EqualValues(t, "!!??abc", ret)
 
 	trimSpace := Module["TrimSpace"]
-	ret, err = trimSpace.Call(String("\n \tabcdef\t \n"))
+	ret, err = MustCall(trimSpace, String("\n \tabcdef\t \n"))
 	require.NoError(t, err)
 	require.EqualValues(t, "abcdef", ret)
 
 	trimSuffix := Module["TrimSuffix"]
-	ret, err = trimSuffix.Call(String("abcdef"), String("def"))
+	ret, err = MustCall(trimSuffix, String("abcdef"), String("def"))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc", ret)
 }
