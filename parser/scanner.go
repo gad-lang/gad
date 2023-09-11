@@ -439,7 +439,9 @@ func (s *Scanner) scanNumber(seenDecimalPoint bool) (tok token.Token, lit string
 
 	if seenDecimalPoint {
 		offs--
-		tok = token.Float
+		if tok != token.Decimal {
+			tok = token.Float
+		}
 		s.scanMantissa(10)
 		goto exponent
 	}
@@ -476,6 +478,9 @@ func (s *Scanner) scanNumber(seenDecimalPoint bool) (tok token.Token, lit string
 			if s.ch == 'u' {
 				s.next()
 				tok = token.Uint
+			} else if s.ch == 'd' {
+				s.next()
+				tok = token.Decimal
 			}
 		}
 		return
@@ -487,6 +492,9 @@ func (s *Scanner) scanNumber(seenDecimalPoint bool) (tok token.Token, lit string
 	if s.ch == 'u' {
 		s.next()
 		tok = token.Uint
+	} else if s.ch == 'd' {
+		s.next()
+		tok = token.Decimal
 	}
 
 fraction:
@@ -498,7 +506,9 @@ fraction:
 
 exponent:
 	if s.ch == 'e' || s.ch == 'E' {
-		tok = token.Float
+		if tok != token.Decimal {
+			tok = token.Float
+		}
 		s.next()
 		if s.ch == '-' || s.ch == '+' {
 			s.next()
@@ -509,6 +519,12 @@ exponent:
 			s.error(offs, "illegal floating-point exponent")
 		}
 	}
+
+	if s.ch == 'd' && tok != token.Decimal && tok != token.Uint {
+		tok = token.Decimal
+		s.next()
+	}
+
 	return
 }
 

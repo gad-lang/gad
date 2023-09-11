@@ -65,13 +65,14 @@ func TestScript(t *testing.T) {
 	expectRun(t, catchf(`string(json.Marshal(1))`), nil, String("1"))
 	expectRun(t, catchf(`string(json.Marshal(2u))`), nil, String("2"))
 	expectRun(t, catchf(`string(json.Marshal(3.4))`), nil, String("3.4"))
+	expectRun(t, catchf(`string(json.Marshal(3.4d))`), nil, String("3.4"))
 	expectRun(t, catchf(`string(json.Marshal('x'))`), nil, String("120"))
 	expectRun(t, catchf(`string(json.Marshal("test"))`), nil, String(`"test"`))
 	expectRun(t, catchf(`string(json.Marshal(bytes(0,1)))`), nil, String(`"AAE="`))
 	expectRun(t, catchf(`string(json.Marshal([]))`), nil, String("[]"))
-	expectRun(t, catchf(`string(json.Marshal([1, "a", 2u, 'x',3.4,true,false,
+	expectRun(t, catchf(`string(json.Marshal([1, "a", 2u, 'x',3.4,3.4d,true,false,
 	{a:[],"b":0,ç:nil},bytes(0,1),
-	]))`), nil, String(`[1,"a",2,120,3.4,true,false,{"a":[],"b":0,"ç":null},"AAE="]`))
+	]))`), nil, String(`[1,"a",2,120,3.4,3.4,true,false,{"a":[],"b":0,"ç":null},"AAE="]`))
 	expectRun(t, catchf(`string(json.Marshal({}))`), nil, String("{}"))
 	expectRun(t, catchf(`string(json.Marshal({_: 1, k2:[3,true,"a"]}))`),
 		nil, String(`{"_":1,"k2":[3,true,"a"]}`))
@@ -109,7 +110,7 @@ func TestScript(t *testing.T) {
 
 	expectRun(t, catchf(`json.Unmarshal()`), nil, errnarg(1, 0))
 	expectRun(t, catchf(`json.Unmarshal("[1,true,false,\"x\",{\"a\":\"b\"}]")`),
-		nil, Array{Float(1), True, False, String("x"), Map{"a": String("b")}})
+		nil, Array{DecimalFromFloat(1), True, False, String("x"), Map{"a": String("b")}})
 
 	expectRun(t, catchf(`json.Valid()`), nil, errnarg(1, 0))
 	expectRun(t, catchf(`json.Valid("{}")`), nil, True)

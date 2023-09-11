@@ -19,6 +19,7 @@ import (
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/stdlib/json"
 	"github.com/gad-lang/gad/stdlib/time"
+	"github.com/shopspring/decimal"
 )
 
 // Bytecode signature and version are written to the header of encoded Bytecode.
@@ -44,6 +45,7 @@ type (
 	Uint             gad.Uint
 	Char             gad.Char
 	Float            gad.Float
+	Decimal          gad.Decimal
 	Bool             gad.Bool
 	SourceFileSet    parser.SourceFileSet
 	SourceFile       parser.SourceFile
@@ -57,6 +59,7 @@ const (
 	binUintV1
 	binCharV1
 	binFloatV1
+	binDecimalV1
 	binStringV1
 	binBytesV1
 	binArrayV1
@@ -72,6 +75,7 @@ const (
 var (
 	errVarintTooSmall = errors.New("read varint error: buf too small")
 	errVarintOverflow = errors.New("read varint error: value larger than 64 bits (overflow)")
+	errBufTooSmall    = errors.New("read error: buf too small")
 )
 
 func init() {
@@ -81,6 +85,7 @@ func init() {
 	gob.Register(gad.Uint(0))
 	gob.Register(gad.Char(0))
 	gob.Register(gad.Float(0))
+	gob.Register(gad.DecimalZero)
 	gob.Register(gad.String(""))
 	gob.Register(gad.Bytes(nil))
 	gob.Register(gad.Array(nil))
@@ -330,6 +335,12 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 				return nil, err
 			}
 			return gad.Float(v), nil
+		case binDecimalV1:
+			var v Decimal
+			if err = v.UnmarshalBinary(buf); err != nil {
+				return nil, err
+			}
+			return gad.Decimal(v), nil
 		case binCharV1:
 			var v Char
 			if err = v.UnmarshalBinary(buf); err != nil {
@@ -337,6 +348,33 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 			}
 			return gad.Char(v), nil
 		}
+	case binDecimalV1:
+		buf := make([]byte, 2)
+		if n, err := r.Read(buf); err != nil {
+			return nil, err
+		} else if n != 2 {
+			return nil, errBufTooSmall
+		}
+
+		size := int(uint16(buf[1]) | uint16(buf[0])<<8)
+
+		if size == 0 {
+			return gad.DecimalZero, nil
+		}
+
+		buf = make([]byte, 3+size)
+		buf[0] = btype
+		buf[1] = byte(size >> 8)
+		buf[2] = byte(size)
+
+		if _, err = io.ReadFull(r, buf[3:]); err != nil {
+			return nil, err
+		}
+		var v Decimal
+		if err = v.UnmarshalBinary(buf); err != nil {
+			return nil, err
+		}
+		return gad.Decimal(v), nil
 	case binCompiledFunctionV1,
 		binArrayV1,
 		binBytesV1,
@@ -634,6 +672,50 @@ func (o *Float) UnmarshalBinary(data []byte) error {
 	}
 
 	*o = Float(math.Float64frombits(v))
+	return nil
+}
+
+// MarshalBinary implements encoding.BinaryMarshaler
+func (o Decimal) MarshalBinary() ([]byte, error) {
+	dec := decimal.Decimal(o)
+	if dec.IsZero() {
+		return []byte{binDecimalV1, 0, 0}, nil
+	}
+	b, err := dec.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	l := len(b)
+	buf := make([]byte, 3+len(b))
+	buf[0] = binDecimalV1
+	buf[1] = byte(l >> 8)
+	buf[2] = byte(l)
+	copy(buf[3:], b)
+	return buf, nil
+}
+
+// UnmarshalBinary implements encoding.BinaryUnmarshaler
+func (o *Decimal) UnmarshalBinary(data []byte) error {
+	if len(data) < 3 || data[0] != binDecimalV1 {
+		return errors.New("invalid gad.Decimal data")
+	}
+	size := int(uint16(data[2]) | uint16(data[1])<<8)
+	if size <= 0 {
+		*o = Decimal(gad.DecimalZero)
+		return nil
+	}
+
+	if len(data) < 3+size {
+		return errors.New("invalid gad.Decimal data size")
+	}
+
+	var dec decimal.Decimal
+	if err := dec.UnmarshalBinary(data[3:]); err != nil {
+		return err
+	}
+
+	*o = Decimal(dec)
 	return nil
 }
 
@@ -1444,6 +1526,8 @@ func marshaler(o gad.Object) encoding.BinaryMarshaler {
 		return Char(v)
 	case gad.Float:
 		return Float(v)
+	case gad.Decimal:
+		return Decimal(v)
 	case gad.String:
 		return String(v)
 	case gad.Bytes:

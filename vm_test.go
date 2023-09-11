@@ -692,6 +692,8 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return copy(1u)`, nil, Uint(1))
 	expectRun(t, `return copy('a')`, nil, Char('a'))
 	expectRun(t, `return copy(1.0)`, nil, Float(1.0))
+	// expectRun(t, `return copy(1d)`, nil, DecimalFromUint(1))
+	expectRun(t, `return copy(1.0d)`, nil, MustDecimalFromString("1.0"))
 	expectRun(t, `return copy("x")`, nil, String("x"))
 	expectRun(t, `return copy(true)`, nil, True)
 	expectRun(t, `return copy(false)`, nil, False)
@@ -931,6 +933,20 @@ func TestVMBuiltinFunction(t *testing.T) {
 			},
 		},
 		{
+			"decimal",
+			map[string]Object{
+				"1":      DecimalFromFloat(1.0),
+				"1u":     DecimalFromFloat(1.0),
+				"1.0":    DecimalFromFloat(1.0),
+				`'\x01'`: DecimalFromFloat(1.0),
+				"true":   DecimalFromFloat(1.0),
+				"false":  DecimalFromFloat(0.0),
+				`"1"`:    DecimalFromFloat(1.0),
+				`"1.1"`:  DecimalFromFloat(1.1),
+				"bytes(255, 255, 255, 250, 2, 7, 91, 205, 21)": MustDecimalFromString("123.456789"),
+			},
+		},
+		{
 			"string",
 			map[string]Object{
 				"1":                 String("1"),
@@ -963,6 +979,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 				`'\x01', 2`:   Bytes{1, 2},
 				`bytes(1, 2)`: Bytes{1, 2},
 				`"abc"`:       Bytes{'a', 'b', 'c'},
+				"123.456789d": Bytes{255, 255, 255, 250, 2, 7, 91, 205, 21},
 			},
 		},
 		{
@@ -2983,6 +3000,15 @@ func TestVMString(t *testing.T) {
 	expectRun(t, `return "foo" + error(5)`, nil, String("fooerror: 5"))
 	expectRun(t, `return "foo" + nil`, nil, String("foonil"))
 	expectErrIs(t, `return nil + "foo"`, nil, ErrType)
+
+	// Decimal.String() returns the smallest number of digits
+	// necessary such that ParseDecimal will return f exactly.
+	expectErrIs(t, `return 1d + "foo"`, nil, ErrType)
+	expectRun(t, `return "foo" + 1.0d`, nil, String("foo1")) // <- note '1' instead of '1.0'
+	expectErrIs(t, `return 1.0d + "foo"`, nil, ErrType)
+	expectRun(t, `return "foo" + 1.5d`, nil, String("foo1.5"))
+	expectErrIs(t, `return 1.5d + "foo"`, nil, ErrType)
+
 	// array adds rhs object to the array
 	expectRun(t, `return [1, 2, 3] + "foo"`,
 		nil, Array{Int(1), Int(2), Int(3), String("foo")})

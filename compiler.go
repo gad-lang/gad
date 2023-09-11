@@ -333,6 +333,8 @@ func (c *Compiler) Compile(node parser.Node) error {
 		c.emit(node, OpConstant, c.addConstant(Uint(node.Value)))
 	case *parser.FloatLit:
 		c.emit(node, OpConstant, c.addConstant(Float(node.Value)))
+	case *parser.DecimalLit:
+		c.emit(node, OpConstant, c.addConstant(Decimal(node.Value)))
 	case *parser.BoolLit:
 		if node.Value {
 			c.emit(node, OpTrue)
@@ -437,6 +439,12 @@ func (c *Compiler) addConstant(obj Object) (index int) {
 
 	switch obj.(type) {
 	case Int, Uint, String, Bool, Float, Char, *NilType:
+		i, ok := c.constsCache[obj]
+		if ok {
+			index = i
+			return
+		}
+	case Decimal:
 		i, ok := c.constsCache[obj]
 		if ok {
 			index = i

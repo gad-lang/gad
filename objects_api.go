@@ -212,3 +212,8 @@ func Callable(o Object) (ok bool) {
 	}
 	return
 }
+
+// BytesConverter is to bytes converter
+type BytesConverter interface {
+	ToBytes() (Bytes, error)
+}

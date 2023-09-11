@@ -3,6 +3,9 @@
 
 # `json` Module
 
+## Important Note
+All numeric types is unmarshaled to `gad.Decimal` type.
+
 ## Types
 
 ### encoderOptions

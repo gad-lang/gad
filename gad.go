@@ -285,11 +285,7 @@ func ToBytes(o Object) (v Bytes, ok bool) {
 	if v, ok = o.(Bytes); ok {
 		return
 	}
-	vv, ok := ToGoByteSlice(o)
-	if ok {
-		v = Bytes(vv)
-	}
-	return
+	return ToGoByteSlice(o)
 }
 
 // ToInt will try to convert an Object to Gad int value.
@@ -385,6 +381,13 @@ func ToGoByteSlice(o Object) (v []byte, ok bool) {
 	case String:
 		v, ok = make([]byte, len(o)), true
 		copy(v, o)
+	case BytesConverter:
+		var err error
+		v, err = o.ToBytes()
+		if err != nil {
+			return
+		}
+		ok = true
 	}
 	return
 }
@@ -424,6 +427,8 @@ func ToGoInt64(o Object) (v int64, ok bool) {
 		v, ok = int64(o), true
 	case Float:
 		v, ok = int64(o), true
+	case Decimal:
+		v, ok = o.Go().IntPart(), true
 	case Char:
 		v, ok = int64(o), true
 	case Bool:
@@ -450,6 +455,8 @@ func ToGoUint64(o Object) (v uint64, ok bool) {
 		v, ok = uint64(o), true
 	case Float:
 		v, ok = uint64(o), true
+	case Decimal:
+		v, ok = o.Go().BigInt().Uint64(), true
 	case Char:
 		v, ok = uint64(o), true
 	case Bool:
@@ -476,6 +483,8 @@ func ToGoFloat64(o Object) (v float64, ok bool) {
 		v, ok = float64(o), true
 	case Float:
 		v, ok = float64(o), true
+	case Decimal:
+		v, ok = o.Go().InexactFloat64(), true
 	case Char:
 		v, ok = float64(o), true
 	case Bool:

@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad/token"
+	"github.com/shopspring/decimal"
 )
 
 // Mode value is a set of flags for parser.
@@ -520,6 +521,18 @@ func (p *Parser) parseOperand() Expr {
 	case token.Float:
 		v, _ := strconv.ParseFloat(p.tokenLit, 64)
 		x := &FloatLit{
+			Value:    v,
+			ValuePos: p.pos,
+			Literal:  p.tokenLit,
+		}
+		p.next()
+		return x
+	case token.Decimal:
+		v, err := decimal.NewFromString(strings.TrimSuffix(p.tokenLit, "d"))
+		if err != nil {
+			p.error(p.pos, err.Error())
+		}
+		x := &DecimalLit{
 			Value:    v,
 			ValuePos: p.pos,
 			Literal:  p.tokenLit,

@@ -11,6 +11,7 @@ import (
 	gotime "time"
 
 	"github.com/gad-lang/gad"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gad-lang/gad/stdlib/json"
@@ -28,11 +29,12 @@ func TestGobEncoder(t *testing.T) {
 		gad.Uint(0),
 		gad.Char(0),
 		gad.Float(0),
+		gad.DecimalZero,
 		gad.String("abc"),
 		gad.Bytes{},
 		gad.Array{gad.Bool(true), gad.String("")},
 		gad.Map{"b": gad.Bool(true), "s": gad.String("")},
-		&gad.SyncMap{Value: gad.Map{"i": gad.Int(0), "u": gad.Uint(0)}},
+		&gad.SyncMap{Value: gad.Map{"i": gad.Int(0), "u": gad.Uint(0), "d": gad.MustDecimalFromString("123.456")}},
 		&gad.ObjectPtr{},
 		&time.Time{Value: gotime.Now()},
 		&json.EncoderOptions{Value: gad.Float(0)},
@@ -205,6 +207,28 @@ func TestEncDecObjects(t *testing.T) {
 		require.Equal(t, tC, obj, msg)
 	}
 
+	decimalObjects := []gad.Decimal{gad.DecimalFromFloat(gad.Float(0)), gad.DecimalFromFloat(gad.Float(-1))}
+	for i := 0; i < 1000; i++ {
+		v := seededRand.Float64()
+		decimalObjects = append(decimalObjects, gad.DecimalFromFloat(gad.Float(v)))
+	}
+	for _, tC := range decimalObjects {
+		msg := fmt.Sprintf("Decimal(%v)", tC)
+		data, err := Decimal(tC).MarshalBinary()
+		require.NoError(t, err, msg)
+		require.Greater(t, len(data), 0, msg)
+		var v Decimal
+		err = v.UnmarshalBinary(data)
+		require.NoError(t, err, msg)
+		require.Equal(t, tC.String(), decimal.Decimal(v).String(), msg)
+
+		obj, err := DecodeObject(bytes.NewReader(data))
+		require.NoError(t, err, msg)
+		require.Equal(t, tC.String(), obj.String(), msg)
+	}
+	// remove NaN from Decimal slice, array tests below requires NaN check otherwise fails.
+	decimalObjects = decimalObjects[:len(decimalObjects)-1]
+
 	arrays := []gad.Array{}
 	temp1 := gad.Array{}
 	for i := range bytesObjects[:100] {
@@ -241,6 +265,11 @@ func TestEncDecObjects(t *testing.T) {
 		temp7 = append(temp7, boolObjects[i])
 	}
 	arrays = append(arrays, temp7)
+	temp8 := gad.Array{}
+	for i := range decimalObjects[:100] {
+		temp8 = append(temp8, gad.String(decimalObjects[i].String()))
+	}
+	arrays = append(arrays, temp8)
 	arrays = append(arrays, gad.Array{gad.Nil})
 
 	for _, tC := range arrays {
@@ -369,7 +398,7 @@ func TestEncDecObjects(t *testing.T) {
 func TestEncDecBytecode(t *testing.T) {
 	testEncDecBytecode(t, `
 	f := func() {
-		return [nil, true, false, "", -1, 0, 1, 2u, 3.0, 'a', bytes(0, 1, 2)]
+		return [nil, true, false, "", -1, 0, 1, 2u, 3.0, 123.456d, 'a', bytes(0, 1, 2)]
 	}
 	f()
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}`, nil, gad.Nil)
@@ -648,7 +677,7 @@ func (t *testopts) Module(name string, module interface{}) *testopts {
 const charset = "abcdefghijklmnopqrstuvwxyz" +
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-var seededRand *rand.Rand = rand.New(
+var seededRand = rand.New(
 	rand.NewSource(gotime.Now().UnixNano()))
 
 func randStringWithCharset(length int, charset string) string {

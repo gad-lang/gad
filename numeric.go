@@ -6,11 +6,13 @@ package gad
 
 import (
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad/internal/compat"
 	"github.com/gad-lang/gad/token"
+	"github.com/shopspring/decimal"
 )
 
 // Int represents signed integer values and implements Object interface.
@@ -35,6 +37,8 @@ func (o Int) Equal(right Object) bool {
 		return Uint(o) == v
 	case Float:
 		return Float(o) == v
+	case Decimal:
+		return DecimalFromInt(o).Equal(v)
 	case Char:
 		return o == Int(v)
 	case Bool:
@@ -48,11 +52,6 @@ func (o Int) Equal(right Object) bool {
 
 // IsFalsy implements Object interface.
 func (o Int) IsFalsy() bool { return o == 0 }
-
-// Call implements Object interface.
-func (o Int) Call(_ ...Object) (Object, error) {
-	return nil, ErrNotCallable
-}
 
 // CanIterate implements Object interface.
 func (Int) CanIterate() bool { return false }
@@ -113,6 +112,8 @@ func (o Int) BinaryOp(tok token.Token, right Object) (Object, error) {
 		return Uint(o).BinaryOp(tok, right)
 	case Float:
 		return Float(o).BinaryOp(tok, right)
+	case Decimal:
+		return DecimalFromInt(o).BinaryOp(tok, right)
 	case Char:
 		switch tok {
 		case token.Add:
@@ -178,6 +179,8 @@ func (o Uint) Equal(right Object) bool {
 		return o == Uint(v)
 	case Float:
 		return Float(o) == v
+	case Decimal:
+		return DecimalFromUint(o).Equal(v)
 	case Char:
 		return o == Uint(v)
 	case Bool:
@@ -199,12 +202,12 @@ func (Uint) CanIterate() bool { return false }
 func (Uint) Iterate() Iterator { return nil }
 
 // IndexSet implements Object interface.
-func (Uint) IndexSet(index, value Object) error {
+func (Uint) IndexSet(_, _ Object) error {
 	return ErrNotIndexAssignable
 }
 
 // IndexGet implements Object interface.
-func (Uint) IndexGet(index Object) (Object, error) {
+func (Uint) IndexGet(_ Object) (Object, error) {
 	return nil, ErrNotIndexable
 }
 
@@ -251,6 +254,8 @@ func (o Uint) BinaryOp(tok token.Token, right Object) (Object, error) {
 		return o.BinaryOp(tok, Uint(v))
 	case Float:
 		return Float(o).BinaryOp(tok, right)
+	case Decimal:
+		return DecimalFromUint(o).BinaryOp(tok, right)
 	case Char:
 		switch tok {
 		case token.Add:
@@ -316,6 +321,8 @@ func (o Float) Equal(right Object) bool {
 		return o == Float(v)
 	case Uint:
 		return o == Float(v)
+	case Decimal:
+		return DecimalFromFloat(o).Equal(v)
 	case Bool:
 		if v {
 			return o == 1
@@ -331,11 +338,6 @@ func (o Float) IsFalsy() bool {
 	// See math.IsNan
 	f := float64(o)
 	return f != f
-}
-
-// Call implements Object interface.
-func (o Float) Call(_ ...Object) (Object, error) {
-	return nil, ErrNotCallable
 }
 
 // CanIterate implements Object interface.
@@ -383,6 +385,8 @@ func (o Float) BinaryOp(tok token.Token, right Object) (Object, error) {
 		return o.BinaryOp(tok, Float(v))
 	case Uint:
 		return o.BinaryOp(tok, Float(v))
+	case Decimal:
+		return DecimalFromFloat(o).BinaryOp(tok, right)
 	case Bool:
 		if v {
 			right = Float(1)
@@ -410,6 +414,174 @@ func (o Float) Format(s fmt.State, verb rune) {
 	format := compat.FmtFormatString(s, verb)
 	fmt.Fprintf(s, format, float64(o))
 }
+
+// Decimal represents a fixed-point decimal. It is immutable.
+// number = value * 10 ^ exp
+type Decimal decimal.Decimal
+
+func (o *Decimal) GobDecode(bytes []byte) (err error) {
+	var dec decimal.Decimal
+	if err = dec.UnmarshalBinary(bytes); err == nil {
+		*o = Decimal(dec)
+	}
+	return
+}
+
+func (o Decimal) GobEncode() ([]byte, error) {
+	return o.Go().MarshalBinary()
+}
+
+func (o Decimal) Go() decimal.Decimal {
+	return decimal.Decimal(o)
+}
+
+// TypeName implements Object interface.
+func (Decimal) TypeName() string {
+	return "decimal"
+}
+
+// String implements Object interface.
+func (o Decimal) String() string {
+	return o.Go().String()
+}
+
+// Equal implements Object interface.
+func (o Decimal) Equal(right Object) bool {
+	switch v := right.(type) {
+	case Decimal:
+		return o.Go().Equal(v.Go())
+	case Int:
+		return o.Go().Equal(decimal.Decimal(DecimalFromInt(v)))
+	case Uint:
+		return o.Go().Equal(decimal.Decimal(DecimalFromUint(v)))
+	case Float:
+		return o.Go().Equal(decimal.Decimal(DecimalFromFloat(v)))
+	case Bool:
+		return o.Go().IsZero() != bool(v)
+	}
+	return false
+}
+
+// IsFalsy implements Object interface.
+func (o Decimal) IsFalsy() bool {
+	// IEEE 754 says that only NaNs satisfy f != f.
+	// See math.IsNan
+	return o.Go().IsZero()
+}
+
+// CanIterate implements Object interface.
+func (Decimal) CanIterate() bool { return false }
+
+// Iterate implements Object interface.
+func (Decimal) Iterate() Iterator { return nil }
+
+// IndexSet implements Object interface.
+func (Decimal) IndexSet(_, _ Object) error {
+	return ErrNotIndexAssignable
+}
+
+// IndexGet implements Object interface.
+func (Decimal) IndexGet(_ Object) (Object, error) {
+	return nil, ErrNotIndexable
+}
+
+// BinaryOp implements Object interface.
+func (o Decimal) BinaryOp(tok token.Token, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Decimal:
+		switch tok {
+		case token.Add:
+			return Decimal(o.Go().Add(v.Go())), nil
+		case token.Sub:
+			return Decimal(o.Go().Sub(v.Go())), nil
+		case token.Mul:
+			return Decimal(o.Go().Mul(v.Go())), nil
+		case token.Quo:
+			return Decimal(o.Go().Div(v.Go())), nil
+		case token.Less:
+			return Bool(o.Go().LessThan(v.Go())), nil
+		case token.LessEq:
+			return Bool(o.Go().LessThanOrEqual(v.Go())), nil
+		case token.Greater:
+			return Bool(o.Go().GreaterThan(v.Go())), nil
+		case token.GreaterEq:
+			return Bool(o.Go().GreaterThanOrEqual(v.Go())), nil
+		}
+	case Int:
+		return o.BinaryOp(tok, DecimalFromInt(v))
+	case Uint:
+		return o.BinaryOp(tok, DecimalFromUint(v))
+	case Float:
+		return o.BinaryOp(tok, DecimalFromFloat(v))
+	case Char:
+		return o.BinaryOp(tok, DecimalFromUint(Uint(v)))
+	case String:
+		d, err := DecimalFromString(v)
+		if err != nil {
+			return nil, ErrType.NewError(err.Error())
+		}
+		return o.BinaryOp(tok, d)
+	case Bytes:
+		var d decimal.Decimal
+		if err := d.UnmarshalBinary(v); err != nil {
+			return nil, err
+		}
+		return o.BinaryOp(tok, Decimal(d))
+	case Bool:
+		if v {
+			right = DecimalFromUint(1)
+		} else {
+			right = DecimalFromUint(0)
+		}
+		return o.BinaryOp(tok, right)
+	case *NilType:
+		switch tok {
+		case token.Less, token.LessEq:
+			return False, nil
+		case token.Greater, token.GreaterEq:
+			return True, nil
+		}
+	}
+	return nil, NewOperandTypeError(
+		tok.String(),
+		o.TypeName(),
+		right.TypeName(),
+	)
+}
+
+// Format implements fmt.Formatter interface.
+func (o Decimal) Format(s fmt.State, verb rune) {
+	format := compat.FmtFormatString(s, verb)
+	fmt.Fprintf(s, format, o.Go())
+}
+
+func (o Decimal) ToBytes() (b Bytes, err error) {
+	return o.Go().MarshalBinary()
+}
+
+func DecimalFromUint(v Uint) Decimal {
+	return Decimal(decimal.NewFromBigInt(new(big.Int).SetUint64(uint64(v)), 0))
+}
+
+func DecimalFromInt(v Int) Decimal {
+	return Decimal(decimal.NewFromInt(int64(v)))
+}
+
+func DecimalFromFloat(v Float) Decimal {
+	return Decimal(decimal.NewFromFloat(float64(v)))
+}
+
+func DecimalFromString(v String) (Decimal, error) {
+	r, err := decimal.NewFromString(string(v))
+	return Decimal(r), err
+}
+
+func MustDecimalFromString(v String) Decimal {
+	r, _ := decimal.NewFromString(string(v))
+	return Decimal(r)
+}
+
+var DecimalZero = Decimal(decimal.Zero)
 
 // Char represents a rune and implements Object interface.
 type Char rune

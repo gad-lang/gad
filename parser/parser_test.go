@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gad-lang/gad/token"
@@ -527,16 +528,17 @@ func TestCommaSepReturn(t *testing.T) {
 			),
 		)
 	})
-	expectParse(t, "return 1, 23, 2.2", func(p pfn) []Stmt {
+	expectParse(t, "return 1, 23, 2.2, 12.34d", func(p pfn) []Stmt {
 		return stmts(
 			returnStmt(
 				p(1, 1),
 				arrayLit(
 					p(1, 8),
-					p(1, 18),
+					p(1, 26),
 					intLit(1, p(1, 8)),
 					intLit(23, p(1, 11)),
 					floatLit(2.2, p(1, 15)),
+					decimalLit("12.34", p(1, 20)),
 				),
 			),
 		)
@@ -2711,6 +2713,11 @@ func floatLit(value float64, pos Pos) *FloatLit {
 	return &FloatLit{Value: value, ValuePos: pos}
 }
 
+func decimalLit(value string, pos Pos) *DecimalLit {
+	v, _ := decimal.NewFromString(value)
+	return &DecimalLit{Value: v, ValuePos: pos}
+}
+
 func stringLit(value string, pos Pos) *StringLit {
 	return &StringLit{Value: value, ValuePos: pos}
 }
@@ -2940,6 +2947,10 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 			actual.(*FloatLit).Value)
 		require.Equal(t, int(expected.ValuePos),
 			int(actual.(*FloatLit).ValuePos))
+	case *DecimalLit:
+		require.True(t, expected.Value.Equal(actual.(*DecimalLit).Value))
+		require.Equal(t, int(expected.ValuePos),
+			int(actual.(*DecimalLit).ValuePos))
 	case *BoolLit:
 		require.Equal(t, expected.Value,
 			actual.(*BoolLit).Value)

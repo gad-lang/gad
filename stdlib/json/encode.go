@@ -159,6 +159,8 @@ func objectEncoder(v gad.Object) encoderFunc {
 		return uintEncoder
 	case gad.Float:
 		return floatEncoder
+	case gad.Decimal:
+		return decimalEncoder
 	case gad.String:
 		return stringEncoder
 	case gad.Bytes:
@@ -266,6 +268,16 @@ func floatEncoder(e *encodeState, v gad.Object, opts encOpts) {
 		e.WriteByte('"')
 	}
 	e.Write(b)
+	if opts.quoted {
+		e.WriteByte('"')
+	}
+}
+
+func decimalEncoder(e *encodeState, v gad.Object, opts encOpts) {
+	if opts.quoted {
+		e.WriteByte('"')
+	}
+	e.Write([]byte(v.(gad.Decimal).String()))
 	if opts.quoted {
 		e.WriteByte('"')
 	}

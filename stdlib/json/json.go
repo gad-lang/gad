@@ -33,6 +33,10 @@ func init() {
 }
 
 // gad:doc
+// ## Important Note
+// All numeric types is unmarshaled to `gad.Decimal` type.
+
+// gad:doc
 // ## Types
 // ### encoderOptions
 //

@@ -21,6 +21,7 @@ const (
 	Int
 	Uint
 	Float
+	Decimal
 	Char
 	String
 	LiteralEnd_
@@ -111,6 +112,7 @@ var tokens = [...]string{
 	Int:             "INT",
 	Uint:            "UINT",
 	Float:           "FLOAT",
+	Decimal:         "DECIMAL",
 	Char:            "CHAR",
 	String:          "STRING",
 	Null:            "NULL",

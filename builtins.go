@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/gad-lang/gad/token"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -42,6 +43,7 @@ const (
 	BuiltinInt
 	BuiltinUint
 	BuiltinFloat
+	BuiltinDecimal
 	BuiltinChar
 	BuiltinString
 	BuiltinBytes
@@ -98,6 +100,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"int":         BuiltinInt,
 	"uint":        BuiltinUint,
 	"float":       BuiltinFloat,
+	"decimal":     BuiltinDecimal,
 	"char":        BuiltinChar,
 	"string":      BuiltinString,
 	"bytes":       BuiltinBytes,
@@ -204,6 +207,10 @@ var BuiltinObjects = [...]Object{
 	BuiltinFloat: &BuiltinFunction{
 		Name:  "float",
 		Value: funcPf64RO(builtinFloatFunc),
+	},
+	BuiltinDecimal: &BuiltinFunction{
+		Name:  "decimal",
+		Value: funcPOROe(builtinDecimalFunc),
 	},
 	BuiltinChar: &BuiltinFunction{
 		Name:  "char",
@@ -596,6 +603,10 @@ func builtinIntFunc(v int64) Object { return Int(v) }
 func builtinUintFunc(v uint64) Object { return Uint(v) }
 
 func builtinFloatFunc(v float64) Object { return Float(v) }
+
+func builtinDecimalFunc(v Object) (Object, error) {
+	return Decimal(decimal.Zero).BinaryOp(token.Add, v)
+}
 
 func builtinCharFunc(arg Object) (Object, error) {
 	v, ok := ToChar(arg)

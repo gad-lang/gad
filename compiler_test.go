@@ -1804,12 +1804,12 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
-			makeInst(OpConstant, 0), // b
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpBinaryOp, 12),
+			makeInst(OpBinaryOp, 13),
 			makeInst(OpJumpNull, 21),
-			makeInst(OpConstant, 2), // I
-			makeInst(OpGetIndex, 2), // DX
+			makeInst(OpConstant, 2),
+			makeInst(OpGetIndex, 2),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		),
@@ -1820,9 +1820,9 @@ func TestCompilerNullishSelector(t *testing.T) {
 		Array{String("b"), String("c"), String("d"), String("e"), String("f"), String("g")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
-			makeInst(OpDefineLocal, 0), // a
-			makeInst(OpGetLocal, 0),    // a
-			makeInst(OpJumpNull, 42),   // 44
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNull, 42),
 			makeInst(OpConstant, 0),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpConstant, 1),
@@ -1846,9 +1846,9 @@ func TestCompilerNullishSelector(t *testing.T) {
 		Array{String("b"), String("c"), String("d"), String("e"), String("f"), String("g")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
-			makeInst(OpDefineLocal, 0), // a
-			makeInst(OpGetLocal, 0),    // a
-			makeInst(OpJumpNull, 44),   // 44
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNull, 44),
 			makeInst(OpConstant, 0),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpConstant, 1),
@@ -1873,9 +1873,9 @@ func TestCompilerNullishSelector(t *testing.T) {
 		Array{String("b"), String("c")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
-			makeInst(OpDefineLocal, 0), // a
-			makeInst(OpGetLocal, 0),    // a
-			makeInst(OpJumpNull, 18),   // 44
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNull, 18),
 			makeInst(OpConstant, 0),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpConstant, 1),
@@ -1938,9 +1938,9 @@ func TestCompilerNullishSelector(t *testing.T) {
 
 	expectCompile(t, `var a; a.("I"+"DX")?.d`, bytecode(
 		Array{
-			String("I"),  // 1
-			String("DX"), // 2
-			String("d"),  // 3
+			String("I"),
+			String("DX"),
+			String("d"),
 		},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -1948,7 +1948,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpGetLocal, 0),
 			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpBinaryOp, 12),
+			makeInst(OpBinaryOp, 13),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNull, 23),
 			makeInst(OpConstant, 2),
@@ -1961,9 +1961,9 @@ func TestCompilerNullishSelector(t *testing.T) {
 
 	expectCompile(t, `var a; a?.("I"+"DX")?.d`, bytecode(
 		Array{
-			String("I"),  // 1
-			String("DX"), // 2
-			String("d"),  // 3
+			String("I"),
+			String("DX"),
+			String("d"),
 		},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -1972,7 +1972,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpJumpNull, 26),
 			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpBinaryOp, 12),
+			makeInst(OpBinaryOp, 13),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNull, 26),
 			makeInst(OpConstant, 2),
@@ -2022,7 +2022,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpJumpNull, 44),
 			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpBinaryOp, 12),
+			makeInst(OpBinaryOp, 13),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNull, 44),
 			makeInst(OpConstant, 2),

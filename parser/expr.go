@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad/token"
+	"github.com/shopspring/decimal"
 )
 
 // Expr represents an expression node in the AST.
@@ -222,6 +223,29 @@ func (e *FloatLit) End() Pos {
 }
 
 func (e *FloatLit) String() string {
+	return e.Literal
+}
+
+// DecimalLit represents a floating point literal.
+type DecimalLit struct {
+	Value    decimal.Decimal
+	ValuePos Pos
+	Literal  string
+}
+
+func (e *DecimalLit) exprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *DecimalLit) Pos() Pos {
+	return e.ValuePos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *DecimalLit) End() Pos {
+	return Pos(int(e.ValuePos) + len(e.Literal))
+}
+
+func (e *DecimalLit) String() string {
 	return e.Literal
 }
 

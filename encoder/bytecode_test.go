@@ -27,6 +27,7 @@ var testObjects = []gad.Object{
 	gad.Char('x'),
 	gad.Bool(true), gad.Bool(false),
 	gad.Float(0), gad.Float(1.2),
+	gad.DecimalZero, gad.DecimalFromFloat(gad.Float(1.2)),
 	gad.String(""), gad.String("abc"),
 	gad.Bytes{}, gad.Bytes("foo"),
 	gad.ErrIndexOutOfBounds,

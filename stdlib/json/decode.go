@@ -11,7 +11,6 @@
 package json
 
 import (
-	"strconv"
 	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -238,8 +237,7 @@ func (d *decodeState) literal() (gad.Object, error) {
 			panic(phasePanicMsg)
 		}
 
-		n, err := strconv.ParseFloat(string(item), 64)
-		return gad.Float(n), err
+		return gad.DecimalFromString(gad.String(item))
 	}
 }
 
