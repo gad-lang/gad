@@ -1721,6 +1721,11 @@ func TestParseVariadicFunctionWithArgs(t *testing.T) {
 }
 
 func TestParseIf(t *testing.T) {
+	expectParseString(t, "if a: b", "if a {b}")
+	expectParseString(t, "if true; a: b", "if true; a {b}")
+	expectParseString(t, "if a: b else: c", "if a {b} else {c}")
+	expectParseString(t, "if a: b else if x: c else: d", "if a {b} else if x {c} else {d}")
+
 	expectParse(t, "if a == nil {}", func(p pfn) []Stmt {
 		return stmts(
 			ifStmt(

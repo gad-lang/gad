@@ -1372,7 +1372,19 @@ func (p *Parser) parseIfStmt() Stmt {
 
 	pos := p.expect(token.If)
 	init, cond := p.parseIfHeader()
-	body := p.parseBlockStmt()
+
+	var body *BlockStmt
+	if p.token == token.Colon {
+		p.next()
+		expr := p.parseExpr()
+		body = &BlockStmt{
+			Stmts:  []Stmt{&ExprStmt{expr}},
+			LBrace: expr.Pos(),
+			RBrace: expr.End(),
+		}
+	} else {
+		body = p.parseBlockStmt()
+	}
 
 	var elseStmt Stmt
 	if p.token == token.Else {
@@ -1383,6 +1395,15 @@ func (p *Parser) parseIfStmt() Stmt {
 			elseStmt = p.parseIfStmt()
 		case token.LBrace:
 			elseStmt = p.parseBlockStmt()
+			p.expectSemi()
+		case token.Colon:
+			p.next()
+			expr := p.parseExpr()
+			elseStmt = &BlockStmt{
+				Stmts:  []Stmt{&ExprStmt{expr}},
+				LBrace: expr.Pos(),
+				RBrace: expr.End(),
+			}
 			p.expectSemi()
 		default:
 			p.errorExpected(p.pos, "if or {")
@@ -1496,14 +1517,14 @@ func (p *Parser) parseIfHeader() (init Stmt, cond Expr) {
 	init = p.parseSimpleStmt(false)
 
 	var condStmt Stmt
-	if p.token == token.LBrace {
+	switch p.token {
+	case token.LBrace, token.Colon:
 		condStmt = init
 		init = nil
-	} else if p.token == token.Semicolon {
+	case token.Semicolon:
 		p.next()
-
 		condStmt = p.parseSimpleStmt(false)
-	} else {
+	default:
 		p.error(p.pos, "missing condition in if statement")
 	}
 
