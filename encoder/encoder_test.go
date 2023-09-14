@@ -339,7 +339,7 @@ func TestEncDecObjects(t *testing.T) {
 			withParams(2),
 		),
 		compFunc(nil,
-			withVariadic(),
+			withVarParams(),
 		),
 		compFunc(nil,
 			withSourceMap(map[int]int{0: 1, 3: 1, 5: 1}),
@@ -350,7 +350,7 @@ func TestEncDecObjects(t *testing.T) {
 			makeInst(gad.OpBinaryOp, int(token.Add)),
 		),
 			withParams(1),
-			withVariadic(),
+			withVarParams(),
 			withLocals(2),
 			withSourceMap(map[int]int{0: 1, 3: 1, 5: 1}),
 		),
@@ -397,10 +397,37 @@ func TestEncDecObjects(t *testing.T) {
 
 func TestEncDecBytecode(t *testing.T) {
 	testEncDecBytecode(t, `
+	param (arg0, arg1, ...varg; na0=100, na1=200, ...na)
+	return [arg0, arg1, varg, na0, na1, na.map]`, &testopts{
+		args:      Array{gad.Int(1), gad.Int(2), gad.Int(3)},
+		namedArgs: gad.Map{"na0": gad.Int(4), "na2": gad.Int(5)},
+	}, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(4), gad.Int(200), gad.Map{"na2": gad.Int(5)}})
+
+	testEncDecBytecode(t, `
+	param (arg0, arg1, ...varg; na0=100, na1=200, ...na)
+	return [arg0, arg1, varg, na0, na1, na.map]`, &testopts{
+		args:      Array{gad.Int(1), gad.Int(2), gad.Int(3)},
+		namedArgs: gad.Map{"na2": gad.Int(5)},
+	}, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(100), gad.Int(200), gad.Map{"na2": gad.Int(5)}})
+
+	testEncDecBytecode(t, `
+	f := func(arg0, arg1, ...varg; na0=100, ...na) {
+		return [arg0, arg1, varg, na0, na.map]
+	}
+	return f(1,2,3,na0=4,na1=5)`, nil, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(4), gad.Map{"na1": gad.Int(5)}})
+
+	testEncDecBytecode(t, `
 	f := func() {
 		return [nil, true, false, "", -1, 0, 1, 2u, 3.0, 123.456d, 'a', bytes(0, 1, 2)]
 	}
 	f()
+	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}`, nil, gad.Nil)
+
+	testEncDecBytecode(t, `
+	f := func(arg0, arg1, ...varg; na0=3, ...na) {
+		return [arg0, arg1, varg, na0, na.map, nil, true, false, "", -1, 0, 1, 2u, 3.0, 123.456d, 'a', bytes(0, 1, 2)]
+	}
+	f(1,2,na0=4,na1=5)
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}`, nil, gad.Nil)
 }
 
@@ -434,7 +461,11 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 		},
 	)
 	require.NoError(t, err)
-	ret, err := gad.NewVM(bc).Run(opts.globals, opts.args...)
+	ret, err := gad.NewVM(bc).RunOpts(&gad.RunOpts{
+		Globals:   opts.globals,
+		Args:      gad.Args{opts.args},
+		NamedArgs: gad.NewNamedArgs(opts.namedArgs.Items()),
+	})
 	require.NoError(t, err)
 	require.Equal(t, expected, ret)
 
@@ -451,7 +482,11 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 		err = gob.NewDecoder(&buf).Decode((*Bytecode)(&bc2))
 		require.NoError(t, err)
 		testDecodedBytecodeEqual(t, bc, &bc2)
-		ret, err := gad.NewVM(&bc2).Run(opts.globals, opts.args...)
+		ret, err := gad.NewVM(&bc2).RunOpts(&gad.RunOpts{
+			Globals:   opts.globals,
+			Args:      gad.Args{opts.args},
+			NamedArgs: gad.NewNamedArgs(opts.namedArgs.Items()),
+		})
 		require.NoError(t, err)
 		require.Equal(t, expected, ret)
 
@@ -459,7 +494,11 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 		err = (*Bytecode)(&bc3).UnmarshalBinary(bcData)
 		require.NoError(t, err)
 		testDecodedBytecodeEqual(t, bc, &bc3)
-		ret, err = gad.NewVM(&bc3).Run(opts.globals, opts.args...)
+		ret, err = gad.NewVM(&bc3).RunOpts(&gad.RunOpts{
+			Globals:   opts.globals,
+			Args:      gad.Args{opts.args},
+			NamedArgs: gad.NewNamedArgs(opts.namedArgs.Items()),
+		})
 		require.NoError(t, err)
 		require.Equal(t, expected, ret)
 	}
@@ -467,7 +506,11 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 	bc4, err := DecodeBytecodeFrom(bytes.NewReader(bcData), opts.moduleMap)
 	require.NoError(t, err)
 	testDecodedBytecodeEqual(t, bc, bc4)
-	ret, err = gad.NewVM(bc4).Run(opts.globals, opts.args...)
+	ret, err = gad.NewVM(bc4).RunOpts(&gad.RunOpts{
+		Globals:   opts.globals,
+		Args:      gad.Args{opts.args},
+		NamedArgs: gad.NewNamedArgs(opts.namedArgs.Items()),
+	})
 	require.NoError(t, err)
 	require.Equal(t, expected, ret)
 	// ensure moduleMap is not updated during compilation and decoding
@@ -536,7 +579,7 @@ func testBytecodeConstants(t *testing.T, expected, decoded []gad.Object) {
 			for decIt.Next() {
 				require.True(t, it.Next())
 				key := decIt.Key()
-				v1, err := expected[i].IndexGet(key)
+				v1, err := expected[i].(gad.IndexGetter).IndexGet(key)
 				require.NoError(t, err)
 				v2 := decIt.Value()
 				if (v1 != nil && v2 == nil) || (v1 == nil && v2 != nil) {
@@ -567,7 +610,7 @@ type funcOpt func(*gad.CompiledFunction)
 
 func withParams(numParams int) funcOpt {
 	return func(cf *gad.CompiledFunction) {
-		cf.NumParams = numParams
+		cf.Params.Len = numParams
 	}
 }
 
@@ -577,9 +620,9 @@ func withLocals(numLocals int) funcOpt {
 	}
 }
 
-func withVariadic() funcOpt {
+func withVarParams() funcOpt {
 	return func(cf *gad.CompiledFunction) {
-		cf.Variadic = true
+		cf.Params.Var = true
 	}
 }
 
@@ -616,8 +659,9 @@ func concatInsts(insts ...[]byte) []byte {
 }
 
 type testopts struct {
-	globals       gad.Object
+	globals       gad.IndexGetter
 	args          []gad.Object
+	namedArgs     gad.Map
 	moduleMap     *gad.ModuleMap
 	skip2pass     bool
 	isCompilerErr bool
@@ -628,7 +672,7 @@ func newOpts() *testopts {
 	return &testopts{}
 }
 
-func (t *testopts) Globals(globals gad.Object) *testopts {
+func (t *testopts) Globals(globals gad.IndexGetter) *testopts {
 	t.globals = globals
 	return t
 }

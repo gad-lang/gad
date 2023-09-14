@@ -87,11 +87,10 @@ delete(v, "missing") // v == {"key": "value"}
 ### copy
 
 Creates a copy of the given variable. `copy` function calls `Copy() Object`
-method if implemented, which is expected to return a deep-copy of the value it
+method if implemented, which is expected to return a non deep-copy of the value it
 holds. int, uint, char, float, string, bool types do not implement a
 [`Copier`](tutorial.md#interfaces) interface which wraps `Copy() Object` method.
-Assignment is sufficient to copy these types. array, bytes, map, syncMap can be
-deeply copied with `copy` builtin function.
+Assignment is sufficient to copy these types.
 
 **Syntax**
 
@@ -103,8 +102,57 @@ deeply copied with `copy` builtin function.
 
 **Return Value**
 
-> deep copy of the given object if `Copier` interface is implemented otherwise
+> copy of the given object if `Copier` interface is implemented otherwise
 > given value is returned.
+
+**Runtime Errors**
+
+- > `WrongNumArgumentsError`
+
+**Examples**
+
+```go
+v1 := [1, 2, {a:3}]
+v2 := v1
+v3 := copy(v1)
+v1[1] = 0
+println(v2[1]) // "0"; 'v1' and 'v2' referencing the same array
+println(v3[1]) // "2"; 'v3' not affected by 'v1'
+
+println(v1[2].a) // 3
+println(v3[2].a) // 3
+
+v1[2].a = 4
+println(v1[2].a) // 4
+println(v3[2].a) // 4
+
+v3[2].a = 5
+println(v1[2].a) // 5
+println(v3[2].a) // 5
+```
+---
+
+### dcopy
+
+Creates a copy of the given variable. `dcopy` function calls `DeepCopy() Object`
+method if implemented, which is expected to return a deep-copy of the value it
+holds. int, uint, char, float, string, bool types do not implement a
+[`DeepCopier`](tutorial.md#interfaces) interface which wraps `DeepCopy() Object` method.
+Assignment is sufficient to copy these types. array, bytes, map, syncMap can be
+deeply copied with `dcopy` builtin function.
+
+**Syntax**
+
+> `dcopy(object)`
+
+**Parameters**
+
+- > `object`: any object
+
+**Return Value**
+
+> deep copy of the given object if `DeepCopier` interface is implemented otherwise
+> if object is `Copier`, given a single copy, otherwise, given value is returned.
 
 **Runtime Errors**
 

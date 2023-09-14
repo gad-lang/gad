@@ -24,8 +24,6 @@ func TestModuleTypes(t *testing.T) {
 	require.False(t, l.CanIterate())
 	require.Nil(t, l.Iterate())
 	require.Equal(t, ErrNotIndexAssignable, l.IndexSet(nil, nil))
-	_, err := l.IndexGet(nil)
-	require.Equal(t, ErrNotIndexable, err)
 
 	tm := &Time{}
 	require.Equal(t, "time", tm.TypeName())
@@ -522,7 +520,7 @@ func TestModuleTime(t *testing.T) {
 func testTimeSelector(t *testing.T, tm Object,
 	selector string, expected Object) {
 	t.Helper()
-	v, err := tm.IndexGet(String(selector))
+	v, err := tm.(IndexGetter).IndexGet(String(selector))
 	require.NoError(t, err)
 	require.Equal(t, expected, v)
 }
@@ -840,7 +838,7 @@ func (*illegalDur) String() string   { return "illegal" }
 func (*illegalDur) TypeName() string { return "illegal" }
 
 type Opts struct {
-	global Object
+	global IndexGetter
 	args   []Object
 }
 
@@ -853,7 +851,7 @@ func (o *Opts) Args(args ...Object) *Opts {
 	return o
 }
 
-func (o *Opts) Globals(g Object) *Opts {
+func (o *Opts) Globals(g IndexGetter) *Opts {
 	o.global = g
 	return o
 }
@@ -869,7 +867,7 @@ func expectRun(t *testing.T, script string, opts *Opts, expected Object) {
 	c.ModuleMap = mm
 	bc, err := Compile([]byte(script), c)
 	require.NoError(t, err)
-	ret, err := NewVM(bc).Run(opts.global, opts.args...)
+	ret, err := NewVM(bc).RunOpts(&RunOpts{Globals: opts.global, Args: Args{opts.args}})
 	require.NoError(t, err)
 	require.Equal(t, expected, ret)
 }

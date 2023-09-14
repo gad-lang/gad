@@ -536,7 +536,7 @@ func ToGoBool(o Object) (v bool, ok bool) {
 //
 //gad:callable func(o Object, k string) (err error)
 
-// builtin copy, len, error, typeName, bool, string, isInt, isUint
+// builtin copy, dcopy, len, error, typeName, bool, string, isInt, isUint
 // isFloat, isChar, isBool, isString, isBytes, isMap, isSyncMap, isArray
 // isNil, isFunction, isCallable, isIterable
 //

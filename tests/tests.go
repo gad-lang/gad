@@ -12,6 +12,7 @@ func Sdump(value interface{}) string {
 	sdump("", &sb, value)
 	return sb.String()
 }
+
 func sdump(prefix string, sb *strings.Builder, value interface{}) {
 	const indent = "  "
 	if value == nil {

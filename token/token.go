@@ -101,6 +101,9 @@ const (
 	Catch
 	Finally
 	Throw
+	Callee
+	NamedArgs
+	Args
 	KeywordEnd_
 )
 
@@ -188,6 +191,9 @@ var tokens = [...]string{
 	Catch:           "catch",
 	Finally:         "finally",
 	Throw:           "throw",
+	Callee:          "__callee__",
+	Args:            "__args__",
+	NamedArgs:       "__named_args__",
 }
 
 func (tok Token) String() string {
@@ -262,6 +268,16 @@ func (tok Token) IsBinaryOperator() bool {
 // IsKeyword returns true if the token is a keyword.
 func (tok Token) IsKeyword() bool {
 	return KeyworkBegin_ < tok && tok < KeywordEnd_
+}
+
+// Is returns true if then token equals one of args.
+func (tok Token) Is(other ...Token) bool {
+	for _, o := range other {
+		if o == tok {
+			return true
+		}
+	}
+	return false
 }
 
 // Lookup returns corresponding keyword if ident is a keyword.

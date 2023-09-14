@@ -18,12 +18,13 @@ func TestEval(t *testing.T) {
 		result Object
 	}
 	testCases := []struct {
-		name   string
-		opts   CompilerOptions
-		global Object
-		args   []Object
-		ctx    context.Context
-		sr     []scriptResult
+		name      string
+		opts      CompilerOptions
+		global    IndexGetter
+		args      []Object
+		namedArgs *NamedArgs
+		ctx       context.Context
+		sr        []scriptResult
 	}{
 		{
 			name: "simple",
@@ -82,10 +83,122 @@ func TestEval(t *testing.T) {
 				{`c`, Nil},
 			},
 		},
+		{
+			name: "namedParams0",
+			sr: []scriptResult{
+				{`param (a=1)`, Nil},
+				{`a`, Int(1)},
+			},
+		},
+		{
+			name: "namedParams1",
+			sr: []scriptResult{
+				{`param (a=1,b=2)`, Nil},
+				{`a`, Int(1)},
+				{`b`, Int(2)},
+			},
+		},
+		{
+			name:      "namedParams2",
+			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("b"), Int(3)}}),
+			sr: []scriptResult{
+				{`param (a=1,b=2)`, Nil},
+				{`a`, Int(1)},
+				{`b`, Int(3)},
+			},
+		},
+		{
+			name:      "namedParams3",
+			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("b"), Int(3)}, KeyValue{String("c"), Int(4)}}),
+			sr: []scriptResult{
+				{`param (a=1,b=2,...other)`, Nil},
+				{`a`, Int(1)},
+				{`b`, Int(3)},
+				{`string(other)`, String("(;c=4)")},
+			},
+		},
+		{
+			name: "paramsAndNamedParams0",
+			sr: []scriptResult{
+				{`param (a;b=1)`, Nil},
+				{`a`, Nil},
+				{`b`, Int(1)},
+			},
+		},
+		{
+			name:      "paramsAndNamedParams1",
+			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("c"), Int(4)}}),
+			sr: []scriptResult{
+				{`param (a;b=1,...other)`, Nil},
+				{`a`, Nil},
+				{`b`, Int(1)},
+				{`string(other)`, String("(;c=4)")},
+			},
+		},
+		{
+			name:      "paramsAndNamedParams2",
+			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("c"), Int(4)}, KeyValue{String("d"), Int(5)}}),
+			sr: []scriptResult{
+				{`param (a;b=1,c=2,...other)`, Nil},
+				{`a`, Nil},
+				{`b`, Int(1)},
+				{`c`, Int(4)},
+				{`string(other)`, String("(;d=5)")},
+			},
+		},
+		{
+			name: "paramsAndNamedParams3",
+			args: []Object{Int(1), Int(2)},
+			sr: []scriptResult{
+				{`param (a, b, c;d=100,e=10,...other)`, Nil},
+				{`a`, Int(1)},
+				{`b`, Int(2)},
+				{`c`, Nil},
+				{`d`, Int(100)},
+				{`e`, Int(10)},
+				{`string(other)`, String("(;)")},
+			},
+		},
+		{
+			name:      "paramsAndNamedParams4",
+			args:      []Object{Int(1), Int(2)},
+			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("e"), Int(6)}, KeyValue{String("f"), Int(7)}}),
+			sr: []scriptResult{
+				{`param (a, b, c;d=100,e=10,...other)`, Nil},
+				{`a`, Int(1)},
+				{`b`, Int(2)},
+				{`c`, Nil},
+				{`d`, Int(100)},
+				{`e`, Int(6)},
+				{`string(other)`, String("(;f=7)")},
+			},
+		},
+		{
+			name:      "paramsAndNamedParams5",
+			args:      []Object{Int(1), Int(2), Int(3)},
+			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("e"), Int(6)}, KeyValue{String("f"), Int(7)}}),
+			sr: []scriptResult{
+				{`param (a, ...otherArgs;...other)`, Nil},
+				{`string(otherArgs)`, String("[2, 3]")},
+			},
+		},
+		{
+			name:      "paramsAndNamedParams6",
+			args:      []Object{Int(1), Int(2), Int(3)},
+			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("e"), Int(6)}, KeyValue{String("f"), Int(7)}}),
+			sr: []scriptResult{
+				{`param (a, ...otherArgs;d=100,e=10,...other)`, Nil},
+				{`a`, Int(1)},
+				{`string(otherArgs)`, String("[2, 3]")},
+				{`d`, Int(100)},
+				{`e`, Int(6)},
+				{`string(other)`, String("(;f=7)")},
+			},
+		},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.name, func(t *testing.T) {
-			eval := NewEval(tC.opts, tC.global, tC.args...)
+			eval := NewEval(tC.opts, &RunOpts{Globals: tC.global, Args: Args{tC.args}, NamedArgs: tC.namedArgs})
 			for _, sr := range tC.sr {
 				ret, _, err := eval.Run(tC.ctx, []byte(sr.script))
 				require.NoError(t, err, sr.script)
@@ -104,7 +217,7 @@ func TestEval(t *testing.T) {
 				},
 			},
 		}
-		eval := NewEval(DefaultCompilerOptions, globals)
+		eval := NewEval(DefaultCompilerOptions, &RunOpts{Globals: globals})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		ret, bc, err := eval.Run(ctx, []byte(`
@@ -116,7 +229,7 @@ func TestEval(t *testing.T) {
 
 	// test error
 	t.Run("parser error", func(t *testing.T) {
-		eval := NewEval(DefaultCompilerOptions, nil)
+		eval := NewEval(DefaultCompilerOptions)
 		ret, bc, err := eval.Run(context.Background(), []byte(`...`))
 		require.Nil(t, ret)
 		require.Nil(t, bc)

@@ -357,33 +357,111 @@ func (p *Parser) parseCall(x Expr) *CallExpr {
 	lparen := p.expect(token.LParen)
 	p.exprLevel++
 
-	var list []Expr
-	var ellipsis Pos
-	for p.token != token.RParen && p.token != token.EOF {
+	var (
+		args      CallExprArgs
+		namedArgs CallExprNamedArgs
+	)
+
+	for p.token != token.RParen && p.token != token.EOF && p.token != token.Semicolon {
 		if p.token == token.Ellipsis {
-			ellipsis = p.pos
+			elipsis := &EllipsisValue{Pos: p.pos}
 			p.next()
-			list = append(list, p.parseExpr())
-			continue
+			elipsis.Value = p.parseExpr()
+			if _, ok := elipsis.Value.(*MapLit); ok {
+				namedArgs.Ellipsis = elipsis
+				goto done
+			} else {
+				args.Ellipsis = elipsis
+			}
+			goto kw
 		}
-		list = append(list, p.parseExpr())
-		if ellipsis.IsValid() {
-			break
+		args.Values = append(args.Values, p.parseExpr())
+		switch p.token {
+		case token.Assign:
+			val := args.Values[len(args.Values)-1]
+			args.Values = args.Values[:len(args.Values)-1]
+			switch t := val.(type) {
+			case *Ident:
+				namedArgs.Names = append(namedArgs.Names, NamedArgExpr{Ident: t})
+			case *StringLit:
+				namedArgs.Names = append(namedArgs.Names, NamedArgExpr{String: t})
+			default:
+				p.errorExpected(val.Pos(), "string|ident")
+			}
+			p.next()
+			namedArgs.Values = append(namedArgs.Values, p.parseExpr())
+			goto kw
+		case token.Semicolon:
+			goto kw
 		}
-		if !p.atComma("argument list", token.RParen) {
+		if !p.atComma("call argument", token.RParen) {
 			break
 		}
 		p.next()
 	}
 
+kw:
+	if (p.token == token.Semicolon && p.tokenLit == ";") ||
+		(p.token == token.Comma && (len(namedArgs.Names) == 1 || args.Ellipsis != nil)) {
+		p.next()
+
+		for {
+			switch p.token {
+			case token.Ellipsis:
+				namedArgs.Ellipsis = &EllipsisValue{Pos: p.pos}
+				p.next()
+				namedArgs.Ellipsis.Value = p.parseExpr()
+				goto done
+			case token.RParen, token.EOF:
+				goto done
+			default:
+				expr := p.parsePrimaryExpr()
+				switch t := expr.(type) {
+				case *Ident:
+					namedArgs.Names = append(namedArgs.Names, NamedArgExpr{Ident: t})
+				case *StringLit:
+					namedArgs.Names = append(namedArgs.Names, NamedArgExpr{String: t})
+				case *CallExpr, *SelectorExpr, *MapLit:
+					namedArgs.Ellipsis = &EllipsisValue{p.pos, t}
+					p.expect(token.Ellipsis)
+					if !p.atComma("call argument", token.RParen) {
+						goto done
+					}
+				default:
+					pos := p.pos
+					p.errorExpected(pos, "string|ident|selector|call")
+					p.advance(stmtStart)
+					goto done
+				}
+
+				// check if is flag
+				switch p.token {
+				case token.Comma, token.RParen:
+					namedArgs.Values = append(namedArgs.Values, nil)
+				// is flag
+				default:
+					p.expect(token.Assign)
+					namedArgs.Values = append(namedArgs.Values, p.parseExpr())
+				}
+
+				if !p.atComma("call argument", token.RParen) {
+					break
+				}
+
+				p.next()
+			}
+		}
+	}
+
+done:
 	p.exprLevel--
 	rparen := p.expect(token.RParen)
 	return &CallExpr{
-		Func:     x,
-		LParen:   lparen,
-		RParen:   rparen,
-		Ellipsis: ellipsis,
-		Args:     list,
+		Func:      x,
+		LParen:    lparen,
+		RParen:    rparen,
+		Args:      args,
+		NamedArgs: namedArgs,
 	}
 }
 
@@ -492,6 +570,88 @@ func (p *Parser) parseNullishSelector(x Expr) Expr {
 	return &NullishSelectorExpr{Expr: x, Sel: sel}
 }
 
+func (p *Parser) parsePrimitiveOperand() Expr {
+	switch p.token {
+	case token.Ident:
+		return p.parseIdent()
+	case token.Int:
+		v, _ := strconv.ParseInt(p.tokenLit, 0, 64)
+		x := &IntLit{
+			Value:    v,
+			ValuePos: p.pos,
+			Literal:  p.tokenLit,
+		}
+		p.next()
+		return x
+	case token.Uint:
+		v, _ := strconv.ParseUint(strings.TrimSuffix(p.tokenLit, "u"), 0, 64)
+		x := &UintLit{
+			Value:    v,
+			ValuePos: p.pos,
+			Literal:  p.tokenLit,
+		}
+		p.next()
+		return x
+	case token.Float:
+		v, _ := strconv.ParseFloat(p.tokenLit, 64)
+		x := &FloatLit{
+			Value:    v,
+			ValuePos: p.pos,
+			Literal:  p.tokenLit,
+		}
+		p.next()
+		return x
+	case token.Char:
+		return p.parseCharLit()
+	case token.String:
+		v, _ := strconv.Unquote(p.tokenLit)
+		x := &StringLit{
+			Value:    v,
+			ValuePos: p.pos,
+			Literal:  p.tokenLit,
+		}
+		p.next()
+		return x
+	case token.True:
+		x := &BoolLit{
+			Value:    true,
+			ValuePos: p.pos,
+			Literal:  p.tokenLit,
+		}
+		p.next()
+		return x
+	case token.False:
+		x := &BoolLit{
+			Value:    false,
+			ValuePos: p.pos,
+			Literal:  p.tokenLit,
+		}
+		p.next()
+		return x
+	case token.Nil:
+		x := &NilLit{TokenPos: p.pos}
+		p.next()
+		return x
+	case token.Callee:
+		x := &CalleeKeyword{TokenPos: p.pos, Literal: p.tokenLit}
+		p.next()
+		return x
+	case token.Args:
+		x := &ArgsKeyword{TokenPos: p.pos, Literal: p.tokenLit}
+		p.next()
+		return x
+	case token.NamedArgs:
+		x := &NamedArgsKeyword{TokenPos: p.pos, Literal: p.tokenLit}
+		p.next()
+		return x
+	}
+
+	pos := p.pos
+	p.errorExpected(pos, "primitive operand")
+	p.advance(stmtStart)
+	return &BadExpr{From: pos, To: p.pos}
+}
+
 func (p *Parser) parseOperand() Expr {
 	if p.trace {
 		defer untracep(tracep(p, "Operand"))
@@ -570,11 +730,26 @@ func (p *Parser) parseOperand() Expr {
 		x := &NilLit{TokenPos: p.pos}
 		p.next()
 		return x
+	case token.Callee:
+		x := &CalleeKeyword{TokenPos: p.pos, Literal: p.tokenLit}
+		p.next()
+		return x
+	case token.Args:
+		x := &ArgsKeyword{TokenPos: p.pos, Literal: p.tokenLit}
+		p.next()
+		return x
+	case token.NamedArgs:
+		x := &NamedArgsKeyword{TokenPos: p.pos, Literal: p.tokenLit}
+		p.next()
+		return x
 	case token.Import:
 		return p.parseImportExpr()
 	case token.LParen:
 		lparen := p.pos
 		p.next()
+		if p.token == token.Semicolon && p.tokenLit == ";" {
+			return p.parseKeyValueArrayLit(lparen)
+		}
 		p.exprLevel++
 		x := p.parseExpr()
 		p.exprLevel--
@@ -692,10 +867,139 @@ func (p *Parser) parseFuncType() *FuncType {
 	}
 
 	pos := p.expect(token.Func)
-	params := p.parseIdentList()
+	params := p.parseFuncParams()
 	return &FuncType{
 		FuncPos: pos,
-		Params:  params,
+		Params:  *params,
+	}
+}
+
+func (p *Parser) parseFuncParam(prev Spec) (spec Spec) {
+	p.skipSpace()
+
+	var (
+		pos = p.pos
+
+		ident    *Ident
+		variadic bool
+		named    bool
+		value    Expr
+	)
+
+	if p.token == token.Semicolon && p.tokenLit == ";" {
+		p.next()
+		p.skipSpace()
+		named = true
+	} else if prev != nil {
+		switch t := prev.(type) {
+		case *NamedParamSpec:
+			if t.Value == nil {
+				p.error(pos, "unexpected func param declaration")
+				p.expectSemi()
+			}
+			named = true
+		case *ParamSpec:
+			if t.Variadic {
+				named = true
+			}
+		}
+	}
+
+	if p.token == token.Ident {
+		ident = p.parseIdent()
+		p.skipSpace()
+		if named {
+			p.expect(token.Assign)
+			value = p.parseExpr()
+		} else if p.tokenLit == ";" {
+			goto done
+		}
+	} else if p.token == token.Ellipsis {
+		variadic = true
+		p.next()
+		ident = p.parseIdent()
+		p.skipSpace()
+	}
+
+	if p.token == token.Comma {
+		p.next()
+		p.skipSpace()
+	} else if p.token == token.Semicolon {
+		if p.token == token.Assign {
+			named = true
+			p.next()
+			value = p.parseExpr()
+			p.skipSpace()
+			if p.token == token.Comma {
+				p.next()
+				p.skipSpace()
+			}
+		} else if !named {
+			p.expectSemi()
+		}
+	}
+
+	if ident == nil {
+		p.error(pos, "wrong func params declaration")
+		p.expectSemi()
+	}
+
+	if named {
+		if value == nil && !variadic {
+			p.error(pos, "wrong func params declaration")
+		}
+		return &NamedParamSpec{
+			Ident: ident,
+			Value: value,
+		}
+	}
+done:
+	return &ParamSpec{
+		Ident:    ident,
+		Variadic: variadic,
+	}
+}
+
+func (p *Parser) parseFuncParams() *FuncParams {
+	if p.trace {
+		defer untracep(tracep(p, "FuncParams"))
+	}
+
+	var (
+		args      ArgsList
+		namedArgs NamedArgsList
+		lparen    = p.pos
+		spec      Spec
+	)
+
+	p.next()
+
+	for i := 0; p.token != token.RParen && p.token != token.EOF; i++ { //nolint:predeclared
+		spec = p.parseFuncParam(spec)
+		if p, _ := spec.(*ParamSpec); p != nil {
+			if p.Variadic {
+				args.Var = p.Ident
+			} else {
+				args.Values = append(args.Values, p.Ident)
+			}
+		} else {
+			p := spec.(*NamedParamSpec)
+			if p.Value == nil {
+				namedArgs.Var = p.Ident
+			} else {
+				namedArgs.Names = append(namedArgs.Names, p.Ident)
+				namedArgs.Values = append(namedArgs.Values, p.Value)
+			}
+		}
+	}
+
+	rparen := p.expect(token.RParen)
+
+	return &FuncParams{
+		LParen:    lparen,
+		RParen:    rparen,
+		Args:      args,
+		NamedArgs: namedArgs,
 	}
 }
 
@@ -741,36 +1045,6 @@ func (p *Parser) parseIdent() *Ident {
 	}
 }
 
-func (p *Parser) parseIdentList() *IdentList {
-	if p.trace {
-		defer untracep(tracep(p, "IdentList"))
-	}
-
-	var params []*Ident
-	lparen := p.expect(token.LParen)
-	var varArgs bool
-
-	for p.token != token.RParen && p.token != token.EOF && !varArgs {
-		if p.token == token.Ellipsis {
-			varArgs = true
-			p.next()
-		}
-		params = append(params, p.parseIdent())
-		if !p.atComma("parameter list", token.RParen) {
-			break
-		}
-		p.next()
-	}
-
-	rparen := p.expect(token.RParen)
-	return &IdentList{
-		LParen:  lparen,
-		RParen:  rparen,
-		VarArgs: varArgs,
-		List:    params,
-	}
-}
-
 func (p *Parser) parseStmt() (stmt Stmt) {
 	if p.trace {
 		defer untracep(tracep(p, "Statement"))
@@ -783,7 +1057,8 @@ func (p *Parser) parseStmt() (stmt Stmt) {
 		token.Func, token.Ident, token.Int, token.Uint, token.Float,
 		token.Char, token.String, token.True, token.False, token.Nil,
 		token.LParen, token.LBrace, token.LBrack, token.Add, token.Sub,
-		token.Mul, token.And, token.Xor, token.Not, token.Import:
+		token.Mul, token.And, token.Xor, token.Not, token.Import,
+		token.Callee, token.Args, token.NamedArgs:
 		s := p.parseSimpleStmt(false)
 		p.expectSemi()
 		return s
@@ -831,7 +1106,7 @@ func (p *Parser) parseDecl() Decl {
 
 func (p *Parser) parseGenDecl(
 	keyword token.Token,
-	fn func(token.Token, bool, interface{}) Spec,
+	fn func(token.Token, bool, []Spec, int) Spec,
 ) *GenDecl {
 	if p.trace {
 		defer untracep(tracep(p, "GenDecl("+keyword.String()+")"))
@@ -842,13 +1117,13 @@ func (p *Parser) parseGenDecl(
 	if p.token == token.LParen {
 		lparen = p.pos
 		p.next()
-		for iota := 0; p.token != token.RParen && p.token != token.EOF; iota++ { //nolint:predeclared
-			list = append(list, fn(keyword, true, iota))
+		for i := 0; p.token != token.RParen && p.token != token.EOF; i++ { //nolint:predeclared
+			list = append(list, fn(keyword, true, list, i))
 		}
 		rparen = p.expect(token.RParen)
 		p.expectSemi()
 	} else {
-		list = append(list, fn(keyword, false, 0))
+		list = append(list, fn(keyword, false, list, 0))
 		p.expectSemi()
 	}
 	return &GenDecl{
@@ -860,37 +1135,95 @@ func (p *Parser) parseGenDecl(
 	}
 }
 
-func (p *Parser) parseParamSpec(keyword token.Token, multi bool, _ interface{}) Spec {
+func (p *Parser) parseParamSpec(keyword token.Token, multi bool, prev []Spec, i int) (spec Spec) {
 	if p.trace {
 		defer untracep(tracep(p, keyword.String()+"Spec"))
 	}
-	pos := p.pos
-	var ident *Ident
-	var variadic bool
+
+	if multi {
+		p.skipSpace()
+	}
+
+	var (
+		pos = p.pos
+
+		ident    *Ident
+		variadic bool
+		named    bool
+		value    Expr
+	)
+
+	if p.token == token.Semicolon && p.tokenLit == ";" {
+		p.next()
+		if multi {
+			p.skipSpace()
+		}
+		named = true
+	} else if i > 0 {
+		switch t := prev[i-1].(type) {
+		case *NamedParamSpec:
+			if t.Value == nil {
+				p.error(pos, "unexpected arg declaration")
+				p.expectSemi()
+			}
+			named = true
+		case *ParamSpec:
+			if t.Variadic {
+				named = true
+			}
+		}
+	}
+
 	if p.token == token.Ident {
 		ident = p.parseIdent()
 	} else if keyword == token.Param && p.token == token.Ellipsis {
 		variadic = true
 		p.next()
 		ident = p.parseIdent()
+		if multi {
+			p.skipSpace()
+		}
 	}
+
 	if multi && p.token == token.Comma {
 		p.next()
+		p.skipSpace()
 	} else if multi {
-		p.expectSemi()
+		if p.token == token.Assign {
+			named = true
+			p.next()
+			value = p.parseExpr()
+			if p.token == token.Comma || (p.token == token.Semicolon && p.tokenLit == "\n") {
+				p.next()
+				p.skipSpace()
+			}
+		} else if !named {
+			p.expectSemi()
+		}
 	}
+
 	if ident == nil {
 		p.error(pos, fmt.Sprintf("wrong %s declaration", keyword.String()))
 		p.expectSemi()
 	}
-	spec := &ParamSpec{
+
+	if named {
+		if value == nil && !variadic {
+			p.error(pos, fmt.Sprintf("wrong %s declaration", keyword.String()))
+		}
+		return &NamedParamSpec{
+			Ident: ident,
+			Value: value,
+		}
+	}
+
+	return &ParamSpec{
 		Ident:    ident,
 		Variadic: variadic,
 	}
-	return spec
 }
 
-func (p *Parser) parseValueSpec(keyword token.Token, multi bool, data interface{}) Spec {
+func (p *Parser) parseValueSpec(keyword token.Token, multi bool, _ []Spec, i int) Spec {
 	if p.trace {
 		defer untracep(tracep(p, keyword.String()+"Spec"))
 	}
@@ -905,7 +1238,7 @@ func (p *Parser) parseValueSpec(keyword token.Token, multi bool, data interface{
 			expr = p.parseExpr()
 		}
 		if keyword == token.Const && expr == nil {
-			if v, ok := data.(int); ok && v == 0 {
+			if i == 0 {
 				p.error(p.pos, "missing initializer in const declaration")
 			}
 		}
@@ -924,7 +1257,7 @@ func (p *Parser) parseValueSpec(keyword token.Token, multi bool, data interface{
 	spec := &ValueSpec{
 		Idents: idents,
 		Values: values,
-		Data:   data,
+		Data:   i,
 	}
 	return spec
 }
@@ -1373,6 +1706,64 @@ func (p *Parser) parseMapLit() *MapLit {
 	}
 }
 
+func (p *Parser) parseKeyValueLit() *KeyValueLit {
+	if p.trace {
+		defer untracep(tracep(p, "KeyValueLit"))
+	}
+
+	p.skipSpace()
+
+	var (
+		pos       = p.pos
+		keyExpr   = p.parsePrimitiveOperand()
+		colonPos  Pos
+		valueExpr Expr
+	)
+
+	p.skipSpace()
+
+	switch p.token {
+	case token.Comma, token.RParen:
+	default:
+		colonPos = p.expect(token.Assign)
+		valueExpr = p.parseExpr()
+		p.skipSpace()
+	}
+	return &KeyValueLit{
+		Key:      keyExpr,
+		KeyPos:   pos,
+		ColonPos: colonPos,
+		Value:    valueExpr,
+	}
+}
+
+func (p *Parser) parseKeyValueArrayLit(lbrace Pos) *KeyValueArrayLit {
+	if p.trace {
+		defer untracep(tracep(p, "parseKeyValueArrayLit"))
+	}
+
+	p.exprLevel++
+	p.expect(token.Semicolon)
+
+	var elements []*KeyValueLit
+	for p.token != token.RParen && p.token != token.EOF {
+		elements = append(elements, p.parseKeyValueLit())
+
+		if !p.atComma("keyValueArray literal", token.RParen) {
+			break
+		}
+		p.next()
+	}
+
+	p.exprLevel--
+	rbrace := p.expect(token.RParen)
+	return &KeyValueArrayLit{
+		LBrace:   lbrace,
+		RBrace:   rbrace,
+		Elements: elements,
+	}
+}
+
 func (p *Parser) expect(token token.Token) Pos {
 	pos := p.pos
 
@@ -1506,6 +1897,12 @@ func (p *Parser) next() {
 			// lead comment of next token
 			_ = p.consumeCommentGroup(1)
 		}
+	}
+}
+
+func (p *Parser) skipSpace() {
+	for p.token == token.Semicolon && p.tokenLit == "\n" {
+		p.next()
 	}
 }
 

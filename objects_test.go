@@ -223,11 +223,6 @@ func TestObjectImpl(t *testing.T) {
 	require.NotNil(t, err)
 	require.Equal(t, ErrInvalidOperator, err)
 
-	v, err = impl.IndexGet(Nil)
-	require.Nil(t, v)
-	require.NotNil(t, err)
-	require.Equal(t, ErrNotIndexable, err)
-
 	err = impl.IndexSet(Nil, Nil)
 	require.NotNil(t, err)
 	require.Equal(t, ErrNotIndexAssignable, err)
@@ -254,21 +249,9 @@ func TestObjectIndexGet(t *testing.T) {
 	require.Nil(t, v)
 	require.Equal(t, ErrNotIndexable, err)
 
-	v, err = (&Function{}).IndexGet(Nil)
-	require.Nil(t, v)
-	require.Equal(t, ErrNotIndexable, err)
-
-	v, err = (&BuiltinFunction{}).IndexGet(Nil)
-	require.Nil(t, v)
-	require.Equal(t, ErrNotIndexable, err)
-
 	v, err = (&CompiledFunction{}).IndexGet(Nil)
 	require.Nil(t, v)
 	require.Equal(t, ErrNotIndexable, err)
-
-	v, err = Nil.IndexGet(Nil)
-	require.Equal(t, Nil, v)
-	require.NoError(t, err)
 
 	v, err = (&Error{}).IndexGet(Nil)
 	require.NoError(t, err)

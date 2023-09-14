@@ -42,27 +42,28 @@ type (
 
 	// Compiler compiles the AST into a bytecode.
 	Compiler struct {
-		parent        *Compiler
-		file          *parser.SourceFile
-		constants     []Object
-		constsCache   map[Object]int
-		cfuncCache    map[uint32][]int
-		symbolTable   *SymbolTable
-		instructions  []byte
-		sourceMap     map[int]int
-		moduleMap     *ModuleMap
-		moduleStore   *moduleStore
-		modulePath    string
-		variadic      bool
-		loops         []*loopStmts
-		loopIndex     int
-		tryCatchIndex int
-		iotaVal       int
-		opts          CompilerOptions
-		trace         io.Writer
-		indent        int
-		stack         []parser.Node
-		selectorStack [][][]func()
+		parent         *Compiler
+		file           *parser.SourceFile
+		constants      []Object
+		constsCache    map[Object]int
+		cfuncCache     map[uint32][]int
+		symbolTable    *SymbolTable
+		instructions   []byte
+		sourceMap      map[int]int
+		moduleMap      *ModuleMap
+		moduleStore    *moduleStore
+		modulePath     string
+		variadic       bool
+		varNamedParams bool
+		loops          []*loopStmts
+		loopIndex      int
+		tryCatchIndex  int
+		iotaVal        int
+		opts           CompilerOptions
+		trace          io.Writer
+		indent         int
+		stack          []parser.Node
+		selectorStack  [][][]func()
 	}
 
 	// CompilerOptions represents customizable options for Compile().
@@ -268,16 +269,18 @@ func (c *Compiler) Bytecode() *Bytecode {
 		c.emit(nil, OpReturn, 0)
 	}
 
+	cf := &CompiledFunction{
+		Params:       c.symbolTable.params,
+		NamedParams:  c.symbolTable.namedParams,
+		NumLocals:    c.symbolTable.maxDefinition,
+		Instructions: c.instructions,
+		SourceMap:    c.sourceMap,
+	}
+
 	return &Bytecode{
-		FileSet:   c.file.Set(),
-		Constants: c.constants,
-		Main: &CompiledFunction{
-			NumParams:    c.symbolTable.NumParams(),
-			NumLocals:    c.symbolTable.MaxSymbols(),
-			Variadic:     c.variadic,
-			Instructions: c.instructions,
-			SourceMap:    c.sourceMap,
-		},
+		FileSet:    c.file.Set(),
+		Constants:  c.constants,
+		Main:       cf,
 		NumModules: c.moduleStore.count,
 	}
 }
@@ -347,6 +350,12 @@ func (c *Compiler) Compile(node parser.Node) error {
 		c.emit(node, OpConstant, c.addConstant(Char(node.Value)))
 	case *parser.NilLit:
 		c.emit(node, OpNull)
+	case *parser.CalleeKeyword:
+		c.emit(node, OpCallee)
+	case *parser.ArgsKeyword:
+		c.emit(node, OpArgs)
+	case *parser.NamedArgsKeyword:
+		c.emit(node, OpNamedArgs)
 	case *parser.UnaryExpr:
 		return c.compileUnaryExpr(node)
 	case *parser.IfStmt:
@@ -378,6 +387,8 @@ func (c *Compiler) Compile(node parser.Node) error {
 		return c.compileArrayLit(node)
 	case *parser.MapLit:
 		return c.compileMapLit(node)
+	case *parser.KeyValueArrayLit:
+		return c.compileKeyValueArrayLit(node)
 	case *parser.SelectorExpr: // selector on RHS side
 		return c.compileSelectorExpr(node)
 	case *parser.NullishSelectorExpr: // selector on RHS side
@@ -726,7 +737,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	buf = append(buf[:0], op)
 	switch op {
 	case OpConstant, OpMap, OpArray, OpGetGlobal, OpSetGlobal, OpJump,
-		OpJumpFalsy, OpAndJump, OpOrJump, OpStoreModule,
+		OpJumpFalsy, OpAndJump, OpOrJump, OpStoreModule, OpKeyValueArray,
 		OpJumpNull, OpJumpNotNull:
 		buf = append(buf, byte(args[0]>>8))
 		buf = append(buf, byte(args[0]))
@@ -753,7 +764,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		return buf, nil
 	case OpEqual, OpNotEqual, OpNull, OpTrue, OpFalse, OpPop, OpSliceIndex,
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
-		OpSetupCatch, OpSetupFinally, OpNoOp:
+		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs:
 		return buf, nil
 	default:
 		return buf, &Error{

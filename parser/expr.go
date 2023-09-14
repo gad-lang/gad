@@ -13,6 +13,7 @@
 package parser
 
 import (
+	"bytes"
 	"strings"
 
 	"github.com/gad-lang/gad/token"
@@ -124,11 +125,11 @@ func (e *BoolLit) String() string {
 
 // CallExpr represents a function call expression.
 type CallExpr struct {
-	Func     Expr
-	LParen   Pos
-	Args     []Expr
-	Ellipsis Pos
-	RParen   Pos
+	Func      Expr
+	LParen    Pos
+	Args      CallExprArgs
+	NamedArgs CallExprNamedArgs
+	RParen    Pos
 }
 
 func (e *CallExpr) exprNode() {}
@@ -144,14 +145,17 @@ func (e *CallExpr) End() Pos {
 }
 
 func (e *CallExpr) String() string {
-	var args []string
-	for _, e := range e.Args {
-		args = append(args, e.String())
+	var buf = bytes.NewBufferString(e.Func.String())
+	buf.WriteString("(")
+	if e.Args.Valid() {
+		buf.WriteString(e.Args.String())
 	}
-	if len(args) > 0 && e.Ellipsis.IsValid() {
-		args[len(args)-1] = args[len(args)-1] + "..."
+	if e.NamedArgs.Valid() {
+		buf.WriteString("; ")
+		buf.WriteString(e.NamedArgs.String())
 	}
-	return e.Func.String() + "(" + strings.Join(args, ", ") + ")"
+	buf.WriteString(")")
+	return buf.String()
 }
 
 // CharLit represents a character literal.
@@ -271,10 +275,158 @@ func (e *FuncLit) String() string {
 	return "func" + e.Type.Params.String() + " " + e.Body.String()
 }
 
+// ArgsList represents a list of identifiers.
+type ArgsList struct {
+	Var    *Ident
+	Values []*Ident
+}
+
+// Pos returns the position of first character belonging to the node.
+func (n *ArgsList) Pos() Pos {
+	if len(n.Values) > 0 {
+		return n.Values[0].Pos()
+	} else if n.Var != nil {
+		return n.Var.Pos()
+	}
+	return NoPos
+}
+
+// End returns the position of first character immediately after the node.
+func (n *ArgsList) End() Pos {
+	if n.Var != nil {
+		return n.Var.End()
+	} else if l := len(n.Values); l > 0 {
+		return n.Values[l-1].End()
+	}
+	return NoPos
+}
+
+// NumFields returns the number of fields.
+func (n *ArgsList) NumFields() int {
+	if n == nil {
+		return 0
+	}
+	return len(n.Values)
+}
+
+func (n *ArgsList) String() string {
+	var list []string
+	for _, e := range n.Values {
+		list = append(list, e.String())
+	}
+	if n.Var != nil {
+		list = append(list, "..."+n.Var.String())
+	}
+	return strings.Join(list, ", ")
+}
+
+// NamedArgsList represents a list of identifier with value pairs.
+type NamedArgsList struct {
+	Var    *Ident
+	Names  []*Ident
+	Values []Expr
+}
+
+func (n *NamedArgsList) Add(name *Ident, value Expr) *NamedArgsList {
+	n.Names = append(n.Names, name)
+	n.Values = append(n.Values, value)
+	return n
+}
+
+// Pos returns the position of first character belonging to the node.
+func (n *NamedArgsList) Pos() Pos {
+	if len(n.Names) > 0 {
+		return n.Names[0].Pos()
+	} else if n.Var != nil {
+		return n.Var.Pos()
+	}
+	return NoPos
+}
+
+// End returns the position of first character immediately after the node.
+func (n *NamedArgsList) End() Pos {
+	if n.Var != nil {
+		return n.Var.End()
+	}
+	if l := len(n.Names); l > 0 {
+		if n.Var != nil {
+			return n.Var.End()
+		}
+		return n.Values[l-1].End()
+	}
+	return NoPos
+}
+
+// NumFields returns the number of fields.
+func (n *NamedArgsList) NumFields() int {
+	if n == nil {
+		return 0
+	}
+	return len(n.Names)
+}
+
+func (n *NamedArgsList) String() string {
+	var list []string
+	for i, e := range n.Names {
+		list = append(list, e.String()+"="+n.Values[i].String())
+	}
+	if n.Var != nil {
+		list = append(list, "..."+n.Var.String())
+	}
+	return strings.Join(list, ", ")
+}
+
+// FuncParams represents a function paramsw.
+type FuncParams struct {
+	LParen    Pos
+	Args      ArgsList
+	NamedArgs NamedArgsList
+	RParen    Pos
+}
+
+// Pos returns the position of first character belonging to the node.
+func (n *FuncParams) Pos() (pos Pos) {
+	if n.LParen.IsValid() {
+		return n.LParen
+	}
+	if pos = n.Args.Pos(); pos != NoPos {
+		return pos
+	}
+	if pos = n.NamedArgs.Pos(); pos != NoPos {
+		return pos
+	}
+	return NoPos
+}
+
+// End returns the position of first character immediately after the node.
+func (n *FuncParams) End() (pos Pos) {
+	if n.RParen.IsValid() {
+		return n.RParen + 1
+	}
+	if pos = n.NamedArgs.End(); pos != NoPos {
+		return pos
+	}
+	if pos = n.Args.End(); pos != NoPos {
+		return pos
+	}
+	return NoPos
+}
+
+func (n *FuncParams) String() string {
+	buf := bytes.NewBufferString("(")
+	buf.WriteString(n.Args.String())
+	if buf.Len() > 1 && n.NamedArgs.Pos() != NoPos {
+		buf.WriteString("; ")
+	}
+	buf.WriteString(n.NamedArgs.String())
+	buf.WriteString(")")
+	return buf.String()
+}
+
 // FuncType represents a function type definition.
 type FuncType struct {
 	FuncPos Pos
-	Params  *IdentList
+	Params  FuncParams
 }
 
 func (e *FuncType) exprNode() {}
@@ -673,4 +825,203 @@ func (e *NilLit) End() Pos {
 
 func (e *NilLit) String() string {
 	return "nil"
+}
+
+type EllipsisValue struct {
+	Pos   Pos
+	Value Expr
+}
+
+// CallExprArgs represents a call expression arguments.
+type CallExprArgs struct {
+	Values   []Expr
+	Ellipsis *EllipsisValue
+}
+
+func (a *CallExprArgs) Valid() bool {
+	return len(a.Values) > 0 || a.Ellipsis != nil
+}
+
+func (a *CallExprArgs) String() string {
+	var s []string
+	for _, v := range a.Values {
+		s = append(s, v.String())
+	}
+	if a.Ellipsis != nil {
+		s = append(s, "..."+a.Ellipsis.Value.String())
+	}
+	return strings.Join(s, ", ")
+}
+
+type NamedArgExpr struct {
+	String *StringLit
+	Ident  *Ident
+}
+
+func (e *NamedArgExpr) Name() string {
+	if e.String != nil {
+		return e.String.Value
+	}
+	return e.Ident.Name
+}
+
+func (e *NamedArgExpr) NameString() *StringLit {
+	if e.String != nil {
+		return e.String
+	}
+	return &StringLit{Value: e.Ident.Name, ValuePos: e.Ident.NamePos}
+}
+
+func (e *NamedArgExpr) Expr() Expr {
+	if e.String != nil {
+		return e.String
+	}
+	return e.Ident
+}
+
+// CallExprNamedArgs represents a call expression keyword arguments.
+type CallExprNamedArgs struct {
+	Names    []NamedArgExpr
+	Values   []Expr
+	Ellipsis *EllipsisValue
+}
+
+func (a *CallExprNamedArgs) Valid() bool {
+	return len(a.Names) > 0 || a.Ellipsis != nil
+}
+
+func (a *CallExprNamedArgs) NamesExpr() (r []Expr) {
+	for _, v := range a.Names {
+		r = append(r, v.Expr())
+	}
+	return r
+}
+
+func (a *CallExprNamedArgs) String() string {
+	var s []string
+	for i, name := range a.Names {
+		if a.Values[i] == nil {
+			s = append(s, name.Expr().String())
+		} else {
+			s = append(s, name.Expr().String()+"="+a.Values[i].String())
+		}
+	}
+	if a.Ellipsis != nil {
+		s = append(s, "..."+a.Ellipsis.Value.String())
+	}
+	return strings.Join(s, ", ")
+}
+
+// KeyValueLit represents a key value element.
+type KeyValueLit struct {
+	Key      Expr
+	KeyPos   Pos
+	ColonPos Pos
+	Value    Expr
+}
+
+func (e *KeyValueLit) exprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *KeyValueLit) Pos() Pos {
+	return e.KeyPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *KeyValueLit) End() Pos {
+	return e.Value.End()
+}
+
+func (e *KeyValueLit) String() string {
+	if e.Value == nil {
+		return e.Key.String()
+	}
+	return e.Key.String() + "=" + e.Value.String()
+}
+
+// KeyValueArrayLit represents a key value array literal.
+type KeyValueArrayLit struct {
+	LBrace   Pos
+	Elements []*KeyValueLit
+	RBrace   Pos
+}
+
+func (e *KeyValueArrayLit) exprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *KeyValueArrayLit) Pos() Pos {
+	return e.LBrace
+}
+
+// End returns the position of first character immediately after the node.
+func (e *KeyValueArrayLit) End() Pos {
+	return e.RBrace + 1
+}
+
+func (e *KeyValueArrayLit) String() string {
+	var elements []string
+	for _, m := range e.Elements {
+		elements = append(elements, m.String())
+	}
+	return "(;" + strings.Join(elements, ", ") + ")"
+}
+
+type CalleeKeyword struct {
+	TokenPos Pos
+	Literal  string
+}
+
+func (c *CalleeKeyword) Pos() Pos {
+	return c.TokenPos
+}
+
+func (c *CalleeKeyword) End() Pos {
+	return c.TokenPos + Pos(len(token.Callee.String()))
+}
+
+func (c *CalleeKeyword) String() string {
+	return c.Literal
+}
+
+func (c *CalleeKeyword) exprNode() {
+}
+
+type ArgsKeyword struct {
+	TokenPos Pos
+	Literal  string
+}
+
+func (c *ArgsKeyword) Pos() Pos {
+	return c.TokenPos
+}
+
+func (c *ArgsKeyword) End() Pos {
+	return c.TokenPos + Pos(len(c.Literal))
+}
+
+func (c *ArgsKeyword) String() string {
+	return c.Literal
+}
+
+func (c *ArgsKeyword) exprNode() {
+}
+
+type NamedArgsKeyword struct {
+	TokenPos Pos
+	Literal  string
+}
+
+func (c *NamedArgsKeyword) Pos() Pos {
+	return c.TokenPos
+}
+
+func (c *NamedArgsKeyword) End() Pos {
+	return c.TokenPos + Pos(len(c.Literal))
+}
+
+func (c *NamedArgsKeyword) String() string {
+	return c.Literal
+}
+
+func (c *NamedArgsKeyword) exprNode() {
 }

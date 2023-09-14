@@ -42,14 +42,6 @@ type Object interface {
 	// CanIterate should return whether the Object can be Iterated.
 	CanIterate() bool
 
-	// IndexGet should take an index Object and return a result Object or an
-	// error for indexable objects. Indexable is an object that can take an
-	// index and return an object. Returned error stops VM execution if not
-	// handled with an error handler and VM.Run returns the same error as
-	// wrapped. If Object is not indexable, ErrNotIndexable should be returned
-	// as error.
-	IndexGet(index Object) (value Object, err error)
-
 	// IndexSet should take an index Object and a value Object for index
 	// assignable objects. Index assignable is an object that can take an index
 	// and a value on the left-hand side of the assignment statement. If Object
@@ -59,18 +51,39 @@ type Object interface {
 	IndexSet(index, value Object) error
 }
 
-// Copier wraps the Copy method to create a deep copy of the object.
+// Copier wraps the Copy method to create a single copy of the object.
 type Copier interface {
+	Object
 	Copy() Object
+}
+
+// DeepCopier wraps the Copy method to create a deep copy of the object.
+type DeepCopier interface {
+	Object
+	DeepCopy() Object
 }
 
 // IndexDeleter wraps the IndexDelete method to delete an index of an object.
 type IndexDeleter interface {
+	Object
 	IndexDelete(Object) error
+}
+
+// IndexGetter wraps the IndexGet method to get index value.
+type IndexGetter interface {
+	Object
+	// IndexGet should take an index Object and return a result Object or an
+	// error for indexable objects. Indexable is an object that can take an
+	// index and return an object. Returned error stops VM execution if not
+	// handled with an error handler and VM.Run returns the same error as
+	// wrapped. If Object is not indexable, ErrNotIndexable should be returned
+	// as error.
+	IndexGet(index Object) (value Object, err error)
 }
 
 // LengthGetter wraps the Len method to get the number of elements of an object.
 type LengthGetter interface {
+	Object
 	Len() int
 }
 
@@ -86,6 +99,7 @@ type CallerObject interface {
 // Note if CallerObject implements this interface, CanCall() is called for check
 // if object is callable.
 type CanCallerObject interface {
+	CallerObject
 	// CanCall returns true if type can be called with Call() method.
 	// VM returns an error if one tries to call a noncallable object.
 	CanCall() bool
@@ -102,6 +116,40 @@ type NameCallerObject interface {
 type ToArrayAppenderObject interface {
 	Object
 	AppendToArray(arr *Array)
+}
+
+// ItemsGetter is an interface for returns pairs of fields or keys with same values.
+type ItemsGetter interface {
+	Object
+	Items() (arr KeyValueArray)
+}
+
+// KeysGetter is an interface for returns keys or fields names.
+type KeysGetter interface {
+	Object
+	Keys() (arr Array)
+}
+
+// ValuesGetter is an interface for returns values.
+type ValuesGetter interface {
+	Object
+	Values() (arr Array)
+}
+
+// Sorter is an interface for return sorted values.
+type Sorter interface {
+	Object
+
+	// Sort sorts object. if `update`, sort self and return then, other else sorts a self copy object.
+	Sort() (Object, error)
+}
+
+// ReverseSorter is an interface for return reverse sorted values.
+type ReverseSorter interface {
+	Object
+
+	// SortReverse sorts object reversely. if `update`, sort self and return then, other else sorts a self copy object.
+	SortReverse() (Object, error)
 }
 
 // ObjectImpl is the basic Object implementation and it does not nothing, and
@@ -133,11 +181,6 @@ func (ObjectImpl) CanIterate() bool { return false }
 
 // Iterate implements Object interface.
 func (ObjectImpl) Iterate() Iterator { return nil }
-
-// IndexGet implements Object interface.
-func (ObjectImpl) IndexGet(index Object) (value Object, err error) {
-	return nil, ErrNotIndexable
-}
 
 // IndexSet implements Object interface.
 func (ObjectImpl) IndexSet(index, value Object) error {

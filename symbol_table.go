@@ -42,7 +42,8 @@ type SymbolTable struct {
 	parent           *SymbolTable
 	maxDefinition    int
 	numDefinition    int
-	numParams        int
+	params           Params
+	namedParams      NamedParams
 	store            map[string]*Symbol
 	disabledBuiltins map[string]struct{}
 	frees            []*Symbol
@@ -87,21 +88,48 @@ func (st *SymbolTable) InBlock() bool {
 }
 
 // SetParams sets parameters defined in the scope. This can be called only once.
-func (st *SymbolTable) SetParams(params ...string) error {
+func (st *SymbolTable) SetParams(varParams bool, params ...string) (err error) {
 	if len(params) == 0 {
 		return nil
 	}
 
-	if st.numParams > 0 {
+	if st.params.Len > 0 {
 		return errors.New("parameters already defined")
 	}
 
+	if err = st.defineParamsVar(params); err == nil {
+		st.params.Len = len(params)
+		st.params.Var = varParams
+	}
+
+	return
+}
+
+// SetNamedParams sets parameters defined in the scope. This can be called only once.
+func (st *SymbolTable) SetNamedParams(params ...*NamedParam) (err error) {
+	if len(params) == 0 {
+		return nil
+	}
+
+	if st.namedParams.len > 0 {
+		return errors.New("named parameters already defined")
+	}
+
+	namedParams := NewNamedParams(params...)
+
+	if err = st.defineParamsVar(namedParams.Names()); err == nil {
+		st.namedParams = *namedParams
+	}
+
+	return
+}
+
+func (st *SymbolTable) defineParamsVar(names []string) error {
 	if st.disableParams {
 		return errors.New("parameters disabled")
 	}
 
-	st.numParams = len(params)
-	for _, param := range params {
+	for _, param := range names {
 		if _, ok := st.store[param]; ok {
 			return fmt.Errorf("%q redeclared in this block", param)
 		}
@@ -252,9 +280,14 @@ func (st *SymbolTable) MaxSymbols() int {
 	return st.maxDefinition
 }
 
-// NumParams returns number of parameters for the scope.
-func (st *SymbolTable) NumParams() int {
-	return st.numParams
+// Params returns parameters for the scope.
+func (st *SymbolTable) Params() Params {
+	return st.params
+}
+
+// NamedParams returns named parameters for the scope.
+func (st *SymbolTable) NamedParams() NamedParams {
+	return st.namedParams
 }
 
 // FreeSymbols returns registered free symbols for the scope.

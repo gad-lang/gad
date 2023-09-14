@@ -149,7 +149,7 @@ func TestCycle(t *testing.T) {
 }
 
 type Opts struct {
-	global Object
+	global IndexGetter
 	args   []Object
 }
 
@@ -162,7 +162,7 @@ func (o *Opts) Args(args ...Object) *Opts {
 	return o
 }
 
-func (o *Opts) Globals(g Object) *Opts {
+func (o *Opts) Globals(g IndexGetter) *Opts {
 	o.global = g
 	return o
 }
@@ -178,7 +178,7 @@ func expectRun(t *testing.T, script string, opts *Opts, expected Object) {
 	c.ModuleMap = mm
 	bc, err := Compile([]byte(script), c)
 	require.NoError(t, err)
-	ret, err := NewVM(bc).Run(opts.global, opts.args...)
+	ret, err := NewVM(bc).RunOpts(&RunOpts{Globals: opts.global, Args: Args{opts.args}})
 	require.NoError(t, err)
 	require.Equal(t, expected, ret)
 }

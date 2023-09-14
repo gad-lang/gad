@@ -32,6 +32,7 @@ const (
 	BuiltinAppend BuiltinType = iota
 	BuiltinDelete
 	BuiltinCopy
+	BuiltinDeepCopy
 	BuiltinRepeat
 	BuiltinContains
 	BuiltinLen
@@ -82,6 +83,12 @@ const (
 
 	BuiltinMakeArray
 	BuiltinCap
+
+	BuiltinKeys
+	BuiltinValues
+	BuiltinItems
+	BuiltinKeyValue
+	BuiltinKeyValueArray
 )
 
 // BuiltinsMap is list of builtin types, exported for REPL.
@@ -89,6 +96,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"append":      BuiltinAppend,
 	"delete":      BuiltinDelete,
 	"copy":        BuiltinCopy,
+	"dcopy":       BuiltinDeepCopy,
 	"repeat":      BuiltinRepeat,
 	"contains":    BuiltinContains,
 	"len":         BuiltinLen,
@@ -139,6 +147,12 @@ var BuiltinsMap = map[string]BuiltinType{
 
 	":makeArray": BuiltinMakeArray,
 	"cap":        BuiltinCap,
+
+	"keys":          BuiltinKeys,
+	"values":        BuiltinValues,
+	"items":         BuiltinItems,
+	"keyValue":      BuiltinKeyValue,
+	"keyValueArray": BuiltinKeyValueArray,
 }
 
 // BuiltinObjects is list of builtins, exported for REPL.
@@ -159,6 +173,10 @@ var BuiltinObjects = [...]Object{
 	BuiltinCopy: &BuiltinFunction{
 		Name:  "copy",
 		Value: funcPORO(builtinCopyFunc),
+	},
+	BuiltinDeepCopy: &BuiltinFunction{
+		Name:  "dcopy",
+		Value: funcPORO(builtinDeepCopyFunc),
 	},
 	BuiltinRepeat: &BuiltinFunction{
 		Name:  "repeat",
@@ -304,6 +322,26 @@ var BuiltinObjects = [...]Object{
 		Name:  "isIterable",
 		Value: funcPORO(builtinIsIterableFunc),
 	},
+	BuiltinKeys: &BuiltinFunction{
+		Name:  "keys",
+		Value: builtinKeysFunc,
+	},
+	BuiltinValues: &BuiltinFunction{
+		Name:  "values",
+		Value: builtinValuesFunc,
+	},
+	BuiltinItems: &BuiltinFunction{
+		Name:  "items",
+		Value: builtinItemsFunc,
+	},
+	BuiltinKeyValue: &BuiltinFunction{
+		Name:  "keyValue",
+		Value: builtinKeyValueFunc,
+	},
+	BuiltinKeyValueArray: &BuiltinFunction{
+		Name:  "keyValueArray",
+		Value: builtinKeyValueArrayFunc,
+	},
 
 	BuiltinWrongNumArgumentsError:  ErrWrongNumArguments,
 	BuiltinInvalidOperatorError:    ErrInvalidOperator,
@@ -385,6 +423,26 @@ func builtinAppendFunc(c Call) (Object, error) {
 			arg.AppendToArray(&ret)
 		}
 		return ret, nil
+	case KeyValueArray:
+		var (
+			err        error
+			i          = 1
+			arg, valid = c.Args.ShiftOk()
+		)
+
+		for valid {
+			if obj, err = obj.AppendObject(arg); err != nil {
+				err = NewArgumentTypeError(
+					strconv.Itoa(i)+"st",
+					err.Error(),
+					arg.TypeName(),
+				)
+				return nil, err
+			}
+			arg, valid = c.Args.ShiftOk()
+			i++
+		}
+		return obj, nil
 	default:
 		return Nil, NewArgumentTypeError(
 			"1st",
@@ -409,6 +467,15 @@ func builtinDeleteFunc(arg Object, key string) (err error) {
 
 func builtinCopyFunc(arg Object) Object {
 	if v, ok := arg.(Copier); ok {
+		return v.Copy()
+	}
+	return arg
+}
+
+func builtinDeepCopyFunc(arg Object) Object {
+	if v, ok := arg.(DeepCopier); ok {
+		return v.DeepCopy()
+	} else if v, ok := arg.(Copier); ok {
 		return v.Copy()
 	}
 	return arg
@@ -458,6 +525,8 @@ func builtinContainsFunc(arg0, arg1 Object) (Object, error) {
 				break
 			}
 		}
+	case *NamedArgs:
+		ok = obj.Contains(arg1.String())
 	case String:
 		ok = strings.Contains(string(obj), arg1.String())
 	case Bytes:
@@ -483,7 +552,7 @@ func builtinContainsFunc(arg0, arg1 Object) (Object, error) {
 	default:
 		return Nil, NewArgumentTypeError(
 			"1st",
-			"map|array|string|bytes",
+			"map|array|string|bytes|namedArgs",
 			arg0.TypeName(),
 		)
 	}
@@ -511,19 +580,8 @@ func builtinCapFunc(arg Object) Object {
 
 func builtinSortFunc(arg Object) (ret Object, err error) {
 	switch obj := arg.(type) {
-	case Array:
-		sort.Slice(obj, func(i, j int) bool {
-			v, e := obj[i].BinaryOp(token.Less, obj[j])
-			if e != nil && err == nil {
-				err = e
-				return false
-			}
-			if v != nil {
-				return !v.IsFalsy()
-			}
-			return false
-		})
-		ret = arg
+	case Sorter:
+		ret, err = obj.Sort()
 	case String:
 		s := []rune(obj)
 		sort.Slice(s, func(i, j int) bool {
@@ -550,24 +608,8 @@ func builtinSortFunc(arg Object) (ret Object, err error) {
 
 func builtinSortReverseFunc(arg Object) (Object, error) {
 	switch obj := arg.(type) {
-	case Array:
-		var err error
-		sort.Slice(obj, func(i, j int) bool {
-			v, e := obj[j].BinaryOp(token.Less, obj[i])
-			if e != nil && err == nil {
-				err = e
-				return false
-			}
-			if v != nil {
-				return !v.IsFalsy()
-			}
-			return false
-		})
-
-		if err != nil {
-			return nil, err
-		}
-		return obj, nil
+	case ReverseSorter:
+		return obj.SortReverse()
 	case String:
 		s := []rune(obj)
 		sort.Slice(s, func(i, j int) bool {
@@ -852,3 +894,72 @@ func builtinIsCallableFunc(arg Object) Object {
 }
 
 func builtinIsIterableFunc(arg Object) Object { return Bool(arg.CanIterate()) }
+
+func builtinKeysFunc(c Call) (Object, error) {
+	if err := c.Args.CheckLen(1); err != nil {
+		return nil, err
+	}
+	var arr Array
+	switch v := c.Args.Get(0).(type) {
+	case KeysGetter:
+		arr = v.Keys()
+	}
+	return arr, nil
+}
+
+func builtinValuesFunc(c Call) (Object, error) {
+	if err := c.Args.CheckLen(1); err != nil {
+		return nil, err
+	}
+	var arr Array
+	switch v := c.Args.Get(0).(type) {
+	case Array:
+		arr = v
+	case ValuesGetter:
+		arr = v.Values()
+	}
+	return arr, nil
+}
+
+func builtinItemsFunc(c Call) (Object, error) {
+	if err := c.Args.CheckLen(1); err != nil {
+		return nil, err
+	}
+	var arr KeyValueArray
+	switch v := c.Args.Get(0).(type) {
+	case ItemsGetter:
+		arr = v.Items()
+	}
+	return arr, nil
+}
+
+func builtinKeyValueFunc(c Call) (ret Object, err error) {
+	if err := c.Args.CheckLen(2); err != nil {
+		return nil, err
+	}
+	return KeyValue{c.Args.Get(0), c.Args.Get(1)}, nil
+}
+
+func builtinKeyValueArrayFunc(c Call) (Object, error) {
+	var (
+		arr        KeyValueArray
+		arg, valid = c.Args.ShiftOk()
+	)
+
+	for valid {
+		switch t := arg.(type) {
+		case KeyValueArray:
+			arr = append(arr, t...)
+		case KeyValue:
+			arr = append(arr, t)
+		case Array:
+			if len(t) == 2 {
+				arr = append(arr, KeyValue{t[0], t[1]})
+			}
+		case ItemsGetter:
+			arr = append(arr, t.Items()...)
+		}
+		arg, valid = c.Args.ShiftOk()
+	}
+	return arr, nil
+}

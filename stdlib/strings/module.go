@@ -399,7 +399,7 @@ func fieldsFuncInv(c gad.Call) (gad.Object, error) {
 					return false
 				}
 				var ret gad.Object
-				ret, err = inv.Invoke(gad.Args{{gad.Char(r)}})
+				ret, err = inv.Invoke(gad.Args{{gad.Char(r)}}, nil)
 				if err != nil {
 					return false
 				}
@@ -476,7 +476,7 @@ func mapFuncInv(c gad.Call) (gad.Object, error) {
 					return utf8.RuneError
 				}
 				var ret gad.Object
-				ret, err = inv.Invoke(gad.Args{{gad.Char(r)}})
+				ret, err = inv.Invoke(gad.Args{{gad.Char(r)}}, nil)
 				if err != nil {
 					return 0
 				}
@@ -644,7 +644,7 @@ func newIndexFuncInv(fn func(string, func(rune) bool) int) gad.CallableFunc {
 						return false
 					}
 					var ret gad.Object
-					ret, err = inv.Invoke(gad.Args{{gad.Char(r)}})
+					ret, err = inv.Invoke(gad.Args{{gad.Char(r)}}, nil)
 					if err != nil {
 						return false
 					}
@@ -666,7 +666,7 @@ func newTrimFuncInv(fn func(string, func(rune) bool) string) gad.CallableFunc {
 						return false
 					}
 					var ret gad.Object
-					ret, err = inv.Invoke(gad.Args{{gad.Char(r)}})
+					ret, err = inv.Invoke(gad.Args{{gad.Char(r)}}, nil)
 					if err != nil {
 						return false
 					}

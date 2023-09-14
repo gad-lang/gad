@@ -151,6 +151,9 @@ func TestScanner_Scan(t *testing.T) {
 		{token.Finally, "finally"},
 		{token.Throw, "throw"},
 		{token.NullishSelector, "?."},
+		{token.Callee, "__callee__"},
+		{token.Args, "__args__"},
+		{token.NamedArgs, "__named_args__"},
 	}
 
 	// combine

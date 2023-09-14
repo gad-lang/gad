@@ -13,17 +13,23 @@ import (
 // omitted, it returns last value on stack.
 // Warning: Eval is not safe to use concurrently.
 type Eval struct {
-	Locals       []Object
-	Globals      Object
+	Locals []Object
+	*RunOpts
 	Opts         CompilerOptions
 	VM           *VM
 	ModulesCache []Object
 }
 
 // NewEval returns new Eval object.
-func NewEval(opts CompilerOptions, globals Object, args ...Object) *Eval {
-	if globals == nil {
-		globals = Map{}
+func NewEval(opts CompilerOptions, runOpts ...*RunOpts) *Eval {
+	var runopts *RunOpts
+	for _, runopts = range runOpts {
+	}
+	if runopts == nil {
+		runopts = &RunOpts{}
+	}
+	if runopts.Globals == nil {
+		runopts.Globals = Map{}
 	}
 	if opts.SymbolTable == nil {
 		opts.SymbolTable = NewSymbolTable()
@@ -33,8 +39,7 @@ func NewEval(opts CompilerOptions, globals Object, args ...Object) *Eval {
 	}
 
 	return &Eval{
-		Locals:  args,
-		Globals: globals,
+		RunOpts: runopts,
 		Opts:    opts,
 		VM:      NewVM(nil).SetRecover(true),
 	}
@@ -47,7 +52,6 @@ func (r *Eval) Run(ctx context.Context, script []byte) (Object, *Bytecode, error
 		return nil, nil, err
 	}
 
-	bytecode.Main.NumParams = bytecode.Main.NumLocals
 	r.Opts.Constants = bytecode.Constants
 	r.fixOpPop(bytecode)
 	r.VM.SetBytecode(bytecode)
@@ -81,7 +85,8 @@ func (r *Eval) run(ctx context.Context) (ret Object, err error) {
 	default:
 		go func() {
 			defer close(doneCh)
-			ret, err = r.VM.Run(r.Globals, r.Locals...)
+			copy(r.VM.stack[:], r.Locals)
+			ret, err = r.VM.RunOpts(r.RunOpts)
 		}()
 
 		select {

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -540,6 +541,11 @@ var (
 	_ Object                = Array{}
 	_ LengthGetter          = Array{}
 	_ ToArrayAppenderObject = Array{}
+	_ DeepCopier            = Array{}
+	_ Copier                = Array{}
+	_ Sorter                = Array{}
+	_ KeysGetter            = Array{}
+	_ ItemsGetter           = Array{}
 )
 
 // TypeName implements Object interface.
@@ -576,10 +582,20 @@ func (o Array) String() string {
 // Copy implements Copier interface.
 func (o Array) Copy() Object {
 	cp := make(Array, len(o))
+	copy(cp, o)
+	return cp
+}
+
+// DeepCopy implements DeepCopier interface.
+func (o Array) DeepCopy() Object {
+	cp := make(Array, len(o))
 	for i, v := range o {
-		if vv, ok := v.(Copier); ok {
-			cp[i] = vv.Copy()
-		} else {
+		switch t := v.(type) {
+		case DeepCopier:
+			cp[i] = t.DeepCopy()
+		case Copier:
+			cp[i] = t.Copy()
+		default:
 			cp[i] = v
 		}
 	}
@@ -695,6 +711,52 @@ func (o Array) Len() int {
 	return len(o)
 }
 
+func (o Array) Keys() (arr Array) {
+	arr = make(Array, len(o))
+	for i := range o {
+		arr[i] = Int(i)
+	}
+	return arr
+}
+
+func (o Array) Items() (arr KeyValueArray) {
+	arr = make(KeyValueArray, len(o))
+	for i, v := range o {
+		arr[i] = KeyValue{String(strconv.Itoa(i)), v}
+	}
+	return arr
+}
+
+func (o Array) Sort() (_ Object, err error) {
+	sort.Slice(o, func(i, j int) bool {
+		v, e := o[i].BinaryOp(token.Less, o[j])
+		if e != nil && err == nil {
+			err = e
+			return false
+		}
+		if v != nil {
+			return !v.IsFalsy()
+		}
+		return false
+	})
+	return o, err
+}
+
+func (o Array) SortReverse() (_ Object, err error) {
+	sort.Slice(o, func(i, j int) bool {
+		v, e := o[j].BinaryOp(token.Less, o[i])
+		if e != nil && err == nil {
+			err = e
+			return false
+		}
+		if v != nil {
+			return !v.IsFalsy()
+		}
+		return false
+	})
+	return o, err
+}
+
 // ObjectPtr represents a pointer variable.
 type ObjectPtr struct {
 	ObjectImpl
@@ -702,8 +764,9 @@ type ObjectPtr struct {
 }
 
 var (
-	_ Object = (*ObjectPtr)(nil)
-	_ Copier = (*ObjectPtr)(nil)
+	_ Object     = (*ObjectPtr)(nil)
+	_ Copier     = (*ObjectPtr)(nil)
+	_ DeepCopier = (*ObjectPtr)(nil)
 )
 
 // TypeName implements Object interface.
@@ -722,6 +785,11 @@ func (o *ObjectPtr) String() string {
 
 // Copy implements Copier interface.
 func (o *ObjectPtr) Copy() Object {
+	return o
+}
+
+// DeepCopy implements DeepCopier interface.
+func (o *ObjectPtr) DeepCopy() Object {
 	return o
 }
 
@@ -767,6 +835,9 @@ var (
 	_ Copier       = Map{}
 	_ IndexDeleter = Map{}
 	_ LengthGetter = Map{}
+	_ KeysGetter   = Map{}
+	_ ValuesGetter = Map{}
+	_ ItemsGetter  = Map{}
 )
 
 // TypeName implements Object interface.
@@ -808,9 +879,21 @@ func (o Map) String() string {
 func (o Map) Copy() Object {
 	cp := make(Map, len(o))
 	for k, v := range o {
-		if vv, ok := v.(Copier); ok {
-			cp[k] = vv.Copy()
-		} else {
+		cp[k] = v
+	}
+	return cp
+}
+
+// DeepCopy implements DeepCopier interface.
+func (o Map) DeepCopy() Object {
+	cp := make(Map, len(o))
+	for k, v := range o {
+		switch t := v.(type) {
+		case DeepCopier:
+			cp[k] = t.DeepCopy()
+		case Copier:
+			cp[k] = t.Copy()
+		default:
 			cp[k] = v
 		}
 	}
@@ -899,6 +982,42 @@ func (o Map) Len() int {
 	return len(o)
 }
 
+func (o Map) Items() KeyValueArray {
+	var (
+		arr = make(KeyValueArray, len(o))
+		i   int
+	)
+	for key, value := range o {
+		arr[i] = KeyValue{String(key), value}
+		i++
+	}
+	return arr
+}
+
+func (o Map) Keys() Array {
+	var (
+		arr = make(Array, len(o))
+		i   int
+	)
+	for key := range o {
+		arr[i] = String(key)
+		i++
+	}
+	return arr
+}
+
+func (o Map) Values() Array {
+	var (
+		arr = make(Array, len(o))
+		i   int
+	)
+	for _, value := range o {
+		arr[i] = value
+		i++
+	}
+	return arr
+}
+
 // SyncMap represents map of objects and implements Object interface.
 type SyncMap struct {
 	mu    sync.RWMutex
@@ -910,6 +1029,9 @@ var (
 	_ Copier       = (*SyncMap)(nil)
 	_ IndexDeleter = (*SyncMap)(nil)
 	_ LengthGetter = (*SyncMap)(nil)
+	_ KeysGetter   = (*SyncMap)(nil)
+	_ ValuesGetter = (*SyncMap)(nil)
+	_ ItemsGetter  = (*SyncMap)(nil)
 )
 
 // RLock locks the underlying mutex for reading.
@@ -952,6 +1074,16 @@ func (o *SyncMap) Copy() Object {
 
 	return &SyncMap{
 		Value: o.Value.Copy().(Map),
+	}
+}
+
+// DeepCopy implements DeepCopier interface.
+func (o *SyncMap) DeepCopy() Object {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	return &SyncMap{
+		Value: o.Value.DeepCopy().(Map),
 	}
 }
 
@@ -1032,6 +1164,24 @@ func (o *SyncMap) BinaryOp(tok token.Token, right Object) (Object, error) {
 	defer o.mu.RUnlock()
 
 	return o.Value.BinaryOp(tok, right)
+}
+
+func (o *SyncMap) Items() KeyValueArray {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.Value.Items()
+}
+
+func (o *SyncMap) Keys() Array {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.Value.Keys()
+}
+
+func (o *SyncMap) Values() Array {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.Value.Values()
 }
 
 // Error represents Error Object and implements error and Object interfaces.

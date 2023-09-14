@@ -48,13 +48,19 @@ type funcOpt func(*CompiledFunction)
 
 func withParams(numParams int) funcOpt {
 	return func(cf *CompiledFunction) {
-		cf.NumParams = numParams
+		cf.Params.Len = numParams
 	}
 }
 
-func withVariadic() funcOpt {
+func withVarParams() funcOpt {
 	return func(cf *CompiledFunction) {
-		cf.Variadic = true
+		cf.Params.Var = true
+	}
+}
+
+func withNamedParams(varp string, params ...*NamedParam) funcOpt {
+	return func(cf *CompiledFunction) {
+		cf.SetNamedParams(params...)
 	}
 }
 
@@ -83,41 +89,106 @@ func concatInsts(insts ...[]byte) []byte {
 }
 
 func TestCompiler_CompileIfNull(t *testing.T) {
-	// all local variables are initialized as nil
-	expectCompile(t, `var a; a == nil ? 1 : 2`, bytecode(
-		Array{Int(1), Int(2)},
+	expectCompile(t, `var a; return ((a == nil)) ? 10 : 20`, bytecode(
+		Array{Int(10), Int(20)},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
-			makeInst(OpUnary, int(token.Null)),
-			makeInst(OpJumpFalsy, 16),
+			makeInst(OpJumpNotNull, 14),
 			makeInst(OpConstant, 0),
-			makeInst(OpJump, 19),
+			makeInst(OpJump, 17),
 			makeInst(OpConstant, 1),
-			makeInst(OpPop),
-			makeInst(OpReturn, 0),
+			makeInst(OpReturn, 1),
 		),
-			withLocals(1),
-		),
+			withLocals(1)),
 	))
-	// all local variables are initialized as nil
-	expectCompile(t, `var a; a != nil ? 1 : 2`, bytecode(
-		Array{Int(1), Int(2)},
+
+	expectCompile(t, `var a; return a == nil ? 10 : 20`, bytecode(
+		Array{Int(10), Int(20)},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
-			makeInst(OpUnary, int(token.NotNull)),
-			makeInst(OpJumpFalsy, 16),
+			makeInst(OpJumpNotNull, 14),
 			makeInst(OpConstant, 0),
+			makeInst(OpJump, 17),
+			makeInst(OpConstant, 1),
+			makeInst(OpReturn, 1),
+		),
+			withLocals(1)),
+	))
+
+	expectCompile(t, `var a; return a != nil ? 10 : 20`, bytecode(
+		Array{Int(10), Int(20)},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNull, 14),
+			makeInst(OpConstant, 0),
+			makeInst(OpJump, 17),
+			makeInst(OpConstant, 1),
+			makeInst(OpReturn, 1),
+		),
+			withLocals(1)),
+	))
+
+	expectCompile(t, `var a; if (((a == nil))) { 10 } else { 20 }; 3333;`, bytecode(
+		Array{Int(10), Int(20), Int(3333)},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNotNull, 15),
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
 			makeInst(OpJump, 19),
 			makeInst(OpConstant, 1),
 			makeInst(OpPop),
+			makeInst(OpConstant, 2),
+			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		),
-			withLocals(1),
+			withLocals(1)),
+	))
+
+	expectCompile(t, `var a; if a == nil { 10 } else { 20 }; 3333;`, bytecode(
+		Array{Int(10), Int(20), Int(3333)},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNotNull, 15),
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpJump, 19),
+			makeInst(OpConstant, 1),
+			makeInst(OpPop),
+			makeInst(OpConstant, 2),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
 		),
+			withLocals(1)),
+	))
+
+	expectCompile(t, `var a; if a != nil { 10 } else { 20 }; 3333;`, bytecode(
+		Array{Int(10), Int(20), Int(3333)},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNull, 15),
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpJump, 19),
+			makeInst(OpConstant, 1),
+			makeInst(OpPop),
+			makeInst(OpConstant, 2),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1)),
 	))
 }
 
@@ -165,6 +236,20 @@ func TestCompiler_Compile(t *testing.T) {
 			makeInst(OpReturn, 0),
 		),
 			withLocals(1),
+		),
+	))
+
+	expectCompile(t, `param (;a=1, ...na)`, bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpGetLocal, 0),
+			makeInst(OpJumpNotNull, 10),
+			makeInst(OpConstant, 0),
+			makeInst(OpSetLocal, 0),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(2),
+			withNamedParams("na", &NamedParam{"a", "1"}, &NamedParam{Name: "na"}),
 		),
 	))
 
@@ -217,7 +302,7 @@ func TestCompiler_Compile(t *testing.T) {
 		),
 			withParams(3),
 			withLocals(3),
-			withVariadic(),
+			withVarParams(),
 		),
 	))
 	expectCompile(t, `global a`, bytecode(
@@ -247,7 +332,7 @@ func TestCompiler_Compile(t *testing.T) {
 		),
 			withParams(2),
 			withLocals(3),
-			withVariadic(),
+			withVarParams(),
 		),
 	))
 
@@ -1136,7 +1221,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpReturn, 1),
 			),
 				withParams(1),
-				withVariadic(),
+				withVarParams(),
 				withLocals(1),
 			),
 			Int(1),
@@ -1791,6 +1876,35 @@ func TestCompiler_Compile(t *testing.T) {
 			),
 		),
 	)
+
+	expectCompile(t, `f := func(...a) { return a }; f(1, 2, 3);`, bytecode(
+		Array{
+			compFunc(concatInsts(
+				makeInst(OpGetLocal, 0),
+				makeInst(OpReturn, 1),
+			),
+				withParams(1),
+				withVarParams(),
+				withLocals(1),
+			),
+			Int(1),
+			Int(2),
+			Int(3),
+		},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 3),
+			makeInst(OpCall, 3, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		),
+	))
 }
 
 func TestCompilerNullishSelector(t *testing.T) {
@@ -1842,6 +1956,8 @@ func TestCompilerNullishSelector(t *testing.T) {
 			withLocals(1),
 		)))
 
+	// a?.b.c.d.e.f.g
+	// true
 	expectCompile(t, `var a; a?.b.c?.d.e?.f.g`, bytecode(
 		Array{String("b"), String("c"), String("d"), String("e"), String("f"), String("g")},
 		compFunc(concatInsts(
@@ -2077,6 +2193,27 @@ func TestCompilerNullishSelector(t *testing.T) {
 		),
 			withLocals(2),
 		)))
+
+	expectCompile(t, `__callee__`, bytecode(nil,
+		compFunc(concatInsts(
+			makeInst(OpCallee),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		))))
+
+	expectCompile(t, `__args__`, bytecode(nil,
+		compFunc(concatInsts(
+			makeInst(OpArgs),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		))))
+
+	expectCompile(t, `__named_args__`, bytecode(nil,
+		compFunc(concatInsts(
+			makeInst(OpNamedArgs),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		))))
 }
 
 func TestCompilerScopes(t *testing.T) {
@@ -2224,14 +2361,14 @@ func testBytecodesEqual(t *testing.T,
 func assertCompiledFunctionsEqual(t *testing.T,
 	expected, got *CompiledFunction, checkSourceMap bool) bool {
 	t.Helper()
-	if expected.NumParams != got.NumParams {
-		t.Errorf("NumParams not equal expected %d, got %d\n",
-			expected.NumParams, got.NumParams)
+	if expected.Params.String() != got.Params.String() {
+		t.Errorf("Params not equal expected %s, got %s\n",
+			expected.Params.String(), got.Params.String())
 		return false
 	}
-	if expected.Variadic != got.Variadic {
-		t.Errorf("Variadic not equal expected %t, got %t\n",
-			expected.Variadic, got.Variadic)
+	if expected.NamedParams.String() != got.NamedParams.String() {
+		t.Errorf("NamedParams not equal expected %s, got %s\n",
+			expected.NamedParams.String(), got.NamedParams.String())
 		return false
 	}
 	if expected.NumLocals != got.NumLocals {

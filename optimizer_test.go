@@ -609,7 +609,7 @@ func TestOptimizerShadowing(t *testing.T) {
 	opts.OptimizeExpr = true
 
 	st := NewSymbolTable()
-	require.NoError(t, st.SetParams("int"))
+	require.NoError(t, st.SetParams(false, "int"))
 	opts.SymbolTable = st
 	expectCompileWithOpts(t, `return int("1")`, opts,
 		bytecode(

@@ -58,17 +58,94 @@ func (bc *Bytecode) putConstants(w io.Writer) {
 	}
 }
 
+type Params struct {
+	Len int
+	Var bool
+}
+
+func (p Params) String() string {
+	s := strconv.Itoa(p.Len)
+	if p.Var {
+		s += ", variadic"
+	}
+	return s
+}
+
+type NamedParam struct {
+	Name string
+	// Value is a script of default value
+	Value string
+}
+
+type NamedParams struct {
+	Params   []*NamedParam
+	len      int
+	variadic bool
+	byName   map[string]int
+}
+
+func NewNamedParams(params ...*NamedParam) (np *NamedParams) {
+	np = &NamedParams{Params: params}
+	np.len = len(params)
+	np.Params = params
+
+	if np.len > 0 {
+		np.byName = make(map[string]int, np.len)
+		for i, p := range params {
+			np.byName[p.Name] = i
+		}
+		np.variadic = params[len(params)-1].Value == ""
+	}
+	return
+}
+
+func (n *NamedParams) Names() (names []string) {
+	names = make([]string, n.len)
+	for i, param := range n.Params {
+		names[i] = param.Name
+	}
+	return
+}
+
+func (n *NamedParams) Len() int {
+	return n.len
+}
+
+func (n *NamedParams) Variadic() bool {
+	return n.variadic
+}
+
+func (n *NamedParams) ByName() map[string]int {
+	return n.byName
+}
+
+func (n *NamedParams) String() string {
+	var s = make([]string, n.len)
+	for i, param := range n.Params {
+		if param.Value != "" {
+			s[i] = param.Name + "=" + param.Value
+		} else {
+			s[i] = param.Name + " (variadic)"
+		}
+	}
+	return strings.Join(s, ", ")
+}
+
 // CompiledFunction holds the constants and instructions to pass VM.
 type CompiledFunction struct {
-	// number of parameters
-	NumParams int
 	// number of local variabls including parameters NumLocals>=NumParams
 	NumLocals    int
 	Instructions []byte
-	Variadic     bool
 	Free         []*ObjectPtr
 	// SourceMap holds the index of instruction and token's position.
 	SourceMap map[int]int
+
+	Params      Params
+	NamedParams NamedParams
+
+	// NamedParamsMap is a map of NamedParams with index
+	// this value allow to perform named args validation.
+	NamedParamsMap map[string]int
 }
 
 var (
@@ -82,7 +159,14 @@ func (*CompiledFunction) TypeName() string {
 }
 
 func (o *CompiledFunction) String() string {
-	return "<compiledFunction>"
+	var s []string
+	if o.Params.Len > 0 {
+		s = append(s, " [params: "+o.Params.String()+"]")
+	}
+	if o.NamedParams.len > 0 {
+		s = append(s, " [named params: "+o.NamedParams.String()+"]")
+	}
+	return "<compiledFunction" + strings.Join(s, "") + ">"
 }
 
 // Copy implements the Copier interface.
@@ -109,12 +193,12 @@ func (o *CompiledFunction) Copy() Object {
 	}
 
 	return &CompiledFunction{
-		NumParams:    o.NumParams,
 		NumLocals:    o.NumLocals,
 		Instructions: insts,
-		Variadic:     o.Variadic,
 		Free:         free,
 		SourceMap:    sourceMap,
+		Params:       o.Params,
+		NamedParams:  o.NamedParams,
 	}
 }
 
@@ -163,7 +247,9 @@ begin:
 
 // Fprint writes constants and instructions to given Writer in a human readable form.
 func (o *CompiledFunction) Fprint(w io.Writer) {
-	_, _ = fmt.Fprintf(w, "Params:%d Variadic:%t Locals:%d\n", o.NumParams, o.Variadic, o.NumLocals)
+	_, _ = fmt.Fprintf(w, "Locals: %d\n", o.NumLocals)
+	_, _ = fmt.Fprintf(w, "Params: %s\n", o.Params.String())
+	_, _ = fmt.Fprintf(w, "NamedParams: %s\n", o.NamedParams.String())
 	_, _ = fmt.Fprintf(w, "Instructions:\n")
 
 	i := 0
@@ -193,9 +279,9 @@ func (o *CompiledFunction) Fprint(w io.Writer) {
 }
 
 func (o *CompiledFunction) identical(other *CompiledFunction) bool {
-	if o.NumParams != other.NumParams ||
-		o.NumLocals != other.NumLocals ||
-		o.Variadic != other.Variadic ||
+	if o.NumLocals != other.NumLocals ||
+		o.Params.String() != other.Params.String() ||
+		o.NamedParams.String() != other.NamedParams.String() ||
 		len(o.Instructions) != len(other.Instructions) ||
 		len(o.Free) != len(other.Free) ||
 		string(o.Instructions) != string(other.Instructions) {
@@ -223,19 +309,23 @@ func (o *CompiledFunction) equalSourceMap(other *CompiledFunction) bool {
 }
 
 func (o *CompiledFunction) hash32() uint32 {
-	hash := hashData32(2166136261, []byte{byte(o.NumParams)})
-	hash = hashData32(hash, []byte{byte(o.NumLocals)})
-	if o.Variadic {
-		hash = hashData32(hash, []byte{1})
-	} else {
-		hash = hashData32(hash, []byte{0})
+	hash := hashData32(2166136261, []byte{byte(o.NumLocals)})
+	if o.Params.Len > 0 {
+		hash = hashData32(hash, []byte(o.Params.String()))
+	}
+	if o.NamedParams.len > 0 {
+		hash = hashData32(hash, []byte(o.NamedParams.String()))
 	}
 	hash = hashData32(hash, o.Instructions)
 	return hash
 }
 
 func (o *CompiledFunction) Call(c Call) (Object, error) {
-	return NewInvoker(c.vm, o).Invoke(c.Args)
+	return NewInvoker(c.vm, o).Invoke(c.Args, c.NamedArgs)
+}
+
+func (o *CompiledFunction) SetNamedParams(params ...*NamedParam) {
+	o.NamedParams = *NewNamedParams(params...)
 }
 
 func hashData32(hash uint32, data []byte) uint32 {

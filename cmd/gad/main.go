@@ -110,7 +110,7 @@ func newREPL(ctx context.Context, stdout io.Writer) *repl {
 
 	r := &repl{
 		ctx:    ctx,
-		eval:   gad.NewEval(opts, scriptGlobals),
+		eval:   gad.NewEval(opts, &gad.RunOpts{Globals: scriptGlobals}),
 		out:    stdout,
 		script: bytes.NewBuffer(nil),
 	}
@@ -582,7 +582,7 @@ func executeScript(
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		_, err = vm.Run(scriptGlobals)
+		_, err = vm.RunOpts(&gad.RunOpts{Globals: scriptGlobals})
 	}()
 
 	select {
