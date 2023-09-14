@@ -1516,6 +1516,45 @@ func TestParseFor(t *testing.T) {
 	// expectParseError(t, `for { break x }`)
 }
 
+func TestParseClosure(t *testing.T) {
+	expectParse(t, "a = func(b, c, d) => d", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(
+					ident("a", p(1, 1))),
+				exprs(
+					closure(
+						funcType(p(1, 5), p(1, 9), p(1, 17),
+							funcArgs(nil,
+								ident("b", p(1, 10)),
+								ident("c", p(1, 13)),
+								ident("d", p(1, 16))),
+						),
+						ident("d", p(1, 22)))),
+				token.Assign,
+				p(1, 3)))
+	})
+
+	expectParse(t, "a = func(b, c, d) => {d}", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(
+					ident("a", p(1, 1))),
+				exprs(
+					closure(
+						funcType(p(1, 5), p(1, 9), p(1, 17),
+							funcArgs(nil,
+								ident("b", p(1, 10)),
+								ident("c", p(1, 13)),
+								ident("d", p(1, 16))),
+						),
+						&BlockExpr{blockStmt(p(1, 22), p(1, 24),
+							exprStmt(ident("d", p(1, 23))))})),
+				token.Assign,
+				p(1, 3)))
+	})
+}
+
 func TestParseFunction(t *testing.T) {
 	expectParse(t, "a = func(b, c, d) { return d }", func(p pfn) []Stmt {
 		return stmts(
@@ -2977,6 +3016,10 @@ func funcLit(funcType *FuncType, body *BlockStmt) *FuncLit {
 	return &FuncLit{Type: funcType, Body: body}
 }
 
+func closure(funcType *FuncType, body Expr) *ClosureLit {
+	return &ClosureLit{Type: funcType, Body: body}
+}
+
 func parenExpr(x Expr, lparen, rparen Pos) *ParenExpr {
 	return &ParenExpr{Expr: x, LParen: lparen, RParen: rparen}
 }
@@ -3374,6 +3417,14 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 			actual.(*NamedArgsKeyword).Literal)
 		require.Equal(t, expected.TokenPos,
 			actual.(*NamedArgsKeyword).TokenPos)
+	case *ClosureLit:
+		equalFuncType(t, expected.Type,
+			actual.(*ClosureLit).Type)
+		equalExpr(t, expected.Body,
+			actual.(*ClosureLit).Body)
+	case *BlockExpr:
+		equalStmt(t, expected.BlockStmt,
+			actual.(*BlockExpr).BlockStmt)
 	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}

@@ -399,6 +399,8 @@ func (c *Compiler) Compile(node parser.Node) error {
 		return c.compileSliceExpr(node)
 	case *parser.FuncLit:
 		return c.compileFuncLit(node)
+	case *parser.ClosureLit:
+		return c.compileClosureLit(node)
 	case *parser.ReturnStmt:
 		return c.compileReturnStmt(node)
 	case *parser.CallExpr:

@@ -892,30 +892,50 @@ func (c *Compiler) compileForInStmt(stmt *parser.ForInStmt) error {
 }
 
 func (c *Compiler) compileFuncLit(node *parser.FuncLit) error {
+	return c.compileFunc(node, node.Type, node.Body)
+}
+
+func (c *Compiler) compileClosureLit(node *parser.ClosureLit) error {
+	var stmts []parser.Stmt
+	if b, ok := node.Body.(*parser.BlockExpr); ok {
+		stmts = b.Stmts
+		if l := len(stmts); l > 0 {
+			switch t := stmts[l-1].(type) {
+			case *parser.ExprStmt:
+				stmts[l-1] = &parser.ReturnStmt{Result: t.Expr}
+			}
+		}
+	} else {
+		stmts = append(stmts, &parser.ReturnStmt{Result: node.Body})
+	}
+	return c.compileFunc(node, node.Type, &parser.BlockStmt{Stmts: stmts})
+}
+
+func (c *Compiler) compileFunc(node parser.Node, typ *parser.FuncType, body *parser.BlockStmt) error {
 	var (
-		params      = make([]string, len(node.Type.Params.Args.Values))
-		namedParams = make([]*NamedParam, len(node.Type.Params.NamedArgs.Names))
+		params      = make([]string, len(typ.Params.Args.Values))
+		namedParams = make([]*NamedParam, len(typ.Params.NamedArgs.Names))
 		symbolTable = c.symbolTable.Fork(false)
 	)
 
-	for i, ident := range node.Type.Params.Args.Values {
+	for i, ident := range typ.Params.Args.Values {
 		params[i] = ident.Name
 	}
 
-	if node.Type.Params.Args.Var != nil {
-		params = append(params, node.Type.Params.Args.Var.Name)
+	if typ.Params.Args.Var != nil {
+		params = append(params, typ.Params.Args.Var.Name)
 	}
 
-	if err := symbolTable.SetParams(node.Type.Params.Args.Var != nil, params...); err != nil {
+	if err := symbolTable.SetParams(typ.Params.Args.Var != nil, params...); err != nil {
 		return c.error(node, err)
 	}
 
-	for i, name := range node.Type.Params.NamedArgs.Names {
-		namedParams[i] = &NamedParam{name.Name, node.Type.Params.NamedArgs.Values[i].String()}
+	for i, name := range typ.Params.NamedArgs.Names {
+		namedParams[i] = &NamedParam{name.Name, typ.Params.NamedArgs.Values[i].String()}
 	}
 
-	if node.Type.Params.NamedArgs.Var != nil {
-		namedParams = append(namedParams, &NamedParam{Name: node.Type.Params.NamedArgs.Var.Name})
+	if typ.Params.NamedArgs.Var != nil {
+		namedParams = append(namedParams, &NamedParam{Name: typ.Params.NamedArgs.Var.Name})
 	}
 
 	if len(namedParams) > 0 {
@@ -924,15 +944,15 @@ func (c *Compiler) compileFuncLit(node *parser.FuncLit) error {
 		}
 	}
 
-	if count := len(node.Type.Params.NamedArgs.Values); count > 0 {
-		node.Body.Stmts = append(c.helperBuildKwargsStmts(count, func(index int) (name string, value parser.Expr) {
-			return node.Type.Params.NamedArgs.Names[index].Name, node.Type.Params.NamedArgs.Values[index]
-		}), node.Body.Stmts...)
+	if count := len(typ.Params.NamedArgs.Values); count > 0 {
+		body.Stmts = append(c.helperBuildKwargsStmts(count, func(index int) (name string, value parser.Expr) {
+			return typ.Params.NamedArgs.Names[index].Name, typ.Params.NamedArgs.Values[index]
+		}), body.Stmts...)
 	}
 
 	fork := c.fork(c.file, c.modulePath, c.moduleMap, symbolTable)
-	fork.variadic = node.Type.Params.Args.Var != nil
-	if err := fork.Compile(node.Body); err != nil {
+	fork.variadic = typ.Params.Args.Var != nil
+	if err := fork.Compile(body); err != nil {
 		return err
 	}
 	freeSymbols := fork.symbolTable.FreeSymbols()

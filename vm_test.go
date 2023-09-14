@@ -3138,6 +3138,15 @@ func TestVMString(t *testing.T) {
 
 func TestVMTailCall(t *testing.T) {
 	expectRun(t, `
+	f1 := func(a) => a; return f1(...[1])`, nil, Int(1))
+	expectRun(t, `return (func() => 5 + 10)()`, nil, Int(15))
+	expectRun(t, `return (func() => {5 + 10})()`, nil, Int(15))
+	expectRun(t, `return (func(b) => {a:=5; a + b})(10)`, nil, Int(15))
+	expectRun(t, `return (func(b) => {a:=5; return a + b})(10)`, nil, Int(15))
+	expectRun(t, `return (func() => {if 1 {2}})()`, nil, Nil)
+	expectRun(t, `return (func() => {if 1 {2}; 3})()`, nil, Int(3))
+
+	expectRun(t, `
 	var (fac, v1 = 100, v2 = 200)
 	fac = func(n, ...args;...na) {
 		if n == 1 {

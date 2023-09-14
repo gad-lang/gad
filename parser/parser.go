@@ -826,8 +826,14 @@ func (p *Parser) parseFuncLit() Expr {
 
 	typ := p.parseFuncType()
 	p.exprLevel++
-	body := p.parseBody()
+	body, closure := p.parseBody()
 	p.exprLevel--
+	if closure != nil {
+		return &ClosureLit{
+			Type: typ,
+			Body: closure,
+		}
+	}
 	return &FuncLit{
 		Type: typ,
 		Body: body,
@@ -1003,19 +1009,29 @@ func (p *Parser) parseFuncParams() *FuncParams {
 	}
 }
 
-func (p *Parser) parseBody() *BlockStmt {
+func (p *Parser) parseBody() (b *BlockStmt, closure Expr) {
 	if p.trace {
 		defer untracep(tracep(p, "Body"))
 	}
 
-	lbrace := p.expect(token.LBrace)
-	list := p.parseStmtList()
-	rbrace := p.expect(token.RBrace)
-	return &BlockStmt{
-		LBrace: lbrace,
-		RBrace: rbrace,
-		Stmts:  list,
+	p.skipSpace()
+
+	if p.token == token.Assign {
+		p.next()
+		p.expect(token.Greater)
+
+		if p.token == token.LBrace {
+			closure = &BlockExpr{p.parseBlockStmt()}
+		} else {
+			closure = p.parseExpr()
+		}
+	} else {
+		b = &BlockStmt{}
+		b.LBrace = p.expect(token.LBrace)
+		b.Stmts = p.parseStmtList()
+		b.RBrace = p.expect(token.RBrace)
 	}
+	return
 }
 
 func (p *Parser) parseStmtList() (list []Stmt) {

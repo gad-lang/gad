@@ -275,6 +275,28 @@ func (e *FuncLit) String() string {
 	return "func" + e.Type.Params.String() + " " + e.Body.String()
 }
 
+// ClosureLit represents a function closure literal.
+type ClosureLit struct {
+	Type *FuncType
+	Body Expr
+}
+
+func (e *ClosureLit) exprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *ClosureLit) Pos() Pos {
+	return e.Type.Pos()
+}
+
+// End returns the position of first character immediately after the node.
+func (e *ClosureLit) End() Pos {
+	return e.Body.End()
+}
+
+func (e *ClosureLit) String() string {
+	return "func" + e.Type.Params.String() + " => " + e.Body.String()
+}
+
 // ArgsList represents a list of identifiers.
 type ArgsList struct {
 	Var    *Ident
@@ -1025,3 +1047,9 @@ func (c *NamedArgsKeyword) String() string {
 
 func (c *NamedArgsKeyword) exprNode() {
 }
+
+type BlockExpr struct {
+	*BlockStmt
+}
+
+func (b BlockExpr) exprNode() {}
