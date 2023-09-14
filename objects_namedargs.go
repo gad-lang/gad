@@ -93,11 +93,6 @@ func (o KeyValue) Copy() Object {
 	return KeyValue{o[0], o[1]}
 }
 
-// IndexSet implements Object interface.
-func (o KeyValue) IndexSet(_, _ Object) error {
-	return ErrNotIndexAssignable
-}
-
 // Equal implements Object interface.
 func (o KeyValue) Equal(right Object) bool {
 	v, ok := right.(KeyValue)

@@ -60,16 +60,6 @@ func (Bool) CanIterate() bool { return false }
 // Iterate implements Object interface.
 func (Bool) Iterate() Iterator { return nil }
 
-// IndexGet implements Object interface.
-func (Bool) IndexGet(index Object) (value Object, err error) {
-	return nil, ErrNotIndexable
-}
-
-// IndexSet implements Object interface.
-func (Bool) IndexSet(index, value Object) error {
-	return ErrNotIndexAssignable
-}
-
 // BinaryOp implements Object interface.
 func (o Bool) BinaryOp(tok token.Token, right Object) (Object, error) {
 	bval := Int(0)
@@ -198,11 +188,6 @@ func (String) CanIterate() bool { return true }
 // Iterate implements Object interface.
 func (o String) Iterate() Iterator {
 	return &StringIterator{V: o}
-}
-
-// IndexSet implements Object interface.
-func (String) IndexSet(index, value Object) error {
-	return ErrNotIndexAssignable
 }
 
 // IndexGet represents string values and implements Object interface.
@@ -1281,11 +1266,6 @@ func (o *Error) NewError(messages ...string) *Error {
 	return cp
 }
 
-// IndexSet implements Object interface.
-func (*Error) IndexSet(index, value Object) error {
-	return ErrNotIndexAssignable
-}
-
 // BinaryOp implements Object interface.
 func (o *Error) BinaryOp(tok token.Token, right Object) (Object, error) {
 	return nil, ErrInvalidOperator
@@ -1404,11 +1384,6 @@ func (o *RuntimeError) NewError(messages ...string) *RuntimeError {
 	cp.Err.Message = strings.Join(messages, " ")
 	cp.Err.Cause = o
 	return cp
-}
-
-// IndexSet implements Object interface.
-func (*RuntimeError) IndexSet(index, value Object) error {
-	return ErrNotIndexAssignable
 }
 
 // BinaryOp implements Object interface.

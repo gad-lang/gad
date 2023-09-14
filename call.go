@@ -106,11 +106,6 @@ func (o Args) CanIterate() bool {
 	return true
 }
 
-// IndexSet implements Object interface.
-func (o Args) IndexSet(_, _ Object) error {
-	return ErrNotIndexAssignable
-}
-
 // IndexGet implements Object interface.
 func (o Args) IndexGet(index Object) (Object, error) {
 	switch v := index.(type) {

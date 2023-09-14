@@ -158,9 +158,6 @@ func (o *Time) BinaryOp(tok token.Token,
 		right.TypeName())
 }
 
-// IndexSet implements gad.Object interface.
-func (*Time) IndexSet(_, _ gad.Object) error { return gad.ErrNotIndexAssignable }
-
 // gad:doc
 // #### time Getters
 //

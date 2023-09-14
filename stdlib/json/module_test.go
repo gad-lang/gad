@@ -149,7 +149,7 @@ func TestCycle(t *testing.T) {
 }
 
 type Opts struct {
-	global IndexGetter
+	global IndexGetSetter
 	args   []Object
 }
 
@@ -162,7 +162,7 @@ func (o *Opts) Args(args ...Object) *Opts {
 	return o
 }
 
-func (o *Opts) Globals(g IndexGetter) *Opts {
+func (o *Opts) Globals(g IndexGetSetter) *Opts {
 	o.global = g
 	return o
 }

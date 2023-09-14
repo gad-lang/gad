@@ -20,7 +20,7 @@ func TestEval(t *testing.T) {
 	testCases := []struct {
 		name      string
 		opts      CompilerOptions
-		global    IndexGetter
+		global    IndexGetSetter
 		args      []Object
 		namedArgs *NamedArgs
 		ctx       context.Context

@@ -41,14 +41,6 @@ type Object interface {
 
 	// CanIterate should return whether the Object can be Iterated.
 	CanIterate() bool
-
-	// IndexSet should take an index Object and a value Object for index
-	// assignable objects. Index assignable is an object that can take an index
-	// and a value on the left-hand side of the assignment statement. If Object
-	// is not index assignable, ErrNotIndexAssignable should be returned as
-	// error. Returned error stops VM execution if not handled with an error
-	// handler and VM.Run returns the same error as wrapped.
-	IndexSet(index, value Object) error
 }
 
 // Copier wraps the Copy method to create a single copy of the object.
@@ -79,6 +71,29 @@ type IndexGetter interface {
 	// wrapped. If Object is not indexable, ErrNotIndexable should be returned
 	// as error.
 	IndexGet(index Object) (value Object, err error)
+}
+
+// IndexSetter wraps the IndexSet method to set index value.
+type IndexSetter interface {
+	Object
+	// IndexSet should take an index Object and a value Object for index
+	// assignable objects. Index assignable is an object that can take an index
+	// and a value on the left-hand side of the assignment statement. If Object
+	// is not index assignable, ErrNotIndexAssignable should be returned as
+	// error. Returned error stops VM execution if not handled with an error
+	// handler and VM.Run returns the same error as wrapped.
+	IndexSet(index, value Object) error
+}
+
+type IndexGetSetter interface {
+	IndexGetter
+	IndexSetter
+}
+
+type Indexer interface {
+	IndexGetter
+	IndexSetter
+	IndexDeleter
 }
 
 // LengthGetter wraps the Len method to get the number of elements of an object.
@@ -182,11 +197,6 @@ func (ObjectImpl) CanIterate() bool { return false }
 // Iterate implements Object interface.
 func (ObjectImpl) Iterate() Iterator { return nil }
 
-// IndexSet implements Object interface.
-func (ObjectImpl) IndexSet(index, value Object) error {
-	return ErrNotIndexAssignable
-}
-
 // BinaryOp implements Object interface.
 func (ObjectImpl) BinaryOp(_ token.Token, _ Object) (Object, error) {
 	return nil, ErrInvalidOperator
@@ -235,16 +245,6 @@ func (o *NilType) BinaryOp(tok token.Token, right Object) (Object, error) {
 		tok.String(),
 		Nil.TypeName(),
 		right.TypeName())
-}
-
-// IndexGet implements Object interface.
-func (*NilType) IndexGet(Object) (Object, error) {
-	return Nil, nil
-}
-
-// IndexSet implements Object interface.
-func (*NilType) IndexSet(_, _ Object) error {
-	return ErrNotIndexAssignable
 }
 
 func Callable(o Object) (ok bool) {

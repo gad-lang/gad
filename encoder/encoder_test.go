@@ -659,7 +659,7 @@ func concatInsts(insts ...[]byte) []byte {
 }
 
 type testopts struct {
-	globals       gad.IndexGetter
+	globals       gad.IndexGetSetter
 	args          []gad.Object
 	namedArgs     gad.Map
 	moduleMap     *gad.ModuleMap
@@ -672,7 +672,7 @@ func newOpts() *testopts {
 	return &testopts{}
 }
 
-func (t *testopts) Globals(globals gad.IndexGetter) *testopts {
+func (t *testopts) Globals(globals gad.IndexGetSetter) *testopts {
 	t.globals = globals
 	return t
 }

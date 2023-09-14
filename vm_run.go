@@ -3,7 +3,7 @@ package gad
 import "errors"
 
 type RunOpts struct {
-	Globals   IndexGetter
+	Globals   IndexGetSetter
 	Args      Args
 	NamedArgs *NamedArgs
 }

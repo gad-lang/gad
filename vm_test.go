@@ -638,11 +638,6 @@ func TestVMBoolean(t *testing.T) {
 }
 
 func TestVMNil(t *testing.T) {
-	expectRun(t, `return nil`, nil, Nil)
-	expectRun(t, `return nil.a`, nil, Nil)
-	expectRun(t, `return nil[1]`, nil, Nil)
-	expectRun(t, `return nil.a.b`, nil, Nil)
-	expectRun(t, `return nil[1][2]`, nil, Nil)
 	expectRun(t, `return nil ? 1 : 2`, nil, Int(2))
 	expectRun(t, `return nil == nil`, nil, True)
 	expectRun(t, `return nil == (nil ? 1 : nil)`,
@@ -2926,7 +2921,7 @@ func TestVMNullishSelector(t *testing.T) {
 	expectRun(t, `a := {b: {c:{d:{}}}}; return a?.b.c.d.e?.f.g`, nil, Nil)
 	expectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return a?.b?.c.d.e.f.g`, nil, Int(1))
 	expectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return a?.(""+"b")?.c.d?.e.f.g`, nil, Int(1))
-	expectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return a[""+"b"]?.c.d?.e.f.g`, nil, Int(1))
+	expectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return (a[""+"b"])?.c.d?.e.f.g`, nil, Int(1))
 	expectRun(t, `var (a = {b: {c: {d: {e: {f: {g: 1} } } } } }, b); 
 		return a?.("b").c.d.e.f.g,
                a?.("b"+"").c.d.e.f.g,
@@ -2934,10 +2929,10 @@ func TestVMNullishSelector(t *testing.T) {
                a?.("" || "b").c.d.(nil ?? "e").f.g,
                a?.("b" || "x").c.d.("e" ?? "z").f.g`, nil,
 		Array{Int(1), Int(1), Int(1), Int(1), Int(1)})
-	expectRun(t, `a := {}; return a[""+"b"]?.c.d?.e.f.g`, nil, Nil)
+	expectRun(t, `a := {}; return (a[""+"b"])?.c.d?.e.f.g`, nil, Nil)
 	expectRun(t, `a := nil; return a?.b`, nil, Nil)
 	expectRun(t, `a := nil; return a?.b.c.d`, nil, Nil)
-	expectRun(t, `a := {}; return a?.b.c.d`, nil, Nil)
+	expectRun(t, `a := {}; return a?.b?.c.d`, nil, Nil)
 }
 
 func TestVMSelector(t *testing.T) {
@@ -2955,28 +2950,6 @@ func TestVMSelector(t *testing.T) {
 	}
 	_ := a.b.c
 	return a.b.c`, nil, Int(4))
-
-	expectRun(t, `
-	a := {
-		b: {
-			c: 4,
-			a: false,
-		},
-		c: "foo bar",
-	}
-	_ := a.x.c
-	return a.x.c`, nil, Nil)
-
-	expectRun(t, `
-	a := {
-		b: {
-			c: 4,
-			a: false,
-		},
-		c: "foo bar",
-	}
-	_ := a.x.y
-	return a.x.y`, nil, Nil)
 
 	expectRun(t, `a := {b: 1, c: "foo"}; a.b = 2; return a.b`, nil, Int(2))
 	expectRun(t, `a := {b: 1, c: "foo"}; a.c = 2; return a.c`, nil, Int(2))
@@ -3025,6 +2998,7 @@ func TestVMSelector(t *testing.T) {
 	return out
 	`, nil, Int(9))
 
+	expectErrIs(t, `a := {b: {c: 4,a: false,},c: "foo bar",};_ := a.x.c;return a.x.c`, nil, ErrNotIndexable)
 	expectErrIs(t, `a := {b: {c: 1}}; a.d.c = 2`, nil, ErrNotIndexAssignable)
 	expectErrIs(t, `a := [1, 2, 3]; a.b = 2`, nil, ErrType)
 	expectErrIs(t, `a := "foo"; a.b = 2`, nil, ErrNotIndexAssignable)
@@ -3748,7 +3722,7 @@ func (*callerObject) Call(c Call) (Object, error) {
 var _ CallerObject = &callerObject{}
 
 type testopts struct {
-	globals       IndexGetter
+	globals       IndexGetSetter
 	args          []Object
 	namedArgs     *NamedArgs
 	moduleMap     *ModuleMap
@@ -3761,7 +3735,7 @@ func newOpts() *testopts {
 	return &testopts{}
 }
 
-func (t *testopts) Globals(globals IndexGetter) *testopts {
+func (t *testopts) Globals(globals IndexGetSetter) *testopts {
 	t.globals = globals
 	return t
 }

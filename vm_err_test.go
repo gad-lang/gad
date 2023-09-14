@@ -603,7 +603,7 @@ func TestVMLoop(t *testing.T) {
 
 func TestVMErrorUnwrap(t *testing.T) {
 	err1 := errors.New("err1")
-	var g IndexGetter = Map{"fn": &Function{
+	var g IndexGetSetter = Map{"fn": &Function{
 		Value: func(Call) (Object, error) {
 			return nil, err1
 		},
@@ -825,7 +825,7 @@ func TestVMExamples(t *testing.T) {
 		return result
 	}
 `
-	var g IndexGetter = Map{}
+	var g IndexGetSetter = Map{}
 	expectRun(t, scr, newOpts().Globals(g).Args(Nil), Int(-1))
 	require.Equal(t, 1, len(g.(Map)))
 	require.Equal(t, True, g.(Map)["notAnInt"])

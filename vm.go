@@ -34,7 +34,7 @@ type VM struct {
 	frameIndex   int
 	bytecode     *Bytecode
 	modulesCache []Object
-	globals      IndexGetter
+	globals      IndexGetSetter
 	pool         vmPool
 	mu           sync.Mutex
 	err          error
@@ -163,7 +163,7 @@ func (vm *VM) init(opts *RunOpts) (Object, error) {
 	return nil, ErrStackOverflow
 }
 
-func (vm *VM) initGlobals(globals IndexGetter) {
+func (vm *VM) initGlobals(globals IndexGetSetter) {
 	if globals == nil {
 		globals = Map{}
 	}

@@ -59,16 +59,6 @@ func (Int) CanIterate() bool { return false }
 // Iterate implements Object interface.
 func (Int) Iterate() Iterator { return nil }
 
-// IndexSet implements Object interface.
-func (Int) IndexSet(index, value Object) error {
-	return ErrNotIndexAssignable
-}
-
-// IndexGet implements Object interface.
-func (Int) IndexGet(index Object) (Object, error) {
-	return nil, ErrNotIndexable
-}
-
 // BinaryOp implements Object interface.
 func (o Int) BinaryOp(tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
@@ -200,16 +190,6 @@ func (Uint) CanIterate() bool { return false }
 
 // Iterate implements Object interface.
 func (Uint) Iterate() Iterator { return nil }
-
-// IndexSet implements Object interface.
-func (Uint) IndexSet(_, _ Object) error {
-	return ErrNotIndexAssignable
-}
-
-// IndexGet implements Object interface.
-func (Uint) IndexGet(_ Object) (Object, error) {
-	return nil, ErrNotIndexable
-}
 
 // BinaryOp implements Object interface.
 func (o Uint) BinaryOp(tok token.Token, right Object) (Object, error) {
@@ -346,16 +326,6 @@ func (Float) CanIterate() bool { return false }
 // Iterate implements Object interface.
 func (Float) Iterate() Iterator { return nil }
 
-// IndexSet implements Object interface.
-func (Float) IndexSet(index, value Object) error {
-	return ErrNotIndexAssignable
-}
-
-// IndexGet implements Object interface.
-func (Float) IndexGet(index Object) (Object, error) {
-	return nil, ErrNotIndexable
-}
-
 // BinaryOp implements Object interface.
 func (o Float) BinaryOp(tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
@@ -474,16 +444,6 @@ func (Decimal) CanIterate() bool { return false }
 
 // Iterate implements Object interface.
 func (Decimal) Iterate() Iterator { return nil }
-
-// IndexSet implements Object interface.
-func (Decimal) IndexSet(_, _ Object) error {
-	return ErrNotIndexAssignable
-}
-
-// IndexGet implements Object interface.
-func (Decimal) IndexGet(_ Object) (Object, error) {
-	return nil, ErrNotIndexable
-}
 
 // BinaryOp implements Object interface.
 func (o Decimal) BinaryOp(tok token.Token, right Object) (Object, error) {
@@ -624,16 +584,6 @@ func (Char) CanIterate() bool { return false }
 
 // Iterate implements Object interface.
 func (Char) Iterate() Iterator { return nil }
-
-// IndexSet implements Object interface.
-func (Char) IndexSet(index, value Object) error {
-	return ErrNotIndexAssignable
-}
-
-// IndexGet implements Object interface.
-func (Char) IndexGet(index Object) (Object, error) {
-	return nil, ErrNotIndexable
-}
 
 // BinaryOp implements Object interface.
 func (o Char) BinaryOp(tok token.Token, right Object) (Object, error) {

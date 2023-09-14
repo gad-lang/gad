@@ -222,38 +222,10 @@ func TestObjectImpl(t *testing.T) {
 	require.Nil(t, v)
 	require.NotNil(t, err)
 	require.Equal(t, ErrInvalidOperator, err)
-
-	err = impl.IndexSet(Nil, Nil)
-	require.NotNil(t, err)
-	require.Equal(t, ErrNotIndexAssignable, err)
 }
 
 func TestObjectIndexGet(t *testing.T) {
-	v, err := Int(0).IndexGet(Nil)
-	require.Nil(t, v)
-	require.Equal(t, ErrNotIndexable, err)
-
-	v, err = Uint(0).IndexGet(Nil)
-	require.Nil(t, v)
-	require.Equal(t, ErrNotIndexable, err)
-
-	v, err = Char(0).IndexGet(Nil)
-	require.Nil(t, v)
-	require.Equal(t, ErrNotIndexable, err)
-
-	v, err = Float(0).IndexGet(Nil)
-	require.Nil(t, v)
-	require.Equal(t, ErrNotIndexable, err)
-
-	v, err = Bool(true).IndexGet(Nil)
-	require.Nil(t, v)
-	require.Equal(t, ErrNotIndexable, err)
-
-	v, err = (&CompiledFunction{}).IndexGet(Nil)
-	require.Nil(t, v)
-	require.Equal(t, ErrNotIndexable, err)
-
-	v, err = (&Error{}).IndexGet(Nil)
+	v, err := (&Error{}).IndexGet(Nil)
 	require.NoError(t, err)
 	require.Equal(t, Nil, v)
 
@@ -368,47 +340,8 @@ func TestObjectIndexGet(t *testing.T) {
 }
 
 func TestObjectIndexSet(t *testing.T) {
-	err := Int(0).IndexSet(Nil, Nil)
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	err = Uint(0).IndexSet(Nil, Nil)
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	err = Char(0).IndexSet(Nil, Nil)
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	err = Float(0).IndexSet(Nil, Nil)
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	err = Bool(true).IndexSet(Nil, Nil)
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	err = (&Function{}).IndexSet(Nil, Nil)
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	err = (&BuiltinFunction{}).IndexSet(Nil, Nil)
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	err = (&CompiledFunction{}).IndexSet(Nil, Nil)
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	err = Nil.IndexSet(Nil, Nil)
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	err = (&Error{}).IndexSet(Nil, Nil)
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	err = (&RuntimeError{}).IndexSet(Nil, Nil)
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	err = (&RuntimeError{Err: &Error{}}).IndexSet(Nil, Nil)
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	err = String("x").IndexSet(Int(0), String("y"))
-	require.Equal(t, ErrNotIndexAssignable, err)
-
-	var v Object = Array{Int(1)}
-	err = v.IndexSet(Int(0), Int(2))
+	var v IndexGetSetter = Array{Int(1)}
+	err := v.IndexSet(Int(0), Int(2))
 	require.NoError(t, err)
 	require.Equal(t, Int(2), v.(Array)[0])
 

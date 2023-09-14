@@ -359,13 +359,7 @@ VMLoop:
 				ptr := vm.sp - numSel
 				index := vm.stack[ptr]
 				vm.stack[ptr] = nil
-				if ig, _ := target.(IndexGetter); ig == nil {
-					if err := vm.throwGenErr(ErrNotIndexable.NewError(target.TypeName())); err != nil {
-						vm.err = err
-						return
-					}
-					continue VMLoop
-				} else {
+				if ig, _ := target.(IndexGetter); ig != nil {
 					v, err := ig.IndexGet(index)
 					if err != nil {
 						switch err {
@@ -382,6 +376,12 @@ VMLoop:
 					}
 					target = v
 					value = v
+				} else {
+					if err := vm.throwGenErr(ErrNotIndexable.NewError(target.TypeName())); err != nil {
+						vm.err = err
+						return
+					}
+					continue VMLoop
 				}
 			}
 
@@ -391,17 +391,26 @@ VMLoop:
 		case OpSetIndex:
 			value := vm.stack[vm.sp-3]
 			target := vm.stack[vm.sp-2]
-			index := vm.stack[vm.sp-1]
-			err := target.IndexSet(index, value)
+			if is, _ := target.(IndexSetter); is != nil {
+				index := vm.stack[vm.sp-1]
 
-			if err != nil {
-				switch err {
-				case ErrNotIndexAssignable:
-					err = ErrNotIndexAssignable.NewError(target.TypeName())
-				case ErrIndexOutOfBounds:
-					err = ErrIndexOutOfBounds.NewError(index.String())
+				err := is.IndexSet(index, value)
+
+				if err != nil {
+					switch err {
+					case ErrNotIndexAssignable:
+						err = ErrNotIndexAssignable.NewError(is.TypeName())
+					case ErrIndexOutOfBounds:
+						err = ErrIndexOutOfBounds.NewError(index.String())
+					}
+					if err = vm.throwGenErr(err); err != nil {
+						vm.err = err
+						return
+					}
+					continue
 				}
-				if err = vm.throwGenErr(err); err != nil {
+			} else {
+				if err := vm.throwGenErr(ErrNotIndexAssignable.NewError(target.TypeName())); err != nil {
 					vm.err = err
 					return
 				}

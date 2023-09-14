@@ -23,7 +23,6 @@ func TestModuleTypes(t *testing.T) {
 	require.False(t, (&Location{}).Equal(Int(0)))
 	require.False(t, l.CanIterate())
 	require.Nil(t, l.Iterate())
-	require.Equal(t, ErrNotIndexAssignable, l.IndexSet(nil, nil))
 
 	tm := &Time{}
 	require.Equal(t, "time", tm.TypeName())
@@ -33,7 +32,6 @@ func TestModuleTypes(t *testing.T) {
 	require.False(t, tm.Equal(Int(0)))
 	require.False(t, tm.CanIterate())
 	require.Nil(t, tm.Iterate())
-	require.Equal(t, ErrNotIndexAssignable, tm.IndexSet(nil, nil))
 	r, err := tm.IndexGet(String(""))
 	require.NoError(t, err)
 	require.Equal(t, Nil, r)
@@ -838,7 +836,7 @@ func (*illegalDur) String() string   { return "illegal" }
 func (*illegalDur) TypeName() string { return "illegal" }
 
 type Opts struct {
-	global IndexGetter
+	global IndexGetSetter
 	args   []Object
 }
 
@@ -851,7 +849,7 @@ func (o *Opts) Args(args ...Object) *Opts {
 	return o
 }
 
-func (o *Opts) Globals(g IndexGetter) *Opts {
+func (o *Opts) Globals(g IndexGetSetter) *Opts {
 	o.global = g
 	return o
 }

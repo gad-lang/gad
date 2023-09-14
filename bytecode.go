@@ -208,16 +208,6 @@ func (*CompiledFunction) CanIterate() bool { return false }
 // Iterate implements Object interface.
 func (*CompiledFunction) Iterate() Iterator { return nil }
 
-// IndexGet represents string values and implements Object interface.
-func (*CompiledFunction) IndexGet(Object) (Object, error) {
-	return nil, ErrNotIndexable
-}
-
-// IndexSet implements Object interface.
-func (*CompiledFunction) IndexSet(_, _ Object) error {
-	return ErrNotIndexAssignable
-}
-
 // BinaryOp implements Object interface.
 func (*CompiledFunction) BinaryOp(token.Token, Object) (Object, error) {
 	return nil, ErrInvalidOperator
