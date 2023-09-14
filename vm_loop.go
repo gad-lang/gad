@@ -46,20 +46,10 @@ VMLoop:
 			var value Object
 			var err error
 			switch left := left.(type) {
-			case Int:
-				value, err = left.BinaryOp(tok, right)
-			case String:
-				value, err = left.BinaryOp(tok, right)
-			case Float:
-				value, err = left.BinaryOp(tok, right)
-			case Uint:
-				value, err = left.BinaryOp(tok, right)
-			case Char:
-				value, err = left.BinaryOp(tok, right)
-			case Bool:
+			case BinaryOperatorHandler:
 				value, err = left.BinaryOp(tok, right)
 			default:
-				value, err = left.BinaryOp(tok, right)
+				err = ErrInvalidOperator
 			}
 			if err == nil {
 				vm.stack[vm.sp-2] = value

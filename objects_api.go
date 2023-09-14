@@ -25,11 +25,6 @@ type Object interface {
 	// String should return a string of the type's value.
 	String() string
 
-	// BinaryOp handles +,-,*,/,%,<<,>>,<=,>=,<,> operators.
-	// Returned error stops VM execution if not handled with an error handler
-	// and VM.Run returns the same error as wrapped.
-	BinaryOp(tok token.Token, right Object) (Object, error)
-
 	// IsFalsy returns true if value is falsy otherwise false.
 	IsFalsy() bool
 
@@ -195,11 +190,6 @@ func (ObjectImpl) Equal(Object) bool { return false }
 // IsFalsy implements Object interface.
 func (ObjectImpl) IsFalsy() bool { return true }
 
-// BinaryOp implements Object interface.
-func (ObjectImpl) BinaryOp(_ token.Token, _ Object) (Object, error) {
-	return nil, ErrInvalidOperator
-}
-
 // NilType represents the type of global Nil Object. One should use
 // the NilType in type switches only.
 type NilType struct {
@@ -267,4 +257,11 @@ func Iterable(obj Object) bool {
 		return true
 	}
 	return false
+}
+
+type BinaryOperatorHandler interface {
+	// BinaryOp handles +,-,*,/,%,<<,>>,<=,>=,<,> operators.
+	// Returned error stops VM execution if not handled with an error handler
+	// and VM.Run returns the same error as wrapped.
+	BinaryOp(tok token.Token, right Object) (Object, error)
 }

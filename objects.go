@@ -708,13 +708,15 @@ func (o Array) Items() (arr KeyValueArray) {
 
 func (o Array) Sort() (_ Object, err error) {
 	sort.Slice(o, func(i, j int) bool {
-		v, e := o[i].BinaryOp(token.Less, o[j])
-		if e != nil && err == nil {
-			err = e
-			return false
-		}
-		if v != nil {
-			return !v.IsFalsy()
+		if bo, _ := o[i].(BinaryOperatorHandler); bo != nil {
+			v, e := bo.BinaryOp(token.Less, o[j])
+			if e != nil && err == nil {
+				err = e
+				return false
+			}
+			if v != nil {
+				return !v.IsFalsy()
+			}
 		}
 		return false
 	})
@@ -723,13 +725,15 @@ func (o Array) Sort() (_ Object, err error) {
 
 func (o Array) SortReverse() (_ Object, err error) {
 	sort.Slice(o, func(i, j int) bool {
-		v, e := o[j].BinaryOp(token.Less, o[i])
-		if e != nil && err == nil {
-			err = e
-			return false
-		}
-		if v != nil {
-			return !v.IsFalsy()
+		if bo, _ := o[j].(BinaryOperatorHandler); bo != nil {
+			v, e := bo.BinaryOp(token.Less, o[i])
+			if e != nil && err == nil {
+				err = e
+				return false
+			}
+			if v != nil {
+				return !v.IsFalsy()
+			}
 		}
 		return false
 	})
@@ -787,7 +791,10 @@ func (o *ObjectPtr) BinaryOp(tok token.Token, right Object) (Object, error) {
 	if o.Value == nil {
 		return nil, errors.New("nil pointer")
 	}
-	return (*o.Value).BinaryOp(tok, right)
+	if bo, _ := (*o.Value).(BinaryOperatorHandler); bo != nil {
+		return bo.BinaryOp(tok, right)
+	}
+	return nil, ErrInvalidOperator
 }
 
 // CanCall implements Object interface.
@@ -1260,11 +1267,6 @@ func (o *Error) NewError(messages ...string) *Error {
 	return cp
 }
 
-// BinaryOp implements Object interface.
-func (o *Error) BinaryOp(tok token.Token, right Object) (Object, error) {
-	return nil, ErrInvalidOperator
-}
-
 // RuntimeError represents a runtime error that wraps Error and includes trace information.
 type RuntimeError struct {
 	Err     *Error
@@ -1372,11 +1374,6 @@ func (o *RuntimeError) NewError(messages ...string) *RuntimeError {
 	cp.Err.Message = strings.Join(messages, " ")
 	cp.Err.Cause = o
 	return cp
-}
-
-// BinaryOp implements Object interface.
-func (o *RuntimeError) BinaryOp(tok token.Token, right Object) (Object, error) {
-	return nil, ErrInvalidOperator
 }
 
 // StackTrace returns stack trace if set otherwise returns nil.

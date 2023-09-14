@@ -7,8 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/gad-lang/gad/token"
-
 	. "github.com/gad-lang/gad"
 )
 
@@ -193,10 +191,6 @@ func TestObjectImpl(t *testing.T) {
 	require.True(t, impl.IsFalsy())
 	require.False(t, Callable(impl))
 	require.False(t, Iterable(impl))
-	v, err := impl.BinaryOp(token.Add, Int(0))
-	require.Nil(t, v)
-	require.NotNil(t, err)
-	require.Equal(t, ErrInvalidOperator, err)
 }
 
 func TestObjectIndexGet(t *testing.T) {

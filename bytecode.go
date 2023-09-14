@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad/parser"
-	"github.com/gad-lang/gad/token"
 )
 
 // Bytecode holds the compiled functions and constants.
@@ -200,11 +199,6 @@ func (o *CompiledFunction) Copy() Object {
 		Params:       o.Params,
 		NamedParams:  o.NamedParams,
 	}
-}
-
-// BinaryOp implements Object interface.
-func (*CompiledFunction) BinaryOp(token.Token, Object) (Object, error) {
-	return nil, ErrInvalidOperator
 }
 
 // IsFalsy implements Object interface.
