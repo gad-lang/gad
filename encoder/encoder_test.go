@@ -570,12 +570,12 @@ func testBytecodeConstants(t *testing.T, expected, decoded []gad.Object) {
 			require.Equal(t, modName, decModName)
 			require.Equal(t, reflect.TypeOf(expected[i]), reflect.TypeOf(decoded[i]))
 			require.Equal(t, Len(expected[i]), Len(decoded[i]))
-			if !expected[i].CanIterate() {
-				require.False(t, decoded[i].CanIterate())
+			if !gad.Iterable(expected[i]) {
+				require.False(t, gad.Iterable(decoded[i]))
 				continue
 			}
-			it := expected[i].Iterate()
-			decIt := decoded[i].Iterate()
+			it := expected[i].(gad.Iterabler).Iterate()
+			decIt := decoded[i].(gad.Iterabler).Iterate()
 			for decIt.Next() {
 				require.True(t, it.Next())
 				key := decIt.Key()

@@ -202,12 +202,6 @@ func (o *CompiledFunction) Copy() Object {
 	}
 }
 
-// CanIterate implements Object interface.
-func (*CompiledFunction) CanIterate() bool { return false }
-
-// Iterate implements Object interface.
-func (*CompiledFunction) Iterate() Iterator { return nil }
-
 // BinaryOp implements Object interface.
 func (*CompiledFunction) BinaryOp(token.Token, Object) (Object, error) {
 	return nil, ErrInvalidOperator

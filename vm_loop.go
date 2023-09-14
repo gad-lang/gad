@@ -486,8 +486,8 @@ VMLoop:
 		case OpIterInit:
 			dst := vm.stack[vm.sp-1]
 
-			if dst.CanIterate() {
-				it := dst.Iterate()
+			if Iterable(dst) {
+				it := dst.(Iterabler).Iterate()
 				vm.stack[vm.sp-1] = &iteratorObject{Iterator: it}
 				continue
 			}

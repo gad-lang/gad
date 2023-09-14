@@ -53,12 +53,6 @@ func (o Int) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Int) IsFalsy() bool { return o == 0 }
 
-// CanIterate implements Object interface.
-func (Int) CanIterate() bool { return false }
-
-// Iterate implements Object interface.
-func (Int) Iterate() Iterator { return nil }
-
 // BinaryOp implements Object interface.
 func (o Int) BinaryOp(tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
@@ -184,12 +178,6 @@ func (o Uint) Equal(right Object) bool {
 
 // IsFalsy implements Object interface.
 func (o Uint) IsFalsy() bool { return o == 0 }
-
-// CanIterate implements Object interface.
-func (Uint) CanIterate() bool { return false }
-
-// Iterate implements Object interface.
-func (Uint) Iterate() Iterator { return nil }
 
 // BinaryOp implements Object interface.
 func (o Uint) BinaryOp(tok token.Token, right Object) (Object, error) {
@@ -320,12 +308,6 @@ func (o Float) IsFalsy() bool {
 	return f != f
 }
 
-// CanIterate implements Object interface.
-func (Float) CanIterate() bool { return false }
-
-// Iterate implements Object interface.
-func (Float) Iterate() Iterator { return nil }
-
 // BinaryOp implements Object interface.
 func (o Float) BinaryOp(tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
@@ -438,12 +420,6 @@ func (o Decimal) IsFalsy() bool {
 	// See math.IsNan
 	return o.Go().IsZero()
 }
-
-// CanIterate implements Object interface.
-func (Decimal) CanIterate() bool { return false }
-
-// Iterate implements Object interface.
-func (Decimal) Iterate() Iterator { return nil }
 
 // BinaryOp implements Object interface.
 func (o Decimal) BinaryOp(tok token.Token, right Object) (Object, error) {
@@ -578,12 +554,6 @@ func (o Char) Equal(right Object) bool {
 
 // IsFalsy implements Object interface.
 func (o Char) IsFalsy() bool { return o == 0 }
-
-// CanIterate implements Object interface.
-func (Char) CanIterate() bool { return false }
-
-// Iterate implements Object interface.
-func (Char) Iterate() Iterator { return nil }
 
 // BinaryOp implements Object interface.
 func (o Char) BinaryOp(tok token.Token, right Object) (Object, error) {

@@ -893,7 +893,7 @@ func builtinIsCallableFunc(arg Object) Object {
 	return Bool(Callable(arg))
 }
 
-func builtinIsIterableFunc(arg Object) Object { return Bool(arg.CanIterate()) }
+func builtinIsIterableFunc(arg Object) Object { return Bool(Iterable(arg)) }
 
 func builtinKeysFunc(c Call) (Object, error) {
 	if err := c.Args.CheckLen(1); err != nil {

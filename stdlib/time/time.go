@@ -99,12 +99,6 @@ func (o *Time) Equal(right gad.Object) bool {
 	return false
 }
 
-// CanIterate implements gad.Object interface.
-func (*Time) CanIterate() bool { return false }
-
-// Iterate implements gad.Object interface.
-func (*Time) Iterate() gad.Iterator { return nil }
-
 // gad:doc
 // #### Overloaded time Operators
 //

@@ -54,12 +54,6 @@ func (o Bool) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Bool) IsFalsy() bool { return bool(!o) }
 
-// CanIterate implements Object interface.
-func (Bool) CanIterate() bool { return false }
-
-// Iterate implements Object interface.
-func (Bool) Iterate() Iterator { return nil }
-
 // BinaryOp implements Object interface.
 func (o Bool) BinaryOp(tok token.Token, right Object) (Object, error) {
 	bval := Int(0)
@@ -1271,12 +1265,6 @@ func (o *Error) BinaryOp(tok token.Token, right Object) (Object, error) {
 	return nil, ErrInvalidOperator
 }
 
-// CanIterate implements Object interface.
-func (*Error) CanIterate() bool { return false }
-
-// Iterate implements Object interface.
-func (*Error) Iterate() Iterator { return nil }
-
 // RuntimeError represents a runtime error that wraps Error and includes trace information.
 type RuntimeError struct {
 	Err     *Error
@@ -1390,12 +1378,6 @@ func (o *RuntimeError) NewError(messages ...string) *RuntimeError {
 func (o *RuntimeError) BinaryOp(tok token.Token, right Object) (Object, error) {
 	return nil, ErrInvalidOperator
 }
-
-// CanIterate implements Object interface.
-func (*RuntimeError) CanIterate() bool { return false }
-
-// Iterate implements Object interface.
-func (*RuntimeError) Iterate() Iterator { return nil }
 
 // StackTrace returns stack trace if set otherwise returns nil.
 func (o *RuntimeError) StackTrace() StackTrace {

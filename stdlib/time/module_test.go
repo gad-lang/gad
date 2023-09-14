@@ -21,8 +21,7 @@ func TestModuleTypes(t *testing.T) {
 	require.True(t, (&Location{}).Equal(&Location{}))
 	require.True(t, (&Location{}).Equal(String("UTC")))
 	require.False(t, (&Location{}).Equal(Int(0)))
-	require.False(t, l.CanIterate())
-	require.Nil(t, l.Iterate())
+	require.False(t, Iterable(l))
 
 	tm := &Time{}
 	require.Equal(t, "time", tm.TypeName())
@@ -30,8 +29,6 @@ func TestModuleTypes(t *testing.T) {
 	require.NotEmpty(t, tm.String())
 	require.True(t, tm.Equal(&Time{}))
 	require.False(t, tm.Equal(Int(0)))
-	require.False(t, tm.CanIterate())
-	require.Nil(t, tm.Iterate())
 	r, err := tm.IndexGet(String(""))
 	require.NoError(t, err)
 	require.Equal(t, Nil, r)

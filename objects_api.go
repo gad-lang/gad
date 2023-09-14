@@ -35,12 +35,6 @@ type Object interface {
 
 	// Equal checks equality of objects.
 	Equal(right Object) bool
-
-	// Iterate should return an Iterator for the type.
-	Iterate() Iterator
-
-	// CanIterate should return whether the Object can be Iterated.
-	CanIterate() bool
 }
 
 // Copier wraps the Copy method to create a single copy of the object.
@@ -167,6 +161,16 @@ type ReverseSorter interface {
 	SortReverse() (Object, error)
 }
 
+type Iterabler interface {
+	// Iterate should return an Iterator for the type.
+	Iterate() Iterator
+}
+
+type CanIterabler interface {
+	// CanIterate should return whether the Object can be Iterated.
+	CanIterate() bool
+}
+
 // ObjectImpl is the basic Object implementation and it does not nothing, and
 // helps to implement Object interface by embedding and overriding methods in
 // custom implementations. String and TypeName must be implemented otherwise
@@ -190,12 +194,6 @@ func (ObjectImpl) Equal(Object) bool { return false }
 
 // IsFalsy implements Object interface.
 func (ObjectImpl) IsFalsy() bool { return true }
-
-// CanIterate implements Object interface.
-func (ObjectImpl) CanIterate() bool { return false }
-
-// Iterate implements Object interface.
-func (ObjectImpl) Iterate() Iterator { return nil }
 
 // BinaryOp implements Object interface.
 func (ObjectImpl) BinaryOp(_ token.Token, _ Object) (Object, error) {
@@ -259,4 +257,14 @@ func Callable(o Object) (ok bool) {
 // BytesConverter is to bytes converter
 type BytesConverter interface {
 	ToBytes() (Bytes, error)
+}
+
+func Iterable(obj Object) bool {
+	if it, _ := obj.(Iterabler); it != nil {
+		if cit, _ := obj.(CanIterabler); cit != nil {
+			return cit.CanIterate()
+		}
+		return true
+	}
+	return false
 }
