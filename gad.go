@@ -24,8 +24,8 @@ const (
 // a Call struct.
 type CallableFunc = func(Call) (ret Object, err error)
 
-// ToObject will try to convert an interface{} v to an Object.
-func ToObject(v interface{}) (ret Object, err error) {
+// ToObject will try to convert an any v to an Object.
+func ToObject(v any) (ret Object, err error) {
 	switch v := v.(type) {
 	case nil:
 		ret = Nil
@@ -67,7 +67,7 @@ func ToObject(v interface{}) (ret Object, err error) {
 		} else {
 			ret = Map{}
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		m := make(Map, len(v))
 		for vk, vv := range v {
 			vo, err := ToObject(vv)
@@ -83,7 +83,7 @@ func ToObject(v interface{}) (ret Object, err error) {
 		} else {
 			ret = Array{}
 		}
-	case []interface{}:
+	case []any:
 		arr := make(Array, len(v))
 		for i, vv := range v {
 			obj, err := ToObject(vv)
@@ -118,7 +118,7 @@ func ToObject(v interface{}) (ret Object, err error) {
 // ToObjectAlt is analogous to ToObject but it will always convert signed integers to
 // Int and unsigned integers to Uint. It is an alternative to ToObject.
 // Note that, this function is subject to change in the future.
-func ToObjectAlt(v interface{}) (ret Object, err error) {
+func ToObjectAlt(v any) (ret Object, err error) {
 	switch v := v.(type) {
 	case nil:
 		ret = Nil
@@ -162,7 +162,7 @@ func ToObjectAlt(v interface{}) (ret Object, err error) {
 		} else {
 			ret = Bytes{}
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		m := make(Map, len(v))
 		for vk, vv := range v {
 			vo, err := ToObjectAlt(vv)
@@ -178,7 +178,7 @@ func ToObjectAlt(v interface{}) (ret Object, err error) {
 		} else {
 			ret = Map{}
 		}
-	case []interface{}:
+	case []any:
 		arr := make(Array, len(v))
 		for i, vv := range v {
 			obj, err := ToObjectAlt(vv)
@@ -216,8 +216,8 @@ func ToObjectAlt(v interface{}) (ret Object, err error) {
 	return
 }
 
-// ToInterface tries to convert an Object o to an interface{} value.
-func ToInterface(o Object) (ret interface{}) {
+// ToInterface tries to convert an Object o to an any value.
+func ToInterface(o Object) (ret any) {
 	switch o := o.(type) {
 	case Int:
 		ret = int64(o)
@@ -226,13 +226,13 @@ func ToInterface(o Object) (ret interface{}) {
 	case Bytes:
 		ret = []byte(o)
 	case Array:
-		arr := make([]interface{}, len(o))
+		arr := make([]any, len(o))
 		for i, val := range o {
 			arr[i] = ToInterface(val)
 		}
 		ret = arr
 	case Map:
-		m := make(map[string]interface{}, len(o))
+		m := make(map[string]any, len(o))
 		for key, v := range o {
 			m[key] = ToInterface(v)
 		}
@@ -247,11 +247,11 @@ func ToInterface(o Object) (ret interface{}) {
 		ret = bool(o)
 	case *SyncMap:
 		if o == nil {
-			return map[string]interface{}{}
+			return map[string]any{}
 		}
 		o.RLock()
 		defer o.RUnlock()
-		m := make(map[string]interface{}, len(o.Value))
+		m := make(map[string]any, len(o.Value))
 		for key, v := range o.Value {
 			m[key] = ToInterface(v)
 		}

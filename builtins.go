@@ -750,7 +750,7 @@ func builtinPrintfFunc(c Call) (ret Object, err error) {
 		_, err = fmt.Fprint(PrintWriter, c.Args.Get(0).String())
 	default:
 		format, _ := c.Args.ShiftOk()
-		vargs := make([]interface{}, 0, size-1)
+		vargs := make([]any, 0, size-1)
 		for i := 0; i < size-1; i++ {
 			vargs = append(vargs, c.Args.Get(i))
 		}
@@ -767,7 +767,7 @@ func builtinPrintlnFunc(c Call) (ret Object, err error) {
 	case 1:
 		_, err = fmt.Fprintln(PrintWriter, c.Args.Get(0))
 	default:
-		vargs := make([]interface{}, 0, size)
+		vargs := make([]any, 0, size)
 		for i := 0; i < size; i++ {
 			vargs = append(vargs, c.Args.Get(i))
 		}
@@ -785,7 +785,7 @@ func builtinSprintfFunc(c Call) (ret Object, err error) {
 		ret = String(c.Args.Get(0).String())
 	default:
 		format, _ := c.Args.ShiftOk()
-		vargs := make([]interface{}, 0, size-1)
+		vargs := make([]any, 0, size-1)
 		for i := 0; i < size-1; i++ {
 			vargs = append(vargs, c.Args.Get(i))
 		}

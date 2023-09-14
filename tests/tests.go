@@ -7,13 +7,13 @@ import (
 	"strings"
 )
 
-func Sdump(value interface{}) string {
+func Sdump(value any) string {
 	var sb strings.Builder
 	sdump("", &sb, value)
 	return sb.String()
 }
 
-func sdump(prefix string, sb *strings.Builder, value interface{}) {
+func sdump(prefix string, sb *strings.Builder, value any) {
 	const indent = "  "
 	if value == nil {
 		sb.WriteString(fmt.Sprintf("(%[1]T) %[1]v\n", value))
@@ -46,7 +46,7 @@ func sdump(prefix string, sb *strings.Builder, value interface{}) {
 				continue
 			}
 			elem := val.Index(i).Elem()
-			var iface interface{}
+			var iface any
 			if elem.IsValid() && elem.CanInterface() {
 				iface = elem.Interface()
 			}
@@ -68,7 +68,7 @@ func sdump(prefix string, sb *strings.Builder, value interface{}) {
 		sb.WriteString("\n")
 		for _, k := range keys {
 			sb.WriteString(prefix + indent + fmt.Sprintf("%#v: ", k))
-			var iface interface{}
+			var iface any
 			vkind := val.MapIndex(k).Kind()
 			if vkind == reflect.Ptr || vkind == reflect.Interface {
 				elem := val.MapIndex(k).Elem()

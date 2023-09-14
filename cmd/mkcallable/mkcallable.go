@@ -34,7 +34,7 @@ const gadDot = "gad."
 
 type converterFunc func(index int, argsName string, p *Param) string
 
-var converters = map[string]interface{}{
+var converters = map[string]any{
 	"string":       "gad.ToGoString",
 	"[]byte":       "gad.ToGoByteSlice",
 	"int":          "gad.ToGoInt",

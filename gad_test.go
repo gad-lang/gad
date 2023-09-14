@@ -16,7 +16,7 @@ func TestToObject(t *testing.T) {
 	fn := func(Call) (Object, error) { return nil, nil }
 
 	testCases := []struct {
-		iface   interface{}
+		iface   any
 		want    Object
 		wantErr bool
 	}{
@@ -37,12 +37,12 @@ func TestToObject(t *testing.T) {
 		{iface: []byte("a"), want: Bytes{'a'}},
 		{iface: map[string]Object(nil), want: Map{}},
 		{iface: map[string]Object{"a": Int(1)}, want: Map{"a": Int(1)}},
-		{iface: map[string]interface{}{"a": 1}, want: Map{"a": Int(1)}},
-		{iface: map[string]interface{}{"a": uint32(1)}, wantErr: true},
+		{iface: map[string]any{"a": 1}, want: Map{"a": Int(1)}},
+		{iface: map[string]any{"a": uint32(1)}, wantErr: true},
 		{iface: []Object(nil), want: Array{}},
 		{iface: []Object{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
-		{iface: []interface{}{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
-		{iface: []interface{}{uint32(1)}, wantErr: true},
+		{iface: []any{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
+		{iface: []any{uint32(1)}, wantErr: true},
 		{iface: Object(nil), want: Nil},
 		{iface: String("a"), want: String("a")},
 		{iface: CallableFunc(nil), want: Nil},
@@ -74,7 +74,7 @@ func TestToInterface(t *testing.T) {
 
 	testCases := []struct {
 		object Object
-		want   interface{}
+		want   any
 	}{
 		{object: nil, want: nil},
 		{object: Nil, want: nil},
@@ -84,23 +84,23 @@ func TestToInterface(t *testing.T) {
 		{object: Bytes(nil), want: []byte(nil)},
 		{object: Bytes(""), want: []byte{}},
 		{object: Bytes("a"), want: []byte{'a'}},
-		{object: Array(nil), want: []interface{}{}},
-		{object: Array{}, want: []interface{}{}},
-		{object: Array{Int(1)}, want: []interface{}{int64(1)}},
-		{object: Array{Nil}, want: []interface{}{nil}},
-		{object: Map(nil), want: map[string]interface{}{}},
-		{object: Map{}, want: map[string]interface{}{}},
-		{object: Map{"a": Nil}, want: map[string]interface{}{"a": nil}},
-		{object: Map{"a": Int(1)}, want: map[string]interface{}{"a": int64(1)}},
+		{object: Array(nil), want: []any{}},
+		{object: Array{}, want: []any{}},
+		{object: Array{Int(1)}, want: []any{int64(1)}},
+		{object: Array{Nil}, want: []any{nil}},
+		{object: Map(nil), want: map[string]any{}},
+		{object: Map{}, want: map[string]any{}},
+		{object: Map{"a": Nil}, want: map[string]any{"a": nil}},
+		{object: Map{"a": Int(1)}, want: map[string]any{"a": int64(1)}},
 		{object: Uint(1), want: uint64(1)},
 		{object: Char(1), want: rune(1)},
 		{object: Float(1), want: float64(1)},
 		{object: True, want: true},
 		{object: False, want: false},
-		{object: (*SyncMap)(nil), want: map[string]interface{}{}},
+		{object: (*SyncMap)(nil), want: map[string]any{}},
 		{
 			object: &SyncMap{Value: Map{"a": Int(1)}},
-			want:   map[string]interface{}{"a": int64(1)},
+			want:   map[string]any{"a": int64(1)},
 		},
 	}
 	for _, tC := range testCases {
@@ -117,7 +117,7 @@ func TestToObjectAlt(t *testing.T) {
 	fn := func(Call) (Object, error) { return nil, nil }
 
 	testCases := []struct {
-		iface   interface{}
+		iface   any
 		want    Object
 		wantErr bool
 	}{
@@ -144,12 +144,12 @@ func TestToObjectAlt(t *testing.T) {
 		{iface: []byte("a"), want: Bytes{'a'}},
 		{iface: map[string]Object(nil), want: Map{}},
 		{iface: map[string]Object{"a": Int(1)}, want: Map{"a": Int(1)}},
-		{iface: map[string]interface{}{"a": 1}, want: Map{"a": Int(1)}},
-		{iface: map[string]interface{}{"a": uint32(1)}, want: Map{"a": Uint(1)}},
+		{iface: map[string]any{"a": 1}, want: Map{"a": Int(1)}},
+		{iface: map[string]any{"a": uint32(1)}, want: Map{"a": Uint(1)}},
 		{iface: []Object(nil), want: Array{}},
 		{iface: []Object{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
-		{iface: []interface{}{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
-		{iface: []interface{}{uint32(1)}, want: Array{Uint(1)}},
+		{iface: []any{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
+		{iface: []any{uint32(1)}, want: Array{Uint(1)}},
 		{iface: Object(nil), want: Nil},
 		{iface: String("a"), want: String("a")},
 		{iface: CallableFunc(nil), want: Nil},

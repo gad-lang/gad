@@ -150,7 +150,7 @@ var Module = map[string]gad.Object{
 	},
 }
 
-func newPrint(fn func(...interface{}) (int, error)) gad.CallableFunc {
+func newPrint(fn func(...any) (int, error)) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
 		vargs := toPrintArgs(0, c)
 		n, err := fn(vargs...)
@@ -158,7 +158,7 @@ func newPrint(fn func(...interface{}) (int, error)) gad.CallableFunc {
 	}
 }
 
-func newPrintf(fn func(string, ...interface{}) (int, error)) gad.CallableFunc {
+func newPrintf(fn func(string, ...any) (int, error)) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
 		if c.Args.Len() < 1 {
 			return gad.Nil, gad.ErrWrongNumArguments.NewError(
@@ -170,14 +170,14 @@ func newPrintf(fn func(string, ...interface{}) (int, error)) gad.CallableFunc {
 	}
 }
 
-func newSprint(fn func(...interface{}) string) gad.CallableFunc {
+func newSprint(fn func(...any) string) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
 		vargs := toPrintArgs(0, c)
 		return gad.String(fn(vargs...)), nil
 	}
 }
 
-func newSprintf(fn func(string, ...interface{}) string) gad.CallableFunc {
+func newSprintf(fn func(string, ...any) string) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
 		if c.Args.Len() < 1 {
 			return gad.Nil, gad.ErrWrongNumArguments.NewError(
@@ -188,7 +188,7 @@ func newSprintf(fn func(string, ...interface{}) string) gad.CallableFunc {
 	}
 }
 
-func newSscan(fn func(string, ...interface{}) (int, error)) gad.CallableFunc {
+func newSscan(fn func(string, ...any) (int, error)) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
 		if c.Args.Len() < 2 {
 			return gad.Nil, gad.ErrWrongNumArguments.NewError(
@@ -204,7 +204,7 @@ func newSscan(fn func(string, ...interface{}) (int, error)) gad.CallableFunc {
 }
 
 func newSscanf(
-	fn func(string, string, ...interface{}) (int, error),
+	fn func(string, string, ...any) (int, error),
 ) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
 		if c.Args.Len() < 3 {
@@ -220,9 +220,9 @@ func newSscanf(
 	}
 }
 
-func toScanArgs(offset int, c gad.Call) ([]interface{}, error) {
+func toScanArgs(offset int, c gad.Call) ([]any, error) {
 	size := c.Args.Len()
-	vargs := make([]interface{}, 0, size-offset)
+	vargs := make([]any, 0, size-offset)
 	for i := offset; i < size; i++ {
 		v, ok := c.Args.Get(i).(ScanArg)
 		if !ok {
@@ -235,9 +235,9 @@ func toScanArgs(offset int, c gad.Call) ([]interface{}, error) {
 	return vargs, nil
 }
 
-func toPrintArgs(offset int, c gad.Call) []interface{} {
+func toPrintArgs(offset int, c gad.Call) []any {
 	size := c.Args.Len()
-	vargs := make([]interface{}, 0, size-offset)
+	vargs := make([]any, 0, size-offset)
 	for i := offset; i < size; i++ {
 		vargs = append(vargs, c.Args.Get(i))
 	}

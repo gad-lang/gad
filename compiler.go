@@ -680,7 +680,7 @@ func (c *Compiler) error(node parser.Node, err error) error {
 func (c *Compiler) errorf(
 	node parser.Node,
 	format string,
-	args ...interface{},
+	args ...any,
 ) error {
 	return &CompilerError{
 		FileSet: c.file.Set(),
@@ -689,7 +689,7 @@ func (c *Compiler) errorf(
 	}
 }
 
-func printTrace(indent int, trace io.Writer, a ...interface{}) {
+func printTrace(indent int, trace io.Writer, a ...any) {
 	const (
 		dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
 		n    = len(dots)

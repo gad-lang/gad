@@ -1,6 +1,6 @@
 module github.com/gad-lang/gad
 
-go 1.20
+go 1.21
 
 require (
 	github.com/peterh/liner v1.2.2

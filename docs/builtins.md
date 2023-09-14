@@ -818,7 +818,7 @@ v3 := chars("a\xc5")            // v3 == nil, incorrect UTF-8
 Writes the given format and arguments to default writer, which is stdout. Note
 that, default writer can be updated. It calls Go's `fmt.Fprintf` function after
 converting first argument to a string value and optional arguments to
-`interface{}`.
+`any`.
 
 **Syntax**
 
@@ -850,7 +850,7 @@ printf("%s%d%v", 'a', 5, [1, 2])    // a5[1, 2]
 
 Writes the given arguments to default writer, which is stdout, with a newline.
 Note that, default writer can be updated. It calls Go's `fmt.Fprintln` function
-after converting arguments to `interface{}`.
+after converting arguments to `any`.
 
 **Syntax**
 
@@ -881,7 +881,7 @@ println('a', 5, [1, 2])    // a 5 [1, 2]\n
 
 Formats according to a format specifier and returns the resulting string. It
 calls Go's `fmt.Sprintf` function after converting first argument to a string
-value and optional arguments to `interface{}`.
+value and optional arguments to `any`.
 
 **Syntax**
 

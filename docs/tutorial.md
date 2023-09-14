@@ -969,7 +969,7 @@ importing in VM if `Copier` interface is implemented.
 
 ```go
 type Importable interface {
-  Import(moduleName string) (interface{}, error)
+  Import(moduleName string) (any, error)
 }
 ```
 

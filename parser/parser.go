@@ -1943,7 +1943,7 @@ func (p *Parser) skipSpace() {
 	}
 }
 
-func (p *Parser) printTrace(a ...interface{}) {
+func (p *Parser) printTrace(a ...any) {
 	const (
 		dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
 		n    = len(dots)
