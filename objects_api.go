@@ -1,6 +1,8 @@
 package gad
 
 import (
+	"io"
+
 	"github.com/gad-lang/gad/token"
 )
 
@@ -246,6 +248,7 @@ func Callable(o Object) (ok bool) {
 
 // BytesConverter is to bytes converter
 type BytesConverter interface {
+	Object
 	ToBytes() (Bytes, error)
 }
 
@@ -264,4 +267,16 @@ type BinaryOperatorHandler interface {
 	// Returned error stops VM execution if not handled with an error handler
 	// and VM.Run returns the same error as wrapped.
 	BinaryOp(tok token.Token, right Object) (Object, error)
+}
+
+type Writer interface {
+	Object
+	io.Writer
+	GoWriter() io.Writer
+}
+
+type Reader interface {
+	Object
+	io.Reader
+	GoReader() io.Reader
 }

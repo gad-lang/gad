@@ -16,12 +16,6 @@ import (
 
 func TestFileImporter(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	orig := gad.PrintWriter
-	gad.PrintWriter = buf
-	defer func() {
-		gad.PrintWriter = orig
-	}()
-
 	files := map[string]string{
 		"./test1.gad": `
 import("./test2.gad")
@@ -91,7 +85,9 @@ println("sourcemod")`))
 		opts.ModuleMap.SetExtImporter(&importers.FileImporter{WorkDir: tempDir})
 		bc, err := gad.Compile([]byte(script), opts)
 		require.NoError(t, err)
-		ret, err := gad.NewVM(bc).Run(nil)
+		ret, err := gad.NewVM(bc).RunOpts(&gad.RunOpts{
+			StdOut: gad.NewWriter(buf),
+		})
 		require.NoError(t, err)
 		require.Equal(t, gad.Nil, ret)
 		require.Equal(t,
@@ -128,7 +124,9 @@ println("sourcemod")`))
 
 		bc, err := gad.Compile(script, opts)
 		require.NoError(t, err)
-		ret, err := gad.NewVM(bc).Run(nil)
+		ret, err := gad.NewVM(bc).RunOpts(&gad.RunOpts{
+			StdOut: gad.NewWriter(buf),
+		})
 		require.NoError(t, err)
 		require.Equal(t, gad.Nil, ret)
 		require.Equal(t,

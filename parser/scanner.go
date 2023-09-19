@@ -26,16 +26,60 @@ import (
 const bom = 0xFEFF
 
 // ScanMode represents a scanner mode.
-type ScanMode int
+type ScanMode uint8
+
+func (b *ScanMode) Set(flag ScanMode) *ScanMode    { *b = *b | flag; return b }
+func (b *ScanMode) Clear(flag ScanMode) *ScanMode  { *b = *b &^ flag; return b }
+func (b *ScanMode) Toggle(flag ScanMode) *ScanMode { *b = *b ^ flag; return b }
+func (b ScanMode) Has(flag ScanMode) bool          { return b&flag != 0 }
 
 // List of scanner modes.
 const (
 	ScanComments ScanMode = 1 << iota
 	DontInsertSemis
+	Mixed
+	ConfigDisabled
+)
+
+// TextFlag represents a text flag.
+type TextFlag uint8
+
+func (b *TextFlag) Set(flag TextFlag) *TextFlag    { *b = *b | flag; return b }
+func (b *TextFlag) Clear(flag TextFlag) *TextFlag  { *b = *b &^ flag; return b }
+func (b *TextFlag) Toggle(flag TextFlag) *TextFlag { *b = *b ^ flag; return b }
+func (b TextFlag) Has(flag TextFlag) bool          { return b&flag != 0 }
+func (b TextFlag) String() (s string) {
+	if b.Has(TrimLeft) {
+		s += "<"
+	}
+	if b.Has(TrimRight) {
+		s += ">"
+	}
+	return
+}
+
+// List of scanner modes.
+const (
+	TrimLeft TextFlag = 1 << iota
+	TrimRight
 )
 
 // ScannerErrorHandler is an error handler for the scanner.
 type ScannerErrorHandler func(pos SourceFilePos, msg string)
+
+type Token struct {
+	Pos        Pos
+	Token      token.Token
+	Literal    string
+	InsertSemi bool
+	Data       any
+}
+
+var _ fmt.Stringer = Token{}
+
+func (t Token) String() string {
+	return t.Token.String() + ": " + t.Literal
+}
 
 // Scanner reads the Gad source text. It's based on Go's scanner
 // implementation.
@@ -50,6 +94,11 @@ type Scanner struct {
 	errorHandler ScannerErrorHandler // error reporting; or nil
 	errorCount   int                 // number of errors encountered
 	mode         ScanMode
+	inCode       bool
+	toText       bool
+	braceCount   int
+	tokenPool    []Token
+	textFlag     TextFlag
 }
 
 // NewScanner creates a Scanner.
@@ -85,32 +134,118 @@ func (s *Scanner) ErrorCount() int {
 	return s.errorCount
 }
 
-// Scan returns a token, token literal and its position.
-func (s *Scanner) Scan() (
-	tok token.Token,
-	literal string,
-	pos Pos,
-) {
-	s.skipWhitespace()
+func (s *Scanner) AddNextToken(n ...Token) {
+	s.tokenPool = append(s.tokenPool, n...)
+}
 
-	pos = s.file.FileSetPos(s.offset)
+// Scan returns a token, token literal and its position.
+func (s *Scanner) Scan() (t Token) {
+	if len(s.tokenPool) > 0 {
+		t = s.tokenPool[0]
+		s.tokenPool = s.tokenPool[1:]
+		return
+	}
+
+	t.Pos = s.file.FileSetPos(s.offset)
+
+	if s.mode.Has(Mixed) && !s.inCode && s.ch != -1 {
+		start := s.offset
+		for {
+			var scape bool
+			switch s.ch {
+			case '\\':
+				if scape {
+					scape = false
+				}
+			case -1:
+				t.Token = token.Text
+				t.Literal = string(s.src[start:s.offset])
+				s.tokenPool = append(s.tokenPool, Token{Pos: s.file.FileSetPos(s.offset), Token: token.EOF})
+				return
+			case '#':
+				if !scape {
+					if s.peek() == '{' {
+						end := s.offset
+						s.inCode = true
+						s.next()
+						s.next()
+						s.braceCount++
+
+						t.Literal = string(s.src[start:end])
+						t.Token = token.Text
+						var flag TextFlag
+
+						switch s.ch {
+						case '<':
+							s.nextNoSpace()
+							flag.Set(TrimLeft)
+							t.Literal = trimSpace(false, true, t.Literal)
+							if s.ch == '>' {
+								flag.Set(TrimRight)
+								s.nextNoSpace()
+							}
+						case '>':
+							flag.Set(TrimRight)
+							s.nextNoSpace()
+						}
+
+						if s.ch == '=' {
+							s.toText = true
+							s.nextNoSpace()
+							next := Token{Token: token.ToTextBegin, Pos: s.file.FileSetPos(end), Literal: "#{" + flag.String() + "=", Data: flag}
+							if t.Literal == "" {
+								t = next
+							} else {
+								s.AddNextToken(next)
+							}
+						} else {
+							next := Token{Token: token.CodeBegin, Pos: s.file.FileSetPos(end), Literal: "#{" + flag.String(), Data: flag}
+							s.textFlag = flag
+							if t.Literal == "" {
+								t = next
+							} else {
+								t.Data = flag
+								s.AddNextToken(next)
+							}
+						}
+						return
+					}
+
+					if !s.mode.Has(ConfigDisabled) && string(s.peekNoSpaceN(4)) == "gad:" {
+						t, ok := s.scanConfig()
+						if ok {
+							return t
+						}
+					}
+
+					goto do
+				}
+			}
+			s.next()
+		}
+	}
+
+do:
+	s.skipWhitespace()
+	t.Pos = s.file.FileSetPos(s.offset)
 
 	insertSemi := false
 
 	// determine token value
 	switch ch := s.ch; {
 	case isLetter(ch):
-		literal = s.scanIdentifier()
-		tok = token.Lookup(literal)
-		switch tok {
+		t.Literal = s.scanIdentifier()
+		t.Token = token.Lookup(t.Literal)
+		switch t.Token {
 		case token.Ident, token.Break, token.Continue, token.Return,
 			token.True, token.False, token.Nil,
-			token.Callee, token.Args, token.NamedArgs:
+			token.Callee, token.Args, token.NamedArgs,
+			token.StdIn, token.StdOut, token.StdErr:
 			insertSemi = true
 		}
 	case '0' <= ch && ch <= '9':
 		insertSemi = true
-		tok, literal = s.scanNumber(false)
+		t.Token, t.Literal = s.scanNumber(false)
 	default:
 		s.next() // always make progress
 
@@ -118,159 +253,201 @@ func (s *Scanner) Scan() (
 		case -1: // EOF
 			if s.insertSemi {
 				s.insertSemi = false // EOF consumed
-				return token.Semicolon, "\n", pos
+				t.Data = "\n"
+				t.Token = token.Semicolon
+				return
 			}
-			tok = token.EOF
+			t.Token = token.EOF
 		case '\n':
 			// we only reach here if s.insertSemi was set in the first place
 			s.insertSemi = false // newline consumed
-			return token.Semicolon, "\n", pos
+			t.Literal = "\n"
+			t.Token = token.Semicolon
+			return
 		case '"':
 			insertSemi = true
-			tok = token.String
-			literal = s.scanString()
+			t.Token = token.String
+			t.Literal = s.scanString()
 		case '\'':
 			insertSemi = true
-			tok = token.Char
-			literal = s.scanRune()
+			t.Token = token.Char
+			t.Literal = s.scanRune()
 		case '`':
 			insertSemi = true
-			tok = token.String
-			literal = s.scanRawString()
+			t.Token = token.String
+			t.Literal = s.scanRawString()
 		case ':':
-			tok = s.switch2(token.Colon, token.Define)
+			t.Token = s.switch2(token.Colon, token.Define)
 		case '.':
 			if '0' <= s.ch && s.ch <= '9' {
 				insertSemi = true
-				tok, literal = s.scanNumber(true)
+				t.Token, t.Literal = s.scanNumber(true)
 			} else {
-				tok = token.Period
+				t.Token = token.Period
 				if s.ch == '.' && s.peek() == '.' {
 					s.next()
 					s.next() // consume last '.'
-					tok = token.Ellipsis
+					t.Token = token.Ellipsis
 				}
 			}
 		case ',':
-			tok = token.Comma
+			t.Token = token.Comma
 		case '?':
 			switch s.ch {
 			case '.':
 				s.next()
-				tok = token.NullishSelector
+				t.Token = token.NullishSelector
 			case '?':
 				if s.peek() == '=' {
 					s.next()
 					s.next()
-					tok = token.NullichAssign
+					t.Token = token.NullichAssign
 				} else {
 					s.next()
-					tok = token.NullichCoalesce
+					t.Token = token.NullichCoalesce
 				}
 			default:
-				tok = token.Question
+				t.Token = token.Question
 			}
 		case ';':
-			tok = token.Semicolon
-			literal = ";"
+			t.Token = token.Semicolon
+			t.Literal = ";"
 		case '(':
-			tok = token.LParen
+			t.Token = token.LParen
 		case ')':
 			insertSemi = true
-			tok = token.RParen
+			t.Token = token.RParen
 		case '[':
-			tok = token.LBrack
+			t.Token = token.LBrack
 		case ']':
 			insertSemi = true
-			tok = token.RBrack
+			t.Token = token.RBrack
 		case '{':
-			tok = token.LBrace
+			t.Token = token.LBrace
+			if s.inCode {
+				s.braceCount++
+			}
 		case '}':
 			insertSemi = true
-			tok = token.RBrace
+			t.Token = token.RBrace
+			if s.inCode {
+				s.braceCount--
+				if s.braceCount == 0 {
+					s.inCode = false
+					insertSemi = false
+					t.Token = token.Semicolon
+					t.Literal = "\n"
+					if s.toText {
+						t.Token = token.ToTextEnd
+						s.toText = false
+						t.Literal = "}"
+					} else {
+						next := Token{Token: token.CodeEnd, Literal: "}", Pos: t.Pos}
+						if !s.mode.Has(DontInsertSemis) {
+							t = next
+						} else {
+							return next
+						}
+					}
+					if s.textFlag.Has(TrimRight) {
+						s.skipWhitespace()
+					}
+					s.textFlag = 0
+				}
+			}
 		case '+':
-			tok = s.switch3(token.Add, token.AddAssign, '+', token.Inc)
-			if tok == token.Inc {
+			t.Token = s.switch3(token.Add, token.AddAssign, '+', token.Inc)
+			if t.Token == token.Inc {
 				insertSemi = true
 			}
 		case '-':
-			tok = s.switch3(token.Sub, token.SubAssign, '-', token.Dec)
-			if tok == token.Dec {
+			t.Token = s.switch3(token.Sub, token.SubAssign, '-', token.Dec)
+			if t.Token == token.Dec {
 				insertSemi = true
 			}
 		case '*':
-			tok = s.switch2(token.Mul, token.MulAssign)
+			t.Token = s.switch2(token.Mul, token.MulAssign)
 		case '/':
 			if s.ch == '/' || s.ch == '*' {
 				// comment
 				if s.insertSemi && s.findLineEnd() {
 					// reset position to the beginning of the comment
 					s.ch = '/'
-					s.offset = s.file.Offset(pos)
+					s.offset = s.file.Offset(t.Pos)
 					s.readOffset = s.offset + 1
 					s.insertSemi = false // newline consumed
-					return token.Semicolon, "\n", pos
+					t.Data = "\n"
+					t.Token = token.Semicolon
+					return
 				}
 				comment := s.scanComment()
-				if s.mode&ScanComments == 0 {
+				if !s.mode.Has(ScanComments) {
 					// skip comment
 					s.insertSemi = false // newline consumed
 					return s.Scan()
 				}
-				tok = token.Comment
-				literal = comment
+				t.Token = token.Comment
+				t.Literal = comment
 			} else {
-				tok = s.switch2(token.Quo, token.QuoAssign)
+				t.Token = s.switch2(token.Quo, token.QuoAssign)
 			}
 		case '%':
-			tok = s.switch2(token.Rem, token.RemAssign)
+			t.Token = s.switch2(token.Rem, token.RemAssign)
 		case '^':
-			tok = s.switch2(token.Xor, token.XorAssign)
+			t.Token = s.switch2(token.Xor, token.XorAssign)
 		case '<':
-			tok = s.switch4(token.Less, token.LessEq, '<',
+			t.Token = s.switch4(token.Less, token.LessEq, '<',
 				token.Shl, token.ShlAssign)
 		case '>':
-			tok = s.switch4(token.Greater, token.GreaterEq, '>',
+			t.Token = s.switch4(token.Greater, token.GreaterEq, '>',
 				token.Shr, token.ShrAssign)
 		case '=':
-			tok = s.switch2(token.Assign, token.Equal)
+			t.Token = s.switch2(token.Assign, token.Equal)
 		case '!':
-			tok = s.switch2(token.Not, token.NotEqual)
+			t.Token = s.switch2(token.Not, token.NotEqual)
 		case '&':
 			if s.ch == '^' {
 				s.next()
-				tok = s.switch2(token.AndNot, token.AndNotAssign)
+				t.Token = s.switch2(token.AndNot, token.AndNotAssign)
 			} else {
-				tok = s.switch3(token.And, token.AndAssign, '&', token.LAnd)
+				t.Token = s.switch3(token.And, token.AndAssign, '&', token.LAnd)
 			}
 		case '|':
 			if s.ch == '=' {
 				s.next()
-				tok = token.OrAssign
+				t.Token = token.OrAssign
 			} else if s.ch == '|' {
 				if s.peek() == '=' {
 					s.next()
 					s.next()
-					tok = token.LOrAssign
+					t.Token = token.LOrAssign
 				} else {
 					s.next()
-					tok = token.LOr
+					t.Token = token.LOr
 				}
 			} else {
-				tok = token.Or
+				t.Token = token.Or
 			}
+		case '#':
+			if !s.mode.Has(ConfigDisabled) && string(s.peekNoSpaceN(4)) == "gad:" {
+				t, ok := s.scanConfig()
+				if ok {
+					return t
+				}
+			}
+			fallthrough
 		default:
 			// next reports unexpected BOMs - don't repeat
 			if ch != bom {
-				s.error(s.file.Offset(pos),
+				s.error(s.file.Offset(t.Pos),
 					fmt.Sprintf("illegal character %#U", ch))
 			}
 			insertSemi = s.insertSemi // preserve insertSemi info
-			tok = token.Illegal
-			literal = string(ch)
+			t.Token = token.Illegal
+			t.Literal = string(ch)
 		}
 	}
-	if s.mode&DontInsertSemis == 0 {
+	if !s.mode.Has(DontInsertSemis) {
 		s.insertSemi = insertSemi
 	}
 	return
@@ -308,6 +485,11 @@ func (s *Scanner) next() {
 	}
 }
 
+func (s *Scanner) nextNoSpace() {
+	s.next()
+	s.skipWhitespace()
+}
+
 func (s *Scanner) peek() byte {
 	if s.readOffset < len(s.src) {
 		return s.src[s.readOffset]
@@ -315,11 +497,79 @@ func (s *Scanner) peek() byte {
 	return 0
 }
 
+func (s *Scanner) peekNoSpaceN(n int) []byte {
+	off := s.readOffset
+	for off < len(s.src) {
+		switch s.src[off] {
+		case ' ', '\r', '\n', '\t':
+			off++
+		default:
+			part := s.src[off:]
+			if len(part) >= n {
+				return part[:n]
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
 func (s *Scanner) error(offset int, msg string) {
 	if s.errorHandler != nil {
 		s.errorHandler(s.file.Position(s.file.FileSetPos(offset)), msg)
 	}
 	s.errorCount++
+}
+
+func (s *Scanner) scanConfig() (t Token, ok bool) {
+	off, roff, loff := s.offset, s.readOffset, s.lineOffset
+	pos := s.file.FileSetPos(off - 1)
+	p := s.file.position(pos)
+	if p.Column != 1 {
+		return
+	}
+	s.nextNoSpace()
+	if isLetter(s.ch) {
+		name := s.scanIdentifier()
+		if name == "gad" {
+			s.skipWhitespace()
+			if s.ch == ':' {
+				ok = true
+				s.nextNoSpace()
+				var (
+					start = s.offset
+					end   int
+					semi  string
+				)
+
+			cfg_line:
+				for {
+					switch s.ch {
+					case '\n', ';', -1:
+						end = s.offset - 1
+						if s.src[end] == '\r' {
+							end--
+						}
+						t.Data = s.file.FileSetPos(end)
+						if s.ch != -1 {
+							semi = string(s.ch)
+						}
+						s.next()
+						break cfg_line
+					}
+					s.next()
+				}
+
+				t.Literal = string(s.src[start : end+1])
+				t.Token = token.Config
+				t.Pos = pos
+				s.tokenPool = append(s.tokenPool, Token{Pos: s.file.FileSetPos(end), Token: token.Semicolon, Literal: semi})
+				return
+			}
+		}
+	}
+	s.offset, s.readOffset, s.lineOffset = off, roff, loff
+	return
 }
 
 func (s *Scanner) scanComment() string {
@@ -407,7 +657,7 @@ func (s *Scanner) findLineEnd() bool {
 			return true
 		}
 		if s.ch != '/' {
-			// non-comment tok
+			// non-comment Token
 			return false
 		}
 		s.next() // consume '/'

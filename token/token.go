@@ -16,6 +16,12 @@ const (
 	Illegal Token = iota
 	EOF
 	Comment
+	Config
+	Text
+	ToTextBegin
+	ToTextEnd
+	CodeBegin
+	CodeEnd
 	LiteralBegin_
 	Ident
 	Int
@@ -104,12 +110,16 @@ const (
 	Callee
 	NamedArgs
 	Args
+	StdIn
+	StdOut
+	StdErr
 	KeywordEnd_
 )
 
 var tokens = [...]string{
 	Illegal:         "ILLEGAL",
 	EOF:             "EOF",
+	Config:          "CONFIG",
 	Comment:         "COMMENT",
 	Ident:           "IDENT",
 	Int:             "INT",
@@ -120,6 +130,12 @@ var tokens = [...]string{
 	String:          "STRING",
 	Null:            "NULL",
 	NotNull:         "NOTNULL",
+	Text:            "TEXT",
+	StdIn:           "STDIN",
+	StdOut:          "STDOUT",
+	StdErr:          "STDERR",
+	CodeBegin:       "CODEBEGIN",
+	CodeEnd:         "CODEEND",
 	Add:             "+",
 	Sub:             "-",
 	Mul:             "*",

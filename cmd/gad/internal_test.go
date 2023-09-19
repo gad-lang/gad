@@ -123,11 +123,11 @@ func TestREPL(t *testing.T) {
 		cw.consume()
 		require.NoError(t, r.execute(".symbols+"))
 		symout := string(cw.consume())
-		testHasPrefix(t, symout, "[Symbol{Name:")
+		testHasPrefix(t, symout, "[Symbol{Literal:")
 		require.Contains(t, symout,
-			"Symbol{Name:Gosched Index:0 Scope:GLOBAL Assigned:false Original:<nil> Constant:false}")
+			"Symbol{Literal:Gosched Index:0 Scope:GLOBAL Assigned:false Original:<nil> Constant:false}")
 		require.Contains(t, symout,
-			"Symbol{Name:test Index:0 Scope:LOCAL Assigned:true Original:<nil> Constant:false}")
+			"Symbol{Literal:test Index:0 Scope:LOCAL Assigned:true Original:<nil> Constant:false}")
 	})
 	t.Run("modules_cache", func(t *testing.T) {
 		r := newREPL(ctx, cw)

@@ -104,6 +104,111 @@ x := d?.a.b.("c")?.e ?? 5
 	)
 }
 
+func TestParserMixed(t *testing.T) {
+	expectParseMode(t, ParseMixed, "a  #{>= 1}\n\tb", func(p pfn) []Stmt {
+		return stmts(
+			text(p(1, 1), "a  "),
+			toText(lit("#{>=", p(1, 4)), lit("}", p(1, 10)), intLit(1, p(1, 9)), 0),
+			text(p(1, 11), "b"),
+		)
+	})
+	expectParseMode(t, ParseMixed, `a  #{< 1}b#{1 + 2}c`, func(p pfn) []Stmt {
+		return stmts(
+			text(p(1, 1), "a"),
+			code(p(1, 4), p(1, 9), TrimLeft, exprStmt(intLit(1, p(1, 8)))),
+			text(p(1, 10), "b"),
+			code(p(1, 11), p(1, 18), 0, exprStmt(binaryExpr(intLit(1, p(1, 13)), intLit(2, p(1, 17)), token.Add, p(1, 15)))),
+			text(p(1, 19), "c"),
+		)
+	})
+	expectParseMode(t, ParseMixed, "a  #{>= 1}\n\tb", func(p pfn) []Stmt {
+		return stmts(
+			text(p(1, 1), "a  "),
+			toText(lit("#{>=", p(1, 4)), lit("}", p(1, 10)), intLit(1, p(1, 9)), 0),
+			text(p(1, 11), "b"),
+		)
+	})
+
+	expectParseMode(t, ParseMixed, "a  #{<= 1}\n\tb", func(p pfn) []Stmt {
+		return stmts(
+			text(p(1, 1), "a"),
+			toText(lit("#{<=", p(1, 4)), lit("}", p(1, 10)), intLit(1, p(1, 9)), 0),
+			text(p(1, 11), "\n\tb"),
+		)
+	})
+
+	expectParseMode(t, ParseMixed, "a  #{<>= 1}\n\tb", func(p pfn) []Stmt {
+		return stmts(
+			text(p(1, 1), "a"),
+			toText(lit("#{<>=", p(1, 4)), lit("}", p(1, 11)), intLit(1, p(1, 10)), 0),
+			text(p(1, 12), "b"),
+		)
+	})
+
+	expectParseMode(t, ParseMixed, `a#{=1}b`, func(p pfn) []Stmt {
+		return stmts(
+			text(p(1, 1), "a"),
+			toText(lit("#{=", p(1, 2)), lit("}", p(1, 6)), intLit(1, p(1, 5)), 0),
+			text(p(1, 7), "b"),
+		)
+	})
+
+	expectParseMode(t, ParseMixed, `a#{=  1   }b`, func(p pfn) []Stmt {
+		return stmts(
+			text(p(1, 1), "a"),
+			toText(lit("#{=", p(1, 2)), lit("}", p(1, 11)), intLit(1, p(1, 7)), 0),
+			text(p(1, 12), "b"),
+		)
+	})
+
+	expectParseMode(t, ParseMixed, `a#{1}b#{1 + 2}c`, func(p pfn) []Stmt {
+		return stmts(
+			text(p(1, 1), "a"),
+			code(p(1, 2), p(1, 5), 0, exprStmt(intLit(1, p(1, 4)))),
+			text(p(1, 6), "b"),
+			code(p(1, 7), p(1, 14), 0, exprStmt(
+				binaryExpr(intLit(1, p(1, 9)), intLit(2, p(1, 13)), token.Add, p(1, 11)))),
+			text(p(1, 15), "c"),
+		)
+	})
+
+	expectParseMode(t, ParseMixed, `a#{1}b#{true}c`, func(p pfn) []Stmt {
+		return stmts(
+			text(p(1, 1), "a"),
+			code(p(1, 2), p(1, 5), 0, exprStmt(intLit(1, p(1, 4)))),
+			text(p(1, 6), "b"),
+			code(p(1, 7), p(1, 13), 0, exprStmt(boolLit(true, p(1, 9)))),
+			text(p(1, 14), "c"),
+		)
+	})
+
+	expectParseMode(t, ParseMixed, `a#{1}b`, func(p pfn) []Stmt {
+		return stmts(
+			text(p(1, 1), "a"),
+			code(p(1, 2), p(1, 5), 0, exprStmt(intLit(1, p(1, 4)))),
+			text(p(1, 6), "b"),
+		)
+	})
+
+	expectParseMode(t, ParseMixed, `abc`, func(p pfn) []Stmt {
+		return stmts(
+			text(p(1, 1), "abc"),
+		)
+	})
+
+	expectParseStringMode(t, ParseMixed, "#{1}", `#{ 1 }`)
+	expectParseStringMode(t, ParseMixed, "#{1}#{2}#{3}", `#{ 1 }; #{ 2 }; #{ 3 }`)
+	expectParseStringMode(t, ParseMixed, "#{1}#{}#{3}", `#{ 1 }; #{ 3 }`)
+	expectParseStringMode(t, ParseMixed, "#{1}#{=2}#{3}", `#{ 1 }; #{= 2 }; #{ 3 }`)
+	expectParseStringMode(t, ParseMixed, "abc", `#{= "abc" }`)
+	expectParseStringMode(t, ParseMixed, "a#{1}", `#{= "a" }; #{ 1 }`)
+	expectParseStringMode(t, ParseMixed, "a#{1}b", `#{= "a" }; #{ 1 }; #{= "b" }`)
+	expectParseStringMode(t, ParseMixed, "a#{1}b#{= 2 + 4}", `#{= "a" }; #{ 1 }; #{= "b" }; #{= (2 + 4) }`)
+	expectParseStringMode(t, ParseMixed, "a  #{< 1}", `#{= "a" }; #{< 1 }`)
+	expectParseStringMode(t, ParseMixed, "a\n#{< 1}\tb#{>= 2}\n\nc", "#{= \"a\" }; #{< 1 }; #{= \"\\tb\" }; #{>= 2 }; #{= \"c\" }")
+	expectParseStringMode(t, ParseMixed, `a#{=1}c#{x := 5}#{=x}`, `#{= "a" }; #{= 1 }; #{= "c" }; #{ x := 5 }; #{= x }`)
+}
+
 func TestParserError(t *testing.T) {
 	err := &Error{Pos: SourceFilePos{
 		Offset: 10, Line: 1, Column: 10,
@@ -2510,8 +2615,7 @@ func TestParseSemicolon(t *testing.T) {
 
 	expectParse(t, "1;;", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(intLit(1, p(1, 1))),
-			emptyStmt(false, p(1, 3)))
+			exprStmt(intLit(1, p(1, 1))))
 	})
 
 	expectParse(t, `1
@@ -2523,15 +2627,13 @@ func TestParseSemicolon(t *testing.T) {
 	expectParse(t, `1
 ;`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(intLit(1, p(1, 1))),
-			emptyStmt(false, p(2, 1)))
+			exprStmt(intLit(1, p(1, 1))))
 	})
 
 	expectParse(t, `1;
 ;`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(intLit(1, p(1, 1))),
-			emptyStmt(false, p(2, 1)))
+			exprStmt(intLit(1, p(1, 1))))
 	})
 }
 
@@ -2552,6 +2654,42 @@ func TestParseString(t *testing.T) {
 				exprs(stringLit("raw string", p(1, 5))),
 				token.Assign,
 				p(1, 3)))
+	})
+}
+
+func TestParseConfig(t *testing.T) {
+	expectParse(t, `# gad: mixed
+y
+#{b}`, func(p pfn) []Stmt {
+		return stmts(
+			config(p(1, 1), p(1, 12), ConfigOptions{Mixed: true}),
+			text(p(2, 1), "y\n"),
+			code(p(3, 1), p(3, 4), 0, exprStmt(ident("b", p(3, 3)))),
+		)
+	})
+	expectParse(t, `# gad: mixed
+# gad: mixed=false
+a`, func(p pfn) []Stmt {
+		return stmts(
+			config(p(1, 1), p(1, 12), ConfigOptions{Mixed: true}),
+			config(p(2, 1), p(2, 18), ConfigOptions{NoMixed: true}),
+			exprStmt(ident("a", p(3, 1))),
+		)
+	})
+
+	expectParse(t, `# gad: mixed
+a
+#{b}`, func(p pfn) []Stmt {
+		return stmts(
+			config(p(1, 1), p(1, 12), ConfigOptions{Mixed: true}),
+			text(p(2, 1), "a\n"),
+			code(p(3, 1), p(3, 4), 0, exprStmt(ident("b", p(3, 3)))),
+		)
+	})
+
+	expectParse(t, `# gad: mixed`, func(p pfn) []Stmt {
+		return stmts(
+			config(p(1, 1), p(1, 12), ConfigOptions{Mixed: true}))
 	})
 }
 
@@ -2666,6 +2804,10 @@ func (o *parseTracer) Write(p []byte) (n int, err error) {
 }
 
 func expectParse(t *testing.T, input string, fn expectedFn) {
+	expectParseMode(t, 0, input, fn)
+}
+
+func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn) {
 	testFileSet := NewFileSet()
 	testFile := testFileSet.AddFile("test", -1, len(input))
 
@@ -2683,7 +2825,7 @@ func expectParse(t *testing.T, input string, fn expectedFn) {
 		}
 	}()
 
-	p := NewParser(testFile, []byte(input), nil)
+	p := NewParserWithMode(testFile, []byte(input), nil, mode)
 	actual, err := p.ParseFile()
 	require.NoError(t, err)
 
@@ -2721,17 +2863,21 @@ func expectParseError(t *testing.T, input string) {
 }
 
 func expectParseString(t *testing.T, input, expected string) {
+	expectParseStringMode(t, 0, input, expected)
+}
+
+func expectParseStringMode(t *testing.T, mode Mode, input, expected string) {
 	var ok bool
 	defer func() {
 		if !ok {
 			// print trace
 			tr := &parseTracer{}
-			_, _ = parseSource("test", []byte(input), tr)
+			_, _ = parseSource("test", []byte(input), tr, mode)
 			t.Logf("Trace:\n%s", strings.Join(tr.out, ""))
 		}
 	}()
 
-	actual, err := parseSource("test", []byte(input), nil)
+	actual, err := parseSource("test", []byte(input), nil, mode)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual.String())
 	ok = true
@@ -2790,10 +2936,6 @@ func assignStmt(
 	pos Pos,
 ) *AssignStmt {
 	return &AssignStmt{LHS: lhs, RHS: rhs, Token: token, TokenPos: pos}
-}
-
-func emptyStmt(implicit bool, pos Pos) *EmptyStmt {
-	return &EmptyStmt{Implicit: implicit, Semicolon: pos}
 }
 
 func returnStmt(pos Pos, result Expr) *ReturnStmt {
@@ -2915,6 +3057,26 @@ func blockStmt(lbrace, rbrace Pos, list ...Stmt) *BlockStmt {
 
 func ident(name string, pos Pos) *Ident {
 	return &Ident{Name: name, NamePos: pos}
+}
+
+func text(pos Pos, lit string) *TextStmt {
+	return &TextStmt{TextPos: pos, Literal: lit}
+}
+
+func toText(start, end Literal, expr Expr, flag TextFlag) *ExprToTextStmt {
+	return &ExprToTextStmt{expr, start, end, flag}
+}
+
+func code(lbrace, rbrace Pos, flag TextFlag, stmts ...Stmt) *CodeStmt {
+	return &CodeStmt{LBrace: lbrace, RBrace: rbrace, TextFlag: flag, Stmts: stmts}
+}
+
+func lit(value string, pos Pos) Literal {
+	return Literal{value, pos}
+}
+
+func config(start, end Pos, opts ConfigOptions) *ConfigStmt {
+	return &ConfigStmt{ConfigPos: start, EndPos: end, Options: opts}
 }
 
 func nullishSelector(
@@ -3221,6 +3383,37 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 			actual.(*BranchStmt).Token)
 		require.Equal(t, expected.TokenPos,
 			actual.(*BranchStmt).TokenPos)
+	case *TextStmt:
+		require.Equal(t, expected.TextPos,
+			actual.(*TextStmt).TextPos)
+		require.Equal(t, expected.Literal,
+			actual.(*TextStmt).Literal)
+	case *ExprToTextStmt:
+		require.Equal(t, expected.StartLit.Value,
+			actual.(*ExprToTextStmt).StartLit.Value)
+		require.Equal(t, expected.StartLit.Pos,
+			actual.(*ExprToTextStmt).StartLit.Pos)
+		require.Equal(t, expected.EndLit.Value,
+			actual.(*ExprToTextStmt).EndLit.Value)
+		require.Equal(t, expected.EndLit.Pos,
+			actual.(*ExprToTextStmt).EndLit.Pos)
+		equalExpr(t, expected.Expr,
+			actual.(*ExprToTextStmt).Expr)
+	case *CodeStmt:
+		require.Equal(t, expected.LBrace,
+			actual.(*CodeStmt).LBrace)
+		require.Equal(t, expected.RBrace,
+			actual.(*CodeStmt).RBrace)
+		require.Equal(t, expected.TextFlag,
+			actual.(*CodeStmt).TextFlag)
+		equalStmts(t, expected.Stmts, actual.(*CodeStmt).Stmts)
+	case *ConfigStmt:
+		require.Equal(t, expected.ConfigPos,
+			actual.(*ConfigStmt).ConfigPos)
+		require.Equal(t, expected.EndPos,
+			actual.(*ConfigStmt).EndPos)
+		require.Equal(t, expected.Options,
+			actual.(*ConfigStmt).Options)
 	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}
@@ -3500,10 +3693,11 @@ func parseSource(
 	filename string,
 	src []byte,
 	trace io.Writer,
+	mode Mode,
 ) (res *File, err error) {
 	fileSet := NewFileSet()
 	file := fileSet.AddFile(filename, -1, len(src))
 
-	p := NewParser(file, src, trace)
+	p := NewParserWithMode(file, src, trace, mode)
 	return p.ParseFile()
 }

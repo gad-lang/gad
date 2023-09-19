@@ -659,3 +659,7 @@ func (o Char) Format(s fmt.State, verb rune) {
 	format := compat.FmtFormatString(s, verb)
 	fmt.Fprintf(s, format, rune(o))
 }
+
+func (o Char) ToBytes() (Bytes, error) {
+	return []byte(string([]rune{rune(o)})), nil
+}

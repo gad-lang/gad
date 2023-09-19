@@ -32,7 +32,7 @@ type Symbol struct {
 }
 
 func (s *Symbol) String() string {
-	return fmt.Sprintf("Symbol{Name:%s Index:%d Scope:%s Assigned:%v "+
+	return fmt.Sprintf("Symbol{Literal:%s Index:%d Scope:%s Assigned:%v "+
 		"Original:%s Constant:%t}",
 		s.Name, s.Index, s.Scope, s.Assigned, s.Original, s.Constant)
 }

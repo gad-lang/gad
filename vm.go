@@ -7,6 +7,7 @@ package gad
 import (
 	"errors"
 	"fmt"
+	"os"
 	"runtime"
 	"strconv"
 	"sync"
@@ -39,6 +40,9 @@ type VM struct {
 	mu           sync.Mutex
 	err          error
 	noPanic      bool
+
+	StdOut, StdErr Writer
+	StdIn          Reader
 }
 
 // NewVM creates a VM object.
@@ -138,6 +142,18 @@ func (vm *VM) init(opts *RunOpts) (Object, error) {
 	vm.frameIndex = 1
 	vm.ip = -1
 	vm.sp = vm.curFrame.fn.NumLocals
+
+	vm.StdIn, vm.StdOut, vm.StdErr = NewReader(os.Stdin), NewWriter(os.Stdout), NewWriter(os.Stderr)
+
+	if opts.StdIn != nil {
+		vm.StdIn = opts.StdIn
+	}
+	if opts.StdOut != nil {
+		vm.StdOut = opts.StdOut
+	}
+	if opts.StdErr != nil {
+		vm.StdErr = opts.StdErr
+	}
 
 	// Resize modules cache or create it if not exists.
 	// Note that REPL can set module cache before running, don't recreate it add missing indexes.

@@ -729,23 +729,23 @@ func TestVMExamples(t *testing.T) {
 		Map{"Total": Int(6), "ModuleErrors": Int(0), "Error": String("nil")})
 	require.Equal(t, 1, cleanupCall)
 
-	oldPrintWriter := PrintWriter
-	defer func() {
-		PrintWriter = oldPrintWriter
-	}()
 	printWriter := bytes.NewBuffer(nil)
-	PrintWriter = printWriter
 	cleanupCall = 0
 	expectRun(t, ex1MainScript,
-		newOpts().Module("module", ex1Module).Globals(Map{
-			"DoCleanup": &Function{
-				Value: func(Call) (Object, error) {
-					// a dummy callable to export to script
-					cleanupCall++
-					return Nil, nil
+		newOpts().
+			out(printWriter).
+			Module("module", ex1Module).
+			Globals(Map{
+				"DoCleanup": &Function{
+					Value: func(Call) (Object, error) {
+						// a dummy callable to export to script
+						cleanupCall++
+						return Nil, nil
+					},
 				},
-			},
-		}).Args(Nil, Nil).Skip2Pass(),
+			}).
+			Args(Nil, Nil).
+			Skip2Pass(),
 		Map{
 			"Total":        Nil,
 			"ModuleErrors": Int(1),
@@ -790,6 +790,7 @@ func TestVMExamples(t *testing.T) {
 
 	return mapEach(args, func(x) { return x*multiplier })
 	`, newOpts().
+		out(printWriter).
 		Globals(Map{"multiplier": Int(2)}).
 		Args(Int(1), Int(2), Int(3), Int(4)),
 		Array{Int(2), Int(4), Int(6), Int(8)},
@@ -826,16 +827,16 @@ func TestVMExamples(t *testing.T) {
 	}
 `
 	var g IndexGetSetter = Map{}
-	expectRun(t, scr, newOpts().Globals(g).Args(Nil), Int(-1))
+	expectRun(t, scr, newOpts().out(printWriter).Globals(g).Args(Nil), Int(-1))
 	require.Equal(t, 1, len(g.(Map)))
 	require.Equal(t, True, g.(Map)["notAnInt"])
 
 	g = Map{}
-	expectRun(t, scr, newOpts().Globals(g).Args(Int(0)), Int(-1))
+	expectRun(t, scr, newOpts().out(printWriter).Globals(g).Args(Int(0)), Int(-1))
 	require.Equal(t, 1, len(g.(Map)))
 	require.Equal(t, True, g.(Map)["zeroDivision"])
 
-	expectRun(t, scr, newOpts().Args(Int(2)), Int(5))
+	expectRun(t, scr, newOpts().out(printWriter).Args(Int(2)), Int(5))
 
 	g = &SyncMap{Value: Map{"stats": Map{"fn1": Int(0), "fn2": Int(0)}}}
 	expectRun(t, `
@@ -857,7 +858,7 @@ func TestVMExamples(t *testing.T) {
 		stats.fn2++
 		/* ... */
 	}
-	`).Globals(g).Skip2Pass(), Nil)
+	`).out(printWriter).Globals(g).Skip2Pass(), Nil)
 	require.Equal(t, Int(1), g.(*SyncMap).Value["stats"].(Map)["fn1"])
 	require.Equal(t, Int(1), g.(*SyncMap).Value["stats"].(Map)["fn2"])
 }

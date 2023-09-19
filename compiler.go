@@ -68,19 +68,21 @@ type (
 
 	// CompilerOptions represents customizable options for Compile().
 	CompilerOptions struct {
-		ModuleMap         *ModuleMap
-		ModulePath        string
-		Constants         []Object
-		SymbolTable       *SymbolTable
-		Trace             io.Writer
-		TraceParser       bool
-		TraceCompiler     bool
-		TraceOptimizer    bool
-		OptimizerMaxCycle int
-		OptimizeConst     bool
-		OptimizeExpr      bool
-		moduleStore       *moduleStore
-		constsCache       map[Object]int
+		ModuleMap          *ModuleMap
+		ModulePath         string
+		Constants          []Object
+		SymbolTable        *SymbolTable
+		Trace              io.Writer
+		TraceParser        bool
+		TraceCompiler      bool
+		TraceOptimizer     bool
+		OptimizerMaxCycle  int
+		OptimizeConst      bool
+		OptimizeExpr       bool
+		Mixed              bool
+		MixedWriteFunction parser.Expr
+		moduleStore        *moduleStore
+		constsCache        map[Object]int
 	}
 
 	// CompilerError represents a compiler error.
@@ -180,7 +182,11 @@ func Compile(script []byte, opts CompilerOptions) (*Bytecode, error) {
 		trace = opts.Trace
 	}
 
-	p := parser.NewParser(srcFile, script, trace)
+	var mode parser.Mode
+	if opts.Mixed {
+		mode = parser.ParseMixed
+	}
+	p := parser.NewParserWithMode(srcFile, script, trace, mode)
 	pf, err := p.ParseFile()
 	if err != nil {
 		return nil, err
@@ -285,6 +291,63 @@ func (c *Compiler) Bytecode() *Bytecode {
 	}
 }
 
+// CompileStmts compiles parser.Stmt and builds Bytecode.
+func (c *Compiler) compileStmts(stmt ...parser.Stmt) (err error) {
+	l := len(stmt)
+
+	if l == 0 {
+		return nil
+	}
+
+stmts:
+	for i := 0; i < l; i++ {
+		switch stmt[i].(type) {
+		case *parser.TextStmt, *parser.ExprToTextStmt:
+			var j = i + 1
+		l2:
+			for j < l {
+				switch stmt[j].(type) {
+				case *parser.TextStmt, *parser.ExprToTextStmt:
+					j++
+				default:
+					break l2
+				}
+			}
+
+			var exprs = make([]parser.Expr, j-i)
+
+			for z, s := range stmt[i:j] {
+				switch t := s.(type) {
+				case *parser.TextStmt:
+					exprs[z] = &parser.StringLit{Value: t.Literal}
+				case *parser.ExprToTextStmt:
+					exprs[z] = t.Expr
+				}
+			}
+
+			wf := c.opts.MixedWriteFunction
+			if wf == nil {
+				wf = &parser.Ident{Name: "write"}
+			}
+			err = c.compileCallExpr(&parser.CallExpr{
+				Func: wf,
+				Args: parser.CallExprArgs{Values: exprs},
+			})
+			if err != nil {
+				return
+			}
+			i = j - 1
+			continue stmts
+		default:
+			if err = c.Compile(stmt[i]); err != nil {
+				return
+			}
+		}
+	}
+
+	return nil
+}
+
 // Compile compiles parser.Node and builds Bytecode.
 func (c *Compiler) Compile(node parser.Node) error {
 	defer c.at(node)()
@@ -299,10 +362,8 @@ func (c *Compiler) Compile(node parser.Node) error {
 
 	switch node := node.(type) {
 	case *parser.File:
-		for _, stmt := range node.Stmts {
-			if err := c.Compile(stmt); err != nil {
-				return err
-			}
+		if err := c.compileStmts(node.Stmts...); err != nil {
+			return err
 		}
 	case *parser.ExprStmt:
 		if err := c.Compile(node.Expr); err != nil {
@@ -350,6 +411,12 @@ func (c *Compiler) Compile(node parser.Node) error {
 		c.emit(node, OpConstant, c.addConstant(Char(node.Value)))
 	case *parser.NilLit:
 		c.emit(node, OpNull)
+	case *parser.StdInLit:
+		c.emit(node, OpStdIn)
+	case *parser.StdOutLit:
+		c.emit(node, OpStdOut)
+	case *parser.StdErrLit:
+		c.emit(node, OpStdErr)
 	case *parser.CalleeKeyword:
 		c.emit(node, OpCallee)
 	case *parser.ArgsKeyword:
@@ -409,7 +476,13 @@ func (c *Compiler) Compile(node parser.Node) error {
 		return c.compileImportExpr(node)
 	case *parser.CondExpr:
 		return c.compileCondExpr(node)
+	case *parser.CodeStmt:
+		return c.compileStmts(node.Stmts...)
 	case *parser.EmptyStmt:
+	case *parser.ConfigStmt:
+		if node.Options.WriteFunc != nil {
+			c.opts.MixedWriteFunction = node.Options.WriteFunc
+		}
 	case nil:
 	default:
 		return c.errorf(node, `%[1]T "%[1]v" not implemented`, node)
@@ -766,7 +839,8 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		return buf, nil
 	case OpEqual, OpNotEqual, OpNull, OpTrue, OpFalse, OpPop, OpSliceIndex,
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
-		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs:
+		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
+		OpStdIn, OpStdOut, OpStdErr:
 		return buf, nil
 	default:
 		return buf, &Error{

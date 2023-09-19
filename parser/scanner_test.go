@@ -21,8 +21,22 @@ type scanResult struct {
 	Column  int
 }
 
+func TestScanner_ScanMixed(t *testing.T) {
+	testScan(t, parser.Mixed, false, []struct {
+		token   token.Token
+		literal string
+	}{
+		{token.Text, "abc"},
+		{token.CodeBegin, "#{"},
+		{token.Ident, "a"},
+		{token.Add, "+"},
+		{token.Ident, "b"},
+		{token.CodeEnd, "}"},
+	})
+}
+
 func TestScanner_Scan(t *testing.T) {
-	var testCases = [...]struct {
+	testScan(t, 0, true, []struct {
 		token   token.Token
 		literal string
 	}{
@@ -154,8 +168,16 @@ func TestScanner_Scan(t *testing.T) {
 		{token.Callee, "__callee__"},
 		{token.Args, "__args__"},
 		{token.NamedArgs, "__named_args__"},
-	}
+		{token.StdIn, "STDIN"},
+		{token.StdOut, "STDOUT"},
+		{token.StdErr, "STDERR"},
+	})
+}
 
+func testScan(t *testing.T, mode parser.ScanMode, addLines bool, testCases []struct {
+	token   token.Token
+	literal string
+}) {
 	// combine
 	var lines []string
 	var lineSum int
@@ -163,17 +185,24 @@ func TestScanner_Scan(t *testing.T) {
 	columnNos := make([]int, len(testCases))
 	for i, tc := range testCases {
 		// add 0-2 lines before each test case
-		emptyLines := rand.Intn(3)
-		for j := 0; j < emptyLines; j++ {
-			lines = append(lines, strings.Repeat(" ", rand.Intn(10)))
+		var emptyLines, emptyColumns int
+		if addLines {
+			emptyLines = rand.Intn(3)
+			for j := 0; j < emptyLines; j++ {
+				lines = append(lines, strings.Repeat(" ", rand.Intn(10)))
+			}
 		}
 
-		// add test case line with some whitespaces around it
-		emptyColumns := rand.Intn(10)
-		lines = append(lines, fmt.Sprintf("%s%s%s",
-			strings.Repeat(" ", emptyColumns),
-			tc.literal,
-			strings.Repeat(" ", rand.Intn(10))))
+		if addLines {
+			// add test case line with some whitespaces around it
+			emptyColumns = rand.Intn(10)
+			lines = append(lines, fmt.Sprintf("%s%s%s",
+				strings.Repeat(" ", emptyColumns),
+				tc.literal,
+				strings.Repeat(" ", rand.Intn(10))))
+		} else {
+			lines = append(lines, tc.literal)
+		}
 
 		lineNos[i] = lineSum + emptyLines + 1
 		lineSum += emptyLines + countLines(tc.literal)
@@ -196,10 +225,20 @@ func TestScanner_Scan(t *testing.T) {
 			if expectedLiteral[1] == '/' {
 				expectedLiteral = expectedLiteral[:len(expectedLiteral)-1]
 			}
-		case token.Ident:
+		case token.Ident, token.CodeBegin, token.CodeEnd:
 			expectedLiteral = tc.literal
+		case token.Text:
+			expectedLiteral = tc.literal
+			if i < len(testCases)-1 {
+				// remove last \n
+				expectedLiteral += "\n"
+			}
 		case token.Semicolon:
-			expectedLiteral = ";"
+			if tc.literal == "\n" {
+				expectedLiteral = tc.literal
+			} else {
+				expectedLiteral = ";"
+			}
 		default:
 			if tc.token.IsLiteral() {
 				// strip CRs in raw string
@@ -227,9 +266,9 @@ func TestScanner_Scan(t *testing.T) {
 	}
 
 	scanExpect(t, strings.Join(lines, "\n"),
-		parser.ScanComments|parser.DontInsertSemis, expected...)
+		parser.ScanComments|parser.DontInsertSemis|mode, expected...)
 	scanExpect(t, strings.Join(lines, "\n"),
-		parser.DontInsertSemis, expectedSkipComments...)
+		parser.DontInsertSemis|mode, expectedSkipComments...)
 }
 
 func TestStripCR(t *testing.T) {
@@ -269,19 +308,19 @@ func scanExpect(
 		mode)
 
 	for idx, e := range expected {
-		tok, literal, pos := s.Scan()
+		tok := s.Scan()
 
-		filePos := testFile.Position(pos)
+		filePos := testFile.Position(tok.Pos)
 
-		require.Equalf(t, e.Token, tok, "[%d] expected: %s, actual: %s",
-			idx, e.Token.String(), tok.String())
-		require.Equal(t, e.Literal, literal)
+		require.Equalf(t, e.Token, tok.Token, "[%d] expected: %s, actual: %s",
+			idx, e.Token.String(), tok.Token.String())
+		require.Equal(t, e.Literal, tok.Literal)
 		require.Equal(t, e.Line, filePos.Line)
 		require.Equal(t, e.Column, filePos.Column)
 	}
 
-	tok, _, _ := s.Scan()
-	require.Equal(t, token.EOF, tok, "more tokens left")
+	tok := s.Scan()
+	require.Equal(t, token.EOF, tok.Token, "more tokens left")
 	require.Equal(t, 0, s.ErrorCount())
 }
 

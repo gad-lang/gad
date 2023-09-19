@@ -43,6 +43,9 @@ const (
 	OpGetIndex
 	OpSetIndex
 	OpNull
+	OpStdIn
+	OpStdOut
+	OpStdErr
 	OpPop
 	OpGetFree
 	OpSetFree
@@ -97,6 +100,9 @@ var OpcodeNames = [...]string{
 	OpGetIndex:      "GETINDEX",
 	OpSetIndex:      "SETINDEX",
 	OpNull:          "NULL",
+	OpStdIn:         "STDIN",
+	OpStdOut:        "STDOUT",
+	OpStdErr:        "STDERR",
 	OpPop:           "POP",
 	OpGetFree:       "GETFREE",
 	OpSetFree:       "SETFREE",
@@ -151,6 +157,9 @@ var OpcodeOperands = [...][]int{
 	OpGetIndex:      {1}, // number of selectors
 	OpSetIndex:      {},
 	OpNull:          {},
+	OpStdIn:         {},
+	OpStdOut:        {},
+	OpStdErr:        {},
 	OpPop:           {},
 	OpGetFree:       {1},    // index
 	OpSetFree:       {1},    // index

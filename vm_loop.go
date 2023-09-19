@@ -461,6 +461,15 @@ VMLoop:
 		case OpNull:
 			vm.stack[vm.sp] = Nil
 			vm.sp++
+		case OpStdIn:
+			vm.stack[vm.sp] = vm.StdIn
+			vm.sp++
+		case OpStdOut:
+			vm.stack[vm.sp] = vm.StdOut
+			vm.sp++
+		case OpStdErr:
+			vm.stack[vm.sp] = vm.StdErr
+			vm.sp++
 		case OpCallee:
 			vm.stack[vm.sp] = vm.curFrame.fn
 			vm.sp++

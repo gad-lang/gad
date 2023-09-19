@@ -369,6 +369,31 @@ args:
 	return
 }
 
+// DestructureValue shifts argument and set value to dst.
+// If type check of arg is fails, returns ArgumentTypeError.
+func (o Args) DestructureValue(dst ...*Arg) (err error) {
+args:
+	for i, d := range dst {
+		d.Value = o.Shift()
+
+		if len(d.AcceptTypes) == 0 {
+			continue
+		}
+
+		for _, t := range d.AcceptTypes {
+			if d.Value.TypeName() == t {
+				continue args
+			}
+		}
+		return NewArgumentTypeError(
+			strconv.Itoa(i)+"st",
+			strings.Join(d.AcceptTypes, "|"),
+			d.Value.TypeName(),
+		)
+	}
+	return
+}
+
 // DestructureVar shifts argument and set value to dst, and returns left arguments.
 // If the number of arguments is less then to called args length, it returns an error.
 // If type check of arg is fails, returns ArgumentTypeError.

@@ -176,9 +176,6 @@ func (o String) String() string {
 	return string(o)
 }
 
-// CanIterate implements Object interface.
-func (String) CanIterate() bool { return true }
-
 // Iterate implements Object interface.
 func (o String) Iterate() Iterator {
 	return &StringIterator{V: o}
@@ -303,9 +300,6 @@ func (o Bytes) Copy() Object {
 	copy(cp, o)
 	return cp
 }
-
-// CanIterate implements Object interface.
-func (Bytes) CanIterate() bool { return true }
 
 // Iterate implements Object interface.
 func (o Bytes) Iterate() Iterator {
@@ -673,9 +667,6 @@ func (o Array) BinaryOp(tok token.Token, right Object) (Object, error) {
 		right.TypeName())
 }
 
-// CanIterate implements Object interface.
-func (Array) CanIterate() bool { return true }
-
 func (o Array) AppendToArray(arr *Array) {
 	*arr = append(*arr, o...)
 }
@@ -944,9 +935,6 @@ func (o Map) BinaryOp(tok token.Token, right Object) (Object, error) {
 		right.TypeName())
 }
 
-// CanIterate implements Object interface.
-func (Map) CanIterate() bool { return true }
-
 // Iterate implements Iterable interface.
 func (o Map) Iterate() Iterator {
 	keys := make([]string, 0, len(o))
@@ -1108,9 +1096,6 @@ func (o *SyncMap) IsFalsy() bool {
 	return o.Value.IsFalsy()
 }
 
-// CanIterate implements Object interface.
-func (o *SyncMap) CanIterate() bool { return true }
-
 // Iterate implements Iterable interface.
 func (o *SyncMap) Iterate() Iterator {
 	o.mu.RLock()
@@ -1228,7 +1213,7 @@ func (o *Error) IsFalsy() bool { return true }
 // IndexGet implements Object interface.
 func (o *Error) IndexGet(index Object) (Object, error) {
 	s := index.String()
-	if s == "Name" {
+	if s == "Literal" {
 		return String(o.Name), nil
 	}
 

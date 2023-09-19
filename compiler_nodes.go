@@ -424,6 +424,26 @@ func (c *Compiler) compileAssignStmt(
 		c.emit(node, OpConstant, c.addConstant(Int(len(lhs))))
 	}
 
+	if op == token.Assign {
+		switch lhs[0].(type) {
+		case *parser.StdInLit, *parser.StdOutLit, *parser.StdErrLit:
+			var fd int64
+			switch lhs[0].(type) {
+			case *parser.StdOutLit:
+				fd = 1
+			case *parser.StdErrLit:
+				fd = 2
+			}
+			return c.compileCallExpr(&parser.CallExpr{
+				Func: &parser.Ident{Name: BuiltinStdIO.String()},
+				Args: parser.CallExprArgs{Values: []parser.Expr{
+					&parser.IntLit{Value: fd},
+					rhs[0],
+				}},
+			})
+		}
+	}
+
 	if op == token.NullichAssign || op == token.LOrAssign {
 		op2 := OpJumpNotNull
 		if op == token.LOrAssign {

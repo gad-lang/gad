@@ -46,7 +46,7 @@ func (m *FileImporter) Name() string {
 // Import returns the content of the path determined by Name call. Empty name
 // will return an error.
 func (m *FileImporter) Import(moduleName string) (any, error) {
-	// Note that; moduleName == Name()
+	// Note that; moduleName == Literal()
 	if m.name == "" || moduleName == "" {
 		return nil, errors.New("invalid import call")
 	}
@@ -60,7 +60,7 @@ func (m *FileImporter) Import(moduleName string) (any, error) {
 // the working directory of the module. moduleName should be the same value
 // provided by Name call.
 func (m *FileImporter) Fork(moduleName string) gad.ExtImporter {
-	// Note that; moduleName == Name()
+	// Note that; moduleName == Literal()
 	return &FileImporter{
 		WorkDir:    filepath.Dir(moduleName),
 		FileReader: m.FileReader,

@@ -8,8 +8,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,13 +17,12 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-var (
-	// PrintWriter is the default writer for printf and println builtins.
-	PrintWriter io.Writer = os.Stdout
-)
-
 // BuiltinType represents a builtin type
 type BuiltinType byte
+
+func (t BuiltinType) String() string {
+	return BuiltinObjects[t].(*BuiltinFunction).Name
+}
 
 // Builtins
 const (
@@ -49,10 +46,13 @@ const (
 	BuiltinString
 	BuiltinBytes
 	BuiltinChars
+	BuiltinWrite
+	BuiltinPrint
 	BuiltinPrintf
 	BuiltinPrintln
 	BuiltinSprintf
 	BuiltinGlobals
+	BuiltinStdIO
 
 	BuiltinIsError
 	BuiltinIsInt
@@ -89,6 +89,7 @@ const (
 	BuiltinItems
 	BuiltinKeyValue
 	BuiltinKeyValueArray
+	BuiltinBuffer
 )
 
 // BuiltinsMap is list of builtin types, exported for REPL.
@@ -113,10 +114,13 @@ var BuiltinsMap = map[string]BuiltinType{
 	"string":      BuiltinString,
 	"bytes":       BuiltinBytes,
 	"chars":       BuiltinChars,
+	"write":       BuiltinWrite,
+	"print":       BuiltinPrint,
 	"printf":      BuiltinPrintf,
 	"println":     BuiltinPrintln,
 	"sprintf":     BuiltinSprintf,
 	"globals":     BuiltinGlobals,
+	"stdio":       BuiltinStdIO,
 
 	"isError":    BuiltinIsError,
 	"isInt":      BuiltinIsInt,
@@ -147,6 +151,7 @@ var BuiltinsMap = map[string]BuiltinType{
 
 	":makeArray": BuiltinMakeArray,
 	"cap":        BuiltinCap,
+	"buffer":     BuiltinBuffer,
 
 	"keys":          BuiltinKeys,
 	"values":        BuiltinValues,
@@ -246,6 +251,18 @@ var BuiltinObjects = [...]Object{
 		Name:  "chars",
 		Value: funcPOROe(builtinCharsFunc),
 	},
+	BuiltinBuffer: &BuiltinFunction{
+		Name:  "buffer",
+		Value: builtinBufferFunc,
+	},
+	BuiltinWrite: &BuiltinFunction{
+		Name:  "write",
+		Value: builtinWriteFunc,
+	},
+	BuiltinPrint: &BuiltinFunction{
+		Name:  "print",
+		Value: builtinPrintFunc,
+	},
 	BuiltinPrintf: &BuiltinFunction{
 		Name:  "printf",
 		Value: builtinPrintfFunc,
@@ -341,6 +358,10 @@ var BuiltinObjects = [...]Object{
 	BuiltinKeyValueArray: &BuiltinFunction{
 		Name:  "keyValueArray",
 		Value: builtinKeyValueArrayFunc,
+	},
+	BuiltinStdIO: &BuiltinFunction{
+		Name:  "stdio",
+		Value: builtinStdIO,
 	},
 
 	BuiltinWrongNumArgumentsError:  ErrWrongNumArguments,
@@ -741,39 +762,163 @@ func builtinCharsFunc(arg Object) (ret Object, err error) {
 	return
 }
 
-func builtinPrintfFunc(c Call) (ret Object, err error) {
-	ret = Nil
+func builtinPrintfFunc(c Call) (_ Object, err error) {
+	var (
+		out = &NamedArgVar{Value: c.vm.StdOut, AcceptTypes: []string{"writer"}}
+		n   int
+	)
+
+	if err = c.NamedArgs.Get(out); err != nil {
+		return
+	}
+
+	w := out.Value.(Writer)
+
 	switch size := c.Args.Len(); size {
 	case 0:
 		err = ErrWrongNumArguments.NewError("want>=1 got=0")
 	case 1:
-		_, err = fmt.Fprint(PrintWriter, c.Args.Get(0).String())
+		n, err = fmt.Fprint(w, c.Args.Get(0).String())
 	default:
 		format, _ := c.Args.ShiftOk()
 		vargs := make([]any, 0, size-1)
 		for i := 0; i < size-1; i++ {
 			vargs = append(vargs, c.Args.Get(i))
 		}
-		_, err = fmt.Fprintf(PrintWriter, format.String(), vargs...)
+		n, err = fmt.Fprintf(w, format.String(), vargs...)
 	}
-	return
+	return Int(n), err
 }
 
-func builtinPrintlnFunc(c Call) (ret Object, err error) {
-	ret = Nil
+func builtinWriteFunc(c Call) (ret Object, err error) {
+	var (
+		w     = c.vm.StdOut
+		total Int
+		n     int
+	)
+
+	if err = c.Args.CheckMinLen(1); err != nil {
+		return
+	}
+
+	arg := c.Args.Get(0)
+	if w2, ok := arg.(Writer); ok {
+		w = w2
+		c.Args.Shift()
+	}
+
+	c.Args.Walk(func(i int, arg Object) (continueLoop bool) {
+		switch t := arg.(type) {
+		case String:
+			n, err = w.Write([]byte(t))
+		case Bytes:
+			n, err = w.Write(t)
+		case BytesConverter:
+			var b Bytes
+			if b, err = t.ToBytes(); err == nil {
+				n, err = w.Write(b)
+			}
+		case ToWriter:
+			total, err = t.WriteTo(w)
+		default:
+			n, err = fmt.Fprint(w, arg)
+		}
+		total += Int(n)
+		return err == nil
+	})
+
+	return total, err
+}
+
+func builtinBufferFunc(c Call) (ret Object, err error) {
+	var (
+		w = &Buffer{}
+	)
+
+	c.Args.Walk(func(i int, arg Object) (continueLoop bool) {
+		switch t := arg.(type) {
+		case String:
+			_, err = w.Write([]byte(t))
+		case Bytes:
+			_, err = w.Write(t)
+		case BytesConverter:
+			var b Bytes
+			if b, err = t.ToBytes(); err == nil {
+				_, err = w.Write(b)
+			}
+		case ToWriter:
+			_, err = t.WriteTo(w)
+		default:
+			_, err = fmt.Fprint(w, arg)
+		}
+		return err == nil
+	})
+
+	return w, err
+}
+
+func builtinPrintFunc(c Call) (_ Object, err error) {
+	var (
+		w     = c.vm.StdOut
+		total Int
+		n     int
+	)
+
+	if err = c.Args.CheckMinLen(1); err != nil {
+		return
+	}
+
+	arg := c.Args.Get(0)
+	if w2, ok := arg.(Writer); ok {
+		w = w2
+		c.Args.Shift()
+	}
+
 	switch size := c.Args.Len(); size {
 	case 0:
-		_, err = fmt.Fprintln(PrintWriter)
-	case 1:
-		_, err = fmt.Fprintln(PrintWriter, c.Args.Get(0))
 	default:
 		vargs := make([]any, 0, size)
 		for i := 0; i < size; i++ {
 			vargs = append(vargs, c.Args.Get(i))
 		}
-		_, err = fmt.Fprintln(PrintWriter, vargs...)
+		n, err = fmt.Fprint(w, vargs...)
+		return Int(n), err
 	}
-	return
+
+	return total, err
+}
+
+func builtinPrintlnFunc(c Call) (ret Object, err error) {
+	var (
+		w = c.vm.StdOut
+		n int
+	)
+
+	switch size := c.Args.Len(); size {
+	case 0:
+		n, err = w.Write([]byte("\n"))
+	case 1:
+		arg := c.Args.Get(0)
+		if w2, ok := arg.(Writer); ok {
+			n, err = w2.Write([]byte("\n"))
+		} else {
+			n, err = fmt.Fprintln(w, c.Args.Get(0))
+		}
+	default:
+		arg := c.Args.Get(0)
+		if w2, ok := arg.(Writer); ok {
+			w = w2
+			c.Args.Shift()
+			size--
+		}
+
+		vargs := make([]any, 0, size)
+		for i := 0; i < size; i++ {
+			vargs = append(vargs, c.Args.Get(i))
+		}
+		n, err = fmt.Fprintln(w, vargs...)
+	}
+	return Int(n), err
 }
 
 func builtinSprintfFunc(c Call) (ret Object, err error) {
@@ -962,4 +1107,108 @@ func builtinKeyValueArrayFunc(c Call) (Object, error) {
 		arg, valid = c.Args.ShiftOk()
 	}
 	return arr, nil
+}
+
+func builtinStdIO(c Call) (ret Object, err error) {
+	ret = Nil
+	l := c.Args.Len()
+	switch l {
+	case 1:
+		// get
+		var arg = &Arg{AcceptTypes: []string{"string", "int", "uint"}}
+		if err = c.Args.Destructure(arg); err != nil {
+			return
+		}
+		switch t := arg.Value.(type) {
+		case String:
+			switch t {
+			case "IN":
+				ret = c.vm.StdIn
+			case "OUT":
+				ret = c.vm.StdOut
+			case "ERR":
+				ret = c.vm.StdErr
+			default:
+				err = ErrUnexpectedArgValue.NewError("string(" + string(t) + ")")
+			}
+		case Int:
+			switch t {
+			case 0:
+				ret = c.vm.StdIn
+			case 1:
+				ret = c.vm.StdOut
+			case 2:
+				ret = c.vm.StdErr
+			default:
+				err = ErrUnexpectedArgValue.NewError("int(" + t.String() + ")")
+			}
+		case Uint:
+			switch t {
+			case 0:
+				ret = c.vm.StdIn
+			case 1:
+				ret = c.vm.StdOut
+			case 2:
+				ret = c.vm.StdErr
+			default:
+				err = ErrUnexpectedArgValue.NewError("uint(" + t.String() + ")")
+			}
+		}
+	case 2:
+		var code = -1
+		var codeArg = &Arg{AcceptTypes: []string{"string", "int", "uint"}}
+		if err = c.Args.DestructureValue(codeArg); err != nil {
+			return
+		}
+		switch t := codeArg.Value.(type) {
+		case String:
+			switch t {
+			case "IN":
+				code = 0
+			case "OUT":
+				code = 1
+			case "ERR":
+				code = 2
+			default:
+				err = ErrUnexpectedArgValue.NewError("string(" + string(t) + ")")
+			}
+		case Int:
+			switch t {
+			case 0, 1, 2:
+				code = int(t)
+			default:
+				err = ErrUnexpectedArgValue.NewError("int(" + t.String() + ")")
+			}
+		case Uint:
+			switch t {
+			case 0, 1, 2:
+				code = int(t)
+			default:
+				err = ErrUnexpectedArgValue.NewError("uint(" + t.String() + ")")
+			}
+		}
+
+		switch code {
+		case 0:
+			var v = &Arg{AcceptTypes: []string{"reader"}}
+			if err = c.Args.DestructureValue(v); err != nil {
+				return
+			}
+			c.vm.StdIn = v.Value.(Reader)
+		case 1, 2:
+			var v = &Arg{AcceptTypes: []string{"writer"}}
+			if err = c.Args.DestructureValue(v); err != nil {
+				return
+			}
+			if code == 1 {
+				c.vm.StdOut = v.Value.(Writer)
+			} else {
+				c.vm.StdErr = v.Value.(Writer)
+			}
+		}
+	// set
+	default:
+		err = ErrWrongNumArguments.NewError(fmt.Sprintf("want=1|2 got=%d", l))
+	}
+	return
 }

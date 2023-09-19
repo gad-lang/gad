@@ -47,12 +47,6 @@ func TestObjects(t *testing.T) {
 }
 
 func TestObjectIterable(t *testing.T) {
-	require.True(t, String("").CanIterate())
-	require.True(t, Array{}.CanIterate())
-	require.True(t, Bytes{}.CanIterate())
-	require.True(t, Map{}.CanIterate())
-	require.True(t, (&SyncMap{}).CanIterate())
-
 	require.NotNil(t, String("").Iterate())
 	require.NotNil(t, Array{}.Iterate())
 	require.NotNil(t, Bytes{}.Iterate())
@@ -198,11 +192,11 @@ func TestObjectIndexGet(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = (&Error{}).IndexGet(String("Name"))
+	v, err = (&Error{}).IndexGet(String("Literal"))
 	require.NoError(t, err)
 	require.Equal(t, String(""), v)
 
-	v, err = (&Error{Name: "x"}).IndexGet(String("Name"))
+	v, err = (&Error{Name: "x"}).IndexGet(String("Literal"))
 	require.NoError(t, err)
 	require.Equal(t, String("x"), v)
 
@@ -218,11 +212,11 @@ func TestObjectIndexGet(t *testing.T) {
 	require.Equal(t, Nil, v)
 	require.NoError(t, err)
 
-	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(String("Name"))
+	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(String("Literal"))
 	require.NoError(t, err)
 	require.Equal(t, String(""), v)
 
-	v, err = (&RuntimeError{Err: &Error{Name: "x"}}).IndexGet(String("Name"))
+	v, err = (&RuntimeError{Err: &Error{Name: "x"}}).IndexGet(String("Literal"))
 	require.NoError(t, err)
 	require.Equal(t, String("x"), v)
 

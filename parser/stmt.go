@@ -13,6 +13,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad/token"
@@ -456,4 +457,123 @@ func (s *ThrowStmt) String() string {
 		expr = s.Expr.String()
 	}
 	return "throw " + expr
+}
+
+// TextStmt represents an TextStmt.
+type TextStmt struct {
+	Literal string
+	TextPos Pos
+}
+
+func (e *TextStmt) stmtNode() {
+}
+
+func (e *TextStmt) exprNode() {
+}
+
+// Pos returns the position of first character belonging to the node.
+func (e *TextStmt) Pos() Pos {
+	return e.TextPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *TextStmt) End() Pos {
+	return Pos(int(e.TextPos) + len(e.Literal))
+}
+
+func (e *TextStmt) String() string {
+	if e != nil {
+		return "#{= " + strconv.Quote(e.Literal) + " }"
+	}
+	return nullRep
+}
+
+// ExprToTextStmt represents to text wrapped expression.
+type ExprToTextStmt struct {
+	Expr     Expr
+	StartLit Literal
+	EndLit   Literal
+	Flag     TextFlag
+}
+
+func (e *ExprToTextStmt) stmtNode() {}
+
+func (e *ExprToTextStmt) exprNode() {
+}
+
+// Pos returns the position of first character belonging to the node.
+func (e *ExprToTextStmt) Pos() Pos {
+	return e.StartLit.Pos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *ExprToTextStmt) End() Pos {
+	return e.EndLit.Pos
+}
+
+func (e *ExprToTextStmt) String() string {
+	return e.StartLit.Value + " " + e.Expr.String() + " " + e.EndLit.Value
+}
+
+type CodeStmt struct {
+	Stmts    []Stmt
+	LBrace   Pos
+	RBrace   Pos
+	TextFlag TextFlag
+}
+
+func (*CodeStmt) stmtNode() {}
+
+func (s *CodeStmt) Pos() Pos {
+	return s.LBrace
+}
+
+func (s *CodeStmt) End() Pos {
+	return s.RBrace + 1
+}
+
+func (s *CodeStmt) String() string {
+	var b strings.Builder
+	b.WriteString("#{")
+	if s.TextFlag != 0 {
+		b.WriteString(s.TextFlag.String())
+	}
+	b.WriteString(" ")
+
+	for i, e := range s.Stmts {
+		if i > 0 {
+			b.WriteString("; ")
+		}
+		b.WriteString(e.String())
+	}
+	b.WriteString(" }")
+	return b.String()
+}
+
+type ConfigOptions struct {
+	Mixed     bool
+	NoMixed   bool
+	WriteFunc Expr
+}
+
+type ConfigStmt struct {
+	ConfigPos Pos
+	EndPos    Pos
+	Literal   string
+	Options   ConfigOptions
+}
+
+func (c *ConfigStmt) Pos() Pos {
+	return c.ConfigPos
+}
+
+func (c *ConfigStmt) End() Pos {
+	return c.EndPos
+}
+
+func (c *ConfigStmt) String() string {
+	return "# gad: " + c.Literal
+}
+
+func (c *ConfigStmt) stmtNode() {
 }

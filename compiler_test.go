@@ -192,6 +192,61 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 	))
 }
 
+func TestCompiler_Mixed(t *testing.T) {
+	expectCompileMixed(t, `# gad: writer=myfn; #{<>var myfn} a`, bytecode(
+		Array{String("a")},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 0),
+			makeInst(OpCall, 1, 0),
+			makeInst(OpReturn, 0),
+		), withLocals(1)),
+	))
+
+	expectCompileMixed(t, `a#{=1}c`, bytecode(
+		Array{String("a"), Int(1), String("c")},
+		compFunc(concatInsts(
+			makeInst(OpGetBuiltin, int(BuiltinWrite)),
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 2),
+			makeInst(OpCall, 3, 0),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompileMixed(t, `a#{=1}c#{x := 5}#{=x}`, bytecode(
+		Array{String("a"), Int(1), String("c"), Int(5)},
+		compFunc(concatInsts(
+			makeInst(OpGetBuiltin, int(BuiltinWrite)),
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 2),
+			makeInst(OpCall, 3, 0),
+			makeInst(OpConstant, 3),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetBuiltin, 20),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpCall, 1, 0),
+			makeInst(OpReturn, 0),
+		), withLocals(1)),
+	))
+
+	expectCompile(t, `# gad: mixed, writer=myfn; #{<>var myfn} a`, bytecode(
+		Array{String("a")},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 0),
+			makeInst(OpCall, 1, 0),
+			makeInst(OpReturn, 0),
+		), withLocals(1)),
+	))
+}
+
 func TestCompiler_Compile(t *testing.T) {
 	// all local variables are initialized as nil
 	expectCompile(t, `var a`, bytecode(
@@ -1818,7 +1873,7 @@ func TestCompiler_Compile(t *testing.T) {
 			withLocals(1),
 		),
 	))
-	expectCompileError(t, `try {}`, `Parse Error: expected 'finally', found newline`)
+	expectCompileError(t, `try {}`, `Parse Error: expected 'finally', found ';'`)
 	expectCompileError(t, `catch {}`, `Parse Error: expected statement, found 'catch'`)
 	expectCompileError(t, `finally {}`, `Parse Error: expected statement, found 'finally'`)
 	// catch and finally must in the same line with right brace.
@@ -2124,7 +2179,7 @@ func TestCompiler_Compile(t *testing.T) {
 }
 
 func TestCompilerNullishSelector(t *testing.T) {
-	expectCompile(t, `var a; a["I"+"DX"]?.d`, bytecode(
+	expectCompile(t, `var a; (a["I"+"DX"])?.d`, bytecode(
 		Array{
 			String("I"),  // 1
 			String("DX"), // 2
@@ -2136,10 +2191,11 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpGetLocal, 0),
 			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpBinaryOp, 13),
-			makeInst(OpJumpNull, 21),
+			makeInst(OpBinaryOp, int(token.Add)),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNull, 23),
 			makeInst(OpConstant, 2),
-			makeInst(OpGetIndex, 2),
+			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		),
@@ -2280,7 +2336,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpGetLocal, 0),
 			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpBinaryOp, 13),
+			makeInst(OpBinaryOp, int(token.Add)),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNull, 23),
 			makeInst(OpConstant, 2),
@@ -2304,7 +2360,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpJumpNull, 26),
 			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpBinaryOp, 13),
+			makeInst(OpBinaryOp, int(token.Add)),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNull, 26),
 			makeInst(OpConstant, 2),
@@ -2354,7 +2410,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpJumpNull, 44),
 			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpBinaryOp, 13),
+			makeInst(OpBinaryOp, int(token.Add)),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNull, 44),
 			makeInst(OpConstant, 2),
@@ -2428,6 +2484,69 @@ func TestCompilerNullishSelector(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpNamedArgs),
 			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		))))
+}
+
+func TestCompilerStdIO(t *testing.T) {
+	expectCompile(t, `STDIN`, bytecode(nil,
+		compFunc(concatInsts(
+			makeInst(OpStdIn),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		))))
+
+	expectCompile(t, `STDOUT`, bytecode(nil,
+		compFunc(concatInsts(
+			makeInst(OpStdOut),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		))))
+
+	expectCompile(t, `STDERR`, bytecode(nil,
+		compFunc(concatInsts(
+			makeInst(OpStdErr),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		))))
+
+	expectCompile(t, `STDIN = nil`, bytecode(
+		Array{Int(0)},
+		compFunc(concatInsts(
+			makeInst(OpGetBuiltin, int(BuiltinStdIO)),
+			makeInst(OpConstant, 0),
+			makeInst(OpNull),
+			makeInst(OpCall, 2, 0),
+			makeInst(OpReturn, 0),
+		))))
+
+	expectCompile(t, `STDIN = nil`, bytecode(
+		Array{Int(0)},
+		compFunc(concatInsts(
+			makeInst(OpGetBuiltin, int(BuiltinStdIO)),
+			makeInst(OpConstant, 0),
+			makeInst(OpNull),
+			makeInst(OpCall, 2, 0),
+			makeInst(OpReturn, 0),
+		))))
+
+	expectCompile(t, `STDOUT = nil`, bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpGetBuiltin, int(BuiltinStdIO)),
+			makeInst(OpConstant, 0),
+			makeInst(OpNull),
+			makeInst(OpCall, 2, 0),
+			makeInst(OpReturn, 0),
+		))))
+
+	expectCompile(t, `STDERR = nil`, bytecode(
+		Array{Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpGetBuiltin, int(BuiltinStdIO)),
+			makeInst(OpConstant, 0),
+			makeInst(OpNull),
+			makeInst(OpCall, 2, 0),
 			makeInst(OpReturn, 0),
 		))))
 }
@@ -2560,6 +2679,11 @@ func expectCompileErrorWithOpts(t *testing.T,
 func expectCompile(t *testing.T, script string, expected *Bytecode) {
 	t.Helper()
 	expectCompileWithOpts(t, script, CompilerOptions{}, expected)
+}
+
+func expectCompileMixed(t *testing.T, script string, expected *Bytecode) {
+	t.Helper()
+	expectCompileWithOpts(t, script, CompilerOptions{Mixed: true}, expected)
 }
 
 // SourceMap comparison is ignored if it is nil.

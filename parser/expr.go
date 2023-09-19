@@ -1053,3 +1053,66 @@ type BlockExpr struct {
 }
 
 func (b BlockExpr) exprNode() {}
+
+// StdInLit represents an STDIN literal.
+type StdInLit struct {
+	TokenPos Pos
+}
+
+func (e *StdInLit) exprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *StdInLit) Pos() Pos {
+	return e.TokenPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *StdInLit) End() Pos {
+	return e.TokenPos + 5 // len(STDIN) == 5
+}
+
+func (e *StdInLit) String() string {
+	return "STDIN"
+}
+
+// StdOutLit represents an STDOUT literal.
+type StdOutLit struct {
+	TokenPos Pos
+}
+
+func (e *StdOutLit) exprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *StdOutLit) Pos() Pos {
+	return e.TokenPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *StdOutLit) End() Pos {
+	return e.TokenPos + 6 // len(STDOUT) == 6
+}
+
+func (e *StdOutLit) String() string {
+	return "STDOUT"
+}
+
+// StdErrLit represents an STDERR literal.
+type StdErrLit struct {
+	TokenPos Pos
+}
+
+func (e *StdErrLit) exprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *StdErrLit) Pos() Pos {
+	return e.TokenPos
+}
+
+// End StdErrLit the position of first character immediately after the node.
+func (e *StdErrLit) End() Pos {
+	return e.TokenPos + 6 // len(STDERR) == 6
+}
+
+func (e *StdErrLit) String() string {
+	return "STDERR"
+}

@@ -143,7 +143,7 @@ var Module = map[string]gad.Object{
 	// It throws a runtime error if type name is not supported.
 	// Alternatively, `string, int, uint, float, char, bool, bytes` builtin
 	// functions can be provided to get the type name from the BuiltinFunction's
-	// Name field.
+	// Literal field.
 	"ScanArg": &gad.Function{
 		Name:  "ScanArg",
 		Value: newScanArgFunc,

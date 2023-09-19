@@ -133,7 +133,7 @@ func (g *CommentGroup) Text() string {
 		// The parser has given us exactly the comment text.
 		switch c[1] {
 		case '/':
-			//-style comment (no newline at the end)
+			// -style comment (no newline at the end)
 			c = c[2:]
 			if len(c) == 0 {
 				// empty line
@@ -186,4 +186,13 @@ func stripTrailingWhitespace(s string) string {
 		i--
 	}
 	return s[0:i]
+}
+
+type Literal struct {
+	Value string
+	Pos   Pos
+}
+
+func (l Literal) End() Pos {
+	return l.Pos + Pos(len(l.Value))
 }

@@ -28,9 +28,16 @@ import (
 // Mode value is a set of flags for parser.
 type Mode int
 
+func (b *Mode) Set(flag Mode) *Mode    { *b = *b | flag; return b }
+func (b *Mode) Clear(flag Mode) *Mode  { *b = *b &^ flag; return b }
+func (b *Mode) Toggle(flag Mode) *Mode { *b = *b ^ flag; return b }
+func (b Mode) Has(flag Mode) bool      { return b&flag != 0 }
+
 const (
 	// ParseComments parses comments and add them to AST
 	ParseComments Mode = 1 << iota
+	ParseMixed
+	ParseConfigDisabled
 )
 
 type bailout struct{}
@@ -124,9 +131,7 @@ type Parser struct {
 	file      *SourceFile
 	errors    ErrorList
 	scanner   *Scanner
-	pos       Pos
-	token     token.Token
-	tokenLit  string
+	token     Token
 	exprLevel int // < 0: in control clause, >= 0: in expression
 	syncPos   Pos // last sync position
 	syncCount int // number of advance calls without progress
@@ -156,8 +161,14 @@ func NewParserWithMode(
 		mode:     mode,
 	}
 	var m ScanMode
-	if mode&ParseComments != 0 {
-		m = ScanComments
+	if mode.Has(ParseComments) {
+		m.Set(ScanComments)
+	}
+	if mode.Has(ParseMixed) {
+		m.Set(Mixed)
+	}
+	if mode.Has(ParseConfigDisabled) {
+		m.Set(ConfigDisabled)
 	}
 	p.scanner = NewScanner(p.file, src,
 		func(pos SourceFilePos, msg string) {
@@ -210,7 +221,7 @@ func (p *Parser) parseExpr() Expr {
 	expr := p.parseBinaryExpr(token.LowestPrec + 1)
 
 	// ternary conditional expression
-	if p.token == token.Question {
+	if p.token.Token == token.Question {
 		return p.parseCondExpr(expr)
 	}
 	return expr
@@ -224,7 +235,7 @@ func (p *Parser) parseBinaryExpr(prec1 int) Expr {
 	x := p.parseUnaryExpr()
 
 	for {
-		op, prec := p.token, p.token.Precedence()
+		op, prec := p.token.Token, p.token.Token.Precedence()
 		if prec < prec1 {
 			return x
 		}
@@ -290,9 +301,9 @@ func (p *Parser) parseUnaryExpr() Expr {
 		defer untracep(tracep(p, "UnaryExpression"))
 	}
 
-	switch p.token {
+	switch p.token.Token {
 	case token.Add, token.Sub, token.Not, token.Xor:
-		pos, op := p.pos, p.token
+		pos, op := p.token.Pos, p.token.Token
 		p.next()
 		x := p.parseUnaryExpr()
 		return &UnaryExpr{
@@ -313,30 +324,30 @@ func (p *Parser) parsePrimaryExpr() Expr {
 
 L:
 	for {
-		switch p.token {
+		switch p.token.Token {
 		case token.NullishSelector:
 			p.next()
 
-			switch p.token {
+			switch p.token.Token {
 			case token.Ident, token.LParen:
 				x = p.parseNullishSelector(x)
 			default:
-				pos := p.pos
+				pos := p.token.Pos
 				p.errorExpected(pos, "nullish selector")
 				p.advance(stmtStart)
-				return &BadExpr{From: pos, To: p.pos}
+				return &BadExpr{From: pos, To: p.token.Pos}
 			}
 		case token.Period:
 			p.next()
 
-			switch p.token {
+			switch p.token.Token {
 			case token.Ident, token.LParen:
 				x = p.parseSelector(x)
 			default:
-				pos := p.pos
+				pos := p.token.Pos
 				p.errorExpected(pos, "selector")
 				p.advance(stmtStart)
-				return &BadExpr{From: pos, To: p.pos}
+				return &BadExpr{From: pos, To: p.token.Pos}
 			}
 		case token.LBrack:
 			x = p.parseIndexOrSlice(x)
@@ -362,9 +373,9 @@ func (p *Parser) parseCall(x Expr) *CallExpr {
 		namedArgs CallExprNamedArgs
 	)
 
-	for p.token != token.RParen && p.token != token.EOF && p.token != token.Semicolon {
-		if p.token == token.Ellipsis {
-			elipsis := &EllipsisValue{Pos: p.pos}
+	for p.token.Token != token.RParen && p.token.Token != token.EOF && p.token.Token != token.Semicolon {
+		if p.token.Token == token.Ellipsis {
+			elipsis := &EllipsisValue{Pos: p.token.Pos}
 			p.next()
 			elipsis.Value = p.parseExpr()
 			if _, ok := elipsis.Value.(*MapLit); ok {
@@ -376,7 +387,7 @@ func (p *Parser) parseCall(x Expr) *CallExpr {
 			goto kw
 		}
 		args.Values = append(args.Values, p.parseExpr())
-		switch p.token {
+		switch p.token.Token {
 		case token.Assign:
 			val := args.Values[len(args.Values)-1]
 			args.Values = args.Values[:len(args.Values)-1]
@@ -401,14 +412,14 @@ func (p *Parser) parseCall(x Expr) *CallExpr {
 	}
 
 kw:
-	if (p.token == token.Semicolon && p.tokenLit == ";") ||
-		(p.token == token.Comma && (len(namedArgs.Names) == 1 || args.Ellipsis != nil)) {
+	if (p.token.Token == token.Semicolon && p.token.Literal == ";") ||
+		(p.token.Token == token.Comma && (len(namedArgs.Names) == 1 || args.Ellipsis != nil)) {
 		p.next()
 
 		for {
-			switch p.token {
+			switch p.token.Token {
 			case token.Ellipsis:
-				namedArgs.Ellipsis = &EllipsisValue{Pos: p.pos}
+				namedArgs.Ellipsis = &EllipsisValue{Pos: p.token.Pos}
 				p.next()
 				namedArgs.Ellipsis.Value = p.parseExpr()
 				goto done
@@ -422,20 +433,20 @@ kw:
 				case *StringLit:
 					namedArgs.Names = append(namedArgs.Names, NamedArgExpr{String: t})
 				case *CallExpr, *SelectorExpr, *MapLit:
-					namedArgs.Ellipsis = &EllipsisValue{p.pos, t}
+					namedArgs.Ellipsis = &EllipsisValue{p.token.Pos, t}
 					p.expect(token.Ellipsis)
 					if !p.atComma("call argument", token.RParen) {
 						goto done
 					}
 				default:
-					pos := p.pos
+					pos := p.token.Pos
 					p.errorExpected(pos, "string|ident|selector|call")
 					p.advance(stmtStart)
 					goto done
 				}
 
 				// check if is flag
-				switch p.token {
+				switch p.token.Token {
 				case token.Comma, token.RParen:
 					namedArgs.Values = append(namedArgs.Values, nil)
 				// is flag
@@ -466,15 +477,15 @@ done:
 }
 
 func (p *Parser) atComma(context string, follow token.Token) bool {
-	if p.token == token.Comma {
+	if p.token.Token == token.Comma {
 		return true
 	}
-	if p.token != follow {
+	if p.token.Token != follow {
 		msg := "missing ','"
-		if p.token == token.Semicolon && p.tokenLit == "\n" {
+		if p.token.Token == token.Semicolon && p.token.Literal == "\n" {
 			msg += " before newline"
 		}
-		p.error(p.pos, msg+" in "+context)
+		p.error(p.token.Pos, msg+" in "+context)
 		return true // "insert" comma and continue
 	}
 	return false
@@ -489,15 +500,15 @@ func (p *Parser) parseIndexOrSlice(x Expr) Expr {
 	p.exprLevel++
 
 	var index [2]Expr
-	if p.token != token.Colon {
+	if p.token.Token != token.Colon {
 		index[0] = p.parseExpr()
 	}
 	numColons := 0
-	if p.token == token.Colon {
+	if p.token.Token == token.Colon {
 		numColons++
 		p.next()
 
-		if p.token != token.RBrack && p.token != token.EOF {
+		if p.token.Token != token.RBrack && p.token.Token != token.EOF {
 			index[1] = p.parseExpr()
 		}
 	}
@@ -529,8 +540,8 @@ func (p *Parser) parseSelector(x Expr) Expr {
 	}
 
 	var sel Expr
-	if p.token == token.LParen {
-		lparen := p.pos
+	if p.token.Token == token.LParen {
+		lparen := p.token.Pos
 		p.next()
 		sel = p.parseExpr()
 		rparen := p.expect(token.RParen)
@@ -552,8 +563,8 @@ func (p *Parser) parseNullishSelector(x Expr) Expr {
 	}
 
 	var sel Expr
-	if p.token == token.LParen {
-		lparen := p.pos
+	if p.token.Token == token.LParen {
+		lparen := p.token.Pos
 		p.next()
 		sel = p.parseExpr()
 		rparen := p.expect(token.RParen)
@@ -571,85 +582,97 @@ func (p *Parser) parseNullishSelector(x Expr) Expr {
 }
 
 func (p *Parser) parsePrimitiveOperand() Expr {
-	switch p.token {
+	switch p.token.Token {
 	case token.Ident:
 		return p.parseIdent()
 	case token.Int:
-		v, _ := strconv.ParseInt(p.tokenLit, 0, 64)
+		v, _ := strconv.ParseInt(p.token.Literal, 0, 64)
 		x := &IntLit{
 			Value:    v,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.Uint:
-		v, _ := strconv.ParseUint(strings.TrimSuffix(p.tokenLit, "u"), 0, 64)
+		v, _ := strconv.ParseUint(strings.TrimSuffix(p.token.Literal, "u"), 0, 64)
 		x := &UintLit{
 			Value:    v,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.Float:
-		v, _ := strconv.ParseFloat(p.tokenLit, 64)
+		v, _ := strconv.ParseFloat(p.token.Literal, 64)
 		x := &FloatLit{
 			Value:    v,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.Char:
 		return p.parseCharLit()
 	case token.String:
-		v, _ := strconv.Unquote(p.tokenLit)
+		v, _ := strconv.Unquote(p.token.Literal)
 		x := &StringLit{
 			Value:    v,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.True:
 		x := &BoolLit{
 			Value:    true,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.False:
 		x := &BoolLit{
 			Value:    false,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.Nil:
-		x := &NilLit{TokenPos: p.pos}
+		x := &NilLit{TokenPos: p.token.Pos}
 		p.next()
 		return x
 	case token.Callee:
-		x := &CalleeKeyword{TokenPos: p.pos, Literal: p.tokenLit}
+		x := &CalleeKeyword{TokenPos: p.token.Pos, Literal: p.token.Literal}
 		p.next()
 		return x
 	case token.Args:
-		x := &ArgsKeyword{TokenPos: p.pos, Literal: p.tokenLit}
+		x := &ArgsKeyword{TokenPos: p.token.Pos, Literal: p.token.Literal}
 		p.next()
 		return x
 	case token.NamedArgs:
-		x := &NamedArgsKeyword{TokenPos: p.pos, Literal: p.tokenLit}
+		x := &NamedArgsKeyword{TokenPos: p.token.Pos, Literal: p.token.Literal}
+		p.next()
+		return x
+	case token.StdIn:
+		x := &StdInLit{TokenPos: p.token.Pos}
+		p.next()
+		return x
+	case token.StdOut:
+		x := &StdOutLit{TokenPos: p.token.Pos}
+		p.next()
+		return x
+	case token.StdErr:
+		x := &StdErrLit{TokenPos: p.token.Pos}
 		p.next()
 		return x
 	}
 
-	pos := p.pos
+	pos := p.token.Pos
 	p.errorExpected(pos, "primitive operand")
 	p.advance(stmtStart)
-	return &BadExpr{From: pos, To: p.pos}
+	return &BadExpr{From: pos, To: p.token.Pos}
 }
 
 func (p *Parser) parseOperand() Expr {
@@ -657,97 +680,109 @@ func (p *Parser) parseOperand() Expr {
 		defer untracep(tracep(p, "Operand"))
 	}
 
-	switch p.token {
+	switch p.token.Token {
 	case token.Ident:
 		return p.parseIdent()
 	case token.Int:
-		v, _ := strconv.ParseInt(p.tokenLit, 0, 64)
+		v, _ := strconv.ParseInt(p.token.Literal, 0, 64)
 		x := &IntLit{
 			Value:    v,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.Uint:
-		v, _ := strconv.ParseUint(strings.TrimSuffix(p.tokenLit, "u"), 0, 64)
+		v, _ := strconv.ParseUint(strings.TrimSuffix(p.token.Literal, "u"), 0, 64)
 		x := &UintLit{
 			Value:    v,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.Float:
-		v, _ := strconv.ParseFloat(p.tokenLit, 64)
+		v, _ := strconv.ParseFloat(p.token.Literal, 64)
 		x := &FloatLit{
 			Value:    v,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.Decimal:
-		v, err := decimal.NewFromString(strings.TrimSuffix(p.tokenLit, "d"))
+		v, err := decimal.NewFromString(strings.TrimSuffix(p.token.Literal, "d"))
 		if err != nil {
-			p.error(p.pos, err.Error())
+			p.error(p.token.Pos, err.Error())
 		}
 		x := &DecimalLit{
 			Value:    v,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.Char:
 		return p.parseCharLit()
 	case token.String:
-		v, _ := strconv.Unquote(p.tokenLit)
+		v, _ := strconv.Unquote(p.token.Literal)
 		x := &StringLit{
 			Value:    v,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.True:
 		x := &BoolLit{
 			Value:    true,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.False:
 		x := &BoolLit{
 			Value:    false,
-			ValuePos: p.pos,
-			Literal:  p.tokenLit,
+			ValuePos: p.token.Pos,
+			Literal:  p.token.Literal,
 		}
 		p.next()
 		return x
 	case token.Nil:
-		x := &NilLit{TokenPos: p.pos}
+		x := &NilLit{TokenPos: p.token.Pos}
+		p.next()
+		return x
+	case token.StdIn:
+		x := &StdInLit{TokenPos: p.token.Pos}
+		p.next()
+		return x
+	case token.StdOut:
+		x := &StdOutLit{TokenPos: p.token.Pos}
+		p.next()
+		return x
+	case token.StdErr:
+		x := &StdErrLit{TokenPos: p.token.Pos}
 		p.next()
 		return x
 	case token.Callee:
-		x := &CalleeKeyword{TokenPos: p.pos, Literal: p.tokenLit}
+		x := &CalleeKeyword{TokenPos: p.token.Pos, Literal: p.token.Literal}
 		p.next()
 		return x
 	case token.Args:
-		x := &ArgsKeyword{TokenPos: p.pos, Literal: p.tokenLit}
+		x := &ArgsKeyword{TokenPos: p.token.Pos, Literal: p.token.Literal}
 		p.next()
 		return x
 	case token.NamedArgs:
-		x := &NamedArgsKeyword{TokenPos: p.pos, Literal: p.tokenLit}
+		x := &NamedArgsKeyword{TokenPos: p.token.Pos, Literal: p.token.Literal}
 		p.next()
 		return x
 	case token.Import:
 		return p.parseImportExpr()
 	case token.LParen:
-		lparen := p.pos
+		lparen := p.token.Pos
 		p.next()
-		if p.token == token.Semicolon && p.tokenLit == ";" {
+		if p.token.Token == token.Semicolon && p.token.Literal == ";" {
 			return p.parseKeyValueArrayLit(lparen)
 		}
 		p.exprLevel++
@@ -767,24 +802,24 @@ func (p *Parser) parseOperand() Expr {
 		return p.parseFuncLit()
 	}
 
-	pos := p.pos
+	pos := p.token.Pos
 	p.errorExpected(pos, "operand")
 	p.advance(stmtStart)
-	return &BadExpr{From: pos, To: p.pos}
+	return &BadExpr{From: pos, To: p.token.Pos}
 }
 
 func (p *Parser) parseImportExpr() Expr {
-	pos := p.pos
+	pos := p.token.Pos
 	p.next()
 	p.expect(token.LParen)
-	if p.token != token.String {
-		p.errorExpected(p.pos, "module name")
+	if p.token.Token != token.String {
+		p.errorExpected(p.token.Pos, "module name")
 		p.advance(stmtStart)
-		return &BadExpr{From: pos, To: p.pos}
+		return &BadExpr{From: pos, To: p.token.Pos}
 	}
 
 	// module name
-	moduleName, _ := strconv.Unquote(p.tokenLit)
+	moduleName, _ := strconv.Unquote(p.token.Literal)
 	expr := &ImportExpr{
 		ModuleName: moduleName,
 		Token:      token.Import,
@@ -797,25 +832,25 @@ func (p *Parser) parseImportExpr() Expr {
 }
 
 func (p *Parser) parseCharLit() Expr {
-	if n := len(p.tokenLit); n >= 3 {
-		code, _, _, err := strconv.UnquoteChar(p.tokenLit[1:n-1], '\'')
+	if n := len(p.token.Literal); n >= 3 {
+		code, _, _, err := strconv.UnquoteChar(p.token.Literal[1:n-1], '\'')
 		if err == nil {
 			x := &CharLit{
 				Value:    code,
-				ValuePos: p.pos,
-				Literal:  p.tokenLit,
+				ValuePos: p.token.Pos,
+				Literal:  p.token.Literal,
 			}
 			p.next()
 			return x
 		}
 	}
 
-	pos := p.pos
+	pos := p.token.Pos
 	p.error(pos, "illegal char literal")
 	p.next()
 	return &BadExpr{
 		From: pos,
-		To:   p.pos,
+		To:   p.token.Pos,
 	}
 }
 
@@ -849,7 +884,7 @@ func (p *Parser) parseArrayLit() Expr {
 	p.exprLevel++
 
 	var elements []Expr
-	for p.token != token.RBrack && p.token != token.EOF {
+	for p.token.Token != token.RBrack && p.token.Token != token.EOF {
 		elements = append(elements, p.parseExpr())
 
 		if !p.atComma("array literal", token.RBrack) {
@@ -884,7 +919,7 @@ func (p *Parser) parseFuncParam(prev Spec) (spec Spec) {
 	p.skipSpace()
 
 	var (
-		pos = p.pos
+		pos = p.token.Pos
 
 		ident    *Ident
 		variadic bool
@@ -892,7 +927,7 @@ func (p *Parser) parseFuncParam(prev Spec) (spec Spec) {
 		value    Expr
 	)
 
-	if p.token == token.Semicolon && p.tokenLit == ";" {
+	if p.token.Token == token.Semicolon && p.token.Literal == ";" {
 		p.next()
 		p.skipSpace()
 		named = true
@@ -911,32 +946,32 @@ func (p *Parser) parseFuncParam(prev Spec) (spec Spec) {
 		}
 	}
 
-	if p.token == token.Ident {
+	if p.token.Token == token.Ident {
 		ident = p.parseIdent()
 		p.skipSpace()
 		if named {
 			p.expect(token.Assign)
 			value = p.parseExpr()
-		} else if p.tokenLit == ";" {
+		} else if p.token.Literal == ";" {
 			goto done
 		}
-	} else if p.token == token.Ellipsis {
+	} else if p.token.Token == token.Ellipsis {
 		variadic = true
 		p.next()
 		ident = p.parseIdent()
 		p.skipSpace()
 	}
 
-	if p.token == token.Comma {
+	if p.token.Token == token.Comma {
 		p.next()
 		p.skipSpace()
-	} else if p.token == token.Semicolon {
-		if p.token == token.Assign {
+	} else if p.token.Token == token.Semicolon {
+		if p.token.Token == token.Assign {
 			named = true
 			p.next()
 			value = p.parseExpr()
 			p.skipSpace()
-			if p.token == token.Comma {
+			if p.token.Token == token.Comma {
 				p.next()
 				p.skipSpace()
 			}
@@ -974,13 +1009,13 @@ func (p *Parser) parseFuncParams() *FuncParams {
 	var (
 		args      ArgsList
 		namedArgs NamedArgsList
-		lparen    = p.pos
+		lparen    = p.token.Pos
 		spec      Spec
 	)
 
 	p.next()
 
-	for i := 0; p.token != token.RParen && p.token != token.EOF; i++ { //nolint:predeclared
+	for i := 0; p.token.Token != token.RParen && p.token.Token != token.EOF; i++ { //nolint:predeclared
 		spec = p.parseFuncParam(spec)
 		if p, _ := spec.(*ParamSpec); p != nil {
 			if p.Variadic {
@@ -1016,11 +1051,11 @@ func (p *Parser) parseBody() (b *BlockStmt, closure Expr) {
 
 	p.skipSpace()
 
-	if p.token == token.Assign {
+	if p.token.Token == token.Assign {
 		p.next()
 		p.expect(token.Greater)
 
-		if p.token == token.LBrace {
+		if p.token.Token == token.LBrace {
 			closure = &BlockExpr{p.parseBlockStmt()}
 		} else {
 			closure = p.parseExpr()
@@ -1039,18 +1074,28 @@ func (p *Parser) parseStmtList() (list []Stmt) {
 		defer untracep(tracep(p, "StatementList"))
 	}
 
-	for p.token != token.RBrace && p.token != token.EOF {
-		list = append(list, p.parseStmt())
+	var s Stmt
+
+	for {
+		switch p.token.Token {
+		case token.RBrace, token.EOF, token.CodeEnd:
+			return
+		}
+		if s = p.parseStmt(); s != nil {
+			if _, ok := s.(*EmptyStmt); ok {
+				continue
+			}
+			list = append(list, s)
+		}
 	}
-	return
 }
 
 func (p *Parser) parseIdent() *Ident {
-	pos := p.pos
+	pos := p.token.Pos
 	name := "_"
 
-	if p.token == token.Ident {
-		name = p.tokenLit
+	if p.token.Token == token.Ident {
+		name = p.token.Literal
 		p.next()
 	} else {
 		p.expect(token.Ident)
@@ -1066,7 +1111,19 @@ func (p *Parser) parseStmt() (stmt Stmt) {
 		defer untracep(tracep(p, "Statement"))
 	}
 
-	switch p.token {
+	switch p.token.Token {
+	case token.Config:
+		return p.parseConfigStmt()
+	case token.Text:
+		return p.parseTextStmt()
+	case token.ToTextBegin:
+		return p.parseExprToTextStmt()
+	case token.CodeBegin:
+		s := p.parseCodeStmt()
+		if s == nil {
+			return nil
+		}
+		return s
 	case token.Var, token.Const, token.Global, token.Param:
 		return &DeclStmt{Decl: p.parseDecl()}
 	case // simple statements
@@ -1074,7 +1131,8 @@ func (p *Parser) parseStmt() (stmt Stmt) {
 		token.Char, token.String, token.True, token.False, token.Nil,
 		token.LParen, token.LBrace, token.LBrack, token.Add, token.Sub,
 		token.Mul, token.And, token.Xor, token.Not, token.Import,
-		token.Callee, token.Args, token.NamedArgs:
+		token.Callee, token.Args, token.NamedArgs,
+		token.StdIn, token.StdOut, token.StdErr:
 		s := p.parseSimpleStmt(false)
 		p.expectSemi()
 		return s
@@ -1089,34 +1147,136 @@ func (p *Parser) parseStmt() (stmt Stmt) {
 	case token.Throw:
 		return p.parseThrowStmt()
 	case token.Break, token.Continue:
-		return p.parseBranchStmt(p.token)
+		return p.parseBranchStmt(p.token.Token)
 	case token.Semicolon:
-		s := &EmptyStmt{Semicolon: p.pos, Implicit: p.tokenLit == "\n"}
+		s := &EmptyStmt{Semicolon: p.token.Pos, Implicit: p.token.Literal == "\n"}
 		p.next()
 		return s
 	case token.RBrace:
 		// semicolon may be omitted before a closing "}"
-		return &EmptyStmt{Semicolon: p.pos, Implicit: true}
+		return &EmptyStmt{Semicolon: p.token.Pos, Implicit: true}
 	default:
-		pos := p.pos
+		pos := p.token.Pos
 		p.errorExpected(pos, "statement")
 		p.advance(stmtStart)
-		return &BadStmt{From: pos, To: p.pos}
+		return &BadStmt{From: pos, To: p.token.Pos}
 	}
+}
+
+func (p *Parser) parseConfigStmt() (c *ConfigStmt) {
+	if p.trace {
+		defer untracep(tracep(p, "ConfigStmt"))
+	}
+	c = &ConfigStmt{
+		ConfigPos: p.token.Pos,
+		EndPos:    p.token.Data.(Pos),
+		Literal:   p.token.Literal,
+	}
+
+	p.next()
+
+	testFileSet := NewFileSet()
+	configLit := "(;" + c.Literal + ")"
+	testFile := testFileSet.AddFile("config", -1, len(configLit))
+	p2 := NewParserWithMode(testFile, []byte(configLit), nil, ParseConfigDisabled)
+	f, err := p2.ParseFile()
+	if err != nil {
+		p2.error(c.ConfigPos, err.Error())
+	} else {
+		cfg := f.Stmts[0].(*ExprStmt).Expr.(*KeyValueArrayLit).Elements
+		for _, k := range cfg {
+			switch k.Key.String() {
+			case "mixed":
+				if k.Value == nil {
+					c.Options.Mixed = true
+				} else if b, ok := k.Value.(*BoolLit); ok {
+					if b.Value {
+						c.Options.Mixed = true
+					} else {
+						c.Options.NoMixed = true
+					}
+				}
+			case "writer":
+				if k.Value != nil {
+					c.Options.WriteFunc = k.Value
+				}
+			}
+		}
+	}
+
+	if c.Options.Mixed {
+		p.scanner.mode.Set(Mixed)
+	} else if c.Options.NoMixed {
+		p.scanner.mode.Clear(Mixed)
+	}
+
+	if !p.scanner.mode.Has(Mixed) {
+		p.expect(token.Semicolon)
+	}
+	return
+}
+
+func (p *Parser) parseExprToTextStmt() (ett *ExprToTextStmt) {
+	if p.trace {
+		defer untracep(tracep(p, "ExprToText"))
+	}
+	ett = &ExprToTextStmt{
+		StartLit: Literal{p.token.Literal, p.token.Pos},
+		Flag:     p.token.Data.(TextFlag),
+	}
+	p.next()
+	ett.Expr = p.parseExpr()
+	if p.token.Token == token.ToTextEnd {
+		ett.EndLit = Literal{p.token.Literal, p.token.Pos}
+		p.next()
+		if p.token.Token == token.Text && ett.Flag.Has(TrimRight) {
+			p.token.Literal = trimSpace(true, false, p.token.Literal)
+		}
+	} else {
+		p.expect(token.ToTextEnd)
+	}
+	return
+}
+
+func (p *Parser) parseTextStmt() (t *TextStmt) {
+	if p.trace {
+		defer untracep(tracep(p, "TextStmt"))
+	}
+	t = &TextStmt{p.token.Literal, p.token.Pos}
+	p.next()
+	return
+}
+
+func (p *Parser) parseCodeStmt() (s *CodeStmt) {
+	if p.trace {
+		defer untracep(tracep(p, "CodeStmt"))
+	}
+	tok := p.token
+	p.next()
+	s = &CodeStmt{
+		LBrace:   tok.Pos,
+		TextFlag: tok.Data.(TextFlag),
+		Stmts:    p.parseStmtList(),
+		RBrace:   p.expect(token.CodeEnd),
+	}
+	if len(s.Stmts) == 0 {
+		return nil
+	}
+	return s
 }
 
 func (p *Parser) parseDecl() Decl {
 	if p.trace {
 		defer untracep(tracep(p, "DeclStmt"))
 	}
-	switch p.token {
+	switch p.token.Token {
 	case token.Global, token.Param:
-		return p.parseGenDecl(p.token, p.parseParamSpec)
+		return p.parseGenDecl(p.token.Token, p.parseParamSpec)
 	case token.Var, token.Const:
-		return p.parseGenDecl(p.token, p.parseValueSpec)
+		return p.parseGenDecl(p.token.Token, p.parseValueSpec)
 	default:
-		p.error(p.pos, "only \"param, global, var\" declarations supported")
-		return &BadDecl{From: p.pos, To: p.pos}
+		p.error(p.token.Pos, "only \"param, global, var\" declarations supported")
+		return &BadDecl{From: p.token.Pos, To: p.token.Pos}
 	}
 }
 
@@ -1130,10 +1290,10 @@ func (p *Parser) parseGenDecl(
 	pos := p.expect(keyword)
 	var lparen, rparen Pos
 	var list []Spec
-	if p.token == token.LParen {
-		lparen = p.pos
+	if p.token.Token == token.LParen {
+		lparen = p.token.Pos
 		p.next()
-		for i := 0; p.token != token.RParen && p.token != token.EOF; i++ { //nolint:predeclared
+		for i := 0; p.token.Token != token.RParen && p.token.Token != token.EOF; i++ { //nolint:predeclared
 			list = append(list, fn(keyword, true, list, i))
 		}
 		rparen = p.expect(token.RParen)
@@ -1161,7 +1321,7 @@ func (p *Parser) parseParamSpec(keyword token.Token, multi bool, prev []Spec, i 
 	}
 
 	var (
-		pos = p.pos
+		pos = p.token.Pos
 
 		ident    *Ident
 		variadic bool
@@ -1169,7 +1329,7 @@ func (p *Parser) parseParamSpec(keyword token.Token, multi bool, prev []Spec, i 
 		value    Expr
 	)
 
-	if p.token == token.Semicolon && p.tokenLit == ";" {
+	if p.token.Token == token.Semicolon && p.token.Literal == ";" {
 		p.next()
 		if multi {
 			p.skipSpace()
@@ -1190,9 +1350,9 @@ func (p *Parser) parseParamSpec(keyword token.Token, multi bool, prev []Spec, i 
 		}
 	}
 
-	if p.token == token.Ident {
+	if p.token.Token == token.Ident {
 		ident = p.parseIdent()
-	} else if keyword == token.Param && p.token == token.Ellipsis {
+	} else if keyword == token.Param && p.token.Token == token.Ellipsis {
 		variadic = true
 		p.next()
 		ident = p.parseIdent()
@@ -1201,15 +1361,15 @@ func (p *Parser) parseParamSpec(keyword token.Token, multi bool, prev []Spec, i 
 		}
 	}
 
-	if multi && p.token == token.Comma {
+	if multi && p.token.Token == token.Comma {
 		p.next()
 		p.skipSpace()
 	} else if multi {
-		if p.token == token.Assign {
+		if p.token.Token == token.Assign {
 			named = true
 			p.next()
 			value = p.parseExpr()
-			if p.token == token.Comma || (p.token == token.Semicolon && p.tokenLit == "\n") {
+			if p.token.Token == token.Comma || (p.token.Token == token.Semicolon && p.token.Literal == "\n") {
 				p.next()
 				p.skipSpace()
 			}
@@ -1243,24 +1403,24 @@ func (p *Parser) parseValueSpec(keyword token.Token, multi bool, _ []Spec, i int
 	if p.trace {
 		defer untracep(tracep(p, keyword.String()+"Spec"))
 	}
-	pos := p.pos
+	pos := p.token.Pos
 	var idents []*Ident
 	var values []Expr
-	if p.token == token.Ident {
+	if p.token.Token == token.Ident {
 		ident := p.parseIdent()
 		var expr Expr
-		if p.token == token.Assign {
+		if p.token.Token == token.Assign {
 			p.next()
 			expr = p.parseExpr()
 		}
 		if keyword == token.Const && expr == nil {
 			if i == 0 {
-				p.error(p.pos, "missing initializer in const declaration")
+				p.error(p.token.Pos, "missing initializer in const declaration")
 			}
 		}
 		idents = append(idents, ident)
 		values = append(values, expr)
-		if multi && p.token == token.Comma {
+		if multi && p.token.Token == token.Comma {
 			p.next()
 		} else if multi {
 			p.expectSemi()
@@ -1286,7 +1446,7 @@ func (p *Parser) parseForStmt() Stmt {
 	pos := p.expect(token.For)
 
 	// for {}
-	if p.token == token.LBrace {
+	if p.token.Token == token.LBrace {
 		body := p.parseBlockStmt()
 		p.expectSemi()
 
@@ -1300,7 +1460,7 @@ func (p *Parser) parseForStmt() Stmt {
 	p.exprLevel = -1
 
 	var s1 Stmt
-	if p.token != token.Semicolon { // skipping init
+	if p.token.Token != token.Semicolon { // skipping init
 		s1 = p.parseSimpleStmt(true)
 	}
 
@@ -1317,13 +1477,13 @@ func (p *Parser) parseForStmt() Stmt {
 
 	// for init; cond; post {}
 	var s2, s3 Stmt
-	if p.token == token.Semicolon {
+	if p.token.Token == token.Semicolon {
 		p.next()
-		if p.token != token.Semicolon {
+		if p.token.Token != token.Semicolon {
 			s2 = p.parseSimpleStmt(false) // cond
 		}
 		p.expect(token.Semicolon)
-		if p.token != token.LBrace {
+		if p.token.Token != token.LBrace {
 			s3 = p.parseSimpleStmt(false) // post
 		}
 	} else {
@@ -1354,7 +1514,7 @@ func (p *Parser) parseBranchStmt(tok token.Token) Stmt {
 	pos := p.expect(tok)
 
 	var label *Ident
-	if p.token == token.Ident {
+	if p.token.Token == token.Ident {
 		label = p.parseIdent()
 	}
 	p.expectSemi()
@@ -1374,7 +1534,7 @@ func (p *Parser) parseIfStmt() Stmt {
 	init, cond := p.parseIfHeader()
 
 	var body *BlockStmt
-	if p.token == token.Colon {
+	if p.token.Token == token.Colon {
 		p.next()
 		expr := p.parseExpr()
 		body = &BlockStmt{
@@ -1387,10 +1547,10 @@ func (p *Parser) parseIfStmt() Stmt {
 	}
 
 	var elseStmt Stmt
-	if p.token == token.Else {
+	if p.token.Token == token.Else {
 		p.next()
 
-		switch p.token {
+		switch p.token.Token {
 		case token.If:
 			elseStmt = p.parseIfStmt()
 		case token.LBrace:
@@ -1406,8 +1566,8 @@ func (p *Parser) parseIfStmt() Stmt {
 			}
 			p.expectSemi()
 		default:
-			p.errorExpected(p.pos, "if or {")
-			elseStmt = &BadStmt{From: p.pos, To: p.pos}
+			p.errorExpected(p.token.Pos, "if or {")
+			elseStmt = &BadStmt{From: p.token.Pos, To: p.token.Pos}
 		}
 	} else {
 		p.expectSemi()
@@ -1429,10 +1589,10 @@ func (p *Parser) parseTryStmt() Stmt {
 	body := p.parseBlockStmt()
 	var catchStmt *CatchStmt
 	var finallyStmt *FinallyStmt
-	if p.token == token.Catch {
+	if p.token.Token == token.Catch {
 		catchStmt = p.parseCatchStmt()
 	}
-	if p.token == token.Finally || catchStmt == nil {
+	if p.token.Token == token.Finally || catchStmt == nil {
 		finallyStmt = p.parseFinallyStmt()
 	}
 	p.expectSemi()
@@ -1450,7 +1610,7 @@ func (p *Parser) parseCatchStmt() *CatchStmt {
 	}
 	pos := p.expect(token.Catch)
 	var ident *Ident
-	if p.token == token.Ident {
+	if p.token.Token == token.Ident {
 		ident = p.parseIdent()
 	}
 	body := p.parseBlockStmt()
@@ -1502,22 +1662,22 @@ func (p *Parser) parseBlockStmt() *BlockStmt {
 }
 
 func (p *Parser) parseIfHeader() (init Stmt, cond Expr) {
-	if p.token == token.LBrace {
-		p.error(p.pos, "missing condition in if statement")
-		cond = &BadExpr{From: p.pos, To: p.pos}
+	if p.token.Token == token.LBrace {
+		p.error(p.token.Pos, "missing condition in if statement")
+		cond = &BadExpr{From: p.token.Pos, To: p.token.Pos}
 		return
 	}
 
 	outer := p.exprLevel
 	p.exprLevel = -1
-	if p.token == token.Semicolon {
-		p.error(p.pos, "missing init in if statement")
+	if p.token.Token == token.Semicolon {
+		p.error(p.token.Pos, "missing init in if statement")
 		return
 	}
 	init = p.parseSimpleStmt(false)
 
 	var condStmt Stmt
-	switch p.token {
+	switch p.token.Token {
 	case token.LBrace, token.Colon:
 		condStmt = init
 		init = nil
@@ -1525,14 +1685,14 @@ func (p *Parser) parseIfHeader() (init Stmt, cond Expr) {
 		p.next()
 		condStmt = p.parseSimpleStmt(false)
 	default:
-		p.error(p.pos, "missing condition in if statement")
+		p.error(p.token.Pos, "missing condition in if statement")
 	}
 
 	if condStmt != nil {
 		cond = p.makeExpr(condStmt, "boolean expression")
 	}
 	if cond == nil {
-		cond = &BadExpr{From: p.pos, To: p.pos}
+		cond = &BadExpr{From: p.token.Pos, To: p.token.Pos}
 	}
 	p.exprLevel = outer
 	return
@@ -1560,21 +1720,21 @@ func (p *Parser) parseReturnStmt() Stmt {
 		defer untracep(tracep(p, "ReturnStmt"))
 	}
 
-	pos := p.pos
+	pos := p.token.Pos
 	p.expect(token.Return)
 
 	var x Expr
-	if p.token != token.Semicolon && p.token != token.RBrace {
-		lbpos := p.pos
+	if p.token.Token != token.Semicolon && p.token.Token != token.RBrace {
+		lbpos := p.token.Pos
 		x = p.parseExpr()
-		if p.token != token.Comma {
+		if p.token.Token != token.Comma {
 			goto done
 		}
 		// if the next token is a comma, treat it as multi return so put
 		// expressions into a slice and replace x expression with an ArrayLit.
 		elements := make([]Expr, 1, 2)
 		elements[0] = x
-		for p.token == token.Comma {
+		for p.token.Token == token.Comma {
 			p.next()
 			x = p.parseExpr()
 			elements = append(elements, x)
@@ -1600,9 +1760,9 @@ func (p *Parser) parseSimpleStmt(forIn bool) Stmt {
 
 	x := p.parseExprList()
 
-	switch p.token {
+	switch p.token.Token {
 	case token.Assign, token.Define: // assignment statement
-		pos, tok := p.pos, p.token
+		pos, tok := p.token.Pos, p.token.Token
 		p.next()
 		y := p.parseExprList()
 		return &AssignStmt{
@@ -1653,13 +1813,13 @@ func (p *Parser) parseSimpleStmt(forIn bool) Stmt {
 		// continue with first expression
 	}
 
-	switch p.token {
+	switch p.token.Token {
 	case token.Define,
 		token.AddAssign, token.SubAssign, token.MulAssign, token.QuoAssign,
 		token.RemAssign, token.AndAssign, token.OrAssign, token.XorAssign,
 		token.ShlAssign, token.ShrAssign, token.AndNotAssign,
 		token.NullichAssign, token.LOrAssign:
-		pos, tok := p.pos, p.token
+		pos, tok := p.token.Pos, p.token.Token
 		p.next()
 		y := p.parseExpr()
 		return &AssignStmt{
@@ -1670,7 +1830,7 @@ func (p *Parser) parseSimpleStmt(forIn bool) Stmt {
 		}
 	case token.Inc, token.Dec:
 		// increment or decrement statement
-		s := &IncDecStmt{Expr: x[0], Token: p.token, TokenPos: p.pos}
+		s := &IncDecStmt{Expr: x[0], Token: p.token.Token, TokenPos: p.token.Pos}
 		p.next()
 		return s
 	}
@@ -1683,7 +1843,7 @@ func (p *Parser) parseExprList() (list []Expr) {
 	}
 
 	list = append(list, p.parseExpr())
-	for p.token == token.Comma {
+	for p.token.Token == token.Comma {
 		p.next()
 		list = append(list, p.parseExpr())
 	}
@@ -1695,12 +1855,12 @@ func (p *Parser) parseMapElementLit() *MapElementLit {
 		defer untracep(tracep(p, "MapElementLit"))
 	}
 
-	pos := p.pos
+	pos := p.token.Pos
 	name := "_"
-	if p.token == token.Ident || p.token.IsKeyword() {
-		name = p.tokenLit
-	} else if p.token == token.String {
-		v, _ := strconv.Unquote(p.tokenLit)
+	if p.token.Token == token.Ident || p.token.Token.IsKeyword() {
+		name = p.token.Literal
+	} else if p.token.Token == token.String {
+		v, _ := strconv.Unquote(p.token.Literal)
 		name = v
 	} else {
 		p.errorExpected(pos, "map key")
@@ -1725,7 +1885,7 @@ func (p *Parser) parseMapLit() *MapLit {
 	p.exprLevel++
 
 	var elements []*MapElementLit
-	for p.token != token.RBrace && p.token != token.EOF {
+	for p.token.Token != token.RBrace && p.token.Token != token.EOF {
 		elements = append(elements, p.parseMapElementLit())
 
 		if !p.atComma("map literal", token.RBrace) {
@@ -1751,7 +1911,7 @@ func (p *Parser) parseKeyValueLit() *KeyValueLit {
 	p.skipSpace()
 
 	var (
-		pos       = p.pos
+		pos       = p.token.Pos
 		keyExpr   = p.parsePrimitiveOperand()
 		colonPos  Pos
 		valueExpr Expr
@@ -1759,7 +1919,7 @@ func (p *Parser) parseKeyValueLit() *KeyValueLit {
 
 	p.skipSpace()
 
-	switch p.token {
+	switch p.token.Token {
 	case token.Comma, token.RParen:
 	default:
 		colonPos = p.expect(token.Assign)
@@ -1783,7 +1943,7 @@ func (p *Parser) parseKeyValueArrayLit(lbrace Pos) *KeyValueArrayLit {
 	p.expect(token.Semicolon)
 
 	var elements []*KeyValueLit
-	for p.token != token.RParen && p.token != token.EOF {
+	for p.token.Token != token.RParen && p.token.Token != token.EOF {
 		elements = append(elements, p.parseKeyValueLit())
 
 		if !p.atComma("keyValueArray literal", token.RParen) {
@@ -1802,9 +1962,9 @@ func (p *Parser) parseKeyValueArrayLit(lbrace Pos) *KeyValueArrayLit {
 }
 
 func (p *Parser) expect(token token.Token) Pos {
-	pos := p.pos
+	pos := p.token.Pos
 
-	if p.token != token {
+	if p.token.Token != token {
 		p.errorExpected(pos, "'"+token.String()+"'")
 	}
 	p.next()
@@ -1812,30 +1972,30 @@ func (p *Parser) expect(token token.Token) Pos {
 }
 
 func (p *Parser) expectSemi() {
-	switch p.token {
-	case token.RParen, token.RBrace:
+	switch p.token.Token {
+	case token.RParen, token.RBrace, token.CodeEnd:
 		// semicolon is optional before a closing ')' or '}'
 	case token.Comma:
 		// permit a ',' instead of a ';' but complain
-		p.errorExpected(p.pos, "';'")
+		p.errorExpected(p.token.Pos, "';'")
 		fallthrough
 	case token.Semicolon:
 		p.next()
 	default:
-		p.errorExpected(p.pos, "';'")
+		p.errorExpected(p.token.Pos, "';'")
 		p.advance(stmtStart)
 	}
 }
 
 func (p *Parser) advance(to map[token.Token]bool) {
-	for ; p.token != token.EOF; p.next() {
-		if to[p.token] {
-			if p.pos == p.syncPos && p.syncCount < 10 {
+	for ; p.token.Token != token.EOF; p.next() {
+		if to[p.token.Token] {
+			if p.token.Pos == p.syncPos && p.syncCount < 10 {
 				p.syncCount++
 				return
 			}
-			if p.pos > p.syncPos {
-				p.syncPos = p.pos
+			if p.token.Pos > p.syncPos {
+				p.syncPos = p.token.Pos
 				p.syncCount = 0
 				return
 			}
@@ -1860,15 +2020,15 @@ func (p *Parser) error(pos Pos, msg string) {
 
 func (p *Parser) errorExpected(pos Pos, msg string) {
 	msg = "expected " + msg
-	if pos == p.pos {
+	if pos == p.token.Pos {
 		// error happened at the current position: provide more specific
 		switch {
-		case p.token == token.Semicolon && p.tokenLit == "\n":
+		case p.token.Token == token.Semicolon && p.token.Literal == "\n":
 			msg += ", found newline"
-		case p.token.IsLiteral():
-			msg += ", found " + p.tokenLit
+		case p.token.Token.IsLiteral():
+			msg += ", found " + p.token.Literal
 		default:
-			msg += ", found '" + p.token.String() + "'"
+			msg += ", found '" + p.token.Token.String() + "'"
 		}
 	}
 	p.error(pos, msg)
@@ -1877,25 +2037,25 @@ func (p *Parser) errorExpected(pos Pos, msg string) {
 func (p *Parser) consumeComment() (comment *Comment, endline int) {
 	// /*-style comments may end on a different line than where they start.
 	// Scan the comment for '\n' chars and adjust endline accordingly.
-	endline = p.file.Line(p.pos)
-	if p.tokenLit[1] == '*' {
+	endline = p.file.Line(p.token.Pos)
+	if p.token.Literal[1] == '*' {
 		// don't use range here - no need to decode Unicode code points
-		for i := 0; i < len(p.tokenLit); i++ {
-			if p.tokenLit[i] == '\n' {
+		for i := 0; i < len(p.token.Literal); i++ {
+			if p.token.Literal[i] == '\n' {
 				endline++
 			}
 		}
 	}
 
-	comment = &Comment{Slash: p.pos, Text: p.tokenLit}
+	comment = &Comment{Slash: p.token.Pos, Text: p.token.Literal}
 	p.next0()
 	return
 }
 
 func (p *Parser) consumeCommentGroup(n int) (comments *CommentGroup) {
 	var list []*Comment
-	endline := p.file.Line(p.pos)
-	for p.token == token.Comment && p.file.Line(p.pos) <= endline+n {
+	endline := p.file.Line(p.token.Pos)
+	for p.token.Token == token.Comment && p.file.Line(p.token.Pos) <= endline+n {
 		var comment *Comment
 		comment, endline = p.consumeComment()
 		list = append(list, comment)
@@ -1907,30 +2067,30 @@ func (p *Parser) consumeCommentGroup(n int) (comments *CommentGroup) {
 }
 
 func (p *Parser) next0() {
-	if p.trace && p.pos.IsValid() {
-		s := p.token.String()
+	if p.trace && p.token.Pos.IsValid() {
+		s := p.token.Token.String()
 		switch {
-		case p.token.IsLiteral():
-			p.printTrace(s, p.tokenLit)
-		case p.token.IsOperator(), p.token.IsKeyword():
+		case p.token.Token.IsLiteral():
+			p.printTrace(s, p.token.Literal)
+		case p.token.Token.IsOperator(), p.token.Token.IsKeyword():
 			p.printTrace(`"` + s + `"`)
 		default:
 			p.printTrace(s)
 		}
 	}
-	p.token, p.tokenLit, p.pos = p.scanner.Scan()
+	p.token = p.scanner.Scan()
 }
 
 func (p *Parser) next() {
-	prev := p.pos
+	prev := p.token.Pos
 	p.next0()
-	if p.token == token.Comment {
-		if p.file.Line(p.pos) == p.file.Line(prev) {
+	if p.token.Token == token.Comment {
+		if p.file.Line(p.token.Pos) == p.file.Line(prev) {
 			// line comment of prev token
 			_ = p.consumeCommentGroup(0)
 		}
 		// consume successor comments, if any
-		for p.token == token.Comment {
+		for p.token.Token == token.Comment {
 			// lead comment of next token
 			_ = p.consumeCommentGroup(1)
 		}
@@ -1938,7 +2098,7 @@ func (p *Parser) next() {
 }
 
 func (p *Parser) skipSpace() {
-	for p.token == token.Semicolon && p.tokenLit == "\n" {
+	for p.token.Token == token.Semicolon && p.token.Literal == "\n" {
 		p.next()
 	}
 }
@@ -1949,8 +2109,8 @@ func (p *Parser) printTrace(a ...any) {
 		n    = len(dots)
 	)
 
-	filePos := p.file.Position(p.pos)
-	_, _ = fmt.Fprintf(p.traceOut, "%5d: %5d:%3d: ", p.pos, filePos.Line,
+	filePos := p.file.Position(p.token.Pos)
+	_, _ = fmt.Fprintf(p.traceOut, "%5d: %5d:%3d: ", p.token.Pos, filePos.Line,
 		filePos.Column)
 	i := 2 * p.indent
 	for i > n {

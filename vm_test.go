@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"strings"
@@ -950,6 +951,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return typeName((;))`, nil, String("keyValueArray"))
 	expectRun(t, `return typeName((;a,b=2))`, nil, String("keyValueArray"))
 	expectRun(t, `return typeName(func(;...na){return na}(;a,b=2))`, nil, String("namedArgs"))
+	expectRun(t, `return typeName(buffer())`, nil, String("buffer"))
 
 	expectErrIs(t, `typeName()`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `typeName("", "")`, nil, ErrWrongNumArguments)
@@ -979,6 +981,14 @@ keyValueArray(keyValue("d",4))))`,
 		nil, Array{Int(1), Int(2)})
 	expectRun(t, `return string(values(keyValueArray(keyValue("a",1),keyValue("b",2))))`,
 		nil, String(`[1, 2]`))
+
+	expectRun(t, `return string(buffer())`, nil, String(""))
+	expectRun(t, `return string(buffer("abc"))`, nil, String("abc"))
+	expectRun(t, `b := buffer("a"); write(b, "b", 1); write(b, true); return string(b)`,
+		nil, String("ab1true"))
+	expectRun(t, `b := buffer("a"); write(b, "b", 1); b.reset(); write(b, true); return string(b)`,
+		nil, String("true"))
+	expectRun(t, `return string(bytes(buffer("a")))`, nil, String("a"))
 
 	convs := []struct {
 		f      string
@@ -1333,45 +1343,40 @@ keyValueArray(keyValue("d",4))))`,
 	}`, nil, True)
 
 	var stdOut bytes.Buffer
-	oldWriter := PrintWriter
-	PrintWriter = &stdOut
-	defer func() {
-		PrintWriter = oldWriter
-	}()
 	stdOut.Reset()
-	expectRun(t, `printf("test")`, newOpts().Skip2Pass(), Nil)
+	expectRun(t, `printf("test")`, newOpts().out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "test", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `printf("test %d", 1)`, newOpts().Skip2Pass(), Nil)
+	expectRun(t, `printf("test %d", 1)`, newOpts().out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "test 1", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `printf("test %d %d", 1, 2u)`, newOpts().Skip2Pass(), Nil)
+	expectRun(t, `printf("test %d %d", 1, 2u)`, newOpts().out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "test 1 2", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `println()`, newOpts().Skip2Pass(), Nil)
+	expectRun(t, `println()`, newOpts().out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "\n", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `println("test")`, newOpts().Skip2Pass(), Nil)
+	expectRun(t, `println("test")`, newOpts().out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "test\n", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `println("test", 1)`, newOpts().Skip2Pass(), Nil)
+	expectRun(t, `println("test", 1)`, newOpts().out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "test 1\n", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `println("test", 1, 2u)`, newOpts().Skip2Pass(), Nil)
+	expectRun(t, `println("test", 1, 2u)`, newOpts().out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "test 1 2\n", stdOut.String())
 
 	expectRun(t, `return sprintf("test")`,
-		newOpts().Skip2Pass(), String("test"))
+		newOpts().out(&stdOut).Skip2Pass(), String("test"))
 	expectRun(t, `return sprintf("test %d", 1)`,
-		newOpts().Skip2Pass(), String("test 1"))
+		newOpts().out(&stdOut).Skip2Pass(), String("test 1"))
 	expectRun(t, `return sprintf("test %d %t", 1, true)`,
-		newOpts().Skip2Pass(), String("test 1 true"))
+		newOpts().out(&stdOut).Skip2Pass(), String("test 1 true"))
 
 	expectErrIs(t, `printf()`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `sprintf()`, nil, ErrWrongNumArguments)
@@ -1529,7 +1534,7 @@ func testEquality(t *testing.T, lhs, rhs string, expected bool) {
 
 func TestVMBuiltinError(t *testing.T) {
 	expectRun(t, `return error(1)`, nil, &Error{Name: "error", Message: "1"})
-	expectRun(t, `return error(1).Name`, nil, String("error"))
+	expectRun(t, `return error(1).Literal`, nil, String("error"))
 	expectRun(t, `return error(1).Message`, nil, String("1"))
 	expectRun(t, `return error("some error")`, nil,
 		&Error{Name: "error", Message: "some error"})
@@ -1540,8 +1545,8 @@ func TestVMBuiltinError(t *testing.T) {
 		&Error{Name: "error", Message: "5"})
 	expectRun(t, `return error(error("foo"))`, nil, &Error{Name: "error", Message: "error: foo"})
 
-	expectRun(t, `return error("some error").Name`, nil, String("error"))
-	expectRun(t, `return error("some error")["Name"]`, nil, String("error"))
+	expectRun(t, `return error("some error").Literal`, nil, String("error"))
+	expectRun(t, `return error("some error")["Literal"]`, nil, String("error"))
 	expectRun(t, `return error("some error").Message`, nil, String("some error"))
 	expectRun(t, `return error("some error")["Message"]`, nil, String("some error"))
 
@@ -3729,10 +3734,16 @@ type testopts struct {
 	skip2pass     bool
 	isCompilerErr bool
 	noPanic       bool
+	stdout        Writer
 }
 
 func newOpts() *testopts {
 	return &testopts{}
+}
+
+func (t *testopts) out(w io.Writer) *testopts {
+	t.stdout = NewWriter(w)
+	return t
 }
 
 func (t *testopts) Globals(globals IndexGetSetter) *testopts {
@@ -3954,6 +3965,9 @@ func expectRun(t *testing.T, script string, opts *testopts, expect Object) {
 			}
 			if opts.namedArgs != nil {
 				ropts.NamedArgs = opts.namedArgs.Copy().(*NamedArgs)
+			}
+			if opts.stdout != nil {
+				ropts.StdOut = opts.stdout
 			}
 			got, err := vm.SetRecover(opts.noPanic).RunOpts(ropts)
 			if !assert.NoErrorf(t, err, "Code:\n%s\n", script) {

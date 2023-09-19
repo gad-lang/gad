@@ -136,7 +136,7 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		OpGetBuiltin: true, OpCall: true, OpSetLocal: true, OpDefineLocal: true,
 		OpTrue: true, OpFalse: true, OpJumpNull: true, OpJumpNotNull: true,
 		OpCallee: true, OpArgs: true, OpNamedArgs: true,
-		^byte(0): false,
+		OpStdIn: true, OpStdOut: true, OpStdErr: true,
 	}
 
 	allowedBuiltins := [...]bool{
@@ -144,12 +144,15 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		BuiltinUint: true, BuiltinChar: true, BuiltinFloat: true,
 		BuiltinString: true, BuiltinChars: true, BuiltinLen: true,
 		BuiltinTypeName: true, BuiltinBytes: true, BuiltinError: true,
-		BuiltinSprintf: true,
+		BuiltinWrite: true, BuiltinPrint: true, BuiltinSprintf: true,
 		BuiltinIsError: true, BuiltinIsInt: true, BuiltinIsUint: true,
 		BuiltinIsFloat: true, BuiltinIsChar: true, BuiltinIsBool: true,
 		BuiltinIsString: true, BuiltinIsBytes: true, BuiltinIsMap: true,
 		BuiltinIsArray: true, BuiltinIsNil: true, BuiltinIsIterable: true,
-		^byte(0): false,
+		BuiltinDecimal: true, BuiltinItems: true, BuiltinValues: true,
+		BuiltinKeys: true, BuiltinKeyValue: true, BuiltinKeyValueArray: true,
+		BuiltinBuffer: true,
+		^byte(0):      false,
 	}
 
 	canOptimize := true

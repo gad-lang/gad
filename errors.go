@@ -56,6 +56,9 @@ var (
 	// ErrUnexpectedNamedArg is an error where unexpected kwarg.
 	ErrUnexpectedNamedArg = &Error{Name: "ErrUnexpectedNamedArg"}
 
+	// ErrUnexpectedArgValue is an error where unexpected argument value.
+	ErrUnexpectedArgValue = &Error{Name: "ErrUnexpectedArgValue"}
+
 	// ErrType represents a type error.
 	ErrType = &Error{Name: "TypeError"}
 )

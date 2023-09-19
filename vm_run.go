@@ -6,6 +6,9 @@ type RunOpts struct {
 	Globals   IndexGetSetter
 	Args      Args
 	NamedArgs *NamedArgs
+	StdIn     Reader
+	StdOut    Writer
+	StdErr    Writer
 }
 
 // Run runs VM and executes the instructions until the OpReturn Opcode or Abort call.
