@@ -43,6 +43,8 @@ type VM struct {
 
 	StdOut, StdErr Writer
 	StdIn          Reader
+
+	writers []Writer
 }
 
 // NewVM creates a VM object.
@@ -1036,6 +1038,14 @@ func (vm *VM) getCalledNamedArgs(flags OpCallFlag) (namedArgs *NamedArgs, err er
 	}
 
 	return
+}
+
+func (vm *VM) PushWriter(out Writer) {
+	vm.writers = append(vm.writers, out)
+}
+
+func (vm *VM) PopWriter() {
+	vm.writers = vm.writers[:len(vm.writers)-1]
 }
 
 type errHandler struct {

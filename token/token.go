@@ -74,19 +74,23 @@ const (
 	Define          // :=
 	Ellipsis        // ...
 	LParen          // (
+	RParen          // )
 	LBrack          // [
-	LBrace          // {
+	RBrack          // ]
 	Comma           // ,
 	Period          // .
-	RParen          // )
-	RBrack          // ]
 	RBrace          // }
+	LBrace          // {
 	Semicolon       // ;
 	Colon           // :
 	Question        // ?
 	NullishSelector // ?.
 	OperatorEnd_
 	KeyworkBegin_
+	Then
+	Do
+	Begin
+	End
 	Break
 	Continue
 	Else
@@ -207,6 +211,10 @@ var tokens = [...]string{
 	Catch:           "catch",
 	Finally:         "finally",
 	Throw:           "throw",
+	Do:              "do",
+	Then:            "then",
+	Begin:           "begin",
+	End:             "end",
 	Callee:          "__callee__",
 	Args:            "__args__",
 	NamedArgs:       "__named_args__",
@@ -292,6 +300,22 @@ func (tok Token) Is(other ...Token) bool {
 		if o == tok {
 			return true
 		}
+	}
+	return false
+}
+
+func (tok Token) IsBlockStart() bool {
+	switch tok {
+	case LBrace, Then, Begin, Do:
+		return true
+	}
+	return false
+}
+
+func (tok Token) IsBlockEnd() bool {
+	switch tok {
+	case RBrace, End:
+		return true
 	}
 	return false
 }

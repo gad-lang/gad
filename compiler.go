@@ -476,8 +476,8 @@ func (c *Compiler) Compile(node parser.Node) error {
 		return c.compileImportExpr(node)
 	case *parser.CondExpr:
 		return c.compileCondExpr(node)
-	case *parser.CodeStmt:
-		return c.compileStmts(node.Stmts...)
+	case *parser.TextStmt:
+		return c.Compile(&parser.StringLit{Value: node.Literal})
 	case *parser.EmptyStmt:
 	case *parser.ConfigStmt:
 		if node.Options.WriteFunc != nil {

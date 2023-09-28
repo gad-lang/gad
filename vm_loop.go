@@ -339,6 +339,45 @@ VMLoop:
 			vm.stack[vm.sp] = kv
 			vm.sp++
 			vm.ip += 2
+		case OpTextWriter:
+			numSel := int(vm.curInsts[vm.ip+1])
+			tp := vm.sp - 1 - numSel
+			target := vm.stack[tp]
+			value := Nil
+
+			for ; numSel > 0; numSel-- {
+				ptr := vm.sp - numSel
+				index := vm.stack[ptr]
+				vm.stack[ptr] = nil
+				if ig, _ := target.(IndexGetter); ig != nil {
+					v, err := ig.IndexGet(index)
+					if err != nil {
+						switch err {
+						case ErrNotIndexable:
+							err = ErrNotIndexable.NewError(target.TypeName())
+						case ErrIndexOutOfBounds:
+							err = ErrIndexOutOfBounds.NewError(index.String())
+						}
+						if err = vm.throwGenErr(err); err != nil {
+							vm.err = err
+							return
+						}
+						continue VMLoop
+					}
+					target = v
+					value = v
+				} else {
+					if err := vm.throwGenErr(ErrNotIndexable.NewError(target.TypeName())); err != nil {
+						vm.err = err
+						return
+					}
+					continue VMLoop
+				}
+			}
+
+			vm.stack[tp] = value
+			vm.sp = tp + 1
+			vm.ip++
 		case OpGetIndex:
 			numSel := int(vm.curInsts[vm.ip+1])
 			tp := vm.sp - 1 - numSel

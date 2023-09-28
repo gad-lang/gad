@@ -280,3 +280,8 @@ type Reader interface {
 	io.Reader
 	GoReader() io.Reader
 }
+
+type ReadWriter interface {
+	Writer
+	Reader
+}

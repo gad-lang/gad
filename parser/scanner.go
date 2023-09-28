@@ -98,7 +98,7 @@ type Scanner struct {
 	toText       bool
 	braceCount   int
 	tokenPool    []Token
-	textFlag     TextFlag
+	textTrimLeft bool
 }
 
 // NewScanner creates a Scanner.
@@ -160,12 +160,19 @@ func (s *Scanner) Scan() (t Token) {
 			case -1:
 				t.Token = token.Text
 				t.Literal = string(s.src[start:s.offset])
+				if s.textTrimLeft {
+					t.Literal = trimSpace(true, false, t.Literal)
+				}
+				s.textTrimLeft = false
 				s.tokenPool = append(s.tokenPool, Token{Pos: s.file.FileSetPos(s.offset), Token: token.EOF})
 				return
 			case '#':
 				if !scape {
 					if s.peek() == '{' {
-						end := s.offset
+						var (
+							end = s.offset
+							lit = "#{"
+						)
 						s.inCode = true
 						s.next()
 						s.next()
@@ -173,38 +180,29 @@ func (s *Scanner) Scan() (t Token) {
 
 						t.Literal = string(s.src[start:end])
 						t.Token = token.Text
-						var flag TextFlag
 
 						switch s.ch {
-						case '<':
+						case '-':
 							s.nextNoSpace()
-							flag.Set(TrimLeft)
-							t.Literal = trimSpace(false, true, t.Literal)
-							if s.ch == '>' {
-								flag.Set(TrimRight)
-								s.nextNoSpace()
-							}
-						case '>':
-							flag.Set(TrimRight)
-							s.nextNoSpace()
+							t.Literal = trimSpace(s.textTrimLeft, true, t.Literal)
 						}
+
+						s.textTrimLeft = false
 
 						if s.ch == '=' {
 							s.toText = true
 							s.nextNoSpace()
-							next := Token{Token: token.ToTextBegin, Pos: s.file.FileSetPos(end), Literal: "#{" + flag.String() + "=", Data: flag}
+							next := Token{Token: token.ToTextBegin, Pos: s.file.FileSetPos(end), Literal: lit + "="}
 							if t.Literal == "" {
 								t = next
 							} else {
 								s.AddNextToken(next)
 							}
 						} else {
-							next := Token{Token: token.CodeBegin, Pos: s.file.FileSetPos(end), Literal: "#{" + flag.String(), Data: flag}
-							s.textFlag = flag
+							next := Token{Token: token.CodeBegin, Pos: s.file.FileSetPos(end), Literal: lit}
 							if t.Literal == "" {
 								t = next
 							} else {
-								t.Data = flag
 								s.AddNextToken(next)
 							}
 						}
@@ -341,18 +339,16 @@ do:
 						t.Token = token.ToTextEnd
 						s.toText = false
 						t.Literal = "}"
+						t.Data = s.textTrimLeft
 					} else {
-						next := Token{Token: token.CodeEnd, Literal: "}", Pos: t.Pos}
+						next := Token{Token: token.CodeEnd, Literal: "}", Pos: t.Pos, Data: s.textTrimLeft}
 						if !s.mode.Has(DontInsertSemis) {
+							s.AddNextToken(t)
 							t = next
 						} else {
 							return next
 						}
 					}
-					if s.textFlag.Has(TrimRight) {
-						s.skipWhitespace()
-					}
-					s.textFlag = 0
 				}
 			}
 		case '+':
@@ -361,6 +357,11 @@ do:
 				insertSemi = true
 			}
 		case '-':
+			if s.ch == '}' {
+				s.textTrimLeft = true
+				goto do
+			}
+
 			t.Token = s.switch3(token.Sub, token.SubAssign, '-', token.Dec)
 			if t.Token == token.Dec {
 				insertSemi = true

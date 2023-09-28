@@ -193,7 +193,7 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 }
 
 func TestCompiler_Mixed(t *testing.T) {
-	expectCompileMixed(t, `# gad: writer=myfn; #{<>var myfn} a`, bytecode(
+	expectCompileMixed(t, `# gad: writer=myfn; #{- var myfn -} a`, bytecode(
 		Array{String("a")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -234,7 +234,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		), withLocals(1)),
 	))
 
-	expectCompile(t, `# gad: mixed, writer=myfn; #{<>var myfn} a`, bytecode(
+	expectCompile(t, `# gad: mixed, writer=myfn; #{- var myfn -} a`, bytecode(
 		Array{String("a")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -243,6 +243,57 @@ func TestCompiler_Mixed(t *testing.T) {
 			makeInst(OpConstant, 0),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpReturn, 0),
+		), withLocals(1)),
+	))
+
+	expectCompile(t, `# gad: mixed; #{- a := begin} a #{end}`, bytecode(
+		Array{String(" a ")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpReturn, 0),
+		), withLocals(1)),
+	))
+
+	expectCompile(t, `# gad: mixed; #{- a := begin -} a #{- end}`, bytecode(
+		Array{String("a")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpReturn, 0),
+		), withLocals(1)),
+	))
+
+	expectCompile(t, `# gad: mixed; #{- a := begin -} a #{- end; return a}`, bytecode(
+		Array{String("a")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpReturn, 1),
+		), withLocals(1)),
+	))
+
+	expectCompile(t, `# gad: mixed; #{- a := begin -} a #{- end}#{return a}`, bytecode(
+		Array{String("a")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpReturn, 1),
+		), withLocals(1)),
+	))
+
+	expectCompile(t, `# gad: mixed; #{- a := begin -} a #{- end} b #{return a}`, bytecode(
+		Array{String("a"), String(" b ")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetBuiltin, int(BuiltinWrite)),
+			makeInst(OpConstant, 1),
+			makeInst(OpCall, 1, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpReturn, 1),
 		), withLocals(1)),
 	))
 }

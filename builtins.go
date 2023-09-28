@@ -90,6 +90,11 @@ const (
 	BuiltinKeyValue
 	BuiltinKeyValueArray
 	BuiltinBuffer
+
+	BuiltinVMPushWriter
+	BuiltinVMPopWriter
+
+	BuiltinDiscardWriter
 )
 
 // BuiltinsMap is list of builtin types, exported for REPL.
@@ -158,6 +163,10 @@ var BuiltinsMap = map[string]BuiltinType{
 	"items":         BuiltinItems,
 	"keyValue":      BuiltinKeyValue,
 	"keyValueArray": BuiltinKeyValueArray,
+
+	"vmPushWriter":   BuiltinVMPushWriter,
+	"vmPopWriter":    BuiltinVMPopWriter,
+	"DISCARD_WRITER": BuiltinDiscardWriter,
 }
 
 // BuiltinObjects is list of builtins, exported for REPL.
@@ -364,6 +373,15 @@ var BuiltinObjects = [...]Object{
 		Value: builtinStdIO,
 	},
 
+	BuiltinVMPushWriter: &BuiltinFunction{
+		Name:  "vmPushWriter",
+		Value: builtinVMPushWriterFunc,
+	},
+	BuiltinVMPopWriter: &BuiltinFunction{
+		Name:  "vmPopWriter",
+		Value: builtinVMPopWriterFunc,
+	},
+
 	BuiltinWrongNumArgumentsError:  ErrWrongNumArguments,
 	BuiltinInvalidOperatorError:    ErrInvalidOperator,
 	BuiltinIndexOutOfBoundsError:   ErrIndexOutOfBounds,
@@ -374,6 +392,8 @@ var BuiltinObjects = [...]Object{
 	BuiltinNotImplementedError:     ErrNotImplemented,
 	BuiltinZeroDivisionError:       ErrZeroDivision,
 	BuiltinTypeError:               ErrType,
+
+	BuiltinDiscardWriter: DiscardWriter,
 }
 
 func builtinMakeArrayFunc(n int, arg Object) (Object, error) {
@@ -797,6 +817,10 @@ func builtinWriteFunc(c Call) (ret Object, err error) {
 		n     int
 	)
 
+	if l := len(c.vm.writers); l > 0 {
+		w = c.vm.writers[l-1]
+	}
+
 	if err = c.Args.CheckMinLen(1); err != nil {
 		return
 	}
@@ -1211,4 +1235,39 @@ func builtinStdIO(c Call) (ret Object, err error) {
 		err = ErrWrongNumArguments.NewError(fmt.Sprintf("want=1|2 got=%d", l))
 	}
 	return
+}
+
+func builtinVMPushWriterFunc(c Call) (ret Object, err error) {
+	if c.Args.Len() == 0 {
+		buf := &Buffer{}
+		c.vm.PushWriter(buf)
+		return buf, nil
+	}
+
+	if err := c.Args.CheckMaxLen(1); err != nil {
+		return nil, err
+	}
+
+	arg := c.Args.Get(0)
+	if arg == Nil {
+		arg = DiscardWriter
+	}
+	if w, ok := arg.(Writer); ok {
+		c.vm.PushWriter(w)
+		return w, nil
+	}
+
+	return nil, NewArgumentTypeError(
+		"1st",
+		"writer",
+		arg.TypeName(),
+	)
+}
+
+func builtinVMPopWriterFunc(c Call) (ret Object, err error) {
+	if len(c.vm.writers) == 0 {
+		return nil, ErrUnbuffered
+	}
+	c.vm.PopWriter()
+	return Nil, nil
 }

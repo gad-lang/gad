@@ -31,6 +31,8 @@ func TestScanner_ScanMixed(t *testing.T) {
 		{token.Ident, "a"},
 		{token.Add, "+"},
 		{token.Ident, "b"},
+		{token.Begin, "begin"},
+		{token.End, "end"},
 		{token.CodeEnd, "}"},
 	})
 }
@@ -171,6 +173,8 @@ func TestScanner_Scan(t *testing.T) {
 		{token.StdIn, "STDIN"},
 		{token.StdOut, "STDOUT"},
 		{token.StdErr, "STDERR"},
+		{token.Begin, "begin"},
+		{token.End, "end"},
 	})
 }
 

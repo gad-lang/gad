@@ -132,6 +132,7 @@ type Parser struct {
 	errors    ErrorList
 	scanner   *Scanner
 	token     Token
+	prevToken token.Token
 	exprLevel int // < 0: in control clause, >= 0: in expression
 	syncPos   Pos // last sync position
 	syncCount int // number of advance calls without progress
@@ -199,7 +200,7 @@ func (p *Parser) ParseFile() (file *File, err error) {
 		return nil, p.errors.Err()
 	}
 
-	stmts := p.parseStmtList()
+	stmts, _ := p.parseStmtList(0)
 	p.expect(token.EOF)
 	if p.errors.Len() > 0 {
 		return nil, p.errors.Err()
@@ -779,27 +780,16 @@ func (p *Parser) parseOperand() Expr {
 		return x
 	case token.Import:
 		return p.parseImportExpr()
-	case token.LParen:
-		lparen := p.token.Pos
-		p.next()
-		if p.token.Token == token.Semicolon && p.token.Literal == ";" {
-			return p.parseKeyValueArrayLit(lparen)
-		}
-		p.exprLevel++
-		x := p.parseExpr()
-		p.exprLevel--
-		rparen := p.expect(token.RParen)
-		return &ParenExpr{
-			LParen: lparen,
-			Expr:   x,
-			RParen: rparen,
-		}
+	case token.LParen, token.Begin:
+		return p.parseParemExpr()
 	case token.LBrack: // array literal
 		return p.parseArrayLit()
 	case token.LBrace: // map literal
 		return p.parseMapLit()
 	case token.Func: // function literal
 		return p.parseFuncLit()
+	case token.Text:
+		return p.parseTextStmt()
 	}
 
 	pos := p.token.Pos
@@ -831,6 +821,39 @@ func (p *Parser) parseImportExpr() Expr {
 	return expr
 }
 
+func (p *Parser) parseParemExpr() Expr {
+	if p.trace {
+		defer untracep(tracep(p, "ParemExpr"))
+	}
+
+	lparen := p.token.Pos
+	end := token.RParen
+	switch p.token.Token {
+	case token.LParen:
+	case token.Begin:
+		end = token.End
+	default:
+		p.errorExpected(lparen, "'"+token.LParen.String()+"' or '"+token.Begin.String()+"'")
+		return nil
+	}
+	p.next()
+	if end == token.End && p.token.Token == token.Semicolon {
+		p.next()
+	}
+	if p.token.Token == token.Semicolon && p.token.Literal == ";" {
+		return p.parseKeyValueArrayLit(lparen)
+	}
+	p.exprLevel++
+	x := p.parseExpr()
+	p.exprLevel--
+	rparen := p.expect(end)
+
+	return &ParenExpr{
+		LParen: lparen,
+		Expr:   x,
+		RParen: rparen,
+	}
+}
 func (p *Parser) parseCharLit() Expr {
 	if n := len(p.token.Literal); n >= 3 {
 		code, _, _, err := strconv.UnquoteChar(p.token.Literal[1:n-1], '\'')
@@ -1055,21 +1078,23 @@ func (p *Parser) parseBody() (b *BlockStmt, closure Expr) {
 		p.next()
 		p.expect(token.Greater)
 
-		if p.token.Token == token.LBrace {
+		if p.token.Token.IsBlockStart() {
 			closure = &BlockExpr{p.parseBlockStmt()}
 		} else {
 			closure = p.parseExpr()
 		}
 	} else {
-		b = &BlockStmt{}
-		b.LBrace = p.expect(token.LBrace)
-		b.Stmts = p.parseStmtList()
-		b.RBrace = p.expect(token.RBrace)
+		b = p.parseBlockStmt(BlockWrap{
+			Start: token.Do,
+			Ends: []BlockEnd{
+				{token.End, true},
+			},
+		})
 	}
 	return
 }
 
-func (p *Parser) parseStmtList() (list []Stmt) {
+func (p *Parser) parseStmtList(start token.Token, ends ...BlockWrap) (list []Stmt, end *BlockEnd) {
 	if p.trace {
 		defer untracep(tracep(p, "StatementList"))
 	}
@@ -1078,14 +1103,32 @@ func (p *Parser) parseStmtList() (list []Stmt) {
 
 	for {
 		switch p.token.Token {
-		case token.RBrace, token.EOF, token.CodeEnd:
+		case token.EOF, token.RBrace:
 			return
-		}
-		if s = p.parseStmt(); s != nil {
-			if _, ok := s.(*EmptyStmt); ok {
-				continue
+		case token.Semicolon:
+			p.next()
+		default:
+			if start != 0 {
+				for _, end_ := range ends {
+					if start == end_.Start {
+						for _, e := range end_.Ends {
+							if p.token.Token == e.Token {
+								if e.Next {
+									p.next()
+								}
+								end = &e
+								return
+							}
+						}
+					}
+				}
 			}
-			list = append(list, s)
+			if s = p.parseStmt(); s != nil {
+				if _, ok := s.(*EmptyStmt); ok {
+					continue
+				}
+				list = append(list, s)
+			}
 		}
 	}
 }
@@ -1111,6 +1154,7 @@ func (p *Parser) parseStmt() (stmt Stmt) {
 		defer untracep(tracep(p, "Statement"))
 	}
 
+do:
 	switch p.token.Token {
 	case token.Config:
 		return p.parseConfigStmt()
@@ -1118,12 +1162,6 @@ func (p *Parser) parseStmt() (stmt Stmt) {
 		return p.parseTextStmt()
 	case token.ToTextBegin:
 		return p.parseExprToTextStmt()
-	case token.CodeBegin:
-		s := p.parseCodeStmt()
-		if s == nil {
-			return nil
-		}
-		return s
 	case token.Var, token.Const, token.Global, token.Param:
 		return &DeclStmt{Decl: p.parseDecl()}
 	case // simple statements
@@ -1132,7 +1170,8 @@ func (p *Parser) parseStmt() (stmt Stmt) {
 		token.LParen, token.LBrace, token.LBrack, token.Add, token.Sub,
 		token.Mul, token.And, token.Xor, token.Not, token.Import,
 		token.Callee, token.Args, token.NamedArgs,
-		token.StdIn, token.StdOut, token.StdErr:
+		token.StdIn, token.StdOut, token.StdErr,
+		token.Then:
 		s := p.parseSimpleStmt(false)
 		p.expectSemi()
 		return s
@@ -1149,10 +1188,9 @@ func (p *Parser) parseStmt() (stmt Stmt) {
 	case token.Break, token.Continue:
 		return p.parseBranchStmt(p.token.Token)
 	case token.Semicolon:
-		s := &EmptyStmt{Semicolon: p.token.Pos, Implicit: p.token.Literal == "\n"}
 		p.next()
-		return s
-	case token.RBrace:
+		goto do
+	case token.RBrace, token.End:
 		// semicolon may be omitted before a closing "}"
 		return &EmptyStmt{Semicolon: p.token.Pos, Implicit: true}
 	default:
@@ -1222,16 +1260,12 @@ func (p *Parser) parseExprToTextStmt() (ett *ExprToTextStmt) {
 	}
 	ett = &ExprToTextStmt{
 		StartLit: Literal{p.token.Literal, p.token.Pos},
-		Flag:     p.token.Data.(TextFlag),
 	}
 	p.next()
 	ett.Expr = p.parseExpr()
 	if p.token.Token == token.ToTextEnd {
 		ett.EndLit = Literal{p.token.Literal, p.token.Pos}
 		p.next()
-		if p.token.Token == token.Text && ett.Flag.Has(TrimRight) {
-			p.token.Literal = trimSpace(true, false, p.token.Literal)
-		}
 	} else {
 		p.expect(token.ToTextEnd)
 	}
@@ -1245,24 +1279,6 @@ func (p *Parser) parseTextStmt() (t *TextStmt) {
 	t = &TextStmt{p.token.Literal, p.token.Pos}
 	p.next()
 	return
-}
-
-func (p *Parser) parseCodeStmt() (s *CodeStmt) {
-	if p.trace {
-		defer untracep(tracep(p, "CodeStmt"))
-	}
-	tok := p.token
-	p.next()
-	s = &CodeStmt{
-		LBrace:   tok.Pos,
-		TextFlag: tok.Data.(TextFlag),
-		Stmts:    p.parseStmtList(),
-		RBrace:   p.expect(token.CodeEnd),
-	}
-	if len(s.Stmts) == 0 {
-		return nil
-	}
-	return s
 }
 
 func (p *Parser) parseDecl() Decl {
@@ -1446,8 +1462,8 @@ func (p *Parser) parseForStmt() Stmt {
 	pos := p.expect(token.For)
 
 	// for {}
-	if p.token.Token == token.LBrace {
-		body := p.parseBlockStmt()
+	if p.token.Token.IsBlockStart() {
+		body := p.parseBlockStmt(BlockWrap{token.Do, []BlockEnd{{token.End, true}}})
 		p.expectSemi()
 
 		return &ForStmt{
@@ -1470,7 +1486,7 @@ func (p *Parser) parseForStmt() Stmt {
 	if forInStmt, isForIn := s1.(*ForInStmt); isForIn {
 		forInStmt.ForPos = pos
 		p.exprLevel = prevLevel
-		forInStmt.Body = p.parseBlockStmt()
+		forInStmt.Body = p.parseBlockStmt(BlockWrap{token.Do, []BlockEnd{{token.End, true}}})
 		p.expectSemi()
 		return forInStmt
 	}
@@ -1483,7 +1499,7 @@ func (p *Parser) parseForStmt() Stmt {
 			s2 = p.parseSimpleStmt(false) // cond
 		}
 		p.expect(token.Semicolon)
-		if p.token.Token != token.LBrace {
+		if !p.token.Token.IsBlockStart() {
 			s3 = p.parseSimpleStmt(false) // post
 		}
 	} else {
@@ -1531,7 +1547,7 @@ func (p *Parser) parseIfStmt() Stmt {
 	}
 
 	pos := p.expect(token.If)
-	init, cond := p.parseIfHeader()
+	init, cond, starts := p.parseIfHeader()
 
 	var body *BlockStmt
 	if p.token.Token == token.Colon {
@@ -1542,6 +1558,14 @@ func (p *Parser) parseIfStmt() Stmt {
 			LBrace: expr.Pos(),
 			RBrace: expr.End(),
 		}
+	} else if starts == token.Then {
+		body = p.parseBlockStmt(BlockWrap{
+			token.Then,
+			[]BlockEnd{
+				{token.End, true},
+				{token.Else, false},
+			},
+		})
 	} else {
 		body = p.parseBlockStmt()
 	}
@@ -1556,6 +1580,15 @@ func (p *Parser) parseIfStmt() Stmt {
 		case token.LBrace:
 			elseStmt = p.parseBlockStmt()
 			p.expectSemi()
+		case token.Then:
+			elseStmt = p.parseBlockStmt(BlockWrap{
+				token.Then,
+				[]BlockEnd{
+					{token.End, true},
+					{token.Else, false},
+					{token.End, true},
+				},
+			})
 		case token.Colon:
 			p.next()
 			expr := p.parseExpr()
@@ -1586,7 +1619,14 @@ func (p *Parser) parseTryStmt() Stmt {
 		defer untracep(tracep(p, "TryStmt"))
 	}
 	pos := p.expect(token.Try)
-	body := p.parseBlockStmt()
+	body := p.parseBlockStmt(BlockWrap{
+		Start: token.Then,
+		Ends: []BlockEnd{
+			{token.Catch, false},
+			{token.Finally, false},
+			{token.End, true},
+		},
+	})
 	var catchStmt *CatchStmt
 	var finallyStmt *FinallyStmt
 	if p.token.Token == token.Catch {
@@ -1613,7 +1653,13 @@ func (p *Parser) parseCatchStmt() *CatchStmt {
 	if p.token.Token == token.Ident {
 		ident = p.parseIdent()
 	}
-	body := p.parseBlockStmt()
+	body := p.parseBlockStmt(BlockWrap{
+		token.Then,
+		[]BlockEnd{
+			{token.Finally, false},
+			{token.End, true},
+		},
+	})
 	return &CatchStmt{
 		CatchPos: pos,
 		Ident:    ident,
@@ -1626,7 +1672,12 @@ func (p *Parser) parseFinallyStmt() *FinallyStmt {
 		defer untracep(tracep(p, "FinallyStmt"))
 	}
 	pos := p.expect(token.Finally)
-	body := p.parseBlockStmt()
+	body := p.parseBlockStmt(BlockWrap{
+		token.Then,
+		[]BlockEnd{
+			{token.End, true},
+		},
+	})
 	return &FinallyStmt{
 		FinallyPos: pos,
 		Body:       body,
@@ -1646,14 +1697,40 @@ func (p *Parser) parseThrowStmt() Stmt {
 	}
 }
 
-func (p *Parser) parseBlockStmt() *BlockStmt {
+func (p *Parser) parseBlockStmt(ends ...BlockWrap) *BlockStmt {
 	if p.trace {
 		defer untracep(tracep(p, "BlockStmt"))
 	}
 
-	lbrace := p.expect(token.LBrace)
-	list := p.parseStmtList()
-	rbrace := p.expect(token.RBrace)
+	var (
+		lbrace = p.token.Pos
+		start  = p.token.Token
+	)
+
+	for _, e := range ends {
+		if p.token.Token == e.Start {
+			p.next()
+			goto parse_list
+		}
+	}
+
+	p.expect(token.LBrace)
+
+parse_list:
+
+	list, endb := p.parseStmtList(start, ends...)
+	var rbrace Pos
+	if endb != nil {
+		rbrace = p.token.Pos
+	} else {
+		switch start {
+		case token.Then, token.Do:
+			rbrace = p.expect(token.End)
+		default:
+			rbrace = p.expect(token.RBrace)
+		}
+	}
+
 	return &BlockStmt{
 		LBrace: lbrace,
 		RBrace: rbrace,
@@ -1661,8 +1738,8 @@ func (p *Parser) parseBlockStmt() *BlockStmt {
 	}
 }
 
-func (p *Parser) parseIfHeader() (init Stmt, cond Expr) {
-	if p.token.Token == token.LBrace {
+func (p *Parser) parseIfHeader() (init Stmt, cond Expr, starts token.Token) {
+	if p.token.Token.IsBlockStart() {
 		p.error(p.token.Pos, "missing condition in if statement")
 		cond = &BadExpr{From: p.token.Pos, To: p.token.Pos}
 		return
@@ -1678,12 +1755,18 @@ func (p *Parser) parseIfHeader() (init Stmt, cond Expr) {
 
 	var condStmt Stmt
 	switch p.token.Token {
-	case token.LBrace, token.Colon:
+	case token.LBrace, token.Then, token.Colon:
 		condStmt = init
 		init = nil
+		if p.token.Token == token.Then {
+			starts = token.Then
+		}
 	case token.Semicolon:
 		p.next()
 		condStmt = p.parseSimpleStmt(false)
+		if p.token.Token == token.Then {
+			starts = token.Then
+		}
 	default:
 		p.error(p.token.Pos, "missing condition in if statement")
 	}
@@ -1973,7 +2056,7 @@ func (p *Parser) expect(token token.Token) Pos {
 
 func (p *Parser) expectSemi() {
 	switch p.token.Token {
-	case token.RParen, token.RBrace, token.CodeEnd:
+	case token.RParen, token.RBrace, token.End:
 		// semicolon is optional before a closing ')' or '}'
 	case token.Comma:
 		// permit a ',' instead of a ';' but complain
@@ -1982,6 +2065,9 @@ func (p *Parser) expectSemi() {
 	case token.Semicolon:
 		p.next()
 	default:
+		if p.prevToken == token.End {
+			return
+		}
 		p.errorExpected(p.token.Pos, "';'")
 		p.advance(stmtStart)
 	}
@@ -2083,8 +2169,14 @@ func (p *Parser) next0() {
 
 func (p *Parser) next() {
 	prev := p.token.Pos
+	p.prevToken = p.token.Token
+
+next:
 	p.next0()
-	if p.token.Token == token.Comment {
+	switch p.token.Token {
+	case token.CodeBegin, token.CodeEnd:
+		goto next
+	case token.Comment:
 		if p.file.Line(p.token.Pos) == p.file.Line(prev) {
 			// line comment of prev token
 			_ = p.consumeCommentGroup(0)
@@ -2140,4 +2232,14 @@ func tracep(p *Parser, msg string) *Parser {
 func untracep(p *Parser) {
 	p.indent--
 	p.printTrace(")")
+}
+
+type BlockEnd struct {
+	Token token.Token
+	Next  bool
+}
+
+type BlockWrap struct {
+	Start token.Token
+	Ends  []BlockEnd
 }

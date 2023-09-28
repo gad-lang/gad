@@ -74,6 +74,7 @@ const (
 	OpCallee
 	OpArgs
 	OpNamedArgs
+	OpTextWriter
 )
 
 // OpcodeNames are string representation of opcodes.

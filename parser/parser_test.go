@@ -105,50 +105,48 @@ x := d?.a.b.("c")?.e ?? 5
 }
 
 func TestParserMixed(t *testing.T) {
-	expectParseMode(t, ParseMixed, "a  #{>= 1}\n\tb", func(p pfn) []Stmt {
-		return stmts(
-			text(p(1, 1), "a  "),
-			toText(lit("#{>=", p(1, 4)), lit("}", p(1, 10)), intLit(1, p(1, 9)), 0),
-			text(p(1, 11), "b"),
-		)
-	})
-	expectParseMode(t, ParseMixed, `a  #{< 1}b#{1 + 2}c`, func(p pfn) []Stmt {
+	expectParseStringMode(t, ParseMixed, `# gad: writer=myfn; #{- var myfn -} a`, `# gad: writer=myfn; var myfn; #{= "a" }`)
+	expectParseStringMode(t, ParseMixed, "#{var a}", `var a`)
+	expectParseStringMode(t, ParseMixed, "#{for e in list do}1#{end}", `for _, e in list {#{= "1" }}`)
+	expectParseStringMode(t, ParseMixed, "a  #{-= 1 -}\n\tb", `#{= "a" }; #{= 1 }; #{= "b" }`)
+	expectParseStringMode(t, ParseMixed, "#{ a := begin -} 2 #{- end }", `a := (#{= "2" })`)
+	expectParseStringMode(t, ParseMixed, "#{ if 1 then } 2 #{ end }", `if 1 {#{= " 2 " }}`)
+	expectParseMode(t, ParseMixed, "a  #{-= 1 -}\n\tb", func(p pfn) []Stmt {
 		return stmts(
 			text(p(1, 1), "a"),
-			code(p(1, 4), p(1, 9), TrimLeft, exprStmt(intLit(1, p(1, 8)))),
+			toText(lit("#{=", p(1, 4)), lit("}", p(1, 12)), intLit(1, p(1, 9))),
+			text(p(1, 13), "b"),
+		)
+	})
+	expectParseMode(t, ParseMixed, `a  #{- 1}b#{1 + 2}c`, func(p pfn) []Stmt {
+		return stmts(
+			text(p(1, 1), "a"),
+			exprStmt(intLit(1, p(1, 8))),
 			text(p(1, 10), "b"),
-			code(p(1, 11), p(1, 18), 0, exprStmt(binaryExpr(intLit(1, p(1, 13)), intLit(2, p(1, 17)), token.Add, p(1, 15)))),
+			exprStmt(binaryExpr(intLit(1, p(1, 13)), intLit(2, p(1, 17)), token.Add, p(1, 15))),
 			text(p(1, 19), "c"),
 		)
 	})
-	expectParseMode(t, ParseMixed, "a  #{>= 1}\n\tb", func(p pfn) []Stmt {
+	expectParseMode(t, ParseMixed, "a  #{-= 1 }\n\tb", func(p pfn) []Stmt {
 		return stmts(
-			text(p(1, 1), "a  "),
-			toText(lit("#{>=", p(1, 4)), lit("}", p(1, 10)), intLit(1, p(1, 9)), 0),
-			text(p(1, 11), "b"),
+			text(p(1, 1), "a"),
+			toText(lit("#{=", p(1, 4)), lit("}", p(1, 11)), intLit(1, p(1, 9))),
+			text(p(1, 12), "\n\tb"),
 		)
 	})
 
-	expectParseMode(t, ParseMixed, "a  #{<= 1}\n\tb", func(p pfn) []Stmt {
+	expectParseMode(t, ParseMixed, "a  #{-= 1 -}\n\tb", func(p pfn) []Stmt {
 		return stmts(
 			text(p(1, 1), "a"),
-			toText(lit("#{<=", p(1, 4)), lit("}", p(1, 10)), intLit(1, p(1, 9)), 0),
-			text(p(1, 11), "\n\tb"),
-		)
-	})
-
-	expectParseMode(t, ParseMixed, "a  #{<>= 1}\n\tb", func(p pfn) []Stmt {
-		return stmts(
-			text(p(1, 1), "a"),
-			toText(lit("#{<>=", p(1, 4)), lit("}", p(1, 11)), intLit(1, p(1, 10)), 0),
-			text(p(1, 12), "b"),
+			toText(lit("#{=", p(1, 4)), lit("}", p(1, 12)), intLit(1, p(1, 9))),
+			text(p(1, 13), "b"),
 		)
 	})
 
 	expectParseMode(t, ParseMixed, `a#{=1}b`, func(p pfn) []Stmt {
 		return stmts(
 			text(p(1, 1), "a"),
-			toText(lit("#{=", p(1, 2)), lit("}", p(1, 6)), intLit(1, p(1, 5)), 0),
+			toText(lit("#{=", p(1, 2)), lit("}", p(1, 6)), intLit(1, p(1, 5))),
 			text(p(1, 7), "b"),
 		)
 	})
@@ -156,7 +154,7 @@ func TestParserMixed(t *testing.T) {
 	expectParseMode(t, ParseMixed, `a#{=  1   }b`, func(p pfn) []Stmt {
 		return stmts(
 			text(p(1, 1), "a"),
-			toText(lit("#{=", p(1, 2)), lit("}", p(1, 11)), intLit(1, p(1, 7)), 0),
+			toText(lit("#{=", p(1, 2)), lit("}", p(1, 11)), intLit(1, p(1, 7))),
 			text(p(1, 12), "b"),
 		)
 	})
@@ -164,10 +162,9 @@ func TestParserMixed(t *testing.T) {
 	expectParseMode(t, ParseMixed, `a#{1}b#{1 + 2}c`, func(p pfn) []Stmt {
 		return stmts(
 			text(p(1, 1), "a"),
-			code(p(1, 2), p(1, 5), 0, exprStmt(intLit(1, p(1, 4)))),
+			exprStmt(intLit(1, p(1, 4))),
 			text(p(1, 6), "b"),
-			code(p(1, 7), p(1, 14), 0, exprStmt(
-				binaryExpr(intLit(1, p(1, 9)), intLit(2, p(1, 13)), token.Add, p(1, 11)))),
+			exprStmt(binaryExpr(intLit(1, p(1, 9)), intLit(2, p(1, 13)), token.Add, p(1, 11))),
 			text(p(1, 15), "c"),
 		)
 	})
@@ -175,9 +172,9 @@ func TestParserMixed(t *testing.T) {
 	expectParseMode(t, ParseMixed, `a#{1}b#{true}c`, func(p pfn) []Stmt {
 		return stmts(
 			text(p(1, 1), "a"),
-			code(p(1, 2), p(1, 5), 0, exprStmt(intLit(1, p(1, 4)))),
+			exprStmt(intLit(1, p(1, 4))),
 			text(p(1, 6), "b"),
-			code(p(1, 7), p(1, 13), 0, exprStmt(boolLit(true, p(1, 9)))),
+			exprStmt(boolLit(true, p(1, 9))),
 			text(p(1, 14), "c"),
 		)
 	})
@@ -185,7 +182,7 @@ func TestParserMixed(t *testing.T) {
 	expectParseMode(t, ParseMixed, `a#{1}b`, func(p pfn) []Stmt {
 		return stmts(
 			text(p(1, 1), "a"),
-			code(p(1, 2), p(1, 5), 0, exprStmt(intLit(1, p(1, 4)))),
+			exprStmt(intLit(1, p(1, 4))),
 			text(p(1, 6), "b"),
 		)
 	})
@@ -196,17 +193,20 @@ func TestParserMixed(t *testing.T) {
 		)
 	})
 
-	expectParseStringMode(t, ParseMixed, "#{1}", `#{ 1 }`)
-	expectParseStringMode(t, ParseMixed, "#{1}#{2}#{3}", `#{ 1 }; #{ 2 }; #{ 3 }`)
-	expectParseStringMode(t, ParseMixed, "#{1}#{}#{3}", `#{ 1 }; #{ 3 }`)
-	expectParseStringMode(t, ParseMixed, "#{1}#{=2}#{3}", `#{ 1 }; #{= 2 }; #{ 3 }`)
+	expectParseStringMode(t, ParseMixed, "#{1}", `1`)
+	expectParseStringMode(t, ParseMixed, "#{1}#{2}#{3}", `1; 2; 3`)
+	expectParseStringMode(t, ParseMixed, "#{1}#{}#{3}", `1; 3`)
+	expectParseStringMode(t, ParseMixed, "#{1}#{=2}#{3}", `1; #{= 2 }; 3`)
 	expectParseStringMode(t, ParseMixed, "abc", `#{= "abc" }`)
-	expectParseStringMode(t, ParseMixed, "a#{1}", `#{= "a" }; #{ 1 }`)
-	expectParseStringMode(t, ParseMixed, "a#{1}b", `#{= "a" }; #{ 1 }; #{= "b" }`)
-	expectParseStringMode(t, ParseMixed, "a#{1}b#{= 2 + 4}", `#{= "a" }; #{ 1 }; #{= "b" }; #{= (2 + 4) }`)
-	expectParseStringMode(t, ParseMixed, "a  #{< 1}", `#{= "a" }; #{< 1 }`)
-	expectParseStringMode(t, ParseMixed, "a\n#{< 1}\tb#{>= 2}\n\nc", "#{= \"a\" }; #{< 1 }; #{= \"\\tb\" }; #{>= 2 }; #{= \"c\" }")
-	expectParseStringMode(t, ParseMixed, `a#{=1}c#{x := 5}#{=x}`, `#{= "a" }; #{= 1 }; #{= "c" }; #{ x := 5 }; #{= x }`)
+	expectParseStringMode(t, ParseMixed, "a#{1}", `#{= "a" }; 1`)
+	expectParseStringMode(t, ParseMixed, "a#{1}b", `#{= "a" }; 1; #{= "b" }`)
+	expectParseStringMode(t, ParseMixed, "a#{1}b#{= 2 + 4}", `#{= "a" }; 1; #{= "b" }; #{= (2 + 4) }`)
+	expectParseStringMode(t, ParseMixed, "a  #{- 1}", `#{= "a" }; 1`)
+	expectParseStringMode(t, ParseMixed, "a\n#{- 1}\tb\n#{-= 2 -}\n\nc", "#{= \"a\" }; 1; #{= \"\\tb\" }; #{= 2 }; #{= \"c\" }")
+	expectParseStringMode(t, ParseMixed, `a#{=1}c#{x := 5}#{=x}`, `#{= "a" }; #{= 1 }; #{= "c" }; x := 5; #{= x }`)
+	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else if a then}2#{else then}3#{end}", `if true {#{= "1" }} else if a {#{= "2" }} else {#{= "3" }}`)
+	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else if a then}2#{end}", `if true {#{= "1" }} else if a {#{= "2" }}`)
+	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else then}2#{end}", `if true {#{= "1" }} else {#{= "2" }}`)
 }
 
 func TestParserError(t *testing.T) {
@@ -1483,6 +1483,9 @@ func TestParseForIn(t *testing.T) {
 				p(1, 1)))
 	})
 
+	expectParseString(t, "for x in y do end", "for _, x in y {}")
+	expectParseString(t, "for x in y do 1 end", "for _, x in y {1}")
+
 	expectParseError(t, `for 1 in a {}`)
 	expectParseError(t, `for "" in a {}`)
 	expectParseError(t, `for k,2 in a {}`)
@@ -1607,6 +1610,7 @@ func TestParseFor(t *testing.T) {
 				p(1, 1)),
 		)
 	})
+
 	expectParse(t, `for { continue }`, func(p pfn) []Stmt {
 		return stmts(
 			forStmt(nil, nil, nil,
@@ -1616,6 +1620,8 @@ func TestParseFor(t *testing.T) {
 				p(1, 1)),
 		)
 	})
+
+	expectParseString(t, `for do continue end`, "for {continue}")
 
 	// labels are parsed by parser but not supported by compiler yet
 	// expectParseError(t, `for { break x }`)
@@ -1826,11 +1832,6 @@ func TestParseVariadicFunctionWithArgs(t *testing.T) {
 }
 
 func TestParseIf(t *testing.T) {
-	expectParseString(t, "if a: b", "if a {b}")
-	expectParseString(t, "if true; a: b", "if true; a {b}")
-	expectParseString(t, "if a: b else: c", "if a {b} else {c}")
-	expectParseString(t, "if a: b else if x: c else: d", "if a {b} else if x {c} else {d}")
-
 	expectParse(t, "if a == nil {}", func(p pfn) []Stmt {
 		return stmts(
 			ifStmt(
@@ -2053,6 +2054,17 @@ if a == 5 {
 				nil,
 				p(1, 1)))
 	})
+
+	expectParseString(t, "if a: b", "if a {b}")
+	expectParseString(t, "if true; a: b", "if true; a {b}")
+	expectParseString(t, "if a: b else: c", "if a {b} else {c}")
+	expectParseString(t, "if a: b else if x: c else: d", "if a {b} else if x {c} else {d}")
+
+	expectParseString(t, "if a then end", "if a {}")
+	expectParseString(t, "if a then b end", "if a {b}")
+	expectParseString(t, "if true; a then b end", "if true; a {b}")
+	expectParseString(t, "if a then b; else then c end", "if a {b} else {c}")
+	expectParseString(t, "if a then b; else if 1 then 2; else then c end", "if a {b} else if 1 {2} else {c}")
 
 	expectParseError(t, `if {}`)
 	expectParseError(t, `if a == b { } else a != b { }`)
@@ -2664,7 +2676,7 @@ y
 		return stmts(
 			config(p(1, 1), p(1, 12), ConfigOptions{Mixed: true}),
 			text(p(2, 1), "y\n"),
-			code(p(3, 1), p(3, 4), 0, exprStmt(ident("b", p(3, 3)))),
+			exprStmt(ident("b", p(3, 3))),
 		)
 	})
 	expectParse(t, `# gad: mixed
@@ -2683,7 +2695,7 @@ a
 		return stmts(
 			config(p(1, 1), p(1, 12), ConfigOptions{Mixed: true}),
 			text(p(2, 1), "a\n"),
-			code(p(3, 1), p(3, 4), 0, exprStmt(ident("b", p(3, 3)))),
+			exprStmt(ident("b", p(3, 3))),
 		)
 	})
 
@@ -2757,6 +2769,7 @@ func TestParseTryThrow(t *testing.T) {
 			throwStmt(p(1, 1), intLit(1, p(1, 7))),
 		)
 	})
+
 	expectParseError(t, `try catch {}`)
 	expectParseError(t, `try finally {}`)
 	expectParseError(t, `try {} catch;`)
@@ -2772,6 +2785,9 @@ func TestParseTryThrow(t *testing.T) {
 	finally {}`)
 	expectParseError(t, `throw;`)
 	expectParseError(t, `throw`)
+
+	expectParseString(t, `try then catch then finally then end`, "try {} catch {} finally {}")
+	expectParseString(t, `try then catch then end`, "try {} catch {}")
 }
 
 func TestParseRBraceEOF(t *testing.T) {
@@ -3063,12 +3079,8 @@ func text(pos Pos, lit string) *TextStmt {
 	return &TextStmt{TextPos: pos, Literal: lit}
 }
 
-func toText(start, end Literal, expr Expr, flag TextFlag) *ExprToTextStmt {
-	return &ExprToTextStmt{expr, start, end, flag}
-}
-
-func code(lbrace, rbrace Pos, flag TextFlag, stmts ...Stmt) *CodeStmt {
-	return &CodeStmt{LBrace: lbrace, RBrace: rbrace, TextFlag: flag, Stmts: stmts}
+func toText(start, end Literal, expr Expr) *ExprToTextStmt {
+	return &ExprToTextStmt{expr, start, end}
 }
 
 func lit(value string, pos Pos) Literal {
@@ -3399,14 +3411,6 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 			actual.(*ExprToTextStmt).EndLit.Pos)
 		equalExpr(t, expected.Expr,
 			actual.(*ExprToTextStmt).Expr)
-	case *CodeStmt:
-		require.Equal(t, expected.LBrace,
-			actual.(*CodeStmt).LBrace)
-		require.Equal(t, expected.RBrace,
-			actual.(*CodeStmt).RBrace)
-		require.Equal(t, expected.TextFlag,
-			actual.(*CodeStmt).TextFlag)
-		equalStmts(t, expected.Stmts, actual.(*CodeStmt).Stmts)
 	case *ConfigStmt:
 		require.Equal(t, expected.ConfigPos,
 			actual.(*ConfigStmt).ConfigPos)

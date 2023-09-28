@@ -715,10 +715,8 @@ func (c *Compiler) compileBlockStmt(node *parser.BlockStmt) error {
 	}
 
 	c.symbolTable = c.symbolTable.Fork(true)
-	for _, stmt := range node.Stmts {
-		if err := c.Compile(stmt); err != nil {
-			return err
-		}
+	if err := c.compileStmts(node.Stmts...); err != nil {
+		return err
 	}
 
 	c.symbolTable = c.symbolTable.Parent(false)

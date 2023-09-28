@@ -374,14 +374,15 @@ func (s *TryStmt) End() Pos {
 }
 
 func (s *TryStmt) String() string {
-	var catchStmt, finallyStmt string
+	ret := "try " + s.Body.String()
+
 	if s.Catch != nil {
-		catchStmt = s.Catch.String()
+		ret += " " + s.Catch.String()
 	}
 	if s.Finally != nil {
-		finallyStmt = s.Finally.String()
+		ret += " " + s.Finally.String()
 	}
-	return "try " + s.Body.String() + " " + catchStmt + " " + finallyStmt
+	return ret
 }
 
 // CatchStmt represents an catch statement.
@@ -406,9 +407,9 @@ func (s *CatchStmt) End() Pos {
 func (s *CatchStmt) String() string {
 	var ident string
 	if s.Ident != nil {
-		ident = s.Ident.String()
+		ident = s.Ident.String() + " "
 	}
-	return "catch " + ident + " " + s.Body.String()
+	return "catch " + ident + s.Body.String()
 }
 
 // FinallyStmt represents an finally statement.
@@ -493,7 +494,6 @@ type ExprToTextStmt struct {
 	Expr     Expr
 	StartLit Literal
 	EndLit   Literal
-	Flag     TextFlag
 }
 
 func (e *ExprToTextStmt) stmtNode() {}
@@ -513,41 +513,6 @@ func (e *ExprToTextStmt) End() Pos {
 
 func (e *ExprToTextStmt) String() string {
 	return e.StartLit.Value + " " + e.Expr.String() + " " + e.EndLit.Value
-}
-
-type CodeStmt struct {
-	Stmts    []Stmt
-	LBrace   Pos
-	RBrace   Pos
-	TextFlag TextFlag
-}
-
-func (*CodeStmt) stmtNode() {}
-
-func (s *CodeStmt) Pos() Pos {
-	return s.LBrace
-}
-
-func (s *CodeStmt) End() Pos {
-	return s.RBrace + 1
-}
-
-func (s *CodeStmt) String() string {
-	var b strings.Builder
-	b.WriteString("#{")
-	if s.TextFlag != 0 {
-		b.WriteString(s.TextFlag.String())
-	}
-	b.WriteString(" ")
-
-	for i, e := range s.Stmts {
-		if i > 0 {
-			b.WriteString("; ")
-		}
-		b.WriteString(e.String())
-	}
-	b.WriteString(" }")
-	return b.String()
 }
 
 type ConfigOptions struct {

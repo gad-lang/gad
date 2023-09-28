@@ -61,6 +61,9 @@ var (
 
 	// ErrType represents a type error.
 	ErrType = &Error{Name: "TypeError"}
+
+	// ErrUnbuffered represents a vm umbuffered type error.
+	ErrUnbuffered = &Error{Name: "UnbufferedError"}
 )
 
 // NewOperandTypeError creates a new Error from ErrType.

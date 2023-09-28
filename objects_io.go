@@ -13,14 +13,26 @@ type ToWriter interface {
 
 type writer struct {
 	io.Writer
+	name string
 }
 
 func NewWriter(w io.Writer) Writer {
 	return &writer{Writer: w}
 }
 
+func NewNamedWriter(w io.Writer, name string) Writer {
+	return &writer{Writer: w, name: name}
+}
+
+func (w *writer) Name() string {
+	return w.name
+}
+
 func (w *writer) TypeName() string {
-	return "writer"
+	if w.name == "" {
+		return "writer"
+	}
+	return "writer:" + w.name
 }
 
 func (w *writer) String() string {
@@ -182,3 +194,5 @@ func (o *Buffer) CallName(name string, c Call) (Object, error) {
 func (o *Buffer) ToBytes() (Bytes, error) {
 	return o.Bytes(), nil
 }
+
+var DiscardWriter = NewNamedWriter(io.Discard, "discard")
