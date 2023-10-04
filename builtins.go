@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,7 +20,7 @@ import (
 )
 
 // BuiltinType represents a builtin type
-type BuiltinType byte
+type BuiltinType uint16
 
 func (t BuiltinType) String() string {
 	return BuiltinObjects[t].(*BuiltinFunction).Name
@@ -26,17 +28,9 @@ func (t BuiltinType) String() string {
 
 // Builtins
 const (
-	BuiltinAppend BuiltinType = iota
-	BuiltinDelete
-	BuiltinCopy
-	BuiltinDeepCopy
-	BuiltinRepeat
-	BuiltinContains
-	BuiltinLen
-	BuiltinSort
-	BuiltinSortReverse
-	BuiltinError
-	BuiltinTypeName
+	BuiltinTypesBegin_ BuiltinType = iota
+	// types
+	BuiltinNil
 	BuiltinBool
 	BuiltinInt
 	BuiltinUint
@@ -45,6 +39,27 @@ const (
 	BuiltinChar
 	BuiltinString
 	BuiltinBytes
+	BuiltinArray
+	BuiltinMap
+	BuiltinSyncMap
+	BuiltinKeyValue
+	BuiltinKeyValueArray
+	BuiltinError
+	BuiltinBuffer
+	BuiltinTypesEnd_
+
+	BuiltinFunctionsBegin_
+	BuiltinCast
+	BuiltinAppend
+	BuiltinDelete
+	BuiltinCopy
+	BuiltinDeepCopy
+	BuiltinRepeat
+	BuiltinContains
+	BuiltinLen
+	BuiltinSort
+	BuiltinSortReverse
+	BuiltinTypeName
 	BuiltinChars
 	BuiltinWrite
 	BuiltinPrint
@@ -53,7 +68,18 @@ const (
 	BuiltinSprintf
 	BuiltinGlobals
 	BuiltinStdIO
+	BuiltinWrap
+	BuiltinNewType
+	BuiltinTypeOf
+	BuiltinMakeArray
+	BuiltinCap
+	BuiltinKeys
+	BuiltinValues
+	BuiltinItems
+	BuiltinVMPushWriter
+	BuiltinVMPopWriter
 
+	BuiltinIs
 	BuiltinIsError
 	BuiltinIsInt
 	BuiltinIsUint
@@ -70,6 +96,9 @@ const (
 	BuiltinIsCallable
 	BuiltinIsIterable
 
+	BuiltinFunctionsEnd_
+	BuiltinErrorsBegin_
+	// errors
 	BuiltinWrongNumArgumentsError
 	BuiltinInvalidOperatorError
 	BuiltinIndexOutOfBoundsError
@@ -80,25 +109,16 @@ const (
 	BuiltinNotImplementedError
 	BuiltinZeroDivisionError
 	BuiltinTypeError
+	BuiltinErrorsEnd_
 
-	BuiltinMakeArray
-	BuiltinCap
-
-	BuiltinKeys
-	BuiltinValues
-	BuiltinItems
-	BuiltinKeyValue
-	BuiltinKeyValueArray
-	BuiltinBuffer
-
-	BuiltinVMPushWriter
-	BuiltinVMPopWriter
-
+	BuiltinConstantsBegin_
 	BuiltinDiscardWriter
+	BuiltinConstantsEnd_
 )
 
 // BuiltinsMap is list of builtin types, exported for REPL.
 var BuiltinsMap = map[string]BuiltinType{
+	"cast":        BuiltinCast,
 	"append":      BuiltinAppend,
 	"delete":      BuiltinDelete,
 	"copy":        BuiltinCopy,
@@ -108,16 +128,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"len":         BuiltinLen,
 	"sort":        BuiltinSort,
 	"sortReverse": BuiltinSortReverse,
-	"error":       BuiltinError,
 	"typeName":    BuiltinTypeName,
-	"bool":        BuiltinBool,
-	"int":         BuiltinInt,
-	"uint":        BuiltinUint,
-	"float":       BuiltinFloat,
-	"decimal":     BuiltinDecimal,
-	"char":        BuiltinChar,
-	"string":      BuiltinString,
-	"bytes":       BuiltinBytes,
 	"chars":       BuiltinChars,
 	"write":       BuiltinWrite,
 	"print":       BuiltinPrint,
@@ -126,7 +137,11 @@ var BuiltinsMap = map[string]BuiltinType{
 	"sprintf":     BuiltinSprintf,
 	"globals":     BuiltinGlobals,
 	"stdio":       BuiltinStdIO,
+	"wrap":        BuiltinWrap,
+	"newType":     BuiltinNewType,
+	"typeof":      BuiltinTypeOf,
 
+	"is":         BuiltinIs,
 	"isError":    BuiltinIsError,
 	"isInt":      BuiltinIsInt,
 	"isUint":     BuiltinIsUint,
@@ -156,7 +171,6 @@ var BuiltinsMap = map[string]BuiltinType{
 
 	":makeArray": BuiltinMakeArray,
 	"cap":        BuiltinCap,
-	"buffer":     BuiltinBuffer,
 
 	"keys":          BuiltinKeys,
 	"values":        BuiltinValues,
@@ -170,11 +184,19 @@ var BuiltinsMap = map[string]BuiltinType{
 }
 
 // BuiltinObjects is list of builtins, exported for REPL.
-var BuiltinObjects = [...]Object{
+var BuiltinObjects = map[BuiltinType]Object{
 	// :makeArray is a private builtin function to help destructuring array assignments
 	BuiltinMakeArray: &BuiltinFunction{
 		Name:  ":makeArray",
 		Value: funcPiOROe(builtinMakeArrayFunc),
+	},
+	BuiltinCast: &BuiltinFunction{
+		Name:  "cast",
+		Value: builtinCastFunc,
+	},
+	BuiltinChars: &BuiltinFunction{
+		Name:  "chars",
+		Value: funcPOROe(builtinCharsFunc),
 	},
 	BuiltinAppend: &BuiltinFunction{
 		Name:  "append",
@@ -182,7 +204,7 @@ var BuiltinObjects = [...]Object{
 	},
 	BuiltinDelete: &BuiltinFunction{
 		Name:  "delete",
-		Value: funcPOsRe(builtinDeleteFunc),
+		Value: builtinDeleteFunc,
 	},
 	BuiltinCopy: &BuiltinFunction{
 		Name:  "copy",
@@ -216,53 +238,9 @@ var BuiltinObjects = [...]Object{
 		Name:  "sortReverse",
 		Value: funcPOROe(builtinSortReverseFunc),
 	},
-	BuiltinError: &BuiltinFunction{
-		Name:  "error",
-		Value: funcPORO(builtinErrorFunc),
-	},
 	BuiltinTypeName: &BuiltinFunction{
 		Name:  "typeName",
 		Value: funcPORO(builtinTypeNameFunc),
-	},
-	BuiltinBool: &BuiltinFunction{
-		Name:  "bool",
-		Value: funcPORO(builtinBoolFunc),
-	},
-	BuiltinInt: &BuiltinFunction{
-		Name:  "int",
-		Value: funcPi64RO(builtinIntFunc),
-	},
-	BuiltinUint: &BuiltinFunction{
-		Name:  "uint",
-		Value: funcPu64RO(builtinUintFunc),
-	},
-	BuiltinFloat: &BuiltinFunction{
-		Name:  "float",
-		Value: funcPf64RO(builtinFloatFunc),
-	},
-	BuiltinDecimal: &BuiltinFunction{
-		Name:  "decimal",
-		Value: funcPOROe(builtinDecimalFunc),
-	},
-	BuiltinChar: &BuiltinFunction{
-		Name:  "char",
-		Value: funcPOROe(builtinCharFunc),
-	},
-	BuiltinString: &BuiltinFunction{
-		Name:  "string",
-		Value: funcPORO(builtinStringFunc),
-	},
-	BuiltinBytes: &BuiltinFunction{
-		Name:  "bytes",
-		Value: builtinBytesFunc,
-	},
-	BuiltinChars: &BuiltinFunction{
-		Name:  "chars",
-		Value: funcPOROe(builtinCharsFunc),
-	},
-	BuiltinBuffer: &BuiltinFunction{
-		Name:  "buffer",
-		Value: builtinBufferFunc,
 	},
 	BuiltinWrite: &BuiltinFunction{
 		Name:  "write",
@@ -287,6 +265,10 @@ var BuiltinObjects = [...]Object{
 	BuiltinGlobals: &BuiltinFunction{
 		Name:  "globals",
 		Value: builtinGlobalsFunc,
+	},
+	BuiltinIs: &BuiltinFunction{
+		Name:  "is",
+		Value: builtinIsFunc,
 	},
 	BuiltinIsError: &BuiltinFunction{
 		Name:  "isError",
@@ -360,19 +342,22 @@ var BuiltinObjects = [...]Object{
 		Name:  "items",
 		Value: builtinItemsFunc,
 	},
-	BuiltinKeyValue: &BuiltinFunction{
-		Name:  "keyValue",
-		Value: builtinKeyValueFunc,
-	},
-	BuiltinKeyValueArray: &BuiltinFunction{
-		Name:  "keyValueArray",
-		Value: builtinKeyValueArrayFunc,
-	},
 	BuiltinStdIO: &BuiltinFunction{
 		Name:  "stdio",
 		Value: builtinStdIO,
 	},
-
+	BuiltinWrap: &BuiltinFunction{
+		Name:  "wrap",
+		Value: builtinWrapFunc,
+	},
+	BuiltinNewType: &BuiltinFunction{
+		Name:  "newType",
+		Value: builtinNewTypeFunc,
+	},
+	BuiltinTypeOf: &BuiltinFunction{
+		Name:  "typeof",
+		Value: builtinTypeOfFunc,
+	},
 	BuiltinVMPushWriter: &BuiltinFunction{
 		Name:  "vmPushWriter",
 		Value: builtinVMPushWriterFunc,
@@ -394,6 +379,21 @@ var BuiltinObjects = [...]Object{
 	BuiltinTypeError:               ErrType,
 
 	BuiltinDiscardWriter: DiscardWriter,
+}
+
+var Types = map[reflect.Type]ObjectType{}
+
+func RegisterBuiltinType(typ BuiltinType, name string, val any, init CallableFunc) *BuiltinObjType {
+	ot := &BuiltinObjType{NameValue: name, Value: init}
+	BuiltinObjects[typ] = ot
+	BuiltinsMap[name] = typ
+
+	rt := reflect.TypeOf(val)
+	for rt.Kind() == reflect.Ptr {
+		rt = rt.Elem()
+	}
+	Types[rt] = ot
+	return ot
 }
 
 func builtinMakeArrayFunc(n int, arg Object) (Object, error) {
@@ -452,7 +452,7 @@ func builtinAppendFunc(c Call) (Object, error) {
 					return Nil, NewArgumentTypeError(
 						strconv.Itoa(n),
 						"int|uint|char",
-						vv.TypeName(),
+						vv.Type().Name(),
 					)
 				}
 			}
@@ -476,7 +476,7 @@ func builtinAppendFunc(c Call) (Object, error) {
 				err = NewArgumentTypeError(
 					strconv.Itoa(i)+"st",
 					err.Error(),
-					arg.TypeName(),
+					arg.Type().Name(),
 				)
 				return nil, err
 			}
@@ -488,22 +488,28 @@ func builtinAppendFunc(c Call) (Object, error) {
 		return Nil, NewArgumentTypeError(
 			"1st",
 			"array",
-			obj.TypeName(),
+			obj.Type().Name(),
 		)
 	}
 }
 
-func builtinDeleteFunc(arg Object, key string) (err error) {
-	if v, ok := arg.(IndexDeleter); ok {
-		err = v.IndexDelete(String(key))
-	} else {
-		err = NewArgumentTypeError(
-			"1st",
-			"map|syncMap|IndexDeleter",
-			arg.TypeName(),
-		)
+func builtinDeleteFunc(c Call) (_ Object, err error) {
+	var (
+		target = &Arg{
+			Name: "target",
+			Accept: func(v Object) error {
+				if _, ok := v.(IndexDeleter); !ok {
+					return ErrNotIndexDeletable
+				}
+				return nil
+			},
+		}
+		key = &Arg{}
+	)
+	if err = c.Args.Destructure(target, key); err != nil {
+		return
 	}
-	return
+	return Nil, target.Value.(IndexDeleter).IndexDelete(c.VM, key.Value)
 }
 
 func builtinCopyFunc(arg Object) Object {
@@ -546,7 +552,7 @@ func builtinRepeatFunc(arg Object, count int) (ret Object, err error) {
 		err = NewArgumentTypeError(
 			"1st",
 			"array|string|bytes",
-			arg.TypeName(),
+			arg.Type().Name(),
 		)
 	}
 	return
@@ -586,7 +592,7 @@ func builtinContainsFunc(arg0, arg1 Object) (Object, error) {
 			return Nil, NewArgumentTypeError(
 				"2nd",
 				"int|uint|string|char|bytes",
-				arg1.TypeName(),
+				arg1.Type().Name(),
 			)
 		}
 	case *NilType:
@@ -594,7 +600,7 @@ func builtinContainsFunc(arg0, arg1 Object) (Object, error) {
 		return Nil, NewArgumentTypeError(
 			"1st",
 			"map|array|string|bytes|namedArgs",
-			arg0.TypeName(),
+			arg0.Type().Name(),
 		)
 	}
 	return Bool(ok), nil
@@ -641,7 +647,7 @@ func builtinSortFunc(arg Object) (ret Object, err error) {
 		err = NewArgumentTypeError(
 			"1st",
 			"array|string|bytes",
-			arg.TypeName(),
+			arg.Type().Name(),
 		)
 	}
 	return
@@ -669,7 +675,7 @@ func builtinSortReverseFunc(arg Object) (Object, error) {
 	return Nil, NewArgumentTypeError(
 		"1st",
 		"array|string|bytes",
-		arg.TypeName(),
+		arg.Type().Name(),
 	)
 }
 
@@ -677,7 +683,7 @@ func builtinErrorFunc(arg Object) Object {
 	return &Error{Name: "error", Message: arg.String()}
 }
 
-func builtinTypeNameFunc(arg Object) Object { return String(arg.TypeName()) }
+func builtinTypeNameFunc(arg Object) Object { return String(arg.Type().Name()) }
 
 func builtinBoolFunc(arg Object) Object { return Bool(!arg.IsFalsy()) }
 
@@ -702,11 +708,24 @@ func builtinCharFunc(arg Object) (Object, error) {
 	return Nil, NewArgumentTypeError(
 		"1st",
 		"numeric|string|bool",
-		arg.TypeName(),
+		arg.Type().Name(),
 	)
 }
 
-func builtinStringFunc(arg Object) Object { return String(arg.String()) }
+func builtinStringFunc(c Call) (ret Object, err error) {
+	if err := c.Args.CheckLen(1); err != nil {
+		return Nil, err
+	}
+
+	o := c.Args.Get(0)
+
+	if ts, _ := o.(ToStringer); ts != nil {
+		return ts.Stringer(c)
+	}
+
+	ret = String(o.String())
+	return
+}
 
 func builtinBytesFunc(c Call) (Object, error) {
 	size := c.Args.Len()
@@ -734,7 +753,7 @@ func builtinBytesFunc(c Call) (Object, error) {
 				return Nil, NewArgumentTypeError(
 					strconv.Itoa(i+1),
 					"int|uint|char",
-					args[i].TypeName(),
+					args[i].Type().Name(),
 				)
 			}
 		}
@@ -776,7 +795,7 @@ func builtinCharsFunc(arg Object) (ret Object, err error) {
 		err = NewArgumentTypeError(
 			"1st",
 			"string|bytes",
-			arg.TypeName(),
+			arg.Type().Name(),
 		)
 	}
 	return
@@ -784,7 +803,7 @@ func builtinCharsFunc(arg Object) (ret Object, err error) {
 
 func builtinPrintfFunc(c Call) (_ Object, err error) {
 	var (
-		out = &NamedArgVar{Value: c.vm.StdOut, AcceptTypes: []string{"writer"}}
+		out = &NamedArgVar{Value: c.VM.StdOut, AcceptTypes: []ObjectType{TWriter}}
 		n   int
 	)
 
@@ -812,14 +831,10 @@ func builtinPrintfFunc(c Call) (_ Object, err error) {
 
 func builtinWriteFunc(c Call) (ret Object, err error) {
 	var (
-		w     = c.vm.StdOut
+		w     io.Writer = c.VM.StdOut
 		total Int
 		n     int
 	)
-
-	if l := len(c.vm.writers); l > 0 {
-		w = c.vm.writers[l-1]
-	}
 
 	if err = c.Args.CheckMinLen(1); err != nil {
 		return
@@ -842,8 +857,10 @@ func builtinWriteFunc(c Call) (ret Object, err error) {
 			if b, err = t.ToBytes(); err == nil {
 				n, err = w.Write(b)
 			}
-		case ToWriter:
-			total, err = t.WriteTo(w)
+		case io.WriterTo:
+			var i64 int64
+			i64, err = t.WriteTo(w)
+			total = Int(i64)
 		default:
 			n, err = fmt.Fprint(w, arg)
 		}
@@ -883,7 +900,7 @@ func builtinBufferFunc(c Call) (ret Object, err error) {
 
 func builtinPrintFunc(c Call) (_ Object, err error) {
 	var (
-		w     = c.vm.StdOut
+		w     io.Writer = c.VM.StdOut
 		total Int
 		n     int
 	)
@@ -914,7 +931,7 @@ func builtinPrintFunc(c Call) (_ Object, err error) {
 
 func builtinPrintlnFunc(c Call) (ret Object, err error) {
 	var (
-		w = c.vm.StdOut
+		w io.Writer = c.VM.StdOut
 		n int
 	)
 
@@ -964,7 +981,50 @@ func builtinSprintfFunc(c Call) (ret Object, err error) {
 }
 
 func builtinGlobalsFunc(c Call) (Object, error) {
-	return c.VM().GetGlobals(), nil
+	return c.VM.GetGlobals(), nil
+}
+
+func builtinIsFunc(c Call) (ok Object, err error) {
+	if err = c.Args.CheckMinLen(2); err != nil {
+		return
+	}
+	ok = True
+	var (
+		types []ObjectType
+		t     = c.Args.Shift()
+		argt  ObjectType
+	)
+
+	if arr, ok_ := t.(Array); ok_ {
+		types = make([]ObjectType, len(arr))
+		for i, t := range arr {
+			if ot, _ := t.(ObjectType); ok_ {
+				types[i] = ot
+			} else {
+				return nil, NewArgumentTypeError(fmt.Sprintf("1st [%d]", i), "type", "object")
+			}
+		}
+
+		c.Args.Walk(func(i int, arg Object) bool {
+			argt = arg.Type()
+			for _, t := range types {
+				if t.Equal(argt) {
+					return true
+				}
+			}
+			ok = False
+			return false
+		})
+	} else {
+		c.Args.Walk(func(i int, arg Object) bool {
+			if !t.Equal(arg.Type()) {
+				ok = False
+				return false
+			}
+			return true
+		})
+	}
+	return
 }
 
 func builtinIsErrorFunc(c Call) (ret Object, err error) {
@@ -1139,7 +1199,7 @@ func builtinStdIO(c Call) (ret Object, err error) {
 	switch l {
 	case 1:
 		// get
-		var arg = &Arg{AcceptTypes: []string{"string", "int", "uint"}}
+		var arg = &Arg{AcceptTypes: []ObjectType{TString, TInt, TUint}}
 		if err = c.Args.Destructure(arg); err != nil {
 			return
 		}
@@ -1147,40 +1207,40 @@ func builtinStdIO(c Call) (ret Object, err error) {
 		case String:
 			switch t {
 			case "IN":
-				ret = c.vm.StdIn
+				ret = c.VM.StdIn
 			case "OUT":
-				ret = c.vm.StdOut
+				ret = c.VM.StdOut
 			case "ERR":
-				ret = c.vm.StdErr
+				ret = c.VM.StdErr
 			default:
 				err = ErrUnexpectedArgValue.NewError("string(" + string(t) + ")")
 			}
 		case Int:
 			switch t {
 			case 0:
-				ret = c.vm.StdIn
+				ret = c.VM.StdIn
 			case 1:
-				ret = c.vm.StdOut
+				ret = c.VM.StdOut
 			case 2:
-				ret = c.vm.StdErr
+				ret = c.VM.StdErr
 			default:
 				err = ErrUnexpectedArgValue.NewError("int(" + t.String() + ")")
 			}
 		case Uint:
 			switch t {
 			case 0:
-				ret = c.vm.StdIn
+				ret = c.VM.StdIn
 			case 1:
-				ret = c.vm.StdOut
+				ret = c.VM.StdOut
 			case 2:
-				ret = c.vm.StdErr
+				ret = c.VM.StdErr
 			default:
 				err = ErrUnexpectedArgValue.NewError("uint(" + t.String() + ")")
 			}
 		}
 	case 2:
 		var code = -1
-		var codeArg = &Arg{AcceptTypes: []string{"string", "int", "uint"}}
+		var codeArg = &Arg{AcceptTypes: []ObjectType{TString, TInt, TUint}}
 		if err = c.Args.DestructureValue(codeArg); err != nil {
 			return
 		}
@@ -1214,20 +1274,20 @@ func builtinStdIO(c Call) (ret Object, err error) {
 
 		switch code {
 		case 0:
-			var v = &Arg{AcceptTypes: []string{"reader"}}
+			var v = &Arg{AcceptTypes: []ObjectType{TReader}}
 			if err = c.Args.DestructureValue(v); err != nil {
 				return
 			}
-			c.vm.StdIn = v.Value.(Reader)
+			c.VM.StdIn = NewStackReader(v.Value.(Reader))
 		case 1, 2:
-			var v = &Arg{AcceptTypes: []string{"writer"}}
+			var v = &Arg{AcceptTypes: []ObjectType{TWriter}}
 			if err = c.Args.DestructureValue(v); err != nil {
 				return
 			}
 			if code == 1 {
-				c.vm.StdOut = v.Value.(Writer)
+				c.VM.StdOut = NewStackWriter(v.Value.(Writer))
 			} else {
-				c.vm.StdErr = v.Value.(Writer)
+				c.VM.StdErr = NewStackWriter(v.Value.(Writer))
 			}
 		}
 	// set
@@ -1240,7 +1300,7 @@ func builtinStdIO(c Call) (ret Object, err error) {
 func builtinVMPushWriterFunc(c Call) (ret Object, err error) {
 	if c.Args.Len() == 0 {
 		buf := &Buffer{}
-		c.vm.PushWriter(buf)
+		c.VM.StdOut.Push(buf)
 		return buf, nil
 	}
 
@@ -1253,21 +1313,270 @@ func builtinVMPushWriterFunc(c Call) (ret Object, err error) {
 		arg = DiscardWriter
 	}
 	if w, ok := arg.(Writer); ok {
-		c.vm.PushWriter(w)
+		c.VM.StdOut.Push(w)
 		return w, nil
 	}
 
 	return nil, NewArgumentTypeError(
 		"1st",
 		"writer",
-		arg.TypeName(),
+		arg.Type().Name(),
 	)
 }
 
 func builtinVMPopWriterFunc(c Call) (ret Object, err error) {
-	if len(c.vm.writers) == 0 {
-		return nil, ErrUnbuffered
-	}
-	c.vm.PopWriter()
+	c.VM.StdOut.Pop()
 	return Nil, nil
+}
+
+func builtinWrapFunc(c Call) (ret Object, err error) {
+	if err = c.Args.CheckMinLen(1); err != nil {
+		return
+	}
+	caller := c.Args.Shift()
+	if !Callable(caller) {
+		err = ErrNotCallable.NewError("1st arg")
+	}
+	return &CallWrapper{
+		Caller:    caller.(CallerObject),
+		Args:      c.Args.Copy().(Args),
+		NamedArgs: c.NamedArgs.UnreadPairs(),
+	}, nil
+}
+
+func builtinNewTypeFunc(c Call) (ret Object, err error) {
+	var t ObjType
+	var name = &Arg{
+		Name:        "name",
+		AcceptTypes: []ObjectType{TString},
+	}
+	if err = c.Args.Destructure(name); err != nil {
+		return
+	}
+	t.TypeName = string(name.Value.(String))
+	var (
+		get = &NamedArgVar{
+			Name:        "get",
+			AcceptTypes: []ObjectType{TMap},
+		}
+		set = &NamedArgVar{
+			Name:        "set",
+			AcceptTypes: []ObjectType{TMap},
+		}
+		fields = &NamedArgVar{
+			Name:        "fields",
+			AcceptTypes: []ObjectType{TMap},
+		}
+		methods = &NamedArgVar{
+			Name:        "methods",
+			AcceptTypes: []ObjectType{TMap},
+		}
+		init = &NamedArgVar{
+			Name: "init",
+			Accept: func(v Object) error {
+				if !Callable(v) {
+					return ErrNotCallable
+				}
+				return nil
+			},
+		}
+		toString = &NamedArgVar{
+			Name: "toString",
+			Accept: func(v Object) error {
+				if !Callable(v) {
+					return ErrNotCallable
+				}
+				return nil
+			},
+		}
+		extends = &NamedArgVar{
+			Name:        "extends",
+			AcceptTypes: []ObjectType{TArray},
+		}
+	)
+
+	if err = c.NamedArgs.Get(init, get, set, fields, methods, toString, extends); err != nil {
+		return
+	}
+
+	if init.Value != nil {
+		t.Init = init.Value.(CallerObject)
+	}
+
+	if toString.Value != nil {
+		t.ToString = toString.Value.(CallerObject)
+	}
+
+	if fields.Value != nil {
+		t.fields = fields.Value.(Map)
+	}
+
+	if get.Value != nil {
+		t.getters = Map{}
+		for name, v := range get.Value.(Map) {
+			if !Callable(v) {
+				return nil, NewArgumentTypeError(
+					"get["+name+"]st",
+					"callable",
+					v.Type().Name(),
+				)
+			}
+			t.getters[name] = v
+		}
+	}
+
+	if set.Value != nil {
+		t.setters = Map{}
+		for name, v := range set.Value.(Map) {
+			if !Callable(v) {
+				return nil, NewArgumentTypeError(
+					"set["+name+"]st",
+					"callable",
+					v.Type().Name(),
+				)
+			}
+			t.setters[name] = v
+		}
+	}
+	if methods.Value != nil {
+		t.methods = Map{}
+		for name, v := range methods.Value.(Map) {
+			if !Callable(v) {
+				return nil, NewArgumentTypeError(
+					"method["+name+"]st",
+					"callable",
+					v.Type().Name(),
+				)
+			}
+			t.methods[name] = v
+		}
+	}
+	if extends.Value != nil {
+		arr := methods.Value.(Array)
+		t.Inherits = make(ObjectTypeArray, len(arr))
+		for i, v := range arr {
+			if ot, _ := v.(ObjectType); ot == nil {
+				return nil, NewArgumentTypeError(
+					"extends["+strconv.Itoa(i)+"]st",
+					"ObjectType",
+					v.Type().Name(),
+				)
+			} else {
+				t.Inherits = append(t.Inherits, ot)
+				for name, f := range ot.Fields() {
+					if _, ok := t.fields[name]; !ok {
+						t.fields[name] = f
+					}
+				}
+				for name, f := range ot.Getters() {
+					if _, ok := t.getters[name]; !ok {
+						t.getters[name] = f
+					}
+				}
+				for name, f := range ot.Setters() {
+					if _, ok := t.setters[name]; !ok {
+						t.setters[name] = f
+					}
+				}
+				for name, f := range ot.Methods() {
+					if _, ok := t.methods[name]; !ok {
+						t.methods[name] = f
+					}
+				}
+			}
+		}
+	}
+	return &t, nil
+}
+
+func builtinTypeOfFunc(c Call) (_ Object, err error) {
+	if err = c.Args.CheckLen(1); err != nil {
+		return
+	}
+
+	return TypeOf(c.Args.Get(0)), nil
+}
+
+func builtinSyncMapFunc(c Call) (ret Object, err error) {
+	if err = c.Args.CheckMaxLen(1); err != nil {
+		return
+	}
+	if c.Args.Len() == 0 {
+		return &SyncMap{Value: map[string]Object{}}, nil
+	}
+	arg := c.Args.Get(0)
+	switch t := arg.(type) {
+	case Map:
+		return &SyncMap{Value: t}, nil
+	case *SyncMap:
+		return t, nil
+	default:
+		err = NewArgumentTypeError(
+			"0st",
+			"map|syncMap",
+			arg.Type().Name(),
+		)
+	}
+	return
+}
+
+func TypeOf(arg Object) ObjectType {
+	ot := arg.Type()
+	if ot == nil {
+		return typeOf(arg)
+	}
+	return ot
+}
+
+func typeOf(arg Object) ObjectType {
+	rt := reflect.TypeOf(arg)
+	for rt.Kind() == reflect.Ptr {
+		rt = rt.Elem()
+	}
+	ot := Types[rt]
+	if ot == nil {
+		ot = Nil.Type()
+	}
+	return ot
+}
+
+func builtinCastFunc(c Call) (ret Object, err error) {
+	if err = c.Args.CheckLen(2); err != nil {
+		return
+	}
+
+	var (
+		typ = &Arg{Accept: func(v Object) (err error) {
+			if ot, _ := v.(ObjectType); ot == nil {
+				err = NewArgumentTypeError(
+					"1st",
+					"objectType",
+					v.Type().Name(),
+				)
+			}
+			return
+		}}
+		obj = &Arg{Accept: func(v Object) (err error) {
+			if ot, _ := v.(Objector); ot == nil {
+				err = NewArgumentTypeError(
+					"2st",
+					"objector",
+					v.Type().Name(),
+				)
+			}
+			return
+		}}
+	)
+	if err = c.Args.Destructure(typ, obj); err != nil {
+		return
+	}
+	curFields := obj.Value.(Objector).Fields()
+	ot2 := typ.Value.(ObjectType)
+	for f := range ot2.Fields() {
+		if curFields[f] == nil {
+			err = ErrIncompatibleCast.NewError(fmt.Sprintf("field %q not found in %s", f, ot2.String()))
+			return
+		}
+	}
+	return ot2.New(c.VM, obj.Value.(Objector).Fields())
 }

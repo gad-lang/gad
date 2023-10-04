@@ -127,7 +127,7 @@ func (e *CompilerError) Unwrap() error {
 // NewCompiler creates a new Compiler object.
 func NewCompiler(file *parser.SourceFile, opts CompilerOptions) *Compiler {
 	if opts.SymbolTable == nil {
-		opts.SymbolTable = NewSymbolTable()
+		opts.SymbolTable = NewSymbolTable(BuiltinsMap)
 	}
 
 	if opts.constsCache == nil {
@@ -662,7 +662,7 @@ func (c *Compiler) compileModule(
 		return 0, err
 	}
 
-	symbolTable := NewSymbolTable().
+	symbolTable := NewSymbolTable(c.symbolTable.builtins).
 		DisableBuiltin(c.symbolTable.DisabledBuiltins()...)
 
 	fork := c.fork(modFile, modulePath, moduleMap, symbolTable)
@@ -811,7 +811,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 
 	buf = append(buf[:0], op)
 	switch op {
-	case OpConstant, OpMap, OpArray, OpGetGlobal, OpSetGlobal, OpJump,
+	case OpGetBuiltin, OpConstant, OpMap, OpArray, OpGetGlobal, OpSetGlobal, OpJump,
 		OpJumpFalsy, OpAndJump, OpOrJump, OpStoreModule, OpKeyValueArray,
 		OpJumpNull, OpJumpNotNull:
 		buf = append(buf, byte(args[0]>>8))
@@ -832,7 +832,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		buf = append(buf, byte(args[0]))
 		buf = append(buf, byte(args[1]))
 		return buf, nil
-	case OpGetBuiltin, OpReturn, OpBinaryOp, OpUnary, OpGetIndex, OpGetLocal,
+	case OpReturn, OpBinaryOp, OpUnary, OpGetIndex, OpGetLocal,
 		OpSetLocal, OpGetFree, OpSetFree, OpGetLocalPtr, OpGetFreePtr, OpThrow,
 		OpFinalizer, OpDefineLocal:
 		buf = append(buf, byte(args[0]))

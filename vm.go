@@ -41,10 +41,10 @@ type VM struct {
 	err          error
 	noPanic      bool
 
-	StdOut, StdErr Writer
-	StdIn          Reader
+	builtins map[BuiltinType]Object
 
-	writers []Writer
+	StdOut, StdErr *StackWriter
+	StdIn          *StackReader
 }
 
 // NewVM creates a VM object.
@@ -145,16 +145,35 @@ func (vm *VM) init(opts *RunOpts) (Object, error) {
 	vm.ip = -1
 	vm.sp = vm.curFrame.fn.NumLocals
 
-	vm.StdIn, vm.StdOut, vm.StdErr = NewReader(os.Stdin), NewWriter(os.Stdout), NewWriter(os.Stderr)
+	if vm.StdIn == nil {
+		vm.StdIn, vm.StdOut, vm.StdErr = NewStackReader(os.Stdin), NewStackWriter(os.Stdout), NewStackWriter(os.Stderr)
+	}
 
 	if opts.StdIn != nil {
-		vm.StdIn = opts.StdIn
+		if s, _ := opts.StdIn.(*StackReader); s != nil {
+			vm.StdIn = s
+		} else {
+			vm.StdIn = NewStackReader(opts.StdIn)
+		}
 	}
 	if opts.StdOut != nil {
-		vm.StdOut = opts.StdOut
+		if s, _ := opts.StdOut.(*StackWriter); s != nil {
+			vm.StdOut = s
+		} else {
+			vm.StdOut = NewStackWriter(opts.StdOut)
+		}
 	}
 	if opts.StdErr != nil {
-		vm.StdErr = opts.StdErr
+		if s, _ := opts.StdErr.(*StackWriter); s != nil {
+			vm.StdErr = s
+		} else {
+			vm.StdErr = NewStackWriter(opts.StdErr)
+		}
+	}
+	if opts.Builtins != nil {
+		vm.builtins = opts.Builtins
+	} else {
+		vm.builtins = BuiltinObjects
 	}
 
 	// Resize modules cache or create it if not exists.
@@ -224,9 +243,7 @@ func (vm *VM) initLocals(args Array, namedArgs *NamedArgs) {
 	}
 
 	if main.Params.Var {
-		vargs := args[numParams-1:]
-		arr := make(Array, 0, len(vargs))
-		locals[numParams-1] = append(arr, vargs...)
+		locals[numParams-1] = args[numParams-1:]
 	} else if numParams > 0 {
 		locals[numParams-1] = args[numParams-1]
 	}
@@ -304,6 +321,46 @@ func (vm *VM) handlePanic(r any) {
 		return
 	}
 	vm.err = fmt.Errorf("panic: %v\nGo Stack:\n%s", r, gostack)
+}
+
+func (vm *VM) xIndexGet(numSel int, target Object) (value Object, null, abort bool) {
+	value = Nil
+
+	for ; numSel > 0; numSel-- {
+		ptr := vm.sp - numSel
+		index := vm.stack[ptr]
+		vm.stack[ptr] = nil
+		if ig, _ := target.(IndexGetter); ig != nil {
+			v, err := ig.IndexGet(vm, index)
+			if err != nil {
+				switch err {
+				case ErrNotIndexable:
+					err = ErrNotIndexable.NewError(target.Type().Name())
+				case ErrIndexOutOfBounds:
+					err = ErrIndexOutOfBounds.NewError(index.String())
+				}
+				if err = vm.throwGenErr(err); err != nil {
+					vm.err = err
+					abort = true
+					return
+				}
+				null = true
+				return
+			}
+			target = v
+			value = v
+		} else {
+			if err := vm.throwGenErr(ErrNotIndexable.NewError(target.Type().Name())); err != nil {
+				vm.err = err
+				abort = true
+				return
+			}
+			null = true
+			return
+		}
+	}
+
+	return
 }
 
 func (vm *VM) xOpSetupTry() {
@@ -512,7 +569,7 @@ func (vm *VM) xOpCallName() (err error) {
 
 	if nameCaller, ok := obj.(NameCallerObject); ok {
 		c := Call{
-			vm:   vm,
+			VM:   vm,
 			Args: []Array{nil},
 		}
 
@@ -521,7 +578,7 @@ func (vm *VM) xOpCallName() (err error) {
 				c.Args = append(c.Args, arr)
 			} else {
 				return NewArgumentTypeError("last", "array",
-					vm.stack[basePointer+numArgs-1].TypeName())
+					vm.stack[basePointer+numArgs-1].Type().Name())
 			}
 		}
 
@@ -529,8 +586,6 @@ func (vm *VM) xOpCallName() (err error) {
 			if c.NamedArgs, err = vm.getCalledNamedArgs(flags); err != nil {
 				return
 			}
-		} else {
-			c.NamedArgs = &NamedArgs{}
 		}
 
 		c.Args[0] = vm.stack[vm.sp-numArgs-kwCount : vm.sp-expandArgs-kwCount]
@@ -550,7 +605,7 @@ func (vm *VM) xOpCallName() (err error) {
 
 	var v Object
 	if ig, _ := obj.(IndexGetter); ig != nil {
-		if v, err = ig.IndexGet(name); err != nil {
+		if v, err = ig.IndexGet(vm, name); err != nil {
 			return
 		}
 	} else {
@@ -587,7 +642,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 		basePointer = vm.sp - numArgs
 		numLocals   = cfunc.NumLocals
 		numParams   = cfunc.Params.Len
-		namedParams *NamedArgs
+		namedParams NamedArgs
 		args        = Args{nil}
 	)
 
@@ -602,7 +657,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 		if namedParams, err = vm.getCalledNamedArgs(flags); err != nil {
 			return
 		}
-		if !cfunc.NamedParams.variadic && namedParams != nil {
+		if !cfunc.NamedParams.variadic && namedParams.sources != nil {
 			if err := namedParams.CheckNamesFromSet(cfunc.NamedParamsMap); err != nil {
 				return err
 			}
@@ -615,7 +670,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			arrSize = len(arr)
 		} else {
 			return NewArgumentTypeError("last", "array",
-				vm.stack[basePointer+numArgs-1].TypeName())
+				vm.stack[basePointer+numArgs-1].Type().Name())
 		}
 		if cfunc.Params.Var {
 			if numArgs < numParams {
@@ -693,17 +748,13 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 	}
 
 	if cfunc.NamedParams.len > 0 {
-		if namedParams == nil {
-			namedParams = NewNamedArgs()
-		}
-
 		var i int
 		for ; i < cfunc.NamedParams.len; i++ {
 			vm.stack[basePointer+numParams+i] = Nil
 		}
 		// define var namedArgs
 		if cfunc.NamedParams.variadic {
-			vm.stack[basePointer+numParams+i-1] = namedParams
+			vm.stack[basePointer+numParams+i-1] = &namedParams
 		}
 	} else {
 		for i := numParams; i < numLocals; i++ {
@@ -734,7 +785,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			vm.sp = newSp
 			vm.ip = -1                    // reset ip to beginning of the frame
 			vm.curFrame.errHandlers = nil // reset error handlers if any set
-			vm.curFrame.namedArgs = namedParams
+			vm.curFrame.namedArgs = &namedParams
 			vm.curFrame.args = args
 			return nil
 		}
@@ -745,7 +796,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 		return ErrStackOverflow
 	}
 	frame.fn = cfunc
-	frame.namedArgs = namedParams
+	frame.namedArgs = &namedParams
 	frame.args = args
 	frame.freeVars = cfunc.Free
 	frame.errHandlers = nil
@@ -760,7 +811,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 
 func (vm *VM) xOpCallObject(co Object, numArgs int, flags OpCallFlag) (err error) {
 	if !Callable(co) {
-		return ErrNotCallable.NewError(co.TypeName())
+		return ErrNotCallable.NewError(co.Type().Name())
 	}
 
 	var (
@@ -769,7 +820,7 @@ func (vm *VM) xOpCallObject(co Object, numArgs int, flags OpCallFlag) (err error
 
 		basePointer = vm.sp - numArgs
 		args        Array
-		namedArgs   *NamedArgs
+		namedArgs   NamedArgs
 	)
 
 	if flags.Has(OpCallFlagVarArgs) {
@@ -788,8 +839,6 @@ func (vm *VM) xOpCallObject(co Object, numArgs int, flags OpCallFlag) (err error
 		if namedArgs, err = vm.getCalledNamedArgs(flags); err != nil {
 			return
 		}
-	} else {
-		namedArgs = &NamedArgs{}
 	}
 
 	args = vm.stack[basePointer : basePointer+numArgs-expandArgs]
@@ -800,11 +849,11 @@ func (vm *VM) xOpCallObject(co Object, numArgs int, flags OpCallFlag) (err error
 			vargs = arr
 		} else {
 			return NewArgumentTypeError("last", "array",
-				vm.stack[basePointer+numArgs-1].TypeName())
+				vm.stack[basePointer+numArgs-1].Type().Name())
 		}
 	}
 
-	result, err := co.(CallerObject).Call(NewCall(vm, WithArgsV(args, vargs...), WithNamedArgs(namedArgs)))
+	result, err := co.(CallerObject).Call(Call{vm, Args{args, vargs}, namedArgs})
 	if err != nil {
 		return err
 	}
@@ -889,7 +938,7 @@ func (vm *VM) xOpUnary() error {
 	default:
 		return ErrInvalidOperator.NewError(
 			fmt.Sprintf("invalid for '%s': '%s'",
-				tok.String(), right.TypeName()))
+				tok.String(), right.Type().Name()))
 	}
 
 	vm.stack[vm.sp-1] = value
@@ -899,7 +948,7 @@ func (vm *VM) xOpUnary() error {
 invalidType:
 	return ErrType.NewError(
 		fmt.Sprintf("invalid type for unary '%s': '%s'",
-			tok.String(), right.TypeName()))
+			tok.String(), right.Type().Name()))
 }
 
 func (vm *VM) xOpSliceIndex() error {
@@ -923,7 +972,7 @@ func (vm *VM) xOpSliceIndex() error {
 		isbytes = true
 		objlen = len(obj)
 	default:
-		return ErrType.NewError(obj.TypeName(), "cannot be sliced")
+		return ErrType.NewError(obj.Type().Name(), "cannot be sliced")
 	}
 
 	var low int
@@ -937,7 +986,7 @@ func (vm *VM) xOpSliceIndex() error {
 	case Char:
 		low = int(v)
 	default:
-		return ErrType.NewError("invalid first index type", left.TypeName())
+		return ErrType.NewError("invalid first index type", left.Type().Name())
 	}
 
 	var high int
@@ -951,7 +1000,7 @@ func (vm *VM) xOpSliceIndex() error {
 	case Char:
 		high = int(v)
 	default:
-		return ErrType.NewError("invalid second index type", right.TypeName())
+		return ErrType.NewError("invalid second index type", right.Type().Name())
 	}
 
 	if low > high {
@@ -1009,13 +1058,11 @@ func (vm *VM) getSourcePos() parser.Pos {
 	return vm.curFrame.fn.SourcePos(vm.ip)
 }
 
-func (vm *VM) getCalledNamedArgs(flags OpCallFlag) (namedArgs *NamedArgs, err error) {
+func (vm *VM) getCalledNamedArgs(flags OpCallFlag) (namedArgs NamedArgs, err error) {
 	var (
 		expand   = 0
 		hasPairs = 0
 	)
-
-	namedArgs = &NamedArgs{}
 
 	if flags.Has(OpCallFlagNamedArgs) {
 		hasPairs = 1
@@ -1038,14 +1085,6 @@ func (vm *VM) getCalledNamedArgs(flags OpCallFlag) (namedArgs *NamedArgs, err er
 	}
 
 	return
-}
-
-func (vm *VM) PushWriter(out Writer) {
-	vm.writers = append(vm.writers, out)
-}
-
-func (vm *VM) PopWriter() {
-	vm.writers = vm.writers[:len(vm.writers)-1]
 }
 
 type errHandler struct {
@@ -1166,15 +1205,15 @@ func debugStack() []byte {
 // Invoker is not safe for concurrent use by multiple goroutines.
 //
 // Acquire and Release methods are used to acquire and release a VM from the
-// pool. So it is possible to reuse a VM instance for multiple Invoke calls.
+// pool. So it is possible to reuse a VM instance for multiple CallWrapper calls.
 // This is useful when you want to execute multiple functions in a single VM.
 // For example, you can use Acquire and Release to execute multiple functions
 // in a single VM instance.
 // Note that you should call Release after Acquire, if you want to reuse the VM.
-// If you don't want to use the pool, you can just call Invoke method.
+// If you don't want to use the pool, you can just call CallWrapper method.
 // It is unsafe to hold a reference to the VM after Release is called.
 // Using VM pool is about three times faster than creating a new VM for each
-// Invoke call.
+// CallWrapper call.
 type Invoker struct {
 	vm         *VM
 	child      *VM
@@ -1228,6 +1267,11 @@ func (inv *Invoker) Invoke(args Args, namedArgs *NamedArgs) (Object, error) {
 	if inv.child.Aborted() {
 		return Nil, ErrVMAborted
 	}
+
+	inv.child.StdIn = inv.vm.StdIn
+	inv.child.StdOut = inv.vm.StdOut
+	inv.child.StdErr = inv.vm.StdErr
+
 	if inv.isCompiled {
 		return inv.child.RunOpts(&RunOpts{Globals: inv.vm.globals, Args: args, NamedArgs: namedArgs})
 	}
@@ -1237,10 +1281,10 @@ func (inv *Invoker) Invoke(args Args, namedArgs *NamedArgs) (Object, error) {
 func (inv *Invoker) invokeObject(co Object, args Args) (Object, error) {
 	callee, _ := co.(CallerObject)
 	if callee == nil {
-		return Nil, ErrNotCallable.NewError(co.TypeName())
+		return Nil, ErrNotCallable.NewError(co.Type().Name())
 	}
 	return callee.Call(Call{
-		vm:   inv.vm,
+		VM:   inv.vm,
 		Args: args,
 	})
 }

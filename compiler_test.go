@@ -227,7 +227,7 @@ func TestCompiler_Mixed(t *testing.T) {
 			makeInst(OpCall, 3, 0),
 			makeInst(OpConstant, 3),
 			makeInst(OpDefineLocal, 0),
-			makeInst(OpGetBuiltin, 20),
+			makeInst(OpGetBuiltin, int(BuiltinWrite)),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpReturn, 0),

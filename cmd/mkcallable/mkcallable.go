@@ -461,7 +461,7 @@ func (p *Param) HelperAssignVar() string {
 
 	return fmt.Sprintf(`%s, ok := %s(%s[%d])
 		if !ok {
-			return %sNil, %sNewArgumentTypeError("%s", "%s", %s[%d].TypeName())
+			return %sNil, %sNewArgumentTypeError("%s", "%s", %s[%d].Type().Name())
 		}`,
 		p.Name, conv, p.fn.argsName, p.idx,
 		gaddot(), gaddot(), ordinalize(p.idx+1), gadTypeName, p.fn.argsName, p.idx,
@@ -491,7 +491,7 @@ func (p *Param) HelperAssignVarEx() string {
 
 	return fmt.Sprintf(`%s, ok := %s(%s.Args.Get(%d))
 		if !ok {
-			return %sNil, %sNewArgumentTypeError("%s", "%s", %s.Args.Get(%d).TypeName())
+			return %sNil, %sNewArgumentTypeError("%s", "%s", %s.Args.Get(%d).Type().Name())
 		}`,
 		p.Name, conv, p.fn.argsName, p.idx,
 		gaddot(), gaddot(), ordinalize(p.idx+1), gadTypeName, p.fn.argsName, p.idx,

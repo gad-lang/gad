@@ -1340,6 +1340,8 @@ func TestParseCallWithNamedArgs(t *testing.T) {
 	expectParseString(t, "fn(;...{y:5})", "fn(; ...{y: 5})")
 	expectParseString(t, "fn(1, ...[2,3]; x=4, ...{y:5})", "fn(1, ...[2, 3]; x=4, ...{y: 5})")
 	expectParseString(t, "fn(;y,...{z:5})", "fn(; y, ...{z: 5})")
+	expectParseString(t, "fn(1, a=b)()", "fn(1; a=b)()")
+
 }
 
 func TestParseKeyValueArray(t *testing.T) {

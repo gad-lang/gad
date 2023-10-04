@@ -40,6 +40,10 @@ type argValue interface {
 	Value() gad.Object
 }
 
+var scanArgType = &gad.BuiltinObjType{
+	NameValue: "scanArg",
+}
+
 // scanArg implements gad.Object and ScanArg interfaces to provide arguments to
 // scan functions.
 // "Value" selector in Gad scripts gives the scanned value if scan was successful.
@@ -51,13 +55,13 @@ type scanArg struct {
 
 var _ ScanArg = (*scanArg)(nil)
 
-func (*scanArg) TypeName() string { return "scanArg" }
+func (*scanArg) Type() gad.ObjectType { return scanArgType }
 
 func (o *scanArg) String() string { return "<scanArg>" }
 
 func (o *scanArg) IsFalsy() bool { return !o.ok }
 
-func (o *scanArg) IndexGet(index gad.Object) (gad.Object, error) {
+func (o *scanArg) IndexGet(_ *gad.VM, index gad.Object) (gad.Object, error) {
 	if o.ok && index.String() == "Value" {
 		return o.Value(), nil
 	}
@@ -72,6 +76,8 @@ func newScanArgFunc(c gad.Call) (gad.Object, error) {
 		v := c.Args.Get(0)
 		if b, ok := v.(*gad.BuiltinFunction); ok {
 			typ = b.Name
+		} else if ot, ok := v.(gad.ObjectType); ok {
+			typ = ot.Name()
 		} else {
 			typ = v.String()
 		}
@@ -92,6 +98,8 @@ func newScanArgFunc(c gad.Call) (gad.Object, error) {
 		scan.argValue = &charType{}
 	case "bytes":
 		scan.argValue = &bytesType{}
+	case "decimal":
+		scan.argValue = &decimalType{}
 	default:
 		return nil, gad.ErrType.NewError(strconv.Quote(typ), "not implemented")
 	}
@@ -156,6 +164,18 @@ func (ft *floatType) Arg() any {
 
 func (ft *floatType) Value() gad.Object {
 	return gad.Float(ft.v)
+}
+
+type decimalType struct {
+	v string
+}
+
+func (dt *decimalType) Arg() any {
+	return &dt.v
+}
+
+func (dt *decimalType) Value() gad.Object {
+	return gad.MustDecimalFromString(gad.String(dt.v))
 }
 
 type charType struct {

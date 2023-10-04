@@ -16,7 +16,7 @@ func funcPTRO(fn func(*Time) gad.Object) gad.CallableFunc {
 
 		t, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).Type().Name())
 		}
 
 		ret = fn(t)
@@ -34,11 +34,11 @@ func funcPTi64RO(fn func(*Time, int64) gad.Object) gad.CallableFunc {
 
 		t, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).Type().Name())
 		}
 		d, ok := gad.ToGoInt64(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).Type().Name())
 		}
 
 		ret = fn(t, d)
@@ -56,11 +56,11 @@ func funcPTTRO(fn func(*Time, *Time) gad.Object) gad.CallableFunc {
 
 		t1, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).Type().Name())
 		}
 		t2, ok := ToTime(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "time", c.Args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "time", c.Args.Get(1).Type().Name())
 		}
 
 		ret = fn(t1, t2)
@@ -78,19 +78,19 @@ func funcPTiiiRO(fn func(*Time, int, int, int) gad.Object) gad.CallableFunc {
 
 		t, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).Type().Name())
 		}
 		i1, ok := gad.ToGoInt(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).Type().Name())
 		}
 		i2, ok := gad.ToGoInt(c.Args.Get(2))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("3rd", "int", c.Args.Get(2).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "int", c.Args.Get(2).Type().Name())
 		}
 		i3, ok := gad.ToGoInt(c.Args.Get(3))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("4th", "int", c.Args.Get(3).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("4th", "int", c.Args.Get(3).Type().Name())
 		}
 
 		ret = fn(t, i1, i2, i3)
@@ -108,11 +108,11 @@ func funcPTsRO(fn func(*Time, string) gad.Object) gad.CallableFunc {
 
 		t, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).Type().Name())
 		}
 		s, ok := gad.ToGoString(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", c.Args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", c.Args.Get(1).Type().Name())
 		}
 
 		ret = fn(t, s)
@@ -130,15 +130,15 @@ func funcPTb2sRO(fn func(*Time, []byte, string) gad.Object) gad.CallableFunc {
 
 		t, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).Type().Name())
 		}
 		b, ok := gad.ToGoByteSlice(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "bytes", c.Args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "bytes", c.Args.Get(1).Type().Name())
 		}
 		s, ok := gad.ToGoString(c.Args.Get(2))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", c.Args.Get(2).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", c.Args.Get(2).Type().Name())
 		}
 
 		ret = fn(t, b, s)
@@ -156,11 +156,11 @@ func funcPTLRO(fn func(*Time, *Location) gad.Object) gad.CallableFunc {
 
 		t, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "time", c.Args.Get(0).Type().Name())
 		}
 		loc, ok := ToLocation(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "location", c.Args.Get(1).TypeName())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "location", c.Args.Get(1).Type().Name())
 		}
 
 		ret = fn(t, loc)

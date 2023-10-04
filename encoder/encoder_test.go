@@ -579,7 +579,7 @@ func testBytecodeConstants(t *testing.T, expected, decoded []gad.Object) {
 			for decIt.Next() {
 				require.True(t, it.Next())
 				key := decIt.Key()
-				v1, err := expected[i].(gad.IndexGetter).IndexGet(key)
+				v1, err := expected[i].(gad.IndexGetter).IndexGet(nil, key)
 				require.NoError(t, err)
 				v2 := decIt.Value()
 				if (v1 != nil && v2 == nil) || (v1 == nil && v2 != nil) {

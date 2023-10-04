@@ -16,8 +16,8 @@ var (
 	_ ValuesGetter = Args{}
 )
 
-func (o Args) TypeName() string {
-	return "args"
+func (o Args) Type() ObjectType {
+	return TArgs
 }
 
 func (o Args) String() string {
@@ -77,8 +77,8 @@ func (o Args) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName())
+		o.Type().Name(),
+		right.Type().Name())
 }
 
 func (o Args) IsFalsy() bool {
@@ -107,7 +107,7 @@ func (o Args) CanIterate() bool {
 }
 
 // IndexGet implements Object interface.
-func (o Args) IndexGet(index Object) (Object, error) {
+func (o Args) IndexGet(_ *VM, index Object) (Object, error) {
 	switch v := index.(type) {
 	case Int:
 		idx := int(v)
@@ -135,7 +135,7 @@ func (o Args) IndexGet(index Object) (Object, error) {
 			return nil, ErrInvalidIndex.NewError(string(v))
 		}
 	}
-	return nil, NewIndexTypeError("int|uint|string", index.TypeName())
+	return nil, NewIndexTypeError("int|uint|string", index.Type().Name())
 }
 
 // Walk iterates over all values and call callback function.
@@ -327,15 +327,20 @@ func (o Args) ShiftArg(shifts *int, dst *Arg) (ok bool, err error) {
 	}
 
 	for _, t := range dst.AcceptTypes {
-		if dst.Value.TypeName() == t {
+		if dst.Value.Type().Equal(t) {
 			return
 		}
 	}
 
+	var s = make([]string, len(dst.AcceptTypes))
+	for i, acceptType := range dst.AcceptTypes {
+		s[i] = acceptType.String()
+	}
+
 	return false, NewArgumentTypeError(
 		strconv.Itoa(*shifts)+"st",
-		strings.Join(dst.AcceptTypes, "|"),
-		dst.Value.TypeName(),
+		strings.Join(s, "|"),
+		dst.Value.Type().Name(),
 	)
 }
 
@@ -351,20 +356,40 @@ args:
 	for i, d := range dst {
 		d.Value = o.Shift()
 
-		if len(d.AcceptTypes) == 0 {
-			continue
-		}
-
-		for _, t := range d.AcceptTypes {
-			if d.Value.TypeName() == t {
-				continue args
+		if d.Accept != nil {
+			if err = d.Accept(d.Value); err != nil {
+				pos := strconv.Itoa(i) + "st"
+				if d.Name != "" {
+					pos += " (" + d.Name + ")"
+				}
+				return NewArgumentTypeError(
+					pos,
+					err.Error(),
+					d.Value.Type().Name(),
+				)
 			}
+		} else if len(d.AcceptTypes) > 0 {
+			for _, t := range d.AcceptTypes {
+				if t.Equal(d.Value.Type()) {
+					continue args
+				}
+			}
+
+			pos := strconv.Itoa(i+1) + "st"
+			if d.Name != "" {
+				pos += " (" + d.Name + ")"
+			}
+
+			var s = make([]string, len(d.AcceptTypes))
+			for i, acceptType := range d.AcceptTypes {
+				s[i] = acceptType.String()
+			}
+			return NewArgumentTypeError(
+				pos,
+				strings.Join(s, "|"),
+				d.Value.Type().Name(),
+			)
 		}
-		return NewArgumentTypeError(
-			strconv.Itoa(i)+"st",
-			strings.Join(d.AcceptTypes, "|"),
-			d.Value.TypeName(),
-		)
 	}
 	return
 }
@@ -381,14 +406,19 @@ args:
 		}
 
 		for _, t := range d.AcceptTypes {
-			if d.Value.TypeName() == t {
+			if t.Equal(d.Value.Type()) {
 				continue args
 			}
 		}
+
+		var s = make([]string, len(d.AcceptTypes))
+		for i, acceptType := range d.AcceptTypes {
+			s[i] = acceptType.String()
+		}
 		return NewArgumentTypeError(
 			strconv.Itoa(i)+"st",
-			strings.Join(d.AcceptTypes, "|"),
-			d.Value.TypeName(),
+			strings.Join(s, "|"),
+			d.Value.Type().Name(),
 		)
 	}
 	return
@@ -411,15 +441,19 @@ args:
 		}
 
 		for _, t := range d.AcceptTypes {
-			if d.Value.TypeName() == t {
+			if t.Equal(d.Value.Type()) {
 				continue args
 			}
 		}
 
+		var s = make([]string, len(d.AcceptTypes))
+		for i, acceptType := range d.AcceptTypes {
+			s[i] = acceptType.String()
+		}
 		return nil, NewArgumentTypeError(
 			strconv.Itoa(i)+"st",
-			strings.Join(d.AcceptTypes, "|"),
-			d.Value.TypeName(),
+			strings.Join(s, "|"),
+			d.Value.Type().Name(),
 		)
 	}
 	other = o.Values()
@@ -458,23 +492,18 @@ func (it *ArgsIterator) Value() Object {
 // arguments directly. Using Len() and Get() methods is preferred. It is safe to
 // create Call with a nil VM as long as VM is not required by the callee.
 type Call struct {
-	vm        *VM
+	VM        *VM
 	Args      Args
-	NamedArgs *NamedArgs
+	NamedArgs NamedArgs
 }
 
 // NewCall creates a new Call struct.
 func NewCall(vm *VM, opts ...CallOpt) Call {
-	c := Call{vm: vm}
+	c := Call{VM: vm}
 	for _, opt := range opts {
 		opt(&c)
 	}
 	return c
-}
-
-// VM returns the VM of the call.
-func (c *Call) VM() *VM {
-	return c.vm
 }
 
 type CallOpt func(c *Call)
@@ -493,7 +522,7 @@ func WithArgsV(args []Object, vargs ...Object) func(c *Call) {
 
 func WithNamedArgs(na *NamedArgs) func(c *Call) {
 	return func(c *Call) {
-		c.NamedArgs = na
+		c.NamedArgs = *na
 	}
 }
 

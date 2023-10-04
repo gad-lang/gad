@@ -22,9 +22,8 @@ import (
 // Bool represents boolean values and implements Object interface.
 type Bool bool
 
-// TypeName implements Object interface.
-func (Bool) TypeName() string {
-	return "bool"
+func (o Bool) Type() ObjectType {
+	return typeOf(o)
 }
 
 // String implements Object interface.
@@ -152,8 +151,8 @@ switchpos:
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName())
+		o.Type().Name(),
+		right.Type().Name())
 }
 
 // Format implements fmt.Formatter interface.
@@ -167,9 +166,8 @@ type String string
 
 var _ LengthGetter = String("")
 
-// TypeName implements Object interface.
-func (String) TypeName() string {
-	return "string"
+func (o String) Type() ObjectType {
+	return typeOf(o)
 }
 
 func (o String) String() string {
@@ -182,7 +180,7 @@ func (o String) Iterate() Iterator {
 }
 
 // IndexGet represents string values and implements Object interface.
-func (o String) IndexGet(index Object) (Object, error) {
+func (o String) IndexGet(_ *VM, index Object) (Object, error) {
 	var idx int
 	switch v := index.(type) {
 	case Int:
@@ -192,7 +190,7 @@ func (o String) IndexGet(index Object) (Object, error) {
 	case Char:
 		idx = int(v)
 	default:
-		return nil, NewIndexTypeError("int|uint|char", index.TypeName())
+		return nil, NewIndexTypeError("int|uint|char", index.Type().Name())
 	}
 	if idx >= 0 && idx < len(o) {
 		return Int(o[idx]), nil
@@ -261,8 +259,8 @@ func (o String) BinaryOp(tok token.Token, right Object) (Object, error) {
 
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName())
+		o.Type().Name(),
+		right.Type().Name())
 }
 
 // Len implements LengthGetter interface.
@@ -285,9 +283,8 @@ var (
 	_ LengthGetter = Bytes{}
 )
 
-// TypeName implements Object interface.
-func (Bytes) TypeName() string {
-	return "bytes"
+func (o Bytes) Type() ObjectType {
+	return typeOf(o)
 }
 
 func (o Bytes) String() string {
@@ -307,7 +304,7 @@ func (o Bytes) Iterate() Iterator {
 }
 
 // IndexSet implements Object interface.
-func (o Bytes) IndexSet(index, value Object) error {
+func (o Bytes) IndexSet(_ *VM, index, value Object) error {
 	var idx int
 	switch v := index.(type) {
 	case Int:
@@ -315,7 +312,7 @@ func (o Bytes) IndexSet(index, value Object) error {
 	case Uint:
 		idx = int(v)
 	default:
-		return NewIndexTypeError("int|uint", index.TypeName())
+		return NewIndexTypeError("int|uint", index.Type().Name())
 	}
 
 	if idx >= 0 && idx < len(o) {
@@ -325,7 +322,7 @@ func (o Bytes) IndexSet(index, value Object) error {
 		case Uint:
 			o[idx] = byte(v)
 		default:
-			return NewIndexValueTypeError("int|uint", value.TypeName())
+			return NewIndexValueTypeError("int|uint", value.Type().Name())
 		}
 		return nil
 	}
@@ -333,7 +330,7 @@ func (o Bytes) IndexSet(index, value Object) error {
 }
 
 // IndexGet represents string values and implements Object interface.
-func (o Bytes) IndexGet(index Object) (Object, error) {
+func (o Bytes) IndexGet(_ *VM, index Object) (Object, error) {
 	var idx int
 	switch v := index.(type) {
 	case Int:
@@ -341,7 +338,7 @@ func (o Bytes) IndexGet(index Object) (Object, error) {
 	case Uint:
 		idx = int(v)
 	default:
-		return nil, NewIndexTypeError("int|uint|char", index.TypeName())
+		return nil, NewIndexTypeError("int|uint|char", index.Type().Name())
 	}
 
 	if idx >= 0 && idx < len(o) {
@@ -406,8 +403,8 @@ func (o Bytes) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName())
+		o.Type().Name(),
+		right.Type().Name())
 }
 
 // Len implements LengthGetter interface.
@@ -430,9 +427,8 @@ type Function struct {
 
 var _ Object = (*Function)(nil)
 
-// TypeName implements Object interface.
-func (*Function) TypeName() string {
-	return "function"
+func (*Function) Type() ObjectType {
+	return TFunction
 }
 
 // String implements Object interface.
@@ -473,9 +469,8 @@ type BuiltinFunction struct {
 
 var _ CallerObject = (*BuiltinFunction)(nil)
 
-// TypeName implements Object interface.
-func (*BuiltinFunction) TypeName() string {
-	return "builtinFunction"
+func (*BuiltinFunction) Type() ObjectType {
+	return TBuiltinFunction
 }
 
 // String implements Object interface.
@@ -521,35 +516,15 @@ var (
 	_ ItemsGetter           = Array{}
 )
 
-// TypeName implements Object interface.
-func (Array) TypeName() string {
-	return "array"
+func (o Array) Type() ObjectType {
+	return typeOf(o)
 }
 
 // String implements Object interface.
 func (o Array) String() string {
-	var sb strings.Builder
-	sb.WriteString("[")
-	last := len(o) - 1
-
-	for i := range o {
-		switch v := o[i].(type) {
-		case String:
-			sb.WriteString(strconv.Quote(v.String()))
-		case Char:
-			sb.WriteString(strconv.QuoteRune(rune(v)))
-		case Bytes:
-			sb.WriteString(fmt.Sprint([]byte(v)))
-		default:
-			sb.WriteString(v.String())
-		}
-		if i != last {
-			sb.WriteString(", ")
-		}
-	}
-
-	sb.WriteString("]")
-	return sb.String()
+	return ArrayToString(len(o), func(i int) Object {
+		return o[i]
+	})
 }
 
 // Copy implements Copier interface.
@@ -576,7 +551,7 @@ func (o Array) DeepCopy() Object {
 }
 
 // IndexSet implements Object interface.
-func (o Array) IndexSet(index, value Object) error {
+func (o Array) IndexSet(_ *VM, index, value Object) error {
 	switch v := index.(type) {
 	case Int:
 		idx := int(v)
@@ -593,11 +568,11 @@ func (o Array) IndexSet(index, value Object) error {
 		}
 		return ErrIndexOutOfBounds
 	}
-	return NewIndexTypeError("int|uint", index.TypeName())
+	return NewIndexTypeError("int|uint", index.Type().Name())
 }
 
 // IndexGet implements Object interface.
-func (o Array) IndexGet(index Object) (Object, error) {
+func (o Array) IndexGet(_ *VM, index Object) (Object, error) {
 	switch v := index.(type) {
 	case Int:
 		idx := int(v)
@@ -612,7 +587,7 @@ func (o Array) IndexGet(index Object) (Object, error) {
 		}
 		return nil, ErrIndexOutOfBounds
 	}
-	return nil, NewIndexTypeError("int|uint", index.TypeName())
+	return nil, NewIndexTypeError("int|uint", index.Type().Name())
 }
 
 // Equal implements Object interface.
@@ -663,8 +638,8 @@ func (o Array) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName())
+		o.Type().Name(),
+		right.Type().Name())
 }
 
 func (o Array) AppendToArray(arr *Array) {
@@ -743,9 +718,8 @@ var (
 	_ DeepCopier = (*ObjectPtr)(nil)
 )
 
-// TypeName implements Object interface.
-func (o *ObjectPtr) TypeName() string {
-	return "objectPtr"
+func (o *ObjectPtr) Type() ObjectType {
+	return TObjectPtr
 }
 
 // String implements Object interface.
@@ -817,9 +791,8 @@ var (
 	_ ItemsGetter  = Map{}
 )
 
-// TypeName implements Object interface.
-func (Map) TypeName() string {
-	return "map"
+func (o Map) Type() ObjectType {
+	return typeOf(o)
 }
 
 // String implements Object interface.
@@ -878,13 +851,13 @@ func (o Map) DeepCopy() Object {
 }
 
 // IndexSet implements Object interface.
-func (o Map) IndexSet(index, value Object) error {
+func (o Map) IndexSet(_ *VM, index, value Object) error {
 	o[index.String()] = value
 	return nil
 }
 
 // IndexGet implements Object interface.
-func (o Map) IndexGet(index Object) (Object, error) {
+func (o Map) IndexGet(_ *VM, index Object) (Object, error) {
 	v, ok := o[index.String()]
 	if ok {
 		return v, nil
@@ -931,8 +904,8 @@ func (o Map) BinaryOp(tok token.Token, right Object) (Object, error) {
 
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName())
+		o.Type().Name(),
+		right.Type().Name())
 }
 
 // Iterate implements Iterable interface.
@@ -946,7 +919,7 @@ func (o Map) Iterate() Iterator {
 
 // IndexDelete tries to delete the string value of key from the map.
 // IndexDelete implements IndexDeleter interface.
-func (o Map) IndexDelete(key Object) error {
+func (o Map) IndexDelete(_ *VM, key Object) error {
 	delete(o, key.String())
 	return nil
 }
@@ -978,6 +951,12 @@ func (o Map) Keys() Array {
 		i++
 	}
 	return arr
+}
+
+func (o Map) SortedKeys() Array {
+	keys := o.Keys()
+	keys.Sort()
+	return keys
 }
 
 func (o Map) Values() Array {
@@ -1028,9 +1007,8 @@ func (o *SyncMap) Unlock() {
 	o.mu.Unlock()
 }
 
-// TypeName implements Object interface.
-func (*SyncMap) TypeName() string {
-	return "syncMap"
+func (o *SyncMap) Type() ObjectType {
+	return typeOf(o)
 }
 
 // String implements Object interface.
@@ -1062,22 +1040,22 @@ func (o *SyncMap) DeepCopy() Object {
 }
 
 // IndexSet implements Object interface.
-func (o *SyncMap) IndexSet(index, value Object) error {
+func (o *SyncMap) IndexSet(vm *VM, index, value Object) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
 	if o.Value == nil {
 		o.Value = Map{}
 	}
-	return o.Value.IndexSet(index, value)
+	return o.Value.IndexSet(vm, index, value)
 }
 
 // IndexGet implements Object interface.
-func (o *SyncMap) IndexGet(index Object) (Object, error) {
+func (o *SyncMap) IndexGet(vm *VM, index Object) (Object, error) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
-	return o.Value.IndexGet(index)
+	return o.Value.IndexGet(vm, index)
 }
 
 // Equal implements Object interface.
@@ -1122,11 +1100,11 @@ func (o *SyncMap) Len() int {
 }
 
 // IndexDelete tries to delete the string value of key from the map.
-func (o *SyncMap) IndexDelete(key Object) error {
+func (o *SyncMap) IndexDelete(vm *VM, key Object) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	return o.Value.IndexDelete(key)
+	return o.Value.IndexDelete(vm, key)
 }
 
 // BinaryOp implements Object interface.
@@ -1171,9 +1149,8 @@ func (o *Error) Unwrap() error {
 	return o.Cause
 }
 
-// TypeName implements Object interface.
-func (*Error) TypeName() string {
-	return "error"
+func (o *Error) Type() ObjectType {
+	return typeOf(o)
 }
 
 // String implements Object interface.
@@ -1211,7 +1188,7 @@ func (o *Error) Equal(right Object) bool {
 func (o *Error) IsFalsy() bool { return true }
 
 // IndexGet implements Object interface.
-func (o *Error) IndexGet(index Object) (Object, error) {
+func (o *Error) IndexGet(_ *VM, index Object) (Object, error) {
 	s := index.String()
 	if s == "Literal" {
 		return String(o.Name), nil
@@ -1280,9 +1257,8 @@ func (o *RuntimeError) addTrace(pos parser.Pos) {
 	o.Trace = append(o.Trace, pos)
 }
 
-// TypeName implements Object interface.
-func (*RuntimeError) TypeName() string {
-	return "error"
+func (*RuntimeError) Type() ObjectType {
+	return TError
 }
 
 // String implements Object interface.
@@ -1324,7 +1300,7 @@ func (o *RuntimeError) Equal(right Object) bool {
 func (o *RuntimeError) IsFalsy() bool { return true }
 
 // IndexGet implements Object interface.
-func (o *RuntimeError) IndexGet(index Object) (Object, error) {
+func (o *RuntimeError) IndexGet(vm *VM, index Object) (Object, error) {
 	if o.Err != nil {
 		s := index.String()
 		if s == "New" {
@@ -1347,7 +1323,7 @@ func (o *RuntimeError) IndexGet(index Object) (Object, error) {
 				},
 			}, nil
 		}
-		return o.Err.IndexGet(index)
+		return o.Err.IndexGet(vm, index)
 	}
 
 	return Nil, nil
@@ -1445,4 +1421,39 @@ func (st StackTrace) Format(s fmt.State, verb rune) {
 			_, _ = fmt.Fprintf(s, "%v", []parser.SourceFilePos(st))
 		}
 	}
+}
+
+type CallWrapper struct {
+	Caller    CallerObject
+	Args      Args
+	NamedArgs KeyValueArray
+}
+
+func NewCallWrapper(caller CallerObject, args Args, namedArgs KeyValueArray) *CallWrapper {
+	return &CallWrapper{Caller: caller, Args: args, NamedArgs: namedArgs}
+}
+
+func (i *CallWrapper) Call(c Call) (Object, error) {
+	args := append(i.Args, c.Args...)
+	nargs := NamedArgs{sources: KeyValueArrays{i.NamedArgs}}
+	if len(c.NamedArgs.sources) > 0 {
+		nargs.Add(c.NamedArgs.UnreadPairs())
+	}
+	return i.Caller.Call(Call{c.VM, args, nargs})
+}
+
+func (i *CallWrapper) Type() ObjectType {
+	return TCallWrapper
+}
+
+func (i *CallWrapper) String() string {
+	return i.Type().String() + "{" + i.Caller.String() + "}"
+}
+
+func (CallWrapper) IsFalsy() bool {
+	return false
+}
+
+func (CallWrapper) Equal(Object) bool {
+	return false
 }

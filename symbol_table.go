@@ -50,18 +50,20 @@ type SymbolTable struct {
 	block            bool
 	disableParams    bool
 	shadowedBuiltins []string
+	builtins         map[string]BuiltinType
 }
 
 // NewSymbolTable creates new symbol table object.
-func NewSymbolTable() *SymbolTable {
+func NewSymbolTable(builtins map[string]BuiltinType) *SymbolTable {
 	return &SymbolTable{
-		store: make(map[string]*Symbol),
+		store:    make(map[string]*Symbol),
+		builtins: builtins,
 	}
 }
 
 // Fork creates a new symbol table for a new scope.
 func (st *SymbolTable) Fork(block bool) *SymbolTable {
-	fork := NewSymbolTable()
+	fork := NewSymbolTable(st.builtins)
 	fork.parent = st
 	fork.block = block
 	fork.disableParams = st.disableParams
@@ -178,7 +180,7 @@ func (st *SymbolTable) Resolve(name string) (symbol *Symbol, ok bool) {
 	}
 
 	if !ok && st.parent == nil && !st.isBuiltinDisabled(name) {
-		if idx, exists := BuiltinsMap[name]; exists {
+		if idx, exists := st.builtins[name]; exists {
 			symbol = &Symbol{
 				Name:  name,
 				Index: int(idx),

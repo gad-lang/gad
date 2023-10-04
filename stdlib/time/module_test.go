@@ -15,7 +15,7 @@ import (
 
 func TestModuleTypes(t *testing.T) {
 	l := &Location{Value: time.UTC}
-	require.Equal(t, "location", l.TypeName())
+	require.Equal(t, "location", l.Type().Name())
 	require.False(t, l.IsFalsy())
 	require.Equal(t, "UTC", l.String())
 	require.True(t, (&Location{}).Equal(&Location{}))
@@ -24,12 +24,12 @@ func TestModuleTypes(t *testing.T) {
 	require.False(t, Iterable(l))
 
 	tm := &Time{}
-	require.Equal(t, "time", tm.TypeName())
+	require.Equal(t, "time", tm.Type().Name())
 	require.True(t, tm.IsFalsy())
 	require.NotEmpty(t, tm.String())
 	require.True(t, tm.Equal(&Time{}))
 	require.False(t, tm.Equal(Int(0)))
-	r, err := tm.IndexGet(String(""))
+	r, err := tm.IndexGet(nil, String(""))
 	require.NoError(t, err)
 	require.Equal(t, Nil, r)
 
@@ -515,7 +515,7 @@ func TestModuleTime(t *testing.T) {
 func testTimeSelector(t *testing.T, tm Object,
 	selector string, expected Object) {
 	t.Helper()
-	v, err := tm.(IndexGetter).IndexGet(String(selector))
+	v, err := tm.(IndexGetter).IndexGet(nil, String(selector))
 	require.NoError(t, err)
 	require.Equal(t, expected, v)
 }
@@ -824,13 +824,17 @@ func TestScript(t *testing.T) {
 	expectRun(t, catch(`time.Time().Zone(1)`), nil, nwrongArgs(0, -1, 1))
 }
 
+var IllegalType = &BuiltinObjType{
+	NameValue: "illegal",
+}
+
 type illegalDur struct {
 	ObjectImpl
 	Value time.Duration
 }
 
 func (*illegalDur) String() string   { return "illegal" }
-func (*illegalDur) TypeName() string { return "illegal" }
+func (*illegalDur) Type() ObjectType { return IllegalType }
 
 type Opts struct {
 	global IndexGetSetter

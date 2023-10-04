@@ -501,7 +501,7 @@ func pad(c gad.Call, left bool) (gad.Object, error) {
 	padLen, ok := gad.ToGoInt(c.Args.Get(1))
 	if !ok {
 		return gad.Nil,
-			gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).TypeName())
+			gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).Type().Name())
 	}
 	diff := padLen - len(s)
 	if diff <= 0 {
@@ -551,7 +551,7 @@ func replaceFunc(c gad.Call) (gad.Object, error) {
 		v, ok := gad.ToGoInt(c.Args.Get(3))
 		if !ok {
 			return gad.Nil,
-				gad.NewArgumentTypeError("4th", "int", c.Args.Get(3).TypeName())
+				gad.NewArgumentTypeError("4th", "int", c.Args.Get(3).Type().Name())
 		}
 		n = v
 	}
@@ -621,7 +621,7 @@ func newSplitFunc(fn func(string, string, int) []string) gad.CallableFunc {
 			v, ok := gad.ToGoInt(c.Args.Get(2))
 			if !ok {
 				return gad.Nil,
-					gad.NewArgumentTypeError("3rd", "int", c.Args.Get(2).TypeName())
+					gad.NewArgumentTypeError("3rd", "int", c.Args.Get(2).Type().Name())
 			}
 			n = v
 		}
@@ -694,13 +694,13 @@ func stringInvoke(
 	if !gad.Callable(callee) {
 		return gad.Nil, gad.ErrNotCallable
 	}
-	if c.VM() == nil {
+	if c.VM == nil {
 		if _, ok := callee.(*gad.CompiledFunction); ok {
 			return gad.Nil, gad.ErrNotCallable
 		}
 	}
 
-	inv := gad.NewInvoker(c.VM(), callee)
+	inv := gad.NewInvoker(c.VM, callee)
 	inv.Acquire()
 	defer inv.Release()
 	return fn(str, inv)

@@ -115,22 +115,22 @@ func TestObjectString(t *testing.T) {
 }
 
 func TestObjectTypeName(t *testing.T) {
-	require.Equal(t, "int", Int(0).TypeName())
-	require.Equal(t, "uint", Uint(0).TypeName())
-	require.Equal(t, "char", Char(0).TypeName())
-	require.Equal(t, "float", Float(0).TypeName())
-	require.Equal(t, "bool", Bool(true).TypeName())
-	require.Equal(t, "nil", Nil.TypeName())
-	require.Equal(t, "error", (&Error{}).TypeName())
-	require.Equal(t, "error", (&RuntimeError{}).TypeName())
-	require.Equal(t, "string", String("").TypeName())
-	require.Equal(t, "array", Array{}.TypeName())
-	require.Equal(t, "bytes", Bytes{}.TypeName())
-	require.Equal(t, "map", Map{}.TypeName())
-	require.Equal(t, "syncMap", (&SyncMap{}).TypeName())
-	require.Equal(t, "function", (&Function{}).TypeName())
-	require.Equal(t, "builtinFunction", (&BuiltinFunction{}).TypeName())
-	require.Equal(t, "compiledFunction", (&CompiledFunction{}).TypeName())
+	require.Equal(t, "int", Int(0).Type().Name())
+	require.Equal(t, "uint", Uint(0).Type().Name())
+	require.Equal(t, "char", Char(0).Type().Name())
+	require.Equal(t, "float", Float(0).Type().Name())
+	require.Equal(t, "bool", Bool(true).Type().Name())
+	require.Equal(t, "nil", Nil.Type().Name())
+	require.Equal(t, "error", (&Error{}).Type().Name())
+	require.Equal(t, "error", (&RuntimeError{}).Type().Name())
+	require.Equal(t, "string", String("").Type().Name())
+	require.Equal(t, "array", Array{}.Type().Name())
+	require.Equal(t, "bytes", Bytes{}.Type().Name())
+	require.Equal(t, "map", Map{}.Type().Name())
+	require.Equal(t, "syncMap", (&SyncMap{}).Type().Name())
+	require.Equal(t, "function", (&Function{}).Type().Name())
+	require.Equal(t, "builtinFunction", (&BuiltinFunction{}).Type().Name())
+	require.Equal(t, "compiledFunction", (&CompiledFunction{}).Type().Name())
 }
 
 func TestObjectIsFalsy(t *testing.T) {
@@ -180,7 +180,7 @@ func TestObjectImpl(t *testing.T) {
 	}
 	impl := ObjectImpl{}
 	require.Panics(t, func() { _ = impl.String() })
-	require.Panics(t, func() { _ = impl.TypeName() })
+	require.Panics(t, func() { _ = impl.Type().Name() })
 	require.False(t, impl.Equal(impl))
 	require.True(t, impl.IsFalsy())
 	require.False(t, Callable(impl))
@@ -188,173 +188,173 @@ func TestObjectImpl(t *testing.T) {
 }
 
 func TestObjectIndexGet(t *testing.T) {
-	v, err := (&Error{}).IndexGet(Nil)
+	v, err := (&Error{}).IndexGet(nil, Nil)
 	require.NoError(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = (&Error{}).IndexGet(String("Literal"))
+	v, err = (&Error{}).IndexGet(nil, String("Literal"))
 	require.NoError(t, err)
 	require.Equal(t, String(""), v)
 
-	v, err = (&Error{Name: "x"}).IndexGet(String("Literal"))
+	v, err = (&Error{Name: "x"}).IndexGet(nil, String("Literal"))
 	require.NoError(t, err)
 	require.Equal(t, String("x"), v)
 
-	v, err = (&Error{}).IndexGet(String("Message"))
+	v, err = (&Error{}).IndexGet(nil, String("Message"))
 	require.NoError(t, err)
 	require.Equal(t, String(""), v)
 
-	v, err = (&Error{Message: "x"}).IndexGet(String("Message"))
+	v, err = (&Error{Message: "x"}).IndexGet(nil, String("Message"))
 	require.NoError(t, err)
 	require.Equal(t, String("x"), v)
 
-	v, err = (&RuntimeError{}).IndexGet(Nil)
+	v, err = (&RuntimeError{}).IndexGet(nil, Nil)
 	require.Equal(t, Nil, v)
 	require.NoError(t, err)
 
-	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(String("Literal"))
+	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(nil, String("Literal"))
 	require.NoError(t, err)
 	require.Equal(t, String(""), v)
 
-	v, err = (&RuntimeError{Err: &Error{Name: "x"}}).IndexGet(String("Literal"))
+	v, err = (&RuntimeError{Err: &Error{Name: "x"}}).IndexGet(nil, String("Literal"))
 	require.NoError(t, err)
 	require.Equal(t, String("x"), v)
 
-	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(String("Message"))
+	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(nil, String("Message"))
 	require.NoError(t, err)
 	require.Equal(t, String(""), v)
 
-	v, err = (&RuntimeError{Err: &Error{Message: "x"}}).IndexGet(String("Message"))
+	v, err = (&RuntimeError{Err: &Error{Message: "x"}}).IndexGet(nil, String("Message"))
 	require.NoError(t, err)
 	require.Equal(t, String("x"), v)
 
-	v, err = String("").IndexGet(Nil)
+	v, err = String("").IndexGet(nil, Nil)
 	require.Nil(t, v)
 	require.NotNil(t, err)
 	require.True(t, errors.Is(err, ErrType))
 
-	v, err = String("x").IndexGet(Int(0))
+	v, err = String("x").IndexGet(nil, Int(0))
 	require.NotNil(t, v)
 	require.Nil(t, err)
 	require.Equal(t, Int("x"[0]), v)
 
-	v, err = String("x").IndexGet(Int(0))
+	v, err = String("x").IndexGet(nil, Int(0))
 	require.NotNil(t, v)
 	require.Nil(t, err)
 	require.Equal(t, Int("x"[0]), v)
 
-	v, err = String("x").IndexGet(Int(1))
+	v, err = String("x").IndexGet(nil, Int(1))
 	require.Nil(t, v)
 	require.Equal(t, ErrIndexOutOfBounds, err)
 
-	v, err = Array{Int(1)}.IndexGet(Nil)
+	v, err = Array{Int(1)}.IndexGet(nil, Nil)
 	require.NotNil(t, err)
 	require.Nil(t, v)
 	require.True(t, errors.Is(err, ErrType))
 
-	v, err = Array{Int(1)}.IndexGet(Int(0))
+	v, err = Array{Int(1)}.IndexGet(nil, Int(0))
 	require.NotNil(t, v)
 	require.Nil(t, err)
 	require.Equal(t, Int(1), v)
 
-	v, err = Array{Int(1)}.IndexGet(Int(1))
+	v, err = Array{Int(1)}.IndexGet(nil, Int(1))
 	require.Nil(t, v)
 	require.NotNil(t, err)
 	require.Equal(t, ErrIndexOutOfBounds, err)
 
-	v, err = Bytes{1}.IndexGet(Nil)
+	v, err = Bytes{1}.IndexGet(nil, Nil)
 	require.NotNil(t, err)
 	require.Nil(t, v)
 	require.True(t, errors.Is(err, ErrType))
 
-	v, err = Bytes{1}.IndexGet(Int(0))
+	v, err = Bytes{1}.IndexGet(nil, Int(0))
 	require.NotNil(t, v)
 	require.Nil(t, err)
 	require.Equal(t, Int(1), v)
 
-	v, err = Bytes{1}.IndexGet(Int(1))
+	v, err = Bytes{1}.IndexGet(nil, Int(1))
 	require.Nil(t, v)
 	require.NotNil(t, err)
 	require.Equal(t, ErrIndexOutOfBounds, err)
 
-	v, err = Map{}.IndexGet(Nil)
+	v, err = Map{}.IndexGet(nil, Nil)
 	require.Nil(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = Map{"a": Int(1)}.IndexGet(Int(0))
+	v, err = Map{"a": Int(1)}.IndexGet(nil, Int(0))
 	require.Nil(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = Map{"a": Int(1)}.IndexGet(String("a"))
+	v, err = Map{"a": Int(1)}.IndexGet(nil, String("a"))
 	require.Nil(t, err)
 	require.Equal(t, Int(1), v)
 
-	v, err = (&SyncMap{Value: Map{}}).IndexGet(Nil)
+	v, err = (&SyncMap{Value: Map{}}).IndexGet(nil, Nil)
 	require.Nil(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = (&SyncMap{Value: Map{"a": Int(1)}}).IndexGet(Int(0))
+	v, err = (&SyncMap{Value: Map{"a": Int(1)}}).IndexGet(nil, Int(0))
 	require.Nil(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = (&SyncMap{Value: Map{"a": Int(1)}}).IndexGet(String("a"))
+	v, err = (&SyncMap{Value: Map{"a": Int(1)}}).IndexGet(nil, String("a"))
 	require.Nil(t, err)
 	require.Equal(t, Int(1), v)
 }
 
 func TestObjectIndexSet(t *testing.T) {
 	var v IndexGetSetter = Array{Int(1)}
-	err := v.IndexSet(Int(0), Int(2))
+	err := v.IndexSet(nil, Int(0), Int(2))
 	require.NoError(t, err)
 	require.Equal(t, Int(2), v.(Array)[0])
 
 	v = Array{Int(1)}
-	err = v.IndexSet(Int(1), Int(3))
+	err = v.IndexSet(nil, Int(1), Int(3))
 	require.Equal(t, ErrIndexOutOfBounds, err)
 	require.Equal(t, Array{Int(1)}, v)
 
 	v = Array{Int(1)}
-	err = v.IndexSet(String("x"), Int(3))
+	err = v.IndexSet(nil, String("x"), Int(3))
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrType))
 
 	v = Bytes{1}
-	err = v.IndexSet(Int(0), Int(2))
+	err = v.IndexSet(nil, Int(0), Int(2))
 	require.NoError(t, err)
 	require.Equal(t, byte(2), v.(Bytes)[0])
 
 	v = Bytes{1}
-	err = v.IndexSet(Int(1), Int(2))
+	err = v.IndexSet(nil, Int(1), Int(2))
 	require.Error(t, err)
 	require.Equal(t, ErrIndexOutOfBounds, err)
 
 	v = Bytes{1}
-	err = v.IndexSet(Int(0), String(""))
+	err = v.IndexSet(nil, Int(0), String(""))
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrType))
 
 	v = Bytes{1}
-	err = v.IndexSet(String("x"), Int(1))
+	err = v.IndexSet(nil, String("x"), Int(1))
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrType))
 
 	v = Map{}
-	err = v.IndexSet(Nil, Nil)
+	err = v.IndexSet(nil, Nil, Nil)
 	require.Nil(t, err)
 	require.Equal(t, Nil, v.(Map)["nil"])
 
 	v = Map{"a": Int(1)}
-	err = v.IndexSet(String("a"), Int(2))
+	err = v.IndexSet(nil, String("a"), Int(2))
 	require.Nil(t, err)
 	require.Equal(t, Int(2), v.(Map)["a"])
 
 	v = &SyncMap{Value: Map{}}
-	err = v.IndexSet(Nil, Nil)
+	err = v.IndexSet(nil, Nil, Nil)
 	require.Nil(t, err)
 	require.Equal(t, Nil, v.(*SyncMap).Value["nil"])
 
 	v = &SyncMap{Value: Map{"a": Int(1)}}
-	err = v.IndexSet(String("a"), Int(2))
+	err = v.IndexSet(nil, String("a"), Int(2))
 	require.Nil(t, err)
 	require.Equal(t, Int(2), v.(*SyncMap).Value["a"])
 }

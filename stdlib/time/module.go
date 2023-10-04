@@ -449,7 +449,7 @@ func sleepFunc(c gad.Call) (gad.Object, error) {
 
 	var dur time.Duration
 	if v, ok := gad.ToGoInt64(arg0); !ok {
-		return newArgTypeErr("1st", "int", arg0.TypeName())
+		return newArgTypeErr("1st", "int", arg0.Type().Name())
 	} else {
 		dur = time.Duration(v)
 	}
@@ -461,7 +461,7 @@ func sleepFunc(c gad.Call) (gad.Object, error) {
 		}
 		dur -= 10 * time.Millisecond
 		time.Sleep(10 * time.Millisecond)
-		if c.VM().Aborted() {
+		if c.VM.Aborted() {
 			return gad.Nil, gad.ErrVMAborted
 		}
 	}
@@ -521,13 +521,13 @@ func dateFunc(c gad.Call) (gad.Object, error) {
 		if i < 7 {
 			ymdHmsn[i], ok = gad.ToGoInt(arg)
 			if !ok {
-				return newArgTypeErr(strconv.Itoa(i+1), "int", arg.TypeName())
+				return newArgTypeErr(strconv.Itoa(i+1), "int", arg.Type().Name())
 			}
 			continue
 		}
 		loc, ok = arg.(*Location)
 		if !ok {
-			return newArgTypeErr(strconv.Itoa(i+1), "location", arg.TypeName())
+			return newArgTypeErr(strconv.Itoa(i+1), "location", arg.Type().Name())
 		}
 	}
 
@@ -547,11 +547,11 @@ func parseFunc(c gad.Call) (gad.Object, error) {
 	}
 	layout, ok := gad.ToGoString(c.Args.Get(0))
 	if !ok {
-		return newArgTypeErr("1st", "string", c.Args.Get(0).TypeName())
+		return newArgTypeErr("1st", "string", c.Args.Get(0).Type().Name())
 	}
 	value, ok := gad.ToGoString(c.Args.Get(1))
 	if !ok {
-		return newArgTypeErr("2nd", "string", c.Args.Get(1).TypeName())
+		return newArgTypeErr("2nd", "string", c.Args.Get(1).Type().Name())
 	}
 	if size == 2 {
 		tm, err := time.Parse(layout, value)
@@ -562,7 +562,7 @@ func parseFunc(c gad.Call) (gad.Object, error) {
 	}
 	loc, ok := ToLocation(c.Args.Get(2))
 	if !ok {
-		return newArgTypeErr("3rd", "location", c.Args.Get(2).TypeName())
+		return newArgTypeErr("3rd", "location", c.Args.Get(2).Type().Name())
 	}
 	tm, err := time.ParseInLocation(layout, value, loc.Value)
 	if err != nil {
@@ -580,14 +580,14 @@ func unixFunc(c gad.Call) (gad.Object, error) {
 
 	sec, ok := gad.ToGoInt64(c.Args.Get(0))
 	if !ok {
-		return newArgTypeErr("1st", "int", c.Args.Get(0).TypeName())
+		return newArgTypeErr("1st", "int", c.Args.Get(0).Type().Name())
 	}
 
 	var nsec int64
 	if size > 1 {
 		nsec, ok = gad.ToGoInt64(c.Args.Get(1))
 		if !ok {
-			return newArgTypeErr("2nd", "int", c.Args.Get(1).TypeName())
+			return newArgTypeErr("2nd", "int", c.Args.Get(1).Type().Name())
 		}
 	}
 	return &Time{Value: time.Unix(sec, nsec)}, nil

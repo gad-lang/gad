@@ -32,7 +32,7 @@ func NewEval(opts CompilerOptions, runOpts ...*RunOpts) *Eval {
 		runopts.Globals = Map{}
 	}
 	if opts.SymbolTable == nil {
-		opts.SymbolTable = NewSymbolTable()
+		opts.SymbolTable = NewSymbolTable(BuiltinsMap)
 	}
 	if opts.moduleStore == nil {
 		opts.moduleStore = newModuleStore()

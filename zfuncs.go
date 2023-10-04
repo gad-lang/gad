@@ -15,7 +15,7 @@ func funcPOsRe(fn func(Object, string) error) CallableFunc {
 		o := c.Args.Get(0)
 		k, ok := ToGoString(c.Args.Get(1))
 		if !ok {
-			return Nil, NewArgumentTypeError("2nd", "string", c.Args.Get(1).TypeName())
+			return Nil, NewArgumentTypeError("2nd", "string", c.Args.Get(1).Type().Name())
 		}
 
 		err = fn(o, k)
@@ -50,7 +50,7 @@ func funcPOiROe(fn func(Object, int) (Object, error)) CallableFunc {
 		o := c.Args.Get(0)
 		n, ok := ToGoInt(c.Args.Get(1))
 		if !ok {
-			return Nil, NewArgumentTypeError("2nd", "int", c.Args.Get(1).TypeName())
+			return Nil, NewArgumentTypeError("2nd", "int", c.Args.Get(1).Type().Name())
 		}
 
 		ret, err = fn(o, n)
@@ -68,7 +68,7 @@ func funcPiOROe(fn func(int, Object) (Object, error)) CallableFunc {
 
 		n, ok := ToGoInt(c.Args.Get(0))
 		if !ok {
-			return Nil, NewArgumentTypeError("1st", "int", c.Args.Get(0).TypeName())
+			return Nil, NewArgumentTypeError("1st", "int", c.Args.Get(0).Type().Name())
 		}
 		o := c.Args.Get(1)
 
@@ -118,7 +118,7 @@ func funcPi64RO(fn func(int64) Object) CallableFunc {
 
 		v, ok := ToGoInt64(c.Args.Get(0))
 		if !ok {
-			return Nil, NewArgumentTypeError("1st", "int", c.Args.Get(0).TypeName())
+			return Nil, NewArgumentTypeError("1st", "int", c.Args.Get(0).Type().Name())
 		}
 
 		ret = fn(v)
@@ -136,7 +136,7 @@ func funcPu64RO(fn func(uint64) Object) CallableFunc {
 
 		v, ok := ToGoUint64(c.Args.Get(0))
 		if !ok {
-			return Nil, NewArgumentTypeError("1st", "uint", c.Args.Get(0).TypeName())
+			return Nil, NewArgumentTypeError("1st", "uint", c.Args.Get(0).Type().Name())
 		}
 
 		ret = fn(v)
@@ -154,7 +154,7 @@ func funcPf64RO(fn func(float64) Object) CallableFunc {
 
 		v, ok := ToGoFloat64(c.Args.Get(0))
 		if !ok {
-			return Nil, NewArgumentTypeError("1st", "float", c.Args.Get(0).TypeName())
+			return Nil, NewArgumentTypeError("1st", "float", c.Args.Get(0).Type().Name())
 		}
 
 		ret = fn(v)

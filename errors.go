@@ -44,6 +44,9 @@ var (
 	// ErrNotIndexAssignable is an error where an Object is not index assignable.
 	ErrNotIndexAssignable = &Error{Name: "NotIndexAssignableError"}
 
+	// ErrNotIndexDeletable is an error where an Object is not index deletable.
+	ErrNotIndexDeletable = &Error{Name: "NotIndexDeletableError"}
+
 	// ErrNotCallable is an error where Object is not callable.
 	ErrNotCallable = &Error{Name: "NotCallableError"}
 
@@ -59,11 +62,11 @@ var (
 	// ErrUnexpectedArgValue is an error where unexpected argument value.
 	ErrUnexpectedArgValue = &Error{Name: "ErrUnexpectedArgValue"}
 
+	// ErrIncompatibleCast is an error where incompatible cast.
+	ErrIncompatibleCast = &Error{Name: "ErrIncompatibleCast"}
+
 	// ErrType represents a type error.
 	ErrType = &Error{Name: "TypeError"}
-
-	// ErrUnbuffered represents a vm umbuffered type error.
-	ErrUnbuffered = &Error{Name: "UnbufferedError"}
 )
 
 // NewOperandTypeError creates a new Error from ErrType.

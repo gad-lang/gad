@@ -608,7 +608,7 @@ func TestOptimizerShadowing(t *testing.T) {
 	opts.OptimizeConst = true
 	opts.OptimizeExpr = true
 
-	st := NewSymbolTable()
+	st := NewSymbolTable(BuiltinsMap)
 	require.NoError(t, st.SetParams(false, "int"))
 	opts.SymbolTable = st
 	expectCompileWithOpts(t, `return int("1")`, opts,
@@ -626,7 +626,7 @@ func TestOptimizerShadowing(t *testing.T) {
 		),
 	)
 
-	st = NewSymbolTable()
+	st = NewSymbolTable(BuiltinsMap)
 	_, err := st.DefineGlobal("int")
 	require.NoError(t, err)
 	opts.SymbolTable = st
@@ -643,7 +643,7 @@ func TestOptimizerShadowing(t *testing.T) {
 		),
 	)
 
-	st = NewSymbolTable()
+	st = NewSymbolTable(BuiltinsMap)
 	_, err = st.DefineGlobal("int")
 	require.NoError(t, err)
 	opts.SymbolTable = st

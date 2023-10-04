@@ -191,10 +191,10 @@ VMLoop:
 			vm.curFrame = parent
 			vm.curInsts = vm.curFrame.fn.Instructions
 		case OpGetBuiltin:
-			builtinIndex := BuiltinType(int(vm.curInsts[vm.ip+1]))
-			vm.stack[vm.sp] = BuiltinObjects[builtinIndex]
+			builtinIndex := BuiltinType(int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8)
+			vm.stack[vm.sp] = vm.builtins[builtinIndex]
 			vm.sp++
-			vm.ip++
+			vm.ip += 2
 		case OpClosure:
 			constIdx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			fn := vm.constants[constIdx].(*CompiledFunction)
@@ -256,7 +256,7 @@ VMLoop:
 			index := vm.constants[cidx]
 			var ret Object
 			var err error
-			ret, err = vm.globals.IndexGet(index)
+			ret, err = vm.globals.IndexGet(vm, index)
 
 			if err != nil {
 				if err := vm.throwGenErr(err); err != nil {
@@ -283,7 +283,7 @@ VMLoop:
 				value = *v.Value
 			}
 
-			if err := vm.globals.IndexSet(index, value); err != nil {
+			if err := vm.globals.IndexSet(vm, index, value); err != nil {
 				if err := vm.throwGenErr(err); err != nil {
 					vm.err = err
 					return
@@ -342,78 +342,26 @@ VMLoop:
 		case OpTextWriter:
 			numSel := int(vm.curInsts[vm.ip+1])
 			tp := vm.sp - 1 - numSel
-			target := vm.stack[tp]
-			value := Nil
-
-			for ; numSel > 0; numSel-- {
-				ptr := vm.sp - numSel
-				index := vm.stack[ptr]
-				vm.stack[ptr] = nil
-				if ig, _ := target.(IndexGetter); ig != nil {
-					v, err := ig.IndexGet(index)
-					if err != nil {
-						switch err {
-						case ErrNotIndexable:
-							err = ErrNotIndexable.NewError(target.TypeName())
-						case ErrIndexOutOfBounds:
-							err = ErrIndexOutOfBounds.NewError(index.String())
-						}
-						if err = vm.throwGenErr(err); err != nil {
-							vm.err = err
-							return
-						}
-						continue VMLoop
-					}
-					target = v
-					value = v
-				} else {
-					if err := vm.throwGenErr(ErrNotIndexable.NewError(target.TypeName())); err != nil {
-						vm.err = err
-						return
-					}
-					continue VMLoop
-				}
+			value, null, abort := vm.xIndexGet(numSel, vm.stack[tp])
+			if abort {
+				return
 			}
-
+			if null {
+				continue VMLoop
+			}
 			vm.stack[tp] = value
 			vm.sp = tp + 1
 			vm.ip++
 		case OpGetIndex:
 			numSel := int(vm.curInsts[vm.ip+1])
 			tp := vm.sp - 1 - numSel
-			target := vm.stack[tp]
-			value := Nil
-
-			for ; numSel > 0; numSel-- {
-				ptr := vm.sp - numSel
-				index := vm.stack[ptr]
-				vm.stack[ptr] = nil
-				if ig, _ := target.(IndexGetter); ig != nil {
-					v, err := ig.IndexGet(index)
-					if err != nil {
-						switch err {
-						case ErrNotIndexable:
-							err = ErrNotIndexable.NewError(target.TypeName())
-						case ErrIndexOutOfBounds:
-							err = ErrIndexOutOfBounds.NewError(index.String())
-						}
-						if err = vm.throwGenErr(err); err != nil {
-							vm.err = err
-							return
-						}
-						continue VMLoop
-					}
-					target = v
-					value = v
-				} else {
-					if err := vm.throwGenErr(ErrNotIndexable.NewError(target.TypeName())); err != nil {
-						vm.err = err
-						return
-					}
-					continue VMLoop
-				}
+			value, null, abort := vm.xIndexGet(numSel, vm.stack[tp])
+			if abort {
+				return
 			}
-
+			if null {
+				continue VMLoop
+			}
 			vm.stack[tp] = value
 			vm.sp = tp + 1
 			vm.ip++
@@ -423,12 +371,12 @@ VMLoop:
 			if is, _ := target.(IndexSetter); is != nil {
 				index := vm.stack[vm.sp-1]
 
-				err := is.IndexSet(index, value)
+				err := is.IndexSet(vm, index, value)
 
 				if err != nil {
 					switch err {
 					case ErrNotIndexAssignable:
-						err = ErrNotIndexAssignable.NewError(is.TypeName())
+						err = ErrNotIndexAssignable.NewError(is.Type().Name())
 					case ErrIndexOutOfBounds:
 						err = ErrIndexOutOfBounds.NewError(index.String())
 					}
@@ -439,7 +387,7 @@ VMLoop:
 					continue
 				}
 			} else {
-				if err := vm.throwGenErr(ErrNotIndexAssignable.NewError(target.TypeName())); err != nil {
+				if err := vm.throwGenErr(ErrNotIndexAssignable.NewError(target.Type().Name())); err != nil {
 					vm.err = err
 					return
 				}
@@ -530,7 +478,7 @@ VMLoop:
 				continue
 			}
 
-			var err error = ErrNotIterable.NewError(dst.TypeName())
+			var err error = ErrNotIterable.NewError(dst.Type().Name())
 			if err = vm.throwGenErr(err); err != nil {
 				vm.err = err
 				return

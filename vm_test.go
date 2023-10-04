@@ -999,6 +999,7 @@ keyValueArray(keyValue("d",4))))`,
 			map[string]Object{
 				"1":       Int(1),
 				"1u":      Int(1),
+				"1d":      Int(1),
 				"1.0":     Int(1),
 				`'\x01'`:  Int(1),
 				`'a'`:     Int(97),
@@ -1016,6 +1017,7 @@ keyValueArray(keyValue("d",4))))`,
 			map[string]Object{
 				"1":       Uint(1),
 				"1u":      Uint(1),
+				"1d":      Uint(1),
 				"1.0":     Uint(1),
 				`'\x01'`:  Uint(1),
 				`'a'`:     Uint(97),
@@ -1032,6 +1034,7 @@ keyValueArray(keyValue("d",4))))`,
 			map[string]Object{
 				"1":      Char(1),
 				"1u":     Char(1),
+				"1d":     Char(1),
 				"1.1":    Char(1),
 				`'\x01'`: Char(1),
 				"true":   Char(1),
@@ -1046,6 +1049,7 @@ keyValueArray(keyValue("d",4))))`,
 				"1":      Float(1.0),
 				"1u":     Float(1.0),
 				"1.0":    Float(1.0),
+				"1.3d":   Float(1.3),
 				`'\x01'`: Float(1.0),
 				"true":   Float(1.0),
 				"false":  Float(0.0),
@@ -1070,21 +1074,22 @@ keyValueArray(keyValue("d",4))))`,
 		{
 			"string",
 			map[string]Object{
-				"1":                 String("1"),
-				"1u":                String("1"),
-				"1.0":               String("1"),
-				`'\x01'`:            String("\x01"),
-				"true":              String("true"),
-				"false":             String("false"),
-				`"1"`:               String("1"),
-				`"1.1"`:             String("1.1"),
-				`nil`:               String("nil"),
-				`[]`:                String("[]"),
-				`[1]`:               String("[1]"),
-				`[1, 2]`:            String("[1, 2]"),
-				`{}`:                String("{}"),
-				`{a: 1}`:            String(`{"a": 1}`),
-				`error("an error")`: String(`error: an error`),
+				"1":                     String("1"),
+				"1u":                    String("1"),
+				"1.0":                   String("1"),
+				"123.4567890123456789d": String("123.4567890123456789"),
+				`'\x01'`:                String("\x01"),
+				"true":                  String("true"),
+				"false":                 String("false"),
+				`"1"`:                   String("1"),
+				`"1.1"`:                 String("1.1"),
+				`nil`:                   String("nil"),
+				`[]`:                    String("[]"),
+				`[1]`:                   String("[1]"),
+				`[1, 2]`:                String("[1, 2]"),
+				`{}`:                    String("{}"),
+				`{a: 1}`:                String(`{"a": 1}`),
+				`error("an error")`:     String(`error: an error`),
 			},
 		},
 		{
@@ -1144,6 +1149,37 @@ keyValueArray(keyValue("d",4))))`,
 		trueValues  trueValues
 		falseValues falseValues
 	}{
+		{
+			`is`,
+			trueValues{
+				`bool, false`,
+				`error, error("test")`,
+				`int, 1`,
+				`uint, 1u`,
+				`float, 1.2`,
+				`decimal, 1.2d`,
+				`string, ""`,
+				`char, '1'`,
+				`bytes, bytes()`,
+				`buffer, buffer()`,
+				`keyValue, keyValue("a",1)`,
+				`[bool, int], false`,
+			},
+			falseValues{
+				`bool, 1`,
+				`error, 1`,
+				`int, 1u`,
+				`uint, 1`,
+				`float, 1`,
+				`decimal, 1.2`,
+				`string, 1`,
+				`char, 1`,
+				`bytes, 1`,
+				`buffer, 1`,
+				`keyValue, 1`,
+				`[bool, int], 1.2`,
+			},
+		},
 		{
 			`isError`,
 			trueValues{
@@ -1296,10 +1332,10 @@ keyValueArray(keyValue("d",4))))`,
 		{
 			`bool`,
 			trueValues{
-				"1", "1u", "-1", "1.1", "'\x01'", "true", `"abc"`, `bytes(1)`,
+				"1", "1u", "-1", "1.1", "'\x01'", "true", `"abc"`, `bytes(1)`, "1.1d",
 			},
 			falseValues{
-				"0", "0u", "nil", `error("x")`, "false", `[]`, `{}`, `""`, `bytes()`,
+				"0", "0u", "nil", `error("x")`, "false", `[]`, `{}`, `""`, `bytes()`, "0d",
 			},
 		},
 	}
@@ -1314,16 +1350,19 @@ keyValueArray(keyValue("d",4))))`,
 				expectRun(t, fmt.Sprintf(`return %s(%s)`, isfunc.f, v), nil, False)
 			})
 		}
-		if isfunc.f != "isError" {
-			t.Run(fmt.Sprintf("%s#%d 2args", isfunc.f, i), func(t *testing.T) {
-				expectErrIs(t, fmt.Sprintf(`%s(nil, nil)`, isfunc.f),
-					nil, ErrWrongNumArguments)
-			})
-		} else {
-			t.Run(fmt.Sprintf("%s#%d 3args", isfunc.f, i), func(t *testing.T) {
-				expectErrIs(t, fmt.Sprintf(`%s(nil, nil, nil)`, isfunc.f),
-					nil, ErrWrongNumArguments)
-			})
+
+		if isfunc.f != "is" {
+			if isfunc.f != "isError" {
+				t.Run(fmt.Sprintf("%s#%d 2args", isfunc.f, i), func(t *testing.T) {
+					expectErrIs(t, fmt.Sprintf(`%s(nil, nil)`, isfunc.f),
+						nil, ErrWrongNumArguments)
+				})
+			} else {
+				t.Run(fmt.Sprintf("%s#%d 3args", isfunc.f, i), func(t *testing.T) {
+					expectErrIs(t, fmt.Sprintf(`%s(nil, nil, nil)`, isfunc.f),
+						nil, ErrWrongNumArguments)
+				})
+			}
 		}
 	}
 
@@ -1377,9 +1416,74 @@ keyValueArray(keyValue("d",4))))`,
 		newOpts().out(&stdOut).Skip2Pass(), String("test 1"))
 	expectRun(t, `return sprintf("test %d %t", 1, true)`,
 		newOpts().out(&stdOut).Skip2Pass(), String("test 1 true"))
+	expectRun(t, `f := func(...args;...kwargs){ return [args, kwargs.map] };
+		return wrap(f, 1, a=3)(2, b=4)`,
+		nil, Array{Array{Int(1), Int(2)}, Map{"a": Int(3), "b": Int(4)}})
 
 	expectErrIs(t, `printf()`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `sprintf()`, nil, ErrWrongNumArguments)
+}
+
+func TestObjectType(t *testing.T) {
+
+	expectRun(t, `
+Point := newType(
+	"Point", 
+	fields={x:0, y:0}, 
+	init=func(this, x,y){this.x = x;this.y = y},
+	toString = func(this) => "P" + this.x + this.y,
+)
+return string(Point(1,2))`,
+		nil, String(`P12`))
+	expectRun(t, `
+Point := newType("Point", 
+	fields={_x:0, _y:0}, 
+	init=func(this, x,y){this.x = x;this.y = y},
+	set={
+		x: func(this, v) {this._x = v},
+		y: func(this, v) {this._y = v},
+	},
+	get={
+		x: func(this) => this._x,
+		y: func(this) => this._y,
+	},
+	methods={
+		addX: func(this, v) {this.x += v; return this.x},
+	},
+)
+p := Point(1, 2)
+return string(p), p.x, p.y, p.addX(3)`,
+		nil, Array{String(`Point{_x: 1, _y: 2}`), Int(1), Int(2), Int(4)})
+
+	expectRun(t, `Point := newType("Point", fields={x:0, y:0}); return string(Point())`,
+		nil, String(`Point{x: 0, y: 0}`))
+	expectRun(t, `Point := newType("Point", fields={x:0, y:0}, init=func(this, x,y){this.x = x;this.y = y}); return string(Point(1, 2))`,
+		nil, String(`Point{x: 1, y: 2}`))
+	expectRun(t, `return newType("Point").name`,
+		nil, String("Point"))
+	expectRun(t, `
+Point := newType(
+	"Point", 
+	fields={x:0, y:0}, 
+	init=func(this, x,y){this.x = x;this.y = y},
+	toString = func(this) => "P" + this.x + this.y,
+)
+return string(Point(1,2))`,
+		nil, String(`P12`))
+
+	expectRun(t, `
+P1 := newType("P1",fields={x:0, y:0})
+P2 := newType("P2",fields={x:0, y:0, z:0})
+p1 := P1(x=10,y=11)
+p2 := P2(x=1,y=2,z=3)
+return [string(p1), string(p2), string(cast(P1,p2)), string(cast(P2,cast(P1,p2)))]
+`,
+		nil, Array{
+			String("P1{x: 10, y: 11}"),
+			String("P2{x: 1, y: 2, z: 3}"),
+			String("P1{x: 1, y: 2, }"),
+			String("P2{x: 1, y: 2, z: 3}"),
+		})
 }
 
 func TestBytes(t *testing.T) {
@@ -3447,6 +3551,11 @@ func TestVMCall(t *testing.T) {
 	expectRun(t, `return {a: string([0])}`, nil, Map{"a": String("[0]")})
 	expectRun(t, `return {a: bytes(...repeat([0], 4096))}`,
 		nil, Map{"a": make(Bytes, 4096)})
+
+	expectRun(t, `return BUILTIN_VAR`,
+		newOpts().Builtins(map[string]Object{
+			"BUILTIN_VAR": Int(100),
+		}), Int(100))
 }
 
 func TestVMCallCompiledFunction(t *testing.T) {
@@ -3735,6 +3844,7 @@ type testopts struct {
 	isCompilerErr bool
 	noPanic       bool
 	stdout        Writer
+	builtins      map[string]Object
 }
 
 func newOpts() *testopts {
@@ -3765,6 +3875,11 @@ func (t *testopts) NamedArgs(args Object) *testopts {
 	case KeyValueArray:
 		t.namedArgs = NewNamedArgs(at)
 	}
+	return t
+}
+
+func (t *testopts) Builtins(m map[string]Object) *testopts {
+	t.builtins = m
 	return t
 }
 
@@ -3943,6 +4058,29 @@ func expectRun(t *testing.T, script string, opts *testopts, expect Object) {
 		t.Run(tC.name, func(t *testing.T) {
 			t.Helper()
 			tC.opts.Trace = &tC.tracer // nolint exportloopref
+			var builtinObjects = BuiltinObjects
+			if opts.builtins != nil {
+				builtins := BuiltinsMap
+				builtins = make(map[string]BuiltinType, len(builtins)+len(opts.builtins))
+
+				for k, v := range BuiltinsMap {
+					builtins[k] = v
+				}
+
+				builtinObjects = make(map[BuiltinType]Object, len(BuiltinObjects)+len(opts.builtins))
+
+				for k, v := range BuiltinObjects {
+					builtinObjects[k] = v
+				}
+
+				var i = BuiltinConstantsEnd_ + 1
+				for k, v := range opts.builtins {
+					builtins[k] = i
+					builtinObjects[i] = v
+					i++
+				}
+				tC.opts.SymbolTable = NewSymbolTable(builtins)
+			}
 			gotBc, err := Compile([]byte(script), tC.opts)
 			require.NoError(t, err)
 			// create a copy of the bytecode before execution to test bytecode
@@ -3960,8 +4098,9 @@ func expectRun(t *testing.T, script string, opts *testopts, expect Object) {
 				}
 			}()
 			ropts := &RunOpts{
-				Globals: opts.globals,
-				Args:    Args{opts.args},
+				Globals:  opts.globals,
+				Args:     Args{opts.args},
+				Builtins: builtinObjects,
 			}
 			if opts.namedArgs != nil {
 				ropts.NamedArgs = opts.namedArgs.Copy().(*NamedArgs)

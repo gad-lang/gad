@@ -184,12 +184,12 @@ func getModuleItem(module, key string) string {
 	}
 
 	v := moduleMap[key]
-	t := v.TypeName()
+	t := v.Type().Name()
 	format := "%s(%q)"
 	if t != "string" {
 		format = "%s(%s)"
 	}
-	return fmt.Sprintf(format, v.TypeName(), v.String())
+	return fmt.Sprintf(format, v.Type().Name(), v.String())
 }
 
 func formatComments(comments []string) ([]string, error) {

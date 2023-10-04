@@ -97,8 +97,8 @@ func TestNamedArgs_Get(t *testing.T) {
 		{Map{}, Map{}, nil, false},
 		{Map{"a": True}, Map{}, nil, true},
 		{Map{"a": True}, Map{}, []*NamedArgVar{{Name: "a"}}, false},
-		{Map{"a": True}, Map{}, []*NamedArgVar{{Name: "a", AcceptTypes: []string{"int"}}}, true},
-		{Map{"a": True}, Map{}, []*NamedArgVar{{Name: "a", AcceptTypes: []string{"bool"}}}, false},
+		{Map{"a": True}, Map{}, []*NamedArgVar{{Name: "a", AcceptTypes: []ObjectType{TInt}}}, true},
+		{Map{"a": True}, Map{}, []*NamedArgVar{{Name: "a", AcceptTypes: []ObjectType{TBool}}}, false},
 		{Map{"a": True}, Map{"b": False}, []*NamedArgVar{{Name: "a"}}, true},
 	}
 	for i, tt := range tests {
@@ -135,8 +135,8 @@ func TestNamedArgs_GetVar(t *testing.T) {
 		{Map{}, Map{}, nil, Map{}, false},
 		{Map{"a": True}, Map{}, nil, Map{"a": True}, false},
 		{Map{"a": True}, Map{}, []*NamedArgVar{{Name: "a"}}, Map{}, false},
-		{Map{"a": True}, Map{}, []*NamedArgVar{{Name: "a", AcceptTypes: []string{"int"}}}, Map{}, true},
-		{Map{"a": True}, Map{}, []*NamedArgVar{{Name: "a", AcceptTypes: []string{"bool"}}}, Map{}, false},
+		{Map{"a": True}, Map{}, []*NamedArgVar{{Name: "a", AcceptTypes: []ObjectType{TInt}}}, Map{}, true},
+		{Map{"a": True}, Map{}, []*NamedArgVar{{Name: "a", AcceptTypes: []ObjectType{TBool}}}, Map{}, false},
 		{Map{"a": True}, Map{"b": False}, []*NamedArgVar{{Name: "a"}}, Map{"b": False}, false},
 		{Map{"a": True, "c": Int(1)}, Map{"b": False}, []*NamedArgVar{{Name: "a"}}, Map{"c": Int(1), "b": False}, false},
 	}

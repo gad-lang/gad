@@ -1,14 +1,18 @@
 package gad
 
-import "errors"
+import (
+	"errors"
+	"io"
+)
 
 type RunOpts struct {
 	Globals   IndexGetSetter
 	Args      Args
 	NamedArgs *NamedArgs
-	StdIn     Reader
-	StdOut    Writer
-	StdErr    Writer
+	StdIn     io.Reader
+	StdOut    io.Writer
+	StdErr    io.Writer
+	Builtins  map[BuiltinType]Object
 }
 
 // Run runs VM and executes the instructions until the OpReturn Opcode or Abort call.

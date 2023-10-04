@@ -14,8 +14,10 @@ import (
 
 // Arg is a struct to destructure arguments from Call object.
 type Arg struct {
+	Name        string
 	Value       Object
-	AcceptTypes []string
+	AcceptTypes []ObjectType
+	Accept      func(v Object) error
 }
 
 // NamedArgVar is a struct to destructure named arguments from Call object.
@@ -23,16 +25,17 @@ type NamedArgVar struct {
 	Name        string
 	Value       Object
 	ValueF      func() Object
-	AcceptTypes []string
+	AcceptTypes []ObjectType
+	Accept      func(v Object) error
 }
 
 // NewNamedArgVar creates a new NamedArgVar struct with the given arguments.
-func NewNamedArgVar(name string, value Object, types ...string) *NamedArgVar {
+func NewNamedArgVar(name string, value Object, types ...ObjectType) *NamedArgVar {
 	return &NamedArgVar{Name: name, Value: value, AcceptTypes: types}
 }
 
 // NewNamedArgVarF creates a new NamedArgVar struct with the given arguments and value creator func.
-func NewNamedArgVarF(name string, value func() Object, types ...string) *NamedArgVar {
+func NewNamedArgVarF(name string, value func() Object, types ...ObjectType) *NamedArgVar {
 	return &NamedArgVar{Name: name, ValueF: value, AcceptTypes: types}
 }
 
@@ -45,9 +48,8 @@ var (
 	_ LengthGetter = KeyValue{}
 )
 
-// TypeName implements Object interface.
-func (KeyValue) TypeName() string {
-	return "keyValue"
+func (o KeyValue) Type() ObjectType {
+	return typeOf(o)
 }
 
 // String implements Object interface.
@@ -147,8 +149,8 @@ func (o KeyValue) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName())
+		o.Type().Name(),
+		right.Type().Name())
 }
 
 func (o KeyValue) IsLess(other KeyValue) bool {
@@ -183,7 +185,7 @@ func (o KeyValue) Value() Object {
 	return o[1]
 }
 
-func (o KeyValue) IndexGet(index Object) (value Object, err error) {
+func (o KeyValue) IndexGet(_ *VM, index Object) (value Object, err error) {
 	value = Nil
 	switch t := index.(type) {
 	case String:
@@ -209,7 +211,7 @@ func (o KeyValue) IndexGet(index Object) (value Object, err error) {
 		err = NewArgumentTypeError(
 			"1st",
 			"string|int|uint",
-			index.TypeName(),
+			index.Type().Name(),
 		)
 		return
 	}
@@ -229,9 +231,8 @@ var (
 	_ ItemsGetter  = KeyValueArray{}
 )
 
-// TypeName implements Object interface.
-func (KeyValueArray) TypeName() string {
-	return "keyValueArray"
+func (o KeyValueArray) Type() ObjectType {
+	return typeOf(o)
 }
 
 func (o KeyValueArray) Array() (ret Array) {
@@ -283,13 +284,8 @@ func (o KeyValueArray) Copy() Object {
 	return cp
 }
 
-// IndexSet implements Object interface.
-func (o KeyValueArray) IndexSet(_, _ Object) error {
-	return ErrNotIndexAssignable
-}
-
 // IndexGet implements Object interface.
-func (o KeyValueArray) IndexGet(index Object) (Object, error) {
+func (o KeyValueArray) IndexGet(_ *VM, index Object) (Object, error) {
 	switch v := index.(type) {
 	case Int:
 		idx := int(v)
@@ -317,7 +313,7 @@ func (o KeyValueArray) IndexGet(index Object) (Object, error) {
 			return nil, ErrInvalidIndex.NewError(string(v))
 		}
 	}
-	return nil, NewIndexTypeError("int|uint", index.TypeName())
+	return nil, NewIndexTypeError("int|uint", index.Type().Name())
 }
 
 // Equal implements Object interface.
@@ -376,10 +372,10 @@ func (o KeyValueArray) AppendArray(arr ...Array) (KeyValueArray, error) {
 					i++
 				} else {
 					return nil, NewIndexValueTypeError("keyValue|[2]array",
-						fmt.Sprintf("[%d]%s", len(na), v.TypeName()))
+						fmt.Sprintf("[%d]%s", len(na), v.Type().Name()))
 				}
 			default:
-				return nil, NewIndexTypeError("keyValue", v.TypeName())
+				return nil, NewIndexTypeError("keyValue", v.Type().Name())
 			}
 		}
 	}
@@ -433,7 +429,7 @@ func (o KeyValueArray) AppendObject(obj Object) (KeyValueArray, error) {
 			return o, nil
 		}
 	default:
-		return nil, NewIndexTypeError("array|map|keyValue|keyValueArray", v.TypeName())
+		return nil, NewIndexTypeError("array|map|keyValue|keyValueArray", v.Type().Name())
 	}
 }
 
@@ -453,8 +449,8 @@ func (o KeyValueArray) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName())
+		o.Type().Name(),
+		right.Type().Name())
 }
 
 func (o KeyValueArray) Sort() (Object, error) {
@@ -573,7 +569,7 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 				return nil, NewArgumentTypeError(
 					"1st",
 					"bool",
-					t.TypeName(),
+					t.Type().Name(),
 				)
 			}
 		}
@@ -596,7 +592,7 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 				return nil, NewArgumentTypeError(
 					"1st",
 					"bool",
-					t.TypeName(),
+					t.Type().Name(),
 				)
 			}
 		}
@@ -669,9 +665,8 @@ func (it *KeyValueArrayIterator) Value() Object {
 
 type KeyValueArrays []KeyValueArray
 
-// TypeName implements Object interface.
-func (KeyValueArrays) TypeName() string {
-	return "keyValueArrays"
+func (KeyValueArrays) Type() ObjectType {
+	return TKeyValueArrays
 }
 
 func (o KeyValueArrays) Array() (ret Array) {
@@ -715,13 +710,8 @@ func (o KeyValueArrays) Copy() Object {
 	return cp
 }
 
-// IndexSet implements Object interface.
-func (o KeyValueArrays) IndexSet(_, _ Object) error {
-	return ErrNotIndexAssignable
-}
-
 // IndexGet implements Object interface.
-func (o KeyValueArrays) IndexGet(index Object) (Object, error) {
+func (o KeyValueArrays) IndexGet(_ *VM, index Object) (Object, error) {
 	switch v := index.(type) {
 	case Int:
 		idx := int(v)
@@ -736,7 +726,7 @@ func (o KeyValueArrays) IndexGet(index Object) (Object, error) {
 		}
 		return nil, ErrIndexOutOfBounds
 	}
-	return nil, NewIndexTypeError("int|uint", index.TypeName())
+	return nil, NewIndexTypeError("int|uint", index.Type().Name())
 }
 
 // Equal implements Object interface.
@@ -783,8 +773,8 @@ func (o KeyValueArrays) BinaryOp(tok token.Token, right Object) (Object, error) 
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName())
+		o.Type().Name(),
+		right.Type().Name())
 }
 
 // CanIterate implements Object interface.
@@ -877,7 +867,7 @@ func (o *NamedArgs) Add(obj Object) error {
 func (o *NamedArgs) CallName(name string, c Call) (Object, error) {
 	switch name {
 	case "get":
-		arg := &Arg{AcceptTypes: []string{"string"}}
+		arg := &Arg{AcceptTypes: []ObjectType{TString}}
 		if err := c.Args.Destructure(arg); err != nil {
 			return nil, err
 		}
@@ -887,8 +877,8 @@ func (o *NamedArgs) CallName(name string, c Call) (Object, error) {
 	}
 }
 
-func (o *NamedArgs) TypeName() string {
-	return "namedArgs"
+func (o *NamedArgs) Type() ObjectType {
+	return TNamedArgs
 }
 
 func (o *NamedArgs) Join() KeyValueArray {
@@ -930,12 +920,17 @@ func (o *NamedArgs) BinaryOp(tok token.Token, right Object) (Object, error) {
 
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName())
+		o.Type().Name(),
+		right.Type().Name())
 }
 
 func (o *NamedArgs) IsFalsy() bool {
-	return len(o.sources) == 0
+	for _, s := range o.sources {
+		if len(s) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (o *NamedArgs) Equal(right Object) bool {
@@ -955,7 +950,7 @@ func (o *NamedArgs) Equal(right Object) bool {
 }
 
 func (o *NamedArgs) Call(c Call) (Object, error) {
-	arg := &Arg{AcceptTypes: []string{"string"}}
+	arg := &Arg{AcceptTypes: []ObjectType{TString}}
 	if err := c.Args.Destructure(arg); err != nil {
 		return nil, err
 	}
@@ -992,7 +987,7 @@ func (o *NamedArgs) Ready() (arr KeyValueArray) {
 	return
 }
 
-func (o *NamedArgs) IndexGet(index Object) (value Object, err error) {
+func (o *NamedArgs) IndexGet(_ *VM, index Object) (value Object, err error) {
 	switch t := index.(type) {
 	case String:
 		switch t {
@@ -1015,14 +1010,10 @@ func (o *NamedArgs) IndexGet(index Object) (value Object, err error) {
 		err = NewArgumentTypeError(
 			"1st",
 			"string",
-			index.TypeName(),
+			index.Type().Name(),
 		)
 		return
 	}
-}
-
-func (o *NamedArgs) IndexSet(_, _ Object) error {
-	return ErrNotIndexAssignable
 }
 
 func (o *NamedArgs) check() {
@@ -1084,24 +1075,36 @@ func (o *NamedArgs) Get(dst ...*NamedArgVar) (err error) {
 read:
 	for i, d := range dst {
 		if v, ok := args[d.Name]; ok && v != Nil {
-			if len(d.AcceptTypes) == 0 {
-				d.Value = v
-				delete(args, d.Name)
-				continue
+			if d.Accept != nil {
+				if err = d.Accept(v); err != nil {
+					return NewArgumentTypeError(
+						d.Name+"["+strconv.Itoa(i)+"]st",
+						err.Error(),
+						v.Type().Name(),
+					)
+				}
+			} else if len(d.AcceptTypes) > 0 {
+				for _, t := range d.AcceptTypes {
+					if t.Equal(v.Type()) {
+						d.Value = v
+						delete(args, d.Name)
+						continue read
+					}
+				}
+
+				var s = make([]string, len(d.AcceptTypes))
+				for i, acceptType := range d.AcceptTypes {
+					s[i] = acceptType.String()
+				}
+				return NewArgumentTypeError(
+					d.Name+"["+strconv.Itoa(i)+"]st",
+					strings.Join(s, "|"),
+					v.Type().Name(),
+				)
 			}
 
-			for _, t := range d.AcceptTypes {
-				if v.TypeName() == t {
-					d.Value = v
-					delete(args, d.Name)
-					continue read
-				}
-			}
-			return NewArgumentTypeError(
-				strconv.Itoa(i)+"st",
-				strings.Join(d.AcceptTypes, "|"),
-				v.TypeName(),
-			)
+			d.Value = v
+			delete(args, d.Name)
 		}
 
 		if d.ValueF != nil {
@@ -1130,17 +1133,21 @@ dst:
 			}
 
 			for _, t := range d.AcceptTypes {
-				if v.TypeName() == t {
+				if t.Equal(v.Type()) {
 					d.Value = v
 					delete(args, d.Name)
 					continue dst
 				}
 			}
 
+			var s = make([]string, len(d.AcceptTypes))
+			for i, acceptType := range d.AcceptTypes {
+				s[i] = acceptType.String()
+			}
 			return nil, NewArgumentTypeError(
 				strconv.Itoa(i)+"st",
-				strings.Join(d.AcceptTypes, "|"),
-				v.TypeName(),
+				strings.Join(s, "|"),
+				v.Type().Name(),
 			)
 		}
 
@@ -1222,8 +1229,16 @@ func (o *NamedArgs) CheckNamesFromSet(set map[string]int) error {
 	})
 }
 
-func (o NamedArgs) Copy() Object {
-	return &o
+func (o *NamedArgs) Copy() Object {
+	var cp NamedArgs
+	cp.sources = make(KeyValueArrays, len(o.sources))
+	for i, s := range o.sources {
+		cp.sources[i] = s.Copy().(KeyValueArray)
+	}
+	if o.m != nil {
+		cp.m = o.m.Copy().(Map)
+	}
+	return &cp
 }
 
 func (o NamedArgs) DeepCopy() Object {

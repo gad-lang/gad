@@ -18,9 +18,8 @@ import (
 // Int represents signed integer values and implements Object interface.
 type Int int64
 
-// TypeName implements Object interface.
-func (Int) TypeName() string {
-	return "int"
+func (o Int) Type() ObjectType {
+	return typeOf(o)
 }
 
 // String implements Object interface.
@@ -130,8 +129,8 @@ func (o Int) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName(),
+		o.Type().Name(),
+		right.Type().Name(),
 	)
 }
 
@@ -144,9 +143,8 @@ func (o Int) Format(s fmt.State, verb rune) {
 // Uint represents unsigned integer values and implements Object interface.
 type Uint uint64
 
-// TypeName implements Object interface.
-func (Uint) TypeName() string {
-	return "uint"
+func (o Uint) Type() ObjectType {
+	return typeOf(o)
 }
 
 // String implements Object interface.
@@ -256,8 +254,8 @@ func (o Uint) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName(),
+		o.Type().Name(),
+		right.Type().Name(),
 	)
 }
 
@@ -270,9 +268,8 @@ func (o Uint) Format(s fmt.State, verb rune) {
 // Float represents float values and implements Object interface.
 type Float float64
 
-// TypeName implements Object interface.
-func (Float) TypeName() string {
-	return "float"
+func (o Float) Type() ObjectType {
+	return typeOf(o)
 }
 
 // String implements Object interface.
@@ -356,8 +353,8 @@ func (o Float) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName(),
+		o.Type().Name(),
+		right.Type().Name(),
 	)
 }
 
@@ -387,9 +384,8 @@ func (o Decimal) Go() decimal.Decimal {
 	return decimal.Decimal(o)
 }
 
-// TypeName implements Object interface.
-func (Decimal) TypeName() string {
-	return "decimal"
+func (o Decimal) Type() ObjectType {
+	return typeOf(o)
 }
 
 // String implements Object interface.
@@ -480,8 +476,8 @@ func (o Decimal) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName(),
+		o.Type().Name(),
+		right.Type().Name(),
 	)
 }
 
@@ -522,9 +518,8 @@ var DecimalZero = Decimal(decimal.Zero)
 // Char represents a rune and implements Object interface.
 type Char rune
 
-// TypeName implements Object interface.
-func (Char) TypeName() string {
-	return "char"
+func (o Char) Type() ObjectType {
+	return typeOf(o)
 }
 
 // String implements Object interface.
@@ -649,8 +644,8 @@ func (o Char) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName(),
+		o.Type().Name(),
+		right.Type().Name(),
 	)
 }
 

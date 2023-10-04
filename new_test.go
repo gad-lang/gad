@@ -927,10 +927,10 @@ func TestVM_Invoke(t *testing.T) {
 	applyPool := &Function{
 		Name: "applyPool",
 		Value: func(c Call) (Object, error) {
-			inv := NewInvoker(c.VM(), c.Args.Shift())
+			inv := NewInvoker(c.VM, c.Args.Shift())
 			inv.Acquire()
 			defer inv.Release()
-			return inv.Invoke(c.Args, c.NamedArgs)
+			return inv.Invoke(c.Args, &c.NamedArgs)
 		},
 	}
 	applyNoPool := &Function{
@@ -940,8 +940,8 @@ func TestVM_Invoke(t *testing.T) {
 			for i := 1; i < c.Args.Len(); i++ {
 				args = append(args, c.Args.Get(i))
 			}
-			inv := NewInvoker(c.VM(), c.Args.Get(0))
-			return inv.Invoke(Args{args}, c.NamedArgs)
+			inv := NewInvoker(c.VM, c.Args.Get(0))
+			return inv.Invoke(Args{args}, &c.NamedArgs)
 		},
 	}
 	for _, apply := range []*Function{applyPool, applyNoPool} {
@@ -1127,7 +1127,7 @@ func (n *nameCaller) CallName(name string, c Call) (Object, error) {
 	for i := 0; i < c.Args.Len(); i++ {
 		args = append(args, c.Args.Get(i))
 	}
-	ret, err := NewInvoker(c.VM(), fn).Invoke(Args{args}, c.NamedArgs)
+	ret, err := NewInvoker(c.VM, fn).Invoke(Args{args}, &c.NamedArgs)
 	n.counts[name]++
 	return ret, err
 }

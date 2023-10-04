@@ -24,15 +24,18 @@ import (
 // }
 // ```
 
+var LocationType = &gad.BuiltinObjType{
+	NameValue: "location",
+}
+
 // Location represents location values and implements gad.Object interface.
 type Location struct {
 	gad.ObjectImpl
 	Value *time.Location
 }
 
-// TypeName implements gad.Object interface.
-func (*Location) TypeName() string {
-	return "location"
+func (*Location) Type() gad.ObjectType {
+	return LocationType
 }
 
 // String implements gad.Object interface.

@@ -227,7 +227,7 @@ func toScanArgs(offset int, c gad.Call) ([]any, error) {
 		v, ok := c.Args.Get(i).(ScanArg)
 		if !ok {
 			return nil, gad.NewArgumentTypeError(strconv.Itoa(i),
-				"ScanArg interface", c.Args.Get(i).TypeName())
+				"ScanArg interface", c.Args.Get(i).Type().Name())
 		}
 		v.Set(false)
 		vargs = append(vargs, v.Arg())

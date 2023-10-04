@@ -13,26 +13,22 @@ type ToWriter interface {
 
 type writer struct {
 	io.Writer
-	name string
+	typ ObjectType
 }
 
 func NewWriter(w io.Writer) Writer {
 	return &writer{Writer: w}
 }
 
-func NewNamedWriter(w io.Writer, name string) Writer {
-	return &writer{Writer: w, name: name}
+func NewTypedWriter(w io.Writer, typ ObjectType) Writer {
+	return &writer{Writer: w, typ: typ}
 }
 
-func (w *writer) Name() string {
-	return w.name
-}
-
-func (w *writer) TypeName() string {
-	if w.name == "" {
-		return "writer"
+func (w *writer) Type() ObjectType {
+	if w.typ == nil {
+		return TWriter
 	}
-	return "writer:" + w.name
+	return w.typ
 }
 
 func (w *writer) String() string {
@@ -66,8 +62,8 @@ func NewReader(r io.Reader) Reader {
 	return &reader{Reader: r}
 }
 
-func (r *reader) TypeName() string {
-	return "reader"
+func (r *reader) Type() ObjectType {
+	return TReader
 }
 
 func (r *reader) String() string {
@@ -113,7 +109,7 @@ func (o *Buffer) Iterate() Iterator {
 }
 
 // IndexSet implements Object interface.
-func (o *Buffer) IndexSet(index, value Object) error {
+func (o *Buffer) IndexSet(_ *VM, index, value Object) error {
 	var idx int
 	switch v := index.(type) {
 	case Int:
@@ -121,7 +117,7 @@ func (o *Buffer) IndexSet(index, value Object) error {
 	case Uint:
 		idx = int(v)
 	default:
-		return NewIndexTypeError("int|uint", index.TypeName())
+		return NewIndexTypeError("int|uint", index.Type().Name())
 	}
 
 	if idx >= 0 && idx < o.Len() {
@@ -131,7 +127,7 @@ func (o *Buffer) IndexSet(index, value Object) error {
 		case Uint:
 			o.Bytes()[idx] = byte(v)
 		default:
-			return NewIndexValueTypeError("int|uint", value.TypeName())
+			return NewIndexValueTypeError("int|uint", value.Type().Name())
 		}
 		return nil
 	}
@@ -139,7 +135,7 @@ func (o *Buffer) IndexSet(index, value Object) error {
 }
 
 // IndexGet represents string values and implements Object interface.
-func (o *Buffer) IndexGet(index Object) (Object, error) {
+func (o *Buffer) IndexGet(_ *VM, index Object) (Object, error) {
 	var idx int
 	switch v := index.(type) {
 	case Int:
@@ -147,7 +143,7 @@ func (o *Buffer) IndexGet(index Object) (Object, error) {
 	case Uint:
 		idx = int(v)
 	default:
-		return nil, NewIndexTypeError("int|uint|char", index.TypeName())
+		return nil, NewIndexTypeError("int|uint|char", index.Type().Name())
 	}
 
 	if idx >= 0 && idx < o.Len() {
@@ -160,8 +156,8 @@ func (o *Buffer) GoReader() io.Reader {
 	return &o.Buffer
 }
 
-func (o *Buffer) TypeName() string {
-	return "buffer"
+func (o *Buffer) Type() ObjectType {
+	return typeOf(o)
 }
 
 func (o *Buffer) IsFalsy() bool {
@@ -195,4 +191,4 @@ func (o *Buffer) ToBytes() (Bytes, error) {
 	return o.Bytes(), nil
 }
 
-var DiscardWriter = NewNamedWriter(io.Discard, "discard")
+var DiscardWriter = NewTypedWriter(io.Discard, TDiscardWriter)

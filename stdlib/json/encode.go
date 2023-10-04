@@ -83,7 +83,7 @@ func (e *MarshalerError) Error() string {
 		srcFunc = "MarshalJSON"
 	}
 	return "json: error calling " + srcFunc +
-		" for type " + e.Object.TypeName() +
+		" for type " + e.Object.Type().Name() +
 		": " + e.Err.Error()
 }
 
@@ -320,7 +320,7 @@ func mapEncoder(e *encodeState, v gad.Object, opts encOpts) {
 			ptr = v
 		}
 		if _, ok := e.ptrSeen[ptr]; ok {
-			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.TypeName())})
+			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.Type().Name())})
 		}
 		e.ptrSeen[ptr] = struct{}{}
 		defer delete(e.ptrSeen, ptr)
@@ -409,7 +409,7 @@ func arrayEncoder(e *encodeState, v gad.Object, opts encOpts) {
 			len int
 		}{rval.Pointer(), rval.Len()}
 		if _, ok := e.ptrSeen[ptr]; ok {
-			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.TypeName())})
+			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.Type().Name())})
 		}
 		e.ptrSeen[ptr] = struct{}{}
 		defer delete(e.ptrSeen, ptr)
@@ -440,7 +440,7 @@ func objectPtrEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
 		// Start checking if we've run into a pointer cycle.
 		if _, ok := e.ptrSeen[v]; ok {
-			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.TypeName())})
+			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.Type().Name())})
 		}
 		e.ptrSeen[v] = struct{}{}
 		defer delete(e.ptrSeen, v)

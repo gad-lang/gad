@@ -22,7 +22,7 @@ var (
 // Object represents an object in the VM.
 type Object interface {
 	// TypeName should return the name of the type.
-	TypeName() string
+	Type() ObjectType
 
 	// String should return a string of the type's value.
 	String() string
@@ -32,6 +32,28 @@ type Object interface {
 
 	// Equal checks equality of objects.
 	Equal(right Object) bool
+}
+
+type ObjectType interface {
+	Object
+	CallerObject
+	Name() string
+	Getters() Map
+	Setters() Map
+	Methods() Map
+	Fields() Map
+	New(*VM, Map) (Object, error)
+	IsChildOf(t ObjectType) bool
+}
+
+type Objector interface {
+	Object
+	Fields() Map
+}
+
+type ToStringer interface {
+	Object
+	Stringer(c Call) (String, error)
 }
 
 // Copier wraps the Copy method to create a single copy of the object.
@@ -49,7 +71,7 @@ type DeepCopier interface {
 // IndexDeleter wraps the IndexDelete method to delete an index of an object.
 type IndexDeleter interface {
 	Object
-	IndexDelete(Object) error
+	IndexDelete(vm *VM, key Object) error
 }
 
 // IndexGetter wraps the IndexGet method to get index value.
@@ -61,7 +83,7 @@ type IndexGetter interface {
 	// handled with an error handler and VM.Run returns the same error as
 	// wrapped. If Object is not indexable, ErrNotIndexable should be returned
 	// as error.
-	IndexGet(index Object) (value Object, err error)
+	IndexGet(vm *VM, index Object) (value Object, err error)
 }
 
 // IndexSetter wraps the IndexSet method to set index value.
@@ -73,7 +95,7 @@ type IndexSetter interface {
 	// is not index assignable, ErrNotIndexAssignable should be returned as
 	// error. Returned error stops VM execution if not handled with an error
 	// handler and VM.Run returns the same error as wrapped.
-	IndexSet(index, value Object) error
+	IndexSet(vm *VM, index, value Object) error
 }
 
 type IndexGetSetter interface {
@@ -176,8 +198,7 @@ type ObjectImpl struct{}
 
 var _ Object = ObjectImpl{}
 
-// TypeName implements Object interface.
-func (ObjectImpl) TypeName() string {
+func (ObjectImpl) Type() ObjectType {
 	panic(ErrNotImplemented)
 }
 
@@ -198,9 +219,8 @@ type NilType struct {
 	ObjectImpl
 }
 
-// TypeName implements Object interface.
-func (o *NilType) TypeName() string {
-	return "nil"
+func (o *NilType) Type() ObjectType {
+	return TNil
 }
 
 // String implements Object interface.
@@ -233,8 +253,8 @@ func (o *NilType) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
-		Nil.TypeName(),
-		right.TypeName())
+		Nil.Type().Name(),
+		right.Type().Name())
 }
 
 func Callable(o Object) (ok bool) {

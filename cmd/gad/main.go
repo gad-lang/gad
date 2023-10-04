@@ -242,7 +242,7 @@ func (r *repl) cmdReturnVerbose(_ string) error {
 	if r.lastResult != nil {
 		_, _ = fmt.Fprintf(r.out,
 			"GoType:%[1]T, TypeName:%[2]s, Value:%#[1]v\n",
-			r.lastResult, r.lastResult.TypeName())
+			r.lastResult, r.lastResult.Type().Name())
 	} else {
 		_, _ = fmt.Fprintln(r.out, "<nil>")
 	}
@@ -410,7 +410,7 @@ func complete(line string) (completions []string) {
 }
 
 func defaultSymbolTable() *gad.SymbolTable {
-	table := gad.NewSymbolTable()
+	table := gad.NewSymbolTable(gad.BuiltinsMap)
 	_, err := table.DefineGlobal("Gosched")
 	if err != nil {
 		panic(&gad.Error{Message: "global symbol define error", Cause: err})
@@ -475,6 +475,8 @@ func initSuggestions() {
 		switch o.(type) {
 		case *gad.BuiltinFunction:
 			desc = "Builtin Function"
+		case *gad.BuiltinObjType:
+			desc = "Builtin Object Type"
 		case *gad.Error:
 			desc = "Builtin Error"
 		default:

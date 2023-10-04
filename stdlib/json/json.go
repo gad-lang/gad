@@ -53,6 +53,10 @@ func init() {
 // }
 // ```
 
+var EncoderOptionsType = &gad.BuiltinObjType{
+	NameValue: "encoderOptions",
+}
+
 // EncoderOptions represents the encoding options (quote, html escape) to
 // Marshal any Object.
 type EncoderOptions struct {
@@ -62,9 +66,8 @@ type EncoderOptions struct {
 	EscapeHTML bool
 }
 
-// TypeName implements gad.Object interface.
-func (eo *EncoderOptions) TypeName() string {
-	return "encoderOptions"
+func (eo *EncoderOptions) Type() gad.ObjectType {
+	return EncoderOptionsType
 }
 
 // String implements gad.Object interface.
@@ -84,7 +87,7 @@ func (eo *EncoderOptions) String() string {
 // |.EscapeHTML| bool        |
 
 // IndexGet implements gad.Object interface.
-func (eo *EncoderOptions) IndexGet(index gad.Object) (ret gad.Object, err error) {
+func (eo *EncoderOptions) IndexGet(_ *gad.VM, index gad.Object) (ret gad.Object, err error) {
 	switch index.String() {
 	case "Value":
 		ret = eo.Value
@@ -109,7 +112,7 @@ func (eo *EncoderOptions) IndexGet(index gad.Object) (ret gad.Object, err error)
 // |.EscapeHTML| bool        |
 
 // IndexSet implements gad.Object interface.
-func (eo *EncoderOptions) IndexSet(index, value gad.Object) error {
+func (eo *EncoderOptions) IndexSet(_ *gad.VM, index, value gad.Object) error {
 	switch index.String() {
 	case "Value":
 		eo.Value = value
@@ -138,6 +141,10 @@ func (eo *EncoderOptions) IndexSet(index, value gad.Object) error {
 // }
 // ```
 
+var RawMessageType = &gad.BuiltinObjType{
+	NameValue: "rawMessage",
+}
+
 // RawMessage represents raw encoded json message to directly use value of
 // MarshalJSON without encoding.
 type RawMessage struct {
@@ -147,9 +154,8 @@ type RawMessage struct {
 
 var _ Marshaler = (*RawMessage)(nil)
 
-// TypeName implements gad.Object interface.
-func (rm *RawMessage) TypeName() string {
-	return "rawMessage"
+func (rm *RawMessage) Type() gad.ObjectType {
+	return RawMessageType
 }
 
 // String implements gad.Object interface.
@@ -175,7 +181,7 @@ func (rm *RawMessage) MarshalJSON() ([]byte, error) {
 // |.Value     | bytes       |
 
 // IndexGet implements gad.Object interface.
-func (rm *RawMessage) IndexGet(index gad.Object) (ret gad.Object, err error) {
+func (rm *RawMessage) IndexGet(_ *gad.VM, index gad.Object) (ret gad.Object, err error) {
 	switch index.String() {
 	case "Value":
 		ret = gad.Bytes(rm.Value)
@@ -194,7 +200,7 @@ func (rm *RawMessage) IndexGet(index gad.Object) (ret gad.Object, err error) {
 // |.Value     | bytes       |
 
 // IndexSet implements gad.Object interface.
-func (rm *RawMessage) IndexSet(index, value gad.Object) error {
+func (rm *RawMessage) IndexSet(_ *gad.VM, index, value gad.Object) error {
 	switch index.String() {
 	case "Value":
 		if v, ok := gad.ToBytes(value); ok {

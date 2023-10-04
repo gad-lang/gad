@@ -512,6 +512,8 @@ func ToGoRune(o Object) (v rune, ok bool) {
 		v, ok = rune(o), true
 	case Float:
 		v, ok = rune(o), true
+	case Decimal:
+		v, ok = rune(o.Go().BigInt().Uint64()), true
 	case String:
 		ok = true
 		v, _ = utf8.DecodeRuneInString(string(o))
@@ -546,7 +548,7 @@ func ToGoBool(o Object) (v bool, ok bool) {
 //
 //gad:callable func(o Object, n int) (ret Object, err error)
 
-// builtin :makeArray
+// builtin array
 //
 //gad:callable func(n int, o Object) (ret Object, err error)
 

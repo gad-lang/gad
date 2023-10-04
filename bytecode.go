@@ -53,7 +53,7 @@ func (bc *Bytecode) putConstants(w io.Writer) {
 			continue
 		}
 		_, _ = fmt.Fprintf(w, "%4d: %#v|%s\n",
-			i, bc.Constants[i], bc.Constants[i].TypeName())
+			i, bc.Constants[i], bc.Constants[i].Type().Name())
 	}
 }
 
@@ -152,9 +152,8 @@ var (
 	_ CallerObject = (*CompiledFunction)(nil)
 )
 
-// TypeName implements Object interface
-func (*CompiledFunction) TypeName() string {
-	return "compiledFunction"
+func (*CompiledFunction) Type() ObjectType {
+	return TCompiledFunction
 }
 
 func (o *CompiledFunction) String() string {
@@ -299,7 +298,7 @@ func (o *CompiledFunction) hash32() uint32 {
 }
 
 func (o *CompiledFunction) Call(c Call) (Object, error) {
-	return NewInvoker(c.vm, o).Invoke(c.Args, c.NamedArgs)
+	return NewInvoker(c.VM, o).Invoke(c.Args, &c.NamedArgs)
 }
 
 func (o *CompiledFunction) SetNamedParams(params ...*NamedParam) {

@@ -64,6 +64,7 @@ type SimpleOptimizer struct {
 	indent           int
 	optimConsts      bool
 	optimExpr        bool
+	builtins         map[string]BuiltinType
 	disabledBuiltins []string
 	constants        []Object
 	instructions     []byte
@@ -93,6 +94,11 @@ func NewOptimizer(
 		trace = opts.Trace
 	}
 
+	var builtins = BuiltinsMap
+	if opts.SymbolTable != nil {
+		builtins = opts.SymbolTable.builtins
+	}
+
 	return &SimpleOptimizer{
 		file:             file,
 		vm:               NewVM(nil).SetRecover(true),
@@ -102,6 +108,7 @@ func NewOptimizer(
 		disabledBuiltins: disabled,
 		moduleStore:      newModuleStore(),
 		trace:            trace,
+		builtins:         builtins,
 	}
 }
 
@@ -219,7 +226,7 @@ func (so *SimpleOptimizer) evalExpr(expr parser.Expr) (parser.Expr, bool) {
 }
 
 func (so *SimpleOptimizer) slowEvalExpr(expr parser.Expr) (parser.Expr, bool) {
-	st := NewSymbolTable().
+	st := NewSymbolTable(so.builtins).
 		EnableParams(false).
 		DisableBuiltin(so.disabledBuiltins...).
 		DisableBuiltin(so.scope.shadowedBuiltins()...)

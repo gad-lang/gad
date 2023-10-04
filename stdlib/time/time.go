@@ -69,6 +69,10 @@ func init() {
 // }
 // ```
 
+var TimeType = &gad.BuiltinObjType{
+	NameValue: "time",
+}
+
 // Time represents time values and implements gad.Object interface.
 type Time struct {
 	Value time.Time
@@ -76,9 +80,8 @@ type Time struct {
 
 var _ gad.NameCallerObject = (*Time)(nil)
 
-// TypeName implements gad.Object interface.
-func (*Time) TypeName() string {
-	return "time"
+func (*Time) Type() gad.ObjectType {
+	return TimeType
 }
 
 // String implements gad.Object interface.
@@ -148,8 +151,8 @@ func (o *Time) BinaryOp(tok token.Token,
 	}
 	return nil, gad.NewOperandTypeError(
 		tok.String(),
-		o.TypeName(),
-		right.TypeName())
+		o.Type().Name(),
+		right.Type().Name())
 }
 
 // gad:doc
@@ -183,10 +186,10 @@ func (o *Time) BinaryOp(tok token.Token,
 // |.Zone      | {"name": string, "offset": int}                 |
 
 // IndexGet implements gad.Object interface.
-func (o *Time) IndexGet(index gad.Object) (gad.Object, error) {
+func (o *Time) IndexGet(_ *gad.VM, index gad.Object) (gad.Object, error) {
 	v, ok := index.(gad.String)
 	if !ok {
-		return gad.Nil, gad.NewIndexTypeError("string", index.TypeName())
+		return gad.Nil, gad.NewIndexTypeError("string", index.Type().Name())
 	}
 
 	// For simplicity, we use method call for now. As getters are deprecated, we
@@ -252,7 +255,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		d, ok := gad.ToGoInt64(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "int", c.Args.Get(0).TypeName())
+			return newArgTypeErr("1st", "int", c.Args.Get(0).Type().Name())
 		}
 		return timeAdd(o, d), nil
 	},
@@ -262,7 +265,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		t2, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "time", c.Args.Get(0).TypeName())
+			return newArgTypeErr("1st", "time", c.Args.Get(0).Type().Name())
 		}
 		return timeSub(o, t2), nil
 	},
@@ -272,15 +275,15 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		year, ok := gad.ToGoInt(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "int", c.Args.Get(0).TypeName())
+			return newArgTypeErr("1st", "int", c.Args.Get(0).Type().Name())
 		}
 		month, ok := gad.ToGoInt(c.Args.Get(1))
 		if !ok {
-			return newArgTypeErr("2nd", "int", c.Args.Get(1).TypeName())
+			return newArgTypeErr("2nd", "int", c.Args.Get(1).Type().Name())
 		}
 		day, ok := gad.ToGoInt(c.Args.Get(2))
 		if !ok {
-			return newArgTypeErr("3rd", "int", c.Args.Get(2).TypeName())
+			return newArgTypeErr("3rd", "int", c.Args.Get(2).Type().Name())
 		}
 		return timeAddDate(o, year, month, day), nil
 	},
@@ -290,7 +293,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		t2, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "time", c.Args.Get(0).TypeName())
+			return newArgTypeErr("1st", "time", c.Args.Get(0).Type().Name())
 		}
 		return timeAfter(o, t2), nil
 	},
@@ -300,7 +303,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		t2, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "time", c.Args.Get(0).TypeName())
+			return newArgTypeErr("1st", "time", c.Args.Get(0).Type().Name())
 		}
 		return timeBefore(o, t2), nil
 	},
@@ -310,7 +313,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		format, ok := gad.ToGoString(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "string", c.Args.Get(0).TypeName())
+			return newArgTypeErr("1st", "string", c.Args.Get(0).Type().Name())
 		}
 		return timeFormat(o, format), nil
 	},
@@ -320,11 +323,11 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		b, ok := gad.ToGoByteSlice(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "bytes", c.Args.Get(0).TypeName())
+			return newArgTypeErr("1st", "bytes", c.Args.Get(0).Type().Name())
 		}
 		format, ok := gad.ToGoString(c.Args.Get(1))
 		if !ok {
-			return newArgTypeErr("2nd", "string", c.Args.Get(1).TypeName())
+			return newArgTypeErr("2nd", "string", c.Args.Get(1).Type().Name())
 		}
 		return timeAppendFormat(o, b, format), nil
 	},
@@ -334,7 +337,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		loc, ok := ToLocation(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "location", c.Args.Get(0).TypeName())
+			return newArgTypeErr("1st", "location", c.Args.Get(0).Type().Name())
 		}
 		return timeIn(o, loc), nil
 	},
@@ -344,7 +347,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		d, ok := gad.ToGoInt64(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "int", c.Args.Get(0).TypeName())
+			return newArgTypeErr("1st", "int", c.Args.Get(0).Type().Name())
 		}
 		return timeRound(o, d), nil
 	},
@@ -354,7 +357,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		d, ok := gad.ToGoInt64(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "int", c.Args.Get(0).TypeName())
+			return newArgTypeErr("1st", "int", c.Args.Get(0).Type().Name())
 		}
 		return timeTruncate(o, d), nil
 	},
@@ -364,7 +367,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		t2, ok := ToTime(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "time", c.Args.Get(0).TypeName())
+			return newArgTypeErr("1st", "time", c.Args.Get(0).Type().Name())
 		}
 		return timeEqual(o, t2), nil
 	},

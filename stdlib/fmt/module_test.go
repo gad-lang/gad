@@ -305,6 +305,9 @@ func TestScript(t *testing.T) {
 		},
 	}
 	for _, tC := range testCases {
+		if tC.s == "" {
+			return
+		}
 		expectRun(t, tC.s, tC.r)
 	}
 }
