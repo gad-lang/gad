@@ -2,6 +2,7 @@ package gad_test
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 )
 
 func TestObjects(t *testing.T) {
-	// ensure basic type's Go equality and comparison
+	// ensure basic type's ToInterface equality and comparison
 	require.True(t, True == true)
 	require.True(t, False == false)
 	require.True(t, True != False)
@@ -47,11 +48,11 @@ func TestObjects(t *testing.T) {
 }
 
 func TestObjectIterable(t *testing.T) {
-	require.NotNil(t, String("").Iterate())
-	require.NotNil(t, Array{}.Iterate())
-	require.NotNil(t, Bytes{}.Iterate())
-	require.NotNil(t, Map{}.Iterate())
-	require.NotNil(t, (&SyncMap{}).Iterate())
+	require.NotNil(t, String("").Iterate(nil))
+	require.NotNil(t, Array{}.Iterate(nil))
+	require.NotNil(t, Bytes{}.Iterate(nil))
+	require.NotNil(t, Map{}.Iterate(nil))
+	require.NotNil(t, (&SyncMap{}).Iterate(nil))
 }
 
 func TestObjectCallable(t *testing.T) {
@@ -72,46 +73,57 @@ func TestObjectCallable(t *testing.T) {
 	require.True(t, Callable(&Function{}))
 	require.True(t, Callable(&BuiltinFunction{}))
 	require.True(t, Callable(&CompiledFunction{}))
+	require.True(t, Callable(MustToObject(func() {})))
 }
 
 func TestObjectString(t *testing.T) {
-	require.Equal(t, "0", Int(0).String())
-	require.Equal(t, "0", Uint(0).String())
-	require.Equal(t, "\x00", Char(0).String())
-	require.Equal(t, "0", Float(0).String())
-	require.Equal(t, "true", Bool(true).String())
-	require.Equal(t, "false", Bool(false).String())
-	require.Equal(t, "nil", Nil.String())
+	require.Equal(t, "0", Int(0).ToString())
+	require.Equal(t, "0", Uint(0).ToString())
+	require.Equal(t, "\x00", Char(0).ToString())
+	require.Equal(t, "0", Float(0).ToString())
+	require.Equal(t, "true", Bool(true).ToString())
+	require.Equal(t, "false", Bool(false).ToString())
+	require.Equal(t, "nil", Nil.ToString())
 
-	require.Equal(t, "error: ", (&Error{}).String())
-	require.Equal(t, "error: message", (&Error{Message: "message"}).String())
-	require.Equal(t, "name: message", (&Error{Name: "name", Message: "message"}).String())
+	require.Equal(t, "error: ", (&Error{}).ToString())
+	require.Equal(t, "error: message", (&Error{Message: "message"}).ToString())
+	require.Equal(t, "name: message", (&Error{Name: "name", Message: "message"}).ToString())
 
-	require.Equal(t, "<nil>", (&RuntimeError{}).String())
+	require.Equal(t, "<nil>", (&RuntimeError{}).ToString())
 
-	require.Equal(t, "", String("").String())
-	require.Equal(t, "xyz", String("xyz").String())
+	require.Equal(t, "", String("").ToString())
+	require.Equal(t, "xyz", String("xyz").ToString())
 
-	require.Equal(t, "[]", Array{}.String())
-	require.Equal(t, `[1, "x", 1.1]`, Array{Int(1), String("x"), Float(1.1)}.String())
+	require.Equal(t, "[]", Array{}.ToString())
+	require.Equal(t, `[1, "x", 1.1]`, Array{Int(1), String("x"), Float(1.1)}.ToString())
 
-	require.Equal(t, "", Bytes{}.String())
-	require.Equal(t, "\x00\x01", Bytes{0, 1}.String())
-	require.Equal(t, "xyz", Bytes(String("xyz")).String())
-	require.Equal(t, String("xyz").String(), Bytes(String("xyz")).String())
+	require.Equal(t, "", Bytes{}.ToString())
+	require.Equal(t, "\x00\x01", Bytes{0, 1}.ToString())
+	require.Equal(t, "xyz", Bytes(String("xyz")).ToString())
+	require.Equal(t, String("xyz").ToString(), Bytes(String("xyz")).ToString())
 
-	require.Equal(t, "{}", Map{}.String())
+	require.Equal(t, "{}", Map{}.ToString())
 	m := Map{"a": Int(1)}
-	require.Equal(t, `{"a": 1}`, m.String())
-	require.Equal(t, "{}", (&SyncMap{}).String())
-	require.Equal(t, m.String(), (&SyncMap{Value: m}).String())
-	require.Equal(t, "{}", (&SyncMap{Value: Map{}}).String())
+	require.Equal(t, `{"a": 1}`, m.ToString())
+	require.Equal(t, "{}", (&SyncMap{}).ToString())
+	require.Equal(t, m.ToString(), (&SyncMap{Value: m}).ToString())
+	require.Equal(t, "{}", (&SyncMap{Value: Map{}}).ToString())
 
-	require.Equal(t, "<function:>", (&Function{}).String())
-	require.Equal(t, "<function:xyz>", (&Function{Name: "xyz"}).String())
-	require.Equal(t, "<builtinFunction:>", (&BuiltinFunction{}).String())
-	require.Equal(t, "<builtinFunction:abc>", (&BuiltinFunction{Name: "abc"}).String())
-	require.Equal(t, "<compiledFunction>", (&CompiledFunction{}).String())
+	require.Equal(t, "<function:>", (&Function{}).ToString())
+	require.Equal(t, "<function:xyz>", (&Function{Name: "xyz"}).ToString())
+	require.Equal(t, "<builtinFunction:>", (&BuiltinFunction{}).ToString())
+	require.Equal(t, "<builtinFunction:abc>", (&BuiltinFunction{Name: "abc"}).ToString())
+	require.Equal(t, "<compiledFunction>", (&CompiledFunction{}).ToString())
+	require.Equal(t, "<reflectFunc: func()>", MustToObject(func() {}).ToString())
+	require.Equal(t, "<reflectFunc: func(int)>", MustToObject(func(int) {}).ToString())
+	require.Equal(t, "<reflectSlice:slice<[]int: []>>", MustToObject([]int{}).ToString())
+	var arr [2]int
+	arr[1] = 60
+	require.Equal(t, "<reflectArray:array<[2]int: [0 60]>>", MustToObject(arr).ToString())
+	require.Equal(t, "<reflectMap:map<map[string]int: map[a:2]>>", MustToObject(map[string]int{"a": 2}).ToString())
+	require.Equal(t, "<reflectValue:github.com/gad-lang/gad_test.t1<100>>", MustToObject(t1(100)).ToString())
+	require.Equal(t, "<reflectValue:github.com/gad-lang/gad_test.t2<@100>>", MustToObject(t2(100)).ToString())
+	require.Equal(t, "<reflectValue:github.com/gad-lang/gad_test.t3<#100>>", MustToObject(t3(100)).ToString())
 }
 
 func TestObjectTypeName(t *testing.T) {
@@ -131,6 +143,37 @@ func TestObjectTypeName(t *testing.T) {
 	require.Equal(t, "function", (&Function{}).Type().Name())
 	require.Equal(t, "builtinFunction", (&BuiltinFunction{}).Type().Name())
 	require.Equal(t, "compiledFunction", (&CompiledFunction{}).Type().Name())
+	require.Equal(t, "reflect:func", MustToObject(func(int) {}).Type().Name())
+	require.Equal(t, "reflect:slice", MustToObject([]int{}).Type().Name())
+	var arr [2]int
+	arr[1] = 60
+	require.Equal(t, "reflect:array", MustToObject(arr).Type().Name())
+	require.Equal(t, "reflect:map", MustToObject(map[string]int{"a": 2}).Type().Name())
+	require.Equal(t, "reflect:github.com/gad-lang/gad_test.t1", MustToObject(t1(10)).Type().Name())
+}
+
+type t1 int
+
+type t2 int
+
+func (v t2) IsZero() bool {
+	return v == 1
+}
+
+func (v *t2) Format(s fmt.State, verb rune) {
+	s.Write([]byte("@"))
+	fmt.Fprintf(s, "%"+string(verb), int(*v))
+}
+
+type t3 int
+
+func (v *t3) IsZero() bool {
+	return (*v) == 2
+}
+
+func (v t3) Format(s fmt.State, verb rune) {
+	s.Write([]byte("#"))
+	fmt.Fprintf(s, "%"+string(verb), int(v))
 }
 
 func TestObjectIsFalsy(t *testing.T) {
@@ -157,6 +200,19 @@ func TestObjectIsFalsy(t *testing.T) {
 	require.False(t, (&Function{}).IsFalsy())
 	require.False(t, (&BuiltinFunction{}).IsFalsy())
 	require.False(t, (&CompiledFunction{}).IsFalsy())
+	require.True(t, MustToObject([]int{}).IsFalsy())
+	require.False(t, MustToObject([]int{1}).IsFalsy())
+	var arr [2]int
+	arr[1] = 60
+	require.False(t, MustToObject(arr).IsFalsy())
+	require.False(t, MustToObject(map[string]int{"a": 2}).IsFalsy())
+	require.True(t, MustToObject(map[string]int{}).IsFalsy())
+	require.False(t, MustToObject(t1(10)).IsFalsy())
+	require.True(t, MustToObject(t1(0)).IsFalsy())
+	require.False(t, MustToObject(t2(0)).IsFalsy())
+	require.True(t, MustToObject(t2(1)).IsFalsy())
+	require.False(t, MustToObject(t3(0)).IsFalsy())
+	require.True(t, MustToObject(t3(2)).IsFalsy())
 }
 
 func TestObjectCopier(t *testing.T) {
@@ -179,7 +235,7 @@ func TestObjectImpl(t *testing.T) {
 		t.Fatal("ObjectImpl must implement Object interface")
 	}
 	impl := ObjectImpl{}
-	require.Panics(t, func() { _ = impl.String() })
+	require.Panics(t, func() { _ = impl.ToString() })
 	require.Panics(t, func() { _ = impl.Type().Name() })
 	require.False(t, impl.Equal(impl))
 	require.True(t, impl.IsFalsy())

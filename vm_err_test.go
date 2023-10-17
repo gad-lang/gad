@@ -57,7 +57,7 @@ func TestVMErrorHandlers(t *testing.T) {
 	expectRun(t, `var a = 1; try { throw "an error" } catch {} finally { a = 2 }; return a`,
 		newOpts().Skip2Pass(), Int(2))
 	expectRun(t, `var a = 1; try { throw "an error" } catch err {} finally { return string(err) }; return a`,
-		newOpts().Skip2Pass(), String((&Error{Message: "an error"}).String()))
+		newOpts().Skip2Pass(), String((&Error{Message: "an error"}).ToString()))
 	expectRun(t, `var a = 1; try { throw "an error" } catch err {} finally { return typeName(err) }; return a`,
 		newOpts().Skip2Pass(), String("error"))
 	expectRun(t, `var a = 1; try { a = 2 } finally { return a }; return 0`,
@@ -143,7 +143,7 @@ func TestVMNoPanic(t *testing.T) {
 	panicFunc := &Function{
 		Name: "panicFunc",
 		Value: func(call Call) (Object, error) {
-			panic("panic:" + call.Args.Get(0).String())
+			panic("panic:" + call.Args.Get(0).ToString())
 		},
 	}
 	func() {

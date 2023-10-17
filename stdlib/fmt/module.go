@@ -165,7 +165,7 @@ func newPrintf(fn func(string, ...any) (int, error)) gad.CallableFunc {
 				"want>=1 got=" + strconv.Itoa(c.Args.Len()))
 		}
 		vargs := toPrintArgs(1, c)
-		n, err := fn(c.Args.Get(0).String(), vargs...)
+		n, err := fn(c.Args.Get(0).ToString(), vargs...)
 		return gad.Int(n), err
 	}
 }
@@ -184,7 +184,7 @@ func newSprintf(fn func(string, ...any) string) gad.CallableFunc {
 				"want>=1 got=" + strconv.Itoa(c.Args.Len()))
 		}
 		vargs := toPrintArgs(1, c)
-		return gad.String(fn(c.Args.Get(0).String(), vargs...)), nil
+		return gad.String(fn(c.Args.Get(0).ToString(), vargs...)), nil
 	}
 }
 
@@ -198,7 +198,7 @@ func newSscan(fn func(string, ...any) (int, error)) gad.CallableFunc {
 		if err != nil {
 			return gad.Nil, err
 		}
-		n, err := fn(c.Args.Get(0).String(), vargs...)
+		n, err := fn(c.Args.Get(0).ToString(), vargs...)
 		return postScan(1, n, err, c), nil
 	}
 }
@@ -215,7 +215,7 @@ func newSscanf(
 		if err != nil {
 			return gad.Nil, err
 		}
-		n, err := fn(c.Args.Get(0).String(), c.Args.Get(1).String(), vargs...)
+		n, err := fn(c.Args.Get(0).ToString(), c.Args.Get(1).ToString(), vargs...)
 		return postScan(2, n, err, c), nil
 	}
 }

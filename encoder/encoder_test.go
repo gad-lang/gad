@@ -220,11 +220,11 @@ func TestEncDecObjects(t *testing.T) {
 		var v Decimal
 		err = v.UnmarshalBinary(data)
 		require.NoError(t, err, msg)
-		require.Equal(t, tC.String(), decimal.Decimal(v).String(), msg)
+		require.Equal(t, tC.ToString(), decimal.Decimal(v).String(), msg)
 
 		obj, err := DecodeObject(bytes.NewReader(data))
 		require.NoError(t, err, msg)
-		require.Equal(t, tC.String(), obj.String(), msg)
+		require.Equal(t, tC.ToString(), obj.ToString(), msg)
 	}
 	// remove NaN from Decimal slice, array tests below requires NaN check otherwise fails.
 	decimalObjects = decimalObjects[:len(decimalObjects)-1]
@@ -267,7 +267,7 @@ func TestEncDecObjects(t *testing.T) {
 	arrays = append(arrays, temp7)
 	temp8 := gad.Array{}
 	for i := range decimalObjects[:100] {
-		temp8 = append(temp8, gad.String(decimalObjects[i].String()))
+		temp8 = append(temp8, gad.String(decimalObjects[i].ToString()))
 	}
 	arrays = append(arrays, temp8)
 	arrays = append(arrays, gad.Array{gad.Nil})
@@ -574,14 +574,15 @@ func testBytecodeConstants(t *testing.T, expected, decoded []gad.Object) {
 				require.False(t, gad.Iterable(decoded[i]))
 				continue
 			}
-			it := expected[i].(gad.Iterabler).Iterate()
-			decIt := decoded[i].(gad.Iterabler).Iterate()
+			it := expected[i].(gad.Iterabler).Iterate(nil)
+			decIt := decoded[i].(gad.Iterabler).Iterate(nil)
 			for decIt.Next() {
 				require.True(t, it.Next())
 				key := decIt.Key()
 				v1, err := expected[i].(gad.IndexGetter).IndexGet(nil, key)
 				require.NoError(t, err)
-				v2 := decIt.Value()
+				v2, err := decIt.Value()
+				require.NoError(t, err)
 				if (v1 != nil && v2 == nil) || (v1 == nil && v2 != nil) {
 					t.Fatalf("decoded constant index %d not equal", i)
 				}

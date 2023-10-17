@@ -3,7 +3,7 @@
 // that can be found in the LICENSE file.
 
 // Package strings provides strings module implementing simple functions to
-// manipulate UTF-8 encoded strings for Gad script language. It wraps Go's
+// manipulate UTF-8 encoded strings for Gad script language. It wraps ToInterface's
 // strings package functionalities.
 package strings
 
@@ -447,7 +447,7 @@ func indexCharFunc(s string, c rune) gad.Object {
 func joinFunc(arr gad.Array, sep string) gad.Object {
 	elems := make([]string, len(arr))
 	for i := range arr {
-		elems[i] = arr[i].String()
+		elems[i] = arr[i].ToString()
 	}
 	return gad.String(strings.Join(elems, sep))
 }
@@ -497,7 +497,7 @@ func pad(c gad.Call, left bool) (gad.Object, error) {
 		return gad.Nil,
 			gad.ErrWrongNumArguments.NewError("want=2..3 got=" + strconv.Itoa(size))
 	}
-	s := c.Args.Get(0).String()
+	s := c.Args.Get(0).ToString()
 	padLen, ok := gad.ToGoInt(c.Args.Get(1))
 	if !ok {
 		return gad.Nil,
@@ -509,7 +509,7 @@ func pad(c gad.Call, left bool) (gad.Object, error) {
 	}
 	padWith := " "
 	if size > 2 {
-		if padWith = c.Args.Get(2).String(); len(padWith) == 0 {
+		if padWith = c.Args.Get(2).ToString(); len(padWith) == 0 {
 			return gad.String(s), nil
 		}
 	}
@@ -543,9 +543,9 @@ func replaceFunc(c gad.Call) (gad.Object, error) {
 		return gad.Nil,
 			gad.ErrWrongNumArguments.NewError("want=3..4 got=" + strconv.Itoa(size))
 	}
-	s := c.Args.Get(0).String()
-	old := c.Args.Get(1).String()
-	news := c.Args.Get(2).String()
+	s := c.Args.Get(0).ToString()
+	old := c.Args.Get(1).ToString()
+	news := c.Args.Get(2).ToString()
 	n := -1
 	if size == 4 {
 		v, ok := gad.ToGoInt(c.Args.Get(3))
@@ -575,10 +575,10 @@ func toValidUTF8Func(c gad.Call) (gad.Object, error) {
 		return gad.Nil,
 			gad.ErrWrongNumArguments.NewError("want=1..2 got=" + strconv.Itoa(size))
 	}
-	s := c.Args.Get(0).String()
+	s := c.Args.Get(0).ToString()
 	var repl string
 	if size == 2 {
-		repl = c.Args.Get(1).String()
+		repl = c.Args.Get(1).ToString()
 	}
 	return gad.String(strings.ToValidUTF8(s, repl)), nil
 }
@@ -614,8 +614,8 @@ func newSplitFunc(fn func(string, string, int) []string) gad.CallableFunc {
 			return gad.Nil,
 				gad.ErrWrongNumArguments.NewError("want=2..3 got=" + strconv.Itoa(size))
 		}
-		s := c.Args.Get(0).String()
-		sep := c.Args.Get(1).String()
+		s := c.Args.Get(0).ToString()
+		sep := c.Args.Get(1).ToString()
 		n := -1
 		if size == 3 {
 			v, ok := gad.ToGoInt(c.Args.Get(2))
@@ -689,7 +689,7 @@ func stringInvoke(
 		return gad.Nil, err
 	}
 
-	str := c.Args.Get(sidx).String()
+	str := c.Args.Get(sidx).ToString()
 	callee := c.Args.Get(cidx)
 	if !gad.Callable(callee) {
 		return gad.Nil, gad.ErrNotCallable

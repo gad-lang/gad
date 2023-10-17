@@ -1,10 +1,10 @@
-// A modified version of Go's json implementation.
+// A modified version of ToInterface's json implementation.
 
 // Copyright (c) 2022-2023 Ozan Hacıbekiroğlu.
 // Use of this source code is governed by a MIT License
 // that can be found in the LICENSE file.
 
-// Copyright 2010 The Go Authors. All rights reserved.
+// Copyright 2010 The ToInterface Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE.golang file.
 
@@ -277,7 +277,7 @@ func decimalEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	if opts.quoted {
 		e.WriteByte('"')
 	}
-	e.Write([]byte(v.(gad.Decimal).String()))
+	e.Write([]byte(v.(gad.Decimal).ToString()))
 	if opts.quoted {
 		e.WriteByte('"')
 	}
@@ -299,10 +299,10 @@ func stringEncoder(e *encodeState, v gad.Object, opts encOpts) {
 		e2 := newEncodeState()
 		// Since we encode the string twice, we only need to escape HTML
 		// the first time.
-		e2.string(v.String(), opts.escapeHTML)
+		e2.string(v.ToString(), opts.escapeHTML)
 		e.stringBytes(e2.Bytes(), false)
 	} else {
-		e.string(v.String(), opts.escapeHTML)
+		e.string(v.ToString(), opts.escapeHTML)
 	}
 }
 

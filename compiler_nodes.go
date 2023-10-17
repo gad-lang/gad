@@ -33,9 +33,9 @@ func (c *Compiler) compileIfStmt(node *parser.IfStmt) error {
 				return err
 			}
 
-			op = OpJumpNotNull
+			op = OpJumpNotNil
 			if v.Token == token.NotNull {
-				op = OpJumpNull
+				op = OpJumpNil
 			}
 		} else if err := c.Compile(node.Cond); err != nil {
 			return err
@@ -445,7 +445,7 @@ func (c *Compiler) compileAssignStmt(
 	}
 
 	if op == token.NullichAssign || op == token.LOrAssign {
-		op2 := OpJumpNotNull
+		op2 := OpJumpNotNil
 		if op == token.LOrAssign {
 			op2 = OpOrJump
 		}
@@ -1009,7 +1009,7 @@ func (c *Compiler) compileLogical(node *parser.BinaryExpr) error {
 	case token.LAnd:
 		jumpPos = c.emit(node, OpAndJump, 0)
 	case token.NullichCoalesce:
-		jumpPos = c.emit(node, OpJumpNotNull, 0)
+		jumpPos = c.emit(node, OpJumpNotNil, 0)
 	default:
 		jumpPos = c.emit(node, OpOrJump, 0)
 	}
@@ -1052,8 +1052,12 @@ func (c *Compiler) compileUnaryExpr(node *parser.UnaryExpr) error {
 	}
 
 	switch node.Token {
-	case token.Not, token.Sub, token.Xor, token.Add, token.Null, token.NotNull:
+	case token.Not, token.Sub, token.Xor, token.Add:
 		c.emit(node, OpUnary, int(node.Token))
+	case token.Null:
+		c.emit(node, OpIsNil)
+	case token.NotNull:
+		c.emit(node, OpNotIsNil)
 	default:
 		return c.errorf(node,
 			"invalid unary operator: %s", node.Token.String())
@@ -1124,7 +1128,7 @@ func (c *Compiler) compileNullishSelectorExpr(node *parser.NullishSelectorExpr) 
 		}
 	}
 
-	jumpPos = c.emit(node, OpJumpNull, 0)
+	jumpPos = c.emit(node, OpJumpNil, 0)
 	c.selectorHandler(func() {
 		c.changeOperand(jumpPos, len(c.instructions))
 	})
@@ -1365,9 +1369,9 @@ func (c *Compiler) compileCondExpr(node *parser.CondExpr) error {
 			return err
 		}
 
-		op = OpJumpNotNull
+		op = OpJumpNotNil
 		if v.Token == token.NotNull {
-			op = OpJumpNull
+			op = OpJumpNil
 		}
 	} else if err := c.Compile(node.Cond); err != nil {
 		return err

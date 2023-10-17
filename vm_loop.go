@@ -45,6 +45,7 @@ VMLoop:
 
 			var value Object
 			var err error
+
 			switch left := left.(type) {
 			case BinaryOperatorHandler:
 				value, err = left.BinaryOp(tok, right)
@@ -83,21 +84,37 @@ VMLoop:
 			}
 			pos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			vm.ip = pos - 1
-		case OpJumpNull:
-			if vm.stack[vm.sp-1] != Nil {
+		case OpJumpNil:
+			if vm.stack[vm.sp-1] != Nil && !vm.stack[vm.sp-1].Equal(Nil) {
 				vm.ip += 2
 				continue
 			}
 			pos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			vm.ip = pos - 1
-		case OpJumpNotNull:
-			if vm.stack[vm.sp-1] == Nil {
+		case OpJumpNotNil:
+			if vm.stack[vm.sp-1] == Nil || vm.stack[vm.sp-1].Equal(Nil) {
 				vm.sp--
 				vm.ip += 2
 				continue
 			}
 			pos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			vm.ip = pos - 1
+		case OpIsNil:
+			v := vm.stack[vm.sp-1]
+			if v == Nil {
+				vm.stack[vm.sp-1] = True
+			} else {
+				niler, _ := v.(Niler)
+				vm.stack[vm.sp-1] = Bool(niler != nil && niler.IsNil())
+			}
+		case OpNotIsNil:
+			v := vm.stack[vm.sp-1]
+			if v == Nil {
+				vm.stack[vm.sp-1] = False
+			} else {
+				niler, _ := v.(Niler)
+				vm.stack[vm.sp-1] = Bool(niler == nil || !niler.IsNil())
+			}
 		case OpEqual:
 			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
 
@@ -314,7 +331,7 @@ VMLoop:
 			for i := vm.sp - numItems; i < vm.sp; i += 2 {
 				key := vm.stack[i]
 				value := vm.stack[i+1]
-				kv[key.String()] = value
+				kv[key.ToString()] = value
 				vm.stack[i] = nil
 				vm.stack[i+1] = nil
 			}
@@ -378,7 +395,7 @@ VMLoop:
 					case ErrNotIndexAssignable:
 						err = ErrNotIndexAssignable.NewError(is.Type().Name())
 					case ErrIndexOutOfBounds:
-						err = ErrIndexOutOfBounds.NewError(index.String())
+						err = ErrIndexOutOfBounds.NewError(index.ToString())
 					}
 					if err = vm.throwGenErr(err); err != nil {
 						vm.err = err
@@ -473,7 +490,7 @@ VMLoop:
 			dst := vm.stack[vm.sp-1]
 
 			if Iterable(dst) {
-				it := dst.(Iterabler).Iterate()
+				it := dst.(Iterabler).Iterate(vm)
 				vm.stack[vm.sp-1] = &iteratorObject{Iterator: it}
 				continue
 			}
@@ -493,7 +510,13 @@ VMLoop:
 			vm.stack[vm.sp-1] = val
 		case OpIterValue:
 			iterator := vm.stack[vm.sp-1]
-			val := iterator.(Iterator).Value()
+			val, err := iterator.(Iterator).Value()
+			if err != nil {
+				if err = vm.throwGenErr(err); err != nil {
+					vm.err = err
+					return
+				}
+			}
 			vm.stack[vm.sp-1] = val
 		case OpLoadModule:
 			cidx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8

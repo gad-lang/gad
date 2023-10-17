@@ -3,8 +3,8 @@
 // that can be found in the LICENSE file.
 
 // Package time provides time module for measuring and displaying time for Gad
-// script language. It wraps Go's time package functionalities.
-// Note that: Gad's int values are converted to Go's time.Duration values.
+// script language. It wraps ToInterface's time package functionalities.
+// Note that: Gad's int values are converted to ToInterface's time.Duration values.
 package time
 
 import (
@@ -292,7 +292,7 @@ var Module = map[string]gad.Object{
 	// gad:doc
 	// Parse(layout string, value string[, loc location]) -> time
 	// Parses a formatted string and returns the time value it represents.
-	// If location is not provided, Go's `time.Parse` function is called
+	// If location is not provided, ToInterface's `time.Parse` function is called
 	// otherwise `time.ParseInLocation` is called.
 	"Parse": &gad.Function{
 		Name:  "Parse",

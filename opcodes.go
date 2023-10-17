@@ -68,13 +68,15 @@ const (
 	OpTrue
 	OpFalse
 	OpCallName
-	OpJumpNull
-	OpJumpNotNull
+	OpJumpNil
+	OpJumpNotNil
 	OpKeyValueArray
 	OpCallee
 	OpArgs
 	OpNamedArgs
 	OpTextWriter
+	OpIsNil
+	OpNotIsNil
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -126,12 +128,14 @@ var OpcodeNames = [...]string{
 	OpTrue:          "TRUE",
 	OpFalse:         "FALSE",
 	OpCallName:      "CALLNAME",
-	OpJumpNull:      "JUMPNULL",
-	OpJumpNotNull:   "JUMPNOTNULL",
+	OpJumpNil:       "JUMPNULL",
+	OpJumpNotNil:    "JUMPNOTNULL",
 	OpKeyValueArray: "NAMEDARRAY",
 	OpCallee:        "CALLEE",
 	OpArgs:          "ARGS",
 	OpNamedArgs:     "NAMEDARGS",
+	OpIsNil:         "ISNIL",
+	OpNotIsNil:      "NOTISNIL",
 }
 
 // OpcodeOperands is the number of operands.
@@ -148,6 +152,8 @@ var OpcodeOperands = [...][]int{
 	OpUnary:         {1},    // operator
 	OpEqual:         {},
 	OpNotEqual:      {},
+	OpIsNil:         {},
+	OpNotIsNil:      {},
 	OpJump:          {2}, // position
 	OpJumpFalsy:     {2}, // position
 	OpAndJump:       {2}, // position
@@ -183,8 +189,8 @@ var OpcodeOperands = [...][]int{
 	OpTrue:          {},
 	OpFalse:         {},
 	OpCallName:      {1, 1}, // number of arguments, flags
-	OpJumpNull:      {2},    // position
-	OpJumpNotNull:   {2},    // position
+	OpJumpNil:       {2},    // position
+	OpJumpNotNil:    {2},    // position
 	OpKeyValueArray: {2},    // number of keys and values
 	OpCallee:        {},
 	OpArgs:          {},

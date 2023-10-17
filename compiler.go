@@ -263,7 +263,7 @@ func (c *Compiler) Bytecode() *Bytecode {
 		)
 
 		switch lastOp {
-		case OpJump, OpJumpFalsy, OpAndJump, OpOrJump, OpJumpNotNull:
+		case OpJump, OpJumpFalsy, OpAndJump, OpOrJump, OpJumpNotNil:
 			jumpPos[operands[0]] = struct{}{}
 		}
 
@@ -813,7 +813,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	switch op {
 	case OpGetBuiltin, OpConstant, OpMap, OpArray, OpGetGlobal, OpSetGlobal, OpJump,
 		OpJumpFalsy, OpAndJump, OpOrJump, OpStoreModule, OpKeyValueArray,
-		OpJumpNull, OpJumpNotNull:
+		OpJumpNil, OpJumpNotNil:
 		buf = append(buf, byte(args[0]>>8))
 		buf = append(buf, byte(args[0]))
 		return buf, nil
@@ -840,7 +840,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	case OpEqual, OpNotEqual, OpNull, OpTrue, OpFalse, OpPop, OpSliceIndex,
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
-		OpStdIn, OpStdOut, OpStdErr:
+		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil:
 		return buf, nil
 	default:
 		return buf, &Error{

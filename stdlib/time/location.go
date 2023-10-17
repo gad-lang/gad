@@ -14,7 +14,7 @@ import (
 // ## Types
 // ### location
 //
-// Go Type
+// ToInterface Type
 //
 // ```go
 // // Location represents location values and implements gad.Object interface.
@@ -38,8 +38,8 @@ func (*Location) Type() gad.ObjectType {
 	return LocationType
 }
 
-// String implements gad.Object interface.
-func (o *Location) String() string {
+// ToString implements gad.Object interface.
+func (o *Location) ToString() string {
 	return o.Value.String()
 }
 
@@ -51,10 +51,10 @@ func (o *Location) IsFalsy() bool {
 // Equal implements gad.Object interface.
 func (o *Location) Equal(right gad.Object) bool {
 	if v, ok := right.(*Location); ok {
-		return v == o || v.String() == o.String()
+		return v == o || v.ToString() == o.ToString()
 	}
 	if v, ok := right.(gad.String); ok {
-		return o.String() == v.String()
+		return o.ToString() == v.ToString()
 	}
 	return false
 }

@@ -337,7 +337,7 @@ func (vm *VM) xIndexGet(numSel int, target Object) (value Object, null, abort bo
 				case ErrNotIndexable:
 					err = ErrNotIndexable.NewError(target.Type().Name())
 				case ErrIndexOutOfBounds:
-					err = ErrIndexOutOfBounds.NewError(index.String())
+					err = ErrIndexOutOfBounds.NewError(index.ToString())
 				}
 				if err = vm.throwGenErr(err); err != nil {
 					vm.err = err
@@ -589,7 +589,7 @@ func (vm *VM) xOpCallName() (err error) {
 		}
 
 		c.Args[0] = vm.stack[vm.sp-numArgs-kwCount : vm.sp-expandArgs-kwCount]
-		ret, err := nameCaller.CallName(name.String(), c)
+		ret, err := nameCaller.CallName(name.ToString(), c)
 		for i := 0; i < numArgs+kwCount; i++ {
 			vm.sp--
 			vm.stack[vm.sp] = nil
@@ -665,13 +665,23 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 	}
 
 	if flags.Has(OpCallFlagVarArgs) {
-		var arrSize int
-		if arr, ok := vm.stack[basePointer+numArgs-1].(Array); ok {
+		var (
+			arrSize  int
+			vargs    = vm.stack[basePointer+numArgs-1]
+			vargsArr Array
+		)
+		if arr, ok := vargs.(Array); ok {
 			arrSize = len(arr)
+			vargsArr = arr
 		} else {
-			return NewArgumentTypeError("last", "array",
-				vm.stack[basePointer+numArgs-1].Type().Name())
+			var items Object
+			if items, err = vm.builtins[BuiltinValues].(CallerObject).Call(Call{VM: vm, Args: Args{{vargs}}}); err != nil {
+				return
+			}
+			vargsArr = items.(Array)
+			arrSize = len(vargsArr)
 		}
+
 		if cfunc.Params.Var {
 			if numArgs < numParams {
 				// f := func(a, ...b) {}
@@ -687,7 +697,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 				tempBuf = append(tempBuf,
 					vm.stack[basePointer:basePointer+numArgs-1]...)
 				tempBuf = append(tempBuf,
-					vm.stack[basePointer+numArgs-1].(Array)...)
+					vargsArr...)
 				copy(vm.stack[basePointer:], tempBuf[:numParams-1])
 				arr := tempBuf[numParams-1:]
 				args = append(args, arr)
@@ -697,7 +707,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 				// f(1, 2, ...[3])
 				arr := append(Array{},
 					vm.stack[basePointer+numParams-1:basePointer+numArgs-1]...)
-				arr = append(arr, vm.stack[basePointer+numArgs-1].(Array)...)
+				arr = append(arr, vargsArr...)
 				args = append(args, arr)
 				vm.stack[basePointer+numParams-1] = arr
 			}
@@ -711,9 +721,8 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			}
 			// f := func(a, b) {}
 			// f(...[1, 2])
-			arr := vm.stack[basePointer+numArgs-1].(Array)
-			args[0] = arr
-			copy(vm.stack[basePointer+numArgs-1:], arr)
+			args[0] = vargsArr
+			copy(vm.stack[basePointer+numArgs-1:], vargsArr)
 		}
 	} else {
 		args[0] = vm.stack[basePointer : basePointer+numArgs]
@@ -848,8 +857,11 @@ func (vm *VM) xOpCallObject(co Object, numArgs int, flags OpCallFlag) (err error
 		if arr, ok := vm.stack[basePointer+numArgs-1].(Array); ok {
 			vargs = arr
 		} else {
-			return NewArgumentTypeError("last", "array",
-				vm.stack[basePointer+numArgs-1].Type().Name())
+			var items Object
+			if items, err = vm.builtins[BuiltinValues].(CallerObject).Call(Call{VM: vm, Args: Args{{vm.stack[basePointer+numArgs-1]}}}); err != nil {
+				return
+			}
+			vargs = items.(Array)
 		}
 	}
 
@@ -971,6 +983,8 @@ func (vm *VM) xOpSliceIndex() error {
 	case Bytes:
 		isbytes = true
 		objlen = len(obj)
+	case Slicer:
+		objlen = obj.Len()
 	default:
 		return ErrType.NewError(obj.Type().Name(), "cannot be sliced")
 	}
@@ -1003,12 +1017,25 @@ func (vm *VM) xOpSliceIndex() error {
 		return ErrType.NewError("invalid second index type", right.Type().Name())
 	}
 
-	if low > high {
-		return ErrInvalidIndex.NewError(fmt.Sprintf("[%d:%d]", low, high))
+	if low < 0 {
+		low = objlen + low
+	}
+
+	if high < 0 {
+		high = objlen + high
 	}
 	if isbytes {
 		objlen = cap(obj.(Bytes))
 	}
+
+	if high == 0 && low > 0 {
+		high = objlen
+	}
+
+	if low > high {
+		return ErrInvalidIndex.NewError(fmt.Sprintf("[%d:%d]", low, high))
+	}
+
 	if low < 0 || high < 0 || high > objlen {
 		return ErrIndexOutOfBounds.NewError(fmt.Sprintf("[%d:%d]", low, high))
 	}
@@ -1020,6 +1047,8 @@ func (vm *VM) xOpSliceIndex() error {
 		vm.stack[vm.sp] = obj[low:high]
 	case Bytes:
 		vm.stack[vm.sp] = obj[low:high]
+	case Slicer:
+		vm.stack[vm.sp] = obj.Slice(low, high)
 	}
 
 	vm.sp++
@@ -1041,7 +1070,7 @@ func (vm *VM) newErrorFromObject(object Object) *RuntimeError {
 	case *Error:
 		return vm.newError(v)
 	default:
-		return vm.newError(&Error{Message: v.String()})
+		return vm.newError(&Error{Message: v.ToString()})
 	}
 }
 func (vm *VM) newErrorFromError(err error) *RuntimeError {

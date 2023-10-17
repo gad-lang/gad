@@ -26,7 +26,7 @@ type ScanArg interface {
 	// Set sets status of scanning. It is set false before scanning and true
 	// after scanning if argument is scanned.
 	Set(bool)
-	// Arg must return either a pointer to a basic Go type or implementations of
+	// Arg must return either a pointer to a basic ToInterface type or implementations of
 	// fmt.Scanner interface.
 	Arg() any
 	// Value must return scanned, non-nil Gad Object.
@@ -57,12 +57,12 @@ var _ ScanArg = (*scanArg)(nil)
 
 func (*scanArg) Type() gad.ObjectType { return scanArgType }
 
-func (o *scanArg) String() string { return "<scanArg>" }
+func (o *scanArg) ToString() string { return "<scanArg>" }
 
 func (o *scanArg) IsFalsy() bool { return !o.ok }
 
 func (o *scanArg) IndexGet(_ *gad.VM, index gad.Object) (gad.Object, error) {
-	if o.ok && index.String() == "Value" {
+	if o.ok && index.ToString() == "Value" {
 		return o.Value(), nil
 	}
 	return gad.Nil, nil
@@ -79,7 +79,7 @@ func newScanArgFunc(c gad.Call) (gad.Object, error) {
 		} else if ot, ok := v.(gad.ObjectType); ok {
 			typ = ot.Name()
 		} else {
-			typ = v.String()
+			typ = v.ToString()
 		}
 	}
 	var scan scanArg

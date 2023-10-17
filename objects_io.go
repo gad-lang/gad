@@ -31,7 +31,7 @@ func (w *writer) Type() ObjectType {
 	return w.typ
 }
 
-func (w *writer) String() string {
+func (w *writer) ToString() string {
 	return fmt.Sprintf("writer of %v", w.Writer)
 }
 
@@ -66,7 +66,7 @@ func (r *reader) Type() ObjectType {
 	return TReader
 }
 
-func (r *reader) String() string {
+func (r *reader) ToString() string {
 	return fmt.Sprintf("reader of %v", r.Reader)
 }
 
@@ -103,8 +103,12 @@ var (
 	_ BytesConverter   = new(Buffer)
 )
 
+func (o *Buffer) ToString() string {
+	return o.String()
+}
+
 // Iterate implements Object interface.
-func (o *Buffer) Iterate() Iterator {
+func (o *Buffer) Iterate(*VM) Iterator {
 	return &BytesIterator{V: o.Bytes()}
 }
 

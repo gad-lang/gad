@@ -189,7 +189,7 @@ func getModuleItem(module, key string) string {
 	if t != "string" {
 		format = "%s(%s)"
 	}
-	return fmt.Sprintf(format, v.Type().Name(), v.String())
+	return fmt.Sprintf(format, v.Type().Name(), v.ToString())
 }
 
 func formatComments(comments []string) ([]string, error) {

@@ -16,13 +16,13 @@ func ArrayToString(len int, get func(i int) Object) string {
 	for i := 0; i <= last; i++ {
 		switch v := get(i).(type) {
 		case String:
-			sb.WriteString(strconv.Quote(v.String()))
+			sb.WriteString(strconv.Quote(v.ToString()))
 		case Char:
 			sb.WriteString(strconv.QuoteRune(rune(v)))
 		case Bytes:
 			sb.WriteString(fmt.Sprint([]byte(v)))
 		default:
-			sb.WriteString(v.String())
+			sb.WriteString(v.ToString())
 		}
 		if i != last {
 			sb.WriteString(", ")
@@ -31,4 +31,14 @@ func ArrayToString(len int, get func(i int) Object) string {
 
 	sb.WriteString("]")
 	return sb.String()
+}
+
+func AnyMapToMap(src map[string]any) (m Map, err error) {
+	m = make(Map, len(src))
+	for k, v := range src {
+		if m[k], err = ToObject(v); err != nil {
+			return
+		}
+	}
+	return
 }

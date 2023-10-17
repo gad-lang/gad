@@ -122,7 +122,7 @@ func (m *SourceModule) Import(_ string) (any, error) {
 	return m.Src, nil
 }
 
-// BuiltinModule is an importable module that's written in Go.
+// BuiltinModule is an importable module that's written in ToInterface.
 type BuiltinModule struct {
 	Attrs map[string]Object
 }

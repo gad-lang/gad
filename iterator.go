@@ -18,7 +18,17 @@ type Iterator interface {
 	Key() Object
 
 	// Value returns the value of the current element.
-	Value() Object
+	Value() (Object, error)
+}
+
+type ValuesIterator interface {
+	Iterator
+	Values() Array
+}
+
+type LengthIterator interface {
+	Iterator
+	Length() int
 }
 
 // iteratorObject is used in VM to make an iterable Object.
@@ -35,7 +45,19 @@ type ArrayIterator struct {
 	i int
 }
 
-var _ Iterator = (*ArrayIterator)(nil)
+var (
+	_ Iterator       = (*ArrayIterator)(nil)
+	_ ValuesIterator = (*ArrayIterator)(nil)
+	_ LengthIterator = (*ArrayIterator)(nil)
+)
+
+func (it *ArrayIterator) Length() int {
+	return len(it.V)
+}
+
+func (it *ArrayIterator) Values() Array {
+	return it.V
+}
 
 // Next implements Iterator interface.
 func (it *ArrayIterator) Next() bool {
@@ -49,12 +71,12 @@ func (it *ArrayIterator) Key() Object {
 }
 
 // Value implements Iterator interface.
-func (it *ArrayIterator) Value() Object {
+func (it *ArrayIterator) Value() (Object, error) {
 	i := it.i - 1
 	if i > -1 && i < len(it.V) {
-		return it.V[i]
+		return it.V[i], nil
 	}
-	return Nil
+	return Nil, nil
 }
 
 // BytesIterator represents an iterator for the bytes.
@@ -77,12 +99,12 @@ func (it *BytesIterator) Key() Object {
 }
 
 // Value implements Iterator interface.
-func (it *BytesIterator) Value() Object {
+func (it *BytesIterator) Value() (Object, error) {
 	i := it.i - 1
 	if i > -1 && i < len(it.V) {
-		return Int(it.V[i])
+		return Int(it.V[i]), nil
 	}
-	return Nil
+	return Nil, nil
 }
 
 // MapIterator represents an iterator for the map.
@@ -106,12 +128,12 @@ func (it *MapIterator) Key() Object {
 }
 
 // Value implements Iterator interface.
-func (it *MapIterator) Value() Object {
+func (it *MapIterator) Value() (Object, error) {
 	v, ok := it.V[it.keys[it.i-1]]
 	if !ok {
-		return Nil
+		return Nil, nil
 	}
-	return v
+	return v, nil
 }
 
 // SyncIterator represents an iterator for the SyncMap.
@@ -135,7 +157,7 @@ func (it *SyncIterator) Key() Object {
 }
 
 // Value implements Iterator interface.
-func (it *SyncIterator) Value() Object {
+func (it *SyncIterator) Value() (Object, error) {
 	it.mu.Lock()
 	defer it.mu.Unlock()
 	return it.Iterator.Value()
@@ -174,6 +196,6 @@ func (it *StringIterator) Key() Object {
 }
 
 // Value implements Iterator interface.
-func (it *StringIterator) Value() Object {
-	return Char(it.r)
+func (it *StringIterator) Value() (Object, error) {
+	return Char(it.r), nil
 }

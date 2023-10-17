@@ -52,8 +52,7 @@ func (o KeyValue) Type() ObjectType {
 	return typeOf(o)
 }
 
-// String implements Object interface.
-func (o KeyValue) String() string {
+func (o KeyValue) ToString() string {
 	var sb strings.Builder
 	switch t := o[0].(type) {
 	case String:
@@ -63,7 +62,7 @@ func (o KeyValue) String() string {
 			sb.WriteString(strconv.Quote(string(t)))
 		}
 	default:
-		sb.WriteString(o[0].String())
+		sb.WriteString(o[0].ToString())
 	}
 	if o[1] != True {
 		sb.WriteString("=")
@@ -71,7 +70,7 @@ func (o KeyValue) String() string {
 		case String:
 			sb.WriteString(strconv.Quote(string(t)))
 		default:
-			sb.WriteString(t.String())
+			sb.WriteString(t.ToString())
 		}
 	}
 	return sb.String()
@@ -154,7 +153,7 @@ func (o KeyValue) BinaryOp(tok token.Token, right Object) (Object, error) {
 }
 
 func (o KeyValue) IsLess(other KeyValue) bool {
-	if o.Key().String() < other.Key().String() {
+	if o.Key().ToString() < other.Key().ToString() {
 		return true
 	}
 	if bo, _ := o.Value().(BinaryOperatorHandler); bo != nil {
@@ -168,7 +167,7 @@ func (o KeyValue) IsLess(other KeyValue) bool {
 func (KeyValue) CanIterate() bool { return true }
 
 // Iterate implements Iterable interface.
-func (o KeyValue) Iterate() Iterator {
+func (o KeyValue) Iterate(*VM) Iterator {
 	return &ArrayIterator{V: o[:]}
 }
 
@@ -246,19 +245,18 @@ func (o KeyValueArray) Array() (ret Array) {
 func (o KeyValueArray) Map() (ret Map) {
 	ret = make(Map, len(o))
 	for _, v := range o {
-		ret[v.Key().String()] = v.Value()
+		ret[v.Key().ToString()] = v.Value()
 	}
 	return
 }
 
-// String implements Object interface.
-func (o KeyValueArray) String() string {
+func (o KeyValueArray) ToString() string {
 	var sb strings.Builder
 	sb.WriteString("(;")
 	last := len(o) - 1
 
 	for i, v := range o {
-		sb.WriteString(v.String())
+		sb.WriteString(v.ToString())
 		if i != last {
 			sb.WriteString(", ")
 		}
@@ -606,7 +604,7 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 func (KeyValueArray) CanIterate() bool { return true }
 
 // Iterate implements Iterable interface.
-func (o KeyValueArray) Iterate() Iterator {
+func (o KeyValueArray) Iterate(*VM) Iterator {
 	return &KeyValueArrayIterator{V: o}
 }
 
@@ -655,12 +653,12 @@ func (it *KeyValueArrayIterator) Key() Object {
 }
 
 // Value implements Iterator interface.
-func (it *KeyValueArrayIterator) Value() Object {
+func (it *KeyValueArrayIterator) Value() (Object, error) {
 	i := it.i - 1
 	if i > -1 && i < len(it.V) {
-		return it.V[i]
+		return it.V[i], nil
 	}
-	return Nil
+	return Nil, nil
 }
 
 type KeyValueArrays []KeyValueArray
@@ -677,14 +675,13 @@ func (o KeyValueArrays) Array() (ret Array) {
 	return
 }
 
-// String implements Object interface.
-func (o KeyValueArrays) String() string {
+func (o KeyValueArrays) ToString() string {
 	var sb strings.Builder
 	sb.WriteString("[")
 	last := len(o) - 1
 
 	for i, v := range o {
-		sb.WriteString(v.String())
+		sb.WriteString(v.ToString())
 		if i != last {
 			sb.WriteString(", ")
 		}
@@ -781,7 +778,7 @@ func (o KeyValueArrays) BinaryOp(tok token.Token, right Object) (Object, error) 
 func (KeyValueArrays) CanIterate() bool { return true }
 
 // Iterate implements Iterable interface.
-func (o KeyValueArrays) Iterate() Iterator {
+func (o KeyValueArrays) Iterate(*VM) Iterator {
 	return &NamedArgArraysIterator{V: o}
 }
 
@@ -828,12 +825,12 @@ func (it *NamedArgArraysIterator) Key() Object {
 }
 
 // Value implements Iterator interface.
-func (it *NamedArgArraysIterator) Value() Object {
+func (it *NamedArgArraysIterator) Value() (Object, error) {
 	i := it.i - 1
 	if i > -1 && i < len(it.V) {
-		return it.V[i]
+		return it.V[i], nil
 	}
-	return Nil
+	return Nil, nil
 }
 
 type NamedArgs struct {
@@ -896,11 +893,11 @@ func (o *NamedArgs) Join() KeyValueArray {
 	}
 }
 
-func (o *NamedArgs) String() string {
+func (o *NamedArgs) ToString() string {
 	if len(o.ready) == 0 {
-		return o.Join().String()
+		return o.Join().ToString()
 	}
-	return o.UnreadPairs().String()
+	return o.UnreadPairs().ToString()
 }
 
 func (o *NamedArgs) BinaryOp(tok token.Token, right Object) (Object, error) {
@@ -957,8 +954,8 @@ func (o *NamedArgs) Call(c Call) (Object, error) {
 	return o.GetValue(string(arg.Value.(String))), nil
 }
 
-func (o *NamedArgs) Iterate() Iterator {
-	return o.Join().Iterate()
+func (o *NamedArgs) Iterate(vm *VM) Iterator {
+	return o.Join().Iterate(vm)
 }
 
 func (o *NamedArgs) CanIterate() bool {
@@ -979,7 +976,7 @@ func (o *NamedArgs) Ready() (arr KeyValueArray) {
 	}
 
 	o.Walk(func(na KeyValue) error {
-		if _, ok := o.ready[na.Key().String()]; ok {
+		if _, ok := o.ready[na.Key().ToString()]; ok {
 			arr = append(arr, na)
 		}
 		return nil
@@ -1023,7 +1020,7 @@ func (o *NamedArgs) check() {
 
 		for i := len(o.sources) - 1; i >= 0; i-- {
 			for _, v := range o.sources[i] {
-				o.m[v.Key().String()] = v[1]
+				o.m[v.Key().ToString()] = v[1]
 			}
 		}
 	}
@@ -1040,7 +1037,7 @@ func (o *NamedArgs) GetValue(key string) (val Object) {
 // GetPassedValue Get passed value
 func (o *NamedArgs) GetPassedValue(key string) (val Object) {
 	o.Walk(func(na KeyValue) error {
-		if na.Key().String() == key {
+		if na.Key().ToString() == key {
 			val = na[1]
 			return io.EOF
 		}
@@ -1094,7 +1091,7 @@ read:
 
 				var s = make([]string, len(d.AcceptTypes))
 				for i, acceptType := range d.AcceptTypes {
-					s[i] = acceptType.String()
+					s[i] = acceptType.ToString()
 				}
 				return NewArgumentTypeError(
 					d.Name+"["+strconv.Itoa(i)+"]st",
@@ -1142,7 +1139,7 @@ dst:
 
 			var s = make([]string, len(d.AcceptTypes))
 			for i, acceptType := range d.AcceptTypes {
-				s[i] = acceptType.String()
+				s[i] = acceptType.ToString()
 			}
 			return nil, NewArgumentTypeError(
 				strconv.Itoa(i)+"st",
@@ -1184,7 +1181,7 @@ func (o *NamedArgs) UnreadPairs() (ret KeyValueArray) {
 		return
 	}
 	o.Walk(func(na KeyValue) error {
-		if _, ok := o.ready[na.Key().String()]; !ok {
+		if _, ok := o.ready[na.Key().ToString()]; !ok {
 			ret = append(ret, na)
 		}
 		return nil
@@ -1209,11 +1206,11 @@ func (o *NamedArgs) Walk(cb func(na KeyValue) error) (err error) {
 func (o *NamedArgs) CheckNames(accept ...string) error {
 	return o.Walk(func(na KeyValue) error {
 		for _, name := range accept {
-			if name == na.Key().String() {
+			if name == na.Key().ToString() {
 				return nil
 			}
 		}
-		return ErrUnexpectedNamedArg.NewError(strconv.Quote(na.Key().String()))
+		return ErrUnexpectedNamedArg.NewError(strconv.Quote(na.Key().ToString()))
 	})
 }
 
@@ -1222,8 +1219,8 @@ func (o *NamedArgs) CheckNamesFromSet(set map[string]int) error {
 		return nil
 	}
 	return o.Walk(func(na KeyValue) error {
-		if _, ok := set[na.Key().String()]; !ok {
-			return ErrUnexpectedNamedArg.NewError(strconv.Quote(na.Key().String()))
+		if _, ok := set[na.Key().ToString()]; !ok {
+			return ErrUnexpectedNamedArg.NewError(strconv.Quote(na.Key().ToString()))
 		}
 		return nil
 	})

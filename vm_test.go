@@ -76,11 +76,9 @@ func TestVMArray(t *testing.T) {
 	expectRun(t, fmt.Sprintf("return %s[:]", arrStr), nil, arr)
 	expectRun(t, fmt.Sprintf("return %s[%d:%d]", arrStr, 2, 2), nil, Array{})
 	expectErrIs(t, fmt.Sprintf("return %s[%d:\"\"]", arrStr, -1), nil, ErrType)
-	expectErrIs(t, fmt.Sprintf("return %s[%d:]", arrStr, -1), nil, ErrIndexOutOfBounds)
 	expectErrIs(t, fmt.Sprintf("return %s[:%d]", arrStr, arrLen+1), nil, ErrIndexOutOfBounds)
 	expectErrIs(t, fmt.Sprintf("%s[%d:%d]", arrStr, 2, 1), nil, ErrInvalidIndex)
 	expectErrIs(t, fmt.Sprintf("%s[%d:]", arrStr, arrLen+1), nil, ErrInvalidIndex)
-	expectErrIs(t, fmt.Sprintf("%s[:%d]", arrStr, -1), nil, ErrInvalidIndex)
 	expectErrIs(t, "return 1[0:]", nil, ErrType)
 	expectErrIs(t, "return 1[0]", nil, ErrNotIndexable)
 }
@@ -3179,15 +3177,17 @@ func TestVMString(t *testing.T) {
 	expectRun(t, fmt.Sprintf("return %s[%d:]", strStr, 0), nil, String(str))
 	expectRun(t, fmt.Sprintf("return %s[:%d]", strStr, strLen), nil, String(str))
 	expectRun(t, fmt.Sprintf("return %s[%d:%d]", strStr, 2, 2), nil, String(""))
+	expectRun(t, fmt.Sprintf("return %s[%d:]", strStr, -1), nil, String("f"))
+	expectRun(t, fmt.Sprintf("return %s[:%d]", strStr, -3), nil, String("abc"))
+	expectRun(t, fmt.Sprintf("return %s[%d:%d]", strStr, -5, -3), nil, String("bc"))
+	expectRun(t, fmt.Sprintf("return %s[%d:%d]", strStr, 0, -3), nil, String("abc"))
 
-	expectErrIs(t, fmt.Sprintf("%s[:%d]", strStr, -1), nil, ErrInvalidIndex)
 	expectErrIs(t, fmt.Sprintf("%s[%d:]", strStr, strLen+1), nil, ErrInvalidIndex)
-	expectErrIs(t, fmt.Sprintf("%s[%d:%d]", strStr, 0, -1), nil, ErrInvalidIndex)
 	expectErrIs(t, fmt.Sprintf("%s[%d:%d]", strStr, 2, 1), nil, ErrInvalidIndex)
 
 	// string concatenation with other types
 	expectRun(t, `return "foo" + 1`, nil, String("foo1"))
-	// Float.String() returns the smallest number of digits
+	// Float.ToString() returns the smallest number of digits
 	// necessary such that ParseFloat will return f exactly.
 	expectErrIs(t, `return 1 + "foo"`, nil, ErrType)
 	expectRun(t, `return "foo" + 1.0`, nil, String("foo1")) // <- note '1' instead of '1.0'
@@ -3202,7 +3202,7 @@ func TestVMString(t *testing.T) {
 	expectRun(t, `return "foo" + nil`, nil, String("foonil"))
 	expectErrIs(t, `return nil + "foo"`, nil, ErrType)
 
-	// Decimal.String() returns the smallest number of digits
+	// Decimal.ToString() returns the smallest number of digits
 	// necessary such that ParseDecimal will return f exactly.
 	expectErrIs(t, `return 1d + "foo"`, nil, ErrType)
 	expectRun(t, `return "foo" + 1.0d`, nil, String("foo1")) // <- note '1' instead of '1.0'
@@ -3404,20 +3404,6 @@ func TestVMTailCallFreeVars(t *testing.T) {
 }
 
 func TestVMCall(t *testing.T) {
-	var invErr *RuntimeError
-	expectErrAs(t, `f := func() {}; return f(..."")`, nil, &invErr, nil)
-	require.NotNil(t, invErr)
-	require.NotNil(t, invErr.Err)
-	require.Equal(t, ErrType, invErr.Err.Cause)
-	require.Equal(t, "invalid type for argument 'last': expected array, found string", invErr.Err.Message)
-
-	invErr = nil
-	expectErrAs(t, `f := func() {}; return f(...nil)`, nil, &invErr, nil)
-	require.NotNil(t, invErr)
-	require.NotNil(t, invErr.Err)
-	require.Equal(t, ErrType, invErr.Err.Cause)
-	require.Equal(t, "invalid type for argument 'last': expected array, found nil", invErr.Err.Message)
-
 	expectRun(t, `f := func() {}; return f()`, nil, Nil)
 	expectRun(t, `f := func(a) { return a; }; return f(1)`, nil, Int(1))
 	expectRun(t, `f := func(a, b) { return [a, b]; }; return f(1, 2)`, nil, Array{Int(1), Int(2)})
@@ -3512,17 +3498,6 @@ func TestVMCall(t *testing.T) {
 		Map{"f": &Function{Value: func(c Call) (Object, error) {
 			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(3), Array{Int(1), Int(2), Int(3)}})
-
-	invErr = nil
-	expectErrAs(t, `global f; var a = {}; return f(1, ...a)`, newOpts().Globals(
-		Map{"f": &Function{Value: func(c Call) (Object, error) {
-			return Nil, nil
-		}}}), &invErr, nil)
-	require.NotNil(t, invErr)
-	require.NotNil(t, invErr.Err)
-	require.Equal(t, ErrType, invErr.Err.Cause)
-	require.Equal(t, "invalid type for argument 'last': expected array, found map",
-		invErr.Err.Message)
 
 	expectErrIs(t, `global f; return f()`, newOpts().Globals(
 		Map{"f": &Function{Value: func(c Call) (Object, error) {
@@ -3814,6 +3789,21 @@ return [
 			Array{Array{Int(1), Int(2)}, Map{"a": Int(3)}},
 			Array{Array{Int(1), Int(2)}, Map{"a": Int(3), "b": Int(4)}},
 		},
+	)
+}
+
+func TestVMReflectSlice(t *testing.T) {
+	expectRun(t, `param s;return func(z, ...x) { return append([], ...x) }(100, ...s)`,
+		newOpts().Args(MustToObject([]int{4, 7})),
+		Array{Int(4), Int(7)},
+	)
+	expectRun(t, `param s;return func(...x) { return append([], ...x) }(...s)`,
+		newOpts().Args(MustToObject([]int{4, 7})),
+		Array{Int(4), Int(7)},
+	)
+	expectRun(t, "param s;return append([], ...s)",
+		newOpts().Args(MustToObject([]int{4, 7})),
+		Array{Int(4), Int(7)},
 	)
 }
 

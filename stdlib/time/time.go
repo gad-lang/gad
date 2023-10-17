@@ -60,7 +60,7 @@ func init() {
 // ## Types
 // ### time
 //
-// Go Type
+// ToInterface Type
 //
 // ```go
 // // Time represents time values and implements gad.Object interface.
@@ -84,8 +84,8 @@ func (*Time) Type() gad.ObjectType {
 	return TimeType
 }
 
-// String implements gad.Object interface.
-func (o *Time) String() string {
+// ToString implements gad.Object interface.
+func (o *Time) ToString() string {
 	return o.Value.String()
 }
 

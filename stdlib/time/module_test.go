@@ -17,7 +17,7 @@ func TestModuleTypes(t *testing.T) {
 	l := &Location{Value: time.UTC}
 	require.Equal(t, "location", l.Type().Name())
 	require.False(t, l.IsFalsy())
-	require.Equal(t, "UTC", l.String())
+	require.Equal(t, "UTC", l.ToString())
 	require.True(t, (&Location{}).Equal(&Location{}))
 	require.True(t, (&Location{}).Equal(String("UTC")))
 	require.False(t, (&Location{}).Equal(Int(0)))
@@ -26,7 +26,7 @@ func TestModuleTypes(t *testing.T) {
 	tm := &Time{}
 	require.Equal(t, "time", tm.Type().Name())
 	require.True(t, tm.IsFalsy())
-	require.NotEmpty(t, tm.String())
+	require.NotEmpty(t, tm.ToString())
 	require.True(t, tm.Equal(&Time{}))
 	require.False(t, tm.Equal(Int(0)))
 	r, err := tm.IndexGet(nil, String(""))
@@ -36,7 +36,7 @@ func TestModuleTypes(t *testing.T) {
 	now := time.Now()
 	tm2 := &Time{Value: now}
 	require.False(t, tm2.IsFalsy())
-	require.Equal(t, now.String(), tm2.String())
+	require.Equal(t, now.String(), tm2.ToString())
 
 	var b bytes.Buffer
 	err = gob.NewEncoder(&b).Encode(tm2)
@@ -52,7 +52,7 @@ func TestModuleTypes(t *testing.T) {
 	ret, err := ToObject(now)
 	require.NoError(t, err)
 	require.IsType(t, &Time{}, ret)
-	require.Equal(t, now.String(), ret.String())
+	require.Equal(t, now.String(), ret.ToString())
 
 	iface := ToInterface(ret)
 	require.Equal(t, now, iface)
@@ -60,7 +60,7 @@ func TestModuleTypes(t *testing.T) {
 	ret, err = ToObject(&now)
 	require.NoError(t, err)
 	require.IsType(t, &Time{}, ret)
-	require.Equal(t, now.String(), ret.String())
+	require.Equal(t, now.String(), ret.ToString())
 
 	ret, err = ToObject((*time.Time)(nil))
 	require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestModuleTypes(t *testing.T) {
 	ret, err = ToObject(time.UTC)
 	require.NoError(t, err)
 	require.IsType(t, &Location{}, ret)
-	require.Equal(t, time.UTC.String(), ret.String())
+	require.Equal(t, time.UTC.String(), ret.ToString())
 
 	iface = ToInterface(ret)
 	require.Equal(t, time.UTC, iface)
@@ -245,7 +245,7 @@ func TestModuleLocation(t *testing.T) {
 	fixedZone := Module["FixedZone"].(*Function)
 	r, err := MustCall(fixedZone, String("Ankara"), Int(3*60*60))
 	require.NoError(t, err)
-	require.Equal(t, "Ankara", r.String())
+	require.Equal(t, "Ankara", r.ToString())
 
 	_, err = MustCall(fixedZone, String("Ankara"))
 	require.Error(t, err)
@@ -259,10 +259,10 @@ func TestModuleLocation(t *testing.T) {
 	loadLocation := Module["LoadLocation"].(*Function)
 	r, err = MustCall(loadLocation, String("Europe/Istanbul"))
 	require.NoError(t, err)
-	require.Equal(t, "Europe/Istanbul", r.String())
+	require.Equal(t, "Europe/Istanbul", r.ToString())
 	r, err = MustCall(loadLocation, String(""))
 	require.NoError(t, err)
-	require.Equal(t, "UTC", r.String())
+	require.Equal(t, "UTC", r.ToString())
 	_, err = MustCall(loadLocation)
 	require.Error(t, err)
 	_, err = MustCall(loadLocation, Int(0))
@@ -286,7 +286,7 @@ func TestModuleLocation(t *testing.T) {
 func TestModuleTime(t *testing.T) {
 	now := time.Now()
 
-	require.Equal(t, now.String(), (&Time{Value: now}).String())
+	require.Equal(t, now.String(), (&Time{Value: now}).ToString())
 
 	zTime := Module["Time"].(*Function)
 	r, err := MustCall(zTime)
@@ -532,14 +532,14 @@ func TestScript(t *testing.T) {
 		`, s)
 	}
 	idxTypeErr := func(expected, got string) String {
-		return String(NewIndexTypeError(expected, got).String())
+		return String(NewIndexTypeError(expected, got).ToString())
 	}
 	opTypeErr := func(tok, lhs, rhs string) String {
 		return String(NewOperandTypeError(
-			tok, lhs, rhs).String())
+			tok, lhs, rhs).ToString())
 	}
 	typeErr := func(pos, expected, got string) String {
-		return String(NewArgumentTypeError(pos, expected, got).String())
+		return String(NewArgumentTypeError(pos, expected, got).ToString())
 	}
 	nwrongArgs := func(want1, want2, got int) String {
 		var msg string
@@ -548,7 +548,7 @@ func TestScript(t *testing.T) {
 		} else {
 			msg = fmt.Sprintf("want=%d..%d got=%d", want1, want2, got)
 		}
-		return String(ErrWrongNumArguments.NewError(msg).String())
+		return String(ErrWrongNumArguments.NewError(msg).ToString())
 	}
 	expectRun(t, `import("time")`, nil, Nil)
 
@@ -833,7 +833,7 @@ type illegalDur struct {
 	Value time.Duration
 }
 
-func (*illegalDur) String() string   { return "illegal" }
+func (*illegalDur) ToString() string { return "illegal" }
 func (*illegalDur) Type() ObjectType { return IllegalType }
 
 type Opts struct {

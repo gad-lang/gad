@@ -22,8 +22,7 @@ func (o Int) Type() ObjectType {
 	return typeOf(o)
 }
 
-// String implements Object interface.
-func (o Int) String() string {
+func (o Int) ToString() string {
 	return strconv.FormatInt(int64(o), 10)
 }
 
@@ -147,8 +146,7 @@ func (o Uint) Type() ObjectType {
 	return typeOf(o)
 }
 
-// String implements Object interface.
-func (o Uint) String() string {
+func (o Uint) ToString() string {
 	return strconv.FormatUint(uint64(o), 10)
 }
 
@@ -272,8 +270,7 @@ func (o Float) Type() ObjectType {
 	return typeOf(o)
 }
 
-// String implements Object interface.
-func (o Float) String() string {
+func (o Float) ToString() string {
 	return strconv.FormatFloat(float64(o), 'g', -1, 64)
 }
 
@@ -388,8 +385,7 @@ func (o Decimal) Type() ObjectType {
 	return typeOf(o)
 }
 
-// String implements Object interface.
-func (o Decimal) String() string {
+func (o Decimal) ToString() string {
 	return o.Go().String()
 }
 
@@ -522,8 +518,7 @@ func (o Char) Type() ObjectType {
 	return typeOf(o)
 }
 
-// String implements Object interface.
-func (o Char) String() string {
+func (o Char) ToString() string {
 	return string(o)
 }
 

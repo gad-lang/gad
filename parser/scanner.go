@@ -1,4 +1,4 @@
-// A modified version Go and Tengo parsers.
+// A modified version ToInterface and Tengo parsers.
 
 // Copyright (c) 2020-2023 Ozan Hacıbekiroğlu.
 // Use of this source code is governed by a MIT License
@@ -8,7 +8,7 @@
 // Use of this source code is governed by a MIT License
 // that can be found in the LICENSE.tengo file.
 
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2009 The ToInterface Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE.golang file.
 
@@ -81,7 +81,7 @@ func (t Token) String() string {
 	return t.Token.String() + ": " + t.Literal
 }
 
-// Scanner reads the Gad source text. It's based on Go's scanner
+// Scanner reads the Gad source text. It's based on ToInterface's scanner
 // implementation.
 type Scanner struct {
 	file         *SourceFile         // source file handle

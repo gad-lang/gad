@@ -65,6 +65,12 @@ var (
 	// ErrIncompatibleCast is an error where incompatible cast.
 	ErrIncompatibleCast = &Error{Name: "ErrIncompatibleCast"}
 
+	// ErrIncompatibleReflectFuncType is an error where incompatible reflect func type.
+	ErrIncompatibleReflectFuncType = &Error{Name: "ErrIncompatibleReflectFuncType"}
+
+	// ErrReflectCallPanicsType is an error where call reflect function panics.
+	ErrReflectCallPanicsType = &Error{Name: "ErrReflectCallPanicsType"}
+
 	// ErrType represents a type error.
 	ErrType = &Error{Name: "TypeError"}
 )

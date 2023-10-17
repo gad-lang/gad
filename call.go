@@ -20,13 +20,17 @@ func (o Args) Type() ObjectType {
 	return TArgs
 }
 
-func (o Args) String() string {
+func (o *Args) Prepend(items ...Object) {
+	*o = append(Args{items}, *o...)
+}
+
+func (o Args) ToString() string {
 	var sb strings.Builder
 	sb.WriteString("[")
 
 	for _, v := range o {
 		if len(v) > 0 {
-			sb.WriteString(v.String())
+			sb.WriteString(v.ToString())
 			sb.WriteString(", ")
 		}
 	}
@@ -98,7 +102,7 @@ func (o Args) Equal(right Object) (ok bool) {
 	return
 }
 
-func (o Args) Iterate() Iterator {
+func (o Args) Iterate(*VM) Iterator {
 	return &ArgsIterator{o, o.Len(), 0}
 }
 
@@ -304,9 +308,10 @@ func (o Args) Values() (ret Array) {
 		}
 		return o[0]
 	default:
-		ret = Array{}
-		for _, arr := range o {
-			ret = append(ret, arr...)
+		l := o.Len()
+		ret = make(Array, l)
+		for i := 0; i < l; i++ {
+			ret[i] = o.Get(i)
 		}
 		return
 	}
@@ -334,7 +339,7 @@ func (o Args) ShiftArg(shifts *int, dst *Arg) (ok bool, err error) {
 
 	var s = make([]string, len(dst.AcceptTypes))
 	for i, acceptType := range dst.AcceptTypes {
-		s[i] = acceptType.String()
+		s[i] = acceptType.ToString()
 	}
 
 	return false, NewArgumentTypeError(
@@ -382,7 +387,7 @@ args:
 
 			var s = make([]string, len(d.AcceptTypes))
 			for i, acceptType := range d.AcceptTypes {
-				s[i] = acceptType.String()
+				s[i] = acceptType.ToString()
 			}
 			return NewArgumentTypeError(
 				pos,
@@ -413,7 +418,7 @@ args:
 
 		var s = make([]string, len(d.AcceptTypes))
 		for i, acceptType := range d.AcceptTypes {
-			s[i] = acceptType.String()
+			s[i] = acceptType.ToString()
 		}
 		return NewArgumentTypeError(
 			strconv.Itoa(i)+"st",
@@ -448,7 +453,7 @@ args:
 
 		var s = make([]string, len(d.AcceptTypes))
 		for i, acceptType := range d.AcceptTypes {
-			s[i] = acceptType.String()
+			s[i] = acceptType.ToString()
 		}
 		return nil, NewArgumentTypeError(
 			strconv.Itoa(i)+"st",
@@ -468,6 +473,10 @@ type ArgsIterator struct {
 	i   int
 }
 
+func (it *ArgsIterator) Length() int {
+	return it.len
+}
+
 func (it *ArgsIterator) Next() bool {
 	it.i++
 	return it.i-1 < it.len
@@ -477,12 +486,12 @@ func (it *ArgsIterator) Key() Object {
 	return Int(it.i)
 }
 
-func (it *ArgsIterator) Value() Object {
+func (it *ArgsIterator) Value() (Object, error) {
 	i := it.i - 1
 	if i > -1 && i < it.len {
-		return it.V.Get(i)
+		return it.V.Get(i), nil
 	}
-	return Nil
+	return Nil, nil
 }
 
 // Call is a struct to pass arguments to CallEx and CallName methods.

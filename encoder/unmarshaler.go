@@ -492,7 +492,7 @@ func (sf *SourceFile) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	sf.Name = obj.String()
+	sf.Name = obj.ToString()
 	var vi varintConv
 	vi.reader = rd
 	v, err := vi.read()

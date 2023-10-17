@@ -1,6 +1,7 @@
 package gad
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/gad-lang/gad/token"
@@ -24,8 +25,8 @@ type Object interface {
 	// TypeName should return the name of the type.
 	Type() ObjectType
 
-	// String should return a string of the type's value.
-	String() string
+	// ToString should return a string of the type's value.
+	ToString() string
 
 	// IsFalsy returns true if value is falsy otherwise false.
 	IsFalsy() bool
@@ -182,12 +183,31 @@ type ReverseSorter interface {
 
 type Iterabler interface {
 	// Iterate should return an Iterator for the type.
-	Iterate() Iterator
+	Iterate(vm *VM) Iterator
 }
 
 type CanIterabler interface {
 	// CanIterate should return whether the Object can be Iterated.
 	CanIterate() bool
+}
+
+type Slicer interface {
+	LengthGetter
+	Slice(low, high int) Object
+}
+
+type ToIterfaceConverter interface {
+	ToInterface() any
+}
+
+type Niler interface {
+	Object
+	IsNil() bool
+}
+
+type Appender interface {
+	Object
+	Append(arr ...Object) (Object, error)
 }
 
 // ObjectImpl is the basic Object implementation and it does not nothing, and
@@ -202,8 +222,7 @@ func (ObjectImpl) Type() ObjectType {
 	panic(ErrNotImplemented)
 }
 
-// String implements Object interface.
-func (ObjectImpl) String() string {
+func (ObjectImpl) ToString() string {
 	panic(ErrNotImplemented)
 }
 
@@ -223,14 +242,24 @@ func (o *NilType) Type() ObjectType {
 	return TNil
 }
 
-// String implements Object interface.
-func (o *NilType) String() string {
+func (o *NilType) ToString() string {
 	return "nil"
+}
+
+func (o *NilType) Format(f fmt.State, verb rune) {
+	switch verb {
+	case 'v':
+		f.Write([]byte(o.ToString()))
+	}
 }
 
 // Equal implements Object interface.
 func (o *NilType) Equal(right Object) bool {
 	return right == Nil
+}
+
+func (o *NilType) IsNil() bool {
+	return true
 }
 
 // BinaryOp implements Object interface.

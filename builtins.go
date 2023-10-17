@@ -484,6 +484,8 @@ func builtinAppendFunc(c Call) (Object, error) {
 			i++
 		}
 		return obj, nil
+	case Appender:
+		return obj.Append(c.Args.Values()...)
 	default:
 		return Nil, NewArgumentTypeError(
 			"1st",
@@ -562,9 +564,9 @@ func builtinContainsFunc(arg0, arg1 Object) (Object, error) {
 	var ok bool
 	switch obj := arg0.(type) {
 	case Map:
-		_, ok = obj[arg1.String()]
+		_, ok = obj[arg1.ToString()]
 	case *SyncMap:
-		_, ok = obj.Get(arg1.String())
+		_, ok = obj.Get(arg1.ToString())
 	case Array:
 		for _, item := range obj {
 			if item.Equal(arg1) {
@@ -573,9 +575,9 @@ func builtinContainsFunc(arg0, arg1 Object) (Object, error) {
 			}
 		}
 	case *NamedArgs:
-		ok = obj.Contains(arg1.String())
+		ok = obj.Contains(arg1.ToString())
 	case String:
-		ok = strings.Contains(string(obj), arg1.String())
+		ok = strings.Contains(string(obj), arg1.ToString())
 	case Bytes:
 		switch v := arg1.(type) {
 		case Int:
@@ -680,7 +682,7 @@ func builtinSortReverseFunc(arg Object) (Object, error) {
 }
 
 func builtinErrorFunc(arg Object) Object {
-	return &Error{Name: "error", Message: arg.String()}
+	return &Error{Name: "error", Message: arg.ToString()}
 }
 
 func builtinTypeNameFunc(arg Object) Object { return String(arg.Type().Name()) }
@@ -723,7 +725,7 @@ func builtinStringFunc(c Call) (ret Object, err error) {
 		return ts.Stringer(c)
 	}
 
-	ret = String(o.String())
+	ret = String(o.ToString())
 	return
 }
 
@@ -817,14 +819,14 @@ func builtinPrintfFunc(c Call) (_ Object, err error) {
 	case 0:
 		err = ErrWrongNumArguments.NewError("want>=1 got=0")
 	case 1:
-		n, err = fmt.Fprint(w, c.Args.Get(0).String())
+		n, err = fmt.Fprint(w, c.Args.Get(0).ToString())
 	default:
 		format, _ := c.Args.ShiftOk()
 		vargs := make([]any, 0, size-1)
 		for i := 0; i < size-1; i++ {
 			vargs = append(vargs, c.Args.Get(i))
 		}
-		n, err = fmt.Fprintf(w, format.String(), vargs...)
+		n, err = fmt.Fprintf(w, format.ToString(), vargs...)
 	}
 	return Int(n), err
 }
@@ -968,14 +970,14 @@ func builtinSprintfFunc(c Call) (ret Object, err error) {
 	case 0:
 		err = ErrWrongNumArguments.NewError("want>=1 got=0")
 	case 1:
-		ret = String(c.Args.Get(0).String())
+		ret = String(c.Args.Get(0).ToString())
 	default:
 		format, _ := c.Args.ShiftOk()
 		vargs := make([]any, 0, size-1)
 		for i := 0; i < size-1; i++ {
 			vargs = append(vargs, c.Args.Get(i))
 		}
-		ret = String(fmt.Sprintf(format.String(), vargs...))
+		ret = String(fmt.Sprintf(format.ToString(), vargs...))
 	}
 	return
 }
@@ -1124,7 +1126,7 @@ func builtinIsCallableFunc(arg Object) Object {
 
 func builtinIsIterableFunc(arg Object) Object { return Bool(Iterable(arg)) }
 
-func builtinKeysFunc(c Call) (Object, error) {
+func builtinKeysFunc(c Call) (_ Object, err error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return nil, err
 	}
@@ -1132,11 +1134,18 @@ func builtinKeysFunc(c Call) (Object, error) {
 	switch v := c.Args.Get(0).(type) {
 	case KeysGetter:
 		arr = v.Keys()
+	default:
+		if Iterable(v) {
+			it := v.(Iterabler).Iterate(c.VM)
+			for it.Next() {
+				arr = append(arr, it.Key())
+			}
+		}
 	}
 	return arr, nil
 }
 
-func builtinValuesFunc(c Call) (Object, error) {
+func builtinValuesFunc(c Call) (_ Object, err error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return nil, err
 	}
@@ -1146,11 +1155,24 @@ func builtinValuesFunc(c Call) (Object, error) {
 		arr = v
 	case ValuesGetter:
 		arr = v.Values()
+	default:
+		if Iterable(v) {
+			var (
+				it = v.(Iterabler).Iterate(c.VM)
+				v  Object
+			)
+			for it.Next() {
+				if v, err = it.Value(); err != nil {
+					return nil, err
+				}
+				arr = append(arr, v)
+			}
+		}
 	}
 	return arr, nil
 }
 
-func builtinItemsFunc(c Call) (Object, error) {
+func builtinItemsFunc(c Call) (_ Object, err error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return nil, err
 	}
@@ -1158,6 +1180,19 @@ func builtinItemsFunc(c Call) (Object, error) {
 	switch v := c.Args.Get(0).(type) {
 	case ItemsGetter:
 		arr = v.Items()
+	default:
+		if Iterable(v) {
+			var (
+				it = v.(Iterabler).Iterate(c.VM)
+				v  Object
+			)
+			for it.Next() {
+				if v, err = it.Value(); err != nil {
+					return nil, err
+				}
+				arr = append(arr, KeyValue{it.Key(), v})
+			}
+		}
 	}
 	return arr, nil
 }
@@ -1224,7 +1259,7 @@ func builtinStdIO(c Call) (ret Object, err error) {
 			case 2:
 				ret = c.VM.StdErr
 			default:
-				err = ErrUnexpectedArgValue.NewError("int(" + t.String() + ")")
+				err = ErrUnexpectedArgValue.NewError("int(" + t.ToString() + ")")
 			}
 		case Uint:
 			switch t {
@@ -1235,7 +1270,7 @@ func builtinStdIO(c Call) (ret Object, err error) {
 			case 2:
 				ret = c.VM.StdErr
 			default:
-				err = ErrUnexpectedArgValue.NewError("uint(" + t.String() + ")")
+				err = ErrUnexpectedArgValue.NewError("uint(" + t.ToString() + ")")
 			}
 		}
 	case 2:
@@ -1261,14 +1296,14 @@ func builtinStdIO(c Call) (ret Object, err error) {
 			case 0, 1, 2:
 				code = int(t)
 			default:
-				err = ErrUnexpectedArgValue.NewError("int(" + t.String() + ")")
+				err = ErrUnexpectedArgValue.NewError("int(" + t.ToString() + ")")
 			}
 		case Uint:
 			switch t {
 			case 0, 1, 2:
 				code = int(t)
 			default:
-				err = ErrUnexpectedArgValue.NewError("uint(" + t.String() + ")")
+				err = ErrUnexpectedArgValue.NewError("uint(" + t.ToString() + ")")
 			}
 		}
 
@@ -1404,7 +1439,7 @@ func builtinNewTypeFunc(c Call) (ret Object, err error) {
 	}
 
 	if toString.Value != nil {
-		t.ToString = toString.Value.(CallerObject)
+		t.Stringer = toString.Value.(CallerObject)
 	}
 
 	if fields.Value != nil {
@@ -1574,7 +1609,7 @@ func builtinCastFunc(c Call) (ret Object, err error) {
 	ot2 := typ.Value.(ObjectType)
 	for f := range ot2.Fields() {
 		if curFields[f] == nil {
-			err = ErrIncompatibleCast.NewError(fmt.Sprintf("field %q not found in %s", f, ot2.String()))
+			err = ErrIncompatibleCast.NewError(fmt.Sprintf("field %q not found in %s", f, ot2.ToString()))
 			return
 		}
 	}

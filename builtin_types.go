@@ -40,7 +40,7 @@ func (b *BuiltinObjType) Type() ObjectType {
 	return TNil
 }
 
-func (b *BuiltinObjType) String() string {
+func (b *BuiltinObjType) ToString() string {
 	return "Type::" + b.NameValue
 }
 
@@ -117,6 +117,9 @@ var (
 	}
 	TObjectTypeArray = &BuiltinObjType{
 		NameValue: "objectTypeArray",
+	}
+	TReflectMethod = &BuiltinObjType{
+		NameValue: "reflectMethod",
 	}
 )
 

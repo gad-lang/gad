@@ -156,7 +156,7 @@ func (*CompiledFunction) Type() ObjectType {
 	return TCompiledFunction
 }
 
-func (o *CompiledFunction) String() string {
+func (o *CompiledFunction) ToString() string {
 	var s []string
 	if o.Params.Len > 0 {
 		s = append(s, " [params: "+o.Params.String()+"]")
@@ -165,6 +165,12 @@ func (o *CompiledFunction) String() string {
 		s = append(s, " [named params: "+o.NamedParams.String()+"]")
 	}
 	return "<compiledFunction" + strings.Join(s, "") + ">"
+}
+
+func (o *CompiledFunction) Format(f fmt.State, verb rune) {
+	if verb == 'v' {
+		f.Write([]byte(o.ToString()))
+	}
 }
 
 // Copy implements the Copier interface.

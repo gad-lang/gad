@@ -40,7 +40,7 @@ func init() {
 // ## Types
 // ### encoderOptions
 //
-// Go Type
+// ToInterface Type
 //
 // ```go
 // // EncoderOptions represents the encoding options (quote, html escape) to
@@ -70,8 +70,8 @@ func (eo *EncoderOptions) Type() gad.ObjectType {
 	return EncoderOptionsType
 }
 
-// String implements gad.Object interface.
-func (eo *EncoderOptions) String() string {
+// ToString implements gad.Object interface.
+func (eo *EncoderOptions) ToString() string {
 	return fmt.Sprintf("encoderOptions{Quote:%t EscapeHTML:%t Value:%s}",
 		eo.Quote, eo.EscapeHTML, eo.Value)
 }
@@ -88,7 +88,7 @@ func (eo *EncoderOptions) String() string {
 
 // IndexGet implements gad.Object interface.
 func (eo *EncoderOptions) IndexGet(_ *gad.VM, index gad.Object) (ret gad.Object, err error) {
-	switch index.String() {
+	switch index.ToString() {
 	case "Value":
 		ret = eo.Value
 	case "Quote":
@@ -113,7 +113,7 @@ func (eo *EncoderOptions) IndexGet(_ *gad.VM, index gad.Object) (ret gad.Object,
 
 // IndexSet implements gad.Object interface.
 func (eo *EncoderOptions) IndexSet(_ *gad.VM, index, value gad.Object) error {
-	switch index.String() {
+	switch index.ToString() {
 	case "Value":
 		eo.Value = value
 	case "Quote":
@@ -130,7 +130,7 @@ func (eo *EncoderOptions) IndexSet(_ *gad.VM, index, value gad.Object) error {
 // ## Types
 // ### rawMessage
 //
-// Go Type
+// ToInterface Type
 //
 // ```go
 // // RawMessage represents raw encoded json message to directly use value of
@@ -158,8 +158,8 @@ func (rm *RawMessage) Type() gad.ObjectType {
 	return RawMessageType
 }
 
-// String implements gad.Object interface.
-func (rm *RawMessage) String() string {
+// ToString implements gad.Object interface.
+func (rm *RawMessage) ToString() string {
 	return string(rm.Value)
 }
 
@@ -182,7 +182,7 @@ func (rm *RawMessage) MarshalJSON() ([]byte, error) {
 
 // IndexGet implements gad.Object interface.
 func (rm *RawMessage) IndexGet(_ *gad.VM, index gad.Object) (ret gad.Object, err error) {
-	switch index.String() {
+	switch index.ToString() {
 	case "Value":
 		ret = gad.Bytes(rm.Value)
 	default:
@@ -201,7 +201,7 @@ func (rm *RawMessage) IndexGet(_ *gad.VM, index gad.Object) (ret gad.Object, err
 
 // IndexSet implements gad.Object interface.
 func (rm *RawMessage) IndexSet(_ *gad.VM, index, value gad.Object) error {
-	switch index.String() {
+	switch index.ToString() {
 	case "Value":
 		if v, ok := gad.ToBytes(value); ok {
 			rm.Value = v

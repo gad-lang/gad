@@ -35,19 +35,18 @@ func (o *Obj) Fields() Map {
 }
 
 func (o *Obj) Stringer(c Call) (String, error) {
-	if o.typ.ToString != nil {
-		ret, err := o.typ.ToString.Call(Call{VM: c.VM, Args: Args{Array{o}}})
+	if o.typ.Stringer != nil {
+		ret, err := o.typ.Stringer.Call(Call{VM: c.VM, Args: Args{Array{o}}})
 		if err != nil {
 			return "", err
 		}
 		s, _ := ToString(ret)
 		return s, nil
 	}
-	return String(o.String()), nil
+	return String(o.ToString()), nil
 }
 
-// String implements Object interface.
-func (o *Obj) String() string {
+func (o *Obj) ToString() string {
 	var sb strings.Builder
 	sb.WriteString(o.typ.Name())
 	sb.WriteString("{")
@@ -62,13 +61,13 @@ func (o *Obj) String() string {
 		sb.WriteString(": ")
 		switch v := o.fields[ks].(type) {
 		case String:
-			sb.WriteString(strconv.Quote(v.String()))
+			sb.WriteString(strconv.Quote(v.ToString()))
 		case Char:
 			sb.WriteString(strconv.QuoteRune(rune(v)))
 		case Bytes:
 			sb.WriteString(fmt.Sprint([]byte(v)))
 		default:
-			sb.WriteString(v.String())
+			sb.WriteString(v.ToString())
 		}
 		if i != last {
 			sb.WriteString(", ")
@@ -94,7 +93,7 @@ func (o Obj) DeepCopy() Object {
 
 // IndexSet implements Object interface.
 func (o *Obj) IndexSet(vm *VM, index, value Object) (err error) {
-	name := index.String()
+	name := index.ToString()
 	if s := o.typ.setters[name]; s != nil {
 		_, err = s.(CallerObject).Call(Call{VM: vm, Args: Args{Array{o, value}}})
 	} else {
@@ -105,7 +104,7 @@ func (o *Obj) IndexSet(vm *VM, index, value Object) (err error) {
 
 // IndexGet implements Object interface.
 func (o *Obj) IndexGet(vm *VM, index Object) (Object, error) {
-	name := index.String()
+	name := index.ToString()
 	if s := o.typ.getters[name]; s != nil {
 		return s.(CallerObject).Call(Call{VM: vm, Args: Args{Array{o}}})
 	} else {
@@ -147,14 +146,14 @@ func (o *Obj) BinaryOp(tok token.Token, right Object) (Object, error) {
 }
 
 // Iterate implements Iterable interface.
-func (o *Obj) Iterate() Iterator {
-	return o.fields.Iterate()
+func (o *Obj) Iterate(vm *VM) Iterator {
+	return o.fields.Iterate(vm)
 }
 
 // IndexDelete tries to delete the string value of key from the map.
 // IndexDelete implements IndexDeleter interface.
 func (o *Obj) IndexDelete(_ *VM, key Object) error {
-	delete(o.fields, key.String())
+	delete(o.fields, key.ToString())
 	return nil
 }
 
@@ -200,8 +199,8 @@ func (o ObjectTypeArray) Type() ObjectType {
 	return TObjectTypeArray
 }
 
-func (o ObjectTypeArray) String() string {
-	return TObjectTypeArray.String() + ArrayToString(len(o), func(i int) Object {
+func (o ObjectTypeArray) ToString() string {
+	return TObjectTypeArray.ToString() + ArrayToString(len(o), func(i int) Object {
 		return o[i]
 	})
 }
@@ -239,7 +238,7 @@ type ObjType struct {
 	setters  Map
 	methods  Map
 	getters  Map
-	ToString CallerObject
+	Stringer CallerObject
 	Init     CallerObject
 	Inherits ObjectTypeArray
 }
@@ -278,7 +277,7 @@ func (o *ObjType) IsChildOf(t ObjectType) bool {
 }
 
 func (o *ObjType) IndexGet(_ *VM, index Object) (value Object, err error) {
-	switch index.String() {
+	switch index.ToString() {
 	case "fields":
 		return o.fields, nil
 	case "getters":
@@ -304,7 +303,7 @@ func (o *ObjType) IndexGet(_ *VM, index Object) (value Object, err error) {
 	case "name":
 		return String(o.TypeName), nil
 	}
-	return nil, ErrNotIndexable.NewError(index.String())
+	return nil, ErrNotIndexable.NewError(index.ToString())
 }
 
 var (
@@ -323,8 +322,7 @@ func (o *ObjType) Format(f fmt.State, verb rune) {
 	f.Write([]byte(o.Name()))
 }
 
-// String implements Object interface.
-func (o *ObjType) String() string {
+func (o *ObjType) ToString() string {
 	return o.Name()
 }
 
@@ -348,10 +346,10 @@ func (o *ObjType) repr() string {
 	if o.Init != nil {
 		m["init"] = o.Init
 	}
-	if o.ToString != nil {
-		m["toString"] = o.ToString
+	if o.Stringer != nil {
+		m["toString"] = o.Stringer
 	}
-	return o.TypeName + m.String()
+	return o.TypeName + m.ToString()
 }
 
 // Equal implements Object interface.

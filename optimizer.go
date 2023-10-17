@@ -141,7 +141,7 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		OpNoOp: true, OpAndJump: true, OpOrJump: true, OpArray: true,
 		OpReturn: true, OpEqual: true, OpNotEqual: true, OpPop: true,
 		OpGetBuiltin: true, OpCall: true, OpSetLocal: true, OpDefineLocal: true,
-		OpTrue: true, OpFalse: true, OpJumpNull: true, OpJumpNotNull: true,
+		OpTrue: true, OpFalse: true, OpJumpNil: true, OpJumpNotNil: true,
 		OpCallee: true, OpArgs: true, OpNamedArgs: true,
 		OpStdIn: true, OpStdOut: true, OpStdErr: true,
 		OpTextWriter: true,

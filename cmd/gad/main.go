@@ -260,7 +260,7 @@ func (r *repl) cmdMemoryStats(_ string) error {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	_, _ = fmt.Fprintf(r.out, "Go Memory Stats see: "+
+	_, _ = fmt.Fprintf(r.out, "ToInterface Memory Stats see: "+
 		"https://golang.org/pkg/runtime/#MemStats\n\n")
 	_, _ = fmt.Fprintf(r.out, "HeapAlloc = %s", humanFriendlySize(m.HeapAlloc))
 	_, _ = fmt.Fprintf(r.out, "\tHeapObjects = %v", m.HeapObjects)

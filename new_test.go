@@ -392,7 +392,7 @@ func TestVMConst(t *testing.T) {
 	expectErrHas(t, `const (x, y = 2)`, newOpts().CompilerError(),
 		`Parse Error: missing initializer in const declaration`)
 
-	// After iota support, `const (x=1,y)` does not throw error, like Go. It
+	// After iota support, `const (x=1,y)` does not throw error, like ToInterface. It
 	// uses last expression as initializer.
 	expectRun(t, `const (x = 1, y)`, nil, Nil)
 

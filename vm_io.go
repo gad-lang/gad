@@ -15,7 +15,7 @@ func (w *StackWriter) Type() ObjectType {
 	return TWriter
 }
 
-func (w *StackWriter) String() string {
+func (w *StackWriter) ToString() string {
 	return "stackWriter"
 }
 
@@ -61,7 +61,7 @@ func (s *StackReader) Type() ObjectType {
 	return TReader
 }
 
-func (s *StackReader) String() string {
+func (s *StackReader) ToString() string {
 	return "stackReader"
 }
 

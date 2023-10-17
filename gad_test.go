@@ -11,67 +11,7 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
-func TestToObject(t *testing.T) {
-	err := errors.New("test error")
-	fn := func(Call) (Object, error) { return nil, nil }
-
-	testCases := []struct {
-		iface   any
-		want    Object
-		wantErr bool
-	}{
-		{iface: nil, want: Nil},
-		{iface: "a", want: String("a")},
-		{iface: int64(-1), want: Int(-1)},
-		{iface: int(1), want: Int(1)},
-		{iface: uint(1), want: Uint(1)},
-		{iface: uint64(1), want: Uint(1)},
-		{iface: uintptr(1), want: Uint(1)},
-		{iface: true, want: True},
-		{iface: false, want: False},
-		{iface: rune(1), want: Char(1)},
-		{iface: byte(1), want: Char(1)},
-		{iface: float64(1), want: Float(1)},
-		{iface: float32(1), want: Float(1)},
-		{iface: []byte(nil), want: Bytes{}},
-		{iface: []byte("a"), want: Bytes{'a'}},
-		{iface: map[string]Object(nil), want: Map{}},
-		{iface: map[string]Object{"a": Int(1)}, want: Map{"a": Int(1)}},
-		{iface: map[string]any{"a": 1}, want: Map{"a": Int(1)}},
-		{iface: map[string]any{"a": uint32(1)}, wantErr: true},
-		{iface: []Object(nil), want: Array{}},
-		{iface: []Object{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
-		{iface: []any{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
-		{iface: []any{uint32(1)}, wantErr: true},
-		{iface: Object(nil), want: Nil},
-		{iface: String("a"), want: String("a")},
-		{iface: CallableFunc(nil), want: Nil},
-		{iface: fn, want: &Function{Value: fn}},
-		{iface: err, want: &Error{Message: err.Error(), Cause: err}},
-		{iface: error(nil), want: Nil},
-		{iface: uint16(1), wantErr: true},
-	}
-
-	for _, tC := range testCases {
-		t.Run(fmt.Sprintf("%[1]T:%[1]v", tC.iface), func(t *testing.T) {
-			got, err := ToObject(tC.iface)
-			if (err != nil) != tC.wantErr {
-				t.Errorf("ToObject() error = %v, wantErr %v", err, tC.wantErr)
-				return
-			}
-			if fn, ok := tC.iface.(CallableFunc); ok && fn != nil {
-				require.NotNil(t, tC.want.(*Function).Value)
-				return
-			}
-			if !reflect.DeepEqual(got, tC.want) {
-				t.Errorf("ToObject() = %v, want %v", got, tC.want)
-			}
-		})
-	}
-}
-
 func TestToInterface(t *testing.T) {
-
 	testCases := []struct {
 		object Object
 		want   any
@@ -112,7 +52,7 @@ func TestToInterface(t *testing.T) {
 	}
 }
 
-func TestToObjectAlt(t *testing.T) {
+func TestToObject(t *testing.T) {
 	err := errors.New("test error")
 	fn := func(Call) (Object, error) { return nil, nil }
 
@@ -144,26 +84,21 @@ func TestToObjectAlt(t *testing.T) {
 		{iface: []byte("a"), want: Bytes{'a'}},
 		{iface: map[string]Object(nil), want: Map{}},
 		{iface: map[string]Object{"a": Int(1)}, want: Map{"a": Int(1)}},
-		{iface: map[string]any{"a": 1}, want: Map{"a": Int(1)}},
-		{iface: map[string]any{"a": uint32(1)}, want: Map{"a": Uint(1)}},
 		{iface: []Object(nil), want: Array{}},
 		{iface: []Object{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
-		{iface: []any{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
-		{iface: []any{uint32(1)}, want: Array{Uint(1)}},
 		{iface: Object(nil), want: Nil},
 		{iface: String("a"), want: String("a")},
 		{iface: CallableFunc(nil), want: Nil},
 		{iface: fn, want: &Function{Value: fn}},
 		{iface: err, want: &Error{Message: err.Error(), Cause: err}},
 		{iface: error(nil), want: Nil},
-		{iface: struct{}{}, wantErr: true},
 	}
 
 	for _, tC := range testCases {
 		t.Run(fmt.Sprintf("%[1]T:%[1]v", tC.iface), func(t *testing.T) {
-			got, err := ToObjectAlt(tC.iface)
+			got, err := ToObject(tC.iface)
 			if (err != nil) != tC.wantErr {
-				t.Errorf("ToObjectAlt() error = %v, wantErr %v", err, tC.wantErr)
+				t.Errorf("ToObject() error = %v, wantErr %v", err, tC.wantErr)
 				return
 			}
 			if fn, ok := tC.iface.(CallableFunc); ok && fn != nil {
@@ -171,7 +106,7 @@ func TestToObjectAlt(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tC.want) {
-				t.Errorf("ToObjectAlt() = %[1]v (%[1]T), want %[2]v (%[2]T)", got, tC.want)
+				t.Errorf("ToObject() = %[1]v (%[1]T), want %[2]v (%[2]T)", got, tC.want)
 			}
 		})
 	}

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,8 +27,7 @@ func (o Bool) Type() ObjectType {
 	return typeOf(o)
 }
 
-// String implements Object interface.
-func (o Bool) String() string {
+func (o Bool) ToString() string {
 	if o {
 		return "true"
 	}
@@ -170,12 +170,12 @@ func (o String) Type() ObjectType {
 	return typeOf(o)
 }
 
-func (o String) String() string {
+func (o String) ToString() string {
 	return string(o)
 }
 
 // Iterate implements Object interface.
-func (o String) Iterate() Iterator {
+func (o String) Iterate(*VM) Iterator {
 	return &StringIterator{V: o}
 }
 
@@ -254,7 +254,7 @@ func (o String) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 
 	if tok == token.Add {
-		return o + String(right.String()), nil
+		return o + String(right.ToString()), nil
 	}
 
 	return nil, NewOperandTypeError(
@@ -287,7 +287,7 @@ func (o Bytes) Type() ObjectType {
 	return typeOf(o)
 }
 
-func (o Bytes) String() string {
+func (o Bytes) ToString() string {
 	return string(o)
 }
 
@@ -299,7 +299,7 @@ func (o Bytes) Copy() Object {
 }
 
 // Iterate implements Object interface.
-func (o Bytes) Iterate() Iterator {
+func (o Bytes) Iterate(*VM) Iterator {
 	return &BytesIterator{V: o}
 }
 
@@ -431,8 +431,7 @@ func (*Function) Type() ObjectType {
 	return TFunction
 }
 
-// String implements Object interface.
-func (o *Function) String() string {
+func (o *Function) ToString() string {
 	return fmt.Sprintf("<function:%s>", o.Name)
 }
 
@@ -473,8 +472,7 @@ func (*BuiltinFunction) Type() ObjectType {
 	return TBuiltinFunction
 }
 
-// String implements Object interface.
-func (o *BuiltinFunction) String() string {
+func (o *BuiltinFunction) ToString() string {
 	return fmt.Sprintf("<builtinFunction:%s>", o.Name)
 }
 
@@ -520,8 +518,14 @@ func (o Array) Type() ObjectType {
 	return typeOf(o)
 }
 
-// String implements Object interface.
-func (o Array) String() string {
+func (o Array) Format(f fmt.State, verb rune) {
+	switch verb {
+	case 'v':
+		f.Write([]byte(o.ToString()))
+	}
+}
+
+func (o Array) ToString() string {
 	return ArrayToString(len(o), func(i int) Object {
 		return o[i]
 	})
@@ -647,7 +651,7 @@ func (o Array) AppendToArray(arr *Array) {
 }
 
 // Iterate implements Iterable interface.
-func (o Array) Iterate() Iterator {
+func (o Array) Iterate(*VM) Iterator {
 	return &ArrayIterator{V: o}
 }
 
@@ -722,8 +726,7 @@ func (o *ObjectPtr) Type() ObjectType {
 	return TObjectPtr
 }
 
-// String implements Object interface.
-func (o *ObjectPtr) String() string {
+func (o *ObjectPtr) ToString() string {
 	var v Object
 	if o.Value != nil {
 		v = *o.Value
@@ -795,8 +798,14 @@ func (o Map) Type() ObjectType {
 	return typeOf(o)
 }
 
-// String implements Object interface.
-func (o Map) String() string {
+func (o Map) Format(f fmt.State, verb rune) {
+	switch verb {
+	case 'v':
+		f.Write([]byte(o.ToString()))
+	}
+}
+
+func (o Map) ToString() string {
 	var sb strings.Builder
 	sb.WriteString("{")
 	last := len(o) - 1
@@ -807,13 +816,13 @@ func (o Map) String() string {
 		sb.WriteString(": ")
 		switch v := o[k].(type) {
 		case String:
-			sb.WriteString(strconv.Quote(v.String()))
+			sb.WriteString(strconv.Quote(v.ToString()))
 		case Char:
 			sb.WriteString(strconv.QuoteRune(rune(v)))
 		case Bytes:
 			sb.WriteString(fmt.Sprint([]byte(v)))
 		default:
-			sb.WriteString(v.String())
+			sb.WriteString(v.ToString())
 		}
 		if i != last {
 			sb.WriteString(", ")
@@ -852,13 +861,13 @@ func (o Map) DeepCopy() Object {
 
 // IndexSet implements Object interface.
 func (o Map) IndexSet(_ *VM, index, value Object) error {
-	o[index.String()] = value
+	o[index.ToString()] = value
 	return nil
 }
 
 // IndexGet implements Object interface.
 func (o Map) IndexGet(_ *VM, index Object) (Object, error) {
-	v, ok := o[index.String()]
+	v, ok := o[index.ToString()]
 	if ok {
 		return v, nil
 	}
@@ -909,7 +918,7 @@ func (o Map) BinaryOp(tok token.Token, right Object) (Object, error) {
 }
 
 // Iterate implements Iterable interface.
-func (o Map) Iterate() Iterator {
+func (o Map) Iterate(*VM) Iterator {
 	keys := make([]string, 0, len(o))
 	for k := range o {
 		keys = append(keys, k)
@@ -920,7 +929,7 @@ func (o Map) Iterate() Iterator {
 // IndexDelete tries to delete the string value of key from the map.
 // IndexDelete implements IndexDeleter interface.
 func (o Map) IndexDelete(_ *VM, key Object) error {
-	delete(o, key.String())
+	delete(o, key.ToString())
 	return nil
 }
 
@@ -1011,12 +1020,21 @@ func (o *SyncMap) Type() ObjectType {
 	return typeOf(o)
 }
 
-// String implements Object interface.
-func (o *SyncMap) String() string {
+func (o *SyncMap) ToString() string {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
-	return o.Value.String()
+	return o.Value.ToString()
+}
+
+func (o *SyncMap) Format(f fmt.State, verb rune) {
+	switch verb {
+	case 'v':
+		if f.Flag('#') {
+			f.Write([]byte("&" + reflect.TypeOf(o).Elem().String()))
+		}
+		o.Value.Format(f, verb)
+	}
 }
 
 // Copy implements Copier interface.
@@ -1075,11 +1093,11 @@ func (o *SyncMap) IsFalsy() bool {
 }
 
 // Iterate implements Iterable interface.
-func (o *SyncMap) Iterate() Iterator {
+func (o *SyncMap) Iterate(vm *VM) Iterator {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
-	return &SyncIterator{Iterator: o.Value.Iterate()}
+	return &SyncIterator{Iterator: o.Value.Iterate(vm)}
 }
 
 // Get returns Object in map if exists.
@@ -1153,8 +1171,7 @@ func (o *Error) Type() ObjectType {
 	return typeOf(o)
 }
 
-// String implements Object interface.
-func (o *Error) String() string {
+func (o *Error) ToString() string {
 	return o.Error()
 }
 
@@ -1189,7 +1206,7 @@ func (o *Error) IsFalsy() bool { return true }
 
 // IndexGet implements Object interface.
 func (o *Error) IndexGet(_ *VM, index Object) (Object, error) {
-	s := index.String()
+	s := index.ToString()
 	if s == "Literal" {
 		return String(o.Name), nil
 	}
@@ -1205,13 +1222,13 @@ func (o *Error) IndexGet(_ *VM, index Object) (Object, error) {
 				l := c.Args.Len()
 				switch l {
 				case 1:
-					return o.NewError(c.Args.Get(0).String()), nil
+					return o.NewError(c.Args.Get(0).ToString()), nil
 				case 0:
 					return o.NewError(o.Message), nil
 				default:
 					msgs := make([]string, l)
 					for i := range msgs {
-						msgs[i] = c.Args.Get(i).String()
+						msgs[i] = c.Args.Get(i).ToString()
 					}
 					return o.NewError(msgs...), nil
 				}
@@ -1261,8 +1278,7 @@ func (*RuntimeError) Type() ObjectType {
 	return TError
 }
 
-// String implements Object interface.
-func (o *RuntimeError) String() string {
+func (o *RuntimeError) ToString() string {
 	return o.Error()
 }
 
@@ -1302,7 +1318,7 @@ func (o *RuntimeError) IsFalsy() bool { return true }
 // IndexGet implements Object interface.
 func (o *RuntimeError) IndexGet(vm *VM, index Object) (Object, error) {
 	if o.Err != nil {
-		s := index.String()
+		s := index.ToString()
 		if s == "New" {
 			return &Function{
 				Name: "New",
@@ -1310,13 +1326,13 @@ func (o *RuntimeError) IndexGet(vm *VM, index Object) (Object, error) {
 					l := c.Args.Len()
 					switch l {
 					case 1:
-						return o.NewError(c.Args.Get(0).String()), nil
+						return o.NewError(c.Args.Get(0).ToString()), nil
 					case 0:
 						return o.NewError(o.Err.Message), nil
 					default:
 						msgs := make([]string, l)
 						for i := range msgs {
-							msgs[i] = c.Args.Get(i).String()
+							msgs[i] = c.Args.Get(i).ToString()
 						}
 						return o.NewError(msgs...), nil
 					}
@@ -1371,7 +1387,7 @@ func (o *RuntimeError) Format(s fmt.State, verb rune) {
 	case 'v', 's':
 		switch {
 		case s.Flag('+'):
-			_, _ = io.WriteString(s, o.String())
+			_, _ = io.WriteString(s, o.ToString())
 			if len(o.Trace) > 0 {
 				if v := o.StackTrace(); v != nil {
 					_, _ = io.WriteString(s, fmt.Sprintf("%+v", v))
@@ -1393,10 +1409,10 @@ func (o *RuntimeError) Format(s fmt.State, verb rune) {
 				}
 			}
 		default:
-			_, _ = io.WriteString(s, o.String())
+			_, _ = io.WriteString(s, o.ToString())
 		}
 	case 'q':
-		_, _ = io.WriteString(s, strconv.Quote(o.String()))
+		_, _ = io.WriteString(s, strconv.Quote(o.ToString()))
 	}
 }
 
@@ -1446,8 +1462,8 @@ func (i *CallWrapper) Type() ObjectType {
 	return TCallWrapper
 }
 
-func (i *CallWrapper) String() string {
-	return i.Type().String() + "{" + i.Caller.String() + "}"
+func (i *CallWrapper) ToString() string {
+	return i.Type().ToString() + "{" + i.Caller.ToString() + "}"
 }
 
 func (CallWrapper) IsFalsy() bool {

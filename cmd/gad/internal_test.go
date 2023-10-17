@@ -166,7 +166,7 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("memory_stats", func(t *testing.T) {
 		require.NoError(t, r.execute(".memory_stats"))
-		testHasPrefix(t, string(cw.consume()), "Go Memory Stats")
+		testHasPrefix(t, string(cw.consume()), "ToInterface Memory Stats")
 	})
 	t.Run("reset", func(t *testing.T) {
 		r := newREPL(ctx, cw)
