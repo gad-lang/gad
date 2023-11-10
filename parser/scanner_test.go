@@ -44,10 +44,10 @@ func TestScanner_Scan(t *testing.T) {
 	}{
 		{token.Comment, "/* a comment */"},
 		{token.Comment, "// a comment \n"},
-		{token.Comment, "/*\r*/"},
-		{token.Comment, "/**\r/*/"},
-		{token.Comment, "/**\r\r/*/"},
-		{token.Comment, "//\r\n"},
+		{token.Comment, "/*\n*/"},
+		{token.Comment, "/**\n/*/"},
+		{token.Comment, "/**\n\n/*/"},
+		{token.Comment, "//\n"},
 		{token.Ident, "foobar"},
 		{token.Ident, "a۰۱۸"},
 		{token.Ident, "foo६४"},
@@ -95,8 +95,8 @@ func TestScanner_Scan(t *testing.T) {
 	                        bar` +
 			"`",
 		},
-		{token.String, "`\r`"},
-		{token.String, "`foo\r\nbar`"},
+		{token.String, "`\n`"},
+		{token.String, "`foo\nbar`"},
 		{token.Add, "+"},
 		{token.Sub, "-"},
 		{token.Mul, "*"},
@@ -308,8 +308,8 @@ func scanExpect(
 	s := parser.NewScanner(
 		testFile,
 		[]byte(input),
-		func(_ parser.SourceFilePos, msg string) { require.Fail(t, msg) },
 		mode)
+	s.ErrorHandler(func(_ parser.SourceFilePos, msg string) { require.Fail(t, msg) })
 
 	for idx, e := range expected {
 		tok := s.Scan()

@@ -10,7 +10,7 @@ var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
 // TrimSpace returns a slice of the string s, with all leading
 // and trailing white space removed, as defined by Unicode.
-func trimSpace(left, right bool, s string) string {
+func TrimSpace(left, right bool, s string) string {
 	start := 0
 	if left {
 		// Fast path for ASCII: look for the first ASCII non-space byte

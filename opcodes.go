@@ -54,6 +54,7 @@ const (
 	OpClosure
 	OpIterInit
 	OpIterNext
+	OpIterNextElse
 	OpIterKey
 	OpIterValue
 	OpLoadModule
@@ -114,6 +115,7 @@ var OpcodeNames = [...]string{
 	OpClosure:       "CLOSURE",
 	OpIterInit:      "ITERINIT",
 	OpIterNext:      "ITERNEXT",
+	OpIterNextElse:  "ITERNEXTELSE",
 	OpIterKey:       "ITERKEY",
 	OpIterValue:     "ITERVALUE",
 	OpLoadModule:    "LOADMODULE",
@@ -175,6 +177,7 @@ var OpcodeOperands = [...][]int{
 	OpClosure:       {2, 1}, // constant index, item count
 	OpIterInit:      {},
 	OpIterNext:      {},
+	OpIterNextElse:  {2, 2}, // true pos, false pos
 	OpIterKey:       {},
 	OpIterValue:     {},
 	OpLoadModule:    {2, 2}, // constant index, module index

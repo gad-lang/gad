@@ -17,6 +17,7 @@ import (
 
 	"github.com/gad-lang/gad/internal/compat"
 	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -1250,7 +1251,7 @@ func (o *Error) NewError(messages ...string) *Error {
 type RuntimeError struct {
 	Err     *Error
 	fileSet *parser.SourceFileSet
-	Trace   []parser.Pos
+	Trace   []source.Pos
 }
 
 var (
@@ -1265,7 +1266,7 @@ func (o *RuntimeError) Unwrap() error {
 	return nil
 }
 
-func (o *RuntimeError) addTrace(pos parser.Pos) {
+func (o *RuntimeError) addTrace(pos source.Pos) {
 	if len(o.Trace) > 0 {
 		if o.Trace[len(o.Trace)-1] == pos {
 			return
@@ -1292,7 +1293,7 @@ func (o *RuntimeError) Copy() Object {
 	return &RuntimeError{
 		Err:     err,
 		fileSet: o.fileSet,
-		Trace:   append([]parser.Pos{}, o.Trace...),
+		Trace:   append([]source.Pos{}, o.Trace...),
 	}
 }
 

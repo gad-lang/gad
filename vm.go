@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 
 	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -1080,9 +1081,9 @@ func (vm *VM) newErrorFromError(err error) *RuntimeError {
 	return vm.newError(&Error{Message: err.Error(), Cause: err})
 }
 
-func (vm *VM) getSourcePos() parser.Pos {
+func (vm *VM) getSourcePos() source.Pos {
 	if vm.curFrame == nil || vm.curFrame.fn == nil {
-		return parser.NoPos
+		return source.NoPos
 	}
 	return vm.curFrame.fn.SourcePos(vm.ip)
 }
@@ -1187,9 +1188,9 @@ type frame struct {
 	namedArgs   *NamedArgs
 }
 
-func getFrameSourcePos(frame *frame) parser.Pos {
+func getFrameSourcePos(frame *frame) source.Pos {
 	if frame == nil || frame.fn == nil {
-		return parser.NoPos
+		return source.NoPos
 	}
 	return frame.fn.SourcePos(frame.ip + 1)
 }

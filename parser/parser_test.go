@@ -5,12 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 
+	. "github.com/gad-lang/gad/parser/ast"
+	. "github.com/gad-lang/gad/parser/node"
+	. "github.com/gad-lang/gad/parser/source"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
@@ -94,7 +96,7 @@ x := d?.a.b.("c")?.e ?? 5
 		f, err = os.Open(goldenFile)
 		require.NoError(t, err)
 	}
-	golden, err := ioutil.ReadAll(f)
+	golden, err := io.ReadAll(f)
 	require.NoError(t, err)
 	var out bytes.Buffer
 	parse(sample, &out)
@@ -105,12 +107,15 @@ x := d?.a.b.("c")?.e ?? 5
 }
 
 func TestParserMixed(t *testing.T) {
-	expectParseStringMode(t, ParseMixed, `# gad: writer=myfn; #{- var myfn -} a`, `# gad: writer=myfn; var myfn; #{= "a" }`)
+	expectParseStringMode(t, ParseMixed, "# gad: writer=myfn\n#{- var myfn -} a", `# gad: writer=myfn; var myfn; #{= "a" }`)
+	expectParseStringMode(t, ParseMixed, "# gad: writer=myfn\na#{var myfn}b", `# gad: writer=myfn; #{= "a" }; var myfn; #{= "b" }`)
+
 	expectParseStringMode(t, ParseMixed, "#{var a}", `var a`)
 	expectParseStringMode(t, ParseMixed, "#{for e in list do}1#{end}", `for _, e in list {#{= "1" }}`)
 	expectParseStringMode(t, ParseMixed, "a  #{-= 1 -}\n\tb", `#{= "a" }; #{= 1 }; #{= "b" }`)
 	expectParseStringMode(t, ParseMixed, "#{ a := begin -} 2 #{- end }", `a := (#{= "2" })`)
 	expectParseStringMode(t, ParseMixed, "#{ if 1 then } 2 #{ end }", `if 1 {#{= " 2 " }}`)
+
 	expectParseMode(t, ParseMixed, "a  #{-= 1 -}\n\tb", func(p pfn) []Stmt {
 		return stmts(
 			text(p(1, 1), "a"),
@@ -134,7 +139,6 @@ func TestParserMixed(t *testing.T) {
 			text(p(1, 12), "\n\tb"),
 		)
 	})
-
 	expectParseMode(t, ParseMixed, "a  #{-= 1 -}\n\tb", func(p pfn) []Stmt {
 		return stmts(
 			text(p(1, 1), "a"),
@@ -142,7 +146,6 @@ func TestParserMixed(t *testing.T) {
 			text(p(1, 13), "b"),
 		)
 	})
-
 	expectParseMode(t, ParseMixed, `a#{=1}b`, func(p pfn) []Stmt {
 		return stmts(
 			text(p(1, 1), "a"),
@@ -204,9 +207,11 @@ func TestParserMixed(t *testing.T) {
 	expectParseStringMode(t, ParseMixed, "a  #{- 1}", `#{= "a" }; 1`)
 	expectParseStringMode(t, ParseMixed, "a\n#{- 1}\tb\n#{-= 2 -}\n\nc", "#{= \"a\" }; 1; #{= \"\\tb\" }; #{= 2 }; #{= \"c\" }")
 	expectParseStringMode(t, ParseMixed, `a#{=1}c#{x := 5}#{=x}`, `#{= "a" }; #{= 1 }; #{= "c" }; x := 5; #{= x }`)
-	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else if a then}2#{else then}3#{end}", `if true {#{= "1" }} else if a {#{= "2" }} else {#{= "3" }}`)
+
+	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else if a then}2#{else then}3#{fn()}#{end}", `if true {#{= "1" }} else if a {#{= "2" }} else {#{= "3" }; fn()}`)
+	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else if a then}2#{else}3#{end}", `if true {#{= "1" }} else if a {#{= "2" }} else {#{= "3" }}`)
 	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else if a then}2#{end}", `if true {#{= "1" }} else if a {#{= "2" }}`)
-	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else then}2#{end}", `if true {#{= "1" }} else {#{= "2" }}`)
+	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else}2#{end}", `if true {#{= "1" }} else {#{= "2" }}`)
 }
 
 func TestParserError(t *testing.T) {
@@ -273,8 +278,8 @@ func TestParseDecl(t *testing.T) {
 				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 31),
 					paramSpec(false, ident("a", p(1, 8))),
 					paramSpec(true, ident("b", p(1, 14))),
-					nparamSpec(ident("c", p(1, 17)), &IntLit{1, 19, "1"}),
-					nparamSpec(ident("d", p(1, 22)), &IntLit{2, 24, "2"}),
+					nparamSpec(ident("c", p(1, 17)), intLit(1, p(1, 19))),
+					nparamSpec(ident("d", p(1, 22)), intLit(2, p(1, 24))),
 					nparamSpec(ident("e", p(1, 30)), nil),
 				),
 			),
@@ -284,8 +289,8 @@ func TestParseDecl(t *testing.T) {
 		return stmts(
 			declStmt(
 				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 22),
-					nparamSpec(ident("c", p(1, 8)), &IntLit{1, 10, "1"}),
-					nparamSpec(ident("d", p(1, 13)), &IntLit{2, 15, "2"}),
+					nparamSpec(ident("c", p(1, 8)), intLit(1, p(1, 10))),
+					nparamSpec(ident("d", p(1, 13)), intLit(2, p(1, 15))),
 					nparamSpec(ident("e", p(1, 21)), nil),
 				),
 			),
@@ -295,8 +300,8 @@ func TestParseDecl(t *testing.T) {
 		return stmts(
 			declStmt(
 				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 23),
-					nparamSpec(ident("c", p(1, 9)), &IntLit{1, 11, "1"}),
-					nparamSpec(ident("d", p(1, 14)), &IntLit{2, 16, "2"}),
+					nparamSpec(ident("c", p(1, 9)), intLit(1, p(1, 11))),
+					nparamSpec(ident("d", p(1, 14)), intLit(2, p(1, 16))),
 					nparamSpec(ident("e", p(1, 22)), nil),
 				),
 			),
@@ -1331,7 +1336,7 @@ func TestParseCallWithNamedArgs(t *testing.T) {
 					ident("add", p(1, 1)),
 					p(1, 4), p(1, 14),
 					callExprNamedArgs(nil,
-						[]NamedArgExpr{{String: stringLit("x", p(1, 5))}, {Ident: ident("y", p(1, 11))}},
+						[]NamedArgExpr{{Lit: stringLit("x", p(1, 5))}, {Ident: ident("y", p(1, 11))}},
 						[]Expr{intLit(2, p(1, 9)), intLit(3, p(1, 13))},
 					))))
 	})
@@ -1485,8 +1490,58 @@ func TestParseForIn(t *testing.T) {
 				p(1, 1)))
 	})
 
+	expectParse(t, "for x in y {} else {}", func(p pfn) []Stmt {
+		return stmts(
+			forInStmt(
+				ident("_", p(1, 5)),
+				ident("x", p(1, 5)),
+				ident("y", p(1, 10)),
+				blockStmt(p(1, 12), p(1, 13)),
+				p(1, 1),
+				blockStmt(p(1, 20), p(1, 21))))
+	})
+
+	expectParse(t, "for x in y do x; else 1 end", func(p pfn) []Stmt {
+		return stmts(
+			forInStmt(
+				ident("_", p(1, 5)),
+				ident("x", p(1, 5)),
+				ident("y", p(1, 10)),
+				blockStmt(
+					p(1, 12), p(1, 18),
+					exprStmt(
+						ident("x", p(1, 15)),
+					),
+				),
+				p(1, 1),
+				blockStmt(p(1, 18), p(1, 23),
+					exprStmt(
+						intLit(1, p(1, 23)),
+					),
+				)))
+	})
+
+	expectParse(t, "for x in y {} else 1 end", func(p pfn) []Stmt {
+		return stmts(
+			forInStmt(
+				ident("_", p(1, 5)),
+				ident("x", p(1, 5)),
+				ident("y", p(1, 10)),
+				blockStmt(p(1, 12), p(1, 13)),
+				p(1, 1),
+				blockStmt(p(1, 15), p(1, 20),
+					exprStmt(
+						intLit(1, p(1, 20)),
+					),
+				)))
+	})
+
 	expectParseString(t, "for x in y do end", "for _, x in y {}")
 	expectParseString(t, "for x in y do 1 end", "for _, x in y {1}")
+	expectParseString(t, "for x in y do else end", "for _, x in y {} else {}")
+	expectParseString(t, "for x in y do 1 else end", "for _, x in y {1} else {}")
+	expectParseString(t, "for x in y do else end", "for _, x in y {} else {}")
+	expectParseString(t, "for x in y do 1 else 2 end", "for _, x in y {1} else {2}")
 
 	expectParseError(t, `for 1 in a {}`)
 	expectParseError(t, `for "" in a {}`)
@@ -1661,32 +1716,27 @@ func TestParseClosure(t *testing.T) {
 								ident("c", p(1, 13)),
 								ident("d", p(1, 16))),
 						),
-						&BlockExpr{blockStmt(p(1, 22), p(1, 24),
-							exprStmt(ident("d", p(1, 23))))})),
+						blockExpr(p(1, 22), p(1, 24),
+							exprStmt(ident("d", p(1, 23)))))),
 				token.Assign,
 				p(1, 3)))
 	})
 }
 
 func TestParseFunction(t *testing.T) {
-	expectParse(t, "a = func(b, c, d) { return d }", func(p pfn) []Stmt {
+	expectParse(t, "func fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
-				exprs(
-					ident("a", p(1, 1))),
-				exprs(
-					funcLit(
-						funcType(p(1, 5), p(1, 9), p(1, 17),
-							funcArgs(nil,
-								ident("b", p(1, 10)),
-								ident("c", p(1, 13)),
-								ident("d", p(1, 16))),
-						),
-						blockStmt(p(1, 19), p(1, 30),
-							returnStmt(p(1, 21), ident("d", p(1, 28)))))),
-				token.Assign,
-				p(1, 3)))
+			exprStmt(
+				funcLit(
+					funcType(p(1, 5), p(1, 9), p(1, 11),
+						ident("fn", p(1, 6)),
+						funcArgs(nil,
+							ident("b", p(1, 10))),
+					),
+					blockStmt(p(1, 13), p(1, 24),
+						returnStmt(p(1, 15), ident("d", p(1, 22)))))))
 	})
+
 	expectParse(t, "a = func(b, c, d; e=1, f=2, ...g) { return d }", func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(
@@ -2065,8 +2115,8 @@ if a == 5 {
 	expectParseString(t, "if a then end", "if a {}")
 	expectParseString(t, "if a then b end", "if a {b}")
 	expectParseString(t, "if true; a then b end", "if true; a {b}")
-	expectParseString(t, "if a then b; else then c end", "if a {b} else {c}")
-	expectParseString(t, "if a then b; else if 1 then 2; else then c end", "if a {b} else if 1 {2} else {c}")
+	expectParseString(t, "if a then b; else c end", "if a {b} else {c}")
+	expectParseString(t, "if a then b; else if 1 then 2; else c end", "if a {b} else if 1 {2} else {c}")
 
 	expectParseError(t, `if {}`)
 	expectParseError(t, `if a == b { } else a != b { }`)
@@ -2673,37 +2723,35 @@ func TestParseString(t *testing.T) {
 
 func TestParseConfig(t *testing.T) {
 	expectParse(t, `# gad: mixed
+# gad: mixed=false
+a`, func(p pfn) []Stmt {
+		return stmts(
+			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			config(p(2, 1), kv(ident("mixed", p(2, 8)), boolLit(false, p(2, 14)))),
+			exprStmt(ident("a", p(3, 1))),
+		)
+	})
+	expectParse(t, `# gad: mixed
 y
 #{b}`, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), p(1, 12), ConfigOptions{Mixed: true}),
+			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
 			text(p(2, 1), "y\n"),
 			exprStmt(ident("b", p(3, 3))),
 		)
 	})
 	expectParse(t, `# gad: mixed
-# gad: mixed=false
-a`, func(p pfn) []Stmt {
-		return stmts(
-			config(p(1, 1), p(1, 12), ConfigOptions{Mixed: true}),
-			config(p(2, 1), p(2, 18), ConfigOptions{NoMixed: true}),
-			exprStmt(ident("a", p(3, 1))),
-		)
-	})
-
-	expectParse(t, `# gad: mixed
 a
 #{b}`, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), p(1, 12), ConfigOptions{Mixed: true}),
+			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
 			text(p(2, 1), "a\n"),
 			exprStmt(ident("b", p(3, 3))),
 		)
 	})
-
 	expectParse(t, `# gad: mixed`, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), p(1, 12), ConfigOptions{Mixed: true}))
+			config(p(1, 1), kv(ident("mixed", p(1, 8)))))
 	})
 }
 
@@ -2832,7 +2880,7 @@ func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn) {
 	var ok bool
 	defer func() {
 		if !ok {
-			// print trace
+			// print Trace
 			tr := &parseTracer{}
 			p := NewParser(testFile, []byte(input), tr)
 			actual, _ := p.ParseFile()
@@ -2866,7 +2914,7 @@ func expectParseError(t *testing.T, input string) {
 	var ok bool
 	defer func() {
 		if !ok {
-			// print trace
+			// print Trace
 			tr := &parseTracer{}
 			p := NewParser(testFile, []byte(input), tr)
 			_, _ = p.ParseFile()
@@ -2888,7 +2936,7 @@ func expectParseStringMode(t *testing.T, mode Mode, input, expected string) {
 	var ok bool
 	defer func() {
 		if !ok {
-			// print trace
+			// print Trace
 			tr := &parseTracer{}
 			_, _ = parseSource("test", []byte(input), tr, mode)
 			t.Logf("Trace:\n%s", strings.Join(tr.out, ""))
@@ -2977,10 +3025,14 @@ func forInStmt(
 	seq Expr,
 	body *BlockStmt,
 	pos Pos,
+	elseb ...*BlockStmt,
 ) *ForInStmt {
-	return &ForInStmt{
+	f := &ForInStmt{
 		Key: key, Value: value, Iterable: seq, Body: body, ForPos: pos,
 	}
+	for _, f.Else = range elseb {
+	}
+	return f
 }
 
 func breakStmt(pos Pos) *BranchStmt {
@@ -3056,6 +3108,8 @@ func funcType(pos, lparen, rparen Pos, v ...any) *FuncType {
 			f.Params.Args = t
 		case NamedArgsList:
 			f.Params.NamedArgs = t
+		case *Ident:
+			f.Ident = t
 		}
 	}
 	return f
@@ -3073,6 +3127,10 @@ func blockStmt(lbrace, rbrace Pos, list ...Stmt) *BlockStmt {
 	return &BlockStmt{Stmts: list, LBrace: lbrace, RBrace: rbrace}
 }
 
+func blockExpr(lbrace, rbrace Pos, list ...Stmt) *BlockExpr {
+	return &BlockExpr{BlockStmt: &BlockStmt{Stmts: list, LBrace: lbrace, RBrace: rbrace}}
+}
+
 func ident(name string, pos Pos) *Ident {
 	return &Ident{Name: name, NamePos: pos}
 }
@@ -3082,22 +3140,32 @@ func text(pos Pos, lit string) *TextStmt {
 }
 
 func toText(start, end Literal, expr Expr) *ExprToTextStmt {
-	return &ExprToTextStmt{expr, start, end}
+	return &ExprToTextStmt{Expr: expr, StartLit: start, EndLit: end}
 }
 
 func lit(value string, pos Pos) Literal {
-	return Literal{value, pos}
+	return Literal{Value: value, Pos: pos}
 }
 
-func config(start, end Pos, opts ConfigOptions) *ConfigStmt {
-	return &ConfigStmt{ConfigPos: start, EndPos: end, Options: opts}
+func kv(key Expr, value ...Expr) *KeyValueLit {
+	kv := &KeyValueLit{Key: key}
+	for _, expr := range value {
+		kv.Value = expr
+	}
+	return kv
+}
+
+func config(start Pos, opts ...*KeyValueLit) *ConfigStmt {
+	c := &ConfigStmt{ConfigPos: start, Elements: opts}
+	c.ParseElements()
+	return c
 }
 
 func nullishSelector(
 	sel,
 	expr Expr,
 ) *NullishSelectorExpr {
-	return &NullishSelectorExpr{sel, expr}
+	return &NullishSelectorExpr{Expr: sel, Sel: expr}
 }
 
 func binaryExpr(
@@ -3164,15 +3232,15 @@ func arrayLit(lbracket, rbracket Pos, list ...Expr) *ArrayLit {
 }
 
 func caleeKw(pos Pos) *CalleeKeyword {
-	return &CalleeKeyword{pos, token.Callee.String()}
+	return &CalleeKeyword{TokenPos: pos, Literal: token.Callee.String()}
 }
 
 func argsKw(pos Pos) *ArgsKeyword {
-	return &ArgsKeyword{pos, token.Args.String()}
+	return &ArgsKeyword{TokenPos: pos, Literal: token.Args.String()}
 }
 
 func nargsKw(pos Pos) *NamedArgsKeyword {
-	return &NamedArgsKeyword{pos, token.NamedArgs.String()}
+	return &NamedArgsKeyword{TokenPos: pos, Literal: token.NamedArgs.String()}
 }
 
 func mapElementLit(
@@ -3210,7 +3278,7 @@ func callExpr(
 	lparen, rparen Pos,
 	args ...any,
 ) (ce *CallExpr) {
-	ce = &CallExpr{Func: f, LParen: lparen, RParen: rparen}
+	ce = &CallExpr{Func: f, CallArgs: CallArgs{LParen: lparen, RParen: rparen}}
 	for _, v := range args {
 		switch t := v.(type) {
 		case CallExprArgs:
@@ -3223,7 +3291,7 @@ func callExpr(
 }
 
 func ellipsis(pos Pos, value Expr) *EllipsisValue {
-	return &EllipsisValue{pos, value}
+	return &EllipsisValue{Pos: pos, Value: value}
 }
 
 func callExprArgs(
@@ -3321,7 +3389,7 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 				}
 				require.Equal(t, expectedSpec.Ident, actualSpec.Ident)
 				if expectedSpec.Value != nil || actualSpec.Value != nil {
-					require.Equal(t, expectedSpec.Value, actualSpec.Value)
+					equalExpr(t, expectedSpec.Value, actualSpec.Value)
 				}
 			case *ValueSpec:
 				actualSpec, ok := actSpec.(*ValueSpec)
@@ -3385,6 +3453,8 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 			actual.(*ForInStmt).Body)
 		require.Equal(t, expected.ForPos,
 			actual.(*ForInStmt).ForPos)
+		equalStmt(t, expected.Else,
+			actual.(*ForInStmt).Else)
 	case *ReturnStmt:
 		equalExpr(t, expected.Result,
 			actual.(*ReturnStmt).Result)
@@ -3416,10 +3486,13 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 	case *ConfigStmt:
 		require.Equal(t, expected.ConfigPos,
 			actual.(*ConfigStmt).ConfigPos)
-		require.Equal(t, expected.EndPos,
-			actual.(*ConfigStmt).EndPos)
 		require.Equal(t, expected.Options,
 			actual.(*ConfigStmt).Options)
+		require.Equal(t, len(expected.Elements),
+			len(actual.(*ConfigStmt).Elements))
+		for i, e := range expected.Elements {
+			equalExpr(t, e, actual.(*ConfigStmt).Elements[i])
+		}
 	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}
@@ -3629,6 +3702,11 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 	case *BlockExpr:
 		equalStmt(t, expected.BlockStmt,
 			actual.(*BlockExpr).BlockStmt)
+	case *KeyValueLit:
+		equalExpr(t, expected.Key,
+			actual.(*KeyValueLit).Key)
+		equalExpr(t, expected.Value,
+			actual.(*KeyValueLit).Value)
 	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}
@@ -3657,7 +3735,7 @@ func equalNamedArgsNames(t *testing.T, expected, actual []NamedArgExpr) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
 		equalExpr(t, expected[i].Ident, actual[i].Ident)
-		equalExpr(t, expected[i].String, actual[i].String)
+		equalExpr(t, expected[i].Lit, actual[i].Lit)
 	}
 }
 

@@ -77,8 +77,8 @@ func TestScript(t *testing.T) {
 	expectRun(t, catchf(`string(json.Marshal({_: 1, k2:[3,true,"a"]}))`),
 		nil, String(`{"_":1,"k2":[3,true,"a"]}`))
 
-	expectRun(t, catchf(`json.Indent()`), nil, errnarg(3, 0))
-	expectRun(t, catchf(`string(json.Indent("[1,2]", "", " "))`), nil, String("[\n 1,\n 2\n]"))
+	expectRun(t, catchf(`json.IndentCount()`), nil, errnarg(3, 0))
+	expectRun(t, catchf(`string(json.IndentCount("[1,2]", "", " "))`), nil, String("[\n 1,\n 2\n]"))
 
 	expectRun(t, catchf(`json.MarshalIndent()`), nil, errnarg(3, 0))
 	expectRun(t, catchf(`string(json.MarshalIndent({a: 1, b: [2, true, "<"]},"", " "))`),
@@ -122,7 +122,7 @@ func TestScript(t *testing.T) {
 
 	expectRun(t, catchf(`string(json.Unmarshal(bytes(0)))`),
 		nil, String(`error: invalid character '\x00' looking for beginning of value`))
-	expectRun(t, catchf(`string(json.Indent(bytes(0), "", " "))`),
+	expectRun(t, catchf(`string(json.IndentCount(bytes(0), "", " "))`),
 		nil, String(`error: invalid character '\x00' looking for beginning of value`))
 	expectRun(t, catchf(`string(json.Compact(bytes(0), true))`),
 		nil, String(`error: invalid character '\x00' looking for beginning of value`))

@@ -14,29 +14,36 @@ package parser
 
 import (
 	"strings"
+
+	"github.com/gad-lang/gad/parser/ast"
+	"github.com/gad-lang/gad/parser/node"
+	"github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/stringw"
 )
 
 // File represents a file unit.
 type File struct {
 	InputFile *SourceFile
-	Stmts     []Stmt
-	Comments  []*CommentGroup
+	Stmts     []node.Stmt
+	Comments  []*ast.CommentGroup
 }
 
 // Pos returns the position of first character belonging to the node.
-func (n *File) Pos() Pos {
-	return Pos(n.InputFile.Base)
+func (n *File) Pos() source.Pos {
+	return source.Pos(n.InputFile.Base)
 }
 
 // End returns the position of first character immediately after the node.
-func (n *File) End() Pos {
-	return Pos(n.InputFile.Base + n.InputFile.Size)
+func (n *File) End() source.Pos {
+	return source.Pos(n.InputFile.Base + n.InputFile.Size)
+}
+
+func (n *File) StringTo(w stringw.StringWriter) {
+	stringw.ToStringSlice(w, "; ", n.Stmts)
 }
 
 func (n *File) String() string {
-	var stmts []string
-	for _, e := range n.Stmts {
-		stmts = append(stmts, e.String())
-	}
-	return strings.Join(stmts, "; ")
+	var s strings.Builder
+	n.StringTo(&s)
+	return s.String()
 }

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/source"
 )
 
 // Bytecode holds the compiled functions and constants.
@@ -216,16 +217,16 @@ func (o *CompiledFunction) Equal(right Object) bool {
 }
 
 // SourcePos returns the source position of the instruction at ip.
-func (o *CompiledFunction) SourcePos(ip int) parser.Pos {
+func (o *CompiledFunction) SourcePos(ip int) source.Pos {
 begin:
 	if ip >= 0 {
 		if p, ok := o.SourceMap[ip]; ok {
-			return parser.Pos(p)
+			return source.Pos(p)
 		}
 		ip--
 		goto begin
 	}
-	return parser.NoPos
+	return source.NoPos
 }
 
 // Fprint writes constants and instructions to given Writer in a human readable form.

@@ -12,13 +12,15 @@ import (
 	"strconv"
 
 	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/ast"
+	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/token"
 )
 
 // OptimizerError represents an optimizer error.
 type OptimizerError struct {
 	FilePos parser.SourceFilePos
-	Node    parser.Node
+	Node    ast.Node
 	Err     error
 }
 
@@ -69,7 +71,7 @@ type SimpleOptimizer struct {
 	constants        []Object
 	instructions     []byte
 	moduleStore      *moduleStore
-	returnStmt       parser.ReturnStmt
+	returnStmt       node.ReturnStmt
 	file             *parser.File
 	errors           multipleErr
 	trace            io.Writer
@@ -112,19 +114,19 @@ func NewOptimizer(
 	}
 }
 
-func canOptimizeExpr(expr parser.Expr) bool {
-	if parser.IsStatement(expr) {
+func canOptimizeExpr(expr node.Expr) bool {
+	if node.IsStatement(expr) {
 		return false
 	}
 
 	switch expr.(type) {
-	case *parser.BoolLit,
-		*parser.IntLit,
-		*parser.UintLit,
-		*parser.FloatLit,
-		*parser.CharLit,
-		*parser.StringLit,
-		*parser.NilLit:
+	case *node.BoolLit,
+		*node.IntLit,
+		*node.UintLit,
+		*node.FloatLit,
+		*node.CharLit,
+		*node.StringLit,
+		*node.NilLit:
 		return false
 	}
 	return true
@@ -189,7 +191,7 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 	return canOptimize
 }
 
-func (so *SimpleOptimizer) evalExpr(expr parser.Expr) (parser.Expr, bool) {
+func (so *SimpleOptimizer) evalExpr(expr node.Expr) (node.Expr, bool) {
 	if !so.optimExpr {
 		return nil, false
 	}
@@ -225,7 +227,7 @@ func (so *SimpleOptimizer) evalExpr(expr parser.Expr) (parser.Expr, bool) {
 	return x, ok
 }
 
-func (so *SimpleOptimizer) slowEvalExpr(expr parser.Expr) (parser.Expr, bool) {
+func (so *SimpleOptimizer) slowEvalExpr(expr node.Expr) (node.Expr, bool) {
 	st := NewSymbolTable(so.builtins).
 		EnableParams(false).
 		DisableBuiltin(so.disabledBuiltins...).
@@ -276,44 +278,44 @@ func (so *SimpleOptimizer) slowEvalExpr(expr parser.Expr) (parser.Expr, bool) {
 	switch v := obj.(type) {
 	case String:
 		l := strconv.Quote(string(v))
-		expr = &parser.StringLit{
+		expr = &node.StringLit{
 			Value:    string(v),
 			Literal:  l,
 			ValuePos: expr.Pos(),
 		}
 	case *NilType:
-		expr = &parser.NilLit{TokenPos: expr.Pos()}
+		expr = &node.NilLit{TokenPos: expr.Pos()}
 	case Bool:
 		l := strconv.FormatBool(bool(v))
-		expr = &parser.BoolLit{
+		expr = &node.BoolLit{
 			Value:    bool(v),
 			Literal:  l,
 			ValuePos: expr.Pos(),
 		}
 	case Int:
 		l := strconv.FormatInt(int64(v), 10)
-		expr = &parser.IntLit{
+		expr = &node.IntLit{
 			Value:    int64(v),
 			Literal:  l,
 			ValuePos: expr.Pos(),
 		}
 	case Uint:
 		l := strconv.FormatUint(uint64(v), 10)
-		expr = &parser.UintLit{
+		expr = &node.UintLit{
 			Value:    uint64(v),
 			Literal:  l,
 			ValuePos: expr.Pos(),
 		}
 	case Float:
 		l := strconv.FormatFloat(float64(v), 'f', -1, 64)
-		expr = &parser.FloatLit{
+		expr = &node.FloatLit{
 			Value:    float64(v),
 			Literal:  l,
 			ValuePos: expr.Pos(),
 		}
 	case Char:
 		l := strconv.QuoteRune(rune(v))
-		expr = &parser.CharLit{
+		expr = &node.CharLit{
 			Value:    rune(v),
 			Literal:  l,
 			ValuePos: expr.Pos(),
@@ -400,8 +402,8 @@ func (so *SimpleOptimizer) Optimize() error {
 
 func (so *SimpleOptimizer) binaryopInts(
 	op token.Token,
-	left, right *parser.IntLit,
-) (parser.Expr, bool) {
+	left, right *node.IntLit,
+) (node.Expr, bool) {
 
 	var val int64
 	switch op {
@@ -432,13 +434,13 @@ func (so *SimpleOptimizer) binaryopInts(
 		return nil, false
 	}
 	l := strconv.FormatInt(val, 10)
-	return &parser.IntLit{Value: val, Literal: l, ValuePos: left.ValuePos}, true
+	return &node.IntLit{Value: val, Literal: l, ValuePos: left.ValuePos}, true
 }
 
 func (so *SimpleOptimizer) binaryopFloats(
 	op token.Token,
-	left, right *parser.FloatLit,
-) (parser.Expr, bool) {
+	left, right *node.FloatLit,
+) (node.Expr, bool) {
 
 	var val float64
 	switch op {
@@ -457,7 +459,7 @@ func (so *SimpleOptimizer) binaryopFloats(
 		return nil, false
 	}
 
-	return &parser.FloatLit{
+	return &node.FloatLit{
 		Value:    val,
 		Literal:  strconv.FormatFloat(val, 'f', -1, 64),
 		ValuePos: left.ValuePos,
@@ -466,27 +468,27 @@ func (so *SimpleOptimizer) binaryopFloats(
 
 func (so *SimpleOptimizer) binaryop(
 	op token.Token,
-	left, right parser.Expr,
-) (parser.Expr, bool) {
+	left, right node.Expr,
+) (node.Expr, bool) {
 
 	if !so.optimConsts {
 		return nil, false
 	}
 
 	switch left := left.(type) {
-	case *parser.IntLit:
-		if right, ok := right.(*parser.IntLit); ok {
+	case *node.IntLit:
+		if right, ok := right.(*node.IntLit); ok {
 			return so.binaryopInts(op, left, right)
 		}
-	case *parser.FloatLit:
-		if right, ok := right.(*parser.FloatLit); ok {
+	case *node.FloatLit:
+		if right, ok := right.(*node.FloatLit); ok {
 			return so.binaryopFloats(op, left, right)
 		}
-	case *parser.StringLit:
-		right, ok := right.(*parser.StringLit)
+	case *node.StringLit:
+		right, ok := right.(*node.StringLit)
 		if ok && op == token.Add {
 			v := left.Value + right.Value
-			return &parser.StringLit{
+			return &node.StringLit{
 				Value:    v,
 				Literal:  strconv.Quote(v),
 				ValuePos: left.ValuePos,
@@ -498,19 +500,19 @@ func (so *SimpleOptimizer) binaryop(
 
 func (so *SimpleOptimizer) unaryop(
 	op token.Token,
-	expr parser.Expr,
-) (parser.Expr, bool) {
+	expr node.Expr,
+) (node.Expr, bool) {
 
 	if !so.optimConsts {
 		return nil, false
 	}
 
 	switch expr := expr.(type) {
-	case *parser.IntLit:
+	case *node.IntLit:
 		switch op {
 		case token.Not:
 			v := expr.Value == 0
-			return &parser.BoolLit{
+			return &node.BoolLit{
 				Value:    v,
 				Literal:  strconv.FormatBool(v),
 				ValuePos: expr.ValuePos,
@@ -518,7 +520,7 @@ func (so *SimpleOptimizer) unaryop(
 		case token.Sub:
 			v := -expr.Value
 			l := strconv.FormatInt(v, 10)
-			return &parser.IntLit{
+			return &node.IntLit{
 				Value:    v,
 				Literal:  l,
 				ValuePos: expr.ValuePos,
@@ -526,17 +528,17 @@ func (so *SimpleOptimizer) unaryop(
 		case token.Xor:
 			v := ^expr.Value
 			l := strconv.FormatInt(v, 10)
-			return &parser.IntLit{
+			return &node.IntLit{
 				Value:    v,
 				Literal:  l,
 				ValuePos: expr.ValuePos,
 			}, true
 		}
-	case *parser.UintLit:
+	case *node.UintLit:
 		switch op {
 		case token.Not:
 			v := expr.Value == 0
-			return &parser.BoolLit{
+			return &node.BoolLit{
 				Value:    v,
 				Literal:  strconv.FormatBool(v),
 				ValuePos: expr.ValuePos,
@@ -544,7 +546,7 @@ func (so *SimpleOptimizer) unaryop(
 		case token.Sub:
 			v := -expr.Value
 			l := strconv.FormatUint(v, 10)
-			return &parser.UintLit{
+			return &node.UintLit{
 				Value:    v,
 				Literal:  l,
 				ValuePos: expr.ValuePos,
@@ -552,18 +554,18 @@ func (so *SimpleOptimizer) unaryop(
 		case token.Xor:
 			v := ^expr.Value
 			l := strconv.FormatUint(v, 10)
-			return &parser.UintLit{
+			return &node.UintLit{
 				Value:    v,
 				Literal:  l,
 				ValuePos: expr.ValuePos,
 			}, true
 		}
-	case *parser.FloatLit:
+	case *node.FloatLit:
 		switch op {
 		case token.Sub:
 			v := -expr.Value
 			l := strconv.FormatFloat(v, 'f', -1, 64)
-			return &parser.FloatLit{
+			return &node.FloatLit{
 				Value:    v,
 				Literal:  l,
 				ValuePos: expr.ValuePos,
@@ -573,166 +575,169 @@ func (so *SimpleOptimizer) unaryop(
 	return nil, false
 }
 
-func (so *SimpleOptimizer) optimize(node parser.Node) (parser.Expr, bool) {
+func (so *SimpleOptimizer) optimize(nd ast.Node) (node.Expr, bool) {
 	if so.trace != nil {
-		if node != nil {
+		if nd != nil {
 			defer untraceoptim(traceoptim(so, fmt.Sprintf("%s (%s)",
-				node.String(), reflect.TypeOf(node).Elem().Name())))
+				nd.String(), reflect.TypeOf(nd).Elem().Name())))
 		} else {
 			defer untraceoptim(traceoptim(so, "<nil>"))
 		}
 	}
 
-	if !parser.IsStatement(node) {
+	if !node.IsStatement(nd) {
 		so.enterExprLevel()
 		defer so.leaveExprLevel()
 	}
 
 	var (
-		expr parser.Expr
+		expr node.Expr
 		ok   bool
 	)
 
-	switch node := node.(type) {
+	switch nd := nd.(type) {
 	case *parser.File:
-		for _, stmt := range node.Stmts {
+		for _, stmt := range nd.Stmts {
 			_, _ = so.optimize(stmt)
 		}
-	case *parser.ExprStmt:
-		if node.Expr != nil {
-			if expr, ok = so.optimize(node.Expr); ok {
-				node.Expr = expr
+	case *node.ExprStmt:
+		if nd.Expr != nil {
+			if expr, ok = so.optimize(nd.Expr); ok {
+				nd.Expr = expr
 			}
-			if expr, ok = so.evalExpr(node.Expr); ok {
-				node.Expr = expr
+			if expr, ok = so.evalExpr(nd.Expr); ok {
+				nd.Expr = expr
 			}
 		}
-	case *parser.ParenExpr:
-		if node.Expr != nil {
-			return so.optimize(node.Expr)
+	case *node.ParenExpr:
+		if nd.Expr != nil {
+			return so.optimize(nd.Expr)
 		}
-	case *parser.BinaryExpr:
-		if expr, ok = so.optimize(node.LHS); ok {
-			node.LHS = expr
+	case *node.BinaryExpr:
+		if expr, ok = so.optimize(nd.LHS); ok {
+			nd.LHS = expr
 		}
-		if expr, ok = so.optimize(node.RHS); ok {
-			node.RHS = expr
+		if expr, ok = so.optimize(nd.RHS); ok {
+			nd.RHS = expr
 		}
-		if expr, ok = so.binaryop(node.Token, node.LHS, node.RHS); ok {
+		if expr, ok = so.binaryop(nd.Token, nd.LHS, nd.RHS); ok {
 			so.count++
 			return expr, ok
 		}
-		return so.evalExpr(node)
-	case *parser.UnaryExpr:
-		if expr, ok = so.optimize(node.Expr); ok {
-			node.Expr = expr
+		return so.evalExpr(nd)
+	case *node.UnaryExpr:
+		if expr, ok = so.optimize(nd.Expr); ok {
+			nd.Expr = expr
 		}
-		if expr, ok = so.unaryop(node.Token, node.Expr); ok {
+		if expr, ok = so.unaryop(nd.Token, nd.Expr); ok {
 			so.count++
 			return expr, ok
 		}
-		return so.evalExpr(node)
-	case *parser.IfStmt:
-		if node.Init != nil {
-			_, _ = so.optimize(node.Init)
+		return so.evalExpr(nd)
+	case *node.IfStmt:
+		if nd.Init != nil {
+			_, _ = so.optimize(nd.Init)
 		}
-		if expr, ok = so.optimize(node.Cond); ok {
-			node.Cond = expr
+		if expr, ok = so.optimize(nd.Cond); ok {
+			nd.Cond = expr
 		}
-		if expr, ok = so.evalExpr(node.Cond); ok {
-			node.Cond = expr
+		if expr, ok = so.evalExpr(nd.Cond); ok {
+			nd.Cond = expr
 		}
-		if falsy, ok := isLitFalsy(node.Cond); ok {
+		if falsy, ok := isLitFalsy(nd.Cond); ok {
 			// convert expression to BoolLit so that Compiler skips if block
-			node.Cond = &parser.BoolLit{
+			nd.Cond = &node.BoolLit{
 				Value:    !falsy,
 				Literal:  strconv.FormatBool(!falsy),
-				ValuePos: node.Cond.Pos(),
+				ValuePos: nd.Cond.Pos(),
 			}
 		}
-		if node.Body != nil {
-			_, _ = so.optimize(node.Body)
+		if nd.Body != nil {
+			_, _ = so.optimize(nd.Body)
 		}
-		if node.Else != nil {
-			_, _ = so.optimize(node.Else)
+		if nd.Else != nil {
+			_, _ = so.optimize(nd.Else)
 		}
-	case *parser.TryStmt:
-		if node.Body != nil {
-			_, _ = so.optimize(node.Body)
+	case *node.TryStmt:
+		if nd.Body != nil {
+			_, _ = so.optimize(nd.Body)
 		}
-		if node.Catch != nil {
-			_, _ = so.optimize(node.Catch)
+		if nd.Catch != nil {
+			_, _ = so.optimize(nd.Catch)
 		}
-		if node.Finally != nil {
-			_, _ = so.optimize(node.Finally)
+		if nd.Finally != nil {
+			_, _ = so.optimize(nd.Finally)
 		}
-	case *parser.CatchStmt:
-		if node.Body != nil {
-			_, _ = so.optimize(node.Body)
+	case *node.CatchStmt:
+		if nd.Body != nil {
+			_, _ = so.optimize(nd.Body)
 		}
-	case *parser.FinallyStmt:
-		if node.Body != nil {
-			_, _ = so.optimize(node.Body)
+	case *node.FinallyStmt:
+		if nd.Body != nil {
+			_, _ = so.optimize(nd.Body)
 		}
-	case *parser.ThrowStmt:
-		if node.Expr != nil {
-			if expr, ok = so.optimize(node.Expr); ok {
-				node.Expr = expr
+	case *node.ThrowStmt:
+		if nd.Expr != nil {
+			if expr, ok = so.optimize(nd.Expr); ok {
+				nd.Expr = expr
 			}
-			if expr, ok = so.evalExpr(node.Expr); ok {
-				node.Expr = expr
-			}
-		}
-	case *parser.ForStmt:
-		if node.Init != nil {
-			_, _ = so.optimize(node.Init)
-		}
-		if node.Cond != nil {
-			if expr, ok = so.optimize(node.Cond); ok {
-				node.Cond = expr
+			if expr, ok = so.evalExpr(nd.Expr); ok {
+				nd.Expr = expr
 			}
 		}
-		if node.Post != nil {
-			_, _ = so.optimize(node.Post)
+	case *node.ForStmt:
+		if nd.Init != nil {
+			_, _ = so.optimize(nd.Init)
 		}
-		if node.Body != nil {
-			_, _ = so.optimize(node.Body)
+		if nd.Cond != nil {
+			if expr, ok = so.optimize(nd.Cond); ok {
+				nd.Cond = expr
+			}
 		}
-	case *parser.ForInStmt:
-		if node.Body != nil {
-			_, _ = so.optimize(node.Body)
+		if nd.Post != nil {
+			_, _ = so.optimize(nd.Post)
 		}
-	case *parser.BlockStmt:
-		for _, stmt := range node.Stmts {
+		if nd.Body != nil {
+			_, _ = so.optimize(nd.Body)
+		}
+	case *node.ForInStmt:
+		if nd.Body != nil {
+			_, _ = so.optimize(nd.Body)
+		}
+		if nd.Else != nil {
+			_, _ = so.optimize(nd.Else)
+		}
+	case *node.BlockStmt:
+		for _, stmt := range nd.Stmts {
 			_, _ = so.optimize(stmt)
 		}
-	case *parser.AssignStmt:
-		for _, lhs := range node.LHS {
-			if ident, ok := lhs.(*parser.Ident); ok {
+	case *node.AssignStmt:
+		for _, lhs := range nd.LHS {
+			if ident, ok := lhs.(*node.Ident); ok {
 				so.scope.define(ident.Name)
 			}
 		}
-		for i, rhs := range node.RHS {
+		for i, rhs := range nd.RHS {
 			if expr, ok = so.optimize(rhs); ok {
-				node.RHS[i] = expr
+				nd.RHS[i] = expr
 			}
 		}
-		for i, rhs := range node.RHS {
+		for i, rhs := range nd.RHS {
 			if expr, ok = so.evalExpr(rhs); ok {
-				node.RHS[i] = expr
+				nd.RHS[i] = expr
 			}
 		}
-	case *parser.DeclStmt:
-		decl := node.Decl.(*parser.GenDecl)
+	case *node.DeclStmt:
+		decl := nd.Decl.(*node.GenDecl)
 		switch decl.Tok {
 		case token.Param, token.Global:
 			for _, sp := range decl.Specs {
-				spec := sp.(*parser.ParamSpec)
+				spec := sp.(*node.ParamSpec)
 				so.scope.define(spec.Ident.Name)
 			}
 		case token.Var, token.Const:
 			for _, sp := range decl.Specs {
-				spec := sp.(*parser.ValueSpec)
+				spec := sp.(*node.ValueSpec)
 				for i := range spec.Idents {
 					so.scope.define(spec.Idents[i].Name)
 					if i < len(spec.Values) && spec.Values[i] != nil {
@@ -748,116 +753,116 @@ func (so *SimpleOptimizer) optimize(node parser.Node) (parser.Expr, bool) {
 				}
 			}
 		}
-	case *parser.ArrayLit:
-		for i := range node.Elements {
-			if expr, ok = so.optimize(node.Elements[i]); ok {
-				node.Elements[i] = expr
+	case *node.ArrayLit:
+		for i := range nd.Elements {
+			if expr, ok = so.optimize(nd.Elements[i]); ok {
+				nd.Elements[i] = expr
 			}
-			if expr, ok = so.evalExpr(node.Elements[i]); ok {
-				node.Elements[i] = expr
-			}
-		}
-	case *parser.MapLit:
-		for i := range node.Elements {
-			if expr, ok = so.optimize(node.Elements[i].Value); ok {
-				node.Elements[i].Value = expr
-			}
-			if expr, ok = so.evalExpr(node.Elements[i].Value); ok {
-				node.Elements[i].Value = expr
+			if expr, ok = so.evalExpr(nd.Elements[i]); ok {
+				nd.Elements[i] = expr
 			}
 		}
-	case *parser.IndexExpr:
-		if expr, ok = so.optimize(node.Index); ok {
-			node.Index = expr
-		}
-		if expr, ok = so.evalExpr(node.Index); ok {
-			node.Index = expr
-		}
-	case *parser.SliceExpr:
-		if node.Low != nil {
-			if expr, ok = so.optimize(node.Low); ok {
-				node.Low = expr
+	case *node.MapLit:
+		for i := range nd.Elements {
+			if expr, ok = so.optimize(nd.Elements[i].Value); ok {
+				nd.Elements[i].Value = expr
 			}
-			if expr, ok = so.evalExpr(node.Low); ok {
-				node.Low = expr
+			if expr, ok = so.evalExpr(nd.Elements[i].Value); ok {
+				nd.Elements[i].Value = expr
 			}
 		}
-		if node.High != nil {
-			if expr, ok = so.optimize(node.High); ok {
-				node.High = expr
+	case *node.IndexExpr:
+		if expr, ok = so.optimize(nd.Index); ok {
+			nd.Index = expr
+		}
+		if expr, ok = so.evalExpr(nd.Index); ok {
+			nd.Index = expr
+		}
+	case *node.SliceExpr:
+		if nd.Low != nil {
+			if expr, ok = so.optimize(nd.Low); ok {
+				nd.Low = expr
 			}
-			if expr, ok = so.evalExpr(node.High); ok {
-				node.High = expr
+			if expr, ok = so.evalExpr(nd.Low); ok {
+				nd.Low = expr
 			}
 		}
-	case *parser.FuncLit:
+		if nd.High != nil {
+			if expr, ok = so.optimize(nd.High); ok {
+				nd.High = expr
+			}
+			if expr, ok = so.evalExpr(nd.High); ok {
+				nd.High = expr
+			}
+		}
+	case *node.FuncLit:
 		so.enterScope()
 		defer so.leaveScope()
-		for _, ident := range node.Type.Params.Args.Values {
+		for _, ident := range nd.Type.Params.Args.Values {
 			so.scope.define(ident.Name)
 		}
-		for _, ident := range node.Type.Params.NamedArgs.Names {
+		for _, ident := range nd.Type.Params.NamedArgs.Names {
 			so.scope.define(ident.Name)
 		}
-		if node.Body != nil {
-			_, _ = so.optimize(node.Body)
+		if nd.Body != nil {
+			_, _ = so.optimize(nd.Body)
 		}
-	case *parser.ReturnStmt:
-		if node.Result != nil {
-			if expr, ok = so.optimize(node.Result); ok {
-				node.Result = expr
+	case *node.ReturnStmt:
+		if nd.Result != nil {
+			if expr, ok = so.optimize(nd.Result); ok {
+				nd.Result = expr
 			}
-			if expr, ok = so.evalExpr(node.Result); ok {
-				node.Result = expr
-			}
-		}
-	case *parser.CallExpr:
-		if node.Func != nil {
-			_, _ = so.optimize(node.Func)
-		}
-		for i := range node.Args.Values {
-			if expr, ok = so.optimize(node.Args.Values[i]); ok {
-				node.Args.Values[i] = expr
-			}
-			if expr, ok = so.evalExpr(node.Args.Values[i]); ok {
-				node.Args.Values[i] = expr
+			if expr, ok = so.evalExpr(nd.Result); ok {
+				nd.Result = expr
 			}
 		}
-		for i := range node.NamedArgs.Values {
-			if expr, ok = so.optimize(node.NamedArgs.Values[i]); ok {
-				node.NamedArgs.Values[i] = expr
+	case *node.CallExpr:
+		if nd.Func != nil {
+			_, _ = so.optimize(nd.Func)
+		}
+		for i := range nd.Args.Values {
+			if expr, ok = so.optimize(nd.Args.Values[i]); ok {
+				nd.Args.Values[i] = expr
 			}
-			if expr, ok = so.evalExpr(node.NamedArgs.Values[i]); ok {
-				node.NamedArgs.Values[i] = expr
+			if expr, ok = so.evalExpr(nd.Args.Values[i]); ok {
+				nd.Args.Values[i] = expr
 			}
 		}
-	case *parser.CondExpr:
-		if expr, ok = so.optimize(node.Cond); ok {
-			node.Cond = expr
+		for i := range nd.NamedArgs.Values {
+			if expr, ok = so.optimize(nd.NamedArgs.Values[i]); ok {
+				nd.NamedArgs.Values[i] = expr
+			}
+			if expr, ok = so.evalExpr(nd.NamedArgs.Values[i]); ok {
+				nd.NamedArgs.Values[i] = expr
+			}
 		}
-		if expr, ok = so.evalExpr(node.Cond); ok {
-			node.Cond = expr
+	case *node.CondExpr:
+		if expr, ok = so.optimize(nd.Cond); ok {
+			nd.Cond = expr
 		}
-		if falsy, ok := isLitFalsy(node.Cond); ok {
+		if expr, ok = so.evalExpr(nd.Cond); ok {
+			nd.Cond = expr
+		}
+		if falsy, ok := isLitFalsy(nd.Cond); ok {
 			// convert expression to BoolLit so that Compiler skips expressions
-			node.Cond = &parser.BoolLit{
+			nd.Cond = &node.BoolLit{
 				Value:    !falsy,
 				Literal:  strconv.FormatBool(!falsy),
-				ValuePos: node.Cond.Pos(),
+				ValuePos: nd.Cond.Pos(),
 			}
 		}
 
-		if expr, ok = so.optimize(node.True); ok {
-			node.True = expr
+		if expr, ok = so.optimize(nd.True); ok {
+			nd.True = expr
 		}
-		if expr, ok = so.evalExpr(node.True); ok {
-			node.True = expr
+		if expr, ok = so.evalExpr(nd.True); ok {
+			nd.True = expr
 		}
-		if expr, ok = so.optimize(node.False); ok {
-			node.False = expr
+		if expr, ok = so.optimize(nd.False); ok {
+			nd.False = expr
 		}
-		if expr, ok = so.evalExpr(node.False); ok {
-			node.False = expr
+		if expr, ok = so.evalExpr(nd.False); ok {
+			nd.False = expr
 		}
 	}
 	return nil, false
@@ -876,11 +881,11 @@ func (so *SimpleOptimizer) Total() int {
 	return so.total
 }
 
-func (so *SimpleOptimizer) error(node parser.Node, err error) error {
-	pos := so.file.InputFile.Set().Position(node.Pos())
+func (so *SimpleOptimizer) error(nd ast.Node, err error) error {
+	pos := so.file.InputFile.Set().Position(nd.Pos())
 	return &OptimizerError{
 		FilePos: pos,
-		Node:    node,
+		Node:    nd,
 		Err:     err,
 	}
 }
@@ -921,25 +926,25 @@ func isObjectConstant(obj Object) bool {
 	return false
 }
 
-func isLitFalsy(expr parser.Expr) (bool, bool) {
+func isLitFalsy(expr node.Expr) (bool, bool) {
 	if expr == nil {
 		return false, false
 	}
 
 	switch v := expr.(type) {
-	case *parser.BoolLit:
+	case *node.BoolLit:
 		return !v.Value, true
-	case *parser.IntLit:
+	case *node.IntLit:
 		return Int(v.Value).IsFalsy(), true
-	case *parser.UintLit:
+	case *node.UintLit:
 		return Uint(v.Value).IsFalsy(), true
-	case *parser.FloatLit:
+	case *node.FloatLit:
 		return Float(v.Value).IsFalsy(), true
-	case *parser.StringLit:
+	case *node.StringLit:
 		return String(v.Value).IsFalsy(), true
-	case *parser.CharLit:
+	case *node.CharLit:
 		return Char(v.Value).IsFalsy(), true
-	case *parser.NilLit:
+	case *node.NilLit:
 		return Nil.IsFalsy(), true
 	}
 	return false, false

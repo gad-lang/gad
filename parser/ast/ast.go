@@ -10,74 +10,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE.golang file.
 
-package parser
+package ast
 
 import (
 	"strings"
-)
 
-const (
-	nullRep = "<null>"
+	"github.com/gad-lang/gad/parser/source"
 )
 
 // Node represents a node in the AST.
 type Node interface {
 	// Pos returns the position of first character belonging to the node.
-	Pos() Pos
+	Pos() source.Pos
 	// End returns the position of first character immediately after the node.
-	End() Pos
+	End() source.Pos
 	// String returns a string representation of the node.
 	String() string
-}
-
-// IdentList represents a list of identifiers.
-type IdentList struct {
-	LParen  Pos
-	VarArgs bool
-	List    []*Ident
-	RParen  Pos
-}
-
-// Pos returns the position of first character belonging to the node.
-func (n *IdentList) Pos() Pos {
-	if n.LParen.IsValid() {
-		return n.LParen
-	}
-	if len(n.List) > 0 {
-		return n.List[0].Pos()
-	}
-	return NoPos
-}
-
-// End returns the position of first character immediately after the node.
-func (n *IdentList) End() Pos {
-	if n.RParen.IsValid() {
-		return n.RParen + 1
-	}
-	if l := len(n.List); l > 0 {
-		return n.List[l-1].End()
-	}
-	return NoPos
-}
-
-// NumFields returns the number of fields.
-func (n *IdentList) NumFields() int {
-	if n == nil {
-		return 0
-	}
-	return len(n.List)
-}
-
-func (n *IdentList) String() string {
-	var list []string
-	for i, e := range n.List {
-		if n.VarArgs && i == len(n.List)-1 {
-			list = append(list, "..."+e.String())
-		} else {
-			list = append(list, e.String())
-		}
-	}
-	return "(" + strings.Join(list, ", ") + ")"
 }
 
 // ----------------------------------------------------------------------------
@@ -85,16 +33,16 @@ func (n *IdentList) String() string {
 
 // A Comment node represents a single //-style or /*-style comment.
 type Comment struct {
-	Slash Pos    // position of "/" starting the comment
-	Text  string // comment text (excluding '\n' for //-style comments)
+	Slash source.Pos // position of "/" starting the comment
+	Text  string     // comment text (excluding '\n' for //-style comments)
 }
 
 // Pos returns the position of the comment's slash.
-func (c *Comment) Pos() Pos { return c.Slash }
+func (c *Comment) Pos() source.Pos { return c.Slash }
 
 // End returns the position of first character immediately after the comment.
-func (c *Comment) End() Pos {
-	return Pos(int(c.Slash) + len(c.Text))
+func (c *Comment) End() source.Pos {
+	return source.Pos(int(c.Slash) + len(c.Text))
 }
 
 // A CommentGroup represents a sequence of comments
@@ -104,12 +52,12 @@ type CommentGroup struct {
 }
 
 // Pos returns the position of the first comment.
-func (g *CommentGroup) Pos() Pos {
+func (g *CommentGroup) Pos() source.Pos {
 	return g.List[0].Pos()
 }
 
 // End returns the position of last comment's end position.
-func (g *CommentGroup) End() Pos {
+func (g *CommentGroup) End() source.Pos {
 	return g.List[len(g.List)-1].End()
 }
 
@@ -190,9 +138,9 @@ func stripTrailingWhitespace(s string) string {
 
 type Literal struct {
 	Value string
-	Pos   Pos
+	Pos   source.Pos
 }
 
-func (l Literal) End() Pos {
-	return l.Pos + Pos(len(l.Value))
+func (l Literal) End() source.Pos {
+	return l.Pos + source.Pos(len(l.Value))
 }

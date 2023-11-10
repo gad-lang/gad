@@ -504,6 +504,19 @@ VMLoop:
 			iterator := vm.stack[vm.sp-1]
 			hasMore := iterator.(Iterator).Next()
 			vm.stack[vm.sp-1] = Bool(hasMore)
+		case OpIterNextElse:
+			iterator := vm.stack[vm.sp-1]
+			truePos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+			falsePos := int(vm.curInsts[vm.ip+4]) | int(vm.curInsts[vm.ip+3])<<8
+			vm.ip += 4
+			hasMore := iterator.(Iterator).Next()
+			vm.stack[vm.sp-1] = Bool(hasMore)
+
+			if hasMore {
+				vm.ip = truePos - 1
+			} else {
+				vm.ip = falsePos - 1
+			}
 		case OpIterKey:
 			iterator := vm.stack[vm.sp-1]
 			val := iterator.(Iterator).Key()

@@ -6,12 +6,14 @@
 // Use of this source code is governed by a MIT License
 // that can be found in the LICENSE file.
 
-package parser
+package node
 
 import (
 	"fmt"
 	"strings"
 
+	"github.com/gad-lang/gad/parser/ast"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -22,7 +24,7 @@ type (
 	// Spec node represents a single (non-parenthesized) variable declaration.
 	// The Spec type stands for any of *ParamSpec or *ValueSpec.
 	Spec interface {
-		Node
+		ast.Node
 		specNode()
 	}
 
@@ -47,21 +49,21 @@ type (
 )
 
 // Pos returns the position of first character belonging to the spec.
-func (s *ParamSpec) Pos() Pos { return s.Ident.Pos() }
+func (s *ParamSpec) Pos() source.Pos { return s.Ident.Pos() }
 
 // Pos returns the position of first character belonging to the spec.
-func (s *NamedParamSpec) Pos() Pos { return s.Ident.Pos() }
+func (s *NamedParamSpec) Pos() source.Pos { return s.Ident.Pos() }
 
 // Pos returns the position of first character belonging to the spec.
-func (s *ValueSpec) Pos() Pos { return s.Idents[0].Pos() }
+func (s *ValueSpec) Pos() source.Pos { return s.Idents[0].Pos() }
 
 // End returns the position of first character immediately after the spec.
-func (s *ParamSpec) End() Pos {
+func (s *ParamSpec) End() source.Pos {
 	return s.Ident.End()
 }
 
 // End returns the position of first character immediately after the spec.
-func (s *NamedParamSpec) End() Pos {
+func (s *NamedParamSpec) End() source.Pos {
 	if s.Value == nil {
 		return s.Ident.End()
 	}
@@ -69,7 +71,7 @@ func (s *NamedParamSpec) End() Pos {
 }
 
 // End returns the position of first character immediately after the spec.
-func (s *ValueSpec) End() Pos {
+func (s *ValueSpec) End() source.Pos {
 	if n := len(s.Values); n > 0 && s.Values[n-1] != nil {
 		return s.Values[n-1].End()
 	}
@@ -115,7 +117,7 @@ func (*ValueSpec) specNode() {}
 
 // Decl wraps methods for all declaration nodes.
 type Decl interface {
-	Node
+	ast.Node
 	declNode()
 }
 
@@ -124,13 +126,13 @@ type DeclStmt struct {
 	Decl // *GenDecl with VAR token
 }
 
-func (*DeclStmt) stmtNode() {}
+func (*DeclStmt) StmtNode() {}
 
 // A BadDecl node is a placeholder for declarations containing
 // syntax errors for which no correct declaration nodes can be
 // created.
 type BadDecl struct {
-	From, To Pos // position range of bad declaration
+	From, To source.Pos // position range of bad declaration
 }
 
 // A GenDecl node (generic declaration node) represents a variable declaration.
@@ -140,24 +142,24 @@ type BadDecl struct {
 //
 //	token.Var     *ValueSpec
 type GenDecl struct {
-	TokPos Pos         // position of Tok
+	TokPos source.Pos  // position of Tok
 	Tok    token.Token // Var
-	Lparen Pos         // position of '(', if any
+	Lparen source.Pos  // position of '(', if any
 	Specs  []Spec
-	Rparen Pos // position of ')', if any
+	Rparen source.Pos // position of ')', if any
 }
 
 // Pos returns the position of first character belonging to the node.
-func (d *BadDecl) Pos() Pos { return d.From }
+func (d *BadDecl) Pos() source.Pos { return d.From }
 
 // Pos returns the position of first character belonging to the node.
-func (d *GenDecl) Pos() Pos { return d.TokPos }
+func (d *GenDecl) Pos() source.Pos { return d.TokPos }
 
 // End returns the position of first character immediately after the node.
-func (d *BadDecl) End() Pos { return d.To }
+func (d *BadDecl) End() source.Pos { return d.To }
 
 // End returns the position of first character immediately after the node.
-func (d *GenDecl) End() Pos {
+func (d *GenDecl) End() source.Pos {
 	if d.Rparen.IsValid() {
 		return d.Rparen + 1
 	}

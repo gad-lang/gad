@@ -16,7 +16,8 @@ const (
 	Illegal Token = iota
 	EOF
 	Comment
-	Config
+	ConfigStart
+	ConfigEnd
 	Text
 	ToTextBegin
 	ToTextEnd
@@ -123,7 +124,7 @@ const (
 var tokens = [...]string{
 	Illegal:         "ILLEGAL",
 	EOF:             "EOF",
-	Config:          "CONFIG",
+	ConfigStart:     "CONFIG",
 	Comment:         "COMMENT",
 	Ident:           "IDENT",
 	Int:             "INT",
@@ -140,6 +141,8 @@ var tokens = [...]string{
 	StdErr:          "STDERR",
 	CodeBegin:       "CODEBEGIN",
 	CodeEnd:         "CODEEND",
+	ToTextBegin:     "TOTEXTBEGIN",
+	ToTextEnd:       "TOTEXTEND",
 	Add:             "+",
 	Sub:             "-",
 	Mul:             "*",

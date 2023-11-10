@@ -49,7 +49,7 @@ package stdlib
 //
 //gad:callable func(p []byte, b bool) (ret gad.Object)
 
-// json module Indent
+// json module IndentCount
 //
 //gad:callable func(p []byte, s1 string, s2 string) (ret gad.Object)
 

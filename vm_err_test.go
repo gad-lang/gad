@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/gad-lang/gad"
@@ -105,7 +105,7 @@ func TestVMErrorHandlers(t *testing.T) {
 	require.Equal(t, "", invOpErr.Err.Message)
 	require.Nil(t, invOpErr.Err.Cause)
 	require.Equal(t, 1, len(invOpErr.Trace))
-	require.Equal(t, parser.Pos(1), invOpErr.Trace[0])
+	require.Equal(t, source.Pos(1), invOpErr.Trace[0])
 
 	expectErrIs(t, `try { throw WrongNumArgumentsError } catch err { throw err }`,
 		newOpts().Skip2Pass(), ErrWrongNumArguments)
@@ -118,8 +118,8 @@ func TestVMErrorHandlers(t *testing.T) {
 	require.Equal(t, "x", errZeroDiv.Err.Message)
 	require.Equal(t, ErrZeroDivision, errZeroDiv.Err.Cause)
 	require.Equal(t, 2, len(errZeroDiv.Trace))
-	require.Equal(t, parser.Pos(7), errZeroDiv.Trace[0])
-	require.Equal(t, parser.Pos(54), errZeroDiv.Trace[1])
+	require.Equal(t, source.Pos(7), errZeroDiv.Trace[0])
+	require.Equal(t, source.Pos(54), errZeroDiv.Trace[1])
 
 	errZeroDiv = nil
 	expectErrAs(t, `func(x) { return 1/x }(0)`, newOpts().Skip2Pass(), &errZeroDiv, nil)
@@ -127,8 +127,8 @@ func TestVMErrorHandlers(t *testing.T) {
 	require.Equal(t, "", errZeroDiv.Err.Message)
 	require.Equal(t, nil, errZeroDiv.Err.Cause)
 	require.Equal(t, 2, len(errZeroDiv.Trace))
-	require.Equal(t, parser.Pos(18), errZeroDiv.Trace[0])
-	require.Equal(t, parser.Pos(1), errZeroDiv.Trace[1])
+	require.Equal(t, source.Pos(18), errZeroDiv.Trace[0])
+	require.Equal(t, source.Pos(1), errZeroDiv.Trace[1])
 
 	errZeroDiv = nil
 	expectErrAs(t, `1/0`, newOpts().Skip2Pass(), &errZeroDiv, nil)
@@ -136,7 +136,7 @@ func TestVMErrorHandlers(t *testing.T) {
 	require.Equal(t, "", errZeroDiv.Err.Message)
 	require.Equal(t, nil, errZeroDiv.Err.Cause)
 	require.Equal(t, 1, len(errZeroDiv.Trace))
-	require.Equal(t, parser.Pos(1), errZeroDiv.Trace[0])
+	require.Equal(t, source.Pos(1), errZeroDiv.Trace[0])
 }
 
 func TestVMNoPanic(t *testing.T) {

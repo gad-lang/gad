@@ -12,6 +12,9 @@ import (
 	"reflect"
 
 	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/ast"
+	"github.com/gad-lang/gad/parser/node"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -62,7 +65,7 @@ type (
 		opts           CompilerOptions
 		trace          io.Writer
 		indent         int
-		stack          []parser.Node
+		stack          []ast.Node
 		selectorStack  [][][]func()
 	}
 
@@ -80,7 +83,7 @@ type (
 		OptimizeConst      bool
 		OptimizeExpr       bool
 		Mixed              bool
-		MixedWriteFunction parser.Expr
+		MixedWriteFunction node.Expr
 		moduleStore        *moduleStore
 		constsCache        map[Object]int
 	}
@@ -88,7 +91,7 @@ type (
 	// CompilerError represents a compiler error.
 	CompilerError struct {
 		FileSet *parser.SourceFileSet
-		Node    parser.Node
+		Node    ast.Node
 		Err     error
 	}
 
@@ -292,7 +295,7 @@ func (c *Compiler) Bytecode() *Bytecode {
 }
 
 // CompileStmts compiles parser.Stmt and builds Bytecode.
-func (c *Compiler) compileStmts(stmt ...parser.Stmt) (err error) {
+func (c *Compiler) compileStmts(stmt ...node.Stmt) (err error) {
 	l := len(stmt)
 
 	if l == 0 {
@@ -302,36 +305,36 @@ func (c *Compiler) compileStmts(stmt ...parser.Stmt) (err error) {
 stmts:
 	for i := 0; i < l; i++ {
 		switch stmt[i].(type) {
-		case *parser.TextStmt, *parser.ExprToTextStmt:
+		case *node.TextStmt, *node.ExprToTextStmt:
 			var j = i + 1
 		l2:
 			for j < l {
 				switch stmt[j].(type) {
-				case *parser.TextStmt, *parser.ExprToTextStmt:
+				case *node.TextStmt, *node.ExprToTextStmt:
 					j++
 				default:
 					break l2
 				}
 			}
 
-			var exprs = make([]parser.Expr, j-i)
+			var exprs = make([]node.Expr, j-i)
 
 			for z, s := range stmt[i:j] {
 				switch t := s.(type) {
-				case *parser.TextStmt:
-					exprs[z] = &parser.StringLit{Value: t.Literal}
-				case *parser.ExprToTextStmt:
+				case *node.TextStmt:
+					exprs[z] = &node.StringLit{Value: t.Literal}
+				case *node.ExprToTextStmt:
 					exprs[z] = t.Expr
 				}
 			}
 
 			wf := c.opts.MixedWriteFunction
 			if wf == nil {
-				wf = &parser.Ident{Name: "write"}
+				wf = &node.Ident{Name: "write"}
 			}
-			err = c.compileCallExpr(&parser.CallExpr{
-				Func: wf,
-				Args: parser.CallExprArgs{Values: exprs},
+			err = c.compileCallExpr(&node.CallExpr{
+				Func:     wf,
+				CallArgs: node.CallArgs{Args: node.CallExprArgs{Values: exprs}},
 			})
 			if err != nil {
 				return
@@ -349,149 +352,152 @@ stmts:
 }
 
 // Compile compiles parser.Node and builds Bytecode.
-func (c *Compiler) Compile(node parser.Node) error {
-	defer c.at(node)()
+func (c *Compiler) Compile(nd ast.Node) error {
+	defer c.at(nd)()
 	if c.trace != nil {
-		if node != nil {
+		if nd != nil {
 			defer untracec(tracec(c, fmt.Sprintf("%s (%s)",
-				node.String(), reflect.TypeOf(node).Elem().Name())))
+				nd.String(), reflect.TypeOf(nd).Elem().Name())))
 		} else {
 			defer untracec(tracec(c, "<nil>"))
 		}
 	}
 
-	switch node := node.(type) {
+	switch nt := nd.(type) {
 	case *parser.File:
-		if err := c.compileStmts(node.Stmts...); err != nil {
+		if err := c.compileStmts(nt.Stmts...); err != nil {
 			return err
 		}
-	case *parser.ExprStmt:
-		if err := c.Compile(node.Expr); err != nil {
+	case *node.ExprStmt:
+		if err := c.Compile(nt.Expr); err != nil {
 			return err
 		}
-		c.emit(node, OpPop)
-	case *parser.IncDecStmt:
+		if f, _ := nt.Expr.(*node.FuncLit); f != nil && f.Type.Ident != nil {
+			return nil
+		}
+		c.emit(nt, OpPop)
+	case *node.IncDecStmt:
 		op := token.AddAssign
-		if node.Token == token.Dec {
+		if nt.Token == token.Dec {
 			op = token.SubAssign
 		}
 		return c.compileAssignStmt(
-			node,
-			[]parser.Expr{node.Expr},
-			[]parser.Expr{&parser.IntLit{Value: 1, ValuePos: node.TokenPos}},
+			nt,
+			[]node.Expr{nt.Expr},
+			[]node.Expr{&node.IntLit{Value: 1, ValuePos: nt.TokenPos}},
 			token.Var,
 			op,
 		)
-	case *parser.ParenExpr:
-		return c.Compile(node.Expr)
-	case *parser.BinaryExpr:
-		switch node.Token {
+	case *node.ParenExpr:
+		return c.Compile(nt.Expr)
+	case *node.BinaryExpr:
+		switch nt.Token {
 		case token.LAnd, token.LOr, token.NullichCoalesce:
-			return c.compileLogical(node)
+			return c.compileLogical(nt)
 		default:
-			return c.compileBinaryExpr(node)
+			return c.compileBinaryExpr(nt)
 		}
-	case *parser.IntLit:
-		c.emit(node, OpConstant, c.addConstant(Int(node.Value)))
-	case *parser.UintLit:
-		c.emit(node, OpConstant, c.addConstant(Uint(node.Value)))
-	case *parser.FloatLit:
-		c.emit(node, OpConstant, c.addConstant(Float(node.Value)))
-	case *parser.DecimalLit:
-		c.emit(node, OpConstant, c.addConstant(Decimal(node.Value)))
-	case *parser.BoolLit:
-		if node.Value {
-			c.emit(node, OpTrue)
+	case *node.IntLit:
+		c.emit(nt, OpConstant, c.addConstant(Int(nt.Value)))
+	case *node.UintLit:
+		c.emit(nt, OpConstant, c.addConstant(Uint(nt.Value)))
+	case *node.FloatLit:
+		c.emit(nt, OpConstant, c.addConstant(Float(nt.Value)))
+	case *node.DecimalLit:
+		c.emit(nt, OpConstant, c.addConstant(Decimal(nt.Value)))
+	case *node.BoolLit:
+		if nt.Value {
+			c.emit(nt, OpTrue)
 		} else {
-			c.emit(node, OpFalse)
+			c.emit(nt, OpFalse)
 		}
-	case *parser.StringLit:
-		c.emit(node, OpConstant, c.addConstant(String(node.Value)))
-	case *parser.CharLit:
-		c.emit(node, OpConstant, c.addConstant(Char(node.Value)))
-	case *parser.NilLit:
-		c.emit(node, OpNull)
-	case *parser.StdInLit:
-		c.emit(node, OpStdIn)
-	case *parser.StdOutLit:
-		c.emit(node, OpStdOut)
-	case *parser.StdErrLit:
-		c.emit(node, OpStdErr)
-	case *parser.CalleeKeyword:
-		c.emit(node, OpCallee)
-	case *parser.ArgsKeyword:
-		c.emit(node, OpArgs)
-	case *parser.NamedArgsKeyword:
-		c.emit(node, OpNamedArgs)
-	case *parser.UnaryExpr:
-		return c.compileUnaryExpr(node)
-	case *parser.IfStmt:
-		return c.compileIfStmt(node)
-	case *parser.TryStmt:
-		return c.compileTryStmt(node)
-	case *parser.CatchStmt:
-		return c.compileCatchStmt(node)
-	case *parser.FinallyStmt:
-		return c.compileFinallyStmt(node)
-	case *parser.ThrowStmt:
-		return c.compileThrowStmt(node)
-	case *parser.ForStmt:
-		return c.compileForStmt(node)
-	case *parser.ForInStmt:
-		return c.compileForInStmt(node)
-	case *parser.BranchStmt:
-		return c.compileBranchStmt(node)
-	case *parser.BlockStmt:
-		return c.compileBlockStmt(node)
-	case *parser.DeclStmt:
-		return c.compileDeclStmt(node)
-	case *parser.AssignStmt:
-		return c.compileAssignStmt(node,
-			node.LHS, node.RHS, token.Var, node.Token)
-	case *parser.Ident:
-		return c.compileIdent(node)
-	case *parser.ArrayLit:
-		return c.compileArrayLit(node)
-	case *parser.MapLit:
-		return c.compileMapLit(node)
-	case *parser.KeyValueArrayLit:
-		return c.compileKeyValueArrayLit(node)
-	case *parser.SelectorExpr: // selector on RHS side
-		return c.compileSelectorExpr(node)
-	case *parser.NullishSelectorExpr: // selector on RHS side
-		return c.compileNullishSelectorExpr(node)
-	case *parser.IndexExpr:
-		return c.compileIndexExpr(node)
-	case *parser.SliceExpr:
-		return c.compileSliceExpr(node)
-	case *parser.FuncLit:
-		return c.compileFuncLit(node)
-	case *parser.ClosureLit:
-		return c.compileClosureLit(node)
-	case *parser.ReturnStmt:
-		return c.compileReturnStmt(node)
-	case *parser.CallExpr:
-		return c.compileCallExpr(node)
-	case *parser.ImportExpr:
-		return c.compileImportExpr(node)
-	case *parser.CondExpr:
-		return c.compileCondExpr(node)
-	case *parser.TextStmt:
-		return c.Compile(&parser.StringLit{Value: node.Literal})
-	case *parser.EmptyStmt:
-	case *parser.ConfigStmt:
-		if node.Options.WriteFunc != nil {
-			c.opts.MixedWriteFunction = node.Options.WriteFunc
+	case *node.StringLit:
+		c.emit(nt, OpConstant, c.addConstant(String(nt.Value)))
+	case *node.CharLit:
+		c.emit(nt, OpConstant, c.addConstant(Char(nt.Value)))
+	case *node.NilLit:
+		c.emit(nt, OpNull)
+	case *node.StdInLit:
+		c.emit(nt, OpStdIn)
+	case *node.StdOutLit:
+		c.emit(nt, OpStdOut)
+	case *node.StdErrLit:
+		c.emit(nt, OpStdErr)
+	case *node.CalleeKeyword:
+		c.emit(nt, OpCallee)
+	case *node.ArgsKeyword:
+		c.emit(nt, OpArgs)
+	case *node.NamedArgsKeyword:
+		c.emit(nt, OpNamedArgs)
+	case *node.UnaryExpr:
+		return c.compileUnaryExpr(nt)
+	case *node.IfStmt:
+		return c.compileIfStmt(nt)
+	case *node.TryStmt:
+		return c.compileTryStmt(nt)
+	case *node.CatchStmt:
+		return c.compileCatchStmt(nt)
+	case *node.FinallyStmt:
+		return c.compileFinallyStmt(nt)
+	case *node.ThrowStmt:
+		return c.compileThrowStmt(nt)
+	case *node.ForStmt:
+		return c.compileForStmt(nt)
+	case *node.ForInStmt:
+		return c.compileForInStmt(nt)
+	case *node.BranchStmt:
+		return c.compileBranchStmt(nt)
+	case *node.BlockStmt:
+		return c.compileBlockStmt(nt)
+	case *node.DeclStmt:
+		return c.compileDeclStmt(nt)
+	case *node.AssignStmt:
+		return c.compileAssignStmt(nt,
+			nt.LHS, nt.RHS, token.Var, nt.Token)
+	case *node.Ident:
+		return c.compileIdent(nt)
+	case *node.ArrayLit:
+		return c.compileArrayLit(nt)
+	case *node.MapLit:
+		return c.compileMapLit(nt)
+	case *node.KeyValueArrayLit:
+		return c.compileKeyValueArrayLit(nt)
+	case *node.SelectorExpr: // selector on RHS side
+		return c.compileSelectorExpr(nt)
+	case *node.NullishSelectorExpr: // selector on RHS side
+		return c.compileNullishSelectorExpr(nt)
+	case *node.IndexExpr:
+		return c.compileIndexExpr(nt)
+	case *node.SliceExpr:
+		return c.compileSliceExpr(nt)
+	case *node.FuncLit:
+		return c.compileFuncLit(nt)
+	case *node.ClosureLit:
+		return c.compileClosureLit(nt)
+	case *node.ReturnStmt:
+		return c.compileReturnStmt(nt)
+	case *node.CallExpr:
+		return c.compileCallExpr(nt)
+	case *node.ImportExpr:
+		return c.compileImportExpr(nt)
+	case *node.CondExpr:
+		return c.compileCondExpr(nt)
+	case *node.TextStmt:
+		return c.Compile(&node.StringLit{Value: nt.Literal})
+	case *node.EmptyStmt:
+	case *node.ConfigStmt:
+		if nt.Options.WriteFunc != nil {
+			c.opts.MixedWriteFunction = nt.Options.WriteFunc
 		}
 	case nil:
 	default:
-		return c.errorf(node, `%[1]T "%[1]v" not implemented`, node)
+		return c.errorf(nt, `%[1]T "%[1]v" not implemented`, nt)
 	}
 	return nil
 }
 
-func (c *Compiler) at(node parser.Node) func() {
-	c.stack = append(c.stack, node)
+func (c *Compiler) at(nd ast.Node) func() {
+	c.stack = append(c.stack, nd)
 	return func() {
 		c.stack = c.stack[:len(c.stack)-1]
 	}
@@ -578,10 +584,10 @@ func (c *Compiler) addCompiledFunction(obj Object) (index int) {
 	return
 }
 
-func (c *Compiler) emit(node parser.Node, opcode Opcode, operands ...int) int {
-	filePos := parser.NoPos
-	if node != nil {
-		filePos = node.Pos()
+func (c *Compiler) emit(nd ast.Node, opcode Opcode, operands ...int) int {
+	filePos := source.NoPos
+	if nd != nil {
+		filePos = nd.Pos()
 	}
 
 	inst := make([]byte, 0, 8)
@@ -606,11 +612,11 @@ func (c *Compiler) addInstruction(b []byte) int {
 	return posNewIns
 }
 
-func (c *Compiler) checkCyclicImports(node parser.Node, modulePath string) error {
+func (c *Compiler) checkCyclicImports(nd ast.Node, modulePath string) error {
 	if c.modulePath == modulePath {
-		return c.errorf(node, "cyclic module import: %s", modulePath)
+		return c.errorf(nd, "cyclic module import: %s", modulePath)
 	} else if c.parent != nil {
-		return c.parent.checkCyclicImports(node, modulePath)
+		return c.parent.checkCyclicImports(nd, modulePath)
 	}
 	return nil
 }
@@ -639,13 +645,13 @@ func (c *Compiler) baseModuleMap() *ModuleMap {
 }
 
 func (c *Compiler) compileModule(
-	node parser.Node,
+	nd ast.Node,
 	modulePath string,
 	moduleMap *ModuleMap,
 	src []byte,
 ) (int, error) {
 	var err error
-	if err = c.checkCyclicImports(node, modulePath); err != nil {
+	if err = c.checkCyclicImports(nd, modulePath); err != nil {
 		return 0, err
 	}
 
@@ -668,7 +674,7 @@ func (c *Compiler) compileModule(
 	fork := c.fork(modFile, modulePath, moduleMap, symbolTable)
 	err = fork.optimize(file)
 	if err != nil && err != errSkip {
-		return 0, c.error(node, err)
+		return 0, c.error(nd, err)
 	}
 
 	if err = fork.Compile(file); err != nil {
@@ -677,7 +683,7 @@ func (c *Compiler) compileModule(
 
 	bc := fork.Bytecode()
 	if bc.Main.NumLocals > 256 {
-		return 0, c.error(node, ErrSymbolLimit)
+		return 0, c.error(nd, ErrSymbolLimit)
 	}
 
 	c.constants = bc.Constants
@@ -742,22 +748,22 @@ func (c *Compiler) fork(
 	return child
 }
 
-func (c *Compiler) error(node parser.Node, err error) error {
+func (c *Compiler) error(nd ast.Node, err error) error {
 	return &CompilerError{
 		FileSet: c.file.Set(),
-		Node:    node,
+		Node:    nd,
 		Err:     err,
 	}
 }
 
 func (c *Compiler) errorf(
-	node parser.Node,
+	nd ast.Node,
 	format string,
 	args ...any,
 ) error {
 	return &CompilerError{
 		FileSet: c.file.Set(),
-		Node:    node,
+		Node:    nd,
 		Err:     fmt.Errorf(format, args...),
 	}
 }
@@ -817,7 +823,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		buf = append(buf, byte(args[0]>>8))
 		buf = append(buf, byte(args[0]))
 		return buf, nil
-	case OpLoadModule, OpSetupTry:
+	case OpLoadModule, OpSetupTry, OpIterNextElse:
 		buf = append(buf, byte(args[0]>>8))
 		buf = append(buf, byte(args[0]))
 		buf = append(buf, byte(args[1]>>8))

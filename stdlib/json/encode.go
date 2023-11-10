@@ -37,7 +37,7 @@ func Marshal(v gad.Object) ([]byte, error) {
 	return buf, nil
 }
 
-// MarshalIndent is like Marshal but applies Indent to format the output.
+// MarshalIndent is like Marshal but applies IndentCount to format the output.
 // Each JSON element in the output will begin on a new line beginning with prefix
 // followed by one or more copies of indent according to the indentation nesting.
 func MarshalIndent(v gad.Object, prefix, indent string) ([]byte, error) {

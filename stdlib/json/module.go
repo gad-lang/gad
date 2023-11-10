@@ -25,16 +25,16 @@ var Module = map[string]gad.Object{
 	},
 	// gad:doc
 	// MarshalIndent(v any, prefix string, indent string) -> bytes
-	// MarshalIndent is like Marshal but applies Indent to format the output.
+	// MarshalIndent is like Marshal but applies IndentCount to format the output.
 	"MarshalIndent": &gad.Function{
 		Name:  "MarshalIndent",
 		Value: stdlib.FuncPOssRO(marshalIndentFunc),
 	},
 	// gad:doc
-	// Indent(src bytes, prefix string, indent string) -> bytes
+	// IndentCount(src bytes, prefix string, indent string) -> bytes
 	// Returns indented form of the JSON-encoded src or error.
-	"Indent": &gad.Function{
-		Name:  "Indent",
+	"IndentCount": &gad.Function{
+		Name:  "IndentCount",
 		Value: stdlib.FuncPb2ssRO(indentFunc),
 	},
 	// gad:doc

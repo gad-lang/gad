@@ -1716,6 +1716,27 @@ func TestVMForIn(t *testing.T) {
 		nil, String("abde"))
 
 	expectErrIs(t, `a := 1; for k,v in a {}`, nil, ErrNotIterable)
+
+	// with else
+	expectRun(t, `var r = ""; for x in [] { r += string(x) } else { r += "@"}; r+="#"; return r`, nil, String("@#"))
+	expectRun(t, `var r = ""; for x in [1] { r += string(x) } else { r += "@"}; r+="#"; return r`, nil, String("1#"))
+	expectRun(t, `var r = ""; for x in [1,2] { r += string(x) } else { r += "@"}; r+="#"; return r`, nil, String("12#"))
+	expectRun(t, `var r = (;); 
+		for k, v in bytes("abc") { 
+			r = append(r, keyValue(k, char(v))) 
+		} else { 
+			r = append(r, keyValue("else", true)) 
+		}; 
+		r = append(r, keyValue("done", true))
+		return string(r)`, nil, String("(;0=a, 1=b, 2=c, done)"))
+	expectRun(t, `var r = (;); 
+		for k, v in bytes("") { 
+			r = append(r, keyValue(k, char(v))) 
+		} else { 
+			r = append(r, keyValue("else", true)) 
+		}; 
+		r = append(r, keyValue("done", true))
+		return string(r)`, nil, String("(;else, done)"))
 }
 
 func TestFor(t *testing.T) {
@@ -3405,6 +3426,7 @@ func TestVMTailCallFreeVars(t *testing.T) {
 
 func TestVMCall(t *testing.T) {
 	expectRun(t, `f := func() {}; return f()`, nil, Nil)
+	expectRun(t, `func f (a) { return a; }; return f(1)`, nil, Int(1))
 	expectRun(t, `f := func(a) { return a; }; return f(1)`, nil, Int(1))
 	expectRun(t, `f := func(a, b) { return [a, b]; }; return f(1, 2)`, nil, Array{Int(1), Int(2)})
 	expectErrIs(t, `f := func() { return; }; return f(1)`, nil, ErrWrongNumArguments)

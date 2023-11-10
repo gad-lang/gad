@@ -193,7 +193,7 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 }
 
 func TestCompiler_Mixed(t *testing.T) {
-	expectCompileMixed(t, `# gad: writer=myfn; #{- var myfn -} a`, bytecode(
+	expectCompileMixed(t, "# gad: writer=myfn\n#{- var myfn -} a", bytecode(
 		Array{String("a")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -234,7 +234,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		), withLocals(1)),
 	))
 
-	expectCompile(t, `# gad: mixed, writer=myfn; #{- var myfn -} a`, bytecode(
+	expectCompile(t, "# gad: mixed, writer=myfn\n#{ var myfn -} a", bytecode(
 		Array{String("a")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -246,7 +246,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		), withLocals(1)),
 	))
 
-	expectCompile(t, `# gad: mixed; #{- a := begin} a #{end}`, bytecode(
+	expectCompile(t, "# gad: mixed\n#{- a := begin} a #{end}", bytecode(
 		Array{String(" a ")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -255,7 +255,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		), withLocals(1)),
 	))
 
-	expectCompile(t, `# gad: mixed; #{- a := begin -} a #{- end}`, bytecode(
+	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end}", bytecode(
 		Array{String("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -264,7 +264,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		), withLocals(1)),
 	))
 
-	expectCompile(t, `# gad: mixed; #{- a := begin -} a #{- end; return a}`, bytecode(
+	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end; return a}", bytecode(
 		Array{String("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -274,7 +274,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		), withLocals(1)),
 	))
 
-	expectCompile(t, `# gad: mixed; #{- a := begin -} a #{- end}#{return a}`, bytecode(
+	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end}#{return a}", bytecode(
 		Array{String("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -284,7 +284,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		), withLocals(1)),
 	))
 
-	expectCompile(t, `# gad: mixed; #{- a := begin -} a #{- end} b #{return a}`, bytecode(
+	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end} b #{return a}", bytecode(
 		Array{String("a"), String(" b ")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -1387,6 +1387,27 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
+	expectCompile(t, `func f () { 24 }; f();`, bytecode(
+		Array{
+			Int(24),
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpPop),
+				makeInst(OpReturn, 0),
+			)),
+		},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 1),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpCall, 0, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1),
+		),
+	))
+
 	expectCompile(t, `f := func() { 24 }; f();`, bytecode(
 		Array{
 			Int(24),
@@ -1924,7 +1945,7 @@ func TestCompiler_Compile(t *testing.T) {
 			withLocals(1),
 		),
 	))
-	expectCompileError(t, `try {}`, `Parse Error: expected 'finally', found ';'`)
+	expectCompileError(t, `try {};`, `Parse Error: expected 'finally', found ';'`)
 	expectCompileError(t, `catch {}`, `Parse Error: expected statement, found 'catch'`)
 	expectCompileError(t, `finally {}`, `Parse Error: expected statement, found 'finally'`)
 	// catch and finally must in the same line with right brace.
@@ -2229,6 +2250,45 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 }
 
+func TestCompilerFor(t *testing.T) {
+	expectCompile(t, `var r = ""; for x in [] { r += string(x) } else { r += "@"}; r+="#"; return r`, bytecode(
+		Array{String(""), String("@"), String("#")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpArray, 0),
+			makeInst(OpIterInit),
+			makeInst(OpDefineLocal, 1),
+			makeInst(OpGetLocal, 1),
+			makeInst(OpIterNextElse, 24, 46),
+			makeInst(OpGetLocal, 1),
+			makeInst(OpIterNext),
+			makeInst(OpJumpFalsy, 55),
+			makeInst(OpGetLocal, 1),
+			makeInst(OpIterValue),
+			makeInst(OpDefineLocal, 2),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpGetBuiltin, int(BuiltinString)),
+			makeInst(OpGetLocal, 2),
+			makeInst(OpCall, 1, 0),
+			makeInst(OpBinaryOp, int(token.Add)),
+			makeInst(OpSetLocal, 0),
+			makeInst(OpJump, 18),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpBinaryOp, int(token.Add)),
+			makeInst(OpSetLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 2),
+			makeInst(OpBinaryOp, int(token.Add)),
+			makeInst(OpSetLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpReturn, 1),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(3),
+		)))
+}
 func TestCompilerNullishSelector(t *testing.T) {
 	expectCompile(t, `var a; (a["I"+"DX"])?.d`, bytecode(
 		Array{
