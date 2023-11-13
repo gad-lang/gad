@@ -33,8 +33,8 @@ func ArrayToString(len int, get func(i int) Object) string {
 	return sb.String()
 }
 
-func AnyMapToMap(src map[string]any) (m Map, err error) {
-	m = make(Map, len(src))
+func AnyMapToMap(src map[string]any) (m Dict, err error) {
+	m = make(Dict, len(src))
 	for k, v := range src {
 		if m[k], err = ToObject(v); err != nil {
 			return

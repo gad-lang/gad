@@ -54,7 +54,7 @@ func TestVMDestructuring(t *testing.T) {
 	// test index assignments
 	expectRun(t, `
 	var (x = {}, y, z)
-	x.a, y, z = [1, 2, 3, 4]; return x`, nil, Map{"a": Int(1)})
+	x.a, y, z = [1, 2, 3, 4]; return x`, nil, Dict{"a": Int(1)})
 	expectRun(t, `
 	var (x = {}, y, z)
 	x.a, y, z = [1, 2, 3, 4]; return y`, nil, Int(2))
@@ -64,7 +64,7 @@ func TestVMDestructuring(t *testing.T) {
 
 	expectRun(t, `
 	var (x = {}, y, z)
-	y, x.a, z = [1, 2, 3, 4]; return x`, nil, Map{"a": Int(2)})
+	y, x.a, z = [1, 2, 3, 4]; return x`, nil, Dict{"a": Int(2)})
 	expectRun(t, `
 	var (x = {}, y, z)
 	y, x.a, z = [1, 2, 3, 4]; return y`, nil, Int(1))
@@ -118,13 +118,13 @@ func TestVMDestructuring(t *testing.T) {
 	}
 	x, y := fn()
 	t := {a: x}
-	return [x, y, t]`, nil, Array{Int(1), Int(2), Map{"a": Int(1)}})
+	return [x, y, t]`, nil, Array{Int(1), Int(2), Dict{"a": Int(1)}})
 	expectRun(t, `
 	fn := func() { 
 		return {}
 	}
 	x, y := fn()
-	return [x, y]`, nil, Array{Map{}, Nil})
+	return [x, y]`, nil, Array{Dict{}, Nil})
 	expectRun(t, `
 	fn := func(v) { 
 		return [1, v, 3]
@@ -132,10 +132,10 @@ func TestVMDestructuring(t *testing.T) {
 	var x = 10
 	x, y := fn(x)
 	t := {a: x}
-	return [x, y, t]`, nil, Array{Int(1), Int(10), Map{"a": Int(1)}})
+	return [x, y, t]`, nil, Array{Int(1), Int(10), Dict{"a": Int(1)}})
 
 	// test any expression
-	expectRun(t, `x, y :=  {}; return [x, y]`, nil, Array{Map{}, Nil})
+	expectRun(t, `x, y :=  {}; return [x, y]`, nil, Array{Dict{}, Nil})
 	expectRun(t, `
 	var x = 2
 	if x > 0 {
@@ -198,7 +198,7 @@ func TestVMDestructuring(t *testing.T) {
 	}
 	// return map to check stack pointer is correct
 	return {x: x}
-	`, nil, Map{"x": Int(3)})
+	`, nil, Dict{"x": Int(3)})
 	expectRun(t, `
 	for x,y := [1, 2]; true; x++ {
 		if x == 10 {
@@ -295,7 +295,7 @@ func TestVMDestructuring(t *testing.T) {
 		Array{Int(2), Int(1), Array{Int(3)}})
 	expectRun(t, `a := 1; return [2, a], [3]`, nil,
 		Array{Array{Int(2), Int(1)}, Array{Int(3)}})
-	expectRun(t, `return {}, []`, nil, Array{Map{}, Array{}})
+	expectRun(t, `return {}, []`, nil, Array{Dict{}, Array{}})
 	expectRun(t, `return func(){ return 1}(), []`, nil, Array{Int(1), Array{}})
 	expectRun(t, `return func(){ return 1}(), [2]`, nil,
 		Array{Int(1), Array{Int(2)}})
@@ -356,7 +356,7 @@ func TestVMDestructuring(t *testing.T) {
 	}
 	return v
 	`, newOpts().
-		Globals(Map{"multiplier": Int(2)}).
+		Globals(Dict{"multiplier": Int(2)}).
 		Args(Int(1), Int(2), Int(3), Int(4)),
 		Array{Int(2), Int(4), Int(6), Int(8)})
 
@@ -368,7 +368,7 @@ func TestVMDestructuring(t *testing.T) {
 		return string(err)
 	}
 	`, newOpts().
-		Globals(Map{"goFunc": &Function{
+		Globals(Dict{"goFunc": &Function{
 			Value: func(Call) (Object, error) {
 				// ...
 				return Array{
@@ -689,26 +689,26 @@ func TestConstIota(t *testing.T) {
 	const (
 		x = {}
 	)
-	return x`, nil, Map{})
+	return x`, nil, Dict{})
 
 	expectRun(t, `
 	const (
 		x = {iota: 1}
 	)
-	return x`, nil, Map{"iota": Int(1)})
+	return x`, nil, Dict{"iota": Int(1)})
 
 	expectRun(t, `
 	const (
 		x = {k: iota}
 	)
-	return x`, nil, Map{"k": Int(0)})
+	return x`, nil, Dict{"k": Int(0)})
 
 	expectRun(t, `
 	const (
 		x = {k: iota}
 		y
 	)
-	return x, y`, nil, Array{Map{"k": Int(0)}, Map{"k": Int(1)}})
+	return x, y`, nil, Array{Dict{"k": Int(0)}, Dict{"k": Int(1)}})
 
 	expectRun(t, `
 	const (
@@ -716,7 +716,7 @@ func TestConstIota(t *testing.T) {
 		y
 	)
 	x["k"] = 2
-	return x, y`, nil, Array{Map{"k": Int(2)}, Map{"k": Int(1)}})
+	return x, y`, nil, Array{Dict{"k": Int(2)}, Dict{"k": Int(1)}})
 
 	expectRun(t, `
 	const (
@@ -725,7 +725,7 @@ func TestConstIota(t *testing.T) {
 		z
 	)
 	return x, y, z`, nil,
-		Array{Map{"k": Int(0)}, Map{"k": Int(1)}, Map{"k": Int(2)}})
+		Array{Dict{"k": Int(0)}, Dict{"k": Int(1)}, Dict{"k": Int(2)}})
 
 	expectRun(t, `
 	const (
@@ -961,7 +961,7 @@ sum := func(...args) {
 return apply(sum, 1, 2, 3)
 `
 				expectRun(t, scr,
-					newOpts().Globals(Map{"apply": apply}),
+					newOpts().Globals(Dict{"apply": apply}),
 					Int(6),
 				)
 			})
@@ -984,7 +984,7 @@ f := func(fn, ...args) {
 return apply(f, sum, 1, 2, 3)
 `
 				expectRun(t, scr,
-					newOpts().Globals(Map{"apply": apply}),
+					newOpts().Globals(Dict{"apply": apply}),
 					Int(6),
 				)
 			})
@@ -1007,7 +1007,7 @@ f := func(fn, ...args) {
 return apply(f, sum, 1, 2, 3)
 `
 				expectRun(t, scr,
-					newOpts().Globals(Map{"apply": apply}),
+					newOpts().Globals(Dict{"apply": apply}),
 					Int(6),
 				)
 			})
@@ -1027,7 +1027,7 @@ global (apply, sum)
 return apply(sum, 1, 2, 3)
 `
 				expectRun(t, scr,
-					newOpts().Globals(Map{"apply": apply, "sum": sum}),
+					newOpts().Globals(Dict{"apply": apply, "sum": sum}),
 					Int(6),
 				)
 			})
@@ -1049,15 +1049,15 @@ return module.counter
 				t.Run("builtin", func(t *testing.T) {
 					expectRun(t, scr,
 						newOpts().
-							Globals(Map{"apply": apply}).
-							Module("module", Map{}),
+							Globals(Dict{"apply": apply}).
+							Module("module", Dict{}),
 						Int(4),
 					)
 				})
 				t.Run("source", func(t *testing.T) {
 					expectRun(t, scr,
 						newOpts().
-							Globals(Map{"apply": apply}).
+							Globals(Dict{"apply": apply}).
 							Module("module", `return {}`),
 						Int(4),
 					)
@@ -1081,7 +1081,7 @@ apply(f2, 5)
 return counter
 `
 				expectRun(t, scr,
-					newOpts().Globals(Map{"apply": apply}),
+					newOpts().Globals(Dict{"apply": apply}),
 					Int(9),
 				)
 			})
@@ -1103,7 +1103,7 @@ apply(f2, 5)
 return counter
 `
 				expected := Int(9)
-				globals := Map{"apply": apply, "counter": Int(1)}
+				globals := Dict{"apply": apply, "counter": Int(1)}
 				expectRun(t, scr,
 					newOpts().Globals(globals).Skip2Pass(),
 					expected,
@@ -1117,12 +1117,12 @@ return counter
 }
 
 type nameCaller struct {
-	Map
+	Dict
 	counts map[string]int
 }
 
 func (n *nameCaller) CallName(name string, c Call) (Object, error) {
-	fn := n.Map[name]
+	fn := n.Dict[name]
 	args := make([]Object, 0, c.Args.Len())
 	for i := 0; i < c.Args.Len(); i++ {
 		args = append(args, c.Args.Get(i))
@@ -1142,7 +1142,7 @@ func TestVMCallName(t *testing.T) {
 			},
 		}
 
-		return &nameCaller{Map: Map{"add1": f}, counts: map[string]int{}}
+		return &nameCaller{Dict: Dict{"add1": f}, counts: map[string]int{}}
 	}
 	scr := `
 global object
@@ -1156,7 +1156,7 @@ return [object.add1(10), object.sub1(10)]
 
 	t.Run("basic", func(t *testing.T) {
 		expectRun(t, scr,
-			newOpts().Globals(Map{"object": newobject()}),
+			newOpts().Globals(Dict{"object": newobject()}),
 			Array{Int(11), Int(9)},
 		)
 	})
@@ -1164,7 +1164,7 @@ return [object.add1(10), object.sub1(10)]
 	t.Run("counts single pass", func(t *testing.T) {
 		object := newobject()
 		expectRun(t, scr,
-			newOpts().Globals(Map{"object": object}).Skip2Pass(),
+			newOpts().Globals(Dict{"object": object}).Skip2Pass(),
 			Array{Int(11), Int(9)},
 		)
 		if object.counts["add1"] != 1 {
@@ -1178,7 +1178,7 @@ return [object.add1(10), object.sub1(10)]
 	t.Run("counts all pass", func(t *testing.T) {
 		object := newobject()
 		expectRun(t, scr,
-			newOpts().Globals(Map{"object": object}),
+			newOpts().Globals(Dict{"object": object}),
 			Array{Int(11), Int(9)},
 		)
 		if object.counts["add1"] <= 0 {

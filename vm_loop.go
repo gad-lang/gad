@@ -326,7 +326,7 @@ VMLoop:
 			vm.ip += 2
 		case OpMap:
 			numItems := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
-			kv := make(Map)
+			kv := make(Dict)
 
 			for i := vm.sp - numItems; i < vm.sp; i += 2 {
 				key := vm.stack[i]

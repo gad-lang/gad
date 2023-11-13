@@ -3,24 +3,24 @@ package gad
 type BuiltinObjType struct {
 	NameValue string
 	Value     CallableFunc
-	getters   Map
-	setters   Map
-	methods   Map
+	getters   Dict
+	setters   Dict
+	methods   Dict
 }
 
-func (b *BuiltinObjType) Fields() Map {
+func (b *BuiltinObjType) Fields() Dict {
 	return nil
 }
 
-func (b *BuiltinObjType) Getters() Map {
+func (b *BuiltinObjType) Getters() Dict {
 	return b.getters
 }
 
-func (b *BuiltinObjType) Setters() Map {
+func (b *BuiltinObjType) Setters() Dict {
 	return b.setters
 }
 
-func (b *BuiltinObjType) Methods() Map {
+func (b *BuiltinObjType) Methods() Dict {
 	return b.methods
 }
 
@@ -60,7 +60,7 @@ func (b *BuiltinObjType) Call(c Call) (Object, error) {
 	return b.Value(c)
 }
 
-func (b *BuiltinObjType) New(*VM, Map) (Object, error) {
+func (b *BuiltinObjType) New(*VM, Dict) (Object, error) {
 	return Nil, nil
 }
 
@@ -76,8 +76,8 @@ var (
 	TBytes,
 	TBuffer,
 	TArray,
-	TMap,
-	TSyncMap,
+	TDict,
+	TSyncDict,
 	TKeyValue,
 	TKeyValueArray,
 	TError ObjectType
@@ -139,10 +139,10 @@ func init() {
 	TArray = RegisterBuiltinType(BuiltinArray, "array", Array{}, func(c Call) (ret Object, err error) {
 		return c.Args.Values(), nil
 	})
-	TMap = RegisterBuiltinType(BuiltinMap, "map", Map{}, func(Call) (ret Object, err error) {
-		return Map{}, nil
+	TDict = RegisterBuiltinType(BuiltinDict, "dict", Dict{}, func(Call) (ret Object, err error) {
+		return Dict{}, nil
 	})
-	TSyncMap = RegisterBuiltinType(BuiltinSyncMap, "syncMap", SyncMap{}, builtinSyncMapFunc)
+	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncMap{}, builtinSyncMapFunc)
 	TKeyValue = RegisterBuiltinType(BuiltinKeyValue, "keyValue", KeyValue{}, builtinKeyValueFunc)
 	TKeyValueArray = RegisterBuiltinType(BuiltinKeyValueArray, "keyValueArray", KeyValueArray{}, builtinKeyValueArrayFunc)
 	TError = RegisterBuiltinType(BuiltinError, "error", Error{}, funcPORO(builtinErrorFunc))

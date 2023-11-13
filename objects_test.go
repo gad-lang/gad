@@ -51,7 +51,7 @@ func TestObjectIterable(t *testing.T) {
 	require.NotNil(t, String("").Iterate(nil))
 	require.NotNil(t, Array{}.Iterate(nil))
 	require.NotNil(t, Bytes{}.Iterate(nil))
-	require.NotNil(t, Map{}.Iterate(nil))
+	require.NotNil(t, Dict{}.Iterate(nil))
 	require.NotNil(t, (&SyncMap{}).Iterate(nil))
 }
 
@@ -67,7 +67,7 @@ func TestObjectCallable(t *testing.T) {
 	require.False(t, Callable(String("")))
 	require.False(t, Callable(Array{}))
 	require.False(t, Callable(Bytes{}))
-	require.False(t, Callable(Map{}))
+	require.False(t, Callable(Dict{}))
 	require.False(t, Callable(&SyncMap{}))
 
 	require.True(t, Callable(&Function{}))
@@ -102,12 +102,12 @@ func TestObjectString(t *testing.T) {
 	require.Equal(t, "xyz", Bytes(String("xyz")).ToString())
 	require.Equal(t, String("xyz").ToString(), Bytes(String("xyz")).ToString())
 
-	require.Equal(t, "{}", Map{}.ToString())
-	m := Map{"a": Int(1)}
+	require.Equal(t, "{}", Dict{}.ToString())
+	m := Dict{"a": Int(1)}
 	require.Equal(t, `{"a": 1}`, m.ToString())
 	require.Equal(t, "{}", (&SyncMap{}).ToString())
 	require.Equal(t, m.ToString(), (&SyncMap{Value: m}).ToString())
-	require.Equal(t, "{}", (&SyncMap{Value: Map{}}).ToString())
+	require.Equal(t, "{}", (&SyncMap{Value: Dict{}}).ToString())
 
 	require.Equal(t, "<function:>", (&Function{}).ToString())
 	require.Equal(t, "<function:xyz>", (&Function{Name: "xyz"}).ToString())
@@ -138,8 +138,8 @@ func TestObjectTypeName(t *testing.T) {
 	require.Equal(t, "string", String("").Type().Name())
 	require.Equal(t, "array", Array{}.Type().Name())
 	require.Equal(t, "bytes", Bytes{}.Type().Name())
-	require.Equal(t, "map", Map{}.Type().Name())
-	require.Equal(t, "syncMap", (&SyncMap{}).Type().Name())
+	require.Equal(t, "dict", Dict{}.Type().Name())
+	require.Equal(t, "syncDict", (&SyncMap{}).Type().Name())
 	require.Equal(t, "function", (&Function{}).Type().Name())
 	require.Equal(t, "builtinFunction", (&BuiltinFunction{}).Type().Name())
 	require.Equal(t, "compiledFunction", (&CompiledFunction{}).Type().Name())
@@ -193,10 +193,10 @@ func TestObjectIsFalsy(t *testing.T) {
 	require.False(t, Array{Int(0)}.IsFalsy())
 	require.True(t, Bytes{}.IsFalsy())
 	require.False(t, Bytes{0}.IsFalsy())
-	require.True(t, Map{}.IsFalsy())
-	require.False(t, Map{"a": Int(1)}.IsFalsy())
+	require.True(t, Dict{}.IsFalsy())
+	require.False(t, Dict{"a": Int(1)}.IsFalsy())
 	require.True(t, (&SyncMap{}).IsFalsy())
-	require.False(t, (&SyncMap{Value: Map{"a": Int(1)}}).IsFalsy())
+	require.False(t, (&SyncMap{Value: Dict{"a": Int(1)}}).IsFalsy())
 	require.False(t, (&Function{}).IsFalsy())
 	require.False(t, (&BuiltinFunction{}).IsFalsy())
 	require.False(t, (&CompiledFunction{}).IsFalsy())
@@ -219,7 +219,7 @@ func TestObjectCopier(t *testing.T) {
 	objects := []Object{
 		Array{},
 		Bytes{},
-		Map{},
+		Dict{},
 		&SyncMap{},
 	}
 	for _, o := range objects {
@@ -333,27 +333,27 @@ func TestObjectIndexGet(t *testing.T) {
 	require.NotNil(t, err)
 	require.Equal(t, ErrIndexOutOfBounds, err)
 
-	v, err = Map{}.IndexGet(nil, Nil)
+	v, err = Dict{}.IndexGet(nil, Nil)
 	require.Nil(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = Map{"a": Int(1)}.IndexGet(nil, Int(0))
+	v, err = Dict{"a": Int(1)}.IndexGet(nil, Int(0))
 	require.Nil(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = Map{"a": Int(1)}.IndexGet(nil, String("a"))
+	v, err = Dict{"a": Int(1)}.IndexGet(nil, String("a"))
 	require.Nil(t, err)
 	require.Equal(t, Int(1), v)
 
-	v, err = (&SyncMap{Value: Map{}}).IndexGet(nil, Nil)
+	v, err = (&SyncMap{Value: Dict{}}).IndexGet(nil, Nil)
 	require.Nil(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = (&SyncMap{Value: Map{"a": Int(1)}}).IndexGet(nil, Int(0))
+	v, err = (&SyncMap{Value: Dict{"a": Int(1)}}).IndexGet(nil, Int(0))
 	require.Nil(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = (&SyncMap{Value: Map{"a": Int(1)}}).IndexGet(nil, String("a"))
+	v, err = (&SyncMap{Value: Dict{"a": Int(1)}}).IndexGet(nil, String("a"))
 	require.Nil(t, err)
 	require.Equal(t, Int(1), v)
 }
@@ -394,22 +394,22 @@ func TestObjectIndexSet(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrType))
 
-	v = Map{}
+	v = Dict{}
 	err = v.IndexSet(nil, Nil, Nil)
 	require.Nil(t, err)
-	require.Equal(t, Nil, v.(Map)["nil"])
+	require.Equal(t, Nil, v.(Dict)["nil"])
 
-	v = Map{"a": Int(1)}
+	v = Dict{"a": Int(1)}
 	err = v.IndexSet(nil, String("a"), Int(2))
 	require.Nil(t, err)
-	require.Equal(t, Int(2), v.(Map)["a"])
+	require.Equal(t, Int(2), v.(Dict)["a"])
 
-	v = &SyncMap{Value: Map{}}
+	v = &SyncMap{Value: Dict{}}
 	err = v.IndexSet(nil, Nil, Nil)
 	require.Nil(t, err)
 	require.Equal(t, Nil, v.(*SyncMap).Value["nil"])
 
-	v = &SyncMap{Value: Map{"a": Int(1)}}
+	v = &SyncMap{Value: Dict{"a": Int(1)}}
 	err = v.IndexSet(nil, String("a"), Int(2))
 	require.Nil(t, err)
 	require.Equal(t, Int(2), v.(*SyncMap).Value["a"])

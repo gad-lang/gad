@@ -10,7 +10,7 @@ import (
 
 // Obj represents map of objects and implements Object interface.
 type Obj struct {
-	fields Map
+	fields Dict
 	typ    *ObjType
 }
 
@@ -30,7 +30,7 @@ func (o *Obj) Type() ObjectType {
 	return o.typ
 }
 
-func (o *Obj) Fields() Map {
+func (o *Obj) Fields() Dict {
 	return o.fields
 }
 
@@ -81,13 +81,13 @@ func (o *Obj) ToString() string {
 
 // Copy implements Copier interface.
 func (o Obj) Copy() Object {
-	o.fields = o.fields.Copy().(Map)
+	o.fields = o.fields.Copy().(Dict)
 	return &o
 }
 
 // DeepCopy implements DeepCopier interface.
 func (o Obj) DeepCopy() Object {
-	o.fields = o.fields.DeepCopy().(Map)
+	o.fields = o.fields.DeepCopy().(Dict)
 	return &o
 }
 
@@ -234,28 +234,28 @@ func (o ObjectTypeArray) Array() Array {
 // ObjType represents type objects and implements Object interface.
 type ObjType struct {
 	TypeName string
-	fields   Map
-	setters  Map
-	methods  Map
-	getters  Map
+	fields   Dict
+	setters  Dict
+	methods  Dict
+	getters  Dict
 	Stringer CallerObject
 	Init     CallerObject
 	Inherits ObjectTypeArray
 }
 
-func (o *ObjType) Fields() Map {
+func (o *ObjType) Fields() Dict {
 	return o.fields
 }
 
-func (o *ObjType) Setters() Map {
+func (o *ObjType) Setters() Dict {
 	return o.setters
 }
 
-func (o *ObjType) Methods() Map {
+func (o *ObjType) Methods() Dict {
 	return o.methods
 }
 
-func (o *ObjType) Getters() Map {
+func (o *ObjType) Getters() Dict {
 	return o.getters
 }
 
@@ -327,7 +327,7 @@ func (o *ObjType) ToString() string {
 }
 
 func (o *ObjType) repr() string {
-	m := Map{}
+	m := Dict{}
 	if len(o.fields) > 0 {
 		m["fields"] = o.fields
 	}
@@ -379,13 +379,13 @@ func (o *ObjType) BinaryOp(tok token.Token, right Object) (Object, error) {
 		right.Type().Name())
 }
 
-func (o *ObjType) New(_ *VM, fields Map) (Object, error) {
+func (o *ObjType) New(_ *VM, fields Dict) (Object, error) {
 	obj := &Obj{typ: o, fields: fields}
 	if fields == nil {
 		if o.fields == nil {
-			obj.fields = Map{}
+			obj.fields = Dict{}
 		} else {
-			obj.fields = o.fields.Copy().(Map)
+			obj.fields = o.fields.Copy().(Dict)
 		}
 	}
 	return obj, nil
@@ -400,7 +400,7 @@ func (o *ObjType) Call(c Call) (obj Object, err error) {
 	} else if c.NamedArgs.IsFalsy() {
 		obj, _ = o.New(c.VM, nil)
 	} else {
-		obj, _ = o.New(c.VM, c.NamedArgs.Map())
+		obj, _ = o.New(c.VM, c.NamedArgs.Dict())
 	}
 	return
 }

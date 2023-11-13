@@ -29,7 +29,7 @@ func NewEval(opts CompilerOptions, runOpts ...*RunOpts) *Eval {
 		runopts = &RunOpts{}
 	}
 	if runopts.Globals == nil {
-		runopts.Globals = Map{}
+		runopts.Globals = Dict{}
 	}
 	if opts.SymbolTable == nil {
 		opts.SymbolTable = NewSymbolTable(BuiltinsMap)

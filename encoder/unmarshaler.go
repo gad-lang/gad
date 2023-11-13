@@ -268,7 +268,7 @@ func (o *Array) UnmarshalBinary(data []byte) error {
 // UnmarshalBinary implements encoding.BinaryUnmarshaler
 func (o *Map) UnmarshalBinary(data []byte) error {
 	if len(data) < 2 || data[0] != binMapV1 {
-		return errors.New("invalid gad.Map data")
+		return errors.New("invalid gad.Dict data")
 	}
 
 	size, offset, err := toVarint(data[1:])
@@ -281,7 +281,7 @@ func (o *Map) UnmarshalBinary(data []byte) error {
 	}
 
 	if len(data) < 1+offset+int(size) {
-		return errors.New("invalid gad.Map data size")
+		return errors.New("invalid gad.Dict data size")
 	}
 
 	rd := bytes.NewReader(data[1+offset : 1+offset+int(size)])
@@ -332,7 +332,7 @@ func (o *SyncMap) UnmarshalBinary(data []byte) error {
 	}
 
 	data[0] = binSyncMapV1
-	o.Value = (gad.Map)(m)
+	o.Value = (gad.Dict)(m)
 	return nil
 }
 

@@ -157,7 +157,7 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		BuiltinWrite: true, BuiltinPrint: true, BuiltinSprintf: true,
 		BuiltinIsError: true, BuiltinIsInt: true, BuiltinIsUint: true,
 		BuiltinIsFloat: true, BuiltinIsChar: true, BuiltinIsBool: true,
-		BuiltinIsString: true, BuiltinIsBytes: true, BuiltinIsMap: true,
+		BuiltinIsString: true, BuiltinIsBytes: true, BuiltinIsDict: true,
 		BuiltinIsArray: true, BuiltinIsNil: true, BuiltinIsIterable: true,
 		BuiltinDecimal: true, BuiltinItems: true, BuiltinValues: true,
 		BuiltinKeys: true, BuiltinKeyValue: true, BuiltinKeyValueArray: true,
@@ -762,7 +762,7 @@ func (so *SimpleOptimizer) optimize(nd ast.Node) (node.Expr, bool) {
 				nd.Elements[i] = expr
 			}
 		}
-	case *node.MapLit:
+	case *node.DictLit:
 		for i := range nd.Elements {
 			if expr, ok = so.optimize(nd.Elements[i].Value); ok {
 				nd.Elements[i].Value = expr

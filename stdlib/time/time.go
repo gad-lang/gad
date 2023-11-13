@@ -376,7 +376,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 			return gad.Nil, err
 		}
 		y, m, d := o.Value.Date()
-		return gad.Map{"year": gad.Int(y), "month": gad.Int(m),
+		return gad.Dict{"year": gad.Int(y), "month": gad.Int(m),
 			"day": gad.Int(d)}, nil
 	},
 	"Clock": func(o *Time, c *gad.Call) (gad.Object, error) {
@@ -384,7 +384,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 			return gad.Nil, err
 		}
 		h, m, s := o.Value.Clock()
-		return gad.Map{"hour": gad.Int(h), "minute": gad.Int(m),
+		return gad.Dict{"hour": gad.Int(h), "minute": gad.Int(m),
 			"second": gad.Int(s)}, nil
 	},
 	"UTC": func(o *Time, c *gad.Call) (gad.Object, error) {
@@ -482,14 +482,14 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 			return gad.Nil, err
 		}
 		y, w := o.Value.ISOWeek()
-		return gad.Map{"year": gad.Int(y), "week": gad.Int(w)}, nil
+		return gad.Dict{"year": gad.Int(y), "week": gad.Int(w)}, nil
 	},
 	"Zone": func(o *Time, c *gad.Call) (gad.Object, error) {
 		if err := c.Args.CheckLen(0); err != nil {
 			return gad.Nil, err
 		}
 		name, offset := o.Value.Zone()
-		return gad.Map{"name": gad.String(name), "offset": gad.Int(offset)}, nil
+		return gad.Dict{"name": gad.String(name), "offset": gad.Int(offset)}, nil
 	},
 }
 

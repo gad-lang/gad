@@ -157,7 +157,7 @@ func (d *decodeState) array() (gad.Object, error) {
 }
 
 func (d *decodeState) object() (gad.Object, error) {
-	object := gad.Map{}
+	object := gad.Dict{}
 	for {
 		// Read opening " of string key or closing }.
 		d.scanWhile(scanSkipSpace)

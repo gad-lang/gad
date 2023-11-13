@@ -39,17 +39,17 @@ type ObjectType interface {
 	Object
 	CallerObject
 	Name() string
-	Getters() Map
-	Setters() Map
-	Methods() Map
-	Fields() Map
-	New(*VM, Map) (Object, error)
+	Getters() Dict
+	Setters() Dict
+	Methods() Dict
+	Fields() Dict
+	New(*VM, Dict) (Object, error)
 	IsChildOf(t ObjectType) bool
 }
 
 type Objector interface {
 	Object
-	Fields() Map
+	Fields() Dict
 }
 
 type ToStringer interface {
@@ -182,6 +182,8 @@ type ReverseSorter interface {
 }
 
 type Iterabler interface {
+	Object
+
 	// Iterate should return an Iterator for the type.
 	Iterate(vm *VM) Iterator
 }

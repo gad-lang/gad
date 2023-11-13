@@ -483,10 +483,10 @@ func TestModuleTime(t *testing.T) {
 
 	y, m, d := now.Date()
 	testTimeSelector(t, &Time{Value: now}, "Date",
-		Map{"year": Int(y), "month": Int(m), "day": Int(d)})
+		Dict{"year": Int(y), "month": Int(m), "day": Int(d)})
 	h, min, s := now.Clock()
 	testTimeSelector(t, &Time{Value: now}, "Clock",
-		Map{"hour": Int(h), "minute": Int(min), "second": Int(s)})
+		Dict{"hour": Int(h), "minute": Int(min), "second": Int(s)})
 	testTimeSelector(t, &Time{Value: now}, "UTC", &Time{Value: now.UTC()})
 	testTimeSelector(t, &Time{Value: now}, "Unix", Int(now.Unix()))
 	testTimeSelector(t, &Time{Value: now}, "UnixNano", Int(now.UnixNano()))
@@ -505,10 +505,10 @@ func TestModuleTime(t *testing.T) {
 	testTimeSelector(t, &Time{Value: now}, "Weekday", Int(now.Weekday()))
 	y, w := now.ISOWeek()
 	testTimeSelector(t, &Time{Value: now}, "ISOWeek",
-		Map{"year": Int(y), "week": Int(w)})
+		Dict{"year": Int(y), "week": Int(w)})
 	name, offset := now.Zone()
 	testTimeSelector(t, &Time{Value: now}, "Zone",
-		Map{"name": String(name), "offset": Int(offset)})
+		Dict{"name": String(name), "offset": Int(offset)})
 	testTimeSelector(t, &Time{Value: now}, "XYZ", Nil)
 }
 
@@ -737,14 +737,14 @@ func TestScript(t *testing.T) {
 
 	// .Date
 	expectRun(t, `time := import("time"); return time.Time().Date()`,
-		nil, Map{"day": Int(1), "month": Int(1), "year": Int(1)})
+		nil, Dict{"day": Int(1), "month": Int(1), "year": Int(1)})
 	expectRun(t, catch(`time.Time().Date(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Clock
 	hour, minute, second := tm.Clock()
 	expectRun(t, `param p1; return p1.Clock()`,
 		newOpts().Args(&Time{Value: tm}),
-		Map{"hour": Int(hour), "minute": Int(minute), "second": Int(second)})
+		Dict{"hour": Int(hour), "minute": Int(minute), "second": Int(second)})
 	expectRun(t, catch(`time.Time().Clock(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .UTC
@@ -805,7 +805,7 @@ func TestScript(t *testing.T) {
 	// .ISOWeek
 	year, week := tm.ISOWeek()
 	expectRun(t, `param p1; return p1.ISOWeek()`,
-		newOpts().Args(&Time{Value: tm}), Map{"year": Int(year), "week": Int(week)})
+		newOpts().Args(&Time{Value: tm}), Dict{"year": Int(year), "week": Int(week)})
 	expectRun(t, catch(`time.Time().ISOWeek(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .YearDay
@@ -820,7 +820,7 @@ func TestScript(t *testing.T) {
 	// .Zone
 	zone, offset := tm.Zone()
 	expectRun(t, `param p1; return p1.Zone()`,
-		newOpts().Args(&Time{Value: tm}), Map{"name": String(zone), "offset": Int(offset)})
+		newOpts().Args(&Time{Value: tm}), Dict{"name": String(zone), "offset": Int(offset)})
 	expectRun(t, catch(`time.Time().Zone(1)`), nil, nwrongArgs(0, -1, 1))
 }
 

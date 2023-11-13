@@ -40,8 +40,8 @@ const (
 	BuiltinString
 	BuiltinBytes
 	BuiltinArray
-	BuiltinMap
-	BuiltinSyncMap
+	BuiltinDict
+	BuiltinSyncDic
 	BuiltinKeyValue
 	BuiltinKeyValueArray
 	BuiltinError
@@ -88,8 +88,8 @@ const (
 	BuiltinIsBool
 	BuiltinIsString
 	BuiltinIsBytes
-	BuiltinIsMap
-	BuiltinIsSyncMap
+	BuiltinIsDict
+	BuiltinIsSyncDict
 	BuiltinIsArray
 	BuiltinIsNil
 	BuiltinIsFunction
@@ -150,8 +150,8 @@ var BuiltinsMap = map[string]BuiltinType{
 	"isBool":     BuiltinIsBool,
 	"isString":   BuiltinIsString,
 	"isBytes":    BuiltinIsBytes,
-	"isMap":      BuiltinIsMap,
-	"isSyncMap":  BuiltinIsSyncMap,
+	"isDict":     BuiltinIsDict,
+	"isSyncDict": BuiltinIsSyncDict,
 	"isArray":    BuiltinIsArray,
 	"isNil":      BuiltinIsNil,
 	"isFunction": BuiltinIsFunction,
@@ -302,13 +302,13 @@ var BuiltinObjects = map[BuiltinType]Object{
 		Name:  "isBytes",
 		Value: funcPORO(builtinIsBytesFunc),
 	},
-	BuiltinIsMap: &BuiltinFunction{
-		Name:  "isMap",
-		Value: funcPORO(builtinIsMapFunc),
+	BuiltinIsDict: &BuiltinFunction{
+		Name:  "isDict",
+		Value: funcPORO(builtinIsDictFunc),
 	},
-	BuiltinIsSyncMap: &BuiltinFunction{
-		Name:  "isSyncMap",
-		Value: funcPORO(builtinIsSyncMapFunc),
+	BuiltinIsSyncDict: &BuiltinFunction{
+		Name:  "isSyncDict",
+		Value: funcPORO(builtinIsSyncDictFunc),
 	},
 	BuiltinIsArray: &BuiltinFunction{
 		Name:  "isArray",
@@ -563,7 +563,7 @@ func builtinRepeatFunc(arg Object, count int) (ret Object, err error) {
 func builtinContainsFunc(arg0, arg1 Object) (Object, error) {
 	var ok bool
 	switch obj := arg0.(type) {
-	case Map:
+	case Dict:
 		_, ok = obj[arg1.ToString()]
 	case *SyncMap:
 		_, ok = obj.Get(arg1.ToString())
@@ -1085,12 +1085,12 @@ func builtinIsBytesFunc(arg Object) Object {
 	return Bool(ok)
 }
 
-func builtinIsMapFunc(arg Object) Object {
-	_, ok := arg.(Map)
+func builtinIsDictFunc(arg Object) Object {
+	_, ok := arg.(Dict)
 	return Bool(ok)
 }
 
-func builtinIsSyncMapFunc(arg Object) Object {
+func builtinIsSyncDictFunc(arg Object) Object {
 	_, ok := arg.(*SyncMap)
 	return Bool(ok)
 }
@@ -1392,19 +1392,19 @@ func builtinNewTypeFunc(c Call) (ret Object, err error) {
 	var (
 		get = &NamedArgVar{
 			Name:        "get",
-			AcceptTypes: []ObjectType{TMap},
+			AcceptTypes: []ObjectType{TDict},
 		}
 		set = &NamedArgVar{
 			Name:        "set",
-			AcceptTypes: []ObjectType{TMap},
+			AcceptTypes: []ObjectType{TDict},
 		}
 		fields = &NamedArgVar{
 			Name:        "fields",
-			AcceptTypes: []ObjectType{TMap},
+			AcceptTypes: []ObjectType{TDict},
 		}
 		methods = &NamedArgVar{
 			Name:        "methods",
-			AcceptTypes: []ObjectType{TMap},
+			AcceptTypes: []ObjectType{TDict},
 		}
 		init = &NamedArgVar{
 			Name: "init",
@@ -1443,12 +1443,12 @@ func builtinNewTypeFunc(c Call) (ret Object, err error) {
 	}
 
 	if fields.Value != nil {
-		t.fields = fields.Value.(Map)
+		t.fields = fields.Value.(Dict)
 	}
 
 	if get.Value != nil {
-		t.getters = Map{}
-		for name, v := range get.Value.(Map) {
+		t.getters = Dict{}
+		for name, v := range get.Value.(Dict) {
 			if !Callable(v) {
 				return nil, NewArgumentTypeError(
 					"get["+name+"]st",
@@ -1461,8 +1461,8 @@ func builtinNewTypeFunc(c Call) (ret Object, err error) {
 	}
 
 	if set.Value != nil {
-		t.setters = Map{}
-		for name, v := range set.Value.(Map) {
+		t.setters = Dict{}
+		for name, v := range set.Value.(Dict) {
 			if !Callable(v) {
 				return nil, NewArgumentTypeError(
 					"set["+name+"]st",
@@ -1474,8 +1474,8 @@ func builtinNewTypeFunc(c Call) (ret Object, err error) {
 		}
 	}
 	if methods.Value != nil {
-		t.methods = Map{}
-		for name, v := range methods.Value.(Map) {
+		t.methods = Dict{}
+		for name, v := range methods.Value.(Dict) {
 			if !Callable(v) {
 				return nil, NewArgumentTypeError(
 					"method["+name+"]st",
@@ -1541,7 +1541,7 @@ func builtinSyncMapFunc(c Call) (ret Object, err error) {
 	}
 	arg := c.Args.Get(0)
 	switch t := arg.(type) {
-	case Map:
+	case Dict:
 		return &SyncMap{Value: t}, nil
 	case *SyncMap:
 		return t, nil

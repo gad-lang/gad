@@ -341,7 +341,7 @@ func TestVMCatchAll(t *testing.T) {
 }
 
 func TestVMAssert(t *testing.T) {
-	g := Map{}
+	g := Dict{}
 	expectRun(t, `
 	global errs
 
@@ -603,7 +603,7 @@ func TestVMLoop(t *testing.T) {
 
 func TestVMErrorUnwrap(t *testing.T) {
 	err1 := errors.New("err1")
-	var g IndexGetSetter = Map{"fn": &Function{
+	var g IndexGetSetter = Dict{"fn": &Function{
 		Value: func(Call) (Object, error) {
 			return nil, err1
 		},
@@ -612,14 +612,14 @@ func TestVMErrorUnwrap(t *testing.T) {
 	expectErrIs(t, `import("module")()`,
 		newOpts().Globals(g).Module("module", `global fn; return fn`), err1)
 
-	g.(Map)["fn"] = &Function{
+	g.(Dict)["fn"] = &Function{
 		Value: func(Call) (Object, error) {
 			return &Error{Cause: err1}, nil
 		},
 	}
 	expectErrIs(t, `global fn; throw fn()`, newOpts().Globals(g), err1)
 
-	g.(Map)["fn"] = &Function{
+	g.(Dict)["fn"] = &Function{
 		Value: func(Call) (Object, error) {
 			return ErrZeroDivision, nil
 		},
@@ -627,7 +627,7 @@ func TestVMErrorUnwrap(t *testing.T) {
 	expectErrIs(t, `global fn; throw fn()`,
 		newOpts().Globals(g), ErrZeroDivision)
 
-	g.(Map)["fn"] = &Function{
+	g.(Dict)["fn"] = &Function{
 		Value: func(Call) (Object, error) {
 			return nil, ErrZeroDivision
 		},
@@ -717,7 +717,7 @@ func TestVMExamples(t *testing.T) {
 
 	var cleanupCall int
 	expectRun(t, ex1MainScript,
-		newOpts().Module("module", ex1Module).Globals(Map{
+		newOpts().Module("module", ex1Module).Globals(Dict{
 			"DoCleanup": &Function{
 				Value: func(Call) (Object, error) {
 					// a dummy callable to export to script
@@ -726,7 +726,7 @@ func TestVMExamples(t *testing.T) {
 				},
 			},
 		}).Args(Int(1), Int(2), Int(3)).Skip2Pass(),
-		Map{"Total": Int(6), "ModuleErrors": Int(0), "Error": String("nil")})
+		Dict{"Total": Int(6), "ModuleErrors": Int(0), "Error": String("nil")})
 	require.Equal(t, 1, cleanupCall)
 
 	printWriter := bytes.NewBuffer(nil)
@@ -735,7 +735,7 @@ func TestVMExamples(t *testing.T) {
 		newOpts().
 			out(printWriter).
 			Module("module", ex1Module).
-			Globals(Map{
+			Globals(Dict{
 				"DoCleanup": &Function{
 					Value: func(Call) (Object, error) {
 						// a dummy callable to export to script
@@ -746,7 +746,7 @@ func TestVMExamples(t *testing.T) {
 			}).
 			Args(Nil, Nil).
 			Skip2Pass(),
-		Map{
+		Dict{
 			"Total":        Nil,
 			"ModuleErrors": Int(1),
 			"Error": String(`TypeError: want int, got nil
@@ -791,7 +791,7 @@ func TestVMExamples(t *testing.T) {
 	return mapEach(args, func(x) { return x*multiplier })
 	`, newOpts().
 		out(printWriter).
-		Globals(Map{"multiplier": Int(2)}).
+		Globals(Dict{"multiplier": Int(2)}).
 		Args(Int(1), Int(2), Int(3), Int(4)),
 		Array{Int(2), Int(4), Int(6), Int(8)},
 	)
@@ -826,19 +826,19 @@ func TestVMExamples(t *testing.T) {
 		return result
 	}
 `
-	var g IndexGetSetter = Map{}
+	var g IndexGetSetter = Dict{}
 	expectRun(t, scr, newOpts().out(printWriter).Globals(g).Args(Nil), Int(-1))
-	require.Equal(t, 1, len(g.(Map)))
-	require.Equal(t, True, g.(Map)["notAnInt"])
+	require.Equal(t, 1, len(g.(Dict)))
+	require.Equal(t, True, g.(Dict)["notAnInt"])
 
-	g = Map{}
+	g = Dict{}
 	expectRun(t, scr, newOpts().out(printWriter).Globals(g).Args(Int(0)), Int(-1))
-	require.Equal(t, 1, len(g.(Map)))
-	require.Equal(t, True, g.(Map)["zeroDivision"])
+	require.Equal(t, 1, len(g.(Dict)))
+	require.Equal(t, True, g.(Dict)["zeroDivision"])
 
 	expectRun(t, scr, newOpts().out(printWriter).Args(Int(2)), Int(5))
 
-	g = &SyncMap{Value: Map{"stats": Map{"fn1": Int(0), "fn2": Int(0)}}}
+	g = &SyncMap{Value: Dict{"stats": Dict{"fn1": Int(0), "fn2": Int(0)}}}
 	expectRun(t, `
 	global stats
 
@@ -859,6 +859,6 @@ func TestVMExamples(t *testing.T) {
 		/* ... */
 	}
 	`).out(printWriter).Globals(g).Skip2Pass(), Nil)
-	require.Equal(t, Int(1), g.(*SyncMap).Value["stats"].(Map)["fn1"])
-	require.Equal(t, Int(1), g.(*SyncMap).Value["stats"].(Map)["fn2"])
+	require.Equal(t, Int(1), g.(*SyncMap).Value["stats"].(Dict)["fn1"])
+	require.Equal(t, Int(1), g.(*SyncMap).Value["stats"].(Dict)["fn2"])
 }

@@ -200,7 +200,7 @@ func (r *ReflectType) Call(c Call) (obj Object, err error) {
 	if c.NamedArgs.IsFalsy() {
 		obj, _ = r.New(c.VM, nil)
 	} else {
-		obj, _ = r.New(c.VM, c.NamedArgs.Map())
+		obj, _ = r.New(c.VM, c.NamedArgs.Dict())
 	}
 	return
 }
@@ -219,25 +219,25 @@ func (r *ReflectType) Fqn() string {
 	return n
 }
 
-func (r *ReflectType) Getters() Map {
+func (r *ReflectType) Getters() Dict {
 	return nil
 }
 
-func (r *ReflectType) Setters() Map {
+func (r *ReflectType) Setters() Dict {
 	return nil
 }
 
-func (r *ReflectType) Methods() (m Map) {
-	m = make(Map, len(r.methods))
+func (r *ReflectType) Methods() (m Dict) {
+	m = make(Dict, len(r.methods))
 	for key := range r.methods {
 		m[key] = Nil
 	}
 	return m
 }
 
-func (r *ReflectType) Fields() (fields Map) {
+func (r *ReflectType) Fields() (fields Dict) {
 	n := r.typ.NumField()
-	fields = Map{}
+	fields = Dict{}
 
 	for i := 0; i < n; i++ {
 		f := r.typ.Field(i)
@@ -266,7 +266,7 @@ func (r *ReflectType) Fields() (fields Map) {
 	return
 }
 
-func (r *ReflectType) New(vm *VM, m Map) (Object, error) {
+func (r *ReflectType) New(vm *VM, m Dict) (Object, error) {
 	var rv reflect.Value
 	switch r.typ.Kind() {
 	case reflect.Struct:
@@ -837,7 +837,7 @@ func (r *ReflectStruct) IndexSet(vm *VM, index, value Object) (err error) {
 	return r.indexSet(vm, index.ToString(), value)
 }
 
-func (r *ReflectStruct) SetValues(vm *VM, values Map) (err error) {
+func (r *ReflectStruct) SetValues(vm *VM, values Dict) (err error) {
 	for k, v := range values {
 		if err = r.indexSet(vm, k, v); err != nil {
 			return
@@ -896,7 +896,7 @@ func (r *ReflectStruct) SetFieldValue(vm *VM, df *ReflectField, value Object) (e
 			indt = indt.Elem()
 		}
 
-		if m, _ := value.(Map); m != nil && indt.Kind() == reflect.Struct {
+		if m, _ := value.(Dict); m != nil && indt.Kind() == reflect.Struct {
 			if v, err = mapToReflectStruct(vm, indt, m); err != nil {
 				return
 			}
@@ -938,8 +938,8 @@ func canBeNil(dest reflect.Type) bool
 //go:linkname indirectInterface text/template.indirectInterface
 func indirectInterface(v reflect.Value) reflect.Value
 
-// mapToReflectStruct create new struct instance from Map.
-func mapToReflectStruct(vm *VM, indirectType reflect.Type, m Map) (v reflect.Value, err error) {
+// mapToReflectStruct create new struct instance from Dict.
+func mapToReflectStruct(vm *VM, indirectType reflect.Type, m Dict) (v reflect.Value, err error) {
 	var vlr ReflectValuer
 	if vlr, err = NewReflectValue(reflect.New(indirectType).Interface()); err != nil {
 		return
@@ -1024,7 +1024,7 @@ func prepareArg(value reflect.Value, argType reflect.Type) (v reflect.Value, err
 	if vt == mapType {
 		switch argType.Kind() {
 		case reflect.Struct:
-			var m Map
+			var m Dict
 			if m, err = AnyMapToMap(value.Interface().(map[string]any)); err != nil {
 				return
 			} else if v, err = mapToReflectStruct(nil, argType, m); err != nil {
@@ -1033,7 +1033,7 @@ func prepareArg(value reflect.Value, argType reflect.Type) (v reflect.Value, err
 			return prepareArg(v.Elem(), argType)
 		case reflect.Ptr:
 			if argType.Elem().Kind() == reflect.Struct {
-				var m Map
+				var m Dict
 				if m, err = AnyMapToMap(value.Interface().(map[string]any)); err != nil {
 					return
 				} else if v, err = mapToReflectStruct(nil, argType.Elem(), m); err != nil {

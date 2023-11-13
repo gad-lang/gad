@@ -59,7 +59,7 @@ var (
 )
 
 var scriptGlobals = &gad.SyncMap{
-	Value: gad.Map{
+	Value: gad.Dict{
 		"Gosched": &gad.Function{
 			Name: "Gosched",
 			Value: func(gad.Call) (gad.Object, error) {

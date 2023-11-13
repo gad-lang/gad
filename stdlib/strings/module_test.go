@@ -473,9 +473,9 @@ func TestScript(t *testing.T) {
 		{s: `strings.LastIndexFunc("acbcd", func(c){return c=='c'})`, e: Int(3)},
 		{s: `strings.LastIndexFunc("abcd", func(c){return c=='e'})`, e: Int(-1)},
 
-		{s: `strings.Map()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.Map(func(){})`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.Map(
+		{s: `strings.Dict()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.Dict(func(){})`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.Dict(
 			func(c){
 				if c == 't' { return 'I' }
 				if c == 'e' { return '❤' }
@@ -485,7 +485,7 @@ func TestScript(t *testing.T) {
 				return c
 			},
 			"tengo")`, e: String("I❤Gad")},
-		{s: `strings.Map(func(c){return c}, "test")`,
+		{s: `strings.Dict(func(c){return c}, "test")`,
 			m: catch, e: String("test")},
 
 		{s: `strings.PadLeft()`, m: catch, e: nwrongArgs(2, 3, 0)},

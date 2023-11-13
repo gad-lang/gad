@@ -165,7 +165,7 @@ func objectEncoder(v gad.Object) encoderFunc {
 		return stringEncoder
 	case gad.Bytes:
 		return bytesEncoder
-	case gad.Map, *gad.SyncMap:
+	case gad.Dict, *gad.SyncMap:
 		return mapEncoder
 	case gad.Array:
 		return arrayEncoder
@@ -314,7 +314,7 @@ func mapEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
 		// Start checking if we've run into a pointer cycle.
 		var ptr any
-		if _, ok := v.(gad.Map); ok {
+		if _, ok := v.(gad.Dict); ok {
 			ptr = reflect.ValueOf(v).Pointer()
 		} else { // *SyncMap
 			ptr = v
@@ -326,9 +326,9 @@ func mapEncoder(e *encodeState, v gad.Object, opts encOpts) {
 		defer delete(e.ptrSeen, ptr)
 	}
 
-	var m gad.Map
+	var m gad.Dict
 	var ok bool
-	if m, ok = v.(gad.Map); !ok {
+	if m, ok = v.(gad.Dict); !ok {
 		sm := v.(*gad.SyncMap)
 		if sm == nil {
 			e.WriteString("null")

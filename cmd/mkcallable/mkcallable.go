@@ -51,7 +51,7 @@ var converters = map[string]any{
 	"gad.Char":     "gad.ToChar",
 	"gad.Bool":     "gad.ToBool",
 	"gad.Array":    "gad.ToArray",
-	"gad.Map":      "gad.ToMap",
+	"gad.Dict":     "gad.ToMap",
 	"*gad.SyncMap": "gad.ToSyncMap",
 	"gad.Object": converterFunc(func(index int, argsName string, p *Param) string {
 		return fmt.Sprintf("%s := %s.Args.Get(%d)", p.Name, argsName, index)
@@ -63,7 +63,7 @@ var builtinTypeAlias = map[string]string{
 	"gad.Object":  "O",
 	"gad.String":  "S",
 	"gad.Bytes":   "B",
-	"gad.Map":     "M",
+	"gad.Dict":    "M",
 	"gad.SyncMap": "M2",
 	"gad.Array":   "A",
 	"gad.Float":   "F",
@@ -86,7 +86,7 @@ var gadTypeNames = map[string]string{
 	"gad.Object":  "object",
 	"gad.String":  "string",
 	"gad.Bytes":   "bytes",
-	"gad.Map":     "map",
+	"gad.Dict":    "map",
 	"gad.SyncMap": "syncMap",
 	"gad.Array":   "array",
 	"gad.Float":   "float",

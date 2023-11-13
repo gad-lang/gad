@@ -19,7 +19,7 @@ func TestReflectFunction_Call(t *testing.T) {
 	}{
 		{"1", func(m map[string]any) any {
 			return m
-		}, Array{Map{"a": Int(1)}}, map[string]any{"a": int64(1)}, nil},
+		}, Array{Dict{"a": Int(1)}}, map[string]any{"a": int64(1)}, nil},
 		{"2", func(i int) int { return i }, Array{Int(1)}, int64(1), nil},
 		{"3", func(i int, args ...int) int {
 			for _, arg := range args {

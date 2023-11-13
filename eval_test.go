@@ -56,7 +56,7 @@ func TestEval(t *testing.T) {
 		},
 		{
 			name:   "globals",
-			global: Map{"g": String("test")},
+			global: Dict{"g": String("test")},
 			sr: []scriptResult{
 				{`global g`, Nil},
 				{`return g`, String("test")},
@@ -209,7 +209,7 @@ func TestEval(t *testing.T) {
 
 	// test context
 	t.Run("context", func(t *testing.T) {
-		globals := Map{
+		globals := Dict{
 			"Gosched": &Function{
 				Value: func(Call) (Object, error) {
 					runtime.Gosched()

@@ -33,8 +33,8 @@ func TestGobEncoder(t *testing.T) {
 		gad.String("abc"),
 		gad.Bytes{},
 		gad.Array{gad.Bool(true), gad.String("")},
-		gad.Map{"b": gad.Bool(true), "s": gad.String("")},
-		&gad.SyncMap{Value: gad.Map{"i": gad.Int(0), "u": gad.Uint(0), "d": gad.MustDecimalFromString("123.456")}},
+		gad.Dict{"b": gad.Bool(true), "s": gad.String("")},
+		&gad.SyncMap{Value: gad.Dict{"i": gad.Int(0), "u": gad.Uint(0), "d": gad.MustDecimalFromString("123.456")}},
 		&gad.ObjectPtr{},
 		&time.Time{Value: gotime.Now()},
 		&json.EncoderOptions{Value: gad.Float(0)},
@@ -287,9 +287,9 @@ func TestEncDecObjects(t *testing.T) {
 		require.Equal(t, tC, obj, msg)
 	}
 
-	maps := []gad.Map{}
+	maps := []gad.Dict{}
 	for _, array := range arrays {
-		m := gad.Map{}
+		m := gad.Dict{}
 		s := randString(10)
 		r := seededRand.Intn(len(array))
 		m[s] = array[r]
@@ -297,11 +297,11 @@ func TestEncDecObjects(t *testing.T) {
 	}
 
 	for _, tC := range maps {
-		msg := fmt.Sprintf("Map(%v)", tC)
+		msg := fmt.Sprintf("Dict(%v)", tC)
 		data, err := Map(tC).MarshalBinary()
 		require.NoError(t, err, msg)
 		require.Greater(t, len(data), 0, msg)
-		var v = gad.Map{}
+		var v = gad.Dict{}
 		err = (*Map)(&v).UnmarshalBinary(data)
 		require.NoError(t, err, msg)
 		require.Equal(t, tC, v, msg)
@@ -398,23 +398,23 @@ func TestEncDecObjects(t *testing.T) {
 func TestEncDecBytecode(t *testing.T) {
 	testEncDecBytecode(t, `
 	param (arg0, arg1, ...varg; na0=100, na1=200, ...na)
-	return [arg0, arg1, varg, na0, na1, na.map]`, &testopts{
+	return [arg0, arg1, varg, na0, na1, na.dict]`, &testopts{
 		args:      Array{gad.Int(1), gad.Int(2), gad.Int(3)},
-		namedArgs: gad.Map{"na0": gad.Int(4), "na2": gad.Int(5)},
-	}, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(4), gad.Int(200), gad.Map{"na2": gad.Int(5)}})
+		namedArgs: gad.Dict{"na0": gad.Int(4), "na2": gad.Int(5)},
+	}, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(4), gad.Int(200), gad.Dict{"na2": gad.Int(5)}})
 
 	testEncDecBytecode(t, `
 	param (arg0, arg1, ...varg; na0=100, na1=200, ...na)
-	return [arg0, arg1, varg, na0, na1, na.map]`, &testopts{
+	return [arg0, arg1, varg, na0, na1, na.dict]`, &testopts{
 		args:      Array{gad.Int(1), gad.Int(2), gad.Int(3)},
-		namedArgs: gad.Map{"na2": gad.Int(5)},
-	}, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(100), gad.Int(200), gad.Map{"na2": gad.Int(5)}})
+		namedArgs: gad.Dict{"na2": gad.Int(5)},
+	}, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(100), gad.Int(200), gad.Dict{"na2": gad.Int(5)}})
 
 	testEncDecBytecode(t, `
 	f := func(arg0, arg1, ...varg; na0=100, ...na) {
-		return [arg0, arg1, varg, na0, na.map]
+		return [arg0, arg1, varg, na0, na.dict]
 	}
-	return f(1,2,3,na0=4,na1=5)`, nil, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(4), gad.Map{"na1": gad.Int(5)}})
+	return f(1,2,3,na0=4,na1=5)`, nil, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(4), gad.Dict{"na1": gad.Int(5)}})
 
 	testEncDecBytecode(t, `
 	f := func() {
@@ -425,7 +425,7 @@ func TestEncDecBytecode(t *testing.T) {
 
 	testEncDecBytecode(t, `
 	f := func(arg0, arg1, ...varg; na0=3, ...na) {
-		return [arg0, arg1, varg, na0, na.map, nil, true, false, "", -1, 0, 1, 2u, 3.0, 123.456d, 'a', bytes(0, 1, 2)]
+		return [arg0, arg1, varg, na0, na.dict, nil, true, false, "", -1, 0, 1, 2u, 3.0, 123.456d, 'a', bytes(0, 1, 2)]
 	}
 	f(1,2,na0=4,na1=5)
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}`, nil, gad.Nil)
@@ -436,7 +436,7 @@ func TestEncDecBytecode_modules(t *testing.T) {
 	mod1 := import("mod1")
 	mod2 := import("mod2")
 	return mod1.run() + mod2.run()
-	`, newOpts().Module("mod1", gad.Map{
+	`, newOpts().Module("mod1", gad.Dict{
 		"run": &gad.Function{
 			Name: "run",
 			Value: func(gad.Call) (gad.Object, error) {
@@ -542,7 +542,7 @@ func testDecodedBytecodeEqual(t *testing.T, actual, decoded *gad.Bytecode) {
 }
 
 func getModuleName(obj gad.Object) (string, bool) {
-	if m, ok := obj.(gad.Map); ok {
+	if m, ok := obj.(gad.Dict); ok {
 		if n, ok := m[gad.AttrModuleName]; ok {
 			return string(n.(gad.String)), true
 		}
@@ -662,7 +662,7 @@ func concatInsts(insts ...[]byte) []byte {
 type testopts struct {
 	globals       gad.IndexGetSetter
 	args          []gad.Object
-	namedArgs     gad.Map
+	namedArgs     gad.Dict
 	moduleMap     *gad.ModuleMap
 	skip2pass     bool
 	isCompilerErr bool
@@ -709,7 +709,7 @@ func (t *testopts) Module(name string, module any) *testopts {
 		t.moduleMap.AddSourceModule(name, []byte(v))
 	case map[string]gad.Object:
 		t.moduleMap.AddBuiltinModule(name, v)
-	case gad.Map:
+	case gad.Dict:
 		t.moduleMap.AddBuiltinModule(name, v)
 	case gad.Importable:
 		t.moduleMap.Add(name, v)

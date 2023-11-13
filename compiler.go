@@ -458,8 +458,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileIdent(nt)
 	case *node.ArrayLit:
 		return c.compileArrayLit(nt)
-	case *node.MapLit:
-		return c.compileMapLit(nt)
+	case *node.DictLit:
+		return c.compileDictLit(nt)
 	case *node.KeyValueArrayLit:
 		return c.compileKeyValueArrayLit(nt)
 	case *node.SelectorExpr: // selector on RHS side

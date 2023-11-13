@@ -2088,14 +2088,14 @@ func TestCompiler_Compile(t *testing.T) {
 	// 3 instructions are generated for non-source module import.
 	// If module's value is already stored, ignore storing.
 	moduleMap = NewModuleMap()
-	moduleMap.AddBuiltinModule("mod", Map{})
+	moduleMap.AddBuiltinModule("mod", Dict{})
 	expectCompileWithOpts(t, `import("mod")`,
 		CompilerOptions{
 			ModuleMap: moduleMap,
 		},
 		bytecode(
 			Array{
-				Map{AttrModuleName: String("mod")},
+				Dict{AttrModuleName: String("mod")},
 			},
 			compFunc(concatInsts(
 				makeInst(OpLoadModule, 0, 0), // 0000 constant, module indexes

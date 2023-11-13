@@ -1471,7 +1471,7 @@ func (c *Compiler) compileArrayLit(nd *node.ArrayLit) error {
 	return nil
 }
 
-func (c *Compiler) compileMapLit(nd *node.MapLit) error {
+func (c *Compiler) compileDictLit(nd *node.DictLit) error {
 	for _, elt := range nd.Elements {
 		// key
 		c.emit(nd, OpConstant, c.addConstant(String(elt.Key)))

@@ -110,7 +110,7 @@ func TestScript(t *testing.T) {
 
 	expectRun(t, catchf(`json.Unmarshal()`), nil, errnarg(1, 0))
 	expectRun(t, catchf(`json.Unmarshal("[1,true,false,\"x\",{\"a\":\"b\"}]")`),
-		nil, Array{DecimalFromFloat(1), True, False, String("x"), Map{"a": String("b")}})
+		nil, Array{DecimalFromFloat(1), True, False, String("x"), Dict{"a": String("b")}})
 
 	expectRun(t, catchf(`json.Valid()`), nil, errnarg(1, 0))
 	expectRun(t, catchf(`json.Valid("{}")`), nil, True)
@@ -134,14 +134,14 @@ func TestCycle(t *testing.T) {
 	expectRun(t, `json:=import("json");a:=[1,2];a[1]=a;return string(json.MarshalIndent(a,""," "))`,
 		nil, String(`error: json: unsupported value: encountered a cycle via array`))
 	expectRun(t, `json:=import("json");m:={a:1};m.b=m;return string(json.Marshal(m))`,
-		nil, String(`error: json: unsupported value: encountered a cycle via map`))
+		nil, String(`error: json: unsupported value: encountered a cycle via dict`))
 	expectRun(t, `param m;json:=import("json");m.b=m;return string(json.Marshal(m))`,
-		newOpts().Args(&SyncMap{Value: Map{}}),
-		String(`error: json: unsupported value: encountered a cycle via syncMap`))
+		newOpts().Args(&SyncMap{Value: Dict{}}),
+		String(`error: json: unsupported value: encountered a cycle via syncDict`))
 
 	ptr := &ObjectPtr{}
-	var m Object = Map{}
-	m.(Map)["a"] = ptr
+	var m Object = Dict{}
+	m.(Dict)["a"] = ptr
 	ptr.Value = &m
 	_, err := Marshal(ptr)
 	require.Error(t, err)

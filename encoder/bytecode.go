@@ -65,7 +65,7 @@ func (bc *Bytecode) unmarshal(data []byte, modules *gad.ModuleMap) error {
 func (bc *Bytecode) fixObjects(modules *gad.ModuleMap) error {
 	for i := range bc.Constants {
 		switch obj := bc.Constants[i].(type) {
-		case gad.Map:
+		case gad.Dict:
 			v, ok := obj[gad.AttrModuleName]
 			if !ok {
 				continue

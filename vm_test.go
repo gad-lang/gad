@@ -103,21 +103,21 @@ func TestVMDecl(t *testing.T) {
 
 	expectRun(t, `param (a, b=2); return [a, b]`, newOpts().Args(Int(1)),
 		Array{Int(1), Int(2)})
-	expectRun(t, `param (a=-1,...namedArgs); return [a, namedArgs.map]`, newOpts().
-		NamedArgs(Map{"b": Int(2)}),
-		Array{Int(-1), Map{"b": Int(2)}})
-	expectRun(t, `param (;a=-1,...namedArgs); return [a, namedArgs.map]`, newOpts().
-		NamedArgs(Map{"a": Int(1), "b": Int(2)}),
-		Array{Int(1), Map{"b": Int(2)}})
-	expectRun(t, `param (;...namedArgs); return namedArgs.map`, newOpts().
-		NamedArgs(Map{"a": Int(100)}),
-		Map{"a": Int(100)})
-	expectRun(t, `param (a, b=100,...namedArgs); return [a, b, namedArgs.map]`, newOpts().Args(Int(1)).
-		NamedArgs(Map{"b": Int(2), "c": Int(3)}),
-		Array{Int(1), Int(2), Map{"c": Int(3)}})
-	expectRun(t, `param (a, b=100,...namedArgs); return [a, b, namedArgs.map]`, newOpts().Args(Int(1)).
-		NamedArgs(Map{"c": Int(2), "d": Int(3)}),
-		Array{Int(1), Int(100), Map{"c": Int(2), "d": Int(3)}})
+	expectRun(t, `param (a=-1,...namedArgs); return [a, namedArgs.dict]`, newOpts().
+		NamedArgs(Dict{"b": Int(2)}),
+		Array{Int(-1), Dict{"b": Int(2)}})
+	expectRun(t, `param (;a=-1,...namedArgs); return [a, namedArgs.dict]`, newOpts().
+		NamedArgs(Dict{"a": Int(1), "b": Int(2)}),
+		Array{Int(1), Dict{"b": Int(2)}})
+	expectRun(t, `param (;...namedArgs); return namedArgs.dict`, newOpts().
+		NamedArgs(Dict{"a": Int(100)}),
+		Dict{"a": Int(100)})
+	expectRun(t, `param (a, b=100,...namedArgs); return [a, b, namedArgs.dict]`, newOpts().Args(Int(1)).
+		NamedArgs(Dict{"b": Int(2), "c": Int(3)}),
+		Array{Int(1), Int(2), Dict{"c": Int(3)}})
+	expectRun(t, `param (a, b=100,...namedArgs); return [a, b, namedArgs.dict]`, newOpts().Args(Int(1)).
+		NamedArgs(Dict{"c": Int(2), "d": Int(3)}),
+		Array{Int(1), Int(100), Dict{"c": Int(2), "d": Int(3)}})
 
 	expectErrHas(t, `func(){ param x; }`, newOpts().CompilerError(),
 		`Compile Error: param not allowed in this scope`)
@@ -127,9 +127,9 @@ func TestVMDecl(t *testing.T) {
 	expectRun(t, `global (a, b); return [a, b]`,
 		nil, Array{Nil, Nil})
 	expectRun(t, `global a; return a`,
-		newOpts().Globals(Map{"a": String("ok")}), String("ok"))
+		newOpts().Globals(Dict{"a": String("ok")}), String("ok"))
 	expectRun(t, `global (a, b); return a+b`,
-		newOpts().Globals(Map{"a": Int(1), "b": Int(2)}), Int(3))
+		newOpts().Globals(Dict{"a": Int(1), "b": Int(2)}), Int(3))
 	expectErrHas(t, `func() { global a }`, newOpts().CompilerError(),
 		`Compile Error: global not allowed in this scope`)
 
@@ -512,7 +512,7 @@ func TestVMAssignment(t *testing.T) {
 	d := {}
 	d[f()] = [g(), h()]
 	return d
-	`, nil, Map{"40": Array{Int(2), Int(4)}})
+	`, nil, Dict{"40": Array{Int(2), Int(4)}})
 
 	expectRun(t, `a := nil; a ||= 1; return a`, nil, Int(1))
 	expectRun(t, `a := 0; a ||= 1; return a`, nil, Int(1))
@@ -712,19 +712,19 @@ func TestVMBuiltinFunction(t *testing.T) {
 		KeyValue{String("d"), Int(4)}})
 
 	expectRun(t, `out := {}; delete(out, "a"); return out`,
-		nil, Map{})
+		nil, Dict{})
 	expectRun(t, `out := {a: 1}; delete(out, "a"); return out`,
-		nil, Map{})
+		nil, Dict{})
 	expectRun(t, `out := {a: 1}; delete(out, "b"); return out`,
-		nil, Map{"a": Int(1)})
+		nil, Dict{"a": Int(1)})
 	expectErrIs(t, `delete({})`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `delete({}, "", "")`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `delete([], "")`, nil, ErrType)
 	expectRun(t, `delete({}, 1)`, nil, Nil)
 
-	g := &SyncMap{Value: Map{"out": &SyncMap{Value: Map{"a": Int(1)}}}}
+	g := &SyncMap{Value: Dict{"out": &SyncMap{Value: Dict{"a": Int(1)}}}}
 	expectRun(t, `global out; delete(out, "a"); return out`,
-		newOpts().Globals(g).Skip2Pass(), &SyncMap{Value: Map{}})
+		newOpts().Globals(g).Skip2Pass(), &SyncMap{Value: Dict{}})
 
 	expectRun(t, `return copy(nil)`, nil, Nil)
 	expectRun(t, `return copy(1)`, nil, Int(1))
@@ -737,9 +737,9 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return copy(true)`, nil, True)
 	expectRun(t, `return copy(false)`, nil, False)
 	expectRun(t, `a := {x: 1}; b := copy(a); a.x = 2; return b`,
-		nil, Map{"x": Int(1)})
+		nil, Dict{"x": Int(1)})
 	expectRun(t, `a := {x: 1}; b := copy(a); b.x = 2; return a`,
-		nil, Map{"x": Int(1)})
+		nil, Dict{"x": Int(1)})
 	expectRun(t, `a := {x: 1}; b := copy(a); return a == b`,
 		nil, True)
 	expectRun(t, `a := [1]; b := copy(a); a[0] = 2; return b`,
@@ -772,9 +772,9 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return dcopy(true)`, nil, True)
 	expectRun(t, `return dcopy(false)`, nil, False)
 	expectRun(t, `a := {x: 1}; b := dcopy(a); a.x = 2; return b`,
-		nil, Map{"x": Int(1)})
+		nil, Dict{"x": Int(1)})
 	expectRun(t, `a := {x: 1}; b := dcopy(a); b.x = 2; return a`,
-		nil, Map{"x": Int(1)})
+		nil, Dict{"x": Int(1)})
 	expectRun(t, `a := {x: 1}; b := dcopy(a); return a == b`,
 		nil, True)
 	expectRun(t, `a := [1]; b := dcopy(a); a[0] = 2; return b`,
@@ -850,7 +850,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return contains(bytes(1, 2, 3, 4), bytes(1, 3))`, nil, False)
 	expectRun(t, `return contains(nil, "")`, nil, False)
 	expectRun(t, `return contains(nil, 1)`, nil, False)
-	g = &SyncMap{Value: Map{"a": Int(1)}}
+	g = &SyncMap{Value: Dict{"a": Int(1)}}
 	expectRun(t, `return contains(globals(), "a")`,
 		newOpts().Globals(g).Skip2Pass(), True)
 	expectErrIs(t, `contains()`, nil, ErrWrongNumArguments)
@@ -872,7 +872,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return len(["a"])`, nil, Int(1))
 	expectRun(t, `return len({a: 2})`, nil, Int(1))
 	expectRun(t, `return len(bytes(0, 1, 2))`, nil, Int(3))
-	g = &SyncMap{Value: Map{"a": Int(5)}}
+	g = &SyncMap{Value: Dict{"a": Int(5)}}
 	expectRun(t, `return len(globals())`,
 		newOpts().Globals(g).Skip2Pass(), Int(1))
 	expectErrIs(t, `len()`, nil, ErrWrongNumArguments)
@@ -941,7 +941,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return typeName('a')`, nil, String("char"))
 	expectRun(t, `return typeName("")`, nil, String("string"))
 	expectRun(t, `return typeName([])`, nil, String("array"))
-	expectRun(t, `return typeName({})`, nil, String("map"))
+	expectRun(t, `return typeName({})`, nil, String("dict"))
 	expectRun(t, `return typeName(error(""))`, nil, String("error"))
 	expectRun(t, `return typeName(bytes())`, nil, String("bytes"))
 	expectRun(t, `return typeName(func(){})`, nil, String("compiledFunction"))
@@ -1260,7 +1260,7 @@ keyValueArray(keyValue("d",4))))`,
 			},
 		},
 		{
-			`isMap`,
+			`isDict`,
 			trueValues{
 				`{}`, `{a: 1}`,
 			},
@@ -1270,7 +1270,7 @@ keyValueArray(keyValue("d",4))))`,
 			},
 		},
 		{
-			`isSyncMap`,
+			`isSyncDict`,
 			trueValues{},
 			falseValues{
 				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "nil",
@@ -1364,8 +1364,8 @@ keyValueArray(keyValue("d",4))))`,
 		}
 	}
 
-	expectRun(t, `global sm; return isSyncMap(sm)`,
-		newOpts().Globals(Map{"sm": &SyncMap{Value: Map{}}}), True)
+	expectRun(t, `global sm; return isSyncDict(sm)`,
+		newOpts().Globals(Dict{"sm": &SyncMap{Value: Dict{}}}), True)
 
 	expectRun(t, `return isError(WrongNumArgumentsError.New(""), WrongNumArgumentsError)`,
 		nil, True)
@@ -1414,9 +1414,9 @@ keyValueArray(keyValue("d",4))))`,
 		newOpts().out(&stdOut).Skip2Pass(), String("test 1"))
 	expectRun(t, `return sprintf("test %d %t", 1, true)`,
 		newOpts().out(&stdOut).Skip2Pass(), String("test 1 true"))
-	expectRun(t, `f := func(...args;...kwargs){ return [args, kwargs.map] };
+	expectRun(t, `f := func(...args;...kwargs){ return [args, kwargs.dict] };
 		return wrap(f, 1, a=3)(2, b=4)`,
-		nil, Array{Array{Int(1), Int(2)}, Map{"a": Int(3), "b": Int(4)}})
+		nil, Array{Array{Int(1), Int(2)}, Dict{"a": Int(3), "b": Int(4)}})
 
 	expectErrIs(t, `printf()`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `sprintf()`, nil, ErrWrongNumArguments)
@@ -1693,13 +1693,13 @@ func TestVMForIn(t *testing.T) {
 		nil, String("b")) // key, value
 
 	// syncMap
-	g := Map{"syncMap": &SyncMap{Value: Map{"a": Int(2), "b": Int(3), "c": Int(4)}}}
+	g := Dict{"syncMap": &SyncMap{Value: Dict{"a": Int(2), "b": Int(3), "c": Int(4)}}}
 	expectRun(t, `out := 0; for v in globals().syncMap { out += v }; return out`,
 		newOpts().Globals(g).Skip2Pass(), Int(9)) // value
 	expectRun(t, `out := ""; for k, v in globals().syncMap { out = k; if v==3 { break } }; return out`,
 		newOpts().Globals(g).Skip2Pass(), String("b")) // key, value
 	expectRun(t, `out := ""; for k, _ in globals().syncMap { out += k }; return out`,
-		newOpts().Globals(Map{"syncMap": &SyncMap{Value: Map{"a": Int(2)}}}).Skip2Pass(), String("a")) // key, _
+		newOpts().Globals(Dict{"syncMap": &SyncMap{Value: Dict{"a": Int(2)}}}).Skip2Pass(), String("a")) // key, _
 	expectRun(t, `out := 0; for _, v in globals().syncMap { out += v }; return out`,
 		newOpts().Globals(g).Skip2Pass(), Int(9)) // _, value
 	expectRun(t, `out := ""; func() { for k, v in globals().syncMap { out = k; if v==3 { break } } }(); return out`,
@@ -2623,7 +2623,7 @@ func TestVMMap(t *testing.T) {
 		one: 10 - 9,
 		two: 1 + 1,
 		three: 6 / 2,
-	}`, nil, Map{
+	}`, nil, Dict{
 		"one":   Int(1),
 		"two":   Int(2),
 		"three": Int(3),
@@ -2634,7 +2634,7 @@ func TestVMMap(t *testing.T) {
 		"one": 10 - 9,
 		"two": 1 + 1,
 		"three": 6 / 2,
-	}`, nil, Map{
+	}`, nil, Dict{
 		"one":   Int(1),
 		"two":   Int(2),
 		"three": Int(3),
@@ -2681,11 +2681,11 @@ func TestVMSourceModules(t *testing.T) {
 	expectRun(t, `out := import("mod1"); return out`,
 		newOpts().Module("mod1", `return [1, 2, 3]`), Array{Int(1), Int(2), Int(3)})
 	expectRun(t, `out := import("mod1"); return out`,
-		newOpts().Module("mod1", `return {a: 1, b: 2}`), Map{"a": Int(1), "b": Int(2)})
+		newOpts().Module("mod1", `return {a: 1, b: 2}`), Dict{"a": Int(1), "b": Int(2)})
 
 	// if returned values are not imumutable, they can be updated
 	expectRun(t, `m1 := import("mod1"); m1.a = 5; return m1`,
-		newOpts().Module("mod1", `return {a: 1, b: 2}`), Map{"a": Int(5), "b": Int(2)})
+		newOpts().Module("mod1", `return {a: 1, b: 2}`), Dict{"a": Int(5), "b": Int(2)})
 	expectRun(t, `m1 := import("mod1"); m1[1] = 5; return m1`,
 		newOpts().Module("mod1", `return [1, 2, 3]`), Array{Int(1), Int(5), Int(3)})
 	// modules are evaluated once, calling in different scopes returns same object
@@ -2696,7 +2696,7 @@ func TestVMSourceModules(t *testing.T) {
 		m11 := import("mod1")
 		m11.a = 6
 	}()
-	return m1`, newOpts().Module("mod1", `return {a: 1, b: 2}`), Map{"a": Int(6), "b": Int(2)})
+	return m1`, newOpts().Module("mod1", `return {a: 1, b: 2}`), Dict{"a": Int(6), "b": Int(2)})
 
 	// module returning function
 	expectRun(t, `out := import("mod1")(); return out`,
@@ -3082,25 +3082,25 @@ func TestVMSelector(t *testing.T) {
 	expectRun(t, `a := {b: 1, c: "foo"}; a.b = 2; return a.b`, nil, Int(2))
 	expectRun(t, `a := {b: 1, c: "foo"}; a.c = 2; return a.c`, nil, Int(2))
 	expectRun(t, `a := {b: {c: 1}}; a.b.c = 2; return a.b.c`, nil, Int(2))
-	expectRun(t, `a := {b: 1}; a.c = 2; return a`, nil, Map{"b": Int(1), "c": Int(2)})
+	expectRun(t, `a := {b: 1}; a.c = 2; return a`, nil, Dict{"b": Int(1), "c": Int(2)})
 	expectRun(t, `a := {b: {c: 1}}; a.b.d = 2; return a`, nil,
-		Map{"b": Map{"c": Int(1), "d": Int(2)}})
+		Dict{"b": Dict{"c": Int(1), "d": Int(2)}})
 
 	expectRun(t, `return func() { a := {b: 1, c: "foo"}; a.b = 2; return a.b }()`, nil, Int(2))
 	expectRun(t, `return func() { a := {b: 1, c: "foo"}; a.c = 2; return a.c }()`, nil, Int(2))
 	expectRun(t, `return func() { a := {b: {c: 1}}; a.b.c = 2; return a.b.c }()`, nil, Int(2))
 	expectRun(t, `return func() { a := {b: 1}; a.c = 2; return a }()`, nil,
-		Map{"b": Int(1), "c": Int(2)})
+		Dict{"b": Int(1), "c": Int(2)})
 	expectRun(t, `return func() { a := {b: {c: 1}}; a.b.d = 2; return a }()`, nil,
-		Map{"b": Map{"c": Int(1), "d": Int(2)}})
+		Dict{"b": Dict{"c": Int(1), "d": Int(2)}})
 
 	expectRun(t, `return func() { a := {b: 1, c: "foo"}; func() { a.b = 2 }(); return a.b }()`, nil, Int(2))
 	expectRun(t, `return func() { a := {b: 1, c: "foo"}; func() { a.c = 2 }(); return a.c }()`, nil, Int(2))
 	expectRun(t, `return func() { a := {b: {c: 1}}; func() { a.b.c = 2 }(); return a.b.c }()`, nil, Int(2))
 	expectRun(t, `return func() { a := {b: 1}; func() { a.c = 2 }(); return a }()`, nil,
-		Map{"b": Int(1), "c": Int(2)})
+		Dict{"b": Int(1), "c": Int(2)})
 	expectRun(t, `return func() { a := {b: {c: 1}}; func() { a.b.d = 2 }(); return a }()`,
-		nil, Map{"b": Map{"c": Int(1), "d": Int(2)}})
+		nil, Dict{"b": Dict{"c": Int(1), "d": Int(2)}})
 
 	expectRun(t, `
 	a := {
@@ -3254,7 +3254,7 @@ func TestVMTailCall(t *testing.T) {
 	var (fac, v1 = 100, v2 = 200)
 	fac = func(n, ...args;...na) {
 		if n == 1 {
-			return [args, __args__.array, na.map, __named_args__.map]
+			return [args, __args__.array, na.dict, __named_args__.dict]
 		}
 		v1++
 		v2++
@@ -3263,33 +3263,33 @@ func TestVMTailCall(t *testing.T) {
 	return fac(10, 2, 3)`, nil, Array{
 		Array{Int(109), Int(209)},
 		Array{Array{Int(1)}, Array{Int(109), Int(209)}},
-		Map{"x1": Int(109), "x2": Int(209)},
-		Map{"x1": Int(109), "x2": Int(209)},
+		Dict{"x1": Int(109), "x2": Int(209)},
+		Dict{"x1": Int(109), "x2": Int(209)},
 	})
 
 	expectRun(t, `
 	var (fac, v1 = 100, v2 = 200)
 	fac = func(n;...na) {
 		if n == 1 {
-			return [na.map]
+			return [na.dict]
 		}
 		v1++
 		v2++
 		return fac(n-1,x1=v1,x2=v2)
 	}
-	return fac(10)`, nil, Array{Map{"x1": Int(109), "x2": Int(209)}})
+	return fac(10)`, nil, Array{Dict{"x1": Int(109), "x2": Int(209)}})
 
 	expectRun(t, `
 	var (fac, v1 = 100, v2 = 200)
 	fac = func(n,a,b;...na) {
 		if n == 1 {
-			return [a,b,na.map]
+			return [a,b,na.dict]
 		}
 		v1++
 		v2++
 		return fac(n-1,v1,v2;x1=v1,x2=v2)
 	}
-	return fac(4,0,0,x3=2)`, nil, Array{Int(103), Int(203), Map{"x1": Int(103), "x2": Int(203)}})
+	return fac(4,0,0,x3=2)`, nil, Array{Int(103), Int(203), Dict{"x1": Int(103), "x2": Int(203)}})
 
 	expectRun(t, `
 	var (fac, v1 = 100, v2 = 200)
@@ -3485,47 +3485,47 @@ func TestVMCall(t *testing.T) {
 	expectRun(t, `f := func(a, ...b) { var x; return [x, b]; }; return f(1, 2)`, nil, Array{Nil, Array{Int(2)}})
 
 	expectRun(t, `global f; return f()`, newOpts().Globals(
-		Map{"f": &Function{Value: func(c Call) (Object, error) {
+		Dict{"f": &Function{Value: func(c Call) (Object, error) {
 			return Int(c.Args.Len()), nil
 		}}}), Int(0))
 	expectRun(t, `global f; return f(1)`, newOpts().Globals(
-		Map{"f": &Function{Value: func(c Call) (Object, error) {
+		Dict{"f": &Function{Value: func(c Call) (Object, error) {
 			return Array{Int(c.Args.Len()), c.Args.Get(0)}, nil
 		}}}), Array{Int(1), Int(1)})
 	expectRun(t, `global f; return f(1, 2)`, newOpts().Globals(
-		Map{"f": &Function{Value: func(c Call) (Object, error) {
+		Dict{"f": &Function{Value: func(c Call) (Object, error) {
 			return Array{Int(c.Args.Len()), c.Args.Get(0), c.Args.Get(1)}, nil
 		}}}), Array{Int(2), Int(1), Int(2)})
 	expectRun(t, `global f; return f(...[])`, newOpts().Globals(
-		Map{"f": &Function{Value: func(c Call) (Object, error) {
+		Dict{"f": &Function{Value: func(c Call) (Object, error) {
 			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(0), Array{}})
 	expectRun(t, `global f; return f(...[1])`, newOpts().Globals(
-		Map{"f": &Function{Value: func(c Call) (Object, error) {
+		Dict{"f": &Function{Value: func(c Call) (Object, error) {
 			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(1), Array{Int(1)}})
 	expectRun(t, `global f; return f(1, ...[])`, newOpts().Globals(
-		Map{"f": &Function{Value: func(c Call) (Object, error) {
+		Dict{"f": &Function{Value: func(c Call) (Object, error) {
 			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(1), Array{Int(1)}})
 	expectRun(t, `global f; return f(1, ...[2])`, newOpts().Globals(
-		Map{"f": &Function{Value: func(c Call) (Object, error) {
+		Dict{"f": &Function{Value: func(c Call) (Object, error) {
 			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(2), Array{Int(1), Int(2)}})
 	expectRun(t, `global f; return f(1, 2, ...[3])`, newOpts().Globals(
-		Map{"f": &Function{Value: func(c Call) (Object, error) {
+		Dict{"f": &Function{Value: func(c Call) (Object, error) {
 			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(3), Array{Int(1), Int(2), Int(3)}})
 	expectRun(t, `global f; return f(1, 2, 3)`, newOpts().Globals(
-		Map{"f": &Function{Value: func(c Call) (Object, error) {
+		Dict{"f": &Function{Value: func(c Call) (Object, error) {
 			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
 		}}}), Array{Int(3), Array{Int(1), Int(2), Int(3)}})
 
 	expectErrIs(t, `global f; return f()`, newOpts().Globals(
-		Map{"f": &Function{Value: func(c Call) (Object, error) {
+		Dict{"f": &Function{Value: func(c Call) (Object, error) {
 			return nil, ErrWrongNumArguments
 		}}}), ErrWrongNumArguments)
-	expectErrIs(t, `global f; return f()`, newOpts().Globals(Map{"f": Nil}),
+	expectErrIs(t, `global f; return f()`, newOpts().Globals(Dict{"f": Nil}),
 		ErrNotCallable)
 
 	expectRun(t, `a := { b: func(x) { return x + 2 } }; return a.b(5)`, nil, Int(7))
@@ -3544,10 +3544,10 @@ func TestVMCall(t *testing.T) {
 	b(a, c)
 	`, nil, ErrNotCallable)
 
-	expectRun(t, `return {a: string(...[0])}`, nil, Map{"a": String("0")})
-	expectRun(t, `return {a: string([0])}`, nil, Map{"a": String("[0]")})
+	expectRun(t, `return {a: string(...[0])}`, nil, Dict{"a": String("0")})
+	expectRun(t, `return {a: string([0])}`, nil, Dict{"a": String("[0]")})
 	expectRun(t, `return {a: bytes(...repeat([0], 4096))}`,
-		nil, Map{"a": make(Bytes, 4096)})
+		nil, Dict{"a": make(Bytes, 4096)})
 
 	expectRun(t, `return BUILTIN_VAR`,
 		newOpts().Builtins(map[string]Object{
@@ -3558,12 +3558,12 @@ func TestVMCall(t *testing.T) {
 func TestVMCallCompiledFunction(t *testing.T) {
 	expectRun(t, `
 	f := func(...argv; ...nav) {
-		return [copy(__args__.values), __named_args__.map, string(__callee__)]
+		return [copy(__args__.values), __named_args__.dict, string(__callee__)]
 	}
 	return f(1,2,3, ...[8,9],na0=4,na1=5)`, nil,
 		Array{
 			Array{Int(1), Int(2), Int(3), Int(8), Int(9)},
-			Map{"na0": Int(4), "na1": Int(5)},
+			Dict{"na0": Int(4), "na1": Int(5)},
 			String("<compiledFunction [params: 1, variadic] [named params: nav (variadic)]>"),
 		})
 
@@ -3591,9 +3591,9 @@ func TestVMCallCompiledFunction(t *testing.T) {
 	}
 	// locals := vm.GetLocals(nil)
 	// t.Log(f)
-	require.Contains(t, f.(Map), "add")
-	require.Contains(t, f.(Map), "sub")
-	add := f.(Map)["add"].(*CompiledFunction)
+	require.Contains(t, f.(Dict), "add")
+	require.Contains(t, f.(Dict), "sub")
+	add := f.(Dict)["add"].(*CompiledFunction)
 	ret, err := vm.RunCompiledFunction(add, Int(10))
 	if err != nil {
 		t.Fatal(err)
@@ -3608,7 +3608,7 @@ func TestVMCallCompiledFunction(t *testing.T) {
 	// t.Log(ret)
 	require.Equal(t, Int(20), ret.(Int))
 
-	sub := f.(Map)["sub"].(*CompiledFunction)
+	sub := f.(Dict)["sub"].(*CompiledFunction)
 	ret, err = vm.RunCompiledFunction(sub, Int(1))
 	if err != nil {
 		t.Fatal(err)
@@ -3629,10 +3629,10 @@ func TestVMCallCompiledFunction(t *testing.T) {
 
 	expectRun(t, `
 	f := func(arg0, arg1, ...varg; na0=100, ...na) {
-		return [arg0, arg1, copy(varg), na0, na.map]
+		return [arg0, arg1, copy(varg), na0, na.dict]
 	}
 	return f(1,2,3,na0=4,na1=5)`, nil,
-		Array{Int(1), Int(2), Array{Int(3)}, Int(4), Map{"na1": Int(5)}})
+		Array{Int(1), Int(2), Array{Int(3)}, Int(4), Dict{"na1": Int(5)}})
 }
 
 func TestVMCallWithNamedArgs(t *testing.T) {
@@ -3644,16 +3644,16 @@ func TestVMCallWithNamedArgs(t *testing.T) {
 	expectRun(t, `return func(x;a=2) { return x+a }(1;a=3,...{"a":4})`, nil, Int(4))
 	expectRun(t, `return func(x;a=2) { return x+a }(1;a=4,...{"a":90})`, nil, Int(5))
 	expectRun(t, `return func(x;a=2) { return x+a }(1;a=3,...{})`, nil, Int(4))
-	expectRun(t, `return func(...z;a="A", b="B", ...c) { return [z,a,b,c.map] }(5,...[6,7,8,9];...{"a":"na", "b":"nb", "c":"C", "d":"D"})`,
-		nil, Array{Array{Int(5), Int(6), Int(7), Int(8), Int(9)}, String("na"), String("nb"), Map{"c": String("C"), "d": String("D")}})
-	expectRun(t, `return func(...z;a=false, b="B", ...c) { return [a,b,c.map] }(5,...[6,7,8,9];a=true,...{"a":"na", "b":"nb", "c":"C", "d":"D"})`,
-		nil, Array{True, String("nb"), Map{"c": String("C"), "d": String("D")}})
-	expectRun(t, `return func(...z;a=false, b="B", ...c) { return [a,b,c.map] }(5,...[6,7,8,9];a=true,...{"b":"nb", "c":"C", "d":"D"})`,
-		nil, Array{True, String("nb"), Map{"c": String("C"), "d": String("D")}})
-	expectRun(t, `return func(x, y, ...z;a="A", b="B", ...c) { return [x,y,z,a,b,c.map] }(5,...[6,7,8,9];...{"a":"na", "b":"nb", "c":"C", "d":"D"})`,
-		nil, Array{Int(5), Int(6), Array{Int(7), Int(8), Int(9)}, String("na"), String("nb"), Map{"c": String("C"), "d": String("D")}})
-	expectRun(t, `return func(x, y, ...z;a="A", b="B", ...c) { return [x,y,z,a,b,c.map] }(5,...[6,7,8,9];...{})`,
-		nil, Array{Int(5), Int(6), Array{Int(7), Int(8), Int(9)}, String("A"), String("B"), Map{}})
+	expectRun(t, `return func(...z;a="A", b="B", ...c) { return [z,a,b,c.dict] }(5,...[6,7,8,9];...{"a":"na", "b":"nb", "c":"C", "d":"D"})`,
+		nil, Array{Array{Int(5), Int(6), Int(7), Int(8), Int(9)}, String("na"), String("nb"), Dict{"c": String("C"), "d": String("D")}})
+	expectRun(t, `return func(...z;a=false, b="B", ...c) { return [a,b,c.dict] }(5,...[6,7,8,9];a=true,...{"a":"na", "b":"nb", "c":"C", "d":"D"})`,
+		nil, Array{True, String("nb"), Dict{"c": String("C"), "d": String("D")}})
+	expectRun(t, `return func(...z;a=false, b="B", ...c) { return [a,b,c.dict] }(5,...[6,7,8,9];a=true,...{"b":"nb", "c":"C", "d":"D"})`,
+		nil, Array{True, String("nb"), Dict{"c": String("C"), "d": String("D")}})
+	expectRun(t, `return func(x, y, ...z;a="A", b="B", ...c) { return [x,y,z,a,b,c.dict] }(5,...[6,7,8,9];...{"a":"na", "b":"nb", "c":"C", "d":"D"})`,
+		nil, Array{Int(5), Int(6), Array{Int(7), Int(8), Int(9)}, String("na"), String("nb"), Dict{"c": String("C"), "d": String("D")}})
+	expectRun(t, `return func(x, y, ...z;a="A", b="B", ...c) { return [x,y,z,a,b,c.dict] }(5,...[6,7,8,9];...{})`,
+		nil, Array{Int(5), Int(6), Array{Int(7), Int(8), Int(9)}, String("A"), String("B"), Dict{}})
 	expectRun(t, `truncate := func(text; limit=3) {if len(text) > limit { return text[:limit]+"..." }; return text}
 return [ truncate("abcd"), truncate("abc"), truncate("ab"),	truncate("abcd";limit=2) ]
 `, nil, Array{String("abc..."), String("abc"), String("ab"), String("ab...")})
@@ -3668,7 +3668,7 @@ return f2(;a=1,b=2,c=3,d=4,e=5)
 
 	expectRun(t, `return func(;a=2) { return a }(;...(;a=3))`, nil, Int(3))
 	expectRun(t, `f := func(;...kw){return kw};return string(f(;x=1,x=2))`, nil, String("(;x=1, x=2)"))
-	expectRun(t, `f := func(;...kw){return kw};return string(f(;x=2).map)`, nil, String(`{"x": 2}`))
+	expectRun(t, `f := func(;...kw){return kw};return string(f(;x=2).dict)`, nil, String(`{"x": 2}`))
 	expectRun(t, `f := func(;...kw){return kw};return string(f(;x=1,x=2).array)`, nil, String(`(;x=1, x=2)`))
 	expectRun(t, `f := func(;x=1,...kw){return kw};return string(f(;x=1,x=2).ready)`, nil, String(`(;x=1, x=2)`))
 	expectRun(t, `f := func(;x=1,...kw){return kw};return string(f(;x=1,x=2).readyNames)`, nil, String(`["x"]`))
@@ -3754,29 +3754,29 @@ return [
 ]
 `
 	expectRun(t, scr,
-		newOpts().Globals(Map{"fn": &Function{
+		newOpts().Globals(Dict{"fn": &Function{
 			Name: "fn",
 			Value: func(c Call) (Object, error) {
 				args := c.Args.Values()
-				nargs := c.NamedArgs.Map()
+				nargs := c.NamedArgs.Dict()
 				if args == nil {
 					args = Array{}
 				}
 				if nargs == nil {
-					nargs = Map{}
+					nargs = Dict{}
 				}
 				return Array{args, nargs}, nil
 			},
 		}}),
 		Array{
-			Array{Array{}, Map{}},
-			Array{Array{Int(1)}, Map{}},
-			Array{Array{Int(1), Int(2)}, Map{}},
-			Array{Array{Int(1), Int(2), Int(3), Int(4)}, Map{}},
-			Array{Array{Int(3), Int(4)}, Map{"a": Int(5)}},
-			Array{Array{}, Map{"a": Int(5)}},
-			Array{Array{Int(1), Int(2), Int(3), Int(4)}, Map{"a": Int(5)}},
-			Array{Array{Int(1), Int(2), Int(3), Int(4)}, Map{"a": Int(5), "b": Int(6)}},
+			Array{Array{}, Dict{}},
+			Array{Array{Int(1)}, Dict{}},
+			Array{Array{Int(1), Int(2)}, Dict{}},
+			Array{Array{Int(1), Int(2), Int(3), Int(4)}, Dict{}},
+			Array{Array{Int(3), Int(4)}, Dict{"a": Int(5)}},
+			Array{Array{}, Dict{"a": Int(5)}},
+			Array{Array{Int(1), Int(2), Int(3), Int(4)}, Dict{"a": Int(5)}},
+			Array{Array{Int(1), Int(2), Int(3), Int(4)}, Dict{"a": Int(5), "b": Int(6)}},
 		},
 	)
 }
@@ -3798,18 +3798,18 @@ return [
 ]
 `
 	expectRun(t, scr,
-		newOpts().Globals(Map{"fn": &callerObject{}}),
+		newOpts().Globals(Dict{"fn": &callerObject{}}),
 		Array{
-			Array{Array{}, Map{}},
-			Array{Array{Int(1)}, Map{}},
-			Array{Array{Int(1), Int(2)}, Map{}},
-			Array{Array{Int(1), Int(2), Int(3), Int(4)}, Map{}},
-			Array{Array{Int(3), Int(4)}, Map{"a": Int(5)}},
-			Array{Array{}, Map{"a": Int(5)}},
-			Array{Array{Int(1), Int(2), Int(3), Int(4)}, Map{"a": Int(5)}},
-			Array{Array{Int(1), Int(2), Int(3), Int(4)}, Map{"a": Int(5), "b": Int(6)}},
-			Array{Array{Int(1), Int(2)}, Map{"a": Int(3)}},
-			Array{Array{Int(1), Int(2)}, Map{"a": Int(3), "b": Int(4)}},
+			Array{Array{}, Dict{}},
+			Array{Array{Int(1)}, Dict{}},
+			Array{Array{Int(1), Int(2)}, Dict{}},
+			Array{Array{Int(1), Int(2), Int(3), Int(4)}, Dict{}},
+			Array{Array{Int(3), Int(4)}, Dict{"a": Int(5)}},
+			Array{Array{}, Dict{"a": Int(5)}},
+			Array{Array{Int(1), Int(2), Int(3), Int(4)}, Dict{"a": Int(5)}},
+			Array{Array{Int(1), Int(2), Int(3), Int(4)}, Dict{"a": Int(5), "b": Int(6)}},
+			Array{Array{Int(1), Int(2)}, Dict{"a": Int(3)}},
+			Array{Array{Int(1), Int(2)}, Dict{"a": Int(3), "b": Int(4)}},
 		},
 	)
 }
@@ -3830,7 +3830,7 @@ func TestVMReflectSlice(t *testing.T) {
 }
 
 type callerObject struct {
-	Map
+	Dict
 }
 
 func (n *callerObject) CanCall() bool {
@@ -3838,9 +3838,9 @@ func (n *callerObject) CanCall() bool {
 }
 
 func (*callerObject) Call(c Call) (Object, error) {
-	nargs := c.NamedArgs.Map()
+	nargs := c.NamedArgs.Dict()
 	if nargs == nil {
-		nargs = Map{}
+		nargs = Dict{}
 	}
 	return Array{c.Args.Values(), nargs}, nil
 }
@@ -3882,7 +3882,7 @@ func (t *testopts) NamedArgs(args Object) *testopts {
 	switch at := args.(type) {
 	case *NamedArgs:
 		t.namedArgs = at
-	case Map:
+	case Dict:
 		t.namedArgs = NewNamedArgs(at.Items())
 	case KeyValueArray:
 		t.namedArgs = NewNamedArgs(at)
@@ -3921,7 +3921,7 @@ func (t *testopts) Module(name string, module any) *testopts {
 		t.moduleMap.AddSourceModule(name, []byte(v))
 	case map[string]Object:
 		t.moduleMap.AddBuiltinModule(name, v)
-	case Map:
+	case Dict:
 		t.moduleMap.AddBuiltinModule(name, v)
 	case Importable:
 		t.moduleMap.Add(name, v)

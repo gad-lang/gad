@@ -203,7 +203,7 @@ func (vm *VM) init(opts *RunOpts) (Object, error) {
 
 func (vm *VM) initGlobals(globals IndexGetSetter) {
 	if globals == nil {
-		globals = Map{}
+		globals = Dict{}
 	}
 	vm.globals = globals
 }

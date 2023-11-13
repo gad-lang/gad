@@ -172,12 +172,12 @@ var Module = map[string]gad.Object{
 		Value: newIndexFuncInv(strings.LastIndexFunc),
 	},
 	// gad:doc
-	// Map(f func(char) char, s string) -> string
+	// Dict(f func(char) char, s string) -> string
 	// Returns a copy of the string s with all its characters modified
 	// according to the mapping function f. If f returns a negative value, the
 	// character is dropped from the string with no replacement.
-	"Map": &gad.Function{
-		Name:  "Map",
+	"Dict": &gad.Function{
+		Name:  "Dict",
 		Value: mapFuncInv,
 	},
 	// gad:doc

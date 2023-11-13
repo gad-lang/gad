@@ -782,31 +782,31 @@ func (o *ObjectPtr) Call(c Call) (Object, error) {
 	return (*o.Value).(CallerObject).Call(c)
 }
 
-// Map represents map of objects and implements Object interface.
-type Map map[string]Object
+// Dict represents map of objects and implements Object interface.
+type Dict map[string]Object
 
 var (
-	_ Object       = Map{}
-	_ Copier       = Map{}
-	_ IndexDeleter = Map{}
-	_ LengthGetter = Map{}
-	_ KeysGetter   = Map{}
-	_ ValuesGetter = Map{}
-	_ ItemsGetter  = Map{}
+	_ Object       = Dict{}
+	_ Copier       = Dict{}
+	_ IndexDeleter = Dict{}
+	_ LengthGetter = Dict{}
+	_ KeysGetter   = Dict{}
+	_ ValuesGetter = Dict{}
+	_ ItemsGetter  = Dict{}
 )
 
-func (o Map) Type() ObjectType {
+func (o Dict) Type() ObjectType {
 	return typeOf(o)
 }
 
-func (o Map) Format(f fmt.State, verb rune) {
+func (o Dict) Format(f fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		f.Write([]byte(o.ToString()))
 	}
 }
 
-func (o Map) ToString() string {
+func (o Dict) ToString() string {
 	var sb strings.Builder
 	sb.WriteString("{")
 	last := len(o) - 1
@@ -836,8 +836,8 @@ func (o Map) ToString() string {
 }
 
 // Copy implements Copier interface.
-func (o Map) Copy() Object {
-	cp := make(Map, len(o))
+func (o Dict) Copy() Object {
+	cp := make(Dict, len(o))
 	for k, v := range o {
 		cp[k] = v
 	}
@@ -845,8 +845,8 @@ func (o Map) Copy() Object {
 }
 
 // DeepCopy implements DeepCopier interface.
-func (o Map) DeepCopy() Object {
-	cp := make(Map, len(o))
+func (o Dict) DeepCopy() Object {
+	cp := make(Dict, len(o))
 	for k, v := range o {
 		switch t := v.(type) {
 		case DeepCopier:
@@ -861,13 +861,13 @@ func (o Map) DeepCopy() Object {
 }
 
 // IndexSet implements Object interface.
-func (o Map) IndexSet(_ *VM, index, value Object) error {
+func (o Dict) IndexSet(_ *VM, index, value Object) error {
 	o[index.ToString()] = value
 	return nil
 }
 
 // IndexGet implements Object interface.
-func (o Map) IndexGet(_ *VM, index Object) (Object, error) {
+func (o Dict) IndexGet(_ *VM, index Object) (Object, error) {
 	v, ok := o[index.ToString()]
 	if ok {
 		return v, nil
@@ -876,8 +876,8 @@ func (o Map) IndexGet(_ *VM, index Object) (Object, error) {
 }
 
 // Equal implements Object interface.
-func (o Map) Equal(right Object) bool {
-	v, ok := right.(Map)
+func (o Dict) Equal(right Object) bool {
+	v, ok := right.(Dict)
 	if !ok {
 		return false
 	}
@@ -899,10 +899,10 @@ func (o Map) Equal(right Object) bool {
 }
 
 // IsFalsy implements Object interface.
-func (o Map) IsFalsy() bool { return len(o) == 0 }
+func (o Dict) IsFalsy() bool { return len(o) == 0 }
 
 // BinaryOp implements Object interface.
-func (o Map) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o Dict) BinaryOp(tok token.Token, right Object) (Object, error) {
 	if right == Nil {
 		switch tok {
 		case token.Less, token.LessEq:
@@ -919,7 +919,7 @@ func (o Map) BinaryOp(tok token.Token, right Object) (Object, error) {
 }
 
 // Iterate implements Iterable interface.
-func (o Map) Iterate(*VM) Iterator {
+func (o Dict) Iterate(*VM) Iterator {
 	keys := make([]string, 0, len(o))
 	for k := range o {
 		keys = append(keys, k)
@@ -929,17 +929,17 @@ func (o Map) Iterate(*VM) Iterator {
 
 // IndexDelete tries to delete the string value of key from the map.
 // IndexDelete implements IndexDeleter interface.
-func (o Map) IndexDelete(_ *VM, key Object) error {
+func (o Dict) IndexDelete(_ *VM, key Object) error {
 	delete(o, key.ToString())
 	return nil
 }
 
 // Len implements LengthGetter interface.
-func (o Map) Len() int {
+func (o Dict) Len() int {
 	return len(o)
 }
 
-func (o Map) Items() KeyValueArray {
+func (o Dict) Items() KeyValueArray {
 	var (
 		arr = make(KeyValueArray, len(o))
 		i   int
@@ -951,7 +951,7 @@ func (o Map) Items() KeyValueArray {
 	return arr
 }
 
-func (o Map) Keys() Array {
+func (o Dict) Keys() Array {
 	var (
 		arr = make(Array, len(o))
 		i   int
@@ -963,13 +963,13 @@ func (o Map) Keys() Array {
 	return arr
 }
 
-func (o Map) SortedKeys() Array {
+func (o Dict) SortedKeys() Array {
 	keys := o.Keys()
 	keys.Sort()
 	return keys
 }
 
-func (o Map) Values() Array {
+func (o Dict) Values() Array {
 	var (
 		arr = make(Array, len(o))
 		i   int
@@ -984,7 +984,7 @@ func (o Map) Values() Array {
 // SyncMap represents map of objects and implements Object interface.
 type SyncMap struct {
 	mu    sync.RWMutex
-	Value Map
+	Value Dict
 }
 
 var (
@@ -1044,7 +1044,7 @@ func (o *SyncMap) Copy() Object {
 	defer o.mu.RUnlock()
 
 	return &SyncMap{
-		Value: o.Value.Copy().(Map),
+		Value: o.Value.Copy().(Dict),
 	}
 }
 
@@ -1054,7 +1054,7 @@ func (o *SyncMap) DeepCopy() Object {
 	defer o.mu.RUnlock()
 
 	return &SyncMap{
-		Value: o.Value.DeepCopy().(Map),
+		Value: o.Value.DeepCopy().(Dict),
 	}
 }
 
@@ -1064,7 +1064,7 @@ func (o *SyncMap) IndexSet(vm *VM, index, value Object) error {
 	defer o.mu.Unlock()
 
 	if o.Value == nil {
-		o.Value = Map{}
+		o.Value = Dict{}
 	}
 	return o.Value.IndexSet(vm, index, value)
 }

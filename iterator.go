@@ -109,7 +109,7 @@ func (it *BytesIterator) Value() (Object, error) {
 
 // MapIterator represents an iterator for the map.
 type MapIterator struct {
-	V    Map
+	V    Dict
 	keys []string
 	i    int
 }

@@ -456,7 +456,7 @@ func (p *Parser) ParseCallArgs(tlparen, trparen token.Token) *node.CallArgs {
 			elipsis := &node.EllipsisValue{Pos: p.Token.Pos}
 			p.Next()
 			elipsis.Value = p.ParseExpr()
-			if _, ok := elipsis.Value.(*node.MapLit); ok {
+			if _, ok := elipsis.Value.(*node.DictLit); ok {
 				namedArgs.Ellipsis = elipsis
 				goto done
 			} else {
@@ -510,7 +510,7 @@ kw:
 					namedArgs.Names = append(namedArgs.Names, node.NamedArgExpr{Ident: t})
 				case *node.StringLit:
 					namedArgs.Names = append(namedArgs.Names, node.NamedArgExpr{Lit: t})
-				case *node.CallExpr, *node.SelectorExpr, *node.MapLit:
+				case *node.CallExpr, *node.SelectorExpr, *node.DictLit:
 					namedArgs.Ellipsis = &node.EllipsisValue{Pos: p.Token.Pos, Value: t}
 					p.Expect(token.Ellipsis)
 					if !p.AtComma("call argument", trparen) {
@@ -864,8 +864,8 @@ func (p *Parser) ParseOperand() node.Expr {
 		return p.ParseParemExpr()
 	case token.LBrack: // array literal
 		return p.ParseArrayLit()
-	case token.LBrace: // map literal
-		return p.ParseMapLit()
+	case token.LBrace: // dict literal
+		return p.ParseDictLit()
 	case token.Func: // function literal
 		return p.ParseFuncLit()
 	case token.Text:
@@ -2097,9 +2097,9 @@ func (p *Parser) ParseExprList() (list []node.Expr) {
 	return
 }
 
-func (p *Parser) ParseMapElementLit() *node.MapElementLit {
+func (p *Parser) ParseMapElementLit() *node.DictElementLit {
 	if p.Trace {
-		defer untracep(tracep(p, "MapElementLit"))
+		defer untracep(tracep(p, "DictElementLit"))
 	}
 
 	pos := p.Token.Pos
@@ -2115,7 +2115,7 @@ func (p *Parser) ParseMapElementLit() *node.MapElementLit {
 	p.Next()
 	colonPos := p.Expect(token.Colon)
 	valueExpr := p.ParseExpr()
-	return &node.MapElementLit{
+	return &node.DictElementLit{
 		Key:      name,
 		KeyPos:   pos,
 		ColonPos: colonPos,
@@ -2123,15 +2123,15 @@ func (p *Parser) ParseMapElementLit() *node.MapElementLit {
 	}
 }
 
-func (p *Parser) ParseMapLit() *node.MapLit {
+func (p *Parser) ParseDictLit() *node.DictLit {
 	if p.Trace {
-		defer untracep(tracep(p, "MapLit"))
+		defer untracep(tracep(p, "DictLit"))
 	}
 
 	lbrace := p.Expect(token.LBrace)
 	p.ExprLevel++
 
-	var elements []*node.MapElementLit
+	var elements []*node.DictElementLit
 	for p.Token.Token != token.RBrace && p.Token.Token != token.EOF {
 		elements = append(elements, p.ParseMapElementLit())
 
@@ -2143,7 +2143,7 @@ func (p *Parser) ParseMapLit() *node.MapLit {
 
 	p.ExprLevel--
 	rbrace := p.Expect(token.RBrace)
-	return &node.MapLit{
+	return &node.DictLit{
 		LBrace:   lbrace,
 		RBrace:   rbrace,
 		Elements: elements,

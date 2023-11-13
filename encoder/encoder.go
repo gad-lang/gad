@@ -36,7 +36,7 @@ type (
 	String           gad.String
 	Bytes            gad.Bytes
 	Array            gad.Array
-	Map              gad.Map
+	Map              gad.Dict
 	SyncMap          gad.SyncMap
 	Int              gad.Int
 	Uint             gad.Uint
@@ -86,7 +86,7 @@ func init() {
 	gob.Register(gad.String(""))
 	gob.Register(gad.Bytes(nil))
 	gob.Register(gad.Array(nil))
-	gob.Register(gad.Map(nil))
+	gob.Register(gad.Dict(nil))
 	gob.Register((*gad.Error)(nil))
 	gob.Register((*gad.RuntimeError)(nil))
 	gob.Register((*gad.SyncMap)(nil))
@@ -432,7 +432,7 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 			if err := v.UnmarshalBinary(buf); err != nil {
 				return nil, err
 			}
-			return gad.Map(v), nil
+			return gad.Dict(v), nil
 		case binSyncMapV1:
 			var v SyncMap
 			if err := v.UnmarshalBinary(buf); err != nil {
@@ -500,7 +500,7 @@ func marshaler(o gad.Object) encoding.BinaryMarshaler {
 		return Bytes(v)
 	case gad.Array:
 		return Array(v)
-	case gad.Map:
+	case gad.Dict:
 		return Map(v)
 	case *gad.SyncMap:
 		return (*SyncMap)(v)

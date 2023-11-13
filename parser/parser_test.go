@@ -1324,7 +1324,7 @@ func TestParseCallWithNamedArgs(t *testing.T) {
 				callExpr(
 					ident("add", p(1, 1)),
 					p(1, 4), p(1, 15),
-					callExprNamedArgs(ellipsis(Pos(12), mapLit(10, 11)),
+					callExprNamedArgs(ellipsis(Pos(12), dictLit(10, 11)),
 						[]NamedArgExpr{{Ident: ident("x", p(1, 6))}},
 						[]Expr{intLit(2, p(1, 8))},
 					))))
@@ -1480,7 +1480,7 @@ func TestParseForIn(t *testing.T) {
 			forInStmt(
 				ident("x", p(1, 5)),
 				ident("y", p(1, 8)),
-				mapLit(
+				dictLit(
 					p(1, 13), p(1, 26),
 					mapElementLit(
 						"k1", p(1, 14), p(1, 16), intLit(1, p(1, 18))),
@@ -2235,7 +2235,7 @@ func TestParseIndex(t *testing.T) {
 		return stmts(
 			exprStmt(
 				indexExpr(
-					mapLit(p(1, 1), p(1, 12),
+					dictLit(p(1, 1), p(1, 12),
 						mapElementLit(
 							"a", p(1, 2), p(1, 3), intLit(1, p(1, 5))),
 						mapElementLit(
@@ -2248,7 +2248,7 @@ func TestParseIndex(t *testing.T) {
 		return stmts(
 			exprStmt(
 				indexExpr(
-					mapLit(p(1, 1), p(1, 12),
+					dictLit(p(1, 1), p(1, 12),
 						mapElementLit(
 							"a", p(1, 2), p(1, 3), intLit(1, p(1, 5))),
 						mapElementLit(
@@ -2312,7 +2312,7 @@ func TestParseMap(t *testing.T) {
 	expectParse(t, "{ key1: 1, key2: \"2\", key3: true }", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				mapLit(p(1, 1), p(1, 34),
+				dictLit(p(1, 1), p(1, 34),
 					mapElementLit(
 						"key1", p(1, 3), p(1, 7), intLit(1, p(1, 9))),
 					mapElementLit(
@@ -2324,7 +2324,7 @@ func TestParseMap(t *testing.T) {
 	expectParse(t, "{ \"key1\": 1 }", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				mapLit(p(1, 1), p(1, 13),
+				dictLit(p(1, 1), p(1, 13),
 					mapElementLit(
 						"key1", p(1, 3), p(1, 9), intLit(1, p(1, 11))))))
 	})
@@ -2333,7 +2333,7 @@ func TestParseMap(t *testing.T) {
 		func(p pfn) []Stmt {
 			return stmts(assignStmt(
 				exprs(ident("a", p(1, 1))),
-				exprs(mapLit(p(1, 5), p(1, 38),
+				exprs(dictLit(p(1, 5), p(1, 38),
 					mapElementLit(
 						"key1", p(1, 7), p(1, 11), intLit(1, p(1, 13))),
 					mapElementLit(
@@ -2348,14 +2348,14 @@ func TestParseMap(t *testing.T) {
 		func(p pfn) []Stmt {
 			return stmts(assignStmt(
 				exprs(ident("a", p(1, 1))),
-				exprs(mapLit(p(1, 5), p(1, 54),
+				exprs(dictLit(p(1, 5), p(1, 54),
 					mapElementLit(
 						"key1", p(1, 7), p(1, 11), intLit(1, p(1, 13))),
 					mapElementLit(
 						"key2", p(1, 16), p(1, 20), stringLit("2", p(1, 22))),
 					mapElementLit(
 						"key3", p(1, 27), p(1, 31),
-						mapLit(p(1, 33), p(1, 52),
+						dictLit(p(1, 33), p(1, 52),
 							mapElementLit(
 								"k1", p(1, 35),
 								p(1, 37), stringLit("bar", p(1, 39))),
@@ -2373,7 +2373,7 @@ func TestParseMap(t *testing.T) {
 	key3: true,
 }`, func(p pfn) []Stmt {
 		return stmts(exprStmt(
-			mapLit(p(2, 1), p(6, 1),
+			dictLit(p(2, 1), p(6, 1),
 				mapElementLit(
 					"key1", p(3, 2), p(3, 6), intLit(1, p(3, 8))),
 				mapElementLit(
@@ -2513,7 +2513,7 @@ func TestParseSelector(t *testing.T) {
 		return stmts(
 			exprStmt(
 				selectorExpr(
-					mapLit(
+					dictLit(
 						p(1, 1), p(1, 6),
 						mapElementLit(
 							"k1", p(1, 2), p(1, 4), intLit(1, p(1, 5)))),
@@ -2525,10 +2525,10 @@ func TestParseSelector(t *testing.T) {
 			exprStmt(
 				selectorExpr(
 					selectorExpr(
-						mapLit(
+						dictLit(
 							p(1, 1), p(1, 11),
 							mapElementLit("k1", p(1, 2), p(1, 4),
-								mapLit(p(1, 5), p(1, 10),
+								dictLit(p(1, 5), p(1, 10),
 									mapElementLit(
 										"v1", p(1, 6),
 										p(1, 8), intLit(1, p(1, 9)))))),
@@ -3248,17 +3248,17 @@ func mapElementLit(
 	keyPos Pos,
 	colonPos Pos,
 	value Expr,
-) *MapElementLit {
-	return &MapElementLit{
+) *DictElementLit {
+	return &DictElementLit{
 		Key: key, KeyPos: keyPos, ColonPos: colonPos, Value: value,
 	}
 }
 
-func mapLit(
+func dictLit(
 	lbrace, rbrace Pos,
-	list ...*MapElementLit,
-) *MapLit {
-	return &MapLit{LBrace: lbrace, RBrace: rbrace, Elements: list}
+	list ...*DictElementLit,
+) *DictLit {
+	return &DictLit{LBrace: lbrace, RBrace: rbrace, Elements: list}
 }
 
 func funcLit(funcType *FuncType, body *BlockStmt) *FuncLit {
@@ -3548,13 +3548,13 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 			actual.(*ArrayLit).RBrack)
 		equalExprs(t, expected.Elements,
 			actual.(*ArrayLit).Elements)
-	case *MapLit:
+	case *DictLit:
 		require.Equal(t, expected.LBrace,
-			actual.(*MapLit).LBrace)
+			actual.(*DictLit).LBrace)
 		require.Equal(t, expected.RBrace,
-			actual.(*MapLit).RBrace)
+			actual.(*DictLit).RBrace)
 		equalMapElements(t, expected.Elements,
-			actual.(*MapLit).Elements)
+			actual.(*DictLit).Elements)
 	case *NilLit:
 		require.Equal(t, expected.TokenPos,
 			actual.(*NilLit).TokenPos)
@@ -3762,7 +3762,7 @@ func equalStmts(t *testing.T, expected, actual []Stmt) {
 
 func equalMapElements(
 	t *testing.T,
-	expected, actual []*MapElementLit,
+	expected, actual []*DictElementLit,
 ) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {

@@ -80,9 +80,9 @@ func ToObject(v any) (ret Object, err error) {
 		}
 	case map[string]Object:
 		if v != nil {
-			ret = Map(v)
+			ret = Dict(v)
 		} else {
-			ret = Map{}
+			ret = Dict{}
 		}
 	case []Object:
 		if v != nil {
@@ -129,7 +129,7 @@ func ToInterface(o Object) (ret any) {
 			arr[i] = ToInterface(val)
 		}
 		ret = arr
-	case Map:
+	case Dict:
 		m := make(map[string]any, len(o))
 		for key, v := range o {
 			m[key] = ToInterface(v)
@@ -253,8 +253,8 @@ func ToArray(o Object) (v Array, ok bool) {
 }
 
 // ToMap will try to convert an Object to Gad map value.
-func ToMap(o Object) (v Map, ok bool) {
-	v, ok = o.(Map)
+func ToMap(o Object) (v Dict, ok bool) {
+	v, ok = o.(Dict)
 	return
 }
 

@@ -242,8 +242,8 @@ func (o KeyValueArray) Array() (ret Array) {
 	return
 }
 
-func (o KeyValueArray) Map() (ret Map) {
-	ret = make(Map, len(o))
+func (o KeyValueArray) Map() (ret Dict) {
+	ret = make(Dict, len(o))
 	for _, v := range o {
 		ret[v.Key().ToString()] = v.Value()
 	}
@@ -380,7 +380,7 @@ func (o KeyValueArray) AppendArray(arr ...Array) (KeyValueArray, error) {
 	return o2, nil
 }
 
-func (o KeyValueArray) AppendMap(m Map) KeyValueArray {
+func (o KeyValueArray) AppendMap(m Dict) KeyValueArray {
 	var (
 		i   = len(o)
 		arr = make(KeyValueArray, i+len(m))
@@ -414,7 +414,7 @@ func (o KeyValueArray) AppendObject(obj Object) (KeyValueArray, error) {
 	switch v := obj.(type) {
 	case KeyValue:
 		return append(o, v), nil
-	case Map:
+	case Dict:
 		return o.AppendMap(v), nil
 	case KeyValueArray:
 		return o.Append(v...), nil
@@ -835,8 +835,8 @@ func (it *NamedArgArraysIterator) Value() (Object, error) {
 
 type NamedArgs struct {
 	sources KeyValueArrays
-	m       Map
-	ready   Map
+	m       Dict
+	ready   Dict
 }
 
 func NewNamedArgs(pairs ...KeyValueArray) *NamedArgs {
@@ -990,8 +990,8 @@ func (o *NamedArgs) IndexGet(_ *VM, index Object) (value Object, err error) {
 		switch t {
 		case "src":
 			return o.sources, nil
-		case "map":
-			return o.Map(), nil
+		case "dict":
+			return o.Dict(), nil
 		case "unread":
 			return o.UnReady(), nil
 		case "ready":
@@ -1015,8 +1015,8 @@ func (o *NamedArgs) IndexGet(_ *VM, index Object) (value Object, err error) {
 
 func (o *NamedArgs) check() {
 	if o.m == nil {
-		o.m = Map{}
-		o.ready = Map{}
+		o.m = Dict{}
+		o.ready = Dict{}
 
 		for i := len(o.sources) - 1; i >= 0; i-- {
 			for _, v := range o.sources[i] {
@@ -1064,7 +1064,7 @@ func (o *NamedArgs) GetValueOrNil(key string) (val Object) {
 // - UnexpectedNamedArg if have unexpected arg.
 func (o *NamedArgs) Get(dst ...*NamedArgVar) (err error) {
 	o.check()
-	args := o.m.Copy().(Map)
+	args := o.m.Copy().(Dict)
 	for k := range o.ready {
 		delete(args, k)
 	}
@@ -1117,7 +1117,7 @@ read:
 
 // GetVar destructure and return others.
 // Returns ArgumentTypeError if type check of arg is fail.
-func (o *NamedArgs) GetVar(dst ...*NamedArgVar) (args Map, err error) {
+func (o *NamedArgs) GetVar(dst ...*NamedArgVar) (args Dict, err error) {
 	o.check()
 	args = o.m
 dst:
@@ -1161,13 +1161,13 @@ func (o *NamedArgs) Empty() bool {
 	return o.IsFalsy()
 }
 
-// Map return unread keys as Map
-func (o *NamedArgs) Map() (ret Map) {
+// Dict return unread keys as Dict
+func (o *NamedArgs) Dict() (ret Dict) {
 	o.check()
-	return o.m.Copy().(Map)
+	return o.m.Copy().(Dict)
 }
 
-func (o *NamedArgs) AllMap() (ret Map) {
+func (o *NamedArgs) AllDict() (ret Dict) {
 	o.check()
 	return o.m
 }
@@ -1233,14 +1233,14 @@ func (o *NamedArgs) Copy() Object {
 		cp.sources[i] = s.Copy().(KeyValueArray)
 	}
 	if o.m != nil {
-		cp.m = o.m.Copy().(Map)
+		cp.m = o.m.Copy().(Dict)
 	}
 	return &cp
 }
 
 func (o NamedArgs) DeepCopy() Object {
 	if o.m != nil {
-		o.m = o.m.DeepCopy().(Map)
+		o.m = o.m.DeepCopy().(Dict)
 	}
 	o.sources = o.sources.DeepCopy().(KeyValueArrays)
 	return &o
