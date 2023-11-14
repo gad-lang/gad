@@ -987,6 +987,11 @@ keyValueArray(keyValue("d",4))))`,
 	expectRun(t, `b := buffer("a"); write(b, "b", 1); b.reset(); write(b, true); return string(b)`,
 		nil, String("true"))
 	expectRun(t, `return string(bytes(buffer("a")))`, nil, String("a"))
+	expectRun(t, `return map([1,2], func(v) => v+1)`, nil, Array{Int(2), Int(3)})
+	expectRun(t, `return map([1,2], func(v, k) => v+k)`, nil, Array{Int(1), Int(3)})
+	expectRun(t, `return reduce([1,2], func(cur, v, k) => cur + v)`, nil, Int(4))
+	expectRun(t, `return reduce([1,2], func(cur, v, k) => cur + v, 10)`, nil, Int(13))
+	expectRun(t, `cur := 10; foreach([1,2], func(v, k) { cur += v });return cur`, nil, Int(13))
 
 	convs := []struct {
 		f      string

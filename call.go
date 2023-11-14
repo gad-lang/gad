@@ -362,14 +362,14 @@ args:
 		d.Value = o.Shift()
 
 		if d.Accept != nil {
-			if err = d.Accept(d.Value); err != nil {
+			if tname := d.Accept(d.Value); tname != "" {
 				pos := strconv.Itoa(i) + "st"
 				if d.Name != "" {
 					pos += " (" + d.Name + ")"
 				}
 				return NewArgumentTypeError(
 					pos,
-					err.Error(),
+					tname,
 					d.Value.Type().Name(),
 				)
 			}

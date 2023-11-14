@@ -17,7 +17,7 @@ type Arg struct {
 	Name        string
 	Value       Object
 	AcceptTypes []ObjectType
-	Accept      func(v Object) error
+	Accept      func(v Object) string
 }
 
 // NamedArgVar is a struct to destructure named arguments from Call object.

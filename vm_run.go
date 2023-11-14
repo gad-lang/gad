@@ -25,7 +25,7 @@ func (vm *VM) RunOpts(opts *RunOpts) (Object, error) {
 	vm.mu.Lock()
 	defer vm.mu.Unlock()
 
-	return vm.init(opts)
+	return vm.initAndRun(opts)
 }
 
 // RunCompiledFunction runs given CompiledFunction as if it is Main function.
@@ -37,7 +37,7 @@ func (vm *VM) RunCompiledFunction(
 	return vm.RunCompiledFunctionOpts(f, &RunOpts{Args: Args{args}})
 }
 
-func (vm *VM) run() (rerun bool) {
+func (vm *VM) safeRun() (rerun bool) {
 	defer func() {
 		if vm.noPanic {
 			if r := recover(); r != nil {
@@ -50,6 +50,23 @@ func (vm *VM) run() (rerun bool) {
 	}()
 	vm.loop()
 	return
+}
+
+func (vm *VM) run() (Object, error) {
+	for run := true; run; {
+		run = vm.safeRun()
+	}
+	if vm.err != nil {
+		return nil, vm.err
+	}
+
+	if vm.sp < stackSize {
+		if vv, ok := vm.stack[vm.sp-1].(*ObjectPtr); ok {
+			return *vv.Value, nil
+		}
+		return vm.stack[vm.sp-1], nil
+	}
+	return nil, ErrStackOverflow
 }
 
 // RunCompiledFunctionOpts runs given CompiledFunction as if it is Main function.
@@ -75,5 +92,5 @@ func (vm *VM) RunCompiledFunctionOpts(
 	for i := range vm.stack {
 		vm.stack[i] = nil
 	}
-	return vm.init(opts)
+	return vm.initAndRun(opts)
 }

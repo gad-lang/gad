@@ -59,6 +59,9 @@ const (
 	BuiltinLen
 	BuiltinSort
 	BuiltinSortReverse
+	BuiltinMap
+	BuiltinReduce
+	BuiltinForEach
 	BuiltinTypeName
 	BuiltinChars
 	BuiltinWrite
@@ -128,6 +131,9 @@ var BuiltinsMap = map[string]BuiltinType{
 	"len":         BuiltinLen,
 	"sort":        BuiltinSort,
 	"sortReverse": BuiltinSortReverse,
+	"map":         BuiltinMap,
+	"reduce":      BuiltinReduce,
+	"foreach":     BuiltinForEach,
 	"typeName":    BuiltinTypeName,
 	"chars":       BuiltinChars,
 	"write":       BuiltinWrite,
@@ -381,6 +387,21 @@ var BuiltinObjects = map[BuiltinType]Object{
 	BuiltinDiscardWriter: DiscardWriter,
 }
 
+func init() {
+	BuiltinObjects[BuiltinMap] = &BuiltinFunction{
+		Name:  "map",
+		Value: builtinMapFunc,
+	}
+	BuiltinObjects[BuiltinReduce] = &BuiltinFunction{
+		Name:  "reduce",
+		Value: builtinReduceFunc,
+	}
+	BuiltinObjects[BuiltinForEach] = &BuiltinFunction{
+		Name:  "foreach",
+		Value: builtinForEachFunc,
+	}
+}
+
 var Types = map[reflect.Type]ObjectType{}
 
 func RegisterBuiltinType(typ BuiltinType, name string, val any, init CallableFunc) *BuiltinObjType {
@@ -499,11 +520,11 @@ func builtinDeleteFunc(c Call) (_ Object, err error) {
 	var (
 		target = &Arg{
 			Name: "target",
-			Accept: func(v Object) error {
+			Accept: func(v Object) string {
 				if _, ok := v.(IndexDeleter); !ok {
-					return ErrNotIndexDeletable
+					return ErrNotIndexDeletable.Name
 				}
-				return nil
+				return ""
 			},
 		}
 		key = &Arg{}
@@ -679,6 +700,216 @@ func builtinSortReverseFunc(arg Object) (Object, error) {
 		"array|string|bytes",
 		arg.Type().Name(),
 	)
+}
+
+func builtinMapFunc(c Call) (_ Object, err error) {
+	var (
+		iterabler = &Arg{
+			Name: "iterable",
+			Accept: func(v Object) string {
+				if !Iterable(v) {
+					return "iterable"
+				}
+				return ""
+			},
+		}
+
+		callback = &Arg{
+			Name: "callback",
+			Accept: func(v Object) string {
+				if !Callable(v) {
+					return "callable"
+				}
+				return ""
+			},
+		}
+	)
+
+	if err = c.Args.Destructure(iterabler, callback); err != nil {
+		return
+	}
+
+	var (
+		args   = Array{Nil, Nil}
+		caller VMCaller
+	)
+
+	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
+		return
+	}
+
+	var (
+		it  = iterabler.Value.(Iterabler).Iterate(c.VM)
+		fe  = NewForEach(it, args, 0, caller)
+		ret Array
+	)
+
+	if itl, _ := it.(LengthIterator); itl != nil {
+		ret = make(Array, itl.Length())
+		var i int
+		for fe.Next() {
+			if ret[i], err = fe.Call(); err != nil {
+				return
+			}
+			i++
+		}
+	} else {
+		var val Object
+		for fe.Next() {
+			if val, err = fe.Call(); err != nil {
+				return
+			}
+			ret = append(ret, val)
+		}
+	}
+
+	return ret, nil
+}
+
+func builtinReduceFunc(c Call) (_ Object, err error) {
+	var (
+		iterabler = &Arg{
+			Name: "iterable",
+			Accept: func(v Object) string {
+				if !Iterable(v) {
+					return "iterable"
+				}
+				return ""
+			},
+		}
+
+		callback = &Arg{
+			Name: "callback",
+			Accept: func(v Object) string {
+				if !Callable(v) {
+					return "callable"
+				}
+				return ""
+			},
+		}
+
+		val Object
+	)
+
+	if c.Args.Len() == 3 {
+		initialArg := &Arg{}
+		if err = c.Args.Destructure(iterabler, callback, initialArg); err != nil {
+			return
+		}
+		val = initialArg.Value
+	} else {
+		if err = c.Args.Destructure(iterabler, callback); err != nil {
+			return
+		}
+	}
+
+	var (
+		args   = Array{Nil, Nil, Nil}
+		caller VMCaller
+	)
+
+	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
+		return
+	}
+
+	var (
+		it = iterabler.Value.(Iterabler).Iterate(c.VM)
+		fe = NewForEach(it, args, 1, caller)
+	)
+
+	if itl, _ := it.(LengthIterator); itl != nil {
+		if val == nil {
+			if fe.Next() {
+				args[0] = fe.v
+				if val, err = fe.Call(); err != nil {
+					return
+				}
+			}
+		}
+
+		args[0] = val
+
+		for fe.Next() {
+			if val, err = fe.Call(); err != nil {
+				return
+			}
+			args[0] = val
+		}
+	} else {
+		if val == nil {
+			if fe.Next() {
+				val = fe.v
+				args[0] = val
+				if val, err = fe.Call(); err != nil {
+					return
+				}
+			}
+		}
+
+		args[0] = val
+		for fe.Next() {
+			if val, err = fe.Call(); err != nil {
+				return
+			}
+			args[0] = val
+		}
+	}
+
+	return val, nil
+}
+
+func builtinForEachFunc(c Call) (_ Object, err error) {
+	var (
+		iterabler = &Arg{
+			Name: "iterable",
+			Accept: func(v Object) string {
+				if !Iterable(v) {
+					return "iterable"
+				}
+				return ""
+			},
+		}
+
+		callback = &Arg{
+			Name: "callback",
+			Accept: func(v Object) string {
+				if !Callable(v) {
+					return "callable"
+				}
+				return ""
+			},
+		}
+	)
+
+	if err = c.Args.Destructure(iterabler, callback); err != nil {
+		return
+	}
+
+	var (
+		args   = Array{Nil, Nil}
+		caller VMCaller
+	)
+
+	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
+		return
+	}
+
+	var (
+		it = iterabler.Value.(Iterabler).Iterate(c.VM)
+		fe = NewForEach(it, args, 0, caller)
+	)
+
+	var val Object
+	for fe.Next() {
+		if val, err = fe.Call(); err != nil {
+			return
+		}
+		if val != Nil && val.IsFalsy() {
+			break
+		}
+	}
+
+	return iterabler.Value, nil
 }
 
 func builtinErrorFunc(arg Object) Object {
@@ -1581,25 +1812,17 @@ func builtinCastFunc(c Call) (ret Object, err error) {
 	}
 
 	var (
-		typ = &Arg{Accept: func(v Object) (err error) {
+		typ = &Arg{Accept: func(v Object) string {
 			if ot, _ := v.(ObjectType); ot == nil {
-				err = NewArgumentTypeError(
-					"1st",
-					"objectType",
-					v.Type().Name(),
-				)
+				return "objectType"
 			}
-			return
+			return ""
 		}}
-		obj = &Arg{Accept: func(v Object) (err error) {
+		obj = &Arg{Accept: func(v Object) string {
 			if ot, _ := v.(Objector); ot == nil {
-				err = NewArgumentTypeError(
-					"2st",
-					"objector",
-					v.Type().Name(),
-				)
+				return "objector"
 			}
-			return
+			return ""
 		}}
 	)
 	if err = c.Args.Destructure(typ, obj); err != nil {
