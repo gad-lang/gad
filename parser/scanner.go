@@ -610,7 +610,7 @@ do:
 			t.Token = s.Switch4(token.Greater, token.GreaterEq, '>',
 				token.Shr, token.ShrAssign)
 		case '=':
-			t.Token = s.Switch2(token.Assign, token.Equal)
+			t.Token = s.Switch3(token.Assign, token.Equal, '>', token.Lambda)
 		case '!':
 			t.Token = s.Switch2(token.Not, token.NotEqual)
 		case '&':

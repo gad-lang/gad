@@ -397,21 +397,21 @@ func TestEncDecObjects(t *testing.T) {
 
 func TestEncDecBytecode(t *testing.T) {
 	testEncDecBytecode(t, `
-	param (arg0, arg1, ...varg; na0=100, na1=200, ...na)
+	param (arg0, arg1, *varg; na0=100, na1=200, **na)
 	return [arg0, arg1, varg, na0, na1, na.dict]`, &testopts{
 		args:      Array{gad.Int(1), gad.Int(2), gad.Int(3)},
 		namedArgs: gad.Dict{"na0": gad.Int(4), "na2": gad.Int(5)},
 	}, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(4), gad.Int(200), gad.Dict{"na2": gad.Int(5)}})
 
 	testEncDecBytecode(t, `
-	param (arg0, arg1, ...varg; na0=100, na1=200, ...na)
+	param (arg0, arg1, *varg; na0=100, na1=200, **na)
 	return [arg0, arg1, varg, na0, na1, na.dict]`, &testopts{
 		args:      Array{gad.Int(1), gad.Int(2), gad.Int(3)},
 		namedArgs: gad.Dict{"na2": gad.Int(5)},
 	}, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(100), gad.Int(200), gad.Dict{"na2": gad.Int(5)}})
 
 	testEncDecBytecode(t, `
-	f := func(arg0, arg1, ...varg; na0=100, ...na) {
+	f := func(arg0, arg1, *varg; na0=100, **na) {
 		return [arg0, arg1, varg, na0, na.dict]
 	}
 	return f(1,2,3,na0=4,na1=5)`, nil, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(4), gad.Dict{"na1": gad.Int(5)}})
@@ -424,7 +424,7 @@ func TestEncDecBytecode(t *testing.T) {
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}`, nil, gad.Nil)
 
 	testEncDecBytecode(t, `
-	f := func(arg0, arg1, ...varg; na0=3, ...na) {
+	f := func(arg0, arg1, *varg; na0=3, **na) {
 		return [arg0, arg1, varg, na0, na.dict, nil, true, false, "", -1, 0, 1, 2u, 3.0, 123.456d, 'a', bytes(0, 1, 2)]
 	}
 	f(1,2,na0=4,na1=5)

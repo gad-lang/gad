@@ -246,9 +246,9 @@ func TestVMNoPanic(t *testing.T) {
 
 func TestVMCatchAll(t *testing.T) {
 	catchAll := `
-	return func(callable, ...args) {
+	return func(callable, *args) {
 		try {
-			return callable(...args)
+			return callable(*args)
 		} catch err {
 			return err
 		}
@@ -286,10 +286,10 @@ func TestVMCatchAll(t *testing.T) {
 	)
 
 	catchAll2 := `
-	return func(callable, onError, ...args) {
+	return func(callable, onError, *args) {
 		var ret
 		try {
-			return callable(...args)
+			return callable(*args)
 		} catch err {
 			try {
 				ret = onError(err)
@@ -643,7 +643,7 @@ func TestVMExamples(t *testing.T) {
 	ex1Module := `
 	var numOfErrors = 0
 
-	sum := func(check, ...args) {
+	sum := func(check, *args) {
 		total := 0
 		try {
 			i := 0
@@ -673,9 +673,9 @@ func TestVMExamples(t *testing.T) {
 	// This example is to show some features of Gad.
 
 	// provide arguments as if main module body is a function.
-	param (a0, a1, ...args)
+	param (a0, a1, *args)
 	
-	intSum := func(callback, ...args) {
+	intSum := func(callback, *args) {
 		/* functions can accept variable number of arguments. */
 		var check = {
 			Value: func(v) {
@@ -684,7 +684,7 @@ func TestVMExamples(t *testing.T) {
 				}
 			},
 		}
-		return callback(check, ...args)
+		return callback(check, *args)
 	}
 	
 	// use global to export an Object to script
@@ -695,7 +695,7 @@ func TestVMExamples(t *testing.T) {
 	
 	try {
 		try {
-			total := intSum(module.Sum, a0, a1, ...(args || []))
+			total := intSum(module.Sum, a0, a1, *(args || []))
 		} catch err {
 			if isError(err, TypeError) {
 				// handle specific error type.
@@ -761,7 +761,7 @@ func TestVMExamples(t *testing.T) {
 		printWriter.String())
 
 	expectRun(t, `
-	param ...args
+	param *args
 
 	mapEach := func(seq, fn) {
 		if !isArray(seq) {

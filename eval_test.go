@@ -111,7 +111,7 @@ func TestEval(t *testing.T) {
 			name:      "namedParams3",
 			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("b"), Int(3)}, KeyValue{String("c"), Int(4)}}),
 			sr: []scriptResult{
-				{`param (a=1,b=2,...other)`, Nil},
+				{`param (a=1,b=2,**other)`, Nil},
 				{`a`, Int(1)},
 				{`b`, Int(3)},
 				{`string(other)`, String("(;c=4)")},
@@ -129,7 +129,7 @@ func TestEval(t *testing.T) {
 			name:      "paramsAndNamedParams1",
 			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("c"), Int(4)}}),
 			sr: []scriptResult{
-				{`param (a;b=1,...other)`, Nil},
+				{`param (a;b=1,**other)`, Nil},
 				{`a`, Nil},
 				{`b`, Int(1)},
 				{`string(other)`, String("(;c=4)")},
@@ -139,7 +139,7 @@ func TestEval(t *testing.T) {
 			name:      "paramsAndNamedParams2",
 			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("c"), Int(4)}, KeyValue{String("d"), Int(5)}}),
 			sr: []scriptResult{
-				{`param (a;b=1,c=2,...other)`, Nil},
+				{`param (a;b=1,c=2,**other)`, Nil},
 				{`a`, Nil},
 				{`b`, Int(1)},
 				{`c`, Int(4)},
@@ -150,7 +150,7 @@ func TestEval(t *testing.T) {
 			name: "paramsAndNamedParams3",
 			args: []Object{Int(1), Int(2)},
 			sr: []scriptResult{
-				{`param (a, b, c;d=100,e=10,...other)`, Nil},
+				{`param (a, b, c;d=100,e=10,**other)`, Nil},
 				{`a`, Int(1)},
 				{`b`, Int(2)},
 				{`c`, Nil},
@@ -164,7 +164,7 @@ func TestEval(t *testing.T) {
 			args:      []Object{Int(1), Int(2)},
 			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("e"), Int(6)}, KeyValue{String("f"), Int(7)}}),
 			sr: []scriptResult{
-				{`param (a, b, c;d=100,e=10,...other)`, Nil},
+				{`param (a, b, c;d=100,e=10,**other)`, Nil},
 				{`a`, Int(1)},
 				{`b`, Int(2)},
 				{`c`, Nil},
@@ -178,7 +178,7 @@ func TestEval(t *testing.T) {
 			args:      []Object{Int(1), Int(2), Int(3)},
 			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("e"), Int(6)}, KeyValue{String("f"), Int(7)}}),
 			sr: []scriptResult{
-				{`param (a, ...otherArgs;...other)`, Nil},
+				{`param (a, *otherArgs;**other)`, Nil},
 				{`string(otherArgs)`, String("[2, 3]")},
 			},
 		},
@@ -187,7 +187,7 @@ func TestEval(t *testing.T) {
 			args:      []Object{Int(1), Int(2), Int(3)},
 			namedArgs: NewNamedArgs(KeyValueArray{KeyValue{String("e"), Int(6)}, KeyValue{String("f"), Int(7)}}),
 			sr: []scriptResult{
-				{`param (a, ...otherArgs;d=100,e=10,...other)`, Nil},
+				{`param (a, *otherArgs;d=100,e=10,**other)`, Nil},
 				{`a`, Int(1)},
 				{`string(otherArgs)`, String("[2, 3]")},
 				{`d`, Int(100)},

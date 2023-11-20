@@ -151,17 +151,17 @@ func (c *CallArgs) String() string {
 }
 
 func (c *CallArgs) StringW(w io.Writer) {
-	c.StringArg(w, "(", ")", true)
+	c.StringArg(w, "(", ")")
 }
 
-func (c *CallArgs) StringArg(w io.Writer, lbrace, rbrace string, nasep bool) {
+func (c *CallArgs) StringArg(w io.Writer, lbrace, rbrace string) {
 	io.WriteString(w, lbrace)
 	if c.Args.Valid() {
 		io.WriteString(w, c.Args.String())
 	}
 	if c.NamedArgs.Valid() {
-		if nasep {
-			io.WriteString(w, "; ")
+		if c.Args.Valid() {
+			io.WriteString(w, ", ")
 		}
 		io.WriteString(w, c.NamedArgs.String())
 	}
@@ -328,7 +328,7 @@ func (e *ClosureLit) End() source.Pos {
 }
 
 func (e *ClosureLit) String() string {
-	return "func" + e.Type.Params.String() + " => " + e.Body.String()
+	return e.Type.Params.String() + " => " + e.Body.String()
 }
 
 // ArgsList represents a list of identifiers.
@@ -371,7 +371,7 @@ func (n *ArgsList) String() string {
 		list = append(list, e.String())
 	}
 	if n.Var != nil {
-		list = append(list, "..."+n.Var.String())
+		list = append(list, "*"+n.Var.String())
 	}
 	return strings.Join(list, ", ")
 }
@@ -427,7 +427,7 @@ func (n *NamedArgsList) String() string {
 		list = append(list, e.String()+"="+n.Values[i].String())
 	}
 	if n.Var != nil {
-		list = append(list, "..."+n.Var.String())
+		list = append(list, "**"+n.Var.String())
 	}
 	return strings.Join(list, ", ")
 }
@@ -472,7 +472,7 @@ func (n *FuncParams) String() string {
 	buf := bytes.NewBufferString("(")
 	buf.WriteString(n.Args.String())
 	if buf.Len() > 1 && n.NamedArgs.Pos() != source.NoPos {
-		buf.WriteString("; ")
+		buf.WriteString(", ")
 	}
 	buf.WriteString(n.NamedArgs.String())
 	buf.WriteString(")")
@@ -704,6 +704,33 @@ func (e *ParenExpr) String() string {
 	return "(" + e.Expr.String() + ")"
 }
 
+// MultiParenExpr represents a parenthesis wrapped expressions.
+type MultiParenExpr struct {
+	Exprs  []Expr
+	LParen source.Pos
+	RParen source.Pos
+}
+
+func (e *MultiParenExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *MultiParenExpr) Pos() source.Pos {
+	return e.LParen
+}
+
+// End returns the position of first character immediately after the node.
+func (e *MultiParenExpr) End() source.Pos {
+	return e.RParen + 1
+}
+
+func (e *MultiParenExpr) String() string {
+	var s = make([]string, len(e.Exprs))
+	for i, expr := range e.Exprs {
+		s[i] = expr.String()
+	}
+	return "(" + strings.Join(s, ", ") + ")"
+}
+
 type ExprSelector interface {
 	Expr
 	SelectorExpr() Expr
@@ -896,12 +923,12 @@ type EllipsisValue struct {
 
 // CallExprArgs represents a call expression arguments.
 type CallExprArgs struct {
-	Values   []Expr
-	Ellipsis *EllipsisValue
+	Values []Expr
+	Var    *ArgVarLit
 }
 
 func (a *CallExprArgs) Valid() bool {
-	return len(a.Values) > 0 || a.Ellipsis != nil
+	return len(a.Values) > 0 || a.Var != nil
 }
 
 func (a *CallExprArgs) String() string {
@@ -909,8 +936,8 @@ func (a *CallExprArgs) String() string {
 	for _, v := range a.Values {
 		s = append(s, v.String())
 	}
-	if a.Ellipsis != nil {
-		s = append(s, "..."+a.Ellipsis.Value.String())
+	if a.Var != nil {
+		s = append(s, a.Var.String())
 	}
 	return strings.Join(s, ", ")
 }
@@ -947,9 +974,9 @@ func (e *NamedArgExpr) Expr() Expr {
 
 // CallExprNamedArgs represents a call expression keyword arguments.
 type CallExprNamedArgs struct {
-	Names    []NamedArgExpr
-	Values   []Expr
-	Ellipsis *EllipsisValue
+	Names  []NamedArgExpr
+	Values []Expr
+	Var    *NamedArgVarLit
 }
 
 func (a *CallExprNamedArgs) Append(name NamedArgExpr, value Expr) {
@@ -974,7 +1001,7 @@ func (a *CallExprNamedArgs) Get(name NamedArgExpr) (index int, value Expr) {
 }
 
 func (a *CallExprNamedArgs) Valid() bool {
-	return len(a.Names) > 0 || a.Ellipsis != nil
+	return len(a.Names) > 0 || a.Var != nil
 }
 
 func (a *CallExprNamedArgs) NamesExpr() (r []Expr) {
@@ -988,13 +1015,13 @@ func (a *CallExprNamedArgs) String() string {
 	var s []string
 	for i, name := range a.Names {
 		if a.Values[i] == nil {
-			s = append(s, name.Expr().String())
+			s = append(s, name.Expr().String()+"=true")
 		} else {
 			s = append(s, name.Expr().String()+"="+a.Values[i].String())
 		}
 	}
-	if a.Ellipsis != nil {
-		s = append(s, "..."+a.Ellipsis.Value.String())
+	if a.Var != nil {
+		s = append(s, a.Var.String())
 	}
 	return strings.Join(s, ", ")
 }
@@ -1181,4 +1208,44 @@ func (e *StdErrLit) End() source.Pos {
 
 func (e *StdErrLit) String() string {
 	return "STDERR"
+}
+
+// ArgVarLit represents an variadic of argument.
+type ArgVarLit struct {
+	TokenPos source.Pos
+	Value    Expr
+}
+
+func (e *ArgVarLit) ExprNode() {}
+
+func (e *ArgVarLit) Pos() source.Pos {
+	return e.TokenPos
+}
+
+func (e *ArgVarLit) End() source.Pos {
+	return e.Value.End() + 6
+}
+
+func (e *ArgVarLit) String() string {
+	return "*" + e.Value.String()
+}
+
+// NamedArgVarLit represents an variadic of named argument.
+type NamedArgVarLit struct {
+	TokenPos source.Pos
+	Value    Expr
+}
+
+func (e *NamedArgVarLit) ExprNode() {}
+
+func (e *NamedArgVarLit) Pos() source.Pos {
+	return e.TokenPos
+}
+
+func (e *NamedArgVarLit) End() source.Pos {
+	return e.Value.End() + 6
+}
+
+func (e *NamedArgVarLit) String() string {
+	return "**" + e.Value.String()
 }

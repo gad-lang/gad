@@ -66,6 +66,7 @@ const (
 	Less            // <
 	Greater         // >
 	Assign          // =
+	Lambda          // =>
 	Not             // !
 	NotEqual        // !=
 	Null            // a == nil || nil == a
@@ -176,6 +177,7 @@ var tokens = [...]string{
 	Less:            "<",
 	Greater:         ">",
 	Assign:          "=",
+	Lambda:          "=>",
 	Not:             "!",
 	NotEqual:        "!=",
 	LessEq:          "<=",

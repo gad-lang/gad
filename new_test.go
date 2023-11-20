@@ -233,14 +233,14 @@ func TestVMDestructuring(t *testing.T) {
 	return [x, a, b]`, nil, Array{Int(3), Nil, Nil})
 	expectRun(t, `
 	var x = 10
-	a, b := func(...args) {
+	a, b := func(*args) {
 		x, y := args
 		return [x, y]
 	}(1, 2)
 	return [x, a, b]`, nil, Array{Int(10), Int(1), Int(2)})
 	expectRun(t, `
 	var x = 10
-	a, b := func(...args) {
+	a, b := func(*args) {
 		var y
 		x, y = args
 		return [x, y]
@@ -321,7 +321,7 @@ func TestVMDestructuring(t *testing.T) {
 	}(1, 2), 4`, nil, Array{Array{Int(2), Int(3)}, Int(4)})
 
 	expectRun(t, `
-	param ...args
+	param *args
 
 	mapEach := func(seq, fn) {
 	
@@ -949,7 +949,7 @@ func TestVM_Invoke(t *testing.T) {
 			t.Run("apply", func(t *testing.T) {
 				scr := `
 global apply
-sum := func(...args) {
+sum := func(*args) {
 	println("called f", args)
 	s := 0
 	for v in args {
@@ -969,7 +969,7 @@ return apply(sum, 1, 2, 3)
 			t.Run("apply indirect", func(t *testing.T) {
 				scr := `
 global apply
-sum := func(...args) {
+sum := func(*args) {
 	println("sum args", args)
 	s := 0
 	for v in args {
@@ -978,8 +978,8 @@ sum := func(...args) {
 	}
 	return s
 }
-f := func(fn, ...args) {
-	return fn(...args)
+f := func(fn, *args) {
+	return fn(*args)
 }
 return apply(f, sum, 1, 2, 3)
 `
@@ -992,7 +992,7 @@ return apply(f, sum, 1, 2, 3)
 			t.Run("apply indirect 2", func(t *testing.T) {
 				scr := `
 global apply
-sum := func(...args) {
+sum := func(*args) {
 	println("sum args", args)
 	s := 0
 	for v in args {
@@ -1001,8 +1001,8 @@ sum := func(...args) {
 	}
 	return s
 }
-f := func(fn, ...args) {
-	return apply(fn, ...args)
+f := func(fn, *args) {
+	return apply(fn, *args)
 }
 return apply(f, sum, 1, 2, 3)
 `

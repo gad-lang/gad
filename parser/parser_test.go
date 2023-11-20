@@ -32,7 +32,7 @@ func TestParserTrace(t *testing.T) {
 		require.NoError(t, err)
 	}
 	sample := `
-param (a, ...args)
+param (a, *args)
 global (x, y)
 var b
 var (v1 = 1, v2)
@@ -241,87 +241,89 @@ func TestParseDecl(t *testing.T) {
 			),
 		)
 	})
-	expectParse(t, `param ...a;`, func(p pfn) []Stmt {
+	expectParse(t, `param *a;`, func(p pfn) []Stmt {
 		return stmts(
 			declStmt(
 				genDecl(token.Param, p(1, 1), 0, 0,
-					paramSpec(true, ident("a", p(1, 10))),
+					paramSpec(true, ident("a", p(1, 8))),
 				),
 			),
 		)
 	})
-	expectParse(t, `param (a, ...b)`, func(p pfn) []Stmt {
+	expectParse(t, `param (a, *b)`, func(p pfn) []Stmt {
 		return stmts(
 			declStmt(
-				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 15),
+				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 13),
 					paramSpec(false, ident("a", p(1, 8))),
-					paramSpec(true, ident("b", p(1, 14))),
+					paramSpec(true, ident("b", p(1, 12))),
 				),
 			),
 		)
 	})
-	expectParse(t, `param (a
-...b)`, func(p pfn) []Stmt {
+	expectParse(t, `param (a,
+*b)`, func(p pfn) []Stmt {
 		return stmts(
 			declStmt(
-				genDecl(token.Param, p(1, 1), p(1, 7), p(2, 5),
+				genDecl(token.Param, p(1, 1), p(1, 7), p(2, 3),
 					paramSpec(false, ident("a", p(1, 8))),
-					paramSpec(true, ident("b", p(2, 4))),
+					paramSpec(true, ident("b", p(2, 2))),
 				),
 			),
 		)
 	})
 
-	expectParse(t, `param (a, ...b; c=1, d=2, ...e)`, func(p pfn) []Stmt {
+	expectParse(t, `param (a, *b; c=1, d=2, **e)`, func(p pfn) []Stmt {
 		return stmts(
 			declStmt(
-				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 31),
+				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 28),
 					paramSpec(false, ident("a", p(1, 8))),
-					paramSpec(true, ident("b", p(1, 14))),
-					nparamSpec(ident("c", p(1, 17)), intLit(1, p(1, 19))),
-					nparamSpec(ident("d", p(1, 22)), intLit(2, p(1, 24))),
-					nparamSpec(ident("e", p(1, 30)), nil),
+					paramSpec(true, ident("b", p(1, 12))),
+					nparamSpec(ident("c", p(1, 15)), intLit(1, p(1, 17))),
+					nparamSpec(ident("d", p(1, 20)), intLit(2, p(1, 22))),
+					nparamSpec(ident("e", p(1, 27)), nil),
 				),
 			),
 		)
 	})
-	expectParse(t, `param (c=1, d=2, ...e)`, func(p pfn) []Stmt {
+	expectParse(t, `param (c=1, d=2, **e)`, func(p pfn) []Stmt {
+		return stmts(
+			declStmt(
+				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 21),
+					nparamSpec(ident("c", p(1, 8)), intLit(1, p(1, 10))),
+					nparamSpec(ident("d", p(1, 13)), intLit(2, p(1, 15))),
+					nparamSpec(ident("e", p(1, 20)), nil),
+				),
+			),
+		)
+	})
+	expectParse(t, `param (;c=1, d=2, **e)`, func(p pfn) []Stmt {
 		return stmts(
 			declStmt(
 				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 22),
-					nparamSpec(ident("c", p(1, 8)), intLit(1, p(1, 10))),
-					nparamSpec(ident("d", p(1, 13)), intLit(2, p(1, 15))),
-					nparamSpec(ident("e", p(1, 21)), nil),
-				),
-			),
-		)
-	})
-	expectParse(t, `param (;c=1, d=2, ...e)`, func(p pfn) []Stmt {
-		return stmts(
-			declStmt(
-				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 23),
 					nparamSpec(ident("c", p(1, 9)), intLit(1, p(1, 11))),
 					nparamSpec(ident("d", p(1, 14)), intLit(2, p(1, 16))),
-					nparamSpec(ident("e", p(1, 22)), nil),
+					nparamSpec(ident("e", p(1, 21)), nil),
 				),
 			),
 		)
 	})
 
 	expectParseString(t, "param x", "param x")
-	expectParseString(t, "param (\nx\n)", "param (x)")
-	expectParseString(t, "param (\nx\ny)", "param (x, y)")
-	expectParseString(t, "param (\nx\ny\n)", "param (x, y)")
+	expectParseString(t, "param (\nx,\n)", "param (x)")
+	expectParseString(t, "param (\nx,\ny)", "param (x, y)")
+	expectParseString(t, "param (\nx,\ny,\n)", "param (x, y)")
 	expectParseString(t, "param (x,y)", "param (x, y)")
 	expectParseString(t, "param (x,\ny)", "param (x, y)")
-	expectParseString(t, "param (x\ny)", "param (x, y)")
-	expectParseString(t, "param ...x", "param ...x")
-	expectParseString(t, "param (x,...y)", "param (x, ...y)")
-	expectParseString(t, "param (x,\n...y)", "param (x, ...y)")
-	expectParseString(t, "param (c=1, d=2, ...e)", "param (c=1, d=2, ...e)")
-	expectParseString(t, "param (;c=1, d=2, ...e)", "param (c=1, d=2, ...e)")
-	expectParseString(t, "param (a, ...b;c=1, d=2, ...e)", "param (a, ...b; c=1, d=2, ...e)")
-	expectParseString(t, "param (a\n...b\n; c=2\nx=5)", "param (a, ...b; c=2, x=5)")
+	expectParseString(t, "param (x,\ny)", "param (x, y)")
+	expectParseString(t, "param *x", "param *x")
+	expectParseString(t, "param **x", "param **x")
+	expectParseString(t, "param b=2", "param b=2")
+	expectParseString(t, "param (x,*y)", "param (x, *y)")
+	expectParseString(t, "param (x,\n*y)", "param (x, *y)")
+	expectParseString(t, "param (c=1, d=2, **e)", "param (c=1, d=2, **e)")
+	expectParseString(t, "param (;c=1, d=2, **e)", "param (c=1, d=2, **e)")
+	expectParseString(t, "param (a, *b;c=1, d=2, **e)", "param (a, *b, c=1, d=2, **e)")
+	expectParseString(t, "param (a,\n*b\n; c=2,\nx=5)", "param (a, *b, c=2, x=5)")
 
 	expectParse(t, `global a`, func(p pfn) []Stmt {
 		return stmts(
@@ -1125,14 +1127,14 @@ func TestParseCall(t *testing.T) {
 						intLit(3, p(1, 11))))))
 	})
 
-	expectParse(t, "add(1, 2, ...v)", func(p pfn) []Stmt {
+	expectParse(t, "add(1, 2, *v)", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				callExpr(
 					ident("add", p(1, 1)),
-					p(1, 4), p(1, 15),
+					p(1, 4), p(1, 13),
 					callExprArgs(
-						ellipsis(p(1, 11), ident("v", p(1, 14))),
+						argVar(p(1, 11), ident("v", p(1, 12))),
 						intLit(1, p(1, 5)),
 						intLit(2, p(1, 8))))))
 	})
@@ -1284,27 +1286,18 @@ func TestParseCall(t *testing.T) {
 	expectParseError(t, `add(a...)`)
 	expectParseError(t, `add(,)`)
 	expectParseError(t, "add(\n,)")
-	expectParseError(t, "add(1\n,)")
-	expectParseError(t, "add(1,2\n,)")
 }
 
 func TestParseCallWithNamedArgs(t *testing.T) {
-	expectParse(t, "fn(;)", func(p pfn) []Stmt {
-		return stmts(
-			exprStmt(
-				callExpr(
-					ident("fn", p(1, 1)),
-					p(1, 3), p(1, 5))))
-	})
-	expectParse(t, "add(;x=2)", func(p pfn) []Stmt {
+	expectParse(t, "add(x=2)", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				callExpr(
 					ident("add", p(1, 1)),
-					p(1, 4), p(1, 9),
+					p(1, 4), p(1, 8),
 					callExprNamedArgs(nil,
-						[]NamedArgExpr{{Ident: ident("x", p(1, 6))}},
-						[]Expr{intLit(2, p(1, 8))},
+						[]NamedArgExpr{{Ident: ident("x", p(1, 5))}},
+						[]Expr{intLit(2, p(1, 7))},
 					))))
 	})
 	expectParse(t, "add(x=2,y=3)", func(p pfn) []Stmt {
@@ -1318,15 +1311,15 @@ func TestParseCallWithNamedArgs(t *testing.T) {
 						[]Expr{intLit(2, p(1, 7)), intLit(3, p(1, 11))},
 					))))
 	})
-	expectParse(t, "add(;x=2,{}...)", func(p pfn) []Stmt {
+	expectParse(t, "add(x=2,**{})", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				callExpr(
 					ident("add", p(1, 1)),
-					p(1, 4), p(1, 15),
-					callExprNamedArgs(ellipsis(Pos(12), dictLit(10, 11)),
-						[]NamedArgExpr{{Ident: ident("x", p(1, 6))}},
-						[]Expr{intLit(2, p(1, 8))},
+					p(1, 4), p(1, 13),
+					callExprNamedArgs(nargVar(Pos(9), dictLit(11, 12)),
+						[]NamedArgExpr{{Ident: ident("x", p(1, 5))}},
+						[]Expr{intLit(2, p(1, 7))},
 					))))
 	})
 	expectParse(t, "add(\"x\"=2,y=3)", func(p pfn) []Stmt {
@@ -1341,12 +1334,21 @@ func TestParseCallWithNamedArgs(t *testing.T) {
 					))))
 	})
 
-	expectParseString(t, "fn(...{y:5})", "fn(; ...{y: 5})")
-	expectParseString(t, "fn(;...{y:5})", "fn(; ...{y: 5})")
-	expectParseString(t, "fn(1, ...[2,3]; x=4, ...{y:5})", "fn(1, ...[2, 3]; x=4, ...{y: 5})")
-	expectParseString(t, "fn(;y,...{z:5})", "fn(; y, ...{z: 5})")
-	expectParseString(t, "fn(1, a=b)()", "fn(1; a=b)()")
+	expectParseString(t, "fn(a;b)", "fn(a, b=true)")
+	expectParseString(t, "fn(**{y:5})", "fn(**{y: 5})")
+	expectParseString(t, "fn(1,*[2,3],x=4,**{y:5})", "fn(1, *[2, 3], x=4, **{y: 5})")
+	expectParseString(t, "fn(1, a=b)()", "fn(1, a=b)()")
+}
 
+func TestParseParenMultiValues(t *testing.T) {
+	expectParseString(t, `(a,*b,c=2,**d) => 3`, `(a, *b, c=2, **d) => 3`)
+	expectParseString(t, `(*a)`, `(*a)`)
+	expectParseString(t, `(a, *b, c=1, **d)`, `(a, *b, c=1, **d)`)
+	expectParseString(t, `(a,*b,c=2) => 3`, `(a, *b, c=2) => 3`)
+	expectParseString(t, `(a,c=2, x(1))`, `(a, c=2, x(1))`)
+	expectParseString(t, `(a,
+c=2, 
+  x(1))`, `(a, c=2, x(1))`)
 }
 
 func TestParseKeyValueArray(t *testing.T) {
@@ -1685,45 +1687,46 @@ func TestParseFor(t *testing.T) {
 }
 
 func TestParseClosure(t *testing.T) {
-	expectParse(t, "a = func(b, c, d) => d", func(p pfn) []Stmt {
+	expectParse(t, "a = (b, c, d) => d", func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(
 				exprs(
 					ident("a", p(1, 1))),
 				exprs(
 					closure(
-						funcType(p(1, 5), p(1, 9), p(1, 17),
+						funcType(p(1, 1), p(1, 5), p(1, 13),
 							funcArgs(nil,
-								ident("b", p(1, 10)),
-								ident("c", p(1, 13)),
-								ident("d", p(1, 16))),
+								ident("b", p(1, 6)),
+								ident("c", p(1, 9)),
+								ident("d", p(1, 12))),
 						),
-						ident("d", p(1, 22)))),
+						ident("d", p(1, 18)))),
 				token.Assign,
 				p(1, 3)))
 	})
 
-	expectParse(t, "a = func(b, c, d) => {d}", func(p pfn) []Stmt {
+	expectParse(t, "a = (b, c, d) => {d}", func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(
 				exprs(
 					ident("a", p(1, 1))),
 				exprs(
 					closure(
-						funcType(p(1, 5), p(1, 9), p(1, 17),
+						funcType(p(1, 5), p(1, 5), p(1, 13),
 							funcArgs(nil,
-								ident("b", p(1, 10)),
-								ident("c", p(1, 13)),
-								ident("d", p(1, 16))),
+								ident("b", p(1, 6)),
+								ident("c", p(1, 9)),
+								ident("d", p(1, 12))),
 						),
-						blockExpr(p(1, 22), p(1, 24),
-							exprStmt(ident("d", p(1, 23)))))),
+						blockExpr(p(1, 18), p(1, 20),
+							exprStmt(ident("d", p(1, 19)))))),
 				token.Assign,
 				p(1, 3)))
 	})
 }
 
 func TestParseFunction(t *testing.T) {
+	expectParseString(t, "func(){}", "func() {}")
 	expectParse(t, "func fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
@@ -1737,20 +1740,20 @@ func TestParseFunction(t *testing.T) {
 						returnStmt(p(1, 15), ident("d", p(1, 22)))))))
 	})
 
-	expectParse(t, "a = func(b, c, d; e=1, f=2, ...g) { return d }", func(p pfn) []Stmt {
+	expectParse(t, "a = func(b, c, d, e=1, f=2, **g) { return d }", func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(
 				exprs(
 					ident("a", p(1, 1))),
 				exprs(
 					funcLit(
-						funcType(p(1, 5), p(1, 9), p(1, 33),
+						funcType(p(1, 5), p(1, 9), p(1, 32),
 							funcArgs(nil,
 								ident("b", p(1, 10)),
 								ident("c", p(1, 13)),
 								ident("d", p(1, 16))),
 							funcNamedArgs(
-								ident("g", p(1, 32)),
+								ident("g", p(1, 31)),
 								[]*Ident{
 									ident("e", p(1, 19)),
 									ident("f", p(1, 24)),
@@ -1760,23 +1763,23 @@ func TestParseFunction(t *testing.T) {
 									intLit(2, p(1, 26)),
 								}),
 						),
-						blockStmt(p(1, 35), p(1, 46),
-							returnStmt(p(1, 37), ident("d", p(1, 44)))))),
+						blockStmt(p(1, 34), p(1, 45),
+							returnStmt(p(1, 36), ident("d", p(1, 43)))))),
 				token.Assign,
 				p(1, 3)))
 	})
-	expectParse(t, "a = func(...args) { return args }", func(p pfn) []Stmt {
+	expectParse(t, "a = func(*args) { return args }", func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(
 				exprs(
 					ident("a", p(1, 1))),
 				exprs(
 					funcLit(
-						funcType(p(1, 5), p(1, 9), p(1, 17),
+						funcType(p(1, 5), p(1, 9), p(1, 15),
 							funcArgs(ident("args", p(1, 13)))),
-						blockStmt(p(1, 19), p(1, 33),
-							returnStmt(p(1, 21),
-								ident("args", p(1, 28)),
+						blockStmt(p(1, 17), p(1, 31),
+							returnStmt(p(1, 19),
+								ident("args", p(1, 26)),
 							),
 						),
 					),
@@ -1785,36 +1788,36 @@ func TestParseFunction(t *testing.T) {
 				p(1, 3)))
 	})
 
-	expectParse(t, "func(n,a,b;...na) {}", func(p pfn) []Stmt {
+	expectParse(t, "func(n,a,b,**na) {}", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				funcLit(
-					funcType(p(1, 5), p(1, 5), p(1, 17),
+					funcType(p(1, 5), p(1, 5), p(1, 16),
 						funcArgs(nil,
 							ident("n", p(1, 6)),
 							ident("a", p(1, 8)),
 							ident("b", p(1, 10))),
-						funcNamedArgs(ident("na", p(1, 15)), nil, nil),
+						funcNamedArgs(ident("na", p(1, 14)), nil, nil),
 					),
-					blockStmt(p(1, 19), p(1, 20)))),
+					blockStmt(p(1, 18), p(1, 19)))),
 		)
 	})
 
-	expectParse(t, "func(n,a,b;x=1,...na) {}", func(p pfn) []Stmt {
+	expectParse(t, "func(n,a,b,x=1,**na) {}", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				funcLit(
-					funcType(p(1, 5), p(1, 5), p(1, 21),
+					funcType(p(1, 5), p(1, 5), p(1, 20),
 						funcArgs(nil,
 							ident("n", p(1, 6)),
 							ident("a", p(1, 8)),
 							ident("b", p(1, 10))),
 						funcNamedArgs(
-							ident("na", p(1, 19)),
+							ident("na", p(1, 18)),
 							[]*Ident{ident("x", p(1, 12))},
 							[]Expr{intLit(1, p(1, 14))}),
 					),
-					blockStmt(p(1, 23), p(1, 24)))),
+					blockStmt(p(1, 22), p(1, 23)))),
 		)
 	})
 
@@ -1828,26 +1831,26 @@ func TestParseFunction(t *testing.T) {
 	expectParseString(t, "func(a,\nb,\n){}", "func(a, b) {}")
 	expectParseString(t, "func(a,\nb){}", "func(a, b) {}")
 	expectParseString(t, "func(a,\nb,){}", "func(a, b) {}")
-	expectParseString(t, "func(a,...b){}", "func(a, ...b) {}")
-	expectParseString(t, "func(a,...b,){}", "func(a, ...b) {}")
-	expectParseString(t, "func(a,...b,\n){}", "func(a, ...b) {}")
-	expectParseString(t, "func(a,b,...c,\n){}", "func(a, b, ...c) {}")
-	expectParseString(t, "func(a,b,\n...c,\n){}", "func(a, b, ...c) {}")
-	expectParseString(t, "func(\na,\nb,\n...c,\n){}", "func(a, b, ...c) {}")
+	expectParseString(t, "func(a,*b){}", "func(a, *b) {}")
+	expectParseString(t, "func(a,*b,){}", "func(a, *b) {}")
+	expectParseString(t, "func(a,*b,\n){}", "func(a, *b) {}")
+	expectParseString(t, "func(a,b,*c,\n){}", "func(a, b, *c) {}")
+	expectParseString(t, "func(a,b,\n*c,\n){}", "func(a, b, *c) {}")
+	expectParseString(t, "func(\na,\nb,\n*c,\n){}", "func(a, b, *c) {}")
 
-	expectParseString(t, "func(a;kw=2,){}", "func(a; kw=2) {}")
-	expectParseString(t, "func(a,...b;c=1,...d\n){}", "func(a, ...b; c=1, ...d) {}")
-	expectParseString(t, "func(\na,\n...b\n\n;\nc=\n\t1,\n\n...d\n \t\n){}", "func(a, ...b; c=1, ...d) {}")
-	expectParseString(t, "func(a;kw=2,){}", "func(a; kw=2) {}")
-	expectParseString(t, "func(a,...b;c=1,...d\n){}", "func(a, ...b; c=1, ...d) {}")
-	expectParseString(t, "func(\na,\n...b\n\n;\nc=\n\t1,\n\n...d\n \t\n){}", "func(a, ...b; c=1, ...d) {}")
+	expectParseString(t, "func(a,kw=2,){}", "func(a, kw=2) {}")
+	expectParseString(t, "func(a,*b,c=1,**d\n){}", "func(a, *b, c=1, **d) {}")
+	expectParseString(t, "func(\na,\n*b\n\n,\nc=\n\t1,\n\n**d\n \t\n){}", "func(a, *b, c=1, **d) {}")
+	expectParseString(t, "func(a,kw=2,){}", "func(a, kw=2) {}")
+	expectParseString(t, "func(a,*b,c=1,**d\n){}", "func(a, *b, c=1, **d) {}")
+	expectParseString(t, "func(\na,\n*b\n\n,\nc=\n\t1,\n\n**d\n \t\n){}", "func(a, *b, c=1, **d) {}")
 	expectParseString(t, "func(a\n,){}", "func(a) {}")
 	expectParseString(t, "func(a\n\n,){}", "func(a) {}")
-	expectParseString(t, "func(\n...a\n\n,){}", "func(...a) {}")
-	expectParseString(t, "func(a\n,...b){}", "func(a, ...b) {}")
-	expectParseString(t, "func(a\n,...b){}", "func(a, ...b) {}")
-	expectParseString(t, "func(\na\n,...b){}", "func(a, ...b) {}")
-	expectParseString(t, "func(...a,\n...b){}", "func(...a; ...b) {}")
+	expectParseString(t, "func(\n*a\n\n,){}", "func(*a) {}")
+	expectParseString(t, "func(a\n,*b){}", "func(a, *b) {}")
+	expectParseString(t, "func(a\n,*b){}", "func(a, *b) {}")
+	expectParseString(t, "func(\na\n,*b){}", "func(a, *b) {}")
+	expectParseString(t, "func(*a,\n**b){}", "func(*a, **b) {}")
 
 	expectParseError(t, "func(,){}")
 	expectParseError(t, "func(,a){}")
@@ -1856,20 +1859,20 @@ func TestParseFunction(t *testing.T) {
 }
 
 func TestParseVariadicFunctionWithArgs(t *testing.T) {
-	expectParse(t, "a = func(x, y, ...z) { return z }", func(p pfn) []Stmt {
+	expectParse(t, "a = func(x, y, *z) { return z }", func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(
 				exprs(
 					ident("a", p(1, 1))),
 				exprs(
 					funcLit(
-						funcType(p(1, 5), p(1, 9), p(1, 20),
-							funcArgs(ident("z", p(1, 19)),
+						funcType(p(1, 5), p(1, 9), p(1, 18),
+							funcArgs(ident("z", p(1, 17)),
 								ident("x", p(1, 10)),
 								ident("y", p(1, 13)))),
-						blockStmt(p(1, 22), p(1, 33),
-							returnStmt(p(1, 24),
-								ident("z", p(1, 31)),
+						blockStmt(p(1, 20), p(1, 31),
+							returnStmt(p(1, 22),
+								ident("z", p(1, 29)),
 							),
 						),
 					),
@@ -1878,9 +1881,9 @@ func TestParseVariadicFunctionWithArgs(t *testing.T) {
 				p(1, 3)))
 	})
 
-	expectParseError(t, "a = func(x, y, ...z, invalid) { return z }")
-	expectParseError(t, "a = func(...args, invalid) { return args }")
-	expectParseError(t, "a = func(args..., invalid) { return args }")
+	expectParseError(t, "a = func(x, y, *z, invalid) { return z }")
+	expectParseError(t, "a = func(*args, invalid) { return args }")
+	expectParseError(t, "a = func(args*, invalid) { return args }")
 }
 
 func TestParseIf(t *testing.T) {
@@ -3290,22 +3293,26 @@ func callExpr(
 	return ce
 }
 
-func ellipsis(pos Pos, value Expr) *EllipsisValue {
-	return &EllipsisValue{Pos: pos, Value: value}
+func argVar(pos Pos, value Expr) *ArgVarLit {
+	return &ArgVarLit{TokenPos: pos, Value: value}
+}
+
+func nargVar(pos Pos, value Expr) *NamedArgVarLit {
+	return &NamedArgVarLit{TokenPos: pos, Value: value}
 }
 
 func callExprArgs(
-	ellipsis *EllipsisValue,
+	argVar *ArgVarLit,
 	args ...Expr,
 ) (ce CallExprArgs) {
-	return CallExprArgs{Ellipsis: ellipsis, Values: args}
+	return CallExprArgs{Var: argVar, Values: args}
 }
 
 func callExprNamedArgs(
-	ellipsis *EllipsisValue,
+	argVar *NamedArgVarLit,
 	names []NamedArgExpr, values []Expr,
 ) (ce CallExprNamedArgs) {
-	return CallExprNamedArgs{Ellipsis: ellipsis, Names: names, Values: values}
+	return CallExprNamedArgs{Var: argVar, Names: names, Values: values}
 }
 
 func indexExpr(
@@ -3595,34 +3602,34 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 		equalExprs(t, expected.Args.Values,
 			actual.Args.Values)
 
-		if expected.Args.Ellipsis == nil && actual.Args.Ellipsis != nil {
-			require.Nil(t, expected.Args.Ellipsis)
+		if expected.Args.Var == nil && actual.Args.Var != nil {
+			require.Nil(t, expected.Args.Var)
 		}
 
-		if expected.Args.Ellipsis != nil && actual.Args.Ellipsis == nil {
-			require.NotNil(t, expected.Args.Ellipsis)
+		if expected.Args.Var != nil && actual.Args.Var == nil {
+			require.NotNil(t, expected.Args.Var)
 		}
 
-		if expected.Args.Ellipsis != nil && actual.Args.Ellipsis != nil {
-			require.Equal(t, expected.Args.Ellipsis.Pos,
-				actual.Args.Ellipsis.Pos)
-			equalExpr(t, expected.Args.Ellipsis.Value,
-				actual.Args.Ellipsis.Value)
+		if expected.Args.Var != nil && actual.Args.Var != nil {
+			require.Equal(t, expected.Args.Var.TokenPos,
+				actual.Args.Var.TokenPos)
+			equalExpr(t, expected.Args.Var.Value,
+				actual.Args.Var.Value)
 		}
 
-		if expected.NamedArgs.Ellipsis == nil && actual.NamedArgs.Ellipsis != nil {
-			require.Nil(t, expected.NamedArgs.Ellipsis)
+		if expected.NamedArgs.Var == nil && actual.NamedArgs.Var != nil {
+			require.Nil(t, expected.NamedArgs.Var)
 		}
 
-		if expected.NamedArgs.Ellipsis != nil && actual.NamedArgs.Ellipsis == nil {
-			require.NotNil(t, expected.NamedArgs.Ellipsis)
+		if expected.NamedArgs.Var != nil && actual.NamedArgs.Var == nil {
+			require.NotNil(t, expected.NamedArgs.Var)
 		}
 
-		if expected.NamedArgs.Ellipsis != nil && actual.NamedArgs.Ellipsis != nil {
-			require.Equal(t, expected.NamedArgs.Ellipsis.Pos,
-				actual.NamedArgs.Ellipsis.Pos)
-			equalExpr(t, expected.NamedArgs.Ellipsis.Value,
-				actual.NamedArgs.Ellipsis.Value)
+		if expected.NamedArgs.Var != nil && actual.NamedArgs.Var != nil {
+			require.Equal(t, expected.NamedArgs.Var.TokenPos,
+				actual.NamedArgs.Var.TokenPos)
+			equalExpr(t, expected.NamedArgs.Var.Value,
+				actual.NamedArgs.Var.Value)
 		}
 
 		equalNamedArgsNames(t, expected.NamedArgs.Names,

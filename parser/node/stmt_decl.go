@@ -81,7 +81,7 @@ func (s *ValueSpec) End() source.Pos {
 func (s *ParamSpec) String() string {
 	str := s.Ident.String()
 	if s.Variadic {
-		str = token.Ellipsis.String() + str
+		str = "*" + str
 	}
 	return str
 }
@@ -89,7 +89,7 @@ func (s *ParamSpec) String() string {
 func (s *NamedParamSpec) String() string {
 	str := s.Ident.String()
 	if s.Value == nil {
-		return token.Ellipsis.String() + str
+		return "**" + str
 	}
 	return str + "=" + s.Value.String()
 }
@@ -184,7 +184,7 @@ func (d *GenDecl) String() string {
 		if i != last {
 			if _, ok := d.Specs[i].(*ParamSpec); ok {
 				if _, ok := d.Specs[i+1].(*NamedParamSpec); ok {
-					sb.WriteString("; ")
+					sb.WriteString(", ")
 					continue
 				}
 			}

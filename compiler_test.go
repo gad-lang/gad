@@ -345,7 +345,7 @@ func TestCompiler_Compile(t *testing.T) {
 		),
 	))
 
-	expectCompile(t, `param (;a=1, ...na)`, bytecode(
+	expectCompile(t, `param (a=1, **na)`, bytecode(
 		Array{Int(1)},
 		compFunc(concatInsts(
 			makeInst(OpGetLocal, 0),
@@ -360,7 +360,7 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 
 	// multiple declaration requires parentheses
-	expectCompileError(t, `param a, b`, `Parse Error: expected ';', found ','`)
+	expectCompileError(t, `param a, b`, `Parse Error: expected statement, found ','`)
 	expectCompileError(t, `global a, b`, `Parse Error: expected ';', found ','`)
 	expectCompileError(t, `var a, b`, `Parse Error: expected ';', found ','`)
 	// param declaration can only be at the top scope
@@ -401,7 +401,7 @@ func TestCompiler_Compile(t *testing.T) {
 			withLocals(1),
 		),
 	))
-	expectCompile(t, `param (a, b, ...c)`, bytecode(
+	expectCompile(t, `param (a, b, *c)`, bytecode(
 		Array{},
 		compFunc(concatInsts(
 			makeInst(OpReturn, 0),
@@ -427,7 +427,7 @@ func TestCompiler_Compile(t *testing.T) {
 			withLocals(1),
 		),
 	))
-	expectCompile(t, `param (arg1, ...varg); global (a, b); var c = arg1; c = b`, bytecode(
+	expectCompile(t, `param (arg1, *varg); global (a, b); var c = arg1; c = b`, bytecode(
 		Array{String("a"), String("b")},
 		compFunc(concatInsts(
 			makeInst(OpGetLocal, 0),
@@ -995,7 +995,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `f1 := func(a) { return a }; f1(...[1, 2]);`, bytecode(
+	expectCompile(t, `f1 := func(a) { return a }; f1(*[1, 2]);`, bytecode(
 		Array{
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 0),
@@ -1022,8 +1022,8 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 
 	for _, s := range []string{
-		`f1 := func(a) { return a }; f1(...[1, 2]);`,
-		`f1 := func(a) => a; f1(...[1, 2]);`} {
+		`f1 := func(a) { return a }; f1(*[1, 2]);`,
+		`f1 := (a) => a; f1(*[1, 2]);`} {
 		expectCompile(t, s, bytecode(
 			Array{
 				compFunc(concatInsts(
@@ -1051,7 +1051,7 @@ func TestCompiler_Compile(t *testing.T) {
 		))
 	}
 
-	for _, s := range []string{`func() { return 5 + 10 }`, `func() => 5 + 10`} {
+	for _, s := range []string{`func() { return 5 + 10 }`, `() => 5 + 10`} {
 		expectCompile(t, s, bytecode(
 			Array{
 				Int(5),
@@ -1090,7 +1090,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `func() => 5 + 10`, bytecode(
+	expectCompile(t, `() => 5 + 10`, bytecode(
 		Array{
 			Int(5),
 			Int(10),
@@ -1127,7 +1127,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `func() => { 1; 2 }`, bytecode(
+	expectCompile(t, `() => { 1; 2 }`, bytecode(
 		Array{
 			Int(1),
 			Int(2),
@@ -1163,7 +1163,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `func() => { 1; return 2 }`, bytecode(
+	expectCompile(t, `() => { 1; return 2 }`, bytecode(
 		Array{
 			Int(1),
 			Int(2),
@@ -1203,7 +1203,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `func() => { if(true) { return 1 } else { return 2 } }`, bytecode(
+	expectCompile(t, `() => { if(true) { return 1 } else { return 2 } }`, bytecode(
 		Array{
 			Int(1),
 			Int(2),
@@ -1253,7 +1253,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `func() => { 1; if(true) { 2 } else { 3 }; 4 }`, bytecode(
+	expectCompile(t, `() => { 1; if(true) { 2 } else { 3 }; 4 }`, bytecode(
 		Array{
 			Int(1),
 			Int(2),
@@ -1293,7 +1293,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `func() => { }`, bytecode(
+	expectCompile(t, `() => { }`, bytecode(
 		Array{
 			compFunc(concatInsts(
 				makeInst(OpReturn, 0),
@@ -1323,7 +1323,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `func() => { 24 }()`, bytecode(
+	expectCompile(t, `() => { 24 }()`, bytecode(
 		Array{
 			Int(24),
 			compFunc(concatInsts(
@@ -1355,7 +1355,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `(func() => 24)()`, bytecode(
+	expectCompile(t, `(() => 24)()`, bytecode(
 		Array{
 			Int(24),
 			compFunc(concatInsts(
@@ -1371,7 +1371,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `func() => { return 24 }()`, bytecode(
+	expectCompile(t, `() => { return 24 }()`, bytecode(
 		Array{
 			Int(24),
 			compFunc(concatInsts(
@@ -1429,7 +1429,7 @@ func TestCompiler_Compile(t *testing.T) {
 		),
 	))
 
-	expectCompile(t, `f := func() => 24; f();`, bytecode(
+	expectCompile(t, `f := () => 24; f();`, bytecode(
 		Array{
 			Int(24),
 			compFunc(concatInsts(
@@ -1557,7 +1557,7 @@ func TestCompiler_Compile(t *testing.T) {
 		),
 	))
 
-	expectCompile(t, `f := func(...a) { return a }; f(1, 2, 3);`, bytecode(
+	expectCompile(t, `f := func(*a) { return a }; f(1, 2, 3);`, bytecode(
 		Array{
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 0),
@@ -2220,7 +2220,7 @@ func TestCompiler_Compile(t *testing.T) {
 		),
 	)
 
-	expectCompile(t, `f := func(...a) { return a }; f(1, 2, 3);`, bytecode(
+	expectCompile(t, `f := func(*a) { return a }; f(1, 2, 3);`, bytecode(
 		Array{
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 0),
@@ -2733,7 +2733,7 @@ func TestCompilerScopes(t *testing.T) {
 	))
 
 	expectCompile(t, `
-	func() => {
+	() => {
 		if a := 1; a {
 			a = 2
 			b := a

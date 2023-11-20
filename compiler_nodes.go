@@ -1270,10 +1270,10 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 		}
 	}
 
-	if nd.Args.Ellipsis != nil {
+	if nd.Args.Var != nil {
 		numArgs++
 		flags |= OpCallFlagVarArgs
-		if err := c.Compile(nd.Args.Ellipsis.Value); err != nil {
+		if err := c.Compile(nd.Args.Var.Value); err != nil {
 			return err
 		}
 	}
@@ -1296,9 +1296,9 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 		}
 	}
 
-	if nd.NamedArgs.Ellipsis != nil {
+	if nd.NamedArgs.Var != nil {
 		flags |= OpCallFlagVarNamedArgs
-		if err := c.Compile(nd.NamedArgs.Ellipsis.Value); err != nil {
+		if err := c.Compile(nd.NamedArgs.Var.Value); err != nil {
 			return err
 		}
 	}
