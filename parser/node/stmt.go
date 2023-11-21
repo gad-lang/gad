@@ -552,9 +552,10 @@ func (e *ExprToTextStmt) String() string {
 }
 
 type ConfigOptions struct {
-	Mixed     bool
-	NoMixed   bool
-	WriteFunc Expr
+	Mixed          bool
+	NoMixed        bool
+	WriteFunc      Expr
+	ExprToTextFunc Expr
 }
 
 type ConfigStmt struct {
@@ -598,6 +599,10 @@ func (c *ConfigStmt) ParseElements() {
 		case "writer":
 			if k.Value != nil {
 				c.Options.WriteFunc = k.Value
+			}
+		case "expr_to_text":
+			if k.Value != nil {
+				c.Options.ExprToTextFunc = k.Value
 			}
 		}
 	}

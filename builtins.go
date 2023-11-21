@@ -37,6 +37,7 @@ const (
 	BuiltinFloat
 	BuiltinDecimal
 	BuiltinChar
+	BuiltinText
 	BuiltinString
 	BuiltinBytes
 	BuiltinArray
@@ -81,6 +82,9 @@ const (
 	BuiltinItems
 	BuiltinVMPushWriter
 	BuiltinVMPopWriter
+	BuiltinOBStart
+	BuiltinOBEnd
+	BuiltinFlush
 
 	BuiltinIs
 	BuiltinIsError
@@ -186,6 +190,9 @@ var BuiltinsMap = map[string]BuiltinType{
 
 	"vmPushWriter":   BuiltinVMPushWriter,
 	"vmPopWriter":    BuiltinVMPopWriter,
+	"obstart":        BuiltinOBStart,
+	"obend":          BuiltinOBEnd,
+	"flush":          BuiltinFlush,
 	"DISCARD_WRITER": BuiltinDiscardWriter,
 }
 
@@ -247,10 +254,6 @@ var BuiltinObjects = map[BuiltinType]Object{
 	BuiltinTypeName: &BuiltinFunction{
 		Name:  "typeName",
 		Value: funcPORO(builtinTypeNameFunc),
-	},
-	BuiltinWrite: &BuiltinFunction{
-		Name:  "write",
-		Value: builtinWriteFunc,
 	},
 	BuiltinPrint: &BuiltinFunction{
 		Name:  "print",
@@ -372,6 +375,18 @@ var BuiltinObjects = map[BuiltinType]Object{
 		Name:  "vmPopWriter",
 		Value: builtinVMPopWriterFunc,
 	},
+	BuiltinOBStart: &BuiltinFunction{
+		Name:  "obstart",
+		Value: builtinOBStartFunc,
+	},
+	BuiltinOBEnd: &BuiltinFunction{
+		Name:  "obend",
+		Value: builtinOBEndFunc,
+	},
+	BuiltinFlush: &BuiltinFunction{
+		Name:  "flush",
+		Value: builtinFlushFunc,
+	},
 
 	BuiltinWrongNumArgumentsError:  ErrWrongNumArguments,
 	BuiltinInvalidOperatorError:    ErrInvalidOperator,
@@ -388,6 +403,10 @@ var BuiltinObjects = map[BuiltinType]Object{
 }
 
 func init() {
+	BuiltinObjects[BuiltinWrite] = &BuiltinFunction{
+		Name:  "write",
+		Value: builtinWriteFunc,
+	}
 	BuiltinObjects[BuiltinMap] = &BuiltinFunction{
 		Name:  "map",
 		Value: builtinMapFunc,
@@ -945,6 +964,23 @@ func builtinCharFunc(arg Object) (Object, error) {
 	)
 }
 
+func builtinTextFunc(c Call) (ret Object, err error) {
+	if err := c.Args.CheckLen(1); err != nil {
+		return Nil, err
+	}
+
+	o := c.Args.Get(0)
+
+	if ts, _ := o.(ToStringer); ts != nil {
+		var s String
+		s, err = ts.Stringer(c)
+		ret = Text(s)
+	} else {
+		ret = Text(o.ToString())
+	}
+	return
+}
+
 func builtinStringFunc(c Call) (ret Object, err error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return Nil, err
@@ -1067,6 +1103,31 @@ func builtinWriteFunc(c Call) (ret Object, err error) {
 		w     io.Writer = c.VM.StdOut
 		total Int
 		n     int
+		write = func(w io.Writer, obj Object) (total Int, err error) {
+			var n int
+			switch t := obj.(type) {
+			case Text:
+				n, err = w.Write([]byte(t))
+			case String:
+				n, err = w.Write([]byte(t))
+			case Bytes:
+				n, err = w.Write(t)
+			case BytesConverter:
+				var b Bytes
+				if b, err = t.ToBytes(); err == nil {
+					n, err = w.Write(b)
+				}
+			case io.WriterTo:
+				var i64 int64
+				i64, err = t.WriteTo(w)
+				total = Int(i64)
+			default:
+				n, err = fmt.Fprint(w, t)
+			}
+			total += Int(n)
+			return
+		}
+		convert CallerObject
 	)
 
 	if err = c.Args.CheckMinLen(1); err != nil {
@@ -1079,27 +1140,56 @@ func builtinWriteFunc(c Call) (ret Object, err error) {
 		c.Args.Shift()
 	}
 
-	c.Args.Walk(func(i int, arg Object) (continueLoop bool) {
-		switch t := arg.(type) {
-		case String:
-			n, err = w.Write([]byte(t))
-		case Bytes:
-			n, err = w.Write(t)
-		case BytesConverter:
-			var b Bytes
-			if b, err = t.ToBytes(); err == nil {
-				n, err = w.Write(b)
+	if convertValue := c.NamedArgs.GetValueOrNil("convert"); convertValue != nil {
+		convert = convertValue.(CallerObject)
+	}
+
+	if convert == nil {
+		c.Args.Walk(func(i int, arg Object) (continueLoop bool) {
+			switch t := arg.(type) {
+			case Text:
+				n, err = w.Write([]byte(t))
+				total += Int(n)
+			default:
+				total, err = write(w, arg)
 			}
-		case io.WriterTo:
-			var i64 int64
-			i64, err = t.WriteTo(w)
-			total = Int(i64)
-		default:
-			n, err = fmt.Fprint(w, arg)
+			return err == nil
+		})
+	} else {
+		var (
+			convertCallArgs = Array{
+				NewWriter(w),
+				&Function{
+					Value: func(c Call) (_ Object, err error) {
+						var i Int
+						i, err = write(c.Args.MustGet(0).(Writer), c.Args.MustGet(1))
+						return i, err
+					},
+				},
+				nil,
+			}
+			caller VMCaller
+		)
+		if caller, err = NewInvoker(c.VM, convert).Caller(Args{convertCallArgs}, nil); err != nil {
+			return
 		}
-		total += Int(n)
-		return err == nil
-	})
+
+		c.Args.Walk(func(i int, arg Object) (continueLoop bool) {
+			switch t := arg.(type) {
+			case Text:
+				n, err = w.Write([]byte(t))
+				total += Int(n)
+			default:
+				var iO Object
+				convertCallArgs[2] = t
+				iO, err = caller.Call()
+				if i, ok := iO.(Int); ok {
+					total += i
+				}
+			}
+			return err == nil
+		})
+	}
 
 	return total, err
 }
@@ -1591,8 +1681,19 @@ func builtinVMPushWriterFunc(c Call) (ret Object, err error) {
 }
 
 func builtinVMPopWriterFunc(c Call) (ret Object, err error) {
-	c.VM.StdOut.Pop()
-	return Nil, nil
+	return c.VM.StdOut.Pop(), nil
+}
+
+func builtinOBStartFunc(c Call) (ret Object, err error) {
+	return builtinVMPushWriterFunc(Call{VM: c.VM, Args: Args{Array{&Buffer{}}}})
+}
+
+func builtinOBEndFunc(c Call) (ret Object, err error) {
+	return c.VM.StdOut.Pop(), nil
+}
+
+func builtinFlushFunc(c Call) (Object, error) {
+	return c.VM.StdOut.Flush()
 }
 
 func builtinWrapFunc(c Call) (ret Object, err error) {

@@ -162,6 +162,127 @@ func (o Bool) Format(s fmt.State, verb rune) {
 	fmt.Fprintf(s, format, bool(o))
 }
 
+// Text represents safe string values and implements Object interface.
+type Text string
+
+var _ LengthGetter = Text("")
+
+func (o Text) Type() ObjectType {
+	return TText
+}
+
+func (o Text) ToString() string {
+	return string(o)
+}
+
+func (o Text) IsFalsy() bool {
+	return len(o) == 0
+}
+
+func (o Text) Equal(right Object) bool {
+	if v, ok := right.(Text); ok {
+		return o == v
+	}
+	return false
+}
+
+func (o Text) Iterate(*VM) Iterator {
+	return &StringIterator{V: String(o)}
+}
+
+func (o Text) IndexGet(_ *VM, index Object) (Object, error) {
+	var idx int
+	switch v := index.(type) {
+	case Int:
+		idx = int(v)
+	case Uint:
+		idx = int(v)
+	case Char:
+		idx = int(v)
+	default:
+		return nil, NewIndexTypeError("int|uint|char", index.Type().Name())
+	}
+	if idx >= 0 && idx < len(o) {
+		return Int(o[idx]), nil
+	}
+	return nil, ErrIndexOutOfBounds
+}
+
+// BinaryOp implements Object interface.
+func (o Text) BinaryOp(tok token.Token, right Object) (Object, error) {
+	switch v := right.(type) {
+	case String:
+		switch tok {
+		case token.Add:
+			return o + Text(v), nil
+		case token.Less:
+			return Bool(o < Text(v)), nil
+		case token.LessEq:
+			return Bool(o <= Text(v)), nil
+		case token.Greater:
+			return Bool(o > Text(v)), nil
+		case token.GreaterEq:
+			return Bool(o >= Text(v)), nil
+		}
+	case Text:
+		switch tok {
+		case token.Add:
+			return o + v, nil
+		case token.Less:
+			return Bool(o < v), nil
+		case token.LessEq:
+			return Bool(o <= v), nil
+		case token.Greater:
+			return Bool(o > v), nil
+		case token.GreaterEq:
+			return Bool(o >= v), nil
+		}
+	case Bytes:
+		switch tok {
+		case token.Add:
+			var sb strings.Builder
+			sb.WriteString(string(o))
+			sb.Write(v)
+			return String(sb.String()), nil
+		case token.Less:
+			return Bool(string(o) < string(v)), nil
+		case token.LessEq:
+			return Bool(string(o) <= string(v)), nil
+		case token.Greater:
+			return Bool(string(o) > string(v)), nil
+		case token.GreaterEq:
+			return Bool(string(o) >= string(v)), nil
+		}
+	case *NilType:
+		switch tok {
+		case token.Less, token.LessEq:
+			return False, nil
+		case token.Greater, token.GreaterEq:
+			return True, nil
+		}
+	}
+
+	if tok == token.Add {
+		return o + Text(right.ToString()), nil
+	}
+
+	return nil, NewOperandTypeError(
+		tok.String(),
+		o.Type().Name(),
+		right.Type().Name())
+}
+
+// Len implements LengthGetter interface.
+func (o Text) Len() int {
+	return len(o)
+}
+
+// Format implements fmt.Formatter interface.
+func (o Text) Format(s fmt.State, verb rune) {
+	format := compat.FmtFormatString(s, verb)
+	fmt.Fprintf(s, format, string(o))
+}
+
 // String represents string values and implements Object interface.
 type String string
 

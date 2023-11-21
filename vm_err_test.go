@@ -733,7 +733,7 @@ func TestVMExamples(t *testing.T) {
 	cleanupCall = 0
 	expectRun(t, ex1MainScript,
 		newOpts().
-			out(printWriter).
+			Out(printWriter).
 			Module("module", ex1Module).
 			Globals(Dict{
 				"DoCleanup": &Function{
@@ -790,7 +790,7 @@ func TestVMExamples(t *testing.T) {
 
 	return mapEach(args, func(x) { return x*multiplier })
 	`, newOpts().
-		out(printWriter).
+		Out(printWriter).
 		Globals(Dict{"multiplier": Int(2)}).
 		Args(Int(1), Int(2), Int(3), Int(4)),
 		Array{Int(2), Int(4), Int(6), Int(8)},
@@ -827,16 +827,16 @@ func TestVMExamples(t *testing.T) {
 	}
 `
 	var g IndexGetSetter = Dict{}
-	expectRun(t, scr, newOpts().out(printWriter).Globals(g).Args(Nil), Int(-1))
+	expectRun(t, scr, newOpts().Out(printWriter).Globals(g).Args(Nil), Int(-1))
 	require.Equal(t, 1, len(g.(Dict)))
 	require.Equal(t, True, g.(Dict)["notAnInt"])
 
 	g = Dict{}
-	expectRun(t, scr, newOpts().out(printWriter).Globals(g).Args(Int(0)), Int(-1))
+	expectRun(t, scr, newOpts().Out(printWriter).Globals(g).Args(Int(0)), Int(-1))
 	require.Equal(t, 1, len(g.(Dict)))
 	require.Equal(t, True, g.(Dict)["zeroDivision"])
 
-	expectRun(t, scr, newOpts().out(printWriter).Args(Int(2)), Int(5))
+	expectRun(t, scr, newOpts().Out(printWriter).Args(Int(2)), Int(5))
 
 	g = &SyncMap{Value: Dict{"stats": Dict{"fn1": Int(0), "fn2": Int(0)}}}
 	expectRun(t, `
@@ -858,7 +858,7 @@ func TestVMExamples(t *testing.T) {
 		stats.fn2++
 		/* ... */
 	}
-	`).out(printWriter).Globals(g).Skip2Pass(), Nil)
+	`).Out(printWriter).Globals(g).Skip2Pass(), Nil)
 	require.Equal(t, Int(1), g.(*SyncMap).Value["stats"].(Dict)["fn1"])
 	require.Equal(t, Int(1), g.(*SyncMap).Value["stats"].(Dict)["fn2"])
 }

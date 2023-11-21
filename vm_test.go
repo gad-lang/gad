@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gad-lang/gad/parser/node"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -1386,39 +1387,39 @@ keyValueArray(keyValue("d",4))))`,
 
 	var stdOut bytes.Buffer
 	stdOut.Reset()
-	expectRun(t, `printf("test")`, newOpts().out(&stdOut).Skip2Pass(), Nil)
+	expectRun(t, `printf("test")`, newOpts().Out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "test", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `printf("test %d", 1)`, newOpts().out(&stdOut).Skip2Pass(), Nil)
+	expectRun(t, `printf("test %d", 1)`, newOpts().Out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "test 1", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `printf("test %d %d", 1, 2u)`, newOpts().out(&stdOut).Skip2Pass(), Nil)
+	expectRun(t, `printf("test %d %d", 1, 2u)`, newOpts().Out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "test 1 2", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `println()`, newOpts().out(&stdOut).Skip2Pass(), Nil)
+	expectRun(t, `println()`, newOpts().Out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "\n", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `println("test")`, newOpts().out(&stdOut).Skip2Pass(), Nil)
+	expectRun(t, `println("test")`, newOpts().Out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "test\n", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `println("test", 1)`, newOpts().out(&stdOut).Skip2Pass(), Nil)
+	expectRun(t, `println("test", 1)`, newOpts().Out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "test 1\n", stdOut.String())
 
 	stdOut.Reset()
-	expectRun(t, `println("test", 1, 2u)`, newOpts().out(&stdOut).Skip2Pass(), Nil)
+	expectRun(t, `println("test", 1, 2u)`, newOpts().Out(&stdOut).Skip2Pass(), Nil)
 	require.Equal(t, "test 1 2\n", stdOut.String())
 
 	expectRun(t, `return sprintf("test")`,
-		newOpts().out(&stdOut).Skip2Pass(), String("test"))
+		newOpts().Out(&stdOut).Skip2Pass(), String("test"))
 	expectRun(t, `return sprintf("test %d", 1)`,
-		newOpts().out(&stdOut).Skip2Pass(), String("test 1"))
+		newOpts().Out(&stdOut).Skip2Pass(), String("test 1"))
 	expectRun(t, `return sprintf("test %d %t", 1, true)`,
-		newOpts().out(&stdOut).Skip2Pass(), String("test 1 true"))
+		newOpts().Out(&stdOut).Skip2Pass(), String("test 1 true"))
 	expectRun(t, `f := func(*args;**kwargs){ return [args, kwargs.dict] };
 		return wrap(f, 1, a=3)(2, b=4)`,
 		nil, Array{Array{Int(1), Int(2)}, Dict{"a": Int(3), "b": Int(4)}})
@@ -2984,7 +2985,6 @@ func TestVMScopes(t *testing.T) {
 		out = a
 	}
 	return out`, nil, Int(0))
-
 	// shadowing function level
 	expectRun(t, `
 	a := 5
@@ -3819,6 +3819,91 @@ return [
 	)
 }
 
+func TestVMMixedOutput(t *testing.T) {
+	expectRun(t, `# gad: mixed
+#{obstart() -}
+a
+#{- = 2 -}
+b
+#{- return string(obend())}
+`,
+		newOpts(),
+		String("a2b"),
+	)
+
+	expectRun(t, `# gad: mixed
+#{obstart() -}
+a
+#{- obstart() -}
+#{- = 2 -}
+b
+#{- flush(); obend() -}
+#{- return string(obend())}
+`,
+		newOpts(),
+		String("a2b"),
+	)
+	exprToText := ExprToTextOverride(
+		"expr2text",
+		func(vm *VM, w Writer, old func(w Writer, expr Object) (n Int, err error), expr Object) (n Int, err error) {
+			var b strings.Builder
+			n, err = old(NewWriter(&b), expr)
+			w.Write([]byte(strings.ReplaceAll(b.String(), `"`, `\"`)))
+			return
+		},
+	)
+
+	expectRun(t, `
+global expr2text
+global value
+obstart()
+
+# gad: mixed, expr_to_text=expr2text
+{key:"#{= value}"}
+#{- return string(obend())}
+`,
+		newOpts().Globals(Dict{
+			"value":     String(`a"b`),
+			"expr2text": exprToText,
+		}),
+		String(`{key:"a\"b"}`),
+	)
+
+	expectRun(t, `
+#{
+	global value
+	obstart()
+-}
+{key:"#{= value}"}
+#{- return string(obend())}
+`,
+		newOpts().
+			Mixed().
+			ExprToTextFunc("expr2text").
+			Builtins(map[string]Object{
+				"expr2text": exprToText,
+			}).
+			Globals(Dict{
+				"value": String(`a"b`),
+			}),
+		String(`{key:"a\"b"}`),
+	)
+
+	expectRun(t, `#{global value-}{key:"#{= value}"}`,
+		newOpts().
+			Mixed().
+			Buffered().
+			ExprToTextFunc("expr2text").
+			Builtins(map[string]Object{
+				"expr2text": exprToText,
+			}).
+			Globals(Dict{
+				"value": String(`a"b`),
+			}),
+		String(`{key:"a\"b"}`),
+	)
+}
+
 func TestVMReflectSlice(t *testing.T) {
 	expectRun(t, `param s;return func(z, *x) { return append([], *x) }(100, *s)`,
 		newOpts().Args(MustToObject([]int{4, 7})),
@@ -3853,22 +3938,25 @@ func (*callerObject) Call(c Call) (Object, error) {
 var _ CallerObject = &callerObject{}
 
 type testopts struct {
-	globals       IndexGetSetter
-	args          []Object
-	namedArgs     *NamedArgs
-	moduleMap     *ModuleMap
-	skip2pass     bool
-	isCompilerErr bool
-	noPanic       bool
-	stdout        Writer
-	builtins      map[string]Object
+	globals        IndexGetSetter
+	args           []Object
+	namedArgs      *NamedArgs
+	moduleMap      *ModuleMap
+	skip2pass      bool
+	isCompilerErr  bool
+	noPanic        bool
+	stdout         Writer
+	builtins       map[string]Object
+	exprToTextFunc string
+	mixed          bool
+	buffered       bool
 }
 
 func newOpts() *testopts {
 	return &testopts{}
 }
 
-func (t *testopts) out(w io.Writer) *testopts {
+func (t *testopts) Out(w io.Writer) *testopts {
 	t.stdout = NewWriter(w)
 	return t
 }
@@ -3933,6 +4021,21 @@ func (t *testopts) Module(name string, module any) *testopts {
 	default:
 		panic(fmt.Errorf("invalid module type: %T", module))
 	}
+	return t
+}
+
+func (t *testopts) ExprToTextFunc(name string) *testopts {
+	t.exprToTextFunc = name
+	return t
+}
+
+func (t *testopts) Mixed() *testopts {
+	t.mixed = true
+	return t
+}
+
+func (t *testopts) Buffered() *testopts {
+	t.buffered = true
 	return t
 }
 
@@ -4098,6 +4201,12 @@ func expectRun(t *testing.T, script string, opts *testopts, expect Object) {
 				}
 				tC.opts.SymbolTable = NewSymbolTable(builtins)
 			}
+			if opts.exprToTextFunc != "" {
+				tC.opts.MixedExprToTextFunc = &node.Ident{Name: opts.exprToTextFunc}
+			}
+			if opts.mixed {
+				tC.opts.Mixed = true
+			}
 			gotBc, err := Compile([]byte(script), tC.opts)
 			require.NoError(t, err)
 			// create a copy of the bytecode before execution to test bytecode
@@ -4122,12 +4231,19 @@ func expectRun(t *testing.T, script string, opts *testopts, expect Object) {
 			if opts.namedArgs != nil {
 				ropts.NamedArgs = opts.namedArgs.Copy().(*NamedArgs)
 			}
-			if opts.stdout != nil {
+			var buf *bytes.Buffer
+			if opts.buffered {
+				buf = &bytes.Buffer{}
+				ropts.StdOut = buf
+			} else if opts.stdout != nil {
 				ropts.StdOut = opts.stdout
 			}
 			got, err := vm.SetRecover(opts.noPanic).RunOpts(ropts)
 			if !assert.NoErrorf(t, err, "Code:\n%s\n", script) {
 				gotBc.Fprint(os.Stderr)
+			}
+			if buf != nil && got == Nil {
+				got = String(buf.String())
 			}
 			if !reflect.DeepEqual(expect, got) {
 				var buf bytes.Buffer

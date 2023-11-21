@@ -866,6 +866,10 @@ func (e *StringLit) String() string {
 	return e.Literal
 }
 
+type TextLit struct {
+	StringLit
+}
+
 // UnaryExpr represents an unary operator expression.
 type UnaryExpr struct {
 	Expr     Expr
@@ -979,14 +983,22 @@ type CallExprNamedArgs struct {
 	Var    *NamedArgVarLit
 }
 
-func (a *CallExprNamedArgs) Append(name NamedArgExpr, value Expr) {
+func (a *CallExprNamedArgs) Append(name NamedArgExpr, value Expr) *CallExprNamedArgs {
 	a.Names = append(a.Names, name)
 	a.Values = append(a.Values, value)
+	return a
 }
 
-func (a *CallExprNamedArgs) Prepend(name NamedArgExpr, value Expr) {
+func (a *CallExprNamedArgs) AppendS(name string, value Expr) *CallExprNamedArgs {
+	a.Names = append(a.Names, NamedArgExpr{Ident: &Ident{Name: name}})
+	a.Values = append(a.Values, value)
+	return a
+}
+
+func (a *CallExprNamedArgs) Prepend(name NamedArgExpr, value Expr) *CallExprNamedArgs {
 	a.Names = append([]NamedArgExpr{name}, a.Names...)
 	a.Values = append([]Expr{value}, a.Values...)
+	return a
 }
 
 func (a *CallExprNamedArgs) Get(name NamedArgExpr) (index int, value Expr) {

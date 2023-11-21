@@ -72,6 +72,7 @@ var (
 	TFloat,
 	TDecimal,
 	TChar,
+	TText,
 	TString,
 	TBytes,
 	TBuffer,
@@ -133,6 +134,7 @@ func init() {
 	TFloat = RegisterBuiltinType(BuiltinFloat, "float", Float(0), funcPf64RO(builtinFloatFunc))
 	TDecimal = RegisterBuiltinType(BuiltinDecimal, "decimal", Decimal{}, funcPOROe(builtinDecimalFunc))
 	TChar = RegisterBuiltinType(BuiltinChar, "char", Char(0), funcPOROe(builtinCharFunc))
+	TText = RegisterBuiltinType(BuiltinText, "text", Text(""), builtinTextFunc)
 	TString = RegisterBuiltinType(BuiltinString, "string", String(""), builtinStringFunc)
 	TBytes = RegisterBuiltinType(BuiltinBytes, "bytes", Bytes{}, builtinBytesFunc)
 	TBuffer = RegisterBuiltinType(BuiltinBuffer, "buffer", Buffer{}, builtinBufferFunc)

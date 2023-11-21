@@ -194,7 +194,7 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 
 func TestCompiler_Mixed(t *testing.T) {
 	expectCompileMixed(t, "# gad: writer=myfn\n#{- var myfn -} a", bytecode(
-		Array{String("a")},
+		Array{Text("a")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -206,7 +206,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompileMixed(t, `a#{=1}c`, bytecode(
-		Array{String("a"), Int(1), String("c")},
+		Array{Text("a"), Int(1), Text("c")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
 			makeInst(OpConstant, 0),
@@ -218,7 +218,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompileMixed(t, `a#{=1}c#{x := 5}#{=x}`, bytecode(
-		Array{String("a"), Int(1), String("c"), Int(5)},
+		Array{Text("a"), Int(1), Text("c"), Int(5)},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
 			makeInst(OpConstant, 0),
@@ -235,7 +235,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed, writer=myfn\n#{ var myfn -} a", bytecode(
-		Array{String("a")},
+		Array{Text("a")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -247,7 +247,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin} a #{end}", bytecode(
-		Array{String(" a ")},
+		Array{Text(" a ")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -256,7 +256,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end}", bytecode(
-		Array{String("a")},
+		Array{Text("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -265,7 +265,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end; return a}", bytecode(
-		Array{String("a")},
+		Array{Text("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -275,7 +275,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end}#{return a}", bytecode(
-		Array{String("a")},
+		Array{Text("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -285,7 +285,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end} b #{return a}", bytecode(
-		Array{String("a"), String(" b ")},
+		Array{Text("a"), Text(" b ")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),

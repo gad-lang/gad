@@ -71,21 +71,22 @@ type (
 
 	// CompilerOptions represents customizable options for Compile().
 	CompilerOptions struct {
-		ModuleMap          *ModuleMap
-		ModulePath         string
-		Constants          []Object
-		SymbolTable        *SymbolTable
-		Trace              io.Writer
-		TraceParser        bool
-		TraceCompiler      bool
-		TraceOptimizer     bool
-		OptimizerMaxCycle  int
-		OptimizeConst      bool
-		OptimizeExpr       bool
-		Mixed              bool
-		MixedWriteFunction node.Expr
-		moduleStore        *moduleStore
-		constsCache        map[Object]int
+		ModuleMap           *ModuleMap
+		ModulePath          string
+		Constants           []Object
+		SymbolTable         *SymbolTable
+		Trace               io.Writer
+		TraceParser         bool
+		TraceCompiler       bool
+		TraceOptimizer      bool
+		OptimizerMaxCycle   int
+		OptimizeConst       bool
+		OptimizeExpr        bool
+		Mixed               bool
+		MixedWriteFunction  node.Expr
+		MixedExprToTextFunc node.Expr
+		moduleStore         *moduleStore
+		constsCache         map[Object]int
 	}
 
 	// CompilerError represents a compiler error.
@@ -322,19 +323,28 @@ stmts:
 			for z, s := range stmt[i:j] {
 				switch t := s.(type) {
 				case *node.TextStmt:
-					exprs[z] = &node.StringLit{Value: t.Literal}
+					exprs[z] = &node.TextLit{StringLit: node.StringLit{Value: t.Literal}}
 				case *node.ExprToTextStmt:
 					exprs[z] = t.Expr
 				}
 			}
 
-			wf := c.opts.MixedWriteFunction
+			var (
+				wf = c.opts.MixedWriteFunction
+				na node.CallExprNamedArgs
+			)
 			if wf == nil {
 				wf = &node.Ident{Name: "write"}
 			}
+			if c.opts.MixedExprToTextFunc != nil {
+				na = *new(node.CallExprNamedArgs).AppendS("convert", c.opts.MixedExprToTextFunc)
+			}
 			err = c.compileCallExpr(&node.CallExpr{
-				Func:     wf,
-				CallArgs: node.CallArgs{Args: node.CallExprArgs{Values: exprs}},
+				Func: wf,
+				CallArgs: node.CallArgs{
+					Args:      node.CallExprArgs{Values: exprs},
+					NamedArgs: na,
+				},
 			})
 			if err != nil {
 				return
@@ -413,6 +423,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		}
 	case *node.StringLit:
 		c.emit(nt, OpConstant, c.addConstant(String(nt.Value)))
+	case *node.TextLit:
+		c.emit(nt, OpConstant, c.addConstant(Text(nt.Value)))
 	case *node.CharLit:
 		c.emit(nt, OpConstant, c.addConstant(Char(nt.Value)))
 	case *node.NilLit:
@@ -483,11 +495,14 @@ func (c *Compiler) Compile(nd ast.Node) error {
 	case *node.CondExpr:
 		return c.compileCondExpr(nt)
 	case *node.TextStmt:
-		return c.Compile(&node.StringLit{Value: nt.Literal})
+		return c.Compile(&node.TextLit{StringLit: node.StringLit{Value: nt.Literal}})
 	case *node.EmptyStmt:
 	case *node.ConfigStmt:
 		if nt.Options.WriteFunc != nil {
 			c.opts.MixedWriteFunction = nt.Options.WriteFunc
+		}
+		if nt.Options.ExprToTextFunc != nil {
+			c.opts.MixedExprToTextFunc = nt.Options.ExprToTextFunc
 		}
 	case nil:
 	default:
@@ -530,7 +545,7 @@ func (c *Compiler) addConstant(obj Object) (index int) {
 	}()
 
 	switch obj.(type) {
-	case Int, Uint, String, Bool, Float, Char, *NilType:
+	case Int, Uint, String, Text, Bool, Float, Char, *NilType:
 		i, ok := c.constsCache[obj]
 		if ok {
 			index = i

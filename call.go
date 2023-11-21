@@ -189,6 +189,12 @@ func (o Args) Get(n int) (v Object) {
 	return
 }
 
+// MustGet returns the nth argument. If n is greater than the number of arguments,
+// it returns the nth variadic argument or Nil.
+func (o Args) MustGet(n int) Object {
+	return o.GetDefault(n, Nil)
+}
+
 func (o Args) GetIJ(n int) (i, j int, ok bool) {
 	var (
 		at  int

@@ -43,9 +43,59 @@ func (w *StackWriter) Push(sw io.Writer) {
 	w.last++
 }
 
-func (w *StackWriter) Pop() {
+func (w *StackWriter) Pop() Writer {
+	last := w.writers[w.last]
 	w.writers = w.writers[:w.last]
 	w.last--
+
+	switch t := last.(type) {
+	case Writer:
+		return t
+	default:
+		return NewWriter(t)
+	}
+}
+
+func (w *StackWriter) Old() Writer {
+	if w.last == 0 {
+		return nil
+	}
+	switch t := w.writers[w.last-1].(type) {
+	case Writer:
+		return t
+	default:
+		return NewWriter(t)
+	}
+}
+
+func (w *StackWriter) Current() Writer {
+	switch t := w.writers[w.last].(type) {
+	case Writer:
+		return t
+	default:
+		return NewWriter(t)
+	}
+}
+
+func (w *StackWriter) Flush() (n Int, err error) {
+	if w.last == 0 {
+		return
+	}
+	old, cur := w.writers[w.last-1], w.writers[w.last]
+
+	switch t := cur.(type) {
+	case io.WriterTo:
+		var n_ int64
+		n_, err = t.WriteTo(old)
+		n = Int(n_)
+	case io.Reader:
+		var n_ int64
+		n_, err = io.Copy(old, t)
+		n = Int(n_)
+	default:
+		err = ErrType.NewError("current writer in't io.Reader|io.WriterTo")
+	}
+	return
 }
 
 type StackReader struct {

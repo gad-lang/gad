@@ -124,11 +124,13 @@ func (inv *Invoker) Caller(args Args, namedArgs *NamedArgs) (VMCaller, error) {
 	if callee == nil {
 		return nil, ErrNotCallable.NewError(inv.callee.Type().Name())
 	}
-
-	return &vmObjectCaller{
-		vm:        inv.vm,
-		args:      args,
-		namedArgs: namedArgs,
-		callee:    callee,
-	}, nil
+	caller := &vmObjectCaller{
+		vm:     inv.vm,
+		args:   args,
+		callee: callee,
+	}
+	if namedArgs != nil {
+		caller.namedArgs = *namedArgs
+	}
+	return caller, nil
 }
