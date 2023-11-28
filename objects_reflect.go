@@ -770,7 +770,11 @@ func (o *ReflectMap) IndexDelete(_ *VM, index Object) (err error) {
 }
 
 func (o *ReflectMap) IndexGet(_ *VM, index Object) (value Object, err error) {
-	return ToObject(o.v.MapIndex(reflect.ValueOf(ToInterface(index))).Interface())
+	v := o.v.MapIndex(reflect.ValueOf(ToInterface(index)))
+	if !v.IsValid() || v.IsNil() {
+		return Nil, nil
+	}
+	return ToObject(v.Interface())
 }
 
 func (o *ReflectMap) IndexSet(_ *VM, index, value Object) (err error) {
