@@ -3642,6 +3642,16 @@ func TestVMCallCompiledFunction(t *testing.T) {
 	}
 	return f(1,2,3,na0=4,na1=5)`, nil,
 		Array{Int(1), Int(2), Array{Int(3)}, Int(4), Dict{"na1": Int(5)}})
+
+	expectRun(t, `
+	first := (arr) => arr[0]
+	return [10].!first()`, nil,
+		Int(10))
+
+	expectRun(t, `
+	first := (arr, v) => arr[0] + v
+	return [10].!first(2)`, nil,
+		Int(12))
 }
 
 func TestVMCallWithNamedArgs(t *testing.T) {

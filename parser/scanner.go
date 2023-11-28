@@ -613,7 +613,16 @@ do:
 		case '=':
 			t.Token = s.Switch3(token.Assign, token.Equal, '>', token.Lambda)
 		case '!':
-			t.Token = s.Switch2(token.Not, token.NotEqual)
+			if s.Offset >= 2 && s.Src[s.Offset-2] == '.' && (utils.IsLetter(s.Ch) || utils.IsLetter(rune(s.PeekNoSpace()))) {
+				if !utils.IsLetter(s.Ch) {
+					s.NextNoSpace()
+				}
+				t.Literal = "!" + s.ScanIdentifier()
+				t.Token = token.Ident
+				insertSemi = true
+			} else {
+				t.Token = s.Switch2(token.Not, token.NotEqual)
+			}
 		case '&':
 			if s.Ch == '^' {
 				s.Next()

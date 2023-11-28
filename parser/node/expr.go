@@ -842,7 +842,11 @@ type StringLit struct {
 }
 
 func (e *StringLit) CanIdent() bool {
-	for _, r := range e.Value {
+	var skip int
+	if e.Value != "" && e.Value[0] == '!' {
+		skip++
+	}
+	for _, r := range e.Value[skip:] {
 		if !utils.IsLetter(r) {
 			return false
 		}

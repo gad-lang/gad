@@ -88,6 +88,58 @@ func concatInsts(insts ...[]byte) []byte {
 	return out
 }
 
+func TestCompiler_CompileNameCallerToIdentCall(t *testing.T) {
+	expectCompile(t, `global (a, x); a.!filter(x)`, bytecode(
+		Array{String("a"), String("x")},
+		compFunc(concatInsts(
+			makeInst(OpGetBuiltin, int(BuiltinFilter)),
+			makeInst(OpGetGlobal, 0),
+			makeInst(OpGetGlobal, 1),
+			makeInst(OpCall, 2, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(0)),
+	))
+	expectCompile(t, `global (a, x); a.!map(x)`, bytecode(
+		Array{String("a"), String("x")},
+		compFunc(concatInsts(
+			makeInst(OpGetBuiltin, int(BuiltinMap)),
+			makeInst(OpGetGlobal, 0),
+			makeInst(OpGetGlobal, 1),
+			makeInst(OpCall, 2, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(0)),
+	))
+	expectCompile(t, `global (a, x); a.!reduce(x)`, bytecode(
+		Array{String("a"), String("x")},
+		compFunc(concatInsts(
+			makeInst(OpGetBuiltin, int(BuiltinReduce)),
+			makeInst(OpGetGlobal, 0),
+			makeInst(OpGetGlobal, 1),
+			makeInst(OpCall, 2, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(0)),
+	))
+	expectCompile(t, `var x; [].!x()`, bytecode(
+		Array{},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpArray, 0),
+			makeInst(OpCall, 1, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(1)),
+	))
+}
+
 func TestCompiler_CompileIfNull(t *testing.T) {
 	expectCompile(t, `var a; return ((a == nil)) ? 10 : 20`, bytecode(
 		Array{Int(10), Int(20)},
