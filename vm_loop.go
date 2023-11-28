@@ -489,6 +489,11 @@ VMLoop:
 		case OpIterInit:
 			dst := vm.stack[vm.sp-1]
 
+			if dst == Nil {
+				vm.stack[vm.sp-1] = &nilIteratorObject{}
+				continue
+			}
+
 			if Iterable(dst) {
 				it := dst.(Iterabler).Iterate(vm)
 				vm.stack[vm.sp-1] = &iteratorObject{Iterator: it}

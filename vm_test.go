@@ -1723,6 +1723,10 @@ func TestVMForIn(t *testing.T) {
 
 	expectErrIs(t, `a := 1; for k,v in a {}`, nil, ErrNotIterable)
 
+	// nil iterator
+	expectRun(t, `for k, v in nil {return v}`, nil, Nil)
+	expectRun(t, `for k, v in nil {return v} else {return "is nil"}`, nil, String("is nil"))
+
 	// with else
 	expectRun(t, `var r = ""; for x in [] { r += string(x) } else { r += "@"}; r+="#"; return r`, nil, String("@#"))
 	expectRun(t, `var r = ""; for x in [1] { r += string(x) } else { r += "@"}; r+="#"; return r`, nil, String("1#"))

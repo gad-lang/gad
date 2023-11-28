@@ -39,6 +39,18 @@ type iteratorObject struct {
 
 var _ Object = (*iteratorObject)(nil)
 
+// nilIteratorObject is used in VM to make an non iterable Object.
+type nilIteratorObject struct {
+	ObjectImpl
+	Iterator
+}
+
+func (o *nilIteratorObject) Next() bool {
+	return false
+}
+
+var _ Object = (*iteratorObject)(nil)
+
 // ArrayIterator represents an iterator for the array.
 type ArrayIterator struct {
 	V Array
