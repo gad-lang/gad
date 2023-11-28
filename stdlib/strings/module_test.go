@@ -443,6 +443,16 @@ func TestScript(t *testing.T) {
 		{s: `strings.Join([], 1)`, e: String("")},
 		{s: `strings.Join(["a", "b", "c"], "\t")`, e: String("a\tb\tc")},
 
+		{s: `strings.JoinAnd()`, m: catch, e: wrongArgs(3, 0)},
+		{s: `strings.JoinAnd(1)`, m: catch, e: wrongArgs(3, 1)},
+		{s: `strings.JoinAnd(1, 2)`, m: catch, e: wrongArgs(3, 2)},
+		{s: `strings.JoinAnd(1, 2, 3, 4)`, m: catch, e: wrongArgs(3, 4)},
+		{s: `strings.JoinAnd(1, 2, 3)`, m: catch,
+			e: typeErr("1st", "array", "int")},
+		{s: `strings.JoinAnd([], 1, 2)`, e: String("")},
+		{s: `strings.JoinAnd(["a", "b", "c"], "\t", "\n")`, e: String("a\tb\nc")},
+		{s: `strings.JoinAnd(["a", "b", "c"], ",", "|")`, e: String("a,b|c")},
+
 		{s: `strings.LastIndex()`, m: catch, e: wrongArgs(2, 0)},
 		{s: `strings.LastIndex(1)`, m: catch, e: wrongArgs(2, 1)},
 		{s: `strings.LastIndex(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},

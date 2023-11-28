@@ -324,6 +324,32 @@ func FuncPAsRO(fn func(gad.Array, string) gad.Object) gad.CallableFunc {
 	}
 }
 
+// FuncPAssRO is a generated function to make gad.CallableFunc.
+// Source: func(arr gad.Array, s1 string, s2 string) (ret gad.Object)
+func FuncPAssRO(fn func(gad.Array, string, string) gad.Object) gad.CallableFunc {
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(3); err != nil {
+			return gad.Nil, err
+		}
+
+		arr, ok := gad.ToArray(c.Args.Get(0))
+		if !ok {
+			return gad.Nil, gad.NewArgumentTypeError("1st", "array", c.Args.Get(0).Type().Name())
+		}
+		s1, ok := gad.ToGoString(c.Args.Get(1))
+		if !ok {
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", c.Args.Get(1).Type().Name())
+		}
+		s2, ok := gad.ToGoString(c.Args.Get(2))
+		if !ok {
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", c.Args.Get(2).Type().Name())
+		}
+
+		ret = fn(arr, s1, s2)
+		return
+	}
+}
+
 // FuncPOi64ROe is a generated function to make gad.CallableFunc.
 // Source: func(o gad.Object, i int64) (ret gad.Object, err error)
 func FuncPOi64ROe(fn func(gad.Object, int64) (gad.Object, error)) gad.CallableFunc {

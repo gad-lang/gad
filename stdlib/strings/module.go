@@ -140,6 +140,16 @@ var Module = map[string]gad.Object{
 		Value: stdlib.FuncPAsRO(joinFunc),
 	},
 	// gad:doc
+	// JoinAnd(arr array, sep, lastSep string) -> string
+	// Concatenates the string values of array arr elements to create a
+	// single string. The separator string sep is placed between elements
+	// and lastSep is placed between non last and last elements in the
+	// resulting string.
+	"JoinAnd": &gad.Function{
+		Name:  "JoinAnd",
+		Value: stdlib.FuncPAssRO(joinAndFunc),
+	},
+	// gad:doc
 	// LastIndex(s string, substr string) -> int
 	// Returns the index of the last instance of substr in s, or -1 if substr
 	// is not present in s.
@@ -450,6 +460,23 @@ func joinFunc(arr gad.Array, sep string) gad.Object {
 		elems[i] = arr[i].ToString()
 	}
 	return gad.String(strings.Join(elems, sep))
+}
+
+func joinAndFunc(arr gad.Array, sep, lastSep string) gad.Object {
+	switch len(arr) {
+	case 0:
+		return gad.String("")
+	case 1:
+		return gad.String(arr[0].ToString())
+	default:
+		last := len(arr) - 1
+		elems := make([]string, last)
+		for i := range elems {
+			elems[i] = arr[i].ToString()
+		}
+
+		return gad.String(strings.Join(elems, sep) + lastSep + arr[last].ToString())
+	}
 }
 
 func lastIndexFunc(s, substr string) gad.Object {

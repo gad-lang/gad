@@ -71,6 +71,10 @@ package stdlib
 //
 //gad:callable func(arr gad.Array, s string) (ret gad.Object)
 
+// strings module JoinAnd
+//
+//gad:callable func(arr gad.Array, s1 string, s2 string) (ret gad.Object)
+
 // misc. functions
 //
 //gad:callable func(o gad.Object, i int64) (ret gad.Object, err error)
