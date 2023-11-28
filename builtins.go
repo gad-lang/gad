@@ -60,6 +60,7 @@ const (
 	BuiltinLen
 	BuiltinSort
 	BuiltinSortReverse
+	BuiltinFilter
 	BuiltinMap
 	BuiltinReduce
 	BuiltinForEach
@@ -135,6 +136,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"len":         BuiltinLen,
 	"sort":        BuiltinSort,
 	"sortReverse": BuiltinSortReverse,
+	"filter":      BuiltinFilter,
 	"map":         BuiltinMap,
 	"reduce":      BuiltinReduce,
 	"foreach":     BuiltinForEach,
@@ -406,6 +408,10 @@ func init() {
 	BuiltinObjects[BuiltinWrite] = &BuiltinFunction{
 		Name:  "write",
 		Value: builtinWriteFunc,
+	}
+	BuiltinObjects[BuiltinFilter] = &BuiltinFunction{
+		Name:  "filter",
+		Value: builtinFilterFunc,
 	}
 	BuiltinObjects[BuiltinMap] = &BuiltinFunction{
 		Name:  "map",
@@ -721,13 +727,87 @@ func builtinSortReverseFunc(arg Object) (Object, error) {
 	)
 }
 
+func builtinFilterFunc(c Call) (_ Object, err error) {
+	var (
+		iterabler = &Arg{
+			Name: "iterable",
+			Accept: func(v Object) string {
+				if !Filterable(v) && !Iterable(v) {
+					return "filterable|iterable"
+				}
+				return ""
+			},
+		}
+
+		callback = &Arg{
+			Name: "callback",
+			Accept: func(v Object) string {
+				if !Callable(v) {
+					return "callable"
+				}
+				return ""
+			},
+		}
+	)
+
+	if err = c.Args.Destructure(iterabler, callback); err != nil {
+		return
+	}
+
+	var (
+		args   = Array{Nil, Nil, iterabler.Value}
+		caller VMCaller
+	)
+
+	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
+		return
+	}
+
+	if Filterable(iterabler.Value) {
+		return iterabler.Value.(Filterabler).Filter(c.VM, args, caller)
+	}
+
+	var (
+		it  = iterabler.Value.(Iterabler).Iterate(c.VM)
+		fe  = NewForEach(it, args, 0, caller)
+		ret Array
+	)
+
+	if itl, _ := it.(LengthIterator); itl != nil {
+		ret = make(Array, itl.Length())
+		var (
+			i  int
+			ok Object
+		)
+		for fe.Next() {
+			if ok, err = fe.Call(); err != nil {
+				return
+			} else if !ok.IsFalsy() {
+				ret[i] = fe.Value()
+			}
+			i++
+		}
+	} else {
+		var ok Object
+		for fe.Next() {
+			if ok, err = fe.Call(); err != nil {
+				return
+			} else if !ok.IsFalsy() {
+				ret = append(ret, fe.Value())
+			}
+		}
+	}
+
+	return ret, nil
+}
+
 func builtinMapFunc(c Call) (_ Object, err error) {
 	var (
 		iterabler = &Arg{
 			Name: "iterable",
 			Accept: func(v Object) string {
-				if !Iterable(v) {
-					return "iterable"
+				if !Mapable(v) && !Iterable(v) {
+					return "mapable|iterable"
 				}
 				return ""
 			},
@@ -755,6 +835,10 @@ func builtinMapFunc(c Call) (_ Object, err error) {
 
 	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
 		return
+	}
+
+	if Mapable(iterabler.Value) {
+		return iterabler.Value.(Mapabler).Map(c.VM, args, caller)
 	}
 
 	var (
@@ -790,8 +874,8 @@ func builtinReduceFunc(c Call) (_ Object, err error) {
 		iterabler = &Arg{
 			Name: "iterable",
 			Accept: func(v Object) string {
-				if !Iterable(v) {
-					return "iterable"
+				if !Reducable(v) && !Iterable(v) {
+					return "reducable|iterable"
 				}
 				return ""
 			},
@@ -807,7 +891,7 @@ func builtinReduceFunc(c Call) (_ Object, err error) {
 			},
 		}
 
-		val Object
+		val = Nil
 	)
 
 	if c.Args.Len() == 3 {
@@ -831,13 +915,17 @@ func builtinReduceFunc(c Call) (_ Object, err error) {
 		return
 	}
 
+	if Reducable(iterabler.Value) {
+		return iterabler.Value.(Reducer).Reduce(c.VM, val, args, caller)
+	}
+
 	var (
 		it = iterabler.Value.(Iterabler).Iterate(c.VM)
 		fe = NewForEach(it, args, 1, caller)
 	)
 
 	if itl, _ := it.(LengthIterator); itl != nil {
-		if val == nil {
+		if val == Nil {
 			if fe.Next() {
 				args[0] = fe.v
 				if val, err = fe.Call(); err != nil {
@@ -855,7 +943,7 @@ func builtinReduceFunc(c Call) (_ Object, err error) {
 			args[0] = val
 		}
 	} else {
-		if val == nil {
+		if val == Nil {
 			if fe.Next() {
 				val = fe.v
 				args[0] = val

@@ -193,6 +193,33 @@ type CanIterabler interface {
 	CanIterate() bool
 }
 
+type Filterabler interface {
+	Object
+	Filter(vm *VM, args Array, handler VMCaller) (Object, error)
+}
+
+type CanFilterabler interface {
+	CanFilter() bool
+}
+
+type Mapabler interface {
+	Object
+	Map(vm *VM, args Array, handler VMCaller) (Object, error)
+}
+
+type CanMapeabler interface {
+	CanMap() bool
+}
+
+type Reducer interface {
+	Object
+	Reduce(vm *VM, initialValue Object, args Array, handler VMCaller) (Object, error)
+}
+
+type CanReducer interface {
+	CanReduce() bool
+}
+
 type Slicer interface {
 	LengthGetter
 	Slice(low, high int) Object
@@ -307,6 +334,36 @@ func Iterable(obj Object) bool {
 	if it, _ := obj.(Iterabler); it != nil {
 		if cit, _ := obj.(CanIterabler); cit != nil {
 			return cit.CanIterate()
+		}
+		return true
+	}
+	return false
+}
+
+func Filterable(obj Object) bool {
+	if it, _ := obj.(Filterabler); it != nil {
+		if cit, _ := obj.(CanFilterabler); cit != nil {
+			return cit.CanFilter()
+		}
+		return true
+	}
+	return false
+}
+
+func Mapable(obj Object) bool {
+	if it, _ := obj.(Mapabler); it != nil {
+		if cit, _ := obj.(CanMapeabler); cit != nil {
+			return cit.CanMap()
+		}
+		return true
+	}
+	return false
+}
+
+func Reducable(obj Object) bool {
+	if it, _ := obj.(Reducer); it != nil {
+		if cit, _ := obj.(CanReducer); cit != nil {
+			return cit.CanReduce()
 		}
 		return true
 	}
