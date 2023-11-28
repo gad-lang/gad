@@ -404,7 +404,8 @@ func (s *Scanner) ScanNow() (t Token) {
 						}
 					}
 
-					goto do
+					s.Next()
+					continue
 				}
 			}
 			if s.HandleMixed != nil {
