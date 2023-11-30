@@ -6,13 +6,14 @@ import (
 )
 
 type RunOpts struct {
-	Globals   IndexGetSetter
-	Args      Args
-	NamedArgs *NamedArgs
-	StdIn     io.Reader
-	StdOut    io.Writer
-	StdErr    io.Writer
-	Builtins  map[BuiltinType]Object
+	Globals        IndexGetSetter
+	Args           Args
+	NamedArgs      *NamedArgs
+	StdIn          io.Reader
+	StdOut         io.Writer
+	StdErr         io.Writer
+	Builtins       map[BuiltinType]Object
+	ObjectToWriter ObjectToWriter
 }
 
 // Run runs VM and executes the instructions until the OpReturn Opcode or Abort call.

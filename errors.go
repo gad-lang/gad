@@ -50,6 +50,9 @@ var (
 	// ErrNotCallable is an error where Object is not callable.
 	ErrNotCallable = &Error{Name: "NotCallableError"}
 
+	// NotToWritableError is an error where Object does not implements ToWriter interface.
+	NotToWritableError = &Error{Name: "NotToWritableError"}
+
 	// ErrNotImplemented is an error where an Object has not implemented a required method.
 	ErrNotImplemented = &Error{Name: "NotImplementedError"}
 

@@ -165,7 +165,10 @@ func (o Bool) Format(s fmt.State, verb rune) {
 // Text represents safe string values and implements Object interface.
 type Text string
 
-var _ LengthGetter = Text("")
+var (
+	_ LengthGetter = Text("")
+	_ ToWriter     = Text("")
+)
 
 func (o Text) Type() ObjectType {
 	return TText
@@ -283,10 +286,18 @@ func (o Text) Format(s fmt.State, verb rune) {
 	fmt.Fprintf(s, format, string(o))
 }
 
+func (o Text) WriteTo(_ *VM, w io.Writer) (int64, error) {
+	n, err := w.Write([]byte(o))
+	return int64(n), err
+}
+
 // String represents string values and implements Object interface.
 type String string
 
-var _ LengthGetter = String("")
+var (
+	_ LengthGetter = String("")
+	_ ToWriter     = String("")
+)
 
 func (o String) Type() ObjectType {
 	return DetectTypeOf(o)
@@ -394,6 +405,11 @@ func (o String) Len() int {
 func (o String) Format(s fmt.State, verb rune) {
 	format := compat.FmtFormatString(s, verb)
 	fmt.Fprintf(s, format, string(o))
+}
+
+func (o String) WriteTo(_ *VM, w io.Writer) (int64, error) {
+	n, err := w.Write([]byte(o))
+	return int64(n), err
 }
 
 // Bytes represents byte slice and implements Object interface.
@@ -538,6 +554,11 @@ func (o Bytes) Len() int {
 func (o Bytes) Format(s fmt.State, verb rune) {
 	format := compat.FmtFormatString(s, verb)
 	fmt.Fprintf(s, format, []byte(o))
+}
+
+func (o Bytes) WriteTo(_ *VM, w io.Writer) (int64, error) {
+	n, err := w.Write(o)
+	return int64(n), err
 }
 
 // Function represents a function object and implements Object interface.

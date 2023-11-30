@@ -1429,7 +1429,6 @@ keyValueArray(keyValue("d",4))))`,
 }
 
 func TestObjectType(t *testing.T) {
-
 	expectRun(t, `
 Point := newType(
 	"Point", 
@@ -1439,6 +1438,7 @@ Point := newType(
 )
 return string(Point(1,2))`,
 		nil, String(`P12`))
+
 	expectRun(t, `
 Point := newType("Point", 
 	fields={_x:0, _y:0}, 
@@ -1488,6 +1488,17 @@ return [string(p1), string(p2), string(cast(P1,p2)), string(cast(P2,cast(P1,p2))
 			String("P1{x: 1, y: 2, }"),
 			String("P2{x: 1, y: 2, z: 3}"),
 		})
+
+	expectRun(t, `
+Point := newType(
+	"Point", 
+	fields={x:0, y:0}, 
+	init=func(this, x,y){this.x = x;this.y = y},
+	toString = (this) => "P" + this.x + this.y,
+	writeTo = (this, w) => write(typeName(this),"(", this.x,",",this.y,")"),
+)
+return write(Point(10,20))`,
+		newOpts().Buffered(), Array{Int(12), String(`Point(10,20)`)})
 }
 
 func TestBytes(t *testing.T) {
@@ -3914,7 +3925,35 @@ obstart()
 			Globals(Dict{
 				"value": String(`a"b`),
 			}),
-		String(`{key:"a\"b"}`),
+		Array{Nil, String(`{key:"a\"b"}`)},
+	)
+
+	expectRun(t, `#{var value}#{= value}`,
+		newOpts().
+			Mixed().
+			Buffered().
+			WriteObject(ObjectToWriterFunc(func(_ *VM, w io.Writer, obj Object) (bool, int64, error) {
+				var n int
+				n, err := w.Write([]byte("value"))
+				return true, int64(n), err
+			})),
+		Array{Nil, String(`value`)},
+	)
+
+	expectRun(t, `var value; return write(1, value, 2, {})`,
+		newOpts().
+			Buffered().
+			WriteObject(ObjectToWriters{
+				ObjectToWriterFunc(func(_ *VM, w io.Writer, obj Object) (handled bool, n int64, err error) {
+					if obj == Nil {
+						n, err := w.Write([]byte("-"))
+						return true, int64(n), err
+					}
+					return
+				}),
+				DefaultObjectToWrite,
+			}),
+		Array{Int(5), String(`1-2{}`)},
 	)
 }
 
@@ -3964,6 +4003,7 @@ type testopts struct {
 	exprToTextFunc string
 	mixed          bool
 	buffered       bool
+	objectToWriter ObjectToWriter
 }
 
 func newOpts() *testopts {
@@ -4040,6 +4080,11 @@ func (t *testopts) Module(name string, module any) *testopts {
 
 func (t *testopts) ExprToTextFunc(name string) *testopts {
 	t.exprToTextFunc = name
+	return t
+}
+
+func (t *testopts) WriteObject(o ObjectToWriter) *testopts {
+	t.objectToWriter = o
 	return t
 }
 
@@ -4238,9 +4283,10 @@ func expectRun(t *testing.T, script string, opts *testopts, expect Object) {
 				}
 			}()
 			ropts := &RunOpts{
-				Globals:  opts.globals,
-				Args:     Args{opts.args},
-				Builtins: builtinObjects,
+				Globals:        opts.globals,
+				Args:           Args{opts.args},
+				Builtins:       builtinObjects,
+				ObjectToWriter: opts.objectToWriter,
 			}
 			if opts.namedArgs != nil {
 				ropts.NamedArgs = opts.namedArgs.Copy().(*NamedArgs)
@@ -4256,8 +4302,8 @@ func expectRun(t *testing.T, script string, opts *testopts, expect Object) {
 			if !assert.NoErrorf(t, err, "Code:\n%s\n", script) {
 				gotBc.Fprint(os.Stderr)
 			}
-			if buf != nil && got == Nil {
-				got = String(buf.String())
+			if opts.buffered {
+				got = Array{got, String(buf.String())}
 			}
 			if !reflect.DeepEqual(expect, got) {
 				var buf bytes.Buffer

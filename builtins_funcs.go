@@ -763,28 +763,8 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 		w     io.Writer = c.VM.StdOut
 		total Int
 		n     int
-		write = func(w io.Writer, obj Object) (total Int, err error) {
-			var n int
-			switch t := obj.(type) {
-			case Text:
-				n, err = w.Write([]byte(t))
-			case String:
-				n, err = w.Write([]byte(t))
-			case Bytes:
-				n, err = w.Write(t)
-			case BytesConverter:
-				var b Bytes
-				if b, err = t.ToBytes(); err == nil {
-					n, err = w.Write(b)
-				}
-			case io.WriterTo:
-				var i64 int64
-				i64, err = t.WriteTo(w)
-				total = Int(i64)
-			default:
-				n, err = fmt.Fprint(w, t)
-			}
-			total += Int(n)
+		write = func(w io.Writer, obj Object) (i int64, err error) {
+			_, i, err = c.VM.ObjectToWriter.WriteTo(c.VM, w, obj)
 			return
 		}
 		convert CallerObject
@@ -811,7 +791,9 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 				n, err = w.Write([]byte(t))
 				total += Int(n)
 			default:
-				total, err = write(w, arg)
+				var n2 int64
+				n2, err = write(w, arg)
+				total += Int(n2)
 			}
 			return err == nil
 		})
@@ -821,9 +803,9 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 				NewWriter(w),
 				&Function{
 					Value: func(c Call) (_ Object, err error) {
-						var i Int
+						var i int64
 						i, err = write(c.Args.MustGet(0).(Writer), c.Args.MustGet(1))
-						return i, err
+						return Int(i), err
 					},
 				},
 				nil,
@@ -855,29 +837,14 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 }
 
 func BuiltinBufferFunc(c Call) (ret Object, err error) {
-	var (
-		w = &Buffer{}
-	)
-
-	c.Args.Walk(func(i int, arg Object) (continueLoop bool) {
-		switch t := arg.(type) {
-		case String:
-			_, err = w.Write([]byte(t))
-		case Bytes:
-			_, err = w.Write(t)
-		case BytesConverter:
-			var b Bytes
-			if b, err = t.ToBytes(); err == nil {
-				_, err = w.Write(b)
-			}
-		case ToWriter:
-			_, err = t.WriteTo(w)
-		default:
-			_, err = fmt.Fprint(w, arg)
-		}
-		return err == nil
-	})
-
+	var w = &Buffer{}
+	if !c.Args.IsFalsy() {
+		_, err = BuiltinWriteFunc(Call{
+			VM:        c.VM,
+			Args:      append(Args{Array{w}}, c.Args...),
+			NamedArgs: c.NamedArgs,
+		})
+	}
 	return w, err
 }
 
@@ -1416,13 +1383,22 @@ func BuiltinNewTypeFunc(c Call) (ret Object, err error) {
 				return nil
 			},
 		}
+		writeTo = &NamedArgVar{
+			Name: "writeTo",
+			Accept: func(v Object) error {
+				if !Callable(v) {
+					return ErrNotCallable
+				}
+				return nil
+			},
+		}
 		extends = &NamedArgVar{
 			Name:        "extends",
 			AcceptTypes: []ObjectType{TArray},
 		}
 	)
 
-	if err = c.NamedArgs.Get(init, get, set, fields, methods, toString, extends); err != nil {
+	if err = c.NamedArgs.Get(init, get, set, fields, methods, toString, writeTo, extends); err != nil {
 		return
 	}
 
@@ -1436,6 +1412,10 @@ func BuiltinNewTypeFunc(c Call) (ret Object, err error) {
 
 	if fields.Value != nil {
 		t.FieldsDict = fields.Value.(Dict)
+	}
+
+	if writeTo.Value != nil {
+		t.ToWriter = writeTo.Value.(CallerObject)
 	}
 
 	if get.Value != nil {

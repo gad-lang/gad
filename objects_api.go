@@ -239,6 +239,12 @@ type Appender interface {
 	Append(arr ...Object) (Object, error)
 }
 
+// BytesConverter is to bytes converter
+type BytesConverter interface {
+	Object
+	ToBytes() (Bytes, error)
+}
+
 // ObjectImpl is the basic Object implementation and it does not nothing, and
 // helps to implement Object interface by embedding and overriding methods in
 // custom implementations. String and TypeName must be implemented otherwise
@@ -322,12 +328,6 @@ func Callable(o Object) (ok bool) {
 		}
 	}
 	return
-}
-
-// BytesConverter is to bytes converter
-type BytesConverter interface {
-	Object
-	ToBytes() (Bytes, error)
 }
 
 func Iterable(obj Object) bool {

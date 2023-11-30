@@ -8,7 +8,21 @@ import (
 
 type ToWriter interface {
 	Object
-	WriteTo(w Writer) (n Int, err error)
+	WriteTo(vm *VM, w io.Writer) (n int64, err error)
+}
+
+type CanToWriter interface {
+	CanWriteTo() bool
+}
+
+func ToWritable(obj Object) bool {
+	if it, _ := obj.(ToWriter); it != nil {
+		if cit, _ := obj.(CanToWriter); cit != nil {
+			return cit.CanWriteTo()
+		}
+		return true
+	}
+	return false
 }
 
 type writer struct {

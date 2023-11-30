@@ -46,6 +46,7 @@ type VM struct {
 
 	StdOut, StdErr *StackWriter
 	StdIn          *StackReader
+	ObjectToWriter ObjectToWriter
 }
 
 // NewVM creates a VM object.
@@ -235,6 +236,12 @@ func (vm *VM) initAndRun(opts *RunOpts) (Object, error) {
 		vm.builtins = opts.Builtins
 	} else {
 		vm.builtins = BuiltinObjects
+	}
+
+	if opts.ObjectToWriter != nil {
+		vm.ObjectToWriter = opts.ObjectToWriter
+	} else {
+		vm.ObjectToWriter = DefaultObjectToWrite
 	}
 
 	// Resize modules cache or create it if not exists.

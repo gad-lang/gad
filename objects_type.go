@@ -2,6 +2,7 @@ package gad
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,7 @@ var (
 	_ IndexGetter  = &Obj{}
 	_ IndexDeleter = &Obj{}
 	_ IndexSetter  = &Obj{}
+	_ ToWriter     = &Obj{}
 )
 
 func (o *Obj) Type() ObjectType {
@@ -193,6 +195,16 @@ func (o *Obj) CastTo(vm *VM, t ObjectType) (Object, error) {
 	return t.New(vm, o.fields)
 }
 
+func (o *Obj) CanWriteTo() bool {
+	return o.typ.ToWriter != nil
+}
+
+func (o *Obj) WriteTo(vm *VM, w io.Writer) (int64, error) {
+	ret, err := o.typ.ToWriter.Call(Call{VM: vm, Args: Args{Array{o, NewWriter(w)}}})
+	i, _ := ToGoInt64(ret)
+	return i, err
+}
+
 type ObjectTypeArray []ObjectType
 
 func (o ObjectTypeArray) Type() ObjectType {
@@ -240,6 +252,7 @@ type ObjType struct {
 	GettersDict Dict
 	Stringer    CallerObject
 	Init        CallerObject
+	ToWriter    CallerObject
 	Inherits    ObjectTypeArray
 }
 
