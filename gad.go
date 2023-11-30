@@ -4,8 +4,6 @@
 
 package gad
 
-//go:generate go run ./cmd/mkcallable -output zfuncs.go gad.go
-
 import (
 	"strconv"
 	"unicode/utf8"
@@ -431,43 +429,3 @@ func ToGoBool(o Object) (v bool, ok bool) {
 	v, ok = !o.IsFalsy(), true
 	return
 }
-
-// functions to generate with mkcallable
-
-// builtin delete
-//
-//gad:callable func(o Object, k string) (err error)
-
-// builtin copy, dcopy, len, error, typeName, bool, string, isInt, isUint
-// isFloat, isChar, isBool, isString, isBytes, isMap, isSyncMap, isArray
-// isNil, isFunction, isCallable, isIterable
-//
-//gad:callable func(o Object) (ret Object)
-
-// builtin repeat
-//
-//gad:callable func(o Object, n int) (ret Object, err error)
-
-// builtin array
-//
-//gad:callable func(n int, o Object) (ret Object, err error)
-
-// builtin contains
-//
-//gad:callable func(o Object, v Object) (ret Object, err error)
-
-// builtin sort, sortReverse, int, uint, float, char, chars
-//
-//gad:callable func(o Object) (ret Object, err error)
-
-// builtin int
-//
-//gad:callable func(v int64) (ret Object)
-
-// builtin uint
-//
-//gad:callable func(v uint64) (ret Object)
-
-// builtin float
-//
-//gad:callable func(v float64) (ret Object)

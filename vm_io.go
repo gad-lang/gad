@@ -1,6 +1,8 @@
 package gad
 
-import "io"
+import (
+	"io"
+)
 
 type StackWriter struct {
 	last    int

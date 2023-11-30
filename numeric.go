@@ -19,7 +19,7 @@ import (
 type Int int64
 
 func (o Int) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o Int) ToString() string {
@@ -143,7 +143,7 @@ func (o Int) Format(s fmt.State, verb rune) {
 type Uint uint64
 
 func (o Uint) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o Uint) ToString() string {
@@ -267,7 +267,7 @@ func (o Uint) Format(s fmt.State, verb rune) {
 type Float float64
 
 func (o Float) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o Float) ToString() string {
@@ -382,7 +382,7 @@ func (o Decimal) Go() decimal.Decimal {
 }
 
 func (o Decimal) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o Decimal) ToString() string {
@@ -515,7 +515,7 @@ var DecimalZero = Decimal(decimal.Zero)
 type Char rune
 
 func (o Char) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o Char) ToString() string {

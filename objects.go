@@ -25,7 +25,7 @@ import (
 type Bool bool
 
 func (o Bool) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o Bool) ToString() string {
@@ -289,7 +289,7 @@ type String string
 var _ LengthGetter = String("")
 
 func (o String) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o String) ToString() string {
@@ -406,7 +406,7 @@ var (
 )
 
 func (o Bytes) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o Bytes) ToString() string {
@@ -637,7 +637,7 @@ var (
 )
 
 func (o Array) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o Array) Format(f fmt.State, verb rune) {
@@ -917,7 +917,7 @@ var (
 )
 
 func (o Dict) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o Dict) Format(f fmt.State, verb rune) {
@@ -1139,7 +1139,7 @@ func (o *SyncMap) Unlock() {
 }
 
 func (o *SyncMap) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o *SyncMap) ToString() string {
@@ -1290,7 +1290,7 @@ func (o *Error) Unwrap() error {
 }
 
 func (o *Error) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o *Error) ToString() string {

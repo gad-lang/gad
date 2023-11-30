@@ -161,7 +161,7 @@ func (o *Buffer) GoReader() io.Reader {
 }
 
 func (o *Buffer) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o *Buffer) IsFalsy() bool {

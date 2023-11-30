@@ -128,24 +128,24 @@ func init() {
 	TNil = RegisterBuiltinType(BuiltinNil, "nil", Nil, func(call Call) (ret Object, err error) {
 		return Nil, nil
 	})
-	TBool = RegisterBuiltinType(BuiltinBool, "bool", True, funcPORO(builtinBoolFunc))
-	TInt = RegisterBuiltinType(BuiltinInt, "int", Int(0), funcPi64RO(builtinIntFunc))
-	TUint = RegisterBuiltinType(BuiltinUint, "uint", Uint(0), funcPu64RO(builtinUintFunc))
-	TFloat = RegisterBuiltinType(BuiltinFloat, "float", Float(0), funcPf64RO(builtinFloatFunc))
-	TDecimal = RegisterBuiltinType(BuiltinDecimal, "decimal", Decimal{}, funcPOROe(builtinDecimalFunc))
-	TChar = RegisterBuiltinType(BuiltinChar, "char", Char(0), funcPOROe(builtinCharFunc))
-	TText = RegisterBuiltinType(BuiltinText, "text", Text(""), builtinTextFunc)
-	TString = RegisterBuiltinType(BuiltinString, "string", String(""), builtinStringFunc)
-	TBytes = RegisterBuiltinType(BuiltinBytes, "bytes", Bytes{}, builtinBytesFunc)
-	TBuffer = RegisterBuiltinType(BuiltinBuffer, "buffer", Buffer{}, builtinBufferFunc)
+	TBool = RegisterBuiltinType(BuiltinBool, "bool", True, funcPORO(BuiltinBoolFunc))
+	TInt = RegisterBuiltinType(BuiltinInt, "int", Int(0), funcPi64RO(BuiltinIntFunc))
+	TUint = RegisterBuiltinType(BuiltinUint, "uint", Uint(0), funcPu64RO(BuiltinUintFunc))
+	TFloat = RegisterBuiltinType(BuiltinFloat, "float", Float(0), funcPf64RO(BuiltinFloatFunc))
+	TDecimal = RegisterBuiltinType(BuiltinDecimal, "decimal", Decimal{}, funcPOROe(BuiltinDecimalFunc))
+	TChar = RegisterBuiltinType(BuiltinChar, "char", Char(0), funcPOROe(BuiltinCharFunc))
+	TText = RegisterBuiltinType(BuiltinText, "text", Text(""), BuiltinTextFunc)
+	TString = RegisterBuiltinType(BuiltinString, "string", String(""), BuiltinStringFunc)
+	TBytes = RegisterBuiltinType(BuiltinBytes, "bytes", Bytes{}, BuiltinBytesFunc)
+	TBuffer = RegisterBuiltinType(BuiltinBuffer, "buffer", Buffer{}, BuiltinBufferFunc)
 	TArray = RegisterBuiltinType(BuiltinArray, "array", Array{}, func(c Call) (ret Object, err error) {
 		return c.Args.Values(), nil
 	})
 	TDict = RegisterBuiltinType(BuiltinDict, "dict", Dict{}, func(Call) (ret Object, err error) {
 		return Dict{}, nil
 	})
-	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncMap{}, builtinSyncMapFunc)
-	TKeyValue = RegisterBuiltinType(BuiltinKeyValue, "keyValue", KeyValue{}, builtinKeyValueFunc)
-	TKeyValueArray = RegisterBuiltinType(BuiltinKeyValueArray, "keyValueArray", KeyValueArray{}, builtinKeyValueArrayFunc)
-	TError = RegisterBuiltinType(BuiltinError, "error", Error{}, funcPORO(builtinErrorFunc))
+	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncMap{}, BuiltinSyncMapFunc)
+	TKeyValue = RegisterBuiltinType(BuiltinKeyValue, "keyValue", KeyValue{}, BuiltinKeyValueFunc)
+	TKeyValueArray = RegisterBuiltinType(BuiltinKeyValueArray, "keyValueArray", KeyValueArray{}, BuiltinKeyValueArrayFunc)
+	TError = RegisterBuiltinType(BuiltinError, "error", Error{}, funcPORO(BuiltinErrorFunc))
 }

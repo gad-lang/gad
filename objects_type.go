@@ -53,7 +53,7 @@ func (o *Obj) ToString() string {
 	last := len(o.fields) - 1
 	i := 0
 
-	names := o.typ.fields.SortedKeys()
+	names := o.typ.FieldsDict.SortedKeys()
 
 	for _, k := range names {
 		ks := string(k.(String))
@@ -94,7 +94,7 @@ func (o Obj) DeepCopy() Object {
 // IndexSet implements Object interface.
 func (o *Obj) IndexSet(vm *VM, index, value Object) (err error) {
 	name := index.ToString()
-	if s := o.typ.setters[name]; s != nil {
+	if s := o.typ.SettersDict[name]; s != nil {
 		_, err = s.(CallerObject).Call(Call{VM: vm, Args: Args{Array{o, value}}})
 	} else {
 		o.fields[name] = value
@@ -105,7 +105,7 @@ func (o *Obj) IndexSet(vm *VM, index, value Object) (err error) {
 // IndexGet implements Object interface.
 func (o *Obj) IndexGet(vm *VM, index Object) (Object, error) {
 	name := index.ToString()
-	if s := o.typ.getters[name]; s != nil {
+	if s := o.typ.GettersDict[name]; s != nil {
 		return s.(CallerObject).Call(Call{VM: vm, Args: Args{Array{o}}})
 	} else {
 		v, ok := o.fields[name]
@@ -175,7 +175,7 @@ func (o *Obj) Values() Array {
 }
 
 func (o *Obj) CallName(name string, c Call) (_ Object, err error) {
-	if m := o.typ.methods[name]; m != nil {
+	if m := o.typ.MethodsDict[name]; m != nil {
 		c.Args = append([]Array{{o}}, c.Args...)
 		return m.(CallerObject).Call(c)
 	}
@@ -233,30 +233,30 @@ func (o ObjectTypeArray) Array() Array {
 
 // ObjType represents type objects and implements Object interface.
 type ObjType struct {
-	TypeName string
-	fields   Dict
-	setters  Dict
-	methods  Dict
-	getters  Dict
-	Stringer CallerObject
-	Init     CallerObject
-	Inherits ObjectTypeArray
+	TypeName    string
+	FieldsDict  Dict
+	SettersDict Dict
+	MethodsDict Dict
+	GettersDict Dict
+	Stringer    CallerObject
+	Init        CallerObject
+	Inherits    ObjectTypeArray
 }
 
 func (o *ObjType) Fields() Dict {
-	return o.fields
+	return o.FieldsDict
 }
 
 func (o *ObjType) Setters() Dict {
-	return o.setters
+	return o.SettersDict
 }
 
 func (o *ObjType) Methods() Dict {
-	return o.methods
+	return o.MethodsDict
 }
 
 func (o *ObjType) Getters() Dict {
-	return o.getters
+	return o.GettersDict
 }
 
 func (o *ObjType) Name() string {
@@ -279,13 +279,13 @@ func (o *ObjType) IsChildOf(t ObjectType) bool {
 func (o *ObjType) IndexGet(_ *VM, index Object) (value Object, err error) {
 	switch index.ToString() {
 	case "fields":
-		return o.fields, nil
+		return o.FieldsDict, nil
 	case "getters":
-		return o.getters, nil
+		return o.GettersDict, nil
 	case "setters":
-		return o.setters, nil
+		return o.SettersDict, nil
 	case "methods":
-		return o.methods, nil
+		return o.MethodsDict, nil
 	case "inherits":
 		if o.Inherits == nil {
 			return Array{}, nil
@@ -328,17 +328,17 @@ func (o *ObjType) ToString() string {
 
 func (o *ObjType) repr() string {
 	m := Dict{}
-	if len(o.fields) > 0 {
-		m["fields"] = o.fields
+	if len(o.FieldsDict) > 0 {
+		m["fields"] = o.FieldsDict
 	}
-	if len(o.setters) > 0 {
-		m["setters"] = o.setters
+	if len(o.SettersDict) > 0 {
+		m["setters"] = o.SettersDict
 	}
-	if len(o.getters) > 0 {
-		m["getters"] = o.getters
+	if len(o.GettersDict) > 0 {
+		m["getters"] = o.GettersDict
 	}
-	if len(o.methods) > 0 {
-		m["methods"] = o.methods
+	if len(o.MethodsDict) > 0 {
+		m["methods"] = o.MethodsDict
 	}
 	if len(o.Inherits) > 0 {
 		m["inherits"] = o.Inherits
@@ -382,10 +382,10 @@ func (o *ObjType) BinaryOp(tok token.Token, right Object) (Object, error) {
 func (o *ObjType) New(_ *VM, fields Dict) (Object, error) {
 	obj := &Obj{typ: o, fields: fields}
 	if fields == nil {
-		if o.fields == nil {
+		if o.FieldsDict == nil {
 			obj.fields = Dict{}
 		} else {
-			obj.fields = o.fields.Copy().(Dict)
+			obj.fields = o.FieldsDict.Copy().(Dict)
 		}
 	}
 	return obj, nil

@@ -5,8 +5,9 @@ type ForEach struct {
 	args               Array
 	startArgValueIndex int
 	caller             VMCaller
-	k, v               Object
-	err                error
+	Key,
+	Value Object
+	err error
 }
 
 func NewForEach(it Iterator, args Array, startArgValueIndex int, caller VMCaller) *ForEach {
@@ -20,8 +21,8 @@ func NewForEach(it Iterator, args Array, startArgValueIndex int, caller VMCaller
 
 func (f *ForEach) Next() (ok bool) {
 	if ok = f.it.Next(); ok {
-		f.k = f.it.Key()
-		f.v, f.err = f.it.Value()
+		f.Key = f.it.Key()
+		f.Value, f.err = f.it.Value()
 	}
 	return
 }
@@ -31,16 +32,8 @@ func (f *ForEach) Call() (_ Object, err error) {
 		return nil, f.err
 	}
 
-	f.args[f.startArgValueIndex] = f.v
-	f.args[f.startArgValueIndex+1] = f.k
+	f.args[f.startArgValueIndex] = f.Value
+	f.args[f.startArgValueIndex+1] = f.Key
 
 	return f.caller.Call()
-}
-
-func (f *ForEach) Key() Object {
-	return f.k
-}
-
-func (f *ForEach) Value() Object {
-	return f.v
 }

@@ -49,7 +49,7 @@ var (
 )
 
 func (o KeyValue) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o KeyValue) ToString() string {
@@ -231,7 +231,7 @@ var (
 )
 
 func (o KeyValueArray) Type() ObjectType {
-	return typeOf(o)
+	return DetectTypeOf(o)
 }
 
 func (o KeyValueArray) Array() (ret Array) {
