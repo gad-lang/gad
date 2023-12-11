@@ -988,7 +988,7 @@ keyValueArray(keyValue("d",4))))`,
 	expectRun(t, `b := buffer("a"); write(b, "b", 1); b.reset(); write(b, true); return string(b)`,
 		nil, String("true"))
 	expectRun(t, `return string(bytes(buffer("a")))`, nil, String("a"))
-	expectRun(t, `return map([1,2], (v) => v+1)`, nil, Array{Int(2), Int(3)})
+	expectRun(t, `return map([1,2], (v, _) => v+1)`, nil, Array{Int(2), Int(3)})
 	expectRun(t, `return map([1,2], (v, k) => v+k)`, nil, Array{Int(1), Int(3)})
 	expectRun(t, `return reduce([1,2], (cur, v, k) => cur + v)`, nil, Int(4))
 	expectRun(t, `return reduce([1,2], (cur, v, k) => cur + v, 10)`, nil, Int(13))
@@ -1497,6 +1497,98 @@ Point := newType(
 	toString = (this) => "P" + this.x + this.y,
 	writeTo = (this, w) => write(typeName(this),"(", this.x,",",this.y,")"),
 )
+return write(Point(10,20))`,
+		newOpts().Buffered(), Array{Int(12), String(`Point(10,20)`)})
+}
+
+func TestCallerMethod(t *testing.T) {
+	expectRun(t, `
+func f0() {
+	return 100
+}
+addCallMethod(f0, (i:int) => i)
+return f0(), f0(2)`,
+		newOpts(), Array{Int(100), Int(2)})
+
+	expectRun(t, `
+func f() => nil
+func f(b:bool) => nil
+func f1(i:int) => nil
+func f1(i:int, b:bool) => nil
+addCallMethod(f, f1)
+return [string(f), string(f1)]`,
+		newOpts(), Array{String("<compiledFunction f()> with 3 methods:\n  " +
+			"1. <compiledFunction #1(b:bool)>\n  " +
+			"2. <compiledFunction f1(i:int)>\n  " +
+			"3. <compiledFunction #3(i:int, b:bool)>"),
+			String("<compiledFunction f1(i:int)> with 1 methods:\n  " +
+				"1. <compiledFunction #3(i:int, b:bool)>")})
+
+	expectRun(t, `
+func f0(i:int) => i*2
+func f0() => "no args"
+func f0(s:string) => s+"b"
+return string(f0), f0(), f0(2), f0("a")`,
+		newOpts(),
+		Array{
+			String("<compiledFunction f0(i:int)> with 2 methods:\n  1. <compiledFunction #3()>\n  2. <compiledFunction #5(s:string)>"),
+			String("no args"),
+			Int(4),
+			String("ab"),
+		})
+
+	expectRun(t, `
+func f0() {
+}
+
+const f1 = func() {
+}
+
+const (
+	f2 = func() {
+	}
+	f3 = func(v:bool) {
+		return v
+	}
+	f4 = (s:string) => s
+	f5 = (b:bytes) => nil
+)
+
+func f6(s:string,i:int) {}
+const f7 = (b:bool,i:int) => nil
+
+addCallMethod(f0, (i:int) => i)
+addCallMethod(f1, (i:int) => i)
+addCallMethod(f1, (i:uint) => i)
+addCallMethod(f2, (i:int) => i)
+addCallMethod(f3, (i:int) => i)
+addCallMethod(f4, (i:int) => i)
+
+return [
+	[f0(0), f1(1), f2(2), f3(3), f4(4)],
+	[string(f0),string(f1),string(f2),string(f3),string(f4),string(f5),string(f6),string(f7)],
+]`,
+		newOpts(), Array{
+			Array{Int(0), Int(1), Int(2), Int(3), Int(4)},
+			Array{
+				String("<compiledFunction f0()> with 1 methods:\n  1. <compiledFunction #8(i:int)>"),
+				String("<compiledFunction f1()> with 2 methods:\n  1. <compiledFunction #9(i:int)>\n  2. <compiledFunction #10(i:uint)>"),
+				String("<compiledFunction f2()> with 1 methods:\n  1. <compiledFunction #11(i:int)>"),
+				String("<compiledFunction f3(v:bool)> with 1 methods:\n  1. <compiledFunction #12(i:int)>"),
+				String("<compiledFunction f4(s:string)> with 1 methods:\n  1. <compiledFunction #13(i:int)>"),
+				String("<compiledFunction f5(b:bytes)>"),
+				String("<compiledFunction f6(s:string, i:int)>"),
+				String("<compiledFunction f7(b:bool, i:int)>"),
+			},
+		})
+
+	expectRun(t, `
+Point := newType(
+	"Point", 
+	fields={x:0, y:0}, 
+	init=func(this, x,y){this.x = x;this.y = y},
+)
+addCallMethod(write, (this:Point) => write(typeName(this),"(", this.x,",",this.y,")"))
 return write(Point(10,20))`,
 		newOpts().Buffered(), Array{Int(12), String(`Point(10,20)`)})
 }
@@ -3584,7 +3676,7 @@ func TestVMCallCompiledFunction(t *testing.T) {
 		Array{
 			Array{Int(1), Int(2), Int(3), Int(8), Int(9)},
 			Dict{"na0": Int(4), "na1": Int(5)},
-			String("<compiledFunction [params: 1, variadic] [named params: nav (variadic)]>"),
+			String("<compiledFunction #2(*argv, **nav)>"),
 		})
 
 	script := `
@@ -4285,7 +4377,7 @@ func expectRun(t *testing.T, script string, opts *testopts, expect Object) {
 			ropts := &RunOpts{
 				Globals:        opts.globals,
 				Args:           Args{opts.args},
-				Builtins:       builtinObjects,
+				Builtins:       builtinObjects.Build(),
 				ObjectToWriter: opts.objectToWriter,
 			}
 			if opts.namedArgs != nil {

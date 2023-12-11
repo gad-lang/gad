@@ -107,92 +107,92 @@ x := d?.a.b.("c")?.e ?? 5
 }
 
 func TestParserMixed(t *testing.T) {
-	expectParseStringMode(t, ParseMixed, "# gad: writer=myfn\n#{- var myfn -} a", `# gad: writer=myfn; var myfn; #{= "a" }`)
-	expectParseStringMode(t, ParseMixed, "# gad: writer=myfn\na#{var myfn}b", `# gad: writer=myfn; #{= "a" }; var myfn; #{= "b" }`)
+	expectParseStringMode(t, ParseMixed, "# gad: writer=myfn\n#{- var myfn -} a", "# gad: writer=myfn; var myfn; #{= `a` }")
+	expectParseStringMode(t, ParseMixed, "# gad: writer=myfn\na#{var myfn}b", "# gad: writer=myfn; #{= `a` }; var myfn; #{= `b` }")
 
 	expectParseStringMode(t, ParseMixed, "#{var a}", `var a`)
-	expectParseStringMode(t, ParseMixed, "#{for e in list do}1#{end}", `for _, e in list {#{= "1" }}`)
-	expectParseStringMode(t, ParseMixed, "a  #{-= 1 -}\n\tb", `#{= "a" }; #{= 1 }; #{= "b" }`)
-	expectParseStringMode(t, ParseMixed, "#{ a := begin -} 2 #{- end }", `a := (#{= "2" })`)
-	expectParseStringMode(t, ParseMixed, "#{ if 1 then } 2 #{ end }", `if 1 {#{= " 2 " }}`)
+	expectParseStringMode(t, ParseMixed, "#{for e in list do}1#{end}", "for _, e in list {#{= `1` }}")
+	expectParseStringMode(t, ParseMixed, "a  #{-= 1 -}\n\tb", "#{= `a` }; #{= 1 }; #{= `b` }")
+	expectParseStringMode(t, ParseMixed, "#{ a := begin -} 2 #{- end }", "a := (`2`)")
+	expectParseStringMode(t, ParseMixed, "#{ if 1 then } 2 #{ end }", "if 1 {#{= ` 2 ` }}")
 
 	expectParseMode(t, ParseMixed, "a  #{-= 1 -}\n\tb", func(p pfn) []Stmt {
 		return stmts(
-			text(p(1, 1), "a"),
+			rawStringStmt(p(1, 1), "a"),
 			toText(lit("#{=", p(1, 4)), lit("}", p(1, 12)), intLit(1, p(1, 9))),
-			text(p(1, 13), "b"),
+			rawStringStmt(p(1, 13), "b"),
 		)
 	})
 	expectParseMode(t, ParseMixed, `a  #{- 1}b#{1 + 2}c`, func(p pfn) []Stmt {
 		return stmts(
-			text(p(1, 1), "a"),
+			rawStringStmt(p(1, 1), "a"),
 			exprStmt(intLit(1, p(1, 8))),
-			text(p(1, 10), "b"),
+			rawStringStmt(p(1, 10), "b"),
 			exprStmt(binaryExpr(intLit(1, p(1, 13)), intLit(2, p(1, 17)), token.Add, p(1, 15))),
-			text(p(1, 19), "c"),
+			rawStringStmt(p(1, 19), "c"),
 		)
 	})
 	expectParseMode(t, ParseMixed, "a  #{-= 1 }\n\tb", func(p pfn) []Stmt {
 		return stmts(
-			text(p(1, 1), "a"),
+			rawStringStmt(p(1, 1), "a"),
 			toText(lit("#{=", p(1, 4)), lit("}", p(1, 11)), intLit(1, p(1, 9))),
-			text(p(1, 12), "\n\tb"),
+			rawStringStmt(p(1, 12), "\n\tb"),
 		)
 	})
 	expectParseMode(t, ParseMixed, "a  #{-= 1 -}\n\tb", func(p pfn) []Stmt {
 		return stmts(
-			text(p(1, 1), "a"),
+			rawStringStmt(p(1, 1), "a"),
 			toText(lit("#{=", p(1, 4)), lit("}", p(1, 12)), intLit(1, p(1, 9))),
-			text(p(1, 13), "b"),
+			rawStringStmt(p(1, 13), "b"),
 		)
 	})
 	expectParseMode(t, ParseMixed, `a#{=1}b`, func(p pfn) []Stmt {
 		return stmts(
-			text(p(1, 1), "a"),
+			rawStringStmt(p(1, 1), "a"),
 			toText(lit("#{=", p(1, 2)), lit("}", p(1, 6)), intLit(1, p(1, 5))),
-			text(p(1, 7), "b"),
+			rawStringStmt(p(1, 7), "b"),
 		)
 	})
 
 	expectParseMode(t, ParseMixed, `a#{=  1   }b`, func(p pfn) []Stmt {
 		return stmts(
-			text(p(1, 1), "a"),
+			rawStringStmt(p(1, 1), "a"),
 			toText(lit("#{=", p(1, 2)), lit("}", p(1, 11)), intLit(1, p(1, 7))),
-			text(p(1, 12), "b"),
+			rawStringStmt(p(1, 12), "b"),
 		)
 	})
 
 	expectParseMode(t, ParseMixed, `a#{1}b#{1 + 2}c`, func(p pfn) []Stmt {
 		return stmts(
-			text(p(1, 1), "a"),
+			rawStringStmt(p(1, 1), "a"),
 			exprStmt(intLit(1, p(1, 4))),
-			text(p(1, 6), "b"),
+			rawStringStmt(p(1, 6), "b"),
 			exprStmt(binaryExpr(intLit(1, p(1, 9)), intLit(2, p(1, 13)), token.Add, p(1, 11))),
-			text(p(1, 15), "c"),
+			rawStringStmt(p(1, 15), "c"),
 		)
 	})
 
 	expectParseMode(t, ParseMixed, `a#{1}b#{true}c`, func(p pfn) []Stmt {
 		return stmts(
-			text(p(1, 1), "a"),
+			rawStringStmt(p(1, 1), "a"),
 			exprStmt(intLit(1, p(1, 4))),
-			text(p(1, 6), "b"),
+			rawStringStmt(p(1, 6), "b"),
 			exprStmt(boolLit(true, p(1, 9))),
-			text(p(1, 14), "c"),
+			rawStringStmt(p(1, 14), "c"),
 		)
 	})
 
 	expectParseMode(t, ParseMixed, `a#{1}b`, func(p pfn) []Stmt {
 		return stmts(
-			text(p(1, 1), "a"),
+			rawStringStmt(p(1, 1), "a"),
 			exprStmt(intLit(1, p(1, 4))),
-			text(p(1, 6), "b"),
+			rawStringStmt(p(1, 6), "b"),
 		)
 	})
 
 	expectParseMode(t, ParseMixed, `abc`, func(p pfn) []Stmt {
 		return stmts(
-			text(p(1, 1), "abc"),
+			rawStringStmt(p(1, 1), "abc"),
 		)
 	})
 
@@ -200,18 +200,18 @@ func TestParserMixed(t *testing.T) {
 	expectParseStringMode(t, ParseMixed, "#{1}#{2}#{3}", `1; 2; 3`)
 	expectParseStringMode(t, ParseMixed, "#{1}#{}#{3}", `1; 3`)
 	expectParseStringMode(t, ParseMixed, "#{1}#{=2}#{3}", `1; #{= 2 }; 3`)
-	expectParseStringMode(t, ParseMixed, "abc", `#{= "abc" }`)
-	expectParseStringMode(t, ParseMixed, "a#{1}", `#{= "a" }; 1`)
-	expectParseStringMode(t, ParseMixed, "a#{1}b", `#{= "a" }; 1; #{= "b" }`)
-	expectParseStringMode(t, ParseMixed, "a#{1}b#{= 2 + 4}", `#{= "a" }; 1; #{= "b" }; #{= (2 + 4) }`)
-	expectParseStringMode(t, ParseMixed, "a  #{- 1}", `#{= "a" }; 1`)
-	expectParseStringMode(t, ParseMixed, "a\n#{- 1}\tb\n#{-= 2 -}\n\nc", "#{= \"a\" }; 1; #{= \"\\tb\" }; #{= 2 }; #{= \"c\" }")
-	expectParseStringMode(t, ParseMixed, `a#{=1}c#{x := 5}#{=x}`, `#{= "a" }; #{= 1 }; #{= "c" }; x := 5; #{= x }`)
+	expectParseStringMode(t, ParseMixed, "abc", "#{= `abc` }")
+	expectParseStringMode(t, ParseMixed, "a#{1}", "#{= `a` }; 1")
+	expectParseStringMode(t, ParseMixed, "a#{1}b", "#{= `a` }; 1; #{= `b` }")
+	expectParseStringMode(t, ParseMixed, "a#{1}b#{= 2 + 4}", "#{= `a` }; 1; #{= `b` }; #{= (2 + 4) }")
+	expectParseStringMode(t, ParseMixed, "a  #{- 1}", "#{= `a` }; 1")
+	expectParseStringMode(t, ParseMixed, "a\n#{- 1}\tb\n#{-= 2 -}\n\nc", "#{= `a` }; 1; #{= `\\tb` }; #{= 2 }; #{= `c` }")
+	expectParseStringMode(t, ParseMixed, `a#{=1}c#{x := 5}#{=x}`, "#{= `a` }; #{= 1 }; #{= `c` }; x := 5; #{= x }")
 
-	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else if a then}2#{else then}3#{fn()}#{end}", `if true {#{= "1" }} else if a {#{= "2" }} else {#{= "3" }; fn()}`)
-	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else if a then}2#{else}3#{end}", `if true {#{= "1" }} else if a {#{= "2" }} else {#{= "3" }}`)
-	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else if a then}2#{end}", `if true {#{= "1" }} else if a {#{= "2" }}`)
-	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else}2#{end}", `if true {#{= "1" }} else {#{= "2" }}`)
+	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else if a then}2#{else then}3#{fn()}#{end}", "if true {#{= `1` }} else if a {#{= `2` }} else {#{= `3` }; fn()}")
+	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else if a then}2#{else}3#{end}", "if true {#{= `1` }} else if a {#{= `2` }} else {#{= `3` }}")
+	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else if a then}2#{end}", "if true {#{= `1` }} else if a {#{= `2` }}")
+	expectParseStringMode(t, ParseMixed, "#{if true then}1#{else}2#{end}", "if true {#{= `1` }} else {#{= `2` }}")
 }
 
 func TestParserError(t *testing.T) {
@@ -241,7 +241,7 @@ func TestParseDecl(t *testing.T) {
 		return stmts(
 			declStmt(
 				genDecl(token.Param, p(1, 1), 0, 0,
-					paramSpec(false, ident("a", p(1, 7))),
+					paramSpec(false, typedIdent(ident("a", p(1, 7)))),
 				),
 			),
 		)
@@ -250,7 +250,7 @@ func TestParseDecl(t *testing.T) {
 		return stmts(
 			declStmt(
 				genDecl(token.Param, p(1, 1), 0, 0,
-					paramSpec(true, ident("a", p(1, 8))),
+					paramSpec(true, typedIdent(ident("a", p(1, 8)))),
 				),
 			),
 		)
@@ -259,8 +259,8 @@ func TestParseDecl(t *testing.T) {
 		return stmts(
 			declStmt(
 				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 13),
-					paramSpec(false, ident("a", p(1, 8))),
-					paramSpec(true, ident("b", p(1, 12))),
+					paramSpec(false, typedIdent(ident("a", p(1, 8)))),
+					paramSpec(true, typedIdent(ident("b", p(1, 12)))),
 				),
 			),
 		)
@@ -270,8 +270,8 @@ func TestParseDecl(t *testing.T) {
 		return stmts(
 			declStmt(
 				genDecl(token.Param, p(1, 1), p(1, 7), p(2, 3),
-					paramSpec(false, ident("a", p(1, 8))),
-					paramSpec(true, ident("b", p(2, 2))),
+					paramSpec(false, typedIdent(ident("a", p(1, 8)))),
+					paramSpec(true, typedIdent(ident("b", p(2, 2)))),
 				),
 			),
 		)
@@ -281,11 +281,11 @@ func TestParseDecl(t *testing.T) {
 		return stmts(
 			declStmt(
 				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 28),
-					paramSpec(false, ident("a", p(1, 8))),
-					paramSpec(true, ident("b", p(1, 12))),
-					nparamSpec(ident("c", p(1, 15)), intLit(1, p(1, 17))),
-					nparamSpec(ident("d", p(1, 20)), intLit(2, p(1, 22))),
-					nparamSpec(ident("e", p(1, 27)), nil),
+					paramSpec(false, typedIdent(ident("a", p(1, 8)))),
+					paramSpec(true, typedIdent(ident("b", p(1, 12)))),
+					nparamSpec(typedIdent(ident("c", p(1, 15))), intLit(1, p(1, 17))),
+					nparamSpec(typedIdent(ident("d", p(1, 20))), intLit(2, p(1, 22))),
+					nparamSpec(typedIdent(ident("e", p(1, 27))), nil),
 				),
 			),
 		)
@@ -294,9 +294,9 @@ func TestParseDecl(t *testing.T) {
 		return stmts(
 			declStmt(
 				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 21),
-					nparamSpec(ident("c", p(1, 8)), intLit(1, p(1, 10))),
-					nparamSpec(ident("d", p(1, 13)), intLit(2, p(1, 15))),
-					nparamSpec(ident("e", p(1, 20)), nil),
+					nparamSpec(typedIdent(ident("c", p(1, 8))), intLit(1, p(1, 10))),
+					nparamSpec(typedIdent(ident("d", p(1, 13))), intLit(2, p(1, 15))),
+					nparamSpec(typedIdent(ident("e", p(1, 20))), nil),
 				),
 			),
 		)
@@ -305,9 +305,9 @@ func TestParseDecl(t *testing.T) {
 		return stmts(
 			declStmt(
 				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 22),
-					nparamSpec(ident("c", p(1, 9)), intLit(1, p(1, 11))),
-					nparamSpec(ident("d", p(1, 14)), intLit(2, p(1, 16))),
-					nparamSpec(ident("e", p(1, 21)), nil),
+					nparamSpec(typedIdent(ident("c", p(1, 9))), intLit(1, p(1, 11))),
+					nparamSpec(typedIdent(ident("d", p(1, 14))), intLit(2, p(1, 16))),
+					nparamSpec(typedIdent(ident("e", p(1, 21))), nil),
 				),
 			),
 		)
@@ -330,11 +330,25 @@ func TestParseDecl(t *testing.T) {
 	expectParseString(t, "param (a, *b;c=1, d=2, **e)", "param (a, *b, c=1, d=2, **e)")
 	expectParseString(t, "param (a,\n*b\n; c=2,\nx=5)", "param (a, *b, c=2, x=5)")
 
+	expectParseString(t, "param x:int", "param x:int")
+	expectParseString(t, "param x:[int,bool]", "param x:[int, bool]")
+	expectParseString(t, "param (\nx:int,\n)", "param (x:int)")
+	expectParseString(t, "param (\nx:int,\ny)", "param (x:int, y)")
+	expectParseString(t, "param (\nx:int,\ny, z:[string,bool])", "param (x:int, y, z:[string, bool])")
+	expectParseString(t, "param *x:int", "param *x:int")
+	expectParseString(t, "param *x:[int,bool]", "param *x:[int, bool]")
+	expectParseString(t, "param **x:int", "param **x:int")
+	expectParseString(t, "param **x:[int,bool]", "param **x:[int, bool]")
+	expectParseString(t, "param b:int=2", "param b:int=2")
+	expectParseString(t, "param b:[bool,int]=2", "param b:[bool, int]=2")
+	expectParseString(t, "param (a, *b:string, x:[bool,int]=2, **y:[int])",
+		"param (a, *b:string, x:[bool, int]=2, **y:int)")
+
 	expectParse(t, `global a`, func(p pfn) []Stmt {
 		return stmts(
 			declStmt(
 				genDecl(token.Global, p(1, 1), 0, 0,
-					paramSpec(false, ident("a", p(1, 8))),
+					paramSpec(false, typedIdent(ident("a", p(1, 8)))),
 				),
 			),
 		)
@@ -345,12 +359,12 @@ global b`, func(p pfn) []Stmt {
 		return stmts(
 			declStmt(
 				genDecl(token.Global, p(2, 1), 0, 0,
-					paramSpec(false, ident("a", p(2, 8))),
+					paramSpec(false, typedIdent(ident("a", p(2, 8)))),
 				),
 			),
 			declStmt(
 				genDecl(token.Global, p(3, 1), 0, 0,
-					paramSpec(false, ident("b", p(3, 8))),
+					paramSpec(false, typedIdent(ident("b", p(3, 8)))),
 				),
 			),
 		)
@@ -359,8 +373,8 @@ global b`, func(p pfn) []Stmt {
 		return stmts(
 			declStmt(
 				genDecl(token.Global, p(1, 1), p(1, 8), p(1, 13),
-					paramSpec(false, ident("a", p(1, 9))),
-					paramSpec(false, ident("b", p(1, 12))),
+					paramSpec(false, typedIdent(ident("a", p(1, 9)))),
+					paramSpec(false, typedIdent(ident("b", p(1, 12)))),
 				),
 			),
 		)
@@ -370,8 +384,8 @@ b)`, func(p pfn) []Stmt {
 		return stmts(
 			declStmt(
 				genDecl(token.Global, p(1, 1), p(1, 8), p(2, 2),
-					paramSpec(false, ident("a", p(1, 9))),
-					paramSpec(false, ident("b", p(2, 1))),
+					paramSpec(false, typedIdent(ident("a", p(1, 9)))),
+					paramSpec(false, typedIdent(ident("b", p(2, 1)))),
 				),
 			),
 		)
@@ -381,8 +395,8 @@ b)`, func(p pfn) []Stmt {
 		return stmts(
 			declStmt(
 				genDecl(token.Global, p(1, 1), p(1, 8), p(2, 2),
-					paramSpec(false, ident("a", p(1, 9))),
-					paramSpec(false, ident("b", p(2, 1))),
+					paramSpec(false, typedIdent(ident("a", p(1, 9)))),
+					paramSpec(false, typedIdent(ident("b", p(2, 1)))),
 				),
 			),
 		)
@@ -1731,6 +1745,9 @@ func TestParseClosure(t *testing.T) {
 }
 
 func TestParseFunction(t *testing.T) {
+	expectParseString(t, "func(a:int){}", "func(a:int) {}")
+	expectParseString(t, "func(a:[int,bool,int]){}", "func(a:[int, bool]) {}")
+	expectParseString(t, "func(a:[\n int,\n\tbool]){}", "func(a:[int, bool]) {}")
 	expectParseString(t, "func(){}", "func() {}")
 	expectParse(t, "func fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(
@@ -1758,10 +1775,10 @@ func TestParseFunction(t *testing.T) {
 								ident("c", p(1, 13)),
 								ident("d", p(1, 16))),
 							funcNamedArgs(
-								ident("g", p(1, 31)),
-								[]*Ident{
-									ident("e", p(1, 19)),
-									ident("f", p(1, 24)),
+								typedIdent(ident("g", p(1, 31))),
+								[]*TypedIdent{
+									typedIdent(ident("e", p(1, 19))),
+									typedIdent(ident("f", p(1, 24))),
 								},
 								[]Expr{
 									intLit(1, p(1, 21)),
@@ -1781,7 +1798,7 @@ func TestParseFunction(t *testing.T) {
 				exprs(
 					funcLit(
 						funcType(p(1, 5), p(1, 9), p(1, 15),
-							funcArgs(ident("args", p(1, 13)))),
+							funcArgs(typedIdent(ident("args", p(1, 13))))),
 						blockStmt(p(1, 17), p(1, 31),
 							returnStmt(p(1, 19),
 								ident("args", p(1, 26)),
@@ -1802,7 +1819,7 @@ func TestParseFunction(t *testing.T) {
 							ident("n", p(1, 6)),
 							ident("a", p(1, 8)),
 							ident("b", p(1, 10))),
-						funcNamedArgs(ident("na", p(1, 14)), nil, nil),
+						funcNamedArgs(typedIdent(ident("na", p(1, 14))), nil, nil),
 					),
 					blockStmt(p(1, 18), p(1, 19)))),
 		)
@@ -1818,8 +1835,8 @@ func TestParseFunction(t *testing.T) {
 							ident("a", p(1, 8)),
 							ident("b", p(1, 10))),
 						funcNamedArgs(
-							ident("na", p(1, 18)),
-							[]*Ident{ident("x", p(1, 12))},
+							typedIdent(ident("na", p(1, 18))),
+							[]*TypedIdent{typedIdent(ident("x", p(1, 12)))},
 							[]Expr{intLit(1, p(1, 14))}),
 					),
 					blockStmt(p(1, 22), p(1, 23)))),
@@ -1872,7 +1889,7 @@ func TestParseVariadicFunctionWithArgs(t *testing.T) {
 				exprs(
 					funcLit(
 						funcType(p(1, 5), p(1, 9), p(1, 18),
-							funcArgs(ident("z", p(1, 17)),
+							funcArgs(typedIdent(ident("z", p(1, 17))),
 								ident("x", p(1, 10)),
 								ident("y", p(1, 13)))),
 						blockStmt(p(1, 20), p(1, 31),
@@ -2366,7 +2383,7 @@ func TestParseMap(t *testing.T) {
 						dictLit(p(1, 33), p(1, 52),
 							mapElementLit(
 								"k1", p(1, 35),
-								p(1, 37), stringLit("bar", p(1, 39))),
+								p(1, 37), rawStringLit("bar", p(1, 39))),
 							mapElementLit(
 								"k2", p(1, 46),
 								p(1, 48), intLit(4, p(1, 50))))))),
@@ -2723,7 +2740,7 @@ func TestParseString(t *testing.T) {
 		return stmts(
 			assignStmt(
 				exprs(ident("a", p(1, 1))),
-				exprs(stringLit("raw string", p(1, 5))),
+				exprs(rawStringLit("`raw string`", p(1, 5))),
 				token.Assign,
 				p(1, 3)))
 	})
@@ -2744,7 +2761,7 @@ y
 #{b}`, func(p pfn) []Stmt {
 		return stmts(
 			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
-			text(p(2, 1), "y\n"),
+			rawStringStmt(p(2, 1), "y\n"),
 			exprStmt(ident("b", p(3, 3))),
 		)
 	})
@@ -2753,7 +2770,7 @@ a
 #{b}`, func(p pfn) []Stmt {
 		return stmts(
 			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
-			text(p(2, 1), "a\n"),
+			rawStringStmt(p(2, 1), "a\n"),
 			exprStmt(ident("b", p(3, 3))),
 		)
 	})
@@ -2983,14 +3000,14 @@ func genDecl(
 	}
 }
 
-func paramSpec(variadic bool, ident *Ident) Spec {
+func paramSpec(variadic bool, ident *TypedIdent) Spec {
 	return &ParamSpec{
 		Ident:    ident,
 		Variadic: variadic,
 	}
 }
 
-func nparamSpec(ident *Ident, value Expr) Spec {
+func nparamSpec(ident *TypedIdent, value Expr) Spec {
 	return &NamedParamSpec{
 		Ident: ident,
 		Value: value,
@@ -3123,11 +3140,20 @@ func funcType(pos, lparen, rparen Pos, v ...any) *FuncType {
 	return f
 }
 
-func funcArgs(vari *Ident, names ...*Ident) ArgsList {
-	return ArgsList{Values: names, Var: vari}
+func funcArgs(vari *TypedIdent, names ...Expr) ArgsList {
+	l := ArgsList{Var: vari}
+	for _, name := range names {
+		switch t := name.(type) {
+		case *Ident:
+			l.Values = append(l.Values, typedIdent(t))
+		case *TypedIdent:
+			l.Values = append(l.Values, t)
+		}
+	}
+	return l
 }
 
-func funcNamedArgs(vari *Ident, names []*Ident, values []Expr) NamedArgsList {
+func funcNamedArgs(vari *TypedIdent, names []*TypedIdent, values []Expr) NamedArgsList {
 	return NamedArgsList{Names: names, Var: vari, Values: values}
 }
 
@@ -3143,8 +3169,12 @@ func ident(name string, pos Pos) *Ident {
 	return &Ident{Name: name, NamePos: pos}
 }
 
-func text(pos Pos, lit string) *TextStmt {
-	return &TextStmt{TextPos: pos, Literal: lit}
+func typedIdent(ident *Ident, typ ...*Ident) *TypedIdent {
+	return &TypedIdent{Ident: ident, Type: typ}
+}
+
+func rawStringStmt(pos Pos, lit string) *RawStringStmt {
+	return &RawStringStmt{Lits: []*RawStringLit{{LiteralPos: pos, Literal: lit}}}
 }
 
 func toText(start, end Literal, expr Expr) *ExprToTextStmt {
@@ -3223,6 +3253,10 @@ func decimalLit(value string, pos Pos) *DecimalLit {
 
 func stringLit(value string, pos Pos) *StringLit {
 	return &StringLit{Value: value, ValuePos: pos}
+}
+
+func rawStringLit(value string, pos Pos) *RawStringLit {
+	return &RawStringLit{Literal: value, LiteralPos: pos, Quoted: value[0] == '`'}
 }
 
 func charLit(value rune, pos Pos) *CharLit {
@@ -3479,11 +3513,11 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 			actual.(*BranchStmt).Token)
 		require.Equal(t, expected.TokenPos,
 			actual.(*BranchStmt).TokenPos)
-	case *TextStmt:
-		require.Equal(t, expected.TextPos,
-			actual.(*TextStmt).TextPos)
-		require.Equal(t, expected.Literal,
-			actual.(*TextStmt).Literal)
+	case *RawStringStmt:
+		require.Equal(t, len(expected.Lits), len(actual.(*RawStringStmt).Lits))
+		for i, lit := range expected.Lits {
+			equalExpr(t, lit, actual.(*RawStringStmt).Lits[i])
+		}
 	case *ExprToTextStmt:
 		require.Equal(t, expected.StartLit.Value,
 			actual.(*ExprToTextStmt).StartLit.Value)
@@ -3524,6 +3558,9 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 			actual.(*Ident).Name)
 		require.Equal(t, int(expected.NamePos),
 			int(actual.(*Ident).NamePos))
+	case *TypedIdent:
+		equalExpr(t, expected.Ident, actual.(*TypedIdent).Ident)
+		equalIdents(t, expected.Type, actual.(*TypedIdent).Type)
 	case *IntLit:
 		require.Equal(t, expected.Value,
 			actual.(*IntLit).Value)
@@ -3553,6 +3590,11 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 			actual.(*StringLit).Value)
 		require.Equal(t, int(expected.ValuePos),
 			int(actual.(*StringLit).ValuePos))
+	case *RawStringLit:
+		require.Equal(t, expected.UnquotedValue(),
+			actual.(*RawStringLit).UnquotedValue())
+		require.Equal(t, int(expected.LiteralPos),
+			int(actual.(*RawStringLit).LiteralPos))
 	case *ArrayLit:
 		require.Equal(t, expected.LBrack,
 			actual.(*ArrayLit).LBrack)
@@ -3727,7 +3769,7 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 func equalFuncType(t *testing.T, expected, actual *FuncType) {
 	require.Equal(t, expected.Params.LParen, actual.Params.LParen)
 	require.Equal(t, expected.Params.RParen, actual.Params.RParen)
-	equalIdents(t, expected.Params.Args.Values, actual.Params.Args.Values)
+	equalTypedIdents(t, expected.Params.Args.Values, actual.Params.Args.Values)
 	equalNamedArgs(t, &expected.Params.NamedArgs, &actual.Params.NamedArgs)
 }
 
@@ -3739,7 +3781,7 @@ func equalNamedArgs(t *testing.T, expected, actual *NamedArgsList) {
 	require.NotNil(t, actual, "actual is nil")
 
 	require.Equal(t, expected.Var, actual.Var)
-	equalIdents(t, expected.Names, actual.Names)
+	equalTypedIdents(t, expected.Names, actual.Names)
 	equalExprs(t, expected.Values, actual.Values)
 }
 
@@ -3752,6 +3794,13 @@ func equalNamedArgsNames(t *testing.T, expected, actual []NamedArgExpr) {
 }
 
 func equalIdents(t *testing.T, expected, actual []*Ident) {
+	require.Equal(t, len(expected), len(actual))
+	for i := 0; i < len(expected); i++ {
+		equalExpr(t, expected[i], actual[i])
+	}
+}
+
+func equalTypedIdents(t *testing.T, expected, actual []*TypedIdent) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
 		equalExpr(t, expected[i], actual[i])

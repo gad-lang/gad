@@ -14,12 +14,10 @@ package node
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
-	"github.com/gad-lang/gad/parser/utils"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -475,46 +473,67 @@ func (s *ThrowStmt) String() string {
 	return "throw " + expr
 }
 
-// TextStmt represents an TextStmt.
-type TextStmt struct {
-	Literal string
-	TextPos source.Pos
-	Data    utils.Data
+// RawStringStmt represents an RawStringStmt.
+type RawStringStmt struct {
+	Lits []*RawStringLit
 }
 
-func (e *TextStmt) StmtNode() {
+func (e *RawStringStmt) Pos() source.Pos {
+	return e.Lits[0].Pos()
 }
 
-func (e *TextStmt) ExprNode() {
+func (e *RawStringStmt) End() source.Pos {
+	return e.Lits[len(e.Lits)-1].Pos()
 }
 
-func (e *TextStmt) TrimLinePrefix(prefix string) {
-	lines := strings.Split(e.Literal, "\n")
-	for i, line := range lines {
-		lines[i] = strings.TrimLeft(line, prefix)
-	}
-	e.Literal = strings.Join(lines, "\n")
+func (e *RawStringStmt) StmtNode() {
 }
 
-// Pos returns the position of first character belonging to the node.
-func (e *TextStmt) Pos() source.Pos {
-	return e.TextPos
+func (e *RawStringStmt) ExprNode() {
 }
 
-// End returns the position of first character immediately after the node.
-func (e *TextStmt) End() source.Pos {
-	return source.Pos(int(e.TextPos) + len(e.Literal))
-}
-
-func (e *TextStmt) String() string {
-	if e != nil {
-		s := "#{= " + strconv.Quote(e.Literal)
-		if len(e.Data) > 0 {
-			s += " {" + e.Data.String() + "}"
+func (e *RawStringStmt) TrimLinePrefix(prefix string) {
+	for _, lit := range e.Lits {
+		lines := strings.Split(lit.Literal, "\n")
+		for i, line := range lines {
+			lines[i] = strings.TrimLeft(line, prefix)
 		}
-		return s + " }"
+		lit.Literal = strings.Join(lines, "\n")
+	}
+}
+
+func (e *RawStringStmt) Quoted() string {
+	var b strings.Builder
+	b.WriteByte('`')
+	for _, lit := range e.Lits {
+		s := lit.QuotedValue()
+		b.WriteString(s[1 : len(s)-1])
+	}
+	b.WriteByte('`')
+	return b.String()
+}
+
+func (e *RawStringStmt) Unquoted() string {
+	var b strings.Builder
+	for _, lit := range e.Lits {
+		b.WriteString(lit.UnquotedValue())
+	}
+	return b.String()
+}
+
+func (e *RawStringStmt) String() string {
+	if e != nil {
+		return "#{= " + e.Quoted() + " }"
 	}
 	return nullRep
+}
+
+func (e *RawStringStmt) Value() string {
+	var b strings.Builder
+	for _, lit := range e.Lits {
+		b.WriteString(lit.UnquotedValue())
+	}
+	return b.String()
 }
 
 // ExprToTextStmt represents to text wrapped expression.

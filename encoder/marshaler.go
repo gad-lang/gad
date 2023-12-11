@@ -231,23 +231,45 @@ func (o *SyncMap) MarshalBinary() ([]byte, error) {
 func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 	var tmpBuf bytes.Buffer
 	var vi varintConv
-	if o.Params.Len > 0 {
-		// NumParams field #0
+
+	// Name field #0
+	if o.Name != "" {
 		tmpBuf.WriteByte(0)
-		b := vi.toBytes(int64(o.Params.Len))
+		b, _ := String(o.Name).MarshalBinary()
 		tmpBuf.Write(b)
 	}
 
-	if o.NumLocals > 0 {
-		// NumLocals field #1
+	if o.AllowMethods {
 		tmpBuf.WriteByte(1)
+	}
+
+	if o.Params.Len > 0 {
+		if o.Params.Typed {
+			tmpBuf.WriteByte(2)
+		}
+
+		// NumParams field #1
+		tmpBuf.WriteByte(3)
+
+		b := vi.toBytes(int64(o.Params.Len))
+		tmpBuf.Write(b)
+
+		for _, p := range o.Params.Names {
+			b, _ := String(p).MarshalBinary()
+			tmpBuf.Write(b)
+		}
+	}
+
+	if o.NumLocals > 0 {
+		// NumLocals field #4
+		tmpBuf.WriteByte(4)
 		b := vi.toBytes(int64(o.NumLocals))
 		tmpBuf.Write(b)
 	}
 
 	if o.Instructions != nil {
-		// Instructions field #2
-		tmpBuf.WriteByte(2)
+		// Instructions field #5
+		tmpBuf.WriteByte(5)
 		data, err := Bytes(o.Instructions).MarshalBinary()
 		if err != nil {
 			return nil, err
@@ -255,14 +277,14 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 		tmpBuf.Write(data)
 	}
 
-	// Variadic field #3
+	// Variadic field #6
 	if o.Params.Var {
-		tmpBuf.WriteByte(3)
+		tmpBuf.WriteByte(6)
 	}
 
 	if l := o.NamedParams.Len(); l > 0 {
-		// Variadic field #5
-		tmpBuf.WriteByte(4)
+		// Variadic field #7
+		tmpBuf.WriteByte(7)
 		tmpBuf.Write(vi.toBytes(int64(l)))
 		for _, n := range o.NamedParams.Params {
 			b, _ := String(n.Name).MarshalBinary()
@@ -272,10 +294,11 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 		}
 	}
 
-	// Free field #5, ignore Free variables, doesn't make sense
+	// Ignore Free variables, doesn't make sense
+
 	if o.SourceMap != nil {
-		// SourceMap field #6
-		tmpBuf.WriteByte(6)
+		// SourceMap field #8
+		tmpBuf.WriteByte(8)
 		b := vi.toBytes(int64(len(o.SourceMap) * 2))
 		tmpBuf.Write(b)
 		for key, value := range o.SourceMap {

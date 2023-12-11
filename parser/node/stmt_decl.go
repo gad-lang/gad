@@ -37,13 +37,13 @@ type (
 
 	// A ParamSpec node represents a parameter declaration
 	ParamSpec struct {
-		Ident    *Ident
+		Ident    *TypedIdent
 		Variadic bool
 	}
 
 	// A NamedParamSpec node represents a named parameter declaration
 	NamedParamSpec struct {
-		Ident *Ident
+		Ident *TypedIdent
 		Value Expr
 	}
 )

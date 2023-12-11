@@ -15,6 +15,7 @@ package node
 import (
 	"bytes"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
@@ -289,6 +290,7 @@ func (e *DecimalLit) String() string {
 
 // FuncLit represents a function literal.
 type FuncLit struct {
+	ast.NodeData
 	Type *FuncType
 	Body *BlockStmt
 }
@@ -311,6 +313,7 @@ func (e *FuncLit) String() string {
 
 // ClosureLit represents a function closure literal.
 type ClosureLit struct {
+	ast.NodeData
 	Type *FuncType
 	Body Expr
 }
@@ -333,8 +336,8 @@ func (e *ClosureLit) String() string {
 
 // ArgsList represents a list of identifiers.
 type ArgsList struct {
-	Var    *Ident
-	Values []*Ident
+	Var    *TypedIdent
+	Values []*TypedIdent
 }
 
 // Pos returns the position of first character belonging to the node.
@@ -378,12 +381,12 @@ func (n *ArgsList) String() string {
 
 // NamedArgsList represents a list of identifier with value pairs.
 type NamedArgsList struct {
-	Var    *Ident
-	Names  []*Ident
+	Var    *TypedIdent
+	Names  []*TypedIdent
 	Values []Expr
 }
 
-func (n *NamedArgsList) Add(name *Ident, value Expr) *NamedArgsList {
+func (n *NamedArgsList) Add(name *TypedIdent, value Expr) *NamedArgsList {
 	n.Names = append(n.Names, name)
 	n.Values = append(n.Values, value)
 	return n
@@ -481,9 +484,11 @@ func (n *FuncParams) String() string {
 
 // FuncType represents a function type definition.
 type FuncType struct {
-	FuncPos source.Pos
-	Ident   *Ident
-	Params  FuncParams
+	Token        token.Token
+	FuncPos      source.Pos
+	Ident        *Ident
+	Params       FuncParams
+	AllowMethods bool
 }
 
 func (e *FuncType) ExprNode() {}
@@ -528,6 +533,48 @@ func (e *Ident) End() source.Pos {
 func (e *Ident) String() string {
 	if e != nil {
 		return e.Name
+	}
+	return nullRep
+}
+
+type TypedIdent struct {
+	Ident *Ident
+	Type  []*Ident
+}
+
+func (e *TypedIdent) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *TypedIdent) Pos() source.Pos {
+	if e.Ident != nil {
+		return e.Ident.Pos()
+	}
+	return e.Ident.Pos()
+}
+
+// End returns the position of first character immediately after the node.
+func (e *TypedIdent) End() source.Pos {
+	if len(e.Type) == 0 {
+		return e.Ident.End()
+	}
+	return e.Type[len(e.Type)-1].End()
+}
+
+func (e *TypedIdent) String() string {
+	if e != nil {
+		l := len(e.Type)
+		switch l {
+		case 0:
+			return e.Ident.String()
+		case 1:
+			return e.Ident.String() + ":" + e.Type[0].String()
+		default:
+			var s = make([]string, len(e.Type))
+			for i, ident := range e.Type {
+				s[i] = ident.String()
+			}
+			return e.Ident.String() + ":[" + strings.Join(s, ", ") + "]"
+		}
 	}
 	return nullRep
 }
@@ -870,8 +917,43 @@ func (e *StringLit) String() string {
 	return e.Literal
 }
 
-type TextLit struct {
-	StringLit
+type RawStringLit struct {
+	Literal    string
+	LiteralPos source.Pos
+	Quoted     bool
+}
+
+func (e *RawStringLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *RawStringLit) Pos() source.Pos {
+	return e.LiteralPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *RawStringLit) End() source.Pos {
+	return source.Pos(int(e.LiteralPos) + len(e.Literal))
+}
+
+func (e *RawStringLit) String() string {
+	return e.QuotedValue()
+}
+
+func (e *RawStringLit) UnquotedValue() string {
+	if e.Quoted {
+		s, _ := strconv.Unquote(e.Literal)
+		return s
+	} else {
+		return e.Literal
+	}
+}
+
+func (e *RawStringLit) QuotedValue() string {
+	if e.Quoted {
+		return e.Literal
+	} else {
+		return utils.Quote(e.Literal, '`')
+	}
 }
 
 // UnaryExpr represents an unary operator expression.

@@ -407,7 +407,12 @@ func (o *ObjType) New(_ *VM, fields Dict) (Object, error) {
 func (o *ObjType) Call(c Call) (obj Object, err error) {
 	if o.Init != nil {
 		obj, _ = o.New(c.VM, nil)
-		if _, err = o.Init.Call(Call{c.VM, append(Args{Array{obj}}, c.Args...), c.NamedArgs}); err != nil {
+		if _, err = o.Init.Call(Call{
+			VM:        c.VM,
+			Args:      append(Args{Array{obj}}, c.Args...),
+			NamedArgs: c.NamedArgs,
+			SafeArgs:  c.SafeArgs,
+		}); err != nil {
 			return
 		}
 	} else if c.NamedArgs.IsFalsy() {

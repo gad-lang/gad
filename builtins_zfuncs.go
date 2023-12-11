@@ -161,3 +161,88 @@ func funcPf64RO(fn func(float64) Object) CallableFunc {
 		return
 	}
 }
+
+// funcPCoACobRe is a generated function to make CallableFunc.
+// Source: func(o CallerObject, argsType Array, handler CallerObject, override=bool) (err error)
+func funcPCoACobRe(fn func(CallerObject, Array, CallerObject, bool) error) CallableFunc {
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(3); err != nil {
+			return Nil, err
+		}
+
+		var (
+			override  bool
+			override_ = &NamedArgVar{
+				Name: "override",
+				Accept: func(v Object) error {
+					var ok bool
+					if override, ok = ToGoBool(v); !ok {
+						return NewArgumentTypeError("override", "bool", v.Type().Name())
+					}
+					return nil
+				},
+			}
+		)
+		if err := c.NamedArgs.Get(override_); err != nil {
+			return Nil, err
+		}
+
+		o, ok := c.Args.Get(0).(CallerObject)
+		if !ok {
+			return Nil, NewArgumentTypeError("1st", "CallerObject", c.Args.Get(0).Type().Name())
+		}
+		argsType, ok := ToArray(c.Args.Get(1))
+		if !ok {
+			return Nil, NewArgumentTypeError("2nd", "array", c.Args.Get(1).Type().Name())
+		}
+		handler, ok := c.Args.Get(2).(CallerObject)
+		if !ok {
+			return Nil, NewArgumentTypeError("3rd", "CallerObject", c.Args.Get(2).Type().Name())
+		}
+
+		err = fn(o, argsType, handler, override)
+		ret = Nil
+		return
+	}
+}
+
+// funcPpVM_CoCobRe is a generated function to make CallableFunc.
+// Source: func(vm *VM, o CallerObject, handler CallerObject, override=bool) (err error)
+func funcPpVM_CoCobRe(fn func(*VM, CallerObject, CallerObject, bool) error) CallableFunc {
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(2); err != nil {
+			return Nil, err
+		}
+
+		var (
+			override  bool
+			override_ = &NamedArgVar{
+				Name: "override",
+				Accept: func(v Object) error {
+					var ok bool
+					if override, ok = ToGoBool(v); !ok {
+						return NewArgumentTypeError("override", "bool", v.Type().Name())
+					}
+					return nil
+				},
+			}
+		)
+		if err := c.NamedArgs.Get(override_); err != nil {
+			return Nil, err
+		}
+
+		vm := c.VM
+		o, ok := c.Args.Get(0).(CallerObject)
+		if !ok {
+			return Nil, NewArgumentTypeError("1st", "CallerObject", c.Args.Get(0).Type().Name())
+		}
+		handler, ok := c.Args.Get(1).(CallerObject)
+		if !ok {
+			return Nil, NewArgumentTypeError("2nd", "CallerObject", c.Args.Get(1).Type().Name())
+		}
+
+		err = fn(vm, o, handler, override)
+		ret = Nil
+		return
+	}
+}

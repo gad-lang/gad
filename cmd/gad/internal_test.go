@@ -57,7 +57,7 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("bytecode", func(t *testing.T) {
 		require.NoError(t, r.execute("func(){}"))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   <compiledFunction>\n")
+		testHasPrefix(t, string(cw.consume()), "\n⇦   <compiledFunction #1()>\n")
 		require.NoError(t, r.execute(".bytecode"))
 		testHasPrefix(t, string(cw.consume()), "Bytecode\n")
 	})

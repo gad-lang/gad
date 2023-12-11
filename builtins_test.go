@@ -13,16 +13,16 @@ func TestBuiltinTypes(t *testing.T) {
 		}
 
 		if v < BuiltinTypesEnd_ {
-			if _, ok := BuiltinObjects[v].(ObjectType); !ok {
-				t.Fatalf("builtin '%s' is not ObjectType type", k)
+			if v2, ok := BuiltinObjects[v].(ObjectType); !ok {
+				t.Fatalf("builtin '%s' (%T) is not ObjectType type", k, v2)
 			}
 		} else if v < BuiltinFunctionsEnd_ {
-			if _, ok := BuiltinObjects[v].(*BuiltinFunction); !ok {
-				t.Fatalf("builtin '%s' is not *BuiltinFunction type", k)
+			if v2, ok := BuiltinObjects[v].(*BuiltinFunction); !ok {
+				t.Fatalf("builtin '%s' (%T) is not *BuiltinFunction type", k, v2)
 			}
 		} else if v < BuiltinErrorsEnd_ {
-			if _, ok := BuiltinObjects[v].(*Error); !ok {
-				t.Fatalf("builtin '%s' is not *Error type", k)
+			if v2, ok := BuiltinObjects[v].(*Error); !ok {
+				t.Fatalf("builtin '%s' (%T) is not *Error type", k, v2)
 			}
 		}
 	}

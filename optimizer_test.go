@@ -561,7 +561,7 @@ func TestOptimizerShadowing(t *testing.T) {
 				makeInst(OpCall, 1, 0),
 				makeInst(OpReturn, 1),
 			),
-				withParams(1),
+				withParams("int"),
 				withLocals(1),
 			),
 		))
@@ -609,7 +609,7 @@ func TestOptimizerShadowing(t *testing.T) {
 	opts.OptimizeExpr = true
 
 	st := NewSymbolTable(BuiltinsMap)
-	require.NoError(t, st.SetParams(false, "int"))
+	require.NoError(t, st.SetParams(false, []string{"int"}, nil))
 	opts.SymbolTable = st
 	expectCompileWithOpts(t, `return int("1")`, opts,
 		bytecode(
@@ -620,7 +620,7 @@ func TestOptimizerShadowing(t *testing.T) {
 				makeInst(OpCall, 1, 0),
 				makeInst(OpReturn, 1),
 			),
-				withParams(1),
+				withParams("int"),
 				withLocals(1),
 			),
 		),
@@ -681,7 +681,7 @@ func TestOptimizerShadowing(t *testing.T) {
 					makeInst(OpCall, 1, 0),
 					makeInst(OpReturn, 1),
 				),
-					withParams(1),
+					withParams("int"),
 					withLocals(1),
 				),
 				Int(1),

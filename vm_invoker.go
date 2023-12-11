@@ -25,6 +25,7 @@ type Invoker struct {
 	callee     Object
 	isCompiled bool
 	dorelease  bool
+	validArgs  bool
 }
 
 // NewInvoker creates a new Invoker object.
@@ -37,6 +38,11 @@ func NewInvoker(vm *VM, callee Object) *Invoker {
 // Acquire acquires a VM from the pool.
 func (inv *Invoker) Acquire() {
 	inv.acquire(true)
+}
+
+func (inv *Invoker) ValidArgs(v bool) *Invoker {
+	inv.validArgs = v
+	return inv
 }
 
 func (inv *Invoker) acquire(usePool bool) {
@@ -78,6 +84,12 @@ func (inv *Invoker) Invoke(args Args, namedArgs *NamedArgs) (Object, error) {
 	inv.child.StdErr = inv.vm.StdErr
 
 	if inv.isCompiled {
+		cf := inv.callee.(*CompiledFunction)
+		if !inv.validArgs {
+			if err := cf.ValidateParamTypes(inv.vm, args); err != nil {
+				return nil, err
+			}
+		}
 		return inv.child.RunOpts(&RunOpts{Globals: inv.vm.globals, Args: args, NamedArgs: namedArgs})
 	}
 	return inv.invokeObject(inv.callee, args)
@@ -96,6 +108,8 @@ func (inv *Invoker) invokeObject(co Object, args Args) (Object, error) {
 
 // Caller create new VM caller object.
 func (inv *Invoker) Caller(args Args, namedArgs *NamedArgs) (VMCaller, error) {
+	var validate = true
+do:
 	if inv.isCompiled {
 		if inv.child == nil {
 			inv.acquire(false)
@@ -108,6 +122,12 @@ func (inv *Invoker) Caller(args Args, namedArgs *NamedArgs) (VMCaller, error) {
 		inv.child.StdIn = inv.vm.StdIn
 		inv.child.StdOut = inv.vm.StdOut
 		inv.child.StdErr = inv.vm.StdErr
+
+		if validate {
+			if err := inv.callee.(*CompiledFunction).ValidateParamTypes(inv.child, args); err != nil {
+				return nil, err
+			}
+		}
 
 		if err := inv.child.init(&RunOpts{Globals: inv.vm.globals, Args: args, NamedArgs: namedArgs}); err != nil {
 			return nil, err
@@ -124,6 +144,17 @@ func (inv *Invoker) Caller(args Args, namedArgs *NamedArgs) (VMCaller, error) {
 	if callee == nil {
 		return nil, ErrNotCallable.NewError(inv.callee.Type().Name())
 	}
+
+	if cwm, _ := callee.(*CallerObjectWithMethods); cwm != nil {
+		callee, _ = cwm.CallerOf(args)
+		if cf, _ := callee.(*CompiledFunction); cf != nil {
+			inv.isCompiled = true
+			inv.callee = cf
+			validate = !inv.validArgs
+			goto do
+		}
+	}
+
 	caller := &vmObjectCaller{
 		vm:     inv.vm,
 		args:   args,

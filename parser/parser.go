@@ -501,7 +501,7 @@ func (p *Parser) ParseCallArgs(start, end token.Token) *node.CallArgs {
 		defer untracep(tracep(p, "CallArgs"))
 	}
 
-	paren := p.ParseParemExpr(start, end, false)
+	paren := p.ParseParemExpr(start, end, false, true, false)
 	switch t := paren.(type) {
 	case *node.ParenExpr:
 		return p.CallArgsOf(t.LParen, t.RParen, t.Expr)
@@ -829,17 +829,17 @@ func (p *Parser) ParseOperand() node.Expr {
 	case token.Import:
 		return p.ParseImportExpr()
 	case token.LParen:
-		return p.ParseParemExpr(token.LParen, token.RParen, true)
+		return p.ParseParemExpr(token.LParen, token.RParen, true, true, true)
 	case token.Begin:
-		return p.ParseParemExpr(token.Begin, token.End, false)
+		return p.ParseParemExpr(token.Begin, token.End, false, false, false)
 	case token.LBrack: // array literal
 		return p.ParseArrayLit()
 	case token.LBrace: // dict literal
 		return p.ParseDictLit()
 	case token.Func: // function literal
 		return p.ParseFuncLit()
-	case token.Text:
-		return p.ParseTextStmt()
+	case token.RawString:
+		return p.ParseRawStringLit()
 	}
 
 	pos := p.Token.Pos
@@ -871,7 +871,7 @@ func (p *Parser) ParseImportExpr() node.Expr {
 	return expr
 }
 
-func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv bool) node.Expr {
+func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, parseLambda, parseTypes bool) node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "ParemExpr"))
 	}
@@ -930,10 +930,20 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv b
 		p.ExprLevel--
 		p.SkipSpace()
 
+		if ident, _ := expr.(*node.Ident); ident != nil && parseTypes {
+			expr = &node.TypedIdent{
+				Ident: ident,
+				Type:  p.ParseType(),
+			}
+		}
+
 		if kv {
 			if mul != 2 {
-				if ident, _ := expr.(*node.Ident); ident != nil {
-					kv := &node.KeyValueLit{Key: expr}
+				switch expr.(type) {
+				case *node.TypedIdent, *node.Ident:
+					kv := &node.KeyValueLit{
+						Key: expr,
+					}
 					if p.Token.Token == token.Assign {
 						p.Next()
 						kv.Value = p.ParseExpr()
@@ -959,7 +969,10 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv b
 			if p.Token.Token == token.Assign {
 				p.Next()
 				p.ExprLevel++
-				expr = &node.KeyValueLit{Key: expr, Value: p.ParseExpr()}
+				expr = &node.KeyValueLit{
+					Key:   expr,
+					Value: p.ParseExpr(),
+				}
 				p.ExprLevel--
 			}
 		}
@@ -980,7 +993,7 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv b
 
 	rparen := p.Expect(end)
 
-	if p.Token.Token == token.Lambda {
+	if p.Token.Token == token.Lambda && parseLambda {
 		p.Next()
 
 		var body node.Expr
@@ -1029,10 +1042,18 @@ exps:
 	for _, n = range exprs {
 		switch t := n.(type) {
 		case *node.Ident:
+			params.Args.Values = append(params.Args.Values, &node.TypedIdent{Ident: t})
+		case *node.TypedIdent:
 			params.Args.Values = append(params.Args.Values, t)
 		case *node.ArgVarLit:
 			switch t2 := t.Value.(type) {
 			case *node.Ident:
+				params.Args.Var = &node.TypedIdent{
+					Ident: t2,
+				}
+				i++
+				break exps
+			case *node.TypedIdent:
 				params.Args.Var = t2
 				i++
 				break exps
@@ -1055,6 +1076,9 @@ exps:
 			case *node.KeyValueLit:
 				switch t2 := t.Key.(type) {
 				case *node.Ident:
+					params.NamedArgs.Names = append(params.NamedArgs.Names, &node.TypedIdent{Ident: t2})
+					params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
+				case *node.TypedIdent:
 					params.NamedArgs.Names = append(params.NamedArgs.Names, t2)
 					params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
 				default:
@@ -1064,6 +1088,10 @@ exps:
 			case *node.NamedArgVarLit:
 				switch t2 := t.Value.(type) {
 				case *node.Ident:
+					params.NamedArgs.Var = &node.TypedIdent{Ident: t2}
+					i++
+					break nexps
+				case *node.TypedIdent:
 					params.NamedArgs.Var = t2
 					i++
 					break nexps
@@ -1114,14 +1142,14 @@ func (p *Parser) ParseFuncLit() node.Expr {
 		defer untracep(tracep(p, "FuncLit"))
 	}
 
-	typ := p.ParseFuncType()
+	typ := p.ParseFuncType(false)
 	p.ExprLevel++
+
 	body, closure := p.ParseBody()
 	p.ExprLevel--
 	if closure != nil {
-		return &node.ClosureLit{
-			Type: typ,
-			Body: closure,
+		body = &node.BlockStmt{
+			Stmts: []node.Stmt{&node.ReturnStmt{Result: closure}},
 		}
 	}
 	return &node.FuncLit{
@@ -1157,120 +1185,40 @@ func (p *Parser) ParseArrayLit() node.Expr {
 	}
 }
 
-func (p *Parser) ParseFuncType() *node.FuncType {
+func (p *Parser) ParseFuncType(parseLambda bool) *node.FuncType {
 	if p.Trace {
 		defer untracep(tracep(p, "FuncType"))
 	}
 
+	tok := p.Token.Token
+
 	var (
-		pos   = p.Expect(token.Func)
-		ident *node.Ident
+		pos          = p.Expect(token.Func)
+		ident        *node.Ident
+		allowMethods bool
 	)
 
 	if p.Token.Token == token.Ident {
 		ident = p.ParseIdent()
+		allowMethods = true
 	}
 
-	params := p.ParseFuncParams()
+	params := p.ParseFuncParams(parseLambda)
 	return &node.FuncType{
-		FuncPos: pos,
-		Ident:   ident,
-		Params:  *params,
+		Token:        tok,
+		FuncPos:      pos,
+		Ident:        ident,
+		Params:       *params,
+		AllowMethods: allowMethods,
 	}
 }
 
-func (p *Parser) ParseFuncParam(prev node.Spec) (spec node.Spec) {
-	p.SkipSpace()
-
-	var (
-		pos = p.Token.Pos
-
-		ident    *node.Ident
-		variadic bool
-		named    bool
-		value    node.Expr
-	)
-
-	if p.Token.Token == token.Semicolon && p.Token.Literal == ";" {
-		p.Next()
-		p.SkipSpace()
-		named = true
-	} else if prev != nil {
-		switch t := prev.(type) {
-		case *node.NamedParamSpec:
-			if t.Value == nil {
-				p.Error(pos, "unexpected func param declaration")
-				p.ExpectSemi()
-			}
-			named = true
-		case *node.ParamSpec:
-			if t.Variadic {
-				named = true
-			}
-		}
-	}
-
-	if p.Token.Token == token.Ident {
-		ident = p.ParseIdent()
-		p.SkipSpace()
-		if named {
-			p.Expect(token.Assign)
-			value = p.ParseExpr()
-		} else if p.Token.Literal == ";" {
-			goto done
-		}
-	} else if p.Token.Token == token.Ellipsis {
-		variadic = true
-		p.Next()
-		ident = p.ParseIdent()
-		p.SkipSpace()
-	}
-
-	if p.Token.Token == token.Comma {
-		p.Next()
-		p.SkipSpace()
-	} else if p.Token.Token == token.Semicolon {
-		if p.Token.Token == token.Assign {
-			named = true
-			p.Next()
-			value = p.ParseExpr()
-			p.SkipSpace()
-			if p.Token.Token == token.Comma {
-				p.Next()
-				p.SkipSpace()
-			}
-		} else if !named {
-			p.ExpectSemi()
-		}
-	}
-
-	if ident == nil {
-		p.Error(pos, "wrong func params declaration")
-		p.ExpectSemi()
-	}
-
-	if named {
-		if value == nil && !variadic {
-			p.Error(pos, "wrong func params declaration")
-		}
-		return &node.NamedParamSpec{
-			Ident: ident,
-			Value: value,
-		}
-	}
-done:
-	return &node.ParamSpec{
-		Ident:    ident,
-		Variadic: variadic,
-	}
-}
-
-func (p *Parser) ParseFuncParams() *node.FuncParams {
+func (p *Parser) ParseFuncParams(parseLambda bool) *node.FuncParams {
 	if p.Trace {
 		defer untracep(tracep(p, "FuncParams"))
 	}
 
-	paren := p.ParseParemExpr(token.LParen, token.RParen, false)
+	paren := p.ParseParemExpr(token.LParen, token.RParen, false, parseLambda, true)
 	switch t := paren.(type) {
 	case *node.ParenExpr:
 		return p.FuncParamsOf(t.LParen, t.RParen, t.Expr)
@@ -1364,6 +1312,45 @@ func (p *Parser) ParseIdent() *node.Ident {
 	}
 }
 
+func (p *Parser) ParseTypedIdent() *node.TypedIdent {
+	return &node.TypedIdent{
+		Ident: p.ParseIdent(),
+		Type:  p.ParseType(),
+	}
+}
+
+func (p *Parser) ParseType() (idents []*node.Ident) {
+	if p.Token.Token != token.Colon {
+		return
+	}
+
+	p.Expect(token.Colon)
+
+	if p.Token.Token == token.LBrack {
+		p.Next()
+
+		var (
+			exists = map[string]any{}
+			add    = func(ident *node.Ident) {
+				if _, ok := exists[ident.Name]; !ok {
+					idents = append(idents, ident)
+					exists[ident.Name] = nil
+				}
+			}
+		)
+
+		add(p.ParseIdent())
+		for p.Token.Token == token.Comma {
+			p.Next()
+			add(p.ParseIdent())
+		}
+		p.Expect(token.RBrack)
+	} else {
+		idents = append(idents, p.ParseIdent())
+	}
+	return
+}
+
 func (p *Parser) ParseStmt() (stmt node.Stmt) {
 	if p.Trace {
 		defer untracep(tracep(p, "Statement"))
@@ -1392,8 +1379,8 @@ do:
 	switch p.Token.Token {
 	case token.ConfigStart:
 		return p.ParseConfigStmt()
-	case token.Text:
-		return p.ParseTextStmt()
+	case token.RawString:
+		return p.ParseRawStringStmt()
 	case token.ToTextBegin:
 		return p.ParseExprToTextStmt()
 	case token.Var, token.Const, token.Global, token.Param:
@@ -1494,14 +1481,33 @@ func (p *Parser) ParseExprToTextStmt() (ett *node.ExprToTextStmt) {
 	return
 }
 
-func (p *Parser) ParseTextStmt() (t *node.TextStmt) {
+func (p *Parser) ParseRawStringLit() (t *node.RawStringLit) {
 	if p.Trace {
-		defer untracep(tracep(p, "TextStmt"))
+		defer untracep(tracep(p, "RawStringLit"))
 	}
-	t = &node.TextStmt{Literal: p.Token.Literal, TextPos: p.Token.Pos, Data: p.Token.Data}
+	t = &node.RawStringLit{
+		Literal:    p.Token.Literal,
+		LiteralPos: p.Token.Pos,
+		Quoted:     p.Token.Literal[0] == '`',
+	}
 	p.Next()
-	for p.Token.Token == token.Text {
-		t.Literal += p.Token.Literal
+	return
+}
+
+func (p *Parser) ParseRawStringStmt() (t *node.RawStringStmt) {
+	if p.Trace {
+		defer untracep(tracep(p, "RawStringStmt"))
+	}
+	t = &node.RawStringStmt{}
+
+	for p.Token.Token == token.RawString {
+		if p.Token.Literal != "" {
+			t.Lits = append(t.Lits, &node.RawStringLit{
+				Literal:    p.Token.Literal,
+				LiteralPos: p.Token.Pos,
+				Quoted:     p.Token.Literal[0] == '`',
+			})
+		}
 		p.Next()
 	}
 	return
@@ -1542,29 +1548,37 @@ func (p *Parser) ParseParamDecl() (d *node.GenDecl) {
 		if p.Token.Token == token.Mul {
 			p.Next()
 			d.Specs = append(d.Specs, &node.NamedParamSpec{
-				Ident: p.ParseIdent(),
+				Ident: p.ParseTypedIdent(),
 			})
 		} else {
 			d.Specs = append(d.Specs, &node.ParamSpec{
-				Ident:    p.ParseIdent(),
+				Ident:    p.ParseTypedIdent(),
 				Variadic: true,
 			})
 		}
 	case token.Ident:
 		ident := p.ParseIdent()
+		types := p.ParseType()
+
 		if p.Token.Token == token.Assign {
 			p.Next()
 			d.Specs = append(d.Specs, &node.NamedParamSpec{
-				Ident: ident,
+				Ident: &node.TypedIdent{
+					Ident: ident,
+					Type:  types,
+				},
 				Value: p.ParseExpr(),
 			})
 		} else {
 			d.Specs = append(d.Specs, &node.ParamSpec{
-				Ident: ident,
+				Ident: &node.TypedIdent{
+					Ident: ident,
+					Type:  types,
+				},
 			})
 		}
 	case token.LParen:
-		fp := p.ParseFuncParams()
+		fp := p.ParseFuncParams(false)
 		d.Lparen = fp.LParen
 		d.Rparen = fp.RParen
 
@@ -1620,6 +1634,28 @@ func (p *Parser) ParseGenDecl(
 		list = append(list, fn(keyword, false, list, 0))
 		p.ExpectSemi()
 	}
+
+	for _, spec := range list {
+		if vs, _ := spec.(*node.ValueSpec); vs != nil {
+			if len(vs.Values) == 1 {
+				switch fn := vs.Values[0].(type) {
+				case *node.ClosureLit:
+					fn.Type.Token = keyword
+					if keyword == token.Const {
+						fn.Type.AllowMethods = true
+						fn.Type.Ident = vs.Idents[0]
+					}
+				case *node.FuncLit:
+					fn.Type.Token = keyword
+					if keyword == token.Const {
+						fn.Type.AllowMethods = true
+						fn.Type.Ident = vs.Idents[0]
+					}
+				}
+			}
+		}
+	}
+
 	return &node.GenDecl{
 		TokPos: pos,
 		Tok:    keyword,
@@ -1641,7 +1677,7 @@ func (p *Parser) ParseParamSpec(keyword token.Token, multi bool, prev []node.Spe
 	var (
 		pos = p.Token.Pos
 
-		ident    *node.Ident
+		ident    *node.TypedIdent
 		variadic bool
 		named    bool
 		value    node.Expr
@@ -1669,11 +1705,15 @@ func (p *Parser) ParseParamSpec(keyword token.Token, multi bool, prev []node.Spe
 	}
 
 	if p.Token.Token == token.Ident {
-		ident = p.ParseIdent()
-	} else if keyword == token.Param && p.Token.Token == token.Ellipsis {
+		ident = p.ParseTypedIdent()
+	} else if keyword == token.Param && p.Token.Token == token.Mul {
 		variadic = true
 		p.Next()
-		ident = p.ParseIdent()
+		if p.Token.Token == token.Mul {
+			named = true
+			p.Next()
+		}
+		ident = p.ParseTypedIdent()
 		if multi {
 			p.SkipSpace()
 		}
@@ -2282,6 +2322,12 @@ func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {
 		p.Next()
 		return s
 	}
+
+	if p.mode.Has(ParseMixed) {
+		if raw, _ := x[0].(*node.RawStringLit); raw != nil {
+			return &node.RawStringStmt{Lits: []*node.RawStringLit{raw}}
+		}
+	}
 	return &node.ExprStmt{Expr: x[0]}
 }
 
@@ -2578,7 +2624,7 @@ next:
 			return
 		}
 		goto next
-	case token.Text:
+	case token.RawString:
 		if p.Token.Literal == "" {
 			goto next
 		}

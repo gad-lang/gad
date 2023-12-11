@@ -540,13 +540,13 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 
 		var ret Array
 
-		c.Args.Walk(func(i int, arg Object) (continueLoop bool) {
+		c.Args.Walk(func(i int, arg Object) any {
 			for _, e := range o {
 				if e[0].Equal(arg) {
 					ret = append(ret, e.Value())
 				}
 			}
-			return true
+			return nil
 		})
 		return ret, nil
 	case "sort":
@@ -1058,17 +1058,40 @@ func (o *NamedArgs) GetValueOrNil(key string) (val Object) {
 	return nil
 }
 
-// Get destructure.
-// Return errors:
-// - ArgumentTypeError if type check of arg is fail.
-// - UnexpectedNamedArg if have unexpected arg.
-func (o *NamedArgs) Get(dst ...*NamedArgVar) (err error) {
+func (o *NamedArgs) unreadDict() Dict {
 	o.check()
 	args := o.m.Copy().(Dict)
 	for k := range o.ready {
 		delete(args, k)
 	}
+	return args
+}
 
+// Get destructure.
+// Return errors:
+// - ArgumentTypeError if type check of arg is fail.
+// - UnexpectedNamedArg if have unexpected arg.
+func (o *NamedArgs) Get(dst ...*NamedArgVar) (err error) {
+	args := o.unreadDict()
+
+	if err = o.getOneOf(args, dst...); err != nil {
+		return
+	}
+
+	for key := range args {
+		return ErrUnexpectedNamedArg.NewError(strconv.Quote(key))
+	}
+	return nil
+}
+
+// GetOne get one value.
+// Return errors:
+// - ArgumentTypeError if type check of arg is fail.
+func (o *NamedArgs) GetOne(dst ...*NamedArgVar) (err error) {
+	return o.getOneOf(o.unreadDict(), dst...)
+}
+
+func (o *NamedArgs) getOneOf(args Dict, dst ...*NamedArgVar) (err error) {
 read:
 	for i, d := range dst {
 		if v, ok := args[d.Name]; ok && v != Nil {
@@ -1108,11 +1131,7 @@ read:
 			d.Value = d.ValueF()
 		}
 	}
-
-	for key := range args {
-		return ErrUnexpectedNamedArg.NewError(strconv.Quote(key))
-	}
-	return nil
+	return
 }
 
 // GetVar destructure and return others.

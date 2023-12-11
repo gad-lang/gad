@@ -50,9 +50,6 @@ var (
 	// ErrNotCallable is an error where Object is not callable.
 	ErrNotCallable = &Error{Name: "NotCallableError"}
 
-	// NotToWritableError is an error where Object does not implements ToWriter interface.
-	NotToWritableError = &Error{Name: "NotToWritableError"}
-
 	// ErrNotImplemented is an error where an Object has not implemented a required method.
 	ErrNotImplemented = &Error{Name: "NotImplementedError"}
 
@@ -73,6 +70,9 @@ var (
 
 	// ErrReflectCallPanicsType is an error where call reflect function panics.
 	ErrReflectCallPanicsType = &Error{Name: "ErrReflectCallPanicsType"}
+
+	// ErrMethodDuplication is an error where method was duplication.
+	ErrMethodDuplication = &Error{Name: "ErrMethodDuplication"}
 
 	// ErrType represents a type error.
 	ErrType = &Error{Name: "TypeError"}
@@ -102,4 +102,15 @@ func NewIndexTypeError(expectType, foundType string) *Error {
 func NewIndexValueTypeError(expectType, foundType string) *Error {
 	return ErrType.NewError(
 		fmt.Sprintf("index value type expected %s, found %s", expectType, foundType))
+}
+
+func IsError(a, b error) *Error {
+	if age, _ := a.(*Error); age != nil {
+		if bge, _ := b.(*Error); bge != nil {
+			if age.Name == bge.Name {
+				return age
+			}
+		}
+	}
+	return nil
 }

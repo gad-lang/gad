@@ -362,26 +362,46 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 		}
 		switch field {
 		case 0:
+			obj, err := DecodeObject(rd)
+			if err != nil {
+				return err
+			}
+			o.Name = string(obj.(gad.String))
+		case 1:
+			o.AllowMethods = true
+		case 2:
+			o.Params.Typed = true
+		case 3:
 			v, err := vi.read()
 			if err != nil {
 				return err
 			}
+
 			o.Params.Len = int(v)
-		case 1:
+			o.Params.Names = make([]string, o.Params.Len)
+
+			for i := 0; i < o.Params.Len; i++ {
+				obj, err := DecodeObject(rd)
+				if err != nil {
+					return err
+				}
+				o.Params.Names[i] = string(obj.(gad.String))
+			}
+		case 4:
 			v, err := vi.read()
 			if err != nil {
 				return err
 			}
 			o.NumLocals = int(v)
-		case 2:
+		case 5:
 			obj, err := DecodeObject(rd)
 			if err != nil {
 				return err
 			}
 			o.Instructions = obj.(gad.Bytes)
-		case 3:
+		case 6:
 			o.Params.Var = true
-		case 4:
+		case 7:
 			v, err := vi.read()
 			if err != nil {
 				return err
@@ -397,9 +417,7 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 				}
 			}
 			o.NamedParams = *gad.NewNamedParams(namedParams...)
-		case 5:
-			return errors.New("unexpected field #6")
-		case 6:
+		case 8:
 			length, err := vi.read()
 			if err != nil {
 				return err

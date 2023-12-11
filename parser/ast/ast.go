@@ -28,6 +28,28 @@ type Node interface {
 	String() string
 }
 
+type DataNoder interface {
+	Node
+	SetData(key, value any)
+	GetData(key any) (value any, ok bool)
+}
+
+type NodeData struct {
+	data map[any]any
+}
+
+func (nd *NodeData) SetData(key, value any) {
+	if nd.data == nil {
+		nd.data = map[any]any{}
+	}
+	nd.data[key] = value
+}
+
+func (nd *NodeData) GetData(key any) (value any, ok bool) {
+	value, ok = nd.data[key]
+	return
+}
+
 // ----------------------------------------------------------------------------
 // Comments
 

@@ -512,6 +512,8 @@ func marshaler(o gad.Object) encoding.BinaryMarshaler {
 		return (*BuiltinFunction)(v)
 	case *gad.NilType:
 		return (*NilType)(v)
+	case *gad.CallerObjectWithMethods:
+		return marshaler(v.CallerObject)
 	default:
 		return nil
 	}

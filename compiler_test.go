@@ -3,6 +3,7 @@ package gad_test
 import (
 	"bytes"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -46,9 +47,35 @@ func bytecode(
 
 type funcOpt func(*CompiledFunction)
 
-func withParams(numParams int) funcOpt {
+func withParams(names ...string) funcOpt {
 	return func(cf *CompiledFunction) {
-		cf.Params.Len = numParams
+		cf.Params.Len = len(names)
+		cf.Params.Names = names
+		var (
+			types = make([]ParamType, len(names))
+			typed bool
+		)
+
+		for i, name := range names {
+			if pos := strings.IndexByte(name, ':'); pos > 0 {
+				typed = true
+				t := name[pos+1:]
+				cf.Params.Names[i] = name[:pos]
+				if t[0] == '[' {
+					t = strings.ReplaceAll(t[1:len(t)-1], " ", "")
+				}
+				tnames := strings.Split(t, ",")
+				symbols := make(ParamType, len(tnames))
+				for i2, tname := range tnames {
+					symbols[i2] = &Symbol{Name: tname}
+				}
+				types[i] = symbols
+			}
+		}
+
+		if typed {
+			cf.Params.Type = types
+		}
 	}
 }
 
@@ -246,7 +273,7 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 
 func TestCompiler_Mixed(t *testing.T) {
 	expectCompileMixed(t, "# gad: writer=myfn\n#{- var myfn -} a", bytecode(
-		Array{Text("a")},
+		Array{RawString("a")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -258,7 +285,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompileMixed(t, `a#{=1}c`, bytecode(
-		Array{Text("a"), Int(1), Text("c")},
+		Array{RawString("a"), Int(1), RawString("c")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
 			makeInst(OpConstant, 0),
@@ -270,7 +297,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompileMixed(t, `a#{=1}c#{x := 5}#{=x}`, bytecode(
-		Array{Text("a"), Int(1), Text("c"), Int(5)},
+		Array{RawString("a"), Int(1), RawString("c"), Int(5)},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
 			makeInst(OpConstant, 0),
@@ -287,7 +314,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed, writer=myfn\n#{ var myfn -} a", bytecode(
-		Array{Text("a")},
+		Array{RawString("a")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -299,7 +326,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin} a #{end}", bytecode(
-		Array{Text(" a ")},
+		Array{RawString(" a ")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -308,7 +335,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end}", bytecode(
-		Array{Text("a")},
+		Array{RawString("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -317,7 +344,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end; return a}", bytecode(
-		Array{Text("a")},
+		Array{RawString("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -327,7 +354,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end}#{return a}", bytecode(
-		Array{Text("a")},
+		Array{RawString("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -337,7 +364,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end} b #{return a}", bytecode(
-		Array{Text("a"), Text(" b ")},
+		Array{RawString("a"), RawString(" b ")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -449,7 +476,7 @@ func TestCompiler_Compile(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpReturn, 0),
 		),
-			withParams(1),
+			withParams("a"),
 			withLocals(1),
 		),
 	))
@@ -458,7 +485,7 @@ func TestCompiler_Compile(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpReturn, 0),
 		),
-			withParams(3),
+			withParams("a", "b", "c"),
 			withLocals(3),
 			withVarParams(),
 		),
@@ -488,7 +515,7 @@ func TestCompiler_Compile(t *testing.T) {
 			makeInst(OpSetLocal, 2),
 			makeInst(OpReturn, 0),
 		),
-			withParams(2),
+			withParams("arg1", "varg"),
 			withLocals(3),
 			withVarParams(),
 		),
@@ -1053,7 +1080,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpGetLocal, 0),
 				makeInst(OpReturn, 1),
 			),
-				withParams(1),
+				withParams("a"),
 				withLocals(1),
 			),
 			Int(1),
@@ -1082,7 +1109,7 @@ func TestCompiler_Compile(t *testing.T) {
 					makeInst(OpGetLocal, 0),
 					makeInst(OpReturn, 1),
 				),
-					withParams(1),
+					withParams("a"),
 					withLocals(1),
 				),
 				Int(1),
@@ -1591,7 +1618,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpGetLocal, 0),
 				makeInst(OpReturn, 1),
 			),
-				withParams(1),
+				withParams("a"),
 				withLocals(1),
 			),
 			Int(24),
@@ -1615,7 +1642,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpGetLocal, 0),
 				makeInst(OpReturn, 1),
 			),
-				withParams(1),
+				withParams("a"),
 				withVarParams(),
 				withLocals(1),
 			),
@@ -1648,7 +1675,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpGetLocal, 2),
 				makeInst(OpReturn, 1),
 			),
-				withParams(3),
+				withParams("a", "b", "c"),
 				withLocals(3),
 			),
 			Int(24),
@@ -1727,7 +1754,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpBinaryOp, int(token.Add)),
 				makeInst(OpReturn, 1),
 			),
-				withParams(1),
+				withParams("b"),
 				withLocals(1),
 			),
 
@@ -1737,7 +1764,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			),
-				withParams(1),
+				withParams("a"),
 				withLocals(1),
 			),
 		},
@@ -1764,7 +1791,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpBinaryOp, int(token.Add)),
 				makeInst(OpReturn, 1),
 			),
-				withParams(1),
+				withParams("c"),
 				withLocals(1),
 			),
 
@@ -1774,7 +1801,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpClosure, 0, 2),
 				makeInst(OpReturn, 1),
 			),
-				withParams(1),
+				withParams("b"),
 				withLocals(1),
 			),
 
@@ -1783,7 +1810,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpClosure, 1, 1),
 				makeInst(OpReturn, 1),
 			),
-				withParams(1),
+				withParams("a"),
 				withLocals(1),
 			),
 		},
@@ -2278,7 +2305,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpGetLocal, 0),
 				makeInst(OpReturn, 1),
 			),
-				withParams(1),
+				withParams("a"),
 				withVarParams(),
 				withLocals(1),
 			),
@@ -2825,6 +2852,39 @@ func TestCompilerScopes(t *testing.T) {
 	))
 }
 
+func TestCompilerFuncWithMethods(t *testing.T) {
+	expectCompile(t, `func f0() {
+	return 100
+}
+func f0(i:int) {
+	return i
+}`,
+		bytecode(
+			Array{
+				Int(100),
+				compFunc(concatInsts(
+					makeInst(OpConstant, 0),
+					makeInst(OpReturn, 1),
+				)),
+				compFunc(concatInsts(
+					makeInst(OpGetLocal, 0),
+					makeInst(OpReturn, 1),
+				), withLocals(1), withParams("i:int")),
+			},
+			compFunc(concatInsts(
+				makeInst(OpConstant, 1),
+				makeInst(OpDefineLocal, 0),
+				makeInst(OpGetBuiltin, int(BuiltinAddCallMethod)),
+				makeInst(OpGetLocal, 0),
+				makeInst(OpConstant, 2),
+				makeInst(OpCall, 2, 0),
+				makeInst(OpPop),
+				makeInst(OpReturn, 0),
+			),
+				withLocals(1)),
+		))
+}
+
 func expectCompileError(t *testing.T, script string, errStr string) {
 	t.Helper()
 	expectCompileErrorWithOpts(t, script, CompilerOptions{}, errStr)
@@ -2881,6 +2941,12 @@ func testBytecodesEqual(t *testing.T,
 	for i, gotObj := range got.Constants {
 		expectObj := expected.Constants[i]
 
+		switch g := expectObj.(type) {
+		case *CallerObjectWithMethods:
+			expectObj = g.CallerObject
+		}
+
+	do:
 		switch g := gotObj.(type) {
 		case *CompiledFunction:
 			ex, ok := expectObj.(*CompiledFunction)
@@ -2893,6 +2959,9 @@ func testBytecodesEqual(t *testing.T,
 					"%s\nGot:\n%s\n", i, ex, g)
 			}
 			continue
+		case *CallerObjectWithMethods:
+			gotObj = g.CallerObject
+			goto do
 		}
 		if !reflect.DeepEqual(expectObj, gotObj) {
 			t.Fatalf("Constants not equal at %d\nExpected:\n%s\nGot:\n%s\n",

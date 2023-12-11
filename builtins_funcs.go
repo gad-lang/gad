@@ -634,9 +634,9 @@ func BuiltinTextFunc(c Call) (ret Object, err error) {
 	if ts, _ := o.(ToStringer); ts != nil {
 		var s String
 		s, err = ts.Stringer(c)
-		ret = Text(s)
+		ret = RawString(s)
 	} else {
-		ret = Text(o.ToString())
+		ret = RawString(o.ToString())
 	}
 	return
 }
@@ -785,9 +785,9 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 	}
 
 	if convert == nil {
-		c.Args.Walk(func(i int, arg Object) (continueLoop bool) {
+		c.Args.Walk(func(i int, arg Object) any {
 			switch t := arg.(type) {
-			case Text:
+			case RawString:
 				n, err = w.Write([]byte(t))
 				total += Int(n)
 			default:
@@ -795,7 +795,7 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 				n2, err = write(w, arg)
 				total += Int(n2)
 			}
-			return err == nil
+			return err
 		})
 	} else {
 		var (
@@ -816,9 +816,9 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 			return
 		}
 
-		c.Args.Walk(func(i int, arg Object) (continueLoop bool) {
+		c.Args.Walk(func(i int, arg Object) any {
 			switch t := arg.(type) {
-			case Text:
+			case RawString:
 				n, err = w.Write([]byte(t))
 				total += Int(n)
 			default:
@@ -829,7 +829,7 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 					total += i
 				}
 			}
-			return err == nil
+			return err
 		})
 	}
 
@@ -948,30 +948,35 @@ func BuiltinIsFunc(c Call) (ok Object, err error) {
 	if arr, ok_ := t.(Array); ok_ {
 		types = make([]ObjectType, len(arr))
 		for i, t := range arr {
-			if ot, _ := t.(ObjectType); ok_ {
-				types[i] = ot
-			} else {
+		try:
+			switch t2 := t.(type) {
+			case ObjectType:
+				types[i] = t2
+			case *CallerObjectWithMethods:
+				t = t2.CallerObject
+				goto try
+			default:
 				return nil, NewArgumentTypeError(fmt.Sprintf("1st [%d]", i), "type", "object")
 			}
 		}
 
-		c.Args.Walk(func(i int, arg Object) bool {
+		c.Args.Walk(func(i int, arg Object) any {
 			argt = arg.Type()
 			for _, t := range types {
 				if t.Equal(argt) {
-					return true
+					return nil
 				}
 			}
 			ok = False
-			return false
+			return ok
 		})
 	} else {
-		c.Args.Walk(func(i int, arg Object) bool {
+		c.Args.Walk(func(i int, arg Object) any {
 			if !t.Equal(arg.Type()) {
 				ok = False
-				return false
+				return ok
 			}
-			return true
+			return nil
 		})
 	}
 	return
@@ -1054,6 +1059,10 @@ func BuiltinIsNilFunc(arg Object) Object {
 }
 
 func BuiltinIsFunctionFunc(arg Object) Object {
+	if com, _ := arg.(*CallerObjectWithMethods); com != nil {
+		arg = com.CallerObject
+	}
+
 	_, ok := arg.(*CompiledFunction)
 	if ok {
 		return True
@@ -1558,4 +1567,37 @@ func BuiltinCastFunc(c Call) (ret Object, err error) {
 		}
 	}
 	return ot2.New(c.VM, obj.Value.(Objector).Fields())
+}
+
+func BuiltinAddCallMethodFunc(vm *VM, fn CallerObject, handler CallerObject, override bool) (err error) {
+	if fn, _ := fn.(*CallerObjectWithMethods); fn != nil {
+		var types MultipleObjectTypes
+
+		if cwm, _ := handler.(*CallerObjectWithMethods); cwm != nil {
+			cwm.Walk(func(m *CallerMethod) any {
+				var handler = m.CallerObject
+				if types, err = handler.(CallerObjectWithParamTypes).ParamTypes(vm); err != nil {
+					return err
+				}
+
+				if err = fn.AddMethod(vm, types, handler, override); err != nil {
+					if mde := IsError(err, ErrMethodDuplication); mde != nil {
+						mde.Message = fn.CallerObject.ToString() + ": " + mde.Message
+					}
+				}
+				return err
+			})
+		} else {
+			if types, err = handler.(CallerObjectWithParamTypes).ParamTypes(vm); err != nil {
+				return
+			}
+
+			if err = fn.AddMethod(vm, types, handler, override); err != nil {
+				if mde := IsError(err, ErrMethodDuplication); mde != nil {
+					mde.Message = fn.CallerObject.ToString() + ": " + mde.Message
+				}
+			}
+		}
+	}
+	return
 }

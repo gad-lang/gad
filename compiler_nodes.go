@@ -5,6 +5,7 @@
 package gad
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/gad-lang/gad/parser/ast"
@@ -239,6 +240,7 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 
 	var (
 		names     = make([]string, 0, len(nd.Specs))
+		types     []ParamType
 		namedSpec []node.Spec
 	)
 
@@ -248,7 +250,19 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 			break
 		} else {
 			spec := sp.(*node.ParamSpec)
-			names = append(names, spec.Ident.Name)
+			names = append(names, spec.Ident.Ident.Name)
+			if len(spec.Ident.Type) > 0 {
+				symbols := make([]*Symbol, len(spec.Ident.Type))
+				for i2, name := range spec.Ident.Type {
+					symbol, ok := c.symbolTable.Resolve(name.Name)
+					if !ok {
+						return c.errorf(nd, "unresolved reference %q", name)
+					}
+					symbols[i2] = symbol
+				}
+				types[i] = symbols
+			}
+
 			if spec.Variadic {
 				if c.variadic {
 					return c.errorf(nd,
@@ -259,7 +273,7 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 		}
 	}
 
-	if err := c.symbolTable.SetParams(c.variadic, names...); err != nil {
+	if err := c.symbolTable.SetParams(c.variadic, names, types); err != nil {
 		return c.error(nd, err)
 	}
 
@@ -279,10 +293,10 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 				return c.errorf(nd,
 					"multiple variadic named param declaration")
 			}
-			named[i] = &NamedParam{Name: spec.Ident.Name}
+			named[i] = &NamedParam{Name: spec.Ident.Ident.Name}
 			c.varNamedParams = true
 		} else {
-			named[i] = &NamedParam{spec.Ident.Name, spec.Value.String()}
+			named[i] = &NamedParam{spec.Ident.Ident.Name, spec.Value.String()}
 		}
 	}
 
@@ -292,7 +306,7 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 
 	stmts := c.helperBuildKwargsIfUndefinedStmts(namedSpecCount, func(index int) (name string, value node.Expr) {
 		spec := namedSpec[index].(*node.NamedParamSpec)
-		return spec.Ident.Name, spec.Value
+		return spec.Ident.Ident.Name, spec.Value
 	})
 
 	return c.Compile(&node.BlockStmt{Stmts: stmts})
@@ -305,12 +319,12 @@ func (c *Compiler) compileDeclGlobal(nd *node.GenDecl) error {
 
 	for _, sp := range nd.Specs {
 		spec := sp.(*node.ParamSpec)
-		symbol, err := c.symbolTable.DefineGlobal(spec.Ident.Name)
+		symbol, err := c.symbolTable.DefineGlobal(spec.Ident.Ident.Name)
 		if err != nil {
 			return c.error(nd, err)
 		}
 
-		idx := c.addConstant(String(spec.Ident.Name))
+		idx := c.addConstant(String(spec.Ident.Ident.Name))
 		symbol.Index = idx
 	}
 	return nil
@@ -936,18 +950,43 @@ func (c *Compiler) compileForInStmt(stmt *node.ForInStmt) error {
 }
 
 func (c *Compiler) compileFuncLit(nd *node.FuncLit) error {
-	if ident := nd.Type.Ident; ident != nil {
-		nd.Type.Ident = nil
-		defer func() {
-			nd.Type.Ident = ident
-		}()
-		ass := &node.AssignStmt{
-			LHS:   []node.Expr{ident},
-			RHS:   []node.Expr{nd},
-			Token: token.Define,
+	if ident := nd.Type.Ident; ident != nil && nd.Type.Token == token.Func {
+		nodeIndex := len(c.stack) - 1
+		// prevent recursion on compileAssignStmt
+		if nodeIndex < 1 || c.stack[nodeIndex-1] != c.stack[nodeIndex] {
+			c2 := c
+			for c2 != nil {
+				for _, o := range c2.constants {
+					switch ot := o.(type) {
+					case *CallerObjectWithMethods:
+						if ot.CallerObject.(*CompiledFunction).Name == ident.Name {
+							nd.Type.AllowMethods = false
+							nd.Type.Ident = nil
+							return c.compileCallExpr(&node.CallExpr{
+								Func: &node.Ident{Name: BuiltinAddCallMethod.String()},
+								CallArgs: node.CallArgs{
+									Args: node.CallExprArgs{
+										Values: []node.Expr{
+											ident,
+											nd,
+										},
+									},
+								},
+							})
+						}
+					}
+				}
+				c2 = c.parent
+			}
+
+			ass := &node.AssignStmt{
+				LHS:   []node.Expr{ident},
+				RHS:   []node.Expr{nd},
+				Token: token.Define,
+			}
+			return c.compileAssignStmt(ass,
+				ass.LHS, ass.RHS, token.Const, ass.Token)
 		}
-		return c.compileAssignStmt(ass,
-			ass.LHS, ass.RHS, token.Var, ass.Token)
 	}
 	return c.compileFunc(nd, nd.Type, nd.Body)
 }
@@ -968,31 +1007,42 @@ func (c *Compiler) compileClosureLit(nd *node.ClosureLit) error {
 	return c.compileFunc(nd, nd.Type, &node.BlockStmt{Stmts: stmts})
 }
 
-func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.BlockStmt) error {
+func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.BlockStmt) (err error) {
 	var (
 		params      = make([]string, len(typ.Params.Args.Values))
+		types       = make([]ParamType, len(typ.Params.Args.Values))
 		namedParams = make([]*NamedParam, len(typ.Params.NamedArgs.Names))
 		symbolTable = c.symbolTable.Fork(false)
 	)
 
 	for i, ident := range typ.Params.Args.Values {
-		params[i] = ident.Name
+		if params[i], types[i], err = c.nameSymbolsOfTypedIdent(nd, ident); err != nil {
+			return
+		}
 	}
 
 	if typ.Params.Args.Var != nil {
-		params = append(params, typ.Params.Args.Var.Name)
+		var (
+			name    string
+			symbols []*Symbol
+		)
+		if name, symbols, err = c.nameSymbolsOfTypedIdent(nd, typ.Params.Args.Var); err != nil {
+			return
+		}
+		params = append(params, name)
+		types = append(types, symbols)
 	}
 
-	if err := symbolTable.SetParams(typ.Params.Args.Var != nil, params...); err != nil {
+	if err := symbolTable.SetParams(typ.Params.Args.Var != nil, params, types); err != nil {
 		return c.error(nd, err)
 	}
 
 	for i, name := range typ.Params.NamedArgs.Names {
-		namedParams[i] = &NamedParam{name.Name, typ.Params.NamedArgs.Values[i].String()}
+		namedParams[i] = &NamedParam{name.Ident.Name, typ.Params.NamedArgs.Values[i].String()}
 	}
 
 	if typ.Params.NamedArgs.Var != nil {
-		namedParams = append(namedParams, &NamedParam{Name: typ.Params.NamedArgs.Var.Name})
+		namedParams = append(namedParams, &NamedParam{Name: typ.Params.NamedArgs.Var.Ident.Name})
 	}
 
 	if len(namedParams) > 0 {
@@ -1003,7 +1053,7 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 
 	if count := len(typ.Params.NamedArgs.Values); count > 0 {
 		body.Stmts = append(c.helperBuildKwargsStmts(count, func(index int) (name string, value node.Expr) {
-			return typ.Params.NamedArgs.Names[index].Name, typ.Params.NamedArgs.Values[index]
+			return typ.Params.NamedArgs.Names[index].Ident.Name, typ.Params.NamedArgs.Values[index]
 		}), body.Stmts...)
 	}
 
@@ -1022,11 +1072,27 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 		}
 	}
 	bc := fork.Bytecode()
+	bc.Main.AllowMethods = typ.AllowMethods
+
+	if typ.Ident != nil {
+		bc.Main.Name = typ.Ident.Name
+	}
+
 	if bc.Main.NumLocals > 256 {
 		return c.error(nd, ErrSymbolLimit)
 	}
+
 	c.constants = bc.Constants
+
+	if len(freeSymbols) > 0 {
+		bc.Main.AllowMethods = false
+	}
+
 	index := c.addConstant(bc.Main)
+
+	if bc.Main.Name == "" {
+		bc.Main.Name = fmt.Sprintf("#%d", index)
+	}
 
 	if len(freeSymbols) > 0 {
 		c.emit(nd, OpClosure, index, len(freeSymbols))
@@ -1552,6 +1618,22 @@ func (c *Compiler) helperBuildKwargsIfUndefinedStmts(count int, get func(index i
 		})
 	}
 
+	return
+}
+
+func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdent) (name string, symbols []*Symbol, err error) {
+	name = ti.Ident.Name
+	if len(ti.Type) > 0 {
+		symbols = make([]*Symbol, len(ti.Type))
+		for i2, tname := range ti.Type {
+			symbol, ok := c.symbolTable.Resolve(tname.Name)
+			if !ok {
+				err = c.errorf(nd, "unresolved reference %q", tname)
+				return
+			}
+			symbols[i2] = symbol
+		}
+	}
 	return
 }
 

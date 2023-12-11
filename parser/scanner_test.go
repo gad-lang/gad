@@ -26,7 +26,7 @@ func TestScanner_ScanMixed(t *testing.T) {
 		token   token.Token
 		literal string
 	}{
-		{token.Text, "abc"},
+		{token.RawString, "abc"},
 		{token.CodeBegin, "#{"},
 		{token.Ident, "a"},
 		{token.Add, "+"},
@@ -90,13 +90,13 @@ func TestScanner_Scan(t *testing.T) {
 		{token.Char, "'\\xFF'"},
 		{token.Char, "'\\uff16'"},
 		{token.Char, "'\\U0000ff16'"},
-		{token.String, "`foobar`"},
-		{token.String, "`" + `foo
+		{token.RawString, "`foobar`"},
+		{token.RawString, "`" + `foo
 	                        bar` +
 			"`",
 		},
-		{token.String, "`\n`"},
-		{token.String, "`foo\nbar`"},
+		{token.RawString, "`\n`"},
+		{token.RawString, "`foo\nbar`"},
 		{token.Add, "+"},
 		{token.Sub, "-"},
 		{token.Mul, "*"},
@@ -231,7 +231,13 @@ func testScan(t *testing.T, mode parser.ScanMode, addLines bool, testCases []str
 			}
 		case token.Ident, token.CodeBegin, token.CodeEnd:
 			expectedLiteral = tc.literal
-		case token.Text:
+		case token.RawString:
+			expectedLiteral = tc.literal
+			if mode.Has(parser.Mixed) && i < len(testCases)-1 {
+				// remove last \n
+				expectedLiteral += "\n"
+			}
+		case token.String:
 			expectedLiteral = tc.literal
 			if i < len(testCases)-1 {
 				// remove last \n

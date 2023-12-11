@@ -63,6 +63,7 @@ const (
 	BuiltinWrap
 	BuiltinNewType
 	BuiltinTypeOf
+	BuiltinAddCallMethod
 	BuiltinMakeArray
 	BuiltinCap
 	BuiltinKeys
@@ -113,32 +114,33 @@ const (
 
 // BuiltinsMap is list of builtin types, exported for REPL.
 var BuiltinsMap = map[string]BuiltinType{
-	"cast":        BuiltinCast,
-	"append":      BuiltinAppend,
-	"delete":      BuiltinDelete,
-	"copy":        BuiltinCopy,
-	"dcopy":       BuiltinDeepCopy,
-	"repeat":      BuiltinRepeat,
-	"contains":    BuiltinContains,
-	"len":         BuiltinLen,
-	"sort":        BuiltinSort,
-	"sortReverse": BuiltinSortReverse,
-	"filter":      BuiltinFilter,
-	"map":         BuiltinMap,
-	"reduce":      BuiltinReduce,
-	"foreach":     BuiltinForEach,
-	"typeName":    BuiltinTypeName,
-	"chars":       BuiltinChars,
-	"write":       BuiltinWrite,
-	"print":       BuiltinPrint,
-	"printf":      BuiltinPrintf,
-	"println":     BuiltinPrintln,
-	"sprintf":     BuiltinSprintf,
-	"globals":     BuiltinGlobals,
-	"stdio":       BuiltinStdIO,
-	"wrap":        BuiltinWrap,
-	"newType":     BuiltinNewType,
-	"typeof":      BuiltinTypeOf,
+	"cast":          BuiltinCast,
+	"append":        BuiltinAppend,
+	"delete":        BuiltinDelete,
+	"copy":          BuiltinCopy,
+	"dcopy":         BuiltinDeepCopy,
+	"repeat":        BuiltinRepeat,
+	"contains":      BuiltinContains,
+	"len":           BuiltinLen,
+	"sort":          BuiltinSort,
+	"sortReverse":   BuiltinSortReverse,
+	"filter":        BuiltinFilter,
+	"map":           BuiltinMap,
+	"reduce":        BuiltinReduce,
+	"foreach":       BuiltinForEach,
+	"typeName":      BuiltinTypeName,
+	"chars":         BuiltinChars,
+	"write":         BuiltinWrite,
+	"print":         BuiltinPrint,
+	"printf":        BuiltinPrintf,
+	"println":       BuiltinPrintln,
+	"sprintf":       BuiltinSprintf,
+	"globals":       BuiltinGlobals,
+	"stdio":         BuiltinStdIO,
+	"wrap":          BuiltinWrap,
+	"newType":       BuiltinNewType,
+	"typeof":        BuiltinTypeOf,
+	"addCallMethod": BuiltinAddCallMethod,
 
 	"is":         BuiltinIs,
 	"isError":    BuiltinIsError,
@@ -185,12 +187,30 @@ var BuiltinsMap = map[string]BuiltinType{
 	"DISCARD_WRITER": BuiltinDiscardWriter,
 }
 
+type BuiltinObjectsMap map[BuiltinType]Object
+
+func (m BuiltinObjectsMap) Build() BuiltinObjectsMap {
+	cp := make(BuiltinObjectsMap, len(m))
+	for key, value := range m {
+		if co, _ := value.(CallerObject); co != nil {
+			if cma, _ := co.(CanCallerObjectMethodsEnabler); cma == nil || !cma.MethodsDisabled() {
+				if cwm, _ := value.(*CallerObjectWithMethods); cwm == nil {
+					value = NewCallerObjectWithMethods(co)
+				}
+			}
+		}
+		cp[key] = value
+	}
+	return cp
+}
+
 // BuiltinObjects is list of builtins, exported for REPL.
-var BuiltinObjects = map[BuiltinType]Object{
+var BuiltinObjects = BuiltinObjectsMap{
 	// :makeArray is a private builtin function to help destructuring array assignments
 	BuiltinMakeArray: &BuiltinFunction{
-		Name:  ":makeArray",
-		Value: funcPiOROe(BuiltinMakeArrayFunc),
+		Name:                  ":makeArray",
+		Value:                 funcPiOROe(BuiltinMakeArrayFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinCast: &BuiltinFunction{
 		Name:  "cast",
@@ -241,8 +261,9 @@ var BuiltinObjects = map[BuiltinType]Object{
 		Value: funcPOROe(BuiltinSortReverseFunc),
 	},
 	BuiltinTypeName: &BuiltinFunction{
-		Name:  "typeName",
-		Value: funcPORO(BuiltinTypeNameFunc),
+		Name:                  "typeName",
+		Value:                 funcPORO(BuiltinTypeNameFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinPrint: &BuiltinFunction{
 		Name:  "print",
@@ -257,68 +278,84 @@ var BuiltinObjects = map[BuiltinType]Object{
 		Value: BuiltinPrintlnFunc,
 	},
 	BuiltinSprintf: &BuiltinFunction{
-		Name:  "sprintf",
-		Value: BuiltinSprintfFunc,
+		Name:                  "sprintf",
+		Value:                 BuiltinSprintfFunc,
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinGlobals: &BuiltinFunction{
-		Name:  "globals",
-		Value: BuiltinGlobalsFunc,
+		Name:                  "globals",
+		Value:                 BuiltinGlobalsFunc,
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIs: &BuiltinFunction{
-		Name:  "is",
-		Value: BuiltinIsFunc,
+		Name:                  "is",
+		Value:                 BuiltinIsFunc,
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsError: &BuiltinFunction{
-		Name:  "isError",
-		Value: BuiltinIsErrorFunc,
+		Name:                  "isError",
+		Value:                 BuiltinIsErrorFunc,
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsInt: &BuiltinFunction{
-		Name:  "isInt",
-		Value: funcPORO(BuiltinIsIntFunc),
+		Name:                  "isInt",
+		Value:                 funcPORO(BuiltinIsIntFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsUint: &BuiltinFunction{
-		Name:  "isUint",
-		Value: funcPORO(BuiltinIsUintFunc),
+		Name:                  "isUint",
+		Value:                 funcPORO(BuiltinIsUintFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsFloat: &BuiltinFunction{
-		Name:  "isFloat",
-		Value: funcPORO(BuiltinIsFloatFunc),
+		Name:                  "isFloat",
+		Value:                 funcPORO(BuiltinIsFloatFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsChar: &BuiltinFunction{
-		Name:  "isChar",
-		Value: funcPORO(BuiltinIsCharFunc),
+		Name:                  "isChar",
+		Value:                 funcPORO(BuiltinIsCharFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsBool: &BuiltinFunction{
-		Name:  "isBool",
-		Value: funcPORO(BuiltinIsBoolFunc),
+		Name:                  "isBool",
+		Value:                 funcPORO(BuiltinIsBoolFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsString: &BuiltinFunction{
-		Name:  "isString",
-		Value: funcPORO(BuiltinIsStringFunc),
+		Name:                  "isString",
+		Value:                 funcPORO(BuiltinIsStringFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsBytes: &BuiltinFunction{
-		Name:  "isBytes",
-		Value: funcPORO(BuiltinIsBytesFunc),
+		Name:                  "isBytes",
+		Value:                 funcPORO(BuiltinIsBytesFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsDict: &BuiltinFunction{
-		Name:  "isDict",
-		Value: funcPORO(BuiltinIsDictFunc),
+		Name:                  "isDict",
+		Value:                 funcPORO(BuiltinIsDictFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsSyncDict: &BuiltinFunction{
-		Name:  "isSyncDict",
-		Value: funcPORO(BuiltinIsSyncDictFunc),
+		Name:                  "isSyncDict",
+		Value:                 funcPORO(BuiltinIsSyncDictFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsArray: &BuiltinFunction{
-		Name:  "isArray",
-		Value: funcPORO(BuiltinIsArrayFunc),
+		Name:                  "isArray",
+		Value:                 funcPORO(BuiltinIsArrayFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsNil: &BuiltinFunction{
-		Name:  "isNil",
-		Value: funcPORO(BuiltinIsNilFunc),
+		Name:                  "isNil",
+		Value:                 funcPORO(BuiltinIsNilFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsFunction: &BuiltinFunction{
-		Name:  "isFunction",
-		Value: funcPORO(BuiltinIsFunctionFunc),
+		Name:                  "isFunction",
+		Value:                 funcPORO(BuiltinIsFunctionFunc),
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsCallable: &BuiltinFunction{
 		Name:  "isCallable",
@@ -356,21 +393,29 @@ var BuiltinObjects = map[BuiltinType]Object{
 		Name:  "typeof",
 		Value: BuiltinTypeOfFunc,
 	},
+	BuiltinAddCallMethod: &BuiltinFunction{
+		Name:                  "addCallMethod",
+		Value:                 funcPpVM_CoCobRe(BuiltinAddCallMethodFunc),
+		AcceptMethodsDisabled: true,
+	},
 	BuiltinVMPushWriter: &BuiltinFunction{
-		Name:  "vmPushWriter",
-		Value: BuiltinPushWriterFunc,
+		Name:                  "vmPushWriter",
+		Value:                 BuiltinPushWriterFunc,
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinVMPopWriter: &BuiltinFunction{
 		Name:  "vmPopWriter",
 		Value: BuiltinPopWriterFunc,
 	},
 	BuiltinOBStart: &BuiltinFunction{
-		Name:  "obstart",
-		Value: BuiltinOBStartFunc,
+		Name:                  "obstart",
+		Value:                 BuiltinOBStartFunc,
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinOBEnd: &BuiltinFunction{
-		Name:  "obend",
-		Value: BuiltinOBEndFunc,
+		Name:                  "obend",
+		Value:                 BuiltinOBEndFunc,
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinFlush: &BuiltinFunction{
 		Name:  "flush",
@@ -453,3 +498,11 @@ func init() {
 // builtin float
 //
 //gad:callable func(v float64) (ret Object)
+
+// builtin addMethod
+//
+//gad:callable func(o CallerObject, argsType Array, handler CallerObject, override=bool) (err error)
+
+// builtin addMethod
+//
+//gad:callable func(vm *VM, o CallerObject, handler CallerObject, override=bool) (err error)

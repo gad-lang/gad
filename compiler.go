@@ -306,12 +306,12 @@ func (c *Compiler) compileStmts(stmt ...node.Stmt) (err error) {
 stmts:
 	for i := 0; i < l; i++ {
 		switch stmt[i].(type) {
-		case *node.TextStmt, *node.ExprToTextStmt:
+		case *node.RawStringStmt, *node.ExprToTextStmt:
 			var j = i + 1
 		l2:
 			for j < l {
 				switch stmt[j].(type) {
-				case *node.TextStmt, *node.ExprToTextStmt:
+				case *node.RawStringStmt, *node.ExprToTextStmt:
 					j++
 				default:
 					break l2
@@ -322,8 +322,12 @@ stmts:
 
 			for z, s := range stmt[i:j] {
 				switch t := s.(type) {
-				case *node.TextStmt:
-					exprs[z] = &node.TextLit{StringLit: node.StringLit{Value: t.Literal}}
+				case *node.RawStringStmt:
+					if len(t.Lits) == 1 {
+						exprs[z] = t.Lits[0]
+					} else {
+						exprs[z] = &node.RawStringLit{Literal: t.Unquoted()}
+					}
 				case *node.ExprToTextStmt:
 					exprs[z] = t.Expr
 				}
@@ -423,8 +427,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		}
 	case *node.StringLit:
 		c.emit(nt, OpConstant, c.addConstant(String(nt.Value)))
-	case *node.TextLit:
-		c.emit(nt, OpConstant, c.addConstant(Text(nt.Value)))
+	case *node.RawStringLit:
+		c.emit(nt, OpConstant, c.addConstant(RawString(nt.UnquotedValue())))
 	case *node.CharLit:
 		c.emit(nt, OpConstant, c.addConstant(Char(nt.Value)))
 	case *node.NilLit:
@@ -494,8 +498,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileImportExpr(nt)
 	case *node.CondExpr:
 		return c.compileCondExpr(nt)
-	case *node.TextStmt:
-		return c.Compile(&node.TextLit{StringLit: node.StringLit{Value: nt.Literal}})
+	case *node.RawStringStmt:
+		return c.compileStmts(nt)
 	case *node.EmptyStmt:
 	case *node.ConfigStmt:
 		if nt.Options.WriteFunc != nil {
@@ -545,7 +549,7 @@ func (c *Compiler) addConstant(obj Object) (index int) {
 	}()
 
 	switch obj.(type) {
-	case Int, Uint, String, Text, Bool, Float, Char, *NilType:
+	case Int, Uint, String, RawString, Bool, Float, Char, *NilType:
 		i, ok := c.constsCache[obj]
 		if ok {
 			index = i
@@ -587,14 +591,24 @@ func (c *Compiler) addCompiledFunction(obj Object) (index int) {
 	arr, ok := c.cfuncCache[key]
 	if ok {
 		for _, idx := range arr {
-			f := c.constants[idx].(*CompiledFunction)
+			var f *CompiledFunction
+			switch t := c.constants[idx].(type) {
+			case *CompiledFunction:
+				f = t
+			case *CallerObjectWithMethods:
+				f = t.CallerObject.(*CompiledFunction)
+			}
 			if f.identical(cf) && f.equalSourceMap(cf) {
 				return idx
 			}
 		}
 	}
 	index = len(c.constants)
-	c.constants = append(c.constants, obj)
+	var co CallerObject = cf
+	if cf.AllowMethods {
+		co = NewCallerObjectWithMethods(cf)
+	}
+	c.constants = append(c.constants, co)
 	c.cfuncCache[key] = append(c.cfuncCache[key], index)
 	return
 }

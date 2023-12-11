@@ -162,38 +162,38 @@ func (o Bool) Format(s fmt.State, verb rune) {
 	fmt.Fprintf(s, format, bool(o))
 }
 
-// Text represents safe string values and implements Object interface.
-type Text string
+// RawString represents safe string values and implements Object interface.
+type RawString string
 
 var (
-	_ LengthGetter = Text("")
-	_ ToWriter     = Text("")
+	_ LengthGetter = RawString("")
+	_ ToWriter     = RawString("")
 )
 
-func (o Text) Type() ObjectType {
+func (o RawString) Type() ObjectType {
 	return TText
 }
 
-func (o Text) ToString() string {
+func (o RawString) ToString() string {
 	return string(o)
 }
 
-func (o Text) IsFalsy() bool {
+func (o RawString) IsFalsy() bool {
 	return len(o) == 0
 }
 
-func (o Text) Equal(right Object) bool {
-	if v, ok := right.(Text); ok {
+func (o RawString) Equal(right Object) bool {
+	if v, ok := right.(RawString); ok {
 		return o == v
 	}
 	return false
 }
 
-func (o Text) Iterate(*VM) Iterator {
+func (o RawString) Iterate(*VM) Iterator {
 	return &StringIterator{V: String(o)}
 }
 
-func (o Text) IndexGet(_ *VM, index Object) (Object, error) {
+func (o RawString) IndexGet(_ *VM, index Object) (Object, error) {
 	var idx int
 	switch v := index.(type) {
 	case Int:
@@ -212,22 +212,22 @@ func (o Text) IndexGet(_ *VM, index Object) (Object, error) {
 }
 
 // BinaryOp implements Object interface.
-func (o Text) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o RawString) BinaryOp(tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
 	case String:
 		switch tok {
 		case token.Add:
-			return o + Text(v), nil
+			return o + RawString(v), nil
 		case token.Less:
-			return Bool(o < Text(v)), nil
+			return Bool(o < RawString(v)), nil
 		case token.LessEq:
-			return Bool(o <= Text(v)), nil
+			return Bool(o <= RawString(v)), nil
 		case token.Greater:
-			return Bool(o > Text(v)), nil
+			return Bool(o > RawString(v)), nil
 		case token.GreaterEq:
-			return Bool(o >= Text(v)), nil
+			return Bool(o >= RawString(v)), nil
 		}
-	case Text:
+	case RawString:
 		switch tok {
 		case token.Add:
 			return o + v, nil
@@ -266,7 +266,7 @@ func (o Text) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 
 	if tok == token.Add {
-		return o + Text(right.ToString()), nil
+		return o + RawString(right.ToString()), nil
 	}
 
 	return nil, NewOperandTypeError(
@@ -276,17 +276,17 @@ func (o Text) BinaryOp(tok token.Token, right Object) (Object, error) {
 }
 
 // Len implements LengthGetter interface.
-func (o Text) Len() int {
+func (o RawString) Len() int {
 	return len(o)
 }
 
 // Format implements fmt.Formatter interface.
-func (o Text) Format(s fmt.State, verb rune) {
+func (o RawString) Format(s fmt.State, verb rune) {
 	format := compat.FmtFormatString(s, verb)
 	fmt.Fprintf(s, format, string(o))
 }
 
-func (o Text) WriteTo(_ *VM, w io.Writer) (int64, error) {
+func (o RawString) WriteTo(_ *VM, w io.Writer) (int64, error) {
 	n, err := w.Write([]byte(o))
 	return int64(n), err
 }
@@ -602,11 +602,75 @@ func (o *Function) Call(call Call) (Object, error) {
 	return o.Value(call)
 }
 
+type ArgType []ObjectType
+
+func (t ArgType) String() string {
+	l := len(t)
+	switch l {
+	case 0:
+		return ""
+	case 1:
+		return ":" + t[0].Name()
+	default:
+		var s = make([]string, l)
+		for i, t2 := range t {
+			s[i] = t2.Name()
+		}
+		return "::[" + strings.Join(s, ", ") + "]"
+	}
+}
+
+type FunctionHeaderParam struct {
+	Name  string
+	Types []ObjectType
+	Value string
+}
+
+func (p *FunctionHeaderParam) String() string {
+	var (
+		s = p.Name
+		l = len(p.Types)
+	)
+	switch l {
+	case 0:
+	case 1:
+		s += ":" + p.Types[0].Name()
+	default:
+		var s2 = make([]string, l)
+		for i, t2 := range p.Types {
+			s2[i] = t2.Name()
+		}
+		s += ":[" + strings.Join(s2, ", ") + "]"
+	}
+	if p.Value != "" {
+		s += "=" + p.Value
+	}
+	return s
+}
+
+type FunctionHeader struct {
+	Params      []Params
+	NamedParams []Params
+}
+
+func (h *FunctionHeader) String() string {
+	var s []string
+	for _, param := range h.Params {
+		s = append(s, param.String())
+	}
+	for _, param := range h.NamedParams {
+		s = append(s, param.String())
+	}
+	return "(" + strings.Join(s, ", ") + ")"
+}
+
 // BuiltinFunction represents a builtin function object and implements Object interface.
 type BuiltinFunction struct {
 	ObjectImpl
-	Name  string
-	Value func(Call) (Object, error)
+	Name                  string
+	Value                 func(Call) (Object, error)
+	Header                FunctionHeader
+	AcceptMethodsDisabled bool
 }
 
 var _ CallerObject = (*BuiltinFunction)(nil)
@@ -616,7 +680,11 @@ func (*BuiltinFunction) Type() ObjectType {
 }
 
 func (o *BuiltinFunction) ToString() string {
-	return fmt.Sprintf("<builtinFunction:%s>", o.Name)
+	return fmt.Sprintf("<builtinFunction:%s%s>", o.Name, o.Header.String())
+}
+
+func (o *BuiltinFunction) ParamTypes(*VM) (MultipleObjectTypes, error) {
+	return nil, nil
 }
 
 // Copy implements Copier interface.
@@ -641,6 +709,10 @@ func (*BuiltinFunction) IsFalsy() bool { return false }
 
 func (o *BuiltinFunction) Call(c Call) (Object, error) {
 	return o.Value(c)
+}
+
+func (o *BuiltinFunction) MethodsDisabled() bool {
+	return o.AcceptMethodsDisabled
 }
 
 // Array represents array of objects and implements Object interface.
@@ -1598,7 +1670,7 @@ func (i *CallWrapper) Call(c Call) (Object, error) {
 	if len(c.NamedArgs.sources) > 0 {
 		nargs.Add(c.NamedArgs.UnreadPairs())
 	}
-	return i.Caller.Call(Call{c.VM, args, nargs})
+	return i.Caller.Call(Call{VM: c.VM, Args: args, NamedArgs: nargs, SafeArgs: c.SafeArgs})
 }
 
 func (i *CallWrapper) Type() ObjectType {

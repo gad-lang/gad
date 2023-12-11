@@ -163,10 +163,11 @@ func (vm *VM) init(opts *RunOpts) error {
 			vm.StdErr = NewStackWriter(opts.StdErr)
 		}
 	}
+
 	if opts.Builtins != nil {
 		vm.builtins = opts.Builtins
 	} else {
-		vm.builtins = BuiltinObjects
+		vm.builtins = BuiltinObjects.Build()
 	}
 
 	// Resize modules cache or create it if not exists.
@@ -186,11 +187,8 @@ func (vm *VM) init(opts *RunOpts) error {
 func (vm *VM) resetState(args Args, namedArgs *NamedArgs) {
 	vm.err = nil
 	atomic.StoreInt64(&vm.abort, 0)
-	vm.initLocals(args.Values(), namedArgs)
 	vm.initCurrentFrame(args, namedArgs)
 	vm.frameIndex = 1
-	vm.ip = -1
-	vm.sp = vm.curFrame.fn.NumLocals
 }
 
 func (vm *VM) initAndRun(opts *RunOpts) (Object, error) {
@@ -201,11 +199,8 @@ func (vm *VM) initAndRun(opts *RunOpts) (Object, error) {
 	vm.err = nil
 	atomic.StoreInt64(&vm.abort, 0)
 	vm.initGlobals(opts.Globals)
-	vm.initLocals(opts.Args.Values(), opts.NamedArgs)
 	vm.initCurrentFrame(opts.Args, opts.NamedArgs)
 	vm.frameIndex = 1
-	vm.ip = -1
-	vm.sp = vm.curFrame.fn.NumLocals
 
 	if vm.StdIn == nil {
 		vm.StdIn, vm.StdOut, vm.StdErr = NewStackReader(os.Stdin), NewStackWriter(os.Stdout), NewStackWriter(os.Stderr)
@@ -276,11 +271,40 @@ func (vm *VM) initGlobals(globals IndexGetSetter) {
 }
 
 func (vm *VM) initLocals(args Array, namedArgs *NamedArgs) {
+	vm.sp = 0
 	// init all params as nil
 	main := vm.bytecode.Main
 	numParams := main.Params.Len
 	numNamedParams := main.NamedParams.len
 	locals := vm.stack[:main.NumLocals]
+
+	vm.initLocalsOfFunc(main, args)
+
+	if numNamedParams > 0 {
+		if namedArgs == nil {
+			namedArgs = &NamedArgs{}
+		}
+		if main.NamedParams.variadic {
+			locals[numParams+numNamedParams-1] = namedArgs
+			for i, p := range main.NamedParams.Params[:numNamedParams-1] {
+				if v := namedArgs.GetValueOrNil(p.Name); v != nil {
+					locals[numParams+i] = v
+				}
+			}
+		} else {
+			for i, p := range main.NamedParams.Params {
+				if v := namedArgs.GetValueOrNil(p.Name); v != nil {
+					locals[numParams+i] = v
+				}
+			}
+		}
+	}
+}
+
+func (vm *VM) initLocalsOfFunc(main *CompiledFunction, args Array) {
+	numParams := main.Params.Len
+	numNamedParams := main.NamedParams.len
+	locals := vm.stack[vm.sp : vm.sp+main.NumLocals]
 
 	// fix num reveived args < num expected args
 	if diff := numParams - len(args); diff > 0 {
@@ -320,28 +344,12 @@ func (vm *VM) initLocals(args Array, namedArgs *NamedArgs) {
 		copy(locals, args[:numParams-1])
 	}
 
-	if numNamedParams > 0 {
-		if namedArgs == nil {
-			namedArgs = &NamedArgs{}
-		}
-		if main.NamedParams.variadic {
-			locals[numParams+numNamedParams-1] = namedArgs
-			for i, p := range main.NamedParams.Params[:numNamedParams-1] {
-				if v := namedArgs.GetValueOrNil(p.Name); v != nil {
-					locals[numParams+i] = v
-				}
-			}
-		} else {
-			for i, p := range main.NamedParams.Params {
-				if v := namedArgs.GetValueOrNil(p.Name); v != nil {
-					locals[numParams+i] = v
-				}
-			}
-		}
-	}
+	vm.sp += main.NumLocals
 }
 
 func (vm *VM) initCurrentFrame(args Args, named *NamedArgs) {
+	vm.initLocals(args.Values(), named)
+
 	// initialize frame and pointers
 	vm.curInsts = vm.bytecode.Main.Instructions
 	vm.curFrame = &(vm.frames[0])
@@ -357,6 +365,8 @@ func (vm *VM) initCurrentFrame(args Args, named *NamedArgs) {
 
 	vm.curFrame.errHandlers = nil
 	vm.curFrame.basePointer = 0
+	vm.sp = vm.curFrame.fn.NumLocals
+	vm.ip = -1
 }
 
 func (vm *VM) clearCurrentFrame() {
@@ -389,6 +399,24 @@ func (vm *VM) handlePanic(r any) {
 		return
 	}
 	vm.err = fmt.Errorf("panic: %v\nGo Stack:\n%s", r, gostack)
+}
+
+func (vm *VM) GetSymbolValue(symbol *Symbol) (value Object, err error) {
+	switch symbol.Scope {
+	case ScopeGlobal:
+		index := vm.constants[symbol.Index]
+		value, err = vm.globals.IndexGet(vm, index)
+	case ScopeLocal:
+		value = vm.stack[vm.curFrame.basePointer+symbol.Index]
+		if v, ok := value.(*ObjectPtr); ok {
+			value = *v.Value
+		}
+	case ScopeBuiltin:
+		value = vm.builtins[BuiltinType(symbol.Index)]
+	case ScopeFree:
+		value = *vm.curFrame.freeVars[symbol.Index].Value
+	}
+	return
 }
 
 func (vm *VM) xIndexGet(numSel int, target Object) (value Object, null, abort bool) {
@@ -699,8 +727,15 @@ func (vm *VM) xOpCall() error {
 }
 
 func (vm *VM) xOpCallAny(callee Object, numArgs int, flags OpCallFlag) error {
-	if cfunc, ok := callee.(*CompiledFunction); ok {
-		return vm.xOpCallCompiled(cfunc, numArgs, flags)
+do:
+	switch t := callee.(type) {
+	case *CompiledFunction:
+		return vm.xOpCallCompiled(t, numArgs, flags)
+	case *CallerObjectWithMethods:
+		if !t.HasMethods() {
+			callee = t.CallerObject
+			goto do
+		}
 	}
 	return vm.xOpCallObject(callee, numArgs, flags)
 }
@@ -711,7 +746,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 		numLocals   = cfunc.NumLocals
 		numParams   = cfunc.Params.Len
 		namedParams NamedArgs
-		args        = Args{nil}
+		args        = Args{nil, nil}
 	)
 
 	if flags.Has(OpCallFlagNamedArgs) {
@@ -720,6 +755,8 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 	if flags.Has(OpCallFlagVarNamedArgs) {
 		basePointer--
 	}
+
+	args[0] = vm.stack[basePointer : basePointer+numArgs]
 
 	if flags.Has(OpCallFlagNamedArgs) || flags.Has(OpCallFlagVarNamedArgs) {
 		if namedParams, err = vm.getCalledNamedArgs(flags); err != nil {
@@ -738,6 +775,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			vargs    = vm.stack[basePointer+numArgs-1]
 			vargsArr Array
 		)
+		args[0] = args[0][:numArgs-1]
 		if arr, ok := vargs.(Array); ok {
 			arrSize = len(arr)
 			vargsArr = arr
@@ -776,7 +814,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 				arr := append(Array{},
 					vm.stack[basePointer+numParams-1:basePointer+numArgs-1]...)
 				arr = append(arr, vargsArr...)
-				args = append(args, arr)
+				args[0] = arr
 				vm.stack[basePointer+numParams-1] = arr
 			}
 		} else {
@@ -789,7 +827,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			}
 			// f := func(a, b) {}
 			// f(...[1, 2])
-			args[0] = vargsArr
+			args[1] = vargsArr
 			copy(vm.stack[basePointer+numArgs-1:], vargsArr)
 		}
 	} else {
@@ -819,7 +857,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 				args[0] = vm.stack[basePointer : basePointer+cfunc.Params.Len-1]
 				arr := append(Array{}, vm.stack[basePointer+numParams-1:basePointer+numArgs]...)
 				vm.stack[basePointer+numParams-1] = arr
-				args = append(args, arr)
+				args[1] = arr
 			}
 		}
 	}
@@ -837,6 +875,10 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 		for i := numParams; i < numLocals; i++ {
 			vm.stack[basePointer+i] = Nil
 		}
+	}
+
+	if err = cfunc.ValidateParamTypes(vm, args); err != nil {
+		return
 	}
 
 	// test if it's tail-call
@@ -886,12 +928,13 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 	return nil
 }
 
-func (vm *VM) xOpCallObject(co Object, numArgs int, flags OpCallFlag) (err error) {
-	if !Callable(co) {
-		return ErrNotCallable.NewError(co.Type().Name())
+func (vm *VM) xOpCallObject(co_ Object, numArgs int, flags OpCallFlag) (err error) {
+	if !Callable(co_) {
+		return ErrNotCallable.NewError(co_.Type().Name())
 	}
 
 	var (
+		co         = co_.(CallerObject)
 		kwCount    int
 		expandArgs int
 
@@ -933,8 +976,12 @@ func (vm *VM) xOpCallObject(co Object, numArgs int, flags OpCallFlag) (err error
 		}
 	}
 
-	result, err := co.(CallerObject).Call(Call{vm, Args{args, vargs}, namedArgs})
-	if err != nil {
+	var (
+		c      = Call{VM: vm, Args: Args{args, vargs}, NamedArgs: namedArgs}
+		result Object
+	)
+
+	if result, err = co.Call(c); err != nil {
 		return err
 	}
 
@@ -1331,6 +1378,7 @@ func (v *vmPool) _acquire(vm *VM, cf *CompiledFunction) *VM {
 		root: v.root,
 	}
 	vm.noPanic = v.root.noPanic
+	vm.builtins = v.root.builtins
 
 	if v.vms == nil {
 		v.vms = make(map[*VM]struct{})

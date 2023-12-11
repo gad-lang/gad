@@ -367,7 +367,7 @@ func (s *Scanner) ScanNow() (t Token) {
 	if s.mode.Has(Mixed) && !s.InCode && s.Ch != -1 {
 		start := s.Offset
 		readText := func() {
-			t.Token = token.Text
+			t.Token = token.RawString
 			t.Pos = s.File.FileSetPos(start)
 
 			if s.Offset > start {
@@ -472,7 +472,7 @@ do:
 			t.Literal = s.ScanRune()
 		case '`':
 			insertSemi = true
-			t.Token = token.String
+			t.Token = token.RawString
 			t.Literal = s.ScanRawString()
 		case ':':
 			t.Token = s.Switch2(token.Colon, token.Define)

@@ -336,7 +336,7 @@ func TestEncDecObjects(t *testing.T) {
 			withLocals(10),
 		),
 		compFunc(nil,
-			withParams(2),
+			withParams("a", "b"),
 		),
 		compFunc(nil,
 			withVarParams(),
@@ -349,7 +349,7 @@ func TestEncDecObjects(t *testing.T) {
 			makeInst(gad.OpConstant, 1),
 			makeInst(gad.OpBinaryOp, int(token.Add)),
 		),
-			withParams(1),
+			withParams("a"),
 			withVarParams(),
 			withLocals(2),
 			withSourceMap(map[int]int{0: 1, 3: 1, 5: 1}),
@@ -609,9 +609,10 @@ func testBytecodeConstants(t *testing.T, expected, decoded []gad.Object) {
 
 type funcOpt func(*gad.CompiledFunction)
 
-func withParams(numParams int) funcOpt {
+func withParams(names ...string) funcOpt {
 	return func(cf *gad.CompiledFunction) {
-		cf.Params.Len = numParams
+		cf.Params.Len = len(names)
+		cf.Params.Names = names
 	}
 }
 

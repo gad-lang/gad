@@ -35,74 +35,79 @@ const gadDot = "gad."
 type converterFunc func(index int, argsName string, p *Param) string
 
 var converters = map[string]any{
-	"string":       "gad.ToGoString",
-	"[]byte":       "gad.ToGoByteSlice",
-	"int":          "gad.ToGoInt",
-	"int64":        "gad.ToGoInt64",
-	"uint64":       "gad.ToGoUint64",
-	"float64":      "gad.ToGoFloat64",
-	"rune":         "gad.ToGoRune",
-	"bool":         "gad.ToGoBool",
-	"gad.String":   "gad.ToString",
-	"gad.Bytes":    "gad.ToBytes",
-	"gad.Int":      "gad.ToInt",
-	"gad.Uint":     "gad.ToUint",
-	"gad.Float":    "gad.ToFloat",
-	"gad.Char":     "gad.ToChar",
-	"gad.Bool":     "gad.ToBool",
-	"gad.Array":    "gad.ToArray",
-	"gad.Dict":     "gad.ToMap",
-	"*gad.SyncMap": "gad.ToSyncMap",
+	"string":           "gad.ToGoString",
+	"[]byte":           "gad.ToGoByteSlice",
+	"int":              "gad.ToGoInt",
+	"int64":            "gad.ToGoInt64",
+	"uint64":           "gad.ToGoUint64",
+	"float64":          "gad.ToGoFloat64",
+	"rune":             "gad.ToGoRune",
+	"bool":             "gad.ToGoBool",
+	"gad.String":       "gad.ToString",
+	"gad.Bytes":        "gad.ToBytes",
+	"gad.Int":          "gad.ToInt",
+	"gad.Uint":         "gad.ToUint",
+	"gad.Float":        "gad.ToFloat",
+	"gad.Char":         "gad.ToChar",
+	"gad.Bool":         "gad.ToBool",
+	"gad.Array":        "gad.ToArray",
+	"gad.Dict":         "gad.ToMap",
+	"gad.CallerObject": "",
+	"*gad.SyncMap":     "gad.ToSyncMap",
+	"*gad.VM":          "",
 	"gad.Object": converterFunc(func(index int, argsName string, p *Param) string {
 		return fmt.Sprintf("%s := %s.Args.Get(%d)", p.Name, argsName, index)
 	}),
 }
 
 var builtinTypeAlias = map[string]string{
-	"_":           "p", // p is reserved for pointer prefix
-	"gad.Object":  "O",
-	"gad.String":  "S",
-	"gad.Bytes":   "B",
-	"gad.Dict":    "M",
-	"gad.SyncMap": "M2",
-	"gad.Array":   "A",
-	"gad.Float":   "F",
-	"gad.Int":     "I",
-	"gad.Uint":    "U",
-	"gad.Char":    "C",
-	"string":      "s",
-	"bool":        "b",
-	"byte":        "b1",
-	"[]byte":      "b2",
-	"int":         "i",
-	"int64":       "i64",
-	"uint64":      "u64",
-	"float64":     "f64",
-	"rune":        "r",
-	"error":       "e",
+	"_":                "p", // p is reserved for pointer prefix
+	"gad.Object":       "O",
+	"gad.String":       "S",
+	"gad.Bytes":        "B",
+	"gad.Dict":         "M",
+	"gad.SyncMap":      "M2",
+	"gad.Array":        "A",
+	"gad.Float":        "F",
+	"gad.Int":          "I",
+	"gad.Uint":         "U",
+	"gad.Char":         "C",
+	"gad.CallerObject": "Co",
+	"gad.VM":           "Vm",
+	"string":           "s",
+	"bool":             "b",
+	"byte":             "b1",
+	"[]byte":           "b2",
+	"int":              "i",
+	"int64":            "i64",
+	"uint64":           "u64",
+	"float64":          "f64",
+	"rune":             "r",
+	"error":            "e",
 }
 
 var gadTypeNames = map[string]string{
-	"gad.Object":  "object",
-	"gad.String":  "string",
-	"gad.Bytes":   "bytes",
-	"gad.Dict":    "map",
-	"gad.SyncMap": "syncMap",
-	"gad.Array":   "array",
-	"gad.Float":   "float",
-	"gad.Int":     "int",
-	"gad.Uint":    "uint",
-	"gad.Char":    "char",
-	"string":      "string",
-	"byte":        "char",
-	"[]byte":      "bytes",
-	"int64":       "int",
-	"uint64":      "uint",
-	"float64":     "float",
-	"rune":        "char",
-	"error":       "error",
-	"*Time":       "time",
-	"*Location":   "location",
+	"gad.Object":       "object",
+	"gad.String":       "string",
+	"gad.Bytes":        "bytes",
+	"gad.Dict":         "map",
+	"gad.SyncMap":      "syncMap",
+	"gad.Array":        "array",
+	"gad.Float":        "float",
+	"gad.Int":          "int",
+	"gad.Uint":         "uint",
+	"gad.Char":         "char",
+	"gad.CallerObject": "CallerObject",
+	"string":           "string",
+	"byte":             "char",
+	"[]byte":           "bytes",
+	"int64":            "int",
+	"uint64":           "uint",
+	"float64":          "float",
+	"rune":             "char",
+	"error":            "error",
+	"*Time":            "time",
+	"*Location":        "location",
 }
 
 var ordinals = [...]string{
@@ -417,8 +422,10 @@ func (src *Source) checkConverters() error {
 			if _, ok := converters[p.Type]; ok {
 				continue
 			}
-			if _, ok := converters[gadDot+p.Type]; !ok {
-				return fmt.Errorf("converter is not found for type: %s", p.Type)
+			if p.Type != "*VM" {
+				if _, ok := converters[gadDot+p.Type]; !ok {
+					return fmt.Errorf("converter is not found for type: %s", p.Type)
+				}
 			}
 		}
 	}
@@ -427,10 +434,11 @@ func (src *Source) checkConverters() error {
 
 // Param is function parameter
 type Param struct {
-	Name string
-	Type string
-	fn   *Fn
-	idx  int
+	Named bool
+	Name  string
+	Type  string
+	fn    *Fn
+	idx   int
 }
 
 // IsError determines if p parameter is used to return error.
@@ -473,9 +481,13 @@ func (p *Param) HelperAssignVar() string {
 func (p *Param) HelperAssignVarEx() string {
 	conv := converters[p.Type]
 	if conv == nil {
-		conv = converters[gadDot+p.Type]
-		if conv == nil {
-			conv = "CONVERTER_NOT_FOUND"
+		if p.Type == "*VM" {
+			return p.Name + ":= c.VM"
+		} else {
+			conv = converters[gadDot+p.Type]
+			if conv == nil {
+				conv = "CONVERTER_NOT_FOUND"
+			}
 		}
 	}
 	if conv != nil {
@@ -488,6 +500,20 @@ func (p *Param) HelperAssignVarEx() string {
 	}
 
 	gadTypeName := p.gadTypeName()
+
+	if p.Named {
+		return ""
+	}
+
+	if conv, ok := conv.(string); ok && conv == "" {
+		return fmt.Sprintf(`%s, ok := %s.Args.Get(%d).(%s)
+		if !ok {
+			return %sNil, %sNewArgumentTypeError("%s", "%s", %s.Args.Get(%d).Type().Name())
+		}`,
+			p.Name, p.fn.argsName, p.idx, gadTypeName,
+			gaddot(), gaddot(), ordinalize(p.idx+1), gadTypeName, p.fn.argsName, p.idx,
+		)
+	}
 
 	return fmt.Sprintf(`%s, ok := %s(%s.Args.Get(%d))
 		if !ok {
@@ -553,14 +579,16 @@ func (r *Rets) List() string {
 
 // Fn describes callable function.
 type Fn struct {
-	Name     string
-	Params   []*Param
-	Rets     *Rets
-	fnName   string
-	argsName string
-	retName  string
-	errName  string
-	src      string
+	Name          string
+	Params        []*Param
+	Rets          *Rets
+	fnName        string
+	argsName      string
+	retName       string
+	namedArgsName string
+	errName       string
+	src           string
+	vmarg         bool
 }
 
 func newFn(s string) (*Fn, error) {
@@ -579,6 +607,14 @@ func newFn(s string) (*Fn, error) {
 	f.Params, err = extractParams(body, f)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(f.Params) > 0 && f.Params[0].Type == "*VM" {
+		f.vmarg = true
+
+		for _, param := range f.Params[1:] {
+			param.idx--
+		}
 	}
 
 	// return values
@@ -650,9 +686,76 @@ func (f *Fn) HelperCheckNumArgs() string {
 // HelperCheckNumArgsEx is an helper used in template to return code block to
 // check number of arguments for extended API.
 func (f *Fn) HelperCheckNumArgsEx() string {
+	var numArgs int
+	for i, p := range f.Params {
+		if i == 0 && p.Type == "*VM" {
+			continue
+		}
+		if !p.Named {
+			numArgs++
+		}
+	}
 	return fmt.Sprintf(`if err := %s.Args.CheckLen(%d); err!=nil {
 			return %sNil, err
-	    }`, f.argsName, len(f.Params), gaddot())
+	    }`, f.argsName, numArgs, gaddot())
+}
+
+// HelperCheckNamedArgs is an helper used in template to return code block to
+// check named arguments.
+func (f *Fn) HelperCheckNamedArgs() string {
+	if f.namedArgsName == "" {
+		return ""
+	}
+	var (
+		s     []string
+		names []string
+	)
+	for _, p := range f.Params {
+		if p.Named {
+			conv := converters[p.Type]
+			if conv == nil {
+				conv = converters[gadDot+p.Type]
+				if conv == nil {
+					conv = "CONVERTER_NOT_FOUND"
+				}
+			}
+			if conv != nil {
+				if fn, ok := conv.(converterFunc); ok {
+					return fn(p.idx, p.fn.argsName, p)
+				}
+			}
+			if gaddot() == "" {
+				conv = strings.TrimPrefix(conv.(string), gadDot)
+			}
+
+			if cs, ok := conv.(string); ok && cs == "" {
+				conv = fmt.Sprintf("v.(%s)", p.Type)
+			} else {
+				conv = fmt.Sprintf("%s(v)", cs)
+			}
+
+			names = append(names, p.Name+"_")
+			s = append(s, fmt.Sprintf(`
+			%s %[4]s
+			%[1]s_ = &NamedArgVar{
+				Name:        %[1]q,
+				Accept: func(v Object) error {
+					var ok bool
+					if %[1]s, ok = %s; !ok {
+						return %sNewArgumentTypeError(%[1]q, %[4]q, v.Type().Name())
+					}
+					return nil
+				},
+			}`, p.Name, conv, gaddot(), p.gadTypeName()))
+		}
+	}
+	return fmt.Sprintf(`
+		var (
+			%s
+		);
+		if err := %s.NamedArgs.Get(%s); err!=nil {
+			return %sNil, err
+		}`, strings.Join(s, ","), f.argsName, strings.Join(names, ", "), gaddot())
 }
 
 // HelperCall is an helper used in template to return function call block with
@@ -682,7 +785,9 @@ func (f *Fn) HelperCall() string {
 	return fmt.Sprintf(`%s%s(%s)%s`,
 		left,
 		f.fnName,
-		join(f.Params, func(p *Param) string { return p.Name }, ", "),
+		join(f.Params, func(p *Param) string {
+			return p.Name
+		}, ", "),
 		ret,
 	)
 }
@@ -691,6 +796,9 @@ func (f *Fn) setVarNames() {
 	names := map[string]struct{}{}
 	for _, p := range f.Params {
 		names[p.Name] = struct{}{}
+		if p.Named && f.namedArgsName == "" {
+			f.namedArgsName = genVarName("na", names)
+		}
 	}
 
 	// Check parameter names to create unique name for default variable names.
@@ -786,20 +894,40 @@ func extractParams(s string, f *Fn) ([]*Param, error) {
 	a := strings.Split(s, ",")
 	ps := make([]*Param, len(a))
 	for i := range ps {
-		s2 := trim(a[i])
-		b := strings.Split(s2, " ")
-		if len(b) != 2 {
-			b = strings.Split(s2, "\t")
+		var (
+			s2    = trim(a[i])
+			b     []string
+			named bool
+		)
+		if strings.ContainsRune(s2, '=') {
+			named = true
+			b = strings.Split(s2, "=")
 			if len(b) != 2 {
-				return nil, fmt.Errorf("could not extract function parameter from %q", s2)
+				if len(b) != 2 {
+					return nil, fmt.Errorf("could not extract function parameter from %q", s2)
+				}
+			}
+			for i2, s3 := range b {
+				b[i2] = trim(s3)
+			}
+		} else {
+			b = strings.Split(s2, " ")
+			if len(b) != 2 {
+				b = strings.Split(s2, "\t")
+				if len(b) != 2 {
+					return nil, fmt.Errorf("could not extract function parameter from %q", s2)
+				}
 			}
 		}
-		ps[i] = &Param{
-			Name: trim(b[0]),
-			Type: trim(b[1]),
-			fn:   f,
-			idx:  i,
+		p := &Param{
+			Named: named,
+			Name:  trim(b[0]),
+			Type:  trim(b[1]),
+			fn:    f,
+			idx:   i,
 		}
+
+		ps[i] = p
 		if strings.Contains(ps[i].Type, "...") {
 			return nil, fmt.Errorf("variadic parameter is not supported from %q", s2)
 		}
@@ -826,6 +954,8 @@ import ({{range .GoImports}}
 
 {{define "checknumargsEx"}}{{.HelperCheckNumArgsEx}}{{end}}
 
+{{define "checkNamedArgs"}}{{.HelperCheckNamedArgs}}{{end}}
+
 {{define "assignvarsEx"}}{{range .Params}}
 		{{.HelperAssignVarEx}}{{end}}
 {{end}}
@@ -837,6 +967,7 @@ import ({{range .GoImports}}
 func {{.FuncName}}({{.FnName}} func({{.ParamList}}) {{.Rets.List}}) {{gaddot}}CallableFunc {
 	return func{{template "gadcallparamsEx" .}} {{template "gadresults" .}} {
 		{{template "checknumargsEx" .}}
+		{{template "checkNamedArgs" .}}
 		{{template "assignvarsEx" .}}
 		{{template "call" .}}
 		return

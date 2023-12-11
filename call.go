@@ -93,9 +93,11 @@ func (o Args) Equal(right Object) (ok bool) {
 	switch t := right.(type) {
 	case Args:
 		if t.Len() == o.Len() {
-			o.Walk(func(i int, arg Object) (continueLoop bool) {
-				ok = arg.Equal(t.Get(i))
-				return ok
+			o.Walk(func(i int, arg Object) any {
+				if !arg.Equal(t.Get(i)) {
+					return false
+				}
+				return nil
 			})
 		}
 	}
@@ -143,22 +145,28 @@ func (o Args) IndexGet(_ *VM, index Object) (Object, error) {
 }
 
 // Walk iterates over all values and call callback function.
-func (o Args) Walk(cb func(i int, arg Object) (continueLoop bool)) {
+func (o Args) Walk(cb func(i int, arg Object) any) (v any) {
+	return o.WalkSkip(0, cb)
+}
+
+// WalkSkip iterates over all values skiping skip and call callback function.
+func (o Args) WalkSkip(skip int, cb func(i int, arg Object) any) (v any) {
 	var i int
 	for _, arr := range o {
 		for _, arg := range arr {
-			if !cb(i, arg) {
-				return
+			if i >= skip {
+				if v = cb(i, arg); v != nil {
+					return
+				}
 			}
 			i++
 		}
 	}
+	return
 }
 
-// GetDefault returns the nth argument. If n is greater than the number of arguments,
-// it returns the nth variadic argument.
-// If n is greater than the number of arguments and variadic arguments, return defaul.
-func (o Args) GetDefault(n int, defaul Object) Object {
+// GetOnly returns the nth argument.
+func (o Args) GetOnly(n int) Object {
 	var at int
 	for _, arr := range o {
 		if len(arr) == 0 {
@@ -174,7 +182,17 @@ func (o Args) GetDefault(n int, defaul Object) Object {
 			return arr[i]
 		}
 	}
-	return defaul
+	return nil
+}
+
+// GetDefault returns the nth argument. If n is greater than the number of arguments,
+// it returns the nth variadic argument.
+// If n is greater than the number of arguments and variadic arguments, return defaul.
+func (o Args) GetDefault(n int, defaul Object) (v Object) {
+	if v = o.GetOnly(n); v == nil {
+		return defaul
+	}
+	return
 }
 
 // Get returns the nth argument. If n is greater than the number of arguments,
@@ -510,6 +528,7 @@ type Call struct {
 	VM        *VM
 	Args      Args
 	NamedArgs NamedArgs
+	SafeArgs  bool
 }
 
 // NewCall creates a new Call struct.
@@ -519,6 +538,10 @@ func NewCall(vm *VM, opts ...CallOpt) Call {
 		opt(&c)
 	}
 	return c
+}
+
+func (c Call) InvokerOf(co CallerObject) *Invoker {
+	return NewInvoker(c.VM, co).ValidArgs(c.SafeArgs)
 }
 
 type CallOpt func(c *Call)

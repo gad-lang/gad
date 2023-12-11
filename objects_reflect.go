@@ -547,7 +547,7 @@ func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
 }
 
 func reflectCallArgsToValues(typ, dddType reflect.Type, numIn int, args Args, argv []reflect.Value) (err error) {
-	args.Walk(func(i int, arg Object) (continueLoop bool) {
+	args.Walk(func(i int, arg Object) any {
 		var rarg reflect.Value
 		switch t := arg.(type) {
 		case *ReflectValue:
@@ -566,7 +566,7 @@ func reflectCallArgsToValues(typ, dddType reflect.Type, numIn int, args Args, ar
 		if argv[i], err = prepareArg(rarg, argType); err != nil {
 			err = ErrType.NewError(fmt.Sprintf("arg %d: %s", i, err))
 		}
-		return err == nil
+		return err
 	})
 	return
 }

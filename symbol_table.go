@@ -8,18 +8,36 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 )
 
 // SymbolScope represents a symbol scope.
-type SymbolScope string
+type SymbolScope uint8
 
 // List of symbol scopes
 const (
-	ScopeGlobal  SymbolScope = "GLOBAL"
-	ScopeLocal   SymbolScope = "LOCAL"
-	ScopeBuiltin SymbolScope = "BUILTIN"
-	ScopeFree    SymbolScope = "FREE"
+	ScopeGlobal SymbolScope = iota + 1
+	ScopeLocal
+	ScopeBuiltin
+	ScopeFree
 )
+
+func (s SymbolScope) String() string {
+	switch s {
+	case 0:
+		return ""
+	case ScopeGlobal:
+		return "GLOBAL"
+	case ScopeLocal:
+		return "LOCAL"
+	case ScopeBuiltin:
+		return "BUILTIN"
+	case ScopeFree:
+		return "FREE"
+	default:
+		return "SCOPE:" + strconv.FormatUint(uint64(s), 10)
+	}
+}
 
 // Symbol represents a symbol in the symbol table.
 type Symbol struct {
@@ -90,7 +108,7 @@ func (st *SymbolTable) InBlock() bool {
 }
 
 // SetParams sets parameters defined in the scope. This can be called only once.
-func (st *SymbolTable) SetParams(varParams bool, params ...string) (err error) {
+func (st *SymbolTable) SetParams(varParams bool, params []string, types []ParamType) (err error) {
 	if len(params) == 0 {
 		return nil
 	}
@@ -100,8 +118,20 @@ func (st *SymbolTable) SetParams(varParams bool, params ...string) (err error) {
 	}
 
 	if err = st.defineParamsVar(params); err == nil {
+		st.params.Names = params
 		st.params.Len = len(params)
 		st.params.Var = varParams
+		st.params.Typed = false
+		st.params.Type = nil
+		for _, paramType := range types {
+			if len(paramType) > 0 {
+				st.params.Typed = true
+				break
+			}
+		}
+		if st.params.Typed {
+			st.params.Type = types
+		}
 	}
 
 	return

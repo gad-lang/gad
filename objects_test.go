@@ -111,9 +111,9 @@ func TestObjectString(t *testing.T) {
 
 	require.Equal(t, "<function:>", (&Function{}).ToString())
 	require.Equal(t, "<function:xyz>", (&Function{Name: "xyz"}).ToString())
-	require.Equal(t, "<builtinFunction:>", (&BuiltinFunction{}).ToString())
-	require.Equal(t, "<builtinFunction:abc>", (&BuiltinFunction{Name: "abc"}).ToString())
-	require.Equal(t, "<compiledFunction>", (&CompiledFunction{}).ToString())
+	require.Equal(t, "<builtinFunction:()>", (&BuiltinFunction{}).ToString())
+	require.Equal(t, "<builtinFunction:abc()>", (&BuiltinFunction{Name: "abc"}).ToString())
+	require.Equal(t, "<compiledFunction ()>", (&CompiledFunction{}).ToString())
 	require.Equal(t, "<reflectFunc: func()>", MustToObject(func() {}).ToString())
 	require.Equal(t, "<reflectFunc: func(int)>", MustToObject(func(int) {}).ToString())
 	require.Equal(t, "<reflectSlice:slice<[]int: []>>", MustToObject([]int{}).ToString())

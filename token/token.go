@@ -18,7 +18,6 @@ const (
 	Comment
 	ConfigStart
 	ConfigEnd
-	Text
 	ToTextBegin
 	ToTextEnd
 	CodeBegin
@@ -31,6 +30,7 @@ const (
 	Decimal
 	Char
 	String
+	RawString
 	LiteralEnd_
 	OperatorBegin_
 	Add             // +
@@ -134,9 +134,9 @@ var tokens = [...]string{
 	Decimal:         "DECIMAL",
 	Char:            "CHAR",
 	String:          "STRING",
+	RawString:       "RAWSTRING",
 	Null:            "NULL",
 	NotNull:         "NOTNULL",
-	Text:            "TEXT",
 	StdIn:           "STDIN",
 	StdOut:          "STDOUT",
 	StdErr:          "STDERR",

@@ -335,7 +335,7 @@ func (r *repl) setSymbolSuggestions() {
 			suggestions = append(suggestions,
 				suggest{
 					text:        s.Name,
-					description: string(s.Scope),
+					description: s.Scope.String(),
 					typ:         "symbol",
 				},
 			)

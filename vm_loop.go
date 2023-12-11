@@ -117,23 +117,7 @@ VMLoop:
 			}
 		case OpEqual:
 			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
-
-			switch left := left.(type) {
-			case Int:
-				vm.stack[vm.sp-2] = Bool(left.Equal(right))
-			case String:
-				vm.stack[vm.sp-2] = Bool(left.Equal(right))
-			case Float:
-				vm.stack[vm.sp-2] = Bool(left.Equal(right))
-			case Bool:
-				vm.stack[vm.sp-2] = Bool(left.Equal(right))
-			case Uint:
-				vm.stack[vm.sp-2] = Bool(left.Equal(right))
-			case Char:
-				vm.stack[vm.sp-2] = Bool(left.Equal(right))
-			default:
-				vm.stack[vm.sp-2] = Bool(left.Equal(right))
-			}
+			vm.stack[vm.sp-2] = Bool(left.Equal(right))
 			vm.sp--
 			vm.stack[vm.sp] = nil
 		case OpNotEqual:

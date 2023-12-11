@@ -134,7 +134,7 @@ func init() {
 	TFloat = RegisterBuiltinType(BuiltinFloat, "float", Float(0), funcPf64RO(BuiltinFloatFunc))
 	TDecimal = RegisterBuiltinType(BuiltinDecimal, "decimal", Decimal{}, funcPOROe(BuiltinDecimalFunc))
 	TChar = RegisterBuiltinType(BuiltinChar, "char", Char(0), funcPOROe(BuiltinCharFunc))
-	TText = RegisterBuiltinType(BuiltinText, "text", Text(""), BuiltinTextFunc)
+	TText = RegisterBuiltinType(BuiltinText, "text", RawString(""), BuiltinTextFunc)
 	TString = RegisterBuiltinType(BuiltinString, "string", String(""), BuiltinStringFunc)
 	TBytes = RegisterBuiltinType(BuiltinBytes, "bytes", Bytes{}, BuiltinBytesFunc)
 	TBuffer = RegisterBuiltinType(BuiltinBuffer, "buffer", Buffer{}, BuiltinBufferFunc)

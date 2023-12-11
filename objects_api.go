@@ -123,6 +123,13 @@ type CallerObject interface {
 	Call(c Call) (Object, error)
 }
 
+// CallerObjectWithParamTypes is an interface for objects that can be called with Call
+// method with parameters with types.
+type CallerObjectWithParamTypes interface {
+	CallerObject
+	ParamTypes(vm *VM) (MultipleObjectTypes, error)
+}
+
 // CanCallerObject is an interface for objects that can be objects implements
 // this CallerObject interface.
 // Note if CallerObject implements this interface, CanCall() is called for check
@@ -132,6 +139,17 @@ type CanCallerObject interface {
 	// CanCall returns true if type can be called with Call() method.
 	// VM returns an error if one tries to call a noncallable object.
 	CanCall() bool
+}
+
+type CanCallerObjectTypesValidation interface {
+	CallerObject
+	ValidateParamTypes(vm *VM, args Args) (err error)
+	CanValidateParamTypes() bool
+}
+
+type CanCallerObjectMethodsEnabler interface {
+	CallerObject
+	MethodsDisabled() bool
 }
 
 // NameCallerObject is an interface for objects that can be called with CallName
