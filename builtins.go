@@ -64,6 +64,7 @@ const (
 	BuiltinNewType
 	BuiltinTypeOf
 	BuiltinAddCallMethod
+	BuiltinRawCaller
 	BuiltinMakeArray
 	BuiltinCap
 	BuiltinKeys
@@ -141,6 +142,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"newType":       BuiltinNewType,
 	"typeof":        BuiltinTypeOf,
 	"addCallMethod": BuiltinAddCallMethod,
+	"rawCaller":     BuiltinRawCaller,
 
 	"is":         BuiltinIs,
 	"isError":    BuiltinIsError,
@@ -396,6 +398,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinAddCallMethod: &BuiltinFunction{
 		Name:                  "addCallMethod",
 		Value:                 funcPpVM_CoCobRe(BuiltinAddCallMethodFunc),
+		AcceptMethodsDisabled: true,
+	},
+	BuiltinRawCaller: &BuiltinFunction{
+		Name:                  "rawCaller",
+		Value:                 BuiltinRawCallerFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinVMPushWriter: &BuiltinFunction{

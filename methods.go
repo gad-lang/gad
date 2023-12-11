@@ -113,14 +113,16 @@ func (o *CallerObjectWithMethods) HasMethods() bool {
 func (o *CallerObjectWithMethods) AddMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error {
 	if !o.registered {
 		o.registered = true
-		types, err := o.CallerObject.(CallerObjectWithParamTypes).ParamTypes(vm)
-		if err != nil {
-			return err
+		if cot, _ := o.CallerObject.(CallerObjectWithParamTypes); cot != nil {
+			types, err := o.CallerObject.(CallerObjectWithParamTypes).ParamTypes(vm)
+			if err != nil {
+				return err
+			}
+			o.Methods.Add(types, &CallerMethod{
+				Of:           o.CallerObject,
+				CallerObject: o.CallerObject,
+			}, false)
 		}
-		o.Methods.Add(types, &CallerMethod{
-			Of:           o.CallerObject,
-			CallerObject: o.CallerObject,
-		}, false)
 	}
 
 	return o.Methods.Add(types, &CallerMethod{

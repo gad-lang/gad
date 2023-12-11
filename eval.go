@@ -18,6 +18,7 @@ type Eval struct {
 	Opts         CompilerOptions
 	VM           *VM
 	ModulesCache []Object
+	firstRun     bool
 }
 
 // NewEval returns new Eval object.
@@ -39,9 +40,10 @@ func NewEval(opts CompilerOptions, runOpts ...*RunOpts) *Eval {
 	}
 
 	return &Eval{
-		RunOpts: runopts,
-		Opts:    opts,
-		VM:      NewVM(nil).SetRecover(true),
+		RunOpts:  runopts,
+		Opts:     opts,
+		VM:       NewVM(nil).SetRecover(true),
+		firstRun: true,
 	}
 }
 
@@ -87,6 +89,11 @@ func (r *Eval) run(ctx context.Context) (ret Object, err error) {
 			defer close(doneCh)
 			copy(r.VM.stack[:], r.Locals)
 			ret, err = r.VM.RunOpts(r.RunOpts)
+
+			if r.firstRun {
+				r.RunOpts.Builtins = r.VM.builtins
+				r.firstRun = false
+			}
 		}()
 
 		select {

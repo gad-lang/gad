@@ -1426,6 +1426,19 @@ keyValueArray(keyValue("d",4))))`,
 
 	expectErrIs(t, `printf()`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `sprintf()`, nil, ErrWrongNumArguments)
+
+	expectRun(t, `
+Point := newType(
+	"Point", 
+	fields={x:0, y:0}, 
+	init=func(this, x,y){this.x = x;this.y = y},
+)
+
+func int(p:Point) => rawCaller(int)(p.x * p.y)
+return [int(Point(2, 8)), string(int)]
+`,
+		nil, Array{Int(16), String("<builtinType int> with 1 methods:\n" +
+			"  1. <compiledFunction #7(p:Point)>")})
 }
 
 func TestObjectType(t *testing.T) {

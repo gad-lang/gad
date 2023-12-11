@@ -1601,3 +1601,26 @@ func BuiltinAddCallMethodFunc(vm *VM, fn CallerObject, handler CallerObject, ove
 	}
 	return
 }
+
+func BuiltinRawCallerFunc(c Call) (ret Object, err error) {
+	if err = c.Args.CheckLen(1); err != nil {
+		return
+	}
+
+	var (
+		obj = &Arg{Accept: func(v Object) string {
+			if ot, _ := v.(CallerObject); ot == nil {
+				return "caller"
+			}
+			return ""
+		}}
+	)
+	if err = c.Args.Destructure(obj); err != nil {
+		return
+	}
+	co := obj.Value.(CallerObject)
+	if cowm, _ := co.(*CallerObjectWithMethods); cowm != nil {
+		return cowm.CallerObject, nil
+	}
+	return co, nil
+}

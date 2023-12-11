@@ -230,7 +230,7 @@ func (vm *VM) initAndRun(opts *RunOpts) (Object, error) {
 	if opts.Builtins != nil {
 		vm.builtins = opts.Builtins
 	} else {
-		vm.builtins = BuiltinObjects
+		vm.builtins = BuiltinObjects.Build()
 	}
 
 	if opts.ObjectToWriter != nil {

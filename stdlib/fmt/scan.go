@@ -74,7 +74,11 @@ func newScanArgFunc(c gad.Call) (gad.Object, error) {
 	typ := "string"
 	if c.Args.Len() > 0 {
 		v := c.Args.Get(0)
-		if b, ok := v.(*gad.BuiltinFunction); ok {
+	do:
+		if b, ok := v.(*gad.CallerObjectWithMethods); ok {
+			v = b.CallerObject
+			goto do
+		} else if b, ok := v.(*gad.BuiltinFunction); ok {
 			typ = b.Name
 		} else if ot, ok := v.(gad.ObjectType); ok {
 			typ = ot.Name()

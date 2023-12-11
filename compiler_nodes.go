@@ -954,29 +954,42 @@ func (c *Compiler) compileFuncLit(nd *node.FuncLit) error {
 		nodeIndex := len(c.stack) - 1
 		// prevent recursion on compileAssignStmt
 		if nodeIndex < 1 || c.stack[nodeIndex-1] != c.stack[nodeIndex] {
-			c2 := c
+			var (
+				c2        = c
+				addMethod bool
+			)
+		loop:
 			for c2 != nil {
 				for _, o := range c2.constants {
 					switch ot := o.(type) {
 					case *CallerObjectWithMethods:
 						if ot.CallerObject.(*CompiledFunction).Name == ident.Name {
-							nd.Type.AllowMethods = false
-							nd.Type.Ident = nil
-							return c.compileCallExpr(&node.CallExpr{
-								Func: &node.Ident{Name: BuiltinAddCallMethod.String()},
-								CallArgs: node.CallArgs{
-									Args: node.CallExprArgs{
-										Values: []node.Expr{
-											ident,
-											nd,
-										},
-									},
-								},
-							})
+							addMethod = true
+							break loop
 						}
 					}
 				}
 				c2 = c.parent
+			}
+
+			if !addMethod {
+				_, addMethod = c.symbolTable.builtins[ident.Name]
+			}
+
+			if addMethod {
+				nd.Type.AllowMethods = false
+				nd.Type.Ident = nil
+				return c.compileCallExpr(&node.CallExpr{
+					Func: &node.Ident{Name: BuiltinAddCallMethod.String()},
+					CallArgs: node.CallArgs{
+						Args: node.CallExprArgs{
+							Values: []node.Expr{
+								ident,
+								nd,
+							},
+						},
+					},
+				})
 			}
 
 			ass := &node.AssignStmt{
