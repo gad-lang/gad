@@ -420,6 +420,8 @@ L:
 			x = p.ParseIndexOrSlice(x)
 		case token.LParen:
 			x = p.ParseCall(x)
+		case token.Pipe:
+			x = p.ParsePipe(x)
 		default:
 			break L
 		}
@@ -435,6 +437,19 @@ func (p *Parser) ParseCall(x node.Expr) *node.CallExpr {
 	return &node.CallExpr{
 		Func:     x,
 		CallArgs: *p.ParseCallArgs(token.LParen, token.RParen),
+	}
+}
+
+func (p *Parser) ParsePipe(x node.Expr) *node.PipeExpr {
+	if p.Trace {
+		defer untracep(tracep(p, "Pipe"))
+	}
+
+	pos := p.Expect(token.Pipe)
+	return &node.PipeExpr{
+		TokenPos: pos,
+		Src:      x,
+		Dst:      p.ParseExpr(),
 	}
 }
 
@@ -514,6 +529,9 @@ func (p *Parser) ParseCallArgs(start, end token.Token) *node.CallArgs {
 		}
 		return p.CallArgsOf(t.LBrace, t.RBrace, exprs...)
 	default:
+		if t == nil {
+			return &node.CallArgs{}
+		}
 		return &node.CallArgs{
 			LParen: t.Pos(),
 			RParen: t.End(),

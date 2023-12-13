@@ -3760,14 +3760,27 @@ func TestVMCallCompiledFunction(t *testing.T) {
 		Array{Int(1), Int(2), Array{Int(3)}, Int(4), Dict{"na1": Int(5)}})
 
 	expectRun(t, `
+	f := (v) => v*2
+	return (10).|f`, nil,
+		Int(20))
+
+	expectRun(t, `
 	first := (arr) => arr[0]
-	return [10].!first()`, nil,
+	return [10].|first()`, nil,
 		Int(10))
 
 	expectRun(t, `
 	first := (arr, v) => arr[0] + v
-	return [10].!first(2)`, nil,
+	return [10].|first(2)`, nil,
 		Int(12))
+
+	expectRun(t, `
+	return [10].|{a:{b:(arr, v) => arr[0] + v}}.a.b(2)`, nil,
+		Int(12))
+
+	expectRun(t, `
+	return (10).|{a:{b:(v) => v*2}}.a.b`, nil,
+		Int(20))
 }
 
 func TestVMCallWithNamedArgs(t *testing.T) {
@@ -4387,10 +4400,12 @@ func expectRun(t *testing.T, script string, opts *testopts, expect Object) {
 					panic(r)
 				}
 			}()
+			vm.Setup(SetupOpts{
+				Builtins: builtinObjects,
+			})
 			ropts := &RunOpts{
 				Globals:        opts.globals,
 				Args:           Args{opts.args},
-				Builtins:       builtinObjects.Build(),
 				ObjectToWriter: opts.objectToWriter,
 			}
 			if opts.namedArgs != nil {

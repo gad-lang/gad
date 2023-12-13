@@ -74,7 +74,7 @@ const (
 	LessEq          // <=
 	GreaterEq       // >=
 	Define          // :=
-	Ellipsis        // ...
+	Pipe            // .|
 	LParen          // (
 	RParen          // )
 	LBrack          // [
@@ -183,7 +183,7 @@ var tokens = [...]string{
 	LessEq:          "<=",
 	GreaterEq:       ">=",
 	Define:          ":=",
-	Ellipsis:        "...",
+	Pipe:            ".|",
 	LParen:          "(",
 	LBrack:          "[",
 	LBrace:          "{",

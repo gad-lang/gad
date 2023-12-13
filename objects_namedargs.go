@@ -451,11 +451,29 @@ func (o KeyValueArray) BinaryOp(tok token.Token, right Object) (Object, error) {
 		right.Type().Name())
 }
 
-func (o KeyValueArray) Sort() (Object, error) {
-	sort.Slice(o, func(i, j int) bool {
-		return o[i].IsLess(o[j])
-	})
-	return o, nil
+func (o KeyValueArray) Sort(vm *VM, less CallerObject) (_ Object, err error) {
+	if less == nil {
+		sort.Slice(o, func(i, j int) bool {
+			return o[i].IsLess(o[j])
+		})
+	} else {
+		var (
+			args   = Array{Nil, Nil}
+			caller VMCaller
+		)
+
+		if caller, err = NewInvoker(vm, less).Caller(Args{args}, nil); err != nil {
+			return
+		}
+
+		sort.Slice(o, func(i, j int) bool {
+			args[0] = o[i]
+			args[1] = o[j]
+			ret, _ := caller.Call()
+			return !ret.IsFalsy()
+		})
+	}
+	return o, err
 }
 
 func (o KeyValueArray) SortReverse() (Object, error) {
@@ -571,7 +589,7 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 				)
 			}
 		}
-		return o.Sort()
+		return o.Sort(c.VM, nil)
 	case "sortReverse":
 		if err = c.Args.CheckMaxLen(1); err != nil {
 			return

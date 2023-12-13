@@ -1,7 +1,6 @@
 package gad
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -19,8 +18,12 @@ var DefaultObjectToWrite ObjectToWriterFunc = func(vm *VM, w io.Writer, obj Obje
 	if ToWritable(obj) {
 		n, err = obj.(ToWriter).WriteTo(vm, w)
 	} else {
+		var s Object
+		if s, err = vm.Builtins[BuiltinString].(CallerObject).Call(Call{VM: vm, Args: Args{Array{obj}}}); err != nil {
+			return false, 0, err
+		}
 		var n32 int
-		n32, err = fmt.Fprint(w, obj)
+		n32, err = w.Write([]byte(s.(String)))
 		n += int64(n32)
 	}
 	handled = true

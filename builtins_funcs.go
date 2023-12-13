@@ -103,7 +103,7 @@ func BuiltinAppendFunc(c Call) (Object, error) {
 		}
 		return obj, nil
 	case Appender:
-		return obj.Append(c.Args.Values()...)
+		return obj.Append(c.VM, c.Args.Values()...)
 	default:
 		return Nil, NewArgumentTypeError(
 			"1st",
@@ -245,10 +245,10 @@ func BuiltinCapFunc(arg Object) Object {
 	return Int(n)
 }
 
-func BuiltinSortFunc(arg Object) (ret Object, err error) {
+func BuiltinSortFunc(vm *VM, arg Object, less CallerObject) (ret Object, err error) {
 	switch obj := arg.(type) {
 	case Sorter:
-		ret, err = obj.Sort()
+		ret, err = obj.Sort(vm, less)
 	case String:
 		s := []rune(obj)
 		sort.Slice(s, func(i, j int) bool {
@@ -273,7 +273,7 @@ func BuiltinSortFunc(arg Object) (ret Object, err error) {
 	return
 }
 
-func BuiltinSortReverseFunc(arg Object) (Object, error) {
+func BuiltinSortReverseFunc(vm *VM, arg Object, less CallerObject) (Object, error) {
 	switch obj := arg.(type) {
 	case ReverseSorter:
 		return obj.SortReverse()
@@ -439,6 +439,56 @@ func BuiltinMapFunc(c Call) (_ Object, err error) {
 	}
 
 	return ret, nil
+}
+
+func BuiltinEachFunc(c Call) (_ Object, err error) {
+	var (
+		iterabler = &Arg{
+			Name: "iterable",
+			Accept: func(v Object) string {
+				if !Mapable(v) && !Iterable(v) {
+					return "mapable|iterable"
+				}
+				return ""
+			},
+		}
+
+		callback = &Arg{
+			Name: "callback",
+			Accept: func(v Object) string {
+				if !Callable(v) {
+					return "callable"
+				}
+				return ""
+			},
+		}
+	)
+
+	if err = c.Args.Destructure(iterabler, callback); err != nil {
+		return
+	}
+
+	var (
+		args   = Array{Nil, Nil}
+		caller VMCaller
+	)
+
+	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
+		return
+	}
+
+	var (
+		it = iterabler.Value.(Iterabler).Iterate(c.VM)
+		fe = NewForEach(it, args, 0, caller)
+	)
+
+	for fe.Next() {
+		if _, err = fe.Call(); err != nil {
+			return
+		}
+	}
+
+	return iterabler.Value, nil
 }
 
 func BuiltinReduceFunc(c Call) (_ Object, err error) {

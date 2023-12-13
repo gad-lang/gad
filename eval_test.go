@@ -234,6 +234,6 @@ func TestEval(t *testing.T) {
 		require.Nil(t, ret)
 		require.Nil(t, bc)
 		require.Contains(t, err.Error(),
-			`Parse Error: expected statement, found '...'`)
+			`Parse Error: expected statement, found '.'`)
 	})
 }

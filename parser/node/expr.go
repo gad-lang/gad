@@ -1347,3 +1347,24 @@ func (e *NamedArgVarLit) End() source.Pos {
 func (e *NamedArgVarLit) String() string {
 	return "**" + e.Value.String()
 }
+
+type PipeExpr struct {
+	TokenPos source.Pos
+	Src      Expr
+	Dst      Expr
+}
+
+func (p *PipeExpr) Pos() source.Pos {
+	return p.Src.Pos()
+}
+
+func (p *PipeExpr) End() source.Pos {
+	return p.Dst.End()
+}
+
+func (p *PipeExpr) String() string {
+	return p.Src.String() + ".|" + p.Dst.String()
+}
+
+func (p *PipeExpr) ExprNode() {
+}

@@ -193,7 +193,7 @@ VMLoop:
 			vm.curInsts = vm.curFrame.fn.Instructions
 		case OpGetBuiltin:
 			builtinIndex := BuiltinType(int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8)
-			vm.stack[vm.sp] = vm.builtins[builtinIndex]
+			vm.stack[vm.sp] = vm.Builtins[builtinIndex]
 			vm.sp++
 			vm.ip += 2
 		case OpClosure:

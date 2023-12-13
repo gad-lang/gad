@@ -188,7 +188,7 @@ type Sorter interface {
 	Object
 
 	// Sort sorts object. if `update`, sort self and return then, other else sorts a self copy object.
-	Sort() (Object, error)
+	Sort(vm *VM, less CallerObject) (Object, error)
 }
 
 // ReverseSorter is an interface for return reverse sorted values.
@@ -254,7 +254,7 @@ type Niler interface {
 
 type Appender interface {
 	Object
-	Append(arr ...Object) (Object, error)
+	Append(vm *VM, arr ...Object) (Object, error)
 }
 
 // BytesConverter is to bytes converter

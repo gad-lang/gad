@@ -28,6 +28,7 @@ func TestReflectFunction_Call(t *testing.T) {
 			return i
 		}, Array{Int(1), Int(2)}, int64(3), nil},
 	}
+	vm := (&VM{}).Setup(SetupOpts{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r, err := NewReflectValue(tt.fn)
@@ -35,7 +36,7 @@ func TestReflectFunction_Call(t *testing.T) {
 				return
 			}
 
-			c := Call{Args: Args{tt.args}}
+			c := Call{VM: vm, Args: Args{tt.args}}
 			got, err := r.(*ReflectFunc).Call(c)
 			if !checkError(t, fmt.Sprintf("Call(%T)", c), tt.wantErr, err) {
 				return
@@ -82,6 +83,7 @@ func TestReflectStruct_IndexGet(t *testing.T) {
 		{"6", &b{V2: &a{}}, "V2.X", Int(0), nil},
 		{"7", &b{V2: &a{X: 3}}, "V2.X", Int(3), nil},
 	}
+	vm := (&VM{}).Setup(SetupOpts{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r, err := NewReflectValue(tt.obj)
@@ -94,7 +96,7 @@ func TestReflectStruct_IndexGet(t *testing.T) {
 			)
 			obj = r
 			for _, key := range strings.Split(tt.key, ".") {
-				if got, err = obj.(*ReflectStruct).IndexGet(nil, String(key)); err == nil {
+				if got, err = obj.(*ReflectStruct).IndexGet(vm, String(key)); err == nil {
 					obj = got
 				} else if !checkError(t, fmt.Sprintf("IndexGet(%v)", key), tt.wantErr, err) {
 					return
@@ -167,6 +169,7 @@ func TestReflectMap_IndexGet(t *testing.T) {
 		{"1", map[string]any{"X": 1}, "X", Int(1), nil},
 		{"2", map[string]any{"x": map[string]any{"y": 1}}, "x.y", Int(1), nil},
 	}
+	vm := (&VM{}).Setup(SetupOpts{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r, err := NewReflectValue(tt.obj)
@@ -179,7 +182,7 @@ func TestReflectMap_IndexGet(t *testing.T) {
 			)
 			obj = r
 			for _, key := range strings.Split(tt.key, ".") {
-				if got, err = obj.(*ReflectMap).IndexGet(nil, String(key)); err == nil {
+				if got, err = obj.(*ReflectMap).IndexGet(vm, String(key)); err == nil {
 					obj = got
 				} else if !checkError(t, fmt.Sprintf("IndexGet(%v)", key), tt.wantErr, err) {
 					return
@@ -200,6 +203,7 @@ func TestReflectSlice_IndexGet(t *testing.T) {
 	}{
 		{"1", []string{"a"}, Int(0), String("a"), nil},
 	}
+	vm := (&VM{}).Setup(SetupOpts{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r, err := NewReflectValue(tt.obj)
@@ -207,7 +211,7 @@ func TestReflectSlice_IndexGet(t *testing.T) {
 				return
 			}
 
-			got, err := r.(IndexGetter).IndexGet(nil, tt.key)
+			got, err := r.(IndexGetter).IndexGet(vm, tt.key)
 			if !checkError(t, fmt.Sprintf("IndexGet(%T)", tt.obj), tt.wantErr, err) {
 				return
 			}
@@ -240,6 +244,7 @@ func TestReflectStruct_IndexSet(t *testing.T) {
 		{"4", &b{}, String("V2"), MustToObject(f), nil},
 		{"5", &b{}, String("V2"), MustToObject(nil), nil},
 	}
+	vm := (&VM{}).Setup(SetupOpts{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r, err := NewReflectValue(tt.obj)
@@ -248,11 +253,11 @@ func TestReflectStruct_IndexSet(t *testing.T) {
 			}
 			obj := r.(*ReflectStruct)
 
-			err = obj.IndexSet(nil, tt.key, tt.value)
+			err = obj.IndexSet(vm, tt.key, tt.value)
 			if !checkError(t, fmt.Sprintf("IndexSet(%T)", tt.obj), tt.wantErr, err) {
 				return
 			}
-			got, err := obj.IndexGet(nil, tt.key)
+			got, err := obj.IndexGet(vm, tt.key)
 			if !checkError(t, fmt.Sprintf("IndexGet(%T)", tt.obj), tt.wantErr, err) {
 				return
 			}
@@ -271,6 +276,7 @@ func TestReflectMap_IndexSet(t *testing.T) {
 	}{
 		{"6", map[string]any{}, String("a"), String("b"), nil},
 	}
+	vm := (&VM{}).Setup(SetupOpts{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r, err := NewReflectValue(tt.obj)
@@ -279,11 +285,11 @@ func TestReflectMap_IndexSet(t *testing.T) {
 			}
 			obj := r.(*ReflectMap)
 
-			err = obj.IndexSet(nil, tt.key, tt.value)
+			err = obj.IndexSet(vm, tt.key, tt.value)
 			if !checkError(t, fmt.Sprintf("IndexSet(%T)", tt.obj), tt.wantErr, err) {
 				return
 			}
-			got, err := obj.IndexGet(nil, tt.key)
+			got, err := obj.IndexGet(vm, tt.key)
 			if !checkError(t, fmt.Sprintf("IndexGet(%T)", tt.obj), tt.wantErr, err) {
 				return
 			}
@@ -302,6 +308,7 @@ func TestReflectSlice_IndexSet(t *testing.T) {
 	}{
 		{"7", []string{""}, Int(0), String("a"), nil},
 	}
+	vm := (&VM{}).Setup(SetupOpts{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r, err := NewReflectValue(tt.obj)
@@ -310,11 +317,11 @@ func TestReflectSlice_IndexSet(t *testing.T) {
 			}
 			obj := r.(*ReflectSlice)
 
-			err = obj.IndexSet(nil, tt.key, tt.value)
+			err = obj.IndexSet(vm, tt.key, tt.value)
 			if !checkError(t, fmt.Sprintf("IndexSet(%T)", tt.obj), tt.wantErr, err) {
 				return
 			}
-			got, err := obj.IndexGet(nil, tt.key)
+			got, err := obj.IndexGet(vm, tt.key)
 			if !checkError(t, fmt.Sprintf("IndexGet(%T)", tt.obj), tt.wantErr, err) {
 				return
 			}

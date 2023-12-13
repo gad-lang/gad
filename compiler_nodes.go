@@ -1319,6 +1319,20 @@ func (c *Compiler) compileSliceExpr(nd *node.SliceExpr) error {
 	return nil
 }
 
+func (c *Compiler) compilePipeExpr(nd *node.PipeExpr) error {
+	var call node.CallExpr
+	switch t := nd.Dst.(type) {
+	case *node.CallExpr:
+		call = *t
+	default:
+		call = node.CallExpr{
+			Func: t,
+		}
+	}
+	call.CallArgs.Args.Values = append([]node.Expr{nd.Src}, call.CallArgs.Args.Values...)
+	return c.Compile(&call)
+}
+
 func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 	var (
 		selExpr    *node.SelectorExpr
@@ -1333,18 +1347,6 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 		selExpr, isSelector = nd.Func.(*node.SelectorExpr)
 	}
 	if isSelector {
-		switch t := selExpr.Sel.(type) {
-		case *node.StringLit:
-			if t.CanIdent() && t.Value[0] == '!' {
-				cp := *nd
-				cp.Func = &node.Ident{
-					NamePos: t.ValuePos,
-					Name:    t.Value[1:],
-				}
-				cp.CallArgs.Args.Values = append([]node.Expr{selExpr.Expr}, cp.CallArgs.Args.Values...)
-				return c.compileCallExpr(&cp)
-			}
-		}
 		if err := c.Compile(selExpr.Expr); err != nil {
 			return err
 		}

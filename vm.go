@@ -42,11 +42,11 @@ type VM struct {
 	err          error
 	noPanic      bool
 
-	builtins map[BuiltinType]Object
-
 	StdOut, StdErr *StackWriter
 	StdIn          *StackReader
 	ObjectToWriter ObjectToWriter
+
+	*SetupOpts
 }
 
 // NewVM creates a VM object.
@@ -138,9 +138,7 @@ func (vm *VM) init(opts *RunOpts) error {
 		return errors.New("invalid Bytecode")
 	}
 
-	if vm.StdIn == nil {
-		vm.StdIn, vm.StdOut, vm.StdErr = NewStackReader(os.Stdin), NewStackWriter(os.Stdout), NewStackWriter(os.Stderr)
-	}
+	vm.Setup(SetupOpts{})
 
 	if opts.StdIn != nil {
 		if s, _ := opts.StdIn.(*StackReader); s != nil {
@@ -164,10 +162,8 @@ func (vm *VM) init(opts *RunOpts) error {
 		}
 	}
 
-	if opts.Builtins != nil {
-		vm.builtins = opts.Builtins
-	} else {
-		vm.builtins = BuiltinObjects.Build()
+	if opts.ObjectToWriter != nil {
+		vm.ObjectToWriter = opts.ObjectToWriter
 	}
 
 	// Resize modules cache or create it if not exists.
@@ -191,20 +187,45 @@ func (vm *VM) resetState(args Args, namedArgs *NamedArgs) {
 	vm.frameIndex = 1
 }
 
+func (vm *VM) Setup(opts SetupOpts) *VM {
+	if vm.SetupOpts != nil {
+		return vm
+	}
+
+	if vm.StdIn == nil {
+		vm.StdIn, vm.StdOut, vm.StdErr = NewStackReader(os.Stdin), NewStackWriter(os.Stdout), NewStackWriter(os.Stderr)
+	}
+
+	vm.SetupOpts = &opts
+
+	if vm.Builtins == nil {
+		vm.Builtins = BuiltinObjects
+	}
+	vm.Builtins = vm.Builtins.Build()
+
+	if vm.ObjectConverters == nil {
+		vm.ObjectConverters = NewObjectConverters()
+	}
+
+	if vm.ObjectToWriter == nil {
+		vm.ObjectToWriter = DefaultObjectToWrite
+	}
+
+	return vm
+}
+
 func (vm *VM) initAndRun(opts *RunOpts) (Object, error) {
 	if vm.bytecode == nil || vm.bytecode.Main == nil {
 		return nil, errors.New("invalid Bytecode")
 	}
+
+	vm.Setup(SetupOpts{})
 
 	vm.err = nil
 	atomic.StoreInt64(&vm.abort, 0)
 	vm.initGlobals(opts.Globals)
 	vm.initCurrentFrame(opts.Args, opts.NamedArgs)
 	vm.frameIndex = 1
-
-	if vm.StdIn == nil {
-		vm.StdIn, vm.StdOut, vm.StdErr = NewStackReader(os.Stdin), NewStackWriter(os.Stdout), NewStackWriter(os.Stderr)
-	}
 
 	if opts.StdIn != nil {
 		if s, _ := opts.StdIn.(*StackReader); s != nil {
@@ -227,16 +248,9 @@ func (vm *VM) initAndRun(opts *RunOpts) (Object, error) {
 			vm.StdErr = NewStackWriter(opts.StdErr)
 		}
 	}
-	if opts.Builtins != nil {
-		vm.builtins = opts.Builtins
-	} else {
-		vm.builtins = BuiltinObjects.Build()
-	}
 
 	if opts.ObjectToWriter != nil {
 		vm.ObjectToWriter = opts.ObjectToWriter
-	} else {
-		vm.ObjectToWriter = DefaultObjectToWrite
 	}
 
 	// Resize modules cache or create it if not exists.
@@ -412,7 +426,7 @@ func (vm *VM) GetSymbolValue(symbol *Symbol) (value Object, err error) {
 			value = *v.Value
 		}
 	case ScopeBuiltin:
-		value = vm.builtins[BuiltinType(symbol.Index)]
+		value = vm.Builtins[BuiltinType(symbol.Index)]
 	case ScopeFree:
 		value = *vm.curFrame.freeVars[symbol.Index].Value
 	}
@@ -781,7 +795,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			vargsArr = arr
 		} else {
 			var items Object
-			if items, err = vm.builtins[BuiltinValues].(CallerObject).Call(Call{VM: vm, Args: Args{{vargs}}}); err != nil {
+			if items, err = vm.Builtins[BuiltinValues].(CallerObject).Call(Call{VM: vm, Args: Args{{vargs}}}); err != nil {
 				return
 			}
 			vargsArr = items.(Array)
@@ -969,7 +983,7 @@ func (vm *VM) xOpCallObject(co_ Object, numArgs int, flags OpCallFlag) (err erro
 			vargs = arr
 		} else {
 			var items Object
-			if items, err = vm.builtins[BuiltinValues].(CallerObject).Call(Call{VM: vm, Args: Args{{vm.stack[basePointer+numArgs-1]}}}); err != nil {
+			if items, err = vm.Builtins[BuiltinValues].(CallerObject).Call(Call{VM: vm, Args: Args{{vm.stack[basePointer+numArgs-1]}}}); err != nil {
 				return
 			}
 			vargs = items.(Array)
@@ -1378,7 +1392,8 @@ func (v *vmPool) _acquire(vm *VM, cf *CompiledFunction) *VM {
 		root: v.root,
 	}
 	vm.noPanic = v.root.noPanic
-	vm.builtins = v.root.builtins
+	vm.SetupOpts = v.root.SetupOpts
+	vm.ObjectToWriter = v.root.ObjectToWriter
 
 	if v.vms == nil {
 		v.vms = make(map[*VM]struct{})

@@ -231,9 +231,9 @@ func TestParserErrorList(t *testing.T) {
 		list.Error())
 }
 
-func TestParseSpecialField(t *testing.T) {
-	expectParseString(t, "a.!x", "a.!x")
-	expectParseString(t, "a.!x()", "a.!x()")
+func TestParsePipe(t *testing.T) {
+	expectParseString(t, "a.|x", "a.|x")
+	expectParseString(t, "a.|x()", "a.|x()")
 }
 
 func TestParseDecl(t *testing.T) {

@@ -135,7 +135,7 @@ func TestScanner_Scan(t *testing.T) {
 		{token.LessEq, "<="},
 		{token.GreaterEq, ">="},
 		{token.Define, ":="},
-		{token.Ellipsis, "..."},
+		{token.Pipe, ".|"},
 		{token.LParen, "("},
 		{token.LBrack, "["},
 		{token.LBrace, "{"},

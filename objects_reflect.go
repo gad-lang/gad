@@ -279,7 +279,7 @@ func (r *ReflectType) New(vm *VM, m Dict) (Object, error) {
 	case reflect.Map:
 		rv = reflect.MakeMap(r.typ)
 		for k, v := range m {
-			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(ToInterface(v)))
+			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(vm.ToInterface(v)))
 		}
 	}
 	return &ReflectValue{typ: r, v: rv}, nil
@@ -299,6 +299,10 @@ type ReflectValuer interface {
 }
 
 func NewReflectValue(v any) (ReflectValuer, error) {
+	if rv, _ := v.(ReflectValuer); rv != nil {
+		return rv, nil
+	}
+
 	var (
 		rv     = reflect.ValueOf(v)
 		isnill bool
@@ -331,7 +335,7 @@ func NewReflectValue(v any) (ReflectValuer, error) {
 	orv := ReflectValue{typ: t, v: rv, ptr: ptr, nil: isnill}
 	switch rv.Kind() {
 	case reflect.Struct:
-		return &ReflectStruct{orv}, nil
+		return &ReflectStruct{ReflectValue: orv}, nil
 	case reflect.Map:
 		return &ReflectMap{orv}, nil
 	case reflect.Slice:
@@ -517,7 +521,7 @@ func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
 		}
 		dddType := typ.In(numIn - 1).Elem()
 		argv = make([]reflect.Value, argc)
-		if err = reflectCallArgsToValues(typ, dddType, numIn, c.Args, argv); err != nil {
+		if err = reflectCallArgsToValues(c.VM, typ, dddType, numIn, c.Args, argv); err != nil {
 			return
 		}
 	} else if numIn == 1 && reflectCallTypeToArgv(typ.In(0), &c, &argv) {
@@ -526,7 +530,7 @@ func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
 		return nil, ErrType.NewError(fmt.Sprintf("wrong number of args: got %d want %d", argc, numIn))
 	} else {
 		argv = make([]reflect.Value, argc)
-		if err = reflectCallArgsToValues(typ, nil, numIn, c.Args, argv); err != nil {
+		if err = reflectCallArgsToValues(c.VM, typ, nil, numIn, c.Args, argv); err != nil {
 			return
 		}
 	}
@@ -539,21 +543,21 @@ func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
 	ret, err = safeCall(r.v, argv)
 	if err == nil {
 		if ret.IsValid() {
-			return ToObject(ret.Interface())
+			return c.VM.ToObject(ret.Interface())
 		}
 		return Nil, nil
 	}
 	return
 }
 
-func reflectCallArgsToValues(typ, dddType reflect.Type, numIn int, args Args, argv []reflect.Value) (err error) {
+func reflectCallArgsToValues(vm *VM, typ, dddType reflect.Type, numIn int, args Args, argv []reflect.Value) (err error) {
 	args.Walk(func(i int, arg Object) any {
 		var rarg reflect.Value
 		switch t := arg.(type) {
 		case *ReflectValue:
 			rarg = t.v
 		default:
-			rarg = reflect.ValueOf(ToInterface(arg))
+			rarg = reflect.ValueOf(vm.ToInterface(arg))
 		}
 
 		rarg = indirectInterface(rarg)
@@ -600,7 +604,7 @@ func (o *ReflectArray) IsFalsy() bool {
 	return o.v.Len() == 0
 }
 
-func (o *ReflectArray) IndexGet(_ *VM, index Object) (value Object, err error) {
+func (o *ReflectArray) IndexGet(vm *VM, index Object) (value Object, err error) {
 	var ix int
 	switch t := index.(type) {
 	case Int:
@@ -621,10 +625,10 @@ func (o *ReflectArray) IndexGet(_ *VM, index Object) (value Object, err error) {
 		return nil, ErrIndexOutOfBounds
 	}
 
-	return ToObject(o.v.Index(ix).Interface())
+	return vm.ToObject(o.v.Index(ix).Interface())
 }
 
-func (o *ReflectArray) IndexSet(_ *VM, index, value Object) (err error) {
+func (o *ReflectArray) IndexSet(vm *VM, index, value Object) (err error) {
 	var ix int
 	switch t := index.(type) {
 	case Int:
@@ -645,7 +649,7 @@ func (o *ReflectArray) IndexSet(_ *VM, index, value Object) (err error) {
 	if rv, _ := value.(*ReflectValue); rv != nil {
 		v = rv.v
 	} else {
-		v = reflect.ValueOf(ToInterface(value))
+		v = reflect.ValueOf(vm.ToInterface(value))
 	}
 
 	if ix >= o.v.Len() {
@@ -691,7 +695,7 @@ var (
 	_ Slicer         = (*ReflectSlice)(nil)
 )
 
-func (o *ReflectSlice) Append(items ...Object) (_ Object, err error) {
+func (o *ReflectSlice) Append(vm *VM, items ...Object) (_ Object, err error) {
 	var (
 		itemType = o.typ.typ.Elem()
 		values   = reflect.MakeSlice(o.typ.typ, len(items), len(items))
@@ -699,7 +703,7 @@ func (o *ReflectSlice) Append(items ...Object) (_ Object, err error) {
 	)
 
 	for i, item := range items {
-		if itemV, err = prepareArg(reflect.ValueOf(ToInterface(item)), itemType); err != nil {
+		if itemV, err = prepareArg(reflect.ValueOf(vm.ToInterface(item)), itemType); err != nil {
 			return
 		}
 		values.Index(i).Set(itemV)
@@ -764,28 +768,28 @@ func (o *ReflectMap) ToString() string {
 	return fmt.Sprintf("%s", o)
 }
 
-func (o *ReflectMap) IndexDelete(_ *VM, index Object) (err error) {
-	o.v.SetMapIndex(reflect.ValueOf(ToInterface(index)), reflect.Value{})
+func (o *ReflectMap) IndexDelete(vm *VM, index Object) (err error) {
+	o.v.SetMapIndex(reflect.ValueOf(vm.ToInterface(index)), reflect.Value{})
 	return nil
 }
 
-func (o *ReflectMap) IndexGet(_ *VM, index Object) (value Object, err error) {
-	v := o.v.MapIndex(reflect.ValueOf(ToInterface(index)))
+func (o *ReflectMap) IndexGet(vm *VM, index Object) (value Object, err error) {
+	v := o.v.MapIndex(reflect.ValueOf(vm.ToInterface(index)))
 	if !v.IsValid() || v.IsNil() {
 		return Nil, nil
 	}
-	return ToObject(v.Interface())
+	return vm.ToObject(v.Interface())
 }
 
-func (o *ReflectMap) IndexSet(_ *VM, index, value Object) (err error) {
+func (o *ReflectMap) IndexSet(vm *VM, index, value Object) (err error) {
 	var v reflect.Value
 	if rv, _ := value.(*ReflectValue); rv != nil {
 		v = rv.v
 	} else {
-		v = reflect.ValueOf(ToInterface(value))
+		v = reflect.ValueOf(vm.ToInterface(value))
 	}
 
-	o.v.SetMapIndex(reflect.ValueOf(ToInterface(index)), v)
+	o.v.SetMapIndex(reflect.ValueOf(vm.ToInterface(index)), v)
 	return
 }
 
@@ -810,6 +814,8 @@ func (o *ReflectMap) Copy() (obj Object) {
 
 type ReflectStruct struct {
 	ReflectValue
+	fieldHandler         func(vm *VM, s *ReflectStruct, name string, v any) any
+	fallbackIndexHandler func(vm *VM, s *ReflectStruct, name string) (handled bool, value Object, err error)
 }
 
 func (r *ReflectStruct) Iterate(vm *VM) Iterator {
@@ -822,16 +828,37 @@ var (
 	_ IndexGetSetter = (*ReflectStruct)(nil)
 )
 
+func (r *ReflectStruct) FieldHandler(handler func(vm *VM, s *ReflectStruct, name string, v any) any) *ReflectStruct {
+	r.fieldHandler = handler
+	return r
+}
+
+func (r *ReflectStruct) FalbackIndexHandler(handler func(vm *VM, s *ReflectStruct, name string) (handled bool, value Object, err error)) *ReflectStruct {
+	r.fallbackIndexHandler = handler
+	return r
+}
+
 func (r *ReflectStruct) IndexGet(vm *VM, index Object) (value Object, err error) {
 	return r.IndexGetS(vm, index.ToString())
 }
 
 func (r *ReflectStruct) IndexGetS(vm *VM, index string) (value Object, err error) {
 	if field := r.typ.fields[index]; field != nil {
-		value, err = ToObject(r.v.FieldByIndex(field.f.Index).Interface())
+		v := r.v.FieldByIndex(field.f.Index).Interface()
+		if r.fieldHandler != nil {
+			v = r.fieldHandler(vm, r, index, v)
+		}
+		return vm.ToObject(v)
 	} else if m := r.typ.methods[index]; m != nil && m.m.Type.NumIn() == 1 {
 		_, err = r.callName(m, Call{VM: vm})
 	} else {
+		if r.fallbackIndexHandler != nil {
+			if handled, val, err := r.fallbackIndexHandler(vm, r, index); err != nil {
+				return nil, err
+			} else if handled {
+				return vm.ToObject(val)
+			}
+		}
 		err = ErrInvalidIndex.NewError(index)
 	}
 	return
@@ -875,7 +902,7 @@ func (r *ReflectStruct) SetFieldValue(vm *VM, df *ReflectField, value Object) (e
 		if rv, _ := value.(*ReflectValue); rv != nil {
 			v = rv.v
 		} else {
-			v = reflect.ValueOf(ToInterface(value))
+			v = reflect.ValueOf(vm.ToInterface(value))
 		}
 
 		if df.ptr {

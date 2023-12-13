@@ -126,6 +126,9 @@ var (
 	TReflectMethod = &BuiltinObjType{
 		NameValue: "reflectMethod",
 	}
+	TIndexGetProxy = &BuiltinObjType{
+		NameValue: "indexGetProxy",
+	}
 )
 
 func init() {

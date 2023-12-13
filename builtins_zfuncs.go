@@ -246,3 +246,36 @@ func funcPpVM_CoCobRe(fn func(*VM, CallerObject, CallerObject, bool) error) Call
 		return
 	}
 }
+
+// funcPpVM_OCoROe is a generated function to make CallableFunc.
+// Source: func(vm *VM, v Object, less=CallerObject) (ret Object, err error)
+func funcPpVM_OCoROe(fn func(*VM, Object, CallerObject) (Object, error)) CallableFunc {
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return Nil, err
+		}
+
+		var (
+			less  CallerObject
+			less_ = &NamedArgVar{
+				Name: "less",
+				Accept: func(v Object) error {
+					var ok bool
+					if less, ok = v.(CallerObject); !ok {
+						return NewArgumentTypeError("less", "CallerObject", v.Type().Name())
+					}
+					return nil
+				},
+			}
+		)
+		if err := c.NamedArgs.Get(less_); err != nil {
+			return Nil, err
+		}
+
+		vm := c.VM
+		v := c.Args.Get(0)
+
+		ret, err = fn(vm, v, less)
+		return
+	}
+}

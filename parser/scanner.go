@@ -477,16 +477,14 @@ do:
 		case ':':
 			t.Token = s.Switch2(token.Colon, token.Define)
 		case '.':
-			if '0' <= s.Ch && s.Ch <= '9' {
+			if s.Ch == '|' {
+				s.Next()
+				t.Token = token.Pipe
+			} else if '0' <= s.Ch && s.Ch <= '9' {
 				insertSemi = true
 				t.Token, t.Literal = s.ScanNumber(true)
 			} else {
 				t.Token = token.Period
-				if s.Ch == '.' && s.Peek() == '.' {
-					s.Next()
-					s.Next() // consume last '.'
-					t.Token = token.Ellipsis
-				}
 			}
 		case ',':
 			t.Token = token.Comma
@@ -613,16 +611,7 @@ do:
 		case '=':
 			t.Token = s.Switch3(token.Assign, token.Equal, '>', token.Lambda)
 		case '!':
-			if s.Offset >= 2 && s.Src[s.Offset-2] == '.' && (utils.IsLetter(s.Ch) || utils.IsLetter(rune(s.PeekNoSpace()))) {
-				if !utils.IsLetter(s.Ch) {
-					s.NextNoSpace()
-				}
-				t.Literal = "!" + s.ScanIdentifier()
-				t.Token = token.Ident
-				insertSemi = true
-			} else {
-				t.Token = s.Switch2(token.Not, token.NotEqual)
-			}
+			t.Token = s.Switch2(token.Not, token.NotEqual)
 		case '&':
 			if s.Ch == '^' {
 				s.Next()

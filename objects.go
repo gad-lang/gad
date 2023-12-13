@@ -891,20 +891,38 @@ func (o Array) Items() (arr KeyValueArray) {
 	return arr
 }
 
-func (o Array) Sort() (_ Object, err error) {
-	sort.Slice(o, func(i, j int) bool {
-		if bo, _ := o[i].(BinaryOperatorHandler); bo != nil {
-			v, e := bo.BinaryOp(token.Less, o[j])
-			if e != nil && err == nil {
-				err = e
-				return false
+func (o Array) Sort(vm *VM, less CallerObject) (_ Object, err error) {
+	if less == nil {
+		sort.Slice(o, func(i, j int) bool {
+			if bo, _ := o[i].(BinaryOperatorHandler); bo != nil {
+				v, e := bo.BinaryOp(token.Less, o[j])
+				if e != nil && err == nil {
+					err = e
+					return false
+				}
+				if v != nil {
+					return !v.IsFalsy()
+				}
 			}
-			if v != nil {
-				return !v.IsFalsy()
-			}
+			return false
+		})
+	} else {
+		var (
+			args   = Array{Nil, Nil}
+			caller VMCaller
+		)
+
+		if caller, err = NewInvoker(vm, less).Caller(Args{args}, nil); err != nil {
+			return
 		}
-		return false
-	})
+
+		sort.Slice(o, func(i, j int) bool {
+			args[0] = o[i]
+			args[1] = o[j]
+			ret, _ := caller.Call()
+			return !ret.IsFalsy()
+		})
+	}
 	return o, err
 }
 
@@ -1179,7 +1197,7 @@ func (o Dict) Keys() Array {
 
 func (o Dict) SortedKeys() Array {
 	keys := o.Keys()
-	keys.Sort()
+	keys.Sort(nil, nil)
 	return keys
 }
 
@@ -1687,4 +1705,72 @@ func (CallWrapper) IsFalsy() bool {
 
 func (CallWrapper) Equal(Object) bool {
 	return false
+}
+
+type IndexGetProxy struct {
+	GetIndex func(vm *VM, index Object) (value Object, err error)
+	ToStr    func() string
+	It       func(vm *VM) Iterator
+}
+
+func (i *IndexGetProxy) Iterate(vm *VM) Iterator {
+	return i.It(vm)
+}
+
+func (i *IndexGetProxy) CanIterate() bool {
+	return i.It != nil
+}
+
+func (i *IndexGetProxy) Type() ObjectType {
+	return TIndexGetProxy
+}
+
+func (i *IndexGetProxy) ToString() string {
+	if i.ToStr != nil {
+		return i.ToStr()
+	}
+	return "<indexGetProxy>"
+}
+
+func (i *IndexGetProxy) IsFalsy() bool {
+	return false
+}
+
+func (i *IndexGetProxy) Equal(right Object) bool {
+	if ri, _ := right.(*IndexGetProxy); ri != nil {
+		return &ri == &i
+	}
+	return false
+}
+
+func (i IndexGetProxy) IndexGet(vm *VM, index Object) (value Object, err error) {
+	return i.GetIndex(vm, index)
+}
+
+func StringIndexGetProxy(handler func(vm *VM, index string) (value Object, err error)) *IndexGetProxy {
+	return &IndexGetProxy{GetIndex: func(vm *VM, index Object) (value Object, err error) {
+		if s, ok := index.(String); !ok {
+			return nil, ErrInvalidIndex
+		} else {
+			return handler(vm, string(s))
+		}
+	}}
+}
+
+type DynamicIterator struct {
+	NextF  func() bool
+	KeyF   func() Object
+	ValueF func() (Object, error)
+}
+
+func (d *DynamicIterator) Next() bool {
+	return d.NextF()
+}
+
+func (d *DynamicIterator) Key() Object {
+	return d.KeyF()
+}
+
+func (d *DynamicIterator) Value() (Object, error) {
+	return d.ValueF()
 }

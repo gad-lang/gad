@@ -5,6 +5,11 @@ import (
 	"io"
 )
 
+type SetupOpts struct {
+	ObjectConverters *ObjectConverters
+	Builtins         BuiltinObjectsMap
+}
+
 type RunOpts struct {
 	Globals        IndexGetSetter
 	Args           Args
@@ -12,7 +17,6 @@ type RunOpts struct {
 	StdIn          io.Reader
 	StdOut         io.Writer
 	StdErr         io.Writer
-	Builtins       map[BuiltinType]Object
 	ObjectToWriter ObjectToWriter
 }
 

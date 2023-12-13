@@ -49,6 +49,7 @@ const (
 	BuiltinSortReverse
 	BuiltinFilter
 	BuiltinMap
+	BuiltinEach
 	BuiltinReduce
 	BuiltinForEach
 	BuiltinTypeName
@@ -127,6 +128,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"sortReverse":   BuiltinSortReverse,
 	"filter":        BuiltinFilter,
 	"map":           BuiltinMap,
+	"each":          BuiltinEach,
 	"reduce":        BuiltinReduce,
 	"foreach":       BuiltinForEach,
 	"typeName":      BuiltinTypeName,
@@ -206,6 +208,24 @@ func (m BuiltinObjectsMap) Build() BuiltinObjectsMap {
 	return cp
 }
 
+func (m BuiltinObjectsMap) Append(obj ...Object) BuiltinObjectsMap {
+	var (
+		cp  = make(BuiltinObjectsMap, len(m))
+		max BuiltinType
+	)
+
+	for t, obj := range m {
+		cp[t] = obj
+		if t > max {
+			max = t
+		}
+	}
+	for i, object := range obj {
+		cp[max+BuiltinType(i)] = object
+	}
+	return cp
+}
+
 // BuiltinObjects is list of builtins, exported for REPL.
 var BuiltinObjects = BuiltinObjectsMap{
 	// :makeArray is a private builtin function to help destructuring array assignments
@@ -256,11 +276,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	},
 	BuiltinSort: &BuiltinFunction{
 		Name:  "sort",
-		Value: funcPOROe(BuiltinSortFunc),
+		Value: funcPpVM_OCoROe(BuiltinSortFunc),
 	},
 	BuiltinSortReverse: &BuiltinFunction{
 		Name:  "sortReverse",
-		Value: funcPOROe(BuiltinSortReverseFunc),
+		Value: funcPpVM_OCoROe(BuiltinSortReverseFunc),
 	},
 	BuiltinTypeName: &BuiltinFunction{
 		Name:                  "typeName",
@@ -456,6 +476,10 @@ func init() {
 		Name:  "map",
 		Value: BuiltinMapFunc,
 	}
+	BuiltinObjects[BuiltinEach] = &BuiltinFunction{
+		Name:  "each",
+		Value: BuiltinEachFunc,
+	}
 	BuiltinObjects[BuiltinReduce] = &BuiltinFunction{
 		Name:  "reduce",
 		Value: BuiltinReduceFunc,
@@ -513,3 +537,7 @@ func init() {
 // builtin addMethod
 //
 //gad:callable func(vm *VM, o CallerObject, handler CallerObject, override=bool) (err error)
+
+// builtin sort, sortReverse
+//
+//gad:callable func(vm *VM, v Object, less=CallerObject) (ret Object, err error)
