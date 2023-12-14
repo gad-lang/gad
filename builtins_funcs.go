@@ -691,17 +691,37 @@ func BuiltinTextFunc(c Call) (ret Object, err error) {
 }
 
 func BuiltinStringFunc(c Call) (ret Object, err error) {
-	if err := c.Args.CheckLen(1); err != nil {
-		return Nil, err
+	if err := c.Args.CheckMinLen(1); err != nil {
+		return nil, err
 	}
 
-	o := c.Args.Get(0)
+	switch c.Args.Len() {
+	case 1:
+		o := c.Args.GetOnly(0)
+		if ts, _ := o.(ToStringer); ts != nil {
+			return ts.Stringer(c)
+		}
+		ret = String(o.ToString())
+	default:
+		var b strings.Builder
+		c.Args.Walk(func(i int, arg Object) any {
+			var s Object
+			if s, err = c.VM.Builtins[BuiltinString].(CallerObject).
+				Call(Call{
+					VM:        c.VM,
+					Args:      Args{Array{arg}},
+					NamedArgs: c.NamedArgs,
+				}); err != nil {
+				return err
+			}
+			b.WriteString(string(s.(String)))
+			return nil
+		})
 
-	if ts, _ := o.(ToStringer); ts != nil {
-		return ts.Stringer(c)
+		if err == nil {
+			ret = String(b.String())
+		}
 	}
-
-	ret = String(o.ToString())
 	return
 }
 

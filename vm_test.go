@@ -998,6 +998,20 @@ keyValueArray(keyValue("d",4))))`,
 	expectRun(t, `b := buffer("a"); write(b, "b", 1); b.reset(); write(b, true); return string(b)`,
 		nil, String("true"))
 	expectRun(t, `return string(bytes(buffer("a")))`, nil, String("a"))
+	expectRun(t, `return string(1, 2)`, nil, String("12"))
+	expectRun(t, `
+Point := newType(
+	"Point", 
+	fields={x:0, y:0}, 
+	init=func(this, x,y){this.x = x;this.y = y},
+)
+
+func string(p:Point) {
+	return "Point[" + p.x + "|" + p.y + "]"
+}
+
+return string("my point: ", Point(10,11))`, nil, String("my point: Point[10|11]"))
+	expectRun(t, `return string(1, 2)`, nil, String("12"))
 	expectRun(t, `return map([1,2], (v, _) => v+1)`, nil, Array{Int(2), Int(3)})
 	expectRun(t, `return map([1,2], (v, k) => v+k)`, nil, Array{Int(1), Int(3)})
 	expectRun(t, `return reduce([1,2], (cur, v, k) => cur + v)`, nil, Int(4))
@@ -1145,7 +1159,6 @@ keyValueArray(keyValue("d",4))))`,
 	expectErrIs(t, `uint(1, 2)`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `char(1, 2)`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `float(1, 2)`, nil, ErrWrongNumArguments)
-	expectErrIs(t, `string(1, 2)`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `chars(1, 2)`, nil, ErrWrongNumArguments)
 
 	expectErrIs(t, `int([])`, nil, ErrType)
