@@ -150,6 +150,7 @@ type Parser struct {
 	BlockStart              token.Token
 	BlockEnd                token.Token
 	ScanFunc                func() Token
+	pipes                   int
 }
 
 // NewParser creates a Parser.
@@ -420,8 +421,9 @@ L:
 			x = p.ParseIndexOrSlice(x)
 		case token.LParen:
 			x = p.ParseCall(x)
-		case token.Pipe:
-			x = p.ParsePipe(x)
+			if p.Token.Token == token.Period && p.pipes == 1 {
+				return x
+			}
 		default:
 			break L
 		}
@@ -440,17 +442,19 @@ func (p *Parser) ParseCall(x node.Expr) *node.CallExpr {
 	}
 }
 
-func (p *Parser) ParsePipe(x node.Expr) *node.PipeExpr {
+func (p *Parser) ParsePipe(x node.Expr) node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "Pipe"))
 	}
-
-	pos := p.Expect(token.Pipe)
-	return &node.PipeExpr{
-		TokenPos: pos,
-		Src:      x,
-		Dst:      p.ParseExpr(),
+	name := p.ParseIdent()
+	call := p.ParseCall(name)
+	call.Args.Values = append([]node.Expr{x}, call.Args.Values...)
+	if p.Token.Token == token.Period {
+		p.Next()
+		y := p.ParseSelector(call)
+		return y
 	}
+	return call
 }
 
 func (p *Parser) CallArgsOf(lparen, rparen source.Pos, exprs ...node.Expr) (params *node.CallArgs) {

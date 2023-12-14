@@ -351,26 +351,15 @@ func (o Args) ShiftArg(shifts *int, dst *Arg) (ok bool, err error) {
 
 	*shifts++
 
-	if len(dst.AcceptTypes) == 0 {
-		return
+	if expectedTypes := dst.Accept(dst.Value); expectedTypes != "" {
+		ok = false
+		err = NewArgumentTypeError(
+			strconv.Itoa(*shifts)+"st",
+			expectedTypes,
+			dst.Value.Type().Name(),
+		)
 	}
-
-	for _, t := range dst.AcceptTypes {
-		if dst.Value.Type().Equal(t) {
-			return
-		}
-	}
-
-	var s = make([]string, len(dst.AcceptTypes))
-	for i, acceptType := range dst.AcceptTypes {
-		s[i] = acceptType.ToString()
-	}
-
-	return false, NewArgumentTypeError(
-		strconv.Itoa(*shifts)+"st",
-		strings.Join(s, "|"),
-		dst.Value.Type().Name(),
-	)
+	return
 }
 
 // Destructure shifts argument and set value to dst.
@@ -381,41 +370,17 @@ func (o Args) Destructure(dst ...*Arg) (err error) {
 		return
 	}
 
-args:
 	for i, d := range dst {
 		d.Value = o.Shift()
 
-		if d.Accept != nil {
-			if tname := d.Accept(d.Value); tname != "" {
-				pos := strconv.Itoa(i) + "st"
-				if d.Name != "" {
-					pos += " (" + d.Name + ")"
-				}
-				return NewArgumentTypeError(
-					pos,
-					tname,
-					d.Value.Type().Name(),
-				)
-			}
-		} else if len(d.AcceptTypes) > 0 {
-			for _, t := range d.AcceptTypes {
-				if t.Equal(d.Value.Type()) {
-					continue args
-				}
-			}
-
-			pos := strconv.Itoa(i+1) + "st"
+		if expected := d.Accept(d.Value); expected != "" {
+			pos := strconv.Itoa(i) + "st"
 			if d.Name != "" {
 				pos += " (" + d.Name + ")"
 			}
-
-			var s = make([]string, len(d.AcceptTypes))
-			for i, acceptType := range d.AcceptTypes {
-				s[i] = acceptType.ToString()
-			}
 			return NewArgumentTypeError(
 				pos,
-				strings.Join(s, "|"),
+				expected,
 				d.Value.Type().Name(),
 			)
 		}
@@ -426,29 +391,16 @@ args:
 // DestructureValue shifts argument and set value to dst.
 // If type check of arg is fails, returns ArgumentTypeError.
 func (o Args) DestructureValue(dst ...*Arg) (err error) {
-args:
 	for i, d := range dst {
 		d.Value = o.Shift()
 
-		if len(d.AcceptTypes) == 0 {
-			continue
+		if expectedTypes := d.Accept(d.Value); expectedTypes != "" {
+			return NewArgumentTypeError(
+				strconv.Itoa(i)+"st",
+				expectedTypes,
+				d.Value.Type().Name(),
+			)
 		}
-
-		for _, t := range d.AcceptTypes {
-			if t.Equal(d.Value.Type()) {
-				continue args
-			}
-		}
-
-		var s = make([]string, len(d.AcceptTypes))
-		for i, acceptType := range d.AcceptTypes {
-			s[i] = acceptType.ToString()
-		}
-		return NewArgumentTypeError(
-			strconv.Itoa(i)+"st",
-			strings.Join(s, "|"),
-			d.Value.Type().Name(),
-		)
 	}
 	return
 }
@@ -461,29 +413,16 @@ func (o Args) DestructureVar(dst ...*Arg) (other Array, err error) {
 		return
 	}
 
-args:
 	for i, d := range dst {
 		d.Value = o.Shift()
 
-		if len(d.AcceptTypes) == 0 {
-			continue
+		if expectedTypes := d.Accept(d.Value); expectedTypes != "" {
+			return nil, NewArgumentTypeError(
+				strconv.Itoa(i)+"st",
+				expectedTypes,
+				d.Value.Type().Name(),
+			)
 		}
-
-		for _, t := range d.AcceptTypes {
-			if t.Equal(d.Value.Type()) {
-				continue args
-			}
-		}
-
-		var s = make([]string, len(d.AcceptTypes))
-		for i, acceptType := range d.AcceptTypes {
-			s[i] = acceptType.ToString()
-		}
-		return nil, NewArgumentTypeError(
-			strconv.Itoa(i)+"st",
-			strings.Join(s, "|"),
-			d.Value.Type().Name(),
-		)
 	}
 	other = o.Values()
 	return

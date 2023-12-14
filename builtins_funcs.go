@@ -117,12 +117,9 @@ func BuiltinDeleteFunc(c Call) (_ Object, err error) {
 	var (
 		target = &Arg{
 			Name: "target",
-			Accept: func(v Object) string {
-				if _, ok := v.(IndexDeleter); !ok {
-					return ErrNotIndexDeletable.Name
-				}
-				return ""
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"indexDeleter": IsIndexDeleter,
+			}),
 		}
 		key = &Arg{}
 	)
@@ -219,7 +216,7 @@ func BuiltinContainsFunc(arg0, arg1 Object) (Object, error) {
 	default:
 		return Nil, NewArgumentTypeError(
 			"1st",
-			"map|array|string|bytes|namedArgs",
+			"dict|array|string|bytes|namedArgs",
 			arg0.Type().Name(),
 		)
 	}
@@ -303,22 +300,17 @@ func BuiltinFilterFunc(c Call) (_ Object, err error) {
 	var (
 		iterabler = &Arg{
 			Name: "iterable",
-			Accept: func(v Object) string {
-				if !Filterable(v) && !Iterable(v) {
-					return "filterable|iterable"
-				}
-				return ""
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"iterable":   Iterable,
+				"filterable": Iterable,
+			}),
 		}
 
 		callback = &Arg{
 			Name: "callback",
-			Accept: func(v Object) string {
-				if !Callable(v) {
-					return "callable"
-				}
-				return ""
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"callable": Callable,
+			}),
 		}
 	)
 
@@ -377,24 +369,36 @@ func BuiltinMapFunc(c Call) (_ Object, err error) {
 	var (
 		iterabler = &Arg{
 			Name: "iterable",
-			Accept: func(v Object) string {
-				if !Mapable(v) && !Iterable(v) {
-					return "mapable|iterable"
-				}
-				return ""
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"mapable":  Mapable,
+				"iterable": Iterable,
+			}),
 		}
 
 		callback = &Arg{
 			Name: "callback",
-			Accept: func(v Object) string {
-				if !Callable(v) {
-					return "callable"
-				}
-				return ""
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"callable": Callable,
+			}),
+		}
+
+		update = &NamedArgVar{
+			Name:          "update",
+			Value:         False,
+			TypeAssertion: TypeAssertionFromTypes(TBool),
 		}
 	)
+
+	if err = c.NamedArgs.Get(update); err != nil {
+		return
+	}
+
+	if update.Value.(Bool) {
+		iterabler.AcceptHandler("IndexSetter", func(v Object) bool {
+			_, ok := v.(IndexSetter)
+			return ok
+		})
+	}
 
 	if err = c.Args.Destructure(iterabler, callback); err != nil {
 		return
@@ -410,15 +414,28 @@ func BuiltinMapFunc(c Call) (_ Object, err error) {
 	}
 
 	if Mapable(iterabler.Value) {
-		return iterabler.Value.(Mapabler).Map(c.VM, args, caller)
+		return iterabler.Value.(Mapabler).Map(c, bool(update.Value.(Bool)), args, caller)
 	}
 
 	var (
-		it  = iterabler.Value.(Iterabler).Iterate(c.VM)
-		fe  = NewForEach(it, args, 0, caller)
-		ret Array
+		it = iterabler.Value.(Iterabler).Iterate(c.VM)
+		fe = NewForEach(it, args, 0, caller)
 	)
 
+	if update.Value.(Bool) {
+		indexSetter := iterabler.Value.(IndexSetter)
+		for fe.Next() {
+			if fe.Value, err = fe.Call(); err != nil {
+				return
+			}
+			if err = indexSetter.IndexSet(c.VM, fe.Key, fe.Value); err != nil {
+				return
+			}
+		}
+		return iterabler.Value, nil
+	}
+
+	var ret Array
 	if itl, _ := it.(LengthIterator); itl != nil {
 		ret = make(Array, itl.Length())
 		var i int
@@ -437,7 +454,6 @@ func BuiltinMapFunc(c Call) (_ Object, err error) {
 			ret = append(ret, val)
 		}
 	}
-
 	return ret, nil
 }
 
@@ -445,22 +461,16 @@ func BuiltinEachFunc(c Call) (_ Object, err error) {
 	var (
 		iterabler = &Arg{
 			Name: "iterable",
-			Accept: func(v Object) string {
-				if !Mapable(v) && !Iterable(v) {
-					return "mapable|iterable"
-				}
-				return ""
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"iterable": Iterable,
+			}),
 		}
 
 		callback = &Arg{
 			Name: "callback",
-			Accept: func(v Object) string {
-				if !Callable(v) {
-					return "callable"
-				}
-				return ""
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"callable": Callable,
+			}),
 		}
 	)
 
@@ -495,22 +505,17 @@ func BuiltinReduceFunc(c Call) (_ Object, err error) {
 	var (
 		iterabler = &Arg{
 			Name: "iterable",
-			Accept: func(v Object) string {
-				if !Reducable(v) && !Iterable(v) {
-					return "reducable|iterable"
-				}
-				return ""
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"reducable": Reducable,
+				"iterable":  Iterable,
+			}),
 		}
 
 		callback = &Arg{
 			Name: "callback",
-			Accept: func(v Object) string {
-				if !Callable(v) {
-					return "callable"
-				}
-				return ""
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"callable": Callable,
+			}),
 		}
 
 		val = Nil
@@ -591,22 +596,16 @@ func BuiltinForEachFunc(c Call) (_ Object, err error) {
 	var (
 		iterabler = &Arg{
 			Name: "iterable",
-			Accept: func(v Object) string {
-				if !Iterable(v) {
-					return "iterable"
-				}
-				return ""
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"iterable": Iterable,
+			}),
 		}
 
 		callback = &Arg{
 			Name: "callback",
-			Accept: func(v Object) string {
-				if !Callable(v) {
-					return "callable"
-				}
-				return ""
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"callable": Callable,
+			}),
 		}
 	)
 
@@ -633,7 +632,7 @@ func BuiltinForEachFunc(c Call) (_ Object, err error) {
 		if val, err = fe.Call(); err != nil {
 			return
 		}
-		if val != Nil && val.IsFalsy() {
+		if val == False {
 			break
 		}
 	}
@@ -782,8 +781,11 @@ func BuiltinCharsFunc(arg Object) (ret Object, err error) {
 
 func BuiltinPrintfFunc(c Call) (_ Object, err error) {
 	var (
-		out = &NamedArgVar{Value: c.VM.StdOut, AcceptTypes: []ObjectType{TWriter}}
-		n   int
+		out = &NamedArgVar{
+			Value:         c.VM.StdOut,
+			TypeAssertion: TypeAssertionFromTypes(TWriter),
+		}
+		n int
 	)
 
 	if err = c.NamedArgs.Get(out); err != nil {
@@ -1238,11 +1240,16 @@ func BuiltinKeyValueArrayFunc(c Call) (Object, error) {
 func BuiltinStdIOFunc(c Call) (ret Object, err error) {
 	ret = Nil
 	l := c.Args.Len()
+	identifier := Arg{
+		Name:          "indentifier",
+		TypeAssertion: TypeAssertionFromTypes(TString, TInt, TUint),
+	}
 	switch l {
 	case 1:
 		// get
-		var arg = &Arg{AcceptTypes: []ObjectType{TString, TInt, TUint}}
-		if err = c.Args.Destructure(arg); err != nil {
+		var arg = identifier
+
+		if err = c.Args.Destructure(&arg); err != nil {
 			return
 		}
 		switch t := arg.Value.(type) {
@@ -1282,8 +1289,8 @@ func BuiltinStdIOFunc(c Call) (ret Object, err error) {
 		}
 	case 2:
 		var code = -1
-		var codeArg = &Arg{AcceptTypes: []ObjectType{TString, TInt, TUint}}
-		if err = c.Args.DestructureValue(codeArg); err != nil {
+		var codeArg = identifier
+		if err = c.Args.DestructureValue(&codeArg); err != nil {
 			return
 		}
 		switch t := codeArg.Value.(type) {
@@ -1316,13 +1323,19 @@ func BuiltinStdIOFunc(c Call) (ret Object, err error) {
 
 		switch code {
 		case 0:
-			var v = &Arg{AcceptTypes: []ObjectType{TReader}}
+			var v = &Arg{
+				Name:          "in",
+				TypeAssertion: TypeAssertionFromTypes(TReader),
+			}
 			if err = c.Args.DestructureValue(v); err != nil {
 				return
 			}
 			c.VM.StdIn = NewStackReader(v.Value.(Reader))
 		case 1, 2:
-			var v = &Arg{AcceptTypes: []ObjectType{TWriter}}
+			var v = &Arg{
+				Name:          "out",
+				TypeAssertion: TypeAssertionFromTypes(TWriter),
+			}
 			if err = c.Args.DestructureValue(v); err != nil {
 				return
 			}
@@ -1400,8 +1413,8 @@ func BuiltinWrapFunc(c Call) (ret Object, err error) {
 func BuiltinNewTypeFunc(c Call) (ret Object, err error) {
 	var t ObjType
 	var name = &Arg{
-		Name:        "name",
-		AcceptTypes: []ObjectType{TString},
+		Name:          "name",
+		TypeAssertion: TypeAssertionFromTypes(TString),
 	}
 	if err = c.Args.Destructure(name); err != nil {
 		return
@@ -1409,51 +1422,42 @@ func BuiltinNewTypeFunc(c Call) (ret Object, err error) {
 	t.TypeName = string(name.Value.(String))
 	var (
 		get = &NamedArgVar{
-			Name:        "get",
-			AcceptTypes: []ObjectType{TDict},
+			Name:          "get",
+			TypeAssertion: TypeAssertionFromTypes(TDict),
 		}
 		set = &NamedArgVar{
-			Name:        "set",
-			AcceptTypes: []ObjectType{TDict},
+			Name:          "set",
+			TypeAssertion: get.TypeAssertion,
 		}
 		fields = &NamedArgVar{
-			Name:        "fields",
-			AcceptTypes: []ObjectType{TDict},
+			Name:          "fields",
+			TypeAssertion: get.TypeAssertion,
 		}
 		methods = &NamedArgVar{
-			Name:        "methods",
-			AcceptTypes: []ObjectType{TDict},
+			Name:          "methods",
+			TypeAssertion: get.TypeAssertion,
 		}
 		init = &NamedArgVar{
 			Name: "init",
-			Accept: func(v Object) error {
-				if !Callable(v) {
-					return ErrNotCallable
-				}
-				return nil
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"callable": Callable,
+			}),
 		}
 		toString = &NamedArgVar{
 			Name: "toString",
-			Accept: func(v Object) error {
-				if !Callable(v) {
-					return ErrNotCallable
-				}
-				return nil
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"callable": Callable,
+			}),
 		}
 		writeTo = &NamedArgVar{
 			Name: "writeTo",
-			Accept: func(v Object) error {
-				if !Callable(v) {
-					return ErrNotCallable
-				}
-				return nil
-			},
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"callable": Callable,
+			}),
 		}
 		extends = &NamedArgVar{
-			Name:        "extends",
-			AcceptTypes: []ObjectType{TArray},
+			Name:          "extends",
+			TypeAssertion: TypeAssertionFromTypes(TArray),
 		}
 	)
 
@@ -1579,7 +1583,7 @@ func BuiltinSyncMapFunc(c Call) (ret Object, err error) {
 	default:
 		err = NewArgumentTypeError(
 			"0st",
-			"map|syncMap",
+			"dict|syncDict",
 			arg.Type().Name(),
 		)
 	}
@@ -1592,18 +1596,17 @@ func BuiltinCastFunc(c Call) (ret Object, err error) {
 	}
 
 	var (
-		typ = &Arg{Accept: func(v Object) string {
-			if ot, _ := v.(ObjectType); ot == nil {
-				return "objectType"
-			}
-			return ""
-		}}
-		obj = &Arg{Accept: func(v Object) string {
-			if ot, _ := v.(Objector); ot == nil {
-				return "objector"
-			}
-			return ""
-		}}
+		typ = &Arg{
+			Name: "toType",
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"objectType": IsType,
+			}),
+		}
+		obj = &Arg{
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"objector": IsObjector,
+			}),
+		}
 	)
 	if err = c.Args.Destructure(typ, obj); err != nil {
 		return
@@ -1658,12 +1661,12 @@ func BuiltinRawCallerFunc(c Call) (ret Object, err error) {
 	}
 
 	var (
-		obj = &Arg{Accept: func(v Object) string {
-			if ot, _ := v.(CallerObject); ot == nil {
-				return "caller"
-			}
-			return ""
-		}}
+		obj = &Arg{
+			Name: "caller",
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"caller": Callable,
+			}),
+		}
 	)
 	if err = c.Args.Destructure(obj); err != nil {
 		return

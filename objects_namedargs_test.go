@@ -97,8 +97,8 @@ func TestNamedArgs_Get(t *testing.T) {
 		{Dict{}, Dict{}, nil, false},
 		{Dict{"a": True}, Dict{}, nil, true},
 		{Dict{"a": True}, Dict{}, []*NamedArgVar{{Name: "a"}}, false},
-		{Dict{"a": True}, Dict{}, []*NamedArgVar{{Name: "a", AcceptTypes: []ObjectType{TInt}}}, true},
-		{Dict{"a": True}, Dict{}, []*NamedArgVar{{Name: "a", AcceptTypes: []ObjectType{TBool}}}, false},
+		{Dict{"a": True}, Dict{}, []*NamedArgVar{{Name: "a", TypeAssertion: TypeAssertionFromTypes(TInt)}}, true},
+		{Dict{"a": True}, Dict{}, []*NamedArgVar{{Name: "a", TypeAssertion: TypeAssertionFromTypes(TBool)}}, false},
 		{Dict{"a": True}, Dict{"b": False}, []*NamedArgVar{{Name: "a"}}, true},
 	}
 	for i, tt := range tests {
@@ -135,8 +135,8 @@ func TestNamedArgs_GetVar(t *testing.T) {
 		{Dict{}, Dict{}, nil, Dict{}, false},
 		{Dict{"a": True}, Dict{}, nil, Dict{"a": True}, false},
 		{Dict{"a": True}, Dict{}, []*NamedArgVar{{Name: "a"}}, Dict{}, false},
-		{Dict{"a": True}, Dict{}, []*NamedArgVar{{Name: "a", AcceptTypes: []ObjectType{TInt}}}, Dict{}, true},
-		{Dict{"a": True}, Dict{}, []*NamedArgVar{{Name: "a", AcceptTypes: []ObjectType{TBool}}}, Dict{}, false},
+		{Dict{"a": True}, Dict{}, []*NamedArgVar{{Name: "a", TypeAssertion: TypeAssertionFromTypes(TInt)}}, Dict{}, true},
+		{Dict{"a": True}, Dict{}, []*NamedArgVar{{Name: "a", TypeAssertion: TypeAssertionFromTypes(TBool)}}, Dict{}, false},
 		{Dict{"a": True}, Dict{"b": False}, []*NamedArgVar{{Name: "a"}}, Dict{"b": False}, false},
 		{Dict{"a": True, "c": Int(1)}, Dict{"b": False}, []*NamedArgVar{{Name: "a"}}, Dict{"c": Int(1), "b": False}, false},
 	}

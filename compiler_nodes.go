@@ -1141,6 +1141,20 @@ func (c *Compiler) compileLogical(nd *node.BinaryExpr) error {
 }
 
 func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
+	if nd.Token == token.Pipe {
+		var call node.CallExpr
+		switch t := nd.RHS.(type) {
+		case *node.CallExpr:
+			call = *t
+		default:
+			call = node.CallExpr{
+				Func: t,
+			}
+		}
+		call.CallArgs.Args.Values = append([]node.Expr{nd.LHS}, call.CallArgs.Args.Values...)
+		return c.Compile(&call)
+	}
+
 	if err := c.Compile(nd.LHS); err != nil {
 		return err
 	}
@@ -1317,20 +1331,6 @@ func (c *Compiler) compileSliceExpr(nd *node.SliceExpr) error {
 
 	c.emit(nd, OpSliceIndex)
 	return nil
-}
-
-func (c *Compiler) compilePipeExpr(nd *node.PipeExpr) error {
-	var call node.CallExpr
-	switch t := nd.Dst.(type) {
-	case *node.CallExpr:
-		call = *t
-	default:
-		call = node.CallExpr{
-			Func: t,
-		}
-	}
-	call.CallArgs.Args.Values = append([]node.Expr{nd.Src}, call.CallArgs.Args.Values...)
-	return c.Compile(&call)
 }
 
 func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {

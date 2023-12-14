@@ -174,13 +174,12 @@ func funcPCoACobRe(fn func(CallerObject, Array, CallerObject, bool) error) Calla
 			override  bool
 			override_ = &NamedArgVar{
 				Name: "override",
-				Accept: func(v Object) error {
-					var ok bool
-					if override, ok = ToGoBool(v); !ok {
-						return NewArgumentTypeError("override", "bool", v.Type().Name())
-					}
-					return nil
-				},
+				TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+					"bool": func(v Object) (ok bool) {
+						override, ok = ToGoBool(v)
+						return
+					},
+				}),
 			}
 		)
 		if err := c.NamedArgs.Get(override_); err != nil {
@@ -218,13 +217,12 @@ func funcPpVM_CoCobRe(fn func(*VM, CallerObject, CallerObject, bool) error) Call
 			override  bool
 			override_ = &NamedArgVar{
 				Name: "override",
-				Accept: func(v Object) error {
-					var ok bool
-					if override, ok = ToGoBool(v); !ok {
-						return NewArgumentTypeError("override", "bool", v.Type().Name())
-					}
-					return nil
-				},
+				TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+					"bool": func(v Object) (ok bool) {
+						override, ok = ToGoBool(v)
+						return
+					},
+				}),
 			}
 		)
 		if err := c.NamedArgs.Get(override_); err != nil {
@@ -259,13 +257,12 @@ func funcPpVM_OCoROe(fn func(*VM, Object, CallerObject) (Object, error)) Callabl
 			less  CallerObject
 			less_ = &NamedArgVar{
 				Name: "less",
-				Accept: func(v Object) error {
-					var ok bool
-					if less, ok = v.(CallerObject); !ok {
-						return NewArgumentTypeError("less", "CallerObject", v.Type().Name())
-					}
-					return nil
-				},
+				TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+					"CallerObject": func(v Object) (ok bool) {
+						less, ok = v.(CallerObject)
+						return
+					},
+				}),
 			}
 		)
 		if err := c.NamedArgs.Get(less_); err != nil {

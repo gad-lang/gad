@@ -494,8 +494,6 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileReturnStmt(nt)
 	case *node.CallExpr:
 		return c.compileCallExpr(nt)
-	case *node.PipeExpr:
-		return c.compilePipeExpr(nt)
 	case *node.ImportExpr:
 		return c.compileImportExpr(nt)
 	case *node.CondExpr:

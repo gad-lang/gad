@@ -12,31 +12,69 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
+type TypeAssertionHandlers map[string]func(v Object) bool
+
+type TypeAssertion struct {
+	Types    []ObjectType
+	Handlers TypeAssertionHandlers
+}
+
+func NewTypeAssertion(handlers TypeAssertionHandlers, types ...ObjectType) *TypeAssertion {
+	return &TypeAssertion{Types: types, Handlers: handlers}
+}
+
+func TypeAssertionFromTypes(types ...ObjectType) *TypeAssertion {
+	return &TypeAssertion{Types: types}
+}
+
+func (a *TypeAssertion) AcceptHandler(name string, handler func(v Object) bool) *TypeAssertion {
+	if a == nil {
+		*a = TypeAssertion{}
+	}
+	if a.Handlers == nil {
+		a.Handlers = map[string]func(v Object) bool{}
+	}
+	a.Handlers[name] = handler
+	return a
+}
+
+func (a *TypeAssertion) Accept(value Object) (expectedNames string) {
+	if a == nil || len(a.Handlers) == 0 && len(a.Types) == 0 {
+		return
+	}
+	var names []string
+
+	for _, t := range a.Types {
+		if t.Equal(value.Type()) {
+			return
+		}
+		names = append(names, t.Name())
+	}
+
+	for name, handler := range a.Handlers {
+		if handler(value) {
+			return
+		}
+		names = append(names, name)
+	}
+
+	expectedNames = strings.Join(names, "|")
+	return
+}
+
 // Arg is a struct to destructure arguments from Call object.
 type Arg struct {
-	Name        string
-	Value       Object
-	AcceptTypes []ObjectType
-	Accept      func(v Object) string
+	Name  string
+	Value Object
+	*TypeAssertion
 }
 
 // NamedArgVar is a struct to destructure named arguments from Call object.
 type NamedArgVar struct {
-	Name        string
-	Value       Object
-	ValueF      func() Object
-	AcceptTypes []ObjectType
-	Accept      func(v Object) error
-}
-
-// NewNamedArgVar creates a new NamedArgVar struct with the given arguments.
-func NewNamedArgVar(name string, value Object, types ...ObjectType) *NamedArgVar {
-	return &NamedArgVar{Name: name, Value: value, AcceptTypes: types}
-}
-
-// NewNamedArgVarF creates a new NamedArgVar struct with the given arguments and value creator func.
-func NewNamedArgVarF(name string, value func() Object, types ...ObjectType) *NamedArgVar {
-	return &NamedArgVar{Name: name, ValueF: value, AcceptTypes: types}
+	Name   string
+	Value  Object
+	ValueF func() Object
+	*TypeAssertion
 }
 
 type KeyValue [2]Object
@@ -882,7 +920,7 @@ func (o *NamedArgs) Add(obj Object) error {
 func (o *NamedArgs) CallName(name string, c Call) (Object, error) {
 	switch name {
 	case "get":
-		arg := &Arg{AcceptTypes: []ObjectType{TString}}
+		arg := &Arg{TypeAssertion: TypeAssertionFromTypes(TString)}
 		if err := c.Args.Destructure(arg); err != nil {
 			return nil, err
 		}
@@ -965,7 +1003,7 @@ func (o *NamedArgs) Equal(right Object) bool {
 }
 
 func (o *NamedArgs) Call(c Call) (Object, error) {
-	arg := &Arg{AcceptTypes: []ObjectType{TString}}
+	arg := &Arg{TypeAssertion: TypeAssertionFromTypes(TString)}
 	if err := c.Args.Destructure(arg); err != nil {
 		return nil, err
 	}
@@ -1110,33 +1148,12 @@ func (o *NamedArgs) GetOne(dst ...*NamedArgVar) (err error) {
 }
 
 func (o *NamedArgs) getOneOf(args Dict, dst ...*NamedArgVar) (err error) {
-read:
 	for i, d := range dst {
 		if v, ok := args[d.Name]; ok && v != Nil {
-			if d.Accept != nil {
-				if err = d.Accept(v); err != nil {
-					return NewArgumentTypeError(
-						d.Name+"["+strconv.Itoa(i)+"]st",
-						err.Error(),
-						v.Type().Name(),
-					)
-				}
-			} else if len(d.AcceptTypes) > 0 {
-				for _, t := range d.AcceptTypes {
-					if t.Equal(v.Type()) {
-						d.Value = v
-						delete(args, d.Name)
-						continue read
-					}
-				}
-
-				var s = make([]string, len(d.AcceptTypes))
-				for i, acceptType := range d.AcceptTypes {
-					s[i] = acceptType.ToString()
-				}
+			if expectedNames := d.TypeAssertion.Accept(v); expectedNames != "" {
 				return NewArgumentTypeError(
 					d.Name+"["+strconv.Itoa(i)+"]st",
-					strings.Join(s, "|"),
+					expectedNames,
 					v.Type().Name(),
 				)
 			}
@@ -1157,32 +1174,20 @@ read:
 func (o *NamedArgs) GetVar(dst ...*NamedArgVar) (args Dict, err error) {
 	o.check()
 	args = o.m
-dst:
+
 	for i, d := range dst {
 		if v, ok := args[d.Name]; ok && v != Nil {
-			if len(d.AcceptTypes) == 0 {
-				d.Value = v
-				delete(args, d.Name)
-				continue
-			}
+			delete(args, d.Name)
 
-			for _, t := range d.AcceptTypes {
-				if t.Equal(v.Type()) {
-					d.Value = v
-					delete(args, d.Name)
-					continue dst
-				}
+			if expectedNames := d.TypeAssertion.Accept(v); expectedNames != "" {
+				err = NewArgumentTypeError(
+					d.Name+"["+strconv.Itoa(i)+"]st",
+					expectedNames,
+					v.Type().Name(),
+				)
+				return nil, err
 			}
-
-			var s = make([]string, len(d.AcceptTypes))
-			for i, acceptType := range d.AcceptTypes {
-				s[i] = acceptType.ToString()
-			}
-			return nil, NewArgumentTypeError(
-				strconv.Itoa(i)+"st",
-				strings.Join(s, "|"),
-				v.Type().Name(),
-			)
+			d.Value = v
 		}
 
 		if d.ValueF != nil {

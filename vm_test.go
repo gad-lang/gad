@@ -688,6 +688,16 @@ func TestVMKeyValueArray(t *testing.T) {
 	expectRun(t, `return (;a=1)[0].array`, nil, Array{String("a"), Int(1)})
 }
 
+func TestVMAssign(t *testing.T) {
+	expectRun(t, `
+return [1].|
+	map((v, _) =>
+		v+1
+	)
+`,
+		nil, Array{Int(2)})
+}
+
 func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return append(nil)`,
 		nil, Array{})
@@ -3758,6 +3768,21 @@ func TestVMCallCompiledFunction(t *testing.T) {
 	}
 	return f(1,2,3,na0=4,na1=5)`, nil,
 		Array{Int(1), Int(2), Array{Int(3)}, Int(4), Dict{"na1": Int(5)}})
+}
+
+func TestVMPipe(t *testing.T) {
+	expectRun(t, ` 
+	return (1).|(v) => [v]`, nil,
+		Array{Int(1)})
+
+	expectRun(t, `inc := (arr) => arr.|map((v, _) => v+1; update) 
+	return [1,2,3].|inc.|reduce((sum, v,_) => sum+v, 0).|(v) => v*(2).|((v) => [v])`, nil,
+		Array{Int(18)})
+
+	expectRun(t, `
+	first := (arr) => arr[0]
+	return [10].|first()`, nil,
+		Int(10))
 
 	expectRun(t, `
 	f := (v) => v*2

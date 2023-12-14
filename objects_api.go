@@ -222,7 +222,7 @@ type CanFilterabler interface {
 
 type Mapabler interface {
 	Object
-	Map(vm *VM, args Array, handler VMCaller) (Object, error)
+	Map(c Call, update bool, keyValue Array, handler VMCaller) (Object, error)
 }
 
 type CanMapeabler interface {
@@ -386,6 +386,31 @@ func Reducable(obj Object) bool {
 		return true
 	}
 	return false
+}
+
+func IsType(obj Object) (ok bool) {
+	_, ok = obj.(ObjectType)
+	return
+}
+
+func IsObjector(obj Object) (ok bool) {
+	_, ok = obj.(Objector)
+	return
+}
+
+func IsIndexDeleter(obj Object) (ok bool) {
+	_, ok = obj.(IndexDeleter)
+	return
+}
+
+func IsIndexSetter(obj Object) (ok bool) {
+	_, ok = obj.(IndexSetter)
+	return
+}
+
+func IsIndexGetter(obj Object) (ok bool) {
+	_, ok = obj.(IndexGetter)
+	return
 }
 
 type BinaryOperatorHandler interface {

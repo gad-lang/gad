@@ -739,13 +739,12 @@ func (f *Fn) HelperCheckNamedArgs() string {
 			%s %[4]s
 			%[1]s_ = &NamedArgVar{
 				Name:        %[1]q,
-				Accept: func(v Object) error {
-					var ok bool
-					if %[1]s, ok = %s; !ok {
-						return %sNewArgumentTypeError(%[1]q, %[4]q, v.Type().Name())
-					}
-					return nil
-				},
+				TypeAssertion: %[3]sNewTypeAssertion(TypeAssertionHandlers{
+					%[4]q: func(v Object) (ok bool) {
+						%[1]s, ok = %s
+						return
+					},
+				}),
 			}`, p.Name, conv, gaddot(), p.gadTypeName()))
 		}
 	}

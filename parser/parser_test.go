@@ -232,8 +232,12 @@ func TestParserErrorList(t *testing.T) {
 }
 
 func TestParsePipe(t *testing.T) {
-	expectParseString(t, "a.|x", "a.|x")
-	expectParseString(t, "a.|x()", "a.|x()")
+	expectParseString(t, "(a.b.|x().|y().z.|c(1).d.e.|f().g.h.i)", "(((((a.b .| x()) .| y().z) .| c(1).d.e) .| f().g.h.i))")
+	expectParseString(t, "a.b.|x().|y().z.|c(1).d.e.|f().g.h.i", "((((a.b .| x()) .| y().z) .| c(1).d.e) .| f().g.h.i)")
+	expectParseString(t, "a.b.|x().|y().z.|c(1).d.e", "(((a.b .| x()) .| y().z) .| c(1).d.e)")
+	expectParseString(t, "a.b.|x().|y()", "((a.b .| x()) .| y())")
+	expectParseString(t, "a.b.|x().|y().z", "((a.b .| x()) .| y().z)")
+	expectParseString(t, "a.b.|x().|y().z.|a(1).c", "(((a.b .| x()) .| y().z) .| a(1).c)")
 }
 
 func TestParseDecl(t *testing.T) {
