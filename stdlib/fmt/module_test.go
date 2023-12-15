@@ -44,7 +44,7 @@ func TestScript(t *testing.T) {
 		// scan
 		{
 			s: `return string(fmt.ScanArg())`,
-			r: String("<scanArg>"),
+			r: String(ReprQuote("scanArg")),
 		},
 		{
 			s: `return typeName(fmt.ScanArg())`,

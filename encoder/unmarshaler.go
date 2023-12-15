@@ -479,6 +479,29 @@ func (o *BuiltinFunction) UnmarshalBinary(data []byte) error {
 }
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaler
+func (o *BuiltinObjType) UnmarshalBinary(data []byte) error {
+	if len(data) < 2 || data[0] != binBuiltinObjTypeV1 {
+		return errors.New("invalid gad.BuiltinObjectType data")
+	}
+
+	size, offset, err := toVarint(data[1:])
+	if err != nil {
+		return err
+	}
+
+	if size <= 0 {
+		return errors.New("invalid gad.BuiltinObjectType data size")
+	}
+
+	var s String
+	if err := s.UnmarshalBinary(data[1+offset:]); err != nil {
+		return err
+	}
+	o.NameValue = string(s)
+	return nil
+}
+
+// UnmarshalBinary implements encoding.BinaryUnmarshaler
 func (o *Function) UnmarshalBinary(data []byte) error {
 	if len(data) < 2 || data[0] != binFunctionV1 {
 		return errors.New("invalid gad.Function data")

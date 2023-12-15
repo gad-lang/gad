@@ -581,7 +581,7 @@ func (so *SimpleOptimizer) optimize(nd ast.Node) (node.Expr, bool) {
 			defer untraceoptim(traceoptim(so, fmt.Sprintf("%s (%s)",
 				nd.String(), reflect.TypeOf(nd).Elem().Name())))
 		} else {
-			defer untraceoptim(traceoptim(so, "<nil>"))
+			defer untraceoptim(traceoptim(so, ReprQuote("nil")))
 		}
 	}
 

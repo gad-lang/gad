@@ -1460,8 +1460,8 @@ Point := newType(
 func int(p:Point) => rawCaller(int)(p.x * p.y)
 return [int(Point(2, 8)), string(int)]
 `,
-		nil, Array{Int(16), String("<builtinType int> with 1 methods:\n" +
-			"  1. <compiledFunction #7(p:Point)>")})
+		nil, Array{Int(16), String(ReprQuote("builtinType int") + " with 1 methods:\n" +
+			"  1. " + ReprQuote("compiledFunction #7(p:Point)"))})
 }
 
 func TestObjectType(t *testing.T) {
@@ -1553,12 +1553,12 @@ func f1(i:int) => nil
 func f1(i:int, b:bool) => nil
 addCallMethod(f, f1)
 return [string(f), string(f1)]`,
-		newOpts(), Array{String("<compiledFunction f()> with 3 methods:\n  " +
-			"1. <compiledFunction #1(b:bool)>\n  " +
-			"2. <compiledFunction f1(i:int)>\n  " +
-			"3. <compiledFunction #3(i:int, b:bool)>"),
-			String("<compiledFunction f1(i:int)> with 1 methods:\n  " +
-				"1. <compiledFunction #3(i:int, b:bool)>")})
+		newOpts(), Array{String(ReprQuote("compiledFunction f()") + " with 3 methods:\n  " +
+			"1. " + ReprQuote("compiledFunction #1(b:bool)") + "\n  " +
+			"2. " + ReprQuote("compiledFunction f1(i:int)") + "\n  " +
+			"3. " + ReprQuote("compiledFunction #3(i:int, b:bool)")),
+			String(ReprQuote("compiledFunction f1(i:int)") + " with 1 methods:\n  " +
+				"1. " + ReprQuote("compiledFunction #3(i:int, b:bool)"))})
 
 	expectRun(t, `
 func f0(i:int) => i*2
@@ -1567,7 +1567,9 @@ func f0(s:string) => s+"b"
 return string(f0), f0(), f0(2), f0("a")`,
 		newOpts(),
 		Array{
-			String("<compiledFunction f0(i:int)> with 2 methods:\n  1. <compiledFunction #3()>\n  2. <compiledFunction #5(s:string)>"),
+			String(ReprQuote("compiledFunction f0(i:int)") + " with 2 methods:\n  " +
+				"1. " + ReprQuote("compiledFunction #3()") + "\n  " +
+				"2. " + ReprQuote("compiledFunction #5(s:string)")),
 			String("no args"),
 			Int(4),
 			String("ab"),
@@ -1607,14 +1609,20 @@ return [
 		newOpts(), Array{
 			Array{Int(0), Int(1), Int(2), Int(3), Int(4)},
 			Array{
-				String("<compiledFunction f0()> with 1 methods:\n  1. <compiledFunction #8(i:int)>"),
-				String("<compiledFunction f1()> with 2 methods:\n  1. <compiledFunction #9(i:int)>\n  2. <compiledFunction #10(i:uint)>"),
-				String("<compiledFunction f2()> with 1 methods:\n  1. <compiledFunction #11(i:int)>"),
-				String("<compiledFunction f3(v:bool)> with 1 methods:\n  1. <compiledFunction #12(i:int)>"),
-				String("<compiledFunction f4(s:string)> with 1 methods:\n  1. <compiledFunction #13(i:int)>"),
-				String("<compiledFunction f5(b:bytes)>"),
-				String("<compiledFunction f6(s:string, i:int)>"),
-				String("<compiledFunction f7(b:bool, i:int)>"),
+				String(ReprQuote("compiledFunction f0()") + " with 1 methods:\n  " +
+					"1. " + ReprQuote("compiledFunction #8(i:int)")),
+				String(ReprQuote("compiledFunction f1()") + " with 2 methods:\n  " +
+					"1. " + ReprQuote("compiledFunction #9(i:int)") + "\n  " +
+					"2. " + ReprQuote("compiledFunction #10(i:uint)")),
+				String(ReprQuote("compiledFunction f2()") + " with 1 methods:\n  " +
+					"1. " + ReprQuote("compiledFunction #11(i:int)")),
+				String(ReprQuote("compiledFunction f3(v:bool)") + " with 1 methods:\n  " +
+					"1. " + ReprQuote("compiledFunction #12(i:int)")),
+				String(ReprQuote("compiledFunction f4(s:string)") + " with 1 methods:\n  " +
+					"1. " + ReprQuote("compiledFunction #13(i:int)")),
+				String(ReprQuote("compiledFunction f5(b:bytes)")),
+				String(ReprQuote("compiledFunction f6(s:string, i:int)")),
+				String(ReprQuote("compiledFunction f7(b:bool, i:int)")),
 			},
 		})
 
@@ -3712,7 +3720,7 @@ func TestVMCallCompiledFunction(t *testing.T) {
 		Array{
 			Array{Int(1), Int(2), Int(3), Int(8), Int(9)},
 			Dict{"na0": Int(4), "na1": Int(5)},
-			String("<compiledFunction #2(*argv, **nav)>"),
+			String(ReprQuote("compiledFunction #2(*argv, **nav)")),
 		})
 
 	script := `

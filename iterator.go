@@ -211,3 +211,33 @@ func (it *StringIterator) Key() Object {
 func (it *StringIterator) Value() (Object, error) {
 	return Char(it.r), nil
 }
+
+type DynamicIterator struct {
+	NextF  func() bool
+	KeyF   func() Object
+	ValueF func() (Object, error)
+}
+
+func (d *DynamicIterator) Next() bool {
+	return d.NextF()
+}
+
+func (d *DynamicIterator) Key() Object {
+	return d.KeyF()
+}
+
+func (d *DynamicIterator) Value() (Object, error) {
+	return d.ValueF()
+}
+
+type IteratorValueWrapper struct {
+	Iterator
+	Wrap func(value Object) Object
+}
+
+func (w *IteratorValueWrapper) Value() (value Object, err error) {
+	if value, err = w.Iterator.Value(); err != nil {
+		return
+	}
+	return w.Wrap(value), nil
+}

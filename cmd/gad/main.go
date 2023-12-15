@@ -244,7 +244,7 @@ func (r *repl) cmdReturnVerbose(_ string) error {
 			"GoType:%[1]T, TypeName:%[2]s, Value:%#[1]v\n",
 			r.lastResult, r.lastResult.Type().Name())
 	} else {
-		_, _ = fmt.Fprintln(r.out, "<nil>")
+		_, _ = fmt.Fprintln(r.out, gad.ReprQuote("nil"))
 	}
 	return nil
 }

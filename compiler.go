@@ -373,7 +373,7 @@ func (c *Compiler) Compile(nd ast.Node) error {
 			defer untracec(tracec(c, fmt.Sprintf("%s (%s)",
 				nd.String(), reflect.TypeOf(nd).Elem().Name())))
 		} else {
-			defer untracec(tracec(c, "<nil>"))
+			defer untracec(tracec(c, ReprQuote("nil")))
 		}
 	}
 

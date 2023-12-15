@@ -41,7 +41,7 @@ func (b *BuiltinObjType) Type() ObjectType {
 }
 
 func (b *BuiltinObjType) ToString() string {
-	return "<builtinType " + b.NameValue + ">"
+	return ReprQuote("builtinType " + b.NameValue)
 }
 
 func (b *BuiltinObjType) IsFalsy() bool {
@@ -65,7 +65,7 @@ func (b *BuiltinObjType) New(*VM, Dict) (Object, error) {
 }
 
 func (b *BuiltinObjType) String() string {
-	return "<builtinType:" + b.Name() + ">"
+	return ReprQuote("builtinType:" + b.Name())
 }
 
 var (

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"os"
 	"testing"
 	gotime "time"
 
@@ -119,7 +120,7 @@ return {
 	require.Equal(t, gad.Int(1), wantRet)
 
 	temp := t.TempDir()
-	f, err := ioutil.TempFile(temp, "program.gadc")
+	f, err := os.CreateTemp(temp, "program.gadc")
 	require.NoError(t, err)
 	defer f.Close()
 

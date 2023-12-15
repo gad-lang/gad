@@ -51,7 +51,7 @@ func TestScript(t *testing.T) {
 
 	for key, val := range Module {
 		expectRun(t, scriptf("typeName(json.%s)", key), nil, String("function"))
-		expectRun(t, scriptf("string(json.%s)", key), nil, String(fmt.Sprintf("<function:%s>", key)))
+		expectRun(t, scriptf("string(json.%s)", key), nil, String(fmt.Sprintf(ReprQuote("function:%s"), key)))
 		require.NotNil(t, val)
 		require.NotNil(t, val.(*Function).Value)
 	}

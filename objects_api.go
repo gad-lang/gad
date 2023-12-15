@@ -247,6 +247,10 @@ type ToIterfaceConverter interface {
 	ToInterface() any
 }
 
+type ToIterfaceVMConverter interface {
+	ToInterface(*VM) any
+}
+
 type Niler interface {
 	Object
 	IsNil() bool

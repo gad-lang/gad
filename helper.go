@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/gad-lang/gad/repr"
 )
 
 func ArrayToString(len int, get func(i int) Object) string {
@@ -42,3 +44,24 @@ func AnyMapToMap(src map[string]any) (m Dict, err error) {
 	}
 	return
 }
+
+func NewArgCaller(vm *VM, co CallerObject, args Array, namedArgs NamedArgs) func() (ret Object, err error) {
+	call := Call{
+		VM:        vm,
+		Args:      Args{args},
+		NamedArgs: namedArgs,
+	}
+	return func() (ret Object, err error) {
+		return co.Call(call)
+	}
+}
+
+func (vm *VM) AddCallerMethodOverride(co CallerObject, types MultipleObjectTypes, override bool, caller CallerObject) error {
+	return co.(*CallerObjectWithMethods).AddMethod(vm, types, caller, override)
+}
+
+func (vm *VM) AddCallerMethod(co CallerObject, types MultipleObjectTypes, caller CallerObject) error {
+	return co.(*CallerObjectWithMethods).AddMethod(vm, types, caller, false)
+}
+
+var ReprQuote = repr.Quote

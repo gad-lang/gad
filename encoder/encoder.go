@@ -31,6 +31,7 @@ type (
 	Bytecode         gad.Bytecode
 	CompiledFunction gad.CompiledFunction
 	BuiltinFunction  gad.BuiltinFunction
+	BuiltinObjType   gad.BuiltinObjType
 	Function         gad.Function
 	NilType          gad.NilType
 	String           gad.String
@@ -65,6 +66,7 @@ const (
 	binCompiledFunctionV1
 	binFunctionV1
 	binBuiltinFunctionV1
+	binBuiltinObjTypeV1
 
 	binUnkownType byte = 255
 )
@@ -379,7 +381,8 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 		binMapV1,
 		binSyncMapV1,
 		binFunctionV1,
-		binBuiltinFunctionV1:
+		binBuiltinFunctionV1,
+		binBuiltinObjTypeV1:
 
 		var vi varintConv
 		value, readBytes, err := vi.readBytes(r)
@@ -451,6 +454,12 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 				return nil, err
 			}
 			return (*gad.BuiltinFunction)(&v), nil
+		case binBuiltinObjTypeV1:
+			var v BuiltinObjType
+			if err := v.UnmarshalBinary(buf); err != nil {
+				return nil, err
+			}
+			return (*gad.BuiltinObjType)(&v), nil
 		}
 	case binUnkownType:
 		var v gad.Object
@@ -510,6 +519,8 @@ func marshaler(o gad.Object) encoding.BinaryMarshaler {
 		return (*Function)(v)
 	case *gad.BuiltinFunction:
 		return (*BuiltinFunction)(v)
+	case *gad.BuiltinObjType:
+		return (*BuiltinObjType)(v)
 	case *gad.NilType:
 		return (*NilType)(v)
 	case *gad.CallerObjectWithMethods:

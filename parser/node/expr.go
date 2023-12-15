@@ -21,6 +21,7 @@ import (
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/parser/utils"
+	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/token"
 	"github.com/shopspring/decimal"
 )
@@ -77,7 +78,7 @@ func (e *BadExpr) End() source.Pos {
 }
 
 func (e *BadExpr) String() string {
-	return "<bad expression>"
+	return repr.Quote("bad expression")
 }
 
 // BinaryExpr represents a binary operator expression.

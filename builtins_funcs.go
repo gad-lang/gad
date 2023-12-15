@@ -703,15 +703,15 @@ func BuiltinStringFunc(c Call) (ret Object, err error) {
 		}
 		ret = String(o.ToString())
 	default:
-		var b strings.Builder
+		var (
+			b          strings.Builder
+			callerArgs = Array{nil}
+			caller     = NewArgCaller(c.VM, c.VM.Builtins[BuiltinString].(CallerObject), callerArgs, c.NamedArgs)
+		)
 		c.Args.Walk(func(i int, arg Object) any {
+			callerArgs[0] = arg
 			var s Object
-			if s, err = c.VM.Builtins[BuiltinString].(CallerObject).
-				Call(Call{
-					VM:        c.VM,
-					Args:      Args{Array{arg}},
-					NamedArgs: c.NamedArgs,
-				}); err != nil {
+			if s, err = caller(); err != nil {
 				return err
 			}
 			b.WriteString(string(s.(String)))
@@ -960,13 +960,6 @@ func BuiltinPrintlnFunc(c Call) (ret Object, err error) {
 	switch size := c.Args.Len(); size {
 	case 0:
 		n, err = w.Write([]byte("\n"))
-	case 1:
-		arg := c.Args.Get(0)
-		if w2, ok := arg.(Writer); ok {
-			n, err = w2.Write([]byte("\n"))
-		} else {
-			n, err = fmt.Fprintln(w, c.Args.Get(0))
-		}
 	default:
 		arg := c.Args.Get(0)
 		if w2, ok := arg.(Writer); ok {
@@ -975,11 +968,35 @@ func BuiltinPrintlnFunc(c Call) (ret Object, err error) {
 			size--
 		}
 
-		vargs := make([]any, 0, size)
-		for i := 0; i < size; i++ {
-			vargs = append(vargs, c.Args.Get(i))
+		var (
+			callerArgs = Array{nil}
+			caller     = NewArgCaller(c.VM, c.VM.Builtins[BuiltinString].(CallerObject), callerArgs, c.NamedArgs)
+			s          Object
+			n2         int
+		)
+
+		c.Args.Walk(func(i int, arg Object) any {
+			callerArgs[0] = arg
+			if s, err = caller(); err != nil {
+				return err
+			}
+			n2, err = w.Write([]byte(s.ToString()))
+			n += n2
+
+			if i < size-1 {
+				n2, err = w.Write([]byte(" "))
+				n += n2
+			}
+
+			return err
+		})
+
+		if err != nil {
+			return
 		}
-		n, err = fmt.Fprintln(w, vargs...)
+
+		n2, err = w.Write([]byte("\n"))
+		n += n2
 	}
 	return Int(n), err
 }

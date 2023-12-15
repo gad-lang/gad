@@ -248,7 +248,7 @@ func (o *CompiledFunction) ToString() string {
 		params = append(params, o.NamedParams.String())
 	}
 	s = append(s, "("+strings.Join(params, ", ")+")")
-	return "<compiledFunction" + strings.Join(s, "") + ">"
+	return ReprQuote("compiledFunction" + strings.Join(s, ""))
 }
 
 func (o *CompiledFunction) Format(f fmt.State, verb rune) {

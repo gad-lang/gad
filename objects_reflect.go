@@ -9,6 +9,8 @@ import (
 	"sync"
 	_ "text/template"
 	_ "unsafe"
+
+	"github.com/gad-lang/gad/repr"
 )
 
 type ReflectMethod struct {
@@ -298,7 +300,12 @@ type ReflectValuer interface {
 	GetReflectValue() *ReflectValue
 }
 
-func NewReflectValue(v any) (ReflectValuer, error) {
+type ReflectValueOptions struct {
+	ToStr    func() string
+	ItValuer func(value interface{}) (Object, error)
+}
+
+func NewReflectValue(v any, opts ...*ReflectValueOptions) (ReflectValuer, error) {
 	if rv, _ := v.(ReflectValuer); rv != nil {
 		return rv, nil
 	}
@@ -306,7 +313,15 @@ func NewReflectValue(v any) (ReflectValuer, error) {
 	var (
 		rv     = reflect.ValueOf(v)
 		isnill bool
+		opt    *ReflectValueOptions
 	)
+
+	for _, opt = range opts {
+	}
+	if opt == nil {
+		opt = &ReflectValueOptions{}
+	}
+
 	func() {
 		defer func() {
 			recover()
@@ -332,7 +347,7 @@ func NewReflectValue(v any) (ReflectValuer, error) {
 		rv = ptrv
 	}
 
-	orv := ReflectValue{typ: t, v: rv, ptr: ptr, nil: isnill}
+	orv := ReflectValue{typ: t, v: rv, ptr: ptr, nil: isnill, Options: opt}
 	switch rv.Kind() {
 	case reflect.Struct:
 		return &ReflectStruct{ReflectValue: orv}, nil
@@ -359,8 +374,8 @@ func NewReflectValue(v any) (ReflectValuer, error) {
 	}
 }
 
-func MustNewReflectValue(v any) ReflectValuer {
-	rv, err := NewReflectValue(v)
+func MustNewReflectValue(v any, opts ...*ReflectValueOptions) ReflectValuer {
+	rv, err := NewReflectValue(v, opts...)
 	if err != nil {
 		panic(err)
 	}
@@ -368,10 +383,11 @@ func MustNewReflectValue(v any) ReflectValuer {
 }
 
 type ReflectValue struct {
-	typ *ReflectType
-	v   reflect.Value
-	ptr bool
-	nil bool
+	typ     *ReflectType
+	v       reflect.Value
+	ptr     bool
+	nil     bool
+	Options *ReflectValueOptions
 }
 
 var (
@@ -401,16 +417,21 @@ func (r *ReflectValue) Type() ObjectType {
 
 func (r *ReflectValue) ToString() string {
 	var w strings.Builder
-	w.WriteString("<reflectValue:")
-	fmt.Fprintf(&w, "%+v", r)
-	w.WriteString(">")
+	w.WriteString(repr.QuotePrefix)
+	w.WriteString("reflectValue:")
+	if r.Options.ToStr == nil {
+		fmt.Fprintf(&w, "%+v", r)
+	} else {
+		w.WriteString(r.Options.ToStr())
+	}
+	w.WriteString(repr.QuoteSufix)
 	return w.String()
 }
 
 func (r *ReflectValue) Format(s fmt.State, verb rune) {
 	if verb == 'v' && s.Flag('+') {
 		s.Write([]byte(r.typ.Fqn()))
-		s.Write([]byte{'<'})
+		s.Write([]byte(repr.QuotePrefix))
 		if r.typ.typ.Name() == "" {
 			s.Write([]byte(r.typ.typ.String()))
 			s.Write([]byte{':', ' '})
@@ -423,7 +444,7 @@ func (r *ReflectValue) Format(s fmt.State, verb rune) {
 	}
 
 	if verb == 'v' && s.Flag('+') {
-		s.Write([]byte{'>'})
+		s.Write([]byte(repr.QuoteSufix))
 	}
 }
 
@@ -503,7 +524,7 @@ var (
 )
 
 func (r *ReflectFunc) ToString() string {
-	return fmt.Sprintf("<reflectFunc: %s>", r.typ.typ.String())
+	return fmt.Sprintf(ReprQuote("reflectFunc: %s"), r.typ.typ.String())
 }
 
 func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
@@ -588,9 +609,9 @@ var (
 
 func (o *ReflectArray) Format(s fmt.State, verb rune) {
 	if verb == 'v' {
-		s.Write([]byte("<reflectArray:"))
+		s.Write([]byte(repr.QuotePrefix + "reflectArray:"))
 		o.ReflectValue.ToStringW(s)
-		s.Write([]byte(">"))
+		s.Write([]byte(repr.QuoteSufix))
 		return
 	}
 	o.ReflectValue.Format(s, verb)
@@ -665,7 +686,7 @@ func (o *ReflectArray) Len() int {
 }
 
 func (o *ReflectArray) Iterate(*VM) Iterator {
-	return &ReflectArrayIterator{v: o.v, l: o.v.Len()}
+	return &ReflectArrayIterator{v: o.v, l: o.v.Len(), valuer: o.Options.ItValuer}
 }
 
 func (o *ReflectArray) Copy() (obj Object) {
@@ -723,9 +744,9 @@ func (o *ReflectSlice) Append(vm *VM, items ...Object) (_ Object, err error) {
 
 func (o *ReflectSlice) Format(s fmt.State, verb rune) {
 	if verb == 's' {
-		s.Write([]byte("<reflectSlice:"))
+		s.Write([]byte(repr.QuotePrefix + "reflectSlice:"))
 		o.ReflectValue.ToStringW(s)
-		s.Write([]byte(">"))
+		s.Write([]byte(repr.QuoteSufix))
 		return
 	}
 	o.ReflectValue.Format(s, verb)
@@ -756,9 +777,9 @@ var (
 
 func (o *ReflectMap) Format(s fmt.State, verb rune) {
 	if verb == 's' {
-		s.Write([]byte("<reflectMap:"))
+		s.Write([]byte(repr.QuotePrefix + "reflectMap:"))
 		o.ReflectValue.ToStringW(s)
-		s.Write([]byte(">"))
+		s.Write([]byte(repr.QuoteSufix))
 		return
 	}
 	o.ReflectValue.Format(s, verb)

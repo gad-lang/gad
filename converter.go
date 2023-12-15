@@ -41,6 +41,11 @@ func (oc *ObjectConverters) ToInterface(vm *VM, v Object) any {
 	if h := oc.ToGoHandlers[v.Type()]; h != nil {
 		return h(vm, v)
 	}
+
+	if otoi, _ := v.(ToIterfaceVMConverter); otoi != nil {
+		return otoi.ToInterface(vm)
+	}
+
 	return ToInterface(v)
 }
 

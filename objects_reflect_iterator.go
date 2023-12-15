@@ -4,8 +4,9 @@ import "reflect"
 
 // ReflectArrayIterator represents an iterator for the ReflectArray.
 type ReflectArrayIterator struct {
-	v    reflect.Value
-	i, l int
+	v      reflect.Value
+	i, l   int
+	valuer func(value interface{}) (Object, error)
 }
 
 func (it *ReflectArrayIterator) Next() bool {
@@ -20,6 +21,9 @@ func (it *ReflectArrayIterator) Key() Object {
 func (it *ReflectArrayIterator) Value() (Object, error) {
 	i := it.i - 1
 	if i > -1 && i < it.l {
+		if it.valuer != nil {
+			return it.valuer(it.v.Index(i).Interface())
+		}
 		return ToObject(it.v.Index(i).Interface())
 	}
 	return Nil, nil

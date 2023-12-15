@@ -566,6 +566,7 @@ type Function struct {
 	ObjectImpl
 	Name  string
 	Value func(Call) (Object, error)
+	ToStr func() string
 }
 
 var _ Object = (*Function)(nil)
@@ -575,7 +576,11 @@ func (*Function) Type() ObjectType {
 }
 
 func (o *Function) ToString() string {
-	return fmt.Sprintf("<function:%s>", o.Name)
+	var name = o.Name
+	if o.ToStr != nil {
+		name = o.ToStr()
+	}
+	return fmt.Sprintf(ReprQuote("function:%s"), name)
 }
 
 // Copy implements Copier interface.
@@ -680,7 +685,7 @@ func (*BuiltinFunction) Type() ObjectType {
 }
 
 func (o *BuiltinFunction) ToString() string {
-	return fmt.Sprintf("<builtinFunction:%s%s>", o.Name, o.Header.String())
+	return fmt.Sprintf(ReprQuote("builtinFunction:%s%s"), o.Name, o.Header.String())
 }
 
 func (o *BuiltinFunction) ParamTypes(*VM) (MultipleObjectTypes, error) {
@@ -744,6 +749,18 @@ func (o Array) ToString() string {
 	return ArrayToString(len(o), func(i int) Object {
 		return o[i]
 	})
+}
+
+func (o Array) ToInterface(vm *VM) any {
+	return o.ToAnyArray(vm)
+}
+
+func (o Array) ToAnyArray(vm *VM) []any {
+	oi := make([]any, len(o))
+	for i, v := range o {
+		oi[i] = vm.ToInterface(v)
+	}
+	return oi
 }
 
 // Copy implements Copier interface.
@@ -964,7 +981,7 @@ func (o *ObjectPtr) ToString() string {
 	if o.Value != nil {
 		v = *o.Value
 	}
-	return fmt.Sprintf("<objectPtr:%v>", v)
+	return fmt.Sprintf(ReprQuote("objectPtr:%v"), v)
 }
 
 // Copy implements Copier interface.
@@ -1036,6 +1053,18 @@ func (o Dict) Format(f fmt.State, verb rune) {
 	case 'v':
 		f.Write([]byte(o.ToString()))
 	}
+}
+
+func (o Dict) ToInterface(vm *VM) any {
+	return o.ToInterfaceMap(vm)
+}
+
+func (o Dict) ToInterfaceMap(vm *VM) (m map[string]any) {
+	m = make(map[string]any, len(o))
+	for s, obj := range o {
+		m[s] = vm.ToInterface(obj)
+	}
+	return m
 }
 
 func (o Dict) ToString() string {
@@ -1532,7 +1561,7 @@ func (o *RuntimeError) Copy() Object {
 // Error implements error interface.
 func (o *RuntimeError) Error() string {
 	if o.Err == nil {
-		return "<nil>"
+		return ReprQuote("nil")
 	}
 	return o.Err.Error()
 }
@@ -1625,10 +1654,10 @@ func (o *RuntimeError) Format(s fmt.State, verb rune) {
 				if v := o.StackTrace(); v != nil {
 					_, _ = io.WriteString(s, fmt.Sprintf("%+v", v))
 				} else {
-					_, _ = io.WriteString(s, "<nil stack trace>")
+					_, _ = io.WriteString(s, ReprQuote("nil stack trace"))
 				}
 			} else {
-				_, _ = io.WriteString(s, "<no stack trace>")
+				_, _ = io.WriteString(s, ReprQuote("no stack trace"))
 			}
 			e := o.Unwrap()
 			for e != nil {
@@ -1708,9 +1737,18 @@ func (CallWrapper) Equal(Object) bool {
 }
 
 type IndexGetProxy struct {
-	GetIndex func(vm *VM, index Object) (value Object, err error)
-	ToStr    func() string
-	It       func(vm *VM) Iterator
+	GetIndex        func(vm *VM, index Object) (value Object, err error)
+	ToStr           func() string
+	It              func(vm *VM) Iterator
+	InterfaceValue  any
+	CallNameHandler func(name string, c Call) (Object, error)
+}
+
+func (i *IndexGetProxy) CallName(name string, c Call) (Object, error) {
+	if i.CallNameHandler == nil {
+		return nil, ErrInvalidIndex.NewError(name)
+	}
+	return i.CallNameHandler(name, c)
 }
 
 func (i *IndexGetProxy) Iterate(vm *VM) Iterator {
@@ -1729,7 +1767,7 @@ func (i *IndexGetProxy) ToString() string {
 	if i.ToStr != nil {
 		return i.ToStr()
 	}
-	return "<indexGetProxy>"
+	return ReprQuote("indexGetProxy")
 }
 
 func (i *IndexGetProxy) IsFalsy() bool {
@@ -1747,6 +1785,10 @@ func (i IndexGetProxy) IndexGet(vm *VM, index Object) (value Object, err error) 
 	return i.GetIndex(vm, index)
 }
 
+func (i *IndexGetProxy) ToInterface() any {
+	return i.InterfaceValue
+}
+
 func StringIndexGetProxy(handler func(vm *VM, index string) (value Object, err error)) *IndexGetProxy {
 	return &IndexGetProxy{GetIndex: func(vm *VM, index Object) (value Object, err error) {
 		if s, ok := index.(String); !ok {
@@ -1755,22 +1797,4 @@ func StringIndexGetProxy(handler func(vm *VM, index string) (value Object, err e
 			return handler(vm, string(s))
 		}
 	}}
-}
-
-type DynamicIterator struct {
-	NextF  func() bool
-	KeyF   func() Object
-	ValueF func() (Object, error)
-}
-
-func (d *DynamicIterator) Next() bool {
-	return d.NextF()
-}
-
-func (d *DynamicIterator) Key() Object {
-	return d.KeyF()
-}
-
-func (d *DynamicIterator) Value() (Object, error) {
-	return d.ValueF()
 }

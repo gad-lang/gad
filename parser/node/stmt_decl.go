@@ -14,6 +14,7 @@ import (
 
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -169,7 +170,7 @@ func (d *GenDecl) End() source.Pos {
 func (*BadDecl) declNode() {}
 func (*GenDecl) declNode() {}
 
-func (*BadDecl) String() string { return "<bad declaration>" }
+func (*BadDecl) String() string { return repr.Quote("bad declaration") }
 func (d *GenDecl) String() string {
 	var sb strings.Builder
 	sb.WriteString(d.Tok.String())

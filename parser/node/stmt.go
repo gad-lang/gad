@@ -18,6 +18,7 @@ import (
 
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -86,7 +87,7 @@ func (s *BadStmt) End() source.Pos {
 }
 
 func (s *BadStmt) String() string {
-	return "<bad statement>"
+	return repr.Quote("bad statement")
 }
 
 // BlockStmt represents a block statement.

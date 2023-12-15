@@ -110,6 +110,15 @@ func (o *CallerObjectWithMethods) HasMethods() bool {
 	return false
 }
 
+func (o *CallerObjectWithMethods) RegisterDefaultWithTypes(types MultipleObjectTypes) *CallerObjectWithMethods {
+	o.registered = true
+	o.Methods.Add(types, &CallerMethod{
+		Of:           o.CallerObject,
+		CallerObject: o.CallerObject,
+	}, false)
+	return o
+}
+
 func (o *CallerObjectWithMethods) AddMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error {
 	if !o.registered {
 		o.registered = true
@@ -118,10 +127,7 @@ func (o *CallerObjectWithMethods) AddMethod(vm *VM, types MultipleObjectTypes, h
 			if err != nil {
 				return err
 			}
-			o.Methods.Add(types, &CallerMethod{
-				Of:           o.CallerObject,
-				CallerObject: o.CallerObject,
-			}, false)
+			o.RegisterDefaultWithTypes(types)
 		}
 	}
 
@@ -390,4 +396,8 @@ func (args Methods) GetMethod(types []ObjectType) (cm *CallerMethod) {
 		cm = at.Methods[len(at.Methods)-1]
 	}
 	return
+}
+
+func NewTypedFunction(fn *Function, types MultipleObjectTypes) *CallerObjectWithMethods {
+	return NewCallerObjectWithMethods(fn).RegisterDefaultWithTypes(types)
 }

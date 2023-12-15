@@ -23,6 +23,10 @@ var zeroTime gad.Object = &Time{}
 var Module = map[string]gad.Object{
 	// gad:doc
 	// # time Module
+	// ## Types
+	// Type is a type of Time Value
+	"Type": TimeType,
+
 	//
 	// ## Constants
 	// ### Months

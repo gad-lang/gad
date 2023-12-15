@@ -89,7 +89,7 @@ func TestObjectString(t *testing.T) {
 	require.Equal(t, "error: message", (&Error{Message: "message"}).ToString())
 	require.Equal(t, "name: message", (&Error{Name: "name", Message: "message"}).ToString())
 
-	require.Equal(t, "<nil>", (&RuntimeError{}).ToString())
+	require.Equal(t, ReprQuote("nil"), (&RuntimeError{}).ToString())
 
 	require.Equal(t, "", String("").ToString())
 	require.Equal(t, "xyz", String("xyz").ToString())
@@ -109,21 +109,21 @@ func TestObjectString(t *testing.T) {
 	require.Equal(t, m.ToString(), (&SyncMap{Value: m}).ToString())
 	require.Equal(t, "{}", (&SyncMap{Value: Dict{}}).ToString())
 
-	require.Equal(t, "<function:>", (&Function{}).ToString())
-	require.Equal(t, "<function:xyz>", (&Function{Name: "xyz"}).ToString())
-	require.Equal(t, "<builtinFunction:()>", (&BuiltinFunction{}).ToString())
-	require.Equal(t, "<builtinFunction:abc()>", (&BuiltinFunction{Name: "abc"}).ToString())
-	require.Equal(t, "<compiledFunction ()>", (&CompiledFunction{}).ToString())
-	require.Equal(t, "<reflectFunc: func()>", MustToObject(func() {}).ToString())
-	require.Equal(t, "<reflectFunc: func(int)>", MustToObject(func(int) {}).ToString())
-	require.Equal(t, "<reflectSlice:slice<[]int: []>>", MustToObject([]int{}).ToString())
+	require.Equal(t, ReprQuote("function:"), (&Function{}).ToString())
+	require.Equal(t, ReprQuote("function:xyz"), (&Function{Name: "xyz"}).ToString())
+	require.Equal(t, ReprQuote("builtinFunction:()"), (&BuiltinFunction{}).ToString())
+	require.Equal(t, ReprQuote("builtinFunction:abc()"), (&BuiltinFunction{Name: "abc"}).ToString())
+	require.Equal(t, ReprQuote("compiledFunction ()"), (&CompiledFunction{}).ToString())
+	require.Equal(t, ReprQuote("reflectFunc: func()"), MustToObject(func() {}).ToString())
+	require.Equal(t, ReprQuote("reflectFunc: func(int)"), MustToObject(func(int) {}).ToString())
+	require.Equal(t, ReprQuote("reflectSlice:slice"+ReprQuote("[]int: []")), MustToObject([]int{}).ToString())
 	var arr [2]int
 	arr[1] = 60
-	require.Equal(t, "<reflectArray:array<[2]int: [0 60]>>", MustToObject(arr).ToString())
-	require.Equal(t, "<reflectMap:map<map[string]int: map[a:2]>>", MustToObject(map[string]int{"a": 2}).ToString())
-	require.Equal(t, "<reflectValue:github.com/gad-lang/gad_test.t1<100>>", MustToObject(t1(100)).ToString())
-	require.Equal(t, "<reflectValue:github.com/gad-lang/gad_test.t2<@100>>", MustToObject(t2(100)).ToString())
-	require.Equal(t, "<reflectValue:github.com/gad-lang/gad_test.t3<#100>>", MustToObject(t3(100)).ToString())
+	require.Equal(t, ReprQuote("reflectArray:array"+ReprQuote("[2]int: [0 60]")+""), MustToObject(arr).ToString())
+	require.Equal(t, ReprQuote("reflectMap:map"+ReprQuote("map[string]int: map[a:2]")+""), MustToObject(map[string]int{"a": 2}).ToString())
+	require.Equal(t, ReprQuote("reflectValue:github.com/gad-lang/gad_test.t1"+ReprQuote("100")+""), MustToObject(t1(100)).ToString())
+	require.Equal(t, ReprQuote("reflectValue:github.com/gad-lang/gad_test.t2"+ReprQuote("@100")+""), MustToObject(t2(100)).ToString())
+	require.Equal(t, ReprQuote("reflectValue:github.com/gad-lang/gad_test.t3"+ReprQuote("#100")+""), MustToObject(t3(100)).ToString())
 }
 
 func TestObjectTypeName(t *testing.T) {

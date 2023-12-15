@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/repr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,7 +58,7 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("bytecode", func(t *testing.T) {
 		require.NoError(t, r.execute("func(){}"))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   <compiledFunction #1()>\n")
+		testHasPrefix(t, string(cw.consume()), "\n⇦   "+repr.Quote("compiledFunction #1()")+"\n")
 		require.NoError(t, r.execute(".bytecode"))
 		testHasPrefix(t, string(cw.consume()), "Bytecode\n")
 	})
@@ -67,7 +68,7 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("globals", func(t *testing.T) {
 		require.NoError(t, r.execute(".globals"))
-		testHasPrefix(t, string(cw.consume()), `{"Gosched": <function:Gosched>}`)
+		testHasPrefix(t, string(cw.consume()), `{"Gosched": `+repr.Quote("function:Gosched")+`}`)
 	})
 	t.Run("globals plus", func(t *testing.T) {
 		require.NoError(t, r.execute(".globals+"))
@@ -182,7 +183,8 @@ func TestREPL(t *testing.T) {
 		require.NoError(t, r.execute("func int(p:Point) => p.x * p.y"))
 		cw.consume()
 		require.NoError(t, r.execute("string(int)"))
-		require.Equal(t, "⇦   \"<builtinType int> with 1 methods:\\n  1. <compiledFunction #8(p:Point)>\"",
+		require.Equal(t, "⇦   \""+repr.Quote("builtinType int")+" with 1 methods:\\n  "+
+			"1. "+repr.Quote("compiledFunction #8(p:Point)")+"\"",
 			strings.TrimSpace(string(cw.consume())))
 		require.NoError(t, r.execute("int(Point(2,8))"))
 		require.Equal(t, "⇦   16", strings.TrimSpace(string(cw.consume())))

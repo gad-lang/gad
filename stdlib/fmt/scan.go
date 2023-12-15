@@ -6,6 +6,7 @@ import (
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/registry"
+	"github.com/gad-lang/gad/repr"
 )
 
 func init() {
@@ -57,7 +58,7 @@ var _ ScanArg = (*scanArg)(nil)
 
 func (*scanArg) Type() gad.ObjectType { return scanArgType }
 
-func (o *scanArg) ToString() string { return "<scanArg>" }
+func (o *scanArg) ToString() string { return repr.Quote("scanArg") }
 
 func (o *scanArg) IsFalsy() bool { return !o.ok }
 

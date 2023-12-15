@@ -335,6 +335,23 @@ func (o *BuiltinFunction) MarshalBinary() ([]byte, error) {
 }
 
 // MarshalBinary implements encoding.BinaryMarshaler
+func (o *BuiltinObjType) MarshalBinary() ([]byte, error) {
+	// Note: use string name instead of index of builtin
+	s, err := String(o.NameValue).MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	var vi varintConv
+	b := vi.toBytes(int64(len(s)))
+	data := make([]byte, 0, 1+len(b)+len(s))
+	data = append(data, binBuiltinObjTypeV1)
+	data = append(data, b...)
+	data = append(data, s...)
+	return data, nil
+}
+
+// MarshalBinary implements encoding.BinaryMarshaler
 func (o *Function) MarshalBinary() ([]byte, error) {
 	s, err := String(o.Name).MarshalBinary()
 	if err != nil {
