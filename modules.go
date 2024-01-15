@@ -134,6 +134,6 @@ func (m *BuiltinModule) Import(moduleName string) (any, error) {
 	}
 
 	cp := Dict(m.Attrs).Copy()
-	cp.(Dict)[AttrModuleName] = String(moduleName)
+	cp.(Dict)[AttrModuleName] = Str(moduleName)
 	return cp, nil
 }

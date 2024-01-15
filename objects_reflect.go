@@ -1,21 +1,27 @@
 package gad
 
 import (
+	"errors"
 	"fmt"
+	"go/ast"
 	"io"
 	"math"
 	"reflect"
+	"runtime/debug"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	_ "text/template"
 	_ "unsafe"
 
 	"github.com/gad-lang/gad/repr"
+	"github.com/gad-lang/gad/token"
 )
 
 type ReflectMethod struct {
 	baseType reflect.Type
-	m        reflect.Method
+	Method   reflect.Method
 	i        int
 }
 
@@ -24,7 +30,7 @@ func (r *ReflectMethod) Type() ObjectType {
 }
 
 func (r *ReflectMethod) ToString() string {
-	return r.baseType.String() + "#" + r.m.Name
+	return r.baseType.String() + "#" + r.Method.Name
 }
 
 func (r *ReflectMethod) IsFalsy() bool {
@@ -33,40 +39,40 @@ func (r *ReflectMethod) IsFalsy() bool {
 
 func (r *ReflectMethod) Equal(right Object) bool {
 	if o, _ := right.(*ReflectMethod); o != nil {
-		return o.baseType == r.baseType && o.m == r.m
+		return o.baseType == r.baseType && o.Method == r.Method
 	}
 	return false
 }
 
 type ReflectField struct {
-	baseType reflect.Type
-	ptr      bool
-	f        reflect.StructField
-	v        reflect.Value
+	BaseType reflect.Type
+	IsPtr    bool
+	Struct   IndexableStructField
+	Value    reflect.Value
 }
 
 func (r *ReflectField) Type() ObjectType {
-	return NewReflectType(r.v.Type())
+	return NewReflectType(r.Value.Type())
 }
 
 func (r *ReflectField) ToString() string {
-	return fmt.Sprint(r.v.Interface())
+	return fmt.Sprint(r.Value.Interface())
 }
 
 func (r *ReflectField) IsFalsy() bool {
-	switch r.v.Kind() {
+	switch r.Value.Kind() {
 	case reflect.Slice, reflect.Map, reflect.Array, reflect.String:
-		return r.v.Len() == 0
+		return r.Value.Len() == 0
 	case reflect.Bool:
-		return !r.v.Bool()
+		return !r.Value.Bool()
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return r.v.Int() == 0
+		return r.Value.Int() == 0
 	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return r.v.Uint() == 0
+		return r.Value.Uint() == 0
 	case reflect.Float32, reflect.Float64:
-		return r.v.Float() == 0
+		return r.Value.Float() == 0
 	default:
-		if z, _ := r.v.Addr().Interface().(interface{ IsZero() bool }); z != nil {
+		if z, _ := r.Value.Addr().Interface().(interface{ IsZero() bool }); z != nil {
 			return z.IsZero()
 		}
 		return false
@@ -75,7 +81,7 @@ func (r *ReflectField) IsFalsy() bool {
 
 func (r *ReflectField) Equal(right Object) bool {
 	if o, _ := right.(*ReflectField); o != nil {
-		return o.baseType == r.baseType && o.v == r.v
+		return o.BaseType == r.BaseType && o.Value == r.Value
 	}
 	return false
 }
@@ -85,10 +91,10 @@ func (r *ReflectField) Set(f reflect.Value, v Object) {
 }
 
 type ReflectType struct {
-	typ          reflect.Type
-	methods      map[string]*ReflectMethod
-	fieldsNames  []string
-	fields       map[string]*ReflectField
+	RType        reflect.Type
+	RMethods     map[string]*ReflectMethod
+	FieldsNames  []string
+	RFields      map[string]*ReflectField
 	formatMethod *ReflectMethod
 }
 
@@ -98,6 +104,65 @@ var (
 	reflectTypeCache   = map[reflect.Type]*ReflectType{}
 	reflectTypeCacheMu sync.Mutex
 )
+
+type IndexableStructField struct {
+	reflect.StructField
+	Index []int
+	Names []string
+}
+
+func indirectType(reflectType reflect.Type) reflect.Type {
+	for reflectType.Kind() == reflect.Ptr {
+		reflectType = reflectType.Elem()
+	}
+	return reflectType
+}
+
+func FieldsOfReflectType(ityp reflect.Type) (result []*IndexableStructField) {
+	ityp = indirectType(ityp)
+
+	type item struct {
+		fi, i int
+		f     *IndexableStructField
+	}
+	var (
+		walk    func(typ reflect.Type, path []int, name []string)
+		nameMap = map[string]item{}
+		fields  []*IndexableStructField
+	)
+	walk = func(typ reflect.Type, path []int, name []string) {
+		typ = indirectType(typ)
+		if typ.Kind() != reflect.Struct || (path != nil && typ == ityp) {
+			return
+		}
+
+		for i := 0; i < typ.NumField(); i++ {
+			field := typ.Field(i)
+			path := append(append([]int{}, path...), i)
+			name := append(append([]string{}, name...), field.Name)
+			if field.Anonymous {
+				walk(field.Type, path, name)
+			} else if ast.IsExported(field.Name) {
+				fields = append(fields, &IndexableStructField{field, path, name})
+			}
+		}
+	}
+	walk(ityp, nil, nil)
+
+	for i := len(fields) - 1; i >= 0; i-- {
+		f := fields[i]
+		if old, ok := nameMap[f.Name]; ok {
+			if len(old.f.Index) > len(f.Index) {
+				old.f = f
+				result[old.i] = f
+			}
+		} else {
+			nameMap[f.Name] = item{i, len(result), f}
+			result = append(result, f)
+		}
+	}
+	return
+}
 
 func NewReflectType(typ reflect.Type) (rt *ReflectType) {
 	reflectTypeCacheMu.Lock()
@@ -111,41 +176,35 @@ func NewReflectType(typ reflect.Type) (rt *ReflectType) {
 		return
 	}
 
-	rt = &ReflectType{typ: typ}
-	reflectTypeCache[typ] = rt
+	rt = &ReflectType{RType: typ}
 
 	if typ.Kind() == reflect.Struct {
-		n := typ.NumField()
 		fields := map[string]*ReflectField{}
-
-		for i := 0; i < n; i++ {
-			f := typ.Field(i)
-			if f.Anonymous || !f.IsExported() {
-				continue
-			}
-
+		fields_ := FieldsOfReflectType(typ)
+		for _, f := range fields_ {
 			if old, ok := fields[f.Name]; ok {
-				if len(f.Index) >= len(old.f.Index) {
+				if len(f.Index) >= len(old.Struct.Index) {
 					continue
 				}
 			}
 
 			rf := &ReflectField{
-				baseType: typ,
-				v:        reflect.New(f.Type),
-				f:        f,
+				BaseType: typ,
+				Value:    reflect.New(f.Type),
+				Struct:   *f,
 			}
 
-			if rf.v.Kind() == reflect.Ptr {
-				rf.ptr = true
-				rf.v = rf.v.Elem()
+			if rf.Value.Kind() == reflect.Ptr {
+				rf.IsPtr = true
+				rf.Value = rf.Value.Elem()
 			}
 			fields[f.Name] = rf
-			rt.fieldsNames = append(rt.fieldsNames, f.Name)
+			rt.FieldsNames = append(rt.FieldsNames, f.Name)
 		}
 
-		rt.fields = fields
+		rt.RFields = fields
 	}
+	reflectTypeCache[typ] = rt
 
 	var (
 		methods = map[string]*ReflectMethod{}
@@ -161,20 +220,20 @@ func NewReflectType(typ reflect.Type) (rt *ReflectType) {
 
 		methods[m.Name] = &ReflectMethod{
 			baseType: ptrType,
-			m:        m,
+			Method:   m,
 			i:        i,
 		}
 	}
 
 	if format := methods["Format"]; format != nil {
-		t := format.m.Type
+		t := format.Method.Type
 
 		if t.NumOut() == 0 && t.NumIn() == 3 && t.In(1) == fmtStateType && t.In(2) == runeType {
 			rt.formatMethod = format
 		}
 	}
 
-	rt.methods = methods
+	rt.RMethods = methods
 
 	return
 }
@@ -184,7 +243,7 @@ func (r *ReflectType) Type() ObjectType {
 }
 
 func (r *ReflectType) ToString() string {
-	return r.typ.String()
+	return r.RType.String()
 }
 
 func (r *ReflectType) IsFalsy() bool {
@@ -193,7 +252,7 @@ func (r *ReflectType) IsFalsy() bool {
 
 func (r *ReflectType) Equal(right Object) bool {
 	if o, _ := right.(*ReflectType); o != nil {
-		return o.typ == r.typ
+		return o.RType == r.RType
 	}
 	return false
 }
@@ -212,11 +271,11 @@ func (r *ReflectType) Name() string {
 }
 
 func (r *ReflectType) Fqn() string {
-	var n = r.typ.Name()
+	var n = r.RType.Name()
 	if n == "" {
-		n = r.typ.Kind().String()
+		n = r.RType.Kind().String()
 	} else {
-		n = r.typ.PkgPath() + "." + n
+		n = r.RType.PkgPath() + "." + n
 	}
 	return n
 }
@@ -230,61 +289,46 @@ func (r *ReflectType) Setters() Dict {
 }
 
 func (r *ReflectType) Methods() (m Dict) {
-	m = make(Dict, len(r.methods))
-	for key := range r.methods {
+	m = make(Dict, len(r.RMethods))
+	for key := range r.RMethods {
 		m[key] = Nil
 	}
 	return m
 }
 
 func (r *ReflectType) Fields() (fields Dict) {
-	n := r.typ.NumField()
 	fields = Dict{}
-
-	for i := 0; i < n; i++ {
-		f := r.typ.Field(i)
-		if f.Anonymous || !f.IsExported() {
-			continue
-		}
-		if old, ok := fields[f.Name]; ok {
-			old := old.(*ReflectField)
-			if len(f.Index) >= len(old.f.Index) {
-				continue
-			}
-		}
-
-		rf := &ReflectField{
-			baseType: r.typ,
-			v:        reflect.New(f.Type),
-			f:        f,
-		}
-
-		if rf.v.Kind() == reflect.Ptr {
-			rf.ptr = true
-			rf.v = rf.v.Elem()
-		}
-		fields[f.Name] = rf
+	for _, f := range r.RFields {
+		fields[f.Struct.Name] = f
 	}
 	return
 }
 
-func (r *ReflectType) New(vm *VM, m Dict) (Object, error) {
+func (r *ReflectType) GetRMethods() map[string]*ReflectMethod {
+	return r.RMethods
+}
+
+func (r *ReflectType) New(vm *VM, m Dict) (_ Object, err error) {
 	var rv reflect.Value
-	switch r.typ.Kind() {
+	switch r.RType.Kind() {
 	case reflect.Struct:
-		rv = reflect.New(r.typ).Elem()
-		for k, v := range m {
-			if f := r.fields[k]; f != nil {
-				r.fields[k].Set(rv.FieldByIndex(r.fields[k].f.Index), v)
+		rv = reflect.New(r.RType).Elem()
+		obj := &ReflectStruct{
+			ReflectValue: ReflectValue{RType: r, RValue: rv, Options: &ReflectValueOptions{}},
+		}
+		for s, v := range m {
+			if err = obj.indexSet(vm, s, v); err != nil {
+				return
 			}
 		}
+		return obj, nil
 	case reflect.Map:
-		rv = reflect.MakeMap(r.typ)
+		rv = reflect.MakeMap(r.RType)
 		for k, v := range m {
 			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(vm.ToInterface(v)))
 		}
 	}
-	return &ReflectValue{typ: r, v: rv}, nil
+	return &ReflectValue{RType: r, RValue: rv, Options: &ReflectValueOptions{}}, nil
 }
 
 func (r *ReflectType) IsChildOf(t ObjectType) bool {
@@ -297,7 +341,10 @@ type ReflectValuer interface {
 	NameCallerObject
 	ToIterfaceConverter
 	Value() reflect.Value
-	GetReflectValue() *ReflectValue
+	GetRValue() *ReflectValue
+	GetRType() *ReflectType
+	IsPtr() bool
+	IsNil() bool
 }
 
 type ReflectValueOptions struct {
@@ -326,7 +373,7 @@ func NewReflectValue(v any, opts ...*ReflectValueOptions) (ReflectValuer, error)
 		defer func() {
 			recover()
 		}()
-		isnill = rv.IsNil()
+		_, isnill = isNil(rv)
 	}()
 
 	rv = indirectInterface(rv)
@@ -341,13 +388,13 @@ func NewReflectValue(v any, opts ...*ReflectValueOptions) (ReflectValuer, error)
 			return nil, nil
 		}
 		rv = rv.Elem()
-	} else if t.typ.Kind() != reflect.Func {
-		ptrv := reflect.New(t.typ).Elem()
+	} else if t.RType.Kind() != reflect.Func {
+		ptrv := reflect.New(t.RType).Elem()
 		ptrv.Set(rv)
 		rv = ptrv
 	}
 
-	orv := ReflectValue{typ: t, v: rv, ptr: ptr, nil: isnill, Options: opt}
+	orv := ReflectValue{RType: t, RValue: rv, ptr: ptr, nil: isnill, Options: opt}
 	switch rv.Kind() {
 	case reflect.Struct:
 		return &ReflectStruct{ReflectValue: orv}, nil
@@ -359,14 +406,14 @@ func NewReflectValue(v any, opts ...*ReflectValueOptions) (ReflectValuer, error)
 		return &ReflectArray{orv}, nil
 	case reflect.Func:
 		// We allow functions with 0 or 1 result or 2 results where the second is an error.
-		switch t.typ.NumOut() {
+		switch t.RType.NumOut() {
 		case 0, 1:
 		case 2:
-			if t.typ.Out(1) != errorType {
-				return nil, ErrIncompatibleReflectFuncType.NewError(fmt.Sprintf("out %d of function isn't error.", t.typ.NumOut()))
+			if t.RType.Out(1) != errorType {
+				return nil, ErrIncompatibleReflectFuncType.NewError(fmt.Sprintf("out %d of function isn't error.", t.RType.NumOut()))
 			}
 		default:
-			return nil, ErrIncompatibleReflectFuncType.NewError(fmt.Sprintf("function called with %d args; should be <= 2.", t.typ.NumOut()))
+			return nil, ErrIncompatibleReflectFuncType.NewError(fmt.Sprintf("function called with %d args; should be <= 2.", t.RType.NumOut()))
 		}
 		return &ReflectFunc{orv}, nil
 	default:
@@ -383,11 +430,12 @@ func MustNewReflectValue(v any, opts ...*ReflectValueOptions) ReflectValuer {
 }
 
 type ReflectValue struct {
-	typ     *ReflectType
-	v       reflect.Value
-	ptr     bool
-	nil     bool
-	Options *ReflectValueOptions
+	RType                     *ReflectType
+	RValue                    reflect.Value
+	ptr                       bool
+	nil                       bool
+	Options                   *ReflectValueOptions
+	fallbackNameCallerHandler func(s ReflectValuer, name string, c Call) (handled bool, value Object, err error)
 }
 
 var (
@@ -396,11 +444,24 @@ var (
 	_ Copier        = (*ReflectValue)(nil)
 )
 
+func (r *ReflectValue) FalbackNameCallerHandler(handler func(s ReflectValuer, name string, c Call) (handled bool, value Object, err error)) *ReflectValue {
+	r.fallbackNameCallerHandler = handler
+	return r
+}
+
 func (r *ReflectValue) Value() reflect.Value {
 	if r.ptr {
-		return r.v.Addr()
+		return r.RValue.Addr()
 	}
-	return r.v
+	return r.RValue
+}
+
+func (r *ReflectValue) PtrValue() reflect.Value {
+	return r.RValue.Addr()
+}
+
+func (r *ReflectValue) GetRType() *ReflectType {
+	return r.RType
 }
 
 func (r *ReflectValue) IsPtr() bool {
@@ -412,7 +473,7 @@ func (r *ReflectValue) ToInterface() any {
 }
 
 func (r *ReflectValue) Type() ObjectType {
-	return r.typ
+	return r.RType
 }
 
 func (r *ReflectValue) ToString() string {
@@ -430,15 +491,15 @@ func (r *ReflectValue) ToString() string {
 
 func (r *ReflectValue) Format(s fmt.State, verb rune) {
 	if verb == 'v' && s.Flag('+') {
-		s.Write([]byte(r.typ.Fqn()))
+		s.Write([]byte(r.RType.Fqn()))
 		s.Write([]byte(repr.QuotePrefix))
-		if r.typ.typ.Name() == "" {
-			s.Write([]byte(r.typ.typ.String()))
+		if r.RType.RType.Name() == "" {
+			s.Write([]byte(r.RType.RType.String()))
 			s.Write([]byte{':', ' '})
 		}
 	}
-	if r.typ.formatMethod != nil {
-		r.v.Addr().Method(r.typ.formatMethod.i).Call([]reflect.Value{reflect.ValueOf(s), reflect.ValueOf(verb)})
+	if r.RType.formatMethod != nil {
+		r.RValue.Addr().Method(r.RType.formatMethod.i).Call([]reflect.Value{reflect.ValueOf(s), reflect.ValueOf(verb)})
 	} else if verb == 'v' {
 		s.Write([]byte(fmt.Sprint(r.ToInterface())))
 	}
@@ -457,38 +518,23 @@ func (r *ReflectValue) IsNil() bool {
 }
 
 func (r *ReflectValue) Copy() (obj Object) {
-	rv, _ := NewReflectValue(r.v.Interface())
+	rv, _ := NewReflectValue(r.RValue.Interface())
 	if r.ptr {
-		rv.GetReflectValue().ptr = true
+		rv.GetRValue().ptr = true
 	}
 	obj = rv
 	return
 }
 
-func (r *ReflectValue) GetReflectValue() *ReflectValue {
+func (r *ReflectValue) GetRValue() *ReflectValue {
 	return r
 }
 
 func (r *ReflectValue) IsFalsy() bool {
-	if r.nil || !r.v.IsValid() {
+	if r.nil || !r.RValue.IsValid() {
 		return true
 	}
-
-	if z, _ := r.v.Addr().Interface().(interface{ IsZero() bool }); z != nil {
-		return z.IsZero()
-	}
-
-	switch r.v.Kind() {
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return r.v.Uint() == 0
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return r.v.Int() == 0
-	case reflect.Bool:
-		return !r.v.Bool()
-	case reflect.String:
-		return r.v.Len() == 0
-	}
-	return false
+	return isZero(r.RValue.Addr())
 }
 
 func (r *ReflectValue) Equal(right Object) bool {
@@ -501,16 +547,25 @@ func (r *ReflectValue) Equal(right Object) bool {
 }
 
 func (r *ReflectValue) CallName(name string, c Call) (Object, error) {
-	if tm := r.typ.methods[name]; tm != nil {
+	return r.CallNameOf(r, name, c)
+}
+
+func (r *ReflectValue) CallNameOf(this ReflectValuer, name string, c Call) (Object, error) {
+	if tm := r.RType.RMethods[name]; tm != nil {
 		return r.callName(tm, c)
+	}
+	if r.fallbackNameCallerHandler != nil {
+		if handled, value, err := r.fallbackNameCallerHandler(this, name, c); handled || err != nil {
+			return value, err
+		}
 	}
 	return nil, ErrInvalidIndex.NewError(name)
 }
 
 func (r *ReflectValue) callName(tm *ReflectMethod, c Call) (Object, error) {
 	return (&ReflectFunc{ReflectValue{
-		typ: &ReflectType{typ: tm.m.Type},
-		v:   r.v.Addr().Method(tm.i),
+		RType:  &ReflectType{RType: tm.Method.Type},
+		RValue: r.RValue.Addr().Method(tm.i),
 	}}).Call(c)
 }
 
@@ -524,11 +579,11 @@ var (
 )
 
 func (r *ReflectFunc) ToString() string {
-	return fmt.Sprintf(ReprQuote("reflectFunc: %s"), r.typ.typ.String())
+	return fmt.Sprintf(ReprQuote("reflectFunc: %s"), r.RType.RType.String())
 }
 
 func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
-	typ := r.v.Type()
+	typ := r.RValue.Type()
 
 	var (
 		numIn = typ.NumIn()
@@ -561,9 +616,12 @@ func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
 	}
 
 	var ret reflect.Value
-	ret, err = safeCall(r.v, argv)
+	ret, err = safeCall(r.RValue, argv)
 	if err == nil {
 		if ret.IsValid() {
+			if mustIsNil(ret) {
+				return Nil, nil
+			}
 			return c.VM.ToObject(ret.Interface())
 		}
 		return Nil, nil
@@ -576,7 +634,7 @@ func reflectCallArgsToValues(vm *VM, typ, dddType reflect.Type, numIn int, args 
 		var rarg reflect.Value
 		switch t := arg.(type) {
 		case *ReflectValue:
-			rarg = t.v
+			rarg = t.RValue
 		default:
 			rarg = reflect.ValueOf(vm.ToInterface(arg))
 		}
@@ -605,6 +663,7 @@ var (
 	_ Iterabler      = (*ReflectArray)(nil)
 	_ IndexGetSetter = (*ReflectArray)(nil)
 	_ LengthGetter   = (*ReflectArray)(nil)
+	_ Representer    = (*ReflectArray)(nil)
 )
 
 func (o *ReflectArray) Format(s fmt.State, verb rune) {
@@ -622,7 +681,7 @@ func (o *ReflectArray) ToString() string {
 }
 
 func (o *ReflectArray) IsFalsy() bool {
-	return o.v.Len() == 0
+	return o.RValue.Len() == 0
 }
 
 func (o *ReflectArray) IndexGet(vm *VM, index Object) (value Object, err error) {
@@ -642,11 +701,11 @@ func (o *ReflectArray) IndexGet(vm *VM, index Object) (value Object, err error) 
 		return nil, ErrUnexpectedArgValue.NewError("expected index types: int|uint")
 	}
 
-	if ix >= o.v.Len() {
+	if ix >= o.RValue.Len() {
 		return nil, ErrIndexOutOfBounds
 	}
 
-	return vm.ToObject(o.v.Index(ix).Interface())
+	return vm.ToObject(o.RValue.Index(ix).Interface())
 }
 
 func (o *ReflectArray) IndexSet(vm *VM, index, value Object) (err error) {
@@ -668,34 +727,61 @@ func (o *ReflectArray) IndexSet(vm *VM, index, value Object) (err error) {
 
 	var v reflect.Value
 	if rv, _ := value.(*ReflectValue); rv != nil {
-		v = rv.v
+		v = rv.RValue
 	} else {
 		v = reflect.ValueOf(vm.ToInterface(value))
 	}
 
-	if ix >= o.v.Len() {
+	if ix >= o.RValue.Len() {
 		return ErrIndexOutOfBounds
 	}
 
-	o.v.Index(ix).Set(v)
+	o.RValue.Index(ix).Set(v)
 	return
 }
 
 func (o *ReflectArray) Len() int {
-	return o.v.Len()
+	return o.RValue.Len()
 }
 
 func (o *ReflectArray) Iterate(*VM) Iterator {
-	return &ReflectArrayIterator{v: o.v, l: o.v.Len(), valuer: o.Options.ItValuer}
+	return &ReflectArrayIterator{v: o.RValue, l: o.RValue.Len(), valuer: o.Options.ItValuer}
 }
 
 func (o *ReflectArray) Copy() (obj Object) {
-	v := reflect.New(o.typ.typ).Elem()
-	reflect.Copy(v, o.v)
+	v := reflect.New(o.RType.RType).Elem()
+	reflect.Copy(v, o.RValue)
 	rv, _ := NewReflectValue(v.Interface())
-	rv.GetReflectValue().ptr = o.ptr
+	rv.GetRValue().ptr = o.ptr
 	obj = rv
 	return
+}
+
+func (o *ReflectArray) Repr(vm *VM) (_ string, err error) {
+	var w strings.Builder
+	w.WriteString(repr.QuotePrefix)
+	var (
+		rpr  = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
+		l    = o.RValue.Len()
+		rpro Object
+	)
+	w.WriteString(o.Type().Name())
+	w.WriteString(":[")
+	for i := 0; i < l; i++ {
+		if rpro, err = vm.ToObject(o.RValue.Index(i).Interface()); err != nil {
+			return
+		}
+		if rpro, err = rpr(rpro); err != nil {
+			return
+		}
+		if i > 0 {
+			w.WriteString(", ")
+		}
+		w.WriteString(rpro.ToString())
+	}
+	w.WriteString("]")
+	w.WriteString(repr.QuoteSufix)
+	return w.String(), nil
 }
 
 type ReflectSlice struct {
@@ -704,7 +790,7 @@ type ReflectSlice struct {
 
 func (o *ReflectSlice) Slice(low, high int) Object {
 	cp := *o
-	cp.v = cp.v.Slice(low, high)
+	cp.RValue = cp.RValue.Slice(low, high)
 	return &cp
 }
 
@@ -718,8 +804,8 @@ var (
 
 func (o *ReflectSlice) Append(vm *VM, items ...Object) (_ Object, err error) {
 	var (
-		itemType = o.typ.typ.Elem()
-		values   = reflect.MakeSlice(o.typ.typ, len(items), len(items))
+		itemType = o.RType.RType.Elem()
+		values   = reflect.MakeSlice(o.RType.RType, len(items), len(items))
 		itemV    reflect.Value
 	)
 
@@ -730,15 +816,15 @@ func (o *ReflectSlice) Append(vm *VM, items ...Object) (_ Object, err error) {
 		values.Index(i).Set(itemV)
 	}
 
-	v := reflect.AppendSlice(o.v, values)
+	v := reflect.AppendSlice(o.RValue, values)
 
 	if o.ptr {
-		o.v.Set(v)
+		o.RValue.Set(v)
 		return o, nil
 	}
 
 	cp := *o
-	cp.v = v
+	cp.RValue = v
 	return &cp, nil
 }
 
@@ -757,10 +843,10 @@ func (o *ReflectSlice) ToString() string {
 }
 
 func (o *ReflectSlice) Copy() (obj Object) {
-	v := reflect.MakeSlice(o.typ.typ, o.v.Len(), o.v.Len())
-	reflect.Copy(v, o.v)
+	v := reflect.MakeSlice(o.RType.RType, o.RValue.Len(), o.RValue.Len())
+	reflect.Copy(v, o.RValue)
 	rv, _ := NewReflectValue(v.Interface())
-	rv.GetReflectValue().ptr = o.ptr
+	rv.GetRValue().ptr = o.ptr
 	obj = rv
 	return
 }
@@ -773,6 +859,7 @@ var (
 	_ ReflectValuer = (*ReflectMap)(nil)
 	_ Iterabler     = (*ReflectMap)(nil)
 	_ Indexer       = (*ReflectMap)(nil)
+	_ Representer   = (*ReflectMap)(nil)
 )
 
 func (o *ReflectMap) Format(s fmt.State, verb rune) {
@@ -785,18 +872,54 @@ func (o *ReflectMap) Format(s fmt.State, verb rune) {
 	o.ReflectValue.Format(s, verb)
 }
 
+func (o *ReflectMap) Len() int {
+	return o.Value().Len()
+}
+
 func (o *ReflectMap) ToString() string {
 	return fmt.Sprintf("%s", o)
 }
 
+func (o *ReflectMap) Repr(vm *VM) (_ string, err error) {
+	var w strings.Builder
+	w.WriteString(repr.QuotePrefix)
+	var (
+		values   []string
+		rpr      = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
+		ko, rpro Object
+	)
+	for _, k := range o.RValue.MapKeys() {
+		if ko, err = NewReflectValue(k.Interface()); err != nil {
+			return
+		}
+		if ko, err = rpr(ko); err != nil {
+			return
+		}
+		if rpro, err = vm.ToObject(o.RValue.MapIndex(k).Interface()); err != nil {
+			return
+		}
+		if rpro, err = rpr(rpro); err != nil {
+			return
+		}
+		values = append(values, fmt.Sprintf("%s: %v", ko.ToString(), rpro.ToString()))
+	}
+	sort.Strings(values)
+	w.WriteString(o.Type().Name())
+	w.WriteString(":{")
+	w.WriteString(strings.Join(values, ", "))
+	w.WriteString("}")
+	w.WriteString(repr.QuoteSufix)
+	return w.String(), nil
+}
+
 func (o *ReflectMap) IndexDelete(vm *VM, index Object) (err error) {
-	o.v.SetMapIndex(reflect.ValueOf(vm.ToInterface(index)), reflect.Value{})
+	o.RValue.SetMapIndex(reflect.ValueOf(vm.ToInterface(index)), reflect.Value{})
 	return nil
 }
 
 func (o *ReflectMap) IndexGet(vm *VM, index Object) (value Object, err error) {
-	v := o.v.MapIndex(reflect.ValueOf(vm.ToInterface(index)))
-	if !v.IsValid() || v.IsNil() {
+	v := o.RValue.MapIndex(reflect.ValueOf(vm.ToInterface(index)))
+	if !v.IsValid() || mustIsNil(v) {
 		return Nil, nil
 	}
 	return vm.ToObject(v.Interface())
@@ -805,30 +928,30 @@ func (o *ReflectMap) IndexGet(vm *VM, index Object) (value Object, err error) {
 func (o *ReflectMap) IndexSet(vm *VM, index, value Object) (err error) {
 	var v reflect.Value
 	if rv, _ := value.(*ReflectValue); rv != nil {
-		v = rv.v
+		v = rv.RValue
 	} else {
 		v = reflect.ValueOf(vm.ToInterface(value))
 	}
 
-	o.v.SetMapIndex(reflect.ValueOf(vm.ToInterface(index)), v)
+	o.RValue.SetMapIndex(reflect.ValueOf(vm.ToInterface(index)), v)
 	return
 }
 
 func (o *ReflectMap) Iterate(*VM) Iterator {
-	return &ReflectMapIterator{v: o.v, keys: o.v.MapKeys()}
+	return &ReflectMapIterator{v: o.RValue, keys: o.RValue.MapKeys()}
 }
 
 func (o *ReflectMap) IsFalsy() bool {
-	return o.v.Len() == 0
+	return o.RValue.Len() == 0
 }
 
 func (o *ReflectMap) Copy() (obj Object) {
-	v := reflect.MakeMapWithSize(o.typ.typ, o.v.Len())
-	for _, k := range o.v.MapKeys() {
-		v.SetMapIndex(k, o.v.MapIndex(k))
+	v := reflect.MakeMapWithSize(o.RType.RType, o.RValue.Len())
+	for _, k := range o.RValue.MapKeys() {
+		v.SetMapIndex(k, o.RValue.MapIndex(k))
 	}
 	rv, _ := NewReflectValue(v.Interface())
-	rv.GetReflectValue().ptr = o.ptr
+	rv.GetRValue().ptr = o.ptr
 	obj = rv
 	return
 }
@@ -836,7 +959,13 @@ func (o *ReflectMap) Copy() (obj Object) {
 type ReflectStruct struct {
 	ReflectValue
 	fieldHandler         func(vm *VM, s *ReflectStruct, name string, v any) any
-	fallbackIndexHandler func(vm *VM, s *ReflectStruct, name string) (handled bool, value Object, err error)
+	fallbackIndexHandler func(vm *VM, s *ReflectStruct, name string) (handled bool, value any, err error)
+	Data                 Dict
+}
+
+func (r *ReflectStruct) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
+	fmt.Println("->", tok.String(), r.ToString(), right.ToString())
+	return Nil, nil
 }
 
 func (r *ReflectStruct) Iterate(vm *VM) Iterator {
@@ -847,16 +976,95 @@ var (
 	_ ReflectValuer  = (*ReflectStruct)(nil)
 	_ Iterabler      = (*ReflectStruct)(nil)
 	_ IndexGetSetter = (*ReflectStruct)(nil)
+	_ Representer    = (*ReflectStruct)(nil)
 )
+
+func (r *ReflectStruct) ToString() string {
+	i := r.ToInterface()
+	switch t := i.(type) {
+	case fmt.Stringer:
+		return t.String()
+	case fmt.Formatter:
+		return fmt.Sprintf("%v", t)
+	default:
+		if r.Options.ToStr == nil {
+			var (
+				values  []string
+				value   any
+				handled bool
+				err     error
+				w       strings.Builder
+			)
+			for _, name := range r.RType.FieldsNames {
+				if handled, value, err = r.SafeField(nil, name); err == nil && handled {
+					if !IsZero(value) {
+						var (
+							rv = reflect.ValueOf(value)
+							s  string
+						)
+						if rv.Kind() == reflect.String {
+							s = strconv.Quote(rv.String())
+						} else {
+							s = fmt.Sprint(value)
+						}
+						values = append(values, fmt.Sprintf("%s: %v", name, s))
+					}
+				}
+			}
+			sort.Strings(values)
+			w.WriteString("{")
+			w.WriteString(strings.Join(values, ", "))
+			w.WriteString("}")
+			return w.String()
+		}
+		return r.Options.ToStr()
+	}
+}
+
+func (r *ReflectStruct) Repr(vm *VM) (_ string, err error) {
+	var w strings.Builder
+	w.WriteString(repr.QuotePrefix)
+	var (
+		values  []string
+		value   any
+		handled bool
+		rpr     = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
+		rpro    Object
+	)
+	for _, name := range r.RType.FieldsNames {
+		if handled, value, err = r.SafeField(nil, name); err == nil && handled {
+			if !IsZero(value) {
+				if rpro, err = vm.ToObject(value); err != nil {
+					return
+				}
+				if rpro, err = rpr(rpro); err != nil {
+					return
+				}
+				values = append(values, fmt.Sprintf("%s: %v", name, rpro.ToString()))
+			}
+		}
+	}
+	sort.Strings(values)
+	w.WriteString(r.Type().Name())
+	w.WriteString(":{")
+	w.WriteString(strings.Join(values, ", "))
+	w.WriteString("}")
+	w.WriteString(repr.QuoteSufix)
+	return w.String(), nil
+}
 
 func (r *ReflectStruct) FieldHandler(handler func(vm *VM, s *ReflectStruct, name string, v any) any) *ReflectStruct {
 	r.fieldHandler = handler
 	return r
 }
 
-func (r *ReflectStruct) FalbackIndexHandler(handler func(vm *VM, s *ReflectStruct, name string) (handled bool, value Object, err error)) *ReflectStruct {
+func (r *ReflectStruct) FalbackIndexHandler(handler func(vm *VM, s *ReflectStruct, name string) (handled bool, value any, err error)) *ReflectStruct {
 	r.fallbackIndexHandler = handler
 	return r
+}
+
+func (r *ReflectStruct) CallName(name string, c Call) (Object, error) {
+	return r.CallNameOf(r, name, c)
 }
 
 func (r *ReflectStruct) IndexGet(vm *VM, index Object) (value Object, err error) {
@@ -864,25 +1072,50 @@ func (r *ReflectStruct) IndexGet(vm *VM, index Object) (value Object, err error)
 }
 
 func (r *ReflectStruct) IndexGetS(vm *VM, index string) (value Object, err error) {
-	if field := r.typ.fields[index]; field != nil {
-		v := r.v.FieldByIndex(field.f.Index).Interface()
-		if r.fieldHandler != nil {
-			v = r.fieldHandler(vm, r, index, v)
+	var (
+		vi      any
+		handled bool
+	)
+
+	if handled, vi, err = r.Field(vm, index); !handled && r.fallbackIndexHandler != nil {
+		handled, vi, err = r.fallbackIndexHandler(vm, r, index)
+	}
+
+	if err != nil {
+		return
+	}
+
+	if !handled {
+		return nil, ErrInvalidIndex.NewError(index)
+	}
+
+	if value, _ = vi.(Object); value != nil {
+		return value, nil
+	}
+	return vm.ToObject(vi)
+}
+
+func (r *ReflectStruct) Field(vm *VM, name string) (handled bool, value any, err error) {
+	if field := r.RType.RFields[name]; field != nil {
+		handled = true
+		value = r.RValue.FieldByIndex(field.Struct.Index).Interface()
+		if vm != nil && r.fieldHandler != nil {
+			value = r.fieldHandler(vm, r, name, value)
 		}
-		return vm.ToObject(v)
-	} else if m := r.typ.methods[index]; m != nil && m.m.Type.NumIn() == 1 {
-		_, err = r.callName(m, Call{VM: vm})
-	} else {
-		if r.fallbackIndexHandler != nil {
-			if handled, val, err := r.fallbackIndexHandler(vm, r, index); err != nil {
-				return nil, err
-			} else if handled {
-				return vm.ToObject(val)
-			}
-		}
-		err = ErrInvalidIndex.NewError(index)
 	}
 	return
+}
+
+func (r *ReflectStruct) SafeField(vm *VM, name string) (handled bool, value any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if err, _ = r.(error); err != nil {
+				return
+			}
+			err = errors.New(fmt.Sprint(r))
+		}
+	}()
+	return r.Field(vm, name)
 }
 
 func (r *ReflectStruct) IndexSet(vm *VM, index, value Object) (err error) {
@@ -899,12 +1132,12 @@ func (r *ReflectStruct) SetValues(vm *VM, values Dict) (err error) {
 }
 
 func (r *ReflectStruct) indexSet(vm *VM, index string, value Object) (err error) {
-	field := r.typ.fields[index]
+	field := r.RType.RFields[index]
 	if field != nil {
 		return r.SetFieldValue(vm, field, value)
 	}
 
-	if m := r.typ.methods["Set"+strings.ToUpper(index[0:1])+index[1:]]; m != nil && m.m.Type.NumIn() == 2 {
+	if m := r.RType.RMethods["Set"+strings.ToUpper(index[0:1])+index[1:]]; m != nil && m.Method.Type.NumIn() == 2 {
 		_, err = r.callName(m, Call{VM: vm, Args: Args{{value}}})
 		return
 	}
@@ -913,20 +1146,33 @@ func (r *ReflectStruct) indexSet(vm *VM, index string, value Object) (err error)
 	return
 }
 
-func (r *ReflectStruct) SetFieldValue(vm *VM, df *ReflectField, value Object) (err error) {
-	field := r.v.FieldByIndex(df.f.Index)
-	if value == Nil {
+func (r *ReflectStruct) SetField(vm *VM, index string, value any) (handled bool, err error) {
+	var field *ReflectField
+	field, handled = r.RType.RFields[index]
+
+	if handled {
+		err = r.SetFieldValue(vm, field, value)
+	}
+	return
+}
+
+func (r *ReflectStruct) SetFieldValue(vm *VM, df *ReflectField, value any) (err error) {
+	field := r.RValue.FieldByIndex(df.Struct.Index)
+	if value == nil || value == Nil {
 		field.Set(reflect.Zero(field.Type()))
 		return
 	} else {
 		var v reflect.Value
-		if rv, _ := value.(*ReflectValue); rv != nil {
-			v = rv.v
-		} else {
-			v = reflect.ValueOf(vm.ToInterface(value))
+		switch t := value.(type) {
+		case ReflectValuer:
+			v = t.Value()
+		case Object:
+			v = reflect.ValueOf(vm.ToInterface(t))
+		default:
+			v = reflect.ValueOf(t)
 		}
 
-		if df.ptr {
+		if df.IsPtr {
 			if !v.IsValid() {
 				field.Set(reflect.Zero(field.Type()))
 			} else if v.CanAddr() {
@@ -974,14 +1220,54 @@ func (r *ReflectStruct) SetFieldValue(vm *VM, df *ReflectField, value Object) (e
 }
 
 func (r *ReflectStruct) Copy() (obj Object) {
-	v := reflect.New(r.typ.typ)
-	v.Elem().Set(reflect.ValueOf(r.v.Interface()))
+	v := reflect.New(r.RType.RType)
+	v.Elem().Set(reflect.ValueOf(r.RValue.Interface()))
 	if r.ptr {
 		obj, _ = NewReflectValue(v.Interface())
 	} else {
 		obj, _ = NewReflectValue(v.Elem().Interface())
 	}
 	return
+}
+
+func (r *ReflectStruct) UserData() Indexer {
+	if r.Data != nil {
+		return r.Data
+	}
+	return &IndexProxy{
+		IndexGetProxy: IndexGetProxy{
+			It: func(vm *VM) Iterator {
+				if r.Data == nil {
+					return Dict{}.Iterate(vm)
+				}
+				return r.Data.Iterate(vm)
+			},
+			GetIndex: func(vm *VM, index Object) (value Object, err error) {
+				if r.Data == nil {
+					return nil, ErrInvalidIndex.NewError(index.ToString())
+				}
+				return r.Data.IndexGet(vm, index)
+			},
+		},
+		IndexDelProxy: IndexDelProxy{
+			Del: func(vm *VM, key Object) error {
+				if r.Data == nil {
+					return nil
+				}
+				delete(r.Data, key.ToString())
+				return nil
+			},
+		},
+		IndexSetProxy: IndexSetProxy{
+			Set: func(vm *VM, key, value Object) error {
+				if r.Data == nil {
+					r.Data = make(Dict)
+				}
+				r.Data.Set(key.ToString(), value)
+				return nil
+			},
+		},
+	}
 }
 
 //go:linkname canBeNil text/template.canBeNil
@@ -1000,7 +1286,7 @@ func mapToReflectStruct(vm *VM, indirectType reflect.Type, m Dict) (v reflect.Va
 	if err = s.SetValues(vm, m); err != nil {
 		return
 	}
-	return s.v.Addr(), nil
+	return s.RValue.Addr(), nil
 }
 
 // safeCall runs fun.Call(args), and returns the resulting value and error, if
@@ -1009,32 +1295,38 @@ func safeCall(fun reflect.Value, args []reflect.Value) (val reflect.Value, err e
 	defer func() {
 		if r := recover(); r != nil {
 			if e, ok := r.(error); ok {
-				e2 := ErrReflectCallPanicsType.NewError(fmt.Sprintf("%s: %v", fun, err))
+				trace := debug.Stack()
+				e2 := ErrReflectCallPanicsType.NewError(fmt.Sprintf("%s: %v\n%s", fun, err, string(trace)))
 				e2.Cause = e
 				err = e2
 			} else {
 				for _, arg := range args {
 					fmt.Println(arg.Type().String())
 				}
-				err = ErrReflectCallPanicsType.NewError(fmt.Sprintf("%s: %v", fun.Type(), r))
+				err = ErrReflectCallPanicsType.NewError(fmt.Sprintf("%v: %v", fun.Type(), r))
 			}
 		}
 	}()
 	ret := fun.Call(args)
-	switch len(ret) {
+	l := len(ret)
+	switch l {
 	case 0:
-	case 1:
-		if ret[0].Type() == errorType {
-			if !ret[0].IsNil() {
-				err = ret[0].Interface().(error)
+	default:
+		if ret[l-1].Type() == errorType {
+			if !mustIsNil(ret[l-1]) {
+				err = ret[l-1].Interface().(error)
 			}
-		} else {
-			val = ret[0]
+			ret = ret[:l-1]
+			l--
 		}
-	case 2:
-		val = ret[0]
-		if !ret[1].IsNil() {
-			err = ret[1].Interface().(error)
+		if l == 1 {
+			val = ret[0]
+		} else {
+			arr := make([]any, l)
+			val = reflect.ValueOf(arr)
+			for i, value := range ret {
+				val.Index(i).Set(value)
+			}
 		}
 	}
 	return

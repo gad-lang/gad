@@ -20,7 +20,7 @@ import (
 	. "github.com/gad-lang/gad/encoder"
 )
 
-var baz gad.Object = gad.String("baz")
+var baz gad.Object = gad.Str("baz")
 var testObjects = []gad.Object{
 	gad.Nil,
 	gad.Int(-1), gad.Int(0), gad.Int(1),
@@ -29,12 +29,12 @@ var testObjects = []gad.Object{
 	gad.Bool(true), gad.Bool(false),
 	gad.Float(0), gad.Float(1.2),
 	gad.DecimalZero, gad.DecimalFromFloat(gad.Float(1.2)),
-	gad.String(""), gad.String("abc"),
+	gad.Str(""), gad.Str("abc"),
 	gad.Bytes{}, gad.Bytes("foo"),
 	gad.ErrIndexOutOfBounds,
 	&gad.RuntimeError{Err: gad.ErrInvalidIndex},
 	gad.Dict{"key": &gad.Function{Name: "f"}},
-	&gad.SyncMap{Value: gad.Dict{"k": gad.String("")}},
+	&gad.SyncMap{Value: gad.Dict{"k": gad.Str("")}},
 	gad.Array{gad.Nil, gad.True, gad.False},
 	&time.Time{Value: gotime.Time{}},
 	&json.EncoderOptions{Value: gad.Int(1)},
@@ -112,7 +112,7 @@ return {
 
 	mmCopy := opts.ModuleMap.Copy()
 
-	bc, err := gad.Compile([]byte(src), opts)
+	bc, err := gad.Compile([]byte(src), gad.CompileOptions{CompilerOptions: opts})
 	require.NoError(t, err)
 
 	wantRet, err := gad.NewVM(bc).Run(nil)

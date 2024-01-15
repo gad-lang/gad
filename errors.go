@@ -6,6 +6,7 @@ package gad
 
 import (
 	"fmt"
+	"strings"
 )
 
 var (
@@ -102,6 +103,37 @@ func NewIndexTypeError(expectType, foundType string) *Error {
 func NewIndexValueTypeError(expectType, foundType string) *Error {
 	return ErrType.NewError(
 		fmt.Sprintf("index value type expected %s, found %s", expectType, foundType))
+}
+
+// NewArgumentTypeErrorT creates a new Error from ErrType.
+func NewArgumentTypeErrorT(pos string, foundType ObjectType, expectType ...ObjectType) *Error {
+	var et = make([]string, len(expectType))
+	for i, t := range expectType {
+		et[i] = t.ToString()
+	}
+	return ErrType.NewError(
+		fmt.Sprintf("invalid type for argument '%s': expected %s, found %s",
+			pos, strings.Join(et, "|"), foundType))
+}
+
+// NewIndexTypeErrorT creates a new Error from ErrType.
+func NewIndexTypeErrorT(foundType ObjectType, expectType ...ObjectType) *Error {
+	var et = make([]string, len(expectType))
+	for i, t := range expectType {
+		et[i] = t.ToString()
+	}
+	return ErrType.NewError(
+		fmt.Sprintf("index type expected %s, found %s", strings.Join(et, "|"), foundType))
+}
+
+// NewIndexValueTypeErrorT creates a new Error from ErrType.
+func NewIndexValueTypeErrorT(foundType ObjectType, expectType ...ObjectType) *Error {
+	var et = make([]string, len(expectType))
+	for i, t := range expectType {
+		et[i] = t.ToString()
+	}
+	return ErrType.NewError(
+		fmt.Sprintf("index value type expected %s, found %s", strings.Join(et, "|"), foundType))
 }
 
 func IsError(a, b error) *Error {

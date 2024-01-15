@@ -18,6 +18,9 @@ import (
 	"github.com/gad-lang/gad/internal/compat"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/parser/utils"
+	"github.com/gad-lang/gad/repr"
+	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -55,7 +58,7 @@ func (o Bool) Equal(right Object) bool {
 func (o Bool) IsFalsy() bool { return bool(!o) }
 
 // BinaryOp implements Object interface.
-func (o Bool) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o Bool) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	bval := Int(0)
 	if o {
 		bval = Int(1)
@@ -162,38 +165,73 @@ func (o Bool) Format(s fmt.State, verb rune) {
 	fmt.Fprintf(s, format, bool(o))
 }
 
-// RawString represents safe string values and implements Object interface.
-type RawString string
+type Flag bool
 
-var (
-	_ LengthGetter = RawString("")
-	_ ToWriter     = RawString("")
-)
-
-func (o RawString) Type() ObjectType {
-	return TText
+func (o Flag) Type() ObjectType {
+	return TFlag
 }
 
-func (o RawString) ToString() string {
+func (o Flag) ToString() string {
+	if o {
+		return "on"
+	}
+	return "off"
+}
+
+// Equal implements Object interface.
+func (o Flag) Equal(right Object) bool {
+	if v, ok := right.(Flag); ok {
+		return o == v
+	}
+	return Bool(o).Equal(right)
+}
+
+// IsFalsy implements Object interface.
+func (o Flag) IsFalsy() bool { return bool(!o) }
+
+func (o Flag) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
+	if v, ok := right.(Flag); ok {
+		right = Bool(v)
+	}
+	return Bool(o).BinaryOp(vm, tok, right)
+}
+
+// RawStr represents safe string values and implements Object interface.
+type RawStr string
+
+var (
+	_ LengthGetter = RawStr("")
+	_ ToWriter     = RawStr("")
+)
+
+func (o RawStr) Type() ObjectType {
+	return TRawStr
+}
+
+func (o RawStr) ToString() string {
 	return string(o)
 }
 
-func (o RawString) IsFalsy() bool {
+func (o RawStr) Repr(*VM) (string, error) {
+	return repr.Quote("rawstr:" + utils.Quote(string(o), '`')), nil
+}
+
+func (o RawStr) IsFalsy() bool {
 	return len(o) == 0
 }
 
-func (o RawString) Equal(right Object) bool {
-	if v, ok := right.(RawString); ok {
+func (o RawStr) Equal(right Object) bool {
+	if v, ok := right.(RawStr); ok {
 		return o == v
 	}
 	return false
 }
 
-func (o RawString) Iterate(*VM) Iterator {
-	return &StringIterator{V: String(o)}
+func (o RawStr) Iterate(*VM) Iterator {
+	return &StringIterator{V: Str(o)}
 }
 
-func (o RawString) IndexGet(_ *VM, index Object) (Object, error) {
+func (o RawStr) IndexGet(_ *VM, index Object) (Object, error) {
 	var idx int
 	switch v := index.(type) {
 	case Int:
@@ -212,22 +250,22 @@ func (o RawString) IndexGet(_ *VM, index Object) (Object, error) {
 }
 
 // BinaryOp implements Object interface.
-func (o RawString) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o RawStr) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
-	case String:
+	case Str:
 		switch tok {
 		case token.Add:
-			return o + RawString(v), nil
+			return o + RawStr(v), nil
 		case token.Less:
-			return Bool(o < RawString(v)), nil
+			return Bool(o < RawStr(v)), nil
 		case token.LessEq:
-			return Bool(o <= RawString(v)), nil
+			return Bool(o <= RawStr(v)), nil
 		case token.Greater:
-			return Bool(o > RawString(v)), nil
+			return Bool(o > RawStr(v)), nil
 		case token.GreaterEq:
-			return Bool(o >= RawString(v)), nil
+			return Bool(o >= RawStr(v)), nil
 		}
-	case RawString:
+	case RawStr:
 		switch tok {
 		case token.Add:
 			return o + v, nil
@@ -246,7 +284,7 @@ func (o RawString) BinaryOp(tok token.Token, right Object) (Object, error) {
 			var sb strings.Builder
 			sb.WriteString(string(o))
 			sb.Write(v)
-			return String(sb.String()), nil
+			return Str(sb.String()), nil
 		case token.Less:
 			return Bool(string(o) < string(v)), nil
 		case token.LessEq:
@@ -266,7 +304,7 @@ func (o RawString) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 
 	if tok == token.Add {
-		return o + RawString(right.ToString()), nil
+		return o + RawStr(right.ToString()), nil
 	}
 
 	return nil, NewOperandTypeError(
@@ -276,44 +314,48 @@ func (o RawString) BinaryOp(tok token.Token, right Object) (Object, error) {
 }
 
 // Len implements LengthGetter interface.
-func (o RawString) Len() int {
+func (o RawStr) Len() int {
 	return len(o)
 }
 
 // Format implements fmt.Formatter interface.
-func (o RawString) Format(s fmt.State, verb rune) {
+func (o RawStr) Format(s fmt.State, verb rune) {
 	format := compat.FmtFormatString(s, verb)
 	fmt.Fprintf(s, format, string(o))
 }
 
-func (o RawString) WriteTo(_ *VM, w io.Writer) (int64, error) {
+func (o RawStr) WriteTo(_ *VM, w io.Writer) (int64, error) {
 	n, err := w.Write([]byte(o))
 	return int64(n), err
 }
 
-// String represents string values and implements Object interface.
-type String string
+// Str represents string values and implements Object interface.
+type Str string
 
 var (
-	_ LengthGetter = String("")
-	_ ToWriter     = String("")
+	_ LengthGetter = Str("")
+	_ Representer  = Str("")
 )
 
-func (o String) Type() ObjectType {
+func (o Str) Type() ObjectType {
 	return DetectTypeOf(o)
 }
 
-func (o String) ToString() string {
+func (o Str) ToString() string {
 	return string(o)
 }
 
+func (o Str) Repr(*VM) (string, error) {
+	return repr.Quote("str:" + strconv.Quote(string(o))), nil
+}
+
 // Iterate implements Object interface.
-func (o String) Iterate(*VM) Iterator {
+func (o Str) Iterate(*VM) Iterator {
 	return &StringIterator{V: o}
 }
 
 // IndexGet represents string values and implements Object interface.
-func (o String) IndexGet(_ *VM, index Object) (Object, error) {
+func (o Str) IndexGet(_ *VM, index Object) (Object, error) {
 	var idx int
 	switch v := index.(type) {
 	case Int:
@@ -332,8 +374,8 @@ func (o String) IndexGet(_ *VM, index Object) (Object, error) {
 }
 
 // Equal implements Object interface.
-func (o String) Equal(right Object) bool {
-	if v, ok := right.(String); ok {
+func (o Str) Equal(right Object) bool {
+	if v, ok := right.(Str); ok {
 		return o == v
 	}
 	if v, ok := right.(Bytes); ok {
@@ -343,12 +385,12 @@ func (o String) Equal(right Object) bool {
 }
 
 // IsFalsy implements Object interface.
-func (o String) IsFalsy() bool { return len(o) == 0 }
+func (o Str) IsFalsy() bool { return len(o) == 0 }
 
 // BinaryOp implements Object interface.
-func (o String) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o Str) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
-	case String:
+	case Str:
 		switch tok {
 		case token.Add:
 			return o + v, nil
@@ -367,7 +409,7 @@ func (o String) BinaryOp(tok token.Token, right Object) (Object, error) {
 			var sb strings.Builder
 			sb.WriteString(string(o))
 			sb.Write(v)
-			return String(sb.String()), nil
+			return Str(sb.String()), nil
 		case token.Less:
 			return Bool(string(o) < string(v)), nil
 		case token.LessEq:
@@ -387,7 +429,7 @@ func (o String) BinaryOp(tok token.Token, right Object) (Object, error) {
 	}
 
 	if tok == token.Add {
-		return o + String(right.ToString()), nil
+		return o + Str(right.ToString()), nil
 	}
 
 	return nil, NewOperandTypeError(
@@ -397,19 +439,14 @@ func (o String) BinaryOp(tok token.Token, right Object) (Object, error) {
 }
 
 // Len implements LengthGetter interface.
-func (o String) Len() int {
+func (o Str) Len() int {
 	return len(o)
 }
 
 // Format implements fmt.Formatter interface.
-func (o String) Format(s fmt.State, verb rune) {
+func (o Str) Format(s fmt.State, verb rune) {
 	format := compat.FmtFormatString(s, verb)
 	fmt.Fprintf(s, format, string(o))
-}
-
-func (o String) WriteTo(_ *VM, w io.Writer) (int64, error) {
-	n, err := w.Write([]byte(o))
-	return int64(n), err
 }
 
 // Bytes represents byte slice and implements Object interface.
@@ -491,7 +528,7 @@ func (o Bytes) Equal(right Object) bool {
 		return string(o) == string(v)
 	}
 
-	if v, ok := right.(String); ok {
+	if v, ok := right.(Str); ok {
 		return string(o) == string(v)
 	}
 	return false
@@ -501,7 +538,7 @@ func (o Bytes) Equal(right Object) bool {
 func (o Bytes) IsFalsy() bool { return len(o) == 0 }
 
 // BinaryOp implements Object interface.
-func (o Bytes) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o Bytes) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Bytes:
 		switch tok {
@@ -518,7 +555,7 @@ func (o Bytes) BinaryOp(tok token.Token, right Object) (Object, error) {
 			cmp := bytes.Compare(o, v)
 			return Bool(cmp == 0 || cmp == 1), nil
 		}
-	case String:
+	case Str:
 		switch tok {
 		case token.Add:
 			return append(o, v...), nil
@@ -732,6 +769,7 @@ var (
 	_ Sorter                = Array{}
 	_ KeysGetter            = Array{}
 	_ ItemsGetter           = Array{}
+	_ Representer           = Array{}
 )
 
 func (o Array) Type() ObjectType {
@@ -747,6 +785,12 @@ func (o Array) Format(f fmt.State, verb rune) {
 
 func (o Array) ToString() string {
 	return ArrayToString(len(o), func(i int) Object {
+		return o[i]
+	})
+}
+
+func (o Array) Repr(vm *VM) (string, error) {
+	return ArrayRepr(o.Type().Name(), vm, len(o), func(i int) Object {
 		return o[i]
 	})
 }
@@ -771,19 +815,15 @@ func (o Array) Copy() Object {
 }
 
 // DeepCopy implements DeepCopier interface.
-func (o Array) DeepCopy() Object {
+func (o Array) DeepCopy(vm *VM) (_ Object, err error) {
 	cp := make(Array, len(o))
 	for i, v := range o {
-		switch t := v.(type) {
-		case DeepCopier:
-			cp[i] = t.DeepCopy()
-		case Copier:
-			cp[i] = t.Copy()
-		default:
-			cp[i] = v
+		if v, err = DeepCopy(vm, v); err != nil {
+			return
 		}
+		cp[i] = v
 	}
-	return cp
+	return cp, nil
 }
 
 // IndexSet implements Object interface.
@@ -849,19 +889,29 @@ func (o Array) Equal(right Object) bool {
 func (o Array) IsFalsy() bool { return len(o) == 0 }
 
 // BinaryOp implements Object interface.
-func (o Array) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o Array) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err error) {
 	switch tok {
 	case token.Add:
-		if v, ok := right.(Array); ok {
-			arr := make(Array, 0, len(o)+len(v))
+		var arr Array
+		switch t := right.(type) {
+		case Str, RawStr:
+			arr = make(Array, 0, len(o)+1)
 			arr = append(arr, o...)
-			arr = append(arr, v...)
-			return arr, nil
+			arr = append(arr, t)
+		case Iterabler:
+			var values Array
+			if values, err = ValuesOf(vm, t); err != nil {
+				return
+			}
+			arr = make(Array, 0, len(o)+len(values))
+			arr = append(arr, o...)
+			arr = append(arr, values...)
+		default:
+			arr = make(Array, 0, len(o)+1)
+			arr = append(arr, o...)
+			arr = append(arr, t)
 		}
 
-		arr := make(Array, 0, len(o)+1)
-		arr = append(arr, o...)
-		arr = append(arr, right)
 		return arr, nil
 	case token.Less, token.LessEq:
 		if right == Nil {
@@ -900,19 +950,19 @@ func (o Array) Keys() (arr Array) {
 	return arr
 }
 
-func (o Array) Items() (arr KeyValueArray) {
+func (o Array) Items(*VM) (arr KeyValueArray, _ error) {
 	arr = make(KeyValueArray, len(o))
 	for i, v := range o {
-		arr[i] = KeyValue{String(strconv.Itoa(i)), v}
+		arr[i] = &KeyValue{Str(strconv.Itoa(i)), v}
 	}
-	return arr
+	return arr, nil
 }
 
 func (o Array) Sort(vm *VM, less CallerObject) (_ Object, err error) {
 	if less == nil {
 		sort.Slice(o, func(i, j int) bool {
 			if bo, _ := o[i].(BinaryOperatorHandler); bo != nil {
-				v, e := bo.BinaryOp(token.Less, o[j])
+				v, e := bo.BinaryOp(vm, token.Less, o[j])
 				if e != nil && err == nil {
 					err = e
 					return false
@@ -943,10 +993,10 @@ func (o Array) Sort(vm *VM, less CallerObject) (_ Object, err error) {
 	return o, err
 }
 
-func (o Array) SortReverse() (_ Object, err error) {
+func (o Array) SortReverse(vm *VM) (_ Object, err error) {
 	sort.Slice(o, func(i, j int) bool {
 		if bo, _ := o[j].(BinaryOperatorHandler); bo != nil {
-			v, e := bo.BinaryOp(token.Less, o[i])
+			v, e := bo.BinaryOp(vm, token.Less, o[i])
 			if e != nil && err == nil {
 				err = e
 				return false
@@ -990,8 +1040,8 @@ func (o *ObjectPtr) Copy() Object {
 }
 
 // DeepCopy implements DeepCopier interface.
-func (o *ObjectPtr) DeepCopy() Object {
-	return o
+func (o *ObjectPtr) DeepCopy(*VM) (Object, error) {
+	return o, nil
 }
 
 // IsFalsy implements Object interface.
@@ -1005,12 +1055,12 @@ func (o *ObjectPtr) Equal(x Object) bool {
 }
 
 // BinaryOp implements Object interface.
-func (o *ObjectPtr) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o *ObjectPtr) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
 	if o.Value == nil {
 		return nil, errors.New("nil pointer")
 	}
 	if bo, _ := (*o.Value).(BinaryOperatorHandler); bo != nil {
-		return bo.BinaryOp(tok, right)
+		return bo.BinaryOp(vm, tok, right)
 	}
 	return nil, ErrInvalidOperator
 }
@@ -1042,6 +1092,7 @@ var (
 	_ KeysGetter   = Dict{}
 	_ ValuesGetter = Dict{}
 	_ ItemsGetter  = Dict{}
+	_ Representer  = Dict{}
 )
 
 func (o Dict) Type() ObjectType {
@@ -1074,10 +1125,14 @@ func (o Dict) ToString() string {
 	i := 0
 
 	for k := range o {
-		sb.WriteString(strconv.Quote(k))
+		if runehelper.IsIdentifierRunes([]rune(k)) {
+			sb.WriteString(k)
+		} else {
+			sb.WriteString(strconv.Quote(k))
+		}
 		sb.WriteString(": ")
 		switch v := o[k].(type) {
-		case String:
+		case Str:
 			sb.WriteString(strconv.Quote(v.ToString()))
 		case Char:
 			sb.WriteString(strconv.QuoteRune(rune(v)))
@@ -1096,6 +1151,40 @@ func (o Dict) ToString() string {
 	return sb.String()
 }
 
+func (o Dict) Repr(vm *VM) (_ string, err error) {
+	var (
+		keys  = o.SortedKeys()
+		last  = len(keys) - 1
+		sb    strings.Builder
+		do    = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
+		repro Object
+	)
+	sb.WriteString(repr.QuotePrefix)
+	sb.WriteString(o.Type().Name() + ":{")
+
+	for i, k := range keys {
+		k := string(k.(Str))
+		if repro, err = do(o[k]); err != nil {
+			return
+		}
+
+		if runehelper.IsIdentifierRunes([]rune(k)) {
+			sb.WriteString(k)
+		} else {
+			sb.WriteString(strconv.Quote(k))
+		}
+		sb.WriteString(": ")
+		sb.WriteString(repro.ToString())
+		if i != last {
+			sb.WriteString(", ")
+		}
+	}
+
+	sb.WriteString("}")
+	sb.WriteString(repr.QuoteSufix)
+	return sb.String(), nil
+}
+
 // Copy implements Copier interface.
 func (o Dict) Copy() Object {
 	cp := make(Dict, len(o))
@@ -1106,19 +1195,14 @@ func (o Dict) Copy() Object {
 }
 
 // DeepCopy implements DeepCopier interface.
-func (o Dict) DeepCopy() Object {
+func (o Dict) DeepCopy(vm *VM) (_ Object, err error) {
 	cp := make(Dict, len(o))
 	for k, v := range o {
-		switch t := v.(type) {
-		case DeepCopier:
-			cp[k] = t.DeepCopy()
-		case Copier:
-			cp[k] = t.Copy()
-		default:
-			cp[k] = v
+		if cp[k], err = DeepCopy(vm, v); err != nil {
+			return
 		}
 	}
-	return cp
+	return cp, nil
 }
 
 // IndexSet implements Object interface.
@@ -1163,13 +1247,56 @@ func (o Dict) Equal(right Object) bool {
 func (o Dict) IsFalsy() bool { return len(o) == 0 }
 
 // BinaryOp implements Object interface.
-func (o Dict) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o Dict) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err error) {
 	if right == Nil {
 		switch tok {
 		case token.Less, token.LessEq:
 			return False, nil
 		case token.Greater, token.GreaterEq:
 			return True, nil
+		}
+	} else {
+		switch tok {
+		case token.Add:
+			if Iterable(right) {
+				var (
+					it  = right.(Iterabler).Iterate(vm)
+					val Object
+				)
+				for it.Next() {
+					if val, err = it.Value(); err != nil {
+						return
+					}
+					o[it.Key().ToString()] = val
+				}
+				return o, nil
+			}
+		case token.Sub:
+			switch t := right.(type) {
+			case Array:
+				for _, key := range t {
+					delete(o, key.ToString())
+				}
+				return o, nil
+			case Dict:
+				for key := range t {
+					delete(o, key)
+				}
+				return o, nil
+			case KeyValueArray:
+				for _, kv := range t {
+					delete(o, kv.K.ToString())
+				}
+				return o, nil
+			default:
+				if Iterable(right) {
+					var it = right.(Iterabler).Iterate(vm)
+					for it.Next() {
+						delete(o, it.Key().ToString())
+					}
+					return o, nil
+				}
+			}
 		}
 	}
 
@@ -1200,16 +1327,16 @@ func (o Dict) Len() int {
 	return len(o)
 }
 
-func (o Dict) Items() KeyValueArray {
+func (o Dict) Items(*VM) (KeyValueArray, error) {
 	var (
 		arr = make(KeyValueArray, len(o))
 		i   int
 	)
 	for key, value := range o {
-		arr[i] = KeyValue{String(key), value}
+		arr[i] = &KeyValue{Str(key), value}
 		i++
 	}
-	return arr
+	return arr, nil
 }
 
 func (o Dict) Keys() Array {
@@ -1218,7 +1345,7 @@ func (o Dict) Keys() Array {
 		i   int
 	)
 	for key := range o {
-		arr[i] = String(key)
+		arr[i] = Str(key)
 		i++
 	}
 	return arr
@@ -1240,6 +1367,13 @@ func (o Dict) Values() Array {
 		i++
 	}
 	return arr
+}
+
+func (o *Dict) Set(key string, value Object) {
+	if *o == nil {
+		*o = Dict{}
+	}
+	(*o)[key] = value
 }
 
 // SyncMap represents map of objects and implements Object interface.
@@ -1310,13 +1444,17 @@ func (o *SyncMap) Copy() Object {
 }
 
 // DeepCopy implements DeepCopier interface.
-func (o *SyncMap) DeepCopy() Object {
+func (o *SyncMap) DeepCopy(vm *VM) (v Object, err error) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
-	return &SyncMap{
-		Value: o.Value.DeepCopy().(Dict),
+	if v, err = o.Value.DeepCopy(vm); err != nil {
+		return
 	}
+
+	return &SyncMap{
+		Value: v.(Dict),
+	}, nil
 }
 
 // IndexSet implements Object interface.
@@ -1388,17 +1526,17 @@ func (o *SyncMap) IndexDelete(vm *VM, key Object) error {
 }
 
 // BinaryOp implements Object interface.
-func (o *SyncMap) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o *SyncMap) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
-	return o.Value.BinaryOp(tok, right)
+	return o.Value.BinaryOp(vm, tok, right)
 }
 
-func (o *SyncMap) Items() KeyValueArray {
+func (o *SyncMap) Items(vm *VM) (KeyValueArray, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	return o.Value.Items()
+	return o.Value.Items(vm)
 }
 
 func (o *SyncMap) Keys() Array {
@@ -1470,11 +1608,11 @@ func (o *Error) IsFalsy() bool { return true }
 func (o *Error) IndexGet(_ *VM, index Object) (Object, error) {
 	s := index.ToString()
 	if s == "Literal" {
-		return String(o.Name), nil
+		return Str(o.Name), nil
 	}
 
 	if s == "Message" {
-		return String(o.Message), nil
+		return Str(o.Message), nil
 	}
 
 	if s == "New" {
@@ -1789,9 +1927,118 @@ func (i *IndexGetProxy) ToInterface() any {
 	return i.InterfaceValue
 }
 
+type IndexSetProxy struct {
+	Set func(vm *VM, key, value Object) error
+}
+
+func (s *IndexSetProxy) IndexSet(vm *VM, index, value Object) error {
+	return s.Set(vm, index, value)
+}
+
+type IndexDelProxy struct {
+	Del func(vm *VM, key Object) error
+}
+
+func (p *IndexDelProxy) IndexDelete(vm *VM, key Object) error {
+	return p.Del(vm, key)
+}
+
+type IndexProxy struct {
+	IndexGetProxy
+	IndexSetProxy
+	IndexDelProxy
+}
+
+// BinaryOp implements Object interface.
+func (o *IndexProxy) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err error) {
+	if right == Nil {
+		switch tok {
+		case token.Less, token.LessEq:
+			return False, nil
+		case token.Greater, token.GreaterEq:
+			return True, nil
+		}
+	} else {
+		switch tok {
+		case token.Add:
+			if Iterable(right) {
+				var (
+					it  = right.(Iterabler).Iterate(vm)
+					val Object
+				)
+				for it.Next() {
+					if val, err = it.Value(); err != nil {
+						return
+					}
+					if err = o.Set(vm, it.Key(), val); err != nil {
+						return
+					}
+				}
+				return o, nil
+			}
+		case token.Sub:
+			switch t := right.(type) {
+			case Array:
+				for _, key := range t {
+					if err = o.Del(vm, key); err != nil {
+						return
+					}
+				}
+				return o, nil
+			case Dict:
+				for key := range t {
+					if err = o.Del(vm, Str(key)); err != nil {
+						return
+					}
+				}
+				return o, nil
+			case KeyValueArray:
+				for _, kv := range t {
+					if err = o.Del(vm, kv.K); err != nil {
+						return
+					}
+				}
+				return o, nil
+			default:
+				if Iterable(right) {
+					var it = right.(Iterabler).Iterate(vm)
+					for it.Next() {
+						if err = o.Del(vm, it.Key()); err != nil {
+							return
+						}
+					}
+					return o, nil
+				}
+			}
+		}
+	}
+
+	return nil, NewOperandTypeError(
+		tok.String(),
+		o.Type().Name(),
+		right.Type().Name())
+}
+
+func (o *IndexProxy) Items(vm *VM) (arr KeyValueArray, err error) {
+	if o.It == nil {
+		return KeyValueArray{}, nil
+	}
+	var (
+		it  = o.It(vm)
+		val Object
+	)
+	for it.Next() {
+		if val, err = it.Value(); err != nil {
+			return
+		}
+		arr = append(arr, &KeyValue{it.Key(), val})
+	}
+	return
+}
+
 func StringIndexGetProxy(handler func(vm *VM, index string) (value Object, err error)) *IndexGetProxy {
 	return &IndexGetProxy{GetIndex: func(vm *VM, index Object) (value Object, err error) {
-		if s, ok := index.(String); !ok {
+		if s, ok := index.(Str); !ok {
 			return nil, ErrInvalidIndex
 		} else {
 			return handler(vm, string(s))

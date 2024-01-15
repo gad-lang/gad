@@ -72,7 +72,7 @@ func (o *scanArg) IndexGet(_ *gad.VM, index gad.Object) (gad.Object, error) {
 func (o *scanArg) Set(scanned bool) { o.ok = scanned }
 
 func newScanArgFunc(c gad.Call) (gad.Object, error) {
-	typ := "string"
+	typ := "str"
 	if c.Args.Len() > 0 {
 		v := c.Args.Get(0)
 	do:
@@ -89,7 +89,7 @@ func newScanArgFunc(c gad.Call) (gad.Object, error) {
 	}
 	var scan scanArg
 	switch typ {
-	case "string":
+	case "str":
 		scan.argValue = &stringType{}
 	case "int":
 		scan.argValue = &intType{}
@@ -120,7 +120,7 @@ func (st *stringType) Arg() any {
 }
 
 func (st *stringType) Value() gad.Object {
-	return gad.String(st.v)
+	return gad.Str(st.v)
 }
 
 type bytesType struct {
@@ -180,7 +180,7 @@ func (dt *decimalType) Arg() any {
 }
 
 func (dt *decimalType) Value() gad.Object {
-	return gad.MustDecimalFromString(gad.String(dt.v))
+	return gad.MustDecimalFromString(gad.Str(dt.v))
 }
 
 type charType struct {

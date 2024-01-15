@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gad-lang/gad/parser"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gad-lang/gad/tests"
@@ -117,7 +118,7 @@ func concatInsts(insts ...[]byte) []byte {
 
 func TestCompiler_CompilePipe(t *testing.T) {
 	expectCompile(t, `"a".|filter`, bytecode(
-		Array{String("a")},
+		Array{Str("a")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFilter)),
 			makeInst(OpConstant, 0),
@@ -140,7 +141,7 @@ func TestCompiler_CompilePipe(t *testing.T) {
 			withLocals(1)),
 	))
 	expectCompile(t, `global (a, x); a.|filter(x)`, bytecode(
-		Array{String("a"), String("x")},
+		Array{Str("a"), Str("x")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFilter)),
 			makeInst(OpGetGlobal, 0),
@@ -152,7 +153,7 @@ func TestCompiler_CompilePipe(t *testing.T) {
 			withLocals(0)),
 	))
 	expectCompile(t, `global (a, x); a.|map(x)`, bytecode(
-		Array{String("a"), String("x")},
+		Array{Str("a"), Str("x")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinMap)),
 			makeInst(OpGetGlobal, 0),
@@ -164,7 +165,7 @@ func TestCompiler_CompilePipe(t *testing.T) {
 			withLocals(0)),
 	))
 	expectCompile(t, `global (a, x); a.|reduce(x)`, bytecode(
-		Array{String("a"), String("x")},
+		Array{Str("a"), Str("x")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinReduce)),
 			makeInst(OpGetGlobal, 0),
@@ -296,7 +297,7 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 
 func TestCompiler_Mixed(t *testing.T) {
 	expectCompileMixed(t, "# gad: writer=myfn\n#{- var myfn -} a", bytecode(
-		Array{RawString("a")},
+		Array{RawStr("a")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -308,7 +309,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompileMixed(t, `a#{=1}c`, bytecode(
-		Array{RawString("a"), Int(1), RawString("c")},
+		Array{RawStr("a"), Int(1), RawStr("c")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
 			makeInst(OpConstant, 0),
@@ -320,7 +321,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompileMixed(t, `a#{=1}c#{x := 5}#{=x}`, bytecode(
-		Array{RawString("a"), Int(1), RawString("c"), Int(5)},
+		Array{RawStr("a"), Int(1), RawStr("c"), Int(5)},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
 			makeInst(OpConstant, 0),
@@ -337,7 +338,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed, writer=myfn\n#{ var myfn -} a", bytecode(
-		Array{RawString("a")},
+		Array{RawStr("a")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -349,7 +350,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin} a #{end}", bytecode(
-		Array{RawString(" a ")},
+		Array{RawStr(" a ")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -358,7 +359,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end}", bytecode(
-		Array{RawString("a")},
+		Array{RawStr("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -367,7 +368,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end; return a}", bytecode(
-		Array{RawString("a")},
+		Array{RawStr("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -377,7 +378,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end}#{return a}", bytecode(
-		Array{RawString("a")},
+		Array{RawStr("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -387,7 +388,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 
 	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end} b #{return a}", bytecode(
-		Array{RawString("a"), RawString(" b ")},
+		Array{RawStr("a"), RawStr(" b ")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -514,13 +515,13 @@ func TestCompiler_Compile(t *testing.T) {
 		),
 	))
 	expectCompile(t, `global a`, bytecode(
-		Array{String("a")},
+		Array{Str("a")},
 		compFunc(concatInsts(
 			makeInst(OpReturn, 0),
 		)),
 	))
 	expectCompile(t, `global (a, b); var c`, bytecode(
-		Array{String("a"), String("b")},
+		Array{Str("a"), Str("b")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -530,7 +531,7 @@ func TestCompiler_Compile(t *testing.T) {
 		),
 	))
 	expectCompile(t, `param (arg1, *varg); global (a, b); var c = arg1; c = b`, bytecode(
-		Array{String("a"), String("b")},
+		Array{Str("a"), Str("b")},
 		compFunc(concatInsts(
 			makeInst(OpGetLocal, 0),
 			makeInst(OpDefineLocal, 2),
@@ -612,6 +613,24 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{},
 		compFunc(concatInsts(
 			makeInst(OpFalse),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, `yes`, bytecode(
+		Array{},
+		compFunc(concatInsts(
+			makeInst(OpYes),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, `no`, bytecode(
+		Array{},
+		compFunc(concatInsts(
+			makeInst(OpNo),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -705,6 +724,38 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
+	expectCompile(t, `yes == no`, bytecode(
+		Array{},
+		compFunc(concatInsts(
+			makeInst(OpYes),
+			makeInst(OpNo),
+			makeInst(OpEqual),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, `yes != no`, bytecode(
+		Array{},
+		compFunc(concatInsts(
+			makeInst(OpYes),
+			makeInst(OpNo),
+			makeInst(OpNotEqual),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, `return yes != no`, bytecode(
+		Array{},
+		compFunc(concatInsts(
+			makeInst(OpYes),
+			makeInst(OpNo),
+			makeInst(OpNotEqual),
+			makeInst(OpReturn, 1),
+		)),
+	))
+
 	expectCompile(t, `-1`, bytecode(
 		Array{Int(1)},
 		compFunc(concatInsts(
@@ -724,6 +775,17 @@ func TestCompiler_Compile(t *testing.T) {
 			makeInst(OpReturn, 0),
 		)),
 	))
+
+	expectCompile(t, `!yes`, bytecode(
+		Array{},
+		compFunc(concatInsts(
+			makeInst(OpYes),
+			makeInst(OpUnary, int(token.Not)),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
 	// `if true` => skips else
 	expectCompile(t, `if true { 10 }; 3333`, bytecode(
 		Array{Int(10), Int(3333)},
@@ -831,7 +893,7 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 
 	expectCompile(t, `"string"`, bytecode(
-		Array{String("string")},
+		Array{Str("string")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpPop),
@@ -840,7 +902,7 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 
 	expectCompile(t, `"str" + "ing"`, bytecode(
-		Array{String("str"), String("ing")},
+		Array{Str("str"), Str("ing")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
@@ -975,7 +1037,7 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 
 	expectCompile(t, `{a: 2, b: 4, c: 6}`, bytecode(
-		Array{String("a"), Int(2), String("b"), Int(4), String("c"), Int(6)},
+		Array{Str("a"), Int(2), Str("b"), Int(4), Str("c"), Int(6)},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
@@ -990,7 +1052,7 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 
 	expectCompile(t, `{a: 2 + 3, b: 5 * 6}`, bytecode(
-		Array{String("a"), Int(2), Int(3), String("b"), Int(5), Int(6)},
+		Array{Str("a"), Int(2), Int(3), Str("b"), Int(5), Int(6)},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
@@ -1023,7 +1085,7 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 
 	expectCompile(t, `{a: 2}[2 - 1]`, bytecode(
-		Array{String("a"), Int(2), Int(1)},
+		Array{Str("a"), Int(2), Int(1)},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
@@ -2030,7 +2092,7 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 
 	expectCompile(t, `try { a:=0; throw "an error" } catch { }`, bytecode(
-		Array{Int(0), String("an error")},
+		Array{Int(0), Str("an error")},
 		compFunc(concatInsts(
 			makeInst(OpSetupTry, 18, 20), // 0000
 			makeInst(OpConstant, 0),      // 0005
@@ -2166,9 +2228,9 @@ func TestCompiler_Compile(t *testing.T) {
 	moduleMap := NewModuleMap()
 	moduleMap.AddSourceModule("mod", []byte(``))
 	expectCompileWithOpts(t, `import("mod")`,
-		CompilerOptions{
+		CompileOptions{CompilerOptions: CompilerOptions{
 			ModuleMap: moduleMap,
-		},
+		}},
 		bytecode(
 			Array{
 				compFunc(concatInsts(
@@ -2192,12 +2254,12 @@ func TestCompiler_Compile(t *testing.T) {
 	moduleMap = NewModuleMap()
 	moduleMap.AddBuiltinModule("mod", Dict{})
 	expectCompileWithOpts(t, `import("mod")`,
-		CompilerOptions{
+		CompileOptions{CompilerOptions: CompilerOptions{
 			ModuleMap: moduleMap,
-		},
+		}},
 		bytecode(
 			Array{
-				Dict{AttrModuleName: String("mod")},
+				Dict{AttrModuleName: Str("mod")},
 			},
 			compFunc(concatInsts(
 				makeInst(OpLoadModule, 0, 0), // 0000 constant, module indexes
@@ -2290,7 +2352,7 @@ func TestCompiler_Compile(t *testing.T) {
 
 	expectCompile(t, `var a; return a["b"]`,
 		bytecode(
-			Array{String("b")},
+			Array{Str("b")},
 			compFunc(concatInsts(
 				makeInst(OpNull),
 				makeInst(OpDefineLocal, 0),
@@ -2306,7 +2368,7 @@ func TestCompiler_Compile(t *testing.T) {
 
 	expectCompile(t, `var a; return a["b"]["c"][2]`,
 		bytecode(
-			Array{String("b"), String("c"), Int(2)},
+			Array{Str("b"), Str("c"), Int(2)},
 			compFunc(concatInsts(
 				makeInst(OpNull),
 				makeInst(OpDefineLocal, 0),
@@ -2353,8 +2415,8 @@ func TestCompiler_Compile(t *testing.T) {
 }
 
 func TestCompilerFor(t *testing.T) {
-	expectCompile(t, `var r = ""; for x in [] { r += string(x) } else { r += "@"}; r+="#"; return r`, bytecode(
-		Array{String(""), String("@"), String("#")},
+	expectCompile(t, `var r = ""; for x in [] { r += str(x) } else { r += "@"}; r+="#"; return r`, bytecode(
+		Array{Str(""), Str("@"), Str("#")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
@@ -2370,7 +2432,7 @@ func TestCompilerFor(t *testing.T) {
 			makeInst(OpIterValue),
 			makeInst(OpDefineLocal, 2),
 			makeInst(OpGetLocal, 0),
-			makeInst(OpGetBuiltin, int(BuiltinString)),
+			makeInst(OpGetBuiltin, int(BuiltinStr)),
 			makeInst(OpGetLocal, 2),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpBinaryOp, int(token.Add)),
@@ -2394,9 +2456,9 @@ func TestCompilerFor(t *testing.T) {
 func TestCompilerNullishSelector(t *testing.T) {
 	expectCompile(t, `var a; (a["I"+"DX"])?.d`, bytecode(
 		Array{
-			String("I"),  // 1
-			String("DX"), // 2
-			String("d"),  // 3
+			Str("I"),  // 1
+			Str("DX"), // 2
+			Str("d"),  // 3
 		},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -2416,7 +2478,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 		)))
 
 	expectCompile(t, `var a; a?.b["c"]?.d.e?.f.g`, bytecode(
-		Array{String("b"), String("c"), String("d"), String("e"), String("f"), String("g")},
+		Array{Str("b"), Str("c"), Str("d"), Str("e"), Str("f"), Str("g")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -2444,7 +2506,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 	// a?.b.c.d.e.f.g
 	// true
 	expectCompile(t, `var a; a?.b.c?.d.e?.f.g`, bytecode(
-		Array{String("b"), String("c"), String("d"), String("e"), String("f"), String("g")},
+		Array{Str("b"), Str("c"), Str("d"), Str("e"), Str("f"), Str("g")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -2471,7 +2533,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 		)))
 
 	expectCompile(t, `var a; a?.b.c`, bytecode(
-		Array{String("b"), String("c")},
+		Array{Str("b"), Str("c")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -2488,7 +2550,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 		)))
 
 	expectCompile(t, `var a; a?.b`, bytecode(
-		Array{String("b")},
+		Array{Str("b")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -2503,7 +2565,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 		)))
 
 	expectCompile(t, `var a; a?.b.c`, bytecode(
-		Array{String("b"), String("c")},
+		Array{Str("b"), Str("c")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -2520,7 +2582,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 		)))
 
 	expectCompile(t, `var a; a?.b?.c`, bytecode(
-		Array{String("b"), String("c")},
+		Array{Str("b"), Str("c")},
 		compFunc(concatInsts(
 			makeInst(OpNull),
 			makeInst(OpDefineLocal, 0),
@@ -2539,9 +2601,9 @@ func TestCompilerNullishSelector(t *testing.T) {
 
 	expectCompile(t, `var a; a.("I"+"DX")?.d`, bytecode(
 		Array{
-			String("I"),
-			String("DX"),
-			String("d"),
+			Str("I"),
+			Str("DX"),
+			Str("d"),
 		},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -2562,9 +2624,9 @@ func TestCompilerNullishSelector(t *testing.T) {
 
 	expectCompile(t, `var a; a?.("I"+"DX")?.d`, bytecode(
 		Array{
-			String("I"),
-			String("DX"),
-			String("d"),
+			Str("I"),
+			Str("DX"),
+			Str("d"),
 		},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -2586,8 +2648,8 @@ func TestCompilerNullishSelector(t *testing.T) {
 
 	expectCompile(t, `var (a, k = "b"); a?.(k)?.c`, bytecode(
 		Array{
-			String("b"),
-			String("c"),
+			Str("b"),
+			Str("c"),
 		},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -2609,12 +2671,12 @@ func TestCompilerNullishSelector(t *testing.T) {
 
 	expectCompile(t, `var a; a?.("I"+"DX")?.d.e?.f.g`, bytecode(
 		Array{
-			String("I"),
-			String("DX"),
-			String("d"),
-			String("e"),
-			String("f"),
-			String("g"),
+			Str("I"),
+			Str("DX"),
+			Str("d"),
+			Str("e"),
+			Str("f"),
+			Str("g"),
 		},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -2643,12 +2705,12 @@ func TestCompilerNullishSelector(t *testing.T) {
 
 	expectCompile(t, `var (a, b); a?.("" || "b")?.d.e?.(b ?? "f").g`, bytecode(
 		Array{
-			String(""),
-			String("b"),
-			String("d"),
-			String("e"),
-			String("f"),
-			String("g"),
+			Str(""),
+			Str("b"),
+			Str("d"),
+			Str("e"),
+			Str("f"),
+			Str("g"),
 		},
 		compFunc(concatInsts(
 			makeInst(OpNull),
@@ -2910,11 +2972,11 @@ func f0(i:int) {
 
 func expectCompileError(t *testing.T, script string, errStr string) {
 	t.Helper()
-	expectCompileErrorWithOpts(t, script, CompilerOptions{}, errStr)
+	expectCompileErrorWithOpts(t, script, CompileOptions{}, errStr)
 }
 
 func expectCompileErrorWithOpts(t *testing.T,
-	script string, opts CompilerOptions, errStr string) {
+	script string, opts CompileOptions, errStr string) {
 
 	t.Helper()
 	_, err := Compile([]byte(script), opts)
@@ -2924,17 +2986,17 @@ func expectCompileErrorWithOpts(t *testing.T,
 
 func expectCompile(t *testing.T, script string, expected *Bytecode) {
 	t.Helper()
-	expectCompileWithOpts(t, script, CompilerOptions{}, expected)
+	expectCompileWithOpts(t, script, CompileOptions{}, expected)
 }
 
 func expectCompileMixed(t *testing.T, script string, expected *Bytecode) {
 	t.Helper()
-	expectCompileWithOpts(t, script, CompilerOptions{Mixed: true}, expected)
+	expectCompileWithOpts(t, script, CompileOptions{ParserOptions: parser.ParserOptions{Mode: parser.ParseMixed}}, expected)
 }
 
 // SourceMap comparison is ignored if it is nil.
 func expectCompileWithOpts(t *testing.T,
-	script string, opts CompilerOptions, expected *Bytecode) {
+	script string, opts CompileOptions, expected *Bytecode) {
 
 	t.Helper()
 	got, err := Compile([]byte(script), opts)

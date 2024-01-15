@@ -19,8 +19,8 @@ func TestToInterface(t *testing.T) {
 		{object: nil, want: nil},
 		{object: Nil, want: nil},
 		{object: Int(1), want: int64(1)},
-		{object: String(""), want: ""},
-		{object: String("a"), want: "a"},
+		{object: Str(""), want: ""},
+		{object: Str("a"), want: "a"},
 		{object: Bytes(nil), want: []byte(nil)},
 		{object: Bytes(""), want: []byte{}},
 		{object: Bytes("a"), want: []byte{'a'}},
@@ -62,7 +62,7 @@ func TestToObject(t *testing.T) {
 		wantErr bool
 	}{
 		{iface: nil, want: Nil},
-		{iface: "a", want: String("a")},
+		{iface: "a", want: Str("a")},
 		{iface: int64(-1), want: Int(-1)},
 		{iface: int32(-1), want: Int(-1)},
 		{iface: int16(-1), want: Int(-1)},
@@ -87,7 +87,7 @@ func TestToObject(t *testing.T) {
 		{iface: []Object(nil), want: Array{}},
 		{iface: []Object{Int(1), Char('a')}, want: Array{Int(1), Char('a')}},
 		{iface: Object(nil), want: Nil},
-		{iface: String("a"), want: String("a")},
+		{iface: Str("a"), want: Str("a")},
 		{iface: CallableFunc(nil), want: Nil},
 		{iface: fn, want: &Function{Value: fn}},
 		{iface: err, want: &Error{Message: err.Error(), Cause: err}},

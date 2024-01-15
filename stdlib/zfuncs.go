@@ -21,6 +21,22 @@ func FuncPORO(fn func(gad.Object) gad.Object) gad.CallableFunc {
 	}
 }
 
+// FuncPpVM_ORO is a generated function to make gad.CallableFunc.
+// Source: func(vm *gad.VM, o gad.Object) (ret gad.Object)
+func FuncPpVM_ORO(fn func(*gad.VM, gad.Object) gad.Object) gad.CallableFunc {
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return gad.Nil, err
+		}
+
+		vm := c.VM
+		o := c.Args.Get(0)
+
+		ret = fn(vm, o)
+		return
+	}
+}
+
 // FuncPiRO is a generated function to make gad.CallableFunc.
 // Source: func(i1 int) (ret gad.Object)
 func FuncPiRO(fn func(int) gad.Object) gad.CallableFunc {
@@ -86,7 +102,7 @@ func FuncPsROe(fn func(string) (gad.Object, error)) gad.CallableFunc {
 
 		s, ok := gad.ToGoString(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "string", c.Args.Get(0).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "str", c.Args.Get(0).Type().Name())
 		}
 
 		ret, err = fn(s)
@@ -104,7 +120,7 @@ func FuncPsiRO(fn func(string, int) gad.Object) gad.CallableFunc {
 
 		s, ok := gad.ToGoString(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "string", c.Args.Get(0).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "str", c.Args.Get(0).Type().Name())
 		}
 		i1, ok := gad.ToGoInt(c.Args.Get(1))
 		if !ok {
@@ -169,25 +185,26 @@ func FuncPb2RO(fn func([]byte) gad.Object) gad.CallableFunc {
 	}
 }
 
-// FuncPOssRO is a generated function to make gad.CallableFunc.
-// Source: func(o gad.Object, s1 string, s2 string) (ret gad.Object)
-func FuncPOssRO(fn func(gad.Object, string, string) gad.Object) gad.CallableFunc {
+// FuncPpVM_OssRO is a generated function to make gad.CallableFunc.
+// Source: func(vm *gad.VM, o gad.Object, s1 string, s2 string) (ret gad.Object)
+func FuncPpVM_OssRO(fn func(*gad.VM, gad.Object, string, string) gad.Object) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
 		if err := c.Args.CheckLen(3); err != nil {
 			return gad.Nil, err
 		}
 
+		vm := c.VM
 		o := c.Args.Get(0)
 		s1, ok := gad.ToGoString(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", c.Args.Get(1).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "str", c.Args.Get(1).Type().Name())
 		}
 		s2, ok := gad.ToGoString(c.Args.Get(2))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", c.Args.Get(2).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "str", c.Args.Get(2).Type().Name())
 		}
 
-		ret = fn(o, s1, s2)
+		ret = fn(vm, o, s1, s2)
 		return
 	}
 }
@@ -228,11 +245,11 @@ func FuncPb2ssRO(fn func([]byte, string, string) gad.Object) gad.CallableFunc {
 		}
 		s1, ok := gad.ToGoString(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", c.Args.Get(1).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "str", c.Args.Get(1).Type().Name())
 		}
 		s2, ok := gad.ToGoString(c.Args.Get(2))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", c.Args.Get(2).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "str", c.Args.Get(2).Type().Name())
 		}
 
 		ret = fn(p, s1, s2)
@@ -250,11 +267,11 @@ func FuncPssRO(fn func(string, string) gad.Object) gad.CallableFunc {
 
 		s1, ok := gad.ToGoString(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "string", c.Args.Get(0).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "str", c.Args.Get(0).Type().Name())
 		}
 		s2, ok := gad.ToGoString(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", c.Args.Get(1).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "str", c.Args.Get(1).Type().Name())
 		}
 
 		ret = fn(s1, s2)
@@ -272,7 +289,7 @@ func FuncPsRO(fn func(string) gad.Object) gad.CallableFunc {
 
 		s, ok := gad.ToGoString(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "string", c.Args.Get(0).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "str", c.Args.Get(0).Type().Name())
 		}
 
 		ret = fn(s)
@@ -290,7 +307,7 @@ func FuncPsrRO(fn func(string, rune) gad.Object) gad.CallableFunc {
 
 		s, ok := gad.ToGoString(c.Args.Get(0))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("1st", "string", c.Args.Get(0).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("1st", "str", c.Args.Get(0).Type().Name())
 		}
 		r, ok := gad.ToGoRune(c.Args.Get(1))
 		if !ok {
@@ -316,7 +333,7 @@ func FuncPAsRO(fn func(gad.Array, string) gad.Object) gad.CallableFunc {
 		}
 		s, ok := gad.ToGoString(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", c.Args.Get(1).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "str", c.Args.Get(1).Type().Name())
 		}
 
 		ret = fn(arr, s)
@@ -338,11 +355,11 @@ func FuncPAssRO(fn func(gad.Array, string, string) gad.Object) gad.CallableFunc 
 		}
 		s1, ok := gad.ToGoString(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", c.Args.Get(1).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "str", c.Args.Get(1).Type().Name())
 		}
 		s2, ok := gad.ToGoString(c.Args.Get(2))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", c.Args.Get(2).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "str", c.Args.Get(2).Type().Name())
 		}
 
 		ret = fn(arr, s1, s2)

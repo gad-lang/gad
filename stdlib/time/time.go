@@ -116,7 +116,7 @@ func (o *Time) Equal(right gad.Object) bool {
 // Note that, `int` values as duration must be the right hand side operand.
 
 // BinaryOp implements gad.Object interface.
-func (o *Time) BinaryOp(tok token.Token,
+func (o *Time) BinaryOp(_ *gad.VM, tok token.Token,
 	right gad.Object) (gad.Object, error) {
 
 	switch v := right.(type) {
@@ -187,9 +187,9 @@ func (o *Time) BinaryOp(tok token.Token,
 
 // IndexGet implements gad.Object interface.
 func (o *Time) IndexGet(_ *gad.VM, index gad.Object) (gad.Object, error) {
-	v, ok := index.(gad.String)
+	v, ok := index.(gad.Str)
 	if !ok {
-		return gad.Nil, gad.NewIndexTypeError("string", index.Type().Name())
+		return gad.Nil, gad.NewIndexTypeError("str", index.Type().Name())
 	}
 
 	// For simplicity, we use method call for now. As getters are deprecated, we
@@ -313,7 +313,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		format, ok := gad.ToGoString(c.Args.Get(0))
 		if !ok {
-			return newArgTypeErr("1st", "string", c.Args.Get(0).Type().Name())
+			return newArgTypeErr("1st", "str", c.Args.Get(0).Type().Name())
 		}
 		return timeFormat(o, format), nil
 	},
@@ -327,7 +327,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 		}
 		format, ok := gad.ToGoString(c.Args.Get(1))
 		if !ok {
-			return newArgTypeErr("2nd", "string", c.Args.Get(1).Type().Name())
+			return newArgTypeErr("2nd", "str", c.Args.Get(1).Type().Name())
 		}
 		return timeAppendFormat(o, b, format), nil
 	},
@@ -489,7 +489,7 @@ var methodTable = map[string]func(*Time, *gad.Call) (gad.Object, error){
 			return gad.Nil, err
 		}
 		name, offset := o.Value.Zone()
-		return gad.Dict{"name": gad.String(name), "offset": gad.Int(offset)}, nil
+		return gad.Dict{"name": gad.Str(name), "offset": gad.Int(offset)}, nil
 	},
 }
 
@@ -544,7 +544,7 @@ func timeBefore(t1, t2 *Time) gad.Object {
 }
 
 func timeFormat(t *Time, layout string) gad.Object {
-	return gad.String(t.Value.Format(layout))
+	return gad.Str(t.Value.Format(layout))
 }
 
 func timeAppendFormat(t *Time, b []byte, layout string) gad.Object {

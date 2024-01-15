@@ -8,10 +8,12 @@ import (
 )
 
 func (vm *VM) loop() {
+	var op Opcode
 VMLoop:
 	for atomic.LoadInt64(&vm.abort) == 0 {
 		vm.ip++
-		switch vm.curInsts[vm.ip] {
+		op = Opcode(vm.curInsts[vm.ip])
+		switch op {
 		case OpConstant:
 			cidx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			obj := vm.constants[cidx]
@@ -48,7 +50,7 @@ VMLoop:
 
 			switch left := left.(type) {
 			case BinaryOperatorHandler:
-				value, err = left.BinaryOp(tok, right)
+				value, err = left.BinaryOp(vm, tok, right)
 			default:
 				err = ErrInvalidOperator
 			}
@@ -126,7 +128,7 @@ VMLoop:
 			switch left := left.(type) {
 			case Int:
 				vm.stack[vm.sp-2] = Bool(!left.Equal(right))
-			case String:
+			case Str:
 				vm.stack[vm.sp-2] = Bool(!left.Equal(right))
 			case Float:
 				vm.stack[vm.sp-2] = Bool(!left.Equal(right))
@@ -146,6 +148,12 @@ VMLoop:
 			vm.sp++
 		case OpFalse:
 			vm.stack[vm.sp] = False
+			vm.sp++
+		case OpYes:
+			vm.stack[vm.sp] = Yes
+			vm.sp++
+		case OpNo:
+			vm.stack[vm.sp] = No
 			vm.sp++
 		case OpCall:
 			err := vm.xOpCall()
@@ -193,7 +201,7 @@ VMLoop:
 			vm.curInsts = vm.curFrame.fn.Instructions
 		case OpGetBuiltin:
 			builtinIndex := BuiltinType(int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8)
-			vm.stack[vm.sp] = vm.Builtins[builtinIndex]
+			vm.stack[vm.sp] = vm.Builtins.Objects[builtinIndex]
 			vm.sp++
 			vm.ip += 2
 		case OpClosure:
@@ -242,7 +250,7 @@ VMLoop:
 				falsy = obj.IsFalsy()
 			case Float:
 				falsy = obj.IsFalsy()
-			case String:
+			case Str:
 				falsy = obj.IsFalsy()
 			default:
 				falsy = obj.IsFalsy()
@@ -331,7 +339,7 @@ VMLoop:
 			for i := vm.sp - numItems; i < vm.sp; i += 2 {
 				key := vm.stack[i]
 				value := vm.stack[i+1]
-				kv[j] = KeyValue{key, value}
+				kv[j] = &KeyValue{key, value}
 				vm.stack[i] = nil
 				vm.stack[i+1] = nil
 				j++

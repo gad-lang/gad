@@ -15,13 +15,13 @@ import (
 type Eval struct {
 	Locals []Object
 	*RunOpts
-	Opts         CompilerOptions
+	Opts         CompileOptions
 	VM           *VM
 	ModulesCache []Object
 }
 
 // NewEval returns new Eval object.
-func NewEval(opts CompilerOptions, runOpts ...*RunOpts) *Eval {
+func NewEval(opts CompileOptions, runOpts ...*RunOpts) *Eval {
 	var runopts *RunOpts
 	for _, runopts = range runOpts {
 	}
@@ -32,7 +32,7 @@ func NewEval(opts CompilerOptions, runOpts ...*RunOpts) *Eval {
 		runopts.Globals = Dict{}
 	}
 	if opts.SymbolTable == nil {
-		opts.SymbolTable = NewSymbolTable(BuiltinsMap)
+		opts.SymbolTable = NewSymbolTable(NewBuiltins())
 	}
 	if opts.moduleStore == nil {
 		opts.moduleStore = newModuleStore()
@@ -104,9 +104,10 @@ func (r *Eval) run(ctx context.Context) (ret Object, err error) {
 
 // fixOpPop changes OpPop and OpReturn Opcodes to force VM to return last value on top of stack.
 func (*Eval) fixOpPop(bytecode *Bytecode) {
-	var prevOp byte
-	var lastOp byte
-	var fixPos int
+	var (
+		prevOp, lastOp Opcode
+		fixPos         int
+	)
 
 	IterateInstructions(bytecode.Main.Instructions,
 		func(pos int, opcode Opcode, operands []int, offset int) bool {
@@ -125,7 +126,7 @@ func (*Eval) fixOpPop(bytecode *Bytecode) {
 	)
 
 	if fixPos > 0 {
-		bytecode.Main.Instructions[fixPos] = OpNoOp // overwrite OpPop
-		bytecode.Main.Instructions[fixPos+2] = 1    // set number of return to 1
+		bytecode.Main.Instructions[fixPos] = byte(OpNoOp) // overwrite OpPop
+		bytecode.Main.Instructions[fixPos+2] = 1          // set number of return to 1
 	}
 }

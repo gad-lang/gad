@@ -70,14 +70,15 @@ func (b *BuiltinObjType) String() string {
 
 var (
 	TNil,
+	TFlag,
 	TBool,
 	TInt,
 	TUint,
 	TFloat,
 	TDecimal,
 	TChar,
-	TText,
-	TString,
+	TRawStr,
+	TStr,
 	TBytes,
 	TBuffer,
 	TArray,
@@ -135,23 +136,57 @@ func init() {
 	TNil = RegisterBuiltinType(BuiltinNil, "nil", Nil, func(call Call) (ret Object, err error) {
 		return Nil, nil
 	})
+	TFlag = RegisterBuiltinType(BuiltinFlag, "flag", Yes, funcPORO(BuiltinFlagFunc))
 	TBool = RegisterBuiltinType(BuiltinBool, "bool", True, funcPORO(BuiltinBoolFunc))
 	TInt = RegisterBuiltinType(BuiltinInt, "int", Int(0), funcPi64RO(BuiltinIntFunc))
 	TUint = RegisterBuiltinType(BuiltinUint, "uint", Uint(0), funcPu64RO(BuiltinUintFunc))
 	TFloat = RegisterBuiltinType(BuiltinFloat, "float", Float(0), funcPf64RO(BuiltinFloatFunc))
-	TDecimal = RegisterBuiltinType(BuiltinDecimal, "decimal", Decimal{}, funcPOROe(BuiltinDecimalFunc))
+	TDecimal = RegisterBuiltinType(BuiltinDecimal, "decimal", Decimal{}, funcPpVM_OROe(BuiltinDecimalFunc))
 	TChar = RegisterBuiltinType(BuiltinChar, "char", Char(0), funcPOROe(BuiltinCharFunc))
-	TText = RegisterBuiltinType(BuiltinText, "text", RawString(""), BuiltinTextFunc)
-	TString = RegisterBuiltinType(BuiltinString, "string", String(""), BuiltinStringFunc)
+	TRawStr = RegisterBuiltinType(BuiltinRawStr, "rawstr", RawStr(""), BuiltinRawStrFunc)
+	TStr = RegisterBuiltinType(BuiltinStr, "str", Str(""), BuiltinStringFunc)
 	TBytes = RegisterBuiltinType(BuiltinBytes, "bytes", Bytes{}, BuiltinBytesFunc)
 	TBuffer = RegisterBuiltinType(BuiltinBuffer, "buffer", Buffer{}, BuiltinBufferFunc)
 	TArray = RegisterBuiltinType(BuiltinArray, "array", Array{}, func(c Call) (ret Object, err error) {
 		return c.Args.Values(), nil
 	})
-	TDict = RegisterBuiltinType(BuiltinDict, "dict", Dict{}, func(Call) (ret Object, err error) {
-		return Dict{}, nil
+	TDict = RegisterBuiltinType(BuiltinDict, "dict", Dict{}, func(c Call) (ret Object, err error) {
+		d := Dict{}
+		c.Args.Walk(func(_ int, arg Object) any {
+			switch t := arg.(type) {
+			case KeyValueArray:
+				var v Object
+				for _, value := range t {
+					v = value.V
+					if v != No {
+						d[value.K.ToString()] = v
+					}
+				}
+			default:
+				if Iterable(arg) {
+					it := arg.(Iterabler).Iterate(c.VM)
+					for it.Next() {
+						if d[it.Key().ToString()], err = it.Value(); err != nil {
+							return err
+						}
+					}
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return
+		}
+		if len(d) == 0 {
+			d = c.NamedArgs.AllDict()
+		} else {
+			for k, v := range c.NamedArgs.AllDict() {
+				d[k] = v
+			}
+		}
+		return d, nil
 	})
-	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncMap{}, BuiltinSyncMapFunc)
+	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncMap{}, BuiltinSyncDictFunc)
 	TKeyValue = RegisterBuiltinType(BuiltinKeyValue, "keyValue", KeyValue{}, BuiltinKeyValueFunc)
 	TKeyValueArray = RegisterBuiltinType(BuiltinKeyValueArray, "keyValueArray", KeyValueArray{}, BuiltinKeyValueArrayFunc)
 	TError = RegisterBuiltinType(BuiltinError, "error", Error{}, funcPORO(BuiltinErrorFunc))

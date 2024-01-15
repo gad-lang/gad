@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/token"
 	"github.com/shopspring/decimal"
 )
@@ -129,20 +130,32 @@ func BuiltinDeleteFunc(c Call) (_ Object, err error) {
 	return Nil, target.Value.(IndexDeleter).IndexDelete(c.VM, key.Value)
 }
 
-func BuiltinCopyFunc(arg Object) Object {
-	if v, ok := arg.(Copier); ok {
-		return v.Copy()
+func BuiltinCopyFunc(c Call) (_ Object, err error) {
+	if err = c.Args.CheckLen(1); err != nil {
+		return
 	}
-	return arg
+
+	switch t := c.Args.GetOnly(0).(type) {
+	case Copier:
+		return t.Copy(), nil
+	default:
+		return t, nil
+	}
 }
 
-func BuiltinDeepCopyFunc(arg Object) Object {
-	if v, ok := arg.(DeepCopier); ok {
-		return v.DeepCopy()
-	} else if v, ok := arg.(Copier); ok {
-		return v.Copy()
+func BuiltinDeepCopyFunc(c Call) (_ Object, err error) {
+	if err = c.Args.CheckLen(1); err != nil {
+		return
 	}
-	return arg
+
+	switch t := c.Args.GetOnly(0).(type) {
+	case DeepCopier:
+		return t.DeepCopy(c.VM)
+	case Copier:
+		return t.Copy(), nil
+	default:
+		return t, nil
+	}
 }
 
 func BuiltinRepeatFunc(arg Object, count int) (ret Object, err error) {
@@ -161,8 +174,8 @@ func BuiltinRepeatFunc(arg Object, count int) (ret Object, err error) {
 			out = append(out, v...)
 		}
 		ret = out
-	case String:
-		ret = String(strings.Repeat(string(v), count))
+	case Str:
+		ret = Str(strings.Repeat(string(v), count))
 	case Bytes:
 		ret = Bytes(bytes.Repeat(v, count))
 	default:
@@ -191,7 +204,7 @@ func BuiltinContainsFunc(arg0, arg1 Object) (Object, error) {
 		}
 	case *NamedArgs:
 		ok = obj.Contains(arg1.ToString())
-	case String:
+	case Str:
 		ok = strings.Contains(string(obj), arg1.ToString())
 	case Bytes:
 		switch v := arg1.(type) {
@@ -201,7 +214,7 @@ func BuiltinContainsFunc(arg0, arg1 Object) (Object, error) {
 			ok = bytes.Contains(obj, []byte{byte(v)})
 		case Char:
 			ok = bytes.Contains(obj, []byte{byte(v)})
-		case String:
+		case Str:
 			ok = bytes.Contains(obj, []byte(v))
 		case Bytes:
 			ok = bytes.Contains(obj, v)
@@ -246,12 +259,12 @@ func BuiltinSortFunc(vm *VM, arg Object, less CallerObject) (ret Object, err err
 	switch obj := arg.(type) {
 	case Sorter:
 		ret, err = obj.Sort(vm, less)
-	case String:
+	case Str:
 		s := []rune(obj)
 		sort.Slice(s, func(i, j int) bool {
 			return s[i] < s[j]
 		})
-		ret = String(s)
+		ret = Str(s)
 	case Bytes:
 		sort.Slice(obj, func(i, j int) bool {
 			return obj[i] < obj[j]
@@ -273,13 +286,13 @@ func BuiltinSortFunc(vm *VM, arg Object, less CallerObject) (ret Object, err err
 func BuiltinSortReverseFunc(vm *VM, arg Object, less CallerObject) (Object, error) {
 	switch obj := arg.(type) {
 	case ReverseSorter:
-		return obj.SortReverse()
-	case String:
+		return obj.SortReverse(vm)
+	case Str:
 		s := []rune(obj)
 		sort.Slice(s, func(i, j int) bool {
 			return s[j] < s[i]
 		})
-		return String(s), nil
+		return Str(s), nil
 	case Bytes:
 		sort.Slice(obj, func(i, j int) bool {
 			return obj[j] < obj[i]
@@ -332,33 +345,17 @@ func BuiltinFilterFunc(c Call) (_ Object, err error) {
 	}
 
 	var (
-		it  = iterabler.Value.(Iterabler).Iterate(c.VM)
-		fe  = NewForEach(it, args, 0, caller)
-		ret Array
+		it     = iterabler.Value.(Iterabler).Iterate(c.VM)
+		fe     = NewForEach(it, args, 0, caller)
+		ret    Array
+		result Object
 	)
 
-	if itl, _ := it.(LengthIterator); itl != nil {
-		ret = make(Array, itl.Length())
-		var (
-			i  int
-			ok Object
-		)
-		for fe.Next() {
-			if ok, err = fe.Call(); err != nil {
-				return
-			} else if !ok.IsFalsy() {
-				ret[i] = fe.Value
-			}
-			i++
-		}
-	} else {
-		var ok Object
-		for fe.Next() {
-			if ok, err = fe.Call(); err != nil {
-				return
-			} else if !ok.IsFalsy() {
-				ret = append(ret, fe.Value)
-			}
+	for fe.Next() {
+		if result, err = fe.Call(); err != nil {
+			return
+		} else if !result.IsFalsy() {
+			ret = append(ret, fe.Value)
 		}
 	}
 
@@ -383,17 +380,18 @@ func BuiltinMapFunc(c Call) (_ Object, err error) {
 		}
 
 		update = &NamedArgVar{
-			Name:          "update",
-			Value:         False,
-			TypeAssertion: TypeAssertionFromTypes(TBool),
+			Name:  "update",
+			Value: False,
 		}
+
+		canUpdate bool
 	)
 
 	if err = c.NamedArgs.Get(update); err != nil {
 		return
 	}
 
-	if update.Value.(Bool) {
+	if canUpdate = !update.Value.IsFalsy(); canUpdate {
 		iterabler.AcceptHandler("IndexSetter", func(v Object) bool {
 			_, ok := v.(IndexSetter)
 			return ok
@@ -422,7 +420,7 @@ func BuiltinMapFunc(c Call) (_ Object, err error) {
 		fe = NewForEach(it, args, 0, caller)
 	)
 
-	if update.Value.(Bool) {
+	if !canUpdate {
 		indexSetter := iterabler.Value.(IndexSetter)
 		for fe.Next() {
 			if fe.Value, err = fe.Call(); err != nil {
@@ -488,13 +486,17 @@ func BuiltinEachFunc(c Call) (_ Object, err error) {
 	}
 
 	var (
-		it = iterabler.Value.(Iterabler).Iterate(c.VM)
-		fe = NewForEach(it, args, 0, caller)
+		it  = iterabler.Value.(Iterabler).Iterate(c.VM)
+		fe  = NewForEach(it, args, 0, caller)
+		val Object
 	)
 
 	for fe.Next() {
-		if _, err = fe.Call(); err != nil {
+		if val, err = fe.Call(); err != nil {
 			return
+		}
+		if val == False {
+			break
 		}
 	}
 
@@ -592,61 +594,15 @@ func BuiltinReduceFunc(c Call) (_ Object, err error) {
 	return val, nil
 }
 
-func BuiltinForEachFunc(c Call) (_ Object, err error) {
-	var (
-		iterabler = &Arg{
-			Name: "iterable",
-			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
-				"iterable": Iterable,
-			}),
-		}
-
-		callback = &Arg{
-			Name: "callback",
-			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
-				"callable": Callable,
-			}),
-		}
-	)
-
-	if err = c.Args.Destructure(iterabler, callback); err != nil {
-		return
-	}
-
-	var (
-		args   = Array{Nil, Nil}
-		caller VMCaller
-	)
-
-	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
-		return
-	}
-
-	var (
-		it = iterabler.Value.(Iterabler).Iterate(c.VM)
-		fe = NewForEach(it, args, 0, caller)
-	)
-
-	var val Object
-	for fe.Next() {
-		if val, err = fe.Call(); err != nil {
-			return
-		}
-		if val == False {
-			break
-		}
-	}
-
-	return iterabler.Value, nil
-}
-
 func BuiltinErrorFunc(arg Object) Object {
 	return &Error{Name: "error", Message: arg.ToString()}
 }
 
-func BuiltinTypeNameFunc(arg Object) Object { return String(arg.Type().Name()) }
+func BuiltinTypeNameFunc(arg Object) Object { return Str(arg.Type().Name()) }
 
 func BuiltinBoolFunc(arg Object) Object { return Bool(!arg.IsFalsy()) }
+
+func BuiltinFlagFunc(arg Object) Object { return Flag(!arg.IsFalsy()) }
 
 func BuiltinIntFunc(v int64) Object { return Int(v) }
 
@@ -654,8 +610,8 @@ func BuiltinUintFunc(v uint64) Object { return Uint(v) }
 
 func BuiltinFloatFunc(v float64) Object { return Float(v) }
 
-func BuiltinDecimalFunc(v Object) (Object, error) {
-	return Decimal(decimal.Zero).BinaryOp(token.Add, v)
+func BuiltinDecimalFunc(vm *VM, v Object) (Object, error) {
+	return Decimal(decimal.Zero).BinaryOp(vm, token.Add, v)
 }
 
 func BuiltinCharFunc(arg Object) (Object, error) {
@@ -673,20 +629,27 @@ func BuiltinCharFunc(arg Object) (Object, error) {
 	)
 }
 
-func BuiltinTextFunc(c Call) (ret Object, err error) {
+func BuiltinRawStrFunc(c Call) (ret Object, err error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return Nil, err
 	}
 
 	o := c.Args.Get(0)
 
-	if ts, _ := o.(ToStringer); ts != nil {
-		var s String
-		s, err = ts.Stringer(c)
-		ret = RawString(s)
-	} else {
-		ret = RawString(o.ToString())
+	if rs, ok := o.(RawStr); ok {
+		return rs, nil
 	}
+
+	if ret, err = c.VM.Builtins.Call(BuiltinStr, c); err != nil {
+		return
+	}
+
+	if c.NamedArgs.GetValue("cast").IsFalsy() {
+		ret = c.VM.ToRawStrHandler(c.VM, ret.(Str))
+	} else {
+		ret = RawStr(ret.(Str))
+	}
+
 	return
 }
 
@@ -701,12 +664,12 @@ func BuiltinStringFunc(c Call) (ret Object, err error) {
 		if ts, _ := o.(ToStringer); ts != nil {
 			return ts.Stringer(c)
 		}
-		ret = String(o.ToString())
+		ret = Str(o.ToString())
 	default:
 		var (
 			b          strings.Builder
 			callerArgs = Array{nil}
-			caller     = NewArgCaller(c.VM, c.VM.Builtins[BuiltinString].(CallerObject), callerArgs, c.NamedArgs)
+			caller     = NewArgCaller(c.VM, c.VM.Builtins.Objects[BuiltinStr].(CallerObject), callerArgs, c.NamedArgs)
 		)
 		c.Args.Walk(func(i int, arg Object) any {
 			callerArgs[0] = arg
@@ -714,12 +677,12 @@ func BuiltinStringFunc(c Call) (ret Object, err error) {
 			if s, err = caller(); err != nil {
 				return err
 			}
-			b.WriteString(string(s.(String)))
+			b.WriteString(string(s.(Str)))
 			return nil
 		})
 
 		if err == nil {
-			ret = String(b.String())
+			ret = Str(b.String())
 		}
 	}
 	return
@@ -761,7 +724,7 @@ func BuiltinBytesFunc(c Call) (Object, error) {
 
 func BuiltinCharsFunc(arg Object) (ret Object, err error) {
 	switch obj := arg.(type) {
-	case String:
+	case Str:
 		s := string(obj)
 		ret = make(Array, 0, utf8.RuneCountInString(s))
 		sz := len(obj)
@@ -859,7 +822,7 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 	if convert == nil {
 		c.Args.Walk(func(i int, arg Object) any {
 			switch t := arg.(type) {
-			case RawString:
+			case RawStr:
 				n, err = w.Write([]byte(t))
 				total += Int(n)
 			default:
@@ -890,7 +853,7 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 
 		c.Args.Walk(func(i int, arg Object) any {
 			switch t := arg.(type) {
-			case RawString:
+			case RawStr:
 				n, err = w.Write([]byte(t))
 				total += Int(n)
 			default:
@@ -970,7 +933,7 @@ func BuiltinPrintlnFunc(c Call) (ret Object, err error) {
 
 		var (
 			callerArgs = Array{nil}
-			caller     = NewArgCaller(c.VM, c.VM.Builtins[BuiltinString].(CallerObject), callerArgs, c.NamedArgs)
+			caller     = NewArgCaller(c.VM, c.VM.Builtins.Objects[BuiltinStr].(CallerObject), callerArgs, c.NamedArgs)
 			s          Object
 			n2         int
 		)
@@ -1007,14 +970,14 @@ func BuiltinSprintfFunc(c Call) (ret Object, err error) {
 	case 0:
 		err = ErrWrongNumArguments.NewError("want>=1 got=0")
 	case 1:
-		ret = String(c.Args.Get(0).ToString())
+		ret = Str(c.Args.Get(0).ToString())
 	default:
 		format, _ := c.Args.ShiftOk()
 		vargs := make([]any, 0, size-1)
 		for i := 0; i < size-1; i++ {
 			vargs = append(vargs, c.Args.Get(i))
 		}
-		ret = String(fmt.Sprintf(format.ToString(), vargs...))
+		ret = Str(fmt.Sprintf(format.ToString(), vargs...))
 	}
 	return
 }
@@ -1117,8 +1080,13 @@ func BuiltinIsBoolFunc(arg Object) Object {
 	return Bool(ok)
 }
 
-func BuiltinIsStringFunc(arg Object) Object {
-	_, ok := arg.(String)
+func BuiltinIsStrFunc(arg Object) Object {
+	_, ok := arg.(Str)
+	return Bool(ok)
+}
+
+func BuiltinIsRawStrFunc(arg Object) Object {
+	_, ok := arg.(RawStr)
 	return Bool(ok)
 }
 
@@ -1225,7 +1193,7 @@ func BuiltinItemsFunc(c Call) (_ Object, err error) {
 	var arr KeyValueArray
 	switch v := c.Args.Get(0).(type) {
 	case ItemsGetter:
-		arr = v.Items()
+		arr, err = v.Items(c.VM)
 	default:
 		if Iterable(v) {
 			var (
@@ -1236,21 +1204,21 @@ func BuiltinItemsFunc(c Call) (_ Object, err error) {
 				if v, err = it.Value(); err != nil {
 					return nil, err
 				}
-				arr = append(arr, KeyValue{it.Key(), v})
+				arr = append(arr, &KeyValue{it.Key(), v})
 			}
 		}
 	}
-	return arr, nil
+	return arr, err
 }
 
 func BuiltinKeyValueFunc(c Call) (ret Object, err error) {
 	if err := c.Args.CheckLen(2); err != nil {
 		return nil, err
 	}
-	return KeyValue{c.Args.Get(0), c.Args.Get(1)}, nil
+	return &KeyValue{c.Args.Get(0), c.Args.Get(1)}, nil
 }
 
-func BuiltinKeyValueArrayFunc(c Call) (Object, error) {
+func BuiltinKeyValueArrayFunc(c Call) (_ Object, err error) {
 	var (
 		arr        KeyValueArray
 		arg, valid = c.Args.ShiftOk()
@@ -1260,14 +1228,18 @@ func BuiltinKeyValueArrayFunc(c Call) (Object, error) {
 		switch t := arg.(type) {
 		case KeyValueArray:
 			arr = append(arr, t...)
-		case KeyValue:
+		case *KeyValue:
 			arr = append(arr, t)
 		case Array:
 			if len(t) == 2 {
-				arr = append(arr, KeyValue{t[0], t[1]})
+				arr = append(arr, &KeyValue{t[0], t[1]})
 			}
 		case ItemsGetter:
-			arr = append(arr, t.Items()...)
+			var items KeyValueArray
+			if items, err = t.Items(c.VM); err != nil {
+				return
+			}
+			arr = append(arr, items...)
 		}
 		arg, valid = c.Args.ShiftOk()
 	}
@@ -1279,7 +1251,7 @@ func BuiltinStdIOFunc(c Call) (ret Object, err error) {
 	l := c.Args.Len()
 	identifier := Arg{
 		Name:          "indentifier",
-		TypeAssertion: TypeAssertionFromTypes(TString, TInt, TUint),
+		TypeAssertion: TypeAssertionFromTypes(TStr, TInt, TUint),
 	}
 	switch l {
 	case 1:
@@ -1290,7 +1262,7 @@ func BuiltinStdIOFunc(c Call) (ret Object, err error) {
 			return
 		}
 		switch t := arg.Value.(type) {
-		case String:
+		case Str:
 			switch t {
 			case "IN":
 				ret = c.VM.StdIn
@@ -1331,7 +1303,7 @@ func BuiltinStdIOFunc(c Call) (ret Object, err error) {
 			return
 		}
 		switch t := codeArg.Value.(type) {
-		case String:
+		case Str:
 			switch t {
 			case "IN":
 				code = 0
@@ -1451,12 +1423,12 @@ func BuiltinNewTypeFunc(c Call) (ret Object, err error) {
 	var t ObjType
 	var name = &Arg{
 		Name:          "name",
-		TypeAssertion: TypeAssertionFromTypes(TString),
+		TypeAssertion: TypeAssertionFromTypes(TStr),
 	}
 	if err = c.Args.Destructure(name); err != nil {
 		return
 	}
-	t.TypeName = string(name.Value.(String))
+	t.TypeName = string(name.Value.(Str))
 	var (
 		get = &NamedArgVar{
 			Name:          "get",
@@ -1604,7 +1576,7 @@ func BuiltinTypeOfFunc(c Call) (_ Object, err error) {
 	return TypeOf(c.Args.Get(0)), nil
 }
 
-func BuiltinSyncMapFunc(c Call) (ret Object, err error) {
+func BuiltinSyncDictFunc(c Call) (ret Object, err error) {
 	if err = c.Args.CheckMaxLen(1); err != nil {
 		return
 	}
@@ -1713,4 +1685,45 @@ func BuiltinRawCallerFunc(c Call) (ret Object, err error) {
 		return cowm.CallerObject, nil
 	}
 	return co, nil
+}
+
+func BuiltinReprFunc(c Call) (_ Object, err error) {
+	if err = c.Args.CheckLen(1); err != nil {
+		return
+	}
+
+	var (
+		arg = c.Args.Get(0)
+		s   string
+	)
+
+	switch t := arg.(type) {
+	case Representer:
+		s, err = t.Repr(c.VM)
+		return Str(s), err
+	}
+
+	typ := arg.Type()
+
+	if arg, err = c.VM.Builtins.Caller(BuiltinStr).Call(c); err != nil {
+		return
+	}
+	return Str(repr.Quote(typ.Name() + ":" + arg.ToString())), nil
+}
+
+func BuiltinUserDataFunc(c Call) (_ Object, err error) {
+	if err = c.Args.CheckLen(1); err != nil {
+		return
+	}
+
+	var arg = c.Args.Get(0)
+	if ud, _ := arg.(UserDataStorage); ud == nil {
+		return Nil, NewArgumentTypeError(
+			strconv.Itoa(1),
+			"UserDataStorage",
+			arg.Type().Name(),
+		)
+	} else {
+		return ud.UserData(), nil
+	}
 }

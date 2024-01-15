@@ -18,14 +18,15 @@ const (
 	BuiltinTypesBegin_ BuiltinType = iota
 	// types
 	BuiltinNil
+	BuiltinFlag
 	BuiltinBool
 	BuiltinInt
 	BuiltinUint
 	BuiltinFloat
 	BuiltinDecimal
 	BuiltinChar
-	BuiltinText
-	BuiltinString
+	BuiltinRawStr
+	BuiltinStr
 	BuiltinBytes
 	BuiltinArray
 	BuiltinDict
@@ -37,6 +38,7 @@ const (
 	BuiltinTypesEnd_
 
 	BuiltinFunctionsBegin_
+	BuiltinRepr
 	BuiltinCast
 	BuiltinAppend
 	BuiltinDelete
@@ -51,7 +53,6 @@ const (
 	BuiltinMap
 	BuiltinEach
 	BuiltinReduce
-	BuiltinForEach
 	BuiltinTypeName
 	BuiltinChars
 	BuiltinWrite
@@ -76,6 +77,7 @@ const (
 	BuiltinOBStart
 	BuiltinOBEnd
 	BuiltinFlush
+	BuiltinUserData
 
 	BuiltinIs
 	BuiltinIsError
@@ -84,7 +86,8 @@ const (
 	BuiltinIsFloat
 	BuiltinIsChar
 	BuiltinIsBool
-	BuiltinIsString
+	BuiltinIsStr
+	BuiltinIsRawStr
 	BuiltinIsBytes
 	BuiltinIsDict
 	BuiltinIsSyncDict
@@ -130,7 +133,6 @@ var BuiltinsMap = map[string]BuiltinType{
 	"map":           BuiltinMap,
 	"each":          BuiltinEach,
 	"reduce":        BuiltinReduce,
-	"foreach":       BuiltinForEach,
 	"typeName":      BuiltinTypeName,
 	"chars":         BuiltinChars,
 	"write":         BuiltinWrite,
@@ -145,6 +147,8 @@ var BuiltinsMap = map[string]BuiltinType{
 	"typeof":        BuiltinTypeOf,
 	"addCallMethod": BuiltinAddCallMethod,
 	"rawCaller":     BuiltinRawCaller,
+	"repr":          BuiltinRepr,
+	"userData":      BuiltinUserData,
 
 	"is":         BuiltinIs,
 	"isError":    BuiltinIsError,
@@ -153,7 +157,8 @@ var BuiltinsMap = map[string]BuiltinType{
 	"isFloat":    BuiltinIsFloat,
 	"isChar":     BuiltinIsChar,
 	"isBool":     BuiltinIsBool,
-	"isString":   BuiltinIsString,
+	"isStr":      BuiltinIsStr,
+	"isRawStr":   BuiltinIsRawStr,
 	"isBytes":    BuiltinIsBytes,
 	"isDict":     BuiltinIsDict,
 	"isSyncDict": BuiltinIsSyncDict,
@@ -189,6 +194,73 @@ var BuiltinsMap = map[string]BuiltinType{
 	"obend":          BuiltinOBEnd,
 	"flush":          BuiltinFlush,
 	"DISCARD_WRITER": BuiltinDiscardWriter,
+}
+
+type Builtins struct {
+	Objects BuiltinObjectsMap
+	Map     map[string]BuiltinType
+	last    BuiltinType
+}
+
+func NewBuiltins() *Builtins {
+	return &Builtins{Objects: BuiltinObjects, Map: BuiltinsMap, last: BuiltinConstantsEnd_}
+}
+
+func (s *Builtins) SetType(typ ObjectType) *Builtins {
+	return s.Set(typ.Name(), typ)
+}
+
+func (s *Builtins) Set(name string, obj Object) *Builtins {
+	if s.last == BuiltinConstantsEnd_ {
+		newObjects := make(BuiltinObjectsMap, len(s.Objects))
+		newMap := make(map[string]BuiltinType, len(s.Objects))
+		for t, o := range s.Objects {
+			newObjects[t] = o
+		}
+		for name, t := range s.Map {
+			newMap[name] = t
+		}
+		s.Objects = newObjects
+		s.Map = newMap
+	}
+	s.last++
+	s.Map[name] = s.last
+	s.Objects[s.last] = obj
+	return s
+}
+
+func (s *Builtins) Call(t BuiltinType, c Call) (Object, error) {
+	return s.Objects[t].(CallerObject).Call(c)
+}
+
+func (s *Builtins) Caller(t BuiltinType) CallerObject {
+	return s.Objects[t].(CallerObject)
+}
+
+func (s *Builtins) Invoker(t BuiltinType, c Call) func() (Object, error) {
+	caller := s.Objects[t].(CallerObject)
+	return func() (Object, error) {
+		return caller.Call(c)
+	}
+}
+
+func (s *Builtins) ArgsInvoker(t BuiltinType, c Call) func(arg ...Object) (Object, error) {
+	caller := s.Objects[t].(CallerObject)
+	c.Args = Args{nil}
+	return func(arg ...Object) (Object, error) {
+		c.Args[0] = arg
+		return caller.Call(c)
+	}
+}
+
+func (s *Builtins) Get(t BuiltinType) Object {
+	return s.Objects[t]
+}
+
+func (s *Builtins) AppendMap(m map[string]Object) {
+	for name, o := range m {
+		s.Set(name, o)
+	}
 }
 
 type BuiltinObjectsMap map[BuiltinType]Object
@@ -252,11 +324,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	},
 	BuiltinCopy: &BuiltinFunction{
 		Name:  "copy",
-		Value: funcPORO(BuiltinCopyFunc),
+		Value: BuiltinCopyFunc,
 	},
 	BuiltinDeepCopy: &BuiltinFunction{
 		Name:  "dcopy",
-		Value: funcPORO(BuiltinDeepCopyFunc),
+		Value: BuiltinDeepCopyFunc,
 	},
 	BuiltinRepeat: &BuiltinFunction{
 		Name:  "repeat",
@@ -309,6 +381,10 @@ var BuiltinObjects = BuiltinObjectsMap{
 		Value:                 BuiltinGlobalsFunc,
 		AcceptMethodsDisabled: true,
 	},
+	BuiltinRepr: &BuiltinFunction{
+		Name:  "repr",
+		Value: BuiltinReprFunc,
+	},
 	BuiltinIs: &BuiltinFunction{
 		Name:                  "is",
 		Value:                 BuiltinIsFunc,
@@ -344,9 +420,14 @@ var BuiltinObjects = BuiltinObjectsMap{
 		Value:                 funcPORO(BuiltinIsBoolFunc),
 		AcceptMethodsDisabled: true,
 	},
-	BuiltinIsString: &BuiltinFunction{
-		Name:                  "isString",
-		Value:                 funcPORO(BuiltinIsStringFunc),
+	BuiltinIsStr: &BuiltinFunction{
+		Name:                  "isStr",
+		Value:                 funcPORO(BuiltinIsStrFunc),
+		AcceptMethodsDisabled: true,
+	},
+	BuiltinIsRawStr: &BuiltinFunction{
+		Name:                  "isRawStr",
+		Value:                 funcPORO(BuiltinIsRawStrFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsBytes: &BuiltinFunction{
@@ -448,6 +529,10 @@ var BuiltinObjects = BuiltinObjectsMap{
 		Name:  "flush",
 		Value: BuiltinFlushFunc,
 	},
+	BuiltinUserData: &BuiltinFunction{
+		Name:  "userData",
+		Value: BuiltinUserDataFunc,
+	},
 
 	BuiltinWrongNumArgumentsError:  ErrWrongNumArguments,
 	BuiltinInvalidOperatorError:    ErrInvalidOperator,
@@ -484,9 +569,9 @@ func init() {
 		Name:  "reduce",
 		Value: BuiltinReduceFunc,
 	}
-	BuiltinObjects[BuiltinForEach] = &BuiltinFunction{
-		Name:  "foreach",
-		Value: BuiltinForEachFunc,
+	BuiltinObjects[BuiltinEach] = &BuiltinFunction{
+		Name:  "each",
+		Value: BuiltinEachFunc,
 	}
 }
 
@@ -541,3 +626,7 @@ func init() {
 // builtin sort, sortReverse
 //
 //gad:callable func(vm *VM, v Object, less=CallerObject) (ret Object, err error)
+
+// builtin decimal
+//
+//gad:callable func(vm *VM, v Object) (ret Object, err error)

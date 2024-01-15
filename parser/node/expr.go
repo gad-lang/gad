@@ -22,6 +22,7 @@ import (
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/parser/utils"
 	"github.com/gad-lang/gad/repr"
+	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/token"
 	"github.com/shopspring/decimal"
 )
@@ -106,6 +107,11 @@ func (e *BinaryExpr) String() string {
 		" " + e.RHS.String() + ")"
 }
 
+type BoolExpr interface {
+	Expr
+	Bool() bool
+}
+
 // BoolLit represents a boolean literal.
 type BoolLit struct {
 	Value    bool
@@ -114,6 +120,10 @@ type BoolLit struct {
 }
 
 func (e *BoolLit) ExprNode() {}
+
+func (e *BoolLit) Bool() bool {
+	return e.Value
+}
 
 // Pos returns the position of first character belonging to the node.
 func (e *BoolLit) Pos() source.Pos {
@@ -127,6 +137,36 @@ func (e *BoolLit) End() source.Pos {
 
 func (e *BoolLit) String() string {
 	return e.Literal
+}
+
+// FlagLit represents a yes literal.
+type FlagLit struct {
+	ValuePos source.Pos
+	Literal  string
+	Value    bool
+}
+
+func (e *FlagLit) ExprNode() {}
+
+func (e *FlagLit) Bool() bool {
+	return e.Value
+}
+
+// Pos returns the position of first character belonging to the node.
+func (e *FlagLit) Pos() source.Pos {
+	return e.ValuePos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *FlagLit) End() source.Pos {
+	return source.Pos(int(e.ValuePos) + len(e.Literal))
+}
+
+func (e *FlagLit) String() string {
+	if e.Value {
+		return "yes"
+	}
+	return "no"
 }
 
 type CallArgs struct {
@@ -555,9 +595,6 @@ func (e *TypedIdent) Pos() source.Pos {
 
 // End returns the position of first character immediately after the node.
 func (e *TypedIdent) End() source.Pos {
-	if len(e.Type) == 0 {
-		return e.Ident.End()
-	}
 	return e.Type[len(e.Type)-1].End()
 }
 
@@ -890,16 +927,7 @@ type StringLit struct {
 }
 
 func (e *StringLit) CanIdent() bool {
-	var skip int
-	if e.Value != "" && e.Value[0] == '!' {
-		skip++
-	}
-	for _, r := range e.Value[skip:] {
-		if !utils.IsLetter(r) {
-			return false
-		}
-	}
-	return true
+	return runehelper.IsIdentifierRunes([]rune(e.Value))
 }
 
 func (e *StringLit) ExprNode() {}
@@ -1114,7 +1142,11 @@ func (a *CallExprNamedArgs) String() string {
 	var s []string
 	for i, name := range a.Names {
 		if a.Values[i] == nil {
-			s = append(s, name.Expr().String()+"=true")
+			if name.Lit != nil && name.Lit.CanIdent() {
+				s = append(s, name.Lit.Value+"=on")
+			} else {
+				s = append(s, name.Expr().String()+"=on")
+			}
 		} else {
 			s = append(s, name.Expr().String()+"="+a.Values[i].String())
 		}

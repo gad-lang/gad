@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
+	"github.com/gad-lang/gad/repr"
+	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -77,35 +77,57 @@ type NamedArgVar struct {
 	*TypeAssertion
 }
 
-type KeyValue [2]Object
+type KeyValue struct {
+	K, V Object
+}
 
 var (
-	_ Object       = KeyValue{}
-	_ DeepCopier   = KeyValue{}
-	_ Copier       = KeyValue{}
-	_ LengthGetter = KeyValue{}
+	_ Object         = &KeyValue{}
+	_ DeepCopier     = &KeyValue{}
+	_ Copier         = &KeyValue{}
+	_ IndexGetSetter = &KeyValue{}
 )
 
-func (o KeyValue) Type() ObjectType {
+func (o *KeyValue) IndexSet(vm *VM, index, value Object) error {
+	switch t := index.(type) {
+	case Str:
+		switch t {
+		case "v":
+			o.V = value
+			return nil
+		case "k":
+			o.K = value
+			return nil
+		}
+	}
+
+	ret, err := ToRepr(vm, value)
+	if err != nil {
+		return err
+	}
+	return ErrInvalidIndex.NewError(ret.ToString())
+}
+
+func (o *KeyValue) Type() ObjectType {
 	return DetectTypeOf(o)
 }
 
-func (o KeyValue) ToString() string {
+func (o *KeyValue) ToString() string {
 	var sb strings.Builder
-	switch t := o[0].(type) {
-	case String:
-		if isLetterOrDigitRunes([]rune(t)) {
+	switch t := o.K.(type) {
+	case Str:
+		if runehelper.IsLetterOrDigitRunes([]rune(t)) {
 			sb.WriteString(string(t))
 		} else {
 			sb.WriteString(strconv.Quote(string(t)))
 		}
 	default:
-		sb.WriteString(o[0].ToString())
+		sb.WriteString(o.K.ToString())
 	}
-	if o[1] != True {
+	if o.V != Yes {
 		sb.WriteString("=")
-		switch t := o[1].(type) {
-		case String:
+		switch t := o.V.(type) {
+		case Str:
 			sb.WriteString(strconv.Quote(string(t)))
 		default:
 			sb.WriteString(t.ToString())
@@ -114,36 +136,57 @@ func (o KeyValue) ToString() string {
 	return sb.String()
 }
 
-// DeepCopy implements DeepCopier interface.
-func (o KeyValue) DeepCopy() Object {
-	var cp KeyValue
-	for i, v := range o[:] {
-		if vv, ok := v.(DeepCopier); ok {
-			cp[i] = vv.DeepCopy()
-		} else {
-			cp[i] = v
-		}
+func (o *KeyValue) Repr(vm *VM) (_ string, err error) {
+	var (
+		sb    strings.Builder
+		do    = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
+		repro Object
+	)
+
+	if repro, err = do(o.K); err != nil {
+		return
 	}
-	return cp
+	sb.WriteString(repr.QuotePrefix)
+	sb.WriteString(o.Type().Name())
+	sb.WriteString(":")
+	sb.WriteString(string(repro.(Str)))
+
+	if o.V != Yes {
+		sb.WriteString("=")
+		if repro, err = do(o.K); err != nil {
+			return
+		}
+		sb.WriteString(string(repro.(Str)))
+	}
+	sb.WriteString(repr.QuoteSufix)
+	return sb.String(), nil
+}
+
+// DeepCopy implements DeepCopier interface.
+func (o KeyValue) DeepCopy(vm *VM) (_ Object, err error) {
+	if o.V, err = DeepCopy(nil, o.V); err != nil {
+		return
+	}
+	return &o, nil
 }
 
 // Copy implements Copier interface.
 func (o KeyValue) Copy() Object {
-	return KeyValue{o[0], o[1]}
+	return &o
 }
 
 // Equal implements Object interface.
-func (o KeyValue) Equal(right Object) bool {
-	v, ok := right.(KeyValue)
+func (o *KeyValue) Equal(right Object) bool {
+	v, ok := right.(*KeyValue)
 	if !ok {
 		return false
 	}
 
-	return o[0].Equal(v[0]) && o[1].Equal(v[1])
+	return o.K.Equal(v.K) && o.V.Equal(v.V)
 }
 
 // IsFalsy implements Object interface.
-func (o KeyValue) IsFalsy() bool { return o[0] == Nil && o[1] == Nil }
+func (o *KeyValue) IsFalsy() bool { return o.K == Nil && o.V == Nil }
 
 // CanCall implements Object interface.
 func (KeyValue) CanCall() bool { return false }
@@ -154,14 +197,14 @@ func (KeyValue) Call(*NamedArgs, ...Object) (Object, error) {
 }
 
 // BinaryOp implements Object interface.
-func (o KeyValue) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o *KeyValue) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
 	switch tok {
 	case token.Less, token.LessEq:
 		if right == Nil {
 			return False, nil
 		}
-		if kv, ok := right.(KeyValue); ok {
-			if o.IsLess(kv) {
+		if kv, ok := right.(*KeyValue); ok {
+			if o.IsLess(vm, kv) {
 				return True, nil
 			}
 			if tok == token.LessEq {
@@ -180,8 +223,8 @@ func (o KeyValue) BinaryOp(tok token.Token, right Object) (Object, error) {
 			}
 		}
 
-		if kv, ok := right.(KeyValue); ok {
-			return Bool(!o.IsLess(kv)), nil
+		if kv, ok := right.(*KeyValue); ok {
+			return Bool(!o.IsLess(vm, kv)), nil
 		}
 	}
 	return nil, NewOperandTypeError(
@@ -190,12 +233,12 @@ func (o KeyValue) BinaryOp(tok token.Token, right Object) (Object, error) {
 		right.Type().Name())
 }
 
-func (o KeyValue) IsLess(other KeyValue) bool {
-	if o.Key().ToString() < other.Key().ToString() {
+func (o *KeyValue) IsLess(vm *VM, other *KeyValue) bool {
+	if o.K.ToString() < other.K.ToString() {
 		return true
 	}
-	if bo, _ := o.Value().(BinaryOperatorHandler); bo != nil {
-		v, _ := bo.BinaryOp(token.Less, other.Value())
+	if bo, _ := o.V.(BinaryOperatorHandler); bo != nil {
+		v, _ := bo.BinaryOp(vm, token.Less, other.V)
 		return v == nil || !v.IsFalsy()
 	}
 	return false
@@ -204,59 +247,31 @@ func (o KeyValue) IsLess(other KeyValue) bool {
 // CanIterate implements Object interface.
 func (KeyValue) CanIterate() bool { return true }
 
-// Iterate implements Iterable interface.
-func (o KeyValue) Iterate(*VM) Iterator {
-	return &ArrayIterator{V: o[:]}
-}
-
-// Len implements LengthGetter interface.
-func (o KeyValue) Len() int {
-	return len(o)
-}
-
-func (o KeyValue) Key() Object {
-	return o[0]
-}
-
-func (o KeyValue) Value() Object {
-	return o[1]
-}
-
-func (o KeyValue) IndexGet(_ *VM, index Object) (value Object, err error) {
+func (o *KeyValue) IndexGet(vm *VM, index Object) (value Object, err error) {
 	value = Nil
 	switch t := index.(type) {
-	case String:
+	case Str:
 		switch t {
 		case "k":
-			return o[0], nil
+			return o.K, nil
 		case "v":
-			return o[1], nil
+			return o.V, nil
 		case "array":
-			return Array(o[:]), nil
-		}
-	case Int:
-		switch t {
-		case 0, 1:
-			return o[t], nil
-		}
-	case Uint:
-		switch t {
-		case 0, 1:
-			return o[t], nil
+			return Array{o.K, o.V}, nil
 		}
 	default:
 		err = NewArgumentTypeError(
 			"1st",
-			"string|int|uint",
+			"str",
 			index.Type().Name(),
 		)
 		return
 	}
-	err = ErrInvalidIndex
+	err = ErrInvalidIndex.NewError(index.ToString())
 	return
 }
 
-type KeyValueArray []KeyValue
+type KeyValueArray []*KeyValue
 
 var (
 	_ Object       = KeyValueArray{}
@@ -280,10 +295,10 @@ func (o KeyValueArray) Array() (ret Array) {
 	return
 }
 
-func (o KeyValueArray) Map() (ret Dict) {
+func (o KeyValueArray) Dict() (ret Dict) {
 	ret = make(Dict, len(o))
 	for _, v := range o {
-		ret[v.Key().ToString()] = v.Value()
+		ret[v.K.ToString()] = v.V
 	}
 	return
 }
@@ -304,13 +319,43 @@ func (o KeyValueArray) ToString() string {
 	return sb.String()
 }
 
+func (o KeyValueArray) Repr(vm *VM) (_ string, err error) {
+	var (
+		sb    strings.Builder
+		do    = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
+		repro Object
+	)
+	sb.WriteString(repr.QuotePrefix)
+	sb.WriteString(o.Type().Name())
+	sb.WriteString(":")
+	sb.WriteString("(;")
+	last := len(o) - 1
+
+	for i, v := range o {
+		if repro, err = do(v); err != nil {
+			return
+		}
+		sb.WriteString(repro.ToString())
+		if i != last {
+			sb.WriteString(", ")
+		}
+	}
+
+	sb.WriteString(")")
+	sb.WriteString(repr.QuoteSufix)
+	return sb.String(), nil
+}
+
 // DeepCopy implements DeepCopier interface.
-func (o KeyValueArray) DeepCopy() Object {
+func (o KeyValueArray) DeepCopy(vm *VM) (r Object, err error) {
 	cp := make(KeyValueArray, len(o))
 	for i, v := range o {
-		cp[i] = v.DeepCopy().(KeyValue)
+		if r, err = v.DeepCopy(vm); err != nil {
+			return
+		}
+		cp[i] = r.(*KeyValue)
 	}
-	return cp
+	return cp, nil
 }
 
 // Copy implements Copier interface.
@@ -335,16 +380,16 @@ func (o KeyValueArray) IndexGet(_ *VM, index Object) (Object, error) {
 			return o[v], nil
 		}
 		return nil, ErrIndexOutOfBounds
-	case String:
+	case Str:
 		switch v {
 		case "arrays":
 			ret := make(Array, len(o))
 			for i, v := range o {
-				ret[i] = Array(v[:])
+				ret[i] = Array{v.K, v.V}
 			}
 			return ret, nil
-		case "map":
-			return o.Map(), nil
+		case "dict":
+			return o.Dict(), nil
 		default:
 			return nil, ErrInvalidIndex.NewError(string(v))
 		}
@@ -399,12 +444,12 @@ func (o KeyValueArray) AppendArray(arr ...Array) (KeyValueArray, error) {
 	for _, arr := range arr {
 		for _, v := range arr {
 			switch na := v.(type) {
-			case KeyValue:
+			case *KeyValue:
 				o2[i] = na
 				i++
 			case Array:
 				if len(na) == 2 {
-					o2[i] = KeyValue{na[0], na[1]}
+					o2[i] = &KeyValue{na[0], na[1]}
 					i++
 				} else {
 					return nil, NewIndexValueTypeError("keyValue|[2]array",
@@ -427,14 +472,14 @@ func (o KeyValueArray) AppendMap(m Dict) KeyValueArray {
 	copy(arr, o)
 
 	for k, v := range m {
-		arr[i] = KeyValue{String(k), v}
+		arr[i] = &KeyValue{Str(k), v}
 		i++
 	}
 
 	return arr
 }
 
-func (o KeyValueArray) Append(arg ...KeyValue) KeyValueArray {
+func (o KeyValueArray) Append(arg ...*KeyValue) KeyValueArray {
 	if len(o) == 0 {
 		return arg
 	}
@@ -450,7 +495,7 @@ func (o KeyValueArray) Append(arg ...KeyValue) KeyValueArray {
 
 func (o KeyValueArray) AppendObject(obj Object) (KeyValueArray, error) {
 	switch v := obj.(type) {
-	case KeyValue:
+	case *KeyValue:
 		return append(o, v), nil
 	case Dict:
 		return o.AppendMap(v), nil
@@ -470,7 +515,7 @@ func (o KeyValueArray) AppendObject(obj Object) (KeyValueArray, error) {
 }
 
 // BinaryOp implements Object interface.
-func (o KeyValueArray) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o KeyValueArray) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	switch tok {
 	case token.Add:
 		return o.AppendObject(right)
@@ -492,7 +537,7 @@ func (o KeyValueArray) BinaryOp(tok token.Token, right Object) (Object, error) {
 func (o KeyValueArray) Sort(vm *VM, less CallerObject) (_ Object, err error) {
 	if less == nil {
 		sort.Slice(o, func(i, j int) bool {
-			return o[i].IsLess(o[j])
+			return o[i].IsLess(vm, o[j])
 		})
 	} else {
 		var (
@@ -514,9 +559,9 @@ func (o KeyValueArray) Sort(vm *VM, less CallerObject) (_ Object, err error) {
 	return o, err
 }
 
-func (o KeyValueArray) SortReverse() (Object, error) {
+func (o KeyValueArray) SortReverse(vm *VM) (Object, error) {
 	sort.Slice(o, func(i, j int) bool {
-		return !o[i].IsLess(o[j])
+		return !o[i].IsLess(vm, o[j])
 	})
 	return o, nil
 }
@@ -526,15 +571,15 @@ func (o KeyValueArray) Get(keys ...Object) Object {
 		return Array{}
 	}
 
-	var e KeyValue
+	var e *KeyValue
 	if len(keys) > 1 {
 		var arr Array
 	keys:
 		for _, key := range keys {
 			for l := len(o); l > 0; l-- {
 				e = o[l-1]
-				if e[0].Equal(key) {
-					arr = append(arr, e[1])
+				if e.K.Equal(key) {
+					arr = append(arr, e.V)
 					continue keys
 				}
 			}
@@ -544,8 +589,8 @@ func (o KeyValueArray) Get(keys ...Object) Object {
 	}
 	for l := len(o); l > 0; l-- {
 		e = o[l-1]
-		if e[0].Equal(keys[0]) {
-			return e[1]
+		if e.K.Equal(keys[0]) {
+			return e.V
 		}
 	}
 	return Nil
@@ -560,7 +605,7 @@ func (o KeyValueArray) Delete(keys ...Object) Object {
 l:
 	for _, kv := range o {
 		for _, k := range keys {
-			if kv[0].Equal(k) {
+			if kv.K.Equal(k) {
 				continue l
 			}
 		}
@@ -577,10 +622,10 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 			return
 		}
 		keyArg := c.Args.Get(0)
-		var e KeyValue
+		var e *KeyValue
 		for l := len(o); l > 0; l-- {
 			e = o[l-1]
-			if e[0].Equal(keyArg) && !e.Value().IsFalsy() {
+			if e.K.Equal(keyArg) && !e.V.IsFalsy() {
 				return True, nil
 			}
 		}
@@ -598,8 +643,8 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 
 		c.Args.Walk(func(i int, arg Object) any {
 			for _, e := range o {
-				if e[0].Equal(arg) {
-					ret = append(ret, e.Value())
+				if e.K.Equal(arg) {
+					ret = append(ret, e.V)
 				}
 			}
 			return nil
@@ -650,7 +695,7 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 				)
 			}
 		}
-		return o.SortReverse()
+		return o.SortReverse(c.VM)
 	default:
 		return nil, ErrInvalidIndex.NewError(name)
 	}
@@ -669,14 +714,14 @@ func (o KeyValueArray) Len() int {
 	return len(o)
 }
 
-func (o KeyValueArray) Items() KeyValueArray {
-	return o
+func (o KeyValueArray) Items(*VM) (KeyValueArray, error) {
+	return o, nil
 }
 
 func (o KeyValueArray) Keys() (arr Array) {
 	arr = make(Array, len(o))
 	for i, v := range o {
-		arr[i] = v[0]
+		arr[i] = v.K
 	}
 	return
 }
@@ -684,7 +729,7 @@ func (o KeyValueArray) Keys() (arr Array) {
 func (o KeyValueArray) Values() (arr Array) {
 	arr = make(Array, len(o))
 	for i, v := range o {
-		arr[i] = v[1]
+		arr[i] = v.V
 	}
 	return
 }
@@ -719,6 +764,12 @@ func (it *KeyValueArrayIterator) Value() (Object, error) {
 
 type KeyValueArrays []KeyValueArray
 
+func (o KeyValueArrays) Repr(vm *VM) (_ string, err error) {
+	return ArrayRepr(o.Type().Name(), vm, len(o), func(i int) Object {
+		return o[i]
+	})
+}
+
 func (KeyValueArrays) Type() ObjectType {
 	return TKeyValueArrays
 }
@@ -748,12 +799,18 @@ func (o KeyValueArrays) ToString() string {
 }
 
 // DeepCopy implements DeepCopier interface.
-func (o KeyValueArrays) DeepCopy() Object {
-	cp := make(KeyValueArrays, len(o))
+func (o KeyValueArrays) DeepCopy(vm *VM) (_ Object, err error) {
+	var (
+		cp = make(KeyValueArrays, len(o))
+		vo Object
+	)
 	for i, v := range o {
-		cp[i] = v.DeepCopy().(KeyValueArray)
+		if vo, err = DeepCopy(vm, v); err != nil {
+			return
+		}
+		cp[i] = vo.(KeyValueArray)
 	}
-	return cp
+	return cp, nil
 }
 
 // Copy implements Copier interface.
@@ -813,7 +870,7 @@ func (KeyValueArrays) Call(*NamedArgs, ...Object) (Object, error) {
 }
 
 // BinaryOp implements Object interface.
-func (o KeyValueArrays) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o KeyValueArrays) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	switch tok {
 	case token.Less, token.LessEq:
 		if right == Nil {
@@ -920,11 +977,11 @@ func (o *NamedArgs) Add(obj Object) error {
 func (o *NamedArgs) CallName(name string, c Call) (Object, error) {
 	switch name {
 	case "get":
-		arg := &Arg{TypeAssertion: TypeAssertionFromTypes(TString)}
+		arg := &Arg{TypeAssertion: TypeAssertionFromTypes(TStr)}
 		if err := c.Args.Destructure(arg); err != nil {
 			return nil, err
 		}
-		return o.GetValue(string(arg.Value.(String))), nil
+		return o.GetValue(string(arg.Value.(Str))), nil
 	default:
 		return Nil, ErrInvalidIndex.NewError(name)
 	}
@@ -956,7 +1013,7 @@ func (o *NamedArgs) ToString() string {
 	return o.UnreadPairs().ToString()
 }
 
-func (o *NamedArgs) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o *NamedArgs) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	if right == Nil {
 		switch tok {
 		case token.Add:
@@ -1003,11 +1060,11 @@ func (o *NamedArgs) Equal(right Object) bool {
 }
 
 func (o *NamedArgs) Call(c Call) (Object, error) {
-	arg := &Arg{TypeAssertion: TypeAssertionFromTypes(TString)}
+	arg := &Arg{TypeAssertion: TypeAssertionFromTypes(TStr)}
 	if err := c.Args.Destructure(arg); err != nil {
 		return nil, err
 	}
-	return o.GetValue(string(arg.Value.(String))), nil
+	return o.GetValue(string(arg.Value.(Str))), nil
 }
 
 func (o *NamedArgs) Iterate(vm *VM) Iterator {
@@ -1031,8 +1088,8 @@ func (o *NamedArgs) Ready() (arr KeyValueArray) {
 		return
 	}
 
-	o.Walk(func(na KeyValue) error {
-		if _, ok := o.ready[na.Key().ToString()]; ok {
+	o.Walk(func(na *KeyValue) error {
+		if _, ok := o.ready[na.K.ToString()]; ok {
 			arr = append(arr, na)
 		}
 		return nil
@@ -1040,9 +1097,9 @@ func (o *NamedArgs) Ready() (arr KeyValueArray) {
 	return
 }
 
-func (o *NamedArgs) IndexGet(_ *VM, index Object) (value Object, err error) {
+func (o *NamedArgs) IndexGet(vm *VM, index Object) (value Object, err error) {
 	switch t := index.(type) {
-	case String:
+	case Str:
 		switch t {
 		case "src":
 			return o.sources, nil
@@ -1057,12 +1114,12 @@ func (o *NamedArgs) IndexGet(_ *VM, index Object) (value Object, err error) {
 		case "readyNames":
 			return o.ready.Keys(), nil
 		default:
-			return Nil, ErrInvalidIndex.NewError(string(t))
+			return o.AllDict().IndexGet(vm, t)
 		}
 	default:
 		err = NewArgumentTypeError(
 			"1st",
-			"string",
+			"str",
 			index.Type().Name(),
 		)
 		return
@@ -1076,7 +1133,7 @@ func (o *NamedArgs) check() {
 
 		for i := len(o.sources) - 1; i >= 0; i-- {
 			for _, v := range o.sources[i] {
-				o.m[v.Key().ToString()] = v[1]
+				o.m[v.K.ToString()] = v.V
 			}
 		}
 	}
@@ -1092,9 +1149,9 @@ func (o *NamedArgs) GetValue(key string) (val Object) {
 
 // GetPassedValue Get passed value
 func (o *NamedArgs) GetPassedValue(key string) (val Object) {
-	o.Walk(func(na KeyValue) error {
-		if na.Key().ToString() == key {
-			val = na[1]
+	o.Walk(func(na *KeyValue) error {
+		if na.K.ToString() == key {
+			val = na.V
 			return io.EOF
 		}
 		return nil
@@ -1216,14 +1273,14 @@ func (o *NamedArgs) AllDict() (ret Dict) {
 
 func (o *NamedArgs) UnreadPairs() (ret KeyValueArray) {
 	if len(o.ready) == 0 {
-		o.Walk(func(na KeyValue) error {
+		o.Walk(func(na *KeyValue) error {
 			ret = append(ret, na)
 			return nil
 		})
 		return
 	}
-	o.Walk(func(na KeyValue) error {
-		if _, ok := o.ready[na.Key().ToString()]; !ok {
+	o.Walk(func(na *KeyValue) error {
+		if _, ok := o.ready[na.K.ToString()]; !ok {
 			ret = append(ret, na)
 		}
 		return nil
@@ -1233,7 +1290,7 @@ func (o *NamedArgs) UnreadPairs() (ret KeyValueArray) {
 
 // Walk pass over all pairs and call `cb` function.
 // if `cb` function returns any error, stop iterator and return then.
-func (o *NamedArgs) Walk(cb func(na KeyValue) error) (err error) {
+func (o *NamedArgs) Walk(cb func(na *KeyValue) error) (err error) {
 	o.check()
 	for _, arr := range o.sources {
 		for _, item := range arr {
@@ -1246,13 +1303,13 @@ func (o *NamedArgs) Walk(cb func(na KeyValue) error) (err error) {
 }
 
 func (o *NamedArgs) CheckNames(accept ...string) error {
-	return o.Walk(func(na KeyValue) error {
+	return o.Walk(func(na *KeyValue) error {
 		for _, name := range accept {
-			if name == na.Key().ToString() {
+			if name == na.K.ToString() {
 				return nil
 			}
 		}
-		return ErrUnexpectedNamedArg.NewError(strconv.Quote(na.Key().ToString()))
+		return ErrUnexpectedNamedArg.NewError(strconv.Quote(na.K.ToString()))
 	})
 }
 
@@ -1260,9 +1317,9 @@ func (o *NamedArgs) CheckNamesFromSet(set map[string]int) error {
 	if set == nil {
 		return nil
 	}
-	return o.Walk(func(na KeyValue) error {
-		if _, ok := set[na.Key().ToString()]; !ok {
-			return ErrUnexpectedNamedArg.NewError(strconv.Quote(na.Key().ToString()))
+	return o.Walk(func(na *KeyValue) error {
+		if _, ok := set[na.K.ToString()]; !ok {
+			return ErrUnexpectedNamedArg.NewError(strconv.Quote(na.K.ToString()))
 		}
 		return nil
 	})
@@ -1280,24 +1337,17 @@ func (o *NamedArgs) Copy() Object {
 	return &cp
 }
 
-func (o NamedArgs) DeepCopy() Object {
+func (o NamedArgs) DeepCopy(vm *VM) (_ Object, err error) {
+	var r Object
 	if o.m != nil {
-		o.m = o.m.DeepCopy().(Dict)
-	}
-	o.sources = o.sources.DeepCopy().(KeyValueArrays)
-	return &o
-}
-
-func isLetterOrDigit(ch rune) bool {
-	return '0' <= ch && ch <= '9' || 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' ||
-		ch >= utf8.RuneSelf && (unicode.IsLetter(ch) || unicode.IsDigit(ch))
-}
-
-func isLetterOrDigitRunes(chs []rune) bool {
-	for _, r := range chs {
-		if !isLetterOrDigit(r) {
-			return false
+		if r, err = o.m.DeepCopy(vm); err != nil {
+			return
 		}
+		o.m = r.(Dict)
 	}
-	return true
+	if r, err = o.sources.DeepCopy(vm); err != nil {
+		return
+	}
+	o.sources = r.(KeyValueArrays)
+	return &o, nil
 }

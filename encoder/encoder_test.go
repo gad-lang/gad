@@ -25,15 +25,16 @@ func TestGobEncoder(t *testing.T) {
 	objects := []gad.Object{
 		gad.Nil,
 		gad.Bool(true),
+		gad.Flag(true),
 		gad.Int(0),
 		gad.Uint(0),
 		gad.Char(0),
 		gad.Float(0),
 		gad.DecimalZero,
-		gad.String("abc"),
+		gad.Str("abc"),
 		gad.Bytes{},
-		gad.Array{gad.Bool(true), gad.String("")},
-		gad.Dict{"b": gad.Bool(true), "s": gad.String("")},
+		gad.Array{gad.Bool(true), gad.Flag(true), gad.Str("")},
+		gad.Dict{"b": gad.Bool(true), "f": gad.Flag(true), "s": gad.Str("")},
 		&gad.SyncMap{Value: gad.Dict{"i": gad.Int(0), "u": gad.Uint(0), "d": gad.MustDecimalFromString("123.456")}},
 		&gad.ObjectPtr{},
 		&time.Time{Value: gotime.Now()},
@@ -66,6 +67,22 @@ func TestEncDecObjects(t *testing.T) {
 		err = v.UnmarshalBinary(data)
 		require.NoError(t, err, msg)
 		require.Equal(t, Bool(tC), v, msg)
+
+		obj, err := DecodeObject(bytes.NewReader(data))
+		require.NoError(t, err, msg)
+		require.Equal(t, tC, obj, msg)
+	}
+
+	flagObjects := []gad.Flag{gad.Yes, gad.No, gad.Flag(true), gad.Flag(false)}
+	for _, tC := range flagObjects {
+		msg := fmt.Sprintf("Flag(%v)", tC)
+		data, err := Flag(tC).MarshalBinary()
+		require.NoError(t, err, msg)
+		require.Greater(t, len(data), 0, msg)
+		var v Flag
+		err = v.UnmarshalBinary(data)
+		require.NoError(t, err, msg)
+		require.Equal(t, Flag(tC), v, msg)
 
 		obj, err := DecodeObject(bytes.NewReader(data))
 		require.NoError(t, err, msg)
@@ -169,12 +186,12 @@ func TestEncDecObjects(t *testing.T) {
 	// remove NaN from Floats slice, array tests below requires NaN check otherwise fails.
 	floatObjects = floatObjects[:len(floatObjects)-1]
 
-	stringObjects := []gad.String{gad.String(""), gad.String("çığöşü")}
+	stringObjects := []gad.Str{gad.Str(""), gad.Str("çığöşü")}
 	for i := 0; i < 1000; i++ {
-		stringObjects = append(stringObjects, gad.String(randString(i)))
+		stringObjects = append(stringObjects, gad.Str(randString(i)))
 	}
 	for _, tC := range stringObjects {
-		msg := fmt.Sprintf("String(%v)", tC)
+		msg := fmt.Sprintf("Str(%v)", tC)
 		data, err := String(tC).MarshalBinary()
 		require.NoError(t, err, msg)
 		require.Greater(t, len(data), 0, msg)
@@ -267,7 +284,7 @@ func TestEncDecObjects(t *testing.T) {
 	arrays = append(arrays, temp7)
 	temp8 := gad.Array{}
 	for i := range decimalObjects[:100] {
-		temp8 = append(temp8, gad.String(decimalObjects[i].ToString()))
+		temp8 = append(temp8, gad.Str(decimalObjects[i].ToString()))
 	}
 	arrays = append(arrays, temp8)
 	arrays = append(arrays, gad.Array{gad.Nil})
@@ -440,10 +457,10 @@ func TestEncDecBytecode_modules(t *testing.T) {
 		"run": &gad.Function{
 			Name: "run",
 			Value: func(gad.Call) (gad.Object, error) {
-				return gad.String("mod1"), nil
+				return gad.Str("mod1"), nil
 			},
 		},
-	}).Module("mod2", `return {run: func(){ return "mod2" }}`), gad.String("mod1mod2"))
+	}).Module("mod2", `return {run: func(){ return "mod2" }}`), gad.Str("mod1mod2"))
 }
 
 func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected gad.Object) {
@@ -456,15 +473,17 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 		initialModuleMap = opts.moduleMap.Copy()
 	}
 	bc, err := gad.Compile([]byte(script),
-		gad.CompilerOptions{
+		gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
 			ModuleMap: opts.moduleMap,
-		},
+		}},
 	)
 	require.NoError(t, err)
-	ret, err := gad.NewVM(bc).RunOpts(&gad.RunOpts{
+	vm := gad.NewVM(bc)
+	items, _ := opts.namedArgs.Items(vm)
+	ret, err := vm.RunOpts(&gad.RunOpts{
 		Globals:   opts.globals,
 		Args:      gad.Args{opts.args},
-		NamedArgs: gad.NewNamedArgs(opts.namedArgs.Items()),
+		NamedArgs: gad.NewNamedArgs(items),
 	})
 	require.NoError(t, err)
 	require.Equal(t, expected, ret)
@@ -482,11 +501,14 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 		err = gob.NewDecoder(&buf).Decode((*Bytecode)(&bc2))
 		require.NoError(t, err)
 		testDecodedBytecodeEqual(t, bc, &bc2)
+
+		items, _ = opts.namedArgs.Items(vm)
 		ret, err := gad.NewVM(&bc2).RunOpts(&gad.RunOpts{
 			Globals:   opts.globals,
 			Args:      gad.Args{opts.args},
-			NamedArgs: gad.NewNamedArgs(opts.namedArgs.Items()),
+			NamedArgs: gad.NewNamedArgs(items),
 		})
+
 		require.NoError(t, err)
 		require.Equal(t, expected, ret)
 
@@ -494,10 +516,11 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 		err = (*Bytecode)(&bc3).UnmarshalBinary(bcData)
 		require.NoError(t, err)
 		testDecodedBytecodeEqual(t, bc, &bc3)
+		items, _ = opts.namedArgs.Items(vm)
 		ret, err = gad.NewVM(&bc3).RunOpts(&gad.RunOpts{
 			Globals:   opts.globals,
 			Args:      gad.Args{opts.args},
-			NamedArgs: gad.NewNamedArgs(opts.namedArgs.Items()),
+			NamedArgs: gad.NewNamedArgs(items),
 		})
 		require.NoError(t, err)
 		require.Equal(t, expected, ret)
@@ -506,10 +529,11 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 	bc4, err := DecodeBytecodeFrom(bytes.NewReader(bcData), opts.moduleMap)
 	require.NoError(t, err)
 	testDecodedBytecodeEqual(t, bc, bc4)
+	items, _ = opts.namedArgs.Items(vm)
 	ret, err = gad.NewVM(bc4).RunOpts(&gad.RunOpts{
 		Globals:   opts.globals,
 		Args:      gad.Args{opts.args},
-		NamedArgs: gad.NewNamedArgs(opts.namedArgs.Items()),
+		NamedArgs: gad.NewNamedArgs(items),
 	})
 	require.NoError(t, err)
 	require.Equal(t, expected, ret)
@@ -544,7 +568,7 @@ func testDecodedBytecodeEqual(t *testing.T, actual, decoded *gad.Bytecode) {
 func getModuleName(obj gad.Object) (string, bool) {
 	if m, ok := obj.(gad.Dict); ok {
 		if n, ok := m[gad.AttrModuleName]; ok {
-			return string(n.(gad.String)), true
+			return string(n.(gad.Str)), true
 		}
 	}
 	return "", false

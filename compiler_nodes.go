@@ -28,7 +28,7 @@ func (c *Compiler) compileIfStmt(nd *node.IfStmt) error {
 
 	jumpPos1 := -1
 	var skipElse bool
-	if v, ok := nd.Cond.(*node.BoolLit); !ok {
+	if v, ok := nd.Cond.(node.BoolExpr); !ok {
 		op := OpJumpFalsy
 		if v, ok := simplifyExpr(nd.Cond).(*node.UnaryExpr); ok && v.Token.Is(token.Null, token.NotNull) {
 			if err := c.Compile(v.Expr); err != nil {
@@ -48,7 +48,7 @@ func (c *Compiler) compileIfStmt(nd *node.IfStmt) error {
 		if err := c.Compile(nd.Body); err != nil {
 			return err
 		}
-	} else if v.Value {
+	} else if v.Bool() {
 		if err := c.Compile(nd.Body); err != nil {
 			return err
 		}
@@ -324,7 +324,7 @@ func (c *Compiler) compileDeclGlobal(nd *node.GenDecl) error {
 			return c.error(nd, err)
 		}
 
-		idx := c.addConstant(String(spec.Ident.Ident.Name))
+		idx := c.addConstant(Str(spec.Ident.Ident.Name))
 		symbol.Index = idx
 	}
 	return nil
@@ -969,11 +969,11 @@ func (c *Compiler) compileFuncLit(nd *node.FuncLit) error {
 						}
 					}
 				}
-				c2 = c.parent
+				c2 = c2.parent
 			}
 
 			if !addMethod {
-				_, addMethod = c.symbolTable.builtins[ident.Name]
+				_, addMethod = c.symbolTable.builtins.Map[ident.Name]
 			}
 
 			if addMethod {
@@ -1379,7 +1379,7 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 			value := nd.NamedArgs.Values[i]
 			if value == nil {
 				// is flag
-				value = &node.BoolLit{Value: true}
+				value = &node.FlagLit{Value: true}
 			}
 			namedArgs.Elements[i] = &node.ArrayLit{Elements: []node.Expr{name.NameString(), value}}
 		}
@@ -1488,8 +1488,8 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 }
 
 func (c *Compiler) compileCondExpr(nd *node.CondExpr) error {
-	if v, ok := nd.Cond.(*node.BoolLit); ok {
-		if v.Value {
+	if v, ok := nd.Cond.(node.BoolExpr); ok {
+		if v.Bool() {
 			return c.Compile(nd.True)
 		}
 		return c.Compile(nd.False)
@@ -1567,7 +1567,7 @@ func (c *Compiler) compileArrayLit(nd *node.ArrayLit) error {
 func (c *Compiler) compileDictLit(nd *node.DictLit) error {
 	for _, elt := range nd.Elements {
 		// key
-		c.emit(nd, OpConstant, c.addConstant(String(elt.Key)))
+		c.emit(nd, OpConstant, c.addConstant(Str(elt.Key)))
 		// value
 		if err := c.Compile(elt.Value); err != nil {
 			return err
@@ -1578,11 +1578,17 @@ func (c *Compiler) compileDictLit(nd *node.DictLit) error {
 	return nil
 }
 func (c *Compiler) compileKeyValueArrayLit(nd *node.KeyValueArrayLit) (err error) {
+	length := len(nd.Elements)
 	for _, elt := range nd.Elements {
+		if flag, _ := elt.Value.(*node.FlagLit); flag != nil && !flag.Value {
+			length--
+			continue
+		}
+
 		// key
 		switch t := elt.Key.(type) {
 		case *node.Ident:
-			c.emit(nd, OpConstant, c.addConstant(String(t.Name)))
+			c.emit(nd, OpConstant, c.addConstant(Str(t.Name)))
 		default:
 			if err = c.Compile(elt.Key); err != nil {
 				return
@@ -1591,13 +1597,13 @@ func (c *Compiler) compileKeyValueArrayLit(nd *node.KeyValueArrayLit) (err error
 
 		// value
 		if elt.Value == nil {
-			c.emit(nd, OpConstant, c.addConstant(True))
+			c.emit(nd, OpYes)
 		} else if err = c.Compile(elt.Value); err != nil {
 			return err
 		}
 	}
 
-	c.emit(nd, OpKeyValueArray, len(nd.Elements)*2)
+	c.emit(nd, OpKeyValueArray, length*2)
 	return nil
 }
 

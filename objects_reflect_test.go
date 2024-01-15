@@ -96,7 +96,7 @@ func TestReflectStruct_IndexGet(t *testing.T) {
 			)
 			obj = r
 			for _, key := range strings.Split(tt.key, ".") {
-				if got, err = obj.(*ReflectStruct).IndexGet(vm, String(key)); err == nil {
+				if got, err = obj.(*ReflectStruct).IndexGet(vm, Str(key)); err == nil {
 					obj = got
 				} else if !checkError(t, fmt.Sprintf("IndexGet(%v)", key), tt.wantErr, err) {
 					return
@@ -182,7 +182,7 @@ func TestReflectMap_IndexGet(t *testing.T) {
 			)
 			obj = r
 			for _, key := range strings.Split(tt.key, ".") {
-				if got, err = obj.(*ReflectMap).IndexGet(vm, String(key)); err == nil {
+				if got, err = obj.(*ReflectMap).IndexGet(vm, Str(key)); err == nil {
 					obj = got
 				} else if !checkError(t, fmt.Sprintf("IndexGet(%v)", key), tt.wantErr, err) {
 					return
@@ -201,7 +201,7 @@ func TestReflectSlice_IndexGet(t *testing.T) {
 		want    Object
 		wantErr error
 	}{
-		{"1", []string{"a"}, Int(0), String("a"), nil},
+		{"1", []string{"a"}, Int(0), Str("a"), nil},
 	}
 	vm := (&VM{}).Setup(SetupOpts{})
 	for _, tt := range tests {
@@ -238,11 +238,11 @@ func TestReflectStruct_IndexSet(t *testing.T) {
 		value   Object
 		wantErr error
 	}{
-		{"1", a{}, String("X"), Int(1), nil},
-		{"2", &a{}, String("X"), Int(1), nil},
-		{"3", b{}, String("V2"), MustToObject(f), nil},
-		{"4", &b{}, String("V2"), MustToObject(f), nil},
-		{"5", &b{}, String("V2"), MustToObject(nil), nil},
+		{"1", a{}, Str("X"), Int(1), nil},
+		{"2", &a{}, Str("X"), Int(1), nil},
+		{"3", b{}, Str("V2"), MustToObject(f), nil},
+		{"4", &b{}, Str("V2"), MustToObject(f), nil},
+		{"5", &b{}, Str("V2"), MustToObject(nil), nil},
 	}
 	vm := (&VM{}).Setup(SetupOpts{})
 	for _, tt := range tests {
@@ -274,7 +274,7 @@ func TestReflectMap_IndexSet(t *testing.T) {
 		value   Object
 		wantErr error
 	}{
-		{"6", map[string]any{}, String("a"), String("b"), nil},
+		{"6", map[string]any{}, Str("a"), Str("b"), nil},
 	}
 	vm := (&VM{}).Setup(SetupOpts{})
 	for _, tt := range tests {
@@ -306,7 +306,7 @@ func TestReflectSlice_IndexSet(t *testing.T) {
 		value   Object
 		wantErr error
 	}{
-		{"7", []string{""}, Int(0), String("a"), nil},
+		{"7", []string{""}, Int(0), Str("a"), nil},
 	}
 	vm := (&VM{}).Setup(SetupOpts{})
 	for _, tt := range tests {

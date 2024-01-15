@@ -66,7 +66,7 @@ type SimpleOptimizer struct {
 	indent           int
 	optimConsts      bool
 	optimExpr        bool
-	builtins         map[string]BuiltinType
+	builtins         *Builtins
 	disabledBuiltins []string
 	constants        []Object
 	instructions     []byte
@@ -96,7 +96,7 @@ func NewOptimizer(
 		trace = opts.Trace
 	}
 
-	var builtins = BuiltinsMap
+	var builtins *Builtins
 	if opts.SymbolTable != nil {
 		builtins = opts.SymbolTable.builtins
 	}
@@ -126,7 +126,8 @@ func canOptimizeExpr(expr node.Expr) bool {
 		*node.FloatLit,
 		*node.CharLit,
 		*node.StringLit,
-		*node.NilLit:
+		*node.NilLit,
+		*node.FlagLit:
 		return false
 	}
 	return true
@@ -143,21 +144,20 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		OpNoOp: true, OpAndJump: true, OpOrJump: true, OpArray: true,
 		OpReturn: true, OpEqual: true, OpNotEqual: true, OpPop: true,
 		OpGetBuiltin: true, OpCall: true, OpSetLocal: true, OpDefineLocal: true,
-		OpTrue: true, OpFalse: true, OpJumpNil: true, OpJumpNotNil: true,
-		OpCallee: true, OpArgs: true, OpNamedArgs: true,
-		OpStdIn: true, OpStdOut: true, OpStdErr: true,
-		OpTextWriter: true,
+		OpTrue: true, OpFalse: true, OpYes: true, OpNo: true, OpJumpNil: true,
+		OpJumpNotNil: true, OpCallee: true, OpArgs: true, OpNamedArgs: true,
+		OpStdIn: true, OpStdOut: true, OpStdErr: true, OpTextWriter: true,
 	}
 
 	allowedBuiltins := [...]bool{
 		BuiltinContains: true, BuiltinBool: true, BuiltinInt: true,
 		BuiltinUint: true, BuiltinChar: true, BuiltinFloat: true,
-		BuiltinString: true, BuiltinChars: true, BuiltinLen: true,
+		BuiltinStr: true, BuiltinChars: true, BuiltinLen: true,
 		BuiltinTypeName: true, BuiltinBytes: true, BuiltinError: true,
 		BuiltinWrite: true, BuiltinPrint: true, BuiltinSprintf: true,
 		BuiltinIsError: true, BuiltinIsInt: true, BuiltinIsUint: true,
 		BuiltinIsFloat: true, BuiltinIsChar: true, BuiltinIsBool: true,
-		BuiltinIsString: true, BuiltinIsBytes: true, BuiltinIsDict: true,
+		BuiltinIsStr: true, BuiltinIsBytes: true, BuiltinIsDict: true,
 		BuiltinIsArray: true, BuiltinIsNil: true, BuiltinIsIterable: true,
 		BuiltinDecimal: true, BuiltinItems: true, BuiltinValues: true,
 		BuiltinKeys: true, BuiltinKeyValue: true, BuiltinKeyValueArray: true,
@@ -276,7 +276,7 @@ func (so *SimpleOptimizer) slowEvalExpr(expr node.Expr) (node.Expr, bool) {
 	}
 
 	switch v := obj.(type) {
-	case String:
+	case Str:
 		l := strconv.Quote(string(v))
 		expr = &node.StringLit{
 			Value:    string(v),
@@ -285,6 +285,8 @@ func (so *SimpleOptimizer) slowEvalExpr(expr node.Expr) (node.Expr, bool) {
 		}
 	case *NilType:
 		expr = &node.NilLit{TokenPos: expr.Pos()}
+	case Flag:
+		expr = &node.FlagLit{ValuePos: expr.Pos(), Value: bool(v)}
 	case Bool:
 		l := strconv.FormatBool(bool(v))
 		expr = &node.BoolLit{
@@ -920,7 +922,7 @@ func untraceoptim(so *SimpleOptimizer) {
 
 func isObjectConstant(obj Object) bool {
 	switch obj.(type) {
-	case Bool, Int, Uint, Float, Char, String, *NilType:
+	case Bool, Int, Uint, Float, Char, Str, *NilType, *Flag:
 		return true
 	}
 	return false
@@ -941,11 +943,13 @@ func isLitFalsy(expr node.Expr) (bool, bool) {
 	case *node.FloatLit:
 		return Float(v.Value).IsFalsy(), true
 	case *node.StringLit:
-		return String(v.Value).IsFalsy(), true
+		return Str(v.Value).IsFalsy(), true
 	case *node.CharLit:
 		return Char(v.Value).IsFalsy(), true
 	case *node.NilLit:
 		return Nil.IsFalsy(), true
+	case *node.FlagLit:
+		return !v.Value, true
 	}
 	return false, false
 }

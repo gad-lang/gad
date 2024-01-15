@@ -42,7 +42,7 @@ func TestREPL(t *testing.T) {
 	t.Run("keywords", func(t *testing.T) {
 		require.NoError(t, r.execute(".keywords"))
 		testHasPrefix(t, string(cw.consume()),
-			"then\ndo\nbegin\nend\nbreak\ncontinue\nelse\nfor\nfunc\nif\nreturn\ntrue\nfalse\nin\nnil\n"+
+			"then\ndo\nbegin\nend\nbreak\ncontinue\nelse\nfor\nfunc\nif\nreturn\ntrue\nfalse\nyes\nno\nin\nnil\n"+
 				"import\nparam\nglobal\nvar\nconst\ntry\ncatch\nfinally\nthrow\n__callee__\n__named_args__\n__args__\n"+
 				"STDIN\nSTDOUT\nSTDERR\n",
 		)
@@ -68,7 +68,7 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("globals", func(t *testing.T) {
 		require.NoError(t, r.execute(".globals"))
-		testHasPrefix(t, string(cw.consume()), `{"Gosched": `+repr.Quote("function:Gosched")+`}`)
+		testHasPrefix(t, string(cw.consume()), `{Gosched: `+repr.Quote("function:Gosched")+`}`)
 	})
 	t.Run("globals plus", func(t *testing.T) {
 		require.NoError(t, r.execute(".globals+"))
@@ -182,7 +182,7 @@ func TestREPL(t *testing.T) {
 		cw.consume()
 		require.NoError(t, r.execute("func int(p:Point) => p.x * p.y"))
 		cw.consume()
-		require.NoError(t, r.execute("string(int)"))
+		require.NoError(t, r.execute("str(int)"))
 		require.Equal(t, "⇦   \""+repr.Quote("builtinType int")+" with 1 methods:\\n  "+
 			"1. "+repr.Quote("compiledFunction #8(p:Point)")+"\"",
 			strings.TrimSpace(string(cw.consume())))

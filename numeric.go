@@ -52,7 +52,7 @@ func (o Int) Equal(right Object) bool {
 func (o Int) IsFalsy() bool { return o == 0 }
 
 // BinaryOp implements Object interface.
-func (o Int) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o Int) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Int:
 		switch tok {
@@ -91,11 +91,11 @@ func (o Int) BinaryOp(tok token.Token, right Object) (Object, error) {
 			return Bool(o >= v), nil
 		}
 	case Uint:
-		return Uint(o).BinaryOp(tok, right)
+		return Uint(o).BinaryOp(vm, tok, right)
 	case Float:
-		return Float(o).BinaryOp(tok, right)
+		return Float(o).BinaryOp(vm, tok, right)
 	case Decimal:
-		return DecimalFromInt(o).BinaryOp(tok, right)
+		return DecimalFromInt(o).BinaryOp(vm, tok, right)
 	case Char:
 		switch tok {
 		case token.Add:
@@ -117,7 +117,7 @@ func (o Int) BinaryOp(tok token.Token, right Object) (Object, error) {
 		} else {
 			right = Int(0)
 		}
-		return o.BinaryOp(tok, right)
+		return o.BinaryOp(vm, tok, right)
 	case *NilType:
 		switch tok {
 		case token.Less, token.LessEq:
@@ -176,7 +176,7 @@ func (o Uint) Equal(right Object) bool {
 func (o Uint) IsFalsy() bool { return o == 0 }
 
 // BinaryOp implements Object interface.
-func (o Uint) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o Uint) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Uint:
 		switch tok {
@@ -215,11 +215,11 @@ func (o Uint) BinaryOp(tok token.Token, right Object) (Object, error) {
 			return Bool(o >= v), nil
 		}
 	case Int:
-		return o.BinaryOp(tok, Uint(v))
+		return o.BinaryOp(vm, tok, Uint(v))
 	case Float:
-		return Float(o).BinaryOp(tok, right)
+		return Float(o).BinaryOp(vm, tok, right)
 	case Decimal:
-		return DecimalFromUint(o).BinaryOp(tok, right)
+		return DecimalFromUint(o).BinaryOp(vm, tok, right)
 	case Char:
 		switch tok {
 		case token.Add:
@@ -241,7 +241,7 @@ func (o Uint) BinaryOp(tok token.Token, right Object) (Object, error) {
 		} else {
 			right = Uint(0)
 		}
-		return o.BinaryOp(tok, right)
+		return o.BinaryOp(vm, tok, right)
 	case *NilType:
 		switch tok {
 		case token.Less, token.LessEq:
@@ -303,7 +303,7 @@ func (o Float) IsFalsy() bool {
 }
 
 // BinaryOp implements Object interface.
-func (o Float) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o Float) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Float:
 		switch tok {
@@ -328,18 +328,18 @@ func (o Float) BinaryOp(tok token.Token, right Object) (Object, error) {
 			return Bool(o >= v), nil
 		}
 	case Int:
-		return o.BinaryOp(tok, Float(v))
+		return o.BinaryOp(vm, tok, Float(v))
 	case Uint:
-		return o.BinaryOp(tok, Float(v))
+		return o.BinaryOp(vm, tok, Float(v))
 	case Decimal:
-		return DecimalFromFloat(o).BinaryOp(tok, right)
+		return DecimalFromFloat(o).BinaryOp(vm, tok, right)
 	case Bool:
 		if v {
 			right = Float(1)
 		} else {
 			right = Float(0)
 		}
-		return o.BinaryOp(tok, right)
+		return o.BinaryOp(vm, tok, right)
 	case *NilType:
 		switch tok {
 		case token.Less, token.LessEq:
@@ -414,7 +414,7 @@ func (o Decimal) IsFalsy() bool {
 }
 
 // BinaryOp implements Object interface.
-func (o Decimal) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o Decimal) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Decimal:
 		switch tok {
@@ -436,32 +436,32 @@ func (o Decimal) BinaryOp(tok token.Token, right Object) (Object, error) {
 			return Bool(o.Go().GreaterThanOrEqual(v.Go())), nil
 		}
 	case Int:
-		return o.BinaryOp(tok, DecimalFromInt(v))
+		return o.BinaryOp(vm, tok, DecimalFromInt(v))
 	case Uint:
-		return o.BinaryOp(tok, DecimalFromUint(v))
+		return o.BinaryOp(vm, tok, DecimalFromUint(v))
 	case Float:
-		return o.BinaryOp(tok, DecimalFromFloat(v))
+		return o.BinaryOp(vm, tok, DecimalFromFloat(v))
 	case Char:
-		return o.BinaryOp(tok, DecimalFromUint(Uint(v)))
-	case String:
+		return o.BinaryOp(vm, tok, DecimalFromUint(Uint(v)))
+	case Str:
 		d, err := DecimalFromString(v)
 		if err != nil {
 			return nil, ErrType.NewError(err.Error())
 		}
-		return o.BinaryOp(tok, d)
+		return o.BinaryOp(vm, tok, d)
 	case Bytes:
 		var d decimal.Decimal
 		if err := d.UnmarshalBinary(v); err != nil {
 			return nil, err
 		}
-		return o.BinaryOp(tok, Decimal(d))
+		return o.BinaryOp(vm, tok, Decimal(d))
 	case Bool:
 		if v {
 			right = DecimalFromUint(1)
 		} else {
 			right = DecimalFromUint(0)
 		}
-		return o.BinaryOp(tok, right)
+		return o.BinaryOp(vm, tok, right)
 	case *NilType:
 		switch tok {
 		case token.Less, token.LessEq:
@@ -499,12 +499,12 @@ func DecimalFromFloat(v Float) Decimal {
 	return Decimal(decimal.NewFromFloat(float64(v)))
 }
 
-func DecimalFromString(v String) (Decimal, error) {
+func DecimalFromString(v Str) (Decimal, error) {
 	r, err := decimal.NewFromString(string(v))
 	return Decimal(r), err
 }
 
-func MustDecimalFromString(v String) Decimal {
+func MustDecimalFromString(v Str) Decimal {
 	r, _ := decimal.NewFromString(string(v))
 	return Decimal(r)
 }
@@ -546,7 +546,7 @@ func (o Char) Equal(right Object) bool {
 func (o Char) IsFalsy() bool { return o == 0 }
 
 // BinaryOp implements Object interface.
-func (o Char) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o Char) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Char:
 		switch tok {
@@ -620,14 +620,14 @@ func (o Char) BinaryOp(tok token.Token, right Object) (Object, error) {
 		} else {
 			right = Char(0)
 		}
-		return o.BinaryOp(tok, right)
-	case String:
+		return o.BinaryOp(vm, tok, right)
+	case Str:
 		if tok == token.Add {
 			var sb strings.Builder
 			sb.Grow(len(v) + 4)
 			sb.WriteRune(rune(o))
 			sb.WriteString(string(v))
-			return String(sb.String()), nil
+			return Str(sb.String()), nil
 		}
 	case *NilType:
 		switch tok {

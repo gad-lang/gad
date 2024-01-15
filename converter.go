@@ -50,9 +50,33 @@ func (oc *ObjectConverters) ToInterface(vm *VM, v Object) any {
 }
 
 func (vm *VM) ToObject(v any) (Object, error) {
+	if v == nil {
+		return Nil, nil
+	}
 	return vm.ObjectConverters.ToObject(vm, v)
 }
 
 func (vm *VM) ToInterface(v Object) any {
+	if v == Nil {
+		return nil
+	}
 	return vm.ObjectConverters.ToInterface(vm, v)
+}
+
+func (vm *VM) ToInterfaceArray(v Array) (ret []any) {
+	ret = make([]any, len(v))
+	for i, o := range v {
+		ret[i] = vm.ToInterface(o)
+	}
+	return
+}
+
+func (vm *VM) ToObjectArray(v []any) (ret Array, err error) {
+	ret = make(Array, len(v))
+	for i, o := range v {
+		if ret[i], err = vm.ToObject(o); err != nil {
+			return
+		}
+	}
+	return
 }

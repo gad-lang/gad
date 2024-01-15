@@ -25,6 +25,10 @@ var (
 		OptimizeConst:     true,
 		OptimizeExpr:      true,
 	}
+
+	DefaultCompileOptions = CompileOptions{
+		CompilerOptions: DefaultCompilerOptions,
+	}
 	// TraceCompilerOptions holds Compiler options to print trace output
 	// to stdout for Parser, Optimizer, Compiler.
 	TraceCompilerOptions = CompilerOptions{
@@ -82,7 +86,6 @@ type (
 		OptimizerMaxCycle   int
 		OptimizeConst       bool
 		OptimizeExpr        bool
-		Mixed               bool
 		MixedWriteFunction  node.Expr
 		MixedExprToTextFunc node.Expr
 		moduleStore         *moduleStore
@@ -131,14 +134,14 @@ func (e *CompilerError) Unwrap() error {
 // NewCompiler creates a new Compiler object.
 func NewCompiler(file *parser.SourceFile, opts CompilerOptions) *Compiler {
 	if opts.SymbolTable == nil {
-		opts.SymbolTable = NewSymbolTable(BuiltinsMap)
+		opts.SymbolTable = NewSymbolTable(NewBuiltins())
 	}
 
 	if opts.constsCache == nil {
 		opts.constsCache = make(map[Object]int)
 		for i := range opts.Constants {
 			switch opts.Constants[i].(type) {
-			case Int, Uint, String, Bool, Float, Char, *NilType:
+			case Int, Uint, Str, Bool, Flag, Float, Char, *NilType:
 				opts.constsCache[opts.Constants[i]] = i
 			}
 		}
@@ -171,8 +174,14 @@ func NewCompiler(file *parser.SourceFile, opts CompilerOptions) *Compiler {
 	}
 }
 
+type CompileOptions struct {
+	CompilerOptions
+	ParserOptions  parser.ParserOptions
+	ScannerOptions parser.ScannerOptions
+}
+
 // Compile compiles given script to Bytecode.
-func Compile(script []byte, opts CompilerOptions) (*Bytecode, error) {
+func Compile(script []byte, opts CompileOptions) (*Bytecode, error) {
 	fileSet := parser.NewFileSet()
 	moduleName := opts.ModulePath
 
@@ -181,22 +190,17 @@ func Compile(script []byte, opts CompilerOptions) (*Bytecode, error) {
 	}
 
 	srcFile := fileSet.AddFile(moduleName, -1, len(script))
-	var trace io.Writer
-	if opts.TraceParser {
-		trace = opts.Trace
+	if opts.TraceParser && opts.ParserOptions.Trace == nil {
+		opts.ParserOptions.Trace = opts.Trace
 	}
 
-	var mode parser.Mode
-	if opts.Mixed {
-		mode = parser.ParseMixed
-	}
-	p := parser.NewParserWithMode(srcFile, script, trace, mode)
+	p := parser.NewParserWithOptions(srcFile, script, &opts.ParserOptions, &opts.ScannerOptions)
 	pf, err := p.ParseFile()
 	if err != nil {
 		return nil, err
 	}
 
-	compiler := NewCompiler(srcFile, opts)
+	compiler := NewCompiler(srcFile, opts.CompilerOptions)
 	compiler.SetGlobalSymbolsIndex()
 
 	if opts.OptimizeConst || opts.OptimizeExpr {
@@ -226,7 +230,7 @@ func (c *Compiler) SetGlobalSymbolsIndex() {
 	symbols := c.symbolTable.Symbols()
 	for _, s := range symbols {
 		if s.Scope == ScopeGlobal && s.Index == -1 {
-			s.Index = c.addConstant(String(s.Name))
+			s.Index = c.addConstant(Str(s.Name))
 		}
 	}
 }
@@ -258,7 +262,7 @@ func (c *Compiler) Bytecode() *Bytecode {
 	var i int
 
 	for i < len(c.instructions) {
-		lastOp = c.instructions[i]
+		lastOp = Opcode(c.instructions[i])
 		numOperands := OpcodeOperands[lastOp]
 		operands, offset = ReadOperands(
 			numOperands,
@@ -425,10 +429,16 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		} else {
 			c.emit(nt, OpFalse)
 		}
+	case *node.FlagLit:
+		if nt.Value {
+			c.emit(nt, OpYes)
+		} else {
+			c.emit(nt, OpNo)
+		}
 	case *node.StringLit:
-		c.emit(nt, OpConstant, c.addConstant(String(nt.Value)))
+		c.emit(nt, OpConstant, c.addConstant(Str(nt.Value)))
 	case *node.RawStringLit:
-		c.emit(nt, OpConstant, c.addConstant(RawString(nt.UnquotedValue())))
+		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.UnquotedValue())))
 	case *node.CharLit:
 		c.emit(nt, OpConstant, c.addConstant(Char(nt.Value)))
 	case *node.NilLit:
@@ -525,7 +535,7 @@ func (c *Compiler) at(nd ast.Node) func() {
 func (c *Compiler) changeOperand(opPos int, operand ...int) {
 	op := c.instructions[opPos]
 	inst := make([]byte, 0, 8)
-	inst, err := MakeInstruction(inst, op, operand...)
+	inst, err := MakeInstruction(inst, Opcode(op), operand...)
 	if err != nil {
 		panic(err)
 	}
@@ -549,13 +559,7 @@ func (c *Compiler) addConstant(obj Object) (index int) {
 	}()
 
 	switch obj.(type) {
-	case Int, Uint, String, RawString, Bool, Float, Char, *NilType:
-		i, ok := c.constsCache[obj]
-		if ok {
-			index = i
-			return
-		}
-	case Decimal:
+	case Int, Uint, Str, RawStr, Bool, Flag, Float, Char, *NilType, Decimal:
 		i, ok := c.constsCache[obj]
 		if ok {
 			index = i
@@ -844,7 +848,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		)
 	}
 
-	buf = append(buf[:0], op)
+	buf = append(buf[:0], byte(op))
 	switch op {
 	case OpGetBuiltin, OpConstant, OpMap, OpArray, OpGetGlobal, OpSetGlobal, OpJump,
 		OpJumpFalsy, OpAndJump, OpOrJump, OpStoreModule, OpKeyValueArray,
@@ -872,7 +876,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		OpFinalizer, OpDefineLocal:
 		buf = append(buf, byte(args[0]))
 		return buf, nil
-	case OpEqual, OpNotEqual, OpNull, OpTrue, OpFalse, OpPop, OpSliceIndex,
+	case OpEqual, OpNotEqual, OpNull, OpTrue, OpFalse, OpYes, OpNo, OpPop, OpSliceIndex,
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
 		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil:
@@ -923,7 +927,7 @@ func IterateInstructions(insts []byte,
 	for i := 0; i < len(insts); i++ {
 		numOperands := OpcodeOperands[insts[i]]
 		operands, offset = ReadOperands(numOperands, insts[i+1:], operands)
-		if !fn(i, insts[i], operands, offset) {
+		if !fn(i, Opcode(insts[i]), operands, offset) {
 			break
 		}
 		i += offset

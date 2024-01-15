@@ -21,14 +21,14 @@ var Module = map[string]gad.Object{
 	// Returns the JSON encoding v or error.
 	"Marshal": &gad.Function{
 		Name:  "Marshal",
-		Value: stdlib.FuncPORO(marshalFunc),
+		Value: stdlib.FuncPpVM_ORO(marshalFunc),
 	},
 	// gad:doc
 	// MarshalIndent(v any, prefix string, indent string) -> bytes
 	// MarshalIndent is like Marshal but applies IndentCount to format the output.
 	"MarshalIndent": &gad.Function{
 		Name:  "MarshalIndent",
-		Value: stdlib.FuncPOssRO(marshalIndentFunc),
+		Value: stdlib.FuncPpVM_OssRO(marshalIndentFunc),
 	},
 	// gad:doc
 	// IndentCount(src bytes, prefix string, indent string) -> bytes
@@ -92,16 +92,16 @@ var Module = map[string]gad.Object{
 	},
 }
 
-func marshalFunc(o gad.Object) gad.Object {
-	b, err := Marshal(o)
+func marshalFunc(vm *gad.VM, o gad.Object) gad.Object {
+	b, err := Marshal(vm, o)
 	if err != nil {
 		return &gad.Error{Message: err.Error(), Cause: err}
 	}
 	return gad.Bytes(b)
 }
 
-func marshalIndentFunc(o gad.Object, prefix, indent string) gad.Object {
-	b, err := MarshalIndent(o, prefix, indent)
+func marshalIndentFunc(vm *gad.VM, o gad.Object, prefix, indent string) gad.Object {
+	b, err := MarshalIndent(vm, o, prefix, indent)
 	if err != nil {
 		return &gad.Error{Message: err.Error(), Cause: err}
 	}

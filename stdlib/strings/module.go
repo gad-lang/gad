@@ -8,12 +8,17 @@
 package strings
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/stdlib"
+)
+
+var (
+	reSpaces = regexp.MustCompile(`\s+`)
 )
 
 // Module represents time module.
@@ -369,6 +374,162 @@ var Module = map[string]gad.Object{
 		Name:  "TrimSuffix",
 		Value: stdlib.FuncPssRO(trimSuffixFunc),
 	},
+
+	// gad:doc
+	// Trunc(s string, maxLen int; emph="...") -> string
+	// Truncate s to maxLen concatenated with emph.
+	"Trunc": &gad.Function{
+		Name: "Trunc",
+		Value: func(c gad.Call) (gad.Object, error) {
+			if err := c.Args.CheckLen(2); err != nil {
+				return gad.Nil, err
+			}
+
+			var (
+				emph = &gad.NamedArgVar{
+					Name:          "emph",
+					Value:         gad.Str("..."),
+					TypeAssertion: gad.TypeAssertionFromTypes(gad.TStr),
+				}
+			)
+			if err := c.NamedArgs.Get(emph); err != nil {
+				return gad.Nil, err
+			}
+
+			s1, ok := gad.ToGoString(c.Args.Get(0))
+			if !ok {
+				return gad.Nil, gad.NewArgumentTypeError("1st", "str", c.Args.Get(0).Type().Name())
+			}
+			i, ok := gad.ToGoInt(c.Args.Get(1))
+			if !ok {
+				return gad.Nil, gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).Type().Name())
+			}
+			return truncFunc(s1, i, emph.Value.ToString()), nil
+		},
+	},
+
+	// gad:doc
+	// SlitWords(s str|rawstr) -> Array
+	// Split words by spaces using regex `\s+`.
+	// If s is rawstr, returns Array of Rawstr, otherwise, Array of Str.
+	"SlitWords": &gad.Function{
+		Name: "Trunc",
+		Value: func(c gad.Call) (gad.Object, error) {
+			if err := c.Args.CheckLen(1); err != nil {
+				return gad.Nil, err
+			}
+
+			var (
+				arg    = c.Args.Get(0)
+				_, raw = arg.(gad.RawStr)
+				s      string
+				ret    gad.Array
+			)
+
+			if arg == gad.Nil {
+				return ret, nil
+			}
+
+			s = arg.ToString()
+
+			words := reSpaces.Split(s, -1)
+
+			if len(words) == 0 {
+				return ret, nil
+			}
+
+			if words[0] == "" {
+				words = words[1:]
+			}
+
+			ret = make(gad.Array, len(words))
+
+			if raw {
+				for i, word := range words {
+					ret[i] = gad.RawStr(word)
+				}
+			} else {
+				for i, word := range words {
+					ret[i] = gad.Str(word)
+				}
+			}
+
+			return ret, nil
+		},
+	},
+
+	// gad:doc
+	// TruncWords(s str|rawstr, max int; emph="...", atlimit=off) -> str|rawstr
+	// Truncate words in s to maxLen concatenated with emph. If atlimit is Falsy,
+	// limits at word count equals to max, otherwise at length of s equals to max.
+	"TruncWords": &gad.Function{
+		Name: "Trunc",
+		Value: func(c gad.Call) (gad.Object, error) {
+			if err := c.Args.CheckLen(2); err != nil {
+				return gad.Nil, err
+			}
+
+			var (
+				emph = &gad.NamedArgVar{
+					Name:          "emph",
+					Value:         gad.Str("..."),
+					TypeAssertion: gad.TypeAssertionFromTypes(gad.TStr),
+				}
+				atlimit = &gad.NamedArgVar{
+					Name:  "atlimit",
+					Value: gad.No,
+				}
+			)
+
+			if err := c.NamedArgs.Get(emph, atlimit); err != nil {
+				return gad.Nil, err
+			}
+
+			var (
+				arg    = c.Args.Get(0)
+				_, raw = arg.(gad.RawStr)
+				s      string
+			)
+
+			if arg == gad.Nil {
+				return gad.Str(""), nil
+			}
+
+			s = arg.ToString()
+			limit, ok := gad.ToGoInt(c.Args.Get(1))
+			if !ok {
+				return gad.Nil, gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).Type().Name())
+			}
+
+			if atlimit.Value.IsFalsy() {
+				var (
+					words = reSpaces.Split(s, limit+1)
+					b     strings.Builder
+					emphs = emph.Value.ToString()
+					limit = limit - len(emphs)
+				)
+
+				for _, word := range words {
+					if word == "" {
+						continue
+					}
+					if b.Len()+len(word) > limit {
+						break
+					}
+					b.WriteByte(' ')
+					b.WriteString(word)
+				}
+				b.WriteString(emphs)
+				s = strings.TrimSpace(b.String())
+				if raw {
+					return gad.RawStr(s), nil
+				}
+				return gad.Str(s), nil
+			}
+
+			return truncFunc(s, limit, emph.Value.ToString()), nil
+		},
+	},
 }
 
 func containsFunc(s, substr string) gad.Object {
@@ -395,7 +556,7 @@ func fieldsFunc(s string) gad.Object {
 	fields := strings.Fields(s)
 	out := make(gad.Array, 0, len(fields))
 	for _, s := range fields {
-		out = append(out, gad.String(s))
+		out = append(out, gad.Str(s))
 	}
 	return out
 }
@@ -420,7 +581,7 @@ func fieldsFuncInv(c gad.Call) (gad.Object, error) {
 			}
 			out := make(gad.Array, 0, len(fields))
 			for _, s := range fields {
-				out = append(out, gad.String(s))
+				out = append(out, gad.Str(s))
 			}
 			return out, nil
 		},
@@ -459,15 +620,15 @@ func joinFunc(arr gad.Array, sep string) gad.Object {
 	for i := range arr {
 		elems[i] = arr[i].ToString()
 	}
-	return gad.String(strings.Join(elems, sep))
+	return gad.Str(strings.Join(elems, sep))
 }
 
 func joinAndFunc(arr gad.Array, sep, lastSep string) gad.Object {
 	switch len(arr) {
 	case 0:
-		return gad.String("")
+		return gad.Str("")
 	case 1:
-		return gad.String(arr[0].ToString())
+		return gad.Str(arr[0].ToString())
 	default:
 		last := len(arr) - 1
 		elems := make([]string, last)
@@ -475,7 +636,7 @@ func joinAndFunc(arr gad.Array, sep, lastSep string) gad.Object {
 			elems[i] = arr[i].ToString()
 		}
 
-		return gad.String(strings.Join(elems, sep) + lastSep + arr[last].ToString())
+		return gad.Str(strings.Join(elems, sep) + lastSep + arr[last].ToString())
 	}
 }
 
@@ -513,7 +674,7 @@ func mapFuncInv(c gad.Call) (gad.Object, error) {
 				}
 				return r
 			}, s)
-			return gad.String(out), err
+			return gad.Str(out), err
 		},
 	)
 }
@@ -532,17 +693,17 @@ func pad(c gad.Call, left bool) (gad.Object, error) {
 	}
 	diff := padLen - len(s)
 	if diff <= 0 {
-		return gad.String(s), nil
+		return gad.Str(s), nil
 	}
 	padWith := " "
 	if size > 2 {
 		if padWith = c.Args.Get(2).ToString(); len(padWith) == 0 {
-			return gad.String(s), nil
+			return gad.Str(s), nil
 		}
 	}
 	r := (diff-len(padWith))/len(padWith) + 2
 	if r <= 0 {
-		return gad.String(s), nil
+		return gad.Str(s), nil
 	}
 	var sb strings.Builder
 	sb.Grow(padLen)
@@ -553,15 +714,15 @@ func pad(c gad.Call, left bool) (gad.Object, error) {
 		sb.WriteString(s)
 		sb.WriteString(strings.Repeat(padWith, r)[:diff])
 	}
-	return gad.String(sb.String()), nil
+	return gad.Str(sb.String()), nil
 }
 
 func repeatFunc(s string, count int) gad.Object {
 	// if n is negative strings.Repeat function panics
 	if count < 0 {
-		return gad.String("")
+		return gad.Str("")
 	}
-	return gad.String(strings.Repeat(s, count))
+	return gad.Str(strings.Repeat(s, count))
 }
 
 func replaceFunc(c gad.Call) (gad.Object, error) {
@@ -582,19 +743,19 @@ func replaceFunc(c gad.Call) (gad.Object, error) {
 		}
 		n = v
 	}
-	return gad.String(strings.Replace(s, old, news, n)), nil
+	return gad.Str(strings.Replace(s, old, news, n)), nil
 }
 
 func titleFunc(s string) gad.Object {
 	//lint:ignore SA1019 Keep it for backward compatibility.
-	return gad.String(strings.Title(s)) // nolint staticcheck Keep it for backward compatibility
+	return gad.Str(strings.Title(s)) // nolint staticcheck Keep it for backward compatibility
 }
 
-func toLowerFunc(s string) gad.Object { return gad.String(strings.ToLower(s)) }
+func toLowerFunc(s string) gad.Object { return gad.Str(strings.ToLower(s)) }
 
-func toTitleFunc(s string) gad.Object { return gad.String(strings.ToTitle(s)) }
+func toTitleFunc(s string) gad.Object { return gad.Str(strings.ToTitle(s)) }
 
-func toUpperFunc(s string) gad.Object { return gad.String(strings.ToUpper(s)) }
+func toUpperFunc(s string) gad.Object { return gad.Str(strings.ToUpper(s)) }
 
 func toValidUTF8Func(c gad.Call) (gad.Object, error) {
 	size := c.Args.Len()
@@ -607,31 +768,39 @@ func toValidUTF8Func(c gad.Call) (gad.Object, error) {
 	if size == 2 {
 		repl = c.Args.Get(1).ToString()
 	}
-	return gad.String(strings.ToValidUTF8(s, repl)), nil
+	return gad.Str(strings.ToValidUTF8(s, repl)), nil
 }
 
 func trimFunc(s, cutset string) gad.Object {
-	return gad.String(strings.Trim(s, cutset))
+	return gad.Str(strings.Trim(s, cutset))
 }
 
 func trimLeftFunc(s, cutset string) gad.Object {
-	return gad.String(strings.TrimLeft(s, cutset))
+	return gad.Str(strings.TrimLeft(s, cutset))
 }
 
 func trimPrefixFunc(s, prefix string) gad.Object {
-	return gad.String(strings.TrimPrefix(s, prefix))
+	return gad.Str(strings.TrimPrefix(s, prefix))
 }
 
 func trimRightFunc(s, cutset string) gad.Object {
-	return gad.String(strings.TrimRight(s, cutset))
+	return gad.Str(strings.TrimRight(s, cutset))
 }
 
 func trimSpaceFunc(s string) gad.Object {
-	return gad.String(strings.TrimSpace(s))
+	return gad.Str(strings.TrimSpace(s))
 }
 
 func trimSuffixFunc(s, suffix string) gad.Object {
-	return gad.String(strings.TrimSuffix(s, suffix))
+	return gad.Str(strings.TrimSuffix(s, suffix))
+}
+
+func truncFunc(s string, max int, emph string) gad.Object {
+	if s == "" || len(s) <= max {
+		return gad.Str(s)
+	}
+
+	return gad.Str(string([]rune(s)[:max]) + emph)
 }
 
 func newSplitFunc(fn func(string, string, int) []string) gad.CallableFunc {
@@ -655,7 +824,7 @@ func newSplitFunc(fn func(string, string, int) []string) gad.CallableFunc {
 		strs := fn(s, sep, n)
 		out := make(gad.Array, 0, len(strs))
 		for _, s := range strs {
-			out = append(out, gad.String(s))
+			out = append(out, gad.Str(s))
 		}
 		return out, nil
 	}
@@ -699,7 +868,7 @@ func newTrimFuncInv(fn func(string, func(rune) bool) string) gad.CallableFunc {
 					}
 					return !ret.IsFalsy()
 				})
-				return gad.String(out), err
+				return gad.Str(out), err
 			},
 		)
 	}

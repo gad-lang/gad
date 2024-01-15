@@ -36,7 +36,7 @@ func (o *Obj) Fields() Dict {
 	return o.fields
 }
 
-func (o *Obj) Stringer(c Call) (String, error) {
+func (o *Obj) Stringer(c Call) (Str, error) {
 	if o.typ.Stringer != nil {
 		ret, err := o.typ.Stringer.Call(Call{VM: c.VM, Args: Args{Array{o}}})
 		if err != nil {
@@ -45,7 +45,7 @@ func (o *Obj) Stringer(c Call) (String, error) {
 		s, _ := ToString(ret)
 		return s, nil
 	}
-	return String(o.ToString()), nil
+	return Str(o.ToString()), nil
 }
 
 func (o *Obj) ToString() string {
@@ -58,11 +58,11 @@ func (o *Obj) ToString() string {
 	names := o.typ.FieldsDict.SortedKeys()
 
 	for _, k := range names {
-		ks := string(k.(String))
+		ks := string(k.(Str))
 		sb.WriteString(ks)
 		sb.WriteString(": ")
 		switch v := o.fields[ks].(type) {
-		case String:
+		case Str:
 			sb.WriteString(strconv.Quote(v.ToString()))
 		case Char:
 			sb.WriteString(strconv.QuoteRune(rune(v)))
@@ -88,9 +88,12 @@ func (o Obj) Copy() Object {
 }
 
 // DeepCopy implements DeepCopier interface.
-func (o Obj) DeepCopy() Object {
-	o.fields = o.fields.DeepCopy().(Dict)
-	return &o
+func (o Obj) DeepCopy(vm *VM) (r Object, err error) {
+	if r, err = o.fields.DeepCopy(vm); err != nil {
+		return
+	}
+	o.fields = r.(Dict)
+	return &o, nil
 }
 
 // IndexSet implements Object interface.
@@ -131,7 +134,7 @@ func (o *Obj) Equal(right Object) bool {
 func (o *Obj) IsFalsy() bool { return len(o.fields) == 0 }
 
 // BinaryOp implements Object interface.
-func (o *Obj) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o *Obj) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	if right == Nil {
 		switch tok {
 		case token.Less, token.LessEq:
@@ -164,8 +167,8 @@ func (o *Obj) Len() int {
 	return len(o.fields)
 }
 
-func (o *Obj) Items() KeyValueArray {
-	return o.fields.Items()
+func (o *Obj) Items(vm *VM) (KeyValueArray, error) {
+	return o.fields.Items(vm)
 }
 
 func (o *Obj) Keys() Array {
@@ -182,7 +185,7 @@ func (o *Obj) CallName(name string, c Call) (_ Object, err error) {
 		return m.(CallerObject).Call(c)
 	}
 	var v Object
-	if v, err = o.IndexGet(c.VM, String(name)); err != nil {
+	if v, err = o.IndexGet(c.VM, Str(name)); err != nil {
 		return
 	}
 	if Callable(v) {
@@ -314,7 +317,7 @@ func (o *ObjType) IndexGet(_ *VM, index Object) (value Object, err error) {
 		}
 		return o.Init, nil
 	case "name":
-		return String(o.TypeName), nil
+		return Str(o.TypeName), nil
 	}
 	return nil, ErrNotIndexable.NewError(index.ToString())
 }
@@ -376,7 +379,7 @@ func (o *ObjType) Equal(right Object) bool {
 
 func (ObjType) IsFalsy() bool { return false }
 
-func (o *ObjType) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o *ObjType) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	if right == Nil {
 		switch tok {
 		case token.Less, token.LessEq:

@@ -39,12 +39,15 @@ func (o Args) ToString() string {
 }
 
 // DeepCopy implements DeepCopier interface.
-func (o Args) DeepCopy() Object {
+func (o Args) DeepCopy(vm *VM) (r Object, err error) {
 	cp := make(Args, len(o))
 	for i, v := range o {
-		cp[i] = v.DeepCopy().(Array)
+		if r, err = v.DeepCopy(vm); err != nil {
+			return
+		}
+		cp[i] = r.(Array)
 	}
-	return cp
+	return cp, nil
 }
 
 // Copy implements Copier interface.
@@ -56,7 +59,7 @@ func (o Args) Copy() Object {
 	return cp
 }
 
-func (o Args) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o Args) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	switch tok {
 	case token.Less, token.LessEq:
 		if right == Nil {
@@ -127,7 +130,7 @@ func (o Args) IndexGet(_ *VM, index Object) (Object, error) {
 			return o.Get(idx), nil
 		}
 		return nil, ErrIndexOutOfBounds
-	case String:
+	case Str:
 		switch v {
 		case "values":
 			return o.Values(), nil

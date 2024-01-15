@@ -31,8 +31,8 @@ func TestObjects(t *testing.T) {
 		Char('x'),
 		Float(0),
 		Float(1),
-		String(""),
-		String("x"),
+		Str(""),
+		Str("x"),
 	}
 	for i := range comparables {
 		for j := range comparables {
@@ -48,7 +48,7 @@ func TestObjects(t *testing.T) {
 }
 
 func TestObjectIterable(t *testing.T) {
-	require.NotNil(t, String("").Iterate(nil))
+	require.NotNil(t, Str("").Iterate(nil))
 	require.NotNil(t, Array{}.Iterate(nil))
 	require.NotNil(t, Bytes{}.Iterate(nil))
 	require.NotNil(t, Dict{}.Iterate(nil))
@@ -64,7 +64,7 @@ func TestObjectCallable(t *testing.T) {
 	require.False(t, Callable(Nil))
 	require.False(t, Callable(&Error{}))
 	require.False(t, Callable(&RuntimeError{}))
-	require.False(t, Callable(String("")))
+	require.False(t, Callable(Str("")))
 	require.False(t, Callable(Array{}))
 	require.False(t, Callable(Bytes{}))
 	require.False(t, Callable(Dict{}))
@@ -91,20 +91,20 @@ func TestObjectString(t *testing.T) {
 
 	require.Equal(t, ReprQuote("nil"), (&RuntimeError{}).ToString())
 
-	require.Equal(t, "", String("").ToString())
-	require.Equal(t, "xyz", String("xyz").ToString())
+	require.Equal(t, "", Str("").ToString())
+	require.Equal(t, "xyz", Str("xyz").ToString())
 
 	require.Equal(t, "[]", Array{}.ToString())
-	require.Equal(t, `[1, "x", 1.1]`, Array{Int(1), String("x"), Float(1.1)}.ToString())
+	require.Equal(t, `[1, "x", 1.1]`, Array{Int(1), Str("x"), Float(1.1)}.ToString())
 
 	require.Equal(t, "", Bytes{}.ToString())
 	require.Equal(t, "\x00\x01", Bytes{0, 1}.ToString())
-	require.Equal(t, "xyz", Bytes(String("xyz")).ToString())
-	require.Equal(t, String("xyz").ToString(), Bytes(String("xyz")).ToString())
+	require.Equal(t, "xyz", Bytes(Str("xyz")).ToString())
+	require.Equal(t, Str("xyz").ToString(), Bytes(Str("xyz")).ToString())
 
 	require.Equal(t, "{}", Dict{}.ToString())
 	m := Dict{"a": Int(1)}
-	require.Equal(t, `{"a": 1}`, m.ToString())
+	require.Equal(t, `{a: 1}`, m.ToString())
 	require.Equal(t, "{}", (&SyncMap{}).ToString())
 	require.Equal(t, m.ToString(), (&SyncMap{Value: m}).ToString())
 	require.Equal(t, "{}", (&SyncMap{Value: Dict{}}).ToString())
@@ -135,7 +135,7 @@ func TestObjectTypeName(t *testing.T) {
 	require.Equal(t, "nil", Nil.Type().Name())
 	require.Equal(t, "error", (&Error{}).Type().Name())
 	require.Equal(t, "error", (&RuntimeError{}).Type().Name())
-	require.Equal(t, "string", String("").Type().Name())
+	require.Equal(t, "str", Str("").Type().Name())
 	require.Equal(t, "array", Array{}.Type().Name())
 	require.Equal(t, "bytes", Bytes{}.Type().Name())
 	require.Equal(t, "dict", Dict{}.Type().Name())
@@ -187,8 +187,8 @@ func TestObjectIsFalsy(t *testing.T) {
 	require.True(t, Nil.IsFalsy())
 	require.True(t, (&Error{}).IsFalsy())
 	require.True(t, (&RuntimeError{}).IsFalsy())
-	require.True(t, String("").IsFalsy())
-	require.False(t, String("x").IsFalsy())
+	require.True(t, Str("").IsFalsy())
+	require.False(t, Str("x").IsFalsy())
 	require.True(t, Array{}.IsFalsy())
 	require.False(t, Array{Int(0)}.IsFalsy())
 	require.True(t, Bytes{}.IsFalsy())
@@ -248,58 +248,58 @@ func TestObjectIndexGet(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = (&Error{}).IndexGet(nil, String("Literal"))
+	v, err = (&Error{}).IndexGet(nil, Str("Literal"))
 	require.NoError(t, err)
-	require.Equal(t, String(""), v)
+	require.Equal(t, Str(""), v)
 
-	v, err = (&Error{Name: "x"}).IndexGet(nil, String("Literal"))
+	v, err = (&Error{Name: "x"}).IndexGet(nil, Str("Literal"))
 	require.NoError(t, err)
-	require.Equal(t, String("x"), v)
+	require.Equal(t, Str("x"), v)
 
-	v, err = (&Error{}).IndexGet(nil, String("Message"))
+	v, err = (&Error{}).IndexGet(nil, Str("Message"))
 	require.NoError(t, err)
-	require.Equal(t, String(""), v)
+	require.Equal(t, Str(""), v)
 
-	v, err = (&Error{Message: "x"}).IndexGet(nil, String("Message"))
+	v, err = (&Error{Message: "x"}).IndexGet(nil, Str("Message"))
 	require.NoError(t, err)
-	require.Equal(t, String("x"), v)
+	require.Equal(t, Str("x"), v)
 
 	v, err = (&RuntimeError{}).IndexGet(nil, Nil)
 	require.Equal(t, Nil, v)
 	require.NoError(t, err)
 
-	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(nil, String("Literal"))
+	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(nil, Str("Literal"))
 	require.NoError(t, err)
-	require.Equal(t, String(""), v)
+	require.Equal(t, Str(""), v)
 
-	v, err = (&RuntimeError{Err: &Error{Name: "x"}}).IndexGet(nil, String("Literal"))
+	v, err = (&RuntimeError{Err: &Error{Name: "x"}}).IndexGet(nil, Str("Literal"))
 	require.NoError(t, err)
-	require.Equal(t, String("x"), v)
+	require.Equal(t, Str("x"), v)
 
-	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(nil, String("Message"))
+	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(nil, Str("Message"))
 	require.NoError(t, err)
-	require.Equal(t, String(""), v)
+	require.Equal(t, Str(""), v)
 
-	v, err = (&RuntimeError{Err: &Error{Message: "x"}}).IndexGet(nil, String("Message"))
+	v, err = (&RuntimeError{Err: &Error{Message: "x"}}).IndexGet(nil, Str("Message"))
 	require.NoError(t, err)
-	require.Equal(t, String("x"), v)
+	require.Equal(t, Str("x"), v)
 
-	v, err = String("").IndexGet(nil, Nil)
+	v, err = Str("").IndexGet(nil, Nil)
 	require.Nil(t, v)
 	require.NotNil(t, err)
 	require.True(t, errors.Is(err, ErrType))
 
-	v, err = String("x").IndexGet(nil, Int(0))
+	v, err = Str("x").IndexGet(nil, Int(0))
 	require.NotNil(t, v)
 	require.Nil(t, err)
 	require.Equal(t, Int("x"[0]), v)
 
-	v, err = String("x").IndexGet(nil, Int(0))
+	v, err = Str("x").IndexGet(nil, Int(0))
 	require.NotNil(t, v)
 	require.Nil(t, err)
 	require.Equal(t, Int("x"[0]), v)
 
-	v, err = String("x").IndexGet(nil, Int(1))
+	v, err = Str("x").IndexGet(nil, Int(1))
 	require.Nil(t, v)
 	require.Equal(t, ErrIndexOutOfBounds, err)
 
@@ -341,7 +341,7 @@ func TestObjectIndexGet(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = Dict{"a": Int(1)}.IndexGet(nil, String("a"))
+	v, err = Dict{"a": Int(1)}.IndexGet(nil, Str("a"))
 	require.Nil(t, err)
 	require.Equal(t, Int(1), v)
 
@@ -353,7 +353,7 @@ func TestObjectIndexGet(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = (&SyncMap{Value: Dict{"a": Int(1)}}).IndexGet(nil, String("a"))
+	v, err = (&SyncMap{Value: Dict{"a": Int(1)}}).IndexGet(nil, Str("a"))
 	require.Nil(t, err)
 	require.Equal(t, Int(1), v)
 }
@@ -370,7 +370,7 @@ func TestObjectIndexSet(t *testing.T) {
 	require.Equal(t, Array{Int(1)}, v)
 
 	v = Array{Int(1)}
-	err = v.IndexSet(nil, String("x"), Int(3))
+	err = v.IndexSet(nil, Str("x"), Int(3))
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrType))
 
@@ -385,12 +385,12 @@ func TestObjectIndexSet(t *testing.T) {
 	require.Equal(t, ErrIndexOutOfBounds, err)
 
 	v = Bytes{1}
-	err = v.IndexSet(nil, Int(0), String(""))
+	err = v.IndexSet(nil, Int(0), Str(""))
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrType))
 
 	v = Bytes{1}
-	err = v.IndexSet(nil, String("x"), Int(1))
+	err = v.IndexSet(nil, Str("x"), Int(1))
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrType))
 
@@ -400,7 +400,7 @@ func TestObjectIndexSet(t *testing.T) {
 	require.Equal(t, Nil, v.(Dict)["nil"])
 
 	v = Dict{"a": Int(1)}
-	err = v.IndexSet(nil, String("a"), Int(2))
+	err = v.IndexSet(nil, Str("a"), Int(2))
 	require.Nil(t, err)
 	require.Equal(t, Int(2), v.(Dict)["a"])
 
@@ -410,7 +410,7 @@ func TestObjectIndexSet(t *testing.T) {
 	require.Equal(t, Nil, v.(*SyncMap).Value["nil"])
 
 	v = &SyncMap{Value: Dict{"a": Int(1)}}
-	err = v.IndexSet(nil, String("a"), Int(2))
+	err = v.IndexSet(nil, Str("a"), Int(2))
 	require.Nil(t, err)
 	require.Equal(t, Int(2), v.(*SyncMap).Value["a"])
 }

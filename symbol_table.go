@@ -68,11 +68,11 @@ type SymbolTable struct {
 	block            bool
 	disableParams    bool
 	shadowedBuiltins []string
-	builtins         map[string]BuiltinType
+	builtins         *Builtins
 }
 
 // NewSymbolTable creates new symbol table object.
-func NewSymbolTable(builtins map[string]BuiltinType) *SymbolTable {
+func NewSymbolTable(builtins *Builtins) *SymbolTable {
 	return &SymbolTable{
 		store:    make(map[string]*Symbol),
 		builtins: builtins,
@@ -94,6 +94,10 @@ func (st *SymbolTable) Parent(skipBlock bool) *SymbolTable {
 		return st.parent.Parent(skipBlock)
 	}
 	return st.parent
+}
+
+func (st *SymbolTable) Builtins() *Builtins {
+	return st.builtins
 }
 
 // EnableParams enables or disables definition of parameters.
@@ -162,7 +166,7 @@ func (st *SymbolTable) defineParamsVar(names []string) error {
 	}
 
 	for _, param := range names {
-		if _, ok := st.store[param]; ok {
+		if _, ok := st.store[param]; ok && param != "_" {
 			return fmt.Errorf("%q redeclared in this block", param)
 		}
 		symbol := &Symbol{
@@ -210,7 +214,7 @@ func (st *SymbolTable) Resolve(name string) (symbol *Symbol, ok bool) {
 	}
 
 	if !ok && st.parent == nil && !st.isBuiltinDisabled(name) {
-		if idx, exists := st.builtins[name]; exists {
+		if idx, exists := st.builtins.Map[name]; exists {
 			symbol = &Symbol{
 				Name:  name,
 				Index: int(idx),

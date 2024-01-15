@@ -92,21 +92,21 @@ var Module = map[string]gad.Object{
 	// StampMilli
 	// StampMicro
 	// StampNano
-	"ANSIC":       gad.String(time.ANSIC),
-	"UnixDate":    gad.String(time.UnixDate),
-	"RubyDate":    gad.String(time.RubyDate),
-	"RFC822":      gad.String(time.RFC822),
-	"RFC822Z":     gad.String(time.RFC822Z),
-	"RFC850":      gad.String(time.RFC850),
-	"RFC1123":     gad.String(time.RFC1123),
-	"RFC1123Z":    gad.String(time.RFC1123Z),
-	"RFC3339":     gad.String(time.RFC3339),
-	"RFC3339Nano": gad.String(time.RFC3339Nano),
-	"Kitchen":     gad.String(time.Kitchen),
-	"Stamp":       gad.String(time.Stamp),
-	"StampMilli":  gad.String(time.StampMilli),
-	"StampMicro":  gad.String(time.StampMicro),
-	"StampNano":   gad.String(time.StampNano),
+	"ANSIC":       gad.Str(time.ANSIC),
+	"UnixDate":    gad.Str(time.UnixDate),
+	"RubyDate":    gad.Str(time.RubyDate),
+	"RFC822":      gad.Str(time.RFC822),
+	"RFC822Z":     gad.Str(time.RFC822Z),
+	"RFC850":      gad.Str(time.RFC850),
+	"RFC1123":     gad.Str(time.RFC1123),
+	"RFC1123Z":    gad.Str(time.RFC1123Z),
+	"RFC3339":     gad.Str(time.RFC3339),
+	"RFC3339Nano": gad.Str(time.RFC3339Nano),
+	"Kitchen":     gad.Str(time.Kitchen),
+	"Stamp":       gad.Str(time.Stamp),
+	"StampMilli":  gad.Str(time.StampMilli),
+	"StampMicro":  gad.Str(time.StampMicro),
+	"StampNano":   gad.Str(time.StampNano),
 
 	// gad:doc
 	// ### Durations
@@ -410,15 +410,15 @@ func utcFunc() gad.Object { return utcLoc }
 func localFunc() gad.Object { return localLoc }
 
 func monthStringFunc(m int) gad.Object {
-	return gad.String(time.Month(m).String())
+	return gad.Str(time.Month(m).String())
 }
 
 func weekdayStringFunc(w int) gad.Object {
-	return gad.String(time.Weekday(w).String())
+	return gad.Str(time.Weekday(w).String())
 }
 
 func durationStringFunc(d int64) gad.Object {
-	return gad.String(time.Duration(d).String())
+	return gad.Str(time.Duration(d).String())
 }
 
 func durationNanosecondsFunc(d int64) gad.Object {
@@ -551,11 +551,11 @@ func parseFunc(c gad.Call) (gad.Object, error) {
 	}
 	layout, ok := gad.ToGoString(c.Args.Get(0))
 	if !ok {
-		return newArgTypeErr("1st", "string", c.Args.Get(0).Type().Name())
+		return newArgTypeErr("1st", "str", c.Args.Get(0).Type().Name())
 	}
 	value, ok := gad.ToGoString(c.Args.Get(1))
 	if !ok {
-		return newArgTypeErr("2nd", "string", c.Args.Get(1).Type().Name())
+		return newArgTypeErr("2nd", "str", c.Args.Get(1).Type().Name())
 	}
 	if size == 2 {
 		tm, err := time.Parse(layout, value)

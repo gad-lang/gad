@@ -155,6 +155,8 @@ func TestScanner_Scan(t *testing.T) {
 		{token.Return, "return"},
 		{token.True, "true"},
 		{token.False, "false"},
+		{token.Yes, "yes"},
+		{token.No, "no"},
 		{token.In, "in"},
 		{token.Nil, "nil"},
 		{token.Import, "import"},
@@ -314,7 +316,9 @@ func scanExpect(
 	s := parser.NewScanner(
 		testFile,
 		[]byte(input),
-		mode)
+		&parser.ScannerOptions{
+			Mode: mode,
+		})
 	s.ErrorHandler(func(_ parser.SourceFilePos, msg string) { require.Fail(t, msg) })
 
 	for idx, e := range expected {

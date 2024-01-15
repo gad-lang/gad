@@ -41,6 +41,24 @@ func (o *Bool) UnmarshalBinary(data []byte) error {
 }
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaler
+func (o *Flag) UnmarshalBinary(data []byte) error {
+	if len(data) < 1 {
+		return errors.New("invalid gad.Flag data")
+	}
+
+	if data[0] == binOnV1 {
+		*o = true
+		return nil
+	}
+
+	if data[0] == binOffV1 {
+		*o = false
+		return nil
+	}
+	return errors.New("invalid gad.Flag data")
+}
+
+// UnmarshalBinary implements encoding.BinaryUnmarshaler
 func (o *Int) UnmarshalBinary(data []byte) error {
 	if len(data) < 2 || data[0] != binIntV1 {
 		return errors.New("invalid gad.Int data")
@@ -179,7 +197,7 @@ func (o *Decimal) UnmarshalBinary(data []byte) error {
 // UnmarshalBinary implements encoding.BinaryUnmarshaler
 func (o *String) UnmarshalBinary(data []byte) error {
 	if len(data) < 2 || data[0] != binStringV1 {
-		return errors.New("invalid gad.String data")
+		return errors.New("invalid gad.Str data")
 	}
 
 	size, offset, err := toVarint(data[1:])
@@ -193,7 +211,7 @@ func (o *String) UnmarshalBinary(data []byte) error {
 
 	ub := 1 + offset + int(size)
 	if len(data) < ub {
-		return errors.New("invalid gad.String data size")
+		return errors.New("invalid gad.Str data size")
 	}
 
 	*o = String(data[1+offset : ub])
@@ -366,7 +384,7 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 			if err != nil {
 				return err
 			}
-			o.Name = string(obj.(gad.String))
+			o.Name = string(obj.(gad.Str))
 		case 1:
 			o.AllowMethods = true
 		case 2:
@@ -385,7 +403,7 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 				if err != nil {
 					return err
 				}
-				o.Params.Names[i] = string(obj.(gad.String))
+				o.Params.Names[i] = string(obj.(gad.Str))
 			}
 		case 4:
 			v, err := vi.read()
@@ -413,7 +431,7 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 				} else if value, err := DecodeObject(rd); err != nil {
 					return err
 				} else {
-					namedParams[i] = &gad.NamedParam{Name: string(name.(gad.String)), Value: string(value.(gad.String))}
+					namedParams[i] = &gad.NamedParam{Name: string(name.(gad.Str)), Value: string(value.(gad.Str))}
 				}
 			}
 			o.NamedParams = *gad.NewNamedParams(namedParams...)

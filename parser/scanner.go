@@ -22,7 +22,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/gad-lang/gad/parser/source"
-	"github.com/gad-lang/gad/parser/utils"
+	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -43,6 +43,7 @@ const (
 	DontInsertSemis
 	Mixed
 	ConfigDisabled
+	MixedExprAsValue
 )
 
 // TextFlag represents a text flag.
@@ -78,6 +79,7 @@ type ScannerInterface interface {
 	SourceFile() *SourceFile
 	Source() []byte
 	ErrorHandler(h ...ScannerErrorHandler)
+	GetMixedExprRune() rune
 }
 
 type TokenPool []*Token
@@ -188,6 +190,7 @@ type Scanner struct {
 
 	File               *SourceFile           // source file handle
 	Src                []byte                // source
+	MixedExprRune      rune                  // the mixed expr rune
 	Ch                 rune                  // current character
 	Offset             int                   // character offset
 	ReadOffset         int                   // reading offset (position after current character)
@@ -211,22 +214,36 @@ type Scanner struct {
 	EOF                *Token
 }
 
+type ScannerOptions struct {
+	Mode          ScanMode
+	MixedExprRune rune
+}
+
 // NewScanner creates a Scanner.
 func NewScanner(
 	file *SourceFile,
 	src []byte,
-	mode ScanMode,
+	opts *ScannerOptions,
 ) *Scanner {
 	if file.Size != len(src) {
 		panic(fmt.Sprintf("file size (%d) does not match Src len (%d)",
 			file.Size, len(src)))
 	}
 
+	if opts == nil {
+		opts = &ScannerOptions{}
+	}
+
+	if opts.MixedExprRune == 0 {
+		opts.MixedExprRune = '#'
+	}
+
 	s := &Scanner{
-		File: file,
-		Src:  src,
-		Ch:   ' ',
-		mode: mode,
+		File:          file,
+		Src:           src,
+		MixedExprRune: opts.MixedExprRune,
+		Ch:            ' ',
+		mode:          opts.Mode,
 	}
 
 	s.SkipWhitespaceFunc = func(s *Scanner) {
@@ -241,6 +258,10 @@ func NewScanner(
 	}
 
 	return s
+}
+
+func (s *Scanner) GetMixedExprRune() rune {
+	return s.MixedExprRune
 }
 
 func (s *Scanner) SkipWhitespace() {
@@ -388,7 +409,7 @@ func (s *Scanner) ScanNow() (t Token) {
 			case -1:
 				readText()
 				return t
-			case '#':
+			case s.MixedExprRune:
 				if !scape {
 					if s.Peek() == '{' {
 						readText()
@@ -430,12 +451,12 @@ do:
 
 	// determine token value
 	switch ch := s.Ch; {
-	case utils.IsLetter(ch):
+	case runehelper.IsIdentifierLetter(ch):
 		t.Literal = s.ScanIdentifier()
 		t.Token = token.Lookup(t.Literal)
 		switch t.Token {
 		case token.Ident, token.Break, token.Continue, token.Return,
-			token.True, token.False, token.Nil,
+			token.True, token.False, token.Yes, token.No, token.Nil,
 			token.Callee, token.Args, token.NamedArgs,
 			token.StdIn, token.StdOut, token.StdErr:
 			insertSemi = true
@@ -1050,14 +1071,14 @@ func (s *Scanner) FindLineEnd() bool {
 
 func (s *Scanner) ScanIdentifier() string {
 	offs := s.Offset
-	for utils.IsLetter(s.Ch) || utils.IsDigit(s.Ch) {
+	for runehelper.IsIdentifier(s.Ch) {
 		s.Next()
 	}
 	return string(s.Src[offs:s.Offset])
 }
 
 func (s *Scanner) scanMantissa(base int) {
-	for utils.DigitVal(s.Ch) < base {
+	for runehelper.DigitVal(s.Ch) < base {
 		s.Next()
 	}
 }
@@ -1147,7 +1168,7 @@ exponent:
 		if s.Ch == '-' || s.Ch == '+' {
 			s.Next()
 		}
-		if utils.DigitVal(s.Ch) < 10 {
+		if runehelper.DigitVal(s.Ch) < 10 {
 			s.scanMantissa(10)
 		} else {
 			s.Error(offs, "illegal floating-point exponent")
@@ -1193,7 +1214,7 @@ func (s *Scanner) scanEscape(quote rune) bool {
 
 	var x uint32
 	for n > 0 {
-		d := uint32(utils.DigitVal(s.Ch))
+		d := uint32(runehelper.DigitVal(s.Ch))
 		if d >= base {
 			msg := fmt.Sprintf(
 				"illegal character %#U in escape sequence", s.Ch)
@@ -1354,7 +1375,7 @@ func (s *Scanner) Switch4(
 func (s *Scanner) ScanCodeBlock(leftText *Token) (code Token) {
 	var (
 		end = s.Offset
-		lit = "#{"
+		lit = string(s.MixedExprRune) + "{"
 	)
 	s.InCode = true
 	s.InCodeBrace = s.BraceCount
@@ -1385,6 +1406,10 @@ func (s *Scanner) ScanCodeBlock(leftText *Token) (code Token) {
 		s.ToText = true
 		s.NextNoSpace()
 		code.Literal += "="
+		code.Token = token.ToTextBegin
+	} else if s.mode.Has(MixedExprAsValue) {
+		code.Literal += "="
+		s.ToText = true
 		code.Token = token.ToTextBegin
 	}
 

@@ -13,7 +13,7 @@ import (
 
 // ToLocation will try to convert given gad.Object to *Location value.
 func ToLocation(o gad.Object) (ret *Location, ok bool) {
-	if v, isString := o.(gad.String); isString {
+	if v, isString := o.(gad.Str); isString {
 		var err error
 		o, err = loadLocationFunc(string(v))
 		if err != nil {
@@ -32,7 +32,7 @@ func ToTime(o gad.Object) (ret *Time, ok bool) {
 	case gad.Int:
 		v := time.Unix(int64(o), 0)
 		ret, ok = &Time{Value: v}, true
-	case gad.String:
+	case gad.Str:
 		v, err := time.Parse(time.RFC3339Nano, string(o))
 		if err != nil {
 			v, err = time.Parse(time.RFC3339, string(o))

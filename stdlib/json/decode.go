@@ -230,14 +230,14 @@ func (d *decodeState) literal() (gad.Object, error) {
 		if !ok {
 			panic(phasePanicMsg)
 		}
-		return gad.String(s), nil
+		return gad.Str(s), nil
 
 	default: // number
 		if c != '-' && (c < '0' || c > '9') {
 			panic(phasePanicMsg)
 		}
 
-		return gad.DecimalFromString(gad.String(item))
+		return gad.DecimalFromString(gad.Str(item))
 	}
 }
 

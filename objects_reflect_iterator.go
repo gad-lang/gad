@@ -67,13 +67,13 @@ var _ Iterator = (*ReflectStructIterator)(nil)
 
 func (it *ReflectStructIterator) Next() bool {
 	it.i++
-	return it.i-1 < len(it.v.typ.fieldsNames)
+	return it.i-1 < len(it.v.RType.FieldsNames)
 }
 
 func (it *ReflectStructIterator) Key() Object {
-	return String(it.v.typ.fieldsNames[it.i-1])
+	return Str(it.v.RType.FieldsNames[it.i-1])
 }
 
 func (it *ReflectStructIterator) Value() (Object, error) {
-	return it.v.IndexGet(nil, it.Key())
+	return it.v.IndexGet(it.vm, it.Key())
 }

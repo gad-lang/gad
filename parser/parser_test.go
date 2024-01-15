@@ -112,6 +112,7 @@ func TestParserMixed(t *testing.T) {
 
 	expectParseStringMode(t, ParseMixed, "#{var a}", `var a`)
 	expectParseStringMode(t, ParseMixed, "#{for e in list do}1#{end}", "for _, e in list {#{= `1` }}")
+	expectParseStringMode(t, ParseMixed, "#{for e in list do}1#{else}2#{end}", "for _, e in list {#{= `1` }} else {#{= `2` }}")
 	expectParseStringMode(t, ParseMixed, "a  #{-= 1 -}\n\tb", "#{= `a` }; #{= 1 }; #{= `b` }")
 	expectParseStringMode(t, ParseMixed, "#{ a := begin -} 2 #{- end }", "a := (`2`)")
 	expectParseStringMode(t, ParseMixed, "#{ if 1 then } 2 #{ end }", "if 1 {#{= ` 2 ` }}")
@@ -1122,6 +1123,39 @@ func TestParseBoolean(t *testing.T) {
 	})
 }
 
+func TestParseFlag(t *testing.T) {
+	expectParse(t, "yes", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				flagLit(true, p(1, 1))))
+	})
+
+	expectParse(t, "no", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				flagLit(false, p(1, 1))))
+	})
+
+	expectParse(t, "yes != no", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				binaryExpr(
+					flagLit(true, p(1, 1)),
+					flagLit(false, p(1, 8)),
+					token.NotEqual,
+					p(1, 5))))
+	})
+
+	expectParse(t, "!no", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				unaryExpr(
+					flagLit(false, p(1, 2)),
+					token.Not,
+					p(1, 1))))
+	})
+}
+
 func TestParseCallKeywords(t *testing.T) {
 	expectParse(t, token.Callee.String(), func(p pfn) []Stmt {
 		return stmts(exprStmt(caleeKw(p(1, 1))))
@@ -1357,7 +1391,8 @@ func TestParseCallWithNamedArgs(t *testing.T) {
 					))))
 	})
 
-	expectParseString(t, "fn(a;b)", "fn(a, b=true)")
+	expectParseString(t, `attrs(;"name")`, `attrs(name=on)`)
+	expectParseString(t, "fn(a;b)", "fn(a, b=on)")
 	expectParseString(t, "fn(**{y:5})", "fn(**{y: 5})")
 	expectParseString(t, "fn(1,*[2,3],x=4,**{y:5})", "fn(1, *[2, 3], x=4, **{y: 5})")
 	expectParseString(t, "fn(1, a=b)()", "fn(1, a=b)()")
@@ -1453,6 +1488,9 @@ c`, func(p pfn) []Stmt {
 : c`)
 	expectParseError(t, `a ? (b : e)`)
 	expectParseError(t, `(a ? b) : e`)
+	expectParseError(t, `(b : e, c:d)`)
+	expectParseError(t, `(b : e)`)
+	expectParseError(t, `b : e`)
 }
 
 func TestParseForIn(t *testing.T) {
@@ -2920,7 +2958,9 @@ func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn) {
 		}
 	}()
 
-	p := NewParserWithMode(testFile, []byte(input), nil, mode)
+	p := NewParserWithOptions(testFile, []byte(input), &ParserOptions{
+		Mode: mode,
+	}, nil)
 	actual, err := p.ParseFile()
 	require.NoError(t, err)
 
@@ -3178,7 +3218,7 @@ func typedIdent(ident *Ident, typ ...*Ident) *TypedIdent {
 }
 
 func rawStringStmt(pos Pos, lit string) *RawStringStmt {
-	return &RawStringStmt{Lits: []*RawStringLit{{LiteralPos: pos, Literal: lit}}}
+	return &RawStringStmt{MixedExprRune: '#', Lits: []*RawStringLit{{LiteralPos: pos, Literal: lit}}}
 }
 
 func toText(start, end Literal, expr Expr) *ExprToTextStmt {
@@ -3271,6 +3311,10 @@ func charLit(value rune, pos Pos) *CharLit {
 
 func boolLit(value bool, pos Pos) *BoolLit {
 	return &BoolLit{Value: value, ValuePos: pos}
+}
+
+func flagLit(value bool, pos Pos) *FlagLit {
+	return &FlagLit{Value: value, ValuePos: pos}
 }
 
 func arrayLit(lbracket, rbracket Pos, list ...Expr) *ArrayLit {
@@ -3584,6 +3628,11 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 			actual.(*BoolLit).Value)
 		require.Equal(t, int(expected.ValuePos),
 			int(actual.(*BoolLit).ValuePos))
+	case *FlagLit:
+		require.Equal(t, expected.Value,
+			actual.(*FlagLit).Value)
+		require.Equal(t, int(expected.ValuePos),
+			int(actual.(*FlagLit).ValuePos))
 	case *CharLit:
 		require.Equal(t, expected.Value,
 			actual.(*CharLit).Value)
@@ -3847,6 +3896,6 @@ func parseSource(
 	fileSet := NewFileSet()
 	file := fileSet.AddFile(filename, -1, len(src))
 
-	p := NewParserWithMode(file, src, trace, mode)
+	p := NewParserWithOptions(file, src, &ParserOptions{Trace: trace, Mode: mode}, nil)
 	return p.ParseFile()
 }

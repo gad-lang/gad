@@ -15,7 +15,7 @@ func funcPOsRe(fn func(Object, string) error) CallableFunc {
 		o := c.Args.Get(0)
 		k, ok := ToGoString(c.Args.Get(1))
 		if !ok {
-			return Nil, NewArgumentTypeError("2nd", "string", c.Args.Get(1).Type().Name())
+			return Nil, NewArgumentTypeError("2nd", "str", c.Args.Get(1).Type().Name())
 		}
 
 		err = fn(o, k)
@@ -273,6 +273,22 @@ func funcPpVM_OCoROe(fn func(*VM, Object, CallerObject) (Object, error)) Callabl
 		v := c.Args.Get(0)
 
 		ret, err = fn(vm, v, less)
+		return
+	}
+}
+
+// funcPpVM_OROe is a generated function to make CallableFunc.
+// Source: func(vm *VM, v Object) (ret Object, err error)
+func funcPpVM_OROe(fn func(*VM, Object) (Object, error)) CallableFunc {
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return Nil, err
+		}
+
+		vm := c.VM
+		v := c.Args.Get(0)
+
+		ret, err = fn(vm, v)
 		return
 	}
 }

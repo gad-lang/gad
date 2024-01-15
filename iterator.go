@@ -136,7 +136,7 @@ func (it *MapIterator) Next() bool {
 
 // Key implements Iterator interface.
 func (it *MapIterator) Key() Object {
-	return String(it.keys[it.i-1])
+	return Str(it.keys[it.i-1])
 }
 
 // Value implements Iterator interface.
@@ -177,7 +177,7 @@ func (it *SyncIterator) Value() (Object, error) {
 
 // StringIterator represents an iterator for the string.
 type StringIterator struct {
-	V String
+	V Str
 	i int
 	k int
 	r rune

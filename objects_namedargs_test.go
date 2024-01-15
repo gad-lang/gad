@@ -21,7 +21,11 @@ func TestNamedArgs_All(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			n := NewNamedArgs(tt.args.Items(), tt.vargs.Items())
+			a1, err := tt.args.Items(nil)
+			assert.NoError(t, err)
+			a2, err := tt.vargs.Items(nil)
+			assert.NoError(t, err)
+			n := NewNamedArgs(a1, a2)
 			assert.Equalf(t, tt.wantRet, n.Dict(), "All()")
 		})
 	}
@@ -41,7 +45,11 @@ func TestNamedArgs_CheckNames(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			n := NewNamedArgs(tt.args.Items(), tt.vargs.Items())
+			a1, err := tt.args.Items(nil)
+			assert.NoError(t, err)
+			a2, err := tt.vargs.Items(nil)
+			assert.NoError(t, err)
+			n := NewNamedArgs(a1, a2)
 			if err := n.CheckNames(tt.accept...); err == nil {
 				if tt.wantErr {
 					t.Error("want error, but not got")
@@ -69,7 +77,11 @@ func TestNamedArgs_CheckNamesFromSet(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			n := NewNamedArgs(tt.args.Items(), tt.vargs.Items())
+			a1, err := tt.args.Items(nil)
+			assert.NoError(t, err)
+			a2, err := tt.vargs.Items(nil)
+			assert.NoError(t, err)
+			n := NewNamedArgs(a1, a2)
 			set := make(map[string]int, len(tt.accept))
 			for _, v := range tt.accept {
 				set[v] = 0
@@ -103,7 +115,11 @@ func TestNamedArgs_Get(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			n := NewNamedArgs(tt.args.Items(), tt.vargs.Items())
+			a1, err := tt.args.Items(nil)
+			assert.NoError(t, err)
+			a2, err := tt.vargs.Items(nil)
+			assert.NoError(t, err)
+			n := NewNamedArgs(a1, a2)
 			if err := n.Get(tt.dst...); err == nil {
 				if tt.wantErr {
 					t.Error("want error, but not got")
@@ -142,7 +158,11 @@ func TestNamedArgs_GetVar(t *testing.T) {
 	}
 	for i, tt := range tests_ {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			n := NewNamedArgs(tt.args.Items(), tt.vargs.Items())
+			a1, err := tt.args.Items(nil)
+			assert.NoError(t, err)
+			a2, err := tt.vargs.Items(nil)
+			assert.NoError(t, err)
+			n := NewNamedArgs(a1, a2)
 			if other, err := n.GetVar(tt.dst...); err == nil {
 				if tt.wantErr {
 					t.Error("want error, but not got")

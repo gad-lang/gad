@@ -7,7 +7,8 @@ import (
 
 type SetupOpts struct {
 	ObjectConverters *ObjectConverters
-	Builtins         BuiltinObjectsMap
+	Builtins         *Builtins
+	ToRawStrHandler  func(vm *VM, s Str) RawStr
 }
 
 type RunOpts struct {

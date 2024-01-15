@@ -476,7 +476,8 @@ func (s *ThrowStmt) String() string {
 
 // RawStringStmt represents an RawStringStmt.
 type RawStringStmt struct {
-	Lits []*RawStringLit
+	MixedExprRune rune
+	Lits          []*RawStringLit
 }
 
 func (e *RawStringStmt) Pos() source.Pos {
@@ -524,7 +525,7 @@ func (e *RawStringStmt) Unquoted() string {
 
 func (e *RawStringStmt) String() string {
 	if e != nil {
-		return "#{= " + e.Quoted() + " }"
+		return string(e.MixedExprRune) + "{= " + e.Quoted() + " }"
 	}
 	return nullRep
 }
@@ -544,10 +545,10 @@ type ExprToTextStmt struct {
 	EndLit   ast.Literal
 }
 
-func NewExprToTextStmt(expr Expr) *ExprToTextStmt {
+func NewExprToTextStmt(r rune, expr Expr) *ExprToTextStmt {
 	return &ExprToTextStmt{
 		Expr:     expr,
-		StartLit: ast.Literal{Value: "#{="},
+		StartLit: ast.Literal{Value: string(r) + "{="},
 		EndLit:   ast.Literal{Value: "}"},
 	}
 }
@@ -610,6 +611,12 @@ func (c *ConfigStmt) ParseElements() {
 			if k.Value == nil {
 				c.Options.Mixed = true
 			} else if b, ok := k.Value.(*BoolLit); ok {
+				if b.Value {
+					c.Options.Mixed = true
+				} else {
+					c.Options.NoMixed = true
+				}
+			} else if b, ok := k.Value.(*FlagLit); ok {
 				if b.Value {
 					c.Options.Mixed = true
 				} else {

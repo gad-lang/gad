@@ -5,7 +5,14 @@
 package gad
 
 // Opcode represents a single byte operation code.
-type Opcode = byte
+type Opcode byte
+
+func (o Opcode) String() string {
+	if int(o) < len(OpcodeNames) {
+		return OpcodeNames[o]
+	}
+	return ""
+}
 
 const (
 	OpCallFlagVarArgs OpCallFlag = 1 << iota
@@ -68,6 +75,8 @@ const (
 	OpDefineLocal
 	OpTrue
 	OpFalse
+	OpYes
+	OpNo
 	OpCallName
 	OpJumpNil
 	OpJumpNotNil
@@ -129,6 +138,8 @@ var OpcodeNames = [...]string{
 	OpDefineLocal:   "DEFINELOCAL",
 	OpTrue:          "TRUE",
 	OpFalse:         "FALSE",
+	OpYes:           "YES",
+	OpNo:            "NO",
 	OpCallName:      "CALLNAME",
 	OpJumpNil:       "JUMPNULL",
 	OpJumpNotNil:    "JUMPNOTNULL",
@@ -191,6 +202,8 @@ var OpcodeOperands = [...][]int{
 	OpDefineLocal:   {1},
 	OpTrue:          {},
 	OpFalse:         {},
+	OpYes:           {},
+	OpNo:            {},
 	OpCallName:      {1, 1}, // number of arguments, flags
 	OpJumpNil:       {2},    // position
 	OpJumpNotNil:    {2},    // position

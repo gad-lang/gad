@@ -53,7 +53,7 @@ func (o *Location) Equal(right gad.Object) bool {
 	if v, ok := right.(*Location); ok {
 		return v == o || v.ToString() == o.ToString()
 	}
-	if v, ok := right.(gad.String); ok {
+	if v, ok := right.(gad.Str); ok {
 		return o.ToString() == v.ToString()
 	}
 	return false

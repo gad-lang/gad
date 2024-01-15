@@ -34,7 +34,7 @@ type (
 	BuiltinObjType   gad.BuiltinObjType
 	Function         gad.Function
 	NilType          gad.NilType
-	String           gad.String
+	String           gad.Str
 	Bytes            gad.Bytes
 	Array            gad.Array
 	Map              gad.Dict
@@ -45,6 +45,7 @@ type (
 	Float            gad.Float
 	Decimal          gad.Decimal
 	Bool             gad.Bool
+	Flag             gad.Flag
 	SourceFileSet    parser.SourceFileSet
 	SourceFile       parser.SourceFile
 )
@@ -53,6 +54,8 @@ const (
 	binNilV1 byte = iota
 	binTrueV1
 	binFalseV1
+	binOnV1
+	binOffV1
 	binIntV1
 	binUintV1
 	binCharV1
@@ -80,12 +83,13 @@ var (
 func init() {
 	gob.Register(gad.Nil)
 	gob.Register(gad.Bool(true))
+	gob.Register(gad.Flag(true))
 	gob.Register(gad.Int(0))
 	gob.Register(gad.Uint(0))
 	gob.Register(gad.Char(0))
 	gob.Register(gad.Float(0))
 	gob.Register(gad.DecimalZero)
-	gob.Register(gad.String(""))
+	gob.Register(gad.Str(""))
 	gob.Register(gad.Bytes(nil))
 	gob.Register(gad.Array(nil))
 	gob.Register(gad.Dict(nil))
@@ -296,6 +300,10 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 		return gad.True, nil
 	case binFalseV1:
 		return gad.False, nil
+	case binOnV1:
+		return gad.Yes, nil
+	case binOffV1:
+		return gad.No, nil
 	case binIntV1,
 		binUintV1,
 		binFloatV1,
@@ -429,7 +437,7 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 			if err := v.UnmarshalBinary(buf); err != nil {
 				return nil, err
 			}
-			return gad.String(v), nil
+			return gad.Str(v), nil
 		case binMapV1:
 			var v = Map{}
 			if err := v.UnmarshalBinary(buf); err != nil {
@@ -503,7 +511,7 @@ func marshaler(o gad.Object) encoding.BinaryMarshaler {
 		return Float(v)
 	case gad.Decimal:
 		return Decimal(v)
-	case gad.String:
+	case gad.Str:
 		return String(v)
 	case gad.Bytes:
 		return Bytes(v)

@@ -199,9 +199,10 @@ func (vm *VM) Setup(opts SetupOpts) *VM {
 	vm.SetupOpts = &opts
 
 	if vm.Builtins == nil {
-		vm.Builtins = BuiltinObjects
+		vm.Builtins = NewBuiltins()
 	}
-	vm.Builtins = vm.Builtins.Build()
+
+	vm.Builtins.Objects = vm.Builtins.Objects.Build()
 
 	if vm.ObjectConverters == nil {
 		vm.ObjectConverters = NewObjectConverters()
@@ -211,7 +212,15 @@ func (vm *VM) Setup(opts SetupOpts) *VM {
 		vm.ObjectToWriter = DefaultObjectToWrite
 	}
 
+	if vm.ToRawStrHandler == nil {
+		vm.ToRawStrHandler = vm.toRawStr
+	}
+
 	return vm
+}
+
+func (vm *VM) toRawStr(_ *VM, s Str) RawStr {
+	return RawStr(s)
 }
 
 func (vm *VM) initAndRun(opts *RunOpts) (Object, error) {
@@ -393,7 +402,6 @@ func (vm *VM) clearCurrentFrame() {
 
 func (vm *VM) handlePanic(r any) {
 	if vm.sp < stackSize && vm.frameIndex <= frameSize && vm.err == nil {
-
 		if err := vm.throwGenErr(fmt.Errorf("%v", r)); err != nil {
 			vm.err = err
 			gostack := debugStack()
@@ -426,7 +434,7 @@ func (vm *VM) GetSymbolValue(symbol *Symbol) (value Object, err error) {
 			value = *v.Value
 		}
 	case ScopeBuiltin:
-		value = vm.Builtins[BuiltinType(symbol.Index)]
+		value = vm.Builtins.Objects[BuiltinType(symbol.Index)]
 	case ScopeFree:
 		value = *vm.curFrame.freeVars[symbol.Index].Value
 	}
@@ -684,11 +692,15 @@ func (vm *VM) xOpCallName() (err error) {
 		}
 
 		if flags.Has(OpCallFlagVarArgs) {
-			if arr, ok := vm.stack[basePointer+numArgs-1].(Array); ok {
-				c.Args = append(c.Args, arr)
-			} else {
-				return NewArgumentTypeError("last", "array",
-					vm.stack[basePointer+numArgs-1].Type().Name())
+			switch t := vm.stack[basePointer+numArgs-1].(type) {
+			case Array:
+				c.Args = append(c.Args, t)
+			default:
+				var values Object
+				if values, err = vm.Builtins.Caller(BuiltinValues).Call(Call{VM: vm, Args: Args{Array{t}}}); err != nil {
+					return
+				}
+				c.Args = append(c.Args, values.(Array))
 			}
 		}
 
@@ -722,7 +734,7 @@ func (vm *VM) xOpCallName() (err error) {
 		return ErrNotIndexable
 	}
 
-	vm.stack[vm.sp-numArgs-1] = v
+	vm.stack[vm.sp-numArgs-kwCount-1] = v
 	return vm.xOpCallAny(v, numArgs, flags)
 }
 
@@ -795,7 +807,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			vargsArr = arr
 		} else {
 			var items Object
-			if items, err = vm.Builtins[BuiltinValues].(CallerObject).Call(Call{VM: vm, Args: Args{{vargs}}}); err != nil {
+			if items, err = vm.Builtins.Objects[BuiltinValues].(CallerObject).Call(Call{VM: vm, Args: Args{{vargs}}}); err != nil {
 				return
 			}
 			vargsArr = items.(Array)
@@ -897,9 +909,9 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 
 	// test if it's tail-call
 	if cfunc == vm.curFrame.fn { // recursion
-		nextOp := vm.curInsts[vm.ip+2+1]
+		nextOp := Opcode(vm.curInsts[vm.ip+2+1])
 		if nextOp == OpReturn ||
-			(nextOp == OpPop && OpReturn == vm.curInsts[vm.ip+2+2]) {
+			(nextOp == OpPop && OpReturn == Opcode(vm.curInsts[vm.ip+2+2])) {
 			curBp := vm.curFrame.basePointer
 			args = args.Copy().(Args)
 			copy(vm.stack[curBp:curBp+cfunc.Params.Len+cfunc.NamedParams.len], vm.stack[basePointer:])
@@ -983,7 +995,7 @@ func (vm *VM) xOpCallObject(co_ Object, numArgs int, flags OpCallFlag) (err erro
 			vargs = arr
 		} else {
 			var items Object
-			if items, err = vm.Builtins[BuiltinValues].(CallerObject).Call(Call{VM: vm, Args: Args{{vm.stack[basePointer+numArgs-1]}}}); err != nil {
+			if items, err = vm.Builtins.Objects[BuiltinValues].(CallerObject).Call(Call{VM: vm, Args: Args{{vm.stack[basePointer+numArgs-1]}}}); err != nil {
 				return
 			}
 			vargs = items.(Array)
@@ -1016,7 +1028,12 @@ func (vm *VM) xOpUnary() error {
 
 	switch tok {
 	case token.Not:
-		vm.stack[vm.sp-1] = Bool(right.IsFalsy())
+		switch right.(type) {
+		case Flag:
+			vm.stack[vm.sp-1] = Flag(right == No)
+		default:
+			vm.stack[vm.sp-1] = Bool(right.IsFalsy())
+		}
 		vm.ip++
 		return nil
 	case token.Sub:
@@ -1052,6 +1069,12 @@ func (vm *VM) xOpUnary() error {
 			} else {
 				value = ^Int(0)
 			}
+		case Flag:
+			if o {
+				value = ^Int(1)
+			} else {
+				value = ^Int(0)
+			}
 		default:
 			goto invalidType
 		}
@@ -1060,6 +1083,12 @@ func (vm *VM) xOpUnary() error {
 		case Int, Uint, Float, Char:
 			value = right
 		case Bool:
+			if o {
+				value = Int(1)
+			} else {
+				value = Int(0)
+			}
+		case Flag:
 			if o {
 				value = Int(1)
 			} else {
@@ -1107,7 +1136,7 @@ func (vm *VM) xOpSliceIndex() error {
 	switch obj := obj.(type) {
 	case Array:
 		objlen = len(obj)
-	case String:
+	case Str:
 		objlen = len(obj)
 	case Bytes:
 		isbytes = true
@@ -1172,7 +1201,7 @@ func (vm *VM) xOpSliceIndex() error {
 	switch obj := obj.(type) {
 	case Array:
 		vm.stack[vm.sp] = obj[low:high]
-	case String:
+	case Str:
 		vm.stack[vm.sp] = obj[low:high]
 	case Bytes:
 		vm.stack[vm.sp] = obj[low:high]

@@ -17,6 +17,7 @@ package parser
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -41,6 +42,7 @@ const (
 	ParseComments Mode = 1 << iota
 	ParseMixed
 	ParseConfigDisabled
+	ParseMixedExprAsValue
 )
 
 type bailout struct{}
@@ -155,53 +157,64 @@ type Parser struct {
 
 // NewParser creates a Parser.
 func NewParser(file *SourceFile, src []byte, trace io.Writer) *Parser {
-	return NewParserWithMode(file, src, trace, 0)
+	return NewParserWithOptions(file, src, &ParserOptions{Trace: trace}, nil)
 }
 
-// NewParserWithMode creates a Parser with parser mode flags.
-func NewParserWithMode(
+type ParserOptions struct {
+	Trace io.Writer
+	Mode  Mode
+}
+
+// NewParserWithOptions creates a Parser with parser mode flags.
+func NewParserWithOptions(
 	file *SourceFile,
 	src []byte,
-	trace io.Writer,
-	mode Mode,
+	opts *ParserOptions,
+	scannerOptions *ScannerOptions,
 ) *Parser {
-	var m ScanMode
-	if mode.Has(ParseComments) {
-		m.Set(ScanComments)
+	if scannerOptions == nil {
+		scannerOptions = &ScannerOptions{}
 	}
-	if mode.Has(ParseMixed) {
-		m.Set(Mixed)
+	if scannerOptions.Mode == 0 {
+		if opts.Mode.Has(ParseComments) {
+			scannerOptions.Mode.Set(ScanComments)
+		}
+		if opts.Mode.Has(ParseMixed) {
+			scannerOptions.Mode.Set(Mixed)
+		}
+		if opts.Mode.Has(ParseConfigDisabled) {
+			scannerOptions.Mode.Set(ConfigDisabled)
+		}
+		if opts.Mode.Has(ParseMixedExprAsValue) {
+			scannerOptions.Mode.Set(MixedExprAsValue)
+		}
 	}
-	if mode.Has(ParseConfigDisabled) {
-		m.Set(ConfigDisabled)
-	}
-	return NewParserWithArgs(NewScanner(file, src, m), trace, mode)
+	return NewParserWithScanner(NewScanner(file, src, scannerOptions), opts)
 }
 
-// NewParserWithArgs creates a Parser with parser mode flags.
-func NewParserWithArgs(
+// NewParserWithScanner creates a Parser with parser mode flags.
+func NewParserWithScanner(
 	scanner ScannerInterface,
-	trace io.Writer,
-	mode Mode,
+	opts *ParserOptions,
 ) *Parser {
 	p := &Parser{
 		Scanner:    scanner,
 		File:       scanner.SourceFile(),
-		Trace:      trace != nil,
-		TraceOut:   trace,
-		mode:       mode,
+		Trace:      opts.Trace != nil,
+		TraceOut:   opts.Trace,
+		mode:       opts.Mode,
 		BlockStart: token.LBrace,
 		BlockEnd:   token.RBrace,
 	}
 	p.ParseStmtHandler = p.DefaultParseStmt
 	var m ScanMode
-	if mode.Has(ParseComments) {
+	if opts.Mode.Has(ParseComments) {
 		m.Set(ScanComments)
 	}
-	if mode.Has(ParseMixed) {
+	if opts.Mode.Has(ParseMixed) {
 		m.Set(Mixed)
 	}
-	if mode.Has(ParseConfigDisabled) {
+	if opts.Mode.Has(ParseConfigDisabled) {
 		m.Set(ConfigDisabled)
 	}
 	scanner.ErrorHandler(func(pos SourceFilePos, msg string) {
@@ -209,6 +222,30 @@ func NewParserWithArgs(
 	})
 	p.Next()
 	return p
+}
+
+func ParseFile(pth string, opts *ParserOptions, scannerOpts *ScannerOptions) (file *File, err error) {
+	var (
+		fileSet = NewFileSet()
+		script  []byte
+		srcFile *SourceFile
+		f       *os.File
+	)
+
+	if f, err = os.Open(pth); err != nil {
+		return
+	}
+
+	defer f.Close()
+
+	if script, err = io.ReadAll(f); err != nil {
+		return
+	}
+
+	srcFile = fileSet.AddFile(pth, -1, len(script))
+
+	p := NewParserWithOptions(srcFile, script, opts, scannerOpts)
+	return p.ParseFile()
 }
 
 // ParseFile parses the source and returns an AST file unit.
@@ -352,8 +389,13 @@ func (p *Parser) ParseBinaryExpr(prec1 int) node.Expr {
 func (p *Parser) ParseCondExpr(cond node.Expr) node.Expr {
 	questionPos := p.Expect(token.Question)
 	trueExpr := p.ParseExpr()
-	colonPos := p.Expect(token.Colon)
-	falseExpr := p.ParseExpr()
+	falseExpr := trueExpr
+	colonPos := questionPos
+
+	if p.Token.Token == token.Colon {
+		colonPos = p.Expect(token.Colon)
+		falseExpr = p.ParseExpr()
+	}
 
 	return &node.CondExpr{
 		Cond:        cond,
@@ -389,6 +431,27 @@ func (p *Parser) ParsePrimaryExpr() node.Expr {
 	}
 
 	x := p.ParseOperand()
+
+	switch t := x.(type) {
+	case *node.ParenExpr:
+		if ti, _ := t.Expr.(*node.TypedIdent); ti != nil {
+			if len(ti.Type) > 0 {
+				p.Error(ti.Type[0].Pos(), "unexpected COLON")
+				return x
+			}
+			t.Expr = ti.Ident
+		}
+	case *node.MultiParenExpr:
+		for i, expr := range t.Exprs {
+			if ti, _ := expr.(*node.TypedIdent); ti != nil {
+				if len(ti.Type) > 0 {
+					p.Error(ti.Type[0].Pos(), "unexpected COLON")
+					return x
+				}
+				t.Exprs[i] = ti.Ident
+			}
+		}
+	}
 
 L:
 	for {
@@ -694,19 +757,19 @@ func (p *Parser) ParsePrimitiveOperand() node.Expr {
 		return p.ParseCharLit()
 	case token.String:
 		return p.ParseStringLit()
-	case token.True:
+	case token.True, token.False:
 		x := &node.BoolLit{
-			Value:    true,
+			Value:    p.Token.Token == token.True,
 			ValuePos: p.Token.Pos,
 			Literal:  p.Token.Literal,
 		}
 		p.Next()
 		return x
-	case token.False:
-		x := &node.BoolLit{
-			Value:    false,
+	case token.Yes, token.No:
+		x := &node.FlagLit{
 			ValuePos: p.Token.Pos,
 			Literal:  p.Token.Literal,
+			Value:    p.Token.Token == token.Yes,
 		}
 		p.Next()
 		return x
@@ -804,19 +867,19 @@ func (p *Parser) ParseOperand() node.Expr {
 		}
 		p.Next()
 		return x
-	case token.True:
+	case token.True, token.False:
 		x := &node.BoolLit{
-			Value:    true,
+			Value:    p.Token.Token == token.True,
 			ValuePos: p.Token.Pos,
 			Literal:  p.Token.Literal,
 		}
 		p.Next()
 		return x
-	case token.False:
-		x := &node.BoolLit{
-			Value:    false,
+	case token.Yes, token.No:
+		x := &node.FlagLit{
 			ValuePos: p.Token.Pos,
 			Literal:  p.Token.Literal,
+			Value:    p.Token.Token == token.Yes,
 		}
 		p.Next()
 		return x
@@ -962,7 +1025,7 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 		if kv {
 			if mul != 2 {
 				switch expr.(type) {
-				case *node.TypedIdent, *node.Ident:
+				case *node.TypedIdent, *node.Ident, *node.StringLit:
 					kv := &node.KeyValueLit{
 						Key: expr,
 					}
@@ -1414,7 +1477,7 @@ do:
 		token.Mul, token.And, token.Xor, token.Not, token.Import,
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
-		token.Then:
+		token.Then, token.Yes, token.No:
 		s := p.ParseSimpleStmt(false)
 		p.ExpectSemi()
 		return s
@@ -1486,10 +1549,10 @@ func (p *Parser) ParseExprToTextStmt() (ett *node.ExprToTextStmt) {
 		if len(stmts) == 1 {
 			switch t := stmts[0].(type) {
 			case *node.ExprStmt:
-				return node.NewExprToTextStmt(t.Expr)
+				return node.NewExprToTextStmt(p.Scanner.GetMixedExprRune(), t.Expr)
 			}
 		}
-		return node.NewExprToTextStmt(&node.StmtsExpr{Stmts: stmts})
+		return node.NewExprToTextStmt(p.Scanner.GetMixedExprRune(), &node.StmtsExpr{Stmts: stmts})
 	} else {
 		p.Next()
 		ett.Expr = p.ParseExpr()
@@ -1520,7 +1583,9 @@ func (p *Parser) ParseRawStringStmt() (t *node.RawStringStmt) {
 	if p.Trace {
 		defer untracep(tracep(p, "RawStringStmt"))
 	}
-	t = &node.RawStringStmt{}
+	t = &node.RawStringStmt{
+		MixedExprRune: p.Scanner.GetMixedExprRune(),
+	}
 
 	for p.Token.Token == token.RawString {
 		if p.Token.Literal != "" {
@@ -2347,7 +2412,10 @@ func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {
 
 	if p.mode.Has(ParseMixed) {
 		if raw, _ := x[0].(*node.RawStringLit); raw != nil {
-			return &node.RawStringStmt{Lits: []*node.RawStringLit{raw}}
+			return &node.RawStringStmt{
+				MixedExprRune: p.Scanner.GetMixedExprRune(),
+				Lits:          []*node.RawStringLit{raw},
+			}
 		}
 	}
 	return &node.ExprStmt{Expr: x[0]}

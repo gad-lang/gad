@@ -88,9 +88,9 @@ type repl struct {
 }
 
 func newREPL(ctx context.Context, stdout io.Writer) *repl {
-	opts := gad.CompilerOptions{
+	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
 		ModulePath:        "(repl)",
-		ModuleMap:         defaultModuleMap("."),
+		ModuleMap:         DefaultModuleMap("."),
 		SymbolTable:       defaultSymbolTable(),
 		OptimizerMaxCycle: gad.TraceCompilerOptions.OptimizerMaxCycle,
 		TraceParser:       traceParser,
@@ -98,7 +98,7 @@ func newREPL(ctx context.Context, stdout io.Writer) *repl {
 		TraceCompiler:     traceCompiler,
 		OptimizeConst:     !noOptimizer,
 		OptimizeExpr:      !noOptimizer,
-	}
+	}}
 
 	if stdout == nil {
 		stdout = os.Stdout
@@ -315,7 +315,7 @@ func (r *repl) executeScript() {
 	}
 
 	switch v := r.lastResult.(type) {
-	case gad.String:
+	case gad.Str:
 		r.writeString(fmt.Sprintf("\n⇦   %q", string(v)))
 	case gad.Char:
 		r.writeString(fmt.Sprintf("\n⇦   %q", rune(v)))
@@ -410,7 +410,7 @@ func complete(line string) (completions []string) {
 }
 
 func defaultSymbolTable() *gad.SymbolTable {
-	table := gad.NewSymbolTable(gad.BuiltinsMap)
+	table := gad.NewSymbolTable(gad.NewBuiltins())
 	_, err := table.DefineGlobal("Gosched")
 	if err != nil {
 		panic(&gad.Error{Message: "global symbol define error", Cause: err})
@@ -418,7 +418,7 @@ func defaultSymbolTable() *gad.SymbolTable {
 	return table
 }
 
-func defaultModuleMap(workdir string) *gad.ModuleMap {
+func DefaultModuleMap(workdir string) *gad.ModuleMap {
 	return gad.NewModuleMap().
 		AddBuiltinModule("time", gadtime.Module).
 		AddBuiltinModule("strings", gadstrings.Module).
@@ -562,9 +562,11 @@ func executeScript(
 	script []byte,
 	traceOut io.Writer,
 ) error {
-	opts := gad.DefaultCompilerOptions
+	opts := gad.CompileOptions{
+		CompilerOptions: gad.DefaultCompilerOptions,
+	}
 	opts.SymbolTable = defaultSymbolTable()
-	opts.ModuleMap = defaultModuleMap(workdir)
+	opts.ModuleMap = DefaultModuleMap(workdir)
 	opts.ModulePath = modulePath
 
 	if traceEnabled {

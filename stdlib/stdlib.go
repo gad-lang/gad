@@ -3,9 +3,13 @@ package stdlib
 //go:generate go run ../cmd/mkcallable -export -output zfuncs.go stdlib.go
 
 // time module IsTime
-// json module Marshal, Quote, NoQuote, NoEscape
+// json module Quote, NoQuote, NoEscape
 //
 //gad:callable func(o gad.Object) (ret gad.Object)
+
+// json module Marshal
+//
+//gad:callable func(vm *gad.VM, o gad.Object) (ret gad.Object)
 
 // time module MountString, WeekdayString
 //
@@ -43,7 +47,7 @@ package stdlib
 
 // json module MarshalIndent
 //
-//gad:callable func(o gad.Object, s1 string, s2 string) (ret gad.Object)
+//gad:callable func(vm *gad.VM, o gad.Object, s1 string, s2 string) (ret gad.Object)
 
 // json module Compact
 //

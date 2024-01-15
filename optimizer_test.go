@@ -19,10 +19,10 @@ func TestOptimizer(t *testing.T) {
 	}
 
 	defF := compFunc(concatInsts(makeInst(OpConstant, 0)))
-
 	falseF := compFunc(concatInsts(makeInst(OpFalse)))
-
 	trueF := compFunc(concatInsts(makeInst(OpTrue)))
+	yesF := compFunc(concatInsts(makeInst(OpYes)))
+	noF := compFunc(concatInsts(makeInst(OpNo)))
 
 	testCases := []values{
 		{s: `1 + 2`, c: Int(3), cf: defF},
@@ -128,18 +128,28 @@ func TestOptimizer(t *testing.T) {
 		{s: `bool(0)`, cf: falseF},
 		{s: `bool(1)`, cf: trueF},
 
-		{s: `"a" + "b"`, c: String("ab"), cf: defF},
-		{s: `"a" + 1`, c: String("a1"), cf: defF},
-		{s: `"a" + 1u`, c: String("a1"), cf: defF},
-		{s: `"a" + 'c'`, c: String("ac"), cf: defF},
-		{s: `'c' + "a"`, c: String("ca"), cf: defF},
-		{s: `"a" + "b" + "c"`, c: String("abc"), cf: defF},
-		{s: `"a" + 'b' + "c"`, c: String("abc"), cf: defF},
-		{s: `"a" + 1 + "c"`, c: String("a1c"), cf: defF},
+		{s: `"a" + "b"`, c: Str("ab"), cf: defF},
+		{s: `"a" + 1`, c: Str("a1"), cf: defF},
+		{s: `"a" + 1u`, c: Str("a1"), cf: defF},
+		{s: `"a" + 'c'`, c: Str("ac"), cf: defF},
+		{s: `'c' + "a"`, c: Str("ca"), cf: defF},
+		{s: `"a" + "b" + "c"`, c: Str("abc"), cf: defF},
+		{s: `"a" + 'b' + "c"`, c: Str("abc"), cf: defF},
+		{s: `"a" + 1 + "c"`, c: Str("a1c"), cf: defF},
 		{s: `char(0)`, c: Char(0), cf: defF},
 
 		{s: `!nil`, cf: trueF},
 		{s: `!!nil`, cf: falseF},
+
+		{s: `yes`, cf: yesF},
+		{s: `bool(yes)`, cf: trueF},
+		{s: `!yes`, cf: noF},
+		{s: `!!yes`, cf: yesF},
+
+		{s: `no`, cf: noF},
+		{s: `bool(no)`, cf: falseF},
+		{s: `!no`, cf: yesF},
+		{s: `!!no`, cf: noF},
 	}
 
 	for _, tC := range testCases {
@@ -345,10 +355,10 @@ func TestOptimizerTryThrow(t *testing.T) {
 		} catch { 
 			3.0 + 4.0 
 		} finally {
-			throw "a" + string(1) + "b"
+			throw "a" + str(1) + "b"
 		}`,
 		bytecode(
-			Array{Int(3), Float(7), String("a1b")},
+			Array{Int(3), Float(7), Str("a1b")},
 			compFunc(concatInsts(
 				makeInst(OpSetupTry, 12, 18),
 				makeInst(OpConstant, 0),
@@ -482,7 +492,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 		))
 	expectEval(t, `{a: 1+2}`,
 		bytecode(
-			Array{String("a"), Int(3)},
+			Array{Str("a"), Int(3)},
 			compFunc(concatInsts(
 				makeInst(OpConstant, 0),
 				makeInst(OpConstant, 1),
@@ -493,7 +503,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 		))
 	expectEval(t, `{a: uint(1+2)}`,
 		bytecode(
-			Array{String("a"), Uint(3)},
+			Array{Str("a"), Uint(3)},
 			compFunc(concatInsts(
 				makeInst(OpConstant, 0),
 				makeInst(OpConstant, 1),
@@ -554,7 +564,7 @@ func TestOptimizerShadowing(t *testing.T) {
 	// int is shadowed by a param declaration, should not evalute int("1") to 1
 	expectEval(t, `param int; return int("1")`,
 		bytecode(
-			Array{String("1")},
+			Array{Str("1")},
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 0),
 				makeInst(OpConstant, 0),
@@ -568,7 +578,7 @@ func TestOptimizerShadowing(t *testing.T) {
 	// int is shadowed by a var declaration, should not evalute int("1") to 1
 	expectEval(t, `var int; return int("1")`,
 		bytecode(
-			Array{String("1")},
+			Array{Str("1")},
 			compFunc(concatInsts(
 				makeInst(OpNull),
 				makeInst(OpDefineLocal, 0),
@@ -585,7 +595,7 @@ func TestOptimizerShadowing(t *testing.T) {
 	expectEval(t, `var int; return func() {return int("1")}`,
 		bytecode(
 			Array{
-				String("1"),
+				Str("1"),
 				compFunc(concatInsts(
 					makeInst(OpGetFree, 0),
 					makeInst(OpConstant, 0),
@@ -604,16 +614,16 @@ func TestOptimizerShadowing(t *testing.T) {
 			),
 		))
 
-	opts := DefaultCompilerOptions
+	opts := DefaultCompileOptions
 	opts.OptimizeConst = true
 	opts.OptimizeExpr = true
 
-	st := NewSymbolTable(BuiltinsMap)
+	st := NewSymbolTable(NewBuiltins())
 	require.NoError(t, st.SetParams(false, []string{"int"}, nil))
 	opts.SymbolTable = st
 	expectCompileWithOpts(t, `return int("1")`, opts,
 		bytecode(
-			Array{String("1")},
+			Array{Str("1")},
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 0),
 				makeInst(OpConstant, 0),
@@ -626,13 +636,13 @@ func TestOptimizerShadowing(t *testing.T) {
 		),
 	)
 
-	st = NewSymbolTable(BuiltinsMap)
+	st = NewSymbolTable(NewBuiltins())
 	_, err := st.DefineGlobal("int")
 	require.NoError(t, err)
 	opts.SymbolTable = st
 	expectCompileWithOpts(t, `return int("1")`, opts,
 		bytecode(
-			Array{String("int"), String("1")},
+			Array{Str("int"), Str("1")},
 			compFunc(concatInsts(
 				makeInst(OpGetGlobal, 0),
 				makeInst(OpConstant, 1),
@@ -643,15 +653,15 @@ func TestOptimizerShadowing(t *testing.T) {
 		),
 	)
 
-	st = NewSymbolTable(BuiltinsMap)
+	st = NewSymbolTable(NewBuiltins())
 	_, err = st.DefineGlobal("int")
 	require.NoError(t, err)
 	opts.SymbolTable = st
 	expectCompileWithOpts(t, `return func() {return  int("1")}()`, opts,
 		bytecode(
 			Array{
-				String("int"),
-				String("1"),
+				Str("int"),
+				Str("1"),
 				compFunc(concatInsts(
 					makeInst(OpGetGlobal, 0),
 					makeInst(OpConstant, 1),
@@ -674,7 +684,7 @@ func TestOptimizerShadowing(t *testing.T) {
 		opts,
 		bytecode(
 			Array{
-				String("1"),
+				Str("1"),
 				compFunc(concatInsts(
 					makeInst(OpGetLocal, 0),
 					makeInst(OpConstant, 0),
@@ -698,9 +708,9 @@ func TestOptimizerShadowing(t *testing.T) {
 
 	// https://github.com/gad-lang/gad/issues/2
 	expectRun(t, `
-	string := func(x) { return "ok" }
-	return string(1)
-	`, nil, String("ok"))
+	str := func(x) { return "ok" }
+	return str(1)
+	`, nil, Str("ok"))
 }
 
 func TestOptimizerError(t *testing.T) {
@@ -713,7 +723,7 @@ func TestOptimizerError(t *testing.T) {
 	// Errors on the same line are discarded by optimizer.
 	bc, err := Compile([]byte(`
 	1/0;2/0
-	1/0;`), DefaultCompilerOptions)
+	1/0;`), DefaultCompileOptions)
 	require.Nil(t, bc)
 	require.Error(t, err)
 	require.Equal(t,
@@ -739,7 +749,7 @@ func TestOptimizerError(t *testing.T) {
 
 func expectEval(t *testing.T, script string, expected *Bytecode) {
 	t.Helper()
-	opts := DefaultCompilerOptions
+	opts := DefaultCompileOptions
 	require.True(t, opts.OptimizeConst)
 	require.True(t, opts.OptimizeExpr)
 	opts.OptimizerMaxCycle = 1<<8 - 1
@@ -748,7 +758,7 @@ func expectEval(t *testing.T, script string, expected *Bytecode) {
 
 func expectEvalError(t *testing.T, script, errStr string) {
 	t.Helper()
-	opts := DefaultCompilerOptions
+	opts := DefaultCompileOptions
 	require.True(t, opts.OptimizeConst)
 	require.True(t, opts.OptimizeExpr)
 	opts.OptimizerMaxCycle = 1<<8 - 1

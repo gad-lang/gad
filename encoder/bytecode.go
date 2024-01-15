@@ -71,7 +71,7 @@ func (bc *Bytecode) fixObjects(modules *gad.ModuleMap) error {
 				continue
 			}
 
-			name, ok := v.(gad.String)
+			name, ok := v.(gad.Str)
 			if !ok {
 				continue
 			}

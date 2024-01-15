@@ -54,7 +54,6 @@ var converters = map[string]any{
 	"gad.Dict":         "gad.ToMap",
 	"gad.CallerObject": "",
 	"*gad.SyncMap":     "gad.ToSyncMap",
-	"*gad.VM":          "",
 	"gad.Object": converterFunc(func(index int, argsName string, p *Param) string {
 		return fmt.Sprintf("%s := %s.Args.Get(%d)", p.Name, argsName, index)
 	}),
@@ -88,7 +87,7 @@ var builtinTypeAlias = map[string]string{
 
 var gadTypeNames = map[string]string{
 	"gad.Object":       "object",
-	"gad.String":       "string",
+	"gad.String":       "str",
 	"gad.Bytes":        "bytes",
 	"gad.Dict":         "map",
 	"gad.SyncMap":      "syncMap",
@@ -98,7 +97,7 @@ var gadTypeNames = map[string]string{
 	"gad.Uint":         "uint",
 	"gad.Char":         "char",
 	"gad.CallerObject": "CallerObject",
-	"string":           "string",
+	"string":           "str",
 	"byte":             "char",
 	"[]byte":           "bytes",
 	"int64":            "int",
@@ -422,7 +421,7 @@ func (src *Source) checkConverters() error {
 			if _, ok := converters[p.Type]; ok {
 				continue
 			}
-			if p.Type != "*VM" {
+			if !strings.HasSuffix(p.Type, "VM") {
 				if _, ok := converters[gadDot+p.Type]; !ok {
 					return fmt.Errorf("converter is not found for type: %s", p.Type)
 				}
@@ -481,7 +480,7 @@ func (p *Param) HelperAssignVar() string {
 func (p *Param) HelperAssignVarEx() string {
 	conv := converters[p.Type]
 	if conv == nil {
-		if p.Type == "*VM" {
+		if strings.Contains(p.Type, "VM") {
 			return p.Name + ":= c.VM"
 		} else {
 			conv = converters[gadDot+p.Type]
@@ -536,7 +535,7 @@ func (p *Param) gadTypeName() string {
 }
 
 // join concatenates parameters ps into a string with sep separator.
-// Each parameter is converted into string by applying fn to it
+// For parameter is converted into string by applying fn to it
 // before conversion.
 func join(ps []*Param, fn func(*Param) string, sep string) string {
 	if len(ps) == 0 {
@@ -609,7 +608,7 @@ func newFn(s string) (*Fn, error) {
 		return nil, err
 	}
 
-	if len(f.Params) > 0 && f.Params[0].Type == "*VM" {
+	if len(f.Params) > 0 && strings.HasSuffix(f.Params[0].Type, "VM") {
 		f.vmarg = true
 
 		for _, param := range f.Params[1:] {
@@ -688,7 +687,7 @@ func (f *Fn) HelperCheckNumArgs() string {
 func (f *Fn) HelperCheckNumArgsEx() string {
 	var numArgs int
 	for i, p := range f.Params {
-		if i == 0 && p.Type == "*VM" {
+		if i == 0 && strings.HasSuffix(p.Type, "VM") {
 			continue
 		}
 		if !p.Named {
@@ -737,10 +736,10 @@ func (f *Fn) HelperCheckNamedArgs() string {
 			names = append(names, p.Name+"_")
 			s = append(s, fmt.Sprintf(`
 			%s %[4]s
-			%[1]s_ = &NamedArgVar{
+			%[1]s_ = &%[3]sNamedArgVar{
 				Name:        %[1]q,
-				TypeAssertion: %[3]sNewTypeAssertion(TypeAssertionHandlers{
-					%[4]q: func(v Object) (ok bool) {
+				TypeAssertion: %[3]sNewTypeAssertion(%[3]sTypeAssertionHandlers{
+					%[4]q: func(v %[3]sObject) (ok bool) {
 						%[1]s, ok = %s
 						return
 					},

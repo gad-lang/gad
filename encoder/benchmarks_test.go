@@ -19,7 +19,7 @@ func BenchmarkBytecodeUnmarshal(b *testing.B) {
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}
 	`
 	var err error
-	bc, err := gad.Compile([]byte(script), gad.CompilerOptions{})
+	bc, err := gad.Compile([]byte(script), gad.CompileOptions{})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func BenchmarkBytecodeDecode(b *testing.B) {
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}
 	`
 	var err error
-	bc, err := gad.Compile([]byte(script), gad.CompilerOptions{})
+	bc, err := gad.Compile([]byte(script), gad.CompileOptions{})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -82,14 +82,14 @@ func BenchmarkBytecodeEncDec(b *testing.B) {
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}
 	`
 	var err error
-	bc, err := gad.Compile([]byte(script), gad.CompilerOptions{})
+	bc, err := gad.Compile([]byte(script), gad.CompileOptions{})
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	b.Run("compileUnopt", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			_, err := gad.Compile([]byte(script), gad.CompilerOptions{})
+			_, err := gad.Compile([]byte(script), gad.CompileOptions{})
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -98,10 +98,12 @@ func BenchmarkBytecodeEncDec(b *testing.B) {
 
 	b.Run("compileOpt", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			_, err := gad.Compile([]byte(script), gad.CompilerOptions{
-				OptimizeConst:     true,
-				OptimizeExpr:      true,
-				OptimizerMaxCycle: 100,
+			_, err := gad.Compile([]byte(script), gad.CompileOptions{
+				CompilerOptions: gad.CompilerOptions{
+					OptimizeConst:     true,
+					OptimizeExpr:      true,
+					OptimizerMaxCycle: 100,
+				},
 			})
 			if err != nil {
 				b.Fatal(err)

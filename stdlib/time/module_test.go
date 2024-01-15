@@ -19,7 +19,7 @@ func TestModuleTypes(t *testing.T) {
 	require.False(t, l.IsFalsy())
 	require.Equal(t, "UTC", l.ToString())
 	require.True(t, (&Location{}).Equal(&Location{}))
-	require.True(t, (&Location{}).Equal(String("UTC")))
+	require.True(t, (&Location{}).Equal(Str("UTC")))
 	require.False(t, (&Location{}).Equal(Int(0)))
 	require.False(t, Iterable(l))
 
@@ -29,7 +29,7 @@ func TestModuleTypes(t *testing.T) {
 	require.NotEmpty(t, tm.ToString())
 	require.True(t, tm.Equal(&Time{}))
 	require.False(t, tm.Equal(Int(0)))
-	r, err := tm.IndexGet(nil, String(""))
+	r, err := tm.IndexGet(nil, Str(""))
 	require.NoError(t, err)
 	require.Equal(t, Nil, r)
 
@@ -90,7 +90,7 @@ func TestModuleMonthWeekday(t *testing.T) {
 	f := Module["MonthString"].(*Function)
 	_, err := MustCall(f)
 	require.Error(t, err)
-	_, err = MustCall(f, String(""))
+	_, err = MustCall(f, Str(""))
 	require.Error(t, err)
 
 	for i := 1; i <= 12; i++ {
@@ -105,7 +105,7 @@ func TestModuleMonthWeekday(t *testing.T) {
 	f = Module["WeekdayString"].(*Function)
 	_, err = MustCall(f)
 	require.Error(t, err)
-	_, err = MustCall(f, String(""))
+	_, err = MustCall(f, Str(""))
 	require.Error(t, err)
 	for i := 0; i <= 6; i++ {
 		require.Contains(t, Module, time.Weekday(i).String())
@@ -118,21 +118,21 @@ func TestModuleMonthWeekday(t *testing.T) {
 }
 
 func TestModuleFormats(t *testing.T) {
-	require.Equal(t, Module["ANSIC"], String(time.ANSIC))
-	require.Equal(t, Module["UnixDate"], String(time.UnixDate))
-	require.Equal(t, Module["RubyDate"], String(time.RubyDate))
-	require.Equal(t, Module["RFC822"], String(time.RFC822))
-	require.Equal(t, Module["RFC822Z"], String(time.RFC822Z))
-	require.Equal(t, Module["RFC850"], String(time.RFC850))
-	require.Equal(t, Module["RFC1123"], String(time.RFC1123))
-	require.Equal(t, Module["RFC1123Z"], String(time.RFC1123Z))
-	require.Equal(t, Module["RFC3339"], String(time.RFC3339))
-	require.Equal(t, Module["RFC3339Nano"], String(time.RFC3339Nano))
-	require.Equal(t, Module["Kitchen"], String(time.Kitchen))
-	require.Equal(t, Module["Stamp"], String(time.Stamp))
-	require.Equal(t, Module["StampMilli"], String(time.StampMilli))
-	require.Equal(t, Module["StampMicro"], String(time.StampMicro))
-	require.Equal(t, Module["StampNano"], String(time.StampNano))
+	require.Equal(t, Module["ANSIC"], Str(time.ANSIC))
+	require.Equal(t, Module["UnixDate"], Str(time.UnixDate))
+	require.Equal(t, Module["RubyDate"], Str(time.RubyDate))
+	require.Equal(t, Module["RFC822"], Str(time.RFC822))
+	require.Equal(t, Module["RFC822Z"], Str(time.RFC822Z))
+	require.Equal(t, Module["RFC850"], Str(time.RFC850))
+	require.Equal(t, Module["RFC1123"], Str(time.RFC1123))
+	require.Equal(t, Module["RFC1123Z"], Str(time.RFC1123Z))
+	require.Equal(t, Module["RFC3339"], Str(time.RFC3339))
+	require.Equal(t, Module["RFC3339Nano"], Str(time.RFC3339Nano))
+	require.Equal(t, Module["Kitchen"], Str(time.Kitchen))
+	require.Equal(t, Module["Stamp"], Str(time.Stamp))
+	require.Equal(t, Module["StampMilli"], Str(time.StampMilli))
+	require.Equal(t, Module["StampMicro"], Str(time.StampMicro))
+	require.Equal(t, Module["StampNano"], Str(time.StampNano))
 }
 
 func TestModuleDuration(t *testing.T) {
@@ -170,7 +170,7 @@ func TestModuleDuration(t *testing.T) {
 	durParse := Module["ParseDuration"].(*Function)
 	_, err = MustCall(durParse)
 	require.Error(t, err)
-	_, err = MustCall(durParse, String(""))
+	_, err = MustCall(durParse, Str(""))
 	require.Error(t, err)
 	_, err = MustCall(durParse, Int(0))
 	require.NoError(t, err)
@@ -223,9 +223,9 @@ func TestModuleDuration(t *testing.T) {
 	require.EqualValues(t, time.Second, r)
 	_, err = MustCall(durRound, Int(0))
 	require.Error(t, err)
-	_, err = MustCall(durRound, String(""), Int(0))
+	_, err = MustCall(durRound, Str(""), Int(0))
 	require.Error(t, err)
-	_, err = MustCall(durRound, Int(0), String(""))
+	_, err = MustCall(durRound, Int(0), Str(""))
 	require.Error(t, err)
 
 	durTruncate := Module["DurationTruncate"].(*Function)
@@ -235,21 +235,21 @@ func TestModuleDuration(t *testing.T) {
 	require.EqualValues(t, time.Second+4*time.Millisecond, r)
 	_, err = MustCall(durTruncate, Int(0))
 	require.Error(t, err)
-	_, err = MustCall(durTruncate, String(""), Int(0))
+	_, err = MustCall(durTruncate, Str(""), Int(0))
 	require.Error(t, err)
-	_, err = MustCall(durTruncate, Int(0), String(""))
+	_, err = MustCall(durTruncate, Int(0), Str(""))
 	require.Error(t, err)
 }
 
 func TestModuleLocation(t *testing.T) {
 	fixedZone := Module["FixedZone"].(*Function)
-	r, err := MustCall(fixedZone, String("Ankara"), Int(3*60*60))
+	r, err := MustCall(fixedZone, Str("Ankara"), Int(3*60*60))
 	require.NoError(t, err)
 	require.Equal(t, "Ankara", r.ToString())
 
-	_, err = MustCall(fixedZone, String("Ankara"))
+	_, err = MustCall(fixedZone, Str("Ankara"))
 	require.Error(t, err)
-	_, err = MustCall(fixedZone, String("Ankara"), Uint(0))
+	_, err = MustCall(fixedZone, Str("Ankara"), Uint(0))
 	require.NoError(t, err)
 	_, err = MustCall(fixedZone, Int(0), Array{})
 	require.Error(t, err)
@@ -257,17 +257,17 @@ func TestModuleLocation(t *testing.T) {
 	require.Error(t, err)
 
 	loadLocation := Module["LoadLocation"].(*Function)
-	r, err = MustCall(loadLocation, String("Europe/Istanbul"))
+	r, err = MustCall(loadLocation, Str("Europe/Istanbul"))
 	require.NoError(t, err)
 	require.Equal(t, "Europe/Istanbul", r.ToString())
-	r, err = MustCall(loadLocation, String(""))
+	r, err = MustCall(loadLocation, Str(""))
 	require.NoError(t, err)
 	require.Equal(t, "UTC", r.ToString())
 	_, err = MustCall(loadLocation)
 	require.Error(t, err)
 	_, err = MustCall(loadLocation, Int(0))
 	require.Error(t, err)
-	_, err = MustCall(loadLocation, String("invalid"))
+	_, err = MustCall(loadLocation, Str("invalid"))
 	require.Error(t, err)
 
 	isLocation := Module["IsLocation"].(*Function)
@@ -292,7 +292,7 @@ func TestModuleTime(t *testing.T) {
 	r, err := MustCall(zTime)
 	require.NoError(t, err)
 	require.True(t, r.(*Time).Value.IsZero())
-	_, err = MustCall(zTime, String(""))
+	_, err = MustCall(zTime, Str(""))
 	require.Error(t, err)
 
 	since := Module["Since"].(*Function)
@@ -301,7 +301,7 @@ func TestModuleTime(t *testing.T) {
 	require.GreaterOrEqual(t, int64(r.(Int)), int64(0))
 	_, err = MustCall(since)
 	require.Error(t, err)
-	_, err = MustCall(since, String(""))
+	_, err = MustCall(since, Str(""))
 	require.Error(t, err)
 
 	until := Module["Until"].(*Function)
@@ -310,7 +310,7 @@ func TestModuleTime(t *testing.T) {
 	require.LessOrEqual(t, int64(r.(Int)), int64(0))
 	_, err = MustCall(until)
 	require.Error(t, err)
-	_, err = MustCall(until, String(""))
+	_, err = MustCall(until, Str(""))
 	require.Error(t, err)
 
 	date := Module["Date"].(*Function)
@@ -334,12 +334,12 @@ func TestModuleTime(t *testing.T) {
 
 	RFC3339Nano := Module["RFC3339Nano"]
 	parse := Module["Parse"].(*Function)
-	r, err = MustCall(parse, RFC3339Nano, String(now.Format(time.RFC3339Nano)))
+	r, err = MustCall(parse, RFC3339Nano, Str(now.Format(time.RFC3339Nano)))
 	require.NoError(t, err)
 	require.Equal(t, now.Format(time.RFC3339Nano),
 		r.(*Time).Value.Format(time.RFC3339Nano))
 
-	r, err = MustCall(parse, RFC3339Nano, String(now.Format(time.RFC3339Nano)),
+	r, err = MustCall(parse, RFC3339Nano, Str(now.Format(time.RFC3339Nano)),
 		&Location{Value: time.Local})
 	require.NoError(t, err)
 	require.Equal(t, now.Format(time.RFC3339Nano),
@@ -508,14 +508,14 @@ func TestModuleTime(t *testing.T) {
 		Dict{"year": Int(y), "week": Int(w)})
 	name, offset := now.Zone()
 	testTimeSelector(t, &Time{Value: now}, "Zone",
-		Dict{"name": String(name), "offset": Int(offset)})
+		Dict{"name": Str(name), "offset": Int(offset)})
 	testTimeSelector(t, &Time{Value: now}, "XYZ", Nil)
 }
 
 func testTimeSelector(t *testing.T, tm Object,
 	selector string, expected Object) {
 	t.Helper()
-	v, err := tm.(IndexGetter).IndexGet(nil, String(selector))
+	v, err := tm.(IndexGetter).IndexGet(nil, Str(selector))
 	require.NoError(t, err)
 	require.Equal(t, expected, v)
 }
@@ -527,57 +527,57 @@ func TestScript(t *testing.T) {
 		try {
 			return %s
 		} catch err {
-			return string(err)
+			return str(err)
 		}
 		`, s)
 	}
-	idxTypeErr := func(expected, got string) String {
-		return String(NewIndexTypeError(expected, got).ToString())
+	idxTypeErr := func(expected, got string) Str {
+		return Str(NewIndexTypeError(expected, got).ToString())
 	}
-	opTypeErr := func(tok, lhs, rhs string) String {
-		return String(NewOperandTypeError(
+	opTypeErr := func(tok, lhs, rhs string) Str {
+		return Str(NewOperandTypeError(
 			tok, lhs, rhs).ToString())
 	}
-	typeErr := func(pos, expected, got string) String {
-		return String(NewArgumentTypeError(pos, expected, got).ToString())
+	typeErr := func(pos, expected, got string) Str {
+		return Str(NewArgumentTypeError(pos, expected, got).ToString())
 	}
-	nwrongArgs := func(want1, want2, got int) String {
+	nwrongArgs := func(want1, want2, got int) Str {
 		var msg string
 		if want2 <= 0 {
 			msg = fmt.Sprintf("want=%d got=%d", want1, got)
 		} else {
 			msg = fmt.Sprintf("want=%d..%d got=%d", want1, want2, got)
 		}
-		return String(ErrWrongNumArguments.NewError(msg).ToString())
+		return Str(ErrWrongNumArguments.NewError(msg).ToString())
 	}
 	expectRun(t, `import("time")`, nil, Nil)
 
 	expectRun(t, catch(`time.Now()[1]`),
-		nil, idxTypeErr("string", "int"))
+		nil, idxTypeErr("str", "int"))
 	expectRun(t, catch(`time.Now() + 'c'`),
 		nil, opTypeErr("+", "time", "char"))
-	expectRun(t, catch(`time.Now()()`), nil, String("NotCallableError: time"))
+	expectRun(t, catch(`time.Now()()`), nil, Str("NotCallableError: time"))
 	expectRun(t, catch(`time.Date()`), nil, nwrongArgs(3, 8, 0))
 	expectRun(t, catch(`time.Date(1)`), nil, nwrongArgs(3, 8, 1))
 	expectRun(t, catch(`time.Date(1, 2)`), nil, nwrongArgs(3, 8, 2))
 	expectRun(t, catch(`time.Date(1, 2, "")`),
-		nil, typeErr("3", "int", "string"))
+		nil, typeErr("3", "int", "str"))
 	expectRun(t, catch(`time.Date(1, 2, 3, 4, 5, 6, 7, "")`),
-		nil, typeErr("8", "location", "string"))
+		nil, typeErr("8", "location", "str"))
 	expectRun(t, catch(`time.Parse("", 1)`),
-		nil, String("error: parsing time \"1\": extra text: \"1\""))
+		nil, Str("error: parsing time \"1\": extra text: \"1\""))
 	expectRun(t, catch(`time.Parse("", "", 1)`),
 		nil, typeErr("3rd", "location", "int"))
 	expectRun(t, catch(`time.Unix("")`),
-		nil, typeErr("1st", "int", "string"))
+		nil, typeErr("1st", "int", "str"))
 	expectRun(t, catch(`time.Unix(1, "")`),
-		nil, typeErr("2nd", "int", "string"))
+		nil, typeErr("2nd", "int", "str"))
 	expectRun(t, catch(`time.AddDate(time.Now(), "", 1, 2)`),
-		nil, typeErr("2nd", "int", "string"))
+		nil, typeErr("2nd", "int", "str"))
 	expectRun(t, catch(`time.AddDate(time.Now(), 1, "", 2)`),
-		nil, typeErr("3rd", "int", "string"))
+		nil, typeErr("3rd", "int", "str"))
 	expectRun(t, catch(`time.AddDate(time.Now(), 1, 2, "")`),
-		nil, typeErr("4th", "int", "string"))
+		nil, typeErr("4th", "int", "str"))
 	expectRun(t, catch(`time.After(1, 2)`), nil, False)
 	expectRun(t, catch(`time.Before(1, 2)`), nil, True)
 	expectRun(t, catch(`time.AppendFormat(1, 2, 3)`),
@@ -591,19 +591,19 @@ func TestScript(t *testing.T) {
 	expectRun(t, catch(`time.In(time.Now(), 2)`),
 		nil, typeErr("2nd", "location", "int"))
 	expectRun(t, catch(`time.Round(time.Now(), "")`),
-		nil, typeErr("2nd", "int", "string"))
+		nil, typeErr("2nd", "int", "str"))
 	expectRun(t, catch(`time.Truncate(time.Now(), "")`),
-		nil, typeErr("2nd", "int", "string"))
+		nil, typeErr("2nd", "int", "str"))
 	expectRun(t, catch(`time.Sleep("")`),
-		nil, typeErr("1st", "int", "string"))
+		nil, typeErr("1st", "int", "str"))
 
 	expectRun(t, `mod := import("time"); return mod.__module_name__`,
-		nil, String("time"))
+		nil, Str("time"))
 
 	tm := time.Now()
 	expectRun(t, `
 	param p1; time := import("time"); return time.Format(p1, time.RFC3339Nano)`,
-		newOpts().Args(&Time{Value: tm}), String(tm.Format(time.RFC3339Nano)))
+		newOpts().Args(&Time{Value: tm}), Str(tm.Format(time.RFC3339Nano)))
 	expectRun(t, `param p1; return p1.UnixNano`,
 		newOpts().Args(&Time{Value: tm}), Int(tm.UnixNano()))
 
@@ -692,10 +692,10 @@ func TestScript(t *testing.T) {
 	expectRun(t, catch(`time.Time().Before(nil)`), nil, typeErr("1st", "time", "nil"))
 
 	// .Format
-	expectRun(t, `time := import("time"); return time.Time().Format("2006-01-02")`, nil, String("0001-01-01"))
+	expectRun(t, `time := import("time"); return time.Time().Format("2006-01-02")`, nil, Str("0001-01-01"))
 	expectRun(t, catch(`time.Time().Format()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.Time().Format(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Format(nil)`), nil, typeErr("1st", "string", "nil"))
+	expectRun(t, catch(`time.Time().Format(nil)`), nil, typeErr("1st", "str", "nil"))
 
 	// .AppendFormat
 	expectRun(t, `time := import("time"); return time.Time().AppendFormat("", "2006-01-02")`, nil, Bytes("0001-01-01"))
@@ -820,7 +820,7 @@ func TestScript(t *testing.T) {
 	// .Zone
 	zone, offset := tm.Zone()
 	expectRun(t, `param p1; return p1.Zone()`,
-		newOpts().Args(&Time{Value: tm}), Dict{"name": String(zone), "offset": Int(offset)})
+		newOpts().Args(&Time{Value: tm}), Dict{"name": Str(zone), "offset": Int(offset)})
 	expectRun(t, catch(`time.Time().Zone(1)`), nil, nwrongArgs(0, -1, 1))
 }
 
@@ -862,7 +862,7 @@ func expectRun(t *testing.T, script string, opts *Opts, expected Object) {
 	}
 	mm := NewModuleMap()
 	mm.AddBuiltinModule("time", Module)
-	c := DefaultCompilerOptions
+	c := CompileOptions{CompilerOptions: DefaultCompilerOptions}
 	c.ModuleMap = mm
 	bc, err := Compile([]byte(script), c)
 	require.NoError(t, err)

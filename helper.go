@@ -17,7 +17,7 @@ func ArrayToString(len int, get func(i int) Object) string {
 
 	for i := 0; i <= last; i++ {
 		switch v := get(i).(type) {
-		case String:
+		case Str:
 			sb.WriteString(strconv.Quote(v.ToString()))
 		case Char:
 			sb.WriteString(strconv.QuoteRune(rune(v)))
@@ -33,6 +33,31 @@ func ArrayToString(len int, get func(i int) Object) string {
 
 	sb.WriteString("]")
 	return sb.String()
+}
+
+func ArrayRepr(typName string, vm *VM, len int, get func(i int) Object) (_ string, err error) {
+	var (
+		sb    strings.Builder
+		last  = len - 1
+		do    = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
+		repro Object
+	)
+	sb.WriteString(repr.QuotePrefix)
+	sb.WriteString(typName + ":[")
+
+	for i := 0; i <= last; i++ {
+		if repro, err = do(get(i)); err != nil {
+			return
+		}
+		sb.WriteString(repro.ToString())
+		if i != last {
+			sb.WriteString(", ")
+		}
+	}
+
+	sb.WriteString("]")
+	sb.WriteString(repr.QuoteSufix)
+	return sb.String(), nil
 }
 
 func AnyMapToMap(src map[string]any) (m Dict, err error) {

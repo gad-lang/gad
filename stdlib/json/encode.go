@@ -25,8 +25,8 @@ import (
 )
 
 // Marshal returns the JSON encoding of v.
-func Marshal(v gad.Object) ([]byte, error) {
-	e := newEncodeState()
+func Marshal(vm *gad.VM, v gad.Object) ([]byte, error) {
+	e := newEncodeState(vm)
 
 	err := e.marshal(v, encOpts{escapeHTML: true})
 	if err != nil {
@@ -40,8 +40,8 @@ func Marshal(v gad.Object) ([]byte, error) {
 // MarshalIndent is like Marshal but applies IndentCount to format the output.
 // Each JSON element in the output will begin on a new line beginning with prefix
 // followed by one or more copies of indent according to the indentation nesting.
-func MarshalIndent(v gad.Object, prefix, indent string) ([]byte, error) {
-	b, err := Marshal(v)
+func MarshalIndent(vm *gad.VM, v gad.Object, prefix, indent string) ([]byte, error) {
+	b, err := Marshal(vm, v)
 	if err != nil {
 		return nil, err
 	}
@@ -105,10 +105,11 @@ type encodeState struct {
 	// reasonable amount of nested pointers deep.
 	ptrLevel uint
 	ptrSeen  map[any]struct{}
+	vm       *gad.VM
 }
 
-func newEncodeState() *encodeState {
-	return &encodeState{ptrSeen: make(map[any]struct{})}
+func newEncodeState(vm *gad.VM) *encodeState {
+	return &encodeState{vm: vm, ptrSeen: make(map[any]struct{})}
 }
 
 // jsonError is an error wrapper type for internal use only.
@@ -161,7 +162,7 @@ func objectEncoder(v gad.Object) encoderFunc {
 		return floatEncoder
 	case gad.Decimal:
 		return decimalEncoder
-	case gad.String:
+	case gad.Str:
 		return stringEncoder
 	case gad.Bytes:
 		return bytesEncoder
@@ -181,6 +182,12 @@ func objectEncoder(v gad.Object) encoderFunc {
 		return textMarshalerEncoder
 	case Marshaler:
 		return marshalerEncoder
+	case *gad.ReflectStruct:
+		return reflectStructEncoder
+	case *gad.ReflectMap:
+		return reflectMapEncoder
+	case *gad.ReflectArray:
+		return reflectArrayEncoder
 	default:
 		return noopEncoder
 	}
@@ -296,7 +303,7 @@ func charEncoder(e *encodeState, v gad.Object, opts encOpts) {
 
 func stringEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	if opts.quoted {
-		e2 := newEncodeState()
+		e2 := newEncodeState(e.vm)
 		// Since we encode the string twice, we only need to escape HTML
 		// the first time.
 		e2.string(v.ToString(), opts.escapeHTML)
@@ -362,6 +369,44 @@ func mapEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	}
 	e.WriteByte('}')
 	e.ptrLevel--
+}
+
+func reflectMapEncoder(e *encodeState, v gad.Object, opts encOpts) {
+	var (
+		m    = v.(*gad.ReflectMap)
+		it   = m.Iterate(e.vm)
+		dict = make(gad.Dict, m.Len())
+	)
+	for it.Next() {
+		dict[it.Key().ToString()], _ = it.Value()
+	}
+	mapEncoder(e, dict, opts)
+}
+
+func reflectStructEncoder(e *encodeState, v gad.Object, opts encOpts) {
+	var (
+		m    = v.(*gad.ReflectStruct)
+		it   = m.Iterate(e.vm)
+		dict = make(gad.Dict)
+	)
+	for it.Next() {
+		dict[it.Key().ToString()], _ = it.Value()
+	}
+	mapEncoder(e, dict, opts)
+}
+
+func reflectArrayEncoder(e *encodeState, v gad.Object, opts encOpts) {
+	var (
+		a   = v.(*gad.ReflectArray)
+		it  = a.Iterate(e.vm)
+		arr = make(gad.Array, a.Len())
+		i   int
+	)
+
+	for it.Next() {
+		arr[i], _ = it.Value()
+	}
+	arrayEncoder(e, arr, opts)
 }
 
 func bytesEncoder(e *encodeState, v gad.Object, _ encOpts) {

@@ -112,7 +112,7 @@ func funcPTsRO(fn func(*Time, string) gad.Object) gad.CallableFunc {
 		}
 		s, ok := gad.ToGoString(c.Args.Get(1))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("2nd", "string", c.Args.Get(1).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "str", c.Args.Get(1).Type().Name())
 		}
 
 		ret = fn(t, s)
@@ -138,7 +138,7 @@ func funcPTb2sRO(fn func(*Time, []byte, string) gad.Object) gad.CallableFunc {
 		}
 		s, ok := gad.ToGoString(c.Args.Get(2))
 		if !ok {
-			return gad.Nil, gad.NewArgumentTypeError("3rd", "string", c.Args.Get(2).Type().Name())
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "str", c.Args.Get(2).Type().Name())
 		}
 
 		ret = fn(t, b, s)

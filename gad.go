@@ -5,6 +5,7 @@
 package gad
 
 import (
+	"html/template"
 	"strconv"
 	"unicode/utf8"
 
@@ -37,7 +38,7 @@ func ToObject(v any) (ret Object, err error) {
 	case nil:
 		ret = Nil
 	case string:
-		ret = String(v)
+		ret = Str(v)
 	case bool:
 		if v {
 			ret = True
@@ -98,6 +99,8 @@ func ToObject(v any) (ret Object, err error) {
 		}
 	case error:
 		ret = &Error{Message: v.Error(), Cause: v}
+	case template.HTML:
+		ret = RawStr(v)
 	default:
 		if out, ok := registry.ToObject(v); ok {
 			ret, ok = out.(Object)
@@ -117,7 +120,7 @@ func ToInterface(o Object) (ret any) {
 	switch o := o.(type) {
 	case Int:
 		ret = int64(o)
-	case String:
+	case Str:
 		ret = string(o)
 	case Bytes:
 		ret = []byte(o)
@@ -167,13 +170,13 @@ func ToInterface(o Object) (ret any) {
 }
 
 // ToString will try to convert an Object to Gad string value.
-func ToString(o Object) (v String, ok bool) {
-	if v, ok = o.(String); ok {
+func ToString(o Object) (v Str, ok bool) {
+	if v, ok = o.(Str); ok {
 		return
 	}
 	vv, ok := ToGoString(o)
 	if ok {
-		v = String(vv)
+		v = Str(vv)
 	}
 	return
 }
@@ -276,7 +279,7 @@ func ToGoByteSlice(o Object) (v []byte, ok bool) {
 	switch o := o.(type) {
 	case Bytes:
 		v, ok = o, true
-	case String:
+	case Str:
 		v, ok = make([]byte, len(o)), true
 		copy(v, o)
 	case BytesConverter:
@@ -306,7 +309,10 @@ func ToGoInt(o Object) (v int, ok bool) {
 		if o {
 			v = 1
 		}
-	case String:
+	case Str:
+		if o == "" {
+			return
+		}
 		if vv, err := strconv.ParseInt(string(o), 0, 0); err == nil {
 			v = int(vv)
 			ok = true
@@ -334,7 +340,10 @@ func ToGoInt64(o Object) (v int64, ok bool) {
 		if o {
 			v = 1
 		}
-	case String:
+	case Str:
+		if o == "" {
+			return
+		}
 		if vv, err := strconv.ParseInt(string(o), 0, 64); err == nil {
 			v = vv
 			ok = true
@@ -362,7 +371,10 @@ func ToGoUint64(o Object) (v uint64, ok bool) {
 		if o {
 			v = 1
 		}
-	case String:
+	case Str:
+		if o == "" {
+			return
+		}
 		if vv, err := strconv.ParseUint(string(o), 0, 64); err == nil {
 			v = vv
 			ok = true
@@ -390,7 +402,11 @@ func ToGoFloat64(o Object) (v float64, ok bool) {
 		if o {
 			v = 1
 		}
-	case String:
+	case Str:
+		if o == "" {
+			ok = true
+			return
+		}
 		if vv, err := strconv.ParseFloat(string(o), 64); err == nil {
 			v = vv
 			ok = true
@@ -412,7 +428,7 @@ func ToGoRune(o Object) (v rune, ok bool) {
 		v, ok = rune(o), true
 	case Decimal:
 		v, ok = rune(o.Go().BigInt().Uint64()), true
-	case String:
+	case Str:
 		ok = true
 		v, _ = utf8.DecodeRuneInString(string(o))
 	case Bool:

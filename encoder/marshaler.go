@@ -24,6 +24,14 @@ func (o Bool) MarshalBinary() ([]byte, error) {
 }
 
 // MarshalBinary implements encoding.BinaryMarshaler
+func (o Flag) MarshalBinary() ([]byte, error) {
+	if o {
+		return []byte{binOnV1}, nil
+	}
+	return []byte{binOffV1}, nil
+}
+
+// MarshalBinary implements encoding.BinaryMarshaler
 func (o Int) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, 2+binary.MaxVarintLen64)
 	buf[0] = binIntV1

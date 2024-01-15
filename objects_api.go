@@ -13,6 +13,12 @@ const (
 
 	// False represents a false value.
 	False = Bool(false)
+
+	// Yes represents a flag on.
+	Yes = Flag(true)
+
+	// Yes represents a flag off.
+	No = Flag(false)
 )
 
 var (
@@ -20,19 +26,29 @@ var (
 	Nil Object = &NilType{}
 )
 
+// Falser represents an Falser object.
+type Falser interface {
+	// IsFalsy returns true if value is falsy otherwise false.
+	IsFalsy() bool
+}
+
 // Object represents an object in the VM.
 type Object interface {
+	Falser
+
 	// TypeName should return the name of the type.
 	Type() ObjectType
 
 	// ToString should return a string of the type's value.
 	ToString() string
 
-	// IsFalsy returns true if value is falsy otherwise false.
-	IsFalsy() bool
-
 	// Equal checks equality of objects.
 	Equal(right Object) bool
+}
+
+type Representer interface {
+	Object
+	Repr(vm *VM) (string, error)
 }
 
 type ObjectType interface {
@@ -54,7 +70,7 @@ type Objector interface {
 
 type ToStringer interface {
 	Object
-	Stringer(c Call) (String, error)
+	Stringer(c Call) (Str, error)
 }
 
 // Copier wraps the Copy method to create a single copy of the object.
@@ -66,7 +82,7 @@ type Copier interface {
 // DeepCopier wraps the Copy method to create a deep copy of the object.
 type DeepCopier interface {
 	Object
-	DeepCopy() Object
+	DeepCopy(vm *VM) (Object, error)
 }
 
 // IndexDeleter wraps the IndexDelete method to delete an index of an object.
@@ -168,7 +184,7 @@ type ToArrayAppenderObject interface {
 // ItemsGetter is an interface for returns pairs of fields or keys with same values.
 type ItemsGetter interface {
 	Object
-	Items() (arr KeyValueArray)
+	Items(vm *VM) (arr KeyValueArray, err error)
 }
 
 // KeysGetter is an interface for returns keys or fields names.
@@ -196,7 +212,7 @@ type ReverseSorter interface {
 	Object
 
 	// SortReverse sorts object reversely. if `update`, sort self and return then, other else sorts a self copy object.
-	SortReverse() (Object, error)
+	SortReverse(vm *VM) (Object, error)
 }
 
 type Iterabler interface {
@@ -267,9 +283,14 @@ type BytesConverter interface {
 	ToBytes() (Bytes, error)
 }
 
+type UserDataStorage interface {
+	Object
+	UserData() Indexer
+}
+
 // ObjectImpl is the basic Object implementation and it does not nothing, and
 // helps to implement Object interface by embedding and overriding methods in
-// custom implementations. String and TypeName must be implemented otherwise
+// custom implementations. Str and TypeName must be implemented otherwise
 // calling these methods causes panic.
 type ObjectImpl struct{}
 
@@ -320,7 +341,7 @@ func (o *NilType) IsNil() bool {
 }
 
 // BinaryOp implements Object interface.
-func (o *NilType) BinaryOp(tok token.Token, right Object) (Object, error) {
+func (o *NilType) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	switch right.(type) {
 	case *NilType:
 		switch tok {
@@ -421,7 +442,7 @@ type BinaryOperatorHandler interface {
 	// BinaryOp handles +,-,*,/,%,<<,>>,<=,>=,<,> operators.
 	// Returned error stops VM execution if not handled with an error handler
 	// and VM.Run returns the same error as wrapped.
-	BinaryOp(tok token.Token, right Object) (Object, error)
+	BinaryOp(vm *VM, tok token.Token, right Object) (Object, error)
 }
 
 type Writer interface {

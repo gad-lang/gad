@@ -102,6 +102,8 @@ const (
 	Return
 	True
 	False
+	Yes
+	No
 	In
 	Nil
 	Import
@@ -205,6 +207,8 @@ var tokens = [...]string{
 	Return:          "return",
 	True:            "true",
 	False:           "false",
+	Yes:             "yes",
+	No:              "no",
 	In:              "in",
 	Nil:             "nil",
 	Import:          "import",
