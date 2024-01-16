@@ -2924,6 +2924,16 @@ if true {
 return`)
 }
 
+func TestParseLinesSep(t *testing.T) {
+	expectParseString(t, "\r\r1+\r\r2+\r\r\r3\r\r\n  \t", `((1 + 2) + 3)`)
+	expectParseString(t, "1+\n2+\n3", `((1 + 2) + 3)`)
+	expectParseString(t, "1+\r\n2+\n3", `((1 + 2) + 3)`)
+	expectParseString(t, "1+\r2+\n3", `((1 + 2) + 3)`)
+	expectParseString(t, "1+\r2+\r3", `((1 + 2) + 3)`)
+	expectParseString(t, "\r\r1+\r2+\r3", `((1 + 2) + 3)`)
+	expectParseString(t, "\r\r1+\r\r2+\r\r\r3", `((1 + 2) + 3)`)
+}
+
 type pfn func(int, int) Pos          // position conversion function
 type expectedFn func(pos pfn) []Stmt // callback function to return expected results
 

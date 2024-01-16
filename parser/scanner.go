@@ -15,6 +15,7 @@
 package parser
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -230,12 +231,35 @@ func NewScanner(
 			file.Size, len(src)))
 	}
 
+	isSpace := func(r rune) bool {
+		switch r {
+		case ' ', '\t', '\n', '\r':
+			return true
+		default:
+			return false
+		}
+	}
+
+	src = bytes.TrimRightFunc(src, isSpace)
+
 	if opts == nil {
 		opts = &ScannerOptions{}
 	}
 
 	if opts.MixedExprRune == 0 {
 		opts.MixedExprRune = '#'
+	}
+
+	last := len(src) - 1
+	if pos := bytes.IndexByte(src, '\r'); pos >= 0 {
+		// if line sep is only CR, replaces to EOL
+		if pos < last && src[pos] != '\n' {
+			for i, b := range src {
+				if b == '\r' && i < last && src[i+1] != '\n' {
+					src[i] = '\n'
+				}
+			}
+		}
 	}
 
 	s := &Scanner{
@@ -713,7 +737,11 @@ func (s *Scanner) NextTo(v string) {
 }
 
 func (s *Scanner) Next() {
-	var newLineEscape bool
+	var (
+		newLineEscape bool
+		r             rune
+		w             int
+	)
 next:
 	if s.ReadOffset < len(s.Src) {
 		s.Offset = s.ReadOffset
@@ -730,7 +758,13 @@ next:
 			defer s.CallPostLineEndHandlers()
 		}
 
-		r, w := rune(s.Src[s.ReadOffset]), 1
+		r, w = rune(s.Src[s.ReadOffset]), 1
+
+		for r == '\r' {
+			s.ReadOffset++
+			r = rune(s.Src[s.ReadOffset])
+		}
+
 		switch {
 		case r == 0:
 			s.Error(s.Offset, "illegal character NUL")

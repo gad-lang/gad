@@ -184,6 +184,17 @@ func testScan(t *testing.T, mode parser.ScanMode, addLines bool, testCases []str
 	token   token.Token
 	literal string
 }) {
+	t.Helper()
+	testScanI(t, mode, addLines, "\n", testCases)
+	if addLines {
+		testScanI(t, mode, addLines, "\r\n", testCases)
+	}
+}
+
+func testScanI(t *testing.T, mode parser.ScanMode, addLines bool, lineSep string, testCases []struct {
+	token   token.Token
+	literal string
+}) {
 	// combine
 	var lines []string
 	var lineSum int
@@ -277,9 +288,9 @@ func testScan(t *testing.T, mode parser.ScanMode, addLines bool, testCases []str
 		}
 	}
 
-	scanExpect(t, strings.Join(lines, "\n"),
+	scanExpect(t, strings.Join(lines, lineSep),
 		parser.ScanComments|parser.DontInsertSemis|mode, expected...)
-	scanExpect(t, strings.Join(lines, "\n"),
+	scanExpect(t, strings.Join(lines, lineSep),
 		parser.DontInsertSemis|mode, expectedSkipComments...)
 }
 
