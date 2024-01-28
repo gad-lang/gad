@@ -241,7 +241,7 @@ func (r *repl) cmdReturn(_ string) error {
 func (r *repl) cmdReturnVerbose(_ string) error {
 	if r.lastResult != nil {
 		_, _ = fmt.Fprintf(r.out,
-			"GoType:%[1]T, TypeName:%[2]s, Value:%#[1]v\n",
+			"GoType:%[1]T, OpName:%[2]s, Value:%#[1]v\n",
 			r.lastResult, r.lastResult.Type().Name())
 	} else {
 		_, _ = fmt.Fprintln(r.out, gad.ReprQuote("nil"))

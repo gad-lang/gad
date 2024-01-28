@@ -757,9 +757,9 @@ do:
 	switch t := callee.(type) {
 	case *CompiledFunction:
 		return vm.xOpCallCompiled(t, numArgs, flags)
-	case *CallerObjectWithMethods:
-		if !t.HasMethods() {
-			callee = t.CallerObject
+	case MethodCaller:
+		if !t.HasCallerMethods() {
+			callee = t.Caller()
 			goto do
 		}
 	}

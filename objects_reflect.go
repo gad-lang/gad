@@ -51,6 +51,10 @@ type ReflectField struct {
 	Value    reflect.Value
 }
 
+func (r *ReflectField) String() string {
+	return r.Struct.Name + " " + r.Struct.Type.Name() + " " + fmt.Sprint(r.Struct.Index)
+}
+
 func (r *ReflectField) Type() ObjectType {
 	return NewReflectType(r.Value.Type())
 }
@@ -140,10 +144,13 @@ func FieldsOfReflectType(ityp reflect.Type) (result []*IndexableStructField) {
 			field := typ.Field(i)
 			path := append(append([]int{}, path...), i)
 			name := append(append([]string{}, name...), field.Name)
-			if field.Anonymous {
-				walk(field.Type, path, name)
-			} else if ast.IsExported(field.Name) {
+			if ast.IsExported(field.Name) {
 				fields = append(fields, &IndexableStructField{field, path, name})
+				if field.Anonymous {
+					walk(field.Type, path, name)
+				}
+			} else if field.Anonymous {
+				walk(field.Type, path, name)
 			}
 		}
 	}
@@ -239,7 +246,7 @@ func NewReflectType(typ reflect.Type) (rt *ReflectType) {
 }
 
 func (r *ReflectType) Type() ObjectType {
-	return TNil
+	return TBase
 }
 
 func (r *ReflectType) ToString() string {
@@ -332,7 +339,7 @@ func (r *ReflectType) New(vm *VM, m Dict) (_ Object, err error) {
 }
 
 func (r *ReflectType) IsChildOf(t ObjectType) bool {
-	return false
+	return t == TBase
 }
 
 type ReflectValuer interface {

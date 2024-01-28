@@ -77,6 +77,9 @@ var (
 
 	// ErrType represents a type error.
 	ErrType = &Error{Name: "TypeError"}
+
+	// ErrNotInitializable represents a not initializable type error.
+	ErrNotInitializable = &Error{Name: "ErrNotInitializable"}
 )
 
 // NewOperandTypeError creates a new Error from ErrType.

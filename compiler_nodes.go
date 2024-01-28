@@ -7,6 +7,7 @@ package gad
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
@@ -997,8 +998,25 @@ func (c *Compiler) compileFuncLit(nd *node.FuncLit) error {
 				RHS:   []node.Expr{nd},
 				Token: token.Define,
 			}
-			return c.compileAssignStmt(ass,
+			err := c.compileAssignStmt(ass,
 				ass.LHS, ass.RHS, token.Const, ass.Token)
+			if err != nil && strings.Contains(err.Error(), fmt.Sprintf("%q redeclared in this block", ident.Name)) {
+				nd := *nd
+				nd.Type.AllowMethods = false
+				nd.Type.Ident = nil
+				return c.compileCallExpr(&node.CallExpr{
+					Func: &node.Ident{Name: BuiltinAddCallMethod.String()},
+					CallArgs: node.CallArgs{
+						Args: node.CallExprArgs{
+							Values: []node.Expr{
+								ident,
+								&nd,
+							},
+						},
+					},
+				})
+			}
+			return err
 		}
 	}
 	return c.compileFunc(nd, nd.Type, nd.Body)

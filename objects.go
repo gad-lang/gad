@@ -1124,23 +1124,21 @@ func (o Dict) ToString() string {
 	last := len(o) - 1
 	i := 0
 
+	var keys []string
 	for k := range o {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+
+	for _, k := range keys {
 		if runehelper.IsIdentifierRunes([]rune(k)) {
 			sb.WriteString(k)
 		} else {
 			sb.WriteString(strconv.Quote(k))
 		}
 		sb.WriteString(": ")
-		switch v := o[k].(type) {
-		case Str:
-			sb.WriteString(strconv.Quote(v.ToString()))
-		case Char:
-			sb.WriteString(strconv.QuoteRune(rune(v)))
-		case Bytes:
-			sb.WriteString(fmt.Sprint([]byte(v)))
-		default:
-			sb.WriteString(v.ToString())
-		}
+		sb.WriteString(ToCode(o[k]))
 		if i != last {
 			sb.WriteString(", ")
 		}

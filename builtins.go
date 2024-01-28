@@ -4,6 +4,8 @@
 
 package gad
 
+import "sync"
+
 //go:generate go run ./cmd/mkcallable -output builtins_zfuncs.go builtins.go
 
 // BuiltinType represents a builtin type
@@ -38,6 +40,7 @@ const (
 	BuiltinTypesEnd_
 
 	BuiltinFunctionsBegin_
+	BuiltinBinaryOp
 	BuiltinRepr
 	BuiltinCast
 	BuiltinAppend
@@ -63,7 +66,8 @@ const (
 	BuiltinGlobals
 	BuiltinStdIO
 	BuiltinWrap
-	BuiltinNewType
+	BuiltinStruct
+	BuiltinNew
 	BuiltinTypeOf
 	BuiltinAddCallMethod
 	BuiltinRawCaller
@@ -115,10 +119,45 @@ const (
 	BuiltinConstantsBegin_
 	BuiltinDiscardWriter
 	BuiltinConstantsEnd_
+
+	BuiltinBinOperatorsBegin_
+	BuiltinBinOpAdd
+	BuiltinBinOpSub
+	BuiltinBinOpMul
+	BuiltinBinOpQuo
+	BuiltinBinOpRem
+	BuiltinBinOpAnd
+	BuiltinBinOpOr
+	BuiltinBinOpXor
+	BuiltinBinOpShl
+	BuiltinBinOpShr
+	BuiltinBinOpAndNot
+	BuiltinBinOpLAnd
+	BuiltinBinOpEqual
+	BuiltinBinOpNotEqual
+	BuiltinBinOpLess
+	BuiltinBinOpGreater
+	BuiltinBinOpLessEq
+	BuiltinBinOpGreaterEq
+	BuiltinBinOperatorsEnd_
 )
+
+var (
+	lastBuiltinType = BuiltinBinOperatorsEnd_
+	lastBuiltinMux  = sync.Mutex{}
+)
+
+func NewBuiltinType() (t BuiltinType) {
+	lastBuiltinMux.Lock()
+	defer lastBuiltinMux.Unlock()
+	lastBuiltinType++
+	t = lastBuiltinType
+	return t
+}
 
 // BuiltinsMap is list of builtin types, exported for REPL.
 var BuiltinsMap = map[string]BuiltinType{
+	"binaryOp":      BuiltinBinaryOp,
 	"cast":          BuiltinCast,
 	"append":        BuiltinAppend,
 	"delete":        BuiltinDelete,
@@ -143,7 +182,8 @@ var BuiltinsMap = map[string]BuiltinType{
 	"globals":       BuiltinGlobals,
 	"stdio":         BuiltinStdIO,
 	"wrap":          BuiltinWrap,
-	"newType":       BuiltinNewType,
+	"struct":        BuiltinStruct,
+	"new":           BuiltinNew,
 	"typeof":        BuiltinTypeOf,
 	"addCallMethod": BuiltinAddCallMethod,
 	"rawCaller":     BuiltinRawCaller,
@@ -203,7 +243,7 @@ type Builtins struct {
 }
 
 func NewBuiltins() *Builtins {
-	return &Builtins{Objects: BuiltinObjects, Map: BuiltinsMap, last: BuiltinConstantsEnd_}
+	return &Builtins{Objects: BuiltinObjects, Map: BuiltinsMap, last: NewBuiltinType()}
 }
 
 func (s *Builtins) SetType(typ ObjectType) *Builtins {
@@ -211,7 +251,7 @@ func (s *Builtins) SetType(typ ObjectType) *Builtins {
 }
 
 func (s *Builtins) Set(name string, obj Object) *Builtins {
-	if s.last == BuiltinConstantsEnd_ {
+	if s.last == lastBuiltinType {
 		newObjects := make(BuiltinObjectsMap, len(s.Objects))
 		newMap := make(map[string]BuiltinType, len(s.Objects))
 		for t, o := range s.Objects {
@@ -305,6 +345,10 @@ var BuiltinObjects = BuiltinObjectsMap{
 		Name:                  ":makeArray",
 		Value:                 funcPiOROe(BuiltinMakeArrayFunc),
 		AcceptMethodsDisabled: true,
+	},
+	BuiltinBinaryOp: &BuiltinFunction{
+		Name:  "binaryOp",
+		Value: BuiltinBinaryOpFunc,
 	},
 	BuiltinCast: &BuiltinFunction{
 		Name:  "cast",
@@ -488,13 +532,19 @@ var BuiltinObjects = BuiltinObjectsMap{
 		Name:  "wrap",
 		Value: BuiltinWrapFunc,
 	},
-	BuiltinNewType: &BuiltinFunction{
-		Name:  "newType",
-		Value: BuiltinNewTypeFunc,
+	BuiltinStruct: &BuiltinFunction{
+		Name:                  "struct",
+		Value:                 BuiltinStructFunc,
+		AcceptMethodsDisabled: true,
+	},
+	BuiltinNew: &BuiltinFunction{
+		Name:  "new",
+		Value: BuiltinNewFunc,
 	},
 	BuiltinTypeOf: &BuiltinFunction{
-		Name:  "typeof",
-		Value: BuiltinTypeOfFunc,
+		Name:                  "typeof",
+		Value:                 BuiltinTypeOfFunc,
+		AcceptMethodsDisabled: true,
 	},
 	BuiltinAddCallMethod: &BuiltinFunction{
 		Name:                  "addCallMethod",

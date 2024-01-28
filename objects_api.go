@@ -36,7 +36,7 @@ type Falser interface {
 type Object interface {
 	Falser
 
-	// TypeName should return the name of the type.
+	// OpName should return the name of the type.
 	Type() ObjectType
 
 	// ToString should return a string of the type's value.
@@ -59,18 +59,13 @@ type ObjectType interface {
 	Setters() Dict
 	Methods() Dict
 	Fields() Dict
-	New(*VM, Dict) (Object, error)
+	New(vm *VM, fields Dict) (Object, error)
 	IsChildOf(t ObjectType) bool
 }
 
 type Objector interface {
 	Object
 	Fields() Dict
-}
-
-type ToStringer interface {
-	Object
-	Stringer(c Call) (Str, error)
 }
 
 // Copier wraps the Copy method to create a single copy of the object.
@@ -166,6 +161,16 @@ type CanCallerObjectTypesValidation interface {
 type CanCallerObjectMethodsEnabler interface {
 	CallerObject
 	MethodsDisabled() bool
+}
+
+type MethodCaller interface {
+	CallerObject
+	AddCallerMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error
+	CallerMethods() *MethodArgType
+	CallerOf(args Args) (CallerObject, bool)
+	CallerOfTypes(types []ObjectType) (co CallerObject, validate bool)
+	HasCallerMethods() bool
+	Caller() CallerObject
 }
 
 // NameCallerObject is an interface for objects that can be called with CallName
@@ -290,7 +295,7 @@ type UserDataStorage interface {
 
 // ObjectImpl is the basic Object implementation and it does not nothing, and
 // helps to implement Object interface by embedding and overriding methods in
-// custom implementations. Str and TypeName must be implemented otherwise
+// custom implementations. Str and OpName must be implemented otherwise
 // calling these methods causes panic.
 type ObjectImpl struct{}
 
@@ -460,4 +465,14 @@ type Reader interface {
 type ReadWriter interface {
 	Writer
 	Reader
+}
+
+func IsTypeAssignableTo(a, b ObjectType) bool {
+	for a != nil {
+		if a == b {
+			return true
+		}
+		a = a.Type()
+	}
+	return false
 }

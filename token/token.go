@@ -33,47 +33,55 @@ const (
 	RawString
 	LiteralEnd_
 	OperatorBegin_
-	Add             // +
-	Sub             // -
-	Mul             // *
-	Quo             // /
-	Rem             // %
-	And             // &
-	Or              // |
-	Xor             // ^
-	Shl             // <<
-	Shr             // >>
-	AndNot          // &^
-	AddAssign       // +=
-	SubAssign       // -=
-	MulAssign       // *=
-	QuoAssign       // /=
-	RemAssign       // %=
-	AndAssign       // &=
-	OrAssign        // |=
-	XorAssign       // ^=
-	ShlAssign       // <<=
-	ShrAssign       // >>=
-	AndNotAssign    // &^=
-	LOrAssign       // ||=
-	NullichAssign   // ??=
+	BinaryOperatorBegin_
+	Add       // +
+	Sub       // -
+	Mul       // *
+	Quo       // /
+	Rem       // %
+	And       // &
+	Or        // |
+	Xor       // ^
+	Shl       // <<
+	Shr       // >>
+	AndNot    // &^
+	LAnd      // &&
+	Equal     // ==
+	NotEqual  // !=
+	Less      // <
+	Greater   // >
+	LessEq    // <=
+	GreaterEq // >=
+	BinaryOperatorEnd_
+	DefaultOperatorsBegin_
 	NullichCoalesce // ??
-	LAnd            // &&
 	LOr             // ||
-	Inc             // ++
-	Dec             // --
-	Equal           // ==
-	Less            // <
-	Greater         // >
-	Assign          // =
+	DefaultOperatorsEnd_
+	AssignOperatorBegin_
+	Define        // :=
+	Assign        // =
+	AddAssign     // +=
+	SubAssign     // -=
+	MulAssign     // *=
+	QuoAssign     // /=
+	RemAssign     // %=
+	AndAssign     // &=
+	OrAssign      // |=
+	XorAssign     // ^=
+	ShlAssign     // <<=
+	ShrAssign     // >>=
+	AndNotAssign  // &^=
+	LOrAssign     // ||=
+	NullichAssign // ??=
+	AssignOperatorEnd_
+	UnaryOperatorBegin_
+	Inc // ++
+	Dec // --
+	UnaryOperatorEnd_
 	Lambda          // =>
 	Not             // !
-	NotEqual        // !=
 	Null            // a == nil || nil == a
 	NotNull         // a != nil || nil != a
-	LessEq          // <=
-	GreaterEq       // >=
-	Define          // :=
 	Pipe            // .|
 	LParen          // (
 	RParen          // )

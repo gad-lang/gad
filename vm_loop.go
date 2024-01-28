@@ -52,7 +52,11 @@ VMLoop:
 			case BinaryOperatorHandler:
 				value, err = left.BinaryOp(vm, tok, right)
 			default:
-				err = ErrInvalidOperator
+				if t := BinaryOperatorTypes[tok]; t != nil {
+					value, err = vm.Builtins.Call(BuiltinBinaryOp, Call{VM: vm, Args: Args{Array{t, left, right}}})
+				} else {
+					err = ErrInvalidOperator
+				}
 			}
 			if err == nil {
 				vm.stack[vm.sp-2] = value

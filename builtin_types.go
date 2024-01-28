@@ -24,8 +24,8 @@ func (b *BuiltinObjType) Methods() Dict {
 	return b.methods
 }
 
-func (b *BuiltinObjType) IsChildOf(ObjectType) bool {
-	return false
+func (b *BuiltinObjType) IsChildOf(t ObjectType) bool {
+	return t == TBase
 }
 
 func NewBuiltinObjType(name string, init CallableFunc) *BuiltinObjType {
@@ -37,7 +37,7 @@ func (b *BuiltinObjType) Name() string {
 }
 
 func (b *BuiltinObjType) Type() ObjectType {
-	return TNil
+	return TBase
 }
 
 func (b *BuiltinObjType) ToString() string {

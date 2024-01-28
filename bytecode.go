@@ -46,7 +46,7 @@ func (bc *Bytecode) putConstants(w io.Writer) {
 		case *CompiledFunction:
 			cf = t
 		case *CallerObjectWithMethods:
-			if !t.HasMethods() {
+			if !t.HasCallerMethods() {
 				cf, _ = t.CallerObject.(*CompiledFunction)
 			}
 		}
@@ -104,6 +104,9 @@ func (t ParamType) Accept(vm *VM, ot ObjectType) (ok bool, err error) {
 			}
 			if ot == st {
 				ok = true
+				return
+			} else if stot, _ := st.(ObjectType); stot != nil {
+				ok = IsTypeAssignableTo(stot, ot)
 				return
 			}
 		}
@@ -418,10 +421,13 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 
 		for i := 0; i < l; i++ {
 			argType = args.GetOnly(i).Type()
-			if accept, err = o.Params.Type[i].Accept(vm, argType); err != nil {
-				return
-			} else if !accept {
-				return NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Names[i]+")", t.String(), argType.Name())
+			t = o.Params.Type[i]
+			if t != nil {
+				if accept, err = t.Accept(vm, argType); err != nil {
+					return
+				} else if !accept {
+					return NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Names[i]+")", t.String(), argType.Name())
+				}
 			}
 		}
 

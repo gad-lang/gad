@@ -68,6 +68,7 @@ func TestReflectStruct_IndexGet(t *testing.T) {
 		V1 a
 		V2 *a
 	}
+
 	tests := []struct {
 		name    string
 		obj     any

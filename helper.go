@@ -8,6 +8,19 @@ import (
 	"github.com/gad-lang/gad/repr"
 )
 
+func ToCode(o Object) string {
+	switch v := o.(type) {
+	case Str:
+		return strconv.Quote(v.ToString())
+	case Char:
+		return strconv.QuoteRune(rune(v))
+	case Bytes:
+		return fmt.Sprint([]byte(v))
+	default:
+		return v.ToString()
+	}
+}
+
 func ArrayToString(len int, get func(i int) Object) string {
 	var (
 		sb   strings.Builder
@@ -16,16 +29,7 @@ func ArrayToString(len int, get func(i int) Object) string {
 	sb.WriteString("[")
 
 	for i := 0; i <= last; i++ {
-		switch v := get(i).(type) {
-		case Str:
-			sb.WriteString(strconv.Quote(v.ToString()))
-		case Char:
-			sb.WriteString(strconv.QuoteRune(rune(v)))
-		case Bytes:
-			sb.WriteString(fmt.Sprint([]byte(v)))
-		default:
-			sb.WriteString(v.ToString())
-		}
+		sb.WriteString(ToCode(get(i)))
 		if i != last {
 			sb.WriteString(", ")
 		}
@@ -82,11 +86,11 @@ func NewArgCaller(vm *VM, co CallerObject, args Array, namedArgs NamedArgs) func
 }
 
 func (vm *VM) AddCallerMethodOverride(co CallerObject, types MultipleObjectTypes, override bool, caller CallerObject) error {
-	return co.(*CallerObjectWithMethods).AddMethod(vm, types, caller, override)
+	return co.(MethodCaller).AddCallerMethod(vm, types, caller, override)
 }
 
 func (vm *VM) AddCallerMethod(co CallerObject, types MultipleObjectTypes, caller CallerObject) error {
-	return co.(*CallerObjectWithMethods).AddMethod(vm, types, caller, false)
+	return co.(MethodCaller).AddCallerMethod(vm, types, caller, false)
 }
 
 var ReprQuote = repr.Quote

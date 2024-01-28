@@ -20,6 +20,12 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
+func TestVMBinaryOperator(t *testing.T) {
+	expectRun(t, `return TBinOpAdd`, nil, TBinOpAdd)
+	expectRun(t, `return binaryOp(TBinOpAdd, 1, 1)`, nil, Int(2))
+	expectRun(t, `return binaryOp(TBinOpMul, 2, 10)`, nil, Int(20))
+}
+
 func TestVMDict(t *testing.T) {
 	var d struct{}
 	expectRun(t, `return ({a:1} + {b:2})`, nil, Dict{"a": Int(1), "b": Int(2)})
@@ -1004,18 +1010,6 @@ keyValueArray(keyValue("d",4))))`,
 		nil, Str("true"))
 	expectRun(t, `return str(bytes(buffer("a")))`, nil, Str("a"))
 	expectRun(t, `return str(1, 2)`, nil, Str("12"))
-	expectRun(t, `
-Point := newType(
-	"Point", 
-	fields={x:0, y:0}, 
-	init=func(this, x,y){this.x = x;this.y = y},
-)
-
-func str(p:Point) {
-	return "Point[" + p.x + "|" + p.y + "]"
-}
-
-return str("my point: ", Point(10,11))`, nil, Str("my point: Point[10|11]"))
 	expectRun(t, `return str(1, 2)`, nil, Str("12"))
 	expectRun(t, `return map([1,2], (v, _) => v+1)`, nil, Array{Int(2), Int(3)})
 	expectRun(t, `return map([1,2], (v, k) => v+k)`, nil, Array{Int(1), Int(3)})
@@ -1465,36 +1459,22 @@ return str("my point: ", Point(10,11))`, nil, Str("my point: Point[10|11]"))
 
 	expectErrIs(t, `printf()`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `sprintf()`, nil, ErrWrongNumArguments)
-
-	expectRun(t, `
-Point := newType(
-	"Point", 
-	fields={x:0, y:0}, 
-	init=func(this, x,y){this.x = x;this.y = y},
-)
-
-func int(p:Point) => rawCaller(int)(p.x * p.y)
-return [int(Point(2, 8)), str(int)]
-`,
-		nil, Array{Int(16), Str(ReprQuote("builtinType int") + " with 1 methods:\n" +
-			"  1. " + ReprQuote("compiledFunction #7(p:Point)"))})
 }
 
 func TestObjectType(t *testing.T) {
 	expectRun(t, `
-Point := newType(
+Point := struct(
 	"Point", 
-	fields={x:0, y:0}, 
-	init=func(this, x,y){this.x = x;this.y = y},
-	toString = (this) => "P" + this.x + this.y,
+	fields={x:0, y:0},
 )
+func Point(x, y) => Point(x=x, y=y)
+func str(p:Point) => "P" + p.x + p.y 
 return str(Point(1,2))`,
 		nil, Str(`P12`))
 
 	expectRun(t, `
-Point := newType("Point", 
+Point := struct("Point", 
 	fields={_x:0, _y:0}, 
-	init=func(this, x,y){this.x = x;this.y = y},
 	set={
 		x: func(this, v) {this._x = v},
 		y: func(this, v) {this._y = v},
@@ -1507,29 +1487,33 @@ Point := newType("Point",
 		addX: func(this, v) {this.x += v; return this.x},
 	},
 )
+func Point(x, y) => Point(_x=x, _y=y)
 p := Point(1, 2)
 return str(p), p.x, p.y, p.addX(3)`,
 		nil, Array{Str(`Point{_x: 1, _y: 2}`), Int(1), Int(2), Int(4)})
 
-	expectRun(t, `Point := newType("Point", fields={x:0, y:0}); return str(Point())`,
-		nil, Str(`Point{x: 0, y: 0}`))
-	expectRun(t, `Point := newType("Point", fields={x:0, y:0}, init=func(this, x,y){this.x = x;this.y = y}); return str(Point(1, 2))`,
+	expectRun(t, `Point := struct("Point", fields={x:0, y:0}); return str(Point())`,
+		nil, Str(`Point{}`))
+	expectRun(t, `
+Point := struct("Point", fields={x:0, y:0}); 
+func Point(x, y) => Point(x=x, y=y)
+return str(Point(1, 2))`,
 		nil, Str(`Point{x: 1, y: 2}`))
-	expectRun(t, `return newType("Point").name`,
+	expectRun(t, `return struct("Point").name`,
 		nil, Str("Point"))
 	expectRun(t, `
-Point := newType(
+Point := struct(
 	"Point", 
-	fields={x:0, y:0}, 
-	init=func(this, x,y){this.x = x;this.y = y},
-	toString = (this) => "P" + this.x + this.y,
+	fields={x:0, y:0},
 )
+func Point(x, y) => Point(x=x, y=y)
+func str(p:Point) => "P" + p.x + p.y 
 return str(Point(1,2))`,
 		nil, Str(`P12`))
 
 	expectRun(t, `
-P1 := newType("P1",fields={x:0, y:0})
-P2 := newType("P2",fields={x:0, y:0, z:0})
+P1 := struct("P1",fields={x:0, y:0})
+P2 := struct("P2",fields={x:0, y:0, z:0})
 p1 := P1(x=10,y=11)
 p2 := P2(x=1,y=2,z=3)
 return [str(p1), str(p2), str(cast(P1,p2)), str(cast(P2,cast(P1,p2)))]
@@ -1537,20 +1521,65 @@ return [str(p1), str(p2), str(cast(P1,p2)), str(cast(P2,cast(P1,p2)))]
 		nil, Array{
 			Str("P1{x: 10, y: 11}"),
 			Str("P2{x: 1, y: 2, z: 3}"),
-			Str("P1{x: 1, y: 2, }"),
+			Str("P1{x: 1, y: 2, z: 3}"),
 			Str("P2{x: 1, y: 2, z: 3}"),
 		})
 
 	expectRun(t, `
-Point := newType(
+Point := struct(
 	"Point", 
 	fields={x:0, y:0}, 
-	init=func(this, x,y){this.x = x;this.y = y},
-	toString = (this) => "P" + this.x + this.y,
-	writeTo = (this, w) => write(typeName(this),"(", this.x,",",this.y,")"),
 )
+
+func Point(x, y) => Point(x=x, y=y)
+func str(p:Point) => "P" + p.x + p.y 
+func write(p:Point) => write(typeName(p),"(", p.x,",",p.y,")")
+
 return write(Point(10,20))`,
 		newOpts().Buffered(), Array{Int(12), Str(`Point(10,20)`)})
+
+	expectRun(t, `
+Point := struct(
+	"Point", 
+	fields={x:0, y:0},
+)
+func Point(x, y) => Point(x=x, y=y)
+func str(p:Point) => "P" + p.x + p.y 
+func write(p:Point) => write(typeName(p),"(", p.x,",",p.y,")")
+
+b := buffer()
+write(b, Point(10,20))
+return str(b)`,
+		newOpts(), Str(`P1020`))
+
+	expectRun(t, `Point := struct(
+	"Point", 
+	fields={x:0, y:0}, 
+)
+
+func Point(x, y) => Point(x=x, y=y)
+
+func binaryOp(_:TBinOpMul, p:Point, val:int) {
+	p.x *= val
+	p.y *= val
+	return p
+}
+
+return Point(2,3)*3 .| dict
+`, nil, Dict{"x": Int(6), "y": Int(9)})
+
+	expectRun(t, `
+Point := struct(
+	"Point", 
+	fields={x:0, y:0},
+)
+
+func Point(x, y) => Point(x=x, y=y)
+func int(p:Point) => rawCaller(int)(p.x * p.y)
+return [int(Point(2, 8)), str(int)]
+`,
+		nil, Array{Int(16), Str(ReprQuote("builtinType int") + " with 1 methods:\n" +
+			"  1. " + ReprQuote("compiledFunction #7(p:Point)"))})
 }
 
 func TestCallerMethod(t *testing.T) {
@@ -1641,16 +1670,6 @@ return [
 				Str(ReprQuote("compiledFunction f7(b:bool, i:int)")),
 			},
 		})
-
-	expectRun(t, `
-Point := newType(
-	"Point", 
-	fields={x:0, y:0}, 
-	init=func(this, x,y){this.x = x;this.y = y},
-)
-addCallMethod(write, (this:Point) => write(typeName(this),"(", this.x,",",this.y,")"))
-return write(Point(10,20))`,
-		newOpts().Buffered(), Array{Int(12), Str(`Point(10,20)`)})
 }
 
 func TestBytes(t *testing.T) {

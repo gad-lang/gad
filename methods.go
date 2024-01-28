@@ -13,12 +13,18 @@ type ObjectTypeNode struct {
 
 func (n *ObjectTypeNode) Append(o MultipleObjectTypes) {
 	if len(o) > 0 {
-		for _, ot := range o[0] {
-			var child = &ObjectTypeNode{
-				Type: ot,
-			}
+		if len(o[0]) == 0 {
+			var child = &ObjectTypeNode{}
 			n.Children = append(n.Children, child)
 			child.Append(o[1:])
+		} else {
+			for _, ot := range o[0] {
+				var child = &ObjectTypeNode{
+					Type: ot,
+				}
+				n.Children = append(n.Children, child)
+				child.Append(o[1:])
+			}
 		}
 	}
 }
@@ -65,7 +71,7 @@ func (t MultipleObjectTypes) Tree() *ObjectTypeNode {
 }
 
 type CallerMethod struct {
-	Of CallerObject
+	Default bool
 	CallerObject
 	Types []ObjectType
 	arg   *MethodArgType
@@ -103,7 +109,7 @@ func NewCallerObjectWithMethods(callerObject CallerObject) *CallerObjectWithMeth
 	return &CallerObjectWithMethods{CallerObject: callerObject}
 }
 
-func (o *CallerObjectWithMethods) HasMethods() bool {
+func (o *CallerObjectWithMethods) HasCallerMethods() bool {
 	if o.registered {
 		return !o.Methods.IsZero()
 	}
@@ -113,13 +119,13 @@ func (o *CallerObjectWithMethods) HasMethods() bool {
 func (o *CallerObjectWithMethods) RegisterDefaultWithTypes(types MultipleObjectTypes) *CallerObjectWithMethods {
 	o.registered = true
 	o.Methods.Add(types, &CallerMethod{
-		Of:           o.CallerObject,
+		Default:      true,
 		CallerObject: o.CallerObject,
 	}, false)
 	return o
 }
 
-func (o *CallerObjectWithMethods) AddMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error {
+func (o *CallerObjectWithMethods) AddCallerMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error {
 	if !o.registered {
 		o.registered = true
 		if cot, _ := o.CallerObject.(CallerObjectWithParamTypes); cot != nil {
@@ -132,7 +138,6 @@ func (o *CallerObjectWithMethods) AddMethod(vm *VM, types MultipleObjectTypes, h
 	}
 
 	return o.Methods.Add(types, &CallerMethod{
-		Of:           o.CallerObject,
 		CallerObject: handler,
 	}, override)
 }
@@ -147,8 +152,8 @@ func (o *CallerObjectWithMethods) ToString() string {
 		return o.CallerObject.ToString()
 	}
 
-	o.WalkSorted(func(m *CallerMethod) any {
-		if m.Of != m.CallerObject {
+	o.MethodWalkSorted(func(m *CallerMethod) any {
+		if !m.Default {
 			s.WriteString(fmt.Sprintf("  %d. ", i+1))
 			s.WriteString(m.CallerObject.ToString())
 			s.WriteByte('\n')
@@ -183,7 +188,11 @@ func (o *CallerObjectWithMethods) CallerOf(args Args) (CallerObject, bool) {
 	}
 	var types []ObjectType
 	args.Walk(func(i int, arg Object) any {
-		types = append(types, arg.Type())
+		if t, ok := arg.(ObjectType); ok {
+			types = append(types, t)
+		} else {
+			types = append(types, arg.Type())
+		}
 		return nil
 	})
 	return o.CallerOfTypes(types)
@@ -199,7 +208,11 @@ func (o *CallerObjectWithMethods) CallerOfTypes(types []ObjectType) (co CallerOb
 	return o.CallerObject, validate
 }
 
-func (o *CallerObjectWithMethods) Walk(cb func(m *CallerMethod) any) (v any) {
+func (o *CallerObjectWithMethods) CallerMethods() *MethodArgType {
+	return &o.Methods
+}
+
+func (o *CallerObjectWithMethods) MethodWalk(cb func(m *CallerMethod) any) (v any) {
 	if o.registered {
 		return o.Methods.Walk(cb)
 	}
@@ -208,7 +221,7 @@ func (o *CallerObjectWithMethods) Walk(cb func(m *CallerMethod) any) (v any) {
 	})
 }
 
-func (o *CallerObjectWithMethods) WalkSorted(cb func(m *CallerMethod) any) (v any) {
+func (o *CallerObjectWithMethods) MethodWalkSorted(cb func(m *CallerMethod) any) (v any) {
 	if o.registered {
 		return o.Methods.WalkSorted(cb)
 	}
@@ -291,7 +304,7 @@ func (at *MethodArgType) GetMethod(types []ObjectType) *CallerMethod {
 func (at *MethodArgType) IsZero() (ok bool) {
 	ok = true
 	at.Walk(func(m *CallerMethod) any {
-		if m.Of == m.CallerObject {
+		if m.Default {
 			return nil
 		}
 		ok = false
@@ -386,13 +399,15 @@ func (args Methods) GetMethod(types []ObjectType) (cm *CallerMethod) {
 	for i := len(types); i > 0; i-- {
 		at = args[types[0]]
 		if at == nil {
-			return
+			if at = args[nil]; at == nil {
+				return
+			}
 		}
 		args = at.Next
 		types = types[1:]
 	}
 
-	if at != nil {
+	if at != nil && at.Methods != nil {
 		cm = at.Methods[len(at.Methods)-1]
 	}
 	return

@@ -2,7 +2,6 @@ package gad
 
 import (
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 
@@ -25,7 +24,6 @@ var (
 	_ IndexGetter  = &Obj{}
 	_ IndexDeleter = &Obj{}
 	_ IndexSetter  = &Obj{}
-	_ ToWriter     = &Obj{}
 )
 
 func (o *Obj) Type() ObjectType {
@@ -36,49 +34,8 @@ func (o *Obj) Fields() Dict {
 	return o.fields
 }
 
-func (o *Obj) Stringer(c Call) (Str, error) {
-	if o.typ.Stringer != nil {
-		ret, err := o.typ.Stringer.Call(Call{VM: c.VM, Args: Args{Array{o}}})
-		if err != nil {
-			return "", err
-		}
-		s, _ := ToString(ret)
-		return s, nil
-	}
-	return Str(o.ToString()), nil
-}
-
 func (o *Obj) ToString() string {
-	var sb strings.Builder
-	sb.WriteString(o.typ.Name())
-	sb.WriteString("{")
-	last := len(o.fields) - 1
-	i := 0
-
-	names := o.typ.FieldsDict.SortedKeys()
-
-	for _, k := range names {
-		ks := string(k.(Str))
-		sb.WriteString(ks)
-		sb.WriteString(": ")
-		switch v := o.fields[ks].(type) {
-		case Str:
-			sb.WriteString(strconv.Quote(v.ToString()))
-		case Char:
-			sb.WriteString(strconv.QuoteRune(rune(v)))
-		case Bytes:
-			sb.WriteString(fmt.Sprint([]byte(v)))
-		default:
-			sb.WriteString(v.ToString())
-		}
-		if i != last {
-			sb.WriteString(", ")
-		}
-		i++
-	}
-
-	sb.WriteString("}")
-	return sb.String()
+	return o.typ.Name() + o.fields.ToString()
 }
 
 // Copy implements Copier interface.
@@ -133,23 +90,6 @@ func (o *Obj) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o *Obj) IsFalsy() bool { return len(o.fields) == 0 }
 
-// BinaryOp implements Object interface.
-func (o *Obj) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
-	if right == Nil {
-		switch tok {
-		case token.Less, token.LessEq:
-			return False, nil
-		case token.Greater, token.GreaterEq:
-			return True, nil
-		}
-	}
-
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
-}
-
 // Iterate implements Iterable interface.
 func (o *Obj) Iterate(vm *VM) Iterator {
 	return o.fields.Iterate(vm)
@@ -198,16 +138,6 @@ func (o *Obj) CastTo(vm *VM, t ObjectType) (Object, error) {
 	return t.New(vm, o.fields)
 }
 
-func (o *Obj) CanWriteTo() bool {
-	return o.typ.ToWriter != nil
-}
-
-func (o *Obj) WriteTo(vm *VM, w io.Writer) (int64, error) {
-	ret, err := o.typ.ToWriter.Call(Call{VM: vm, Args: Args{Array{o, NewWriter(w)}}})
-	i, _ := ToGoInt64(ret)
-	return i, err
-}
-
 type ObjectTypeArray []ObjectType
 
 func (o ObjectTypeArray) Type() ObjectType {
@@ -248,15 +178,112 @@ func (o ObjectTypeArray) Array() Array {
 
 // ObjType represents type objects and implements Object interface.
 type ObjType struct {
-	TypeName    string
-	FieldsDict  Dict
-	SettersDict Dict
-	MethodsDict Dict
-	GettersDict Dict
-	Stringer    CallerObject
-	Init        CallerObject
-	ToWriter    CallerObject
-	Inherits    ObjectTypeArray
+	TypeName       string
+	FieldsDict     Dict
+	SettersDict    Dict
+	MethodsDict    Dict
+	GettersDict    Dict
+	Inherits       ObjectTypeArray
+	calllerMethods MethodArgType
+	new            Function
+}
+
+func NewObjType(typeName string) *ObjType {
+	ot := &ObjType{TypeName: typeName}
+	ot.new.Name = typeName + "#new"
+	ot.new.Value = ot.NewCall
+	ot.calllerMethods.Add(nil, &CallerMethod{
+		Default:      true,
+		CallerObject: &ot.new,
+	}, false)
+	return ot
+}
+
+func (o *ObjType) AddCallerMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error {
+	return o.calllerMethods.Add(types, &CallerMethod{
+		CallerObject: handler,
+	}, override)
+}
+
+func (o *ObjType) HasCallerMethods() bool {
+	return !o.calllerMethods.IsZero()
+}
+
+func (o *ObjType) CallerMethods() *MethodArgType {
+	return &o.calllerMethods
+}
+
+func (o *ObjType) callerOf(args Args) (co CallerObject, ok, new bool) {
+	var types []ObjectType
+	args.Walk(func(i int, arg Object) any {
+		if t, ok := arg.(ObjectType); ok {
+			types = append(types, t)
+		} else {
+			types = append(types, arg.Type())
+		}
+		return nil
+	})
+	if co, ok = o.CallerOfTypes(types); co == nil {
+		co, ok = o.CallerOfTypes(append([]ObjectType{o}, types...))
+		new = true
+	}
+	return
+}
+
+func (o *ObjType) CallerOf(args Args) (co CallerObject, ok bool) {
+	var types []ObjectType
+	args.Walk(func(i int, arg Object) any {
+		if t, ok := arg.(ObjectType); ok {
+			types = append(types, t)
+		} else {
+			types = append(types, arg.Type())
+		}
+		return nil
+	})
+	return o.CallerOfTypes(types)
+}
+
+func (o *ObjType) CallerOfTypes(types []ObjectType) (co CallerObject, validate bool) {
+	if method := o.calllerMethods.GetMethod(types); method != nil {
+		return method.CallerObject, false
+	}
+	return o, validate
+}
+
+func (o *ObjType) Caller() CallerObject {
+	return &o.new
+}
+
+func (o *ObjType) New(_ *VM, fields Dict) (Object, error) {
+	var obj = &Obj{typ: o, fields: fields}
+	if fields == nil {
+		if o.FieldsDict == nil {
+			obj.fields = Dict{}
+		} else {
+			obj.fields = o.FieldsDict.Copy().(Dict)
+		}
+	}
+	return obj, nil
+}
+
+func (o *ObjType) NewCall(c Call) (Object, error) {
+	return &Obj{typ: o, fields: c.NamedArgs.Dict()}, nil
+}
+
+func (o *ObjType) Call(c Call) (_ Object, err error) {
+	if c.Args.Len() == 0 {
+		return o.NewCall(c)
+	}
+	caller, validate, new := o.callerOf(c.Args)
+	c.SafeArgs = !validate
+	if new {
+		obj := &Obj{typ: o, fields: make(Dict)}
+		c.Args = append(Args{Array{obj}}, c.Args...)
+		if _, err = caller.Call(c); err == nil {
+			return obj, nil
+		}
+	}
+	return caller.Call(c)
 }
 
 func (o *ObjType) Fields() Dict {
@@ -280,7 +307,7 @@ func (o *ObjType) Name() string {
 }
 
 func (o *ObjType) Type() ObjectType {
-	return TNil
+	return TBase
 }
 
 func (o *ObjType) IsChildOf(t ObjectType) bool {
@@ -311,11 +338,6 @@ func (o *ObjType) IndexGet(_ *VM, index Object) (value Object, err error) {
 			arr[i] = p
 		}
 		return arr, nil
-	case "init":
-		if o.Init == nil {
-			return Nil, nil
-		}
-		return o.Init, nil
 	case "name":
 		return Str(o.TypeName), nil
 	}
@@ -339,7 +361,28 @@ func (o *ObjType) Format(f fmt.State, verb rune) {
 }
 
 func (o *ObjType) ToString() string {
-	return o.Name()
+	if o.calllerMethods.IsZero() {
+		return o.Name()
+	}
+
+	var (
+		s strings.Builder
+		i int
+	)
+
+	s.WriteString(o.Name())
+
+	o.calllerMethods.WalkSorted(func(m *CallerMethod) any {
+		if !m.Default {
+			s.WriteString(fmt.Sprintf("  %d. ", i+1))
+			s.WriteString(m.CallerObject.ToString())
+			s.WriteByte('\n')
+			i++
+		}
+		return nil
+	})
+
+	return strings.TrimRight(fmt.Sprintf(" with %d methods:\n", i)+s.String(), "\n")
 }
 
 func (o *ObjType) repr() string {
@@ -358,12 +401,6 @@ func (o *ObjType) repr() string {
 	}
 	if len(o.Inherits) > 0 {
 		m["inherits"] = o.Inherits
-	}
-	if o.Init != nil {
-		m["init"] = o.Init
-	}
-	if o.Stringer != nil {
-		m["toString"] = o.Stringer
 	}
 	return o.TypeName + m.ToString()
 }
@@ -393,35 +430,4 @@ func (o *ObjType) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error)
 		tok.String(),
 		o.Type().Name(),
 		right.Type().Name())
-}
-
-func (o *ObjType) New(_ *VM, fields Dict) (Object, error) {
-	obj := &Obj{typ: o, fields: fields}
-	if fields == nil {
-		if o.FieldsDict == nil {
-			obj.fields = Dict{}
-		} else {
-			obj.fields = o.FieldsDict.Copy().(Dict)
-		}
-	}
-	return obj, nil
-}
-
-func (o *ObjType) Call(c Call) (obj Object, err error) {
-	if o.Init != nil {
-		obj, _ = o.New(c.VM, nil)
-		if _, err = o.Init.Call(Call{
-			VM:        c.VM,
-			Args:      append(Args{Array{obj}}, c.Args...),
-			NamedArgs: c.NamedArgs,
-			SafeArgs:  c.SafeArgs,
-		}); err != nil {
-			return
-		}
-	} else if c.NamedArgs.IsFalsy() {
-		obj, _ = o.New(c.VM, nil)
-	} else {
-		obj, _ = o.New(c.VM, c.NamedArgs.Dict())
-	}
-	return
 }

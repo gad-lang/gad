@@ -661,9 +661,6 @@ func BuiltinStringFunc(c Call) (ret Object, err error) {
 	switch c.Args.Len() {
 	case 1:
 		o := c.Args.GetOnly(0)
-		if ts, _ := o.(ToStringer); ts != nil {
-			return ts.Stringer(c)
-		}
 		ret = Str(o.ToString())
 	default:
 		var (
@@ -1419,16 +1416,17 @@ func BuiltinWrapFunc(c Call) (ret Object, err error) {
 	}, nil
 }
 
-func BuiltinNewTypeFunc(c Call) (ret Object, err error) {
-	var t ObjType
-	var name = &Arg{
-		Name:          "name",
-		TypeAssertion: TypeAssertionFromTypes(TStr),
-	}
+func BuiltinStructFunc(c Call) (ret Object, err error) {
+	var (
+		name = &Arg{
+			Name:          "name",
+			TypeAssertion: TypeAssertionFromTypes(TStr),
+		}
+	)
 	if err = c.Args.Destructure(name); err != nil {
 		return
 	}
-	t.TypeName = string(name.Value.(Str))
+	t := NewObjType(string(name.Value.(Str)))
 	var (
 		get = &NamedArgVar{
 			Name:          "get",
@@ -1458,36 +1456,18 @@ func BuiltinNewTypeFunc(c Call) (ret Object, err error) {
 				"callable": Callable,
 			}),
 		}
-		writeTo = &NamedArgVar{
-			Name: "writeTo",
-			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
-				"callable": Callable,
-			}),
-		}
 		extends = &NamedArgVar{
 			Name:          "extends",
 			TypeAssertion: TypeAssertionFromTypes(TArray),
 		}
 	)
 
-	if err = c.NamedArgs.Get(init, get, set, fields, methods, toString, writeTo, extends); err != nil {
+	if err = c.NamedArgs.Get(init, get, set, fields, methods, toString, extends); err != nil {
 		return
-	}
-
-	if init.Value != nil {
-		t.Init = init.Value.(CallerObject)
-	}
-
-	if toString.Value != nil {
-		t.Stringer = toString.Value.(CallerObject)
 	}
 
 	if fields.Value != nil {
 		t.FieldsDict = fields.Value.(Dict)
-	}
-
-	if writeTo.Value != nil {
-		t.ToWriter = writeTo.Value.(CallerObject)
 	}
 
 	if get.Value != nil {
@@ -1565,7 +1545,33 @@ func BuiltinNewTypeFunc(c Call) (ret Object, err error) {
 			}
 		}
 	}
-	return &t, nil
+	return t, nil
+}
+
+func BuiltinNewFunc(c Call) (ret Object, err error) {
+	if err = c.Args.CheckLen(1); err != nil {
+		return
+	}
+	var arg = c.Args.GetOnly(0)
+	if typ, _ := arg.(ObjectType); typ != nil {
+		if c.NamedArgs.IsFalsy() {
+			return typ.New(c.VM, nil)
+		}
+		return typ.New(c.VM, c.NamedArgs.Dict())
+	}
+	if c.NamedArgs.IsFalsy() {
+		return arg, nil
+	}
+
+	if is, ok := arg.(IndexSetter); ok {
+		for k, v := range c.NamedArgs.Dict() {
+			if err = is.IndexSet(c.VM, Str(k), v); err != nil {
+				return
+			}
+		}
+		return arg, nil
+	}
+	return NewArgumentTypeError("1st", "IndexSetter|ObjectType", arg.Type().Name()), nil
 }
 
 func BuiltinTypeOfFunc(c Call) (_ Object, err error) {
@@ -1595,6 +1601,37 @@ func BuiltinSyncDictFunc(c Call) (ret Object, err error) {
 			"dict|syncDict",
 			arg.Type().Name(),
 		)
+	}
+	return
+}
+
+func BuiltinBinaryOpFunc(c Call) (ret Object, err error) {
+	var (
+		op = &Arg{
+			Name: "Op",
+			TypeAssertion: new(TypeAssertion).
+				AcceptHandler("BinaryOperatorType", func(v Object) (ok bool) {
+					_, ok = v.(*BinaryOperatorType)
+					return
+				}),
+		}
+		left = &Arg{
+			Name: "left",
+		}
+		right = &Arg{
+			Name: "right",
+		}
+	)
+
+	if err = c.Args.Destructure(op, left, right); err != nil {
+		return
+	}
+
+	switch left := left.Value.(type) {
+	case BinaryOperatorHandler:
+		ret, err = left.BinaryOp(c.VM, op.Value.(*BinaryOperatorType).Token, right.Value)
+	default:
+		err = ErrInvalidOperator.NewError(op.Value.(*BinaryOperatorType).Name())
 	}
 	return
 }
@@ -1632,19 +1669,19 @@ func BuiltinCastFunc(c Call) (ret Object, err error) {
 }
 
 func BuiltinAddCallMethodFunc(vm *VM, fn CallerObject, handler CallerObject, override bool) (err error) {
-	if fn, _ := fn.(*CallerObjectWithMethods); fn != nil {
+	if fn, _ := fn.(MethodCaller); fn != nil {
 		var types MultipleObjectTypes
 
 		if cwm, _ := handler.(*CallerObjectWithMethods); cwm != nil {
-			cwm.Walk(func(m *CallerMethod) any {
+			cwm.MethodWalk(func(m *CallerMethod) any {
 				var handler = m.CallerObject
 				if types, err = handler.(CallerObjectWithParamTypes).ParamTypes(vm); err != nil {
 					return err
 				}
 
-				if err = fn.AddMethod(vm, types, handler, override); err != nil {
+				if err = fn.AddCallerMethod(vm, types, handler, override); err != nil {
 					if mde := IsError(err, ErrMethodDuplication); mde != nil {
-						mde.Message = fn.CallerObject.ToString() + ": " + mde.Message
+						mde.Message = fn.Caller().ToString() + ": " + mde.Message
 					}
 				}
 				return err
@@ -1654,9 +1691,16 @@ func BuiltinAddCallMethodFunc(vm *VM, fn CallerObject, handler CallerObject, ove
 				return
 			}
 
-			if err = fn.AddMethod(vm, types, handler, override); err != nil {
+			if cf, _ := handler.(*CompiledFunction); cf != nil && cf.Params.Len > 0 && !cf.Params.Typed {
+				types = make(MultipleObjectTypes, cf.Params.Len)
+				for i := range types {
+					types[i] = ObjectTypes{nil}
+				}
+			}
+
+			if err = fn.AddCallerMethod(vm, types, handler, override); err != nil {
 				if mde := IsError(err, ErrMethodDuplication); mde != nil {
-					mde.Message = fn.CallerObject.ToString() + ": " + mde.Message
+					mde.Message = fn.Caller().ToString() + ": " + mde.Message
 				}
 			}
 		}
@@ -1677,6 +1721,7 @@ func BuiltinRawCallerFunc(c Call) (ret Object, err error) {
 			}),
 		}
 	)
+
 	if err = c.Args.Destructure(obj); err != nil {
 		return
 	}
