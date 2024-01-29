@@ -270,7 +270,7 @@ func (s *Builtins) Set(name string, obj Object) *Builtins {
 }
 
 func (s *Builtins) Call(t BuiltinType, c Call) (Object, error) {
-	return DoCall(s.Objects[t].(CallerObject), c)
+	return s.Objects[t].(CallerObject).Call(c)
 }
 
 func (s *Builtins) Caller(t BuiltinType) CallerObject {
@@ -280,7 +280,7 @@ func (s *Builtins) Caller(t BuiltinType) CallerObject {
 func (s *Builtins) Invoker(t BuiltinType, c Call) func() (Object, error) {
 	caller := s.Objects[t].(CallerObject)
 	return func() (Object, error) {
-		return DoCall(caller, c)
+		return caller.Call(c)
 	}
 }
 
@@ -289,7 +289,7 @@ func (s *Builtins) ArgsInvoker(t BuiltinType, c Call) func(arg ...Object) (Objec
 	c.Args = Args{nil}
 	return func(arg ...Object) (Object, error) {
 		c.Args[0] = arg
-		return DoCall(caller, c)
+		return Val(caller.Call(c))
 	}
 }
 

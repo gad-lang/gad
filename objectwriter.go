@@ -19,7 +19,7 @@ var DefaultObjectToWrite ObjectToWriterFunc = func(vm *VM, w io.Writer, obj Obje
 		n, err = obj.(ToWriter).WriteTo(vm, w)
 	} else {
 		var s Object
-		if s, err = vm.Builtins.Call(BuiltinRawStr, Call{VM: vm, Args: Args{Array{obj}}}); err != nil {
+		if s, err = Val(vm.Builtins.Call(BuiltinRawStr, Call{VM: vm, Args: Args{Array{obj}}})); err != nil {
 			return false, 0, err
 		}
 		var n32 int

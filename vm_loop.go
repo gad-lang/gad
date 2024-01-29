@@ -50,10 +50,10 @@ VMLoop:
 
 			switch left := left.(type) {
 			case BinaryOperatorHandler:
-				value, err = left.BinaryOp(vm, tok, right)
+				value, err = Val(left.BinaryOp(vm, tok, right))
 			default:
 				if t := BinaryOperatorTypes[tok]; t != nil {
-					value, err = vm.Builtins.Call(BuiltinBinaryOp, Call{VM: vm, Args: Args{Array{t, left, right}}})
+					value, err = Val(vm.Builtins.Call(BuiltinBinaryOp, Call{VM: vm, Args: Args{Array{t, left, right}}}))
 				} else {
 					err = ErrInvalidOperator
 				}

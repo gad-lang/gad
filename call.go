@@ -540,5 +540,5 @@ func (y *yieldCall) GetCall() *Call {
 func (y *yieldCall) Call(c Call) (Object, error) {
 	c2 := *y.c
 	c2.VM = c.VM
-	return DoCall(y.CallerObject, c2)
+	return y.CallerObject.Call(c2)
 }

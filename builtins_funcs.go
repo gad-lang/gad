@@ -640,7 +640,7 @@ func BuiltinRawStrFunc(c Call) (ret Object, err error) {
 		return rs, nil
 	}
 
-	if ret, err = c.VM.Builtins.Call(BuiltinStr, c); err != nil {
+	if ret, err = Val(c.VM.Builtins.Call(BuiltinStr, c)); err != nil {
 		return
 	}
 
@@ -671,7 +671,7 @@ func BuiltinStringFunc(c Call) (ret Object, err error) {
 		c.Args.Walk(func(i int, arg Object) any {
 			callerArgs[0] = arg
 			var s Object
-			if s, err = caller(); err != nil {
+			if s, err = Val(caller()); err != nil {
 				return err
 			}
 			b.WriteString(string(s.(Str)))
@@ -1750,7 +1750,7 @@ func BuiltinReprFunc(c Call) (_ Object, err error) {
 
 	typ := arg.Type()
 
-	if arg, err = c.VM.Builtins.Caller(BuiltinStr).Call(c); err != nil {
+	if arg, err = Val(c.VM.Builtins.Call(BuiltinStr, c)); err != nil {
 		return
 	}
 	return Str(repr.Quote(typ.Name() + ":" + arg.ToString())), nil

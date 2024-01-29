@@ -100,10 +100,10 @@ func (inv *Invoker) invokeObject(co Object, args Args) (Object, error) {
 	if callee == nil {
 		return Nil, ErrNotCallable.NewError(co.Type().Name())
 	}
-	return DoCall(callee, Call{
+	return Val(callee.Call(Call{
 		VM:   inv.vm,
 		Args: args,
-	})
+	}))
 }
 
 // Caller create new VM caller object.

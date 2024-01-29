@@ -2,7 +2,7 @@ package gad
 
 func ToStr(vm *VM, o Object) (_ Str, err error) {
 	var v Object
-	if v, err = vm.Builtins.Call(BuiltinStr, Call{VM: vm, Args: Args{Array{o}}}); err != nil {
+	if v, err = Val(vm.Builtins.Call(BuiltinStr, Call{VM: vm, Args: Args{Array{o}}})); err != nil {
 		return
 	}
 	return v.(Str), nil
@@ -10,7 +10,7 @@ func ToStr(vm *VM, o Object) (_ Str, err error) {
 
 func ToRawStr(vm *VM, o Object) (_ RawStr, err error) {
 	var v Object
-	if v, err = vm.Builtins.Call(BuiltinRawStr, Call{VM: vm, Args: Args{Array{o}}}); err != nil {
+	if v, err = Val(vm.Builtins.Call(BuiltinRawStr, Call{VM: vm, Args: Args{Array{o}}})); err != nil {
 		return
 	}
 	return v.(RawStr), nil
@@ -18,14 +18,14 @@ func ToRawStr(vm *VM, o Object) (_ RawStr, err error) {
 
 func ToRepr(vm *VM, o Object) (_ Str, err error) {
 	var v Object
-	if v, err = vm.Builtins.Call(BuiltinRepr, Call{VM: vm, Args: Args{Array{o}}}); err != nil {
+	if v, err = Val(vm.Builtins.Call(BuiltinRepr, Call{VM: vm, Args: Args{Array{o}}})); err != nil {
 		return
 	}
 	return v.(Str), nil
 }
 
 func DeepCopy(vm *VM, o Object) (Object, error) {
-	return vm.Builtins.Call(BuiltinDeepCopy, Call{VM: vm, Args: Args{Array{o}}})
+	return Val(vm.Builtins.Call(BuiltinDeepCopy, Call{VM: vm, Args: Args{Array{o}}}))
 }
 
 func Copy(o Object) Object {

@@ -697,7 +697,7 @@ func (vm *VM) xOpCallName() (err error) {
 				c.Args = append(c.Args, t)
 			default:
 				var values Object
-				if values, err = vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{Array{t}}}); err != nil {
+				if values, err = Val(vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{Array{t}}})); err != nil {
 					return
 				}
 				c.Args = append(c.Args, values.(Array))
@@ -807,7 +807,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			vargsArr = arr
 		} else {
 			var items Object
-			if items, err = vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{{vargs}}}); err != nil {
+			if items, err = Val(vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{{vargs}}})); err != nil {
 				return
 			}
 			vargsArr = items.(Array)
@@ -995,7 +995,7 @@ func (vm *VM) xOpCallObject(co_ Object, numArgs int, flags OpCallFlag) (err erro
 			vargs = arr
 		} else {
 			var items Object
-			if items, err = vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{{vm.stack[basePointer+numArgs-1]}}}); err != nil {
+			if items, err = Val(vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{{vm.stack[basePointer+numArgs-1]}}})); err != nil {
 				return
 			}
 			vargs = items.(Array)
@@ -1007,7 +1007,7 @@ func (vm *VM) xOpCallObject(co_ Object, numArgs int, flags OpCallFlag) (err erro
 		result Object
 	)
 
-	if result, err = DoCall(co, c); err != nil {
+	if result, err = Val(co.Call(c)); err != nil {
 		return err
 	}
 
