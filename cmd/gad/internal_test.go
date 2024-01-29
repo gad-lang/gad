@@ -178,15 +178,15 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("type_method_constructor", func(t *testing.T) {
 		r := newREPL(ctx, cw)
-		require.NoError(t, r.execute(`Point := struct("Point",fields={x:0, y:0});func new(p:Point, x,y){p.x = x;p.y = y}`))
+		require.NoError(t, r.execute(`Point := struct("Point",fields={x:0, y:0});func Point(x,y)=>Point(x=x,y=y)`))
 		cw.consume()
-		require.NoError(t, r.execute("func int(p:Point) => p.x * p.y"))
+		require.NoError(t, r.execute("func int(p Point) => p.x * p.y"))
 		cw.consume()
 		require.NoError(t, r.execute("str(int)"))
 		require.Equal(t, "⇦   \""+repr.Quote("builtinType int")+" with 1 methods:\\n  "+
-			"1. "+repr.Quote("compiledFunction #7(p:Point)")+"\"",
+			"1. "+repr.Quote("compiledFunction #8(p Point)")+"\"",
 			strings.TrimSpace(string(cw.consume())))
-		require.NoError(t, r.execute("int(Point(x=2,y=8))"))
+		require.NoError(t, r.execute("int(Point(2,8))"))
 		require.Equal(t, "⇦   16", strings.TrimSpace(string(cw.consume())))
 	})
 	t.Run("exit", func(t *testing.T) {

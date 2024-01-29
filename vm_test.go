@@ -1467,8 +1467,26 @@ Point := struct(
 	"Point", 
 	fields={x:0, y:0},
 )
-func Point(x, y) => Point(x=x, y=y)
-func str(p:Point) => "P" + p.x + p.y 
+func Point() => 2 
+return str(Point())`,
+		nil, Str(`2`))
+
+	expectRun(t, `
+Point := struct(
+	"Point", 
+	fields={x:0, y:0},
+)
+func Point() => Point.new(x=2) 
+return str(Point())`,
+		nil, Str(`Point{x: 2}`))
+
+	expectRun(t, `
+Point := struct(
+	"Point", 
+	fields={x:0, y:0},
+)
+func Point(x, y) => Point(x=x, y=y) // or Point.new(x=x, y=y)
+func str(p Point) => "P" + p.x + p.y 
 return str(Point(1,2))`,
 		nil, Str(`P12`))
 
@@ -1507,7 +1525,7 @@ Point := struct(
 	fields={x:0, y:0},
 )
 func Point(x, y) => Point(x=x, y=y)
-func str(p:Point) => "P" + p.x + p.y 
+func str(p Point) => "P" + p.x + p.y 
 return str(Point(1,2))`,
 		nil, Str(`P12`))
 
@@ -1532,8 +1550,8 @@ Point := struct(
 )
 
 func Point(x, y) => Point(x=x, y=y)
-func str(p:Point) => "P" + p.x + p.y 
-func write(p:Point) => write(typeName(p),"(", p.x,",",p.y,")")
+func str(p Point) => "P" + p.x + p.y 
+func write(p Point) => write(typeName(p),"(", p.x,",",p.y,")")
 
 return write(Point(10,20))`,
 		newOpts().Buffered(), Array{Int(12), Str(`Point(10,20)`)})
@@ -1544,8 +1562,8 @@ Point := struct(
 	fields={x:0, y:0},
 )
 func Point(x, y) => Point(x=x, y=y)
-func str(p:Point) => "P" + p.x + p.y 
-func write(p:Point) => write(typeName(p),"(", p.x,",",p.y,")")
+func str(p Point) => "P" + p.x + p.y 
+func write(p Point) => write(typeName(p),"(", p.x,",",p.y,")")
 
 b := buffer()
 write(b, Point(10,20))
@@ -1559,7 +1577,7 @@ return str(b)`,
 
 func Point(x, y) => Point(x=x, y=y)
 
-func binaryOp(_:TBinOpMul, p:Point, val:int) {
+func binaryOp(_ TBinOpMul, p Point, val int) {
 	p.x *= val
 	p.y *= val
 	return p
@@ -1575,77 +1593,79 @@ Point := struct(
 )
 
 func Point(x, y) => Point(x=x, y=y)
-func int(p:Point) => rawCaller(int)(p.x * p.y)
+func int(p Point) => rawCaller(int)(p.x * p.y)
 return [int(Point(2, 8)), str(int)]
 `,
 		nil, Array{Int(16), Str(ReprQuote("builtinType int") + " with 1 methods:\n" +
-			"  1. " + ReprQuote("compiledFunction #7(p:Point)"))})
+			"  1. " + ReprQuote("compiledFunction #7(p Point)"))})
 }
 
 func TestCallerMethod(t *testing.T) {
 	expectRun(t, `
 func f0() {
-	return 100
+	return "abc"
 }
-addCallMethod(f0, (i:int) => i)
-return f0(), f0(2)`,
-		newOpts(), Array{Int(100), Int(2)})
+addCallMethod(f0, (i int|uint) => i)
+return f0(), f0(2), f0(uint(3))`,
+		newOpts(), Array{Str("abc"), Int(2), Uint(3)})
+
+	expectRun(t, `
+func f0() {
+	return "abc"
+}
+func f0(i int|uint) => i
+return f0(), f0(2), f0(uint(3))`,
+		newOpts(), Array{Str("abc"), Int(2), Uint(3)})
 
 	expectRun(t, `
 func f() => nil
-func f(b:bool) => nil
-func f1(i:int) => nil
-func f1(i:int, b:bool) => nil
+func f(b bool) => nil
+func f1(i int) => nil
+func f1(i int, b bool) => nil
 addCallMethod(f, f1)
 return [str(f), str(f1)]`,
 		newOpts(), Array{Str(ReprQuote("compiledFunction f()") + " with 3 methods:\n  " +
-			"1. " + ReprQuote("compiledFunction #1(b:bool)") + "\n  " +
-			"2. " + ReprQuote("compiledFunction f1(i:int)") + "\n  " +
-			"3. " + ReprQuote("compiledFunction #3(i:int, b:bool)")),
-			Str(ReprQuote("compiledFunction f1(i:int)") + " with 1 methods:\n  " +
-				"1. " + ReprQuote("compiledFunction #3(i:int, b:bool)"))})
+			"1. " + ReprQuote("compiledFunction #1(b bool)") + "\n  " +
+			"2. " + ReprQuote("compiledFunction f1(i int)") + "\n  " +
+			"3. " + ReprQuote("compiledFunction #3(i int, b bool)")),
+			Str(ReprQuote("compiledFunction f1(i int)") + " with 1 methods:\n  " +
+				"1. " + ReprQuote("compiledFunction #3(i int, b bool)"))})
 
 	expectRun(t, `
-func f0(i:int) => i*2
+func f0(i int) => i*2
 func f0() => "no args"
-func f0(s:str) => s+"b"
+func f0(s str) => s+"b"
 return str(f0), f0(), f0(2), f0("a")`,
 		newOpts(),
 		Array{
-			Str(ReprQuote("compiledFunction f0(i:int)") + " with 2 methods:\n  " +
+			Str(ReprQuote("compiledFunction f0(i int)") + " with 2 methods:\n  " +
 				"1. " + ReprQuote("compiledFunction #3()") + "\n  " +
-				"2. " + ReprQuote("compiledFunction #5(s:str)")),
+				"2. " + ReprQuote("compiledFunction #5(s str)")),
 			Str("no args"),
 			Int(4),
 			Str("ab"),
 		})
 
 	expectRun(t, `
-func f0() {
-}
+func f0() {}
+func f1() {}
+func f2() {}
+func f3(v bool) => v
+func f4 (s str) => s
 
-const f1 = func() {
-}
-
-const (
-	f2 = func() {
-	}
-	f3 = func(v:bool) {
-		return v
-	}
-	f4 = (s:str) => s
-	f5 = (b:bytes) => nil
+const ( 
+	f5 = (b bytes) => nil
+	f7 = (b bool,i int) => nil
 )
 
-func f6(s:str,i:int) {}
-const f7 = (b:bool,i:int) => nil
+func f6(s str,i int) {}
 
-addCallMethod(f0, (i:int) => i)
-addCallMethod(f1, (i:int) => i)
-addCallMethod(f1, (i:uint) => i)
-addCallMethod(f2, (i:int) => i)
-addCallMethod(f3, (i:int) => i)
-addCallMethod(f4, (i:int) => i)
+addCallMethod(f0, (i int) => i)
+addCallMethod(f1, (i int) => i)
+addCallMethod(f1, (i uint) => i)
+addCallMethod(f2, (i int) => i)
+addCallMethod(f3, (i int) => i)
+addCallMethod(f4, (i int) => i)
 
 return [
 	[f0(0), f1(1), f2(2), f3(3), f4(4)],
@@ -1655,19 +1675,19 @@ return [
 			Array{Int(0), Int(1), Int(2), Int(3), Int(4)},
 			Array{
 				Str(ReprQuote("compiledFunction f0()") + " with 1 methods:\n  " +
-					"1. " + ReprQuote("compiledFunction #8(i:int)")),
+					"1. " + ReprQuote("compiledFunction #8(i int)")),
 				Str(ReprQuote("compiledFunction f1()") + " with 2 methods:\n  " +
-					"1. " + ReprQuote("compiledFunction #9(i:int)") + "\n  " +
-					"2. " + ReprQuote("compiledFunction #10(i:uint)")),
+					"1. " + ReprQuote("compiledFunction #9(i int)") + "\n  " +
+					"2. " + ReprQuote("compiledFunction #10(i uint)")),
 				Str(ReprQuote("compiledFunction f2()") + " with 1 methods:\n  " +
-					"1. " + ReprQuote("compiledFunction #11(i:int)")),
-				Str(ReprQuote("compiledFunction f3(v:bool)") + " with 1 methods:\n  " +
-					"1. " + ReprQuote("compiledFunction #12(i:int)")),
-				Str(ReprQuote("compiledFunction f4(s:str)") + " with 1 methods:\n  " +
-					"1. " + ReprQuote("compiledFunction #13(i:int)")),
-				Str(ReprQuote("compiledFunction f5(b:bytes)")),
-				Str(ReprQuote("compiledFunction f6(s:str, i:int)")),
-				Str(ReprQuote("compiledFunction f7(b:bool, i:int)")),
+					"1. " + ReprQuote("compiledFunction #11(i int)")),
+				Str(ReprQuote("compiledFunction f3(v bool)") + " with 1 methods:\n  " +
+					"1. " + ReprQuote("compiledFunction #12(i int)")),
+				Str(ReprQuote("compiledFunction f4(s str)") + " with 1 methods:\n  " +
+					"1. " + ReprQuote("compiledFunction #13(i int)")),
+				Str(ReprQuote("compiledFunction f5(b bytes)")),
+				Str(ReprQuote("compiledFunction f6(s str, i int)")),
+				Str(ReprQuote("compiledFunction f7(b bool, i int)")),
 			},
 		})
 }

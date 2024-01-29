@@ -335,19 +335,19 @@ func TestParseDecl(t *testing.T) {
 	expectParseString(t, "param (a, *b;c=1, d=2, **e)", "param (a, *b, c=1, d=2, **e)")
 	expectParseString(t, "param (a,\n*b\n; c=2,\nx=5)", "param (a, *b, c=2, x=5)")
 
-	expectParseString(t, "param x:int", "param x:int")
-	expectParseString(t, "param x:[int,bool]", "param x:[int, bool]")
-	expectParseString(t, "param (\nx:int,\n)", "param (x:int)")
-	expectParseString(t, "param (\nx:int,\ny)", "param (x:int, y)")
-	expectParseString(t, "param (\nx:int,\ny, z:[string,bool])", "param (x:int, y, z:[string, bool])")
-	expectParseString(t, "param *x:int", "param *x:int")
-	expectParseString(t, "param *x:[int,bool]", "param *x:[int, bool]")
-	expectParseString(t, "param **x:int", "param **x:int")
-	expectParseString(t, "param **x:[int,bool]", "param **x:[int, bool]")
-	expectParseString(t, "param b:int=2", "param b:int=2")
-	expectParseString(t, "param b:[bool,int]=2", "param b:[bool, int]=2")
-	expectParseString(t, "param (a, *b:string, x:[bool,int]=2, **y:[int])",
-		"param (a, *b:string, x:[bool, int]=2, **y:int)")
+	expectParseString(t, "param x int", "param x int")
+	expectParseString(t, "param x int|bool", "param x int|bool")
+	expectParseString(t, "param (\nx int,\n)", "param (x int)")
+	expectParseString(t, "param (\nx int,\ny)", "param (x int, y)")
+	expectParseString(t, "param (\nx int,\ny, z string|bool)", "param (x int, y, z string|bool)")
+	expectParseString(t, "param *x int", "param *x int")
+	expectParseString(t, "param *x int|bool", "param *x int|bool")
+	expectParseString(t, "param **x int", "param **x int")
+	expectParseString(t, "param **x int|bool", "param **x int|bool")
+	expectParseString(t, "param b int=2", "param b int=2")
+	expectParseString(t, "param b bool|int=2", "param b bool|int=2")
+	expectParseString(t, "param (a, *b string, x bool|int=2, **y int)",
+		"param (a, *b string, x bool|int=2, **y int)")
 
 	expectParse(t, `global a`, func(p pfn) []Stmt {
 		return stmts(
@@ -1787,9 +1787,9 @@ func TestParseClosure(t *testing.T) {
 }
 
 func TestParseFunction(t *testing.T) {
-	expectParseString(t, "func(a:int){}", "func(a:int) {}")
-	expectParseString(t, "func(a:[int,bool,int]){}", "func(a:[int, bool]) {}")
-	expectParseString(t, "func(a:[\n int,\n\tbool]){}", "func(a:[int, bool]) {}")
+	expectParseString(t, "func(a int){}", "func(a int) {}")
+	expectParseString(t, "func(a int|bool|int){}", "func(a int|bool) {}")
+	expectParseString(t, "func(a \n int|\n\tbool){}", "func(a int|bool) {}")
 	expectParseString(t, "func(){}", "func() {}")
 	expectParse(t, "func fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(

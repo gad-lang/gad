@@ -269,7 +269,7 @@ VMLoop:
 			index := vm.constants[cidx]
 			var ret Object
 			var err error
-			ret, err = vm.globals.IndexGet(vm, index)
+			ret, err = Val(vm.globals.IndexGet(vm, index))
 
 			if err != nil {
 				if err := vm.throwGenErr(err); err != nil {

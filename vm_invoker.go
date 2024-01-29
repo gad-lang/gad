@@ -100,7 +100,7 @@ func (inv *Invoker) invokeObject(co Object, args Args) (Object, error) {
 	if callee == nil {
 		return Nil, ErrNotCallable.NewError(co.Type().Name())
 	}
-	return callee.Call(Call{
+	return DoCall(callee, Call{
 		VM:   inv.vm,
 		Args: args,
 	})

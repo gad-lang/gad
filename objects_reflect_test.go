@@ -212,7 +212,7 @@ func TestReflectSlice_IndexGet(t *testing.T) {
 				return
 			}
 
-			got, err := r.(IndexGetter).IndexGet(vm, tt.key)
+			got, err := Val(r.(IndexGetter).IndexGet(vm, tt.key))
 			if !checkError(t, fmt.Sprintf("IndexGet(%T)", tt.obj), tt.wantErr, err) {
 				return
 			}

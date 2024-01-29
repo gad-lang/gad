@@ -46,7 +46,7 @@ type vmObjectCaller struct {
 }
 
 func (r *vmObjectCaller) Call() (ret Object, err error) {
-	return r.callee.Call(Call{
+	return DoCall(r.callee, Call{
 		VM:        r.vm,
 		Args:      r.args,
 		NamedArgs: r.namedArgs,

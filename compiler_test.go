@@ -2941,7 +2941,7 @@ func TestCompilerFuncWithMethods(t *testing.T) {
 	expectCompile(t, `func f0() {
 	return 100
 }
-func f0(i:int) {
+func f0(i int) {
 	return i
 }`,
 		bytecode(
@@ -2954,7 +2954,7 @@ func f0(i:int) {
 				compFunc(concatInsts(
 					makeInst(OpGetLocal, 0),
 					makeInst(OpReturn, 1),
-				), withLocals(1), withParams("i:int")),
+				), withLocals(1), withParams("i int")),
 			},
 			compFunc(concatInsts(
 				makeInst(OpConstant, 1),

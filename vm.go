@@ -427,7 +427,7 @@ func (vm *VM) GetSymbolValue(symbol *Symbol) (value Object, err error) {
 	switch symbol.Scope {
 	case ScopeGlobal:
 		index := vm.constants[symbol.Index]
-		value, err = vm.globals.IndexGet(vm, index)
+		value, err = Val(vm.globals.IndexGet(vm, index))
 	case ScopeLocal:
 		value = vm.stack[vm.curFrame.basePointer+symbol.Index]
 		if v, ok := value.(*ObjectPtr); ok {
@@ -449,7 +449,7 @@ func (vm *VM) xIndexGet(numSel int, target Object) (value Object, null, abort bo
 		index := vm.stack[ptr]
 		vm.stack[ptr] = nil
 		if ig, _ := target.(IndexGetter); ig != nil {
-			v, err := ig.IndexGet(vm, index)
+			v, err := Val(ig.IndexGet(vm, index))
 			if err != nil {
 				switch err {
 				case ErrNotIndexable:
@@ -697,7 +697,7 @@ func (vm *VM) xOpCallName() (err error) {
 				c.Args = append(c.Args, t)
 			default:
 				var values Object
-				if values, err = vm.Builtins.Caller(BuiltinValues).Call(Call{VM: vm, Args: Args{Array{t}}}); err != nil {
+				if values, err = vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{Array{t}}}); err != nil {
 					return
 				}
 				c.Args = append(c.Args, values.(Array))
@@ -711,7 +711,7 @@ func (vm *VM) xOpCallName() (err error) {
 		}
 
 		c.Args[0] = vm.stack[vm.sp-numArgs-kwCount : vm.sp-expandArgs-kwCount]
-		ret, err := nameCaller.CallName(name.ToString(), c)
+		ret, err := Val(nameCaller.CallName(name.ToString(), c))
 		for i := 0; i < numArgs+kwCount; i++ {
 			vm.sp--
 			vm.stack[vm.sp] = nil
@@ -727,7 +727,7 @@ func (vm *VM) xOpCallName() (err error) {
 
 	var v Object
 	if ig, _ := obj.(IndexGetter); ig != nil {
-		if v, err = ig.IndexGet(vm, name); err != nil {
+		if v, err = Val(ig.IndexGet(vm, name)); err != nil {
 			return
 		}
 	} else {
@@ -807,7 +807,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			vargsArr = arr
 		} else {
 			var items Object
-			if items, err = vm.Builtins.Objects[BuiltinValues].(CallerObject).Call(Call{VM: vm, Args: Args{{vargs}}}); err != nil {
+			if items, err = vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{{vargs}}}); err != nil {
 				return
 			}
 			vargsArr = items.(Array)
@@ -995,7 +995,7 @@ func (vm *VM) xOpCallObject(co_ Object, numArgs int, flags OpCallFlag) (err erro
 			vargs = arr
 		} else {
 			var items Object
-			if items, err = vm.Builtins.Objects[BuiltinValues].(CallerObject).Call(Call{VM: vm, Args: Args{{vm.stack[basePointer+numArgs-1]}}}); err != nil {
+			if items, err = vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{{vm.stack[basePointer+numArgs-1]}}}); err != nil {
 				return
 			}
 			vargs = items.(Array)
@@ -1007,7 +1007,7 @@ func (vm *VM) xOpCallObject(co_ Object, numArgs int, flags OpCallFlag) (err erro
 		result Object
 	)
 
-	if result, err = co.Call(c); err != nil {
+	if result, err = DoCall(co, c); err != nil {
 		return err
 	}
 

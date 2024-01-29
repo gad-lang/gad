@@ -515,7 +515,7 @@ func TestModuleTime(t *testing.T) {
 func testTimeSelector(t *testing.T, tm Object,
 	selector string, expected Object) {
 	t.Helper()
-	v, err := tm.(IndexGetter).IndexGet(nil, Str(selector))
+	v, err := Val(tm.(IndexGetter).IndexGet(nil, Str(selector)))
 	require.NoError(t, err)
 	require.Equal(t, expected, v)
 }

@@ -83,3 +83,36 @@ func ValuesOf(vm *VM, o Iterabler) (values Array, err error) {
 	}
 	return
 }
+
+func DoCall(co CallerObject, c Call) (ret Object, err error) {
+	var yc *yieldCall
+
+	for {
+		if ret, err = co.Call(c); err == nil {
+			if yc, _ = ret.(*yieldCall); yc != nil {
+				co, c = yc.CallerObject, *yc.c
+				continue
+			}
+		}
+		return
+	}
+}
+
+func Val(v Object, e error) (ret Object, err error) {
+	if e != nil {
+		return nil, e
+	}
+
+	ret = v
+
+	var yc *yieldCall
+
+	for {
+		if yc, _ = ret.(*yieldCall); yc != nil {
+			if ret, err = yc.CallerObject.Call(*yc.c); err == nil {
+				continue
+			}
+		}
+		return
+	}
+}

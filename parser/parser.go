@@ -1405,15 +1405,7 @@ func (p *Parser) ParseTypedIdent() *node.TypedIdent {
 }
 
 func (p *Parser) ParseType() (idents []*node.Ident) {
-	if p.Token.Token != token.Colon {
-		return
-	}
-
-	p.Expect(token.Colon)
-
-	if p.Token.Token == token.LBrack {
-		p.Next()
-
+	if p.Token.Token == token.Ident {
 		var (
 			exists = map[string]any{}
 			add    = func(ident *node.Ident) {
@@ -1425,13 +1417,10 @@ func (p *Parser) ParseType() (idents []*node.Ident) {
 		)
 
 		add(p.ParseIdent())
-		for p.Token.Token == token.Comma {
+		for p.Token.Token == token.Or {
 			p.Next()
 			add(p.ParseIdent())
 		}
-		p.Expect(token.RBrack)
-	} else {
-		idents = append(idents, p.ParseIdent())
 	}
 	return
 }
@@ -1729,13 +1718,11 @@ func (p *Parser) ParseGenDecl(
 				case *node.ClosureLit:
 					fn.Type.Token = keyword
 					if keyword == token.Const {
-						fn.Type.AllowMethods = true
 						fn.Type.Ident = vs.Idents[0]
 					}
 				case *node.FuncLit:
 					fn.Type.Token = keyword
 					if keyword == token.Const {
-						fn.Type.AllowMethods = true
 						fn.Type.Ident = vs.Idents[0]
 					}
 				}

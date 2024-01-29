@@ -81,7 +81,7 @@ func NewArgCaller(vm *VM, co CallerObject, args Array, namedArgs NamedArgs) func
 		NamedArgs: namedArgs,
 	}
 	return func() (ret Object, err error) {
-		return co.Call(call)
+		return DoCall(co, call)
 	}
 }
 

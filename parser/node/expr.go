@@ -600,18 +600,14 @@ func (e *TypedIdent) End() source.Pos {
 
 func (e *TypedIdent) String() string {
 	if e != nil {
-		l := len(e.Type)
-		switch l {
-		case 0:
+		if l := len(e.Type); l == 0 {
 			return e.Ident.String()
-		case 1:
-			return e.Ident.String() + ":" + e.Type[0].String()
-		default:
-			var s = make([]string, len(e.Type))
+		} else {
+			var s = make([]string, l)
 			for i, ident := range e.Type {
 				s[i] = ident.String()
 			}
-			return e.Ident.String() + ":[" + strings.Join(s, ", ") + "]"
+			return e.Ident.String() + " " + strings.Join(s, "|")
 		}
 	}
 	return nullRep

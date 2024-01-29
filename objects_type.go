@@ -57,7 +57,7 @@ func (o Obj) DeepCopy(vm *VM) (r Object, err error) {
 func (o *Obj) IndexSet(vm *VM, index, value Object) (err error) {
 	name := index.ToString()
 	if s := o.typ.SettersDict[name]; s != nil {
-		_, err = s.(CallerObject).Call(Call{VM: vm, Args: Args{Array{o, value}}})
+		_, err = DoCall(s.(CallerObject), Call{VM: vm, Args: Args{Array{o, value}}})
 	} else {
 		o.fields[name] = value
 	}
@@ -68,7 +68,7 @@ func (o *Obj) IndexSet(vm *VM, index, value Object) (err error) {
 func (o *Obj) IndexGet(vm *VM, index Object) (Object, error) {
 	name := index.ToString()
 	if s := o.typ.GettersDict[name]; s != nil {
-		return s.(CallerObject).Call(Call{VM: vm, Args: Args{Array{o}}})
+		return YieldCall(s.(CallerObject), &Call{VM: vm, Args: Args{Array{o}}}), nil
 	} else {
 		v, ok := o.fields[name]
 		if ok {
@@ -122,14 +122,14 @@ func (o *Obj) Values() Array {
 func (o *Obj) CallName(name string, c Call) (_ Object, err error) {
 	if m := o.typ.MethodsDict[name]; m != nil {
 		c.Args = append([]Array{{o}}, c.Args...)
-		return m.(CallerObject).Call(c)
+		return YieldCall(m.(CallerObject), &c), nil
 	}
 	var v Object
 	if v, err = o.IndexGet(c.VM, Str(name)); err != nil {
 		return
 	}
 	if Callable(v) {
-		return v.(CallerObject).Call(c)
+		return YieldCall(v.(CallerObject), &c), nil
 	}
 	return nil, ErrNotCallable.NewError("method " + strconv.Quote(name) + " of type " + v.Type().Name())
 }
@@ -200,6 +200,10 @@ func NewObjType(typeName string) *ObjType {
 }
 
 func (o *ObjType) AddCallerMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error {
+	if len(types) == 0 {
+		// overrides default constructor. uses Type.new to instantiate.
+		override = true
+	}
 	return o.calllerMethods.Add(types, &CallerMethod{
 		CallerObject: handler,
 	}, override)
@@ -211,23 +215,6 @@ func (o *ObjType) HasCallerMethods() bool {
 
 func (o *ObjType) CallerMethods() *MethodArgType {
 	return &o.calllerMethods
-}
-
-func (o *ObjType) callerOf(args Args) (co CallerObject, ok, new bool) {
-	var types []ObjectType
-	args.Walk(func(i int, arg Object) any {
-		if t, ok := arg.(ObjectType); ok {
-			types = append(types, t)
-		} else {
-			types = append(types, arg.Type())
-		}
-		return nil
-	})
-	if co, ok = o.CallerOfTypes(types); co == nil {
-		co, ok = o.CallerOfTypes(append([]ObjectType{o}, types...))
-		new = true
-	}
-	return
 }
 
 func (o *ObjType) CallerOf(args Args) (co CallerObject, ok bool) {
@@ -271,19 +258,9 @@ func (o *ObjType) NewCall(c Call) (Object, error) {
 }
 
 func (o *ObjType) Call(c Call) (_ Object, err error) {
-	if c.Args.Len() == 0 {
-		return o.NewCall(c)
-	}
-	caller, validate, new := o.callerOf(c.Args)
+	caller, validate := o.CallerOf(c.Args)
 	c.SafeArgs = !validate
-	if new {
-		obj := &Obj{typ: o, fields: make(Dict)}
-		c.Args = append(Args{Array{obj}}, c.Args...)
-		if _, err = caller.Call(c); err == nil {
-			return obj, nil
-		}
-	}
-	return caller.Call(c)
+	return YieldCall(caller, &c), nil
 }
 
 func (o *ObjType) Fields() Dict {
@@ -317,6 +294,13 @@ func (o *ObjType) IsChildOf(t ObjectType) bool {
 		}
 	}
 	return false
+}
+
+func (o *ObjType) CallName(name string, c Call) (ret Object, err error) {
+	if name == "new" {
+		return o.NewCall(c)
+	}
+	return nil, ErrInvalidIndex.NewError(name)
 }
 
 func (o *ObjType) IndexGet(_ *VM, index Object) (value Object, err error) {

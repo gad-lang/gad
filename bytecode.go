@@ -106,8 +106,9 @@ func (t ParamType) Accept(vm *VM, ot ObjectType) (ok bool, err error) {
 				ok = true
 				return
 			} else if stot, _ := st.(ObjectType); stot != nil {
-				ok = IsTypeAssignableTo(stot, ot)
-				return
+				if ok = IsTypeAssignableTo(stot, ot); ok {
+					return
+				}
 			}
 		}
 	}
@@ -136,7 +137,7 @@ func (p *Params) String() string {
 			if ts := t.String(); ts == "" {
 				s[i] = p.Names[i]
 			} else {
-				s[i] = p.Names[i] + ":" + ts
+				s[i] = p.Names[i] + " " + ts
 			}
 		}
 	} else {
@@ -392,7 +393,7 @@ func (o *CompiledFunction) hash32() uint32 {
 }
 
 func (o *CompiledFunction) Call(c Call) (Object, error) {
-	return NewInvoker(c.VM, o).Invoke(c.Args, &c.NamedArgs)
+	return NewInvoker(c.VM, o).ValidArgs(c.SafeArgs).Invoke(c.Args, &c.NamedArgs)
 }
 
 func (o *CompiledFunction) SetNamedParams(params ...*NamedParam) {

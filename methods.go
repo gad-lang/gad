@@ -89,10 +89,8 @@ func (o *CallerMethod) Remove() {
 func (o *CallerMethod) String() string {
 	var ts = make([]string, len(o.Types))
 	for i := range ts {
-		if o.Types[i] == nil {
-			ts[i] = ":*"
-		} else {
-			ts[i] = ":" + o.Types[i].Name()
+		if o.Types[i] != nil {
+			ts[i] = " " + o.Types[i].Name()
 		}
 	}
 
@@ -176,7 +174,7 @@ func (o *CallerObjectWithMethods) Caller() CallerObject {
 func (o *CallerObjectWithMethods) Call(c Call) (Object, error) {
 	caller, validate := o.CallerOf(c.Args)
 	c.SafeArgs = !validate
-	return caller.Call(c)
+	return YieldCall(caller, &c), nil
 }
 
 func (o *CallerObjectWithMethods) CallerOf(args Args) (CallerObject, bool) {

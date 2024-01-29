@@ -519,3 +519,26 @@ func MustCallVargs(callee Object, args []Object, vargs ...Object) (Object, error
 	}
 	return callee.(CallerObject).Call(NewCall(nil, WithArgsV(args, vargs...)))
 }
+
+type yieldCall struct {
+	CallerObject
+	c *Call
+}
+
+func YieldCall(callerObject CallerObject, c *Call) CallerObject {
+	return &yieldCall{CallerObject: callerObject, c: c}
+}
+
+func (y *yieldCall) GetCaller() CallerObject {
+	return y.CallerObject
+}
+
+func (y *yieldCall) GetCall() *Call {
+	return y.c
+}
+
+func (y *yieldCall) Call(c Call) (Object, error) {
+	c2 := *y.c
+	c2.VM = c.VM
+	return DoCall(y.CallerObject, c2)
+}
