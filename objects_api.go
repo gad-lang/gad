@@ -47,8 +47,12 @@ type Object interface {
 }
 
 type Representer interface {
-	Object
 	Repr(vm *VM) (string, error)
+}
+
+type ObjectRepresenter interface {
+	Object
+	Representer
 }
 
 type ObjectType interface {
@@ -124,7 +128,7 @@ type Indexer interface {
 // LengthGetter wraps the Len method to get the number of elements of an object.
 type LengthGetter interface {
 	Object
-	Len() int
+	Length() int
 }
 
 // CallerObject is an interface for objects that can be called with Call
@@ -169,6 +173,7 @@ type MethodCaller interface {
 	CallerMethods() *MethodArgType
 	CallerOf(args Args) (CallerObject, bool)
 	CallerOfTypes(types []ObjectType) (co CallerObject, validate bool)
+	GetMethod(types []ObjectType) (co CallerObject)
 	HasCallerMethods() bool
 	Caller() CallerObject
 }
@@ -224,10 +229,11 @@ type Iterabler interface {
 	Object
 
 	// Iterate should return an Iterator for the type.
-	Iterate(vm *VM) Iterator
+	Iterate(vm *VM, na *NamedArgs) Iterator
 }
 
 type CanIterabler interface {
+	Iterabler
 	// CanIterate should return whether the Object can be Iterated.
 	CanIterate() bool
 }
@@ -338,7 +344,7 @@ func (o *NilType) Format(f fmt.State, verb rune) {
 
 // Equal implements Object interface.
 func (o *NilType) Equal(right Object) bool {
-	return right == Nil
+	return right == nil || right == Nil
 }
 
 func (o *NilType) IsNil() bool {
@@ -378,14 +384,20 @@ func Callable(o Object) (ok bool) {
 	return
 }
 
-func Iterable(obj Object) bool {
-	if it, _ := obj.(Iterabler); it != nil {
-		if cit, _ := obj.(CanIterabler); cit != nil {
-			return cit.CanIterate()
-		}
+func IsIterator(obj Object) bool {
+	switch obj.(type) {
+	case Iterator:
 		return true
 	}
 	return false
+}
+
+func Iterable(vm *VM, obj Object) bool {
+	ret, err := Val(vm.Builtins.Call(BuiltinIsIterable, Call{VM: vm, Args: Args{Array{obj}}}))
+	if err != nil {
+		return false
+	}
+	return ret == True
 }
 
 func Filterable(obj Object) bool {

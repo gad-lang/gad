@@ -4,7 +4,9 @@
 
 package gad
 
-import "sync"
+import (
+	"sync"
+)
 
 //go:generate go run ./cmd/mkcallable -output builtins_zfuncs.go builtins.go
 
@@ -37,6 +39,8 @@ const (
 	BuiltinKeyValueArray
 	BuiltinError
 	BuiltinBuffer
+	BuiltinIterator
+	BuiltinItEntry
 	BuiltinTypesEnd_
 
 	BuiltinFunctionsBegin_
@@ -73,9 +77,12 @@ const (
 	BuiltinRawCaller
 	BuiltinMakeArray
 	BuiltinCap
+	BuiltinIterate
 	BuiltinKeys
 	BuiltinValues
 	BuiltinItems
+	BuiltinCollect
+	BuiltinIteratorInput
 	BuiltinVMPushWriter
 	BuiltinVMPopWriter
 	BuiltinOBStart
@@ -100,6 +107,7 @@ const (
 	BuiltinIsFunction
 	BuiltinIsCallable
 	BuiltinIsIterable
+	BuiltinIsIterator
 
 	BuiltinFunctionsEnd_
 	BuiltinErrorsBegin_
@@ -207,6 +215,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"isFunction": BuiltinIsFunction,
 	"isCallable": BuiltinIsCallable,
 	"isIterable": BuiltinIsIterable,
+	"isIterator": BuiltinIsIterator,
 
 	"WrongNumArgumentsError":  BuiltinWrongNumArgumentsError,
 	"InvalidOperatorError":    BuiltinInvalidOperatorError,
@@ -222,9 +231,13 @@ var BuiltinsMap = map[string]BuiltinType{
 	":makeArray": BuiltinMakeArray,
 	"cap":        BuiltinCap,
 
+	"iterate":       BuiltinIterate,
 	"keys":          BuiltinKeys,
 	"values":        BuiltinValues,
 	"items":         BuiltinItems,
+	"collect":       BuiltinCollect,
+	"iterator":      BuiltinIterator,
+	"iteratorInput": BuiltinIteratorInput,
 	"keyValue":      BuiltinKeyValue,
 	"keyValueArray": BuiltinKeyValueArray,
 
@@ -510,19 +523,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	},
 	BuiltinIsIterable: &BuiltinFunction{
 		Name:  "isIterable",
-		Value: funcPORO(BuiltinIsIterableFunc),
+		Value: funcPpVM_ORO(BuiltinIsIterableFunc),
 	},
-	BuiltinKeys: &BuiltinFunction{
-		Name:  "keys",
-		Value: BuiltinKeysFunc,
-	},
-	BuiltinValues: &BuiltinFunction{
-		Name:  "values",
-		Value: BuiltinValuesFunc,
-	},
-	BuiltinItems: &BuiltinFunction{
-		Name:  "items",
-		Value: BuiltinItemsFunc,
+	BuiltinIsIterator: &BuiltinFunction{
+		Name:  "isIterator",
+		Value: funcPORO(BuiltinIsIteratorFunc),
 	},
 	BuiltinStdIO: &BuiltinFunction{
 		Name:  "stdio",
@@ -623,6 +628,32 @@ func init() {
 		Name:  "each",
 		Value: BuiltinEachFunc,
 	}
+
+	BuiltinObjects[BuiltinIterate] = &BuiltinFunction{
+		Name:  "iterate",
+		Value: BuiltinIterateFunc,
+	}
+	BuiltinObjects[BuiltinKeys] = &BuiltinFunction{
+		Name:  "keys",
+		Value: BuiltinKeysFunc,
+	}
+	BuiltinObjects[BuiltinValues] = &BuiltinFunction{
+		Name:  "values",
+		Value: BuiltinValuesFunc,
+	}
+	BuiltinObjects[BuiltinItems] = &BuiltinFunction{
+		Name:  "items",
+		Value: BuiltinItemsFunc,
+	}
+	BuiltinObjects[BuiltinCollect] = &BuiltinFunction{
+		Name:  "collect",
+		Value: BuiltinCollectFunc,
+	}
+	BuiltinObjects[BuiltinIterator] = TIterator
+	BuiltinObjects[BuiltinIteratorInput] = &BuiltinFunction{
+		Name:  "iteratorInput",
+		Value: funcPORO(BuiltinIteratorInputFunc),
+	}
 }
 
 // functions to generate with mkcallable
@@ -680,3 +711,7 @@ func init() {
 // builtin decimal
 //
 //gad:callable func(vm *VM, v Object) (ret Object, err error)
+
+// builtin isIterable
+//
+//gad:callable func(vm *VM, v Object) (ret Object)

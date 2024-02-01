@@ -58,7 +58,7 @@ var (
 	errReset = errors.New("reset")
 )
 
-var scriptGlobals = &gad.SyncMap{
+var scriptGlobals = &gad.SyncDict{
 	Value: gad.Dict{
 		"Gosched": &gad.Function{
 			Name: "Gosched",

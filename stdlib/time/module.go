@@ -512,7 +512,7 @@ func sinceFunc(t *Time) gad.Object { return gad.Int(time.Since(t.Value)) }
 func untilFunc(t *Time) gad.Object { return gad.Int(time.Until(t.Value)) }
 
 func dateFunc(c gad.Call) (gad.Object, error) {
-	size := c.Args.Len()
+	size := c.Args.Length()
 	if size < 3 || size > 8 {
 		return gad.Nil, gad.ErrWrongNumArguments.NewError(
 			"want=3..8 got=" + strconv.Itoa(size))
@@ -544,7 +544,7 @@ func dateFunc(c gad.Call) (gad.Object, error) {
 func nowFunc() gad.Object { return &Time{Value: time.Now()} }
 
 func parseFunc(c gad.Call) (gad.Object, error) {
-	size := c.Args.Len()
+	size := c.Args.Length()
 	if size != 2 && size != 3 {
 		return gad.Nil, gad.ErrWrongNumArguments.NewError(
 			"want=2..3 got=" + strconv.Itoa(size))
@@ -576,7 +576,7 @@ func parseFunc(c gad.Call) (gad.Object, error) {
 }
 
 func unixFunc(c gad.Call) (gad.Object, error) {
-	size := c.Args.Len()
+	size := c.Args.Length()
 	if size != 1 && size != 2 {
 		return gad.Nil, gad.ErrWrongNumArguments.NewError(
 			"want=1..2 got=" + strconv.Itoa(size))

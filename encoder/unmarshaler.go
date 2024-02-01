@@ -335,7 +335,7 @@ func (o *Map) UnmarshalBinary(data []byte) error {
 // UnmarshalBinary implements encoding.BinaryUnmarshaler
 func (o *SyncMap) UnmarshalBinary(data []byte) error {
 	if len(data) < 2 || data[0] != binSyncMapV1 {
-		return errors.New("invalid gad.SyncMap data")
+		return errors.New("invalid gad.SyncDict data")
 	}
 
 	if data[1] == 0 {

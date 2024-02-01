@@ -16,7 +16,6 @@ import (
 	_ "unsafe"
 
 	"github.com/gad-lang/gad/repr"
-	"github.com/gad-lang/gad/token"
 )
 
 type ReflectMethod struct {
@@ -599,7 +598,7 @@ func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
 	)
 
 	if typ.IsVariadic() {
-		if argc = c.Args.Len(); argc < numIn-1 {
+		if argc = c.Args.Length(); argc < numIn-1 {
 			return nil, ErrType.NewError(fmt.Sprintf("wrong number of args: got %d want at least %d", argc, numIn-1))
 		}
 		dddType := typ.In(numIn - 1).Elem()
@@ -609,7 +608,7 @@ func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
 		}
 	} else if numIn == 1 && reflectCallTypeToArgv(typ.In(0), &c, &argv) {
 		// argv was populated
-	} else if argc = c.Args.Len(); argc != numIn {
+	} else if argc = c.Args.Length(); argc != numIn {
 		return nil, ErrType.NewError(fmt.Sprintf("wrong number of args: got %d want %d", argc, numIn))
 	} else {
 		argv = make([]reflect.Value, argc)
@@ -666,11 +665,11 @@ type ReflectArray struct {
 }
 
 var (
-	_ ReflectValuer  = (*ReflectArray)(nil)
-	_ Iterabler      = (*ReflectArray)(nil)
-	_ IndexGetSetter = (*ReflectArray)(nil)
-	_ LengthGetter   = (*ReflectArray)(nil)
-	_ Representer    = (*ReflectArray)(nil)
+	_ ReflectValuer     = (*ReflectArray)(nil)
+	_ Iterabler         = (*ReflectArray)(nil)
+	_ IndexGetSetter    = (*ReflectArray)(nil)
+	_ LengthGetter      = (*ReflectArray)(nil)
+	_ ObjectRepresenter = (*ReflectArray)(nil)
 )
 
 func (o *ReflectArray) Format(s fmt.State, verb rune) {
@@ -691,18 +690,16 @@ func (o *ReflectArray) IsFalsy() bool {
 	return o.RValue.Len() == 0
 }
 
+func (o *ReflectArray) Get(vm *VM, i int) (value Object, err error) {
+	return vm.ToObject(o.RValue.Index(i).Interface())
+}
+
 func (o *ReflectArray) IndexGet(vm *VM, index Object) (value Object, err error) {
 	var ix int
 	switch t := index.(type) {
 	case Int:
 		ix = int(t)
-		if t > math.MaxInt {
-			return nil, ErrUnexpectedArgValue.NewError(fmt.Sprintf("%u > %d", t, math.MaxInt))
-		}
 	case Uint:
-		if t > math.MaxInt {
-			return nil, ErrUnexpectedArgValue.NewError(fmt.Sprintf("%u > %d", t, math.MaxInt))
-		}
 		ix = int(t)
 	default:
 		return nil, ErrUnexpectedArgValue.NewError("expected index types: int|uint")
@@ -712,7 +709,7 @@ func (o *ReflectArray) IndexGet(vm *VM, index Object) (value Object, err error) 
 		return nil, ErrIndexOutOfBounds
 	}
 
-	return vm.ToObject(o.RValue.Index(ix).Interface())
+	return o.Get(vm, ix)
 }
 
 func (o *ReflectArray) IndexSet(vm *VM, index, value Object) (err error) {
@@ -747,12 +744,8 @@ func (o *ReflectArray) IndexSet(vm *VM, index, value Object) (err error) {
 	return
 }
 
-func (o *ReflectArray) Len() int {
+func (o *ReflectArray) Length() int {
 	return o.RValue.Len()
-}
-
-func (o *ReflectArray) Iterate(*VM) Iterator {
-	return &ReflectArrayIterator{v: o.RValue, l: o.RValue.Len(), valuer: o.Options.ItValuer}
 }
 
 func (o *ReflectArray) Copy() (obj Object) {
@@ -863,10 +856,10 @@ type ReflectMap struct {
 }
 
 var (
-	_ ReflectValuer = (*ReflectMap)(nil)
-	_ Iterabler     = (*ReflectMap)(nil)
-	_ Indexer       = (*ReflectMap)(nil)
-	_ Representer   = (*ReflectMap)(nil)
+	_ ReflectValuer     = (*ReflectMap)(nil)
+	_ Iterabler         = (*ReflectMap)(nil)
+	_ Indexer           = (*ReflectMap)(nil)
+	_ ObjectRepresenter = (*ReflectMap)(nil)
 )
 
 func (o *ReflectMap) Format(s fmt.State, verb rune) {
@@ -879,7 +872,7 @@ func (o *ReflectMap) Format(s fmt.State, verb rune) {
 	o.ReflectValue.Format(s, verb)
 }
 
-func (o *ReflectMap) Len() int {
+func (o *ReflectMap) Length() int {
 	return o.Value().Len()
 }
 
@@ -944,10 +937,6 @@ func (o *ReflectMap) IndexSet(vm *VM, index, value Object) (err error) {
 	return
 }
 
-func (o *ReflectMap) Iterate(*VM) Iterator {
-	return &ReflectMapIterator{v: o.RValue, keys: o.RValue.MapKeys()}
-}
-
 func (o *ReflectMap) IsFalsy() bool {
 	return o.RValue.Len() == 0
 }
@@ -970,31 +959,22 @@ type ReflectStruct struct {
 	Data                 Dict
 }
 
-func (r *ReflectStruct) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
-	fmt.Println("->", tok.String(), r.ToString(), right.ToString())
-	return Nil, nil
-}
-
-func (r *ReflectStruct) Iterate(vm *VM) Iterator {
-	return &ReflectStructIterator{vm, r, 0}
-}
-
 var (
-	_ ReflectValuer  = (*ReflectStruct)(nil)
-	_ Iterabler      = (*ReflectStruct)(nil)
-	_ IndexGetSetter = (*ReflectStruct)(nil)
-	_ Representer    = (*ReflectStruct)(nil)
+	_ ReflectValuer     = (*ReflectStruct)(nil)
+	_ Iterabler         = (*ReflectStruct)(nil)
+	_ IndexGetSetter    = (*ReflectStruct)(nil)
+	_ ObjectRepresenter = (*ReflectStruct)(nil)
 )
 
-func (r *ReflectStruct) ToString() string {
-	i := r.ToInterface()
+func (s *ReflectStruct) ToString() string {
+	i := s.ToInterface()
 	switch t := i.(type) {
 	case fmt.Stringer:
 		return t.String()
 	case fmt.Formatter:
 		return fmt.Sprintf("%v", t)
 	default:
-		if r.Options.ToStr == nil {
+		if s.Options.ToStr == nil {
 			var (
 				values  []string
 				value   any
@@ -1002,8 +982,8 @@ func (r *ReflectStruct) ToString() string {
 				err     error
 				w       strings.Builder
 			)
-			for _, name := range r.RType.FieldsNames {
-				if handled, value, err = r.SafeField(nil, name); err == nil && handled {
+			for _, name := range s.RType.FieldsNames {
+				if handled, value, err = s.SafeField(nil, name); err == nil && handled {
 					if !IsZero(value) {
 						var (
 							rv = reflect.ValueOf(value)
@@ -1024,11 +1004,11 @@ func (r *ReflectStruct) ToString() string {
 			w.WriteString("}")
 			return w.String()
 		}
-		return r.Options.ToStr()
+		return s.Options.ToStr()
 	}
 }
 
-func (r *ReflectStruct) Repr(vm *VM) (_ string, err error) {
+func (s *ReflectStruct) Repr(vm *VM) (_ string, err error) {
 	var w strings.Builder
 	w.WriteString(repr.QuotePrefix)
 	var (
@@ -1038,8 +1018,8 @@ func (r *ReflectStruct) Repr(vm *VM) (_ string, err error) {
 		rpr     = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
 		rpro    Object
 	)
-	for _, name := range r.RType.FieldsNames {
-		if handled, value, err = r.SafeField(nil, name); err == nil && handled {
+	for _, name := range s.RType.FieldsNames {
+		if handled, value, err = s.SafeField(nil, name); err == nil && handled {
 			if !IsZero(value) {
 				if rpro, err = vm.ToObject(value); err != nil {
 					return
@@ -1052,7 +1032,7 @@ func (r *ReflectStruct) Repr(vm *VM) (_ string, err error) {
 		}
 	}
 	sort.Strings(values)
-	w.WriteString(r.Type().Name())
+	w.WriteString(s.Type().Name())
 	w.WriteString(":{")
 	w.WriteString(strings.Join(values, ", "))
 	w.WriteString("}")
@@ -1060,32 +1040,32 @@ func (r *ReflectStruct) Repr(vm *VM) (_ string, err error) {
 	return w.String(), nil
 }
 
-func (r *ReflectStruct) FieldHandler(handler func(vm *VM, s *ReflectStruct, name string, v any) any) *ReflectStruct {
-	r.fieldHandler = handler
-	return r
+func (s *ReflectStruct) FieldHandler(handler func(vm *VM, s *ReflectStruct, name string, v any) any) *ReflectStruct {
+	s.fieldHandler = handler
+	return s
 }
 
-func (r *ReflectStruct) FalbackIndexHandler(handler func(vm *VM, s *ReflectStruct, name string) (handled bool, value any, err error)) *ReflectStruct {
-	r.fallbackIndexHandler = handler
-	return r
+func (s *ReflectStruct) FalbackIndexHandler(handler func(vm *VM, s *ReflectStruct, name string) (handled bool, value any, err error)) *ReflectStruct {
+	s.fallbackIndexHandler = handler
+	return s
 }
 
-func (r *ReflectStruct) CallName(name string, c Call) (Object, error) {
-	return r.CallNameOf(r, name, c)
+func (s *ReflectStruct) CallName(name string, c Call) (Object, error) {
+	return s.CallNameOf(s, name, c)
 }
 
-func (r *ReflectStruct) IndexGet(vm *VM, index Object) (value Object, err error) {
-	return r.IndexGetS(vm, index.ToString())
+func (s *ReflectStruct) IndexGet(vm *VM, index Object) (value Object, err error) {
+	return s.IndexGetS(vm, index.ToString())
 }
 
-func (r *ReflectStruct) IndexGetS(vm *VM, index string) (value Object, err error) {
+func (s *ReflectStruct) IndexGetS(vm *VM, index string) (value Object, err error) {
 	var (
 		vi      any
 		handled bool
 	)
 
-	if handled, vi, err = r.Field(vm, index); !handled && r.fallbackIndexHandler != nil {
-		handled, vi, err = r.fallbackIndexHandler(vm, r, index)
+	if handled, vi, err = s.Field(vm, index); !handled && s.fallbackIndexHandler != nil {
+		handled, vi, err = s.fallbackIndexHandler(vm, s, index)
 	}
 
 	if err != nil {
@@ -1102,18 +1082,18 @@ func (r *ReflectStruct) IndexGetS(vm *VM, index string) (value Object, err error
 	return vm.ToObject(vi)
 }
 
-func (r *ReflectStruct) Field(vm *VM, name string) (handled bool, value any, err error) {
-	if field := r.RType.RFields[name]; field != nil {
+func (s *ReflectStruct) Field(vm *VM, name string) (handled bool, value any, err error) {
+	if field := s.RType.RFields[name]; field != nil {
 		handled = true
-		value = r.RValue.FieldByIndex(field.Struct.Index).Interface()
-		if vm != nil && r.fieldHandler != nil {
-			value = r.fieldHandler(vm, r, name, value)
+		value = s.RValue.FieldByIndex(field.Struct.Index).Interface()
+		if vm != nil && s.fieldHandler != nil {
+			value = s.fieldHandler(vm, s, name, value)
 		}
 	}
 	return
 }
 
-func (r *ReflectStruct) SafeField(vm *VM, name string) (handled bool, value any, err error) {
+func (s *ReflectStruct) SafeField(vm *VM, name string) (handled bool, value any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if err, _ = r.(error); err != nil {
@@ -1122,30 +1102,30 @@ func (r *ReflectStruct) SafeField(vm *VM, name string) (handled bool, value any,
 			err = errors.New(fmt.Sprint(r))
 		}
 	}()
-	return r.Field(vm, name)
+	return s.Field(vm, name)
 }
 
-func (r *ReflectStruct) IndexSet(vm *VM, index, value Object) (err error) {
-	return r.indexSet(vm, index.ToString(), value)
+func (s *ReflectStruct) IndexSet(vm *VM, index, value Object) (err error) {
+	return s.indexSet(vm, index.ToString(), value)
 }
 
-func (r *ReflectStruct) SetValues(vm *VM, values Dict) (err error) {
+func (s *ReflectStruct) SetValues(vm *VM, values Dict) (err error) {
 	for k, v := range values {
-		if err = r.indexSet(vm, k, v); err != nil {
+		if err = s.indexSet(vm, k, v); err != nil {
 			return
 		}
 	}
 	return
 }
 
-func (r *ReflectStruct) indexSet(vm *VM, index string, value Object) (err error) {
-	field := r.RType.RFields[index]
+func (s *ReflectStruct) indexSet(vm *VM, index string, value Object) (err error) {
+	field := s.RType.RFields[index]
 	if field != nil {
-		return r.SetFieldValue(vm, field, value)
+		return s.SetFieldValue(vm, field, value)
 	}
 
-	if m := r.RType.RMethods["Set"+strings.ToUpper(index[0:1])+index[1:]]; m != nil && m.Method.Type.NumIn() == 2 {
-		_, err = r.callName(m, Call{VM: vm, Args: Args{{value}}})
+	if m := s.RType.RMethods["Set"+strings.ToUpper(index[0:1])+index[1:]]; m != nil && m.Method.Type.NumIn() == 2 {
+		_, err = s.callName(m, Call{VM: vm, Args: Args{{value}}})
 		return
 	}
 
@@ -1153,18 +1133,18 @@ func (r *ReflectStruct) indexSet(vm *VM, index string, value Object) (err error)
 	return
 }
 
-func (r *ReflectStruct) SetField(vm *VM, index string, value any) (handled bool, err error) {
+func (s *ReflectStruct) SetField(vm *VM, index string, value any) (handled bool, err error) {
 	var field *ReflectField
-	field, handled = r.RType.RFields[index]
+	field, handled = s.RType.RFields[index]
 
 	if handled {
-		err = r.SetFieldValue(vm, field, value)
+		err = s.SetFieldValue(vm, field, value)
 	}
 	return
 }
 
-func (r *ReflectStruct) SetFieldValue(vm *VM, df *ReflectField, value any) (err error) {
-	field := r.RValue.FieldByIndex(df.Struct.Index)
+func (s *ReflectStruct) SetFieldValue(vm *VM, df *ReflectField, value any) (err error) {
+	field := s.RValue.FieldByIndex(df.Struct.Index)
 	if value == nil || value == Nil {
 		field.Set(reflect.Zero(field.Type()))
 		return
@@ -1226,10 +1206,10 @@ func (r *ReflectStruct) SetFieldValue(vm *VM, df *ReflectField, value any) (err 
 	return
 }
 
-func (r *ReflectStruct) Copy() (obj Object) {
-	v := reflect.New(r.RType.RType)
-	v.Elem().Set(reflect.ValueOf(r.RValue.Interface()))
-	if r.ptr {
+func (s *ReflectStruct) Copy() (obj Object) {
+	v := reflect.New(s.RType.RType)
+	v.Elem().Set(reflect.ValueOf(s.RValue.Interface()))
+	if s.ptr {
 		obj, _ = NewReflectValue(v.Interface())
 	} else {
 		obj, _ = NewReflectValue(v.Elem().Interface())
@@ -1237,40 +1217,40 @@ func (r *ReflectStruct) Copy() (obj Object) {
 	return
 }
 
-func (r *ReflectStruct) UserData() Indexer {
-	if r.Data != nil {
-		return r.Data
+func (s *ReflectStruct) UserData() Indexer {
+	if s.Data != nil {
+		return s.Data
 	}
 	return &IndexProxy{
 		IndexGetProxy: IndexGetProxy{
-			It: func(vm *VM) Iterator {
-				if r.Data == nil {
-					return Dict{}.Iterate(vm)
+			It: func(vm *VM, na *NamedArgs) Iterator {
+				if s.Data == nil {
+					return Dict{}.Iterate(vm, na)
 				}
-				return r.Data.Iterate(vm)
+				return s.Data.Iterate(vm, na)
 			},
 			GetIndex: func(vm *VM, index Object) (value Object, err error) {
-				if r.Data == nil {
+				if s.Data == nil {
 					return nil, ErrInvalidIndex.NewError(index.ToString())
 				}
-				return r.Data.IndexGet(vm, index)
+				return s.Data.IndexGet(vm, index)
 			},
 		},
 		IndexDelProxy: IndexDelProxy{
 			Del: func(vm *VM, key Object) error {
-				if r.Data == nil {
+				if s.Data == nil {
 					return nil
 				}
-				delete(r.Data, key.ToString())
+				delete(s.Data, key.ToString())
 				return nil
 			},
 		},
 		IndexSetProxy: IndexSetProxy{
 			Set: func(vm *VM, key, value Object) error {
-				if r.Data == nil {
-					r.Data = make(Dict)
+				if s.Data == nil {
+					s.Data = make(Dict)
 				}
-				r.Data.Set(key.ToString(), value)
+				s.Data.Set(key.ToString(), value)
 				return nil
 			},
 		},

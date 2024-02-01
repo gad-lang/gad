@@ -709,6 +709,131 @@ func TestVMKeyValueArray(t *testing.T) {
 	expectRun(t, `return (;a=1)[0].array`, nil, Array{Str("a"), Int(1)})
 }
 
+func TestVMIterator(t *testing.T) {
+	rg := `Range := struct("Range", fields={
+				start:0,
+				end:2,
+			})`
+	expectRun(t, rg+`
+		func iterator(r Range) => [r.start, ItEntry(r.start, str('a' + r.start))]
+		func iterator(r Range, state) => state >= r.end ? nil : [state+1, ItEntry(state+1, str('a' + state+1))]
+
+		ret := []
+		for k, v in Range() {
+			ret = append(ret, [k, v])
+		}
+
+		return str(ret)
+	`, nil, Str(`[[0, "a"], [1, "b"], [2, "c"]]`))
+	expectRun(t, rg+`
+			func iterator(r Range) => [r.start, str('a' + r.start)]
+			func iterator(r Range, state) => state >= r.end ? nil : [state+1, str('a' + state+1)]
+
+			return str(collect(values(Range())))
+		`, nil, Str(`["a", "b", "c"]`))
+
+	expectRun(t, rg+`
+			func iterator(r Range) => [r.start, str('a' + r.start)]
+			func iterator(r Range, state) => state >= r.end ? nil : [state+1, str('a' + state+1)]
+
+			return str([
+				iterator(Range()),
+				iterator(Range(), 0),
+				iterator(Range(), 1),
+				iterator(Range(), 2),
+				iterator(Range(), 3),
+		])
+		`, nil, Str(`[[0, "a"], [1, "b"], [2, "c"], nil, nil]`))
+
+	expectRun(t, rg+`
+			ret := [nil, nil]
+			ret[0] = isIterable(Range())
+
+			func iterator(r Range) => [r.start, 'a' + r.start, r.end > r.start]
+			func iterator(r Range, state) => [state+1, 'a' + state+1, r.end > state]
+
+			ret[1] = isIterable(Range())
+
+			return ret
+		`, nil, Array{False, True})
+	expectRun(t, `return isIterable({})`, nil, True)
+	expectRun(t, `return isIterable([])`, nil, True)
+	expectRun(t, `return isIterable((;))`, nil, True)
+	expectRun(t, `return isIterable("a")`, nil, True)
+	expectRun(t, `return isIterable(bytes("a"))`, nil, True)
+	expectRun(t, `return isIterable(1)`, nil, False)
+	expectRun(t, `return isIterable(false)`, nil, False)
+	expectRun(t, `return isIterable(nil)`, nil, False)
+	expectRun(t, `return isIterable(1.2)`, nil, False)
+	expectRun(t, `return isIterable(1.2d)`, nil, False)
+
+	expectRun(t, `return isIterator(values({}))`, nil, True)
+	expectRun(t, `return isIterator(values([]))`, nil, True)
+	expectRun(t, `return isIterator(values((;)))`, nil, True)
+	expectRun(t, `return isIterator(values("a"))`, nil, True)
+	expectRun(t, `return isIterator(values(bytes("a")))`, nil, True)
+	expectRun(t, `return isIterator(1)`, nil, False)
+	expectRun(t, `return isIterator({})`, nil, False)
+	expectRun(t, `return isIterator([])`, nil, False)
+	expectRun(t, `return isIterator((;))`, nil, False)
+	expectRun(t, `return isIterator("a")`, nil, False)
+	expectRun(t, `return isIterator(bytes("a"))`, nil, False)
+	expectRun(t, `return isIterator(1)`, nil, False)
+	expectRun(t, `return isIterator(false)`, nil, False)
+	expectRun(t, `return isIterator(nil)`, nil, False)
+	expectRun(t, `return isIterator(1.2)`, nil, False)
+	expectRun(t, `return isIterator(1.2d)`, nil, False)
+
+	expectRun(t, `return repr(values({a:1, b:2}))`, nil,
+		Str(`‹ValuesIterator:‹DictIterator:{a: 1, b: 2}››`))
+	expectRun(t, `return repr(values({a:1, b:2};sorted))`, nil,
+		Str(`‹ValuesIterator:‹DictIterator:{a: 1, b: 2}››`))
+	expectRun(t, `return str(collect(values({a:1, b:2};sorted)))`, nil, Str("[1, 2]"))
+	expectRun(t, `return repr(keys({a:1, b:2};sorted))`, nil,
+		Str(`‹KeysIterator:‹DictIterator:{a: 1, b: 2}››`))
+	expectRun(t, `return str(collect(keys({a:1, b:2};sorted)))`, nil,
+		Str(`["a", "b"]`))
+	expectRun(t, `return repr(items({a:1, b:2};sorted))`, nil,
+		Str(`‹ItemsIterator:‹DictIterator:{a: 1, b: 2}››`))
+	expectRun(t, `return str(collect(items({a:1, b:2};sorted)))`, nil, Str("(;a=1, b=2)"))
+	expectRun(t, `return str(collect(items({a:1, b:2, c:3, d:4, e:5, f:6, g:7};step=3,sorted)))`, nil,
+		Str("(;a=1, d=4, g=7)"))
+
+	expectRun(t, `return repr(values([1,2]))`, nil, Str("‹ValuesIterator:‹ArrayIterator:[1, 2]››"))
+	expectRun(t, `return str(collect(values([1,2])))`, nil, Str("[1, 2]"))
+	expectRun(t, `return repr(keys([1,2]))`, nil, Str("‹KeysIterator:‹ArrayIterator:[1, 2]››"))
+	expectRun(t, `return str(collect(keys([2,5])))`, nil, Str("[0, 1]"))
+	expectRun(t, `return repr(items([2,5]))`, nil, Str(`‹ItemsIterator:‹ArrayIterator:[2, 5]››`))
+	expectRun(t, `return str(collect(items([2,5])))`, nil, Str("(;0=2, 1=5)"))
+	expectRun(t, `return str(collect(values([1,2,3];reversed)))`, nil, Str("[3, 2, 1]"))
+	expectRun(t, `return str(collect(values([1,2,3];reversed)))`, nil, Str("[3, 2, 1]"))
+	expectRun(t, `return str(collect(values([1,2,3,4,5,6,7];step=2)))`, nil, Str("[1, 3, 5, 7]"))
+	expectRun(t, `return str(collect(values([1,2,3,4,5,6,7];step=2,reversed)))`, nil, Str("[7, 5, 3, 1]"))
+	expectRun(t, `return str(collect(values([1,2,3,4,5,6,7];step=3)))`, nil, Str("[1, 4, 7]"))
+	expectRun(t, `return str(collect(values([1,2,3,4,5,6,7];step=3,reversed)))`, nil, Str("[7, 4, 1]"))
+
+	expectRun(t, `return repr(values((;a=1,b=2)))`, nil,
+		Str(`‹ValuesIterator:‹KeyValueArrayIterator:(;a=1, b=2)››`))
+	expectRun(t, `return str(collect(values((;a=1,b=2))))`, nil, Str("[1, 2]"))
+	expectRun(t, `return str(collect(keys((;a=1,b=2))))`, nil, Str(`["a", "b"]`))
+	expectRun(t, `return str(collect(items((;a=1,b=2))))`, nil, Str(`(;a=1, b=2)`))
+
+	expectRun(t, `return repr(map([1,2], (k, v) => v))`, nil,
+		Str(`‹MapIterator:‹‹ArrayIterator:[1, 2]› → ‹compiledFunction #2(k, v)›››`))
+
+	expectRun(t, `return str(collect(map(values([1,2]), (v, k) => v+10)))`, nil, Str("[11, 12]"))
+	expectRun(t, `return str(collect(values(filter([1,2,3,4,5], (v, k, _) => v%2))))`, nil, Str("[1, 3, 5]"))
+	expectRun(t, `return [1,2] .| map((v, k) => v+10) .| repr`, nil,
+		Str(`‹MapIterator:‹‹ArrayIterator:[1, 2]› → ‹compiledFunction #3(v, k)›››`))
+	expectRun(t, `return [1,2] .| map((v, k) => v+10) .| values .| map((v, k) => v+10) .| repr`, nil,
+		Str(`‹MapIterator:‹‹ValuesIterator:‹MapIterator:‹‹ArrayIterator:[1, 2]› → ‹compiledFunction #3(v, k)›››› → `+
+			`‹compiledFunction #4(v, k)›››`))
+	expectRun(t, `return reduce([1,2,3], ((cur, v, k) => cur + v), 10)`, nil, Int(16))
+	expectRun(t, `return reduce([1,2], (cur, v, k) => cur + v)`, nil, Int(4))
+	expectRun(t, `return str(reduce([1,2,3], ((cur, v, k) => {cur.tot += v; cur[str(k+'a')] ??= v; cur}), {tot:100}))`,
+		nil, Str("{a: 1, b: 2, c: 3, tot: 106}"))
+}
+
 func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return append(nil)`,
 		nil, Array{})
@@ -744,9 +869,9 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectErrIs(t, `delete([], "")`, nil, ErrType)
 	expectRun(t, `delete({}, 1)`, nil, Nil)
 
-	g := &SyncMap{Value: Dict{"out": &SyncMap{Value: Dict{"a": Int(1)}}}}
+	g := &SyncDict{Value: Dict{"out": &SyncDict{Value: Dict{"a": Int(1)}}}}
 	expectRun(t, `global out; delete(out, "a"); return out`,
-		newOpts().Globals(g).Skip2Pass(), &SyncMap{Value: Dict{}})
+		newOpts().Globals(g).Skip2Pass(), &SyncDict{Value: Dict{}})
 
 	expectRun(t, `return copy(nil)`, nil, Nil)
 	expectRun(t, `return copy(1)`, nil, Int(1))
@@ -872,7 +997,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return contains(bytes(1, 2, 3, 4), bytes(1, 3))`, nil, False)
 	expectRun(t, `return contains(nil, "")`, nil, False)
 	expectRun(t, `return contains(nil, 1)`, nil, False)
-	g = &SyncMap{Value: Dict{"a": Int(1)}}
+	g = &SyncDict{Value: Dict{"a": Int(1)}}
 	expectRun(t, `return contains(globals(), "a")`,
 		newOpts().Globals(g).Skip2Pass(), True)
 	expectErrIs(t, `contains()`, nil, ErrWrongNumArguments)
@@ -894,7 +1019,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return len(["a"])`, nil, Int(1))
 	expectRun(t, `return len({a: 2})`, nil, Int(1))
 	expectRun(t, `return len(bytes(0, 1, 2))`, nil, Int(3))
-	g = &SyncMap{Value: Dict{"a": Int(5)}}
+	g = &SyncDict{Value: Dict{"a": Int(5)}}
 	expectRun(t, `return len(globals())`,
 		newOpts().Globals(g).Skip2Pass(), Int(1))
 	expectErrIs(t, `len()`, nil, ErrWrongNumArguments)
@@ -984,22 +1109,22 @@ func TestVMBuiltinFunction(t *testing.T) {
 keyValueArray(keyValue("d",4))))`,
 		nil, Str("(;a=1, b=2, c=3, d=4)"))
 
-	expectRun(t, `return sort(keys({a:1,b:2}))`,
+	expectRun(t, `return sort(collect(keys({a:1,b:2})))`,
 		nil, Array{Str("a"), Str("b")})
-	expectRun(t, `return str(keys([5,6]))`,
+	expectRun(t, `return str(collect(keys([5,6])))`,
 		nil, Str("[0, 1]"))
-	expectRun(t, `return str(keys(keyValueArray(keyValue("a",1),keyValue("b",2))))`,
+	expectRun(t, `return str(collect(keys((;a=1,b=2))))`,
 		nil, Str(`["a", "b"]`))
 
-	expectRun(t, `return sort(items({a:1,b:2}))`,
+	expectRun(t, `return sort(collect(items({a:1,b:2})))`,
 		nil, KeyValueArray{&KeyValue{Str("a"), Int(1)}, &KeyValue{Str("b"), Int(2)}})
-	expectRun(t, `return str(items([3, 2, 1]))`, nil, Str("(;0=3, 1=2, 2=1)"))
-	expectRun(t, `return str(items(keyValueArray(keyValue("a",1),keyValue("b",2))))`,
+	expectRun(t, `return str(collect(items([3, 2, 1])))`, nil, Str("(;0=3, 1=2, 2=1)"))
+	expectRun(t, `return str(collect(items(keyValueArray(keyValue("a",1),keyValue("b",2)))))`,
 		nil, Str(`(;a=1, b=2)`))
 
-	expectRun(t, `return sort(values({a:1,b:2}))`,
+	expectRun(t, `return sort(collect(values({a:1,b:2})))`,
 		nil, Array{Int(1), Int(2)})
-	expectRun(t, `return str(values(keyValueArray(keyValue("a",1),keyValue("b",2))))`,
+	expectRun(t, `return str(collect(values(keyValueArray(keyValue("a",1),keyValue("b",2)))))`,
 		nil, Str(`[1, 2]`))
 
 	expectRun(t, `return str(buffer())`, nil, Str(""))
@@ -1011,11 +1136,11 @@ keyValueArray(keyValue("d",4))))`,
 	expectRun(t, `return str(bytes(buffer("a")))`, nil, Str("a"))
 	expectRun(t, `return str(1, 2)`, nil, Str("12"))
 	expectRun(t, `return str(1, 2)`, nil, Str("12"))
-	expectRun(t, `return map([1,2], (v, _) => v+1)`, nil, Array{Int(2), Int(3)})
-	expectRun(t, `return map([1,2], (v, k) => v+k)`, nil, Array{Int(1), Int(3)})
+	expectRun(t, `return collect(values(map([1,2], (v, _) => v+1)))`, nil, Array{Int(2), Int(3)})
+	expectRun(t, `return collect(values(map([1,2], (v, k) => v+k)))`, nil, Array{Int(1), Int(3)})
 	expectRun(t, `return reduce([1,2], (cur, v, k) => cur + v)`, nil, Int(4))
 	expectRun(t, `return reduce([1,2], (cur, v, k) => cur + v, 10)`, nil, Int(13))
-	expectRun(t, `cur := 10; each([1,2], func(v, k) { cur += v });return cur`, nil, Int(13))
+	expectRun(t, `cur := 10; each([1,2], func(k, v) { cur += v });return cur`, nil, Int(13))
 
 	convs := []struct {
 		f      string
@@ -1404,7 +1529,7 @@ keyValueArray(keyValue("d",4))))`,
 	}
 
 	expectRun(t, `global sm; return isSyncDict(sm)`,
-		newOpts().Globals(Dict{"sm": &SyncMap{Value: Dict{}}}), True)
+		newOpts().Globals(Dict{"sm": &SyncDict{Value: Dict{}}}), True)
 
 	expectRun(t, `return isError(WrongNumArgumentsError.New(""), WrongNumArgumentsError)`,
 		nil, True)
@@ -1902,13 +2027,13 @@ func TestVMForIn(t *testing.T) {
 		nil, Str("b")) // key, value
 
 	// syncMap
-	g := Dict{"syncMap": &SyncMap{Value: Dict{"a": Int(2), "b": Int(3), "c": Int(4)}}}
+	g := Dict{"syncMap": &SyncDict{Value: Dict{"a": Int(2), "b": Int(3), "c": Int(4)}}}
 	expectRun(t, `out := 0; for v in globals().syncMap { out += v }; return out`,
 		newOpts().Globals(g).Skip2Pass(), Int(9)) // value
 	expectRun(t, `out := ""; for k, v in globals().syncMap { out = k; if v==3 { break } }; return out`,
 		newOpts().Globals(g).Skip2Pass(), Str("b")) // key, value
 	expectRun(t, `out := ""; for k, _ in globals().syncMap { out += k }; return out`,
-		newOpts().Globals(Dict{"syncMap": &SyncMap{Value: Dict{"a": Int(2)}}}).Skip2Pass(), Str("a")) // key, _
+		newOpts().Globals(Dict{"syncMap": &SyncDict{Value: Dict{"a": Int(2)}}}).Skip2Pass(), Str("a")) // key, _
 	expectRun(t, `out := 0; for _, v in globals().syncMap { out += v }; return out`,
 		newOpts().Globals(g).Skip2Pass(), Int(9)) // _, value
 	expectRun(t, `out := ""; func() { for k, v in globals().syncMap { out = k; if v==3 { break } } }(); return out`,
@@ -3698,39 +3823,39 @@ func TestVMCall(t *testing.T) {
 
 	expectRun(t, `global f; return f()`, newOpts().Globals(
 		Dict{"f": &Function{Value: func(c Call) (Object, error) {
-			return Int(c.Args.Len()), nil
+			return Int(c.Args.Length()), nil
 		}}}), Int(0))
 	expectRun(t, `global f; return f(1)`, newOpts().Globals(
 		Dict{"f": &Function{Value: func(c Call) (Object, error) {
-			return Array{Int(c.Args.Len()), c.Args.Get(0)}, nil
+			return Array{Int(c.Args.Length()), c.Args.Get(0)}, nil
 		}}}), Array{Int(1), Int(1)})
 	expectRun(t, `global f; return f(1, 2)`, newOpts().Globals(
 		Dict{"f": &Function{Value: func(c Call) (Object, error) {
-			return Array{Int(c.Args.Len()), c.Args.Get(0), c.Args.Get(1)}, nil
+			return Array{Int(c.Args.Length()), c.Args.Get(0), c.Args.Get(1)}, nil
 		}}}), Array{Int(2), Int(1), Int(2)})
 	expectRun(t, `global f; return f(*[])`, newOpts().Globals(
 		Dict{"f": &Function{Value: func(c Call) (Object, error) {
-			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
+			return Array{Int(c.Args.Length()), c.Args.Values()}, nil
 		}}}), Array{Int(0), Array{}})
 	expectRun(t, `global f; return f(*[1])`, newOpts().Globals(
 		Dict{"f": &Function{Value: func(c Call) (Object, error) {
-			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
+			return Array{Int(c.Args.Length()), c.Args.Values()}, nil
 		}}}), Array{Int(1), Array{Int(1)}})
 	expectRun(t, `global f; return f(1, *[])`, newOpts().Globals(
 		Dict{"f": &Function{Value: func(c Call) (Object, error) {
-			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
+			return Array{Int(c.Args.Length()), c.Args.Values()}, nil
 		}}}), Array{Int(1), Array{Int(1)}})
 	expectRun(t, `global f; return f(1, *[2])`, newOpts().Globals(
 		Dict{"f": &Function{Value: func(c Call) (Object, error) {
-			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
+			return Array{Int(c.Args.Length()), c.Args.Values()}, nil
 		}}}), Array{Int(2), Array{Int(1), Int(2)}})
 	expectRun(t, `global f; return f(1, 2, *[3])`, newOpts().Globals(
 		Dict{"f": &Function{Value: func(c Call) (Object, error) {
-			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
+			return Array{Int(c.Args.Length()), c.Args.Values()}, nil
 		}}}), Array{Int(3), Array{Int(1), Int(2), Int(3)}})
 	expectRun(t, `global f; return f(1, 2, 3)`, newOpts().Globals(
 		Dict{"f": &Function{Value: func(c Call) (Object, error) {
-			return Array{Int(c.Args.Len()), c.Args.Values()}, nil
+			return Array{Int(c.Args.Length()), c.Args.Values()}, nil
 		}}}), Array{Int(3), Array{Int(1), Int(2), Int(3)}})
 
 	expectErrIs(t, `global f; return f()`, newOpts().Globals(
@@ -3848,9 +3973,11 @@ func TestVMCallCompiledFunction(t *testing.T) {
 }
 
 func TestVMPipe(t *testing.T) {
-	expectRun(t, ` 
-	return (1).|(v) => [v]`, nil,
-		Array{Int(1)})
+	expectRun(t, `param arr; v := arr.|map((v, _) => v+1;update).|values.|collect; return [v, str(v)]`, newOpts().Init(func(opts *testopts, expect Object) (*testopts, Object) {
+		ex := Array{Int(1)}
+		opts.Args(ex)
+		return opts, Array{ex, Str("[2]")}
+	}), Nil)
 
 	expectRun(t, `inc := (arr) => arr.|map((v, _) => v+1; update) 
 	return [1,2,3].|inc.|reduce((sum, v,_) => sum+v, 0).|(v) => v*(2).|((v) => [v])`, nil,
@@ -4224,6 +4351,7 @@ type testopts struct {
 	mixed          bool
 	buffered       bool
 	objectToWriter ObjectToWriter
+	init           func(opts *testopts, expect Object) (*testopts, Object)
 }
 
 func newOpts() *testopts {
@@ -4255,6 +4383,11 @@ func (t *testopts) NamedArgs(args Object) *testopts {
 	case KeyValueArray:
 		t.namedArgs = NewNamedArgs(at)
 	}
+	return t
+}
+
+func (t *testopts) Init(f func(opts *testopts, expect Object) (*testopts, Object)) *testopts {
+	t.init = f
 	return t
 }
 
@@ -4430,6 +4563,13 @@ func expectRun(t *testing.T, script string, opts *testopts, expect Object) {
 		opts   CompileOptions
 		tracer bytes.Buffer
 	}
+
+	if opts.init == nil {
+		opts.init = func(opts *testopts, ex Object) (*testopts, Object) {
+			return opts, expect
+		}
+	}
+
 	testCases := []testCase{
 		{
 			name: "default",
@@ -4491,6 +4631,9 @@ func expectRun(t *testing.T, script string, opts *testopts, expect Object) {
 			vm.Setup(SetupOpts{
 				Builtins: tC.opts.SymbolTable.Builtins(),
 			})
+
+			opts, expect := opts.init(opts, expect)
+
 			ropts := &RunOpts{
 				Globals:        opts.globals,
 				Args:           Args{opts.args},

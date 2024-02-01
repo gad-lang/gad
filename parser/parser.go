@@ -460,7 +460,7 @@ L:
 			p.Next()
 
 			switch p.Token.Token {
-			case token.Ident, token.LParen:
+			case token.Ident, token.LParen, token.End, token.Begin, token.Else:
 				x = p.ParseNullishSelector(x)
 			default:
 				pos := p.Token.Pos
@@ -472,7 +472,7 @@ L:
 			p.Next()
 
 			switch p.Token.Token {
-			case token.Ident, token.LParen:
+			case token.Ident, token.LParen, token.End, token.Begin, token.Else:
 				x = p.ParseSelector(x)
 			default:
 				pos := p.Token.Pos
@@ -664,50 +664,49 @@ func (p *Parser) ParseIndexOrSlice(x node.Expr) node.Expr {
 	}
 }
 
-func (p *Parser) ParseSelector(x node.Expr) node.Expr {
+func (p *Parser) ParseSelectorNode(x node.Expr) (expr, sel node.Expr) {
+	switch p.Token.Token {
+	case token.LParen:
+		lparen := p.Token.Pos
+		p.Next()
+		sel = p.ParseExpr()
+		rparen := p.Expect(token.RParen)
+		sel = &node.ParenExpr{Expr: sel, LParen: lparen, RParen: rparen}
+	case token.End, token.Else, token.Begin:
+		name := p.Token.Token.String()
+		sel = &node.StringLit{
+			Value:    name,
+			ValuePos: p.Token.Pos,
+			Literal:  name,
+		}
+		p.Next()
+	default:
+		ident := p.ParseIdent()
+		sel = &node.StringLit{
+			Value:    ident.Name,
+			ValuePos: ident.NamePos,
+			Literal:  ident.Name,
+		}
+	}
+	expr = x
+	return
+}
+
+func (p *Parser) ParseSelector(x node.Expr) (sel node.Expr) {
 	if p.Trace {
 		defer untracep(tracep(p, "Selector"))
 	}
 
-	var sel node.Expr
-	if p.Token.Token == token.LParen {
-		lparen := p.Token.Pos
-		p.Next()
-		sel = p.ParseExpr()
-		rparen := p.Expect(token.RParen)
-		sel = &node.ParenExpr{Expr: sel, LParen: lparen, RParen: rparen}
-	} else {
-		ident := p.ParseIdent()
-		sel = &node.StringLit{
-			Value:    ident.Name,
-			ValuePos: ident.NamePos,
-			Literal:  ident.Name,
-		}
-	}
+	x, sel = p.ParseSelectorNode(x)
 	return &node.SelectorExpr{Expr: x, Sel: sel}
 }
 
-func (p *Parser) ParseNullishSelector(x node.Expr) node.Expr {
+func (p *Parser) ParseNullishSelector(x node.Expr) (sel node.Expr) {
 	if p.Trace {
 		defer untracep(tracep(p, "NullishSelector"))
 	}
 
-	var sel node.Expr
-	if p.Token.Token == token.LParen {
-		lparen := p.Token.Pos
-		p.Next()
-		sel = p.ParseExpr()
-		rparen := p.Expect(token.RParen)
-		sel = &node.ParenExpr{Expr: sel, LParen: lparen, RParen: rparen}
-	} else {
-		ident := p.ParseIdent()
-		sel = &node.StringLit{
-			Value:    ident.Name,
-			ValuePos: ident.NamePos,
-			Literal:  ident.Name,
-		}
-	}
-
+	x, sel = p.ParseSelectorNode(x)
 	return &node.NullishSelectorExpr{Expr: x, Sel: sel}
 }
 

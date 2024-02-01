@@ -121,9 +121,8 @@ func (o *Buffer) ToString() string {
 	return o.String()
 }
 
-// Iterate implements Object interface.
-func (o *Buffer) Iterate(*VM) Iterator {
-	return &BytesIterator{V: o.Bytes()}
+func (o *Buffer) Length() int {
+	return o.Len()
 }
 
 // IndexSet implements Object interface.

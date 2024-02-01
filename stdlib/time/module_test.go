@@ -21,7 +21,6 @@ func TestModuleTypes(t *testing.T) {
 	require.True(t, (&Location{}).Equal(&Location{}))
 	require.True(t, (&Location{}).Equal(Str("UTC")))
 	require.False(t, (&Location{}).Equal(Int(0)))
-	require.False(t, Iterable(l))
 
 	tm := &Time{}
 	require.Equal(t, "time", tm.Type().Name())

@@ -166,7 +166,7 @@ func objectEncoder(v gad.Object) encoderFunc {
 		return stringEncoder
 	case gad.Bytes:
 		return bytesEncoder
-	case gad.Dict, *gad.SyncMap:
+	case gad.Dict, *gad.SyncDict:
 		return mapEncoder
 	case gad.Array:
 		return arrayEncoder
@@ -323,7 +323,7 @@ func mapEncoder(e *encodeState, v gad.Object, opts encOpts) {
 		var ptr any
 		if _, ok := v.(gad.Dict); ok {
 			ptr = reflect.ValueOf(v).Pointer()
-		} else { // *SyncMap
+		} else { // *SyncDict
 			ptr = v
 		}
 		if _, ok := e.ptrSeen[ptr]; ok {
@@ -336,7 +336,7 @@ func mapEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	var m gad.Dict
 	var ok bool
 	if m, ok = v.(gad.Dict); !ok {
-		sm := v.(*gad.SyncMap)
+		sm := v.(*gad.SyncDict)
 		if sm == nil {
 			e.WriteString("null")
 			e.ptrLevel--
@@ -374,38 +374,39 @@ func mapEncoder(e *encodeState, v gad.Object, opts encOpts) {
 func reflectMapEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	var (
 		m    = v.(*gad.ReflectMap)
-		it   = m.Iterate(e.vm)
-		dict = make(gad.Dict, m.Len())
+		dict = make(gad.Dict, m.Length())
 	)
-	for it.Next() {
-		dict[it.Key().ToString()], _ = it.Value()
-	}
+
+	gad.IterateObject(e.vm, m, gad.NewNamedArgs(), nil, func(e *gad.IteratorEntry) error {
+		dict[e.K.ToString()] = e.V
+		return nil
+	})
+
 	mapEncoder(e, dict, opts)
 }
 
 func reflectStructEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	var (
 		m    = v.(*gad.ReflectStruct)
-		it   = m.Iterate(e.vm)
 		dict = make(gad.Dict)
 	)
-	for it.Next() {
-		dict[it.Key().ToString()], _ = it.Value()
-	}
+	gad.IterateObject(e.vm, m, gad.NewNamedArgs(), nil, func(e *gad.IteratorEntry) error {
+		dict[e.K.ToString()] = e.V
+		return nil
+	})
 	mapEncoder(e, dict, opts)
 }
 
 func reflectArrayEncoder(e *encodeState, v gad.Object, opts encOpts) {
 	var (
 		a   = v.(*gad.ReflectArray)
-		it  = a.Iterate(e.vm)
-		arr = make(gad.Array, a.Len())
-		i   int
+		arr = make(gad.Array, a.Length())
 	)
 
-	for it.Next() {
-		arr[i], _ = it.Value()
-	}
+	gad.IterateObject(e.vm, a, gad.NewNamedArgs(), nil, func(e *gad.IteratorEntry) error {
+		arr[int(e.K.(gad.Int))] = e.V
+		return nil
+	})
 	arrayEncoder(e, arr, opts)
 }
 

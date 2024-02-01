@@ -70,6 +70,7 @@ func (b *BuiltinObjType) String() string {
 
 var (
 	TNil,
+	TItEntry,
 	TFlag,
 	TBool,
 	TInt,
@@ -133,9 +134,10 @@ var (
 )
 
 func init() {
-	TNil = RegisterBuiltinType(BuiltinNil, "nil", Nil, func(call Call) (ret Object, err error) {
-		return Nil, nil
-	})
+	TNil = RegisterBuiltinType(BuiltinNil, "nil", Nil, nil)
+	TItEntry = RegisterBuiltinType(BuiltinItEntry, "ItEntry", Nil, funcPOOROe(func(k Object, v Object) (Object, error) {
+		return &IteratorEntry{KeyValue{K: k, V: v}}, nil
+	}))
 	TFlag = RegisterBuiltinType(BuiltinFlag, "flag", Yes, funcPORO(BuiltinFlagFunc))
 	TBool = RegisterBuiltinType(BuiltinBool, "bool", True, funcPORO(BuiltinBoolFunc))
 	TInt = RegisterBuiltinType(BuiltinInt, "int", Int(0), funcPi64RO(BuiltinIntFunc))
@@ -150,43 +152,8 @@ func init() {
 	TArray = RegisterBuiltinType(BuiltinArray, "array", Array{}, func(c Call) (ret Object, err error) {
 		return c.Args.Values(), nil
 	})
-	TDict = RegisterBuiltinType(BuiltinDict, "dict", Dict{}, func(c Call) (ret Object, err error) {
-		d := Dict{}
-		c.Args.Walk(func(_ int, arg Object) any {
-			switch t := arg.(type) {
-			case KeyValueArray:
-				var v Object
-				for _, value := range t {
-					v = value.V
-					if v != No {
-						d[value.K.ToString()] = v
-					}
-				}
-			default:
-				if Iterable(arg) {
-					it := arg.(Iterabler).Iterate(c.VM)
-					for it.Next() {
-						if d[it.Key().ToString()], err = it.Value(); err != nil {
-							return err
-						}
-					}
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return
-		}
-		if len(d) == 0 {
-			d = c.NamedArgs.AllDict()
-		} else {
-			for k, v := range c.NamedArgs.AllDict() {
-				d[k] = v
-			}
-		}
-		return d, nil
-	})
-	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncMap{}, BuiltinSyncDictFunc)
+	TDict = RegisterBuiltinType(BuiltinDict, "dict", Dict{}, BuiltinDictFunc)
+	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncDict{}, BuiltinSyncDictFunc)
 	TKeyValue = RegisterBuiltinType(BuiltinKeyValue, "keyValue", KeyValue{}, BuiltinKeyValueFunc)
 	TKeyValueArray = RegisterBuiltinType(BuiltinKeyValueArray, "keyValueArray", KeyValueArray{}, BuiltinKeyValueArrayFunc)
 	TError = RegisterBuiltinType(BuiltinError, "error", Error{}, funcPORO(BuiltinErrorFunc))

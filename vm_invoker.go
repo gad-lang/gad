@@ -123,8 +123,8 @@ do:
 		inv.child.StdOut = inv.vm.StdOut
 		inv.child.StdErr = inv.vm.StdErr
 
-		if validate {
-			if err := inv.callee.(*CompiledFunction).ValidateParamTypes(inv.child, args); err != nil {
+		if validate && !inv.validArgs {
+			if err := inv.callee.(*CompiledFunction).ValidateParamTypes(inv.vm, args); err != nil {
 				return nil, err
 			}
 		}
@@ -134,6 +134,7 @@ do:
 		}
 
 		return &vmCompiledFuncCaller{
+			callee:    inv.callee.(CallerObject),
 			vm:        inv.child,
 			args:      args,
 			namedArgs: namedArgs,

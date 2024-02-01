@@ -93,4 +93,7 @@ func (vm *VM) AddCallerMethod(co CallerObject, types MultipleObjectTypes, caller
 	return co.(MethodCaller).AddCallerMethod(vm, types, caller, false)
 }
 
-var ReprQuote = repr.Quote
+var (
+	ReprQuote      = repr.Quote
+	ReprQuoteTyped = repr.QuoteTyped
+)

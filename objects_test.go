@@ -48,11 +48,11 @@ func TestObjects(t *testing.T) {
 }
 
 func TestObjectIterable(t *testing.T) {
-	require.NotNil(t, Str("").Iterate(nil))
-	require.NotNil(t, Array{}.Iterate(nil))
-	require.NotNil(t, Bytes{}.Iterate(nil))
-	require.NotNil(t, Dict{}.Iterate(nil))
-	require.NotNil(t, (&SyncMap{}).Iterate(nil))
+	require.NotNil(t, Str("").Iterate(nil, &NamedArgs{}))
+	require.NotNil(t, Array{}.Iterate(nil, &NamedArgs{}))
+	require.NotNil(t, Bytes{}.Iterate(nil, &NamedArgs{}))
+	require.NotNil(t, Dict{}.Iterate(nil, &NamedArgs{}))
+	require.NotNil(t, (&SyncDict{}).Iterate(nil, &NamedArgs{}))
 }
 
 func TestObjectCallable(t *testing.T) {
@@ -68,7 +68,7 @@ func TestObjectCallable(t *testing.T) {
 	require.False(t, Callable(Array{}))
 	require.False(t, Callable(Bytes{}))
 	require.False(t, Callable(Dict{}))
-	require.False(t, Callable(&SyncMap{}))
+	require.False(t, Callable(&SyncDict{}))
 
 	require.True(t, Callable(&Function{}))
 	require.True(t, Callable(&BuiltinFunction{}))
@@ -105,9 +105,9 @@ func TestObjectString(t *testing.T) {
 	require.Equal(t, "{}", Dict{}.ToString())
 	m := Dict{"a": Int(1)}
 	require.Equal(t, `{a: 1}`, m.ToString())
-	require.Equal(t, "{}", (&SyncMap{}).ToString())
-	require.Equal(t, m.ToString(), (&SyncMap{Value: m}).ToString())
-	require.Equal(t, "{}", (&SyncMap{Value: Dict{}}).ToString())
+	require.Equal(t, "{}", (&SyncDict{}).ToString())
+	require.Equal(t, m.ToString(), (&SyncDict{Value: m}).ToString())
+	require.Equal(t, "{}", (&SyncDict{Value: Dict{}}).ToString())
 
 	require.Equal(t, ReprQuote("function:"), (&Function{}).ToString())
 	require.Equal(t, ReprQuote("function:xyz"), (&Function{Name: "xyz"}).ToString())
@@ -139,7 +139,7 @@ func TestObjectTypeName(t *testing.T) {
 	require.Equal(t, "array", Array{}.Type().Name())
 	require.Equal(t, "bytes", Bytes{}.Type().Name())
 	require.Equal(t, "dict", Dict{}.Type().Name())
-	require.Equal(t, "syncDict", (&SyncMap{}).Type().Name())
+	require.Equal(t, "syncDict", (&SyncDict{}).Type().Name())
 	require.Equal(t, "function", (&Function{}).Type().Name())
 	require.Equal(t, "builtinFunction", (&BuiltinFunction{}).Type().Name())
 	require.Equal(t, "compiledFunction", (&CompiledFunction{}).Type().Name())
@@ -195,8 +195,8 @@ func TestObjectIsFalsy(t *testing.T) {
 	require.False(t, Bytes{0}.IsFalsy())
 	require.True(t, Dict{}.IsFalsy())
 	require.False(t, Dict{"a": Int(1)}.IsFalsy())
-	require.True(t, (&SyncMap{}).IsFalsy())
-	require.False(t, (&SyncMap{Value: Dict{"a": Int(1)}}).IsFalsy())
+	require.True(t, (&SyncDict{}).IsFalsy())
+	require.False(t, (&SyncDict{Value: Dict{"a": Int(1)}}).IsFalsy())
 	require.False(t, (&Function{}).IsFalsy())
 	require.False(t, (&BuiltinFunction{}).IsFalsy())
 	require.False(t, (&CompiledFunction{}).IsFalsy())
@@ -220,7 +220,7 @@ func TestObjectCopier(t *testing.T) {
 		Array{},
 		Bytes{},
 		Dict{},
-		&SyncMap{},
+		&SyncDict{},
 	}
 	for _, o := range objects {
 		if _, ok := o.(Copier); !ok {
@@ -240,7 +240,6 @@ func TestObjectImpl(t *testing.T) {
 	require.False(t, impl.Equal(impl))
 	require.True(t, impl.IsFalsy())
 	require.False(t, Callable(impl))
-	require.False(t, Iterable(impl))
 }
 
 func TestObjectIndexGet(t *testing.T) {
@@ -345,15 +344,15 @@ func TestObjectIndexGet(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, Int(1), v)
 
-	v, err = (&SyncMap{Value: Dict{}}).IndexGet(nil, Nil)
+	v, err = (&SyncDict{Value: Dict{}}).IndexGet(nil, Nil)
 	require.Nil(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = (&SyncMap{Value: Dict{"a": Int(1)}}).IndexGet(nil, Int(0))
+	v, err = (&SyncDict{Value: Dict{"a": Int(1)}}).IndexGet(nil, Int(0))
 	require.Nil(t, err)
 	require.Equal(t, Nil, v)
 
-	v, err = (&SyncMap{Value: Dict{"a": Int(1)}}).IndexGet(nil, Str("a"))
+	v, err = (&SyncDict{Value: Dict{"a": Int(1)}}).IndexGet(nil, Str("a"))
 	require.Nil(t, err)
 	require.Equal(t, Int(1), v)
 }
@@ -404,13 +403,13 @@ func TestObjectIndexSet(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, Int(2), v.(Dict)["a"])
 
-	v = &SyncMap{Value: Dict{}}
+	v = &SyncDict{Value: Dict{}}
 	err = v.IndexSet(nil, Nil, Nil)
 	require.Nil(t, err)
-	require.Equal(t, Nil, v.(*SyncMap).Value["nil"])
+	require.Equal(t, Nil, v.(*SyncDict).Value["nil"])
 
-	v = &SyncMap{Value: Dict{"a": Int(1)}}
+	v = &SyncDict{Value: Dict{"a": Int(1)}}
 	err = v.IndexSet(nil, Str("a"), Int(2))
 	require.Nil(t, err)
-	require.Equal(t, Int(2), v.(*SyncMap).Value["a"])
+	require.Equal(t, Int(2), v.(*SyncDict).Value["a"])
 }

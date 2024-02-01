@@ -187,6 +187,10 @@ func (vm *VM) resetState(args Args, namedArgs *NamedArgs) {
 	vm.frameIndex = 1
 }
 
+func (vm *VM) Init() *VM {
+	return vm.Setup(SetupOpts{})
+}
+
 func (vm *VM) Setup(opts SetupOpts) *VM {
 	if vm.SetupOpts != nil {
 		return vm
@@ -393,6 +397,10 @@ func (vm *VM) initCurrentFrame(args Args, named *NamedArgs) {
 }
 
 func (vm *VM) clearCurrentFrame() {
+	for _, f := range vm.curFrame.defers {
+		f()
+	}
+	vm.curFrame.defers = nil
 	vm.curFrame.freeVars = nil
 	vm.curFrame.fn = nil
 	vm.curFrame.errHandlers = nil
@@ -806,11 +814,9 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			arrSize = len(arr)
 			vargsArr = arr
 		} else {
-			var items Object
-			if items, err = Val(vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{{vargs}}})); err != nil {
+			if vargsArr, err = ValuesOf(vm, vargs, &NamedArgs{}); err != nil {
 				return
 			}
-			vargsArr = items.(Array)
 			arrSize = len(vargsArr)
 		}
 
@@ -993,12 +999,8 @@ func (vm *VM) xOpCallObject(co_ Object, numArgs int, flags OpCallFlag) (err erro
 	if expandArgs > 0 {
 		if arr, ok := vm.stack[basePointer+numArgs-1].(Array); ok {
 			vargs = arr
-		} else {
-			var items Object
-			if items, err = Val(vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{{vm.stack[basePointer+numArgs-1]}}})); err != nil {
-				return
-			}
-			vargs = items.(Array)
+		} else if vargs, err = ValuesOf(vm, vm.stack[basePointer+numArgs-1], &NamedArgs{}); err != nil {
+			return
 		}
 	}
 
@@ -1142,7 +1144,7 @@ func (vm *VM) xOpSliceIndex() error {
 		isbytes = true
 		objlen = len(obj)
 	case Slicer:
-		objlen = obj.Len()
+		objlen = obj.Length()
 	default:
 		return ErrType.NewError(obj.Type().Name(), "cannot be sliced")
 	}
@@ -1343,6 +1345,11 @@ type frame struct {
 	errHandlers *errHandlers
 	args        Args
 	namedArgs   *NamedArgs
+	defers      []func()
+}
+
+func (f *frame) Defer(fn func()) {
+	f.defers = append(f.defers, fn)
 }
 
 func getFrameSourcePos(frame *frame) source.Pos {

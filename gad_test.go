@@ -37,9 +37,9 @@ func TestToInterface(t *testing.T) {
 		{object: Float(1), want: float64(1)},
 		{object: True, want: true},
 		{object: False, want: false},
-		{object: (*SyncMap)(nil), want: map[string]any{}},
+		{object: (*SyncDict)(nil), want: map[string]any{}},
 		{
-			object: &SyncMap{Value: Dict{"a": Int(1)}},
+			object: &SyncDict{Value: Dict{"a": Int(1)}},
 			want:   map[string]any{"a": int64(1)},
 		},
 	}

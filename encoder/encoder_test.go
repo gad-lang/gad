@@ -35,7 +35,7 @@ func TestGobEncoder(t *testing.T) {
 		gad.Bytes{},
 		gad.Array{gad.Bool(true), gad.Flag(true), gad.Str("")},
 		gad.Dict{"b": gad.Bool(true), "f": gad.Flag(true), "s": gad.Str("")},
-		&gad.SyncMap{Value: gad.Dict{"i": gad.Int(0), "u": gad.Uint(0), "d": gad.MustDecimalFromString("123.456")}},
+		&gad.SyncDict{Value: gad.Dict{"i": gad.Int(0), "u": gad.Uint(0), "d": gad.MustDecimalFromString("123.456")}},
 		&gad.ObjectPtr{},
 		&time.Time{Value: gotime.Now()},
 		&json.EncoderOptions{Value: gad.Float(0)},
@@ -328,16 +328,16 @@ func TestEncDecObjects(t *testing.T) {
 		require.Equal(t, tC, obj, msg)
 	}
 
-	syncMaps := []*gad.SyncMap{}
+	syncMaps := []*gad.SyncDict{}
 	for _, m := range maps {
-		syncMaps = append(syncMaps, &gad.SyncMap{Value: m})
+		syncMaps = append(syncMaps, &gad.SyncDict{Value: m})
 	}
 	for _, tC := range syncMaps {
-		msg := fmt.Sprintf("SyncMap(%v)", tC)
+		msg := fmt.Sprintf("SyncDict(%v)", tC)
 		data, err := (*SyncMap)(tC).MarshalBinary()
 		require.NoError(t, err, msg)
 		require.Greater(t, len(data), 0, msg)
-		var v = &gad.SyncMap{}
+		var v = &gad.SyncDict{}
 		err = (*SyncMap)(v).UnmarshalBinary(data)
 		require.NoError(t, err, msg)
 		require.Equal(t, tC, v, msg)
@@ -545,7 +545,7 @@ func testDecodedBytecodeEqual(t *testing.T, actual, decoded *gad.Bytecode) {
 	t.Helper()
 	msg := fmt.Sprintf("actual:%s\ndecoded:%s\n", actual, decoded)
 
-	testBytecodeConstants(t, actual.Constants, decoded.Constants)
+	testBytecodeConstants(t, gad.NewVM(actual).Init(), actual.Constants, decoded.Constants)
 	require.Equal(t, actual.Main, decoded.Main, msg)
 	require.Equal(t, actual.NumModules, decoded.NumModules, msg)
 	if actual.FileSet == nil {
@@ -574,7 +574,7 @@ func getModuleName(obj gad.Object) (string, bool) {
 	return "", false
 }
 
-func testBytecodeConstants(t *testing.T, expected, decoded []gad.Object) {
+func testBytecodeConstants(t *testing.T, vm *gad.VM, expected, decoded []gad.Object) {
 	t.Helper()
 	if len(decoded) != len(expected) {
 		t.Fatalf("constants length not equal want %d, got %d", len(decoded), len(expected))
@@ -586,6 +586,12 @@ func testBytecodeConstants(t *testing.T, expected, decoded []gad.Object) {
 		}
 		return ret
 	}
+
+	next := func(ok bool, err error) bool {
+		require.NoError(t, err)
+		return ok
+	}
+
 	for i := range decoded {
 		modName, ok1 := getModuleName(expected[i])
 		decModName, ok2 := getModuleName(decoded[i])
@@ -594,18 +600,23 @@ func testBytecodeConstants(t *testing.T, expected, decoded []gad.Object) {
 			require.Equal(t, modName, decModName)
 			require.Equal(t, reflect.TypeOf(expected[i]), reflect.TypeOf(decoded[i]))
 			require.Equal(t, Len(expected[i]), Len(decoded[i]))
-			if !gad.Iterable(expected[i]) {
-				require.False(t, gad.Iterable(decoded[i]))
+			if !gad.Iterable(vm, expected[i]) {
+				require.False(t, gad.Iterable(vm, decoded[i]))
 				continue
 			}
-			it := expected[i].(gad.Iterabler).Iterate(nil)
-			decIt := decoded[i].(gad.Iterabler).Iterate(nil)
-			for decIt.Next() {
-				require.True(t, it.Next())
+
+			_, it, err := gad.ToStateIterator(vm, expected[i], gad.NewNamedArgs())
+			require.NoError(t, err)
+
+			_, decIt, err := gad.ToStateIterator(vm, decoded[i], gad.NewNamedArgs())
+			require.NoError(t, err)
+
+			for next(decIt.Next()) {
+				require.True(t, next(it.Next()))
 				key := decIt.Key()
-				v1, err := gad.Val(expected[i].(gad.IndexGetter).IndexGet(nil, key))
+				v1, err := gad.Val(expected[i].(gad.IndexGetter).IndexGet(vm, key))
 				require.NoError(t, err)
-				v2, err := decIt.Value()
+				v2 := decIt.Value()
 				require.NoError(t, err)
 				if (v1 != nil && v2 == nil) || (v1 == nil && v2 != nil) {
 					t.Fatalf("decoded constant index %d not equal", i)
@@ -622,7 +633,7 @@ func testBytecodeConstants(t *testing.T, expected, decoded []gad.Object) {
 					require.Equal(t, v1, v2)
 				}
 			}
-			require.False(t, it.Next())
+			require.False(t, next(it.Next()))
 			continue
 		}
 		require.Equalf(t, expected[i], decoded[i],

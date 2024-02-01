@@ -34,7 +34,7 @@ var testObjects = []gad.Object{
 	gad.ErrIndexOutOfBounds,
 	&gad.RuntimeError{Err: gad.ErrInvalidIndex},
 	gad.Dict{"key": &gad.Function{Name: "f"}},
-	&gad.SyncMap{Value: gad.Dict{"k": gad.Str("")}},
+	&gad.SyncDict{Value: gad.Dict{"k": gad.Str("")}},
 	gad.Array{gad.Nil, gad.True, gad.False},
 	&time.Time{Value: gotime.Time{}},
 	&json.EncoderOptions{Value: gad.Int(1)},
@@ -176,7 +176,7 @@ func testBytecodesEqual(t *testing.T, want, got *gad.Bytecode) {
 	require.Equal(t, want.Main, got.Main)
 	require.Equalf(t, want.Constants, got.Constants,
 		"expected:%s\nactual:%s", tests.Sdump(want.Constants), tests.Sdump(want.Constants))
-	testBytecodeConstants(t, want.Constants, got.Constants)
+	testBytecodeConstants(t, gad.NewVM(got).Init(), want.Constants, got.Constants)
 	require.Equal(t, want.NumModules, got.NumModules)
 }
 

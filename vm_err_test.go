@@ -838,7 +838,7 @@ func TestVMExamples(t *testing.T) {
 
 	expectRun(t, scr, newOpts().Out(printWriter).Args(Int(2)), Int(5))
 
-	g = &SyncMap{Value: Dict{"stats": Dict{"fn1": Int(0), "fn2": Int(0)}}}
+	g = &SyncDict{Value: Dict{"stats": Dict{"fn1": Int(0), "fn2": Int(0)}}}
 	expectRun(t, `
 	global stats
 
@@ -859,6 +859,6 @@ func TestVMExamples(t *testing.T) {
 		/* ... */
 	}
 	`).Out(printWriter).Globals(g).Skip2Pass(), Nil)
-	require.Equal(t, Int(1), g.(*SyncMap).Value["stats"].(Dict)["fn1"])
-	require.Equal(t, Int(1), g.(*SyncMap).Value["stats"].(Dict)["fn2"])
+	require.Equal(t, Int(1), g.(*SyncDict).Value["stats"].(Dict)["fn1"])
+	require.Equal(t, Int(1), g.(*SyncDict).Value["stats"].(Dict)["fn2"])
 }

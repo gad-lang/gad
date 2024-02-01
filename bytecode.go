@@ -255,6 +255,22 @@ func (o *CompiledFunction) ToString() string {
 	return ReprQuote("compiledFunction" + strings.Join(s, ""))
 }
 
+func (o *CompiledFunction) Repr(vm *VM) (_ string, err error) {
+	var (
+		s      []string
+		params []string
+	)
+	s = append(s, " "+o.Name)
+	if o.Params.Len > 0 {
+		params = append(params, o.Params.String())
+	}
+	if o.NamedParams.len > 0 {
+		params = append(params, o.NamedParams.String())
+	}
+	s = append(s, "("+strings.Join(params, ", ")+")")
+	return ReprQuote("compiledFunction" + strings.Join(s, "")), nil
+}
+
 func (o *CompiledFunction) Format(f fmt.State, verb rune) {
 	if verb == 'v' {
 		f.Write([]byte(o.ToString()))
@@ -402,11 +418,11 @@ func (o *CompiledFunction) SetNamedParams(params ...*NamedParam) {
 
 func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 	if o.Params.Var {
-		if min := o.Params.Min(); args.Len() < min {
-			return ErrWrongNumArguments.NewError(fmt.Sprintf("expected >= %d but got %d", min, args.Len()))
+		if min := o.Params.Min(); args.Length() < min {
+			return ErrWrongNumArguments.NewError(fmt.Sprintf("expected >= %d but got %d", min, args.Length()))
 		}
-	} else if args.Len() != o.Params.Len {
-		return ErrWrongNumArguments.NewError(fmt.Sprintf("expected %d but got %d", o.Params.Len, args.Len()))
+	} else if args.Length() != o.Params.Len {
+		return ErrWrongNumArguments.NewError(fmt.Sprintf("expected %d but got %d", o.Params.Len, args.Length()))
 	}
 
 	if o.Params.Typed {

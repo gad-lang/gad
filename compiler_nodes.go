@@ -1595,6 +1595,7 @@ func (c *Compiler) compileDictLit(nd *node.DictLit) error {
 	c.emit(nd, OpMap, len(nd.Elements)*2)
 	return nil
 }
+
 func (c *Compiler) compileKeyValueArrayLit(nd *node.KeyValueArrayLit) (err error) {
 	length := len(nd.Elements)
 	for _, elt := range nd.Elements {

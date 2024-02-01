@@ -72,7 +72,7 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("globals plus", func(t *testing.T) {
 		require.NoError(t, r.execute(".globals+"))
-		testHasPrefix(t, string(cw.consume()), "&gad.SyncMap{")
+		testHasPrefix(t, string(cw.consume()), "&gad.SyncDict{")
 	})
 	t.Run("locals", func(t *testing.T) {
 		r := newREPL(ctx, cw)

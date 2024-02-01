@@ -78,6 +78,13 @@ type CallerMethod struct {
 	index int
 }
 
+func (o *CallerMethod) Caller() CallerObject {
+	if o == nil {
+		return nil
+	}
+	return o.CallerObject
+}
+
 func (o *CallerMethod) Remove() {
 	for _, method := range o.arg.Methods[o.index+1:] {
 		method.index--
@@ -194,6 +201,10 @@ func (o *CallerObjectWithMethods) CallerOf(args Args) (CallerObject, bool) {
 		return nil
 	})
 	return o.CallerOfTypes(types)
+}
+
+func (o *CallerObjectWithMethods) GetMethod(types []ObjectType) (co CallerObject) {
+	return o.Methods.GetMethod(types).Caller()
 }
 
 func (o *CallerObjectWithMethods) CallerOfTypes(types []ObjectType) (co CallerObject, validate bool) {
@@ -354,7 +365,11 @@ func (args Methods) WalkSorted(cb func(m *CallerMethod) any) (rv any) {
 	)
 
 	for key := range args {
-		values[i] = kv{key.Name(), key}
+		if key == nil {
+			values[i] = kv{"", nil}
+		} else {
+			values[i] = kv{key.Name(), key}
+		}
 		i++
 	}
 
@@ -398,7 +413,7 @@ func (args Methods) GetMethod(types []ObjectType) (cm *CallerMethod) {
 		at = args[types[0]]
 		if at == nil {
 			if at = args[nil]; at == nil {
-				return
+				return nil
 			}
 		}
 		args = at.Next

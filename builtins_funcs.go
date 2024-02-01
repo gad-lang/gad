@@ -78,7 +78,7 @@ func BuiltinAppendFunc(c Call) (Object, error) {
 		}
 		return obj, nil
 	case *NilType:
-		ret := make(Array, 0, c.Args.Len())
+		ret := make(Array, 0, c.Args.Length())
 		for _, arg := range c.Args {
 			arg.AppendToArray(&ret)
 		}
@@ -193,7 +193,7 @@ func BuiltinContainsFunc(arg0, arg1 Object) (Object, error) {
 	switch obj := arg0.(type) {
 	case Dict:
 		_, ok = obj[arg1.ToString()]
-	case *SyncMap:
+	case *SyncDict:
 		_, ok = obj.Get(arg1.ToString())
 	case Array:
 		for _, item := range obj {
@@ -239,7 +239,7 @@ func BuiltinContainsFunc(arg0, arg1 Object) (Object, error) {
 func BuiltinLenFunc(arg Object) Object {
 	var n int
 	if v, ok := arg.(LengthGetter); ok {
-		n = v.Len()
+		n = v.Length()
 	}
 	return Int(n)
 }
@@ -314,8 +314,10 @@ func BuiltinFilterFunc(c Call) (_ Object, err error) {
 		iterabler = &Arg{
 			Name: "iterable",
 			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
-				"iterable":   Iterable,
-				"filterable": Iterable,
+				"iterable": func(v Object) bool {
+					return Iterable(c.VM, v)
+				},
+				"filterable": Filterable,
 			}),
 		}
 
@@ -344,22 +346,18 @@ func BuiltinFilterFunc(c Call) (_ Object, err error) {
 		return iterabler.Value.(Filterabler).Filter(c.VM, args, caller)
 	}
 
-	var (
-		it     = iterabler.Value.(Iterabler).Iterate(c.VM)
-		fe     = NewForEach(it, args, 0, caller)
-		ret    Array
-		result Object
-	)
-
-	for fe.Next() {
-		if result, err = fe.Call(); err != nil {
-			return
-		} else if !result.IsFalsy() {
-			ret = append(ret, fe.Value)
-		}
+	var it Iterator
+	if _, it, err = ToIterator(c.VM, iterabler.Value, &c.NamedArgs); err != nil {
+		return
 	}
-
-	return ret, nil
+	return IteratorObject(NewPipedInvokeIterator(it, args, 0, caller).
+		SetType(TFilterIterator).
+		SetPostCall(func(state *IteratorState, ret Object) error {
+			if ret.IsFalsy() {
+				state.Mode = IteratorStateModeContinue
+			}
+			return nil
+		})), nil
 }
 
 func BuiltinMapFunc(c Call) (_ Object, err error) {
@@ -367,8 +365,10 @@ func BuiltinMapFunc(c Call) (_ Object, err error) {
 		iterabler = &Arg{
 			Name: "iterable",
 			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
-				"mapable":  Mapable,
-				"iterable": Iterable,
+				"mapable": Mapable,
+				"iterable": func(v Object) bool {
+					return Iterable(c.VM, v)
+				},
 			}),
 		}
 
@@ -415,44 +415,52 @@ func BuiltinMapFunc(c Call) (_ Object, err error) {
 		return iterabler.Value.(Mapabler).Map(c, bool(update.Value.(Bool)), args, caller)
 	}
 
+	var it Iterator
+	if _, it, err = ToIterator(c.VM, iterabler.Value, &c.NamedArgs); err != nil {
+		return
+	}
+
+	fe := NewPipedInvokeIterator(it, args, 0, caller).
+		SetType(TMapIterator)
+
+	if canUpdate {
+		var indexSetter IndexSetter
+		switch t := iterabler.Value.(type) {
+		case Array:
+			indexSetter = &t
+		case IndexSetter:
+			indexSetter = t
+		}
+		fe.SetPostCall(func(state *IteratorState, ret Object) (err error) {
+			err = indexSetter.IndexSet(c.VM, state.Entry.K, ret)
+			state.Entry.V = ret
+			return
+		})
+		iterabler.Value = indexSetter
+	}
+
+	return IteratorObject(fe), nil
+}
+
+func BuiltinEnumerateFunc(c Call) (_ Object, err error) {
+	if err := c.Args.CheckLen(1); err != nil {
+		return nil, err
+	}
 	var (
-		it = iterabler.Value.(Iterabler).Iterate(c.VM)
-		fe = NewForEach(it, args, 0, caller)
+		v  = c.Args.Get(0)
+		it Iterator
+		i  Int
 	)
-
-	if !canUpdate {
-		indexSetter := iterabler.Value.(IndexSetter)
-		for fe.Next() {
-			if fe.Value, err = fe.Call(); err != nil {
-				return
-			}
-			if err = indexSetter.IndexSet(c.VM, fe.Key, fe.Value); err != nil {
-				return
-			}
-		}
-		return iterabler.Value, nil
+	if _, it, err = ToIterator(c.VM, v, &c.NamedArgs); err != nil {
+		return
 	}
-
-	var ret Array
-	if itl, _ := it.(LengthIterator); itl != nil {
-		ret = make(Array, itl.Length())
-		var i int
-		for fe.Next() {
-			if ret[i], err = fe.Call(); err != nil {
-				return
-			}
-			i++
-		}
-	} else {
-		var val Object
-		for fe.Next() {
-			if val, err = fe.Call(); err != nil {
-				return
-			}
-			ret = append(ret, val)
-		}
-	}
-	return ret, nil
+	return TypedIteratorObject(TEnumerateIterator, WrapIterator(it, func(e *IteratorEntry) (Object, error) {
+		kv := e.KeyValue
+		e.K = i
+		e.V = &kv
+		i++
+		return e, nil
+	})), nil
 }
 
 func BuiltinEachFunc(c Call) (_ Object, err error) {
@@ -460,7 +468,9 @@ func BuiltinEachFunc(c Call) (_ Object, err error) {
 		iterabler = &Arg{
 			Name: "iterable",
 			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
-				"iterable": Iterable,
+				"iterable": func(v Object) bool {
+					return Iterable(c.VM, v)
+				},
 			}),
 		}
 
@@ -485,22 +495,14 @@ func BuiltinEachFunc(c Call) (_ Object, err error) {
 		return
 	}
 
-	var (
-		it  = iterabler.Value.(Iterabler).Iterate(c.VM)
-		fe  = NewForEach(it, args, 0, caller)
-		val Object
-	)
+	err = IterateObject(c.VM, iterabler.Value, &c.NamedArgs, nil, func(e *IteratorEntry) (err error) {
+		args[0] = e.K
+		args[1] = e.V
+		_, err = caller.Call()
+		return
+	})
 
-	for fe.Next() {
-		if val, err = fe.Call(); err != nil {
-			return
-		}
-		if val == False {
-			break
-		}
-	}
-
-	return iterabler.Value, nil
+	return iterabler.Value, err
 }
 
 func BuiltinReduceFunc(c Call) (_ Object, err error) {
@@ -509,7 +511,9 @@ func BuiltinReduceFunc(c Call) (_ Object, err error) {
 			Name: "iterable",
 			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
 				"reducable": Reducable,
-				"iterable":  Iterable,
+				"iterable": func(v Object) bool {
+					return Iterable(c.VM, v)
+				},
 			}),
 		}
 
@@ -520,78 +524,49 @@ func BuiltinReduceFunc(c Call) (_ Object, err error) {
 			}),
 		}
 
-		val = Nil
+		args   = Array{Nil, Nil, Nil}
+		caller VMCaller
 	)
 
-	if c.Args.Len() == 3 {
+	if c.Args.Length() == 3 {
 		initialArg := &Arg{}
 		if err = c.Args.Destructure(iterabler, callback, initialArg); err != nil {
 			return
 		}
-		val = initialArg.Value
+		args[0] = initialArg.Value
 	} else {
 		if err = c.Args.Destructure(iterabler, callback); err != nil {
 			return
 		}
 	}
 
-	var (
-		args   = Array{Nil, Nil, Nil}
-		caller VMCaller
-	)
-
 	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
 		return
 	}
 
 	if Reducable(iterabler.Value) {
-		return iterabler.Value.(Reducer).Reduce(c.VM, val, args, caller)
+		return iterabler.Value.(Reducer).Reduce(c.VM, args[0], args, caller)
 	}
 
-	var (
-		it = iterabler.Value.(Iterabler).Iterate(c.VM)
-		fe = NewForEach(it, args, 1, caller)
-	)
+	var it Iterator
+	if _, it, err = ToIterator(c.VM, iterabler.Value, &c.NamedArgs); err != nil {
+		return
+	}
 
-	if itl, _ := it.(LengthIterator); itl != nil {
-		if val == Nil {
-			if fe.Next() {
-				args[0] = fe.Value
-				if val, err = fe.Call(); err != nil {
-					return
-				}
-			}
-		}
+	fe := NewPipedInvokeIterator(it, args, 1, caller)
 
-		args[0] = val
-
-		for fe.Next() {
-			if val, err = fe.Call(); err != nil {
-				return
-			}
-			args[0] = val
-		}
-	} else {
-		if val == Nil {
-			if fe.Next() {
-				val = fe.Value
-				args[0] = val
-				if val, err = fe.Call(); err != nil {
-					return
-				}
-			}
-		}
-
-		args[0] = val
-		for fe.Next() {
-			if val, err = fe.Call(); err != nil {
-				return
-			}
-			args[0] = val
+	if args[0] == Nil {
+		fe.preCall = func(k, v Object) (Object, error) {
+			args[0] = v
+			return v, nil
 		}
 	}
 
-	return val, nil
+	err = Iterate(c.VM, fe, nil, func(e *IteratorEntry) error {
+		args[0] = e.V
+		return nil
+	})
+	return args[0], err
 }
 
 func BuiltinErrorFunc(arg Object) Object {
@@ -658,7 +633,7 @@ func BuiltinStringFunc(c Call) (ret Object, err error) {
 		return nil, err
 	}
 
-	switch c.Args.Len() {
+	switch c.Args.Length() {
 	case 1:
 		o := c.Args.GetOnly(0)
 		ret = Str(o.ToString())
@@ -686,7 +661,7 @@ func BuiltinStringFunc(c Call) (ret Object, err error) {
 }
 
 func BuiltinBytesFunc(c Call) (Object, error) {
-	size := c.Args.Len()
+	size := c.Args.Length()
 
 	switch size {
 	case 0:
@@ -774,7 +749,7 @@ func BuiltinPrintfFunc(c Call) (_ Object, err error) {
 
 	w := out.Value.(Writer)
 
-	switch size := c.Args.Len(); size {
+	switch size := c.Args.Length(); size {
 	case 0:
 		err = ErrWrongNumArguments.NewError("want>=1 got=0")
 	case 1:
@@ -880,6 +855,44 @@ func BuiltinBufferFunc(c Call) (ret Object, err error) {
 	return w, err
 }
 
+func BuiltinDictFunc(c Call) (ret Object, err error) {
+	d := Dict{}
+	c.Args.Walk(func(_ int, arg Object) any {
+		switch t := arg.(type) {
+		case KeyValueArray:
+			var v Object
+			for _, value := range t {
+				v = value.V
+				if v != No {
+					d[value.K.ToString()] = v
+				}
+			}
+		default:
+			err = itemsOfCb(c.VM, arg, &c.NamedArgs, func(kv *KeyValue) error {
+				d[kv.K.ToString()] = kv.V
+				return nil
+			})
+
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return
+	}
+	if len(d) == 0 {
+		d = c.NamedArgs.AllDict()
+	} else {
+		for k, v := range c.NamedArgs.AllDict() {
+			d[k] = v
+		}
+	}
+	return d, nil
+}
+
 func BuiltinPrintFunc(c Call) (_ Object, err error) {
 	var (
 		w     io.Writer = c.VM.StdOut
@@ -897,7 +910,7 @@ func BuiltinPrintFunc(c Call) (_ Object, err error) {
 		c.Args.Shift()
 	}
 
-	switch size := c.Args.Len(); size {
+	switch size := c.Args.Length(); size {
 	case 0:
 	default:
 		vargs := make([]any, 0, size)
@@ -917,7 +930,7 @@ func BuiltinPrintlnFunc(c Call) (ret Object, err error) {
 		n int
 	)
 
-	switch size := c.Args.Len(); size {
+	switch size := c.Args.Length(); size {
 	case 0:
 		n, err = w.Write([]byte("\n"))
 	default:
@@ -963,7 +976,7 @@ func BuiltinPrintlnFunc(c Call) (ret Object, err error) {
 
 func BuiltinSprintfFunc(c Call) (ret Object, err error) {
 	ret = Nil
-	switch size := c.Args.Len(); size {
+	switch size := c.Args.Length(); size {
 	case 0:
 		err = ErrWrongNumArguments.NewError("want>=1 got=0")
 	case 1:
@@ -1033,7 +1046,7 @@ func BuiltinIsFunc(c Call) (ok Object, err error) {
 
 func BuiltinIsErrorFunc(c Call) (ret Object, err error) {
 	ret = False
-	switch c.Args.Len() {
+	switch c.Args.Length() {
 	case 1:
 		// We have Error, BuiltinError and also user defined error types.
 		if _, ok := c.Args.Get(0).(error); ok {
@@ -1047,7 +1060,7 @@ func BuiltinIsErrorFunc(c Call) (ret Object, err error) {
 		}
 	default:
 		err = ErrWrongNumArguments.NewError(
-			"want=1..2 got=", strconv.Itoa(c.Args.Len()))
+			"want=1..2 got=", strconv.Itoa(c.Args.Length()))
 	}
 	return
 }
@@ -1098,7 +1111,7 @@ func BuiltinIsDictFunc(arg Object) Object {
 }
 
 func BuiltinIsSyncDictFunc(arg Object) Object {
-	_, ok := arg.(*SyncMap)
+	_, ok := arg.(*SyncDict)
 	return Bool(ok)
 }
 
@@ -1135,77 +1148,135 @@ func BuiltinIsCallableFunc(arg Object) Object {
 	return Bool(Callable(arg))
 }
 
-func BuiltinIsIterableFunc(arg Object) Object { return Bool(Iterable(arg)) }
+func BuiltinIsIterableFunc(vm *VM, arg Object) Object {
+	switch arg.(type) {
+	case Iterator:
+		return True
+	case Iterabler:
+		if cit, _ := arg.(CanIterabler); cit != nil {
+			return Bool(cit.CanIterate())
+		}
+		return True
+	}
+
+	m := vm.Builtins.Get(BuiltinIterator).(MethodCaller).GetMethod(ObjectTypes{arg.Type()})
+	return Bool(m != nil)
+}
+func BuiltinIsIteratorFunc(arg Object) Object {
+	return Bool(IsIterator(arg))
+}
+
+func BuiltinIterateFunc(c Call) (_ Object, err error) {
+	if err := c.Args.CheckLen(1); err != nil {
+		return nil, err
+	}
+
+	var (
+		v  = c.Args.Get(0)
+		it Iterator
+	)
+
+	if _, it, err = ToIterator(c.VM, v, &c.NamedArgs); err != nil {
+		return
+	}
+
+	return IteratorObject(it), nil
+}
 
 func BuiltinKeysFunc(c Call) (_ Object, err error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return nil, err
 	}
-	var arr Array
-	switch v := c.Args.Get(0).(type) {
-	case KeysGetter:
-		arr = v.Keys()
-	default:
-		if Iterable(v) {
-			it := v.(Iterabler).Iterate(c.VM)
-			for it.Next() {
-				arr = append(arr, it.Key())
-			}
-		}
+	var (
+		v  = c.Args.Get(0)
+		it Iterator
+	)
+	if _, it, err = ToIterator(c.VM, v, &c.NamedArgs); err != nil {
+		return
 	}
-	return arr, nil
+	return TypedIteratorObject(TKeysIterator, CollectModeIterator(it, IteratorStateCollectModeKeys)), nil
 }
 
 func BuiltinValuesFunc(c Call) (_ Object, err error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return nil, err
 	}
-	var arr Array
-	switch v := c.Args.Get(0).(type) {
-	case Array:
-		arr = v
-	case ValuesGetter:
-		arr = v.Values()
-	default:
-		if Iterable(v) {
-			var (
-				it = v.(Iterabler).Iterate(c.VM)
-				v  Object
-			)
-			for it.Next() {
-				if v, err = it.Value(); err != nil {
-					return nil, err
-				}
-				arr = append(arr, v)
-			}
-		}
+	var (
+		v  = c.Args.Get(0)
+		it Iterator
+	)
+	if _, it, err = ToIterator(c.VM, v, &c.NamedArgs); err != nil {
+		return
 	}
-	return arr, nil
+	return TypedIteratorObject(TValuesIterator, CollectModeIterator(it, IteratorStateCollectModeValues)), nil
 }
 
 func BuiltinItemsFunc(c Call) (_ Object, err error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return nil, err
 	}
-	var arr KeyValueArray
-	switch v := c.Args.Get(0).(type) {
-	case ItemsGetter:
-		arr, err = v.Items(c.VM)
-	default:
-		if Iterable(v) {
-			var (
-				it = v.(Iterabler).Iterate(c.VM)
-				v  Object
-			)
-			for it.Next() {
-				if v, err = it.Value(); err != nil {
-					return nil, err
-				}
-				arr = append(arr, &KeyValue{it.Key(), v})
-			}
+
+	o := c.Args.Get(0)
+
+	if values, ok := o.(KeyValueArray); ok {
+		return IteratorObject(&itemsIterator{values.Iterate(c.VM, &c.NamedArgs)}), nil
+	}
+
+	var it Iterator
+	if _, it, err = ToIterator(c.VM, o, &c.NamedArgs); err != nil {
+		return
+	}
+
+	return IteratorObject(&itemsIterator{Iterator: it}), nil
+}
+
+func BuiltinCollectFunc(c Call) (_ Object, err error) {
+	if err := c.Args.CheckLen(1); err != nil {
+		return nil, err
+	}
+
+	o := c.Args.Get(0)
+
+	if oi, _ := o.(ObjectIterator); oi != nil {
+		if itc, _ := oi.GetIterator().(CollectableIterator); itc != nil {
+			return itc.Collect(c.VM)
 		}
 	}
+
+	var (
+		arr Array
+		h   func(e *IteratorEntry) Object
+	)
+
+	err = IterateObject(c.VM, o, &c.NamedArgs, func(state *IteratorState) error {
+		switch state.CollectMode {
+		case IteratorStateCollectModeKeys:
+			h = func(e *IteratorEntry) Object {
+				return e.K
+			}
+		case IteratorStateCollectModePair:
+			h = func(e *IteratorEntry) Object {
+				kv := e.KeyValue
+				return &kv
+			}
+		default:
+			h = func(e *IteratorEntry) Object {
+				return e.V
+			}
+		}
+		return nil
+	}, func(e *IteratorEntry) error {
+		arr = append(arr, h(e))
+		return nil
+	})
 	return arr, err
+}
+
+func BuiltinIteratorInputFunc(o Object) Object {
+	if IsIterator(o) {
+		return o.(Iterator).Input()
+	}
+	return Nil
 }
 
 func BuiltinKeyValueFunc(c Call) (ret Object, err error) {
@@ -1245,7 +1316,7 @@ func BuiltinKeyValueArrayFunc(c Call) (_ Object, err error) {
 
 func BuiltinStdIOFunc(c Call) (ret Object, err error) {
 	ret = Nil
-	l := c.Args.Len()
+	l := c.Args.Length()
 	identifier := Arg{
 		Name:          "indentifier",
 		TypeAssertion: TypeAssertionFromTypes(TStr, TInt, TUint),
@@ -1359,7 +1430,7 @@ func BuiltinStdIOFunc(c Call) (ret Object, err error) {
 }
 
 func BuiltinPushWriterFunc(c Call) (ret Object, err error) {
-	if c.Args.Len() == 0 {
+	if c.Args.Length() == 0 {
 		buf := &Buffer{}
 		c.VM.StdOut.Push(buf)
 		return buf, nil
@@ -1586,14 +1657,14 @@ func BuiltinSyncDictFunc(c Call) (ret Object, err error) {
 	if err = c.Args.CheckMaxLen(1); err != nil {
 		return
 	}
-	if c.Args.Len() == 0 {
-		return &SyncMap{Value: map[string]Object{}}, nil
+	if c.Args.Length() == 0 {
+		return &SyncDict{Value: map[string]Object{}}, nil
 	}
 	arg := c.Args.Get(0)
 	switch t := arg.(type) {
 	case Dict:
-		return &SyncMap{Value: t}, nil
-	case *SyncMap:
+		return &SyncDict{Value: t}, nil
+	case *SyncDict:
 		return t, nil
 	default:
 		err = NewArgumentTypeError(
@@ -1743,7 +1814,7 @@ func BuiltinReprFunc(c Call) (_ Object, err error) {
 	)
 
 	switch t := arg.(type) {
-	case Representer:
+	case ObjectRepresenter:
 		s, err = t.Repr(c.VM)
 		return Str(s), err
 	}

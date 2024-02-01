@@ -5,20 +5,76 @@
 package gad
 
 import (
+	"reflect"
+	"sort"
+	"strconv"
+	"strings"
 	"sync"
-	"unicode/utf8"
 )
+
+type IteratorEntry struct {
+	KeyValue
+}
+
+func NewIteratorEntry(k, v Object) *IteratorEntry {
+	return &IteratorEntry{KeyValue: KeyValue{k, v}}
+}
+
+func (i *IteratorEntry) IsFalsy() bool {
+	return false
+}
+
+func (i *IteratorEntry) Type() ObjectType {
+	return TItEntry
+}
+
+func (i *IteratorEntry) Equal(right Object) bool {
+	if other, ok := right.(*IteratorEntry); ok {
+		return i.KeyValue.Equal(&other.KeyValue)
+	}
+	return false
+}
+
+func (i *IteratorEntry) ToString() string {
+	return "[;" + i.K.ToString() + "=" + i.V.ToString() + "]"
+}
+
+type IteratorStateMode uint8
+
+const (
+	IteratorStateModeEntry IteratorStateMode = iota
+	IteratorStateModeContinue
+	IteratorStateModeDone
+)
+
+type IteratorStateCollectMode uint8
+
+const (
+	IteratorStateCollectModePair IteratorStateCollectMode = iota
+	IteratorStateCollectModeKeys
+	IteratorStateCollectModeValues
+)
+
+type IteratorState struct {
+	Mode        IteratorStateMode
+	CollectMode IteratorStateCollectMode
+	Entry       IteratorEntry
+	Value       Object
+}
 
 // Iterator wraps the methods required to iterate Objects in VM.
 type Iterator interface {
-	// Next returns true if there are more elements to iterate.
-	Next() bool
+	Representer
+	Type() ObjectType
+	Input() Object
+	Start(vm *VM) (state *IteratorState, err error)
+	Next(vm *VM, state *IteratorState) (err error)
+}
 
-	// Key returns the key or index value of the current element.
-	Key() Object
-
-	// Value returns the value of the current element.
-	Value() (Object, error)
+type ObjectIterator interface {
+	Object
+	Iterator
+	GetIterator() Iterator
 }
 
 type ValuesIterator interface {
@@ -31,213 +87,602 @@ type LengthIterator interface {
 	Length() int
 }
 
-// iteratorObject is used in VM to make an iterable Object.
-type iteratorObject struct {
-	ObjectImpl
+type CollectableIterator interface {
 	Iterator
+	Collect(vm *VM) (Object, error)
 }
 
-var _ Object = (*iteratorObject)(nil)
+type StartIterationHandler func(vm *VM) (state *IteratorState, err error)
 
-// nilIteratorObject is used in VM to make an non iterable Object.
-type nilIteratorObject struct {
-	ObjectImpl
-	Iterator
-}
+type NextIterationHandler func(vm *VM, state *IteratorState) (err error)
 
-func (o *nilIteratorObject) Next() bool {
-	return false
-}
-
-var _ Object = (*iteratorObject)(nil)
-
-// ArrayIterator represents an iterator for the array.
-type ArrayIterator struct {
-	V Array
-	i int
+type Iteration struct {
+	itType       ObjectType
+	StartHandler StartIterationHandler
+	NextHandler  NextIterationHandler
+	input        Object
 }
 
 var (
-	_ Iterator       = (*ArrayIterator)(nil)
-	_ ValuesIterator = (*ArrayIterator)(nil)
-	_ LengthIterator = (*ArrayIterator)(nil)
+	_ Iterator = (*Iteration)(nil)
 )
 
-func (it *ArrayIterator) Length() int {
-	return len(it.V)
+func (it *Iteration) SetInput(input Object) *Iteration {
+	it.input = input
+	return it
 }
 
-func (it *ArrayIterator) Values() Array {
-	return it.V
-}
-
-// Next implements Iterator interface.
-func (it *ArrayIterator) Next() bool {
-	it.i++
-	return it.i-1 < len(it.V)
-}
-
-// Key implements Iterator interface.
-func (it *ArrayIterator) Key() Object {
-	return Int(it.i - 1)
-}
-
-// Value implements Iterator interface.
-func (it *ArrayIterator) Value() (Object, error) {
-	i := it.i - 1
-	if i > -1 && i < len(it.V) {
-		return it.V[i], nil
+func (it *Iteration) Input() Object {
+	if it.input != nil {
+		return it.input
 	}
-	return Nil, nil
+	return Nil
 }
 
-// BytesIterator represents an iterator for the bytes.
-type BytesIterator struct {
-	V Bytes
-	i int
+func (it *Iteration) ItType() ObjectType {
+	return it.itType
 }
 
-var _ Iterator = (*BytesIterator)(nil)
-
-// Next implements Iterator interface.
-func (it *BytesIterator) Next() bool {
-	it.i++
-	return it.i-1 < len(it.V)
+func (it *Iteration) SetItType(itType ObjectType) *Iteration {
+	it.itType = itType
+	return it
 }
 
-// Key implements Iterator interface.
-func (it *BytesIterator) Key() Object {
-	return Int(it.i - 1)
+func (it *Iteration) Repr(vm *VM) (string, error) {
+	return ToReprTypedRS(vm, it.itType, it.Input().ToString())
 }
 
-// Value implements Iterator interface.
-func (it *BytesIterator) Value() (Object, error) {
-	i := it.i - 1
-	if i > -1 && i < len(it.V) {
-		return Int(it.V[i]), nil
-	}
-	return Nil, nil
+func (it *Iteration) Type() ObjectType {
+	return TIterator
 }
 
-// MapIterator represents an iterator for the map.
-type MapIterator struct {
-	V    Dict
-	keys []string
-	i    int
+func (it *Iteration) Start(vm *VM) (state *IteratorState, err error) {
+	return it.StartHandler(vm)
 }
 
-var _ Iterator = (*MapIterator)(nil)
-
-// Next implements Iterator interface.
-func (it *MapIterator) Next() bool {
-	it.i++
-	return it.i-1 < len(it.keys)
+func (it *Iteration) Next(vm *VM, state *IteratorState) (err error) {
+	return it.NextHandler(vm, state)
 }
 
-// Key implements Iterator interface.
-func (it *MapIterator) Key() Object {
-	return Str(it.keys[it.i-1])
+func NewIterator(start StartIterationHandler, next NextIterationHandler) *Iteration {
+	return &Iteration{StartHandler: start, NextHandler: next}
 }
 
-// Value implements Iterator interface.
-func (it *MapIterator) Value() (Object, error) {
-	v, ok := it.V[it.keys[it.i-1]]
-	if !ok {
-		return Nil, nil
-	}
-	return v, nil
-}
-
-// SyncIterator represents an iterator for the SyncMap.
-type SyncIterator struct {
-	mu sync.Mutex
+type LimitedIterator struct {
 	Iterator
+	Len int
 }
 
-// Next implements Iterator interface.
-func (it *SyncIterator) Next() bool {
-	it.mu.Lock()
-	defer it.mu.Unlock()
-	return it.Iterator.Next()
+var (
+	_ Iterator       = (*LimitedIterator)(nil)
+	_ LengthIterator = (*LimitedIterator)(nil)
+)
+
+func NewLimitedIteration(it Iterator, len int) *LimitedIterator {
+	return &LimitedIterator{Iterator: it, Len: len}
 }
 
-// Key implements Iterator interface.
-func (it *SyncIterator) Key() Object {
-	it.mu.Lock()
-	defer it.mu.Unlock()
-	return it.Iterator.Key()
+func (it *LimitedIterator) Length() int {
+	return it.Len
 }
 
-// Value implements Iterator interface.
-func (it *SyncIterator) Value() (Object, error) {
-	it.mu.Lock()
-	defer it.mu.Unlock()
-	return it.Iterator.Value()
+type RangeIteration struct {
+	It         Object
+	ItType     ObjectType
+	valid      func(i int) bool
+	step       int
+	start, end int
+	Len        int
+	ReadTo     func(e *IteratorEntry, i int) error
 }
 
-// StringIterator represents an iterator for the string.
-type StringIterator struct {
-	V Str
-	i int
-	k int
-	r rune
+var (
+	_ Iterator       = (*RangeIteration)(nil)
+	_ LengthIterator = (*LimitedIterator)(nil)
+)
+
+func NewRangeIteration(typ ObjectType, o Object, len int, readTo func(e *IteratorEntry, i int) error) *RangeIteration {
+	var (
+		valid = func(i int) bool {
+			return i >= 0 && i+1 < len
+		}
+	)
+	return &RangeIteration{ItType: typ, It: o, valid: valid, step: 1, end: len - 1, Len: len, ReadTo: readTo}
 }
 
-var _ Iterator = (*StringIterator)(nil)
+func (it *RangeIteration) Type() ObjectType {
+	return it.ItType
+}
 
-// Next implements Iterator interface.
-func (it *StringIterator) Next() bool {
-	if it.i > len(it.V)-1 {
-		return false
+func (it *RangeIteration) Repr(vm *VM) (string, error) {
+	var opts []string
+	if it.end < it.start {
+		opts = append(opts, "reversed")
 	}
-
-	r, s := utf8.DecodeRuneInString(string(it.V)[it.i:])
-	if r == utf8.RuneError || s == 0 {
-		return false
+	if it.step != 1 && it.step != -1 {
+		opts = append(opts, "step="+strconv.Itoa(it.step))
 	}
-
-	it.k = it.i
-	it.r = r
-	it.i += s
-	return true
+	var s string
+	if opts != nil {
+		s = ";"
+		s += strings.Join(opts, ",")
+	}
+	return ToReprTypedRS(vm, it.ItType, it.It.ToString()+s)
 }
 
-// Key implements Iterator interface.
-func (it *StringIterator) Key() Object {
-	return Int(it.k)
+func (it *RangeIteration) SetReversed(v bool) *RangeIteration {
+	if v {
+		it.start = it.Len - 1
+		it.end = 0
+		it.step = -(it.step)
+		it.valid = func(i int) bool {
+			return i <= it.start && i >= it.end
+		}
+	} else {
+		it.end = it.Len - 1
+		it.step = +(it.step)
+		it.valid = func(i int) bool {
+			return i >= 0 && i <= it.end
+		}
+	}
+	return it
 }
 
-// Value implements Iterator interface.
-func (it *StringIterator) Value() (Object, error) {
-	return Char(it.r), nil
+func (it *RangeIteration) ParseNamedArgs(na *NamedArgs) *RangeIteration {
+	if v := na.GetValue("step"); v.Type() == TInt {
+		it.step = int(v.(Int))
+	}
+	it.SetReversed(!na.GetValue("reversed").IsFalsy())
+	return it
 }
 
-type DynamicIterator struct {
-	NextF  func() bool
-	KeyF   func() Object
-	ValueF func() (Object, error)
+func (it *RangeIteration) Input() Object {
+	return it.It
 }
 
-func (d *DynamicIterator) Next() bool {
-	return d.NextF()
-}
-
-func (d *DynamicIterator) Key() Object {
-	return d.KeyF()
-}
-
-func (d *DynamicIterator) Value() (Object, error) {
-	return d.ValueF()
-}
-
-type IteratorValueWrapper struct {
-	Iterator
-	Wrap func(value Object) Object
-}
-
-func (w *IteratorValueWrapper) Value() (value Object, err error) {
-	if value, err = w.Iterator.Value(); err != nil {
+func (it *RangeIteration) Start(*VM) (state *IteratorState, err error) {
+	state = &IteratorState{}
+	if it.Len > 0 {
+		state.Value = Int(it.start)
+		err = it.ReadTo(&state.Entry, it.start)
 		return
 	}
-	return w.Wrap(value), nil
+	state.Mode = IteratorStateModeDone
+	return
+}
+
+func (it *RangeIteration) Next(_ *VM, state *IteratorState) (err error) {
+	state.Mode = IteratorStateModeEntry
+	if i, ok := state.Value.(Int); ok {
+		newI := int(i) + it.step
+		if it.valid(newI) {
+			state.Value = Int(newI)
+			return it.ReadTo(&state.Entry, newI)
+		}
+	}
+	state.Mode = IteratorStateModeDone
+	return
+}
+
+func (it *RangeIteration) Length() int {
+	return it.Len
+}
+
+func SliceIteration[T any](typ ObjectType, o Object, items []T, get func(e *IteratorEntry, i Int, v T) error) *RangeIteration {
+	return NewRangeIteration(typ, o, len(items), func(e *IteratorEntry, i int) (err error) {
+		return get(e, Int(i), items[i])
+	})
+}
+
+func SliceEntryIteration[T any](typ ObjectType, o Object, items []T, get func(v T) (key Object, val Object, err error)) *RangeIteration {
+	return NewRangeIteration(typ, o, len(items), func(e *IteratorEntry, i int) (err error) {
+		e.K, e.V, err = get(items[i])
+		return
+	})
+}
+
+type zipIterator struct {
+	Iterators []Iterator
+	itsCount  int
+}
+
+func (it *zipIterator) Type() ObjectType {
+	return TZipIterator
+}
+
+func ZipIterator(its ...Iterator) Iterator {
+	return &zipIterator{Iterators: its, itsCount: len(its)}
+}
+
+func (it *zipIterator) Repr(vm *VM) (_ string, err error) {
+	var s = make([]string, len(it.Iterators))
+	for i := range s {
+		if s[i], err = it.Iterators[i].Repr(vm); err != nil {
+			return
+		}
+	}
+	return ToReprTypedRS(vm, it.Type(), strings.Join(s, ", "))
+}
+
+func (it *zipIterator) Input() Object {
+	its := make(Array, len(it.Iterators))
+	for i, it := range it.Iterators {
+		its[i] = IteratorObject(it)
+	}
+	return its
+}
+
+func (it *zipIterator) Start(vm *VM) (state *IteratorState, err error) {
+	state = &IteratorState{}
+	if it.itsCount == 0 {
+		state.Mode = IteratorStateModeDone
+	} else {
+		err = it.StartFrom(vm, state, 0)
+	}
+	return
+}
+
+func (it *zipIterator) StartFrom(vm *VM, state *IteratorState, start int) (err error) {
+	if start == it.itsCount {
+		state.Mode = IteratorStateModeDone
+	} else {
+		for i, iterator := range it.Iterators[start:] {
+			var state2 *IteratorState
+			if state2, err = iterator.Start(vm); err != nil {
+				return
+			}
+			if state2.Mode == IteratorStateModeDone {
+				continue
+			}
+
+			state.Entry = state2.Entry
+			state.Value = Array{Int(start + i), state2.Value}
+			return
+		}
+		state.Mode = IteratorStateModeDone
+	}
+	return
+}
+
+func (it *zipIterator) Next(vm *VM, state *IteratorState) (err error) {
+	state.Mode = IteratorStateModeEntry
+
+	if stateArr, ok := state.Value.(Array); ok && len(stateArr) == 2 {
+		if i, ok := stateArr[0].(Int); ok && i >= 0 && i < Int(it.itsCount) {
+			state.Value = stateArr[1]
+			if err = it.Next(vm, state); err != nil {
+				return
+			} else if state.Mode == IteratorStateModeDone {
+				err = it.StartFrom(vm, state, int(i)+1)
+				return
+			}
+			stateArr[1] = state.Value
+			state.Value = stateArr
+			return
+		}
+	}
+	state.Mode = IteratorStateModeDone
+	return
+}
+
+var _ Object = (*iteratorObject)(nil)
+
+// iteratorObject is used in VM to make an iterable Object.
+type iteratorObject struct {
+	typ ObjectType
+	ObjectImpl
+	Iterator
+}
+
+func IteratorObject(it Iterator) Object {
+	return &iteratorObject{Iterator: it}
+}
+
+func TypedIteratorObject(typ ObjectType, it Iterator) Object {
+	return &iteratorObject{typ: typ, Iterator: it}
+}
+
+func (o *iteratorObject) Type() ObjectType {
+	if o.typ != nil {
+		return o.typ
+	}
+	return o.Iterator.Type()
+}
+
+func (o *iteratorObject) Repr(vm *VM) (string, error) {
+	if o.typ != nil {
+		return ToReprTypedRS(vm, o.typ, o.Iterator)
+	}
+	return o.Iterator.Repr(vm)
+}
+
+func (o *iteratorObject) GetIterator() Iterator {
+	return o.Iterator
+}
+
+func (o *iteratorObject) ToString() string {
+	return "iteratorObject of " + o.Input().ToString()
+}
+
+type StateIteratorObject struct {
+	ObjectImpl
+	Iterator Iterator
+	State    *IteratorState
+	VM       *VM
+}
+
+func NewStateIteratorObject(vm *VM, it Iterator) *StateIteratorObject {
+	return &StateIteratorObject{Iterator: it, VM: vm}
+}
+
+func (s *StateIteratorObject) GetIterator() Iterator {
+	return s.Iterator
+}
+
+func (s *StateIteratorObject) Next() (_ bool, err error) {
+	if s.State == nil {
+		if s.State, err = s.Iterator.Start(s.VM); err != nil {
+			return
+		}
+		if s.State.Mode == IteratorStateModeDone {
+			return false, nil
+		}
+	} else if err = s.Iterator.Next(s.VM, s.State); err != nil {
+		return
+	} else if s.State.Mode == IteratorStateModeDone {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (s *StateIteratorObject) Key() Object {
+	return s.State.Entry.K
+}
+
+func (s *StateIteratorObject) Value() Object {
+	return s.State.Entry.V
+}
+
+var (
+	_ Iterator = (*nilIteratorObject)(nil)
+)
+
+// nilIteratorObject is used in VM to make an non iterable Object.
+type nilIteratorObject struct{}
+
+func (*nilIteratorObject) Type() ObjectType {
+	return TNilIterator
+}
+
+func (o *nilIteratorObject) Repr(vm *VM) (string, error) {
+	return ReprQuote(o.Type().Name()), nil
+}
+
+func (*nilIteratorObject) Input() Object {
+	return Nil
+}
+
+func (*nilIteratorObject) Start(*VM) (_ *IteratorState, _ error) {
+	return &IteratorState{Mode: IteratorStateModeDone}, nil
+}
+
+func (o *nilIteratorObject) Next(_ *VM, state *IteratorState) error {
+	state.Mode = IteratorStateModeDone
+	return nil
+}
+
+var _ Object = (*iteratorObject)(nil)
+
+func (o Str) Iterate(_ *VM, na *NamedArgs) Iterator {
+	return SliceIteration(TStrIterator, o, []rune(o), func(e *IteratorEntry, i Int, v rune) error {
+		e.K = i
+		e.V = Char(v)
+		return nil
+	}).ParseNamedArgs(na)
+}
+
+func (o RawStr) Iterate(_ *VM, na *NamedArgs) Iterator {
+	var r = []rune(o)
+	return SliceIteration(TRawStrIterator, o, r, func(e *IteratorEntry, i Int, v rune) error {
+		e.K = i
+		e.V = Char(v)
+		return nil
+	}).ParseNamedArgs(na)
+}
+
+func (o Bytes) Iterate(_ *VM, na *NamedArgs) Iterator {
+	return SliceIteration(TBytesIterator, o, o, func(e *IteratorEntry, i Int, v byte) error {
+		e.K = i
+		e.V = Int(v)
+		return nil
+	}).ParseNamedArgs(na)
+}
+
+func (o Array) Iterate(_ *VM, na *NamedArgs) Iterator {
+	return SliceIteration(TArrayIterator, o, o, func(e *IteratorEntry, i Int, v Object) error {
+		e.K = i
+		e.V = v
+		return nil
+	}).ParseNamedArgs(na)
+}
+
+func (o KeyValueArray) Iterate(_ *VM, na *NamedArgs) Iterator {
+	return SliceIteration(TKeyValueArrayIterator, o, o, func(e *IteratorEntry, i Int, v *KeyValue) error {
+		e.KeyValue = *v
+		return nil
+	}).ParseNamedArgs(na)
+}
+
+func (o KeyValueArrays) Iterate(_ *VM, na *NamedArgs) Iterator {
+	return SliceIteration(TKeyValueArraysIterator, o, o, func(e *IteratorEntry, i Int, v KeyValueArray) error {
+		e.K = i
+		e.V = v
+		return nil
+	}).ParseNamedArgs(na)
+}
+
+func (o Dict) Iterate(_ *VM, na *NamedArgs) Iterator {
+	keys := make([]string, 0, len(o))
+	for k := range o {
+		keys = append(keys, k)
+	}
+	if !na.GetValue("sorted").IsFalsy() {
+		sort.Strings(keys)
+	}
+	return SliceEntryIteration(TDictIterator, o, keys, func(v string) (_, _ Object, _ error) {
+		return Str(v), o[v], nil
+	}).ParseNamedArgs(na)
+}
+
+func (o *SyncDict) Iterate(_ *VM, na *NamedArgs) Iterator {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	return o.Value.Iterate(nil, na)
+}
+
+func (o *Buffer) Iterate(_ *VM, na *NamedArgs) Iterator {
+	return Bytes(o.Bytes()).Iterate(nil, na)
+}
+
+// SyncIterator represents an iterator for the SyncDict.
+type SyncIterator struct {
+	mu sync.Mutex
+	*Iteration
+}
+
+func (it *SyncIterator) StartIteration(vm *VM) (state *IteratorState, err error) {
+	it.mu.Lock()
+	defer it.mu.Unlock()
+	return it.Iteration.Start(vm)
+}
+
+func (it *SyncIterator) NextIteration(vm *VM, state *IteratorState) (err error) {
+	it.mu.Lock()
+	defer it.mu.Unlock()
+	return it.Iteration.Next(vm, state)
+}
+
+func (o Args) Iterate(_ *VM, na *NamedArgs) Iterator {
+	return NewRangeIteration(TArgsIterator, o, o.Length(), func(e *IteratorEntry, i int) error {
+		e.K, e.V = Int(i), o.GetOnly(i)
+		return nil
+	}).ParseNamedArgs(na)
+}
+
+func (o *NamedArgs) Iterate(vm *VM, na *NamedArgs) Iterator {
+	return o.Join().Iterate(vm, na)
+}
+
+func (o *ReflectArray) Iterate(vm *VM, na *NamedArgs) Iterator {
+	return NewRangeIteration(TReflectArrayIterator, o, o.RValue.Len(), func(e *IteratorEntry, i int) (err error) {
+		var v Object
+		v, err = o.Get(vm, i)
+		e.K = Int(i)
+		e.V = v
+		return
+	}).ParseNamedArgs(na)
+}
+
+func (o *ReflectMap) Iterate(vm *VM, na *NamedArgs) Iterator {
+	return SliceEntryIteration(TReflectMapIterator, o, o.RValue.MapKeys(), func(k reflect.Value) (key, val Object, err error) {
+		rv := o.RValue.MapIndex(k)
+		if rv.IsValid() {
+			if key, err = vm.ToObject(k.Interface()); err == nil {
+				val, err = vm.ToObject(rv.Interface())
+			}
+		}
+		return
+	}).ParseNamedArgs(na)
+}
+
+func (s *ReflectStruct) Iterate(vm *VM, na *NamedArgs) Iterator {
+	return SliceEntryIteration(TReflectStructIterator, s, s.RType.FieldsNames, func(k string) (key, val Object, err error) {
+		if val, err = s.IndexGetS(vm, k); err == nil {
+			key = Str(k)
+		}
+		return
+	}).ParseNamedArgs(na)
+}
+
+type wrapIterator struct {
+	Iterator
+	Wrap func(e *IteratorEntry) (Object, error)
+}
+
+func WrapIterator(iterator Iterator, wrap func(e *IteratorEntry) (Object, error)) *wrapIterator {
+	return &wrapIterator{Iterator: iterator, Wrap: wrap}
+}
+
+func (f *wrapIterator) checkNext(vm *VM, state *IteratorState) (err error) {
+try:
+	if state.Mode == IteratorStateModeDone {
+		return
+	}
+	for state.Mode == IteratorStateModeContinue {
+		if err = f.Iterator.Next(vm, state); err != nil || state.Mode == IteratorStateModeDone {
+			return
+		}
+	}
+	if state.Value, err = f.Wrap(&state.Entry); err == nil {
+		if state.Mode != IteratorStateModeEntry {
+			goto try
+		}
+	}
+	return
+}
+
+func (f *wrapIterator) Start(vm *VM) (state *IteratorState, err error) {
+	if state, err = f.Iterator.Start(vm); err != nil {
+		return
+	}
+	err = f.checkNext(vm, state)
+	return
+}
+
+func (f *wrapIterator) Next(vm *VM, state *IteratorState) (err error) {
+	if err = f.Iterator.Next(vm, state); err != nil {
+		return
+	}
+	err = f.checkNext(vm, state)
+	return
+}
+
+type collectModeIterator struct {
+	Iterator
+	mode IteratorStateCollectMode
+}
+
+func CollectModeIterator(iterator Iterator, mode IteratorStateCollectMode) Iterator {
+	return &collectModeIterator{Iterator: iterator, mode: mode}
+}
+
+func (f *collectModeIterator) Start(vm *VM) (state *IteratorState, err error) {
+	if state, err = f.Iterator.Start(vm); err != nil {
+		return
+	}
+	state.CollectMode = f.mode
+	return
+}
+
+type itemsIterator struct {
+	Iterator
+}
+
+func (it *itemsIterator) Type() ObjectType {
+	return TItemsIterator
+}
+
+func (it *itemsIterator) Repr(vm *VM) (string, error) {
+	return ToReprTypedRS(vm, it.Type(), it.Iterator)
+}
+
+func (it *itemsIterator) Collect(vm *VM) (_ Object, err error) {
+	var ret KeyValueArray
+	err = Iterate(vm, it.Iterator, nil, func(e *IteratorEntry) error {
+		// copy key value
+		kv := e.KeyValue
+		ret = append(ret, &kv)
+		return nil
+	})
+	return ret, err
 }

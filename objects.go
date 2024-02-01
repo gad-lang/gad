@@ -227,10 +227,6 @@ func (o RawStr) Equal(right Object) bool {
 	return false
 }
 
-func (o RawStr) Iterate(*VM) Iterator {
-	return &StringIterator{V: Str(o)}
-}
-
 func (o RawStr) IndexGet(_ *VM, index Object) (Object, error) {
 	var idx int
 	switch v := index.(type) {
@@ -313,8 +309,8 @@ func (o RawStr) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 		right.Type().Name())
 }
 
-// Len implements LengthGetter interface.
-func (o RawStr) Len() int {
+// Length implements LengthGetter interface.
+func (o RawStr) Length() int {
 	return len(o)
 }
 
@@ -333,8 +329,8 @@ func (o RawStr) WriteTo(_ *VM, w io.Writer) (int64, error) {
 type Str string
 
 var (
-	_ LengthGetter = Str("")
-	_ Representer  = Str("")
+	_ LengthGetter      = Str("")
+	_ ObjectRepresenter = Str("")
 )
 
 func (o Str) Type() ObjectType {
@@ -347,11 +343,6 @@ func (o Str) ToString() string {
 
 func (o Str) Repr(*VM) (string, error) {
 	return repr.Quote("str:" + strconv.Quote(string(o))), nil
-}
-
-// Iterate implements Object interface.
-func (o Str) Iterate(*VM) Iterator {
-	return &StringIterator{V: o}
 }
 
 // IndexGet represents string values and implements Object interface.
@@ -438,8 +429,8 @@ func (o Str) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 		right.Type().Name())
 }
 
-// Len implements LengthGetter interface.
-func (o Str) Len() int {
+// Length implements LengthGetter interface.
+func (o Str) Length() int {
 	return len(o)
 }
 
@@ -471,11 +462,6 @@ func (o Bytes) Copy() Object {
 	cp := make(Bytes, len(o))
 	copy(cp, o)
 	return cp
-}
-
-// Iterate implements Object interface.
-func (o Bytes) Iterate(*VM) Iterator {
-	return &BytesIterator{V: o}
 }
 
 // IndexSet implements Object interface.
@@ -582,8 +568,8 @@ func (o Bytes) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 		right.Type().Name())
 }
 
-// Len implements LengthGetter interface.
-func (o Bytes) Len() int {
+// Length implements LengthGetter interface.
+func (o Bytes) Length() int {
 	return len(o)
 }
 
@@ -769,7 +755,7 @@ var (
 	_ Sorter                = Array{}
 	_ KeysGetter            = Array{}
 	_ ItemsGetter           = Array{}
-	_ Representer           = Array{}
+	_ ObjectRepresenter     = Array{}
 )
 
 func (o Array) Type() ObjectType {
@@ -900,7 +886,7 @@ func (o Array) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err er
 			arr = append(arr, t)
 		case Iterabler:
 			var values Array
-			if values, err = ValuesOf(vm, t); err != nil {
+			if values, err = ValuesOf(vm, t, &NamedArgs{}); err != nil {
 				return
 			}
 			arr = make(Array, 0, len(o)+len(values))
@@ -932,13 +918,8 @@ func (o Array) AppendToArray(arr *Array) {
 	*arr = append(*arr, o...)
 }
 
-// Iterate implements Iterable interface.
-func (o Array) Iterate(*VM) Iterator {
-	return &ArrayIterator{V: o}
-}
-
-// Len implements LengthGetter interface.
-func (o Array) Len() int {
+// Length implements LengthGetter interface.
+func (o Array) Length() int {
 	return len(o)
 }
 
@@ -1085,14 +1066,14 @@ func (o *ObjectPtr) Call(c Call) (Object, error) {
 type Dict map[string]Object
 
 var (
-	_ Object       = Dict{}
-	_ Copier       = Dict{}
-	_ IndexDeleter = Dict{}
-	_ LengthGetter = Dict{}
-	_ KeysGetter   = Dict{}
-	_ ValuesGetter = Dict{}
-	_ ItemsGetter  = Dict{}
-	_ Representer  = Dict{}
+	_ Object            = Dict{}
+	_ Copier            = Dict{}
+	_ IndexDeleter      = Dict{}
+	_ LengthGetter      = Dict{}
+	_ KeysGetter        = Dict{}
+	_ ValuesGetter      = Dict{}
+	_ ItemsGetter       = Dict{}
+	_ ObjectRepresenter = Dict{}
 )
 
 func (o Dict) Type() ObjectType {
@@ -1116,6 +1097,16 @@ func (o Dict) ToInterfaceMap(vm *VM) (m map[string]any) {
 		m[s] = vm.ToInterface(obj)
 	}
 	return m
+}
+
+func (o Dict) Filter(f func(k string, v Object) bool) Dict {
+	cp := Dict{}
+	for k, v := range o {
+		if f(k, v) {
+			cp[k] = v
+		}
+	}
+	return cp
 }
 
 func (o Dict) ToString() string {
@@ -1256,19 +1247,11 @@ func (o Dict) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err err
 	} else {
 		switch tok {
 		case token.Add:
-			if Iterable(right) {
-				var (
-					it  = right.(Iterabler).Iterate(vm)
-					val Object
-				)
-				for it.Next() {
-					if val, err = it.Value(); err != nil {
-						return
-					}
-					o[it.Key().ToString()] = val
-				}
-				return o, nil
-			}
+			err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *IteratorEntry) error {
+				o[e.K.ToString()] = e.V
+				return nil
+			})
+			return o, err
 		case token.Sub:
 			switch t := right.(type) {
 			case Array:
@@ -1287,12 +1270,12 @@ func (o Dict) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err err
 				}
 				return o, nil
 			default:
-				if Iterable(right) {
-					var it = right.(Iterabler).Iterate(vm)
-					for it.Next() {
-						delete(o, it.Key().ToString())
-					}
-					return o, nil
+				if Iterable(vm, right) {
+					err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *IteratorEntry) error {
+						delete(o, e.K.ToString())
+						return nil
+					})
+					return o, err
 				}
 			}
 		}
@@ -1304,15 +1287,6 @@ func (o Dict) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err err
 		right.Type().Name())
 }
 
-// Iterate implements Iterable interface.
-func (o Dict) Iterate(*VM) Iterator {
-	keys := make([]string, 0, len(o))
-	for k := range o {
-		keys = append(keys, k)
-	}
-	return &MapIterator{V: o, keys: keys}
-}
-
 // IndexDelete tries to delete the string value of key from the map.
 // IndexDelete implements IndexDeleter interface.
 func (o Dict) IndexDelete(_ *VM, key Object) error {
@@ -1320,8 +1294,8 @@ func (o Dict) IndexDelete(_ *VM, key Object) error {
 	return nil
 }
 
-// Len implements LengthGetter interface.
-func (o Dict) Len() int {
+// Length implements LengthGetter interface.
+func (o Dict) Length() int {
 	return len(o)
 }
 
@@ -1374,54 +1348,54 @@ func (o *Dict) Set(key string, value Object) {
 	(*o)[key] = value
 }
 
-// SyncMap represents map of objects and implements Object interface.
-type SyncMap struct {
+// SyncDict represents map of objects and implements Object interface.
+type SyncDict struct {
 	mu    sync.RWMutex
 	Value Dict
 }
 
 var (
-	_ Object       = (*SyncMap)(nil)
-	_ Copier       = (*SyncMap)(nil)
-	_ IndexDeleter = (*SyncMap)(nil)
-	_ LengthGetter = (*SyncMap)(nil)
-	_ KeysGetter   = (*SyncMap)(nil)
-	_ ValuesGetter = (*SyncMap)(nil)
-	_ ItemsGetter  = (*SyncMap)(nil)
+	_ Object       = (*SyncDict)(nil)
+	_ Copier       = (*SyncDict)(nil)
+	_ IndexDeleter = (*SyncDict)(nil)
+	_ LengthGetter = (*SyncDict)(nil)
+	_ KeysGetter   = (*SyncDict)(nil)
+	_ ValuesGetter = (*SyncDict)(nil)
+	_ ItemsGetter  = (*SyncDict)(nil)
 )
 
 // RLock locks the underlying mutex for reading.
-func (o *SyncMap) RLock() {
+func (o *SyncDict) RLock() {
 	o.mu.RLock()
 }
 
 // RUnlock unlocks the underlying mutex for reading.
-func (o *SyncMap) RUnlock() {
+func (o *SyncDict) RUnlock() {
 	o.mu.RUnlock()
 }
 
 // Lock locks the underlying mutex for writing.
-func (o *SyncMap) Lock() {
+func (o *SyncDict) Lock() {
 	o.mu.Lock()
 }
 
 // Unlock unlocks the underlying mutex for writing.
-func (o *SyncMap) Unlock() {
+func (o *SyncDict) Unlock() {
 	o.mu.Unlock()
 }
 
-func (o *SyncMap) Type() ObjectType {
+func (o *SyncDict) Type() ObjectType {
 	return DetectTypeOf(o)
 }
 
-func (o *SyncMap) ToString() string {
+func (o *SyncDict) ToString() string {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
 	return o.Value.ToString()
 }
 
-func (o *SyncMap) Format(f fmt.State, verb rune) {
+func (o *SyncDict) Format(f fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if f.Flag('#') {
@@ -1432,17 +1406,17 @@ func (o *SyncMap) Format(f fmt.State, verb rune) {
 }
 
 // Copy implements Copier interface.
-func (o *SyncMap) Copy() Object {
+func (o *SyncDict) Copy() Object {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
-	return &SyncMap{
+	return &SyncDict{
 		Value: o.Value.Copy().(Dict),
 	}
 }
 
 // DeepCopy implements DeepCopier interface.
-func (o *SyncMap) DeepCopy(vm *VM) (v Object, err error) {
+func (o *SyncDict) DeepCopy(vm *VM) (v Object, err error) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
@@ -1450,13 +1424,13 @@ func (o *SyncMap) DeepCopy(vm *VM) (v Object, err error) {
 		return
 	}
 
-	return &SyncMap{
+	return &SyncDict{
 		Value: v.(Dict),
 	}, nil
 }
 
 // IndexSet implements Object interface.
-func (o *SyncMap) IndexSet(vm *VM, index, value Object) error {
+func (o *SyncDict) IndexSet(vm *VM, index, value Object) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -1467,7 +1441,7 @@ func (o *SyncMap) IndexSet(vm *VM, index, value Object) error {
 }
 
 // IndexGet implements Object interface.
-func (o *SyncMap) IndexGet(vm *VM, index Object) (Object, error) {
+func (o *SyncDict) IndexGet(vm *VM, index Object) (Object, error) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
@@ -1475,7 +1449,7 @@ func (o *SyncMap) IndexGet(vm *VM, index Object) (Object, error) {
 }
 
 // Equal implements Object interface.
-func (o *SyncMap) Equal(right Object) bool {
+func (o *SyncDict) Equal(right Object) bool {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
@@ -1483,32 +1457,23 @@ func (o *SyncMap) Equal(right Object) bool {
 }
 
 // IsFalsy implements Object interface.
-func (o *SyncMap) IsFalsy() bool {
+func (o *SyncDict) IsFalsy() bool {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
 	return o.Value.IsFalsy()
 }
 
-// Iterate implements Iterable interface.
-func (o *SyncMap) Iterate(vm *VM) Iterator {
-	o.mu.RLock()
-	defer o.mu.RUnlock()
-
-	return &SyncIterator{Iterator: o.Value.Iterate(vm)}
-}
-
 // Get returns Object in map if exists.
-func (o *SyncMap) Get(index string) (value Object, exists bool) {
+func (o *SyncDict) Get(index string) (value Object, exists bool) {
 	o.mu.RLock()
 	value, exists = o.Value[index]
 	o.mu.RUnlock()
 	return
 }
 
-// Len returns the number of items in the map.
-// Len implements LengthGetter interface.
-func (o *SyncMap) Len() int {
+// Length returns the number of items in the dict.
+func (o *SyncDict) Length() int {
 	o.mu.RLock()
 	n := len(o.Value)
 	o.mu.RUnlock()
@@ -1516,7 +1481,7 @@ func (o *SyncMap) Len() int {
 }
 
 // IndexDelete tries to delete the string value of key from the map.
-func (o *SyncMap) IndexDelete(vm *VM, key Object) error {
+func (o *SyncDict) IndexDelete(vm *VM, key Object) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -1524,26 +1489,26 @@ func (o *SyncMap) IndexDelete(vm *VM, key Object) error {
 }
 
 // BinaryOp implements Object interface.
-func (o *SyncMap) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
+func (o *SyncDict) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
 	return o.Value.BinaryOp(vm, tok, right)
 }
 
-func (o *SyncMap) Items(vm *VM) (KeyValueArray, error) {
+func (o *SyncDict) Items(vm *VM) (KeyValueArray, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	return o.Value.Items(vm)
 }
 
-func (o *SyncMap) Keys() Array {
+func (o *SyncDict) Keys() Array {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	return o.Value.Keys()
 }
 
-func (o *SyncMap) Values() Array {
+func (o *SyncDict) Values() Array {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	return o.Value.Values()
@@ -1617,7 +1582,7 @@ func (o *Error) IndexGet(_ *VM, index Object) (Object, error) {
 		return &Function{
 			Name: "New",
 			Value: func(c Call) (Object, error) {
-				l := c.Args.Len()
+				l := c.Args.Length()
 				switch l {
 				case 1:
 					return o.NewError(c.Args.Get(0).ToString()), nil
@@ -1721,7 +1686,7 @@ func (o *RuntimeError) IndexGet(vm *VM, index Object) (Object, error) {
 			return &Function{
 				Name: "New",
 				Value: func(c Call) (Object, error) {
-					l := c.Args.Len()
+					l := c.Args.Length()
 					switch l {
 					case 1:
 						return o.NewError(c.Args.Get(0).ToString()), nil
@@ -1875,7 +1840,7 @@ func (CallWrapper) Equal(Object) bool {
 type IndexGetProxy struct {
 	GetIndex        func(vm *VM, index Object) (value Object, err error)
 	ToStr           func() string
-	It              func(vm *VM) Iterator
+	It              func(vm *VM, na *NamedArgs) Iterator
 	InterfaceValue  any
 	CallNameHandler func(name string, c Call) (Object, error)
 }
@@ -1887,8 +1852,8 @@ func (i *IndexGetProxy) CallName(name string, c Call) (Object, error) {
 	return i.CallNameHandler(name, c)
 }
 
-func (i *IndexGetProxy) Iterate(vm *VM) Iterator {
-	return i.It(vm)
+func (i *IndexGetProxy) Iterate(vm *VM, na *NamedArgs) Iterator {
+	return i.It(vm, na)
 }
 
 func (i *IndexGetProxy) CanIterate() bool {
@@ -1959,20 +1924,11 @@ func (o *IndexProxy) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, 
 	} else {
 		switch tok {
 		case token.Add:
-			if Iterable(right) {
-				var (
-					it  = right.(Iterabler).Iterate(vm)
-					val Object
-				)
-				for it.Next() {
-					if val, err = it.Value(); err != nil {
-						return
-					}
-					if err = o.Set(vm, it.Key(), val); err != nil {
-						return
-					}
-				}
-				return o, nil
+			if Iterable(vm, right) {
+				err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *IteratorEntry) error {
+					return o.Set(vm, e.K, e.V)
+				})
+				return o, err
 			}
 		case token.Sub:
 			switch t := right.(type) {
@@ -1998,14 +1954,11 @@ func (o *IndexProxy) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, 
 				}
 				return o, nil
 			default:
-				if Iterable(right) {
-					var it = right.(Iterabler).Iterate(vm)
-					for it.Next() {
-						if err = o.Del(vm, it.Key()); err != nil {
-							return
-						}
-					}
-					return o, nil
+				if Iterable(vm, right) {
+					err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *IteratorEntry) error {
+						return o.Del(vm, e.K)
+					})
+					return o, err
 				}
 			}
 		}
@@ -2015,23 +1968,6 @@ func (o *IndexProxy) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, 
 		tok.String(),
 		o.Type().Name(),
 		right.Type().Name())
-}
-
-func (o *IndexProxy) Items(vm *VM) (arr KeyValueArray, err error) {
-	if o.It == nil {
-		return KeyValueArray{}, nil
-	}
-	var (
-		it  = o.It(vm)
-		val Object
-	)
-	for it.Next() {
-		if val, err = it.Value(); err != nil {
-			return
-		}
-		arr = append(arr, &KeyValue{it.Key(), val})
-	}
-	return
 }
 
 func StringIndexGetProxy(handler func(vm *VM, index string) (value Object, err error)) *IndexGetProxy {

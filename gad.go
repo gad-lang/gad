@@ -144,7 +144,7 @@ func ToInterface(o Object) (ret any) {
 		ret = float64(o)
 	case Bool:
 		ret = bool(o)
-	case *SyncMap:
+	case *SyncDict:
 		if o == nil {
 			return map[string]any{}
 		}
@@ -260,8 +260,8 @@ func ToMap(o Object) (v Dict, ok bool) {
 }
 
 // ToSyncMap will try to convert an Object to Gad syncMap value.
-func ToSyncMap(o Object) (v *SyncMap, ok bool) {
-	v, ok = o.(*SyncMap)
+func ToSyncMap(o Object) (v *SyncDict, ok bool) {
+	v, ok = o.(*SyncDict)
 	return
 }
 

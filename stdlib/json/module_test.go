@@ -136,7 +136,7 @@ func TestCycle(t *testing.T) {
 	expectRun(t, `json:=import("json");m:={a:1};m.b=m;return str(json.Marshal(m))`,
 		nil, Str(`error: json: unsupported value: encountered a cycle via dict`))
 	expectRun(t, `param m;json:=import("json");m.b=m;return str(json.Marshal(m))`,
-		newOpts().Args(&SyncMap{Value: Dict{}}),
+		newOpts().Args(&SyncDict{Value: Dict{}}),
 		Str(`error: json: unsupported value: encountered a cycle via syncDict`))
 
 	ptr := &ObjectPtr{}

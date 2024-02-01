@@ -486,13 +486,17 @@ VMLoop:
 			dst := vm.stack[vm.sp-1]
 
 			if dst == Nil {
-				vm.stack[vm.sp-1] = &nilIteratorObject{}
+				vm.stack[vm.sp-1] = NewStateIteratorObject(vm, &nilIteratorObject{})
 				continue
 			}
 
-			if Iterable(dst) {
-				it := dst.(Iterabler).Iterate(vm)
-				vm.stack[vm.sp-1] = &iteratorObject{Iterator: it}
+			if _, it, err := ToIterator(vm, dst, &NamedArgs{}); err != nil {
+				if err = vm.throwGenErr(err); err != nil {
+					vm.err = err
+					return
+				}
+			} else if it != nil {
+				vm.stack[vm.sp-1] = NewStateIteratorObject(vm, it)
 				continue
 			}
 
@@ -502,15 +506,29 @@ VMLoop:
 				return
 			}
 		case OpIterNext:
-			iterator := vm.stack[vm.sp-1]
-			hasMore := iterator.(Iterator).Next()
+			iterator := vm.stack[vm.sp-1].(*StateIteratorObject)
+			hasMore, err := iterator.Next()
+			if err != nil {
+				if err = vm.throwGenErr(err); err != nil {
+					vm.err = err
+					return
+				}
+			}
 			vm.stack[vm.sp-1] = Bool(hasMore)
 		case OpIterNextElse:
-			iterator := vm.stack[vm.sp-1]
+			iterator := vm.stack[vm.sp-1].(*StateIteratorObject)
 			truePos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			falsePos := int(vm.curInsts[vm.ip+4]) | int(vm.curInsts[vm.ip+3])<<8
 			vm.ip += 4
-			hasMore := iterator.(Iterator).Next()
+
+			hasMore, err := iterator.Next()
+			if err != nil {
+				if err = vm.throwGenErr(err); err != nil {
+					vm.err = err
+					return
+				}
+			}
+
 			vm.stack[vm.sp-1] = Bool(hasMore)
 
 			if hasMore {
@@ -520,17 +538,11 @@ VMLoop:
 			}
 		case OpIterKey:
 			iterator := vm.stack[vm.sp-1]
-			val := iterator.(Iterator).Key()
+			val := iterator.(*StateIteratorObject).State.Entry.K
 			vm.stack[vm.sp-1] = val
 		case OpIterValue:
 			iterator := vm.stack[vm.sp-1]
-			val, err := iterator.(Iterator).Value()
-			if err != nil {
-				if err = vm.throwGenErr(err); err != nil {
-					vm.err = err
-					return
-				}
-			}
+			val := iterator.(*StateIteratorObject).State.Entry.V
 			vm.stack[vm.sp-1] = val
 		case OpLoadModule:
 			cidx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8

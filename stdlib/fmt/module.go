@@ -160,9 +160,9 @@ func newPrint(fn func(...any) (int, error)) gad.CallableFunc {
 
 func newPrintf(fn func(string, ...any) (int, error)) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
-		if c.Args.Len() < 1 {
+		if c.Args.Length() < 1 {
 			return gad.Nil, gad.ErrWrongNumArguments.NewError(
-				"want>=1 got=" + strconv.Itoa(c.Args.Len()))
+				"want>=1 got=" + strconv.Itoa(c.Args.Length()))
 		}
 		vargs := toPrintArgs(1, c)
 		n, err := fn(c.Args.Get(0).ToString(), vargs...)
@@ -179,9 +179,9 @@ func newSprint(fn func(...any) string) gad.CallableFunc {
 
 func newSprintf(fn func(string, ...any) string) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
-		if c.Args.Len() < 1 {
+		if c.Args.Length() < 1 {
 			return gad.Nil, gad.ErrWrongNumArguments.NewError(
-				"want>=1 got=" + strconv.Itoa(c.Args.Len()))
+				"want>=1 got=" + strconv.Itoa(c.Args.Length()))
 		}
 		vargs := toPrintArgs(1, c)
 		return gad.Str(fn(c.Args.Get(0).ToString(), vargs...)), nil
@@ -190,9 +190,9 @@ func newSprintf(fn func(string, ...any) string) gad.CallableFunc {
 
 func newSscan(fn func(string, ...any) (int, error)) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
-		if c.Args.Len() < 2 {
+		if c.Args.Length() < 2 {
 			return gad.Nil, gad.ErrWrongNumArguments.NewError(
-				"want>=2 got=" + strconv.Itoa(c.Args.Len()))
+				"want>=2 got=" + strconv.Itoa(c.Args.Length()))
 		}
 		vargs, err := toScanArgs(1, c)
 		if err != nil {
@@ -207,9 +207,9 @@ func newSscanf(
 	fn func(string, string, ...any) (int, error),
 ) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
-		if c.Args.Len() < 3 {
+		if c.Args.Length() < 3 {
 			return gad.Nil, gad.ErrWrongNumArguments.NewError(
-				"want>=3 got=" + strconv.Itoa(c.Args.Len()))
+				"want>=3 got=" + strconv.Itoa(c.Args.Length()))
 		}
 		vargs, err := toScanArgs(2, c)
 		if err != nil {
@@ -221,7 +221,7 @@ func newSscanf(
 }
 
 func toScanArgs(offset int, c gad.Call) ([]any, error) {
-	size := c.Args.Len()
+	size := c.Args.Length()
 	vargs := make([]any, 0, size-offset)
 	for i := offset; i < size; i++ {
 		v, ok := c.Args.Get(i).(ScanArg)
@@ -236,7 +236,7 @@ func toScanArgs(offset int, c gad.Call) ([]any, error) {
 }
 
 func toPrintArgs(offset int, c gad.Call) []any {
-	size := c.Args.Len()
+	size := c.Args.Length()
 	vargs := make([]any, 0, size-offset)
 	for i := offset; i < size; i++ {
 		vargs = append(vargs, c.Args.Get(i))

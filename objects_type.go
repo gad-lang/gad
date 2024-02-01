@@ -35,7 +35,9 @@ func (o *Obj) Fields() Dict {
 }
 
 func (o *Obj) ToString() string {
-	return o.typ.Name() + o.fields.ToString()
+	return o.typ.Name() + o.fields.Filter(func(k string, v Object) bool {
+		return !IsZero(v)
+	}).ToString()
 }
 
 // Copy implements Copier interface.
@@ -90,11 +92,6 @@ func (o *Obj) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o *Obj) IsFalsy() bool { return len(o.fields) == 0 }
 
-// Iterate implements Iterable interface.
-func (o *Obj) Iterate(vm *VM) Iterator {
-	return o.fields.Iterate(vm)
-}
-
 // IndexDelete tries to delete the string value of key from the map.
 // IndexDelete implements IndexDeleter interface.
 func (o *Obj) IndexDelete(_ *VM, key Object) error {
@@ -102,8 +99,8 @@ func (o *Obj) IndexDelete(_ *VM, key Object) error {
 	return nil
 }
 
-// Len implements LengthGetter interface.
-func (o *Obj) Len() int {
+// Length implements LengthGetter interface.
+func (o *Obj) Length() int {
 	return len(o.fields)
 }
 
@@ -230,6 +227,10 @@ func (o *ObjType) CallerOf(args Args) (co CallerObject, ok bool) {
 	return o.CallerOfTypes(types)
 }
 
+func (o *ObjType) GetMethod(types []ObjectType) (co CallerObject) {
+	return o.calllerMethods.GetMethod(types).Caller()
+}
+
 func (o *ObjType) CallerOfTypes(types []ObjectType) (co CallerObject, validate bool) {
 	if method := o.calllerMethods.GetMethod(types); method != nil {
 		return method.CallerObject, false
@@ -242,19 +243,18 @@ func (o *ObjType) Caller() CallerObject {
 }
 
 func (o *ObjType) New(_ *VM, fields Dict) (Object, error) {
-	var obj = &Obj{typ: o, fields: fields}
-	if fields == nil {
+	if len(fields) == 0 {
 		if o.FieldsDict == nil {
-			obj.fields = Dict{}
+			fields = Dict{}
 		} else {
-			obj.fields = o.FieldsDict.Copy().(Dict)
+			fields = o.FieldsDict.Copy().(Dict)
 		}
 	}
-	return obj, nil
+	return &Obj{typ: o, fields: fields}, nil
 }
 
 func (o *ObjType) NewCall(c Call) (Object, error) {
-	return &Obj{typ: o, fields: c.NamedArgs.Dict()}, nil
+	return o.New(nil, c.NamedArgs.Dict())
 }
 
 func (o *ObjType) Call(c Call) (_ Object, err error) {
@@ -297,8 +297,18 @@ func (o *ObjType) IsChildOf(t ObjectType) bool {
 }
 
 func (o *ObjType) CallName(name string, c Call) (ret Object, err error) {
-	if name == "new" {
+	switch name {
+	case "new":
 		return o.NewCall(c)
+	case "fieldsOf":
+		var obj = &Arg{
+			Name:          "obj",
+			TypeAssertion: TypeAssertionFromTypes(o),
+		}
+		if err = c.Args.Destructure(obj); err != nil {
+			return
+		}
+		return obj.Value.(*Obj).fields, nil
 	}
 	return nil, ErrInvalidIndex.NewError(name)
 }

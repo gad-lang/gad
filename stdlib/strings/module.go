@@ -680,7 +680,7 @@ func mapFuncInv(c gad.Call) (gad.Object, error) {
 }
 
 func pad(c gad.Call, left bool) (gad.Object, error) {
-	size := c.Args.Len()
+	size := c.Args.Length()
 	if size != 2 && size != 3 {
 		return gad.Nil,
 			gad.ErrWrongNumArguments.NewError("want=2..3 got=" + strconv.Itoa(size))
@@ -726,7 +726,7 @@ func repeatFunc(s string, count int) gad.Object {
 }
 
 func replaceFunc(c gad.Call) (gad.Object, error) {
-	size := c.Args.Len()
+	size := c.Args.Length()
 	if size != 3 && size != 4 {
 		return gad.Nil,
 			gad.ErrWrongNumArguments.NewError("want=3..4 got=" + strconv.Itoa(size))
@@ -758,7 +758,7 @@ func toTitleFunc(s string) gad.Object { return gad.Str(strings.ToTitle(s)) }
 func toUpperFunc(s string) gad.Object { return gad.Str(strings.ToUpper(s)) }
 
 func toValidUTF8Func(c gad.Call) (gad.Object, error) {
-	size := c.Args.Len()
+	size := c.Args.Length()
 	if size != 1 && size != 2 {
 		return gad.Nil,
 			gad.ErrWrongNumArguments.NewError("want=1..2 got=" + strconv.Itoa(size))
@@ -805,7 +805,7 @@ func truncFunc(s string, max int, emph string) gad.Object {
 
 func newSplitFunc(fn func(string, string, int) []string) gad.CallableFunc {
 	return func(c gad.Call) (gad.Object, error) {
-		size := c.Args.Len()
+		size := c.Args.Length()
 		if size != 2 && size != 3 {
 			return gad.Nil,
 				gad.ErrWrongNumArguments.NewError("want=2..3 got=" + strconv.Itoa(size))

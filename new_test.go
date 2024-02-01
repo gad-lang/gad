@@ -936,8 +936,8 @@ func TestVM_Invoke(t *testing.T) {
 	applyNoPool := &Function{
 		Name: "applyNoPool",
 		Value: func(c Call) (Object, error) {
-			args := make([]Object, 0, c.Args.Len()-1)
-			for i := 1; i < c.Args.Len(); i++ {
+			args := make([]Object, 0, c.Args.Length()-1)
+			for i := 1; i < c.Args.Length(); i++ {
 				args = append(args, c.Args.Get(i))
 			}
 			inv := NewInvoker(c.VM, c.Args.Get(0))
@@ -1016,7 +1016,7 @@ return apply(f, sum, 1, 2, 3)
 				sum := &Function{
 					Value: func(c Call) (Object, error) {
 						s := Int(0)
-						for i := 0; i < c.Args.Len(); i++ {
+						for i := 0; i < c.Args.Length(); i++ {
 							s += c.Args.Get(i).(Int)
 						}
 						return s, nil
@@ -1123,8 +1123,8 @@ type nameCaller struct {
 
 func (n *nameCaller) CallName(name string, c Call) (Object, error) {
 	fn := n.Dict[name]
-	args := make([]Object, 0, c.Args.Len())
-	for i := 0; i < c.Args.Len(); i++ {
+	args := make([]Object, 0, c.Args.Length())
+	for i := 0; i < c.Args.Length(); i++ {
 		args = append(args, c.Args.Get(i))
 	}
 	ret, err := NewInvoker(c.VM, fn).Invoke(Args{args}, &c.NamedArgs)

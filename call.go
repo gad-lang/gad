@@ -24,6 +24,13 @@ func (o *Args) Prepend(items ...Object) {
 	*o = append(Args{items}, *o...)
 }
 
+func (o Args) Array() (ret Array) {
+	for _, v := range o {
+		ret = append(ret, v...)
+	}
+	return
+}
+
 func (o Args) ToString() string {
 	var sb strings.Builder
 	sb.WriteString("[")
@@ -67,9 +74,9 @@ func (o Args) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 		}
 		if other, ok := right.(Args); ok {
 			if tok == token.LessEq {
-				return Bool(o.Len() <= other.Len()), nil
+				return Bool(o.Length() <= other.Length()), nil
 			}
-			return Bool(o.Len() < other.Len()), nil
+			return Bool(o.Length() < other.Length()), nil
 		}
 	case token.Greater, token.GreaterEq:
 		if right == Nil {
@@ -77,9 +84,9 @@ func (o Args) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 		}
 		if other, ok := right.(Args); ok {
 			if tok == token.GreaterEq {
-				return Bool(o.Len() >= other.Len()), nil
+				return Bool(o.Length() >= other.Length()), nil
 			}
-			return Bool(o.Len() > other.Len()), nil
+			return Bool(o.Length() > other.Length()), nil
 		}
 	}
 	return nil, NewOperandTypeError(
@@ -89,13 +96,13 @@ func (o Args) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 }
 
 func (o Args) IsFalsy() bool {
-	return o.Len() == 0
+	return o.Length() == 0
 }
 
 func (o Args) Equal(right Object) (ok bool) {
 	switch t := right.(type) {
 	case Args:
-		if t.Len() == o.Len() {
+		if t.Length() == o.Length() {
 			o.Walk(func(i int, arg Object) any {
 				if !arg.Equal(t.Get(i)) {
 					return false
@@ -107,26 +114,18 @@ func (o Args) Equal(right Object) (ok bool) {
 	return
 }
 
-func (o Args) Iterate(*VM) Iterator {
-	return &ArgsIterator{o, o.Len(), 0}
-}
-
-func (o Args) CanIterate() bool {
-	return true
-}
-
 // IndexGet implements Object interface.
 func (o Args) IndexGet(_ *VM, index Object) (Object, error) {
 	switch v := index.(type) {
 	case Int:
 		idx := int(v)
-		if idx >= 0 && idx < o.Len() {
+		if idx >= 0 && idx < o.Length() {
 			return o.Get(idx), nil
 		}
 		return nil, ErrIndexOutOfBounds
 	case Uint:
 		idx := int(v)
-		if idx >= 0 && idx < o.Len() {
+		if idx >= 0 && idx < o.Length() {
 			return o.Get(idx), nil
 		}
 		return nil, ErrIndexOutOfBounds
@@ -205,7 +204,7 @@ func (o Args) GetDefault(n int, defaul Object) (v Object) {
 func (o Args) Get(n int) (v Object) {
 	v = o.GetDefault(n, nil)
 	if v == nil {
-		panic(fmt.Sprintf("index out of range [%d] with length %d", n, o.Len()))
+		panic(fmt.Sprintf("index out of range [%d] with length %d", n, o.Length()))
 	}
 	return
 }
@@ -273,8 +272,8 @@ func (o *Args) Shift() (v Object) {
 	return v
 }
 
-// Len returns the number of arguments including variadic arguments.
-func (o Args) Len() (l int) {
+// Length returns the number of arguments including variadic arguments.
+func (o Args) Length() (l int) {
 	for _, v := range o {
 		l += len(v)
 	}
@@ -284,9 +283,9 @@ func (o Args) Len() (l int) {
 // CheckLen checks the number of arguments and variadic arguments. If the number
 // of arguments is not equal to n, it returns an error.
 func (o Args) CheckLen(n int) error {
-	if n != o.Len() {
+	if n != o.Length() {
 		return ErrWrongNumArguments.NewError(
-			fmt.Sprintf("want=%d got=%d", n, o.Len()),
+			fmt.Sprintf("want=%d got=%d", n, o.Length()),
 		)
 	}
 	return nil
@@ -295,9 +294,9 @@ func (o Args) CheckLen(n int) error {
 // CheckMinLen checks the number of arguments and variadic arguments. If the number
 // of arguments is less then to n, it returns an error.
 func (o Args) CheckMinLen(n int) error {
-	if o.Len() < n {
+	if o.Length() < n {
 		return ErrWrongNumArguments.NewError(
-			fmt.Sprintf("want>=%d got=%d", n, o.Len()),
+			fmt.Sprintf("want>=%d got=%d", n, o.Length()),
 		)
 	}
 	return nil
@@ -306,9 +305,9 @@ func (o Args) CheckMinLen(n int) error {
 // CheckMaxLen checks the number of arguments and variadic arguments. If the number
 // of arguments is greather then to n, it returns an error.
 func (o Args) CheckMaxLen(n int) error {
-	if o.Len() > n {
+	if o.Length() > n {
 		return ErrWrongNumArguments.NewError(
-			fmt.Sprintf("want<=%d got=%d", n, o.Len()),
+			fmt.Sprintf("want<=%d got=%d", n, o.Length()),
 		)
 	}
 	return nil
@@ -317,7 +316,7 @@ func (o Args) CheckMaxLen(n int) error {
 // CheckRangeLen checks the number of arguments and variadic arguments. If the number
 // of arguments is less then to min or greather then to max, it returns an error.
 func (o Args) CheckRangeLen(min, max int) error {
-	if l := o.Len(); l < min || l > max {
+	if l := o.Length(); l < min || l > max {
 		return ErrWrongNumArguments.NewError(
 			fmt.Sprintf("want[%d...%d] got=%d", min, max, l),
 		)
@@ -335,7 +334,7 @@ func (o Args) Values() (ret Array) {
 		}
 		return o[0]
 	default:
-		l := o.Len()
+		l := o.Length()
 		ret = make(Array, l)
 		for i := 0; i < l; i++ {
 			ret[i] = o.Get(i)
@@ -431,40 +430,11 @@ func (o Args) DestructureVar(dst ...*Arg) (other Array, err error) {
 	return
 }
 
-var _ Iterator = (*ArgsIterator)(nil)
-
-type ArgsIterator struct {
-	V   Args
-	len int
-	i   int
-}
-
-func (it *ArgsIterator) Length() int {
-	return it.len
-}
-
-func (it *ArgsIterator) Next() bool {
-	it.i++
-	return it.i-1 < it.len
-}
-
-func (it *ArgsIterator) Key() Object {
-	return Int(it.i)
-}
-
-func (it *ArgsIterator) Value() (Object, error) {
-	i := it.i - 1
-	if i > -1 && i < it.len {
-		return it.V.Get(i), nil
-	}
-	return Nil, nil
-}
-
 // Call is a struct to pass arguments to CallEx and CallName methods.
 // It provides VM for various purposes.
 //
 // Call struct intentionally does not provide access to normal and variadic
-// arguments directly. Using Len() and Get() methods is preferred. It is safe to
+// arguments directly. Using Length() and Get() methods is preferred. It is safe to
 // create Call with a nil VM as long as VM is not required by the callee.
 type Call struct {
 	VM        *VM

@@ -3,6 +3,7 @@ package gad
 type VMCaller interface {
 	Call() (Object, error)
 	Close()
+	Callee() CallerObject
 }
 
 type vmCompiledFuncCaller struct {
@@ -10,6 +11,11 @@ type vmCompiledFuncCaller struct {
 	args      Args
 	namedArgs *NamedArgs
 	closed    bool
+	callee    CallerObject
+}
+
+func (r *vmCompiledFuncCaller) Callee() CallerObject {
+	return r.callee
 }
 
 func (r *vmCompiledFuncCaller) Call() (ret Object, err error) {
@@ -34,7 +40,6 @@ func (r *vmCompiledFuncCaller) Close() {
 	}
 	r.vm.clearCurrentFrame()
 	r.closed = true
-	r.vm.mu.Unlock()
 }
 
 type vmObjectCaller struct {
@@ -43,6 +48,10 @@ type vmObjectCaller struct {
 	namedArgs NamedArgs
 	closed    bool
 	callee    CallerObject
+}
+
+func (r *vmObjectCaller) Callee() CallerObject {
+	return r.callee
 }
 
 func (r *vmObjectCaller) Call() (ret Object, err error) {

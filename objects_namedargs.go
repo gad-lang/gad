@@ -129,6 +129,10 @@ func (o *KeyValue) ToString() string {
 		switch t := o.V.(type) {
 		case Str:
 			sb.WriteString(strconv.Quote(string(t)))
+		case *KeyValue:
+			sb.WriteByte('[')
+			sb.WriteString(t.ToString())
+			sb.WriteByte(']')
 		default:
 			sb.WriteString(t.ToString())
 		}
@@ -635,7 +639,7 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 	case "delete":
 		return o.Delete(c.Args.Values()...), nil
 	case "values":
-		if c.Args.Len() == 0 {
+		if c.Args.Length() == 0 {
 			return o.Values(), nil
 		}
 
@@ -654,7 +658,7 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 		if err = c.Args.CheckMaxLen(1); err != nil {
 			return
 		}
-		switch c.Args.Len() {
+		switch c.Args.Length() {
 		case 0:
 		case 1:
 			switch t := c.Args.Get(0).(type) {
@@ -677,7 +681,7 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 		if err = c.Args.CheckMaxLen(1); err != nil {
 			return
 		}
-		switch c.Args.Len() {
+		switch c.Args.Length() {
 		case 0:
 		case 1:
 			switch t := c.Args.Get(0).(type) {
@@ -704,13 +708,8 @@ func (o KeyValueArray) CallName(name string, c Call) (_ Object, err error) {
 // CanIterate implements Object interface.
 func (KeyValueArray) CanIterate() bool { return true }
 
-// Iterate implements Iterable interface.
-func (o KeyValueArray) Iterate(*VM) Iterator {
-	return &KeyValueArrayIterator{V: o}
-}
-
-// Len implements LengthGetter interface.
-func (o KeyValueArray) Len() int {
+// Length implements LengthGetter interface.
+func (o KeyValueArray) Length() int {
 	return len(o)
 }
 
@@ -732,34 +731,6 @@ func (o KeyValueArray) Values() (arr Array) {
 		arr[i] = v.V
 	}
 	return
-}
-
-// KeyValueArrayIterator represents an iterator for the array.
-type KeyValueArrayIterator struct {
-	V KeyValueArray
-	i int
-}
-
-var _ Iterator = (*KeyValueArrayIterator)(nil)
-
-// Next implements Iterator interface.
-func (it *KeyValueArrayIterator) Next() bool {
-	it.i++
-	return it.i-1 < len(it.V)
-}
-
-// Key implements Iterator interface.
-func (it *KeyValueArrayIterator) Key() Object {
-	return Int(it.i - 1)
-}
-
-// Value implements Iterator interface.
-func (it *KeyValueArrayIterator) Value() (Object, error) {
-	i := it.i - 1
-	if i > -1 && i < len(it.V) {
-		return it.V[i], nil
-	}
-	return Nil, nil
 }
 
 type KeyValueArrays []KeyValueArray
@@ -887,16 +858,8 @@ func (o KeyValueArrays) BinaryOp(_ *VM, tok token.Token, right Object) (Object, 
 		right.Type().Name())
 }
 
-// CanIterate implements Object interface.
-func (KeyValueArrays) CanIterate() bool { return true }
-
-// Iterate implements Iterable interface.
-func (o KeyValueArrays) Iterate(*VM) Iterator {
-	return &NamedArgArraysIterator{V: o}
-}
-
-// Len implements LengthGetter interface.
-func (o KeyValueArrays) Len() int {
+// Length implements LengthGetter interface.
+func (o KeyValueArrays) Length() int {
 	return len(o)
 }
 func (o KeyValueArrays) CallName(name string, c Call) (Object, error) {
@@ -916,34 +879,6 @@ func (o KeyValueArrays) CallName(name string, c Call) (Object, error) {
 	default:
 		return nil, ErrInvalidIndex.NewError(name)
 	}
-}
-
-// NamedArgArraysIterator represents an iterator for the array.
-type NamedArgArraysIterator struct {
-	V KeyValueArrays
-	i int
-}
-
-var _ Iterator = (*NamedArgArraysIterator)(nil)
-
-// Next implements Iterator interface.
-func (it *NamedArgArraysIterator) Next() bool {
-	it.i++
-	return it.i-1 < len(it.V)
-}
-
-// Key implements Iterator interface.
-func (it *NamedArgArraysIterator) Key() Object {
-	return Int(it.i - 1)
-}
-
-// Value implements Iterator interface.
-func (it *NamedArgArraysIterator) Value() (Object, error) {
-	i := it.i - 1
-	if i > -1 && i < len(it.V) {
-		return it.V[i], nil
-	}
-	return Nil, nil
 }
 
 type NamedArgs struct {
@@ -1065,14 +1000,6 @@ func (o *NamedArgs) Call(c Call) (Object, error) {
 		return nil, err
 	}
 	return o.GetValue(string(arg.Value.(Str))), nil
-}
-
-func (o *NamedArgs) Iterate(vm *VM) Iterator {
-	return o.Join().Iterate(vm)
-}
-
-func (o *NamedArgs) CanIterate() bool {
-	return true
 }
 
 func (o *NamedArgs) UnReady() *NamedArgs {

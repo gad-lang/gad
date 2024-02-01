@@ -292,3 +292,19 @@ func funcPpVM_OROe(fn func(*VM, Object) (Object, error)) CallableFunc {
 		return
 	}
 }
+
+// funcPpVM_ORO is a generated function to make CallableFunc.
+// Source: func(vm *VM, v Object) (ret Object)
+func funcPpVM_ORO(fn func(*VM, Object) Object) CallableFunc {
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return Nil, err
+		}
+
+		vm := c.VM
+		v := c.Args.Get(0)
+
+		ret = fn(vm, v)
+		return
+	}
+}

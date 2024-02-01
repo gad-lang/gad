@@ -73,7 +73,7 @@ func (o *scanArg) Set(scanned bool) { o.ok = scanned }
 
 func newScanArgFunc(c gad.Call) (gad.Object, error) {
 	typ := "str"
-	if c.Args.Len() > 0 {
+	if c.Args.Length() > 0 {
 		v := c.Args.Get(0)
 	do:
 		if b, ok := v.(*gad.CallerObjectWithMethods); ok {

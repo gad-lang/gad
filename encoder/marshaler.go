@@ -214,8 +214,8 @@ func (o Map) MarshalBinary() ([]byte, error) {
 
 // MarshalBinary implements encoding.BinaryMarshaler
 func (o *SyncMap) MarshalBinary() ([]byte, error) {
-	(*gad.SyncMap)(o).RLock()
-	defer (*gad.SyncMap)(o).RUnlock()
+	(*gad.SyncDict)(o).RLock()
+	defer (*gad.SyncDict)(o).RUnlock()
 
 	var buf bytes.Buffer
 	if o.Value == nil {
