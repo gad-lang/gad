@@ -13,6 +13,7 @@ var (
 	TIterator               = &Type{Parent: TAny, TypeName: "Iterator"}
 	TIterabler              = &Type{Parent: TAny, TypeName: "Iterabler"}
 	TNilIterator            = &Type{Parent: TIterator, TypeName: "NilIterator"}
+	TStateIterator          = &Type{Parent: TIterator, TypeName: "StateIterator"}
 	TStrIterator            = &Type{Parent: TIterator, TypeName: "StrIterator"}
 	TRawStrIterator         = &Type{Parent: TIterator, TypeName: "RawStrIterator"}
 	TArrayIterator          = &Type{Parent: TIterator, TypeName: "ArrayIterator"}
@@ -32,7 +33,6 @@ var (
 	TEachIterator           = &Type{Parent: TIterator, TypeName: "EachIterator"}
 	TMapIterator            = &Type{Parent: TIterator, TypeName: "MapIterator"}
 	TFilterIterator         = &Type{Parent: TIterator, TypeName: "FilterIterator"}
-	TReduceIterator         = &Type{Parent: TIterator, TypeName: "ReduceIterator"}
 	TZipIterator            = &Type{Parent: TIterator, TypeName: "ZipIterator"}
 	TPipedInvokeIterator    = &Type{Parent: TIterator, TypeName: "PipedInvokeIterator"}
 )
@@ -58,6 +58,17 @@ func (t *Type) AddCallerMethod(vm *VM, types MultipleObjectTypes, handler Caller
 	return t.calllerMethods.Add(types, &CallerMethod{
 		CallerObject: handler,
 	}, override)
+}
+
+func (t *Type) WithMethod(types MultipleObjectTypes, handler CallerObject, override bool) *Type {
+	if len(types) == 0 {
+		// overrides default constructor. uses Type.new to instantiate.
+		override = true
+	}
+	t.calllerMethods.Add(types, &CallerMethod{
+		CallerObject: handler,
+	}, override)
+	return t
 }
 
 func (t *Type) HasCallerMethods() bool {
@@ -198,4 +209,19 @@ func TypesOf(obj Object) (types []ObjectType) {
 		types = append(types, TIterabler)
 	}
 	return types
+}
+
+func init() {
+	TIterator.WithMethod(
+		MultipleObjectTypes{{nil}},
+		&Function{
+			Value: func(c Call) (o Object, err error) {
+				if err = c.Args.CheckLen(1); err != nil {
+					return
+				}
+				_, o, err = ToStateIterator(c.VM, c.Args.GetOnly(0), &c.NamedArgs)
+				return
+			},
+		},
+		true)
 }

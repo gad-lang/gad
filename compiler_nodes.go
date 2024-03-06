@@ -1444,7 +1444,7 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 
 	module, exists := c.getModule(moduleName)
 	if !exists {
-		mod, err := importer.Import(moduleName)
+		mod, err := importer.Import(c.opts.Context, moduleName)
 		if err != nil {
 			return c.error(nd, err)
 		}

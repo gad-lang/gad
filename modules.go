@@ -5,13 +5,14 @@
 package gad
 
 import (
+	"context"
 	"errors"
 )
 
 // Importable interface represents importable module instance.
 type Importable interface {
 	// Import should return either an Object or module source code ([]byte).
-	Import(moduleName string) (any, error)
+	Import(ctx context.Context, moduleName string) (any, error)
 }
 
 // ExtImporter wraps methods for a module which will be impored dynamically like
@@ -118,7 +119,7 @@ type SourceModule struct {
 }
 
 // Import returns a module source code.
-func (m *SourceModule) Import(_ string) (any, error) {
+func (m *SourceModule) Import(context.Context, string) (any, error) {
 	return m.Src, nil
 }
 
@@ -128,7 +129,7 @@ type BuiltinModule struct {
 }
 
 // Import returns an immutable map for the module.
-func (m *BuiltinModule) Import(moduleName string) (any, error) {
+func (m *BuiltinModule) Import(_ context.Context, moduleName string) (any, error) {
 	if m.Attrs == nil {
 		return nil, errors.New("module attributes not set")
 	}

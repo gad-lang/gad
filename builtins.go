@@ -82,6 +82,7 @@ const (
 	BuiltinValues
 	BuiltinItems
 	BuiltinCollect
+	BuiltinEnumerate
 	BuiltinIteratorInput
 	BuiltinVMPushWriter
 	BuiltinVMPopWriter
@@ -236,6 +237,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"values":        BuiltinValues,
 	"items":         BuiltinItems,
 	"collect":       BuiltinCollect,
+	"enumerate":     BuiltinEnumerate,
 	"iterator":      BuiltinIterator,
 	"iteratorInput": BuiltinIteratorInput,
 	"keyValue":      BuiltinKeyValue,
@@ -648,6 +650,10 @@ func init() {
 	BuiltinObjects[BuiltinCollect] = &BuiltinFunction{
 		Name:  "collect",
 		Value: BuiltinCollectFunc,
+	}
+	BuiltinObjects[BuiltinEnumerate] = &BuiltinFunction{
+		Name:  "enumerate",
+		Value: BuiltinEnumerateFunc,
 	}
 	BuiltinObjects[BuiltinIterator] = TIterator
 	BuiltinObjects[BuiltinIteratorInput] = &BuiltinFunction{

@@ -507,7 +507,7 @@ VMLoop:
 			}
 		case OpIterNext:
 			iterator := vm.stack[vm.sp-1].(*StateIteratorObject)
-			hasMore, err := iterator.Next()
+			hasMore, err := iterator.Read()
 			if err != nil {
 				if err = vm.throwGenErr(err); err != nil {
 					vm.err = err
@@ -521,7 +521,7 @@ VMLoop:
 			falsePos := int(vm.curInsts[vm.ip+4]) | int(vm.curInsts[vm.ip+3])<<8
 			vm.ip += 4
 
-			hasMore, err := iterator.Next()
+			hasMore, err := iterator.Read()
 			if err != nil {
 				if err = vm.throwGenErr(err); err != nil {
 					vm.err = err

@@ -80,6 +80,9 @@ var (
 
 	// ErrNotInitializable represents a not initializable type error.
 	ErrNotInitializable = &Error{Name: "ErrNotInitializable"}
+
+	// ErrNotWriteable represents a not writeable type error.
+	ErrNotWriteable = &Error{Name: "ErrNotWriteable"}
 )
 
 // NewOperandTypeError creates a new Error from ErrType.

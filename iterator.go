@@ -5,6 +5,7 @@
 package gad
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"strconv"
@@ -55,11 +56,35 @@ const (
 	IteratorStateCollectModeValues
 )
 
+func (m IteratorStateCollectMode) String() string {
+	switch m {
+	case IteratorStateCollectModePair:
+		return "pair"
+	case IteratorStateCollectModeValues:
+		return "values"
+	case IteratorStateCollectModeKeys:
+		return "keys"
+	}
+	return fmt.Sprint(uint8(m))
+}
+
 type IteratorState struct {
 	Mode        IteratorStateMode
 	CollectMode IteratorStateCollectMode
 	Entry       IteratorEntry
 	Value       Object
+}
+
+func (s IteratorState) Get() Object {
+	switch s.CollectMode {
+	case IteratorStateCollectModeKeys:
+		return s.Entry.K
+	case IteratorStateCollectModePair:
+		kv := s.Entry.KeyValue
+		return &kv
+	default:
+		return s.Entry.V
+	}
 }
 
 // Iterator wraps the methods required to iterate Objects in VM.
@@ -405,13 +430,122 @@ func (o *iteratorObject) ToString() string {
 }
 
 type StateIteratorObject struct {
-	ObjectImpl
-	Iterator Iterator
-	State    *IteratorState
-	VM       *VM
+	Iterator
+	State *IteratorState
+	VM    *VM
+}
+
+func (s *StateIteratorObject) IndexGet(vm *VM, index Object) (value Object, err error) {
+	switch index.ToString() {
+	case "entry":
+		if s.State == nil {
+			return Nil, err
+		}
+		return &s.State.Entry.KeyValue, nil
+	case "k":
+		if s.State == nil {
+			return Nil, err
+		}
+		return s.State.Entry.K, nil
+	case "v":
+		if s.State == nil {
+			return Nil, err
+		}
+		return s.State.Entry.V, nil
+	case "started":
+		if s.State == nil {
+			return False, err
+		}
+		return True, nil
+	case "done":
+		if s.State == nil {
+			return False, err
+		}
+		if s.State.Mode == IteratorStateModeDone {
+			return True, nil
+		}
+		return False, nil
+	case "next":
+		var hasNext bool
+		if hasNext, err = s.Read(); err != nil {
+			return
+		}
+		if hasNext {
+			return s.State.Get(), nil
+		}
+		return Nil, err
+	}
+	return nil, ErrInvalidIndex
+}
+
+func (s *StateIteratorObject) IsFalsy() bool {
+	if s.State == nil {
+		return false
+	}
+	return s.State.Mode == IteratorStateModeDone
+}
+
+func (s *StateIteratorObject) ToString() string {
+	return "StateIterator: " + s.Info().ToString()
+}
+
+func (s *StateIteratorObject) Info() Dict {
+	status := "wait"
+	if s.State != nil {
+		if s.State.Mode == IteratorStateModeDone {
+			status = "done"
+		}
+	}
+	d := Dict{
+		"Status": Str(status),
+	}
+	if s.State != nil {
+		d["Value"] = s.State.Value
+		d["Entry"] = &s.State.Entry.KeyValue
+		d["CollectMode"] = Str(s.State.CollectMode.String())
+	}
+	return d
+}
+
+func (s *StateIteratorObject) Equal(right Object) bool {
+	if o, _ := right.(*StateIteratorObject); o != nil {
+		return o == s
+	}
+	return false
+}
+
+func (s *StateIteratorObject) Type() ObjectType {
+	return TStateIterator
+}
+
+func (s *StateIteratorObject) Repr(vm *VM) (r string, err error) {
+	if r, err = s.Iterator.Repr(vm); err != nil {
+		return
+	}
+	return "StateIterator:" + s.Info().ToString() + " of " + r, nil
+}
+
+func (s *StateIteratorObject) Start(vm *VM) (state *IteratorState, err error) {
+	if state, err = s.Iterator.Start(vm); err != nil {
+		return
+	}
+	s.State = state
+	err = IteratorStateCheck(s.VM, s.Iterator, s.State)
+	return
+}
+
+func (s *StateIteratorObject) Next(vm *VM, state *IteratorState) (err error) {
+	s.State = state
+	if err = s.Iterator.Next(vm, state); err == nil {
+		err = IteratorStateCheck(s.VM, s.Iterator, s.State)
+	}
+	return
 }
 
 func NewStateIteratorObject(vm *VM, it Iterator) *StateIteratorObject {
+	if si, _ := it.(*StateIteratorObject); si != nil {
+		return si
+	}
 	return &StateIteratorObject{Iterator: it, VM: vm}
 }
 
@@ -419,20 +553,15 @@ func (s *StateIteratorObject) GetIterator() Iterator {
 	return s.Iterator
 }
 
-func (s *StateIteratorObject) Next() (_ bool, err error) {
+func (s *StateIteratorObject) Read() (_ bool, err error) {
 	if s.State == nil {
-		if s.State, err = s.Iterator.Start(s.VM); err != nil {
+		if s.State, err = s.Start(s.VM); err != nil {
 			return
 		}
-		if s.State.Mode == IteratorStateModeDone {
-			return false, nil
-		}
-	} else if err = s.Iterator.Next(s.VM, s.State); err != nil {
+	} else if err = s.Next(s.VM, s.State); err != nil {
 		return
-	} else if s.State.Mode == IteratorStateModeDone {
-		return false, nil
 	}
-	return true, nil
+	return s.State.Mode != IteratorStateModeDone, nil
 }
 
 func (s *StateIteratorObject) Key() Object {
@@ -526,7 +655,7 @@ func (o Dict) Iterate(_ *VM, na *NamedArgs) Iterator {
 	for k := range o {
 		keys = append(keys, k)
 	}
-	if !na.GetValue("sorted").IsFalsy() {
+	if !na.GetValue("sorted").IsFalsy() || !na.MustGetValue("reversed").IsFalsy() {
 		sort.Strings(keys)
 	}
 	return SliceEntryIteration(TDictIterator, o, keys, func(v string) (_, _ Object, _ error) {
@@ -606,24 +735,19 @@ func (s *ReflectStruct) Iterate(vm *VM, na *NamedArgs) Iterator {
 
 type wrapIterator struct {
 	Iterator
-	Wrap func(e *IteratorEntry) (Object, error)
+	Wrap func(state *IteratorState) error
 }
 
-func WrapIterator(iterator Iterator, wrap func(e *IteratorEntry) (Object, error)) *wrapIterator {
+func WrapIterator(iterator Iterator, wrap func(state *IteratorState) error) *wrapIterator {
 	return &wrapIterator{Iterator: iterator, Wrap: wrap}
 }
 
 func (f *wrapIterator) checkNext(vm *VM, state *IteratorState) (err error) {
 try:
-	if state.Mode == IteratorStateModeDone {
+	if err = IteratorStateCheck(vm, f.Iterator, state); err != nil || state.Mode == IteratorStateModeDone {
 		return
 	}
-	for state.Mode == IteratorStateModeContinue {
-		if err = f.Iterator.Next(vm, state); err != nil || state.Mode == IteratorStateModeDone {
-			return
-		}
-	}
-	if state.Value, err = f.Wrap(&state.Entry); err == nil {
+	if err = f.Wrap(state); err == nil {
 		if state.Mode != IteratorStateModeEntry {
 			goto try
 		}
@@ -685,4 +809,16 @@ func (it *itemsIterator) Collect(vm *VM) (_ Object, err error) {
 		return nil
 	})
 	return ret, err
+}
+
+func IteratorStateCheck(vm *VM, it Iterator, state *IteratorState) (err error) {
+	if state.Mode == IteratorStateModeDone {
+		return
+	}
+	for state.Mode == IteratorStateModeContinue {
+		if err = it.Next(vm, state); err != nil || state.Mode == IteratorStateModeDone {
+			return
+		}
+	}
+	return
 }

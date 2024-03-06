@@ -725,13 +725,13 @@ func TestVMIterator(t *testing.T) {
 
 		return str(ret)
 	`, nil, Str(`[[0, "a"], [1, "b"], [2, "c"]]`))
+
 	expectRun(t, rg+`
 			func iterator(r Range) => [r.start, str('a' + r.start)]
 			func iterator(r Range, state) => state >= r.end ? nil : [state+1, str('a' + state+1)]
 
 			return str(collect(values(Range())))
 		`, nil, Str(`["a", "b", "c"]`))
-
 	expectRun(t, rg+`
 			func iterator(r Range) => [r.start, str('a' + r.start)]
 			func iterator(r Range, state) => state >= r.end ? nil : [state+1, str('a' + state+1)]
@@ -832,6 +832,25 @@ func TestVMIterator(t *testing.T) {
 	expectRun(t, `return reduce([1,2], (cur, v, k) => cur + v)`, nil, Int(4))
 	expectRun(t, `return str(reduce([1,2,3], ((cur, v, k) => {cur.tot += v; cur[str(k+'a')] ??= v; cur}), {tot:100}))`,
 		nil, Str("{a: 1, b: 2, c: 3, tot: 106}"))
+
+	expectRun(t, `a := []; it := iterator({a:"A",b:"B"};reversed); it.next; for k, v in it {a += keyValue(k,v)}; return str(a)`,
+		nil, Str(`[a="A"]`))
+	expectRun(t, `a := []; it := iterator({a:"A",b:"B"};sorted); it.next; for k, v in it {a += keyValue(k,v)}; return str(a)`,
+		nil, Str(`[b="B"]`))
+	expectRun(t, `a := []; it := iterator({a:"A",b:"B"};sorted); it.next; for {v := it.next; if v {a += v;} else {break;} }; return str(a)`,
+		nil, Str(`[b="B"]`))
+	expectRun(t, `a := []; it := iterator({a:"A",b:"B"};sorted); for {v := it.next; if v {a += v;} else {break;} }; return str(a)`,
+		nil, Str(`[a="A", b="B"]`))
+	expectRun(t, `a := []; for k, v in iterator({a:"A",b:"B"};reversed) {a += keyValue(k,v)}; return str(a)`,
+		nil, Str(`[b="B", a="A"]`))
+	expectRun(t, `a := []; for k, v in iterator({a:"A",b:"B"};sorted) {a += keyValue(k,v)}; return str(a)`,
+		nil, Str(`[a="A", b="B"]`))
+	expectRun(t, `a := []; for k, v in (;a="A",b="B") {a += keyValue(k,v)}; return str(a)`,
+		nil, Str(`[a="A", b="B"]`))
+	expectRun(t, `return str(collect(enumerate(iterator({a:"A",b:"B"};sorted))))`,
+		nil, Str(`[0=[a="A"], 1=[b="B"]]`))
+	expectRun(t, `return str(collect(enumerate({a:"A",b:"B"};sorted)))`,
+		nil, Str(`[0=[a="A"], 1=[b="B"]]`))
 }
 
 func TestVMBuiltinFunction(t *testing.T) {

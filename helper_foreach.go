@@ -81,13 +81,8 @@ func (f *PipedInvokeIterator) SetHandler(handler func(state *IteratorState) erro
 
 func (f *PipedInvokeIterator) checkNext(vm *VM, state *IteratorState) (err error) {
 try:
-	if state.Mode == IteratorStateModeDone {
+	if err = IteratorStateCheck(vm, f.it, state); err != nil || state.Mode == IteratorStateModeDone {
 		return
-	}
-	for state.Mode == IteratorStateModeContinue {
-		if err = f.it.Next(vm, state); err != nil || state.Mode == IteratorStateModeDone {
-			return
-		}
 	}
 	if err = f.handler(state); err == nil {
 		if err = f.Call(state); state.Mode != IteratorStateModeEntry {

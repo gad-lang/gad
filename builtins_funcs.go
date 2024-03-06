@@ -454,12 +454,12 @@ func BuiltinEnumerateFunc(c Call) (_ Object, err error) {
 	if _, it, err = ToIterator(c.VM, v, &c.NamedArgs); err != nil {
 		return
 	}
-	return TypedIteratorObject(TEnumerateIterator, WrapIterator(it, func(e *IteratorEntry) (Object, error) {
-		kv := e.KeyValue
-		e.K = i
-		e.V = &kv
+	return TypedIteratorObject(TEnumerateIterator, WrapIterator(it, func(state *IteratorState) error {
+		kv := state.Entry.KeyValue
+		state.Entry.K = i
+		state.Entry.V = &kv
 		i++
-		return e, nil
+		return nil
 	})), nil
 }
 

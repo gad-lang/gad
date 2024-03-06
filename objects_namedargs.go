@@ -128,7 +128,9 @@ func (o *KeyValue) ToString() string {
 		sb.WriteString("=")
 		switch t := o.V.(type) {
 		case Str:
-			sb.WriteString(strconv.Quote(string(t)))
+			sb.WriteString(t.Quoted())
+		case RawStr:
+			sb.WriteString(t.Quoted())
 		case *KeyValue:
 			sb.WriteByte('[')
 			sb.WriteString(t.ToString())
@@ -881,7 +883,10 @@ func (o KeyValueArrays) CallName(name string, c Call) (Object, error) {
 	}
 }
 
+var EmptyNamedArgs = &NamedArgs{ro: true}
+
 type NamedArgs struct {
+	ro      bool
 	sources KeyValueArrays
 	m       Dict
 	ready   Dict
@@ -901,6 +906,9 @@ func (o *NamedArgs) Contains(key string) bool {
 }
 
 func (o *NamedArgs) Add(obj Object) error {
+	if o.ro {
+		return ErrNotWriteable
+	}
 	arr, err := KeyValueArray{}.AppendObject(obj)
 	if err != nil {
 		return err
@@ -1074,6 +1082,14 @@ func (o *NamedArgs) GetValue(key string) (val Object) {
 	return
 }
 
+// MustGetValue Must return value from key but not takes as read
+func (o *NamedArgs) MustGetValue(key string) (val Object) {
+	if val = o.MustGetValueOrNil(key); val == nil {
+		val = Nil
+	}
+	return
+}
+
 // GetPassedValue Get passed value
 func (o *NamedArgs) GetPassedValue(key string) (val Object) {
 	o.Walk(func(na *KeyValue) error {
@@ -1091,8 +1107,20 @@ func (o *NamedArgs) GetValueOrNil(key string) (val Object) {
 	o.check()
 
 	if val = o.m[key]; val != nil {
-		delete(o.m, key)
-		o.ready[key] = nil
+		if !o.ro {
+			delete(o.m, key)
+			o.ready[key] = nil
+		}
+		return
+	}
+	return nil
+}
+
+// MustGetValueOrNil Must return value from key nut not takes as read
+func (o *NamedArgs) MustGetValueOrNil(key string) (val Object) {
+	o.check()
+
+	if val = o.m[key]; val != nil {
 		return
 	}
 	return nil

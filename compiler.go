@@ -5,6 +5,7 @@
 package gad
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -75,6 +76,7 @@ type (
 
 	// CompilerOptions represents customizable options for Compile().
 	CompilerOptions struct {
+		Context             context.Context
 		ModuleMap           *ModuleMap
 		ModulePath          string
 		Constants           []Object

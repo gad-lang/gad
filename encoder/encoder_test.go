@@ -611,8 +611,8 @@ func testBytecodeConstants(t *testing.T, vm *gad.VM, expected, decoded []gad.Obj
 			_, decIt, err := gad.ToStateIterator(vm, decoded[i], gad.NewNamedArgs())
 			require.NoError(t, err)
 
-			for next(decIt.Next()) {
-				require.True(t, next(it.Next()))
+			for next(decIt.Read()) {
+				require.True(t, next(it.Read()))
 				key := decIt.Key()
 				v1, err := gad.Val(expected[i].(gad.IndexGetter).IndexGet(vm, key))
 				require.NoError(t, err)
@@ -633,7 +633,7 @@ func testBytecodeConstants(t *testing.T, vm *gad.VM, expected, decoded []gad.Obj
 					require.Equal(t, v1, v2)
 				}
 			}
-			require.False(t, next(it.Next()))
+			require.False(t, next(it.Read()))
 			continue
 		}
 		require.Equalf(t, expected[i], decoded[i],

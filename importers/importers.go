@@ -1,6 +1,7 @@
 package importers
 
 import (
+	"context"
 	"errors"
 	"io/ioutil"
 	"path/filepath"
@@ -45,7 +46,7 @@ func (m *FileImporter) Name() string {
 
 // Import returns the content of the path determined by Name call. Empty name
 // will return an error.
-func (m *FileImporter) Import(moduleName string) (any, error) {
+func (m *FileImporter) Import(_ context.Context, moduleName string) (any, error) {
 	// Note that; moduleName == Literal()
 	if m.name == "" || moduleName == "" {
 		return nil, errors.New("invalid import call")

@@ -213,7 +213,11 @@ func (o RawStr) ToString() string {
 }
 
 func (o RawStr) Repr(*VM) (string, error) {
-	return repr.Quote("rawstr:" + utils.Quote(string(o), '`')), nil
+	return repr.Quote("rawstr:" + o.Quoted()), nil
+}
+
+func (o RawStr) Quoted() string {
+	return utils.Quote(string(o), '`')
 }
 
 func (o RawStr) IsFalsy() bool {
@@ -342,7 +346,11 @@ func (o Str) ToString() string {
 }
 
 func (o Str) Repr(*VM) (string, error) {
-	return repr.Quote("str:" + strconv.Quote(string(o))), nil
+	return repr.Quote("str:" + o.Quoted()), nil
+}
+
+func (o Str) Quoted() string {
+	return strconv.Quote(string(o))
 }
 
 // IndexGet represents string values and implements Object interface.
