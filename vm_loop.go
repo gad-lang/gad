@@ -335,21 +335,43 @@ VMLoop:
 			vm.stack[vm.sp] = kv
 			vm.sp++
 			vm.ip += 2
-		case OpKeyValueArray:
-			numItems := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
-			kv := make(KeyValueArray, numItems/2)
-			j := 0
+		case OpKeyValue:
+			var (
+				hasValue = int(vm.curInsts[vm.ip+1])
+				kv       KeyValue
+			)
 
-			for i := vm.sp - numItems; i < vm.sp; i += 2 {
-				key := vm.stack[i]
-				value := vm.stack[i+1]
-				kv[j] = &KeyValue{key, value}
-				vm.stack[i] = nil
-				vm.stack[i+1] = nil
-				j++
+			kv.K = vm.stack[vm.sp-1-hasValue]
+
+			if hasValue == 1 {
+				kv.V = vm.stack[vm.sp-1]
+				vm.stack[vm.sp-1] = nil
+			} else {
+				kv.V = No
 			}
+
+			vm.sp -= 1 + hasValue
+			vm.stack[vm.sp] = &kv
+
+			vm.sp++
+			vm.ip += 1
+		case OpKeyValueArray:
+			var (
+				numItems = int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+				arr      = make(KeyValueArray, numItems)
+			)
+
+			for i, v := range vm.stack[vm.sp-numItems : vm.sp] {
+				arr[i] = v.(*KeyValue)
+			}
+
 			vm.sp -= numItems
-			vm.stack[vm.sp] = kv
+			vm.stack[vm.sp] = arr
+
+			for i := vm.sp + 1; i < vm.sp+numItems+1; i++ {
+				vm.stack[i] = nil
+			}
+
 			vm.sp++
 			vm.ip += 2
 		case OpTextWriter:

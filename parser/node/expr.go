@@ -807,7 +807,11 @@ func (e *MultiParenExpr) End() source.Pos {
 func (e *MultiParenExpr) String() string {
 	var s = make([]string, len(e.Exprs))
 	for i, expr := range e.Exprs {
-		s[i] = expr.String()
+		if kv, _ := expr.(*KeyValueLit); kv != nil {
+			s[i] = kv.ElementString()
+		} else {
+			s[i] = expr.String()
+		}
 	}
 	return "(" + strings.Join(s, ", ") + ")"
 }
@@ -1174,11 +1178,18 @@ func (e *KeyValueLit) End() source.Pos {
 	return e.Value.End()
 }
 
-func (e *KeyValueLit) String() string {
+func (e *KeyValueLit) ElementString() string {
 	if e.Value == nil {
 		return e.Key.String()
 	}
 	return e.Key.String() + "=" + e.Value.String()
+}
+
+func (e *KeyValueLit) String() string {
+	if e.Value == nil {
+		return e.Key.String()
+	}
+	return "[" + e.ElementString() + "]"
 }
 
 // KeyValueArrayLit represents a key value array literal.
@@ -1203,7 +1214,7 @@ func (e *KeyValueArrayLit) End() source.Pos {
 func (e *KeyValueArrayLit) String() string {
 	var elements []string
 	for _, m := range e.Elements {
-		elements = append(elements, m.String())
+		elements = append(elements, m.ElementString())
 	}
 	return "(;" + strings.Join(elements, ", ") + ")"
 }

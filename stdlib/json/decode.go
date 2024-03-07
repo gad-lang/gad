@@ -11,6 +11,7 @@
 package json
 
 import (
+	"bytes"
 	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -18,14 +19,27 @@ import (
 	"github.com/gad-lang/gad"
 )
 
+type DecodeOptions struct {
+	FloatFunc func(s string) (gad.Object, error)
+	IntFunc   func(s string) (gad.Object, error)
+}
+
+func NewDecodeOptions() *DecodeOptions {
+	return &DecodeOptions{
+		FloatFunc: toFloat,
+		IntFunc:   toInt,
+	}
+}
+
 // Unmarshal parses the JSON-encoded data and stores the result
 // in the value pointed to by v. If v is nil or not a pointer,
 // Unmarshal returns an InvalidUnmarshalError.
-func Unmarshal(data []byte) (gad.Object, error) {
+func Unmarshal(data []byte, opts *DecodeOptions) (gad.Object, error) {
 	// Check for well-formedness.
 	// Avoids filling out half a data structure
 	// before discovering a JSON syntax error.
 	var d decodeState
+	d.opts = opts
 	err := checkValid(data, &d.scan)
 	if err != nil {
 		return gad.Nil, err
@@ -47,6 +61,7 @@ func (d *decodeState) unmarshal() (gad.Object, error) {
 
 // decodeState represents the state while decoding a JSON value.
 type decodeState struct {
+	opts   *DecodeOptions
 	data   []byte
 	off    int // next read offset in data
 	opcode int // last read result
@@ -237,7 +252,10 @@ func (d *decodeState) literal() (gad.Object, error) {
 			panic(phasePanicMsg)
 		}
 
-		return gad.DecimalFromString(gad.Str(item))
+		if bytes.IndexByte(item, '.') > -1 {
+			return d.opts.FloatFunc(string(item))
+		}
+		return d.opts.IntFunc(string(item))
 	}
 }
 

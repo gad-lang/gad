@@ -1596,33 +1596,51 @@ func (c *Compiler) compileDictLit(nd *node.DictLit) error {
 	return nil
 }
 
-func (c *Compiler) compileKeyValueArrayLit(nd *node.KeyValueArrayLit) (err error) {
-	length := len(nd.Elements)
-	for _, elt := range nd.Elements {
-		if flag, _ := elt.Value.(*node.FlagLit); flag != nil && !flag.Value {
-			length--
-			continue
-		}
-
-		// key
-		switch t := elt.Key.(type) {
-		case *node.Ident:
-			c.emit(nd, OpConstant, c.addConstant(Str(t.Name)))
-		default:
-			if err = c.Compile(elt.Key); err != nil {
-				return
-			}
-		}
-
-		// value
-		if elt.Value == nil {
-			c.emit(nd, OpYes)
-		} else if err = c.Compile(elt.Value); err != nil {
-			return err
+func (c *Compiler) compileKeyValueLit(elt *node.KeyValueLit) (err error) {
+	// key
+	switch t := elt.Key.(type) {
+	case *node.Ident:
+		c.emit(elt, OpConstant, c.addConstant(Str(t.Name)))
+	default:
+		if err = c.Compile(elt.Key); err != nil {
+			return
 		}
 	}
 
-	c.emit(nd, OpKeyValueArray, length*2)
+	if flag, _ := elt.Value.(*node.FlagLit); flag != nil {
+		if flag.Value {
+			c.emit(elt, OpYes)
+			c.emit(elt, OpKeyValue, 1) // 1 => with value
+		} else {
+			c.emit(elt, OpKeyValue, 0) // 0 => without value
+		}
+	} else {
+		// value
+		if elt.Value == nil {
+			c.emit(elt, OpYes)
+		} else if err = c.Compile(elt.Value); err != nil {
+			return err
+		}
+		c.emit(elt, OpKeyValue, 1) // 1 => with value
+	}
+	return
+}
+
+func (c *Compiler) compileKeyValueArrayLit(nd *node.KeyValueArrayLit) (err error) {
+	length := len(nd.Elements)
+	for _, elt := range nd.Elements {
+		if flag, _ := elt.Value.(*node.FlagLit); flag != nil {
+			if !flag.Value {
+				length--
+				continue
+			}
+		}
+		if err = c.compileKeyValueLit(elt); err != nil {
+			return
+		}
+	}
+
+	c.emit(nd, OpKeyValueArray, length)
 	return nil
 }
 

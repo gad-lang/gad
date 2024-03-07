@@ -1255,7 +1255,7 @@ func (o Dict) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err err
 	} else {
 		switch tok {
 		case token.Add:
-			err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *IteratorEntry) error {
+			err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
 				o[e.K.ToString()] = e.V
 				return nil
 			})
@@ -1279,7 +1279,7 @@ func (o Dict) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err err
 				return o, nil
 			default:
 				if Iterable(vm, right) {
-					err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *IteratorEntry) error {
+					err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
 						delete(o, e.K.ToString())
 						return nil
 					})
@@ -1933,7 +1933,7 @@ func (o *IndexProxy) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, 
 		switch tok {
 		case token.Add:
 			if Iterable(vm, right) {
-				err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *IteratorEntry) error {
+				err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
 					return o.Set(vm, e.K, e.V)
 				})
 				return o, err
@@ -1963,7 +1963,7 @@ func (o *IndexProxy) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, 
 				return o, nil
 			default:
 				if Iterable(vm, right) {
-					err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *IteratorEntry) error {
+					err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
 						return o.Del(vm, e.K)
 					})
 					return o, err

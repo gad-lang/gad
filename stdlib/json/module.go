@@ -77,11 +77,14 @@ var Module = map[string]gad.Object{
 		Value: stdlib.FuncPORO(noEscapeFunc),
 	},
 	// gad:doc
-	// Unmarshal(p bytes) -> any
+	// Unmarshal(p bytes,numericAsDecimal=false,floatsAsDecimal=false,intAsDecimal=false) -> any
+	// if numericAsDecimal is true, set floatsAsDecimal to true and intAsDecimal to true
+	// if floatsAsDecimal is true, parses float values as decimal
+	// if intAsDecimal is true, parses int values as decimal
 	// Unmarshal parses the JSON-encoded p and returns the result or error.
 	"Unmarshal": &gad.Function{
 		Name:  "Unmarshal",
-		Value: stdlib.FuncPb2RO(unmarshalFunc),
+		Value: funcPb2b_numberAsDecimal_b_floatAsDecimal_b_intAsDecimal_RO(unmarshalFunc),
 	},
 	// gad:doc
 	// Valid(p bytes) -> bool
@@ -152,8 +155,33 @@ func noEscapeFunc(o gad.Object) gad.Object {
 	return &EncoderOptions{Value: o}
 }
 
-func unmarshalFunc(b []byte) gad.Object {
-	v, err := Unmarshal(b)
+func toDecimal(s string) (gad.Object, error) {
+	return gad.DecimalFromString(gad.Str(s))
+}
+
+func toInt(s string) (o gad.Object, _ error) {
+	o, _ = gad.ToInt(gad.Str(s))
+	return
+}
+
+func toFloat(s string) (o gad.Object, _ error) {
+	o, _ = gad.ToFloat(gad.Str(s))
+	return
+}
+
+func unmarshalFunc(b []byte, numericAsDecimal, floatsAsDecimal, intAsDecimal bool) gad.Object {
+	opts := NewDecodeOptions()
+	if numericAsDecimal {
+		floatsAsDecimal = true
+		intAsDecimal = true
+	}
+	if intAsDecimal {
+		opts.IntFunc = toDecimal
+	}
+	if floatsAsDecimal {
+		opts.FloatFunc = toDecimal
+	}
+	v, err := Unmarshal(b, opts)
 	if err != nil {
 		return &gad.Error{Message: err.Error(), Cause: err}
 	}

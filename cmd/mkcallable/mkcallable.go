@@ -50,6 +50,7 @@ var converters = map[string]any{
 	"gad.Float":        "gad.ToFloat",
 	"gad.Char":         "gad.ToChar",
 	"gad.Bool":         "gad.ToBool",
+	"gad.Flag":         "gad.ToFlag",
 	"gad.Array":        "gad.ToArray",
 	"gad.Dict":         "gad.ToMap",
 	"gad.CallerObject": "",
@@ -75,6 +76,7 @@ var builtinTypeAlias = map[string]string{
 	"gad.VM":           "Vm",
 	"string":           "s",
 	"bool":             "b",
+	"flag":             "f",
 	"byte":             "b1",
 	"[]byte":           "b2",
 	"int":              "i",
@@ -97,6 +99,8 @@ var gadTypeNames = map[string]string{
 	"gad.Uint":         "uint",
 	"gad.Char":         "char",
 	"gad.CallerObject": "CallerObject",
+	"gad.Flag":         "gad.Flag",
+	"flag":             "Flag",
 	"string":           "str",
 	"byte":             "char",
 	"[]byte":           "bytes",
@@ -753,7 +757,7 @@ func (f *Fn) HelperCheckNamedArgs() string {
 		);
 		if err := %s.NamedArgs.Get(%s); err!=nil {
 			return %sNil, err
-		}`, strings.Join(s, ","), f.argsName, strings.Join(names, ", "), gaddot())
+		}`, strings.Join(s, ""), f.argsName, strings.Join(names, ", "), gaddot())
 }
 
 // HelperCall is an helper used in template to return function call block with
@@ -852,6 +856,11 @@ func (f *Fn) genFuncName() {
 				}
 			}
 			b.WriteString(n)
+			if param.Named {
+				b.WriteString("_")
+				b.WriteString(param.Name)
+				b.WriteString("_")
+			}
 		}
 	}
 	gen(f.Params)

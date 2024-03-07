@@ -377,7 +377,7 @@ func reflectMapEncoder(e *encodeState, v gad.Object, opts encOpts) {
 		dict = make(gad.Dict, m.Length())
 	)
 
-	gad.IterateObject(e.vm, m, gad.NewNamedArgs(), nil, func(e *gad.IteratorEntry) error {
+	gad.IterateObject(e.vm, m, gad.NewNamedArgs(), nil, func(e *gad.KeyValue) error {
 		dict[e.K.ToString()] = e.V
 		return nil
 	})
@@ -390,7 +390,7 @@ func reflectStructEncoder(e *encodeState, v gad.Object, opts encOpts) {
 		m    = v.(*gad.ReflectStruct)
 		dict = make(gad.Dict)
 	)
-	gad.IterateObject(e.vm, m, gad.NewNamedArgs(), nil, func(e *gad.IteratorEntry) error {
+	gad.IterateObject(e.vm, m, gad.NewNamedArgs(), nil, func(e *gad.KeyValue) error {
 		dict[e.K.ToString()] = e.V
 		return nil
 	})
@@ -403,7 +403,7 @@ func reflectArrayEncoder(e *encodeState, v gad.Object, opts encOpts) {
 		arr = make(gad.Array, a.Length())
 	)
 
-	gad.IterateObject(e.vm, a, gad.NewNamedArgs(), nil, func(e *gad.IteratorEntry) error {
+	gad.IterateObject(e.vm, a, gad.NewNamedArgs(), nil, func(e *gad.KeyValue) error {
 		arr[int(e.K.(gad.Int))] = e.V
 		return nil
 	})

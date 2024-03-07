@@ -849,7 +849,7 @@
   394:    37:  7: . . . . . . . UnaryExpression (
   394:    37:  7: . . . . . . . . PrimaryExpression (
   394:    37:  7: . . . . . . . . . Operand (
-  394:    37:  7: . . . . . . . . . . ArrayLit (
+  394:    37:  7: . . . . . . . . . . ArrayLitOrKeyValue (
   394:    37:  7: . . . . . . . . . . . "["
   395:    37:  8: . . . . . . . . . . . Expression (
   395:    37:  8: . . . . . . . . . . . . BinaryExpression (

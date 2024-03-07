@@ -160,7 +160,7 @@ func ToIterator(vm *VM, obj Object, na *NamedArgs) (l int, it Iterator, err erro
 						if val, err = NewInvoker(vm, startMethod).Invoke(Args{Array{obj}}, nil); err == nil {
 							if arr, ok := val.(Array); ok && len(arr) == 2 {
 								state.Value = arr[0]
-								if e, _ := arr[1].(*IteratorEntry); e != nil {
+								if e, _ := arr[1].(*KeyValue); e != nil {
 									state.Entry = *e
 								} else {
 									state.Entry.K = Nil
@@ -180,7 +180,7 @@ func ToIterator(vm *VM, obj Object, na *NamedArgs) (l int, it Iterator, err erro
 								state.Mode = IteratorStateModeDone
 							} else if arr, ok := val.(Array); ok && len(arr) == 2 {
 								state.Value = arr[0]
-								if e, _ := arr[1].(*IteratorEntry); e != nil {
+								if e, _ := arr[1].(*KeyValue); e != nil {
 									state.Entry = *e
 								} else {
 									state.Entry.K = Nil
@@ -209,7 +209,7 @@ func ToStateIterator(vm *VM, obj Object, na *NamedArgs) (l int, sit *StateIterat
 	return
 }
 
-func Iterate(vm *VM, it Iterator, init func(state *IteratorState) error, cb func(e *IteratorEntry) error) (err error) {
+func Iterate(vm *VM, it Iterator, init func(state *IteratorState) error, cb func(e *KeyValue) error) (err error) {
 	var state *IteratorState
 	state, err = it.Start(vm)
 	if err == nil && init != nil {
@@ -229,7 +229,7 @@ func Iterate(vm *VM, it Iterator, init func(state *IteratorState) error, cb func
 	return
 }
 
-func IterateObject(vm *VM, o Object, na *NamedArgs, init func(state *IteratorState) error, cb func(e *IteratorEntry) error) (err error) {
+func IterateObject(vm *VM, o Object, na *NamedArgs, init func(state *IteratorState) error, cb func(e *KeyValue) error) (err error) {
 	var it Iterator
 	if _, it, err = ToIterator(vm, o, na); err != nil {
 		return
@@ -241,7 +241,7 @@ func IterateObject(vm *VM, o Object, na *NamedArgs, init func(state *IteratorSta
 	return
 }
 
-func CollectCb(vm *VM, o Object, na *NamedArgs, cb func(e *IteratorEntry, i *Int) Object) (values Array, err error) {
+func CollectCb(vm *VM, o Object, na *NamedArgs, cb func(e *KeyValue, i *Int) Object) (values Array, err error) {
 	var (
 		l  int
 		it Iterator
@@ -287,7 +287,7 @@ func ValuesOf(vm *VM, o Object, na *NamedArgs) (values Array, err error) {
 		return g.Values(), nil
 	}
 
-	return CollectCb(vm, o, na, func(e *IteratorEntry, i *Int) Object {
+	return CollectCb(vm, o, na, func(e *KeyValue, i *Int) Object {
 		return e.V
 	})
 }
@@ -311,9 +311,7 @@ start:
 		goto start
 	}
 
-	err = IterateObject(vm, o, na, nil, func(e *IteratorEntry) (err error) {
-		return cb(&e.KeyValue)
-	})
+	err = IterateObject(vm, o, na, nil, cb)
 	return
 }
 

@@ -834,8 +834,10 @@ func (so *SimpleOptimizer) optimize(nd ast.Node) (node.Expr, bool) {
 			if expr, ok = so.optimize(nd.NamedArgs.Values[i]); ok {
 				nd.NamedArgs.Values[i] = expr
 			}
-			if expr, ok = so.evalExpr(nd.NamedArgs.Values[i]); ok {
-				nd.NamedArgs.Values[i] = expr
+			if nd.NamedArgs.Values[i] != nil {
+				if expr, ok = so.evalExpr(nd.NamedArgs.Values[i]); ok {
+					nd.NamedArgs.Values[i] = expr
+				}
 			}
 		}
 	case *node.CondExpr:

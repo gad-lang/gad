@@ -247,6 +247,16 @@ func ToBool(o Object) (v Bool, ok bool) {
 	return
 }
 
+// ToFlag will try to convert an Object to Gad Flag value.
+func ToFlag(o Object) (v Flag, ok bool) {
+	if v, ok = o.(Flag); ok {
+		return
+	}
+	vv, ok := ToGoBool(o)
+	v = Flag(vv)
+	return
+}
+
 // ToArray will try to convert an Object to Gad array value.
 func ToArray(o Object) (v Array, ok bool) {
 	v, ok = o.(Array)

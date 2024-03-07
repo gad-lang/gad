@@ -2453,6 +2453,7 @@ func TestCompilerFor(t *testing.T) {
 			withLocals(3),
 		)))
 }
+
 func TestCompilerNullishSelector(t *testing.T) {
 	expectCompile(t, `var a; (a["I"+"DX"])?.d`, bytecode(
 		Array{
@@ -2967,6 +2968,75 @@ func f0(i int) {
 				makeInst(OpReturn, 0),
 			),
 				withLocals(1)),
+		))
+}
+
+func TestCompilerKeyValue(t *testing.T) {
+	expectCompile(t, `[a=1]`,
+		bytecode(
+			Array{
+				Str("a"),
+				Int(1),
+			},
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpConstant, 1),
+				makeInst(OpKeyValue, 1),
+				makeInst(OpPop),
+				makeInst(OpReturn, 0),
+			),
+				withLocals(0)),
+		))
+	expectCompile(t, `[a=yes]`,
+		bytecode(
+			Array{
+				Str("a"),
+			},
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpYes),
+				makeInst(OpKeyValue, 1),
+				makeInst(OpPop),
+				makeInst(OpReturn, 0),
+			),
+				withLocals(0)),
+		))
+	expectCompile(t, `[a=no]`,
+		bytecode(
+			Array{
+				Str("a"),
+			},
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpKeyValue, 0),
+				makeInst(OpPop),
+				makeInst(OpReturn, 0),
+			),
+				withLocals(0)),
+		))
+	expectCompile(t, `(;a=1,b=yes,c,d=no)`,
+		bytecode(
+			Array{
+				Str("a"),
+				Int(1),
+				Str("b"),
+				Str("c"),
+			},
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpConstant, 1),
+				makeInst(OpKeyValue, 1),
+				makeInst(OpConstant, 2),
+				makeInst(OpYes),
+				makeInst(OpKeyValue, 1),
+				makeInst(OpConstant, 3),
+				makeInst(OpYes),
+				makeInst(OpKeyValue, 1),
+				makeInst(OpKeyValueArray, 3),
+				makeInst(OpPop),
+				makeInst(OpReturn, 0),
+			),
+				withLocals(0)),
 		))
 }
 

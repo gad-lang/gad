@@ -1409,6 +1409,15 @@ c=2,
   x(1))`, `(a, c=2, x(1))`)
 }
 
+func TestParseKeyValue(t *testing.T) {
+	expectParse(t, `[a=1]`, func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				kv(ident("a", p(1, 2)), intLit(1, p(1, 4)))))
+	})
+	expectParseString(t, `[a=1]`, `[a=1]`)
+}
+
 func TestParseKeyValueArray(t *testing.T) {
 	expectParseString(t, `(;)`, `(;)`)
 	expectParseString(t, `(

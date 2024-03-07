@@ -917,7 +917,7 @@ func (p *Parser) ParseOperand() node.Expr {
 	case token.Begin:
 		return p.ParseParemExpr(token.Begin, token.End, false, false, false)
 	case token.LBrack: // array literal
-		return p.ParseArrayLit()
+		return p.ParseArrayLitOrKeyValue()
 	case token.LBrace: // dict literal
 		return p.ParseDictLit()
 	case token.Func: // function literal
@@ -1242,15 +1242,35 @@ func (p *Parser) ParseFuncLit() node.Expr {
 	}
 }
 
-func (p *Parser) ParseArrayLit() node.Expr {
+func (p *Parser) ParseArrayLitOrKeyValue() node.Expr {
 	if p.Trace {
-		defer untracep(tracep(p, "ArrayLit"))
+		defer untracep(tracep(p, "ArrayLitOrKeyValue"))
 	}
 
 	lbrack := p.Expect(token.LBrack)
 	p.ExprLevel++
 
-	var elements []node.Expr
+	var (
+		elements []node.Expr
+	)
+
+	if p.Token.Token != token.RBrack && p.Token.Token != token.EOF {
+		elements = append(elements, p.ParseExpr())
+		if p.Token.Token == token.Assign {
+			p.Next()
+			expr := &node.KeyValueLit{
+				Key:   elements[0],
+				Value: p.ParseExpr(),
+			}
+			p.Expect(token.RBrack)
+			return expr
+		}
+
+		if p.AtComma("array literal", token.RBrack) {
+			p.Next()
+		}
+	}
+
 	for p.Token.Token != token.RBrack && p.Token.Token != token.EOF {
 		elements = append(elements, p.ParseExpr())
 

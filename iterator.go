@@ -13,33 +13,6 @@ import (
 	"sync"
 )
 
-type IteratorEntry struct {
-	KeyValue
-}
-
-func NewIteratorEntry(k, v Object) *IteratorEntry {
-	return &IteratorEntry{KeyValue: KeyValue{k, v}}
-}
-
-func (i *IteratorEntry) IsFalsy() bool {
-	return false
-}
-
-func (i *IteratorEntry) Type() ObjectType {
-	return TItEntry
-}
-
-func (i *IteratorEntry) Equal(right Object) bool {
-	if other, ok := right.(*IteratorEntry); ok {
-		return i.KeyValue.Equal(&other.KeyValue)
-	}
-	return false
-}
-
-func (i *IteratorEntry) ToString() string {
-	return "[;" + i.K.ToString() + "=" + i.V.ToString() + "]"
-}
-
 type IteratorStateMode uint8
 
 const (
@@ -71,7 +44,7 @@ func (m IteratorStateCollectMode) String() string {
 type IteratorState struct {
 	Mode        IteratorStateMode
 	CollectMode IteratorStateCollectMode
-	Entry       IteratorEntry
+	Entry       KeyValue
 	Value       Object
 }
 
@@ -80,7 +53,7 @@ func (s IteratorState) Get() Object {
 	case IteratorStateCollectModeKeys:
 		return s.Entry.K
 	case IteratorStateCollectModePair:
-		kv := s.Entry.KeyValue
+		kv := s.Entry
 		return &kv
 	default:
 		return s.Entry.V
@@ -198,7 +171,7 @@ type RangeIteration struct {
 	step       int
 	start, end int
 	Len        int
-	ReadTo     func(e *IteratorEntry, i int) error
+	ReadTo     func(e *KeyValue, i int) error
 }
 
 var (
@@ -206,7 +179,7 @@ var (
 	_ LengthIterator = (*LimitedIterator)(nil)
 )
 
-func NewRangeIteration(typ ObjectType, o Object, len int, readTo func(e *IteratorEntry, i int) error) *RangeIteration {
+func NewRangeIteration(typ ObjectType, o Object, len int, readTo func(e *KeyValue, i int) error) *RangeIteration {
 	var (
 		valid = func(i int) bool {
 			return i >= 0 && i+1 < len
@@ -293,14 +266,14 @@ func (it *RangeIteration) Length() int {
 	return it.Len
 }
 
-func SliceIteration[T any](typ ObjectType, o Object, items []T, get func(e *IteratorEntry, i Int, v T) error) *RangeIteration {
-	return NewRangeIteration(typ, o, len(items), func(e *IteratorEntry, i int) (err error) {
+func SliceIteration[T any](typ ObjectType, o Object, items []T, get func(e *KeyValue, i Int, v T) error) *RangeIteration {
+	return NewRangeIteration(typ, o, len(items), func(e *KeyValue, i int) (err error) {
 		return get(e, Int(i), items[i])
 	})
 }
 
 func SliceEntryIteration[T any](typ ObjectType, o Object, items []T, get func(v T) (key Object, val Object, err error)) *RangeIteration {
-	return NewRangeIteration(typ, o, len(items), func(e *IteratorEntry, i int) (err error) {
+	return NewRangeIteration(typ, o, len(items), func(e *KeyValue, i int) (err error) {
 		e.K, e.V, err = get(items[i])
 		return
 	})
@@ -348,6 +321,7 @@ func (it *zipIterator) Start(vm *VM) (state *IteratorState, err error) {
 }
 
 func (it *zipIterator) StartFrom(vm *VM, state *IteratorState, start int) (err error) {
+	state.Mode = 0
 	if start == it.itsCount {
 		state.Mode = IteratorStateModeDone
 	} else {
@@ -375,7 +349,7 @@ func (it *zipIterator) Next(vm *VM, state *IteratorState) (err error) {
 	if stateArr, ok := state.Value.(Array); ok && len(stateArr) == 2 {
 		if i, ok := stateArr[0].(Int); ok && i >= 0 && i < Int(it.itsCount) {
 			state.Value = stateArr[1]
-			if err = it.Next(vm, state); err != nil {
+			if err = it.Iterators[i].Next(vm, state); err != nil {
 				return
 			} else if state.Mode == IteratorStateModeDone {
 				err = it.StartFrom(vm, state, int(i)+1)
@@ -441,7 +415,7 @@ func (s *StateIteratorObject) IndexGet(vm *VM, index Object) (value Object, err 
 		if s.State == nil {
 			return Nil, err
 		}
-		return &s.State.Entry.KeyValue, nil
+		return &s.State.Entry, nil
 	case "k":
 		if s.State == nil {
 			return Nil, err
@@ -501,7 +475,7 @@ func (s *StateIteratorObject) Info() Dict {
 	}
 	if s.State != nil {
 		d["Value"] = s.State.Value
-		d["Entry"] = &s.State.Entry.KeyValue
+		d["Entry"] = &s.State.Entry
 		d["CollectMode"] = Str(s.State.CollectMode.String())
 	}
 	return d
@@ -603,7 +577,7 @@ func (o *nilIteratorObject) Next(_ *VM, state *IteratorState) error {
 var _ Object = (*iteratorObject)(nil)
 
 func (o Str) Iterate(_ *VM, na *NamedArgs) Iterator {
-	return SliceIteration(TStrIterator, o, []rune(o), func(e *IteratorEntry, i Int, v rune) error {
+	return SliceIteration(TStrIterator, o, []rune(o), func(e *KeyValue, i Int, v rune) error {
 		e.K = i
 		e.V = Char(v)
 		return nil
@@ -612,7 +586,7 @@ func (o Str) Iterate(_ *VM, na *NamedArgs) Iterator {
 
 func (o RawStr) Iterate(_ *VM, na *NamedArgs) Iterator {
 	var r = []rune(o)
-	return SliceIteration(TRawStrIterator, o, r, func(e *IteratorEntry, i Int, v rune) error {
+	return SliceIteration(TRawStrIterator, o, r, func(e *KeyValue, i Int, v rune) error {
 		e.K = i
 		e.V = Char(v)
 		return nil
@@ -620,7 +594,7 @@ func (o RawStr) Iterate(_ *VM, na *NamedArgs) Iterator {
 }
 
 func (o Bytes) Iterate(_ *VM, na *NamedArgs) Iterator {
-	return SliceIteration(TBytesIterator, o, o, func(e *IteratorEntry, i Int, v byte) error {
+	return SliceIteration(TBytesIterator, o, o, func(e *KeyValue, i Int, v byte) error {
 		e.K = i
 		e.V = Int(v)
 		return nil
@@ -628,7 +602,7 @@ func (o Bytes) Iterate(_ *VM, na *NamedArgs) Iterator {
 }
 
 func (o Array) Iterate(_ *VM, na *NamedArgs) Iterator {
-	return SliceIteration(TArrayIterator, o, o, func(e *IteratorEntry, i Int, v Object) error {
+	return SliceIteration(TArrayIterator, o, o, func(e *KeyValue, i Int, v Object) error {
 		e.K = i
 		e.V = v
 		return nil
@@ -636,14 +610,14 @@ func (o Array) Iterate(_ *VM, na *NamedArgs) Iterator {
 }
 
 func (o KeyValueArray) Iterate(_ *VM, na *NamedArgs) Iterator {
-	return SliceIteration(TKeyValueArrayIterator, o, o, func(e *IteratorEntry, i Int, v *KeyValue) error {
-		e.KeyValue = *v
+	return SliceIteration(TKeyValueArrayIterator, o, o, func(e *KeyValue, i Int, v *KeyValue) error {
+		*e = *v
 		return nil
 	}).ParseNamedArgs(na)
 }
 
 func (o KeyValueArrays) Iterate(_ *VM, na *NamedArgs) Iterator {
-	return SliceIteration(TKeyValueArraysIterator, o, o, func(e *IteratorEntry, i Int, v KeyValueArray) error {
+	return SliceIteration(TKeyValueArraysIterator, o, o, func(e *KeyValue, i Int, v KeyValueArray) error {
 		e.K = i
 		e.V = v
 		return nil
@@ -692,7 +666,7 @@ func (it *SyncIterator) NextIteration(vm *VM, state *IteratorState) (err error) 
 }
 
 func (o Args) Iterate(_ *VM, na *NamedArgs) Iterator {
-	return NewRangeIteration(TArgsIterator, o, o.Length(), func(e *IteratorEntry, i int) error {
+	return NewRangeIteration(TArgsIterator, o, o.Length(), func(e *KeyValue, i int) error {
 		e.K, e.V = Int(i), o.GetOnly(i)
 		return nil
 	}).ParseNamedArgs(na)
@@ -703,7 +677,7 @@ func (o *NamedArgs) Iterate(vm *VM, na *NamedArgs) Iterator {
 }
 
 func (o *ReflectArray) Iterate(vm *VM, na *NamedArgs) Iterator {
-	return NewRangeIteration(TReflectArrayIterator, o, o.RValue.Len(), func(e *IteratorEntry, i int) (err error) {
+	return NewRangeIteration(TReflectArrayIterator, o, o.RValue.Len(), func(e *KeyValue, i int) (err error) {
 		var v Object
 		v, err = o.Get(vm, i)
 		e.K = Int(i)
@@ -802,9 +776,9 @@ func (it *itemsIterator) Repr(vm *VM) (string, error) {
 
 func (it *itemsIterator) Collect(vm *VM) (_ Object, err error) {
 	var ret KeyValueArray
-	err = Iterate(vm, it.Iterator, nil, func(e *IteratorEntry) error {
+	err = Iterate(vm, it.Iterator, nil, func(e *KeyValue) error {
 		// copy key value
-		kv := e.KeyValue
+		kv := *e
 		ret = append(ret, &kv)
 		return nil
 	})

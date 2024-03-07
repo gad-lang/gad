@@ -123,7 +123,7 @@ func (f *PipedInvokeIterator) Call(state *IteratorState) (err error) {
 			return f.postCall(state, ret)
 		}
 
-		if e2, _ := ret.(*IteratorEntry); e2 != nil {
+		if e2, _ := ret.(*KeyValue); e2 != nil {
 			state.Entry = *e2
 		} else {
 			state.Entry.V = ret

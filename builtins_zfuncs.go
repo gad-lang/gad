@@ -162,9 +162,9 @@ func funcPf64RO(fn func(float64) Object) CallableFunc {
 	}
 }
 
-// funcPCoACobRe is a generated function to make CallableFunc.
+// funcPCoACob_override_Re is a generated function to make CallableFunc.
 // Source: func(o CallerObject, argsType Array, handler CallerObject, override=bool) (err error)
-func funcPCoACobRe(fn func(CallerObject, Array, CallerObject, bool) error) CallableFunc {
+func funcPCoACob_override_Re(fn func(CallerObject, Array, CallerObject, bool) error) CallableFunc {
 	return func(c Call) (ret Object, err error) {
 		if err := c.Args.CheckLen(3); err != nil {
 			return Nil, err
@@ -205,9 +205,9 @@ func funcPCoACobRe(fn func(CallerObject, Array, CallerObject, bool) error) Calla
 	}
 }
 
-// funcPpVM_CoCobRe is a generated function to make CallableFunc.
+// funcPpVM_CoCob_override_Re is a generated function to make CallableFunc.
 // Source: func(vm *VM, o CallerObject, handler CallerObject, override=bool) (err error)
-func funcPpVM_CoCobRe(fn func(*VM, CallerObject, CallerObject, bool) error) CallableFunc {
+func funcPpVM_CoCob_override_Re(fn func(*VM, CallerObject, CallerObject, bool) error) CallableFunc {
 	return func(c Call) (ret Object, err error) {
 		if err := c.Args.CheckLen(2); err != nil {
 			return Nil, err
@@ -245,9 +245,9 @@ func funcPpVM_CoCobRe(fn func(*VM, CallerObject, CallerObject, bool) error) Call
 	}
 }
 
-// funcPpVM_OCoROe is a generated function to make CallableFunc.
+// funcPpVM_OCo_less_ROe is a generated function to make CallableFunc.
 // Source: func(vm *VM, v Object, less=CallerObject) (ret Object, err error)
-func funcPpVM_OCoROe(fn func(*VM, Object, CallerObject) (Object, error)) CallableFunc {
+func funcPpVM_OCo_less_ROe(fn func(*VM, Object, CallerObject) (Object, error)) CallableFunc {
 	return func(c Call) (ret Object, err error) {
 		if err := c.Args.CheckLen(1); err != nil {
 			return Nil, err

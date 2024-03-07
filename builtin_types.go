@@ -70,7 +70,6 @@ func (b *BuiltinObjType) String() string {
 
 var (
 	TNil,
-	TItEntry,
 	TFlag,
 	TBool,
 	TInt,
@@ -135,9 +134,6 @@ var (
 
 func init() {
 	TNil = RegisterBuiltinType(BuiltinNil, "nil", Nil, nil)
-	TItEntry = RegisterBuiltinType(BuiltinItEntry, "ItEntry", Nil, funcPOOROe(func(k Object, v Object) (Object, error) {
-		return &IteratorEntry{KeyValue{K: k, V: v}}, nil
-	}))
 	TFlag = RegisterBuiltinType(BuiltinFlag, "flag", Yes, funcPORO(BuiltinFlagFunc))
 	TBool = RegisterBuiltinType(BuiltinBool, "bool", True, funcPORO(BuiltinBoolFunc))
 	TInt = RegisterBuiltinType(BuiltinInt, "int", Int(0), funcPi64RO(BuiltinIntFunc))

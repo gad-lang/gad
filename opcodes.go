@@ -81,6 +81,7 @@ const (
 	OpJumpNil
 	OpJumpNotNil
 	OpKeyValueArray
+	OpKeyValue
 	OpCallee
 	OpArgs
 	OpNamedArgs
@@ -143,7 +144,8 @@ var OpcodeNames = [...]string{
 	OpCallName:      "CALLNAME",
 	OpJumpNil:       "JUMPNULL",
 	OpJumpNotNil:    "JUMPNOTNULL",
-	OpKeyValueArray: "NAMEDARRAY",
+	OpKeyValueArray: "KVARRAY",
+	OpKeyValue:      "KV",
 	OpCallee:        "CALLEE",
 	OpArgs:          "ARGS",
 	OpNamedArgs:     "NAMEDARGS",
@@ -211,6 +213,7 @@ var OpcodeOperands = [...][]int{
 	OpCallee:        {},
 	OpArgs:          {},
 	OpNamedArgs:     {},
+	OpKeyValue:      {1}, // 0: whitout value, 1: with value
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

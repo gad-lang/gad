@@ -502,6 +502,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileFuncLit(nt)
 	case *node.ClosureLit:
 		return c.compileClosureLit(nt)
+	case *node.KeyValueLit:
+		return c.compileKeyValueLit(nt)
 	case *node.ReturnStmt:
 		return c.compileReturnStmt(nt)
 	case *node.CallExpr:
@@ -875,7 +877,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		return buf, nil
 	case OpReturn, OpBinaryOp, OpUnary, OpGetIndex, OpGetLocal,
 		OpSetLocal, OpGetFree, OpSetFree, OpGetLocalPtr, OpGetFreePtr, OpThrow,
-		OpFinalizer, OpDefineLocal:
+		OpFinalizer, OpDefineLocal, OpKeyValue:
 		buf = append(buf, byte(args[0]))
 		return buf, nil
 	case OpEqual, OpNotEqual, OpNull, OpTrue, OpFalse, OpYes, OpNo, OpPop, OpSliceIndex,

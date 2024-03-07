@@ -48,6 +48,7 @@ type Type struct {
 	TypeName       string
 	Parent         ObjectType
 	calllerMethods MethodArgType
+	Constructor    CallerObject
 }
 
 func (t *Type) AddCallerMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error {
@@ -68,6 +69,11 @@ func (t *Type) WithMethod(types MultipleObjectTypes, handler CallerObject, overr
 	t.calllerMethods.Add(types, &CallerMethod{
 		CallerObject: handler,
 	}, override)
+	return t
+}
+
+func (t *Type) WithConstructor(handler CallerObject) *Type {
+	t.Constructor = handler
 	return t
 }
 
@@ -104,13 +110,16 @@ func (t *Type) CallerOfTypes(types []ObjectType) (co CallerObject, validate bool
 }
 
 func (t *Type) Caller() CallerObject {
-	return nil
+	return t.Constructor
 }
 
 func (t *Type) Call(c Call) (_ Object, err error) {
 	caller, validate := t.CallerOf(c.Args)
 	if caller == nil {
-		return nil, ErrNotInitializable
+		if t.Constructor == nil {
+			return nil, ErrNotInitializable
+		}
+		caller = t.Constructor
 	}
 	c.SafeArgs = !validate
 	return YieldCall(caller, &c), nil
@@ -224,4 +233,22 @@ func init() {
 			},
 		},
 		true)
+	TZipIterator.WithConstructor(
+		&Function{
+			Value: func(c Call) (o Object, err error) {
+				var it = make([]Iterator, c.Args.Length())
+				c.Args.Walk(func(i int, arg Object) any {
+					if _, it[i], err = ToIterator(c.VM, arg, &c.NamedArgs); err != nil {
+						return err
+					}
+					return nil
+				})
+				if err != nil {
+					return
+				}
+
+				o = IteratorObject(ZipIterator(it...))
+				return
+			},
+		})
 }

@@ -40,7 +40,7 @@ const (
 	BuiltinError
 	BuiltinBuffer
 	BuiltinIterator
-	BuiltinItEntry
+	BuiltinZipIterator
 	BuiltinTypesEnd_
 
 	BuiltinFunctionsBegin_
@@ -240,6 +240,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"enumerate":     BuiltinEnumerate,
 	"iterator":      BuiltinIterator,
 	"iteratorInput": BuiltinIteratorInput,
+	"zip":           BuiltinZipIterator,
 	"keyValue":      BuiltinKeyValue,
 	"keyValueArray": BuiltinKeyValueArray,
 
@@ -407,11 +408,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	},
 	BuiltinSort: &BuiltinFunction{
 		Name:  "sort",
-		Value: funcPpVM_OCoROe(BuiltinSortFunc),
+		Value: funcPpVM_OCo_less_ROe(BuiltinSortFunc),
 	},
 	BuiltinSortReverse: &BuiltinFunction{
 		Name:  "sortReverse",
-		Value: funcPpVM_OCoROe(BuiltinSortReverseFunc),
+		Value: funcPpVM_OCo_less_ROe(BuiltinSortReverseFunc),
 	},
 	BuiltinTypeName: &BuiltinFunction{
 		Name:                  "typeName",
@@ -555,7 +556,7 @@ var BuiltinObjects = BuiltinObjectsMap{
 	},
 	BuiltinAddCallMethod: &BuiltinFunction{
 		Name:                  "addCallMethod",
-		Value:                 funcPpVM_CoCobRe(BuiltinAddCallMethodFunc),
+		Value:                 funcPpVM_CoCob_override_Re(BuiltinAddCallMethodFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinRawCaller: &BuiltinFunction{
@@ -656,6 +657,7 @@ func init() {
 		Value: BuiltinEnumerateFunc,
 	}
 	BuiltinObjects[BuiltinIterator] = TIterator
+	BuiltinObjects[BuiltinZipIterator] = TZipIterator
 	BuiltinObjects[BuiltinIteratorInput] = &BuiltinFunction{
 		Name:  "iteratorInput",
 		Value: funcPORO(BuiltinIteratorInputFunc),

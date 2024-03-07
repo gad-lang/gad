@@ -599,7 +599,7 @@ func (c *ConfigStmt) End() source.Pos {
 func (c *ConfigStmt) String() string {
 	var elements []string
 	for _, m := range c.Elements {
-		elements = append(elements, m.String())
+		elements = append(elements, m.ElementString())
 	}
 	return "# gad: " + strings.Join(elements, ", ")
 }

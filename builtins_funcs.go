@@ -454,8 +454,22 @@ func BuiltinEnumerateFunc(c Call) (_ Object, err error) {
 	if _, it, err = ToIterator(c.VM, v, &c.NamedArgs); err != nil {
 		return
 	}
+	if values := c.NamedArgs.MustGetValue("values"); !values.IsFalsy() {
+		return TypedIteratorObject(TEnumerateIterator, WrapIterator(it, func(state *IteratorState) error {
+			state.Entry.K = i
+			i++
+			return nil
+		})), nil
+	} else if keys := c.NamedArgs.MustGetValue("keys"); !keys.IsFalsy() {
+		return TypedIteratorObject(TEnumerateIterator, WrapIterator(it, func(state *IteratorState) error {
+			state.Entry.V = state.Entry.K
+			state.Entry.K = i
+			i++
+			return nil
+		})), nil
+	}
 	return TypedIteratorObject(TEnumerateIterator, WrapIterator(it, func(state *IteratorState) error {
-		kv := state.Entry.KeyValue
+		kv := state.Entry
 		state.Entry.K = i
 		state.Entry.V = &kv
 		i++
@@ -495,7 +509,7 @@ func BuiltinEachFunc(c Call) (_ Object, err error) {
 		return
 	}
 
-	err = IterateObject(c.VM, iterabler.Value, &c.NamedArgs, nil, func(e *IteratorEntry) (err error) {
+	err = IterateObject(c.VM, iterabler.Value, &c.NamedArgs, nil, func(e *KeyValue) (err error) {
 		args[0] = e.K
 		args[1] = e.V
 		_, err = caller.Call()
@@ -562,7 +576,7 @@ func BuiltinReduceFunc(c Call) (_ Object, err error) {
 		}
 	}
 
-	err = Iterate(c.VM, fe, nil, func(e *IteratorEntry) error {
+	err = Iterate(c.VM, fe, nil, func(e *KeyValue) error {
 		args[0] = e.V
 		return nil
 	})
@@ -1245,27 +1259,27 @@ func BuiltinCollectFunc(c Call) (_ Object, err error) {
 
 	var (
 		arr Array
-		h   func(e *IteratorEntry) Object
+		h   func(e *KeyValue) Object
 	)
 
 	err = IterateObject(c.VM, o, &c.NamedArgs, func(state *IteratorState) error {
 		switch state.CollectMode {
 		case IteratorStateCollectModeKeys:
-			h = func(e *IteratorEntry) Object {
+			h = func(e *KeyValue) Object {
 				return e.K
 			}
 		case IteratorStateCollectModePair:
-			h = func(e *IteratorEntry) Object {
-				kv := e.KeyValue
+			h = func(e *KeyValue) Object {
+				kv := *e
 				return &kv
 			}
 		default:
-			h = func(e *IteratorEntry) Object {
+			h = func(e *KeyValue) Object {
 				return e.V
 			}
 		}
 		return nil
-	}, func(e *IteratorEntry) error {
+	}, func(e *KeyValue) error {
 		arr = append(arr, h(e))
 		return nil
 	})

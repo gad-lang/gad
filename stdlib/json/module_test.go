@@ -109,8 +109,14 @@ func TestScript(t *testing.T) {
 		nil, Str(`["1","2",{"a":"x"}]`))
 
 	expectRun(t, catchf(`json.Unmarshal()`), nil, errnarg(1, 0))
-	expectRun(t, catchf(`json.Unmarshal("[1,true,false,\"x\",{\"a\":\"b\"}]")`),
-		nil, Array{DecimalFromFloat(1), True, False, Str("x"), Dict{"a": Str("b")}})
+	expectRun(t, catchf(`json.Unmarshal("[1,1.5,true,false,\"x\",{\"a\":\"b\"}]")`),
+		nil, Array{Int(1), Float(1.5), True, False, Str("x"), Dict{"a": Str("b")}})
+	expectRun(t, catchf(`json.Unmarshal("[1,1.5,true,false,\"x\",{\"a\":\"b\"}]";intAsDecimal)`),
+		nil, Array{DecimalFromFloat(1), Float(1.5), True, False, Str("x"), Dict{"a": Str("b")}})
+	expectRun(t, catchf(`json.Unmarshal("[1,1.5,true,false,\"x\",{\"a\":\"b\"}]";floatAsDecimal)`),
+		nil, Array{Int(1), DecimalFromFloat(1.5), True, False, Str("x"), Dict{"a": Str("b")}})
+	expectRun(t, catchf(`json.Unmarshal("[1,1.5,true,false,\"x\",{\"a\":\"b\"}]";numberAsDecimal)`),
+		nil, Array{DecimalFromFloat(1), DecimalFromFloat(1.5), True, False, Str("x"), Dict{"a": Str("b")}})
 
 	expectRun(t, catchf(`json.Valid()`), nil, errnarg(1, 0))
 	expectRun(t, catchf(`json.Valid("{}")`), nil, True)
