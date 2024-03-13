@@ -800,16 +800,16 @@ func TestVMIterator(t *testing.T) {
 		Str(`["a", "b"]`))
 	expectRun(t, `return repr(items({a:1, b:2};sorted))`, nil,
 		Str(`‹ItemsIterator:‹DictIterator:{a: 1, b: 2}››`))
-	expectRun(t, `return str(collect(items({a:1, b:2};sorted)))`, nil, Str("(;a=1, b=2)"))
+	expectRun(t, `return str(collect(items({a:1, b:2};sorted)))`, nil, Str("[a=1, b=2]"))
 	expectRun(t, `return str(collect(items({a:1, b:2, c:3, d:4, e:5, f:6, g:7};step=3,sorted)))`, nil,
-		Str("(;a=1, d=4, g=7)"))
+		Str("[a=1, d=4, g=7]"))
 
 	expectRun(t, `return repr(values([1,2]))`, nil, Str("‹ValuesIterator:‹ArrayIterator:[1, 2]››"))
 	expectRun(t, `return str(collect(values([1,2])))`, nil, Str("[1, 2]"))
 	expectRun(t, `return repr(keys([1,2]))`, nil, Str("‹KeysIterator:‹ArrayIterator:[1, 2]››"))
 	expectRun(t, `return str(collect(keys([2,5])))`, nil, Str("[0, 1]"))
 	expectRun(t, `return repr(items([2,5]))`, nil, Str(`‹ItemsIterator:‹ArrayIterator:[2, 5]››`))
-	expectRun(t, `return str(collect(items([2,5])))`, nil, Str("(;0=2, 1=5)"))
+	expectRun(t, `return str(collect(items([2,5])))`, nil, Str("[0=2, 1=5]"))
 	expectRun(t, `return str(collect(values([1,2,3];reversed)))`, nil, Str("[3, 2, 1]"))
 	expectRun(t, `return str(collect(values([1,2,3];reversed)))`, nil, Str("[3, 2, 1]"))
 	expectRun(t, `return str(collect(values([1,2,3,4,5,6,7];step=2)))`, nil, Str("[1, 3, 5, 7]"))
@@ -821,7 +821,7 @@ func TestVMIterator(t *testing.T) {
 		Str(`‹ValuesIterator:‹KeyValueArrayIterator:(;a=1, b=2)››`))
 	expectRun(t, `return str(collect(values((;a=1,b=2))))`, nil, Str("[1, 2]"))
 	expectRun(t, `return str(collect(keys((;a=1,b=2))))`, nil, Str(`["a", "b"]`))
-	expectRun(t, `return str(collect(items((;a=1,b=2))))`, nil, Str(`(;a=1, b=2)`))
+	expectRun(t, `return str(collect(items((;a=1,b=2))))`, nil, Str(`[a=1, b=2]`))
 
 	expectRun(t, `return repr(map([1,2], (k, v) => v))`, nil,
 		Str(`‹MapIterator:‹‹ArrayIterator:[1, 2]› → ‹compiledFunction #2(k, v)›››`))
@@ -843,27 +843,29 @@ func TestVMIterator(t *testing.T) {
 	expectRun(t, `a := []; it := iterator({a:"A",b:"B"};sorted); it.next; for k, v in it {a += [(k)=v]}; return str(a)`,
 		nil, Str(`[b="B"]`))
 	expectRun(t, `a := []; it := iterator({a:"A",b:"B"};sorted); it.next; for {v := it.next; if v {a += v;} else {break;} }; return str(a)`,
+		nil, Str(`["B"]`))
+	expectRun(t, `a := []; it := items(iterator({a:"A",b:"B"};sorted)); it.next; for {v := it.next; if v {a += v;} else {break;} }; return str(a)`,
 		nil, Str(`[b="B"]`))
 	expectRun(t, `a := []; it := iterator({a:"A",b:"B"};sorted); for {v := it.next; if v {a += v;} else {break;} }; return str(a)`,
-		nil, Str(`[a="A", b="B"]`))
+		nil, Str(`["A", "B"]`))
 	expectRun(t, `a := []; for k, v in iterator({a:"A",b:"B"};reversed) {a += [(k)=v]}; return str(a)`,
 		nil, Str(`[b="B", a="A"]`))
 	expectRun(t, `a := []; for k, v in iterator({a:"A",b:"B"};sorted) {a += [(k)=v]}; return str(a)`,
 		nil, Str(`[a="A", b="B"]`))
 	expectRun(t, `a := []; for k, v in (;a="A",b="B") {a += [(k)=v]}; return str(a)`,
 		nil, Str(`[a="A", b="B"]`))
-	expectRun(t, `return str(collect(enumerate(iterator({a:"A",b:"B"};sorted))))`,
+	expectRun(t, `return str(collect(items(enumerate(iterator({a:"A",b:"B"};sorted)))))`,
 		nil, Str(`[0=[a="A"], 1=[b="B"]]`))
-	expectRun(t, `return str(collect(enumerate({a:"A",b:"B"};sorted)))`,
+	expectRun(t, `return str(collect(items(enumerate({a:"A",b:"B"};sorted))))`,
 		nil, Str(`[0=[a="A"], 1=[b="B"]]`))
 	expectRun(t, `return str(collect(zip([1,2,3],[4,5,6])))`,
-		nil, Str(`[0=1, 1=2, 2=3, 0=4, 1=5, 2=6]`))
-	expectRun(t, `return str(collect(enumerate(zip([1,2,3],[4,5,6]))))`,
+		nil, Str(`[1, 2, 3, 4, 5, 6]`))
+	expectRun(t, `return str(collect(items(enumerate(zip([1,2,3],[4,5,6])))))`,
 		nil, Str(`[0=[0=1], 1=[1=2], 2=[2=3], 3=[0=4], 4=[1=5], 5=[2=6]]`))
-	expectRun(t, `return str(collect(enumerate(zip([1,2,3],[4,5,6]);values)))`,
+	expectRun(t, `return str(collect(enumerate(items(zip([1,2,3],[4,5,6]));values)))`,
 		nil, Str(`[0=1, 1=2, 2=3, 3=4, 4=5, 5=6]`))
 	expectRun(t, `return str(collect(enumerate(zip([1,2,3],[4,5,6]);keys)))`,
-		nil, Str(`[0=0, 1=1, 2=2, 3=0, 4=1, 5=2]`))
+		nil, Str(`[0, 1, 2, 0, 1, 2]`))
 }
 
 func TestVMBuiltinFunction(t *testing.T) {

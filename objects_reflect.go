@@ -403,7 +403,9 @@ func NewReflectValue(v any, opts ...*ReflectValueOptions) (ReflectValuer, error)
 	orv := ReflectValue{RType: t, RValue: rv, ptr: ptr, nil: isnill, Options: opt}
 	switch rv.Kind() {
 	case reflect.Struct:
-		return &ReflectStruct{ReflectValue: orv}, nil
+		rs := &ReflectStruct{ReflectValue: orv}
+		rs.Interface = rs.ToInterface()
+		return rs, nil
 	case reflect.Map:
 		return &ReflectMap{orv}, nil
 	case reflect.Slice:
@@ -828,6 +830,46 @@ func (o *ReflectSlice) Append(vm *VM, items ...Object) (_ Object, err error) {
 	return &cp, nil
 }
 
+func (o *ReflectSlice) Insert(vm *VM, at int, items ...Object) (_ Object, err error) {
+	var (
+		itemType = o.RType.RType.Elem()
+		values   = reflect.MakeSlice(o.RType.RType, len(items), len(items))
+		itemV    reflect.Value
+	)
+
+	if at < 0 {
+		at = o.RValue.Len() + at
+		if at < 0 {
+			return nil, ErrInvalidIndex.NewError("negative position is greather then slice length")
+		}
+	}
+
+	for i, item := range items {
+		if itemV, err = prepareArg(reflect.ValueOf(vm.ToInterface(item)), itemType); err != nil {
+			return
+		}
+		values.Index(i).Set(itemV)
+	}
+
+	var v reflect.Value
+	if at == 0 {
+		v = reflect.AppendSlice(values, o.RValue)
+	} else {
+		begging := o.RValue.Slice(0, at)
+		ending := o.RValue.Slice(at, o.RValue.Len())
+		v = reflect.AppendSlice(begging, reflect.AppendSlice(values, ending))
+	}
+
+	if o.ptr {
+		o.RValue.Set(v)
+		return o, nil
+	}
+
+	cp := *o
+	cp.RValue = v
+	return &cp, nil
+}
+
 func (o *ReflectSlice) Format(s fmt.State, verb rune) {
 	if verb == 's' {
 		s.Write([]byte(repr.QuotePrefix + "reflectSlice:"))
@@ -957,6 +999,7 @@ type ReflectStruct struct {
 	fieldHandler         func(vm *VM, s *ReflectStruct, name string, v any) any
 	fallbackIndexHandler func(vm *VM, s *ReflectStruct, name string) (handled bool, value any, err error)
 	Data                 Dict
+	Interface            any
 }
 
 var (
@@ -1011,23 +1054,21 @@ func (s *ReflectStruct) ToString() string {
 func (s *ReflectStruct) Repr(vm *VM) (_ string, err error) {
 	var w strings.Builder
 	w.WriteString(repr.QuotePrefix)
+
 	var (
 		values  []string
 		value   any
 		handled bool
-		rpr     = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
 		rpro    Object
 	)
+
 	for _, name := range s.RType.FieldsNames {
 		if handled, value, err = s.SafeField(nil, name); err == nil && handled {
 			if !IsZero(value) {
 				if rpro, err = vm.ToObject(value); err != nil {
 					return
 				}
-				if rpro, err = rpr(rpro); err != nil {
-					return
-				}
-				values = append(values, fmt.Sprintf("%s: %v", name, rpro.ToString()))
+				values = append(values, fmt.Sprintf("%s: %v", name, ReprQuote(rpro.Type().Name()+": "+rpro.ToString())))
 			}
 		}
 	}
@@ -1221,7 +1262,7 @@ func (s *ReflectStruct) UserData() Indexer {
 	if s.Data != nil {
 		return s.Data
 	}
-	return &IndexProxy{
+	return &IndexDeleteProxy{
 		IndexGetProxy: IndexGetProxy{
 			It: func(vm *VM, na *NamedArgs) Iterator {
 				if s.Data == nil {
@@ -1287,9 +1328,6 @@ func safeCall(fun reflect.Value, args []reflect.Value) (val reflect.Value, err e
 				e2.Cause = e
 				err = e2
 			} else {
-				for _, arg := range args {
-					fmt.Println(arg.Type().String())
-				}
 				err = ErrReflectCallPanicsType.NewError(fmt.Sprintf("%v: %v", fun.Type(), r))
 			}
 		}

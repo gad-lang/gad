@@ -125,6 +125,59 @@ func TestReflectSlice_Copy(t *testing.T) {
 	require.NotEqual(t, fmt.Sprint(ToInterface(v3)), fmt.Sprint(ToInterface(v4)))
 }
 
+func TestReflectSlice_Insert(t *testing.T) {
+	var a = []int{3, 4}
+	v, err := NewReflectValue(a)
+	require.NoError(t, err)
+	vm := NewVM(nil).Init()
+	s := v.(*ReflectSlice)
+
+	v2, err := s.Insert(vm, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 4]››")
+
+	v2, err = s.Insert(vm, 0, Int(0))
+	assert.NoError(t, err)
+	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [0 3 4]››")
+
+	v2, err = s.Insert(vm, -2, Int(0))
+	assert.NoError(t, err)
+	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [0 3 4]››")
+
+	v2, err = s.Insert(vm, 0, Int(0), Int(1), Int(2))
+	assert.NoError(t, err)
+	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [0 1 2 3 4]››")
+
+	for _, i := range []int{1, -1} {
+		v2, err = s.Insert(vm, i)
+		assert.NoError(t, err)
+		assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 4]››")
+
+		v2, err = s.Insert(vm, i, Int(0))
+		assert.NoError(t, err)
+		assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 0 4]››")
+
+		v2, err = s.Insert(vm, i, Int(0), Int(1), Int(2))
+		assert.NoError(t, err)
+		assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 0 1 2 4]››")
+	}
+
+	v2, err = s.Insert(vm, 2)
+	assert.NoError(t, err)
+	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 4]››")
+
+	v2, err = s.Insert(vm, 2, Int(0))
+	assert.NoError(t, err)
+	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 4 0]››")
+
+	v2, err = s.Insert(vm, 2, Int(0), Int(1), Int(2))
+	assert.NoError(t, err)
+	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 4 0 1 2]››")
+
+	_, err = s.Insert(vm, -3)
+	assert.EqualError(t, err, "InvalidIndexError: negative position is greather then slice length")
+}
+
 func TestReflectArray_Copy(t *testing.T) {
 	var a = [2]int{1, 2}
 	v, err := NewReflectValue(a)

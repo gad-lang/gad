@@ -24,9 +24,9 @@ const (
 type IteratorStateCollectMode uint8
 
 const (
-	IteratorStateCollectModePair IteratorStateCollectMode = iota
+	IteratorStateCollectModeValues IteratorStateCollectMode = iota
 	IteratorStateCollectModeKeys
-	IteratorStateCollectModeValues
+	IteratorStateCollectModePair
 )
 
 func (m IteratorStateCollectMode) String() string {
@@ -378,6 +378,9 @@ func IteratorObject(it Iterator) Object {
 }
 
 func TypedIteratorObject(typ ObjectType, it Iterator) Object {
+	if stateIt, _ := it.(*StateIteratorObject); stateIt != nil {
+		return stateIt
+	}
 	return &iteratorObject{typ: typ, Iterator: it}
 }
 
@@ -405,8 +408,16 @@ func (o *iteratorObject) ToString() string {
 
 type StateIteratorObject struct {
 	Iterator
-	State *IteratorState
-	VM    *VM
+	State         *IteratorState
+	VM            *VM
+	StartHandlers []func(s *StateIteratorObject)
+}
+
+func (s *StateIteratorObject) AddStartHandler(f func(s *StateIteratorObject)) {
+	s.StartHandlers = append(s.StartHandlers, f)
+	if s.State != nil {
+		f(s)
+	}
 }
 
 func (s *StateIteratorObject) IndexGet(vm *VM, index Object) (value Object, err error) {
@@ -505,6 +516,11 @@ func (s *StateIteratorObject) Start(vm *VM) (state *IteratorState, err error) {
 	}
 	s.State = state
 	err = IteratorStateCheck(s.VM, s.Iterator, s.State)
+	if err == nil && s.State.Mode != IteratorStateModeDone {
+		for _, handler := range s.StartHandlers {
+			handler(s)
+		}
+	}
 	return
 }
 
@@ -751,6 +767,12 @@ type collectModeIterator struct {
 }
 
 func CollectModeIterator(iterator Iterator, mode IteratorStateCollectMode) Iterator {
+	if stateIt, _ := iterator.(*StateIteratorObject); stateIt != nil {
+		stateIt.AddStartHandler(func(s *StateIteratorObject) {
+			s.State.CollectMode = mode
+		})
+		return iterator
+	}
 	return &collectModeIterator{Iterator: iterator, mode: mode}
 }
 
@@ -760,29 +782,6 @@ func (f *collectModeIterator) Start(vm *VM) (state *IteratorState, err error) {
 	}
 	state.CollectMode = f.mode
 	return
-}
-
-type itemsIterator struct {
-	Iterator
-}
-
-func (it *itemsIterator) Type() ObjectType {
-	return TItemsIterator
-}
-
-func (it *itemsIterator) Repr(vm *VM) (string, error) {
-	return ToReprTypedRS(vm, it.Type(), it.Iterator)
-}
-
-func (it *itemsIterator) Collect(vm *VM) (_ Object, err error) {
-	var ret KeyValueArray
-	err = Iterate(vm, it.Iterator, nil, func(e *KeyValue) error {
-		// copy key value
-		kv := *e
-		ret = append(ret, &kv)
-		return nil
-	})
-	return ret, err
 }
 
 func IteratorStateCheck(vm *VM, it Iterator, state *IteratorState) (err error) {

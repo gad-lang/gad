@@ -24,7 +24,7 @@ type ExtImporter interface {
 	// Name returns the full name of the module e.g. absoule path of a file.
 	// Import names are generally relative, this overwrites module name and used
 	// as unique key for compiler module cache.
-	Name() string
+	Name() (string, error)
 	// Fork returns an ExtImporter instance which will be used to import the
 	// modules. Fork will get the result of Name() if it is not empty, otherwise
 	// module name will be same with the Get call.

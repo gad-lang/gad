@@ -2,7 +2,6 @@ package importers_test
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -96,6 +95,40 @@ println("sourcemod")`))
 		)
 	})
 
+	t.Run("default_dirs", func(t *testing.T) {
+		buf.Reset()
+
+		tempDir := t.TempDir()
+		createModules(t, tempDir, files)
+
+		tempDir2 := t.TempDir()
+		createModules(t, tempDir2, map[string]string{
+			"./test8.gad": `
+import("./test1.gad")
+println("test8")
+`,
+		})
+
+		opts := gad.DefaultCompilerOptions
+		opts.ModuleMap = moduleMap.Copy()
+		opts.ModuleMap.SetExtImporter(&importers.FileImporter{
+			WorkDir:      tempDir,
+			NameResolver: importers.OsDirsNameResolver([]string{tempDir, tempDir2}),
+		})
+		script += "\n" + `import("test8.gad")`
+		bc, err := gad.Compile([]byte(script), gad.CompileOptions{CompilerOptions: opts})
+		require.NoError(t, err)
+		ret, err := gad.NewVM(bc).RunOpts(&gad.RunOpts{
+			StdOut: gad.NewWriter(buf),
+		})
+		require.NoError(t, err)
+		require.Equal(t, gad.Nil, ret)
+		require.Equal(t,
+			"test7\nsourcemod\ntest6\ntest5\ntest4\ntest3\ntest2\ntest1\nmain\ntest8\n",
+			strings.ReplaceAll(buf.String(), "\r", ""),
+		)
+	})
+
 	t.Run("shebang", func(t *testing.T) {
 		buf.Reset()
 
@@ -142,7 +175,7 @@ func createModules(t *testing.T, baseDir string, files map[string]string) {
 		path := filepath.Join(baseDir, file)
 		err := os.MkdirAll(filepath.Dir(path), 0755)
 		require.NoError(t, err)
-		err = ioutil.WriteFile(path, []byte(data), 0644)
+		err = os.WriteFile(path, []byte(data), 0644)
 		require.NoError(t, err)
 	}
 }

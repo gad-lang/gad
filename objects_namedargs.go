@@ -12,7 +12,9 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
-type TypeAssertionHandlers map[string]func(v Object) bool
+type TypeAssertionHandler func(v Object) bool
+
+type TypeAssertionHandlers map[string]TypeAssertionHandler
 
 type TypeAssertion struct {
 	Types    []ObjectType
@@ -27,12 +29,12 @@ func TypeAssertionFromTypes(types ...ObjectType) *TypeAssertion {
 	return &TypeAssertion{Types: types}
 }
 
-func (a *TypeAssertion) AcceptHandler(name string, handler func(v Object) bool) *TypeAssertion {
+func (a *TypeAssertion) AcceptHandler(name string, handler TypeAssertionHandler) *TypeAssertion {
 	if a == nil {
 		*a = TypeAssertion{}
 	}
 	if a.Handlers == nil {
-		a.Handlers = map[string]func(v Object) bool{}
+		a.Handlers = TypeAssertionHandlers{}
 	}
 	a.Handlers[name] = handler
 	return a
@@ -289,6 +291,21 @@ var (
 	_ ItemsGetter  = KeyValueArray{}
 )
 
+func (o *KeyValueArray) Add(_ *VM, items ...Object) (err error) {
+	for i, item := range items {
+		if kv, _ := item.(*KeyValue); kv != nil {
+			*o = append(*o, kv)
+		} else {
+			return NewArgumentTypeErrorT(fmt.Sprint(i+1), item.Type(), TKeyValue)
+		}
+	}
+	return
+}
+
+func (o KeyValueArray) Append(_ *VM, items ...Object) (this Object, err error) {
+	return o, o.Add(nil, items...)
+}
+
 func (o KeyValueArray) Type() ObjectType {
 	return DetectTypeOf(o)
 }
@@ -485,7 +502,7 @@ func (o KeyValueArray) AppendMap(m Dict) KeyValueArray {
 	return arr
 }
 
-func (o KeyValueArray) Append(arg ...*KeyValue) KeyValueArray {
+func (o KeyValueArray) AddItems(arg ...*KeyValue) KeyValueArray {
 	if len(o) == 0 {
 		return arg
 	}
@@ -506,9 +523,9 @@ func (o KeyValueArray) AppendObject(obj Object) (KeyValueArray, error) {
 	case Dict:
 		return o.AppendMap(v), nil
 	case KeyValueArray:
-		return o.Append(v...), nil
+		return o.AddItems(v...), nil
 	case *NamedArgs:
-		return o.Append(v.UnreadPairs()...), nil
+		return o.AddItems(v.UnreadPairs()...), nil
 	case Array:
 		if o, err := o.AppendArray(v); err != nil {
 			return nil, err
@@ -874,7 +891,7 @@ func (o KeyValueArrays) CallName(name string, c Call) (Object, error) {
 		default:
 			var ret KeyValueArray
 			for _, arr := range o {
-				ret.Append(arr...)
+				ret.AddItems(arr...)
 			}
 			return ret, nil
 		}

@@ -496,7 +496,16 @@ func BuiltinEachFunc(c Call) (_ Object, err error) {
 		}
 	)
 
-	if err = c.Args.Destructure(iterabler, callback); err != nil {
+	if c.Args.Length() == 1 {
+		if err = c.Args.Destructure(iterabler); err != nil {
+			return
+		}
+
+		err = IterateObject(c.VM, iterabler.Value, &c.NamedArgs, nil, func(e *KeyValue) (err error) {
+			return
+		})
+		return iterabler.Value, err
+	} else if err = c.Args.Destructure(iterabler, callback); err != nil {
 		return
 	}
 
@@ -1229,19 +1238,14 @@ func BuiltinItemsFunc(c Call) (_ Object, err error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return nil, err
 	}
-
-	o := c.Args.Get(0)
-
-	if values, ok := o.(KeyValueArray); ok {
-		return IteratorObject(&itemsIterator{values.Iterate(c.VM, &c.NamedArgs)}), nil
-	}
-
-	var it Iterator
-	if _, it, err = ToIterator(c.VM, o, &c.NamedArgs); err != nil {
+	var (
+		v  = c.Args.Get(0)
+		it Iterator
+	)
+	if _, it, err = ToIterator(c.VM, v, &c.NamedArgs); err != nil {
 		return
 	}
-
-	return IteratorObject(&itemsIterator{Iterator: it}), nil
+	return TypedIteratorObject(TItemsIterator, CollectModeIterator(it, IteratorStateCollectModePair)), nil
 }
 
 func BuiltinCollectFunc(c Call) (_ Object, err error) {
@@ -1249,18 +1253,17 @@ func BuiltinCollectFunc(c Call) (_ Object, err error) {
 		return nil, err
 	}
 
-	o := c.Args.Get(0)
+	var (
+		o   = c.Args.Get(0)
+		dst = Array{}
+		h   func(e *KeyValue) Object
+	)
 
 	if oi, _ := o.(ObjectIterator); oi != nil {
 		if itc, _ := oi.GetIterator().(CollectableIterator); itc != nil {
 			return itc.Collect(c.VM)
 		}
 	}
-
-	var (
-		arr Array
-		h   func(e *KeyValue) Object
-	)
 
 	err = IterateObject(c.VM, o, &c.NamedArgs, func(state *IteratorState) error {
 		switch state.CollectMode {
@@ -1280,10 +1283,9 @@ func BuiltinCollectFunc(c Call) (_ Object, err error) {
 		}
 		return nil
 	}, func(e *KeyValue) error {
-		arr = append(arr, h(e))
-		return nil
+		return dst.Add(c.VM, h(e))
 	})
-	return arr, err
+	return dst, err
 }
 
 func BuiltinIteratorInputFunc(o Object) Object {

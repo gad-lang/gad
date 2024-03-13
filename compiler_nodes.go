@@ -1437,8 +1437,10 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 
 	extImp, isExt := importer.(ExtImporter)
 	if isExt {
-		if name := extImp.Name(); name != "" {
+		if name, err := extImp.Name(); name != "" {
 			moduleName = name
+		} else if err != nil {
+			return c.errorf(nd, "resolve name of module '%s': %v", moduleName, err.Error())
 		}
 	}
 

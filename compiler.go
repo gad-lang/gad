@@ -761,6 +761,7 @@ func (c *Compiler) fork(
 	symbolTable *SymbolTable,
 ) *Compiler {
 	child := NewCompiler(file, CompilerOptions{
+		Context:           c.opts.Context,
 		ModuleMap:         moduleMap,
 		ModulePath:        modulePath,
 		Constants:         c.constants,

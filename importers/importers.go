@@ -3,7 +3,8 @@ package importers
 import (
 	"context"
 	"errors"
-	"io/ioutil"
+	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/gad-lang/gad"
@@ -12,9 +13,10 @@ import (
 // FileImporter is an implemention of gad.ExtImporter to import files from file
 // system. It uses absolute paths of module as import names.
 type FileImporter struct {
-	WorkDir    string
-	FileReader func(string) ([]byte, error)
-	name       string
+	NameResolver func(cwd, name string) (string, error)
+	WorkDir      string
+	FileReader   func(string) ([]byte, error)
+	name         string
 }
 
 var _ gad.ExtImporter = (*FileImporter)(nil)
@@ -30,10 +32,14 @@ func (m *FileImporter) Get(name string) gad.ExtImporter {
 
 // Name returns the absoule path of the module. A previous Get call is required
 // to get the name of the imported module.
-func (m *FileImporter) Name() string {
+func (m *FileImporter) Name() (string, error) {
 	if m.name == "" {
-		return ""
+		return "", nil
 	}
+	if m.NameResolver != nil {
+		return m.NameResolver(m.WorkDir, m.name)
+	}
+
 	path := m.name
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(m.WorkDir, path)
@@ -41,7 +47,7 @@ func (m *FileImporter) Name() string {
 			path = p
 		}
 	}
-	return path
+	return path, nil
 }
 
 // Import returns the content of the path determined by Name call. Empty name
@@ -52,7 +58,7 @@ func (m *FileImporter) Import(_ context.Context, moduleName string) (any, error)
 		return nil, errors.New("invalid import call")
 	}
 	if m.FileReader == nil {
-		return ioutil.ReadFile(moduleName)
+		return os.ReadFile(moduleName)
 	}
 	return m.FileReader(moduleName)
 }
@@ -63,8 +69,34 @@ func (m *FileImporter) Import(_ context.Context, moduleName string) (any, error)
 func (m *FileImporter) Fork(moduleName string) gad.ExtImporter {
 	// Note that; moduleName == Literal()
 	return &FileImporter{
-		WorkDir:    filepath.Dir(moduleName),
-		FileReader: m.FileReader,
+		WorkDir:      filepath.Dir(moduleName),
+		FileReader:   m.FileReader,
+		NameResolver: m.NameResolver,
+	}
+}
+
+// OsDirsNameResolver reads given path and returns the content of the file. If file
+// starts with Shebang #! , it is replaced with //.
+// This function can be used as ReadFile callback in FileImporter.
+func OsDirsNameResolver(dirs []string) func(cwd, path string) (string, error) {
+	if len(dirs) == 0 {
+		return func(_, path string) (string, error) {
+			return path, nil
+		}
+	}
+	return func(cwd string, p string) (name string, err error) {
+		p = path.Clean(p)
+		name = filepath.Join(cwd, p)
+		if _, err = os.Stat(name); err == nil || !os.IsNotExist(err) {
+			return
+		}
+		for _, dir := range dirs {
+			name = filepath.Join(dir, p)
+			if _, err = os.Stat(name); err == nil || !os.IsNotExist(err) {
+				return
+			}
+		}
+		return "", os.ErrNotExist
 	}
 }
 
@@ -72,7 +104,7 @@ func (m *FileImporter) Fork(moduleName string) gad.ExtImporter {
 // starts with Shebang #! , it is replaced with //.
 // This function can be used as ReadFile callback in FileImporter.
 func ShebangReadFile(path string) ([]byte, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err == nil {
 		Shebang2Slashes(data)
 	}

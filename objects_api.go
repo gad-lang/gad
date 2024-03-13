@@ -288,6 +288,11 @@ type Appender interface {
 	Append(vm *VM, arr ...Object) (Object, error)
 }
 
+type Adder interface {
+	Object
+	Add(vm *VM, arr ...Object) (err error)
+}
+
 // BytesConverter is to bytes converter
 type BytesConverter interface {
 	Object

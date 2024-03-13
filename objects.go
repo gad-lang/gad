@@ -999,6 +999,16 @@ func (o Array) SortReverse(vm *VM) (_ Object, err error) {
 	return o, err
 }
 
+func (o *Array) Add(_ *VM, items ...Object) error {
+	*o = append(*o, items...)
+	return nil
+}
+
+func (o Array) Append(_ *VM, items ...Object) (Object, error) {
+	o = append(o, items...)
+	return o, nil
+}
+
 // ObjectPtr represents a pointer variable.
 type ObjectPtr struct {
 	ObjectImpl
@@ -1917,11 +1927,43 @@ func (p *IndexDelProxy) IndexDelete(vm *VM, key Object) error {
 type IndexProxy struct {
 	IndexGetProxy
 	IndexSetProxy
-	IndexDelProxy
 }
 
 // BinaryOp implements Object interface.
 func (o *IndexProxy) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err error) {
+	if right == Nil {
+		switch tok {
+		case token.Less, token.LessEq:
+			return False, nil
+		case token.Greater, token.GreaterEq:
+			return True, nil
+		}
+	} else {
+		switch tok {
+		case token.Add:
+			if Iterable(vm, right) {
+				err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
+					return o.Set(vm, e.K, e.V)
+				})
+				return o, err
+			}
+		}
+	}
+
+	return nil, NewOperandTypeError(
+		tok.String(),
+		o.Type().Name(),
+		right.Type().Name())
+}
+
+type IndexDeleteProxy struct {
+	IndexGetProxy
+	IndexSetProxy
+	IndexDelProxy
+}
+
+// BinaryOp implements Object interface.
+func (o *IndexDeleteProxy) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err error) {
 	if right == Nil {
 		switch tok {
 		case token.Less, token.LessEq:
