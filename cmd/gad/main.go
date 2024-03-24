@@ -16,6 +16,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -89,7 +90,9 @@ type repl struct {
 
 func newREPL(ctx context.Context, stdout io.Writer) *repl {
 	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
-		ModulePath:        "(repl)",
+		Module: &gad.ModuleInfo{
+			Name: "(repl)",
+		},
 		ModuleMap:         DefaultModuleMap("."),
 		SymbolTable:       defaultSymbolTable(),
 		OptimizerMaxCycle: gad.TraceCompilerOptions.OptimizerMaxCycle,
@@ -241,7 +244,7 @@ func (r *repl) cmdReturn(_ string) error {
 func (r *repl) cmdReturnVerbose(_ string) error {
 	if r.lastResult != nil {
 		_, _ = fmt.Fprintf(r.out,
-			"GoType:%[1]T, OpName:%[2]s, Value:%#[1]v\n",
+			"GoType:%[1]T, OpDotName:%[2]s, Value:%#[1]v\n",
 			r.lastResult, r.lastResult.Type().Name())
 	} else {
 		_, _ = fmt.Fprintln(r.out, gad.ReprQuote("nil"))
@@ -567,7 +570,10 @@ func executeScript(
 	}
 	opts.SymbolTable = defaultSymbolTable()
 	opts.ModuleMap = DefaultModuleMap(workdir)
-	opts.ModulePath = modulePath
+	opts.Module = &gad.ModuleInfo{
+		Name: path.Clean(modulePath),
+		File: "file:" + modulePath,
+	}
 
 	if traceEnabled {
 		opts.Trace = traceOut

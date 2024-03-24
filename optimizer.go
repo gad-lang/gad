@@ -147,6 +147,7 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		OpTrue: true, OpFalse: true, OpYes: true, OpNo: true, OpJumpNil: true,
 		OpJumpNotNil: true, OpCallee: true, OpArgs: true, OpNamedArgs: true,
 		OpStdIn: true, OpStdOut: true, OpStdErr: true, OpTextWriter: true,
+		OpDotName: true, OpDotFile: true, OpIsModule: true,
 	}
 
 	allowedBuiltins := [...]bool{

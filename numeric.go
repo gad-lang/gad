@@ -487,6 +487,22 @@ func (o Decimal) ToBytes() (b Bytes, err error) {
 	return o.Go().MarshalBinary()
 }
 
+func (o Decimal) CallName(name string, c Call) (_ Object, err error) {
+	switch name {
+	case "trunc":
+		prec := &Arg{
+			Name:          "precision",
+			TypeAssertion: TypeAssertionFromTypes(TInt),
+		}
+		if err = c.Args.Destructure(prec); err != nil {
+			return
+		}
+		return Decimal(decimal.Decimal(o).Truncate(int32(prec.Value.(Int)))), nil
+	default:
+		return nil, ErrInvalidIndex.NewError(name)
+	}
+}
+
 func DecimalFromUint(v Uint) Decimal {
 	return Decimal(decimal.NewFromBigInt(new(big.Int).SetUint64(uint64(v)), 0))
 }

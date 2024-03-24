@@ -14,7 +14,7 @@ import (
 // Module represents fmt module.
 var Module = map[string]gad.Object{
 	// gad:doc
-	// # fmt Module
+	// # fmt module
 	//
 	// ## Scan Examples
 	//

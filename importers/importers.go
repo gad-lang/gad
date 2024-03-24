@@ -15,7 +15,7 @@ import (
 type FileImporter struct {
 	NameResolver func(cwd, name string) (string, error)
 	WorkDir      string
-	FileReader   func(string) ([]byte, error)
+	FileReader   func(string) (data []byte, uri string, err error)
 	name         string
 }
 
@@ -52,13 +52,18 @@ func (m *FileImporter) Name() (string, error) {
 
 // Import returns the content of the path determined by Name call. Empty name
 // will return an error.
-func (m *FileImporter) Import(_ context.Context, moduleName string) (any, error) {
+func (m *FileImporter) Import(_ context.Context, moduleName string) (data any, url string, err error) {
 	// Note that; moduleName == Literal()
 	if m.name == "" || moduleName == "" {
-		return nil, errors.New("invalid import call")
+		err = errors.New("invalid import call")
+		return
 	}
 	if m.FileReader == nil {
-		return os.ReadFile(moduleName)
+		if data, err = os.ReadFile(moduleName); err != nil {
+			return
+		}
+		url = "file:" + moduleName
+		return
 	}
 	return m.FileReader(moduleName)
 }
@@ -103,12 +108,12 @@ func OsDirsNameResolver(dirs []string) func(cwd, path string) (string, error) {
 // ShebangReadFile reads given path and returns the content of the file. If file
 // starts with Shebang #! , it is replaced with //.
 // This function can be used as ReadFile callback in FileImporter.
-func ShebangReadFile(path string) ([]byte, error) {
+func ShebangReadFile(path string) ([]byte, string, error) {
 	data, err := os.ReadFile(path)
 	if err == nil {
 		Shebang2Slashes(data)
 	}
-	return data, err
+	return data, "file:" + path, err
 }
 
 // Shebang2Slashes replaces first two bytes of given p with two slashes if they

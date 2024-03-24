@@ -90,6 +90,10 @@ func TestScanner_Scan(t *testing.T) {
 		{token.Char, "'\\xFF'"},
 		{token.Char, "'\\uff16'"},
 		{token.Char, "'\\U0000ff16'"},
+		{token.String, `""`},
+		{token.String, `"foobar"`},
+		{token.String, `"foo` + "\n\n" + `bar"`},
+		{token.RawString, "``"},
 		{token.RawString, "`foobar`"},
 		{token.RawString, "`" + `foo
 	                        bar` +
@@ -177,6 +181,9 @@ func TestScanner_Scan(t *testing.T) {
 		{token.StdErr, "STDERR"},
 		{token.Begin, "begin"},
 		{token.End, "end"},
+		{token.DotName, "__name__"},
+		{token.DotFile, "__file__"},
+		{token.IsModule, "__is_module__"},
 	})
 }
 
@@ -252,10 +259,6 @@ func testScanI(t *testing.T, mode parser.ScanMode, addLines bool, lineSep string
 			}
 		case token.String:
 			expectedLiteral = tc.literal
-			if i < len(testCases)-1 {
-				// remove last \n
-				expectedLiteral += "\n"
-			}
 		case token.Semicolon:
 			if tc.literal == "\n" {
 				expectedLiteral = tc.literal

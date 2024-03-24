@@ -87,12 +87,37 @@ func (s *ParamSpec) String() string {
 	return str
 }
 
+func (s *ParamSpec) WriteCode(ctx *CodeWriterContext) (err error) {
+	if s.Variadic {
+		if err = ctx.WriteByte('*'); err != nil {
+			return
+		}
+	}
+	return WriteCode(ctx, s.Ident)
+}
+
 func (s *NamedParamSpec) String() string {
 	str := s.Ident.String()
 	if s.Value == nil {
 		return "**" + str
 	}
 	return str + "=" + s.Value.String()
+}
+
+func (s *NamedParamSpec) WriteCode(ctx *CodeWriterContext) (err error) {
+	if s.Value == nil {
+		if _, err = ctx.WriteString("**"); err != nil {
+			return
+		}
+		return WriteCode(ctx, s.Ident)
+	}
+	if err = WriteCode(ctx, s.Ident); err != nil {
+		return
+	}
+	if err = ctx.WriteByte('='); err != nil {
+		return
+	}
+	return WriteCode(ctx, s.Value)
 }
 
 func (s *ValueSpec) String() string {
@@ -105,6 +130,29 @@ func (s *ValueSpec) String() string {
 		}
 	}
 	return strings.Join(vals, ", ")
+}
+
+func (s *ValueSpec) WriteCode(ctx *CodeWriterContext) (err error) {
+	last := len(s.Idents) - 1
+	for i := range s.Idents {
+		if err = WriteCode(ctx, s.Idents[i]); err != nil {
+			return
+		}
+		if s.Values[i] != nil {
+			if _, err = ctx.WriteString(" ="); err != nil {
+				return
+			}
+			if err = WriteCode(ctx, s.Values[i]); err != nil {
+				return
+			}
+		}
+		if i != last {
+			if _, err = ctx.WriteString(", "); err != nil {
+				return
+			}
+		}
+	}
+	return
 }
 
 // specNode() ensures that only spec nodes can be assigned to a Spec.
@@ -196,4 +244,41 @@ func (d *GenDecl) String() string {
 		sb.WriteString(")")
 	}
 	return sb.String()
+}
+
+func (d *GenDecl) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString(d.Tok.String()); err != nil {
+		return
+	}
+	if d.Lparen > 0 {
+		if _, err = ctx.WriteString(" ("); err != nil {
+			return
+		}
+	} else if err = ctx.WriteByte(' '); err != nil {
+		return
+	}
+	last := len(d.Specs) - 1
+	for i, spec := range d.Specs {
+		if err = WriteCode(ctx, spec); err != nil {
+			return
+		}
+
+		if i != last {
+			if _, ok := d.Specs[i].(*ParamSpec); ok {
+				if _, ok := d.Specs[i+1].(*NamedParamSpec); ok {
+					if _, err = ctx.WriteString(", "); err != nil {
+						return
+					}
+					continue
+				}
+			}
+			if _, err = ctx.WriteString(", "); err != nil {
+				return
+			}
+		}
+	}
+	if d.Rparen > 0 {
+		return ctx.WriteByte(')')
+	}
+	return
 }

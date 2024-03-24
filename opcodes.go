@@ -53,6 +53,9 @@ const (
 	OpStdIn
 	OpStdOut
 	OpStdErr
+	OpDotName
+	OpDotFile
+	OpIsModule
 	OpPop
 	OpGetFree
 	OpSetFree
@@ -117,6 +120,9 @@ var OpcodeNames = [...]string{
 	OpStdIn:         "STDIN",
 	OpStdOut:        "STDOUT",
 	OpStdErr:        "STDERR",
+	OpDotName:       "DOTNAME",
+	OpDotFile:       "DOTFILE",
+	OpIsModule:      "ISMODULE",
 	OpPop:           "POP",
 	OpGetFree:       "GETFREE",
 	OpSetFree:       "SETFREE",
@@ -182,6 +188,9 @@ var OpcodeOperands = [...][]int{
 	OpStdIn:         {},
 	OpStdOut:        {},
 	OpStdErr:        {},
+	OpDotName:       {},
+	OpDotFile:       {},
+	OpIsModule:      {},
 	OpPop:           {},
 	OpGetFree:       {1},    // index
 	OpSetFree:       {1},    // index

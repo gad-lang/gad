@@ -129,6 +129,9 @@ const (
 	StdIn
 	StdOut
 	StdErr
+	DotName
+	DotFile
+	IsModule
 	KeywordEnd_
 )
 
@@ -235,6 +238,9 @@ var tokens = [...]string{
 	Callee:          "__callee__",
 	Args:            "__args__",
 	NamedArgs:       "__named_args__",
+	DotName:         "__name__",
+	DotFile:         "__file__",
+	IsModule:        "__is_module__",
 }
 
 func (tok Token) String() string {

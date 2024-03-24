@@ -13,6 +13,8 @@
 package parser
 
 import (
+	"bufio"
+	"io"
 	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
@@ -46,4 +48,23 @@ func (n *File) String() string {
 	var s strings.Builder
 	n.StringTo(&s)
 	return s.String()
+}
+
+func (n *File) TanspileTo(w io.Writer) (err error) {
+	ctx := node.CodeWriterContext{
+		CodeWriter:     bufio.NewWriter(w),
+		ExprToTextFunc: "write",
+	}
+	return node.WriteCodeStmts(&ctx, n.Stmts...)
+}
+
+func (n *File) Tanspile() (s string, err error) {
+	var b strings.Builder
+	ctx := node.CodeWriterContext{
+		CodeWriter:     &b,
+		ExprToTextFunc: "write",
+	}
+	err = node.WriteCodeStmts(&ctx, n.Stmts...)
+	s = b.String()
+	return
 }

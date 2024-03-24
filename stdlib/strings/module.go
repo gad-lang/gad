@@ -24,7 +24,7 @@ var (
 // Module represents time module.
 var Module = map[string]gad.Object{
 	// gad:doc
-	// # strings Module
+	// # strings module
 	//
 	// ## Functions
 	// Contains(s string, substr string) -> bool

@@ -233,6 +233,8 @@ VMLoop:
 				Free:         free,
 				Params:       fn.Params,
 				NamedParams:  fn.NamedParams,
+				sourceFile:   fn.sourceFile,
+				module:       fn.module,
 			}
 			vm.stack[vm.sp] = newFn
 			vm.sp++
@@ -491,6 +493,15 @@ VMLoop:
 			vm.sp++
 		case OpStdErr:
 			vm.stack[vm.sp] = vm.StdErr
+			vm.sp++
+		case OpDotName:
+			vm.stack[vm.sp] = Str(vm.curFrame.fn.module.Name)
+			vm.sp++
+		case OpDotFile:
+			vm.stack[vm.sp] = Str(vm.curFrame.fn.module.File)
+			vm.sp++
+		case OpIsModule:
+			vm.stack[vm.sp] = Bool(vm.curFrame.fn.module.Name != MainName)
 			vm.sp++
 		case OpCallee:
 			vm.stack[vm.sp] = vm.curFrame.fn

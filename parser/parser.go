@@ -711,7 +711,7 @@ func (p *Parser) ParseNullishSelector(x node.Expr) (sel node.Expr) {
 }
 
 func (p *Parser) ParseStringLit() *node.StringLit {
-	v, _ := strconv.Unquote(p.Token.Literal)
+	v, _ := Unquote(p.Token.Literal)
 	x := &node.StringLit{
 		Value:    v,
 		ValuePos: p.Token.Pos,
@@ -800,6 +800,18 @@ func (p *Parser) ParsePrimitiveOperand() node.Expr {
 		x := &node.StdErrLit{TokenPos: p.Token.Pos}
 		p.Next()
 		return x
+	case token.DotName:
+		x := &node.DotFileNameLit{TokenPos: p.Token.Pos}
+		p.Next()
+		return x
+	case token.DotFile:
+		x := &node.DotFileLit{TokenPos: p.Token.Pos}
+		p.Next()
+		return x
+	case token.IsModule:
+		x := &node.IsModuleLit{TokenPos: p.Token.Pos}
+		p.Next()
+		return x
 	}
 
 	pos := p.Token.Pos
@@ -858,14 +870,7 @@ func (p *Parser) ParseOperand() node.Expr {
 	case token.Char:
 		return p.ParseCharLit()
 	case token.String:
-		v, _ := strconv.Unquote(p.Token.Literal)
-		x := &node.StringLit{
-			Value:    v,
-			ValuePos: p.Token.Pos,
-			Literal:  p.Token.Literal,
-		}
-		p.Next()
-		return x
+		return p.ParseStringLit()
 	case token.True, token.False:
 		x := &node.BoolLit{
 			Value:    p.Token.Token == token.True,
@@ -896,6 +901,18 @@ func (p *Parser) ParseOperand() node.Expr {
 		return x
 	case token.StdErr:
 		x := &node.StdErrLit{TokenPos: p.Token.Pos}
+		p.Next()
+		return x
+	case token.DotName:
+		x := &node.DotFileNameLit{TokenPos: p.Token.Pos}
+		p.Next()
+		return x
+	case token.DotFile:
+		x := &node.DotFileLit{TokenPos: p.Token.Pos}
+		p.Next()
+		return x
+	case token.IsModule:
+		x := &node.IsModuleLit{TokenPos: p.Token.Pos}
 		p.Next()
 		return x
 	case token.Callee:
@@ -1485,7 +1502,8 @@ do:
 		token.Mul, token.And, token.Xor, token.Not, token.Import,
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
-		token.Then, token.Yes, token.No:
+		token.Then, token.Yes, token.No,
+		token.DotName, token.DotFile, token.IsModule:
 		s := p.ParseSimpleStmt(false)
 		p.ExpectSemi()
 		return s
@@ -2591,7 +2609,7 @@ func (p *Parser) ExpectSemi() {
 		p.Next()
 	default:
 		switch p.PrevToken.Token {
-		case token.Else, token.End, p.BlockEnd:
+		case token.Else, token.End, p.BlockEnd, token.DotName, token.DotFile, token.IsModule:
 			return
 		}
 		p.ErrorExpected(p.Token.Pos, "';'")

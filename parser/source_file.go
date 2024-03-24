@@ -86,6 +86,7 @@ func (s *SourceFileSet) AddFile(filename string, base, size int) *SourceFile {
 		Base:  base,
 		Size:  size,
 		Lines: []int{0},
+		Index: len(s.Files),
 	}
 	base += size + 1 // +1 because EOF also has a position
 	if base < 0 {
@@ -155,6 +156,8 @@ type SourceFile struct {
 	// Lines contains the offset of the first character for each line
 	// (the first entry is always 0)
 	Lines []int
+	// Index is a index of `set`
+	Index int
 }
 
 // Set returns SourceFileSet.

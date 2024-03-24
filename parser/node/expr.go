@@ -60,6 +60,16 @@ func (e *ArrayLit) String() string {
 	return "[" + strings.Join(elements, ", ") + "]"
 }
 
+func (e *ArrayLit) WriteCode(ctx *CodeWriterContext) (err error) {
+	if err = ctx.WriteByte('['); err != nil {
+		return
+	}
+	if err = WriteCodeExprs(ctx, ", ", e.Elements...); err != nil {
+		return
+	}
+	return ctx.WriteByte(']')
+}
+
 // BadExpr represents a bad expression.
 type BadExpr struct {
 	From source.Pos
@@ -105,6 +115,24 @@ func (e *BinaryExpr) End() source.Pos {
 func (e *BinaryExpr) String() string {
 	return "(" + e.LHS.String() + " " + e.Token.String() +
 		" " + e.RHS.String() + ")"
+}
+
+func (e *BinaryExpr) WriteCode(ctx *CodeWriterContext) (err error) {
+	if err = ctx.WriteByte('('); err != nil {
+		return
+	}
+	if err = WriteCode(ctx, e.LHS); err != nil {
+		return
+	}
+
+	if _, err = ctx.WriteString(" " + e.Token.String() + " "); err != nil {
+		return
+	}
+
+	if err = WriteCode(ctx, e.RHS); err != nil {
+		return
+	}
+	return ctx.WriteByte(')')
 }
 
 type BoolExpr interface {
@@ -208,6 +236,31 @@ func (c *CallArgs) StringArg(w io.Writer, lbrace, rbrace string) {
 		io.WriteString(w, c.NamedArgs.String())
 	}
 	io.WriteString(w, rbrace)
+}
+
+func (c *CallArgs) WriteCode(ctx *CodeWriterContext) (err error) {
+	return c.WriteCodeBrace(ctx, "(", ")")
+}
+
+func (c *CallArgs) WriteCodeBrace(ctx *CodeWriterContext, lbrace, rbrace string) (err error) {
+	if _, err = ctx.WriteString(lbrace); err != nil {
+		return
+	}
+	if c.Args.Valid() {
+		if err = c.Args.WriteCode(ctx); err != nil {
+			return
+		}
+	}
+	if c.NamedArgs.Valid() {
+		if _, err = ctx.WriteString("; "); err != nil {
+			return
+		}
+		if err = c.NamedArgs.WriteCode(ctx); err != nil {
+			return
+		}
+	}
+	_, err = ctx.WriteString(rbrace)
+	return
 }
 
 // CallExpr represents a function call expression.
@@ -1061,6 +1114,19 @@ func (a *CallExprArgs) String() string {
 	return strings.Join(s, ", ")
 }
 
+func (a *CallExprArgs) WriteCode(ctx *CodeWriterContext) (err error) {
+	if err = WriteCodeExprs(ctx, ",", a.Values...); err != nil {
+		return
+	}
+	if a.Var != nil {
+		if err = ctx.WriteByte('*'); err != nil {
+			return
+		}
+		return WriteCode(ctx, a.Var.Value)
+	}
+	return
+}
+
 type NamedArgExpr struct {
 	Lit   *StringLit
 	Ident *Ident
@@ -1157,6 +1223,29 @@ func (a *CallExprNamedArgs) String() string {
 	return strings.Join(s, ", ")
 }
 
+func (a *CallExprNamedArgs) WriteCode(ctx *CodeWriterContext) (err error) {
+	l := len(a.Names) - 1
+	for i, name := range a.Names {
+		if a.Values[i] == nil {
+			if name.Lit != nil && name.Lit.CanIdent() {
+				_, err = ctx.WriteString(name.Lit.Value)
+			} else {
+				_, err = ctx.WriteString(name.Expr().String())
+			}
+		} else if _, err = ctx.WriteString(name.Expr().String() + "="); err != nil {
+			return
+		} else if err = WriteCode(ctx, a.Values[i]); err != nil {
+			return
+		}
+		if i != l || a.Var != nil {
+			if _, err = ctx.WriteString(", "); err != nil {
+				return
+			}
+		}
+	}
+	return
+}
+
 // KeyValueLit represents a key value element.
 type KeyValueLit struct {
 	Key   Expr
@@ -1192,6 +1281,22 @@ func (e *KeyValueLit) String() string {
 	return "[" + e.ElementString() + "]"
 }
 
+func (e *KeyValueLit) WriteCode(ctx *CodeWriterContext) (err error) {
+	if err = ctx.WriteByte('['); err != nil {
+		return
+	}
+	if err = WriteCode(ctx, e.Key); err != nil {
+		return
+	}
+	if err = ctx.WriteByte('='); err != nil {
+		return
+	}
+	if err = WriteCode(ctx, e.Value); err != nil {
+		return
+	}
+	return ctx.WriteByte(']')
+}
+
 // KeyValueArrayLit represents a key value array literal.
 type KeyValueArrayLit struct {
 	LBrace   source.Pos
@@ -1217,6 +1322,24 @@ func (e *KeyValueArrayLit) String() string {
 		elements = append(elements, m.ElementString())
 	}
 	return "(;" + strings.Join(elements, ", ") + ")"
+}
+
+func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString("(;"); err != nil {
+		return
+	}
+	l := len(e.Elements) - 1
+	for i, element := range e.Elements {
+		if err = WriteCode(ctx, element); err != nil {
+			return
+		}
+		if i < l {
+			if _, err = ctx.WriteString(", "); err != nil {
+				return
+			}
+		}
+	}
+	return ctx.WriteByte(')')
 }
 
 type CalleeKeyword struct {
@@ -1368,6 +1491,13 @@ func (e *ArgVarLit) String() string {
 	return "*" + e.Value.String()
 }
 
+func (e *ArgVarLit) WriteCode(ctx *CodeWriterContext) (err error) {
+	if err = ctx.WriteByte('*'); err != nil {
+		return
+	}
+	return WriteCode(ctx, e.Value)
+}
+
 // NamedArgVarLit represents an variadic of named argument.
 type NamedArgVarLit struct {
 	TokenPos source.Pos
@@ -1386,4 +1516,74 @@ func (e *NamedArgVarLit) End() source.Pos {
 
 func (e *NamedArgVarLit) String() string {
 	return "**" + e.Value.String()
+}
+
+func (e *NamedArgVarLit) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString("**"); err != nil {
+		return
+	}
+	return WriteCode(ctx, e.Value)
+}
+
+// DotFileNameLit represents an __name__ literal.
+type DotFileNameLit struct {
+	TokenPos source.Pos
+}
+
+func (e *DotFileNameLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *DotFileNameLit) Pos() source.Pos {
+	return e.TokenPos
+}
+
+// End DotFileNameLit the position of first character immediately after the node.
+func (e *DotFileNameLit) End() source.Pos {
+	return e.TokenPos + +source.Pos(len(e.String()))
+}
+
+func (e *DotFileNameLit) String() string {
+	return token.DotName.String()
+}
+
+// DotFileLit represents an __name__ literal.
+type DotFileLit struct {
+	TokenPos source.Pos
+}
+
+func (e *DotFileLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *DotFileLit) Pos() source.Pos {
+	return e.TokenPos
+}
+
+// End DotFileLit the position of first character immediately after the node.
+func (e *DotFileLit) End() source.Pos {
+	return e.TokenPos + +source.Pos(len(e.String()))
+}
+
+func (e *DotFileLit) String() string {
+	return token.DotFile.String()
+}
+
+// IsModuleLit represents an __is_module__ literal.
+type IsModuleLit struct {
+	TokenPos source.Pos
+}
+
+func (e *IsModuleLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *IsModuleLit) Pos() source.Pos {
+	return e.TokenPos
+}
+
+// End IsModuleLit the position of first character immediately after the node.
+func (e *IsModuleLit) End() source.Pos {
+	return e.TokenPos + source.Pos(len(e.String()))
+}
+
+func (e *IsModuleLit) String() string {
+	return token.IsModule.String()
 }

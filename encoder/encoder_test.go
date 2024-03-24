@@ -468,6 +468,11 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 	if opts == nil {
 		opts = newOpts()
 	}
+
+	if cfn, ok := expected.(*gad.CompiledFunction); ok {
+		expected = cfn.ClearSourceFileInfo()
+	}
+
 	var initialModuleMap *gad.ModuleMap
 	if opts.moduleMap != nil {
 		initialModuleMap = opts.moduleMap.Copy()

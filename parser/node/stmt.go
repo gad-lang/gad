@@ -68,6 +68,19 @@ func (s *AssignStmt) String() string {
 		" " + strings.Join(rhs, ", ")
 }
 
+func (s *AssignStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if err = WriteCodeExprs(ctx, ", ", s.LHS...); err != nil {
+		return
+	}
+	if _, err = ctx.WriteString(s.Token.String()); err != nil {
+		return
+	}
+	if err = WriteCodeExprs(ctx, ", ", s.RHS...); err != nil {
+		return
+	}
+	return
+}
+
 // BadStmt represents a bad statement.
 type BadStmt struct {
 	From source.Pos
@@ -115,6 +128,18 @@ func (s *BlockStmt) String() string {
 		list = append(list, e.String())
 	}
 	return "{" + strings.Join(list, "; ") + "}"
+}
+
+func (s *BlockStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if err = ctx.WriteByte('{'); err != nil {
+		return
+	}
+
+	if err = WriteCodeStmts(ctx, s.Stmts...); err != nil {
+		return
+	}
+
+	return ctx.WriteByte('}')
 }
 
 // BranchStmt represents a branch statement.
@@ -229,6 +254,34 @@ func (s *ForInStmt) String() string {
 	return str
 }
 
+func (s *ForInStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString("for " + s.Key.String()); err != nil {
+		return
+	}
+
+	if s.Value != nil {
+		if _, err = ctx.WriteString(", " + s.Value.String()); err != nil {
+			return
+		}
+	}
+
+	if _, err = ctx.WriteString(" in " + s.Iterable.String() + " "); err != nil {
+		return
+	}
+
+	if err = s.Body.WriteCode(ctx); err != nil {
+		return
+	}
+
+	if s.Else != nil {
+		if _, err = ctx.WriteString(" else "); err != nil {
+			return
+		}
+		return s.Else.WriteCode(ctx)
+	}
+	return
+}
+
 // ForStmt represents a for statement.
 type ForStmt struct {
 	ForPos source.Pos
@@ -274,6 +327,40 @@ func (s *ForStmt) String() string {
 	return str
 }
 
+func (s *ForStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString("for "); err != nil {
+		return
+	}
+
+	if s.Init != nil {
+		if err = WriteCode(ctx, s.Init); err != nil {
+			return
+		}
+		if s.Cond != nil || s.Post != nil {
+			if _, err = ctx.WriteString("; "); err != nil {
+				return
+			}
+		}
+	}
+
+	if s.Cond != nil {
+		if err = WriteCode(ctx, s.Cond); err != nil {
+			return
+		}
+		if s.Post != nil {
+			if _, err = ctx.WriteString("; "); err != nil {
+				return
+			}
+		}
+	}
+
+	if err = WriteCode(ctx, s.Post); err != nil {
+		return
+	}
+
+	return s.Body.WriteCode(ctx)
+}
+
 // IfStmt represents an if statement.
 type IfStmt struct {
 	IfPos source.Pos
@@ -310,6 +397,27 @@ func (s *IfStmt) String() string {
 		s.Body.String() + elseStmt
 }
 
+func (s *IfStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString("if "); err != nil {
+		return
+	}
+	if s.Init != nil {
+		if err = WriteCode(ctx, s.Init); err != nil {
+			return
+		}
+		if _, err = ctx.WriteString("; "); err != nil {
+			return
+		}
+	}
+	if err = WriteCode(ctx, s.Cond, s.Body); err != nil {
+		return
+	}
+	if s.Else != nil {
+		return WriteCode(ctx, s.Else)
+	}
+	return
+}
+
 // IncDecStmt represents increment or decrement statement.
 type IncDecStmt struct {
 	Expr     Expr
@@ -331,6 +439,14 @@ func (s *IncDecStmt) End() source.Pos {
 
 func (s *IncDecStmt) String() string {
 	return s.Expr.String() + s.Token.String()
+}
+
+func (s *IncDecStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if err = WriteCode(ctx, s.Expr); err != nil {
+		return
+	}
+	_, err = ctx.WriteString(s.Token.String())
+	return
 }
 
 // ReturnStmt represents a return statement.
@@ -359,6 +475,19 @@ func (s *ReturnStmt) String() string {
 		return "return " + s.Result.String()
 	}
 	return "return"
+}
+
+func (s *ReturnStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString("return"); err != nil {
+		return
+	}
+	if s.Result != nil {
+		if err = ctx.WriteByte(' '); err != nil {
+			return
+		}
+		return WriteCode(ctx, s.Result)
+	}
+	return
 }
 
 // TryStmt represents an try statement.
@@ -399,6 +528,32 @@ func (s *TryStmt) String() string {
 	return ret
 }
 
+func (s *TryStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString("try"); err != nil {
+		return
+	}
+	if err = WriteCode(ctx, s.Body); err != nil {
+		return
+	}
+	if s.Catch != nil {
+		if _, err = ctx.WriteString(" "); err != nil {
+			return
+		}
+		if err = WriteCode(ctx, s.Catch); err != nil {
+			return
+		}
+	}
+	if s.Catch != nil {
+		if _, err = ctx.WriteString(" "); err != nil {
+			return
+		}
+		if err = WriteCode(ctx, s.Finally); err != nil {
+			return
+		}
+	}
+	return
+}
+
 // CatchStmt represents an catch statement.
 type CatchStmt struct {
 	CatchPos source.Pos
@@ -426,6 +581,13 @@ func (s *CatchStmt) String() string {
 	return "catch " + ident + s.Body.String()
 }
 
+func (s *CatchStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString("catch " + s.Ident.String()); err != nil {
+		return
+	}
+	return WriteCode(ctx, s.Body)
+}
+
 // FinallyStmt represents an finally statement.
 type FinallyStmt struct {
 	FinallyPos source.Pos
@@ -446,6 +608,13 @@ func (s *FinallyStmt) End() source.Pos {
 
 func (s *FinallyStmt) String() string {
 	return "finally " + s.Body.String()
+}
+
+func (s *FinallyStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString("finally "); err != nil {
+		return
+	}
+	return WriteCode(ctx, s.Body)
 }
 
 // ThrowStmt represents an throw statement.
@@ -474,28 +643,38 @@ func (s *ThrowStmt) String() string {
 	return "throw " + expr
 }
 
+func (s *ThrowStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString("throw "); err != nil {
+		return
+	}
+	if s.Expr != nil {
+		return WriteCode(ctx, s.Expr)
+	}
+	return
+}
+
 // RawStringStmt represents an RawStringStmt.
 type RawStringStmt struct {
 	MixedExprRune rune
 	Lits          []*RawStringLit
 }
 
-func (e *RawStringStmt) Pos() source.Pos {
-	return e.Lits[0].Pos()
+func (s *RawStringStmt) Pos() source.Pos {
+	return s.Lits[0].Pos()
 }
 
-func (e *RawStringStmt) End() source.Pos {
-	return e.Lits[len(e.Lits)-1].Pos()
+func (s *RawStringStmt) End() source.Pos {
+	return s.Lits[len(s.Lits)-1].Pos()
 }
 
-func (e *RawStringStmt) StmtNode() {
+func (s *RawStringStmt) StmtNode() {
 }
 
-func (e *RawStringStmt) ExprNode() {
+func (s *RawStringStmt) ExprNode() {
 }
 
-func (e *RawStringStmt) TrimLinePrefix(prefix string) {
-	for _, lit := range e.Lits {
+func (s *RawStringStmt) TrimLinePrefix(prefix string) {
+	for _, lit := range s.Lits {
 		lines := strings.Split(lit.Literal, "\n")
 		for i, line := range lines {
 			lines[i] = strings.TrimLeft(line, prefix)
@@ -504,10 +683,10 @@ func (e *RawStringStmt) TrimLinePrefix(prefix string) {
 	}
 }
 
-func (e *RawStringStmt) Quoted() string {
+func (s *RawStringStmt) Quoted() string {
 	var b strings.Builder
 	b.WriteByte('`')
-	for _, lit := range e.Lits {
+	for _, lit := range s.Lits {
 		s := lit.QuotedValue()
 		b.WriteString(s[1 : len(s)-1])
 	}
@@ -515,27 +694,32 @@ func (e *RawStringStmt) Quoted() string {
 	return b.String()
 }
 
-func (e *RawStringStmt) Unquoted() string {
+func (s *RawStringStmt) Unquoted() string {
 	var b strings.Builder
-	for _, lit := range e.Lits {
+	for _, lit := range s.Lits {
 		b.WriteString(lit.UnquotedValue())
 	}
 	return b.String()
 }
 
-func (e *RawStringStmt) String() string {
-	if e != nil {
-		return string(e.MixedExprRune) + "{= " + e.Quoted() + " }"
+func (s *RawStringStmt) String() string {
+	if s != nil {
+		return string(s.MixedExprRune) + "{= " + s.Quoted() + " }"
 	}
 	return nullRep
 }
 
-func (e *RawStringStmt) Value() string {
+func (s *RawStringStmt) Value() string {
 	var b strings.Builder
-	for _, lit := range e.Lits {
+	for _, lit := range s.Lits {
 		b.WriteString(lit.UnquotedValue())
 	}
 	return b.String()
+}
+
+func (s *RawStringStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	_, err = ctx.WriteString(s.Quoted())
+	return
 }
 
 // ExprToTextStmt represents to text wrapped expression.
@@ -553,23 +737,36 @@ func NewExprToTextStmt(r rune, expr Expr) *ExprToTextStmt {
 	}
 }
 
-func (e *ExprToTextStmt) StmtNode() {}
+func (s *ExprToTextStmt) StmtNode() {}
 
-func (e *ExprToTextStmt) ExprNode() {
+func (s *ExprToTextStmt) ExprNode() {
 }
 
 // Pos returns the position of first character belonging to the node.
-func (e *ExprToTextStmt) Pos() source.Pos {
-	return e.StartLit.Pos
+func (s *ExprToTextStmt) Pos() source.Pos {
+	return s.StartLit.Pos
 }
 
 // End returns the position of first character immediately after the node.
-func (e *ExprToTextStmt) End() source.Pos {
-	return e.EndLit.Pos
+func (s *ExprToTextStmt) End() source.Pos {
+	return s.EndLit.Pos
 }
 
-func (e *ExprToTextStmt) String() string {
-	return e.StartLit.Value + " " + e.Expr.String() + " " + e.EndLit.Value
+func (s *ExprToTextStmt) String() string {
+	return s.StartLit.Value + " " + s.Expr.String() + " " + s.EndLit.Value
+}
+
+func (s *ExprToTextStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString(ctx.ExprToTextFunc); err != nil {
+		return
+	}
+	if err = ctx.WriteByte('('); err != nil {
+		return
+	}
+	if err = WriteCode(ctx, s.Expr); err != nil {
+		return
+	}
+	return ctx.WriteByte(')')
 }
 
 type ConfigOptions struct {
@@ -659,4 +856,8 @@ func (s *StmtsExpr) String() string {
 }
 
 func (s *StmtsExpr) ExprNode() {
+}
+
+func (s *StmtsExpr) WriteCode(ctx *CodeWriterContext) (err error) {
+	return WriteCodeStmts(ctx, s.Stmts...)
 }

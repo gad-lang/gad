@@ -115,6 +115,8 @@ println("test8")
 			WorkDir:      tempDir,
 			NameResolver: importers.OsDirsNameResolver([]string{tempDir, tempDir2}),
 		})
+
+		script := script
 		script += "\n" + `import("test8.gad")`
 		bc, err := gad.Compile([]byte(script), gad.CompileOptions{CompilerOptions: opts})
 		require.NoError(t, err)

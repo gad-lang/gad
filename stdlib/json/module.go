@@ -14,7 +14,7 @@ import (
 // Module represents json module.
 var Module = map[string]gad.Object{
 	// gad:doc
-	// # json Module
+	// # json module
 	//
 	// ## Functions
 	// Marshal(v any) -> bytes

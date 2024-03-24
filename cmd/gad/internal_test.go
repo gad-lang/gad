@@ -44,7 +44,7 @@ func TestREPL(t *testing.T) {
 		testHasPrefix(t, string(cw.consume()),
 			"then\ndo\nbegin\nend\nbreak\ncontinue\nelse\nfor\nfunc\nif\nreturn\ntrue\nfalse\nyes\nno\nin\nnil\n"+
 				"import\nparam\nglobal\nvar\nconst\ntry\ncatch\nfinally\nthrow\n__callee__\n__named_args__\n__args__\n"+
-				"STDIN\nSTDOUT\nSTDERR\n",
+				"STDIN\nSTDOUT\nSTDERR\n__name__\n__file__\n__is_module__\n",
 		)
 	})
 	t.Run("unresolved reference", func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestREPL(t *testing.T) {
 		cw.consume()
 		require.NoError(t, r.execute(".return+"))
 		require.Equal(t, string(cw.consume()),
-			"GoType:gad.Int, OpName:int, Value:1\n")
+			"GoType:gad.Int, OpDotName:int, Value:1\n")
 	})
 	t.Run("symbols", func(t *testing.T) {
 		r := newREPL(ctx, cw)

@@ -1151,10 +1151,10 @@ keyValueArray(keyValue("d",4))))`,
 		nil, Str(`["a", "b"]`))
 
 	expectRun(t, `return sort(collect(items({a:1,b:2})))`,
-		nil, KeyValueArray{&KeyValue{Str("a"), Int(1)}, &KeyValue{Str("b"), Int(2)}})
-	expectRun(t, `return str(collect(items([3, 2, 1])))`, nil, Str("(;0=3, 1=2, 2=1)"))
+		nil, Array{&KeyValue{Str("a"), Int(1)}, &KeyValue{Str("b"), Int(2)}})
+	expectRun(t, `return str(collect(items([3, 2, 1])))`, nil, Str("[0=3, 1=2, 2=1]"))
 	expectRun(t, `return str(collect(items(keyValueArray(keyValue("a",1),keyValue("b",2)))))`,
-		nil, Str(`(;a=1, b=2)`))
+		nil, Str(`[a=1, b=2]`))
 
 	expectRun(t, `return sort(collect(values({a:1,b:2})))`,
 		nil, Array{Int(1), Int(2)})
@@ -3038,6 +3038,14 @@ func TestVMMap(t *testing.T) {
 }
 
 func TestVMSourceModules(t *testing.T) {
+	expectRun(t, `out := import("mod1"); return out`,
+		newOpts().Module("mod1", `return __name__, __file__, __is_module__`),
+		Array{Str("mod1"), Str("source:mod1"), True})
+
+	expectRun(t, `return __name__, __file__, __is_module__`,
+		nil,
+		Array{Str(MainName), Str("file:" + MainName), False})
+
 	// module return none
 	expectRun(t, `out := import("mod1"); return out`,
 		newOpts().Module("mod1", `fn := func() { return 5.0 }; a := 2`),

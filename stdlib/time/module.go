@@ -22,7 +22,7 @@ var zeroTime gad.Object = &Time{}
 // Module represents time module.
 var Module = map[string]gad.Object{
 	// gad:doc
-	// # time Module
+	// # time module
 	// ## Types
 	// Type is a type of Time Value
 	"Type": TimeType,

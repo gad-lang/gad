@@ -37,7 +37,7 @@ import (
 const gadDocPrefix = "gad:doc"
 
 var (
-	reModuleHeader = regexp.MustCompile(`^\s*#\s+(\w+)\s+Module`)
+	reModuleHeader = regexp.MustCompile(`^\s*#\s+(\w+)\s+module`)
 	reTypeHeader   = regexp.MustCompile(`^\s*##\s+Types`)
 	reConstHeader  = regexp.MustCompile(`^\s*##\s+Constants`)
 	reFuncHeader   = regexp.MustCompile(`^\s*##\s+Functions`)
@@ -74,9 +74,9 @@ func (dg *docgroup) process(comments []string) {
 			if len(parts) > 1 {
 				dg.module = parts[len(parts)-1]
 				dg.docs = append(dg.docs,
-					fmt.Sprintf("# `%s` Module", dg.module))
+					fmt.Sprintf("# `%s` module", dg.module))
 			} else {
-				dg.addError("Module header is invalid")
+				dg.addError("module header is invalid")
 			}
 			dg.processBlocks(lines[i+1:])
 			return

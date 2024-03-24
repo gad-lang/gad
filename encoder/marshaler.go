@@ -240,6 +240,11 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 	var tmpBuf bytes.Buffer
 	var vi varintConv
 
+	o2 := gad.CompiledFunction(*o)
+	o3 := &o2
+	o3 = o3.ClearSourceFileInfo()
+	*o = CompiledFunction(*o3)
+
 	// Name field #0
 	if o.Name != "" {
 		tmpBuf.WriteByte(0)

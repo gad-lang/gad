@@ -36,7 +36,7 @@ type Falser interface {
 type Object interface {
 	Falser
 
-	// OpName should return the name of the type.
+	// OpDotName should return the name of the type.
 	Type() ObjectType
 
 	// ToString should return a string of the type's value.
@@ -306,7 +306,7 @@ type UserDataStorage interface {
 
 // ObjectImpl is the basic Object implementation and it does not nothing, and
 // helps to implement Object interface by embedding and overriding methods in
-// custom implementations. Str and OpName must be implemented otherwise
+// custom implementations. Str and OpDotName must be implemented otherwise
 // calling these methods causes panic.
 type ObjectImpl struct{}
 

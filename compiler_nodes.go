@@ -1088,7 +1088,7 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 		}), body.Stmts...)
 	}
 
-	fork := c.fork(c.file, c.modulePath, c.moduleMap, symbolTable)
+	fork := c.fork(c.file, c.module, c.moduleMap, symbolTable)
 	fork.variadic = typ.Params.Args.Var != nil
 	if err := fork.Compile(body); err != nil {
 		return err
@@ -1446,7 +1446,7 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 
 	module, exists := c.getModule(moduleName)
 	if !exists {
-		mod, err := importer.Import(c.opts.Context, moduleName)
+		mod, url, err := importer.Import(c.opts.Context, moduleName)
 		if err != nil {
 			return c.error(nd, err)
 		}
@@ -1458,11 +1458,19 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 			} else {
 				moduleMap = c.baseModuleMap()
 			}
-			cidx, err := c.compileModule(nd, moduleName, moduleMap, v)
+
+			moduleInfo := &ModuleInfo{moduleName, url}
+
+			cidx, err := c.compileModule(nd, importer, moduleInfo, moduleMap, v)
 			if err != nil {
 				return err
 			}
 			module = c.addModule(moduleName, 1, cidx)
+			for _, cnt := range c.constants {
+				if fn, ok := cnt.(*CompiledFunction); ok {
+					fn.module = moduleInfo
+				}
+			}
 		case Object:
 			module = c.addModule(moduleName, 2, c.addConstant(v))
 		default:

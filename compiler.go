@@ -19,6 +19,8 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
+const MainName = "(main)"
+
 var (
 	// DefaultCompilerOptions holds default Compiler options.
 	DefaultCompilerOptions = CompilerOptions{
@@ -60,7 +62,7 @@ type (
 		sourceMap      map[int]int
 		moduleMap      *ModuleMap
 		moduleStore    *moduleStore
-		modulePath     string
+		module         *ModuleInfo
 		variadic       bool
 		varNamedParams bool
 		loops          []*loopStmts
@@ -78,7 +80,8 @@ type (
 	CompilerOptions struct {
 		Context             context.Context
 		ModuleMap           *ModuleMap
-		ModulePath          string
+		Module              *ModuleInfo
+		ModuleFile          string
 		Constants           []Object
 		SymbolTable         *SymbolTable
 		Trace               io.Writer
@@ -106,13 +109,15 @@ type (
 		typ           int
 		constantIndex int
 		moduleIndex   int
+		name          string
 	}
 
 	// moduleStore represents modules indexes and total count that are defined
 	// while compiling.
 	moduleStore struct {
 		count int
-		store map[string]moduleStoreItem
+		store map[string]*moduleStoreItem
+		items []*moduleStoreItem
 	}
 
 	// loopStmts represents a loopStmts construct that the compiler uses to
@@ -137,6 +142,13 @@ func (e *CompilerError) Unwrap() error {
 func NewCompiler(file *parser.SourceFile, opts CompilerOptions) *Compiler {
 	if opts.SymbolTable == nil {
 		opts.SymbolTable = NewSymbolTable(NewBuiltins())
+	}
+
+	if opts.Module == nil {
+		opts.Module = &ModuleInfo{
+			Name: MainName,
+			File: "file:" + file.Name,
+		}
 	}
 
 	if opts.constsCache == nil {
@@ -167,7 +179,7 @@ func NewCompiler(file *parser.SourceFile, opts CompilerOptions) *Compiler {
 		sourceMap:     make(map[int]int),
 		moduleMap:     opts.ModuleMap,
 		moduleStore:   opts.moduleStore,
-		modulePath:    opts.ModulePath,
+		module:        opts.Module,
 		loopIndex:     -1,
 		tryCatchIndex: -1,
 		iotaVal:       -1,
@@ -184,11 +196,17 @@ type CompileOptions struct {
 
 // Compile compiles given script to Bytecode.
 func Compile(script []byte, opts CompileOptions) (*Bytecode, error) {
-	fileSet := parser.NewFileSet()
-	moduleName := opts.ModulePath
+	var (
+		fileSet    = parser.NewFileSet()
+		moduleName string
+	)
+
+	if opts.Module != nil {
+		moduleName = opts.Module.Name
+	}
 
 	if moduleName == "" {
-		moduleName = "(main)"
+		moduleName = MainName
 	}
 
 	srcFile := fileSet.AddFile(moduleName, -1, len(script))
@@ -291,6 +309,8 @@ func (c *Compiler) Bytecode() *Bytecode {
 		NumLocals:    c.symbolTable.maxDefinition,
 		Instructions: c.instructions,
 		SourceMap:    c.sourceMap,
+		sourceFile:   c.file,
+		module:       c.module,
 	}
 
 	return &Bytecode{
@@ -451,6 +471,12 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		c.emit(nt, OpStdOut)
 	case *node.StdErrLit:
 		c.emit(nt, OpStdErr)
+	case *node.DotFileNameLit:
+		c.emit(nt, OpDotName)
+	case *node.DotFileLit:
+		c.emit(nt, OpDotFile)
+	case *node.IsModuleLit:
+		c.emit(nt, OpIsModule)
 	case *node.CalleeKeyword:
 		c.emit(nt, OpCallee)
 	case *node.ArgsKeyword:
@@ -650,7 +676,7 @@ func (c *Compiler) addInstruction(b []byte) int {
 }
 
 func (c *Compiler) checkCyclicImports(nd ast.Node, modulePath string) error {
-	if c.modulePath == modulePath {
+	if c.module.Name == modulePath {
 		return c.errorf(nd, "cyclic module import: %s", modulePath)
 	} else if c.parent != nil {
 		return c.parent.checkCyclicImports(nd, modulePath)
@@ -658,18 +684,21 @@ func (c *Compiler) checkCyclicImports(nd ast.Node, modulePath string) error {
 	return nil
 }
 
-func (c *Compiler) addModule(name string, typ, constantIndex int) moduleStoreItem {
+func (c *Compiler) addModule(name string, typ, constantIndex int) *moduleStoreItem {
 	moduleIndex := c.moduleStore.count
 	c.moduleStore.count++
-	c.moduleStore.store[name] = moduleStoreItem{
+	item := &moduleStoreItem{
 		typ:           typ,
 		constantIndex: constantIndex,
 		moduleIndex:   moduleIndex,
+		name:          name,
 	}
-	return c.moduleStore.store[name]
+	c.moduleStore.store[name] = item
+	c.moduleStore.items = append(c.moduleStore.items, item)
+	return item
 }
 
-func (c *Compiler) getModule(name string) (moduleStoreItem, bool) {
+func (c *Compiler) getModule(name string) (*moduleStoreItem, bool) {
 	indexes, ok := c.moduleStore.store[name]
 	return indexes, ok
 }
@@ -681,44 +710,70 @@ func (c *Compiler) baseModuleMap() *ModuleMap {
 	return c.parent.baseModuleMap()
 }
 
-func (c *Compiler) compileModule(
+func (c *Compiler) CompileModule(
 	nd ast.Node,
-	modulePath string,
+	module *ModuleInfo,
 	moduleMap *ModuleMap,
 	src []byte,
-) (int, error) {
-	var err error
-	if err = c.checkCyclicImports(nd, modulePath); err != nil {
-		return 0, err
-	}
-
-	modFile := c.file.Set().AddFile(modulePath, -1, len(src))
+	parserOptions *parser.ParserOptions,
+	scannerOptions *parser.ScannerOptions,
+) (bc *Bytecode, err error) {
+	modFile := c.file.Set().AddFile(module.Name, -1, len(src))
 	var trace io.Writer
 	if c.opts.TraceParser {
 		trace = c.trace
 	}
 
-	p := parser.NewParser(modFile, src, trace)
+	if parserOptions == nil {
+		parserOptions = &parser.ParserOptions{Trace: trace}
+	}
+
+	p := parser.NewParserWithOptions(modFile, src, parserOptions, scannerOptions)
+
 	var file *parser.File
 	file, err = p.ParseFile()
 	if err != nil {
-		return 0, err
+		return
 	}
 
 	symbolTable := NewSymbolTable(c.symbolTable.builtins).
 		DisableBuiltin(c.symbolTable.DisabledBuiltins()...)
 
-	fork := c.fork(modFile, modulePath, moduleMap, symbolTable)
+	fork := c.fork(modFile, module, moduleMap, symbolTable)
 	err = fork.optimize(file)
 	if err != nil && err != errSkip {
-		return 0, c.error(nd, err)
+		err = c.error(nd, err)
+		return
+	}
+	if err = fork.Compile(file); err != nil {
+		return
 	}
 
-	if err = fork.Compile(file); err != nil {
+	bc = fork.Bytecode()
+	return
+}
+
+func (c *Compiler) compileModule(
+	nd ast.Node,
+	importable Importable,
+	module *ModuleInfo,
+	moduleMap *ModuleMap,
+	src []byte,
+) (int, error) {
+	var err error
+	if err = c.checkCyclicImports(nd, module.Name); err != nil {
 		return 0, err
 	}
 
-	bc := fork.Bytecode()
+	var bc *Bytecode
+	if cimp, ok := importable.(CompilableImporter); ok {
+		if bc, err = cimp.CompileModule(c, nd, module, moduleMap, src); err != nil {
+			return 0, err
+		}
+	} else if bc, err = c.CompileModule(nd, module, moduleMap, src, nil, nil); err != nil {
+		return 0, err
+	}
+
 	if bc.Main.NumLocals > 256 {
 		return 0, c.error(nd, ErrSymbolLimit)
 	}
@@ -756,14 +811,14 @@ func (c *Compiler) currentLoop() *loopStmts {
 
 func (c *Compiler) fork(
 	file *parser.SourceFile,
-	modulePath string,
+	module *ModuleInfo,
 	moduleMap *ModuleMap,
 	symbolTable *SymbolTable,
 ) *Compiler {
 	child := NewCompiler(file, CompilerOptions{
 		Context:           c.opts.Context,
 		ModuleMap:         moduleMap,
-		ModulePath:        modulePath,
+		Module:            module,
 		Constants:         c.constants,
 		SymbolTable:       symbolTable,
 		Trace:             c.trace,
@@ -780,7 +835,7 @@ func (c *Compiler) fork(
 	child.parent = c
 	child.cfuncCache = c.cfuncCache
 
-	if modulePath == c.modulePath {
+	if module.Name == c.module.Name {
 		child.indent = c.indent
 	}
 	return child
@@ -884,7 +939,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	case OpEqual, OpNotEqual, OpNull, OpTrue, OpFalse, OpYes, OpNo, OpPop, OpSliceIndex,
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
-		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil:
+		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsModule:
 		return buf, nil
 	default:
 		return buf, &Error{
@@ -941,7 +996,7 @@ func IterateInstructions(insts []byte,
 
 func newModuleStore() *moduleStore {
 	return &moduleStore{
-		store: make(map[string]moduleStoreItem),
+		store: make(map[string]*moduleStoreItem),
 	}
 }
 

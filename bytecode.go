@@ -209,6 +209,11 @@ func (n *NamedParams) String() string {
 	return strings.Join(s, ", ")
 }
 
+type ModuleInfo struct {
+	Name string
+	File string
+}
+
 // CompiledFunction holds the constants and instructions to pass VM.
 type CompiledFunction struct {
 	Name string
@@ -228,6 +233,8 @@ type CompiledFunction struct {
 	// NamedParamsMap is a map of NamedParams with index
 	// this value allow to perform named args validation.
 	NamedParamsMap map[string]int
+	sourceFile     *parser.SourceFile
+	module         *ModuleInfo
 }
 
 var (
@@ -237,6 +244,12 @@ var (
 
 func (*CompiledFunction) Type() ObjectType {
 	return TCompiledFunction
+}
+
+func (o CompiledFunction) ClearSourceFileInfo() *CompiledFunction {
+	o.module = nil
+	o.sourceFile = nil
+	return &o
 }
 
 func (o *CompiledFunction) ToString() string {

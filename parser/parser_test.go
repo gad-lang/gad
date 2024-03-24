@@ -2778,6 +2778,26 @@ func TestParseSemicolon(t *testing.T) {
 }
 
 func TestParseString(t *testing.T) {
+	expectParse(t, "\"foo\nbar\"", func(p pfn) []Stmt {
+		return stmts(exprStmt(stringLit("foo\nbar", p(1, 1))))
+	})
+	expectParse(t, "\"foo\nbar\"", func(p pfn) []Stmt {
+		return stmts(exprStmt(stringLit("foo\nbar", p(1, 1))))
+	})
+	expectParse(t, "\"foo\n"+"\n"+"bar\"", func(p pfn) []Stmt {
+		return stmts(exprStmt(stringLit("foo\n\nbar", p(1, 1))))
+	})
+	expectParse(t, `"foo\n`+"\n"+`bar"`, func(p pfn) []Stmt {
+		return stmts(exprStmt(stringLit("foo\n\nbar", p(1, 1))))
+	})
+	expectParse(t, "a = \"foo\nbar\"", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(ident("a", p(1, 1))),
+				exprs(stringLit("foo\nbar", p(1, 5))),
+				token.Assign,
+				p(1, 3)))
+	})
 	expectParse(t, `a = "foo\nbar"`, func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(
@@ -2786,7 +2806,6 @@ func TestParseString(t *testing.T) {
 				token.Assign,
 				p(1, 3)))
 	})
-
 	expectParse(t, "a = `raw string`", func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(

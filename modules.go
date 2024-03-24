@@ -7,12 +7,14 @@ package gad
 import (
 	"context"
 	"errors"
+
+	"github.com/gad-lang/gad/parser/ast"
 )
 
 // Importable interface represents importable module instance.
 type Importable interface {
 	// Import should return either an Object or module source code ([]byte).
-	Import(ctx context.Context, moduleName string) (any, error)
+	Import(ctx context.Context, moduleName string) (data any, uri string, err error)
 }
 
 // ExtImporter wraps methods for a module which will be impored dynamically like
@@ -29,6 +31,11 @@ type ExtImporter interface {
 	// modules. Fork will get the result of Name() if it is not empty, otherwise
 	// module name will be same with the Get call.
 	Fork(moduleName string) ExtImporter
+}
+
+type CompilableImporter interface {
+	Importable
+	CompileModule(compiler *Compiler, nd ast.Node, module *ModuleInfo, moduleMap *ModuleMap, src []byte) (bc *Bytecode, err error)
 }
 
 // ModuleMap represents a set of named modules. Use NewModuleMap to create a
@@ -119,8 +126,8 @@ type SourceModule struct {
 }
 
 // Import returns a module source code.
-func (m *SourceModule) Import(context.Context, string) (any, error) {
-	return m.Src, nil
+func (m *SourceModule) Import(_ context.Context, name string) (any, string, error) {
+	return m.Src, "source:" + name, nil
 }
 
 // BuiltinModule is an importable module that's written in ToInterface.
@@ -129,12 +136,12 @@ type BuiltinModule struct {
 }
 
 // Import returns an immutable map for the module.
-func (m *BuiltinModule) Import(_ context.Context, moduleName string) (any, error) {
+func (m *BuiltinModule) Import(_ context.Context, moduleName string) (any, string, error) {
 	if m.Attrs == nil {
-		return nil, errors.New("module attributes not set")
+		return nil, "", errors.New("module attributes not set")
 	}
 
 	cp := Dict(m.Attrs).Copy()
 	cp.(Dict)[AttrModuleName] = Str(moduleName)
-	return cp, nil
+	return cp, "builtin:" + moduleName, nil
 }

@@ -1309,7 +1309,7 @@ func (s *Scanner) ScanString() string {
 
 	for {
 		ch := s.Ch
-		if ch == '\n' || ch < 0 {
+		if ch < 0 {
 			s.Error(offs, "string literal not terminated")
 			break
 		}
