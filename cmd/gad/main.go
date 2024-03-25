@@ -528,7 +528,7 @@ func parseFlags(
 			"    //         3) SCRIPT.gad a b c -ln (result: a,b,c\\n)\n",
 			"    //         4) SCRIPT.gad a b c --sep + -ln (result: a+b+c\\n)\n",
 			"    param (*args, sep=\",\", ln=no)\n",
-			"    if !args { return }\n    for i, arg in args[:-1] { print(arg, sep) }\n    print(args[-1])\n    if ln { println() }\n\n",
+			"    if !args { return }\n    for _, arg in args[:-1] { print(arg, sep) }\n    print(args[-1])\n    if ln { println() }\n\n",
 			"Use - to read from stdin\n\n",
 			"\nFlags:\n",
 		)
