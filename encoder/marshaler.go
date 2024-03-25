@@ -304,6 +304,13 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 			tmpBuf.Write(b)
 			b, _ = String(n.Value).MarshalBinary()
 			tmpBuf.Write(b)
+			symbols := make(gad.Array, len(n.Type))
+			for i, info := range n.Type {
+				symbols[i] = info
+			}
+			b, _ = Array(symbols).MarshalBinary()
+			tmpBuf.Write(b)
+			n.Type = nil
 		}
 	}
 
@@ -429,5 +436,17 @@ func (sfs *SourceFileSet) MarshalBinary() ([]byte, error) {
 		buf.Write(d)
 	}
 
+	return buf.Bytes(), nil
+}
+
+// MarshalBinary implements encoding.BinaryMarshaler
+func (s Symbol) MarshalBinary() ([]byte, error) {
+	var buf bytes.Buffer
+	buf.WriteByte(binSymbolV1)
+	var vi varintConv
+	d, _ := String(s.Name).MarshalBinary()
+	buf.Write(d)
+	buf.Write(vi.toBytes(int64(s.Index)))
+	buf.Write(vi.toBytes(int64(s.Scope)))
 	return buf.Bytes(), nil
 }

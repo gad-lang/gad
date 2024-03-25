@@ -4099,6 +4099,13 @@ return f2(;a=1,b=2,c=3,d=4,e=5)
 	expectRun(t, `f := func(**kw){return kw};return str(f(;**(;100=1,x=2,flag,x=4,"a b"=7)))`, nil, Str(`(;100=1, x=2, flag, x=4, "a b"=7)`))
 	expectRun(t, `f := func(**kw){return kw};return str(f(;"x y"=2,"user.name"="the user",abc="de"))`, nil, Str(`(;"x y"=2, "user.name"="the user", abc="de")`))
 	expectRun(t, `f := func(**kw){return __named_args__};return str(f(;"x y"=2,"user.name"="the user",abc="de"))`, nil, Str(`(;"x y"=2, "user.name"="the user", abc="de")`))
+
+	expectRun(t, `return func(;a int=2) { return a }()`, nil, Int(2))
+	expectRun(t, `return func(;a int=2) { return a }(;a=3)`, nil, Int(3))
+	expectRun(t, `f := func(;a int|uint=2) { return str(typeof(a)) }; return f(;a=1), f(;a=1u)`, nil,
+		Array{Str("‹builtinType int›"), Str("‹builtinType uint›")})
+	expectErrHas(t, `func(;a int=2) { return a }(;a="3")`, nil, "invalid type for named argument 'a': expected int, found str")
+	expectErrHas(t, `func(;a int|uint=2) { return a }(;a="3")`, nil, "invalid type for named argument 'a': expected int|uint, found str")
 }
 
 func TestVMClosure(t *testing.T) {

@@ -40,6 +40,7 @@ func TestGobEncoder(t *testing.T) {
 		&time.Time{Value: gotime.Now()},
 		&json.EncoderOptions{Value: gad.Float(0)},
 		&json.RawMessage{},
+		&gad.SymbolInfo{Scope: gad.ScopeBuiltin, Index: 10, Name: "test"},
 	}
 	for _, obj := range objects {
 		var buf bytes.Buffer
@@ -288,6 +289,7 @@ func TestEncDecObjects(t *testing.T) {
 	}
 	arrays = append(arrays, temp8)
 	arrays = append(arrays, gad.Array{gad.Nil})
+	arrays = append(arrays, gad.Array{&gad.SymbolInfo{Scope: gad.ScopeBuiltin, Index: 10, Name: "test"}})
 
 	for _, tC := range arrays {
 		msg := fmt.Sprintf("Array(%v)", tC)
@@ -354,6 +356,9 @@ func TestEncDecObjects(t *testing.T) {
 		),
 		compFunc(nil,
 			withParams("a", "b"),
+		),
+		compFunc(nil,
+			withVarParams(),
 		),
 		compFunc(nil,
 			withVarParams(),

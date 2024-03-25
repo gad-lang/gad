@@ -431,7 +431,16 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 				} else if value, err := DecodeObject(rd); err != nil {
 					return err
 				} else {
-					namedParams[i] = &gad.NamedParam{Name: string(name.(gad.Str)), Value: string(value.(gad.Str))}
+					namedParams[i] = gad.NewNamedParam(string(name.(gad.Str)), string(value.(gad.Str)))
+				}
+				if types, err := DecodeObject(rd); err != nil {
+					return err
+				} else if typesArr := types.(gad.Array); len(typesArr) > 0 {
+					types := make([]*gad.SymbolInfo, len(typesArr))
+					for i2, object := range typesArr {
+						types[i2] = object.(*gad.SymbolInfo)
+					}
+					namedParams[i].Type = types
 				}
 			}
 			o.NamedParams = *gad.NewNamedParams(namedParams...)
@@ -634,6 +643,33 @@ func (sfs *SourceFileSet) UnmarshalBinary(data []byte) error {
 
 	sfs.Files = files
 	return nil
+}
+
+// UnmarshalBinary implements encoding.BinaryUnmarshaler
+func (s *Symbol) UnmarshalBinary(data []byte) (err error) {
+	rd := bytes.NewReader(data)
+
+	obj, err := DecodeObject(rd)
+	if err != nil {
+		return err
+	}
+	s.Name = string(obj.(gad.Str))
+
+	var vi varintConv
+	vi.reader = rd
+	v, err := vi.read()
+	if err != nil {
+		return err
+	}
+
+	s.Index = int(v)
+
+	v, err = vi.read()
+	if err != nil {
+		return err
+	}
+	s.Scope = gad.SymbolScope(v)
+	return
 }
 
 func readByteFrom(r io.Reader) (byte, error) {

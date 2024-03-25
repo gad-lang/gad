@@ -1318,6 +1318,10 @@ func (o Dict) Length() int {
 }
 
 func (o Dict) Items(*VM) (KeyValueArray, error) {
+	return o.ToKeyValueArray(), nil
+}
+
+func (o Dict) ToKeyValueArray() KeyValueArray {
 	var (
 		arr = make(KeyValueArray, len(o))
 		i   int
@@ -1326,7 +1330,7 @@ func (o Dict) Items(*VM) (KeyValueArray, error) {
 		arr[i] = &KeyValue{Str(key), value}
 		i++
 	}
-	return arr, nil
+	return arr
 }
 
 func (o Dict) Keys() Array {

@@ -735,8 +735,12 @@ func (so *SimpleOptimizer) optimize(nd ast.Node) (node.Expr, bool) {
 		switch decl.Tok {
 		case token.Param, token.Global:
 			for _, sp := range decl.Specs {
-				spec := sp.(*node.ParamSpec)
-				so.scope.define(spec.Ident.Ident.Name)
+				switch spec := sp.(type) {
+				case *node.ParamSpec:
+					so.scope.define(spec.Ident.Ident.Name)
+				case *node.NamedParamSpec:
+					so.scope.define(spec.Ident.Ident.Name)
+				}
 			}
 		case token.Var, token.Const:
 			for _, sp := range decl.Specs {

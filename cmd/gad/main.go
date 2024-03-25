@@ -508,8 +508,7 @@ func initSuggestions() {
 func parseFlags(
 	flagset *flag.FlagSet,
 	args []string,
-) (filePath string, timeout time.Duration, err error) {
-
+) (filePath string, timeout time.Duration, params []string, err error) {
 	var trace string
 	flagset.StringVar(&trace, "trace", "",
 		`Comma separated units: -trace parser,optimizer,compiler`)
@@ -546,11 +545,14 @@ func parseFlags(
 		}
 	}
 
-	if flagset.NArg() != 1 {
+	if flagset.NArg() < 1 {
 		return
 	}
 
 	filePath = flagset.Arg(0)
+
+	params = flagset.Args()[1:]
+
 	if filePath == "-" {
 		return
 	}
@@ -558,33 +560,78 @@ func parseFlags(
 	return
 }
 
-func executeScript(
-	ctx context.Context,
-	modulePath string,
-	workdir string,
-	script []byte,
-	traceOut io.Writer,
-) error {
+type Script struct {
+	ctx        context.Context
+	modulePath string
+	workdir    string
+	script     []byte
+	traceOut   io.Writer
+	args       []string
+}
+
+func newScript(ctx context.Context, modulePath string, workdir string, script []byte, traceOut io.Writer) *Script {
+	return &Script{ctx: ctx, modulePath: modulePath, workdir: workdir, script: script, traceOut: traceOut}
+}
+
+func (s *Script) execute() error {
 	opts := gad.CompileOptions{
 		CompilerOptions: gad.DefaultCompilerOptions,
 	}
 	opts.SymbolTable = defaultSymbolTable()
-	opts.ModuleMap = DefaultModuleMap(workdir)
+	opts.ModuleMap = DefaultModuleMap(s.workdir)
 	opts.Module = &gad.ModuleInfo{
-		Name: path.Clean(modulePath),
-		File: "file:" + modulePath,
+		Name: path.Clean(s.modulePath),
+		File: "file:" + s.modulePath,
 	}
 
 	if traceEnabled {
-		opts.Trace = traceOut
+		opts.Trace = s.traceOut
 		opts.TraceParser = traceParser
 		opts.TraceCompiler = traceCompiler
 		opts.TraceOptimizer = traceOptimizer
 	}
 
-	bc, err := gad.Compile(script, opts)
+	bc, err := gad.Compile(s.script, opts)
 	if err != nil {
 		return err
+	}
+
+	namedArgs := make(gad.Dict)
+	args := make(gad.Array, 0)
+
+	if numArgs := len(s.args); numArgs > 0 {
+		var newArgs []gad.Object
+		for i := 0; i < numArgs; i++ {
+			arg := s.args[i]
+			if strings.HasPrefix(arg, "--") && len(arg) > 2 {
+				if i+1 < numArgs {
+					namedArgs[arg[2:]] = gad.Str(s.args[i+1])
+					i++
+					continue
+				}
+			}
+			newArgs = append(newArgs, gad.Str(arg))
+		}
+		args = newArgs
+	}
+
+	if requiredParams := bc.Main.Params.Len; requiredParams > 0 {
+		if bc.Main.Params.Var {
+			requiredParams--
+		}
+
+		if len(args) < requiredParams {
+			return gad.ErrWrongNumArguments.NewError(fmt.Sprintf("want=%d got=%d", requiredParams, len(s.args)))
+		}
+	}
+
+	if len(namedArgs) > 0 && !bc.Main.NamedParams.Variadic() {
+		np := bc.Main.NamedParams.ToMap()
+		for name := range namedArgs {
+			if np[name] == nil {
+				return gad.ErrUnexpectedNamedArg.NewError(name)
+			}
+		}
 	}
 
 	vm := gad.NewVM(bc).SetRecover(true)
@@ -592,16 +639,20 @@ func executeScript(
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		_, err = vm.RunOpts(&gad.RunOpts{Globals: scriptGlobals})
+		_, err = vm.RunOpts(&gad.RunOpts{
+			Globals:   scriptGlobals,
+			Args:      gad.Args{args},
+			NamedArgs: gad.NewNamedArgs(namedArgs.ToKeyValueArray()),
+		})
 	}()
 
 	select {
 	case <-done:
-	case <-ctx.Done():
+	case <-s.ctx.Done():
 		vm.Abort()
 		<-done
 		if err == nil {
-			err = ctx.Err()
+			err = s.ctx.Err()
 		}
 	}
 	return err
@@ -638,7 +689,7 @@ func setTerminalTitle(title string) {
 }
 
 func main() {
-	filePath, timeout, err := parseFlags(flag.CommandLine, os.Args[1:])
+	filePath, timeout, args, err := parseFlags(flag.CommandLine, os.Args[1:])
 	checkErr(err, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -669,7 +720,9 @@ func main() {
 		importers.Shebang2Slashes(script)
 
 		checkErr(err, cancel)
-		err = executeScript(ctx, modulePath, workdir, script, os.Stdout)
+		s := newScript(ctx, modulePath, workdir, script, os.Stdout)
+		s.args = args
+		err = s.execute()
 		checkErr(err, cancel)
 		return
 	}

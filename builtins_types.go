@@ -6,6 +6,7 @@ import (
 
 var (
 	TAny                    = &Type{TypeName: "Any"}
+	TSymbol                 = &Type{Parent: TAny, TypeName: "Symbol"}
 	TIterationStateFlag     = &Type{Parent: TAny, TypeName: "IterationStateFlag"}
 	IterationStop           = &Type{Parent: TIterationStateFlag, TypeName: "IterationStop"}
 	IterationSkip           = &Type{Parent: TIterationStateFlag, TypeName: "IterationSkip"}

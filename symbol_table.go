@@ -39,11 +39,36 @@ func (s SymbolScope) String() string {
 	}
 }
 
+type SymbolInfo struct {
+	Name  string
+	Index int
+	Scope SymbolScope
+}
+
+var _ Object = (*SymbolInfo)(nil)
+
+func (s *SymbolInfo) IsFalsy() bool {
+	return false
+}
+
+func (s *SymbolInfo) Type() ObjectType {
+	return TSymbol
+}
+
+func (s *SymbolInfo) ToString() string {
+	return fmt.Sprint(s)
+}
+
+func (s *SymbolInfo) Equal(right Object) bool {
+	if s2, ok := right.(*SymbolInfo); ok {
+		return fmt.Sprint(s) == fmt.Sprint(s2)
+	}
+	return false
+}
+
 // Symbol represents a symbol in the symbol table.
 type Symbol struct {
-	Name     string
-	Index    int
-	Scope    SymbolScope
+	SymbolInfo
 	Assigned bool
 	Constant bool
 	Original *Symbol
@@ -169,11 +194,10 @@ func (st *SymbolTable) defineParamsVar(names []string) error {
 		if _, ok := st.store[param]; ok && param != "_" {
 			return fmt.Errorf("%q redeclared in this block", param)
 		}
-		symbol := &Symbol{
-			Name:  param,
+		symbol := &Symbol{SymbolInfo: SymbolInfo{Name: param,
 			Index: st.NextIndex(),
 			Scope: ScopeLocal,
-		}
+		}}
 		st.numDefinition++
 		st.store[param] = symbol
 		st.updateMaxDefs(symbol.Index + 1)
@@ -215,11 +239,11 @@ func (st *SymbolTable) Resolve(name string) (symbol *Symbol, ok bool) {
 
 	if !ok && st.parent == nil && !st.isBuiltinDisabled(name) {
 		if idx, exists := st.builtins.Map[name]; exists {
-			symbol = &Symbol{
+			symbol = &Symbol{SymbolInfo: SymbolInfo{
 				Name:  name,
 				Index: int(idx),
 				Scope: ScopeBuiltin,
-			}
+			}}
 			st.store[name] = symbol
 			return symbol, true
 		}
@@ -236,11 +260,11 @@ func (st *SymbolTable) DefineLocal(name string) (*Symbol, bool) {
 
 	index := st.NextIndex()
 
-	symbol = &Symbol{
+	symbol = &Symbol{SymbolInfo: SymbolInfo{
 		Name:  name,
 		Index: index,
 		Scope: ScopeLocal,
-	}
+	}}
 
 	st.numDefinition++
 	st.store[name] = symbol
@@ -256,9 +280,11 @@ func (st *SymbolTable) defineFree(original *Symbol) *Symbol {
 	// and next Resolve call returns existing symbol
 	st.frees = append(st.frees, original)
 	symbol := &Symbol{
-		Name:     original.Name,
-		Index:    len(st.frees) - 1,
-		Scope:    ScopeFree,
+		SymbolInfo: SymbolInfo{
+			Name:  original.Name,
+			Index: len(st.frees) - 1,
+			Scope: ScopeFree,
+		},
 		Constant: original.Constant,
 		Original: original,
 	}
@@ -300,11 +326,11 @@ func (st *SymbolTable) DefineGlobal(name string) (*Symbol, error) {
 		return sym, nil
 	}
 
-	s := &Symbol{
+	s := &Symbol{SymbolInfo: SymbolInfo{
 		Name:  name,
 		Index: -1,
 		Scope: ScopeGlobal,
-	}
+	}}
 
 	st.store[name] = s
 	st.shadowBuiltin(name)

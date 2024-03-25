@@ -1025,9 +1025,10 @@ func BuiltinIsFunc(c Call) (ok Object, err error) {
 	}
 	ok = True
 	var (
-		types []ObjectType
-		t     = c.Args.Shift()
-		argt  ObjectType
+		types     []ObjectType
+		t         = c.Args.Shift()
+		argt      ObjectType
+		assertion *TypeAssertion
 	)
 
 	if arr, ok_ := t.(Array); ok_ {
@@ -1045,24 +1046,120 @@ func BuiltinIsFunc(c Call) (ok Object, err error) {
 			}
 		}
 
-		c.Args.Walk(func(i int, arg Object) any {
-			argt = arg.Type()
-			for _, t := range types {
-				if t.Equal(argt) {
-					return nil
-				}
-			}
-			ok = False
-			return ok
-		})
+		assertion = TypeAssertionFromTypes(types...)
 	} else {
-		c.Args.Walk(func(i int, arg Object) any {
-			if !t.Equal(arg.Type()) {
-				ok = False
-				return ok
-			}
-			return nil
-		})
+		if com, ok := t.(*CallerObjectWithMethods); ok {
+			t = com.CallerObject
+		}
+		if t, ok := t.(ObjectType); !ok {
+			return nil, NewArgumentTypeError("1st", "type|array of types", "object")
+		} else {
+			assertion = TypeAssertionFromTypes(t)
+		}
+	}
+
+	c.Args.Walk(func(i int, arg Object) any {
+		argt = arg.Type()
+		if expectedNames := assertion.AcceptType(argt); expectedNames != "" {
+			ok = False
+		}
+		return ok
+	})
+
+	return
+}
+
+func BuiltinNamedParamTypeCheckFunc(c Call) (val Object, err error) {
+	var (
+		nameArg = &Arg{
+			Name:          "NamedParam",
+			TypeAssertion: TypeAssertionFromTypes(TStr),
+		}
+
+		typesArg = &Arg{
+			Name: "types",
+		}
+
+		valueArg = &Arg{
+			Name: "value",
+		}
+	)
+	if err = c.Args.Destructure(nameArg, typesArg, valueArg); err != nil {
+		return
+	}
+
+	val = Nil
+	var badTypes string
+	if badTypes, err = NamedParamTypeCheck(string(nameArg.Value.(Str)), typesArg.Value, valueArg.Value); err != nil {
+		return
+	} else if badTypes != "" {
+		err = NewArgumentTypeError(
+			"2st (types)",
+			badTypes,
+			typesArg.Value.Type().Name(),
+		)
+	}
+	return
+}
+
+func NamedParamTypeCheck(name string, typeso, value Object) (badTypes string, err error) {
+	var (
+		types     []ObjectType
+		assertion = &TypeAssertion{
+			Handlers: map[string]TypeAssertionHandler{
+				"ObjectType|[]ObjectType": func(v Object) bool {
+					switch t := v.(type) {
+					case ObjectType:
+						types = append(types, t)
+						return true
+					case Array:
+						for _, object := range t {
+						try:
+							switch t2 := object.(type) {
+							case ObjectType:
+								types = append(types, t2)
+							case *CallerObjectWithMethods:
+								object = t2.CallerObject
+								goto try
+							default:
+								return false
+							}
+						}
+						return true
+					default:
+					try2:
+						switch t2 := t.(type) {
+						case ObjectType:
+							types = append(types, t2)
+							return true
+						case *CallerObjectWithMethods:
+							t = t2.CallerObject
+							goto try2
+						default:
+							return false
+						}
+					}
+				},
+			},
+		}
+	)
+
+	if badTypes = assertion.Accept(typeso); badTypes != "" {
+		return
+	}
+
+	err = NamedParamTypeCheckAssertion(name, TypeAssertionFromTypes(types...), value)
+	return
+}
+
+func NamedParamTypeCheckAssertion(name string, assertion *TypeAssertion, value Object) (err error) {
+	if expectedNames := assertion.Accept(value); expectedNames != "" {
+		err = NewNamedArgumentTypeError(
+			string(name),
+			expectedNames,
+			value.Type().Name(),
+		)
+		return
 	}
 	return
 }

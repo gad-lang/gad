@@ -219,7 +219,7 @@ func TestFlags(t *testing.T) {
 			defer resetGlobals()
 
 			fs := flag.NewFlagSet("test tracers", flag.ExitOnError)
-			fp, to, err := parseFlags(fs, tC.args)
+			fp, to, _, err := parseFlags(fs, tC.args)
 			require.NoError(t, err)
 			require.Empty(t, fp)
 			require.Empty(t, to)
@@ -231,7 +231,7 @@ func TestFlags(t *testing.T) {
 	}
 
 	fs := flag.NewFlagSet("script file", flag.ExitOnError)
-	fp, to, err := parseFlags(fs, []string{"testdata/fibtc.gad"})
+	fp, to, _, err := parseFlags(fs, []string{"testdata/fibtc.gad"})
 	require.NoError(t, err)
 	require.Empty(t, to)
 	require.Equal(t, "testdata/fibtc.gad", fp)
@@ -239,7 +239,7 @@ func TestFlags(t *testing.T) {
 	resetGlobals()
 
 	fs = flag.NewFlagSet("stdin", flag.ExitOnError)
-	fp, to, err = parseFlags(fs, []string{"-"})
+	fp, to, _, err = parseFlags(fs, []string{"-"})
 	require.NoError(t, err)
 	require.Empty(t, to)
 	require.Equal(t, "-", fp)
@@ -247,7 +247,7 @@ func TestFlags(t *testing.T) {
 	resetGlobals()
 
 	fs = flag.NewFlagSet("file does not exist", flag.ExitOnError)
-	_, _, err = parseFlags(fs, []string{"testdata/doesnotexist"})
+	_, _, _, err = parseFlags(fs, []string{"testdata/doesnotexist"})
 	require.Error(t, err)
 }
 
@@ -266,10 +266,10 @@ func TestExecuteScript(t *testing.T) {
 	const workdir = "./testdata"
 	scr, err := ioutil.ReadFile("./testdata/fibtc.gad")
 	require.NoError(t, err)
-	require.NoError(t, executeScript(ctx, "(test1)", workdir, scr, nil))
+	require.NoError(t, newScript(ctx, "(test1)", workdir, scr, nil).execute())
 
 	traceEnabled = true
-	require.NoError(t, executeScript(ctx, "(test2)", workdir, scr, ioutil.Discard))
+	require.NoError(t, newScript(ctx, "(test2)", workdir, scr, ioutil.Discard).execute())
 	resetGlobals()
 
 	// FIXME: Following is a flaky test which compromise CI
@@ -279,7 +279,7 @@ func TestExecuteScript(t *testing.T) {
 	// fix this issue but it will extend the test duration.
 
 	cancel()
-	err = executeScript(ctx, "(test3)", workdir, scr, nil)
+	err = newScript(ctx, "(test3)", workdir, scr, nil).execute()
 	if err != nil {
 		if err != context.Canceled && err != gad.ErrVMAborted {
 			t.Fatalf("unexpected error: %+v", err)

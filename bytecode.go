@@ -69,7 +69,7 @@ func (bc *Bytecode) putConstants(w io.Writer) {
 	}
 }
 
-type ParamType []*Symbol
+type ParamType []*SymbolInfo
 
 func (t ParamType) String() string {
 	l := len(t)
@@ -153,6 +153,12 @@ type NamedParam struct {
 	Name string
 	// Value is a script of default value
 	Value string
+	Index int
+	Type  []*SymbolInfo
+}
+
+func NewNamedParam(name string, value string) *NamedParam {
+	return &NamedParam{Name: name, Value: value}
 }
 
 type NamedParams struct {
@@ -163,6 +169,9 @@ type NamedParams struct {
 }
 
 func NewNamedParams(params ...*NamedParam) (np *NamedParams) {
+	for i, param := range params {
+		param.Index = i
+	}
 	np = &NamedParams{Params: params}
 	np.len = len(params)
 	np.Params = params
@@ -195,6 +204,14 @@ func (n *NamedParams) Variadic() bool {
 
 func (n *NamedParams) ByName() map[string]int {
 	return n.byName
+}
+
+func (n *NamedParams) ToMap() (np map[string]*NamedParam) {
+	np = make(map[string]*NamedParam, n.len)
+	for _, param := range n.Params {
+		np[param.Name] = param
+	}
+	return np
 }
 
 func (n *NamedParams) String() string {

@@ -99,6 +99,13 @@ func NewArgumentTypeError(pos, expectType, foundType string) *Error {
 			pos, expectType, foundType))
 }
 
+// NewNamedArgumentTypeError creates a new Error from ErrType.
+func NewNamedArgumentTypeError(name, expectType, foundType string) *Error {
+	return ErrType.NewError(
+		fmt.Sprintf("invalid type for named argument '%s': expected %s, found %s",
+			name, expectType, foundType))
+}
+
 // NewIndexTypeError creates a new Error from ErrType.
 func NewIndexTypeError(expectType, foundType string) *Error {
 	return ErrType.NewError(

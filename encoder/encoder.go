@@ -48,6 +48,7 @@ type (
 	Flag             gad.Flag
 	SourceFileSet    parser.SourceFileSet
 	SourceFile       parser.SourceFile
+	Symbol           gad.SymbolInfo
 )
 
 const (
@@ -70,6 +71,7 @@ const (
 	binFunctionV1
 	binBuiltinFunctionV1
 	binBuiltinObjTypeV1
+	binSymbolV1
 
 	binUnkownType byte = 255
 )
@@ -100,6 +102,8 @@ func init() {
 	gob.Register((*time.Time)(nil))
 	gob.Register((*json.EncoderOptions)(nil))
 	gob.Register((*json.RawMessage)(nil))
+	gob.Register((*gad.SymbolInfo)(nil))
+	gob.Register(([]*gad.SymbolInfo)(nil))
 }
 
 // MarshalBinary implements encoding.BinaryMarshaler
@@ -390,7 +394,8 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 		binSyncMapV1,
 		binFunctionV1,
 		binBuiltinFunctionV1,
-		binBuiltinObjTypeV1:
+		binBuiltinObjTypeV1,
+		binSymbolV1:
 
 		var vi varintConv
 		value, readBytes, err := vi.readBytes(r)
@@ -468,6 +473,13 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 				return nil, err
 			}
 			return (*gad.BuiltinObjType)(&v), nil
+		case binSymbolV1:
+			var v Symbol
+			if err := v.UnmarshalBinary(buf); err != nil {
+				return nil, err
+			}
+			si := gad.SymbolInfo(v)
+			return &si, nil
 		}
 	case binUnkownType:
 		var v gad.Object

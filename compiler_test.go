@@ -68,7 +68,7 @@ func withParams(names ...string) funcOpt {
 				tnames := strings.Split(t, ",")
 				symbols := make(ParamType, len(tnames))
 				for i2, tname := range tnames {
-					symbols[i2] = &Symbol{Name: tname}
+					symbols[i2] = &SymbolInfo{Name: tname}
 				}
 				types[i] = symbols
 			}
@@ -401,6 +401,41 @@ func TestCompiler_Mixed(t *testing.T) {
 	))
 }
 
+func TestCompiler_CompileFuncWithNamedParams(t *testing.T) {
+	expectCompile(t, `func(;x int=1) {}`, bytecode(
+		Array{
+			Str("x"),
+			Int(1),
+			compFunc(concatInsts(
+				makeInst(OpGetLocal, 0),
+				makeInst(OpJumpNotNil, 20),
+				makeInst(OpNamedArgs),
+				makeInst(OpConstant, 0),
+				makeInst(OpCall, 1, 0),
+				makeInst(OpJumpNotNil, 18),
+				makeInst(OpConstant, 1),
+				makeInst(OpSetLocal, 0),
+				makeInst(OpReturn, 0),
+			),
+				withLocals(1),
+				withNamedParams("",
+					&NamedParam{
+						Name:  "x",
+						Value: "1",
+						Type: []*SymbolInfo{
+							{Name: "int"},
+						},
+					},
+				)),
+		},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 2),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+}
+
 func TestCompiler_Compile(t *testing.T) {
 	// all local variables are initialized as nil
 	expectCompile(t, `var a`, bytecode(
@@ -458,7 +493,7 @@ func TestCompiler_Compile(t *testing.T) {
 			makeInst(OpReturn, 0),
 		),
 			withLocals(2),
-			withNamedParams("na", &NamedParam{"a", "1"}, &NamedParam{Name: "na"}),
+			withNamedParams("na", NewNamedParam("a", "1"), &NamedParam{Name: "na"}),
 		),
 	))
 

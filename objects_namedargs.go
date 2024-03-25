@@ -44,10 +44,38 @@ func (a *TypeAssertion) Accept(value Object) (expectedNames string) {
 	if a == nil || len(a.Handlers) == 0 && len(a.Types) == 0 {
 		return
 	}
+
+	var (
+		names []string
+		vt    = value.Type()
+	)
+
+	for _, t := range a.Types {
+		if t.Equal(vt) {
+			return
+		}
+		names = append(names, t.Name())
+	}
+
+	for name, handler := range a.Handlers {
+		if handler(value) {
+			return
+		}
+		names = append(names, name)
+	}
+
+	expectedNames = strings.Join(names, "|")
+	return
+}
+
+func (a *TypeAssertion) AcceptType(value ObjectType) (expectedNames string) {
+	if a == nil || len(a.Handlers) == 0 && len(a.Types) == 0 {
+		return
+	}
 	var names []string
 
 	for _, t := range a.Types {
-		if t.Equal(value.Type()) {
+		if t.Equal(value) {
 			return
 		}
 		names = append(names, t.Name())
@@ -1020,11 +1048,24 @@ func (o *NamedArgs) Equal(right Object) bool {
 }
 
 func (o *NamedArgs) Call(c Call) (Object, error) {
-	arg := &Arg{TypeAssertion: TypeAssertionFromTypes(TStr)}
-	if err := c.Args.Destructure(arg); err != nil {
+	var (
+		name = &Arg{
+			TypeAssertion: TypeAssertionFromTypes(TStr),
+		}
+		checkType = &Arg{
+			TypeAssertion: TypeAssertionFromTypes(TBool),
+		}
+	)
+	if c.Args.Length() == 2 {
+		if err := c.Args.Destructure(name, checkType); err != nil {
+			return nil, err
+		}
+		val := o.GetValue(string(name.Value.(Str)))
+		return val, nil
+	} else if err := c.Args.Destructure(name); err != nil {
 		return nil, err
 	}
-	return o.GetValue(string(arg.Value.(Str))), nil
+	return o.GetValue(string(name.Value.(Str))), nil
 }
 
 func (o *NamedArgs) UnReady() *NamedArgs {

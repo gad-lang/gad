@@ -253,13 +253,13 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 			spec := sp.(*node.ParamSpec)
 			names = append(names, spec.Ident.Ident.Name)
 			if len(spec.Ident.Type) > 0 {
-				symbols := make([]*Symbol, len(spec.Ident.Type))
+				symbols := make([]*SymbolInfo, len(spec.Ident.Type))
 				for i2, name := range spec.Ident.Type {
 					symbol, ok := c.symbolTable.Resolve(name.Name)
 					if !ok {
 						return c.errorf(nd, "unresolved reference %q", name)
 					}
-					symbols[i2] = symbol
+					symbols[i2] = &symbol.SymbolInfo
 				}
 				types[i] = symbols
 			}
@@ -297,7 +297,16 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 			named[i] = &NamedParam{Name: spec.Ident.Ident.Name}
 			c.varNamedParams = true
 		} else {
-			named[i] = &NamedParam{spec.Ident.Ident.Name, spec.Value.String()}
+			np := NewNamedParam(spec.Ident.Ident.Name, spec.Value.String())
+			np.Type = make([]*SymbolInfo, len(spec.Ident.Type))
+			for i2, name := range spec.Ident.Type {
+				symbol, ok := c.symbolTable.Resolve(name.Name)
+				if !ok {
+					return c.errorf(nd, "unresolved reference %q", name)
+				}
+				np.Type[i2] = &symbol.SymbolInfo
+			}
+			named[i] = np
 		}
 	}
 
@@ -305,9 +314,9 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 		return c.error(nd, err)
 	}
 
-	stmts := c.helperBuildKwargsIfUndefinedStmts(namedSpecCount, func(index int) (name string, value node.Expr) {
+	stmts := c.helperBuildKwargsIfUndefinedStmts(namedSpecCount, func(index int) (name *node.Ident, types []*SymbolInfo, value node.Expr) {
 		spec := namedSpec[index].(*node.NamedParamSpec)
-		return spec.Ident.Ident.Name, spec.Value
+		return spec.Ident.Ident, named[index].Type, spec.Value
 	})
 
 	return c.Compile(&node.BlockStmt{Stmts: stmts})
@@ -1055,7 +1064,7 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 	if typ.Params.Args.Var != nil {
 		var (
 			name    string
-			symbols []*Symbol
+			symbols []*SymbolInfo
 		)
 		if name, symbols, err = c.nameSymbolsOfTypedIdent(nd, typ.Params.Args.Var); err != nil {
 			return
@@ -1069,7 +1078,12 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 	}
 
 	for i, name := range typ.Params.NamedArgs.Names {
-		namedParams[i] = &NamedParam{name.Ident.Name, typ.Params.NamedArgs.Values[i].String()}
+		if names, types, err2 := c.nameSymbolsOfTypedIdent(nd, name); err2 != nil {
+			return err2
+		} else {
+			namedParams[i] = NewNamedParam(names, typ.Params.NamedArgs.Values[i].String())
+			namedParams[i].Type = types
+		}
 	}
 
 	if typ.Params.NamedArgs.Var != nil {
@@ -1658,6 +1672,7 @@ func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name s
 	for i := 0; i < count; i++ {
 		name, value := get(i)
 		nameLit := &node.StringLit{Literal: strconv.Quote(name), Value: name}
+		values := []node.Expr{nameLit}
 		stmts = append(stmts, &node.AssignStmt{
 			Token: token.NullichAssign,
 			LHS:   []node.Expr{&node.Ident{Name: name}},
@@ -1665,9 +1680,11 @@ func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name s
 				Token: token.NullichCoalesce,
 				LHS: &node.CallExpr{
 					Func: &node.NamedArgsKeyword{},
-					CallArgs: node.CallArgs{Args: node.CallExprArgs{
-						Values: []node.Expr{nameLit},
-					}},
+					CallArgs: node.CallArgs{
+						Args: node.CallExprArgs{
+							Values: values,
+						},
+					},
 				},
 				RHS: value,
 			}},
@@ -1676,30 +1693,79 @@ func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name s
 	return
 }
 
-func (c *Compiler) helperBuildKwargsIfUndefinedStmts(count int, get func(index int) (name string, value node.Expr)) (stmts []node.Stmt) {
+func (c *Compiler) helperBuildKwargsIfUndefinedStmts(count int, get func(index int) (ident *node.Ident, types []*SymbolInfo, value node.Expr)) (stmts []node.Stmt) {
 	for i := 0; i < count; i++ {
-		name, value := get(i)
-		stmts = append(stmts, &node.AssignStmt{
-			Token: token.NullichAssign,
-			LHS:   []node.Expr{&node.Ident{Name: name}},
-			RHS:   []node.Expr{value},
-		})
+		name, types, value := get(i)
+		ident := name
+		if len(types) > 0 {
+			var typesArg node.Expr = &node.Ident{
+				NamePos: name.Pos(),
+				Name:    types[0].Name,
+			}
+
+			if len(types) > 1 {
+				var typesElements = make([]node.Expr, len(types))
+				for i2, symbol := range types {
+					typesElements[i2] = &node.Ident{Name: symbol.Name}
+				}
+				typesArg = &node.ArrayLit{Elements: typesElements}
+			}
+			stmts = append(stmts, &node.IfStmt{
+				Cond: &node.BinaryExpr{
+					Token: token.Equal,
+					LHS:   ident,
+					RHS:   &node.NilLit{},
+				},
+				Body: &node.BlockStmt{
+					Stmts: []node.Stmt{
+						&node.AssignStmt{
+							Token: token.Assign,
+							LHS:   []node.Expr{ident},
+							RHS:   []node.Expr{value},
+						},
+					},
+				},
+				Else: &node.ExprStmt{
+					Expr: &node.CallExpr{
+						Func: &node.Ident{
+							NamePos: name.Pos(),
+							Name:    BuiltinNamedParamTypeCheck.String(),
+						},
+						CallArgs: node.CallArgs{
+							Args: node.CallExprArgs{
+								Values: []node.Expr{
+									&node.StringLit{Value: name.Name},
+									typesArg,
+									ident,
+								},
+							},
+						},
+					},
+				},
+			})
+		} else {
+			stmts = append(stmts, &node.AssignStmt{
+				Token: token.NullichAssign,
+				LHS:   []node.Expr{ident},
+				RHS:   []node.Expr{value},
+			})
+		}
 	}
 
 	return
 }
 
-func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdent) (name string, symbols []*Symbol, err error) {
+func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdent) (name string, symbols []*SymbolInfo, err error) {
 	name = ti.Ident.Name
 	if len(ti.Type) > 0 {
-		symbols = make([]*Symbol, len(ti.Type))
+		symbols = make([]*SymbolInfo, len(ti.Type))
 		for i2, tname := range ti.Type {
 			symbol, ok := c.symbolTable.Resolve(tname.Name)
 			if !ok {
 				err = c.errorf(nd, "unresolved reference %q", tname)
 				return
 			}
-			symbols[i2] = symbol
+			symbols[i2] = &symbol.SymbolInfo
 		}
 	}
 	return

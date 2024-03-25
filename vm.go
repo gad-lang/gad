@@ -431,7 +431,7 @@ func (vm *VM) handlePanic(r any) {
 	vm.err = fmt.Errorf("panic: %v\nGo Stack:\n%s", r, gostack)
 }
 
-func (vm *VM) GetSymbolValue(symbol *Symbol) (value Object, err error) {
+func (vm *VM) GetSymbolValue(symbol *SymbolInfo) (value Object, err error) {
 	switch symbol.Scope {
 	case ScopeGlobal:
 		index := vm.constants[symbol.Index]
@@ -799,6 +799,41 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 		if !cfunc.NamedParams.variadic && namedParams.sources != nil {
 			if err := namedParams.CheckNamesFromSet(cfunc.NamedParamsMap); err != nil {
 				return err
+			}
+		}
+
+		if len(cfunc.NamedParams.Params) > 0 {
+			for _, param := range cfunc.NamedParams.Params {
+				if l := len(param.Type); l > 0 {
+					if v := namedParams.MustGetValueOrNil(param.Name); v != nil {
+						var typeso Object
+						if l == 1 {
+							if typeso, err = vm.GetSymbolValue(param.Type[0]); err != nil {
+								return
+							}
+						} else {
+							types := make(Array, l)
+							for i, symbol := range param.Type {
+								if types[i], err = vm.GetSymbolValue(symbol); err != nil {
+									return
+								}
+							}
+							typeso = types
+						}
+
+						var badTypes string
+						if badTypes, err = NamedParamTypeCheck(param.Name, typeso, v); err != nil {
+							return
+						} else if badTypes != "" {
+							err = NewArgumentTypeError(
+								"types of named param '"+param.Name+"'",
+								badTypes,
+								typeso.ToString(),
+							)
+							return
+						}
+					}
+				}
 			}
 		}
 	}
