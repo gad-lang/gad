@@ -236,6 +236,9 @@ func (o RawStr) IndexGet(_ *VM, index Object) (Object, error) {
 	switch v := index.(type) {
 	case Int:
 		idx = int(v)
+		if idx < 0 {
+			idx = len(o) + idx
+		}
 	case Uint:
 		idx = int(v)
 	case Char:
@@ -359,6 +362,9 @@ func (o Str) IndexGet(_ *VM, index Object) (Object, error) {
 	switch v := index.(type) {
 	case Int:
 		idx = int(v)
+		if idx < 0 {
+			idx = len(o) + idx
+		}
 	case Uint:
 		idx = int(v)
 	case Char:
@@ -478,6 +484,9 @@ func (o Bytes) IndexSet(_ *VM, index, value Object) error {
 	switch v := index.(type) {
 	case Int:
 		idx = int(v)
+		if idx < 0 {
+			idx = len(o) + idx
+		}
 	case Uint:
 		idx = int(v)
 	default:
@@ -504,6 +513,9 @@ func (o Bytes) IndexGet(_ *VM, index Object) (Object, error) {
 	switch v := index.(type) {
 	case Int:
 		idx = int(v)
+		if idx < 0 {
+			idx = len(o) + idx
+		}
 	case Uint:
 		idx = int(v)
 	default:
@@ -825,15 +837,18 @@ func (o Array) IndexSet(_ *VM, index, value Object) error {
 	switch v := index.(type) {
 	case Int:
 		idx := int(v)
+		if idx < 0 {
+			idx = len(o) + idx
+		}
 		if idx >= 0 && idx < len(o) {
-			o[v] = value
+			o[idx] = value
 			return nil
 		}
 		return ErrIndexOutOfBounds
 	case Uint:
 		idx := int(v)
 		if idx >= 0 && idx < len(o) {
-			o[v] = value
+			o[idx] = value
 			return nil
 		}
 		return ErrIndexOutOfBounds
@@ -846,14 +861,17 @@ func (o Array) IndexGet(_ *VM, index Object) (Object, error) {
 	switch v := index.(type) {
 	case Int:
 		idx := int(v)
+		if idx < 0 {
+			idx = len(o) + idx
+		}
 		if idx >= 0 && idx < len(o) {
-			return o[v], nil
+			return o[idx], nil
 		}
 		return nil, ErrIndexOutOfBounds
 	case Uint:
 		idx := int(v)
 		if idx >= 0 && idx < len(o) {
-			return o[v], nil
+			return o[idx], nil
 		}
 		return nil, ErrIndexOutOfBounds
 	}

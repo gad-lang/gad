@@ -72,7 +72,7 @@ func TestVMArray(t *testing.T) {
 		expectRun(t, fmt.Sprintf("idx := %d; return %s.(idx)", idx, arrStr),
 			nil, arr[idx])
 	}
-	expectErrIs(t, fmt.Sprintf("%s[%d]", arrStr, -1), nil, ErrIndexOutOfBounds)
+	expectErrIs(t, fmt.Sprintf("%s[%d]", arrStr, -10), nil, ErrIndexOutOfBounds)
 	expectErrIs(t, fmt.Sprintf("%s[%d]", arrStr, arrLen), nil, ErrIndexOutOfBounds)
 
 	// slice operator
@@ -95,6 +95,9 @@ func TestVMArray(t *testing.T) {
 
 	expectRun(t, fmt.Sprintf("return %s[:]", arrStr), nil, arr)
 	expectRun(t, fmt.Sprintf("return %s[%d:%d]", arrStr, 2, 2), nil, Array{})
+	expectRun(t, `return "ab"[1]`, nil, Int('b'))
+	expectRun(t, `return "ab"[-1]`, nil, Int('b'))
+	expectRun(t, `return "ab"[-2]`, nil, Int('a'))
 	expectErrIs(t, fmt.Sprintf("return %s[%d:\"\"]", arrStr, -1), nil, ErrType)
 	expectErrIs(t, fmt.Sprintf("return %s[:%d]", arrStr, arrLen+1), nil, ErrIndexOutOfBounds)
 	expectErrIs(t, fmt.Sprintf("%s[%d:%d]", arrStr, 2, 1), nil, ErrInvalidIndex)

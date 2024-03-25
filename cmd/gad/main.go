@@ -519,8 +519,16 @@ func parseFlags(
 
 	flagset.Usage = func() {
 		_, _ = fmt.Fprint(flagset.Output(),
-			"Usage: gad [flags] [Gad script file]\n\n",
-			"If script file is not provided, REPL terminal application is started\n",
+			"Usage: gad [flags] [SCRIPT_FILE [ARGS...]]\n\n",
+			"If script file is not provided, REPL terminal application is started.\n\n",
+			"If script file is provided, pass named params with '--' prefix and named flags with '-' prefix.\n",
+			"  Script example for join arguments:\n\n",
+			"    // usages: 1) SCRIPT.gad a b c (result: a,b,c)\n",
+			"    //         2) SCRIPT.gad a b c --sep + (result: a+b+c)\n",
+			"    //         3) SCRIPT.gad a b c -ln (result: a,b,c\\n)\n",
+			"    //         4) SCRIPT.gad a b c --sep + -ln (result: a+b+c\\n)\n",
+			"    param (*args, sep=\",\", ln=no)\n",
+			"    if !args { return }\n    for i, arg in args[:-1] { print(arg, sep) }\n    print(args[-1])\n    if ln { println() }\n\n",
 			"Use - to read from stdin\n\n",
 			"\nFlags:\n",
 		)
@@ -609,6 +617,9 @@ func (s *Script) execute() error {
 					i++
 					continue
 				}
+			} else if strings.HasPrefix(arg, "-") && len(arg) > 1 {
+				namedArgs[arg[1:]] = gad.Yes
+				continue
 			}
 			newArgs = append(newArgs, gad.Str(arg))
 		}
