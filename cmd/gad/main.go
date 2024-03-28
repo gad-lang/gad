@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/runehelper"
 	"github.com/peterh/liner"
 
 	"github.com/gad-lang/gad/importers"
@@ -521,12 +522,12 @@ func parseFlags(
 		_, _ = fmt.Fprint(flagset.Output(),
 			"Usage: gad [flags] [SCRIPT_FILE [ARGS...]]\n\n",
 			"If script file is not provided, REPL terminal application is started.\n\n",
-			"If script file is provided, pass named params with '--' prefix and named flags with '-' prefix.\n",
+			"If script file is provided, pass named params with '--NAME=VALUE' named flags '--NAME'.\n",
 			"  Script example for join arguments:\n\n",
 			"    // usages: 1) SCRIPT.gad a b c (result: a,b,c)\n",
 			"    //         2) SCRIPT.gad a b c --sep + (result: a+b+c)\n",
-			"    //         3) SCRIPT.gad a b c -ln (result: a,b,c\\n)\n",
-			"    //         4) SCRIPT.gad a b c --sep + -ln (result: a+b+c\\n)\n",
+			"    //         3) SCRIPT.gad a b c --ln (result: a,b,c\\n)\n",
+			"    //         4) SCRIPT.gad a b c --sep + --ln (result: a+b+c\\n)\n",
 			"    param (*args, sep=\",\", ln=no)\n",
 			"    if !args { return }\n    for _, arg in args[:-1] { print(arg, sep) }\n    print(args[-1])\n    if ln { println() }\n\n",
 			"Use - to read from stdin\n\n",
@@ -609,17 +610,27 @@ func (s *Script) execute() error {
 
 	if numArgs := len(s.args); numArgs > 0 {
 		var newArgs []gad.Object
+	args:
 		for i := 0; i < numArgs; i++ {
 			arg := s.args[i]
 			if strings.HasPrefix(arg, "--") && len(arg) > 2 {
+				arg := []rune(arg[2:])
+				lastIndex := len(arg) - 1
+				for i := 0; i <= lastIndex; i++ {
+					if arg[i] == '=' {
+						namedArgs[string(arg[:i])] = gad.Str(arg[i+1:])
+						continue args
+					} else if runehelper.IsIdentifier(arg[i]) {
+						if i == lastIndex {
+							namedArgs[string(arg)] = gad.Yes
+						}
+					} else {
+						continue args
+					}
+				}
 				if i+1 < numArgs {
-					namedArgs[arg[2:]] = gad.Str(s.args[i+1])
-					i++
 					continue
 				}
-			} else if strings.HasPrefix(arg, "-") && len(arg) > 1 {
-				namedArgs[arg[1:]] = gad.Yes
-				continue
 			}
 			newArgs = append(newArgs, gad.Str(arg))
 		}
