@@ -485,6 +485,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		c.emit(nt, OpNamedArgs)
 	case *node.UnaryExpr:
 		return c.compileUnaryExpr(nt)
+	case *node.ThrowExpr:
+		return c.compileThrowExpr(nt)
 	case *node.IfStmt:
 		return c.compileIfStmt(nt)
 	case *node.TryStmt:

@@ -941,6 +941,8 @@ func (p *Parser) ParseOperand() node.Expr {
 		return p.ParseFuncLit()
 	case token.RawString:
 		return p.ParseRawStringLit()
+	case token.Throw:
+		return p.ParseThrowExpr()
 	}
 
 	pos := p.Token.Pos
@@ -2188,12 +2190,24 @@ func (p *Parser) ParseFinallyStmt() *node.FinallyStmt {
 
 func (p *Parser) ParseThrowStmt() node.Stmt {
 	if p.Trace {
-		defer untracep(tracep(p, "ThrowStmt"))
+		defer untracep(tracep(p, "Throw"))
 	}
 	pos := p.Expect(token.Throw)
 	expr := p.ParseExpr()
 	p.ExpectSemi()
 	return &node.ThrowStmt{
+		ThrowPos: pos,
+		Expr:     expr,
+	}
+}
+
+func (p *Parser) ParseThrowExpr() *node.ThrowExpr {
+	if p.Trace {
+		defer untracep(tracep(p, "ThrowExpr"))
+	}
+	pos := p.Expect(token.Throw)
+	expr := p.ParseExpr()
+	return &node.ThrowExpr{
 		ThrowPos: pos,
 		Expr:     expr,
 	}

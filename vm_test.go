@@ -1962,6 +1962,12 @@ func TestVMCondExpr(t *testing.T) {
 		10 - 5`, nil, Int(5))
 }
 
+func TestVMThrowExpression(t *testing.T) {
+	expectErrIs(t, `return throw "my-error"`, nil, &Error{Message: "my-error"})
+	expectRun(t, `return false ? throw "my-error" : 1`, nil, Int(1))
+	expectErrIs(t, `return true ? throw "my-error" : 1`, nil, &Error{Message: "my-error"})
+}
+
 func TestVMEquality(t *testing.T) {
 	testEquality(t, `1`, `1`, true)
 	testEquality(t, `1`, `2`, false)
@@ -4525,6 +4531,15 @@ func expectErrIs(t *testing.T, script string, opts *testopts, expectErr error) {
 	expectErrorGen(t, script, opts, func(t *testing.T, retErr error) {
 		t.Helper()
 		if !errors.Is(retErr, expectErr) {
+			if re, ok := retErr.(*RuntimeError); ok {
+				if !errors.Is(re.Err, expectErr) {
+					if gerr, _ := expectErr.(*Error); gerr != nil {
+						if gerr.Error() == re.Err.Error() {
+							return
+						}
+					}
+				}
+			}
 			require.Failf(t, "expectErrorIs Failed",
 				"expected error: %v, got: %v", expectErr, retErr)
 		}

@@ -217,6 +217,16 @@ func (c *Compiler) compileThrowStmt(nd *node.ThrowStmt) error {
 	return nil
 }
 
+func (c *Compiler) compileThrowExpr(nd *node.ThrowExpr) error {
+	if nd.Expr != nil {
+		if err := c.Compile(nd.Expr); err != nil {
+			return err
+		}
+	}
+	c.emit(nd, OpThrow, 1)
+	return nil
+}
+
 func (c *Compiler) compileDeclStmt(nd *node.DeclStmt) error {
 	decl := nd.Decl.(*node.GenDecl)
 	if len(decl.Specs) == 0 {

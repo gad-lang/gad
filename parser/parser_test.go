@@ -216,6 +216,8 @@ func TestParserMixed(t *testing.T) {
 }
 
 func TestParserError(t *testing.T) {
+	expectParseString(t, `a := throw "my error"`, `a := throw "my error"`)
+
 	err := &Error{Pos: SourceFilePos{
 		Offset: 10, Line: 1, Column: 10,
 	}, Msg: "test"}

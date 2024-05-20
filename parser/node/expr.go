@@ -1587,3 +1587,29 @@ func (e *IsModuleLit) End() source.Pos {
 func (e *IsModuleLit) String() string {
 	return token.IsModule.String()
 }
+
+// ThrowExpr represents an throw expression.
+type ThrowExpr struct {
+	ThrowPos source.Pos
+	Expr     Expr
+}
+
+func (s *ThrowExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (s *ThrowExpr) Pos() source.Pos {
+	return s.ThrowPos
+}
+
+// End returns the position of first character immediately after the node.
+func (s *ThrowExpr) End() source.Pos {
+	return s.Expr.End()
+}
+
+func (s *ThrowExpr) String() string {
+	var expr string
+	if s.Expr != nil {
+		expr = s.Expr.String()
+	}
+	return "throw " + expr
+}
