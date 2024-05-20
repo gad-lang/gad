@@ -1886,7 +1886,9 @@ func TestBytes(t *testing.T) {
 	expectRun(t, `return bytes("abcde")[0]`, nil, Int('a'))
 	expectRun(t, `return bytes("abcde")[1]`, nil, Int('b'))
 	expectRun(t, `return bytes("abcde")[4]`, nil, Int('e'))
-	expectErrIs(t, `return bytes("abcde")[-1]`, nil, ErrIndexOutOfBounds)
+	expectRun(t, `return bytes("abcde")[-1]`, nil, Int('e'))
+	expectRun(t, `return bytes("abcde")[-2]`, nil, Int('d'))
+	expectErrIs(t, `return bytes("abcde")[-10]`, nil, ErrIndexOutOfBounds)
 	expectErrIs(t, `return bytes("abcde")[100]`, nil, ErrIndexOutOfBounds)
 	expectErrIs(t, `b1 := bytes("abcde");	b2 := b1[:cap(b1)+1]`, nil, ErrIndexOutOfBounds)
 }
@@ -3550,7 +3552,7 @@ func TestVMString(t *testing.T) {
 		expectRun(t, fmt.Sprintf("idx := %d; return %s[idx]", idx, strStr), nil, Int(str[idx]))
 	}
 
-	expectErrIs(t, fmt.Sprintf("%s[%d]", strStr, -1), nil, ErrIndexOutOfBounds)
+	expectRun(t, fmt.Sprintf("return %s[%d]", strStr, -1), nil, Int(str[5]))
 	expectErrIs(t, fmt.Sprintf("%s[%d]", strStr, strLen), nil, ErrIndexOutOfBounds)
 
 	// slice operator
