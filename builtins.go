@@ -62,6 +62,7 @@ const (
 	BuiltinReduce
 	BuiltinTypeName
 	BuiltinChars
+	BuiltinRead
 	BuiltinWrite
 	BuiltinPrint
 	BuiltinPrintf
@@ -184,6 +185,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"reduce":              BuiltinReduce,
 	"typeName":            BuiltinTypeName,
 	"chars":               BuiltinChars,
+	"read":                BuiltinRead,
 	"write":               BuiltinWrite,
 	"print":               BuiltinPrint,
 	"printf":              BuiltinPrintf,
@@ -614,6 +616,10 @@ var BuiltinObjects = BuiltinObjectsMap{
 }
 
 func init() {
+	BuiltinObjects[BuiltinRead] = &BuiltinFunction{
+		Name:  "read",
+		Value: BuiltinReadFunc,
+	}
 	BuiltinObjects[BuiltinWrite] = &BuiltinFunction{
 		Name:  "write",
 		Value: BuiltinWriteFunc,

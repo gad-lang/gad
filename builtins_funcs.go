@@ -131,8 +131,44 @@ func BuiltinDeleteFunc(c Call) (_ Object, err error) {
 }
 
 func BuiltinCopyFunc(c Call) (_ Object, err error) {
-	if err = c.Args.CheckLen(1); err != nil {
-		return
+	switch c.Args.Length() {
+	case 2:
+		var (
+			w = &Arg{
+				Name: "writer",
+				TypeAssertion: &TypeAssertion{
+					Handlers: map[string]TypeAssertionHandler{
+						"writer": func(v Object) (ok bool) {
+							_, ok = v.(Writer)
+							return
+						},
+					},
+				},
+			}
+			r = &Arg{
+				Name: "reader",
+				TypeAssertion: &TypeAssertion{
+					Handlers: map[string]TypeAssertionHandler{
+						"reader": func(v Object) (ok bool) {
+							_, ok = v.(Reader)
+							return
+						},
+					},
+				},
+			}
+		)
+
+		if err = c.Args.Destructure(w, r); err != nil {
+			return
+		}
+
+		var n int64
+		n, err = io.Copy(w.Value.(Writer).GoWriter(), r.Value.(Reader).GoReader())
+		return Int(n), err
+	default:
+		if err = c.Args.CheckLen(1); err != nil {
+			return
+		}
 	}
 
 	switch t := c.Args.GetOnly(0).(type) {
@@ -683,12 +719,20 @@ func BuiltinStringFunc(c Call) (ret Object, err error) {
 	return
 }
 
-func BuiltinBytesFunc(c Call) (Object, error) {
+func BuiltinBytesFunc(c Call) (_ Object, err error) {
 	size := c.Args.Length()
 
 	switch size {
 	case 0:
-		return Bytes{}, nil
+		length := NamedArgVar{
+			Name:          "length",
+			Value:         Int(0),
+			TypeAssertion: TypeAssertionFromTypes(TInt),
+		}
+		if err = c.NamedArgs.Get(&length); err != nil {
+			return
+		}
+		return make(Bytes, int(length.Value.(Int))), nil
 	case 1:
 		if v, ok := ToBytes(c.Args.Get(0)); ok {
 			return v, nil
@@ -786,6 +830,87 @@ func BuiltinPrintfFunc(c Call) (_ Object, err error) {
 		n, err = fmt.Fprintf(w, format.ToString(), vargs...)
 	}
 	return Int(n), err
+}
+
+func BuiltinReadFunc(c Call) (ret Object, err error) {
+	var (
+		reader = &Arg{
+			Name: "reader",
+			TypeAssertion: &TypeAssertion{
+				Handlers: map[string]TypeAssertionHandler{
+					"reader": func(v Object) bool {
+						switch v.(type) {
+						case Reader:
+							return true
+						default:
+							return false
+						}
+					},
+				},
+			},
+		}
+
+		limit = &NamedArgVar{
+			Name:          "limit",
+			Value:         Int(0),
+			TypeAssertion: TypeAssertionFromTypes(TInt),
+		}
+		b        []byte
+		buffered bool
+	)
+
+	switch c.Args.Length() {
+	case 0:
+		reader.Value = c.VM.StdIn
+	case 2:
+		buffered = true
+		var buffer = &Arg{
+			Name:          "buffer",
+			TypeAssertion: TypeAssertionFromTypes(TBytes),
+		}
+
+		if err = c.Args.Destructure(reader, buffer); err != nil {
+			return
+		}
+
+		b = buffer.Value.(Bytes)
+	default:
+		if err = c.Args.Destructure(reader); err != nil {
+			return
+		}
+	}
+
+	var l, s int
+
+	if buffered {
+		l = len(b)
+	} else {
+		if err = c.NamedArgs.Get(limit); err != nil {
+			return
+		}
+		if l = int(limit.Value.(Int)); l < 0 {
+			l = 0
+		}
+	}
+
+	if l == 0 {
+		if buffered {
+			return Bytes{}, nil
+		}
+		b, err = io.ReadAll(reader.Value.(Reader))
+		s = len(b)
+	} else {
+		if len(b) == 0 {
+			b = make([]byte, l)
+		}
+		s, err = reader.Value.(Reader).Read(b)
+	}
+
+	if err != nil {
+		return
+	}
+
+	return Bytes(b[:s]), nil
 }
 
 func BuiltinWriteFunc(c Call) (ret Object, err error) {

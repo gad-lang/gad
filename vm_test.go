@@ -944,7 +944,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 			return a == b, a[0], b[0], a[1] == b[1], a[1].c == b[1].c, b[1].c`,
 		nil, Array{False, Int(1), Int(2), True, True, Int(3)})
 	expectErrIs(t, `copy()`, nil, ErrWrongNumArguments)
-	expectErrIs(t, `copy(1, 2)`, nil, ErrWrongNumArguments)
+	expectErrIs(t, `copy(1, 2, 3)`, nil, ErrWrongNumArguments)
 
 	expectRun(t, `return dcopy(nil)`, nil, Nil)
 	expectRun(t, `return dcopy(1)`, nil, Int(1))
@@ -1134,6 +1134,19 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectRun(t, `return typeName((;a,b=2))`, nil, Str("keyValueArray"))
 	expectRun(t, `return typeName(func(**na){return na}(;a,b=2))`, nil, Str("namedArgs"))
 	expectRun(t, `return typeName(buffer())`, nil, Str("buffer"))
+
+	expectRun(t, `b := buffer(); return write(b, "abc")`, nil, Int(3))
+	expectRun(t, `b := buffer(); write(b, "abc"); return str(b)`, nil, Str("abc"))
+	expectRun(t, `b := buffer(); write(b, "abc"); return str(read(b))`, nil, Str("abc"))
+	expectRun(t, `b := buffer(); write(b, "abc"); return [str(read(b,limit=2)), str(b)]`, nil,
+		Array{Str("ab"), Str("c")})
+	expectRun(t, `b := buffer(); write(b, "abc"); return [str(read(b,limit=1)),str(read(b,limit=1)), str(b)]`,
+		nil, Array{Str("a"), Str("b"), Str("c")})
+	expectRun(t, `b := buffer(); c := bytes(length=2); write(b, "abc"); return [str(read(b, c)),str(read(b, c)), str(char(c[0]))]`,
+		nil, Array{Str("ab"), Str("c"), Str("c")})
+
+	expectRun(t, `w := buffer(); r := buffer(); write(r, "abc"); return [copy(w, r), str(w)]`,
+		nil, Array{Int(3), Str("abc")})
 
 	expectErrIs(t, `typeName()`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `typeName("", "")`, nil, ErrWrongNumArguments)
