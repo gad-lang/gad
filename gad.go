@@ -292,6 +292,9 @@ func ToGoByteSlice(o Object) (v []byte, ok bool) {
 	case Str:
 		v, ok = make([]byte, len(o)), true
 		copy(v, o)
+	case RawStr:
+		v, ok = make([]byte, len(o)), true
+		copy(v, o)
 	case BytesConverter:
 		var err error
 		v, err = o.ToBytes()
