@@ -364,7 +364,11 @@ func NewReflectValue(v any, opts ...*ReflectValueOptions) (ReflectValuer, error)
 	}
 
 	var (
-		rv     = reflect.ValueOf(v)
+		rv  = reflect.ValueOf(v)
+		rvr interface {
+			ReflectValuer
+			Init()
+		}
 		isnill bool
 		opt    *ReflectValueOptions
 	)
@@ -403,15 +407,13 @@ func NewReflectValue(v any, opts ...*ReflectValueOptions) (ReflectValuer, error)
 	orv := ReflectValue{RType: t, RValue: rv, ptr: ptr, nil: isnill, Options: opt}
 	switch rv.Kind() {
 	case reflect.Struct:
-		rs := &ReflectStruct{ReflectValue: orv}
-		rs.Interface = rs.ToInterface()
-		return rs, nil
+		rvr = &ReflectStruct{ReflectValue: orv}
 	case reflect.Map:
-		return &ReflectMap{orv}, nil
+		rvr = &ReflectMap{orv}
 	case reflect.Slice:
-		return &ReflectSlice{ReflectArray{orv}}, nil
+		rvr = &ReflectSlice{ReflectArray{orv}}
 	case reflect.Array:
-		return &ReflectArray{orv}, nil
+		rvr = &ReflectArray{orv}
 	case reflect.Func:
 		// We allow functions with 0 or 1 result or 2 results where the second is an error.
 		switch t.RType.NumOut() {
@@ -427,6 +429,8 @@ func NewReflectValue(v any, opts ...*ReflectValueOptions) (ReflectValuer, error)
 	default:
 		return &orv, nil
 	}
+	rvr.Init()
+	return rvr, nil
 }
 
 func MustNewReflectValue(v any, opts ...*ReflectValueOptions) ReflectValuer {
@@ -444,6 +448,7 @@ type ReflectValue struct {
 	nil                       bool
 	Options                   *ReflectValueOptions
 	fallbackNameCallerHandler func(s ReflectValuer, name string, c Call) (handled bool, value Object, err error)
+	methodsGetter             IndexGetProxy
 }
 
 var (
@@ -451,6 +456,56 @@ var (
 	_ Niler         = (*ReflectValue)(nil)
 	_ Copier        = (*ReflectValue)(nil)
 )
+
+func (r *ReflectValue) Init() {
+	methodsName := func() Array {
+		names := make(Array, len(r.RType.RMethods))
+		var i int
+		for name := range r.RType.RMethods {
+			names[i] = Str(name)
+			i++
+		}
+		sort.Slice(names, func(i, j int) bool {
+			return names[i].(Str) < names[j].(Str)
+		})
+		return names
+	}
+	r.methodsGetter.ToStr = methodsName().ToString
+	r.methodsGetter.It = func(vm *VM, na *NamedArgs) Iterator {
+		return methodsName().Iterate(vm, na)
+	}
+	r.methodsGetter.GetIndex = func(vm *VM, index Object) (value Object, err error) {
+		name := index.ToString()
+		if tm := r.RType.RMethods[name]; tm != nil {
+			return r.method(tm), nil
+		}
+		return nil, ErrInvalidIndex.NewError(name)
+	}
+	r.methodsGetter.CallNameHandler = func(name string, c Call) (Object, error) {
+		if tm := r.RType.RMethods[name]; tm != nil {
+			return r.method(tm).Call(c)
+		}
+		return nil, ErrInvalidIndex.NewError(name)
+	}
+}
+
+func (r *ReflectValue) Methods() *IndexGetProxy {
+	return &r.methodsGetter
+}
+
+func (r *ReflectValue) Method(name string) *ReflectFunc {
+	if tm := r.RType.RMethods[name]; tm != nil {
+		return r.method(tm)
+	}
+	return nil
+}
+
+func (r *ReflectValue) method(tm *ReflectMethod) *ReflectFunc {
+	return &ReflectFunc{ReflectValue{
+		RType:  &ReflectType{RType: tm.Method.Type},
+		RValue: r.RValue.Addr().Method(tm.i),
+	}}
+}
 
 func (r *ReflectValue) FalbackNameCallerHandler(handler func(s ReflectValuer, name string, c Call) (handled bool, value Object, err error)) *ReflectValue {
 	r.fallbackNameCallerHandler = handler
@@ -560,7 +615,7 @@ func (r *ReflectValue) CallName(name string, c Call) (Object, error) {
 
 func (r *ReflectValue) CallNameOf(this ReflectValuer, name string, c Call) (Object, error) {
 	if tm := r.RType.RMethods[name]; tm != nil {
-		return r.callName(tm, c)
+		return r.method(tm).Call(c)
 	}
 	if r.fallbackNameCallerHandler != nil {
 		if handled, value, err := r.fallbackNameCallerHandler(this, name, c); handled || err != nil {
@@ -568,13 +623,6 @@ func (r *ReflectValue) CallNameOf(this ReflectValuer, name string, c Call) (Obje
 		}
 	}
 	return nil, ErrInvalidIndex.NewError(name)
-}
-
-func (r *ReflectValue) callName(tm *ReflectMethod, c Call) (Object, error) {
-	return (&ReflectFunc{ReflectValue{
-		RType:  &ReflectType{RType: tm.Method.Type},
-		RValue: r.RValue.Addr().Method(tm.i),
-	}}).Call(c)
 }
 
 type ReflectFunc struct {
@@ -704,7 +752,10 @@ func (o *ReflectArray) IndexGet(vm *VM, index Object) (value Object, err error) 
 	case Uint:
 		ix = int(t)
 	default:
-		return nil, ErrUnexpectedArgValue.NewError("expected index types: int|uint")
+		if index.ToString() == ObjectMethodsGetterFieldName {
+			return o.Methods(), nil
+		}
+		return nil, ErrUnexpectedArgValue.NewError("expected index types: int|uint|\"" + ObjectMethodsGetterFieldName + "\"")
 	}
 
 	if ix >= o.RValue.Len() {
@@ -962,6 +1013,9 @@ func (o *ReflectMap) IndexDelete(vm *VM, index Object) (err error) {
 func (o *ReflectMap) IndexGet(vm *VM, index Object) (value Object, err error) {
 	v := o.RValue.MapIndex(reflect.ValueOf(vm.ToInterface(index)))
 	if !v.IsValid() || mustIsNil(v) {
+		if index.ToString() == ObjectMethodsGetterFieldName {
+			return o.Methods(), nil
+		}
 		return Nil, nil
 	}
 	return vm.ToObject(v.Interface())
@@ -1008,6 +1062,11 @@ var (
 	_ IndexGetSetter    = (*ReflectStruct)(nil)
 	_ ObjectRepresenter = (*ReflectStruct)(nil)
 )
+
+func (s *ReflectStruct) Init() {
+	s.Interface = s.ToInterface()
+	s.ReflectValue.Init()
+}
 
 func (s *ReflectStruct) ToString() string {
 	i := s.ToInterface()
@@ -1100,13 +1159,30 @@ func (s *ReflectStruct) IndexGet(vm *VM, index Object) (value Object, err error)
 }
 
 func (s *ReflectStruct) IndexGetS(vm *VM, index string) (value Object, err error) {
+	if index == ObjectMethodsGetterFieldName {
+		return &s.methodsGetter, nil
+	}
+
 	var (
 		vi      any
 		handled bool
 	)
 
-	if handled, vi, err = s.Field(vm, index); !handled && s.fallbackIndexHandler != nil {
-		handled, vi, err = s.fallbackIndexHandler(vm, s, index)
+	if handled, vi, err = s.Field(vm, index); !handled {
+		// check if is getter of private field
+		if _, ok := s.RType.RType.FieldByName(strings.ToLower(index[:1]) + index[1:]); ok {
+			if method := s.Method(index); method != nil && method.RType.RType.NumIn() == 1 {
+				value, err = method.Call(Call{VM: vm})
+				handled = true
+				if err == nil {
+					return
+				}
+			}
+		}
+
+		if !handled && s.fallbackIndexHandler != nil {
+			handled, vi, err = s.fallbackIndexHandler(vm, s, index)
+		}
 	}
 
 	if err != nil {
@@ -1114,7 +1190,7 @@ func (s *ReflectStruct) IndexGetS(vm *VM, index string) (value Object, err error
 	}
 
 	if !handled {
-		return nil, ErrInvalidIndex.NewError(index)
+		return s.methodsGetter.GetIndex(vm, Str(index))
 	}
 
 	if value, _ = vi.(Object); value != nil {
@@ -1166,7 +1242,7 @@ func (s *ReflectStruct) indexSet(vm *VM, index string, value Object) (err error)
 	}
 
 	if m := s.RType.RMethods["Set"+strings.ToUpper(index[0:1])+index[1:]]; m != nil && m.Method.Type.NumIn() == 2 {
-		_, err = s.callName(m, Call{VM: vm, Args: Args{{value}}})
+		_, err = s.method(m).Call(Call{VM: vm, Args: Args{{value}}})
 		return
 	}
 

@@ -320,6 +320,42 @@ func TestReflectStruct_IndexSet(t *testing.T) {
 	}
 }
 
+func TestReflectStruct_GetterSetter(t *testing.T) {
+	var (
+		o      = new(reflectStructWithMethods)
+		vm     = NewVM(nil).Setup(SetupOpts{})
+		r, err = NewReflectValue(o)
+		v      Object
+	)
+	assert.NoError(t, err)
+	obj := r.(*ReflectStruct)
+	assert.NoError(t, obj.IndexSet(vm, Str("V"), Int(1)))
+	assert.Equal(t, 1, o.v)
+	v, err = obj.IndexGet(vm, Str("V"))
+	assert.NoError(t, err)
+	assert.Equal(t, v, Int(1))
+
+	_, err = obj.Method("SetV").Call(Call{VM: vm, Args: Args{Array{Int(2)}}})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, o.v)
+
+	v, err = obj.Method("V").Call(Call{VM: vm})
+	assert.NoError(t, err)
+	assert.Equal(t, v, Int(2))
+}
+
+type reflectStructWithMethods struct {
+	v int
+}
+
+func (o *reflectStructWithMethods) V() int {
+	return o.v
+}
+
+func (o *reflectStructWithMethods) SetV(v int) {
+	o.v = v
+}
+
 func TestReflectMap_IndexSet(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -352,6 +388,16 @@ func TestReflectMap_IndexSet(t *testing.T) {
 	}
 }
 
+type reflectMapWithMethods map[string]int
+
+func (m reflectMapWithMethods) SetV(v int) {
+	m["v"] = v
+}
+
+func (m reflectMapWithMethods) V() int {
+	return m["v"]
+}
+
 func TestReflectSlice_IndexSet(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -382,6 +428,103 @@ func TestReflectSlice_IndexSet(t *testing.T) {
 			assert.True(t, got.Equal(tt.value), "IndexGet(%v)", tt.key)
 		})
 	}
+}
+
+func TestReflect_Methods(t *testing.T) {
+	var (
+		vm = NewVM(nil).Setup(SetupOpts{})
+
+		do = func(o any, getRawValue func() int) {
+			var (
+				v      Object
+				r, err = NewReflectValue(o)
+			)
+			assert.NoError(t, err)
+			assert.Implements(t, (*IndexGetter)(nil), r)
+			obj := r.(IndexGetter)
+			v, err = obj.IndexGet(vm, Str(ObjectMethodsGetterFieldName))
+			assert.NoError(t, err)
+			assert.IsType(t, (*IndexGetProxy)(nil), v)
+
+			ig := v.(*IndexGetProxy)
+			assert.Equal(t, `["SetV", "V"]`, ig.ToStr())
+			values, err := ValuesOf(vm, ig, NewNamedArgs())
+			assert.NoError(t, err)
+			assert.Equal(t, values, Array{Str("SetV"), Str("V")})
+
+			v, err = ig.GetIndex(vm, Str("SetV"))
+			assert.NoError(t, err)
+			assert.IsType(t, (*ReflectFunc)(nil), v)
+			f := v.(*ReflectFunc)
+			_, err = f.Call(Call{VM: vm, Args: Args{Array{Int(2)}}})
+			assert.NoError(t, err)
+			assert.Equal(t, 2, getRawValue())
+
+			_, err = ig.CallName("SetV", Call{VM: vm, Args: Args{Array{Int(3)}}})
+			assert.NoError(t, err)
+			assert.Equal(t, 3, getRawValue())
+
+			v, err = ig.GetIndex(vm, Str("V"))
+			assert.NoError(t, err)
+			assert.IsType(t, (*ReflectFunc)(nil), v)
+			f = v.(*ReflectFunc)
+			v, err = f.Call(Call{VM: vm})
+			assert.NoError(t, err)
+			assert.Equal(t, Int(3), v)
+
+			v, err = ig.CallName("V", Call{VM: vm})
+			assert.NoError(t, err)
+			assert.Equal(t, Int(3), v)
+		}
+	)
+
+	t.Run("struct", func(t *testing.T) {
+		o := new(reflectStructWithMethods)
+		do(o, func() int {
+			return o.v
+		})
+	})
+
+	t.Run("slice", func(t *testing.T) {
+		o := make(reflectSliceWithMethods, 1)
+		do(o, func() int {
+			return o[0]
+		})
+	})
+
+	t.Run("array", func(t *testing.T) {
+		var o reflectArrayWithMethods
+		do(&o, func() int {
+			return o[0]
+		})
+	})
+
+	t.Run("map", func(t *testing.T) {
+		var o = make(reflectMapWithMethods)
+		do(o, func() int {
+			return o["v"]
+		})
+	})
+}
+
+type reflectSliceWithMethods []int
+
+func (m reflectSliceWithMethods) SetV(v int) {
+	m[0] = v
+}
+
+func (m reflectSliceWithMethods) V() int {
+	return m[0]
+}
+
+type reflectArrayWithMethods [1]int
+
+func (m *reflectArrayWithMethods) SetV(v int) {
+	(*m)[0] = v
+}
+
+func (m reflectArrayWithMethods) V() int {
+	return m[0]
 }
 
 func checkError(t *testing.T, label string, want, got error) bool {

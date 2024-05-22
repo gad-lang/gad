@@ -1877,6 +1877,13 @@ func (CallWrapper) Equal(Object) bool {
 	return false
 }
 
+var (
+	_ IndexGetter      = (*IndexGetProxy)(nil)
+	_ Iterabler        = (*IndexGetProxy)(nil)
+	_ CanIterabler     = (*IndexGetProxy)(nil)
+	_ NameCallerObject = (*IndexGetProxy)(nil)
+)
+
 type IndexGetProxy struct {
 	GetIndex        func(vm *VM, index Object) (value Object, err error)
 	ToStr           func() string
@@ -1946,6 +1953,10 @@ func (p *IndexDelProxy) IndexDelete(vm *VM, key Object) error {
 	return p.Del(vm, key)
 }
 
+var (
+	_ IndexSetter = (*IndexProxy)(nil)
+)
+
 type IndexProxy struct {
 	IndexGetProxy
 	IndexSetProxy
@@ -1977,6 +1988,11 @@ func (o *IndexProxy) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, 
 		o.Type().Name(),
 		right.Type().Name())
 }
+
+var (
+	_ Indexer               = (*IndexDeleteProxy)(nil)
+	_ BinaryOperatorHandler = (*IndexDeleteProxy)(nil)
+)
 
 type IndexDeleteProxy struct {
 	IndexGetProxy

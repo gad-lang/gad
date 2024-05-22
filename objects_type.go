@@ -8,6 +8,8 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
+const ObjectMethodsGetterFieldName = "__methods__"
+
 // Obj represents map of objects and implements Object interface.
 type Obj struct {
 	fields Dict
@@ -66,9 +68,45 @@ func (o *Obj) IndexSet(vm *VM, index, value Object) (err error) {
 	return
 }
 
+func (o *Obj) Methods() *IndexGetProxy {
+	methodsName := o.typ.MethodsDict.SortedKeys
+	return &IndexGetProxy{
+		ToStr: methodsName().ToString,
+		It: func(vm *VM, na *NamedArgs) Iterator {
+			return methodsName().Iterate(vm, na)
+		},
+		GetIndex: func(vm *VM, index Object) (value Object, err error) {
+			name := index.ToString()
+			if m := o.typ.MethodsDict[name]; m != nil {
+				return &Function{
+					Name: name,
+					ToStr: func() string {
+						return "funcCaller of " + o.typ.ToString() + "#" + name
+					},
+					Value: func(c Call) (Object, error) {
+						c.Args = append([]Array{{o}}, c.Args...)
+						return YieldCall(m.(CallerObject), &c), nil
+					},
+				}, nil
+			}
+			return nil, ErrInvalidIndex.NewError(name)
+		},
+		CallNameHandler: func(name string, c Call) (Object, error) {
+			if m := o.typ.MethodsDict[name]; m != nil {
+				return YieldCall(m.(CallerObject), &c), nil
+			}
+			return nil, ErrInvalidIndex.NewError(name)
+		},
+	}
+}
+
 // IndexGet implements Object interface.
 func (o *Obj) IndexGet(vm *VM, index Object) (Object, error) {
 	name := index.ToString()
+	if name == ObjectMethodsGetterFieldName {
+		return o.Methods(), nil
+	}
+
 	if s := o.typ.GettersDict[name]; s != nil {
 		return YieldCall(s.(CallerObject), &Call{VM: vm, Args: Args{Array{o}}}), nil
 	} else {
@@ -128,7 +166,7 @@ func (o *Obj) CallName(name string, c Call) (_ Object, err error) {
 	if Callable(v) {
 		return YieldCall(v.(CallerObject), &c), nil
 	}
-	return nil, ErrNotCallable.NewError("method " + strconv.Quote(name) + " of type " + v.Type().Name())
+	return nil, ErrNotCallable.NewError("func " + strconv.Quote(name) + " of type " + v.Type().Name())
 }
 
 func (o *Obj) CastTo(vm *VM, t ObjectType) (Object, error) {
