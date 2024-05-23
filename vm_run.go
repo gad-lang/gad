@@ -1,6 +1,7 @@
 package gad
 
 import (
+	"context"
 	"errors"
 	"io"
 )
@@ -9,6 +10,7 @@ type SetupOpts struct {
 	ObjectConverters *ObjectConverters
 	Builtins         *Builtins
 	ToRawStrHandler  func(vm *VM, s Str) RawStr
+	Context          context.Context
 }
 
 type RunOpts struct {

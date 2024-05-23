@@ -5,6 +5,7 @@
 package gad
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -204,6 +205,10 @@ func (vm *VM) Setup(opts SetupOpts) *VM {
 
 	if vm.Builtins == nil {
 		vm.Builtins = NewBuiltins()
+	}
+
+	if opts.Context == nil {
+		opts.Context = context.Background()
 	}
 
 	vm.Builtins.Objects = vm.Builtins.Objects.Build()
