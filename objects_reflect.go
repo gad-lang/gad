@@ -263,13 +263,11 @@ func (r *ReflectType) Equal(right Object) bool {
 	return false
 }
 
-func (r *ReflectType) Call(c Call) (obj Object, err error) {
+func (r *ReflectType) Call(c Call) (Object, error) {
 	if c.NamedArgs.IsFalsy() {
-		obj, _ = r.New(c.VM, nil)
-	} else {
-		obj, _ = r.New(c.VM, c.NamedArgs.Dict())
+		return r.New(c.VM, nil)
 	}
-	return
+	return r.New(c.VM, c.NamedArgs.Dict())
 }
 
 func (r *ReflectType) Name() string {
