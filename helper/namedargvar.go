@@ -8,8 +8,7 @@ func NamedArgOfWriter(name string) *gad.NamedArgVar {
 		TypeAssertion: &gad.TypeAssertion{
 			Handlers: map[string]gad.TypeAssertionHandler{
 				"writer": func(v gad.Object) (ok bool) {
-					_, ok = v.(gad.Writer)
-					return
+					return gad.WriterFrom(v) != nil
 				},
 			},
 		},
@@ -22,8 +21,7 @@ func NamedArgOfReader(name string) *gad.NamedArgVar {
 		TypeAssertion: &gad.TypeAssertion{
 			Handlers: map[string]gad.TypeAssertionHandler{
 				"reader": func(v gad.Object) (ok bool) {
-					_, ok = v.(gad.Reader)
-					return
+					return gad.ReaderFrom(v) != nil
 				},
 			},
 		},

@@ -838,13 +838,8 @@ func BuiltinReadFunc(c Call) (ret Object, err error) {
 			Name: "reader",
 			TypeAssertion: &TypeAssertion{
 				Handlers: map[string]TypeAssertionHandler{
-					"reader": func(v Object) bool {
-						switch v.(type) {
-						case Reader:
-							return true
-						default:
-							return false
-						}
+					"reader": func(v Object) (ok bool) {
+						return ReaderFrom(v) != nil
 					},
 				},
 			},
@@ -897,13 +892,13 @@ func BuiltinReadFunc(c Call) (ret Object, err error) {
 		if buffered {
 			return Bytes{}, nil
 		}
-		b, err = io.ReadAll(reader.Value.(Reader))
+		b, err = io.ReadAll(ReaderFrom(reader.Value))
 		s = len(b)
 	} else {
 		if len(b) == 0 {
 			b = make([]byte, l)
 		}
-		s, err = reader.Value.(Reader).Read(b)
+		s, err = ReaderFrom(reader.Value).Read(b)
 	}
 
 	if err != nil {
@@ -930,7 +925,7 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 	}
 
 	arg := c.Args.Get(0)
-	if w2, ok := arg.(Writer); ok {
+	if w2 := WriterFrom(arg); w2 != nil {
 		w = w2
 		c.Args.Shift()
 	}

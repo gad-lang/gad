@@ -493,3 +493,31 @@ func IsTypeAssignableTo(a, b ObjectType) bool {
 	}
 	return false
 }
+
+type ToReaderConverter interface {
+	Reader() Reader
+}
+
+type ToWriterConverter interface {
+	Writer() Writer
+}
+
+func ReaderFrom(o Object) (r Reader) {
+	if r, _ = o.(Reader); r != nil {
+		return r
+	}
+	if tr, _ := o.(ToReaderConverter); tr != nil {
+		return tr.Reader()
+	}
+	return
+}
+
+func WriterFrom(o Object) (r Writer) {
+	if r, _ = o.(Writer); r != nil {
+		return r
+	}
+	if tr, _ := o.(ToWriterConverter); tr != nil {
+		return tr.Writer()
+	}
+	return
+}

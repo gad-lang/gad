@@ -1054,6 +1054,20 @@ type ReflectStruct struct {
 	Interface            any
 }
 
+func (s *ReflectStruct) Reader() Reader {
+	if r, ok := s.Interface.(io.Reader); ok {
+		return NewReader(r)
+	}
+	return nil
+}
+
+func (s *ReflectStruct) Writer() Writer {
+	if w, ok := s.Interface.(io.Writer); ok {
+		return NewWriter(w)
+	}
+	return nil
+}
+
 var (
 	_ ReflectValuer     = (*ReflectStruct)(nil)
 	_ Iterabler         = (*ReflectStruct)(nil)
