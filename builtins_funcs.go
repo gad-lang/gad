@@ -139,8 +139,7 @@ func BuiltinCopyFunc(c Call) (_ Object, err error) {
 				TypeAssertion: &TypeAssertion{
 					Handlers: map[string]TypeAssertionHandler{
 						"writer": func(v Object) (ok bool) {
-							_, ok = v.(Writer)
-							return
+							return WriterFrom(v) != nil
 						},
 					},
 				},
@@ -150,8 +149,7 @@ func BuiltinCopyFunc(c Call) (_ Object, err error) {
 				TypeAssertion: &TypeAssertion{
 					Handlers: map[string]TypeAssertionHandler{
 						"reader": func(v Object) (ok bool) {
-							_, ok = v.(Reader)
-							return
+							return ReaderFrom(v) != nil
 						},
 					},
 				},
@@ -163,7 +161,7 @@ func BuiltinCopyFunc(c Call) (_ Object, err error) {
 		}
 
 		var n int64
-		n, err = io.Copy(w.Value.(Writer).GoWriter(), r.Value.(Reader).GoReader())
+		n, err = io.Copy(WriterFrom(w.Value).GoWriter(), ReaderFrom(r.Value).GoReader())
 		return Int(n), err
 	default:
 		if err = c.Args.CheckLen(1); err != nil {
