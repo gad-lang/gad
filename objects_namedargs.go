@@ -29,6 +29,10 @@ func TypeAssertionFromTypes(types ...ObjectType) *TypeAssertion {
 	return &TypeAssertion{Types: types}
 }
 
+func TypeAssertionFlag() *TypeAssertion {
+	return TypeAssertionFromTypes(TFlag)
+}
+
 func (a *TypeAssertion) AcceptHandler(name string, handler TypeAssertionHandler) *TypeAssertion {
 	if a == nil {
 		*a = TypeAssertion{}
@@ -97,6 +101,11 @@ type Arg struct {
 	Name  string
 	Value Object
 	*TypeAssertion
+}
+
+type ArgValue struct {
+	Arg   Arg
+	Value any
 }
 
 // NamedArgVar is a struct to destructure named arguments from Call object.

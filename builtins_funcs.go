@@ -832,6 +832,30 @@ func BuiltinPrintfFunc(c Call) (_ Object, err error) {
 	return Int(n), err
 }
 
+func BuiltinCloseFunc(c Call) (ret Object, err error) {
+	if err = c.Args.CheckMinLen(1); err != nil {
+		return
+	}
+	if l := c.Args.Length(); l == 1 {
+		ret = c.Args.GetOnly(0)
+		if c := CloserFrom(ret); c != nil {
+			err = c.Close()
+		}
+		return
+	}
+
+	c.Args.Walk(func(i int, arg Object) any {
+		if c := CloserFrom(arg); c != nil {
+			if err = c.Close(); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	return
+}
+
 func BuiltinReadFunc(c Call) (ret Object, err error) {
 	var (
 		reader = &Arg{
@@ -849,6 +873,10 @@ func BuiltinReadFunc(c Call) (ret Object, err error) {
 			Name:          "limit",
 			Value:         Int(0),
 			TypeAssertion: TypeAssertionFromTypes(TInt),
+		}
+		close = &NamedArgVar{
+			Name:  "close",
+			Value: No,
 		}
 		b        []byte
 		buffered bool
@@ -875,14 +903,15 @@ func BuiltinReadFunc(c Call) (ret Object, err error) {
 		}
 	}
 
+	if err = c.NamedArgs.Get(limit, close); err != nil {
+		return
+	}
+
 	var l, s int
 
 	if buffered {
 		l = len(b)
 	} else {
-		if err = c.NamedArgs.Get(limit); err != nil {
-			return
-		}
 		if l = int(limit.Value.(Int)); l < 0 {
 			l = 0
 		}
@@ -892,13 +921,17 @@ func BuiltinReadFunc(c Call) (ret Object, err error) {
 		if buffered {
 			return Bytes{}, nil
 		}
-		b, err = io.ReadAll(ReaderFrom(reader.Value))
+		b, err = io.ReadAll(ReaderFrom(reader.Value).GoReader())
 		s = len(b)
 	} else {
 		if len(b) == 0 {
 			b = make([]byte, l)
 		}
 		s, err = ReaderFrom(reader.Value).Read(b)
+	}
+
+	if !close.Value.IsFalsy() {
+		_, err = c.VM.Builtins.Call(BuiltinClose, Call{VM: c.VM, Args: Args{Array{reader.Value}}})
 	}
 
 	if err != nil {
@@ -981,6 +1014,10 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 			}
 			return err
 		})
+	}
+
+	if !c.NamedArgs.GetValue("close").IsFalsy() {
+		_, err = c.VM.Builtins.Call(BuiltinClose, Call{VM: c.VM, Args: Args{Array{arg}}})
 	}
 
 	return total, err

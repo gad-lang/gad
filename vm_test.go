@@ -1192,6 +1192,29 @@ keyValueArray(keyValue("d",4))))`,
 	expectRun(t, `return reduce([1,2], (cur, v, k) => cur + v, 10)`, nil, Int(13))
 	expectRun(t, `cur := 10; each([1,2], func(k, v) { cur += v });return cur`, nil, Int(13))
 
+	var (
+		c  srwcloser
+		co = MustNewReflectValue(&c)
+	)
+	expectRun(t, `param c; c.Reset(); return [str(typeof(close(c))), c.Closed]`, newOpts().Args(co),
+		Array{Str("gad_test.srwcloser"), True})
+	expectRun(t, `param c; c.Reset(); write(c, "a"); return [str(read(c;close)), c.Closed]`, newOpts().Args(co),
+		Array{Str("a"), True})
+	expectRun(t, `param c; c.Reset(); return [write(c,"bc";close), read(c), c.Closed]`, newOpts().Args(co),
+		Array{Int(2), Bytes("bc"), True})
+	expectRun(t, `param c; c.Reset(); write(c, "a"); return [c.Closed, read(c),  str(typeof(close(c))), c.Closed]`,
+		newOpts().Args(co),
+		Array{False, Bytes("a"), Str("gad_test.srwcloser"), True})
+	expectRun(t, `return close(1)`, nil, Int(1))
+	expectRun(t, `
+Point := struct("Point",fields={closed:false})
+o := Point()
+func close(p Point) {
+	p.closed = true
+	return p
+}
+return str(close(o))`, nil, Str("Point{closed: true}"))
+
 	convs := []struct {
 		f      string
 		inputs map[string]Object
@@ -4748,4 +4771,19 @@ func expectRun(t *testing.T, script string, opts *testopts, expect Object) {
 			testBytecodesEqual(t, &expectBc, gotBc, true)
 		})
 	}
+}
+
+type srwcloser struct {
+	Closed bool
+	bytes.Buffer
+}
+
+func (s *srwcloser) Reset() {
+	s.Closed = false
+	s.Buffer.Reset()
+}
+
+func (s *srwcloser) Close() error {
+	s.Closed = true
+	return nil
 }

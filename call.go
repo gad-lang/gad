@@ -2,6 +2,7 @@ package gad
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -427,6 +428,38 @@ func (o Args) DestructureVar(dst ...*Arg) (other Array, err error) {
 		}
 	}
 	other = o.Values()
+	return
+}
+
+func (o Args) DestructureTo(dst ...ArgValue) (err error) {
+	if err = o.CheckMinLen(len(dst)); err != nil {
+		return
+	}
+
+	for i, d := range dst {
+		d.Arg.Value = o.Shift()
+
+		if expectedTypes := d.Arg.Accept(d.Arg.Value); expectedTypes != "" {
+			return NewArgumentTypeError(
+				strconv.Itoa(i)+"st",
+				expectedTypes,
+				d.Arg.Value.Type().Name(),
+			)
+		}
+
+		func() {
+			if r := recover(); r != nil {
+				if err, _ = r.(error); err != nil {
+					err = ErrType.NewError(fmt.Sprintf("set argument %dst (%q) to any value: %s",
+						i, d.Arg.Value.Type().Name(), err))
+				}
+			}
+			reflect.ValueOf(d.Value).Elem().Set(reflect.ValueOf(d.Arg.Value))
+		}()
+		if err != nil {
+			return
+		}
+	}
 	return
 }
 

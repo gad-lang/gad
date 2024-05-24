@@ -1068,6 +1068,14 @@ func (s *ReflectStruct) Writer() Writer {
 	return nil
 }
 
+func (s *ReflectStruct) CanClose() bool {
+	return s.Interface.(io.Closer) != nil
+}
+
+func (s *ReflectStruct) Close() error {
+	return s.Interface.(io.Closer).Close()
+}
+
 var (
 	_ ReflectValuer     = (*ReflectStruct)(nil)
 	_ Iterabler         = (*ReflectStruct)(nil)

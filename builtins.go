@@ -62,6 +62,7 @@ const (
 	BuiltinReduce
 	BuiltinTypeName
 	BuiltinChars
+	BuiltinClose
 	BuiltinRead
 	BuiltinWrite
 	BuiltinPrint
@@ -185,6 +186,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"reduce":              BuiltinReduce,
 	"typeName":            BuiltinTypeName,
 	"chars":               BuiltinChars,
+	"close":               BuiltinClose,
 	"read":                BuiltinRead,
 	"write":               BuiltinWrite,
 	"print":               BuiltinPrint,
@@ -290,7 +292,7 @@ func (s *Builtins) Set(name string, obj Object) *Builtins {
 }
 
 func (s *Builtins) Call(t BuiltinType, c Call) (Object, error) {
-	return s.Objects[t].(CallerObject).Call(c)
+	return DoCall(s.Objects[t].(CallerObject), c)
 }
 
 func (s *Builtins) Caller(t BuiltinType) CallerObject {
@@ -599,6 +601,10 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinUserData: &BuiltinFunction{
 		Name:  "userData",
 		Value: BuiltinUserDataFunc,
+	},
+	BuiltinClose: &BuiltinFunction{
+		Name:  "close",
+		Value: BuiltinCloseFunc,
 	},
 
 	BuiltinWrongNumArgumentsError:  ErrWrongNumArguments,
