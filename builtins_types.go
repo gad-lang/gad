@@ -50,6 +50,28 @@ type Type struct {
 	Parent         ObjectType
 	calllerMethods MethodArgType
 	Constructor    CallerObject
+	Static         Dict
+}
+
+func (t *Type) IndexGet(vm *VM, index Object) (value Object, err error) {
+	if t.Static == nil {
+		return Dict{}.IndexGet(vm, index)
+	}
+	return t.Static.IndexGet(vm, index)
+}
+
+func (t *Type) IndexSet(vm *VM, index, value Object) (err error) {
+	if t.Static == nil {
+		t.Static = make(Dict)
+	}
+	return t.Static.IndexSet(vm, index, value)
+}
+
+func (t *Type) IndexDelete(vm *VM, index Object) (err error) {
+	if t.Static == nil {
+		return
+	}
+	return t.Static.IndexDelete(vm, index)
 }
 
 func (t *Type) AddCallerMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error {

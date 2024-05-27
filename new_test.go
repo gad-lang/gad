@@ -10,122 +10,122 @@ import (
 
 func TestVMDestructuring(t *testing.T) {
 	expectErrHas(t, `x, y = nil; return x`,
-		newOpts().CompilerError(), `Compile Error: unresolved reference "x"`)
+		NewTestOpts().CompilerError(), `Compile Error: unresolved reference "x"`)
 	expectErrHas(t, `var (x, y); x, y := nil; return x`,
-		newOpts().CompilerError(), `Compile Error: no new variable on left side`)
-	expectErrHas(t, `x, y = 1, 2`, newOpts().CompilerError(),
+		NewTestOpts().CompilerError(), `Compile Error: no new variable on left side`)
+	expectErrHas(t, `x, y = 1, 2`, NewTestOpts().CompilerError(),
 		`Compile Error: multiple expressions on the right side not supported`)
 
-	expectRun(t, `x, y := nil; return x`, nil, Nil)
-	expectRun(t, `x, y := nil; return y`, nil, Nil)
-	expectRun(t, `x, y := 1; return x`, nil, Int(1))
-	expectRun(t, `x, y := 1; return y`, nil, Nil)
-	expectRun(t, `x, y := []; return x`, nil, Nil)
-	expectRun(t, `x, y := []; return y`, nil, Nil)
-	expectRun(t, `x, y := [1]; return x`, nil, Int(1))
-	expectRun(t, `x, y := [1]; return y`, nil, Nil)
-	expectRun(t, `x, y := [1, 2]; return x`, nil, Int(1))
-	expectRun(t, `x, y := [1, 2]; return y`, nil, Int(2))
-	expectRun(t, `x, y := [1, 2, 3]; return x`, nil, Int(1))
-	expectRun(t, `x, y := [1, 2, 3]; return y`, nil, Int(2))
-	expectRun(t, `var x; x, y := [1]; return x`, nil, Int(1))
-	expectRun(t, `var x; x, y := [1]; return y`, nil, Nil)
+	TestExpectRun(t, `x, y := nil; return x`, nil, Nil)
+	TestExpectRun(t, `x, y := nil; return y`, nil, Nil)
+	TestExpectRun(t, `x, y := 1; return x`, nil, Int(1))
+	TestExpectRun(t, `x, y := 1; return y`, nil, Nil)
+	TestExpectRun(t, `x, y := []; return x`, nil, Nil)
+	TestExpectRun(t, `x, y := []; return y`, nil, Nil)
+	TestExpectRun(t, `x, y := [1]; return x`, nil, Int(1))
+	TestExpectRun(t, `x, y := [1]; return y`, nil, Nil)
+	TestExpectRun(t, `x, y := [1, 2]; return x`, nil, Int(1))
+	TestExpectRun(t, `x, y := [1, 2]; return y`, nil, Int(2))
+	TestExpectRun(t, `x, y := [1, 2, 3]; return x`, nil, Int(1))
+	TestExpectRun(t, `x, y := [1, 2, 3]; return y`, nil, Int(2))
+	TestExpectRun(t, `var x; x, y := [1]; return x`, nil, Int(1))
+	TestExpectRun(t, `var x; x, y := [1]; return y`, nil, Nil)
 
-	expectRun(t, `x, y, z := nil; return x`, nil, Nil)
-	expectRun(t, `x, y, z := nil; return y`, nil, Nil)
-	expectRun(t, `x, y, z := nil; return z`, nil, Nil)
-	expectRun(t, `x, y, z := 1; return x`, nil, Int(1))
-	expectRun(t, `x, y, z := 1; return y`, nil, Nil)
-	expectRun(t, `x, y, z := 1; return z`, nil, Nil)
-	expectRun(t, `x, y, z := []; return x`, nil, Nil)
-	expectRun(t, `x, y, z := []; return y`, nil, Nil)
-	expectRun(t, `x, y, z := []; return z`, nil, Nil)
-	expectRun(t, `x, y, z := [1]; return x`, nil, Int(1))
-	expectRun(t, `x, y, z := [1]; return y`, nil, Nil)
-	expectRun(t, `x, y, z := [1]; return z`, nil, Nil)
-	expectRun(t, `x, y, z := [1, 2]; return x`, nil, Int(1))
-	expectRun(t, `x, y, z := [1, 2]; return y`, nil, Int(2))
-	expectRun(t, `x, y, z := [1, 2]; return z`, nil, Nil)
-	expectRun(t, `x, y, z := [1, 2, 3]; return x`, nil, Int(1))
-	expectRun(t, `x, y, z := [1, 2, 3]; return y`, nil, Int(2))
-	expectRun(t, `x, y, z := [1, 2, 3]; return z`, nil, Int(3))
-	expectRun(t, `x, y, z := [1, 2, 3, 4]; return z`, nil, Int(3))
+	TestExpectRun(t, `x, y, z := nil; return x`, nil, Nil)
+	TestExpectRun(t, `x, y, z := nil; return y`, nil, Nil)
+	TestExpectRun(t, `x, y, z := nil; return z`, nil, Nil)
+	TestExpectRun(t, `x, y, z := 1; return x`, nil, Int(1))
+	TestExpectRun(t, `x, y, z := 1; return y`, nil, Nil)
+	TestExpectRun(t, `x, y, z := 1; return z`, nil, Nil)
+	TestExpectRun(t, `x, y, z := []; return x`, nil, Nil)
+	TestExpectRun(t, `x, y, z := []; return y`, nil, Nil)
+	TestExpectRun(t, `x, y, z := []; return z`, nil, Nil)
+	TestExpectRun(t, `x, y, z := [1]; return x`, nil, Int(1))
+	TestExpectRun(t, `x, y, z := [1]; return y`, nil, Nil)
+	TestExpectRun(t, `x, y, z := [1]; return z`, nil, Nil)
+	TestExpectRun(t, `x, y, z := [1, 2]; return x`, nil, Int(1))
+	TestExpectRun(t, `x, y, z := [1, 2]; return y`, nil, Int(2))
+	TestExpectRun(t, `x, y, z := [1, 2]; return z`, nil, Nil)
+	TestExpectRun(t, `x, y, z := [1, 2, 3]; return x`, nil, Int(1))
+	TestExpectRun(t, `x, y, z := [1, 2, 3]; return y`, nil, Int(2))
+	TestExpectRun(t, `x, y, z := [1, 2, 3]; return z`, nil, Int(3))
+	TestExpectRun(t, `x, y, z := [1, 2, 3, 4]; return z`, nil, Int(3))
 
 	// test index assignments
-	expectRun(t, `
+	TestExpectRun(t, `
 	var (x = {}, y, z)
 	x.a, y, z = [1, 2, 3, 4]; return x`, nil, Dict{"a": Int(1)})
-	expectRun(t, `
+	TestExpectRun(t, `
 	var (x = {}, y, z)
 	x.a, y, z = [1, 2, 3, 4]; return y`, nil, Int(2))
-	expectRun(t, `
+	TestExpectRun(t, `
 	var (x = {}, y, z)
 	x.a, y, z = [1, 2, 3, 4]; return z`, nil, Int(3))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var (x = {}, y, z)
 	y, x.a, z = [1, 2, 3, 4]; return x`, nil, Dict{"a": Int(2)})
-	expectRun(t, `
+	TestExpectRun(t, `
 	var (x = {}, y, z)
 	y, x.a, z = [1, 2, 3, 4]; return y`, nil, Int(1))
-	expectRun(t, `
+	TestExpectRun(t, `
 	var (x = {}, y, z)
 	y, x.a, z = [1, 2, 3, 4]; return z`, nil, Int(3))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var (x = [0], y, z)
 	x[0], y, z = [1, 2, 3, 4]; return x`, nil, Array{Int(1)})
-	expectRun(t, `
+	TestExpectRun(t, `
 	var (x = [0], y, z)
 	x[0], y, z = [1, 2, 3, 4]; return y`, nil, Int(2))
-	expectRun(t, `
+	TestExpectRun(t, `
 	var (x = [0], y, z)
 	x[0], y, z = [1, 2, 3, 4]; return z`, nil, Int(3))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var (x = [0], y, z)
 	y, x[0], z = [1, 2, 3, 4]; return x`, nil, Array{Int(2)})
-	expectRun(t, `
+	TestExpectRun(t, `
 	var (x = [0], y, z)
 	y, x[0], z = [1, 2, 3, 4]; return y`, nil, Int(1))
-	expectRun(t, `
+	TestExpectRun(t, `
 	var (x = [0], y, z)
 	y, x[0], z = [1, 2, 3, 4]; return z`, nil, Int(3))
 
 	// test function calls
-	expectRun(t, `
+	TestExpectRun(t, `
 	fn := func() { 
 		return [1, error("abc")]
 	}
 	x, y := fn()
 	return [x, str(y)]`, nil, Array{Int(1), Str("error: abc")})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	fn := func() { 
 		return [1]
 	}
 	x, y := fn()
 	return [x, y]`, nil, Array{Int(1), Nil})
-	expectRun(t, `
+	TestExpectRun(t, `
 	fn := func() { 
 		return
 	}
 	x, y := fn()
 	return [x, y]`, nil, Array{Nil, Nil})
-	expectRun(t, `
+	TestExpectRun(t, `
 	fn := func() { 
 		return [1, 2, 3]
 	}
 	x, y := fn()
 	t := {a: x}
 	return [x, y, t]`, nil, Array{Int(1), Int(2), Dict{"a": Int(1)}})
-	expectRun(t, `
+	TestExpectRun(t, `
 	fn := func() { 
 		return {}
 	}
 	x, y := fn()
 	return [x, y]`, nil, Array{Dict{}, Nil})
-	expectRun(t, `
+	TestExpectRun(t, `
 	fn := func(v) { 
 		return [1, v, 3]
 	}
@@ -135,8 +135,8 @@ func TestVMDestructuring(t *testing.T) {
 	return [x, y, t]`, nil, Array{Int(1), Int(10), Dict{"a": Int(1)}})
 
 	// test any expression
-	expectRun(t, `x, y :=  {}; return [x, y]`, nil, Array{Dict{}, Nil})
-	expectRun(t, `
+	TestExpectRun(t, `x, y :=  {}; return [x, y]`, nil, Array{Dict{}, Nil})
+	TestExpectRun(t, `
 	var x = 2
 	if x > 0 {
 		fn := func(v) { 
@@ -150,7 +150,7 @@ func TestVMDestructuring(t *testing.T) {
 	}
 	return x
 	`, nil, Int(6))
-	expectRun(t, `
+	TestExpectRun(t, `
 	var x = 2
 	if x > 0 {
 		fn := func(v) { 
@@ -166,7 +166,7 @@ func TestVMDestructuring(t *testing.T) {
 	return x
 	`, nil, Int(2))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var x = 2
 	if x > 0 {
 		fn := func(v) {
@@ -199,19 +199,19 @@ func TestVMDestructuring(t *testing.T) {
 	// return map to check stack pointer is correct
 	return {x: x}
 	`, nil, Dict{"x": Int(3)})
-	expectRun(t, `
+	TestExpectRun(t, `
 	for x,y := [1, 2]; true; x++ {
 		if x == 10 {
 			return [x, y]
 		}
 	}
 	`, nil, Array{Int(10), Int(2)})
-	expectRun(t, `
+	TestExpectRun(t, `
 	if x,y := [1, 2]; true {
 		return [x, y]
 	}
 	`, nil, Array{Int(1), Int(2)})
-	expectRun(t, `
+	TestExpectRun(t, `
 	var x = 0
 	for true {
 		x, y := [x]
@@ -219,26 +219,26 @@ func TestVMDestructuring(t *testing.T) {
 		break
 	}
 	return x`, nil, Int(0))
-	expectRun(t, `
+	TestExpectRun(t, `
 	x, y := func(n) {
 		return repeat([n], n)
 	}(3)
 	return [x, y]`, nil, Array{Int(3), Int(3)})
 	// closures
-	expectRun(t, `
+	TestExpectRun(t, `
 	var x = 10
 	a, b := func(n) {
 		x = n
 	}(3)
 	return [x, a, b]`, nil, Array{Int(3), Nil, Nil})
-	expectRun(t, `
+	TestExpectRun(t, `
 	var x = 10
 	a, b := func(*args) {
 		x, y := args
 		return [x, y]
 	}(1, 2)
 	return [x, a, b]`, nil, Array{Int(10), Int(1), Int(2)})
-	expectRun(t, `
+	TestExpectRun(t, `
 	var x = 10
 	a, b := func(*args) {
 		var y
@@ -252,75 +252,75 @@ func TestVMDestructuring(t *testing.T) {
 	// return values.
 	parseErr := `Parse Error: expected operand, found 'EOF'`
 	expectErrHas(t, `return 1,`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `return 1, 2,`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `var a; return a,`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `var (a, b); return a, b,`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `return 1,`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `return 1, 2,`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `var a; return a,`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `var (a, b); return a, b,`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 
 	parseErr = `Parse Error: expected operand, found '}'`
 	expectErrHas(t, `func(){ return 1, }`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `func(){ return 1, 2,}`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 
 	expectErrHas(t, `func(){ var a; return a,}`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `func(){ var (a, b); return a, b,}`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `func(){ return 1,}`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `func(){ return 1, 2,}`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `func(){ var a; return a,}`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 	expectErrHas(t, `func(){ var (a, b); return a, b,}`,
-		newOpts().CompilerError(), parseErr)
+		NewTestOpts().CompilerError(), parseErr)
 
-	expectRun(t, `return 1, 2`, nil, Array{Int(1), Int(2)})
-	expectRun(t, `a := 1; return a, a`, nil, Array{Int(1), Int(1)})
-	expectRun(t, `a := 1; return a, 2`, nil, Array{Int(1), Int(2)})
-	expectRun(t, `a := 1; return 2, a`, nil, Array{Int(2), Int(1)})
-	expectRun(t, `a := 1; return 2, a, [3]`, nil,
+	TestExpectRun(t, `return 1, 2`, nil, Array{Int(1), Int(2)})
+	TestExpectRun(t, `a := 1; return a, a`, nil, Array{Int(1), Int(1)})
+	TestExpectRun(t, `a := 1; return a, 2`, nil, Array{Int(1), Int(2)})
+	TestExpectRun(t, `a := 1; return 2, a`, nil, Array{Int(2), Int(1)})
+	TestExpectRun(t, `a := 1; return 2, a, [3]`, nil,
 		Array{Int(2), Int(1), Array{Int(3)}})
-	expectRun(t, `a := 1; return [2, a], [3]`, nil,
+	TestExpectRun(t, `a := 1; return [2, a], [3]`, nil,
 		Array{Array{Int(2), Int(1)}, Array{Int(3)}})
-	expectRun(t, `return {}, []`, nil, Array{Dict{}, Array{}})
-	expectRun(t, `return func(){ return 1}(), []`, nil, Array{Int(1), Array{}})
-	expectRun(t, `return func(){ return 1}(), [2]`, nil,
+	TestExpectRun(t, `return {}, []`, nil, Array{Dict{}, Array{}})
+	TestExpectRun(t, `return func(){ return 1}(), []`, nil, Array{Int(1), Array{}})
+	TestExpectRun(t, `return func(){ return 1}(), [2]`, nil,
 		Array{Int(1), Array{Int(2)}})
-	expectRun(t, `
+	TestExpectRun(t, `
 	f := func() {
 		return 1, 2
 	}
 	a, b := f()
 	return a, b`, nil, Array{Int(1), Int(2)})
-	expectRun(t, `
+	TestExpectRun(t, `
 	a, b := func() {
 		return 1, error("x")
 	}()
 	return a, "" + b`, nil, Array{Int(1), Str("error: x")})
-	expectRun(t, `
+	TestExpectRun(t, `
 	a, b := func(a, b) {
 		return a + 1, b + 1
 	}(1, 2)
 	return a, b, a*2, 3/b`, nil, Array{Int(2), Int(3), Int(4), Int(1)})
-	expectRun(t, `
+	TestExpectRun(t, `
 	return func(a, b) {
 		return a + 1, b + 1
 	}(1, 2), 4`, nil, Array{Array{Int(2), Int(3)}, Int(4)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	param *args
 
 	mapEach := func(seq, fn) {
@@ -355,19 +355,19 @@ func TestVMDestructuring(t *testing.T) {
 		return err
 	}
 	return v
-	`, newOpts().
+	`, NewTestOpts().
 		Globals(Dict{"multiplier": Int(2)}).
 		Args(Int(1), Int(2), Int(3), Int(4)),
 		Array{Int(2), Int(4), Int(6), Int(8)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	global goFunc
 	// ...
 	v, err := goFunc(2)
 	if err != nil {
 		return str(err)
 	}
-	`, newOpts().
+	`, NewTestOpts().
 		Globals(Dict{"goFunc": &Function{
 			Value: func(Call) (Object, error) {
 				// ...
@@ -381,34 +381,34 @@ func TestVMDestructuring(t *testing.T) {
 }
 
 func TestVMConst(t *testing.T) {
-	expectErrHas(t, `const x = 1; x = 2`, newOpts().CompilerError(),
+	expectErrHas(t, `const x = 1; x = 2`, NewTestOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "x"`)
-	expectErrHas(t, `const x = 1; x := 2`, newOpts().CompilerError(),
+	expectErrHas(t, `const x = 1; x := 2`, NewTestOpts().CompilerError(),
 		`Compile Error: "x" redeclared in this block`)
-	expectErrHas(t, `const (x = 1, x = 2)`, newOpts().CompilerError(),
+	expectErrHas(t, `const (x = 1, x = 2)`, NewTestOpts().CompilerError(),
 		`Compile Error: "x" redeclared in this block`)
-	expectErrHas(t, `const x`, newOpts().CompilerError(),
+	expectErrHas(t, `const x`, NewTestOpts().CompilerError(),
 		`Parse Error: missing initializer in const declaration`)
-	expectErrHas(t, `const (x, y = 2)`, newOpts().CompilerError(),
+	expectErrHas(t, `const (x, y = 2)`, NewTestOpts().CompilerError(),
 		`Parse Error: missing initializer in const declaration`)
 
 	// After iota support, `const (x=1,y)` does not throw error, like ToInterface. It
 	// uses last expression as initializer.
-	expectRun(t, `const (x = 1, y)`, nil, Nil)
+	TestExpectRun(t, `const (x = 1, y)`, nil, Nil)
 
-	expectErrHas(t, `const (x, y)`, newOpts().CompilerError(),
+	expectErrHas(t, `const (x, y)`, NewTestOpts().CompilerError(),
 		`Parse Error: missing initializer in const declaration`)
 	expectErrHas(t, `
 	const x = 1
 	func() {
 		x = 2
-	}`, newOpts().CompilerError(),
+	}`, NewTestOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "x"`)
 	expectErrHas(t, `
 	const x = 1
 	if x > 0 {
 		x = 2
-	}`, newOpts().CompilerError(),
+	}`, NewTestOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "x"`)
 	expectErrHas(t, `
 	const x = 1
@@ -416,47 +416,47 @@ func TestVMConst(t *testing.T) {
 		return func() {
 			x = 2
 		}
-	}`, newOpts().CompilerError(),
+	}`, NewTestOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "x"`)
 	expectErrHas(t, `
 	const x = 1
 	if x = 2; x > 0 {
 		return
-	}`, newOpts().CompilerError(),
+	}`, NewTestOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "x"`)
 	expectErrHas(t, `
 	const x = 1
 	for x = 1; x < 10; x++ {
 		return
-	}`, newOpts().CompilerError(),
+	}`, NewTestOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "x"`)
 	expectErrHas(t, `
 	const x = 1
 	func() {
 		var y
 		x, y = [1, 2]
-	}`, newOpts().CompilerError(),
+	}`, NewTestOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "x"`)
 	expectErrHas(t, `
 	x := 1
 	func() {
 		const y = 2
 		x, y = [1, 2]
-	}`, newOpts().CompilerError(),
+	}`, NewTestOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "y"`)
-	expectErrHas(t, `const x = 1;global x`, newOpts().CompilerError(),
+	expectErrHas(t, `const x = 1;global x`, NewTestOpts().CompilerError(),
 		`Compile Error: "x" redeclared in this block`)
-	expectErrHas(t, `const x = 1;param x`, newOpts().CompilerError(),
+	expectErrHas(t, `const x = 1;param x`, NewTestOpts().CompilerError(),
 		`Compile Error: "x" redeclared in this block`)
-	expectErrHas(t, `global x; const x = 1`, newOpts().CompilerError(),
+	expectErrHas(t, `global x; const x = 1`, NewTestOpts().CompilerError(),
 		`Compile Error: "x" redeclared in this block`)
-	expectErrHas(t, `param x; const x = 1`, newOpts().CompilerError(),
+	expectErrHas(t, `param x; const x = 1`, NewTestOpts().CompilerError(),
 		`Compile Error: "x" redeclared in this block`)
 	expectErrHas(t, `
 	const x = 1
 	if [2] { // not optimized
 		x = 2
-	}`, newOpts().CompilerError(),
+	}`, NewTestOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "x"`)
 	expectErrHas(t, `
 	const x = 1
@@ -464,7 +464,7 @@ func TestVMConst(t *testing.T) {
 		func() {
 			x = 2
 		}
-	}`, newOpts().CompilerError(),
+	}`, NewTestOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "x"`)
 	expectErrHas(t, `
 	const x = 1
@@ -476,14 +476,14 @@ func TestVMConst(t *testing.T) {
 				}
 			}
 		}
-	}`, newOpts().CompilerError(),
+	}`, NewTestOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "x"`)
 
 	// FIXME: Compiler does not compile if or else blocks if condition is
 	// a *BoolLit (which may be reduced by optimizer). So compiler does not
 	// check whether a constant is reassigned in block to throw an error.
 	// A few examples for this issue.
-	expectRun(t, `
+	TestExpectRun(t, `
 	const x = 1
 	if true {
 		
@@ -493,7 +493,7 @@ func TestVMConst(t *testing.T) {
 	}
 	return x
 	`, nil, Int(1))
-	expectRun(t, `
+	TestExpectRun(t, `
 	const x = 1
 	if false {
 		// block is not compiled
@@ -502,56 +502,56 @@ func TestVMConst(t *testing.T) {
 	return x
 	`, nil, Int(1))
 
-	expectRun(t, `const x = 1; return x`, nil, Int(1))
-	expectRun(t, `const x = "1"; return x`, nil, Str("1"))
-	expectRun(t, `const x = []; return x`, nil, Array{})
-	expectRun(t, `const x = []; return x`, nil, Array{})
-	expectRun(t, `const x = nil; return x`, nil, Nil)
-	expectRun(t, `const (x = 1, y = "2"); return x, y`, nil,
+	TestExpectRun(t, `const x = 1; return x`, nil, Int(1))
+	TestExpectRun(t, `const x = "1"; return x`, nil, Str("1"))
+	TestExpectRun(t, `const x = []; return x`, nil, Array{})
+	TestExpectRun(t, `const x = []; return x`, nil, Array{})
+	TestExpectRun(t, `const x = nil; return x`, nil, Nil)
+	TestExpectRun(t, `const (x = 1, y = "2"); return x, y`, nil,
 		Array{Int(1), Str("2")})
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = 1
 		y = "2"
 	)
 	return x, y`, nil, Array{Int(1), Str("2")})
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = 1
 		y = x + 1
 	)
 	return x, y`, nil, Array{Int(1), Int(2)})
-	expectRun(t, `
+	TestExpectRun(t, `
 	const x = 1
 	return func() {
 		const x = x + 1
 		return x
 	}()`, nil, Int(2))
-	expectRun(t, `
+	TestExpectRun(t, `
 	const x = 1
 	return func() {
 		x := x + 1
 		return x
 	}()`, nil, Int(2))
-	expectRun(t, `
+	TestExpectRun(t, `
 	const x = 1
 	return func() {
 		return func() {
 			return x + 1
 		}()
 	}()`, nil, Int(2))
-	expectRun(t, `
+	TestExpectRun(t, `
 	const x = 1
 	for x := 10; x < 100; x++{
 		return x
 	}`, nil, Int(10))
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (i = 1, v = 2)
 	for i,v in [10] {
 		v = -1
 		return i
 	}`, nil, Int(0))
-	expectRun(t, `
+	TestExpectRun(t, `
 	const x = 1
 	return func() {
 		const y = 2
@@ -559,7 +559,7 @@ func TestVMConst(t *testing.T) {
 		return x
 	}() + x
 	`, nil, Int(3))
-	expectRun(t, `
+	TestExpectRun(t, `
 	const x = 1
 	return func() {
 		const y = 2
@@ -567,14 +567,14 @@ func TestVMConst(t *testing.T) {
 		return x
 	}() + x
 	`, nil, Int(3))
-	expectRun(t, `
+	TestExpectRun(t, `
 	const x = 1
 	func() {
 		x, y := [2, 3]
 	}()
 	return x
 	`, nil, Int(1))
-	expectRun(t, `
+	TestExpectRun(t, `
 	const x = 1
 	for i := 0; i < 1; i++ {
 		x, y := [2, 3]
@@ -582,7 +582,7 @@ func TestVMConst(t *testing.T) {
 	}
 	return x
 	`, nil, Int(1))
-	expectRun(t, `
+	TestExpectRun(t, `
 	const x = 1
 	if [1] {
 		x, y := [2, 3]
@@ -590,7 +590,7 @@ func TestVMConst(t *testing.T) {
 	return x
 	`, nil, Int(1))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	return func() {
 		const x = 1
 		func() {
@@ -599,7 +599,7 @@ func TestVMConst(t *testing.T) {
 		return x
 	}()
 	`, nil, Int(1))
-	expectRun(t, `
+	TestExpectRun(t, `
 	return func() {
 		const x = 1
 		for i := 0; i < 1; i++ {
@@ -609,7 +609,7 @@ func TestVMConst(t *testing.T) {
 		return x
 	}()
 	`, nil, Int(1))
-	expectRun(t, `
+	TestExpectRun(t, `
 	return func(){
 		const x = 1
 		if [1] {
@@ -618,7 +618,7 @@ func TestVMConst(t *testing.T) {
 		return x
 	}()
 	`, nil, Int(1))
-	expectRun(t, `
+	TestExpectRun(t, `
 	return func(){
 		const x = 1
 		if [1] {
@@ -631,44 +631,44 @@ func TestVMConst(t *testing.T) {
 }
 
 func TestConstIota(t *testing.T) {
-	expectRun(t, `const x = iota; return x`, nil, Int(0))
-	expectRun(t, `const x = iota; const y = iota; return x, y`, nil, Array{Int(0), Int(0)})
-	expectRun(t, `const(x = iota, y = iota); return x, y`, nil, Array{Int(0), Int(1)})
-	expectRun(t, `const(x = iota, y); return x, y`, nil, Array{Int(0), Int(1)})
+	TestExpectRun(t, `const x = iota; return x`, nil, Int(0))
+	TestExpectRun(t, `const x = iota; const y = iota; return x, y`, nil, Array{Int(0), Int(0)})
+	TestExpectRun(t, `const(x = iota, y = iota); return x, y`, nil, Array{Int(0), Int(1)})
+	TestExpectRun(t, `const(x = iota, y); return x, y`, nil, Array{Int(0), Int(1)})
 
-	expectRun(t, `const(x = 1+iota, y); return x, y`, nil, Array{Int(1), Int(2)})
-	expectRun(t, `const(x = 1+iota, y=iota); return x, y`, nil, Array{Int(1), Int(1)})
-	expectRun(t, `const(x = 1+iota, y, z); return x, y, z`, nil, Array{Int(1), Int(2), Int(3)})
-	expectRun(t, `const(x = iota+1, y, z); return x, y, z`, nil, Array{Int(1), Int(2), Int(3)})
+	TestExpectRun(t, `const(x = 1+iota, y); return x, y`, nil, Array{Int(1), Int(2)})
+	TestExpectRun(t, `const(x = 1+iota, y=iota); return x, y`, nil, Array{Int(1), Int(1)})
+	TestExpectRun(t, `const(x = 1+iota, y, z); return x, y, z`, nil, Array{Int(1), Int(2), Int(3)})
+	TestExpectRun(t, `const(x = iota+1, y, z); return x, y, z`, nil, Array{Int(1), Int(2), Int(3)})
 
-	expectRun(t, `const(_ = iota+1, y, z); return y, z`, nil, Array{Int(2), Int(3)})
+	TestExpectRun(t, `const(_ = iota+1, y, z); return y, z`, nil, Array{Int(2), Int(3)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = [iota]
 	)
 	return x`, nil, Array{Int(0)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = []
 	)
 	return x`, nil, Array{})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = [iota, iota]
 	)
 	return x`, nil, Array{Int(0), Int(0)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = [iota, iota]
 		y
 	)
 	return x, y`, nil, Array{Array{Int(0), Int(0)}, Array{Int(1), Int(1)}})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = [iota, iota]
 		y
@@ -677,7 +677,7 @@ func TestConstIota(t *testing.T) {
 	return x, y, z`, nil,
 		Array{Array{Int(0), Int(0)}, Array{Int(1), Int(1)}, Array{Int(2), Int(2)}})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = [iota, iota]
 		y
@@ -685,32 +685,32 @@ func TestConstIota(t *testing.T) {
 	x[0] = 2
 	return x, y`, nil, Array{Array{Int(2), Int(0)}, Array{Int(1), Int(1)}})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = {}
 	)
 	return x`, nil, Dict{})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = {iota: 1}
 	)
 	return x`, nil, Dict{"iota": Int(1)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = {k: iota}
 	)
 	return x`, nil, Dict{"k": Int(0)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = {k: iota}
 		y
 	)
 	return x, y`, nil, Array{Dict{"k": Int(0)}, Dict{"k": Int(1)}})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = {k: iota}
 		y
@@ -718,7 +718,7 @@ func TestConstIota(t *testing.T) {
 	x["k"] = 2
 	return x, y`, nil, Array{Dict{"k": Int(2)}, Dict{"k": Int(1)}})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = {k: iota}
 		y
@@ -727,7 +727,7 @@ func TestConstIota(t *testing.T) {
 	return x, y, z`, nil,
 		Array{Dict{"k": Int(0)}, Dict{"k": Int(1)}, Dict{"k": Int(2)}})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		_ = 1 << iota
 		x
@@ -735,7 +735,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x, y`, nil, Array{Int(2), Int(4)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = 1 << iota
 		_
@@ -743,7 +743,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x, y`, nil, Array{Int(1), Int(4)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = 1 << iota
 		a
@@ -752,7 +752,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x, y, z`, nil, Array{Int(1), Int(2), Int(2)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = 1 << iota
 		_
@@ -761,14 +761,14 @@ func TestConstIota(t *testing.T) {
 	)
 	return x, z`, nil, Array{Int(1), Int(8)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	iota := 1
 	const (
 		x = 1 << iota
 	)
 	return x, iota`, nil, Array{Int(2), Int(1)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	iota := 1
 	const (
 		x = 1 << iota
@@ -777,10 +777,10 @@ func TestConstIota(t *testing.T) {
 	return x, y`, nil, Array{Int(2), Int(2)})
 
 	expectErrHas(t, `const iota = 1`,
-		newOpts().CompilerError(), "Compile Error: assignment to iota")
+		NewTestOpts().CompilerError(), "Compile Error: assignment to iota")
 
 	expectErrHas(t, `const iota = iota + 1`,
-		newOpts().CompilerError(), "Compile Error: assignment to iota")
+		NewTestOpts().CompilerError(), "Compile Error: assignment to iota")
 
 	expectErrHas(t, `
 	const (
@@ -789,12 +789,12 @@ func TestConstIota(t *testing.T) {
 		y
 	)
 	return x, iota, y`,
-		newOpts().CompilerError(), "Compile Error: assignment to iota")
+		NewTestOpts().CompilerError(), "Compile Error: assignment to iota")
 
 	expectErrHas(t, `const x = iota; return iota`,
-		newOpts().CompilerError(), `Compile Error: unresolved reference "iota"`)
+		NewTestOpts().CompilerError(), `Compile Error: unresolved reference "iota"`)
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = iota
 		y
@@ -802,7 +802,7 @@ func TestConstIota(t *testing.T) {
 	iota := 3
 	return x, y, iota`, nil, Array{Int(0), Int(1), Int(3)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = iota
 		y
@@ -814,7 +814,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x, y, iota, a, b`, nil, Array{Int(0), Int(1), Int(3), Int(13), Int(13)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = iota
 		y
@@ -825,7 +825,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x, y, a, b`, nil, Array{Int(0), Int(1), Int(10), Int(11)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = func() { return 1 }()
 		y
@@ -833,7 +833,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x, y, z`, nil, Array{Int(1), Int(1), Int(1)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = func(x) { return x }(iota)
 		y
@@ -841,7 +841,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x, y, z`, nil, Array{Int(0), Int(1), Int(2)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	a:=0
 	const (
 		x = func() { a++; return a }()
@@ -850,7 +850,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x, y, z`, nil, Array{Int(1), Int(2), Int(3)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = 1+iota
 		y = func() { return 1+x }()
@@ -858,7 +858,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x, y, z`, nil, Array{Int(1), Int(2), Int(2)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = func() { return 1 }
 		y
@@ -866,7 +866,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x(), y(), z()`, nil, Array{Int(1), Int(1), Int(1)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = func() { return 1 }
 		y
@@ -874,7 +874,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x == y && y == z`, nil, True)
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var a
 	const (
 		x = func() { return a }
@@ -883,7 +883,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x != y && y != z`, nil, True)
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	return func() {
 		const (
 			x = 1 << iota
@@ -893,7 +893,7 @@ func TestConstIota(t *testing.T) {
 		return x, y
 	}()`, nil, Array{Int(1), Int(4)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	iota := 2
 	return func() {
 		const (
@@ -904,7 +904,7 @@ func TestConstIota(t *testing.T) {
 		return x, y
 	}()`, nil, Array{Int(4), Int(4)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (
 		x = 1 + iota + func() { 
 			const (
@@ -918,7 +918,7 @@ func TestConstIota(t *testing.T) {
 	)
 	return x,y`, nil, Array{Int(2), Int(3)})
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	const (x = iota%2?"odd":"even", y, z)
 	return x,y,z`, nil, Array{Str("even"), Str("odd"), Str("even")})
 }
@@ -960,8 +960,8 @@ sum := func(*args) {
 }
 return apply(sum, 1, 2, 3)
 `
-				expectRun(t, scr,
-					newOpts().Globals(Dict{"apply": apply}),
+				TestExpectRun(t, scr,
+					NewTestOpts().Globals(Dict{"apply": apply}),
 					Int(6),
 				)
 			})
@@ -983,8 +983,8 @@ f := func(fn, *args) {
 }
 return apply(f, sum, 1, 2, 3)
 `
-				expectRun(t, scr,
-					newOpts().Globals(Dict{"apply": apply}),
+				TestExpectRun(t, scr,
+					NewTestOpts().Globals(Dict{"apply": apply}),
 					Int(6),
 				)
 			})
@@ -1006,8 +1006,8 @@ f := func(fn, *args) {
 }
 return apply(f, sum, 1, 2, 3)
 `
-				expectRun(t, scr,
-					newOpts().Globals(Dict{"apply": apply}),
+				TestExpectRun(t, scr,
+					NewTestOpts().Globals(Dict{"apply": apply}),
 					Int(6),
 				)
 			})
@@ -1026,8 +1026,8 @@ return apply(f, sum, 1, 2, 3)
 global (apply, sum)
 return apply(sum, 1, 2, 3)
 `
-				expectRun(t, scr,
-					newOpts().Globals(Dict{"apply": apply, "sum": sum}),
+				TestExpectRun(t, scr,
+					NewTestOpts().Globals(Dict{"apply": apply, "sum": sum}),
 					Int(6),
 				)
 			})
@@ -1047,16 +1047,16 @@ apply(inc, 3)
 return module.counter
 `
 				t.Run("builtin", func(t *testing.T) {
-					expectRun(t, scr,
-						newOpts().
+					TestExpectRun(t, scr,
+						NewTestOpts().
 							Globals(Dict{"apply": apply}).
 							Module("module", Dict{}),
 						Int(4),
 					)
 				})
 				t.Run("source", func(t *testing.T) {
-					expectRun(t, scr,
-						newOpts().
+					TestExpectRun(t, scr,
+						NewTestOpts().
 							Globals(Dict{"apply": apply}).
 							Module("module", `return {}`),
 						Int(4),
@@ -1080,8 +1080,8 @@ apply(f1, 3)
 apply(f2, 5)
 return counter
 `
-				expectRun(t, scr,
-					newOpts().Globals(Dict{"apply": apply}),
+				TestExpectRun(t, scr,
+					NewTestOpts().Globals(Dict{"apply": apply}),
 					Int(9),
 				)
 			})
@@ -1104,8 +1104,8 @@ return counter
 `
 				expected := Int(9)
 				globals := Dict{"apply": apply, "counter": Int(1)}
-				expectRun(t, scr,
-					newOpts().Globals(globals).Skip2Pass(),
+				TestExpectRun(t, scr,
+					NewTestOpts().Globals(globals).Skip2Pass(),
 					expected,
 				)
 				if expected != globals["counter"] {
@@ -1155,16 +1155,16 @@ return [object.add1(10), object.sub1(10)]
 `
 
 	t.Run("basic", func(t *testing.T) {
-		expectRun(t, scr,
-			newOpts().Globals(Dict{"object": newobject()}),
+		TestExpectRun(t, scr,
+			NewTestOpts().Globals(Dict{"object": newobject()}),
 			Array{Int(11), Int(9)},
 		)
 	})
 
 	t.Run("counts single pass", func(t *testing.T) {
 		object := newobject()
-		expectRun(t, scr,
-			newOpts().Globals(Dict{"object": object}).Skip2Pass(),
+		TestExpectRun(t, scr,
+			NewTestOpts().Globals(Dict{"object": object}).Skip2Pass(),
 			Array{Int(11), Int(9)},
 		)
 		if object.counts["add1"] != 1 {
@@ -1177,8 +1177,8 @@ return [object.add1(10), object.sub1(10)]
 
 	t.Run("counts all pass", func(t *testing.T) {
 		object := newobject()
-		expectRun(t, scr,
-			newOpts().Globals(Dict{"object": object}),
+		TestExpectRun(t, scr,
+			NewTestOpts().Globals(Dict{"object": object}),
 			Array{Int(11), Int(9)},
 		)
 		if object.counts["add1"] <= 0 {

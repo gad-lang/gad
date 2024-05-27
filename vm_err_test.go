@@ -12,95 +12,95 @@ import (
 )
 
 func TestVMErrorHandlers(t *testing.T) {
-	expectRun(t, `try {} catch err {} finally {}`, newOpts().Skip2Pass(), Nil)
-	expectRun(t, `try {} finally {}`, newOpts().Skip2Pass(), Nil)
-	expectRun(t, `try {} catch err {}`, newOpts().Skip2Pass(), Nil)
-	expectRun(t, `try {} catch {}`, newOpts().Skip2Pass(), Nil)
+	TestExpectRun(t, `try {} catch err {} finally {}`, NewTestOpts().Skip2Pass(), Nil)
+	TestExpectRun(t, `try {} finally {}`, NewTestOpts().Skip2Pass(), Nil)
+	TestExpectRun(t, `try {} catch err {}`, NewTestOpts().Skip2Pass(), Nil)
+	TestExpectRun(t, `try {} catch {}`, NewTestOpts().Skip2Pass(), Nil)
 	// test symbol scope
-	expectRun(t, `var a = 1; try { a := 2 } catch err {} finally {}; return a`,
-		newOpts().Skip2Pass(), Int(1))
-	expectRun(t, `var a = 1; try {} catch err { a := 2 } finally {}; return a`,
-		newOpts().Skip2Pass(), Int(1))
-	expectRun(t, `var a = 1; try { a = 2 } catch err {} finally {}; return a`,
-		newOpts().Skip2Pass(), Int(2))
-	expectRun(t, `var a = 1; try {} catch err { a = 2; } finally {}; return a`,
-		newOpts().Skip2Pass(), Int(1))
-	expectRun(t, `var a; try {} catch err {} finally { a = 1 }; return a`,
-		newOpts().Skip2Pass(), Int(1))
-	expectRun(t, `var a = 1; try {} catch err {} finally { a := 2 }; return a`,
-		newOpts().Skip2Pass(), Int(1))
-	expectRun(t, `try { a := 1 } catch err {} finally { return a }`,
-		newOpts().Skip2Pass(), Int(1))
-	expectRun(t, `try { a := 1 } catch err { a = 2 } finally { return a }`,
-		newOpts().Skip2Pass(), Int(1))
-	expectRun(t, `var a = 1; try { a := 2 } catch err { a = 3 } finally { return a }`,
-		newOpts().Skip2Pass(), Int(2))
-	expectRun(t, `try {} catch err {} finally { return err }`,
-		newOpts().Skip2Pass(), Nil)
-	expectRun(t, `try { a := 1 } catch err {} finally { return err }; return 0`,
-		newOpts().Skip2Pass(), Nil)
+	TestExpectRun(t, `var a = 1; try { a := 2 } catch err {} finally {}; return a`,
+		NewTestOpts().Skip2Pass(), Int(1))
+	TestExpectRun(t, `var a = 1; try {} catch err { a := 2 } finally {}; return a`,
+		NewTestOpts().Skip2Pass(), Int(1))
+	TestExpectRun(t, `var a = 1; try { a = 2 } catch err {} finally {}; return a`,
+		NewTestOpts().Skip2Pass(), Int(2))
+	TestExpectRun(t, `var a = 1; try {} catch err { a = 2; } finally {}; return a`,
+		NewTestOpts().Skip2Pass(), Int(1))
+	TestExpectRun(t, `var a; try {} catch err {} finally { a = 1 }; return a`,
+		NewTestOpts().Skip2Pass(), Int(1))
+	TestExpectRun(t, `var a = 1; try {} catch err {} finally { a := 2 }; return a`,
+		NewTestOpts().Skip2Pass(), Int(1))
+	TestExpectRun(t, `try { a := 1 } catch err {} finally { return a }`,
+		NewTestOpts().Skip2Pass(), Int(1))
+	TestExpectRun(t, `try { a := 1 } catch err { a = 2 } finally { return a }`,
+		NewTestOpts().Skip2Pass(), Int(1))
+	TestExpectRun(t, `var a = 1; try { a := 2 } catch err { a = 3 } finally { return a }`,
+		NewTestOpts().Skip2Pass(), Int(2))
+	TestExpectRun(t, `try {} catch err {} finally { return err }`,
+		NewTestOpts().Skip2Pass(), Nil)
+	TestExpectRun(t, `try { a := 1 } catch err {} finally { return err }; return 0`,
+		NewTestOpts().Skip2Pass(), Nil)
 	expectErrHas(t, `try {} catch err {} finally { err := 1 }`,
-		newOpts().Skip2Pass().CompilerError(), `Compile Error: "err" redeclared in this block`)
-	expectRun(t, `
+		NewTestOpts().Skip2Pass().CompilerError(), `Compile Error: "err" redeclared in this block`)
+	TestExpectRun(t, `
 	try {
 		a := 1; try {} catch err {} finally { err = 2 }
 	} catch err {} finally { return err }; return 0`,
-		newOpts().Skip2Pass(), Nil)
+		NewTestOpts().Skip2Pass(), Nil)
 
 	// return
-	expectRun(t, `var a = 1; try { return a } finally { a = 2 }`,
-		newOpts().Skip2Pass(), Int(1))
-	expectRun(t, `var a = 1; try { throw "an error" } catch {} finally { a = 2 }; return a`,
-		newOpts().Skip2Pass(), Int(2))
-	expectRun(t, `var a = 1; try { throw "an error" } catch { return a } finally { a = 2 }; return 0`,
-		newOpts().Skip2Pass(), Int(1))
-	expectRun(t, `var a = 1; try { throw "an error" } catch {} finally { a = 2 }; return a`,
-		newOpts().Skip2Pass(), Int(2))
-	expectRun(t, `var a = 1; try { throw "an error" } catch err {} finally { return str(err) }; return a`,
-		newOpts().Skip2Pass(), Str((&Error{Message: "an error"}).ToString()))
-	expectRun(t, `var a = 1; try { throw "an error" } catch err {} finally { return typeName(err) }; return a`,
-		newOpts().Skip2Pass(), Str("error"))
-	expectRun(t, `var a = 1; try { a = 2 } finally { return a }; return 0`,
-		newOpts().Skip2Pass(), Int(2))
-	expectRun(t, `var a = 1; try { return a } finally { return 2 }; return 0`,
-		newOpts().Skip2Pass(), Int(2))
-	expectRun(t, `a := 1; b := 2; c := func(){ try { return a+1 } finally { b = 3 } }(); return [a, b, c]`,
-		newOpts().Skip2Pass(), Array{Int(1), Int(3), Int(2)})
-	expectRun(t, `
+	TestExpectRun(t, `var a = 1; try { return a } finally { a = 2 }`,
+		NewTestOpts().Skip2Pass(), Int(1))
+	TestExpectRun(t, `var a = 1; try { throw "an error" } catch {} finally { a = 2 }; return a`,
+		NewTestOpts().Skip2Pass(), Int(2))
+	TestExpectRun(t, `var a = 1; try { throw "an error" } catch { return a } finally { a = 2 }; return 0`,
+		NewTestOpts().Skip2Pass(), Int(1))
+	TestExpectRun(t, `var a = 1; try { throw "an error" } catch {} finally { a = 2 }; return a`,
+		NewTestOpts().Skip2Pass(), Int(2))
+	TestExpectRun(t, `var a = 1; try { throw "an error" } catch err {} finally { return str(err) }; return a`,
+		NewTestOpts().Skip2Pass(), Str((&Error{Message: "an error"}).ToString()))
+	TestExpectRun(t, `var a = 1; try { throw "an error" } catch err {} finally { return typeName(err) }; return a`,
+		NewTestOpts().Skip2Pass(), Str("error"))
+	TestExpectRun(t, `var a = 1; try { a = 2 } finally { return a }; return 0`,
+		NewTestOpts().Skip2Pass(), Int(2))
+	TestExpectRun(t, `var a = 1; try { return a } finally { return 2 }; return 0`,
+		NewTestOpts().Skip2Pass(), Int(2))
+	TestExpectRun(t, `a := 1; b := 2; c := func(){ try { return a+1 } finally { b = 3 } }(); return [a, b, c]`,
+		NewTestOpts().Skip2Pass(), Array{Int(1), Int(3), Int(2)})
+	TestExpectRun(t, `
 	var a;
 	try {
 		a := 1; try {} finally { return 2 }
 	} finally { return a }; return 0`,
-		newOpts().Skip2Pass(), Int(1))
-	expectRun(t, `
+		NewTestOpts().Skip2Pass(), Int(1))
+	TestExpectRun(t, `
 	var a;
 	try {
 		a := 1; try {} finally { a++; return a }
 	} finally { return a }; return 0`,
-		newOpts().Skip2Pass(), Int(2))
-	expectRun(t, `
+		NewTestOpts().Skip2Pass(), Int(2))
+	TestExpectRun(t, `
 	var a;
 	try {
 		a := 1; try {} finally { return a }
 	} finally { a++; }; return 0`,
-		newOpts().Skip2Pass(), Int(1))
-	expectRun(t, `
+		NewTestOpts().Skip2Pass(), Int(1))
+	TestExpectRun(t, `
 	var a;
 	try {
 		a := 1; try { throw "an error" } catch { return a }
 	} finally { a++; }; return 0`,
-		newOpts().Skip2Pass(), Int(1))
-	expectRun(t, `
+		NewTestOpts().Skip2Pass(), Int(1))
+	TestExpectRun(t, `
 	var a = 1;
 	try {
 		a := 2; try { throw "an error" } catch { return a }
 	} finally { return a }; return 0`,
-		newOpts().Skip2Pass(), Int(2))
+		NewTestOpts().Skip2Pass(), Int(2))
 
 	// errors
-	expectErrIs(t, `throw InvalidOperatorError`, newOpts().Skip2Pass(), ErrInvalidOperator)
+	expectErrIs(t, `throw InvalidOperatorError`, NewTestOpts().Skip2Pass(), ErrInvalidOperator)
 	var invOpErr *RuntimeError
-	expectErrAs(t, `throw InvalidOperatorError`, newOpts().Skip2Pass(), &invOpErr, nil)
+	expectErrAs(t, `throw InvalidOperatorError`, NewTestOpts().Skip2Pass(), &invOpErr, nil)
 	require.NotNil(t, invOpErr.Err)
 	require.Equal(t, "", invOpErr.Err.Message)
 	require.Nil(t, invOpErr.Err.Cause)
@@ -108,12 +108,12 @@ func TestVMErrorHandlers(t *testing.T) {
 	require.Equal(t, source.Pos(1), invOpErr.Trace[0])
 
 	expectErrIs(t, `try { throw WrongNumArgumentsError } catch err { throw err }`,
-		newOpts().Skip2Pass(), ErrWrongNumArguments)
+		NewTestOpts().Skip2Pass(), ErrWrongNumArguments)
 	expectErrHas(t, `try { throw WrongNumArgumentsError.New("expected 1 got 2") } catch err { throw err }`,
-		newOpts().Skip2Pass(), "WrongNumberOfArgumentsError: expected 1 got 2")
+		NewTestOpts().Skip2Pass(), "WrongNumberOfArgumentsError: expected 1 got 2")
 	var errZeroDiv *RuntimeError
 	expectErrAs(t, `try { throw ZeroDivisionError.New("x") } catch err { throw err }`,
-		newOpts().Skip2Pass(), &errZeroDiv, nil)
+		NewTestOpts().Skip2Pass(), &errZeroDiv, nil)
 	require.NotNil(t, errZeroDiv.Err)
 	require.Equal(t, "x", errZeroDiv.Err.Message)
 	require.Equal(t, ErrZeroDivision, errZeroDiv.Err.Cause)
@@ -122,7 +122,7 @@ func TestVMErrorHandlers(t *testing.T) {
 	require.Equal(t, source.Pos(54), errZeroDiv.Trace[1])
 
 	errZeroDiv = nil
-	expectErrAs(t, `func(x) { return 1/x }(0)`, newOpts().Skip2Pass(), &errZeroDiv, nil)
+	expectErrAs(t, `func(x) { return 1/x }(0)`, NewTestOpts().Skip2Pass(), &errZeroDiv, nil)
 	require.NotNil(t, errZeroDiv.Err)
 	require.Equal(t, "", errZeroDiv.Err.Message)
 	require.Equal(t, nil, errZeroDiv.Err.Cause)
@@ -131,7 +131,7 @@ func TestVMErrorHandlers(t *testing.T) {
 	require.Equal(t, source.Pos(1), errZeroDiv.Trace[1])
 
 	errZeroDiv = nil
-	expectErrAs(t, `1/0`, newOpts().Skip2Pass(), &errZeroDiv, nil)
+	expectErrAs(t, `1/0`, NewTestOpts().Skip2Pass(), &errZeroDiv, nil)
 	require.NotNil(t, invOpErr.Err)
 	require.Equal(t, "", errZeroDiv.Err.Message)
 	require.Equal(t, nil, errZeroDiv.Err.Cause)
@@ -160,88 +160,88 @@ func TestVMNoPanic(t *testing.T) {
 		t.Fatalf("expected panic but got err=%v\nreturn value=%v", err, v)
 	}()
 
-	expectRun(t, `param panic; out := 0; 
+	TestExpectRun(t, `param panic; out := 0; 
 	try { panic("1") } catch { out |= 1 } finally { out |= 2 }; return out`,
-		newOpts().NoPanic().Args(panicFunc), Int(1|2))
-	expectRun(t, `param panic; out := 0;
+		NewTestOpts().NoPanic().Args(panicFunc), Int(1|2))
+	TestExpectRun(t, `param panic; out := 0;
 	try { 
 	try { panic("1") } finally { out |= 1 }
 	} catch { out |= 2 } finally { out |= 4 }; return out`,
-		newOpts().NoPanic().Args(panicFunc), Int(1|2|4))
-	expectRun(t, `param panic; out := 0;
+		NewTestOpts().NoPanic().Args(panicFunc), Int(1|2|4))
+	TestExpectRun(t, `param panic; out := 0;
 	try { 
 	try { panic() } finally { out |= 1 }
 	} catch { out |= 2 } finally { out |= 4 }; return out`,
-		newOpts().NoPanic().Args(panicFunc), Int(1|2|4))
-	expectRun(t, `param panic; out := 0;
+		NewTestOpts().NoPanic().Args(panicFunc), Int(1|2|4))
+	TestExpectRun(t, `param panic; out := 0;
 	try { 
 	try {} finally {  panic(); out |= 1 }
 	} catch { out |= 2 } finally { out |= 4 }; return out`,
-		newOpts().NoPanic().Args(panicFunc), Int(2|4))
-	expectRun(t, `param panic; out := 0;
+		NewTestOpts().NoPanic().Args(panicFunc), Int(2|4))
+	TestExpectRun(t, `param panic; out := 0;
 	try { 
 	try {} finally { out |= 1 }; panic();
 	} catch { out |= 2 } finally { out |= 4 }; return out`,
-		newOpts().NoPanic().Args(panicFunc), Int(1|2|4))
-	expectRun(t, `param panic; out := 0;
+		NewTestOpts().NoPanic().Args(panicFunc), Int(1|2|4))
+	TestExpectRun(t, `param panic; out := 0;
 	try { 
 	panic(); try {} finally { out |= 1 };
 	} catch { out |= 2 } finally { out |= 4 }; return out`,
-		newOpts().NoPanic().Args(panicFunc), Int(2|4))
-	expectRun(t, `param panic; out := 0;
+		NewTestOpts().NoPanic().Args(panicFunc), Int(2|4))
+	TestExpectRun(t, `param panic; out := 0;
 	try { 
 	try {} catch { panic() } finally { out |= 1 };
 	} catch { out |= 2 } finally { out |= 4 }; return out`,
-		newOpts().NoPanic().Args(panicFunc), Int(1|4))
-	expectRun(t, `param panic;
+		NewTestOpts().NoPanic().Args(panicFunc), Int(1|4))
+	TestExpectRun(t, `param panic;
 	try { 
 	panic()
 	} catch { return 1 } finally { return 2 }; return 0`,
-		newOpts().NoPanic().Args(panicFunc), Int(2))
-	expectRun(t, `param panic;
+		NewTestOpts().NoPanic().Args(panicFunc), Int(2))
+	TestExpectRun(t, `param panic;
 	try { 
 	panic()
 	} catch { return 1 } finally {}; return 0`,
-		newOpts().NoPanic().Args(panicFunc), Int(1))
-	expectRun(t, `param panic;
+		NewTestOpts().NoPanic().Args(panicFunc), Int(1))
+	TestExpectRun(t, `param panic;
 	try { 
 	panic()
 	} catch {} finally {}; return 0`,
-		newOpts().NoPanic().Args(panicFunc), Int(0))
+		NewTestOpts().NoPanic().Args(panicFunc), Int(0))
 
-	expectRun(t, `param panic;
+	TestExpectRun(t, `param panic;
 	try { 
 	func() { panic() }()
 	} catch { return 1 } finally {}; return 0`,
-		newOpts().NoPanic().Args(panicFunc), Int(1))
+		NewTestOpts().NoPanic().Args(panicFunc), Int(1))
 
 	expectErrHas(t, `param panic; panic();`,
-		newOpts().NoPanic().Args(panicFunc), `index out of range [0] with length 0`)
-	expectRun(t, `param panic;
+		NewTestOpts().NoPanic().Args(panicFunc), `index out of range [0] with length 0`)
+	TestExpectRun(t, `param panic;
 	try { 
 		try { func() { panic() }() } finally { return 5 }
 	} catch { return 1 } finally { return 2 }; return 0`,
-		newOpts().NoPanic().Args(panicFunc), Int(2))
-	expectRun(t, `param panic;
+		NewTestOpts().NoPanic().Args(panicFunc), Int(2))
+	TestExpectRun(t, `param panic;
 	try { 
 		try { func() { panic() }() } finally { return 5 }
 	} catch { return 1 } finally {}; return 0`,
-		newOpts().NoPanic().Args(panicFunc), Int(5))
-	expectRun(t, `param panic;
+		NewTestOpts().NoPanic().Args(panicFunc), Int(5))
+	TestExpectRun(t, `param panic;
 	try { 
 		try { func() { panic() }() } catch { return 5 }
 	} catch { return 1 } finally {}; return 0`,
-		newOpts().NoPanic().Args(panicFunc), Int(5))
-	expectRun(t, `param panic;
+		NewTestOpts().NoPanic().Args(panicFunc), Int(5))
+	TestExpectRun(t, `param panic;
 	try { 
 		try { func() { panic() }() } finally {}
 	} catch {}; return 0`,
-		newOpts().NoPanic().Args(panicFunc), Int(0))
+		NewTestOpts().NoPanic().Args(panicFunc), Int(0))
 	expectErrHas(t, `param panic;
 	try { 
 		try { func() { panic() }() } finally {}
 	} finally {}; return 0`,
-		newOpts().NoPanic().Args(panicFunc), `index out of range [0] with length 0`)
+		NewTestOpts().NoPanic().Args(panicFunc), `index out of range [0] with length 0`)
 }
 
 func TestVMCatchAll(t *testing.T) {
@@ -253,7 +253,7 @@ func TestVMCatchAll(t *testing.T) {
 			return err
 		}
 	}`
-	expectRun(t, `
+	TestExpectRun(t, `
 	catchAll := import("catchAll")
 
 	sum := func(a, b, c) {
@@ -275,7 +275,7 @@ func TestVMCatchAll(t *testing.T) {
 		catchAll(sum),
 		catchAll(sum, 1, 2, 3, 4),
 	])
-	`, newOpts().Module("catchAll", catchAll),
+	`, NewTestOpts().Module("catchAll", catchAll),
 		Array{
 			Str("6"),
 			Str("WrongNumberOfArgumentsError: want=3 got=2"),
@@ -302,7 +302,7 @@ func TestVMCatchAll(t *testing.T) {
 			}
 		}
 	}`
-	expectRun(t, `
+	TestExpectRun(t, `
 	catchAll2 := import("catchAll2")
 
 	sum := func(a, b, c) {
@@ -328,7 +328,7 @@ func TestVMCatchAll(t *testing.T) {
 		catchAll2(sum, onError, 10, 20, 30, 40),
 		catchAll2(sum, onError, 11, 21, 31),
 	]
-	`, newOpts().Module("catchAll2", catchAll2),
+	`, NewTestOpts().Module("catchAll2", catchAll2),
 		Array{
 			Int(60),
 			Int(-1),
@@ -342,7 +342,7 @@ func TestVMCatchAll(t *testing.T) {
 
 func TestVMAssert(t *testing.T) {
 	g := Dict{}
-	expectRun(t, `
+	TestExpectRun(t, `
 	global errs
 
 	assertTrue := func(v, msg) {
@@ -377,7 +377,7 @@ func TestVMAssert(t *testing.T) {
 	assertTrue(numFails > 0, sprintf("numFails expected > 0 but got %d", numFails))
 	assertTrue(numRun == len(arr), sprintf("numRun expected %d but got %d", len(arr), numRun))
 	return [numFails, numRun]
-	`, newOpts().Globals(g).Skip2Pass(),
+	`, NewTestOpts().Globals(g).Skip2Pass(),
 		Array{Int(2), Int(5)},
 	)
 	require.Equal(t, 1, len(g))
@@ -388,7 +388,7 @@ func TestVMAssert(t *testing.T) {
 }
 
 func TestVMLoop(t *testing.T) {
-	expectRun(t, `
+	TestExpectRun(t, `
 	var f = func() {
 		var x = 0
 		for i := 0; i < 5; i++ {
@@ -409,7 +409,7 @@ func TestVMLoop(t *testing.T) {
 	return f()
 	`, nil, Int(10))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var f = func() {
 		var x = 0
 		for i := 0; i < 5; i++ {
@@ -430,7 +430,7 @@ func TestVMLoop(t *testing.T) {
 	return f()
 	`, nil, Int(10))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var f = func() {
 		var x = 0
 		for i := 0; i < 5; i++ {
@@ -451,7 +451,7 @@ func TestVMLoop(t *testing.T) {
 	return f()
 	`, nil, Int(2))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var f = func() {
 		var x = 0
 		for i := 0; i < 5; i++ {
@@ -473,7 +473,7 @@ func TestVMLoop(t *testing.T) {
 	return f()
 	`, nil, Int(0))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var f = func() {
 		var x = 0
 		for i := 0; i < 5; i++ {
@@ -495,7 +495,7 @@ func TestVMLoop(t *testing.T) {
 	return f()
 	`, nil, Int(0))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var f = func() {
 		var x = 0
 		for i := 0; i < 5; i++ {
@@ -517,7 +517,7 @@ func TestVMLoop(t *testing.T) {
 	return f()
 	`, nil, Int(1))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var f = func() {
 		var x = 0
 		for i := 0; i < 5; i++ {
@@ -539,7 +539,7 @@ func TestVMLoop(t *testing.T) {
 	return f()
 	`, nil, Int(1))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var f = func() {
 		var x = 0
 		for i := 0; i < 5; i++ {
@@ -561,7 +561,7 @@ func TestVMLoop(t *testing.T) {
 	return f()
 	`, nil, Int(5))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var f = func() {
 		var x = 0
 		for i := 0; i < 5; i++ {
@@ -573,7 +573,7 @@ func TestVMLoop(t *testing.T) {
 	return f()
 	`, nil, Int(0))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var f = func() {
 		var x = 0
 		try {
@@ -588,7 +588,7 @@ func TestVMLoop(t *testing.T) {
 	return f()
 	`, nil, Int(1))
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	var x = 0
 	try {
 		for i := 5; i > 0; i-- {
@@ -608,16 +608,16 @@ func TestVMErrorUnwrap(t *testing.T) {
 			return nil, err1
 		},
 	}}
-	expectErrIs(t, `global fn; fn()`, newOpts().Globals(g), err1)
+	expectErrIs(t, `global fn; fn()`, NewTestOpts().Globals(g), err1)
 	expectErrIs(t, `import("module")()`,
-		newOpts().Globals(g).Module("module", `global fn; return fn`), err1)
+		NewTestOpts().Globals(g).Module("module", `global fn; return fn`), err1)
 
 	g.(Dict)["fn"] = &Function{
 		Value: func(Call) (Object, error) {
 			return &Error{Cause: err1}, nil
 		},
 	}
-	expectErrIs(t, `global fn; throw fn()`, newOpts().Globals(g), err1)
+	expectErrIs(t, `global fn; throw fn()`, NewTestOpts().Globals(g), err1)
 
 	g.(Dict)["fn"] = &Function{
 		Value: func(Call) (Object, error) {
@@ -625,7 +625,7 @@ func TestVMErrorUnwrap(t *testing.T) {
 		},
 	}
 	expectErrIs(t, `global fn; throw fn()`,
-		newOpts().Globals(g), ErrZeroDivision)
+		NewTestOpts().Globals(g), ErrZeroDivision)
 
 	g.(Dict)["fn"] = &Function{
 		Value: func(Call) (Object, error) {
@@ -633,10 +633,10 @@ func TestVMErrorUnwrap(t *testing.T) {
 		},
 	}
 	expectErrIs(t, `global fn; fn()`,
-		newOpts().Globals(g), ErrZeroDivision)
+		NewTestOpts().Globals(g), ErrZeroDivision)
 
-	expectErrIs(t, `throw TypeError`, newOpts().Globals(g), ErrType)
-	expectErrIs(t, `throw TypeError.New("foo")`, newOpts().Globals(g), ErrType)
+	expectErrIs(t, `throw TypeError`, NewTestOpts().Globals(g), ErrType)
+	expectErrIs(t, `throw TypeError.New("foo")`, NewTestOpts().Globals(g), ErrType)
 }
 
 func TestVMExamples(t *testing.T) {
@@ -716,8 +716,8 @@ func TestVMExamples(t *testing.T) {
 `
 
 	var cleanupCall int
-	expectRun(t, ex1MainScript,
-		newOpts().Module("module", ex1Module).Globals(Dict{
+	TestExpectRun(t, ex1MainScript,
+		NewTestOpts().Module("module", ex1Module).Globals(Dict{
 			"DoCleanup": &Function{
 				Value: func(Call) (Object, error) {
 					// a dummy callable to export to script
@@ -731,8 +731,8 @@ func TestVMExamples(t *testing.T) {
 
 	printWriter := bytes.NewBuffer(nil)
 	cleanupCall = 0
-	expectRun(t, ex1MainScript,
-		newOpts().
+	TestExpectRun(t, ex1MainScript,
+		NewTestOpts().
 			Out(printWriter).
 			Module("module", ex1Module).
 			Globals(Dict{
@@ -760,7 +760,7 @@ func TestVMExamples(t *testing.T) {
 		"sum func has error: TypeError: want int, got nil at index 0\n",
 		printWriter.String())
 
-	expectRun(t, `
+	TestExpectRun(t, `
 	param *args
 
 	mapEach := func(seq, fn) {
@@ -789,7 +789,7 @@ func TestVMExamples(t *testing.T) {
 	global multiplier
 
 	return mapEach(args, func(x) { return x*multiplier })
-	`, newOpts().
+	`, NewTestOpts().
 		Out(printWriter).
 		Globals(Dict{"multiplier": Int(2)}).
 		Args(Int(1), Int(2), Int(3), Int(4)),
@@ -827,19 +827,19 @@ func TestVMExamples(t *testing.T) {
 	}
 `
 	var g IndexGetSetter = Dict{}
-	expectRun(t, scr, newOpts().Out(printWriter).Globals(g).Args(Nil), Int(-1))
+	TestExpectRun(t, scr, NewTestOpts().Out(printWriter).Globals(g).Args(Nil), Int(-1))
 	require.Equal(t, 1, len(g.(Dict)))
 	require.Equal(t, True, g.(Dict)["notAnInt"])
 
 	g = Dict{}
-	expectRun(t, scr, newOpts().Out(printWriter).Globals(g).Args(Int(0)), Int(-1))
+	TestExpectRun(t, scr, NewTestOpts().Out(printWriter).Globals(g).Args(Int(0)), Int(-1))
 	require.Equal(t, 1, len(g.(Dict)))
 	require.Equal(t, True, g.(Dict)["zeroDivision"])
 
-	expectRun(t, scr, newOpts().Out(printWriter).Args(Int(2)), Int(5))
+	TestExpectRun(t, scr, NewTestOpts().Out(printWriter).Args(Int(2)), Int(5))
 
 	g = &SyncDict{Value: Dict{"stats": Dict{"fn1": Int(0), "fn2": Int(0)}}}
-	expectRun(t, `
+	TestExpectRun(t, `
 	global stats
 
 	fn1 := func() {
@@ -851,7 +851,7 @@ func TestVMExamples(t *testing.T) {
 
 	fn2 := import("module")
 	fn2()
-	`, newOpts().Module("module", `
+	`, NewTestOpts().Module("module", `
 	global stats
 
 	return func() {
