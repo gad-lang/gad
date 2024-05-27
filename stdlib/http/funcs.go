@@ -78,7 +78,7 @@ func Get(call gad.Call) (_ gad.Object, err error) {
 	return nil, gad.ErrType.NewError(fmt.Sprintf("unseccessful response type %d %s", r.StatusCode, r.Status))
 }
 
-func Url(call gad.Call) (_ gad.Object, err error) {
+func URL(call gad.Call) (_ gad.Object, err error) {
 	var (
 		s = gad.Arg{
 			Name:          "url",
@@ -90,21 +90,21 @@ func Url(call gad.Call) (_ gad.Object, err error) {
 		return
 	}
 
-	var Url *url.URL
+	var URL *url.URL
 
-	if Url, err = url.Parse(s.Value.ToString()); err != nil {
+	if URL, err = url.Parse(s.Value.ToString()); err != nil {
 		return
 	}
 
-	q := Url.Query()
+	q := URL.Query()
 
 	call.NamedArgs.Walk(func(na *gad.KeyValue) error {
 		q.Add(na.K.ToString(), na.V.ToString())
 		return nil
 	})
 
-	Url.RawQuery = ""
-	return gad.Str(Url.String()), nil
+	URL.RawQuery = ""
+	return gad.Str(URL.String()), nil
 }
 
 func Header(call gad.Call) (gad.Object, error) {

@@ -9,7 +9,7 @@ import (
 var Module = gad.Dict{
 	"url": &gad.Function{
 		Name:  "url",
-		Value: Url,
+		Value: URL,
 	},
 	"header": &gad.Function{
 		Name:  "header",
