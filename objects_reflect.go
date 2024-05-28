@@ -318,8 +318,16 @@ func (r *ReflectType) New(vm *VM, m Dict) (_ Object, err error) {
 	case reflect.Struct:
 		rv = reflect.New(r.RType).Elem()
 		obj := &ReflectStruct{
-			ReflectValue: ReflectValue{RType: r, RValue: rv, Options: &ReflectValueOptions{}},
+			ReflectValue: ReflectValue{
+				RType:   r,
+				RValue:  rv,
+				Options: &ReflectValueOptions{},
+				ptr:     true,
+			},
 		}
+
+		obj.Init()
+
 		for s, v := range m {
 			if err = obj.indexSet(vm, s, v); err != nil {
 				return
