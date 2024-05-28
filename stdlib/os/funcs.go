@@ -35,7 +35,13 @@ func Exec(c gad.Call) (o gad.Object, err error) {
 	var (
 		naio = c.NamedArgs.GetValueOrNil("io")
 		typ  = gad.NewReflectType(reflect.TypeOf(cmdu.CmdBuilder{}))
+		args []string
 	)
+
+	c.Args.Walk(func(i int, arg gad.Object) any {
+		args = append(args, arg.ToString())
+		return nil
+	})
 
 	if o, err = typ.Call(c); err != nil {
 		return
@@ -43,8 +49,16 @@ func Exec(c gad.Call) (o gad.Object, err error) {
 
 	var (
 		Cmd     *cmdu.Cmd
-		builder = o.(gad.ReflectValuer).ToInterface().(cmdu.CmdBuilder)
+		builder = o.(gad.ReflectValuer).ToInterface().(*cmdu.CmdBuilder)
 	)
+
+	if builder.Name == "" {
+		if len(args) > 0 {
+			builder.Name, args = args[0], args[1:]
+		}
+	}
+
+	builder.Args = args
 
 	o = gad.Nil
 

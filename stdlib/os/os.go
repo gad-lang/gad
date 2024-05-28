@@ -13,8 +13,8 @@ var (
 	Module = gad.Dict{
 		"FileFlag":     TFileFlag,
 		"pwd":          gad.MustNewReflectValue(os.Getwd),
-		"uid":          gad.MustNewReflectValue(os.Getuid()),
-		"gid":          gad.MustNewReflectValue(os.Getgid()),
+		"uid":          gad.MustNewReflectValue(os.Getuid),
+		"gid":          gad.MustNewReflectValue(os.Getgid),
 		"homeDir":      gad.MustNewReflectValue(os.UserHomeDir),
 		"user":         gad.MustNewReflectValue(user.Current),
 		"getUser":      gad.MustNewReflectValue(user.Lookup),
