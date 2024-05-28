@@ -9,10 +9,10 @@ import (
 )
 
 const (
-	// Exactly one of OReadOnly, OWriteOnly, or OReadWrite must be specified.
-	OReadOnly  FileFlag = syscall.O_RDONLY // open the file read-only.
-	OWriteOnly FileFlag = syscall.O_WRONLY // open the file write-only.
-	OReadWrite FileFlag = syscall.O_RDWR   // open the file read-write.
+	// Exactly one of ORo, OWo, or ORW must be specified.
+	ORo FileFlag = syscall.O_RDONLY // open the file read-only.
+	OWo FileFlag = syscall.O_WRONLY // open the file write-only.
+	ORW FileFlag = syscall.O_RDWR   // open the file read-write.
 	// The remaining values may be or'ed in to control behavior.
 	OAppend      FileFlag = syscall.O_APPEND // append data to the file when writing.
 	OCreate      FileFlag = syscall.O_CREAT  // create a new file if none exists.
@@ -48,14 +48,14 @@ func (f *FileFlag) Toggle(flag FileFlag) *FileFlag { *f = *f ^ flag; return f }
 func (f FileFlag) Has(flag FileFlag) bool          { return f&flag != 0 }
 func (f FileFlag) String() string {
 	var s []string
-	if f.Has(OReadOnly) {
-		s = append(s, "read_only")
+	if f.Has(ORo) {
+		s = append(s, "ro")
 	}
-	if f.Has(OWriteOnly) {
-		s = append(s, "write_only")
+	if f.Has(OWo) {
+		s = append(s, "wo")
 	}
-	if f.Has(OReadWrite) {
-		s = append(s, "read_write")
+	if f.Has(ORW) {
+		s = append(s, "rw")
 	}
 	if f.Has(OAppend) {
 		s = append(s, "append")
@@ -102,9 +102,9 @@ try:
 }
 
 var FileModeByName = map[string]FileFlag{
-	"read_only":     OReadOnly,
-	"write_only":    OWriteOnly,
-	"read_write":    OReadWrite,
+	"ro":            ORo,
+	"wo":            OWo,
+	"rw":            ORW,
 	"append":        OAppend,
 	"create":        OCreate,
 	"if_not_exists": OIfNotExists,
@@ -127,9 +127,9 @@ var TFileFlag = &gad.Type{
 		Value: NewFileMode,
 	},
 	Static: gad.Dict{
-		"ReadOnly":    OReadOnly,
-		"WriteOnly":   OWriteOnly,
-		"ReadWrite":   OReadWrite,
+		"RO":          ORo,
+		"WO":          OWo,
+		"RW":          ORW,
 		"Append":      OAppend,
 		"Create":      OCreate,
 		"IfNotExists": OIfNotExists,

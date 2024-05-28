@@ -44,15 +44,15 @@ func TestNewFileMode(t *testing.T) {
 
 func TestRunNewFileMode(t *testing.T) {
 	expectRun(t, "return os.FileFlag", nil, TFileFlag)
-	expectRun(t, "return os.FileFlag.ReadOnly", nil, OReadOnly)
-	expectRun(t, "return os.FileFlag.ReadOnly|os.FileFlag.WriteOnly", nil, OReadOnly|OWriteOnly)
-	expectRun(t, "return os.FileFlag()", nil, OReadOnly)
-	expectRun(t, "return os.FileFlag(0)", nil, OReadOnly)
-	expectRun(t, "return os.FileFlag(1|1052672)", nil, OReadOnly|OWriteOnly|OSync)
-	expectRun(t, "return os.FileFlag(0u)", nil, OReadOnly)
-	expectRun(t, `return os.FileFlag(1u|1052672u)`, nil, OReadOnly|OWriteOnly|OSync)
-	expectRun(t, `return os.FileFlag("")`, nil, OReadOnly)
-	expectRun(t, `return os.FileFlag("read_only|write_only|sync")`, nil, OReadOnly|OWriteOnly|OSync)
+	expectRun(t, "return os.FileFlag.RO", nil, ORo)
+	expectRun(t, "return os.FileFlag.RO|os.FileFlag.WO", nil, ORo|OWo)
+	expectRun(t, "return os.FileFlag()", nil, ORo)
+	expectRun(t, "return os.FileFlag(0)", nil, ORo)
+	expectRun(t, "return os.FileFlag(1|1052672)", nil, ORo|OWo|OSync)
+	expectRun(t, "return os.FileFlag(0u)", nil, ORo)
+	expectRun(t, `return os.FileFlag(1u|1052672u)`, nil, ORo|OWo|OSync)
+	expectRun(t, `return os.FileFlag("")`, nil, ORo)
+	expectRun(t, `return os.FileFlag("ro|wo|sync")`, nil, ORo|OWo|OSync)
 }
 
 func expectRun(t *testing.T, script string, opts *gad.TestOpts, expect gad.Object) {

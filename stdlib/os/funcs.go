@@ -176,7 +176,7 @@ func OpenFile(c gad.Call) (o gad.Object, err error) {
 		flag = &gad.NamedArgVar{
 			Name:          "flag",
 			TypeAssertion: gad.TypeAssertionFromTypes(TFileFlag),
-			Value:         OReadOnly,
+			Value:         ORo,
 		}
 
 		perm = &gad.NamedArgVar{
