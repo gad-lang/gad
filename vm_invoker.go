@@ -20,12 +20,13 @@ package gad
 // Using VM pool is about three times faster than creating a new VM for each
 // CallWrapper call.
 type Invoker struct {
-	vm         *VM
-	child      *VM
-	callee     Object
-	isCompiled bool
-	dorelease  bool
-	validArgs  bool
+	vm              *VM
+	child           *VM
+	callee          Object
+	isCompiled      bool
+	dorelease       bool
+	validArgs       bool
+	prepareHandlers []func(vm *VM)
 }
 
 // NewInvoker creates a new Invoker object.
@@ -33,6 +34,14 @@ func NewInvoker(vm *VM, callee Object) *Invoker {
 	inv := &Invoker{vm: vm, callee: callee}
 	_, inv.isCompiled = inv.callee.(*CompiledFunction)
 	return inv
+}
+
+func (inv *Invoker) Prepare(f func(vm *VM)) {
+	inv.prepareHandlers = append(inv.prepareHandlers, f)
+}
+
+func (inv *Invoker) PrepareHandlers() []func(vm *VM) {
+	return inv.prepareHandlers
 }
 
 // Acquire acquires a VM from the pool.
@@ -82,6 +91,10 @@ func (inv *Invoker) Invoke(args Args, namedArgs *NamedArgs) (Object, error) {
 	inv.child.StdIn = inv.vm.StdIn
 	inv.child.StdOut = inv.vm.StdOut
 	inv.child.StdErr = inv.vm.StdErr
+
+	for _, handler := range inv.prepareHandlers {
+		handler(inv.child)
+	}
 
 	if inv.isCompiled {
 		cf := inv.callee.(*CompiledFunction)
