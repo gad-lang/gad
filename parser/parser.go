@@ -943,6 +943,8 @@ func (p *Parser) ParseOperand() node.Expr {
 		return p.ParseRawStringLit()
 	case token.Throw:
 		return p.ParseThrowExpr()
+	case token.Return:
+		return p.ParseReturnExpr()
 	}
 
 	pos := p.Token.Pos
@@ -1252,7 +1254,11 @@ func (p *Parser) ParseFuncLit() node.Expr {
 	p.ExprLevel--
 	if closure != nil {
 		body = &node.BlockStmt{
-			Stmts: []node.Stmt{&node.ReturnStmt{Result: closure}},
+			Stmts: []node.Stmt{&node.ReturnStmt{
+				Return: node.Return{
+					Result: closure,
+				},
+			}},
 		}
 	}
 	return &node.FuncLit{
@@ -2328,42 +2334,48 @@ func (p *Parser) MakeExpr(s node.Stmt, want string) node.Expr {
 	return &node.BadExpr{From: s.Pos(), To: p.safePos(s.End())}
 }
 
-func (p *Parser) ParseReturnStmt() node.Stmt {
-	if p.Trace {
-		defer untracep(tracep(p, "ReturnStmt"))
-	}
-
-	pos := p.Token.Pos
+func (p *Parser) ParseReturn() (ret node.Return) {
+	ret.ReturnPos = p.Token.Pos
 	p.Expect(token.Return)
 
-	var x node.Expr
 	if p.Token.Token != token.Semicolon && p.Token.Token != token.RBrace {
 		lbpos := p.Token.Pos
-		x = p.ParseExpr()
+		ret.Result = p.ParseExpr()
 		if p.Token.Token != token.Comma {
 			goto done
 		}
 		// if the next token is a comma, treat it as multi return so put
 		// expressions into a slice and replace x expression with an ArrayLit.
 		elements := make([]node.Expr, 1, 2)
-		elements[0] = x
+		elements[0] = ret.Result
 		for p.Token.Token == token.Comma {
 			p.Next()
-			x = p.ParseExpr()
-			elements = append(elements, x)
+			ret.Result = p.ParseExpr()
+			elements = append(elements, ret.Result)
 		}
-		x = &node.ArrayLit{
+		ret.Result = &node.ArrayLit{
 			Elements: elements,
 			LBrack:   lbpos,
-			RBrack:   x.End(),
+			RBrack:   ret.Result.End(),
 		}
 	}
 done:
-	p.ExpectSemi()
-	return &node.ReturnStmt{
-		ReturnPos: pos,
-		Result:    x,
+	return
+}
+
+func (p *Parser) ParseReturnStmt() node.Stmt {
+	if p.Trace {
+		defer untracep(tracep(p, "ReturnStmt"))
 	}
+	defer p.ExpectSemi()
+	return &node.ReturnStmt{Return: p.ParseReturn()}
+}
+
+func (p *Parser) ParseReturnExpr() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "ReturnExpr"))
+	}
+	return &node.ReturnExpr{Return: p.ParseReturn()}
 }
 
 func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {

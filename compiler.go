@@ -533,7 +533,9 @@ func (c *Compiler) Compile(nd ast.Node) error {
 	case *node.KeyValueLit:
 		return c.compileKeyValueLit(nt)
 	case *node.ReturnStmt:
-		return c.compileReturnStmt(nt)
+		return c.compileReturn(&nt.Return)
+	case *node.ReturnExpr:
+		return c.compileReturn(&nt.Return)
 	case *node.CallExpr:
 		return c.compileCallExpr(nt)
 	case *node.ImportExpr:

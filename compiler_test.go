@@ -2446,6 +2446,51 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 }
 
+func TestCompilerReturn(t *testing.T) {
+	expectCompile(t, `return`, bytecode(
+		Array{},
+		compFunc(concatInsts(
+			makeInst(OpReturn, 0),
+		),
+			withLocals(0),
+		),
+	))
+	expectCompile(t, `return 1`, bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpReturn, 1),
+		),
+			withLocals(0),
+		),
+	))
+	expectCompile(t, `nil || return`, bytecode(
+		Array{},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpOrJump, 6),
+			makeInst(OpReturn, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(0),
+		),
+	))
+	expectCompile(t, `nil || return 1`, bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpNull),
+			makeInst(OpOrJump, 9),
+			makeInst(OpConstant, 0),
+			makeInst(OpReturn, 1),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		),
+			withLocals(0),
+		),
+	))
+}
+
 func TestCompilerFor(t *testing.T) {
 	expectCompile(t, `var r = ""; for x in [] { r += str(x) } else { r += "@"}; r+="#"; return r`, bytecode(
 		Array{Str(""), Str("@"), Str("#")},

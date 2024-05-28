@@ -757,7 +757,7 @@ func (c *Compiler) compileBlockStmt(nd *node.BlockStmt) error {
 	return nil
 }
 
-func (c *Compiler) compileReturnStmt(nd *node.ReturnStmt) error {
+func (c *Compiler) compileReturn(nd *node.Return) error {
 	if nd.Result == nil {
 		if c.tryCatchIndex > -1 {
 			c.emit(nd, OpFinalizer, 0)
@@ -1048,11 +1048,11 @@ func (c *Compiler) compileClosureLit(nd *node.ClosureLit) error {
 		if l := len(stmts); l > 0 {
 			switch t := stmts[l-1].(type) {
 			case *node.ExprStmt:
-				stmts[l-1] = &node.ReturnStmt{Result: t.Expr}
+				stmts[l-1] = &node.ReturnStmt{Return: node.Return{Result: t.Expr}}
 			}
 		}
 	} else {
-		stmts = append(stmts, &node.ReturnStmt{Result: nd.Body})
+		stmts = append(stmts, &node.ReturnStmt{Return: node.Return{Result: nd.Body}})
 	}
 	return c.compileFunc(nd, nd.Type, &node.BlockStmt{Stmts: stmts})
 }

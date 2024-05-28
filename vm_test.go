@@ -4410,6 +4410,22 @@ func TestVMReflectSlice(t *testing.T) {
 	)
 }
 
+func TestVMReturn(t *testing.T) {
+	TestExpectRun(t, `return`, nil, Nil)
+	TestExpectRun(t, `return 1`, nil, Int(1))
+	TestExpectRun(t, `return 1, 2`, nil, Array{Int(1), Int(2)})
+	TestExpectRun(t, `nil || return`, nil, Nil)
+	TestExpectRun(t, `0 || return`, nil, Nil)
+	TestExpectRun(t, `0 || return; 1`, nil, Nil)
+	TestExpectRun(t, `0 || return 2`, nil, Int(2))
+	TestExpectRun(t, `0 || return 2 && 3`, nil, Int(3))
+	TestExpectRun(t, `0 || (return 2) && 3`, nil, Int(2))
+	TestExpectRun(t, `1 && return 2`, nil, Int(2))
+	TestExpectRun(t, `1 && (return 2) && 3`, nil, Int(2))
+	TestExpectRun(t, `1 && (return 2) || 3`, nil, Int(2))
+	TestExpectRun(t, `1 && (return 2, 3) || 4`, nil, Array{Int(2), Int(3)})
+}
+
 type callerObject struct {
 	Dict
 }

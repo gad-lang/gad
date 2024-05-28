@@ -1613,3 +1613,10 @@ func (s *ThrowExpr) String() string {
 	}
 	return "throw " + expr
 }
+
+// ReturnExpr represents an return expression.
+type ReturnExpr struct {
+	Return
+}
+
+func (s *ReturnExpr) ExprNode() {}

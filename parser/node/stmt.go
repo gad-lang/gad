@@ -451,44 +451,10 @@ func (s *IncDecStmt) WriteCode(ctx *CodeWriterContext) (err error) {
 
 // ReturnStmt represents a return statement.
 type ReturnStmt struct {
-	ReturnPos source.Pos
-	Result    Expr
+	Return
 }
 
 func (s *ReturnStmt) StmtNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (s *ReturnStmt) Pos() source.Pos {
-	return s.ReturnPos
-}
-
-// End returns the position of first character immediately after the node.
-func (s *ReturnStmt) End() source.Pos {
-	if s.Result != nil {
-		return s.Result.End()
-	}
-	return s.ReturnPos + 6
-}
-
-func (s *ReturnStmt) String() string {
-	if s.Result != nil {
-		return "return " + s.Result.String()
-	}
-	return "return"
-}
-
-func (s *ReturnStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString("return"); err != nil {
-		return
-	}
-	if s.Result != nil {
-		if err = ctx.WriteByte(' '); err != nil {
-			return
-		}
-		return WriteCode(ctx, s.Result)
-	}
-	return
-}
 
 // TryStmt represents an try statement.
 type TryStmt struct {

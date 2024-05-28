@@ -1504,6 +1504,20 @@ c`, func(p pfn) []Stmt {
 	expectParseError(t, `b : e`)
 }
 
+func TestParseReturn(t *testing.T) {
+	expectParse(t, "return", func(p pfn) []Stmt {
+		return stmts(returnStmt(p(1, 1), nil))
+	})
+	expectParse(t, "1 || return", func(p pfn) []Stmt {
+		return stmts(exprStmt(binaryExpr(intLit(1, p(1, 1)), returnExpr(p(1, 6), nil), token.LOr, p(1, 3))))
+	})
+
+	expectParseString(t, `var x; x || return`,
+		"var x; (x || return)")
+	expectParseString(t, `return 1`,
+		"return 1")
+}
+
 func TestParseForIn(t *testing.T) {
 	expectParse(t, "for x in y {}", func(p pfn) []Stmt {
 		return stmts(
@@ -3114,7 +3128,11 @@ func assignStmt(
 }
 
 func returnStmt(pos Pos, result Expr) *ReturnStmt {
-	return &ReturnStmt{Result: result, ReturnPos: pos}
+	return &ReturnStmt{Return: Return{Result: result, ReturnPos: pos}}
+}
+
+func returnExpr(pos Pos, result Expr) *ReturnExpr {
+	return &ReturnExpr{Return: Return{Result: result, ReturnPos: pos}}
 }
 
 func forStmt(
@@ -3705,6 +3723,11 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 	case *NilLit:
 		require.Equal(t, expected.TokenPos,
 			actual.(*NilLit).TokenPos)
+	case *ReturnExpr:
+		require.Equal(t, expected.ReturnPos,
+			actual.(*ReturnExpr).ReturnPos)
+		equalExpr(t, expected.Result,
+			actual.(*ReturnExpr).Result)
 	case *NullishSelectorExpr:
 		equalExpr(t, expected.Expr,
 			actual.(*NullishSelectorExpr).Expr)
