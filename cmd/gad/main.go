@@ -26,6 +26,7 @@ import (
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/runehelper"
+	gadhttp "github.com/gad-lang/gad/stdlib/http"
 	"github.com/peterh/liner"
 
 	"github.com/gad-lang/gad/importers"
@@ -47,11 +48,13 @@ const (
 )
 
 var (
-	noOptimizer    bool
-	traceEnabled   bool
-	traceParser    bool
-	traceOptimizer bool
-	traceCompiler  bool
+	noOptimizer     bool
+	traceEnabled    bool
+	traceParser     bool
+	traceOptimizer  bool
+	traceCompiler   bool
+	safe            bool
+	disabledModules map[string]bool
 )
 
 var suggestions []suggest
@@ -426,20 +429,30 @@ func defaultSymbolTable() *gad.SymbolTable {
 }
 
 func DefaultModuleMap(workdir string) *gad.ModuleMap {
-	return gad.NewModuleMap().
+	mm := gad.NewModuleMap().
 		AddBuiltinModule("time", gadtime.Module).
 		AddBuiltinModule("strings", gadstrings.Module).
 		AddBuiltinModule("fmt", gadfmt.Module).
 		AddBuiltinModule("json", gadjson.Module).
-		AddBuiltinModule("os", gados.Module).
 		AddBuiltinModule("path", gadpath.Module).
-		AddBuiltinModule("file_path", gadfpath.Module).
 		SetExtImporter(
 			&importers.FileImporter{
 				WorkDir:    workdir,
 				FileReader: importers.ShebangReadFile,
 			},
 		)
+	if !safe {
+		if !disabledModules["http"] {
+			mm.AddBuiltinModule("http", gadhttp.Module)
+		}
+		if !disabledModules["http"] {
+			mm.AddBuiltinModule("os", gados.Module)
+		}
+		if !disabledModules["filepath"] {
+			mm.AddBuiltinModule("filepath", gadfpath.Module)
+		}
+	}
+	return mm
 }
 
 func humanFriendlySize(b uint64) string {
@@ -516,13 +529,26 @@ func parseFlags(
 	flagset *flag.FlagSet,
 	args []string,
 ) (filePath string, timeout time.Duration, params []string, err error) {
-	var trace string
+	var (
+		trace    string
+		disabled string
+	)
 	flagset.StringVar(&trace, "trace", "",
 		`Comma separated units: -trace parser,optimizer,compiler`)
 	flagset.BoolVar(&noOptimizer, "no-optimizer", false, `Disable optimization`)
+	flagset.BoolVar(&safe, "safe", false, `Disable al external acess modules: "http", "os" and "filepath".`)
+	flagset.StringVar(&disabled, "disabled-modules", "", `Disable external acess modules by comma separated units: -disabled-modules http,os`)
 	flagset.DurationVar(&timeout, "timeout", 0,
 		"Program timeout. It is applicable if a script file is provided and "+
 			"must be non-zero duration")
+
+	disabledModules = map[string]bool{}
+
+	for _, v := range strings.Split(disabled, ",") {
+		if v = strings.TrimSpace(v); v != "" {
+			disabledModules[v] = true
+		}
+	}
 
 	flagset.Usage = func() {
 		_, _ = fmt.Fprint(flagset.Output(),
