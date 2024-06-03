@@ -75,6 +75,14 @@ func (f FileFlag) String() string {
 	return strings.Join(s, "|")
 }
 
+func (f *FileFlag) Parse(str string) {
+	for _, s := range strings.Split(str, "|") {
+		if m := FileModeByName[s]; m > 0 {
+			f.Set(m)
+		}
+	}
+}
+
 // BinaryOp implements Object interface.
 func (f FileFlag) BinaryOp(vm *gad.VM, tok token.Token, right gad.Object) (ret gad.Object, err error) {
 try:
@@ -110,14 +118,6 @@ var FileModeByName = map[string]FileFlag{
 	"if_not_exists": OIfNotExists,
 	"sync":          OSync,
 	"trunc":         OTrunc,
-}
-
-func (f *FileFlag) Parse(str string) {
-	for _, s := range strings.Split(str, "|") {
-		if m := FileModeByName[s]; m > 0 {
-			f.Set(m)
-		}
-	}
 }
 
 var TFileFlag = &gad.Type{
