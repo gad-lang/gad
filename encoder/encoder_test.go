@@ -358,10 +358,10 @@ func TestEncDecObjects(t *testing.T) {
 			withParams("a", "b"),
 		),
 		compFunc(nil,
-			withVarParams(),
+			withParams("*_"),
 		),
 		compFunc(nil,
-			withVarParams(),
+			withParams("*_"),
 		),
 		compFunc(nil,
 			withSourceMap(map[int]int{0: 1, 3: 1, 5: 1}),
@@ -371,8 +371,7 @@ func TestEncDecObjects(t *testing.T) {
 			makeInst(gad.OpConstant, 1),
 			makeInst(gad.OpBinaryOp, int(token.Add)),
 		),
-			withParams("a"),
-			withVarParams(),
+			withParams("*a"),
 			withLocals(2),
 			withSourceMap(map[int]int{0: 1, 3: 1, 5: 1}),
 		),
@@ -656,20 +655,13 @@ type funcOpt func(*gad.CompiledFunction)
 
 func withParams(names ...string) funcOpt {
 	return func(cf *gad.CompiledFunction) {
-		cf.Params.Len = len(names)
-		cf.Params.Names = names
+		cf.WithParams(names...)
 	}
 }
 
 func withLocals(numLocals int) funcOpt {
 	return func(cf *gad.CompiledFunction) {
 		cf.NumLocals = numLocals
-	}
-}
-
-func withVarParams() funcOpt {
-	return func(cf *gad.CompiledFunction) {
-		cf.Params.Var = true
 	}
 }
 

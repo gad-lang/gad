@@ -49,7 +49,7 @@ func TestBytecode_Encode(t *testing.T) {
 		&gad.Bytecode{Constants: testObjects,
 			Main: compFunc(
 				[]byte("test instructions"),
-				withLocals(1), withParams("a"), withVarParams(),
+				withLocals(1), withParams("*a"),
 			),
 		},
 		nil,
@@ -62,7 +62,7 @@ func TestBytecode_file(t *testing.T) {
 	bc := &gad.Bytecode{Constants: testObjects,
 		Main: compFunc(
 			[]byte("test instructions"),
-			withLocals(4), withParams(), withVarParams(),
+			withLocals(4), withParams("*a"),
 			withSourceMap(map[int]int{0: 1, 1: 2}),
 		),
 	}

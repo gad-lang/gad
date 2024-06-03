@@ -852,12 +852,22 @@ func (c *Compiler) compileForInStmt(stmt *node.ForInStmt) error {
 	}()
 
 	// for-in statement is compiled like following:
+	//   when ARG is iterable:
+	//     :it := iterator(ARG)
+	//     for :it.next()  {
+	//       k, v := :it.get()  // set locals
 	//
-	//   for :it := iterator(iterable); :it.next();  {
-	//     k, v := :it.get()  // set locals
+	//       ... body ...
+	//     }
+	//     :it.endLoop()
 	//
-	//     ... body ...
-	//   }
+	//   when ARG is iterator:
+	//     :it := ARG
+	//     for :it.next()  {
+	//       k, v := :it.get()  // set locals
+	//
+	//       ... body ...
+	//     }
 	//
 	// ":it" is a local variable but it will not conflict with other user variables
 	// because character ":" is not allowed in the variable names.
@@ -966,6 +976,9 @@ func (c *Compiler) compileForInStmt(stmt *node.ForInStmt) error {
 	for _, pos := range loop.continues {
 		c.changeOperand(pos, postBodyPos)
 	}
+
+	// :it.endLoop()
+	c.emit(stmt, OpIterDone)
 	return nil
 }
 
@@ -1507,8 +1520,8 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 		var numParams int
 		mod := c.constants[module.constantIndex]
 		if cf, ok := mod.(*CompiledFunction); ok {
-			numParams = cf.Params.Len
-			if cf.Params.Var {
+			numParams = len(cf.Params)
+			if cf.Params.Var() {
 				numParams--
 			}
 		}

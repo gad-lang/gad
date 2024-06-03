@@ -69,163 +69,6 @@ func (bc *Bytecode) putConstants(w io.Writer) {
 	}
 }
 
-type ParamType []*SymbolInfo
-
-func (t ParamType) String() string {
-	l := len(t)
-	switch l {
-	case 0:
-		return ""
-	case 1:
-		return t[0].Name
-	default:
-		var s = make([]string, len(t))
-		for i, symbol := range t {
-			s[i] = symbol.Name
-		}
-		return "[" + strings.Join(s, ", ") + "]"
-	}
-}
-
-func (t ParamType) Accept(vm *VM, ot ObjectType) (ok bool, err error) {
-	if len(t) == 0 {
-		ok = true
-		return
-	}
-
-	var st Object
-
-	for _, symbol := range t {
-		if st, err = vm.GetSymbolValue(symbol); err != nil {
-			return
-		} else {
-			if cwm, _ := st.(*CallerObjectWithMethods); cwm != nil {
-				st = cwm.CallerObject
-			}
-			if ot == st {
-				ok = true
-				return
-			} else if stot, _ := st.(ObjectType); stot != nil {
-				if ok = IsTypeAssignableTo(stot, ot); ok {
-					return
-				}
-			}
-		}
-	}
-	return
-}
-
-type Params struct {
-	Names []string
-	Type  []ParamType
-	Typed bool
-	Len   int
-	Var   bool
-}
-
-func (p *Params) Min() int {
-	if p.Var {
-		return p.Len - 1
-	}
-	return p.Len
-}
-
-func (p *Params) String() string {
-	var s = make([]string, p.Len)
-	if len(p.Type) > 0 {
-		for i, t := range p.Type {
-			if ts := t.String(); ts == "" {
-				s[i] = p.Names[i]
-			} else {
-				s[i] = p.Names[i] + " " + ts
-			}
-		}
-	} else {
-		copy(s, p.Names)
-	}
-	if p.Var {
-		s[p.Len-1] = "*" + s[p.Len-1]
-	}
-	return strings.Join(s, ", ")
-}
-
-type NamedParam struct {
-	Name string
-	// Value is a script of default value
-	Value string
-	Index int
-	Type  []*SymbolInfo
-}
-
-func NewNamedParam(name string, value string) *NamedParam {
-	return &NamedParam{Name: name, Value: value}
-}
-
-type NamedParams struct {
-	Params   []*NamedParam
-	len      int
-	variadic bool
-	byName   map[string]int
-}
-
-func NewNamedParams(params ...*NamedParam) (np *NamedParams) {
-	for i, param := range params {
-		param.Index = i
-	}
-	np = &NamedParams{Params: params}
-	np.len = len(params)
-	np.Params = params
-
-	if np.len > 0 {
-		np.byName = make(map[string]int, np.len)
-		for i, p := range params {
-			np.byName[p.Name] = i
-		}
-		np.variadic = params[len(params)-1].Value == ""
-	}
-	return
-}
-
-func (n *NamedParams) Names() (names []string) {
-	names = make([]string, n.len)
-	for i, param := range n.Params {
-		names[i] = param.Name
-	}
-	return
-}
-
-func (n *NamedParams) Len() int {
-	return n.len
-}
-
-func (n *NamedParams) Variadic() bool {
-	return n.variadic
-}
-
-func (n *NamedParams) ByName() map[string]int {
-	return n.byName
-}
-
-func (n *NamedParams) ToMap() (np map[string]*NamedParam) {
-	np = make(map[string]*NamedParam, n.len)
-	for _, param := range n.Params {
-		np[param.Name] = param
-	}
-	return np
-}
-
-func (n *NamedParams) String() string {
-	var s = make([]string, n.len)
-	for i, param := range n.Params {
-		if param.Value != "" {
-			s[i] = param.Name + "=" + param.Value
-		} else {
-			s[i] = "**" + param.Name
-		}
-	}
-	return strings.Join(s, ", ")
-}
-
 type ModuleInfo struct {
 	Name string
 	File string
@@ -275,7 +118,7 @@ func (o *CompiledFunction) ToString() string {
 		params []string
 	)
 	s = append(s, " "+o.Name)
-	if o.Params.Len > 0 {
+	if !o.Params.Empty() {
 		params = append(params, o.Params.String())
 	}
 	if o.NamedParams.len > 0 {
@@ -285,13 +128,13 @@ func (o *CompiledFunction) ToString() string {
 	return ReprQuote("compiledFunction" + strings.Join(s, ""))
 }
 
-func (o *CompiledFunction) Repr(vm *VM) (_ string, err error) {
+func (o *CompiledFunction) Repr(*VM) (_ string, err error) {
 	var (
 		s      []string
 		params []string
 	)
 	s = append(s, " "+o.Name)
-	if o.Params.Len > 0 {
+	if !o.Params.Empty() {
 		params = append(params, o.Params.String())
 	}
 	if o.NamedParams.len > 0 {
@@ -362,6 +205,37 @@ begin:
 	return source.NoPos
 }
 
+func (o *CompiledFunction) WithParams(names ...string) *CompiledFunction {
+	o.Params = make(Params, len(names))
+	for i := range o.Params {
+		o.Params[i] = new(Param)
+	}
+
+	for i, name := range names {
+		if name[0] == '*' {
+			o.Params[i].Var = true
+			name = name[1:]
+		}
+		if pos := strings.IndexByte(name, ' '); pos > 0 {
+			t := name[pos+1:]
+			o.Params[i].Name = name[:pos]
+			if t[0] == '[' {
+				t = strings.ReplaceAll(t[1:len(t)-1], " ", "")
+			}
+			tnames := strings.Split(t, ",")
+			symbols := make(ParamType, len(tnames))
+			for i2, tname := range tnames {
+				tname = strings.TrimSpace(tname)
+				symbols[i2] = &SymbolInfo{Name: tname}
+			}
+			o.Params[i].Type = symbols
+		} else {
+			o.Params[i].Name = name
+		}
+	}
+	return o
+}
+
 // Fprint writes constants and instructions to given Writer in a human readable form.
 func (o *CompiledFunction) Fprint(w io.Writer) {
 	_, _ = fmt.Fprintf(w, "Locals: %d\n", o.NumLocals)
@@ -428,7 +302,7 @@ func (o *CompiledFunction) equalSourceMap(other *CompiledFunction) bool {
 
 func (o *CompiledFunction) hash32() uint32 {
 	hash := hashData32(2166136261, []byte{byte(o.NumLocals)})
-	if o.Params.Len > 0 {
+	if !o.Params.Empty() {
 		hash = hashData32(hash, []byte(o.Params.String()))
 	}
 	if o.NamedParams.len > 0 {
@@ -447,42 +321,43 @@ func (o *CompiledFunction) SetNamedParams(params ...*NamedParam) {
 }
 
 func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
-	if o.Params.Var {
-		if min := o.Params.Min(); args.Length() < min {
-			return ErrWrongNumArguments.NewError(fmt.Sprintf("expected >= %d but got %d", min, args.Length()))
+	if o.Params.Var() {
+		if required := len(o.Params) - 1; args.Length() < required {
+			return ErrWrongNumArguments.NewError(fmt.Sprintf("expected >= %d but got %d", required, args.Length()))
 		}
-	} else if args.Length() != o.Params.Len {
-		return ErrWrongNumArguments.NewError(fmt.Sprintf("expected %d but got %d", o.Params.Len, args.Length()))
+	} else if args.Length() != len(o.Params) {
+		return ErrWrongNumArguments.NewError(fmt.Sprintf("expected %d but got %d", len(o.Params), args.Length()))
 	}
 
-	if o.Params.Typed {
+	if o.Params.Typed() {
 		var (
-			l       = o.Params.Len
+			l       = len(o.Params)
 			argType ObjectType
 			t       ParamType
 			accept  bool
+			last    = o.Params[l-1]
 		)
-		if o.Params.Var {
+		if last.Var {
 			l--
 		}
 
 		for i := 0; i < l; i++ {
 			argType = args.GetOnly(i).Type()
-			t = o.Params.Type[i]
+			t = o.Params[i].Type
 			if t != nil {
 				if accept, err = t.Accept(vm, argType); err != nil {
 					return
 				} else if !accept {
-					return NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Names[i]+")", t.String(), argType.Name())
+					return NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params[i].Name+")", t.String(), argType.Name())
 				}
 			}
 		}
 
-		if o.Params.Var {
-			t = o.Params.Type[o.Params.Len-1]
-			args.WalkSkip(o.Params.Len-1, func(i int, arg Object) any {
+		if last.Var {
+			t = last.Type
+			args.WalkSkip(l, func(i int, arg Object) any {
 				if accept, err = t.Accept(vm, arg.Type()); err == nil && !accept {
-					err = NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Names[i]+")", t.String(), arg.Type().Name())
+					err = NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params[i].Name+")", t.String(), arg.Type().Name())
 				}
 				return err
 			})
@@ -492,15 +367,15 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 }
 
 func (o *CompiledFunction) CanValidateParamTypes() bool {
-	return o.Params.Typed
+	return o.Params.Typed()
 }
 
 func (o *CompiledFunction) ParamTypes(vm *VM) (types MultipleObjectTypes, err error) {
-	if o.Params.Typed {
-		types = make(MultipleObjectTypes, len(o.Params.Type))
-		for i, t := range o.Params.Type {
-			ts := make([]ObjectType, len(t))
-			for i2, symbol := range t {
+	if o.Params.Typed() {
+		types = make(MultipleObjectTypes, len(o.Params))
+		for i, p := range o.Params {
+			ts := make([]ObjectType, len(p.Type))
+			for i2, symbol := range p.Type {
 				if typ, err := vm.GetSymbolValue(symbol); err != nil {
 					return nil, err
 				} else {

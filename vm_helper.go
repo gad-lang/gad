@@ -266,7 +266,7 @@ func CollectCb(vm *VM, o Object, na *NamedArgs, cb func(e *KeyValue, i *Int) Obj
 			state, err = it.Start(vm)
 			for err == nil && state.Mode != IteratorStateModeDone {
 				if state.Mode != IteratorStateModeContinue {
-					values[i] = cb(&state.Entry, &i)
+					values = append(values, cb(&state.Entry, &i))
 				}
 				i++
 				err = it.Next(vm, state)

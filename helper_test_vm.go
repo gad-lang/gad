@@ -154,6 +154,9 @@ func TestExpectRun(t *testing.T, script string, opts *TestOpts, expect Object) {
 	t.Helper()
 	if opts == nil {
 		opts = NewTestOpts()
+	} else {
+		optsCopy := *opts
+		opts = &optsCopy
 	}
 	type testCase struct {
 		name   string

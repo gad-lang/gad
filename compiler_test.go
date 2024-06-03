@@ -1,7 +1,6 @@
 package gad_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/gad-lang/gad/parser"
@@ -47,39 +46,7 @@ type funcOpt func(*CompiledFunction)
 
 func withParams(names ...string) funcOpt {
 	return func(cf *CompiledFunction) {
-		cf.Params.Len = len(names)
-		cf.Params.Names = names
-		var (
-			types = make([]ParamType, len(names))
-			typed bool
-		)
-
-		for i, name := range names {
-			if pos := strings.IndexByte(name, ':'); pos > 0 {
-				typed = true
-				t := name[pos+1:]
-				cf.Params.Names[i] = name[:pos]
-				if t[0] == '[' {
-					t = strings.ReplaceAll(t[1:len(t)-1], " ", "")
-				}
-				tnames := strings.Split(t, ",")
-				symbols := make(ParamType, len(tnames))
-				for i2, tname := range tnames {
-					symbols[i2] = &SymbolInfo{Name: tname}
-				}
-				types[i] = symbols
-			}
-		}
-
-		if typed {
-			cf.Params.Type = types
-		}
-	}
-}
-
-func withVarParams() funcOpt {
-	return func(cf *CompiledFunction) {
-		cf.Params.Var = true
+		cf.WithParams(names...)
 	}
 }
 
@@ -541,9 +508,8 @@ func TestCompiler_Compile(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpReturn, 0),
 		),
-			withParams("a", "b", "c"),
+			withParams("a", "b", "*c"),
 			withLocals(3),
-			withVarParams(),
 		),
 	))
 	expectCompile(t, `global a`, bytecode(
@@ -571,9 +537,8 @@ func TestCompiler_Compile(t *testing.T) {
 			makeInst(OpSetLocal, 2),
 			makeInst(OpReturn, 0),
 		),
-			withParams("arg1", "varg"),
+			withParams("arg1", "*varg"),
 			withLocals(3),
-			withVarParams(),
 		),
 	))
 
@@ -1759,8 +1724,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpGetLocal, 0),
 				makeInst(OpReturn, 1),
 			),
-				withParams("a"),
-				withVarParams(),
+				withParams("*a"),
 				withLocals(1),
 			),
 			Int(1),
@@ -2050,7 +2014,8 @@ func TestCompiler_Compile(t *testing.T) {
 			makeInst(OpIterValue),      // 0023
 			makeInst(OpDefineLocal, 3), // 0024 v
 			makeInst(OpJump, 10),       // 0026
-			makeInst(OpReturn, 0),      // 0029
+			makeInst(OpIterDone),       // 0029
+			makeInst(OpReturn, 0),      // 0030
 		),
 			withLocals(4), // m, :it, k, v
 		),
@@ -2422,8 +2387,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpGetLocal, 0),
 				makeInst(OpReturn, 1),
 			),
-				withParams("a"),
-				withVarParams(),
+				withParams("*a"),
 				withLocals(1),
 			),
 			Int(1),
@@ -2519,6 +2483,7 @@ func TestCompilerFor(t *testing.T) {
 			makeInst(OpConstant, 1),
 			makeInst(OpBinaryOp, int(token.Add)),
 			makeInst(OpSetLocal, 0),
+			makeInst(OpIterDone),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpConstant, 2),
 			makeInst(OpBinaryOp, int(token.Add)),

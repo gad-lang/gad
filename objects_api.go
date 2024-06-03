@@ -138,6 +138,10 @@ type CallerObject interface {
 	Call(c Call) (Object, error)
 }
 
+type CallerObjectWithStaticMethods interface {
+	GetGoMethods() []*Caller
+}
+
 // CallerObjectWithParamTypes is an interface for objects that can be called with Call
 // method with parameters with types.
 type CallerObjectWithParamTypes interface {
@@ -504,4 +508,24 @@ type ToWriterConverter interface {
 
 type CanCloser interface {
 	CanClose() bool
+}
+
+type IterationDoner interface {
+	IterationDone(vm *VM) error
+}
+
+type CanIterationDoner interface {
+	CanIterationDone() bool
+}
+
+func ToIterationDoner(obj any) IterationDoner {
+	if ite, _ := obj.(IterationDoner); ite != nil {
+		if cite, _ := obj.(CanIterationDoner); cite != nil {
+			if !cite.CanIterationDone() {
+				return nil
+			}
+		}
+		return ite
+	}
+	return nil
 }

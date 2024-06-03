@@ -63,6 +63,7 @@ const (
 	OpGetFreePtr
 	OpClosure
 	OpIterInit
+	OpIterDone
 	OpIterNext
 	OpIterNextElse
 	OpIterKey
@@ -130,6 +131,7 @@ var OpcodeNames = [...]string{
 	OpGetFreePtr:    "GETFREEPTR",
 	OpClosure:       "CLOSURE",
 	OpIterInit:      "ITERINIT",
+	OpIterDone:      "ITERDONE",
 	OpIterNext:      "ITERNEXT",
 	OpIterNextElse:  "ITERNEXTELSE",
 	OpIterKey:       "ITERKEY",
@@ -198,6 +200,7 @@ var OpcodeOperands = [...][]int{
 	OpGetFreePtr:    {1},    // index
 	OpClosure:       {2, 1}, // constant index, item count
 	OpIterInit:      {},
+	OpIterDone:      {},
 	OpIterNext:      {},
 	OpIterNextElse:  {2, 2}, // true pos, false pos
 	OpIterKey:       {},

@@ -306,7 +306,7 @@ func (vm *VM) initLocals(args Array, namedArgs *NamedArgs) {
 	vm.sp = 0
 	// init all params as nil
 	main := vm.bytecode.Main
-	numParams := main.Params.Len
+	numParams := len(main.Params)
 	numNamedParams := main.NamedParams.len
 	locals := vm.stack[:main.NumLocals]
 
@@ -334,13 +334,13 @@ func (vm *VM) initLocals(args Array, namedArgs *NamedArgs) {
 }
 
 func (vm *VM) initLocalsOfFunc(main *CompiledFunction, args Array) {
-	numParams := main.Params.Len
+	numParams := len(main.Params)
 	numNamedParams := main.NamedParams.len
 	locals := vm.stack[vm.sp : vm.sp+main.NumLocals]
 
 	// fix num reveived args < num expected args
 	if diff := numParams - len(args); diff > 0 {
-		if main.Params.Var {
+		if main.Params.Var() {
 			diff--
 		}
 		for ; diff > 0; diff-- {
@@ -359,14 +359,14 @@ func (vm *VM) initLocalsOfFunc(main *CompiledFunction, args Array) {
 	}
 
 	if len(args) < numParams {
-		if main.Params.Var {
+		if main.Params.Var() {
 			locals[numParams-1] = Array{}
 		}
 		copy(locals, args)
 		return
 	}
 
-	if main.Params.Var {
+	if main.Params.Var() {
 		locals[numParams-1] = args[numParams-1:]
 	} else if numParams > 0 {
 		locals[numParams-1] = args[numParams-1]
@@ -404,6 +404,9 @@ func (vm *VM) initCurrentFrame(args Args, named *NamedArgs) {
 func (vm *VM) clearCurrentFrame() {
 	for _, f := range vm.curFrame.defers {
 		f()
+	}
+	for len(vm.curFrame.loops) > 0 {
+		vm.xIterDone()
 	}
 	vm.curFrame.defers = nil
 	vm.curFrame.freeVars = nil
@@ -783,7 +786,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 	var (
 		basePointer = vm.sp - numArgs
 		numLocals   = cfunc.NumLocals
-		numParams   = cfunc.Params.Len
+		numParams   = len(cfunc.Params)
 		namedParams NamedArgs
 		args        = Args{nil, nil}
 	)
@@ -860,7 +863,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			arrSize = len(vargsArr)
 		}
 
-		if cfunc.Params.Var {
+		if cfunc.Params.Var() {
 			if numArgs < numParams {
 				// f := func(a, ...b) {}
 				// f(...[1]) // f(...[1, 2])
@@ -905,7 +908,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 	} else {
 		args[0] = vm.stack[basePointer : basePointer+numArgs]
 
-		if !cfunc.Params.Var {
+		if !cfunc.Params.Var() {
 			if numArgs != numParams {
 				return ErrWrongNumArguments.NewError(
 					wantEqXGotY(numParams, numArgs),
@@ -926,7 +929,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			} else {
 				// f := func(a, ...b) {} // a == 1  b == [] // a == 1  b == [2, 3]
 				// f(1, 2) // f(1, 2, 3)
-				args[0] = vm.stack[basePointer : basePointer+cfunc.Params.Len-1]
+				args[0] = vm.stack[basePointer : basePointer+len(cfunc.Params)-1]
 				arr := append(Array{}, vm.stack[basePointer+numParams-1:basePointer+numArgs]...)
 				vm.stack[basePointer+numParams-1] = arr
 				args[1] = arr
@@ -960,7 +963,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			(nextOp == OpPop && OpReturn == Opcode(vm.curInsts[vm.ip+2+2])) {
 			curBp := vm.curFrame.basePointer
 			args = args.Copy().(Args)
-			copy(vm.stack[curBp:curBp+cfunc.Params.Len+cfunc.NamedParams.len], vm.stack[basePointer:])
+			copy(vm.stack[curBp:curBp+len(cfunc.Params)+cfunc.NamedParams.len], vm.stack[basePointer:])
 			newSp := vm.sp - numArgs - 1
 			if flags.Has(OpCallFlagNamedArgs) {
 				newSp--
@@ -1316,6 +1319,27 @@ func (vm *VM) getCalledNamedArgs(flags OpCallFlag) (namedArgs NamedArgs, err err
 	return
 }
 
+func (vm *VM) xIterDone() {
+	i := len(vm.curFrame.loops) - 1
+	if i < 0 {
+		return
+	}
+
+	it := vm.curFrame.loops[i]
+	if it != nil {
+		if input := it.Input(); input != nil {
+			_, err := vm.Builtins.Call(BuiltinIterationDone, Call{VM: vm, Args: Args{Array{input}}})
+			if err != nil {
+				if err = vm.throwGenErr(err); err != nil && vm.err == nil {
+					vm.err = err
+					return
+				}
+			}
+		}
+	}
+	vm.curFrame.loops = vm.curFrame.loops[:i]
+}
+
 type errHandler struct {
 	sp       int
 	catch    int
@@ -1386,6 +1410,7 @@ type frame struct {
 	args        Args
 	namedArgs   *NamedArgs
 	defers      []func()
+	loops       []*StateIteratorObject
 }
 
 func (f *frame) Defer(fn func()) {

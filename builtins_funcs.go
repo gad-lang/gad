@@ -1458,6 +1458,16 @@ func BuiltinIterateFunc(c Call) (_ Object, err error) {
 	return IteratorObject(it), nil
 }
 
+func BuiltinIterationDoneFunc(c Call) (_ Object, err error) {
+	if err = c.Args.CheckLen(1); err != nil {
+		return
+	}
+	if ite := ToIterationDoner(c.Args.GetOnly(1)); ite != nil {
+		err = ite.IterationDone(c.VM)
+	}
+	return
+}
+
 func BuiltinKeysFunc(c Call) (_ Object, err error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return nil, err
@@ -2030,10 +2040,12 @@ func BuiltinAddCallMethodFunc(vm *VM, fn CallerObject, handler CallerObject, ove
 				return
 			}
 
-			if cf, _ := handler.(*CompiledFunction); cf != nil && cf.Params.Len > 0 && !cf.Params.Typed {
-				types = make(MultipleObjectTypes, cf.Params.Len)
-				for i := range types {
-					types[i] = ObjectTypes{nil}
+			if cf, _ := handler.(*CompiledFunction); cf != nil {
+				if l := len(cf.Params); l > 0 && !cf.Params.Typed() {
+					types = make(MultipleObjectTypes, l)
+					for i := range types {
+						types[i] = ObjectTypes{nil}
+					}
 				}
 			}
 

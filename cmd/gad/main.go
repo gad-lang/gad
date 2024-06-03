@@ -31,8 +31,11 @@ import (
 	"github.com/gad-lang/gad/importers"
 	"github.com/gad-lang/gad/token"
 
+	gadfpath "github.com/gad-lang/gad/stdlib/filepath"
 	gadfmt "github.com/gad-lang/gad/stdlib/fmt"
 	gadjson "github.com/gad-lang/gad/stdlib/json"
+	gados "github.com/gad-lang/gad/stdlib/os"
+	gadpath "github.com/gad-lang/gad/stdlib/path"
 	gadstrings "github.com/gad-lang/gad/stdlib/strings"
 	gadtime "github.com/gad-lang/gad/stdlib/time"
 )
@@ -428,6 +431,9 @@ func DefaultModuleMap(workdir string) *gad.ModuleMap {
 		AddBuiltinModule("strings", gadstrings.Module).
 		AddBuiltinModule("fmt", gadfmt.Module).
 		AddBuiltinModule("json", gadjson.Module).
+		AddBuiltinModule("os", gados.Module).
+		AddBuiltinModule("path", gadpath.Module).
+		AddBuiltinModule("file_path", gadfpath.Module).
 		SetExtImporter(
 			&importers.FileImporter{
 				WorkDir:    workdir,
@@ -637,11 +643,7 @@ func (s *Script) execute() error {
 		args = newArgs
 	}
 
-	if requiredParams := bc.Main.Params.Len; requiredParams > 0 {
-		if bc.Main.Params.Var {
-			requiredParams--
-		}
-
+	if requiredParams := bc.Main.Params.RequiredCount(); requiredParams > 0 {
 		if len(args) < requiredParams {
 			return gad.ErrWrongNumArguments.NewError(fmt.Sprintf("want=%d got=%d", requiredParams, len(s.args)))
 		}

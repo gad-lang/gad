@@ -421,16 +421,6 @@ func NewReflectValue(v any, opts ...*ReflectValueOptions) (ReflectValuer, error)
 	case reflect.Array:
 		rvr = &ReflectArray{orv}
 	case reflect.Func:
-		// We allow functions with 0 or 1 result or 2 results where the second is an error.
-		switch t.RType.NumOut() {
-		case 0, 1:
-		case 2:
-			if t.RType.Out(1) != errorType {
-				return nil, ErrIncompatibleReflectFuncType.NewError(fmt.Sprintf("out %d of function isn't error.", t.RType.NumOut()))
-			}
-		default:
-			return nil, ErrIncompatibleReflectFuncType.NewError(fmt.Sprintf("function called with %d args; should be <= 2.", t.RType.NumOut()))
-		}
 		return &ReflectFunc{orv}, nil
 	default:
 		return &orv, nil
@@ -1082,6 +1072,14 @@ func (s *ReflectStruct) CanClose() bool {
 
 func (s *ReflectStruct) Close() error {
 	return s.Interface.(io.Closer).Close()
+}
+
+func (s *ReflectStruct) CanIterationDone() (ok bool) {
+	return ToIterationDoner(s.Interface) != nil
+}
+
+func (s *ReflectStruct) IterationDone(vm *VM) error {
+	return ToIterationDoner(s.Interface).IterationDone(vm)
 }
 
 var (

@@ -64,6 +64,17 @@ func (t ObjectTypes) String() string {
 
 type MultipleObjectTypes []ObjectTypes
 
+func (t MultipleObjectTypes) String() string {
+	if len(t) == 1 {
+		return t[0].String()
+	}
+	s := make([]string, len(t))
+	for i, types := range t {
+		s[i] = types.String()
+	}
+	return "[" + strings.Join(s, ", ") + "]"
+}
+
 func (t MultipleObjectTypes) Tree() *ObjectTypeNode {
 	var root ObjectTypeNode
 	root.Append(t)
@@ -127,6 +138,13 @@ func (o *CallerObjectWithMethods) RegisterDefaultWithTypes(types MultipleObjectT
 		Default:      true,
 		CallerObject: o.CallerObject,
 	}, false)
+	if sm, ok := o.CallerObject.(CallerObjectWithStaticMethods); ok {
+		for _, m := range sm.GetGoMethods() {
+			o.Methods.Add(m.Header.ParamTypes(), &CallerMethod{
+				CallerObject: m,
+			}, true)
+		}
+	}
 	return o
 }
 
@@ -428,4 +446,31 @@ func (args Methods) GetMethod(types []ObjectType) (cm *CallerMethod) {
 
 func NewTypedFunction(fn *Function, types MultipleObjectTypes) *CallerObjectWithMethods {
 	return NewCallerObjectWithMethods(fn).RegisterDefaultWithTypes(types)
+}
+
+type CallerMethodDefinition struct {
+	Handler  CallerObject
+	Types    MultipleObjectTypes
+	Override bool
+}
+
+func AddCallerMethod(vm *VM, dst CallerObject, methods ...CallerMethodDefinition) (_ *CallerObjectWithMethods, err error) {
+	var o *CallerObjectWithMethods
+	if o, _ = dst.(*CallerObjectWithMethods); o == nil {
+		o = NewCallerObjectWithMethods(dst)
+	}
+	for _, d := range methods {
+		if err = o.AddCallerMethod(vm, d.Types, d.Handler, d.Override); err != nil {
+			return
+		}
+	}
+	return o, nil
+}
+
+func MustAddCallerMethod(vm *VM, dst CallerObject, methods ...CallerMethodDefinition) (co *CallerObjectWithMethods) {
+	var err error
+	if co, err = AddCallerMethod(vm, dst, methods...); err != nil {
+		panic(err)
+	}
+	return
 }

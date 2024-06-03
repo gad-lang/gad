@@ -142,24 +142,23 @@ func (st *SymbolTable) SetParams(varParams bool, params []string, types []ParamT
 		return nil
 	}
 
-	if st.params.Len > 0 {
+	if !st.params.Empty() {
 		return errors.New("parameters already defined")
 	}
 
 	if err = st.defineParamsVar(params); err == nil {
-		st.params.Names = params
-		st.params.Len = len(params)
-		st.params.Var = varParams
-		st.params.Typed = false
-		st.params.Type = nil
-		for _, paramType := range types {
-			if len(paramType) > 0 {
-				st.params.Typed = true
-				break
+		st.params = make(Params, len(params))
+		if len(types) > 0 {
+			for i, param := range params {
+				st.params[i] = NewParam(param, ParamWithType(types[i]...))
+			}
+		} else {
+			for i, param := range params {
+				st.params[i] = NewParam(param)
 			}
 		}
-		if st.params.Typed {
-			st.params.Type = types
+		if varParams {
+			st.params[len(params)-1].Var = true
 		}
 	}
 

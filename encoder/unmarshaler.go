@@ -387,23 +387,29 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 			o.Name = string(obj.(gad.Str))
 		case 1:
 			o.AllowMethods = true
-		case 2:
-			o.Params.Typed = true
 		case 3:
 			v, err := vi.read()
 			if err != nil {
 				return err
 			}
 
-			o.Params.Len = int(v)
-			o.Params.Names = make([]string, o.Params.Len)
+			o.Params = make(gad.Params, v)
 
-			for i := 0; i < o.Params.Len; i++ {
+			for i := 0; i < int(v); i++ {
 				obj, err := DecodeObject(rd)
 				if err != nil {
 					return err
 				}
-				o.Params.Names[i] = string(obj.(gad.Str))
+				o.Params[i] = gad.NewParam(string(obj.(gad.Str)))
+				if types, err := DecodeObject(rd); err != nil {
+					return err
+				} else if typesArr := types.(gad.Array); len(typesArr) > 0 {
+					types := make([]*gad.SymbolInfo, len(typesArr))
+					for i2, object := range typesArr {
+						types[i2] = object.(*gad.SymbolInfo)
+					}
+					o.Params[i].Type = types
+				}
 			}
 		case 4:
 			v, err := vi.read()
@@ -418,7 +424,7 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 			}
 			o.Instructions = obj.(gad.Bytes)
 		case 6:
-			o.Params.Var = true
+			o.Params[len(o.Params)-1].Var = true
 		case 7:
 			v, err := vi.read()
 			if err != nil {

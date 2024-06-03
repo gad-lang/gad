@@ -75,6 +75,9 @@ var (
 	// ErrMethodDuplication is an error where method was duplication.
 	ErrMethodDuplication = &Error{Name: "ErrMethodDuplication"}
 
+	// ErrMethodNotAppendable is an error where method append is disabled.
+	ErrMethodNotAppendable = &Error{Name: "ErrMethodNotAppendable"}
+
 	// ErrType represents a type error.
 	ErrType = &Error{Name: "TypeError"}
 

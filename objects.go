@@ -658,59 +658,20 @@ func (t ArgType) String() string {
 	case 0:
 		return ""
 	case 1:
-		return ":" + t[0].Name()
+		return " " + t[0].Name()
 	default:
 		var s = make([]string, l)
 		for i, t2 := range t {
 			s[i] = t2.Name()
 		}
-		return "::[" + strings.Join(s, ", ") + "]"
+		return " [" + strings.Join(s, ", ") + "]"
 	}
 }
 
-type FunctionHeaderParam struct {
-	Name  string
-	Types []ObjectType
-	Value string
-}
-
-func (p *FunctionHeaderParam) String() string {
-	var (
-		s = p.Name
-		l = len(p.Types)
-	)
-	switch l {
-	case 0:
-	case 1:
-		s += ":" + p.Types[0].Name()
-	default:
-		var s2 = make([]string, l)
-		for i, t2 := range p.Types {
-			s2[i] = t2.Name()
-		}
-		s += ":[" + strings.Join(s2, ", ") + "]"
-	}
-	if p.Value != "" {
-		s += "=" + p.Value
-	}
-	return s
-}
-
-type FunctionHeader struct {
-	Params      []Params
-	NamedParams []Params
-}
-
-func (h *FunctionHeader) String() string {
-	var s []string
-	for _, param := range h.Params {
-		s = append(s, param.String())
-	}
-	for _, param := range h.NamedParams {
-		s = append(s, param.String())
-	}
-	return "(" + strings.Join(s, ", ") + ")"
-}
+var (
+	_ CallerObject                  = (*BuiltinFunction)(nil)
+	_ CallerObjectWithStaticMethods = (*BuiltinFunction)(nil)
+)
 
 // BuiltinFunction represents a builtin function object and implements Object interface.
 type BuiltinFunction struct {
@@ -719,9 +680,12 @@ type BuiltinFunction struct {
 	Value                 func(Call) (Object, error)
 	Header                FunctionHeader
 	AcceptMethodsDisabled bool
+	goMethods             []*Caller
 }
 
-var _ CallerObject = (*BuiltinFunction)(nil)
+func NewBuiltinFunction(name string, value func(Call) (Object, error)) *BuiltinFunction {
+	return &BuiltinFunction{Name: name, Value: value}
+}
 
 func (*BuiltinFunction) Type() ObjectType {
 	return TBuiltinFunction
@@ -733,6 +697,15 @@ func (o *BuiltinFunction) ToString() string {
 
 func (o *BuiltinFunction) ParamTypes(*VM) (MultipleObjectTypes, error) {
 	return nil, nil
+}
+
+func (o *BuiltinFunction) WithGoMethod(c ...*Caller) *BuiltinFunction {
+	o.goMethods = append(o.goMethods, c...)
+	return o
+}
+
+func (o *BuiltinFunction) GetGoMethods() []*Caller {
+	return o.goMethods
 }
 
 // Copy implements Copier interface.
@@ -1561,6 +1534,10 @@ type Error struct {
 	Cause   error
 }
 
+func WrapError(cause error) *Error {
+	return &Error{Cause: cause}
+}
+
 var (
 	_ Object = (*Error)(nil)
 	_ Copier = (*Error)(nil)
@@ -1589,11 +1566,17 @@ func (o *Error) Copy() Object {
 
 // Error implements error interface.
 func (o *Error) Error() string {
-	name := o.Name
+	var (
+		name = o.Name
+		msg  = o.Message
+	)
 	if name == "" {
 		name = "error"
 	}
-	return fmt.Sprintf("%s: %s", name, o.Message)
+	if msg == "" && o.Cause != nil {
+		msg = o.Cause.Error()
+	}
+	return fmt.Sprintf("%s: %s", name, msg)
 }
 
 // Equal implements Object interface.
