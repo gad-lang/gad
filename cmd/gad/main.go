@@ -32,6 +32,7 @@ import (
 	"github.com/gad-lang/gad/importers"
 	"github.com/gad-lang/gad/token"
 
+	gadbase64 "github.com/gad-lang/gad/stdlib/encoding/base64"
 	gadfpath "github.com/gad-lang/gad/stdlib/filepath"
 	gadfmt "github.com/gad-lang/gad/stdlib/fmt"
 	gadjson "github.com/gad-lang/gad/stdlib/json"
@@ -435,6 +436,7 @@ func DefaultModuleMap(workdir string) *gad.ModuleMap {
 		AddBuiltinModule("fmt", gadfmt.Module).
 		AddBuiltinModule("json", gadjson.Module).
 		AddBuiltinModule("path", gadpath.Module).
+		AddBuiltinModule("encoding/base64", gadbase64.Module).
 		SetExtImporter(
 			&importers.FileImporter{
 				WorkDir:    workdir,

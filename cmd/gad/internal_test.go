@@ -165,6 +165,13 @@ func TestREPL(t *testing.T) {
 		require.NoError(t, r.execute(".modules_cache"))
 		testHasPrefix(t, string(cw.consume()), "[{")
 	})
+	t.Run("import encoding/base64", func(t *testing.T) {
+		r := newREPL(ctx, cw)
+		require.NoError(t, r.execute(`import("encoding/base64")`))
+		testHasPrefix(t, string(cw.consume()), "\n⇦   {")
+		require.NoError(t, r.execute(".modules_cache"))
+		testHasPrefix(t, string(cw.consume()), "[{")
+	})
 	t.Run("memory_stats", func(t *testing.T) {
 		require.NoError(t, r.execute(".memory_stats"))
 		testHasPrefix(t, string(cw.consume()), "ToInterface Memory Stats")
