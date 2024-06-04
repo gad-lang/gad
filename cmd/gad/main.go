@@ -447,7 +447,7 @@ func DefaultModuleMap(workdir string) *gad.ModuleMap {
 		if !disabledModules["http"] {
 			mm.AddBuiltinModule("http", gadhttp.Module)
 		}
-		if !disabledModules["http"] {
+		if !disabledModules["os"] {
 			mm.AddBuiltinModule("os", gados.Module)
 		}
 		if !disabledModules["filepath"] {
