@@ -322,7 +322,7 @@ VMLoop:
 
 			vm.sp++
 			vm.ip += 2
-		case OpMap:
+		case OpDict:
 			numItems := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			kv := make(Dict)
 

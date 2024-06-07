@@ -1636,7 +1636,7 @@ func (c *Compiler) compileDictLit(nd *node.DictLit) error {
 		}
 	}
 
-	c.emit(nd, OpMap, len(nd.Elements)*2)
+	c.emit(nd, OpDict, len(nd.Elements)*2)
 	return nil
 }
 

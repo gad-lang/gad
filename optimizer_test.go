@@ -472,7 +472,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 		bytecode(
 			Array{Int(3)},
 			compFunc(concatInsts(
-				makeInst(OpMap, 0),
+				makeInst(OpDict, 0),
 				makeInst(OpConstant, 0),
 				makeInst(OpGetIndex, 1),
 				makeInst(OpPop),
@@ -483,7 +483,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 		bytecode(
 			Array{Int(3)},
 			compFunc(concatInsts(
-				makeInst(OpMap, 0),
+				makeInst(OpDict, 0),
 				makeInst(OpConstant, 0),
 				makeInst(OpGetIndex, 1),
 				makeInst(OpPop),
@@ -496,7 +496,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpConstant, 0),
 				makeInst(OpConstant, 1),
-				makeInst(OpMap, 2),
+				makeInst(OpDict, 2),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			)),
@@ -507,7 +507,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpConstant, 0),
 				makeInst(OpConstant, 1),
-				makeInst(OpMap, 2),
+				makeInst(OpDict, 2),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			)),

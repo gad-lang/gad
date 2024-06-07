@@ -44,7 +44,7 @@ const (
 	OpJumpFalsy
 	OpAndJump
 	OpOrJump
-	OpMap
+	OpDict
 	OpArray
 	OpSliceIndex
 	OpGetIndex
@@ -111,7 +111,7 @@ var OpcodeNames = [...]string{
 	OpJumpFalsy:     "JUMPFALSY",
 	OpAndJump:       "ANDJUMP",
 	OpOrJump:        "ORJUMP",
-	OpMap:           "MAP",
+	OpDict:          "DICT",
 	OpArray:         "ARRAY",
 	OpSliceIndex:    "SLICEINDEX",
 	OpGetIndex:      "GETINDEX",
@@ -179,7 +179,7 @@ var OpcodeOperands = [...][]int{
 	OpJumpFalsy:     {2}, // position
 	OpAndJump:       {2}, // position
 	OpOrJump:        {2}, // position
-	OpMap:           {2}, // number of keys and values
+	OpDict:          {2}, // number of keys and values
 	OpArray:         {2}, // number of items
 	OpSliceIndex:    {},
 	OpGetIndex:      {1}, // number of selectors
