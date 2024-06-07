@@ -715,40 +715,11 @@ func TestVMIterator(t *testing.T) {
 	rg := `Range := struct("Range", fields={
 				start:0,
 				end:2,
-				exited:false,
 			})`
 	rgc := rg + `
 		func iterator(r Range) => [r.start, [(r.start)=str('a' + r.start)]]
 		func iterator(r Range, state) => state >= r.end ? nil : [state+1, [(state+1)=str('a' + state+1)]]
 	`
-
-	TestExpectRun(t, rgc+`
-		exited := false
-		func iterationDone(r Range) {
-			exited = true
-		}
-		for k, v in Range() {}
-		return exited
-	`, nil, True)
-
-	TestExpectRun(t, rgc+`
-		exited := false
-		func iterationDone(r Range) {
-			exited = true
-		}
-		for k, v in map(Range(), func(k, v) => v) {}
-		return exited
-	`, nil, True)
-
-	TestExpectRun(t, rgc+`
-		exited := false
-		func iterationDone(r Range) {
-			exited = true
-		}
-		it := iterate(Range())
-		for k, v in it {}
-		return exited
-	`, nil, True)
 
 	TestExpectRun(t, rgc+`
 		ret := []

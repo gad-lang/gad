@@ -976,9 +976,6 @@ func (c *Compiler) compileForInStmt(stmt *node.ForInStmt) error {
 	for _, pos := range loop.continues {
 		c.changeOperand(pos, postBodyPos)
 	}
-
-	// :it.endLoop()
-	c.emit(stmt, OpIterDone)
 	return nil
 }
 

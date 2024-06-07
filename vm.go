@@ -405,9 +405,6 @@ func (vm *VM) clearCurrentFrame() {
 	for _, f := range vm.curFrame.defers {
 		f()
 	}
-	for len(vm.curFrame.loops) > 0 {
-		vm.xIterDone()
-	}
 	vm.curFrame.defers = nil
 	vm.curFrame.freeVars = nil
 	vm.curFrame.fn = nil
@@ -1319,27 +1316,6 @@ func (vm *VM) getCalledNamedArgs(flags OpCallFlag) (namedArgs NamedArgs, err err
 	return
 }
 
-func (vm *VM) xIterDone() {
-	i := len(vm.curFrame.loops) - 1
-	if i < 0 {
-		return
-	}
-
-	it := vm.curFrame.loops[i]
-	if it != nil {
-		if input := it.Input(); input != nil {
-			_, err := vm.Builtins.Call(BuiltinIterationDone, Call{VM: vm, Args: Args{Array{input}}})
-			if err != nil {
-				if err = vm.throwGenErr(err); err != nil && vm.err == nil {
-					vm.err = err
-					return
-				}
-			}
-		}
-	}
-	vm.curFrame.loops = vm.curFrame.loops[:i]
-}
-
 type errHandler struct {
 	sp       int
 	catch    int
@@ -1410,7 +1386,6 @@ type frame struct {
 	args        Args
 	namedArgs   *NamedArgs
 	defers      []func()
-	loops       []*StateIteratorObject
 }
 
 func (f *frame) Defer(fn func()) {

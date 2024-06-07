@@ -80,7 +80,6 @@ const (
 	BuiltinMakeArray
 	BuiltinCap
 	BuiltinIterate
-	BuiltinIterationDone
 	BuiltinKeys
 	BuiltinValues
 	BuiltinItems
@@ -240,7 +239,6 @@ var BuiltinsMap = map[string]BuiltinType{
 	"cap":        BuiltinCap,
 
 	"iterate":       BuiltinIterate,
-	"iterationDone": BuiltinIterationDone,
 	"keys":          BuiltinKeys,
 	"values":        BuiltinValues,
 	"items":         BuiltinItems,
@@ -608,10 +606,6 @@ var BuiltinObjects = BuiltinObjectsMap{
 		Name:  "close",
 		Value: BuiltinCloseFunc,
 	},
-	BuiltinIterationDone: &BuiltinFunction{
-		Name:  "close",
-		Value: BuiltinCloseFunc,
-	},
 	BuiltinWrongNumArgumentsError:  ErrWrongNumArguments,
 	BuiltinInvalidOperatorError:    ErrInvalidOperator,
 	BuiltinIndexOutOfBoundsError:   ErrIndexOutOfBounds,
@@ -659,10 +653,6 @@ func init() {
 	BuiltinObjects[BuiltinIterate] = &BuiltinFunction{
 		Name:  "iterate",
 		Value: BuiltinIterateFunc,
-	}
-	BuiltinObjects[BuiltinIterationDone] = &BuiltinFunction{
-		Name:  "iterationDone",
-		Value: BuiltinIterationDoneFunc,
 	}
 	BuiltinObjects[BuiltinKeys] = &BuiltinFunction{
 		Name:  "keys",

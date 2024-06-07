@@ -530,7 +530,6 @@ VMLoop:
 				}
 			} else if it != nil {
 				ito := NewStateIteratorObject(vm, it)
-				vm.curFrame.loops = append(vm.curFrame.loops, ito)
 				vm.stack[vm.sp-1] = ito
 				continue
 			}
@@ -540,8 +539,6 @@ VMLoop:
 				vm.err = err
 				return
 			}
-		case OpIterDone:
-			vm.xIterDone()
 		case OpIterNext:
 			iterator := vm.stack[vm.sp-1].(*StateIteratorObject)
 			hasMore, err := iterator.Read()

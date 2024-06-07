@@ -943,8 +943,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	case OpEqual, OpNotEqual, OpNull, OpTrue, OpFalse, OpYes, OpNo, OpPop, OpSliceIndex,
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
-		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsModule,
-		OpIterDone:
+		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsModule:
 		return buf, nil
 	default:
 		return buf, &Error{

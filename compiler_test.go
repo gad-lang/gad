@@ -2014,8 +2014,7 @@ func TestCompiler_Compile(t *testing.T) {
 			makeInst(OpIterValue),      // 0023
 			makeInst(OpDefineLocal, 3), // 0024 v
 			makeInst(OpJump, 10),       // 0026
-			makeInst(OpIterDone),       // 0029
-			makeInst(OpReturn, 0),      // 0030
+			makeInst(OpReturn, 0),      // 0029
 		),
 			withLocals(4), // m, :it, k, v
 		),
@@ -2483,7 +2482,6 @@ func TestCompilerFor(t *testing.T) {
 			makeInst(OpConstant, 1),
 			makeInst(OpBinaryOp, int(token.Add)),
 			makeInst(OpSetLocal, 0),
-			makeInst(OpIterDone),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpConstant, 2),
 			makeInst(OpBinaryOp, int(token.Add)),
