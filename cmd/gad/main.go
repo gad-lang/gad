@@ -26,6 +26,7 @@ import (
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/runehelper"
+	goflate "github.com/gad-lang/gad/stdlib/compress/flate"
 	gadhttp "github.com/gad-lang/gad/stdlib/http"
 	"github.com/peterh/liner"
 
@@ -451,6 +452,7 @@ func DefaultModuleMap(workdir string, sourcePath *importers.PathList) *gad.Modul
 		AddBuiltinModule("json", gadjson.Module).
 		AddBuiltinModule("path", gadpath.Module).
 		AddBuiltinModule("encoding/base64", gadbase64.Module).
+		AddBuiltinModule("compress/flate", goflate.Module).
 		SetExtImporter(&importers.FileImporter{
 			WorkDir:      workdir,
 			FileReader:   importers.ShebangReadFile,
