@@ -67,17 +67,31 @@ var (
 	errReset = errors.New("reset")
 )
 
-var scriptGlobals = &gad.SyncDict{
-	Value: gad.Dict{
-		"Gosched": &gad.Function{
-			Name: "Gosched",
-			Value: func(gad.Call) (gad.Object, error) {
-				runtime.Gosched()
-				return gad.Nil, nil
+var (
+	sourcePath    = importers.PathList(filepath.SplitList(os.Getenv("GADPATH")))
+	scriptGlobals = &gad.SyncDict{
+		Value: gad.Dict{
+			"Gosched": &gad.Function{
+				Name: "Gosched",
+				Value: func(gad.Call) (gad.Object, error) {
+					runtime.Gosched()
+					return gad.Nil, nil
+				},
 			},
+			"SOURCE_PATH": func() gad.Object {
+				v := gad.MustNewReflectValue(&sourcePath).(*gad.ReflectSlice)
+				v.Options.ToStr = func() string {
+					arr := make(gad.Array, len(sourcePath))
+					for i, v := range sourcePath {
+						arr[i] = gad.Str(v)
+					}
+					return arr.ToString()
+				}
+				return v
+			}(),
 		},
-	},
-}
+	}
+)
 
 type suggest struct {
 	text        string
@@ -101,7 +115,7 @@ func newREPL(ctx context.Context, stdout io.Writer) *repl {
 		Module: &gad.ModuleInfo{
 			Name: "(repl)",
 		},
-		ModuleMap:         DefaultModuleMap("."),
+		ModuleMap:         DefaultModuleMap(".", &sourcePath),
 		SymbolTable:       defaultSymbolTable(),
 		OptimizerMaxCycle: gad.TraceCompilerOptions.OptimizerMaxCycle,
 		TraceParser:       traceParser,
@@ -422,14 +436,14 @@ func complete(line string) (completions []string) {
 
 func defaultSymbolTable() *gad.SymbolTable {
 	table := gad.NewSymbolTable(gad.NewBuiltins())
-	_, err := table.DefineGlobal("Gosched")
+	_, err := table.DefineGlobals([]string{"Gosched", "SOURCE_PATH"})
 	if err != nil {
 		panic(&gad.Error{Message: "global symbol define error", Cause: err})
 	}
 	return table
 }
 
-func DefaultModuleMap(workdir string) *gad.ModuleMap {
+func DefaultModuleMap(workdir string, sourcePath *importers.PathList) *gad.ModuleMap {
 	mm := gad.NewModuleMap().
 		AddBuiltinModule("time", gadtime.Module).
 		AddBuiltinModule("strings", gadstrings.Module).
@@ -437,12 +451,12 @@ func DefaultModuleMap(workdir string) *gad.ModuleMap {
 		AddBuiltinModule("json", gadjson.Module).
 		AddBuiltinModule("path", gadpath.Module).
 		AddBuiltinModule("encoding/base64", gadbase64.Module).
-		SetExtImporter(
-			&importers.FileImporter{
-				WorkDir:    workdir,
-				FileReader: importers.ShebangReadFile,
-			},
-		)
+		SetExtImporter(&importers.FileImporter{
+			WorkDir:      workdir,
+			FileReader:   importers.ShebangReadFile,
+			NameResolver: importers.OsDirsNameResolverPtr(sourcePath),
+		})
+
 	if !safe {
 		if !disabledModules["http"] {
 			mm.AddBuiltinModule("http", gadhttp.Module)
@@ -534,11 +548,13 @@ func parseFlags(
 	var (
 		trace    string
 		disabled string
+		module   bool
 	)
 	flagset.StringVar(&trace, "trace", "",
 		`Comma separated units: -trace parser,optimizer,compiler`)
 	flagset.BoolVar(&noOptimizer, "no-optimizer", false, `Disable optimization`)
-	flagset.BoolVar(&safe, "safe", false, `Disable al external acess modules: "http", "os" and "filepath".`)
+	flagset.BoolVar(&safe, "safe", false, `Disable al external acess modules: "http", "os" and "filepath"`)
+	flagset.BoolVar(&module, "module", false, `if SCRIPT_FILE does not exists, check exists in GADPATH`)
 	flagset.StringVar(&disabled, "disabled-modules", "", `Disable external acess modules by comma separated units: -disabled-modules http,os`)
 	flagset.DurationVar(&timeout, "timeout", 0,
 		"Program timeout. It is applicable if a script file is provided and "+
@@ -599,7 +615,19 @@ func parseFlags(
 	if filePath == "-" {
 		return
 	}
+
 	_, err = os.Stat(filePath)
+
+	if os.IsNotExist(err) && module {
+		var err2 error
+		for _, p := range sourcePath {
+			if _, err2 = os.Stat(p); err2 == nil {
+				filePath = filepath.Join(p, filePath)
+				break
+			}
+		}
+	}
+
 	return
 }
 
@@ -610,10 +638,11 @@ type Script struct {
 	script     []byte
 	traceOut   io.Writer
 	args       []string
+	sourcePath *importers.PathList
 }
 
 func newScript(ctx context.Context, modulePath string, workdir string, script []byte, traceOut io.Writer) *Script {
-	return &Script{ctx: ctx, modulePath: modulePath, workdir: workdir, script: script, traceOut: traceOut}
+	return &Script{ctx: ctx, modulePath: modulePath, workdir: workdir, script: script, traceOut: traceOut, sourcePath: &sourcePath}
 }
 
 func (s *Script) execute() error {
@@ -621,7 +650,7 @@ func (s *Script) execute() error {
 		CompilerOptions: gad.DefaultCompilerOptions,
 	}
 	opts.SymbolTable = defaultSymbolTable()
-	opts.ModuleMap = DefaultModuleMap(s.workdir)
+	opts.ModuleMap = DefaultModuleMap(s.workdir, s.sourcePath)
 	opts.Module = &gad.ModuleInfo{
 		Name: path.Clean(s.modulePath),
 		File: "file:" + s.modulePath,
@@ -689,6 +718,7 @@ func (s *Script) execute() error {
 	vm := gad.NewVM(bc).SetRecover(true)
 
 	done := make(chan struct{})
+
 	go func() {
 		defer close(done)
 		_, err = vm.RunOpts(&gad.RunOpts{

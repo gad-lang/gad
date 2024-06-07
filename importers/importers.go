@@ -83,8 +83,31 @@ func (m *FileImporter) Fork(moduleName string) gad.ExtImporter {
 // OsDirsNameResolver reads given path and returns the content of the file. If file
 // starts with Shebang #! , it is replaced with //.
 // This function can be used as ReadFile callback in FileImporter.
-func OsDirsNameResolver(dirs []string) func(cwd, path string) (string, error) {
-	if len(dirs) == 0 {
+func OsDirsNameResolver(dirs PathList) func(cwd, path string) (string, error) {
+	return OsDirsNameResolverPtr(&dirs)
+}
+
+type PathList []string
+
+func (d *PathList) Prepend(v string) {
+	*d = append([]string{v}, *d...)
+}
+
+func (d *PathList) Append(v string) {
+	*d = append(*d, v)
+}
+
+func (d *PathList) Remove(count int) {
+	if count > 0 {
+		*d = (*d)[count:]
+	} else {
+		*d = (*d)[:len(*d)+count]
+	}
+}
+
+// OsDirsNameResolverPtr is similar to `OsDirsNameResolver`, but receives ptr of `dirs`.
+func OsDirsNameResolverPtr(dirs *PathList) func(cwd, path string) (string, error) {
+	if len(*dirs) == 0 {
 		return func(_, path string) (string, error) {
 			return path, nil
 		}
@@ -95,7 +118,7 @@ func OsDirsNameResolver(dirs []string) func(cwd, path string) (string, error) {
 		if _, err = os.Stat(name); err == nil || !os.IsNotExist(err) {
 			return
 		}
-		for _, dir := range dirs {
+		for _, dir := range *dirs {
 			name = filepath.Join(dir, p)
 			if _, err = os.Stat(name); err == nil || !os.IsNotExist(err) {
 				return

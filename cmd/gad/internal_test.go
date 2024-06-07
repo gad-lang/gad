@@ -68,7 +68,8 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("globals", func(t *testing.T) {
 		require.NoError(t, r.execute(".globals"))
-		testHasPrefix(t, string(cw.consume()), `{Gosched: `+repr.Quote("function:Gosched")+`}`)
+		testHasPrefix(t, string(cw.consume()), `{Gosched: `+repr.Quote("function:Gosched")+`, SOURCE_PATH: `+
+			repr.Quote("reflectSlice:github.com/gad-lang/gad/importers.PathList"+repr.Quote("&[]"))+`}`)
 	})
 	t.Run("globals plus", func(t *testing.T) {
 		require.NoError(t, r.execute(".globals+"))
@@ -127,6 +128,8 @@ func TestREPL(t *testing.T) {
 		testHasPrefix(t, symout, "[Symbol{Literal:")
 		require.Contains(t, symout,
 			"Symbol{Literal:Gosched Index:0 Scope:GLOBAL Assigned:false Original:<nil> Constant:false}")
+		require.Contains(t, symout,
+			"Symbol{Literal:SOURCE_PATH Index:1 Scope:GLOBAL Assigned:false Original:<nil> Constant:false}")
 		require.Contains(t, symout,
 			"Symbol{Literal:test Index:0 Scope:LOCAL Assigned:true Original:<nil> Constant:false}")
 	})
@@ -191,7 +194,7 @@ func TestREPL(t *testing.T) {
 		cw.consume()
 		require.NoError(t, r.execute("str(int)"))
 		require.Equal(t, "⇦   \""+repr.Quote("builtinType int")+" with 1 methods:\\n  "+
-			"1. "+repr.Quote("compiledFunction #8(p Point)")+"\"",
+			"1. "+repr.Quote("compiledFunction #9(p Point)")+"\"",
 			strings.TrimSpace(string(cw.consume())))
 		require.NoError(t, r.execute("int(Point(2,8))"))
 		require.Equal(t, "⇦   16", strings.TrimSpace(string(cw.consume())))

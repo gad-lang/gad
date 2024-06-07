@@ -336,6 +336,19 @@ func (st *SymbolTable) DefineGlobal(name string) (*Symbol, error) {
 	return s, nil
 }
 
+// DefineGlobals adds a new symbols with ScopeGlobal in the current scope.
+func (st *SymbolTable) DefineGlobals(names []string) (s []*Symbol, err error) {
+	s = make([]*Symbol, len(names))
+	for i, name := range names {
+		var symbol *Symbol
+		if symbol, err = st.DefineGlobal(name); err != nil {
+			return
+		}
+		s[i] = symbol
+	}
+	return
+}
+
 // MaxSymbols returns the total number of symbols defined in the scope.
 func (st *SymbolTable) MaxSymbols() int {
 	return st.maxDefinition
