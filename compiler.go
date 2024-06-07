@@ -464,7 +464,7 @@ func (c *Compiler) Compile(nd ast.Node) error {
 	case *node.CharLit:
 		c.emit(nt, OpConstant, c.addConstant(Char(nt.Value)))
 	case *node.NilLit:
-		c.emit(nt, OpNull)
+		c.emit(nt, OpNil)
 	case *node.StdInLit:
 		c.emit(nt, OpStdIn)
 	case *node.StdOutLit:
@@ -940,7 +940,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		OpFinalizer, OpDefineLocal, OpKeyValue:
 		buf = append(buf, byte(args[0]))
 		return buf, nil
-	case OpEqual, OpNotEqual, OpNull, OpTrue, OpFalse, OpYes, OpNo, OpPop, OpSliceIndex,
+	case OpEqual, OpNotEqual, OpNil, OpTrue, OpFalse, OpYes, OpNo, OpPop, OpSliceIndex,
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
 		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsModule:

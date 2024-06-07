@@ -482,7 +482,7 @@ VMLoop:
 			vm.sp--
 			vm.stack[vm.sp] = nil
 			vm.ip++
-		case OpNull:
+		case OpNil:
 			vm.stack[vm.sp] = Nil
 			vm.sp++
 		case OpStdIn:

@@ -406,7 +406,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpArray, 0),
 				makeInst(OpConstant, 0),
-				makeInst(OpNull),
+				makeInst(OpNil),
 				makeInst(OpSliceIndex),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -418,7 +418,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpArray, 0),
 				makeInst(OpConstant, 0),
-				makeInst(OpNull),
+				makeInst(OpNil),
 				makeInst(OpSliceIndex),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -429,7 +429,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 			Array{Int(3)},
 			compFunc(concatInsts(
 				makeInst(OpArray, 0),
-				makeInst(OpNull),
+				makeInst(OpNil),
 				makeInst(OpConstant, 0),
 				makeInst(OpSliceIndex),
 				makeInst(OpPop),
@@ -441,7 +441,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 			Array{Int(3)},
 			compFunc(concatInsts(
 				makeInst(OpArray, 0),
-				makeInst(OpNull),
+				makeInst(OpNil),
 				makeInst(OpConstant, 0),
 				makeInst(OpSliceIndex),
 				makeInst(OpPop),
@@ -580,7 +580,7 @@ func TestOptimizerShadowing(t *testing.T) {
 		bytecode(
 			Array{Str("1")},
 			compFunc(concatInsts(
-				makeInst(OpNull),
+				makeInst(OpNil),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpConstant, 0),
@@ -604,7 +604,7 @@ func TestOptimizerShadowing(t *testing.T) {
 				)),
 			},
 			compFunc(concatInsts(
-				makeInst(OpNull),
+				makeInst(OpNil),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocalPtr, 0),
 				makeInst(OpClosure, 1, 1),

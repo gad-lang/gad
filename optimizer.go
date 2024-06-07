@@ -140,7 +140,7 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 
 	// using array here instead of map or slice is faster to look up opcode
 	allowedOps := [...]bool{
-		OpConstant: true, OpNull: true, OpBinaryOp: true, OpUnary: true,
+		OpConstant: true, OpNil: true, OpBinaryOp: true, OpUnary: true,
 		OpNoOp: true, OpAndJump: true, OpOrJump: true, OpArray: true,
 		OpReturn: true, OpEqual: true, OpNotEqual: true, OpPop: true,
 		OpGetBuiltin: true, OpCall: true, OpSetLocal: true, OpDefineLocal: true,

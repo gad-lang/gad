@@ -49,7 +49,7 @@ const (
 	OpSliceIndex
 	OpGetIndex
 	OpSetIndex
-	OpNull
+	OpNil
 	OpStdIn
 	OpStdOut
 	OpStdErr
@@ -116,7 +116,7 @@ var OpcodeNames = [...]string{
 	OpSliceIndex:    "SLICEINDEX",
 	OpGetIndex:      "GETINDEX",
 	OpSetIndex:      "SETINDEX",
-	OpNull:          "NULL",
+	OpNil:           "NIL",
 	OpStdIn:         "STDIN",
 	OpStdOut:        "STDOUT",
 	OpStdErr:        "STDERR",
@@ -148,8 +148,8 @@ var OpcodeNames = [...]string{
 	OpYes:           "YES",
 	OpNo:            "NO",
 	OpCallName:      "CALLNAME",
-	OpJumpNil:       "JUMPNULL",
-	OpJumpNotNil:    "JUMPNOTNULL",
+	OpJumpNil:       "JUMPNIL",
+	OpJumpNotNil:    "JUMPNOTNIL",
 	OpKeyValueArray: "KVARRAY",
 	OpKeyValue:      "KV",
 	OpCallee:        "CALLEE",
@@ -184,7 +184,7 @@ var OpcodeOperands = [...][]int{
 	OpSliceIndex:    {},
 	OpGetIndex:      {1}, // number of selectors
 	OpSetIndex:      {},
-	OpNull:          {},
+	OpNil:           {},
 	OpStdIn:         {},
 	OpStdOut:        {},
 	OpStdErr:        {},

@@ -132,7 +132,7 @@ func (c *Compiler) compileTryStmt(nd *node.TryStmt) error {
 		// if there is no thrown error before catch statement, set catch ident to nil
 		// otherwise jumping to finally and accessing ident in finally access previous set same index variable.
 		if nd.Catch.Ident != nil {
-			c.emit(nd.Catch, OpNull)
+			c.emit(nd.Catch, OpNil)
 			symbol, exists := c.symbolTable.DefineLocal(nd.Catch.Ident.Name)
 			if exists {
 				c.emit(nd, OpSetLocal, symbol.Index)
@@ -579,7 +579,7 @@ func (c *Compiler) compileDestructuring(
 
 	if !c.symbolTable.InBlock() {
 		// blocks set nil to variables defined in it after block
-		c.emit(nd, OpNull)
+		c.emit(nd, OpNil)
 		c.emit(nd, OpSetLocal, tempArrSymbol.Index)
 	}
 	return nil
@@ -1370,7 +1370,7 @@ func (c *Compiler) compileSliceExpr(nd *node.SliceExpr) error {
 			return err
 		}
 	} else {
-		c.emit(nd, OpNull)
+		c.emit(nd, OpNil)
 	}
 
 	if nd.High != nil {
@@ -1378,7 +1378,7 @@ func (c *Compiler) compileSliceExpr(nd *node.SliceExpr) error {
 			return err
 		}
 	} else {
-		c.emit(nd, OpNull)
+		c.emit(nd, OpNil)
 	}
 
 	c.emit(nd, OpSliceIndex)
@@ -1530,7 +1530,7 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 		// modules should not accept parameters, to suppress the wrong number of arguments error
 		// set all params to nil
 		for i := 0; i < numParams; i++ {
-			c.emit(nd, OpNull)
+			c.emit(nd, OpNil)
 		}
 		c.emit(nd, OpCall, numParams, 0)
 		c.emit(nd, OpStoreModule, module.moduleIndex)
