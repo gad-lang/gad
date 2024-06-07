@@ -26,21 +26,11 @@ import (
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/runehelper"
-	goflate "github.com/gad-lang/gad/stdlib/compress/flate"
-	gadhttp "github.com/gad-lang/gad/stdlib/http"
+	"github.com/gad-lang/gad/stdlib/helper"
 	"github.com/peterh/liner"
 
 	"github.com/gad-lang/gad/importers"
 	"github.com/gad-lang/gad/token"
-
-	gadbase64 "github.com/gad-lang/gad/stdlib/encoding/base64"
-	gadfpath "github.com/gad-lang/gad/stdlib/filepath"
-	gadfmt "github.com/gad-lang/gad/stdlib/fmt"
-	gadjson "github.com/gad-lang/gad/stdlib/json"
-	gados "github.com/gad-lang/gad/stdlib/os"
-	gadpath "github.com/gad-lang/gad/stdlib/path"
-	gadstrings "github.com/gad-lang/gad/stdlib/strings"
-	gadtime "github.com/gad-lang/gad/stdlib/time"
 )
 
 const (
@@ -445,32 +435,15 @@ func defaultSymbolTable() *gad.SymbolTable {
 }
 
 func DefaultModuleMap(workdir string, sourcePath *importers.PathList) *gad.ModuleMap {
-	mm := gad.NewModuleMap().
-		AddBuiltinModule("time", gadtime.Module).
-		AddBuiltinModule("strings", gadstrings.Module).
-		AddBuiltinModule("fmt", gadfmt.Module).
-		AddBuiltinModule("json", gadjson.Module).
-		AddBuiltinModule("path", gadpath.Module).
-		AddBuiltinModule("encoding/base64", gadbase64.Module).
-		AddBuiltinModule("compress/flate", goflate.Module).
+	mb := helper.NewModuleMapBuilder()
+	mb.Safe = safe
+	mb.Disabled = disabledModules
+	return mb.Build().
 		SetExtImporter(&importers.FileImporter{
 			WorkDir:      workdir,
 			FileReader:   importers.ShebangReadFile,
 			NameResolver: importers.OsDirsNameResolverPtr(sourcePath),
 		})
-
-	if !safe {
-		if !disabledModules["http"] {
-			mm.AddBuiltinModule("http", gadhttp.Module)
-		}
-		if !disabledModules["os"] {
-			mm.AddBuiltinModule("os", gados.Module)
-		}
-		if !disabledModules["filepath"] {
-			mm.AddBuiltinModule("filepath", gadfpath.Module)
-		}
-	}
-	return mm
 }
 
 func humanFriendlySize(b uint64) string {
