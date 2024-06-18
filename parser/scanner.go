@@ -518,7 +518,10 @@ do:
 		case '`':
 			insertSemi = true
 			t.Token = token.RawString
-			t.Literal = s.ScanRawString()
+			var ishd bool
+			if t.Literal, ishd = s.ScanRawString(); ishd {
+				t.Token = token.RawHeredoc
+			}
 		case ':':
 			t.Token = s.Switch2(token.Colon, token.Define)
 		case '.':
@@ -688,6 +691,27 @@ do:
 						return s.scanConfig(t.Pos, l+1)
 					}
 				}
+			}
+
+			switch s.Ch {
+			case '"':
+				s.Next()
+				insertSemi = true
+				t.Token = token.StringTemplate
+				t.Literal = string(ch)
+				t.Literal += s.ScanString()
+				goto done
+			case '`':
+				s.Next()
+				insertSemi = true
+				t.Token = token.RawStringTemplate
+				t.Literal = string(ch)
+				lit, ishd := s.ScanRawString()
+				if ishd {
+					t.Token = token.RawHeredocTemplate
+				}
+				t.Literal += lit
+				goto done
 			}
 			fallthrough
 		default:
@@ -863,10 +887,43 @@ func (s *Scanner) ReadAt(b rune) []byte {
 			escape = !escape
 		}
 		if s.Ch == b && !escape {
-			s.Next()
 			break
 		}
 		s.Next()
+		end++
+	}
+	return s.Src[start:end]
+}
+
+func (s *Scanner) ReadCount(q int) []byte {
+	var (
+		start = s.Offset
+		end   = s.Offset
+	)
+
+	for i := 0; i < q; i++ {
+		end++
+		s.Next()
+	}
+	return s.Src[start:end]
+}
+
+func (s *Scanner) ReadWhen(b rune) []byte {
+	var (
+		start = s.Offset
+		end   = s.Offset
+	)
+
+	for end < len(s.Src) {
+		if s.Ch == -1 {
+			return nil
+		}
+
+		if s.Ch != b {
+			break
+		}
+		s.Next()
+		end++
 	}
 	return s.Src[start:end]
 }
@@ -897,6 +954,19 @@ func (s *Scanner) PeekInlineNoSpace() byte {
 	return 0
 }
 
+func (s *Scanner) IndexOfInlineNoSpace() int {
+	var offs int
+	for offs < len(s.Src) {
+		switch s.Src[offs] {
+		case ' ', '\t':
+			offs++
+		default:
+			return offs
+		}
+	}
+	return 0
+}
+
 func (s *Scanner) PeekNoSpaceN(n int) []byte {
 	off := s.ReadOffset
 	for off < len(s.Src) {
@@ -915,7 +985,7 @@ func (s *Scanner) PeekNoSpaceN(n int) []byte {
 }
 
 func (s *Scanner) PeekN(n int) []byte {
-	if (s.ReadOffset + n) < len(s.Src) {
+	if (s.ReadOffset + n) <= len(s.Src) {
 		return s.Src[s.ReadOffset : s.ReadOffset+n]
 	}
 	return nil
@@ -1324,8 +1394,56 @@ func (s *Scanner) ScanString() string {
 	return string(s.Src[offs:s.Offset])
 }
 
-func (s *Scanner) ScanRawString() string {
+func (s *Scanner) ReadAtMany(quote []byte) []byte {
+	var (
+		offs = s.Offset - 1
+		next = make([]byte, len(quote))
+		w    bytes.Buffer
+		r    = rune(quote[0])
+	)
+
+	for {
+		b := s.ReadAt(r)
+		if s.Ch == -1 {
+			s.Error(offs, "unexpected EOF")
+			break
+		}
+		w.Write(b)
+		next[0] = byte(s.Ch)
+		x := s.PeekN(len(next) - 1)
+		copy(next[1:], x)
+
+		if bytes.Compare(next, quote) == 0 {
+			break
+		}
+
+		w.WriteRune(s.Ch)
+		s.Next()
+	}
+
+	return w.Bytes()
+}
+
+func (s *Scanner) ScanRawString() (string, bool) {
 	offs := s.Offset - 1 // '`' opening already consumed
+
+	// if is raw heredoc, minimal 3 chars (current more 2)
+	if s.Ch == '`' && s.Peek() == '`' {
+		quote := []byte{byte(s.Ch)}
+		quote = append(quote, s.ReadWhen('`')...)
+		if len(quote)%2 != 1 {
+			s.Error(offs, "raw heredoc literal not open")
+		}
+		var w bytes.Buffer
+		w.Write(quote)
+		if s.Ch == '\n' {
+			quote = append([]byte{'\n'}, quote...)
+		}
+		w.Write(s.ReadAtMany(quote))
+		w.Write(s.ReadCount(len(quote)))
+
+		return w.String(), true
+	}
 
 	for {
 		ch := s.Ch
@@ -1341,7 +1459,7 @@ func (s *Scanner) ScanRawString() string {
 		}
 	}
 
-	return string(s.Src[offs:s.Offset])
+	return string(s.Src[offs:s.Offset]), false
 }
 
 // StripCR removes carriage return characters.

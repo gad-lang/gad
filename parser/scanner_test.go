@@ -12,20 +12,13 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
-var testFileSet = parser.NewFileSet()
-
-type scanResult struct {
-	Token   token.Token
-	Literal string
-	Line    int
-	Column  int
-}
-
 func TestScanner_ScanMixed(t *testing.T) {
-	testScan(t, parser.Mixed, false, []struct {
-		token   token.Token
-		literal string
-	}{
+	tr := &tester{
+		opts: parser.ScannerOptions{
+			Mode: parser.Mixed,
+		},
+	}
+	tr.do(t, []testCase{
 		{token.RawString, "abc"},
 		{token.CodeBegin, "#{"},
 		{token.Ident, "a"},
@@ -38,10 +31,8 @@ func TestScanner_ScanMixed(t *testing.T) {
 }
 
 func TestScanner_Scan(t *testing.T) {
-	testScan(t, 0, true, []struct {
-		token   token.Token
-		literal string
-	}{
+	tr := &tester{addLines: true}
+	tr.do(t, []testCase{
 		{token.Comment, "/* a comment */"},
 		{token.Comment, "// a comment \n"},
 		{token.Comment, "/*\n*/"},
@@ -101,6 +92,18 @@ func TestScanner_Scan(t *testing.T) {
 		},
 		{token.RawString, "`\n`"},
 		{token.RawString, "`foo\nbar`"},
+		{token.StringTemplate, `#"abc"`},
+		{token.RawStringTemplate, "#`abc`"},
+		{token.RawHeredoc, "```\n  a\n  bc\n```"},
+		{token.RawHeredoc, "```\nabc\n```"},
+		{token.RawHeredoc, "```abc```"},
+		{token.RawHeredoc, "```a``bc```"},
+		{token.RawHeredoc, "`````a``b```c`````"},
+		{token.RawHeredocTemplate, "#```\n  a\n  bc\n```"},
+		{token.RawHeredocTemplate, "#```\nabc\n```"},
+		{token.RawHeredocTemplate, "#```abc```"},
+		{token.RawHeredocTemplate, "#```a``bc```"},
+		{token.RawHeredocTemplate, "#`````a``b```c`````"},
 		{token.Add, "+"},
 		{token.Sub, "-"},
 		{token.Mul, "*"},
@@ -187,22 +190,74 @@ func TestScanner_Scan(t *testing.T) {
 	})
 }
 
-func testScan(t *testing.T, mode parser.ScanMode, addLines bool, testCases []struct {
-	token   token.Token
-	literal string
-}) {
-	t.Helper()
-	testScanI(t, mode, addLines, "\n", testCases)
-	if addLines {
-		testScanI(t, mode, addLines, "\r\n", testCases)
+func TestStripCR(t *testing.T) {
+	for _, tc := range []struct {
+		input  string
+		expect string
+	}{
+		{"//\n", "//\n"},
+		{"//\r\n", "//\n"},
+		{"//\r\r\r\n", "//\n"},
+		{"//\r*\r/\r\n", "//*/\n"},
+		{"/**/", "/**/"},
+		{"/*\r/*/", "/*/*/"},
+		{"/*\r*/", "/**/"},
+		{"/**\r/*/", "/**\r/*/"},
+		{"/*\r/\r*\r/*/", "/*/*\r/*/"},
+		{"/*\r\r\r\r*/", "/**/"},
+	} {
+		actual := string(parser.StripCR([]byte(tc.input),
+			len(tc.input) >= 2 && tc.input[1] == '*'))
+		require.Equal(t, tc.expect, actual)
 	}
 }
 
-func testScanI(t *testing.T, mode parser.ScanMode, addLines bool, lineSep string, testCases []struct {
+func countLines(s string) int {
+	if s == "" {
+		return 0
+	}
+	n := 1
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			n++
+		}
+	}
+	return n
+}
+
+var testFileSet = parser.NewFileSet()
+
+type scanResult struct {
+	Token   token.Token
+	Literal string
+	Line    int
+	Column  int
+}
+
+type testCase struct {
 	token   token.Token
 	literal string
-}) {
-	// combine
+}
+
+type tester struct {
+	addLines bool
+	lineSep  string
+	opts     parser.ScannerOptions
+}
+
+func (tr tester) do(t *testing.T, testCases []testCase) {
+	t.Helper()
+	if tr.addLines {
+		tr.lineSep = "\r\n"
+		tr.doI(t, testCases)
+	}
+	tr.doI(t, testCases)
+}
+
+func (tr tester) doI(t *testing.T, testCases []testCase) {
+	if tr.lineSep == "" {
+		tr.lineSep = "\n"
+	}
 	var lines []string
 	var lineSum int
 	lineNos := make([]int, len(testCases))
@@ -210,14 +265,14 @@ func testScanI(t *testing.T, mode parser.ScanMode, addLines bool, lineSep string
 	for i, tc := range testCases {
 		// add 0-2 lines before each test case
 		var emptyLines, emptyColumns int
-		if addLines {
+		if tr.addLines {
 			emptyLines = rand.Intn(3)
 			for j := 0; j < emptyLines; j++ {
 				lines = append(lines, strings.Repeat(" ", rand.Intn(10)))
 			}
 		}
 
-		if addLines {
+		if tr.addLines {
 			// add test case line with some whitespaces around it
 			emptyColumns = rand.Intn(10)
 			lines = append(lines, fmt.Sprintf("%s%s%s",
@@ -253,7 +308,7 @@ func testScanI(t *testing.T, mode parser.ScanMode, addLines bool, lineSep string
 			expectedLiteral = tc.literal
 		case token.RawString:
 			expectedLiteral = tc.literal
-			if mode.Has(parser.Mixed) && i < len(testCases)-1 {
+			if tr.opts.Mode.Has(parser.Mixed) && i < len(testCases)-1 {
 				// remove last \n
 				expectedLiteral += "\n"
 			}
@@ -291,48 +346,26 @@ func testScanI(t *testing.T, mode parser.ScanMode, addLines bool, lineSep string
 		}
 	}
 
-	scanExpect(t, strings.Join(lines, lineSep),
-		parser.ScanComments|parser.DontInsertSemis|mode, expected...)
-	scanExpect(t, strings.Join(lines, lineSep),
-		parser.DontInsertSemis|mode, expectedSkipComments...)
+	tr.scanExpect(t, strings.Join(lines, tr.lineSep),
+		parser.ScanComments|parser.DontInsertSemis, expected...)
+	tr.scanExpect(t, strings.Join(lines, tr.lineSep),
+		parser.DontInsertSemis, expectedSkipComments...)
 }
 
-func TestStripCR(t *testing.T) {
-	for _, tc := range []struct {
-		input  string
-		expect string
-	}{
-		{"//\n", "//\n"},
-		{"//\r\n", "//\n"},
-		{"//\r\r\r\n", "//\n"},
-		{"//\r*\r/\r\n", "//*/\n"},
-		{"/**/", "/**/"},
-		{"/*\r/*/", "/*/*/"},
-		{"/*\r*/", "/**/"},
-		{"/**\r/*/", "/**\r/*/"},
-		{"/*\r/\r*\r/*/", "/*/*\r/*/"},
-		{"/*\r\r\r\r*/", "/**/"},
-	} {
-		actual := string(parser.StripCR([]byte(tc.input),
-			len(tc.input) >= 2 && tc.input[1] == '*'))
-		require.Equal(t, tc.expect, actual)
-	}
-}
-
-func scanExpect(
+func (tr *tester) scanExpect(
 	t *testing.T,
 	input string,
 	mode parser.ScanMode,
 	expected ...scanResult,
 ) {
 	testFile := testFileSet.AddFile("test", -1, len(input))
+	opts := tr.opts
+	opts.Mode |= mode
 
 	s := parser.NewScanner(
 		testFile,
 		[]byte(input),
-		&parser.ScannerOptions{
-			Mode: mode,
-		})
+		&opts)
 	s.ErrorHandler(func(_ parser.SourceFilePos, msg string) { require.Fail(t, msg) })
 
 	for idx, e := range expected {
@@ -350,17 +383,4 @@ func scanExpect(
 	tok := s.Scan()
 	require.Equal(t, token.EOF, tok.Token, "more tokens left")
 	require.Equal(t, 0, s.ErrorCount())
-}
-
-func countLines(s string) int {
-	if s == "" {
-		return 0
-	}
-	n := 1
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			n++
-		}
-	}
-	return n
 }
