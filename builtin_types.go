@@ -86,6 +86,11 @@ var (
 	TSyncDict,
 	TKeyValue,
 	TKeyValueArray,
+	TRegexp,
+	TRegexpStrsResult,
+	TRegexpStrsSliceResult,
+	TRegexpBytesResult,
+	TRegexpBytesSliceResult,
 	TError ObjectType
 
 	TBuiltinFunction = &BuiltinObjType{
@@ -152,5 +157,10 @@ func init() {
 	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncDict{}, BuiltinSyncDictFunc)
 	TKeyValue = RegisterBuiltinType(BuiltinKeyValue, "keyValue", KeyValue{}, BuiltinKeyValueFunc)
 	TKeyValueArray = RegisterBuiltinType(BuiltinKeyValueArray, "keyValueArray", KeyValueArray{}, BuiltinKeyValueArrayFunc)
+	TRegexp = RegisterBuiltinType(BuiltinRegexp, "regexp", Regexp{}, BuiltinRegexpFunc)
+	TRegexpStrsResult = RegisterBuiltinType(BuiltinRegexpStrsResult, "regexpStrsResult", RegexpStrsResult{}, nil)
+	TRegexpStrsSliceResult = RegisterBuiltinType(BuiltinRegexpStrsSliceResult, "regexpStrsSliceResult", RegexpStrsSliceResult{}, nil)
+	TRegexpBytesResult = RegisterBuiltinType(BuiltinRegexpBytesResult, "regexpBytesResult", RegexpBytesResult{}, nil)
+	TRegexpBytesSliceResult = RegisterBuiltinType(BuiltinRegexpBytesSliceResult, "regexpBytesSliceResult", RegexpBytesSliceResult{}, nil)
 	TError = RegisterBuiltinType(BuiltinError, "error", Error{}, funcPORO(BuiltinErrorFunc))
 }

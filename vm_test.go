@@ -711,6 +711,40 @@ func TestVMKeyValueArray(t *testing.T) {
 	TestExpectRun(t, `x := (;a); x[0].v = 2; return x.dict`, nil, Dict{"a": Int(2)})
 }
 
+func TestVMRegexp(t *testing.T) {
+	re := `"a([bc])"`
+	TestExpectRun(t, `return repr(regexp(`+re+`))`, nil, Str(ReprQuote("regexp:a([bc])")))
+	TestExpectRun(t, `re := regexp(`+re+`); return [
+	re ~ "ab", 
+	re ~ `+"`ab`"+`, 
+	re ~ "a",
+	repr(re ~~ "ab"),
+	repr(re ~~~ "ab"),
+	repr(re ~~~ "ab\nac"),
+	re.match("ab"),
+	repr(re.find("ab")),
+	repr(re.findAll("ab")),
+	repr(re.findAll("ab\nac")),
+	repr(re ~~ bytes("ab")),
+	repr(re ~~~ bytes("ab")),
+	repr(re ~~~ bytes("ab\nac")),
+]`, nil, Array{
+		True,
+		True,
+		False,
+		Str(ReprQuote(`regexpStrsResult:["ab", "b"]`)),
+		Str(ReprQuote(`regexpStrsSliceResult:[["ab", "b"]]`)),
+		Str(ReprQuote(`regexpStrsSliceResult:[["ab", "b"], ["ac", "c"]]`)),
+		True,
+		Str(ReprQuote(`regexpStrsResult:["ab", "b"]`)),
+		Str(ReprQuote(`regexpStrsSliceResult:[["ab", "b"]]`)),
+		Str(ReprQuote(`regexpStrsSliceResult:[["ab", "b"], ["ac", "c"]]`)),
+		Str(ReprQuote(`regexpBytesResult:[[97 98], [98]]`)),
+		Str(ReprQuote(`regexpBytesSliceResult:[[[97 98], [98]]]`)),
+		Str(ReprQuote(`regexpBytesSliceResult:[[[97 98], [98]], [[97 99], [99]]]`)),
+	})
+}
+
 func TestVMIterator(t *testing.T) {
 	rg := `Range := struct("Range", fields={
 				start:0,
@@ -1789,7 +1823,7 @@ func binaryOp(_ TBinOpMul, p Point, val int) {
 	return p
 }
 
-return Point(2,3)*3 .| dict
+return (Point(2,3)*3) .| dict
 `, nil, Dict{"x": Int(6), "y": Int(9)})
 
 	TestExpectRun(t, `
@@ -4076,8 +4110,8 @@ func TestVMPipe(t *testing.T) {
 		return opts, Array{ex, Str("[2]")}
 	}), Nil)
 
-	TestExpectRun(t, `inc := (arr) => arr.|map((v, _) => v+1; update) 
-	return [1,2,3].|inc.|reduce((sum, v,_) => sum+v, 0).|(v) => v*(2).|((v) => [v])`, nil,
+	TestExpectRun(t, `inc := (arr) => arr.|map(func(v, _) => (v+1); update) 
+	return [1,2,3].|inc.|reduce((sum, v,_) => (sum+v), 0).|(v) => (v*(2)).|((v) => [v])`, nil,
 		Array{Int(18)})
 
 	TestExpectRun(t, `

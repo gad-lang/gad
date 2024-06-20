@@ -536,6 +536,16 @@ do:
 			}
 		case ',':
 			t.Token = token.Comma
+		case '~':
+			t.Token = token.Tilde
+			if s.Ch == '~' {
+				s.Next()
+				t.Token = token.DoubleTilde
+				if s.Ch == '~' {
+					s.Next()
+					t.Token = token.TripleTilde
+				}
+			}
 		case '?':
 			switch s.Ch {
 			case '.':
@@ -1413,7 +1423,7 @@ func (s *Scanner) ReadAtMany(quote []byte) []byte {
 		x := s.PeekN(len(next) - 1)
 		copy(next[1:], x)
 
-		if bytes.Compare(next, quote) == 0 {
+		if bytes.Equal(next, quote) {
 			break
 		}
 

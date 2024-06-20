@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -628,6 +629,26 @@ func BuiltinReduceFunc(c Call) (_ Object, err error) {
 
 func BuiltinErrorFunc(arg Object) Object {
 	return &Error{Name: "error", Message: arg.ToString()}
+}
+
+func BuiltinRegexpFunc(c Call) (_ Object, err error) {
+	var (
+		input = Arg{
+			Name:          "input",
+			TypeAssertion: TypeAssertionFromTypes(TStr, TRawStr),
+		}
+	)
+
+	if err = c.Args.Destructure(&input); err != nil {
+		return
+	}
+
+	var re *regexp.Regexp
+	if re, err = regexp.Compile(input.Value.ToString()); err != nil {
+		return
+	}
+
+	return (*Regexp)(re), err
 }
 
 func BuiltinTypeNameFunc(arg Object) Object { return Str(arg.Type().Name()) }

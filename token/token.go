@@ -38,24 +38,27 @@ const (
 	LiteralEnd_
 	OperatorBegin_
 	BinaryOperatorBegin_
-	Add       // +
-	Sub       // -
-	Mul       // *
-	Quo       // /
-	Rem       // %
-	And       // &
-	Or        // |
-	Xor       // ^
-	Shl       // <<
-	Shr       // >>
-	AndNot    // &^
-	LAnd      // &&
-	Equal     // ==
-	NotEqual  // !=
-	Less      // <
-	Greater   // >
-	LessEq    // <=
-	GreaterEq // >=
+	Add         // +
+	Sub         // -
+	Mul         // *
+	Quo         // /
+	Rem         // %
+	And         // &
+	Or          // |
+	Xor         // ^
+	Shl         // <<
+	Shr         // >>
+	AndNot      // &^
+	LAnd        // &&
+	Equal       // ==
+	NotEqual    // !=
+	Less        // <
+	Greater     // >
+	LessEq      // <=
+	GreaterEq   // >=
+	Tilde       // ~
+	DoubleTilde // ~~
+	TripleTilde // ~~~
 	BinaryOperatorEnd_
 	DefaultOperatorsBegin_
 	NullichCoalesce // ??
@@ -203,6 +206,9 @@ var tokens = [...]string{
 	NotEqual:           "!=",
 	LessEq:             "<=",
 	GreaterEq:          ">=",
+	Tilde:              "~",
+	DoubleTilde:        "~~",
+	TripleTilde:        "~~~",
 	Define:             ":=",
 	Pipe:               ".|",
 	LParen:             "(",
@@ -271,8 +277,6 @@ const LowestPrec = 0
 // Precedence returns the precedence for the operator token.
 func (tok Token) Precedence() int {
 	switch tok {
-	case Pipe:
-		return 1
 	case LOr, NullichCoalesce:
 		return 2
 	case LAnd:
@@ -283,6 +287,10 @@ func (tok Token) Precedence() int {
 		return 5
 	case Mul, Quo, Rem, Shl, Shr, And, AndNot:
 		return 6
+	case Pipe:
+		return 7
+	case Tilde, DoubleTilde, TripleTilde:
+		return 8
 	}
 	return LowestPrec
 }
@@ -316,7 +324,8 @@ func (tok Token) IsBinaryOperator() bool {
 		Shl,
 		Shr,
 		Equal,
-		NotEqual:
+		NotEqual,
+		Tilde, DoubleTilde, TripleTilde:
 		return true
 	}
 	return false

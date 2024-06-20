@@ -2495,6 +2495,15 @@ func TestParsePrecedence(t *testing.T) {
 	expectParseString(t, `a + b + c`, `((a + b) + c)`)
 	expectParseString(t, `a + b * c`, `(a + (b * c))`)
 	expectParseString(t, `x = 2 * 1 + 3 / 4`, `x = ((2 * 1) + (3 / 4))`)
+	expectParseString(t, `a .| b`, `(a .| b)`)
+	expectParseString(t, `a .| b .| c`, `((a .| b) .| c)`)
+	expectParseString(t, `a .| b + c`, `((a .| b) + c)`)
+	expectParseString(t, `a .| b * c`, `((a .| b) * c)`)
+	expectParseString(t, `a ~ b`, `(a ~ b)`)
+	expectParseString(t, `a ~ b ~ c`, `((a ~ b) ~ c)`)
+	expectParseString(t, `a ~ b * c`, `((a ~ b) * c)`)
+	expectParseString(t, `a ~ b ~ c .| d`, `(((a ~ b) ~ c) .| d)`)
+	expectParseString(t, `a ~ b / c`, `((a ~ b) / c)`)
 }
 
 func TestParseNullishSelector(t *testing.T) {

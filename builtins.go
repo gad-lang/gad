@@ -39,6 +39,11 @@ const (
 	BuiltinKeyValueArray
 	BuiltinError
 	BuiltinBuffer
+	BuiltinRegexp
+	BuiltinRegexpStrsResult
+	BuiltinRegexpStrsSliceResult
+	BuiltinRegexpBytesResult
+	BuiltinRegexpBytesSliceResult
 	BuiltinIterator
 	BuiltinZipIterator
 	BuiltinTypesEnd_
@@ -151,6 +156,9 @@ const (
 	BuiltinBinOpGreater
 	BuiltinBinOpLessEq
 	BuiltinBinOpGreaterEq
+	BuiltinBinOpTilde
+	BuiltinBinOpDoubleTilde
+	BuiltinBinOpTripleTilde
 	BuiltinBinOperatorsEnd_
 )
 

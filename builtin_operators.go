@@ -4,24 +4,27 @@ package gad
 import "github.com/gad-lang/gad/token"
 
 var (
-	TBinOpAdd       = &BinaryOperatorType{OpName: "Add", Token: token.Add}             // +
-	TBinOpSub       = &BinaryOperatorType{OpName: "Sub", Token: token.Sub}             // -
-	TBinOpMul       = &BinaryOperatorType{OpName: "Mul", Token: token.Mul}             // *
-	TBinOpQuo       = &BinaryOperatorType{OpName: "Quo", Token: token.Quo}             // /
-	TBinOpRem       = &BinaryOperatorType{OpName: "Rem", Token: token.Rem}             // %
-	TBinOpAnd       = &BinaryOperatorType{OpName: "And", Token: token.And}             // &
-	TBinOpOr        = &BinaryOperatorType{OpName: "Or", Token: token.Or}               // |
-	TBinOpXor       = &BinaryOperatorType{OpName: "Xor", Token: token.Xor}             // ^
-	TBinOpShl       = &BinaryOperatorType{OpName: "Shl", Token: token.Shl}             // <<
-	TBinOpShr       = &BinaryOperatorType{OpName: "Shr", Token: token.Shr}             // >>
-	TBinOpAndNot    = &BinaryOperatorType{OpName: "AndNot", Token: token.AndNot}       // &^
-	TBinOpLAnd      = &BinaryOperatorType{OpName: "LAnd", Token: token.LAnd}           // &&
-	TBinOpEqual     = &BinaryOperatorType{OpName: "Equal", Token: token.Equal}         // ==
-	TBinOpNotEqual  = &BinaryOperatorType{OpName: "NotEqual", Token: token.NotEqual}   // !=
-	TBinOpLess      = &BinaryOperatorType{OpName: "Less", Token: token.Less}           // <
-	TBinOpGreater   = &BinaryOperatorType{OpName: "Greater", Token: token.Greater}     // >
-	TBinOpLessEq    = &BinaryOperatorType{OpName: "LessEq", Token: token.LessEq}       // <=
-	TBinOpGreaterEq = &BinaryOperatorType{OpName: "GreaterEq", Token: token.GreaterEq} // >=
+	TBinOpAdd         = &BinaryOperatorType{OpName: "Add", Token: token.Add}                 // +
+	TBinOpSub         = &BinaryOperatorType{OpName: "Sub", Token: token.Sub}                 // -
+	TBinOpMul         = &BinaryOperatorType{OpName: "Mul", Token: token.Mul}                 // *
+	TBinOpQuo         = &BinaryOperatorType{OpName: "Quo", Token: token.Quo}                 // /
+	TBinOpRem         = &BinaryOperatorType{OpName: "Rem", Token: token.Rem}                 // %
+	TBinOpAnd         = &BinaryOperatorType{OpName: "And", Token: token.And}                 // &
+	TBinOpOr          = &BinaryOperatorType{OpName: "Or", Token: token.Or}                   // |
+	TBinOpXor         = &BinaryOperatorType{OpName: "Xor", Token: token.Xor}                 // ^
+	TBinOpShl         = &BinaryOperatorType{OpName: "Shl", Token: token.Shl}                 // <<
+	TBinOpShr         = &BinaryOperatorType{OpName: "Shr", Token: token.Shr}                 // >>
+	TBinOpAndNot      = &BinaryOperatorType{OpName: "AndNot", Token: token.AndNot}           // &^
+	TBinOpLAnd        = &BinaryOperatorType{OpName: "LAnd", Token: token.LAnd}               // &&
+	TBinOpEqual       = &BinaryOperatorType{OpName: "Equal", Token: token.Equal}             // ==
+	TBinOpNotEqual    = &BinaryOperatorType{OpName: "NotEqual", Token: token.NotEqual}       // !=
+	TBinOpLess        = &BinaryOperatorType{OpName: "Less", Token: token.Less}               // <
+	TBinOpGreater     = &BinaryOperatorType{OpName: "Greater", Token: token.Greater}         // >
+	TBinOpLessEq      = &BinaryOperatorType{OpName: "LessEq", Token: token.LessEq}           // <=
+	TBinOpGreaterEq   = &BinaryOperatorType{OpName: "GreaterEq", Token: token.GreaterEq}     // >=
+	TBinOpTilde       = &BinaryOperatorType{OpName: "Tilde", Token: token.Tilde}             // ~
+	TBinOpDoubleTilde = &BinaryOperatorType{OpName: "DoubleTilde", Token: token.DoubleTilde} // ~~
+	TBinOpTripleTilde = &BinaryOperatorType{OpName: "TripleTilde", Token: token.TripleTilde} // ~~~
 )
 
 func init() {
@@ -48,4 +51,7 @@ func init() {
 	add(BuiltinBinOpGreater, TBinOpGreater)
 	add(BuiltinBinOpLessEq, TBinOpLessEq)
 	add(BuiltinBinOpGreaterEq, TBinOpGreaterEq)
+	add(BuiltinBinOpTilde, TBinOpTilde)
+	add(BuiltinBinOpDoubleTilde, TBinOpDoubleTilde)
+	add(BuiltinBinOpTripleTilde, TBinOpTripleTilde)
 }
