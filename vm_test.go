@@ -18,6 +18,28 @@ func TestVMBinaryOperator(t *testing.T) {
 	TestExpectRun(t, `return TBinOpAdd`, nil, TBinOpAdd)
 	TestExpectRun(t, `return binaryOp(TBinOpAdd, 1, 1)`, nil, Int(2))
 	TestExpectRun(t, `return binaryOp(TBinOpMul, 2, 10)`, nil, Int(20))
+	TestExpectRun(t, `
+func binaryOp(_ TBinOpMul, p str, val int) {
+	ret := p
+	for i := 0; i < val-1; i++ {
+		ret += "-" + p
+	}
+	return ret
+}
+return "a" * 3`, nil, Str("a-a-a"))
+	TestExpectRun(t, `
+// get original binary operator handler without methods
+bo := rawCaller(binaryOp) 
+
+func binaryOp(_ TBinOpAdd, p str, val str) {
+	ret := p
+	for i := 0; i < int(val)-1; i++ {
+		// cant't uses ret += ... to prevents caller overflows on this method 
+		ret = bo(TBinOpAdd, ret, bo(TBinOpAdd, "-", p))
+	}
+	return ret
+}
+return "a" + "3"`, nil, Str("a-a-a"))
 }
 
 func TestVMDict(t *testing.T) {

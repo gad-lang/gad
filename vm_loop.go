@@ -45,19 +45,8 @@ VMLoop:
 			tok := token.Token(vm.curInsts[vm.ip+1])
 			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
 
-			var value Object
-			var err error
+			value, err := Val(vm.Builtins.Call(BuiltinBinaryOp, Call{VM: vm, Args: Args{Array{BinaryOperatorTypes[tok], left, right}}}))
 
-			switch left := left.(type) {
-			case BinaryOperatorHandler:
-				value, err = Val(left.BinaryOp(vm, tok, right))
-			default:
-				if t := BinaryOperatorTypes[tok]; t != nil {
-					value, err = Val(vm.Builtins.Call(BuiltinBinaryOp, Call{VM: vm, Args: Args{Array{t, left, right}}}))
-				} else {
-					err = ErrInvalidOperator
-				}
-			}
 			if err == nil {
 				vm.stack[vm.sp-2] = value
 				vm.sp--
