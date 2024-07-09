@@ -41,7 +41,7 @@ func (n *File) End() source.Pos {
 }
 
 func (n *File) StringTo(w stringw.StringWriter) {
-	stringw.ToStringSlice(w, "; ", n.Stmts)
+	node.WriteCodeStmts(&node.CodeWriterContext{CodeWriter: w}, n.Stmts...)
 }
 
 func (n *File) String() string {
@@ -52,8 +52,7 @@ func (n *File) String() string {
 
 func (n *File) TanspileTo(w io.Writer) (err error) {
 	ctx := node.CodeWriterContext{
-		CodeWriter:     bufio.NewWriter(w),
-		ExprToTextFunc: "write",
+		CodeWriter: bufio.NewWriter(w),
 	}
 	return node.WriteCodeStmts(&ctx, n.Stmts...)
 }
@@ -61,8 +60,7 @@ func (n *File) TanspileTo(w io.Writer) (err error) {
 func (n *File) Tanspile() (s string, err error) {
 	var b strings.Builder
 	ctx := node.CodeWriterContext{
-		CodeWriter:     &b,
-		ExprToTextFunc: "write",
+		CodeWriter: &b,
 	}
 	err = node.WriteCodeStmts(&ctx, n.Stmts...)
 	s = b.String()

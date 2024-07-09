@@ -23,6 +23,10 @@ func NewModuleMapBuilder() *ModuleMapBuilder {
 	return &ModuleMapBuilder{}
 }
 
+func NewModuleMap() *gad.ModuleMap {
+	return NewModuleMapBuilder().Build()
+}
+
 func (b *ModuleMapBuilder) Build() *gad.ModuleMap {
 	return b.BuildTo(gad.NewModuleMap())
 }

@@ -18,11 +18,12 @@ const (
 	Comment
 	ConfigStart
 	ConfigEnd
-	ToTextBegin
-	ToTextEnd
-	CodeBegin
-	CodeEnd
+	MixedValueStart
+	MixedValueEnd
+	MixedCodeStart
+	MixedCodeEnd
 	LiteralBegin_
+	MixedText
 	Ident
 	Int
 	Uint
@@ -30,11 +31,9 @@ const (
 	Decimal
 	Char
 	String
-	StringTemplate
 	RawString
-	RawStringTemplate
 	RawHeredoc
-	RawHeredocTemplate
+	Template
 	LiteralEnd_
 	OperatorBegin_
 	BinaryOperatorBegin_
@@ -104,8 +103,6 @@ const (
 	NullishSelector // ?.
 	OperatorEnd_
 	KeyworkBegin_
-	Then
-	Do
 	Begin
 	End
 	Break
@@ -143,118 +140,114 @@ const (
 )
 
 var tokens = [...]string{
-	Illegal:            "ILLEGAL",
-	EOF:                "EOF",
-	ConfigStart:        "CONFIG",
-	Comment:            "COMMENT",
-	Ident:              "IDENT",
-	Int:                "INT",
-	Uint:               "UINT",
-	Float:              "FLOAT",
-	Decimal:            "DECIMAL",
-	Char:               "CHAR",
-	String:             "STR",
-	StringTemplate:     "STRTMPL",
-	RawString:          "RAWSTR",
-	RawStringTemplate:  "RAWSTRTMPL",
-	RawHeredoc:         "RAWHEREDOC",
-	RawHeredocTemplate: "RAWHEREDOCTMPL",
-	Null:               "NULL",
-	NotNull:            "NOTNULL",
-	StdIn:              "STDIN",
-	StdOut:             "STDOUT",
-	StdErr:             "STDERR",
-	CodeBegin:          "CODEBEGIN",
-	CodeEnd:            "CODEEND",
-	ToTextBegin:        "TOTEXTBEGIN",
-	ToTextEnd:          "TOTEXTEND",
-	Add:                "+",
-	Sub:                "-",
-	Mul:                "*",
-	Quo:                "/",
-	Rem:                "%",
-	And:                "&",
-	Or:                 "|",
-	Xor:                "^",
-	Shl:                "<<",
-	Shr:                ">>",
-	AndNot:             "&^",
-	AddAssign:          "+=",
-	SubAssign:          "-=",
-	MulAssign:          "*=",
-	QuoAssign:          "/=",
-	RemAssign:          "%=",
-	AndAssign:          "&=",
-	OrAssign:           "|=",
-	XorAssign:          "^=",
-	ShlAssign:          "<<=",
-	ShrAssign:          ">>=",
-	AndNotAssign:       "&^=",
-	LOrAssign:          "||=",
-	NullichAssign:      "??=",
-	LAnd:               "&&",
-	LOr:                "||",
-	NullichCoalesce:    "??",
-	Inc:                "++",
-	Dec:                "--",
-	Equal:              "==",
-	Less:               "<",
-	Greater:            ">",
-	Assign:             "=",
-	Lambda:             "=>",
-	Not:                "!",
-	NotEqual:           "!=",
-	LessEq:             "<=",
-	GreaterEq:          ">=",
-	Tilde:              "~",
-	DoubleTilde:        "~~",
-	TripleTilde:        "~~~",
-	Define:             ":=",
-	Pipe:               ".|",
-	LParen:             "(",
-	LBrack:             "[",
-	LBrace:             "{",
-	Comma:              ",",
-	Period:             ".",
-	RParen:             ")",
-	RBrack:             "]",
-	RBrace:             "}",
-	Semicolon:          ";",
-	Colon:              ":",
-	Question:           "?",
-	NullishSelector:    "?.",
-	Break:              "break",
-	Continue:           "continue",
-	Else:               "else",
-	For:                "for",
-	Func:               "func",
-	If:                 "if",
-	Return:             "return",
-	True:               "true",
-	False:              "false",
-	Yes:                "yes",
-	No:                 "no",
-	In:                 "in",
-	Nil:                "nil",
-	Import:             "import",
-	Param:              "param",
-	Global:             "global",
-	Var:                "var",
-	Const:              "const",
-	Try:                "try",
-	Catch:              "catch",
-	Finally:            "finally",
-	Throw:              "throw",
-	Do:                 "do",
-	Then:               "then",
-	Begin:              "begin",
-	End:                "end",
-	Callee:             "__callee__",
-	Args:               "__args__",
-	NamedArgs:          "__named_args__",
-	DotName:            "__name__",
-	DotFile:            "__file__",
-	IsModule:           "__is_module__",
+	Illegal:         "ILLEGAL",
+	EOF:             "EOF",
+	ConfigStart:     "CONFIG",
+	Comment:         "COMMENT",
+	Ident:           "IDENT",
+	Int:             "INT",
+	Uint:            "UINT",
+	Float:           "FLOAT",
+	Decimal:         "DECIMAL",
+	Char:            "CHAR",
+	String:          "STR",
+	RawString:       "RAWSTR",
+	RawHeredoc:      "RAWHEREDOC",
+	Template:        "TMPL",
+	Null:            "NULL",
+	NotNull:         "NOTNULL",
+	StdIn:           "STDIN",
+	StdOut:          "STDOUT",
+	StdErr:          "STDERR",
+	MixedCodeStart:  "MIXEDCODESTART",
+	MixedCodeEnd:    "MIXEDCODEEND",
+	MixedValueStart: "MIXEDVALUESTART",
+	MixedValueEnd:   "MIXEDVALUEEND",
+	MixedText:       "MIXEDTEXT",
+	Add:             "+",
+	Sub:             "-",
+	Mul:             "*",
+	Quo:             "/",
+	Rem:             "%",
+	And:             "&",
+	Or:              "|",
+	Xor:             "^",
+	Shl:             "<<",
+	Shr:             ">>",
+	AndNot:          "&^",
+	AddAssign:       "+=",
+	SubAssign:       "-=",
+	MulAssign:       "*=",
+	QuoAssign:       "/=",
+	RemAssign:       "%=",
+	AndAssign:       "&=",
+	OrAssign:        "|=",
+	XorAssign:       "^=",
+	ShlAssign:       "<<=",
+	ShrAssign:       ">>=",
+	AndNotAssign:    "&^=",
+	LOrAssign:       "||=",
+	NullichAssign:   "??=",
+	LAnd:            "&&",
+	LOr:             "||",
+	NullichCoalesce: "??",
+	Inc:             "++",
+	Dec:             "--",
+	Equal:           "==",
+	Less:            "<",
+	Greater:         ">",
+	Assign:          "=",
+	Lambda:          "=>",
+	Not:             "!",
+	NotEqual:        "!=",
+	LessEq:          "<=",
+	GreaterEq:       ">=",
+	Tilde:           "~",
+	DoubleTilde:     "~~",
+	TripleTilde:     "~~~",
+	Define:          ":=",
+	Pipe:            ".|",
+	LParen:          "(",
+	LBrack:          "[",
+	LBrace:          "{",
+	Comma:           ",",
+	Period:          ".",
+	RParen:          ")",
+	RBrack:          "]",
+	RBrace:          "}",
+	Semicolon:       ";",
+	Colon:           ":",
+	Question:        "?",
+	NullishSelector: "?.",
+	Break:           "break",
+	Continue:        "continue",
+	Else:            "else",
+	For:             "for",
+	Func:            "func",
+	If:              "if",
+	Return:          "return",
+	True:            "true",
+	False:           "false",
+	Yes:             "yes",
+	No:              "no",
+	In:              "in",
+	Nil:             "nil",
+	Import:          "import",
+	Param:           "param",
+	Global:          "global",
+	Var:             "var",
+	Const:           "const",
+	Try:             "try",
+	Catch:           "catch",
+	Finally:         "finally",
+	Throw:           "throw",
+	Begin:           "begin",
+	Callee:          "__callee__",
+	Args:            "__args__",
+	NamedArgs:       "__named_args__",
+	DotName:         "__name__",
+	DotFile:         "__file__",
+	IsModule:        "__is_module__",
 }
 
 func (tok Token) String() string {
@@ -348,7 +341,7 @@ func (tok Token) Is(other ...Token) bool {
 
 func (tok Token) IsBlockStart() bool {
 	switch tok {
-	case LBrace, Then, Begin, Do:
+	case LBrace:
 		return true
 	}
 	return false

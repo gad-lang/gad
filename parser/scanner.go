@@ -23,6 +23,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/parser/utils"
 	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/token"
 )
@@ -80,7 +81,7 @@ type ScannerInterface interface {
 	SourceFile() *SourceFile
 	Source() []byte
 	ErrorHandler(h ...ScannerErrorHandler)
-	GetMixedExprRune() rune
+	GetMixedDelimiter() *MixedDelimiter
 }
 
 type TokenPool []*Token
@@ -184,6 +185,13 @@ type Handlers struct {
 	TokenHandlers TokenHandlers
 }
 
+type MixedDelimiter = source.StartEndDelimiter
+
+var DefaultMixedDelimiter = MixedDelimiter{
+	Start: []rune("#{"),
+	End:   []rune("}"),
+}
+
 // Scanner reads the Gad source text. It's based on ToInterface's scanner
 // implementation.
 type Scanner struct {
@@ -191,7 +199,7 @@ type Scanner struct {
 
 	File               *SourceFile           // source file handle
 	Src                []byte                // source
-	MixedExprRune      rune                  // the mixed expr rune
+	MixedDelimiter     *MixedDelimiter       // the mixed delimiters
 	Ch                 rune                  // current character
 	Offset             int                   // character offset
 	ReadOffset         int                   // reading offset (position after current character)
@@ -201,7 +209,6 @@ type Scanner struct {
 	errorCount         int                   // number of errors encountered
 	mode               ScanMode
 	InCode             bool
-	InCodeBrace        int
 	ToText             bool
 	BraceCount         int
 	BreacksCount       int
@@ -216,8 +223,8 @@ type Scanner struct {
 }
 
 type ScannerOptions struct {
-	Mode          ScanMode
-	MixedExprRune rune
+	Mode           ScanMode
+	MixedDelimiter *MixedDelimiter
 }
 
 // NewScanner creates a Scanner.
@@ -246,8 +253,8 @@ func NewScanner(
 		opts = &ScannerOptions{}
 	}
 
-	if opts.MixedExprRune == 0 {
-		opts.MixedExprRune = '#'
+	if opts.MixedDelimiter == nil {
+		opts.MixedDelimiter = &DefaultMixedDelimiter
 	}
 
 	last := len(src) - 1
@@ -263,11 +270,11 @@ func NewScanner(
 	}
 
 	s := &Scanner{
-		File:          file,
-		Src:           src,
-		MixedExprRune: opts.MixedExprRune,
-		Ch:            ' ',
-		mode:          opts.Mode,
+		File:           file,
+		Src:            src,
+		MixedDelimiter: opts.MixedDelimiter,
+		Ch:             ' ',
+		mode:           opts.Mode,
 	}
 
 	s.SkipWhitespaceFunc = func(s *Scanner) {
@@ -284,8 +291,8 @@ func NewScanner(
 	return s
 }
 
-func (s *Scanner) GetMixedExprRune() rune {
-	return s.MixedExprRune
+func (s *Scanner) GetMixedDelimiter() *MixedDelimiter {
+	return s.MixedDelimiter
 }
 
 func (s *Scanner) SkipWhitespace() {
@@ -409,61 +416,99 @@ func (s *Scanner) ScanNow() (t Token) {
 		return Token{Token: token.EOF, Pos: t.Pos}
 	}
 
-	if s.mode.Has(Mixed) && !s.InCode && s.Ch != -1 {
+	if s.mode.Has(Mixed) && s.Ch != -1 {
 		start := s.Offset
-		readText := func() {
-			t.Token = token.RawString
-			t.Pos = s.File.FileSetPos(start)
-
-			if s.Offset > start {
-				t.Literal = string(s.Src[start:s.Offset])
-				if s.TextTrimLeft {
-					t.Literal = TrimSpace(true, false, t.Literal)
-				}
-			}
-			s.TextTrimLeft = false
-		}
-		for {
-			var scape bool
+		if s.InCode {
+			s.SkipWhitespace()
 			switch s.Ch {
-			case '\\':
-				if scape {
-					scape = false
-				}
-			case -1:
-				readText()
-				return t
-			case s.MixedExprRune:
-				if !scape {
-					if s.Peek() == '{' {
-						readText()
-						return s.ScanCodeBlock(&t)
-					}
+			case '\'', '"', '`':
+				// ignore quotes
+				goto do
+			}
+			if s.MixedDelimiter.Ends(s.Src[s.Offset:]) {
+				s.InCode = false
+				t.Token = token.Semicolon
+				t.Literal = "\n" // read first end byte
+				t.Pos = s.File.FileSetPos(s.Offset)
+				s.Next()
+				s.NextC(len(s.MixedDelimiter.End) - 1)
 
-					if !s.mode.Has(ConfigDisabled) {
-						// at line start
-						if s.Offset == 0 || s.Src[s.Offset-1] == '\n' {
-							if l := s.PeekNoSingleSpaceEq("gad:", 0); l > 0 {
-								return s.scanConfig(t.Pos, l+1)
+				if s.ToText {
+					t.Token = token.MixedValueEnd
+					s.ToText = false
+					t.Literal = string(s.MixedDelimiter.End)
+					if s.TextTrimLeft {
+						t.Set("trim_left_space", s.TextTrimLeft)
+					}
+				} else {
+					next := Token{Token: token.MixedCodeEnd, Literal: string(s.MixedDelimiter.End), Pos: t.Pos}
+					if s.TextTrimLeft {
+						next.Set("trim_left_space", s.TextTrimLeft)
+					}
+					if !s.mode.Has(DontInsertSemis) {
+						s.AddNextToken(t)
+						t = next
+					} else {
+						return next
+					}
+				}
+				return
+			}
+		} else {
+			readText := func() {
+				t.Token = token.MixedText
+				t.Pos = s.File.FileSetPos(start)
+
+				if s.Offset > start {
+					t.Literal = string(s.Src[start:s.Offset])
+					if s.TextTrimLeft {
+						t.Literal = TrimSpace(true, false, t.Literal)
+					}
+				}
+				s.TextTrimLeft = false
+			}
+			for {
+				var scape bool
+				switch int(s.Ch) {
+				case '\\':
+					if scape {
+						scape = false
+					}
+				case -1:
+					readText()
+					return t
+				case int(s.MixedDelimiter.Start[0]):
+					if !scape {
+						if s.MixedDelimiter.Starts(s.Ch, s.Src[s.ReadOffset:]) {
+							readText()
+							return s.ScanCodeBlock(&t)
+						}
+
+						if !s.mode.Has(ConfigDisabled) {
+							// at line start
+							if s.Offset == 0 || s.Src[s.Offset-1] == '\n' {
+								if l := s.PeekNoSingleSpaceEq("gad:", 0); l > 0 {
+									return s.scanConfig(t.Pos, l+1)
+								}
 							}
 						}
-					}
 
-					s.Next()
-					continue
+						s.Next()
+						continue
+					}
 				}
-			}
-			if s.HandleMixed != nil {
-				s.HandleMixed(&start, func() *Token {
-					readText()
-					return &t
-				})
-				if s.Ch == -1 {
-					s.Ch = -1
-					return
+				if s.HandleMixed != nil {
+					s.HandleMixed(&start, func() *Token {
+						readText()
+						return &t
+					})
+					if s.Ch == -1 {
+						s.Ch = -1
+						return
+					}
 				}
+				s.Next()
 			}
-			s.Next()
 		}
 	}
 
@@ -478,12 +523,19 @@ do:
 	case runehelper.IsIdentifierLetter(ch):
 		t.Literal = s.ScanIdentifier()
 		t.Token = token.Lookup(t.Literal)
-		switch t.Token {
-		case token.Ident, token.Break, token.Continue, token.Return,
-			token.True, token.False, token.Yes, token.No, token.Nil,
-			token.Callee, token.Args, token.NamedArgs,
-			token.StdIn, token.StdOut, token.StdErr:
-			insertSemi = true
+		switch t.Literal {
+		case "do", "then", "begin":
+			t.Token = token.LBrace
+		case "done", "end":
+			t.Token = token.RBrace
+		default:
+			switch t.Token {
+			case token.Ident, token.Break, token.Continue, token.Return,
+				token.True, token.False, token.Yes, token.No, token.Nil,
+				token.Callee, token.Args, token.NamedArgs,
+				token.StdIn, token.StdOut, token.StdErr:
+				insertSemi = true
+			}
 		}
 	case '0' <= ch && ch <= '9':
 		insertSemi = true
@@ -587,34 +639,6 @@ do:
 			insertSemi = true
 			t.Token = token.RBrace
 			s.BraceCount--
-			if s.InCode {
-				if s.InCodeBrace == s.BraceCount {
-					s.InCodeBrace = 0
-					s.InCode = false
-					insertSemi = false
-					t.Token = token.Semicolon
-					t.Literal = "\n"
-					if s.ToText {
-						t.Token = token.ToTextEnd
-						s.ToText = false
-						t.Literal = "}"
-						if s.TextTrimLeft {
-							t.Set("trim_left_space", s.TextTrimLeft)
-						}
-					} else {
-						next := Token{Token: token.CodeEnd, Literal: "}", Pos: t.Pos}
-						if s.TextTrimLeft {
-							next.Set("trim_left_space", s.TextTrimLeft)
-						}
-						if !s.mode.Has(DontInsertSemis) {
-							s.AddNextToken(t)
-							t = next
-						} else {
-							return next
-						}
-					}
-				}
-			}
 		case '+':
 			t.Token = s.Switch3(token.Add, token.AddAssign, '+', token.Inc)
 			if t.Token == token.Inc {
@@ -703,27 +727,7 @@ do:
 				}
 			}
 
-			switch s.Ch {
-			case '"':
-				s.Next()
-				insertSemi = true
-				t.Token = token.StringTemplate
-				t.Literal = string(ch)
-				t.Literal += s.ScanString()
-				goto done
-			case '`':
-				s.Next()
-				insertSemi = true
-				t.Token = token.RawStringTemplate
-				t.Literal = string(ch)
-				lit, ishd := s.ScanRawString()
-				if ishd {
-					t.Token = token.RawHeredocTemplate
-				}
-				t.Literal += lit
-				goto done
-			}
-			fallthrough
+			t.Token = token.Template
 		default:
 			// next reports unexpected BOMs - don't repeat
 			if ch != BOM {
@@ -1536,20 +1540,18 @@ func (s *Scanner) Switch4(
 
 func (s *Scanner) ScanCodeBlock(leftText *Token) (code Token) {
 	var (
-		end = s.Offset
-		lit = string(s.MixedExprRune) + "{"
+		end  = s.Offset
+		lit  = string(s.MixedDelimiter.Start)
+		data utils.Data
 	)
 	s.InCode = true
-	s.InCodeBrace = s.BraceCount
-	s.Next()
-	s.Next()
-	s.BraceCount++
+	s.NextC(len(s.MixedDelimiter.Start))
 
 	if leftText != nil {
 		switch s.Ch {
 		case '-':
 			s.NextNoSpace()
-			leftText.Literal = TrimSpace(s.TextTrimLeft, true, leftText.Literal)
+			data.Set("remove-spaces", true)
 		}
 		if leftText.Literal == "" {
 			leftText = nil
@@ -1559,20 +1561,20 @@ func (s *Scanner) ScanCodeBlock(leftText *Token) (code Token) {
 	s.TextTrimLeft = false
 
 	code = Token{
-		Token:   token.CodeBegin,
+		Token:   token.MixedCodeStart,
 		Pos:     s.File.FileSetPos(end),
 		Literal: lit,
+		Data:    data,
 	}
 
 	if s.Ch == '=' {
 		s.ToText = true
 		s.NextNoSpace()
 		code.Literal += "="
-		code.Token = token.ToTextBegin
+		code.Token = token.MixedValueStart
 	} else if s.mode.Has(MixedExprAsValue) {
-		code.Literal += "="
 		s.ToText = true
-		code.Token = token.ToTextBegin
+		code.Token = token.MixedValueStart
 	}
 
 	if leftText != nil {

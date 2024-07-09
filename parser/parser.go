@@ -133,26 +133,25 @@ func (p ErrorList) Err() error {
 // Parser parses the Tengo source files. It's based on ToInterface's parser
 // implementation.
 type Parser struct {
-	File                    *SourceFile
-	Errors                  ErrorList
-	Scanner                 ScannerInterface
-	Token                   Token
-	PrevToken               Token
-	ExprLevel               int        // < 0: in control clause, >= 0: in expression
-	syncPos                 source.Pos // last sync position
-	syncCount               int        // number of advance calls without progress
-	Trace                   bool
-	indent                  int
-	mode                    Mode
-	TraceOut                io.Writer
-	comments                []*ast.CommentGroup
-	ParseStmtHandler        func() node.Stmt
-	IgnoreCodeBlockDisabled bool
-	InCode                  bool
-	BlockStart              token.Token
-	BlockEnd                token.Token
-	ScanFunc                func() Token
-	pipes                   int
+	File             *SourceFile
+	Errors           ErrorList
+	Scanner          ScannerInterface
+	Token            Token
+	PrevToken        Token
+	ExprLevel        int        // < 0: in control clause, >= 0: in expression
+	syncPos          source.Pos // last sync position
+	syncCount        int        // number of advance calls without progress
+	Trace            bool
+	indent           int
+	mode             Mode
+	TraceOut         io.Writer
+	comments         []*ast.CommentGroup
+	ParseStmtHandler func() node.Stmt
+	InCode           bool
+	BlockStart       token.Token
+	BlockEnd         token.Token
+	ScanFunc         func() Token
+	pipes            int
 }
 
 // NewParser creates a Parser.
@@ -269,7 +268,7 @@ func (p *Parser) ParseFile() (file *File, err error) {
 		return nil, p.Errors.Err()
 	}
 
-	stmts, _ := p.ParseStmtList(0)
+	stmts := p.ParseStmtList()
 	p.Expect(token.EOF)
 	if p.Errors.Len() > 0 {
 		return nil, p.Errors.Err()
@@ -941,10 +940,22 @@ func (p *Parser) ParseOperand() node.Expr {
 		return p.ParseFuncLit()
 	case token.RawString:
 		return p.ParseRawStringLit()
+	case token.RawHeredoc:
+		return p.ParseRawHeredocLit()
 	case token.Throw:
 		return p.ParseThrowExpr()
 	case token.Return:
 		return p.ParseReturnExpr()
+	case token.Template:
+		pos := p.Token.Pos
+		p.Next()
+		switch p.Token.Token {
+		case token.String, token.RawString, token.RawHeredoc:
+			return &node.TemplateLit{
+				TokenPos: pos,
+				Value:    p.ParseOperand(),
+			}
+		}
 	}
 
 	pos := p.Token.Pos
@@ -1376,17 +1387,12 @@ func (p *Parser) ParseBody() (b *node.BlockStmt, closure node.Expr) {
 			closure = p.ParseExpr()
 		}
 	} else {
-		b = p.ParseBlockStmt(BlockWrap{
-			Start: token.Do,
-			Ends: []BlockEnd{
-				{token.End, true},
-			},
-		})
+		b = p.ParseBlockStmt()
 	}
 	return
 }
 
-func (p *Parser) ParseStmtList(start token.Token, ends ...BlockWrap) (list []node.Stmt, end *BlockEnd) {
+func (p *Parser) ParseStmtList() (list []node.Stmt) {
 	if p.Trace {
 		defer untracep(tracep(p, "StatementList"))
 	}
@@ -1400,21 +1406,6 @@ func (p *Parser) ParseStmtList(start token.Token, ends ...BlockWrap) (list []nod
 		case token.Semicolon:
 			p.Next()
 		default:
-			if start != 0 {
-				for _, end_ := range ends {
-					if start == end_.Start {
-						for _, e := range end_.Ends {
-							if p.Token.Token == e.Token {
-								if e.Next {
-									p.Next()
-								}
-								end = &e
-								return
-							}
-						}
-					}
-				}
-			}
 			if s = p.ParseStmt(); s != nil {
 				if _, ok := s.(*node.EmptyStmt); ok {
 					continue
@@ -1497,10 +1488,27 @@ do:
 	switch p.Token.Token {
 	case token.ConfigStart:
 		return p.ParseConfigStmt()
-	case token.RawString:
-		return p.ParseRawStringStmt()
-	case token.ToTextBegin:
-		return p.ParseExprToTextStmt()
+	case token.MixedText:
+		return p.ParseMixedTextStmt()
+	case token.MixedCodeStart:
+		n := &node.CodeBeginStmt{
+			Lit: ast.Literal{
+				Value: p.Token.Literal,
+				Pos:   p.Token.Pos,
+			},
+			RemoveSpace: RemoveSpaces(p.Token),
+		}
+		p.Next()
+		return n
+	case token.MixedCodeEnd:
+		n := &node.CodeEndStmt{Lit: ast.Literal{
+			Value: p.Token.Literal,
+			Pos:   p.Token.Pos,
+		}}
+		p.Next()
+		return n
+	case token.MixedValueStart:
+		return p.ParseMixedValue()
 	case token.Var, token.Const, token.Global, token.Param:
 		return &node.DeclStmt{Decl: p.ParseDecl()}
 	case // simple statements
@@ -1510,8 +1518,8 @@ do:
 		token.Mul, token.And, token.Xor, token.Not, token.Import,
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
-		token.Then, token.Yes, token.No,
-		token.DotName, token.DotFile, token.IsModule:
+		token.Yes, token.No,
+		token.DotName, token.DotFile, token.IsModule, token.Template:
 		s := p.ParseSimpleStmt(false)
 		p.ExpectSemi()
 		return s
@@ -1564,39 +1572,17 @@ func (p *Parser) ParseConfigStmt() (c *node.ConfigStmt) {
 	return
 }
 
-func (p *Parser) ParseExprToTextStmt() (ett *node.ExprToTextStmt) {
+func (p *Parser) ParseMixedValue() (ett *node.MixedValueStmt) {
 	if p.Trace {
-		defer untracep(tracep(p, "ExprToText"))
+		defer untracep(tracep(p, "MixedValueStmt"))
 	}
-	ett = &node.ExprToTextStmt{
-		StartLit: ast.Literal{Value: p.Token.Literal, Pos: p.Token.Pos},
+	ett = &node.MixedValueStmt{
+		StartLit:          ast.Literal{Value: p.Token.Literal, Pos: p.Token.Pos},
+		RemoveBeforeSpace: RemoveSpaces(p.Token),
 	}
-	if p.Token.Token == token.CodeBegin {
-		p.Next()
-		stmts, _ := p.ParseStmtList(token.CodeBegin, BlockWrap{
-			Start: token.CodeBegin,
-			Ends: []BlockEnd{{
-				token.CodeEnd,
-				true,
-			}},
-		})
-		if len(stmts) == 1 {
-			switch t := stmts[0].(type) {
-			case *node.ExprStmt:
-				return node.NewExprToTextStmt(p.Scanner.GetMixedExprRune(), t.Expr)
-			}
-		}
-		return node.NewExprToTextStmt(p.Scanner.GetMixedExprRune(), &node.StmtsExpr{Stmts: stmts})
-	} else {
-		p.Next()
-		ett.Expr = p.ParseExpr()
-		if p.Token.Token == token.ToTextEnd {
-			ett.EndLit = ast.Literal{Value: p.Token.Literal, Pos: p.Token.Pos}
-			p.Next()
-		} else {
-			p.Expect(token.ToTextEnd)
-		}
-	}
+	p.Next()
+	ett.Expr = p.ParseExpr()
+	ett.EndLit = p.ExpectLit(token.MixedValueEnd)
 	return
 }
 
@@ -1613,24 +1599,36 @@ func (p *Parser) ParseRawStringLit() (t *node.RawStringLit) {
 	return
 }
 
-func (p *Parser) ParseRawStringStmt() (t *node.RawStringStmt) {
+func (p *Parser) ParseMixedTextStmt() (t *node.MixedTextStmt) {
 	if p.Trace {
-		defer untracep(tracep(p, "RawStringStmt"))
-	}
-	t = &node.RawStringStmt{
-		MixedExprRune: p.Scanner.GetMixedExprRune(),
+		defer untracep(tracep(p, "MixedTextStmt"))
 	}
 
-	for p.Token.Token == token.RawString {
-		if p.Token.Literal != "" {
-			t.Lits = append(t.Lits, &node.RawStringLit{
-				Literal:    p.Token.Literal,
-				LiteralPos: p.Token.Pos,
-				Quoted:     p.Token.Literal[0] == '`',
-			})
-		}
-		p.Next()
+	t = &node.MixedTextStmt{
+		Lit: ast.Literal{
+			Value: p.Token.Literal,
+			Pos:   p.Token.Pos,
+		},
 	}
+
+	p.Next()
+
+	if p.Token.Token == token.MixedCodeStart {
+		t.RemoveRightSpaces = RemoveSpaces(p.Token)
+	}
+
+	return
+}
+
+func (p *Parser) ParseRawHeredocLit() (t *node.RawHeredocLit) {
+	if p.Trace {
+		defer untracep(tracep(p, "RawHeredocLit"))
+	}
+	t = &node.RawHeredocLit{
+		Literal:    p.Token.Literal,
+		LiteralPos: p.Token.Pos,
+	}
+	p.Next()
 	return
 }
 
@@ -1924,7 +1922,7 @@ func (p *Parser) ParseForStmt() node.Stmt {
 
 	// for {}
 	if p.Token.Token.IsBlockStart() {
-		body := p.ParseBlockStmt(BlockWrap{token.Do, []BlockEnd{{token.End, true}}})
+		body := p.ParseBlockStmt()
 		p.ExpectSemi()
 
 		return &node.ForStmt{
@@ -1947,46 +1945,16 @@ func (p *Parser) ParseForStmt() node.Stmt {
 	if forInStmt, isForIn := s1.(*node.ForInStmt); isForIn {
 		forInStmt.ForPos = pos
 		p.ExprLevel = prevLevel
-		forInStmt.Body = p.ParseBlockStmt(BlockWrap{token.Do, []BlockEnd{
-			{token.End, true},
-			{token.Else, false},
-		}})
+		forInStmt.Body = p.ParseBlockStmt()
 		if p.Token.Token == token.Else {
-			lbrace := p.Token.Pos
 			p.Next()
 			p.SkipSpace()
 
 			switch p.Token.Token {
-			case token.End:
-				forInStmt.Else = &node.BlockStmt{LBrace: lbrace, RBrace: p.Token.Pos}
-				p.Next()
-				p.ExpectSemi()
 			case token.LBrace:
 				forInStmt.Else = p.ParseBlockStmt()
 				p.ExpectSemi()
-			case token.Then:
-				forInStmt.Else = p.ParseBlockStmt(BlockWrap{
-					token.Then,
-					[]BlockEnd{
-						{token.End, true},
-					},
-				})
-			case token.Colon:
-				p.Next()
-				expr := p.ParseExpr()
-				forInStmt.Else = &node.BlockStmt{
-					Stmts:  []node.Stmt{&node.ExprStmt{Expr: expr}},
-					LBrace: expr.Pos(),
-					RBrace: expr.End(),
-				}
-				p.ExpectSemi()
 			case token.Semicolon:
-				p.ExpectSemi()
-			default:
-				forInStmt.Else = &node.BlockStmt{LBrace: lbrace, RBrace: p.Token.Pos}
-				if stmt := p.ParseSimpleStmt(false); stmt != nil {
-					forInStmt.Else.Stmts = []node.Stmt{stmt}
-				}
 				p.ExpectSemi()
 			}
 		} else {
@@ -2051,28 +2019,9 @@ func (p *Parser) ParseIfStmt() node.Stmt {
 	}
 
 	pos := p.Expect(token.If)
-	init, cond, starts := p.ParseIfHeader()
+	init, cond := p.ParseIfHeader()
 
-	var body *node.BlockStmt
-	if p.Token.Token == token.Colon {
-		p.Next()
-		expr := p.ParseExpr()
-		body = &node.BlockStmt{
-			Stmts:  []node.Stmt{&node.ExprStmt{Expr: expr}},
-			LBrace: expr.Pos(),
-			RBrace: expr.End(),
-		}
-	} else if starts == token.Then {
-		body = p.ParseBlockStmt(BlockWrap{
-			token.Then,
-			[]BlockEnd{
-				{token.End, true},
-				{token.Else, false},
-			},
-		})
-	} else {
-		body = p.ParseBlockStmt()
-	}
+	body := p.ParseBlockStmt()
 
 	var elseStmt node.Stmt
 	if p.Token.Token == token.Else {
@@ -2082,35 +2031,9 @@ func (p *Parser) ParseIfStmt() node.Stmt {
 		switch p.Token.Token {
 		case token.If:
 			elseStmt = p.ParseIfStmt()
-		case token.LBrace, p.BlockStart:
+		case token.LBrace:
 			elseStmt = p.ParseBlockStmt()
 			p.ExpectSemi()
-		case token.Then:
-			elseStmt = p.ParseBlockStmt(BlockWrap{
-				token.Then,
-				[]BlockEnd{
-					{token.End, true},
-					{token.Else, false},
-					{token.End, true},
-				},
-			})
-		case token.Colon:
-			p.Next()
-			expr := p.ParseExpr()
-			elseStmt = &node.BlockStmt{
-				Stmts:  []node.Stmt{&node.ExprStmt{Expr: expr}},
-				LBrace: expr.Pos(),
-				RBrace: expr.End(),
-			}
-			p.ExpectSemi()
-		default:
-			b := &node.BlockStmt{LBrace: p.Token.Pos, RBrace: p.Token.Pos}
-			if stmt := p.ParseSimpleStmt(false); stmt != nil {
-				b.RBrace = p.Token.Pos
-				b.Stmts = []node.Stmt{stmt}
-			}
-			p.ExpectSemi()
-			elseStmt = b
 		}
 	} else {
 		p.ExpectSemi()
@@ -2129,14 +2052,7 @@ func (p *Parser) ParseTryStmt() node.Stmt {
 		defer untracep(tracep(p, "TryStmt"))
 	}
 	pos := p.Expect(token.Try)
-	body := p.ParseBlockStmt(BlockWrap{
-		Start: token.Then,
-		Ends: []BlockEnd{
-			{token.Catch, false},
-			{token.Finally, false},
-			{token.End, true},
-		},
-	})
+	body := p.ParseBlockStmt()
 	var catchStmt *node.CatchStmt
 	var finallyStmt *node.FinallyStmt
 	if p.Token.Token == token.Catch {
@@ -2163,13 +2079,7 @@ func (p *Parser) ParseCatchStmt() *node.CatchStmt {
 	if p.Token.Token == token.Ident {
 		ident = p.ParseIdent()
 	}
-	body := p.ParseBlockStmt(BlockWrap{
-		token.Then,
-		[]BlockEnd{
-			{token.Finally, false},
-			{token.End, true},
-		},
-	})
+	body := p.ParseBlockStmt()
 	return &node.CatchStmt{
 		CatchPos: pos,
 		Ident:    ident,
@@ -2182,12 +2092,7 @@ func (p *Parser) ParseFinallyStmt() *node.FinallyStmt {
 		defer untracep(tracep(p, "FinallyStmt"))
 	}
 	pos := p.Expect(token.Finally)
-	body := p.ParseBlockStmt(BlockWrap{
-		token.Then,
-		[]BlockEnd{
-			{token.End, true},
-		},
-	})
+	body := p.ParseBlockStmt()
 	return &node.FinallyStmt{
 		FinallyPos: pos,
 		Body:       body,
@@ -2219,62 +2124,22 @@ func (p *Parser) ParseThrowExpr() *node.ThrowExpr {
 	}
 }
 
-func (p *Parser) ParseBlockStmt(ends ...BlockWrap) *node.BlockStmt {
+func (p *Parser) ParseBlockStmt() *node.BlockStmt {
 	if p.Trace {
 		defer untracep(tracep(p, "BlockStmt"))
 	}
 
-	var (
-		lbrace = p.Token.Pos
-		start  = p.Token.Token
-	)
-
-	if p.BlockStart != 0 {
-		ends = append(ends, BlockWrap{
-			Start: p.BlockStart,
-			Ends: []BlockEnd{{
-				p.BlockEnd,
-				true,
-			}},
-		})
-	}
-
-	for _, e := range ends {
-		if p.Token.Token == e.Start {
-			p.Next()
-			goto parse_list
-		}
-	}
-
-	p.Expect(token.LBrace)
-
-parse_list:
-
-	list, endb := p.ParseStmtList(start, ends...)
-	var rbrace source.Pos
-	if endb != nil {
-		rbrace = p.Token.Pos
-	} else {
-		switch start {
-		case token.Then, token.Do:
-			if p.Token.Token == token.EOF && p.PrevToken.Token == token.End {
-				rbrace = p.PrevToken.Pos
-			} else {
-				rbrace = p.Expect(token.End)
-			}
-		default:
-			rbrace = p.Expect(token.RBrace)
-		}
-	}
+	lbrace := p.ExpectLit(token.LBrace)
+	list := p.ParseStmtList()
 
 	return &node.BlockStmt{
 		LBrace: lbrace,
-		RBrace: rbrace,
+		RBrace: p.ExpectLit(token.RBrace),
 		Stmts:  list,
 	}
 }
 
-func (p *Parser) ParseIfHeader() (init node.Stmt, cond node.Expr, starts token.Token) {
+func (p *Parser) ParseIfHeader() (init node.Stmt, cond node.Expr) {
 	if p.Token.Token.IsBlockStart() {
 		p.Error(p.Token.Pos, "missing condition in if statement")
 		cond = &node.BadExpr{From: p.Token.Pos, To: p.Token.Pos}
@@ -2291,18 +2156,12 @@ func (p *Parser) ParseIfHeader() (init node.Stmt, cond node.Expr, starts token.T
 
 	var condStmt node.Stmt
 	switch p.Token.Token {
-	case token.LBrace, token.Then, token.Colon, p.BlockStart:
+	case token.LBrace, p.BlockStart:
 		condStmt = init
 		init = nil
-		if p.Token.Token == token.Then {
-			starts = token.Then
-		}
 	case token.Semicolon:
 		p.Next()
 		condStmt = p.ParseSimpleStmt(false)
-		if p.Token.Token == token.Then {
-			starts = token.Then
-		}
 	default:
 		p.Error(p.Token.Pos, "missing condition in if statement")
 	}
@@ -2460,14 +2319,6 @@ func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {
 		return s
 	}
 
-	if p.mode.Has(ParseMixed) {
-		if raw, _ := x[0].(*node.RawStringLit); raw != nil {
-			return &node.RawStringStmt{
-				MixedExprRune: p.Scanner.GetMixedExprRune(),
-				Lits:          []*node.RawStringLit{raw},
-			}
-		}
-	}
 	return &node.ExprStmt{Expr: x[0]}
 }
 
@@ -2612,6 +2463,19 @@ func (p *Parser) Expect(token token.Token) source.Pos {
 	return pos
 }
 
+func (p *Parser) ExpectLit(token token.Token) ast.Literal {
+	lit := ast.Literal{
+		Pos:   p.Token.Pos,
+		Value: p.Token.Literal,
+	}
+
+	if p.Token.Token != token {
+		p.ErrorExpected(lit.Pos, "'"+token.String()+"'")
+	}
+	p.Next()
+	return lit
+}
+
 func (p *Parser) ExpectToken(pos source.Pos, expected, got token.Token) {
 	if expected != got {
 		p.ErrorExpected(pos, "'"+got.String()+"'")
@@ -2620,7 +2484,7 @@ func (p *Parser) ExpectToken(pos source.Pos, expected, got token.Token) {
 
 func (p *Parser) ExpectSemi() {
 	switch p.Token.Token {
-	case token.RParen, token.RBrace, token.Else, token.CodeEnd:
+	case token.RParen, token.RBrace, token.Else, token.MixedCodeEnd:
 		// semicolon is optional before a closing ')' or '}'
 	case token.Comma:
 		// permit a ',' instead of a ';' but complain
@@ -2752,19 +2616,7 @@ func (p *Parser) Next() {
 next:
 	p.next0()
 	switch p.Token.Token {
-	case token.CodeBegin:
-		p.InCode = true
-		if p.IgnoreCodeBlockDisabled {
-			return
-		}
-		goto next
-	case token.CodeEnd:
-		p.InCode = false
-		if p.IgnoreCodeBlockDisabled {
-			return
-		}
-		goto next
-	case token.RawString:
+	case token.MixedText:
 		if p.Token.Literal == "" {
 			goto next
 		}

@@ -13,7 +13,7 @@
 package node
 
 import (
-	"fmt"
+	"bytes"
 	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
@@ -106,20 +106,20 @@ func (s *BadStmt) String() string {
 // BlockStmt represents a block statement.
 type BlockStmt struct {
 	Stmts  []Stmt
-	LBrace source.Pos
-	RBrace source.Pos
+	LBrace ast.Literal
+	RBrace ast.Literal
 }
 
 func (s *BlockStmt) StmtNode() {}
 
 // Pos returns the position of first character belonging to the node.
 func (s *BlockStmt) Pos() source.Pos {
-	return s.LBrace
+	return s.LBrace.Pos
 }
 
 // End returns the position of first character immediately after the node.
 func (s *BlockStmt) End() source.Pos {
-	return s.RBrace + 1
+	return s.RBrace.End()
 }
 
 func (s *BlockStmt) String() string {
@@ -127,7 +127,7 @@ func (s *BlockStmt) String() string {
 	for _, e := range s.Stmts {
 		list = append(list, e.String())
 	}
-	return "{" + strings.Join(list, "; ") + "}"
+	return s.LBrace.Value + strings.Join(list, "; ") + s.RBrace.Value
 }
 
 func (s *BlockStmt) WriteCode(ctx *CodeWriterContext) (err error) {
@@ -619,120 +619,76 @@ func (s *ThrowStmt) WriteCode(ctx *CodeWriterContext) (err error) {
 	return
 }
 
-// RawStringStmt represents an RawStringStmt.
-type RawStringStmt struct {
-	MixedExprRune rune
-	Lits          []*RawStringLit
+// MixedTextStmt represents an MixedTextStmt.
+type MixedTextStmt struct {
+	Lit               ast.Literal
+	RemoveRightSpaces bool
+	RemoveLeftSpaces  bool
 }
 
-func (s *RawStringStmt) Pos() source.Pos {
-	return s.Lits[0].Pos()
+func (s *MixedTextStmt) Pos() source.Pos {
+	return s.Lit.Pos
 }
 
-func (s *RawStringStmt) End() source.Pos {
-	return s.Lits[len(s.Lits)-1].Pos()
+func (s *MixedTextStmt) End() source.Pos {
+	return s.Lit.End()
 }
 
-func (s *RawStringStmt) StmtNode() {
+func (s *MixedTextStmt) StmtNode() {
 }
 
-func (s *RawStringStmt) ExprNode() {
+func (s *MixedTextStmt) ExprNode() {
 }
 
-func (s *RawStringStmt) TrimLinePrefix(prefix string) {
-	for _, lit := range s.Lits {
-		lines := strings.Split(lit.Literal, "\n")
-		for i, line := range lines {
-			lines[i] = strings.TrimLeft(line, prefix)
-		}
-		lit.Literal = strings.Join(lines, "\n")
+func (s *MixedTextStmt) TrimLinePrefix(prefix string) {
+	lit := s.Lit
+	lines := strings.Split(lit.Value, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimLeft(line, prefix)
 	}
+	lit.Value = strings.Join(lines, "\n")
 }
 
-func (s *RawStringStmt) Quoted() string {
-	var b strings.Builder
-	b.WriteByte('`')
-	for _, lit := range s.Lits {
-		s := lit.QuotedValue()
-		b.WriteString(s[1 : len(s)-1])
-	}
-	b.WriteByte('`')
-	return b.String()
+func (s *MixedTextStmt) String() string {
+	return s.Lit.Value
 }
 
-func (s *RawStringStmt) Unquoted() string {
-	var b strings.Builder
-	for _, lit := range s.Lits {
-		b.WriteString(lit.UnquotedValue())
-	}
-	return b.String()
+// MixedValueStmt represents to text wrapped expression.
+type MixedValueStmt struct {
+	Expr              Expr
+	StartLit          ast.Literal
+	EndLit            ast.Literal
+	RemoveBeforeSpace bool
 }
 
-func (s *RawStringStmt) String() string {
-	if s != nil {
-		return string(s.MixedExprRune) + "{= " + s.Quoted() + " }"
-	}
-	return nullRep
-}
+func (s *MixedValueStmt) StmtNode() {}
 
-func (s *RawStringStmt) Value() string {
-	var b strings.Builder
-	for _, lit := range s.Lits {
-		b.WriteString(lit.UnquotedValue())
-	}
-	return b.String()
-}
-
-func (s *RawStringStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	_, err = ctx.WriteString(s.Quoted())
-	return
-}
-
-// ExprToTextStmt represents to text wrapped expression.
-type ExprToTextStmt struct {
-	Expr     Expr
-	StartLit ast.Literal
-	EndLit   ast.Literal
-}
-
-func NewExprToTextStmt(r rune, expr Expr) *ExprToTextStmt {
-	return &ExprToTextStmt{
-		Expr:     expr,
-		StartLit: ast.Literal{Value: string(r) + "{="},
-		EndLit:   ast.Literal{Value: "}"},
-	}
-}
-
-func (s *ExprToTextStmt) StmtNode() {}
-
-func (s *ExprToTextStmt) ExprNode() {
+func (s *MixedValueStmt) ExprNode() {
 }
 
 // Pos returns the position of first character belonging to the node.
-func (s *ExprToTextStmt) Pos() source.Pos {
+func (s *MixedValueStmt) Pos() source.Pos {
 	return s.StartLit.Pos
 }
 
 // End returns the position of first character immediately after the node.
-func (s *ExprToTextStmt) End() source.Pos {
+func (s *MixedValueStmt) End() source.Pos {
 	return s.EndLit.Pos
 }
 
-func (s *ExprToTextStmt) String() string {
+func (s *MixedValueStmt) String() string {
 	return s.StartLit.Value + " " + s.Expr.String() + " " + s.EndLit.Value
 }
 
-func (s *ExprToTextStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString(ctx.ExprToTextFunc); err != nil {
-		return
-	}
-	if err = ctx.WriteByte('('); err != nil {
+func (s *MixedValueStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString(s.StartLit.Value); err != nil {
 		return
 	}
 	if err = WriteCode(ctx, s.Expr); err != nil {
 		return
 	}
-	return ctx.WriteByte(')')
+	_, err = ctx.WriteString(s.EndLit.Value)
+	return
 }
 
 type ConfigOptions struct {
@@ -814,11 +770,9 @@ func (s *StmtsExpr) End() source.Pos {
 }
 
 func (s *StmtsExpr) String() string {
-	var str = make([]string, len(s.Stmts))
-	for i, stmt := range s.Stmts {
-		str[i] = fmt.Sprint(stmt)
-	}
-	return strings.Join(str, "; ")
+	var w bytes.Buffer
+	WriteCodeStmts(&CodeWriterContext{CodeWriter: CodeWriter(&w)}, s.Stmts...)
+	return w.String()
 }
 
 func (s *StmtsExpr) ExprNode() {
@@ -826,4 +780,50 @@ func (s *StmtsExpr) ExprNode() {
 
 func (s *StmtsExpr) WriteCode(ctx *CodeWriterContext) (err error) {
 	return WriteCodeStmts(ctx, s.Stmts...)
+}
+
+type CodeBeginStmt struct {
+	Lit         ast.Literal
+	RemoveSpace bool
+}
+
+func (c CodeBeginStmt) Pos() source.Pos {
+	return c.Lit.Pos
+}
+
+func (c CodeBeginStmt) End() source.Pos {
+	return c.Lit.End()
+}
+
+func (c CodeBeginStmt) String() string {
+	if c.RemoveSpace {
+		return c.Lit.Value + "-"
+	}
+	return c.Lit.Value
+}
+
+func (c CodeBeginStmt) StmtNode() {
+}
+
+type CodeEndStmt struct {
+	Lit         ast.Literal
+	RemoveSpace bool
+}
+
+func (c CodeEndStmt) Pos() source.Pos {
+	return c.Lit.Pos
+}
+
+func (c CodeEndStmt) End() source.Pos {
+	return c.Lit.End()
+}
+
+func (c CodeEndStmt) String() string {
+	if c.RemoveSpace {
+		return "-" + c.Lit.Value
+	}
+	return c.Lit.Value
+}
+
+func (c CodeEndStmt) StmtNode() {
 }

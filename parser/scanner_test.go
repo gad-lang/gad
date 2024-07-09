@@ -19,14 +19,73 @@ func TestScanner_ScanMixed(t *testing.T) {
 		},
 	}
 	tr.do(t, []testCase{
-		{token.RawString, "abc"},
-		{token.CodeBegin, "#{"},
+		{token.MixedText, "abc"},
+		{token.MixedCodeStart, "#{"},
 		{token.Ident, "a"},
 		{token.Add, "+"},
 		{token.Ident, "b"},
 		{token.Begin, "begin"},
 		{token.End, "end"},
-		{token.CodeEnd, "}"},
+		{token.RawString, "`}`"},
+		{token.MixedCodeEnd, "}"},
+	})
+
+	tr.opts.MixedDelimiter = &parser.MixedDelimiter{
+		Start: []rune("<!--"),
+		End:   []rune("-->"),
+	}
+	tr.do(t, []testCase{
+		{token.MixedText, "abc"},
+		{token.MixedCodeStart, "<!--"},
+		{token.Ident, "a"},
+		{token.Add, "+"},
+		{token.Ident, "b"},
+		{token.Begin, "begin"},
+		{token.End, "end"},
+		{token.MixedCodeEnd, "-->"},
+	})
+
+	tr.opts.MixedDelimiter = &parser.MixedDelimiter{
+		Start: []rune("<"),
+		End:   []rune(">"),
+	}
+	tr.do(t, []testCase{
+		{token.MixedText, "abc"},
+		{token.MixedCodeStart, "<"},
+		{token.Ident, "a"},
+		{token.Add, "+"},
+		{token.Ident, "b"},
+		{token.Begin, "begin"},
+		{token.End, "end"},
+		{token.MixedCodeEnd, ">"},
+		{token.MixedText, "x"},
+	})
+
+	tr.do(t, []testCase{
+		{token.MixedText, "abc"},
+		{token.MixedCodeStart, "<"},
+		{token.Ident, "a"},
+		{token.Add, "+"},
+		{token.Ident, "b"},
+		{token.Begin, "begin"},
+		{token.End, "end"},
+		{token.MixedCodeEnd, ">"},
+		{token.MixedText, "x"},
+		{token.MixedCodeStart, "<"},
+		{token.Add, "+"},
+		{token.MixedCodeEnd, ">"},
+	})
+	tr.do(t, []testCase{
+		{token.MixedText, "abc"},
+		{token.MixedCodeStart, "<"},
+		{token.Sub, "-"},
+		{token.Ident, "b"},
+		{token.Sub, "-"},
+		{token.MixedCodeEnd, ">"},
+		{token.MixedText, "x"},
+		{token.MixedCodeStart, "<"},
+		{token.Add, "+"},
+		{token.MixedCodeEnd, ">"},
 	})
 }
 
@@ -92,18 +151,11 @@ func TestScanner_Scan(t *testing.T) {
 		},
 		{token.RawString, "`\n`"},
 		{token.RawString, "`foo\nbar`"},
-		{token.StringTemplate, `#"abc"`},
-		{token.RawStringTemplate, "#`abc`"},
 		{token.RawHeredoc, "```\n  a\n  bc\n```"},
 		{token.RawHeredoc, "```\nabc\n```"},
 		{token.RawHeredoc, "```abc```"},
 		{token.RawHeredoc, "```a``bc```"},
 		{token.RawHeredoc, "`````a``b```c`````"},
-		{token.RawHeredocTemplate, "#```\n  a\n  bc\n```"},
-		{token.RawHeredocTemplate, "#```\nabc\n```"},
-		{token.RawHeredocTemplate, "#```abc```"},
-		{token.RawHeredocTemplate, "#```a``bc```"},
-		{token.RawHeredocTemplate, "#`````a``b```c`````"},
 		{token.Add, "+"},
 		{token.Sub, "-"},
 		{token.Mul, "*"},
@@ -258,6 +310,7 @@ func (tr tester) do(t *testing.T, testCases []testCase) {
 }
 
 func (tr tester) doI(t *testing.T, testCases []testCase) {
+	t.Helper()
 	if tr.lineSep == "" {
 		tr.lineSep = "\n"
 	}
@@ -287,8 +340,16 @@ func (tr tester) doI(t *testing.T, testCases []testCase) {
 		}
 
 		lineNos[i] = lineSum + emptyLines + 1
-		lineSum += emptyLines + countLines(tc.literal)
 		columnNos[i] = emptyColumns + 1
+
+		if tc.token == token.MixedText {
+			if i > 0 {
+				lineNos[i]--
+				columnNos[i] = emptyColumns + 2
+			}
+		}
+
+		lineSum += emptyLines + countLines(tc.literal)
 	}
 
 	// expected results
@@ -307,15 +368,19 @@ func (tr tester) doI(t *testing.T, testCases []testCase) {
 			if expectedLiteral[1] == '/' {
 				expectedLiteral = expectedLiteral[:len(expectedLiteral)-1]
 			}
-		case token.Ident, token.CodeBegin, token.CodeEnd:
+		case token.Ident, token.MixedCodeStart, token.MixedCodeEnd:
 			expectedLiteral = tc.literal
-		case token.RawString:
+		case token.MixedText:
 			expectedLiteral = tc.literal
-			if tr.opts.Mode.Has(parser.Mixed) && i < len(testCases)-1 {
+			if i < len(testCases)-1 {
 				// remove last \n
 				expectedLiteral += "\n"
+
 			}
-		case token.String:
+			if i > 0 {
+				expectedLiteral = "\n" + expectedLiteral
+			}
+		case token.String, token.RawString:
 			expectedLiteral = tc.literal
 		case token.Semicolon:
 			if tc.literal == "\n" {
@@ -361,6 +426,7 @@ func (tr *tester) scanExpect(
 	mode parser.ScanMode,
 	expected ...scanResult,
 ) {
+	t.Helper()
 	testFile := testFileSet.AddFile("test", -1, len(input))
 	opts := tr.opts
 	opts.Mode |= mode
@@ -376,11 +442,11 @@ func (tr *tester) scanExpect(
 
 		filePos := testFile.Position(tok.Pos)
 
-		require.Equalf(t, e.Token, tok.Token, "[%d] expected: %s, actual: %s",
-			idx, e.Token.String(), tok.Token.String())
-		require.Equal(t, e.Literal, tok.Literal)
-		require.Equal(t, e.Line, filePos.Line)
-		require.Equal(t, e.Column, filePos.Column)
+		es := fmt.Sprintf("[%s %d:%d] %s", e.Token, e.Line, e.Column, e.Literal)
+		gs := fmt.Sprintf("[%s %d:%d] %s", tok.Token, filePos.Line, filePos.Column, tok.Literal)
+
+		require.Equalf(t, es, gs, "[test %d] input: \n%s",
+			idx, input)
 	}
 
 	tok := s.Scan()

@@ -332,12 +332,12 @@ func (c *Compiler) compileStmts(stmt ...node.Stmt) (err error) {
 stmts:
 	for i := 0; i < l; i++ {
 		switch stmt[i].(type) {
-		case *node.RawStringStmt, *node.ExprToTextStmt:
+		case *node.MixedTextStmt, *node.MixedValueStmt:
 			var j = i + 1
 		l2:
 			for j < l {
 				switch stmt[j].(type) {
-				case *node.RawStringStmt, *node.ExprToTextStmt:
+				case *node.MixedTextStmt, *node.MixedValueStmt:
 					j++
 				default:
 					break l2
@@ -348,13 +348,13 @@ stmts:
 
 			for z, s := range stmt[i:j] {
 				switch t := s.(type) {
-				case *node.RawStringStmt:
+				case *node.MixedTextStmt:
 					if len(t.Lits) == 1 {
 						exprs[z] = t.Lits[0]
 					} else {
 						exprs[z] = &node.RawStringLit{Literal: t.Unquoted()}
 					}
-				case *node.ExprToTextStmt:
+				case *node.MixedValueStmt:
 					exprs[z] = t.Expr
 				}
 			}
@@ -542,7 +542,7 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileImportExpr(nt)
 	case *node.CondExpr:
 		return c.compileCondExpr(nt)
-	case *node.RawStringStmt:
+	case *node.MixedTextStmt:
 		return c.compileStmts(nt)
 	case *node.EmptyStmt:
 	case *node.ConfigStmt:

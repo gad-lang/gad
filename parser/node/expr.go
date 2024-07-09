@@ -1620,3 +1620,105 @@ type ReturnExpr struct {
 }
 
 func (s *ReturnExpr) ExprNode() {}
+
+type RawHeredocLit struct {
+	Literal    string
+	LiteralPos source.Pos
+}
+
+func (e *RawHeredocLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *RawHeredocLit) Pos() source.Pos {
+	return e.LiteralPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *RawHeredocLit) End() source.Pos {
+	return source.Pos(int(e.LiteralPos) + len(e.Literal))
+}
+
+func (e *RawHeredocLit) String() string {
+	return e.Literal
+}
+
+func (e *RawHeredocLit) Value() string {
+	var bts = []byte(e.Literal)
+
+	for i, r := range bts {
+		if r != '`' {
+			if r == '\n' {
+				bts = bts[i+1 : len(bts)-i]
+				// remove Last Line
+				bts = bts[:bytes.LastIndexByte(bts, '\n')]
+				var stripCount int
+			l2:
+				for j, r := range bts {
+					switch r {
+					case ' ', '\t':
+					default:
+						stripCount = j
+						break l2
+					}
+				}
+
+				if stripCount > 0 {
+					var (
+						lines = bytes.Split(bts, []byte{'\n'})
+						out   strings.Builder
+					)
+					for j, line := range lines {
+						var i int
+					l3:
+						for ; i < stripCount; i++ {
+							switch line[i] {
+							case '\t', ' ':
+							default:
+								break l3
+							}
+						}
+
+						if j > 0 {
+							out.WriteByte('\n')
+						}
+
+						out.Write(line[i:])
+					}
+
+					return out.String()
+				}
+			} else {
+				bts = bts[i : len(bts)-i]
+			}
+			break
+		}
+	}
+	return string(bts)
+}
+
+// TemplateLit represents an variadic of argument.
+type TemplateLit struct {
+	TokenPos source.Pos
+	Value    Expr
+}
+
+func (e *TemplateLit) ExprNode() {}
+
+func (e *TemplateLit) Pos() source.Pos {
+	return e.TokenPos
+}
+
+func (e *TemplateLit) End() source.Pos {
+	return e.Value.End() + 6
+}
+
+func (e *TemplateLit) String() string {
+	return "#" + e.Value.String()
+}
+
+func (e *TemplateLit) WriteCode(ctx *CodeWriterContext) (err error) {
+	if err = ctx.WriteByte('#'); err != nil {
+		return
+	}
+	return WriteCode(ctx, e.Value)
+}

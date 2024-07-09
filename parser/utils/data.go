@@ -24,6 +24,10 @@ func (m Data) Get(key any) (v any) {
 	return m[key]
 }
 
+func (m Data) Flag(key any) bool {
+	return m[key] == true
+}
+
 func (m Data) String() string {
 	if m == nil {
 		return ""

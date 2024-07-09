@@ -16,7 +16,6 @@ type CodeWriter interface {
 type CodeWriterContext struct {
 	Stack []ast.Node
 	CodeWriter
-	ExprToTextFunc string
 }
 
 func (c *CodeWriterContext) Top() ast.Node {
@@ -74,6 +73,15 @@ func WriteCodeExprs(ctx *CodeWriterContext, sep string, expr ...Expr) (err error
 	return
 }
 
+func SemiSkip(s Stmt) bool {
+	switch s.(type) {
+	case *CodeBeginStmt, *CodeEndStmt, *MixedTextStmt:
+		return true
+	default:
+		return false
+	}
+}
+
 func WriteCodeStmts(ctx *CodeWriterContext, stmt ...Stmt) (err error) {
 	last := len(stmt) - 1
 	for i, e := range stmt {
@@ -81,8 +89,10 @@ func WriteCodeStmts(ctx *CodeWriterContext, stmt ...Stmt) (err error) {
 			return
 		}
 		if i != last {
-			if _, err = ctx.WriteString(";\n"); err != nil {
-				return
+			if !SemiSkip(stmt[i]) && !SemiSkip(stmt[i+1]) {
+				if _, err = ctx.WriteString(`;`); err != nil {
+
+				}
 			}
 		}
 	}

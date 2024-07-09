@@ -9,6 +9,7 @@ import (
 type StringWriter interface {
 	io.Writer
 	io.StringWriter
+	io.ByteWriter
 }
 
 type StringerTo interface {
