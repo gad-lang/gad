@@ -1639,13 +1639,13 @@ func TestParseForIn(t *testing.T) {
 				ident("x", p(1, 5)),
 				ident("y", p(1, 10)),
 				blockLitStmt(
-					Literal{"do", p(1, 12)}, Literal{},
+					lit("do", p(1, 12)), Literal{},
 					exprStmt(
 						ident("x", p(1, 15)),
 					),
 				),
 				p(1, 1),
-				blockLitStmt(Literal{Pos: p(1, 22)}, Literal{"end", p(1, 24)},
+				blockLitStmt(lit("", p(1, 22)), lit("end", p(1, 24)),
 					exprStmt(
 						intLit(1, p(1, 22)),
 					),
@@ -1662,7 +1662,7 @@ func TestParseForIn(t *testing.T) {
 				ident("y", p(1, 10)),
 				blockStmt(p(1, 12), p(1, 13)),
 				p(1, 1),
-				blockLitStmt(Literal{Pos: p(1, 20)}, Literal{"end", p(1, 22)},
+				blockLitStmt(lit("", p(1, 20)), lit("end", p(1, 22)),
 					exprStmt(
 						intLit(1, p(1, 20)),
 					),
@@ -3327,7 +3327,7 @@ func funcNamedArgs(vari *TypedIdent, names []*TypedIdent, values []Expr) NamedAr
 }
 
 func blockStmt(lbrace, rbrace Pos, list ...Stmt) *BlockStmt {
-	return &BlockStmt{Stmts: list, LBrace: Literal{"{", lbrace}, RBrace: Literal{"}", rbrace}}
+	return &BlockStmt{Stmts: list, LBrace: lit("{", lbrace), RBrace: lit("}", rbrace)}
 }
 
 func blockLitStmt(lbrace, rbrace Literal, list ...Stmt) *BlockStmt {
@@ -3346,11 +3346,11 @@ func typedIdent(ident *Ident, typ ...*Ident) *TypedIdent {
 	return &TypedIdent{Ident: ident, Type: typ}
 }
 
-func mixedTextStmt(pos Pos, lit string, flags ...MixedTextStmtFlag) *MixedTextStmt {
+func mixedTextStmt(pos Pos, vlit string, flags ...MixedTextStmtFlag) *MixedTextStmt {
 	var f MixedTextStmtFlag
 	for _, f = range flags {
 	}
-	return &MixedTextStmt{Lit: Literal{Value: lit, Pos: pos}, Flags: f}
+	return &MixedTextStmt{Lit: lit(vlit, pos), Flags: f}
 }
 
 func codeBegin(lit Literal, removeSpace bool) *CodeBeginStmt {
@@ -4067,4 +4067,7 @@ func parseSource(
 	return p.ParseFile()
 }
 
-var mixedDelimiter = MixedDelimiter{[]rune("‹"), []rune("›")}
+var mixedDelimiter = MixedDelimiter{
+	Start: []rune("‹"),
+	End:   []rune("›"),
+}

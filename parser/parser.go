@@ -1019,13 +1019,13 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 		}
 	case token.MixedCodeEnd:
 		mte := &node.MixedTextExpr{
-			StartLit: ast.Literal{p.Token.Literal, p.Token.Pos},
+			StartLit: ast.Literal{Value: p.Token.Literal, Pos: p.Token.Pos},
 		}
 		p.Next()
 		stmt := p.ParseMixedTextStmt()
 		p.ExprLevel++
 		mcs := p.ExpectToken(token.MixedCodeStart)
-		mte.EndLit = ast.Literal{mcs.Literal, mcs.Pos}
+		mte.EndLit = ast.Literal{Value: mcs.Literal, Pos: mcs.Pos}
 		mte.Stmt = *stmt
 		exprs = append(exprs, mte)
 		p.ExprLevel--
@@ -2191,7 +2191,7 @@ func (p *Parser) ParseBlockStmt(ends ...token.Token) *node.BlockStmt {
 
 	if p.Token.Token == token.MixedCodeEnd {
 		mce := &node.CodeEndStmt{
-			Lit:         ast.Literal{p.Token.Literal, p.Token.Pos},
+			Lit:         ast.Literal{Value: p.Token.Literal, Pos: p.Token.Pos},
 			RemoveSpace: RemoveSpaces(p.Token),
 		}
 		p.Next()

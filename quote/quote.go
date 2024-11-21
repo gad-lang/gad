@@ -29,12 +29,14 @@ func (s *scanner) nextN(n int) {
 	}
 }
 
+/*
 func (s *scanner) peek() byte {
 	if s.pos >= len(s.src) {
 		return 0
 	}
 	return s.src[s.pos]
 }
+*/
 
 func (s *scanner) peekN(n int) []byte {
 	if s.pos+n > len(s.src) {
@@ -58,6 +60,7 @@ func (s *scanner) peekV(v []byte) bool {
 	return true
 }
 
+/*
 func (s *scanner) quoted() (ok bool) {
 	for i := s.pos; i >= 0; i-- {
 		if s.src[i] != '\\' {
@@ -67,6 +70,7 @@ func (s *scanner) quoted() (ok bool) {
 	}
 	return
 }
+*/
 
 func Quote(s, quote string) string {
 	var (
