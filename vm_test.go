@@ -769,12 +769,12 @@ func TestVMRegexp(t *testing.T) {
 
 func TestVMIterator(t *testing.T) {
 	rg := `Range := struct("Range", fields={
-				start:0,
-				end:2,
+				Start:0,
+				End:2,
 			})`
 	rgc := rg + `
-		func iterator(r Range) => [r.start, [(r.start)=str('a' + r.start)]]
-		func iterator(r Range, state) => state >= r.end ? nil : [state+1, [(state+1)=str('a' + state+1)]]
+		func iterator(r Range) => [r.Start, [(r.Start)=str('a' + r.Start)]]
+		func iterator(r Range, state) => state >= r.End ? nil : [state+1, [(state+1)=str('a' + state+1)]]
 	`
 
 	TestExpectRun(t, rgc+`
@@ -786,8 +786,8 @@ func TestVMIterator(t *testing.T) {
 	`, nil, Str(`[[0, "a"], [1, "b"], [2, "c"]]`))
 
 	TestExpectRun(t, rg+`
-		func iterator(r Range) => [r.start, [(r.start)=str('a' + r.start)]]
-		func iterator(r Range, state) => state >= r.end ? nil : [state+1, [(state+1)=str('a' + state+1)]]
+		func iterator(r Range) => [r.Start, [(r.Start)=str('a' + r.Start)]]
+		func iterator(r Range, state) => state >= r.End ? nil : [state+1, [(state+1)=str('a' + state+1)]]
 
 		ret := []
 		for k, v in Range() {
@@ -798,14 +798,14 @@ func TestVMIterator(t *testing.T) {
 	`, nil, Str(`[[0, "a"], [1, "b"], [2, "c"]]`))
 
 	TestExpectRun(t, rg+`
-			func iterator(r Range) => [r.start, str('a' + r.start)]
-			func iterator(r Range, state) => state >= r.end ? nil : [state+1, str('a' + state+1)]
+			func iterator(r Range) => [r.Start, str('a' + r.Start)]
+			func iterator(r Range, state) => state >= r.End ? nil : [state+1, str('a' + state+1)]
 
 			return str(collect(values(Range())))
 		`, nil, Str(`["a", "b", "c"]`))
 	TestExpectRun(t, rg+`
-			func iterator(r Range) => [r.start, str('a' + r.start)]
-			func iterator(r Range, state) => state >= r.end ? nil : [state+1, str('a' + state+1)]
+			func iterator(r Range) => [r.Start, str('a' + r.Start)]
+			func iterator(r Range, state) => state >= r.End ? nil : [state+1, str('a' + state+1)]
 
 			return str([
 				iterator(Range()),
@@ -820,8 +820,8 @@ func TestVMIterator(t *testing.T) {
 			ret := [nil, nil]
 			ret[0] = isIterable(Range())
 
-			func iterator(r Range) => [r.start, 'a' + r.start, r.end > r.start]
-			func iterator(r Range, state) => [state+1, 'a' + state+1, r.end > state]
+			func iterator(r Range) => [r.Start, 'a' + r.Start, r.End > r.Start]
+			func iterator(r Range, state) => [state+1, 'a' + state+1, r.End > state]
 
 			ret[1] = isIterable(Range())
 
@@ -4353,24 +4353,24 @@ return [
 
 func TestVMMixedOutput(t *testing.T) {
 	TestExpectRun(t, `# gad: mixed
-#{obstart() -}
+{%obstart() -%}
 a
-#{- = 2 -}
+{%- = 2 -%}
 b
-#{- return str(obend())}
+{%- return str(obend())%}
 `,
 		NewTestOpts(),
 		Str("a2b"),
 	)
 
 	TestExpectRun(t, `# gad: mixed
-#{obstart() -}
+{%obstart() -%}
 a
-#{- obstart() -}
-#{- = 2 -}
+{%- obstart() -%}
+{%- = 2 -%}
 b
-#{- flush(); obend() -}
-#{- return str(obend())}
+{%- flush(); obend() -%}
+{%- return str(obend())%}
 `,
 		NewTestOpts(),
 		Str("a2b"),
@@ -4386,28 +4386,12 @@ b
 	)
 
 	TestExpectRun(t, `
-global expr2text
-global value
-obstart()
-
-# gad: mixed, expr_to_text=expr2text
-{key:"#{= value}"}
-#{- return str(obend())}
-`,
-		NewTestOpts().Globals(Dict{
-			"value":     Str(`a"b`),
-			"expr2text": exprToText,
-		}),
-		Str(`{key:"a\"b"}`),
-	)
-
-	TestExpectRun(t, `
-#{
+{%-
 	global value
 	obstart()
--}
-{key:"#{= value}"}
-#{- return str(obend())}
+-%}
+{key:"{%= value%}"}
+{%- return str(obend())%}
 `,
 		NewTestOpts().
 			Mixed().
@@ -4421,7 +4405,7 @@ obstart()
 		Str(`{key:"a\"b"}`),
 	)
 
-	TestExpectRun(t, `#{global value-}{key:"#{= value}"}`,
+	TestExpectRun(t, `{%global value-%}{key:"{%= value%}"}`,
 		NewTestOpts().
 			Mixed().
 			Buffered().
@@ -4435,7 +4419,7 @@ obstart()
 		Array{Nil, Str(`{key:"a\"b"}`)},
 	)
 
-	TestExpectRun(t, `#{var value}#{= value}`,
+	TestExpectRun(t, `{%var value%}{%= value%}`,
 		NewTestOpts().
 			Mixed().
 			Buffered().

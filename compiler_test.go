@@ -260,19 +260,41 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 }
 
 func TestCompiler_Mixed(t *testing.T) {
-	expectCompileMixed(t, "# gad: writer=myfn\n#{- var myfn -} a", bytecode(
+	expectCompileMixed(t, "{% 1 -%} a", bytecode(
+		Array{Int(1), RawStr("a")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpGetBuiltin, int(BuiltinWrite)),
+			makeInst(OpConstant, 1),
+			makeInst(OpCall, 1, 0),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompileMixed(t, "a", bytecode(
+		Array{RawStr("a")},
+		compFunc(concatInsts(
+			makeInst(OpGetBuiltin, int(BuiltinWrite)),
+			makeInst(OpConstant, 0),
+			makeInst(OpCall, 1, 0),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompileMixed(t, "{%- var myfn -%} a", bytecode(
 		Array{RawStr("a")},
 		compFunc(concatInsts(
 			makeInst(OpNil),
 			makeInst(OpDefineLocal, 0),
-			makeInst(OpGetLocal, 0),
+			makeInst(OpGetBuiltin, int(BuiltinWrite)),
 			makeInst(OpConstant, 0),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpReturn, 0),
 		), withLocals(1)),
 	))
 
-	expectCompileMixed(t, `a#{=1}c`, bytecode(
+	expectCompileMixed(t, `a{%=1%}c`, bytecode(
 		Array{RawStr("a"), Int(1), RawStr("c")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
@@ -284,7 +306,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		)),
 	))
 
-	expectCompileMixed(t, `a#{=1}c#{x := 5}#{=x}`, bytecode(
+	expectCompileMixed(t, `a{%=1%}c{%x := 5%}{%=x%}`, bytecode(
 		Array{RawStr("a"), Int(1), RawStr("c"), Int(5)},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
@@ -301,19 +323,19 @@ func TestCompiler_Mixed(t *testing.T) {
 		), withLocals(1)),
 	))
 
-	expectCompile(t, "# gad: mixed, writer=myfn\n#{ var myfn -} a", bytecode(
+	expectCompile(t, "# gad: mixed\n{% var myfn -%} a", bytecode(
 		Array{RawStr("a")},
 		compFunc(concatInsts(
 			makeInst(OpNil),
 			makeInst(OpDefineLocal, 0),
-			makeInst(OpGetLocal, 0),
+			makeInst(OpGetBuiltin, int(BuiltinWrite)),
 			makeInst(OpConstant, 0),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpReturn, 0),
 		), withLocals(1)),
 	))
 
-	expectCompile(t, "# gad: mixed\n#{- a := begin} a #{end}", bytecode(
+	expectCompile(t, "# gad: mixed\n{%- a := (%} a {%)%}", bytecode(
 		Array{RawStr(" a ")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -322,7 +344,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		), withLocals(1)),
 	))
 
-	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end}", bytecode(
+	expectCompile(t, "# gad: mixed\n{%- a := ( -%} a {%- )%}", bytecode(
 		Array{RawStr("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -331,7 +353,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		), withLocals(1)),
 	))
 
-	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end; return a}", bytecode(
+	expectCompile(t, "# gad: mixed\n{%- a := ( -%} a {%- ); return a%}", bytecode(
 		Array{RawStr("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -341,7 +363,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		), withLocals(1)),
 	))
 
-	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end}#{return a}", bytecode(
+	expectCompile(t, "# gad: mixed\n{%- a := ( -%} a {%- ) %}{%return a%}", bytecode(
 		Array{RawStr("a")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -351,7 +373,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		), withLocals(1)),
 	))
 
-	expectCompile(t, "# gad: mixed\n#{- a := begin -} a #{- end} b #{return a}", bytecode(
+	expectCompile(t, "# gad: mixed\n{%- a := ( -%} a {%- )%} b {%return a%}", bytecode(
 		Array{RawStr("a"), RawStr(" b ")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -3101,7 +3123,11 @@ func expectCompile(t *testing.T, script string, expected *Bytecode) {
 
 func expectCompileMixed(t *testing.T, script string, expected *Bytecode) {
 	t.Helper()
-	expectCompileWithOpts(t, script, CompileOptions{ParserOptions: parser.ParserOptions{Mode: parser.ParseMixed}}, expected)
+	expectCompileWithOpts(t, script, CompileOptions{
+		ParserOptions: parser.ParserOptions{
+			Mode: parser.ParseMixed,
+		},
+	}, expected)
 }
 
 // SourceMap comparison is ignored if it is nil.

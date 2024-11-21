@@ -20,7 +20,7 @@ import (
 
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
-	"github.com/gad-lang/gad/parser/utils"
+	"github.com/gad-lang/gad/quote"
 	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/token"
@@ -1034,7 +1034,7 @@ func (e *RawStringLit) QuotedValue() string {
 	if e.Quoted {
 		return e.Literal
 	} else {
-		return utils.Quote(e.Literal, '`')
+		return quote.Quote(e.Literal, "`")
 	}
 }
 
@@ -1721,4 +1721,55 @@ func (e *TemplateLit) WriteCode(ctx *CodeWriterContext) (err error) {
 		return
 	}
 	return WriteCode(ctx, e.Value)
+}
+
+type MixedTextExpr struct {
+	StartLit ast.Literal
+	EndLit   ast.Literal
+	Stmt     MixedTextStmt
+}
+
+func (e *MixedTextExpr) ExprNode() {}
+
+func (e *MixedTextExpr) Pos() source.Pos {
+	return e.StartLit.Pos
+}
+
+func (e *MixedTextExpr) End() source.Pos {
+	return e.EndLit.End()
+}
+
+func (e *MixedTextExpr) String() string {
+	var b strings.Builder
+	if e.Stmt.Flags.Has(RemoveLeftSpaces) {
+		b.WriteByte('-')
+	}
+	b.WriteString(e.StartLit.Value)
+	b.WriteString(e.Stmt.String())
+	b.WriteString(e.EndLit.Value)
+	if e.Stmt.Flags.Has(RemoveRightSpaces) {
+		b.WriteByte('-')
+	}
+	return b.String()
+}
+
+func (e *MixedTextExpr) WriteCode(ctx *CodeWriterContext) (err error) {
+	if e.Stmt.Flags.Has(RemoveLeftSpaces) {
+		if err = ctx.WriteByte('-'); err != nil {
+			return
+		}
+	}
+	if _, err = ctx.WriteString(e.StartLit.Value); err != nil {
+		return
+	}
+	if _, err = ctx.WriteString(e.Stmt.String()); err != nil {
+		return
+	}
+	if _, err = ctx.WriteString(e.EndLit.Value); err != nil {
+		return
+	}
+	if e.Stmt.Flags.Has(RemoveRightSpaces) {
+		err = ctx.WriteByte('-')
+	}
+	return
 }

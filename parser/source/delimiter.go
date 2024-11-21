@@ -7,6 +7,10 @@ type StartEndDelimiter struct {
 	End   []rune
 }
 
+func (m *StartEndDelimiter) String() string {
+	return string(m.Start) + " - " + string(m.End)
+}
+
 func (m *StartEndDelimiter) IsZero() bool {
 	return len(m.Start) == 0 && len(m.End) == 0
 }

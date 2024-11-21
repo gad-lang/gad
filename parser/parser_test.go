@@ -107,116 +107,143 @@ x := d?.a.b.("c")?.e ?? 5
 }
 
 func TestParserMixed(t *testing.T) {
+	defaultExpectParse := func(input string, fn expectedFn) {
+		expectParse(t, input, fn, func(po *ParserOptions, so *ScannerOptions) {
+			so.MixedDelimiter = DefaultMixedDelimiter
+		})
+	}
+
+	defaultExpectParse(`# gad: mixed
+	{%   1   %} 
+`, func(p pfn) []Stmt {
+		return stmts(
+			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			mixedTextStmt(p(1, 14), "\t"),
+			codeBegin(lit("{%", p(2, 2)), false),
+			exprStmt(intLit(1, p(2, 7))),
+			codeEnd(lit("%}", p(2, 11)), false),
+			mixedTextStmt(p(1, 26), " \n"),
+		)
+	})
+
+	defaultExpectParse(`# gad: mixed
+	{%   1   -%} 
+`, func(p pfn) []Stmt {
+		return stmts(
+			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			mixedTextStmt(p(1, 14), "\t"),
+			codeBegin(lit("{%", p(2, 2)), false),
+			exprStmt(intLit(1, p(2, 7))),
+			codeEnd(lit("%}", p(2, 12)), true),
+			mixedTextStmt(p(1, 27), " \n", RemoveLeftSpaces),
+		)
+	})
+	defaultExpectParse(`# gad: mixed
+	{%   1   -%}
+a
+{%- =   2   -%}`, func(p pfn) []Stmt {
+		return stmts(
+			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			mixedTextStmt(p(1, 14), "\t"),
+			codeBegin(lit("{%", p(2, 2)), false),
+			exprStmt(intLit(1, p(2, 7))),
+			codeEnd(lit("%}", p(2, 12)), true),
+			mixedTextStmt(p(1, 27), "\na\n", RemoveLeftSpaces|RemoveRightSpaces),
+			mixedValue(lit("{%", p(4, 1)), lit("%}", p(4, 14)), intLit(2, p(4, 9))),
+		)
+	})
+
+	defaultExpectParse(`# gad: mixed
+	{%   1   -%}
+a
+{%- =   2   -%}
+
+{%   3   %}
+`, func(p pfn) []Stmt {
+		return stmts(
+			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			mixedTextStmt(p(1, 14), "\t"),
+			codeBegin(lit("{%", p(2, 2)), false),
+			exprStmt(intLit(1, p(2, 7))),
+			codeEnd(lit("%}", p(2, 12)), true),
+			mixedTextStmt(p(1, 27), "\na\n", RemoveLeftSpaces|RemoveRightSpaces),
+			mixedValue(lit("{%", p(4, 1)), lit("%}", p(4, 14)), intLit(2, p(4, 9))),
+			mixedTextStmt(p(4, 16), "\n\n", RemoveLeftSpaces),
+			codeBegin(lit("{%", p(6, 1)), false),
+			exprStmt(intLit(3, p(6, 6))),
+			codeEnd(lit("%}", p(6, 10)), false),
+			mixedTextStmt(p(6, 12), "\n"),
+		)
+	})
+
+	defaultExpectParse(`# gad: mixed
+	{%   1   -%}
+a
+{%- =   2   -%}
+
+{%   3   -%}
+`, func(p pfn) []Stmt {
+		return stmts(
+			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			mixedTextStmt(p(1, 14), "\t"),
+			codeBegin(lit("{%", p(2, 2)), false),
+			exprStmt(intLit(1, p(2, 7))),
+			codeEnd(lit("%}", p(2, 12)), true),
+			mixedTextStmt(p(1, 27), "\na\n", RemoveLeftSpaces|RemoveRightSpaces),
+			mixedValue(lit("{%", p(4, 1)), lit("%}", p(4, 14)), intLit(2, p(4, 9))),
+			mixedTextStmt(p(4, 16), "\n\n", RemoveLeftSpaces),
+			codeBegin(lit("{%", p(6, 1)), false),
+			exprStmt(intLit(3, p(6, 6))),
+			codeEnd(lit("%}", p(6, 11)), true),
+			mixedTextStmt(p(6, 13), "\n", RemoveLeftSpaces),
+		)
+	})
+	expectParseMode(t, ParseMixed, "‹- 1 -› a", func(p pfn) []Stmt {
+		return stmts(
+			codeBegin(lit("‹", p(1, 1)), true),
+			exprStmt(intLit(1, p(1, 6))),
+			codeEnd(lit("›", p(1, 9)), true),
+			mixedTextStmt(p(1, 12), " a", RemoveLeftSpaces),
+		)
+	})
+	expectParseStringMode(t, ParseMixed, "‹- var myfn -› a", "‹-var myfn-› a")
 	expectParseStringMode(t, ParseMixed, "a ‹- 1 ›", "a ‹-1›")
 	expectParseStringMode(t, ParseMixed, "‹ 1 ›", "‹1›")
-	expectParseStringMode(t, ParseMixed, "‹ 1; 2; var a ›", "‹1;2;var a›")
-	expectParseStringMode(t, ParseMixed, "x ‹ 1; 2; var a › y", "x ‹1;2;var a› y")
+	expectParseStringMode(t, ParseMixed, "‹ 1; 2; var a ›", "‹1; 2; var a›")
+	expectParseStringMode(t, ParseMixed, "x ‹ 1; 2; var a › y", "x ‹1; 2; var a› y")
 	expectParseStringMode(t, ParseMixed, "‹var a›", `‹var a›`)
-	expectParseStringMode(t, ParseMixed, "‹for e in list do›1‹end›", "‹for _, e in list {›1‹}›")
 	expectParseStringMode(t, ParseMixed, "‹=1›", "‹=1›")
-	expectParseStringMode(t, ParseMixed, "‹for e in list do›‹=1›‹end›", "‹for _, e in list {›‹=1›‹}›")
-	return
-	expectParseStringMode(t, ParseMixed, "‹for e in list do›1‹else›2‹end›", "for _, e in list {‹= `1` ›} else {‹= `2` ›}")
-	expectParseStringMode(t, ParseMixed, "a  ‹-= 1 -›\n\tb", "‹= `a` ›; ‹= 1 ›; ‹= `b` ›")
-	expectParseStringMode(t, ParseMixed, "‹ a := begin -› 2 ‹- end ›", "a := (`2`)")
-	expectParseStringMode(t, ParseMixed, "‹ if 1 then › 2 ‹ end ›", "if 1 {‹= ` 2 ` ›}")
+	expectParseStringMode(t, ParseMixed, "a  ‹-= 1 -›\n\tb", "a  ‹-=1-›\n\tb")
+	expectParseStringMode(t, ParseMixed, "‹(› 2 ‹- ) ›", "‹(› 2 ‹-)›")
+	expectParseStringMode(t, ParseMixed, "‹( -› 2 ‹- ) ›", "‹(-› 2 ‹-)›")
+	expectParseStringMode(t, ParseMixed, "‹a = (› 2 ‹- ) ›", "‹a = (› 2 ‹-)›")
+	expectParseStringMode(t, ParseMixed, "‹1›‹2›‹3›", `‹1›‹2›‹3›`)
+	expectParseStringMode(t, ParseMixed, "‹1›‹›‹3›", `‹1›‹›‹3›`)
+	expectParseStringMode(t, ParseMixed, "‹1›‹=2›‹3›", `‹1›‹=2›‹3›`)
+	expectParseStringMode(t, ParseMixed, "abc", "abc")
+	expectParseStringMode(t, ParseMixed, "a‹1›", "a‹1›")
+	expectParseStringMode(t, ParseMixed, "a‹  1  ›b", "a‹1›b")
+	expectParseStringMode(t, ParseMixed, "a‹1?2:3   ›b‹=   2 + 4›", "a‹(1 ? 2 : 3)›b‹=(2 + 4)›")
+	expectParseStringMode(t, ParseMixed, "a‹1?2:3;fn();x++   ›b‹=   2 + 4›", "a‹(1 ? 2 : 3); fn(); x++›b‹=(2 + 4)›")
+	expectParseStringMode(t, ParseMixed, "a\n‹- 1›\tb\n‹-= 2 -›\n\nc", "a\n‹-1›\tb\n‹-=2-›\n\nc")
+	expectParseStringMode(t, ParseMixed, `a‹=1›c‹x := 5›‹=x›`, "a‹=1›c‹x := 5›‹=x›")
 
-	expectParseMode(t, ParseMixed, "a  ‹-= 1 -›\n\tb", func(p pfn) []Stmt {
-		return stmts(
-			rawStringStmt(p(1, 1), "a"),
-			toText(lit("‹=", p(1, 4)), lit("›", p(1, 12)), intLit(1, p(1, 9))),
-			rawStringStmt(p(1, 13), "b"),
-		)
-	})
-	expectParseMode(t, ParseMixed, `a  ‹- 1›b‹1 + 2›c`, func(p pfn) []Stmt {
-		return stmts(
-			rawStringStmt(p(1, 1), "a"),
-			exprStmt(intLit(1, p(1, 8))),
-			rawStringStmt(p(1, 10), "b"),
-			exprStmt(binaryExpr(intLit(1, p(1, 13)), intLit(2, p(1, 17)), token.Add, p(1, 15))),
-			rawStringStmt(p(1, 19), "c"),
-		)
-	})
-	expectParseMode(t, ParseMixed, "a  ‹-= 1 ›\n\tb", func(p pfn) []Stmt {
-		return stmts(
-			rawStringStmt(p(1, 1), "a"),
-			toText(lit("‹=", p(1, 4)), lit("›", p(1, 11)), intLit(1, p(1, 9))),
-			rawStringStmt(p(1, 12), "\n\tb"),
-		)
-	})
-	expectParseMode(t, ParseMixed, "a  ‹-= 1 -›\n\tb", func(p pfn) []Stmt {
-		return stmts(
-			rawStringStmt(p(1, 1), "a"),
-			toText(lit("‹=", p(1, 4)), lit("›", p(1, 12)), intLit(1, p(1, 9))),
-			rawStringStmt(p(1, 13), "b"),
-		)
-	})
-	expectParseMode(t, ParseMixed, `a‹=1›b`, func(p pfn) []Stmt {
-		return stmts(
-			rawStringStmt(p(1, 1), "a"),
-			toText(lit("‹=", p(1, 2)), lit("›", p(1, 6)), intLit(1, p(1, 5))),
-			rawStringStmt(p(1, 7), "b"),
-		)
-	})
+	expectParseStringMode(t, ParseMixed, "‹if 1›2‹end›", "‹if 1 {›2‹}›")
+	expectParseStringMode(t, ParseMixed, "‹if 1 then›2‹end›", "‹if 1 {›2‹}›")
+	expectParseStringMode(t, ParseMixed, "‹if 1 then›2‹else if 3 then›4‹end›", "‹if 1 {›2‹} else if 3 {›4‹}›")
+	expectParseStringMode(t, ParseMixed, "‹if 1 then›2‹else›3‹end›", "‹if 1 {›2‹} else {›3‹}›")
+	expectParseStringMode(t, ParseMixed, "‹if 1 then›2‹if 2 then›3‹end›‹end›", "‹if 1 {›2‹if 2 {›3‹}›‹}›")
+	expectParseStringMode(t, ParseMixed, "‹ if 1 then › 2 ‹ end ›", "‹if 1 {› 2 ‹}›")
 
-	expectParseMode(t, ParseMixed, `a‹=  1   ›b`, func(p pfn) []Stmt {
-		return stmts(
-			rawStringStmt(p(1, 1), "a"),
-			toText(lit("‹=", p(1, 2)), lit("›", p(1, 11)), intLit(1, p(1, 7))),
-			rawStringStmt(p(1, 12), "b"),
-		)
-	})
+	expectParseStringMode(t, ParseMixed, "‹for a in b›2‹end›", "‹for _, a in b {›2‹}›")
+	expectParseStringMode(t, ParseMixed, "‹for i:=0;i<2;i++›v‹end›", "‹for i := 0; (i < 2); i++{›v‹}›")
+	expectParseStringMode(t, ParseMixed, "‹for e in list›1‹end›", "‹for _, e in list {›1‹}›")
+	expectParseStringMode(t, ParseMixed, "‹for e in list›‹=1›‹end›", "‹for _, e in list {›‹=1›‹}›")
+	expectParseStringMode(t, ParseMixed, "‹for e in list {›1‹}else{›2‹}›", "‹for _, e in list {›1‹} else {›2‹}›")
+	expectParseStringMode(t, ParseMixed, "‹for e in list {›1   ‹-}else{›2‹}›", "‹for _, e in list {›1   ‹-} else {›2‹}›")
 
-	expectParseMode(t, ParseMixed, `a‹1›b‹1 + 2›c`, func(p pfn) []Stmt {
-		return stmts(
-			rawStringStmt(p(1, 1), "a"),
-			exprStmt(intLit(1, p(1, 4))),
-			rawStringStmt(p(1, 6), "b"),
-			exprStmt(binaryExpr(intLit(1, p(1, 9)), intLit(2, p(1, 13)), token.Add, p(1, 11))),
-			rawStringStmt(p(1, 15), "c"),
-		)
-	})
-
-	expectParseMode(t, ParseMixed, `a‹1›b‹true›c`, func(p pfn) []Stmt {
-		return stmts(
-			rawStringStmt(p(1, 1), "a"),
-			exprStmt(intLit(1, p(1, 4))),
-			rawStringStmt(p(1, 6), "b"),
-			exprStmt(boolLit(true, p(1, 9))),
-			rawStringStmt(p(1, 14), "c"),
-		)
-	})
-
-	expectParseMode(t, ParseMixed, `a‹1›b`, func(p pfn) []Stmt {
-		return stmts(
-			rawStringStmt(p(1, 1), "a"),
-			exprStmt(intLit(1, p(1, 4))),
-			rawStringStmt(p(1, 6), "b"),
-		)
-	})
-
-	expectParseMode(t, ParseMixed, `abc`, func(p pfn) []Stmt {
-		return stmts(
-			rawStringStmt(p(1, 1), "abc"),
-		)
-	})
-
-	expectParseStringMode(t, ParseMixed, "‹1›", `1`)
-	expectParseStringMode(t, ParseMixed, "‹1›‹2›‹3›", `1; 2; 3`)
-	expectParseStringMode(t, ParseMixed, "‹1›‹›‹3›", `1; 3`)
-	expectParseStringMode(t, ParseMixed, "‹1›‹=2›‹3›", `1; ‹= 2 ›; 3`)
-	expectParseStringMode(t, ParseMixed, "abc", "‹= `abc` ›")
-	expectParseStringMode(t, ParseMixed, "a‹1›", "‹= `a` ›; 1")
-	expectParseStringMode(t, ParseMixed, "a‹1›b", "‹= `a` ›; 1; ‹= `b` ›")
-	expectParseStringMode(t, ParseMixed, "a‹1›b‹= 2 + 4›", "‹= `a` ›; 1; ‹= `b` ›; ‹= (2 + 4) ›")
-	expectParseStringMode(t, ParseMixed, "a  ‹- 1›", "‹= `a` ›; 1")
-	expectParseStringMode(t, ParseMixed, "a\n‹- 1›\tb\n‹-= 2 -›\n\nc", "‹= `a` ›; 1; ‹= `\\tb` ›; ‹= 2 ›; ‹= `c` ›")
-	expectParseStringMode(t, ParseMixed, `a‹=1›c‹x := 5›‹=x›`, "‹= `a` ›; ‹= 1 ›; ‹= `c` ›; x := 5; ‹= x ›")
-
-	expectParseStringMode(t, ParseMixed, "‹if true then›1‹else if a then›2‹else then›3‹fn()›‹end›", "if true {‹= `1`› } else if a {‹= `2`›} else {‹= `3`› }; fn()}")
-	expectParseStringMode(t, ParseMixed, "‹if true then}1‹else if a then}2‹else}3‹end}", "if true {‹= `1` }} else if a {‹= `2` }} else {‹= `3` }}")
-	expectParseStringMode(t, ParseMixed, "‹if true then}1‹else if a then}2‹end}", "if true {‹= `1` }} else if a {‹= `2` }}")
-	expectParseStringMode(t, ParseMixed, "‹if true then}1‹else}2‹end}", "if true {‹= `1` }} else {‹= `2` }}")
+	expectParseStringMode(t, ParseMixed, "‹try›1‹finally›2‹end›", "‹try{›1‹} finally {›2‹}›")
+	expectParseStringMode(t, ParseMixed, "‹try›1‹catch e›2‹finally›3‹end›", "‹try{›1‹} catch e{›2‹} finally {›3‹}›")
 }
 
 func TestParserError(t *testing.T) {
@@ -1605,25 +1632,27 @@ func TestParseForIn(t *testing.T) {
 				blockStmt(p(1, 20), p(1, 21))))
 	})
 
-	expectParse(t, "for x in y do x; else 1 end", func(p pfn) []Stmt {
+	expectParse(t, "for x in y do x else 1 end", func(p pfn) []Stmt {
 		return stmts(
 			forInStmt(
 				ident("_", p(1, 5)),
 				ident("x", p(1, 5)),
 				ident("y", p(1, 10)),
-				blockStmt(
-					p(1, 12), p(1, 18),
+				blockLitStmt(
+					Literal{"do", p(1, 12)}, Literal{},
 					exprStmt(
 						ident("x", p(1, 15)),
 					),
 				),
 				p(1, 1),
-				blockStmt(p(1, 18), p(1, 23),
+				blockLitStmt(Literal{Pos: p(1, 22)}, Literal{"end", p(1, 24)},
 					exprStmt(
-						intLit(1, p(1, 23)),
+						intLit(1, p(1, 22)),
 					),
 				)))
 	})
+
+	expectParseString(t, "for x in y do x else 1 end", "for _, x in y {x} else {1}")
 
 	expectParse(t, "for x in y {} else 1 end", func(p pfn) []Stmt {
 		return stmts(
@@ -1633,7 +1662,7 @@ func TestParseForIn(t *testing.T) {
 				ident("y", p(1, 10)),
 				blockStmt(p(1, 12), p(1, 13)),
 				p(1, 1),
-				blockStmt(p(1, 15), p(1, 20),
+				blockLitStmt(Literal{Pos: p(1, 20)}, Literal{"end", p(1, 22)},
 					exprStmt(
 						intLit(1, p(1, 20)),
 					),
@@ -1642,6 +1671,7 @@ func TestParseForIn(t *testing.T) {
 
 	expectParseString(t, "for x in y do end", "for _, x in y {}")
 	expectParseString(t, "for x in y do 1 end", "for _, x in y {1}")
+
 	expectParseString(t, "for x in y do else end", "for _, x in y {} else {}")
 	expectParseString(t, "for x in y do 1 else end", "for _, x in y {1} else {}")
 	expectParseString(t, "for x in y do else end", "for _, x in y {} else {}")
@@ -2214,11 +2244,6 @@ if a == 5 {
 				nil,
 				p(1, 1)))
 	})
-
-	expectParseString(t, "if a: b", "if a {b}")
-	expectParseString(t, "if true; a: b", "if true; a {b}")
-	expectParseString(t, "if a: b else: c", "if a {b} else {c}")
-	expectParseString(t, "if a: b else if x: c else: d", "if a {b} else if x {c} else {d}")
 
 	expectParseString(t, "if a then end", "if a {}")
 	expectParseString(t, "if a then b end", "if a {b}")
@@ -2859,32 +2884,32 @@ func TestParseString(t *testing.T) {
 
 func TestParseConfig(t *testing.T) {
 	expectParse(t, `# gad: mixed
-# gad: mixed=false
-a`, func(p pfn) []Stmt {
+	a`, func(p pfn) []Stmt {
 		return stmts(
 			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
-			config(p(2, 1), kv(ident("mixed", p(2, 8)), boolLit(false, p(2, 14)))),
-			exprStmt(ident("a", p(3, 1))),
+			mixedTextStmt(p(2, 1), "\ta"),
 		)
 	})
-	expectParse(t, `# gad: mixed
+	expectParse(t, `# gad: mixed, mixed_start = "[[[", mixed_end = "]]]"
 y
-‹b}`, func(p pfn) []Stmt {
+[[[b]]]`, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
-			rawStringStmt(p(2, 1), "y\n"),
-			exprStmt(ident("b", p(3, 3))),
+			config(p(1, 1),
+				kv(ident("mixed", p(1, 8))),
+				kv(ident("mixed_start", p(1, 15)), stringLit("[[[", p(1, 29))),
+				kv(ident("mixed_end", p(1, 36)), stringLit("]]]", p(1, 48))),
+			),
+			mixedTextStmt(p(2, 1), "y\n"),
+			codeBegin(lit("[[[", p(3, 1)), false),
+			exprStmt(ident("b", p(3, 4))),
+			codeEnd(lit("]]]", p(3, 5)), false),
 		)
 	})
-	expectParse(t, `# gad: mixed
-a
-‹b}`, func(p pfn) []Stmt {
-		return stmts(
-			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
-			rawStringStmt(p(2, 1), "a\n"),
-			exprStmt(ident("b", p(3, 3))),
-		)
-	})
+
+	s := "# gad: mixed, mixed_start=\"[[[\", mixed_end=\"]]]\"\ny\n[[[b]]]"
+	expectParseString(t, s, s)
+	s = "# gad: mixed, mixed_start=\"[[[\", mixed_end=\"]]]\"\ny\n[[[b; true]]]"
+	expectParseString(t, s, s)
 	expectParse(t, `# gad: mixed`, func(p pfn) []Stmt {
 		return stmts(
 			config(p(1, 1), kv(ident("mixed", p(1, 8)))))
@@ -2971,9 +2996,6 @@ func TestParseTryThrow(t *testing.T) {
 	finally {}`)
 	expectParseError(t, `throw;`)
 	expectParseError(t, `throw`)
-
-	expectParseString(t, `try then catch then finally then end`, "try {} catch {} finally {}")
-	expectParseString(t, `try then catch then end`, "try {} catch {}")
 }
 
 func TestParseRBraceEOF(t *testing.T) {
@@ -3015,20 +3037,38 @@ func (o *parseTracer) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func expectParse(t *testing.T, input string, fn expectedFn) {
-	expectParseMode(t, 0, input, fn)
+type opts func(po *ParserOptions, so *ScannerOptions)
+
+func expectParse(t *testing.T, input string, fn expectedFn, opt ...opts) {
+	expectParseMode(t, 0, input, fn, opt...)
 }
 
-func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn) {
+func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn, opt ...opts) {
 	testFileSet := NewFileSet()
 	testFile := testFileSet.AddFile("test", -1, len(input))
 
-	var ok bool
+	var (
+		ok      bool
+		options = func() (po *ParserOptions, so *ScannerOptions) {
+			po = &ParserOptions{
+				Mode: mode,
+			}
+			so = &ScannerOptions{
+				MixedDelimiter: mixedDelimiter,
+			}
+			for _, o := range opt {
+				o(po, so)
+			}
+			return
+		}
+	)
 	defer func() {
 		if !ok {
 			// print Trace
 			tr := &parseTracer{}
-			p := NewParser(testFile, []byte(input), tr)
+			po, so := options()
+			po.Trace = tr
+			p := NewParserWithOptions(testFile, []byte(input), po, so)
 			actual, _ := p.ParseFile()
 			if actual != nil {
 				t.Logf("Parsed:\n%s", actual.String())
@@ -3037,16 +3077,16 @@ func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn) {
 		}
 	}()
 
-	p := NewParserWithOptions(testFile, []byte(input), &ParserOptions{
-		Mode: mode,
-	}, nil)
+	po, so := options()
+
+	p := NewParserWithOptions(testFile, []byte(input), po, so)
 	actual, err := p.ParseFile()
 	require.NoError(t, err)
 
 	expected := fn(func(line, column int) Pos {
 		return Pos(int(testFile.LineStart(line)) + (column - 1))
 	})
-	require.Equal(t, len(expected), len(actual.Stmts))
+	require.Equal(t, len(expected), len(actual.Stmts), "len(file.Stmts)")
 
 	for i := 0; i < len(expected); i++ {
 		equalStmt(t, expected[i], actual.Stmts[i])
@@ -3290,6 +3330,10 @@ func blockStmt(lbrace, rbrace Pos, list ...Stmt) *BlockStmt {
 	return &BlockStmt{Stmts: list, LBrace: Literal{"{", lbrace}, RBrace: Literal{"}", rbrace}}
 }
 
+func blockLitStmt(lbrace, rbrace Literal, list ...Stmt) *BlockStmt {
+	return &BlockStmt{Stmts: list, LBrace: lbrace, RBrace: rbrace}
+}
+
 func blockExpr(lbrace, rbrace Pos, list ...Stmt) *BlockExpr {
 	return &BlockExpr{BlockStmt: blockStmt(lbrace, rbrace, list...)}
 }
@@ -3302,11 +3346,22 @@ func typedIdent(ident *Ident, typ ...*Ident) *TypedIdent {
 	return &TypedIdent{Ident: ident, Type: typ}
 }
 
-func rawStringStmt(pos Pos, lit string) *MixedTextStmt {
-	return &MixedTextStmt{Lit: Literal{Value: lit, Pos: pos}}
+func mixedTextStmt(pos Pos, lit string, flags ...MixedTextStmtFlag) *MixedTextStmt {
+	var f MixedTextStmtFlag
+	for _, f = range flags {
+	}
+	return &MixedTextStmt{Lit: Literal{Value: lit, Pos: pos}, Flags: f}
 }
 
-func toText(start, end Literal, expr Expr) *MixedValueStmt {
+func codeBegin(lit Literal, removeSpace bool) *CodeBeginStmt {
+	return &CodeBeginStmt{Lit: lit, RemoveSpace: removeSpace}
+}
+
+func codeEnd(lit Literal, removeSpace bool) *CodeEndStmt {
+	return &CodeEndStmt{Lit: lit, RemoveSpace: removeSpace}
+}
+
+func mixedValue(start, end Literal, expr Expr) *MixedValueStmt {
 	return &MixedValueStmt{Expr: expr, StartLit: start, EndLit: end}
 }
 
@@ -3655,10 +3710,8 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 			actual.(*MixedTextStmt).Lit.Value)
 		require.Equal(t, expected.Lit.Pos,
 			actual.(*MixedTextStmt).Lit.Pos)
-		require.Equal(t, expected.RemoveLeftSpaces,
-			actual.(*MixedTextStmt).RemoveLeftSpaces)
-		require.Equal(t, expected.RemoveRightSpaces,
-			actual.(*MixedTextStmt).RemoveRightSpaces)
+		require.Equal(t, expected.Flags.String(),
+			actual.(*MixedTextStmt).Flags.String(), "Flags")
 	case *MixedValueStmt:
 		require.Equal(t, expected.StartLit.Value,
 			actual.(*MixedValueStmt).StartLit.Value)
@@ -3680,6 +3733,20 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 		for i, e := range expected.Elements {
 			equalExpr(t, e, actual.(*ConfigStmt).Elements[i])
 		}
+	case *CodeBeginStmt:
+		require.Equal(t, expected.RemoveSpace,
+			actual.(*CodeBeginStmt).RemoveSpace)
+		require.Equal(t, expected.Lit.Pos,
+			actual.(*CodeBeginStmt).Lit.Pos)
+		require.Equal(t, expected.Lit.Value,
+			actual.(*CodeBeginStmt).Lit.Value)
+	case *CodeEndStmt:
+		require.Equal(t, expected.RemoveSpace,
+			actual.(*CodeEndStmt).RemoveSpace)
+		require.Equal(t, expected.Lit.Pos,
+			actual.(*CodeEndStmt).Lit.Pos)
+		require.Equal(t, expected.Lit.Value,
+			actual.(*CodeEndStmt).Lit.Value)
 	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}
@@ -3995,7 +4062,7 @@ func parseSource(
 	file := fileSet.AddFile(filename, -1, len(src))
 
 	p := NewParserWithOptions(file, src, &ParserOptions{Trace: trace, Mode: mode}, &ScannerOptions{
-		MixedDelimiter: &mixedDelimiter,
+		MixedDelimiter: mixedDelimiter,
 	})
 	return p.ParseFile()
 }

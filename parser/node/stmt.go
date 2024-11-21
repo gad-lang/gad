@@ -20,12 +20,38 @@ import (
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/token"
+	"github.com/gad-lang/gad/utils"
 )
 
 // Stmt represents a statement in the AST.
 type Stmt interface {
 	ast.Node
 	StmtNode()
+}
+
+type Stmts []Stmt
+
+func (s *Stmts) Append(n ...Stmt) {
+	*s = append(*s, n...)
+}
+
+func (s *Stmts) Prepend(n ...Stmt) {
+	*s = append(n, *s...)
+}
+
+func (s Stmts) Each(f func(i int, sep bool, s Stmt)) {
+	sep := true
+
+	for i, stmt := range s {
+		f(i, sep && i > 0, stmt)
+
+		switch stmt.(type) {
+		case *CodeBeginStmt:
+			sep = true
+		case *CodeEndStmt:
+			sep = false
+		}
+	}
 }
 
 // IsStatement returns true if given value is implements interface{ StmtNode() }.
@@ -72,7 +98,8 @@ func (s *AssignStmt) WriteCode(ctx *CodeWriterContext) (err error) {
 	if err = WriteCodeExprs(ctx, ", ", s.LHS...); err != nil {
 		return
 	}
-	if _, err = ctx.WriteString(s.Token.String()); err != nil {
+
+	if _, err = ctx.WriteString(" " + s.Token.String() + " "); err != nil {
 		return
 	}
 	if err = WriteCodeExprs(ctx, ", ", s.RHS...); err != nil {
@@ -105,7 +132,7 @@ func (s *BadStmt) String() string {
 
 // BlockStmt represents a block statement.
 type BlockStmt struct {
-	Stmts  []Stmt
+	Stmts  Stmts
 	LBrace ast.Literal
 	RBrace ast.Literal
 }
@@ -123,11 +150,18 @@ func (s *BlockStmt) End() source.Pos {
 }
 
 func (s *BlockStmt) String() string {
-	var list []string
-	for _, e := range s.Stmts {
-		list = append(list, e.String())
-	}
-	return s.LBrace.Value + strings.Join(list, "; ") + s.RBrace.Value
+	var b strings.Builder
+	b.WriteString(s.LBrace.Value)
+
+	s.Stmts.Each(func(i int, sep bool, s Stmt) {
+		if sep {
+			b.WriteString("; ")
+		}
+		b.WriteString(s.String())
+	})
+
+	b.WriteString(s.RBrace.Value)
+	return b.String()
 }
 
 func (s *BlockStmt) WriteCode(ctx *CodeWriterContext) (err error) {
@@ -354,8 +388,10 @@ func (s *ForStmt) WriteCode(ctx *CodeWriterContext) (err error) {
 		}
 	}
 
-	if err = WriteCode(ctx, s.Post); err != nil {
-		return
+	if s.Post != nil {
+		if err = WriteCode(ctx, s.Post); err != nil {
+			return
+		}
 	}
 
 	return s.Body.WriteCode(ctx)
@@ -409,10 +445,19 @@ func (s *IfStmt) WriteCode(ctx *CodeWriterContext) (err error) {
 			return
 		}
 	}
-	if err = WriteCode(ctx, s.Cond, s.Body); err != nil {
+	if err = WriteCode(ctx, s.Cond); err != nil {
+		return
+	}
+	if err = ctx.WriteByte(' '); err != nil {
+		return
+	}
+	if err = WriteCode(ctx, s.Body); err != nil {
 		return
 	}
 	if s.Else != nil {
+		if _, err = ctx.WriteString(" else "); err != nil {
+			return
+		}
 		return WriteCode(ctx, s.Else)
 	}
 	return
@@ -509,7 +554,7 @@ func (s *TryStmt) WriteCode(ctx *CodeWriterContext) (err error) {
 			return
 		}
 	}
-	if s.Catch != nil {
+	if s.Finally != nil {
 		if _, err = ctx.WriteString(" "); err != nil {
 			return
 		}
@@ -619,11 +664,32 @@ func (s *ThrowStmt) WriteCode(ctx *CodeWriterContext) (err error) {
 	return
 }
 
+type MixedTextStmtFlag uint
+
+const (
+	RemoveLeftSpaces  MixedTextStmtFlag = 1 << iota
+	RemoveRightSpaces MixedTextStmtFlag = 1 << iota
+)
+
+func (s MixedTextStmtFlag) Has(f MixedTextStmtFlag) bool {
+	return s&f != 0
+}
+
+func (s MixedTextStmtFlag) String() string {
+	var v []string
+	if s.Has(RemoveLeftSpaces) {
+		v = append(v, "RemoveLeftSpaces")
+	}
+	if s.Has(RemoveRightSpaces) {
+		v = append(v, "RemoveRightSpaces")
+	}
+	return strings.Join(v, "|")
+}
+
 // MixedTextStmt represents an MixedTextStmt.
 type MixedTextStmt struct {
-	Lit               ast.Literal
-	RemoveRightSpaces bool
-	RemoveLeftSpaces  bool
+	Lit   ast.Literal
+	Flags MixedTextStmtFlag
 }
 
 func (s *MixedTextStmt) Pos() source.Pos {
@@ -653,12 +719,27 @@ func (s *MixedTextStmt) String() string {
 	return s.Lit.Value
 }
 
+func (s *MixedTextStmt) Value() string {
+	_, v := utils.TrimStringSpace(s.Lit.Value, s.Flags.Has(RemoveLeftSpaces), s.Flags.Has(RemoveRightSpaces))
+	return v
+}
+
+func (s *MixedTextStmt) ValidLit() ast.Literal {
+	start, v := utils.TrimStringSpace(s.Lit.Value, s.Flags.Has(RemoveLeftSpaces), s.Flags.Has(RemoveRightSpaces))
+	return ast.Literal{
+		Value: v,
+		Pos:   s.Lit.Pos + source.Pos(start),
+	}
+}
+
 // MixedValueStmt represents to text wrapped expression.
 type MixedValueStmt struct {
-	Expr              Expr
-	StartLit          ast.Literal
-	EndLit            ast.Literal
-	RemoveBeforeSpace bool
+	Expr             Expr
+	StartLit         ast.Literal
+	EndLit           ast.Literal
+	RemoveLeftSpace  bool
+	RemoveRightSpace bool
+	Eq               bool
 }
 
 func (s *MixedValueStmt) StmtNode() {}
@@ -677,15 +758,43 @@ func (s *MixedValueStmt) End() source.Pos {
 }
 
 func (s *MixedValueStmt) String() string {
-	return s.StartLit.Value + " " + s.Expr.String() + " " + s.EndLit.Value
+	var b strings.Builder
+	b.WriteString(s.StartLit.Value)
+	if s.RemoveLeftSpace {
+		b.WriteByte('-')
+	}
+	if s.Eq {
+		b.WriteByte('=')
+	}
+	b.WriteString(s.Expr.String())
+	if s.RemoveRightSpace {
+		b.WriteByte('-')
+	}
+	b.WriteString(s.EndLit.Value)
+	return b.String()
 }
 
 func (s *MixedValueStmt) WriteCode(ctx *CodeWriterContext) (err error) {
 	if _, err = ctx.WriteString(s.StartLit.Value); err != nil {
 		return
 	}
+	if s.RemoveLeftSpace {
+		if err = ctx.WriteByte('-'); err != nil {
+			return
+		}
+	}
+	if s.Eq {
+		if err = ctx.WriteByte('='); err != nil {
+			return
+		}
+	}
 	if err = WriteCode(ctx, s.Expr); err != nil {
 		return
+	}
+	if s.RemoveRightSpace {
+		if err = ctx.WriteByte('-'); err != nil {
+			return
+		}
 	}
 	_, err = ctx.WriteString(s.EndLit.Value)
 	return
@@ -694,6 +803,8 @@ func (s *MixedValueStmt) WriteCode(ctx *CodeWriterContext) (err error) {
 type ConfigOptions struct {
 	Mixed          bool
 	NoMixed        bool
+	MixedStart     string
+	MixedEnd       string
 	WriteFunc      Expr
 	ExprToTextFunc Expr
 }
@@ -723,6 +834,26 @@ func (c *ConfigStmt) String() string {
 	return "# gad: " + strings.Join(elements, ", ")
 }
 
+func (c *ConfigStmt) WriteCode(ctx *CodeWriterContext) (err error) {
+	if _, err = ctx.WriteString("# gad: "); err != nil {
+		return err
+	}
+
+	last := len(c.Elements) - 1
+	for i, el := range c.Elements {
+		if _, err = ctx.WriteString(el.ElementString()); err != nil {
+			return
+		}
+		if i != last {
+			if _, err = ctx.WriteString(", "); err != nil {
+				return err
+			}
+		}
+	}
+	err = ctx.WriteByte('\n')
+	return
+}
+
 func (c *ConfigStmt) ParseElements() {
 	for _, k := range c.Elements {
 		switch k.Key.String() {
@@ -742,6 +873,14 @@ func (c *ConfigStmt) ParseElements() {
 					c.Options.NoMixed = true
 				}
 			}
+		case "mixed_start":
+			if s, ok := k.Value.(*StringLit); ok {
+				c.Options.MixedStart = s.Value
+			}
+		case "mixed_end":
+			if s, ok := k.Value.(*StringLit); ok {
+				c.Options.MixedEnd = s.Value
+			}
 		case "writer":
 			if k.Value != nil {
 				c.Options.WriteFunc = k.Value
@@ -758,7 +897,7 @@ func (c *ConfigStmt) StmtNode() {
 }
 
 type StmtsExpr struct {
-	Stmts []Stmt
+	Stmts Stmts
 }
 
 func (s *StmtsExpr) Pos() source.Pos {

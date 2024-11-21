@@ -18,7 +18,7 @@ import (
 	"github.com/gad-lang/gad/internal/compat"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/source"
-	"github.com/gad-lang/gad/parser/utils"
+	"github.com/gad-lang/gad/quote"
 	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/token"
@@ -217,7 +217,7 @@ func (o RawStr) Repr(*VM) (string, error) {
 }
 
 func (o RawStr) Quoted() string {
-	return utils.Quote(string(o), '`')
+	return quote.Quote(string(o), "`")
 }
 
 func (o RawStr) IsFalsy() bool {

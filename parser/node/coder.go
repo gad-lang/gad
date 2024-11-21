@@ -90,8 +90,8 @@ func WriteCodeStmts(ctx *CodeWriterContext, stmt ...Stmt) (err error) {
 		}
 		if i != last {
 			if !SemiSkip(stmt[i]) && !SemiSkip(stmt[i+1]) {
-				if _, err = ctx.WriteString(`;`); err != nil {
-
+				if _, err = ctx.WriteString(`; `); err != nil {
+					return
 				}
 			}
 		}

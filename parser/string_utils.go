@@ -2,6 +2,7 @@ package parser
 
 import (
 	"strconv"
+	"strings"
 	"unicode/utf8"
 	_ "unsafe"
 )
@@ -29,7 +30,7 @@ func unquote(in string, unescape bool) (out, rem string, err error) {
 		return "", in, strconv.ErrSyntax
 	}
 	quote := in[0]
-	end := strconv_index(in[1:], quote)
+	end := strings.IndexByte(in[1:], quote)
 	if end < 0 {
 		return "", in, strconv.ErrSyntax
 	}
@@ -40,7 +41,7 @@ func unquote(in string, unescape bool) (out, rem string, err error) {
 		switch {
 		case !unescape:
 			out = in[:end] // include quotes
-		case !strconv_contains(in[:end], '\r'):
+		case !strContains(in[:end], '\r'):
 			out = in[len("`") : end-len("`")] // exclude quotes
 		default:
 			// Carriage return characters ('\r') inside raw string literals
@@ -61,7 +62,7 @@ func unquote(in string, unescape bool) (out, rem string, err error) {
 		return out, in[end:], nil
 	case '"', '\'':
 		// Handle quoted strings without any escape sequences.
-		if !strconv_contains(in[:end], '\\') && !strconv_contains(in[:end], '\n') {
+		if !strContains(in[:end], '\\') && !strContains(in[:end], '\n') {
 			var valid bool
 			switch quote {
 			case '"':
@@ -127,8 +128,6 @@ func unquote(in string, unescape bool) (out, rem string, err error) {
 	}
 }
 
-//go:linkname strconv_index strconv.index
-func strconv_index(s string, c byte) int
-
-//go:linkname strconv_contains strconv.contains
-func strconv_contains(s string, c byte) bool
+func strContains(s string, c byte) bool {
+	return strings.IndexByte(s, c) != -1
+}

@@ -1400,11 +1400,32 @@ func (s *ReflectStruct) UserData() Indexer {
 	}
 }
 
-//go:linkname canBeNil text/template.canBeNil
-func canBeNil(dest reflect.Type) bool
+var reflectValueType = reflect.TypeOf((*reflect.Value)(nil)).Elem()
 
-//go:linkname indirectInterface text/template.indirectInterface
-func indirectInterface(v reflect.Value) reflect.Value
+// canBeNil reports whether an untyped nil can be assigned to the type. See reflect.Zero.
+func canBeNil(typ reflect.Type) bool {
+	switch typ.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return true
+	case reflect.Struct:
+		return typ == reflectValueType
+	}
+	return false
+}
+
+// indirectInterface returns the concrete value in an interface value,
+// or else the zero reflect.Value.
+// That is, if v represents the interface value x, the result is the same as reflect.ValueOf(x):
+// the fact that x was an interface value is forgotten.
+func indirectInterface(v reflect.Value) reflect.Value {
+	if v.Kind() != reflect.Interface {
+		return v
+	}
+	if v.IsNil() {
+		return reflect.Value{}
+	}
+	return v.Elem()
+}
 
 // mapToReflectStruct create new struct instance from Dict.
 func mapToReflectStruct(vm *VM, indirectType reflect.Type, m Dict) (v reflect.Value, err error) {

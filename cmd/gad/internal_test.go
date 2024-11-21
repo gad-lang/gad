@@ -42,7 +42,7 @@ func TestREPL(t *testing.T) {
 	t.Run("keywords", func(t *testing.T) {
 		require.NoError(t, r.execute(".keywords"))
 		testHasPrefix(t, string(cw.consume()),
-			"then\ndo\nbegin\nend\nbreak\ncontinue\nelse\nfor\nfunc\nif\nreturn\ntrue\nfalse\nyes\nno\nin\nnil\n"+
+			"break\ncontinue\nelse\nfor\nfunc\nif\nreturn\ntrue\nfalse\nyes\nno\nin\nnil\n"+
 				"import\nparam\nglobal\nvar\nconst\ntry\ncatch\nfinally\nthrow\n__callee__\n__named_args__\n__args__\n"+
 				"STDIN\nSTDOUT\nSTDERR\n__name__\n__file__\n__is_module__\n",
 		)

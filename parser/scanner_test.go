@@ -18,19 +18,57 @@ func TestScanner_ScanMixed(t *testing.T) {
 			Mode: parser.Mixed,
 		},
 	}
+
+	tr.scanExpect(t, "abc\n{%\na\n+\nb\n`}`\n{\n}\n%}",
+		parser.ScanComments|parser.DontInsertSemis, []scanResult{
+			{Token: token.MixedText, Literal: "abc\n", Line: 1, Column: 1},
+			{Token: token.MixedCodeStart, Literal: "{%", Line: 2, Column: 1},
+			{Token: token.Ident, Literal: "a", Line: 3, Column: 1},
+			{Token: token.Add, Literal: "", Line: 4, Column: 1},
+			{Token: token.Ident, Literal: "b", Line: 5, Column: 1},
+			{Token: token.RawString, Literal: "`}`", Line: 6, Column: 1},
+			{Token: token.LBrace, Literal: "{", Line: 7, Column: 1},
+			{Token: token.RBrace, Literal: "}", Line: 8, Column: 1},
+			{Token: token.MixedCodeEnd, Literal: "%}", Line: 9, Column: 1},
+		}...,
+	)
+}
+
+func TestScanner_ScanMixed2(t *testing.T) {
+	tr := &tester{
+		opts: parser.ScannerOptions{
+			Mode: parser.Mixed,
+		},
+	}
 	tr.do(t, []testCase{
 		{token.MixedText, "abc"},
-		{token.MixedCodeStart, "#{"},
+		{token.MixedCodeStart, "{%"},
 		{token.Ident, "a"},
 		{token.Add, "+"},
 		{token.Ident, "b"},
-		{token.Begin, "begin"},
-		{token.End, "end"},
 		{token.RawString, "`}`"},
-		{token.MixedCodeEnd, "}"},
+		{token.LBrace, "{"},
+		{token.RBrace, "}"},
+		{token.MixedCodeEnd, "%}"},
 	})
 
-	tr.opts.MixedDelimiter = &parser.MixedDelimiter{
+	tr.opts.MixedDelimiter = parser.MixedDelimiter{
+		Start: []rune("{{"),
+		End:   []rune("}}"),
+	}
+	tr.do(t, []testCase{
+		{token.MixedText, "abc"},
+		{token.MixedCodeStart, "{{"},
+		{token.Ident, "a"},
+		{token.Add, "+"},
+		{token.Ident, "b"},
+		{token.RawString, "`}`"},
+		{token.LBrace, "{"},
+		{token.RBrace, "}"},
+		{token.MixedCodeEnd, "}}"},
+	})
+
+	tr.opts.MixedDelimiter = parser.MixedDelimiter{
 		Start: []rune("<!--"),
 		End:   []rune("-->"),
 	}
@@ -40,12 +78,10 @@ func TestScanner_ScanMixed(t *testing.T) {
 		{token.Ident, "a"},
 		{token.Add, "+"},
 		{token.Ident, "b"},
-		{token.Begin, "begin"},
-		{token.End, "end"},
 		{token.MixedCodeEnd, "-->"},
 	})
 
-	tr.opts.MixedDelimiter = &parser.MixedDelimiter{
+	tr.opts.MixedDelimiter = parser.MixedDelimiter{
 		Start: []rune("<"),
 		End:   []rune(">"),
 	}
@@ -55,8 +91,6 @@ func TestScanner_ScanMixed(t *testing.T) {
 		{token.Ident, "a"},
 		{token.Add, "+"},
 		{token.Ident, "b"},
-		{token.Begin, "begin"},
-		{token.End, "end"},
 		{token.MixedCodeEnd, ">"},
 		{token.MixedText, "x"},
 	})
@@ -67,8 +101,6 @@ func TestScanner_ScanMixed(t *testing.T) {
 		{token.Ident, "a"},
 		{token.Add, "+"},
 		{token.Ident, "b"},
-		{token.Begin, "begin"},
-		{token.End, "end"},
 		{token.MixedCodeEnd, ">"},
 		{token.MixedText, "x"},
 		{token.MixedCodeStart, "<"},
@@ -237,8 +269,9 @@ func TestScanner_Scan(t *testing.T) {
 		{token.StdIn, "STDIN"},
 		{token.StdOut, "STDOUT"},
 		{token.StdErr, "STDERR"},
-		{token.Begin, "begin"},
-		{token.End, "end"},
+		{token.RBrace, "end"},
+		{token.LBrace, "then"},
+		{token.LBrace, "do"},
 		{token.DotName, "__name__"},
 		{token.DotFile, "__file__"},
 		{token.IsModule, "__is_module__"},
@@ -382,6 +415,36 @@ func (tr tester) doI(t *testing.T, testCases []testCase) {
 			}
 		case token.String, token.RawString:
 			expectedLiteral = tc.literal
+		case token.LParen:
+			expectedLiteral = tc.literal
+			if expectedLiteral == "" {
+				expectedLiteral = "("
+			}
+		case token.RParen:
+			expectedLiteral = tc.literal
+			if expectedLiteral == "" {
+				expectedLiteral = ")"
+			}
+		case token.LBrack:
+			expectedLiteral = tc.literal
+			if expectedLiteral == "" {
+				expectedLiteral = "["
+			}
+		case token.RBrack:
+			expectedLiteral = tc.literal
+			if expectedLiteral == "" {
+				expectedLiteral = "]"
+			}
+		case token.LBrace:
+			expectedLiteral = tc.literal
+			if expectedLiteral == "" {
+				expectedLiteral = "{"
+			}
+		case token.RBrace:
+			expectedLiteral = tc.literal
+			if expectedLiteral == "" {
+				expectedLiteral = "}"
+			}
 		case token.Semicolon:
 			if tc.literal == "\n" {
 				expectedLiteral = tc.literal

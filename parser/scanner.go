@@ -188,8 +188,8 @@ type Handlers struct {
 type MixedDelimiter = source.StartEndDelimiter
 
 var DefaultMixedDelimiter = MixedDelimiter{
-	Start: []rune("#{"),
-	End:   []rune("}"),
+	Start: []rune("{%"),
+	End:   []rune("%}"),
 }
 
 // Scanner reads the Gad source text. It's based on ToInterface's scanner
@@ -199,7 +199,7 @@ type Scanner struct {
 
 	File               *SourceFile           // source file handle
 	Src                []byte                // source
-	MixedDelimiter     *MixedDelimiter       // the mixed delimiters
+	MixedDelimiter     MixedDelimiter        // the mixed delimiters
 	Ch                 rune                  // current character
 	Offset             int                   // character offset
 	ReadOffset         int                   // reading offset (position after current character)
@@ -214,7 +214,6 @@ type Scanner struct {
 	BreacksCount       int
 	ParenCount         int
 	TokenPool          TokenPool
-	TextTrimLeft       bool
 	SkipWhitespaceFunc func(s *Scanner)
 	NewLineEscape      func() bool
 	NewLineEscaped     bool
@@ -224,7 +223,7 @@ type Scanner struct {
 
 type ScannerOptions struct {
 	Mode           ScanMode
-	MixedDelimiter *MixedDelimiter
+	MixedDelimiter MixedDelimiter
 }
 
 // NewScanner creates a Scanner.
@@ -238,23 +237,12 @@ func NewScanner(
 			file.Size, len(src)))
 	}
 
-	isSpace := func(r rune) bool {
-		switch r {
-		case ' ', '\t', '\n', '\r':
-			return true
-		default:
-			return false
-		}
-	}
-
-	src = bytes.TrimRightFunc(src, isSpace)
-
 	if opts == nil {
 		opts = &ScannerOptions{}
 	}
 
-	if opts.MixedDelimiter == nil {
-		opts.MixedDelimiter = &DefaultMixedDelimiter
+	if opts.MixedDelimiter.IsZero() {
+		opts.MixedDelimiter = DefaultMixedDelimiter
 	}
 
 	last := len(src) - 1
@@ -292,7 +280,7 @@ func NewScanner(
 }
 
 func (s *Scanner) GetMixedDelimiter() *MixedDelimiter {
-	return s.MixedDelimiter
+	return &s.MixedDelimiter
 }
 
 func (s *Scanner) SkipWhitespace() {
@@ -419,38 +407,33 @@ func (s *Scanner) ScanNow() (t Token) {
 	if s.mode.Has(Mixed) && s.Ch != -1 {
 		start := s.Offset
 		if s.InCode {
+			var removeLeftSpace bool
 			s.SkipWhitespace()
 			switch s.Ch {
 			case '\'', '"', '`':
 				// ignore quotes
 				goto do
+			case '-':
+				// test if remove spaces before end delimiter `-END_DELIMITER`
+				if s.MixedDelimiter.Ends(s.Src[s.Offset+1:]) {
+					s.Next()
+					removeLeftSpace = true
+				}
 			}
 			if s.MixedDelimiter.Ends(s.Src[s.Offset:]) {
 				s.InCode = false
-				t.Token = token.Semicolon
-				t.Literal = "\n" // read first end byte
+
+				t.Token = token.MixedCodeEnd
+				t.Literal = string(s.MixedDelimiter.End)
 				t.Pos = s.File.FileSetPos(s.Offset)
+				t.Set("remove-spaces", removeLeftSpace)
+
 				s.Next()
 				s.NextC(len(s.MixedDelimiter.End) - 1)
 
 				if s.ToText {
 					t.Token = token.MixedValueEnd
 					s.ToText = false
-					t.Literal = string(s.MixedDelimiter.End)
-					if s.TextTrimLeft {
-						t.Set("trim_left_space", s.TextTrimLeft)
-					}
-				} else {
-					next := Token{Token: token.MixedCodeEnd, Literal: string(s.MixedDelimiter.End), Pos: t.Pos}
-					if s.TextTrimLeft {
-						next.Set("trim_left_space", s.TextTrimLeft)
-					}
-					if !s.mode.Has(DontInsertSemis) {
-						s.AddNextToken(t)
-						t = next
-					} else {
-						return next
-					}
 				}
 				return
 			}
@@ -461,11 +444,7 @@ func (s *Scanner) ScanNow() (t Token) {
 
 				if s.Offset > start {
 					t.Literal = string(s.Src[start:s.Offset])
-					if s.TextTrimLeft {
-						t.Literal = TrimSpace(true, false, t.Literal)
-					}
 				}
-				s.TextTrimLeft = false
 			}
 			for {
 				var scape bool
@@ -524,7 +503,7 @@ do:
 		t.Literal = s.ScanIdentifier()
 		t.Token = token.Lookup(t.Literal)
 		switch t.Literal {
-		case "do", "then", "begin":
+		case "do", "then":
 			t.Token = token.LBrace
 		case "done", "end":
 			t.Token = token.RBrace
@@ -620,24 +599,30 @@ do:
 			t.Literal = ";"
 		case '(':
 			t.Token = token.LParen
+			t.Literal = string(ch)
 			s.ParenCount++
 		case ')':
 			insertSemi = true
 			t.Token = token.RParen
+			t.Literal = string(ch)
 			s.ParenCount--
 		case '[':
 			t.Token = token.LBrack
+			t.Literal = string(ch)
 			s.BreacksCount++
 		case ']':
 			insertSemi = true
 			t.Token = token.RBrack
+			t.Literal = string(ch)
 			s.BreacksCount--
 		case '{':
 			t.Token = token.LBrace
+			t.Literal = string(ch)
 			s.BraceCount++
 		case '}':
 			insertSemi = true
 			t.Token = token.RBrace
+			t.Literal = string(ch)
 			s.BraceCount--
 		case '+':
 			t.Token = s.Switch3(token.Add, token.AddAssign, '+', token.Inc)
@@ -645,11 +630,6 @@ do:
 				insertSemi = true
 			}
 		case '-':
-			if s.Ch == '}' {
-				s.TextTrimLeft = true
-				goto do
-			}
-
 			t.Token = s.Switch3(token.Sub, token.SubAssign, '-', token.Dec)
 			if t.Token == token.Dec {
 				insertSemi = true
@@ -1558,8 +1538,6 @@ func (s *Scanner) ScanCodeBlock(leftText *Token) (code Token) {
 		}
 	}
 
-	s.TextTrimLeft = false
-
 	code = Token{
 		Token:   token.MixedCodeStart,
 		Pos:     s.File.FileSetPos(end),
@@ -1570,8 +1548,8 @@ func (s *Scanner) ScanCodeBlock(leftText *Token) (code Token) {
 	if s.Ch == '=' {
 		s.ToText = true
 		s.NextNoSpace()
-		code.Literal += "="
 		code.Token = token.MixedValueStart
+		code.Data.Set("eq", true)
 	} else if s.mode.Has(MixedExprAsValue) {
 		s.ToText = true
 		code.Token = token.MixedValueStart

@@ -103,8 +103,6 @@ const (
 	NullishSelector // ?.
 	OperatorEnd_
 	KeyworkBegin_
-	Begin
-	End
 	Break
 	Continue
 	Else
@@ -142,7 +140,8 @@ const (
 var tokens = [...]string{
 	Illegal:         "ILLEGAL",
 	EOF:             "EOF",
-	ConfigStart:     "CONFIG",
+	ConfigStart:     "CONFIGSTART",
+	ConfigEnd:       "CONFIGEND",
 	Comment:         "COMMENT",
 	Ident:           "IDENT",
 	Int:             "INT",
@@ -241,7 +240,6 @@ var tokens = [...]string{
 	Catch:           "catch",
 	Finally:         "finally",
 	Throw:           "throw",
-	Begin:           "begin",
 	Callee:          "__callee__",
 	Args:            "__args__",
 	NamedArgs:       "__named_args__",
@@ -349,7 +347,7 @@ func (tok Token) IsBlockStart() bool {
 
 func (tok Token) IsBlockEnd() bool {
 	switch tok {
-	case RBrace, End:
+	case RBrace:
 		return true
 	}
 	return false

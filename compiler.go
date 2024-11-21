@@ -349,10 +349,10 @@ stmts:
 			for z, s := range stmt[i:j] {
 				switch t := s.(type) {
 				case *node.MixedTextStmt:
-					if len(t.Lits) == 1 {
-						exprs[z] = t.Lits[0]
-					} else {
-						exprs[z] = &node.RawStringLit{Literal: t.Unquoted()}
+					lit := t.ValidLit()
+					exprs[z] = &node.RawStringLit{
+						Literal:    lit.Value,
+						LiteralPos: lit.Pos,
 					}
 				case *node.MixedValueStmt:
 					exprs[z] = t.Expr
@@ -552,6 +552,10 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		if nt.Options.ExprToTextFunc != nil {
 			c.opts.MixedExprToTextFunc = nt.Options.ExprToTextFunc
 		}
+	case *node.CodeBeginStmt, *node.CodeEndStmt:
+		return nil
+	case *node.MixedTextExpr:
+		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.Stmt.Value())))
 	case nil:
 	default:
 		return c.errorf(nt, `%[1]T "%[1]v" not implemented`, nt)

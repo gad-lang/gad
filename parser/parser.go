@@ -459,7 +459,7 @@ L:
 			p.Next()
 
 			switch p.Token.Token {
-			case token.Ident, token.LParen, token.End, token.Begin, token.Else:
+			case token.Ident, token.LParen, token.Else:
 				x = p.ParseNullishSelector(x)
 			default:
 				pos := p.Token.Pos
@@ -471,7 +471,7 @@ L:
 			p.Next()
 
 			switch p.Token.Token {
-			case token.Ident, token.LParen, token.End, token.Begin, token.Else:
+			case token.Ident, token.LParen, token.Else:
 				x = p.ParseSelector(x)
 			default:
 				pos := p.Token.Pos
@@ -671,7 +671,7 @@ func (p *Parser) ParseSelectorNode(x node.Expr) (expr, sel node.Expr) {
 		sel = p.ParseExpr()
 		rparen := p.Expect(token.RParen)
 		sel = &node.ParenExpr{Expr: sel, LParen: lparen, RParen: rparen}
-	case token.End, token.Else, token.Begin:
+	case token.Else:
 		name := p.Token.Token.String()
 		sel = &node.StringLit{
 			Value:    name,
@@ -930,8 +930,6 @@ func (p *Parser) ParseOperand() node.Expr {
 		return p.ParseImportExpr()
 	case token.LParen:
 		return p.ParseParemExpr(token.LParen, token.RParen, true, true, true)
-	case token.Begin:
-		return p.ParseParemExpr(token.Begin, token.End, false, false, false)
 	case token.LBrack: // array literal
 		return p.ParseArrayLitOrKeyValue()
 	case token.LBrace: // dict literal
@@ -999,30 +997,42 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 	)
 	switch p.Token.Token {
 	case lparenToken:
-	case token.Begin:
-		end = token.End
 	default:
-		p.ErrorExpected(lparen, "'"+lparenToken.String()+"' or '"+token.Begin.String()+"'")
+		p.ErrorExpected(lparen, "'"+lparenToken.String()+"'")
 		return nil
 	}
 	p.Next()
-	if end == token.End && p.Token.Token == token.Semicolon {
-		p.Next()
-	}
-	if p.Token.Token == token.Semicolon && p.Token.Literal == ";" {
-		if acceptKv {
-			return p.ParseKeyValueArrayLit(lparen)
-		}
-		kv = true
-		p.Next()
-	}
-
-	p.SkipSpace()
 
 	var (
 		exprs []node.Expr
 		expr  node.Expr
 	)
+
+	switch p.Token.Token {
+	case token.Semicolon:
+		if p.Token.Literal == ";" {
+			if acceptKv {
+				return p.ParseKeyValueArrayLit(lparen)
+			}
+			kv = true
+			p.Next()
+		}
+	case token.MixedCodeEnd:
+		mte := &node.MixedTextExpr{
+			StartLit: ast.Literal{p.Token.Literal, p.Token.Pos},
+		}
+		p.Next()
+		stmt := p.ParseMixedTextStmt()
+		p.ExprLevel++
+		mcs := p.ExpectToken(token.MixedCodeStart)
+		mte.EndLit = ast.Literal{mcs.Literal, mcs.Pos}
+		mte.Stmt = *stmt
+		exprs = append(exprs, mte)
+		p.ExprLevel--
+		goto end
+	}
+
+	p.SkipSpace()
 
 	for p.Token.Token != end {
 		var (
@@ -1106,6 +1116,8 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 			break
 		}
 	}
+
+end:
 
 	rparen := p.Expect(end)
 
@@ -1392,7 +1404,7 @@ func (p *Parser) ParseBody() (b *node.BlockStmt, closure node.Expr) {
 	return
 }
 
-func (p *Parser) ParseStmtList() (list []node.Stmt) {
+func (p *Parser) ParseStmtList(end ...token.Token) (list []node.Stmt) {
 	if p.Trace {
 		defer untracep(tracep(p, "StatementList"))
 	}
@@ -1406,6 +1418,11 @@ func (p *Parser) ParseStmtList() (list []node.Stmt) {
 		case token.Semicolon:
 			p.Next()
 		default:
+			for _, t := range end {
+				if t == p.Token.Token {
+					return
+				}
+			}
 			if s = p.ParseStmt(); s != nil {
 				if _, ok := s.(*node.EmptyStmt); ok {
 					continue
@@ -1501,10 +1518,13 @@ do:
 		p.Next()
 		return n
 	case token.MixedCodeEnd:
-		n := &node.CodeEndStmt{Lit: ast.Literal{
-			Value: p.Token.Literal,
-			Pos:   p.Token.Pos,
-		}}
+		n := &node.CodeEndStmt{
+			Lit: ast.Literal{
+				Value: p.Token.Literal,
+				Pos:   p.Token.Pos,
+			},
+			RemoveSpace: RemoveSpaces(p.Token),
+		}
 		p.Next()
 		return n
 	case token.MixedValueStart:
@@ -1538,7 +1558,7 @@ do:
 	case token.Semicolon:
 		p.Next()
 		goto do
-	case token.RBrace, token.End:
+	case token.RBrace:
 		// semicolon may be omitted before a closing "}"
 		return &node.EmptyStmt{Semicolon: p.Token.Pos, Implicit: true}
 	}
@@ -1568,6 +1588,13 @@ func (p *Parser) ParseConfigStmt() (c *node.ConfigStmt) {
 		p.Scanner.SetMode(p.Scanner.Mode() &^ Mixed)
 	}
 
+	if c.Options.MixedStart != "" {
+		p.Scanner.GetMixedDelimiter().Start = []rune(c.Options.MixedStart)
+	}
+	if c.Options.MixedEnd != "" {
+		p.Scanner.GetMixedDelimiter().End = []rune(c.Options.MixedEnd)
+	}
+
 	p.Expect(token.ConfigEnd)
 	return
 }
@@ -1577,12 +1604,15 @@ func (p *Parser) ParseMixedValue() (ett *node.MixedValueStmt) {
 		defer untracep(tracep(p, "MixedValueStmt"))
 	}
 	ett = &node.MixedValueStmt{
-		StartLit:          ast.Literal{Value: p.Token.Literal, Pos: p.Token.Pos},
-		RemoveBeforeSpace: RemoveSpaces(p.Token),
+		StartLit:        ast.Literal{Value: p.Token.Literal, Pos: p.Token.Pos},
+		RemoveLeftSpace: RemoveSpaces(p.Token),
+		Eq:              p.Token.Data.Flag("eq"),
 	}
 	p.Next()
 	ett.Expr = p.ParseExpr()
-	ett.EndLit = p.ExpectLit(token.MixedValueEnd)
+	end := p.ExpectToken(token.MixedValueEnd)
+	ett.RemoveRightSpace = RemoveSpaces(end)
+	ett.EndLit = ast.Literal{Value: end.Literal, Pos: end.Pos}
 	return
 }
 
@@ -1611,10 +1641,20 @@ func (p *Parser) ParseMixedTextStmt() (t *node.MixedTextStmt) {
 		},
 	}
 
+	switch p.PrevToken.Token {
+	case token.MixedValueEnd, token.MixedCodeEnd:
+		if RemoveSpaces(p.PrevToken) {
+			t.Flags |= node.RemoveLeftSpaces
+		}
+	}
+
 	p.Next()
 
-	if p.Token.Token == token.MixedCodeStart {
-		t.RemoveRightSpaces = RemoveSpaces(p.Token)
+	switch p.Token.Token {
+	case token.MixedCodeStart, token.MixedValueStart:
+		if RemoveSpaces(p.Token) {
+			t.Flags |= node.RemoveRightSpaces
+		}
 	}
 
 	return
@@ -1913,6 +1953,42 @@ func (p *Parser) ParseValueSpec(keyword token.Token, multi bool, _ []node.Spec, 
 	return spec
 }
 
+func (p *Parser) ParseElse(ifs bool) node.Stmt {
+	if p.Trace {
+		defer untracep(tracep(p, "Else"))
+	}
+
+	p.Expect(token.Else)
+	p.SkipSpace()
+
+	switch p.Token.Token {
+	case token.If:
+		if !ifs {
+			p.Error(p.Token.Pos, "only else")
+		}
+		return p.ParseIfStmt()
+	case token.MixedCodeEnd:
+		b := p.ParseBlockStmt()
+		p.ExpectSemi()
+		return b
+	case token.LBrace:
+		return p.ParseBlockStmt()
+	case token.Semicolon:
+		p.ExpectSemi()
+		return &node.BlockStmt{}
+	default:
+		b := &node.BlockStmt{}
+		b.LBrace.Pos = p.Token.Pos
+		if p.Token.Token != token.RBrace {
+			b.Stmts = []node.Stmt{
+				p.ParseSimpleStmt(false),
+			}
+		}
+		b.RBrace = p.ExpectLit(token.RBrace)
+		return b
+	}
+}
+
 func (p *Parser) ParseForStmt() node.Stmt {
 	if p.Trace {
 		defer untracep(tracep(p, "ForStmt"))
@@ -1945,19 +2021,10 @@ func (p *Parser) ParseForStmt() node.Stmt {
 	if forInStmt, isForIn := s1.(*node.ForInStmt); isForIn {
 		forInStmt.ForPos = pos
 		p.ExprLevel = prevLevel
-		forInStmt.Body = p.ParseBlockStmt()
+		forInStmt.Body = p.ParseBlockStmt(token.Else)
 		if p.Token.Token == token.Else {
-			p.Next()
-			p.SkipSpace()
-
-			switch p.Token.Token {
-			case token.LBrace:
-				forInStmt.Else = p.ParseBlockStmt()
-				p.ExpectSemi()
-			case token.Semicolon:
-				p.ExpectSemi()
-			}
-		} else {
+			forInStmt.Else = p.ParseElse(false).(*node.BlockStmt)
+		} else if p.Token.Token != token.EOF {
 			p.ExpectSemi()
 		}
 		return forInStmt
@@ -2021,20 +2088,11 @@ func (p *Parser) ParseIfStmt() node.Stmt {
 	pos := p.Expect(token.If)
 	init, cond := p.ParseIfHeader()
 
-	body := p.ParseBlockStmt()
+	body := p.ParseBlockStmt(token.Else)
 
 	var elseStmt node.Stmt
 	if p.Token.Token == token.Else {
-		p.Next()
-		p.SkipSpace()
-
-		switch p.Token.Token {
-		case token.If:
-			elseStmt = p.ParseIfStmt()
-		case token.LBrace:
-			elseStmt = p.ParseBlockStmt()
-			p.ExpectSemi()
-		}
+		elseStmt = p.ParseElse(true)
 	} else {
 		p.ExpectSemi()
 	}
@@ -2052,7 +2110,7 @@ func (p *Parser) ParseTryStmt() node.Stmt {
 		defer untracep(tracep(p, "TryStmt"))
 	}
 	pos := p.Expect(token.Try)
-	body := p.ParseBlockStmt()
+	body := p.ParseBlockStmt(token.Catch, token.Finally)
 	var catchStmt *node.CatchStmt
 	var finallyStmt *node.FinallyStmt
 	if p.Token.Token == token.Catch {
@@ -2079,7 +2137,7 @@ func (p *Parser) ParseCatchStmt() *node.CatchStmt {
 	if p.Token.Token == token.Ident {
 		ident = p.ParseIdent()
 	}
-	body := p.ParseBlockStmt()
+	body := p.ParseBlockStmt(token.Finally)
 	return &node.CatchStmt{
 		CatchPos: pos,
 		Ident:    ident,
@@ -2124,19 +2182,32 @@ func (p *Parser) ParseThrowExpr() *node.ThrowExpr {
 	}
 }
 
-func (p *Parser) ParseBlockStmt() *node.BlockStmt {
+func (p *Parser) ParseBlockStmt(ends ...token.Token) *node.BlockStmt {
 	if p.Trace {
 		defer untracep(tracep(p, "BlockStmt"))
 	}
 
-	lbrace := p.ExpectLit(token.LBrace)
-	list := p.ParseStmtList()
+	stmt := &node.BlockStmt{}
 
-	return &node.BlockStmt{
-		LBrace: lbrace,
-		RBrace: p.ExpectLit(token.RBrace),
-		Stmts:  list,
+	if p.Token.Token == token.MixedCodeEnd {
+		mce := &node.CodeEndStmt{
+			Lit:         ast.Literal{p.Token.Literal, p.Token.Pos},
+			RemoveSpace: RemoveSpaces(p.Token),
+		}
+		p.Next()
+		stmt.Stmts.Append(mce)
+		stmt.LBrace.Pos = mce.Pos()
+	} else {
+		stmt.LBrace = p.ExpectLit(token.LBrace)
 	}
+
+	stmt.Stmts.Append(p.ParseStmtList(ends...)...)
+
+	if stmt.LBrace.Value == "{" || !p.IsToken(ends...) {
+		stmt.RBrace = p.ExpectLit(token.RBrace)
+	}
+
+	return stmt
 }
 
 func (p *Parser) ParseIfHeader() (init node.Stmt, cond node.Expr) {
@@ -2156,7 +2227,7 @@ func (p *Parser) ParseIfHeader() (init node.Stmt, cond node.Expr) {
 
 	var condStmt node.Stmt
 	switch p.Token.Token {
-	case token.LBrace, p.BlockStart:
+	case token.LBrace, token.MixedCodeEnd, p.BlockStart:
 		condStmt = init
 		init = nil
 	case token.Semicolon:
@@ -2454,13 +2525,7 @@ func (p *Parser) ParseKeyValueArrayLit(lbrace source.Pos) *node.KeyValueArrayLit
 }
 
 func (p *Parser) Expect(token token.Token) source.Pos {
-	pos := p.Token.Pos
-
-	if p.Token.Token != token {
-		p.ErrorExpected(pos, "'"+token.String()+"'")
-	}
-	p.Next()
-	return pos
+	return p.ExpectToken(token).Pos
 }
 
 func (p *Parser) ExpectLit(token token.Token) ast.Literal {
@@ -2476,10 +2541,44 @@ func (p *Parser) ExpectLit(token token.Token) ast.Literal {
 	return lit
 }
 
-func (p *Parser) ExpectToken(pos source.Pos, expected, got token.Token) {
-	if expected != got {
-		p.ErrorExpected(pos, "'"+got.String()+"'")
+func (p *Parser) IsToken(toks ...token.Token) bool {
+	for _, tok := range toks {
+		if p.Token.Token == tok {
+			return true
+		}
 	}
+	return false
+}
+
+func (p *Parser) ExpectLits(toks ...token.Token) ast.Literal {
+	lit := ast.Literal{
+		Pos:   p.Token.Pos,
+		Value: p.Token.Literal,
+	}
+
+	for _, tok := range toks {
+		if p.Token.Token == tok {
+			p.Next()
+			return lit
+		}
+	}
+
+	s := make([]string, len(toks))
+	for i, tok := range toks {
+		s[i] = tok.String()
+	}
+
+	p.ErrorExpected(lit.Pos, strings.Join(s, " | "))
+	return lit
+}
+
+func (p *Parser) ExpectToken(token token.Token) (tok Token) {
+	tok = p.Token
+	if tok.Token != token {
+		p.ErrorExpected(tok.Pos, "'"+token.String()+"'")
+	}
+	p.Next()
+	return
 }
 
 func (p *Parser) ExpectSemi() {
@@ -2490,16 +2589,11 @@ func (p *Parser) ExpectSemi() {
 		// permit a ',' instead of a ';' but complain
 		p.ErrorExpected(p.Token.Pos, "';'")
 		fallthrough
-	case token.End:
-		p.Next()
-		if p.Token.Token == token.Semicolon {
-			p.Next()
-		}
 	case token.Semicolon:
 		p.Next()
 	default:
 		switch p.PrevToken.Token {
-		case token.Else, token.End, p.BlockEnd, token.DotName, token.DotFile, token.IsModule:
+		case token.Else, p.BlockEnd, token.DotName, token.DotFile, token.IsModule:
 			return
 		}
 		p.ErrorExpected(p.Token.Pos, "';'")
