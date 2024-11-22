@@ -33,6 +33,8 @@ type Expr interface {
 	ExprNode()
 }
 
+type Exprs []Expr
+
 // ArrayLit represents an array literal.
 type ArrayLit struct {
 	Elements []Expr
