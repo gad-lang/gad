@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gad-lang/gad/parser/ast"
-	. "github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 	"github.com/shopspring/decimal"
 )
@@ -19,7 +19,7 @@ func SDecl(decl Decl) *DeclStmt {
 
 func NewGenDecl(
 	tok token.Token,
-	tokPos, lparen, rparen Pos,
+	tokPos, lparen, rparen source.Pos,
 	specs ...Spec,
 ) Decl {
 	return &GenDecl{
@@ -55,16 +55,16 @@ func NewValueSpec(idents []*Ident, values []Expr) Spec {
 func SAssign(
 	lhs, rhs []Expr,
 	token token.Token,
-	pos Pos,
+	pos source.Pos,
 ) *AssignStmt {
 	return &AssignStmt{LHS: lhs, RHS: rhs, Token: token, TokenPos: pos}
 }
 
-func SReturn(pos Pos, result Expr) *ReturnStmt {
+func SReturn(pos source.Pos, result Expr) *ReturnStmt {
 	return &ReturnStmt{Return: Return{Result: result, ReturnPos: pos}}
 }
 
-func EReturnExpr(pos Pos, result Expr) *ReturnExpr {
+func EReturnExpr(pos source.Pos, result Expr) *ReturnExpr {
 	return &ReturnExpr{Return: Return{Result: result, ReturnPos: pos}}
 }
 
@@ -73,7 +73,7 @@ func SFor(
 	cond Expr,
 	post Stmt,
 	body *BlockStmt,
-	pos Pos,
+	pos source.Pos,
 ) *ForStmt {
 	return &ForStmt{
 		Cond: cond, Init: init, Post: post, Body: body, ForPos: pos,
@@ -84,7 +84,7 @@ func SForIn(
 	key, value *Ident,
 	seq Expr,
 	body *BlockStmt,
-	pos Pos,
+	pos source.Pos,
 	elseb ...*BlockStmt,
 ) *ForInStmt {
 	f := &ForInStmt{
@@ -95,14 +95,14 @@ func SForIn(
 	return f
 }
 
-func SBreak(pos Pos) *BranchStmt {
+func SBreak(pos source.Pos) *BranchStmt {
 	return &BranchStmt{
 		Token:    token.Break,
 		TokenPos: pos,
 	}
 }
 
-func SContinue(pos Pos) *BranchStmt {
+func SContinue(pos source.Pos) *BranchStmt {
 	return &BranchStmt{
 		Token:    token.Continue,
 		TokenPos: pos,
@@ -114,7 +114,7 @@ func SIf(
 	cond Expr,
 	body *BlockStmt,
 	elseStmt Stmt,
-	pos Pos,
+	pos source.Pos,
 ) *IfStmt {
 	return &IfStmt{
 		Init: init, Cond: cond, Body: body, Else: elseStmt, IfPos: pos,
@@ -122,7 +122,7 @@ func SIf(
 }
 
 func STry(
-	tryPos Pos,
+	tryPos source.Pos,
 	body *BlockStmt,
 	catch *CatchStmt,
 	finally *FinallyStmt,
@@ -131,7 +131,7 @@ func STry(
 }
 
 func SCatch(
-	catchPos Pos,
+	catchPos source.Pos,
 	ident *Ident,
 	body *BlockStmt,
 ) *CatchStmt {
@@ -139,14 +139,14 @@ func SCatch(
 }
 
 func SFinally(
-	finallyPos Pos,
+	finallyPos source.Pos,
 	body *BlockStmt,
 ) *FinallyStmt {
 	return &FinallyStmt{FinallyPos: finallyPos, Body: body}
 }
 
 func SThrow(
-	throwPos Pos,
+	throwPos source.Pos,
 	expr Expr,
 ) *ThrowStmt {
 	return &ThrowStmt{ThrowPos: throwPos, Expr: expr}
@@ -155,12 +155,12 @@ func SThrow(
 func SIncDec(
 	expr Expr,
 	tok token.Token,
-	pos Pos,
+	pos source.Pos,
 ) *IncDecStmt {
 	return &IncDecStmt{Expr: expr, Token: tok, TokenPos: pos}
 }
 
-func NewFuncType(pos, lparen, rparen Pos, v ...any) *FuncType {
+func NewFuncType(pos, lparen, rparen source.Pos, v ...any) *FuncType {
 	f := &FuncType{Params: FuncParams{LParen: lparen, RParen: rparen}, FuncPos: pos}
 	for _, v := range v {
 		switch t := v.(type) {
@@ -192,7 +192,7 @@ func NamedArgs(vari *TypedIdent, names []*TypedIdent, values []Expr) NamedArgsLi
 	return NamedArgsList{Names: names, Var: vari, Values: values}
 }
 
-func SBlock(lbrace, rbrace Pos, list ...Stmt) *BlockStmt {
+func SBlock(lbrace, rbrace source.Pos, list ...Stmt) *BlockStmt {
 	return &BlockStmt{Stmts: list, LBrace: Lit("{", lbrace), RBrace: Lit("}", rbrace)}
 }
 
@@ -200,11 +200,11 @@ func SBlockLit(lbrace, rbrace ast.Literal, list ...Stmt) *BlockStmt {
 	return &BlockStmt{Stmts: list, LBrace: lbrace, RBrace: rbrace}
 }
 
-func EBlock(lbrace, rbrace Pos, list ...Stmt) *BlockExpr {
+func EBlock(lbrace, rbrace source.Pos, list ...Stmt) *BlockExpr {
 	return &BlockExpr{BlockStmt: SBlock(lbrace, rbrace, list...)}
 }
 
-func NewIdent(name string, pos Pos) *Ident {
+func NewIdent(name string, pos source.Pos) *Ident {
 	return &Ident{Name: name, NamePos: pos}
 }
 
@@ -212,7 +212,7 @@ func NewTypedIdent(ident *Ident, typ ...*Ident) *TypedIdent {
 	return &TypedIdent{Ident: ident, Type: typ}
 }
 
-func SMixedText(pos Pos, vlit string, flags ...MixedTextStmtFlag) *MixedTextStmt {
+func SMixedText(pos source.Pos, vlit string, flags ...MixedTextStmtFlag) *MixedTextStmt {
 	var f MixedTextStmtFlag
 	for _, f = range flags {
 	}
@@ -230,7 +230,7 @@ func SMixedValue(start, end ast.Literal, expr Expr) *MixedValueStmt {
 	return &MixedValueStmt{Expr: expr, StartLit: start, EndLit: end}
 }
 
-func Lit(value string, pos Pos) ast.Literal {
+func Lit(value string, pos source.Pos) ast.Literal {
 	return ast.Literal{Value: value, Pos: pos}
 }
 
@@ -242,7 +242,7 @@ func KV(key Expr, value ...Expr) *KeyValueLit {
 	return kv
 }
 
-func SConfig(start Pos, opts ...*KeyValueLit) *ConfigStmt {
+func SConfig(start source.Pos, opts ...*KeyValueLit) *ConfigStmt {
 	c := &ConfigStmt{ConfigPos: start, Elements: opts}
 	c.ParseElements()
 	return c
@@ -258,14 +258,14 @@ func ENullish(
 func EBinary(
 	x, y Expr,
 	op token.Token,
-	pos Pos,
+	pos source.Pos,
 ) *BinaryExpr {
 	return &BinaryExpr{LHS: x, RHS: y, Token: op, TokenPos: pos}
 }
 
 func ECond(
 	cond, trueExpr, falseExpr Expr,
-	questionPos, colonPos Pos,
+	questionPos, colonPos source.Pos,
 ) *CondExpr {
 	return &CondExpr{
 		Cond: cond, True: trueExpr, False: falseExpr,
@@ -273,75 +273,75 @@ func ECond(
 	}
 }
 
-func EUnary(x Expr, op token.Token, pos Pos) *UnaryExpr {
+func EUnary(x Expr, op token.Token, pos source.Pos) *UnaryExpr {
 	return &UnaryExpr{Expr: x, Token: op, TokenPos: pos}
 }
 
-func EImport(moduleName string, pos Pos) *ImportExpr {
+func EImport(moduleName string, pos source.Pos) *ImportExpr {
 	return &ImportExpr{
 		ModuleName: moduleName, Token: token.Import, TokenPos: pos,
 	}
 }
 
-func Int(value int64, pos Pos) *IntLit {
+func Int(value int64, pos source.Pos) *IntLit {
 	return &IntLit{Value: value, ValuePos: pos}
 }
 
-func Float(value float64, pos Pos) *FloatLit {
+func Float(value float64, pos source.Pos) *FloatLit {
 	return &FloatLit{Value: value, ValuePos: pos}
 }
 
-func Decimal(value string, pos Pos) *DecimalLit {
+func Decimal(value string, pos source.Pos) *DecimalLit {
 	v, _ := decimal.NewFromString(value)
 	return &DecimalLit{Value: v, ValuePos: pos}
 }
 
-func String(value string, pos Pos) *StringLit {
+func String(value string, pos source.Pos) *StringLit {
 	return &StringLit{Value: value, ValuePos: pos}
 }
 
-func RawString(value string, pos Pos) *RawStringLit {
+func RawString(value string, pos source.Pos) *RawStringLit {
 	return &RawStringLit{Literal: value, LiteralPos: pos, Quoted: value[0] == '`'}
 }
 
-func RawHeredoc(value string, pos Pos) *RawHeredocLit {
+func RawHeredoc(value string, pos source.Pos) *RawHeredocLit {
 	return &RawHeredocLit{Literal: value, LiteralPos: pos}
 }
 
-func Char(value rune, pos Pos) *CharLit {
+func Char(value rune, pos source.Pos) *CharLit {
 	return &CharLit{
 		Value: value, ValuePos: pos, Literal: fmt.Sprintf("'%c'", value),
 	}
 }
 
-func Bool(value bool, pos Pos) *BoolLit {
+func Bool(value bool, pos source.Pos) *BoolLit {
 	return &BoolLit{Value: value, ValuePos: pos}
 }
 
-func Flag(value bool, pos Pos) *FlagLit {
+func Flag(value bool, pos source.Pos) *FlagLit {
 	return &FlagLit{Value: value, ValuePos: pos}
 }
 
-func Array(lbracket, rbracket Pos, list ...Expr) *ArrayLit {
+func Array(lbracket, rbracket source.Pos, list ...Expr) *ArrayLit {
 	return &ArrayLit{LBrack: lbracket, RBrack: rbracket, Elements: list}
 }
 
-func CaleeKW(pos Pos) *CalleeKeyword {
+func CaleeKW(pos source.Pos) *CalleeKeyword {
 	return &CalleeKeyword{TokenPos: pos, Literal: token.Callee.String()}
 }
 
-func ArgsKW(pos Pos) *ArgsKeyword {
+func ArgsKW(pos source.Pos) *ArgsKeyword {
 	return &ArgsKeyword{TokenPos: pos, Literal: token.Args.String()}
 }
 
-func NamedArgsKW(pos Pos) *NamedArgsKeyword {
+func NamedArgsKW(pos source.Pos) *NamedArgsKeyword {
 	return &NamedArgsKeyword{TokenPos: pos, Literal: token.NamedArgs.String()}
 }
 
 func MapElement(
 	key string,
-	keyPos Pos,
-	colonPos Pos,
+	keyPos source.Pos,
+	colonPos source.Pos,
 	value Expr,
 ) *DictElementLit {
 	return &DictElementLit{
@@ -350,7 +350,7 @@ func MapElement(
 }
 
 func Dict(
-	lbrace, rbrace Pos,
+	lbrace, rbrace source.Pos,
 	list ...*DictElementLit,
 ) *DictLit {
 	return &DictLit{LBrace: lbrace, RBrace: rbrace, Elements: list}
@@ -364,13 +364,13 @@ func Closure(funcType *FuncType, body Expr) *ClosureLit {
 	return &ClosureLit{Type: funcType, Body: body}
 }
 
-func EParen(x Expr, lparen, rparen Pos) *ParenExpr {
+func EParen(x Expr, lparen, rparen source.Pos) *ParenExpr {
 	return &ParenExpr{Expr: x, LParen: lparen, RParen: rparen}
 }
 
 func ECall(
 	f Expr,
-	lparen, rparen Pos,
+	lparen, rparen source.Pos,
 	args ...any,
 ) (ce *CallExpr) {
 	ce = &CallExpr{Func: f, CallArgs: CallArgs{LParen: lparen, RParen: rparen}}
@@ -385,11 +385,11 @@ func ECall(
 	return ce
 }
 
-func ArgVar(pos Pos, value Expr) *ArgVarLit {
+func ArgVar(pos source.Pos, value Expr) *ArgVarLit {
 	return &ArgVarLit{TokenPos: pos, Value: value}
 }
 
-func NamedArgVar(pos Pos, value Expr) *NamedArgVarLit {
+func NamedArgVar(pos source.Pos, value Expr) *NamedArgVarLit {
 	return &NamedArgVarLit{TokenPos: pos, Value: value}
 }
 
@@ -409,7 +409,7 @@ func NewCallExprNamedArgs(
 
 func EIndex(
 	x, index Expr,
-	lbrack, rbrack Pos,
+	lbrack, rbrack source.Pos,
 ) *IndexExpr {
 	return &IndexExpr{
 		Expr: x, Index: index, LBrack: lbrack, RBrack: rbrack,
@@ -418,7 +418,7 @@ func EIndex(
 
 func ESlice(
 	x, low, high Expr,
-	lbrack, rbrack Pos,
+	lbrack, rbrack source.Pos,
 ) *SliceExpr {
 	return &SliceExpr{
 		Expr: x, Low: low, High: high, LBrack: lbrack, RBrack: rbrack,

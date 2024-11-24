@@ -1,4 +1,4 @@
-package test_helper
+package testhelper
 
 import (
 	"bytes"
@@ -8,18 +8,18 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/gad-lang/gad/parser/node"
-	. "github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/parser/node"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser"
 )
 
 func ParseTrace(t *testing.T, input, expected string) {
 	parse := func(input string, tracer io.Writer) {
-		testFileSet := NewFileSet()
+		testFileSet := parser.NewFileSet()
 		testFile := testFileSet.AddFile("test", -1, len(input))
-		p := NewParser(testFile, []byte(input), tracer)
+		p := parser.NewParser(testFile, []byte(input), tracer)
 		_, err := p.ParseFile()
 		require.NoError(t, err)
 	}
@@ -31,8 +31,8 @@ func ParseTrace(t *testing.T, input, expected string) {
 	)
 }
 
-type Pfn func(int, int) Pos         // position conversion function
-type ExpectedFn func(pos Pfn) Stmts // callback function to return expected results
+type Pfn func(int, int) source.Pos       // position conversion function
+type ExpectedFn func(pos Pfn) node.Stmts // callback function to return expected results
 
 type parseTracer struct {
 	out []string
@@ -43,17 +43,17 @@ func (o *parseTracer) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-type Option func(po *ParserOptions, so *ScannerOptions)
+type Option func(po *parser.ParserOptions, so *parser.ScannerOptions)
 
-func Parse(t *testing.T, input string, do func(f *SourceFile, actual *File, err error), opt ...Option) {
-	testFileSet := NewFileSet()
+func Parse(t *testing.T, input string, do func(f *parser.SourceFile, actual *parser.File, err error), opt ...Option) {
+	testFileSet := parser.NewFileSet()
 	testFile := testFileSet.AddFile("test", -1, len(input))
 
 	var (
 		ok      bool
-		options = func() (po *ParserOptions, so *ScannerOptions) {
-			po = &ParserOptions{}
-			so = &ScannerOptions{}
+		options = func() (po *parser.ParserOptions, so *parser.ScannerOptions) {
+			po = &parser.ParserOptions{}
+			so = &parser.ScannerOptions{}
 			for _, o := range opt {
 				o(po, so)
 			}
@@ -66,7 +66,7 @@ func Parse(t *testing.T, input string, do func(f *SourceFile, actual *File, err 
 			tr := &parseTracer{}
 			po, so := options()
 			po.Trace = tr
-			p := NewParserWithOptions(testFile, []byte(input), po, so)
+			p := parser.NewParserWithOptions(testFile, []byte(input), po, so)
 			actual, _ := p.ParseFile()
 			if actual != nil {
 				t.Logf("Parsed:\n%s", actual.String())
@@ -77,18 +77,18 @@ func Parse(t *testing.T, input string, do func(f *SourceFile, actual *File, err 
 
 	po, so := options()
 
-	p := NewParserWithOptions(testFile, []byte(input), po, so)
+	p := parser.NewParserWithOptions(testFile, []byte(input), po, so)
 	actual, err := p.ParseFile()
 	do(testFile, actual, err)
 	ok = true
 }
 
 func ExpectParse(t *testing.T, input string, fn ExpectedFn, opt ...Option) {
-	Parse(t, input, func(f *SourceFile, actual *File, err error) {
+	Parse(t, input, func(f *parser.SourceFile, actual *parser.File, err error) {
 		require.NoError(t, err)
 
-		expected := fn(func(line, column int) Pos {
-			return Pos(int(f.LineStart(line)) + (column - 1))
+		expected := fn(func(line, column int) source.Pos {
+			return source.Pos(int(f.LineStart(line)) + (column - 1))
 		})
 		require.Equal(t, len(expected), len(actual.Stmts), "count of file statements")
 
@@ -99,19 +99,19 @@ func ExpectParse(t *testing.T, input string, fn ExpectedFn, opt ...Option) {
 }
 
 func ExpectParseString(t *testing.T, input, expected string, opt ...Option) {
-	Parse(t, input, func(f *SourceFile, actual *File, err error) {
+	Parse(t, input, func(f *parser.SourceFile, actual *parser.File, err error) {
 		require.NoError(t, err)
 		require.Equal(t, expected, actual.String())
 	}, opt...)
 }
 
 func ExpectParseError(t *testing.T, input string, opt ...Option) {
-	Parse(t, input, func(f *SourceFile, actual *File, err error) {
+	Parse(t, input, func(f *parser.SourceFile, actual *parser.File, err error) {
 		require.Error(t, err)
 	}, opt...)
 }
 
-func EqualStmt(t *testing.T, expected, actual Stmt) {
+func EqualStmt(t *testing.T, expected, actual node.Stmt) {
 	if expected == nil || reflect.ValueOf(expected).IsNil() {
 		require.Nil(t, actual, "expected nil, but got not nil")
 		return
@@ -120,32 +120,32 @@ func EqualStmt(t *testing.T, expected, actual Stmt) {
 	require.IsType(t, expected, actual)
 
 	switch expected := expected.(type) {
-	case *ExprStmt:
-		EqualExpr(t, expected.Expr, actual.(*ExprStmt).Expr)
-	case *EmptyStmt:
+	case *node.ExprStmt:
+		EqualExpr(t, expected.Expr, actual.(*node.ExprStmt).Expr)
+	case *node.EmptyStmt:
 		require.Equal(t, expected.Implicit,
-			actual.(*EmptyStmt).Implicit)
+			actual.(*node.EmptyStmt).Implicit)
 		require.Equal(t, expected.Semicolon,
-			actual.(*EmptyStmt).Semicolon)
-	case *BlockStmt:
+			actual.(*node.EmptyStmt).Semicolon)
+	case *node.BlockStmt:
 		require.Equal(t, expected.LBrace,
-			actual.(*BlockStmt).LBrace)
+			actual.(*node.BlockStmt).LBrace)
 		require.Equal(t, expected.RBrace,
-			actual.(*BlockStmt).RBrace)
+			actual.(*node.BlockStmt).RBrace)
 		EqualStmts(t, expected.Stmts,
-			actual.(*BlockStmt).Stmts)
-	case *AssignStmt:
+			actual.(*node.BlockStmt).Stmts)
+	case *node.AssignStmt:
 		EqualExprs(t, expected.LHS,
-			actual.(*AssignStmt).LHS)
+			actual.(*node.AssignStmt).LHS)
 		EqualExprs(t, expected.RHS,
-			actual.(*AssignStmt).RHS)
+			actual.(*node.AssignStmt).RHS)
 		require.Equal(t, int(expected.Token),
-			int(actual.(*AssignStmt).Token))
+			int(actual.(*node.AssignStmt).Token))
 		require.Equal(t, int(expected.TokenPos),
-			int(actual.(*AssignStmt).TokenPos))
-	case *DeclStmt:
-		expectedDecl := expected.Decl.(*GenDecl)
-		actualDecl := actual.(*DeclStmt).Decl.(*GenDecl)
+			int(actual.(*node.AssignStmt).TokenPos))
+	case *node.DeclStmt:
+		expectedDecl := expected.Decl.(*node.GenDecl)
+		actualDecl := actual.(*node.DeclStmt).Decl.(*node.GenDecl)
 		require.Equal(t, expectedDecl.Tok, actualDecl.Tok)
 		require.Equal(t, expectedDecl.TokPos, actualDecl.TokPos)
 		require.Equal(t, expectedDecl.Lparen, actualDecl.Lparen)
@@ -154,16 +154,16 @@ func EqualStmt(t *testing.T, expected, actual Stmt) {
 		for i, expSpec := range expectedDecl.Specs {
 			actSpec := actualDecl.Specs[i]
 			switch expectedSpec := expSpec.(type) {
-			case *ParamSpec:
-				actualSpec, ok := actSpec.(*ParamSpec)
+			case *node.ParamSpec:
+				actualSpec, ok := actSpec.(*node.ParamSpec)
 				if !ok {
 					require.Failf(t, "type error", "expected *ParamSpec, got %T", actSpec)
 					return
 				}
 				require.Equal(t, expectedSpec.Ident, actualSpec.Ident)
 				require.Equal(t, expectedSpec.Variadic, actualSpec.Variadic)
-			case *NamedParamSpec:
-				actualSpec, ok := actSpec.(*NamedParamSpec)
+			case *node.NamedParamSpec:
+				actualSpec, ok := actSpec.(*node.NamedParamSpec)
 				if !ok {
 					require.Failf(t, "type error", "expected *NamedParamSpec, got %T", actSpec)
 					return
@@ -172,8 +172,8 @@ func EqualStmt(t *testing.T, expected, actual Stmt) {
 				if expectedSpec.Value != nil || actualSpec.Value != nil {
 					EqualExpr(t, expectedSpec.Value, actualSpec.Value)
 				}
-			case *ValueSpec:
-				actualSpec, ok := actSpec.(*ValueSpec)
+			case *node.ValueSpec:
+				actualSpec, ok := actSpec.(*node.ValueSpec)
 				if !ok {
 					require.Failf(t, "type error", "expected *ValueSpec, got %T", actSpec)
 					return
@@ -189,113 +189,113 @@ func EqualStmt(t *testing.T, expected, actual Stmt) {
 				require.Failf(t, "unknown type", "unknown Spec '%T'", expSpec)
 			}
 		}
-	case *IfStmt:
-		EqualStmt(t, expected.Init, actual.(*IfStmt).Init)
-		EqualExpr(t, expected.Cond, actual.(*IfStmt).Cond)
-		EqualStmt(t, expected.Body, actual.(*IfStmt).Body)
-		EqualStmt(t, expected.Else, actual.(*IfStmt).Else)
-		require.Equal(t, expected.IfPos, actual.(*IfStmt).IfPos)
-	case *TryStmt:
-		require.Equal(t, expected.TryPos, actual.(*TryStmt).TryPos)
-		EqualStmt(t, expected.Body, actual.(*TryStmt).Body)
-		EqualStmt(t, expected.Catch, actual.(*TryStmt).Catch)
-		EqualStmt(t, expected.Finally, actual.(*TryStmt).Finally)
-	case *CatchStmt:
-		require.Equal(t, expected.CatchPos, actual.(*CatchStmt).CatchPos)
-		require.Equal(t, expected.Ident, actual.(*CatchStmt).Ident)
-		EqualStmt(t, expected.Body, actual.(*CatchStmt).Body)
-	case *FinallyStmt:
-		require.Equal(t, expected.FinallyPos, actual.(*FinallyStmt).FinallyPos)
-		EqualStmt(t, expected.Body, actual.(*FinallyStmt).Body)
-	case *ThrowStmt:
-		require.Equal(t, expected.ThrowPos, actual.(*ThrowStmt).ThrowPos)
-		EqualExpr(t, expected.Expr, actual.(*ThrowStmt).Expr)
-	case *IncDecStmt:
+	case *node.IfStmt:
+		EqualStmt(t, expected.Init, actual.(*node.IfStmt).Init)
+		EqualExpr(t, expected.Cond, actual.(*node.IfStmt).Cond)
+		EqualStmt(t, expected.Body, actual.(*node.IfStmt).Body)
+		EqualStmt(t, expected.Else, actual.(*node.IfStmt).Else)
+		require.Equal(t, expected.IfPos, actual.(*node.IfStmt).IfPos)
+	case *node.TryStmt:
+		require.Equal(t, expected.TryPos, actual.(*node.TryStmt).TryPos)
+		EqualStmt(t, expected.Body, actual.(*node.TryStmt).Body)
+		EqualStmt(t, expected.Catch, actual.(*node.TryStmt).Catch)
+		EqualStmt(t, expected.Finally, actual.(*node.TryStmt).Finally)
+	case *node.CatchStmt:
+		require.Equal(t, expected.CatchPos, actual.(*node.CatchStmt).CatchPos)
+		require.Equal(t, expected.Ident, actual.(*node.CatchStmt).Ident)
+		EqualStmt(t, expected.Body, actual.(*node.CatchStmt).Body)
+	case *node.FinallyStmt:
+		require.Equal(t, expected.FinallyPos, actual.(*node.FinallyStmt).FinallyPos)
+		EqualStmt(t, expected.Body, actual.(*node.FinallyStmt).Body)
+	case *node.ThrowStmt:
+		require.Equal(t, expected.ThrowPos, actual.(*node.ThrowStmt).ThrowPos)
+		EqualExpr(t, expected.Expr, actual.(*node.ThrowStmt).Expr)
+	case *node.IncDecStmt:
 		EqualExpr(t, expected.Expr,
-			actual.(*IncDecStmt).Expr)
+			actual.(*node.IncDecStmt).Expr)
 		require.Equal(t, expected.Token,
-			actual.(*IncDecStmt).Token)
+			actual.(*node.IncDecStmt).Token)
 		require.Equal(t, expected.TokenPos,
-			actual.(*IncDecStmt).TokenPos)
-	case *ForStmt:
-		EqualStmt(t, expected.Init, actual.(*ForStmt).Init)
-		EqualExpr(t, expected.Cond, actual.(*ForStmt).Cond)
-		EqualStmt(t, expected.Post, actual.(*ForStmt).Post)
-		EqualStmt(t, expected.Body, actual.(*ForStmt).Body)
-		require.Equal(t, expected.ForPos, actual.(*ForStmt).ForPos)
-	case *ForInStmt:
+			actual.(*node.IncDecStmt).TokenPos)
+	case *node.ForStmt:
+		EqualStmt(t, expected.Init, actual.(*node.ForStmt).Init)
+		EqualExpr(t, expected.Cond, actual.(*node.ForStmt).Cond)
+		EqualStmt(t, expected.Post, actual.(*node.ForStmt).Post)
+		EqualStmt(t, expected.Body, actual.(*node.ForStmt).Body)
+		require.Equal(t, expected.ForPos, actual.(*node.ForStmt).ForPos)
+	case *node.ForInStmt:
 		EqualExpr(t, expected.Key,
-			actual.(*ForInStmt).Key)
+			actual.(*node.ForInStmt).Key)
 		EqualExpr(t, expected.Value,
-			actual.(*ForInStmt).Value)
+			actual.(*node.ForInStmt).Value)
 		EqualExpr(t, expected.Iterable,
-			actual.(*ForInStmt).Iterable)
+			actual.(*node.ForInStmt).Iterable)
 		EqualStmt(t, expected.Body,
-			actual.(*ForInStmt).Body)
+			actual.(*node.ForInStmt).Body)
 		require.Equal(t, expected.ForPos,
-			actual.(*ForInStmt).ForPos)
+			actual.(*node.ForInStmt).ForPos)
 		EqualStmt(t, expected.Else,
-			actual.(*ForInStmt).Else)
-	case *ReturnStmt:
+			actual.(*node.ForInStmt).Else)
+	case *node.ReturnStmt:
 		EqualExpr(t, expected.Result,
-			actual.(*ReturnStmt).Result)
+			actual.(*node.ReturnStmt).Result)
 		require.Equal(t, expected.ReturnPos,
-			actual.(*ReturnStmt).ReturnPos)
-	case *BranchStmt:
+			actual.(*node.ReturnStmt).ReturnPos)
+	case *node.BranchStmt:
 		EqualExpr(t, expected.Label,
-			actual.(*BranchStmt).Label)
+			actual.(*node.BranchStmt).Label)
 		require.Equal(t, expected.Token,
-			actual.(*BranchStmt).Token)
+			actual.(*node.BranchStmt).Token)
 		require.Equal(t, expected.TokenPos,
-			actual.(*BranchStmt).TokenPos)
-	case *MixedTextStmt:
+			actual.(*node.BranchStmt).TokenPos)
+	case *node.MixedTextStmt:
 		require.Equal(t, expected.Lit.Value,
-			actual.(*MixedTextStmt).Lit.Value)
+			actual.(*node.MixedTextStmt).Lit.Value)
 		require.Equal(t, expected.Lit.Pos,
-			actual.(*MixedTextStmt).Lit.Pos)
+			actual.(*node.MixedTextStmt).Lit.Pos)
 		require.Equal(t, expected.Flags.String(),
-			actual.(*MixedTextStmt).Flags.String(), "Flags")
-	case *MixedValueStmt:
+			actual.(*node.MixedTextStmt).Flags.String(), "Flags")
+	case *node.MixedValueStmt:
 		require.Equal(t, expected.StartLit.Value,
-			actual.(*MixedValueStmt).StartLit.Value)
+			actual.(*node.MixedValueStmt).StartLit.Value)
 		require.Equal(t, expected.StartLit.Pos,
-			actual.(*MixedValueStmt).StartLit.Pos)
+			actual.(*node.MixedValueStmt).StartLit.Pos)
 		require.Equal(t, expected.EndLit.Value,
-			actual.(*MixedValueStmt).EndLit.Value)
+			actual.(*node.MixedValueStmt).EndLit.Value)
 		require.Equal(t, expected.EndLit.Pos,
-			actual.(*MixedValueStmt).EndLit.Pos)
+			actual.(*node.MixedValueStmt).EndLit.Pos)
 		EqualExpr(t, expected.Expr,
-			actual.(*MixedValueStmt).Expr)
-	case *ConfigStmt:
+			actual.(*node.MixedValueStmt).Expr)
+	case *node.ConfigStmt:
 		require.Equal(t, expected.ConfigPos,
-			actual.(*ConfigStmt).ConfigPos)
+			actual.(*node.ConfigStmt).ConfigPos)
 		require.Equal(t, expected.Options,
-			actual.(*ConfigStmt).Options)
+			actual.(*node.ConfigStmt).Options)
 		require.Equal(t, len(expected.Elements),
-			len(actual.(*ConfigStmt).Elements))
+			len(actual.(*node.ConfigStmt).Elements))
 		for i, e := range expected.Elements {
-			EqualExpr(t, e, actual.(*ConfigStmt).Elements[i])
+			EqualExpr(t, e, actual.(*node.ConfigStmt).Elements[i])
 		}
-	case *CodeBeginStmt:
+	case *node.CodeBeginStmt:
 		require.Equal(t, expected.RemoveSpace,
-			actual.(*CodeBeginStmt).RemoveSpace)
+			actual.(*node.CodeBeginStmt).RemoveSpace)
 		require.Equal(t, expected.Lit.Pos,
-			actual.(*CodeBeginStmt).Lit.Pos)
+			actual.(*node.CodeBeginStmt).Lit.Pos)
 		require.Equal(t, expected.Lit.Value,
-			actual.(*CodeBeginStmt).Lit.Value)
-	case *CodeEndStmt:
+			actual.(*node.CodeBeginStmt).Lit.Value)
+	case *node.CodeEndStmt:
 		require.Equal(t, expected.RemoveSpace,
-			actual.(*CodeEndStmt).RemoveSpace)
+			actual.(*node.CodeEndStmt).RemoveSpace)
 		require.Equal(t, expected.Lit.Pos,
-			actual.(*CodeEndStmt).Lit.Pos)
+			actual.(*node.CodeEndStmt).Lit.Pos)
 		require.Equal(t, expected.Lit.Value,
-			actual.(*CodeEndStmt).Lit.Value)
+			actual.(*node.CodeEndStmt).Lit.Value)
 	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}
 }
 
-func EqualExpr(t *testing.T, expected, actual Expr) {
+func EqualExpr(t *testing.T, expected, actual node.Expr) {
 	if expected == nil || reflect.ValueOf(expected).IsNil() {
 		require.Nil(t, actual, "expected nil, but got not nil")
 		return
@@ -304,103 +304,103 @@ func EqualExpr(t *testing.T, expected, actual Expr) {
 	require.IsType(t, expected, actual)
 
 	switch expected := expected.(type) {
-	case *Ident:
+	case *node.Ident:
 		require.Equal(t, expected.Name,
-			actual.(*Ident).Name)
+			actual.(*node.Ident).Name)
 		require.Equal(t, int(expected.NamePos),
-			int(actual.(*Ident).NamePos))
-	case *TypedIdent:
-		EqualExpr(t, expected.Ident, actual.(*TypedIdent).Ident)
-		EqualIdents(t, expected.Type, actual.(*TypedIdent).Type)
-	case *IntLit:
+			int(actual.(*node.Ident).NamePos))
+	case *node.TypedIdent:
+		EqualExpr(t, expected.Ident, actual.(*node.TypedIdent).Ident)
+		EqualIdents(t, expected.Type, actual.(*node.TypedIdent).Type)
+	case *node.IntLit:
 		require.Equal(t, expected.Value,
-			actual.(*IntLit).Value)
+			actual.(*node.IntLit).Value)
 		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*IntLit).ValuePos))
-	case *FloatLit:
+			int(actual.(*node.IntLit).ValuePos))
+	case *node.FloatLit:
 		require.Equal(t, expected.Value,
-			actual.(*FloatLit).Value)
+			actual.(*node.FloatLit).Value)
 		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*FloatLit).ValuePos))
-	case *DecimalLit:
-		require.True(t, expected.Value.Equal(actual.(*DecimalLit).Value))
+			int(actual.(*node.FloatLit).ValuePos))
+	case *node.DecimalLit:
+		require.True(t, expected.Value.Equal(actual.(*node.DecimalLit).Value))
 		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*DecimalLit).ValuePos))
-	case *BoolLit:
+			int(actual.(*node.DecimalLit).ValuePos))
+	case *node.BoolLit:
 		require.Equal(t, expected.Value,
-			actual.(*BoolLit).Value)
+			actual.(*node.BoolLit).Value)
 		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*BoolLit).ValuePos))
-	case *FlagLit:
+			int(actual.(*node.BoolLit).ValuePos))
+	case *node.FlagLit:
 		require.Equal(t, expected.Value,
-			actual.(*FlagLit).Value)
+			actual.(*node.FlagLit).Value)
 		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*FlagLit).ValuePos))
-	case *CharLit:
+			int(actual.(*node.FlagLit).ValuePos))
+	case *node.CharLit:
 		require.Equal(t, expected.Value,
-			actual.(*CharLit).Value)
+			actual.(*node.CharLit).Value)
 		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*CharLit).ValuePos))
-	case *StringLit:
+			int(actual.(*node.CharLit).ValuePos))
+	case *node.StringLit:
 		require.Equal(t, expected.Value,
-			actual.(*StringLit).Value)
+			actual.(*node.StringLit).Value)
 		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*StringLit).ValuePos))
-	case *RawStringLit:
+			int(actual.(*node.StringLit).ValuePos))
+	case *node.RawStringLit:
 		require.Equal(t, expected.UnquotedValue(),
-			actual.(*RawStringLit).UnquotedValue())
+			actual.(*node.RawStringLit).UnquotedValue())
 		require.Equal(t, int(expected.LiteralPos),
-			int(actual.(*RawStringLit).LiteralPos))
-	case *ArrayLit:
+			int(actual.(*node.RawStringLit).LiteralPos))
+	case *node.ArrayLit:
 		require.Equal(t, expected.LBrack,
-			actual.(*ArrayLit).LBrack)
+			actual.(*node.ArrayLit).LBrack)
 		require.Equal(t, expected.RBrack,
-			actual.(*ArrayLit).RBrack)
+			actual.(*node.ArrayLit).RBrack)
 		EqualExprs(t, expected.Elements,
-			actual.(*ArrayLit).Elements)
-	case *DictLit:
+			actual.(*node.ArrayLit).Elements)
+	case *node.DictLit:
 		require.Equal(t, expected.LBrace,
-			actual.(*DictLit).LBrace)
+			actual.(*node.DictLit).LBrace)
 		require.Equal(t, expected.RBrace,
-			actual.(*DictLit).RBrace)
+			actual.(*node.DictLit).RBrace)
 		EqualMapElements(t, expected.Elements,
-			actual.(*DictLit).Elements)
-	case *NilLit:
+			actual.(*node.DictLit).Elements)
+	case *node.NilLit:
 		require.Equal(t, expected.TokenPos,
-			actual.(*NilLit).TokenPos)
-	case *ReturnExpr:
+			actual.(*node.NilLit).TokenPos)
+	case *node.ReturnExpr:
 		require.Equal(t, expected.ReturnPos,
-			actual.(*ReturnExpr).ReturnPos)
+			actual.(*node.ReturnExpr).ReturnPos)
 		EqualExpr(t, expected.Result,
-			actual.(*ReturnExpr).Result)
-	case *NullishSelectorExpr:
+			actual.(*node.ReturnExpr).Result)
+	case *node.NullishSelectorExpr:
 		EqualExpr(t, expected.Expr,
-			actual.(*NullishSelectorExpr).Expr)
+			actual.(*node.NullishSelectorExpr).Expr)
 		EqualExpr(t, expected.Sel,
-			actual.(*NullishSelectorExpr).Sel)
-	case *BinaryExpr:
+			actual.(*node.NullishSelectorExpr).Sel)
+	case *node.BinaryExpr:
 		EqualExpr(t, expected.LHS,
-			actual.(*BinaryExpr).LHS)
+			actual.(*node.BinaryExpr).LHS)
 		EqualExpr(t, expected.RHS,
-			actual.(*BinaryExpr).RHS)
+			actual.(*node.BinaryExpr).RHS)
 		require.Equal(t, expected.Token,
-			actual.(*BinaryExpr).Token)
+			actual.(*node.BinaryExpr).Token)
 		require.Equal(t, expected.TokenPos,
-			actual.(*BinaryExpr).TokenPos)
-	case *UnaryExpr:
+			actual.(*node.BinaryExpr).TokenPos)
+	case *node.UnaryExpr:
 		EqualExpr(t, expected.Expr,
-			actual.(*UnaryExpr).Expr)
+			actual.(*node.UnaryExpr).Expr)
 		require.Equal(t, expected.Token,
-			actual.(*UnaryExpr).Token)
+			actual.(*node.UnaryExpr).Token)
 		require.Equal(t, expected.TokenPos,
-			actual.(*UnaryExpr).TokenPos)
-	case *FuncLit:
+			actual.(*node.UnaryExpr).TokenPos)
+	case *node.FuncLit:
 		EqualFuncType(t, expected.Type,
-			actual.(*FuncLit).Type)
+			actual.(*node.FuncLit).Type)
 		EqualStmt(t, expected.Body,
-			actual.(*FuncLit).Body)
-	case *CallExpr:
-		actual := actual.(*CallExpr)
+			actual.(*node.FuncLit).Body)
+	case *node.CallExpr:
+		actual := actual.(*node.CallExpr)
 		EqualExpr(t, expected.Func,
 			actual.Func)
 		require.Equal(t, expected.LParen,
@@ -444,97 +444,97 @@ func EqualExpr(t *testing.T, expected, actual Expr) {
 			actual.NamedArgs.Names)
 		EqualExprs(t, expected.NamedArgs.Values,
 			actual.NamedArgs.Values)
-	case *ParenExpr:
+	case *node.ParenExpr:
 		EqualExpr(t, expected.Expr,
-			actual.(*ParenExpr).Expr)
+			actual.(*node.ParenExpr).Expr)
 		require.Equal(t, expected.LParen,
-			actual.(*ParenExpr).LParen)
+			actual.(*node.ParenExpr).LParen)
 		require.Equal(t, expected.RParen,
-			actual.(*ParenExpr).RParen)
-	case *IndexExpr:
+			actual.(*node.ParenExpr).RParen)
+	case *node.IndexExpr:
 		EqualExpr(t, expected.Expr,
-			actual.(*IndexExpr).Expr)
+			actual.(*node.IndexExpr).Expr)
 		EqualExpr(t, expected.Index,
-			actual.(*IndexExpr).Index)
+			actual.(*node.IndexExpr).Index)
 		require.Equal(t, expected.LBrack,
-			actual.(*IndexExpr).LBrack)
+			actual.(*node.IndexExpr).LBrack)
 		require.Equal(t, expected.RBrack,
-			actual.(*IndexExpr).RBrack)
-	case *SliceExpr:
+			actual.(*node.IndexExpr).RBrack)
+	case *node.SliceExpr:
 		EqualExpr(t, expected.Expr,
-			actual.(*SliceExpr).Expr)
+			actual.(*node.SliceExpr).Expr)
 		EqualExpr(t, expected.Low,
-			actual.(*SliceExpr).Low)
+			actual.(*node.SliceExpr).Low)
 		EqualExpr(t, expected.High,
-			actual.(*SliceExpr).High)
+			actual.(*node.SliceExpr).High)
 		require.Equal(t, expected.LBrack,
-			actual.(*SliceExpr).LBrack)
+			actual.(*node.SliceExpr).LBrack)
 		require.Equal(t, expected.RBrack,
-			actual.(*SliceExpr).RBrack)
-	case *SelectorExpr:
+			actual.(*node.SliceExpr).RBrack)
+	case *node.SelectorExpr:
 		EqualExpr(t, expected.Expr,
-			actual.(*SelectorExpr).Expr)
+			actual.(*node.SelectorExpr).Expr)
 		EqualExpr(t, expected.Sel,
-			actual.(*SelectorExpr).Sel)
-	case *ImportExpr:
+			actual.(*node.SelectorExpr).Sel)
+	case *node.ImportExpr:
 		require.Equal(t, expected.ModuleName,
-			actual.(*ImportExpr).ModuleName)
+			actual.(*node.ImportExpr).ModuleName)
 		require.Equal(t, int(expected.TokenPos),
-			int(actual.(*ImportExpr).TokenPos))
+			int(actual.(*node.ImportExpr).TokenPos))
 		require.Equal(t, expected.Token,
-			actual.(*ImportExpr).Token)
-	case *CondExpr:
+			actual.(*node.ImportExpr).Token)
+	case *node.CondExpr:
 		EqualExpr(t, expected.Cond,
-			actual.(*CondExpr).Cond)
+			actual.(*node.CondExpr).Cond)
 		EqualExpr(t, expected.True,
-			actual.(*CondExpr).True)
+			actual.(*node.CondExpr).True)
 		EqualExpr(t, expected.False,
-			actual.(*CondExpr).False)
+			actual.(*node.CondExpr).False)
 		require.Equal(t, expected.QuestionPos,
-			actual.(*CondExpr).QuestionPos)
+			actual.(*node.CondExpr).QuestionPos)
 		require.Equal(t, expected.ColonPos,
-			actual.(*CondExpr).ColonPos)
-	case *CalleeKeyword:
+			actual.(*node.CondExpr).ColonPos)
+	case *node.CalleeKeyword:
 		require.Equal(t, expected.Literal,
-			actual.(*CalleeKeyword).Literal)
+			actual.(*node.CalleeKeyword).Literal)
 		require.Equal(t, expected.TokenPos,
-			actual.(*CalleeKeyword).TokenPos)
-	case *ArgsKeyword:
+			actual.(*node.CalleeKeyword).TokenPos)
+	case *node.ArgsKeyword:
 		require.Equal(t, expected.Literal,
-			actual.(*ArgsKeyword).Literal)
+			actual.(*node.ArgsKeyword).Literal)
 		require.Equal(t, expected.TokenPos,
-			actual.(*ArgsKeyword).TokenPos)
-	case *NamedArgsKeyword:
+			actual.(*node.ArgsKeyword).TokenPos)
+	case *node.NamedArgsKeyword:
 		require.Equal(t, expected.Literal,
-			actual.(*NamedArgsKeyword).Literal)
+			actual.(*node.NamedArgsKeyword).Literal)
 		require.Equal(t, expected.TokenPos,
-			actual.(*NamedArgsKeyword).TokenPos)
-	case *ClosureLit:
+			actual.(*node.NamedArgsKeyword).TokenPos)
+	case *node.ClosureLit:
 		EqualFuncType(t, expected.Type,
-			actual.(*ClosureLit).Type)
+			actual.(*node.ClosureLit).Type)
 		EqualExpr(t, expected.Body,
-			actual.(*ClosureLit).Body)
-	case *BlockExpr:
+			actual.(*node.ClosureLit).Body)
+	case *node.BlockExpr:
 		EqualStmt(t, expected.BlockStmt,
-			actual.(*BlockExpr).BlockStmt)
-	case *KeyValueLit:
+			actual.(*node.BlockExpr).BlockStmt)
+	case *node.KeyValueLit:
 		EqualExpr(t, expected.Key,
-			actual.(*KeyValueLit).Key)
+			actual.(*node.KeyValueLit).Key)
 		EqualExpr(t, expected.Value,
-			actual.(*KeyValueLit).Value)
+			actual.(*node.KeyValueLit).Value)
 	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}
 }
 
-func EqualFuncType(t *testing.T, expected, actual *FuncType) {
+func EqualFuncType(t *testing.T, expected, actual *node.FuncType) {
 	require.Equal(t, expected.Params.LParen, actual.Params.LParen)
 	require.Equal(t, expected.Params.RParen, actual.Params.RParen)
 	EqualTypedIdents(t, expected.Params.Args.Values, actual.Params.Args.Values)
 	EqualNamedArgs(t, &expected.Params.NamedArgs, &actual.Params.NamedArgs)
 }
 
-func EqualNamedArgs(t *testing.T, expected, actual *NamedArgsList) {
+func EqualNamedArgs(t *testing.T, expected, actual *node.NamedArgsList) {
 	if expected == nil && actual == nil {
 		return
 	}
@@ -546,7 +546,7 @@ func EqualNamedArgs(t *testing.T, expected, actual *NamedArgsList) {
 	EqualExprs(t, expected.Values, actual.Values)
 }
 
-func EqualNamedArgsNames(t *testing.T, expected, actual []NamedArgExpr) {
+func EqualNamedArgsNames(t *testing.T, expected, actual []node.NamedArgExpr) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
 		EqualExpr(t, expected[i].Ident, actual[i].Ident)
@@ -554,28 +554,28 @@ func EqualNamedArgsNames(t *testing.T, expected, actual []NamedArgExpr) {
 	}
 }
 
-func EqualIdents(t *testing.T, expected, actual []*Ident) {
+func EqualIdents(t *testing.T, expected, actual []*node.Ident) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
 		EqualExpr(t, expected[i], actual[i])
 	}
 }
 
-func EqualTypedIdents(t *testing.T, expected, actual []*TypedIdent) {
+func EqualTypedIdents(t *testing.T, expected, actual []*node.TypedIdent) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
 		EqualExpr(t, expected[i], actual[i])
 	}
 }
 
-func EqualExprs(t *testing.T, expected, actual []Expr) {
+func EqualExprs(t *testing.T, expected, actual []node.Expr) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
 		EqualExpr(t, expected[i], actual[i])
 	}
 }
 
-func EqualStmts(t *testing.T, expected, actual []Stmt) {
+func EqualStmts(t *testing.T, expected, actual []node.Stmt) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
 		EqualStmt(t, expected[i], actual[i])
@@ -584,7 +584,7 @@ func EqualStmts(t *testing.T, expected, actual []Stmt) {
 
 func EqualMapElements(
 	t *testing.T,
-	expected, actual []*DictElementLit,
+	expected, actual []*node.DictElementLit,
 ) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
