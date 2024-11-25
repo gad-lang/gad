@@ -1456,24 +1456,6 @@ func (s *Scanner) ScanRawString() (string, bool) {
 	return string(s.Src[offs:s.Offset]), false
 }
 
-// StripCR removes carriage return characters.
-func StripCR(b []byte, comment bool) []byte {
-	c := make([]byte, len(b))
-	i := 0
-	for j, ch := range b {
-		// In a /*-style comment, don't strip \r from *\r/ (incl. sequences of
-		// \r from *\r\r...\r/) since the resulting  */ would terminate the
-		// comment too early unless the \r is immediately following the opening
-		// /* in which case it's ok because /*/ is not closed yet.
-		if ch != '\r' || comment && i > len("/*") && c[i-1] == '*' &&
-			j+1 < len(b) && b[j+1] == '/' {
-			c[i] = ch
-			i++
-		}
-	}
-	return c[:i]
-}
-
 func (s *Scanner) Switch2(tok0, tok1 token.Token) token.Token {
 	if s.Ch == '=' {
 		s.Next()
