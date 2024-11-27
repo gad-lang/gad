@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -61,79 +60,10 @@ var stmtStart = map[token.Token]bool{
 	token.Throw:    true,
 }
 
-// Error represents a parser error.
-type Error struct {
-	Pos source.SourceFilePos
-	Msg string
-}
-
-func (e Error) Error() string {
-	if e.Pos.Filename != "" || e.Pos.IsValid() {
-		return fmt.Sprintf("Parse Error: %s\n\tat %s", e.Msg, e.Pos)
-	}
-	return fmt.Sprintf("Parse Error: %s", e.Msg)
-}
-
-// ErrorList is a collection of parser errors.
-type ErrorList []*Error
-
-// Add adds a new parser error to the collection.
-func (p *ErrorList) Add(pos source.SourceFilePos, msg string) {
-	*p = append(*p, &Error{pos, msg})
-}
-
-// Len returns the number of elements in the collection.
-func (p ErrorList) Len() int {
-	return len(p)
-}
-
-func (p ErrorList) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i]
-}
-
-func (p ErrorList) Less(i, j int) bool {
-	e := &p[i].Pos
-	f := &p[j].Pos
-
-	if e.Filename != f.Filename {
-		return e.Filename < f.Filename
-	}
-	if e.Line != f.Line {
-		return e.Line < f.Line
-	}
-	if e.Column != f.Column {
-		return e.Column < f.Column
-	}
-	return p[i].Msg < p[j].Msg
-}
-
-// Sort sorts the collection.
-func (p ErrorList) Sort() {
-	sort.Sort(p)
-}
-
-func (p ErrorList) Error() string {
-	switch len(p) {
-	case 0:
-		return "no errors"
-	case 1:
-		return p[0].Error()
-	}
-	return fmt.Sprintf("%s (and %d more errors)", p[0], len(p)-1)
-}
-
-// Err returns an error.
-func (p ErrorList) Err() error {
-	if len(p) == 0 {
-		return nil
-	}
-	return p
-}
-
 // Parser parses the Tengo source files. It's based on ToInterface's parser
 // implementation.
 type Parser struct {
-	File             *source.SourceFile
+	File             *source.File
 	Errors           ErrorList
 	Scanner          ScannerInterface
 	Token            Token
@@ -155,8 +85,8 @@ type Parser struct {
 }
 
 // NewParser creates a Parser.
-func NewParser(file *source.SourceFile, src []byte, trace io.Writer) *Parser {
-	return NewParserWithOptions(file, src, &ParserOptions{Trace: trace}, nil)
+func NewParser(file *source.File, trace io.Writer) *Parser {
+	return NewParserWithOptions(file, &ParserOptions{Trace: trace}, nil)
 }
 
 type ParserOptions struct {
@@ -166,11 +96,14 @@ type ParserOptions struct {
 
 // NewParserWithOptions creates a Parser with parser mode flags.
 func NewParserWithOptions(
-	file *source.SourceFile,
-	src []byte,
+	file *source.File,
 	opts *ParserOptions,
 	scannerOptions *ScannerOptions,
 ) *Parser {
+	if opts == nil {
+		opts = &ParserOptions{}
+	}
+
 	if scannerOptions == nil {
 		scannerOptions = &ScannerOptions{}
 	}
@@ -188,7 +121,7 @@ func NewParserWithOptions(
 			scannerOptions.Mode.Set(MixedExprAsValue)
 		}
 	}
-	return NewParserWithScanner(NewScanner(file, src, scannerOptions), opts)
+	return NewParserWithScanner(NewScanner(file, scannerOptions), opts)
 }
 
 // NewParserWithScanner creates a Parser with parser mode flags.
@@ -227,7 +160,7 @@ func ParseFile(pth string, opts *ParserOptions, scannerOpts *ScannerOptions) (fi
 	var (
 		fileSet = source.NewFileSet()
 		script  []byte
-		srcFile *source.SourceFile
+		srcFile *source.File
 		f       *os.File
 	)
 
@@ -241,9 +174,9 @@ func ParseFile(pth string, opts *ParserOptions, scannerOpts *ScannerOptions) (fi
 		return
 	}
 
-	srcFile = fileSet.AddFile(pth, -1, len(script))
+	srcFile = fileSet.AddFileData(pth, -1, script)
 
-	p := NewParserWithOptions(srcFile, script, opts, scannerOpts)
+	p := NewParserWithOptions(srcFile, opts, scannerOpts)
 	return p.ParseFile()
 }
 
@@ -2619,7 +2552,6 @@ func (p *Parser) advance(to map[token.Token]bool) {
 
 func (p *Parser) Error(pos source.Pos, msg string) {
 	filePos := p.File.Position(pos)
-
 	n := len(p.Errors)
 	if n > 0 && p.Errors[n-1].Pos.Line == filePos.Line {
 		// discard errors reported on the same line

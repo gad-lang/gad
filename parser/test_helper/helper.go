@@ -45,7 +45,7 @@ func (o *parseTracer) Write(p []byte) (n int, err error) {
 
 type Option func(po *parser.ParserOptions, so *parser.ScannerOptions)
 
-func Parse(t *testing.T, input string, do func(f *source.SourceFile, actual *parser.File, err error), opt ...Option) {
+func Parse(t *testing.T, input string, do func(f *source.File, actual *parser.File, err error), opt ...Option) {
 	testFileSet := source.NewFileSet()
 	testFile := testFileSet.AddFile("test", -1, len(input))
 
@@ -84,7 +84,7 @@ func Parse(t *testing.T, input string, do func(f *source.SourceFile, actual *par
 }
 
 func ExpectParse(t *testing.T, input string, fn ExpectedFn, opt ...Option) {
-	Parse(t, input, func(f *source.SourceFile, actual *parser.File, err error) {
+	Parse(t, input, func(f *source.File, actual *parser.File, err error) {
 		require.NoError(t, err)
 
 		expected := fn(func(line, column int) source.Pos {
@@ -99,14 +99,14 @@ func ExpectParse(t *testing.T, input string, fn ExpectedFn, opt ...Option) {
 }
 
 func ExpectParseString(t *testing.T, input, expected string, opt ...Option) {
-	Parse(t, input, func(f *source.SourceFile, actual *parser.File, err error) {
+	Parse(t, input, func(f *source.File, actual *parser.File, err error) {
 		require.NoError(t, err)
 		require.Equal(t, expected, actual.String())
 	}, opt...)
 }
 
 func ExpectParseError(t *testing.T, input string, opt ...Option) {
-	Parse(t, input, func(f *source.SourceFile, actual *parser.File, err error) {
+	Parse(t, input, func(f *source.File, actual *parser.File, err error) {
 		require.Error(t, err)
 	}, opt...)
 }

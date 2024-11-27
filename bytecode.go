@@ -92,7 +92,7 @@ type CompiledFunction struct {
 	// NamedParamsMap is a map of NamedParams with index
 	// this value allow to perform named args validation.
 	NamedParamsMap map[string]int
-	sourceFile     *source.SourceFile
+	sourceFile     *source.File
 	module         *ModuleInfo
 }
 

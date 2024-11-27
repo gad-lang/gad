@@ -491,13 +491,12 @@ func (tr *tester) scanExpect(
 	expected ...scanResult,
 ) {
 	t.Helper()
-	testFile := testFileSet.AddFile("test", -1, len(input))
+	testFile := testFileSet.AddFileData("test", -1, []byte(input))
 	opts := tr.opts
 	opts.Mode |= mode
 
 	s := parser.NewScanner(
 		testFile,
-		[]byte(input),
 		&opts)
 	s.ErrorHandler(func(_ source.SourceFilePos, msg string) { require.Fail(t, msg) })
 

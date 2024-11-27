@@ -7,15 +7,22 @@ import (
 
 // SourceFilePos represents a position information in the file.
 type SourceFilePos struct {
-	Filename string // filename, if any
-	Offset   int    // offset, starting at 0
-	Line     int    // line number, starting at 1
-	Column   int    // column number, starting at 1 (byte count)
+	File   *File // filename, if any
+	Offset int   // offset, starting at 0
+	Line   int   // line number, starting at 1
+	Column int   // column number, starting at 1 (byte count)
 }
 
 // IsValid returns true if the position is valid.
 func (p SourceFilePos) IsValid() bool {
 	return p.Line > 0
+}
+
+func (p SourceFilePos) FileName() string {
+	if p.File != nil {
+		return p.File.Name
+	}
+	return ""
 }
 
 // String returns a string in one of several forms:
@@ -27,7 +34,8 @@ func (p SourceFilePos) IsValid() bool {
 //	file                invalid position with file name
 //	-                   invalid position without file name
 func (p SourceFilePos) String() string {
-	s := p.Filename
+	s := p.FileName()
+
 	if p.IsValid() {
 		if s != "" {
 			s += ":"
@@ -45,9 +53,9 @@ func (p SourceFilePos) String() string {
 
 // SourceFileSet represents a set of source files.
 type SourceFileSet struct {
-	Base     int           // base offset for the next file
-	Files    []*SourceFile // list of files in the order added to the set
-	LastFile *SourceFile   // cache of last file looked up
+	Base     int     // base offset for the next file
+	Files    []*File // list of files in the order added to the set
+	LastFile *File   // cache of last file looked up
 }
 
 // NewFileSet creates a new file set.
@@ -57,8 +65,15 @@ func NewFileSet() *SourceFileSet {
 	}
 }
 
+// AddFileData adds a new file in the file set with data.
+func (s *SourceFileSet) AddFileData(filename string, base int, data []byte) *File {
+	f := s.AddFile(filename, base, len(data))
+	f.Data = data
+	return f
+}
+
 // AddFile adds a new file in the file set.
-func (s *SourceFileSet) AddFile(filename string, base, size int) *SourceFile {
+func (s *SourceFileSet) AddFile(filename string, base, size int) *File {
 	if base < 0 {
 		base = s.Base
 	}
@@ -66,7 +81,7 @@ func (s *SourceFileSet) AddFile(filename string, base, size int) *SourceFile {
 		panic("illegal base or size")
 	}
 
-	f := &SourceFile{
+	f := &File{
 		set:   s,
 		Name:  filename,
 		Base:  base,
@@ -88,7 +103,7 @@ func (s *SourceFileSet) AddFile(filename string, base, size int) *SourceFile {
 
 // File returns the file that contains the position p. If no such file is
 // found (for instance for p == NoPos), the result is nil.
-func (s *SourceFileSet) File(p Pos) (f *SourceFile) {
+func (s *SourceFileSet) File(p Pos) (f *File) {
 	if p != NoPos {
 		f = s.file(p)
 	}
@@ -105,7 +120,7 @@ func (s *SourceFileSet) Position(p Pos) (pos SourceFilePos) {
 	return
 }
 
-func (s *SourceFileSet) file(p Pos) *SourceFile {
+func (s *SourceFileSet) file(p Pos) *File {
 	// common case: p is in last file
 	f := s.LastFile
 	if f != nil && f.Base <= int(p) && int(p) <= f.Base+f.Size {
@@ -125,39 +140,41 @@ func (s *SourceFileSet) file(p Pos) *SourceFile {
 	return nil
 }
 
-func searchFiles(a []*SourceFile, x int) int {
+func searchFiles(a []*File, x int) int {
 	return sort.Search(len(a), func(i int) bool { return a[i].Base > x }) - 1
 }
 
-// SourceFile represents a source file.
-type SourceFile struct {
-	// SourceFile set for the file
+// File represents a source file.
+type File struct {
+	// File set for the file
 	set *SourceFileSet
-	// SourceFile name as provided to AddFile
+	// File name as provided to AddFile
 	Name string
 	// SourcePos value range for this file is [base...base+size]
 	Base int
-	// SourceFile size as provided to AddFile
+	// File size as provided to AddFile
 	Size int
 	// Lines contains the offset of the first character for each line
 	// (the first entry is always 0)
 	Lines []int
 	// Index is a index of `set`
 	Index int
+	// Data is data
+	Data []byte
 }
 
 // Set returns SourceFileSet.
-func (f *SourceFile) Set() *SourceFileSet {
+func (f *File) Set() *SourceFileSet {
 	return f.set
 }
 
 // LineCount returns the current number of lines.
-func (f *SourceFile) LineCount() int {
+func (f *File) LineCount() int {
 	return len(f.Lines)
 }
 
 // AddLine adds a new line.
-func (f *SourceFile) AddLine(offset int) {
+func (f *File) AddLine(offset int) {
 	if offset >= f.Size {
 		return
 	}
@@ -180,8 +197,16 @@ func (f *SourceFile) AddLine(offset int) {
 	}
 }
 
+// MustLineStart returns the position of the first character in the line if line is valid, other else -1.
+func (f *File) MustLineStart(line int) Pos {
+	if line < 1 || line > len(f.Lines) {
+		return -1
+	}
+	return Pos(f.Base + f.Lines[line-1])
+}
+
 // LineStart returns the position of the first character in the line.
-func (f *SourceFile) LineStart(line int) Pos {
+func (f *File) LineStart(line int) Pos {
 	if line < 1 {
 		panic("illegal line number (line numbering starts at 1)")
 	}
@@ -192,7 +217,7 @@ func (f *SourceFile) LineStart(line int) Pos {
 }
 
 // FileSetPos returns the position in the file set.
-func (f *SourceFile) FileSetPos(offset int) Pos {
+func (f *File) FileSetPos(offset int) Pos {
 	if offset > f.Size {
 		panic("illegal file offset")
 	}
@@ -200,7 +225,7 @@ func (f *SourceFile) FileSetPos(offset int) Pos {
 }
 
 // Offset translates the file set position into the file offset.
-func (f *SourceFile) Offset(p Pos) int {
+func (f *File) Offset(p Pos) int {
 	if int(p) < f.Base || int(p) > f.Base+f.Size {
 		panic("illegal SourcePos value")
 	}
@@ -208,12 +233,12 @@ func (f *SourceFile) Offset(p Pos) int {
 }
 
 // Line returns the line of given position.
-func (f *SourceFile) Line(p Pos) int {
+func (f *File) Line(p Pos) int {
 	return f.Position(p).Line
 }
 
 // Position translates the file set position into the file position.
-func (f *SourceFile) Position(p Pos) (pos SourceFilePos) {
+func (f *File) Position(p Pos) (pos SourceFilePos) {
 	if p != NoPos {
 		if int(p) < f.Base || int(p) > f.Base+f.Size {
 			panic("illegal SourcePos value")
@@ -223,14 +248,15 @@ func (f *SourceFile) Position(p Pos) (pos SourceFilePos) {
 	return
 }
 
-func (f *SourceFile) SafePosition(p Pos) (pos SourceFilePos) {
+func (f *File) SafePosition(p Pos) (pos SourceFilePos) {
 	offset := int(p) - f.Base
 	pos.Offset = offset
-	pos.Filename, pos.Line, pos.Column = f.Unpack(offset)
+	pos.File = f
+	_, pos.Line, pos.Column = f.Unpack(offset)
 	return
 }
 
-func (f *SourceFile) Unpack(offset int) (filename string, line, column int) {
+func (f *File) Unpack(offset int) (filename string, line, column int) {
 	filename = f.Name
 	if i := searchInts(f.Lines, offset); i >= 0 {
 		line, column = i+1, offset-f.Lines[i]+1
@@ -238,7 +264,7 @@ func (f *SourceFile) Unpack(offset int) (filename string, line, column int) {
 	return
 }
 
-func (f *SourceFile) LineIndexOf(p Pos) int {
+func (f *File) LineIndexOf(p Pos) int {
 	l := len(f.Lines)
 	for i := l; i > 0; i-- {
 		p2 := f.Lines[i-1]
@@ -249,7 +275,7 @@ func (f *SourceFile) LineIndexOf(p Pos) int {
 	return 0
 }
 
-func (f *SourceFile) LinePos(p Pos) Pos {
+func (f *File) LinePos(p Pos) Pos {
 	l := len(f.Lines)
 	for i := l; i > 0; i-- {
 		p2 := f.Lines[i-1]
@@ -264,7 +290,7 @@ func (f *SourceFile) LinePos(p Pos) Pos {
 	return p
 }
 
-func (f *SourceFile) NextLinePos(p Pos) Pos {
+func (f *File) NextLinePos(p Pos) Pos {
 	l := len(f.Lines)
 	for i := l; i > 0; i-- {
 		p2 := f.Lines[i-1]
@@ -281,6 +307,67 @@ func (f *SourceFile) NextLinePos(p Pos) Pos {
 		}
 	}
 	return p
+}
+
+// LineData return line data
+func (f *File) LineData(line int) (d []byte, valid bool) {
+	start, end := f.MustLineStart(line), f.MustLineStart(line+1)
+	if start < 1 {
+		return nil, false
+	}
+	valid = true
+	if end > 0 {
+		end--
+		d = f.Data[start-1 : end-1]
+	} else {
+		d = f.Data[start-1:]
+	}
+	return
+}
+
+// LineSliceData return slice data of lines
+func (f *File) LineSliceData(lineStart, count int) (s []*LineData) {
+	for i := 0; i < count; i++ {
+		if d, ok := f.LineData(lineStart + i); ok {
+			s = append(s, &LineData{
+				Line: lineStart + i,
+				Data: d,
+			})
+		}
+	}
+	return
+}
+
+// LineSliceDataUpDown returns data of line and slices of up and down lines
+func (f *File) LineSliceDataUpDown(line, upCount, downCount int) (up, down []*LineData, s []byte) {
+	var ok bool
+	if s, ok = f.LineData(line); !ok {
+		return
+	}
+
+	if line > 1 {
+		firstLine := line - upCount
+		if firstLine < 1 {
+			firstLine = 1
+		}
+
+		up = f.LineSliceData(firstLine, line-firstLine)
+	}
+
+	if lastLine := len(f.Lines); line < lastLine {
+		endLine := line + downCount
+		if endLine > lastLine {
+			endLine = lastLine
+		}
+		down = f.LineSliceData(line+1, endLine-line)
+	}
+
+	return
+}
+
+type LineData struct {
+	Line int
+	Data []byte
 }
 
 func searchInts(a []int, x int) int {

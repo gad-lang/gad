@@ -47,7 +47,7 @@ type (
 	Bool             gad.Bool
 	Flag             gad.Flag
 	SourceFileSet    source.SourceFileSet
-	SourceFile       source.SourceFile
+	SourceFile       source.File
 	Symbol           gad.SymbolInfo
 )
 

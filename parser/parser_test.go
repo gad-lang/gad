@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -34,8 +35,8 @@ var update = flag.Bool("update", false, "update golden files")
 func TestParserTrace(t *testing.T) {
 	parse := func(input string, tracer io.Writer) {
 		testFileSet := NewFileSet()
-		testFile := testFileSet.AddFile("test", -1, len(input))
-		p := NewParser(testFile, []byte(input), tracer)
+		testFile := testFileSet.AddFileData("test", -1, []byte(input))
+		p := NewParser(testFile, tracer)
 		_, err := p.ParseFile()
 		require.NoError(t, err)
 	}
@@ -255,6 +256,18 @@ a
 }
 
 func TestParserError(t *testing.T) {
+	expectParseError(t, "var x;\n\nvar y;\nparam a,b\nvar z\nz2\nz3\nz4",
+		[2]string{"%v", "Parse Error: expected statement, found ','\n\tat test:4:8"},
+		[2]string{"%+v", "Parse Error: expected statement, found ','\n\tat test:4:8\n\n\t4| param a,b\n\t          ^"},
+		[2]string{"%+3.4v", "Parse Error: expected statement, found ','\n\tat test:4:8\n\n\t1| var x;\n\t2| \n\t3| " +
+			"var y;\n\t4| param a,b\n\t          ^\n\t5| var z\n\t6| z2\n\t7| z3\n\t8| z4"},
+	)
+
+	expectParseError(t, `param a,b`,
+		[2]string{"%v", "Parse Error: expected statement, found ','\n\tat test:1:8"},
+		[2]string{"%+v", "Parse Error: expected statement, found ','\n\tat test:1:8\n\n\t1| param a,b\n\t          ^"},
+	)
+
 	expectParseString(t, `a := throw "my error"`, `a := throw "my error"`)
 
 	err := &Error{Pos: SourceFilePos{
@@ -3053,7 +3066,7 @@ func expectParse(t *testing.T, input string, fn expectedFn, opt ...opts) {
 
 func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn, opt ...opts) {
 	testFileSet := NewFileSet()
-	testFile := testFileSet.AddFile("test", -1, len(input))
+	testFile := testFileSet.AddFileData("test", -1, []byte(input))
 
 	var (
 		ok      bool
@@ -3076,7 +3089,7 @@ func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn, opt .
 			tr := &parseTracer{}
 			po, so := options()
 			po.Trace = tr
-			p := NewParserWithOptions(testFile, []byte(input), po, so)
+			p := NewParserWithOptions(testFile, po, so)
 			actual, _ := p.ParseFile()
 			if actual != nil {
 				t.Logf("Parsed:\n%s", actual.String())
@@ -3087,7 +3100,7 @@ func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn, opt .
 
 	po, so := options()
 
-	p := NewParserWithOptions(testFile, []byte(input), po, so)
+	p := NewParserWithOptions(testFile, po, so)
 	actual, err := p.ParseFile()
 	require.NoError(t, err)
 
@@ -3103,24 +3116,35 @@ func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn, opt .
 	ok = true
 }
 
-func expectParseError(t *testing.T, input string) {
-	testFileSet := NewFileSet()
-	testFile := testFileSet.AddFile("test", -1, len(input))
+func expectParseError(t *testing.T, input string, e ...[2]string) {
+	var (
+		binput      = []byte(input)
+		testFileSet = NewFileSet()
+		testFile    = testFileSet.AddFileData("test", -1, binput)
+	)
 
 	var ok bool
 	defer func() {
 		if !ok {
 			// print Trace
 			tr := &parseTracer{}
-			p := NewParser(testFile, []byte(input), tr)
+			p := NewParser(testFile, tr)
 			_, _ = p.ParseFile()
 			t.Logf("Trace:\n%s", strings.Join(tr.out, ""))
 		}
 	}()
 
-	p := NewParser(testFile, []byte(input), nil)
+	p := NewParser(testFile, nil)
 	_, err := p.ParseFile()
 	require.Error(t, err)
+
+	if len(e) > 0 {
+		for i, ev := range e {
+			s := fmt.Sprintf(ev[0], err)
+			require.Equal(t, ev[1], s, "formatted error "+strconv.Itoa(i))
+		}
+	}
+
 	ok = true
 }
 
@@ -4067,9 +4091,9 @@ func parseSource(
 	mode Mode,
 ) (res *File, err error) {
 	fileSet := NewFileSet()
-	file := fileSet.AddFile(filename, -1, len(src))
+	file := fileSet.AddFileData(filename, -1, src)
 
-	p := NewParserWithOptions(file, src, &ParserOptions{Trace: trace, Mode: mode}, &ScannerOptions{
+	p := NewParserWithOptions(file, &ParserOptions{Trace: trace, Mode: mode}, &ScannerOptions{
 		MixedDelimiter: mixedDelimiter,
 	})
 	return p.ParseFile()

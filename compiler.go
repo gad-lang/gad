@@ -19,7 +19,7 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
-const MainName = "(main)"
+const MainName = parser.MainName
 
 var (
 	// DefaultCompilerOptions holds default Compiler options.
@@ -53,7 +53,7 @@ type (
 	// Compiler compiles the AST into a bytecode.
 	Compiler struct {
 		parent         *Compiler
-		file           *source.SourceFile
+		file           *source.File
 		constants      []Object
 		constsCache    map[Object]int
 		cfuncCache     map[uint32][]int
@@ -139,7 +139,7 @@ func (e *CompilerError) Unwrap() error {
 }
 
 // NewCompiler creates a new Compiler object.
-func NewCompiler(file *source.SourceFile, opts CompilerOptions) *Compiler {
+func NewCompiler(file *source.File, opts CompilerOptions) *Compiler {
 	if opts.SymbolTable == nil {
 		opts.SymbolTable = NewSymbolTable(NewBuiltins())
 	}
@@ -818,7 +818,7 @@ func (c *Compiler) currentLoop() *loopStmts {
 }
 
 func (c *Compiler) fork(
-	file *source.SourceFile,
+	file *source.File,
 	module *ModuleInfo,
 	moduleMap *ModuleMap,
 	symbolTable *SymbolTable,

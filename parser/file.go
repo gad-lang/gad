@@ -25,7 +25,7 @@ import (
 
 // File represents a file unit.
 type File struct {
-	InputFile *source.SourceFile
+	InputFile *source.File
 	Stmts     []node.Stmt
 	Comments  []*ast.CommentGroup
 }

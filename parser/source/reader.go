@@ -15,7 +15,7 @@ const BOM = 0xFEFF
 
 type Reader struct {
 	Data               any
-	File               *SourceFile
+	File               *File
 	Ch                 rune // current character
 	Offset             int  // character offset
 	ReadOffset         int  // reading offset (position after current character)
@@ -42,12 +42,8 @@ func FileReaderWithData(data any) FileReaderOption {
 	}
 }
 
-func NewFileReader(file *SourceFile, src []byte, option ...FileReaderOption) (fr *Reader) {
-	if file.Size != len(src) {
-		panic(fmt.Sprintf("file size (%d) does not match Src len (%d)",
-			file.Size, len(src)))
-	}
-
+func NewFileReader(file *File, option ...FileReaderOption) (fr *Reader) {
+	src := file.Data
 	last := len(src) - 1
 	if pos := bytes.IndexByte(src, '\r'); pos >= 0 {
 		// if line sep is only CR, replaces to EOL
@@ -89,7 +85,7 @@ func (s *Reader) Start() {
 func (s *Reader) ErrorHandler(h ...ScannerErrorHandler) {
 	s.errorHandler = append(s.errorHandler, h...)
 }
-func (s *Reader) SourceFile() *SourceFile {
+func (s *Reader) SourceFile() *File {
 	return s.File
 }
 

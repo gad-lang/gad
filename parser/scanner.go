@@ -15,7 +15,6 @@
 package parser
 
 import (
-	"bytes"
 	"fmt"
 	"reflect"
 
@@ -69,7 +68,7 @@ type ScannerInterface interface {
 	Scan() (t Token)
 	Mode() ScanMode
 	SetMode(m ScanMode)
-	SourceFile() *source.SourceFile
+	SourceFile() *source.File
 	Source() []byte
 	ErrorHandler(h ...source.ScannerErrorHandler)
 	GetMixedDelimiter() *MixedDelimiter
@@ -169,33 +168,15 @@ type Scanner struct {
 
 // NewScanner creates a Scanner.
 func NewScanner(
-	file *source.SourceFile,
-	src []byte,
+	file *source.File,
 	opts *ScannerOptions,
 ) *Scanner {
-	if file.Size != len(src) {
-		panic(fmt.Sprintf("file size (%d) does not match Src len (%d)",
-			file.Size, len(src)))
-	}
-
 	if opts == nil {
 		opts = &ScannerOptions{}
 	}
 
 	if opts.MixedDelimiter.IsZero() {
 		opts.MixedDelimiter = DefaultMixedDelimiter
-	}
-
-	last := len(src) - 1
-	if pos := bytes.IndexByte(src, '\r'); pos >= 0 {
-		// if line sep is only CR, replaces to EOL
-		if pos < last && src[pos] != '\n' {
-			for i, b := range src {
-				if b == '\r' && i < last && src[i+1] != '\n' {
-					src[i] = '\n'
-				}
-			}
-		}
 	}
 
 	s := &Scanner{
@@ -205,7 +186,6 @@ func NewScanner(
 
 	s.Reader = *source.NewFileReader(
 		file,
-		src,
 		source.FileReaderWithData(s),
 		source.FileReaderWithSkipWhitespaceFunc(func(fr *source.Reader) {
 			fr.Data.(*Scanner).skipWithSpace()

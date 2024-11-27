@@ -625,7 +625,7 @@ func (sfs *SourceFileSet) UnmarshalBinary(data []byte) error {
 	}
 
 	length := int(v)
-	files := make([]*source.SourceFile, length)
+	files := make([]*source.File, length)
 
 	for i := 0; i < length; i++ {
 		v, err = vi.read()
@@ -640,7 +640,7 @@ func (sfs *SourceFileSet) UnmarshalBinary(data []byte) error {
 		if err = file.UnmarshalBinary(data); err != nil {
 			return err
 		}
-		files[i] = (*source.SourceFile)(&file)
+		files[i] = (*source.File)(&file)
 	}
 
 	if rd.Len() > 0 {
