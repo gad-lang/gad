@@ -11,13 +11,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/source"
 )
 
 // Bytecode holds the compiled functions and constants.
 type Bytecode struct {
-	FileSet    *parser.SourceFileSet
+	FileSet    *source.SourceFileSet
 	Main       *CompiledFunction
 	Constants  []Object
 	NumModules int
@@ -93,7 +92,7 @@ type CompiledFunction struct {
 	// NamedParamsMap is a map of NamedParams with index
 	// this value allow to perform named args validation.
 	NamedParamsMap map[string]int
-	sourceFile     *parser.SourceFile
+	sourceFile     *source.SourceFile
 	module         *ModuleInfo
 }
 

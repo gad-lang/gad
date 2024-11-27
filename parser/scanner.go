@@ -18,18 +18,12 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
-	"strconv"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/parser/utils"
 	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/token"
 )
-
-// BOM byte order mark
-const BOM = 0xFEFF
 
 // ScanMode represents a scanner mode.
 type ScanMode uint8
@@ -71,16 +65,13 @@ const (
 	TrimRight
 )
 
-// ScannerErrorHandler is an error handler for the scanner.
-type ScannerErrorHandler func(pos SourceFilePos, msg string)
-
 type ScannerInterface interface {
 	Scan() (t Token)
 	Mode() ScanMode
 	SetMode(m ScanMode)
-	SourceFile() *SourceFile
+	SourceFile() *source.SourceFile
 	Source() []byte
-	ErrorHandler(h ...ScannerErrorHandler)
+	ErrorHandler(h ...source.ScannerErrorHandler)
 	GetMixedDelimiter() *MixedDelimiter
 }
 
@@ -106,47 +97,6 @@ func (p *TokenPool) Add(t ...*Token) {
 
 func (p *TokenPool) Semi() {
 	*p = append(*p, &Token{Token: token.Semicolon, Literal: ";"})
-}
-
-type NextHandlers struct {
-	LineEndHandlers     []func()
-	PostLineEndHandlers []func()
-	EOFHandlers         []func(s *Scanner)
-}
-
-func (h *NextHandlers) LineEndHandler(f func()) {
-	h.LineEndHandlers = append(h.LineEndHandlers, f)
-}
-
-func (h *NextHandlers) CallLineEndHandlers() {
-	for _, handler := range h.LineEndHandlers {
-		handler()
-	}
-	h.LineEndHandlers = nil
-}
-
-func (h *NextHandlers) PostLineEndHandler(f func()) {
-	h.PostLineEndHandlers = append(h.PostLineEndHandlers, f)
-}
-
-func (h *NextHandlers) CallPostLineEndHandlers() {
-	for _, handler := range h.PostLineEndHandlers {
-		handler()
-	}
-	h.PostLineEndHandlers = nil
-}
-
-func (h *NextHandlers) EOFHandler(f func(*Scanner)) {
-	h.EOFHandlers = append(h.EOFHandlers, f)
-}
-
-func (h *NextHandlers) CallEOFHandlers(s *Scanner) {
-	handlers := h.EOFHandlers
-	h.EOFHandlers = nil
-
-	for _, handler := range handlers {
-		handler(s)
-	}
 }
 
 func (s *Handlers) TokenHandler(f func(t *Token)) {
@@ -180,7 +130,7 @@ func (th *TokenHandlers) Remove(h TokenHandler) {
 }
 
 type Handlers struct {
-	NextHandlers
+	source.NextHandlers
 	ScanHandler   func(ch rune) (t Token, insertSemi, ok bool)
 	TokenHandlers TokenHandlers
 }
@@ -192,21 +142,19 @@ var DefaultMixedDelimiter = MixedDelimiter{
 	End:   []rune("%}"),
 }
 
+type ScannerOptions struct {
+	Mode           ScanMode
+	MixedDelimiter MixedDelimiter
+}
+
 // Scanner reads the Gad source text. It's based on ToInterface's scanner
 // implementation.
 type Scanner struct {
 	Handlers
+	source.Reader
+	MixedDelimiter MixedDelimiter // the mixed delimiters
 
-	File               *SourceFile           // source file handle
-	Src                []byte                // source
-	MixedDelimiter     MixedDelimiter        // the mixed delimiters
-	Ch                 rune                  // current character
-	Offset             int                   // character offset
-	ReadOffset         int                   // reading offset (position after current character)
-	lineOffset         int                   // current line offset
-	InsertSemi         bool                  // insert a semicolon before next newline
-	errorHandler       []ScannerErrorHandler // error reporting; or nil
-	errorCount         int                   // number of errors encountered
+	InsertSemi         bool // insert a semicolon before next newline
 	mode               ScanMode
 	InCode             bool
 	ToText             bool
@@ -215,20 +163,13 @@ type Scanner struct {
 	ParenCount         int
 	TokenPool          TokenPool
 	SkipWhitespaceFunc func(s *Scanner)
-	NewLineEscape      func() bool
-	NewLineEscaped     bool
 	HandleMixed        func(textStart *int, rt func() *Token)
 	EOF                *Token
 }
 
-type ScannerOptions struct {
-	Mode           ScanMode
-	MixedDelimiter MixedDelimiter
-}
-
 // NewScanner creates a Scanner.
 func NewScanner(
-	file *SourceFile,
+	file *source.SourceFile,
 	src []byte,
 	opts *ScannerOptions,
 ) *Scanner {
@@ -258,33 +199,39 @@ func NewScanner(
 	}
 
 	s := &Scanner{
-		File:           file,
-		Src:            src,
 		MixedDelimiter: opts.MixedDelimiter,
-		Ch:             ' ',
 		mode:           opts.Mode,
 	}
 
-	s.SkipWhitespaceFunc = func(s *Scanner) {
-		for s.Ch == ' ' || s.Ch == '\t' || s.Ch == '\n' && !s.InsertSemi {
-			s.Next()
-		}
-	}
+	s.Reader = *source.NewFileReader(
+		file,
+		src,
+		source.FileReaderWithData(s),
+		source.FileReaderWithSkipWhitespaceFunc(func(fr *source.Reader) {
+			fr.Data.(*Scanner).skipWithSpace()
+		}),
+	)
 
-	s.Next()
-	if s.Ch == BOM {
-		s.Next() // ignore BOM at file beginning
-	}
+	s.Start()
 
 	return s
 }
 
-func (s *Scanner) GetMixedDelimiter() *MixedDelimiter {
-	return &s.MixedDelimiter
+func (s *Scanner) Clone() (c *Scanner) {
+	clone := *s
+	c = &clone
+	c.Reader.Data = c
+	return c
 }
 
-func (s *Scanner) SkipWhitespace() {
-	s.SkipWhitespaceFunc(s)
+func (s *Scanner) skipWithSpace() {
+	for s.Ch == ' ' || s.Ch == '\t' || s.Ch == '\n' && !s.InsertSemi {
+		s.Next()
+	}
+}
+
+func (s *Scanner) GetMixedDelimiter() *MixedDelimiter {
+	return &s.MixedDelimiter
 }
 
 func (s *Scanner) List() (ret []Token) {
@@ -296,23 +243,6 @@ func (s *Scanner) List() (ret []Token) {
 		}
 		ret = append(ret, t)
 	}
-}
-
-func (s *Scanner) ErrorHandler(h ...ScannerErrorHandler) {
-	s.errorHandler = append(s.errorHandler, h...)
-}
-
-func (s *Scanner) SourceFile() *SourceFile {
-	return s.File
-}
-
-func (s *Scanner) Source() []byte {
-	return s.Src
-}
-
-// ErrorCount returns the number of errors.
-func (s *Scanner) ErrorCount() int {
-	return s.errorCount
 }
 
 func (s *Scanner) AddNextToken(n ...Token) (r *Token) {
@@ -379,7 +309,7 @@ func (s *Scanner) Scan() (t Token) {
 	t = s.ScanNow()
 	if t.Token == token.EOF {
 		s.EOF = &t
-		s.CallEOFHandlers(s)
+		s.CallEOFHandlers()
 		return t
 	}
 	s.AddNextToken(t)
@@ -531,7 +461,7 @@ do:
 				return
 			}
 			t.Token = token.EOF
-			s.CallEOFHandlers(s)
+			s.CallEOFHandlers()
 		case '\n':
 			// we only reach here if s.InsertSemi was set in the first place
 			s.InsertSemi = false // newline consumed
@@ -710,7 +640,7 @@ do:
 			t.Token = token.Template
 		default:
 			// next reports unexpected BOMs - don't repeat
-			if ch != BOM {
+			if ch != source.BOM {
 				if s.ScanHandler != nil {
 					var ok bool
 					if t, insertSemi, ok = s.ScanHandler(ch); ok {
@@ -732,352 +662,10 @@ done:
 	return
 }
 
-func (s *Scanner) NextC(count int) {
-	for i := 0; i < count; i++ {
-		s.Next()
-	}
-}
-
-func (s *Scanner) Skip(str string) {
-	for _, r := range str {
-		if s.Ch != r {
-			break
-		}
-		s.Next()
-	}
-}
-
-func (s *Scanner) NextTo(v string) {
-	for _, r := range v {
-		s.Expect(r, "next to: "+strconv.Quote(v))
-		s.Next()
-	}
-}
-
-func (s *Scanner) Next() {
-	var (
-		newLineEscape bool
-		r             rune
-		w             int
-	)
-next:
-	if s.ReadOffset < len(s.Src) {
-		s.Offset = s.ReadOffset
-
-		if s.Ch == '\n' {
-			s.lineOffset = s.Offset
-			s.File.AddLine(s.Offset)
-			if s.NewLineEscaped {
-				s.NewLineEscaped = false
-			} else {
-				s.CallLineEndHandlers()
-			}
-
-			defer s.CallPostLineEndHandlers()
-		}
-
-		r, w = rune(s.Src[s.ReadOffset]), 1
-
-		for r == '\r' {
-			s.ReadOffset++
-			r = rune(s.Src[s.ReadOffset])
-		}
-
-		switch {
-		case r == 0:
-			s.Error(s.Offset, "illegal character NUL")
-		case r >= utf8.RuneSelf:
-			// not ASCII
-			r, w = utf8.DecodeRune(s.Src[s.ReadOffset:])
-			if r == utf8.RuneError && w == 1 {
-				s.Error(s.Offset, "illegal UTF-8 encoding")
-			} else if r == BOM && s.Offset > 0 {
-				s.Error(s.Offset, "illegal byte order mark")
-			}
-		}
-		s.ReadOffset += w
-		s.Ch = r
-
-		if s.Ch == '\\' && s.Peek() == '\n' {
-			newLineEscape = s.NewLineEscape != nil && s.NewLineEscape()
-			if newLineEscape {
-				goto next
-			}
-		} else if s.Ch == '\n' {
-			s.NewLineEscaped = newLineEscape
-			if newLineEscape {
-				s.SkipWhitespace()
-			}
-		}
-	} else {
-		s.Offset = len(s.Src)
-		if s.Ch == '\n' {
-			s.lineOffset = s.Offset
-			s.File.AddLine(s.Offset)
-			s.CallLineEndHandlers()
-		}
-		s.Ch = -1 // EOF
-	}
-}
-
-func (s *Scanner) PeekAtEndLine() (start, end int) {
-	start = s.Offset
-	end = s.Offset
-	for end < len(s.Src) {
-		switch s.Src[end] {
-		case '\n':
-			if s.Src[end-1] != '\\' {
-				return
-			}
-		}
-		end++
-	}
-	return
-}
-
-func (s *Scanner) NextNoSpace() {
-	s.Next()
-	s.SkipWhitespace()
-}
-
-func (s *Scanner) Peek() byte {
-	if s.ReadOffset < len(s.Src) {
-		return s.Src[s.ReadOffset]
-	}
-	return 0
-}
-
-func (s *Scanner) NextPosOf(b byte) (end int) {
-	end = s.Offset + 1
-
-	var escape bool
-	for end < len(s.Src) {
-		switch s.Src[end] {
-		case '\\':
-			escape = !escape
-		case b:
-			if !escape {
-				return
-			}
-		}
-		end++
-	}
-	return end
-}
-
-func (s *Scanner) ReadAt(b rune) []byte {
-	var (
-		start = s.Offset
-		end   = s.Offset
-	)
-
-	var escape bool
-	for end < len(s.Src) {
-		if s.Ch == -1 {
-			return nil
-		}
-
-		if s.Ch == '\\' {
-			escape = !escape
-		}
-		if s.Ch == b && !escape {
-			break
-		}
-		s.Next()
-		end++
-	}
-	return s.Src[start:end]
-}
-
-func (s *Scanner) ReadCount(q int) []byte {
-	var (
-		start = s.Offset
-		end   = s.Offset
-	)
-
-	for i := 0; i < q; i++ {
-		end++
-		s.Next()
-	}
-	return s.Src[start:end]
-}
-
-func (s *Scanner) ReadWhen(b rune) []byte {
-	var (
-		start = s.Offset
-		end   = s.Offset
-	)
-
-	for end < len(s.Src) {
-		if s.Ch == -1 {
-			return nil
-		}
-
-		if s.Ch != b {
-			break
-		}
-		s.Next()
-		end++
-	}
-	return s.Src[start:end]
-}
-
-func (s *Scanner) PeekNoSpace() byte {
-	offs := s.ReadOffset
-	for offs < len(s.Src) {
-		switch s.Src[offs] {
-		case ' ', '\n', '\t':
-			offs++
-		default:
-			return s.Src[offs]
-		}
-	}
-	return 0
-}
-
-func (s *Scanner) PeekInlineNoSpace() byte {
-	offs := s.ReadOffset
-	for offs < len(s.Src) {
-		switch s.Src[offs] {
-		case ' ', '\t':
-			offs++
-		default:
-			return s.Src[offs]
-		}
-	}
-	return 0
-}
-
-func (s *Scanner) IndexOfInlineNoSpace() int {
-	var offs int
-	for offs < len(s.Src) {
-		switch s.Src[offs] {
-		case ' ', '\t':
-			offs++
-		default:
-			return offs
-		}
-	}
-	return 0
-}
-
-func (s *Scanner) PeekNoSpaceN(n int) []byte {
-	off := s.ReadOffset
-	for off < len(s.Src) {
-		switch s.Src[off] {
-		case ' ', '\n', '\t':
-			off++
-		default:
-			part := s.Src[off:]
-			if len(part) >= n {
-				return part[:n]
-			}
-			return nil
-		}
-	}
-	return nil
-}
-
-func (s *Scanner) PeekN(n int) []byte {
-	if (s.ReadOffset + n) <= len(s.Src) {
-		return s.Src[s.ReadOffset : s.ReadOffset+n]
-	}
-	return nil
-}
-
-func (s *Scanner) PeekEq(str string) bool {
-	b := s.PeekN(len(str))
-	if b != nil {
-		return string(b) == str
-	}
-	return true
-}
-
-func (s *Scanner) PeekNoSpaceEq(to string, skip int) bool {
-	off := s.ReadOffset + skip
-	for off < len(s.Src) {
-		switch s.Src[off] {
-		case ' ', '\n', '\t':
-			off++
-		default:
-			n := len(to)
-			if (off + n) <= len(s.Src) {
-				b := s.Src[off : off+n]
-				return to == string(b)
-			}
-			return false
-		}
-	}
-
-	return false
-}
-
-func (s *Scanner) PeekNoSingleSpaceEq(to string, skip int) (length int) {
-	off := s.ReadOffset + skip
-	for off < len(s.Src) {
-		switch s.Src[off] {
-		case ' ', '\t':
-			off++
-		default:
-			n := len(to)
-			if (off + n) <= len(s.Src) {
-				b := s.Src[off : off+n]
-				if to == string(b) {
-					return off + n - s.ReadOffset
-				}
-				return 0
-			}
-			return 0
-		}
-	}
-
-	return 0
-}
-
-func (s *Scanner) PeekIdentEq(to string, skip int) bool {
-	off := s.ReadOffset + skip
-	for off < len(s.Src) {
-		switch s.Src[off] {
-		case ' ', '\t':
-			off++
-		default:
-			n := len(to)
-			if (off + n) <= len(s.Src) {
-				b := s.Src[off : off+n]
-				return to == string(b)
-			}
-			return false
-		}
-	}
-
-	return false
-}
-
-func (s *Scanner) Error(offset int, msg string) {
-	pos := s.File.Position(s.File.FileSetPos(offset))
-	for _, h := range s.errorHandler {
-		h(pos, msg)
-	}
-	s.errorCount++
-}
-
-func (s *Scanner) Expect(ch rune, msg string) bool {
-	if s.Ch != ch {
-		s.ExpectError(msg + fmt.Sprintf(", but got %s", string(s.Ch)))
-		s.Ch = -1
-		return false
-	}
-	return true
-}
-
-func (s *Scanner) ExpectError(msg string) {
-	s.Error(s.Offset, "Expect: "+msg)
-}
-
 func (s *Scanner) scanConfig(pos source.Pos, skip int) (t Token) {
 	s.NextC(skip)
 	eol := s.NextPosOf('\n')
-	s2 := *s
+	s2 := s.Clone()
 	s2.Src = s2.Src[:eol]
 	s2.mode = 0
 	s2.NextNoSpace()
@@ -1124,47 +712,20 @@ exit:
 	return string(lit)
 }
 
-func (s *Scanner) FindLineEnd() bool {
-	// initial '/' already consumed
-
-	defer func(offs int) {
-		// reset scanner state to where it was upon calling FindLineEnd
-		s.Ch = '/'
-		s.Offset = offs
-		s.ReadOffset = offs + 1
-		s.Next() // consume initial '/' again
-	}(s.Offset - 1)
-
-	// read ahead until a newline, EOF, or non-comment tok is found
-	for s.Ch == '/' || s.Ch == '*' {
-		if s.Ch == '/' {
-			// -style comment always contains a newline
-			return true
-		}
-		/*-style comment: look for newline */
-		s.Next()
-		for s.Ch >= 0 {
-			ch := s.Ch
-			if ch == '\n' {
-				return true
-			}
-			s.Next()
-			if ch == '*' && s.Ch == '/' {
-				s.Next()
-				break
-			}
-		}
-		s.SkipWhitespace() // s.InsertSemi is set
-		if s.Ch < 0 || s.Ch == '\n' {
-			return true
-		}
-		if s.Ch != '/' {
-			// non-comment Token
-			return false
-		}
-		s.Next() // consume '/'
+func (s *Scanner) ScanNumber(seenDecimalPoint bool) (tok token.Token, lit string) {
+	var t source.NumberType
+	t, lit = s.Reader.ScanNumber(seenDecimalPoint)
+	switch t {
+	case source.Int:
+		tok = token.Int
+	case source.Uint:
+		tok = token.Uint
+	case source.Float:
+		tok = token.Float
+	case source.Decimal:
+		tok = token.Decimal
 	}
-	return false
+	return
 }
 
 func (s *Scanner) ScanIdentifier() string {
@@ -1173,287 +734,6 @@ func (s *Scanner) ScanIdentifier() string {
 		s.Next()
 	}
 	return string(s.Src[offs:s.Offset])
-}
-
-func (s *Scanner) scanMantissa(base int) {
-	for runehelper.DigitVal(s.Ch) < base {
-		s.Next()
-	}
-}
-
-func (s *Scanner) ScanNumber(seenDecimalPoint bool) (tok token.Token, lit string) {
-	// DigitVal(s.ch) < 10
-	offs := s.Offset
-	tok = token.Int
-
-	defer func() {
-		lit = string(s.Src[offs:s.Offset])
-	}()
-
-	if seenDecimalPoint {
-		offs--
-		if tok != token.Decimal {
-			tok = token.Float
-		}
-		s.scanMantissa(10)
-		goto exponent
-	}
-
-	if s.Ch == '0' {
-		// int or float
-		offs := s.Offset
-		s.Next()
-		if s.Ch == 'x' || s.Ch == 'X' {
-			// hexadecimal int
-			s.Next()
-			s.scanMantissa(16)
-			if s.Offset-offs <= 2 {
-				// only scanned "0x" or "0X"
-				s.Error(offs, "illegal hexadecimal number")
-			}
-		} else {
-			// octal int or float
-			seenDecimalDigit := false
-			s.scanMantissa(8)
-			if s.Ch == '8' || s.Ch == '9' {
-				// illegal octal int or float
-				seenDecimalDigit = true
-				s.scanMantissa(10)
-			}
-			if s.Ch == '.' || s.Ch == 'e' || s.Ch == 'E' || s.Ch == 'i' {
-				goto fraction
-			}
-			// octal int
-			if seenDecimalDigit {
-				s.Error(offs, "illegal octal number")
-			}
-			// check if unsigned
-			if s.Ch == 'u' {
-				s.Next()
-				tok = token.Uint
-			} else if s.Ch == 'd' {
-				s.Next()
-				tok = token.Decimal
-			}
-		}
-		return
-	}
-	// decimal int or float
-	s.scanMantissa(10)
-
-	// check if unsigned
-	if s.Ch == 'u' {
-		s.Next()
-		tok = token.Uint
-	} else if s.Ch == 'd' {
-		s.Next()
-		tok = token.Decimal
-	}
-
-fraction:
-	if s.Ch == '.' {
-		tok = token.Float
-		s.Next()
-		s.scanMantissa(10)
-	}
-
-exponent:
-	if s.Ch == 'e' || s.Ch == 'E' {
-		if tok != token.Decimal {
-			tok = token.Float
-		}
-		s.Next()
-		if s.Ch == '-' || s.Ch == '+' {
-			s.Next()
-		}
-		if runehelper.DigitVal(s.Ch) < 10 {
-			s.scanMantissa(10)
-		} else {
-			s.Error(offs, "illegal floating-point exponent")
-		}
-	}
-
-	if s.Ch == 'd' && tok != token.Decimal && tok != token.Uint {
-		tok = token.Decimal
-		s.Next()
-	}
-
-	return
-}
-
-func (s *Scanner) scanEscape(quote rune) bool {
-	offs := s.Offset
-
-	var n int
-	var base, max uint32
-	switch s.Ch {
-	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
-		s.Next()
-		return true
-	case '0', '1', '2', '3', '4', '5', '6', '7':
-		n, base, max = 3, 8, 255
-	case 'x':
-		s.Next()
-		n, base, max = 2, 16, 255
-	case 'u':
-		s.Next()
-		n, base, max = 4, 16, unicode.MaxRune
-	case 'U':
-		s.Next()
-		n, base, max = 8, 16, unicode.MaxRune
-	default:
-		msg := "unknown escape sequence"
-		if s.Ch < 0 {
-			msg = "escape sequence not terminated"
-		}
-		s.Error(offs, msg)
-		return false
-	}
-
-	var x uint32
-	for n > 0 {
-		d := uint32(runehelper.DigitVal(s.Ch))
-		if d >= base {
-			msg := fmt.Sprintf(
-				"illegal character %#U in escape sequence", s.Ch)
-			if s.Ch < 0 {
-				msg = "escape sequence not terminated"
-			}
-			s.Error(s.Offset, msg)
-			return false
-		}
-		x = x*base + d
-		s.Next()
-		n--
-	}
-
-	if x > max || 0xD800 <= x && x < 0xE000 {
-		s.Error(offs, "escape sequence is invalid Unicode code point")
-		return false
-	}
-	return true
-}
-
-func (s *Scanner) ScanRune() string {
-	offs := s.Offset - 1 // '\'' opening already consumed
-
-	valid := true
-	n := 0
-	for {
-		ch := s.Ch
-		if ch == '\n' || ch < 0 {
-			// only report error if we don't have one already
-			if valid {
-				s.Error(offs, "rune literal not terminated")
-				valid = false
-			}
-			break
-		}
-		s.Next()
-		if ch == '\'' {
-			break
-		}
-		n++
-		if ch == '\\' {
-			if !s.scanEscape('\'') {
-				valid = false
-			}
-			// continue to read to closing quote
-		}
-	}
-
-	if valid && n != 1 {
-		s.Error(offs, "illegal rune literal")
-	}
-	return string(s.Src[offs:s.Offset])
-}
-
-func (s *Scanner) ScanString() string {
-	offs := s.Offset - 1 // '"' opening already consumed
-
-	for {
-		ch := s.Ch
-		if ch < 0 {
-			s.Error(offs, "string literal not terminated")
-			break
-		}
-		s.Next()
-		if ch == '"' {
-			break
-		}
-		if ch == '\\' {
-			s.scanEscape('"')
-		}
-	}
-	return string(s.Src[offs:s.Offset])
-}
-
-func (s *Scanner) ReadAtMany(quote []byte) []byte {
-	var (
-		offs = s.Offset - 1
-		next = make([]byte, len(quote))
-		w    bytes.Buffer
-		r    = rune(quote[0])
-	)
-
-	for {
-		b := s.ReadAt(r)
-		if s.Ch == -1 {
-			s.Error(offs, "unexpected EOF")
-			break
-		}
-		w.Write(b)
-		next[0] = byte(s.Ch)
-		x := s.PeekN(len(next) - 1)
-		copy(next[1:], x)
-
-		if bytes.Equal(next, quote) {
-			break
-		}
-
-		w.WriteRune(s.Ch)
-		s.Next()
-	}
-
-	return w.Bytes()
-}
-
-func (s *Scanner) ScanRawString() (string, bool) {
-	offs := s.Offset - 1 // '`' opening already consumed
-
-	// if is raw heredoc, minimal 3 chars (current more 2)
-	if s.Ch == '`' && s.Peek() == '`' {
-		quote := []byte{byte(s.Ch)}
-		quote = append(quote, s.ReadWhen('`')...)
-		if len(quote)%2 != 1 {
-			s.Error(offs, "raw heredoc literal not open")
-		}
-		var w bytes.Buffer
-		w.Write(quote)
-		if s.Ch == '\n' {
-			quote = append([]byte{'\n'}, quote...)
-		}
-		w.Write(s.ReadAtMany(quote))
-		w.Write(s.ReadCount(len(quote)))
-
-		return w.String(), true
-	}
-
-	for {
-		ch := s.Ch
-		if ch < 0 {
-			s.Error(offs, "raw string literal not terminated")
-			break
-		}
-
-		s.Next()
-
-		if ch == '`' {
-			break
-		}
-	}
-
-	return string(s.Src[offs:s.Offset]), false
 }
 
 func (s *Scanner) Switch2(tok0, tok1 token.Token) token.Token {

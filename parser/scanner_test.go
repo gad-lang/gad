@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gad-lang/gad/parser"
@@ -313,7 +314,7 @@ func countLines(s string) int {
 	return n
 }
 
-var testFileSet = parser.NewFileSet()
+var testFileSet = source.NewFileSet()
 
 type scanResult struct {
 	Token   token.Token
@@ -498,7 +499,7 @@ func (tr *tester) scanExpect(
 		testFile,
 		[]byte(input),
 		&opts)
-	s.ErrorHandler(func(_ parser.SourceFilePos, msg string) { require.Fail(t, msg) })
+	s.ErrorHandler(func(_ source.SourceFilePos, msg string) { require.Fail(t, msg) })
 
 	for idx, e := range expected {
 		tok := s.Scan()

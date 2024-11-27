@@ -16,7 +16,6 @@ import (
 	"sync"
 
 	"github.com/gad-lang/gad/internal/compat"
-	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/quote"
 	"github.com/gad-lang/gad/repr"
@@ -1635,7 +1634,7 @@ func (o *Error) NewError(messages ...string) *Error {
 // RuntimeError represents a runtime error that wraps Error and includes trace information.
 type RuntimeError struct {
 	Err     *Error
-	fileSet *parser.SourceFileSet
+	fileSet *source.SourceFileSet
 	Trace   []source.Pos
 }
 
@@ -1747,7 +1746,7 @@ func (o *RuntimeError) StackTrace() StackTrace {
 			trace := make(StackTrace, sz)
 			j := 0
 			for i := sz - 1; i >= 0; i-- {
-				trace[j] = parser.SourceFilePos{
+				trace[j] = source.SourceFilePos{
 					Offset: int(o.Trace[i]),
 				}
 				j++
@@ -1803,7 +1802,7 @@ func (o *RuntimeError) Format(s fmt.State, verb rune) {
 }
 
 // StackTrace is the stack of source file positions.
-type StackTrace []parser.SourceFilePos
+type StackTrace []source.SourceFilePos
 
 // Format formats the StackTrace to the fmt.Formatter interface.
 func (st StackTrace) Format(s fmt.State, verb rune) {
@@ -1820,7 +1819,7 @@ func (st StackTrace) Format(s fmt.State, verb rune) {
 				_, _ = fmt.Fprintf(s, "%+v", f)
 			}
 		default:
-			_, _ = fmt.Fprintf(s, "%v", []parser.SourceFilePos(st))
+			_, _ = fmt.Fprintf(s, "%v", []source.SourceFilePos(st))
 		}
 	}
 }

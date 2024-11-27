@@ -12,7 +12,7 @@ import (
 
 	. "github.com/gad-lang/gad/parser/ast"
 	. "github.com/gad-lang/gad/parser/node"
-	. "github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
@@ -21,6 +21,14 @@ import (
 	. "github.com/gad-lang/gad/parser"
 )
 
+type (
+	Pos           = source.Pos
+	SourceFilePos = source.SourceFilePos
+)
+
+const NoPos = source.NoPos
+
+var NewFileSet = source.NewFileSet
 var update = flag.Bool("update", false, "update golden files")
 
 func TestParserTrace(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"strconv"
 
 	"github.com/gad-lang/gad"
-	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/shopspring/decimal"
 )
 
@@ -625,7 +625,7 @@ func (sfs *SourceFileSet) UnmarshalBinary(data []byte) error {
 	}
 
 	length := int(v)
-	files := make([]*parser.SourceFile, length)
+	files := make([]*source.SourceFile, length)
 
 	for i := 0; i < length; i++ {
 		v, err = vi.read()
@@ -640,7 +640,7 @@ func (sfs *SourceFileSet) UnmarshalBinary(data []byte) error {
 		if err = file.UnmarshalBinary(data); err != nil {
 			return err
 		}
-		files[i] = (*parser.SourceFile)(&file)
+		files[i] = (*source.SourceFile)(&file)
 	}
 
 	if rd.Len() > 0 {

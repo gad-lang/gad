@@ -14,7 +14,7 @@ import (
 	"strconv"
 
 	"github.com/gad-lang/gad"
-	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/stdlib/json"
 	"github.com/gad-lang/gad/stdlib/time"
 )
@@ -46,8 +46,8 @@ type (
 	Decimal          gad.Decimal
 	Bool             gad.Bool
 	Flag             gad.Flag
-	SourceFileSet    parser.SourceFileSet
-	SourceFile       parser.SourceFile
+	SourceFileSet    source.SourceFileSet
+	SourceFile       source.SourceFile
 	Symbol           gad.SymbolInfo
 )
 
@@ -262,7 +262,7 @@ func (bc *Bytecode) bytecodeV1Decoder(r *bytes.Buffer) error {
 			if err = fs.UnmarshalBinary(data); err != nil {
 				return err
 			}
-			bc.FileSet = (*parser.SourceFileSet)(&fs)
+			bc.FileSet = (*source.SourceFileSet)(&fs)
 		case 1:
 			f, err := DecodeObject(r)
 			if err != nil {

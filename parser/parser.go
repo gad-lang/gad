@@ -63,7 +63,7 @@ var stmtStart = map[token.Token]bool{
 
 // Error represents a parser error.
 type Error struct {
-	Pos SourceFilePos
+	Pos source.SourceFilePos
 	Msg string
 }
 
@@ -78,7 +78,7 @@ func (e Error) Error() string {
 type ErrorList []*Error
 
 // Add adds a new parser error to the collection.
-func (p *ErrorList) Add(pos SourceFilePos, msg string) {
+func (p *ErrorList) Add(pos source.SourceFilePos, msg string) {
 	*p = append(*p, &Error{pos, msg})
 }
 
@@ -133,7 +133,7 @@ func (p ErrorList) Err() error {
 // Parser parses the Tengo source files. It's based on ToInterface's parser
 // implementation.
 type Parser struct {
-	File             *SourceFile
+	File             *source.SourceFile
 	Errors           ErrorList
 	Scanner          ScannerInterface
 	Token            Token
@@ -155,7 +155,7 @@ type Parser struct {
 }
 
 // NewParser creates a Parser.
-func NewParser(file *SourceFile, src []byte, trace io.Writer) *Parser {
+func NewParser(file *source.SourceFile, src []byte, trace io.Writer) *Parser {
 	return NewParserWithOptions(file, src, &ParserOptions{Trace: trace}, nil)
 }
 
@@ -166,7 +166,7 @@ type ParserOptions struct {
 
 // NewParserWithOptions creates a Parser with parser mode flags.
 func NewParserWithOptions(
-	file *SourceFile,
+	file *source.SourceFile,
 	src []byte,
 	opts *ParserOptions,
 	scannerOptions *ScannerOptions,
@@ -216,7 +216,7 @@ func NewParserWithScanner(
 	if opts.Mode.Has(ParseConfigDisabled) {
 		m.Set(ConfigDisabled)
 	}
-	scanner.ErrorHandler(func(pos SourceFilePos, msg string) {
+	scanner.ErrorHandler(func(pos source.SourceFilePos, msg string) {
 		p.Errors.Add(pos, msg)
 	})
 	p.Next()
@@ -225,9 +225,9 @@ func NewParserWithScanner(
 
 func ParseFile(pth string, opts *ParserOptions, scannerOpts *ScannerOptions) (file *File, err error) {
 	var (
-		fileSet = NewFileSet()
+		fileSet = source.NewFileSet()
 		script  []byte
-		srcFile *SourceFile
+		srcFile *source.SourceFile
 		f       *os.File
 	)
 

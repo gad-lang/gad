@@ -14,7 +14,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 )
@@ -1256,7 +1255,7 @@ func (vm *VM) xOpSliceIndex() error {
 }
 
 func (vm *VM) newError(err *Error) *RuntimeError {
-	var fileset *parser.SourceFileSet
+	var fileset *source.SourceFileSet
 	if vm.bytecode != nil {
 		fileset = vm.bytecode.FileSet
 	}

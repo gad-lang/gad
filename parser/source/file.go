@@ -1,22 +1,8 @@
-// Copyright (c) 2020-2023 Ozan Hacıbekiroğlu.
-// Use of this source code is governed by a MIT License
-// that can be found in the LICENSE file.
-
-// Copyright (c) 2019 Daniel Kang.
-// Use of this source code is governed by a MIT License
-// that can be found in the LICENSE.tengo file.
-
-// Copyright 2009 The ToInterface Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE.golang file.
-
-package parser
+package source
 
 import (
 	"fmt"
 	"sort"
-
-	"github.com/gad-lang/gad/parser/source"
 )
 
 // SourceFilePos represents a position information in the file.
@@ -102,16 +88,16 @@ func (s *SourceFileSet) AddFile(filename string, base, size int) *SourceFile {
 
 // File returns the file that contains the position p. If no such file is
 // found (for instance for p == NoPos), the result is nil.
-func (s *SourceFileSet) File(p source.Pos) (f *SourceFile) {
-	if p != source.NoPos {
+func (s *SourceFileSet) File(p Pos) (f *SourceFile) {
+	if p != NoPos {
 		f = s.file(p)
 	}
 	return
 }
 
 // Position converts a SourcePos p in the fileset into a SourceFilePos value.
-func (s *SourceFileSet) Position(p source.Pos) (pos SourceFilePos) {
-	if p != source.NoPos {
+func (s *SourceFileSet) Position(p Pos) (pos SourceFilePos) {
+	if p != NoPos {
 		if f := s.file(p); f != nil {
 			return f.SafePosition(p)
 		}
@@ -119,7 +105,7 @@ func (s *SourceFileSet) Position(p source.Pos) (pos SourceFilePos) {
 	return
 }
 
-func (s *SourceFileSet) file(p source.Pos) *SourceFile {
+func (s *SourceFileSet) file(p Pos) *SourceFile {
 	// common case: p is in last file
 	f := s.LastFile
 	if f != nil && f.Base <= int(p) && int(p) <= f.Base+f.Size {
@@ -195,26 +181,26 @@ func (f *SourceFile) AddLine(offset int) {
 }
 
 // LineStart returns the position of the first character in the line.
-func (f *SourceFile) LineStart(line int) source.Pos {
+func (f *SourceFile) LineStart(line int) Pos {
 	if line < 1 {
 		panic("illegal line number (line numbering starts at 1)")
 	}
 	if line > len(f.Lines) {
 		panic("illegal line number")
 	}
-	return source.Pos(f.Base + f.Lines[line-1])
+	return Pos(f.Base + f.Lines[line-1])
 }
 
 // FileSetPos returns the position in the file set.
-func (f *SourceFile) FileSetPos(offset int) source.Pos {
+func (f *SourceFile) FileSetPos(offset int) Pos {
 	if offset > f.Size {
 		panic("illegal file offset")
 	}
-	return source.Pos(f.Base + offset)
+	return Pos(f.Base + offset)
 }
 
 // Offset translates the file set position into the file offset.
-func (f *SourceFile) Offset(p source.Pos) int {
+func (f *SourceFile) Offset(p Pos) int {
 	if int(p) < f.Base || int(p) > f.Base+f.Size {
 		panic("illegal SourcePos value")
 	}
@@ -222,13 +208,13 @@ func (f *SourceFile) Offset(p source.Pos) int {
 }
 
 // Line returns the line of given position.
-func (f *SourceFile) Line(p source.Pos) int {
+func (f *SourceFile) Line(p Pos) int {
 	return f.Position(p).Line
 }
 
 // Position translates the file set position into the file position.
-func (f *SourceFile) Position(p source.Pos) (pos SourceFilePos) {
-	if p != source.NoPos {
+func (f *SourceFile) Position(p Pos) (pos SourceFilePos) {
+	if p != NoPos {
 		if int(p) < f.Base || int(p) > f.Base+f.Size {
 			panic("illegal SourcePos value")
 		}
@@ -237,7 +223,7 @@ func (f *SourceFile) Position(p source.Pos) (pos SourceFilePos) {
 	return
 }
 
-func (f *SourceFile) SafePosition(p source.Pos) (pos SourceFilePos) {
+func (f *SourceFile) SafePosition(p Pos) (pos SourceFilePos) {
 	offset := int(p) - f.Base
 	pos.Offset = offset
 	pos.Filename, pos.Line, pos.Column = f.Unpack(offset)
@@ -252,7 +238,7 @@ func (f *SourceFile) Unpack(offset int) (filename string, line, column int) {
 	return
 }
 
-func (f *SourceFile) LineIndexOf(p source.Pos) int {
+func (f *SourceFile) LineIndexOf(p Pos) int {
 	l := len(f.Lines)
 	for i := l; i > 0; i-- {
 		p2 := f.Lines[i-1]
@@ -263,35 +249,35 @@ func (f *SourceFile) LineIndexOf(p source.Pos) int {
 	return 0
 }
 
-func (f *SourceFile) LinePos(p source.Pos) source.Pos {
+func (f *SourceFile) LinePos(p Pos) Pos {
 	l := len(f.Lines)
 	for i := l; i > 0; i-- {
 		p2 := f.Lines[i-1]
 		if p2 <= int(p) {
 			if i == l {
 				// last line, first column
-				return source.Pos(f.Lines[i-1] + 1)
+				return Pos(f.Lines[i-1] + 1)
 			}
-			return source.Pos(f.Lines[i-1])
+			return Pos(f.Lines[i-1])
 		}
 	}
 	return p
 }
 
-func (f *SourceFile) NextLinePos(p source.Pos) source.Pos {
+func (f *SourceFile) NextLinePos(p Pos) Pos {
 	l := len(f.Lines)
 	for i := l; i > 0; i-- {
 		p2 := f.Lines[i-1]
 		if p2 <= int(p) {
 			if i == l {
 				// last line, first column
-				c1 := source.Pos(f.Lines[i-1] + 1)
+				c1 := Pos(f.Lines[i-1] + 1)
 				if p <= c1 {
 					c1--
 				}
 				return c1
 			}
-			return source.Pos(f.Lines[i-1])
+			return Pos(f.Lines[i-1])
 		}
 	}
 	return p

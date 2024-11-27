@@ -14,12 +14,13 @@ import (
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 )
 
 // OptimizerError represents an optimizer error.
 type OptimizerError struct {
-	FilePos parser.SourceFilePos
+	FilePos source.SourceFilePos
 	Node    ast.Node
 	Err     error
 }

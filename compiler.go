@@ -53,7 +53,7 @@ type (
 	// Compiler compiles the AST into a bytecode.
 	Compiler struct {
 		parent         *Compiler
-		file           *parser.SourceFile
+		file           *source.SourceFile
 		constants      []Object
 		constsCache    map[Object]int
 		cfuncCache     map[uint32][]int
@@ -99,7 +99,7 @@ type (
 
 	// CompilerError represents a compiler error.
 	CompilerError struct {
-		FileSet *parser.SourceFileSet
+		FileSet *source.SourceFileSet
 		Node    ast.Node
 		Err     error
 	}
@@ -139,7 +139,7 @@ func (e *CompilerError) Unwrap() error {
 }
 
 // NewCompiler creates a new Compiler object.
-func NewCompiler(file *parser.SourceFile, opts CompilerOptions) *Compiler {
+func NewCompiler(file *source.SourceFile, opts CompilerOptions) *Compiler {
 	if opts.SymbolTable == nil {
 		opts.SymbolTable = NewSymbolTable(NewBuiltins())
 	}
@@ -197,7 +197,7 @@ type CompileOptions struct {
 // Compile compiles given script to Bytecode.
 func Compile(script []byte, opts CompileOptions) (*Bytecode, error) {
 	var (
-		fileSet    = parser.NewFileSet()
+		fileSet    = source.NewFileSet()
 		moduleName string
 	)
 
@@ -818,7 +818,7 @@ func (c *Compiler) currentLoop() *loopStmts {
 }
 
 func (c *Compiler) fork(
-	file *parser.SourceFile,
+	file *source.SourceFile,
 	module *ModuleInfo,
 	moduleMap *ModuleMap,
 	symbolTable *SymbolTable,
