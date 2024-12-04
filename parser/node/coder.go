@@ -1,110 +1,209 @@
 package node
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
 )
 
-type CodeWriter interface {
-	io.Writer
-	io.StringWriter
-	io.ByteWriter
+type Coder interface {
+	WriteCode(ctx *CodeWriteContext)
 }
 
-type CodeWriterContext struct {
-	Stack []ast.Node
+type CodeWriter interface {
+	io.Writer
+	WriteString(s ...string)
+	WriteByte(b byte)
+	WriteRune(b rune)
+	WriteLine(s ...string)
+	WriteLines(l ...string)
+}
+
+type cw struct {
+	io.Writer
+}
+
+func (w *cw) WriteString(s ...string) {
+	for _, s := range s {
+		w.Write([]byte(s))
+	}
+}
+
+func (w *cw) WriteRune(r rune) {
+	w.WriteString(string([]rune{r}))
+}
+
+func (w *cw) WriteByte(c byte) {
+	w.Write([]byte{c})
+}
+
+func (w *cw) WriteLine(s ...string) {
+	w.WriteString(s...)
+	w.Write([]byte{'\n'})
+}
+
+func (w *cw) WriteLines(l ...string) {
+	for _, s := range l {
+		w.WriteLine(s)
+	}
+}
+
+func NewCodeWriter(w io.Writer) CodeWriter {
+	return &cw{Writer: w}
+}
+
+type TranspileOptions struct {
+	RawStrFunc string
+	WriteFunc  string
+}
+
+type CodeWriteContext struct {
+	Stack     []ast.Node
+	Depth     int
+	Prefix    string
+	Transpile *TranspileOptions
 	CodeWriter
 }
 
-func (c *CodeWriterContext) Top() ast.Node {
+type CodeOption func(ctx *CodeWriteContext)
+
+func CodeWithPrefix(prefix string) CodeOption {
+	return func(ctx *CodeWriteContext) {
+		ctx.Prefix = prefix
+	}
+}
+
+func CodeTranspile(v *TranspileOptions) CodeOption {
+	return func(ctx *CodeWriteContext) {
+		ctx.Transpile = v
+	}
+}
+
+func NewCodeWriteContext(codeWriter CodeWriter, opt ...CodeOption) *CodeWriteContext {
+	ctx := &CodeWriteContext{CodeWriter: codeWriter}
+	for _, opt := range opt {
+		opt(ctx)
+	}
+	return ctx
+}
+
+func (c CodeWriteContext) WithoutPrefix() *CodeWriteContext {
+	c.Prefix = ""
+	return &c
+}
+
+func (c CodeWriteContext) Buffer(do func(ctx *CodeWriteContext)) string {
+	var buf bytes.Buffer
+	c.CodeWriter = NewCodeWriter(&buf)
+	do(&c)
+	return buf.String()
+}
+
+func (c *CodeWriteContext) CurrentPrefix() string {
+	return strings.Repeat(c.Prefix, c.Depth)
+}
+
+func (c *CodeWriteContext) WritePrefix() {
+	c.WriteString(c.CurrentPrefix())
+}
+
+func (c *CodeWriteContext) PrevPrefix() string {
+	if c.Depth == 0 {
+		return ""
+	}
+	return strings.Repeat(c.Prefix, c.Depth-1)
+}
+
+func (c *CodeWriteContext) WritePrevPrefix() {
+	c.WriteString(c.PrevPrefix())
+}
+
+func (c *CodeWriteContext) WriteLine(s string) {
+	c.WriteString(s)
+	c.WriteString("\n")
+}
+
+func (c *CodeWriteContext) WritePrefixedLine() {
+	c.WriteString("\n", c.CurrentPrefix())
+}
+
+func (c *CodeWriteContext) WriteSecondLine() {
+	if c.Prefix != "" {
+		c.WriteString("\n")
+	}
+}
+
+func (c *CodeWriteContext) WriteSemi() {
+	if c.Prefix == "" {
+		c.WriteString("; ")
+	} else {
+		c.WriteString("\n")
+	}
+}
+
+func (c *CodeWriteContext) WriteSemiOrDoubleLine() {
+	if c.Prefix == "" {
+		c.WriteString("; ")
+	} else {
+		c.WriteString("\n\n")
+	}
+}
+
+func (c *CodeWriteContext) Printf(format string, args ...interface{}) {
+	fmt.Fprintf(c.CodeWriter, format, args...)
+}
+
+func (c *CodeWriteContext) Top() ast.Node {
 	return c.Stack[len(c.Stack)-1]
 }
 
-func (c *CodeWriterContext) Push(n ast.Node) {
+func (c *CodeWriteContext) Push(n ast.Node) {
 	c.Stack = append(c.Stack, n)
 }
 
-func (c *CodeWriterContext) Pop() {
+func (c *CodeWriteContext) Pop() {
 	c.Stack = c.Stack[:len(c.Stack)-1]
 }
 
-func (c *CodeWriterContext) With(n ast.Node, cb func() error) (err error) {
+func (c *CodeWriteContext) With(n ast.Node, cb func() error) (err error) {
 	c.Push(n)
 	err = cb()
 	c.Pop()
 	return
 }
 
-type Coder interface {
-	WriteCode(ctx *CodeWriterContext) error
-}
-
-func WriteCode(ctx *CodeWriterContext, node ...ast.Node) (err error) {
-	for _, node := range node {
-		if err = ctx.With(node, func() error {
-			switch n := node.(type) {
-			case Coder:
-				return n.WriteCode(ctx)
-			default:
-				_, err := fmt.Fprint(ctx, node)
-				return err
-			}
-		}); err != nil {
-			return
+func (c *CodeWriteContext) WriteStmts(smt ...Stmt) {
+	Stmts(smt).Each(func(i int, sep bool, s Stmt) {
+		if sep {
+			c.WriteSemi()
 		}
-	}
-	return
+		s.WriteCode(c)
+	})
 }
 
-func WriteCodeExprs(ctx *CodeWriterContext, sep string, expr ...Expr) (err error) {
-	last := len(expr) - 1
+func (c *CodeWriteContext) WriteExprs(sep string, expr ...Expr) (err error) {
 	for i, e := range expr {
-		if err = WriteCode(ctx, e); err != nil {
-			return
+		if i > 0 {
+			c.WriteString(sep)
 		}
-		if i != last {
-			if _, err = ctx.WriteString(sep); err != nil {
-				return
-			}
-		}
+		e.WriteCode(c)
 	}
 	return
 }
 
-func SemiSkip(s Stmt) bool {
-	switch s.(type) {
-	case *CodeBeginStmt, *CodeEndStmt, *MixedTextStmt:
-		return true
-	default:
-		return false
-	}
+func Code(n Coder, opt ...CodeOption) string {
+	var buf bytes.Buffer
+	n.WriteCode(NewCodeWriteContext(NewCodeWriter(&buf), opt...))
+	return buf.String()
 }
 
-func WriteCodeStmts(ctx *CodeWriterContext, stmt ...Stmt) (err error) {
-	last := len(stmt) - 1
-	for i, e := range stmt {
-		if err = WriteCode(ctx, e); err != nil {
-			return
-		}
-		if i != last {
-			if !SemiSkip(stmt[i]) && !SemiSkip(stmt[i+1]) {
-				if _, err = ctx.WriteString(`; `); err != nil {
-					return
-				}
-			}
-		}
-	}
-	return
+func CodeW(w io.Writer, n Coder, opt ...CodeOption) {
+	n.WriteCode(NewCodeWriteContext(NewCodeWriter(w), opt...))
 }
 
-func WriteCodeValidStmts(ctx *CodeWriterContext, stmt ...Stmt) (err error) {
-	var smts []Stmt
-	for _, s := range stmt {
-		if s != nil {
-			smts = append(smts, s)
-		}
-	}
-	return WriteCodeStmts(ctx, smts...)
+func CodeStmtsW(w io.Writer, n Stmts, opt ...CodeOption) {
+	NewCodeWriteContext(NewCodeWriter(w), opt...).WriteStmts(n...)
 }

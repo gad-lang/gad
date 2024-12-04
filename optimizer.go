@@ -279,12 +279,7 @@ func (so *SimpleOptimizer) slowEvalExpr(expr node.Expr) (node.Expr, bool) {
 
 	switch v := obj.(type) {
 	case Str:
-		l := strconv.Quote(string(v))
-		expr = &node.StringLit{
-			Value:    string(v),
-			Literal:  l,
-			ValuePos: expr.Pos(),
-		}
+		expr = node.String(string(v), expr.Pos())
 	case *NilType:
 		expr = &node.NilLit{TokenPos: expr.Pos()}
 	case Flag:
@@ -491,12 +486,7 @@ func (so *SimpleOptimizer) binaryop(
 	case *node.StringLit:
 		right, ok := right.(*node.StringLit)
 		if ok && op == token.Add {
-			v := left.Value + right.Value
-			return &node.StringLit{
-				Value:    v,
-				Literal:  strconv.Quote(v),
-				ValuePos: left.ValuePos,
-			}, true
+			return node.String(left.Value()+right.Value(), left.ValuePos), true
 		}
 	}
 	return nil, false
@@ -579,7 +569,7 @@ func (so *SimpleOptimizer) unaryop(
 	return nil, false
 }
 
-func (so *SimpleOptimizer) optimize(nd ast.Node) (node.Expr, bool) {
+func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 	if so.trace != nil {
 		if nd != nil {
 			defer untraceoptim(traceoptim(so, fmt.Sprintf("%s (%s)",
@@ -717,7 +707,7 @@ func (so *SimpleOptimizer) optimize(nd ast.Node) (node.Expr, bool) {
 		}
 	case *node.AssignStmt:
 		for _, lhs := range nd.LHS {
-			if ident, ok := lhs.(*node.Ident); ok {
+			if ident, ok := lhs.(*node.IdentExpr); ok {
 				so.scope.define(ident.Name)
 			}
 		}
@@ -761,7 +751,7 @@ func (so *SimpleOptimizer) optimize(nd ast.Node) (node.Expr, bool) {
 				}
 			}
 		}
-	case *node.ArrayLit:
+	case *node.ArrayExpr:
 		for i := range nd.Elements {
 			if expr, ok = so.optimize(nd.Elements[i]); ok {
 				nd.Elements[i] = expr
@@ -770,7 +760,7 @@ func (so *SimpleOptimizer) optimize(nd ast.Node) (node.Expr, bool) {
 				nd.Elements[i] = expr
 			}
 		}
-	case *node.DictLit:
+	case *node.DictExpr:
 		for i := range nd.Elements {
 			if expr, ok = so.optimize(nd.Elements[i].Value); ok {
 				nd.Elements[i].Value = expr
@@ -803,7 +793,7 @@ func (so *SimpleOptimizer) optimize(nd ast.Node) (node.Expr, bool) {
 				nd.High = expr
 			}
 		}
-	case *node.FuncLit:
+	case *node.FuncExpr:
 		so.enterScope()
 		defer so.leaveScope()
 		for _, ident := range nd.Type.Params.Args.Values {
@@ -951,7 +941,7 @@ func isLitFalsy(expr node.Expr) (bool, bool) {
 	case *node.FloatLit:
 		return Float(v.Value).IsFalsy(), true
 	case *node.StringLit:
-		return Str(v.Value).IsFalsy(), true
+		return Str(v.Value()).IsFalsy(), true
 	case *node.CharLit:
 		return Char(v.Value).IsFalsy(), true
 	case *node.NilLit:

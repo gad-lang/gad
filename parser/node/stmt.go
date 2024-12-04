@@ -14,6 +14,8 @@ package node
 
 import (
 	"bytes"
+	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
@@ -22,45 +24,6 @@ import (
 	"github.com/gad-lang/gad/token"
 	"github.com/gad-lang/gad/utils"
 )
-
-// Stmt represents a statement in the AST.
-type Stmt interface {
-	ast.Node
-	StmtNode()
-}
-
-type Stmts []Stmt
-
-func (s *Stmts) Append(n ...Stmt) {
-	*s = append(*s, n...)
-}
-
-func (s *Stmts) Prepend(n ...Stmt) {
-	*s = append(n, *s...)
-}
-
-func (s Stmts) Each(f func(i int, sep bool, s Stmt)) {
-	sep := true
-
-	for i, stmt := range s {
-		f(i, sep && i > 0, stmt)
-
-		switch stmt.(type) {
-		case *CodeBeginStmt:
-			sep = true
-		case *CodeEndStmt:
-			sep = false
-		}
-	}
-}
-
-// IsStatement returns true if given value is implements interface{ StmtNode() }.
-func IsStatement(v any) bool {
-	_, ok := v.(interface {
-		stmtNode()
-	})
-	return ok
-}
 
 // AssignStmt represents an assignment statement.
 type AssignStmt struct {
@@ -94,18 +57,13 @@ func (s *AssignStmt) String() string {
 		" " + strings.Join(rhs, ", ")
 }
 
-func (s *AssignStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if err = WriteCodeExprs(ctx, ", ", s.LHS...); err != nil {
-		return
-	}
-
-	if _, err = ctx.WriteString(" " + s.Token.String() + " "); err != nil {
-		return
-	}
-	if err = WriteCodeExprs(ctx, ", ", s.RHS...); err != nil {
-		return
-	}
-	return
+func (s *AssignStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WritePrefix()
+	ctx.WriteExprs(", ", s.LHS...)
+	ctx.WriteString(" " + s.Token.String() + " ")
+	ctx.Depth++
+	ctx.WriteExprs(", ", s.RHS...)
+	ctx.Depth--
 }
 
 // BadStmt represents a bad statement.
@@ -130,11 +88,16 @@ func (s *BadStmt) String() string {
 	return repr.Quote("bad statement")
 }
 
+func (s *BadStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(s.String())
+}
+
 // BlockStmt represents a block statement.
 type BlockStmt struct {
 	Stmts  Stmts
 	LBrace ast.Literal
 	RBrace ast.Literal
+	Scoped bool
 }
 
 func (s *BlockStmt) StmtNode() {}
@@ -151,36 +114,50 @@ func (s *BlockStmt) End() source.Pos {
 
 func (s *BlockStmt) String() string {
 	var b strings.Builder
+	if s.Scoped {
+		b.WriteRune('.')
+	}
 	b.WriteString(s.LBrace.Value)
-
-	s.Stmts.Each(func(i int, sep bool, s Stmt) {
-		if sep {
-			b.WriteString("; ")
-		}
-		b.WriteString(s.String())
-	})
-
+	b.WriteString(s.Stmts.String())
 	b.WriteString(s.RBrace.Value)
 	return b.String()
 }
 
-func (s *BlockStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if err = ctx.WriteByte('{'); err != nil {
-		return
-	}
+func (s *BlockStmt) WriteCode(ctx *CodeWriteContext) {
+	s.WriteCodeInSelfDepth(ctx, false)
+}
 
-	if err = WriteCodeStmts(ctx, s.Stmts...); err != nil {
-		return
+func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) {
+	if s.Scoped {
+		ctx.WritePrefix()
+		ctx.WriteString(".{")
+		ctx.WriteSecondLine()
+		selfDepth = true
+	} else {
+		ctx.WriteByte('{')
+		ctx.WriteSecondLine()
 	}
-
-	return ctx.WriteByte('}')
+	if selfDepth {
+		ctx.Depth++
+		ctx.WriteStmts(s.Stmts...)
+		ctx.Depth--
+	} else {
+		ctx.WriteStmts(s.Stmts...)
+	}
+	ctx.WriteSemi()
+	if selfDepth {
+		ctx.WritePrefix()
+	} else {
+		ctx.WritePrevPrefix()
+	}
+	ctx.WriteByte('}')
 }
 
 // BranchStmt represents a branch statement.
 type BranchStmt struct {
 	Token    token.Token
 	TokenPos source.Pos
-	Label    *Ident
+	Label    *IdentExpr
 }
 
 func (s *BranchStmt) StmtNode() {}
@@ -205,6 +182,12 @@ func (s *BranchStmt) String() string {
 		label = " " + s.Label.Name
 	}
 	return s.Token.String() + label
+}
+
+func (s *BranchStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WritePrefix()
+	ctx.WriteString(s.String())
+	ctx.WriteSemi()
 }
 
 // EmptyStmt represents an empty statement.
@@ -232,6 +215,8 @@ func (s *EmptyStmt) String() string {
 	return ";"
 }
 
+func (s *EmptyStmt) WriteCode(*CodeWriteContext) {}
+
 // ExprStmt represents an expression statement.
 type ExprStmt struct {
 	Expr Expr
@@ -253,11 +238,16 @@ func (s *ExprStmt) String() string {
 	return s.Expr.String()
 }
 
+func (s *ExprStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WritePrefix()
+	s.Expr.WriteCode(ctx)
+}
+
 // ForInStmt represents a for-in statement.
 type ForInStmt struct {
 	ForPos   source.Pos
-	Key      *Ident
-	Value    *Ident
+	Key      *IdentExpr
+	Value    *IdentExpr
 	Iterable Expr
 	Body     *BlockStmt
 	Else     *BlockStmt
@@ -288,32 +278,22 @@ func (s *ForInStmt) String() string {
 	return str
 }
 
-func (s *ForInStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString("for " + s.Key.String()); err != nil {
-		return
-	}
+func (s *ForInStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WritePrefix()
+	ctx.WriteString("for " + s.Key.String())
 
 	if s.Value != nil {
-		if _, err = ctx.WriteString(", " + s.Value.String()); err != nil {
-			return
-		}
+		ctx.WriteString(", " + s.Value.String())
 	}
 
-	if _, err = ctx.WriteString(" in " + s.Iterable.String() + " "); err != nil {
-		return
-	}
+	ctx.WriteString(" in " + s.Iterable.String() + " ")
 
-	if err = s.Body.WriteCode(ctx); err != nil {
-		return
-	}
+	s.Body.WriteCodeInSelfDepth(ctx, true)
 
 	if s.Else != nil {
-		if _, err = ctx.WriteString(" else "); err != nil {
-			return
-		}
-		return s.Else.WriteCode(ctx)
+		ctx.WriteString(" else ")
+		s.Else.WriteCode(ctx)
 	}
-	return
 }
 
 // ForStmt represents a for statement.
@@ -361,40 +341,29 @@ func (s *ForStmt) String() string {
 	return str
 }
 
-func (s *ForStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString("for "); err != nil {
-		return
-	}
+func (s *ForStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WritePrefix()
+	ctx.WriteString("for ")
 
 	if s.Init != nil {
-		if err = WriteCode(ctx, s.Init); err != nil {
-			return
-		}
+		ctx.WithoutPrefix().WriteStmts(s.Init)
 		if s.Cond != nil || s.Post != nil {
-			if _, err = ctx.WriteString("; "); err != nil {
-				return
-			}
+			ctx.WriteString("; ")
 		}
 	}
 
 	if s.Cond != nil {
-		if err = WriteCode(ctx, s.Cond); err != nil {
-			return
-		}
+		s.Cond.WriteCode(ctx)
 		if s.Post != nil {
-			if _, err = ctx.WriteString("; "); err != nil {
-				return
-			}
+			ctx.WriteString("; ")
 		}
 	}
 
 	if s.Post != nil {
-		if err = WriteCode(ctx, s.Post); err != nil {
-			return
-		}
+		ctx.WriteStmts(s.Post)
 	}
 
-	return s.Body.WriteCode(ctx)
+	s.Body.WriteCodeInSelfDepth(ctx, true)
 }
 
 // IfStmt represents an if statement.
@@ -433,32 +402,21 @@ func (s *IfStmt) String() string {
 		s.Body.String() + elseStmt
 }
 
-func (s *IfStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString("if "); err != nil {
-		return
-	}
+func (s *IfStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WritePrefix()
+	ctx.WriteString("if ")
 	if s.Init != nil {
-		if err = WriteCode(ctx, s.Init); err != nil {
-			return
-		}
-		if _, err = ctx.WriteString("; "); err != nil {
-			return
-		}
+		ctx.WithoutPrefix().WriteStmts(s.Init)
+		ctx.WriteString("; ")
 	}
-	if err = WriteCode(ctx, s.Cond); err != nil {
-		return
-	}
-	if err = ctx.WriteByte(' '); err != nil {
-		return
-	}
-	if err = WriteCode(ctx, s.Body); err != nil {
-		return
-	}
+	s.Cond.WriteCode(ctx)
+	ctx.WriteByte(' ')
+	ctx.Depth++
+	s.Body.WriteCode(ctx)
+	ctx.Depth--
 	if s.Else != nil {
-		if _, err = ctx.WriteString(" else "); err != nil {
-			return
-		}
-		return WriteCode(ctx, s.Else)
+		ctx.WriteString(" else ")
+		ctx.WriteStmts(s.Else)
 	}
 	return
 }
@@ -486,12 +444,10 @@ func (s *IncDecStmt) String() string {
 	return s.Expr.String() + s.Token.String()
 }
 
-func (s *IncDecStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if err = WriteCode(ctx, s.Expr); err != nil {
-		return
-	}
-	_, err = ctx.WriteString(s.Token.String())
-	return
+func (s *IncDecStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WritePrefix()
+	s.Expr.WriteCode(ctx)
+	ctx.WriteString(s.Token.String())
 }
 
 // ReturnStmt represents a return statement.
@@ -500,6 +456,11 @@ type ReturnStmt struct {
 }
 
 func (s *ReturnStmt) StmtNode() {}
+
+func (s *ReturnStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WritePrefix()
+	s.Return.WriteCode(ctx)
+}
 
 // TryStmt represents an try statement.
 type TryStmt struct {
@@ -539,36 +500,25 @@ func (s *TryStmt) String() string {
 	return ret
 }
 
-func (s *TryStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString("try"); err != nil {
-		return
-	}
-	if err = WriteCode(ctx, s.Body); err != nil {
-		return
-	}
+func (s *TryStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("try")
+	s.Body.WriteCode(ctx)
+
 	if s.Catch != nil {
-		if _, err = ctx.WriteString(" "); err != nil {
-			return
-		}
-		if err = WriteCode(ctx, s.Catch); err != nil {
-			return
-		}
+		ctx.WriteString(" ")
+		s.Catch.WriteCode(ctx)
 	}
+
 	if s.Finally != nil {
-		if _, err = ctx.WriteString(" "); err != nil {
-			return
-		}
-		if err = WriteCode(ctx, s.Finally); err != nil {
-			return
-		}
+		ctx.WriteString(" ")
+		s.Finally.WriteCode(ctx)
 	}
-	return
 }
 
 // CatchStmt represents an catch statement.
 type CatchStmt struct {
 	CatchPos source.Pos
-	Ident    *Ident // can be nil if ident is missing
+	Ident    *IdentExpr // can be nil if ident is missing
 	Body     *BlockStmt
 }
 
@@ -592,11 +542,9 @@ func (s *CatchStmt) String() string {
 	return "catch " + ident + s.Body.String()
 }
 
-func (s *CatchStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString("catch " + s.Ident.String()); err != nil {
-		return
-	}
-	return WriteCode(ctx, s.Body)
+func (s *CatchStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("catch " + s.Ident.String())
+	s.Body.WriteCode(ctx)
 }
 
 // FinallyStmt represents an finally statement.
@@ -621,11 +569,9 @@ func (s *FinallyStmt) String() string {
 	return "finally " + s.Body.String()
 }
 
-func (s *FinallyStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString("finally "); err != nil {
-		return
-	}
-	return WriteCode(ctx, s.Body)
+func (s *FinallyStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("finally ")
+	s.Body.WriteCode(ctx)
 }
 
 // ThrowStmt represents an throw statement.
@@ -654,21 +600,18 @@ func (s *ThrowStmt) String() string {
 	return "throw " + expr
 }
 
-func (s *ThrowStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString("throw "); err != nil {
-		return
-	}
+func (s *ThrowStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("throw ")
 	if s.Expr != nil {
-		return WriteCode(ctx, s.Expr)
+		s.Expr.WriteCode(ctx)
 	}
-	return
 }
 
 type MixedTextStmtFlag uint
 
 const (
-	RemoveLeftSpaces  MixedTextStmtFlag = 1 << iota
-	RemoveRightSpaces MixedTextStmtFlag = 1 << iota
+	RemoveLeftSpaces MixedTextStmtFlag = 1 << iota
+	RemoveRightSpaces
 )
 
 func (s MixedTextStmtFlag) Has(f MixedTextStmtFlag) bool {
@@ -688,8 +631,10 @@ func (s MixedTextStmtFlag) String() string {
 
 // MixedTextStmt represents an MixedTextStmt.
 type MixedTextStmt struct {
-	Lit   ast.Literal
-	Flags MixedTextStmtFlag
+	Lit    ast.Literal
+	Flags  MixedTextStmtFlag
+	LParen source.Pos
+	RParen source.Pos
 }
 
 func (s *MixedTextStmt) Pos() source.Pos {
@@ -729,6 +674,17 @@ func (s *MixedTextStmt) ValidLit() ast.Literal {
 	return ast.Literal{
 		Value: v,
 		Pos:   s.Lit.Pos + source.Pos(start),
+	}
+}
+
+func (s *MixedTextStmt) WriteCode(ctx *CodeWriteContext) {
+	if ctx.Transpile != nil {
+		ctx.WriteString(ctx.Transpile.WriteFunc)
+		fmt.Fprintf(ctx, "(%s(", ctx.Transpile.RawStrFunc)
+		ctx.WriteString(strconv.Quote(s.Value()))
+		ctx.WriteString("))")
+	} else {
+		ctx.WriteString(s.Lit.Value)
 	}
 }
 
@@ -774,39 +730,26 @@ func (s *MixedValueStmt) String() string {
 	return b.String()
 }
 
-func (s *MixedValueStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString(s.StartLit.Value); err != nil {
-		return
-	}
+func (s *MixedValueStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(s.StartLit.Value)
 	if s.RemoveLeftSpace {
-		if err = ctx.WriteByte('-'); err != nil {
-			return
-		}
+		ctx.WriteByte('-')
 	}
 	if s.Eq {
-		if err = ctx.WriteByte('='); err != nil {
-			return
-		}
+		ctx.WriteByte('=')
 	}
-	if err = WriteCode(ctx, s.Expr); err != nil {
-		return
-	}
+	s.Expr.WriteCode(ctx)
 	if s.RemoveRightSpace {
-		if err = ctx.WriteByte('-'); err != nil {
-			return
-		}
+		ctx.WriteByte('-')
 	}
-	_, err = ctx.WriteString(s.EndLit.Value)
-	return
+	ctx.WriteString(s.EndLit.Value)
 }
 
 type ConfigOptions struct {
-	Mixed          bool
-	NoMixed        bool
-	MixedStart     string
-	MixedEnd       string
-	WriteFunc      Expr
-	ExprToTextFunc Expr
+	Mixed      bool
+	NoMixed    bool
+	MixedStart string
+	MixedEnd   string
 }
 
 type ConfigStmt struct {
@@ -834,24 +777,20 @@ func (c *ConfigStmt) String() string {
 	return "# gad: " + strings.Join(elements, ", ")
 }
 
-func (c *ConfigStmt) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString("# gad: "); err != nil {
-		return err
-	}
+func (c *ConfigStmt) WriteCode(ctx *CodeWriteContext) {
+	if ctx.Transpile == nil {
+		ctx.WritePrefix()
+		ctx.WriteString("# gad: ")
 
-	last := len(c.Elements) - 1
-	for i, el := range c.Elements {
-		if _, err = ctx.WriteString(el.ElementString()); err != nil {
-			return
-		}
-		if i != last {
-			if _, err = ctx.WriteString(", "); err != nil {
-				return err
+		last := len(c.Elements) - 1
+		for i, el := range c.Elements {
+			ctx.WriteString(el.ElementString())
+			if i != last {
+				ctx.WriteString(", ")
 			}
 		}
+		ctx.WriteByte('\n')
 	}
-	err = ctx.WriteByte('\n')
-	return
 }
 
 func (c *ConfigStmt) ParseElements() {
@@ -875,19 +814,11 @@ func (c *ConfigStmt) ParseElements() {
 			}
 		case "mixed_start":
 			if s, ok := k.Value.(*StringLit); ok {
-				c.Options.MixedStart = s.Value
+				c.Options.MixedStart = s.Value()
 			}
 		case "mixed_end":
 			if s, ok := k.Value.(*StringLit); ok {
-				c.Options.MixedEnd = s.Value
-			}
-		case "writer":
-			if k.Value != nil {
-				c.Options.WriteFunc = k.Value
-			}
-		case "expr_to_text":
-			if k.Value != nil {
-				c.Options.ExprToTextFunc = k.Value
+				c.Options.MixedEnd = s.Value()
 			}
 		}
 	}
@@ -910,15 +841,17 @@ func (s *StmtsExpr) End() source.Pos {
 
 func (s *StmtsExpr) String() string {
 	var w bytes.Buffer
-	WriteCodeStmts(&CodeWriterContext{CodeWriter: CodeWriter(&w)}, s.Stmts...)
+	NewCodeWriteContext(NewCodeWriter(&w)).WriteStmts(s.Stmts...)
 	return w.String()
 }
 
 func (s *StmtsExpr) ExprNode() {
 }
 
-func (s *StmtsExpr) WriteCode(ctx *CodeWriterContext) (err error) {
-	return WriteCodeStmts(ctx, s.Stmts...)
+func (s *StmtsExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.Depth++
+	ctx.WriteStmts(s.Stmts...)
+	ctx.Depth--
 }
 
 type CodeBeginStmt struct {
@@ -944,6 +877,13 @@ func (c CodeBeginStmt) String() string {
 func (c CodeBeginStmt) StmtNode() {
 }
 
+func (s *CodeBeginStmt) WriteCode(ctx *CodeWriteContext) {
+	if ctx.Transpile == nil {
+		ctx.WriteString(s.String())
+		ctx.Depth++
+	}
+}
+
 type CodeEndStmt struct {
 	Lit         ast.Literal
 	RemoveSpace bool
@@ -965,4 +905,11 @@ func (c CodeEndStmt) String() string {
 }
 
 func (c CodeEndStmt) StmtNode() {
+}
+
+func (s *CodeEndStmt) WriteCode(ctx *CodeWriteContext) {
+	if ctx.Transpile == nil {
+		ctx.WriteString(s.String())
+		ctx.Depth--
+	}
 }

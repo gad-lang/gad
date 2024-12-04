@@ -207,7 +207,7 @@ func TestExpectRun(t *testing.T, script string, opts *TestOpts, expect Object) {
 			tC.opts.SymbolTable = NewSymbolTable(builtins)
 
 			if opts.exprToTextFunc != "" {
-				tC.opts.MixedExprToTextFunc = &node.Ident{Name: opts.exprToTextFunc}
+				tC.opts.MixedExprToTextFunc = &node.IdentExpr{Name: opts.exprToTextFunc}
 			}
 			if opts.mixed {
 				tC.opts.ParserOptions.Mode |= parser.ParseMixed

@@ -13,20 +13,15 @@
 package parser
 
 import (
-	"bufio"
-	"io"
-	"strings"
-
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
-	"github.com/gad-lang/gad/stringw"
 )
 
 // File represents a file unit.
 type File struct {
 	InputFile *source.File
-	Stmts     []node.Stmt
+	Stmts     node.Stmts
 	Comments  []*ast.CommentGroup
 }
 
@@ -40,29 +35,10 @@ func (n *File) End() source.Pos {
 	return source.Pos(n.InputFile.Base + n.InputFile.Size)
 }
 
-func (n *File) StringTo(w stringw.StringWriter) {
-	node.WriteCodeStmts(&node.CodeWriterContext{CodeWriter: w}, n.Stmts...)
+func (n *File) WriteCode(ctx *node.CodeWriteContext) {
+	ctx.WriteStmts(n.Stmts...)
 }
 
 func (n *File) String() string {
-	var s strings.Builder
-	n.StringTo(&s)
-	return s.String()
-}
-
-func (n *File) TanspileTo(w io.Writer) (err error) {
-	ctx := node.CodeWriterContext{
-		CodeWriter: bufio.NewWriter(w),
-	}
-	return node.WriteCodeStmts(&ctx, n.Stmts...)
-}
-
-func (n *File) Tanspile() (s string, err error) {
-	var b strings.Builder
-	ctx := node.CodeWriterContext{
-		CodeWriter: &b,
-	}
-	err = node.WriteCodeStmts(&ctx, n.Stmts...)
-	s = b.String()
-	return
+	return n.Stmts.String()
 }

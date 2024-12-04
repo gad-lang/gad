@@ -10,7 +10,7 @@ import (
 type IdentList struct {
 	LParen  source.Pos
 	VarArgs bool
-	List    []*Ident
+	List    []*IdentExpr
 	RParen  source.Pos
 }
 

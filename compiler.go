@@ -49,6 +49,7 @@ var (
 var errSkip = errors.New("skip")
 
 type (
+	CompileStack []ast.Node
 
 	// Compiler compiles the AST into a bytecode.
 	Compiler struct {
@@ -72,7 +73,7 @@ type (
 		opts           CompilerOptions
 		trace          io.Writer
 		indent         int
-		stack          []ast.Node
+		stack          CompileStack
 		selectorStack  [][][]func()
 	}
 
@@ -129,9 +130,38 @@ type (
 	}
 )
 
+func (s CompileStack) Up(n int) ast.Node {
+	if len(s) < n {
+		return nil
+	}
+	return s[len(s)-n]
+}
+
 func (e *CompilerError) Error() string {
 	filePos := e.FileSet.Position(e.Node.Pos())
 	return fmt.Sprintf("Compile Error: %s\n\tat %s", e.Err.Error(), filePos)
+}
+
+func (e *CompilerError) Format(f fmt.State, verb rune) {
+	switch verb {
+	case 's':
+		fmt.Fprint(f, e.Error())
+	case 'v':
+		pos := e.FileSet.Position(e.Node.Pos())
+		if f.Flag('+') && pos.File != nil {
+			var (
+				up, _   = f.Width()
+				down, _ = f.Precision()
+			)
+
+			fmt.Fprintln(f, e.Error())
+			f.Write([]byte{'\n'})
+
+			pos.TraceLines(f, up, down)
+		} else {
+			f.Write([]byte(e.Error()))
+		}
+	}
 }
 
 func (e *CompilerError) Unwrap() error {
@@ -209,12 +239,12 @@ func Compile(script []byte, opts CompileOptions) (*Bytecode, error) {
 		moduleName = MainName
 	}
 
-	srcFile := fileSet.AddFile(moduleName, -1, len(script))
+	srcFile := fileSet.AddFileData(moduleName, -1, script)
 	if opts.TraceParser && opts.ParserOptions.Trace == nil {
 		opts.ParserOptions.Trace = opts.Trace
 	}
 
-	p := parser.NewParserWithOptions(srcFile, script, &opts.ParserOptions, &opts.ScannerOptions)
+	p := parser.NewParserWithOptions(srcFile, &opts.ParserOptions, &opts.ScannerOptions)
 	pf, err := p.ParseFile()
 	if err != nil {
 		return nil, err
@@ -364,7 +394,7 @@ stmts:
 				na node.CallExprNamedArgs
 			)
 			if wf == nil {
-				wf = &node.Ident{Name: "write"}
+				wf = &node.IdentExpr{Name: "write"}
 			}
 			if c.opts.MixedExprToTextFunc != nil {
 				na = *new(node.CallExprNamedArgs).AppendS("convert", c.opts.MixedExprToTextFunc)
@@ -412,7 +442,7 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		if err := c.Compile(nt.Expr); err != nil {
 			return err
 		}
-		if f, _ := nt.Expr.(*node.FuncLit); f != nil && f.Type.Ident != nil {
+		if f, _ := nt.Expr.(*node.FuncExpr); f != nil && f.Type.Ident != nil {
 			return nil
 		}
 		c.emit(nt, OpPop)
@@ -458,7 +488,7 @@ func (c *Compiler) Compile(nd ast.Node) error {
 			c.emit(nt, OpNo)
 		}
 	case *node.StringLit:
-		c.emit(nt, OpConstant, c.addConstant(Str(nt.Value)))
+		c.emit(nt, OpConstant, c.addConstant(Str(nt.Value())))
 	case *node.RawStringLit:
 		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.UnquotedValue())))
 	case *node.CharLit:
@@ -477,11 +507,11 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		c.emit(nt, OpDotFile)
 	case *node.IsModuleLit:
 		c.emit(nt, OpIsModule)
-	case *node.CalleeKeyword:
+	case *node.CalleeKeywordExpr:
 		c.emit(nt, OpCallee)
-	case *node.ArgsKeyword:
+	case *node.ArgsKeywordExpr:
 		c.emit(nt, OpArgs)
-	case *node.NamedArgsKeyword:
+	case *node.NamedArgsKeywordExpr:
 		c.emit(nt, OpNamedArgs)
 	case *node.UnaryExpr:
 		return c.compileUnaryExpr(nt)
@@ -508,13 +538,12 @@ func (c *Compiler) Compile(nd ast.Node) error {
 	case *node.DeclStmt:
 		return c.compileDeclStmt(nt)
 	case *node.AssignStmt:
-		return c.compileAssignStmt(nt,
-			nt.LHS, nt.RHS, token.Var, nt.Token)
-	case *node.Ident:
+		return c.compileAssignStmt(nt, nt.LHS, nt.RHS, token.Var, nt.Token)
+	case *node.IdentExpr:
 		return c.compileIdent(nt)
-	case *node.ArrayLit:
+	case *node.ArrayExpr:
 		return c.compileArrayLit(nt)
-	case *node.DictLit:
+	case *node.DictExpr:
 		return c.compileDictLit(nt)
 	case *node.KeyValueArrayLit:
 		return c.compileKeyValueArrayLit(nt)
@@ -526,9 +555,9 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileIndexExpr(nt)
 	case *node.SliceExpr:
 		return c.compileSliceExpr(nt)
-	case *node.FuncLit:
+	case *node.FuncExpr:
 		return c.compileFuncLit(nt)
-	case *node.ClosureLit:
+	case *node.ClosureExpr:
 		return c.compileClosureLit(nt)
 	case *node.KeyValueLit:
 		return c.compileKeyValueLit(nt)
@@ -544,14 +573,7 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileCondExpr(nt)
 	case *node.MixedTextStmt:
 		return c.compileStmts(nt)
-	case *node.EmptyStmt:
-	case *node.ConfigStmt:
-		if nt.Options.WriteFunc != nil {
-			c.opts.MixedWriteFunction = nt.Options.WriteFunc
-		}
-		if nt.Options.ExprToTextFunc != nil {
-			c.opts.MixedExprToTextFunc = nt.Options.ExprToTextFunc
-		}
+	case *node.EmptyStmt, *node.ConfigStmt:
 	case *node.CodeBeginStmt, *node.CodeEndStmt:
 		return nil
 	case *node.MixedTextExpr:
@@ -726,7 +748,7 @@ func (c *Compiler) CompileModule(
 	parserOptions *parser.ParserOptions,
 	scannerOptions *parser.ScannerOptions,
 ) (bc *Bytecode, err error) {
-	modFile := c.file.Set().AddFile(module.Name, -1, len(src))
+	modFile := c.file.Set().AddFileData(module.Name, -1, src)
 	var trace io.Writer
 	if c.opts.TraceParser {
 		trace = c.trace
@@ -736,7 +758,7 @@ func (c *Compiler) CompileModule(
 		parserOptions = &parser.ParserOptions{Trace: trace}
 	}
 
-	p := parser.NewParserWithOptions(modFile, src, parserOptions, scannerOptions)
+	p := parser.NewParserWithOptions(modFile, parserOptions, scannerOptions)
 
 	var file *parser.File
 	file, err = p.ParseFile()

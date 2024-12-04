@@ -75,6 +75,15 @@ func NewFileReader(file *File, option ...FileReaderOption) (fr *Reader) {
 	return fr
 }
 
+func (s *Reader) Read(b []byte) (n int, err error) {
+	v := s.ReadCount(len(b))
+	for i := range v {
+		b[i] = v[i]
+	}
+	n = len(v)
+	return
+}
+
 func (s *Reader) Start() {
 	s.Next()
 	if s.Ch == BOM {

@@ -14,63 +14,14 @@ package node
 
 import (
 	"bytes"
-	"io"
 	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
-	"github.com/gad-lang/gad/quote"
 	"github.com/gad-lang/gad/repr"
-	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/token"
-	"github.com/shopspring/decimal"
 )
-
-// Expr represents an expression node in the AST.
-type Expr interface {
-	ast.Node
-	ExprNode()
-}
-
-type Exprs []Expr
-
-// ArrayLit represents an array literal.
-type ArrayLit struct {
-	Elements []Expr
-	LBrack   source.Pos
-	RBrack   source.Pos
-}
-
-func (e *ArrayLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *ArrayLit) Pos() source.Pos {
-	return e.LBrack
-}
-
-// End returns the position of first character immediately after the node.
-func (e *ArrayLit) End() source.Pos {
-	return e.RBrack + 1
-}
-
-func (e *ArrayLit) String() string {
-	var elements []string
-	for _, m := range e.Elements {
-		elements = append(elements, m.String())
-	}
-	return "[" + strings.Join(elements, ", ") + "]"
-}
-
-func (e *ArrayLit) WriteCode(ctx *CodeWriterContext) (err error) {
-	if err = ctx.WriteByte('['); err != nil {
-		return
-	}
-	if err = WriteCodeExprs(ctx, ", ", e.Elements...); err != nil {
-		return
-	}
-	return ctx.WriteByte(']')
-}
 
 // BadExpr represents a bad expression.
 type BadExpr struct {
@@ -92,6 +43,10 @@ func (e *BadExpr) End() source.Pos {
 
 func (e *BadExpr) String() string {
 	return repr.Quote("bad expression")
+}
+
+func (e *BadExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
 }
 
 // BinaryExpr represents a binary operator expression.
@@ -119,150 +74,17 @@ func (e *BinaryExpr) String() string {
 		" " + e.RHS.String() + ")"
 }
 
-func (e *BinaryExpr) WriteCode(ctx *CodeWriterContext) (err error) {
-	if err = ctx.WriteByte('('); err != nil {
-		return
-	}
-	if err = WriteCode(ctx, e.LHS); err != nil {
-		return
-	}
-
-	if _, err = ctx.WriteString(" " + e.Token.String() + " "); err != nil {
-		return
-	}
-
-	if err = WriteCode(ctx, e.RHS); err != nil {
-		return
-	}
-	return ctx.WriteByte(')')
+func (e *BinaryExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteByte('(')
+	e.LHS.WriteCode(ctx)
+	ctx.WriteString(" " + e.Token.String() + " ")
+	e.RHS.WriteCode(ctx)
+	ctx.WriteByte(')')
 }
 
 type BoolExpr interface {
 	Expr
 	Bool() bool
-}
-
-// BoolLit represents a boolean literal.
-type BoolLit struct {
-	Value    bool
-	ValuePos source.Pos
-	Literal  string
-}
-
-func (e *BoolLit) ExprNode() {}
-
-func (e *BoolLit) Bool() bool {
-	return e.Value
-}
-
-// Pos returns the position of first character belonging to the node.
-func (e *BoolLit) Pos() source.Pos {
-	return e.ValuePos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *BoolLit) End() source.Pos {
-	return source.Pos(int(e.ValuePos) + len(e.Literal))
-}
-
-func (e *BoolLit) String() string {
-	return e.Literal
-}
-
-// FlagLit represents a yes literal.
-type FlagLit struct {
-	ValuePos source.Pos
-	Literal  string
-	Value    bool
-}
-
-func (e *FlagLit) ExprNode() {}
-
-func (e *FlagLit) Bool() bool {
-	return e.Value
-}
-
-// Pos returns the position of first character belonging to the node.
-func (e *FlagLit) Pos() source.Pos {
-	return e.ValuePos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *FlagLit) End() source.Pos {
-	return source.Pos(int(e.ValuePos) + len(e.Literal))
-}
-
-func (e *FlagLit) String() string {
-	if e.Value {
-		return "yes"
-	}
-	return "no"
-}
-
-type CallArgs struct {
-	LParen    source.Pos
-	Args      CallExprArgs
-	NamedArgs CallExprNamedArgs
-	RParen    source.Pos
-}
-
-// Pos returns the position of first character belonging to the node.
-func (c *CallArgs) Pos() source.Pos {
-	return c.LParen
-}
-
-// End returns the position of first character immediately after the node.
-func (c *CallArgs) End() source.Pos {
-	return c.RParen + 1
-}
-
-func (c *CallArgs) String() string {
-	var buf strings.Builder
-	c.StringW(&buf)
-	return buf.String()
-}
-
-func (c *CallArgs) StringW(w io.Writer) {
-	c.StringArg(w, "(", ")")
-}
-
-func (c *CallArgs) StringArg(w io.Writer, lbrace, rbrace string) {
-	io.WriteString(w, lbrace)
-	if c.Args.Valid() {
-		io.WriteString(w, c.Args.String())
-	}
-	if c.NamedArgs.Valid() {
-		if c.Args.Valid() {
-			io.WriteString(w, ", ")
-		}
-		io.WriteString(w, c.NamedArgs.String())
-	}
-	io.WriteString(w, rbrace)
-}
-
-func (c *CallArgs) WriteCode(ctx *CodeWriterContext) (err error) {
-	return c.WriteCodeBrace(ctx, "(", ")")
-}
-
-func (c *CallArgs) WriteCodeBrace(ctx *CodeWriterContext, lbrace, rbrace string) (err error) {
-	if _, err = ctx.WriteString(lbrace); err != nil {
-		return
-	}
-	if c.Args.Valid() {
-		if err = c.Args.WriteCode(ctx); err != nil {
-			return
-		}
-	}
-	if c.NamedArgs.Valid() {
-		if _, err = ctx.WriteString("; "); err != nil {
-			return
-		}
-		if err = c.NamedArgs.WriteCode(ctx); err != nil {
-			return
-		}
-	}
-	_, err = ctx.WriteString(rbrace)
-	return
 }
 
 // CallExpr represents a function call expression.
@@ -289,27 +111,9 @@ func (e *CallExpr) String() string {
 	return buf.String()
 }
 
-// CharLit represents a character literal.
-type CharLit struct {
-	Value    rune
-	ValuePos source.Pos
-	Literal  string
-}
-
-func (e *CharLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *CharLit) Pos() source.Pos {
-	return e.ValuePos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *CharLit) End() source.Pos {
-	return source.Pos(int(e.ValuePos) + len(e.Literal))
-}
-
-func (e *CharLit) String() string {
-	return e.Literal
+func (e *CallExpr) WriteCode(ctx *CodeWriteContext) {
+	e.Func.WriteCode(ctx)
+	e.CallArgs.WriteCode(ctx)
 }
 
 // CondExpr represents a ternary conditional expression.
@@ -338,310 +142,54 @@ func (e *CondExpr) String() string {
 		" : " + e.False.String() + ")"
 }
 
-// FloatLit represents a floating point literal.
-type FloatLit struct {
-	Value    float64
-	ValuePos source.Pos
-	Literal  string
+func (e *CondExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteByte('(')
+	e.Cond.WriteCode(ctx)
+	ctx.WriteString(" ? ")
+	e.True.WriteCode(ctx)
+	ctx.WriteString(" : ")
+	e.False.WriteCode(ctx)
+	ctx.WriteByte(')')
 }
 
-func (e *FloatLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *FloatLit) Pos() source.Pos {
-	return e.ValuePos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *FloatLit) End() source.Pos {
-	return source.Pos(int(e.ValuePos) + len(e.Literal))
-}
-
-func (e *FloatLit) String() string {
-	return e.Literal
-}
-
-// DecimalLit represents a floating point literal.
-type DecimalLit struct {
-	Value    decimal.Decimal
-	ValuePos source.Pos
-	Literal  string
-}
-
-func (e *DecimalLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *DecimalLit) Pos() source.Pos {
-	return e.ValuePos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *DecimalLit) End() source.Pos {
-	return source.Pos(int(e.ValuePos) + len(e.Literal))
-}
-
-func (e *DecimalLit) String() string {
-	return e.Literal
-}
-
-// FuncLit represents a function literal.
-type FuncLit struct {
-	ast.NodeData
-	Type *FuncType
-	Body *BlockStmt
-}
-
-func (e *FuncLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *FuncLit) Pos() source.Pos {
-	return e.Type.Pos()
-}
-
-// End returns the position of first character immediately after the node.
-func (e *FuncLit) End() source.Pos {
-	return e.Body.End()
-}
-
-func (e *FuncLit) String() string {
-	return "func" + e.Type.String() + " " + e.Body.String()
-}
-
-// ClosureLit represents a function closure literal.
-type ClosureLit struct {
-	ast.NodeData
-	Type *FuncType
-	Body Expr
-}
-
-func (e *ClosureLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *ClosureLit) Pos() source.Pos {
-	return e.Type.Pos()
-}
-
-// End returns the position of first character immediately after the node.
-func (e *ClosureLit) End() source.Pos {
-	return e.Body.End()
-}
-
-func (e *ClosureLit) String() string {
-	return e.Type.Params.String() + " => " + e.Body.String()
-}
-
-// ArgsList represents a list of identifiers.
-type ArgsList struct {
-	Var    *TypedIdent
-	Values []*TypedIdent
-}
-
-// Pos returns the position of first character belonging to the node.
-func (n *ArgsList) Pos() source.Pos {
-	if len(n.Values) > 0 {
-		return n.Values[0].Pos()
-	} else if n.Var != nil {
-		return n.Var.Pos()
-	}
-	return source.NoPos
-}
-
-// End returns the position of first character immediately after the node.
-func (n *ArgsList) End() source.Pos {
-	if n.Var != nil {
-		return n.Var.End()
-	} else if l := len(n.Values); l > 0 {
-		return n.Values[l-1].End()
-	}
-	return source.NoPos
-}
-
-// NumFields returns the number of fields.
-func (n *ArgsList) NumFields() int {
-	if n == nil {
-		return 0
-	}
-	return len(n.Values)
-}
-
-func (n *ArgsList) String() string {
-	var list []string
-	for _, e := range n.Values {
-		list = append(list, e.String())
-	}
-	if n.Var != nil {
-		list = append(list, "*"+n.Var.String())
-	}
-	return strings.Join(list, ", ")
-}
-
-// NamedArgsList represents a list of identifier with value pairs.
-type NamedArgsList struct {
-	Var    *TypedIdent
-	Names  []*TypedIdent
-	Values []Expr
-}
-
-func (n *NamedArgsList) Add(name *TypedIdent, value Expr) *NamedArgsList {
-	n.Names = append(n.Names, name)
-	n.Values = append(n.Values, value)
-	return n
-}
-
-// Pos returns the position of first character belonging to the node.
-func (n *NamedArgsList) Pos() source.Pos {
-	if len(n.Names) > 0 {
-		return n.Names[0].Pos()
-	} else if n.Var != nil {
-		return n.Var.Pos()
-	}
-	return source.NoPos
-}
-
-// End returns the position of first character immediately after the node.
-func (n *NamedArgsList) End() source.Pos {
-	if n.Var != nil {
-		return n.Var.End()
-	}
-	if l := len(n.Names); l > 0 {
-		if n.Var != nil {
-			return n.Var.End()
-		}
-		return n.Values[l-1].End()
-	}
-	return source.NoPos
-}
-
-// NumFields returns the number of fields.
-func (n *NamedArgsList) NumFields() int {
-	if n == nil {
-		return 0
-	}
-	return len(n.Names)
-}
-
-func (n *NamedArgsList) String() string {
-	var list []string
-	for i, e := range n.Names {
-		list = append(list, e.String()+"="+n.Values[i].String())
-	}
-	if n.Var != nil {
-		list = append(list, "**"+n.Var.String())
-	}
-	return strings.Join(list, ", ")
-}
-
-// FuncParams represents a function paramsw.
-type FuncParams struct {
-	LParen    source.Pos
-	Args      ArgsList
-	NamedArgs NamedArgsList
-	RParen    source.Pos
-}
-
-// Pos returns the position of first character belonging to the node.
-func (n *FuncParams) Pos() (pos source.Pos) {
-	if n.LParen.IsValid() {
-		return n.LParen
-	}
-	if pos = n.Args.Pos(); pos != source.NoPos {
-		return pos
-	}
-	if pos = n.NamedArgs.Pos(); pos != source.NoPos {
-		return pos
-	}
-	return source.NoPos
-}
-
-// End returns the position of first character immediately after the node.
-func (n *FuncParams) End() (pos source.Pos) {
-	if n.RParen.IsValid() {
-		return n.RParen + 1
-	}
-	if pos = n.NamedArgs.End(); pos != source.NoPos {
-		return pos
-	}
-	if pos = n.Args.End(); pos != source.NoPos {
-		return pos
-	}
-	return source.NoPos
-}
-
-func (n *FuncParams) String() string {
-	buf := bytes.NewBufferString("(")
-	buf.WriteString(n.Args.String())
-	if buf.Len() > 1 && n.NamedArgs.Pos() != source.NoPos {
-		buf.WriteString(", ")
-	}
-	buf.WriteString(n.NamedArgs.String())
-	buf.WriteString(")")
-	return buf.String()
-}
-
-// FuncType represents a function type definition.
-type FuncType struct {
-	Token        token.Token
-	FuncPos      source.Pos
-	Ident        *Ident
-	Params       FuncParams
-	AllowMethods bool
-}
-
-func (e *FuncType) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *FuncType) Pos() source.Pos {
-	return e.FuncPos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *FuncType) End() source.Pos {
-	return e.Params.End()
-}
-
-func (e *FuncType) String() string {
-	var s string
-	if e.Ident != nil {
-		s += " "
-		s += e.Ident.String()
-	}
-	return s + e.Params.String()
-}
-
-// Ident represents an identifier.
-type Ident struct {
+// IdentExpr represents an identifier.
+type IdentExpr struct {
 	Name    string
 	NamePos source.Pos
 }
 
-func (e *Ident) ExprNode() {}
+func (e *IdentExpr) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
-func (e *Ident) Pos() source.Pos {
+func (e *IdentExpr) Pos() source.Pos {
 	return e.NamePos
 }
 
 // End returns the position of first character immediately after the node.
-func (e *Ident) End() source.Pos {
+func (e *IdentExpr) End() source.Pos {
 	return source.Pos(int(e.NamePos) + len(e.Name))
 }
 
-func (e *Ident) String() string {
+func (e *IdentExpr) String() string {
 	if e != nil {
 		return e.Name
 	}
 	return nullRep
 }
 
-type TypedIdent struct {
-	Ident *Ident
-	Type  []*Ident
+func (e *IdentExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.Name)
 }
 
-func (e *TypedIdent) ExprNode() {}
+type TypedIdentExpr struct {
+	Ident *IdentExpr
+	Type  []*IdentExpr
+}
+
+func (e *TypedIdentExpr) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
-func (e *TypedIdent) Pos() source.Pos {
+func (e *TypedIdentExpr) Pos() source.Pos {
 	if e.Ident != nil {
 		return e.Ident.Pos()
 	}
@@ -649,11 +197,11 @@ func (e *TypedIdent) Pos() source.Pos {
 }
 
 // End returns the position of first character immediately after the node.
-func (e *TypedIdent) End() source.Pos {
+func (e *TypedIdentExpr) End() source.Pos {
 	return e.Type[len(e.Type)-1].End()
 }
 
-func (e *TypedIdent) String() string {
+func (e *TypedIdentExpr) String() string {
 	if e != nil {
 		if l := len(e.Type); l == 0 {
 			return e.Ident.String()
@@ -666,6 +214,10 @@ func (e *TypedIdent) String() string {
 		}
 	}
 	return nullRep
+}
+
+func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
 }
 
 // ImportExpr represents an import expression
@@ -689,7 +241,11 @@ func (e *ImportExpr) End() source.Pos {
 }
 
 func (e *ImportExpr) String() string {
-	return `import("` + e.ModuleName + `")"`
+	return `import("` + e.ModuleName + `")`
+}
+
+func (e *ImportExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
 }
 
 // IndexExpr represents an index expression.
@@ -720,101 +276,11 @@ func (e *IndexExpr) String() string {
 	return e.Expr.String() + "[" + index + "]"
 }
 
-// IntLit represents an integer literal.
-type IntLit struct {
-	Value    int64
-	ValuePos source.Pos
-	Literal  string
-}
-
-func (e *IntLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *IntLit) Pos() source.Pos {
-	return e.ValuePos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *IntLit) End() source.Pos {
-	return source.Pos(int(e.ValuePos) + len(e.Literal))
-}
-
-func (e *IntLit) String() string {
-	return e.Literal
-}
-
-// UintLit represents an unsigned integer literal.
-type UintLit struct {
-	Value    uint64
-	ValuePos source.Pos
-	Literal  string
-}
-
-func (e *UintLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *UintLit) Pos() source.Pos {
-	return e.ValuePos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *UintLit) End() source.Pos {
-	return source.Pos(int(e.ValuePos) + len(e.Literal))
-}
-
-func (e *UintLit) String() string {
-	return e.Literal
-}
-
-// DictElementLit represents a map element.
-type DictElementLit struct {
-	Key      string
-	KeyPos   source.Pos
-	ColonPos source.Pos
-	Value    Expr
-}
-
-func (e *DictElementLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *DictElementLit) Pos() source.Pos {
-	return e.KeyPos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *DictElementLit) End() source.Pos {
-	return e.Value.End()
-}
-
-func (e *DictElementLit) String() string {
-	return e.Key + ": " + e.Value.String()
-}
-
-// DictLit represents a map literal.
-type DictLit struct {
-	LBrace   source.Pos
-	Elements []*DictElementLit
-	RBrace   source.Pos
-}
-
-func (e *DictLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *DictLit) Pos() source.Pos {
-	return e.LBrace
-}
-
-// End returns the position of first character immediately after the node.
-func (e *DictLit) End() source.Pos {
-	return e.RBrace + 1
-}
-
-func (e *DictLit) String() string {
-	var elements []string
-	for _, m := range e.Elements {
-		elements = append(elements, m.String())
-	}
-	return "{" + strings.Join(elements, ", ") + "}"
+func (e *IndexExpr) WriteCode(ctx *CodeWriteContext) {
+	e.Expr.WriteCode(ctx)
+	ctx.WriteString("[")
+	e.Index.WriteCode(ctx)
+	ctx.WriteString("]")
 }
 
 // ParenExpr represents a parenthesis wrapped expression.
@@ -838,6 +304,12 @@ func (e *ParenExpr) End() source.Pos {
 
 func (e *ParenExpr) String() string {
 	return "(" + e.Expr.String() + ")"
+}
+
+func (e *ParenExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteByte('(')
+	e.Expr.WriteCode(ctx)
+	ctx.WriteByte(')')
 }
 
 // MultiParenExpr represents a parenthesis wrapped expressions.
@@ -871,6 +343,22 @@ func (e *MultiParenExpr) String() string {
 	return "(" + strings.Join(s, ", ") + ")"
 }
 
+func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteByte('(')
+	var s = make([]string, len(e.Exprs))
+	for i, expr := range e.Exprs {
+		if kv, _ := expr.(*KeyValueLit); kv != nil {
+			s[i] = kv.ElementString()
+		} else {
+			s[i] = ctx.Buffer(func(ctx *CodeWriteContext) {
+				expr.WriteCode(ctx)
+			})
+		}
+	}
+	ctx.WriteExprs(", ", e.Exprs...)
+	ctx.WriteByte(')')
+}
+
 type ExprSelector interface {
 	Expr
 	SelectorExpr() Expr
@@ -898,7 +386,7 @@ func (e *SelectorExpr) String() string {
 	r := e.Expr.String() + "."
 	if s, _ := e.Sel.(*StringLit); s != nil {
 		if s.CanIdent() {
-			return r + s.Value
+			return r + s.Value()
 		}
 		return r + "(" + s.Literal + ")"
 	}
@@ -907,6 +395,20 @@ func (e *SelectorExpr) String() string {
 
 func (e *SelectorExpr) SelectorExpr() Expr {
 	return e.Expr
+}
+
+func (e *SelectorExpr) WriteCode(ctx *CodeWriteContext) {
+	e.Expr.WriteCode(ctx)
+	ctx.WriteByte('.')
+	if s, _ := e.Sel.(*StringLit); s != nil {
+		if s.CanIdent() {
+			ctx.WriteString(s.Value())
+		} else {
+			ctx.WriteString("(", s.Literal, ")")
+		}
+	} else {
+		e.Sel.WriteCode(ctx)
+	}
 }
 
 // NullishSelectorExpr represents a selector expression.
@@ -931,7 +433,7 @@ func (e *NullishSelectorExpr) String() string {
 	r := e.Expr.String() + "?."
 	if s, _ := e.Sel.(*StringLit); s != nil {
 		if s.CanIdent() {
-			return r + s.Value
+			return r + s.Value()
 		}
 		return r + "(" + s.Literal + ")"
 	}
@@ -940,6 +442,20 @@ func (e *NullishSelectorExpr) String() string {
 
 func (e *NullishSelectorExpr) SelectorExpr() Expr {
 	return e.Expr
+}
+
+func (e *NullishSelectorExpr) WriteCode(ctx *CodeWriteContext) {
+	e.Expr.WriteCode(ctx)
+	ctx.WriteString("?.")
+	if s, _ := e.Sel.(*StringLit); s != nil {
+		if s.CanIdent() {
+			ctx.WriteString(s.Value())
+		} else {
+			ctx.WriteString("(", s.Literal, ")")
+		}
+	} else {
+		e.Sel.WriteCode(ctx)
+	}
 }
 
 // SliceExpr represents a slice expression.
@@ -974,70 +490,17 @@ func (e *SliceExpr) String() string {
 	return e.Expr.String() + "[" + low + ":" + high + "]"
 }
 
-// StringLit represents a string literal.
-type StringLit struct {
-	Value    string
-	ValuePos source.Pos
-	Literal  string
-}
-
-func (e *StringLit) CanIdent() bool {
-	return runehelper.IsIdentifierRunes([]rune(e.Value))
-}
-
-func (e *StringLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *StringLit) Pos() source.Pos {
-	return e.ValuePos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *StringLit) End() source.Pos {
-	return source.Pos(int(e.ValuePos) + len(e.Literal))
-}
-
-func (e *StringLit) String() string {
-	return e.Literal
-}
-
-type RawStringLit struct {
-	Literal    string
-	LiteralPos source.Pos
-	Quoted     bool
-}
-
-func (e *RawStringLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *RawStringLit) Pos() source.Pos {
-	return e.LiteralPos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *RawStringLit) End() source.Pos {
-	return source.Pos(int(e.LiteralPos) + len(e.Literal))
-}
-
-func (e *RawStringLit) String() string {
-	return e.QuotedValue()
-}
-
-func (e *RawStringLit) UnquotedValue() string {
-	if e.Quoted {
-		s, _ := strconv.Unquote(e.Literal)
-		return s
-	} else {
-		return e.Literal
+func (e *SliceExpr) WriteCode(ctx *CodeWriteContext) {
+	e.Expr.WriteCode(ctx)
+	ctx.WriteByte('[')
+	if e.Low != nil {
+		e.Low.WriteCode(ctx)
 	}
-}
-
-func (e *RawStringLit) QuotedValue() string {
-	if e.Quoted {
-		return e.Literal
-	} else {
-		return quote.Quote(e.Literal, "`")
+	ctx.WriteByte(':')
+	if e.High != nil {
+		e.High.WriteCode(ctx)
 	}
+	ctx.WriteByte(']')
 }
 
 // UnaryExpr represents an unary operator expression.
@@ -1069,30 +532,22 @@ func (e *UnaryExpr) String() string {
 	return "(" + e.Token.String() + e.Expr.String() + ")"
 }
 
-// NilLit represents an nil literal.
-type NilLit struct {
-	TokenPos source.Pos
-}
+func (e *UnaryExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteByte('(')
 
-func (e *NilLit) ExprNode() {}
+	switch e.Token {
+	case token.Null:
+		e.Expr.WriteCode(ctx)
+		ctx.WriteString(" == nil")
+	case token.NotNull:
+		e.Expr.WriteCode(ctx)
+		ctx.WriteString(" != nil")
+	default:
+		ctx.WriteString(e.Token.String())
+		e.Expr.WriteCode(ctx)
+	}
 
-// Pos returns the position of first character belonging to the node.
-func (e *NilLit) Pos() source.Pos {
-	return e.TokenPos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *NilLit) End() source.Pos {
-	return e.TokenPos + 9 // len(nil) == 9
-}
-
-func (e *NilLit) String() string {
-	return "nil"
-}
-
-type EllipsisValue struct {
-	Pos   source.Pos
-	Value Expr
+	ctx.WriteByte(')')
 }
 
 // CallExprArgs represents a call expression arguments.
@@ -1116,27 +571,26 @@ func (a *CallExprArgs) String() string {
 	return strings.Join(s, ", ")
 }
 
-func (a *CallExprArgs) WriteCode(ctx *CodeWriterContext) (err error) {
-	if err = WriteCodeExprs(ctx, ",", a.Values...); err != nil {
-		return
-	}
+func (a *CallExprArgs) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteExprs(", ", a.Values...)
 	if a.Var != nil {
-		if err = ctx.WriteByte('*'); err != nil {
-			return
+		if len(a.Values) > 0 {
+			ctx.WriteString(", ")
 		}
-		return WriteCode(ctx, a.Var.Value)
+		ctx.WriteByte('*')
+		a.Var.Value.WriteCode(ctx)
 	}
 	return
 }
 
 type NamedArgExpr struct {
 	Lit   *StringLit
-	Ident *Ident
+	Ident *IdentExpr
 }
 
 func (e *NamedArgExpr) Name() string {
 	if e.Lit != nil {
-		return e.Lit.Value
+		return e.Lit.Value()
 	}
 	return e.Ident.Name
 }
@@ -1145,7 +599,7 @@ func (e *NamedArgExpr) NameString() *StringLit {
 	if e.Lit != nil {
 		return e.Lit
 	}
-	return &StringLit{Value: e.Ident.Name, ValuePos: e.Ident.NamePos}
+	return &StringLit{Literal: strconv.Quote(e.Ident.Name), ValuePos: e.Ident.NamePos}
 }
 
 func (e *NamedArgExpr) String() string {
@@ -1157,6 +611,10 @@ func (e *NamedArgExpr) Expr() Expr {
 		return e.Lit
 	}
 	return e.Ident
+}
+
+func (e *NamedArgExpr) WriteCode(ctx *CodeWriteContext) {
+	e.Expr().WriteCode(ctx)
 }
 
 // CallExprNamedArgs represents a call expression keyword arguments.
@@ -1173,7 +631,7 @@ func (a *CallExprNamedArgs) Append(name NamedArgExpr, value Expr) *CallExprNamed
 }
 
 func (a *CallExprNamedArgs) AppendS(name string, value Expr) *CallExprNamedArgs {
-	a.Names = append(a.Names, NamedArgExpr{Ident: &Ident{Name: name}})
+	a.Names = append(a.Names, NamedArgExpr{Ident: &IdentExpr{Name: name}})
 	a.Values = append(a.Values, value)
 	return a
 }
@@ -1211,7 +669,7 @@ func (a *CallExprNamedArgs) String() string {
 	for i, name := range a.Names {
 		if a.Values[i] == nil {
 			if name.Lit != nil && name.Lit.CanIdent() {
-				s = append(s, name.Lit.Value+"=on")
+				s = append(s, name.Lit.Value()+"=on")
 			} else {
 				s = append(s, name.Expr().String()+"=on")
 			}
@@ -1225,183 +683,98 @@ func (a *CallExprNamedArgs) String() string {
 	return strings.Join(s, ", ")
 }
 
-func (a *CallExprNamedArgs) WriteCode(ctx *CodeWriterContext) (err error) {
+func (a *CallExprNamedArgs) WriteCode(ctx *CodeWriteContext) {
 	l := len(a.Names) - 1
 	for i, name := range a.Names {
 		if a.Values[i] == nil {
 			if name.Lit != nil && name.Lit.CanIdent() {
-				_, err = ctx.WriteString(name.Lit.Value)
+				ctx.WriteString(name.Lit.Value())
 			} else {
-				_, err = ctx.WriteString(name.Expr().String())
+				ctx.WriteString(name.Expr().String())
 			}
-		} else if _, err = ctx.WriteString(name.Expr().String() + "="); err != nil {
-			return
-		} else if err = WriteCode(ctx, a.Values[i]); err != nil {
-			return
-		}
-		if i != l || a.Var != nil {
-			if _, err = ctx.WriteString(", "); err != nil {
-				return
+		} else {
+			ctx.WriteString(name.Expr().String() + "=")
+			a.Values[i].WriteCode(ctx)
+			if i != l || a.Var != nil {
+				ctx.WriteString(", ")
 			}
 		}
 	}
-	return
-}
-
-// KeyValueLit represents a key value element.
-type KeyValueLit struct {
-	Key   Expr
-	Value Expr
-}
-
-func (e *KeyValueLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *KeyValueLit) Pos() source.Pos {
-	return e.Key.Pos()
-}
-
-// End returns the position of first character immediately after the node.
-func (e *KeyValueLit) End() source.Pos {
-	if e.Value == nil {
-		return e.Key.End()
+	if a.Var != nil {
+		ctx.WriteString(a.Var.String())
 	}
-	return e.Value.End()
 }
 
-func (e *KeyValueLit) ElementString() string {
-	if e.Value == nil {
-		return e.Key.String()
-	}
-	return e.Key.String() + "=" + e.Value.String()
-}
-
-func (e *KeyValueLit) String() string {
-	if e.Value == nil {
-		return e.Key.String()
-	}
-	return "[" + e.ElementString() + "]"
-}
-
-func (e *KeyValueLit) WriteCode(ctx *CodeWriterContext) (err error) {
-	if err = ctx.WriteByte('['); err != nil {
-		return
-	}
-	if err = WriteCode(ctx, e.Key); err != nil {
-		return
-	}
-	if err = ctx.WriteByte('='); err != nil {
-		return
-	}
-	if err = WriteCode(ctx, e.Value); err != nil {
-		return
-	}
-	return ctx.WriteByte(']')
-}
-
-// KeyValueArrayLit represents a key value array literal.
-type KeyValueArrayLit struct {
-	LBrace   source.Pos
-	Elements []*KeyValueLit
-	RBrace   source.Pos
-}
-
-func (e *KeyValueArrayLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *KeyValueArrayLit) Pos() source.Pos {
-	return e.LBrace
-}
-
-// End returns the position of first character immediately after the node.
-func (e *KeyValueArrayLit) End() source.Pos {
-	return e.RBrace + 1
-}
-
-func (e *KeyValueArrayLit) String() string {
-	var elements []string
-	for _, m := range e.Elements {
-		elements = append(elements, m.ElementString())
-	}
-	return "(;" + strings.Join(elements, ", ") + ")"
-}
-
-func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString("(;"); err != nil {
-		return
-	}
-	l := len(e.Elements) - 1
-	for i, element := range e.Elements {
-		if err = WriteCode(ctx, element); err != nil {
-			return
-		}
-		if i < l {
-			if _, err = ctx.WriteString(", "); err != nil {
-				return
-			}
-		}
-	}
-	return ctx.WriteByte(')')
-}
-
-type CalleeKeyword struct {
+type CalleeKeywordExpr struct {
 	TokenPos source.Pos
 	Literal  string
 }
 
-func (c *CalleeKeyword) Pos() source.Pos {
+func (c *CalleeKeywordExpr) Pos() source.Pos {
 	return c.TokenPos
 }
 
-func (c *CalleeKeyword) End() source.Pos {
+func (c *CalleeKeywordExpr) End() source.Pos {
 	return c.TokenPos + source.Pos(len(token.Callee.String()))
 }
 
-func (c *CalleeKeyword) String() string {
+func (c *CalleeKeywordExpr) String() string {
 	return c.Literal
 }
 
-func (c *CalleeKeyword) ExprNode() {
+func (c *CalleeKeywordExpr) ExprNode() {
 }
 
-type ArgsKeyword struct {
+func (c *CalleeKeywordExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(c.Literal)
+}
+
+type ArgsKeywordExpr struct {
 	TokenPos source.Pos
 	Literal  string
 }
 
-func (c *ArgsKeyword) Pos() source.Pos {
+func (c *ArgsKeywordExpr) Pos() source.Pos {
 	return c.TokenPos
 }
 
-func (c *ArgsKeyword) End() source.Pos {
+func (c *ArgsKeywordExpr) End() source.Pos {
 	return c.TokenPos + source.Pos(len(c.Literal))
 }
 
-func (c *ArgsKeyword) String() string {
+func (c *ArgsKeywordExpr) String() string {
 	return c.Literal
 }
 
-func (c *ArgsKeyword) ExprNode() {
+func (c *ArgsKeywordExpr) ExprNode() {
 }
 
-type NamedArgsKeyword struct {
+func (c *ArgsKeywordExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(c.Literal)
+}
+
+type NamedArgsKeywordExpr struct {
 	TokenPos source.Pos
 	Literal  string
 }
 
-func (c *NamedArgsKeyword) Pos() source.Pos {
+func (c *NamedArgsKeywordExpr) Pos() source.Pos {
 	return c.TokenPos
 }
 
-func (c *NamedArgsKeyword) End() source.Pos {
+func (c *NamedArgsKeywordExpr) End() source.Pos {
 	return c.TokenPos + source.Pos(len(c.Literal))
 }
 
-func (c *NamedArgsKeyword) String() string {
+func (c *NamedArgsKeywordExpr) String() string {
 	return c.Literal
 }
 
-func (c *NamedArgsKeyword) ExprNode() {
+func (c *NamedArgsKeywordExpr) ExprNode() {
+}
+
+func (c *NamedArgsKeywordExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(c.Literal)
 }
 
 type BlockExpr struct {
@@ -1409,186 +782,6 @@ type BlockExpr struct {
 }
 
 func (b BlockExpr) ExprNode() {}
-
-// StdInLit represents an STDIN literal.
-type StdInLit struct {
-	TokenPos source.Pos
-}
-
-func (e *StdInLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *StdInLit) Pos() source.Pos {
-	return e.TokenPos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *StdInLit) End() source.Pos {
-	return e.TokenPos + 5 // len(STDIN) == 5
-}
-
-func (e *StdInLit) String() string {
-	return "STDIN"
-}
-
-// StdOutLit represents an STDOUT literal.
-type StdOutLit struct {
-	TokenPos source.Pos
-}
-
-func (e *StdOutLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *StdOutLit) Pos() source.Pos {
-	return e.TokenPos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *StdOutLit) End() source.Pos {
-	return e.TokenPos + 6 // len(STDOUT) == 6
-}
-
-func (e *StdOutLit) String() string {
-	return "STDOUT"
-}
-
-// StdErrLit represents an STDERR literal.
-type StdErrLit struct {
-	TokenPos source.Pos
-}
-
-func (e *StdErrLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *StdErrLit) Pos() source.Pos {
-	return e.TokenPos
-}
-
-// End StdErrLit the position of first character immediately after the node.
-func (e *StdErrLit) End() source.Pos {
-	return e.TokenPos + 6 // len(STDERR) == 6
-}
-
-func (e *StdErrLit) String() string {
-	return "STDERR"
-}
-
-// ArgVarLit represents an variadic of argument.
-type ArgVarLit struct {
-	TokenPos source.Pos
-	Value    Expr
-}
-
-func (e *ArgVarLit) ExprNode() {}
-
-func (e *ArgVarLit) Pos() source.Pos {
-	return e.TokenPos
-}
-
-func (e *ArgVarLit) End() source.Pos {
-	return e.Value.End() + 6
-}
-
-func (e *ArgVarLit) String() string {
-	return "*" + e.Value.String()
-}
-
-func (e *ArgVarLit) WriteCode(ctx *CodeWriterContext) (err error) {
-	if err = ctx.WriteByte('*'); err != nil {
-		return
-	}
-	return WriteCode(ctx, e.Value)
-}
-
-// NamedArgVarLit represents an variadic of named argument.
-type NamedArgVarLit struct {
-	TokenPos source.Pos
-	Value    Expr
-}
-
-func (e *NamedArgVarLit) ExprNode() {}
-
-func (e *NamedArgVarLit) Pos() source.Pos {
-	return e.TokenPos
-}
-
-func (e *NamedArgVarLit) End() source.Pos {
-	return e.Value.End() + 6
-}
-
-func (e *NamedArgVarLit) String() string {
-	return "**" + e.Value.String()
-}
-
-func (e *NamedArgVarLit) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString("**"); err != nil {
-		return
-	}
-	return WriteCode(ctx, e.Value)
-}
-
-// DotFileNameLit represents an __name__ literal.
-type DotFileNameLit struct {
-	TokenPos source.Pos
-}
-
-func (e *DotFileNameLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *DotFileNameLit) Pos() source.Pos {
-	return e.TokenPos
-}
-
-// End DotFileNameLit the position of first character immediately after the node.
-func (e *DotFileNameLit) End() source.Pos {
-	return e.TokenPos + +source.Pos(len(e.String()))
-}
-
-func (e *DotFileNameLit) String() string {
-	return token.DotName.String()
-}
-
-// DotFileLit represents an __name__ literal.
-type DotFileLit struct {
-	TokenPos source.Pos
-}
-
-func (e *DotFileLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *DotFileLit) Pos() source.Pos {
-	return e.TokenPos
-}
-
-// End DotFileLit the position of first character immediately after the node.
-func (e *DotFileLit) End() source.Pos {
-	return e.TokenPos + +source.Pos(len(e.String()))
-}
-
-func (e *DotFileLit) String() string {
-	return token.DotFile.String()
-}
-
-// IsModuleLit represents an __is_module__ literal.
-type IsModuleLit struct {
-	TokenPos source.Pos
-}
-
-func (e *IsModuleLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *IsModuleLit) Pos() source.Pos {
-	return e.TokenPos
-}
-
-// End IsModuleLit the position of first character immediately after the node.
-func (e *IsModuleLit) End() source.Pos {
-	return e.TokenPos + source.Pos(len(e.String()))
-}
-
-func (e *IsModuleLit) String() string {
-	return token.IsModule.String()
-}
 
 // ThrowExpr represents an throw expression.
 type ThrowExpr struct {
@@ -1616,114 +809,17 @@ func (s *ThrowExpr) String() string {
 	return "throw " + expr
 }
 
+func (s *ThrowExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("throw ")
+	s.Expr.WriteCode(ctx)
+}
+
 // ReturnExpr represents an return expression.
 type ReturnExpr struct {
 	Return
 }
 
 func (s *ReturnExpr) ExprNode() {}
-
-type RawHeredocLit struct {
-	Literal    string
-	LiteralPos source.Pos
-}
-
-func (e *RawHeredocLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *RawHeredocLit) Pos() source.Pos {
-	return e.LiteralPos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *RawHeredocLit) End() source.Pos {
-	return source.Pos(int(e.LiteralPos) + len(e.Literal))
-}
-
-func (e *RawHeredocLit) String() string {
-	return e.Literal
-}
-
-func (e *RawHeredocLit) Value() string {
-	var bts = []byte(e.Literal)
-
-	for i, r := range bts {
-		if r != '`' {
-			if r == '\n' {
-				bts = bts[i+1 : len(bts)-i]
-				// remove Last Line
-				bts = bts[:bytes.LastIndexByte(bts, '\n')]
-				var stripCount int
-			l2:
-				for j, r := range bts {
-					switch r {
-					case ' ', '\t':
-					default:
-						stripCount = j
-						break l2
-					}
-				}
-
-				if stripCount > 0 {
-					var (
-						lines = bytes.Split(bts, []byte{'\n'})
-						out   strings.Builder
-					)
-					for j, line := range lines {
-						var i int
-					l3:
-						for ; i < stripCount; i++ {
-							switch line[i] {
-							case '\t', ' ':
-							default:
-								break l3
-							}
-						}
-
-						if j > 0 {
-							out.WriteByte('\n')
-						}
-
-						out.Write(line[i:])
-					}
-
-					return out.String()
-				}
-			} else {
-				bts = bts[i : len(bts)-i]
-			}
-			break
-		}
-	}
-	return string(bts)
-}
-
-// TemplateLit represents an variadic of argument.
-type TemplateLit struct {
-	TokenPos source.Pos
-	Value    Expr
-}
-
-func (e *TemplateLit) ExprNode() {}
-
-func (e *TemplateLit) Pos() source.Pos {
-	return e.TokenPos
-}
-
-func (e *TemplateLit) End() source.Pos {
-	return e.Value.End() + 6
-}
-
-func (e *TemplateLit) String() string {
-	return "#" + e.Value.String()
-}
-
-func (e *TemplateLit) WriteCode(ctx *CodeWriterContext) (err error) {
-	if err = ctx.WriteByte('#'); err != nil {
-		return
-	}
-	return WriteCode(ctx, e.Value)
-}
 
 type MixedTextExpr struct {
 	StartLit ast.Literal
@@ -1755,23 +851,147 @@ func (e *MixedTextExpr) String() string {
 	return b.String()
 }
 
-func (e *MixedTextExpr) WriteCode(ctx *CodeWriterContext) (err error) {
-	if e.Stmt.Flags.Has(RemoveLeftSpaces) {
-		if err = ctx.WriteByte('-'); err != nil {
-			return
+func (e *MixedTextExpr) WriteCode(ctx *CodeWriteContext) {
+	if e.Stmt.Lit.Value == "" {
+		ctx.WriteString(`""`)
+	} else {
+		ctx.WriteByte('(')
+		if e.Stmt.Flags.Has(RemoveLeftSpaces) {
+			ctx.WriteByte('-')
 		}
+		ctx.WriteString(e.StartLit.Value)
+		e.Stmt.WriteCode(ctx)
+		ctx.WriteString(e.EndLit.Value)
+		if e.Stmt.Flags.Has(RemoveRightSpaces) {
+			ctx.WriteByte('-')
+		}
+		ctx.WriteByte(')')
 	}
-	if _, err = ctx.WriteString(e.StartLit.Value); err != nil {
-		return
+}
+
+// FuncExpr represents a function literal.
+type FuncExpr struct {
+	ast.NodeData
+	Type *FuncType
+	Body *BlockStmt
+}
+
+func (e *FuncExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *FuncExpr) Pos() source.Pos {
+	return e.Type.Pos()
+}
+
+// End returns the position of first character immediately after the node.
+func (e *FuncExpr) End() source.Pos {
+	return e.Body.End()
+}
+
+func (e *FuncExpr) String() string {
+	return "func" + e.Type.String() + " " + e.Body.String()
+}
+
+func (e *FuncExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("func" + e.Type.String() + " ")
+	e.Body.WriteCodeInSelfDepth(ctx, true)
+}
+
+// ClosureExpr represents a function closure literal.
+type ClosureExpr struct {
+	ast.NodeData
+	Type *FuncType
+	Body Expr
+}
+
+func (e *ClosureExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *ClosureExpr) Pos() source.Pos {
+	return e.Type.Pos()
+}
+
+// End returns the position of first character immediately after the node.
+func (e *ClosureExpr) End() source.Pos {
+	return e.Body.End()
+}
+
+func (e *ClosureExpr) String() string {
+	return e.Type.Params.String() + " => " + e.Body.String()
+}
+
+func (e *ClosureExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.Type.Params.String(), " => ")
+	e.Body.WriteCode(ctx)
+}
+
+// DictExpr represents a map literal.
+type DictExpr struct {
+	LBrace   source.Pos
+	Elements []*DictElementLit
+	RBrace   source.Pos
+}
+
+func (e *DictExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *DictExpr) Pos() source.Pos {
+	return e.LBrace
+}
+
+// End returns the position of first character immediately after the node.
+func (e *DictExpr) End() source.Pos {
+	return e.RBrace + 1
+}
+
+func (e *DictExpr) String() string {
+	var elements []string
+	for _, m := range e.Elements {
+		elements = append(elements, m.String())
 	}
-	if _, err = ctx.WriteString(e.Stmt.String()); err != nil {
-		return
+	return "{" + strings.Join(elements, ", ") + "}"
+}
+
+func (e *DictExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteByte('{')
+	for i, m := range e.Elements {
+		if i > 0 {
+			ctx.WriteString(", ")
+		}
+		m.WriteCode(ctx)
 	}
-	if _, err = ctx.WriteString(e.EndLit.Value); err != nil {
-		return
+	ctx.WriteByte('}')
+}
+
+// ArrayExpr represents an array literal.
+type ArrayExpr struct {
+	Elements []Expr
+	LBrack   source.Pos
+	RBrack   source.Pos
+}
+
+func (e *ArrayExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *ArrayExpr) Pos() source.Pos {
+	return e.LBrack
+}
+
+// End returns the position of first character immediately after the node.
+func (e *ArrayExpr) End() source.Pos {
+	return e.RBrack + 1
+}
+
+func (e *ArrayExpr) String() string {
+	var elements []string
+	for _, m := range e.Elements {
+		elements = append(elements, m.String())
 	}
-	if e.Stmt.Flags.Has(RemoveRightSpaces) {
-		err = ctx.WriteByte('-')
-	}
-	return
+	return "[" + strings.Join(elements, ", ") + "]"
+}
+
+func (e *ArrayExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteByte('[')
+	ctx.WriteExprs(", ", e.Elements...)
+	ctx.WriteByte(']')
 }

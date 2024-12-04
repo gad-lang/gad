@@ -80,6 +80,39 @@ func concatInsts(insts ...[]byte) []byte {
 	return out
 }
 
+func TestCompiler_CompileBlock(t *testing.T) {
+	expectCompile(t, `1`, bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, `.{ 1 }`, bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, `var x; .{ var x }`, bytecode(
+		Array{},
+		compFunc(concatInsts(
+			makeInst(OpNil),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpNil),
+			makeInst(OpDefineLocal, 1),
+			makeInst(OpReturn, 0),
+		), withLocals(2)),
+	))
+
+	expectCompileError(t, `var x; .{ var z; var z }`, `Compile Error: "z" redeclared in this block`)
+}
+
 func TestCompiler_CompilePipe(t *testing.T) {
 	expectCompile(t, `"a".|filter`, bytecode(
 		Array{Str("a")},

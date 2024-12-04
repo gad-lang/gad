@@ -1643,6 +1643,10 @@ var (
 	_ Copier = (*RuntimeError)(nil)
 )
 
+func (o *RuntimeError) FileSet() *source.SourceFileSet {
+	return o.fileSet
+}
+
 func (o *RuntimeError) Unwrap() error {
 	if o.Err != nil {
 		return o.Err

@@ -4,7 +4,7 @@ import "github.com/gad-lang/gad/parser/source"
 
 const MainName = "(main)"
 
-func Parse(input, fileName string, opts *ParserOptions, scannerOpts *ScannerOptions) (*File, error) {
+func NewSingleParser(input, fileName string, opts *ParserOptions, scannerOpts *ScannerOptions) *Parser {
 	fileSet := source.NewFileSet()
 	if fileName == "" {
 		fileName = MainName
@@ -12,6 +12,9 @@ func Parse(input, fileName string, opts *ParserOptions, scannerOpts *ScannerOpti
 
 	b := []byte(input)
 	srcFile := fileSet.AddFileData(fileName, -1, b)
-	p := NewParserWithOptions(srcFile, opts, scannerOpts)
-	return p.ParseFile()
+	return NewParserWithOptions(srcFile, opts, scannerOpts)
+}
+
+func Parse(input, fileName string, opts *ParserOptions, scannerOpts *ScannerOptions) (*File, error) {
+	return NewSingleParser(input, fileName, opts, scannerOpts).ParseFile()
 }

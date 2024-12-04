@@ -304,14 +304,14 @@ func EqualExpr(t *testing.T, expected, actual node.Expr) {
 	require.IsType(t, expected, actual)
 
 	switch expected := expected.(type) {
-	case *node.Ident:
+	case *node.IdentExpr:
 		require.Equal(t, expected.Name,
-			actual.(*node.Ident).Name)
+			actual.(*node.IdentExpr).Name)
 		require.Equal(t, int(expected.NamePos),
-			int(actual.(*node.Ident).NamePos))
-	case *node.TypedIdent:
-		EqualExpr(t, expected.Ident, actual.(*node.TypedIdent).Ident)
-		EqualIdents(t, expected.Type, actual.(*node.TypedIdent).Type)
+			int(actual.(*node.IdentExpr).NamePos))
+	case *node.TypedIdentExpr:
+		EqualExpr(t, expected.Ident, actual.(*node.TypedIdentExpr).Ident)
+		EqualIdents(t, expected.Type, actual.(*node.TypedIdentExpr).Type)
 	case *node.IntLit:
 		require.Equal(t, expected.Value,
 			actual.(*node.IntLit).Value)
@@ -342,8 +342,8 @@ func EqualExpr(t *testing.T, expected, actual node.Expr) {
 		require.Equal(t, int(expected.ValuePos),
 			int(actual.(*node.CharLit).ValuePos))
 	case *node.StringLit:
-		require.Equal(t, expected.Value,
-			actual.(*node.StringLit).Value)
+		require.Equal(t, expected.Literal,
+			actual.(*node.StringLit).Literal)
 		require.Equal(t, int(expected.ValuePos),
 			int(actual.(*node.StringLit).ValuePos))
 	case *node.RawStringLit:
@@ -351,20 +351,20 @@ func EqualExpr(t *testing.T, expected, actual node.Expr) {
 			actual.(*node.RawStringLit).UnquotedValue())
 		require.Equal(t, int(expected.LiteralPos),
 			int(actual.(*node.RawStringLit).LiteralPos))
-	case *node.ArrayLit:
+	case *node.ArrayExpr:
 		require.Equal(t, expected.LBrack,
-			actual.(*node.ArrayLit).LBrack)
+			actual.(*node.ArrayExpr).LBrack)
 		require.Equal(t, expected.RBrack,
-			actual.(*node.ArrayLit).RBrack)
+			actual.(*node.ArrayExpr).RBrack)
 		EqualExprs(t, expected.Elements,
-			actual.(*node.ArrayLit).Elements)
-	case *node.DictLit:
+			actual.(*node.ArrayExpr).Elements)
+	case *node.DictExpr:
 		require.Equal(t, expected.LBrace,
-			actual.(*node.DictLit).LBrace)
+			actual.(*node.DictExpr).LBrace)
 		require.Equal(t, expected.RBrace,
-			actual.(*node.DictLit).RBrace)
+			actual.(*node.DictExpr).RBrace)
 		EqualMapElements(t, expected.Elements,
-			actual.(*node.DictLit).Elements)
+			actual.(*node.DictExpr).Elements)
 	case *node.NilLit:
 		require.Equal(t, expected.TokenPos,
 			actual.(*node.NilLit).TokenPos)
@@ -394,11 +394,11 @@ func EqualExpr(t *testing.T, expected, actual node.Expr) {
 			actual.(*node.UnaryExpr).Token)
 		require.Equal(t, expected.TokenPos,
 			actual.(*node.UnaryExpr).TokenPos)
-	case *node.FuncLit:
+	case *node.FuncExpr:
 		EqualFuncType(t, expected.Type,
-			actual.(*node.FuncLit).Type)
+			actual.(*node.FuncExpr).Type)
 		EqualStmt(t, expected.Body,
-			actual.(*node.FuncLit).Body)
+			actual.(*node.FuncExpr).Body)
 	case *node.CallExpr:
 		actual := actual.(*node.CallExpr)
 		EqualExpr(t, expected.Func,
@@ -494,26 +494,26 @@ func EqualExpr(t *testing.T, expected, actual node.Expr) {
 			actual.(*node.CondExpr).QuestionPos)
 		require.Equal(t, expected.ColonPos,
 			actual.(*node.CondExpr).ColonPos)
-	case *node.CalleeKeyword:
+	case *node.CalleeKeywordExpr:
 		require.Equal(t, expected.Literal,
-			actual.(*node.CalleeKeyword).Literal)
+			actual.(*node.CalleeKeywordExpr).Literal)
 		require.Equal(t, expected.TokenPos,
-			actual.(*node.CalleeKeyword).TokenPos)
-	case *node.ArgsKeyword:
+			actual.(*node.CalleeKeywordExpr).TokenPos)
+	case *node.ArgsKeywordExpr:
 		require.Equal(t, expected.Literal,
-			actual.(*node.ArgsKeyword).Literal)
+			actual.(*node.ArgsKeywordExpr).Literal)
 		require.Equal(t, expected.TokenPos,
-			actual.(*node.ArgsKeyword).TokenPos)
-	case *node.NamedArgsKeyword:
+			actual.(*node.ArgsKeywordExpr).TokenPos)
+	case *node.NamedArgsKeywordExpr:
 		require.Equal(t, expected.Literal,
-			actual.(*node.NamedArgsKeyword).Literal)
+			actual.(*node.NamedArgsKeywordExpr).Literal)
 		require.Equal(t, expected.TokenPos,
-			actual.(*node.NamedArgsKeyword).TokenPos)
-	case *node.ClosureLit:
+			actual.(*node.NamedArgsKeywordExpr).TokenPos)
+	case *node.ClosureExpr:
 		EqualFuncType(t, expected.Type,
-			actual.(*node.ClosureLit).Type)
+			actual.(*node.ClosureExpr).Type)
 		EqualExpr(t, expected.Body,
-			actual.(*node.ClosureLit).Body)
+			actual.(*node.ClosureExpr).Body)
 	case *node.BlockExpr:
 		EqualStmt(t, expected.BlockStmt,
 			actual.(*node.BlockExpr).BlockStmt)
@@ -554,14 +554,14 @@ func EqualNamedArgsNames(t *testing.T, expected, actual []node.NamedArgExpr) {
 	}
 }
 
-func EqualIdents(t *testing.T, expected, actual []*node.Ident) {
+func EqualIdents(t *testing.T, expected, actual []*node.IdentExpr) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
 		EqualExpr(t, expected[i], actual[i])
 	}
 }
 
-func EqualTypedIdents(t *testing.T, expected, actual []*node.TypedIdent) {
+func EqualTypedIdents(t *testing.T, expected, actual []*node.TypedIdentExpr) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
 		EqualExpr(t, expected[i], actual[i])

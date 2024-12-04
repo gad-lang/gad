@@ -26,15 +26,10 @@ func (s *Return) String() string {
 	return "return" + expr
 }
 
-func (s *Return) WriteCode(ctx *CodeWriterContext) (err error) {
-	if _, err = ctx.WriteString("return"); err != nil {
-		return
-	}
+func (s *Return) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("return")
 	if s.Result != nil {
-		if err = ctx.WriteByte(' '); err != nil {
-			return
-		}
-		return WriteCode(ctx, s.Result)
+		ctx.WriteByte(' ')
+		s.Result.WriteCode(ctx)
 	}
-	return
 }

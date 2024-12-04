@@ -300,6 +300,30 @@ func (s Scanner) PeekScan() (t Token) {
 	return s.ScanNow()
 }
 
+func (s *Scanner) MixedCodeEnds(offsetInc int) bool {
+	data := s.Src[s.Offset+offsetInc:]
+	if s.MixedDelimiter.Ends(data) {
+		if len(s.MixedDelimiter.End) == 1 {
+			switch data[0] {
+			case ']':
+				if s.BreacksCount > 0 {
+					return false
+				}
+			case '}':
+				if s.BraceCount > 0 {
+					return false
+				}
+			case ')':
+				if s.ParenCount > 0 {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	return false
+}
+
 // ScanNow returns a token, token literal and its position.
 func (s *Scanner) ScanNow() (t Token) {
 	t.Pos = s.File.FileSetPos(s.Offset)
@@ -325,12 +349,13 @@ func (s *Scanner) ScanNow() (t Token) {
 				goto do
 			case '-':
 				// test if remove spaces before end delimiter `-END_DELIMITER`
-				if s.MixedDelimiter.Ends(s.Src[s.Offset+1:]) {
+				if s.MixedCodeEnds(1) {
 					s.Next()
 					removeLeftSpace = true
 				}
 			}
-			if s.MixedDelimiter.Ends(s.Src[s.Offset:]) {
+
+			if s.MixedCodeEnds(0) {
 				s.InCode = false
 
 				t.Token = token.MixedCodeEnd
@@ -766,6 +791,7 @@ func (s *Scanner) ScanCodeBlock(leftText *Token) (code Token) {
 		lit  = string(s.MixedDelimiter.Start)
 		data utils.Data
 	)
+
 	s.InCode = true
 	s.NextC(len(s.MixedDelimiter.Start))
 

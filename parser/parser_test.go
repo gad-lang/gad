@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/gad-lang/gad/parser/ast"
+	"github.com/gad-lang/gad/parser/ast"
 	. "github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/shopspring/decimal"
@@ -121,6 +121,23 @@ func TestParserMixed(t *testing.T) {
 			so.MixedDelimiter = DefaultMixedDelimiter
 		})
 	}
+
+	defaultExpectParse(`
+. {
+	x
+}
+`, func(p pfn) []Stmt {
+		return stmts(
+			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			mixedTextStmt(p(1, 14), "\t"),
+			codeBegin(lit("{%", p(2, 2)), false),
+			exprStmt(intLit(1, p(2, 7))),
+			codeEnd(lit("%}", p(2, 11)), false),
+			mixedTextStmt(p(1, 26), " \n"),
+		)
+	})
+
+	return
 
 	defaultExpectParse(`# gad: mixed
 	{%   1   %} 
@@ -473,7 +490,7 @@ b)`, func(p pfn) []Stmt {
 			declStmt(
 				genDecl(token.Var, p(1, 1), 0, 0,
 					valueSpec(
-						[]*Ident{ident("a", p(1, 5))},
+						[]*IdentExpr{ident("a", p(1, 5))},
 						[]Expr{nil}),
 				),
 			),
@@ -484,7 +501,7 @@ b)`, func(p pfn) []Stmt {
 			declStmt(
 				genDecl(token.Var, p(1, 1), 0, 0,
 					valueSpec(
-						[]*Ident{ident("a", p(1, 5))},
+						[]*IdentExpr{ident("a", p(1, 5))},
 						[]Expr{intLit(1, p(1, 7))}),
 				),
 			),
@@ -495,14 +512,14 @@ b)`, func(p pfn) []Stmt {
 			declStmt(
 				genDecl(token.Var, p(1, 1), 0, 0,
 					valueSpec(
-						[]*Ident{ident("a", p(1, 5))},
+						[]*IdentExpr{ident("a", p(1, 5))},
 						[]Expr{nil}),
 				),
 			),
 			declStmt(
 				genDecl(token.Var, p(1, 7), 0, 0,
 					valueSpec(
-						[]*Ident{ident("b", p(1, 11))},
+						[]*IdentExpr{ident("b", p(1, 11))},
 						[]Expr{nil}),
 				),
 			),
@@ -513,14 +530,14 @@ b)`, func(p pfn) []Stmt {
 			declStmt(
 				genDecl(token.Var, p(1, 1), 0, 0,
 					valueSpec(
-						[]*Ident{ident("a", p(1, 5))},
+						[]*IdentExpr{ident("a", p(1, 5))},
 						[]Expr{stringLit("x", p(1, 7))}),
 				),
 			),
 			declStmt(
 				genDecl(token.Var, p(1, 11), 0, 0,
 					valueSpec(
-						[]*Ident{ident("b", p(1, 15))},
+						[]*IdentExpr{ident("b", p(1, 15))},
 						[]Expr{nil}),
 				),
 			),
@@ -534,14 +551,14 @@ var b
 			declStmt(
 				genDecl(token.Var, p(2, 1), 0, 0,
 					valueSpec(
-						[]*Ident{ident("a", p(2, 5))},
+						[]*IdentExpr{ident("a", p(2, 5))},
 						[]Expr{nil}),
 				),
 			),
 			declStmt(
 				genDecl(token.Var, p(3, 1), 0, 0,
 					valueSpec(
-						[]*Ident{ident("b", p(3, 5))},
+						[]*IdentExpr{ident("b", p(3, 5))},
 						[]Expr{nil}),
 				),
 			),
@@ -555,14 +572,14 @@ var b=2
 			declStmt(
 				genDecl(token.Var, p(2, 1), 0, 0,
 					valueSpec(
-						[]*Ident{ident("a", p(2, 5))},
+						[]*IdentExpr{ident("a", p(2, 5))},
 						[]Expr{nil}),
 				),
 			),
 			declStmt(
 				genDecl(token.Var, p(3, 1), 0, 0,
 					valueSpec(
-						[]*Ident{ident("b", p(3, 5))},
+						[]*IdentExpr{ident("b", p(3, 5))},
 						[]Expr{intLit(2, p(3, 7))}),
 				),
 			),
@@ -573,10 +590,10 @@ var b=2
 			declStmt(
 				genDecl(token.Var, p(1, 1), p(1, 5), p(1, 12),
 					valueSpec(
-						[]*Ident{ident("a", p(1, 6))},
+						[]*IdentExpr{ident("a", p(1, 6))},
 						[]Expr{nil}),
 					valueSpec(
-						[]*Ident{ident("b", p(1, 9))},
+						[]*IdentExpr{ident("b", p(1, 9))},
 						[]Expr{intLit(2, p(1, 11))}),
 				),
 			),
@@ -587,10 +604,10 @@ var b=2
 			declStmt(
 				genDecl(token.Var, p(1, 1), p(1, 5), p(1, 14),
 					valueSpec(
-						[]*Ident{ident("a", p(1, 6))},
+						[]*IdentExpr{ident("a", p(1, 6))},
 						[]Expr{intLit(1, p(1, 8))}),
 					valueSpec(
-						[]*Ident{ident("b", p(1, 11))},
+						[]*IdentExpr{ident("b", p(1, 11))},
 						[]Expr{intLit(2, p(1, 13))}),
 				),
 			),
@@ -602,10 +619,10 @@ b=2)`, func(p pfn) []Stmt {
 			declStmt(
 				genDecl(token.Var, p(1, 1), p(1, 5), p(2, 4),
 					valueSpec(
-						[]*Ident{ident("a", p(1, 6))},
+						[]*IdentExpr{ident("a", p(1, 6))},
 						[]Expr{intLit(1, p(1, 8))}),
 					valueSpec(
-						[]*Ident{ident("b", p(2, 1))},
+						[]*IdentExpr{ident("b", p(2, 1))},
 						[]Expr{intLit(2, p(2, 3))}),
 				),
 			),
@@ -617,10 +634,10 @@ b=2)`, func(p pfn) []Stmt {
 			declStmt(
 				genDecl(token.Var, p(1, 1), p(1, 5), p(2, 4),
 					valueSpec(
-						[]*Ident{ident("a", p(1, 6))},
+						[]*IdentExpr{ident("a", p(1, 6))},
 						[]Expr{intLit(1, p(1, 8))}),
 					valueSpec(
-						[]*Ident{ident("b", p(2, 1))},
+						[]*IdentExpr{ident("b", p(2, 1))},
 						[]Expr{intLit(2, p(2, 3))}),
 				),
 			),
@@ -643,7 +660,7 @@ b=2)`, func(p pfn) []Stmt {
 			declStmt(
 				genDecl(token.Const, p(1, 1), 0, 0,
 					valueSpec(
-						[]*Ident{ident("a", p(1, 7))},
+						[]*IdentExpr{ident("a", p(1, 7))},
 						[]Expr{intLit(1, p(1, 11))}),
 				),
 			),
@@ -654,14 +671,14 @@ b=2)`, func(p pfn) []Stmt {
 			declStmt(
 				genDecl(token.Const, p(1, 1), 0, 0,
 					valueSpec(
-						[]*Ident{ident("a", p(1, 7))},
+						[]*IdentExpr{ident("a", p(1, 7))},
 						[]Expr{intLit(1, p(1, 11))}),
 				),
 			),
 			declStmt(
 				genDecl(token.Const, p(1, 14), 0, 0,
 					valueSpec(
-						[]*Ident{ident("b", p(1, 20))},
+						[]*IdentExpr{ident("b", p(1, 20))},
 						[]Expr{intLit(2, p(1, 24))}),
 				),
 			),
@@ -672,10 +689,10 @@ b=2)`, func(p pfn) []Stmt {
 			declStmt(
 				genDecl(token.Const, p(1, 1), p(1, 7), p(1, 20),
 					valueSpec(
-						[]*Ident{ident("a", p(1, 8))},
+						[]*IdentExpr{ident("a", p(1, 8))},
 						[]Expr{intLit(1, p(1, 12))}),
 					valueSpec(
-						[]*Ident{ident("b", p(1, 15))},
+						[]*IdentExpr{ident("b", p(1, 15))},
 						[]Expr{intLit(2, p(1, 19))}),
 				),
 			),
@@ -690,10 +707,10 @@ const (
 			declStmt(
 				genDecl(token.Const, p(2, 1), p(2, 7), p(5, 1),
 					valueSpec(
-						[]*Ident{ident("a", p(3, 5))},
+						[]*IdentExpr{ident("a", p(3, 5))},
 						[]Expr{intLit(1, p(3, 9))}),
 					valueSpec(
-						[]*Ident{ident("b", p(4, 5))},
+						[]*IdentExpr{ident("b", p(4, 5))},
 						[]Expr{intLit(2, p(4, 9))}),
 				),
 			),
@@ -1660,7 +1677,7 @@ func TestParseForIn(t *testing.T) {
 				ident("x", p(1, 5)),
 				ident("y", p(1, 10)),
 				blockLitStmt(
-					lit("do", p(1, 12)), Literal{},
+					lit("do", p(1, 12)), ast.Literal{},
 					exprStmt(
 						ident("x", p(1, 15)),
 					),
@@ -1910,7 +1927,7 @@ func TestParseFunction(t *testing.T) {
 								ident("d", p(1, 16))),
 							funcNamedArgs(
 								typedIdent(ident("g", p(1, 31))),
-								[]*TypedIdent{
+								[]*TypedIdentExpr{
 									typedIdent(ident("e", p(1, 19))),
 									typedIdent(ident("f", p(1, 24))),
 								},
@@ -1970,7 +1987,7 @@ func TestParseFunction(t *testing.T) {
 							ident("b", p(1, 10))),
 						funcNamedArgs(
 							typedIdent(ident("na", p(1, 18))),
-							[]*TypedIdent{typedIdent(ident("x", p(1, 12)))},
+							[]*TypedIdentExpr{typedIdent(ident("x", p(1, 12)))},
 							[]Expr{intLit(1, p(1, 14))}),
 					),
 					blockStmt(p(1, 22), p(1, 23)))),
@@ -2462,7 +2479,7 @@ func TestParseLogical(t *testing.T) {
 	})
 }
 
-func TestParseMap(t *testing.T) {
+func TestParseDict(t *testing.T) {
 	expectParse(t, "{ key1: 1, key2: \"2\", key3: true }", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
@@ -3197,21 +3214,21 @@ func genDecl(
 	}
 }
 
-func paramSpec(variadic bool, ident *TypedIdent) Spec {
+func paramSpec(variadic bool, ident *TypedIdentExpr) Spec {
 	return &ParamSpec{
 		Ident:    ident,
 		Variadic: variadic,
 	}
 }
 
-func nparamSpec(ident *TypedIdent, value Expr) Spec {
+func nparamSpec(ident *TypedIdentExpr, value Expr) Spec {
 	return &NamedParamSpec{
 		Ident: ident,
 		Value: value,
 	}
 }
 
-func valueSpec(idents []*Ident, values []Expr) Spec {
+func valueSpec(idents []*IdentExpr, values []Expr) Spec {
 	return &ValueSpec{
 		Idents: idents,
 		Values: values,
@@ -3247,7 +3264,7 @@ func forStmt(
 }
 
 func forInStmt(
-	key, value *Ident,
+	key, value *IdentExpr,
 	seq Expr,
 	body *BlockStmt,
 	pos Pos,
@@ -3298,7 +3315,7 @@ func tryStmt(
 
 func catchStmt(
 	catchPos Pos,
-	ident *Ident,
+	ident *IdentExpr,
 	body *BlockStmt,
 ) *CatchStmt {
 	return &CatchStmt{CatchPos: catchPos, Ident: ident, Body: body}
@@ -3334,27 +3351,27 @@ func funcType(pos, lparen, rparen Pos, v ...any) *FuncType {
 			f.Params.Args = t
 		case NamedArgsList:
 			f.Params.NamedArgs = t
-		case *Ident:
+		case *IdentExpr:
 			f.Ident = t
 		}
 	}
 	return f
 }
 
-func funcArgs(vari *TypedIdent, names ...Expr) ArgsList {
+func funcArgs(vari *TypedIdentExpr, names ...Expr) ArgsList {
 	l := ArgsList{Var: vari}
 	for _, name := range names {
 		switch t := name.(type) {
-		case *Ident:
+		case *IdentExpr:
 			l.Values = append(l.Values, typedIdent(t))
-		case *TypedIdent:
+		case *TypedIdentExpr:
 			l.Values = append(l.Values, t)
 		}
 	}
 	return l
 }
 
-func funcNamedArgs(vari *TypedIdent, names []*TypedIdent, values []Expr) NamedArgsList {
+func funcNamedArgs(vari *TypedIdentExpr, names []*TypedIdentExpr, values []Expr) NamedArgsList {
 	return NamedArgsList{Names: names, Var: vari, Values: values}
 }
 
@@ -3362,7 +3379,7 @@ func blockStmt(lbrace, rbrace Pos, list ...Stmt) *BlockStmt {
 	return &BlockStmt{Stmts: list, LBrace: lit("{", lbrace), RBrace: lit("}", rbrace)}
 }
 
-func blockLitStmt(lbrace, rbrace Literal, list ...Stmt) *BlockStmt {
+func blockLitStmt(lbrace, rbrace ast.Literal, list ...Stmt) *BlockStmt {
 	return &BlockStmt{Stmts: list, LBrace: lbrace, RBrace: rbrace}
 }
 
@@ -3370,12 +3387,12 @@ func blockExpr(lbrace, rbrace Pos, list ...Stmt) *BlockExpr {
 	return &BlockExpr{BlockStmt: blockStmt(lbrace, rbrace, list...)}
 }
 
-func ident(name string, pos Pos) *Ident {
-	return &Ident{Name: name, NamePos: pos}
+func ident(name string, pos Pos) *IdentExpr {
+	return &IdentExpr{Name: name, NamePos: pos}
 }
 
-func typedIdent(ident *Ident, typ ...*Ident) *TypedIdent {
-	return &TypedIdent{Ident: ident, Type: typ}
+func typedIdent(ident *IdentExpr, typ ...*IdentExpr) *TypedIdentExpr {
+	return &TypedIdentExpr{Ident: ident, Type: typ}
 }
 
 func mixedTextStmt(pos Pos, vlit string, flags ...MixedTextStmtFlag) *MixedTextStmt {
@@ -3385,20 +3402,20 @@ func mixedTextStmt(pos Pos, vlit string, flags ...MixedTextStmtFlag) *MixedTextS
 	return &MixedTextStmt{Lit: lit(vlit, pos), Flags: f}
 }
 
-func codeBegin(lit Literal, removeSpace bool) *CodeBeginStmt {
+func codeBegin(lit ast.Literal, removeSpace bool) *CodeBeginStmt {
 	return &CodeBeginStmt{Lit: lit, RemoveSpace: removeSpace}
 }
 
-func codeEnd(lit Literal, removeSpace bool) *CodeEndStmt {
+func codeEnd(lit ast.Literal, removeSpace bool) *CodeEndStmt {
 	return &CodeEndStmt{Lit: lit, RemoveSpace: removeSpace}
 }
 
-func mixedValue(start, end Literal, expr Expr) *MixedValueStmt {
+func mixedValue(start, end ast.Literal, expr Expr) *MixedValueStmt {
 	return &MixedValueStmt{Expr: expr, StartLit: start, EndLit: end}
 }
 
-func lit(value string, pos Pos) Literal {
-	return Literal{Value: value, Pos: pos}
+func lit(value string, pos Pos) ast.Literal {
+	return ast.Literal{Value: value, Pos: pos}
 }
 
 func kv(key Expr, value ...Expr) *KeyValueLit {
@@ -3468,7 +3485,7 @@ func decimalLit(value string, pos Pos) *DecimalLit {
 }
 
 func stringLit(value string, pos Pos) *StringLit {
-	return &StringLit{Value: value, ValuePos: pos}
+	return &StringLit{Literal: strconv.Quote(value), ValuePos: pos}
 }
 
 func rawStringLit(value string, pos Pos) *RawStringLit {
@@ -3493,20 +3510,20 @@ func flagLit(value bool, pos Pos) *FlagLit {
 	return &FlagLit{Value: value, ValuePos: pos}
 }
 
-func arrayLit(lbracket, rbracket Pos, list ...Expr) *ArrayLit {
-	return &ArrayLit{LBrack: lbracket, RBrack: rbracket, Elements: list}
+func arrayLit(lbracket, rbracket Pos, list ...Expr) *ArrayExpr {
+	return &ArrayExpr{LBrack: lbracket, RBrack: rbracket, Elements: list}
 }
 
-func caleeKw(pos Pos) *CalleeKeyword {
-	return &CalleeKeyword{TokenPos: pos, Literal: token.Callee.String()}
+func caleeKw(pos Pos) *CalleeKeywordExpr {
+	return &CalleeKeywordExpr{TokenPos: pos, Literal: token.Callee.String()}
 }
 
-func argsKw(pos Pos) *ArgsKeyword {
-	return &ArgsKeyword{TokenPos: pos, Literal: token.Args.String()}
+func argsKw(pos Pos) *ArgsKeywordExpr {
+	return &ArgsKeywordExpr{TokenPos: pos, Literal: token.Args.String()}
 }
 
-func nargsKw(pos Pos) *NamedArgsKeyword {
-	return &NamedArgsKeyword{TokenPos: pos, Literal: token.NamedArgs.String()}
+func nargsKw(pos Pos) *NamedArgsKeywordExpr {
+	return &NamedArgsKeywordExpr{TokenPos: pos, Literal: token.NamedArgs.String()}
 }
 
 func mapElementLit(
@@ -3523,16 +3540,16 @@ func mapElementLit(
 func dictLit(
 	lbrace, rbrace Pos,
 	list ...*DictElementLit,
-) *DictLit {
-	return &DictLit{LBrace: lbrace, RBrace: rbrace, Elements: list}
+) *DictExpr {
+	return &DictExpr{LBrace: lbrace, RBrace: rbrace, Elements: list}
 }
 
-func funcLit(funcType *FuncType, body *BlockStmt) *FuncLit {
-	return &FuncLit{Type: funcType, Body: body}
+func funcLit(funcType *FuncType, body *BlockStmt) *FuncExpr {
+	return &FuncExpr{Type: funcType, Body: body}
 }
 
-func closure(funcType *FuncType, body Expr) *ClosureLit {
-	return &ClosureLit{Type: funcType, Body: body}
+func closure(funcType *FuncType, body Expr) *ClosureExpr {
+	return &ClosureExpr{Type: funcType, Body: body}
 }
 
 func parenExpr(x Expr, lparen, rparen Pos) *ParenExpr {
@@ -3793,14 +3810,14 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 	require.IsType(t, expected, actual)
 
 	switch expected := expected.(type) {
-	case *Ident:
+	case *IdentExpr:
 		require.Equal(t, expected.Name,
-			actual.(*Ident).Name)
+			actual.(*IdentExpr).Name)
 		require.Equal(t, int(expected.NamePos),
-			int(actual.(*Ident).NamePos))
-	case *TypedIdent:
-		equalExpr(t, expected.Ident, actual.(*TypedIdent).Ident)
-		equalIdents(t, expected.Type, actual.(*TypedIdent).Type)
+			int(actual.(*IdentExpr).NamePos))
+	case *TypedIdentExpr:
+		equalExpr(t, expected.Ident, actual.(*TypedIdentExpr).Ident)
+		equalIdents(t, expected.Type, actual.(*TypedIdentExpr).Type)
 	case *IntLit:
 		require.Equal(t, expected.Value,
 			actual.(*IntLit).Value)
@@ -3831,8 +3848,8 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 		require.Equal(t, int(expected.ValuePos),
 			int(actual.(*CharLit).ValuePos))
 	case *StringLit:
-		require.Equal(t, expected.Value,
-			actual.(*StringLit).Value)
+		require.Equal(t, expected.Literal,
+			actual.(*StringLit).Literal)
 		require.Equal(t, int(expected.ValuePos),
 			int(actual.(*StringLit).ValuePos))
 	case *RawStringLit:
@@ -3840,20 +3857,20 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 			actual.(*RawStringLit).UnquotedValue())
 		require.Equal(t, int(expected.LiteralPos),
 			int(actual.(*RawStringLit).LiteralPos))
-	case *ArrayLit:
+	case *ArrayExpr:
 		require.Equal(t, expected.LBrack,
-			actual.(*ArrayLit).LBrack)
+			actual.(*ArrayExpr).LBrack)
 		require.Equal(t, expected.RBrack,
-			actual.(*ArrayLit).RBrack)
+			actual.(*ArrayExpr).RBrack)
 		equalExprs(t, expected.Elements,
-			actual.(*ArrayLit).Elements)
-	case *DictLit:
+			actual.(*ArrayExpr).Elements)
+	case *DictExpr:
 		require.Equal(t, expected.LBrace,
-			actual.(*DictLit).LBrace)
+			actual.(*DictExpr).LBrace)
 		require.Equal(t, expected.RBrace,
-			actual.(*DictLit).RBrace)
+			actual.(*DictExpr).RBrace)
 		equalMapElements(t, expected.Elements,
-			actual.(*DictLit).Elements)
+			actual.(*DictExpr).Elements)
 	case *NilLit:
 		require.Equal(t, expected.TokenPos,
 			actual.(*NilLit).TokenPos)
@@ -3883,11 +3900,11 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 			actual.(*UnaryExpr).Token)
 		require.Equal(t, expected.TokenPos,
 			actual.(*UnaryExpr).TokenPos)
-	case *FuncLit:
+	case *FuncExpr:
 		equalFuncType(t, expected.Type,
-			actual.(*FuncLit).Type)
+			actual.(*FuncExpr).Type)
 		equalStmt(t, expected.Body,
-			actual.(*FuncLit).Body)
+			actual.(*FuncExpr).Body)
 	case *CallExpr:
 		actual := actual.(*CallExpr)
 		equalExpr(t, expected.Func,
@@ -3983,26 +4000,26 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 			actual.(*CondExpr).QuestionPos)
 		require.Equal(t, expected.ColonPos,
 			actual.(*CondExpr).ColonPos)
-	case *CalleeKeyword:
+	case *CalleeKeywordExpr:
 		require.Equal(t, expected.Literal,
-			actual.(*CalleeKeyword).Literal)
+			actual.(*CalleeKeywordExpr).Literal)
 		require.Equal(t, expected.TokenPos,
-			actual.(*CalleeKeyword).TokenPos)
-	case *ArgsKeyword:
+			actual.(*CalleeKeywordExpr).TokenPos)
+	case *ArgsKeywordExpr:
 		require.Equal(t, expected.Literal,
-			actual.(*ArgsKeyword).Literal)
+			actual.(*ArgsKeywordExpr).Literal)
 		require.Equal(t, expected.TokenPos,
-			actual.(*ArgsKeyword).TokenPos)
-	case *NamedArgsKeyword:
+			actual.(*ArgsKeywordExpr).TokenPos)
+	case *NamedArgsKeywordExpr:
 		require.Equal(t, expected.Literal,
-			actual.(*NamedArgsKeyword).Literal)
+			actual.(*NamedArgsKeywordExpr).Literal)
 		require.Equal(t, expected.TokenPos,
-			actual.(*NamedArgsKeyword).TokenPos)
-	case *ClosureLit:
+			actual.(*NamedArgsKeywordExpr).TokenPos)
+	case *ClosureExpr:
 		equalFuncType(t, expected.Type,
-			actual.(*ClosureLit).Type)
+			actual.(*ClosureExpr).Type)
 		equalExpr(t, expected.Body,
-			actual.(*ClosureLit).Body)
+			actual.(*ClosureExpr).Body)
 	case *BlockExpr:
 		equalStmt(t, expected.BlockStmt,
 			actual.(*BlockExpr).BlockStmt)
@@ -4043,14 +4060,14 @@ func equalNamedArgsNames(t *testing.T, expected, actual []NamedArgExpr) {
 	}
 }
 
-func equalIdents(t *testing.T, expected, actual []*Ident) {
+func equalIdents(t *testing.T, expected, actual []*IdentExpr) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
 		equalExpr(t, expected[i], actual[i])
 	}
 }
 
-func equalTypedIdents(t *testing.T, expected, actual []*TypedIdent) {
+func equalTypedIdents(t *testing.T, expected, actual []*TypedIdentExpr) {
 	require.Equal(t, len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
 		equalExpr(t, expected[i], actual[i])

@@ -6,11 +6,11 @@ package gad
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
+	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -324,7 +324,7 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 		return c.error(nd, err)
 	}
 
-	stmts := c.helperBuildKwargsIfUndefinedStmts(namedSpecCount, func(index int) (name *node.Ident, types []*SymbolInfo, value node.Expr) {
+	stmts := c.helperBuildKwargsIfUndefinedStmts(namedSpecCount, func(index int) (name *node.IdentExpr, types []*SymbolInfo, value node.Expr) {
 		spec := namedSpec[index].(*node.NamedParamSpec)
 		return spec.Ident.Ident, named[index].Type, spec.Value
 	})
@@ -386,8 +386,12 @@ func (c *Compiler) compileDeclValue(nd *node.GenDecl) error {
 				lastExpr = v
 			}
 
-			rightExpr := []node.Expr{v}
-			err := c.compileAssignStmt(nd, leftExpr, rightExpr, nd.Tok, token.Define)
+			err := c.Compile(&node.AssignStmt{
+				Token:    token.Define,
+				LHS:      leftExpr,
+				RHS:      []node.Expr{v},
+				TokenPos: ident.Pos(),
+			})
 			if err != nil {
 				return err
 			}
@@ -469,7 +473,7 @@ func (c *Compiler) compileAssignStmt(
 				fd = 2
 			}
 			return c.compileCallExpr(&node.CallExpr{
-				Func: &node.Ident{Name: BuiltinStdIO.String()},
+				Func: &node.IdentExpr{Name: BuiltinStdIO.String()},
 				CallArgs: node.CallArgs{Args: node.CallExprArgs{Values: []node.Expr{
 					&node.IntLit{Value: fd},
 					rhs[0],
@@ -558,7 +562,7 @@ func (c *Compiler) compileDestructuring(
 
 	for lhsIndex, expr := range lhs {
 		if op == token.Define {
-			if term, ok := expr.(*node.Ident); ok {
+			if term, ok := expr.(*node.IdentExpr); ok {
 				if _, ok = c.symbolTable.find(term.Name); ok {
 					found++
 				}
@@ -701,7 +705,7 @@ func resolveAssignLHS(expr node.Expr) (name string, selectors []node.Expr) {
 	case *node.IndexExpr:
 		name, selectors = resolveAssignLHS(term.Expr)
 		selectors = append(selectors, term.Index)
-	case *node.Ident:
+	case *node.IdentExpr:
 		name = term.Name
 	}
 	return
@@ -979,7 +983,7 @@ func (c *Compiler) compileForInStmt(stmt *node.ForInStmt) error {
 	return nil
 }
 
-func (c *Compiler) compileFuncLit(nd *node.FuncLit) error {
+func (c *Compiler) compileFuncLit(nd *node.FuncExpr) error {
 	if ident := nd.Type.Ident; ident != nil && nd.Type.Token == token.Func {
 		nodeIndex := len(c.stack) - 1
 		// prevent recursion on compileAssignStmt
@@ -1010,7 +1014,7 @@ func (c *Compiler) compileFuncLit(nd *node.FuncLit) error {
 				nd.Type.AllowMethods = false
 				nd.Type.Ident = nil
 				return c.compileCallExpr(&node.CallExpr{
-					Func: &node.Ident{Name: BuiltinAddCallMethod.String()},
+					Func: &node.IdentExpr{Name: BuiltinAddCallMethod.String()},
 					CallArgs: node.CallArgs{
 						Args: node.CallExprArgs{
 							Values: []node.Expr{
@@ -1034,7 +1038,7 @@ func (c *Compiler) compileFuncLit(nd *node.FuncLit) error {
 				nd.Type.AllowMethods = false
 				nd.Type.Ident = nil
 				return c.compileCallExpr(&node.CallExpr{
-					Func: &node.Ident{Name: BuiltinAddCallMethod.String()},
+					Func: &node.IdentExpr{Name: BuiltinAddCallMethod.String()},
 					CallArgs: node.CallArgs{
 						Args: node.CallExprArgs{
 							Values: []node.Expr{
@@ -1051,7 +1055,7 @@ func (c *Compiler) compileFuncLit(nd *node.FuncLit) error {
 	return c.compileFunc(nd, nd.Type, nd.Body)
 }
 
-func (c *Compiler) compileClosureLit(nd *node.ClosureLit) error {
+func (c *Compiler) compileClosureLit(nd *node.ClosureExpr) error {
 	var stmts []node.Stmt
 	if b, ok := nd.Body.(*node.BlockExpr); ok {
 		stmts = b.Stmts
@@ -1117,8 +1121,9 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 	}
 
 	if count := len(typ.Params.NamedArgs.Values); count > 0 {
-		body.Stmts = append(c.helperBuildKwargsStmts(count, func(index int) (name string, value node.Expr) {
-			return typ.Params.NamedArgs.Names[index].Ident.Name, typ.Params.NamedArgs.Values[index]
+		body.Stmts = append(c.helperBuildKwargsStmts(count, func(index int) (name string, namePos source.Pos, value node.Expr) {
+			ident := typ.Params.NamedArgs.Names[index].Ident
+			return ident.Name, ident.NamePos, typ.Params.NamedArgs.Values[index]
 		}), body.Stmts...)
 	}
 
@@ -1141,6 +1146,15 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 
 	if typ.Ident != nil {
 		bc.Main.Name = typ.Ident.Name
+	} else {
+		if decl, _ := c.stack.Up(3).(*node.DeclStmt); decl != nil {
+			if gen, _ := decl.Decl.(*node.GenDecl); gen != nil && gen.Tok == token.Const {
+				assign := c.stack.Up(2).(*node.AssignStmt)
+				if ident, _ := assign.LHS[0].(*node.IdentExpr); ident != nil {
+					bc.Main.Name = ident.Name
+				}
+			}
+		}
 	}
 
 	if bc.Main.NumLocals > 256 {
@@ -1425,7 +1439,7 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 
 	if numKwargs := len(nd.NamedArgs.Names); numKwargs > 0 {
 		flags |= OpCallFlagNamedArgs
-		namedArgs := &node.ArrayLit{Elements: make([]node.Expr, numKwargs)}
+		namedArgs := &node.ArrayExpr{Elements: make([]node.Expr, numKwargs)}
 
 		for i, name := range nd.NamedArgs.Names {
 			value := nd.NamedArgs.Values[i]
@@ -1433,7 +1447,7 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 				// is flag
 				value = &node.FlagLit{Value: true}
 			}
-			namedArgs.Elements[i] = &node.ArrayLit{Elements: []node.Expr{name.NameString(), value}}
+			namedArgs.Elements[i] = &node.ArrayExpr{Elements: []node.Expr{name.NameString(), value}}
 		}
 
 		if err := c.Compile(namedArgs); err != nil {
@@ -1592,7 +1606,7 @@ func (c *Compiler) compileCondExpr(nd *node.CondExpr) error {
 	return nil
 }
 
-func (c *Compiler) compileIdent(nd *node.Ident) error {
+func (c *Compiler) compileIdent(nd *node.IdentExpr) error {
 	symbol, ok := c.symbolTable.Resolve(nd.Name)
 	if !ok {
 		if c.iotaVal < 0 || nd.Name != "iota" {
@@ -1615,7 +1629,7 @@ func (c *Compiler) compileIdent(nd *node.Ident) error {
 	return nil
 }
 
-func (c *Compiler) compileArrayLit(nd *node.ArrayLit) error {
+func (c *Compiler) compileArrayLit(nd *node.ArrayExpr) error {
 	for _, elem := range nd.Elements {
 		if err := c.Compile(elem); err != nil {
 			return err
@@ -1626,7 +1640,7 @@ func (c *Compiler) compileArrayLit(nd *node.ArrayLit) error {
 	return nil
 }
 
-func (c *Compiler) compileDictLit(nd *node.DictLit) error {
+func (c *Compiler) compileDictLit(nd *node.DictExpr) error {
 	for _, elt := range nd.Elements {
 		// key
 		c.emit(nd, OpConstant, c.addConstant(Str(elt.Key)))
@@ -1643,7 +1657,7 @@ func (c *Compiler) compileDictLit(nd *node.DictLit) error {
 func (c *Compiler) compileKeyValueLit(elt *node.KeyValueLit) (err error) {
 	// key
 	switch t := elt.Key.(type) {
-	case *node.Ident:
+	case *node.IdentExpr:
 		c.emit(elt, OpConstant, c.addConstant(Str(t.Name)))
 	default:
 		if err = c.Compile(elt.Key); err != nil {
@@ -1688,18 +1702,18 @@ func (c *Compiler) compileKeyValueArrayLit(nd *node.KeyValueArrayLit) (err error
 	return nil
 }
 
-func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name string, value node.Expr)) (stmts []node.Stmt) {
+func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name string, namesPos source.Pos, value node.Expr)) (stmts []node.Stmt) {
 	for i := 0; i < count; i++ {
-		name, value := get(i)
-		nameLit := &node.StringLit{Literal: strconv.Quote(name), Value: name}
+		name, namePos, value := get(i)
+		nameLit := node.String(name, namePos)
 		values := []node.Expr{nameLit}
 		stmts = append(stmts, &node.AssignStmt{
 			Token: token.NullichAssign,
-			LHS:   []node.Expr{&node.Ident{Name: name}},
+			LHS:   []node.Expr{node.EIdent(name, namePos)},
 			RHS: []node.Expr{&node.BinaryExpr{
 				Token: token.NullichCoalesce,
 				LHS: &node.CallExpr{
-					Func: &node.NamedArgsKeyword{},
+					Func: &node.NamedArgsKeywordExpr{},
 					CallArgs: node.CallArgs{
 						Args: node.CallExprArgs{
 							Values: values,
@@ -1713,12 +1727,12 @@ func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name s
 	return
 }
 
-func (c *Compiler) helperBuildKwargsIfUndefinedStmts(count int, get func(index int) (ident *node.Ident, types []*SymbolInfo, value node.Expr)) (stmts []node.Stmt) {
+func (c *Compiler) helperBuildKwargsIfUndefinedStmts(count int, get func(index int) (ident *node.IdentExpr, types []*SymbolInfo, value node.Expr)) (stmts []node.Stmt) {
 	for i := 0; i < count; i++ {
 		name, types, value := get(i)
 		ident := name
 		if len(types) > 0 {
-			var typesArg node.Expr = &node.Ident{
+			var typesArg node.Expr = &node.IdentExpr{
 				NamePos: name.Pos(),
 				Name:    types[0].Name,
 			}
@@ -1726,9 +1740,9 @@ func (c *Compiler) helperBuildKwargsIfUndefinedStmts(count int, get func(index i
 			if len(types) > 1 {
 				var typesElements = make([]node.Expr, len(types))
 				for i2, symbol := range types {
-					typesElements[i2] = &node.Ident{Name: symbol.Name}
+					typesElements[i2] = &node.IdentExpr{Name: symbol.Name}
 				}
-				typesArg = &node.ArrayLit{Elements: typesElements}
+				typesArg = &node.ArrayExpr{Elements: typesElements}
 			}
 			stmts = append(stmts, &node.IfStmt{
 				Cond: &node.BinaryExpr{
@@ -1747,14 +1761,14 @@ func (c *Compiler) helperBuildKwargsIfUndefinedStmts(count int, get func(index i
 				},
 				Else: &node.ExprStmt{
 					Expr: &node.CallExpr{
-						Func: &node.Ident{
+						Func: &node.IdentExpr{
 							NamePos: name.Pos(),
 							Name:    BuiltinNamedParamTypeCheck.String(),
 						},
 						CallArgs: node.CallArgs{
 							Args: node.CallExprArgs{
 								Values: []node.Expr{
-									&node.StringLit{Value: name.Name},
+									node.String(name.Name, name.NamePos),
 									typesArg,
 									ident,
 								},
@@ -1775,7 +1789,7 @@ func (c *Compiler) helperBuildKwargsIfUndefinedStmts(count int, get func(index i
 	return
 }
 
-func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdent) (name string, symbols []*SymbolInfo, err error) {
+func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdentExpr) (name string, symbols []*SymbolInfo, err error) {
 	name = ti.Ident.Name
 	if len(ti.Type) > 0 {
 		symbols = make([]*SymbolInfo, len(ti.Type))

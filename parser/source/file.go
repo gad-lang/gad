@@ -2,7 +2,9 @@ package source
 
 import (
 	"fmt"
+	"io"
 	"sort"
+	"strings"
 )
 
 // SourceFilePos represents a position information in the file.
@@ -49,6 +51,12 @@ func (p SourceFilePos) String() string {
 		s = "-"
 	}
 	return s
+}
+
+func (p SourceFilePos) TraceLines(w io.Writer, up, down int) {
+	if p.File != nil {
+		p.File.TraceLines(w, p.Line, p.Column, up, down)
+	}
 }
 
 // SourceFileSet represents a set of source files.
@@ -363,6 +371,49 @@ func (f *File) LineSliceDataUpDown(line, upCount, downCount int) (up, down []*Li
 	}
 
 	return
+}
+
+func (f *File) TraceLines(s io.Writer, line, column, up, down int) {
+	upl, downl, l := f.LineSliceDataUpDown(line, up, down)
+	s.Write([]byte{'\n'})
+
+	var (
+		linef = "\t%5d| "
+		lines []string
+		add   = func(s ...*LineData) {
+			for _, l := range s {
+				lines = append(lines, fmt.Sprintf(linef+"%s", l.Line, string(l.Data)))
+			}
+		}
+	)
+
+	add(upl...)
+	add(&LineData{Line: line, Data: l})
+
+	var (
+		prefixCount = len(fmt.Sprintf(linef, line))
+		lineOfChar  = make([]byte, column+1+prefixCount)
+	)
+
+	lineOfChar[0] = '\t'
+	for i := 1; i < prefixCount; i++ {
+		lineOfChar[i] = ' '
+	}
+
+	for i := 0; i < column; i++ {
+		b := l[i]
+		switch b {
+		case '\t':
+			b = '\t'
+		default:
+			b = ' '
+		}
+		lineOfChar[prefixCount+i] = b
+	}
+	lineOfChar[len(lineOfChar)-1] = '^'
+	lines = append(lines, string(lineOfChar))
+	add(downl...)
+	s.Write([]byte(strings.Join(lines, "\n")))
 }
 
 type LineData struct {

@@ -5,6 +5,7 @@
 package gad
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -14,7 +15,16 @@ import (
 type BuiltinType uint16
 
 func (t BuiltinType) String() string {
-	return BuiltinObjects[t].(*BuiltinFunction).Name
+	switch bt := BuiltinObjects[t].(type) {
+	case *BuiltinFunction:
+		return bt.Name
+	case *BuiltinObjType:
+		return bt.NameValue
+	case fmt.Stringer:
+		return bt.String()
+	default:
+		return fmt.Sprintf("<unknown built-in type: %T>", t)
+	}
 }
 
 // Builtins

@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
@@ -31,21 +32,21 @@ func NewGenDecl(
 	}
 }
 
-func NewParamSpec(variadic bool, ident *TypedIdent) Spec {
+func NewParamSpec(variadic bool, ident *TypedIdentExpr) Spec {
 	return &ParamSpec{
 		Ident:    ident,
 		Variadic: variadic,
 	}
 }
 
-func NewNamedParamSpec(ident *TypedIdent, value Expr) Spec {
+func NewNamedParamSpec(ident *TypedIdentExpr, value Expr) Spec {
 	return &NamedParamSpec{
 		Ident: ident,
 		Value: value,
 	}
 }
 
-func NewValueSpec(idents []*Ident, values []Expr) Spec {
+func NewValueSpec(idents []*IdentExpr, values []Expr) Spec {
 	return &ValueSpec{
 		Idents: idents,
 		Values: values,
@@ -81,7 +82,7 @@ func SFor(
 }
 
 func SForIn(
-	key, value *Ident,
+	key, value *IdentExpr,
 	seq Expr,
 	body *BlockStmt,
 	pos source.Pos,
@@ -132,7 +133,7 @@ func STry(
 
 func SCatch(
 	catchPos source.Pos,
-	ident *Ident,
+	ident *IdentExpr,
 	body *BlockStmt,
 ) *CatchStmt {
 	return &CatchStmt{CatchPos: catchPos, Ident: ident, Body: body}
@@ -168,27 +169,48 @@ func NewFuncType(pos, lparen, rparen source.Pos, v ...any) *FuncType {
 			f.Params.Args = t
 		case NamedArgsList:
 			f.Params.NamedArgs = t
-		case *Ident:
+		case *IdentExpr:
 			f.Ident = t
 		}
 	}
 	return f
 }
 
-func Args(vari *TypedIdent, names ...Expr) ArgsList {
+func ProxyFuncType() *FuncType {
+	return &FuncType{
+		Params: FuncParams{
+			Args: ArgsList{
+				Var: &TypedIdentExpr{
+					Ident: &IdentExpr{
+						Name: "args",
+					},
+				},
+			},
+			NamedArgs: NamedArgsList{
+				Var: &TypedIdentExpr{
+					Ident: &IdentExpr{
+						Name: "kwargs",
+					},
+				},
+			},
+		},
+	}
+}
+
+func Args(vari *TypedIdentExpr, names ...Expr) ArgsList {
 	l := ArgsList{Var: vari}
 	for _, name := range names {
 		switch t := name.(type) {
-		case *Ident:
-			l.Values = append(l.Values, NewTypedIdent(t))
-		case *TypedIdent:
+		case *IdentExpr:
+			l.Values = append(l.Values, ETypedIdent(t))
+		case *TypedIdentExpr:
 			l.Values = append(l.Values, t)
 		}
 	}
 	return l
 }
 
-func NamedArgs(vari *TypedIdent, names []*TypedIdent, values []Expr) NamedArgsList {
+func NamedArgs(vari *TypedIdentExpr, names []*TypedIdentExpr, values []Expr) NamedArgsList {
 	return NamedArgsList{Names: names, Var: vari, Values: values}
 }
 
@@ -204,12 +226,12 @@ func EBlock(lbrace, rbrace source.Pos, list ...Stmt) *BlockExpr {
 	return &BlockExpr{BlockStmt: SBlock(lbrace, rbrace, list...)}
 }
 
-func NewIdent(name string, pos source.Pos) *Ident {
-	return &Ident{Name: name, NamePos: pos}
+func EIdent(name string, pos source.Pos) *IdentExpr {
+	return &IdentExpr{Name: name, NamePos: pos}
 }
 
-func NewTypedIdent(ident *Ident, typ ...*Ident) *TypedIdent {
-	return &TypedIdent{Ident: ident, Type: typ}
+func ETypedIdent(ident *IdentExpr, typ ...*IdentExpr) *TypedIdentExpr {
+	return &TypedIdentExpr{Ident: ident, Type: typ}
 }
 
 func SMixedText(pos source.Pos, vlit string, flags ...MixedTextStmtFlag) *MixedTextStmt {
@@ -297,7 +319,7 @@ func Decimal(value string, pos source.Pos) *DecimalLit {
 }
 
 func String(value string, pos source.Pos) *StringLit {
-	return &StringLit{Value: value, ValuePos: pos}
+	return &StringLit{Literal: strconv.Quote(value), ValuePos: pos}
 }
 
 func RawString(value string, pos source.Pos) *RawStringLit {
@@ -322,20 +344,20 @@ func Flag(value bool, pos source.Pos) *FlagLit {
 	return &FlagLit{Value: value, ValuePos: pos}
 }
 
-func Array(lbracket, rbracket source.Pos, list ...Expr) *ArrayLit {
-	return &ArrayLit{LBrack: lbracket, RBrack: rbracket, Elements: list}
+func Array(lbracket, rbracket source.Pos, list ...Expr) *ArrayExpr {
+	return &ArrayExpr{LBrack: lbracket, RBrack: rbracket, Elements: list}
 }
 
-func CaleeKW(pos source.Pos) *CalleeKeyword {
-	return &CalleeKeyword{TokenPos: pos, Literal: token.Callee.String()}
+func CaleeKW(pos source.Pos) *CalleeKeywordExpr {
+	return &CalleeKeywordExpr{TokenPos: pos, Literal: token.Callee.String()}
 }
 
-func ArgsKW(pos source.Pos) *ArgsKeyword {
-	return &ArgsKeyword{TokenPos: pos, Literal: token.Args.String()}
+func ArgsKW(pos source.Pos) *ArgsKeywordExpr {
+	return &ArgsKeywordExpr{TokenPos: pos, Literal: token.Args.String()}
 }
 
-func NamedArgsKW(pos source.Pos) *NamedArgsKeyword {
-	return &NamedArgsKeyword{TokenPos: pos, Literal: token.NamedArgs.String()}
+func NamedArgsKW(pos source.Pos) *NamedArgsKeywordExpr {
+	return &NamedArgsKeywordExpr{TokenPos: pos, Literal: token.NamedArgs.String()}
 }
 
 func MapElement(
@@ -349,19 +371,16 @@ func MapElement(
 	}
 }
 
-func Dict(
-	lbrace, rbrace source.Pos,
-	list ...*DictElementLit,
-) *DictLit {
-	return &DictLit{LBrace: lbrace, RBrace: rbrace, Elements: list}
+func EDict(lbrace, rbrace source.Pos, list ...*DictElementLit) *DictExpr {
+	return &DictExpr{LBrace: lbrace, RBrace: rbrace, Elements: list}
 }
 
-func Func(funcType *FuncType, body *BlockStmt) *FuncLit {
-	return &FuncLit{Type: funcType, Body: body}
+func EFunc(funcType *FuncType, body *BlockStmt) *FuncExpr {
+	return &FuncExpr{Type: funcType, Body: body}
 }
 
-func Closure(funcType *FuncType, body Expr) *ClosureLit {
-	return &ClosureLit{Type: funcType, Body: body}
+func EClosure(funcType *FuncType, body Expr) *ClosureExpr {
+	return &ClosureExpr{Type: funcType, Body: body}
 }
 
 func EParen(x Expr, lparen, rparen source.Pos) *ParenExpr {
@@ -383,6 +402,13 @@ func ECall(
 		}
 	}
 	return ce
+}
+
+func ECallProxy(efunc Expr) *CallExpr {
+	return ECall(efunc, 0, 0,
+		Args(ETypedIdent(EIdent("args", 0))),
+		NamedArgs(ETypedIdent(EIdent("kwargs", 0)), nil, nil),
+	)
 }
 
 func ArgVar(pos source.Pos, value Expr) *ArgVarLit {

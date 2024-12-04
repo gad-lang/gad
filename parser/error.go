@@ -3,7 +3,6 @@ package parser
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/gad-lang/gad/parser/source"
 )
@@ -15,7 +14,13 @@ type Error struct {
 }
 
 func (e *Error) Format(f fmt.State, verb rune) {
+	e.formatWithMessage(f, verb, "")
+}
+
+func (e *Error) formatWithMessage(f fmt.State, verb rune, msg string) {
 	switch verb {
+	case 's':
+		fmt.Fprint(f, e.Error())
 	case 'v':
 		if f.Flag('+') && e.Pos.File != nil {
 			var (
@@ -23,48 +28,10 @@ func (e *Error) Format(f fmt.State, verb rune) {
 				down, _ = f.Precision()
 			)
 
-			upl, downl, l := e.Pos.File.LineSliceDataUpDown(e.Pos.Line, up, down)
-
-			fmt.Fprintln(f, e.Error())
+			fmt.Fprintln(f, e.Error()+msg)
 			f.Write([]byte{'\n'})
 
-			var (
-				linef = "\t%-d| "
-				lines []string
-				add   = func(s ...*source.LineData) {
-					for _, l := range s {
-						lines = append(lines, fmt.Sprintf(linef+"%s", l.Line, string(l.Data)))
-					}
-				}
-			)
-
-			add(upl...)
-			add(&source.LineData{Line: e.Pos.Line, Data: l})
-
-			var (
-				prefixCount = len(fmt.Sprintf(linef, e.Pos.Line))
-				lineOfChar  = make([]byte, e.Pos.Column+prefixCount)
-			)
-
-			lineOfChar[0] = '\t'
-			for i := 1; i < prefixCount; i++ {
-				lineOfChar[i] = ' '
-			}
-
-			for i := 0; i < e.Pos.Column-1; i++ {
-				b := l[i]
-				switch b {
-				case '\t':
-					b = '\t'
-				default:
-					b = ' '
-				}
-				lineOfChar[prefixCount+i] = b
-			}
-			lineOfChar[len(lineOfChar)-1] = '^'
-			lines = append(lines, string(lineOfChar))
-			add(downl...)
-			f.Write([]byte(strings.Join(lines, "\n")))
+			e.Pos.TraceLines(f, up, down)
 		} else {
 			f.Write([]byte(e.Error()))
 		}
@@ -124,8 +91,7 @@ func (p ErrorList) Format(f fmt.State, verb rune) {
 	case 1:
 		p[0].Format(f, verb)
 	default:
-		p[0].Format(f, verb)
-		fmt.Fprintf(f, " (and %d more errors)", l-1)
+		p[0].formatWithMessage(f, verb, fmt.Sprintf(" (and %d more errors)", l-1))
 	}
 }
 
