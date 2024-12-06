@@ -424,7 +424,11 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("(;")
 	l := len(e.Elements) - 1
 	for i, element := range e.Elements {
-		element.WriteCode(ctx)
+		element.Key.WriteCode(ctx)
+		if element.Value != nil {
+			ctx.WriteByte('=')
+			element.Value.WriteCode(ctx)
+		}
 		if i < l {
 			ctx.WriteString(", ")
 		}

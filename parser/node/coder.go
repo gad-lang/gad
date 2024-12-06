@@ -56,8 +56,9 @@ func NewCodeWriter(w io.Writer) CodeWriter {
 }
 
 type TranspileOptions struct {
-	RawStrFunc string
-	WriteFunc  string
+	RawStrFuncStart string
+	RawStrFuncEnd   string
+	WriteFunc       string
 }
 
 type CodeWriteContext struct {

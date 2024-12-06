@@ -14,7 +14,7 @@ package node
 
 import (
 	"bytes"
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
@@ -415,7 +415,11 @@ func (s *IfStmt) WriteCode(ctx *CodeWriteContext) {
 	ctx.Depth--
 	if s.Else != nil {
 		ctx.WriteString(" else ")
-		ctx.WriteStmts(s.Else)
+		if block, ok := s.Else.(*BlockStmt); ok {
+			block.WriteCodeInSelfDepth(ctx, true)
+		} else {
+			ctx.WriteStmts(s.Else)
+		}
 	}
 	return
 }
@@ -678,8 +682,14 @@ func (s *MixedTextStmt) ValidLit() ast.Literal {
 
 func (s *MixedTextStmt) WriteCode(ctx *CodeWriteContext) {
 	if ctx.Transpile != nil {
+		ctx.WritePrefix()
 		ctx.WriteString(ctx.Transpile.WriteFunc)
-		fmt.Fprintf(ctx, "("+ctx.Transpile.RawStrFunc+")", s.Value())
+		ctx.WriteByte('(')
+		ctx.WriteString(ctx.Transpile.RawStrFuncStart)
+		ctx.WriteString(strconv.Quote(s.Value()))
+		ctx.WriteString(ctx.Transpile.RawStrFuncEnd)
+		ctx.WriteByte(')')
+		ctx.WriteSemi()
 	} else {
 		ctx.WriteString(s.Lit.Value)
 	}
@@ -728,18 +738,27 @@ func (s *MixedValueStmt) String() string {
 }
 
 func (s *MixedValueStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(s.StartLit.Value)
-	if s.RemoveLeftSpace {
-		ctx.WriteByte('-')
+	if ctx.Transpile != nil {
+		ctx.WritePrefix()
+		ctx.WriteString(ctx.Transpile.WriteFunc)
+		ctx.WriteByte('(')
+		s.Expr.WriteCode(ctx)
+		ctx.WriteByte(')')
+		ctx.WriteSemi()
+	} else {
+		ctx.WriteString(s.StartLit.Value)
+		if s.RemoveLeftSpace {
+			ctx.WriteByte('-')
+		}
+		if s.Eq {
+			ctx.WriteByte('=')
+		}
+		s.Expr.WriteCode(ctx)
+		if s.RemoveRightSpace {
+			ctx.WriteByte('-')
+		}
+		ctx.WriteString(s.EndLit.Value)
 	}
-	if s.Eq {
-		ctx.WriteByte('=')
-	}
-	s.Expr.WriteCode(ctx)
-	if s.RemoveRightSpace {
-		ctx.WriteByte('-')
-	}
-	ctx.WriteString(s.EndLit.Value)
 }
 
 type ConfigOptions struct {

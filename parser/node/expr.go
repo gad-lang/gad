@@ -922,7 +922,11 @@ func (e *ClosureExpr) String() string {
 
 func (e *ClosureExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.Type.Params.String(), " => ")
-	e.Body.WriteCode(ctx)
+	if block, ok := e.Body.(*BlockExpr); ok {
+		block.WriteCodeInSelfDepth(ctx, true)
+	} else {
+		e.Body.WriteCode(ctx)
+	}
 }
 
 // DictExpr represents a map literal.
