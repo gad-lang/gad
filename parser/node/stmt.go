@@ -15,7 +15,6 @@ package node
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
@@ -680,9 +679,7 @@ func (s *MixedTextStmt) ValidLit() ast.Literal {
 func (s *MixedTextStmt) WriteCode(ctx *CodeWriteContext) {
 	if ctx.Transpile != nil {
 		ctx.WriteString(ctx.Transpile.WriteFunc)
-		fmt.Fprintf(ctx, "(%s(", ctx.Transpile.RawStrFunc)
-		ctx.WriteString(strconv.Quote(s.Value()))
-		ctx.WriteString("))")
+		fmt.Fprintf(ctx, "("+ctx.Transpile.RawStrFunc+")", s.Value())
 	} else {
 		ctx.WriteString(s.Lit.Value)
 	}

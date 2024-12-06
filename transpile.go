@@ -4,7 +4,7 @@ import "github.com/gad-lang/gad/parser/node"
 
 func TranspileOptions() *node.TranspileOptions {
 	return &node.TranspileOptions{
-		RawStrFunc: BuiltinRawStr.String(),
+		RawStrFunc: BuiltinRawStr.String() + "(%q;cast)",
 		WriteFunc:  "write",
 	}
 }
