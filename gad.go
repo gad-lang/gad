@@ -122,6 +122,8 @@ func ToInterface(o Object) (ret any) {
 		ret = int64(o)
 	case Str:
 		ret = string(o)
+	case RawStr:
+		ret = string(o)
 	case Bytes:
 		ret = []byte(o)
 	case Array:

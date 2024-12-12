@@ -2383,6 +2383,8 @@ func (p *Parser) ParseMapElementLit() *node.DictElementLit {
 	} else if p.Token.Token == token.String {
 		v, _ := strconv.Unquote(p.Token.Literal)
 		name = v
+	} else if p.Token.Token == token.Int {
+		name = p.Token.Literal
 	} else {
 		p.ErrorExpected(pos, "map key")
 	}

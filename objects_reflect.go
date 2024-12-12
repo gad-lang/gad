@@ -99,6 +99,7 @@ type ReflectType struct {
 	FieldsNames  []string
 	RFields      map[string]*ReflectField
 	formatMethod *ReflectMethod
+	CallObject   func(obj *ReflectStruct, c Call) (Object, error)
 }
 
 var _ ObjectType = (*ReflectType)(nil)
@@ -1044,12 +1045,21 @@ func (o *ReflectMap) Copy() (obj Object) {
 	return
 }
 
+var _ CallerObject = (*ReflectStruct)(nil)
+
 type ReflectStruct struct {
 	ReflectValue
 	fieldHandler         func(vm *VM, s *ReflectStruct, name string, v any) any
 	fallbackIndexHandler func(vm *VM, s *ReflectStruct, name string) (handled bool, value any, err error)
 	Data                 Dict
 	Interface            any
+}
+
+func (s *ReflectStruct) Call(c Call) (Object, error) {
+	if s.RType.CallObject == nil {
+		return Nil, ErrNotCallable.NewError(s.Type().ToString())
+	}
+	return s.RType.CallObject(s, c)
 }
 
 func (s *ReflectStruct) Reader() Reader {
