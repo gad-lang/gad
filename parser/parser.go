@@ -1472,10 +1472,12 @@ do:
 		return p.ParseMixedValue()
 	case token.Var, token.Const, token.Global, token.Param:
 		return &node.DeclStmt{Decl: p.ParseDecl()}
+	case token.LBrace:
+		return p.ParseScopedBlockStmt()
 	case // simple statements
 		token.Func, token.Ident, token.Int, token.Uint, token.Float,
 		token.Char, token.String, token.True, token.False, token.Nil,
-		token.LParen, token.LBrace, token.LBrack, token.Add, token.Sub,
+		token.LParen, token.LBrack, token.Add, token.Sub,
 		token.Mul, token.And, token.Xor, token.Not, token.Import,
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
@@ -1502,8 +1504,6 @@ do:
 	case token.RBrace:
 		// semicolon may be omitted before a closing "}"
 		return &node.EmptyStmt{Semicolon: p.Token.Pos, Implicit: true}
-	case token.Period:
-		return p.ParseScopedBlockStmt()
 	}
 
 	return
@@ -2131,10 +2131,7 @@ func (p *Parser) ParseScopedBlockStmt() *node.BlockStmt {
 		defer untracep(tracep(p, "ScopedBlockStmt"))
 	}
 
-	per := p.ExpectToken(token.Period)
 	block := p.ParseBlockStmt()
-	block.LBrace.Value = "." + block.LBrace.Value
-	block.LBrace.Pos = per.Pos
 	block.Scoped = true
 	return block
 }

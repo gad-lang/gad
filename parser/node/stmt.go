@@ -113,9 +113,6 @@ func (s *BlockStmt) End() source.Pos {
 
 func (s *BlockStmt) String() string {
 	var b strings.Builder
-	if s.Scoped {
-		b.WriteRune('.')
-	}
 	b.WriteString(s.LBrace.Value)
 	b.WriteString(s.Stmts.String())
 	b.WriteString(s.RBrace.Value)
@@ -129,7 +126,7 @@ func (s *BlockStmt) WriteCode(ctx *CodeWriteContext) {
 func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) {
 	if s.Scoped {
 		ctx.WritePrefix()
-		ctx.WriteString(".{")
+		ctx.WriteString("{")
 		ctx.WriteSecondLine()
 		selfDepth = true
 	} else {

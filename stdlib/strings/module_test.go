@@ -335,7 +335,7 @@ func TestScript(t *testing.T) {
 		m func(string) string
 		e Object
 	}{
-		/*{s: `strings.Contains()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.Contains()`, m: catch, e: wrongArgs(2, 0)},
 		{s: `strings.Contains(1)`, m: catch, e: wrongArgs(2, 1)},
 		{s: `strings.Contains(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
 		{s: `strings.Contains(1, 2)`, e: False},
@@ -506,7 +506,7 @@ func TestScript(t *testing.T) {
 			"tengo")`, e: Str("I❤Gad")},
 		{s: `strings.Dict(func(c){return c}, "test")`,
 			m: catch, e: Str("test")},
-		*/
+
 		{s: `strings.PadLeft()`, m: catch, e: nwrongArgs(2, 3, 0)},
 		{s: `strings.PadLeft(1)`, m: catch, e: nwrongArgs(2, 3, 1)},
 		{s: `strings.PadLeft(1, 2, 3, 4)`, m: catch, e: nwrongArgs(2, 3, 4)},
@@ -730,6 +730,19 @@ func TestScript(t *testing.T) {
 			expectRun(t, s, tt.e)
 		})
 	}
+}
+
+func Test_X(t *testing.T) {
+	expectRun(t, `
+strings := import("strings")
+return {"a[1]": 1,"a[2]": 2} .| 
+items .| 
+filter((v, k, _) => (strings.HasPrefix(k, "a["))) .| 
+map((v, k) => keyValue(k[2:-1], v)) .| 
+collect .|
+sort(less=func(i, j) { return i.k > j.k}) .|
+map((v, k) => v)
+`, Str(""))
 }
 
 func expectRun(t *testing.T, script string, expected Object) {
