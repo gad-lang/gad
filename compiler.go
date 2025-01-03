@@ -155,8 +155,6 @@ func (e *CompilerError) Format(f fmt.State, verb rune) {
 			)
 
 			fmt.Fprintln(f, e.Error())
-			f.Write([]byte{'\n'})
-
 			pos.TraceLines(f, up, down)
 		} else {
 			f.Write([]byte(e.Error()))
@@ -239,7 +237,7 @@ func Compile(script []byte, opts CompileOptions) (*Bytecode, error) {
 		moduleName = MainName
 	}
 
-	srcFile := fileSet.AddFileData(moduleName, -1, script)
+	srcFile := fileSet.AppendFileData(moduleName, script)
 	if opts.TraceParser && opts.ParserOptions.Trace == nil {
 		opts.ParserOptions.Trace = opts.Trace
 	}

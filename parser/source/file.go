@@ -1,6 +1,7 @@
 package source
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"sort"
@@ -13,6 +14,10 @@ type SourceFilePos struct {
 	Offset int   // offset, starting at 0
 	Line   int   // line number, starting at 1
 	Column int   // column number, starting at 1 (byte count)
+}
+
+func (p SourceFilePos) Pos() Pos {
+	return Pos(p.File.Base + p.Offset)
 }
 
 // IsValid returns true if the position is valid.
@@ -76,6 +81,13 @@ func NewFileSet() *SourceFileSet {
 // AddFileData adds a new file in the file set with data.
 func (s *SourceFileSet) AddFileData(filename string, base int, data []byte) *File {
 	f := s.AddFile(filename, base, len(data))
+	f.Data = data
+	return f
+}
+
+// AppendFileData appends a new file in the file set with data.
+func (s *SourceFileSet) AppendFileData(filename string, data []byte) *File {
+	f := s.AddFile(filename, -1, len(data))
 	f.Data = data
 	return f
 }
@@ -319,16 +331,26 @@ func (f *File) NextLinePos(p Pos) Pos {
 
 // LineData return line data
 func (f *File) LineData(line int) (d []byte, valid bool) {
-	start, end := f.MustLineStart(line), f.MustLineStart(line+1)
-	if start < 1 {
+	start := f.MustLineStart(line)
+	if start < 0 || len(f.Data) == 0 {
 		return nil, false
 	}
+
+	start -= Pos(f.Base)
+
+	if f.Data[start] == '\n' {
+		// empty line
+		return nil, true
+	}
+
+	end := bytes.IndexByte(f.Data[start+1:], '\n')
+
 	valid = true
-	if end > 0 {
-		end--
-		d = f.Data[start-1 : end-1]
+	if end >= 0 {
+		end += int(start) + 1
+		d = f.Data[start:end]
 	} else {
-		d = f.Data[start-1:]
+		d = f.Data[start+1:]
 	}
 	return
 }
@@ -336,7 +358,7 @@ func (f *File) LineData(line int) (d []byte, valid bool) {
 // LineSliceData return slice data of lines
 func (f *File) LineSliceData(lineStart, count int) (s []*LineData) {
 	for i := 0; i < count; i++ {
-		if d, ok := f.LineData(lineStart + i); ok {
+		if d, ok := f.LineData(lineStart + i); ok && len(d) > 0 {
 			s = append(s, &LineData{
 				Line: lineStart + i,
 				Data: d,
@@ -375,8 +397,6 @@ func (f *File) LineSliceDataUpDown(line, upCount, downCount int) (up, down []*Li
 
 func (f *File) TraceLines(s io.Writer, line, column, up, down int) {
 	upl, downl, l := f.LineSliceDataUpDown(line, up, down)
-	s.Write([]byte{'\n'})
-
 	var (
 		linef = "\t%5d| "
 		lines []string
@@ -392,7 +412,7 @@ func (f *File) TraceLines(s io.Writer, line, column, up, down int) {
 
 	var (
 		prefixCount = len(fmt.Sprintf(linef, line))
-		lineOfChar  = make([]byte, column+1+prefixCount)
+		lineOfChar  = make([]byte, column+prefixCount)
 	)
 
 	lineOfChar[0] = '\t'
