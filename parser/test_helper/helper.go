@@ -19,7 +19,7 @@ func ParseTrace(t *testing.T, input, expected string) {
 	parse := func(input string, tracer io.Writer) {
 		testFileSet := source.NewFileSet()
 		testFile := testFileSet.AddFile("test", -1, len(input))
-		p := parser.NewParser(testFile, []byte(input), tracer)
+		p := parser.NewParser(testFile, tracer)
 		_, err := p.ParseFile()
 		require.NoError(t, err)
 	}
@@ -66,7 +66,7 @@ func Parse(t *testing.T, input string, do func(f *source.File, actual *parser.Fi
 			tr := &parseTracer{}
 			po, so := options()
 			po.Trace = tr
-			p := parser.NewParserWithOptions(testFile, []byte(input), po, so)
+			p := parser.NewParserWithOptions(testFile, po, so)
 			actual, _ := p.ParseFile()
 			if actual != nil {
 				t.Logf("Parsed:\n%s", actual.String())
@@ -77,7 +77,7 @@ func Parse(t *testing.T, input string, do func(f *source.File, actual *parser.Fi
 
 	po, so := options()
 
-	p := parser.NewParserWithOptions(testFile, []byte(input), po, so)
+	p := parser.NewParserWithOptions(testFile, po, so)
 	actual, err := p.ParseFile()
 	do(testFile, actual, err)
 	ok = true

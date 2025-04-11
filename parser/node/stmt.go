@@ -112,9 +112,19 @@ func (s *BlockStmt) End() source.Pos {
 }
 
 func (s *BlockStmt) String() string {
-	var b strings.Builder
+	var (
+		b    strings.Builder
+		data = s.Stmts.String()
+	)
+
 	b.WriteString(s.LBrace.Value)
-	b.WriteString(s.Stmts.String())
+	if len(data) > 0 {
+		b.WriteString(" ")
+		b.WriteString(data)
+		b.WriteString(" ")
+	} else if s.RBrace.Value == "" || (s.RBrace.Value[0] >= 'a' && s.RBrace.Value[0] <= 'z') {
+		b.WriteString(" ")
+	}
 	b.WriteString(s.RBrace.Value)
 	return b.String()
 }
@@ -269,7 +279,15 @@ func (s *ForInStmt) String() string {
 	str += " in " + s.Iterable.String() +
 		" " + s.Body.String()
 	if s.Else != nil {
-		str += " else " + s.Else.String()
+		if str[len(str)-1] != ' ' {
+			str += " "
+		}
+		str += "else"
+		els := s.Else.String()
+		if els[0] != ' ' {
+			str += " "
+		}
+		str += els
 	}
 	return str
 }
@@ -392,7 +410,11 @@ func (s *IfStmt) String() string {
 		initStmt = s.Init.String() + "; "
 	}
 	if s.Else != nil {
-		elseStmt = " else " + s.Else.String()
+		elseStmt = s.Else.String()
+		if elseStmt[0] != ' ' {
+			elseStmt = " " + elseStmt
+		}
+		elseStmt = "else" + elseStmt
 	}
 	return "if " + initStmt + s.Cond.String() + " " +
 		s.Body.String() + elseStmt
@@ -787,7 +809,7 @@ func (c *ConfigStmt) String() string {
 	for _, m := range c.Elements {
 		elements = append(elements, m.ElementString())
 	}
-	return "# gad: " + strings.Join(elements, ", ")
+	return "# gad: " + strings.Join(elements, ", ") + "\n"
 }
 
 func (c *ConfigStmt) WriteCode(ctx *CodeWriteContext) {

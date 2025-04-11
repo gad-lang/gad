@@ -20,7 +20,6 @@ func (m *StartEndDelimiter) Strings() (start, end string) {
 }
 
 func (m *StartEndDelimiter) Starts(r rune, b []byte) bool {
-
 	if m.Start[0] == r {
 		if len(m.Start) > 1 {
 			return bytes.HasPrefix(b, []byte(string(m.Start[1:])))

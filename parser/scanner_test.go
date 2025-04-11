@@ -186,6 +186,7 @@ func TestScanner_Scan(t *testing.T) {
 		{token.RawString, "`foo\nbar`"},
 		{token.RawHeredoc, "```\n  a\n  bc\n```"},
 		{token.RawHeredoc, "```\nabc\n```"},
+		{token.RawHeredoc, "```\nabc\n        ```"},
 		{token.RawHeredoc, "```abc```"},
 		{token.RawHeredoc, "```a``bc```"},
 		{token.RawHeredoc, "`````a``b```c`````"},

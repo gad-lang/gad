@@ -705,9 +705,6 @@ func (s *Reader) ScanRawString() (string, bool) {
 		}
 		var w bytes.Buffer
 		w.Write(quote)
-		if s.Ch == '\n' {
-			quote = append([]byte{'\n'}, quote...)
-		}
 		w.Write(s.ReadAtMany(quote))
 		w.Write(s.ReadCount(len(quote)))
 

@@ -122,22 +122,20 @@ func TestParserMixed(t *testing.T) {
 		})
 	}
 
-	defaultExpectParse(`
-. {
-	x
-}
+	defaultExpectParse(`# gad: mixed
+	{% 
+	1
+%} 
 `, func(p pfn) []Stmt {
 		return stmts(
 			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
 			mixedTextStmt(p(1, 14), "\t"),
 			codeBegin(lit("{%", p(2, 2)), false),
-			exprStmt(intLit(1, p(2, 7))),
-			codeEnd(lit("%}", p(2, 11)), false),
-			mixedTextStmt(p(1, 26), " \n"),
+			exprStmt(intLit(1, p(3, 2))),
+			codeEnd(lit("%}", p(4, 1)), false),
+			mixedTextStmt(p(4, 3), " \n"),
 		)
 	})
-
-	return
 
 	defaultExpectParse(`# gad: mixed
 	{%   1   %} 
@@ -232,15 +230,15 @@ a
 			mixedTextStmt(p(1, 12), " a", RemoveLeftSpaces),
 		)
 	})
-	expectParseStringMode(t, ParseMixed, "‹- var myfn -› a", "‹-var myfn-› a")
-	expectParseStringMode(t, ParseMixed, "a ‹- 1 ›", "a ‹-1›")
-	expectParseStringMode(t, ParseMixed, "‹ 1 ›", "‹1›")
-	expectParseStringMode(t, ParseMixed, "‹ 1; 2; var a ›", "‹1; 2; var a›")
-	expectParseStringMode(t, ParseMixed, "x ‹ 1; 2; var a › y", "x ‹1; 2; var a› y")
-	expectParseStringMode(t, ParseMixed, "‹var a›", `‹var a›`)
+	expectParseStringMode(t, ParseMixed, "‹- var myfn -› a", "‹-; var myfn; -› a")
+	expectParseStringMode(t, ParseMixed, "a ‹- 1 ›", "a ; ‹-; 1; ›")
+	expectParseStringMode(t, ParseMixed, "‹ 1 ›", "‹; 1; ›")
+	expectParseStringMode(t, ParseMixed, "‹ 1; 2; var a ›", "‹; 1; 2; var a; ›")
+	expectParseStringMode(t, ParseMixed, "x ‹ 1; 2; var a › y", "x ; ‹; 1; 2; var a; › y")
+	expectParseStringMode(t, ParseMixed, "‹var a›", `‹; var a; ›`)
 	expectParseStringMode(t, ParseMixed, "‹=1›", "‹=1›")
-	expectParseStringMode(t, ParseMixed, "a  ‹-= 1 -›\n\tb", "a  ‹-=1-›\n\tb")
-	expectParseStringMode(t, ParseMixed, "‹(› 2 ‹- ) ›", "‹(› 2 ‹-)›")
+	expectParseStringMode(t, ParseMixed, "a  ‹-= 1 -›\n\tb", "a  ; ‹-=1-›; \n\tb")
+	expectParseStringMode(t, ParseMixed, "‹(› 2 ‹- ) ›", "‹; › 2 ‹-; ›")
 	expectParseStringMode(t, ParseMixed, "‹( -› 2 ‹- ) ›", "‹(-› 2 ‹-)›")
 	expectParseStringMode(t, ParseMixed, "‹a = (› 2 ‹- ) ›", "‹a = (› 2 ‹-)›")
 	expectParseStringMode(t, ParseMixed, "‹1›‹2›‹3›", `‹1›‹2›‹3›`)
@@ -275,14 +273,25 @@ a
 func TestParserError(t *testing.T) {
 	expectParseError(t, "var x;\n\nvar y;\nparam a,b\nvar z\nz2\nz3\nz4",
 		[2]string{"%v", "Parse Error: expected statement, found ','\n\tat test:4:8"},
-		[2]string{"%+v", "Parse Error: expected statement, found ','\n\tat test:4:8\n\n\t4| param a,b\n\t          ^"},
-		[2]string{"%+3.4v", "Parse Error: expected statement, found ','\n\tat test:4:8\n\n\t1| var x;\n\t2| \n\t3| " +
-			"var y;\n\t4| param a,b\n\t          ^\n\t5| var z\n\t6| z2\n\t7| z3\n\t8| z4"},
+		[2]string{"%+v", "Parse Error: expected statement, found ','" +
+			"\n\tat test:4:8" +
+			"\n\n\t    4| param a,b" +
+			"\n\t              ^"},
+		[2]string{"%+3.4v", "Parse Error: expected statement, found '," +
+			"'\n\tat test:4:8" +
+			"\n\n\t    1| var x;" +
+			"\n\t    3| var y;" +
+			"\n\t    4| param a,b" +
+			"\n\t              ^" +
+			"\n\t    5| var z" +
+			"\n\t    6| z2" +
+			"\n\t    7| z3" +
+			"\n\t    8| z4"},
 	)
 
 	expectParseError(t, `param a,b`,
 		[2]string{"%v", "Parse Error: expected statement, found ','\n\tat test:1:8"},
-		[2]string{"%+v", "Parse Error: expected statement, found ','\n\tat test:1:8\n\n\t1| param a,b\n\t          ^"},
+		[2]string{"%+v", "Parse Error: expected statement, found ','\n\tat test:1:8\n\n\t    1| param a,b\n\t              ^"},
 	)
 
 	expectParseString(t, `a := throw "my error"`, `a := throw "my error"`)
@@ -1514,12 +1523,6 @@ func TestTemplateString(t *testing.T) {
 	expectParseString(t, "#```A```", "#```A```")
 }
 
-func TestHeredoc(t *testing.T) {
-	h := rawHeredocLit("```abc```", 0)
-	fmt.Println(h.Value())
-	// expectParseString(t, "```A```", "#```A```")
-}
-
 func TestParseChar(t *testing.T) {
 	expectParse(t, `'A'`, func(p pfn) []Stmt {
 		return stmts(
@@ -1690,7 +1693,7 @@ func TestParseForIn(t *testing.T) {
 				)))
 	})
 
-	expectParseString(t, "for x in y do x else 1 end", "for _, x in y {x} else {1}")
+	expectParseString(t, "for x in y do x else 1 end", "for _, x in y do x else 1 end")
 
 	expectParse(t, "for x in y {} else 1 end", func(p pfn) []Stmt {
 		return stmts(
@@ -1707,13 +1710,13 @@ func TestParseForIn(t *testing.T) {
 				)))
 	})
 
-	expectParseString(t, "for x in y do end", "for _, x in y {}")
-	expectParseString(t, "for x in y do 1 end", "for _, x in y {1}")
+	expectParseString(t, "for x in y do end", "for _, x in y do end")
+	expectParseString(t, "for x in y do 1 end", "for _, x in y do 1 end")
 
-	expectParseString(t, "for x in y do else end", "for _, x in y {} else {}")
-	expectParseString(t, "for x in y do 1 else end", "for _, x in y {1} else {}")
-	expectParseString(t, "for x in y do else end", "for _, x in y {} else {}")
-	expectParseString(t, "for x in y do 1 else 2 end", "for _, x in y {1} else {2}")
+	expectParseString(t, "for x in y do else end", "for _, x in y do else end")
+	expectParseString(t, "for x in y do 1 else end", "for _, x in y do 1 else end")
+	expectParseString(t, "for x in y do else end", "for _, x in y do else end")
+	expectParseString(t, "for x in y do 1 else 2 end", "for _, x in y do 1 else 2 end")
 
 	expectParseError(t, `for 1 in a {}`)
 	expectParseError(t, `for "" in a {}`)
@@ -1850,7 +1853,7 @@ func TestParseFor(t *testing.T) {
 		)
 	})
 
-	expectParseString(t, `for do continue end`, "for {continue}")
+	expectParseString(t, `for do continue end`, "for do continue end")
 
 	// labels are parsed by parser but not supported by compiler yet
 	// expectParseError(t, `for { break x }`)
@@ -2283,11 +2286,13 @@ if a == 5 {
 				p(1, 1)))
 	})
 
-	expectParseString(t, "if a then end", "if a {}")
-	expectParseString(t, "if a then b end", "if a {b}")
-	expectParseString(t, "if true; a then b end", "if true; a {b}")
-	expectParseString(t, "if a then b; else c end", "if a {b} else {c}")
-	expectParseString(t, "if a then b; else if 1 then 2; else c end", "if a {b} else if 1 {2} else {c}")
+	expectParseString(t, "if a then end", "if a then end")
+	expectParseString(t, "if a then b end", "if a then b end")
+	expectParseString(t, "if true; a then b end", "if true; a then b end")
+	expectParseString(t, "if a then b else c end", "if a then b else c end")
+	expectParseString(t, "if a then b; else c end", "if a then b else c end")
+	expectParseString(t, "if a then b else if 1 then 2 else c end", "if a then b else if 1 then 2 else c end")
+	expectParseString(t, "if a then b; else if 1 then 2; else c end", "if a then b else if 1 then 2 else c end")
 
 	expectParseError(t, `if {}`)
 	expectParseError(t, `if a == b { } else a != b { }`)
@@ -2402,34 +2407,40 @@ func TestParseIndex(t *testing.T) {
 					p(1, 10), p(1, 24))))
 	})
 
-	expectParse(t, `{a: 1, b: 2}["b"]`, func(p pfn) []Stmt {
+	expectParse(t, `({a: 1, b: 2})["b"]`, func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				indexExpr(
-					dictLit(p(1, 1), p(1, 12),
-						mapElementLit(
-							"a", p(1, 2), p(1, 3), intLit(1, p(1, 5))),
-						mapElementLit(
-							"b", p(1, 8), p(1, 9), intLit(2, p(1, 11)))),
-					stringLit("b", p(1, 14)),
-					p(1, 13), p(1, 17))))
+					parenExpr(
+						dictLit(p(1, 2), p(1, 13),
+							mapElementLit(
+								"a", p(1, 3), p(1, 4), intLit(1, p(1, 6))),
+							mapElementLit(
+								"b", p(1, 9), p(1, 10), intLit(2, p(1, 12)))),
+						p(1, 1), p(1, 14),
+					),
+					stringLit("b", p(1, 16)),
+					p(1, 15), p(1, 19))))
 	})
 
-	expectParse(t, `{a: 1, b: 2}[a + b]`, func(p pfn) []Stmt {
+	expectParse(t, `({a: 1, b: 2})[a + b]`, func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				indexExpr(
-					dictLit(p(1, 1), p(1, 12),
-						mapElementLit(
-							"a", p(1, 2), p(1, 3), intLit(1, p(1, 5))),
-						mapElementLit(
-							"b", p(1, 8), p(1, 9), intLit(2, p(1, 11)))),
+					parenExpr(
+						dictLit(p(1, 2), p(1, 13),
+							mapElementLit(
+								"a", p(1, 3), p(1, 4), intLit(1, p(1, 6))),
+							mapElementLit(
+								"b", p(1, 9), p(1, 10), intLit(2, p(1, 12)))),
+						p(1, 1), p(1, 14),
+					),
 					binaryExpr(
-						ident("a", p(1, 14)),
-						ident("b", p(1, 18)),
+						ident("a", p(1, 16)),
+						ident("b", p(1, 20)),
 						token.Add,
-						p(1, 16)),
-					p(1, 13), p(1, 19))))
+						p(1, 18)),
+					p(1, 15), p(1, 21))))
 	})
 }
 
@@ -2480,24 +2491,28 @@ func TestParseLogical(t *testing.T) {
 }
 
 func TestParseDict(t *testing.T) {
-	expectParse(t, "{ key1: 1, key2: \"2\", key3: true }", func(p pfn) []Stmt {
+	expectParse(t, "({ key1: 1, key2: \"2\", key3: true })", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				dictLit(p(1, 1), p(1, 34),
-					mapElementLit(
-						"key1", p(1, 3), p(1, 7), intLit(1, p(1, 9))),
-					mapElementLit(
-						"key2", p(1, 12), p(1, 16), stringLit("2", p(1, 18))),
-					mapElementLit(
-						"key3", p(1, 23), p(1, 27), boolLit(true, p(1, 29))))))
+				parenExpr(
+					dictLit(p(1, 2), p(1, 35),
+						mapElementLit(
+							"key1", p(1, 4), p(1, 8), intLit(1, p(1, 10))),
+						mapElementLit(
+							"key2", p(1, 13), p(1, 17), stringLit("2", p(1, 19))),
+						mapElementLit(
+							"key3", p(1, 24), p(1, 28), boolLit(true, p(1, 30)))),
+					p(1, 1), p(1, 36))))
 	})
 
-	expectParse(t, "{ \"key1\": 1 }", func(p pfn) []Stmt {
+	expectParse(t, "({ \"key1\": 1 })", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				dictLit(p(1, 1), p(1, 13),
-					mapElementLit(
-						"key1", p(1, 3), p(1, 9), intLit(1, p(1, 11))))))
+				parenExpr(
+					dictLit(p(1, 2), p(1, 14),
+						mapElementLit(
+							"key1", p(1, 4), p(1, 10), intLit(1, p(1, 12)))),
+					p(1, 1), p(1, 15))))
 	})
 
 	expectParse(t, "a = { key1: 1, key2: \"2\", key3: true }",
@@ -2538,19 +2553,21 @@ func TestParseDict(t *testing.T) {
 		})
 
 	expectParse(t, `
-{
+({
 	key1: 1,
 	key2: "2",
 	key3: true,
-}`, func(p pfn) []Stmt {
+})`, func(p pfn) []Stmt {
 		return stmts(exprStmt(
-			dictLit(p(2, 1), p(6, 1),
-				mapElementLit(
-					"key1", p(3, 2), p(3, 6), intLit(1, p(3, 8))),
-				mapElementLit(
-					"key2", p(4, 2), p(4, 6), stringLit("2", p(4, 8))),
-				mapElementLit(
-					"key3", p(5, 2), p(5, 6), boolLit(true, p(5, 8))))))
+			parenExpr(
+				dictLit(p(2, 2), p(6, 1),
+					mapElementLit(
+						"key1", p(3, 2), p(3, 6), intLit(1, p(3, 8))),
+					mapElementLit(
+						"key2", p(4, 2), p(4, 6), stringLit("2", p(4, 8))),
+					mapElementLit(
+						"key3", p(5, 2), p(5, 6), boolLit(true, p(5, 8)))),
+				p(2, 1), p(6, 2))))
 	})
 
 	expectParseError(t, "{,}")
@@ -2689,31 +2706,68 @@ func TestParseSelector(t *testing.T) {
 					stringLit("c", p(1, 7)))))
 	})
 
-	expectParse(t, "{k1:1}.k1", func(p pfn) []Stmt {
+	expectParse(t, "({k1:1}.k1)", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				parenExpr(
+					selectorExpr(
+						dictLit(
+							p(1, 2), p(1, 7),
+							mapElementLit(
+								"k1", p(1, 3), p(1, 5), intLit(1, p(1, 6)))),
+						stringLit("k1", p(1, 9))),
+					p(1, 1), p(1, 11))))
+
+	})
+
+	expectParse(t, "({k1:1}).k1", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				selectorExpr(
-					dictLit(
-						p(1, 1), p(1, 6),
-						mapElementLit(
-							"k1", p(1, 2), p(1, 4), intLit(1, p(1, 5)))),
-					stringLit("k1", p(1, 8)))))
+					parenExpr(
+						dictLit(
+							p(1, 2), p(1, 7),
+							mapElementLit(
+								"k1", p(1, 3), p(1, 5), intLit(1, p(1, 6)))),
+						p(1, 1), p(1, 8)),
+					stringLit("k1", p(1, 10)))))
 
 	})
-	expectParse(t, "{k1:{v1:1}}.k1.v1", func(p pfn) []Stmt {
+
+	expectParse(t, "({k1:{v1:1}}.k1.v1)", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				parenExpr(
+					selectorExpr(
+						selectorExpr(
+							dictLit(
+								p(1, 2), p(1, 12),
+								mapElementLit("k1", p(1, 3), p(1, 5),
+									dictLit(p(1, 6), p(1, 11),
+										mapElementLit(
+											"v1", p(1, 7),
+											p(1, 9), intLit(1, p(1, 10)))))),
+							stringLit("k1", p(1, 14))),
+						stringLit("v1", p(1, 17))),
+					p(1, 1), p(1, 19))))
+	})
+
+	expectParse(t, "({k1:{v1:1}}).k1.v1", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
 				selectorExpr(
 					selectorExpr(
-						dictLit(
-							p(1, 1), p(1, 11),
-							mapElementLit("k1", p(1, 2), p(1, 4),
-								dictLit(p(1, 5), p(1, 10),
-									mapElementLit(
-										"v1", p(1, 6),
-										p(1, 8), intLit(1, p(1, 9)))))),
-						stringLit("k1", p(1, 13))),
-					stringLit("v1", p(1, 16)))))
+						parenExpr(
+							dictLit(
+								p(1, 2), p(1, 12),
+								mapElementLit("k1", p(1, 3), p(1, 5),
+									dictLit(p(1, 6), p(1, 11),
+										mapElementLit(
+											"v1", p(1, 7),
+											p(1, 9), intLit(1, p(1, 10)))))),
+							p(1, 1), p(1, 13)),
+						stringLit("k1", p(1, 15))),
+					stringLit("v1", p(1, 18)))))
 	})
 
 	expectParse(t, "a.b = 4", func(p pfn) []Stmt {
@@ -2892,7 +2946,13 @@ func TestParseString(t *testing.T) {
 		return stmts(exprStmt(stringLit("foo\n\nbar", p(1, 1))))
 	})
 	expectParse(t, `"foo\n`+"\n"+`bar"`, func(p pfn) []Stmt {
-		return stmts(exprStmt(stringLit("foo\n\nbar", p(1, 1))))
+		return stmts(exprStmt(stringLit("foo\\n\nbar", p(1, 1))))
+	})
+	expectParse(t, "`abc`", func(p pfn) []Stmt {
+		return stmts(exprStmt(rawStringLit(`abc`, p(1, 1))))
+	})
+	expectParse(t, "```\nabc\n```", func(p pfn) []Stmt {
+		return stmts(exprStmt(rawHeredocLit("```", `abc`, p(1, 1))))
 	})
 	expectParse(t, "a = \"foo\nbar\"", func(p pfn) []Stmt {
 		return stmts(
@@ -2906,7 +2966,7 @@ func TestParseString(t *testing.T) {
 		return stmts(
 			assignStmt(
 				exprs(ident("a", p(1, 1))),
-				exprs(stringLit("foo\nbar", p(1, 5))),
+				exprs(stringLit(`foo\nbar`, p(1, 5))),
 				token.Assign,
 				p(1, 3)))
 	})
@@ -2944,10 +3004,10 @@ y
 		)
 	})
 
-	s := "# gad: mixed, mixed_start=\"[[[\", mixed_end=\"]]]\"\ny\n[[[b]]]"
-	expectParseString(t, s, s)
-	s = "# gad: mixed, mixed_start=\"[[[\", mixed_end=\"]]]\"\ny\n[[[b; true]]]"
-	expectParseString(t, s, s)
+	expectParseString(t, "# gad: mixed, mixed_start=\"[[[\", mixed_end=\"]]]\"\ny\n[[[b]]]",
+		`# gad: mixed, mixed_start="[[[", mixed_end="]]]"`+"\ny\n[[[; b; ]]]")
+	expectParseString(t, "# gad: mixed, mixed_start=\"[[[\", mixed_end=\"]]]\"\ny\n[[[b; true]]]",
+		"# gad: mixed, mixed_start=\"[[[\", mixed_end=\"]]]\"\ny\n[[[; b; true; ]]]")
 	expectParse(t, `# gad: mixed`, func(p pfn) []Stmt {
 		return stmts(
 			config(p(1, 1), kv(ident("mixed", p(1, 8)))))
@@ -3124,13 +3184,37 @@ func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn, opt .
 	expected := fn(func(line, column int) Pos {
 		return Pos(int(testFile.LineStart(line)) + (column - 1))
 	})
-	require.Equal(t, len(expected), len(actual.Stmts), "len(file.Stmts)")
+
+	ft := fileTest(t, testFile, actual.InputFile)
+	ft.equal(len(expected), len(actual.Stmts), "len(file.Stmts)")
 
 	for i := 0; i < len(expected); i++ {
-		equalStmt(t, expected[i], actual.Stmts[i])
+		ft.equalStmt(expected[i], actual.Stmts[i])
 	}
 
 	ok = true
+}
+
+type fileTester struct {
+	t        *testing.T
+	expected *source.File
+	actual   *source.File
+}
+
+func (f *fileTester) equal(expected, actual any, msgAndArgs ...any) {
+	if pos, ok := expected.(Pos); ok {
+		p := f.expected.Position(pos)
+		expected = fmt.Sprintf("Pos(%d, %d)", p.Line, p.Column)
+	}
+	if pos, ok := actual.(Pos); ok {
+		p := f.actual.Position(pos)
+		actual = fmt.Sprintf("Pos(%d, %d)", p.Line, p.Column)
+	}
+	require.Equal(f.t, expected, actual, msgAndArgs...)
+}
+
+func fileTest(t *testing.T, expected *source.File, actual *source.File) *fileTester {
+	return &fileTester{t, expected, actual}
 }
 
 func expectParseError(t *testing.T, input string, e ...[2]string) {
@@ -3485,15 +3569,15 @@ func decimalLit(value string, pos Pos) *DecimalLit {
 }
 
 func stringLit(value string, pos Pos) *StringLit {
-	return &StringLit{Literal: strconv.Quote(value), ValuePos: pos}
+	return &StringLit{Literal: `"` + value + `"`, ValuePos: pos}
 }
 
 func rawStringLit(value string, pos Pos) *RawStringLit {
 	return &RawStringLit{Literal: value, LiteralPos: pos, Quoted: value[0] == '`'}
 }
 
-func rawHeredocLit(value string, pos Pos) *RawHeredocLit {
-	return &RawHeredocLit{Literal: value, LiteralPos: pos}
+func rawHeredocLit(q, value string, pos Pos) *RawHeredocLit {
+	return &RawHeredocLit{Literal: q + "\n" + value + "\n" + q, LiteralPos: pos}
 }
 
 func charLit(value rune, pos Pos) *CharLit {
@@ -3617,7 +3701,8 @@ func selectorExpr(x, sel Expr) *SelectorExpr {
 	return &SelectorExpr{Expr: x, Sel: sel}
 }
 
-func equalStmt(t *testing.T, expected, actual Stmt) {
+func (f *fileTester) equalStmt(expected, actual Stmt) {
+	t := f.t
 	if expected == nil || reflect.ValueOf(expected).IsNil() {
 		require.Nil(t, actual, "expected nil, but got not nil")
 		return
@@ -3627,36 +3712,27 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 
 	switch expected := expected.(type) {
 	case *ExprStmt:
-		equalExpr(t, expected.Expr, actual.(*ExprStmt).Expr)
+		f.equalExpr(expected.Expr, actual.(*ExprStmt).Expr)
 	case *EmptyStmt:
-		require.Equal(t, expected.Implicit,
-			actual.(*EmptyStmt).Implicit)
-		require.Equal(t, expected.Semicolon,
-			actual.(*EmptyStmt).Semicolon)
+		f.equal(expected.Implicit, actual.(*EmptyStmt).Implicit)
+		f.equal(expected.Semicolon, actual.(*EmptyStmt).Semicolon)
 	case *BlockStmt:
-		require.Equal(t, expected.LBrace,
-			actual.(*BlockStmt).LBrace)
-		require.Equal(t, expected.RBrace,
-			actual.(*BlockStmt).RBrace)
-		equalStmts(t, expected.Stmts,
-			actual.(*BlockStmt).Stmts)
+		f.equal(expected.LBrace, actual.(*BlockStmt).LBrace)
+		f.equal(expected.RBrace, actual.(*BlockStmt).RBrace)
+		f.equalStmts(expected.Stmts, actual.(*BlockStmt).Stmts)
 	case *AssignStmt:
-		equalExprs(t, expected.LHS,
-			actual.(*AssignStmt).LHS)
-		equalExprs(t, expected.RHS,
-			actual.(*AssignStmt).RHS)
-		require.Equal(t, int(expected.Token),
-			int(actual.(*AssignStmt).Token))
-		require.Equal(t, int(expected.TokenPos),
-			int(actual.(*AssignStmt).TokenPos))
+		f.equalExprs(expected.LHS, actual.(*AssignStmt).LHS)
+		f.equalExprs(expected.RHS, actual.(*AssignStmt).RHS)
+		f.equal(int(expected.Token), int(actual.(*AssignStmt).Token))
+		f.equal(int(expected.TokenPos), int(actual.(*AssignStmt).TokenPos))
 	case *DeclStmt:
 		expectedDecl := expected.Decl.(*GenDecl)
 		actualDecl := actual.(*DeclStmt).Decl.(*GenDecl)
-		require.Equal(t, expectedDecl.Tok, actualDecl.Tok)
-		require.Equal(t, expectedDecl.TokPos, actualDecl.TokPos)
-		require.Equal(t, expectedDecl.Lparen, actualDecl.Lparen)
-		require.Equal(t, expectedDecl.Rparen, actualDecl.Rparen)
-		require.Equal(t, len(expectedDecl.Specs), len(actualDecl.Specs))
+		f.equal(expectedDecl.Tok, actualDecl.Tok)
+		f.equal(expectedDecl.TokPos, actualDecl.TokPos)
+		f.equal(expectedDecl.Lparen, actualDecl.Lparen)
+		f.equal(expectedDecl.Rparen, actualDecl.Rparen)
+		f.equal(len(expectedDecl.Specs), len(actualDecl.Specs))
 		for i, expSpec := range expectedDecl.Specs {
 			actSpec := actualDecl.Specs[i]
 			switch expectedSpec := expSpec.(type) {
@@ -3666,17 +3742,17 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 					require.Failf(t, "type error", "expected *ParamSpec, got %T", actSpec)
 					return
 				}
-				require.Equal(t, expectedSpec.Ident, actualSpec.Ident)
-				require.Equal(t, expectedSpec.Variadic, actualSpec.Variadic)
+				f.equal(expectedSpec.Ident, actualSpec.Ident)
+				f.equal(expectedSpec.Variadic, actualSpec.Variadic)
 			case *NamedParamSpec:
 				actualSpec, ok := actSpec.(*NamedParamSpec)
 				if !ok {
 					require.Failf(t, "type error", "expected *NamedParamSpec, got %T", actSpec)
 					return
 				}
-				require.Equal(t, expectedSpec.Ident, actualSpec.Ident)
+				f.equal(expectedSpec.Ident, actualSpec.Ident)
 				if expectedSpec.Value != nil || actualSpec.Value != nil {
-					equalExpr(t, expectedSpec.Value, actualSpec.Value)
+					f.equalExpr(expectedSpec.Value, actualSpec.Value)
 				}
 			case *ValueSpec:
 				actualSpec, ok := actSpec.(*ValueSpec)
@@ -3684,11 +3760,11 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 					require.Failf(t, "type error", "expected *ValueSpec, got %T", actSpec)
 					return
 				}
-				require.Equal(t, expectedSpec.Idents, actualSpec.Idents)
-				require.Equal(t, len(expectedSpec.Values), len(actualSpec.Values))
+				f.equal(expectedSpec.Idents, actualSpec.Idents)
+				f.equal(len(expectedSpec.Values), len(actualSpec.Values))
 				if len(expectedSpec.Values) == len(actualSpec.Values) {
 					for i, expr := range expectedSpec.Values {
-						equalExpr(t, expr, actualSpec.Values[i])
+						f.equalExpr(expr, actualSpec.Values[i])
 					}
 				}
 			default:
@@ -3696,112 +3772,82 @@ func equalStmt(t *testing.T, expected, actual Stmt) {
 			}
 		}
 	case *IfStmt:
-		equalStmt(t, expected.Init, actual.(*IfStmt).Init)
-		equalExpr(t, expected.Cond, actual.(*IfStmt).Cond)
-		equalStmt(t, expected.Body, actual.(*IfStmt).Body)
-		equalStmt(t, expected.Else, actual.(*IfStmt).Else)
-		require.Equal(t, expected.IfPos, actual.(*IfStmt).IfPos)
+		f.equalStmt(expected.Init, actual.(*IfStmt).Init)
+		f.equalExpr(expected.Cond, actual.(*IfStmt).Cond)
+		f.equalStmt(expected.Body, actual.(*IfStmt).Body)
+		f.equalStmt(expected.Else, actual.(*IfStmt).Else)
+		f.equal(expected.IfPos, actual.(*IfStmt).IfPos)
 	case *TryStmt:
-		require.Equal(t, expected.TryPos, actual.(*TryStmt).TryPos)
-		equalStmt(t, expected.Body, actual.(*TryStmt).Body)
-		equalStmt(t, expected.Catch, actual.(*TryStmt).Catch)
-		equalStmt(t, expected.Finally, actual.(*TryStmt).Finally)
+		f.equal(expected.TryPos, actual.(*TryStmt).TryPos)
+		f.equalStmt(expected.Body, actual.(*TryStmt).Body)
+		f.equalStmt(expected.Catch, actual.(*TryStmt).Catch)
+		f.equalStmt(expected.Finally, actual.(*TryStmt).Finally)
 	case *CatchStmt:
-		require.Equal(t, expected.CatchPos, actual.(*CatchStmt).CatchPos)
-		require.Equal(t, expected.Ident, actual.(*CatchStmt).Ident)
-		equalStmt(t, expected.Body, actual.(*CatchStmt).Body)
+		f.equal(expected.CatchPos, actual.(*CatchStmt).CatchPos)
+		f.equal(expected.Ident, actual.(*CatchStmt).Ident)
+		f.equalStmt(expected.Body, actual.(*CatchStmt).Body)
 	case *FinallyStmt:
-		require.Equal(t, expected.FinallyPos, actual.(*FinallyStmt).FinallyPos)
-		equalStmt(t, expected.Body, actual.(*FinallyStmt).Body)
+		f.equal(expected.FinallyPos, actual.(*FinallyStmt).FinallyPos)
+		f.equalStmt(expected.Body, actual.(*FinallyStmt).Body)
 	case *ThrowStmt:
-		require.Equal(t, expected.ThrowPos, actual.(*ThrowStmt).ThrowPos)
-		equalExpr(t, expected.Expr, actual.(*ThrowStmt).Expr)
+		f.equal(expected.ThrowPos, actual.(*ThrowStmt).ThrowPos)
+		f.equalExpr(expected.Expr, actual.(*ThrowStmt).Expr)
 	case *IncDecStmt:
-		equalExpr(t, expected.Expr,
-			actual.(*IncDecStmt).Expr)
-		require.Equal(t, expected.Token,
-			actual.(*IncDecStmt).Token)
-		require.Equal(t, expected.TokenPos,
-			actual.(*IncDecStmt).TokenPos)
+		f.equalExpr(expected.Expr, actual.(*IncDecStmt).Expr)
+		f.equal(expected.Token, actual.(*IncDecStmt).Token)
+		f.equal(expected.TokenPos, actual.(*IncDecStmt).TokenPos)
 	case *ForStmt:
-		equalStmt(t, expected.Init, actual.(*ForStmt).Init)
-		equalExpr(t, expected.Cond, actual.(*ForStmt).Cond)
-		equalStmt(t, expected.Post, actual.(*ForStmt).Post)
-		equalStmt(t, expected.Body, actual.(*ForStmt).Body)
-		require.Equal(t, expected.ForPos, actual.(*ForStmt).ForPos)
+		f.equalStmt(expected.Init, actual.(*ForStmt).Init)
+		f.equalExpr(expected.Cond, actual.(*ForStmt).Cond)
+		f.equalStmt(expected.Post, actual.(*ForStmt).Post)
+		f.equalStmt(expected.Body, actual.(*ForStmt).Body)
+		f.equal(expected.ForPos, actual.(*ForStmt).ForPos)
 	case *ForInStmt:
-		equalExpr(t, expected.Key,
-			actual.(*ForInStmt).Key)
-		equalExpr(t, expected.Value,
-			actual.(*ForInStmt).Value)
-		equalExpr(t, expected.Iterable,
-			actual.(*ForInStmt).Iterable)
-		equalStmt(t, expected.Body,
-			actual.(*ForInStmt).Body)
-		require.Equal(t, expected.ForPos,
-			actual.(*ForInStmt).ForPos)
-		equalStmt(t, expected.Else,
-			actual.(*ForInStmt).Else)
+		f.equalExpr(expected.Key, actual.(*ForInStmt).Key)
+		f.equalExpr(expected.Value, actual.(*ForInStmt).Value)
+		f.equalExpr(expected.Iterable, actual.(*ForInStmt).Iterable)
+		f.equalStmt(expected.Body, actual.(*ForInStmt).Body)
+		f.equal(expected.ForPos, actual.(*ForInStmt).ForPos)
+		f.equalStmt(expected.Else, actual.(*ForInStmt).Else)
 	case *ReturnStmt:
-		equalExpr(t, expected.Result,
-			actual.(*ReturnStmt).Result)
-		require.Equal(t, expected.ReturnPos,
-			actual.(*ReturnStmt).ReturnPos)
+		f.equalExpr(expected.Result, actual.(*ReturnStmt).Result)
+		f.equal(expected.ReturnPos, actual.(*ReturnStmt).ReturnPos)
 	case *BranchStmt:
-		equalExpr(t, expected.Label,
-			actual.(*BranchStmt).Label)
-		require.Equal(t, expected.Token,
-			actual.(*BranchStmt).Token)
-		require.Equal(t, expected.TokenPos,
-			actual.(*BranchStmt).TokenPos)
+		f.equalExpr(expected.Label, actual.(*BranchStmt).Label)
+		f.equal(expected.Token, actual.(*BranchStmt).Token)
+		f.equal(expected.TokenPos, actual.(*BranchStmt).TokenPos)
 	case *MixedTextStmt:
-		require.Equal(t, expected.Lit.Value,
-			actual.(*MixedTextStmt).Lit.Value)
-		require.Equal(t, expected.Lit.Pos,
-			actual.(*MixedTextStmt).Lit.Pos)
-		require.Equal(t, expected.Flags.String(),
-			actual.(*MixedTextStmt).Flags.String(), "Flags")
+		f.equal(expected.Lit.Value, actual.(*MixedTextStmt).Lit.Value)
+		f.equal(expected.Lit.Pos, actual.(*MixedTextStmt).Lit.Pos)
+		f.equal(expected.Flags.String(), actual.(*MixedTextStmt).Flags.String(), "Flags")
 	case *MixedValueStmt:
-		require.Equal(t, expected.StartLit.Value,
-			actual.(*MixedValueStmt).StartLit.Value)
-		require.Equal(t, expected.StartLit.Pos,
-			actual.(*MixedValueStmt).StartLit.Pos)
-		require.Equal(t, expected.EndLit.Value,
-			actual.(*MixedValueStmt).EndLit.Value)
-		require.Equal(t, expected.EndLit.Pos,
-			actual.(*MixedValueStmt).EndLit.Pos)
-		equalExpr(t, expected.Expr,
-			actual.(*MixedValueStmt).Expr)
+		f.equal(expected.StartLit.Value, actual.(*MixedValueStmt).StartLit.Value)
+		f.equal(expected.StartLit.Pos, actual.(*MixedValueStmt).StartLit.Pos)
+		f.equal(expected.EndLit.Value, actual.(*MixedValueStmt).EndLit.Value)
+		f.equal(expected.EndLit.Pos, actual.(*MixedValueStmt).EndLit.Pos)
+		f.equalExpr(expected.Expr, actual.(*MixedValueStmt).Expr)
 	case *ConfigStmt:
-		require.Equal(t, expected.ConfigPos,
-			actual.(*ConfigStmt).ConfigPos)
-		require.Equal(t, expected.Options,
-			actual.(*ConfigStmt).Options)
-		require.Equal(t, len(expected.Elements),
-			len(actual.(*ConfigStmt).Elements))
+		f.equal(expected.ConfigPos, actual.(*ConfigStmt).ConfigPos)
+		f.equal(expected.Options, actual.(*ConfigStmt).Options)
+		f.equal(len(expected.Elements), len(actual.(*ConfigStmt).Elements))
 		for i, e := range expected.Elements {
-			equalExpr(t, e, actual.(*ConfigStmt).Elements[i])
+			f.equalExpr(e, actual.(*ConfigStmt).Elements[i])
 		}
 	case *CodeBeginStmt:
-		require.Equal(t, expected.RemoveSpace,
-			actual.(*CodeBeginStmt).RemoveSpace)
-		require.Equal(t, expected.Lit.Pos,
-			actual.(*CodeBeginStmt).Lit.Pos)
-		require.Equal(t, expected.Lit.Value,
-			actual.(*CodeBeginStmt).Lit.Value)
+		f.equal(expected.RemoveSpace, actual.(*CodeBeginStmt).RemoveSpace)
+		f.equal(expected.Lit.Pos, actual.(*CodeBeginStmt).Lit.Pos)
+		f.equal(expected.Lit.Value, actual.(*CodeBeginStmt).Lit.Value)
 	case *CodeEndStmt:
-		require.Equal(t, expected.RemoveSpace,
-			actual.(*CodeEndStmt).RemoveSpace)
-		require.Equal(t, expected.Lit.Pos,
-			actual.(*CodeEndStmt).Lit.Pos)
-		require.Equal(t, expected.Lit.Value,
-			actual.(*CodeEndStmt).Lit.Value)
+		f.equal(expected.RemoveSpace, actual.(*CodeEndStmt).RemoveSpace)
+		f.equal(expected.Lit.Pos, actual.(*CodeEndStmt).Lit.Pos)
+		f.equal(expected.Lit.Value, actual.(*CodeEndStmt).Lit.Value)
 	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}
 }
 
-func equalExpr(t *testing.T, expected, actual Expr) {
+func (f *fileTester) equalExpr(expected, actual Expr) {
+	t := f.t
 	if expected == nil || reflect.ValueOf(expected).IsNil() {
 		require.Nil(t, actual, "expected nil, but got not nil")
 		return
@@ -3811,110 +3857,73 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 
 	switch expected := expected.(type) {
 	case *IdentExpr:
-		require.Equal(t, expected.Name,
-			actual.(*IdentExpr).Name)
-		require.Equal(t, int(expected.NamePos),
-			int(actual.(*IdentExpr).NamePos))
+		f.equal(expected.Name, actual.(*IdentExpr).Name)
+		f.equal(expected.NamePos, actual.(*IdentExpr).NamePos)
 	case *TypedIdentExpr:
-		equalExpr(t, expected.Ident, actual.(*TypedIdentExpr).Ident)
-		equalIdents(t, expected.Type, actual.(*TypedIdentExpr).Type)
+		f.equalExpr(expected.Ident, actual.(*TypedIdentExpr).Ident)
+		f.equalIdents(expected.Type, actual.(*TypedIdentExpr).Type)
 	case *IntLit:
-		require.Equal(t, expected.Value,
-			actual.(*IntLit).Value)
-		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*IntLit).ValuePos))
+		f.equal(expected.Value, actual.(*IntLit).Value)
+		f.equal(expected.ValuePos, actual.(*IntLit).ValuePos)
 	case *FloatLit:
-		require.Equal(t, expected.Value,
+		f.equal(expected.Value,
 			actual.(*FloatLit).Value)
-		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*FloatLit).ValuePos))
+		f.equal(expected.ValuePos, actual.(*FloatLit).ValuePos)
 	case *DecimalLit:
 		require.True(t, expected.Value.Equal(actual.(*DecimalLit).Value))
-		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*DecimalLit).ValuePos))
+		f.equal(expected.ValuePos, actual.(*DecimalLit).ValuePos)
 	case *BoolLit:
-		require.Equal(t, expected.Value,
-			actual.(*BoolLit).Value)
-		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*BoolLit).ValuePos))
+		f.equal(expected.Value, actual.(*BoolLit).Value)
+		f.equal(int(expected.ValuePos), int(actual.(*BoolLit).ValuePos))
 	case *FlagLit:
-		require.Equal(t, expected.Value,
-			actual.(*FlagLit).Value)
-		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*FlagLit).ValuePos))
+		f.equal(expected.Value, actual.(*FlagLit).Value)
+		f.equal(expected.ValuePos, actual.(*FlagLit).ValuePos)
 	case *CharLit:
-		require.Equal(t, expected.Value,
-			actual.(*CharLit).Value)
-		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*CharLit).ValuePos))
+		f.equal(expected.Value, actual.(*CharLit).Value)
+		f.equal(expected.ValuePos, actual.(*CharLit).ValuePos)
 	case *StringLit:
-		require.Equal(t, expected.Literal,
-			actual.(*StringLit).Literal)
-		require.Equal(t, int(expected.ValuePos),
-			int(actual.(*StringLit).ValuePos))
+		f.equal(expected.Literal, actual.(*StringLit).Literal)
+		f.equal(expected.ValuePos, actual.(*StringLit).ValuePos)
 	case *RawStringLit:
-		require.Equal(t, expected.UnquotedValue(),
-			actual.(*RawStringLit).UnquotedValue())
-		require.Equal(t, int(expected.LiteralPos),
-			int(actual.(*RawStringLit).LiteralPos))
+		f.equal(expected.UnquotedValue(), actual.(*RawStringLit).UnquotedValue())
+		f.equal(expected.LiteralPos, actual.(*RawStringLit).LiteralPos)
+	case *RawHeredocLit:
+		f.equal(expected.Literal, actual.(*RawHeredocLit).Literal)
+		f.equal(expected.LiteralPos, actual.(*RawHeredocLit).LiteralPos)
 	case *ArrayExpr:
-		require.Equal(t, expected.LBrack,
-			actual.(*ArrayExpr).LBrack)
-		require.Equal(t, expected.RBrack,
-			actual.(*ArrayExpr).RBrack)
-		equalExprs(t, expected.Elements,
-			actual.(*ArrayExpr).Elements)
+		f.equal(expected.LBrack, actual.(*ArrayExpr).LBrack)
+		f.equal(expected.RBrack, actual.(*ArrayExpr).RBrack)
+		f.equalExprs(expected.Elements, actual.(*ArrayExpr).Elements)
 	case *DictExpr:
-		require.Equal(t, expected.LBrace,
-			actual.(*DictExpr).LBrace)
-		require.Equal(t, expected.RBrace,
-			actual.(*DictExpr).RBrace)
-		equalMapElements(t, expected.Elements,
-			actual.(*DictExpr).Elements)
+		f.equal(expected.LBrace, actual.(*DictExpr).LBrace)
+		f.equal(expected.RBrace, actual.(*DictExpr).RBrace)
+		f.equalMapElements(expected.Elements, actual.(*DictExpr).Elements)
 	case *NilLit:
-		require.Equal(t, expected.TokenPos,
-			actual.(*NilLit).TokenPos)
+		f.equal(expected.TokenPos, actual.(*NilLit).TokenPos)
 	case *ReturnExpr:
-		require.Equal(t, expected.ReturnPos,
-			actual.(*ReturnExpr).ReturnPos)
-		equalExpr(t, expected.Result,
-			actual.(*ReturnExpr).Result)
+		f.equal(expected.ReturnPos, actual.(*ReturnExpr).ReturnPos)
+		f.equalExpr(expected.Result, actual.(*ReturnExpr).Result)
 	case *NullishSelectorExpr:
-		equalExpr(t, expected.Expr,
-			actual.(*NullishSelectorExpr).Expr)
-		equalExpr(t, expected.Sel,
-			actual.(*NullishSelectorExpr).Sel)
+		f.equalExpr(expected.Expr, actual.(*NullishSelectorExpr).Expr)
+		f.equalExpr(expected.Sel, actual.(*NullishSelectorExpr).Sel)
 	case *BinaryExpr:
-		equalExpr(t, expected.LHS,
-			actual.(*BinaryExpr).LHS)
-		equalExpr(t, expected.RHS,
-			actual.(*BinaryExpr).RHS)
-		require.Equal(t, expected.Token,
-			actual.(*BinaryExpr).Token)
-		require.Equal(t, expected.TokenPos,
-			actual.(*BinaryExpr).TokenPos)
+		f.equalExpr(expected.LHS, actual.(*BinaryExpr).LHS)
+		f.equalExpr(expected.RHS, actual.(*BinaryExpr).RHS)
+		f.equal(expected.Token, actual.(*BinaryExpr).Token)
+		f.equal(expected.TokenPos, actual.(*BinaryExpr).TokenPos)
 	case *UnaryExpr:
-		equalExpr(t, expected.Expr,
-			actual.(*UnaryExpr).Expr)
-		require.Equal(t, expected.Token,
-			actual.(*UnaryExpr).Token)
-		require.Equal(t, expected.TokenPos,
-			actual.(*UnaryExpr).TokenPos)
+		f.equalExpr(expected.Expr, actual.(*UnaryExpr).Expr)
+		f.equal(expected.Token, actual.(*UnaryExpr).Token)
+		f.equal(expected.TokenPos, actual.(*UnaryExpr).TokenPos)
 	case *FuncExpr:
-		equalFuncType(t, expected.Type,
-			actual.(*FuncExpr).Type)
-		equalStmt(t, expected.Body,
-			actual.(*FuncExpr).Body)
+		f.equalFuncType(expected.Type, actual.(*FuncExpr).Type)
+		f.equalStmt(expected.Body, actual.(*FuncExpr).Body)
 	case *CallExpr:
 		actual := actual.(*CallExpr)
-		equalExpr(t, expected.Func,
-			actual.Func)
-		require.Equal(t, expected.LParen,
-			actual.LParen)
-		require.Equal(t, expected.RParen,
-			actual.RParen)
-		equalExprs(t, expected.Args.Values,
-			actual.Args.Values)
+		f.equalExpr(expected.Func, actual.Func)
+		f.equal(expected.LParen, actual.LParen)
+		f.equal(expected.RParen, actual.RParen)
+		f.equalExprs(expected.Args.Values, actual.Args.Values)
 
 		if expected.Args.Var == nil && actual.Args.Var != nil {
 			require.Nil(t, expected.Args.Var)
@@ -3925,9 +3934,9 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 		}
 
 		if expected.Args.Var != nil && actual.Args.Var != nil {
-			require.Equal(t, expected.Args.Var.TokenPos,
+			f.equal(expected.Args.Var.TokenPos,
 				actual.Args.Var.TokenPos)
-			equalExpr(t, expected.Args.Var.Value,
+			f.equalExpr(expected.Args.Var.Value,
 				actual.Args.Var.Value)
 		}
 
@@ -3940,164 +3949,128 @@ func equalExpr(t *testing.T, expected, actual Expr) {
 		}
 
 		if expected.NamedArgs.Var != nil && actual.NamedArgs.Var != nil {
-			require.Equal(t, expected.NamedArgs.Var.TokenPos,
+			f.equal(expected.NamedArgs.Var.TokenPos,
 				actual.NamedArgs.Var.TokenPos)
-			equalExpr(t, expected.NamedArgs.Var.Value,
+			f.equalExpr(expected.NamedArgs.Var.Value,
 				actual.NamedArgs.Var.Value)
 		}
 
-		equalNamedArgsNames(t, expected.NamedArgs.Names,
-			actual.NamedArgs.Names)
-		equalExprs(t, expected.NamedArgs.Values,
-			actual.NamedArgs.Values)
+		f.equalNamedArgsNames(expected.NamedArgs.Names, actual.NamedArgs.Names)
+		f.equalExprs(expected.NamedArgs.Values, actual.NamedArgs.Values)
 	case *ParenExpr:
-		equalExpr(t, expected.Expr,
-			actual.(*ParenExpr).Expr)
-		require.Equal(t, expected.LParen,
-			actual.(*ParenExpr).LParen)
-		require.Equal(t, expected.RParen,
-			actual.(*ParenExpr).RParen)
+		f.equalExpr(expected.Expr, actual.(*ParenExpr).Expr)
+		f.equal(expected.LParen, actual.(*ParenExpr).LParen)
+		f.equal(expected.RParen, actual.(*ParenExpr).RParen)
 	case *IndexExpr:
-		equalExpr(t, expected.Expr,
-			actual.(*IndexExpr).Expr)
-		equalExpr(t, expected.Index,
-			actual.(*IndexExpr).Index)
-		require.Equal(t, expected.LBrack,
-			actual.(*IndexExpr).LBrack)
-		require.Equal(t, expected.RBrack,
-			actual.(*IndexExpr).RBrack)
+		f.equalExpr(expected.Expr, actual.(*IndexExpr).Expr)
+		f.equalExpr(expected.Index, actual.(*IndexExpr).Index)
+		f.equal(expected.LBrack, actual.(*IndexExpr).LBrack)
+		f.equal(expected.RBrack, actual.(*IndexExpr).RBrack)
 	case *SliceExpr:
-		equalExpr(t, expected.Expr,
-			actual.(*SliceExpr).Expr)
-		equalExpr(t, expected.Low,
-			actual.(*SliceExpr).Low)
-		equalExpr(t, expected.High,
-			actual.(*SliceExpr).High)
-		require.Equal(t, expected.LBrack,
-			actual.(*SliceExpr).LBrack)
-		require.Equal(t, expected.RBrack,
-			actual.(*SliceExpr).RBrack)
+		f.equalExpr(expected.Expr, actual.(*SliceExpr).Expr)
+		f.equalExpr(expected.Low, actual.(*SliceExpr).Low)
+		f.equalExpr(expected.High, actual.(*SliceExpr).High)
+		f.equal(expected.LBrack, actual.(*SliceExpr).LBrack)
+		f.equal(expected.RBrack, actual.(*SliceExpr).RBrack)
 	case *SelectorExpr:
-		equalExpr(t, expected.Expr,
-			actual.(*SelectorExpr).Expr)
-		equalExpr(t, expected.Sel,
-			actual.(*SelectorExpr).Sel)
+		f.equalExpr(expected.Expr, actual.(*SelectorExpr).Expr)
+		f.equalExpr(expected.Sel, actual.(*SelectorExpr).Sel)
 	case *ImportExpr:
-		require.Equal(t, expected.ModuleName,
-			actual.(*ImportExpr).ModuleName)
-		require.Equal(t, int(expected.TokenPos),
-			int(actual.(*ImportExpr).TokenPos))
-		require.Equal(t, expected.Token,
-			actual.(*ImportExpr).Token)
+		f.equal(expected.ModuleName, actual.(*ImportExpr).ModuleName)
+		f.equal(int(expected.TokenPos), int(actual.(*ImportExpr).TokenPos))
+		f.equal(expected.Token, actual.(*ImportExpr).Token)
 	case *CondExpr:
-		equalExpr(t, expected.Cond,
-			actual.(*CondExpr).Cond)
-		equalExpr(t, expected.True,
-			actual.(*CondExpr).True)
-		equalExpr(t, expected.False,
-			actual.(*CondExpr).False)
-		require.Equal(t, expected.QuestionPos,
-			actual.(*CondExpr).QuestionPos)
-		require.Equal(t, expected.ColonPos,
-			actual.(*CondExpr).ColonPos)
+		f.equalExpr(expected.Cond, actual.(*CondExpr).Cond)
+		f.equalExpr(expected.True, actual.(*CondExpr).True)
+		f.equalExpr(expected.False, actual.(*CondExpr).False)
+		f.equal(expected.QuestionPos, actual.(*CondExpr).QuestionPos)
+		f.equal(expected.ColonPos, actual.(*CondExpr).ColonPos)
 	case *CalleeKeywordExpr:
-		require.Equal(t, expected.Literal,
-			actual.(*CalleeKeywordExpr).Literal)
-		require.Equal(t, expected.TokenPos,
-			actual.(*CalleeKeywordExpr).TokenPos)
+		f.equal(expected.Literal, actual.(*CalleeKeywordExpr).Literal)
+		f.equal(expected.TokenPos, actual.(*CalleeKeywordExpr).TokenPos)
 	case *ArgsKeywordExpr:
-		require.Equal(t, expected.Literal,
-			actual.(*ArgsKeywordExpr).Literal)
-		require.Equal(t, expected.TokenPos,
-			actual.(*ArgsKeywordExpr).TokenPos)
+		f.equal(expected.Literal, actual.(*ArgsKeywordExpr).Literal)
+		f.equal(expected.TokenPos, actual.(*ArgsKeywordExpr).TokenPos)
 	case *NamedArgsKeywordExpr:
-		require.Equal(t, expected.Literal,
-			actual.(*NamedArgsKeywordExpr).Literal)
-		require.Equal(t, expected.TokenPos,
-			actual.(*NamedArgsKeywordExpr).TokenPos)
+		f.equal(expected.Literal, actual.(*NamedArgsKeywordExpr).Literal)
+		f.equal(expected.TokenPos, actual.(*NamedArgsKeywordExpr).TokenPos)
 	case *ClosureExpr:
-		equalFuncType(t, expected.Type,
-			actual.(*ClosureExpr).Type)
-		equalExpr(t, expected.Body,
-			actual.(*ClosureExpr).Body)
+		f.equalFuncType(expected.Type, actual.(*ClosureExpr).Type)
+		f.equalExpr(expected.Body, actual.(*ClosureExpr).Body)
 	case *BlockExpr:
-		equalStmt(t, expected.BlockStmt,
-			actual.(*BlockExpr).BlockStmt)
+		f.equalStmt(expected.BlockStmt, actual.(*BlockExpr).BlockStmt)
 	case *KeyValueLit:
-		equalExpr(t, expected.Key,
-			actual.(*KeyValueLit).Key)
-		equalExpr(t, expected.Value,
-			actual.(*KeyValueLit).Value)
+		f.equalExpr(expected.Key, actual.(*KeyValueLit).Key)
+		f.equalExpr(expected.Value, actual.(*KeyValueLit).Value)
 	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}
 }
 
-func equalFuncType(t *testing.T, expected, actual *FuncType) {
-	require.Equal(t, expected.Params.LParen, actual.Params.LParen)
-	require.Equal(t, expected.Params.RParen, actual.Params.RParen)
-	equalTypedIdents(t, expected.Params.Args.Values, actual.Params.Args.Values)
-	equalNamedArgs(t, &expected.Params.NamedArgs, &actual.Params.NamedArgs)
+func (f *fileTester) equalFuncType(expected, actual *FuncType) {
+	f.equal(expected.Params.LParen, actual.Params.LParen)
+	f.equal(expected.Params.RParen, actual.Params.RParen)
+	f.equalTypedIdents(expected.Params.Args.Values, actual.Params.Args.Values)
+	f.equalNamedArgs(&expected.Params.NamedArgs, &actual.Params.NamedArgs)
 }
 
-func equalNamedArgs(t *testing.T, expected, actual *NamedArgsList) {
+func (f *fileTester) equalNamedArgs(expected, actual *NamedArgsList) {
 	if expected == nil && actual == nil {
 		return
 	}
-	require.NotNil(t, expected, "expected is nil")
-	require.NotNil(t, actual, "actual is nil")
+	require.NotNil(f.t, expected, "expected is nil")
+	require.NotNil(f.t, actual, "actual is nil")
 
-	require.Equal(t, expected.Var, actual.Var)
-	equalTypedIdents(t, expected.Names, actual.Names)
-	equalExprs(t, expected.Values, actual.Values)
+	f.equal(expected.Var, actual.Var)
+	f.equalTypedIdents(expected.Names, actual.Names)
+	f.equalExprs(expected.Values, actual.Values)
 }
 
-func equalNamedArgsNames(t *testing.T, expected, actual []NamedArgExpr) {
-	require.Equal(t, len(expected), len(actual))
+func (f *fileTester) equalNamedArgsNames(expected, actual []NamedArgExpr) {
+	f.equal(len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
-		equalExpr(t, expected[i].Ident, actual[i].Ident)
-		equalExpr(t, expected[i].Lit, actual[i].Lit)
+		f.equalExpr(expected[i].Ident, actual[i].Ident)
+		f.equalExpr(expected[i].Lit, actual[i].Lit)
 	}
 }
 
-func equalIdents(t *testing.T, expected, actual []*IdentExpr) {
-	require.Equal(t, len(expected), len(actual))
+func (f *fileTester) equalIdents(expected, actual []*IdentExpr) {
+	f.equal(len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
-		equalExpr(t, expected[i], actual[i])
+		f.equalExpr(expected[i], actual[i])
 	}
 }
 
-func equalTypedIdents(t *testing.T, expected, actual []*TypedIdentExpr) {
-	require.Equal(t, len(expected), len(actual))
+func (f *fileTester) equalTypedIdents(expected, actual []*TypedIdentExpr) {
+	f.equal(len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
-		equalExpr(t, expected[i], actual[i])
+		f.equalExpr(expected[i], actual[i])
 	}
 }
 
-func equalExprs(t *testing.T, expected, actual []Expr) {
-	require.Equal(t, len(expected), len(actual))
+func (f *fileTester) equalExprs(expected, actual []Expr) {
+	f.equal(len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
-		equalExpr(t, expected[i], actual[i])
+		f.equalExpr(expected[i], actual[i])
 	}
 }
 
-func equalStmts(t *testing.T, expected, actual []Stmt) {
-	require.Equal(t, len(expected), len(actual))
+func (f *fileTester) equalStmts(expected, actual []Stmt) {
+	f.equal(len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
-		equalStmt(t, expected[i], actual[i])
+		f.equalStmt(expected[i], actual[i])
 	}
 }
 
-func equalMapElements(
-	t *testing.T,
+func (f *fileTester) equalMapElements(
 	expected, actual []*DictElementLit,
 ) {
-	require.Equal(t, len(expected), len(actual))
+	f.equal(len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
-		require.Equal(t, expected[i].Key, actual[i].Key)
-		require.Equal(t, expected[i].KeyPos, actual[i].KeyPos)
-		require.Equal(t, expected[i].ColonPos, actual[i].ColonPos)
-		equalExpr(t, expected[i].Value, actual[i].Value)
+		f.equal(expected[i].Key, actual[i].Key)
+		f.equal(expected[i].KeyPos, actual[i].KeyPos)
+		f.equal(expected[i].ColonPos, actual[i].ColonPos)
+		f.equalExpr(expected[i].Value, actual[i].Value)
 	}
 }
 

@@ -1475,8 +1475,9 @@ do:
 	case token.LBrace:
 		return p.ParseScopedBlockStmt()
 	case // simple statements
-		token.Func, token.Ident, token.Int, token.Uint, token.Float,
-		token.Char, token.String, token.True, token.False, token.Nil,
+		token.Func, token.Ident, token.Int, token.Uint, token.Float, token.Decimal,
+		token.Char, token.String, token.RawString, token.RawHeredoc,
+		token.True, token.False, token.Nil,
 		token.LParen, token.LBrack, token.Add, token.Sub,
 		token.Mul, token.And, token.Xor, token.Not, token.Import,
 		token.Callee, token.Args, token.NamedArgs,

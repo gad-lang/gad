@@ -58,6 +58,16 @@ func (p SourceFilePos) String() string {
 	return s
 }
 
+func (p SourceFilePos) PositionString() (s string) {
+	if p.IsValid() {
+		s = fmt.Sprintf("%d", p.Line)
+		if p.Column != 0 {
+			s += fmt.Sprintf(":%d", p.Column)
+		}
+	}
+	return
+}
+
 func (p SourceFilePos) TraceLines(w io.Writer, up, down int) {
 	if p.File != nil {
 		p.File.TraceLines(w, p.Line, p.Column, up, down)
@@ -350,7 +360,7 @@ func (f *File) LineData(line int) (d []byte, valid bool) {
 		end += int(start) + 1
 		d = f.Data[start:end]
 	} else {
-		d = f.Data[start+1:]
+		d = f.Data[start:]
 	}
 	return
 }

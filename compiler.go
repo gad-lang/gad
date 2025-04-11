@@ -489,6 +489,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		c.emit(nt, OpConstant, c.addConstant(Str(nt.Value())))
 	case *node.RawStringLit:
 		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.UnquotedValue())))
+	case *node.RawHeredocLit:
+		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.Value())))
 	case *node.CharLit:
 		c.emit(nt, OpConstant, c.addConstant(Char(nt.Value)))
 	case *node.NilLit:

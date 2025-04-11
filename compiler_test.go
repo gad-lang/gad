@@ -964,6 +964,60 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
+	expectCompile(t, "`raw string`", bytecode(
+		Array{RawStr("raw string")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, "```raw heredoc string```", bytecode(
+		Array{RawStr("raw heredoc string")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, "```\nraw heredoc string\n```", bytecode(
+		Array{RawStr("raw heredoc string")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, "```\nraw heredoc string\n           ```", bytecode(
+		Array{RawStr("raw heredoc string")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, "```\n  raw heredoc\n  string\nx\n```", bytecode(
+		Array{RawStr("raw heredoc\nstring\nx")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, "```\n\t\traw  \n\t\theredoc\n\t\t string\n\tx\n```", bytecode(
+		Array{RawStr("raw  \nheredoc\n string\nx")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
 	expectCompile(t, `a := 1; b := 2; a += b`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
