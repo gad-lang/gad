@@ -1009,6 +1009,15 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
+	expectCompile(t, "```\n  raw heredoc\n\n  string\nx\n```", bytecode(
+		Array{RawStr("raw heredoc\n\nstring\nx")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
 	expectCompile(t, "```\n\t\traw  \n\t\theredoc\n\t\t string\n\tx\n```", bytecode(
 		Array{RawStr("raw  \nheredoc\n string\nx")},
 		compFunc(concatInsts(

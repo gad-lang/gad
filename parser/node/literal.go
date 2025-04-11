@@ -685,7 +685,7 @@ func (e *RawHeredocLit) Value() string {
 					for j, line := range lines {
 						var i int
 					l3:
-						for ; i < stripCount; i++ {
+						for ; i < stripCount && i < len(line); i++ {
 							switch line[i] {
 							case '\t', ' ':
 							default:
