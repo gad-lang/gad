@@ -1079,7 +1079,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `{}`, bytecode(
+	expectCompile(t, `({})`, bytecode(
 		Array{},
 		compFunc(concatInsts(
 			makeInst(OpDict, 0),
@@ -1088,7 +1088,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `{a: 2, b: 4, c: 6}`, bytecode(
+	expectCompile(t, `({a: 2, b: 4, c: 6})`, bytecode(
 		Array{Str("a"), Int(2), Str("b"), Int(4), Str("c"), Int(6)},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -1103,7 +1103,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `{a: 2 + 3, b: 5 * 6}`, bytecode(
+	expectCompile(t, `({a: 2 + 3, b: 5 * 6})`, bytecode(
 		Array{Str("a"), Int(2), Int(3), Str("b"), Int(5), Int(6)},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -1136,7 +1136,7 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `{a: 2}[2 - 1]`, bytecode(
+	expectCompile(t, `({a: 2})[2 - 1]`, bytecode(
 		Array{Str("a"), Int(2), Int(1)},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
