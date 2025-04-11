@@ -300,9 +300,11 @@ func EUnary(x Expr, op token.Token, pos source.Pos) *UnaryExpr {
 }
 
 func EImport(moduleName string, pos source.Pos) *ImportExpr {
-	return &ImportExpr{
-		ModuleName: moduleName, Token: token.Import, TokenPos: pos,
-	}
+	return &ImportExpr{ModuleName: moduleName, Token: token.Import, TokenPos: pos}
+}
+
+func EEmbed(path string, pos source.Pos) *EmbedExpr {
+	return &EmbedExpr{Path: path, Token: token.Embed, TokenPos: pos}
 }
 
 func Int(value int64, pos source.Pos) *IntLit {

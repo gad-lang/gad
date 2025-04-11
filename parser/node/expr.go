@@ -248,6 +248,34 @@ func (e *ImportExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())
 }
 
+// EmbedExpr represents an embed expression
+type EmbedExpr struct {
+	Path     string
+	Token    token.Token
+	TokenPos source.Pos
+}
+
+func (e *EmbedExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *EmbedExpr) Pos() source.Pos {
+	return e.TokenPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *EmbedExpr) End() source.Pos {
+	// import("moduleName")
+	return source.Pos(int(e.TokenPos) + 10 + len(e.Path))
+}
+
+func (e *EmbedExpr) String() string {
+	return `embed("` + e.Path + `")`
+}
+
+func (e *EmbedExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}
+
 // IndexExpr represents an index expression.
 type IndexExpr struct {
 	Expr   Expr

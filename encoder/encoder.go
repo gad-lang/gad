@@ -228,6 +228,19 @@ func (bc *Bytecode) bytecodeV1Encoder(w io.Writer) (err error) {
 			return
 		}
 	}
+
+	// NumEmbeds, field #4
+	if bc.NumEmbeds > 0 {
+		_ = writeByteTo(w, 4)
+		var data []byte
+		data, err = Int(bc.NumEmbeds).MarshalBinary()
+		if err != nil {
+			return
+		}
+		if _, err = w.Write(data); err != nil {
+			return
+		}
+	}
 	return nil
 }
 
@@ -284,6 +297,13 @@ func (bc *Bytecode) bytecodeV1Decoder(r *bytes.Buffer) error {
 			}
 
 			bc.NumModules = int(num.(gad.Int))
+		case 4:
+			num, err := DecodeObject(r)
+			if err != nil {
+				return err
+			}
+
+			bc.NumEmbeds = int(num.(gad.Int))
 		default:
 			return errors.New("unknown field:" + strconv.Itoa(int(field)))
 		}

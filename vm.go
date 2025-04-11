@@ -1465,6 +1465,7 @@ func (v *vmPool) _acquire(vm *VM, cf *CompiledFunction) *VM {
 	vm.bytecode.FileSet = v.root.bytecode.FileSet
 	vm.bytecode.Constants = v.root.bytecode.Constants
 	vm.bytecode.NumModules = v.root.bytecode.NumModules
+	vm.bytecode.NumEmbeds = v.root.bytecode.NumEmbeds
 	vm.bytecode.Main = cf
 	vm.constants = v.root.bytecode.Constants
 	vm.modulesCache = v.root.modulesCache

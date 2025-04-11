@@ -61,6 +61,8 @@ type (
 		symbolTable    *SymbolTable
 		instructions   []byte
 		sourceMap      map[int]int
+		embedMap       *EmbedMap
+		embedStore     *moduleStore
 		moduleMap      *ModuleMap
 		moduleStore    *moduleStore
 		module         *ModuleInfo
@@ -80,6 +82,7 @@ type (
 	// CompilerOptions represents customizable options for Compile().
 	CompilerOptions struct {
 		Context             context.Context
+		EmbedMap            *EmbedMap
 		ModuleMap           *ModuleMap
 		Module              *ModuleInfo
 		ModuleFile          string
@@ -94,6 +97,7 @@ type (
 		OptimizeExpr        bool
 		MixedWriteFunction  node.Expr
 		MixedExprToTextFunc node.Expr
+		embedStore          *moduleStore
 		moduleStore         *moduleStore
 		constsCache         map[Object]int
 	}
@@ -105,11 +109,11 @@ type (
 		Err     error
 	}
 
-	// moduleStoreItem represents indexes of a single module.
-	moduleStoreItem struct {
+	// storeItem represents indexes of a single module.
+	storeItem struct {
 		typ           int
 		constantIndex int
-		moduleIndex   int
+		storeIndex    int
 		name          string
 	}
 
@@ -117,8 +121,8 @@ type (
 	// while compiling.
 	moduleStore struct {
 		count int
-		store map[string]*moduleStoreItem
-		items []*moduleStoreItem
+		store map[string]*storeItem
+		items []*storeItem
 	}
 
 	// loopStmts represents a loopStmts construct that the compiler uses to
@@ -193,6 +197,10 @@ func NewCompiler(file *source.File, opts CompilerOptions) *Compiler {
 		opts.moduleStore = newModuleStore()
 	}
 
+	if opts.embedStore == nil {
+		opts.embedStore = newModuleStore()
+	}
+
 	var trace io.Writer
 	if opts.TraceCompiler {
 		trace = opts.Trace
@@ -205,6 +213,8 @@ func NewCompiler(file *source.File, opts CompilerOptions) *Compiler {
 		cfuncCache:    make(map[uint32][]int),
 		symbolTable:   opts.SymbolTable,
 		sourceMap:     make(map[int]int),
+		embedMap:      opts.EmbedMap,
+		embedStore:    opts.embedStore,
 		moduleMap:     opts.ModuleMap,
 		moduleStore:   opts.moduleStore,
 		module:        opts.Module,
@@ -346,6 +356,7 @@ func (c *Compiler) Bytecode() *Bytecode {
 		Constants:  c.constants,
 		Main:       cf,
 		NumModules: c.moduleStore.count,
+		NumEmbeds:  c.embedStore.count,
 	}
 }
 
@@ -569,6 +580,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileCallExpr(nt)
 	case *node.ImportExpr:
 		return c.compileImportExpr(nt)
+	case *node.EmbedExpr:
+		return c.compileEmbedExpr(nt)
 	case *node.CondExpr:
 		return c.compileCondExpr(nt)
 	case *node.MixedTextStmt:
@@ -714,13 +727,13 @@ func (c *Compiler) checkCyclicImports(nd ast.Node, modulePath string) error {
 	return nil
 }
 
-func (c *Compiler) addModule(name string, typ, constantIndex int) *moduleStoreItem {
-	moduleIndex := c.moduleStore.count
+func (c *Compiler) addModule(name string, typ, constantIndex int) *storeItem {
+	storeIndex := c.moduleStore.count
 	c.moduleStore.count++
-	item := &moduleStoreItem{
+	item := &storeItem{
 		typ:           typ,
 		constantIndex: constantIndex,
-		moduleIndex:   moduleIndex,
+		storeIndex:    storeIndex,
 		name:          name,
 	}
 	c.moduleStore.store[name] = item
@@ -728,8 +741,27 @@ func (c *Compiler) addModule(name string, typ, constantIndex int) *moduleStoreIt
 	return item
 }
 
-func (c *Compiler) getModule(name string) (*moduleStoreItem, bool) {
+func (c *Compiler) addEmbed(name string, typ, constantIndex int) *storeItem {
+	storeIndex := c.embedStore.count
+	c.embedStore.count++
+	item := &storeItem{
+		typ:           typ,
+		constantIndex: constantIndex,
+		storeIndex:    storeIndex,
+		name:          name,
+	}
+	c.embedStore.store[name] = item
+	c.embedStore.items = append(c.embedStore.items, item)
+	return item
+}
+
+func (c *Compiler) getModule(name string) (*storeItem, bool) {
 	indexes, ok := c.moduleStore.store[name]
+	return indexes, ok
+}
+
+func (c *Compiler) getEmbed(name string) (*storeItem, bool) {
+	indexes, ok := c.embedStore.store[name]
 	return indexes, ok
 }
 
@@ -738,6 +770,13 @@ func (c *Compiler) baseModuleMap() *ModuleMap {
 		return c.moduleMap
 	}
 	return c.parent.baseModuleMap()
+}
+
+func (c *Compiler) baseEmbedMap() *EmbedMap {
+	if c.parent == nil {
+		return c.embedMap
+	}
+	return c.parent.baseEmbedMap()
 }
 
 func (c *Compiler) CompileModule(
@@ -847,6 +886,7 @@ func (c *Compiler) fork(
 ) *Compiler {
 	child := NewCompiler(file, CompilerOptions{
 		Context:           c.opts.Context,
+		EmbedMap:          c.embedMap,
 		ModuleMap:         moduleMap,
 		Module:            module,
 		Constants:         c.constants,
@@ -1026,7 +1066,7 @@ func IterateInstructions(insts []byte,
 
 func newModuleStore() *moduleStore {
 	return &moduleStore{
-		store: make(map[string]*moduleStoreItem),
+		store: make(map[string]*storeItem),
 	}
 }
 

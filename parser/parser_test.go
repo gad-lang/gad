@@ -2344,6 +2344,37 @@ func TestParseImport(t *testing.T) {
 	expectParseError(t, `import('a')`)
 }
 
+func TestParseEmbed(t *testing.T) {
+	expectParse(t, `a := embed("file")`, func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(ident("a", p(1, 1))),
+				exprs(embedExpr("file", p(1, 6))),
+				token.Define, p(1, 3)))
+	})
+
+	expectParse(t, `embed("file").var1`, func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				selectorExpr(
+					embedExpr("file", p(1, 1)),
+					stringLit("var1", p(1, 15)))))
+	})
+
+	expectParse(t, `for x, y in embed("file") {}`, func(p pfn) []Stmt {
+		return stmts(
+			forInStmt(
+				ident("x", p(1, 5)),
+				ident("y", p(1, 8)),
+				embedExpr("file", p(1, 13)),
+				blockStmt(p(1, 27), p(1, 28)),
+				p(1, 1)))
+	})
+
+	expectParseError(t, `embed(1)`)
+	expectParseError(t, `embed('a')`)
+}
+
 func TestParseIndex(t *testing.T) {
 	expectParse(t, "[1, 2, 3][1]", func(p pfn) []Stmt {
 		return stmts(
@@ -3202,14 +3233,22 @@ type fileTester struct {
 }
 
 func (f *fileTester) equal(expected, actual any, msgAndArgs ...any) {
-	if pos, ok := expected.(Pos); ok {
-		p := f.expected.Position(pos)
+	switch t := expected.(type) {
+	case Pos:
+		p := f.expected.Position(t)
 		expected = fmt.Sprintf("Pos(%d, %d)", p.Line, p.Column)
+		if pos, ok := actual.(Pos); ok {
+			p = f.actual.Position(pos)
+			actual = fmt.Sprintf("Pos(%d, %d)", p.Line, p.Column)
+		}
+	case ast.Literal:
+		if actual, ok := actual.(ast.Literal); ok {
+			f.equal(t.Pos, actual.Pos, msgAndArgs...)
+			require.Equal(f.t, t.Value, actual.Value, msgAndArgs...)
+			return
+		}
 	}
-	if pos, ok := actual.(Pos); ok {
-		p := f.actual.Position(pos)
-		actual = fmt.Sprintf("Pos(%d, %d)", p.Line, p.Column)
-	}
+
 	require.Equal(f.t, expected, actual, msgAndArgs...)
 }
 
@@ -3546,9 +3585,11 @@ func unaryExpr(x Expr, op token.Token, pos Pos) *UnaryExpr {
 }
 
 func importExpr(moduleName string, pos Pos) *ImportExpr {
-	return &ImportExpr{
-		ModuleName: moduleName, Token: token.Import, TokenPos: pos,
-	}
+	return &ImportExpr{ModuleName: moduleName, Token: token.Import, TokenPos: pos}
+}
+
+func embedExpr(path string, pos Pos) *EmbedExpr {
+	return &EmbedExpr{Path: path, Token: token.Embed, TokenPos: pos}
 }
 
 func exprs(list ...Expr) []Expr {
@@ -3979,6 +4020,10 @@ func (f *fileTester) equalExpr(expected, actual Expr) {
 		f.equal(expected.ModuleName, actual.(*ImportExpr).ModuleName)
 		f.equal(int(expected.TokenPos), int(actual.(*ImportExpr).TokenPos))
 		f.equal(expected.Token, actual.(*ImportExpr).Token)
+	case *EmbedExpr:
+		f.equal(expected.Path, actual.(*EmbedExpr).Path)
+		f.equal(int(expected.TokenPos), int(actual.(*EmbedExpr).TokenPos))
+		f.equal(expected.Token, actual.(*EmbedExpr).Token)
 	case *CondExpr:
 		f.equalExpr(expected.Cond, actual.(*CondExpr).Cond)
 		f.equalExpr(expected.True, actual.(*CondExpr).True)

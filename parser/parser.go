@@ -860,6 +860,8 @@ func (p *Parser) ParseOperand() node.Expr {
 		return x
 	case token.Import:
 		return p.ParseImportExpr()
+	case token.Embed:
+		return p.ParseEmbedExpr()
 	case token.LParen:
 		return p.ParseParemExpr(token.LParen, token.RParen, true, true, true)
 	case token.LBrack: // array literal
@@ -910,6 +912,29 @@ func (p *Parser) ParseImportExpr() node.Expr {
 		ModuleName: moduleName,
 		Token:      token.Import,
 		TokenPos:   pos,
+	}
+
+	p.Next()
+	p.Expect(token.RParen)
+	return expr
+}
+
+func (p *Parser) ParseEmbedExpr() node.Expr {
+	pos := p.Token.Pos
+	p.Next()
+	p.Expect(token.LParen)
+	if p.Token.Token != token.String {
+		p.ErrorExpected(p.Token.Pos, "path")
+		p.advance(stmtStart)
+		return &node.BadExpr{From: pos, To: p.Token.Pos}
+	}
+
+	// module name
+	path, _ := strconv.Unquote(p.Token.Literal)
+	expr := &node.EmbedExpr{
+		Path:     path,
+		Token:    token.Embed,
+		TokenPos: pos,
 	}
 
 	p.Next()
@@ -1479,7 +1504,7 @@ do:
 		token.Char, token.String, token.RawString, token.RawHeredoc,
 		token.True, token.False, token.Nil,
 		token.LParen, token.LBrack, token.Add, token.Sub,
-		token.Mul, token.And, token.Xor, token.Not, token.Import,
+		token.Mul, token.And, token.Xor, token.Not, token.Import, token.Embed,
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
 		token.Yes, token.No,

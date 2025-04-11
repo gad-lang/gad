@@ -20,12 +20,14 @@ type Bytecode struct {
 	Main       *CompiledFunction
 	Constants  []Object
 	NumModules int
+	NumEmbeds  int
 }
 
 // Fprint writes constants and instructions to given Writer in a human readable form.
 func (bc *Bytecode) Fprint(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Bytecode")
 	_, _ = fmt.Fprintf(w, "Modules:%d\n", bc.NumModules)
+	_, _ = fmt.Fprintf(w, "Embeds:%d\n", bc.NumEmbeds)
 	bc.putConstants(w)
 	bc.Main.Fprint(w)
 }

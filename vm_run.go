@@ -95,6 +95,7 @@ func (vm *VM) RunCompiledFunctionOpts(
 		Constants:  vm.constants,
 		Main:       f,
 		NumModules: vm.bytecode.NumModules,
+		NumEmbeds:  vm.bytecode.NumEmbeds,
 	}
 
 	for i := range vm.stack {

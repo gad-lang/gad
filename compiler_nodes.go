@@ -1539,7 +1539,7 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 		// load module
 		// if module is already stored, load from VM.modulesCache otherwise call compiled function
 		// and store copy of result to VM.modulesCache.
-		c.emit(nd, OpLoadModule, module.constantIndex, module.moduleIndex)
+		c.emit(nd, OpLoadModule, module.constantIndex, module.storeIndex)
 		jumpPos := c.emit(nd, OpJumpFalsy, 0)
 		// modules should not accept parameters, to suppress the wrong number of arguments error
 		// set all params to nil
@@ -1547,18 +1547,63 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 			c.emit(nd, OpNil)
 		}
 		c.emit(nd, OpCall, numParams, 0)
-		c.emit(nd, OpStoreModule, module.moduleIndex)
+		c.emit(nd, OpStoreModule, module.storeIndex)
 		c.changeOperand(jumpPos, len(c.instructions))
 	case 2:
 		// load module
 		// if module is already stored, load from VM.modulesCache otherwise copy object
 		// and store it to VM.modulesCache.
-		c.emit(nd, OpLoadModule, module.constantIndex, module.moduleIndex)
+		c.emit(nd, OpLoadModule, module.constantIndex, module.storeIndex)
 		jumpPos := c.emit(nd, OpJumpFalsy, 0)
-		c.emit(nd, OpStoreModule, module.moduleIndex)
+		c.emit(nd, OpStoreModule, module.storeIndex)
 		c.changeOperand(jumpPos, len(c.instructions))
 	default:
 		return c.errorf(nd, "invalid module type: %v", module.typ)
+	}
+	return nil
+}
+
+func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) error {
+	pth := nd.Path
+	if pth == "" {
+		return c.errorf(nd, "empty path")
+	}
+
+	importer := c.embedMap.Get(pth)
+	if importer == nil {
+		return c.errorf(nd, "path '%s' not found", pth)
+	}
+
+	extImp, isExt := importer.(ExtImporter)
+	if isExt {
+		if name, err := extImp.Name(); name != "" {
+			pth = name
+		} else if err != nil {
+			return c.errorf(nd, "resolve name of module '%s': %v", pth, err.Error())
+		}
+	}
+
+	embed, exists := c.getEmbed(pth)
+	if !exists {
+		mod, _, err := importer.Import(c.opts.Context, pth)
+		if err != nil {
+			return c.error(nd, err)
+		}
+		switch v := mod.(type) {
+		case []byte:
+			embed = c.addEmbed(pth, 1, c.addConstant(Bytes(v)))
+		case Object:
+			embed = c.addEmbed(pth, 2, c.addConstant(v))
+		default:
+			return c.errorf(nd, "invalid embed value type: %T", v)
+		}
+	}
+
+	switch embed.typ {
+	case 1, 2:
+		c.emit(nd, OpConstant, embed.constantIndex)
+	default:
+		return c.errorf(nd, "invalid embed type: %v", embed.typ)
 	}
 	return nil
 }

@@ -26,6 +26,11 @@ func withModules(numOfModules int) bytecodeOption {
 		bc.NumModules = numOfModules
 	}
 }
+func withEmbeds(numOfEmbeds int) bytecodeOption {
+	return func(bc *Bytecode) {
+		bc.NumEmbeds = numOfEmbeds
+	}
+}
 
 func bytecode(
 	consts []Object,
@@ -2383,6 +2388,27 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpReturn, 0),        // 0012
 			)),
 			withModules(1),
+		),
+	)
+
+	// 1 instruction are generated for every source embed import.
+	// If embed's returned value is already stored, ignore storing.
+	embedMap := NewEmbedMap()
+	embedMap.AddFile("file.js", []byte(`abcd`))
+	expectCompileWithOpts(t, `embed("file.js")`,
+		CompileOptions{CompilerOptions: CompilerOptions{
+			EmbedMap: embedMap,
+		}},
+		bytecode(
+			Array{
+				Bytes(`abcd`),
+			},
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpPop),
+				makeInst(OpReturn, 0),
+			)),
+			withEmbeds(1),
 		),
 	)
 

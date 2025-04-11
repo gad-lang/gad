@@ -37,6 +37,9 @@ func NewEval(opts CompileOptions, runOpts ...*RunOpts) *Eval {
 	if opts.moduleStore == nil {
 		opts.moduleStore = newModuleStore()
 	}
+	if opts.embedStore == nil {
+		opts.embedStore = newModuleStore()
+	}
 
 	return &Eval{
 		RunOpts: runopts,

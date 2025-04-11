@@ -72,6 +72,7 @@ type SimpleOptimizer struct {
 	constants        []Object
 	instructions     []byte
 	moduleStore      *moduleStore
+	embedStore       *moduleStore
 	returnStmt       node.ReturnStmt
 	file             *parser.File
 	errors           multipleErr
@@ -110,6 +111,7 @@ func NewOptimizer(
 		optimExpr:        opts.OptimizeExpr,
 		disabledBuiltins: disabled,
 		moduleStore:      newModuleStore(),
+		embedStore:       newModuleStore(),
 		trace:            trace,
 		builtins:         builtins,
 	}
@@ -240,6 +242,7 @@ func (so *SimpleOptimizer) slowEvalExpr(expr node.Expr) (node.Expr, bool) {
 		CompilerOptions{
 			SymbolTable: st,
 			moduleStore: so.moduleStore.reset(),
+			embedStore:  so.embedStore.reset(),
 			Constants:   so.constants[:0],
 			Trace:       so.trace,
 		},

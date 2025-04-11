@@ -117,6 +117,7 @@ const (
 	In
 	Nil
 	Import
+	Embed
 	Param
 	Global
 	Var
@@ -232,6 +233,7 @@ var tokens = [...]string{
 	In:              "in",
 	Nil:             "nil",
 	Import:          "import",
+	Embed:           "embed",
 	Param:           "param",
 	Global:          "global",
 	Var:             "var",

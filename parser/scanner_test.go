@@ -256,6 +256,7 @@ func TestScanner_Scan(t *testing.T) {
 		{token.In, "in"},
 		{token.Nil, "nil"},
 		{token.Import, "import"},
+		{token.Embed, "embed"},
 		{token.Param, "param"},
 		{token.Global, "global"},
 		{token.Var, "var"},
