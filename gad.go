@@ -347,7 +347,7 @@ func ToGoInt64(o Object) (v int64, ok bool) {
 	case Float:
 		v, ok = int64(o), true
 	case Decimal:
-		v, ok = o.Go().IntPart(), true
+		v, ok = o.ToGo().IntPart(), true
 	case Char:
 		v, ok = int64(o), true
 	case Bool:
@@ -378,7 +378,7 @@ func ToGoUint64(o Object) (v uint64, ok bool) {
 	case Float:
 		v, ok = uint64(o), true
 	case Decimal:
-		v, ok = o.Go().BigInt().Uint64(), true
+		v, ok = o.ToGo().BigInt().Uint64(), true
 	case Char:
 		v, ok = uint64(o), true
 	case Bool:
@@ -409,7 +409,7 @@ func ToGoFloat64(o Object) (v float64, ok bool) {
 	case Float:
 		v, ok = float64(o), true
 	case Decimal:
-		v, ok = o.Go().InexactFloat64(), true
+		v, ok = o.ToGo().InexactFloat64(), true
 	case Char:
 		v, ok = float64(o), true
 	case Bool:
@@ -442,7 +442,7 @@ func ToGoRune(o Object) (v rune, ok bool) {
 	case Float:
 		v, ok = rune(o), true
 	case Decimal:
-		v, ok = rune(o.Go().BigInt().Uint64()), true
+		v, ok = rune(o.ToGo().BigInt().Uint64()), true
 	case Str:
 		ok = true
 		v, _ = utf8.DecodeRuneInString(string(o))

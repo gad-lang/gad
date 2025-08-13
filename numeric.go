@@ -374,10 +374,10 @@ func (o *Decimal) GobDecode(bytes []byte) (err error) {
 }
 
 func (o Decimal) GobEncode() ([]byte, error) {
-	return o.Go().MarshalBinary()
+	return o.ToGo().MarshalBinary()
 }
 
-func (o Decimal) Go() decimal.Decimal {
+func (o Decimal) ToGo() decimal.Decimal {
 	return decimal.Decimal(o)
 }
 
@@ -386,22 +386,22 @@ func (o Decimal) Type() ObjectType {
 }
 
 func (o Decimal) ToString() string {
-	return o.Go().String()
+	return o.ToGo().String()
 }
 
 // Equal implements Object interface.
 func (o Decimal) Equal(right Object) bool {
 	switch v := right.(type) {
 	case Decimal:
-		return o.Go().Equal(v.Go())
+		return o.ToGo().Equal(v.ToGo())
 	case Int:
-		return o.Go().Equal(decimal.Decimal(DecimalFromInt(v)))
+		return o.ToGo().Equal(decimal.Decimal(DecimalFromInt(v)))
 	case Uint:
-		return o.Go().Equal(decimal.Decimal(DecimalFromUint(v)))
+		return o.ToGo().Equal(decimal.Decimal(DecimalFromUint(v)))
 	case Float:
-		return o.Go().Equal(decimal.Decimal(DecimalFromFloat(v)))
+		return o.ToGo().Equal(decimal.Decimal(DecimalFromFloat(v)))
 	case Bool:
-		return o.Go().IsZero() != bool(v)
+		return o.ToGo().IsZero() != bool(v)
 	}
 	return false
 }
@@ -410,7 +410,7 @@ func (o Decimal) Equal(right Object) bool {
 func (o Decimal) IsFalsy() bool {
 	// IEEE 754 says that only NaNs satisfy f != f.
 	// See math.IsNan
-	return o.Go().IsZero()
+	return o.ToGo().IsZero()
 }
 
 // BinaryOp implements Object interface.
@@ -419,21 +419,21 @@ func (o Decimal) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error)
 	case Decimal:
 		switch tok {
 		case token.Add:
-			return Decimal(o.Go().Add(v.Go())), nil
+			return Decimal(o.ToGo().Add(v.ToGo())), nil
 		case token.Sub:
-			return Decimal(o.Go().Sub(v.Go())), nil
+			return Decimal(o.ToGo().Sub(v.ToGo())), nil
 		case token.Mul:
-			return Decimal(o.Go().Mul(v.Go())), nil
+			return Decimal(o.ToGo().Mul(v.ToGo())), nil
 		case token.Quo:
-			return Decimal(o.Go().Div(v.Go())), nil
+			return Decimal(o.ToGo().Div(v.ToGo())), nil
 		case token.Less:
-			return Bool(o.Go().LessThan(v.Go())), nil
+			return Bool(o.ToGo().LessThan(v.ToGo())), nil
 		case token.LessEq:
-			return Bool(o.Go().LessThanOrEqual(v.Go())), nil
+			return Bool(o.ToGo().LessThanOrEqual(v.ToGo())), nil
 		case token.Greater:
-			return Bool(o.Go().GreaterThan(v.Go())), nil
+			return Bool(o.ToGo().GreaterThan(v.ToGo())), nil
 		case token.GreaterEq:
-			return Bool(o.Go().GreaterThanOrEqual(v.Go())), nil
+			return Bool(o.ToGo().GreaterThanOrEqual(v.ToGo())), nil
 		}
 	case Int:
 		return o.BinaryOp(vm, tok, DecimalFromInt(v))
@@ -480,11 +480,11 @@ func (o Decimal) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error)
 // Format implements fmt.Formatter interface.
 func (o Decimal) Format(s fmt.State, verb rune) {
 	format := compat.FmtFormatString(s, verb)
-	fmt.Fprintf(s, format, o.Go())
+	fmt.Fprintf(s, format, o.ToGo())
 }
 
 func (o Decimal) ToBytes() (b Bytes, err error) {
-	return o.Go().MarshalBinary()
+	return o.ToGo().MarshalBinary()
 }
 
 func (o Decimal) CallName(name string, c Call) (_ Object, err error) {
