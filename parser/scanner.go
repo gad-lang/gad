@@ -39,6 +39,7 @@ const (
 	Mixed
 	ConfigDisabled
 	MixedExprAsValue
+	FloatAsDecimal
 )
 
 // TextFlag represents a text flag.
@@ -726,7 +727,11 @@ func (s *Scanner) ScanNumber(seenDecimalPoint bool) (tok token.Token, lit string
 	case source.Uint:
 		tok = token.Uint
 	case source.Float:
-		tok = token.Float
+		if s.mode.Has(FloatAsDecimal) {
+			tok = token.Decimal
+		} else {
+			tok = token.Float
+		}
 	case source.Decimal:
 		tok = token.Decimal
 	}

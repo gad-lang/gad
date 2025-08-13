@@ -42,6 +42,7 @@ const (
 	ParseMixed
 	ParseConfigDisabled
 	ParseMixedExprAsValue
+	ParseFloatAsDecimal
 )
 
 type bailout struct{}
@@ -113,6 +114,9 @@ func NewParserWithOptions(
 		if opts.Mode.Has(ParseComments) {
 			scannerOptions.Mode.Set(ScanComments)
 		}
+		if opts.Mode.Has(ParseFloatAsDecimal) {
+			scannerOptions.Mode.Set(FloatAsDecimal)
+		}
 		if opts.Mode.Has(ParseMixed) {
 			scannerOptions.Mode.Set(Mixed)
 		}
@@ -145,6 +149,9 @@ func NewParserWithScanner(
 	var m ScanMode
 	if opts.Mode.Has(ParseComments) {
 		m.Set(ScanComments)
+	}
+	if opts.Mode.Has(ParseFloatAsDecimal) {
+		m.Set(FloatAsDecimal)
 	}
 	if opts.Mode.Has(ParseMixed) {
 		m.Set(Mixed)

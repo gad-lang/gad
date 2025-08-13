@@ -13,6 +13,17 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
+func TestScanner_ScanFloatAsDecimal(t *testing.T) {
+	tr := &tester{}
+
+	tr.scanExpect(t, "1.2 3.4d",
+		parser.FloatAsDecimal|parser.DontInsertSemis, []scanResult{
+			{Token: token.Decimal, Literal: "1.2", Line: 1, Column: 1},
+			{Token: token.Decimal, Literal: "3.4d", Line: 1, Column: 5},
+		}...,
+	)
+}
+
 func TestScanner_ScanMixed(t *testing.T) {
 	tr := &tester{
 		opts: parser.ScannerOptions{
