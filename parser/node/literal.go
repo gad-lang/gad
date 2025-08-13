@@ -820,6 +820,7 @@ func (c *CallArgs) ToFuncParams() (fp *FuncParams, err error) {
 			return nil, fmt.Errorf("named arg[%d] expected *Ident, but got %T", i, n.Lit)
 		}
 		fp.NamedArgs.Names = append(fp.NamedArgs.Names, ETypedIdent(n.Ident))
+		fp.NamedArgs.Values = append(fp.NamedArgs.Values, Flag(false, n.Ident.NamePos))
 	}
 
 	if c.NamedArgs.Var != nil {
