@@ -2,6 +2,8 @@ package gad
 
 import (
 	"reflect"
+
+	"github.com/gad-lang/gad/repr"
 )
 
 var (
@@ -45,12 +47,20 @@ var (
 	_ MethodCaller = (*Type)(nil)
 )
 
+func TypeToString(typeName string) string {
+	return repr.Quote("Type " + repr.Quote(typeName))
+}
+
 type Type struct {
 	TypeName       string
 	Parent         ObjectType
 	calllerMethods MethodArgType
 	Constructor    CallerObject
 	Static         Dict
+}
+
+func (t *Type) String() string {
+	return TypeToString(t.TypeName)
 }
 
 func (t *Type) IndexGet(vm *VM, index Object) (value Object, err error) {
@@ -108,7 +118,7 @@ func (t *Type) CallerMethods() *MethodArgType {
 	return &t.calllerMethods
 }
 
-func (t *Type) CallerOf(args Args) (co CallerObject, ok bool) {
+func (t *Type) CallerMethodWithValidationCheckOfArgs(args Args) (co CallerObject, ok bool) {
 	var types []ObjectType
 	args.Walk(func(i int, arg Object) any {
 		if t, ok := arg.(ObjectType); ok {
@@ -118,14 +128,18 @@ func (t *Type) CallerOf(args Args) (co CallerObject, ok bool) {
 		}
 		return nil
 	})
-	return t.CallerOfTypes(types)
+	return t.CallerMethodWithValidationCheckOfArgsTypes(types)
 }
 
-func (t *Type) GetMethod(types []ObjectType) (co CallerObject) {
+func (t *Type) CallerMethodOfArgs(args Args) (co CallerObject) {
+	return t.CallerMethodOfArgsTypes(args.Types())
+}
+
+func (t *Type) CallerMethodOfArgsTypes(types []ObjectType) (co CallerObject) {
 	return t.calllerMethods.GetMethod(types).Caller()
 }
 
-func (t *Type) CallerOfTypes(types []ObjectType) (co CallerObject, validate bool) {
+func (t *Type) CallerMethodWithValidationCheckOfArgsTypes(types []ObjectType) (co CallerObject, validate bool) {
 	if method := t.calllerMethods.GetMethod(types); method != nil {
 		return method.CallerObject, false
 	}
@@ -137,7 +151,7 @@ func (t *Type) Caller() CallerObject {
 }
 
 func (t *Type) Call(c Call) (_ Object, err error) {
-	caller, validate := t.CallerOf(c.Args)
+	caller, validate := t.CallerMethodWithValidationCheckOfArgs(c.Args)
 	if caller == nil {
 		if t.Constructor == nil {
 			return nil, ErrNotInitializable

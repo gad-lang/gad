@@ -148,7 +148,7 @@ func (o *CallerObjectWithMethods) RegisterDefaultWithTypes(types MultipleObjectT
 	return o
 }
 
-func (o *CallerObjectWithMethods) AddCallerMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error {
+func (o *CallerObjectWithMethods) AddCallerMethod(vm *VM, argTypes MultipleObjectTypes, handler CallerObject, override bool) error {
 	if !o.registered {
 		o.registered = true
 		if cot, _ := o.CallerObject.(CallerObjectWithParamTypes); cot != nil {
@@ -160,7 +160,7 @@ func (o *CallerObjectWithMethods) AddCallerMethod(vm *VM, types MultipleObjectTy
 		}
 	}
 
-	return o.Methods.Add(types, &CallerMethod{
+	return o.Methods.Add(argTypes, &CallerMethod{
 		CallerObject: handler,
 	}, override)
 }
@@ -179,7 +179,16 @@ func (o *CallerObjectWithMethods) ToString() string {
 		if !m.Default {
 			s.WriteString(fmt.Sprintf("  %d. ", i+1))
 			s.WriteString(m.CallerObject.ToString())
-			s.WriteByte('\n')
+			s.WriteString("(")
+
+			types := make([]string, len(m.Types))
+
+			for i, t := range m.Types {
+				types[i] = t.Name()
+			}
+
+			s.WriteString(strings.Join(types, ", "))
+			s.WriteString(")\n")
 			i++
 		}
 		return nil
@@ -197,35 +206,33 @@ func (o *CallerObjectWithMethods) Caller() CallerObject {
 }
 
 func (o *CallerObjectWithMethods) Call(c Call) (Object, error) {
-	caller, validate := o.CallerOf(c.Args)
+	caller, validate := o.CallerMethodWithValidationCheckOfArgs(c.Args)
 	c.SafeArgs = !validate
 	return YieldCall(caller, &c), nil
 }
 
-func (o *CallerObjectWithMethods) CallerOf(args Args) (CallerObject, bool) {
+func (o *CallerObjectWithMethods) CallerMethodWithValidationCheckOfArgs(args Args) (CallerObject, bool) {
 	if !o.registered {
 		if cof, _ := o.CallerObject.(CanCallerObjectTypesValidation); cof != nil {
 			return o.CallerObject, cof.CanValidateParamTypes()
 		}
 		return o.CallerObject, false
 	}
-	var types []ObjectType
-	args.Walk(func(i int, arg Object) any {
-		if t, ok := arg.(ObjectType); ok {
-			types = append(types, t)
-		} else {
-			types = append(types, arg.Type())
-		}
-		return nil
-	})
-	return o.CallerOfTypes(types)
+	return o.CallerMethodWithValidationCheckOfArgsTypes(args.Types())
 }
 
-func (o *CallerObjectWithMethods) GetMethod(types []ObjectType) (co CallerObject) {
+func (o *CallerObjectWithMethods) CallerMethodOfArgs(args Args) (co CallerObject) {
+	if !o.registered {
+		return o.CallerObject
+	}
+	return o.CallerMethodOfArgsTypes(args.Types())
+}
+
+func (o *CallerObjectWithMethods) CallerMethodOfArgsTypes(types []ObjectType) (co CallerObject) {
 	return o.Methods.GetMethod(types).Caller()
 }
 
-func (o *CallerObjectWithMethods) CallerOfTypes(types []ObjectType) (co CallerObject, validate bool) {
+func (o *CallerObjectWithMethods) CallerMethodWithValidationCheckOfArgsTypes(types []ObjectType) (co CallerObject, validate bool) {
 	if method := o.Methods.GetMethod(types); method != nil {
 		return method.CallerObject, false
 	}

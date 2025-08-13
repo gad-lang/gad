@@ -160,7 +160,7 @@ do:
 	}
 
 	if cwm, _ := callee.(*CallerObjectWithMethods); cwm != nil {
-		callee, _ = cwm.CallerOf(args)
+		callee, _ = cwm.CallerMethodWithValidationCheckOfArgs(args)
 		if cf, _ := callee.(*CompiledFunction); cf != nil {
 			inv.isCompiled = true
 			inv.callee = cf

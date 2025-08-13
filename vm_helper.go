@@ -104,9 +104,9 @@ func ToIterator(vm *VM, obj Object, na *NamedArgs) (l int, it Iterator, err erro
 		}
 	default:
 		mc := vm.Builtins.Get(BuiltinIterator).(MethodCaller)
-		if startMethod := mc.GetMethod(ObjectTypes{obj.Type()}); startMethod != nil {
-			if nextMethod := mc.GetMethod(ObjectTypes{obj.Type(), TAny}); nextMethod != nil {
-				if lenMethod := vm.Builtins.Get(BuiltinLen).(MethodCaller).GetMethod(ObjectTypes{obj.Type()}); lenMethod != nil {
+		if startMethod := mc.CallerMethodOfArgsTypes(ObjectTypes{obj.Type()}); startMethod != nil {
+			if nextMethod := mc.CallerMethodOfArgsTypes(ObjectTypes{obj.Type(), TAny}); nextMethod != nil {
+				if lenMethod := vm.Builtins.Get(BuiltinLen).(MethodCaller).CallerMethodOfArgsTypes(ObjectTypes{obj.Type()}); lenMethod != nil {
 					var lenValue Object
 					if lenValue, err = NewInvoker(vm, startMethod).Invoke(Args{Array{obj}}, nil); err != nil {
 						return

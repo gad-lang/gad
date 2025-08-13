@@ -67,6 +67,18 @@ func (o Args) Copy() Object {
 	return cp
 }
 
+func (o Args) Types() (types []ObjectType) {
+	o.Walk(func(i int, arg Object) any {
+		if t, ok := arg.(ObjectType); ok {
+			types = append(types, t)
+		} else {
+			types = append(types, arg.Type())
+		}
+		return nil
+	})
+	return
+}
+
 func (o Args) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	switch tok {
 	case token.Less, token.LessEq:

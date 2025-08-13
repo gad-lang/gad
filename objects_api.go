@@ -58,6 +58,7 @@ type ObjectRepresenter interface {
 type ObjectType interface {
 	Object
 	CallerObject
+	fmt.Stringer
 	Name() string
 	Getters() Dict
 	Setters() Dict
@@ -173,12 +174,26 @@ type CanCallerObjectMethodsEnabler interface {
 
 type MethodCaller interface {
 	CallerObject
-	AddCallerMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error
+
+	// AddCallerMethod add caller method from argument types.
+	// the argTypes param is a list of supported types for arguments.
+	//
+	// Examples:
+	//  - fn(str, decimal) => MultipleObjectTypes{{TStr},{TDecimal}}
+	//  - fn(str|int, decimal) => MultipleObjectTypes{{TStr,Int},{TDecimal}}
+	AddCallerMethod(vm *VM, argTypes MultipleObjectTypes, handler CallerObject, override bool) error
 	CallerMethods() *MethodArgType
-	CallerOf(args Args) (CallerObject, bool)
-	CallerOfTypes(types []ObjectType) (co CallerObject, validate bool)
-	GetMethod(types []ObjectType) (co CallerObject)
+	// CallerMethodWithValidationCheckOfArgs return a method and validation check flag from args.
+	// In same cases this method is most fast then `MethodWithValidationCheckOfArgTypes`
+	CallerMethodWithValidationCheckOfArgs(args Args) (method CallerObject, validationCheck bool)
+	// CallerMethodWithValidationCheckOfArgsTypes return a method from knowed args types with validation check flag
+	CallerMethodWithValidationCheckOfArgsTypes(types []ObjectType) (method CallerObject, validationCheck bool)
+	// CallerMethodOfArgs return a method from arguments types whitout validation check flag.
+	CallerMethodOfArgs(args Args) (method CallerObject)
+	// CallerMethodOfArgsTypes return a method from arguments types whitout validation check flag.
+	CallerMethodOfArgsTypes(types []ObjectType) (method CallerObject)
 	HasCallerMethods() bool
+	// Caller return the caller without methods
 	Caller() CallerObject
 }
 

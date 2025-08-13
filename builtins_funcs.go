@@ -1455,7 +1455,7 @@ func BuiltinIsIterableFunc(vm *VM, arg Object) Object {
 		return True
 	}
 
-	m := vm.Builtins.Get(BuiltinIterator).(MethodCaller).GetMethod(ObjectTypes{arg.Type()})
+	m := vm.Builtins.Get(BuiltinIterator).(MethodCaller).CallerMethodOfArgsTypes(ObjectTypes{arg.Type()})
 	return Bool(m != nil)
 }
 func BuiltinIsIteratorFunc(arg Object) Object {

@@ -234,6 +234,10 @@ func NewObjType(typeName string) *ObjType {
 	return ot
 }
 
+func (o *ObjType) String() string {
+	return TypeToString("object:" + o.TypeName)
+}
+
 func (o *ObjType) AddCallerMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error {
 	if len(types) == 0 {
 		// overrides default constructor. uses Type.new to instantiate.
@@ -252,7 +256,7 @@ func (o *ObjType) CallerMethods() *MethodArgType {
 	return &o.calllerMethods
 }
 
-func (o *ObjType) CallerOf(args Args) (co CallerObject, ok bool) {
+func (o *ObjType) CallerMethodWithValidationCheckOfArgs(args Args) (co CallerObject, ok bool) {
 	var types []ObjectType
 	args.Walk(func(i int, arg Object) any {
 		if t, ok := arg.(ObjectType); ok {
@@ -262,14 +266,18 @@ func (o *ObjType) CallerOf(args Args) (co CallerObject, ok bool) {
 		}
 		return nil
 	})
-	return o.CallerOfTypes(types)
+	return o.CallerMethodWithValidationCheckOfArgsTypes(types)
 }
 
-func (o *ObjType) GetMethod(types []ObjectType) (co CallerObject) {
+func (o *ObjType) CallerMethodOfArgs(args Args) (co CallerObject) {
+	return o.CallerMethodOfArgsTypes(args.Types())
+}
+
+func (o *ObjType) CallerMethodOfArgsTypes(types []ObjectType) (co CallerObject) {
 	return o.calllerMethods.GetMethod(types).Caller()
 }
 
-func (o *ObjType) CallerOfTypes(types []ObjectType) (co CallerObject, validate bool) {
+func (o *ObjType) CallerMethodWithValidationCheckOfArgsTypes(types []ObjectType) (co CallerObject, validate bool) {
 	if method := o.calllerMethods.GetMethod(types); method != nil {
 		return method.CallerObject, false
 	}
@@ -296,7 +304,7 @@ func (o *ObjType) NewCall(c Call) (Object, error) {
 }
 
 func (o *ObjType) Call(c Call) (_ Object, err error) {
-	caller, validate := o.CallerOf(c.Args)
+	caller, validate := o.CallerMethodWithValidationCheckOfArgs(c.Args)
 	c.SafeArgs = !validate
 	return YieldCall(caller, &c), nil
 }

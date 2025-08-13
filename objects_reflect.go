@@ -93,6 +93,8 @@ func (r *ReflectField) Set(f reflect.Value, v Object) {
 
 }
 
+var _ ObjectType = (*ReflectType)(nil)
+
 type ReflectType struct {
 	RType        reflect.Type
 	RMethods     map[string]*ReflectMethod
@@ -102,7 +104,9 @@ type ReflectType struct {
 	CallObject   func(obj *ReflectStruct, c Call) (Object, error)
 }
 
-var _ ObjectType = (*ReflectType)(nil)
+func (r *ReflectType) String() string {
+	return TypeToString(r.Name())
+}
 
 var (
 	reflectTypeCache   = map[reflect.Type]*ReflectType{}
