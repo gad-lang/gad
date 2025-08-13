@@ -381,6 +381,10 @@ func (o Decimal) ToGo() decimal.Decimal {
 	return decimal.Decimal(o)
 }
 
+func (o Decimal) ToInterface() any {
+	return decimal.Decimal(o)
+}
+
 func (o Decimal) Type() ObjectType {
 	return DetectTypeOf(o)
 }
