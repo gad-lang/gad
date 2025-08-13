@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/gad-lang/gad/registry"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -101,6 +102,8 @@ func ToObject(v any) (ret Object, err error) {
 		ret = &Error{Message: v.Error(), Cause: v}
 	case template.HTML:
 		ret = RawStr(v)
+	case decimal.Decimal:
+		ret = Decimal(v)
 	default:
 		if out, ok := registry.ToObject(v); ok {
 			ret, ok = out.(Object)
