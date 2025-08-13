@@ -306,7 +306,7 @@ func (s *ForInStmt) WriteCode(ctx *CodeWriteContext) {
 
 	if s.Else != nil {
 		ctx.WriteString(" else ")
-		s.Else.WriteCode(ctx)
+		s.Else.WriteCodeInSelfDepth(ctx, true)
 	}
 }
 

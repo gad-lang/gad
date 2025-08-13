@@ -254,18 +254,18 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 
 	if d.Lparen > 0 {
 		ctx.WriteString(" (")
-		ctx.WriteSecondLine()
 		ctx.Depth++
+		ctx.WritePrefixedLine()
 
 		for i, spec := range d.Specs {
 			if i > 0 {
-				ctx.WriteString(",")
 				ctx.WritePrefixedLine()
 			}
 			spec.WriteCode(ctx)
 		}
 
 		ctx.Depth--
+		ctx.WritePrefixedLine()
 		ctx.WriteByte(')')
 		ctx.WriteSecondLine()
 	} else {
