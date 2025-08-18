@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gad-lang/gad/parser"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/gad-lang/gad"
@@ -3767,6 +3768,11 @@ func TestVMString(t *testing.T) {
 	TestExpectRun(t, `out := "foo"; out += 1.5; return out`, nil, Str("foo1.5"))
 	expectErrHas(t, `"foo" - "bar"`,
 		nil, `TypeError: unsupported operand types for '-': 'str' and 'str'`)
+
+	TestExpectRun(t, `return ['abc', 'd\'e', 'f"g']`,
+		NewTestOpts().CompileOptions(func(opts *CompileOptions) {
+			opts.ScannerOptions.Mode |= parser.ScanCharAsString
+		}), Array{Str("abc"), Str("d'e"), Str(`f"g`)})
 }
 
 func TestVMTailCall(t *testing.T) {

@@ -251,7 +251,11 @@ type StringLit struct {
 }
 
 func (e *StringLit) Value() string {
-	v, err := strconv.Unquote(e.Literal)
+	var lit = e.Literal
+	if len(lit) > 0 && lit[0] == '\'' {
+		lit = `"` + strings.ReplaceAll(strings.ReplaceAll(lit[1:len(lit)-1], "\\'", "'"), `"`, `\"`) + `"`
+	}
+	v, err := strconv.Unquote(lit)
 	if err != nil {
 		panic(fmt.Sprintf("StringLit can not unquote: %v", err))
 	}

@@ -30,6 +30,7 @@ type TestOpts struct {
 	buffered       bool
 	objectToWriter ObjectToWriter
 	init           func(opts *TestOpts, expect Object) (*TestOpts, Object)
+	compileOptions func(opts *CompileOptions)
 }
 
 func NewTestOpts() *TestOpts {
@@ -150,6 +151,11 @@ func (t *TestOpts) Buffered() *TestOpts {
 	return t
 }
 
+func (t *TestOpts) CompileOptions(f func(opts *CompileOptions)) *TestOpts {
+	t.compileOptions = f
+	return t
+}
+
 func TestExpectRun(t *testing.T, script string, opts *TestOpts, expect Object) {
 	t.Helper()
 	if opts == nil {
@@ -212,6 +218,11 @@ func TestExpectRun(t *testing.T, script string, opts *TestOpts, expect Object) {
 			if opts.mixed {
 				tC.opts.ParserOptions.Mode |= parser.ParseMixed
 			}
+
+			if opts.compileOptions != nil {
+				opts.compileOptions(&tC.opts)
+			}
+
 			gotBc, err := Compile([]byte(script), tC.opts)
 			require.NoError(t, err)
 			// create a copy of the bytecode before execution to test bytecode
