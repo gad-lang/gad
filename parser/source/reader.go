@@ -674,7 +674,11 @@ func (s *Reader) ScanRune() string {
 }
 
 func (s *Reader) ScanString() string {
-	offs := s.Offset - 1 // '"' opening already consumed
+	return s.ScanStringDelimiter('"')
+}
+
+func (s *Reader) ScanStringDelimiter(delimiter rune) string {
+	offs := s.Offset - 1 // delimiter opening already consumed
 
 	for {
 		ch := s.Ch
@@ -683,11 +687,11 @@ func (s *Reader) ScanString() string {
 			break
 		}
 		s.Next()
-		if ch == '"' {
+		if ch == delimiter {
 			break
 		}
 		if ch == '\\' {
-			s.readEscape('"')
+			s.readEscape(delimiter)
 		}
 	}
 	return string(s.Src[offs:s.Offset])

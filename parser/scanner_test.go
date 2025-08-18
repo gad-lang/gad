@@ -17,9 +17,21 @@ func TestScanner_ScanFloatAsDecimal(t *testing.T) {
 	tr := &tester{}
 
 	tr.scanExpect(t, "1.2 3.4d",
-		parser.FloatAsDecimal|parser.DontInsertSemis, []scanResult{
+		parser.ScanFloatAsDecimal|parser.DontInsertSemis, []scanResult{
 			{Token: token.Decimal, Literal: "1.2", Line: 1, Column: 1},
 			{Token: token.Decimal, Literal: "3.4d", Line: 1, Column: 5},
+		}...,
+	)
+}
+
+func TestScanner_ScanCharAsString(t *testing.T) {
+	tr := &tester{}
+
+	tr.scanExpect(t, "'a\\'b'\n'abc'\n\"def\"",
+		parser.ScanCharAsString|parser.DontInsertSemis, []scanResult{
+			{Token: token.String, Literal: `'a\'b'`, Line: 1, Column: 1},
+			{Token: token.String, Literal: "'abc'", Line: 2, Column: 1},
+			{Token: token.String, Literal: `"def"`, Line: 3, Column: 1},
 		}...,
 	)
 }
@@ -27,7 +39,7 @@ func TestScanner_ScanFloatAsDecimal(t *testing.T) {
 func TestScanner_ScanMixed(t *testing.T) {
 	tr := &tester{
 		opts: parser.ScannerOptions{
-			Mode: parser.Mixed,
+			Mode: parser.ScanMixed,
 		},
 	}
 
@@ -49,7 +61,7 @@ func TestScanner_ScanMixed(t *testing.T) {
 func TestScanner_ScanMixed2(t *testing.T) {
 	tr := &tester{
 		opts: parser.ScannerOptions{
-			Mode: parser.Mixed,
+			Mode: parser.ScanMixed,
 		},
 	}
 	tr.do(t, []testCase{

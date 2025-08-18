@@ -28,23 +28,6 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// Mode value is a set of flags for parser.
-type Mode int
-
-func (b *Mode) Set(flag Mode) *Mode    { *b = *b | flag; return b }
-func (b *Mode) Clear(flag Mode) *Mode  { *b = *b &^ flag; return b }
-func (b *Mode) Toggle(flag Mode) *Mode { *b = *b ^ flag; return b }
-func (b Mode) Has(flag Mode) bool      { return b&flag != 0 }
-
-const (
-	// ParseComments parses comments and add them to AST
-	ParseComments Mode = 1 << iota
-	ParseMixed
-	ParseConfigDisabled
-	ParseMixedExprAsValue
-	ParseFloatAsDecimal
-)
-
 type bailout struct{}
 
 var stmtStart = map[token.Token]bool{
@@ -115,16 +98,16 @@ func NewParserWithOptions(
 			scannerOptions.Mode.Set(ScanComments)
 		}
 		if opts.Mode.Has(ParseFloatAsDecimal) {
-			scannerOptions.Mode.Set(FloatAsDecimal)
+			scannerOptions.Mode.Set(ScanFloatAsDecimal)
 		}
 		if opts.Mode.Has(ParseMixed) {
-			scannerOptions.Mode.Set(Mixed)
+			scannerOptions.Mode.Set(ScanMixed)
 		}
 		if opts.Mode.Has(ParseConfigDisabled) {
-			scannerOptions.Mode.Set(ConfigDisabled)
+			scannerOptions.Mode.Set(ScanConfigDisabled)
 		}
 		if opts.Mode.Has(ParseMixedExprAsValue) {
-			scannerOptions.Mode.Set(MixedExprAsValue)
+			scannerOptions.Mode.Set(ScanMixedExprAsValue)
 		}
 	}
 	return NewParserWithScanner(NewScanner(file, scannerOptions), opts)
@@ -151,16 +134,19 @@ func NewParserWithScanner(
 		m.Set(ScanComments)
 	}
 	if opts.Mode.Has(ParseFloatAsDecimal) {
-		m.Set(FloatAsDecimal)
+		m.Set(ScanFloatAsDecimal)
 	}
 	if opts.Mode.Has(ParseMixed) {
-		m.Set(Mixed)
+		m.Set(ScanMixed)
 	}
 	if opts.Mode.Has(ParseMixedExprAsValue) {
-		m.Set(MixedExprAsValue)
+		m.Set(ScanMixedExprAsValue)
 	}
 	if opts.Mode.Has(ParseConfigDisabled) {
-		m.Set(ConfigDisabled)
+		m.Set(ScanConfigDisabled)
+	}
+	if opts.Mode.Has(ParseCharAsString) {
+		m.Set(ScanCharAsString)
 	}
 	scanner.ErrorHandler(func(pos source.SourceFilePos, msg string) {
 		p.Errors.Add(pos, msg)
@@ -1559,9 +1545,9 @@ func (p *Parser) ParseConfigStmt() (c *node.ConfigStmt) {
 	c.ParseElements()
 
 	if c.Options.Mixed {
-		p.Scanner.SetMode(p.Scanner.Mode() | Mixed)
+		p.Scanner.SetMode(p.Scanner.Mode() | ScanMixed)
 	} else if c.Options.NoMixed {
-		p.Scanner.SetMode(p.Scanner.Mode() &^ Mixed)
+		p.Scanner.SetMode(p.Scanner.Mode() &^ ScanMixed)
 	}
 
 	if c.Options.MixedStart != "" {

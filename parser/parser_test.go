@@ -1524,20 +1524,17 @@ func TestTemplateString(t *testing.T) {
 }
 
 func TestParseChar(t *testing.T) {
-	expectParse(t, `'A'`, func(p pfn) []Stmt {
-		return stmts(
-			exprStmt(
-				charLit('A', 1)))
-	})
-	expectParse(t, `'九'`, func(p pfn) []Stmt {
-		return stmts(
-			exprStmt(
-				charLit('九', 1)))
-	})
+	expectParseExpr(t, `'A'`, charLit('A', 1))
+	expectParseExpr(t, `'九'`, charLit('九', 1))
 
 	expectParseError(t, `''`)
 	expectParseError(t, `'AB'`)
 	expectParseError(t, `'A九'`)
+
+	expectParseExpr(t, `'A'`, charAsStringLit("A", 1), OptParseCharAsString)
+	expectParseExpr(t, `'九'`, charAsStringLit("九", 1), OptParseCharAsString)
+	expectParseExpr(t, `'A九'`, charAsStringLit("A九", 1), OptParseCharAsString)
+	expectParseExpr(t, "'a\\'b'", charAsStringLit(`a'b`, 1), OptParseCharAsString)
 }
 
 func TestParseCondExpr(t *testing.T) {
@@ -3168,8 +3165,20 @@ func (o *parseTracer) Write(p []byte) (n int, err error) {
 
 type opts func(po *ParserOptions, so *ScannerOptions)
 
+var OptParseCharAsString opts = func(po *ParserOptions, so *ScannerOptions) {
+	so.Mode |= ScanCharAsString
+}
+
 func expectParse(t *testing.T, input string, fn expectedFn, opt ...opts) {
 	expectParseMode(t, 0, input, fn, opt...)
+}
+
+func expectParseStmt(t *testing.T, input string, stmt Stmt, opt ...opts) {
+	expectParse(t, input, func(p pfn) []Stmt { return stmts(stmt) }, opt...)
+}
+
+func expectParseExpr(t *testing.T, input string, expr Expr, opt ...opts) {
+	expectParseStmt(t, input, exprStmt(expr), opt...)
 }
 
 func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn, opt ...opts) {
@@ -3611,6 +3620,10 @@ func decimalLit(value string, pos Pos) *DecimalLit {
 
 func stringLit(value string, pos Pos) *StringLit {
 	return &StringLit{Literal: `"` + value + `"`, ValuePos: pos}
+}
+
+func charAsStringLit(value string, pos Pos) *StringLit {
+	return &StringLit{Literal: `'` + strings.ReplaceAll(value, "'", `\'`) + `'`, ValuePos: pos}
 }
 
 func rawStringLit(value string, pos Pos) *RawStringLit {
