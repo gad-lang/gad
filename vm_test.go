@@ -1723,6 +1723,45 @@ return str(close(o))`, nil, Str("Point{closed: true}"))
 	expectErrIs(t, `sprintf()`, nil, ErrWrongNumArguments)
 }
 
+func TestVMBuiltinObj(t *testing.T) {
+	TestExpectRun(t, `return myval`,
+		NewTestOpts().Builtins(map[string]Object{
+			"myval": Int(2),
+		}), Int(2))
+
+	type S struct{}
+	obj := MustToObject(&S{}).(*ReflectStruct)
+	TestExpectRun(t, `return myval`,
+		NewTestOpts().Builtins(map[string]Object{
+			"myval": obj,
+		}), obj)
+
+	obj.Type().(*ReflectType).CallObject = func(o *ReflectStruct, c Call) (Object, error) {
+		return Array{Bool(o == obj), Str("call *S result")}, nil
+	}
+
+	TestExpectRun(t, `return [myval, myval()]`,
+		NewTestOpts().Builtins(map[string]Object{
+			"myval": obj,
+		}), Array{
+			NewCallerObjectWithMethods(obj),
+			Array{True, Str("call *S result")},
+		})
+
+	TestExpectRun(t, `
+func myval(i int) {
+	return "method with int value = "+i
+}
+return [repr(myval), myval(), myval(2)]`,
+		NewTestOpts().Builtins(map[string]Object{
+			"myval": obj,
+		}), Array{
+			Str("‹reflect:github.com/gad-lang/gad_test.S:{} with 1 methods:\n\t1. ‹compiledFunction #1(i int)›(int)›"),
+			Array{True, Str("call *S result")},
+			Str("method with int value = 2"),
+		})
+}
+
 func TestObjectType(t *testing.T) {
 	TestExpectRun(t, `
 Point := struct(

@@ -23,7 +23,7 @@ func (t BuiltinType) String() string {
 	case fmt.Stringer:
 		return bt.String()
 	default:
-		return fmt.Sprintf("<unknown built-in type: %T>", t)
+		return fmt.Sprintf("<unknown built-in type: %d>", t)
 	}
 }
 
@@ -348,10 +348,10 @@ type BuiltinObjectsMap map[BuiltinType]Object
 func (m BuiltinObjectsMap) Build() BuiltinObjectsMap {
 	cp := make(BuiltinObjectsMap, len(m))
 	for key, value := range m {
-		if co, _ := value.(CallerObject); co != nil {
-			if cma, _ := co.(CanCallerObjectMethodsEnabler); cma == nil || !cma.MethodsDisabled() {
+		if Callable(value) {
+			if cma, _ := value.(CanCallerObjectMethodsEnabler); cma == nil || !cma.MethodsDisabled() {
 				if cwm, _ := value.(*CallerObjectWithMethods); cwm == nil {
-					value = NewCallerObjectWithMethods(co)
+					value = NewCallerObjectWithMethods(value.(CallerObject))
 				}
 			}
 		}

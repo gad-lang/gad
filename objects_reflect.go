@@ -1049,7 +1049,10 @@ func (o *ReflectMap) Copy() (obj Object) {
 	return
 }
 
-var _ CallerObject = (*ReflectStruct)(nil)
+var (
+	_ CallerObject    = (*ReflectStruct)(nil)
+	_ CanCallerObject = (*ReflectStruct)(nil)
+)
 
 type ReflectStruct struct {
 	ReflectValue
@@ -1064,6 +1067,10 @@ func (s *ReflectStruct) Call(c Call) (Object, error) {
 		return Nil, ErrNotCallable.NewError(s.Type().ToString())
 	}
 	return s.RType.CallObject(s, c)
+}
+
+func (s *ReflectStruct) CanCall() bool {
+	return s.RType.CallObject != nil
 }
 
 func (s *ReflectStruct) Reader() Reader {

@@ -177,7 +177,7 @@ func (o *CallerObjectWithMethods) ToString() string {
 
 	o.MethodWalkSorted(func(m *CallerMethod) any {
 		if !m.Default {
-			s.WriteString(fmt.Sprintf("  %d. ", i+1))
+			s.WriteString(fmt.Sprintf("\t%d. ", i+1))
 			s.WriteString(m.CallerObject.ToString())
 			s.WriteString("(")
 
