@@ -488,7 +488,7 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 	)
 	require.NoError(t, err)
 	vm := gad.NewVM(bc)
-	items, _ := opts.namedArgs.Items(vm)
+	items := gad.MustConvertToKeyValueArray(nil, opts.namedArgs)
 	ret, err := vm.RunOpts(&gad.RunOpts{
 		Globals:   opts.globals,
 		Args:      gad.Args{opts.args},
@@ -511,7 +511,7 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 		require.NoError(t, err)
 		testDecodedBytecodeEqual(t, bc, &bc2)
 
-		items, _ = opts.namedArgs.Items(vm)
+		items = gad.MustConvertToKeyValueArray(nil, opts.namedArgs)
 		ret, err := gad.NewVM(&bc2).RunOpts(&gad.RunOpts{
 			Globals:   opts.globals,
 			Args:      gad.Args{opts.args},
@@ -525,7 +525,7 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 		err = (*Bytecode)(&bc3).UnmarshalBinary(bcData)
 		require.NoError(t, err)
 		testDecodedBytecodeEqual(t, bc, &bc3)
-		items, _ = opts.namedArgs.Items(vm)
+		items = gad.MustConvertToKeyValueArray(nil, opts.namedArgs)
 		ret, err = gad.NewVM(&bc3).RunOpts(&gad.RunOpts{
 			Globals:   opts.globals,
 			Args:      gad.Args{opts.args},
@@ -538,7 +538,7 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 	bc4, err := DecodeBytecodeFrom(bytes.NewReader(bcData), opts.moduleMap)
 	require.NoError(t, err)
 	testDecodedBytecodeEqual(t, bc, bc4)
-	items, _ = opts.namedArgs.Items(vm)
+	items = gad.MustConvertToKeyValueArray(nil, opts.namedArgs)
 	ret, err = gad.NewVM(bc4).RunOpts(&gad.RunOpts{
 		Globals:   opts.globals,
 		Args:      gad.Args{opts.args},
