@@ -5,15 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/gad-lang/gad/repr"
-	"github.com/gad-lang/gad/token"
-	"github.com/shopspring/decimal"
 )
 
 func BuiltinMakeArrayFunc(n int, arg Object) (Object, error) {
@@ -53,7 +50,7 @@ func BuiltinAppendFunc(c Call) (Object, error) {
 	switch obj := target.(type) {
 	case Array:
 		for _, arg := range c.Args {
-			arg.AppendToArray(&obj)
+			obj = arg.AppendToArray(obj)
 		}
 		return obj, nil
 	case Bytes:
@@ -81,7 +78,7 @@ func BuiltinAppendFunc(c Call) (Object, error) {
 	case *NilType:
 		ret := make(Array, 0, c.Args.Length())
 		for _, arg := range c.Args {
-			arg.AppendToArray(&ret)
+			ret = arg.AppendToArray(ret)
 		}
 		return ret, nil
 	case KeyValueArray:
@@ -627,158 +624,7 @@ func BuiltinReduceFunc(c Call) (_ Object, err error) {
 	return args[0], err
 }
 
-func BuiltinErrorFunc(arg Object) Object {
-	return &Error{Name: "error", Message: arg.ToString()}
-}
-
-func BuiltinRegexpFunc(c Call) (_ Object, err error) {
-	var (
-		input = Arg{
-			Name:          "input",
-			TypeAssertion: TypeAssertionFromTypes(TStr, TRawStr),
-		}
-	)
-
-	if err = c.Args.Destructure(&input); err != nil {
-		return
-	}
-
-	var re *regexp.Regexp
-	if re, err = regexp.Compile(input.Value.ToString()); err != nil {
-		return
-	}
-
-	return (*Regexp)(re), err
-}
-
 func BuiltinTypeNameFunc(arg Object) Object { return Str(arg.Type().Name()) }
-
-func BuiltinBoolFunc(arg Object) Object { return Bool(!arg.IsFalsy()) }
-
-func BuiltinFlagFunc(arg Object) Object { return Flag(!arg.IsFalsy()) }
-
-func BuiltinIntFunc(v int64) Object { return Int(v) }
-
-func BuiltinUintFunc(v uint64) Object { return Uint(v) }
-
-func BuiltinFloatFunc(v float64) Object { return Float(v) }
-
-func BuiltinDecimalFunc(vm *VM, v Object) (Object, error) {
-	return Decimal(decimal.Zero).BinaryOp(vm, token.Add, v)
-}
-
-func BuiltinCharFunc(arg Object) (Object, error) {
-	v, ok := ToChar(arg)
-	if ok && v != utf8.RuneError {
-		return v, nil
-	}
-	if v == utf8.RuneError || arg == Nil {
-		return Nil, nil
-	}
-	return Nil, NewArgumentTypeError(
-		"1st",
-		"numeric|string|bool",
-		arg.Type().Name(),
-	)
-}
-
-func BuiltinRawStrFunc(c Call) (ret Object, err error) {
-	if err := c.Args.CheckLen(1); err != nil {
-		return Nil, err
-	}
-
-	o := c.Args.Get(0)
-
-	if rs, ok := o.(RawStr); ok {
-		return rs, nil
-	}
-
-	if ret, err = Val(c.VM.Builtins.Call(BuiltinStr, c)); err != nil {
-		return
-	}
-
-	if c.NamedArgs.GetValue("cast").IsFalsy() {
-		ret = c.VM.ToRawStrHandler(c.VM, ret.(Str))
-	} else {
-		ret = RawStr(ret.(Str))
-	}
-
-	return
-}
-
-func BuiltinStringFunc(c Call) (ret Object, err error) {
-	if err := c.Args.CheckMinLen(1); err != nil {
-		return nil, err
-	}
-
-	switch c.Args.Length() {
-	case 1:
-		o := c.Args.GetOnly(0)
-		ret = Str(o.ToString())
-	default:
-		var (
-			b          strings.Builder
-			callerArgs = Array{nil}
-			caller     = NewArgCaller(c.VM, c.VM.Builtins.Objects[BuiltinStr].(CallerObject), callerArgs, c.NamedArgs)
-		)
-		c.Args.Walk(func(i int, arg Object) any {
-			callerArgs[0] = arg
-			var s Object
-			if s, err = Val(caller()); err != nil {
-				return err
-			}
-			b.WriteString(string(s.(Str)))
-			return nil
-		})
-
-		if err == nil {
-			ret = Str(b.String())
-		}
-	}
-	return
-}
-
-func BuiltinBytesFunc(c Call) (_ Object, err error) {
-	size := c.Args.Length()
-
-	switch size {
-	case 0:
-		length := NamedArgVar{
-			Name:          "length",
-			Value:         Int(0),
-			TypeAssertion: TypeAssertionFromTypes(TInt),
-		}
-		if err = c.NamedArgs.Get(&length); err != nil {
-			return
-		}
-		return make(Bytes, int(length.Value.(Int))), nil
-	case 1:
-		if v, ok := ToBytes(c.Args.Get(0)); ok {
-			return v, nil
-		}
-	}
-
-	out := make(Bytes, 0, size)
-	for _, args := range c.Args {
-		for i, obj := range args {
-			switch v := obj.(type) {
-			case Int:
-				out = append(out, byte(v))
-			case Uint:
-				out = append(out, byte(v))
-			case Char:
-				out = append(out, byte(v))
-			default:
-				return Nil, NewArgumentTypeError(
-					strconv.Itoa(i+1),
-					"int|uint|char",
-					args[i].Type().Name(),
-				)
-			}
-		}
-	}
-	return out, nil
-}
 
 func BuiltinCharsFunc(arg Object) (ret Object, err error) {
 	switch obj := arg.(type) {
@@ -1042,52 +888,26 @@ func BuiltinWriteFunc(c Call) (ret Object, err error) {
 	return total, err
 }
 
-func BuiltinBufferFunc(c Call) (ret Object, err error) {
-	var w = &Buffer{}
-	if !c.Args.IsFalsy() {
-		_, err = BuiltinWriteFunc(Call{
-			VM:        c.VM,
-			Args:      append(Args{Array{w}}, c.Args...),
-			NamedArgs: c.NamedArgs,
-		})
-	}
-	return w, err
-}
-
-func BuiltinDictFunc(c Call) (ret Object, err error) {
-	d := Dict{}
-	c.Args.Walk(func(_ int, arg Object) any {
-		switch t := arg.(type) {
-		case KeyValueArray:
-			var v Object
-			for _, value := range t {
-				v = value.V
-				if v != No {
-					d[value.K.ToString()] = v
-				}
+func BuiltinMultiValueDictFunc(c Call) (ret Object, err error) {
+	var (
+		d  = Dict{}
+		cb = func(kv *KeyValue) error {
+			k := kv.K.ToString()
+			if arr, ok := d[k].(Array); ok {
+				d[k] = append(arr, kv.V)
+			} else {
+				d[k] = Array{kv.V}
 			}
-		default:
-			err = itemsOfCb(c.VM, arg, &c.NamedArgs, func(kv *KeyValue) error {
-				d[kv.K.ToString()] = kv.V
-				return nil
-			})
-
-			if err != nil {
-				return err
-			}
+			return nil
 		}
-		return nil
-	})
+	)
 
-	if err != nil {
-		return
-	}
-	if len(d) == 0 {
-		d = c.NamedArgs.AllDict()
+	if c.Args.IsFalsy() {
+		err = ItemsOfCb(c.VM, nil, cb, &c.NamedArgs)
 	} else {
-		for k, v := range c.NamedArgs.AllDict() {
-			d[k] = v
-		}
+		err = c.Args.Items(c.VM, func(_ int, item *KeyValue) (err error) {
+			return ItemsOfCb(c.VM, &c.NamedArgs, cb, item.V)
+		})
 	}
 	return d, nil
 }
@@ -1578,41 +1398,6 @@ func BuiltinIteratorInputFunc(o Object) Object {
 	return Nil
 }
 
-func BuiltinKeyValueFunc(c Call) (ret Object, err error) {
-	if err := c.Args.CheckLen(2); err != nil {
-		return nil, err
-	}
-	return &KeyValue{c.Args.Get(0), c.Args.Get(1)}, nil
-}
-
-func BuiltinKeyValueArrayFunc(c Call) (_ Object, err error) {
-	var (
-		arr        KeyValueArray
-		arg, valid = c.Args.ShiftOk()
-	)
-
-	for valid {
-		switch t := arg.(type) {
-		case KeyValueArray:
-			arr = append(arr, t...)
-		case *KeyValue:
-			arr = append(arr, t)
-		case Array:
-			if len(t) == 2 {
-				arr = append(arr, &KeyValue{t[0], t[1]})
-			}
-		case ItemsGetter:
-			var items KeyValueArray
-			if items, err = t.Items(c.VM); err != nil {
-				return
-			}
-			arr = append(arr, items...)
-		}
-		arg, valid = c.Args.ShiftOk()
-	}
-	return arr, nil
-}
-
 func BuiltinStdIOFunc(c Call) (ret Object, err error) {
 	ret = Nil
 	l := c.Args.Length()
@@ -1952,29 +1737,6 @@ func BuiltinTypeOfFunc(c Call) (_ Object, err error) {
 	return TypeOf(c.Args.Get(0)), nil
 }
 
-func BuiltinSyncDictFunc(c Call) (ret Object, err error) {
-	if err = c.Args.CheckMaxLen(1); err != nil {
-		return
-	}
-	if c.Args.Length() == 0 {
-		return &SyncDict{Value: map[string]Object{}}, nil
-	}
-	arg := c.Args.Get(0)
-	switch t := arg.(type) {
-	case Dict:
-		return &SyncDict{Value: t}, nil
-	case *SyncDict:
-		return t, nil
-	default:
-		err = NewArgumentTypeError(
-			"0st",
-			"dict|syncDict",
-			arg.Type().Name(),
-		)
-	}
-	return
-}
-
 func BuiltinBinaryOpFunc(c Call) (ret Object, err error) {
 	var (
 		op = &Arg{
@@ -2143,4 +1905,26 @@ func BuiltinUserDataFunc(c Call) (_ Object, err error) {
 	} else {
 		return ud.UserData(), nil
 	}
+}
+
+func BuiltinToArrayFunc(c Call) (ret Object, err error) {
+	var arr Array
+	err = c.Args.WalkE(func(i int, arg Object) (err error) {
+		switch t := arg.(type) {
+		case Array:
+			if i == 0 {
+				arr = t
+			} else {
+				arr = append(arr, t...)
+			}
+		default:
+			err = ItemsOfCb(c.VM, &c.NamedArgs, func(kv *KeyValue) error {
+				arr = append(arr, kv)
+				return nil
+			}, arg)
+		}
+		return
+	}).(error)
+	ret = arr
+	return
 }

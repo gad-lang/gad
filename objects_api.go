@@ -188,13 +188,15 @@ type NameCallerObject interface {
 
 type ToArrayAppenderObject interface {
 	Object
-	AppendToArray(arr *Array)
+	AppendToArray(arr Array) Array
 }
+
+type ItemsGetterCallback func(i int, item *KeyValue) (err error)
 
 // ItemsGetter is an interface for returns pairs of fields or keys with same values.
 type ItemsGetter interface {
 	Object
-	Items(vm *VM) (arr KeyValueArray, err error)
+	Items(vm *VM, cb ItemsGetterCallback) (err error)
 }
 
 // KeysGetter is an interface for returns keys or fields names.

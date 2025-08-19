@@ -73,8 +73,7 @@ func (t *TestOpts) NamedArgs(args Object) *TestOpts {
 	case *NamedArgs:
 		t.namedArgs = at
 	case Dict:
-		arr, _ := at.Items(nil)
-		t.namedArgs = NewNamedArgs(arr)
+		t.namedArgs = NewNamedArgs(MustConvertToKeyValueArray(nil, at))
 	case KeyValueArray:
 		t.namedArgs = NewNamedArgs(at)
 	}

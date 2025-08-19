@@ -912,8 +912,8 @@ func (o Array) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err er
 		right.Type().Name())
 }
 
-func (o Array) AppendToArray(arr *Array) {
-	*arr = append(*arr, o...)
+func (o Array) AppendToArray(arr Array) Array {
+	return append(arr, o...)
 }
 
 // Length implements LengthGetter interface.
@@ -929,12 +929,13 @@ func (o Array) Keys() (arr Array) {
 	return arr
 }
 
-func (o Array) Items(*VM) (arr KeyValueArray, _ error) {
-	arr = make(KeyValueArray, len(o))
+func (o Array) Items(_ *VM, cb ItemsGetterCallback) (err error) {
 	for i, v := range o {
-		arr[i] = &KeyValue{Str(strconv.Itoa(i)), v}
+		if err = cb(i, &KeyValue{Int(i), v}); err != nil {
+			return
+		}
 	}
-	return arr, nil
+	return
 }
 
 func (o Array) Sort(vm *VM, less CallerObject) (_ Object, err error) {
@@ -1307,20 +1308,15 @@ func (o Dict) Length() int {
 	return len(o)
 }
 
-func (o Dict) Items(*VM) (KeyValueArray, error) {
-	return o.ToKeyValueArray(), nil
-}
-
-func (o Dict) ToKeyValueArray() KeyValueArray {
-	var (
-		arr = make(KeyValueArray, len(o))
-		i   int
-	)
-	for key, value := range o {
-		arr[i] = &KeyValue{Str(key), value}
+func (o Dict) Items(_ *VM, cb ItemsGetterCallback) (err error) {
+	var i int
+	for k, v := range o {
+		if err = cb(i, &KeyValue{Str(k), v}); err != nil {
+			return
+		}
 		i++
 	}
-	return arr
+	return
 }
 
 func (o Dict) Keys() Array {
@@ -1508,10 +1504,10 @@ func (o *SyncDict) BinaryOp(vm *VM, tok token.Token, right Object) (Object, erro
 	return o.Value.BinaryOp(vm, tok, right)
 }
 
-func (o *SyncDict) Items(vm *VM) (KeyValueArray, error) {
+func (o *SyncDict) Items(vm *VM, cb ItemsGetterCallback) (err error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	return o.Value.Items(vm)
+	return o.Value.Items(vm, cb)
 }
 
 func (o *SyncDict) Keys() Array {
@@ -2088,10 +2084,13 @@ func (m *MixedParams) Type() ObjectType {
 }
 
 func (m *MixedParams) Dict() Dict {
-	return Dict{
-		"positional": m.Positional,
-		"named":      m.Named,
-	}
+	return m.ToDict(Dict{})
+}
+
+func (m *MixedParams) ToDict(d Dict) Dict {
+	d["positional"] = m.Positional
+	d["named"] = m.Named
+	return d
 }
 
 func (m *MixedParams) ToString() string {

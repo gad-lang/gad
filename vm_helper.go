@@ -292,34 +292,26 @@ func ValuesOf(vm *VM, o Object, na *NamedArgs) (values Array, err error) {
 	})
 }
 
-func itemsOfCb(vm *VM, o Object, na *NamedArgs, cb func(kv *KeyValue) error) (err error) {
-start:
-	if values, ok := o.(KeyValueArray); ok {
-		for _, value := range values {
-			if err = cb(value); err != nil {
-				return
-			}
+func ItemsOfCb(vm *VM, na *NamedArgs, cb func(kv *KeyValue) error, o ...Object) (err error) {
+	if na == nil {
+		na = NewNamedArgs()
+	}
+	for _, o := range o {
+		if o == Nil {
+			continue
+		}
+		if g, _ := o.(ItemsGetter); g != nil {
+			err = g.Items(vm, func(i int, item *KeyValue) (err error) {
+				return cb(item)
+			})
+		} else {
+			err = IterateObject(vm, o, na, nil, cb)
 		}
 
-		return
-	}
-
-	if g, _ := o.(ItemsGetter); g != nil {
-		if o, err = g.Items(vm); err != nil {
+		if err != nil {
 			return
 		}
-		goto start
 	}
-
-	err = IterateObject(vm, o, na, nil, cb)
-	return
-}
-
-func ItemsOf(vm *VM, o Object, na *NamedArgs) (values KeyValueArray, err error) {
-	err = itemsOfCb(vm, o, na, func(kv *KeyValue) error {
-		values = append(values, kv)
-		return nil
-	})
 	return
 }
 

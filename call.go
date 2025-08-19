@@ -164,6 +164,21 @@ func (o Args) Walk(cb func(i int, arg Object) any) (v any) {
 	return o.WalkSkip(0, cb)
 }
 
+// WalkE iterates over all values and call callback function.
+func (o Args) WalkE(cb func(i int, arg Object) error) (err error) {
+	err, _ = o.WalkSkip(0, func(i int, arg Object) any {
+		return cb(i, arg)
+	}).(error)
+	return
+}
+
+func (o Args) Items(_ *VM, cb ItemsGetterCallback) (err error) {
+	err, _ = o.WalkSkip(0, func(i int, arg Object) any {
+		return cb(i, &KeyValue{K: Int(i), V: arg})
+	}).(error)
+	return
+}
+
 // WalkSkip iterates over all values skiping skip and call callback function.
 func (o Args) WalkSkip(skip int, cb func(i int, arg Object) any) (v any) {
 	var i int

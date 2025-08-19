@@ -142,8 +142,8 @@ func (o *Obj) Length() int {
 	return len(o.fields)
 }
 
-func (o *Obj) Items(vm *VM) (KeyValueArray, error) {
-	return o.fields.Items(vm)
+func (o *Obj) Items(vm *VM, cb ItemsGetterCallback) (err error) {
+	return o.fields.Items(vm, cb)
 }
 
 func (o *Obj) Keys() Array {

@@ -109,6 +109,7 @@ const (
 	BuiltinFlush
 	BuiltinUserData
 	BuiltinNamedParamTypeCheck
+	BuiltinToArray
 
 	BuiltinIs
 	BuiltinIsError
@@ -223,6 +224,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"repr":                BuiltinRepr,
 	"userData":            BuiltinUserData,
 	"namedParamTypeCheck": BuiltinNamedParamTypeCheck,
+	"toArray":             BuiltinToArray,
 
 	"is":         BuiltinIs,
 	"isError":    BuiltinIsError,
@@ -640,6 +642,8 @@ var BuiltinObjects = BuiltinObjectsMap{
 }
 
 func init() {
+	// initialization prevent cycle for BuiltinObjects
+
 	BuiltinObjects[BuiltinRead] = &BuiltinFunction{
 		Name:  "read",
 		Value: BuiltinReadFunc,
@@ -698,6 +702,10 @@ func init() {
 	BuiltinObjects[BuiltinIteratorInput] = &BuiltinFunction{
 		Name:  "iteratorInput",
 		Value: funcPORO(BuiltinIteratorInputFunc),
+	}
+	BuiltinObjects[BuiltinToArray] = &BuiltinFunction{
+		Name:  "toArray",
+		Value: BuiltinToArrayFunc,
 	}
 }
 

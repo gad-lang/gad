@@ -731,7 +731,7 @@ func TestVMKeyValueArray(t *testing.T) {
 	TestExpectRun(t, `return (;a=1)[0].k`, nil, Str("a"))
 	TestExpectRun(t, `return (;a=1)[0].v`, nil, Int(1))
 	TestExpectRun(t, `return (;a=1)[0].array`, nil, Array{Str("a"), Int(1)})
-	TestExpectRun(t, `x := (;a); x[0].v = 2; return x.dict`, nil, Dict{"a": Int(2)})
+	TestExpectRun(t, `x := (;a); x[0].v = 2; return dict(x)`, nil, Dict{"a": Int(2)})
 }
 
 func TestVMRegexp(t *testing.T) {
@@ -1220,8 +1220,8 @@ func TestVMBuiltinFunction(t *testing.T) {
 	TestExpectRun(t, `return str(keyValue("a b",1))`,
 		nil, Str(`"a b"=1`))
 	TestExpectRun(t, `return str(keyValueArray(nil,keyValue("a",1),{b:2},["c",3],
-keyValueArray(keyValue("d",4))))`,
-		nil, Str("(;a=1, b=2, c=3, d=4)"))
+keyValueArray(keyValue("d",4),[e=5])))`,
+		nil, Str(`(;a=1, b=2, 0="c", 1=3, d=4, e=5)`))
 
 	TestExpectRun(t, `return sort(collect(keys({a:1,b:2})))`,
 		nil, Array{Str("a"), Str("b")})

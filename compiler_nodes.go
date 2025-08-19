@@ -1721,7 +1721,10 @@ func (c *Compiler) compileKeyValuePairLit(elt *node.KeyValuePairLit) (err error)
 		}
 	}
 
-	if flag, _ := elt.Value.(*node.FlagLit); flag != nil {
+	if elt.Value == nil {
+		c.emit(elt, OpYes)
+		c.emit(elt, OpKeyValue, 1) // 1 => with value
+	} else if flag, _ := elt.Value.(*node.FlagLit); flag != nil {
 		if flag.Value {
 			c.emit(elt, OpYes)
 			c.emit(elt, OpKeyValue, 1) // 1 => with value
@@ -1729,10 +1732,7 @@ func (c *Compiler) compileKeyValuePairLit(elt *node.KeyValuePairLit) (err error)
 			c.emit(elt, OpKeyValue, 0) // 0 => without value
 		}
 	} else {
-		// value
-		if elt.Value == nil {
-			c.emit(elt, OpYes)
-		} else if err = c.Compile(elt.Value); err != nil {
+		if err = c.Compile(elt.Value); err != nil {
 			return err
 		}
 		c.emit(elt, OpKeyValue, 1) // 1 => with value

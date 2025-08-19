@@ -268,14 +268,14 @@ func ToArray(o Object) (v Array, ok bool) {
 	return
 }
 
-// ToMap will try to convert an Object to Gad map value.
-func ToMap(o Object) (v Dict, ok bool) {
+// ToDict will try to convert an Object to Gad map value.
+func ToDict(o Object) (v Dict, ok bool) {
 	v, ok = o.(Dict)
 	return
 }
 
-// ToSyncMap will try to convert an Object to Gad syncMap value.
-func ToSyncMap(o Object) (v *SyncDict, ok bool) {
+// ToSyncDict will try to convert an Object to Gad syncMap value.
+func ToSyncDict(o Object) (v *SyncDict, ok bool) {
 	v, ok = o.(*SyncDict)
 	return
 }
@@ -335,6 +335,14 @@ func ToGoInt(o Object) (v int, ok bool) {
 			v = int(vv)
 			ok = true
 		}
+	case RawStr:
+		if o == "" {
+			return
+		}
+		if vv, err := strconv.ParseInt(string(o), 0, 0); err == nil {
+			v = int(vv)
+			ok = true
+		}
 	}
 	return
 }
@@ -366,6 +374,14 @@ func ToGoInt64(o Object) (v int64, ok bool) {
 			v = vv
 			ok = true
 		}
+	case RawStr:
+		if o == "" {
+			return
+		}
+		if vv, err := strconv.ParseInt(string(o), 0, 64); err == nil {
+			v = vv
+			ok = true
+		}
 	}
 	return
 }
@@ -390,6 +406,14 @@ func ToGoUint64(o Object) (v uint64, ok bool) {
 			v = 1
 		}
 	case Str:
+		if o == "" {
+			return
+		}
+		if vv, err := strconv.ParseUint(string(o), 0, 64); err == nil {
+			v = vv
+			ok = true
+		}
+	case RawStr:
 		if o == "" {
 			return
 		}
@@ -429,6 +453,15 @@ func ToGoFloat64(o Object) (v float64, ok bool) {
 			v = vv
 			ok = true
 		}
+	case RawStr:
+		if o == "" {
+			ok = true
+			return
+		}
+		if vv, err := strconv.ParseFloat(string(o), 64); err == nil {
+			v = vv
+			ok = true
+		}
 	}
 	return
 }
@@ -447,6 +480,9 @@ func ToGoRune(o Object) (v rune, ok bool) {
 	case Decimal:
 		v, ok = rune(o.ToGo().BigInt().Uint64()), true
 	case Str:
+		ok = true
+		v, _ = utf8.DecodeRuneInString(string(o))
+	case RawStr:
 		ok = true
 		v, _ = utf8.DecodeRuneInString(string(o))
 	case Bool:

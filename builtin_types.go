@@ -140,34 +140,27 @@ var (
 
 func init() {
 	TNil = RegisterBuiltinType(BuiltinNil, "nil", Nil, nil)
-	TFlag = RegisterBuiltinType(BuiltinFlag, "flag", Yes, funcPORO(BuiltinFlagFunc))
-	TBool = RegisterBuiltinType(BuiltinBool, "bool", True, funcPORO(BuiltinBoolFunc))
-	TInt = RegisterBuiltinType(BuiltinInt, "int", Int(0), funcPi64RO(BuiltinIntFunc))
-	TUint = RegisterBuiltinType(BuiltinUint, "uint", Uint(0), funcPu64RO(BuiltinUintFunc))
-	TFloat = RegisterBuiltinType(BuiltinFloat, "float", Float(0), funcPf64RO(BuiltinFloatFunc))
-	TDecimal = RegisterBuiltinType(BuiltinDecimal, "decimal", Decimal{}, funcPpVM_OROe(BuiltinDecimalFunc))
-	TChar = RegisterBuiltinType(BuiltinChar, "char", Char(0), funcPOROe(BuiltinCharFunc))
-	TRawStr = RegisterBuiltinType(BuiltinRawStr, "rawstr", RawStr(""), BuiltinRawStrFunc)
-	TStr = RegisterBuiltinType(BuiltinStr, "str", Str(""), BuiltinStringFunc)
-	TBytes = RegisterBuiltinType(BuiltinBytes, "bytes", Bytes{}, BuiltinBytesFunc)
-	TBuffer = RegisterBuiltinType(BuiltinBuffer, "buffer", Buffer{}, BuiltinBufferFunc)
-	TArray = RegisterBuiltinType(BuiltinArray, "array", Array{}, func(c Call) (ret Object, err error) {
-		return c.Args.Values(), nil
-	})
-	TDict = RegisterBuiltinType(BuiltinDict, "dict", Dict{}, BuiltinDictFunc)
-	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncDict{}, BuiltinSyncDictFunc)
-	TKeyValue = RegisterBuiltinType(BuiltinKeyValue, "keyValue", KeyValue{}, BuiltinKeyValueFunc)
-	TKeyValueArray = RegisterBuiltinType(BuiltinKeyValueArray, "keyValueArray", KeyValueArray{}, BuiltinKeyValueArrayFunc)
-	TRegexp = RegisterBuiltinType(BuiltinRegexp, "regexp", Regexp{}, BuiltinRegexpFunc)
+	TFlag = RegisterBuiltinType(BuiltinFlag, "flag", Yes, NewFlagFunc)
+	TBool = RegisterBuiltinType(BuiltinBool, "bool", True, NewBoolFunc)
+	TInt = RegisterBuiltinType(BuiltinInt, "int", Int(0), NewIntFunc)
+	TUint = RegisterBuiltinType(BuiltinUint, "uint", Uint(0), NewUintFunc)
+	TFloat = RegisterBuiltinType(BuiltinFloat, "float", Float(0), NewFloatFunc)
+	TDecimal = RegisterBuiltinType(BuiltinDecimal, "decimal", Decimal{}, NewDecimalFunc)
+	TChar = RegisterBuiltinType(BuiltinChar, "char", Char(0), NewCharFunc)
+	TRawStr = RegisterBuiltinType(BuiltinRawStr, "rawstr", RawStr(""), NewRawStrFunc)
+	TStr = RegisterBuiltinType(BuiltinStr, "str", Str(""), NewStringFunc)
+	TBytes = RegisterBuiltinType(BuiltinBytes, "bytes", Bytes{}, NewBytesFunc)
+	TBuffer = RegisterBuiltinType(BuiltinBuffer, "buffer", Buffer{}, NewBufferFunc)
+	TArray = RegisterBuiltinType(BuiltinArray, "array", Array{}, NewArrayFunc)
+	TDict = RegisterBuiltinType(BuiltinDict, "dict", Dict{}, NewDictFunc)
+	TSyncDict = RegisterBuiltinType(BuiltinSyncDic, "syncDict", SyncDict{}, NewSyncDictFunc)
+	TKeyValue = RegisterBuiltinType(BuiltinKeyValue, "keyValue", KeyValue{}, NewKeyValueFunc)
+	TKeyValueArray = RegisterBuiltinType(BuiltinKeyValueArray, "keyValueArray", KeyValueArray{}, NewKeyValueArrayFunc)
+	TRegexp = RegisterBuiltinType(BuiltinRegexp, "regexp", Regexp{}, NewRegexpFunc)
 	TRegexpStrsResult = RegisterBuiltinType(BuiltinRegexpStrsResult, "regexpStrsResult", RegexpStrsResult{}, nil)
 	TRegexpStrsSliceResult = RegisterBuiltinType(BuiltinRegexpStrsSliceResult, "regexpStrsSliceResult", RegexpStrsSliceResult{}, nil)
 	TRegexpBytesResult = RegisterBuiltinType(BuiltinRegexpBytesResult, "regexpBytesResult", RegexpBytesResult{}, nil)
 	TRegexpBytesSliceResult = RegisterBuiltinType(BuiltinRegexpBytesSliceResult, "regexpBytesSliceResult", RegexpBytesSliceResult{}, nil)
-	TMixedParams = RegisterBuiltinType(BuiltinMixedParams, "MixedParams", MixedParams{}, func(c Call) (ret Object, err error) {
-		return &MixedParams{
-			Positional: c.Args.Array(),
-			Named:      c.NamedArgs.Join(),
-		}, nil
-	})
-	TError = RegisterBuiltinType(BuiltinError, "error", Error{}, funcPORO(BuiltinErrorFunc))
+	TMixedParams = RegisterBuiltinType(BuiltinMixedParams, "MixedParams", MixedParams{}, NewMixedParamsFunc)
+	TError = RegisterBuiltinType(BuiltinError, "error", Error{}, NewErrorFunc)
 }

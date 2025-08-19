@@ -198,7 +198,7 @@ func (o *KeyValue) Repr(vm *VM) (_ string, err error) {
 
 	if o.V != Yes {
 		sb.WriteString("=")
-		if repro, err = do(o.K); err != nil {
+		if repro, err = do(o.V); err != nil {
 			return
 		}
 		sb.WriteString(string(repro.(Str)))
@@ -347,33 +347,11 @@ func (o KeyValueArray) Type() ObjectType {
 	return DetectTypeOf(o)
 }
 
-func (o KeyValueArray) Array() (ret Array) {
-	ret = make(Array, len(o))
-	for i, v := range o {
-		ret[i] = v
-	}
-	return
-}
-
-func (o KeyValueArray) ToDict() (ret Dict) {
-	ret = make(Dict, len(o))
+func (o KeyValueArray) ToDict(out Dict) Dict {
 	for _, v := range o {
-		ret[v.K.ToString()] = v.V
+		out[v.K.ToString()] = v.V
 	}
-	return
-}
-
-func (o KeyValueArray) MDict() (ret Dict) {
-	ret = make(Dict)
-	for _, v := range o {
-		k := v.K.ToString()
-		if prev, ok := ret[k]; ok {
-			ret[k] = append(prev.(Array), v.V)
-		} else {
-			ret[k] = Array{v.V}
-		}
-	}
-	return
+	return out
 }
 
 func (o KeyValueArray) ToString() string {
@@ -436,14 +414,6 @@ func (o KeyValueArray) Copy() Object {
 	cp := make(KeyValueArray, len(o))
 	copy(cp, o)
 	return cp
-}
-
-func (o KeyValueArray) ToArray() (ret Array) {
-	ret = make(Array, len(o))
-	for i, v := range o {
-		ret[i] = Array{v.K, v.V}
-	}
-	return
 }
 
 // IndexGet implements Object interface.
@@ -777,8 +747,13 @@ func (o KeyValueArray) Length() int {
 	return len(o)
 }
 
-func (o KeyValueArray) Items(*VM) (KeyValueArray, error) {
-	return o, nil
+func (o KeyValueArray) Items(_ *VM, cb ItemsGetterCallback) (err error) {
+	for i, value := range o {
+		if err = cb(i, value); err != nil {
+			return
+		}
+	}
+	return
 }
 
 func (o KeyValueArray) Keys() (arr Array) {
@@ -1330,6 +1305,24 @@ func (o *NamedArgs) Walk(cb func(na *KeyValue) error) (err error) {
 		}
 	}
 	return
+}
+
+func (o *NamedArgs) Items(_ *VM, cb ItemsGetterCallback) (err error) {
+	var i int
+	if len(o.ready) == 0 {
+		return o.Walk(func(kv *KeyValue) (err error) {
+			err = cb(i, kv)
+			i++
+			return
+		})
+	}
+	return o.Walk(func(kv *KeyValue) (err error) {
+		if _, ok := o.ready[kv.K.ToString()]; !ok {
+			err = cb(i, kv)
+			i++
+		}
+		return
+	})
 }
 
 func (o *NamedArgs) CheckNames(accept ...string) error {

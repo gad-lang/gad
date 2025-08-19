@@ -21,9 +21,9 @@ func TestNamedArgs_All(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			a1, err := tt.args.Items(nil)
+			a1, err := ConvertToKeyValueArray(nil, tt.args)
 			assert.NoError(t, err)
-			a2, err := tt.vargs.Items(nil)
+			a2, err := ConvertToKeyValueArray(nil, tt.vargs)
 			assert.NoError(t, err)
 			n := NewNamedArgs(a1, a2)
 			assert.Equalf(t, tt.wantRet, n.Dict(), "All()")
@@ -45,9 +45,9 @@ func TestNamedArgs_CheckNames(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			a1, err := tt.args.Items(nil)
+			a1, err := ConvertToKeyValueArray(nil, tt.args)
 			assert.NoError(t, err)
-			a2, err := tt.vargs.Items(nil)
+			a2, err := ConvertToKeyValueArray(nil, tt.vargs)
 			assert.NoError(t, err)
 			n := NewNamedArgs(a1, a2)
 			if err := n.CheckNames(tt.accept...); err == nil {
@@ -77,9 +77,9 @@ func TestNamedArgs_CheckNamesFromSet(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			a1, err := tt.args.Items(nil)
+			a1, err := ConvertToKeyValueArray(nil, tt.args)
 			assert.NoError(t, err)
-			a2, err := tt.vargs.Items(nil)
+			a2, err := ConvertToKeyValueArray(nil, tt.vargs)
 			assert.NoError(t, err)
 			n := NewNamedArgs(a1, a2)
 			set := make(map[string]int, len(tt.accept))
@@ -115,9 +115,9 @@ func TestNamedArgs_Get(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			a1, err := tt.args.Items(nil)
+			a1, err := ConvertToKeyValueArray(nil, tt.args)
 			assert.NoError(t, err)
-			a2, err := tt.vargs.Items(nil)
+			a2, err := ConvertToKeyValueArray(nil, tt.vargs)
 			assert.NoError(t, err)
 			n := NewNamedArgs(a1, a2)
 			if err := n.Get(tt.dst...); err == nil {
@@ -158,9 +158,9 @@ func TestNamedArgs_GetVar(t *testing.T) {
 	}
 	for i, tt := range tests_ {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			a1, err := tt.args.Items(nil)
+			a1, err := ConvertToKeyValueArray(nil, tt.args)
 			assert.NoError(t, err)
-			a2, err := tt.vargs.Items(nil)
+			a2, err := ConvertToKeyValueArray(nil, tt.vargs)
 			assert.NoError(t, err)
 			n := NewNamedArgs(a1, a2)
 			if other, err := n.GetVar(tt.dst...); err == nil {
