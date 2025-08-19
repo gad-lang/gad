@@ -56,6 +56,7 @@ const (
 	BuiltinRegexpBytesSliceResult
 	BuiltinIterator
 	BuiltinZipIterator
+	BuiltinMixedParams
 	BuiltinTypesEnd_
 
 	BuiltinFunctionsBegin_

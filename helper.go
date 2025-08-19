@@ -2,6 +2,7 @@ package gad
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -21,11 +22,49 @@ func ToCode(o Object) string {
 	}
 }
 
+func ObjectsReprW(w io.Writer, vm *VM, len int, get func(i int) Object) (err error) {
+	var (
+		last  = len - 1
+		do    = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
+		repro Object
+	)
+	for i := 0; i <= last; i++ {
+		if repro, err = do(get(i)); err != nil {
+			return
+		}
+		w.Write([]byte(repro.ToString()))
+		if i != last {
+			w.Write([]byte{',', ' '})
+		}
+	}
+	return
+}
+
+func ObjectsStrW(w io.Writer, vm *VM, len int, get func(i int) Object) (err error) {
+	var (
+		last  = len - 1
+		do    = vm.Builtins.ArgsInvoker(BuiltinStr, Call{VM: vm})
+		repro Object
+	)
+
+	for i := 0; i <= last; i++ {
+		if repro, err = do(get(i)); err != nil {
+			return
+		}
+		w.Write([]byte(repro.ToString()))
+		if i != last {
+			w.Write([]byte{',', ' '})
+		}
+	}
+	return
+}
+
 func ArrayToString(len int, get func(i int) Object) string {
 	var (
 		sb   strings.Builder
 		last = len - 1
 	)
+
 	sb.WriteString("[")
 
 	for i := 0; i <= last; i++ {
@@ -40,23 +79,12 @@ func ArrayToString(len int, get func(i int) Object) string {
 }
 
 func ArrayRepr(typName string, vm *VM, len int, get func(i int) Object) (_ string, err error) {
-	var (
-		sb    strings.Builder
-		last  = len - 1
-		do    = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
-		repro Object
-	)
+	var sb strings.Builder
 	sb.WriteString(repr.QuotePrefix)
 	sb.WriteString(typName + ":[")
 
-	for i := 0; i <= last; i++ {
-		if repro, err = do(get(i)); err != nil {
-			return
-		}
-		sb.WriteString(repro.ToString())
-		if i != last {
-			sb.WriteString(", ")
-		}
+	if err = ObjectsReprW(&sb, vm, len, get); err != nil {
+		return
 	}
 
 	sb.WriteString("]")

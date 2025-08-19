@@ -9,9 +9,17 @@ var (
 	BinaryOperatorTypes = map[token.Token]*BinaryOperatorType{}
 )
 
+var (
+	_ ObjectType = (*BinaryOperatorType)(nil)
+)
+
 type BinaryOperatorType struct {
 	OpName string
 	Token  token.Token
+}
+
+func (b BinaryOperatorType) String() string {
+	return b.ToString()
 }
 
 func (b *BinaryOperatorType) IsFalsy() bool {

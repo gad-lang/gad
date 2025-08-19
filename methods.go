@@ -179,16 +179,7 @@ func (o *CallerObjectWithMethods) ToString() string {
 		if !m.Default {
 			s.WriteString(fmt.Sprintf("\t%d. ", i+1))
 			s.WriteString(m.CallerObject.ToString())
-			s.WriteString("(")
-
-			types := make([]string, len(m.Types))
-
-			for i, t := range m.Types {
-				types[i] = t.Name()
-			}
-
-			s.WriteString(strings.Join(types, ", "))
-			s.WriteString(")\n")
+			s.WriteString("\n")
 			i++
 		}
 		return nil

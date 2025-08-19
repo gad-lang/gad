@@ -14,6 +14,17 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
+func (c *Compiler) compileMultiParenExpr(nd *node.MultiParenExpr) error {
+	args, errNode, err := nd.ToCallArgs()
+	if err != nil {
+		return c.error(errNode, fmt.Errorf("unexpected expr %s %[1]T", nd.Exprs[1]))
+	}
+	return c.compileCallExpr(&node.CallExpr{
+		Func:     node.EIdent(TMixedParams.Name(), nd.LParen),
+		CallArgs: *args,
+	})
+}
+
 func (c *Compiler) compileIfStmt(nd *node.IfStmt) error {
 	// open new symbol table for the statement
 	c.symbolTable = c.symbolTable.Fork(true)
@@ -1699,6 +1710,36 @@ func (c *Compiler) compileDictLit(nd *node.DictExpr) error {
 	return nil
 }
 
+func (c *Compiler) compileKeyValuePairLit(elt *node.KeyValuePairLit) (err error) {
+	// key
+	switch t := elt.Key.(type) {
+	case *node.IdentExpr:
+		c.emit(elt, OpConstant, c.addConstant(Str(t.Name)))
+	default:
+		if err = c.Compile(elt.Key); err != nil {
+			return
+		}
+	}
+
+	if flag, _ := elt.Value.(*node.FlagLit); flag != nil {
+		if flag.Value {
+			c.emit(elt, OpYes)
+			c.emit(elt, OpKeyValue, 1) // 1 => with value
+		} else {
+			c.emit(elt, OpKeyValue, 0) // 0 => without value
+		}
+	} else {
+		// value
+		if elt.Value == nil {
+			c.emit(elt, OpYes)
+		} else if err = c.Compile(elt.Value); err != nil {
+			return err
+		}
+		c.emit(elt, OpKeyValue, 1) // 1 => with value
+	}
+	return
+}
+
 func (c *Compiler) compileKeyValueLit(elt *node.KeyValueLit) (err error) {
 	// key
 	switch t := elt.Key.(type) {
@@ -1738,7 +1779,7 @@ func (c *Compiler) compileKeyValueArrayLit(nd *node.KeyValueArrayLit) (err error
 				continue
 			}
 		}
-		if err = c.compileKeyValueLit(elt); err != nil {
+		if err = c.compileKeyValuePairLit(elt); err != nil {
 			return
 		}
 	}

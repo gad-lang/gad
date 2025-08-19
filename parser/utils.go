@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"reflect"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -64,4 +65,14 @@ func StripCR(b []byte, comment bool) []byte {
 		}
 	}
 	return c[:i]
+}
+
+func isType(v any, typ ...any) (ok bool) {
+	ctyp := reflect.TypeOf(v)
+	for _, t := range typ {
+		if reflect.TypeOf(t) == ctyp {
+			return true
+		}
+	}
+	return false
 }

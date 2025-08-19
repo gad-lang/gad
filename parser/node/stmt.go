@@ -789,7 +789,7 @@ type ConfigOptions struct {
 
 type ConfigStmt struct {
 	ConfigPos source.Pos
-	Elements  []*KeyValueLit
+	Elements  []*KeyValuePairLit
 	Options   ConfigOptions
 }
 
@@ -807,7 +807,7 @@ func (c *ConfigStmt) End() source.Pos {
 func (c *ConfigStmt) String() string {
 	var elements []string
 	for _, m := range c.Elements {
-		elements = append(elements, m.ElementString())
+		elements = append(elements, m.String())
 	}
 	return "# gad: " + strings.Join(elements, ", ") + "\n"
 }
@@ -819,7 +819,7 @@ func (c *ConfigStmt) WriteCode(ctx *CodeWriteContext) {
 
 		last := len(c.Elements) - 1
 		for i, el := range c.Elements {
-			ctx.WriteString(el.ElementString())
+			ctx.WriteString(el.String())
 			if i != last {
 				ctx.WriteString(", ")
 			}

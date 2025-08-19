@@ -470,7 +470,7 @@ exps:
 		switch t := n.(type) {
 		case *node.ArgVarLit:
 			params.Args.Var = t
-		case *node.KeyValueLit, *node.NamedArgVarLit:
+		case *node.KeyValuePairLit, *node.NamedArgVarLit, *node.KeyValueSepLit:
 			break exps
 		default:
 			params.Args.Values = append(params.Args.Values, t)
@@ -482,7 +482,8 @@ exps:
 	nexps:
 		for _, n = range exprs[i:] {
 			switch t := n.(type) {
-			case *node.KeyValueLit:
+			case *node.KeyValueSepLit:
+			case *node.KeyValuePairLit:
 				switch t2 := t.Key.(type) {
 				case *node.IdentExpr:
 					params.NamedArgs.Names = append(params.NamedArgs.Names, node.NamedArgExpr{Ident: t2})
@@ -522,7 +523,12 @@ func (p *Parser) ParseCallArgs(start, end token.Token) *node.CallArgs {
 	case *node.ParenExpr:
 		return p.CallArgsOf(t.LParen, t.RParen, t.Expr)
 	case *node.MultiParenExpr:
-		return p.CallArgsOf(t.LParen, t.RParen, t.Exprs...)
+		if args, errNode, err := t.ToCallArgs(); err != nil {
+			p.Error(errNode.Pos(), err.Error())
+			return nil
+		} else {
+			return args
+		}
 	case *node.KeyValueArrayLit:
 		var exprs = make([]node.Expr, len(t.Elements))
 		for i, el := range t.Elements {
@@ -1018,7 +1024,7 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 			if mul != 2 {
 				switch expr.(type) {
 				case *node.TypedIdentExpr, *node.IdentExpr, *node.StringLit:
-					kv := &node.KeyValueLit{
+					kv := &node.KeyValuePairLit{
 						Key: expr,
 					}
 					if p.Token.Token == token.Assign {
@@ -1046,7 +1052,7 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 			if p.Token.Token == token.Assign {
 				p.Next()
 				p.ExprLevel++
-				expr = &node.KeyValueLit{
+				expr = &node.KeyValuePairLit{
 					Key:   expr,
 					Value: p.ParseExpr(),
 				}
@@ -1055,12 +1061,12 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 		}
 
 	add:
-
 		exprs = append(exprs, expr)
 
 		if p.Token.Token == token.Comma {
 			p.Next()
 		} else if p.Token.Token == token.Semicolon && p.Token.Literal == ";" && !kv {
+			exprs = append(exprs, &node.KeyValueSepLit{p.Token.Pos})
 			kv = true
 			p.Next()
 		} else {
@@ -1087,17 +1093,24 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 			},
 			Body: body,
 		}
-	} else if len(exprs) == 1 {
-		expr = &node.ParenExpr{
-			LParen: lparen,
-			Expr:   exprs[0],
-			RParen: rparen,
-		}
 	} else {
-		expr = &node.MultiParenExpr{
-			LParen: lparen,
-			Exprs:  exprs,
-			RParen: rparen,
+		if len(exprs) == 1 &&
+			!isType(exprs[0],
+				&node.KeyValueSepLit{},
+				&node.KeyValuePairLit{},
+				&node.ArgVarLit{},
+				&node.NamedArgVarLit{}) {
+			expr = &node.ParenExpr{
+				LParen: lparen,
+				Expr:   exprs[0],
+				RParen: rparen,
+			}
+		} else {
+			expr = &node.MultiParenExpr{
+				LParen: lparen,
+				Exprs:  exprs,
+				RParen: rparen,
+			}
 		}
 	}
 
@@ -1137,8 +1150,9 @@ exps:
 			default:
 				p.ErrorExpectedExpr(&node.IdentExpr{}, t.Value)
 			}
-		case *node.KeyValueLit, *node.NamedArgVarLit:
+		case *node.KeyValuePairLit, *node.NamedArgVarLit:
 			break exps
+		case *node.KeyValueSepLit:
 		default:
 			p.ErrorExpected(t.Pos(), fmt.Sprintf("Ident|keyValueLit, but got %T", n))
 			return
@@ -1150,7 +1164,7 @@ exps:
 	nexps:
 		for _, n = range exprs[i:] {
 			switch t := n.(type) {
-			case *node.KeyValueLit:
+			case *node.KeyValuePairLit:
 				switch t2 := t.Key.(type) {
 				case *node.IdentExpr:
 					params.NamedArgs.Names = append(params.NamedArgs.Names, &node.TypedIdentExpr{Ident: t2})
@@ -1176,6 +1190,7 @@ exps:
 					p.ErrorExpectedExpr(&node.IdentExpr{}, t.Value)
 					return
 				}
+			case *node.KeyValueSepLit:
 			default:
 				p.ErrorExpected(t.Pos(), "expected Ident or keyValueLit")
 				return
@@ -2442,9 +2457,9 @@ func (p *Parser) ParseDictLit() *node.DictExpr {
 	}
 }
 
-func (p *Parser) ParseKeyValueLit(endToken token.Token) *node.KeyValueLit {
+func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLit {
 	if p.Trace {
-		defer untracep(tracep(p, "KeyValueLit"))
+		defer untracep(tracep(p, "KeyValuePairLit"))
 	}
 
 	p.SkipSpace()
@@ -2463,7 +2478,7 @@ func (p *Parser) ParseKeyValueLit(endToken token.Token) *node.KeyValueLit {
 		valueExpr = p.ParseExpr()
 		p.SkipSpace()
 	}
-	return &node.KeyValueLit{
+	return &node.KeyValuePairLit{
 		Key:   keyExpr,
 		Value: valueExpr,
 	}
@@ -2471,10 +2486,10 @@ func (p *Parser) ParseKeyValueLit(endToken token.Token) *node.KeyValueLit {
 
 func (p *Parser) ParseKeyValueArrayLitAt(lbrace source.Pos, rbraceToken token.Token) *node.KeyValueArrayLit {
 	p.ExprLevel++
-	var elements []*node.KeyValueLit
+	var elements []*node.KeyValuePairLit
 
 	for p.Token.Token != rbraceToken && p.Token.Token != token.EOF {
-		elements = append(elements, p.ParseKeyValueLit(rbraceToken))
+		elements = append(elements, p.ParseKeyValuePairLit(rbraceToken))
 
 		if !p.AtComma("keyValueArray literal", rbraceToken) {
 			break

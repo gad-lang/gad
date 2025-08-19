@@ -15,6 +15,7 @@ import (
 	. "github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gad-lang/gad/token"
@@ -128,7 +129,7 @@ func TestParserMixed(t *testing.T) {
 %} 
 `, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			config(p(1, 1), KVp(ident("mixed", p(1, 8)))),
 			mixedTextStmt(p(1, 14), "\t"),
 			codeBegin(lit("{%", p(2, 2)), false),
 			exprStmt(intLit(1, p(3, 2))),
@@ -141,7 +142,7 @@ func TestParserMixed(t *testing.T) {
 	{%   1   %} 
 `, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			config(p(1, 1), KVp(ident("mixed", p(1, 8)))),
 			mixedTextStmt(p(1, 14), "\t"),
 			codeBegin(lit("{%", p(2, 2)), false),
 			exprStmt(intLit(1, p(2, 7))),
@@ -154,7 +155,7 @@ func TestParserMixed(t *testing.T) {
 	{%   1   -%} 
 `, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			config(p(1, 1), KVp(ident("mixed", p(1, 8)))),
 			mixedTextStmt(p(1, 14), "\t"),
 			codeBegin(lit("{%", p(2, 2)), false),
 			exprStmt(intLit(1, p(2, 7))),
@@ -167,7 +168,7 @@ func TestParserMixed(t *testing.T) {
 a
 {%- =   2   -%}`, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			config(p(1, 1), KVp(ident("mixed", p(1, 8)))),
 			mixedTextStmt(p(1, 14), "\t"),
 			codeBegin(lit("{%", p(2, 2)), false),
 			exprStmt(intLit(1, p(2, 7))),
@@ -185,7 +186,7 @@ a
 {%   3   %}
 `, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			config(p(1, 1), KVp(ident("mixed", p(1, 8)))),
 			mixedTextStmt(p(1, 14), "\t"),
 			codeBegin(lit("{%", p(2, 2)), false),
 			exprStmt(intLit(1, p(2, 7))),
@@ -208,7 +209,7 @@ a
 {%   3   -%}
 `, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			config(p(1, 1), KVp(ident("mixed", p(1, 8)))),
 			mixedTextStmt(p(1, 14), "\t"),
 			codeBegin(lit("{%", p(2, 2)), false),
 			exprStmt(intLit(1, p(2, 7))),
@@ -1479,14 +1480,17 @@ func TestParseCallWithNamedArgs(t *testing.T) {
 }
 
 func TestParseParenMultiValues(t *testing.T) {
-	expectParseString(t, `(a,*b,c=2,**d) => 3`, `(a, *b, c=2, **d) => 3`)
-	expectParseString(t, `(*a)`, `(*a)`)
-	expectParseString(t, `(a, *b, c=1, **d)`, `(a, *b, c=1, **d)`)
-	expectParseString(t, `(a,*b,c=2) => 3`, `(a, *b, c=2) => 3`)
-	expectParseString(t, `(a,c=2, x(1))`, `(a, c=2, x(1))`)
-	expectParseString(t, `(a,
+	var mp *MultiParenExpr
+	expectParseStringT(t, `([a=1],b=2)`, `([a=1]; b=2)`, mp)
+	expectParseStringT(t, `(a=1)`, `(; a=1)`, mp)
+	expectParseStringT(t, `(*a)`, `(*a)`, mp)
+	expectParseStringT(t, `(**a)`, `(; **a)`, mp)
+	expectParseStringT(t, `(1;ok)`, `(1; ok)`, mp)
+	expectParseStringT(t, `(a, *b, c=1, **d)`, `(a, *b; c=1, **d)`, mp)
+	expectParseStringT(t, `(a,c=2, x(1))`, `(a; c=2, x(1))`, mp)
+	expectParseStringT(t, `(a,
 c=2, 
-  x(1))`, `(a, c=2, x(1))`)
+  x(1))`, `(a; c=2, x(1))`, mp)
 }
 
 func TestParseKeyValue(t *testing.T) {
@@ -1499,6 +1503,7 @@ func TestParseKeyValue(t *testing.T) {
 }
 
 func TestParseKeyValueArray(t *testing.T) {
+	expectParseString(t, `(;)`, `(;)`)
 	expectParseString(t, `(;)`, `(;)`)
 	expectParseString(t, `(
 ;
@@ -1857,6 +1862,8 @@ func TestParseFor(t *testing.T) {
 }
 
 func TestParseClosure(t *testing.T) {
+	expectParseStringT(t, `(a,*b,c=2,**d) => 3`, `(a, *b, c=2, **d) => 3`, &ClosureExpr{})
+	expectParseStringT(t, `(a,*b,c=2) => 3`, `(a, *b, c=2) => 3`, &ClosureExpr{})
 	expectParse(t, "a = (b, c, d) => d", func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(
@@ -3012,7 +3019,7 @@ func TestParseConfig(t *testing.T) {
 	expectParse(t, `# gad: mixed
 	a`, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), kv(ident("mixed", p(1, 8)))),
+			config(p(1, 1), KVp(ident("mixed", p(1, 8)))),
 			mixedTextStmt(p(2, 1), "\ta"),
 		)
 	})
@@ -3021,9 +3028,9 @@ y
 [[[b]]]`, func(p pfn) []Stmt {
 		return stmts(
 			config(p(1, 1),
-				kv(ident("mixed", p(1, 8))),
-				kv(ident("mixed_start", p(1, 15)), stringLit("[[[", p(1, 29))),
-				kv(ident("mixed_end", p(1, 36)), stringLit("]]]", p(1, 48))),
+				KVp(ident("mixed", p(1, 8))),
+				KVp(ident("mixed_start", p(1, 15)), stringLit("[[[", p(1, 29))),
+				KVp(ident("mixed_end", p(1, 36)), stringLit("]]]", p(1, 48))),
 			),
 			mixedTextStmt(p(2, 1), "y\n"),
 			codeBegin(lit("[[[", p(3, 1)), false),
@@ -3038,7 +3045,7 @@ y
 		"# gad: mixed, mixed_start=\"[[[\", mixed_end=\"]]]\"\ny\n[[[; b; true; ]]]")
 	expectParse(t, `# gad: mixed`, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), kv(ident("mixed", p(1, 8)))))
+			config(p(1, 1), KVp(ident("mixed", p(1, 8)))))
 	})
 }
 
@@ -3302,6 +3309,19 @@ func expectParseString(t *testing.T, input, expected string) {
 }
 
 func expectParseStringMode(t *testing.T, mode Mode, input, expected string) {
+	expectParseStringModeT(t, mode, input, expected, nilVal)
+}
+
+var (
+	nilVal  = (*any)(nil)
+	nilType = reflect.TypeOf(nilVal)
+)
+
+func expectParseStringT[T any](t *testing.T, input, expected string, typ T) {
+	expectParseStringModeT(t, 0, input, expected, typ)
+}
+
+func expectParseStringModeT[T any](t *testing.T, mode Mode, input, expected string, typ T) {
 	t.Helper()
 
 	var ok bool
@@ -3317,6 +3337,9 @@ func expectParseStringMode(t *testing.T, mode Mode, input, expected string) {
 	actual, err := parseSource("test", []byte(input), nil, mode)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual.String())
+	if reflect.TypeOf(typ) != nilType {
+		assert.Equal(t, reflect.TypeOf(typ).String(), reflect.TypeOf(actual.Stmts[0].(*ExprStmt).Expr).String())
+	}
 	ok = true
 }
 
@@ -3558,7 +3581,7 @@ func kv(key Expr, value ...Expr) *KeyValueLit {
 	return kv
 }
 
-func config(start Pos, opts ...*KeyValueLit) *ConfigStmt {
+func config(start Pos, opts ...*KeyValuePairLit) *ConfigStmt {
 	c := &ConfigStmt{ConfigPos: start, Elements: opts}
 	c.ParseElements()
 	return c
@@ -4060,6 +4083,11 @@ func (f *fileTester) equalExpr(expected, actual Expr) {
 	case *KeyValueLit:
 		f.equalExpr(expected.Key, actual.(*KeyValueLit).Key)
 		f.equalExpr(expected.Value, actual.(*KeyValueLit).Value)
+	case *KeyValuePairLit:
+		f.equalExpr(expected.Key, actual.(*KeyValuePairLit).Key)
+		f.equalExpr(expected.Value, actual.(*KeyValuePairLit).Value)
+	case *KeyValueSepLit:
+		f.equal(expected.TokenPos, actual.(*KeyValueSepLit).TokenPos)
 	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}

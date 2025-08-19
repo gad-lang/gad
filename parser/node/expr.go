@@ -14,6 +14,7 @@ package node
 
 import (
 	"bytes"
+	"errors"
 	"strconv"
 	"strings"
 
@@ -360,31 +361,121 @@ func (e *MultiParenExpr) End() source.Pos {
 }
 
 func (e *MultiParenExpr) String() string {
-	var s = make([]string, len(e.Exprs))
-	for i, expr := range e.Exprs {
-		if kv, _ := expr.(*KeyValueLit); kv != nil {
-			s[i] = kv.ElementString()
-		} else {
-			s[i] = expr.String()
+	var s strings.Builder
+	s.WriteString("(")
+
+	var left, right = e.Split()
+
+	for i, expr := range left {
+		if i > 0 {
+			s.WriteString(", ")
+		}
+		s.WriteString(expr.String())
+	}
+
+	if len(right) > 0 {
+		s.WriteString("; ")
+		for i, expr := range right {
+			if i > 0 {
+				s.WriteString(", ")
+			}
+			s.WriteString(expr.String())
 		}
 	}
-	return "(" + strings.Join(s, ", ") + ")"
+
+	s.WriteString(")")
+
+	return s.String()
+}
+
+func (e *MultiParenExpr) Split() (left []Expr, right []Expr) {
+	var (
+		add = func(expr Expr) {
+			left = append(left, expr)
+		}
+		righting   bool
+		startRight = func() {
+			righting = true
+			add = func(expr Expr) {
+				right = append(right, expr)
+			}
+		}
+	)
+
+expr:
+	for _, expr := range e.Exprs {
+		if !righting {
+			switch t := expr.(type) {
+			case *KeyValueSepLit:
+				startRight()
+				continue expr
+			case *KeyValuePairLit, *NamedArgVarLit:
+				startRight()
+			case *ArgVarLit:
+				add(t)
+				startRight()
+				continue expr
+			}
+		}
+
+		add(expr)
+	}
+	return
 }
 
 func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteByte('(')
-	var s = make([]string, len(e.Exprs))
-	for i, expr := range e.Exprs {
-		if kv, _ := expr.(*KeyValueLit); kv != nil {
-			s[i] = kv.ElementString()
-		} else {
-			s[i] = ctx.Buffer(func(ctx *CodeWriteContext) {
-				expr.WriteCode(ctx)
-			})
+
+	left, right := e.Split()
+	ctx.WriteExprs(", ", left...)
+
+	if len(right) > 0 {
+		ctx.WriteString("; ")
+		ctx.WriteExprs(", ", right...)
+	}
+
+	ctx.WriteByte(')')
+}
+
+func (e *MultiParenExpr) ToCallArgs() (args *CallArgs, errNode Node, err error) {
+	args = new(CallArgs)
+	args.LParen = e.LParen
+	args.RParen = e.RParen
+
+	left, right := e.Split()
+
+	var n Expr
+
+	for _, n = range left {
+		switch t := n.(type) {
+		case *ArgVarLit:
+			args.Args.Var = t
+		default:
+			args.Args.Values = append(args.Args.Values, t)
 		}
 	}
-	ctx.WriteExprs(", ", e.Exprs...)
-	ctx.WriteByte(')')
+
+	for _, n = range right {
+		switch t := n.(type) {
+		case *KeyValuePairLit:
+			switch t2 := t.Key.(type) {
+			case *IdentExpr:
+				args.NamedArgs.Names = append(args.NamedArgs.Names, NamedArgExpr{Ident: t2})
+			case *StringLit:
+				args.NamedArgs.Names = append(args.NamedArgs.Names, NamedArgExpr{Lit: t2})
+			case *TypedIdentExpr:
+				args.NamedArgs.Names = append(args.NamedArgs.Names, NamedArgExpr{Ident: t2.Ident})
+			default:
+				errNode = t2
+				err = errors.New("expected Ident | StringLit")
+				return
+			}
+			args.NamedArgs.Values = append(args.NamedArgs.Values, t.Value)
+		case *NamedArgVarLit:
+			args.NamedArgs.Var = t
+		}
+	}
+	return
 }
 
 type ExprSelector interface {

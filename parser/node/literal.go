@@ -354,6 +354,31 @@ func (e *NilLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("nil")
 }
 
+// KeyValueSepLit represents a key value separator in paren context
+type KeyValueSepLit struct {
+	TokenPos source.Pos
+}
+
+func (e *KeyValueSepLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *KeyValueSepLit) Pos() source.Pos {
+	return e.TokenPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *KeyValueSepLit) End() source.Pos {
+	return e.TokenPos + 9 // len(nil) == 9
+}
+
+func (e *KeyValueSepLit) String() string {
+	return ";"
+}
+
+func (e *KeyValueSepLit) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("; ")
+}
+
 // KeyValueLit represents a key value element.
 type KeyValueLit struct {
 	Key   Expr
@@ -397,10 +422,44 @@ func (e *KeyValueLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteByte(']')
 }
 
+// KeyValuePairLit represents a key value pair element.
+type KeyValuePairLit struct {
+	Key   Expr
+	Value Expr
+}
+
+func (e *KeyValuePairLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *KeyValuePairLit) Pos() source.Pos {
+	return e.Key.Pos()
+}
+
+// End returns the position of first character immediately after the node.
+func (e *KeyValuePairLit) End() source.Pos {
+	if e.Value == nil {
+		return e.Key.End()
+	}
+	return e.Value.End()
+}
+
+func (e *KeyValuePairLit) String() string {
+	if e.Value == nil {
+		return e.Key.String()
+	}
+	return e.Key.String() + "=" + e.Value.String()
+}
+
+func (e *KeyValuePairLit) WriteCode(ctx *CodeWriteContext) {
+	e.Key.WriteCode(ctx)
+	ctx.WriteByte('=')
+	e.Value.WriteCode(ctx)
+}
+
 // KeyValueArrayLit represents a key value array literal.
 type KeyValueArrayLit struct {
 	LBrace   source.Pos
-	Elements []*KeyValueLit
+	Elements []*KeyValuePairLit
 	RBrace   source.Pos
 }
 
@@ -419,7 +478,7 @@ func (e *KeyValueArrayLit) End() source.Pos {
 func (e *KeyValueArrayLit) String() string {
 	var elements []string
 	for _, m := range e.Elements {
-		elements = append(elements, m.ElementString())
+		elements = append(elements, m.String())
 	}
 	return "(;" + strings.Join(elements, ", ") + ")"
 }

@@ -355,10 +355,23 @@ func (o KeyValueArray) Array() (ret Array) {
 	return
 }
 
-func (o KeyValueArray) Dict() (ret Dict) {
+func (o KeyValueArray) ToDict() (ret Dict) {
 	ret = make(Dict, len(o))
 	for _, v := range o {
 		ret[v.K.ToString()] = v.V
+	}
+	return
+}
+
+func (o KeyValueArray) MDict() (ret Dict) {
+	ret = make(Dict)
+	for _, v := range o {
+		k := v.K.ToString()
+		if prev, ok := ret[k]; ok {
+			ret[k] = append(prev.(Array), v.V)
+		} else {
+			ret[k] = Array{v.V}
+		}
 	}
 	return
 }
@@ -425,6 +438,14 @@ func (o KeyValueArray) Copy() Object {
 	return cp
 }
 
+func (o KeyValueArray) ToArray() (ret Array) {
+	ret = make(Array, len(o))
+	for i, v := range o {
+		ret[i] = Array{v.K, v.V}
+	}
+	return
+}
+
 // IndexGet implements Object interface.
 func (o KeyValueArray) IndexGet(_ *VM, index Object) (Object, error) {
 	switch v := index.(type) {
@@ -440,19 +461,6 @@ func (o KeyValueArray) IndexGet(_ *VM, index Object) (Object, error) {
 			return o[v], nil
 		}
 		return nil, ErrIndexOutOfBounds
-	case Str:
-		switch v {
-		case "arrays":
-			ret := make(Array, len(o))
-			for i, v := range o {
-				ret[i] = Array{v.K, v.V}
-			}
-			return ret, nil
-		case "dict":
-			return o.Dict(), nil
-		default:
-			return nil, ErrInvalidIndex.NewError(string(v))
-		}
 	}
 	return nil, NewIndexTypeError("int|uint", index.Type().Name())
 }

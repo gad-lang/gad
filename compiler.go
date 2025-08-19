@@ -469,6 +469,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		)
 	case *node.ParenExpr:
 		return c.Compile(nt.Expr)
+	case *node.MultiParenExpr:
+		return c.compileMultiParenExpr(nt)
 	case *node.BinaryExpr:
 		switch nt.Token {
 		case token.LAnd, token.LOr, token.NullichCoalesce:

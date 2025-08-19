@@ -20,6 +20,13 @@ func isNil(value reflect.Value) (handled, ok bool) {
 	return
 }
 
+func IsNil(value any) bool {
+	if value == nil {
+		return true
+	}
+	return mustIsNil(reflect.ValueOf(value))
+}
+
 func mustIsNil(value reflect.Value) bool {
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:

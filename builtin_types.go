@@ -91,6 +91,7 @@ var (
 	TRegexpStrsSliceResult,
 	TRegexpBytesResult,
 	TRegexpBytesSliceResult,
+	TMixedParams,
 	TError ObjectType
 
 	TBuiltinFunction = &BuiltinObjType{
@@ -162,5 +163,11 @@ func init() {
 	TRegexpStrsSliceResult = RegisterBuiltinType(BuiltinRegexpStrsSliceResult, "regexpStrsSliceResult", RegexpStrsSliceResult{}, nil)
 	TRegexpBytesResult = RegisterBuiltinType(BuiltinRegexpBytesResult, "regexpBytesResult", RegexpBytesResult{}, nil)
 	TRegexpBytesSliceResult = RegisterBuiltinType(BuiltinRegexpBytesSliceResult, "regexpBytesSliceResult", RegexpBytesSliceResult{}, nil)
+	TMixedParams = RegisterBuiltinType(BuiltinMixedParams, "MixedParams", MixedParams{}, func(c Call) (ret Object, err error) {
+		return &MixedParams{
+			Positional: c.Args.Array(),
+			Named:      c.NamedArgs.Join(),
+		}, nil
+	})
 	TError = RegisterBuiltinType(BuiltinError, "error", Error{}, funcPORO(BuiltinErrorFunc))
 }

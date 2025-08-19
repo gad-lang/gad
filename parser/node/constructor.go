@@ -264,7 +264,15 @@ func KV(key Expr, value ...Expr) *KeyValueLit {
 	return kv
 }
 
-func SConfig(start source.Pos, opts ...*KeyValueLit) *ConfigStmt {
+func KVp(key Expr, value ...Expr) *KeyValuePairLit {
+	kv := &KeyValuePairLit{Key: key}
+	for _, expr := range value {
+		kv.Value = expr
+	}
+	return kv
+}
+
+func SConfig(start source.Pos, opts ...*KeyValuePairLit) *ConfigStmt {
 	c := &ConfigStmt{ConfigPos: start, Elements: opts}
 	c.ParseElements()
 	return c

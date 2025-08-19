@@ -2053,3 +2053,68 @@ func StringIndexGetProxy(handler func(vm *VM, index string) (value Object, err e
 		}
 	}}
 }
+
+var (
+	_ Object      = (*MixedParams)(nil)
+	_ IndexGetter = (*MixedParams)(nil)
+)
+
+type MixedParams struct {
+	Positional Array
+	Named      KeyValueArray
+}
+
+func (m *MixedParams) IndexGet(vm *VM, index Object) (value Object, err error) {
+	switch t := index.(type) {
+	case Str:
+		switch t {
+		case "positional":
+			return m.Positional, nil
+		case "named":
+			return m.Named, nil
+		}
+		return Nil, ErrInvalidIndex.NewError(string(t))
+	default:
+		return m.Positional.IndexGet(vm, t)
+	}
+}
+
+func (m *MixedParams) IsFalsy() bool {
+	return m.Positional.IsFalsy() && m.Named.IsFalsy()
+}
+
+func (m *MixedParams) Type() ObjectType {
+	return TMixedParams
+}
+
+func (m *MixedParams) Dict() Dict {
+	return Dict{
+		"positional": m.Positional,
+		"named":      m.Named,
+	}
+}
+
+func (m *MixedParams) ToString() string {
+	return m.Dict().ToString()
+}
+
+func (m *MixedParams) Repr(vm *VM) (s string, err error) {
+	var w strings.Builder
+	w.WriteString(repr.QuotePrefix)
+	w.WriteString(TMixedParams.Name() + ":")
+	if s, err = m.Dict().Repr(vm); err != nil {
+		return
+	}
+	w.WriteString(s)
+	w.WriteString(repr.QuoteSufix)
+	return w.String(), nil
+}
+
+func (m *MixedParams) Equal(right Object) bool {
+	switch t := right.(type) {
+	case *MixedParams:
+		return m.Positional.Equal(t.Positional) && m.Named.Equal(t.Named)
+	default:
+		return false
+	}
+}

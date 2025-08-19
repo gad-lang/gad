@@ -3224,6 +3224,39 @@ func TestCompilerKeyValue(t *testing.T) {
 		))
 }
 
+func TestCompilerMultiparen(t *testing.T) {
+	expectCompile(t, `(1,*[2,3],a=2,**{})`, bytecode(
+		Array{
+			Int(1),
+			Int(2),
+			Int(3),
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpDefineLocal, 0),
+				makeInst(OpGetLocal, 0),
+				makeInst(OpJumpFalsy, 22),
+				makeInst(OpConstant, 1),
+				makeInst(OpSetLocal, 0),
+				makeInst(OpGetLocal, 0),
+				makeInst(OpDefineLocal, 1),
+				makeInst(OpJump, 31),
+				makeInst(OpConstant, 2),
+				makeInst(OpSetLocal, 0),
+				makeInst(OpGetLocal, 0),
+				makeInst(OpDefineLocal, 1),
+				makeInst(OpReturn, 0),
+			),
+				withLocals(2),
+			),
+		},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 3),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+}
+
 func expectCompileError(t *testing.T, script string, errStr string) {
 	t.Helper()
 	expectCompileErrorWithOpts(t, script, CompileOptions{}, errStr)

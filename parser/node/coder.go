@@ -185,14 +185,13 @@ func (c *CodeWriteContext) WriteStmts(smt ...Stmt) {
 	})
 }
 
-func (c *CodeWriteContext) WriteExprs(sep string, expr ...Expr) (err error) {
+func (c *CodeWriteContext) WriteExprs(sep string, expr ...Expr) {
 	for i, e := range expr {
 		if i > 0 {
 			c.WriteString(sep)
 		}
 		e.WriteCode(c)
 	}
-	return
 }
 
 func Code(n Coder, opt ...CodeOption) string {
