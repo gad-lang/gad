@@ -699,7 +699,7 @@ func (s *Script) execute() error {
 		_, err = vm.RunOpts(&gad.RunOpts{
 			Globals:   scriptGlobals,
 			Args:      gad.Args{args},
-			NamedArgs: gad.NewNamedArgs(namedArgs.ToKeyValueArray()),
+			NamedArgs: gad.NewNamedArgs(gad.MustConvertToKeyValueArray(nil, namedArgs)),
 		})
 	}()
 

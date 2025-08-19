@@ -43,7 +43,7 @@ func TestREPL(t *testing.T) {
 		require.NoError(t, r.execute(".keywords"))
 		testHasPrefix(t, string(cw.consume()),
 			"break\ncontinue\nelse\nfor\nfunc\nif\nreturn\ntrue\nfalse\nyes\nno\nin\nnil\n"+
-				"import\nparam\nglobal\nvar\nconst\ntry\ncatch\nfinally\nthrow\n__callee__\n__named_args__\n__args__\n"+
+				"import\nembed\nparam\nglobal\nvar\nconst\ntry\ncatch\nfinally\nthrow\n__callee__\n__named_args__\n__args__\n"+
 				"STDIN\nSTDOUT\nSTDERR\n__name__\n__file__\n__is_module__\n",
 		)
 	})
@@ -193,7 +193,7 @@ func TestREPL(t *testing.T) {
 		require.NoError(t, r.execute("func int(p Point) => p.x * p.y"))
 		cw.consume()
 		require.NoError(t, r.execute("str(int)"))
-		require.Equal(t, "⇦   \""+repr.Quote("builtinType int")+" with 1 methods:\\n  "+
+		require.Equal(t, "⇦   \""+repr.Quote("builtinType int")+" with 1 methods:\\n\\t"+
 			"1. "+repr.Quote("compiledFunction #9(p Point)")+"\"",
 			strings.TrimSpace(string(cw.consume())))
 		require.NoError(t, r.execute("int(Point(2,8))"))
