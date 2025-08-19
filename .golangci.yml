@@ -1,29 +1,36 @@
+version: "2"
 linters:
   enable:
-    - bidichk
-    - exportloopref
     - asciicheck
+    - bidichk
+    - bodyclose
     - durationcheck
     - errchkjson
     - grouper
+    - misspell
     - nilerr
+    - nilnil
     - predeclared
     - unconvert
     - wastedassign
-    - misspell
-    - nilnil
-    - bodyclose
-    # - unparam
-    # - prealloc
-    # - nolintlint
-    # - gosec
-    # - errorlint
-    # - errname
-    # - cyclop
-    # - goconst
-    # - dupl
-    # - dogsled
-
-linter-settings:
-  misspell:
-    locale: US
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+  settings:
+    misspell:
+      locale: US
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

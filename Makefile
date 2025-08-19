@@ -44,3 +44,8 @@ clean:
 	find . -type f \( -name "cpu.out" -o -name "*.test" -o -name "mem.out" \) -delete
 	rm -f cmd/gad/gad cmd/gad/gad.exe
 
+
+.PHONY: ci
+ci:
+	./scripts/golangci.sh
+
