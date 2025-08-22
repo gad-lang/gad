@@ -69,7 +69,7 @@ func Exec(c gad.Call) (o gad.Object, err error) {
 	if naio != nil {
 		var values gad.KeyValueArray
 
-		if values, err = values.AppendObject(naio); err != nil {
+		if err = values.Append(nil, naio); err != nil {
 			return
 		}
 

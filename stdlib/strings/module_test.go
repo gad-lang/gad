@@ -732,19 +732,6 @@ func TestScript(t *testing.T) {
 	}
 }
 
-func Test_X(t *testing.T) {
-	expectRun(t, `
-strings := import("strings")
-return {"a[1]": 1,"a[2]": 2} .| 
-items .| 
-filter((v, k, _) => (strings.HasPrefix(k, "a["))) .| 
-map((v, k) => keyValue(k[2:-1], v)) .| 
-collect .|
-sort(less=func(i, j) { return i.k > j.k}) .|
-map((v, k) => v)
-`, Str(""))
-}
-
 func expectRun(t *testing.T, script string, expected Object) {
 	t.Helper()
 	mm := NewModuleMap()

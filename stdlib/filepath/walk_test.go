@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/test_helper"
 )
 
 func TestWalk(t *testing.T) {
 	var (
 		cwd, _ = os.Getwd()
-		opts   = gad.NewVMTestOpts().Args(gad.Str(cwd))
+		opts   = test_helper.NewVMTestOpts().Args(gad.Str(cwd))
 		p      = func(s string) gad.Str {
 			return gad.Str(filepath.Join(cwd, s))
 		}

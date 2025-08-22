@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/test_helper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,11 +56,11 @@ func TestRunNewFileMode(t *testing.T) {
 	expectRun(t, `return os.FileFlag("ro|wo|sync")`, nil, ORo|OWo|OSync)
 }
 
-func expectRun(t *testing.T, script string, opts *gad.VMTestOpts, expect gad.Object) {
+func expectRun(t *testing.T, script string, opts *test_helper.VMTestOpts, expect gad.Object) {
 	if opts == nil {
-		opts = gad.NewVMTestOpts()
+		opts = test_helper.NewVMTestOpts()
 	}
 	opts = opts.Module("os", Module)
 	script = `const os = import("os");` + script
-	gad.TestExpectRun(t, script, opts, expect)
+	test_helper.VMTestExpectRun(t, script, opts, expect)
 }
