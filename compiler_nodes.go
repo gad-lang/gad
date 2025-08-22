@@ -15,9 +15,9 @@ import (
 )
 
 func (c *Compiler) compileMultiParenExpr(nd *node.MultiParenExpr) error {
-	args, errNode, err := nd.ToCallArgs()
+	args, err := nd.ToCallArgs(false)
 	if err != nil {
-		return c.error(errNode, fmt.Errorf("unexpected expr %s %[1]T", nd.Exprs[1]))
+		return c.error(err.Node, err)
 	}
 	return c.compileCallExpr(&node.CallExpr{
 		Func:     node.EIdent(TMixedParams.Name(), nd.LParen),
@@ -540,6 +540,8 @@ func (c *Compiler) compileCompoundAssignment(
 		c.emit(nd, OpBinaryOp, int(token.Sub))
 	case token.MulAssign:
 		c.emit(nd, OpBinaryOp, int(token.Mul))
+	case token.PowAssign:
+		c.emit(nd, OpBinaryOp, int(token.Pow))
 	case token.QuoAssign:
 		c.emit(nd, OpBinaryOp, int(token.Quo))
 	case token.RemAssign:
@@ -1450,7 +1452,7 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 
 	if numKwargs := len(nd.NamedArgs.Names); numKwargs > 0 {
 		flags |= OpCallFlagNamedArgs
-		namedArgs := &node.ArrayExpr{Elements: make([]node.Expr, numKwargs)}
+		namedArgs := &node.KeyValueArrayLit{Elements: make([]node.Expr, numKwargs)}
 
 		for i, name := range nd.NamedArgs.Names {
 			value := nd.NamedArgs.Values[i]
@@ -1458,10 +1460,10 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 				// is flag
 				value = &node.FlagLit{Value: true}
 			}
-			namedArgs.Elements[i] = &node.ArrayExpr{Elements: []node.Expr{name.NameString(), value}}
+			namedArgs.Elements[i] = &node.KeyValuePairLit{name.NameString(), value}
 		}
 
-		if err := c.Compile(namedArgs); err != nil {
+		if err := c.compileKeyValueArrayLit(namedArgs); err != nil {
 			return err
 		}
 	}
@@ -1772,15 +1774,35 @@ func (c *Compiler) compileKeyValueLit(elt *node.KeyValueLit) (err error) {
 
 func (c *Compiler) compileKeyValueArrayLit(nd *node.KeyValueArrayLit) (err error) {
 	length := len(nd.Elements)
+elems:
 	for _, elt := range nd.Elements {
-		if flag, _ := elt.Value.(*node.FlagLit); flag != nil {
-			if !flag.Value {
-				length--
-				continue
+		switch t := elt.(type) {
+		case *node.KeyValuePairLit:
+			if flag, _ := t.Value.(*node.FlagLit); flag != nil {
+				if !flag.Value {
+					length--
+					continue elems
+				}
 			}
-		}
-		if err = c.compileKeyValuePairLit(elt); err != nil {
-			return
+			if err = c.compileKeyValuePairLit(t); err != nil {
+				return
+			}
+		case *node.KeyValueLit:
+			if flag, _ := t.Value.(*node.FlagLit); flag != nil {
+				if !flag.Value {
+					length--
+					continue elems
+				}
+			}
+			if err = c.compileKeyValueLit(t); err != nil {
+				return
+			}
+		case *node.NamedArgVarLit:
+			if err = c.Compile(t.Value); err != nil {
+				return
+			}
+		default:
+			return c.error(t, node.NewExpectedError(t, &node.KeyValuePairLit{}, &node.KeyValueLit{}, &node.NamedArgVarLit{}))
 		}
 	}
 

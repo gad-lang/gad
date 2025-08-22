@@ -14,10 +14,10 @@ package node
 
 import (
 	"bytes"
-	"errors"
 	"strconv"
 	"strings"
 
+	"github.com/gad-lang/gad/internal"
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/repr"
@@ -341,6 +341,18 @@ func (e *ParenExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteByte(')')
 }
 
+func (e *ParenExpr) ToMultiParenExpr() *MultiParenExpr {
+	return &MultiParenExpr{
+		Exprs:  Exprs{e.Expr},
+		LParen: e.LParen,
+		RParen: e.RParen,
+	}
+}
+
+func (e *ParenExpr) Items() Exprs {
+	return Exprs{e.Expr}
+}
+
 // MultiParenExpr represents a parenthesis wrapped expressions.
 type MultiParenExpr struct {
 	Exprs  []Expr
@@ -362,9 +374,14 @@ func (e *MultiParenExpr) End() source.Pos {
 
 func (e *MultiParenExpr) String() string {
 	var s strings.Builder
-	s.WriteString("(")
-
+	s.WriteByte('(')
 	var left, right = e.Split()
+
+	if l := len(left) + len(right); l < 2 {
+		if l == 0 || !internal.TsType(append(left, right...)[0], &ArgVarLit{}) {
+			s.WriteString(", ")
+		}
+	}
 
 	for i, expr := range left {
 		if i > 0 {
@@ -382,10 +399,12 @@ func (e *MultiParenExpr) String() string {
 			s.WriteString(expr.String())
 		}
 	}
-
-	s.WriteString(")")
-
+	s.WriteByte(')')
 	return s.String()
+}
+
+func (e *MultiParenExpr) ToMultiParenExpr() *MultiParenExpr {
+	return e
 }
 
 func (e *MultiParenExpr) Split() (left []Expr, right []Expr) {
@@ -437,7 +456,7 @@ func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteByte(')')
 }
 
-func (e *MultiParenExpr) ToCallArgs() (args *CallArgs, errNode Node, err error) {
+func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError) {
 	args = new(CallArgs)
 	args.LParen = e.LParen
 	args.RParen = e.RParen
@@ -464,10 +483,17 @@ func (e *MultiParenExpr) ToCallArgs() (args *CallArgs, errNode Node, err error) 
 			case *StringLit:
 				args.NamedArgs.Names = append(args.NamedArgs.Names, NamedArgExpr{Lit: t2})
 			case *TypedIdentExpr:
+				if strict {
+					err = NewExpectedError(t2, &StringLit{}, &IdentExpr{})
+					return
+				}
 				args.NamedArgs.Names = append(args.NamedArgs.Names, NamedArgExpr{Ident: t2.Ident})
 			default:
-				errNode = t2
-				err = errors.New("expected Ident | StringLit")
+				if strict {
+					err = NewExpectedError(t2, &StringLit{}, &IdentExpr{})
+				} else {
+					err = NewExpectedError(t2, &StringLit{}, &IdentExpr{}, &TypedIdentExpr{})
+				}
 				return
 			}
 			args.NamedArgs.Values = append(args.NamedArgs.Values, t.Value)
@@ -475,6 +501,96 @@ func (e *MultiParenExpr) ToCallArgs() (args *CallArgs, errNode Node, err error) 
 			args.NamedArgs.Var = t
 		}
 	}
+	return
+}
+
+func (e *MultiParenExpr) ToFuncParams() (params FuncParams, err *NodeError) {
+	params.LParen = e.LParen
+	params.RParen = e.RParen
+
+	var (
+		i int
+		n Expr
+	)
+
+exps:
+	for _, n = range e.Exprs {
+		switch t := n.(type) {
+		case *IdentExpr:
+			params.Args.Values = append(params.Args.Values, &TypedIdentExpr{Ident: t})
+		case *TypedIdentExpr:
+			params.Args.Values = append(params.Args.Values, t)
+		case *ArgVarLit:
+			switch t2 := t.Value.(type) {
+			case *IdentExpr:
+				params.Args.Var = &TypedIdentExpr{
+					Ident: t2,
+				}
+				i++
+				break exps
+			case *TypedIdentExpr:
+				params.Args.Var = t2
+				i++
+				break exps
+			default:
+				err = NewExpectedError(t.Value, &IdentExpr{})
+				return
+			}
+		case *KeyValuePairLit, *NamedArgVarLit:
+			break exps
+		case *KeyValueSepLit:
+		default:
+			err = NewExpectedError(t, &IdentExpr{}, &TypedIdentExpr{}, &NamedArgVarLit{}, &KeyValuePairLit{},
+				&ArgVarLit{})
+			return
+		}
+		i++
+	}
+
+	if i < len(e.Exprs) {
+	nexps:
+		for _, n = range e.Exprs[i:] {
+			switch t := n.(type) {
+			case *KeyValuePairLit:
+				switch t2 := t.Key.(type) {
+				case *IdentExpr:
+					params.NamedArgs.Names = append(params.NamedArgs.Names, &TypedIdentExpr{Ident: t2})
+					params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
+				case *TypedIdentExpr:
+					params.NamedArgs.Names = append(params.NamedArgs.Names, t2)
+					params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
+				default:
+					err = NewExpectedError(t2, &IdentExpr{}, &TypedIdentExpr{})
+					return
+				}
+			case *NamedArgVarLit:
+				switch t2 := t.Value.(type) {
+				case *IdentExpr:
+					params.NamedArgs.Var = &TypedIdentExpr{Ident: t2}
+					i++
+					break nexps
+				case *TypedIdentExpr:
+					params.NamedArgs.Var = t2
+					i++
+					break nexps
+				default:
+					err = NewExpectedError(t2, &IdentExpr{}, &TypedIdentExpr{})
+					return
+				}
+			case *KeyValueSepLit:
+			default:
+				err = NewExpectedError(t, &KeyValuePairLit{}, &NamedArgVarLit{})
+				return
+			}
+			i++
+		}
+
+		if i < len(e.Exprs) {
+			err = NewUnExpectedError(e.Exprs[i])
+			return
+		}
+	}
+
 	return
 }
 

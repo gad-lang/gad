@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gad-lang/gad/internal"
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
@@ -517,33 +518,11 @@ func (p *Parser) ParseCallArgs(start, end token.Token) *node.CallArgs {
 	if p.Trace {
 		defer untracep(tracep(p, "CallArgs"))
 	}
-
-	paren := p.ParseParemExpr(start, end, false, true, false)
-	switch t := paren.(type) {
-	case *node.ParenExpr:
-		return p.CallArgsOf(t.LParen, t.RParen, t.Expr)
-	case *node.MultiParenExpr:
-		if args, errNode, err := t.ToCallArgs(); err != nil {
-			p.Error(errNode.Pos(), err.Error())
-			return nil
-		} else {
-			return args
-		}
-	case *node.KeyValueArrayLit:
-		var exprs = make([]node.Expr, len(t.Elements))
-		for i, el := range t.Elements {
-			exprs[i] = el
-		}
-		return p.CallArgsOf(t.LBrace, t.RBrace, exprs...)
-	default:
-		if t == nil {
-			return &node.CallArgs{}
-		}
-		return &node.CallArgs{
-			LParen: t.Pos(),
-			RParen: t.End(),
-		}
+	args, err := p.ParseParemExpr(start, end).ToMultiParenExpr().ToCallArgs(true)
+	if err != nil {
+		p.Error(err.Pos(), err.Error())
 	}
+	return args
 }
 
 func (p *Parser) AtComma(context string, follow token.Token) bool {
@@ -862,7 +841,7 @@ func (p *Parser) ParseOperand() node.Expr {
 	case token.Embed:
 		return p.ParseEmbedExpr()
 	case token.LParen:
-		return p.ParseParemExpr(token.LParen, token.RParen, true, true, true)
+		return p.ParseAllParemExpr(token.LParen, token.RParen)
 	case token.LBrack: // array literal
 		return p.ParseArrayLitOrKeyValue()
 	case token.LBrace: // dict literal
@@ -941,7 +920,45 @@ func (p *Parser) ParseEmbedExpr() node.Expr {
 	return expr
 }
 
-func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, parseLambda, parseTypes bool) node.Expr {
+func (p *Parser) ParseClosureExpr(paren *node.MultiParenExpr) *node.ClosureExpr {
+	if p.Trace {
+		defer untracep(tracep(p, "ClosureExpr"))
+	}
+
+	lambda := p.Expect(token.Lambda)
+
+	var body node.Expr
+	if p.Token.Token.IsBlockStart() {
+		body = &node.BlockExpr{BlockStmt: p.ParseBlockStmt()}
+	} else {
+		body = p.ParseExpr()
+	}
+
+	var params, err = paren.ToFuncParams()
+	if err != nil {
+		p.Error(err.Pos(), err.Error())
+	}
+
+	return &node.ClosureExpr{
+		Type: &node.FuncType{
+			FuncPos: lambda,
+			Params:  params,
+		},
+		Body: body,
+	}
+}
+
+func (p *Parser) ParseAllParemExpr(lparenToken, rparenToken token.Token) node.Expr {
+	paren := p.ParseParemExpr(lparenToken, rparenToken)
+	switch p.Token.Token {
+	case token.Lambda:
+		return p.ParseClosureExpr(paren.ToMultiParenExpr())
+	default:
+		return paren
+	}
+}
+
+func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMultiParenConverter {
 	if p.Trace {
 		defer untracep(tracep(p, "ParemExpr"))
 	}
@@ -951,28 +968,28 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 		end    = rparenToken
 		kv     bool
 	)
+
 	switch p.Token.Token {
 	case lparenToken:
 	default:
 		p.ErrorExpected(lparen, "'"+lparenToken.String()+"'")
 		return nil
 	}
+
 	p.Next()
 
 	var (
 		exprs []node.Expr
 		expr  node.Expr
+		multi bool
 	)
 
 	switch p.Token.Token {
 	case token.Semicolon:
-		if p.Token.Literal == ";" {
-			if acceptKv {
-				return p.ParseKeyValueArrayLit(lparen)
-			}
-			kv = true
-			p.Next()
-		}
+		return p.ParseKeyValueArrayLit(lparen)
+	case token.Comma:
+		multi = true
+		p.Next()
 	case token.MixedCodeEnd:
 		mte := &node.MixedTextExpr{
 			StartLit: ast.Literal{Value: p.Token.Literal, Pos: p.Token.Pos},
@@ -986,7 +1003,7 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 		exprs = append(exprs, mte)
 		p.ExprLevel--
 		p.ExpectToken(token.RParen)
-		return mte
+		return &node.ParenExpr{Expr: mte}
 	}
 
 	p.SkipSpace()
@@ -997,14 +1014,14 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 			mul int
 		)
 
-		if p.Token.Token == token.Mul {
-			mul++
+		switch p.Token.Token {
+		case token.Mul:
+			mul = 1
 			p.Next()
-
-			if p.Token.Token == token.Mul {
-				mul++
-				p.Next()
-			}
+			p.SkipSpace()
+		case token.Pow:
+			mul = 2
+			p.Next()
 			p.SkipSpace()
 		}
 
@@ -1013,10 +1030,12 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 		p.ExprLevel--
 		p.SkipSpace()
 
-		if ident, _ := expr.(*node.IdentExpr); ident != nil && parseTypes {
-			expr = &node.TypedIdentExpr{
-				Ident: ident,
-				Type:  p.ParseType(),
+		if ident, _ := expr.(*node.IdentExpr); ident != nil {
+			if p.Token.Token == token.Ident {
+				expr = &node.TypedIdentExpr{
+					Ident: ident,
+					Type:  p.ParseType(),
+				}
 			}
 		}
 
@@ -1076,134 +1095,23 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token, acceptKv, 
 
 	rparen := p.Expect(end)
 
-	if p.Token.Token == token.Lambda && parseLambda {
-		p.Next()
-
-		var body node.Expr
-		if p.Token.Token.IsBlockStart() {
-			body = &node.BlockExpr{BlockStmt: p.ParseBlockStmt()}
-		} else {
-			body = p.ParseExpr()
-		}
-
-		expr = &node.ClosureExpr{
-			Type: &node.FuncType{
-				FuncPos: lparen,
-				Params:  *p.FuncParamsOf(lparen, rparen, exprs...),
-			},
-			Body: body,
-		}
-	} else {
-		if len(exprs) == 1 &&
-			!isType(exprs[0],
-				&node.KeyValueSepLit{},
-				&node.KeyValuePairLit{},
-				&node.ArgVarLit{},
-				&node.NamedArgVarLit{}) {
-			expr = &node.ParenExpr{
-				LParen: lparen,
-				Expr:   exprs[0],
-				RParen: rparen,
-			}
-		} else {
-			expr = &node.MultiParenExpr{
-				LParen: lparen,
-				Exprs:  exprs,
-				RParen: rparen,
-			}
+	if !multi && len(exprs) == 1 &&
+		!internal.TsType(exprs[0],
+			&node.KeyValueSepLit{},
+			&node.KeyValuePairLit{},
+			&node.ArgVarLit{},
+			&node.NamedArgVarLit{}) {
+		return &node.ParenExpr{
+			LParen: lparen,
+			Expr:   exprs[0],
+			RParen: rparen,
 		}
 	}
-
-	return expr
-}
-
-func (p *Parser) FuncParamsOf(lparen, rparen source.Pos, exprs ...node.Expr) (params *node.FuncParams) {
-	params = &node.FuncParams{
+	return &node.MultiParenExpr{
 		LParen: lparen,
+		Exprs:  exprs,
 		RParen: rparen,
 	}
-
-	var (
-		i int
-		n node.Expr
-	)
-
-exps:
-	for _, n = range exprs {
-		switch t := n.(type) {
-		case *node.IdentExpr:
-			params.Args.Values = append(params.Args.Values, &node.TypedIdentExpr{Ident: t})
-		case *node.TypedIdentExpr:
-			params.Args.Values = append(params.Args.Values, t)
-		case *node.ArgVarLit:
-			switch t2 := t.Value.(type) {
-			case *node.IdentExpr:
-				params.Args.Var = &node.TypedIdentExpr{
-					Ident: t2,
-				}
-				i++
-				break exps
-			case *node.TypedIdentExpr:
-				params.Args.Var = t2
-				i++
-				break exps
-			default:
-				p.ErrorExpectedExpr(&node.IdentExpr{}, t.Value)
-			}
-		case *node.KeyValuePairLit, *node.NamedArgVarLit:
-			break exps
-		case *node.KeyValueSepLit:
-		default:
-			p.ErrorExpected(t.Pos(), fmt.Sprintf("Ident|keyValueLit, but got %T", n))
-			return
-		}
-		i++
-	}
-
-	if i < len(exprs) {
-	nexps:
-		for _, n = range exprs[i:] {
-			switch t := n.(type) {
-			case *node.KeyValuePairLit:
-				switch t2 := t.Key.(type) {
-				case *node.IdentExpr:
-					params.NamedArgs.Names = append(params.NamedArgs.Names, &node.TypedIdentExpr{Ident: t2})
-					params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
-				case *node.TypedIdentExpr:
-					params.NamedArgs.Names = append(params.NamedArgs.Names, t2)
-					params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
-				default:
-					p.ErrorExpected(t2.Pos(), "expected Ident")
-					return
-				}
-			case *node.NamedArgVarLit:
-				switch t2 := t.Value.(type) {
-				case *node.IdentExpr:
-					params.NamedArgs.Var = &node.TypedIdentExpr{Ident: t2}
-					i++
-					break nexps
-				case *node.TypedIdentExpr:
-					params.NamedArgs.Var = t2
-					i++
-					break nexps
-				default:
-					p.ErrorExpectedExpr(&node.IdentExpr{}, t.Value)
-					return
-				}
-			case *node.KeyValueSepLit:
-			default:
-				p.ErrorExpected(t.Pos(), "expected Ident or keyValueLit")
-				return
-			}
-			i++
-		}
-
-		if i < len(exprs) {
-			p.Error(exprs[i].Pos(), fmt.Sprintf("unexpected expr %s %[1]T", exprs[1]))
-		}
-	}
-
-	return
 }
 
 func (p *Parser) ParseCharLit() node.Expr {
@@ -1234,7 +1142,7 @@ func (p *Parser) ParseFuncLit() node.Expr {
 		defer untracep(tracep(p, "FuncExpr"))
 	}
 
-	typ := p.ParseFuncType(false)
+	typ := p.ParseFuncType()
 	p.ExprLevel++
 
 	body, closure := p.ParseBody()
@@ -1301,7 +1209,7 @@ func (p *Parser) ParseArrayLitOrKeyValue() node.Expr {
 	}
 }
 
-func (p *Parser) ParseFuncType(parseLambda bool) *node.FuncType {
+func (p *Parser) ParseFuncType() *node.FuncType {
 	if p.Trace {
 		defer untracep(tracep(p, "FuncType"))
 	}
@@ -1319,32 +1227,17 @@ func (p *Parser) ParseFuncType(parseLambda bool) *node.FuncType {
 		allowMethods = true
 	}
 
-	params := p.ParseFuncParams(parseLambda)
+	paren := p.ParseParemExpr(token.LParen, token.RParen)
+	params, err := paren.ToMultiParenExpr().ToFuncParams()
+	if err != nil {
+		p.Error(err.Pos(), err.Error())
+	}
 	return &node.FuncType{
 		Token:        tok,
 		FuncPos:      pos,
 		Ident:        ident,
-		Params:       *params,
+		Params:       params,
 		AllowMethods: allowMethods,
-	}
-}
-
-func (p *Parser) ParseFuncParams(parseLambda bool) *node.FuncParams {
-	if p.Trace {
-		defer untracep(tracep(p, "FuncParams"))
-	}
-
-	paren := p.ParseParemExpr(token.LParen, token.RParen, false, parseLambda, true)
-	switch t := paren.(type) {
-	case *node.ParenExpr:
-		return p.FuncParamsOf(t.LParen, t.RParen, t.Expr)
-	case *node.MultiParenExpr:
-		return p.FuncParamsOf(t.LParen, t.RParen, t.Exprs...)
-	default:
-		return &node.FuncParams{
-			LParen: t.Pos(),
-			RParen: t.End(),
-		}
 	}
 }
 
@@ -1556,7 +1449,15 @@ func (p *Parser) ParseConfigStmt() (c *node.ConfigStmt) {
 
 	kva := p.ParseKeyValueArrayLitAt(p.Token.Pos, token.ConfigEnd)
 
-	c.Elements = kva.Elements
+	for _, el := range kva.Elements {
+		switch el := el.(type) {
+		case *node.KeyValuePairLit:
+			c.Elements = append(c.Elements, el)
+		default:
+			p.Error(el.Pos(), node.NewExpectedError(el, &node.KeyValuePairLit{}).Err)
+		}
+	}
+
 	c.ParseElements()
 
 	if c.Options.Mixed {
@@ -1679,19 +1580,17 @@ func (p *Parser) ParseParamDecl() (d *node.GenDecl) {
 	p.Next()
 
 	switch p.Token.Token {
+	case token.Pow:
+		p.Next()
+		d.Specs = append(d.Specs, &node.NamedParamSpec{
+			Ident: p.ParseTypedIdent(),
+		})
 	case token.Mul:
 		p.Next()
-		if p.Token.Token == token.Mul {
-			p.Next()
-			d.Specs = append(d.Specs, &node.NamedParamSpec{
-				Ident: p.ParseTypedIdent(),
-			})
-		} else {
-			d.Specs = append(d.Specs, &node.ParamSpec{
-				Ident:    p.ParseTypedIdent(),
-				Variadic: true,
-			})
-		}
+		d.Specs = append(d.Specs, &node.ParamSpec{
+			Ident:    p.ParseTypedIdent(),
+			Variadic: true,
+		})
 	case token.Ident:
 		ident := p.ParseIdent()
 		types := p.ParseType()
@@ -1714,7 +1613,13 @@ func (p *Parser) ParseParamDecl() (d *node.GenDecl) {
 			})
 		}
 	case token.LParen:
-		fp := p.ParseFuncParams(false)
+		paren := p.ParseParemExpr(token.LParen, token.RParen)
+		fp, err := paren.ToMultiParenExpr().ToFuncParams()
+
+		if err != nil {
+			p.Error(err.Pos(), err.Error())
+		}
+
 		d.Lparen = fp.LParen
 		d.Rparen = fp.RParen
 
@@ -2369,7 +2274,7 @@ func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {
 		token.AddAssign, token.SubAssign, token.MulAssign, token.QuoAssign,
 		token.RemAssign, token.AndAssign, token.OrAssign, token.XorAssign,
 		token.ShlAssign, token.ShrAssign, token.AndNotAssign,
-		token.NullichAssign, token.LOrAssign:
+		token.NullichAssign, token.LOrAssign, token.PowAssign:
 		pos, tok := p.Token.Pos, p.Token.Token
 		p.Next()
 		y := p.ParseExpr()
@@ -2459,7 +2364,7 @@ func (p *Parser) ParseDictLit() *node.DictExpr {
 
 func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLit {
 	if p.Trace {
-		defer untracep(tracep(p, "KeyValuePairLit"))
+		defer untracep(tracep(p, "ParseKeyValuePairLit"))
 	}
 
 	p.SkipSpace()
@@ -2473,6 +2378,14 @@ func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLi
 
 	switch p.Token.Token {
 	case token.Comma, endToken:
+	case token.Ident:
+		if ident, _ := keyExpr.(*node.IdentExpr); ident != nil {
+			keyExpr = &node.TypedIdentExpr{
+				Ident: ident,
+				Type:  p.ParseType(),
+			}
+		}
+		fallthrough
 	default:
 		p.Expect(token.Assign)
 		valueExpr = p.ParseExpr()
@@ -2486,9 +2399,20 @@ func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLi
 
 func (p *Parser) ParseKeyValueArrayLitAt(lbrace source.Pos, rbraceToken token.Token) *node.KeyValueArrayLit {
 	p.ExprLevel++
-	var elements []*node.KeyValuePairLit
+	var (
+		elements []node.Expr
+	)
 
 	for p.Token.Token != rbraceToken && p.Token.Token != token.EOF {
+		if p.Token.Token == token.Pow {
+			pos := p.Expect(token.Pow)
+			elements = append(elements, &node.NamedArgVarLit{
+				TokenPos: pos,
+				Value:    p.ParseExpr(),
+			})
+			break
+		}
+
 		elements = append(elements, p.ParseKeyValuePairLit(rbraceToken))
 
 		if !p.AtComma("keyValueArray literal", rbraceToken) {
@@ -2504,8 +2428,8 @@ func (p *Parser) ParseKeyValueArrayLitAt(lbrace source.Pos, rbraceToken token.To
 	}
 	rbrace := p.Token.Pos
 	return &node.KeyValueArrayLit{
-		LBrace:   lbrace,
-		RBrace:   rbrace,
+		LParen:   lbrace,
+		RParen:   rbrace,
 		Elements: elements,
 	}
 }

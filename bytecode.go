@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/token"
 )
 
 // Bytecode holds the compiled functions and constants.
@@ -239,10 +240,15 @@ func (o *CompiledFunction) WithParams(names ...string) *CompiledFunction {
 
 // Fprint writes constants and instructions to given Writer in a human readable form.
 func (o *CompiledFunction) Fprint(w io.Writer) {
-	_, _ = fmt.Fprintf(w, "Locals: %d\n", o.NumLocals)
-	_, _ = fmt.Fprintf(w, "Params: %s\n", o.Params.String())
-	_, _ = fmt.Fprintf(w, "NamedParams: %s\n", o.NamedParams.String())
-	_, _ = fmt.Fprintf(w, "Instructions:\n")
+	o.FprintLP("", w)
+}
+
+// FprintLP writes constants and instructions to given Writer in a human readable form with line prefix.
+func (o *CompiledFunction) FprintLP(linePrefix string, w io.Writer) {
+	_, _ = fmt.Fprintf(w, "%sLocals: %d\n", linePrefix, o.NumLocals)
+	_, _ = fmt.Fprintf(w, "%sParams: %s\n", linePrefix, o.Params.String())
+	_, _ = fmt.Fprintf(w, "%sNamedParams: %s\n", linePrefix, o.NamedParams.String())
+	_, _ = fmt.Fprintf(w, "%sInstructions:\n", linePrefix)
 
 	i := 0
 	var operands []int
@@ -252,11 +258,15 @@ func (o *CompiledFunction) Fprint(w io.Writer) {
 		op := o.Instructions[i]
 		numOperands := OpcodeOperands[op]
 		operands, offset := ReadOperands(numOperands, o.Instructions[i+1:], operands)
-		_, _ = fmt.Fprintf(w, "%04d %-12s", i, OpcodeNames[op])
+		_, _ = fmt.Fprintf(w, "%s\t%04d %-12s", linePrefix, i, OpcodeNames[op])
 
 		if len(operands) > 0 {
 			for _, r := range operands {
 				_, _ = fmt.Fprint(w, "    ", strconv.Itoa(r))
+			}
+			switch Opcode(op) {
+			case OpBinaryOp:
+				_, _ = fmt.Fprint(w, " (", token.Token(operands[0]).String(), ")")
 			}
 		}
 
@@ -265,9 +275,9 @@ func (o *CompiledFunction) Fprint(w io.Writer) {
 	}
 
 	if o.Free != nil {
-		_, _ = fmt.Fprintf(w, "Free:%v\n", o.Free)
+		_, _ = fmt.Fprintf(w, "%sFree:%v\n", linePrefix, o.Free)
 	}
-	_, _ = fmt.Fprintf(w, "SourceMap:%v\n", o.SourceMap)
+	_, _ = fmt.Fprintf(w, "%sSourceMap:%v\n", linePrefix, o.SourceMap)
 }
 
 func (o *CompiledFunction) identical(other *CompiledFunction) bool {

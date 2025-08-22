@@ -89,3 +89,8 @@ func IsStatement(v Node) (ok bool) {
 	_, ok = v.(Stmt)
 	return ok
 }
+
+type ToMultiParenConverter interface {
+	Expr
+	ToMultiParenExpr() *MultiParenExpr
+}

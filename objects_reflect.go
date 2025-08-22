@@ -856,7 +856,7 @@ var (
 	_ Slicer         = (*ReflectSlice)(nil)
 )
 
-func (o *ReflectSlice) Append(vm *VM, items ...Object) (_ Object, err error) {
+func (o *ReflectSlice) AppendObjects(vm *VM, items ...Object) (_ Object, err error) {
 	var (
 		itemType = o.RType.RType.Elem()
 		values   = reflect.MakeSlice(o.RType.RType, len(items), len(items))

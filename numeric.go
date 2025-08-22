@@ -6,6 +6,7 @@ package gad
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -62,6 +63,8 @@ func (o Int) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
 			return o - v, nil
 		case token.Mul:
 			return o * v, nil
+		case token.Pow:
+			return Decimal(decimal.NewFromInt(int64(o)).Pow(decimal.NewFromInt(int64(v)))), nil
 		case token.Quo:
 			if v == 0 {
 				return nil, ErrZeroDivision
@@ -313,6 +316,8 @@ func (o Float) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
 			return o - v, nil
 		case token.Mul:
 			return o * v, nil
+		case token.Pow:
+			return Float(math.Pow(float64(o), float64(v))), nil
 		case token.Quo:
 			if v == 0 {
 				return nil, ErrZeroDivision
@@ -428,6 +433,8 @@ func (o Decimal) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error)
 			return Decimal(o.ToGo().Sub(v.ToGo())), nil
 		case token.Mul:
 			return Decimal(o.ToGo().Mul(v.ToGo())), nil
+		case token.Pow:
+			return Decimal(o.ToGo().Pow(v.ToGo())), nil
 		case token.Quo:
 			return Decimal(o.ToGo().Div(v.ToGo())), nil
 		case token.Less:

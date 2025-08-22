@@ -287,12 +287,12 @@ type Niler interface {
 
 type Appender interface {
 	Object
-	Append(vm *VM, arr ...Object) (Object, error)
+	AppendObjects(vm *VM, arr ...Object) (Object, error)
 }
 
 type Adder interface {
 	Object
-	Add(vm *VM, arr ...Object) (err error)
+	Append(vm *VM, arr ...Object) (err error)
 }
 
 // BytesConverter is to bytes converter

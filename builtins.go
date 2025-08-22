@@ -153,6 +153,7 @@ const (
 	BuiltinBinOpAdd
 	BuiltinBinOpSub
 	BuiltinBinOpMul
+	BuiltinBinOpPow
 	BuiltinBinOpQuo
 	BuiltinBinOpRem
 	BuiltinBinOpAnd

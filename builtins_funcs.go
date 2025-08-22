@@ -81,28 +81,8 @@ func BuiltinAppendFunc(c Call) (Object, error) {
 			ret = arg.AppendToArray(ret)
 		}
 		return ret, nil
-	case KeyValueArray:
-		var (
-			err        error
-			i          = 1
-			arg, valid = c.Args.ShiftOk()
-		)
-
-		for valid {
-			if obj, err = obj.AppendObject(arg); err != nil {
-				err = NewArgumentTypeError(
-					strconv.Itoa(i)+"st",
-					err.Error(),
-					arg.Type().Name(),
-				)
-				return nil, err
-			}
-			arg, valid = c.Args.ShiftOk()
-			i++
-		}
-		return obj, nil
 	case Appender:
-		return obj.Append(c.VM, c.Args.Values()...)
+		return obj.AppendObjects(c.VM, c.Args.Values()...)
 	default:
 		return Nil, NewArgumentTypeError(
 			"1st",
@@ -1386,7 +1366,7 @@ func BuiltinCollectFunc(c Call) (_ Object, err error) {
 		}
 		return nil
 	}, func(e *KeyValue) error {
-		return dst.Add(c.VM, h(e))
+		return dst.Append(c.VM, h(e))
 	})
 	return dst, err
 }

@@ -349,11 +349,18 @@ VMLoop:
 		case OpKeyValueArray:
 			var (
 				numItems = int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
-				arr      = make(KeyValueArray, numItems)
+				arr      = make(KeyValueArray, 0, 0)
+				err      error
 			)
 
-			for i, v := range vm.stack[vm.sp-numItems : vm.sp] {
-				arr[i] = v.(*KeyValue)
+			for _, v := range vm.stack[vm.sp-numItems : vm.sp] {
+				if err = arr.Append(vm, v); err != nil {
+					if err := vm.throwGenErr(err); err != nil {
+						vm.err = err
+						return
+					}
+					continue VMLoop
+				}
 			}
 
 			vm.sp -= numItems

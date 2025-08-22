@@ -8,8 +8,12 @@ import (
 )
 
 func Sdump(value any) string {
+	return SdumpPrefix("", value)
+}
+
+func SdumpPrefix(prefix string, value any) string {
 	var sb strings.Builder
-	sdump("", &sb, value)
+	sdump(prefix, &sb, value)
 	return sb.String()
 }
 

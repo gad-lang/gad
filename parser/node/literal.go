@@ -458,21 +458,21 @@ func (e *KeyValuePairLit) WriteCode(ctx *CodeWriteContext) {
 
 // KeyValueArrayLit represents a key value array literal.
 type KeyValueArrayLit struct {
-	LBrace   source.Pos
-	Elements []*KeyValuePairLit
-	RBrace   source.Pos
+	LParen   source.Pos
+	Elements Exprs
+	RParen   source.Pos
 }
 
 func (e *KeyValueArrayLit) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
 func (e *KeyValueArrayLit) Pos() source.Pos {
-	return e.LBrace
+	return e.LParen
 }
 
 // End returns the position of first character immediately after the node.
 func (e *KeyValueArrayLit) End() source.Pos {
-	return e.RBrace + 1
+	return e.RParen + 1
 }
 
 func (e *KeyValueArrayLit) String() string {
@@ -487,16 +487,41 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("(;")
 	l := len(e.Elements) - 1
 	for i, element := range e.Elements {
-		element.Key.WriteCode(ctx)
-		if element.Value != nil {
-			ctx.WriteByte('=')
-			element.Value.WriteCode(ctx)
+		switch t := element.(type) {
+		case *KeyValuePairLit:
+			t.Key.WriteCode(ctx)
+			if t.Value != nil {
+				ctx.WriteByte('=')
+				t.Value.WriteCode(ctx)
+			}
+		case *KeyValueLit:
+			t.Key.WriteCode(ctx)
+			if t.Value != nil {
+				ctx.WriteByte('=')
+				t.Value.WriteCode(ctx)
+			}
+		case *NamedArgVarLit:
+			t.WriteCode(ctx)
 		}
 		if i < l {
 			ctx.WriteString(", ")
 		}
 	}
 	ctx.WriteByte(')')
+}
+
+func (e *KeyValueArrayLit) ToMultiParenExpr() *MultiParenExpr {
+	r := &MultiParenExpr{
+		LParen: e.LParen,
+		RParen: e.RParen,
+		Exprs:  make([]Expr, len(e.Elements)),
+	}
+
+	for i, ele := range e.Elements {
+		r.Exprs[i] = ele
+	}
+
+	return r
 }
 
 // StdInLit represents an STDIN literal.

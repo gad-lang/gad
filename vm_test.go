@@ -16,8 +16,15 @@ import (
 )
 
 func TestVMBinaryOperator(t *testing.T) {
+	// pow
+	TestExpectRun(t, `return 2 ** 3`, nil, DecimalFromInt(8))
+	TestExpectRun(t, `x := 2; x **= 3; return x`, nil, DecimalFromInt(8))
+	TestExpectRun(t, `return binaryOp(TBinOpPow, 2, 3)`, nil, DecimalFromInt(8))
+
 	TestExpectRun(t, `return TBinOpAdd`, nil, TBinOpAdd)
 	TestExpectRun(t, `return binaryOp(TBinOpAdd, 1, 1)`, nil, Int(2))
+
+	// custom OP
 	TestExpectRun(t, `return binaryOp(TBinOpMul, 2, 10)`, nil, Int(20))
 	TestExpectRun(t, `
 func binaryOp(_ TBinOpMul, p str, val int) {
@@ -41,6 +48,13 @@ func binaryOp(_ TBinOpAdd, p str, val str) {
 	return ret
 }
 return "a" + "3"`, nil, Str("a-a-a"))
+
+	TestExpectRun(t, `return [4 ** 3, -4 ** 3, 4 ** -3, -4 ** -3] .| map((v,i) => str(v)) .| collect`, nil, Array{
+		Str("64"),
+		Str("-64"),
+		Str("0.015625"),
+		Str("-0.015625"),
+	})
 }
 
 func TestVMDict(t *testing.T) {
@@ -732,6 +746,15 @@ func TestVMKeyValueArray(t *testing.T) {
 	TestExpectRun(t, `return (;a=1)[0].v`, nil, Int(1))
 	TestExpectRun(t, `return (;a=1)[0].array`, nil, Array{Str("a"), Int(1)})
 	TestExpectRun(t, `x := (;a); x[0].v = 2; return dict(x)`, nil, Dict{"a": Int(2)})
+	TestExpectRun(t, `return (;**(;x=1,"x"=2))`, nil, KeyValueArray{
+		&KeyValue{Str("x"), Int(1)},
+		&KeyValue{Str("x"), Int(2)},
+	})
+	TestExpectRun(t, `return (;y=3,**(;x=1,"x"=2))`, nil, KeyValueArray{
+		&KeyValue{Str("y"), Int(3)},
+		&KeyValue{Str("x"), Int(1)},
+		&KeyValue{Str("x"), Int(2)},
+	})
 }
 
 func TestVMRegexp(t *testing.T) {
@@ -955,7 +978,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	TestExpectRun(t, `return (;)`, nil, KeyValueArray{})
 	TestExpectRun(t, `return append((;))`, nil, KeyValueArray{})
 	TestExpectRun(t, `return append((;),(;a=1))`, nil, KeyValueArray{&KeyValue{Str("a"), Int(1)}})
-	TestExpectRun(t, `return append((;a=1),(;b=2),{c:3},[["d", 4]])`, nil, KeyValueArray{
+	TestExpectRun(t, `return append((;a=1),(;b=2),{c:3},[d=4])`, nil, KeyValueArray{
 		&KeyValue{Str("a"), Int(1)}, &KeyValue{Str("b"), Int(2)}, &KeyValue{Str("c"), Int(3)},
 		&KeyValue{Str("d"), Int(4)}})
 
@@ -4262,9 +4285,7 @@ return f2(;a=1,b=2,c=3,d=4,e=5)
 	TestExpectRun(t, `f := func(;x=1,**kw){return kw};return str(f(;x=1,x=2).readyNames)`, nil, Str(`["x"]`))
 	TestExpectRun(t, `f := func(;x=1,**kw){return [1, kw]};_, ret := f(;x=1,x=2); return str(ret.ready)`, nil, Str(`(;x=1, x=2)`))
 	TestExpectRun(t, `f := func(;x=1,**kw){return kw};return str(f(;x=1,x=2,y=3,**{x:4}).src)`, nil, Str(`[(;x=1, x=2, y=3), (;x=4)]`))
-	TestExpectRun(t, `f := func(**kw){return kw};return str(f(;**[["x",1],["x", 2]]))`, nil, Str(`(;x=1, x=2)`))
-	TestExpectRun(t, `f := func(**kw){return kw};return str(f(;**[[100,1],["x", 2]]))`, nil, Str(`(;100=1, x=2)`))
-	TestExpectRun(t, `f := func(**kw){return kw};return str(f(;**(func() {return [[100,1],["x", 2]]})()))`, nil, Str(`(;100=1, x=2)`))
+	TestExpectRun(t, `f := func(**kw){return kw};return str(f(;**(func() {return [[100=1],["x"=2]]})()))`, nil, Str(`(;100=1, x=2)`))
 	TestExpectRun(t, `f := func(**kw){return kw};return str(f(;**(;100=1,x=2,flag,x=4,"a b"=7)))`, nil, Str(`(;100=1, x=2, flag, x=4, "a b"=7)`))
 	TestExpectRun(t, `f := func(**kw){return kw};return str(f(;"x y"=2,"user.name"="the user",abc="de"))`, nil, Str(`(;"x y"=2, "user.name"="the user", abc="de")`))
 	TestExpectRun(t, `f := func(**kw){return __named_args__};return str(f(;"x y"=2,"user.name"="the user",abc="de"))`, nil, Str(`(;"x y"=2, "user.name"="the user", abc="de")`))

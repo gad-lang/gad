@@ -328,19 +328,34 @@ var (
 	_ ItemsGetter  = KeyValueArray{}
 )
 
-func (o *KeyValueArray) Add(_ *VM, items ...Object) (err error) {
-	for i, item := range items {
-		if kv, _ := item.(*KeyValue); kv != nil {
-			*o = append(*o, kv)
-		} else {
-			return NewArgumentTypeErrorT(fmt.Sprint(i+1), item.Type(), TKeyValue)
+func (o *KeyValueArray) Append(vm *VM, items ...Object) (err error) {
+	cp := *o
+	for _, item := range items {
+		switch t := item.(type) {
+		case *KeyValue:
+			cp = append(cp, t)
+		case Array:
+			err = cp.Append(vm, t...)
+		default:
+			err = ItemsOfCb(vm, &NamedArgs{}, func(kv *KeyValue) error {
+				cp = append(cp, kv)
+				return nil
+			}, items...)
+		}
+		if err != nil {
+			return
 		}
 	}
+	*o = cp
 	return
 }
 
-func (o KeyValueArray) Append(_ *VM, items ...Object) (this Object, err error) {
-	return o, o.Add(nil, items...)
+func (o KeyValueArray) AppendObjects(vm *VM, items ...Object) (this Object, err error) {
+	err = ItemsOfCb(vm, &NamedArgs{}, func(kv *KeyValue) error {
+		o = append(o, kv)
+		return nil
+	}, items...)
+	return o, err
 }
 
 func (o KeyValueArray) Type() ObjectType {
@@ -531,32 +546,11 @@ func (o KeyValueArray) AddItems(arg ...*KeyValue) KeyValueArray {
 	return arr
 }
 
-func (o KeyValueArray) AppendObject(obj Object) (KeyValueArray, error) {
-	switch v := obj.(type) {
-	case *KeyValue:
-		return append(o, v), nil
-	case Dict:
-		return o.AppendMap(v), nil
-	case KeyValueArray:
-		return o.AddItems(v...), nil
-	case *NamedArgs:
-		return o.AddItems(v.UnreadPairs()...), nil
-	case Array:
-		if o, err := o.AppendArray(v); err != nil {
-			return nil, err
-		} else {
-			return o, nil
-		}
-	default:
-		return nil, NewIndexTypeError("array|map|keyValue|keyValueArray", v.Type().Name())
-	}
-}
-
 // BinaryOp implements Object interface.
-func (o KeyValueArray) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
+func (o KeyValueArray) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
 	switch tok {
 	case token.Add:
-		return o.AppendObject(right)
+		return o.AppendObjects(vm, right)
 	case token.Less, token.LessEq:
 		if right == Nil {
 			return False, nil
@@ -942,13 +936,13 @@ func (o *NamedArgs) Contains(key string) bool {
 	return ok
 }
 
-func (o *NamedArgs) Add(obj Object) error {
+func (o *NamedArgs) Add(obj Object) (err error) {
 	if o.ro {
 		return ErrNotWriteable
 	}
-	arr, err := KeyValueArray{}.AppendObject(obj)
-	if err != nil {
-		return err
+	var arr KeyValueArray
+	if err = arr.Append(nil, obj); err != nil {
+		return
 	}
 	o.sources = append(o.sources, arr)
 	return nil

@@ -21,7 +21,7 @@ func TestBytecodesEqual(t *testing.T,
 		got.Fprint(&buf)
 		t.Fatalf("Constants not equal\nDump:\n%s\n"+
 			"Expected Constants:\n%s\nGot Constants:\n%s\n",
-			buf.String(), tests.Sdump(expected.Constants), tests.Sdump(got.Constants))
+			buf.String(), tests.SdumpPrefix("\t", expected.Constants), tests.SdumpPrefix("\t", got.Constants))
 	}
 	if !assertCompiledFunctionsEqual(t,
 		expected.Main, got.Main, checkSourceMap) {
@@ -53,7 +53,7 @@ func TestBytecodesEqual(t *testing.T,
 			goto do
 		}
 		if !reflect.DeepEqual(expectObj, gotObj) {
-			t.Fatalf("Constants not equal at %d\nExpected:\n%s\nGot:\n%s\n",
+			t.Fatalf("Constants not equal at %d\nExpected:\n%v (%[2]T)\nGot:\n%v (%[3]T)\n",
 				i, expectObj, gotObj)
 		}
 	}
@@ -80,9 +80,9 @@ func assertCompiledFunctionsEqual(t *testing.T,
 	if string(expected.Instructions) != string(got.Instructions) {
 		var buf bytes.Buffer
 		buf.WriteString("Expected:\n")
-		expected.Fprint(&buf)
+		expected.FprintLP("\t", &buf)
 		buf.WriteString("\nGot:\n")
-		got.Fprint(&buf)
+		got.FprintLP("\t", &buf)
 		t.Fatalf("Instructions not equal\n%s", buf.String())
 	}
 	if len(expected.Free) != len(got.Free) {

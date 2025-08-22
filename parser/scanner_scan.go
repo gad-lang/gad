@@ -259,7 +259,12 @@ do:
 				insertSemi = true
 			}
 		case '*':
-			t.Token = s.Switch2(token.Mul, token.MulAssign)
+			if s.Ch == '*' {
+				s.Next()
+				t.Token = s.Switch2(token.Pow, token.PowAssign)
+			} else {
+				t.Token = s.Switch2(token.Mul, token.MulAssign)
+			}
 		case '/':
 			if s.Ch == '/' || s.Ch == '*' {
 				// comment

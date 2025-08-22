@@ -239,9 +239,9 @@ a
 	expectParseStringMode(t, ParseMixed, "‹var a›", `‹; var a; ›`)
 	expectParseStringMode(t, ParseMixed, "‹=1›", "‹=1›")
 	expectParseStringMode(t, ParseMixed, "a  ‹-= 1 -›\n\tb", "a  ; ‹-=1-›; \n\tb")
-	expectParseStringMode(t, ParseMixed, "‹(› 2 ‹- ) ›", "‹; › 2 ‹-; ›")
-	expectParseStringMode(t, ParseMixed, "‹( -› 2 ‹- ) ›", "‹; -› 2 ‹-; ›")
-	expectParseStringMode(t, ParseMixed, "‹a = (› 2 ‹- ) ›", "‹; a = › 2 ‹-; ›")
+	expectParseStringMode(t, ParseMixed, "‹(› 2 ‹- ) ›", "‹; (› 2 ‹-); ›")
+	expectParseStringMode(t, ParseMixed, "‹( -› 2 ‹- ) ›", "‹; (-› 2 ‹-); ›")
+	expectParseStringMode(t, ParseMixed, "‹a = (› 2 ‹- ) ›", "‹; a = (› 2 ‹-); ›")
 	expectParseStringMode(t, ParseMixed, "‹1›‹2›‹3›", `‹; 1; 2; 3; ›`)
 	expectParseStringMode(t, ParseMixed, "‹1›‹›‹3›", `‹; 1; 3; ›`)
 	expectParseStringMode(t, ParseMixed, "‹1›‹=2›‹3›", `‹; 1; ›‹=2›‹; 3; ›`)
@@ -1113,6 +1113,20 @@ func TestParseAssignment(t *testing.T) {
 				token.NullichAssign,
 				p(1, 3)))
 	})
+
+	expectParse(t, "a **= 5 + 10", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(ident("a", p(1, 1))),
+				exprs(
+					binaryExpr(
+						intLit(5, p(1, 7)),
+						intLit(10, p(1, 11)),
+						token.Add,
+						p(1, 9))),
+				token.PowAssign,
+				p(1, 3)))
+	})
 }
 
 func TestParseUnaryNulls(t *testing.T) {
@@ -1253,6 +1267,22 @@ func TestParseCallKeywords(t *testing.T) {
 }
 
 func TestParseCall(t *testing.T) {
+	expectParse(t, "add(,)", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				callExpr(
+					ident("add", p(1, 1)),
+					p(1, 4), p(1, 6),
+					callExprArgs(nil))))
+	})
+	expectParse(t, "add(\n\t,)", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				callExpr(
+					ident("add", p(1, 1)),
+					p(1, 4), p(2, 3),
+					callExprArgs(nil))))
+	})
 	expectParse(t, "add(1, 2, 3)", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
@@ -1422,8 +1452,6 @@ func TestParseCall(t *testing.T) {
 	expectParseError(t, `add(1, ...)`)
 	expectParseError(t, `add(1, ..., )`)
 	expectParseError(t, `add(a...)`)
-	expectParseError(t, `add(,)`)
-	expectParseError(t, "add(\n,)")
 }
 
 func TestParseCallWithNamedArgs(t *testing.T) {
@@ -1481,10 +1509,12 @@ func TestParseCallWithNamedArgs(t *testing.T) {
 
 func TestParseParenMultiValues(t *testing.T) {
 	var mp *MultiParenExpr
+	expectParseStringT(t, `(,)`, `(, )`, mp)
+	expectParseStringT(t, `(,1)`, `(, 1)`, mp)
 	expectParseStringT(t, `([a=1],b=2)`, `([a=1]; b=2)`, mp)
-	expectParseStringT(t, `(a=1)`, `(; a=1)`, mp)
+	expectParseStringT(t, `(a=1)`, `(, ; a=1)`, mp)
 	expectParseStringT(t, `(*a)`, `(*a)`, mp)
-	expectParseStringT(t, `(**a)`, `(; **a)`, mp)
+	expectParseStringT(t, `(**a)`, `(, ; **a)`, mp)
 	expectParseStringT(t, `(1;ok)`, `(1; ok)`, mp)
 	expectParseStringT(t, `(a, *b, c=1, **d)`, `(a, *b; c=1, **d)`, mp)
 	expectParseStringT(t, `(a,c=2, x(1))`, `(a; c=2, x(1))`, mp)
@@ -1520,6 +1550,12 @@ flag
 3,4=5,
 true=false, 
 myflag)`, `(;a=1, b=2, "c"=3, 4=5, true=false, myflag)`)
+
+	kva := &KeyValueArrayLit{}
+	expectParseStringT(t, `(;**a)`, `(;**a)`, kva)
+	expectParseStringT(t, `(;x=1, **a)`, `(;x=1, **a)`, kva)
+	expectParseStringT(t, `(;a=1)`, `(;a=1)`, kva)
+	expectParseStringT(t, `(;**a)`, `(;**a)`, kva)
 }
 
 func TestTemplateString(t *testing.T) {
@@ -2002,8 +2038,12 @@ func TestParseFunction(t *testing.T) {
 	})
 
 	expectParseString(t, "func(){}", "func() {}")
+	expectParseString(t, "func(,){}", "func() {}")
+	expectParseString(t, "func(\n\t,){}", "func() {}")
 	expectParseString(t, "func(\n){}", "func() {}")
 	expectParseString(t, "func(a,){}", "func(a) {}")
+	expectParseString(t, "func(,a){}", "func(a) {}")
+	expectParseString(t, "func(\n\t,a){}", "func(a) {}")
 	expectParseString(t, "func(\na,\n){}", "func(a) {}")
 	expectParseString(t, "func(a,\n){}", "func(a) {}")
 	expectParseString(t, "func(\na,\n){}", "func(a) {}")
@@ -2031,9 +2071,8 @@ func TestParseFunction(t *testing.T) {
 	expectParseString(t, "func(a\n,*b){}", "func(a, *b) {}")
 	expectParseString(t, "func(\na\n,*b){}", "func(a, *b) {}")
 	expectParseString(t, "func(*a,\n**b){}", "func(*a, **b) {}")
+	expectParseString(t, `func(;x int=1, y str="abc", **kw) {}`, `func(x int=1, y str="abc", **kw) {}`)
 
-	expectParseError(t, "func(,){}")
-	expectParseError(t, "func(,a){}")
 	expectParseError(t, "func(...a,b){}")
 	expectParseError(t, "func(a,...b;c=1,...d,...e){}")
 }
@@ -2480,6 +2519,16 @@ func TestParseIndex(t *testing.T) {
 }
 
 func TestParseLogical(t *testing.T) {
+	expectParse(t, "2 ** 3", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				binaryExpr(
+					intLit(2, p(1, 1)),
+					intLit(3, p(1, 6)),
+					token.Pow,
+					p(1, 3))))
+	})
+
 	expectParse(t, "a && 5 || true", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
@@ -2625,7 +2674,7 @@ key2: 2
 func TestParsePrecedence(t *testing.T) {
 	expectParseString(t, `a + b + c`, `((a + b) + c)`)
 	expectParseString(t, `a + b * c`, `(a + (b * c))`)
-	expectParseString(t, `x = 2 * 1 + 3 / 4`, `x = ((2 * 1) + (3 / 4))`)
+	expectParseString(t, `2 * 1 + 3 / 4`, `((2 * 1) + (3 / 4))`)
 	expectParseString(t, `a .| b`, `(a .| b)`)
 	expectParseString(t, `a .| b .| c`, `((a .| b) .| c)`)
 	expectParseString(t, `a .| b + c`, `((a .| b) + c)`)
@@ -2635,6 +2684,7 @@ func TestParsePrecedence(t *testing.T) {
 	expectParseString(t, `a ~ b * c`, `((a ~ b) * c)`)
 	expectParseString(t, `a ~ b ~ c .| d`, `(((a ~ b) ~ c) .| d)`)
 	expectParseString(t, `a ~ b / c`, `((a ~ b) / c)`)
+	expectParseString(t, `a ** b * c; d * e ** f`, `((a ** b) * c); (d * (e ** f))`)
 }
 
 func TestParseNullishSelector(t *testing.T) {

@@ -95,7 +95,7 @@ func TestCompiler_CompileBlock(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `.{ 1 }`, bytecode(
+	expectCompile(t, `{ 1 }`, bytecode(
 		Array{Int(1)},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
@@ -104,7 +104,7 @@ func TestCompiler_CompileBlock(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `var x; .{ var x }`, bytecode(
+	expectCompile(t, `var x; { var x }`, bytecode(
 		Array{},
 		compFunc(concatInsts(
 			makeInst(OpNil),
@@ -115,7 +115,7 @@ func TestCompiler_CompileBlock(t *testing.T) {
 		), withLocals(2)),
 	))
 
-	expectCompileError(t, `var x; .{ var z; var z }`, `Compile Error: "z" redeclared in this block`)
+	expectCompileError(t, `var x; { var z; var z }`, `Compile Error: "z" redeclared in this block`)
 }
 
 func TestCompiler_CompilePipe(t *testing.T) {
@@ -646,6 +646,17 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
+	expectCompile(t, `1 ** 2`, bytecode(
+		Array{Int(1), Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpBinaryOp, int(token.Pow)),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
 	expectCompile(t, `2 / 1`, bytecode(
 		Array{Int(2), Int(1)},
 		compFunc(concatInsts(
@@ -1129,8 +1140,8 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
-	expectCompile(t, `[1 + 2, 3 - 4, 5 * 6]`, bytecode(
-		Array{Int(1), Int(2), Int(3), Int(4), Int(5), Int(6)},
+	expectCompile(t, `[1 + 2, 3 - 4, 5 * 6, 7 ** 8]`, bytecode(
+		Array{Int(1), Int(2), Int(3), Int(4), Int(5), Int(6), Int(7), Int(8)},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
@@ -1141,7 +1152,10 @@ func TestCompiler_Compile(t *testing.T) {
 			makeInst(OpConstant, 4),
 			makeInst(OpConstant, 5),
 			makeInst(OpBinaryOp, int(token.Mul)),
-			makeInst(OpArray, 3),
+			makeInst(OpConstant, 6),
+			makeInst(OpConstant, 7),
+			makeInst(OpBinaryOp, int(token.Pow)),
+			makeInst(OpArray, 4),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -3225,32 +3239,26 @@ func TestCompilerKeyValue(t *testing.T) {
 }
 
 func TestCompilerMultiparen(t *testing.T) {
-	expectCompile(t, `(1,*[2,3],a=2,**{})`, bytecode(
+	expectCompile(t, `(1,*[2,3],a=4,**{})`, bytecode(
 		Array{
 			Int(1),
 			Int(2),
 			Int(3),
-			compFunc(concatInsts(
-				makeInst(OpConstant, 0),
-				makeInst(OpDefineLocal, 0),
-				makeInst(OpGetLocal, 0),
-				makeInst(OpJumpFalsy, 22),
-				makeInst(OpConstant, 1),
-				makeInst(OpSetLocal, 0),
-				makeInst(OpGetLocal, 0),
-				makeInst(OpDefineLocal, 1),
-				makeInst(OpJump, 31),
-				makeInst(OpConstant, 2),
-				makeInst(OpSetLocal, 0),
-				makeInst(OpGetLocal, 0),
-				makeInst(OpDefineLocal, 1),
-				makeInst(OpReturn, 0),
-			),
-				withLocals(2),
-			),
+			Str("a"),
+			Int(4),
 		},
 		compFunc(concatInsts(
+			makeInst(OpGetBuiltin, int(BuiltinMixedParams)),
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 2),
+			makeInst(OpArray, 2),
 			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 4),
+			makeInst(OpKeyValue, 1),
+			makeInst(OpKeyValueArray, 1),
+			makeInst(OpDict, 0),
+			makeInst(OpCall, 2, 7),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),

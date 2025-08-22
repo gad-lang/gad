@@ -300,11 +300,15 @@ func ItemsOfCb(vm *VM, na *NamedArgs, cb func(kv *KeyValue) error, o ...Object) 
 		if o == Nil {
 			continue
 		}
-		if g, _ := o.(ItemsGetter); g != nil {
-			err = g.Items(vm, func(i int, item *KeyValue) (err error) {
+
+		switch t := o.(type) {
+		case *KeyValue:
+			err = cb(t)
+		case ItemsGetter:
+			err = t.Items(vm, func(i int, item *KeyValue) (err error) {
 				return cb(item)
 			})
-		} else {
+		default:
 			err = IterateObject(vm, o, na, nil, cb)
 		}
 

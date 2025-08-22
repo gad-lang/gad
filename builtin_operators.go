@@ -7,6 +7,7 @@ var (
 	TBinOpAdd         = &BinaryOperatorType{OpName: "Add", Token: token.Add}                 // +
 	TBinOpSub         = &BinaryOperatorType{OpName: "Sub", Token: token.Sub}                 // -
 	TBinOpMul         = &BinaryOperatorType{OpName: "Mul", Token: token.Mul}                 // *
+	TBinOpPow         = &BinaryOperatorType{OpName: "Pow", Token: token.Pow}                 // **
 	TBinOpQuo         = &BinaryOperatorType{OpName: "Quo", Token: token.Quo}                 // /
 	TBinOpRem         = &BinaryOperatorType{OpName: "Rem", Token: token.Rem}                 // %
 	TBinOpAnd         = &BinaryOperatorType{OpName: "And", Token: token.And}                 // &
@@ -36,6 +37,7 @@ func init() {
 	add(BuiltinBinOpAdd, TBinOpAdd)
 	add(BuiltinBinOpSub, TBinOpSub)
 	add(BuiltinBinOpMul, TBinOpMul)
+	add(BuiltinBinOpPow, TBinOpPow)
 	add(BuiltinBinOpQuo, TBinOpQuo)
 	add(BuiltinBinOpRem, TBinOpRem)
 	add(BuiltinBinOpAnd, TBinOpAnd)

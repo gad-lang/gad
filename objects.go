@@ -990,12 +990,12 @@ func (o Array) SortReverse(vm *VM) (_ Object, err error) {
 	return o, err
 }
 
-func (o *Array) Add(_ *VM, items ...Object) error {
+func (o *Array) Append(_ *VM, items ...Object) error {
 	*o = append(*o, items...)
 	return nil
 }
 
-func (o Array) Append(_ *VM, items ...Object) (Object, error) {
+func (o Array) AppendObjects(_ *VM, items ...Object) (Object, error) {
 	o = append(o, items...)
 	return o, nil
 }
@@ -1272,6 +1272,9 @@ func (o Dict) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err err
 				for key := range t {
 					delete(o, key)
 				}
+				return o, nil
+			case Str:
+				delete(o, string(t))
 				return o, nil
 			case KeyValueArray:
 				for _, kv := range t {

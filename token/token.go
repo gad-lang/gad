@@ -40,6 +40,7 @@ const (
 	Add         // +
 	Sub         // -
 	Mul         // *
+	Pow         // **
 	Quo         // /
 	Rem         // %
 	And         // &
@@ -69,6 +70,7 @@ const (
 	AddAssign     // +=
 	SubAssign     // -=
 	MulAssign     // *=
+	PowAssign     // **=
 	QuoAssign     // /=
 	RemAssign     // %=
 	AndAssign     // &=
@@ -167,6 +169,7 @@ var tokens = [...]string{
 	Add:             "+",
 	Sub:             "-",
 	Mul:             "*",
+	Pow:             "**",
 	Quo:             "/",
 	Rem:             "%",
 	And:             "&",
@@ -178,6 +181,7 @@ var tokens = [...]string{
 	AddAssign:       "+=",
 	SubAssign:       "-=",
 	MulAssign:       "*=",
+	PowAssign:       "**=",
 	QuoAssign:       "/=",
 	RemAssign:       "%=",
 	AndAssign:       "&=",
@@ -280,10 +284,12 @@ func (tok Token) Precedence() int {
 		return 5
 	case Mul, Quo, Rem, Shl, Shr, And, AndNot:
 		return 6
-	case Pipe:
+	case Pow:
 		return 7
-	case Tilde, DoubleTilde, TripleTilde:
+	case Pipe:
 		return 8
+	case Tilde, DoubleTilde, TripleTilde:
+		return 9
 	}
 	return LowestPrec
 }
@@ -304,6 +310,7 @@ func (tok Token) IsBinaryOperator() bool {
 	case Add,
 		Sub,
 		Mul,
+		Pow,
 		Quo,
 		Rem,
 		Less,

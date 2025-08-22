@@ -95,14 +95,21 @@ func (t *Type) AddCallerMethod(vm *VM, types MultipleObjectTypes, handler Caller
 }
 
 func (t *Type) WithMethod(types MultipleObjectTypes, handler CallerObject, override bool) *Type {
+	err := t.AddMethod(types, handler, override)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+func (t *Type) AddMethod(types MultipleObjectTypes, handler CallerObject, override bool) error {
 	if len(types) == 0 {
 		// overrides default constructor. uses Type.new to instantiate.
 		override = true
 	}
-	t.calllerMethods.Add(types, &CallerMethod{
+	return t.calllerMethods.Add(types, &CallerMethod{
 		CallerObject: handler,
 	}, override)
-	return t
 }
 
 func (t *Type) WithConstructor(handler CallerObject) *Type {
