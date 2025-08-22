@@ -251,6 +251,9 @@ type CanFilterabler interface {
 
 type Mapabler interface {
 	Object
+	// Map map object.
+	// If update, update self object.
+	// If len(args) is 1, must a value, otherwise value and key
 	Map(c Call, update bool, keyValue Array, handler VMCaller) (Object, error)
 }
 

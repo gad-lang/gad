@@ -707,7 +707,7 @@ func TestOptimizerShadowing(t *testing.T) {
 	)
 
 	// https://github.com/gad-lang/gad/issues/2
-	TestExpectRun(t, `
+	testExpectRun(t, `
 	str := func(x) { return "ok" }
 	return str(1)
 	`, nil, Str("ok"))

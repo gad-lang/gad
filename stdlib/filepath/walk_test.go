@@ -11,7 +11,7 @@ import (
 func TestWalk(t *testing.T) {
 	var (
 		cwd, _ = os.Getwd()
-		opts   = gad.NewTestOpts().Args(gad.Str(cwd))
+		opts   = gad.NewVMTestOpts().Args(gad.Str(cwd))
 		p      = func(s string) gad.Str {
 			return gad.Str(filepath.Join(cwd, s))
 		}

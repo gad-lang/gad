@@ -6,10 +6,10 @@ import (
 	"github.com/gad-lang/gad"
 )
 
-func expectRun(t *testing.T, param, script string, opts *gad.TestOpts, expect gad.Object) {
+func expectRun(t *testing.T, param, script string, opts *gad.VMTestOpts, expect gad.Object) {
 	t.Helper()
 	if opts == nil {
-		opts = gad.NewTestOpts()
+		opts = gad.NewVMTestOpts()
 	}
 	opts = opts.Module("filepath", Module)
 	if param != "" {
