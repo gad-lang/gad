@@ -109,7 +109,9 @@ func (f *PipedInvokeIterator) Next(vm *VM, state *IteratorState) (err error) {
 
 func (f *PipedInvokeIterator) Call(state *IteratorState) (err error) {
 	f.args[f.startArgValueIndex] = state.Entry.V
-	f.args[f.startArgValueIndex+1] = state.Entry.K
+	if len(f.args) > 1 {
+		f.args[f.startArgValueIndex+1] = state.Entry.K
+	}
 
 	if f.preCall != nil {
 		if state.Entry.V, err = f.preCall(state.Entry.K, state.Entry.V); err != nil {

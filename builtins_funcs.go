@@ -396,10 +396,15 @@ func BuiltinMapFunc(c Call) (_ Object, err error) {
 			Value: False,
 		}
 
+		nokey = &NamedArgVar{
+			Name:  "nokey",
+			Value: False,
+		}
+
 		canUpdate bool
 	)
 
-	if err = c.NamedArgs.Get(update); err != nil {
+	if err = c.NamedArgs.Get(update, nokey); err != nil {
 		return
 	}
 
@@ -415,9 +420,13 @@ func BuiltinMapFunc(c Call) (_ Object, err error) {
 	}
 
 	var (
-		args   = Array{Nil, Nil}
+		args   = Array{Nil}
 		caller VMCaller
 	)
+
+	if nokey.Value.IsFalsy() {
+		args = append(args, Nil)
+	}
 
 	if caller, err = NewInvoker(c.VM, callback.Value).Caller(Args{args}, &c.NamedArgs); err != nil {
 		return
