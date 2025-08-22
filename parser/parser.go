@@ -2362,6 +2362,45 @@ func (p *Parser) ParseDictLit() *node.DictExpr {
 	}
 }
 
+func (p *Parser) ParseKeyValueLit() *node.KeyValueLit {
+	if p.Trace {
+		defer untracep(tracep(p, "ParseKeyValueLit"))
+	}
+
+	p.SkipSpace()
+
+	p.Expect(token.LBrack)
+
+	var (
+		keyExpr   = p.ParsePrimaryExpr()
+		valueExpr node.Expr
+	)
+
+	p.SkipSpace()
+
+	switch p.Token.Token {
+	case token.Ident:
+		if ident, _ := keyExpr.(*node.IdentExpr); ident != nil {
+			keyExpr = &node.TypedIdentExpr{
+				Ident: ident,
+				Type:  p.ParseType(),
+			}
+		}
+		fallthrough
+	default:
+		p.Expect(token.Assign)
+		valueExpr = p.ParseExpr()
+		p.SkipSpace()
+	}
+
+	p.Expect(token.RBrack)
+
+	return &node.KeyValueLit{
+		Key:   keyExpr,
+		Value: valueExpr,
+	}
+}
+
 func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLit {
 	if p.Trace {
 		defer untracep(tracep(p, "ParseKeyValuePairLit"))
@@ -2399,21 +2438,23 @@ func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLi
 
 func (p *Parser) ParseKeyValueArrayLitAt(lbrace source.Pos, rbraceToken token.Token) *node.KeyValueArrayLit {
 	p.ExprLevel++
-	var (
-		elements []node.Expr
-	)
+	var elements []node.Expr
 
+l:
 	for p.Token.Token != rbraceToken && p.Token.Token != token.EOF {
-		if p.Token.Token == token.Pow {
+		switch p.Token.Token {
+		case token.Pow:
 			pos := p.Expect(token.Pow)
 			elements = append(elements, &node.NamedArgVarLit{
 				TokenPos: pos,
 				Value:    p.ParseExpr(),
 			})
-			break
+			break l
+		case token.LBrack:
+			elements = append(elements, p.ParseKeyValueLit())
+		default:
+			elements = append(elements, p.ParseKeyValuePairLit(rbraceToken))
 		}
-
-		elements = append(elements, p.ParseKeyValuePairLit(rbraceToken))
 
 		if !p.AtComma("keyValueArray literal", rbraceToken) {
 			break

@@ -495,11 +495,7 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 				t.Value.WriteCode(ctx)
 			}
 		case *KeyValueLit:
-			t.Key.WriteCode(ctx)
-			if t.Value != nil {
-				ctx.WriteByte('=')
-				t.Value.WriteCode(ctx)
-			}
+			t.WriteCode(ctx)
 		case *NamedArgVarLit:
 			t.WriteCode(ctx)
 		}
@@ -511,17 +507,11 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 }
 
 func (e *KeyValueArrayLit) ToMultiParenExpr() *MultiParenExpr {
-	r := &MultiParenExpr{
+	return &MultiParenExpr{
 		LParen: e.LParen,
 		RParen: e.RParen,
-		Exprs:  make([]Expr, len(e.Elements)),
+		Exprs:  append(Exprs{&KeyValueSepLit{}}, e.Elements...),
 	}
-
-	for i, ele := range e.Elements {
-		r.Exprs[i] = ele
-	}
-
-	return r
 }
 
 // StdInLit represents an STDIN literal.
@@ -861,9 +851,7 @@ func (c *CallArgs) StringArg(w io.Writer, lbrace, rbrace string) {
 		io.WriteString(w, c.Args.String())
 	}
 	if c.NamedArgs.Valid() {
-		if c.Args.Valid() {
-			io.WriteString(w, ", ")
-		}
+		io.WriteString(w, "; ")
 		io.WriteString(w, c.NamedArgs.String())
 	}
 	io.WriteString(w, rbrace)

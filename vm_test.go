@@ -4308,6 +4308,8 @@ return f2(;a=1,b=2,c=3,d=4,e=5)
 		Array{Str("‹builtinType int›"), Str("‹builtinType uint›")})
 	expectErrHas(t, `func(;a int=2) { return a }(;a="3")`, nil, "invalid type for named argument 'a': expected int, found str")
 	expectErrHas(t, `func(;a int|uint=2) { return a }(;a="3")`, nil, "invalid type for named argument 'a': expected int|uint, found str")
+	testExpectRun(t, `return func(;a=2,**kw) { return repr(kw) }(;"a"=3,[(2**3) = "pow:8"])`, nil, Str(`‹namedArgs:(;8="pow:8")›`))
+	testExpectRun(t, `return func(;**kw) { return repr(kw) }(;"a"=3,[(2**3) = "pow:8"], [(str)=1], **{x:10})`, nil, Str(`‹namedArgs:(;a=3, 8="pow:8", ‹builtinType str›=1, x=10)›`))
 }
 
 func TestVMClosure(t *testing.T) {

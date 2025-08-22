@@ -1460,7 +1460,11 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 				// is flag
 				value = &node.FlagLit{Value: true}
 			}
-			namedArgs.Elements[i] = &node.KeyValuePairLit{name.NameString(), value}
+			if name.Exp != nil {
+				namedArgs.Elements[i] = &node.KeyValueLit{name.Expr(), value}
+			} else {
+				namedArgs.Elements[i] = &node.KeyValuePairLit{name.Expr(), value}
+			}
 		}
 
 		if err := c.compileKeyValueArrayLit(namedArgs); err != nil {

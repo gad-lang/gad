@@ -14,7 +14,6 @@ package node
 
 import (
 	"bytes"
-	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad/internal"
@@ -476,6 +475,20 @@ func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError
 
 	for _, n = range right {
 		switch t := n.(type) {
+		case *KeyValueLit:
+			na := NamedArgExpr{}
+			switch t := t.Key.(type) {
+			case *StringLit:
+				na.Lit = t
+			case *IdentExpr:
+				na.Ident = t
+			case *ParenExpr:
+				na.Exp = t
+			default:
+				na.Exp = &ParenExpr{Expr: t}
+			}
+			args.NamedArgs.Names = append(args.NamedArgs.Names, na)
+			args.NamedArgs.Values = append(args.NamedArgs.Values, t.Value)
 		case *KeyValuePairLit:
 			switch t2 := t.Key.(type) {
 			case *IdentExpr:
@@ -821,6 +834,7 @@ func (a *CallExprArgs) WriteCode(ctx *CodeWriteContext) {
 type NamedArgExpr struct {
 	Lit   *StringLit
 	Ident *IdentExpr
+	Exp   Expr
 }
 
 func (e *NamedArgExpr) Name() string {
@@ -828,13 +842,6 @@ func (e *NamedArgExpr) Name() string {
 		return e.Lit.Value()
 	}
 	return e.Ident.Name
-}
-
-func (e *NamedArgExpr) NameString() *StringLit {
-	if e.Lit != nil {
-		return e.Lit
-	}
-	return &StringLit{Literal: strconv.Quote(e.Ident.Name), ValuePos: e.Ident.NamePos}
 }
 
 func (e *NamedArgExpr) String() string {
@@ -845,7 +852,10 @@ func (e *NamedArgExpr) Expr() Expr {
 	if e.Lit != nil {
 		return e.Lit
 	}
-	return e.Ident
+	if e.Ident != nil {
+		return e.Ident
+	}
+	return e.Exp
 }
 
 func (e *NamedArgExpr) WriteCode(ctx *CodeWriteContext) {
@@ -901,16 +911,24 @@ func (a *CallExprNamedArgs) NamesExpr() (r []Expr) {
 
 func (a *CallExprNamedArgs) String() string {
 	var s []string
-	for i, name := range a.Names {
-		if a.Values[i] == nil {
-			if name.Lit != nil && name.Lit.CanIdent() {
-				s = append(s, name.Lit.Value()+"=on")
-			} else {
-				s = append(s, name.Expr().String()+"=on")
-			}
-		} else {
-			s = append(s, name.Expr().String()+"="+a.Values[i].String())
+	do := func(i int, name NamedArgExpr) (es string) {
+		if name.Exp != nil {
+			es = "["
 		}
+		es += name.Expr().String() + "="
+		if a.Values[i] == nil {
+			es += (&FlagLit{Value: true}).String()
+		} else {
+			es += a.Values[i].String()
+		}
+		if name.Exp != nil {
+			es += "]"
+		}
+		return
+	}
+
+	for i, name := range a.Names {
+		s = append(s, do(i, name))
 	}
 	if a.Var != nil {
 		s = append(s, a.Var.String())
@@ -920,19 +938,29 @@ func (a *CallExprNamedArgs) String() string {
 
 func (a *CallExprNamedArgs) WriteCode(ctx *CodeWriteContext) {
 	l := len(a.Names) - 1
-	for i, name := range a.Names {
+	do := func(i int, name NamedArgExpr) {
+		if name.Exp != nil {
+			ctx.WriteByte('[')
+			defer ctx.WriteByte(']')
+		}
+
 		if a.Values[i] == nil {
 			if name.Lit != nil && name.Lit.CanIdent() {
 				ctx.WriteString(name.Lit.Value())
+			} else if name.Ident != nil {
+				ctx.WriteString(name.Ident.String())
 			} else {
-				ctx.WriteString(name.Expr().String())
+				name.Expr().WriteCode(ctx)
 			}
 		} else {
 			ctx.WriteString(name.Expr().String() + "=")
 			a.Values[i].WriteCode(ctx)
-			if i != l || a.Var != nil {
-				ctx.WriteString(", ")
-			}
+		}
+	}
+	for i, name := range a.Names {
+		do(i, name)
+		if i != l || a.Var != nil {
+			ctx.WriteString(", ")
 		}
 	}
 	if a.Var != nil {
