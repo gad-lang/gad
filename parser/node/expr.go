@@ -75,11 +75,11 @@ func (e *BinaryExpr) String() string {
 }
 
 func (e *BinaryExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteByte('(')
+	ctx.WriteSingleByte('(')
 	e.LHS.WriteCode(ctx)
 	ctx.WriteString(" " + e.Token.String() + " ")
 	e.RHS.WriteCode(ctx)
-	ctx.WriteByte(')')
+	ctx.WriteSingleByte(')')
 }
 
 type BoolExpr interface {
@@ -143,13 +143,13 @@ func (e *CondExpr) String() string {
 }
 
 func (e *CondExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteByte('(')
+	ctx.WriteSingleByte('(')
 	e.Cond.WriteCode(ctx)
 	ctx.WriteString(" ? ")
 	e.True.WriteCode(ctx)
 	ctx.WriteString(" : ")
 	e.False.WriteCode(ctx)
-	ctx.WriteByte(')')
+	ctx.WriteSingleByte(')')
 }
 
 // IdentExpr represents an identifier.
@@ -335,9 +335,9 @@ func (e *ParenExpr) String() string {
 }
 
 func (e *ParenExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteByte('(')
+	ctx.WriteSingleByte('(')
 	e.Expr.WriteCode(ctx)
-	ctx.WriteByte(')')
+	ctx.WriteSingleByte(')')
 }
 
 func (e *ParenExpr) ToMultiParenExpr() *MultiParenExpr {
@@ -377,7 +377,7 @@ func (e *MultiParenExpr) String() string {
 	var left, right = e.Split()
 
 	if l := len(left) + len(right); l < 2 {
-		if l == 0 || !internal.TsType(append(left, right...)[0], &ArgVarLit{}) {
+		if l == 0 || !internal.TSType(append(left, right...)[0], &ArgVarLit{}) {
 			s.WriteString(", ")
 		}
 	}
@@ -442,7 +442,7 @@ expr:
 }
 
 func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteByte('(')
+	ctx.WriteSingleByte('(')
 
 	left, right := e.Split()
 	ctx.WriteExprs(", ", left...)
@@ -452,7 +452,7 @@ func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteExprs(", ", right...)
 	}
 
-	ctx.WriteByte(')')
+	ctx.WriteSingleByte(')')
 }
 
 func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError) {
@@ -647,7 +647,7 @@ func (e *SelectorExpr) SelectorExpr() Expr {
 
 func (e *SelectorExpr) WriteCode(ctx *CodeWriteContext) {
 	e.Expr.WriteCode(ctx)
-	ctx.WriteByte('.')
+	ctx.WriteSingleByte('.')
 	if s, _ := e.Sel.(*StringLit); s != nil {
 		if s.CanIdent() {
 			ctx.WriteString(s.Value())
@@ -740,15 +740,15 @@ func (e *SliceExpr) String() string {
 
 func (e *SliceExpr) WriteCode(ctx *CodeWriteContext) {
 	e.Expr.WriteCode(ctx)
-	ctx.WriteByte('[')
+	ctx.WriteSingleByte('[')
 	if e.Low != nil {
 		e.Low.WriteCode(ctx)
 	}
-	ctx.WriteByte(':')
+	ctx.WriteSingleByte(':')
 	if e.High != nil {
 		e.High.WriteCode(ctx)
 	}
-	ctx.WriteByte(']')
+	ctx.WriteSingleByte(']')
 }
 
 // UnaryExpr represents an unary operator expression.
@@ -781,7 +781,7 @@ func (e *UnaryExpr) String() string {
 }
 
 func (e *UnaryExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteByte('(')
+	ctx.WriteSingleByte('(')
 
 	switch e.Token {
 	case token.Null:
@@ -795,7 +795,7 @@ func (e *UnaryExpr) WriteCode(ctx *CodeWriteContext) {
 		e.Expr.WriteCode(ctx)
 	}
 
-	ctx.WriteByte(')')
+	ctx.WriteSingleByte(')')
 }
 
 // CallExprArgs represents a call expression arguments.
@@ -825,10 +825,9 @@ func (a *CallExprArgs) WriteCode(ctx *CodeWriteContext) {
 		if len(a.Values) > 0 {
 			ctx.WriteString(", ")
 		}
-		ctx.WriteByte('*')
+		ctx.WriteSingleByte('*')
 		a.Var.Value.WriteCode(ctx)
 	}
-	return
 }
 
 type NamedArgExpr struct {
@@ -940,8 +939,8 @@ func (a *CallExprNamedArgs) WriteCode(ctx *CodeWriteContext) {
 	l := len(a.Names) - 1
 	do := func(i int, name NamedArgExpr) {
 		if name.Exp != nil {
-			ctx.WriteByte('[')
-			defer ctx.WriteByte(']')
+			ctx.WriteSingleByte('[')
+			defer ctx.WriteSingleByte(']')
 		}
 
 		if a.Values[i] == nil {
@@ -1118,17 +1117,17 @@ func (e *MixedTextExpr) WriteCode(ctx *CodeWriteContext) {
 	if e.Stmt.Lit.Value == "" {
 		ctx.WriteString(`""`)
 	} else {
-		ctx.WriteByte('(')
+		ctx.WriteSingleByte('(')
 		if e.Stmt.Flags.Has(RemoveLeftSpaces) {
-			ctx.WriteByte('-')
+			ctx.WriteSingleByte('-')
 		}
 		ctx.WriteString(e.StartLit.Value)
 		e.Stmt.WriteCode(ctx)
 		ctx.WriteString(e.EndLit.Value)
 		if e.Stmt.Flags.Has(RemoveRightSpaces) {
-			ctx.WriteByte('-')
+			ctx.WriteSingleByte('-')
 		}
-		ctx.WriteByte(')')
+		ctx.WriteSingleByte(')')
 	}
 }
 
@@ -1220,14 +1219,14 @@ func (e *DictExpr) String() string {
 }
 
 func (e *DictExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteByte('{')
+	ctx.WriteSingleByte('{')
 	for i, m := range e.Elements {
 		if i > 0 {
 			ctx.WriteString(", ")
 		}
 		m.WriteCode(ctx)
 	}
-	ctx.WriteByte('}')
+	ctx.WriteSingleByte('}')
 }
 
 // ArrayExpr represents an array literal.
@@ -1258,7 +1257,7 @@ func (e *ArrayExpr) String() string {
 }
 
 func (e *ArrayExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteByte('[')
+	ctx.WriteSingleByte('[')
 	ctx.WriteExprs(", ", e.Elements...)
-	ctx.WriteByte(']')
+	ctx.WriteSingleByte(']')
 }

@@ -872,7 +872,7 @@ func TestConstIota(t *testing.T) {
 		y
 		z
 	)
-	return x == y && y == z`, nil, True)
+	return str([x, y, z])`, nil, Str("[‹compiledFunction x()›, ‹compiledFunction y()›, ‹compiledFunction z()›]"))
 
 	testExpectRun(t, `
 	var a

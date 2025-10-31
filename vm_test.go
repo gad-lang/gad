@@ -14,14 +14,14 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
-type VMTestOpts = test_helper.VMTestOpts
+type VMTestOpts = testhelper.VMTestOpts
 
 var (
-	expectErrAs   = test_helper.VMExpectErrAs
-	expectErrHas  = test_helper.VMExpectErrHas
-	expectErrIs   = test_helper.VMExpectErrIs
-	testExpectRun = test_helper.VMTestExpectRun
-	newOpts       = test_helper.NewVMTestOpts
+	expectErrAs   = testhelper.VMExpectErrAs
+	expectErrHas  = testhelper.VMExpectErrHas
+	expectErrIs   = testhelper.VMExpectErrIs
+	testExpectRun = testhelper.VMTestExpectRun
+	newOpts       = testhelper.NewVMTestOpts
 )
 
 func TestVMBinaryOperator(t *testing.T) {
@@ -1792,7 +1792,7 @@ return [repr(myval), myval(), myval(2)]`,
 		newOpts().Builtins(map[string]Object{
 			"myval": obj,
 		}), Array{
-			Str("‹reflect:github.com/gad-lang/gad_test.S:{} with 1 methods:\n\t1. ‹compiledFunction #1(i int)››"),
+			Str("‹reflect:github.com/gad-lang/gad_test.S:{} with 1 methods:\n\t1. ‹compiledFunction #1(i int)›: [int]›"),
 			Array{True, Str("call *S result")},
 			Str("method with int value = 2"),
 		})
@@ -1934,7 +1934,7 @@ func int(p Point) => rawCaller(int)(p.x * p.y)
 return [int(Point(2, 8)), str(int)]
 `,
 		nil, Array{Int(16), Str(ReprQuote("builtinType int") + " with 1 methods:\n\t" +
-			"1. " + ReprQuote("compiledFunction #7(p Point)"))})
+			"1. " + ReprQuote("compiledFunction #7(p Point)") + ": [Point]")})
 }
 
 func TestCallerMethod(t *testing.T) {
@@ -1962,11 +1962,11 @@ func f1(i int, b bool) => nil
 addCallMethod(f, f1)
 return [str(f), str(f1)]`,
 		newOpts(), Array{Str(ReprQuote("compiledFunction f()") + " with 3 methods:\n\t" +
-			"1. " + ReprQuote("compiledFunction #1(b bool)") + "\n\t" +
-			"2. " + ReprQuote("compiledFunction f1(i int)") + "\n\t" +
-			"3. " + ReprQuote("compiledFunction #3(i int, b bool)")),
+			"1. " + ReprQuote("compiledFunction #1(b bool)") + ": [bool]\n\t" +
+			"2. " + ReprQuote("compiledFunction f1(i int)") + ": [int]\n\t" +
+			"3. " + ReprQuote("compiledFunction #3(i int, b bool)") + ": [int, bool]"),
 			Str(ReprQuote("compiledFunction f1(i int)") + " with 1 methods:\n\t" +
-				"1. " + ReprQuote("compiledFunction #3(i int, b bool)"))})
+				"1. " + ReprQuote("compiledFunction #3(i int, b bool)") + ": [int, bool]")})
 
 	testExpectRun(t, `
 func f0(i int) => i*2
@@ -1976,8 +1976,8 @@ return str(f0), f0(), f0(2), f0("a")`,
 		newOpts(),
 		Array{
 			Str(ReprQuote("compiledFunction f0(i int)") + " with 2 methods:\n\t" +
-				"1. " + ReprQuote("compiledFunction #3()") + "\n\t" +
-				"2. " + ReprQuote("compiledFunction #5(s str)")),
+				"1. " + ReprQuote("compiledFunction #3()") + ": []\n\t" +
+				"2. " + ReprQuote("compiledFunction #5(s str)") + ": [str]"),
 			Str("no args"),
 			Int(4),
 			Str("ab"),
@@ -2012,16 +2012,16 @@ return [
 			Array{Int(0), Int(1), Int(2), Int(3), Int(4)},
 			Array{
 				Str(ReprQuote("compiledFunction f0()") + " with 1 methods:\n\t" +
-					"1. " + ReprQuote("compiledFunction #8(i int)")),
+					"1. " + ReprQuote("compiledFunction #8(i int)") + ": [int]"),
 				Str(ReprQuote("compiledFunction f1()") + " with 2 methods:\n\t" +
-					"1. " + ReprQuote("compiledFunction #9(i int)") + "\n\t" +
-					"2. " + ReprQuote("compiledFunction #10(i uint)")),
+					"1. " + ReprQuote("compiledFunction #9(i int)") + ": [int]\n\t" +
+					"2. " + ReprQuote("compiledFunction #10(i uint)") + ": [uint]"),
 				Str(ReprQuote("compiledFunction f2()") + " with 1 methods:\n\t" +
-					"1. " + ReprQuote("compiledFunction #11(i int)")),
+					"1. " + ReprQuote("compiledFunction #11(i int)") + ": [int]"),
 				Str(ReprQuote("compiledFunction f3(v bool)") + " with 1 methods:\n\t" +
-					"1. " + ReprQuote("compiledFunction #12(i int)")),
+					"1. " + ReprQuote("compiledFunction #12(i int)") + ": [int]"),
 				Str(ReprQuote("compiledFunction f4(s str)") + " with 1 methods:\n\t" +
-					"1. " + ReprQuote("compiledFunction #13(i int)")),
+					"1. " + ReprQuote("compiledFunction #13(i int)") + ": [int]"),
 				Str(ReprQuote("compiledFunction f5(b bytes)")),
 				Str(ReprQuote("compiledFunction f6(s str, i int)")),
 				Str(ReprQuote("compiledFunction f7(b bool, i int)")),
@@ -3818,9 +3818,9 @@ func TestVMMultiParen(t *testing.T) {
 			&KeyValue{K: Str("b"), V: Int(5)},
 		},
 	}
-	testExpectRun(t, fmt.Sprintf("return (1,*[2,3],a=4,**{b:5})"), nil, r)
-	testExpectRun(t, fmt.Sprintf("return (1,2,*[3],a=4,b=5)"), nil, r)
-	testExpectRun(t, fmt.Sprintf(`return (1,2,*[3],a=4,"b"=5)`), nil, r)
+	testExpectRun(t, "return (1,*[2,3],a=4,**{b:5})", nil, r)
+	testExpectRun(t, "return (1,2,*[3],a=4,b=5)", nil, r)
+	testExpectRun(t, "return (1,2,*[3],a=4,\"b\"=5)", nil, r)
 }
 
 func TestVMTailCall(t *testing.T) {

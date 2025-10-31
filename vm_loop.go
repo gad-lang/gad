@@ -349,7 +349,7 @@ VMLoop:
 		case OpKeyValueArray:
 			var (
 				numItems = int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
-				arr      = make(KeyValueArray, 0, 0)
+				arr      = make(KeyValueArray, 0)
 				err      error
 			)
 

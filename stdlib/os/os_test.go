@@ -56,11 +56,11 @@ func TestRunNewFileMode(t *testing.T) {
 	expectRun(t, `return os.FileFlag("ro|wo|sync")`, nil, ORo|OWo|OSync)
 }
 
-func expectRun(t *testing.T, script string, opts *test_helper.VMTestOpts, expect gad.Object) {
+func expectRun(t *testing.T, script string, opts *testhelper.VMTestOpts, expect gad.Object) {
 	if opts == nil {
-		opts = test_helper.NewVMTestOpts()
+		opts = testhelper.NewVMTestOpts()
 	}
 	opts = opts.Module("os", Module)
 	script = `const os = import("os");` + script
-	test_helper.VMTestExpectRun(t, script, opts, expect)
+	testhelper.VMTestExpectRun(t, script, opts, expect)
 }

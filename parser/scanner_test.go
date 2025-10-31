@@ -530,7 +530,7 @@ func (tr *tester) scanExpect(
 	for idx, e := range expected {
 		tok := s.Scan()
 
-		filePos := testFile.Position(tok.Pos)
+		filePos := source.MustFilePosition(testFile, tok.Pos)
 
 		es := fmt.Sprintf("[%s %d:%d] %s", e.Token, e.Line, e.Column, e.Literal)
 		gs := fmt.Sprintf("[%s %d:%d] %s", tok.Token, filePos.Line, filePos.Column, tok.Literal)

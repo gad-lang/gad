@@ -46,9 +46,9 @@ func TestMethodArgsMixed(t *testing.T) {
 	}, false))
 
 	assert.Equal(t, `‹function:fn› with 3 methods:
-	1. ‹function:type_name›(decimal)
-	2. ‹function:type_name›(float)
-	3. ‹function:type_name›(int)`, f.ToString())
+	1. ‹function:type_name›: [decimal]
+	2. ‹function:type_name›: [float]
+	3. ‹function:type_name›: [int]`, f.ToString())
 
 	var tests = []struct {
 		name string

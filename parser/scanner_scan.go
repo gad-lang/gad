@@ -10,7 +10,7 @@ import (
 
 // ScanNow returns a token, token literal and its position.
 func (s *Scanner) ScanNow() (t Token) {
-	t.Pos = s.File.FileSetPos(s.Offset)
+	t.Pos = source.MustFileSetPos(s.File, s.Offset)
 
 	if s.Ch == -1 {
 		if s.InsertSemi {
@@ -44,7 +44,7 @@ func (s *Scanner) ScanNow() (t Token) {
 
 				t.Token = token.MixedCodeEnd
 				t.Literal = string(s.MixedDelimiter.End)
-				t.Pos = s.File.FileSetPos(s.Offset)
+				t.Pos = source.MustFileSetPos(s.File, s.Offset)
 				t.Set("remove-spaces", removeLeftSpace)
 
 				s.Next()
@@ -59,7 +59,7 @@ func (s *Scanner) ScanNow() (t Token) {
 		} else {
 			readText := func() {
 				t.Token = token.MixedText
-				t.Pos = s.File.FileSetPos(start)
+				t.Pos = source.MustFileSetPos(s.File, start)
 
 				if s.Offset > start {
 					t.Literal = string(s.Src[start:s.Offset])
@@ -112,7 +112,7 @@ func (s *Scanner) ScanNow() (t Token) {
 
 do:
 	s.SkipWhitespace()
-	t.Pos = s.File.FileSetPos(s.Offset)
+	t.Pos = source.MustFileSetPos(s.File, s.Offset)
 
 	insertSemi := false
 
@@ -271,7 +271,7 @@ do:
 				if s.InsertSemi && s.FindLineEnd() {
 					// reset position to the beginning of the comment
 					s.Ch = '/'
-					s.Offset = s.File.Offset(t.Pos)
+					s.Offset = source.MustFileOffset(s.File, t.Pos)
 					s.ReadOffset = s.Offset + 1
 					s.InsertSemi = false // newline consumed
 					t.Literal = "\n"
@@ -346,7 +346,7 @@ do:
 						goto done
 					}
 				}
-				s.Error(s.File.Offset(t.Pos),
+				s.Error(source.MustFileOffset(s.File, t.Pos),
 					fmt.Sprintf("illegal character %#U", ch))
 			}
 			insertSemi = s.InsertSemi // preserve InsertSemi info

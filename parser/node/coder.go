@@ -16,7 +16,7 @@ type Coder interface {
 type CodeWriter interface {
 	io.Writer
 	WriteString(s ...string)
-	WriteByte(b byte)
+	WriteSingleByte(b byte)
 	WriteRune(b rune)
 	WriteLine(s ...string)
 	WriteLines(l ...string)
@@ -36,7 +36,7 @@ func (w *cw) WriteRune(r rune) {
 	w.WriteString(string([]rune{r}))
 }
 
-func (w *cw) WriteByte(c byte) {
+func (w *cw) WriteSingleByte(c byte) {
 	w.Write([]byte{c})
 }
 

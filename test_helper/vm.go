@@ -1,4 +1,4 @@
-package test_helper
+package testhelper
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/gad-lang/gad"
+	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/tests"
@@ -38,9 +38,9 @@ func VMExpectErrIs(t *testing.T, script string, opts *VMTestOpts, expectErr erro
 	VMExpectErrorGen(t, script, opts, func(t *testing.T, retErr error) {
 		t.Helper()
 		if !errors.Is(retErr, expectErr) {
-			if re, ok := retErr.(*RuntimeError); ok {
+			if re, ok := retErr.(*gad.RuntimeError); ok {
 				if !errors.Is(re.Err, expectErr) {
-					if gerr, _ := expectErr.(*Error); gerr != nil {
+					if gerr, _ := expectErr.(*gad.Error); gerr != nil {
 						if gerr.Error() == re.Err.Error() {
 							return
 						}
@@ -80,13 +80,13 @@ func VMExpectErrorGen(
 	}
 	type testCase struct {
 		name   string
-		opts   CompilerOptions
+		opts   gad.CompilerOptions
 		tracer bytes.Buffer
 	}
 	testCases := []testCase{
 		{
 			name: "default",
-			opts: CompilerOptions{
+			opts: gad.CompilerOptions{
 				ModuleMap:      opts.GetModuleMap(),
 				OptimizeConst:  true,
 				TraceParser:    true,
@@ -96,7 +96,7 @@ func VMExpectErrorGen(
 		},
 		{
 			name: "unoptimized",
-			opts: CompilerOptions{
+			opts: gad.CompilerOptions{
 				ModuleMap:      opts.GetModuleMap(),
 				TraceParser:    true,
 				TraceOptimizer: true,
@@ -111,16 +111,16 @@ func VMExpectErrorGen(
 		t.Run(tC.name, func(t *testing.T) {
 			t.Helper()
 			tC.opts.Trace = &tC.tracer // nolint exportloopref
-			compiled, err := Compile([]byte(script), CompileOptions{CompilerOptions: tC.opts})
+			compiled, err := gad.Compile([]byte(script), gad.CompileOptions{CompilerOptions: tC.opts})
 			if opts.IsCompilerErr {
 				require.Error(t, err)
 				callback(t, err)
 				return
 			}
 			require.NoError(t, err)
-			_, err = NewVM(compiled).SetRecover(opts.IsNoPanic()).RunOpts(&RunOpts{
+			_, err = gad.NewVM(compiled).SetRecover(opts.IsNoPanic()).RunOpts(&gad.RunOpts{
 				Globals:   opts.GetGlobals(),
-				Args:      Args{opts.GetArgs()},
+				Args:      gad.Args{opts.GetArgs()},
 				NamedArgs: opts.GetNameArgs(),
 			})
 			require.Error(t, err)
@@ -130,76 +130,76 @@ func VMExpectErrorGen(
 }
 
 type VMTestOpts struct {
-	globals        IndexGetSetter
-	args           Array
-	namedArgs      *NamedArgs
-	moduleMap      *ModuleMap
+	globals        gad.IndexGetSetter
+	args           gad.Array
+	namedArgs      *gad.NamedArgs
+	moduleMap      *gad.ModuleMap
 	Skip2pass      bool
 	IsCompilerErr  bool
 	noPanic        bool
-	stdout         Writer
-	builtins       map[string]Object
+	stdout         gad.Writer
+	builtins       map[string]gad.Object
 	exprToTextFunc string
 	mixed          bool
 	buffered       bool
-	objectToWriter ObjectToWriter
-	init           func(opts *VMTestOpts, expect Object) (*VMTestOpts, Object)
-	compileOptions func(opts *CompileOptions)
+	objectToWriter gad.ObjectToWriter
+	init           func(opts *VMTestOpts, expect gad.Object) (*VMTestOpts, gad.Object)
+	compileOptions func(opts *gad.CompileOptions)
 }
 
 func NewVMTestOpts() *VMTestOpts {
 	return &VMTestOpts{}
 }
 
-func (t *VMTestOpts) GetGlobals() IndexGetSetter {
+func (t *VMTestOpts) GetGlobals() gad.IndexGetSetter {
 	return t.globals
 }
 
-func (t *VMTestOpts) GetArgs() Array {
+func (t *VMTestOpts) GetArgs() gad.Array {
 	return t.args
 }
 
-func (t *VMTestOpts) GetNameArgs() *NamedArgs {
+func (t *VMTestOpts) GetNameArgs() *gad.NamedArgs {
 	return t.namedArgs
 }
 
-func (t *VMTestOpts) GetModuleMap() *ModuleMap {
+func (t *VMTestOpts) GetModuleMap() *gad.ModuleMap {
 	return t.moduleMap
 }
 
 func (t *VMTestOpts) Out(w io.Writer) *VMTestOpts {
-	t.stdout = NewWriter(w)
+	t.stdout = gad.NewWriter(w)
 	return t
 }
 
-func (t *VMTestOpts) Globals(globals IndexGetSetter) *VMTestOpts {
+func (t *VMTestOpts) Globals(globals gad.IndexGetSetter) *VMTestOpts {
 	t.globals = globals
 	return t
 }
 
-func (t *VMTestOpts) Args(args ...Object) *VMTestOpts {
+func (t *VMTestOpts) Args(args ...gad.Object) *VMTestOpts {
 	t.args = args
 	return t
 }
 
-func (t *VMTestOpts) NamedArgs(args Object) *VMTestOpts {
+func (t *VMTestOpts) NamedArgs(args gad.Object) *VMTestOpts {
 	switch at := args.(type) {
-	case *NamedArgs:
+	case *gad.NamedArgs:
 		t.namedArgs = at
-	case Dict:
-		t.namedArgs = NewNamedArgs(MustConvertToKeyValueArray(nil, at))
-	case KeyValueArray:
-		t.namedArgs = NewNamedArgs(at)
+	case gad.Dict:
+		t.namedArgs = gad.NewNamedArgs(gad.MustConvertToKeyValueArray(nil, at))
+	case gad.KeyValueArray:
+		t.namedArgs = gad.NewNamedArgs(at)
 	}
 	return t
 }
 
-func (t *VMTestOpts) Init(f func(opts *VMTestOpts, expect Object) (*VMTestOpts, Object)) *VMTestOpts {
+func (t *VMTestOpts) Init(f func(opts *VMTestOpts, expect gad.Object) (*VMTestOpts, gad.Object)) *VMTestOpts {
 	t.init = f
 	return t
 }
 
-func (t *VMTestOpts) Builtins(m map[string]Object) *VMTestOpts {
+func (t *VMTestOpts) Builtins(m map[string]gad.Object) *VMTestOpts {
 	t.builtins = m
 	return t
 }
@@ -225,18 +225,18 @@ func (t *VMTestOpts) IsNoPanic() bool {
 
 func (t *VMTestOpts) Module(name string, module any) *VMTestOpts {
 	if t.moduleMap == nil {
-		t.moduleMap = NewModuleMap()
+		t.moduleMap = gad.NewModuleMap()
 	}
 	switch v := module.(type) {
 	case []byte:
 		t.moduleMap.AddSourceModule(name, v)
 	case string:
 		t.moduleMap.AddSourceModule(name, []byte(v))
-	case map[string]Object:
+	case map[string]gad.Object:
 		t.moduleMap.AddBuiltinModule(name, v)
-	case Dict:
+	case gad.Dict:
 		t.moduleMap.AddBuiltinModule(name, v)
-	case Importable:
+	case gad.Importable:
 		t.moduleMap.Add(name, v)
 	default:
 		panic(fmt.Errorf("invalid module type: %T", module))
@@ -249,7 +249,7 @@ func (t *VMTestOpts) ExprToTextFunc(name string) *VMTestOpts {
 	return t
 }
 
-func (t *VMTestOpts) WriteObject(o ObjectToWriter) *VMTestOpts {
+func (t *VMTestOpts) WriteObject(o gad.ObjectToWriter) *VMTestOpts {
 	t.objectToWriter = o
 	return t
 }
@@ -264,12 +264,12 @@ func (t *VMTestOpts) Buffered() *VMTestOpts {
 	return t
 }
 
-func (t *VMTestOpts) CompileOptions(f func(opts *CompileOptions)) *VMTestOpts {
+func (t *VMTestOpts) CompileOptions(f func(opts *gad.CompileOptions)) *VMTestOpts {
 	t.compileOptions = f
 	return t
 }
 
-func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect Object) {
+func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.Object) {
 	t.Helper()
 	if opts == nil {
 		opts = NewVMTestOpts()
@@ -279,12 +279,12 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect Objec
 	}
 	type testCase struct {
 		name   string
-		opts   CompileOptions
+		opts   gad.CompileOptions
 		tracer bytes.Buffer
 	}
 
 	if opts.init == nil {
-		opts.init = func(opts *VMTestOpts, ex Object) (*VMTestOpts, Object) {
+		opts.init = func(opts *VMTestOpts, ex gad.Object) (*VMTestOpts, gad.Object) {
 			return opts, expect
 		}
 	}
@@ -292,8 +292,8 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect Objec
 	testCases := []testCase{
 		{
 			name: "default",
-			opts: CompileOptions{
-				CompilerOptions: CompilerOptions{
+			opts: gad.CompileOptions{
+				CompilerOptions: gad.CompilerOptions{
 					ModuleMap:      opts.moduleMap,
 					OptimizeConst:  true,
 					TraceParser:    true,
@@ -304,8 +304,8 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect Objec
 		},
 		{
 			name: "unoptimized",
-			opts: CompileOptions{
-				CompilerOptions: CompilerOptions{
+			opts: gad.CompileOptions{
+				CompilerOptions: gad.CompilerOptions{
 					ModuleMap:      opts.moduleMap,
 					TraceParser:    true,
 					TraceOptimizer: true,
@@ -321,9 +321,9 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect Objec
 		t.Run(tC.name, func(t *testing.T) {
 			t.Helper()
 			tC.opts.Trace = &tC.tracer // nolint exportloopref
-			builtins := NewBuiltins()
+			builtins := gad.NewBuiltins()
 			builtins.AppendMap(opts.builtins)
-			tC.opts.SymbolTable = NewSymbolTable(builtins)
+			tC.opts.SymbolTable = gad.NewSymbolTable(builtins)
 
 			if opts.exprToTextFunc != "" {
 				tC.opts.MixedExprToTextFunc = &node.IdentExpr{Name: opts.exprToTextFunc}
@@ -336,14 +336,14 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect Objec
 				opts.compileOptions(&tC.opts)
 			}
 
-			gotBc, err := Compile([]byte(script), tC.opts)
+			gotBc, err := gad.Compile([]byte(script), tC.opts)
 			require.NoError(t, err)
 			// create a copy of the bytecode before execution to test bytecode
 			// change after execution
 			expectBc := *gotBc
-			expectBc.Main = gotBc.Main.Copy().(*CompiledFunction)
-			expectBc.Constants = Array(gotBc.Constants).Copy().(Array)
-			vm := NewVM(gotBc)
+			expectBc.Main = gotBc.Main.Copy().(*gad.CompiledFunction)
+			expectBc.Constants = gad.Array(gotBc.Constants).Copy().(gad.Array)
+			vm := gad.NewVM(gotBc)
 			defer func() {
 				if r := recover(); r != nil {
 					fmt.Fprintf(os.Stderr, "------- Start Trace -------\n%s"+
@@ -352,19 +352,19 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect Objec
 					panic(r)
 				}
 			}()
-			vm.Setup(SetupOpts{
+			vm.Setup(gad.SetupOpts{
 				Builtins: tC.opts.SymbolTable.Builtins(),
 			})
 
 			opts, expect := opts.init(opts, expect)
 
-			ropts := &RunOpts{
+			ropts := &gad.RunOpts{
 				Globals:        opts.globals,
-				Args:           Args{opts.args},
+				Args:           gad.Args{opts.args},
 				ObjectToWriter: opts.objectToWriter,
 			}
 			if opts.namedArgs != nil {
-				ropts.NamedArgs = opts.namedArgs.Copy().(*NamedArgs)
+				ropts.NamedArgs = opts.namedArgs.Copy().(*gad.NamedArgs)
 			}
 			var buf *bytes.Buffer
 			if opts.buffered {
@@ -378,7 +378,7 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect Objec
 				gotBc.Fprint(os.Stderr)
 			}
 			if opts.buffered {
-				got = Array{got, Str(buf.String())}
+				got = gad.Array{got, gad.Str(buf.String())}
 			}
 			if !reflect.DeepEqual(expect, got) {
 				var buf bytes.Buffer
@@ -386,7 +386,7 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect Objec
 				t.Fatalf("Objects not equal:\nExpected:\n%s\nGot:\n%s\nScript:\n%s\n%s\n",
 					tests.Sdump(expect), tests.Sdump(got), script, buf.String())
 			}
-			TestBytecodesEqual(t, &expectBc, gotBc, true)
+			gad.TestBytecodesEqual(t, &expectBc, gotBc, true)
 		})
 	}
 }

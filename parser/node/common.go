@@ -29,7 +29,7 @@ func (s *Return) String() string {
 func (s *Return) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("return")
 	if s.Result != nil {
-		ctx.WriteByte(' ')
+		ctx.WriteSingleByte(' ')
 		s.Result.WriteCode(ctx)
 	}
 }

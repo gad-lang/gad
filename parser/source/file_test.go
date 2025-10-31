@@ -9,77 +9,44 @@ import (
 
 func TestFile_LineData(t *testing.T) {
 	tests := NewTestFileSet().
+		AddCases("").
+		AddCases("\n").
+		AddCases("\n\n\n").
 		AddCases("a b\nc  d\ne f g   \nh").
 		AddCases("i j\nk\nl").
+		AddCases("i j\nk\nl\n").
+		AddCases("\ni j\nk\nl\n\n").
+		AddCases("var x;\n\nvar y;\nparam a,b\nvar z\nz2\nz3\nz4").
 		AddCases(`strings, json := [import("strings"), import("json")]
 
-const main = func($slots={}) {
-	.{
-		b()
-	}
-}
-return {main: main}
-`).
+		const x = func() {
+			{
+				b()
+			}
+		}
+		return x
+		`).
 		cases
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotD, gotValid := tt.f.LineData(tt.line)
+			gotD, gotErr := tt.f.LineData(tt.line)
 			if !reflect.DeepEqual(string(gotD), tt.wantD) {
 				t.Errorf("File(%q).LineData() gotD = %q, want %q", tt.f.Name, string(gotD), tt.wantD)
 			}
-			if gotValid != tt.wantValid {
-				t.Errorf("File(%q).LineData() gotValid = %v, want %v", tt.f.Name, gotValid, tt.wantValid)
-			}
-		})
-	}
-}
-
-func TestFile_LineData2(t *testing.T) {
-	tests := NewTestFileSet().AddCases(`strings, json := [import("strings"), import("json")]
-
-const main = func($slots={}) {
-	.{
-		b()
-	}
-}
-return {main: main}
-`).cases
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotD, gotValid := tt.f.LineData(tt.line)
-			if !reflect.DeepEqual(string(gotD), tt.wantD) {
-				t.Errorf("LineData() gotD = %q, want %q", string(gotD), tt.wantD)
-			}
-			if gotValid != tt.wantValid {
-				t.Errorf("LineData() gotValid = %v, want %v", gotValid, tt.wantValid)
-			}
-		})
-	}
-}
-
-func TestFile_LineData3(t *testing.T) {
-	tests := NewTestFileSet().AddCases("").cases
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotD, gotValid := tt.f.LineData(tt.line)
-			if !reflect.DeepEqual(string(gotD), tt.wantD) {
-				t.Errorf("LineData() gotD = %q, want %q", string(gotD), tt.wantD)
-			}
-			if gotValid != tt.wantValid {
-				t.Errorf("LineData() gotValid = %v, want %v", gotValid, tt.wantValid)
+			if gotErr != tt.wantErr {
+				t.Errorf("File(%q).LineData() gotValid = %v, want %v", tt.f.Name, gotErr, tt.wantErr)
 			}
 		})
 	}
 }
 
 type FileLineDataTestCase struct {
-	name      string
-	f         *File
-	line      int
-	wantD     string
-	wantValid bool
+	name    string
+	f       *File
+	line    int
+	wantD   string
+	wantErr error
 }
 
 type TestFileSet struct {
@@ -97,7 +64,7 @@ func (set *TestFileSet) Add(data string) (f *File) {
 
 	for i, c := range b {
 		if c == '\n' {
-			f.AddLine(i - 1)
+			f.AddLine(i + 1)
 		}
 	}
 
@@ -108,10 +75,10 @@ func (set *TestFileSet) addFakeLines(f *File, lineStart, count int) {
 	for i := 0; i < count; i++ {
 		line := lineStart + i + 1
 		set.cases = append(set.cases, &FileLineDataTestCase{
-			name:      fmt.Sprintf("%s:%d(fake)", f.Name, line),
-			f:         f,
-			line:      line,
-			wantValid: false,
+			name:    fmt.Sprintf("%s:%d(fake)", f.Name, line),
+			f:       f,
+			line:    line,
+			wantErr: ErrIllegalLineNumber,
 		})
 	}
 }
@@ -119,22 +86,21 @@ func (set *TestFileSet) addFakeLines(f *File, lineStart, count int) {
 func (set *TestFileSet) AddCases(data string) *TestFileSet {
 	f := set.Add(data)
 
-	if len(data) == 0 {
-		set.addFakeLines(f, 0, 2)
-	} else {
-		lines := strings.Split(data, "\n")
+	lines := strings.Split(data, "\n")
 
-		for i, line := range lines {
-			set.cases = append(set.cases, &FileLineDataTestCase{
-				name:      fmt.Sprintf("%s:%d", f.Name, i+1),
-				f:         f,
-				line:      i + 1,
-				wantD:     line,
-				wantValid: true,
-			})
-		}
-
-		set.addFakeLines(f, len(lines), 2)
+	if len(lines) == 0 {
+		lines = []string{""}
 	}
+
+	for i, line := range lines {
+		set.cases = append(set.cases, &FileLineDataTestCase{
+			name:  fmt.Sprintf("%s:%d", f.Name, i+1),
+			f:     f,
+			line:  i + 1,
+			wantD: line,
+		})
+	}
+
+	set.addFakeLines(f, len(lines), 2)
 	return set
 }

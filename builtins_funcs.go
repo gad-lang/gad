@@ -898,7 +898,8 @@ func BuiltinMultiValueDictFunc(c Call) (ret Object, err error) {
 			return ItemsOfCb(c.VM, &c.NamedArgs, cb, item.V)
 		})
 	}
-	return d, nil
+	ret = d
+	return
 }
 
 func BuiltinPrintFunc(c Call) (_ Object, err error) {
@@ -1896,7 +1897,7 @@ func BuiltinUserDataFunc(c Call) (_ Object, err error) {
 	}
 }
 
-func BuiltinToArrayFunc(c Call) (ret Object, err error) {
+func BuiltinToArrayFunc(c Call) (_ Object, err error) {
 	var arr Array
 	err = c.Args.WalkE(func(i int, arg Object) (err error) {
 		switch t := arg.(type) {
@@ -1913,7 +1914,6 @@ func BuiltinToArrayFunc(c Call) (ret Object, err error) {
 			}, arg)
 		}
 		return
-	}).(error)
-	ret = arr
-	return
+	})
+	return arr, err
 }

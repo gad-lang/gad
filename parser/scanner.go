@@ -315,7 +315,7 @@ func (s *Scanner) scanConfig(pos source.Pos, skip int) (t Token) {
 	s2.NextNoSpace()
 	s2.TokenPool = nil
 	t.Token = token.ConfigEnd
-	t.Pos = s.File.FileSetPos(eol)
+	t.Pos = source.MustFileSetPos(s.File, eol)
 	t.Prev = append([]Token{{
 		Token: token.ConfigStart,
 		Pos:   pos,
@@ -451,7 +451,7 @@ func (s *Scanner) ScanCodeBlock(leftText *Token) (code Token) {
 
 	code = Token{
 		Token:   token.MixedCodeStart,
-		Pos:     s.File.FileSetPos(end),
+		Pos:     source.MustFileSetPos(s.File, end),
 		Literal: lit,
 		Data:    data,
 	}

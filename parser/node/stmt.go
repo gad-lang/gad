@@ -140,7 +140,7 @@ func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) 
 		ctx.WriteSecondLine()
 		selfDepth = true
 	} else {
-		ctx.WriteByte('{')
+		ctx.WriteSingleByte('{')
 		ctx.WriteSecondLine()
 	}
 	if selfDepth {
@@ -156,7 +156,7 @@ func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) 
 	} else {
 		ctx.WritePrevPrefix()
 	}
-	ctx.WriteByte('}')
+	ctx.WriteSingleByte('}')
 }
 
 // BranchStmt represents a branch statement.
@@ -428,7 +428,7 @@ func (s *IfStmt) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString("; ")
 	}
 	s.Cond.WriteCode(ctx)
-	ctx.WriteByte(' ')
+	ctx.WriteSingleByte(' ')
 	ctx.Depth++
 	s.Body.WriteCode(ctx)
 	ctx.Depth--
@@ -440,7 +440,6 @@ func (s *IfStmt) WriteCode(ctx *CodeWriteContext) {
 			ctx.WriteStmts(s.Else)
 		}
 	}
-	return
 }
 
 // IncDecStmt represents increment or decrement statement.
@@ -703,11 +702,11 @@ func (s *MixedTextStmt) WriteCode(ctx *CodeWriteContext) {
 	if ctx.Transpile != nil {
 		ctx.WritePrefix()
 		ctx.WriteString(ctx.Transpile.WriteFunc)
-		ctx.WriteByte('(')
+		ctx.WriteSingleByte('(')
 		ctx.WriteString(ctx.Transpile.RawStrFuncStart)
 		ctx.WriteString(strconv.Quote(s.Value()))
 		ctx.WriteString(ctx.Transpile.RawStrFuncEnd)
-		ctx.WriteByte(')')
+		ctx.WriteSingleByte(')')
 		ctx.WriteSemi()
 	} else {
 		ctx.WriteString(s.Lit.Value)
@@ -760,21 +759,21 @@ func (s *MixedValueStmt) WriteCode(ctx *CodeWriteContext) {
 	if ctx.Transpile != nil {
 		ctx.WritePrefix()
 		ctx.WriteString(ctx.Transpile.WriteFunc)
-		ctx.WriteByte('(')
+		ctx.WriteSingleByte('(')
 		s.Expr.WriteCode(ctx)
-		ctx.WriteByte(')')
+		ctx.WriteSingleByte(')')
 		ctx.WriteSemi()
 	} else {
 		ctx.WriteString(s.StartLit.Value)
 		if s.RemoveLeftSpace {
-			ctx.WriteByte('-')
+			ctx.WriteSingleByte('-')
 		}
 		if s.Eq {
-			ctx.WriteByte('=')
+			ctx.WriteSingleByte('=')
 		}
 		s.Expr.WriteCode(ctx)
 		if s.RemoveRightSpace {
-			ctx.WriteByte('-')
+			ctx.WriteSingleByte('-')
 		}
 		ctx.WriteString(s.EndLit.Value)
 	}
@@ -824,7 +823,7 @@ func (c *ConfigStmt) WriteCode(ctx *CodeWriteContext) {
 				ctx.WriteString(", ")
 			}
 		}
-		ctx.WriteByte('\n')
+		ctx.WriteSingleByte('\n')
 	}
 }
 
@@ -894,22 +893,22 @@ type CodeBeginStmt struct {
 	RemoveSpace bool
 }
 
-func (c CodeBeginStmt) Pos() source.Pos {
-	return c.Lit.Pos
+func (s CodeBeginStmt) Pos() source.Pos {
+	return s.Lit.Pos
 }
 
-func (c CodeBeginStmt) End() source.Pos {
-	return c.Lit.End()
+func (s CodeBeginStmt) End() source.Pos {
+	return s.Lit.End()
 }
 
-func (c CodeBeginStmt) String() string {
-	if c.RemoveSpace {
-		return c.Lit.Value + "-"
+func (s CodeBeginStmt) String() string {
+	if s.RemoveSpace {
+		return s.Lit.Value + "-"
 	}
-	return c.Lit.Value
+	return s.Lit.Value
 }
 
-func (c CodeBeginStmt) StmtNode() {
+func (s CodeBeginStmt) StmtNode() {
 }
 
 func (s *CodeBeginStmt) WriteCode(ctx *CodeWriteContext) {
@@ -924,22 +923,22 @@ type CodeEndStmt struct {
 	RemoveSpace bool
 }
 
-func (c CodeEndStmt) Pos() source.Pos {
-	return c.Lit.Pos
+func (s CodeEndStmt) Pos() source.Pos {
+	return s.Lit.Pos
 }
 
-func (c CodeEndStmt) End() source.Pos {
-	return c.Lit.End()
+func (s CodeEndStmt) End() source.Pos {
+	return s.Lit.End()
 }
 
-func (c CodeEndStmt) String() string {
-	if c.RemoveSpace {
-		return "-" + c.Lit.Value
+func (s CodeEndStmt) String() string {
+	if s.RemoveSpace {
+		return "-" + s.Lit.Value
 	}
-	return c.Lit.Value
+	return s.Lit.Value
 }
 
-func (c CodeEndStmt) StmtNode() {
+func (s CodeEndStmt) StmtNode() {
 }
 
 func (s *CodeEndStmt) WriteCode(ctx *CodeWriteContext) {

@@ -41,56 +41,10 @@ func TestParserTrace(t *testing.T) {
 		_, err := p.ParseFile()
 		require.NoError(t, err)
 	}
-	sample := `
-param (a, *args)
-global (x, y)
-var b
-var (v1 = 1, v2)
-const (
-	c1 = 1
-	c2 = 2
-)
-if w := ""; w {
-	return
-}
-for i := 0; i < 10; i++ {
-	if i == 5 {
-		break
-	}
-	if i == 6 {
-		try {
-			x()
-		} catch err {
-			println(err)
-			throw err
-		} finally {
-			return v1
-		}
-	}
-}
-counter := 0
-for k,v in {a: 1, b: 2} {
-	counter++
-	println(k, v)
-}
-f := func() {
-	return 0, error("err")
-}
-v1, v2 := f()
-v3 := [v1*counter, v2/counter, 3u,
-	4.7, 'y']
-v3[1]
-v3[1:]
-v3[:2]
-v3[:]
-_ := import("strings")
-time := import("time")
-time.Now() + 10 * time.Second
-c := counter ? v3 : nil
-c ||= 1
-d := c ?? 2 || 1
-x := d?.a.b.("c")?.e ?? 5
-`
+	sampleB, err := os.ReadFile("testdata/sample.gad")
+	require.NoError(t, err)
+	sample := string(sampleB)
+
 	goldenFile := "testdata/trace.golden"
 	f, err := os.Open(goldenFile)
 	require.NoError(t, err)
@@ -269,6 +223,35 @@ a
 
 	expectParseStringMode(t, ParseMixed, "‹try›1‹finally›2‹end›", "‹; try  ›1‹  finally  ›2‹ end; ›")
 	expectParseStringMode(t, ParseMixed, "‹try›1‹catch e›2‹finally›3‹end›", "‹; try  ›1‹  catch e  ›2‹  finally  ›3‹ end; ›")
+	expectParseStringMode(t, ParseMixed, "abc ‹=\n// my single comment\n\n/* long\n comment\n\n*/\n1›def", "abc ; ‹=1›; def")
+
+	// example for auto generated mixed script mapping multiples sources
+	expectParseStringMode(t, ParseMixed, `
+a
+‹
+//src:1
+x := 2
+//
+›
+b
+‹=
+//src:2
+x ** 10
+//
+›
+c
+‹
+//src:3
+if 1 then
+//
+›
+d
+‹
+//src:4
+end
+//
+›
+`, "\na\n; ‹; x := 2; ›\nb\n‹=(x ** 10)›\nc\n‹; if 1 then ›\nd\n‹ end; ›\n")
 }
 
 func TestParserError(t *testing.T) {
@@ -1500,11 +1483,11 @@ func TestParseCallWithNamedArgs(t *testing.T) {
 					))))
 	})
 
-	expectParseString(t, `attrs(;"name")`, `attrs(name=on)`)
-	expectParseString(t, "fn(a;b)", "fn(a, b=on)")
-	expectParseString(t, "fn(**{y:5})", "fn(**{y: 5})")
-	expectParseString(t, "fn(1,*[2,3],x=4,**{y:5})", "fn(1, *[2, 3], x=4, **{y: 5})")
-	expectParseString(t, "fn(1, a=b)()", "fn(1, a=b)()")
+	expectParseString(t, `attrs(;"name")`, `attrs(; "name"=yes)`)
+	expectParseString(t, "fn(a;b)", "fn(a; b=yes)")
+	expectParseString(t, "fn(**{y:5})", "fn(; **{y: 5})")
+	expectParseString(t, "fn(1,*[2,3],x=4,**{y:5})", "fn(1, *[2, 3]; x=4, **{y: 5})")
+	expectParseString(t, "fn(1, a=b)()", "fn(1; a=b)()")
 }
 
 func TestParseParenMultiValues(t *testing.T) {
@@ -2574,7 +2557,48 @@ func TestParseLogical(t *testing.T) {
 	})
 }
 
+func TestParseBlock(t *testing.T) {
+	expectParse(t, "{}", func(p pfn) []Stmt {
+		return stmts(blockStmt(p(1, 1), p(1, 2)))
+	})
+
+	expectParse(t, "x := 1; {x := 2}", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				Exprs{ident("x", p(1, 1))},
+				Exprs{intLit(1, p(1, 6))},
+				token.Define,
+				p(1, 3),
+			),
+			blockStmt(
+				p(1, 9),
+				p(1, 16),
+				assignStmt(
+					Exprs{ident("x", p(1, 10))},
+					Exprs{intLit(2, p(1, 15))},
+					token.Define,
+					p(1, 12),
+				),
+			),
+		)
+	})
+}
+
 func TestParseDict(t *testing.T) {
+	expectParse(t, "({})", func(p pfn) []Stmt {
+		return stmts(exprStmt(parenExpr(dictLit(p(1, 2), p(1, 3)), p(1, 1), p(1, 4))))
+	})
+
+	expectParse(t, "({ \"key1\": 1 })", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				parenExpr(
+					dictLit(p(1, 2), p(1, 14),
+						mapElementLit(
+							"key1", p(1, 4), p(1, 10), intLit(1, p(1, 12)))),
+					p(1, 1), p(1, 15))))
+	})
+
 	expectParse(t, "({ key1: 1, key2: \"2\", key3: true })", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
@@ -2587,16 +2611,6 @@ func TestParseDict(t *testing.T) {
 						mapElementLit(
 							"key3", p(1, 24), p(1, 28), boolLit(true, p(1, 30)))),
 					p(1, 1), p(1, 36))))
-	})
-
-	expectParse(t, "({ \"key1\": 1 })", func(p pfn) []Stmt {
-		return stmts(
-			exprStmt(
-				parenExpr(
-					dictLit(p(1, 2), p(1, 14),
-						mapElementLit(
-							"key1", p(1, 4), p(1, 10), intLit(1, p(1, 12)))),
-					p(1, 1), p(1, 15))))
 	})
 
 	expectParse(t, "a = { key1: 1, key2: \"2\", key3: true }",
@@ -3279,7 +3293,7 @@ func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn, opt .
 	require.NoError(t, err)
 
 	expected := fn(func(line, column int) Pos {
-		return Pos(int(testFile.LineStart(line)) + (column - 1))
+		return Pos(int(source.MustFileLineStartPos(testFile, line)) + (column - 1))
 	})
 
 	ft := fileTest(t, testFile, actual.InputFile)
@@ -3301,10 +3315,10 @@ type fileTester struct {
 func (f *fileTester) equal(expected, actual any, msgAndArgs ...any) {
 	switch t := expected.(type) {
 	case Pos:
-		p := f.expected.Position(t)
+		p := source.MustFilePosition(f.expected, t)
 		expected = fmt.Sprintf("Pos(%d, %d)", p.Line, p.Column)
 		if pos, ok := actual.(Pos); ok {
-			p = f.actual.Position(pos)
+			p = source.MustFilePosition(f.actual, pos)
 			actual = fmt.Sprintf("Pos(%d, %d)", p.Line, p.Column)
 		}
 	case ast.Literal:

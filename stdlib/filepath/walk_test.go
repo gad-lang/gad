@@ -12,7 +12,7 @@ import (
 func TestWalk(t *testing.T) {
 	var (
 		cwd, _ = os.Getwd()
-		opts   = test_helper.NewVMTestOpts().Args(gad.Str(cwd))
+		opts   = testhelper.NewVMTestOpts().Args(gad.Str(cwd))
 		p      = func(s string) gad.Str {
 			return gad.Str(filepath.Join(cwd, s))
 		}

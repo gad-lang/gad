@@ -377,7 +377,7 @@ func TestOptimizerTryThrow(t *testing.T) {
 		))
 }
 
-func TestOptimizerMapSliceExpr(t *testing.T) {
+func TestOptimizerDictSliceExpr(t *testing.T) {
 	expectEval(t, `[][1+2]`,
 		bytecode(
 			Array{Int(3)},
@@ -468,7 +468,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 				makeInst(OpReturn, 0),
 			)),
 		))
-	expectEval(t, `{}[1+2]`,
+	expectEval(t, `({})[1+2]`,
 		bytecode(
 			Array{Int(3)},
 			compFunc(concatInsts(
@@ -479,7 +479,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 				makeInst(OpReturn, 0),
 			)),
 		))
-	expectEval(t, `{}[int(1+2)]`,
+	expectEval(t, `({})[int(1+2)]`,
 		bytecode(
 			Array{Int(3)},
 			compFunc(concatInsts(
@@ -490,7 +490,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 				makeInst(OpReturn, 0),
 			)),
 		))
-	expectEval(t, `{a: 1+2}`,
+	expectEval(t, `({a: 1+2})`,
 		bytecode(
 			Array{Str("a"), Int(3)},
 			compFunc(concatInsts(
@@ -501,7 +501,7 @@ func TestOptimizerMapSliceExpr(t *testing.T) {
 				makeInst(OpReturn, 0),
 			)),
 		))
-	expectEval(t, `{a: uint(1+2)}`,
+	expectEval(t, `({a: uint(1+2)})`,
 		bytecode(
 			Array{Str("a"), Uint(3)},
 			compFunc(concatInsts(

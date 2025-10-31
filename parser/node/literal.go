@@ -415,11 +415,11 @@ func (e *KeyValueLit) String() string {
 }
 
 func (e *KeyValueLit) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteByte('[')
+	ctx.WriteSingleByte('[')
 	e.Key.WriteCode(ctx)
-	ctx.WriteByte('=')
+	ctx.WriteSingleByte('=')
 	e.Value.WriteCode(ctx)
-	ctx.WriteByte(']')
+	ctx.WriteSingleByte(']')
 }
 
 // KeyValuePairLit represents a key value pair element.
@@ -452,7 +452,7 @@ func (e *KeyValuePairLit) String() string {
 
 func (e *KeyValuePairLit) WriteCode(ctx *CodeWriteContext) {
 	e.Key.WriteCode(ctx)
-	ctx.WriteByte('=')
+	ctx.WriteSingleByte('=')
 	e.Value.WriteCode(ctx)
 }
 
@@ -491,7 +491,7 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 		case *KeyValuePairLit:
 			t.Key.WriteCode(ctx)
 			if t.Value != nil {
-				ctx.WriteByte('=')
+				ctx.WriteSingleByte('=')
 				t.Value.WriteCode(ctx)
 			}
 		case *KeyValueLit:
@@ -503,7 +503,7 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 			ctx.WriteString(", ")
 		}
 	}
-	ctx.WriteByte(')')
+	ctx.WriteSingleByte(')')
 }
 
 func (e *KeyValueArrayLit) ToMultiParenExpr() *MultiParenExpr {
@@ -610,7 +610,7 @@ func (e *ArgVarLit) String() string {
 }
 
 func (e *ArgVarLit) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteByte('*')
+	ctx.WriteSingleByte('*')
 	e.Value.WriteCode(ctx)
 }
 
@@ -814,7 +814,7 @@ func (e *TemplateLit) String() string {
 }
 
 func (e *TemplateLit) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteByte('#')
+	ctx.WriteSingleByte('#')
 	e.Value.WriteCode(ctx)
 }
 

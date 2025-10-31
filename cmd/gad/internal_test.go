@@ -194,7 +194,7 @@ func TestREPL(t *testing.T) {
 		cw.consume()
 		require.NoError(t, r.execute("str(int)"))
 		require.Equal(t, "⇦   \""+repr.Quote("builtinType int")+" with 1 methods:\\n\\t"+
-			"1. "+repr.Quote("compiledFunction #9(p Point)")+"\"",
+			"1. "+repr.Quote("compiledFunction #9(p Point)")+": [Point]\"",
 			strings.TrimSpace(string(cw.consume())))
 		require.NoError(t, r.execute("int(Point(2,8))"))
 		require.Equal(t, "⇦   16", strings.TrimSpace(string(cw.consume())))

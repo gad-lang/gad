@@ -607,6 +607,11 @@ func (c *Compiler) at(nd ast.Node) func() {
 	}
 }
 
+func (c *Compiler) atDo(nd ast.Node, do func() error) error {
+	defer c.at(nd)()
+	return do()
+}
+
 func (c *Compiler) changeOperand(opPos int, operand ...int) {
 	op := c.instructions[opPos]
 	inst := make([]byte, 0, 8)
@@ -767,18 +772,20 @@ func (c *Compiler) getEmbed(name string) (*storeItem, bool) {
 	return indexes, ok
 }
 
-func (c *Compiler) baseModuleMap() *ModuleMap {
-	if c.parent == nil {
-		return c.moduleMap
+func (c *Compiler) top() (r *Compiler) {
+	r = c
+	for r.parent != nil {
+		r = r.parent
 	}
-	return c.parent.baseModuleMap()
+	return
 }
 
-func (c *Compiler) baseEmbedMap() *EmbedMap {
-	if c.parent == nil {
-		return c.embedMap
-	}
-	return c.parent.baseEmbedMap()
+func (c *Compiler) BaseModuleMap() *ModuleMap {
+	return c.top().moduleMap
+}
+
+func (c *Compiler) BaseEmbedMap() *EmbedMap {
+	return c.top().embedMap
 }
 
 func (c *Compiler) CompileModule(

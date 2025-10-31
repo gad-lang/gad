@@ -88,7 +88,7 @@ func ExpectParse(t *testing.T, input string, fn ExpectedFn, opt ...Option) {
 		require.NoError(t, err)
 
 		expected := fn(func(line, column int) source.Pos {
-			return source.Pos(int(f.LineStart(line)) + (column - 1))
+			return source.Pos(int(source.MustFileLineStartPos(f, line)) + (column - 1))
 		})
 		require.Equal(t, len(expected), len(actual.Stmts), "count of file statements")
 

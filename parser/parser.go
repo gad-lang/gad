@@ -68,7 +68,6 @@ type Parser struct {
 	ScanFunc         func() Token
 	pipes            int
 	postScan         func(p *Parser)
-	postNode         func(n node.Node)
 }
 
 // NewParser creates a Parser.
@@ -1000,7 +999,6 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 		mcs := p.ExpectToken(token.MixedCodeStart)
 		mte.EndLit = ast.Literal{Value: mcs.Literal, Pos: mcs.Pos}
 		mte.Stmt = *stmt
-		exprs = append(exprs, mte)
 		p.ExprLevel--
 		p.ExpectToken(token.RParen)
 		return &node.ParenExpr{Expr: mte}
@@ -1085,7 +1083,7 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 		if p.Token.Token == token.Comma {
 			p.Next()
 		} else if p.Token.Token == token.Semicolon && p.Token.Literal == ";" && !kv {
-			exprs = append(exprs, &node.KeyValueSepLit{p.Token.Pos})
+			exprs = append(exprs, &node.KeyValueSepLit{TokenPos: p.Token.Pos})
 			kv = true
 			p.Next()
 		} else {
@@ -1096,7 +1094,7 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 	rparen := p.Expect(end)
 
 	if !multi && len(exprs) == 1 &&
-		!internal.TsType(exprs[0],
+		!internal.TSType(exprs[0],
 			&node.KeyValueSepLit{},
 			&node.KeyValuePairLit{},
 			&node.ArgVarLit{},
@@ -1488,6 +1486,7 @@ func (p *Parser) ParseMixedValue() (ett *node.MixedValueStmt) {
 	}
 	p.Next()
 	ett.Expr = p.ParseExpr()
+	p.SkipSpace()
 	end := p.ExpectToken(token.MixedValueEnd)
 	ett.RemoveRightSpace = RemoveSpaces(end)
 	ett.EndLit = ast.Literal{Value: end.Literal, Pos: end.Pos}
@@ -2581,7 +2580,7 @@ func (p *Parser) advance(to map[token.Token]bool) {
 }
 
 func (p *Parser) Error(pos source.Pos, msg string) {
-	filePos := p.File.Position(pos)
+	filePos := source.MustFilePosition(p.File, pos)
 	n := len(p.Errors)
 	if n > 0 && p.Errors[n-1].Pos.Line == filePos.Line {
 		// discard errors reported on the same line
@@ -2617,7 +2616,7 @@ func (p *Parser) ErrorExpectedExpr(expected, got node.Expr) {
 func (p *Parser) consumeComment() (comment *ast.Comment, endline int) {
 	// /*-style comments may end on a different line than where they start.
 	// Scan the comment for '\n' chars and adjust endline accordingly.
-	endline = p.File.Line(p.Token.Pos)
+	endline = source.MustFileLine(p.File, p.Token.Pos)
 	if p.Token.Literal[1] == '*' {
 		// don't use range here - no need to decode Unicode code points
 		for i := 0; i < len(p.Token.Literal); i++ {
@@ -2634,8 +2633,8 @@ func (p *Parser) consumeComment() (comment *ast.Comment, endline int) {
 
 func (p *Parser) consumeCommentGroup(n int) (comments *ast.CommentGroup) {
 	var list []*ast.Comment
-	endline := p.File.Line(p.Token.Pos)
-	for p.Token.Token == token.Comment && p.File.Line(p.Token.Pos) <= endline+n {
+	endline := source.MustFileLine(p.File, p.Token.Pos)
+	for p.Token.Token == token.Comment && source.MustFileLine(p.File, p.Token.Pos) <= endline+n {
 		var comment *ast.Comment
 		comment, endline = p.consumeComment()
 		list = append(list, comment)
@@ -2677,7 +2676,7 @@ next:
 			goto next
 		}
 	case token.Comment:
-		if p.File.Line(p.Token.Pos) == p.File.Line(prev) {
+		if source.MustFileLine(p.File, p.Token.Pos) == source.MustFileLine(p.File, prev) {
 			// line comment of prev token
 			_ = p.consumeCommentGroup(0)
 		}
@@ -2704,7 +2703,7 @@ func (p *Parser) PrintTrace(a ...any) {
 		n    = len(dots)
 	)
 
-	filePos := p.File.Position(p.Token.Pos)
+	filePos := source.MustFilePosition(p.File, p.Token.Pos)
 	_, _ = fmt.Fprintf(p.TraceOut, "%5d: %5d:%3d: ", p.Token.Pos, filePos.Line,
 		filePos.Column)
 	i := 2 * p.indent

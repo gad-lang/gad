@@ -63,7 +63,7 @@ func (s *ParamSpec) String() string {
 
 func (s *ParamSpec) WriteCode(ctx *CodeWriteContext) {
 	if s.Variadic {
-		ctx.WriteByte('*')
+		ctx.WriteSingleByte('*')
 	}
 	s.Ident.WriteCode(ctx)
 }
@@ -104,7 +104,7 @@ func (s *NamedParamSpec) WriteCode(ctx *CodeWriteContext) {
 		s.Ident.WriteCode(ctx)
 	} else {
 		s.Ident.WriteCode(ctx)
-		ctx.WriteByte('=')
+		ctx.WriteSingleByte('=')
 		s.Value.WriteCode(ctx)
 	}
 }
@@ -189,7 +189,7 @@ func (*BadDecl) declNode()         {}
 func (*BadDecl) String() string    { return repr.Quote("bad declaration") }
 
 func (d *BadDecl) WriteCode(ctx *CodeWriteContext) {
-	ctx.Printf("`bad decl from %s to %s`", d.From, d.To)
+	ctx.Printf("`bad decl from %v to %v`", d.From, d.To)
 }
 
 var _ Decl = (*GenDecl)(nil)
@@ -266,10 +266,10 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 
 		ctx.Depth--
 		ctx.WritePrefixedLine()
-		ctx.WriteByte(')')
+		ctx.WriteSingleByte(')')
 		ctx.WriteSecondLine()
 	} else {
-		ctx.WriteByte(' ')
+		ctx.WriteSingleByte(' ')
 		for i, spec := range d.Specs {
 			if i > 0 {
 				ctx.WriteString(", ")
@@ -277,5 +277,4 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 			spec.WriteCode(ctx)
 		}
 	}
-	return
 }

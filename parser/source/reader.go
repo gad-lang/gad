@@ -77,10 +77,7 @@ func NewFileReader(file *File, option ...FileReaderOption) (fr *Reader) {
 
 func (s *Reader) Read(b []byte) (n int, err error) {
 	v := s.ReadCount(len(b))
-	for i := range v {
-		b[i] = v[i]
-	}
-	n = len(v)
+	n = copy(b, v)
 	return
 }
 
@@ -191,6 +188,7 @@ next:
 				goto next
 			}
 		} else if s.Ch == '\n' {
+			s.File.AddLine(s.lineOffset)
 			s.NewLineEscaped = newLineEscape
 			if newLineEscape {
 				s.SkipWhitespace()
@@ -441,7 +439,7 @@ func (s *Reader) PeekIdentEq(to string, skip int) bool {
 }
 
 func (s *Reader) Error(offset int, msg string) {
-	pos := s.File.Position(s.File.FileSetPos(offset))
+	pos := MustFilePositionFromOffset(s.File, offset)
 	for _, h := range s.errorHandler {
 		h(pos, msg)
 	}

@@ -589,7 +589,7 @@ func (vm *VM) xOpThrow() error {
 
 func (vm *VM) SourcePos() source.SourceFilePos {
 	p := vm.getSourcePos()
-	return vm.bytecode.FileSet.File(p).Position(p)
+	return source.MustFilePosition(vm.bytecode.FileSet.File(p), p)
 }
 
 func (vm *VM) throwGenErr(err error) error {

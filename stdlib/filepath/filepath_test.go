@@ -7,15 +7,15 @@ import (
 	"github.com/gad-lang/gad/test_helper"
 )
 
-func expectRun(t *testing.T, param, script string, opts *test_helper.VMTestOpts, expect gad.Object) {
+func expectRun(t *testing.T, param, script string, opts *testhelper.VMTestOpts, expect gad.Object) {
 	t.Helper()
 	if opts == nil {
-		opts = test_helper.NewVMTestOpts()
+		opts = testhelper.NewVMTestOpts()
 	}
 	opts = opts.Module("filepath", Module)
 	if param != "" {
 		param = "param(" + param + ")"
 	}
 	script = param + `;const fp = import("filepath");` + script
-	test_helper.VMTestExpectRun(t, script, opts, expect)
+	testhelper.VMTestExpectRun(t, script, opts, expect)
 }

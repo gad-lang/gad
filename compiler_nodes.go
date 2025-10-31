@@ -397,13 +397,16 @@ func (c *Compiler) compileDeclValue(nd *node.GenDecl) error {
 				lastExpr = v
 			}
 
-			err := c.Compile(&node.AssignStmt{
+			assign := &node.AssignStmt{
 				Token:    token.Define,
 				LHS:      leftExpr,
 				RHS:      []node.Expr{v},
 				TokenPos: ident.Pos(),
-			})
-			if err != nil {
+			}
+
+			if err := c.atDo(assign, func() error {
+				return c.compileAssignStmt(assign, assign.LHS, assign.RHS, nd.Tok, assign.Token)
+			}); err != nil {
 				return err
 			}
 		}
@@ -1461,9 +1464,9 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 				value = &node.FlagLit{Value: true}
 			}
 			if name.Exp != nil {
-				namedArgs.Elements[i] = &node.KeyValueLit{name.Expr(), value}
+				namedArgs.Elements[i] = &node.KeyValueLit{Key: name.Expr(), Value: value}
 			} else {
-				namedArgs.Elements[i] = &node.KeyValuePairLit{name.Expr(), value}
+				namedArgs.Elements[i] = &node.KeyValuePairLit{Key: name.Expr(), Value: value}
 			}
 		}
 
@@ -1521,7 +1524,7 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 			if isExt {
 				moduleMap = c.moduleMap.Fork(moduleName)
 			} else {
-				moduleMap = c.baseModuleMap()
+				moduleMap = c.BaseModuleMap()
 			}
 
 			moduleInfo := &ModuleInfo{moduleName, url}
