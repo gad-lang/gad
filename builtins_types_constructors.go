@@ -1,6 +1,8 @@
 package gad
 
 import (
+	"context"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -13,10 +15,6 @@ import (
 var (
 	NewFlagFunc = funcPORO(func(arg Object) Object {
 		return Flag(!arg.IsFalsy())
-	})
-
-	NewErrorFunc = funcPORO(func(arg Object) Object {
-		return &Error{Name: "error", Message: arg.ToString()}
 	})
 
 	NewBoolFunc = funcPORO(func(arg Object) Object {
@@ -55,6 +53,23 @@ var (
 	})
 )
 
+func NewErrorFunc(c Call) (ret Object, err error) {
+	if err = c.Args.CheckLen(1); err != nil {
+		return
+	}
+	arg := c.Args.Get(0)
+	if e, _ := arg.(*Error); e != nil {
+		return e, nil
+	}
+
+	var s Str
+	if s, err = ToStr(c.VM, arg); err != nil {
+		return
+	}
+
+	return &Error{Name: "error", Message: string(s)}, nil
+}
+
 func NewRawStrFunc(c Call) (ret Object, err error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return Nil, err
@@ -79,36 +94,87 @@ func NewRawStrFunc(c Call) (ret Object, err error) {
 	return
 }
 
-func NewStringFunc(c Call) (ret Object, err error) {
+func NewStrFunc(c Call) (_ Object, err error) {
 	if err := c.Args.CheckMinLen(1); err != nil {
 		return nil, err
 	}
 
-	switch c.Args.Length() {
+	l := c.Args.Length()
+	switch l {
 	case 1:
-		o := c.Args.GetOnly(0)
-		ret = Str(o.ToString())
+		type mustToString string
+		const mustToStringKey mustToString = "mustToString"
+		type sval struct {
+			v Object
+		}
+		arg := c.Args.Get(0)
+		newSv := &sval{v: arg}
+
+		if c.Context != nil {
+			if sv, _ := c.Context.Value(mustToStringKey).(*sval); sv != nil {
+				if !IsPrimitive(sv.v) {
+					if !IsPrimitive(arg) {
+						a := reflect.ValueOf(sv.v).UnsafePointer()
+						b := reflect.ValueOf(newSv.v).UnsafePointer()
+
+						if a == b {
+							return Str(arg.ToString()), nil
+						}
+					}
+				} else if sv.v == arg {
+					return Str(arg.ToString()), nil
+				}
+			}
+		} else {
+			c.Context = context.Background()
+		}
+
+		c.Context = context.WithValue(c.Context, mustToStringKey, newSv)
+
+		var (
+			w     strings.Builder
+			state = PrinterStateFromCall(&Call{
+				VM:        c.VM,
+				Args:      Args{{NewWriter(&w)}},
+				NamedArgs: c.NamedArgs,
+				Context:   c.Context,
+			})
+		)
+
+		if _, err = c.VM.Builtins.Call(
+			BuiltinPrint, Call{
+				VM:      c.VM,
+				Args:    Args{Array{state, arg}},
+				Context: c.Context,
+			}); err != nil {
+			return
+		}
+		return Str(w.String()), nil
 	default:
 		var (
-			b          strings.Builder
-			callerArgs = Array{nil}
-			caller     = NewArgCaller(c.VM, c.VM.Builtins.Objects[BuiltinStr].(CallerObject), callerArgs, c.NamedArgs)
+			w     strings.Builder
+			state = PrinterStateFromCall(&Call{
+				VM:        c.VM,
+				Args:      Args{{NewWriter(&w)}},
+				NamedArgs: c.NamedArgs,
+				Context:   c.Context,
+			})
 		)
-		c.Args.Walk(func(i int, arg Object) any {
-			callerArgs[0] = arg
-			var s Object
-			if s, err = Val(caller()); err != nil {
-				return err
-			}
-			b.WriteString(string(s.(Str)))
-			return nil
-		})
 
-		if err == nil {
-			ret = Str(b.String())
+		c.Args.Walk(func(_ int, arg Object) any {
+			_, err = c.VM.Builtins.Call(
+				BuiltinPrint, Call{
+					VM:      c.VM,
+					Args:    Args{Array{state, arg}},
+					Context: c.Context,
+				})
+			return err
+		})
+		if err != nil {
+			return
 		}
+		return Str(w.String()), nil
 	}
-	return
 }
 
 func NewBytesFunc(c Call) (_ Object, err error) {
@@ -264,4 +330,32 @@ func NewMixedParamsFunc(c Call) (ret Object, err error) {
 		Positional: c.Args.Array(),
 		Named:      c.NamedArgs.Join(),
 	}, nil
+}
+
+func NewPrinterStateFunc(c Call) (ret Object, err error) {
+	var (
+		wArg = &Arg{
+			Name: "writer",
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"writer": Writeable,
+			}),
+		}
+		maxDepth, _ = c.NamedArgs.GetValue(PrintStateOptionMaxDepth).(Int)
+		raw         = !c.NamedArgs.GetValue(PrintStateOptionRaw).IsFalsy()
+		indent      = c.NamedArgs.GetValue(PrintStateOptionIndent)
+	)
+
+	if err = c.Args.Destructure(wArg); err != nil {
+		return
+	}
+
+	return NewPrinterState(
+		c.VM,
+		wArg.Value.(Writer).GoWriter(),
+		PrinterStateWithRaw(raw),
+		PrinterStateWithMaxDepth(int(maxDepth)),
+		PrinterStateWithIndent(indent),
+		PrinterStateWithOptions(c.NamedArgs.unreadDict()),
+		PrinterStateWithContext(c.Context),
+	), nil
 }

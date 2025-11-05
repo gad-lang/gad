@@ -121,10 +121,12 @@ type KeyValue struct {
 }
 
 var (
-	_ Object         = &KeyValue{}
-	_ DeepCopier     = &KeyValue{}
-	_ Copier         = &KeyValue{}
-	_ IndexGetSetter = &KeyValue{}
+	_ Object         = (*KeyValue)(nil)
+	_ DeepCopier     = (*KeyValue)(nil)
+	_ Copier         = (*KeyValue)(nil)
+	_ IndexGetSetter = (*KeyValue)(nil)
+	_ Printer        = (*KeyValue)(nil)
+	_ Representer    = (*KeyValue)(nil)
 )
 
 func (o *KeyValue) IndexSet(vm *VM, index, value Object) error {
@@ -151,11 +153,28 @@ func (o *KeyValue) Type() ObjectType {
 	return DetectTypeOf(o)
 }
 
+func (o *KeyValue) Print(state *PrinterState) (err error) {
+	var open, close []byte
+	if prev, _ := state.stack.PrevValue().(KeyValueArray); prev == nil {
+		open, close = []byte{'['}, []byte{']'}
+	}
+	return PrintPairs(state, 1, open, close, []byte{'='}, nil,
+		func(i int) (Object, error) {
+			return o.K, nil
+		},
+		func(i int) (Object, error) {
+			if o.V == Yes {
+				return nil, nil
+			}
+			return o.V, nil
+		})
+}
+
 func (o *KeyValue) ToString() string {
 	var sb strings.Builder
 	switch t := o.K.(type) {
 	case Str:
-		if runehelper.IsLetterOrDigitRunes([]rune(t)) {
+		if runehelper.IsIdentifierOrDigitRunes([]rune(t)) {
 			sb.WriteString(string(t))
 		} else {
 			sb.WriteString(strconv.Quote(string(t)))
@@ -319,13 +338,14 @@ func (o *KeyValue) IndexGet(vm *VM, index Object) (value Object, err error) {
 type KeyValueArray []*KeyValue
 
 var (
-	_ Object       = KeyValueArray{}
-	_ DeepCopier   = KeyValueArray{}
-	_ Copier       = KeyValueArray{}
-	_ LengthGetter = KeyValueArray{}
-	_ Sorter       = KeyValueArray{}
-	_ KeysGetter   = KeyValueArray{}
-	_ ItemsGetter  = KeyValueArray{}
+	_ Object       = (*KeyValueArray)(nil)
+	_ DeepCopier   = (*KeyValueArray)(nil)
+	_ Copier       = (*KeyValueArray)(nil)
+	_ LengthGetter = (*KeyValueArray)(nil)
+	_ Sorter       = (*KeyValueArray)(nil)
+	_ KeysGetter   = (*KeyValueArray)(nil)
+	_ ItemsGetter  = (*KeyValueArray)(nil)
+	_ Representer  = (*KeyValueArray)(nil)
 )
 
 func (o *KeyValueArray) Append(vm *VM, items ...Object) (err error) {
@@ -367,6 +387,13 @@ func (o KeyValueArray) ToDict(out Dict) Dict {
 		out[v.K.ToString()] = v.V
 	}
 	return out
+}
+
+func (o KeyValueArray) Print(state *PrinterState) (err error) {
+	return PrintValues(state, len(o), []byte{'(', ';'}, []byte{')'}, []byte{','},
+		func(i int) (Object, error) {
+			return o[i], nil
+		})
 }
 
 func (o KeyValueArray) ToString() string {
@@ -768,6 +795,16 @@ func (o KeyValueArray) Values() (arr Array) {
 
 type KeyValueArrays []KeyValueArray
 
+var (
+	_ Object                = (*KeyValueArrays)(nil)
+	_ DeepCopier            = (*KeyValueArrays)(nil)
+	_ Copier                = (*KeyValueArrays)(nil)
+	_ Printer               = (*KeyValueArrays)(nil)
+	_ IndexGetter           = (*KeyValueArrays)(nil)
+	_ BinaryOperatorHandler = (*KeyValueArrays)(nil)
+	_ Representer           = (*KeyValueArrays)(nil)
+)
+
 func (o KeyValueArrays) Repr(vm *VM) (_ string, err error) {
 	return ArrayRepr(o.Type().Name(), vm, len(o), func(i int) Object {
 		return o[i]
@@ -784,6 +821,13 @@ func (o KeyValueArrays) Array() (ret Array) {
 		ret[i] = v
 	}
 	return
+}
+
+func (o KeyValueArrays) Print(state *PrinterState) (err error) {
+	return PrintArray(state, len(o),
+		func(i int) (Object, error) {
+			return o[i], nil
+		})
 }
 
 func (o KeyValueArrays) ToString() string {
@@ -864,14 +908,6 @@ func (o KeyValueArrays) Equal(right Object) bool {
 
 // IsFalsy implements Object interface.
 func (o KeyValueArrays) IsFalsy() bool { return len(o) == 0 }
-
-// CanCall implements Object interface.
-func (KeyValueArrays) CanCall() bool { return false }
-
-// Call implements Object interface.
-func (KeyValueArrays) Call(*NamedArgs, ...Object) (Object, error) {
-	return nil, ErrNotCallable
-}
 
 // BinaryOp implements Object interface.
 func (o KeyValueArrays) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
@@ -1134,18 +1170,6 @@ func (o *NamedArgs) MustGetValue(key string) (val Object) {
 	return
 }
 
-// GetPassedValue Get passed value
-func (o *NamedArgs) GetPassedValue(key string) (val Object) {
-	o.Walk(func(na *KeyValue) error {
-		if na.K.ToString() == key {
-			val = na.V
-			return io.EOF
-		}
-		return nil
-	})
-	return
-}
-
 // GetValueOrNil Must return value from key
 func (o *NamedArgs) GetValueOrNil(key string) (val Object) {
 	o.check()
@@ -1168,6 +1192,18 @@ func (o *NamedArgs) MustGetValueOrNil(key string) (val Object) {
 		return
 	}
 	return nil
+}
+
+// GetPassedValue Get passed value
+func (o *NamedArgs) GetPassedValue(key string) (val Object) {
+	o.Walk(func(na *KeyValue) error {
+		if na.K.ToString() == key {
+			val = na.V
+			return io.EOF
+		}
+		return nil
+	})
+	return
 }
 
 func (o *NamedArgs) unreadDict() Dict {

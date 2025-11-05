@@ -14,7 +14,7 @@ func IsIdentifier(ch rune) bool {
 	return '0' <= ch && ch <= '9' || IsIdentifierLetter(ch) || unicode.IsDigit(ch)
 }
 
-func IsLetterOrDigitRunes(chs []rune) bool {
+func IsIdentifierOrDigitRunes(chs []rune) bool {
 	for _, r := range chs {
 		if !IsIdentifier(r) {
 			return false

@@ -9,6 +9,16 @@ func Callable(o Object) (ok bool) {
 	return
 }
 
+func Writeable(o Object) (ok bool) {
+	_, ok = o.(Writer)
+	return
+}
+
+func Readable(o Object) (ok bool) {
+	_, ok = o.(Reader)
+	return
+}
+
 func IsIterator(obj Object) bool {
 	switch obj.(type) {
 	case Iterator:

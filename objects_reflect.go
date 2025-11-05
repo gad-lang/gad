@@ -561,15 +561,15 @@ func (r *ReflectValue) Format(s fmt.State, verb rune) {
 			s.Write([]byte(r.RType.RType.String()))
 			s.Write([]byte{':', ' '})
 		}
-	}
-	if r.RType.formatMethod != nil {
-		r.RValue.Addr().Method(r.RType.formatMethod.i).Call([]reflect.Value{reflect.ValueOf(s), reflect.ValueOf(verb)})
-	} else if verb == 'v' {
-		s.Write([]byte(fmt.Sprint(r.ToInterface())))
+		defer func() {
+			s.Write([]byte(repr.QuoteSufix))
+		}()
 	}
 
-	if verb == 'v' && s.Flag('+') {
-		s.Write([]byte(repr.QuoteSufix))
+	if r.RType.formatMethod != nil {
+		r.RValue.Addr().Method(r.RType.formatMethod.i).Call([]reflect.Value{reflect.ValueOf(s), reflect.ValueOf(verb)})
+	} else {
+		s.Write([]byte(fmt.Sprint(r.ToInterface())))
 	}
 }
 
@@ -838,6 +838,12 @@ func (o *ReflectArray) Repr(vm *VM) (_ string, err error) {
 	return w.String(), nil
 }
 
+func (o *ReflectArray) Print(state *PrinterState) (err error) {
+	return PrintArray(state, o.Length(), func(i int) (Object, error) {
+		return o.Get(state.VM, i)
+	})
+}
+
 type ReflectSlice struct {
 	ReflectArray
 }
@@ -972,6 +978,63 @@ func (o *ReflectMap) Length() int {
 
 func (o *ReflectMap) ToString() string {
 	return fmt.Sprintf("%s", o)
+}
+
+func (o *ReflectMap) Print(s *PrinterState) (err error) {
+	var (
+		keys         = o.RValue.MapKeys()
+		sortKeysType = PrintStateOptionsGetSortKeysType(s)
+		getKey       = func(i int) (Object, error) {
+			return s.VM.ToObject(keys[i].Interface())
+		}
+		getKeyValue = func(i int) reflect.Value {
+			return keys[i]
+		}
+		keysO Array
+		keysM map[string]int
+		keysS []string
+	)
+
+	if sortKeysType > 0 {
+		keysO = make(Array, len(keys))
+		keysM = make(map[string]int, len(keys))
+		keysS = make([]string, len(keys))
+
+		var (
+			k  Object
+			ks string
+		)
+
+		for i := range keys {
+			if k, err = getKey(i); err != nil {
+				return
+			}
+			keysO[i] = k
+			ks = k.ToString()
+			keysM[ks] = i
+			keysS[i] = ks
+		}
+
+		getKey = func(i int) (Object, error) {
+			return keysO[keysM[keysS[i]]], nil
+		}
+		getKeyValue = func(i int) reflect.Value {
+			return keys[keysM[keysS[i]]]
+		}
+	}
+
+	switch sortKeysType {
+	case PrintStateOptionSortTypeAscending:
+		sort.Strings(keysS)
+	case PrintStateOptionSortTypeDescending:
+		sort.Slice(keysS, func(i, j int) bool {
+			return keysS[i] > keysS[j]
+		})
+	}
+
+	return PrintDict(s, o.Length(), getKey, func(i int) (Object, error) {
+		return s.VM.ToObject(o.RValue.MapIndex(getKeyValue(i)).Interface())
+	})
 }
 
 func (o *ReflectMap) Repr(vm *VM) (_ string, err error) {
@@ -1155,6 +1218,64 @@ func (s *ReflectStruct) ToString() string {
 		}
 		return s.Options.ToStr()
 	}
+}
+
+// Print prints object writing output to out writer.
+// Options:
+// - anonymous flag: include anonymous fields.
+// - zeros flag: include zero fields.
+// - sortKeys int = 0: fields sorting. 1: ASC, 2: DESC.
+func (s *ReflectStruct) Print(state *PrinterState) (err error) {
+	type entry struct {
+		name  string
+		value Object
+	}
+
+	var (
+		value        any
+		handled      bool
+		o            Object
+		entries      []entry
+		zeros        = PrintStateOptionsGetZeros(state)
+		anonymous    = PrintStateOptionsGetAnonymous(state)
+		sortKeysType = PrintStateOptionsGetSortKeysType(state)
+	)
+
+	for _, name := range s.RType.FieldsNames {
+		isa := s.RType.RFields[name].Struct.Anonymous
+		if anonymous || !isa {
+			if handled, value, err = s.SafeField(nil, name); err == nil && handled {
+				if zeros || !IsZero(value) {
+					if isa {
+						entries = append(entries, entry{name, nil})
+					} else {
+						if o, err = state.VM.ToObject(value); err != nil {
+							return
+						}
+						entries = append(entries, entry{name, o})
+					}
+				}
+			}
+		}
+	}
+
+	switch sortKeysType {
+	case 1:
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].name < entries[j].name
+		})
+	case 2:
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].name > entries[j].name
+		})
+	}
+
+	return PrintDict(state, len(entries),
+		func(i int) (Object, error) {
+			return Str(entries[i].name), nil
+		}, func(i int) (Object, error) {
+			return entries[i].value, nil
+		})
 }
 
 func (s *ReflectStruct) Repr(vm *VM) (_ string, err error) {

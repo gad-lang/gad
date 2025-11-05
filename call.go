@@ -1,6 +1,7 @@
 package gad
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -501,6 +502,7 @@ type Call struct {
 	Args      Args
 	NamedArgs NamedArgs
 	SafeArgs  bool
+	Context   context.Context
 }
 
 // NewCall creates a new Call struct.

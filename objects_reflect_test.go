@@ -545,3 +545,118 @@ func checkError(t *testing.T, label string, want, got error) bool {
 	}
 	return true
 }
+
+func TestReflect_ToString(t *testing.T) {
+	type A struct {
+		F1 int
+	}
+
+	type B struct {
+		A
+		F2 int
+	}
+
+	type C struct {
+		F3 int
+		F4 B
+	}
+
+	var (
+		vm = NewVM(nil).Setup(SetupOpts{})
+
+		a     = MustToObject(&A{})
+		b     = MustToObject(&B{})
+		c     = MustToObject(&C{})
+		d1    = MustToObject(map[string]any{"a": &A{}, "i": Int(2)})
+		arr   = MustToObject([2]any{&A{}, Int(2)})
+		slice = MustToObject([]any{&A{}, Int(2)})
+
+		zeros       = Dict{"zeros": Yes}
+		zerosIndent = Dict{"zeros": Yes, "indent": Yes}
+
+		toStr = func(t *testing.T, o Object, options Dict) string {
+			var w strings.Builder
+
+			err := Print(
+				NewPrinterState(
+					vm,
+					&w,
+					PrinterStateWithOptions(options),
+					PrinterStateWithIndent(options["indent"]),
+				),
+				o,
+			)
+			assert.NoError(t, err)
+			return w.String()
+		}
+	)
+
+	t.Run("A", func(t *testing.T) {
+		s := toStr(t, a, Dict{})
+		assert.Equal(t, "{}", s)
+
+		s = toStr(t, a, Copy(zeros))
+		assert.Equal(t, "{F1: 0}", s)
+
+		s = toStr(t, a, Copy(zerosIndent))
+		assert.Equal(t, "{\n\tF1: 0\n}", s)
+
+		s = toStr(t, a, Dict{"zeros": Yes, "indent": Str("  ")})
+		assert.Equal(t, "{\n  F1: 0\n}", s)
+	})
+
+	t.Run("B", func(t *testing.T) {
+		s := toStr(t, b, Copy(zeros))
+		assert.Equal(t, "{F2: 0, F1: 0}", s)
+
+		s = toStr(t, b, Copy(zerosIndent))
+		assert.Equal(t, "{\n\tF2: 0,\n\tF1: 0\n}", s)
+
+		s = toStr(t, b, Dict{"zeros": Yes, "indent": Yes, PrintStateOptionSortKeys: Int(PrintStateOptionSortTypeAscending)})
+		assert.Equal(t, "{\n\tF1: 0,\n\tF2: 0\n}", s)
+
+		s = toStr(t, b, Dict{"zeros": Yes, "indent": Yes, PrintStateOptionSortKeys: Int(PrintStateOptionSortTypeDescending)})
+		assert.Equal(t, "{\n\tF2: 0,\n\tF1: 0\n}", s)
+
+		s = toStr(t, b, Dict{"zeros": Yes, "indent": Yes, PrintStateOptionSortKeys: Int(PrintStateOptionSortTypeAscending), "anonymous": Yes})
+		assert.Equal(t, "{\n\tA,\n\tF1: 0,\n\tF2: 0\n}", s)
+	})
+
+	t.Run("C", func(t *testing.T) {
+		s := toStr(t, c, Copy(zeros))
+		assert.Equal(t, "{F4: {F2: 0, F1: 0}, F3: 0}", s)
+
+		s = toStr(t, c, Copy(zerosIndent))
+		assert.Equal(t, "{\n\tF4: {\n\t\tF2: 0,\n\t\tF1: 0\n\t},\n\tF3: 0\n}", s)
+	})
+
+	t.Run("slice", func(t *testing.T) {
+		s := toStr(t, slice, Copy(zeros))
+		assert.Equal(t, "[{F1: 0}, 2]", s)
+
+		s = toStr(t, slice, Copy(zerosIndent))
+		assert.Equal(t, "[\n\t{\n\t\tF1: 0\n\t},\n\t2\n]", s)
+	})
+
+	t.Run("array", func(t *testing.T) {
+		s := toStr(t, arr, Copy(zeros))
+		assert.Equal(t, "[{F1: 0}, 2]", s)
+
+		s = toStr(t, arr, Copy(zerosIndent))
+		assert.Equal(t, "[\n\t{\n\t\tF1: 0\n\t},\n\t2\n]", s)
+	})
+
+	t.Run("map", func(t *testing.T) {
+		options := Dict{PrintStateOptionSortKeys: Int(PrintStateOptionSortTypeDescending)}
+		s := toStr(t, d1, options)
+		assert.Equal(t, "{i: 2, a: {}}", s)
+
+		options[PrintStateOptionZeros] = Yes
+		s = toStr(t, d1, options)
+		assert.Equal(t, "{i: 2, a: {F1: 0}}", s)
+
+		options[PrintStateOptionIndent] = Yes
+		s = toStr(t, d1, options)
+		assert.Equal(t, "{\n\ti: 2,\n\ta: {\n\t\tF1: 0\n\t}\n}", s)
+	})
+}

@@ -31,6 +31,9 @@ type writer struct {
 }
 
 func NewWriter(w io.Writer) Writer {
+	if w, _ := w.(*writer); w != nil {
+		return w
+	}
 	return &writer{Writer: w}
 }
 
@@ -73,6 +76,9 @@ type reader struct {
 }
 
 func NewReader(r io.Reader) Reader {
+	if r, _ := r.(*reader); r != nil {
+		return r
+	}
 	return &reader{Reader: r}
 }
 

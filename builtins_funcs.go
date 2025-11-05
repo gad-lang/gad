@@ -902,85 +902,45 @@ func BuiltinMultiValueDictFunc(c Call) (ret Object, err error) {
 	return
 }
 
-func BuiltinPrintFunc(c Call) (_ Object, err error) {
-	var (
-		w     io.Writer = c.VM.StdOut
-		total Int
-		n     int
-	)
-
+func BuiltinPrintFunc(c Call) (bytesWritten Object, err error) {
 	if err = c.Args.CheckMinLen(1); err != nil {
 		return
 	}
 
-	arg := c.Args.Get(0)
-	if w2, ok := arg.(Writer); ok {
-		w = w2
-		c.Args.Shift()
-	}
-
-	switch size := c.Args.Length(); size {
-	case 0:
-	default:
-		vargs := make([]any, 0, size)
-		for i := 0; i < size; i++ {
-			vargs = append(vargs, c.Args.Get(i))
-		}
-		n, err = fmt.Fprint(w, vargs...)
-		return Int(n), err
-	}
-
-	return total, err
-}
-
-func BuiltinPrintlnFunc(c Call) (ret Object, err error) {
 	var (
-		w io.Writer = c.VM.StdOut
-		n int
+		state             = PrinterStateFromCall(&c)
+		startBytesWritten = state.bytesWriten
 	)
 
-	switch size := c.Args.Length(); size {
-	case 0:
-		n, err = w.Write([]byte("\n"))
-	default:
-		arg := c.Args.Get(0)
-		if w2, ok := arg.(Writer); ok {
-			w = w2
-			c.Args.Shift()
-			size--
-		}
+	defer func() {
+		bytesWritten = Int(state.bytesWriten - startBytesWritten)
+	}()
 
-		var (
-			callerArgs = Array{nil}
-			caller     = NewArgCaller(c.VM, c.VM.Builtins.Objects[BuiltinStr].(CallerObject), callerArgs, c.NamedArgs)
-			s          Object
-			n2         int
-		)
+	err = state.PrintFromArgs([]byte{' '}, c.Args)
+	return
+}
 
-		c.Args.Walk(func(i int, arg Object) any {
-			callerArgs[0] = arg
-			if s, err = caller(); err != nil {
-				return err
-			}
-			n2, err = w.Write([]byte(s.ToString()))
-			n += n2
-
-			if i < size-1 {
-				n2, err = w.Write([]byte(" "))
-				n += n2
-			}
-
-			return err
-		})
-
-		if err != nil {
-			return
-		}
-
-		n2, err = w.Write([]byte("\n"))
-		n += n2
+func BuiltinPrintlnFunc(c Call) (bytesWritten Object, err error) {
+	if c.Args.Length() == 0 {
+		_, err = c.VM.Write([]byte{'\n'})
+		return Int(1), err
 	}
-	return Int(n), err
+
+	var (
+		state             = PrinterStateFromCall(&c)
+		startBytesWritten = state.bytesWriten
+	)
+
+	defer func() {
+		bytesWritten = Int(state.bytesWriten - startBytesWritten)
+	}()
+
+	if err = state.PrintFromArgs([]byte{' '}, c.Args); err != nil {
+		return
+	}
+
+	_, err = state.Write([]byte{'\n'})
+	return
 }
 
 func BuiltinSprintfFunc(c Call) (ret Object, err error) {

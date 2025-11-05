@@ -57,6 +57,7 @@ const (
 	BuiltinIterator
 	BuiltinZipIterator
 	BuiltinMixedParams
+	BuiltinPrinterState
 	BuiltinTypesEnd_
 
 	BuiltinFunctionsBegin_

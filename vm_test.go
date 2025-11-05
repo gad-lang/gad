@@ -899,16 +899,16 @@ func TestVMIterator(t *testing.T) {
 		Str(`["a", "b"]`))
 	testExpectRun(t, `return repr(items({a:1, b:2};sorted))`, nil,
 		Str(`‹ItemsIterator:‹DictIterator:{a: 1, b: 2}››`))
-	testExpectRun(t, `return str(collect(items({a:1, b:2};sorted)))`, nil, Str("[a=1, b=2]"))
+	testExpectRun(t, `return str(collect(items({a:1, b:2};sorted)))`, nil, Str("[[a=1], [b=2]]"))
 	testExpectRun(t, `return str(collect(items({a:1, b:2, c:3, d:4, e:5, f:6, g:7};step=3,sorted)))`, nil,
-		Str("[a=1, d=4, g=7]"))
+		Str("[[a=1], [d=4], [g=7]]"))
 
 	testExpectRun(t, `return repr(values([1,2]))`, nil, Str("‹ValuesIterator:‹ArrayIterator:[1, 2]››"))
 	testExpectRun(t, `return str(collect(values([1,2])))`, nil, Str("[1, 2]"))
 	testExpectRun(t, `return repr(keys([1,2]))`, nil, Str("‹KeysIterator:‹ArrayIterator:[1, 2]››"))
 	testExpectRun(t, `return str(collect(keys([2,5])))`, nil, Str("[0, 1]"))
 	testExpectRun(t, `return repr(items([2,5]))`, nil, Str(`‹ItemsIterator:‹ArrayIterator:[2, 5]››`))
-	testExpectRun(t, `return str(collect(items([2,5])))`, nil, Str("[0=2, 1=5]"))
+	testExpectRun(t, `return str(collect(items([2,5])))`, nil, Str("[[0=2], [1=5]]"))
 	testExpectRun(t, `return str(collect(values([1,2,3];reversed)))`, nil, Str("[3, 2, 1]"))
 	testExpectRun(t, `return str(collect(values([1,2,3];reversed)))`, nil, Str("[3, 2, 1]"))
 	testExpectRun(t, `return str(collect(values([1,2,3,4,5,6,7];step=2)))`, nil, Str("[1, 3, 5, 7]"))
@@ -920,7 +920,7 @@ func TestVMIterator(t *testing.T) {
 		Str(`‹ValuesIterator:‹KeyValueArrayIterator:(;a=1, b=2)››`))
 	testExpectRun(t, `return str(collect(values((;a=1,b=2))))`, nil, Str("[1, 2]"))
 	testExpectRun(t, `return str(collect(keys((;a=1,b=2))))`, nil, Str(`["a", "b"]`))
-	testExpectRun(t, `return str(collect(items((;a=1,b=2))))`, nil, Str(`[a=1, b=2]`))
+	testExpectRun(t, `return str(collect(items((;a=1,b=2))))`, nil, Str(`[[a=1], [b=2]]`))
 
 	testExpectRun(t, `return repr(map([1,2], (k, v) => v))`, nil,
 		Str(`‹MapIterator:‹‹ArrayIterator:[1, 2]› → ‹compiledFunction #2(k, v)›››`))
@@ -938,31 +938,31 @@ func TestVMIterator(t *testing.T) {
 		nil, Str("{a: 1, b: 2, c: 3, tot: 106}"))
 
 	testExpectRun(t, `a := []; it := iterator({a:"A",b:"B"};reversed); it.next; for k, v in it {a += [(k)=v]}; return str(a)`,
-		nil, Str(`[a="A"]`))
+		nil, Str(`[[a="A"]]`))
 	testExpectRun(t, `a := []; it := iterator({a:"A",b:"B"};sorted); it.next; for k, v in it {a += [(k)=v]}; return str(a)`,
-		nil, Str(`[b="B"]`))
+		nil, Str(`[[b="B"]]`))
 	testExpectRun(t, `a := []; it := iterator({a:"A",b:"B"};sorted); it.next; for {v := it.next; if v {a += v;} else {break;} }; return str(a)`,
 		nil, Str(`["B"]`))
 	testExpectRun(t, `a := []; it := items(iterator({a:"A",b:"B"};sorted)); it.next; for {v := it.next; if v {a += v;} else {break;} }; return str(a)`,
-		nil, Str(`[b="B"]`))
+		nil, Str(`[[b="B"]]`))
 	testExpectRun(t, `a := []; it := iterator({a:"A",b:"B"};sorted); for {v := it.next; if v {a += v;} else {break;} }; return str(a)`,
 		nil, Str(`["A", "B"]`))
 	testExpectRun(t, `a := []; for k, v in iterator({a:"A",b:"B"};reversed) {a += [(k)=v]}; return str(a)`,
-		nil, Str(`[b="B", a="A"]`))
+		nil, Str(`[[b="B"], [a="A"]]`))
 	testExpectRun(t, `a := []; for k, v in iterator({a:"A",b:"B"};sorted) {a += [(k)=v]}; return str(a)`,
-		nil, Str(`[a="A", b="B"]`))
+		nil, Str(`[[a="A"], [b="B"]]`))
 	testExpectRun(t, `a := []; for k, v in (;a="A",b="B") {a += [(k)=v]}; return str(a)`,
-		nil, Str(`[a="A", b="B"]`))
+		nil, Str(`[[a="A"], [b="B"]]`))
 	testExpectRun(t, `return str(collect(items(enumerate(iterator({a:"A",b:"B"};sorted)))))`,
-		nil, Str(`[0=[a="A"], 1=[b="B"]]`))
+		nil, Str(`[[0=[a="A"]], [1=[b="B"]]]`))
 	testExpectRun(t, `return str(collect(items(enumerate({a:"A",b:"B"};sorted))))`,
-		nil, Str(`[0=[a="A"], 1=[b="B"]]`))
+		nil, Str(`[[0=[a="A"]], [1=[b="B"]]]`))
 	testExpectRun(t, `return str(collect(zip([1,2,3],[4,5,6])))`,
 		nil, Str(`[1, 2, 3, 4, 5, 6]`))
 	testExpectRun(t, `return str(collect(items(enumerate(zip([1,2,3],[4,5,6])))))`,
-		nil, Str(`[0=[0=1], 1=[1=2], 2=[2=3], 3=[0=4], 4=[1=5], 5=[2=6]]`))
+		nil, Str(`[[0=[0=1]], [1=[1=2]], [2=[2=3]], [3=[0=4]], [4=[1=5]], [5=[2=6]]]`))
 	testExpectRun(t, `return str(collect(enumerate(items(zip([1,2,3],[4,5,6]));values)))`,
-		nil, Str(`[0=1, 1=2, 2=3, 3=4, 4=5, 5=6]`))
+		nil, Str(`[[0=1], [1=2], [2=3], [3=4], [4=5], [5=6]]`))
 	testExpectRun(t, `return str(collect(enumerate(zip([1,2,3],[4,5,6]);keys)))`,
 		nil, Str(`[0, 1, 2, 0, 1, 2]`))
 }
@@ -1248,9 +1248,9 @@ func TestVMBuiltinFunction(t *testing.T) {
 	expectErrIs(t, `typeName("", "")`, nil, ErrWrongNumArguments)
 
 	testExpectRun(t, `return str(keyValue("a",1))`,
-		nil, Str("a=1"))
+		nil, Str("[a=1]"))
 	testExpectRun(t, `return str(keyValue("a b",1))`,
-		nil, Str(`"a b"=1`))
+		nil, Str(`["a b"=1]`))
 	testExpectRun(t, `return str(keyValueArray(nil,keyValue("a",1),{b:2},["c",3],
 keyValueArray(keyValue("d",4),[e=5])))`,
 		nil, Str(`(;a=1, b=2, 0="c", 1=3, d=4, e=5)`))
@@ -1261,12 +1261,13 @@ keyValueArray(keyValue("d",4),[e=5])))`,
 		nil, Str("[0, 1]"))
 	testExpectRun(t, `return str(collect(keys((;a=1,b=2))))`,
 		nil, Str(`["a", "b"]`))
-
+	testExpectRun(t, `return str(collect(keys((;a=1,b=2)));indent)`,
+		nil, Str("[\n\t\"a\",\n\t\"b\"\n]"))
 	testExpectRun(t, `return sort(collect(items({a:1,b:2})))`,
 		nil, Array{&KeyValue{Str("a"), Int(1)}, &KeyValue{Str("b"), Int(2)}})
-	testExpectRun(t, `return str(collect(items([3, 2, 1])))`, nil, Str("[0=3, 1=2, 2=1]"))
+	testExpectRun(t, `return str(collect(items([3, 2, 1])))`, nil, Str("[[0=3], [1=2], [2=1]]"))
 	testExpectRun(t, `return str(collect(items(keyValueArray(keyValue("a",1),keyValue("b",2)))))`,
-		nil, Str(`[a=1, b=2]`))
+		nil, Str(`[[a=1], [b=2]]`))
 
 	testExpectRun(t, `return sort(collect(values({a:1,b:2})))`,
 		nil, Array{Int(1), Int(2)})
@@ -1313,6 +1314,53 @@ func close(p Point) {
 	return p
 }
 return str(close(o))`, nil, Str("Point{closed: true}"))
+
+	testExpectRun(t, `
+d := {x:2, y:{z:3}}
+a := [1,[2,[3,[4,[5, d]],6],7],8]
+return [
+	str(a),
+	str(a;maxDepth=1),
+	str(a;maxDepth=6),
+	str(a;maxDepth=7),
+	str(a;indexes),
+	str(a;maxDepth=1,indent),
+	str(a;indexes,maxDepth=1,indent),
+	str(a;indent),
+]`,
+		nil, Array{
+			Str("[1, [2, [3, [4, [5, {x: 2, y: {z: 3}}]], 6], 7], 8]"),
+			Str("[1, […], 8]"),
+			Str("[1, [2, [3, [4, [5, {x: 2, y: {…}}]], 6], 7], 8]"),
+			Str("[1, [2, [3, [4, [5, {x: 2, y: {z: 3}}]], 6], 7], 8]"),
+			Str("[0 🠆 1, 1 🠆 [0 🠆 2, 1 🠆 [0 🠆 3, 1 🠆 [0 🠆 4, 1 🠆 [0 🠆 5, 1 🠆 {x: 2, y: {z: 3}}]], 2 🠆 6], 2 🠆 7], 2 🠆 8]"),
+			Str("[\n\t1,\n\t[…],\n\t8\n]"),
+			Str("[\n\t0 🠆 1,\n\t1 🠆 […],\n\t2 🠆 8\n]"),
+			Str(`[
+	1,
+	[
+		2,
+		[
+			3,
+			[
+				4,
+				[
+					5,
+					{
+						x: 2,
+						y: {
+							z: 3
+						}
+					}
+				]
+			],
+			6
+		],
+		7
+	],
+	8
+]`),
+		})
 
 	convs := []struct {
 		f      string
@@ -1804,6 +1852,31 @@ Point := struct(
 	"Point", 
 	fields={x:0, y:0},
 )
+func Point(x, y) => Point(x=x, y=y) // or Point.new(x=x, y=y)
+func print(state PrinterState, p Point) => print(state, "print override") 
+return str(Point(1,2))`,
+		nil, Str(`print override`))
+
+	testExpectRun(t, `
+Point := struct(
+	"Point", 
+	fields={x:0, y:0},
+)
+func Point(x, y) => Point(x=x, y=y) // or Point.new(x=x, y=y)
+func print(state PrinterState, p Point) => print(state, "print override") 
+d := {x:10}
+d.y={a:1, z:d}
+return [str(Point(1,2), "->", d),str(Point(1,2), "->", d;maxDepth=1)]`,
+		nil, Array{
+			Str(`print override->{x: 10, y: {a: 1, z: ‹↶›}}`),
+			Str(`print override->{x: 10, y: {…}}`),
+		})
+
+	testExpectRun(t, `
+Point := struct(
+	"Point", 
+	fields={x:0, y:0},
+)
 func Point() => 2 
 return str(Point())`,
 		nil, Str(`2`))
@@ -2199,7 +2272,7 @@ func TestVMBuiltinError(t *testing.T) {
 
 	testExpectRun(t, `return func() { return error(5) }()`, nil,
 		&Error{Name: "error", Message: "5"})
-	testExpectRun(t, `return error(error("foo"))`, nil, &Error{Name: "error", Message: "error: foo"})
+	testExpectRun(t, `return error(error("foo"))`, nil, &Error{Name: "error", Message: "foo"})
 
 	testExpectRun(t, `return error("some error").Literal`, nil, Str("error"))
 	testExpectRun(t, `return error("some error")["Literal"]`, nil, Str("error"))

@@ -2,23 +2,49 @@ package gad
 
 import (
 	"fmt"
+	"io"
 	"math"
+	"strings"
 )
 
+func (vm *VM) CallBuiltin(t BuiltinType, namedArgs *NamedArgs, args ...Object) (Object, error) {
+	c := Call{VM: vm, Args: Args{args}}
+	if namedArgs != nil {
+		c.NamedArgs = *namedArgs
+	}
+	return Val(vm.Builtins.Call(t, c))
+}
+
 func ToStr(vm *VM, o Object) (_ Str, err error) {
-	var v Object
-	if v, err = Val(vm.Builtins.Call(BuiltinStr, Call{VM: vm, Args: Args{Array{o}}})); err != nil {
+	var w strings.Builder
+	if err = ToStrW(&w, vm, o); err != nil {
 		return
 	}
-	return v.(Str), nil
+	return Str(w.String()), nil
+}
+
+func ToStrW(w io.Writer, vm *VM, o Object) (err error) {
+	if err = Print(NewPrinterState(vm, w), o); err != nil {
+		return
+	}
+	return
 }
 
 func ToRawStr(vm *VM, o Object) (_ RawStr, err error) {
-	var v Object
-	if v, err = Val(vm.Builtins.Call(BuiltinRawStr, Call{VM: vm, Args: Args{Array{o}}})); err != nil {
+	var w strings.Builder
+	if err = ToRawStrW(&w, vm, o); err != nil {
 		return
 	}
-	return v.(RawStr), nil
+	return RawStr(w.String()), nil
+}
+
+func ToRawStrW(w io.Writer, vm *VM, o Object) (err error) {
+	return Print(NewPrinterState(vm, w, PrinterStateWithRaw(true)), o)
+}
+
+func Print(state *PrinterState, o ...Object) (err error) {
+	_, err = state.VM.CallBuiltin(BuiltinPrint, nil, append(Array{state}, o...)...)
+	return
 }
 
 func ToRepr(vm *VM, o Object) (_ Str, err error) {
@@ -64,13 +90,18 @@ func ToReprTypedRS(vm *VM, typ ObjectType, o any) (s string, err error) {
 	return ReprQuote(s + v), nil
 }
 
-func DeepCopy(vm *VM, o Object) (Object, error) {
-	return Val(vm.Builtins.Call(BuiltinDeepCopy, Call{VM: vm, Args: Args{Array{o}}}))
+func DeepCopy[T Object](vm *VM, o T) (_ T, err error) {
+	var r Object
+	r, err = Val(vm.Builtins.Call(BuiltinDeepCopy, Call{VM: vm, Args: Args{Array{o}}}))
+	if err != nil {
+		return
+	}
+	return r.(T), nil
 }
 
-func Copy(o Object) Object {
-	if cp, _ := o.(Copier); cp != nil {
-		return cp.Copy()
+func Copy[T Object](o T) T {
+	if cp, _ := Object(o).(Copier); cp != nil {
+		return cp.Copy().(T)
 	}
 	return o
 }
@@ -350,4 +381,8 @@ func Val(v Object, e error) (ret Object, err error) {
 		}
 		return
 	}
+}
+
+func MustVal(v Object, _ error) (ret Object) {
+	return v
 }

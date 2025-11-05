@@ -767,6 +767,12 @@ func (o Array) ToString() string {
 	})
 }
 
+func (o Array) Print(state *PrinterState) (err error) {
+	return PrintArray(state, o.Length(), func(i int) (Object, error) {
+		return o[i], nil
+	})
+}
+
 func (o Array) Repr(vm *VM) (string, error) {
 	return ArrayRepr(o.Type().Name(), vm, len(o), func(i int) Object {
 		return o[i]
@@ -1118,6 +1124,49 @@ func (o Dict) Filter(f func(k string, v Object) bool) Dict {
 	return cp
 }
 
+// Print prints object writing output to out writer.
+// Options:
+// - anonymous flag: include anonymous fields.
+// - zeros flag: include zero fields.
+// - sortKeys int = 0: fields sorting. 1: ASC, 2: DESC.
+func (o Dict) Print(state *PrinterState) (err error) {
+	type entry struct {
+		name  string
+		value Object
+	}
+
+	var (
+		v            Object
+		entries      []entry
+		sortKeysType = PrintStateOptionsGetSortKeysType(state)
+	)
+
+	for name, value := range o {
+		if v, err = state.VM.ToObject(value); err != nil {
+			return
+		}
+		entries = append(entries, entry{name, v})
+	}
+
+	switch sortKeysType {
+	case 2:
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].name > entries[j].name
+		})
+	default:
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].name < entries[j].name
+		})
+	}
+
+	return PrintDict(state, len(entries),
+		func(i int) (Object, error) {
+			return Str(entries[i].name), nil
+		}, func(i int) (Object, error) {
+			return entries[i].value, nil
+		})
+}
+
 func (o Dict) ToString() string {
 	var sb strings.Builder
 	sb.WriteString("{")
@@ -1357,6 +1406,48 @@ func (o *Dict) Set(key string, value Object) {
 		*o = Dict{}
 	}
 	(*o)[key] = value
+}
+
+func (o Dict) ToNamedArgs() *NamedArgs {
+	if o == nil {
+		o = make(Dict, len(o))
+	}
+
+	items := make(KeyValueArray, len(o))
+
+	_ = o.Items(nil, func(i int, item *KeyValue) error {
+		items[i] = item
+		return nil
+	})
+
+	return &NamedArgs{
+		m:       o,
+		ready:   Dict{},
+		sources: KeyValueArrays{items},
+	}
+}
+
+// Get gets object by key. Return then if exists or Nil.
+func (o Dict) Get(key string) (r Object) {
+	r = o[key]
+	if r == nil {
+		r = Nil
+	}
+	return
+}
+
+// Backup returns a handle function to restores key value.
+func (o Dict) Backup(key string) func() {
+	v := o[key]
+	if v != nil {
+		return func() {
+			o[key] = v
+		}
+	} else {
+		return func() {
+			delete(o, key)
+		}
+	}
 }
 
 // SyncDict represents map of objects and implements Object interface.

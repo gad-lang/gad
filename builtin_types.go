@@ -136,6 +136,9 @@ var (
 	TIndexGetProxy = &BuiltinObjType{
 		NameValue: "indexGetProxy",
 	}
+	TPrinterState = &BuiltinObjType{
+		NameValue: "PrinterState",
+	}
 )
 
 func init() {
@@ -148,7 +151,7 @@ func init() {
 	TDecimal = RegisterBuiltinType(BuiltinDecimal, "decimal", Decimal{}, NewDecimalFunc)
 	TChar = RegisterBuiltinType(BuiltinChar, "char", Char(0), NewCharFunc)
 	TRawStr = RegisterBuiltinType(BuiltinRawStr, "rawstr", RawStr(""), NewRawStrFunc)
-	TStr = RegisterBuiltinType(BuiltinStr, "str", Str(""), NewStringFunc)
+	TStr = RegisterBuiltinType(BuiltinStr, "str", Str(""), NewStrFunc)
 	TBytes = RegisterBuiltinType(BuiltinBytes, "bytes", Bytes{}, NewBytesFunc)
 	TBuffer = RegisterBuiltinType(BuiltinBuffer, "buffer", Buffer{}, NewBufferFunc)
 	TArray = RegisterBuiltinType(BuiltinArray, "array", Array{}, NewArrayFunc)
@@ -163,4 +166,5 @@ func init() {
 	TRegexpBytesSliceResult = RegisterBuiltinType(BuiltinRegexpBytesSliceResult, "regexpBytesSliceResult", RegexpBytesSliceResult{}, nil)
 	TMixedParams = RegisterBuiltinType(BuiltinMixedParams, "MixedParams", MixedParams{}, NewMixedParamsFunc)
 	TError = RegisterBuiltinType(BuiltinError, "error", Error{}, NewErrorFunc)
+	TPrinterState = RegisterBuiltinType(BuiltinPrinterState, "PrinterState", PrinterState{}, NewPrinterStateFunc)
 }
