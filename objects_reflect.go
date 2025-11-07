@@ -18,6 +18,10 @@ import (
 	"github.com/gad-lang/gad/repr"
 )
 
+type ReflectValuePrinter interface {
+	GadPrint(state *PrinterState) (err error)
+}
+
 type ReflectMethod struct {
 	baseType reflect.Type
 	Method   reflect.Method
@@ -246,6 +250,22 @@ func NewReflectType(typ reflect.Type) (rt *ReflectType) {
 	}
 
 	rt.RMethods = methods
+
+	if rt.RType.Implements(reflect.TypeOf((*ReflectValuePrinter)(nil)).Elem()) {
+		rt.Print = func(state *PrinterState, obj *ReflectValue) (err error) {
+			return obj.ToInterface().(ReflectValuePrinter).GadPrint(state)
+		}
+	} else if rt.RType.Implements(reflect.TypeOf((*fmt.Formatter)(nil)).Elem()) {
+		rt.Print = func(state *PrinterState, obj *ReflectValue) (err error) {
+			_, err = fmt.Fprintf(state.writer, "%v", obj.ToInterface())
+			return
+		}
+	} else if rt.RType.Implements(reflect.TypeOf((*fmt.Stringer)(nil)).Elem()) {
+		rt.Print = func(state *PrinterState, obj *ReflectValue) (err error) {
+			_, err = state.Write([]byte(obj.ToInterface().(fmt.Stringer).String()))
+			return
+		}
+	}
 
 	return
 }
@@ -548,12 +568,6 @@ func (r *ReflectValue) Type() ObjectType {
 }
 
 func (r *ReflectValue) ToString() string {
-	if r.RType.RType.Implements(reflect.TypeOf((*fmt.Stringer)(nil)).Elem()) {
-		return r.ToInterface().(fmt.Stringer).String()
-	}
-	if r.RType.RType.Implements(reflect.TypeOf((*fmt.Formatter)(nil)).Elem()) {
-		return fmt.Sprintf("%v", r.ToInterface())
-	}
 	var w strings.Builder
 	w.WriteString(repr.QuotePrefix)
 	w.WriteString("reflectValue:")
@@ -873,6 +887,9 @@ func (o *ReflectArray) Repr(vm *VM) (_ string, err error) {
 }
 
 func (o *ReflectArray) Print(state *PrinterState) (err error) {
+	if o.RType.Print != nil {
+		return o.RType.Print(state, &o.ReflectValue)
+	}
 	return PrintArray(state, o.Length(), func(i int) (Object, error) {
 		return o.Get(state.VM, i)
 	})
@@ -1015,6 +1032,10 @@ func (o *ReflectMap) ToString() string {
 }
 
 func (o *ReflectMap) Print(s *PrinterState) (err error) {
+	if o.RType.Print != nil {
+		return o.RType.Print(s, &o.ReflectValue)
+	}
+
 	var (
 		keys         = o.RValue.MapKeys()
 		sortKeysType = PrintStateOptionsGetSortKeysType(s)
@@ -1263,6 +1284,10 @@ func (s *ReflectStruct) ToString() string {
 // - zeros flag: include zero fields.
 // - sortKeys int = 0: fields sorting. 1: ASC, 2: DESC.
 func (s *ReflectStruct) Print(state *PrinterState) (err error) {
+	if s.RType.Print != nil {
+		return s.RType.Print(state, &s.ReflectValue)
+	}
+
 	type entry struct {
 		name  string
 		value Object
