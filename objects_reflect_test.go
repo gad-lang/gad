@@ -697,6 +697,20 @@ func TestReflect_ToString(t *testing.T) {
 		s = toStr(t, d1, options)
 		assert.Equal(t, "{\n\ti: 2,\n\ta: {\n\t\tF1: 0\n\t}\n}", s)
 	})
+
+	t.Run("printable", func(t *testing.T) {
+		type S struct {
+			I int
+			V StringerValue
+			P PrintableType
+		}
+		s := toStr(t, MustToObject(&S{
+			I: 1,
+			V: 2,
+			P: 3,
+		}), Dict{})
+		assert.Equal(t, "{I: 1, P: `custom reflect printable value = 3`, V: <Value=2>}", s)
+	})
 }
 
 type StringerValue int
@@ -709,4 +723,13 @@ type FormatterValue int
 
 func (v FormatterValue) Format(f fmt.State, verb rune) {
 	f.Write([]byte("formattedValue:" + strconv.Itoa(int(v))))
+}
+
+type PrintableType int
+
+func init() {
+	ReflectTypeOf(PrintableType(99)).Print = func(state *PrinterState, obj *ReflectValue) (err error) {
+		_, err = state.Write([]byte("`custom reflect printable value = " + strconv.Itoa(int(obj.ToInterface().(PrintableType))) + "`"))
+		return
+	}
 }

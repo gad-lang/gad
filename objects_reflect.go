@@ -102,6 +102,7 @@ type ReflectType struct {
 	RFields      map[string]*ReflectField
 	formatMethod *ReflectMethod
 	CallObject   func(obj *ReflectStruct, c Call) (Object, error)
+	Print        func(state *PrinterState, obj *ReflectValue) error
 }
 
 func (r *ReflectType) String() string {
@@ -352,6 +353,10 @@ func (r *ReflectType) IsChildOf(t ObjectType) bool {
 	return t == TBase
 }
 
+func ReflectTypeOf(v any) (rt *ReflectType) {
+	return NewReflectType(indirectInterface(reflect.ValueOf(v)).Type())
+}
+
 type ReflectValuer interface {
 	Object
 	Copier
@@ -457,6 +462,7 @@ var (
 	_ Niler         = (*ReflectValue)(nil)
 	_ Copier        = (*ReflectValue)(nil)
 	_ Representer   = (*ReflectValue)(nil)
+	_ Printer       = (*ReflectValue)(nil)
 )
 
 func (r *ReflectValue) Init() {
@@ -595,6 +601,14 @@ func (r *ReflectValue) Format(s fmt.State, verb rune) {
 
 func (r *ReflectValue) ToStringW(w io.Writer) {
 	fmt.Fprintf(w, "%+v", r)
+}
+
+func (r *ReflectValue) Print(state *PrinterState) (err error) {
+	if r.RType.Print != nil {
+		return r.RType.Print(state, r)
+	}
+	_, err = state.Write([]byte(r.ToString()))
+	return err
 }
 
 func (r *ReflectValue) IsNil() bool {
