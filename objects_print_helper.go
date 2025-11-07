@@ -19,8 +19,8 @@ func PrintPairs(state *PrinterState, l int, open, close, keySep, itemSep []byte,
 	defer func() {
 		if err == nil {
 			if state.Indented() && !state.SkipDepth() {
-				state.PrintLine()
 				if l > 0 {
+					state.PrintLine()
 					state.PrintIndent()
 				}
 			}
@@ -30,6 +30,10 @@ func PrintPairs(state *PrinterState, l int, open, close, keySep, itemSep []byte,
 
 	if state.SkipDepth() {
 		_, err = state.Write([]byte("…"))
+		return
+	}
+
+	if l == 0 {
 		return
 	}
 

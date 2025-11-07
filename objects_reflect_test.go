@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -561,12 +562,20 @@ func TestReflect_ToString(t *testing.T) {
 		F4 B
 	}
 
+	type D struct {
+		A    int
+		Time time.Time
+		X    int
+	}
+
 	var (
 		vm = NewVM(nil).Setup(SetupOpts{})
 
 		a     = MustToObject(&A{})
 		b     = MustToObject(&B{})
 		c     = MustToObject(&C{})
+		d     = MustToObject(&D{})
+		d2    = MustToObject(&D{Time: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)})
 		d1    = MustToObject(map[string]any{"a": &A{}, "i": Int(2)})
 		arr   = MustToObject([2]any{&A{}, Int(2)})
 		slice = MustToObject([]any{&A{}, Int(2)})
@@ -628,6 +637,20 @@ func TestReflect_ToString(t *testing.T) {
 
 		s = toStr(t, c, Copy(zerosIndent))
 		assert.Equal(t, "{\n\tF4: {\n\t\tF2: 0,\n\t\tF1: 0\n\t},\n\tF3: 0\n}", s)
+	})
+
+	t.Run("D", func(t *testing.T) {
+		s := toStr(t, d, Dict{})
+		assert.Equal(t, "{}", s)
+		s = toStr(t, d, Dict{"indent": Yes})
+		assert.Equal(t, "{}", s)
+	})
+
+	t.Run("D2", func(t *testing.T) {
+		s := toStr(t, d2, Dict{})
+		assert.Equal(t, "{Time: 2025-01-01 00:00:00 +0000 UTC}", s)
+		s = toStr(t, d2, Dict{"indent": Yes})
+		assert.Equal(t, "{\n\tTime: 2025-01-01 00:00:00 +0000 UTC\n}", s)
 	})
 
 	t.Run("slice", func(t *testing.T) {
