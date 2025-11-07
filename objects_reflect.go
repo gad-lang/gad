@@ -456,6 +456,7 @@ var (
 	_ ReflectValuer = (*ReflectValue)(nil)
 	_ Niler         = (*ReflectValue)(nil)
 	_ Copier        = (*ReflectValue)(nil)
+	_ Representer   = (*ReflectValue)(nil)
 )
 
 func (r *ReflectValue) Init() {
@@ -541,6 +542,12 @@ func (r *ReflectValue) Type() ObjectType {
 }
 
 func (r *ReflectValue) ToString() string {
+	if r.RType.RType.Implements(reflect.TypeOf((*fmt.Stringer)(nil)).Elem()) {
+		return r.ToInterface().(fmt.Stringer).String()
+	}
+	if r.RType.RType.Implements(reflect.TypeOf((*fmt.Formatter)(nil)).Elem()) {
+		return fmt.Sprintf("%v", r.ToInterface())
+	}
 	var w strings.Builder
 	w.WriteString(repr.QuotePrefix)
 	w.WriteString("reflectValue:")
@@ -551,6 +558,19 @@ func (r *ReflectValue) ToString() string {
 	}
 	w.WriteString(repr.QuoteSufix)
 	return w.String()
+}
+
+func (r *ReflectValue) Repr(_ *VM) (string, error) {
+	var w strings.Builder
+	w.WriteString(repr.QuotePrefix)
+	w.WriteString("reflectValue:")
+	if r.Options.ToStr == nil {
+		fmt.Fprintf(&w, "%+v", r)
+	} else {
+		w.WriteString(r.Options.ToStr())
+	}
+	w.WriteString(repr.QuoteSufix)
+	return w.String(), nil
 }
 
 func (r *ReflectValue) Format(s fmt.State, verb rune) {
@@ -1115,6 +1135,9 @@ func (o *ReflectMap) Copy() (obj Object) {
 var (
 	_ CallerObject    = (*ReflectStruct)(nil)
 	_ CanCallerObject = (*ReflectStruct)(nil)
+	_ Iterabler       = (*ReflectStruct)(nil)
+	_ IndexGetSetter  = (*ReflectStruct)(nil)
+	_ Printer         = (*ReflectStruct)(nil)
 )
 
 type ReflectStruct struct {
@@ -1260,13 +1283,13 @@ func (s *ReflectStruct) Print(state *PrinterState) (err error) {
 	}
 
 	switch sortKeysType {
-	case 1:
-		sort.Slice(entries, func(i, j int) bool {
-			return entries[i].name < entries[j].name
-		})
 	case 2:
 		sort.Slice(entries, func(i, j int) bool {
 			return entries[i].name > entries[j].name
+		})
+	default:
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].name < entries[j].name
 		})
 	}
 

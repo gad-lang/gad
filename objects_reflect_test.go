@@ -2,6 +2,7 @@ package gad
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -566,16 +567,30 @@ func TestReflect_ToString(t *testing.T) {
 		A    int
 		Time time.Time
 		X    int
+		V1   StringerValue
+		V2   *StringerValue
+		V3   FormatterValue
+		V4   *FormatterValue
 	}
 
 	var (
 		vm = NewVM(nil).Setup(SetupOpts{})
 
-		a     = MustToObject(&A{})
-		b     = MustToObject(&B{})
-		c     = MustToObject(&C{})
-		d     = MustToObject(&D{})
-		d2    = MustToObject(&D{Time: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)})
+		a = MustToObject(&A{})
+		b = MustToObject(&B{})
+		c = MustToObject(&C{})
+		d = MustToObject(&D{})
+
+		sv StringerValue  = 2
+		fv FormatterValue = 4
+
+		d2 = MustToObject(&D{
+			Time: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+			V1:   1,
+			V2:   &sv,
+			V3:   3,
+			V4:   &fv,
+		})
 		d1    = MustToObject(map[string]any{"a": &A{}, "i": Int(2)})
 		arr   = MustToObject([2]any{&A{}, Int(2)})
 		slice = MustToObject([]any{&A{}, Int(2)})
@@ -616,10 +631,10 @@ func TestReflect_ToString(t *testing.T) {
 
 	t.Run("B", func(t *testing.T) {
 		s := toStr(t, b, Copy(zeros))
-		assert.Equal(t, "{F2: 0, F1: 0}", s)
+		assert.Equal(t, "{F1: 0, F2: 0}", s)
 
 		s = toStr(t, b, Copy(zerosIndent))
-		assert.Equal(t, "{\n\tF2: 0,\n\tF1: 0\n}", s)
+		assert.Equal(t, "{\n\tF1: 0,\n\tF2: 0\n}", s)
 
 		s = toStr(t, b, Dict{"zeros": Yes, "indent": Yes, PrintStateOptionSortKeys: Int(PrintStateOptionSortTypeAscending)})
 		assert.Equal(t, "{\n\tF1: 0,\n\tF2: 0\n}", s)
@@ -633,10 +648,10 @@ func TestReflect_ToString(t *testing.T) {
 
 	t.Run("C", func(t *testing.T) {
 		s := toStr(t, c, Copy(zeros))
-		assert.Equal(t, "{F4: {F2: 0, F1: 0}, F3: 0}", s)
+		assert.Equal(t, "{F3: 0, F4: {F1: 0, F2: 0}}", s)
 
 		s = toStr(t, c, Copy(zerosIndent))
-		assert.Equal(t, "{\n\tF4: {\n\t\tF2: 0,\n\t\tF1: 0\n\t},\n\tF3: 0\n}", s)
+		assert.Equal(t, "{\n\tF3: 0,\n\tF4: {\n\t\tF1: 0,\n\t\tF2: 0\n\t}\n}", s)
 	})
 
 	t.Run("D", func(t *testing.T) {
@@ -648,9 +663,9 @@ func TestReflect_ToString(t *testing.T) {
 
 	t.Run("D2", func(t *testing.T) {
 		s := toStr(t, d2, Dict{})
-		assert.Equal(t, "{Time: 2025-01-01 00:00:00 +0000 UTC}", s)
+		assert.Equal(t, "{Time: 2025-01-01 00:00:00 +0000 UTC, V1: <Value=1>, V2: <Value=2>, V3: formattedValue:3, V4: formattedValue:4}", s)
 		s = toStr(t, d2, Dict{"indent": Yes})
-		assert.Equal(t, "{\n\tTime: 2025-01-01 00:00:00 +0000 UTC\n}", s)
+		assert.Equal(t, "{\n\tTime: 2025-01-01 00:00:00 +0000 UTC,\n\tV1: <Value=1>,\n\tV2: <Value=2>,\n\tV3: formattedValue:3,\n\tV4: formattedValue:4\n}", s)
 	})
 
 	t.Run("slice", func(t *testing.T) {
@@ -682,4 +697,16 @@ func TestReflect_ToString(t *testing.T) {
 		s = toStr(t, d1, options)
 		assert.Equal(t, "{\n\ti: 2,\n\ta: {\n\t\tF1: 0\n\t}\n}", s)
 	})
+}
+
+type StringerValue int
+
+func (v StringerValue) String() string {
+	return "<Value=" + strconv.Itoa(int(v)) + ">"
+}
+
+type FormatterValue int
+
+func (v FormatterValue) Format(f fmt.State, verb rune) {
+	f.Write([]byte("formattedValue:" + strconv.Itoa(int(v))))
 }
