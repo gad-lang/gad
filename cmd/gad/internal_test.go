@@ -37,7 +37,7 @@ func TestREPL(t *testing.T) {
 	t.Run("builtins", func(t *testing.T) {
 		require.NoError(t, r.execute(".builtins"))
 		testHasPrefix(t, string(cw.consume()),
-			"DISCARD_WRITER         \tBuiltin\n")
+			"DISCARD_WRITER            \tBuiltin\n")
 	})
 	t.Run("keywords", func(t *testing.T) {
 		require.NoError(t, r.execute(".keywords"))

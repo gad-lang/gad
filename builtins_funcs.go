@@ -1687,13 +1687,13 @@ func BuiltinTypeOfFunc(c Call) (_ Object, err error) {
 	return TypeOf(c.Args.Get(0)), nil
 }
 
-func BuiltinBinaryOpFunc(c Call) (ret Object, err error) {
+func BuiltinBinaryOperatorFunc(c Call) (ret Object, err error) {
 	var (
 		op = &Arg{
 			Name: "Op",
 			TypeAssertion: new(TypeAssertion).
 				AcceptHandler("BinaryOperatorType", func(v Object) (ok bool) {
-					_, ok = v.(*BinaryOperatorType)
+					_, ok = v.(BinaryOperatorType)
 					return
 				}),
 		}
@@ -1709,13 +1709,49 @@ func BuiltinBinaryOpFunc(c Call) (ret Object, err error) {
 		return
 	}
 
+	opType := op.Value.(BinaryOperatorType)
+
 	switch left := left.Value.(type) {
 	case BinaryOperatorHandler:
-		ret, err = left.BinaryOp(c.VM, op.Value.(*BinaryOperatorType).Token, right.Value)
+		ret, err = left.BinaryOp(c.VM, opType.Token(), right.Value)
 	default:
-		err = ErrInvalidOperator.NewError(op.Value.(*BinaryOperatorType).Name())
+		err = ErrInvalidOperator.NewError(opType.Name())
 	}
 	return
+}
+
+func BuiltinSelfAssignOperatorFunc(c Call) (ret Object, err error) {
+	var (
+		op = &Arg{
+			Name: "Op",
+			TypeAssertion: new(TypeAssertion).
+				AcceptHandler("SelfAssignOperatorType", func(v Object) (ok bool) {
+					_, ok = v.(SelfAssignOperatorType)
+					return
+				}),
+		}
+		left = &Arg{
+			Name: "left",
+		}
+		right = &Arg{
+			Name: "right",
+		}
+	)
+
+	if err = c.Args.Destructure(op, left, right); err != nil {
+		return
+	}
+
+	opType := op.Value.(SelfAssignOperatorType)
+
+	if left, ok := left.Value.(SelfAssignOperatorHandler); ok {
+		var handled bool
+		if ret, handled, err = left.SelfAssignOp(c.VM, opType.Token(), right.Value); err != nil || handled {
+			return
+		}
+	}
+	c.Args = Args{{BinaryOperatorType(opType), left.Value, right.Value}}
+	return c.VM.Builtins.Call(BuiltinBinaryOperator, c)
 }
 
 func BuiltinCastFunc(c Call) (ret Object, err error) {

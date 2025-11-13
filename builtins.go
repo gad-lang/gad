@@ -61,7 +61,8 @@ const (
 	BuiltinTypesEnd_
 
 	BuiltinFunctionsBegin_
-	BuiltinBinaryOp
+	BuiltinBinaryOperator
+	BuiltinSelfAssignOperator
 	BuiltinRepr
 	BuiltinCast
 	BuiltinAppend
@@ -150,34 +151,52 @@ const (
 	BuiltinDiscardWriter
 	BuiltinConstantsEnd_
 
-	BuiltinBinOperatorsBegin_
-	BuiltinBinOpAdd
-	BuiltinBinOpSub
-	BuiltinBinOpMul
-	BuiltinBinOpPow
-	BuiltinBinOpQuo
-	BuiltinBinOpRem
-	BuiltinBinOpAnd
-	BuiltinBinOpOr
-	BuiltinBinOpXor
-	BuiltinBinOpShl
-	BuiltinBinOpShr
-	BuiltinBinOpAndNot
-	BuiltinBinOpLAnd
-	BuiltinBinOpEqual
-	BuiltinBinOpNotEqual
-	BuiltinBinOpLess
-	BuiltinBinOpGreater
-	BuiltinBinOpLessEq
-	BuiltinBinOpGreaterEq
-	BuiltinBinOpTilde
-	BuiltinBinOpDoubleTilde
-	BuiltinBinOpTripleTilde
-	BuiltinBinOperatorsEnd_
+	GroupBuiltinBinaryOperatorsBegin
+	BuiltinBinaryOperatorAdd
+	BuiltinBinaryOperatorSub
+	BuiltinBinaryOperatorMul
+	BuiltinBinaryOperatorPow
+	BuiltinBinaryOperatorQuo
+	BuiltinBinaryOperatorRem
+	BuiltinBinaryOperatorAnd
+	BuiltinBinaryOperatorOr
+	BuiltinBinaryOperatorXor
+	BuiltinBinaryOperatorShl
+	BuiltinBinaryOperatorShr
+	BuiltinBinaryOperatorAndNot
+	BuiltinBinaryOperatorLAnd
+	BuiltinBinaryOperatorEqual
+	BuiltinBinaryOperatorNotEqual
+	BuiltinBinaryOperatorLess
+	BuiltinBinaryOperatorGreater
+	BuiltinBinaryOperatorLessEq
+	BuiltinBinaryOperatorGreaterEq
+	BuiltinBinaryOperatorTilde
+	BuiltinBinaryOperatorDoubleTilde
+	BuiltinBinaryOperatorTripleTilde
+	GroupBuiltinBinaryOperatorsEnd
+
+	GroupBuiltinSelfAssignOperatorsBegin
+	BuiltinSelfAssignOperatorAdd
+	BuiltinSelfAssignOperatorInc
+	BuiltinSelfAssignOperatorSub
+	BuiltinSelfAssignOperatorDec
+	BuiltinSelfAssignOperatorMul
+	BuiltinSelfAssignOperatorPow
+	BuiltinSelfAssignOperatorQuo
+	BuiltinSelfAssignOperatorRem
+	BuiltinSelfAssignOperatorAnd
+	BuiltinSelfAssignOperatorOr
+	BuiltinSelfAssignOperatorXor
+	BuiltinSelfAssignOperatorShl
+	BuiltinSelfAssignOperatorShr
+	BuiltinSelfAssignOperatorAndNot
+	BuiltinSelfAssignOperatorLOr
+	GroupBuiltinSelfAssignOperatorsEnd
 )
 
 var (
-	lastBuiltinType = BuiltinBinOperatorsEnd_
+	lastBuiltinType = GroupBuiltinSelfAssignOperatorsEnd
 	lastBuiltinMux  = sync.Mutex{}
 )
 
@@ -191,7 +210,8 @@ func NewBuiltinType() (t BuiltinType) {
 
 // BuiltinsMap is list of builtin types, exported for REPL.
 var BuiltinsMap = map[string]BuiltinType{
-	"binaryOp":            BuiltinBinaryOp,
+	"binaryOperator":      BuiltinBinaryOperator,
+	"selfAssignOperator":  BuiltinSelfAssignOperator,
 	"cast":                BuiltinCast,
 	"append":              BuiltinAppend,
 	"delete":              BuiltinDelete,
@@ -391,9 +411,13 @@ var BuiltinObjects = BuiltinObjectsMap{
 		Value:                 funcPiOROe(BuiltinMakeArrayFunc),
 		AcceptMethodsDisabled: true,
 	},
-	BuiltinBinaryOp: &BuiltinFunction{
-		Name:  "binaryOp",
-		Value: BuiltinBinaryOpFunc,
+	BuiltinBinaryOperator: &BuiltinFunction{
+		Name:  "binaryOperator",
+		Value: BuiltinBinaryOperatorFunc,
+	},
+	BuiltinSelfAssignOperator: &BuiltinFunction{
+		Name:  "selfAssignOperator",
+		Value: BuiltinSelfAssignOperatorFunc,
 	},
 	BuiltinCast: &BuiltinFunction{
 		Name:  "cast",

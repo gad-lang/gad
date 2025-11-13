@@ -2273,7 +2273,8 @@ func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {
 		token.AddAssign, token.SubAssign, token.MulAssign, token.QuoAssign,
 		token.RemAssign, token.AndAssign, token.OrAssign, token.XorAssign,
 		token.ShlAssign, token.ShrAssign, token.AndNotAssign,
-		token.NullichAssign, token.LOrAssign, token.PowAssign:
+		token.NullichAssign, token.LOrAssign, token.PowAssign,
+		token.IncAssign, token.DecAssign:
 		pos, tok := p.Token.Pos, p.Token.Token
 		p.Next()
 		y := p.ParseExpr()

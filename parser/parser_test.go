@@ -1097,6 +1097,24 @@ func TestParseAssignment(t *testing.T) {
 				p(1, 3)))
 	})
 
+	expectParse(t, "a ++= 5", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(ident("a", p(1, 1))),
+				exprs(intLit(5, p(1, 7))),
+				token.IncAssign,
+				p(1, 3)))
+	})
+
+	expectParse(t, "a --= 5", func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(ident("a", p(1, 1))),
+				exprs(intLit(5, p(1, 7))),
+				token.DecAssign,
+				p(1, 3)))
+	})
+
 	expectParse(t, "a **= 5 + 10", func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(

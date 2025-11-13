@@ -526,42 +526,11 @@ func (c *Compiler) compileAssignStmt(
 		return c.compileDestructuring(nd, lhs, tempArrSymbol, keyword, op)
 	}
 
-	if op != token.Assign && op != token.Define {
-		c.compileCompoundAssignment(nd, op)
+	if op > token.GroupSelfAssignOperatorBegin && op < token.GroupSelfAssignOperatorEnd {
+		c.emit(nd, OpSelfAssign, int(token.Unassign(op)))
 	}
-	return c.compileDefineAssign(nd, lhs[0], keyword, op, false)
-}
 
-func (c *Compiler) compileCompoundAssignment(
-	nd ast.Node,
-	op token.Token,
-) {
-	switch op {
-	case token.AddAssign:
-		c.emit(nd, OpBinaryOp, int(token.Add))
-	case token.SubAssign:
-		c.emit(nd, OpBinaryOp, int(token.Sub))
-	case token.MulAssign:
-		c.emit(nd, OpBinaryOp, int(token.Mul))
-	case token.PowAssign:
-		c.emit(nd, OpBinaryOp, int(token.Pow))
-	case token.QuoAssign:
-		c.emit(nd, OpBinaryOp, int(token.Quo))
-	case token.RemAssign:
-		c.emit(nd, OpBinaryOp, int(token.Rem))
-	case token.AndAssign:
-		c.emit(nd, OpBinaryOp, int(token.And))
-	case token.OrAssign:
-		c.emit(nd, OpBinaryOp, int(token.Or))
-	case token.AndNotAssign:
-		c.emit(nd, OpBinaryOp, int(token.AndNot))
-	case token.XorAssign:
-		c.emit(nd, OpBinaryOp, int(token.Xor))
-	case token.ShlAssign:
-		c.emit(nd, OpBinaryOp, int(token.Shl))
-	case token.ShrAssign:
-		c.emit(nd, OpBinaryOp, int(token.Shr))
-	}
+	return c.compileDefineAssign(nd, lhs[0], keyword, op, false)
 }
 
 func (c *Compiler) compileDestructuring(
@@ -1208,7 +1177,7 @@ func (c *Compiler) compileLogical(nd *node.BinaryExpr) error {
 	switch nd.Token {
 	case token.LAnd:
 		jumpPos = c.emit(nd, OpAndJump, 0)
-	case token.NullichCoalesce:
+	case token.Nullich:
 		jumpPos = c.emit(nd, OpJumpNotNil, 0)
 	default:
 		jumpPos = c.emit(nd, OpOrJump, 0)
@@ -1255,7 +1224,7 @@ func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
 			return c.errorf(nd, "invalid binary operator: %s",
 				nd.Token.String())
 		}
-		c.emit(nd, OpBinaryOp, int(nd.Token))
+		c.emit(nd, OpBinary, int(nd.Token))
 	}
 	return nil
 }
@@ -1826,7 +1795,7 @@ func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name s
 			Token: token.NullichAssign,
 			LHS:   []node.Expr{node.EIdent(name, namePos)},
 			RHS: []node.Expr{&node.BinaryExpr{
-				Token: token.NullichCoalesce,
+				Token: token.Nullich,
 				LHS: &node.CallExpr{
 					Func: &node.NamedArgsKeywordExpr{},
 					CallArgs: node.CallArgs{

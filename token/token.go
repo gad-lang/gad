@@ -4,12 +4,38 @@
 
 package token
 
-import "strconv"
+import (
+	"strconv"
+)
 
 var keywords map[string]Token
 
 // Token represents a token.
 type Token int
+
+func (tok Token) String() string {
+	s := ""
+
+	if 0 <= tok && int(tok) < NumTokens {
+		s = tokens[tok]
+	} else {
+		s = "token(" + strconv.Itoa(int(tok)) + ")"
+	}
+
+	return s
+}
+
+func (tok Token) Name() string {
+	s := ""
+
+	if 0 <= tok && int(tok) < NumTokens {
+		s = tokenNames[tok]
+	} else {
+		s = "token<" + strconv.Itoa(int(tok)) + ">"
+	}
+
+	return s
+}
 
 // List of tokens
 const (
@@ -22,8 +48,8 @@ const (
 	MixedValueEnd
 	MixedCodeStart
 	MixedCodeEnd
-	LiteralBegin_
 	MixedText
+	GroupLiteralBegin
 	Ident
 	Int
 	Uint
@@ -34,9 +60,9 @@ const (
 	RawString
 	RawHeredoc
 	Template
-	LiteralEnd_
-	OperatorBegin_
-	BinaryOperatorBegin_
+	GroupLiteralEnd
+	GroupOperatorBegin
+	GroupBinaryOperatorBegin
 	Add         // +
 	Sub         // -
 	Mul         // *
@@ -59,16 +85,19 @@ const (
 	Tilde       // ~
 	DoubleTilde // ~~
 	TripleTilde // ~~~
-	BinaryOperatorEnd_
-	DefaultOperatorsBegin_
-	NullichCoalesce // ??
-	LOr             // ||
-	DefaultOperatorsEnd_
-	AssignOperatorBegin_
-	Define        // :=
-	Assign        // =
+	GroupBinaryOperatorEnd
+	GroupDefaultOperatorBegin
+	Nullich // ??
+	LOr     // ||
+	GroupDefaultOperatorEnd
+	GroupAssignOperatorBegin
+	Define // :=
+	Assign // =
+	GroupSelfAssignOperatorBegin
 	AddAssign     // +=
+	IncAssign     // ++=
 	SubAssign     // -=
+	DecAssign     // --=
 	MulAssign     // *=
 	PowAssign     // **=
 	QuoAssign     // /=
@@ -81,30 +110,31 @@ const (
 	AndNotAssign  // &^=
 	LOrAssign     // ||=
 	NullichAssign // ??=
-	AssignOperatorEnd_
-	UnaryOperatorBegin_
+	GroupSelfAssignOperatorEnd
+	GroupAssignOperatorEnd
+	GroupUnaryOperatorBegin
 	Inc // ++
 	Dec // --
-	UnaryOperatorEnd_
+	GroupUnaryOperatorEnd
 	Lambda          // =>
 	Not             // !
 	Null            // a == nil || nil == a
 	NotNull         // a != nil || nil != a
 	Pipe            // .|
-	LParen          // (
-	RParen          // )
-	LBrack          // [
-	RBrack          // ]
-	Comma           // ,
-	Period          // .
-	RBrace          // }
-	LBrace          // {
-	Semicolon       // ;
-	Colon           // :
 	Question        // ?
 	NullishSelector // ?.
-	OperatorEnd_
-	KeyworkBegin_
+	GroupOperatorEnd
+	LParen    // (
+	RParen    // )
+	LBrack    // [
+	RBrack    // ]
+	LBrace    // {
+	RBrace    // }
+	Semicolon // ;
+	Colon     // :
+	Comma     // ,
+	Period    // .
+	GroupKeywordBegin
 	Break
 	Continue
 	Else
@@ -137,8 +167,10 @@ const (
 	DotName
 	DotFile
 	IsModule
-	KeywordEnd_
+	GroupKeywordEnd
 )
+
+const NumTokens = int(GroupKeywordEnd)
 
 var tokens = [...]string{
 	Illegal:         "ILLEGAL",
@@ -179,7 +211,9 @@ var tokens = [...]string{
 	Shr:             ">>",
 	AndNot:          "&^",
 	AddAssign:       "+=",
+	IncAssign:       "++=",
 	SubAssign:       "-=",
+	DecAssign:       "--=",
 	MulAssign:       "*=",
 	PowAssign:       "**=",
 	QuoAssign:       "/=",
@@ -194,7 +228,7 @@ var tokens = [...]string{
 	NullichAssign:   "??=",
 	LAnd:            "&&",
 	LOr:             "||",
-	NullichCoalesce: "??",
+	Nullich:         "??",
 	Inc:             "++",
 	Dec:             "--",
 	Equal:           "==",
@@ -254,18 +288,146 @@ var tokens = [...]string{
 	IsModule:        "__is_module__",
 }
 
-func (tok Token) String() string {
-	s := ""
+var tokenNames = [...]string{
+	Illegal:                      "Illegal",
+	EOF:                          "EOF",
+	Comment:                      "Comment",
+	ConfigStart:                  "ConfigStart",
+	ConfigEnd:                    "ConfigEnd",
+	MixedValueStart:              "MixedValueStart",
+	MixedValueEnd:                "MixedValueEnd",
+	MixedCodeStart:               "MixedCodeStart",
+	MixedCodeEnd:                 "MixedCodeEnd",
+	MixedText:                    "MixedText",
+	GroupLiteralBegin:            "GroupLiteralBegin",
+	Ident:                        "Ident",
+	Int:                          "Int",
+	Uint:                         "Uint",
+	Float:                        "Float",
+	Decimal:                      "Decimal",
+	Char:                         "Char",
+	String:                       "String",
+	RawString:                    "RawString",
+	RawHeredoc:                   "RawHeredoc",
+	Template:                     "Template",
+	GroupLiteralEnd:              "GroupLiteralEnd",
+	GroupOperatorBegin:           "GroupOperatorBegin",
+	GroupBinaryOperatorBegin:     "GroupBinaryOperatorBegin",
+	Add:                          "Add",
+	Sub:                          "Sub",
+	Mul:                          "Mul",
+	Pow:                          "Pow",
+	Quo:                          "Quo",
+	Rem:                          "Rem",
+	And:                          "And",
+	Or:                           "Or",
+	Xor:                          "Xor",
+	Shl:                          "Shl",
+	Shr:                          "Shr",
+	AndNot:                       "AndNot",
+	LAnd:                         "LAnd",
+	Equal:                        "Equal",
+	NotEqual:                     "NotEqual",
+	Less:                         "Less",
+	Greater:                      "Greater",
+	LessEq:                       "LessEq",
+	GreaterEq:                    "GreaterEq",
+	Tilde:                        "Tilde",
+	DoubleTilde:                  "DoubleTilde",
+	TripleTilde:                  "TripleTilde",
+	GroupBinaryOperatorEnd:       "GroupBinaryOperatorEnd",
+	GroupDefaultOperatorBegin:    "GroupDefaultOperatorBegin",
+	Nullich:                      "Nullich",
+	LOr:                          "LOr",
+	GroupDefaultOperatorEnd:      "GroupDefaultOperatorEnd",
+	GroupAssignOperatorBegin:     "GroupAssignOperatorBegin",
+	GroupSelfAssignOperatorBegin: "GroupSelfAssignOperatorBegin",
+	Define:                       "Define",
+	Assign:                       "Assign",
+	AddAssign:                    "AddAssign",
+	IncAssign:                    "IncAssign",
+	SubAssign:                    "SubAssign",
+	DecAssign:                    "DecAssign",
+	MulAssign:                    "MulAssign",
+	PowAssign:                    "PowAssign",
+	QuoAssign:                    "QuoAssign",
+	RemAssign:                    "RemAssign",
+	AndAssign:                    "AndAssign",
+	OrAssign:                     "OrAssign",
+	XorAssign:                    "XorAssign",
+	ShlAssign:                    "ShlAssign",
+	ShrAssign:                    "ShrAssign",
+	AndNotAssign:                 "AndNotAssign",
+	LOrAssign:                    "LOrAssign",
+	NullichAssign:                "NullichAssign",
+	GroupSelfAssignOperatorEnd:   "GroupSelfAssignOperatorEnd",
+	GroupAssignOperatorEnd:       "GroupAssignOperatorEnd",
+	GroupUnaryOperatorBegin:      "GroupUnaryOperatorBegin",
+	Inc:                          "Inc",
+	Dec:                          "Dec",
+	GroupUnaryOperatorEnd:        "GroupUnaryOperatorEnd",
+	Lambda:                       "Lambda",
+	Not:                          "Not",
+	Null:                         "Null",
+	NotNull:                      "NotNull",
+	Pipe:                         "Pipe",
+	Question:                     "Question",
+	NullishSelector:              "NullishSelector",
+	GroupOperatorEnd:             "GroupOperatorEnd",
+	LParen:                       "LParen",
+	RParen:                       "RParen",
+	LBrack:                       "LBrack",
+	RBrack:                       "RBrack",
+	LBrace:                       "LBrace",
+	RBrace:                       "RBrace",
+	Semicolon:                    "Semicolon",
+	Colon:                        "Colon",
+	Comma:                        "Comma",
+	Period:                       "Period",
+	GroupKeywordBegin:            "GroupKeywordBegin",
+	Break:                        "Break",
+	Continue:                     "Continue",
+	Else:                         "Else",
+	For:                          "For",
+	Func:                         "Func",
+	If:                           "If",
+	Return:                       "Return",
+	True:                         "True",
+	False:                        "False",
+	Yes:                          "Yes",
+	No:                           "No",
+	In:                           "In",
+	Nil:                          "Nil",
+	Import:                       "Import",
+	Embed:                        "Embed",
+	Param:                        "Param",
+	Global:                       "Global",
+	Var:                          "Var",
+	Const:                        "Const",
+	Try:                          "Try",
+	Catch:                        "Catch",
+	Finally:                      "Finally",
+	Throw:                        "Throw",
+	Callee:                       "Callee",
+	NamedArgs:                    "NamedArgs",
+	Args:                         "Args",
+	StdIn:                        "StdIn",
+	StdOut:                       "StdOut",
+	StdErr:                       "StdErr",
+	DotName:                      "DotName",
+	DotFile:                      "DotFile",
+	IsModule:                     "IsModule",
+	GroupKeywordEnd:              "GroupKeywordEnd",
+}
 
-	if 0 <= tok && tok < Token(len(tokens)) {
-		s = tokens[tok]
+// FromName return a Token from name
+func FromName(name string) (t Token) {
+	for i, tokenName := range tokenNames {
+		if tokenName == name {
+			return Token(i)
+		}
 	}
-
-	if s == "" {
-		s = "token(" + strconv.Itoa(int(tok)) + ")"
-	}
-
-	return s
+	return Token(-1)
 }
 
 // LowestPrec represents lowest operator precedence.
@@ -274,7 +436,7 @@ const LowestPrec = 0
 // Precedence returns the precedence for the operator token.
 func (tok Token) Precedence() int {
 	switch tok {
-	case LOr, NullichCoalesce:
+	case LOr, Nullich:
 		return 2
 	case LAnd:
 		return 3
@@ -296,12 +458,12 @@ func (tok Token) Precedence() int {
 
 // IsLiteral returns true if the token is a literal.
 func (tok Token) IsLiteral() bool {
-	return LiteralBegin_ < tok && tok < LiteralEnd_
+	return GroupLiteralBegin < tok && tok < GroupLiteralEnd
 }
 
 // IsOperator returns true if the token is an operator.
 func (tok Token) IsOperator() bool {
-	return OperatorBegin_ < tok && tok < OperatorEnd_
+	return GroupOperatorBegin < tok && tok < GroupOperatorEnd
 }
 
 // IsBinaryOperator reports whether token is a binary operator.
@@ -325,7 +487,9 @@ func (tok Token) IsBinaryOperator() bool {
 		Shr,
 		Equal,
 		NotEqual,
-		Tilde, DoubleTilde, TripleTilde:
+		Tilde,
+		DoubleTilde,
+		TripleTilde:
 		return true
 	}
 	return false
@@ -333,7 +497,7 @@ func (tok Token) IsBinaryOperator() bool {
 
 // IsKeyword returns true if the token is a keyword.
 func (tok Token) IsKeyword() bool {
-	return KeyworkBegin_ < tok && tok < KeywordEnd_
+	return GroupKeywordBegin < tok && tok < GroupKeywordEnd
 }
 
 // Is returns true if then token equals one of args.
@@ -370,9 +534,49 @@ func Lookup(ident string) Token {
 	return Ident
 }
 
+// Unassign convert an assignable Token to your non assignable Token
+func Unassign(tok Token) Token {
+	switch tok {
+	case AddAssign:
+		return Add
+	case IncAssign:
+		return Inc
+	case SubAssign:
+		return Sub
+	case DecAssign:
+		return Dec
+	case MulAssign:
+		return Mul
+	case PowAssign:
+		return Pow
+	case QuoAssign:
+		return Quo
+	case RemAssign:
+		return Rem
+	case AndAssign:
+		return And
+	case OrAssign:
+		return Or
+	case XorAssign:
+		return Xor
+	case ShlAssign:
+		return Shl
+	case ShrAssign:
+		return Shr
+	case AndNotAssign:
+		return AndNot
+	case LOrAssign:
+		return LOr
+	case NullichAssign:
+		return Nullich
+	default:
+		return -1
+	}
+}
+
 func init() {
 	keywords = make(map[string]Token)
-	for i := KeyworkBegin_ + 1; i < KeywordEnd_; i++ {
+	for i := GroupKeywordBegin + 1; i < GroupKeywordEnd; i++ {
 		keywords[tokens[i]] = i
 	}
 }

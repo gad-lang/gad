@@ -265,7 +265,7 @@ func (o *CompiledFunction) FprintLP(linePrefix string, w io.Writer) {
 				_, _ = fmt.Fprint(w, "    ", strconv.Itoa(r))
 			}
 			switch Opcode(op) {
-			case OpBinaryOp:
+			case OpBinary, OpSelfAssign:
 				_, _ = fmt.Fprint(w, " (", token.Token(operands[0]).String(), ")")
 			}
 		}

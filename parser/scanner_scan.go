@@ -213,7 +213,7 @@ do:
 					t.Token = token.NullichAssign
 				} else {
 					s.Next()
-					t.Token = token.NullichCoalesce
+					t.Token = token.Nullich
 				}
 			default:
 				t.Token = token.Question
@@ -249,12 +249,12 @@ do:
 			t.Literal = string(ch)
 			s.BraceCount--
 		case '+':
-			t.Token = s.Switch3(token.Add, token.AddAssign, '+', token.Inc)
+			t.Token = s.Switch4(token.Add, token.AddAssign, '+', token.Inc, token.IncAssign)
 			if t.Token == token.Inc {
 				insertSemi = true
 			}
 		case '-':
-			t.Token = s.Switch3(token.Sub, token.SubAssign, '-', token.Dec)
+			t.Token = s.Switch4(token.Sub, token.SubAssign, '-', token.Dec, token.DecAssign)
 			if t.Token == token.Dec {
 				insertSemi = true
 			}

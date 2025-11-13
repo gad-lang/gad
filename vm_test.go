@@ -28,15 +28,15 @@ func TestVMBinaryOperator(t *testing.T) {
 	// pow
 	testExpectRun(t, `return 2 ** 3`, nil, DecimalFromInt(8))
 	testExpectRun(t, `x := 2; x **= 3; return x`, nil, DecimalFromInt(8))
-	testExpectRun(t, `return binaryOp(TBinOpPow, 2, 3)`, nil, DecimalFromInt(8))
+	testExpectRun(t, `return binaryOperator(TBinaryOperatorPow, 2, 3)`, nil, DecimalFromInt(8))
 
-	testExpectRun(t, `return TBinOpAdd`, nil, TBinOpAdd)
-	testExpectRun(t, `return binaryOp(TBinOpAdd, 1, 1)`, nil, Int(2))
+	testExpectRun(t, `return TBinaryOperatorAdd`, nil, TBinaryOperatorAdd)
+	testExpectRun(t, `return binaryOperator(TBinaryOperatorAdd, 1, 1)`, nil, Int(2))
 
 	// custom OP
-	testExpectRun(t, `return binaryOp(TBinOpMul, 2, 10)`, nil, Int(20))
+	testExpectRun(t, `return binaryOperator(TBinaryOperatorMul, 2, 10)`, nil, Int(20))
 	testExpectRun(t, `
-func binaryOp(_ TBinOpMul, p str, val int) {
+func binaryOperator(_ TBinaryOperatorMul, p str, val int) {
 	ret := p
 	for i := 0; i < val-1; i++ {
 		ret += "-" + p
@@ -46,13 +46,13 @@ func binaryOp(_ TBinOpMul, p str, val int) {
 return "a" * 3`, nil, Str("a-a-a"))
 	testExpectRun(t, `
 // get original binary operator handler without methods
-bo := rawCaller(binaryOp) 
+bo := rawCaller(binaryOperator) 
 
-func binaryOp(_ TBinOpAdd, p str, val str) {
+func binaryOperator(_ TBinaryOperatorAdd, p str, val str) {
 	ret := p
 	for i := 0; i < int(val)-1; i++ {
 		// cant't uses ret += ... to prevents caller overflows on this method 
-		ret = bo(TBinOpAdd, ret, bo(TBinOpAdd, "-", p))
+		ret = bo(TBinaryOperatorAdd, ret, bo(TBinaryOperatorAdd, "-", p))
 	}
 	return ret
 }
@@ -138,6 +138,8 @@ func TestVMArray(t *testing.T) {
 	testExpectRun(t, `return "ab"[1]`, nil, Int('b'))
 	testExpectRun(t, `return "ab"[-1]`, nil, Int('b'))
 	testExpectRun(t, `return "ab"[-2]`, nil, Int('a'))
+	testExpectRun(t, `a := [1]; a += 2; a+=3; return a`, nil, Array{Int(1), Int(2), Int(3)})
+	testExpectRun(t, `a := [1]; a ++= [2, 3]; return a`, nil, Array{Int(1), Int(2), Int(3)})
 	expectErrIs(t, fmt.Sprintf("return %s[%d:\"\"]", arrStr, -1), nil, ErrType)
 	expectErrIs(t, fmt.Sprintf("return %s[:%d]", arrStr, arrLen+1), nil, ErrIndexOutOfBounds)
 	expectErrIs(t, fmt.Sprintf("%s[%d:%d]", arrStr, 2, 1), nil, ErrInvalidIndex)
@@ -1987,7 +1989,7 @@ return str(b)`,
 
 func Point(x, y) => Point(x=x, y=y)
 
-func binaryOp(_ TBinOpMul, p Point, val int) {
+func binaryOperator(_ TBinaryOperatorMul, p Point, val int) {
 	p.x *= val
 	p.y *= val
 	return p
@@ -2008,6 +2010,22 @@ return [int(Point(2, 8)), str(int)]
 `,
 		nil, Array{Int(16), Str(ReprQuote("builtinType int") + " with 1 methods:\n\t" +
 			"1. " + ReprQuote("compiledFunction #7(p Point)") + ": [Point]")})
+
+	testExpectRun(t, `Point := struct(
+	"Point", 
+	fields={x:0}, 
+)
+
+func selfAssignOperator(_ TSelfAssignOperatorMul, p Point, val int) {
+	p.x *= val
+	return p
+}
+
+p := Point(x=2)
+p *= 3
+
+return p .| dict
+`, nil, Dict{"x": Int(6)})
 }
 
 func TestCallerMethod(t *testing.T) {

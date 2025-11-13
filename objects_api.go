@@ -310,10 +310,19 @@ type UserDataStorage interface {
 }
 
 type BinaryOperatorHandler interface {
-	// BinaryOp handles +,-,*,/,%,<<,>>,<=,>=,<,> operators.
+	Object
+	// BinaryOp handles binary operators.
 	// Returned error stops VM execution if not handled with an error handler
 	// and VM.Run returns the same error as wrapped.
 	BinaryOp(vm *VM, tok token.Token, right Object) (Object, error)
+}
+
+type SelfAssignOperatorHandler interface {
+	Object
+	// SelfAssignOp handles self assign operators.
+	// Returned error stops VM execution if not handled with an error handler
+	// and VM.Run returns the same error as wrapped.
+	SelfAssignOp(vm *VM, tok token.Token, right Object) (ret Object, handled bool, err error)
 }
 
 type Writer interface {

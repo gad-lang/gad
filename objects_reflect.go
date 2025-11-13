@@ -568,16 +568,7 @@ func (r *ReflectValue) Type() ObjectType {
 }
 
 func (r *ReflectValue) ToString() string {
-	var w strings.Builder
-	w.WriteString(repr.QuotePrefix)
-	w.WriteString("reflectValue:")
-	if r.Options.ToStr == nil {
-		fmt.Fprintf(&w, "%+v", r)
-	} else {
-		w.WriteString(r.Options.ToStr())
-	}
-	w.WriteString(repr.QuoteSufix)
-	return w.String()
+	return fmt.Sprintf("%v", r)
 }
 
 func (r *ReflectValue) Repr(_ *VM) (string, error) {

@@ -369,7 +369,7 @@ func TestEncDecObjects(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(gad.OpConstant, 0),
 			makeInst(gad.OpConstant, 1),
-			makeInst(gad.OpBinaryOp, int(token.Add)),
+			makeInst(gad.OpBinary, int(token.Add)),
 		),
 			withParams("*a"),
 			withLocals(2),

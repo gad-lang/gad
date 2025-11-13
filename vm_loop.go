@@ -41,11 +41,45 @@ VMLoop:
 			vm.sp--
 			vm.stack[vm.sp] = nil
 			vm.ip++
-		case OpBinaryOp:
+		case OpBinary:
 			tok := token.Token(vm.curInsts[vm.ip+1])
 			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
 
-			value, err := Val(vm.Builtins.Call(BuiltinBinaryOp, Call{VM: vm, Args: Args{Array{BinaryOperatorTypes[tok], left, right}}}))
+			value, err := Val(vm.Builtins.Call(BuiltinBinaryOperator, Call{
+				VM: vm,
+				Args: Args{Array{
+					BinaryOperatorType(tok),
+					left,
+					right,
+				}},
+			}))
+
+			if err == nil {
+				vm.stack[vm.sp-2] = value
+				vm.sp--
+				vm.stack[vm.sp] = nil
+				vm.ip++
+				continue
+			}
+			if err == ErrInvalidOperator {
+				err = ErrInvalidOperator.NewError(tok.String())
+			}
+			if err = vm.throwGenErr(err); err != nil {
+				vm.err = err
+				return
+			}
+		case OpSelfAssign:
+			tok := token.Token(vm.curInsts[vm.ip+1])
+			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
+
+			value, err := Val(vm.Builtins.Call(BuiltinSelfAssignOperator, Call{
+				VM: vm,
+				Args: Args{Array{
+					SelfAssignOperatorType(tok),
+					left,
+					right,
+				}},
+			}))
 
 			if err == nil {
 				vm.stack[vm.sp-2] = value

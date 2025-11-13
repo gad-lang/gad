@@ -506,7 +506,7 @@ func initSuggestions() {
 	}
 
 	// add keywords to suggestions
-	for tok := token.KeyworkBegin_ + 1; tok.IsKeyword(); tok++ {
+	for tok := token.GroupKeywordBegin + 1; tok.IsKeyword(); tok++ {
 		s := tok.String()
 		suggestions = append(suggestions, suggest{
 			text: s,

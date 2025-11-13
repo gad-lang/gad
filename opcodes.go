@@ -36,8 +36,9 @@ const (
 	OpGetLocal
 	OpSetLocal
 	OpGetBuiltin
-	OpBinaryOp
+	OpBinary
 	OpUnary
+	OpSelfAssign
 	OpEqual
 	OpNotEqual
 	OpJump
@@ -103,8 +104,9 @@ var OpcodeNames = [...]string{
 	OpGetLocal:      "GETLOCAL",
 	OpSetLocal:      "SETLOCAL",
 	OpGetBuiltin:    "GETBUILTIN",
-	OpBinaryOp:      "BINARYOP",
+	OpBinary:        "BINARY",
 	OpUnary:         "UNARY",
+	OpSelfAssign:    "SELFASSIGN",
 	OpEqual:         "EQUAL",
 	OpNotEqual:      "NOTEQUAL",
 	OpJump:          "JUMP",
@@ -169,8 +171,9 @@ var OpcodeOperands = [...][]int{
 	OpGetLocal:      {1},    // local variable index
 	OpSetLocal:      {1},    // local variable index
 	OpGetBuiltin:    {2},    // builtin index
-	OpBinaryOp:      {1},    // operator
+	OpBinary:        {1},    // operator
 	OpUnary:         {1},    // operator
+	OpSelfAssign:    {1},    // operator
 	OpEqual:         {},
 	OpNotEqual:      {},
 	OpIsNil:         {},

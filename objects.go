@@ -739,15 +739,16 @@ func (o *BuiltinFunction) MethodsDisabled() bool {
 type Array []Object
 
 var (
-	_ Object                = Array{}
-	_ LengthGetter          = Array{}
-	_ ToArrayAppenderObject = Array{}
-	_ DeepCopier            = Array{}
-	_ Copier                = Array{}
-	_ Sorter                = Array{}
-	_ KeysGetter            = Array{}
-	_ ItemsGetter           = Array{}
-	_ ObjectRepresenter     = Array{}
+	_ Object                    = Array{}
+	_ LengthGetter              = Array{}
+	_ ToArrayAppenderObject     = Array{}
+	_ DeepCopier                = Array{}
+	_ Copier                    = Array{}
+	_ Sorter                    = Array{}
+	_ KeysGetter                = Array{}
+	_ ItemsGetter               = Array{}
+	_ ObjectRepresenter         = Array{}
+	_ SelfAssignOperatorHandler = Array{}
 )
 
 func (o Array) Type() ObjectType {
@@ -1004,6 +1005,20 @@ func (o *Array) Append(_ *VM, items ...Object) error {
 func (o Array) AppendObjects(_ *VM, items ...Object) (Object, error) {
 	o = append(o, items...)
 	return o, nil
+}
+
+func (o Array) SelfAssignOp(vm *VM, tok token.Token, right Object) (ret Object, handled bool, err error) {
+	switch tok {
+	case token.Add:
+		return append(o, right), true, nil
+	case token.Inc:
+		var other Array
+		if other, err = ValuesOf(vm, right, &NamedArgs{}); err != nil {
+			return
+		}
+		return append(o, other...), true, nil
+	}
+	return
 }
 
 // ObjectPtr represents a pointer variable.

@@ -4,56 +4,87 @@ package gad
 import "github.com/gad-lang/gad/token"
 
 var (
-	TBinOpAdd         = &BinaryOperatorType{OpName: "Add", Token: token.Add}                 // +
-	TBinOpSub         = &BinaryOperatorType{OpName: "Sub", Token: token.Sub}                 // -
-	TBinOpMul         = &BinaryOperatorType{OpName: "Mul", Token: token.Mul}                 // *
-	TBinOpPow         = &BinaryOperatorType{OpName: "Pow", Token: token.Pow}                 // **
-	TBinOpQuo         = &BinaryOperatorType{OpName: "Quo", Token: token.Quo}                 // /
-	TBinOpRem         = &BinaryOperatorType{OpName: "Rem", Token: token.Rem}                 // %
-	TBinOpAnd         = &BinaryOperatorType{OpName: "And", Token: token.And}                 // &
-	TBinOpOr          = &BinaryOperatorType{OpName: "Or", Token: token.Or}                   // |
-	TBinOpXor         = &BinaryOperatorType{OpName: "Xor", Token: token.Xor}                 // ^
-	TBinOpShl         = &BinaryOperatorType{OpName: "Shl", Token: token.Shl}                 // <<
-	TBinOpShr         = &BinaryOperatorType{OpName: "Shr", Token: token.Shr}                 // >>
-	TBinOpAndNot      = &BinaryOperatorType{OpName: "AndNot", Token: token.AndNot}           // &^
-	TBinOpLAnd        = &BinaryOperatorType{OpName: "LAnd", Token: token.LAnd}               // &&
-	TBinOpEqual       = &BinaryOperatorType{OpName: "Equal", Token: token.Equal}             // ==
-	TBinOpNotEqual    = &BinaryOperatorType{OpName: "NotEqual", Token: token.NotEqual}       // !=
-	TBinOpLess        = &BinaryOperatorType{OpName: "Less", Token: token.Less}               // <
-	TBinOpGreater     = &BinaryOperatorType{OpName: "Greater", Token: token.Greater}         // >
-	TBinOpLessEq      = &BinaryOperatorType{OpName: "LessEq", Token: token.LessEq}           // <=
-	TBinOpGreaterEq   = &BinaryOperatorType{OpName: "GreaterEq", Token: token.GreaterEq}     // >=
-	TBinOpTilde       = &BinaryOperatorType{OpName: "Tilde", Token: token.Tilde}             // ~
-	TBinOpDoubleTilde = &BinaryOperatorType{OpName: "DoubleTilde", Token: token.DoubleTilde} // ~~
-	TBinOpTripleTilde = &BinaryOperatorType{OpName: "TripleTilde", Token: token.TripleTilde} // ~~~
+	TBinaryOperatorAdd         = BinaryOperatorType(token.Add)         // +
+	TBinaryOperatorSub         = BinaryOperatorType(token.Sub)         // -
+	TBinaryOperatorMul         = BinaryOperatorType(token.Mul)         // *
+	TBinaryOperatorPow         = BinaryOperatorType(token.Pow)         // **
+	TBinaryOperatorQuo         = BinaryOperatorType(token.Quo)         // /
+	TBinaryOperatorRem         = BinaryOperatorType(token.Rem)         // %
+	TBinaryOperatorAnd         = BinaryOperatorType(token.And)         // &
+	TBinaryOperatorOr          = BinaryOperatorType(token.Or)          // |
+	TBinaryOperatorXor         = BinaryOperatorType(token.Xor)         // ^
+	TBinaryOperatorShl         = BinaryOperatorType(token.Shl)         // <<
+	TBinaryOperatorShr         = BinaryOperatorType(token.Shr)         // >>
+	TBinaryOperatorAndNot      = BinaryOperatorType(token.AndNot)      // &^
+	TBinaryOperatorLAnd        = BinaryOperatorType(token.LAnd)        // &&
+	TBinaryOperatorEqual       = BinaryOperatorType(token.Equal)       // ==
+	TBinaryOperatorNotEqual    = BinaryOperatorType(token.NotEqual)    // !=
+	TBinaryOperatorLess        = BinaryOperatorType(token.Less)        // <
+	TBinaryOperatorGreater     = BinaryOperatorType(token.Greater)     // >
+	TBinaryOperatorLessEq      = BinaryOperatorType(token.LessEq)      // <=
+	TBinaryOperatorGreaterEq   = BinaryOperatorType(token.GreaterEq)   // >=
+	TBinaryOperatorTilde       = BinaryOperatorType(token.Tilde)       // ~
+	TBinaryOperatorDoubleTilde = BinaryOperatorType(token.DoubleTilde) // ~~
+	TBinaryOperatorTripleTilde = BinaryOperatorType(token.TripleTilde) // ~~~
+
+	TSelfAssignOperatorAdd    = SelfAssignOperatorType(token.Add)    // +
+	TSelfAssignOperatorInc    = SelfAssignOperatorType(token.Inc)    // ++
+	TSelfAssignOperatorSub    = SelfAssignOperatorType(token.Sub)    // -
+	TSelfAssignOperatorDec    = SelfAssignOperatorType(token.Dec)    // --
+	TSelfAssignOperatorMul    = SelfAssignOperatorType(token.Mul)    // *
+	TSelfAssignOperatorPow    = SelfAssignOperatorType(token.Pow)    // **
+	TSelfAssignOperatorQuo    = SelfAssignOperatorType(token.Quo)    // /
+	TSelfAssignOperatorRem    = SelfAssignOperatorType(token.Rem)    // %
+	TSelfAssignOperatorAnd    = SelfAssignOperatorType(token.And)    // &
+	TSelfAssignOperatorOr     = SelfAssignOperatorType(token.Or)     // |
+	TSelfAssignOperatorXor    = SelfAssignOperatorType(token.Xor)    // ^
+	TSelfAssignOperatorShl    = SelfAssignOperatorType(token.Shl)    // <<
+	TSelfAssignOperatorShr    = SelfAssignOperatorType(token.Shr)    // >>
+	TSelfAssignOperatorAndNot = SelfAssignOperatorType(token.AndNot) // &^
+	TSelfAssignOperatorLOr    = SelfAssignOperatorType(token.LOr)    // ||
 )
 
 func init() {
-	var add = func(typ BuiltinType, t *BinaryOperatorType) {
-		BuiltinObjects[typ] = t
-		BuiltinsMap[t.Name()] = typ
-		BinaryOperatorTypes[t.Token] = t
+	add := func(bt BuiltinType, t ObjectType) {
+		BuiltinObjects[bt] = t
+		BuiltinsMap[t.Name()] = bt
 	}
-	add(BuiltinBinOpAdd, TBinOpAdd)
-	add(BuiltinBinOpSub, TBinOpSub)
-	add(BuiltinBinOpMul, TBinOpMul)
-	add(BuiltinBinOpPow, TBinOpPow)
-	add(BuiltinBinOpQuo, TBinOpQuo)
-	add(BuiltinBinOpRem, TBinOpRem)
-	add(BuiltinBinOpAnd, TBinOpAnd)
-	add(BuiltinBinOpOr, TBinOpOr)
-	add(BuiltinBinOpXor, TBinOpXor)
-	add(BuiltinBinOpShl, TBinOpShl)
-	add(BuiltinBinOpShr, TBinOpShr)
-	add(BuiltinBinOpAndNot, TBinOpAndNot)
-	add(BuiltinBinOpLAnd, TBinOpLAnd)
-	add(BuiltinBinOpEqual, TBinOpEqual)
-	add(BuiltinBinOpNotEqual, TBinOpNotEqual)
-	add(BuiltinBinOpLess, TBinOpLess)
-	add(BuiltinBinOpGreater, TBinOpGreater)
-	add(BuiltinBinOpLessEq, TBinOpLessEq)
-	add(BuiltinBinOpGreaterEq, TBinOpGreaterEq)
-	add(BuiltinBinOpTilde, TBinOpTilde)
-	add(BuiltinBinOpDoubleTilde, TBinOpDoubleTilde)
-	add(BuiltinBinOpTripleTilde, TBinOpTripleTilde)
+	add(BuiltinBinaryOperatorAdd, TBinaryOperatorAdd)
+	add(BuiltinBinaryOperatorSub, TBinaryOperatorSub)
+	add(BuiltinBinaryOperatorMul, TBinaryOperatorMul)
+	add(BuiltinBinaryOperatorPow, TBinaryOperatorPow)
+	add(BuiltinBinaryOperatorQuo, TBinaryOperatorQuo)
+	add(BuiltinBinaryOperatorRem, TBinaryOperatorRem)
+	add(BuiltinBinaryOperatorAnd, TBinaryOperatorAnd)
+	add(BuiltinBinaryOperatorOr, TBinaryOperatorOr)
+	add(BuiltinBinaryOperatorXor, TBinaryOperatorXor)
+	add(BuiltinBinaryOperatorShl, TBinaryOperatorShl)
+	add(BuiltinBinaryOperatorShr, TBinaryOperatorShr)
+	add(BuiltinBinaryOperatorAndNot, TBinaryOperatorAndNot)
+	add(BuiltinBinaryOperatorLAnd, TBinaryOperatorLAnd)
+	add(BuiltinBinaryOperatorEqual, TBinaryOperatorEqual)
+	add(BuiltinBinaryOperatorNotEqual, TBinaryOperatorNotEqual)
+	add(BuiltinBinaryOperatorLess, TBinaryOperatorLess)
+	add(BuiltinBinaryOperatorGreater, TBinaryOperatorGreater)
+	add(BuiltinBinaryOperatorLessEq, TBinaryOperatorLessEq)
+	add(BuiltinBinaryOperatorGreaterEq, TBinaryOperatorGreaterEq)
+	add(BuiltinBinaryOperatorTilde, TBinaryOperatorTilde)
+	add(BuiltinBinaryOperatorDoubleTilde, TBinaryOperatorDoubleTilde)
+	add(BuiltinBinaryOperatorTripleTilde, TBinaryOperatorTripleTilde)
+
+	add(BuiltinSelfAssignOperatorAdd, TSelfAssignOperatorAdd)
+	add(BuiltinSelfAssignOperatorInc, TSelfAssignOperatorInc)
+	add(BuiltinSelfAssignOperatorSub, TSelfAssignOperatorSub)
+	add(BuiltinSelfAssignOperatorDec, TSelfAssignOperatorDec)
+	add(BuiltinSelfAssignOperatorMul, TSelfAssignOperatorMul)
+	add(BuiltinSelfAssignOperatorPow, TSelfAssignOperatorPow)
+	add(BuiltinSelfAssignOperatorQuo, TSelfAssignOperatorQuo)
+	add(BuiltinSelfAssignOperatorRem, TSelfAssignOperatorRem)
+	add(BuiltinSelfAssignOperatorAnd, TSelfAssignOperatorAnd)
+	add(BuiltinSelfAssignOperatorOr, TSelfAssignOperatorOr)
+	add(BuiltinSelfAssignOperatorXor, TSelfAssignOperatorXor)
+	add(BuiltinSelfAssignOperatorShl, TSelfAssignOperatorShl)
+	add(BuiltinSelfAssignOperatorShr, TSelfAssignOperatorShr)
+	add(BuiltinSelfAssignOperatorAndNot, TSelfAssignOperatorAndNot)
+	add(BuiltinSelfAssignOperatorLOr, TSelfAssignOperatorLOr)
 }

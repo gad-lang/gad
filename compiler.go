@@ -473,7 +473,7 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileMultiParenExpr(nt)
 	case *node.BinaryExpr:
 		switch nt.Token {
-		case token.LAnd, token.LOr, token.NullichCoalesce:
+		case token.LAnd, token.LOr, token.Nullich:
 			return c.compileLogical(nt)
 		default:
 			return c.compileBinaryExpr(nt)
@@ -1010,7 +1010,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		buf = append(buf, byte(args[0]))
 		buf = append(buf, byte(args[1]))
 		return buf, nil
-	case OpReturn, OpBinaryOp, OpUnary, OpGetIndex, OpGetLocal,
+	case OpReturn, OpBinary, OpUnary, OpSelfAssign, OpGetIndex, OpGetLocal,
 		OpSetLocal, OpGetFree, OpSetFree, OpGetLocalPtr, OpGetFreePtr, OpThrow,
 		OpFinalizer, OpDefineLocal, OpKeyValue:
 		buf = append(buf, byte(args[0]))

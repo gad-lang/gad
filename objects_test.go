@@ -121,8 +121,8 @@ func TestObjectString(t *testing.T) {
 	arr[1] = 60
 	require.Equal(t, ReprQuote("reflectArray:array"+ReprQuote("[2]int: [0 60]")+""), MustToObject(arr).ToString())
 	require.Equal(t, ReprQuote("reflectMap:map"+ReprQuote("map[string]int: map[a:2]")+""), MustToObject(map[string]int{"a": 2}).ToString())
-	require.Equal(t, ReprQuote("reflectValue:github.com/gad-lang/gad_test.t1"+ReprQuote("100")+""), MustToObject(t1(100)).ToString())
-	require.Equal(t, ReprQuote("reflectValue:github.com/gad-lang/gad_test.t2"+ReprQuote("@100")+""), MustToObject(t2(100)).ToString())
+	require.Equal(t, "100", MustToObject(t1(100)).ToString())
+	require.Equal(t, "@100", MustToObject(t2(100)).ToString())
 	require.Equal(t, "#100", MustToObject(t3(100)).ToString())
 }
 
