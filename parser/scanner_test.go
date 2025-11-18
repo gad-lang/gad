@@ -527,7 +527,7 @@ func (tr *tester) scanExpect(
 	s := parser.NewScanner(
 		testFile,
 		&opts)
-	s.ErrorHandler(func(_ source.SourceFilePos, msg string) { require.Fail(t, msg) })
+	s.ErrorHandler(func(_ source.FilePos, msg string) { require.Fail(t, msg) })
 
 	for idx, e := range expected {
 		tok := s.Scan()

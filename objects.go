@@ -1739,7 +1739,7 @@ func (o *Error) NewError(messages ...string) *Error {
 // RuntimeError represents a runtime error that wraps Error and includes trace information.
 type RuntimeError struct {
 	Err     *Error
-	fileSet *source.SourceFileSet
+	fileSet *source.FileSet
 	Trace   []source.Pos
 }
 
@@ -1748,7 +1748,7 @@ var (
 	_ Copier = (*RuntimeError)(nil)
 )
 
-func (o *RuntimeError) FileSet() *source.SourceFileSet {
+func (o *RuntimeError) FileSet() *source.FileSet {
 	return o.fileSet
 }
 
@@ -1855,7 +1855,7 @@ func (o *RuntimeError) StackTrace() StackTrace {
 			trace := make(StackTrace, sz)
 			j := 0
 			for i := sz - 1; i >= 0; i-- {
-				trace[j] = source.SourceFilePos{
+				trace[j] = source.FilePos{
 					Offset: int(o.Trace[i]),
 				}
 				j++
@@ -1911,7 +1911,7 @@ func (o *RuntimeError) Format(s fmt.State, verb rune) {
 }
 
 // StackTrace is the stack of source file positions.
-type StackTrace []source.SourceFilePos
+type StackTrace []source.FilePos
 
 // Format formats the StackTrace to the fmt.Formatter interface.
 func (st StackTrace) Format(s fmt.State, verb rune) {
@@ -1928,7 +1928,7 @@ func (st StackTrace) Format(s fmt.State, verb rune) {
 				_, _ = fmt.Fprintf(s, "%+v", f)
 			}
 		default:
-			_, _ = fmt.Fprintf(s, "%v", []source.SourceFilePos(st))
+			_, _ = fmt.Fprintf(s, "%v", []source.FilePos(st))
 		}
 	}
 }

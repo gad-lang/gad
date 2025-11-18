@@ -587,7 +587,7 @@ func (vm *VM) xOpThrow() error {
 	return nil
 }
 
-func (vm *VM) SourcePos() source.SourceFilePos {
+func (vm *VM) SourcePos() source.FilePos {
 	p := vm.getSourcePos()
 	return source.MustFilePosition(vm.bytecode.FileSet.File(p), p)
 }
@@ -1260,7 +1260,7 @@ func (vm *VM) xOpSliceIndex() error {
 }
 
 func (vm *VM) newError(err *Error) *RuntimeError {
-	var fileset *source.SourceFileSet
+	var fileset *source.FileSet
 	if vm.bytecode != nil {
 		fileset = vm.bytecode.FileSet
 	}

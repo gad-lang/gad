@@ -36,13 +36,13 @@ func (h *ErrorHumanizing) Humanize(out io.Writer, err error) {
 			for _, stPos := range st[:len(st)-1] {
 				pos := t.FileSet().Position(stPos.Pos())
 				fmt.Fprintf(out, pos.String()+":\n")
-				pos.TraceLines(out, h.Other.Up, h.Other.Down)
+				pos.File.Data.TraceLines(out, pos.Line, pos.Column, h.Other.Up, h.Other.Down)
 				out.Write([]byte("\n"))
 			}
 
 			pos := t.FileSet().Position(st[len(st)-1].Pos())
 			fmt.Fprintf(out, pos.String()+":\n")
-			pos.TraceLines(out, up, down)
+			pos.File.Data.TraceLines(out, pos.Line, pos.Column, up, down)
 		}
 	case parser.ErrorList, *CompilerError:
 		fmt.Fprintf(out, "%+"+strconv.Itoa(up)+"."+strconv.Itoa(down)+"v\n", t)

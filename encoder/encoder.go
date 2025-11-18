@@ -46,7 +46,7 @@ type (
 	Decimal          gad.Decimal
 	Bool             gad.Bool
 	Flag             gad.Flag
-	SourceFileSet    source.SourceFileSet
+	SourceFileSet    source.FileSet
 	SourceFile       source.File
 	Symbol           gad.SymbolInfo
 )
@@ -275,7 +275,7 @@ func (bc *Bytecode) bytecodeV1Decoder(r *bytes.Buffer) error {
 			if err = fs.UnmarshalBinary(data); err != nil {
 				return err
 			}
-			bc.FileSet = (*source.SourceFileSet)(&fs)
+			bc.FileSet = (*source.FileSet)(&fs)
 		case 1:
 			f, err := DecodeObject(r)
 			if err != nil {

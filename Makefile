@@ -8,7 +8,7 @@ depcheck:
 	go install honnef.co/go/tools/cmd/staticcheck@latest
 
 build-cli:
-	go build ./cmd/gad
+	go build -o ./dist/gad ./cmd/gad
 
 .PHONY: test
 test: version generate lint

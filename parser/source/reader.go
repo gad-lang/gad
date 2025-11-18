@@ -43,22 +43,9 @@ func FileReaderWithData(data any) FileReaderOption {
 }
 
 func NewFileReader(file *File, option ...FileReaderOption) (fr *Reader) {
-	src := file.Data
-	last := len(src) - 1
-	if pos := bytes.IndexByte(src, '\r'); pos >= 0 {
-		// if line sep is only CR, replaces to EOL
-		if pos < last && src[pos] != '\n' {
-			for i, b := range src {
-				if b == '\r' && i < last && src[i+1] != '\n' {
-					src[i] = '\n'
-				}
-			}
-		}
-	}
-
 	fr = &Reader{
 		File: file,
-		Src:  src,
+		Src:  file.Data.data,
 		Ch:   ' ',
 
 		SkipWhitespaceFunc: func(r *Reader) {
@@ -188,7 +175,6 @@ next:
 				goto next
 			}
 		} else if s.Ch == '\n' {
-			s.File.AddLine(s.lineOffset)
 			s.NewLineEscaped = newLineEscape
 			if newLineEscape {
 				s.SkipWhitespace()

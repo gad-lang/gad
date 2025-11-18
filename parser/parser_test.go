@@ -25,7 +25,7 @@ import (
 
 type (
 	Pos           = source.Pos
-	SourceFilePos = source.SourceFilePos
+	SourceFilePos = source.FilePos
 )
 
 const NoPos = source.NoPos
@@ -259,23 +259,23 @@ func TestParserError(t *testing.T) {
 		[2]string{"%v", "Parse Error: expected statement, found ','\n\tat test:4:8"},
 		[2]string{"%+v", "Parse Error: expected statement, found ','" +
 			"\n\tat test:4:8" +
-			"\n\n\t    4| param a,b" +
-			"\n\t              ^"},
+			"\n\n       🠆 4| param a,b" +
+			"\n                   ^"},
 		[2]string{"%+3.4v", "Parse Error: expected statement, found '," +
 			"'\n\tat test:4:8" +
-			"\n\n\t    1| var x;" +
-			"\n\t    3| var y;" +
-			"\n\t    4| param a,b" +
-			"\n\t              ^" +
-			"\n\t    5| var z" +
-			"\n\t    6| z2" +
-			"\n\t    7| z3" +
-			"\n\t    8| z4"},
+			"\n\n         1| var x;" +
+			"\n         3| var y;" +
+			"\n       🠆 4| param a,b" +
+			"\n                   ^" +
+			"\n         5| var z" +
+			"\n         6| z2" +
+			"\n         7| z3" +
+			"\n         8| z4"},
 	)
 
 	expectParseError(t, `param a,b`,
 		[2]string{"%v", "Parse Error: expected statement, found ','\n\tat test:1:8"},
-		[2]string{"%+v", "Parse Error: expected statement, found ','\n\tat test:1:8\n\n\t    1| param a,b\n\t              ^"},
+		[2]string{"%+v", "Parse Error: expected statement, found ','\n\tat test:1:8\n\n       🠆 1| param a,b\n                   ^"},
 	)
 
 	expectParseString(t, `a := throw "my error"`, `a := throw "my error"`)

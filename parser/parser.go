@@ -148,7 +148,7 @@ func NewParserWithScanner(
 	if opts.Mode.Has(ParseCharAsString) {
 		m.Set(ScanCharAsString)
 	}
-	scanner.ErrorHandler(func(pos source.SourceFilePos, msg string) {
+	scanner.ErrorHandler(func(pos source.FilePos, msg string) {
 		p.Errors.Add(pos, msg)
 	})
 	return p.Next()

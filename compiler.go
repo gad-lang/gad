@@ -104,7 +104,7 @@ type (
 
 	// CompilerError represents a compiler error.
 	CompilerError struct {
-		FileSet *source.SourceFileSet
+		FileSet *source.FileSet
 		Node    ast.Node
 		Err     error
 	}
@@ -159,7 +159,7 @@ func (e *CompilerError) Format(f fmt.State, verb rune) {
 			)
 
 			fmt.Fprintln(f, e.Error())
-			pos.TraceLines(f, up, down)
+			pos.File.Data.TraceLines(f, pos.Line, pos.Column, up, down)
 		} else {
 			f.Write([]byte(e.Error()))
 		}

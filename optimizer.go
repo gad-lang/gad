@@ -20,7 +20,7 @@ import (
 
 // OptimizerError represents an optimizer error.
 type OptimizerError struct {
-	FilePos source.SourceFilePos
+	FilePos source.FilePos
 	Node    ast.Node
 	Err     error
 }

@@ -2,6 +2,7 @@ package testhelper
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -145,6 +146,7 @@ type VMTestOpts struct {
 	objectToWriter gad.ObjectToWriter
 	init           func(opts *VMTestOpts, expect gad.Object) (*VMTestOpts, gad.Object)
 	compileOptions func(opts *gad.CompileOptions)
+	context        context.Context
 }
 
 func NewVMTestOpts() *VMTestOpts {
@@ -269,6 +271,11 @@ func (t *VMTestOpts) CompileOptions(f func(opts *gad.CompileOptions)) *VMTestOpt
 	return t
 }
 
+func (t *VMTestOpts) Context(ctx context.Context) *VMTestOpts {
+	t.context = ctx
+	return t
+}
+
 func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.Object) {
 	t.Helper()
 	if opts == nil {
@@ -354,6 +361,7 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.O
 			}()
 			vm.Setup(gad.SetupOpts{
 				Builtins: tC.opts.SymbolTable.Builtins(),
+				Context:  opts.context,
 			})
 
 			opts, expect := opts.init(opts, expect)

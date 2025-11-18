@@ -3,7 +3,7 @@ package source
 import "errors"
 
 // ScannerErrorHandler is an error handler for the scanner.
-type ScannerErrorHandler func(pos SourceFilePos, msg string)
+type ScannerErrorHandler func(pos FilePos, msg string)
 
 var (
 	ErrIllegalMinimalLineNumber = errors.New("illegal line number (line numbering starts at 1)")

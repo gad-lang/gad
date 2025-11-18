@@ -17,7 +17,7 @@ import (
 
 // Bytecode holds the compiled functions and constants.
 type Bytecode struct {
-	FileSet    *source.SourceFileSet
+	FileSet    *source.FileSet
 	Main       *CompiledFunction
 	Constants  []Object
 	NumModules int

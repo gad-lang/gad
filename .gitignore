@@ -4,6 +4,7 @@
 # repl binary
 /gad
 /cmd/gad/gad
+/dist/
 
 # Binaries for programs and plugins
 *.exe

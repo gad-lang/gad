@@ -9,7 +9,7 @@ import (
 
 // Error represents a parser error.
 type Error struct {
-	Pos source.SourceFilePos
+	Pos source.FilePos
 	Msg string
 }
 
@@ -31,7 +31,7 @@ func (e *Error) formatWithMessage(f fmt.State, verb rune, msg string) {
 			fmt.Fprintln(f, e.Error()+msg)
 			f.Write([]byte{'\n'})
 
-			e.Pos.TraceLines(f, up, down)
+			e.Pos.File.Data.TraceLines(f, e.Pos.Line, e.Pos.Column, up, down)
 		} else {
 			f.Write([]byte(e.Error()))
 		}
@@ -49,7 +49,7 @@ func (e *Error) Error() string {
 type ErrorList []*Error
 
 // Add adds a new parser error to the collection.
-func (p *ErrorList) Add(pos source.SourceFilePos, msg string) {
+func (p *ErrorList) Add(pos source.FilePos, msg string) {
 	*p = append(*p, &Error{pos, msg})
 }
 
