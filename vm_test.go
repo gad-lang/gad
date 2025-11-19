@@ -79,6 +79,8 @@ func TestVMDict(t *testing.T) {
 }
 
 func TestVMArray(t *testing.T) {
+	testExpectRun(t, `return [1, 2] + 3`, nil, Array{Int(1), Int(2), Int(3)})
+	testExpectRun(t, `return [1, 2] + [3]`, nil, Array{Int(1), Int(2), Int(3)})
 	testExpectRun(t, `return [1, 2 * 2, 3 + 3]`, nil, Array{Int(1), Int(4), Int(6)})
 	testExpectRun(t, `return [1, 2] + [3] + {c:4} + (;d=5)`, nil, Array{Int(1), Int(2), Int(3), Int(4), Int(5)})
 	// array copy-by-reference
@@ -140,6 +142,8 @@ func TestVMArray(t *testing.T) {
 	testExpectRun(t, `return "ab"[-2]`, nil, Int('a'))
 	testExpectRun(t, `a := [1]; a += 2; a+=3; return a`, nil, Array{Int(1), Int(2), Int(3)})
 	testExpectRun(t, `a := [1]; a ++= [2, 3]; return a`, nil, Array{Int(1), Int(2), Int(3)})
+	testExpectRun(t, `a := [1]; b := a; a ++= [2]; return [a, b]`, nil, Array{Array{Int(1), Int(2)}, Array{Int(1)}})
+
 	expectErrIs(t, fmt.Sprintf("return %s[%d:\"\"]", arrStr, -1), nil, ErrType)
 	expectErrIs(t, fmt.Sprintf("return %s[:%d]", arrStr, arrLen+1), nil, ErrIndexOutOfBounds)
 	expectErrIs(t, fmt.Sprintf("%s[%d:%d]", arrStr, 2, 1), nil, ErrInvalidIndex)
