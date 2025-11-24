@@ -222,6 +222,45 @@ type DictElementLit struct {
 	Value    Expr
 }
 
+func (e *DictElementLit) Func() (f *DictElementFuncExpr) {
+	switch t := e.Value.(type) {
+	case *DictElementFuncExpr:
+		return t
+	case *ClosureExpr:
+		return &DictElementFuncExpr{
+			Expr: &ClosureExpr{
+				Params:      t.Params,
+				LambdaToken: token.Assign,
+				Body:        t.Body,
+			},
+		}
+	case *FuncExpr:
+		if t.BodyExpr != nil {
+			return &DictElementFuncExpr{
+				Expr: &ClosureExpr{
+					Params:      t.Type.Params,
+					LambdaToken: token.Assign,
+					Body:        t.BodyExpr,
+				},
+			}
+		}
+		return &DictElementFuncExpr{
+			Expr: &FuncExpr{
+				Type: &FuncType{
+					Params: t.Type.Params,
+				},
+				Body:     t.Body,
+				BodyExpr: t.BodyExpr,
+			},
+		}
+	}
+	return
+}
+
+func (e *DictElementLit) IsFunc() (ok bool) {
+	return e.Func() != nil
+}
+
 func (e *DictElementLit) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
@@ -235,13 +274,49 @@ func (e *DictElementLit) End() source.Pos {
 }
 
 func (e *DictElementLit) String() string {
-	return e.Key + ": " + e.Value.String()
+	var (
+		sep string
+		f   = e.Func()
+		v   = e.Value
+	)
+
+	if f == nil {
+		sep = ": "
+	} else {
+		v = f
+	}
+
+	return e.Key + sep + v.String()
 }
 
 func (e *DictElementLit) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(e.Key)
-	ctx.WriteString(": ")
-	e.Value.WriteCode(ctx)
+	var (
+		fun = e.Func()
+		sep string
+	)
+	if fun == nil {
+		sep = ": "
+	}
+	ctx.WriteString(e.Key, sep)
+	if fun != nil {
+		fun.WriteCode(ctx)
+	} else {
+		e.Value.WriteCode(ctx)
+	}
+}
+
+type DictElementFuncExpr struct {
+	Expr
+}
+
+func (e *DictElementFuncExpr) Closure() (c *ClosureExpr) {
+	c, _ = e.Expr.(*ClosureExpr)
+	return
+}
+
+func (e *DictElementFuncExpr) Func() (f *FuncExpr) {
+	f, _ = e.Expr.(*FuncExpr)
+	return
 }
 
 // StringLit represents a string literal.

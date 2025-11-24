@@ -969,7 +969,8 @@ func (c *Compiler) compileForInStmt(stmt *node.ForInStmt) error {
 }
 
 func (c *Compiler) compileFuncLit(nd *node.FuncExpr) error {
-	if ident := nd.Type.Ident; ident != nil && nd.Type.Token == token.Func {
+	_, isDecl := c.stack.Up(1).(*node.DeclStmt)
+	if ident := nd.Type.Ident; ident != nil && !isDecl {
 		nodeIndex := len(c.stack) - 1
 		// prevent recursion on compileAssignStmt
 		if nodeIndex < 1 || c.stack[nodeIndex-1] != c.stack[nodeIndex] {
@@ -998,8 +999,15 @@ func (c *Compiler) compileFuncLit(nd *node.FuncExpr) error {
 			if addMethod {
 				nd.Type.AllowMethods = false
 				nd.Type.Ident = nil
+				defer func() {
+					nd.Type.Ident = ident
+				}()
+
 				return c.compileCallExpr(&node.CallExpr{
-					Func: &node.IdentExpr{Name: BuiltinAddCallMethod.String()},
+					Func: &node.IdentExpr{
+						NamePos: ident.NamePos,
+						Name:    BuiltinAddCallMethod.String(),
+					},
 					CallArgs: node.CallArgs{
 						Args: node.CallExprArgs{
 							Values: []node.Expr{
@@ -1023,7 +1031,10 @@ func (c *Compiler) compileFuncLit(nd *node.FuncExpr) error {
 				nd.Type.AllowMethods = false
 				nd.Type.Ident = nil
 				return c.compileCallExpr(&node.CallExpr{
-					Func: &node.IdentExpr{Name: BuiltinAddCallMethod.String()},
+					Func: &node.IdentExpr{
+						NamePos: ident.NamePos,
+						Name:    BuiltinAddCallMethod.String(),
+					},
 					CallArgs: node.CallArgs{
 						Args: node.CallExprArgs{
 							Values: []node.Expr{
@@ -1037,7 +1048,22 @@ func (c *Compiler) compileFuncLit(nd *node.FuncExpr) error {
 			return err
 		}
 	}
-	return c.compileFunc(nd, nd.Type, nd.Body)
+
+	body := nd.Body
+	if body == nil {
+		body = &node.BlockStmt{
+			Stmts: []node.Stmt{
+				&node.ReturnStmt{
+					Return: node.Return{
+						ReturnPos: nd.BodyExpr.Pos(),
+						Result:    nd.BodyExpr,
+					},
+				},
+			},
+		}
+	}
+
+	return c.compileFunc(nd, nd.Type, body)
 }
 
 func (c *Compiler) compileClosureLit(nd *node.ClosureExpr) error {
@@ -1047,13 +1073,18 @@ func (c *Compiler) compileClosureLit(nd *node.ClosureExpr) error {
 		if l := len(stmts); l > 0 {
 			switch t := stmts[l-1].(type) {
 			case *node.ExprStmt:
-				stmts[l-1] = &node.ReturnStmt{Return: node.Return{Result: t.Expr}}
+				stmts[l-1] = &node.ReturnStmt{
+					Return: node.Return{
+						ReturnPos: t.Pos(),
+						Result:    t.Expr,
+					},
+				}
 			}
 		}
 	} else {
 		stmts = append(stmts, &node.ReturnStmt{Return: node.Return{Result: nd.Body}})
 	}
-	return c.compileFunc(nd, nd.Type, &node.BlockStmt{Stmts: stmts})
+	return c.compileFunc(nd, &node.FuncType{Params: nd.Params}, &node.BlockStmt{Stmts: stmts})
 }
 
 func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.BlockStmt) (err error) {

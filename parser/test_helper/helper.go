@@ -510,10 +510,11 @@ func EqualExpr(t *testing.T, expected, actual node.Expr) {
 		require.Equal(t, expected.TokenPos,
 			actual.(*node.NamedArgsKeywordExpr).TokenPos)
 	case *node.ClosureExpr:
-		EqualFuncType(t, expected.Type,
-			actual.(*node.ClosureExpr).Type)
-		EqualExpr(t, expected.Body,
-			actual.(*node.ClosureExpr).Body)
+		require.Equal(t, expected.LambdaToken, actual.(*node.ClosureExpr).LambdaToken)
+		require.Equal(t, expected.LambdaPos, actual.(*node.ClosureExpr).LambdaPos)
+		EqualTypedIdents(t, expected.Params.Args.Values, actual.(*node.ClosureExpr).Params.Args.Values)
+		EqualNamedArgs(t, &expected.Params.NamedArgs, &actual.(*node.ClosureExpr).Params.NamedArgs)
+		EqualExpr(t, expected.Body, actual.(*node.ClosureExpr).Body)
 	case *node.BlockExpr:
 		EqualStmt(t, expected.BlockStmt,
 			actual.(*node.BlockExpr).BlockStmt)

@@ -846,7 +846,7 @@ func (p *Parser) ParseOperand() node.Expr {
 	case token.LBrace: // dict literal
 		return p.ParseDictLit()
 	case token.Func: // function literal
-		return p.ParseFuncLit()
+		return p.ParseFuncExpr()
 	case token.RawString:
 		return p.ParseRawStringLit()
 	case token.RawHeredoc:
@@ -919,12 +919,12 @@ func (p *Parser) ParseEmbedExpr() node.Expr {
 	return expr
 }
 
-func (p *Parser) ParseClosureExpr(paren *node.MultiParenExpr) *node.ClosureExpr {
+func (p *Parser) ParseClosureExpr(lambdaToken token.Token, paren *node.MultiParenExpr) *node.ClosureExpr {
 	if p.Trace {
 		defer untracep(tracep(p, "ClosureExpr"))
 	}
 
-	lambda := p.Expect(token.Lambda)
+	lambda := p.Expect(lambdaToken)
 
 	var body node.Expr
 	if p.Token.Token.IsBlockStart() {
@@ -939,11 +939,10 @@ func (p *Parser) ParseClosureExpr(paren *node.MultiParenExpr) *node.ClosureExpr 
 	}
 
 	return &node.ClosureExpr{
-		Type: &node.FuncType{
-			FuncPos: lambda,
-			Params:  params,
-		},
-		Body: body,
+		LambdaPos:   lambda,
+		LambdaToken: lambdaToken,
+		Params:      params,
+		Body:        body,
 	}
 }
 
@@ -951,7 +950,7 @@ func (p *Parser) ParseAllParemExpr(lparenToken, rparenToken token.Token) node.Ex
 	paren := p.ParseParemExpr(lparenToken, rparenToken)
 	switch p.Token.Token {
 	case token.Lambda:
-		return p.ParseClosureExpr(paren.ToMultiParenExpr())
+		return p.ParseClosureExpr(p.Token.Token, paren.ToMultiParenExpr())
 	default:
 		return paren
 	}
@@ -1135,7 +1134,7 @@ func (p *Parser) ParseCharLit() node.Expr {
 	}
 }
 
-func (p *Parser) ParseFuncLit() node.Expr {
+func (p *Parser) ParseFuncExpr() node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "FuncExpr"))
 	}
@@ -1143,20 +1142,14 @@ func (p *Parser) ParseFuncLit() node.Expr {
 	typ := p.ParseFuncType()
 	p.ExprLevel++
 
-	body, closure := p.ParseBody()
+	body, lambdaPos, closure := p.ParseBody()
 	p.ExprLevel--
-	if closure != nil {
-		body = &node.BlockStmt{
-			Stmts: []node.Stmt{&node.ReturnStmt{
-				Return: node.Return{
-					Result: closure,
-				},
-			}},
-		}
-	}
+
 	return &node.FuncExpr{
-		Type: typ,
-		Body: body,
+		Type:      typ,
+		Body:      body,
+		LambdaPos: lambdaPos,
+		BodyExpr:  closure,
 	}
 }
 
@@ -1212,8 +1205,6 @@ func (p *Parser) ParseFuncType() *node.FuncType {
 		defer untracep(tracep(p, "FuncType"))
 	}
 
-	tok := p.Token.Token
-
 	var (
 		pos          = p.Expect(token.Func)
 		ident        *node.IdentExpr
@@ -1227,11 +1218,12 @@ func (p *Parser) ParseFuncType() *node.FuncType {
 
 	paren := p.ParseParemExpr(token.LParen, token.RParen)
 	params, err := paren.ToMultiParenExpr().ToFuncParams()
+
 	if err != nil {
 		p.Error(err.Pos(), err.Error())
 	}
+
 	return &node.FuncType{
-		Token:        tok,
 		FuncPos:      pos,
 		Ident:        ident,
 		Params:       params,
@@ -1239,7 +1231,7 @@ func (p *Parser) ParseFuncType() *node.FuncType {
 	}
 }
 
-func (p *Parser) ParseBody() (b *node.BlockStmt, closure node.Expr) {
+func (p *Parser) ParseBody() (b *node.BlockStmt, lambdaPos source.Pos, closure node.Expr) {
 	if p.Trace {
 		defer untracep(tracep(p, "Body"))
 	}
@@ -1247,6 +1239,7 @@ func (p *Parser) ParseBody() (b *node.BlockStmt, closure node.Expr) {
 	p.SkipSpace()
 
 	if p.Token.Token == token.Lambda {
+		lambdaPos = p.Token.Pos
 		p.Next()
 		if p.Token.Token.IsBlockStart() {
 			closure = &node.BlockExpr{BlockStmt: p.ParseBlockStmt()}
@@ -1673,22 +1666,6 @@ func (p *Parser) ParseGenDecl(
 	} else {
 		list = append(list, fn(keyword, false, list, 0))
 		p.ExpectSemi()
-	}
-
-	for _, spec := range list {
-		if vs, _ := spec.(*node.ValueSpec); vs != nil {
-			if len(vs.Values) == 1 {
-				switch fn := vs.Values[0].(type) {
-				case *node.ClosureExpr:
-					fn.Type.Token = keyword
-					if keyword == token.Const {
-						fn.Type.Ident = vs.Idents[0]
-					}
-				case *node.FuncExpr:
-					fn.Type.Token = keyword
-				}
-			}
-		}
 	}
 
 	return &node.GenDecl{
@@ -2307,7 +2284,7 @@ func (p *Parser) ParseExprList() (list []node.Expr) {
 	return
 }
 
-func (p *Parser) ParseMapElementLit() *node.DictElementLit {
+func (p *Parser) ParseDictElementLit() *node.DictElementLit {
 	if p.Trace {
 		defer untracep(tracep(p, "DictElementLit"))
 	}
@@ -2325,14 +2302,53 @@ func (p *Parser) ParseMapElementLit() *node.DictElementLit {
 		p.ErrorExpected(pos, "map key")
 	}
 	p.Next()
-	colonPos := p.Expect(token.Colon)
-	valueExpr := p.ParseExpr()
+
+	var (
+		colonPos  source.Pos
+		valueExpr node.Expr
+	)
+
+	if p.Token.Token == token.LParen {
+		valueExpr = p.ParseDictElementLitFunc()
+	} else {
+		colonPos = p.Expect(token.Colon)
+		valueExpr = p.ParseExpr()
+	}
+
 	return &node.DictElementLit{
 		Key:      name,
 		KeyPos:   pos,
 		ColonPos: colonPos,
 		Value:    valueExpr,
 	}
+}
+
+func (p *Parser) ParseDictElementLitFunc() *node.DictElementFuncExpr {
+	e := &node.DictElementFuncExpr{}
+	paren := p.ParseParemExpr(token.LParen, token.RParen)
+
+	if p.Token.Token == token.Assign {
+		e.Expr = p.ParseClosureExpr(token.Assign, paren.ToMultiParenExpr())
+	} else {
+		params, err := paren.ToMultiParenExpr().ToFuncParams()
+
+		if err != nil {
+			p.Error(err.Pos(), err.Error())
+		}
+
+		p.ExprLevel++
+		body := p.ParseBlockStmt()
+		p.ExprLevel--
+
+		e.Expr = &node.FuncExpr{
+			Type: &node.FuncType{
+				Params: params,
+			},
+			Body: body,
+		}
+	}
+
+	return e
 }
 
 func (p *Parser) ParseDictLit() *node.DictExpr {
@@ -2345,7 +2361,7 @@ func (p *Parser) ParseDictLit() *node.DictExpr {
 
 	var elements []*node.DictElementLit
 	for p.Token.Token != token.RBrace && p.Token.Token != token.EOF {
-		elements = append(elements, p.ParseMapElementLit())
+		elements = append(elements, p.ParseDictElementLit())
 
 		if !p.AtComma("map literal", token.RBrace) {
 			break

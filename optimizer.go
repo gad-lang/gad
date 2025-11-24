@@ -807,6 +807,8 @@ func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 		}
 		if nd.Body != nil {
 			_, _ = so.optimize(nd.Body)
+		} else if nd.BodyExpr != nil {
+			_, _ = so.optimize(nd.BodyExpr)
 		}
 	case *node.ReturnStmt:
 		if nd.Result != nil {

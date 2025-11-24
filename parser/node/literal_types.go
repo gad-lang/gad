@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad/parser/source"
-	"github.com/gad-lang/gad/token"
 )
 
 // ArgsList represents a list of identifiers.
@@ -196,7 +195,6 @@ func (n FuncParams) WithNamedValuesNil() (c *FuncParams) {
 
 // FuncType represents a function type definition.
 type FuncType struct {
-	Token        token.Token
 	FuncPos      source.Pos
 	Ident        *IdentExpr
 	Params       FuncParams

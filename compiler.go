@@ -558,6 +558,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileArrayLit(nt)
 	case *node.DictExpr:
 		return c.compileDictLit(nt)
+	case *node.DictElementFuncExpr:
+		return c.Compile(nt.Expr)
 	case *node.KeyValueArrayLit:
 		return c.compileKeyValueArrayLit(nt)
 	case *node.SelectorExpr: // selector on RHS side

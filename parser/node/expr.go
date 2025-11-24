@@ -1134,8 +1134,10 @@ func (e *MixedTextExpr) WriteCode(ctx *CodeWriteContext) {
 // FuncExpr represents a function literal.
 type FuncExpr struct {
 	ast.NodeData
-	Type *FuncType
-	Body *BlockStmt
+	Type      *FuncType
+	Body      *BlockStmt
+	LambdaPos source.Pos
+	BodyExpr  Expr
 }
 
 func (e *FuncExpr) ExprNode() {}
@@ -1147,30 +1149,55 @@ func (e *FuncExpr) Pos() source.Pos {
 
 // End returns the position of first character immediately after the node.
 func (e *FuncExpr) End() source.Pos {
+	if e.BodyExpr != nil {
+		return e.BodyExpr.End()
+	}
 	return e.Body.End()
 }
 
 func (e *FuncExpr) String() string {
-	return "func" + e.Type.String() + " " + e.Body.String()
+	var f string
+	if e.Type.FuncPos != 0 {
+		f = "func"
+	}
+	s := f + e.Type.String() + " "
+	if e.BodyExpr != nil {
+		s += "=> " + e.BodyExpr.String()
+	} else {
+		s += e.Body.String()
+	}
+	return s
 }
 
 func (e *FuncExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString("func" + e.Type.String() + " ")
-	e.Body.WriteCodeInSelfDepth(ctx, true)
+	var f string
+	if e.Type.FuncPos != 0 {
+		f = "func "
+	}
+
+	ctx.WriteString(f + e.Type.String() + " ")
+
+	if e.BodyExpr != nil {
+		ctx.WriteString(e.BodyExpr.String())
+	} else {
+		e.Body.WriteCodeInSelfDepth(ctx, true)
+	}
 }
 
 // ClosureExpr represents a function closure literal.
 type ClosureExpr struct {
 	ast.NodeData
-	Type *FuncType
-	Body Expr
+	Params      FuncParams
+	LambdaToken token.Token
+	LambdaPos   source.Pos
+	Body        Expr
 }
 
 func (e *ClosureExpr) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
 func (e *ClosureExpr) Pos() source.Pos {
-	return e.Type.Pos()
+	return e.Params.Pos()
 }
 
 // End returns the position of first character immediately after the node.
@@ -1179,11 +1206,11 @@ func (e *ClosureExpr) End() source.Pos {
 }
 
 func (e *ClosureExpr) String() string {
-	return e.Type.Params.String() + " => " + e.Body.String()
+	return e.Params.String() + " " + e.LambdaToken.String() + " " + e.Body.String()
 }
 
 func (e *ClosureExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(e.Type.Params.String(), " => ")
+	ctx.WriteString(e.Params.String(), " ", e.LambdaToken.String(), " ")
 	if block, ok := e.Body.(*BlockExpr); ok {
 		block.WriteCodeInSelfDepth(ctx, true)
 	} else {

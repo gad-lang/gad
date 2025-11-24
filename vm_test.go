@@ -76,6 +76,28 @@ func TestVMDict(t *testing.T) {
 	testExpectRun(t, `param d; return dict((userData(d) + {a:1}).|items()), dict(userData(d))`,
 		newOpts().Args(MustNewReflectValue(&d)),
 		Array{Dict{"a": Int(1)}, Dict{"a": Int(1)}})
+	testExpectRun(t, `d := {
+	a() = 1, 
+	b(){ 
+		return 2
+	}, 
+	c(x) = x+1,
+	d(y) {
+		return y**2
+	},
+	e: func(ev) => ev+2,
+	f: func(fv) {
+		return fv * 5
+	},
+} 
+return [
+	d.a(), 
+	d.b(), 
+	d.c(10), 
+	d.d(4),
+	d.e(6),
+	d.f(2),
+]`, nil, Array{Int(1), Int(2), Int(11), DecimalFromInt(16), Int(8), Int(10)})
 }
 
 func TestVMArray(t *testing.T) {

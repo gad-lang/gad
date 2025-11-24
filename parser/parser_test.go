@@ -801,7 +801,7 @@ func TestCommaSepReturn(t *testing.T) {
 		return stmts(
 			exprStmt(
 				funcLit(
-					funcType(p(1, 1), p(1, 5), p(1, 6)),
+					funcType(p(1, 1), nil, p(1, 5), p(1, 6)),
 					blockStmt(
 						p(1, 8),
 						p(1, 22),
@@ -1390,7 +1390,7 @@ func TestParseCall(t *testing.T) {
 			exprStmt(
 				callExpr(
 					funcLit(
-						funcType(p(1, 1), p(1, 5), p(1, 10),
+						funcType(p(1, 1), nil, p(1, 5), p(1, 10),
 							funcArgs(nil,
 								ident("a", p(1, 6)),
 								ident("b", p(1, 9))),
@@ -1693,9 +1693,9 @@ func TestParseForIn(t *testing.T) {
 				ident("y", p(1, 8)),
 				dictLit(
 					p(1, 13), p(1, 26),
-					mapElementLit(
+					dicElementLit(
 						"k1", p(1, 14), p(1, 16), intLit(1, p(1, 18))),
-					mapElementLit(
+					dicElementLit(
 						"k2", p(1, 21), p(1, 23), intLit(2, p(1, 25)))),
 				blockStmt(p(1, 28), p(1, 29)),
 				p(1, 1)))
@@ -1908,7 +1908,9 @@ func TestParseClosure(t *testing.T) {
 					ident("a", p(1, 1))),
 				exprs(
 					closure(
-						funcType(p(1, 1), p(1, 5), p(1, 13),
+						token.Lambda,
+						p(1, 15),
+						funcParams(p(1, 1), p(1, 5), p(1, 13),
 							funcArgs(nil,
 								ident("b", p(1, 6)),
 								ident("c", p(1, 9)),
@@ -1926,7 +1928,9 @@ func TestParseClosure(t *testing.T) {
 					ident("a", p(1, 1))),
 				exprs(
 					closure(
-						funcType(p(1, 5), p(1, 5), p(1, 13),
+						token.Lambda,
+						p(1, 15),
+						funcParams(p(1, 5), p(1, 5), p(1, 13),
 							funcArgs(nil,
 								ident("b", p(1, 6)),
 								ident("c", p(1, 9)),
@@ -1948,7 +1952,7 @@ func TestParseFunction(t *testing.T) {
 		return stmts(
 			exprStmt(
 				funcLit(
-					funcType(p(1, 5), p(1, 9), p(1, 11),
+					funcType(p(1, 5), ident("fn", p(1, 6)), p(1, 9), p(1, 11),
 						ident("fn", p(1, 6)),
 						funcArgs(nil,
 							ident("b", p(1, 10))),
@@ -1964,7 +1968,7 @@ func TestParseFunction(t *testing.T) {
 					ident("a", p(1, 1))),
 				exprs(
 					funcLit(
-						funcType(p(1, 5), p(1, 9), p(1, 32),
+						funcType(p(1, 5), nil, p(1, 9), p(1, 32),
 							funcArgs(nil,
 								ident("b", p(1, 10)),
 								ident("c", p(1, 13)),
@@ -1992,7 +1996,7 @@ func TestParseFunction(t *testing.T) {
 					ident("a", p(1, 1))),
 				exprs(
 					funcLit(
-						funcType(p(1, 5), p(1, 9), p(1, 15),
+						funcType(p(1, 5), nil, p(1, 9), p(1, 15),
 							funcArgs(typedIdent(ident("args", p(1, 13))))),
 						blockStmt(p(1, 17), p(1, 31),
 							returnStmt(p(1, 19),
@@ -2009,7 +2013,7 @@ func TestParseFunction(t *testing.T) {
 		return stmts(
 			exprStmt(
 				funcLit(
-					funcType(p(1, 5), p(1, 5), p(1, 16),
+					funcType(p(1, 5), nil, p(1, 5), p(1, 16),
 						funcArgs(nil,
 							ident("n", p(1, 6)),
 							ident("a", p(1, 8)),
@@ -2024,7 +2028,7 @@ func TestParseFunction(t *testing.T) {
 		return stmts(
 			exprStmt(
 				funcLit(
-					funcType(p(1, 5), p(1, 5), p(1, 20),
+					funcType(p(1, 5), nil, p(1, 5), p(1, 20),
 						funcArgs(nil,
 							ident("n", p(1, 6)),
 							ident("a", p(1, 8)),
@@ -2076,6 +2080,40 @@ func TestParseFunction(t *testing.T) {
 
 	expectParseError(t, "func(...a,b){}")
 	expectParseError(t, "func(a,...b;c=1,...d,...e){}")
+
+	expectParse(t, "func fn(n) => 1", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				funcClosure(
+					funcType(p(1, 5), ident("fn", p(1, 6)), p(1, 8), p(1, 10),
+						funcArgs(nil,
+							ident("n", p(1, 9)),
+						),
+					),
+					p(1, 12),
+					intLit(1, p(1, 15)),
+				),
+			),
+		)
+	})
+
+	expectParse(t, "func fn(n) => 1", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				funcClosure(
+					funcType(p(1, 5), ident("fn", p(1, 6)), p(1, 8), p(1, 10),
+						funcArgs(nil,
+							ident("n", p(1, 9)),
+						),
+					),
+					p(1, 12),
+					intLit(1, p(1, 15)),
+				),
+			),
+		)
+	})
+	expectParseString(t, "func fn(n) =>  1", `func fn(n) => 1`)
+	expectParseString(t, "func(n) =>  1", `func(n) => 1`)
 }
 
 func TestParseVariadicFunctionWithArgs(t *testing.T) {
@@ -2086,7 +2124,7 @@ func TestParseVariadicFunctionWithArgs(t *testing.T) {
 					ident("a", p(1, 1))),
 				exprs(
 					funcLit(
-						funcType(p(1, 5), p(1, 9), p(1, 18),
+						funcType(p(1, 5), nil, p(1, 9), p(1, 18),
 							funcArgs(typedIdent(ident("z", p(1, 17))),
 								ident("x", p(1, 10)),
 								ident("y", p(1, 13)))),
@@ -2488,9 +2526,9 @@ func TestParseIndex(t *testing.T) {
 				indexExpr(
 					parenExpr(
 						dictLit(p(1, 2), p(1, 13),
-							mapElementLit(
+							dicElementLit(
 								"a", p(1, 3), p(1, 4), intLit(1, p(1, 6))),
-							mapElementLit(
+							dicElementLit(
 								"b", p(1, 9), p(1, 10), intLit(2, p(1, 12)))),
 						p(1, 1), p(1, 14),
 					),
@@ -2504,9 +2542,9 @@ func TestParseIndex(t *testing.T) {
 				indexExpr(
 					parenExpr(
 						dictLit(p(1, 2), p(1, 13),
-							mapElementLit(
+							dicElementLit(
 								"a", p(1, 3), p(1, 4), intLit(1, p(1, 6))),
-							mapElementLit(
+							dicElementLit(
 								"b", p(1, 9), p(1, 10), intLit(2, p(1, 12)))),
 						p(1, 1), p(1, 14),
 					),
@@ -2612,7 +2650,7 @@ func TestParseDict(t *testing.T) {
 			exprStmt(
 				parenExpr(
 					dictLit(p(1, 2), p(1, 14),
-						mapElementLit(
+						dicElementLit(
 							"key1", p(1, 4), p(1, 10), intLit(1, p(1, 12)))),
 					p(1, 1), p(1, 15))))
 	})
@@ -2622,11 +2660,11 @@ func TestParseDict(t *testing.T) {
 			exprStmt(
 				parenExpr(
 					dictLit(p(1, 2), p(1, 35),
-						mapElementLit(
+						dicElementLit(
 							"key1", p(1, 4), p(1, 8), intLit(1, p(1, 10))),
-						mapElementLit(
+						dicElementLit(
 							"key2", p(1, 13), p(1, 17), stringLit("2", p(1, 19))),
-						mapElementLit(
+						dicElementLit(
 							"key3", p(1, 24), p(1, 28), boolLit(true, p(1, 30)))),
 					p(1, 1), p(1, 36))))
 	})
@@ -2636,11 +2674,11 @@ func TestParseDict(t *testing.T) {
 			return stmts(assignStmt(
 				exprs(ident("a", p(1, 1))),
 				exprs(dictLit(p(1, 5), p(1, 38),
-					mapElementLit(
+					dicElementLit(
 						"key1", p(1, 7), p(1, 11), intLit(1, p(1, 13))),
-					mapElementLit(
+					dicElementLit(
 						"key2", p(1, 16), p(1, 20), stringLit("2", p(1, 22))),
-					mapElementLit(
+					dicElementLit(
 						"key3", p(1, 27), p(1, 31), boolLit(true, p(1, 33))))),
 				token.Assign,
 				p(1, 3)))
@@ -2651,17 +2689,17 @@ func TestParseDict(t *testing.T) {
 			return stmts(assignStmt(
 				exprs(ident("a", p(1, 1))),
 				exprs(dictLit(p(1, 5), p(1, 54),
-					mapElementLit(
+					dicElementLit(
 						"key1", p(1, 7), p(1, 11), intLit(1, p(1, 13))),
-					mapElementLit(
+					dicElementLit(
 						"key2", p(1, 16), p(1, 20), stringLit("2", p(1, 22))),
-					mapElementLit(
+					dicElementLit(
 						"key3", p(1, 27), p(1, 31),
 						dictLit(p(1, 33), p(1, 52),
-							mapElementLit(
+							dicElementLit(
 								"k1", p(1, 35),
 								p(1, 37), rawStringLit("bar", p(1, 39))),
-							mapElementLit(
+							dicElementLit(
 								"k2", p(1, 46),
 								p(1, 48), intLit(4, p(1, 50))))))),
 				token.Assign,
@@ -2677,11 +2715,11 @@ func TestParseDict(t *testing.T) {
 		return stmts(exprStmt(
 			parenExpr(
 				dictLit(p(2, 2), p(6, 1),
-					mapElementLit(
+					dicElementLit(
 						"key1", p(3, 2), p(3, 6), intLit(1, p(3, 8))),
-					mapElementLit(
+					dicElementLit(
 						"key2", p(4, 2), p(4, 6), stringLit("2", p(4, 8))),
-					mapElementLit(
+					dicElementLit(
 						"key3", p(5, 2), p(5, 6), boolLit(true, p(5, 8)))),
 				p(2, 1), p(6, 2))))
 	})
@@ -2701,6 +2739,33 @@ key1: 1,
 key2: 2
 }`)
 	expectParseError(t, `{1: 1}`)
+
+	expectParse(t, `({
+	x() = 10,
+})`, func(p pfn) []Stmt {
+		return stmts(exprStmt(parenExpr(dictLit(p(1, 2), p(3, 1),
+			dicElementLit("x", p(2, 2), 0,
+				EDictElementClosure(closure(token.Assign, p(2, 6), funcParams(p(2, 3), p(2, 4)), intLit(10, p(2, 8))))),
+		), p(1, 1), p(3, 2))))
+	})
+
+	expectParse(t, `({
+	x() = 10,
+	y() {
+		return 11
+	},
+})`, func(p pfn) []Stmt {
+		return stmts(exprStmt(parenExpr(dictLit(p(1, 2), p(6, 1),
+			dicElementLit("x", p(2, 2), 0, EDictElementClosure(closure(token.Assign, p(2, 6), funcParams(p(2, 3), p(2, 4)), intLit(10, p(2, 8))))),
+			dicElementLit("y", p(3, 2), 0, EDictElementFunc(funcLit(funcType(0, nil, p(3, 3), p(3, 4)), blockStmt(p(3, 6), p(5, 2), returnStmt(p(4, 3), intLit(11, p(4, 10))))))),
+		), p(1, 1), p(6, 2))))
+	})
+
+	expectParseString(t, `({x()=10})`, `({x() = 10})`)
+	expectParseString(t, `({x()=10,y() {return 11}})`, `({x() = 10, y() { return 11 }})`)
+	expectParseString(t, `({x: () => 10})`, `({x() = 10})`)
+	expectParseString(t, `({x: func() => 10})`, `({x() = 10})`)
+	expectParseString(t, `({x: func() { return 10 }})`, `({x() { return 10 }})`)
 }
 
 func TestParsePrecedence(t *testing.T) {
@@ -2830,7 +2895,7 @@ func TestParseSelector(t *testing.T) {
 					selectorExpr(
 						dictLit(
 							p(1, 2), p(1, 7),
-							mapElementLit(
+							dicElementLit(
 								"k1", p(1, 3), p(1, 5), intLit(1, p(1, 6)))),
 						stringLit("k1", p(1, 9))),
 					p(1, 1), p(1, 11))))
@@ -2844,7 +2909,7 @@ func TestParseSelector(t *testing.T) {
 					parenExpr(
 						dictLit(
 							p(1, 2), p(1, 7),
-							mapElementLit(
+							dicElementLit(
 								"k1", p(1, 3), p(1, 5), intLit(1, p(1, 6)))),
 						p(1, 1), p(1, 8)),
 					stringLit("k1", p(1, 10)))))
@@ -2859,9 +2924,9 @@ func TestParseSelector(t *testing.T) {
 						selectorExpr(
 							dictLit(
 								p(1, 2), p(1, 12),
-								mapElementLit("k1", p(1, 3), p(1, 5),
+								dicElementLit("k1", p(1, 3), p(1, 5),
 									dictLit(p(1, 6), p(1, 11),
-										mapElementLit(
+										dicElementLit(
 											"v1", p(1, 7),
 											p(1, 9), intLit(1, p(1, 10)))))),
 							stringLit("k1", p(1, 14))),
@@ -2877,9 +2942,9 @@ func TestParseSelector(t *testing.T) {
 						parenExpr(
 							dictLit(
 								p(1, 2), p(1, 12),
-								mapElementLit("k1", p(1, 3), p(1, 5),
+								dicElementLit("k1", p(1, 3), p(1, 5),
 									dictLit(p(1, 6), p(1, 11),
-										mapElementLit(
+										dicElementLit(
 											"v1", p(1, 7),
 											p(1, 9), intLit(1, p(1, 10)))))),
 							p(1, 1), p(1, 13)),
@@ -3580,8 +3645,25 @@ func incDecStmt(
 	return &IncDecStmt{Expr: expr, Token: tok, TokenPos: pos}
 }
 
-func funcType(pos, lparen, rparen Pos, v ...any) *FuncType {
-	f := &FuncType{Params: FuncParams{LParen: lparen, RParen: rparen}, FuncPos: pos}
+func funcParams(lparen, rparen Pos, v ...any) *FuncParams {
+	p := &FuncParams{LParen: lparen, RParen: rparen}
+	for _, v := range v {
+		switch t := v.(type) {
+		case ArgsList:
+			p.Args = t
+		case NamedArgsList:
+			p.NamedArgs = t
+		}
+	}
+	return p
+}
+
+func funcType(pos source.Pos, ident *IdentExpr, lparen, rparen Pos, v ...any) *FuncType {
+	f := &FuncType{
+		Ident:   ident,
+		Params:  FuncParams{LParen: lparen, RParen: rparen},
+		FuncPos: pos,
+	}
 	for _, v := range v {
 		switch t := v.(type) {
 		case ArgsList:
@@ -3769,7 +3851,7 @@ func nargsKw(pos Pos) *NamedArgsKeywordExpr {
 	return &NamedArgsKeywordExpr{TokenPos: pos, Literal: token.NamedArgs.String()}
 }
 
-func mapElementLit(
+func dicElementLit(
 	key string,
 	keyPos Pos,
 	colonPos Pos,
@@ -3791,8 +3873,16 @@ func funcLit(funcType *FuncType, body *BlockStmt) *FuncExpr {
 	return &FuncExpr{Type: funcType, Body: body}
 }
 
-func closure(funcType *FuncType, body Expr) *ClosureExpr {
-	return &ClosureExpr{Type: funcType, Body: body}
+func funcClosure(funcType *FuncType, lambdaPos source.Pos, body Expr) *FuncExpr {
+	return &FuncExpr{
+		Type:      funcType,
+		LambdaPos: lambdaPos,
+		BodyExpr:  body,
+	}
+}
+
+func closure(tok token.Token, pos source.Pos, params *FuncParams, body Expr) *ClosureExpr {
+	return &ClosureExpr{Params: *params, Body: body, LambdaToken: tok, LambdaPos: pos}
 }
 
 func parenExpr(x Expr, lparen, rparen Pos) *ParenExpr {
@@ -4056,7 +4146,9 @@ func (f *fileTester) equalExpr(expected, actual Expr) {
 	case *DictExpr:
 		f.equal(expected.LBrace, actual.(*DictExpr).LBrace)
 		f.equal(expected.RBrace, actual.(*DictExpr).RBrace)
-		f.equalMapElements(expected.Elements, actual.(*DictExpr).Elements)
+		f.equalDictElements(expected.Elements, actual.(*DictExpr).Elements)
+	case *DictElementFuncExpr:
+		f.equalExpr(expected.Expr, actual.(*DictElementFuncExpr).Expr)
 	case *NilLit:
 		f.equal(expected.TokenPos, actual.(*NilLit).TokenPos)
 	case *ReturnExpr:
@@ -4077,6 +4169,8 @@ func (f *fileTester) equalExpr(expected, actual Expr) {
 	case *FuncExpr:
 		f.equalFuncType(expected.Type, actual.(*FuncExpr).Type)
 		f.equalStmt(expected.Body, actual.(*FuncExpr).Body)
+		f.equal(expected.LambdaPos, actual.(*FuncExpr).LambdaPos)
+		f.equalExpr(expected.BodyExpr, actual.(*FuncExpr).BodyExpr)
 	case *CallExpr:
 		actual := actual.(*CallExpr)
 		f.equalExpr(expected.Func, actual.Func)
@@ -4158,7 +4252,10 @@ func (f *fileTester) equalExpr(expected, actual Expr) {
 		f.equal(expected.Literal, actual.(*NamedArgsKeywordExpr).Literal)
 		f.equal(expected.TokenPos, actual.(*NamedArgsKeywordExpr).TokenPos)
 	case *ClosureExpr:
-		f.equalFuncType(expected.Type, actual.(*ClosureExpr).Type)
+		f.equal(expected.LambdaToken, actual.(*ClosureExpr).LambdaToken)
+		f.equal(expected.LambdaPos, actual.(*ClosureExpr).LambdaPos)
+		f.equalTypedIdents(expected.Params.Args.Values, actual.(*ClosureExpr).Params.Args.Values)
+		f.equalNamedArgs(&expected.Params.NamedArgs, &actual.(*ClosureExpr).Params.NamedArgs)
 		f.equalExpr(expected.Body, actual.(*ClosureExpr).Body)
 	case *BlockExpr:
 		f.equalStmt(expected.BlockStmt, actual.(*BlockExpr).BlockStmt)
@@ -4176,6 +4273,7 @@ func (f *fileTester) equalExpr(expected, actual Expr) {
 }
 
 func (f *fileTester) equalFuncType(expected, actual *FuncType) {
+	f.equal(expected.Ident, actual.Ident)
 	f.equal(expected.Params.LParen, actual.Params.LParen)
 	f.equal(expected.Params.RParen, actual.Params.RParen)
 	f.equalTypedIdents(expected.Params.Args.Values, actual.Params.Args.Values)
@@ -4230,7 +4328,7 @@ func (f *fileTester) equalStmts(expected, actual []Stmt) {
 	}
 }
 
-func (f *fileTester) equalMapElements(
+func (f *fileTester) equalDictElements(
 	expected, actual []*DictElementLit,
 ) {
 	f.equal(len(expected), len(actual))

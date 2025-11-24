@@ -385,12 +385,24 @@ func EDict(lbrace, rbrace source.Pos, list ...*DictElementLit) *DictExpr {
 	return &DictExpr{LBrace: lbrace, RBrace: rbrace, Elements: list}
 }
 
+func EDictElementClosure(c *ClosureExpr) *DictElementFuncExpr {
+	return &DictElementFuncExpr{Expr: c}
+}
+
+func EDictElementFunc(f *FuncExpr) *DictElementFuncExpr {
+	return &DictElementFuncExpr{Expr: f}
+}
+
 func EFunc(funcType *FuncType, body *BlockStmt) *FuncExpr {
 	return &FuncExpr{Type: funcType, Body: body}
 }
 
+func EFuncBodyE(funcType *FuncType, body Expr) *FuncExpr {
+	return &FuncExpr{Type: funcType, BodyExpr: body}
+}
+
 func EClosure(funcType *FuncType, body Expr) *ClosureExpr {
-	return &ClosureExpr{Type: funcType, Body: body}
+	return &ClosureExpr{Body: body}
 }
 
 func EParen(x Expr, lparen, rparen source.Pos) *ParenExpr {
