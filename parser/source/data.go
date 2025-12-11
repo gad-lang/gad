@@ -190,6 +190,10 @@ func (d *Data) Slice(startLine, numLines int) (_ []byte, err error) {
 }
 
 func (d *Data) TraceLines(s io.Writer, line, column, up, down int) {
+	if len(d.data) == 0 {
+		return
+	}
+
 	upl, downl, l := d.LineSliceDataUpDown(line, up, down)
 	var (
 		linef = "     %5d| "
@@ -220,29 +224,9 @@ loop:
 
 	lines = append(lines, string(curLine))
 
-	var (
-		prefixCount = len(fmt.Sprintf(linef, line))
-		lineOfChar  = make([]byte, column+prefixCount)
-	)
-
-	lineOfChar[0] = ' '
-	for i := 1; i < prefixCount; i++ {
-		lineOfChar[i] = ' '
-	}
-
-	for i := 0; i < column; i++ {
-		b := l[i]
-		switch b {
-		case '\t':
-			b = '\t'
-		default:
-			b = ' '
-		}
-		lineOfChar[prefixCount+i] = b
-	}
-
-	lineOfChar[len(lineOfChar)-1] = '^'
-	lines = append(lines, string(lineOfChar))
+	prefix := []rune(fmt.Sprintf(linef, line))
+	space := (&LineData{Data: l}).CreateSpace(prefix, column-1)
+	lines = append(lines, string(append(space, '^')))
 	add(downl...)
 	s.Write([]byte(strings.Join(lines, "\n")))
 }
@@ -251,4 +235,29 @@ loop:
 type LineData struct {
 	Line int
 	Data []byte
+}
+
+func (d *LineData) CreateSpace(prefix []rune, column int) []byte {
+	var (
+		prefixCount = len(prefix)
+		atColumn    = []rune(string(d.Data[:column]))
+		r           = make([]rune, len(atColumn)+prefixCount)
+	)
+
+	r[0] = ' '
+	for i := 1; i < prefixCount; i++ {
+		r[i] = ' '
+	}
+
+	for i, b := range atColumn {
+		switch b {
+		case '\t':
+			b = '\t'
+		default:
+			b = ' '
+		}
+		r[prefixCount+i] = b
+	}
+
+	return []byte(string(r))
 }

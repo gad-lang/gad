@@ -134,13 +134,25 @@ func (s *BlockStmt) WriteCode(ctx *CodeWriteContext) {
 }
 
 func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) {
+	if len(s.Stmts) == 0 {
+		var sep string
+		if s.LBrace.Value != "{" {
+			sep += " "
+		}
+		ctx.WriteString(s.LBrace.Value + sep + s.RBrace.Value)
+		return
+	}
+
 	if s.Scoped {
 		ctx.WritePrefix()
-		ctx.WriteString("{")
+		ctx.WriteString(s.LBrace.Value)
 		ctx.WriteSecondLine()
 		selfDepth = true
 	} else {
-		ctx.WriteSingleByte('{')
+		ctx.WriteString(s.LBrace.Value)
+		if ctx.Prefix == "" && s.LBrace.Value != "{" {
+			ctx.WriteString(" ")
+		}
 		ctx.WriteSecondLine()
 	}
 	if selfDepth {
@@ -156,7 +168,7 @@ func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) 
 	} else {
 		ctx.WritePrevPrefix()
 	}
-	ctx.WriteSingleByte('}')
+	ctx.WriteString(s.RBrace.Value)
 }
 
 // BranchStmt represents a branch statement.
@@ -272,7 +284,7 @@ func (s *ForInStmt) End() source.Pos {
 }
 
 func (s *ForInStmt) String() string {
-	var str = "for " + s.Key.String()
+	var str = "for " + s.Key.Name
 	if s.Value != nil {
 		str += ", " + s.Value.String()
 	}
@@ -294,10 +306,17 @@ func (s *ForInStmt) String() string {
 
 func (s *ForInStmt) WriteCode(ctx *CodeWriteContext) {
 	ctx.WritePrefix()
-	ctx.WriteString("for " + s.Key.String())
+	ctx.WriteString("for ")
+
+	if !s.Key.Empty {
+		ctx.WriteString(s.Key.Name)
+		if s.Value != nil {
+			ctx.WriteString(", ")
+		}
+	}
 
 	if s.Value != nil {
-		ctx.WriteString(", " + s.Value.String())
+		ctx.WriteString(s.Value.String())
 	}
 
 	ctx.WriteString(" in " + s.Iterable.String() + " ")
@@ -305,7 +324,7 @@ func (s *ForInStmt) WriteCode(ctx *CodeWriteContext) {
 	s.Body.WriteCodeInSelfDepth(ctx, true)
 
 	if s.Else != nil {
-		ctx.WriteString(" else ")
+		ctx.WriteString("else")
 		s.Else.WriteCodeInSelfDepth(ctx, true)
 	}
 }

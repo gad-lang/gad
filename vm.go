@@ -996,7 +996,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 	frame.freeVars = cfunc.Free
 	frame.errHandlers = nil
 	frame.basePointer = basePointer
-	vm.curFrame.ip = vm.ip + 2
+	vm.curFrame.ip = vm.ip
 	vm.curInsts = cfunc.Instructions
 	vm.curFrame = frame
 	vm.sp = basePointer + numLocals
@@ -1400,7 +1400,8 @@ func getFrameSourcePos(frame *frame) source.Pos {
 	if frame == nil || frame.fn == nil {
 		return source.NoPos
 	}
-	return frame.fn.SourcePos(frame.ip + 1)
+	ip := frame.ip
+	return frame.fn.SourcePos(ip + 1)
 }
 
 func wantEqXGotY(x, y int) string {

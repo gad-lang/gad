@@ -3163,7 +3163,6 @@ func f0(i int) {
 				makeInst(OpGetLocal, 0),
 				makeInst(OpConstant, 2),
 				makeInst(OpCall, 2, 0),
-				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			),
 				withLocals(1)),

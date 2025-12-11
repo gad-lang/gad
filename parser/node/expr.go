@@ -95,6 +95,14 @@ type CallExpr struct {
 
 func (e *CallExpr) ExprNode() {}
 
+// CallPos returns the position of the fist valid call pos
+func (e *CallExpr) CallPos() source.Pos {
+	if e.CallArgs.LParen.IsValid() {
+		return e.CallArgs.LParen
+	}
+	return e.Func.Pos()
+}
+
 // Pos returns the position of first character belonging to the node.
 func (e *CallExpr) Pos() source.Pos {
 	return e.Func.Pos()
@@ -156,6 +164,7 @@ func (e *CondExpr) WriteCode(ctx *CodeWriteContext) {
 type IdentExpr struct {
 	Name    string
 	NamePos source.Pos
+	Empty   bool
 }
 
 func (e *IdentExpr) ExprNode() {}

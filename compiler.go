@@ -403,7 +403,10 @@ stmts:
 				na node.CallExprNamedArgs
 			)
 			if wf == nil {
-				wf = &node.IdentExpr{Name: "write"}
+				wf = &node.IdentExpr{
+					Name:    "write",
+					NamePos: exprs[0].Pos(),
+				}
 			}
 			if c.opts.MixedExprToTextFunc != nil {
 				na = *new(node.CallExprNamedArgs).AppendS("convert", c.opts.MixedExprToTextFunc)
@@ -704,7 +707,10 @@ func (c *Compiler) emit(nd ast.Node, opcode Opcode, operands ...int) int {
 	if nd != nil {
 		filePos = nd.Pos()
 	}
+	return c.emitPos(filePos, nd, opcode, operands...)
+}
 
+func (c *Compiler) emitPos(filePos source.Pos, nd ast.Node, opcode Opcode, operands ...int) int {
 	inst := make([]byte, 0, 8)
 	inst, err := MakeInstruction(inst, opcode, operands...)
 	if err != nil {

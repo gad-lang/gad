@@ -223,6 +223,11 @@ VMLoop:
 			vm.clearCurrentFrame()
 			parent := &(vm.frames[vm.frameIndex-2])
 			vm.frameIndex--
+			switch Opcode(parent.fn.Instructions[parent.ip]) {
+			case OpCall, OpCallName:
+				// goto next instruction
+				parent.ip += 2
+			}
 			vm.ip = parent.ip
 			vm.curFrame = parent
 			vm.curInsts = vm.curFrame.fn.Instructions

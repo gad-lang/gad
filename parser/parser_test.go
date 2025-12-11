@@ -71,9 +71,44 @@ func TestParserTrace(t *testing.T) {
 }
 
 func TestParserMixed(t *testing.T) {
+	defaultExpectParse0 := func(input string, fn expectedFn, opt ...opts) {
+		expectParse(t, input, fn, append(opt, func(ctx *ParseContext) {
+			ctx.ParserOptions.Mode |= ParseMixed
+			ctx.ScannerOptions.Mode |= ScanMixed
+			ctx.ScannerOptions.MixedDelimiter.Start = []rune("‹‹‹")
+			ctx.ScannerOptions.MixedDelimiter.End = []rune("›››")
+		})...)
+	}
+
+	defaultExpectParse0(`‹‹‹
+//!!0
+x := func() { throw error("bad code")  }
+›››<p>‹‹‹=
+//!!1
+x()
+›››</p>`, func(p pfn) []Stmt {
+		return stmts(
+			codeBegin(lit("‹‹‹", p(1, 1)), false),
+			assignStmt(
+				exprs(ident("x", p(3, 1))),
+				exprs(funcLit(funcType(p(3, 6), nil, p(3, 10), p(3, 11)),
+					blockStmt(p(3, 13), p(3, 40), throwStmt(p(3, 15), callExpr(ident("error", p(3, 21)), p(3, 26), p(3, 37), callExprArgs(nil, stringLit("bad code", p(3, 27)))))))),
+				token.Define, p(3, 3),
+			),
+			codeEnd(lit("›››", p(4, 1)), false),
+			mixedTextStmt(p(4, 10), "<p>"),
+			mixedValue(lit("‹‹‹", p(4, 13)), lit("›››", p(7, 1)), callExpr(ident("x", p(6, 1)), p(6, 2), p(6, 3))),
+			mixedTextStmt(p(7, 10), "</p>"),
+		)
+	}, PostTest(func(t *testing.T, f *source.File, pos func(line int, column int) Pos) {
+
+		f.Data.TraceLines(os.Stdout, 7, 10, 1, 1)
+
+	}))
+
 	defaultExpectParse := func(input string, fn expectedFn) {
-		expectParse(t, input, fn, func(po *ParserOptions, so *ScannerOptions) {
-			so.MixedDelimiter = DefaultMixedDelimiter
+		expectParse(t, input, fn, func(ctx *ParseContext) {
+			ctx.ScannerOptions.MixedDelimiter = DefaultMixedDelimiter
 		})
 	}
 
@@ -1750,12 +1785,19 @@ func TestParseForIn(t *testing.T) {
 	})
 
 	expectParseString(t, "for x in y do end", "for _, x in y do end")
+	expectParseCode(t, "for x in y do end", "for x in y do end")
 	expectParseString(t, "for x in y do 1 end", "for _, x in y do 1 end")
+	expectParseCode(t, "for x in y do 1 end", "for x in y do 1; end")
+	expectParseCode(t, "for x in y do 1 end", "for x in y do 1; end")
+	expectParseCode(t, "for x in y do 1; end", "for x in y do 1; end")
 
 	expectParseString(t, "for x in y do else end", "for _, x in y do else end")
+	expectParseCode(t, "for x in y do else end", "for x in y do else end")
 	expectParseString(t, "for x in y do 1 else end", "for _, x in y do 1 else end")
+	expectParseCode(t, "for x in y do 1 else end", "for x in y do 1; else end")
 	expectParseString(t, "for x in y do else end", "for _, x in y do else end")
 	expectParseString(t, "for x in y do 1 else 2 end", "for _, x in y do 1 else 2 end")
+	expectParseCode(t, "for x in y do 1 else 2 end", "for x in y do 1; else 2; end")
 
 	expectParseError(t, `for 1 in a {}`)
 	expectParseError(t, `for "" in a {}`)
@@ -3317,10 +3359,16 @@ func (o *parseTracer) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-type opts func(po *ParserOptions, so *ScannerOptions)
+type opts func(ctx *ParseContext)
 
-var OptParseCharAsString opts = func(po *ParserOptions, so *ScannerOptions) {
-	so.Mode |= ScanCharAsString
+var OptParseCharAsString opts = func(ctx *ParseContext) {
+	ctx.ScannerOptions.Mode |= ScanCharAsString
+}
+
+func PostTest(do func(t *testing.T, f *source.File, pos func(line, column int) Pos)) opts {
+	return func(ctx *ParseContext) {
+		ctx.PostTest(do)
+	}
 }
 
 func expectParse(t *testing.T, input string, fn expectedFn, opt ...opts) {
@@ -3335,21 +3383,33 @@ func expectParseExpr(t *testing.T, input string, expr Expr, opt ...opts) {
 	expectParseStmt(t, input, exprStmt(expr), opt...)
 }
 
+type ParseContext struct {
+	ParserOptions  *ParserOptions
+	ScannerOptions *ScannerOptions
+	PostTests      []func(t *testing.T, f *source.File, pos func(line, column int) Pos)
+}
+
+func (c *ParseContext) PostTest(f func(t *testing.T, f *source.File, pos func(line, column int) Pos)) {
+	c.PostTests = append(c.PostTests, f)
+}
+
 func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn, opt ...opts) {
 	testFileSet := NewFileSet()
 	testFile := testFileSet.AddFileData("test", -1, []byte(input))
 
 	var (
 		ok      bool
-		options = func() (po *ParserOptions, so *ScannerOptions) {
-			po = &ParserOptions{
-				Mode: mode,
-			}
-			so = &ScannerOptions{
-				MixedDelimiter: mixedDelimiter,
+		options = func() (ctx *ParseContext) {
+			ctx = &ParseContext{
+				ParserOptions: &ParserOptions{
+					Mode: mode,
+				},
+				ScannerOptions: &ScannerOptions{
+					MixedDelimiter: mixedDelimiter,
+				},
 			}
 			for _, o := range opt {
-				o(po, so)
+				o(ctx)
 			}
 			return
 		}
@@ -3358,9 +3418,9 @@ func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn, opt .
 		if !ok {
 			// print Trace
 			tr := &parseTracer{}
-			po, so := options()
-			po.Trace = tr
-			p := NewParserWithOptions(testFile, po, so)
+			ctx := options()
+			ctx.ParserOptions.Trace = tr
+			p := NewParserWithOptions(testFile, ctx.ParserOptions, ctx.ScannerOptions)
 			actual, _ := p.ParseFile()
 			if actual != nil {
 				t.Logf("Parsed:\n%s", actual.String())
@@ -3369,21 +3429,25 @@ func expectParseMode(t *testing.T, mode Mode, input string, fn expectedFn, opt .
 		}
 	}()
 
-	po, so := options()
-
-	p := NewParserWithOptions(testFile, po, so)
+	ctx := options()
+	p := NewParserWithOptions(testFile, ctx.ParserOptions, ctx.ScannerOptions)
 	actual, err := p.ParseFile()
 	require.NoError(t, err)
 
-	expected := fn(func(line, column int) Pos {
+	buildPos := func(line, column int) Pos {
 		return Pos(int(source.MustFileLineStartPos(testFile, line)) + (column - 1))
-	})
+	}
+	expected := fn(buildPos)
 
 	ft := fileTest(t, testFile, actual.InputFile)
 	ft.equal(len(expected), len(actual.Stmts), "len(file.Stmts)")
 
 	for i := 0; i < len(expected); i++ {
 		ft.equalStmt(expected[i], actual.Stmts[i])
+	}
+
+	for _, pt := range ctx.PostTests {
+		pt(t, testFile, buildPos)
 	}
 
 	ok = true
@@ -3455,8 +3519,16 @@ func expectParseString(t *testing.T, input, expected string) {
 	expectParseStringMode(t, 0, input, expected)
 }
 
+func expectParseCode(t *testing.T, input, expected string, opt ...CodeOption) {
+	expectParseCodeMode(t, 0, input, expected, opt...)
+}
+
 func expectParseStringMode(t *testing.T, mode Mode, input, expected string) {
 	expectParseStringModeT(t, mode, input, expected, nilVal)
+}
+
+func expectParseCodeMode(t *testing.T, mode Mode, input, expected string, opt ...CodeOption) {
+	expectParseCodeModeT(t, mode, input, expected, nilVal, opt...)
 }
 
 var (
@@ -3484,6 +3556,29 @@ func expectParseStringModeT[T any](t *testing.T, mode Mode, input, expected stri
 	actual, err := parseSource("test", []byte(input), nil, mode)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual.String())
+	if reflect.TypeOf(typ) != nilType {
+		assert.Equal(t, reflect.TypeOf(typ).String(), reflect.TypeOf(actual.Stmts[0].(*ExprStmt).Expr).String())
+	}
+	ok = true
+}
+
+func expectParseCodeModeT[T any](t *testing.T, mode Mode, input, expected string, typ T, opt ...CodeOption) {
+	t.Helper()
+
+	var ok bool
+	defer func() {
+		if !ok {
+			// print Trace
+			tr := &parseTracer{}
+			_, _ = parseSource("test", []byte(input), tr, mode)
+			t.Logf("Trace:\n%s", strings.Join(tr.out, ""))
+		}
+	}()
+
+	actual, err := parseSource("test", []byte(input), nil, mode)
+	require.NoError(t, err)
+
+	require.Equal(t, expected, Code(actual.Stmts, opt...))
 	if reflect.TypeOf(typ) != nilType {
 		assert.Equal(t, reflect.TypeOf(typ).String(), reflect.TypeOf(actual.Stmts[0].(*ExprStmt).Expr).String())
 	}

@@ -12,6 +12,11 @@
 
 package source
 
+import (
+	"fmt"
+	"io"
+)
+
 // Pos represents a position in the file set.
 type Pos int
 
@@ -21,4 +26,28 @@ const NoPos Pos = 0
 // IsValid returns true if the position is valid.
 func (p Pos) IsValid() bool {
 	return p != NoPos
+}
+
+// PosStackTrace is the stack of source positions
+type PosStackTrace []Pos
+
+// Format formats the FilePosStackTrace to the fmt.Formatter
+func (t PosStackTrace) Format(fs *FileSet, s fmt.State, verb rune) {
+	if len(t) == 0 {
+		io.WriteString(s, "no stack trace")
+		return
+	}
+
+	switch verb {
+	case 'v', 's':
+		if s.Flag('+') {
+			st := make(FilePosStackTrace, len(t))
+			for i, pos := range t {
+				st[i] = fs.Position(pos)
+			}
+			st.Format(s, verb)
+		} else {
+			fmt.Fprintf(s, "%v", []Pos(t))
+		}
+	}
 }

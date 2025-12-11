@@ -2,6 +2,7 @@ package source
 
 import (
 	"fmt"
+	"io"
 )
 
 // FilePos represents a position information in the file.
@@ -69,6 +70,72 @@ func (p FilePos) PositionString() (s string) {
 		}
 	}
 	return
+}
+
+func (p FilePos) TraceLines(w io.Writer, up, down int) {
+	p.File.Data.TraceLines(w, p.Line, p.Column, up, down)
+}
+
+func (p FilePos) SourceLineDataRange(up, down int) (line *LineData, upLines, downLines []*LineData) {
+	line = &LineData{
+		Line: p.Line,
+	}
+	upLines, downLines, line.Data = p.File.Data.LineSliceDataUpDown(p.Line, up, down)
+	return
+}
+
+func (p FilePos) Dump(w io.Writer, up, down int) {
+	fmt.Fprintf(w, "\n\n%v\n", p)
+	p.TraceLines(w, up, down)
+}
+
+// FilePosStackTrace is the stack of source file positions.
+type FilePosStackTrace []FilePos
+
+// Format formats the FilePosStackTrace to the fmt.Formatter interface.
+func (st FilePosStackTrace) Format(s fmt.State, verb rune) {
+	if len(st) == 0 {
+		io.WriteString(s, "no stack trace")
+		return
+	}
+
+	switch verb {
+	case 'v', 's':
+		if s.Flag('+') {
+
+			// summary
+			for i, f := range st {
+				if i > 0 {
+					io.WriteString(s, "\n\t   ")
+				} else {
+					io.WriteString(s, "\n\tat ")
+				}
+				fmt.Fprintf(s, "%+v", f)
+			}
+
+			if s.Flag('-') {
+				for _, pos := range st {
+					pos.Dump(s, 0, 0)
+				}
+			} else {
+				var (
+					up, _   = s.Width()
+					down, _ = s.Precision()
+				)
+
+				// per line detail
+				if up > 0 || down > 0 {
+					for _, pos := range st {
+						pos.Dump(s, up, down)
+					}
+				}
+			}
+		} else if s.Flag('-') {
+
+		} else {
+			fmt.Fprintf(s, "%v", []FilePos(st))
+		}
+	}
 }
 
 // SliceFile represets a slice source File
@@ -196,6 +263,21 @@ func (f *File) Unpack(offset int) (filename string, line, column int) {
 	filename = f.Name
 	if i := searchInts(f.Lines, offset); i >= 0 {
 		line, column = i+1, offset-f.Lines[i]+1
+	}
+	return
+}
+
+// DataPosition translates the file set position into the file data position.
+func (f *File) DataPosition(p Pos) (pos FilePos, err error) {
+	if p != NoPos {
+		if int(p) < f.Base || int(p) > f.Base+f.Size {
+			err = ErrIllegalPosition
+			return
+		}
+		offset := int(p) - f.Base
+		pos.Offset = offset
+		pos.File = f
+		pos.Line, pos.Column = f.Data.Unpack(offset)
 	}
 	return
 }

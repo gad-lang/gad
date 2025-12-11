@@ -2212,23 +2212,23 @@ func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {
 			var ok bool
 			switch len(x) {
 			case 1:
-				key = &node.IdentExpr{Name: "_", NamePos: x[0].Pos()}
+				key = node.EEmptyIdent(x[0].Pos())
 
 				value, ok = x[0].(*node.IdentExpr)
 				if !ok {
 					p.ErrorExpected(x[0].Pos(), "identifier")
-					value = &node.IdentExpr{Name: "_", NamePos: x[0].Pos()}
+					value = node.EEmptyIdent(x[0].Pos())
 				}
 			case 2:
 				key, ok = x[0].(*node.IdentExpr)
 				if !ok {
 					p.ErrorExpected(x[0].Pos(), "identifier")
-					key = &node.IdentExpr{Name: "_", NamePos: x[0].Pos()}
+					key = node.EEmptyIdent(x[0].Pos())
 				}
 				value, ok = x[1].(*node.IdentExpr)
 				if !ok {
 					p.ErrorExpected(x[1].Pos(), "identifier")
-					value = &node.IdentExpr{Name: "_", NamePos: x[1].Pos()}
+					value = node.EEmptyIdent(x[1].Pos())
 				}
 				// TODO: no more than 2 idents
 			}

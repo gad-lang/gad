@@ -112,7 +112,30 @@ func VMExpectErrorGen(
 		t.Run(tC.name, func(t *testing.T) {
 			t.Helper()
 			tC.opts.Trace = &tC.tracer // nolint exportloopref
-			compiled, err := gad.Compile([]byte(script), gad.CompileOptions{CompilerOptions: tC.opts})
+
+			builtins := gad.NewBuiltins()
+			builtins.AppendMap(opts.builtins)
+			tC.opts.SymbolTable = gad.NewSymbolTable(builtins)
+
+			co := gad.CompileOptions{
+				CompilerOptions: tC.opts,
+			}
+
+			if opts.exprToTextFunc != "" {
+				tC.opts.MixedExprToTextFunc = &node.IdentExpr{Name: opts.exprToTextFunc}
+			}
+			if opts.mixed {
+				co.ParserOptions.Mode |= parser.ParseMixed
+				if opts.mixedDelimiter != nil {
+					co.ScannerOptions.MixedDelimiter = *opts.mixedDelimiter
+				}
+			}
+
+			if opts.compileOptions != nil {
+				opts.compileOptions(&co)
+			}
+
+			compiled, err := gad.Compile([]byte(script), co)
 			if opts.IsCompilerErr {
 				require.Error(t, err)
 				callback(t, err)
@@ -142,6 +165,7 @@ type VMTestOpts struct {
 	builtins       map[string]gad.Object
 	exprToTextFunc string
 	mixed          bool
+	mixedDelimiter *parser.MixedDelimiter
 	buffered       bool
 	objectToWriter gad.ObjectToWriter
 	init           func(opts *VMTestOpts, expect gad.Object) (*VMTestOpts, gad.Object)
@@ -256,8 +280,11 @@ func (t *VMTestOpts) WriteObject(o gad.ObjectToWriter) *VMTestOpts {
 	return t
 }
 
-func (t *VMTestOpts) Mixed() *VMTestOpts {
+func (t *VMTestOpts) Mixed(d ...*parser.MixedDelimiter) *VMTestOpts {
 	t.mixed = true
+	if len(d) > 0 {
+		t.mixedDelimiter = d[0]
+	}
 	return t
 }
 
@@ -337,6 +364,9 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.O
 			}
 			if opts.mixed {
 				tC.opts.ParserOptions.Mode |= parser.ParseMixed
+				if opts.mixedDelimiter != nil {
+					tC.opts.ScannerOptions.MixedDelimiter = *opts.mixedDelimiter
+				}
 			}
 
 			if opts.compileOptions != nil {

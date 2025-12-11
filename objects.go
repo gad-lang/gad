@@ -1848,11 +1848,11 @@ func (o *RuntimeError) NewError(messages ...string) *RuntimeError {
 }
 
 // StackTrace returns stack trace if set otherwise returns nil.
-func (o *RuntimeError) StackTrace() StackTrace {
+func (o *RuntimeError) StackTrace() source.FilePosStackTrace {
 	if o.fileSet == nil {
 		if o.Trace != nil {
 			sz := len(o.Trace)
-			trace := make(StackTrace, sz)
+			trace := make(source.FilePosStackTrace, sz)
 			j := 0
 			for i := sz - 1; i >= 0; i-- {
 				trace[j] = source.FilePos{
@@ -1866,7 +1866,7 @@ func (o *RuntimeError) StackTrace() StackTrace {
 	}
 
 	sz := len(o.Trace)
-	trace := make(StackTrace, sz)
+	trace := make(source.FilePosStackTrace, sz)
 	j := 0
 	for i := sz - 1; i >= 0; i-- {
 		trace[j] = o.fileSet.Position(o.Trace[i])
@@ -1881,20 +1881,13 @@ func (o *RuntimeError) Format(s fmt.State, verb rune) {
 	case 'v', 's':
 		switch {
 		case s.Flag('+'):
-			_, _ = io.WriteString(s, o.ToString())
-			if len(o.Trace) > 0 {
-				if v := o.StackTrace(); v != nil {
-					_, _ = io.WriteString(s, fmt.Sprintf("%+v", v))
-				} else {
-					_, _ = io.WriteString(s, ReprQuote("nil stack trace"))
-				}
-			} else {
-				_, _ = io.WriteString(s, ReprQuote("no stack trace"))
-			}
+			io.WriteString(s, o.ToString())
+			o.StackTrace().Format(s, verb)
+
 			e := o.Unwrap()
 			for e != nil {
 				if e, ok := e.(*RuntimeError); ok && o != e {
-					_, _ = fmt.Fprintf(s, "\n\t%+v", e)
+					e.Format(s, verb)
 				}
 				if err, ok := e.(interface{ Unwrap() error }); ok {
 					e = err.Unwrap()
@@ -1907,29 +1900,6 @@ func (o *RuntimeError) Format(s fmt.State, verb rune) {
 		}
 	case 'q':
 		_, _ = io.WriteString(s, strconv.Quote(o.ToString()))
-	}
-}
-
-// StackTrace is the stack of source file positions.
-type StackTrace []source.FilePos
-
-// Format formats the StackTrace to the fmt.Formatter interface.
-func (st StackTrace) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 'v', 's':
-		switch {
-		case s.Flag('+'):
-			for i, f := range st {
-				if i > 0 {
-					_, _ = io.WriteString(s, "\n\t   ")
-				} else {
-					_, _ = io.WriteString(s, "\n\tat ")
-				}
-				_, _ = fmt.Fprintf(s, "%+v", f)
-			}
-		default:
-			_, _ = fmt.Fprintf(s, "%v", []source.FilePos(st))
-		}
 	}
 }
 

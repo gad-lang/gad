@@ -3,8 +3,10 @@ package gad_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"testing"
 
+	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/stretchr/testify/require"
 
@@ -128,7 +130,7 @@ func TestVMErrorHandlers(t *testing.T) {
 	require.Equal(t, nil, errZeroDiv.Err.Cause)
 	require.Equal(t, 2, len(errZeroDiv.Trace))
 	require.Equal(t, source.Pos(18), errZeroDiv.Trace[0])
-	require.Equal(t, source.Pos(1), errZeroDiv.Trace[1])
+	require.Equal(t, source.Pos(23), errZeroDiv.Trace[1])
 
 	errZeroDiv = nil
 	expectErrAs(t, `1/0`, newOpts().Skip2Pass(), &errZeroDiv, nil)
@@ -750,8 +752,8 @@ func TestVMExamples(t *testing.T) {
 			"Total":        Nil,
 			"ModuleErrors": Int(1),
 			"Error": Str(`TypeError: want int, got nil
-	at (main):27:4
-	   (main):16:3
+	at (main):27:19
+	   (main):16:18
 	   module:16:4
 	   module:10:6`),
 		})
@@ -861,4 +863,137 @@ func TestVMExamples(t *testing.T) {
 	`).Out(printWriter).Globals(g).Skip2Pass(), Nil)
 	require.Equal(t, Int(1), g.(*SyncDict).Value["stats"].(Dict)["fn1"])
 	require.Equal(t, Int(1), g.(*SyncDict).Value["stats"].(Dict)["fn2"])
+}
+
+func TestVMErrorTrace(t *testing.T) {
+	var badError *RuntimeError
+	expectErrAs(t, `‹‹‹
+//!!0
+x := func() { throw error("bad code")  }
+›››<p>‹‹‹=
+//!!1
+  x()
+›››</p>`,
+		newOpts().Globals(Dict{"fn": &callerObject{}}).Mixed(&parser.MixedDelimiter{Start: []rune("‹‹‹"), End: []rune("›››")}),
+		&badError,
+		nil,
+	)
+	require.Equal(t, `error: bad code
+	at (main):6:4
+	   (main):3:15`, fmt.Sprintf("%+v", badError))
+
+	require.Equal(t, `error: bad code
+	at (main):6:4
+	   (main):3:15
+
+(main):6:4
+         5| //!!1
+       🠆 6|   x()
+               ^
+         7| ›››</p>
+
+(main):3:15
+         2| //!!0
+       🠆 3| x := func() { throw error("bad code")  }
+                          ^
+         4| ›››<p>‹‹‹=`, fmt.Sprintf("%+1.1v", badError))
+
+	require.Equal(t, `error: bad code
+	at (main):6:4
+	   (main):3:15
+
+(main):6:4
+         3| x := func() { throw error("bad code")  }
+         4| ›››<p>‹‹‹=
+         5| //!!1
+       🠆 6|   x()
+               ^
+         7| ›››</p>
+
+(main):3:15
+         1| ‹‹‹
+         2| //!!0
+       🠆 3| x := func() { throw error("bad code")  }
+                          ^
+         4| ›››<p>‹‹‹=
+         5| //!!1
+         6|   x()`, fmt.Sprintf("%+3.3v", badError))
+
+	badError = nil
+	expectErrAs(t, `‹‹‹
+//!!0
+x := func() { throw error("bad code")  }
+›››<p>‹‹‹=
+//!!1
+      (
+
+   func() { 
+       throw error("bad code 2")
+       // after error
+   }
+)()
+›››</p>`,
+		newOpts().Globals(Dict{"fn": &callerObject{}}).Mixed(&parser.MixedDelimiter{Start: []rune("‹‹‹"), End: []rune("›››")}),
+		&badError,
+		nil,
+	)
+	require.Equal(t, `error: bad code 2`, fmt.Sprintf("%v", badError))
+	require.Equal(t, `error: bad code 2
+	at (main):12:2
+	   (main):9:8`, fmt.Sprintf("%+v", badError))
+	require.Equal(t, `error: bad code 2
+	at (main):12:2
+	   (main):9:8
+
+(main):12:2
+      🠆 12| )()
+             ^
+
+(main):9:8
+       🠆 9|        throw error("bad code 2")
+                   ^`, fmt.Sprintf("%+-v", badError))
+	require.Equal(t, `error: bad code 2
+	at (main):12:2
+	   (main):9:8
+
+(main):12:2
+        11|    }
+      🠆 12| )()
+             ^
+
+(main):9:8
+         8|    func() { 
+       🠆 9|        throw error("bad code 2")
+                   ^`, fmt.Sprintf("%+1v", badError))
+	require.Equal(t, `error: bad code 2
+	at (main):12:2
+	   (main):9:8
+
+(main):12:2
+      🠆 12| )()
+             ^
+        13| ›››</p>
+
+(main):9:8
+       🠆 9|        throw error("bad code 2")
+                   ^
+        10|        // after error`, fmt.Sprintf("%+.1v", badError))
+	require.Equal(t, `error: bad code 2
+	at (main):12:2
+	   (main):9:8
+
+(main):12:2
+        10|        // after error
+        11|    }
+      🠆 12| )()
+             ^
+        13| ›››</p>
+
+(main):9:8
+         8|    func() { 
+       🠆 9|        throw error("bad code 2")
+                   ^
+        10|        // after error
+        11|    }
+        12| )()`, fmt.Sprintf("%+2.3v", badError))
 }

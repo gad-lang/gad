@@ -1488,7 +1488,7 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 		}
 	}
 
-	c.emit(nd, op, numArgs, int(flags))
+	c.emitPos(nd.CallPos(), nd, op, numArgs, int(flags))
 	return nil
 }
 

@@ -32,6 +32,10 @@ type Stmt interface {
 
 type Stmts []Stmt
 
+func (s Stmts) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteStmts(s...)
+}
+
 func (s *Stmts) Append(n ...Stmt) {
 	*s = append(*s, n...)
 }

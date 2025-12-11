@@ -230,6 +230,10 @@ func EIdent(name string, pos source.Pos) *IdentExpr {
 	return &IdentExpr{Name: name, NamePos: pos}
 }
 
+func EEmptyIdent(pos source.Pos) *IdentExpr {
+	return &IdentExpr{Name: "_", NamePos: pos, Empty: true}
+}
+
 func ETypedIdent(ident *IdentExpr, typ ...*IdentExpr) *TypedIdentExpr {
 	return &TypedIdentExpr{Ident: ident, Type: typ}
 }
