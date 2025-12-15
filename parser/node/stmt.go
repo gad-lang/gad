@@ -111,21 +111,36 @@ func (s *BlockStmt) End() source.Pos {
 	return s.RBrace.End()
 }
 
+func (s *BlockStmt) LeftBrace() string {
+	if s.LBrace.Value == "" {
+		return "{"
+	}
+	return s.LBrace.Value
+}
+
+func (s *BlockStmt) RightBrace() string {
+	if s.RBrace.Value == "" {
+		return "}"
+	}
+	return s.RBrace.Value
+}
+
 func (s *BlockStmt) String() string {
 	var (
 		b    strings.Builder
 		data = s.Stmts.String()
 	)
 
-	b.WriteString(s.LBrace.Value)
+	b.WriteString(s.LeftBrace())
+	rb := s.RightBrace()
 	if len(data) > 0 {
 		b.WriteString(" ")
 		b.WriteString(data)
 		b.WriteString(" ")
-	} else if s.RBrace.Value == "" || (s.RBrace.Value[0] >= 'a' && s.RBrace.Value[0] <= 'z') {
+	} else if rb[0] >= 'a' && rb[0] <= 'z' {
 		b.WriteString(" ")
 	}
-	b.WriteString(s.RBrace.Value)
+	b.WriteString(rb)
 	return b.String()
 }
 
@@ -134,27 +149,33 @@ func (s *BlockStmt) WriteCode(ctx *CodeWriteContext) {
 }
 
 func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) {
+	lb, rb := s.LeftBrace(), s.RightBrace()
+	if lb == "{" {
+		rb = "}"
+	}
+
 	if len(s.Stmts) == 0 {
 		var sep string
-		if s.LBrace.Value != "{" {
+		if lb != "{" {
 			sep += " "
 		}
-		ctx.WriteString(s.LBrace.Value + sep + s.RBrace.Value)
+		ctx.WriteString(lb + sep + rb)
 		return
 	}
 
 	if s.Scoped {
 		ctx.WritePrefix()
-		ctx.WriteString(s.LBrace.Value)
+		ctx.WriteString(lb)
 		ctx.WriteSecondLine()
 		selfDepth = true
 	} else {
-		ctx.WriteString(s.LBrace.Value)
-		if ctx.Prefix == "" && s.LBrace.Value != "{" {
+		ctx.WriteString(lb)
+		if ctx.Prefix == "" && lb != "{" {
 			ctx.WriteString(" ")
 		}
 		ctx.WriteSecondLine()
 	}
+
 	if selfDepth {
 		ctx.Depth++
 		ctx.WriteStmts(s.Stmts...)
@@ -162,13 +183,16 @@ func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) 
 	} else {
 		ctx.WriteStmts(s.Stmts...)
 	}
+
 	ctx.WriteSemi()
+
 	if selfDepth {
 		ctx.WritePrefix()
 	} else {
 		ctx.WritePrevPrefix()
 	}
-	ctx.WriteString(s.RBrace.Value)
+
+	ctx.WriteString(rb)
 }
 
 // BranchStmt represents a branch statement.
@@ -324,7 +348,7 @@ func (s *ForInStmt) WriteCode(ctx *CodeWriteContext) {
 	s.Body.WriteCodeInSelfDepth(ctx, true)
 
 	if s.Else != nil {
-		ctx.WriteString("else")
+		ctx.WriteString(" else ")
 		s.Else.WriteCodeInSelfDepth(ctx, true)
 	}
 }

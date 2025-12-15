@@ -1181,7 +1181,7 @@ func (e *FuncExpr) String() string {
 func (e *FuncExpr) WriteCode(ctx *CodeWriteContext) {
 	var f string
 	if e.Type.FuncPos != 0 {
-		f = "func "
+		f = "func"
 	}
 
 	ctx.WriteString(f + e.Type.String() + " ")
