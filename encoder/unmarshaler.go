@@ -401,6 +401,11 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 					return err
 				}
 				o.Params[i] = gad.NewParam(string(obj.(gad.Str)))
+				if b, err := rd.ReadByte(); err != nil {
+					return err
+				} else {
+					o.Params[i].Var = b == 1
+				}
 				if types, err := DecodeObject(rd); err != nil {
 					return err
 				} else if typesArr := types.(gad.Array); len(typesArr) > 0 {
@@ -423,8 +428,6 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 				return err
 			}
 			o.Instructions = obj.(gad.Bytes)
-		case 6:
-			o.Params[len(o.Params)-1].Var = true
 		case 7:
 			v, err := vi.read()
 			if err != nil {
@@ -438,6 +441,11 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 					return err
 				} else {
 					namedParams[i] = gad.NewNamedParam(string(name.(gad.Str)), string(value.(gad.Str)))
+				}
+				if b, err := rd.ReadByte(); err != nil {
+					return err
+				} else {
+					namedParams[i].Var = b == 1
 				}
 				if types, err := DecodeObject(rd); err != nil {
 					return err

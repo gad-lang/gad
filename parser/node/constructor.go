@@ -234,7 +234,7 @@ func EEmptyIdent(pos source.Pos) *IdentExpr {
 	return &IdentExpr{Name: "_", NamePos: pos, Empty: true}
 }
 
-func ETypedIdent(ident *IdentExpr, typ ...*IdentExpr) *TypedIdentExpr {
+func ETypedIdent(ident *IdentExpr, typ ...*TypeExpr) *TypedIdentExpr {
 	return &TypedIdentExpr{Ident: ident, Type: typ}
 }
 

@@ -539,6 +539,25 @@ func (p *Parser) AtComma(context string, follow token.Token) bool {
 	return false
 }
 
+func (p *Parser) ParseIndexExpr(x node.Expr) *node.IndexExpr {
+	if p.Trace {
+		defer untracep(tracep(p, "Index"))
+	}
+
+	lbrack := p.Expect(token.LBrack)
+	p.ExprLevel++
+
+	index := p.ParseExpr()
+	p.ExprLevel--
+	rbrack := p.Expect(token.RBrack)
+	return &node.IndexExpr{
+		Expr:   x,
+		LBrack: lbrack,
+		RBrack: rbrack,
+		Index:  index,
+	}
+}
+
 func (p *Parser) ParseIndexOrSlice(x node.Expr) node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "IndexOrSlice"))
@@ -602,13 +621,40 @@ func (p *Parser) ParseSelectorNode(x node.Expr) (expr, sel node.Expr) {
 	return
 }
 
-func (p *Parser) ParseSelector(x node.Expr) (sel node.Expr) {
+func (p *Parser) ParseSimpleSelector(x node.Expr) (sel *node.SelectorExpr) {
+	if p.Trace {
+		defer untracep(tracep(p, "SimpleSelector"))
+	}
+
+	var s node.Expr
+	x, s = p.ParseSimpleSelectorNode(x)
+	return &node.SelectorExpr{Expr: x, Sel: s}
+}
+
+func (p *Parser) ParseSimpleSelectorNode(x node.Expr) (expr, sel node.Expr) {
+	switch p.Token.Token {
+	case token.LParen:
+		lparen := p.Token.Pos
+		p.Next()
+		sel = p.ParseExpr()
+		rparen := p.Expect(token.RParen)
+		sel = &node.ParenExpr{Expr: sel, LParen: lparen, RParen: rparen}
+	default:
+		ident := p.ParseIdent()
+		sel = node.String(ident.Name, ident.NamePos)
+	}
+	expr = x
+	return
+}
+
+func (p *Parser) ParseSelector(x node.Expr) (sel *node.SelectorExpr) {
 	if p.Trace {
 		defer untracep(tracep(p, "Selector"))
 	}
 
-	x, sel = p.ParseSelectorNode(x)
-	return &node.SelectorExpr{Expr: x, Sel: sel}
+	var s node.Expr
+	x, s = p.ParseSelectorNode(x)
+	return &node.SelectorExpr{Expr: x, Sel: s}
 }
 
 func (p *Parser) ParseNullishSelector(x node.Expr) (sel node.Expr) {
@@ -1031,7 +1077,7 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 			if p.Token.Token == token.Ident {
 				expr = &node.TypedIdentExpr{
 					Ident: ident,
-					Type:  p.ParseType(),
+					Type:  p.ParseTypes(),
 				}
 			}
 		}
@@ -1098,6 +1144,15 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 			&node.KeyValuePairLit{},
 			&node.ArgVarLit{},
 			&node.NamedArgVarLit{}) {
+
+		for {
+			if paren, _ := exprs[0].(*node.ParenExpr); paren != nil {
+				exprs[0] = paren.Expr
+			} else {
+				break
+			}
+		}
+
 		return &node.ParenExpr{
 			LParen: lparen,
 			Expr:   exprs[0],
@@ -1310,26 +1365,60 @@ func (p *Parser) ParseIdent() *node.IdentExpr {
 func (p *Parser) ParseTypedIdent() *node.TypedIdentExpr {
 	return &node.TypedIdentExpr{
 		Ident: p.ParseIdent(),
-		Type:  p.ParseType(),
+		Type:  p.ParseTypes(),
 	}
 }
 
-func (p *Parser) ParseType() (idents []*node.IdentExpr) {
+func (p *Parser) ParseSimpleSelectorExpr(x node.Expr) node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "SimpleSelectorExpr"))
+	}
+
+L:
+	for {
+		switch p.Token.Token {
+		case token.Period:
+			p.Next()
+
+			switch p.Token.Token {
+			case token.Ident, token.LParen:
+				x = p.ParseSimpleSelector(x)
+			default:
+				pos := p.Token.Pos
+				p.ErrorExpected(pos, "simple selector")
+				p.advance(stmtStart)
+				return &node.BadExpr{From: pos, To: p.Token.Pos}
+			}
+		case token.LBrack:
+			x = p.ParseIndexExpr(x)
+		default:
+			break L
+		}
+	}
+	return x
+}
+
+func (p *Parser) parseType() (t *node.TypeExpr) {
+	return &node.TypeExpr{Expr: p.ParseSimpleSelectorExpr(p.ParseIdent())}
+}
+
+func (p *Parser) ParseTypes() (types []*node.TypeExpr) {
 	if p.Token.Token == token.Ident {
 		var (
 			exists = map[string]any{}
-			add    = func(ident *node.IdentExpr) {
-				if _, ok := exists[ident.Name]; !ok {
-					idents = append(idents, ident)
-					exists[ident.Name] = nil
+			add    = func(t *node.TypeExpr) {
+				s := t.String()
+				if _, ok := exists[s]; !ok {
+					types = append(types, t)
+					exists[s] = nil
 				}
 			}
 		)
 
-		add(p.ParseIdent())
+		add(p.parseType())
 		for p.Token.Token == token.Or {
 			p.Next()
-			add(p.ParseIdent())
+			add(p.parseType())
 		}
 	}
 	return
@@ -1585,7 +1674,7 @@ func (p *Parser) ParseParamDecl() (d *node.GenDecl) {
 		})
 	case token.Ident:
 		ident := p.ParseIdent()
-		types := p.ParseType()
+		types := p.ParseTypes()
 
 		if p.Token.Token == token.Assign {
 			p.Next()
@@ -2399,7 +2488,7 @@ func (p *Parser) ParseKeyValueLit() *node.KeyValueLit {
 		if ident, _ := keyExpr.(*node.IdentExpr); ident != nil {
 			keyExpr = &node.TypedIdentExpr{
 				Ident: ident,
-				Type:  p.ParseType(),
+				Type:  p.ParseTypes(),
 			}
 		}
 		fallthrough
@@ -2437,7 +2526,7 @@ func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLi
 		if ident, _ := keyExpr.(*node.IdentExpr); ident != nil {
 			keyExpr = &node.TypedIdentExpr{
 				Ident: ident,
-				Type:  p.ParseType(),
+				Type:  p.ParseTypes(),
 			}
 		}
 		fallthrough

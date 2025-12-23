@@ -275,8 +275,9 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 			names = append(names, spec.Ident.Ident.Name)
 			if len(spec.Ident.Type) > 0 {
 				symbols := make([]*SymbolInfo, len(spec.Ident.Type))
-				for i2, name := range spec.Ident.Type {
-					symbol, ok := c.symbolTable.Resolve(name.Name)
+				for i2, t := range spec.Ident.Type {
+					name := t.Ident().Name
+					symbol, ok := c.symbolTable.Resolve(name)
 					if !ok {
 						return c.errorf(nd, "unresolved reference %q", name)
 					}
@@ -320,8 +321,9 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 		} else {
 			np := NewNamedParam(spec.Ident.Ident.Name, spec.Value.String())
 			np.Type = make([]*SymbolInfo, len(spec.Ident.Type))
-			for i2, name := range spec.Ident.Type {
-				symbol, ok := c.symbolTable.Resolve(name.Name)
+			for i2, t := range spec.Ident.Type {
+				name := t.Ident().Name
+				symbol, ok := c.symbolTable.Resolve(name)
 				if !ok {
 					return c.errorf(nd, "unresolved reference %q", name)
 				}
@@ -1121,13 +1123,20 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 		if names, types, err2 := c.nameSymbolsOfTypedIdent(nd, name); err2 != nil {
 			return err2
 		} else {
-			namedParams[i] = NewNamedParam(names, typ.Params.NamedArgs.Values[i].String())
-			namedParams[i].Type = types
+			var vs string
+			if v := typ.Params.NamedArgs.Values[i]; v != nil {
+				vs = v.String()
+			}
+			np := NewNamedParam(names, vs)
+			np.Type = types
+			namedParams[i] = np
 		}
 	}
 
 	if typ.Params.NamedArgs.Var != nil {
-		namedParams = append(namedParams, &NamedParam{Name: typ.Params.NamedArgs.Var.Ident.Name})
+		np := NewNamedParam(typ.Params.NamedArgs.Var.Ident.Name, "")
+		np.Var = true
+		namedParams = append(namedParams, np)
 	}
 
 	if len(namedParams) > 0 {
@@ -1820,6 +1829,9 @@ elems:
 func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name string, namesPos source.Pos, value node.Expr)) (stmts []node.Stmt) {
 	for i := 0; i < count; i++ {
 		name, namePos, value := get(i)
+		if value == nil {
+			value = &node.NilLit{}
+		}
 		nameLit := node.String(name, namePos)
 		values := []node.Expr{nameLit}
 		stmts = append(stmts, &node.AssignStmt{
@@ -1845,6 +1857,9 @@ func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name s
 func (c *Compiler) helperBuildKwargsIfUndefinedStmts(count int, get func(index int) (ident *node.IdentExpr, types []*SymbolInfo, value node.Expr)) (stmts []node.Stmt) {
 	for i := 0; i < count; i++ {
 		name, types, value := get(i)
+		if value == nil {
+			value = &node.NilLit{}
+		}
 		ident := name
 		if len(types) > 0 {
 			var typesArg node.Expr = &node.IdentExpr{
@@ -1908,10 +1923,11 @@ func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdentExpr)
 	name = ti.Ident.Name
 	if len(ti.Type) > 0 {
 		symbols = make([]*SymbolInfo, len(ti.Type))
-		for i2, tname := range ti.Type {
-			symbol, ok := c.symbolTable.Resolve(tname.Name)
+		for i2, t := range ti.Type {
+			n := t.Ident().Name
+			symbol, ok := c.symbolTable.Resolve(n)
 			if !ok {
-				err = c.errorf(nd, "unresolved reference %q", tname)
+				err = c.errorf(nd, "unresolved reference %q", n)
 				return
 			}
 			symbols[i2] = &symbol.SymbolInfo

@@ -190,9 +190,39 @@ func (e *IdentExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.Name)
 }
 
+type TypeExpr struct {
+	Expr
+}
+
+func (e *TypeExpr) ExprNode() {}
+
+func (e *TypeExpr) Pos() source.Pos {
+	return e.Expr.Pos()
+}
+
+func (e *TypeExpr) End() source.Pos {
+	return e.Expr.End()
+}
+
+func (e *TypeExpr) Ident() *IdentExpr {
+	var walk func(e Expr) *IdentExpr
+	walk = func(e Expr) *IdentExpr {
+		switch e := e.(type) {
+		case *IdentExpr:
+			return e
+		case *IndexExpr:
+			return walk(e.Expr)
+		case *SelectorExpr:
+			return walk(e.Expr)
+		}
+		return nil
+	}
+	return walk(e.Expr)
+}
+
 type TypedIdentExpr struct {
 	Ident *IdentExpr
-	Type  []*IdentExpr
+	Type  []*TypeExpr
 }
 
 func (e *TypedIdentExpr) ExprNode() {}
@@ -216,8 +246,8 @@ func (e *TypedIdentExpr) String() string {
 			return e.Ident.String()
 		} else {
 			var s = make([]string, l)
-			for i, ident := range e.Type {
-				s[i] = ident.String()
+			for i, t := range e.Type {
+				s[i] = t.String()
 			}
 			return e.Ident.String() + " " + strings.Join(s, "|")
 		}

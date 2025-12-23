@@ -105,10 +105,19 @@ func (n *NamedArgsList) NumFields() int {
 	return i
 }
 
+func (n *NamedArgsList) IsZero() bool {
+	return n.NumFields() == 0
+}
+
 func (n *NamedArgsList) String() string {
 	var list []string
 	for i, e := range n.Names {
-		list = append(list, e.String()+"="+n.Values[i].String())
+		v := n.Values[i]
+		if v == nil {
+			list = append(list, e.String())
+		} else {
+			list = append(list, e.String()+"="+v.String())
+		}
 	}
 	if n.Var != nil {
 		list = append(list, "**"+n.Var.String())
@@ -155,8 +164,8 @@ func (n *FuncParams) End() (pos source.Pos) {
 func (n *FuncParams) String() string {
 	buf := bytes.NewBufferString("(")
 	buf.WriteString(n.Args.String())
-	if buf.Len() > 1 && n.NamedArgs.NumFields() > 0 {
-		buf.WriteString(", ")
+	if !n.NamedArgs.IsZero() {
+		buf.WriteString("; ")
 	}
 	buf.WriteString(n.NamedArgs.String())
 	buf.WriteString(")")

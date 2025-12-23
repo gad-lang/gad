@@ -266,6 +266,11 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 		for _, p := range o.Params {
 			b, _ := String(p.Name).MarshalBinary()
 			tmpBuf.Write(b)
+			if p.Var {
+				tmpBuf.WriteByte(1)
+			} else {
+				tmpBuf.WriteByte(0)
+			}
 			symbols := make(gad.Array, len(p.Type))
 			for i, info := range p.Type {
 				symbols[i] = info
@@ -292,13 +297,8 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 		tmpBuf.Write(data)
 	}
 
-	// Variadic field #6
-	if o.Params.Var() {
-		tmpBuf.WriteByte(6)
-	}
-
 	if l := o.NamedParams.Len(); l > 0 {
-		// Variadic field #7
+		// named params field #7
 		tmpBuf.WriteByte(7)
 		tmpBuf.Write(vi.toBytes(int64(l)))
 		for _, n := range o.NamedParams.Params {
@@ -306,6 +306,11 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 			tmpBuf.Write(b)
 			b, _ = String(n.Value).MarshalBinary()
 			tmpBuf.Write(b)
+			if n.Var {
+				tmpBuf.WriteByte(1)
+			} else {
+				tmpBuf.WriteByte(0)
+			}
 			symbols := make(gad.Array, len(n.Type))
 			for i, info := range n.Type {
 				symbols[i] = info

@@ -431,6 +431,8 @@ func TestParseDecl(t *testing.T) {
 	expectParseString(t, "param (a,\n*b\n; c=2,\nx=5)", "param (a, *b, c=2, x=5)")
 
 	expectParseString(t, "param x int", "param x int")
+	expectParseString(t, "param x a.b.c|int", "param x a.b.c|int")
+	expectParseString(t, "param x a[1].b.(c).c|int", "param x a[1].b.(c).c|int")
 	expectParseString(t, "param x int|bool", "param x int|bool")
 	expectParseString(t, "param (\nx int,\n)", "param (x int)")
 	expectParseString(t, "param (\nx int,\ny)", "param (x int, y)")
@@ -1937,8 +1939,8 @@ func TestParseFor(t *testing.T) {
 }
 
 func TestParseClosure(t *testing.T) {
-	expectParseStringT(t, `(a,*b,c=2,**d) => 3`, `(a, *b, c=2, **d) => 3`, &ClosureExpr{})
-	expectParseStringT(t, `(a,*b,c=2) => 3`, `(a, *b, c=2) => 3`, &ClosureExpr{})
+	expectParseStringT(t, `(a,*b,c=2,**d) => 3`, `(a, *b; c=2, **d) => 3`, &ClosureExpr{})
+	expectParseStringT(t, `(a,*b,c=2) => 3`, `(a, *b; c=2) => 3`, &ClosureExpr{})
 	expectParse(t, "a = (b, c, d) => d", func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(
@@ -1982,10 +1984,10 @@ func TestParseClosure(t *testing.T) {
 }
 
 func TestParseFunction(t *testing.T) {
+	expectParseString(t, "func(){}", "func() {}")
 	expectParseString(t, "func(a int){}", "func(a int) {}")
 	expectParseString(t, "func(a int|bool|int){}", "func(a int|bool) {}")
 	expectParseString(t, "func(a \n int|\n\tbool){}", "func(a int|bool) {}")
-	expectParseString(t, "func(){}", "func() {}")
 	expectParse(t, "func fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
@@ -1998,7 +2000,30 @@ func TestParseFunction(t *testing.T) {
 					blockStmt(p(1, 13), p(1, 24),
 						returnStmt(p(1, 15), ident("d", p(1, 22)))))))
 	})
+	expectParseString(t, "func(v int){}", "func(v int) {}")
+	expectParseString(t, "func(v a.b.int){}", "func(v a.b.int) {}")
+	expectParseString(t, "func(v a.(b).int){}", "func(v a.(b).int) {}")
+	expectParseString(t, "func(v a.(b[1])[2].int){}", "func(v a.(b[1])[2].int) {}")
+	expectParseString(t, "func(v a.(b[1])[2].int|x){}", "func(v a.(b[1])[2].int|x) {}")
+	expectParseString(t, "func(v a.(b[1])[2].int|x.y.z){}", "func(v a.(b[1])[2].int|x.y.z) {}")
+	expectParseString(t, "func(v a.(b[1])[2].int|x.y[2][4].z){}", "func(v a.(b[1])[2].int|x.y[2][4].z) {}")
 
+	expectParse(t, "func(;x){}", func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				funcLit(
+					funcType(p(1, 1), nil, p(1, 5), p(1, 8),
+						funcNamedArgs(
+							nil,
+							[]*TypedIdentExpr{
+								typedIdent(ident("x", p(1, 7))),
+							},
+							[]Expr{nil}),
+					),
+					blockStmt(p(1, 9), p(1, 10)))),
+		)
+	})
+	expectParseString(t, "func(;x){}", "func(; x) {}")
 	expectParse(t, "a = func(b, c, d, e=1, f=2, **g) { return d }", func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(
@@ -2101,20 +2126,20 @@ func TestParseFunction(t *testing.T) {
 	expectParseString(t, "func(a,b,\n*c,\n){}", "func(a, b, *c) {}")
 	expectParseString(t, "func(\na,\nb,\n*c,\n){}", "func(a, b, *c) {}")
 
-	expectParseString(t, "func(a,kw=2,){}", "func(a, kw=2) {}")
-	expectParseString(t, "func(a,*b,c=1,**d\n){}", "func(a, *b, c=1, **d) {}")
-	expectParseString(t, "func(\na,\n*b\n\n,\nc=\n\t1,\n\n**d\n \t\n){}", "func(a, *b, c=1, **d) {}")
-	expectParseString(t, "func(a,kw=2,){}", "func(a, kw=2) {}")
-	expectParseString(t, "func(a,*b,c=1,**d\n){}", "func(a, *b, c=1, **d) {}")
-	expectParseString(t, "func(\na,\n*b\n\n,\nc=\n\t1,\n\n**d\n \t\n){}", "func(a, *b, c=1, **d) {}")
+	expectParseString(t, "func(a,kw=2,){}", "func(a; kw=2) {}")
+	expectParseString(t, "func(a,*b,c=1,**d\n){}", "func(a, *b; c=1, **d) {}")
+	expectParseString(t, "func(\na,\n*b\n\n,\nc=\n\t1,\n\n**d\n \t\n){}", "func(a, *b; c=1, **d) {}")
+	expectParseString(t, "func(a,kw=2,){}", "func(a; kw=2) {}")
+	expectParseString(t, "func(a,*b,c=1,**d\n){}", "func(a, *b; c=1, **d) {}")
+	expectParseString(t, "func(\na,\n*b\n\n,\nc=\n\t1,\n\n**d\n \t\n){}", "func(a, *b; c=1, **d) {}")
 	expectParseString(t, "func(a\n,){}", "func(a) {}")
 	expectParseString(t, "func(a\n\n,){}", "func(a) {}")
 	expectParseString(t, "func(\n*a\n\n,){}", "func(*a) {}")
 	expectParseString(t, "func(a\n,*b){}", "func(a, *b) {}")
 	expectParseString(t, "func(a\n,*b){}", "func(a, *b) {}")
 	expectParseString(t, "func(\na\n,*b){}", "func(a, *b) {}")
-	expectParseString(t, "func(*a,\n**b){}", "func(*a, **b) {}")
-	expectParseString(t, `func(;x int=1, y str="abc", **kw) {}`, `func(x int=1, y str="abc", **kw) {}`)
+	expectParseString(t, "func(*a,\n**b){}", "func(*a; **b) {}")
+	expectParseString(t, `func(;x int=1, y str="abc", **kw) {}`, `func(; x int=1, y str="abc", **kw) {}`)
 
 	expectParseError(t, "func(...a,b){}")
 	expectParseError(t, "func(a,...b;c=1,...d,...e){}")
@@ -3801,7 +3826,7 @@ func ident(name string, pos Pos) *IdentExpr {
 	return &IdentExpr{Name: name, NamePos: pos}
 }
 
-func typedIdent(ident *IdentExpr, typ ...*IdentExpr) *TypedIdentExpr {
+func typedIdent(ident *IdentExpr, typ ...*TypeExpr) *TypedIdentExpr {
 	return &TypedIdentExpr{Ident: ident, Type: typ}
 }
 
@@ -4201,7 +4226,19 @@ func (f *fileTester) equalExpr(expected, actual Expr) {
 		f.equal(expected.NamePos, actual.(*IdentExpr).NamePos)
 	case *TypedIdentExpr:
 		f.equalExpr(expected.Ident, actual.(*TypedIdentExpr).Ident)
-		f.equalIdents(expected.Type, actual.(*TypedIdentExpr).Type)
+		var (
+			etypes = make([]Expr, len(expected.Type))
+			atypes = make([]Expr, len(actual.(*TypedIdentExpr).Type))
+		)
+		for i, expr := range expected.Type {
+			etypes[i] = expr
+		}
+		for i, expr := range actual.(*TypedIdentExpr).Type {
+			atypes[i] = expr
+		}
+		f.equalExprs(etypes, atypes)
+	case *TypeExpr:
+		f.equalExpr(expected.Expr, actual.(*TypeExpr).Expr)
 	case *IntLit:
 		f.equal(expected.Value, actual.(*IntLit).Value)
 		f.equal(expected.ValuePos, actual.(*IntLit).ValuePos)
@@ -4388,13 +4425,6 @@ func (f *fileTester) equalNamedArgsNames(expected, actual []NamedArgExpr) {
 	for i := 0; i < len(expected); i++ {
 		f.equalExpr(expected[i].Ident, actual[i].Ident)
 		f.equalExpr(expected[i].Lit, actual[i].Lit)
-	}
-}
-
-func (f *fileTester) equalIdents(expected, actual []*IdentExpr) {
-	f.equal(len(expected), len(actual))
-	for i := 0; i < len(expected); i++ {
-		f.equalExpr(expected[i], actual[i])
 	}
 }
 

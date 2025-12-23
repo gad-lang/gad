@@ -309,9 +309,14 @@ func EqualExpr(t *testing.T, expected, actual node.Expr) {
 			actual.(*node.IdentExpr).Name)
 		require.Equal(t, int(expected.NamePos),
 			int(actual.(*node.IdentExpr).NamePos))
+	case *node.TypeExpr:
+		require.Equal(t, expected.Expr, actual.(*node.TypeExpr).Expr)
 	case *node.TypedIdentExpr:
 		EqualExpr(t, expected.Ident, actual.(*node.TypedIdentExpr).Ident)
-		EqualIdents(t, expected.Type, actual.(*node.TypedIdentExpr).Type)
+		require.Equal(t, len(expected.Type), len(actual.(*node.TypedIdentExpr).Type))
+		for i := range expected.Type {
+			EqualExpr(t, expected.Type[i], actual.(*node.TypedIdentExpr).Type[i])
+		}
 	case *node.IntLit:
 		require.Equal(t, expected.Value,
 			actual.(*node.IntLit).Value)
