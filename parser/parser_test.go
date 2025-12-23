@@ -2804,30 +2804,30 @@ key2: 2
 	expectParseError(t, `{1: 1}`)
 
 	expectParse(t, `({
-	x() = 10,
+	x(): 10,
 })`, func(p pfn) []Stmt {
 		return stmts(exprStmt(parenExpr(dictLit(p(1, 2), p(3, 1),
 			dicElementLit("x", p(2, 2), 0,
-				EDictElementClosure(closure(token.Assign, p(2, 6), funcParams(p(2, 3), p(2, 4)), intLit(10, p(2, 8))))),
+				EDictElementClosure(closure(token.Colon, p(2, 5), funcParams(p(2, 3), p(2, 4)), intLit(10, p(2, 7))))),
 		), p(1, 1), p(3, 2))))
 	})
 
 	expectParse(t, `({
-	x() = 10,
+	x(): 10,
 	y() {
 		return 11
 	},
 })`, func(p pfn) []Stmt {
 		return stmts(exprStmt(parenExpr(dictLit(p(1, 2), p(6, 1),
-			dicElementLit("x", p(2, 2), 0, EDictElementClosure(closure(token.Assign, p(2, 6), funcParams(p(2, 3), p(2, 4)), intLit(10, p(2, 8))))),
+			dicElementLit("x", p(2, 2), 0, EDictElementClosure(closure(token.Colon, p(2, 5), funcParams(p(2, 3), p(2, 4)), intLit(10, p(2, 7))))),
 			dicElementLit("y", p(3, 2), 0, EDictElementFunc(funcLit(funcType(0, nil, p(3, 3), p(3, 4)), blockStmt(p(3, 6), p(5, 2), returnStmt(p(4, 3), intLit(11, p(4, 10))))))),
 		), p(1, 1), p(6, 2))))
 	})
 
-	expectParseString(t, `({x()=10})`, `({x() = 10})`)
-	expectParseString(t, `({x()=10,y() {return 11}})`, `({x() = 10, y() { return 11 }})`)
-	expectParseString(t, `({x: () => 10})`, `({x() = 10})`)
-	expectParseString(t, `({x: func() => 10})`, `({x() = 10})`)
+	expectParseString(t, `({x():10})`, `({x(): 10})`)
+	expectParseString(t, `({x():10,y() {return 11}})`, `({x(): 10, y() { return 11 }})`)
+	expectParseString(t, `({x: () => 10})`, `({x(): 10})`)
+	expectParseString(t, `({x: func() => 10})`, `({x(): 10})`)
 	expectParseString(t, `({x: func() { return 10 }})`, `({x() { return 10 }})`)
 }
 

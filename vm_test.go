@@ -77,11 +77,11 @@ func TestVMDict(t *testing.T) {
 		newOpts().Args(MustNewReflectValue(&d)),
 		Array{Dict{"a": Int(1)}, Dict{"a": Int(1)}})
 	testExpectRun(t, `d := {
-	a() = 1, 
+	a(): 1, 
 	b(){ 
 		return 2
 	}, 
-	c(x) = x+1,
+	c(x): x+1,
 	d(y) {
 		return y**2
 	},

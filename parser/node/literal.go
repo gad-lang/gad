@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -230,7 +231,7 @@ func (e *DictElementLit) Func() (f *DictElementFuncExpr) {
 		return &DictElementFuncExpr{
 			Expr: &ClosureExpr{
 				Params:      t.Params,
-				LambdaToken: token.Assign,
+				LambdaToken: token.Colon,
 				Body:        t.Body,
 			},
 		}
@@ -239,7 +240,7 @@ func (e *DictElementLit) Func() (f *DictElementFuncExpr) {
 			return &DictElementFuncExpr{
 				Expr: &ClosureExpr{
 					Params:      t.Type.Params,
-					LambdaToken: token.Assign,
+					LambdaToken: token.Colon,
 					Body:        t.BodyExpr,
 				},
 			}
@@ -305,6 +306,32 @@ func (e *DictElementLit) WriteCode(ctx *CodeWriteContext) {
 	}
 }
 
+type DictElementFuncExprs []*DictElementFuncExpr
+
+func (l DictElementFuncExprs) Sort() {
+	sort.Slice(l, func(i, j int) bool {
+		mi := l[i]
+		mj := l[j]
+
+		ti := mi.Params()
+		tj := mj.Params()
+
+		if li, lj := len(ti.Args.Values), len(tj.Args.Values); li < lj {
+			return true
+		} else if li > lj {
+			return false
+		}
+
+		for i, value := range ti.Args.Values {
+			if value.Ident.Name < tj.Args.Values[i].Ident.Name {
+				return true
+			}
+		}
+
+		return false
+	})
+}
+
 type DictElementFuncExpr struct {
 	Expr
 }
@@ -312,6 +339,17 @@ type DictElementFuncExpr struct {
 func (e *DictElementFuncExpr) Closure() (c *ClosureExpr) {
 	c, _ = e.Expr.(*ClosureExpr)
 	return
+}
+
+func (e *DictElementFuncExpr) Params() *FuncParams {
+	switch t := e.Expr.(type) {
+	case *ClosureExpr:
+		return &t.Params
+	case *FuncExpr:
+		return &t.Type.Params
+	default:
+		return nil
+	}
 }
 
 func (e *DictElementFuncExpr) Func() (f *FuncExpr) {

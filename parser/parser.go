@@ -2416,8 +2416,8 @@ func (p *Parser) ParseDictElementLitFunc() *node.DictElementFuncExpr {
 	e := &node.DictElementFuncExpr{}
 	paren := p.ParseParemExpr(token.LParen, token.RParen)
 
-	if p.Token.Token == token.Assign {
-		e.Expr = p.ParseClosureExpr(token.Assign, paren.ToMultiParenExpr())
+	if p.Token.Token == token.Colon {
+		e.Expr = p.ParseClosureExpr(token.Colon, paren.ToMultiParenExpr())
 	} else {
 		params, err := paren.ToMultiParenExpr().ToFuncParams()
 

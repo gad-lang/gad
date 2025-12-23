@@ -1256,12 +1256,21 @@ func (e *ClosureExpr) End() source.Pos {
 	return e.Body.End()
 }
 
+func (e *ClosureExpr) sep() string {
+	var sep string
+	switch e.LambdaToken {
+	case token.Assign, token.Lambda:
+		sep = " "
+	}
+	return sep + e.LambdaToken.String()
+}
+
 func (e *ClosureExpr) String() string {
-	return e.Params.String() + " " + e.LambdaToken.String() + " " + e.Body.String()
+	return e.Params.String() + e.sep() + " " + e.Body.String()
 }
 
 func (e *ClosureExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(e.Params.String(), " ", e.LambdaToken.String(), " ")
+	ctx.WriteString(e.Params.String(), e.sep(), " ")
 	if block, ok := e.Body.(*BlockExpr); ok {
 		block.WriteCodeInSelfDepth(ctx, true)
 	} else {
