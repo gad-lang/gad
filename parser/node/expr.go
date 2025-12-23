@@ -340,13 +340,25 @@ func (e *ParenExpr) End() source.Pos {
 }
 
 func (e *ParenExpr) String() string {
-	return "(" + e.Expr.String() + ")"
+	switch t := e.Expr.(type) {
+	case *ParenExpr:
+		return t.Expr.String()
+	case *BinaryExpr:
+		return t.String()
+	default:
+		return "(" + e.Expr.String() + ")"
+	}
 }
 
 func (e *ParenExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteSingleByte('(')
-	e.Expr.WriteCode(ctx)
-	ctx.WriteSingleByte(')')
+	switch e.Expr.(type) {
+	case *ParenExpr, *BinaryExpr:
+		e.Expr.WriteCode(ctx)
+	default:
+		ctx.WriteSingleByte('(')
+		e.Expr.WriteCode(ctx)
+		ctx.WriteSingleByte(')')
+	}
 }
 
 func (e *ParenExpr) ToMultiParenExpr() *MultiParenExpr {

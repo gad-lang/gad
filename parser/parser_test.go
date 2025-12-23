@@ -328,7 +328,7 @@ func TestParserErrorList(t *testing.T) {
 }
 
 func TestParsePipe(t *testing.T) {
-	expectParseString(t, "(a.b.|x().|y().z.|c(1).d.e.|f().g.h.i)", "(((((a.b .| x()) .| y().z) .| c(1).d.e) .| f().g.h.i))")
+	expectParseString(t, "(a.b.|x().|y().z.|c(1).d.e.|f().g.h.i)", "((((a.b .| x()) .| y().z) .| c(1).d.e) .| f().g.h.i)")
 	expectParseString(t, "a.b.|x().|y().z.|c(1).d.e.|f().g.h.i", "((((a.b .| x()) .| y().z) .| c(1).d.e) .| f().g.h.i)")
 	expectParseString(t, "a.b.|x().|y().z.|c(1).d.e", "(((a.b .| x()) .| y().z) .| c(1).d.e)")
 	expectParseString(t, "a.b.|x().|y()", "((a.b .| x()) .| y())")
@@ -1404,7 +1404,7 @@ func TestParseCall(t *testing.T) {
 		"add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))")
 	expectParseString(t, "f1(a) + f2(b) * f3(c)", "(f1(a) + (f2(b) * f3(c)))")
 	expectParseString(t, "(f1(a) + f2(b)) * f3(c)",
-		"(((f1(a) + f2(b))) * f3(c))")
+		"((f1(a) + f2(b)) * f3(c))")
 	expectParseString(t, "f(1,)", "f(1)")
 	expectParseString(t, "f(1,\n)", "f(1)")
 	expectParseString(t, "f(\n1,\n)", "f(1)")
@@ -1638,9 +1638,9 @@ c`, func(p pfn) []Stmt {
 	expectParseString(t, `a + b ? c - d : e * f`,
 		"((a + b) ? (c - d) : (e * f))")
 	expectParseString(t, `a == b ? c + (d / e) : f ? g : h + i`,
-		"((a == b) ? (c + ((d / e))) : (f ? g : (h + i)))")
+		"((a == b) ? (c + (d / e)) : (f ? g : (h + i)))")
 	expectParseString(t, `(a + b) ? (c - d) : (e * f)`,
-		"(((a + b)) ? ((c - d)) : ((e * f)))")
+		"((a + b) ? (c - d) : (e * f))")
 	expectParseString(t, `a + (b ? c : d) - e`, "((a + ((b ? c : d))) - e)")
 	expectParseString(t, `a ? b ? c : d : e`, "(a ? (b ? c : d) : e)")
 	expectParseString(t, `a := b ? c : d`, "a := (b ? c : d)")
@@ -2824,7 +2824,7 @@ func TestParsePrecedence(t *testing.T) {
 
 func TestParseNullishSelector(t *testing.T) {
 	expectParseString(t, `a?.(k)`, `a?.(k)`)
-	expectParseString(t, `a?.(k+x)`, `a?.((k + x))`)
+	expectParseString(t, `a?.(k+x)`, `a?.(k + x)`)
 	expectParse(t, "a?.b.c?.d", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
@@ -2888,12 +2888,12 @@ func TestParseNullishSelector(t *testing.T) {
 	expectParseString(t, "a?.b.c?.d.e?.f.g", "a?.b.c?.d.e?.f.g")
 	expectParseString(t, `a["b"+"c"]?.d`, `a[("b" + "c")]?.d`)
 	expectParseString(t, `a.b["b"+"c"]?.d`, `a.b[("b" + "c")]?.d`)
-	expectParseString(t, `a?.("b"+"c")?.d`, `a?.(("b" + "c"))?.d`)
+	expectParseString(t, `a?.("b"+"c")?.d`, `a?.("b" + "c")?.d`)
 	expectParseString(t, `d.("a").e`, `d.("a").e`)
-	expectParseString(t, `d.("a"+"b").e`, `d.(("a" + "b")).e`)
+	expectParseString(t, `d.("a"+"b").e`, `d.("a" + "b").e`)
 	expectParseString(t, `d.("a").e ?? 1`, `(d.("a").e ?? 1)`)
-	expectParseString(t, `d.("a"+"b").e ?? 1`, `(d.(("a" + "b")).e ?? 1)`)
-	expectParseString(t, `a?.("" || "b")?.d.e?.(b ?? "f")`, `a?.(("" || "b"))?.d.e?.((b ?? "f"))`)
+	expectParseString(t, `d.("a"+"b").e ?? 1`, `(d.("a" + "b").e ?? 1)`)
+	expectParseString(t, `a?.("" || "b")?.d.e?.(b ?? "f")`, `a?.("" || "b")?.d.e?.(b ?? "f")`)
 	expectParseString(t, `a?.(k)?.c`, `a?.(k)?.c`)
 }
 
