@@ -100,11 +100,7 @@ x()
 			mixedValue(lit("‹‹‹", p(4, 13)), lit("›››", p(7, 1)), callExpr(ident("x", p(6, 1)), p(6, 2), p(6, 3))),
 			mixedTextStmt(p(7, 10), "</p>"),
 		)
-	}, PostTest(func(t *testing.T, f *source.File, pos func(line int, column int) Pos) {
-
-		f.Data.TraceLines(os.Stdout, 7, 10, 1, 1)
-
-	}))
+	})
 
 	defaultExpectParse := func(input string, fn expectedFn) {
 		expectParse(t, input, fn, func(ctx *ParseContext) {

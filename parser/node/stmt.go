@@ -111,33 +111,19 @@ func (s *BlockStmt) End() source.Pos {
 	return s.RBrace.End()
 }
 
-func (s *BlockStmt) LeftBrace() string {
-	if s.LBrace.Value == "" {
-		return "{"
-	}
-	return s.LBrace.Value
-}
-
-func (s *BlockStmt) RightBrace() string {
-	if s.RBrace.Value == "" {
-		return "}"
-	}
-	return s.RBrace.Value
-}
-
 func (s *BlockStmt) String() string {
 	var (
 		b    strings.Builder
 		data = s.Stmts.String()
 	)
 
-	b.WriteString(s.LeftBrace())
-	rb := s.RightBrace()
+	b.WriteString(s.LBrace.Value)
+	rb := s.RBrace.Value
 	if len(data) > 0 {
 		b.WriteString(" ")
 		b.WriteString(data)
 		b.WriteString(" ")
-	} else if rb[0] >= 'a' && rb[0] <= 'z' {
+	} else if len(rb) > 0 && rb[0] >= 'a' && rb[0] <= 'z' {
 		b.WriteString(" ")
 	}
 	b.WriteString(rb)
@@ -148,9 +134,25 @@ func (s *BlockStmt) WriteCode(ctx *CodeWriteContext) {
 	s.WriteCodeInSelfDepth(ctx, false)
 }
 
+func (s *BlockStmt) IsEmtpy() bool {
+	l := len(s.Stmts)
+	if l > 0 {
+		if _, ok := s.Stmts[0].(*CodeEndStmt); ok {
+			_ = s.Stmts[1].(*CodeBeginStmt)
+			l -= 2
+		}
+	}
+	return l == 0
+}
+
 func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) {
-	lb, rb := s.LeftBrace(), s.RightBrace()
-	if lb == "{" {
+	var (
+		lb = s.LBrace.Value
+		rb = s.RBrace.Value
+	)
+
+	if ctx.Transpile != nil {
+		lb = "{"
 		rb = "}"
 	}
 
@@ -170,7 +172,7 @@ func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) 
 		selfDepth = true
 	} else {
 		ctx.WriteString(lb)
-		if ctx.Prefix == "" && lb != "{" {
+		if ctx.Prefix == "" && len(lb) > 0 && lb != "{" {
 			ctx.WriteString(" ")
 		}
 		ctx.WriteSecondLine()
@@ -348,7 +350,12 @@ func (s *ForInStmt) WriteCode(ctx *CodeWriteContext) {
 	s.Body.WriteCodeInSelfDepth(ctx, true)
 
 	if s.Else != nil {
-		ctx.WriteString(" else ")
+		var space string
+		if !s.Else.IsEmtpy() {
+			space = " "
+		}
+		ctx.WriteString("else" + space)
+
 		s.Else.WriteCodeInSelfDepth(ctx, true)
 	}
 }
