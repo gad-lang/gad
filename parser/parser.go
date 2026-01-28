@@ -52,6 +52,7 @@ type Parser struct {
 	Errors           ErrorList
 	Scanner          ScannerInterface
 	Token            Token
+	tokenBuffer      []Token
 	PrevToken        Token
 	ExprLevel        int        // < 0: in control clause, >= 0: in expression
 	syncPos          source.Pos // last sync position
@@ -533,6 +534,23 @@ func (p *Parser) AtComma(context string, follow token.Token) bool {
 		if p.Token.Token == token.Semicolon && p.Token.Literal == "\n" {
 			msg += " before newline"
 		}
+		p.Error(p.Token.Pos, msg+" in "+context)
+		return true // "insert" comma and continue
+	}
+	return false
+}
+
+func (p *Parser) AtCommaOrNewLine(context string, follow token.Token) bool {
+	if p.Token.Token == token.Comma {
+		return true
+	}
+
+	if p.Token.IsSpace() {
+		return true
+	}
+
+	if p.Token.Token != follow {
+		msg := "missing ',' or new line"
 		p.Error(p.Token.Pos, msg+" in "+context)
 		return true // "insert" comma and continue
 	}
@@ -2751,6 +2769,60 @@ func (p *Parser) consumeCommentGroup(n int) (comments *ast.CommentGroup) {
 	return
 }
 
+func (p *Parser) scan() (t Token) {
+	if p.ScanFunc != nil {
+		return p.ScanFunc()
+	}
+	return p.Scanner.Scan()
+}
+
+func (p *Parser) PeekC(count int) (t []Token) {
+	if l := len(p.tokenBuffer); l > 0 {
+		if count <= l {
+			return p.tokenBuffer[:count]
+		}
+		count -= l
+	}
+
+	for ; count > 0; count-- {
+		p.tokenBuffer = append(p.tokenBuffer, p.scan())
+	}
+
+	return p.tokenBuffer
+}
+
+func (p *Parser) PeekCb(on func(t Token) (more bool)) {
+	for _, t := range p.tokenBuffer {
+		if !on(t) {
+			return
+		}
+	}
+
+	for {
+		t := p.scan()
+		p.tokenBuffer = append(p.tokenBuffer, t)
+		if !on(t) {
+			return
+		}
+	}
+}
+
+func (p *Parser) Peek() Token {
+	t := p.PeekC(1)
+	return t[0]
+}
+
+func (p *Parser) PeekNoSpace() (r Token) {
+	p.PeekCb(func(t Token) bool {
+		if t.IsSpace() {
+			return true
+		}
+		r = t
+		return false
+	})
+	return
+}
+
 func (p *Parser) next0() {
 	if p.Trace && p.Token.Pos.IsValid() {
 		s := p.Token.Token.String()
@@ -2763,11 +2835,14 @@ func (p *Parser) next0() {
 			p.PrintTrace(s)
 		}
 	}
-	if p.ScanFunc != nil {
-		p.Token = p.ScanFunc()
-	} else {
-		p.Token = p.Scanner.Scan()
+
+	for _, t := range p.tokenBuffer {
+		p.tokenBuffer = p.tokenBuffer[1:]
+		p.Token = t
+		return
 	}
+
+	p.Token = p.scan()
 }
 
 func (p *Parser) Next() *Parser {
@@ -2798,7 +2873,7 @@ next:
 }
 
 func (p *Parser) SkipSpace() {
-	for p.Token.Token == token.Semicolon && p.Token.Literal == "\n" {
+	for p.Token.IsSpace() {
 		p.Next()
 	}
 }

@@ -21,6 +21,10 @@ type Token struct {
 
 var _ fmt.Stringer = Token{}
 
+func (t Token) IsSpace() bool {
+	return t.Token == token.Semicolon && t.Literal == "\n"
+}
+
 func (t Token) String() string {
 	return t.Token.String() + ": " + t.Literal
 }
