@@ -14,9 +14,15 @@ import (
 )
 
 const (
-	// AttrModuleName is a special attribute injected into modules to identify
+	// AttrName is a special attribute injected into modules to identify
 	// the modules by name.
-	AttrModuleName = "__module_name__"
+	AttrName = "@name"
+	// AttrFile is a special attribute injected into modules to identify
+	// the module file path.
+	AttrFile = "@file"
+	// AttrParams is a special attribute injected into modules to identify
+	// the module params.
+	AttrParams = "@params"
 )
 
 // CallableFunc is a function signature for a callable function that accepts

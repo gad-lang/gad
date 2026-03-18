@@ -5,9 +5,7 @@
 package gad
 
 import (
-	"fmt"
-	"strings"
-
+	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
@@ -261,85 +259,98 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 	}
 
 	var (
-		names     = make([]string, 0, len(nd.Specs))
-		types     []ParamType
-		namedSpec []node.Spec
+		positionalSpecs, namedSpecs = nd.Params()
+		positional                  = make([]*Param, len(positionalSpecs))
+		named                       = make([]*NamedParam, len(namedSpecs))
 	)
 
-	for i, sp := range nd.Specs {
-		if np, _ := sp.(*node.NamedParamSpec); np != nil {
-			namedSpec = nd.Specs[i:]
-			break
-		} else {
-			spec := sp.(*node.ParamSpec)
-			names = append(names, spec.Ident.Ident.Name)
-			if len(spec.Ident.Type) > 0 {
-				symbols := make([]*SymbolInfo, len(spec.Ident.Type))
-				for i2, t := range spec.Ident.Type {
-					name := t.Ident().Name
-					symbol, ok := c.symbolTable.Resolve(name)
-					if !ok {
-						return c.errorf(nd, "unresolved reference %q", name)
-					}
-					symbols[i2] = &symbol.SymbolInfo
-				}
-				types[i] = symbols
+	for i, spec := range positionalSpecs {
+		var (
+			p = &Param{
+				Name: spec.Ident.Ident.Name,
+				Var:  spec.Var,
 			}
+		)
 
-			if spec.Variadic {
-				if c.variadic {
-					return c.errorf(nd,
-						"multiple variadic param declaration")
-				}
-				c.variadic = true
-			}
+		symbol, err := c.requireSymbol(nd, p.Name)
+		if err != nil {
+			return err
 		}
-	}
 
-	if err := c.symbolTable.SetParams(c.variadic, names, types); err != nil {
-		return c.error(nd, err)
-	}
+		p.Symbol = &symbol.SymbolInfo
 
-	namedSpecCount := len(namedSpec)
-
-	if namedSpecCount == 0 {
-		return nil
-	}
-
-	named := make([]*NamedParam, len(namedSpec))
-
-	for i, sp := range namedSpec {
-		spec := sp.(*node.NamedParamSpec)
-		if spec.Value == nil {
-			namedSpecCount--
-			if c.varNamedParams {
-				return c.errorf(nd,
-					"multiple variadic named param declaration")
+		if len(spec.Ident.Type) > 0 {
+			symbols := make([]*SymbolInfo, len(spec.Ident.Type))
+			for i2, t := range spec.Ident.Type {
+				symbol, err := c.requireSymbol(nd, t.Ident().Name)
+				if err != nil {
+					return err
+				}
+				symbols[i2] = &symbol.SymbolInfo
 			}
-			named[i] = &NamedParam{Name: spec.Ident.Ident.Name}
+			p.TypesSymbols = symbols
+		}
+
+		if spec.Var {
+			if i != len(positionalSpecs)-1 {
+				return c.errorf(nd,
+					"only last param accept variadic")
+			}
+			c.variadic = true
+		}
+
+		positional[i] = p
+	}
+
+	var (
+		namedSpecCount = len(namedSpecs)
+	)
+
+	for i, spec := range namedSpecs {
+		np := &NamedParam{
+			Name: spec.Ident.Ident.Name,
+			Var:  spec.Var,
+		}
+
+		symbol, err := c.requireSymbol(nd, np.Name)
+		if err != nil {
+			return err
+		}
+		np.Symbol = &symbol.SymbolInfo
+
+		if spec.Var {
+			if i != len(namedSpecs)-1 {
+				return c.errorf(nd,
+					"only last named param accept variadic")
+			}
+
+			namedSpecCount--
 			c.varNamedParams = true
 		} else {
-			np := NewNamedParam(spec.Ident.Ident.Name, spec.Value.String())
-			np.Type = make([]*SymbolInfo, len(spec.Ident.Type))
-			for i2, t := range spec.Ident.Type {
-				name := t.Ident().Name
-				symbol, ok := c.symbolTable.Resolve(name)
-				if !ok {
-					return c.errorf(nd, "unresolved reference %q", name)
-				}
-				np.Type[i2] = &symbol.SymbolInfo
+			if spec.Value == nil {
+				spec.Value = node.Flag(false, spec.Pos())
 			}
-			named[i] = np
+			np.Value = spec.Value.String()
+			np.TypesSymbols = make([]*SymbolInfo, len(spec.Ident.Type))
+			for i2, t := range spec.Ident.Type {
+				symbol, err := c.requireSymbol(nd, t.Ident().Name)
+				if err != nil {
+					return err
+				}
+				np.TypesSymbols[i2] = &symbol.SymbolInfo
+			}
 		}
+
+		named[i] = np
 	}
 
-	if err := c.symbolTable.SetNamedParams(named...); err != nil {
+	if err := c.symbolTable.defineParams(NewParams(positional...), NewNamedParams(named...)); err != nil {
 		return c.error(nd, err)
 	}
 
 	stmts := c.helperBuildKwargsIfUndefinedStmts(namedSpecCount, func(index int) (name *node.IdentExpr, types []*SymbolInfo, value node.Expr) {
-		spec := namedSpec[index].(*node.NamedParamSpec)
-		return spec.Ident.Ident, named[index].Type, spec.Value
+		spec := namedSpecs[index]
+		return spec.Ident.Ident, named[index].TypesSymbols, spec.Value
 	})
 
 	return c.Compile(&node.BlockStmt{Stmts: stmts})
@@ -376,10 +387,12 @@ func (c *Compiler) compileDeclValue(nd *node.GenDecl) error {
 	for _, sp := range nd.Specs {
 		spec := sp.(*node.ValueSpec)
 		if isConst {
-			if v, ok := spec.Data.(int); ok {
-				c.iotaVal = v
-			} else {
-				return c.errorf(nd, "invalid iota value")
+			if spec.Data != nil {
+				if v, ok := spec.Data.(int); ok {
+					c.iotaVal = v
+				} else {
+					return c.errorf(nd, "invalid iota value")
+				}
 			}
 		}
 		for i, ident := range spec.Idents {
@@ -645,9 +658,9 @@ func (c *Compiler) compileDefineAssign(
 		return c.compileDefine(nd, ident, allowRedefine, keyword)
 	}
 
-	symbol, ok := c.symbolTable.Resolve(ident)
-	if !ok {
-		return c.errorf(nd, "unresolved reference %q", ident)
+	symbol, err := c.requireSymbol(nd, ident)
+	if err != nil {
+		return err
 	}
 
 	if numSel == 0 {
@@ -687,10 +700,10 @@ func (c *Compiler) compileDefineAssign(
 func resolveAssignLHS(expr node.Expr) (name string, selectors []node.Expr) {
 	switch term := expr.(type) {
 	case *node.SelectorExpr:
-		name, selectors = resolveAssignLHS(term.Expr)
+		name, selectors = resolveAssignLHS(term.X)
 		selectors = append(selectors, term.Sel)
 	case *node.IndexExpr:
-		name, selectors = resolveAssignLHS(term.Expr)
+		name, selectors = resolveAssignLHS(term.X)
 		selectors = append(selectors, term.Index)
 	case *node.IdentExpr:
 		name = term.Name
@@ -757,15 +770,26 @@ func (c *Compiler) compileReturn(nd *node.Return) error {
 		return nil
 	}
 
-	if err := c.Compile(nd.Result); err != nil {
-		return err
-	}
+	if nd.Assign {
+		if ident, _ := nd.Result.(*node.IdentExpr); ident != nil {
+			symbol, err := c.requireSymbol(nd, ident.Name)
+			if err != nil {
+				return err
+			}
+			c.emit(nd, OpSetReturn, symbol.Index)
+		} else {
+			return c.errorf(nd, "return of assign require Ident")
+		}
+	} else {
+		if err := c.Compile(nd.Result); err != nil {
+			return err
+		}
+		if c.tryCatchIndex > -1 {
+			c.emit(nd, OpFinalizer, 0)
+		}
 
-	if c.tryCatchIndex > -1 {
-		c.emit(nd, OpFinalizer, 0)
+		c.emit(nd, OpReturn, 1)
 	}
-
-	c.emit(nd, OpReturn, 1)
 	return nil
 }
 
@@ -970,89 +994,31 @@ func (c *Compiler) compileForInStmt(stmt *node.ForInStmt) error {
 	return nil
 }
 
-func (c *Compiler) compileFuncLit(nd *node.FuncExpr) error {
-	_, isDecl := c.stack.Up(1).(*node.DeclStmt)
-	if ident := nd.Type.Ident; ident != nil && !isDecl {
-		nodeIndex := len(c.stack) - 1
-		// prevent recursion on compileAssignStmt
-		if nodeIndex < 1 || c.stack[nodeIndex-1] != c.stack[nodeIndex] {
-			var (
-				c2        = c
-				addMethod bool
-			)
-		loop:
-			for c2 != nil {
-				for _, o := range c2.constants {
-					switch ot := o.(type) {
-					case *CallerObjectWithMethods:
-						if ot.CallerObject.(*CompiledFunction).Name == ident.Name {
-							addMethod = true
-							break loop
-						}
-					}
-				}
-				c2 = c2.parent
-			}
-
-			if !addMethod {
-				_, addMethod = c.symbolTable.builtins.Map[ident.Name]
-			}
-
-			if addMethod {
-				nd.Type.AllowMethods = false
-				nd.Type.Ident = nil
-				defer func() {
-					nd.Type.Ident = ident
-				}()
-
-				return c.compileCallExpr(&node.CallExpr{
-					Func: &node.IdentExpr{
-						NamePos: ident.NamePos,
-						Name:    BuiltinAddCallMethod.String(),
-					},
-					CallArgs: node.CallArgs{
-						Args: node.CallExprArgs{
-							Values: []node.Expr{
-								ident,
-								nd,
-							},
-						},
-					},
-				})
-			}
-
-			ass := &node.AssignStmt{
-				LHS:   []node.Expr{ident},
-				RHS:   []node.Expr{nd},
-				Token: token.Define,
-			}
-			err := c.compileAssignStmt(ass,
-				ass.LHS, ass.RHS, token.Const, ass.Token)
-			if err != nil && strings.Contains(err.Error(), fmt.Sprintf("%q redeclared in this block", ident.Name)) {
-				nd := *nd
-				nd.Type.AllowMethods = false
-				nd.Type.Ident = nil
-				return c.compileCallExpr(&node.CallExpr{
-					Func: &node.IdentExpr{
-						NamePos: ident.NamePos,
-						Name:    BuiltinAddCallMethod.String(),
-					},
-					CallArgs: node.CallArgs{
-						Args: node.CallExprArgs{
-							Values: []node.Expr{
-								ident,
-								&nd,
-							},
-						},
-					},
-				})
-			}
-			return err
-		}
+func (c *Compiler) compileFuncStmt(nd *node.FuncStmt) (err error) {
+	if nd.Func.Type.NameExpr == nil {
+		return c.errorf(nd, "func stmt require ident")
 	}
 
+	if err = c.Compile(&node.CallExpr{
+		Func: node.EIdent(TFunc.Name(), nd.Pos()),
+		CallArgs: node.CallArgs{
+			Args: node.CallExprArgs{
+				Values: []node.Expr{nd.Func},
+			},
+		},
+	}); err != nil {
+		return
+	}
+
+	return c.compileDefineAssign(nd, nd.Func.Type.NameExpr, token.Const, token.Define, false)
+}
+
+func (c *Compiler) compileFuncExpr(nd *node.FuncExpr) error {
 	body := nd.Body
 	if body == nil {
+		if nd.BodyExpr == nil {
+			return c.errorf(nd, "func does not have body or body expression")
+		}
 		body = &node.BlockStmt{
 			Stmts: []node.Stmt{
 				&node.ReturnStmt{
@@ -1066,6 +1032,76 @@ func (c *Compiler) compileFuncLit(nd *node.FuncExpr) error {
 	}
 
 	return c.compileFunc(nd, nd.Type, body)
+}
+
+func (c *Compiler) compilePtr(nd *node.Ptr) (err error) {
+	return c.errorf(nd, "compile %T is not implemented", nd)
+}
+
+func (c *Compiler) compileComputedExpr(nd *node.ComputedExpr) (err error) {
+	stmts := nd.Stmts
+	switch t := stmts[len(stmts)-1].(type) {
+	case *node.IncDecStmt:
+		stmts = append(stmts, &node.ReturnStmt{Return: node.Return{Result: t.Expr}})
+	case *node.ExprStmt:
+		stmts = append(stmts[:len(stmts)-1], &node.ReturnStmt{Return: node.Return{Result: t.Expr}})
+	}
+	if err = c.Compile(&node.FuncExpr{
+		Body: &node.BlockStmt{Stmts: stmts},
+	}); err != nil {
+		return
+	}
+	c.emit(nd, OpComputedValue)
+	return
+}
+
+func (c *Compiler) compileMethodExpr(nd *node.MethodExpr) error {
+	var (
+		nameExpr node.Expr
+		methods  node.Exprs
+	)
+
+	switch t := nd.Expr.(type) {
+	case *node.FuncExpr:
+		nameExpr = t.Type.NameExpr
+		oldType := *t.Type
+
+		defer func() {
+			*t.Type = oldType
+		}()
+
+		t.Type.NameExpr = nil
+		methods = append(methods, t)
+	case *node.FuncWithMethodsExpr:
+		nameExpr = t.NameExpr
+		methods = t.Funcs()
+	}
+
+	return c.compileAddMethodsExpr(nd, nameExpr, methods...)
+}
+
+func (c *Compiler) compileAddMethodsExpr(nd node.Node, nameExpr node.Expr, methods ...node.Expr) (err error) {
+	defer c.pushSelector()()
+	expr, selectors := resolveSelectorExprs(nameExpr)
+
+	if err := c.Compile(expr); err != nil {
+		return err
+	}
+
+	for _, selector := range selectors {
+		if err := c.Compile(selector); err != nil {
+			return err
+		}
+	}
+
+	for _, method := range methods {
+		if err = c.Compile(method); err != nil {
+			return err
+		}
+	}
+
+	c.emit(nd, OpAddMethod, len(selectors), len(methods))
+	return nil
 }
 
 func (c *Compiler) compileClosureLit(nd *node.ClosureExpr) error {
@@ -1091,69 +1127,71 @@ func (c *Compiler) compileClosureLit(nd *node.ClosureExpr) error {
 
 func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.BlockStmt) (err error) {
 	var (
-		params      = make([]string, len(typ.Params.Args.Values))
-		types       = make([]ParamType, len(typ.Params.Args.Values))
-		namedParams = make([]*NamedParam, len(typ.Params.NamedArgs.Names))
-		symbolTable = c.symbolTable.Fork(false)
+		params      []*Param
+		namedParams []*NamedParam
+		st          = c.symbolTable.Fork(false)
 	)
 
-	for i, ident := range typ.Params.Args.Values {
-		if params[i], types[i], err = c.nameSymbolsOfTypedIdent(nd, ident); err != nil {
-			return
-		}
-	}
-
-	if typ.Params.Args.Var != nil {
-		var (
-			name    string
-			symbols []*SymbolInfo
-		)
-		if name, symbols, err = c.nameSymbolsOfTypedIdent(nd, typ.Params.Args.Var); err != nil {
-			return
-		}
-		params = append(params, name)
-		types = append(types, symbols)
-	}
-
-	if err := symbolTable.SetParams(typ.Params.Args.Var != nil, params, types); err != nil {
-		return c.error(nd, err)
-	}
-
-	for i, name := range typ.Params.NamedArgs.Names {
-		if names, types, err2 := c.nameSymbolsOfTypedIdent(nd, name); err2 != nil {
-			return err2
-		} else {
-			var vs string
-			if v := typ.Params.NamedArgs.Values[i]; v != nil {
-				vs = v.String()
+	if typ != nil {
+		for _, ident := range typ.Params.Args.Values {
+			p := &Param{}
+			if p.Name, p.TypesSymbols, err = c.nameSymbolsOfTypedIdent(nd, ident); err != nil {
+				return
 			}
-			np := NewNamedParam(names, vs)
-			np.Type = types
-			namedParams[i] = np
+			params = append(params, p)
+		}
+
+		if typ.Params.Args.Var != nil {
+			p := &Param{Var: true}
+			if p.Name, p.TypesSymbols, err = c.nameSymbolsOfTypedIdent(nd, typ.Params.Args.Var); err != nil {
+				return
+			}
+			params = append(params, p)
+		}
+
+		for i, name := range typ.Params.NamedArgs.Names {
+			if nameS, types, err2 := c.nameSymbolsOfTypedIdent(nd, name); err2 != nil {
+				return err2
+			} else {
+				p := &NamedParam{
+					Name:         nameS,
+					TypesSymbols: types,
+				}
+
+				if v := typ.Params.NamedArgs.Values[i]; v != nil {
+					p.Value = v.String()
+				}
+
+				namedParams = append(namedParams, p)
+			}
+		}
+
+		if typ.Params.NamedArgs.Var != nil {
+			p := &NamedParam{
+				Name: typ.Params.NamedArgs.Var.Name,
+				Var:  true,
+			}
+			namedParams = append(namedParams, p)
+		}
+
+		if err = st.DefineParams(NewParams(params...), NewNamedParams(namedParams...)); err != nil {
+			return
+		}
+
+		if count := len(typ.Params.NamedArgs.Values); count > 0 {
+			body.Stmts = append(c.helperBuildKwargsStmts(count, func(index int) (name string, namePos source.Pos, value node.Expr) {
+				ident := typ.Params.NamedArgs.Names[index].Ident
+				return ident.Name, ident.NamePos, typ.Params.NamedArgs.Values[index]
+			}), body.Stmts...)
 		}
 	}
 
-	if typ.Params.NamedArgs.Var != nil {
-		np := NewNamedParam(typ.Params.NamedArgs.Var.Ident.Name, "")
-		np.Var = true
-		namedParams = append(namedParams, np)
+	fork := c.fork(c.file, c.module, c.moduleMap, st)
+
+	if typ != nil {
+		fork.variadic = typ.Params.Args.Var != nil
 	}
 
-	if len(namedParams) > 0 {
-		if err := symbolTable.SetNamedParams(namedParams...); err != nil {
-			return c.error(nd, err)
-		}
-	}
-
-	if count := len(typ.Params.NamedArgs.Values); count > 0 {
-		body.Stmts = append(c.helperBuildKwargsStmts(count, func(index int) (name string, namePos source.Pos, value node.Expr) {
-			ident := typ.Params.NamedArgs.Names[index].Ident
-			return ident.Name, ident.NamePos, typ.Params.NamedArgs.Values[index]
-		}), body.Stmts...)
-	}
-
-	fork := c.fork(c.file, c.module, c.moduleMap, symbolTable)
-	fork.variadic = typ.Params.Args.Var != nil
 	if err := fork.Compile(body); err != nil {
 		return err
 	}
@@ -1166,19 +1204,13 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 			c.emit(nd, OpGetFreePtr, s.Index)
 		}
 	}
-	bc := fork.Bytecode()
-	bc.Main.AllowMethods = typ.AllowMethods
 
-	if typ.Ident != nil {
-		bc.Main.Name = typ.Ident.Name
-	} else {
-		if decl, _ := c.stack.Up(3).(*node.DeclStmt); decl != nil {
-			if gen, _ := decl.Decl.(*node.GenDecl); gen != nil && gen.Tok == token.Const {
-				assign := c.stack.Up(2).(*node.AssignStmt)
-				if ident, _ := assign.LHS[0].(*node.IdentExpr); ident != nil {
-					bc.Main.Name = ident.Name
-				}
-			}
+	bc := fork.Bytecode()
+	bc.Main.module = c.module
+
+	if typ != nil {
+		if typ.NameExpr != nil {
+			bc.Main.FuncName = typ.Name()
 		}
 	}
 
@@ -1194,8 +1226,8 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 
 	index := c.addConstant(bc.Main)
 
-	if bc.Main.Name == "" {
-		bc.Main.Name = fmt.Sprintf("#%d", index)
+	if bc.Main.FuncName == "" {
+		bc.Main.FuncName = c.newAnonymousFuncName()
 	}
 
 	if len(freeSymbols) > 0 {
@@ -1204,6 +1236,87 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 		c.emit(nd, OpConstant, index)
 	}
 	return nil
+}
+
+func (c *Compiler) compileFuncWithMethodsStmt(nd *node.FuncWithMethodsStmt) error {
+	var (
+		args = make(node.Exprs, len(nd.Methods)+1)
+		name *node.IdentExpr
+	)
+
+	if nd.NameExpr != nil {
+		name, _ = nd.NameExpr.(*node.IdentExpr)
+		if name == nil {
+			return c.errorf(nd, "require NameExpr as *Ident")
+		}
+		args[0] = node.String(name.String(), name.NamePos)
+	} else {
+		args[0] = node.String("", 0)
+	}
+
+	if len(nd.Methods) == 0 {
+		return c.errorf(nd, "funcWithMethods does not have methods")
+	}
+
+	for i, m := range nd.Methods {
+		args[i+1] = m.Func()
+	}
+
+	call := &node.CallExpr{
+		Func: node.EIdent(BuiltinFunc.String(), nd.Pos()),
+
+		CallArgs: node.CallArgs{
+			Args: node.CallExprArgs{
+				Values: args,
+			},
+		},
+	}
+
+	return c.Compile(&node.DeclStmt{
+		Decl: &node.GenDecl{
+			Tok: token.Const,
+			Specs: []node.Spec{
+				&node.ValueSpec{
+					Idents: []*node.IdentExpr{name},
+					Values: []node.Expr{call},
+				},
+			},
+		},
+	})
+}
+
+func (c *Compiler) compileFuncWithMethodsExpr(nd *node.FuncWithMethodsExpr) error {
+	if len(nd.Methods) == 0 {
+		return c.errorf(nd, "funcWithMethods does not have methods")
+	}
+
+	args := make(node.Exprs, len(nd.Methods)+1)
+
+	if nd.NameExpr != nil {
+		name, _ := nd.NameExpr.(*node.IdentExpr)
+		if name == nil {
+			return c.errorf(nd, "require NameExpr as *Ident")
+		}
+		args[0] = node.String(name.String(), name.NamePos)
+	} else {
+		args[0] = node.String("", 0)
+	}
+
+	for i, m := range nd.Methods {
+		args[i+1] = m.Func()
+	}
+
+	call := &node.CallExpr{
+		Func: node.EIdent(BuiltinFunc.String(), nd.Pos()),
+
+		CallArgs: node.CallArgs{
+			Args: node.CallExprArgs{
+				Values: args,
+			},
+		},
+	}
+
+	return c.Compile(call)
 }
 
 func (c *Compiler) compileLogical(nd *node.BinaryExpr) error {
@@ -1270,20 +1383,22 @@ func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
 }
 
 func (c *Compiler) compileUnaryExpr(nd *node.UnaryExpr) error {
-	if err := c.Compile(nd.Expr); err != nil {
+	if isMain, _ := nd.Expr.(*node.IsMainLit); isMain != nil && nd.Token == token.Not {
+		c.emit(nd, OpNotIsMain)
+	} else if err := c.Compile(nd.Expr); err != nil {
 		return err
-	}
-
-	switch nd.Token {
-	case token.Not, token.Sub, token.Xor, token.Add:
-		c.emit(nd, OpUnary, int(nd.Token))
-	case token.Null:
-		c.emit(nd, OpIsNil)
-	case token.NotNull:
-		c.emit(nd, OpNotIsNil)
-	default:
-		return c.errorf(nd,
-			"invalid unary operator: %s", nd.Token.String())
+	} else {
+		switch nd.Token {
+		case token.Not, token.Sub, token.Xor, token.Add:
+			c.emit(nd, OpUnary, int(nd.Token))
+		case token.Null:
+			c.emit(nd, OpIsNil)
+		case token.NotNull:
+			c.emit(nd, OpNotIsNil)
+		default:
+			return c.errorf(nd,
+				"invalid unary operator: %s", nd.Token.String())
+		}
 	}
 	return nil
 }
@@ -1367,7 +1482,7 @@ func resolveSelectorExprs(nd node.Expr) (expr node.Expr, selectors []node.Expr) 
 	expr = nd
 	switch v := nd.(type) {
 	case *node.SelectorExpr:
-		expr, selectors = resolveIndexExprs(v.Expr)
+		expr, selectors = resolveIndexExprs(v.X)
 		selectors = append(selectors, v.Sel)
 	case *node.NullishSelectorExpr:
 		expr, selectors = resolveIndexExprs(v.Expr)
@@ -1393,7 +1508,7 @@ func (c *Compiler) compileIndexExpr(nd *node.IndexExpr) error {
 func resolveIndexExprs(nd node.Expr) (expr node.Expr, indexes []node.Expr) {
 	expr = nd
 	if v, ok := nd.(*node.IndexExpr); ok {
-		expr, indexes = resolveIndexExprs(v.Expr)
+		expr, indexes = resolveIndexExprs(v.X)
 		indexes = append(indexes, v.Index)
 	}
 	return
@@ -1428,17 +1543,14 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 	var (
 		selExpr    *node.SelectorExpr
 		isSelector bool
-		flags      OpCallFlag
-
-		op      = OpCall
-		numArgs = len(nd.Args.Values)
+		op         = OpCall
 	)
 
 	if nd.Func != nil {
 		selExpr, isSelector = nd.Func.(*node.SelectorExpr)
 	}
 	if isSelector {
-		if err := c.Compile(selExpr.Expr); err != nil {
+		if err := c.Compile(selExpr.X); err != nil {
 			return err
 		}
 		op = OpCallName
@@ -1447,6 +1559,15 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 			return err
 		}
 	}
+
+	return c.compileCallArgs(nd.CallPos(), op, &nd.CallArgs, selExpr)
+}
+
+func (c *Compiler) compileCallArgs(pos source.Pos, op Opcode, nd *node.CallArgs, selExpr *node.SelectorExpr) error {
+	var (
+		flags   OpCallFlag
+		numArgs = len(nd.Args.Values)
+	)
 
 	for _, arg := range nd.Args.Values {
 		if err := c.Compile(arg); err != nil {
@@ -1468,14 +1589,18 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 
 		for i, name := range nd.NamedArgs.Names {
 			value := nd.NamedArgs.Values[i]
-			if value == nil {
-				// is flag
-				value = &node.FlagLit{Value: true}
-			}
-			if name.Exp != nil {
-				namedArgs.Elements[i] = &node.KeyValueLit{Key: name.Expr(), Value: value}
+			if name.Var {
+				namedArgs.Elements[i] = &node.NamedArgVarLit{Value: name.Exp}
 			} else {
-				namedArgs.Elements[i] = &node.KeyValuePairLit{Key: name.Expr(), Value: value}
+				if value == nil {
+					// is flag
+					value = &node.FlagLit{Value: true}
+				}
+				if name.Exp != nil {
+					namedArgs.Elements[i] = &node.KeyValueLit{Key: name.Expr(), Value: value}
+				} else {
+					namedArgs.Elements[i] = &node.KeyValuePairLit{Key: name.Expr(), Value: value}
+				}
 			}
 		}
 
@@ -1484,25 +1609,70 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 		}
 	}
 
-	if nd.NamedArgs.Var != nil {
-		flags |= OpCallFlagVarNamedArgs
-		if err := c.Compile(nd.NamedArgs.Var.Value); err != nil {
-			return err
-		}
-	}
-
-	if isSelector {
+	if selExpr != nil {
 		if err := c.Compile(selExpr.Sel); err != nil {
 			return err
 		}
 	}
 
-	c.emitPos(nd.CallPos(), nd, op, numArgs, int(flags))
+	c.emitPos(pos, nd, op, numArgs, int(flags))
 	return nil
 }
 
+func (c *Compiler) compileFile(nd *parser.File) (err error) {
+	return c.compileFileStmts(nd.Stmts)
+}
+
+func (c *Compiler) compileFileStmts(stmts node.Stmts) (err error) {
+	var paramsNames []string
+
+	for _, stmt := range stmts {
+		switch stmt := stmt.(type) {
+		case *node.DeclStmt:
+			if g, _ := stmt.Decl.(*node.GenDecl); g != nil {
+				if g.Tok == token.Param {
+					// puts exports dict after param decl
+					positional, named := g.Params()
+					for _, spec := range positional {
+						paramsNames = append(paramsNames, spec.Ident.Ident.Name)
+					}
+					for _, spec := range named {
+						paramsNames = append(paramsNames, spec.Ident.Ident.Name)
+					}
+					break
+				}
+			}
+		}
+	}
+
+	if len(paramsNames) > 0 {
+		if _, err = c.symbolTable.defineParamsVar(paramsNames); err != nil {
+			return
+		}
+	}
+
+	return c.compileStmts(stmts...)
+}
+
+func (c *Compiler) compileModuleFile(nd *ModuleStmt) (err error) {
+	return c.compileFileStmts(append(node.Stmts{
+		&node.AssignStmt{
+			Token: token.Define,
+			LHS:   node.Exprs{node.EIdent("exports", nd.Pos())},
+			RHS:   node.Exprs{&node.DictExpr{}},
+		},
+		&node.ReturnStmt{
+			Return: node.Return{
+				Result:    node.EIdent("exports", nd.Pos()),
+				ReturnPos: nd.Pos(),
+				Assign:    true,
+			},
+		},
+	}, nd.Stmts...))
+}
+
 func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
-	moduleName := nd.ModuleName
+	moduleName, args := nd.Build()
 	if moduleName == "" {
 		return c.errorf(nd, "empty module name")
 	}
@@ -1521,9 +1691,10 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 		}
 	}
 
-	module, exists := c.getModule(moduleName)
+	module := &Module{info: ModuleInfo{Name: moduleName}}
+	moduleConstant, exists := c.getModule(moduleName)
 	if !exists {
-		mod, url, err := importer.Import(c.opts.Context, moduleName)
+		mod, url, err := importer.Import(c.opts.Context, module)
 		if err != nil {
 			return c.error(nd, err)
 		}
@@ -1536,58 +1707,62 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 				moduleMap = c.BaseModuleMap()
 			}
 
-			moduleInfo := &ModuleInfo{moduleName, url}
+			module.info.File = url
+			cidx, err := c.compileModule(nd, importer, module, moduleMap, v)
 
-			cidx, err := c.compileModule(nd, importer, moduleInfo, moduleMap, v)
 			if err != nil {
 				return err
 			}
-			module = c.addModule(moduleName, 1, cidx)
-			for _, cnt := range c.constants {
-				if fn, ok := cnt.(*CompiledFunction); ok {
-					fn.module = moduleInfo
-				}
+
+			c.constants[cidx].(*Module).init.(*CompiledFunction).module = module
+			moduleConstant = c.addModule(moduleName, 1, cidx)
+		case Dict:
+			moduleConstant = c.addModule(moduleName, 2, c.addConstant(&Module{
+				info: ModuleInfo{moduleName, url},
+				data: v,
+			}))
+		case ModuleInitFunc:
+			var m *Module
+			m = &Module{
+				info: ModuleInfo{moduleName, url},
+				init: &Function{
+					Value: func(c Call) (Object, error) {
+						return v(m, c)
+					},
+				},
 			}
-		case Object:
-			module = c.addModule(moduleName, 2, c.addConstant(v))
+			moduleConstant = c.addModule(moduleName, 1, c.addConstant(m))
 		default:
 			return c.errorf(nd, "invalid import value type: %T", v)
 		}
 	}
 
-	switch module.typ {
+	module.constantIndex = moduleConstant.constantIndex
+
+	switch moduleConstant.typ {
 	case 1:
-		var numParams int
-		mod := c.constants[module.constantIndex]
-		if cf, ok := mod.(*CompiledFunction); ok {
-			numParams = len(cf.Params)
-			if cf.Params.Var() {
-				numParams--
-			}
-		}
 		// load module
 		// if module is already stored, load from VM.modulesCache otherwise call compiled function
 		// and store copy of result to VM.modulesCache.
-		c.emit(nd, OpLoadModule, module.constantIndex, module.storeIndex)
+		c.emit(nd, OpLoadModule, moduleConstant.constantIndex, moduleConstant.storeIndex)
 		jumpPos := c.emit(nd, OpJumpFalsy, 0)
-		// modules should not accept parameters, to suppress the wrong number of arguments error
-		// set all params to nil
-		for i := 0; i < numParams; i++ {
-			c.emit(nd, OpNil)
+
+		if err := c.compileCallArgs(nd.CallPos(), OpInitModule, &args, nil); err != nil {
+			return c.errorf(nd, "invalid init module args: %v", err)
 		}
-		c.emit(nd, OpCall, numParams, 0)
-		c.emit(nd, OpStoreModule, module.storeIndex)
+
+		c.emit(nd, OpStoreModule, moduleConstant.storeIndex)
 		c.changeOperand(jumpPos, len(c.instructions))
 	case 2:
 		// load module
 		// if module is already stored, load from VM.modulesCache otherwise copy object
 		// and store it to VM.modulesCache.
-		c.emit(nd, OpLoadModule, module.constantIndex, module.storeIndex)
+		c.emit(nd, OpLoadModule, moduleConstant.constantIndex, moduleConstant.storeIndex)
 		jumpPos := c.emit(nd, OpJumpFalsy, 0)
-		c.emit(nd, OpStoreModule, module.storeIndex)
+		c.emit(nd, OpStoreModule, moduleConstant.storeIndex)
 		c.changeOperand(jumpPos, len(c.instructions))
 	default:
-		return c.errorf(nd, "invalid module type: %v", module.typ)
+		return c.errorf(nd, "invalid module type: %v", moduleConstant.typ)
 	}
 	return nil
 }
@@ -1614,7 +1789,7 @@ func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) error {
 
 	embed, exists := c.getEmbed(pth)
 	if !exists {
-		mod, _, err := importer.Import(c.opts.Context, pth)
+		mod, _, err := importer.Import(c.opts.Context, &Module{info: ModuleInfo{Name: pth}})
 		if err != nil {
 			return c.error(nd, err)
 		}
@@ -1814,7 +1989,7 @@ elems:
 				return
 			}
 		case *node.NamedArgVarLit:
-			if err = c.Compile(t.Value); err != nil {
+			if err = c.Compile(t); err != nil {
 				return
 			}
 		default:
@@ -1826,28 +2001,53 @@ elems:
 	return nil
 }
 
+func (c *Compiler) compileTypedIdentExpr(nd *node.TypedIdentExpr) error {
+	types := make(node.Exprs, len(nd.Type))
+	for i, expr := range nd.Type {
+		types[i] = expr.Expr
+	}
+	return c.compileCallExpr(&node.CallExpr{
+		Func: node.EIdent(BuiltinTypedIdent.String(), nd.Pos()),
+		CallArgs: node.CallArgs{
+			Args: node.CallExprArgs{
+				Values: []node.Expr{
+					node.String(nd.Ident.Name, nd.Ident.NamePos),
+					node.Array(nd.Pos(), nd.End(), types...),
+				},
+			},
+		},
+	})
+}
+
+func (c *Compiler) compileNamedArgVarLit(nd *node.NamedArgVarLit) (err error) {
+	if err = c.Compile(nd.Value); err != nil {
+		return
+	}
+	c.emit(nd, OpNamedParamsVar)
+	return
+}
+
+func (c *Compiler) compileNamedParamValue(nd *namedParamValue) (err error) {
+	if err = c.Compile(&nd.StringLit); err != nil {
+		return
+	}
+	c.emit(nd, OpNamedParamValue)
+	return nil
+}
+
 func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name string, namesPos source.Pos, value node.Expr)) (stmts []node.Stmt) {
 	for i := 0; i < count; i++ {
 		name, namePos, value := get(i)
 		if value == nil {
 			value = &node.NilLit{}
 		}
-		nameLit := node.String(name, namePos)
-		values := []node.Expr{nameLit}
 		stmts = append(stmts, &node.AssignStmt{
 			Token: token.NullichAssign,
 			LHS:   []node.Expr{node.EIdent(name, namePos)},
 			RHS: []node.Expr{&node.BinaryExpr{
 				Token: token.Nullich,
-				LHS: &node.CallExpr{
-					Func: &node.NamedArgsKeywordExpr{},
-					CallArgs: node.CallArgs{
-						Args: node.CallExprArgs{
-							Values: values,
-						},
-					},
-				},
-				RHS: value,
+				LHS:   &namedParamValue{*node.String(name, namePos)},
+				RHS:   value,
 			}},
 		})
 	}
@@ -1924,14 +2124,18 @@ func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdentExpr)
 	if len(ti.Type) > 0 {
 		symbols = make([]*SymbolInfo, len(ti.Type))
 		for i2, t := range ti.Type {
-			n := t.Ident().Name
-			symbol, ok := c.symbolTable.Resolve(n)
-			if !ok {
-				err = c.errorf(nd, "unresolved reference %q", n)
+			var symbol *Symbol
+			if symbol, err = c.requireSymbol(nd, t.Ident().Name); err != nil {
 				return
 			}
 			symbols[i2] = &symbol.SymbolInfo
 		}
+	} else {
+		var symbol *Symbol
+		if symbol, err = c.requireSymbol(nd, "any"); err != nil {
+			return
+		}
+		symbols = append(symbols, &symbol.SymbolInfo)
 	}
 	return
 }

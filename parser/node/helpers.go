@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/token"
 )
 
 // IdentList represents a list of identifiers.
@@ -54,4 +55,38 @@ func (n *IdentList) String() string {
 		}
 	}
 	return "(" + strings.Join(list, ", ") + ")"
+}
+
+type Token struct {
+	Pos   source.Pos
+	Token token.Token
+}
+
+func (t Token) Valid() bool {
+	return t.Token != token.Illegal
+}
+
+type TokenLit struct {
+	Pos     source.Pos
+	Token   token.Token
+	Literal string
+}
+
+func (t TokenLit) Precedence() int {
+	return t.Token.Precedence()
+}
+
+func (t TokenLit) Is(other ...token.Token) bool {
+	return t.Token.Is(other...)
+}
+
+func (t TokenLit) Valid() bool {
+	return t.Token != token.Illegal || len(t.Literal) > 0
+}
+
+func (t TokenLit) String() string {
+	if len(t.Literal) > 0 {
+		return t.Literal
+	}
+	return t.Token.String()
 }

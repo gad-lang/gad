@@ -13,6 +13,9 @@ import (
 )
 
 func TestEval(t *testing.T) {
+	gtimeModuleData, _ := gadtime.ModuleInit(nil, Call{})
+	gtimeD := gtimeModuleData.(Dict)
+
 	type scriptResult struct {
 		script string
 		result Object
@@ -41,17 +44,17 @@ func TestEval(t *testing.T) {
 			name: "import",
 			opts: CompileOptions{CompilerOptions: CompilerOptions{
 				ModuleMap: NewModuleMap().
-					AddBuiltinModule("time", gadtime.Module),
+					AddBuiltinModuleInit("time", gadtime.ModuleInit),
 			}},
 			sr: []scriptResult{
 				{`time := import("time")`, Nil},
-				{`time.Second`, gadtime.Module["Second"]},
+				{`time.Second`, gtimeD["Second"]},
 				{`tmp := time.Second`, Nil},
-				{`tmp`, gadtime.Module["Second"]},
+				{`tmp`, gtimeD["Second"]},
 				{`time.Second = ""`, Nil},
 				{`time.Second`, Str("")},
 				{`time.Second = tmp`, Nil},
-				{`time.Second`, gadtime.Module["Second"]},
+				{`time.Second`, gtimeD["Second"]},
 			},
 		},
 		{
@@ -200,7 +203,7 @@ func TestEval(t *testing.T) {
 		t.Run(tC.name, func(t *testing.T) {
 			eval := NewEval(tC.opts, &RunOpts{Globals: tC.global, Args: Args{tC.args}, NamedArgs: tC.namedArgs})
 			for _, sr := range tC.sr {
-				ret, _, err := eval.Run(tC.ctx, []byte(sr.script))
+				ret, _, err := eval.RunScript(tC.ctx, []byte(sr.script))
 				require.NoError(t, err, sr.script)
 				require.Equal(t, sr.result, ret, sr.script)
 			}
@@ -220,7 +223,7 @@ func TestEval(t *testing.T) {
 		eval := NewEval(DefaultCompileOptions, &RunOpts{Globals: globals})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		ret, bc, err := eval.Run(ctx, []byte(`
+		ret, bc, err := eval.RunScript(ctx, []byte(`
 		global Gosched; Gosched(); foo := "bar"; return foo`))
 		require.Nilf(t, ret, "return value:%v", ret)
 		require.Equal(t, context.Canceled, err, err)
@@ -230,7 +233,7 @@ func TestEval(t *testing.T) {
 	// test error
 	t.Run("parser error", func(t *testing.T) {
 		eval := NewEval(DefaultCompileOptions)
-		ret, bc, err := eval.Run(context.Background(), []byte(`...`))
+		ret, bc, err := eval.RunScript(context.Background(), []byte(`...`))
 		require.Nil(t, ret)
 		require.Nil(t, bc)
 		require.Contains(t, err.Error(),

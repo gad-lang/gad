@@ -60,9 +60,7 @@ func (s *AssignStmt) WriteCode(ctx *CodeWriteContext) {
 	ctx.WritePrefix()
 	ctx.WriteExprs(", ", s.LHS...)
 	ctx.WriteString(" " + s.Token.String() + " ")
-	ctx.Depth++
 	ctx.WriteExprs(", ", s.RHS...)
-	ctx.Depth--
 }
 
 // BadStmt represents a bad statement.
@@ -186,7 +184,9 @@ func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) 
 		ctx.WriteStmts(s.Stmts...)
 	}
 
-	ctx.WriteSemi()
+	if len(ctx.Prefix) > 0 || rb != "}" {
+		ctx.WriteSemi()
+	}
 
 	if selfDepth {
 		ctx.WritePrefix()
@@ -750,11 +750,15 @@ func (s *MixedTextStmt) ValidLit() ast.Literal {
 
 func (s *MixedTextStmt) WriteCode(ctx *CodeWriteContext) {
 	if ctx.Transpile != nil {
+		value := s.Value()
+		if len(value) == 0 {
+			return
+		}
 		ctx.WritePrefix()
 		ctx.WriteString(ctx.Transpile.WriteFunc)
 		ctx.WriteSingleByte('(')
 		ctx.WriteString(ctx.Transpile.RawStrFuncStart)
-		ctx.WriteString(strconv.Quote(s.Value()))
+		ctx.WriteString(strconv.Quote(value))
 		ctx.WriteString(ctx.Transpile.RawStrFuncEnd)
 		ctx.WriteSingleByte(')')
 		ctx.WriteSemi()
@@ -996,4 +1000,30 @@ func (s *CodeEndStmt) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString(s.String())
 		ctx.Depth--
 	}
+}
+
+type FuncStmt struct {
+	Func *FuncExpr
+}
+
+func (f FuncStmt) StmtNode() {
+}
+
+// Pos returns the position of first character belonging to the node.
+func (f *FuncStmt) Pos() source.Pos {
+	return f.Func.Pos()
+}
+
+// End returns the position of first character immediately after the node.
+func (f *FuncStmt) End() source.Pos {
+	return f.Func.End()
+}
+
+func (f *FuncStmt) String() string {
+	return f.Func.String()
+}
+
+func (f *FuncStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WritePrefix()
+	f.Func.WriteCode(ctx)
 }

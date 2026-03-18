@@ -17,9 +17,11 @@ type BuiltinType uint16
 func (t BuiltinType) String() string {
 	switch bt := BuiltinObjects[t].(type) {
 	case *BuiltinFunction:
-		return bt.Name
+		return bt.FuncName
 	case *BuiltinObjType:
-		return bt.NameValue
+		return bt.Name()
+	case *BuiltinFunctionWithMethods:
+		return bt.name
 	case fmt.Stringer:
 		return bt.String()
 	default:
@@ -32,6 +34,7 @@ const (
 	BuiltinTypesBegin_ BuiltinType = iota
 	// types
 	BuiltinNil
+	BuiltinAny
 	BuiltinFlag
 	BuiltinBool
 	BuiltinInt
@@ -58,7 +61,27 @@ const (
 	BuiltinZipIterator
 	BuiltinMixedParams
 	BuiltinPrinterState
+	BuiltinTypedIdent
+	BuiltinFunc
+	BuiltinComputedValue
 	BuiltinTypesEnd_
+
+	BuiltinStaticTypesStart_
+	BuiltinStaticTypeBuiltinFunction
+	BuiltinStaticTypeCallWrapper
+	BuiltinStaticTypeCompiledFunction
+	BuiltinStaticTypeFunction
+	BuiltinStaticTypeKeyValueArrays
+	BuiltinStaticTypeArgs
+	BuiltinStaticTypeNamedArgs
+	BuiltinStaticTypeObjectPtr
+	BuiltinStaticTypeReader
+	BuiltinStaticTypeWriter
+	BuiltinStaticTypeDiscardWriter
+	BuiltinStaticTypeObjectTypeArray
+	BuiltinStaticTypeReflectMethod
+	BuiltinStaticTypeIndexGetProxy
+	BuiltinStaticTypesEnd_
 
 	BuiltinFunctionsBegin_
 	BuiltinBinaryOperator
@@ -90,10 +113,9 @@ const (
 	BuiltinGlobals
 	BuiltinStdIO
 	BuiltinWrap
-	BuiltinStruct
-	BuiltinNew
+	BuiltinNewClass
 	BuiltinTypeOf
-	BuiltinAddCallMethod
+	BuiltinAddMethod
 	BuiltinRawCaller
 	BuiltinMakeArray
 	BuiltinCap
@@ -174,6 +196,7 @@ const (
 	BuiltinBinaryOperatorTilde
 	BuiltinBinaryOperatorDoubleTilde
 	BuiltinBinaryOperatorTripleTilde
+	BuiltinBinaryOperatorLambda
 	GroupBuiltinBinaryOperatorsEnd
 
 	GroupBuiltinSelfAssignOperatorsBegin
@@ -193,6 +216,8 @@ const (
 	BuiltinSelfAssignOperatorAndNot
 	BuiltinSelfAssignOperatorLOr
 	GroupBuiltinSelfAssignOperatorsEnd
+
+	BuiltinEnd_
 )
 
 var (
@@ -210,8 +235,8 @@ func NewBuiltinType() (t BuiltinType) {
 
 // BuiltinsMap is list of builtin types, exported for REPL.
 var BuiltinsMap = map[string]BuiltinType{
-	"binaryOperator":      BuiltinBinaryOperator,
-	"selfAssignOperator":  BuiltinSelfAssignOperator,
+	"@binaryOperator":     BuiltinBinaryOperator,
+	"@selfAssignOperator": BuiltinSelfAssignOperator,
 	"cast":                BuiltinCast,
 	"append":              BuiltinAppend,
 	"delete":              BuiltinDelete,
@@ -238,10 +263,9 @@ var BuiltinsMap = map[string]BuiltinType{
 	"globals":             BuiltinGlobals,
 	"stdio":               BuiltinStdIO,
 	"wrap":                BuiltinWrap,
-	"struct":              BuiltinStruct,
-	"new":                 BuiltinNew,
+	"Class":               BuiltinNewClass,
 	"typeof":              BuiltinTypeOf,
-	"addCallMethod":       BuiltinAddCallMethod,
+	"addMethod":           BuiltinAddMethod,
 	"rawCaller":           BuiltinRawCaller,
 	"repr":                BuiltinRepr,
 	"userData":            BuiltinUserData,
@@ -301,6 +325,45 @@ var BuiltinsMap = map[string]BuiltinType{
 	"DISCARD_WRITER": BuiltinDiscardWriter,
 }
 
+type StaticBuiltins struct {
+	builtins *Builtins
+}
+
+func (b *StaticBuiltins) Builtins() *Builtins {
+	return b.builtins
+}
+
+func (b *StaticBuiltins) Set(name string, obj Object) BuiltinType {
+	b.builtins.last++
+	b.builtins.Map[name] = b.builtins.last
+	b.builtins.Objects[b.builtins.last] = obj
+	return b.builtins.last
+}
+
+func (b *StaticBuiltins) Update(key BuiltinType, value Object) {
+	b.builtins.Objects[key] = value
+}
+
+func (b *StaticBuiltins) Call(t BuiltinType, c Call) (Object, error) {
+	return b.builtins.Call(t, c)
+}
+
+func (b *StaticBuiltins) Caller(t BuiltinType) CallerObject {
+	return b.builtins.Caller(t)
+}
+
+func (b *StaticBuiltins) Invoker(t BuiltinType, c Call) func() (Object, error) {
+	return b.builtins.Invoker(t, c)
+}
+
+func (b *StaticBuiltins) ArgsInvoker(t BuiltinType, c Call) func(arg ...Object) (Object, error) {
+	return b.builtins.ArgsInvoker(t, c)
+}
+
+func (b *StaticBuiltins) Get(t BuiltinType) Object {
+	return b.builtins.Get(t)
+}
+
 type Builtins struct {
 	Objects BuiltinObjectsMap
 	Map     map[string]BuiltinType
@@ -311,72 +374,133 @@ func NewBuiltins() *Builtins {
 	return &Builtins{Objects: BuiltinObjects, Map: BuiltinsMap, last: NewBuiltinType()}
 }
 
-func (s *Builtins) SetType(typ ObjectType) *Builtins {
-	return s.Set(typ.Name(), typ)
+func (b *Builtins) SetType(typ ObjectType) *Builtins {
+	return b.Set(typ.Name(), typ)
 }
 
-func (s *Builtins) Set(name string, obj Object) *Builtins {
-	if s.last == lastBuiltinType {
-		newObjects := make(BuiltinObjectsMap, len(s.Objects))
-		newMap := make(map[string]BuiltinType, len(s.Objects))
-		for t, o := range s.Objects {
+func (b *Builtins) Set(name string, obj Object) *Builtins {
+	if b.last == lastBuiltinType {
+		newObjects := make(BuiltinObjectsMap, len(b.Objects))
+		newMap := make(map[string]BuiltinType, len(b.Objects))
+		for t, o := range b.Objects {
 			newObjects[t] = o
 		}
-		for name, t := range s.Map {
+		for name, t := range b.Map {
 			newMap[name] = t
 		}
-		s.Objects = newObjects
-		s.Map = newMap
+		b.Objects = newObjects
+		b.Map = newMap
 	}
-	s.last++
-	s.Map[name] = s.last
-	s.Objects[s.last] = obj
-	return s
+	b.last++
+	b.Map[name] = b.last
+	b.Objects[b.last] = obj
+	return b
 }
 
-func (s *Builtins) Call(t BuiltinType, c Call) (Object, error) {
-	return DoCall(s.Objects[t].(CallerObject), c)
+func (b *Builtins) Call(t BuiltinType, c Call) (Object, error) {
+	return DoCall(b.Objects[t].(CallerObject), c)
 }
 
-func (s *Builtins) Caller(t BuiltinType) CallerObject {
-	return s.Objects[t].(CallerObject)
+func (b *Builtins) Caller(t BuiltinType) CallerObject {
+	return b.Objects[t].(CallerObject)
 }
 
-func (s *Builtins) Invoker(t BuiltinType, c Call) func() (Object, error) {
-	caller := s.Objects[t].(CallerObject)
+func (b *Builtins) Invoker(t BuiltinType, c Call) func() (Object, error) {
+	caller := b.Objects[t].(CallerObject)
 	return func() (Object, error) {
 		return caller.Call(c)
 	}
 }
 
-func (s *Builtins) ArgsInvoker(t BuiltinType, c Call) func(arg ...Object) (Object, error) {
-	caller := s.Objects[t].(CallerObject)
+func (b *Builtins) ArgsInvoker(t BuiltinType, c Call) func(arg ...Object) (Object, error) {
+	caller := b.Objects[t].(CallerObject)
 	c.Args = Args{nil}
 	return func(arg ...Object) (Object, error) {
 		c.Args[0] = arg
-		return Val(caller.Call(c))
+		return DoCall(caller, c)
 	}
 }
 
-func (s *Builtins) Get(t BuiltinType) Object {
-	return s.Objects[t]
+func (b *Builtins) Get(t BuiltinType) Object {
+	return b.Objects[t]
 }
 
-func (s *Builtins) AppendMap(m map[string]Object) {
+func (b *Builtins) AppendMap(m map[string]Object) {
 	for name, o := range m {
-		s.Set(name, o)
+		b.Set(name, o)
 	}
+}
+
+func (b *Builtins) Build() (s *StaticBuiltins) {
+	s = &StaticBuiltins{
+		builtins: &Builtins{
+			Objects: b.Objects.build(),
+		},
+	}
+	s.builtins.Map = make(map[string]BuiltinType, len(b.Map))
+	for k, v := range b.Map {
+		s.builtins.Map[k] = v
+	}
+	s.builtins.last = b.last
+	return s
 }
 
 type BuiltinObjectsMap map[BuiltinType]Object
 
-func (m BuiltinObjectsMap) Build() BuiltinObjectsMap {
+func (m BuiltinObjectsMap) AddMethod(typ BuiltinType, method ...CallerObjectWithParamTypes) {
+	m[typ] = AddMethod(m[typ], method...)
+}
+
+func (m BuiltinObjectsMap) build() BuiltinObjectsMap {
 	cp := make(BuiltinObjectsMap, len(m))
 	for key, value := range m {
 		if Callable(value) {
-			if cma, _ := value.(CanCallerObjectMethodsEnabler); cma == nil || !cma.MethodsDisabled() {
-				if cwm, _ := value.(*CallerObjectWithMethods); cwm == nil {
-					value = NewCallerObjectWithMethods(value.(CallerObject))
+			switch t := value.(type) {
+			case *BuiltinFunctionWithMethods:
+				if key < BuiltinEnd_ {
+					value = t.Copy()
+				}
+			case *BuiltinObjType:
+				t.builtinType = key
+				if key < BuiltinEnd_ {
+					value = t.Copy().(*BuiltinObjType)
+				}
+			case *BuiltinFunction:
+				if !t.AcceptMethodsDisabled {
+					value = AddMethod(value)
+				}
+			case MethodCaller:
+			case *Function:
+				f := NewFunc(t.Name(), t.Module)
+				if t.Header == nil {
+					f.defaul = t
+				} else {
+					f.AddMethodByTypes(nil, t.ParamTypes(), f, false, nil)
+				}
+			default:
+				if cma, _ := value.(CanCallerObjectMethodsEnabler); cma == nil || !cma.MethodsDisabled() {
+					if cwm, _ := value.(*Func); cwm == nil {
+						var module *Module
+						switch t := value.(type) {
+						case interface{ GetModule() *Module }:
+							module = t.GetModule()
+						}
+
+						f := NewFunc(value.ToString(), module)
+
+						_ = SplitCaller(nil, value, func(co CallerObject, types ParamsTypes) error {
+							if types == nil {
+								f.defaul = co
+							} else {
+								_ = f.AddMethodByTypes(nil, types, co, false, nil)
+							}
+							return nil
+						}, func(co CallerObject) error {
+							f.defaul = co
+							return nil
+						})
+						value = f
+					}
 				}
 			}
 		}
@@ -407,251 +531,257 @@ func (m BuiltinObjectsMap) Append(obj ...Object) BuiltinObjectsMap {
 var BuiltinObjects = BuiltinObjectsMap{
 	// :makeArray is a private builtin function to help destructuring array assignments
 	BuiltinMakeArray: &BuiltinFunction{
-		Name:                  ":makeArray",
+		FuncName:              ":makeArray",
 		Value:                 funcPiOROe(BuiltinMakeArrayFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinBinaryOperator: &BuiltinFunction{
-		Name:  "binaryOperator",
-		Value: BuiltinBinaryOperatorFunc,
+		FuncName: "@binaryOperator",
+		Value:    BuiltinBinaryOperatorFunc,
 	},
 	BuiltinSelfAssignOperator: &BuiltinFunction{
-		Name:  "selfAssignOperator",
-		Value: BuiltinSelfAssignOperatorFunc,
+		FuncName: "@selfAssignOperator",
+		Value:    BuiltinSelfAssignOperatorFunc,
 	},
 	BuiltinCast: &BuiltinFunction{
-		Name:  "cast",
-		Value: BuiltinCastFunc,
+		FuncName: "cast",
+		Value:    BuiltinCastFunc,
 	},
 	BuiltinChars: &BuiltinFunction{
-		Name:  "chars",
-		Value: funcPOROe(BuiltinCharsFunc),
+		FuncName: "chars",
+		Value:    funcPOROe(BuiltinCharsFunc),
 	},
 	BuiltinAppend: &BuiltinFunction{
-		Name:  "append",
-		Value: BuiltinAppendFunc,
+		FuncName: "append",
+		Value:    BuiltinAppendFunc,
 	},
 	BuiltinDelete: &BuiltinFunction{
-		Name:  "delete",
-		Value: BuiltinDeleteFunc,
+		FuncName: "delete",
+		Value:    BuiltinDeleteFunc,
 	},
 	BuiltinCopy: &BuiltinFunction{
-		Name:  "copy",
-		Value: BuiltinCopyFunc,
+		FuncName: "copy",
+		Value:    BuiltinCopyFunc,
 	},
 	BuiltinDeepCopy: &BuiltinFunction{
-		Name:  "dcopy",
-		Value: BuiltinDeepCopyFunc,
+		FuncName: "dcopy",
+		Value:    BuiltinDeepCopyFunc,
 	},
 	BuiltinRepeat: &BuiltinFunction{
-		Name:  "repeat",
-		Value: funcPOiROe(BuiltinRepeatFunc),
+		FuncName: "repeat",
+		Value:    funcPOiROe(BuiltinRepeatFunc),
 	},
 	BuiltinContains: &BuiltinFunction{
-		Name:  "contains",
-		Value: funcPOOROe(BuiltinContainsFunc),
+		FuncName: "contains",
+		Value:    funcPOOROe(BuiltinContainsFunc),
 	},
 	BuiltinLen: &BuiltinFunction{
-		Name:  "len",
-		Value: funcPORO(BuiltinLenFunc),
+		FuncName: "len",
+		Value:    BuiltinLenFunc,
+		Header: NewFunctionHeader().
+			WithParams(func(np func(name string) *ParamBuilder) {
+				np("val").Usage("The value")
+			}).
+			WithNamedParams(func(np func(name string) *NamedParamBuilder) {
+				np("check").
+					Type(TFlag).
+					Usage("When Yes and value not implements LengthGetter interface return error ErrNotLengther, otherwise return 0.")
+			}),
 	},
 	BuiltinCap: &BuiltinFunction{
-		Name:  "cap",
-		Value: funcPORO(BuiltinCapFunc),
+		FuncName: "cap",
+		Value:    funcPORO(BuiltinCapFunc),
 	},
 	BuiltinSort: &BuiltinFunction{
-		Name:  "sort",
-		Value: funcPpVM_OCo_less_ROe(BuiltinSortFunc),
+		FuncName: "sort",
+		Value:    funcPpVM_OCo_less_ROe(BuiltinSortFunc),
 	},
 	BuiltinSortReverse: &BuiltinFunction{
-		Name:  "sortReverse",
-		Value: funcPpVM_OCo_less_ROe(BuiltinSortReverseFunc),
+		FuncName: "sortReverse",
+		Value:    funcPpVM_OCo_less_ROe(BuiltinSortReverseFunc),
 	},
 	BuiltinTypeName: &BuiltinFunction{
-		Name:                  "typeName",
+		FuncName:              "typeName",
 		Value:                 funcPORO(BuiltinTypeNameFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinPrint: &BuiltinFunction{
-		Name:  "print",
-		Value: BuiltinPrintFunc,
+		FuncName: "print",
+		Value:    BuiltinPrintFunc,
 	},
 	BuiltinPrintf: &BuiltinFunction{
-		Name:  "printf",
-		Value: BuiltinPrintfFunc,
+		FuncName: "printf",
+		Value:    BuiltinPrintfFunc,
 	},
 	BuiltinPrintln: &BuiltinFunction{
-		Name:  "println",
-		Value: BuiltinPrintlnFunc,
+		FuncName: "println",
+		Value:    BuiltinPrintlnFunc,
 	},
 	BuiltinSprintf: &BuiltinFunction{
-		Name:                  "sprintf",
+		FuncName:              "sprintf",
 		Value:                 BuiltinSprintfFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinGlobals: &BuiltinFunction{
-		Name:                  "globals",
+		FuncName:              "globals",
 		Value:                 BuiltinGlobalsFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinRepr: &BuiltinFunction{
-		Name:  "repr",
-		Value: BuiltinReprFunc,
+		FuncName: "repr",
+		Value:    BuiltinReprFunc,
 	},
 	BuiltinNamedParamTypeCheck: &BuiltinFunction{
-		Name:                  "namedParamTypeCheck",
+		FuncName:              "namedParamTypeCheck",
 		Value:                 BuiltinNamedParamTypeCheckFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIs: &BuiltinFunction{
-		Name:                  "is",
+		FuncName:              "is",
 		Value:                 BuiltinIsFunc,
 		AcceptMethodsDisabled: true,
+		Usage:                 ``,
 	},
 	BuiltinIsError: &BuiltinFunction{
-		Name:                  "isError",
+		FuncName:              "isError",
 		Value:                 BuiltinIsErrorFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsInt: &BuiltinFunction{
-		Name:                  "isInt",
+		FuncName:              "isInt",
 		Value:                 funcPORO(BuiltinIsIntFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsUint: &BuiltinFunction{
-		Name:                  "isUint",
+		FuncName:              "isUint",
 		Value:                 funcPORO(BuiltinIsUintFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsFloat: &BuiltinFunction{
-		Name:                  "isFloat",
+		FuncName:              "isFloat",
 		Value:                 funcPORO(BuiltinIsFloatFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsChar: &BuiltinFunction{
-		Name:                  "isChar",
+		FuncName:              "isChar",
 		Value:                 funcPORO(BuiltinIsCharFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsBool: &BuiltinFunction{
-		Name:                  "isBool",
+		FuncName:              "isBool",
 		Value:                 funcPORO(BuiltinIsBoolFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsStr: &BuiltinFunction{
-		Name:                  "isStr",
+		FuncName:              "isStr",
 		Value:                 funcPORO(BuiltinIsStrFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsRawStr: &BuiltinFunction{
-		Name:                  "isRawStr",
+		FuncName:              "isRawStr",
 		Value:                 funcPORO(BuiltinIsRawStrFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsBytes: &BuiltinFunction{
-		Name:                  "isBytes",
+		FuncName:              "isBytes",
 		Value:                 funcPORO(BuiltinIsBytesFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsDict: &BuiltinFunction{
-		Name:                  "isDict",
+		FuncName:              "isDict",
 		Value:                 funcPORO(BuiltinIsDictFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsSyncDict: &BuiltinFunction{
-		Name:                  "isSyncDict",
+		FuncName:              "isSyncDict",
 		Value:                 funcPORO(BuiltinIsSyncDictFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsArray: &BuiltinFunction{
-		Name:                  "isArray",
+		FuncName:              "isArray",
 		Value:                 funcPORO(BuiltinIsArrayFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsNil: &BuiltinFunction{
-		Name:                  "isNil",
+		FuncName:              "isNil",
 		Value:                 funcPORO(BuiltinIsNilFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsFunction: &BuiltinFunction{
-		Name:                  "isFunction",
+		FuncName:              "isFunction",
 		Value:                 funcPORO(BuiltinIsFunctionFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinIsCallable: &BuiltinFunction{
-		Name:  "isCallable",
-		Value: funcPORO(BuiltinIsCallableFunc),
+		FuncName: "isCallable",
+		Value:    funcPORO(BuiltinIsCallableFunc),
 	},
 	BuiltinIsIterable: &BuiltinFunction{
-		Name:  "isIterable",
-		Value: funcPpVM_ORO(BuiltinIsIterableFunc),
+		FuncName: "isIterable",
+		Value:    funcPpVM_ORO(BuiltinIsIterableFunc),
 	},
 	BuiltinIsIterator: &BuiltinFunction{
-		Name:  "isIterator",
-		Value: funcPORO(BuiltinIsIteratorFunc),
+		FuncName: "isIterator",
+		Value:    funcPORO(BuiltinIsIteratorFunc),
 	},
 	BuiltinStdIO: &BuiltinFunction{
-		Name:  "stdio",
-		Value: BuiltinStdIOFunc,
+		FuncName: "stdio",
+		Value:    BuiltinStdIOFunc,
 	},
 	BuiltinWrap: &BuiltinFunction{
-		Name:  "wrap",
-		Value: BuiltinWrapFunc,
+		FuncName: "wrap",
+		Value:    BuiltinWrapFunc,
 	},
-	BuiltinStruct: &BuiltinFunction{
-		Name:                  "struct",
-		Value:                 BuiltinStructFunc,
+	BuiltinNewClass: &BuiltinFunction{
+		FuncName:              "Class",
+		Value:                 NewClassFunc,
 		AcceptMethodsDisabled: true,
 	},
-	BuiltinNew: &BuiltinFunction{
-		Name:  "new",
-		Value: BuiltinNewFunc,
-	},
 	BuiltinTypeOf: &BuiltinFunction{
-		Name:                  "typeof",
+		FuncName:              "typeof",
 		Value:                 BuiltinTypeOfFunc,
 		AcceptMethodsDisabled: true,
 	},
-	BuiltinAddCallMethod: &BuiltinFunction{
-		Name:                  "addCallMethod",
-		Value:                 funcPpVM_CoCob_override_Re(BuiltinAddCallMethodFunc),
+	BuiltinAddMethod: &BuiltinFunction{
+		FuncName:              "addMethod",
+		Value:                 BuiltinAddMethodFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinRawCaller: &BuiltinFunction{
-		Name:                  "rawCaller",
+		FuncName:              "rawCaller",
 		Value:                 BuiltinRawCallerFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinVMPushWriter: &BuiltinFunction{
-		Name:                  "vmPushWriter",
+		FuncName:              "vmPushWriter",
 		Value:                 BuiltinPushWriterFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinVMPopWriter: &BuiltinFunction{
-		Name:  "vmPopWriter",
-		Value: BuiltinPopWriterFunc,
+		FuncName: "vmPopWriter",
+		Value:    BuiltinPopWriterFunc,
 	},
 	BuiltinOBStart: &BuiltinFunction{
-		Name:                  "obstart",
+		FuncName:              "obstart",
 		Value:                 BuiltinOBStartFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinOBEnd: &BuiltinFunction{
-		Name:                  "obend",
+		FuncName:              "obend",
 		Value:                 BuiltinOBEndFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinFlush: &BuiltinFunction{
-		Name:  "flush",
-		Value: BuiltinFlushFunc,
+		FuncName: "flush",
+		Value:    BuiltinFlushFunc,
 	},
 	BuiltinUserData: &BuiltinFunction{
-		Name:  "userData",
-		Value: BuiltinUserDataFunc,
+		FuncName: "userData",
+		Value:    BuiltinUserDataFunc,
 	},
 	BuiltinClose: &BuiltinFunction{
-		Name:  "close",
-		Value: BuiltinCloseFunc,
+		FuncName: "close",
+		Value:    BuiltinCloseFunc,
 	},
 	BuiltinWrongNumArgumentsError:  ErrWrongNumArguments,
 	BuiltinInvalidOperatorError:    ErrInvalidOperator,
@@ -671,67 +801,67 @@ func init() {
 	// initialization prevent cycle for BuiltinObjects
 
 	BuiltinObjects[BuiltinRead] = &BuiltinFunction{
-		Name:  "read",
-		Value: BuiltinReadFunc,
+		FuncName: "read",
+		Value:    BuiltinReadFunc,
 	}
 	BuiltinObjects[BuiltinWrite] = &BuiltinFunction{
-		Name:  "write",
-		Value: BuiltinWriteFunc,
+		FuncName: "write",
+		Value:    BuiltinWriteFunc,
 	}
 	BuiltinObjects[BuiltinFilter] = &BuiltinFunction{
-		Name:  "filter",
-		Value: BuiltinFilterFunc,
+		FuncName: "filter",
+		Value:    BuiltinFilterFunc,
 	}
 	BuiltinObjects[BuiltinMap] = &BuiltinFunction{
-		Name:  "map",
-		Value: BuiltinMapFunc,
+		FuncName: "map",
+		Value:    BuiltinMapFunc,
 	}
 	BuiltinObjects[BuiltinEach] = &BuiltinFunction{
-		Name:  "each",
-		Value: BuiltinEachFunc,
+		FuncName: "each",
+		Value:    BuiltinEachFunc,
 	}
 	BuiltinObjects[BuiltinReduce] = &BuiltinFunction{
-		Name:  "reduce",
-		Value: BuiltinReduceFunc,
+		FuncName: "reduce",
+		Value:    BuiltinReduceFunc,
 	}
 	BuiltinObjects[BuiltinEach] = &BuiltinFunction{
-		Name:  "each",
-		Value: BuiltinEachFunc,
+		FuncName: "each",
+		Value:    BuiltinEachFunc,
 	}
 
 	BuiltinObjects[BuiltinIterate] = &BuiltinFunction{
-		Name:  "iterate",
-		Value: BuiltinIterateFunc,
+		FuncName: "iterate",
+		Value:    BuiltinIterateFunc,
 	}
 	BuiltinObjects[BuiltinKeys] = &BuiltinFunction{
-		Name:  "keys",
-		Value: BuiltinKeysFunc,
+		FuncName: "keys",
+		Value:    BuiltinKeysFunc,
 	}
 	BuiltinObjects[BuiltinValues] = &BuiltinFunction{
-		Name:  "values",
-		Value: BuiltinValuesFunc,
+		FuncName: "values",
+		Value:    BuiltinValuesFunc,
 	}
 	BuiltinObjects[BuiltinItems] = &BuiltinFunction{
-		Name:  "items",
-		Value: BuiltinItemsFunc,
+		FuncName: "items",
+		Value:    BuiltinItemsFunc,
 	}
 	BuiltinObjects[BuiltinCollect] = &BuiltinFunction{
-		Name:  "collect",
-		Value: BuiltinCollectFunc,
+		FuncName: "collect",
+		Value:    BuiltinCollectFunc,
 	}
 	BuiltinObjects[BuiltinEnumerate] = &BuiltinFunction{
-		Name:  "enumerate",
-		Value: BuiltinEnumerateFunc,
+		FuncName: "enumerate",
+		Value:    BuiltinEnumerateFunc,
 	}
 	BuiltinObjects[BuiltinIterator] = TIterator
 	BuiltinObjects[BuiltinZipIterator] = TZipIterator
 	BuiltinObjects[BuiltinIteratorInput] = &BuiltinFunction{
-		Name:  "iteratorInput",
-		Value: funcPORO(BuiltinIteratorInputFunc),
+		FuncName: "iteratorInput",
+		Value:    funcPORO(BuiltinIteratorInputFunc),
 	}
 	BuiltinObjects[BuiltinToArray] = &BuiltinFunction{
-		Name:  "toArray",
-		Value: BuiltinToArrayFunc,
+		FuncName: "toArray",
+		Value:    BuiltinToArrayFunc,
 	}
 }
 

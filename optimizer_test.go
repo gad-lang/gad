@@ -343,7 +343,7 @@ func TestOptimizerFor(t *testing.T) {
 				makeInst(OpJump, 5),
 				makeInst(OpReturn, 0),
 			),
-				withLocals(1),
+				funcLocals(1),
 			),
 		))
 }
@@ -545,7 +545,7 @@ func TestOptimizerCondExpr(t *testing.T) {
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			),
-				withLocals(1),
+				funcLocals(1),
 			),
 		},
 	}
@@ -571,8 +571,8 @@ func TestOptimizerShadowing(t *testing.T) {
 				makeInst(OpCall, 1, 0),
 				makeInst(OpReturn, 1),
 			),
-				withParams("int"),
-				withLocals(1),
+				funcParams("int"),
+				funcLocals(1),
 			),
 		))
 	// int is shadowed by a var declaration, should not evalute int("1") to 1
@@ -587,7 +587,7 @@ func TestOptimizerShadowing(t *testing.T) {
 				makeInst(OpCall, 1, 0),
 				makeInst(OpReturn, 1),
 			),
-				withLocals(1),
+				funcLocals(1),
 			),
 		))
 	// int is shadowed by a var declaration in upper scope,
@@ -610,7 +610,7 @@ func TestOptimizerShadowing(t *testing.T) {
 				makeInst(OpClosure, 1, 1),
 				makeInst(OpReturn, 1),
 			),
-				withLocals(1),
+				funcLocals(1),
 			),
 		))
 
@@ -619,7 +619,8 @@ func TestOptimizerShadowing(t *testing.T) {
 	opts.OptimizeExpr = true
 
 	st := NewSymbolTable(NewBuiltins())
-	require.NoError(t, st.SetParams(false, []string{"int"}, nil))
+
+	require.NoError(t, st.DefineParams(NewParams(&Param{Name: "int"}), nil))
 	opts.SymbolTable = st
 	expectCompileWithOpts(t, `return int("1")`, opts,
 		bytecode(
@@ -630,8 +631,8 @@ func TestOptimizerShadowing(t *testing.T) {
 				makeInst(OpCall, 1, 0),
 				makeInst(OpReturn, 1),
 			),
-				withParams("int"),
-				withLocals(1),
+				funcParams("int"),
+				funcLocals(1),
 			),
 		),
 	)
@@ -691,8 +692,8 @@ func TestOptimizerShadowing(t *testing.T) {
 					makeInst(OpCall, 1, 0),
 					makeInst(OpReturn, 1),
 				),
-					withParams("int"),
-					withLocals(1),
+					funcParams("int"),
+					funcLocals(1),
 				),
 				Int(1),
 			},
@@ -721,7 +722,7 @@ func TestOptimizerError(t *testing.T) {
 	// two errors found by optimizer is reported as multipleErr but
 	// Error() method returns first error's message.
 	// Errors on the same line are discarded by optimizer.
-	bc, err := Compile([]byte(`
+	_, bc, err := Compile([]byte(`
 	1/0;2/0
 	1/0;`), DefaultCompileOptions)
 	require.Nil(t, bc)

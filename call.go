@@ -68,7 +68,7 @@ func (o Args) Copy() Object {
 	return cp
 }
 
-func (o Args) Types() (types []ObjectType) {
+func (o Args) Types() (types ObjectTypeArray) {
 	o.Walk(func(i int, arg Object) any {
 		if t, ok := arg.(ObjectType); ok {
 			types = append(types, t)
@@ -449,7 +449,7 @@ func (o Args) DestructureVar(dst ...*Arg) (other Array, err error) {
 
 		if expectedTypes := d.Accept(d.Value); expectedTypes != "" {
 			return nil, NewArgumentTypeError(
-				strconv.Itoa(i)+"st",
+				strconv.Itoa(i)+"st ("+d.Name+")",
 				expectedTypes,
 				d.Value.Type().Name(),
 			)
@@ -457,6 +457,30 @@ func (o Args) DestructureVar(dst ...*Arg) (other Array, err error) {
 	}
 	other = o.Values()
 	return
+}
+
+// DestructureVarMinCb shifts argument and set value to dst, and returns left arguments.
+// If the number of arguments is less then to called args length + min, it returns an error.
+// If type check of arg is fails, returns ArgumentTypeError.
+// If has more args, call otherCb.
+func (o Args) DestructureVarMinCb(min int, otherCb func(i int, arg Object) error, dst ...*Arg) (err error) {
+	if err = o.CheckMinLen(len(dst) + min); err != nil {
+		return
+	}
+
+	for i, d := range dst {
+		d.Value = o.Shift()
+
+		if expectedTypes := d.Accept(d.Value); expectedTypes != "" {
+			return NewArgumentTypeError(
+				strconv.Itoa(i)+"st ("+d.Name+")",
+				expectedTypes,
+				d.Value.Type().Name(),
+			)
+		}
+	}
+
+	return o.WalkE(otherCb)
 }
 
 func (o Args) DestructureTo(dst ...ArgValue) (err error) {
@@ -512,6 +536,13 @@ func NewCall(vm *VM, opts ...CallOpt) Call {
 		opt(&c)
 	}
 	return c
+}
+
+func (c *Call) Params() *MixedParams {
+	return &MixedParams{
+		Positional: c.Args.Array(),
+		Named:      c.NamedArgs.Join(),
+	}
 }
 
 func (c Call) InvokerOf(co CallerObject) *Invoker {

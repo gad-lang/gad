@@ -9,6 +9,15 @@ func Callable(o Object) (ok bool) {
 	return
 }
 
+func IsFunction(o Object) (ok bool) {
+	switch o.(type) {
+	case *Function, *CompiledFunction, *Func, *BuiltinFunction, *BuiltinFunctionWithMethods, *ReflectFunc:
+		return true
+	default:
+		return false
+	}
+}
+
 func Writeable(o Object) (ok bool) {
 	_, ok = o.(Writer)
 	return
@@ -28,7 +37,7 @@ func IsIterator(obj Object) bool {
 }
 
 func Iterable(vm *VM, obj Object) bool {
-	ret, err := Val(vm.Builtins.Call(BuiltinIsIterable, Call{VM: vm, Args: Args{Array{obj}}}))
+	ret, err := vm.Builtins.Call(BuiltinIsIterable, Call{VM: vm, Args: Args{Array{obj}}})
 	if err != nil {
 		return false
 	}
@@ -66,7 +75,10 @@ func Reducable(obj Object) bool {
 }
 
 func IsType(obj Object) (ok bool) {
-	_, ok = obj.(ObjectType)
+	switch obj.(type) {
+	case ObjectType:
+		ok = true
+	}
 	return
 }
 
@@ -92,7 +104,7 @@ func IsIndexGetter(obj Object) (ok bool) {
 
 func IsTypeAssignableTo(a, b ObjectType) bool {
 	for a != nil {
-		if a == b {
+		if a.Equal(b) {
 			return true
 		}
 		a = a.Type()

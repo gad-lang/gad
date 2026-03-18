@@ -82,7 +82,7 @@ println("sourcemod")`))
 		opts := gad.DefaultCompilerOptions
 		opts.ModuleMap = moduleMap.Copy()
 		opts.ModuleMap.SetExtImporter(&importers.FileImporter{WorkDir: tempDir})
-		bc, err := gad.Compile([]byte(script), gad.CompileOptions{CompilerOptions: opts})
+		_, bc, err := gad.Compile([]byte(script), gad.CompileOptions{CompilerOptions: opts})
 		require.NoError(t, err)
 		ret, err := gad.NewVM(bc).RunOpts(&gad.RunOpts{
 			StdOut: gad.NewWriter(buf),
@@ -118,7 +118,7 @@ println("test8")
 
 		script := script
 		script += "\n" + `import("test8.gad")`
-		bc, err := gad.Compile([]byte(script), gad.CompileOptions{CompilerOptions: opts})
+		_, bc, err := gad.Compile([]byte(script), gad.CompileOptions{CompilerOptions: opts})
 		require.NoError(t, err)
 		ret, err := gad.NewVM(bc).RunOpts(&gad.RunOpts{
 			StdOut: gad.NewWriter(buf),
@@ -157,7 +157,7 @@ println("test8")
 		script := append([]byte(shebangline), script...)
 		importers.Shebang2Slashes(script)
 
-		bc, err := gad.Compile(script, gad.CompileOptions{CompilerOptions: opts})
+		_, bc, err := gad.Compile(script, gad.CompileOptions{CompilerOptions: opts})
 		require.NoError(t, err)
 		ret, err := gad.NewVM(bc).RunOpts(&gad.RunOpts{
 			StdOut: gad.NewWriter(buf),

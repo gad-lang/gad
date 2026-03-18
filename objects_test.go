@@ -110,9 +110,9 @@ func TestObjectString(t *testing.T) {
 	require.Equal(t, "{}", (&SyncDict{Value: Dict{}}).ToString())
 
 	require.Equal(t, ReprQuote("function:"), (&Function{}).ToString())
-	require.Equal(t, ReprQuote("function:xyz"), (&Function{Name: "xyz"}).ToString())
+	require.Equal(t, ReprQuote("function:xyz"), (&Function{FuncName: "xyz"}).ToString())
 	require.Equal(t, ReprQuote("builtinFunction:()"), (&BuiltinFunction{}).ToString())
-	require.Equal(t, ReprQuote("builtinFunction:abc()"), (&BuiltinFunction{Name: "abc"}).ToString())
+	require.Equal(t, ReprQuote("builtinFunction:abc()"), (&BuiltinFunction{FuncName: "abc"}).ToString())
 	require.Equal(t, ReprQuote("compiledFunction ()"), (&CompiledFunction{}).ToString())
 	require.Equal(t, ReprQuote("reflectFunc: func()"), MustToObject(func() {}).ToString())
 	require.Equal(t, ReprQuote("reflectFunc: func(int)"), MustToObject(func(int) {}).ToString())

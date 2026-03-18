@@ -17,7 +17,7 @@ type Eval struct {
 	*RunOpts
 	Opts         CompileOptions
 	VM           *VM
-	ModulesCache []Object
+	ModulesCache []*Module
 }
 
 // NewEval returns new Eval object.
@@ -48,13 +48,18 @@ func NewEval(opts CompileOptions, runOpts ...*RunOpts) *Eval {
 	}
 }
 
-// Run compiles, runs given script and returns last value on stack.
-func (r *Eval) Run(ctx context.Context, script []byte) (Object, *Bytecode, error) {
-	bytecode, err := Compile(script, r.Opts)
+// RunScript compiles, runs given script and returns last value on stack.
+func (r *Eval) RunScript(ctx context.Context, script []byte) (ret Object, bytecode *Bytecode, err error) {
+	_, bytecode, err = Compile(script, r.Opts)
 	if err != nil {
 		return nil, nil, err
 	}
+	ret, err = r.Run(ctx, bytecode)
+	return
+}
 
+// Run Bytecode and returns last value on stack.
+func (r *Eval) Run(ctx context.Context, bytecode *Bytecode) (ret Object, err error) {
 	r.Opts.Constants = bytecode.Constants
 	r.fixOpPop(bytecode)
 	r.VM.SetBytecode(bytecode)
@@ -64,15 +69,11 @@ func (r *Eval) Run(ctx context.Context, script []byte) (Object, *Bytecode, error
 	}
 
 	r.VM.modulesCache = r.ModulesCache
-	ret, err := r.run(ctx)
+	ret, err = r.run(ctx)
 	r.ModulesCache = r.VM.modulesCache
 	r.Locals = r.VM.GetLocals(r.Locals)
 	r.VM.Clear()
-
-	if err != nil {
-		return nil, bytecode, err
-	}
-	return ret, bytecode, nil
+	return
 }
 
 func (r *Eval) run(ctx context.Context) (ret Object, err error) {

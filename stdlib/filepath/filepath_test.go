@@ -12,7 +12,7 @@ func expectRun(t *testing.T, param, script string, opts *testhelper.VMTestOpts, 
 	if opts == nil {
 		opts = testhelper.NewVMTestOpts()
 	}
-	opts = opts.Module("filepath", Module)
+	opts = opts.Module("filepath", ModuleInit)
 	if param != "" {
 		param = "param(" + param + ")"
 	}

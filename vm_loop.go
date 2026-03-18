@@ -45,14 +45,14 @@ VMLoop:
 			tok := token.Token(vm.curInsts[vm.ip+1])
 			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
 
-			value, err := Val(vm.Builtins.Call(BuiltinBinaryOperator, Call{
+			value, err := vm.Builtins.Call(BuiltinBinaryOperator, Call{
 				VM: vm,
 				Args: Args{Array{
 					BinaryOperatorType(tok),
 					left,
 					right,
 				}},
-			}))
+			})
 
 			if err == nil {
 				vm.stack[vm.sp-2] = value
@@ -72,14 +72,14 @@ VMLoop:
 			tok := token.Token(vm.curInsts[vm.ip+1])
 			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
 
-			value, err := Val(vm.Builtins.Call(BuiltinSelfAssignOperator, Call{
+			value, err := vm.Builtins.Call(BuiltinSelfAssignOperator, Call{
 				VM: vm,
 				Args: Args{Array{
 					SelfAssignOperatorType(tok),
 					left,
 					right,
 				}},
-			}))
+			})
 
 			if err == nil {
 				vm.stack[vm.sp-2] = value
@@ -200,13 +200,26 @@ VMLoop:
 				vm.err = err
 				return
 			}
+		case OpSetReturn:
+			localIdx := int(vm.curInsts[vm.ip+1])
+			idx := vm.curFrame.basePointer + localIdx
+			value := vm.stack[idx]
+			if ptr, _ := value.(*ObjectPtr); ptr != nil {
+				vm.curFrame.fn.Return = ptr
+			} else {
+				vm.curFrame.fn.Return = &ObjectPtr{Value: &vm.stack[idx]}
+			}
+			vm.ip++
+			continue
 		case OpReturn:
 			numRet := vm.curInsts[vm.ip+1]
 			bp := vm.curFrame.basePointer
 			if bp == 0 {
 				bp = vm.curFrame.fn.NumLocals + 1
 			}
-			if numRet == 1 {
+			if res := vm.curFrame.fn.Return; res != nil {
+				vm.stack[bp-1] = *res.Value
+			} else if numRet == 1 {
 				vm.stack[bp-1] = vm.stack[vm.sp-1]
 			} else {
 				vm.stack[bp-1] = Nil
@@ -224,7 +237,7 @@ VMLoop:
 			parent := &(vm.frames[vm.frameIndex-2])
 			vm.frameIndex--
 			switch Opcode(parent.fn.Instructions[parent.ip]) {
-			case OpCall, OpCallName:
+			case OpCall, OpCallName, OpInitModule:
 				// goto next instruction
 				parent.ip += 2
 			}
@@ -233,7 +246,7 @@ VMLoop:
 			vm.curInsts = vm.curFrame.fn.Instructions
 		case OpGetBuiltin:
 			builtinIndex := BuiltinType(int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8)
-			vm.stack[vm.sp] = vm.Builtins.Objects[builtinIndex]
+			vm.stack[vm.sp] = vm.Builtins.builtins.Objects[builtinIndex]
 			vm.sp++
 			vm.ip += 2
 		case OpClosure:
@@ -317,6 +330,7 @@ VMLoop:
 
 			vm.ip += 2
 			vm.sp++
+
 		case OpSetGlobal:
 			cidx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			index := vm.constants[cidx]
@@ -414,7 +428,7 @@ VMLoop:
 		case OpTextWriter:
 			numSel := int(vm.curInsts[vm.ip+1])
 			tp := vm.sp - 1 - numSel
-			value, null, abort := vm.xIndexGet(numSel, vm.stack[tp])
+			value, null, abort := vm.xIndexGet(numSel, vm.stack[tp], false)
 			if abort {
 				return
 			}
@@ -427,7 +441,7 @@ VMLoop:
 		case OpGetIndex:
 			numSel := int(vm.curInsts[vm.ip+1])
 			tp := vm.sp - 1 - numSel
-			value, null, abort := vm.xIndexGet(numSel, vm.stack[tp])
+			value, null, abort := vm.xIndexGet(numSel, vm.stack[tp], false)
 			if abort {
 				return
 			}
@@ -437,6 +451,20 @@ VMLoop:
 			vm.stack[tp] = value
 			vm.sp = tp + 1
 			vm.ip++
+		case OpAddMethod:
+			numSel := int(vm.curInsts[vm.ip+1])
+			numFuncs := int(vm.curInsts[vm.ip+2])
+			tp := vm.sp - 1 - numSel - numFuncs
+			value, null, abort := vm.xAddMethod(numSel, numFuncs, vm.stack[tp])
+			if abort {
+				return
+			}
+			if null {
+				continue VMLoop
+			}
+			vm.stack[tp] = value
+			vm.sp = tp + 1
+			vm.ip += 2
 		case OpSetIndex:
 			value := vm.stack[vm.sp-3]
 			target := vm.stack[vm.sp-2]
@@ -530,13 +558,19 @@ VMLoop:
 			vm.stack[vm.sp] = vm.StdErr
 			vm.sp++
 		case OpDotName:
-			vm.stack[vm.sp] = Str(vm.curFrame.fn.module.Name)
+			vm.stack[vm.sp] = Str(vm.CurrentModule().Name())
 			vm.sp++
 		case OpDotFile:
-			vm.stack[vm.sp] = Str(vm.curFrame.fn.module.File)
+			vm.stack[vm.sp] = Str(vm.CurrentModule().File())
 			vm.sp++
-		case OpIsModule:
-			vm.stack[vm.sp] = Bool(vm.curFrame.fn.module.Name != MainName)
+		case OpIsMain:
+			vm.stack[vm.sp] = Bool(vm.CurrentModule().Name() == MainName)
+			vm.sp++
+		case OpNotIsMain:
+			vm.stack[vm.sp] = Bool(vm.CurrentModule().Name() != MainName)
+			vm.sp++
+		case OpModule:
+			vm.stack[vm.sp] = vm.CurrentModule()
 			vm.sp++
 		case OpCallee:
 			vm.stack[vm.sp] = vm.curFrame.fn
@@ -547,6 +581,8 @@ VMLoop:
 		case OpNamedArgs:
 			vm.stack[vm.sp] = vm.curFrame.namedArgs
 			vm.sp++
+		case OpNamedParamValue:
+			vm.stack[vm.sp-1] = vm.curFrame.namedArgs.GetValue(string(vm.stack[vm.sp-1].(Str)))
 		case OpPop:
 			vm.sp--
 			vm.stack[vm.sp] = nil
@@ -613,6 +649,10 @@ VMLoop:
 			iterator := vm.stack[vm.sp-1]
 			val := iterator.(*StateIteratorObject).State.Entry.V
 			vm.stack[vm.sp-1] = val
+		case OpNamedParamsVar:
+			vm.stack[vm.sp-1] = &NamedParamsVar{vm.stack[vm.sp-1]}
+		case OpComputedValue:
+			vm.stack[vm.sp-1] = &ComputedValue{CallerObject: vm.stack[vm.sp-1].(CallerObject)}
 		case OpLoadModule:
 			cidx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			midx := int(vm.curInsts[vm.ip+4]) | int(vm.curInsts[vm.ip+3])<<8
@@ -636,17 +676,25 @@ VMLoop:
 			}
 
 			vm.ip += 4
+		case OpInitModule:
+			err := vm.xOpCallModule()
+			if err == nil {
+				continue
+			}
+			if err = vm.throwGenErr(err); err != nil {
+				vm.err = err
+				return
+			}
 		case OpStoreModule:
 			midx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
-			value := vm.stack[vm.sp-1]
-
-			if v, ok := value.(Copier); ok {
-				// store deep copy of the module if supported
-				value = v.Copy()
-				vm.stack[vm.sp-1] = value
+			sp := vm.sp - 1
+			var module *Module
+			if module, _ = vm.stack[sp].(*Module); module == nil {
+				// if module is initializes by OpInitModule, the SP is +1 for ModuleData result
+				module = vm.stack[sp-1].(*Module)
+				vm.sp--
 			}
-
-			vm.modulesCache[midx] = value
+			vm.modulesCache[midx] = module
 			vm.ip += 2
 		case OpSetupTry:
 			vm.xOpSetupTry()

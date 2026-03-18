@@ -120,13 +120,11 @@ var FileModeByName = map[string]FileFlag{
 	"trunc":         OTrunc,
 }
 
-var TFileFlag = &gad.Type{
-	Parent:   gad.TInt,
-	TypeName: "FileFlag",
-	Constructor: &gad.Function{
+var TFileFlag = gad.NewType("FileFlag").
+	WithConstructor(&gad.Function{
 		Value: NewFileMode,
-	},
-	Static: gad.Dict{
+	}).
+	WithStatic(gad.Dict{
 		"RO":          ORo,
 		"WO":          OWo,
 		"RW":          ORW,
@@ -135,5 +133,4 @@ var TFileFlag = &gad.Type{
 		"IfNotExists": OIfNotExists,
 		"Sync":        OSync,
 		"Trunc":       OTrunc,
-	},
-}
+	})

@@ -45,7 +45,7 @@ func (r *vmCompiledFuncCaller) Close() {
 type vmObjectCaller struct {
 	vm        *VM
 	args      Args
-	namedArgs NamedArgs
+	namedArgs *NamedArgs
 	closed    bool
 	callee    CallerObject
 }
@@ -55,10 +55,10 @@ func (r *vmObjectCaller) Callee() CallerObject {
 }
 
 func (r *vmObjectCaller) Call() (ret Object, err error) {
-	return r.callee.Call(Call{
+	return DoCall(r.callee, Call{
 		VM:        r.vm,
 		Args:      r.args,
-		NamedArgs: r.namedArgs,
+		NamedArgs: *r.namedArgs,
 	})
 }
 

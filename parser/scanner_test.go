@@ -14,7 +14,7 @@ import (
 )
 
 func TestScanner_ScanFloatAsDecimal(t *testing.T) {
-	tr := &tester{}
+	tr := &scanTester{}
 
 	tr.scanExpect(t, "1.2 3.4d",
 		parser.ScanFloatAsDecimal|parser.DontInsertSemis, []scanResult{
@@ -25,7 +25,7 @@ func TestScanner_ScanFloatAsDecimal(t *testing.T) {
 }
 
 func TestScanner_ScanCharAsString(t *testing.T) {
-	tr := &tester{}
+	tr := &scanTester{}
 
 	tr.scanExpect(t, "'a\\'b'\n'abc'\n\"def\"",
 		parser.ScanCharAsString|parser.DontInsertSemis, []scanResult{
@@ -37,7 +37,7 @@ func TestScanner_ScanCharAsString(t *testing.T) {
 }
 
 func TestScanner_ScanMixed(t *testing.T) {
-	tr := &tester{
+	tr := &scanTester{
 		opts: parser.ScannerOptions{
 			Mode: parser.ScanMixed,
 		},
@@ -59,7 +59,7 @@ func TestScanner_ScanMixed(t *testing.T) {
 }
 
 func TestScanner_ScanMixed2(t *testing.T) {
-	tr := &tester{
+	tr := &scanTester{
 		opts: parser.ScannerOptions{
 			Mode: parser.ScanMixed,
 		},
@@ -146,7 +146,7 @@ func TestScanner_ScanMixed2(t *testing.T) {
 }
 
 func TestScanner_Scan(t *testing.T) {
-	tr := &tester{addLines: true}
+	tr := &scanTester{addLines: true}
 	tr.do(t, []testCase{
 		{token.Comment, "/* a comment */"},
 		{token.Comment, "// a comment \n"},
@@ -274,6 +274,7 @@ func TestScanner_Scan(t *testing.T) {
 		{token.Else, "else"},
 		{token.For, "for"},
 		{token.Func, "func"},
+		{token.Method, "met"},
 		{token.If, "if"},
 		{token.Return, "return"},
 		{token.True, "true"},
@@ -293,18 +294,19 @@ func TestScanner_Scan(t *testing.T) {
 		{token.Finally, "finally"},
 		{token.Throw, "throw"},
 		{token.NullishSelector, "?."},
-		{token.Callee, "__callee__"},
-		{token.Args, "__args__"},
-		{token.NamedArgs, "__named_args__"},
+		{token.Callee, "@callee"},
+		{token.Args, "@args"},
+		{token.NamedArgs, "@nargs"},
 		{token.StdIn, "STDIN"},
 		{token.StdOut, "STDOUT"},
 		{token.StdErr, "STDERR"},
 		{token.RBrace, "end"},
 		{token.LBrace, "then"},
 		{token.LBrace, "do"},
-		{token.DotName, "__name__"},
-		{token.DotFile, "__file__"},
-		{token.IsModule, "__is_module__"},
+		{token.DotName, "@name"},
+		{token.DotFile, "@file"},
+		{token.IsMain, "@main"},
+		{token.Module, "@module"},
 	})
 }
 
@@ -357,13 +359,13 @@ type testCase struct {
 	literal string
 }
 
-type tester struct {
+type scanTester struct {
 	addLines bool
 	lineSep  string
 	opts     parser.ScannerOptions
 }
 
-func (tr tester) do(t *testing.T, testCases []testCase) {
+func (tr scanTester) do(t *testing.T, testCases []testCase) {
 	t.Helper()
 	if tr.addLines {
 		tr.lineSep = "\r\n"
@@ -372,7 +374,7 @@ func (tr tester) do(t *testing.T, testCases []testCase) {
 	tr.doI(t, testCases)
 }
 
-func (tr tester) doI(t *testing.T, testCases []testCase) {
+func (tr scanTester) doI(t *testing.T, testCases []testCase) {
 	t.Helper()
 	if tr.lineSep == "" {
 		tr.lineSep = "\n"
@@ -513,7 +515,7 @@ func (tr tester) doI(t *testing.T, testCases []testCase) {
 		parser.DontInsertSemis, expectedSkipComments...)
 }
 
-func (tr *tester) scanExpect(
+func (tr *scanTester) scanExpect(
 	t *testing.T,
 	input string,
 	mode parser.ScanMode,

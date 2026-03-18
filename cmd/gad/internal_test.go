@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/gad-lang/gad"
-	"github.com/gad-lang/gad/repr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,9 +41,9 @@ func TestREPL(t *testing.T) {
 	t.Run("keywords", func(t *testing.T) {
 		require.NoError(t, r.execute(".keywords"))
 		testHasPrefix(t, string(cw.consume()),
-			"break\ncontinue\nelse\nfor\nfunc\nif\nreturn\ntrue\nfalse\nyes\nno\nin\nnil\n"+
-				"import\nembed\nparam\nglobal\nvar\nconst\ntry\ncatch\nfinally\nthrow\n__callee__\n__named_args__\n__args__\n"+
-				"STDIN\nSTDOUT\nSTDERR\n__name__\n__file__\n__is_module__\n",
+			"break\ncontinue\nelse\nfor\nfunc\nmet\nif\nreturn\ntrue\nfalse\nyes\nno\nin\nnil\nimport\nembed\n"+
+				"param\nglobal\nvar\nconst\ntry\ncatch\nfinally\nthrow\nSTDIN\nSTDOUT\nSTDERR\n@callee\n@nargs\n@args\n"+
+				"@name\n@file\n@main\n@module\n",
 		)
 	})
 	t.Run("unresolved reference", func(t *testing.T) {
@@ -57,8 +56,12 @@ func TestREPL(t *testing.T) {
 		testHasPrefix(t, string(cw.consume()), "\n⇦   nil\n")
 	})
 	t.Run("bytecode", func(t *testing.T) {
-		require.NoError(t, r.execute("func(){}"))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   "+repr.Quote("compiledFunction #1()")+"\n")
+		require.NoError(t, r.execute("func x(){}; return x"))
+		require.Equal(t, string(cw.consume()), `
+⇦   ‹func ‹(repl).x› with 1 methods: [
+	0 🠆 ⨍() 🠆 ‹compiledFunction: (repl).x()›
+]›
+`)
 		require.NoError(t, r.execute(".bytecode"))
 		testHasPrefix(t, string(cw.consume()), "Bytecode\n")
 	})
@@ -68,8 +71,7 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("globals", func(t *testing.T) {
 		require.NoError(t, r.execute(".globals"))
-		testHasPrefix(t, string(cw.consume()), `{Gosched: `+repr.Quote("function:Gosched")+`, SOURCE_PATH: `+
-			repr.Quote("reflectSlice:github.com/gad-lang/gad/importers.PathList"+repr.Quote("&[]"))+`}`)
+		testHasPrefix(t, string(cw.consume()), "{Gosched: ‹function Gosched(⋅⋅⋅)›, SOURCE_PATH: []}\n")
 	})
 	t.Run("globals plus", func(t *testing.T) {
 		require.NoError(t, r.execute(".globals+"))
@@ -143,37 +145,37 @@ func TestREPL(t *testing.T) {
 	t.Run("import time", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`import("time")`))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   {")
+		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"time\"")
 		require.NoError(t, r.execute(".modules_cache"))
-		testHasPrefix(t, string(cw.consume()), "[{")
+		testHasPrefix(t, string(cw.consume()), "[‹module: time")
 	})
 	t.Run("import strings", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`import("strings")`))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   {")
+		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"strings\"")
 		require.NoError(t, r.execute(".modules_cache"))
-		testHasPrefix(t, string(cw.consume()), "[{")
+		testHasPrefix(t, string(cw.consume()), "[‹module: strings")
 	})
 	t.Run("import fmt", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`import("fmt")`))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   {")
+		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"fmt\"")
 		require.NoError(t, r.execute(".modules_cache"))
-		testHasPrefix(t, string(cw.consume()), "[{")
+		testHasPrefix(t, string(cw.consume()), "[‹module: fmt ")
 	})
 	t.Run("import json", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`import("json")`))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   {")
+		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"json\"")
 		require.NoError(t, r.execute(".modules_cache"))
-		testHasPrefix(t, string(cw.consume()), "[{")
+		testHasPrefix(t, string(cw.consume()), "[‹module: json ")
 	})
 	t.Run("import encoding/base64", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`import("encoding/base64")`))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   {")
+		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"encoding/base64\" ")
 		require.NoError(t, r.execute(".modules_cache"))
-		testHasPrefix(t, string(cw.consume()), "[{")
+		testHasPrefix(t, string(cw.consume()), "[‹module: encoding/base64 ")
 	})
 	t.Run("memory_stats", func(t *testing.T) {
 		require.NoError(t, r.execute(".memory_stats"))
@@ -188,16 +190,24 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("type_method_constructor", func(t *testing.T) {
 		r := newREPL(ctx, cw)
-		require.NoError(t, r.execute(`Point := struct("Point",fields={x:0, y:0});func Point(x,y)=>Point(x=x,y=y)`))
+		require.NoError(t, r.execute(`Point := Class("Point",fields=(;x=0, y=0));met Point(this, x,y)=>this(x=x,y=y)`))
 		cw.consume()
-		require.NoError(t, r.execute("func int(p Point) => p.x * p.y"))
+		require.NoError(t, r.execute("met int(p Point) => p.x * p.y"))
 		cw.consume()
 		require.NoError(t, r.execute("str(int)"))
-		require.Equal(t, "⇦   \""+repr.Quote("builtinType int")+" with 1 methods:\\n\\t"+
-			"1. "+repr.Quote("compiledFunction #9(p Point)")+": [Point]\"",
+		require.Equal(t, "⇦   \"‹builtin type ‹int› with 1 methods›\"",
 			strings.TrimSpace(string(cw.consume())))
 		require.NoError(t, r.execute("int(Point(2,8))"))
 		require.Equal(t, "⇦   16", strings.TrimSpace(string(cw.consume())))
+	})
+	t.Run("funcs", func(t *testing.T) {
+		r := newREPL(ctx, cw)
+		require.NoError(t, r.execute(`func a { () => 1; (x) => 2 }`))
+		require.Equal(t, `⇦   ‹func ‹(repl).a› with 2 methods: [
+	0 🠆 ⨍() 🠆 ‹compiledFunction: (repl).#1()›,
+	1 🠆 ⨍(any) 🠆 ‹compiledFunction: (repl).#2(x any)›
+]›`,
+			strings.TrimSpace(string(cw.consume())))
 	})
 	t.Run("exit", func(t *testing.T) {
 		require.Same(t, errExit, r.execute(".exit"))
@@ -276,10 +286,10 @@ func TestExecuteScript(t *testing.T) {
 	const workdir = "./testdata"
 	scr, err := ioutil.ReadFile("./testdata/fibtc.gad")
 	require.NoError(t, err)
-	require.NoError(t, newScript(ctx, "(test1)", workdir, scr, nil).execute())
+	require.NoError(t, newScript(gad.NewBuiltins().Build(), ctx, "(test1)", workdir, scr, nil).execute())
 
 	traceEnabled = true
-	require.NoError(t, newScript(ctx, "(test2)", workdir, scr, ioutil.Discard).execute())
+	require.NoError(t, newScript(gad.NewBuiltins().Build(), ctx, "(test2)", workdir, scr, ioutil.Discard).execute())
 	resetGlobals()
 
 	// FIXME: Following is a flaky test which compromise CI
@@ -289,7 +299,7 @@ func TestExecuteScript(t *testing.T) {
 	// fix this issue but it will extend the test duration.
 
 	cancel()
-	err = newScript(ctx, "(test3)", workdir, scr, nil).execute()
+	err = newScript(gad.NewBuiltins().Build(), ctx, "(test3)", workdir, scr, nil).execute()
 	if err != nil {
 		if err != context.Canceled && err != gad.ErrVMAborted {
 			t.Fatalf("unexpected error: %+v", err)

@@ -1,4 +1,4 @@
-package gad
+package zeroer
 
 import (
 	"reflect"
@@ -9,10 +9,14 @@ type Zeroer interface {
 }
 
 func IsZero(value interface{}) bool {
-	return isZero(reflect.ValueOf(value))
+	switch value := value.(type) {
+	case reflect.Value:
+		return IsZeroValue(value)
+	}
+	return IsZeroValue(reflect.ValueOf(value))
 }
 
-func isNil(value reflect.Value) (handled, ok bool) {
+func IsNilValue(value reflect.Value) (handled, ok bool) {
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
 		return true, value.IsNil()
@@ -24,10 +28,10 @@ func IsNil(value any) bool {
 	if value == nil {
 		return true
 	}
-	return mustIsNil(reflect.ValueOf(value))
+	return MustIsNil(reflect.ValueOf(value))
 }
 
-func mustIsNil(value reflect.Value) bool {
+func MustIsNil(value reflect.Value) bool {
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
 		return value.IsNil()
@@ -35,19 +39,19 @@ func mustIsNil(value reflect.Value) bool {
 	return false
 }
 
-func isZero(value reflect.Value) (ok bool) {
+func IsZeroValue(value reflect.Value) (ok bool) {
 	if !value.IsValid() {
 		return true
 	}
 
-	if _, ok = isNil(value); ok {
+	if _, ok = IsNilValue(value); ok {
 		return
 	}
 
 	switch t := value.Interface().(type) {
 	case Zeroer:
 		return t.IsZero()
-	case Falser:
+	case interface{ IsFalsy() bool }:
 		return t.IsFalsy()
 	}
 
@@ -69,7 +73,7 @@ func isZero(value reflect.Value) (ok bool) {
 		if value.Type().Implements(reflect.TypeOf((*Zeroer)(nil)).Elem()) {
 			return value.Interface().(Zeroer).IsZero()
 		}
-		return isZero(value.Elem())
+		return IsZeroValue(value.Elem())
 	case reflect.Slice:
 		return value.Len() == 0
 	case reflect.Struct:

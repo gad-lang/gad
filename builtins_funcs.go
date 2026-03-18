@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
-
-	"github.com/gad-lang/gad/repr"
 )
 
 func BuiltinMakeArrayFunc(n int, arg Object) (Object, error) {
@@ -248,12 +246,16 @@ func BuiltinContainsFunc(arg0, arg1 Object) (Object, error) {
 	return Bool(ok), nil
 }
 
-func BuiltinLenFunc(arg Object) Object {
-	var n int
-	if v, ok := arg.(LengthGetter); ok {
-		n = v.Length()
+func BuiltinLenFunc(c Call) (_ Object, err error) {
+	if err = c.Args.CheckLen(1); err != nil {
+		return
 	}
-	return Int(n)
+	if v, ok := c.Args.Shift().(LengthGetter); ok {
+		return Int(v.Length()), nil
+	} else if !c.NamedArgs.GetValue("check").IsFalsy() {
+		return nil, ErrNotLengther
+	}
+	return Int(0), nil
 }
 
 func BuiltinCapFunc(arg Object) Object {
@@ -978,25 +980,17 @@ func BuiltinIsFunc(c Call) (ok Object, err error) {
 	)
 
 	if arr, ok_ := t.(Array); ok_ {
-		types = make([]ObjectType, len(arr))
+		types = make(ObjectTypeArray, len(arr))
 		for i, t := range arr {
-		try:
 			switch t2 := t.(type) {
 			case ObjectType:
 				types[i] = t2
-			case *CallerObjectWithMethods:
-				t = t2.CallerObject
-				goto try
 			default:
 				return nil, NewArgumentTypeError(fmt.Sprintf("1st [%d]", i), "type", "object")
 			}
 		}
-
 		assertion = TypeAssertionFromTypes(types...)
 	} else {
-		if com, ok := t.(*CallerObjectWithMethods); ok {
-			t = com.CallerObject
-		}
 		if t, ok := t.(ObjectType); !ok {
 			return nil, NewArgumentTypeError("1st", "type|array of types", "object")
 		} else {
@@ -1005,7 +999,7 @@ func BuiltinIsFunc(c Call) (ok Object, err error) {
 	}
 
 	c.Args.Walk(func(i int, arg Object) any {
-		argt = arg.Type()
+		argt = c.VM.ResolveType(arg.Type())
 		if expectedNames := assertion.AcceptType(argt); expectedNames != "" {
 			ok = False
 		}
@@ -1044,68 +1038,6 @@ func BuiltinNamedParamTypeCheckFunc(c Call) (val Object, err error) {
 			badTypes,
 			typesArg.Value.Type().Name(),
 		)
-	}
-	return
-}
-
-func NamedParamTypeCheck(name string, typeso, value Object) (badTypes string, err error) {
-	var (
-		types     []ObjectType
-		assertion = &TypeAssertion{
-			Handlers: map[string]TypeAssertionHandler{
-				"ObjectType|[]ObjectType": func(v Object) bool {
-					switch t := v.(type) {
-					case ObjectType:
-						types = append(types, t)
-						return true
-					case Array:
-						for _, object := range t {
-						try:
-							switch t2 := object.(type) {
-							case ObjectType:
-								types = append(types, t2)
-							case *CallerObjectWithMethods:
-								object = t2.CallerObject
-								goto try
-							default:
-								return false
-							}
-						}
-						return true
-					default:
-					try2:
-						switch t2 := t.(type) {
-						case ObjectType:
-							types = append(types, t2)
-							return true
-						case *CallerObjectWithMethods:
-							t = t2.CallerObject
-							goto try2
-						default:
-							return false
-						}
-					}
-				},
-			},
-		}
-	)
-
-	if badTypes = assertion.Accept(typeso); badTypes != "" {
-		return
-	}
-
-	err = NamedParamTypeCheckAssertion(name, TypeAssertionFromTypes(types...), value)
-	return
-}
-
-func NamedParamTypeCheckAssertion(name string, assertion *TypeAssertion, value Object) (err error) {
-	if expectedNames := assertion.Accept(value); expectedNames != "" {
-		err = NewNamedArgumentTypeError(
-			string(name),
-			expectedNames,
-			value.Type().Name(),
-		)
-		return
 	}
 	return
 }
@@ -1192,22 +1124,7 @@ func BuiltinIsNilFunc(arg Object) Object {
 }
 
 func BuiltinIsFunctionFunc(arg Object) Object {
-	if com, _ := arg.(*CallerObjectWithMethods); com != nil {
-		arg = com.CallerObject
-	}
-
-	_, ok := arg.(*CompiledFunction)
-	if ok {
-		return True
-	}
-
-	_, ok = arg.(*BuiltinFunction)
-	if ok {
-		return True
-	}
-
-	_, ok = arg.(*Function)
-	return Bool(ok)
+	return Bool(IsFunction(arg))
 }
 
 func BuiltinIsCallableFunc(arg Object) Object {
@@ -1225,8 +1142,12 @@ func BuiltinIsIterableFunc(vm *VM, arg Object) Object {
 		return True
 	}
 
-	m := vm.Builtins.Get(BuiltinIterator).(MethodCaller).CallerMethodOfArgsTypes(ObjectTypes{arg.Type()})
-	return Bool(m != nil)
+	t := vm.Builtins.Get(BuiltinIterator)
+	m := t.(MethodCaller).CallerMethodOfArgsTypes(ObjectTypeArray{arg.Type()})
+	if tm, _ := m.(*TypedCallerMethod); tm != nil {
+		return Bool(!tm.types[0].Equal(TAny))
+	}
+	return False
 }
 func BuiltinIsIteratorFunc(arg Object) Object {
 	return Bool(IsIterator(arg))
@@ -1521,170 +1442,12 @@ func BuiltinWrapFunc(c Call) (ret Object, err error) {
 	}, nil
 }
 
-func BuiltinStructFunc(c Call) (ret Object, err error) {
-	var (
-		name = &Arg{
-			Name:          "name",
-			TypeAssertion: TypeAssertionFromTypes(TStr),
-		}
-	)
-	if err = c.Args.Destructure(name); err != nil {
-		return
-	}
-	t := NewObjType(string(name.Value.(Str)))
-	var (
-		get = &NamedArgVar{
-			Name:          "get",
-			TypeAssertion: TypeAssertionFromTypes(TDict),
-		}
-		set = &NamedArgVar{
-			Name:          "set",
-			TypeAssertion: get.TypeAssertion,
-		}
-		fields = &NamedArgVar{
-			Name:          "fields",
-			TypeAssertion: get.TypeAssertion,
-		}
-		methods = &NamedArgVar{
-			Name:          "methods",
-			TypeAssertion: get.TypeAssertion,
-		}
-		init = &NamedArgVar{
-			Name: "init",
-			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
-				"callable": Callable,
-			}),
-		}
-		toString = &NamedArgVar{
-			Name: "toString",
-			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
-				"callable": Callable,
-			}),
-		}
-		extends = &NamedArgVar{
-			Name:          "extends",
-			TypeAssertion: TypeAssertionFromTypes(TArray),
-		}
-	)
-
-	if err = c.NamedArgs.Get(init, get, set, fields, methods, toString, extends); err != nil {
-		return
-	}
-
-	if fields.Value != nil {
-		t.FieldsDict = fields.Value.(Dict)
-	}
-
-	if get.Value != nil {
-		t.GettersDict = Dict{}
-		for name, v := range get.Value.(Dict) {
-			if !Callable(v) {
-				return nil, NewArgumentTypeError(
-					"get["+name+"]st",
-					"callable",
-					v.Type().Name(),
-				)
-			}
-			t.GettersDict[name] = v
-		}
-	}
-
-	if set.Value != nil {
-		t.SettersDict = Dict{}
-		for name, v := range set.Value.(Dict) {
-			if !Callable(v) {
-				return nil, NewArgumentTypeError(
-					"set["+name+"]st",
-					"callable",
-					v.Type().Name(),
-				)
-			}
-			t.SettersDict[name] = v
-		}
-	}
-	if methods.Value != nil {
-		t.MethodsDict = Dict{}
-		for name, v := range methods.Value.(Dict) {
-			if !Callable(v) {
-				return nil, NewArgumentTypeError(
-					"method["+name+"]st",
-					"callable",
-					v.Type().Name(),
-				)
-			}
-			t.MethodsDict[name] = v
-		}
-	}
-	if extends.Value != nil {
-		arr := methods.Value.(Array)
-		t.Inherits = make(ObjectTypeArray, len(arr))
-		for i, v := range arr {
-			if ot, _ := v.(ObjectType); ot == nil {
-				return nil, NewArgumentTypeError(
-					"extends["+strconv.Itoa(i)+"]st",
-					"ObjectType",
-					v.Type().Name(),
-				)
-			} else {
-				t.Inherits = append(t.Inherits, ot)
-				for name, f := range ot.Fields() {
-					if _, ok := t.FieldsDict[name]; !ok {
-						t.FieldsDict[name] = f
-					}
-				}
-				for name, f := range ot.Getters() {
-					if _, ok := t.GettersDict[name]; !ok {
-						t.GettersDict[name] = f
-					}
-				}
-				for name, f := range ot.Setters() {
-					if _, ok := t.SettersDict[name]; !ok {
-						t.SettersDict[name] = f
-					}
-				}
-				for name, f := range ot.Methods() {
-					if _, ok := t.MethodsDict[name]; !ok {
-						t.MethodsDict[name] = f
-					}
-				}
-			}
-		}
-	}
-	return t, nil
-}
-
-func BuiltinNewFunc(c Call) (ret Object, err error) {
-	if err = c.Args.CheckLen(1); err != nil {
-		return
-	}
-	var arg = c.Args.GetOnly(0)
-	if typ, _ := arg.(ObjectType); typ != nil {
-		if c.NamedArgs.IsFalsy() {
-			return typ.New(c.VM, nil)
-		}
-		return typ.New(c.VM, c.NamedArgs.Dict())
-	}
-	if c.NamedArgs.IsFalsy() {
-		return arg, nil
-	}
-
-	if is, ok := arg.(IndexSetter); ok {
-		for k, v := range c.NamedArgs.Dict() {
-			if err = is.IndexSet(c.VM, Str(k), v); err != nil {
-				return
-			}
-		}
-		return arg, nil
-	}
-	return NewArgumentTypeError("1st", "IndexSetter|ObjectType", arg.Type().Name()), nil
-}
-
 func BuiltinTypeOfFunc(c Call) (_ Object, err error) {
 	if err = c.Args.CheckLen(1); err != nil {
 		return
 	}
 
-	return TypeOf(c.Args.Get(0)), nil
+	return c.VM.ResolveType(c.Args.Get(0).Type()), nil
 }
 
 func BuiltinBinaryOperatorFunc(c Call) (ret Object, err error) {
@@ -1775,55 +1538,54 @@ func BuiltinCastFunc(c Call) (ret Object, err error) {
 	if err = c.Args.Destructure(typ, obj); err != nil {
 		return
 	}
-	curFields := obj.Value.(Objector).Fields()
-	ot2 := typ.Value.(ObjectType)
-	for f := range ot2.Fields() {
-		if curFields[f] == nil {
-			err = ErrIncompatibleCast.NewError(fmt.Sprintf("field %q not found in %s", f, ot2.ToString()))
-			return
-		}
+
+	switch o := obj.Value.(type) {
+	case *ClassInstance:
+		return o.CastTo(c.VM, typ.Value.(ObjectType))
+	default:
+		err = ErrIncompatibleCast.NewError(fmt.Sprintf("from %v to %v", o.Type().Name(), typ.Value.Type().Name()))
 	}
-	return ot2.New(c.VM, obj.Value.(Objector).Fields())
+	return
 }
 
-func BuiltinAddCallMethodFunc(vm *VM, fn CallerObject, handler CallerObject, override bool) (err error) {
-	if fn, _ := fn.(MethodCaller); fn != nil {
-		var types MultipleObjectTypes
+func BuiltinAddMethodFunc(c Call) (ret Object, err error) {
+	if err := c.Args.CheckMinLen(2); err != nil {
+		return Nil, err
+	}
 
-		if cwm, _ := handler.(*CallerObjectWithMethods); cwm != nil {
-			cwm.MethodWalk(func(m *CallerMethod) any {
-				var handler = m.CallerObject
-				if types, err = handler.(CallerObjectWithParamTypes).ParamTypes(vm); err != nil {
-					return err
-				}
-
-				if err = fn.AddCallerMethod(vm, types, handler, override); err != nil {
-					if mde := IsError(err, ErrMethodDuplication); mde != nil {
-						mde.Message = fn.Caller().ToString() + ": " + mde.Message
-					}
-				}
-				return err
-			})
-		} else {
-			if types, err = handler.(CallerObjectWithParamTypes).ParamTypes(vm); err != nil {
-				return
-			}
-
-			if cf, _ := handler.(*CompiledFunction); cf != nil {
-				if l := len(cf.Params); l > 0 && !cf.Params.Typed() {
-					types = make(MultipleObjectTypes, l)
-					for i := range types {
-						types[i] = ObjectTypes{nil}
-					}
-				}
-			}
-
-			if err = fn.AddCallerMethod(vm, types, handler, override); err != nil {
-				if mde := IsError(err, ErrMethodDuplication); mde != nil {
-					mde.Message = fn.Caller().ToString() + ": " + mde.Message
-				}
-			}
+	var (
+		target = &Arg{
+			Name:          "target",
+			TypeAssertion: NewTypeAssertion(TypeAssertions(WithMethodAdder())),
 		}
+
+		override  bool
+		override_ = &NamedArgVar{
+			Name: "override",
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"bool": func(v Object) (ok bool) {
+					override, ok = ToGoBool(v)
+					return
+				},
+			}),
+		}
+	)
+
+	if err := c.NamedArgs.Get(override_); err != nil {
+		return Nil, err
+	}
+
+	err = c.Args.DestructureVarMinCb(1, func(i int, arg Object) (err error) {
+		if err = SplitCaller(c.VM, arg, func(co CallerObject, types ParamsTypes) (err error) {
+			return target.Value.(MethodAdder).AddMethodByTypes(c.VM, types, co, override, nil)
+		}); err != nil {
+			err = ErrArgument.Wrapf(err, "argument %d'st", i+1)
+		}
+		return
+	}, target)
+
+	if err == nil {
+		ret = target.Value
 	}
 	return
 }
@@ -1845,11 +1607,11 @@ func BuiltinRawCallerFunc(c Call) (ret Object, err error) {
 	if err = c.Args.Destructure(obj); err != nil {
 		return
 	}
-	co := obj.Value.(CallerObject)
-	if cowm, _ := co.(*CallerObjectWithMethods); cowm != nil {
-		return cowm.CallerObject, nil
+	switch t := obj.Value.(type) {
+	case MethodCaller:
+		return t.CallerMethodDefault(), nil
 	}
-	return co, nil
+	return obj.Value, nil
 }
 
 func BuiltinReprFunc(c Call) (_ Object, err error) {
@@ -1859,21 +1621,23 @@ func BuiltinReprFunc(c Call) (_ Object, err error) {
 
 	var (
 		arg = c.Args.Get(0)
-		s   string
 	)
 
-	switch t := arg.(type) {
-	case ObjectRepresenter:
-		s, err = t.Repr(c.VM)
-		return Str(s), err
-	}
+	var (
+		w  bytes.Buffer
+		ps = NewPrinterState(c.VM, &w,
+			PrinterStateWithContext(c.Context),
+			PrinterStateWithOptionsFromNamedArgs(&c.NamedArgs))
+	)
 
-	typ := arg.Type()
+	ps.IsRepr = true
 
-	if arg, err = Val(c.VM.Builtins.Call(BuiltinStr, c)); err != nil {
+	err = Print(ps, arg)
+	if err != nil {
 		return
 	}
-	return Str(repr.Quote(typ.Name() + ":" + arg.ToString())), nil
+
+	return Str(w.String()), nil
 }
 
 func BuiltinUserDataFunc(c Call) (_ Object, err error) {

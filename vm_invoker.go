@@ -61,10 +61,9 @@ func (inv *Invoker) acquire(usePool bool) {
 	if inv.child != nil {
 		return
 	}
-	inv.child = inv.vm.pool.acquire(
-		inv.callee.(*CompiledFunction),
-		usePool,
-	)
+
+	inv.child = inv.vm.Fork(inv.callee.(*CompiledFunction), usePool)
+
 	if usePool {
 		inv.dorelease = true
 	}
@@ -113,15 +112,20 @@ func (inv *Invoker) invokeObject(co Object, args Args) (Object, error) {
 	if callee == nil {
 		return Nil, ErrNotCallable.NewError(co.Type().Name())
 	}
-	return Val(callee.Call(Call{
+	return DoCall(callee, Call{
 		VM:   inv.vm,
 		Args: args,
-	}))
+	})
 }
 
 // Caller create new VM caller object.
 func (inv *Invoker) Caller(args Args, namedArgs *NamedArgs) (VMCaller, error) {
 	var validate = true
+
+	if namedArgs == nil {
+		namedArgs = NewNamedArgs()
+	}
+
 do:
 	if inv.isCompiled {
 		if inv.child == nil {
@@ -159,7 +163,7 @@ do:
 		return nil, ErrNotCallable.NewError(inv.callee.Type().Name())
 	}
 
-	if cwm, _ := callee.(*CallerObjectWithMethods); cwm != nil {
+	if cwm, _ := callee.(MethodCaller); cwm != nil {
 		callee, _ = cwm.CallerMethodWithValidationCheckOfArgs(args)
 		if cf, _ := callee.(*CompiledFunction); cf != nil {
 			inv.isCompiled = true
@@ -170,12 +174,10 @@ do:
 	}
 
 	caller := &vmObjectCaller{
-		vm:     inv.vm,
-		args:   args,
-		callee: callee,
-	}
-	if namedArgs != nil {
-		caller.namedArgs = *namedArgs
+		vm:        inv.vm,
+		args:      args,
+		callee:    callee,
+		namedArgs: namedArgs,
 	}
 	return caller, nil
 }

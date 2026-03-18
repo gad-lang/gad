@@ -65,41 +65,34 @@ func (bc *Bytecode) unmarshal(data []byte, modules *gad.ModuleMap) error {
 func (bc *Bytecode) fixObjects(modules *gad.ModuleMap) error {
 	for i := range bc.Constants {
 		switch obj := bc.Constants[i].(type) {
-		case gad.Dict:
-			v, ok := obj[gad.AttrModuleName]
-			if !ok {
-				continue
-			}
-
-			name, ok := v.(gad.Str)
-			if !ok {
-				continue
-			}
-
-			bmod := modules.Get(string(name))
+		case *gad.Module:
+			name := obj.Name()
+			bmod := modules.Get(name)
 			if bmod == nil {
 				return fmt.Errorf("module '%s' not found", name)
 			}
 
+			dict := obj.Dict()
+
 			// copy items from given module to decoded object if key exists in obj
-			for item := range obj {
-				if item == gad.AttrModuleName {
+			for item := range dict {
+				if item == gad.AttrName {
 					// module name may not present in given map, skip it.
 					continue
 				}
 				o := bmod.(*gad.BuiltinModule).Attrs[item]
 				// if item not exists in module, nil will not pass type check
-				want := reflect.TypeOf(obj[item])
+				want := reflect.TypeOf(dict[item])
 				got := reflect.TypeOf(o)
 				if want != got {
 					// this must not happen
 					return fmt.Errorf("module '%s' item '%s' type mismatch:"+
 						"want '%v', got '%v'", name, item, want, got)
 				}
-				obj[item] = o
+				dict[item] = o
 			}
 		case *Function:
-			return fmt.Errorf("not decodable object of Function type:'%s'", obj.Name)
+			return fmt.Errorf("not decodable object of Function type:'%s'", obj.FuncName)
 		}
 	}
 	return nil

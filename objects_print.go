@@ -3,33 +3,41 @@ package gad
 import (
 	"context"
 	"io"
-	"reflect"
 
 	"github.com/gad-lang/gad/repr"
 )
 
 const PrintLoop = repr.QuotePrefix + "↶" + repr.QuoteSufix
 
-func IsPrimitive(obj Object) bool {
-	val := reflect.ValueOf(obj)
-try:
-	// skip primitive values
-	switch val.Type().Kind() {
-	case reflect.Interface:
-		val = val.Elem()
-		goto try
-	case reflect.Map, reflect.Ptr, reflect.Slice, reflect.Array, reflect.Func, reflect.Chan:
-		return false
-	default:
-		return true
+type PrinterStateOption func(s *PrinterState)
+
+func PrinterStateWithContext(ctx context.Context) PrinterStateOption {
+	return func(s *PrinterState) {
+		if ctx != nil {
+			s.context = ctx
+		}
 	}
 }
 
-type PrinterStateOption func(s *PrinterState)
-
-func PrinterStateWithRaw(v bool) PrinterStateOption {
+func PrinterStateWithOptions(options PrinterStateOptions) PrinterStateOption {
 	return func(s *PrinterState) {
-		if v {
+		s.options = options
+
+		if md, ok := options.MaxDepth(); ok {
+			s.maxDepth = md
+		}
+
+		if indent, ok := options.Indent(); ok {
+			if len(indent) > 0 {
+				s.indent = []byte(indent)
+			}
+		}
+
+		if v, ok := s.options.Repr(); v && ok {
+			s.IsRepr = true
+		}
+
+		if raw, _ := s.options.Raw(); raw {
 			s.builtinType = BuiltinRawStr
 		} else {
 			s.builtinType = BuiltinStr
@@ -37,45 +45,16 @@ func PrinterStateWithRaw(v bool) PrinterStateOption {
 	}
 }
 
-func PrinterStateWithContext(ctx context.Context) PrinterStateOption {
+func PrinterStateWithOptionsFromNamedArgs(na *NamedArgs) PrinterStateOption {
 	return func(s *PrinterState) {
-		s.context = ctx
+		s.ParseOptions(na)
 	}
-}
-
-func PrinterStateWithOptions(options Dict) PrinterStateOption {
-	return func(s *PrinterState) {
-		s.options = options
-	}
-}
-
-func PrinterStateWithMaxDepth(depth int) PrinterStateOption {
-	return func(s *PrinterState) {
-		s.maxDepth = depth
-	}
-}
-
-func PrinterStateWithIndent(indent Object) PrinterStateOption {
-	return func(s *PrinterState) {
-		if indent != nil {
-			if !indent.IsFalsy() {
-				if indent == Yes {
-					s.indent = []byte{'\t'}
-				} else {
-					s.indent = []byte(indent.ToString())
-				}
-			}
-		}
-	}
-}
-
-type printerStateEntry struct {
-	object Object
 }
 
 type PrinterStateStack struct {
-	prev  *PrinterStateStack
-	value Object
+	prev     *PrinterStateStack
+	value    Object
+	fallback bool
 }
 
 func (e *PrinterStateStack) Prev() *PrinterStateStack {
@@ -98,25 +77,37 @@ func (e *PrinterStateStack) PrevValue() Object {
 // the flags and options for the operand's format specifier.
 type PrinterState struct {
 	VM            *VM
+	IsRepr        bool
 	writer        io.Writer
 	context       context.Context
 	builtinType   BuiltinType
-	options       Dict
-	depth         int
-	maxDepth      int
+	options       PrinterStateOptions
+	depth         int64
+	maxDepth      int64
 	indent        []byte
 	currentIndent []byte
-	bytesWriten   int64
-	visited       map[any]bool
-	stack         PrinterStateStack
+
+	bytesWriten int64
+	visited     map[any]bool
+	stack       PrinterStateStack
+	onVisite    func(o Object) (done func())
 }
 
 func NewPrinterState(VM *VM, writer io.Writer, option ...PrinterStateOption) *PrinterState {
+	var ctx context.Context
+	if VM != nil {
+		ctx = VM.Context
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	s := &PrinterState{
 		VM:          VM,
 		writer:      writer,
-		context:     VM.Context,
-		options:     Dict{},
+		context:     ctx,
+		options:     make(PrinterStateOptions, 0),
 		visited:     make(map[any]bool),
 		builtinType: BuiltinStr,
 	}
@@ -124,7 +115,73 @@ func NewPrinterState(VM *VM, writer io.Writer, option ...PrinterStateOption) *Pr
 	for _, opt := range option {
 		opt(s)
 	}
+
 	return s
+}
+
+func (s *PrinterState) GoWriter() io.Writer {
+	return s
+}
+
+func (s *PrinterState) QuoteNextStr(level int64) {
+	s.OnVisite(func(old func(o Object) func()) func(o Object) func() {
+		depth := s.depth + level
+		return func(o Object) func() {
+			isq := s.options.IsQuoteStr()
+			done := old(o)
+
+			if isq || s.depth > depth {
+				return done
+			}
+
+			depth++
+			restore := s.options.Backup(PrintStateOptionQuoteStr)
+			s.options.WithQuoteStr()
+
+			return func() {
+				depth--
+				restore()
+				done()
+			}
+		}
+	})
+}
+
+func (s *PrinterState) OnVisite(f func(old func(o Object) (done func())) func(o Object) (done func())) {
+	if s.onVisite == nil {
+		s.onVisite = f(func(o Object) (done func()) {
+			return func() {
+			}
+		})
+	} else {
+		s.onVisite = f(s.onVisite)
+	}
+}
+
+func (s *PrinterState) Update() *PrinterState {
+	PrinterStateWithOptions(s.options)(s)
+	return s
+}
+
+func (s *PrinterState) ParseOptions(na *NamedArgs) *PrinterState {
+	var (
+		maxDepth, _ = na.GetValue(PrintStateOptionMaxDepth).(Int)
+		indent      = na.GetValue(PrintStateOptionIndent)
+	)
+
+	options := PrinterStateOptions(na.unreadDict())
+	options.SetRaw(!na.GetValue(PrintStateOptionRaw).IsFalsy())
+	options.SetMaxDepth(int64(maxDepth))
+
+	if !indent.IsFalsy() {
+		options.SetIndent(indent)
+	}
+
+	for K, v := range options {
+		s.options[K] = v
+	}
+
+	return s.Update()
 }
 
 func (s *PrinterState) Stack() *PrinterStateStack {
@@ -152,15 +209,29 @@ func (s *PrinterState) PrintLineIndent() {
 }
 
 func (s *PrinterState) Visited(obj Object) bool {
-	if !IsPrimitive(obj) {
-		entry := printerStateEntry{obj}
-		key := reflect.ValueOf(entry.object).UnsafePointer()
-		return s.visited[key]
+	if addr := AddressOf(obj); addr != nil {
+		return s.visited[addr]
 	}
 	return false
 }
 
 func (s *PrinterState) DoVisit(obj Object, f func() error) (err error) {
+	addr := AddressOf(obj)
+	if addr != nil {
+		if s.visited[addr] {
+			if s.stack.value == obj {
+				_, err = s.Write([]byte(obj.ToString()))
+			} else {
+				_, err = s.Write([]byte(PrintLoop))
+			}
+			return
+		}
+		s.visited[addr] = true
+		defer delete(s.visited, addr)
+	}
+	if s.onVisite != nil {
+		defer s.onVisite(obj)()
+	}
 	prev := s.stack
 	s.stack = PrinterStateStack{
 		prev:  &prev,
@@ -170,17 +241,6 @@ func (s *PrinterState) DoVisit(obj Object, f func() error) (err error) {
 	defer func() {
 		s.stack = *s.stack.prev
 	}()
-
-	if !IsPrimitive(obj) {
-		entry := printerStateEntry{obj}
-		key := reflect.ValueOf(entry.object).UnsafePointer()
-		if s.visited[key] {
-			_, err = s.Write([]byte(PrintLoop))
-			return
-		}
-		s.visited[key] = true
-		defer delete(s.visited, key)
-	}
 	return f()
 }
 
@@ -192,8 +252,13 @@ func (s *PrinterState) Type() ObjectType {
 	return TPrinterState
 }
 
-func (s *PrinterState) Options() Dict {
+func (s *PrinterState) Options() PrinterStateOptions {
 	return s.options
+}
+
+func (s *PrinterState) Do(f func(s *PrinterState)) *PrinterState {
+	f(s)
+	return s
 }
 
 func (s *PrinterState) ToString() string {
@@ -201,7 +266,7 @@ func (s *PrinterState) ToString() string {
 		"builtinType":   Str(s.builtinType.String()),
 		"depth":         Int(s.depth),
 		"maxDepth":      Int(s.maxDepth),
-		"options":       s.options,
+		"options":       s.options.Dict(),
 		"bytesWriten":   Int(s.bytesWriten),
 		"indent":        Bytes(s.indent),
 		"currentIndent": Bytes(s.currentIndent),
@@ -250,6 +315,10 @@ func (s *PrinterState) SkipDepth() bool {
 	return s.maxDepth > 0 && s.depth == s.maxDepth
 }
 
+func (s *PrinterState) SkipNexDepth() bool {
+	return s.maxDepth > 0 && (s.depth+1) == s.maxDepth
+}
+
 func (s *PrinterState) DoEnter(f func() error) error {
 	if s.SkipDepth() {
 		return nil
@@ -287,6 +356,16 @@ func (s *PrinterState) Write(b []byte) (n int, err error) {
 	return
 }
 
+func (s *PrinterState) WriteByte(c byte) (err error) {
+	_, err = s.Write([]byte{c})
+	return
+}
+
+func (s *PrinterState) WriteString(b string) (err error) {
+	_, err = s.Write([]byte(b))
+	return
+}
+
 func (s *PrinterState) Option(key string) Object {
 	return s.options[key]
 }
@@ -302,26 +381,6 @@ func (s *PrinterState) OptionDefault(key string, defaul Object) (value Object) {
 		value = defaul
 	}
 	return
-}
-
-func (s *PrinterState) Print(o Object) error {
-	return s.DoVisit(o, func() (err error) {
-		switch t := o.(type) {
-		case Printer:
-			err = t.Print(s)
-		default:
-			var str Object
-			if str, err = Val(s.VM.Builtins.Call(s.builtinType, Call{
-				VM:      s.VM,
-				Context: s.context,
-				Args:    Args{Array{o}},
-			})); err != nil {
-				return
-			}
-			_, err = s.Write([]byte(str.ToString()))
-		}
-		return
-	})
 }
 
 func (s *PrinterState) PrintMany(sep []byte, o ...Object) (err error) {
@@ -360,13 +419,17 @@ func (s *PrinterState) IndexGet(_ *VM, index Object) (value Object, err error) {
 	case "maxDepth":
 		return Int(s.maxDepth), nil
 	case "options":
-		return s.options, nil
+		return s.options.Dict(), nil
 	case "bytesWriten":
 		return Int(s.bytesWriten), nil
 	case "indent":
 		return Bytes(s.indent), nil
+	case "isIndent":
+		return Bool(s.Indented()), nil
 	case "currentIndent":
 		return Bytes(s.currentIndent), nil
+	case "isRepr":
+		return Bool(s.IsRepr), nil
 	default:
 		return Nil, ErrInvalidIndex.NewError(key)
 	}
@@ -402,38 +465,4 @@ func (s PrinterState) Copy() *PrinterState {
 
 type Printer interface {
 	Print(state *PrinterState) error
-}
-
-const (
-	PrintStateOptionIndent    = "indent"
-	PrintStateOptionMaxDepth  = "maxDepth"
-	PrintStateOptionRaw       = "raw"
-	PrintStateOptionZeros     = "zeros"
-	PrintStateOptionAnonymous = "anonymous"
-	PrintStateOptionSortKeys  = "sortKeys"
-	PrintStateOptionIndexes   = "indexes"
-)
-
-type PrintStateOptionSortType uint8
-
-const (
-	PrintStateOptionSortTypeAscending PrintStateOptionSortType = iota + 1
-	PrintStateOptionSortTypeDescending
-)
-
-func PrintStateOptionsGetZeros(s *PrinterState) bool {
-	return !s.options.Get(PrintStateOptionZeros).IsFalsy()
-}
-
-func PrintStateOptionsGetAnonymous(s *PrinterState) bool {
-	return !s.options.Get(PrintStateOptionAnonymous).IsFalsy()
-}
-
-func PrintStateOptionsGetSortKeysType(s *PrinterState) PrintStateOptionSortType {
-	i, _ := s.options.Get(PrintStateOptionSortKeys).(Int)
-	return PrintStateOptionSortType(i)
-}
-
-func PrintStateOptionsGetIndexes(s *PrinterState) bool {
-	return !s.options.Get(PrintStateOptionIndexes).IsFalsy()
 }

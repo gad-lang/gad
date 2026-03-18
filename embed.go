@@ -69,6 +69,6 @@ type EmbededFileData struct {
 }
 
 // Import returns a embeded data.
-func (m *EmbededFileData) Import(_ context.Context, name string) (any, string, error) {
-	return m.Src, "source:" + name, nil
+func (m *EmbededFileData) Import(_ context.Context, module *Module) (any, string, error) {
+	return m.Src, "source:" + module.Name(), nil
 }

@@ -42,3 +42,10 @@ func (n *File) WriteCode(ctx *node.CodeWriteContext) {
 func (n *File) String() string {
 	return n.Stmts.String()
 }
+
+func (n *File) BuildCode(opt ...node.CodeOption) string {
+	return node.Code(n, append([]node.CodeOption{
+		node.CodeTranspile(&node.TranspileOptions{}),
+		node.CodeFormat(),
+	}, opt...)...)
+}

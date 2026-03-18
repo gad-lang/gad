@@ -69,9 +69,7 @@ func init() {
 // }
 // ```
 
-var TimeType = &gad.BuiltinObjType{
-	NameValue: "time",
-}
+var TimeType = gad.NewBuiltinObjType("time")
 
 // Time represents time values and implements gad.Object interface.
 type Time struct {

@@ -60,7 +60,7 @@ func expectRun(t *testing.T, script string, opts *testhelper.VMTestOpts, expect 
 	if opts == nil {
 		opts = testhelper.NewVMTestOpts()
 	}
-	opts = opts.Module("os", Module)
+	opts = opts.Module("os", ModuleInit)
 	script = `const os = import("os");` + script
 	testhelper.VMTestExpectRun(t, script, opts, expect)
 }

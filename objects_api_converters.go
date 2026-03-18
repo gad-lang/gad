@@ -4,8 +4,12 @@ type ToArrayConveter interface {
 	ToArray() Array
 }
 
-type ToDictConveter interface {
-	ToDict(out Dict) Dict
+type ToDictConverter interface {
+	ToDict() Dict
+}
+
+type DictUpdator interface {
+	UpdateDict(out Dict)
 }
 
 // ConvertToArray convert objects to Array. If success return then, otherwise return error.

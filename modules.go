@@ -14,7 +14,7 @@ import (
 // Importable interface represents importable module instance.
 type Importable interface {
 	// Import should return either an Object or module source code ([]byte).
-	Import(ctx context.Context, moduleName string) (data any, uri string, err error)
+	Import(ctx context.Context, module *Module) (data any, uri string, err error)
 }
 
 // ExtImporter wraps methods for a module which will be impored dynamically like
@@ -35,7 +35,7 @@ type ExtImporter interface {
 
 type CompilableImporter interface {
 	Importable
-	CompileModule(compiler *Compiler, nd ast.Node, module *ModuleInfo, moduleMap *ModuleMap, src []byte) (bc *Bytecode, err error)
+	CompileModule(compiler *Compiler, nd ast.Node, module *Module, moduleMap *ModuleMap, src []byte) (bc *Bytecode, err error)
 }
 
 // ModuleMap represents a set of named modules. Use NewModuleMap to create a
@@ -85,6 +85,15 @@ func (m *ModuleMap) AddBuiltinModule(
 	return m
 }
 
+// AddBuiltinModuleInit adds a builtin module.
+func (m *ModuleMap) AddBuiltinModuleInit(
+	name string,
+	init ModuleInitFunc,
+) *ModuleMap {
+	m.m[name] = &BuiltinInitModule{Init: init}
+	return m
+}
+
 // AddSourceModule adds a source module.
 func (m *ModuleMap) AddSourceModule(name string, src []byte) *ModuleMap {
 	m.m[name] = &SourceModule{Src: src}
@@ -126,8 +135,8 @@ type SourceModule struct {
 }
 
 // Import returns a module source code.
-func (m *SourceModule) Import(_ context.Context, name string) (any, string, error) {
-	return m.Src, "source:" + name, nil
+func (m *SourceModule) Import(ctx context.Context, module *Module) (any, string, error) {
+	return m.Src, "source:" + module.Name(), nil
 }
 
 // BuiltinModule is an importable module that's written in ToInterface.
@@ -136,12 +145,41 @@ type BuiltinModule struct {
 }
 
 // Import returns an immutable map for the module.
-func (m *BuiltinModule) Import(_ context.Context, moduleName string) (any, string, error) {
+func (m *BuiltinModule) Import(ctx context.Context, module *Module) (any, string, error) {
 	if m.Attrs == nil {
 		return nil, "", errors.New("module attributes not set")
 	}
 
-	cp := Dict(m.Attrs).Copy()
-	cp.(Dict)[AttrModuleName] = Str(moduleName)
-	return cp, "builtin:" + moduleName, nil
+	cp := Copy(Dict(m.Attrs))
+	for _, v := range cp {
+		switch t := v.(type) {
+		case ModuleSetter:
+			t.SetModule(module)
+		}
+	}
+	return cp, "builtin:" + module.Name(), nil
+}
+
+type ModuleInitFunc func(module *Module, c Call) (data ModuleData, err error)
+
+func (f ModuleInitFunc) MustGetData(module *Module) (data ModuleData) {
+	var err error
+	if data, err = f(module, Call{}); err != nil {
+		panic(err)
+	}
+	return
+}
+
+// BuiltinInitModule is an importable module that's written in ToInterface.
+type BuiltinInitModule struct {
+	Init ModuleInitFunc
+}
+
+// Import returns an immutable map for the module.
+func (m *BuiltinInitModule) Import(ctx context.Context, module *Module) (any, string, error) {
+	if m.Init == nil {
+		return nil, "", errors.New("module init func not set")
+	}
+
+	return m.Init, "builtinModuleInit:" + module.Name(), nil
 }

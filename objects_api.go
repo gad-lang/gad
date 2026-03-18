@@ -3,6 +3,8 @@ package gad
 import (
 	"fmt"
 	"io"
+	"sort"
+	"strings"
 
 	"github.com/gad-lang/gad/token"
 )
@@ -17,7 +19,7 @@ type Falser interface {
 type Object interface {
 	Falser
 
-	// OpDotName should return the name of the type.
+	// Type should return the type object.
 	Type() ObjectType
 
 	// ToString should return a string of the type's value.
@@ -27,26 +29,179 @@ type Object interface {
 	Equal(right Object) bool
 }
 
-type Representer interface {
-	Repr(vm *VM) (string, error)
-}
-
-type ObjectRepresenter interface {
-	Object
-	Representer
-}
-
 type ObjectType interface {
 	Object
 	CallerObject
 	fmt.Stringer
 	Name() string
-	Getters() Dict
-	Setters() Dict
-	Methods() Dict
-	Fields() Dict
-	New(vm *VM, fields Dict) (Object, error)
-	IsChildOf(t ObjectType) bool
+	FullName() string
+	GadObjectType()
+}
+
+type ObjectTypeAssignersGetter interface {
+	GetTypeAssigners(cb func(t ObjectType) any) any
+}
+
+type ObjectTypeKey struct {
+	T ObjectType
+	k string
+}
+
+func (k ObjectTypeKey) String() string {
+	return k.k
+}
+
+func KeyOfObjectType(t ObjectType) *ObjectTypeKey {
+	return &ObjectTypeKey{T: t, k: t.String()}
+}
+
+type ObjectTypeKeys []*ObjectTypeKey
+
+func (o ObjectTypeKeys) Sort(reverse bool) {
+	if reverse {
+		sort.Slice(o, func(i, j int) bool {
+			return o[i].k > o[j].k
+		})
+	} else {
+		sort.Slice(o, func(i, j int) bool {
+			return o[i].k < o[j].k
+		})
+	}
+}
+
+type ObjectTypeArray []ObjectType
+
+func (t ObjectTypeArray) Keys() (keys ObjectTypeKeys) {
+	keys = make([]*ObjectTypeKey, len(t))
+	for i, t := range t {
+		keys[i] = KeyOfObjectType(t)
+	}
+	return
+}
+
+func (t ObjectTypeArray) Type() ObjectType {
+	return TObjectTypeArray
+}
+
+func (t ObjectTypeArray) String() string {
+	var (
+		sb strings.Builder
+		s  = NewPrinterState(nil, &sb)
+	)
+
+	s.options.SetTypesAsFullNames(true)
+
+	if err := t.Print(s); err != nil {
+		panic(err)
+	}
+	return sb.String()
+}
+
+func (t ObjectTypeArray) ToString() string {
+	return t.String()
+}
+
+func (t ObjectTypeArray) IsFalsy() bool {
+	return len(t) == 0
+}
+
+func (t ObjectTypeArray) Equal(right Object) bool {
+	if ta, ok := right.(ObjectTypeArray); ok {
+		if len(ta) == len(t) {
+			for i, ot := range t {
+				if !ot.Equal(ta[i]) {
+					return false
+				}
+			}
+			return true
+		}
+	}
+	return false
+}
+
+func (t ObjectTypeArray) Array() Array {
+	arr := make(Array, len(t))
+	for i, t := range t {
+		arr[i] = t
+	}
+	return arr
+}
+
+func (t ObjectTypeArray) Items() ObjectTypeArray {
+	return t
+}
+
+func (t ObjectTypeArray) IsZero() bool {
+	return len(t) == 0
+}
+
+func (t ObjectTypeArray) Len() int {
+	return len(t)
+}
+
+func (t ObjectTypeArray) Get(i int) ObjectType {
+	return t[i]
+}
+
+func (t ObjectTypeArray) Last() ObjectType {
+	return t[len(t)-1]
+}
+
+func (t ObjectTypeArray) HasVar() (ok bool) {
+	if len(t) > 0 {
+		_, ok = t.Last().(*VarObjectType)
+	}
+	return
+}
+
+func (t ObjectTypeArray) VarSplit() (nonVar ObjectTypeArray, varType ObjectType) {
+	nonVar = t
+	if len(t) > 0 {
+		last := t[len(t)-1]
+		if vart, _ := last.(*VarObjectType); vart != nil {
+			varType = vart.ObjectType
+			nonVar = nonVar[:len(nonVar)-1]
+		}
+	}
+	return
+}
+
+func (t ObjectTypeArray) Var() (_ ObjectType) {
+	if len(t) > 0 {
+		if v, _ := t.Last().(*VarObjectType); v != nil {
+			return v.ObjectType
+		}
+	}
+	return
+}
+
+func (t ObjectTypeArray) Print(state *PrinterState) error {
+	return state.PrintValues(len(t), []byte("("), []byte(")"), []byte(","), func(i int) (Object, error) {
+		return t[i], nil
+	})
+}
+
+func (t ObjectTypeArray) Assign(ot ObjectType) (ok bool) {
+	for _, refType := range t {
+		if refType == TAny || ot.Equal(refType) {
+			return true
+		}
+
+		if inferer, _ := ot.(ObjectTypeAssignersGetter); inferer != nil {
+			inferer.GetTypeAssigners(func(t ObjectType) any {
+				if ok = t.Equal(refType); ok {
+					return true
+				}
+				return nil
+			})
+		}
+
+		if ok {
+			return
+		}
+	}
+
+	return len(t) == 0
 }
 
 type Objector interface {
@@ -118,17 +273,21 @@ type LengthGetter interface {
 type CallerObject interface {
 	Object
 	Call(c Call) (Object, error)
+	Name() string
 }
 
-type CallerObjectWithStaticMethods interface {
-	GetGoMethods() []*Caller
+// CallerObjectWithVMParamTypes is an interface for objects that can be called with Call
+// method with parameters with types.
+type CallerObjectWithVMParamTypes interface {
+	CallerObject
+	ParamTypes(vm *VM) (ParamsTypes, error)
 }
 
 // CallerObjectWithParamTypes is an interface for objects that can be called with Call
 // method with parameters with types.
 type CallerObjectWithParamTypes interface {
 	CallerObject
-	ParamTypes(vm *VM) (MultipleObjectTypes, error)
+	ParamTypes() ParamsTypes
 }
 
 // CanCallerObject is an interface for objects that can be objects implements
@@ -153,28 +312,39 @@ type CanCallerObjectMethodsEnabler interface {
 	MethodsDisabled() bool
 }
 
-type MethodCaller interface {
-	CallerObject
-
+type MethodAdder interface {
 	// AddCallerMethod add caller method from argument types.
 	// the argTypes param is a list of supported types for arguments.
 	//
 	// Examples:
-	//  - fn(str, decimal) => MultipleObjectTypes{{TStr},{TDecimal}}
-	//  - fn(str|int, decimal) => MultipleObjectTypes{{TStr,Int},{TDecimal}}
-	AddCallerMethod(vm *VM, argTypes MultipleObjectTypes, handler CallerObject, override bool) error
+	//  - fn(str, decimal) => ParamsTypes{{TStr},{TDecimal}}
+	//  - fn(str|int, decimal) => ParamsTypes{{TStr,Int},{TDecimal}}
+	AddMethodByTypes(vm *VM, argTypes ParamsTypes, handler CallerObject, override bool, onAdd func(method *TypedCallerMethod) error) error
+}
+
+type MethodCaller interface {
+	CallerObject
+	MethodAdder
+
 	CallerMethods() *MethodArgType
 	// CallerMethodWithValidationCheckOfArgs return a method and validation check flag from args.
 	// In same cases this method is most fast then `MethodWithValidationCheckOfArgTypes`
 	CallerMethodWithValidationCheckOfArgs(args Args) (method CallerObject, validationCheck bool)
 	// CallerMethodWithValidationCheckOfArgsTypes return a method from knowed args types with validation check flag
-	CallerMethodWithValidationCheckOfArgsTypes(types []ObjectType) (method CallerObject, validationCheck bool)
+	CallerMethodWithValidationCheckOfArgsTypes(types ObjectTypeArray) (method CallerObject, validationCheck bool)
 	// CallerMethodOfArgs return a method from arguments types whitout validation check flag.
 	CallerMethodOfArgs(args Args) (method CallerObject)
 	// CallerMethodOfArgsTypes return a method from arguments types whitout validation check flag.
-	CallerMethodOfArgsTypes(types []ObjectType) (method CallerObject)
+	CallerMethodOfArgsTypes(types ObjectTypeArray) (method CallerObject)
 	HasCallerMethods() bool
-	// Caller return the caller without methods
+	// CallerMethodDefault returns default caller Object if exists or nil
+	CallerMethodDefault() CallerObject
+	Name() string
+}
+
+type RawCallerWithMethods interface {
+	MethodCaller
+	// Caller return the raw caller
 	Caller() CallerObject
 }
 
@@ -360,4 +530,18 @@ type IterationDoner interface {
 
 type CanIterationDoner interface {
 	CanIterationDone() bool
+}
+
+type ReprTypeNamer interface {
+	ReprTypeName() string
+}
+
+func ReprTypeName(o Object) (name string) {
+	switch t := o.(type) {
+	case ReprTypeNamer:
+		name = t.ReprTypeName()
+	default:
+		name = o.Type().Name()
+	}
+	return
 }

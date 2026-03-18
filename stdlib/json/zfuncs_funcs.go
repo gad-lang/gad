@@ -6,9 +6,9 @@ import (
 	"github.com/gad-lang/gad"
 )
 
-// funcPb2b_numberAsDecimal_b_floatAsDecimal_b_intAsDecimal_RO is a generated function to make gad.CallableFunc.
-// Source: func(b []byte,numberAsDecimal=bool,floatAsDecimal=bool,intAsDecimal=bool) (ret gad.Object)
-func funcPb2b_numberAsDecimal_b_floatAsDecimal_b_intAsDecimal_RO(fn func([]byte, bool, bool, bool) gad.Object) gad.CallableFunc {
+// funcPb2b_numberAsDecimal_b_floatAsDecimal_b_intAsDecimal_ROe is a generated function to make gad.CallableFunc.
+// Source: func(b []byte,numberAsDecimal=bool,floatAsDecimal=bool,intAsDecimal=bool) (ret gad.Object, err error)
+func funcPb2b_numberAsDecimal_b_floatAsDecimal_b_intAsDecimal_ROe(fn func([]byte, bool, bool, bool) (gad.Object, error)) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
 		if err := c.Args.CheckLen(1); err != nil {
 			return gad.Nil, err
@@ -55,7 +55,125 @@ func funcPb2b_numberAsDecimal_b_floatAsDecimal_b_intAsDecimal_RO(fn func([]byte,
 			return gad.Nil, gad.NewArgumentTypeError("1st", "bytes", c.Args.Get(0).Type().Name())
 		}
 
-		ret = fn(b, numberAsDecimal, floatAsDecimal, intAsDecimal)
+		ret, err = fn(b, numberAsDecimal, floatAsDecimal, intAsDecimal)
+		return
+	}
+}
+
+// funcPpVM_OROe is a generated function to make gad.CallableFunc.
+// Source: func(vm *gad.VM, o gad.Object) (ret gad.Object, err error)
+func funcPpVM_OROe(fn func(*gad.VM, gad.Object) (gad.Object, error)) gad.CallableFunc {
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return gad.Nil, err
+		}
+
+		vm := c.VM
+		o := c.Args.Get(0)
+
+		ret, err = fn(vm, o)
+		return
+	}
+}
+
+// funcPb2bROe is a generated function to make gad.CallableFunc.
+// Source: func(p []byte, b bool) (ret gad.Object, err error)
+func funcPb2bROe(fn func([]byte, bool) (gad.Object, error)) gad.CallableFunc {
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(2); err != nil {
+			return gad.Nil, err
+		}
+
+		p, ok := gad.ToGoByteSlice(c.Args.Get(0))
+		if !ok {
+			return gad.Nil, gad.NewArgumentTypeError("1st", "bytes", c.Args.Get(0).Type().Name())
+		}
+		b, ok := gad.ToGoBool(c.Args.Get(1))
+		if !ok {
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "bool", c.Args.Get(1).Type().Name())
+		}
+
+		ret, err = fn(p, b)
+		return
+	}
+}
+
+// funcPOROe is a generated function to make gad.CallableFunc.
+// Source: func(o gad.Object) (ret gad.Object, err error)
+func funcPOROe(fn func(gad.Object) (gad.Object, error)) gad.CallableFunc {
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return gad.Nil, err
+		}
+
+		o := c.Args.Get(0)
+
+		ret, err = fn(o)
+		return
+	}
+}
+
+// funcPORO is a generated function to make gad.CallableFunc.
+// Source: func(o gad.Object) (ret gad.Object)
+func funcPORO(fn func(gad.Object) gad.Object) gad.CallableFunc {
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return gad.Nil, err
+		}
+
+		o := c.Args.Get(0)
+
+		ret = fn(o)
+		return
+	}
+}
+
+// funcPpVM_OssROe is a generated function to make gad.CallableFunc.
+// Source: func(vm *gad.VM, o gad.Object, s1 string, s2 string) (ret gad.Object, err error)
+func funcPpVM_OssROe(fn func(*gad.VM, gad.Object, string, string) (gad.Object, error)) gad.CallableFunc {
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(3); err != nil {
+			return gad.Nil, err
+		}
+
+		vm := c.VM
+		o := c.Args.Get(0)
+		s1, ok := gad.ToGoString(c.Args.Get(1))
+		if !ok {
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "str", c.Args.Get(1).Type().Name())
+		}
+		s2, ok := gad.ToGoString(c.Args.Get(2))
+		if !ok {
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "str", c.Args.Get(2).Type().Name())
+		}
+
+		ret, err = fn(vm, o, s1, s2)
+		return
+	}
+}
+
+// funcPb2ssROe is a generated function to make gad.CallableFunc.
+// Source: func(p []byte, s1 string, s2 string) (ret gad.Object, err error)
+func funcPb2ssROe(fn func([]byte, string, string) (gad.Object, error)) gad.CallableFunc {
+	return func(c gad.Call) (ret gad.Object, err error) {
+		if err := c.Args.CheckLen(3); err != nil {
+			return gad.Nil, err
+		}
+
+		p, ok := gad.ToGoByteSlice(c.Args.Get(0))
+		if !ok {
+			return gad.Nil, gad.NewArgumentTypeError("1st", "bytes", c.Args.Get(0).Type().Name())
+		}
+		s1, ok := gad.ToGoString(c.Args.Get(1))
+		if !ok {
+			return gad.Nil, gad.NewArgumentTypeError("2nd", "str", c.Args.Get(1).Type().Name())
+		}
+		s2, ok := gad.ToGoString(c.Args.Get(2))
+		if !ok {
+			return gad.Nil, gad.NewArgumentTypeError("3rd", "str", c.Args.Get(2).Type().Name())
+		}
+
+		ret, err = fn(p, s1, s2)
 		return
 	}
 }

@@ -1,4 +1,4 @@
-package time_test
+package time
 
 import (
 	"bytes"
@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	. "github.com/gad-lang/gad"
-	. "github.com/gad-lang/gad/stdlib/time"
 )
 
 func TestModuleTypes(t *testing.T) {
@@ -86,29 +85,30 @@ func TestModuleTypes(t *testing.T) {
 }
 
 func TestModuleMonthWeekday(t *testing.T) {
-	f := Module["MonthString"].(*Function)
+	module := getModule()
+	f := module["MonthString"].(*Function)
 	_, err := MustCall(f)
 	require.Error(t, err)
 	_, err = MustCall(f, Str(""))
 	require.Error(t, err)
 
 	for i := 1; i <= 12; i++ {
-		require.Contains(t, Module, time.Month(i).String())
-		require.Equal(t, Int(i), Module[time.Month(i).String()])
+		require.Contains(t, module, time.Month(i).String())
+		require.Equal(t, Int(i), module[time.Month(i).String()])
 
 		r, err := MustCall(f, Int(i))
 		require.NoError(t, err)
 		require.EqualValues(t, time.Month(i).String(), r)
 	}
 
-	f = Module["WeekdayString"].(*Function)
+	f = module["WeekdayString"].(*Function)
 	_, err = MustCall(f)
 	require.Error(t, err)
 	_, err = MustCall(f, Str(""))
 	require.Error(t, err)
 	for i := 0; i <= 6; i++ {
-		require.Contains(t, Module, time.Weekday(i).String())
-		require.Equal(t, Int(i), Module[time.Weekday(i).String()])
+		require.Contains(t, module, time.Weekday(i).String())
+		require.Equal(t, Int(i), module[time.Weekday(i).String()])
 
 		r, err := MustCall(f, Int(i))
 		require.NoError(t, err)
@@ -117,30 +117,32 @@ func TestModuleMonthWeekday(t *testing.T) {
 }
 
 func TestModuleFormats(t *testing.T) {
-	require.Equal(t, Module["ANSIC"], Str(time.ANSIC))
-	require.Equal(t, Module["UnixDate"], Str(time.UnixDate))
-	require.Equal(t, Module["RubyDate"], Str(time.RubyDate))
-	require.Equal(t, Module["RFC822"], Str(time.RFC822))
-	require.Equal(t, Module["RFC822Z"], Str(time.RFC822Z))
-	require.Equal(t, Module["RFC850"], Str(time.RFC850))
-	require.Equal(t, Module["RFC1123"], Str(time.RFC1123))
-	require.Equal(t, Module["RFC1123Z"], Str(time.RFC1123Z))
-	require.Equal(t, Module["RFC3339"], Str(time.RFC3339))
-	require.Equal(t, Module["RFC3339Nano"], Str(time.RFC3339Nano))
-	require.Equal(t, Module["Kitchen"], Str(time.Kitchen))
-	require.Equal(t, Module["Stamp"], Str(time.Stamp))
-	require.Equal(t, Module["StampMilli"], Str(time.StampMilli))
-	require.Equal(t, Module["StampMicro"], Str(time.StampMicro))
-	require.Equal(t, Module["StampNano"], Str(time.StampNano))
+	var module = getModule()
+	require.Equal(t, module["ANSIC"], Str(time.ANSIC))
+	require.Equal(t, module["UnixDate"], Str(time.UnixDate))
+	require.Equal(t, module["RubyDate"], Str(time.RubyDate))
+	require.Equal(t, module["RFC822"], Str(time.RFC822))
+	require.Equal(t, module["RFC822Z"], Str(time.RFC822Z))
+	require.Equal(t, module["RFC850"], Str(time.RFC850))
+	require.Equal(t, module["RFC1123"], Str(time.RFC1123))
+	require.Equal(t, module["RFC1123Z"], Str(time.RFC1123Z))
+	require.Equal(t, module["RFC3339"], Str(time.RFC3339))
+	require.Equal(t, module["RFC3339Nano"], Str(time.RFC3339Nano))
+	require.Equal(t, module["Kitchen"], Str(time.Kitchen))
+	require.Equal(t, module["Stamp"], Str(time.Stamp))
+	require.Equal(t, module["StampMilli"], Str(time.StampMilli))
+	require.Equal(t, module["StampMicro"], Str(time.StampMicro))
+	require.Equal(t, module["StampNano"], Str(time.StampNano))
 }
 
 func TestModuleDuration(t *testing.T) {
-	require.Equal(t, Module["Nanosecond"], Int(time.Nanosecond))
-	require.Equal(t, Module["Microsecond"], Int(time.Microsecond))
-	require.Equal(t, Module["Millisecond"], Int(time.Millisecond))
-	require.Equal(t, Module["Second"], Int(time.Second))
-	require.Equal(t, Module["Minute"], Int(time.Minute))
-	require.Equal(t, Module["Hour"], Int(time.Hour))
+	var module = getModule()
+	require.Equal(t, module["Nanosecond"], Int(time.Nanosecond))
+	require.Equal(t, module["Microsecond"], Int(time.Microsecond))
+	require.Equal(t, module["Millisecond"], Int(time.Millisecond))
+	require.Equal(t, module["Second"], Int(time.Second))
+	require.Equal(t, module["Minute"], Int(time.Minute))
+	require.Equal(t, module["Hour"], Int(time.Hour))
 
 	goFnMap := map[string]func(time.Duration) any{
 		"Nanoseconds": func(d time.Duration) any {
@@ -162,11 +164,11 @@ func TestModuleDuration(t *testing.T) {
 			return d.Hours()
 		},
 	}
-	durToString := Module["DurationString"].(*Function)
+	durToString := module["DurationString"].(*Function)
 	_, err := MustCall(durToString)
 	require.Error(t, err)
 
-	durParse := Module["ParseDuration"].(*Function)
+	durParse := module["ParseDuration"].(*Function)
 	_, err = MustCall(durParse)
 	require.Error(t, err)
 	_, err = MustCall(durParse, Str(""))
@@ -187,7 +189,7 @@ func TestModuleDuration(t *testing.T) {
 	for _, tC := range testCases {
 		for fn := range goFnMap {
 			t.Run(fmt.Sprintf("%s:%s", tC.dur, fn), func(t *testing.T) {
-				f := Module["Duration"+fn].(*Function)
+				f := module["Duration"+fn].(*Function)
 				ret, err := MustCall(f, Int(tC.dur))
 				require.NoError(t, err)
 				expect := goFnMap[fn](tC.dur)
@@ -215,7 +217,7 @@ func TestModuleDuration(t *testing.T) {
 		}
 	}
 
-	durRound := Module["DurationRound"].(*Function)
+	durRound := module["DurationRound"].(*Function)
 	r, err := MustCall(durRound, Int(time.Second+time.Millisecond),
 		Int(time.Second))
 	require.NoError(t, err)
@@ -227,7 +229,7 @@ func TestModuleDuration(t *testing.T) {
 	_, err = MustCall(durRound, Int(0), Str(""))
 	require.Error(t, err)
 
-	durTruncate := Module["DurationTruncate"].(*Function)
+	durTruncate := module["DurationTruncate"].(*Function)
 	r, err = MustCall(durTruncate, Int(time.Second+5*time.Millisecond),
 		Int(2*time.Millisecond))
 	require.NoError(t, err)
@@ -241,7 +243,8 @@ func TestModuleDuration(t *testing.T) {
 }
 
 func TestModuleLocation(t *testing.T) {
-	fixedZone := Module["FixedZone"].(*Function)
+	var module = getModule()
+	fixedZone := module["FixedZone"].(*Function)
 	r, err := MustCall(fixedZone, Str("Ankara"), Int(3*60*60))
 	require.NoError(t, err)
 	require.Equal(t, "Ankara", r.ToString())
@@ -255,7 +258,7 @@ func TestModuleLocation(t *testing.T) {
 	_, err = MustCall(fixedZone)
 	require.Error(t, err)
 
-	loadLocation := Module["LoadLocation"].(*Function)
+	loadLocation := module["LoadLocation"].(*Function)
 	r, err = MustCall(loadLocation, Str("Europe/Istanbul"))
 	require.NoError(t, err)
 	require.Equal(t, "Europe/Istanbul", r.ToString())
@@ -269,7 +272,7 @@ func TestModuleLocation(t *testing.T) {
 	_, err = MustCall(loadLocation, Str("invalid"))
 	require.Error(t, err)
 
-	isLocation := Module["IsLocation"].(*Function)
+	isLocation := module["IsLocation"].(*Function)
 	r, err = MustCall(isLocation, &Location{Value: time.Local})
 	require.NoError(t, err)
 	require.EqualValues(t, true, r)
@@ -283,18 +286,19 @@ func TestModuleLocation(t *testing.T) {
 }
 
 func TestModuleTime(t *testing.T) {
+	var module = getModule()
 	now := time.Now()
 
 	require.Equal(t, now.String(), (&Time{Value: now}).ToString())
 
-	zTime := Module["Time"].(*Function)
+	zTime := module["Time"].(*Function)
 	r, err := MustCall(zTime)
 	require.NoError(t, err)
 	require.True(t, r.(*Time).Value.IsZero())
 	_, err = MustCall(zTime, Str(""))
 	require.Error(t, err)
 
-	since := Module["Since"].(*Function)
+	since := module["Since"].(*Function)
 	r, err = MustCall(since, &Time{Value: now})
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, int64(r.(Int)), int64(0))
@@ -303,7 +307,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(since, Str(""))
 	require.Error(t, err)
 
-	until := Module["Until"].(*Function)
+	until := module["Until"].(*Function)
 	r, err = MustCall(until, &Time{Value: now})
 	require.NoError(t, err)
 	require.LessOrEqual(t, int64(r.(Int)), int64(0))
@@ -312,7 +316,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(until, Str(""))
 	require.Error(t, err)
 
-	date := Module["Date"].(*Function)
+	date := module["Date"].(*Function)
 	r, err = MustCall(date, Int(2020), Int(11), Int(8),
 		Int(1), Int(2), Int(3), Int(4),
 		&Location{Value: time.Local})
@@ -324,15 +328,15 @@ func TestModuleTime(t *testing.T) {
 	require.Equal(t,
 		time.Date(2020, 11, 8, 0, 0, 0, 0, time.Local), r.(*Time).Value)
 
-	nowf := Module["Now"].(*Function)
+	nowf := module["Now"].(*Function)
 	r, err = MustCall(nowf)
 	require.NoError(t, err)
 	require.False(t, r.(*Time).Value.IsZero())
 	_, err = MustCall(nowf, Int(0))
 	require.Error(t, err)
 
-	RFC3339Nano := Module["RFC3339Nano"]
-	parse := Module["Parse"].(*Function)
+	RFC3339Nano := module["RFC3339Nano"]
+	parse := module["Parse"].(*Function)
 	r, err = MustCall(parse, RFC3339Nano, Str(now.Format(time.RFC3339Nano)))
 	require.NoError(t, err)
 	require.Equal(t, now.Format(time.RFC3339Nano),
@@ -347,7 +351,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(parse)
 	require.Error(t, err)
 
-	unix := Module["Unix"].(*Function)
+	unix := module["Unix"].(*Function)
 	r, err = MustCall(unix, Int(now.Unix()))
 	require.NoError(t, err)
 	require.Equal(t, time.Unix(now.Unix(), 0), r.(*Time).Value)
@@ -357,7 +361,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(unix)
 	require.Error(t, err)
 
-	add := Module["Add"].(*Function)
+	add := module["Add"].(*Function)
 	r, err = MustCall(add, &Time{Value: now}, Int(time.Second))
 	require.NoError(t, err)
 	require.Equal(t, now.Add(time.Second), r.(*Time).Value)
@@ -368,7 +372,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(add)
 	require.Error(t, err)
 
-	sub := Module["Sub"].(*Function)
+	sub := module["Sub"].(*Function)
 	r, err = MustCall(sub, &Time{Value: now}, &Time{Value: now.Add(-time.Hour)})
 	require.NoError(t, err)
 	require.EqualValues(t, time.Hour, r.(Int))
@@ -379,7 +383,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(sub)
 	require.Error(t, err)
 
-	addDate := Module["AddDate"].(*Function)
+	addDate := module["AddDate"].(*Function)
 	r, err = MustCall(addDate, &Time{Value: now},
 		Int(1), Int(2), Int(3))
 	require.NoError(t, err)
@@ -391,7 +395,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(addDate)
 	require.Error(t, err)
 
-	after := Module["After"].(*Function)
+	after := module["After"].(*Function)
 	r, err = MustCall(after, &Time{Value: now}, &Time{Value: now.Add(time.Hour)})
 	require.NoError(t, err)
 	require.EqualValues(t, false, r)
@@ -405,7 +409,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(after)
 	require.Error(t, err)
 
-	before := Module["Before"].(*Function)
+	before := module["Before"].(*Function)
 	r, err = MustCall(before, &Time{Value: now}, &Time{Value: now.Add(time.Hour)})
 	require.NoError(t, err)
 	require.EqualValues(t, true, r)
@@ -419,7 +423,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(before)
 	require.Error(t, err)
 
-	appendFormat := Module["AppendFormat"].(*Function)
+	appendFormat := module["AppendFormat"].(*Function)
 	b := make(Bytes, 100)
 	r, err = MustCall(appendFormat, &Time{Value: now}, b, RFC3339Nano)
 	require.NoError(t, err)
@@ -432,7 +436,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(appendFormat)
 	require.Error(t, err)
 
-	format := Module["Format"].(*Function)
+	format := module["Format"].(*Function)
 	r, err = MustCall(format, &Time{Value: now}, RFC3339Nano)
 	require.NoError(t, err)
 	require.EqualValues(t, now.Format(time.RFC3339Nano), r)
@@ -441,7 +445,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(format)
 	require.Error(t, err)
 
-	timeIn := Module["In"].(*Function)
+	timeIn := module["In"].(*Function)
 	r, err = MustCall(timeIn, &Time{Value: now}, &Location{Value: time.Local})
 	require.NoError(t, err)
 	require.False(t, r.(*Time).Value.IsZero())
@@ -450,7 +454,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(timeIn)
 	require.Error(t, err)
 
-	round := Module["Round"].(*Function)
+	round := module["Round"].(*Function)
 	r, err = MustCall(round, &Time{Value: now}, Int(time.Second))
 	require.NoError(t, err)
 	require.Equal(t, now.Round(time.Second), r.(*Time).Value)
@@ -459,7 +463,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(round)
 	require.Error(t, err)
 
-	truncate := Module["Truncate"].(*Function)
+	truncate := module["Truncate"].(*Function)
 	r, err = MustCall(truncate, &Time{Value: now}, Int(time.Hour))
 	require.NoError(t, err)
 	require.Equal(t, now.Truncate(time.Hour), r.(*Time).Value)
@@ -468,7 +472,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = MustCall(truncate)
 	require.Error(t, err)
 
-	isTime := Module["IsTime"].(*Function)
+	isTime := module["IsTime"].(*Function)
 	r, err = MustCall(isTime, &Time{Value: now})
 	require.NoError(t, err)
 	require.EqualValues(t, true, r)
@@ -526,7 +530,7 @@ func TestScript(t *testing.T) {
 		try {
 			return %s
 		} catch err {
-			return str(err)
+			return str(err.cause)
 		}
 		`, s)
 	}
@@ -564,7 +568,7 @@ func TestScript(t *testing.T) {
 	expectRun(t, catch(`time.Date(1, 2, 3, 4, 5, 6, 7, "")`),
 		nil, typeErr("8", "location", "str"))
 	expectRun(t, catch(`time.Parse("", 1)`),
-		nil, Str("error: parsing time \"1\": extra text: \"1\""))
+		nil, Str("ErrCall: parsing time \"1\": extra text: \"1\""))
 	expectRun(t, catch(`time.Parse("", "", 1)`),
 		nil, typeErr("3rd", "location", "int"))
 	expectRun(t, catch(`time.Unix("")`),
@@ -596,7 +600,7 @@ func TestScript(t *testing.T) {
 	expectRun(t, catch(`time.Sleep("")`),
 		nil, typeErr("1st", "int", "str"))
 
-	expectRun(t, `mod := import("time"); return mod.__module_name__`,
+	expectRun(t, `mod := import("time"); return mod.@name`,
 		nil, Str("time"))
 
 	tm := time.Now()
@@ -823,9 +827,7 @@ func TestScript(t *testing.T) {
 	expectRun(t, catch(`time.Time().Zone(1)`), nil, nwrongArgs(0, -1, 1))
 }
 
-var IllegalType = &BuiltinObjType{
-	NameValue: "illegal",
-}
+var IllegalType = NewBuiltinObjType("illegal")
 
 type illegalDur struct {
 	ObjectImpl
@@ -860,10 +862,10 @@ func expectRun(t *testing.T, script string, opts *Opts, expected Object) {
 		opts = newOpts()
 	}
 	mm := NewModuleMap()
-	mm.AddBuiltinModule("time", Module)
+	mm.AddBuiltinModuleInit("time", ModuleInit)
 	c := CompileOptions{CompilerOptions: DefaultCompilerOptions}
 	c.ModuleMap = mm
-	bc, err := Compile([]byte(script), c)
+	_, bc, err := Compile([]byte(script), c)
 	require.NoError(t, err)
 	ret, err := NewVM(bc).RunOpts(&RunOpts{Globals: opts.global, Args: Args{opts.args}})
 	require.NoError(t, err)

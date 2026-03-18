@@ -246,9 +246,9 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 	*o = CompiledFunction(*o3)
 
 	// Name field #0
-	if o.Name != "" {
+	if o.FuncName != "" {
 		tmpBuf.WriteByte(0)
-		b, _ := String(o.Name).MarshalBinary()
+		b, _ := String(o.FuncName).MarshalBinary()
 		tmpBuf.Write(b)
 	}
 
@@ -260,10 +260,10 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 		// NumParams field #1
 		tmpBuf.WriteByte(3)
 
-		b := vi.toBytes(int64(len(o.Params)))
+		b := vi.toBytes(int64(o.Params.Len()))
 		tmpBuf.Write(b)
 
-		for _, p := range o.Params {
+		for _, p := range o.Params.Items {
 			b, _ := String(p.Name).MarshalBinary()
 			tmpBuf.Write(b)
 			if p.Var {
@@ -271,8 +271,8 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 			} else {
 				tmpBuf.WriteByte(0)
 			}
-			symbols := make(gad.Array, len(p.Type))
-			for i, info := range p.Type {
+			symbols := make(gad.Array, len(p.TypesSymbols))
+			for i, info := range p.TypesSymbols {
 				symbols[i] = info
 			}
 			b, _ = Array(symbols).MarshalBinary()
@@ -301,7 +301,7 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 		// named params field #7
 		tmpBuf.WriteByte(7)
 		tmpBuf.Write(vi.toBytes(int64(l)))
-		for _, n := range o.NamedParams.Params {
+		for _, n := range o.NamedParams.Items {
 			b, _ := String(n.Name).MarshalBinary()
 			tmpBuf.Write(b)
 			b, _ = String(n.Value).MarshalBinary()
@@ -311,13 +311,13 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 			} else {
 				tmpBuf.WriteByte(0)
 			}
-			symbols := make(gad.Array, len(n.Type))
-			for i, info := range n.Type {
+			symbols := make(gad.Array, len(n.TypesSymbols))
+			for i, info := range n.TypesSymbols {
 				symbols[i] = info
 			}
 			b, _ = Array(symbols).MarshalBinary()
 			tmpBuf.Write(b)
-			n.Type = nil
+			n.TypesSymbols = nil
 		}
 	}
 
@@ -347,7 +347,7 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 // MarshalBinary implements encoding.BinaryMarshaler
 func (o *BuiltinFunction) MarshalBinary() ([]byte, error) {
 	// Note: use string name instead of index of builtin
-	s, err := String(o.Name).MarshalBinary()
+	s, err := String(o.FuncName).MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -361,10 +361,15 @@ func (o *BuiltinFunction) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+func (o *BuiltinObjType) GadType() *gad.BuiltinObjType {
+	t := gad.BuiltinObjType(*o)
+	return &t
+}
+
 // MarshalBinary implements encoding.BinaryMarshaler
 func (o *BuiltinObjType) MarshalBinary() ([]byte, error) {
 	// Note: use string name instead of index of builtin
-	s, err := String(o.NameValue).MarshalBinary()
+	s, err := String(o.GadType().Name()).MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +385,7 @@ func (o *BuiltinObjType) MarshalBinary() ([]byte, error) {
 
 // MarshalBinary implements encoding.BinaryMarshaler
 func (o *Function) MarshalBinary() ([]byte, error) {
-	s, err := String(o.Name).MarshalBinary()
+	s, err := String(o.FuncName).MarshalBinary()
 	if err != nil {
 		return nil, err
 	}

@@ -11,7 +11,10 @@ import (
 )
 
 func TestModuleStrings(t *testing.T) {
-	contains := Module["Contains"]
+	d, _ := ModuleInit(nil, Call{})
+	module := d.(Dict)
+
+	contains := module["Contains"]
 	ret, err := MustCall(contains, Str("abc"), Str("b"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
@@ -25,7 +28,7 @@ func TestModuleStrings(t *testing.T) {
 	_, err = MustCall(contains)
 	require.Error(t, err)
 
-	containsAny := Module["ContainsAny"]
+	containsAny := module["ContainsAny"]
 	ret, err = MustCall(containsAny, Str("abc"), Str("ax"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
@@ -33,7 +36,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
-	containsChar := Module["ContainsChar"]
+	containsChar := module["ContainsChar"]
 	ret, err = MustCall(containsChar, Str("abc"), Char('a'))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
@@ -41,7 +44,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
-	count := Module["Count"]
+	count := module["Count"]
 	ret, err = MustCall(count, Str("cheese"), Str("e"))
 	require.NoError(t, err)
 	require.EqualValues(t, 3, ret)
@@ -49,7 +52,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 0, ret)
 
-	equalFold := Module["EqualFold"]
+	equalFold := module["EqualFold"]
 	ret, err = MustCall(equalFold, Str("GAD"), Str("gad"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
@@ -57,7 +60,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
-	fields := Module["Fields"]
+	fields := module["Fields"]
 	ret, err = MustCall(fields, Str("\tfoo bar\nbaz"))
 	require.NoError(t, err)
 	require.Equal(t, 3, len(ret.(Array)))
@@ -65,7 +68,7 @@ func TestModuleStrings(t *testing.T) {
 	require.EqualValues(t, "bar", ret.(Array)[1].(Str))
 	require.EqualValues(t, "baz", ret.(Array)[2].(Str))
 
-	hasPrefix := Module["HasPrefix"]
+	hasPrefix := module["HasPrefix"]
 	ret, err = MustCall(hasPrefix, Str("foobarbaz"), Str("foo"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
@@ -73,7 +76,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
-	hasSuffix := Module["HasSuffix"]
+	hasSuffix := module["HasSuffix"]
 	ret, err = MustCall(hasSuffix, Str("foobarbaz"), Str("baz"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
@@ -81,7 +84,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
-	index := Module["Index"]
+	index := module["Index"]
 	ret, err = MustCall(index, Str("foobarbaz"), Str("bar"))
 	require.NoError(t, err)
 	require.EqualValues(t, 3, ret)
@@ -89,7 +92,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	indexAny := Module["IndexAny"]
+	indexAny := module["IndexAny"]
 	ret, err = MustCall(indexAny, Str("foobarbaz"), Str("xz"))
 	require.NoError(t, err)
 	require.EqualValues(t, 8, ret)
@@ -97,7 +100,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	indexByte := Module["IndexByte"]
+	indexByte := module["IndexByte"]
 	ret, err = MustCall(indexByte, Str("foobarbaz"), Char('z'))
 	require.NoError(t, err)
 	require.EqualValues(t, 8, ret)
@@ -108,7 +111,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	indexChar := Module["IndexChar"]
+	indexChar := module["IndexChar"]
 	ret, err = MustCall(indexChar, Str("foobarbaz"), Char('z'))
 	require.NoError(t, err)
 	require.EqualValues(t, 8, ret)
@@ -116,12 +119,12 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	join := Module["Join"]
+	join := module["Join"]
 	ret, err = MustCall(join, Array{Str("foo"), Str("bar")}, Str(";"))
 	require.NoError(t, err)
 	require.EqualValues(t, "foo;bar", ret)
 
-	lastIndex := Module["LastIndex"]
+	lastIndex := module["LastIndex"]
 	ret, err = MustCall(lastIndex, Str("zfoobarbaz"), Str("z"))
 	require.NoError(t, err)
 	require.EqualValues(t, 9, ret)
@@ -129,7 +132,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	lastIndexAny := Module["LastIndexAny"]
+	lastIndexAny := module["LastIndexAny"]
 	ret, err = MustCall(lastIndexAny, Str("zfoobarbaz"), Str("xz"))
 	require.NoError(t, err)
 	require.EqualValues(t, 9, ret)
@@ -140,7 +143,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	lastIndexByte := Module["LastIndexByte"]
+	lastIndexByte := module["LastIndexByte"]
 	ret, err = MustCall(lastIndexByte, Str("zfoobarbaz"), Char('z'))
 	require.NoError(t, err)
 	require.EqualValues(t, 9, ret)
@@ -151,7 +154,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	padLeft := Module["PadLeft"]
+	padLeft := module["PadLeft"]
 	ret, err = MustCall(padLeft, Str("abc"), Int(3))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc", ret)
@@ -168,7 +171,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, "======", ret)
 
-	padRight := Module["PadRight"]
+	padRight := module["PadRight"]
 	ret, err = MustCall(padRight, Str("abc"), Int(3))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc", ret)
@@ -185,7 +188,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, "======", ret)
 
-	repeat := Module["Repeat"]
+	repeat := module["Repeat"]
 	ret, err = MustCall(repeat, Str("abc"), Int(3))
 	require.NoError(t, err)
 	require.EqualValues(t, "abcabcabc", ret)
@@ -193,7 +196,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, "", ret)
 
-	replace := Module["Replace"]
+	replace := module["Replace"]
 	ret, err = MustCall(replace, Str("abcdefbc"), Str("bc"), Str("(bc)"))
 	require.NoError(t, err)
 	require.EqualValues(t, "a(bc)def(bc)", ret)
@@ -202,7 +205,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, "a(bc)defbc", ret)
 
-	split := Module["Split"]
+	split := module["Split"]
 	ret, err = MustCall(split, Str("abc;def;"), Str(";"))
 	require.NoError(t, err)
 	require.Equal(t, 3, len(ret.(Array)))
@@ -222,7 +225,7 @@ func TestModuleStrings(t *testing.T) {
 	require.EqualValues(t, "abc", ret.(Array)[0])
 	require.EqualValues(t, "def;", ret.(Array)[1])
 
-	splitAfter := Module["SplitAfter"]
+	splitAfter := module["SplitAfter"]
 	ret, err = MustCall(splitAfter, Str("abc;def;"), Str(";"))
 	require.NoError(t, err)
 	require.Equal(t, 3, len(ret.(Array)))
@@ -242,57 +245,57 @@ func TestModuleStrings(t *testing.T) {
 	require.EqualValues(t, "abc;", ret.(Array)[0])
 	require.EqualValues(t, "def;", ret.(Array)[1])
 
-	title := Module["Title"]
+	title := module["Title"]
 	ret, err = MustCall(title, Str("хлеб"))
 	require.NoError(t, err)
 	require.EqualValues(t, "Хлеб", ret)
 
-	toLower := Module["ToLower"]
+	toLower := module["ToLower"]
 	ret, err = MustCall(toLower, Str("ÇİĞÖŞÜ"))
 	require.NoError(t, err)
 	require.EqualValues(t, "çiğöşü", ret)
 
-	toTitle := Module["ToTitle"]
+	toTitle := module["ToTitle"]
 	ret, err = MustCall(toTitle, Str("хлеб"))
 	require.NoError(t, err)
 	require.EqualValues(t, "ХЛЕБ", ret)
 
-	toUpper := Module["ToUpper"]
+	toUpper := module["ToUpper"]
 	ret, err = MustCall(toUpper, Str("çığöşü"))
 	require.NoError(t, err)
 	require.EqualValues(t, "ÇIĞÖŞÜ", ret)
 
-	trim := Module["Trim"]
+	trim := module["Trim"]
 	ret, err = MustCall(trim, Str("!!??abc?!"), Str("!?"))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc", ret)
 
-	trimLeft := Module["TrimLeft"]
+	trimLeft := module["TrimLeft"]
 	ret, err = MustCall(trimLeft, Str("!!??abc?!"), Str("!?"))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc?!", ret)
 
-	trimPrefix := Module["TrimPrefix"]
+	trimPrefix := module["TrimPrefix"]
 	ret, err = MustCall(trimPrefix, Str("abcdef"), Str("abc"))
 	require.NoError(t, err)
 	require.EqualValues(t, "def", ret)
 
-	trimRight := Module["TrimRight"]
+	trimRight := module["TrimRight"]
 	ret, err = MustCall(trimRight, Str("!!??abc?!"), Str("!?"))
 	require.NoError(t, err)
 	require.EqualValues(t, "!!??abc", ret)
 
-	trimSpace := Module["TrimSpace"]
+	trimSpace := module["TrimSpace"]
 	ret, err = MustCall(trimSpace, Str("\n \tabcdef\t \n"))
 	require.NoError(t, err)
 	require.EqualValues(t, "abcdef", ret)
 
-	trimSuffix := Module["TrimSuffix"]
+	trimSuffix := module["TrimSuffix"]
 	ret, err = MustCall(trimSuffix, Str("abcdef"), Str("def"))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc", ret)
 
-	trunc := Module["Trunc"]
+	trunc := module["Trunc"]
 	ret, err = MustCall(trunc, Str("abcdef"), Int(6))
 	require.NoError(t, err)
 
@@ -314,7 +317,7 @@ func TestScript(t *testing.T) {
 		try {
 			return %s
 		} catch err {
-			return str(err)
+			return str(err.cause)
 		}`, s)
 	}
 	wrongArgs := func(want, got int) Str {
@@ -735,10 +738,10 @@ func TestScript(t *testing.T) {
 func expectRun(t *testing.T, script string, expected Object) {
 	t.Helper()
 	mm := NewModuleMap()
-	mm.AddBuiltinModule("strings", Module)
+	mm.AddBuiltinModuleInit("strings", ModuleInit)
 	c := CompileOptions{CompilerOptions: DefaultCompilerOptions}
 	c.ModuleMap = mm
-	bc, err := Compile([]byte(script), c)
+	_, bc, err := Compile([]byte(script), c)
 	require.NoError(t, err)
 	ret, err := NewVM(bc).Run(nil)
 	require.NoError(t, err)

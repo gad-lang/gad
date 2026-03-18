@@ -41,9 +41,7 @@ type argValue interface {
 	Value() gad.Object
 }
 
-var scanArgType = &gad.BuiltinObjType{
-	NameValue: "scanArg",
-}
+var scanArgType = gad.NewBuiltinObjType("scanArg")
 
 // scanArg implements gad.Object and ScanArg interfaces to provide arguments to
 // scan functions.
@@ -76,11 +74,11 @@ func newScanArgFunc(c gad.Call) (gad.Object, error) {
 	if c.Args.Length() > 0 {
 		v := c.Args.Get(0)
 	do:
-		if b, ok := v.(*gad.CallerObjectWithMethods); ok {
-			v = b.CallerObject
+		if b, ok := v.(*gad.Func); ok {
+			v = b.FuncSpec.CallerMethodDefault()
 			goto do
 		} else if b, ok := v.(*gad.BuiltinFunction); ok {
-			typ = b.Name
+			typ = b.FuncName
 		} else if ot, ok := v.(gad.ObjectType); ok {
 			typ = ot.Name()
 		} else {

@@ -6,6 +6,7 @@ package gad
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +17,6 @@ import (
 	"sync"
 
 	"github.com/gad-lang/gad/internal/compat"
-	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/quote"
 	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/runehelper"
@@ -27,7 +27,7 @@ import (
 type Bool bool
 
 func (o Bool) Type() ObjectType {
-	return DetectTypeOf(o)
+	return TBool
 }
 
 func (o Bool) ToString() string {
@@ -211,10 +211,6 @@ func (o RawStr) ToString() string {
 	return string(o)
 }
 
-func (o RawStr) Repr(*VM) (string, error) {
-	return repr.Quote("rawstr:" + o.Quoted()), nil
-}
-
 func (o RawStr) Quoted() string {
 	return quote.Quote(string(o), "`")
 }
@@ -335,20 +331,15 @@ func (o RawStr) WriteTo(_ *VM, w io.Writer) (int64, error) {
 type Str string
 
 var (
-	_ LengthGetter      = Str("")
-	_ ObjectRepresenter = Str("")
+	_ LengthGetter = Str("")
 )
 
 func (o Str) Type() ObjectType {
-	return DetectTypeOf(o)
+	return TStr
 }
 
 func (o Str) ToString() string {
 	return string(o)
-}
-
-func (o Str) Repr(*VM) (string, error) {
-	return repr.Quote("str:" + o.Quoted()), nil
 }
 
 func (o Str) Quoted() string {
@@ -453,6 +444,11 @@ func (o Str) Format(s fmt.State, verb rune) {
 	fmt.Fprintf(s, format, string(o))
 }
 
+func (o Str) Print(state *PrinterState) error {
+	state.WriteString(strconv.Quote(string(o)))
+	return nil
+}
+
 // Bytes represents byte slice and implements Object interface.
 type Bytes []byte
 
@@ -463,7 +459,7 @@ var (
 )
 
 func (o Bytes) Type() ObjectType {
-	return DetectTypeOf(o)
+	return TBytes
 }
 
 func (o Bytes) ToString() string {
@@ -592,23 +588,91 @@ func (o Bytes) Length() int {
 	return len(o)
 }
 
-// Format implements fmt.Formatter interface.
-func (o Bytes) Format(s fmt.State, verb rune) {
-	format := compat.FmtFormatString(s, verb)
-	fmt.Fprintf(s, format, []byte(o))
-}
-
 func (o Bytes) WriteTo(_ *VM, w io.Writer) (int64, error) {
 	n, err := w.Write(o)
 	return int64(n), err
 }
 
+func (o Bytes) ToStringF(w io.Writer) (err error) {
+	if _, err = w.Write([]byte{'0', 'x'}); err == nil {
+		_, err = hex.NewEncoder(w).Write(o)
+	}
+	return
+}
+
+type FunctionOption func(f *Function)
+
+func FunctionWithParams(builder func(newParam func(name string) *ParamBuilder)) FunctionOption {
+	return func(f *Function) {
+		if f.Header == nil {
+			f.Header = new(FunctionHeader)
+		}
+		f.Header.WithParams(builder)
+	}
+}
+func FunctionWithNamedParams(builder func(newParam func(name string) *NamedParamBuilder)) FunctionOption {
+	return func(f *Function) {
+		if f.Header == nil {
+			f.Header = new(FunctionHeader)
+		}
+		f.Header.WithNamedParams(builder)
+	}
+}
+
 // Function represents a function object and implements Object interface.
 type Function struct {
 	ObjectImpl
-	Name  string
-	Value func(Call) (Object, error)
-	ToStr func() string
+	FuncName     string
+	Value        func(Call) (Object, error)
+	ToStringFunc func() string
+	Header       *FunctionHeader
+	pt           ParamsTypes
+	Module       *Module
+}
+
+func (f *Function) SetModule(module *Module) {
+	f.Module = module
+}
+
+func (f *Function) GetModule() *Module {
+	return f.Module
+}
+
+func NewFunction(name string, v func(Call) (Object, error), opt ...FunctionOption) *Function {
+	f := &Function{FuncName: name, Value: v}
+	for _, opt := range opt {
+		opt(f)
+	}
+	return f
+}
+
+func (f *Function) WithHeader(do func(h *FunctionHeader)) *Function {
+	f.Header = &FunctionHeader{}
+	do(f.Header)
+	return f
+}
+
+func (f *Function) Name() string {
+	return f.FuncName
+}
+
+func (f *Function) ParamTypes() (types ParamsTypes) {
+	if f.pt == nil {
+		if f.Header != nil {
+			f.pt = f.Header.ParamTypes()
+		}
+	}
+	return f.pt
+}
+
+func (f *Function) String() string {
+	s := f.Name()
+	if f.Header != nil {
+		s += f.Header.String()
+	} else {
+		s += "(⋅⋅⋅)"
+	}
+	return s
 }
 
 var _ Object = (*Function)(nil)
@@ -617,142 +681,212 @@ func (*Function) Type() ObjectType {
 	return TFunction
 }
 
-func (o *Function) ToString() string {
-	var name = o.Name
-	if o.ToStr != nil {
-		name = o.ToStr()
+func (f *Function) ToString() string {
+	if f.ToStringFunc != nil {
+		return f.ToStringFunc()
 	}
-	return fmt.Sprintf(ReprQuote("function:%s"), name)
+	return fmt.Sprintf(ReprQuote("function %s"), f.String())
 }
 
 // Copy implements Copier interface.
-func (o *Function) Copy() Object {
+func (f *Function) Copy() Object {
 	return &Function{
-		Name:  o.Name,
-		Value: o.Value,
+		FuncName: f.FuncName,
+		Value:    f.Value,
 	}
 }
 
 // Equal implements Object interface.
-func (o *Function) Equal(right Object) bool {
+func (f *Function) Equal(right Object) bool {
 	v, ok := right.(*Function)
 	if !ok {
 		return false
 	}
-	return v == o
+	return v == f
 }
 
 // IsFalsy implements Object interface.
 func (*Function) IsFalsy() bool { return false }
 
-func (o *Function) Call(call Call) (Object, error) {
-	return o.Value(call)
-}
-
-type ArgType []ObjectType
-
-func (t ArgType) String() string {
-	l := len(t)
-	switch l {
-	case 0:
-		return ""
-	case 1:
-		return " " + t[0].Name()
-	default:
-		var s = make([]string, l)
-		for i, t2 := range t {
-			s[i] = t2.Name()
-		}
-		return " [" + strings.Join(s, ", ") + "]"
-	}
+func (f *Function) Call(call Call) (Object, error) {
+	return f.Value(call)
 }
 
 var (
-	_ CallerObject                  = (*BuiltinFunction)(nil)
-	_ CallerObjectWithStaticMethods = (*BuiltinFunction)(nil)
+	_ CallerObject = (*BuiltinFunction)(nil)
 )
 
 // BuiltinFunction represents a builtin function object and implements Object interface.
 type BuiltinFunction struct {
 	ObjectImpl
-	Name                  string
+	Module                *Module
+	FuncName              string
 	Value                 func(Call) (Object, error)
-	Header                FunctionHeader
+	Header                *FunctionHeader
 	AcceptMethodsDisabled bool
-	goMethods             []*Caller
+	Usage                 string
 }
 
 func NewBuiltinFunction(name string, value func(Call) (Object, error)) *BuiltinFunction {
-	return &BuiltinFunction{Name: name, Value: value}
+	return &BuiltinFunction{FuncName: name, Value: value}
+}
+
+func (f *BuiltinFunction) Doc() string {
+	var buf strings.Builder
+	buf.WriteString("# ")
+	buf.WriteString(f.FuncName)
+
+	if f.Header != nil {
+		buf.WriteString(f.Header.String())
+	} else {
+		buf.WriteString("(...)")
+	}
+
+	if f.Module != nil {
+		fmt.Fprintf(&buf, "\n\n**Module:** [%s](/modules/%[1]s)", f.Module.info.Name)
+	}
+
+	if len(f.Usage) > 0 {
+		buf.WriteString("\n\n")
+		buf.WriteString(f.Usage)
+	}
+	return buf.String()
 }
 
 func (*BuiltinFunction) Type() ObjectType {
 	return TBuiltinFunction
 }
 
-func (o *BuiltinFunction) ToString() string {
-	return fmt.Sprintf(ReprQuote("builtinFunction:%s%s"), o.Name, o.Header.String())
+func (f *BuiltinFunction) Name() string {
+	return f.FuncName
 }
 
-func (o *BuiltinFunction) ParamTypes(*VM) (MultipleObjectTypes, error) {
-	return nil, nil
+func (f *BuiltinFunction) String() string {
+	return f.ToString()
 }
 
-func (o *BuiltinFunction) WithGoMethod(c ...*Caller) *BuiltinFunction {
-	o.goMethods = append(o.goMethods, c...)
-	return o
+func (f *BuiltinFunction) ToString() string {
+	var header string
+	if f.Header != nil {
+		header = f.Header.String()
+	}
+	return fmt.Sprintf(ReprQuote("builtinFunction: %s%s"), f.FuncName, header)
 }
 
-func (o *BuiltinFunction) GetGoMethods() []*Caller {
-	return o.goMethods
+func (f *BuiltinFunction) ParamTypes() ParamsTypes {
+	if f.Header != nil {
+		return f.Header.ParamTypes()
+	}
+	return nil
 }
 
 // Copy implements Copier interface.
-func (o *BuiltinFunction) Copy() Object {
+func (f *BuiltinFunction) Copy() Object {
 	return &BuiltinFunction{
-		Name:  o.Name,
-		Value: o.Value,
+		FuncName: f.FuncName,
+		Value:    f.Value,
 	}
 }
 
 // Equal implements Object interface.
-func (o *BuiltinFunction) Equal(right Object) bool {
+func (f *BuiltinFunction) Equal(right Object) bool {
 	v, ok := right.(*BuiltinFunction)
 	if !ok {
 		return false
 	}
-	return v == o
+	return v == f
 }
 
 // IsFalsy implements Object interface.
 func (*BuiltinFunction) IsFalsy() bool { return false }
 
-func (o *BuiltinFunction) Call(c Call) (Object, error) {
-	return o.Value(c)
+func (f *BuiltinFunction) Call(c Call) (Object, error) {
+	return f.Value(c)
 }
 
-func (o *BuiltinFunction) MethodsDisabled() bool {
-	return o.AcceptMethodsDisabled
+func (f *BuiltinFunction) MethodsDisabled() bool {
+	return f.AcceptMethodsDisabled
+}
+
+var (
+	_ CallerObject = (*BuiltinFunctionWithMethods)(nil)
+)
+
+type BuiltinFunctionWithMethods struct {
+	*FuncSpec
+	name   string
+	Module *Module
+}
+
+func NewBuiltinFunctionWithMethods(name string, module *Module) *BuiltinFunctionWithMethods {
+	b := &BuiltinFunctionWithMethods{Module: module, name: name}
+	b.FuncSpec = NewFuncSpec(b)
+	return b
+}
+
+func (f *BuiltinFunctionWithMethods) Type() ObjectType {
+	return TBuiltinFunction
+}
+
+func (f *BuiltinFunctionWithMethods) Equal(right Object) bool {
+	return f == right
+}
+
+func (f BuiltinFunctionWithMethods) Copy() Object {
+	cp := &f
+	cp.FuncSpec = cp.FuncSpec.CopyWithTarget(cp)
+	return cp
+}
+
+func (f *BuiltinFunctionWithMethods) GetModule() *Module {
+	return f.Module
+}
+
+func (f *BuiltinFunctionWithMethods) Name() string {
+	return f.name
+}
+
+func (f *BuiltinFunctionWithMethods) FullName() string {
+	if f.Module != nil {
+		return f.Module.info.Name + "." + f.name
+	}
+	return f.name
+}
+
+func (f *BuiltinFunctionWithMethods) FuncSpecName() string {
+	return "builtin function " + ReprQuote(f.FullName())
+}
+
+func (f *BuiltinFunctionWithMethods) ToString() string {
+	return f.String()
+}
+
+func (f *BuiltinFunctionWithMethods) String() string {
+	return string(MustToStr(nil, f))
+}
+
+func (f *BuiltinFunctionWithMethods) Print(state *PrinterState) (err error) {
+	return f.PrintFuncWrapper(state, f)
 }
 
 // Array represents array of objects and implements Object interface.
 type Array []Object
 
 var (
-	_ Object                    = Array{}
-	_ LengthGetter              = Array{}
-	_ ToArrayAppenderObject     = Array{}
-	_ DeepCopier                = Array{}
-	_ Copier                    = Array{}
-	_ Sorter                    = Array{}
-	_ KeysGetter                = Array{}
-	_ ItemsGetter               = Array{}
-	_ ObjectRepresenter         = Array{}
-	_ SelfAssignOperatorHandler = Array{}
+	_ Object                    = (Array)(nil)
+	_ LengthGetter              = (Array)(nil)
+	_ ToArrayAppenderObject     = (Array)(nil)
+	_ DeepCopier                = (Array)(nil)
+	_ Copier                    = (Array)(nil)
+	_ Sorter                    = (Array)(nil)
+	_ KeysGetter                = (Array)(nil)
+	_ ItemsGetter               = (Array)(nil)
+	_ SelfAssignOperatorHandler = (Array)(nil)
+	_ Printer                   = (Array)(nil)
 )
 
 func (o Array) Type() ObjectType {
-	return DetectTypeOf(o)
+	return TArray
 }
 
 func (o Array) Format(f fmt.State, verb rune) {
@@ -769,14 +903,19 @@ func (o Array) ToString() string {
 }
 
 func (o Array) Print(state *PrinterState) (err error) {
-	return PrintArray(state, o.Length(), func(i int) (Object, error) {
-		return o[i], nil
-	})
+	if state.IsRepr {
+		defer state.WrapReprString(TArray.Name())()
+	}
+	state.QuoteNextStr(1)
+	return o.PrintObject(state, nil)
 }
 
-func (o Array) Repr(vm *VM) (string, error) {
-	return ArrayRepr(o.Type().Name(), vm, len(o), func(i int) Object {
-		return o[i]
+func (o Array) PrintObject(state *PrinterState, obj Object) (err error) {
+	if obj != nil && state.IsRepr {
+		defer state.WrapRepr(obj)()
+	}
+	return state.PrintArray(o.Length(), func(i int) (Object, error) {
+		return o[i], nil
 	})
 }
 
@@ -1096,18 +1235,18 @@ func (o *ObjectPtr) Call(c Call) (Object, error) {
 type Dict map[string]Object
 
 var (
-	_ Object            = Dict{}
-	_ Copier            = Dict{}
-	_ IndexDeleter      = Dict{}
-	_ LengthGetter      = Dict{}
-	_ KeysGetter        = Dict{}
-	_ ValuesGetter      = Dict{}
-	_ ItemsGetter       = Dict{}
-	_ ObjectRepresenter = Dict{}
+	_ Object       = Dict{}
+	_ Copier       = Dict{}
+	_ IndexDeleter = Dict{}
+	_ LengthGetter = Dict{}
+	_ KeysGetter   = Dict{}
+	_ ValuesGetter = Dict{}
+	_ ItemsGetter  = Dict{}
+	_ Printer      = Dict{}
 )
 
 func (o Dict) Type() ObjectType {
-	return DetectTypeOf(o)
+	return TDict
 }
 
 func (o Dict) Format(f fmt.State, verb rune) {
@@ -1145,22 +1284,26 @@ func (o Dict) Filter(f func(k string, v Object) bool) Dict {
 // - zeros flag: include zero fields.
 // - sortKeys int = 0: fields sorting. 1: ASC, 2: DESC.
 func (o Dict) Print(state *PrinterState) (err error) {
+	return o.PrintObject(state, o)
+}
+
+func (o Dict) PrintObject(state *PrinterState, dot Object) (err error) {
+	if dot != nil && state.IsRepr {
+		defer state.WrapRepr(dot)()
+	}
+
 	type entry struct {
 		name  string
 		value Object
 	}
 
 	var (
-		v            Object
-		entries      []entry
-		sortKeysType = PrintStateOptionsGetSortKeysType(state)
+		entries         []entry
+		sortKeysType, _ = state.options.SortKeys()
 	)
 
 	for name, value := range o {
-		if v, err = state.VM.ToObject(value); err != nil {
-			return
-		}
-		entries = append(entries, entry{name, v})
+		entries = append(entries, entry{name, value})
 	}
 
 	switch sortKeysType {
@@ -1174,7 +1317,7 @@ func (o Dict) Print(state *PrinterState) (err error) {
 		})
 	}
 
-	return PrintDict(state, len(entries),
+	return state.PrintDict(len(entries),
 		func(i int) (Object, error) {
 			return Str(entries[i].name), nil
 		}, func(i int) (Object, error) {
@@ -1211,40 +1354,6 @@ func (o Dict) ToString() string {
 
 	sb.WriteString("}")
 	return sb.String()
-}
-
-func (o Dict) Repr(vm *VM) (_ string, err error) {
-	var (
-		keys  = o.SortedKeys()
-		last  = len(keys) - 1
-		sb    strings.Builder
-		do    = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
-		repro Object
-	)
-	sb.WriteString(repr.QuotePrefix)
-	sb.WriteString(o.Type().Name() + ":{")
-
-	for i, k := range keys {
-		k := string(k.(Str))
-		if repro, err = do(o[k]); err != nil {
-			return
-		}
-
-		if runehelper.IsIdentifierRunes([]rune(k)) {
-			sb.WriteString(k)
-		} else {
-			sb.WriteString(strconv.Quote(k))
-		}
-		sb.WriteString(": ")
-		sb.WriteString(repro.ToString())
-		if i != last {
-			sb.WriteString(", ")
-		}
-	}
-
-	sb.WriteString("}")
-	sb.WriteString(repr.QuoteSufix)
-	return sb.String(), nil
 }
 
 // Copy implements Copier interface.
@@ -1375,6 +1484,13 @@ func (o Dict) Length() int {
 	return len(o)
 }
 
+func (o Dict) ToKeyValueArray() (arr KeyValueArray) {
+	for k, v := range o {
+		arr = append(arr, &KeyValue{Str(k), v})
+	}
+	return
+}
+
 func (o Dict) Items(_ *VM, cb ItemsGetterCallback) (err error) {
 	var i int
 	for k, v := range o {
@@ -1428,12 +1544,7 @@ func (o Dict) ToNamedArgs() *NamedArgs {
 		o = make(Dict, len(o))
 	}
 
-	items := make(KeyValueArray, len(o))
-
-	_ = o.Items(nil, func(i int, item *KeyValue) error {
-		items[i] = item
-		return nil
-	})
+	items := o.ToKeyValueArray()
 
 	return &NamedArgs{
 		m:       o,
@@ -1463,6 +1574,10 @@ func (o Dict) Backup(key string) func() {
 			delete(o, key)
 		}
 	}
+}
+
+func (o Dict) ToDict() Dict {
+	return o
 }
 
 // SyncDict represents map of objects and implements Object interface.
@@ -1502,7 +1617,7 @@ func (o *SyncDict) Unlock() {
 }
 
 func (o *SyncDict) Type() ObjectType {
-	return DetectTypeOf(o)
+	return TSyncDict
 }
 
 func (o *SyncDict) ToString() string {
@@ -1631,282 +1746,14 @@ func (o *SyncDict) Values() Array {
 	return o.Value.Values()
 }
 
-// Error represents Error Object and implements error and Object interfaces.
-type Error struct {
-	Name    string
-	Message string
-	Cause   error
-}
-
-func WrapError(cause error) *Error {
-	return &Error{Cause: cause}
-}
-
-var (
-	_ Object = (*Error)(nil)
-	_ Copier = (*Error)(nil)
-)
-
-func (o *Error) Unwrap() error {
-	return o.Cause
-}
-
-func (o *Error) Type() ObjectType {
-	return DetectTypeOf(o)
-}
-
-func (o *Error) ToString() string {
-	return o.Error()
-}
-
-// Copy implements Copier interface.
-func (o *Error) Copy() Object {
-	return &Error{
-		Name:    o.Name,
-		Message: o.Message,
-		Cause:   o.Cause,
-	}
-}
-
-// Error implements error interface.
-func (o *Error) Error() string {
-	var (
-		name = o.Name
-		msg  = o.Message
-	)
-	if name == "" {
-		name = "error"
-	}
-	if msg == "" && o.Cause != nil {
-		msg = o.Cause.Error()
-	}
-	return fmt.Sprintf("%s: %s", name, msg)
-}
-
-// Equal implements Object interface.
-func (o *Error) Equal(right Object) bool {
-	if v, ok := right.(*Error); ok {
-		return v == o
-	}
-	return false
-}
-
-// IsFalsy implements Object interface.
-func (o *Error) IsFalsy() bool { return true }
-
-// IndexGet implements Object interface.
-func (o *Error) IndexGet(_ *VM, index Object) (Object, error) {
-	s := index.ToString()
-	if s == "Literal" {
-		return Str(o.Name), nil
-	}
-
-	if s == "Message" {
-		return Str(o.Message), nil
-	}
-
-	if s == "New" {
-		return &Function{
-			Name: "New",
-			Value: func(c Call) (Object, error) {
-				l := c.Args.Length()
-				switch l {
-				case 1:
-					return o.NewError(c.Args.Get(0).ToString()), nil
-				case 0:
-					return o.NewError(o.Message), nil
-				default:
-					msgs := make([]string, l)
-					for i := range msgs {
-						msgs[i] = c.Args.Get(i).ToString()
-					}
-					return o.NewError(msgs...), nil
-				}
-			},
-		}, nil
-	}
-	return Nil, nil
-}
-
-// NewError creates a new Error and sets original Error as its cause which can be unwrapped.
-func (o *Error) NewError(messages ...string) *Error {
-	cp := o.Copy().(*Error)
-	cp.Message = strings.Join(messages, " ")
-	cp.Cause = o
-	return cp
-}
-
-// RuntimeError represents a runtime error that wraps Error and includes trace information.
-type RuntimeError struct {
-	Err     *Error
-	fileSet *source.FileSet
-	Trace   []source.Pos
-}
-
-var (
-	_ Object = (*RuntimeError)(nil)
-	_ Copier = (*RuntimeError)(nil)
-)
-
-func (o *RuntimeError) FileSet() *source.FileSet {
-	return o.fileSet
-}
-
-func (o *RuntimeError) Unwrap() error {
-	if o.Err != nil {
-		return o.Err
-	}
-	return nil
-}
-
-func (o *RuntimeError) addTrace(pos source.Pos) {
-	if len(o.Trace) > 0 {
-		if o.Trace[len(o.Trace)-1] == pos {
-			return
-		}
-	}
-	o.Trace = append(o.Trace, pos)
-}
-
-func (*RuntimeError) Type() ObjectType {
-	return TError
-}
-
-func (o *RuntimeError) ToString() string {
-	return o.Error()
-}
-
-// Copy implements Copier interface.
-func (o *RuntimeError) Copy() Object {
-	var err *Error
-	if o.Err != nil {
-		err = o.Err.Copy().(*Error)
-	}
-
-	return &RuntimeError{
-		Err:     err,
-		fileSet: o.fileSet,
-		Trace:   append([]source.Pos{}, o.Trace...),
-	}
-}
-
-// Error implements error interface.
-func (o *RuntimeError) Error() string {
-	if o.Err == nil {
-		return ReprQuote("nil")
-	}
-	return o.Err.Error()
-}
-
-// Equal implements Object interface.
-func (o *RuntimeError) Equal(right Object) bool {
-	if o.Err != nil {
-		return o.Err.Equal(right)
-	}
-	return false
-}
-
-// IsFalsy implements Object interface.
-func (o *RuntimeError) IsFalsy() bool { return true }
-
-// IndexGet implements Object interface.
-func (o *RuntimeError) IndexGet(vm *VM, index Object) (Object, error) {
-	if o.Err != nil {
-		s := index.ToString()
-		if s == "New" {
-			return &Function{
-				Name: "New",
-				Value: func(c Call) (Object, error) {
-					l := c.Args.Length()
-					switch l {
-					case 1:
-						return o.NewError(c.Args.Get(0).ToString()), nil
-					case 0:
-						return o.NewError(o.Err.Message), nil
-					default:
-						msgs := make([]string, l)
-						for i := range msgs {
-							msgs[i] = c.Args.Get(i).ToString()
-						}
-						return o.NewError(msgs...), nil
-					}
-				},
-			}, nil
-		}
-		return o.Err.IndexGet(vm, index)
-	}
-
-	return Nil, nil
-}
-
-// NewError creates a new Error and sets original Error as its cause which can be unwrapped.
-func (o *RuntimeError) NewError(messages ...string) *RuntimeError {
-	cp := o.Copy().(*RuntimeError)
-	cp.Err.Message = strings.Join(messages, " ")
-	cp.Err.Cause = o
-	return cp
-}
-
-// StackTrace returns stack trace if set otherwise returns nil.
-func (o *RuntimeError) StackTrace() source.FilePosStackTrace {
-	if o.fileSet == nil {
-		if o.Trace != nil {
-			sz := len(o.Trace)
-			trace := make(source.FilePosStackTrace, sz)
-			j := 0
-			for i := sz - 1; i >= 0; i-- {
-				trace[j] = source.FilePos{
-					Offset: int(o.Trace[i]),
-				}
-				j++
-			}
-			return trace
-		}
-		return nil
-	}
-
-	sz := len(o.Trace)
-	trace := make(source.FilePosStackTrace, sz)
-	j := 0
-	for i := sz - 1; i >= 0; i-- {
-		trace[j] = o.fileSet.Position(o.Trace[i])
-		j++
-	}
-	return trace
-}
-
-// Format implements fmt.Formater interface.
-func (o *RuntimeError) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 'v', 's':
-		switch {
-		case s.Flag('+'):
-			io.WriteString(s, o.ToString())
-			o.StackTrace().Format(s, verb)
-
-			e := o.Unwrap()
-			for e != nil {
-				if e, ok := e.(*RuntimeError); ok && o != e {
-					e.Format(s, verb)
-				}
-				if err, ok := e.(interface{ Unwrap() error }); ok {
-					e = err.Unwrap()
-				} else {
-					break
-				}
-			}
-		default:
-			_, _ = io.WriteString(s, o.ToString())
-		}
-	case 'q':
-		_, _ = io.WriteString(s, strconv.Quote(o.ToString()))
-	}
-}
-
 type CallWrapper struct {
 	Caller    CallerObject
 	Args      Args
 	NamedArgs KeyValueArray
+}
+
+func (i *CallWrapper) Name() string {
+	return "wrap"
 }
 
 func NewCallWrapper(caller CallerObject, args Args, namedArgs KeyValueArray) *CallWrapper {
@@ -1946,26 +1793,36 @@ var (
 )
 
 type IndexGetProxy struct {
-	GetIndex        func(vm *VM, index Object) (value Object, err error)
-	ToStr           func() string
-	It              func(vm *VM, na *NamedArgs) Iterator
-	InterfaceValue  any
-	CallNameHandler func(name string, c Call) (Object, error)
+	GetIndexFunc   func(vm *VM, index Object) (value Object, err error)
+	ToStrFunc      func() string
+	PrintFunc      func(s *PrinterState) error
+	IterateFunc    func(vm *VM, na *NamedArgs) Iterator
+	InterfaceValue any
+	CallNameFunc   func(name string, c Call) (Object, error)
+}
+
+func (i *IndexGetProxy) Print(state *PrinterState) error {
+	if i.PrintFunc == nil {
+		_, err := state.Write([]byte(i.ToString()))
+		return err
+	} else {
+		return i.PrintFunc(state)
+	}
 }
 
 func (i *IndexGetProxy) CallName(name string, c Call) (Object, error) {
-	if i.CallNameHandler == nil {
+	if i.CallNameFunc == nil {
 		return nil, ErrInvalidIndex.NewError(name)
 	}
-	return i.CallNameHandler(name, c)
+	return i.CallNameFunc(name, c)
 }
 
 func (i *IndexGetProxy) Iterate(vm *VM, na *NamedArgs) Iterator {
-	return i.It(vm, na)
+	return i.IterateFunc(vm, na)
 }
 
 func (i *IndexGetProxy) CanIterate() bool {
-	return i.It != nil
+	return i.IterateFunc != nil
 }
 
 func (i *IndexGetProxy) Type() ObjectType {
@@ -1973,8 +1830,8 @@ func (i *IndexGetProxy) Type() ObjectType {
 }
 
 func (i *IndexGetProxy) ToString() string {
-	if i.ToStr != nil {
-		return i.ToStr()
+	if i.ToStrFunc != nil {
+		return i.ToStrFunc()
 	}
 	return ReprQuote("indexGetProxy")
 }
@@ -1991,7 +1848,7 @@ func (i *IndexGetProxy) Equal(right Object) bool {
 }
 
 func (i IndexGetProxy) IndexGet(vm *VM, index Object) (value Object, err error) {
-	return i.GetIndex(vm, index)
+	return i.GetIndexFunc(vm, index)
 }
 
 func (i *IndexGetProxy) ToInterface() any {
@@ -2120,13 +1977,15 @@ func (o *IndexDeleteProxy) BinaryOp(vm *VM, tok token.Token, right Object) (_ Ob
 }
 
 func StringIndexGetProxy(handler func(vm *VM, index string) (value Object, err error)) *IndexGetProxy {
-	return &IndexGetProxy{GetIndex: func(vm *VM, index Object) (value Object, err error) {
-		if s, ok := index.(Str); !ok {
-			return nil, ErrInvalidIndex
-		} else {
-			return handler(vm, string(s))
-		}
-	}}
+	return &IndexGetProxy{
+		GetIndexFunc: func(vm *VM, index Object) (value Object, err error) {
+			if s, ok := index.(Str); !ok {
+				return nil, ErrInvalidIndex
+			} else {
+				return handler(vm, string(s))
+			}
+		},
+	}
 }
 
 var (
@@ -2162,30 +2021,19 @@ func (m *MixedParams) Type() ObjectType {
 	return TMixedParams
 }
 
-func (m *MixedParams) Dict() Dict {
-	return m.ToDict(Dict{})
+func (m *MixedParams) ToDict() (d Dict) {
+	d = Dict{}
+	m.UpdateDict(d)
+	return
 }
 
-func (m *MixedParams) ToDict(d Dict) Dict {
+func (m *MixedParams) UpdateDict(d Dict) {
 	d["positional"] = m.Positional
 	d["named"] = m.Named
-	return d
 }
 
 func (m *MixedParams) ToString() string {
-	return m.Dict().ToString()
-}
-
-func (m *MixedParams) Repr(vm *VM) (s string, err error) {
-	var w strings.Builder
-	w.WriteString(repr.QuotePrefix)
-	w.WriteString(TMixedParams.Name() + ":")
-	if s, err = m.Dict().Repr(vm); err != nil {
-		return
-	}
-	w.WriteString(s)
-	w.WriteString(repr.QuoteSufix)
-	return w.String(), nil
+	return m.ToDict().ToString()
 }
 
 func (m *MixedParams) Equal(right Object) bool {
@@ -2195,4 +2043,138 @@ func (m *MixedParams) Equal(right Object) bool {
 	default:
 		return false
 	}
+}
+
+func (m *MixedParams) Print(state *PrinterState) error {
+	return m.ToDict().Print(state)
+}
+
+var (
+	_ Object         = (*TypedIdent)(nil)
+	_ IndexGetSetter = (*TypedIdent)(nil)
+	_ Printer        = (*TypedIdent)(nil)
+)
+
+type TypedIdent struct {
+	Name  string
+	Types Array
+}
+
+func (t *TypedIdent) IndexSet(_ *VM, index, value Object) (err error) {
+	name := index.ToString()
+	switch name {
+	case "name":
+		if s, ok := value.(Str); ok {
+			t.Name = string(s)
+		} else {
+			err = ErrType
+		}
+	case "types":
+		if arr, ok := value.(Array); ok {
+			for i, o := range arr {
+				if !IsType(o) {
+					err = ErrType.NewErrorf("type[%d]: isn't type", i)
+					return
+				}
+			}
+			t.Types = arr
+		} else {
+			err = ErrType
+		}
+	default:
+		err = ErrInvalidIndex.NewError(name)
+	}
+	return
+}
+
+func (t *TypedIdent) IndexGet(_ *VM, index Object) (value Object, err error) {
+	name := index.ToString()
+	switch name {
+	case "name":
+		value = Str(t.Name)
+	case "types":
+		value = t.Types
+	default:
+		err = ErrInvalidIndex.NewError(name)
+	}
+	return
+}
+
+func (t *TypedIdent) IsFalsy() bool {
+	return len(t.Name) == 0
+}
+
+func (t *TypedIdent) Type() ObjectType {
+	return TTypedIdent
+}
+
+func (t *TypedIdent) ToString() string {
+	return ReprQuote("typedIdent " + t.Name + " " + t.Types.ToString())
+}
+
+func (t *TypedIdent) Equal(right Object) bool {
+	if r, _ := right.(*TypedIdent); r != nil {
+		if r == t {
+			return true
+		}
+		if t.Name == r.Name {
+			return t.Types.Equal(r.Types)
+		}
+	}
+	return false
+}
+
+func (t *TypedIdent) Print(state *PrinterState) error {
+	return Dict{"name": Str(t.Name), "types": t.Types}.PrintObject(state, t)
+}
+
+var (
+	_ Object       = (*ComputedValue)(nil)
+	_ CallerObject = (*ComputedValue)(nil)
+)
+
+type ComputedValue struct {
+	CallerObject CallerObject
+}
+
+func (v *ComputedValue) Call(c Call) (Object, error) {
+	return v.CallerObject.Call(c)
+}
+
+func (v *ComputedValue) Name() string {
+	return "computed value " + repr.Quote(v.CallerObject.Name())
+}
+
+func (v *ComputedValue) IsFalsy() bool {
+	return false
+}
+
+func (v *ComputedValue) ToString() string {
+	return v.String()
+}
+
+func (v *ComputedValue) Equal(right Object) bool {
+	if r, _ := right.(*ComputedValue); r != nil {
+		return r == v || r.CallerObject.Equal(v.CallerObject)
+	}
+	return false
+}
+
+func (ComputedValue) Type() ObjectType {
+	return TComputedValue
+}
+
+func (v *ComputedValue) String() string {
+	return string(MustToStr(nil, v))
+}
+
+func (v *ComputedValue) ReprTypeName() string {
+	return "computed value"
+}
+
+func (v *ComputedValue) Print(state *PrinterState) error {
+	return state.WithRepr(func(s *PrinterState) error {
+		defer state.WrapRepr(v)()
+		return s.Print(v.CallerObject)
+	})
 }

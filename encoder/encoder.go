@@ -192,11 +192,11 @@ func (bc *Bytecode) bytecodeV1Encoder(w io.Writer) (err error) {
 		_, _ = w.Write(data)
 	}
 
-	// Main, field #1
-	if bc.Main != nil {
-		_ = writeByteTo(w, 1)
+	// Constants, field #1
+	if bc.Constants != nil {
+		_ = writeByteTo(w, 2)
 		var data []byte
-		if data, err = (*CompiledFunction)(bc.Main).MarshalBinary(); err != nil {
+		if data, err = Array(bc.Constants).MarshalBinary(); err != nil {
 			return
 		}
 		if _, err = w.Write(data); err != nil {
@@ -204,11 +204,11 @@ func (bc *Bytecode) bytecodeV1Encoder(w io.Writer) (err error) {
 		}
 	}
 
-	// Constants, field #2
-	if bc.Constants != nil {
-		_ = writeByteTo(w, 2)
+	// Main, field #2
+	if bc.Main != nil {
+		_ = writeByteTo(w, 1)
 		var data []byte
-		if data, err = Array(bc.Constants).MarshalBinary(); err != nil {
+		if data, err = (*CompiledFunction)(bc.Main).MarshalBinary(); err != nil {
 			return
 		}
 		if _, err = w.Write(data); err != nil {
@@ -277,19 +277,25 @@ func (bc *Bytecode) bytecodeV1Decoder(r *bytes.Buffer) error {
 			}
 			bc.FileSet = (*source.FileSet)(&fs)
 		case 1:
-			f, err := DecodeObject(r)
-			if err != nil {
-				return err
-			}
-
-			bc.Main = f.(*gad.CompiledFunction)
-		case 2:
 			obj, err := DecodeObject(r)
 			if err != nil {
 				return err
 			}
 
 			bc.Constants = obj.(gad.Array)
+			for i, c := range bc.Constants {
+				switch t := c.(type) {
+				case *gad.Module:
+					t.SetConstantIndex(i)
+				}
+			}
+		case 2:
+			f, err := DecodeObject(r)
+			if err != nil {
+				return err
+			}
+
+			bc.Main = f.(*gad.CompiledFunction)
 		case 3:
 			num, err := DecodeObject(r)
 			if err != nil {
@@ -563,8 +569,8 @@ func marshaler(o gad.Object) encoding.BinaryMarshaler {
 		return (*BuiltinObjType)(v)
 	case *gad.NilType:
 		return (*NilType)(v)
-	case *gad.CallerObjectWithMethods:
-		return marshaler(v.CallerObject)
+	// case *gad.Func:
+	//	return marshaler(v.F)
 	default:
 		return nil
 	}

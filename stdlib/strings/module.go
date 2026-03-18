@@ -21,515 +21,561 @@ var (
 	reSpaces = regexp.MustCompile(`\s+`)
 )
 
-// Module represents time module.
-var Module = map[string]gad.Object{
-	// gad:doc
-	// # strings module
-	//
-	// ## Functions
-	// Contains(s string, substr string) -> bool
-	// Reports whether substr is within s.
-	"Contains": &gad.Function{
-		Name:  "Contains",
-		Value: stdlib.FuncPssRO(containsFunc),
-	},
-	// gad:doc
-	// ContainsAny(s string, chars string) -> bool
-	// Reports whether any char in chars are within s.
-	"ContainsAny": &gad.Function{
-		Name:  "ContainsAny",
-		Value: stdlib.FuncPssRO(containsAnyFunc),
-	},
-	// gad:doc
-	// ContainsChar(s string, c char) -> bool
-	// Reports whether the char c is within s.
-	"ContainsChar": &gad.Function{
-		Name:  "ContainsChar",
-		Value: stdlib.FuncPsrRO(containsCharFunc),
-	},
-	// gad:doc
-	// Count(s string, substr string) -> int
-	// Counts the number of non-overlapping instances of substr in s.
-	"Count": &gad.Function{
-		Name:  "Count",
-		Value: stdlib.FuncPssRO(countFunc),
-	},
-	// gad:doc
-	// EqualFold(s string, t string) -> bool
-	// EqualFold reports whether s and t, interpreted as UTF-8 strings,
-	// are equal under Unicode case-folding, which is a more general form of
-	// case-insensitivity.
-	"EqualFold": &gad.Function{
-		Name:  "EqualFold",
-		Value: stdlib.FuncPssRO(equalFoldFunc),
-	},
-	// gad:doc
-	// Fields(s string) -> array
-	// Splits the string s around each instance of one or more consecutive white
-	// space characters, returning an array of substrings of s or an empty array
-	// if s contains only white space.
-	"Fields": &gad.Function{
-		Name:  "Fields",
-		Value: stdlib.FuncPsRO(fieldsFunc),
-	},
-	// gad:doc
-	// FieldsFunc(s string, f func(char) bool) -> array
-	// Splits the string s at each run of Unicode code points c satisfying f(c),
-	// and returns an array of slices of s. If all code points in s satisfy
-	// f(c) or the string is empty, an empty array is returned.
-	"FieldsFunc": &gad.Function{
-		Name:  "FieldsFunc",
-		Value: fieldsFuncInv,
-	},
-	// gad:doc
-	// HasPrefix(s string, prefix string) -> bool
-	// Reports whether the string s begins with prefix.
-	"HasPrefix": &gad.Function{
-		Name:  "HasPrefix",
-		Value: stdlib.FuncPssRO(hasPrefixFunc),
-	},
-	// gad:doc
-	// HasSuffix(s string, suffix string) -> bool
-	// Reports whether the string s ends with prefix.
-	"HasSuffix": &gad.Function{
-		Name:  "HasSuffix",
-		Value: stdlib.FuncPssRO(hasSuffixFunc),
-	},
-	// gad:doc
-	// Index(s string, substr string) -> int
-	// Returns the index of the first instance of substr in s, or -1 if substr
-	// is not present in s.
-	"Index": &gad.Function{
-		Name:  "Index",
-		Value: stdlib.FuncPssRO(indexFunc),
-	},
-	// gad:doc
-	// IndexAny(s string, chars string) -> int
-	// Returns the index of the first instance of any char from chars in s, or
-	// -1 if no char from chars is present in s.
-	"IndexAny": &gad.Function{
-		Name:  "IndexAny",
-		Value: stdlib.FuncPssRO(indexAnyFunc),
-	},
-	// gad:doc
-	// IndexByte(s string, c char|int) -> int
-	// Returns the index of the first byte value of c in s, or -1 if byte value
-	// of c is not present in s. c's integer value must be between 0 and 255.
-	"IndexByte": &gad.Function{
-		Name:  "IndexByte",
-		Value: stdlib.FuncPsrRO(indexByteFunc),
-	},
-	// gad:doc
-	// IndexChar(s string, c char) -> int
-	// Returns the index of the first instance of the char c, or -1 if char is
-	// not present in s.
-	"IndexChar": &gad.Function{
-		Name:  "IndexChar",
-		Value: stdlib.FuncPsrRO(indexCharFunc),
-	},
-	// gad:doc
-	// IndexFunc(s string, f func(char) bool) -> int
-	// Returns the index into s of the first Unicode code point satisfying f(c),
-	// or -1 if none do.
-	"IndexFunc": &gad.Function{
-		Name:  "IndexFunc",
-		Value: newIndexFuncInv(strings.IndexFunc),
-	},
-	// gad:doc
-	// Join(arr array, sep string) -> string
-	// Concatenates the string values of array arr elements to create a
-	// single string. The separator string sep is placed between elements in the
-	// resulting string.
-	"Join": &gad.Function{
-		Name:  "Join",
-		Value: stdlib.FuncPAsRO(joinFunc),
-	},
-	// gad:doc
-	// JoinAnd(arr array, sep, lastSep string) -> string
-	// Concatenates the string values of array arr elements to create a
-	// single string. The separator string sep is placed between elements
-	// and lastSep is placed between non last and last elements in the
-	// resulting string.
-	"JoinAnd": &gad.Function{
-		Name:  "JoinAnd",
-		Value: stdlib.FuncPAssRO(joinAndFunc),
-	},
-	// gad:doc
-	// LastIndex(s string, substr string) -> int
-	// Returns the index of the last instance of substr in s, or -1 if substr
-	// is not present in s.
-	"LastIndex": &gad.Function{
-		Name:  "LastIndex",
-		Value: stdlib.FuncPssRO(lastIndexFunc),
-	},
-	// gad:doc
-	// LastIndexAny(s string, chars string) -> int
-	// Returns the index of the last instance of any char from chars in s, or
-	// -1 if no char from chars is present in s.
-	"LastIndexAny": &gad.Function{
-		Name:  "LastIndexAny",
-		Value: stdlib.FuncPssRO(lastIndexAnyFunc),
-	},
-	// gad:doc
-	// LastIndexByte(s string, c char|int) -> int
-	// Returns the index of byte value of the last instance of c in s, or -1
-	// if c is not present in s. c's integer value must be between 0 and 255.
-	"LastIndexByte": &gad.Function{
-		Name:  "LastIndexByte",
-		Value: stdlib.FuncPsrRO(lastIndexByteFunc),
-	},
-	// gad:doc
-	// LastIndexFunc(s string, f func(char) bool) -> int
-	// Returns the index into s of the last Unicode code point satisfying f(c),
-	// or -1 if none do.
-	"LastIndexFunc": &gad.Function{
-		Name:  "LastIndexFunc",
-		Value: newIndexFuncInv(strings.LastIndexFunc),
-	},
-	// gad:doc
-	// Dict(f func(char) char, s string) -> string
-	// Returns a copy of the string s with all its characters modified
-	// according to the mapping function f. If f returns a negative value, the
-	// character is dropped from the string with no replacement.
-	"Dict": &gad.Function{
-		Name:  "Dict",
-		Value: mapFuncInv,
-	},
-	// gad:doc
-	// PadLeft(s string, padLen int[, padWith any]) -> string
-	// Returns a string that is padded on the left with the string `padWith` until
-	// the `padLen` length is reached. If padWith is not given, a white space is
-	// used as default padding.
-	"PadLeft": &gad.Function{
-		Name: "PadLeft",
-		Value: func(c gad.Call) (gad.Object, error) {
-			return pad(c, true)
+// ModuleInit represents time module.
+var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data gad.ModuleData, err error) {
+	return gad.Dict{
+		// gad:doc
+		// # strings module
+		//
+		// ## Functions
+		// Contains(s string, substr string) -> bool
+		// Reports whether substr is within s.
+		"Contains": &gad.Function{
+			Module:   module,
+			FuncName: "Contains",
+			Value:    stdlib.FuncPssRO(containsFunc),
 		},
-	},
-	// gad:doc
-	// PadRight(s string, padLen int[, padWith any]) -> string
-	// Returns a string that is padded on the right with the string `padWith` until
-	// the `padLen` length is reached. If padWith is not given, a white space is
-	// used as default padding.
-	"PadRight": &gad.Function{
-		Name: "PadRight",
-		Value: func(c gad.Call) (gad.Object, error) {
-			return pad(c, false)
+		// gad:doc
+		// ContainsAny(s string, chars string) -> bool
+		// Reports whether any char in chars are within s.
+		"ContainsAny": &gad.Function{
+			Module:   module,
+			FuncName: "ContainsAny",
+			Value:    stdlib.FuncPssRO(containsAnyFunc),
 		},
-	},
-	// gad:doc
-	// Repeat(s string, count int) -> string
-	// Returns a new string consisting of count copies of the string s.
-	//
-	// - If count is a negative int, it returns empty string.
-	// - If (len(s) * count) overflows, it panics.
-	"Repeat": &gad.Function{
-		Name:  "Repeat",
-		Value: stdlib.FuncPsiRO(repeatFunc),
-	},
-	// gad:doc
-	// Replace(s string, old string, new string[, n int]) -> string
-	// Returns a copy of the string s with the first n non-overlapping instances
-	// of old replaced by new. If n is not provided or -1, it replaces all
-	// instances.
-	"Replace": &gad.Function{
-		Name:  "Replace",
-		Value: replaceFunc,
-	},
-	// gad:doc
-	// Split(s string, sep string[, n int]) -> [string]
-	// Splits s into substrings separated by sep and returns an array of
-	// the substrings between those separators.
-	//
-	// n determines the number of substrings to return:
-	//
-	// - n < 0: all substrings (default)
-	// - n > 0: at most n substrings; the last substring will be the unsplit remainder.
-	// - n == 0: the result is empty array
-	"Split": &gad.Function{
-		Name:  "Split",
-		Value: newSplitFunc(strings.SplitN),
-	},
-	// gad:doc
-	// SplitAfter(s string, sep string[, n int]) -> [string]
-	// Slices s into substrings after each instance of sep and returns an array
-	// of those substrings.
-	//
-	// n determines the number of substrings to return:
-	//
-	// - n < 0: all substrings (default)
-	// - n > 0: at most n substrings; the last substring will be the unsplit remainder.
-	// - n == 0: the result is empty array
-	"SplitAfter": &gad.Function{
-		Name:  "SplitAfter",
-		Value: newSplitFunc(strings.SplitAfterN),
-	},
-	// gad:doc
-	// Title(s string) -> string
-	// Deprecated: Returns a copy of the string s with all Unicode letters that
-	// begin words mapped to their Unicode title case.
-	"Title": &gad.Function{
-		Name:  "Title",
-		Value: stdlib.FuncPsRO(titleFunc),
-	},
-	// gad:doc
-	// ToLower(s string) -> string
-	// Returns s with all Unicode letters mapped to their lower case.
-	"ToLower": &gad.Function{
-		Name:  "ToLower",
-		Value: stdlib.FuncPsRO(toLowerFunc),
-	},
-	// gad:doc
-	// ToTitle(s string) -> string
-	// Returns a copy of the string s with all Unicode letters mapped to their
-	// Unicode title case.
-	"ToTitle": &gad.Function{
-		Name:  "ToTitle",
-		Value: stdlib.FuncPsRO(toTitleFunc),
-	},
-	// gad:doc
-	// ToUpper(s string) -> string
-	// Returns s with all Unicode letters mapped to their upper case.
-	"ToUpper": &gad.Function{
-		Name:  "ToUpper",
-		Value: stdlib.FuncPsRO(toUpperFunc),
-	},
-	// gad:doc
-	// ToValidUTF8(s string[, replacement string]) -> string
-	// Returns a copy of the string s with each run of invalid UTF-8 byte
-	// sequences replaced by the replacement string, which may be empty.
-	"ToValidUTF8": &gad.Function{
-		Name:  "ToValidUTF8",
-		Value: toValidUTF8Func,
-	},
-	// gad:doc
-	// Trim(s string, cutset string) -> string
-	// Returns a slice of the string s with all leading and trailing Unicode
-	// code points contained in cutset removed.
-	"Trim": &gad.Function{
-		Name:  "Trim",
-		Value: stdlib.FuncPssRO(trimFunc),
-	},
-	// gad:doc
-	// TrimFunc(s string, f func(char) bool) -> string
-	// Returns a slice of the string s with all leading and trailing Unicode
-	// code points satisfying f removed.
-	"TrimFunc": &gad.Function{
-		Name:  "TrimFunc",
-		Value: newTrimFuncInv(strings.TrimFunc),
-	},
-	// gad:doc
-	// TrimLeft(s string, cutset string) -> string
-	// Returns a slice of the string s with all leading Unicode code points
-	// contained in cutset removed.
-	"TrimLeft": &gad.Function{
-		Name:  "TrimLeft",
-		Value: stdlib.FuncPssRO(trimLeftFunc),
-	},
-	// gad:doc
-	// TrimLeftFunc(s string, f func(char) bool) -> string
-	// Returns a slice of the string s with all leading Unicode code points
-	// c satisfying f(c) removed.
-	"TrimLeftFunc": &gad.Function{
-		Name:  "TrimLeftFunc",
-		Value: newTrimFuncInv(strings.TrimLeftFunc),
-	},
-	// gad:doc
-	// TrimPrefix(s string, prefix string) -> string
-	// Returns s without the provided leading prefix string. If s doesn't start
-	// with prefix, s is returned unchanged.
-	"TrimPrefix": &gad.Function{
-		Name:  "TrimPrefix",
-		Value: stdlib.FuncPssRO(trimPrefixFunc),
-	},
-	// gad:doc
-	// TrimRight(s string, cutset string) -> string
-	// Returns a slice of the string s with all trailing Unicode code points
-	// contained in cutset removed.
-	"TrimRight": &gad.Function{
-		Name:  "TrimRight",
-		Value: stdlib.FuncPssRO(trimRightFunc),
-	},
-	// gad:doc
-	// TrimRightFunc(s string, f func(char) bool) -> string
-	// Returns a slice of the string s with all trailing Unicode code points
-	// c satisfying f(c) removed.
-	"TrimRightFunc": &gad.Function{
-		Name:  "TrimRightFunc",
-		Value: newTrimFuncInv(strings.TrimRightFunc),
-	},
-	// gad:doc
-	// TrimSpace(s string) -> string
-	// Returns a slice of the string s, with all leading and trailing white
-	// space removed, as defined by Unicode.
-	"TrimSpace": &gad.Function{
-		Name:  "TrimSpace",
-		Value: stdlib.FuncPsRO(trimSpaceFunc),
-	},
-	// gad:doc
-	// TrimSuffix(s string, suffix string) -> string
-	// Returns s without the provided trailing suffix string. If s doesn't end
-	// with suffix, s is returned unchanged.
-	"TrimSuffix": &gad.Function{
-		Name:  "TrimSuffix",
-		Value: stdlib.FuncPssRO(trimSuffixFunc),
-	},
-
-	// gad:doc
-	// Trunc(s string, maxLen int; emph="...") -> string
-	// Truncate s to maxLen concatenated with emph.
-	"Trunc": &gad.Function{
-		Name: "Trunc",
-		Value: func(c gad.Call) (gad.Object, error) {
-			if err := c.Args.CheckLen(2); err != nil {
-				return gad.Nil, err
-			}
-
-			var (
-				emph = &gad.NamedArgVar{
-					Name:          "emph",
-					Value:         gad.Str("..."),
-					TypeAssertion: gad.TypeAssertionFromTypes(gad.TStr),
-				}
-			)
-			if err := c.NamedArgs.Get(emph); err != nil {
-				return gad.Nil, err
-			}
-
-			s1, ok := gad.ToGoString(c.Args.Get(0))
-			if !ok {
-				return gad.Nil, gad.NewArgumentTypeError("1st", "str", c.Args.Get(0).Type().Name())
-			}
-			i, ok := gad.ToGoInt(c.Args.Get(1))
-			if !ok {
-				return gad.Nil, gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).Type().Name())
-			}
-			return truncFunc(s1, i, emph.Value.ToString()), nil
+		// gad:doc
+		// ContainsChar(s string, c char) -> bool
+		// Reports whether the char c is within s.
+		"ContainsChar": &gad.Function{
+			Module:   module,
+			FuncName: "ContainsChar",
+			Value:    stdlib.FuncPsrRO(containsCharFunc),
 		},
-	},
-
-	// gad:doc
-	// SlitWords(s str|rawstr) -> Array
-	// Split words by spaces using regex `\s+`.
-	// If s is rawstr, returns Array of Rawstr, otherwise, Array of Str.
-	"SlitWords": &gad.Function{
-		Name: "Trunc",
-		Value: func(c gad.Call) (gad.Object, error) {
-			if err := c.Args.CheckLen(1); err != nil {
-				return gad.Nil, err
-			}
-
-			var (
-				arg    = c.Args.Get(0)
-				_, raw = arg.(gad.RawStr)
-				s      string
-				ret    gad.Array
-			)
-
-			if arg == gad.Nil {
-				return ret, nil
-			}
-
-			s = arg.ToString()
-
-			words := reSpaces.Split(s, -1)
-
-			if len(words) == 0 {
-				return ret, nil
-			}
-
-			if words[0] == "" {
-				words = words[1:]
-			}
-
-			ret = make(gad.Array, len(words))
-
-			if raw {
-				for i, word := range words {
-					ret[i] = gad.RawStr(word)
-				}
-			} else {
-				for i, word := range words {
-					ret[i] = gad.Str(word)
-				}
-			}
-
-			return ret, nil
+		// gad:doc
+		// Count(s string, substr string) -> int
+		// Counts the number of non-overlapping instances of substr in s.
+		"Count": &gad.Function{
+			Module:   module,
+			FuncName: "Count",
+			Value:    stdlib.FuncPssRO(countFunc),
 		},
-	},
+		// gad:doc
+		// EqualFold(s string, t string) -> bool
+		// EqualFold reports whether s and t, interpreted as UTF-8 strings,
+		// are equal under Unicode case-folding, which is a more general form of
+		// case-insensitivity.
+		"EqualFold": &gad.Function{
+			Module:   module,
+			FuncName: "EqualFold",
+			Value:    stdlib.FuncPssRO(equalFoldFunc),
+		},
+		// gad:doc
+		// Fields(s string) -> array
+		// Splits the string s around each instance of one or more consecutive white
+		// space characters, returning an array of substrings of s or an empty array
+		// if s contains only white space.
+		"Fields": &gad.Function{
+			Module:   module,
+			FuncName: "Fields",
+			Value:    stdlib.FuncPsRO(fieldsFunc),
+		},
+		// gad:doc
+		// FieldsFunc(s string, f func(char) bool) -> array
+		// Splits the string s at each run of Unicode code points c satisfying f(c),
+		// and returns an array of slices of s. If all code points in s satisfy
+		// f(c) or the string is empty, an empty array is returned.
+		"FieldsFunc": &gad.Function{
+			Module:   module,
+			FuncName: "FieldsFunc",
+			Value:    fieldsFuncInv,
+		},
+		// gad:doc
+		// HasPrefix(s string, prefix string) -> bool
+		// Reports whether the string s begins with prefix.
+		"HasPrefix": &gad.Function{
+			Module:   module,
+			FuncName: "HasPrefix",
+			Value:    stdlib.FuncPssRO(hasPrefixFunc),
+		},
+		// gad:doc
+		// HasSuffix(s string, suffix string) -> bool
+		// Reports whether the string s ends with prefix.
+		"HasSuffix": &gad.Function{
+			Module:   module,
+			FuncName: "HasSuffix",
+			Value:    stdlib.FuncPssRO(hasSuffixFunc),
+		},
+		// gad:doc
+		// Index(s string, substr string) -> int
+		// Returns the index of the first instance of substr in s, or -1 if substr
+		// is not present in s.
+		"Index": &gad.Function{
+			Module:   module,
+			FuncName: "Index",
+			Value:    stdlib.FuncPssRO(indexFunc),
+		},
+		// gad:doc
+		// IndexAny(s string, chars string) -> int
+		// Returns the index of the first instance of any char from chars in s, or
+		// -1 if no char from chars is present in s.
+		"IndexAny": &gad.Function{
+			Module:   module,
+			FuncName: "IndexAny",
+			Value:    stdlib.FuncPssRO(indexAnyFunc),
+		},
+		// gad:doc
+		// IndexByte(s string, c char|int) -> int
+		// Returns the index of the first byte value of c in s, or -1 if byte value
+		// of c is not present in s. c's integer value must be between 0 and 255.
+		"IndexByte": &gad.Function{
+			Module:   module,
+			FuncName: "IndexByte",
+			Value:    stdlib.FuncPsrRO(indexByteFunc),
+		},
+		// gad:doc
+		// IndexChar(s string, c char) -> int
+		// Returns the index of the first instance of the char c, or -1 if char is
+		// not present in s.
+		"IndexChar": &gad.Function{
+			Module:   module,
+			FuncName: "IndexChar",
+			Value:    stdlib.FuncPsrRO(indexCharFunc),
+		},
+		// gad:doc
+		// IndexFunc(s string, f func(char) bool) -> int
+		// Returns the index into s of the first Unicode code point satisfying f(c),
+		// or -1 if none do.
+		"IndexFunc": &gad.Function{
+			Module:   module,
+			FuncName: "IndexFunc",
+			Value:    newIndexFuncInv(strings.IndexFunc),
+		},
+		// gad:doc
+		// Join(arr array, sep string) -> string
+		// Concatenates the string values of array arr elements to create a
+		// single string. The separator string sep is placed between elements in the
+		// resulting string.
+		"Join": &gad.Function{
+			Module:   module,
+			FuncName: "Join",
+			Value:    stdlib.FuncPAsRO(joinFunc),
+		},
+		// gad:doc
+		// JoinAnd(arr array, sep, lastSep string) -> string
+		// Concatenates the string values of array arr elements to create a
+		// single string. The separator string sep is placed between elements
+		// and lastSep is placed between non last and last elements in the
+		// resulting string.
+		"JoinAnd": &gad.Function{
+			Module:   module,
+			FuncName: "JoinAnd",
+			Value:    stdlib.FuncPAssRO(joinAndFunc),
+		},
+		// gad:doc
+		// LastIndex(s string, substr string) -> int
+		// Returns the index of the last instance of substr in s, or -1 if substr
+		// is not present in s.
+		"LastIndex": &gad.Function{
+			Module:   module,
+			FuncName: "LastIndex",
+			Value:    stdlib.FuncPssRO(lastIndexFunc),
+		},
+		// gad:doc
+		// LastIndexAny(s string, chars string) -> int
+		// Returns the index of the last instance of any char from chars in s, or
+		// -1 if no char from chars is present in s.
+		"LastIndexAny": &gad.Function{
+			Module:   module,
+			FuncName: "LastIndexAny",
+			Value:    stdlib.FuncPssRO(lastIndexAnyFunc),
+		},
+		// gad:doc
+		// LastIndexByte(s string, c char|int) -> int
+		// Returns the index of byte value of the last instance of c in s, or -1
+		// if c is not present in s. c's integer value must be between 0 and 255.
+		"LastIndexByte": &gad.Function{
+			Module:   module,
+			FuncName: "LastIndexByte",
+			Value:    stdlib.FuncPsrRO(lastIndexByteFunc),
+		},
+		// gad:doc
+		// LastIndexFunc(s string, f func(char) bool) -> int
+		// Returns the index into s of the last Unicode code point satisfying f(c),
+		// or -1 if none do.
+		"LastIndexFunc": &gad.Function{
+			Module:   module,
+			FuncName: "LastIndexFunc",
+			Value:    newIndexFuncInv(strings.LastIndexFunc),
+		},
+		// gad:doc
+		// Dict(f func(char) char, s string) -> string
+		// Returns a copy of the string s with all its characters modified
+		// according to the mapping function f. If f returns a negative value, the
+		// character is dropped from the string with no replacement.
+		"Dict": &gad.Function{
+			Module:   module,
+			FuncName: "Dict",
+			Value:    mapFuncInv,
+		},
+		// gad:doc
+		// PadLeft(s string, padLen int[, padWith any]) -> string
+		// Returns a string that is padded on the left with the string `padWith` until
+		// the `padLen` length is reached. If padWith is not given, a white space is
+		// used as default padding.
+		"PadLeft": &gad.Function{
+			Module:   module,
+			FuncName: "PadLeft",
+			Value: func(c gad.Call) (gad.Object, error) {
+				return pad(c, true)
+			},
+		},
+		// gad:doc
+		// PadRight(s string, padLen int[, padWith any]) -> string
+		// Returns a string that is padded on the right with the string `padWith` until
+		// the `padLen` length is reached. If padWith is not given, a white space is
+		// used as default padding.
+		"PadRight": &gad.Function{
+			Module:   module,
+			FuncName: "PadRight",
+			Value: func(c gad.Call) (gad.Object, error) {
+				return pad(c, false)
+			},
+		},
+		// gad:doc
+		// Repeat(s string, count int) -> string
+		// Returns a new string consisting of count copies of the string s.
+		//
+		// - If count is a negative int, it returns empty string.
+		// - If (len(s) * count) overflows, it panics.
+		"Repeat": &gad.Function{
+			Module:   module,
+			FuncName: "Repeat",
+			Value:    stdlib.FuncPsiRO(repeatFunc),
+		},
+		// gad:doc
+		// Replace(s string, old string, new string[, n int]) -> string
+		// Returns a copy of the string s with the first n non-overlapping instances
+		// of old replaced by new. If n is not provided or -1, it replaces all
+		// instances.
+		"Replace": &gad.Function{
+			Module:   module,
+			FuncName: "Replace",
+			Value:    replaceFunc,
+		},
+		// gad:doc
+		// Split(s string, sep string[, n int]) -> [string]
+		// Splits s into substrings separated by sep and returns an array of
+		// the substrings between those separators.
+		//
+		// n determines the number of substrings to return:
+		//
+		// - n < 0: all substrings (default)
+		// - n > 0: at most n substrings; the last substring will be the unsplit remainder.
+		// - n == 0: the result is empty array
+		"Split": &gad.Function{
+			Module:   module,
+			FuncName: "Split",
+			Value:    newSplitFunc(strings.SplitN),
+		},
+		// gad:doc
+		// SplitAfter(s string, sep string[, n int]) -> [string]
+		// Slices s into substrings after each instance of sep and returns an array
+		// of those substrings.
+		//
+		// n determines the number of substrings to return:
+		//
+		// - n < 0: all substrings (default)
+		// - n > 0: at most n substrings; the last substring will be the unsplit remainder.
+		// - n == 0: the result is empty array
+		"SplitAfter": &gad.Function{
+			Module:   module,
+			FuncName: "SplitAfter",
+			Value:    newSplitFunc(strings.SplitAfterN),
+		},
+		// gad:doc
+		// Title(s string) -> string
+		// Deprecated: Returns a copy of the string s with all Unicode letters that
+		// begin words mapped to their Unicode title case.
+		"Title": &gad.Function{
+			Module:   module,
+			FuncName: "Title",
+			Value:    stdlib.FuncPsRO(titleFunc),
+		},
+		// gad:doc
+		// ToLower(s string) -> string
+		// Returns s with all Unicode letters mapped to their lower case.
+		"ToLower": &gad.Function{
+			Module:   module,
+			FuncName: "ToLower",
+			Value:    stdlib.FuncPsRO(toLowerFunc),
+		},
+		// gad:doc
+		// ToTitle(s string) -> string
+		// Returns a copy of the string s with all Unicode letters mapped to their
+		// Unicode title case.
+		"ToTitle": &gad.Function{
+			Module:   module,
+			FuncName: "ToTitle",
+			Value:    stdlib.FuncPsRO(toTitleFunc),
+		},
+		// gad:doc
+		// ToUpper(s string) -> string
+		// Returns s with all Unicode letters mapped to their upper case.
+		"ToUpper": &gad.Function{
+			Module:   module,
+			FuncName: "ToUpper",
+			Value:    stdlib.FuncPsRO(toUpperFunc),
+		},
+		// gad:doc
+		// ToValidUTF8(s string[, replacement string]) -> string
+		// Returns a copy of the string s with each run of invalid UTF-8 byte
+		// sequences replaced by the replacement string, which may be empty.
+		"ToValidUTF8": &gad.Function{
+			Module:   module,
+			FuncName: "ToValidUTF8",
+			Value:    toValidUTF8Func,
+		},
+		// gad:doc
+		// Trim(s string, cutset string) -> string
+		// Returns a slice of the string s with all leading and trailing Unicode
+		// code points contained in cutset removed.
+		"Trim": &gad.Function{
+			Module:   module,
+			FuncName: "Trim",
+			Value:    stdlib.FuncPssRO(trimFunc),
+		},
+		// gad:doc
+		// TrimFunc(s string, f func(char) bool) -> string
+		// Returns a slice of the string s with all leading and trailing Unicode
+		// code points satisfying f removed.
+		"TrimFunc": &gad.Function{
+			Module:   module,
+			FuncName: "TrimFunc",
+			Value:    newTrimFuncInv(strings.TrimFunc),
+		},
+		// gad:doc
+		// TrimLeft(s string, cutset string) -> string
+		// Returns a slice of the string s with all leading Unicode code points
+		// contained in cutset removed.
+		"TrimLeft": &gad.Function{
+			Module:   module,
+			FuncName: "TrimLeft",
+			Value:    stdlib.FuncPssRO(trimLeftFunc),
+		},
+		// gad:doc
+		// TrimLeftFunc(s string, f func(char) bool) -> string
+		// Returns a slice of the string s with all leading Unicode code points
+		// c satisfying f(c) removed.
+		"TrimLeftFunc": &gad.Function{
+			Module:   module,
+			FuncName: "TrimLeftFunc",
+			Value:    newTrimFuncInv(strings.TrimLeftFunc),
+		},
+		// gad:doc
+		// TrimPrefix(s string, prefix string) -> string
+		// Returns s without the provided leading prefix string. If s doesn't start
+		// with prefix, s is returned unchanged.
+		"TrimPrefix": &gad.Function{
+			Module:   module,
+			FuncName: "TrimPrefix",
+			Value:    stdlib.FuncPssRO(trimPrefixFunc),
+		},
+		// gad:doc
+		// TrimRight(s string, cutset string) -> string
+		// Returns a slice of the string s with all trailing Unicode code points
+		// contained in cutset removed.
+		"TrimRight": &gad.Function{
+			Module:   module,
+			FuncName: "TrimRight",
+			Value:    stdlib.FuncPssRO(trimRightFunc),
+		},
+		// gad:doc
+		// TrimRightFunc(s string, f func(char) bool) -> string
+		// Returns a slice of the string s with all trailing Unicode code points
+		// c satisfying f(c) removed.
+		"TrimRightFunc": &gad.Function{
+			Module:   module,
+			FuncName: "TrimRightFunc",
+			Value:    newTrimFuncInv(strings.TrimRightFunc),
+		},
+		// gad:doc
+		// TrimSpace(s string) -> string
+		// Returns a slice of the string s, with all leading and trailing white
+		// space removed, as defined by Unicode.
+		"TrimSpace": &gad.Function{
+			Module:   module,
+			FuncName: "TrimSpace",
+			Value:    stdlib.FuncPsRO(trimSpaceFunc),
+		},
+		// gad:doc
+		// TrimSuffix(s string, suffix string) -> string
+		// Returns s without the provided trailing suffix string. If s doesn't end
+		// with suffix, s is returned unchanged.
+		"TrimSuffix": &gad.Function{
+			Module:   module,
+			FuncName: "TrimSuffix",
+			Value:    stdlib.FuncPssRO(trimSuffixFunc),
+		},
 
-	// gad:doc
-	// TruncWords(s str|rawstr, max int; emph="...", atlimit=off) -> str|rawstr
-	// Truncate words in s to maxLen concatenated with emph. If atlimit is Falsy,
-	// limits at word count equals to max, otherwise at length of s equals to max.
-	"TruncWords": &gad.Function{
-		Name: "Trunc",
-		Value: func(c gad.Call) (gad.Object, error) {
-			if err := c.Args.CheckLen(2); err != nil {
-				return gad.Nil, err
-			}
-
-			var (
-				emph = &gad.NamedArgVar{
-					Name:          "emph",
-					Value:         gad.Str("..."),
-					TypeAssertion: gad.TypeAssertionFromTypes(gad.TStr),
+		// gad:doc
+		// Trunc(s string, maxLen int; emph="...") -> string
+		// Truncate s to maxLen concatenated with emph.
+		"Trunc": &gad.Function{
+			Module:   module,
+			FuncName: "Trunc",
+			Value: func(c gad.Call) (gad.Object, error) {
+				if err := c.Args.CheckLen(2); err != nil {
+					return gad.Nil, err
 				}
-				atlimit = &gad.NamedArgVar{
-					Name:  "atlimit",
-					Value: gad.No,
-				}
-			)
 
-			if err := c.NamedArgs.Get(emph, atlimit); err != nil {
-				return gad.Nil, err
-			}
-
-			var (
-				arg    = c.Args.Get(0)
-				_, raw = arg.(gad.RawStr)
-				s      string
-			)
-
-			if arg == gad.Nil {
-				return gad.Str(""), nil
-			}
-
-			s = arg.ToString()
-			limit, ok := gad.ToGoInt(c.Args.Get(1))
-			if !ok {
-				return gad.Nil, gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).Type().Name())
-			}
-
-			if atlimit.Value.IsFalsy() {
 				var (
-					words = reSpaces.Split(s, limit+1)
-					b     strings.Builder
-					emphs = emph.Value.ToString()
-					limit = limit - len(emphs)
+					emph = &gad.NamedArgVar{
+						Name:          "emph",
+						Value:         gad.Str("..."),
+						TypeAssertion: gad.TypeAssertionFromTypes(gad.TStr),
+					}
+				)
+				if err := c.NamedArgs.Get(emph); err != nil {
+					return gad.Nil, err
+				}
+
+				s1, ok := gad.ToGoString(c.Args.Get(0))
+				if !ok {
+					return gad.Nil, gad.NewArgumentTypeError("1st", "str", c.Args.Get(0).Type().Name())
+				}
+				i, ok := gad.ToGoInt(c.Args.Get(1))
+				if !ok {
+					return gad.Nil, gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).Type().Name())
+				}
+				return truncFunc(s1, i, emph.Value.ToString()), nil
+			},
+		},
+
+		// gad:doc
+		// SlitWords(s str|rawstr) -> Array
+		// Split words by spaces using regex `\s+`.
+		// If s is rawstr, returns Array of Rawstr, otherwise, Array of Str.
+		"SlitWords": &gad.Function{
+			Module:   module,
+			FuncName: "Trunc",
+			Value: func(c gad.Call) (gad.Object, error) {
+				if err := c.Args.CheckLen(1); err != nil {
+					return gad.Nil, err
+				}
+
+				var (
+					arg    = c.Args.Get(0)
+					_, raw = arg.(gad.RawStr)
+					s      string
+					ret    gad.Array
 				)
 
-				for _, word := range words {
-					if word == "" {
-						continue
-					}
-					if b.Len()+len(word) > limit {
-						break
-					}
-					b.WriteByte(' ')
-					b.WriteString(word)
+				if arg == gad.Nil {
+					return ret, nil
 				}
-				b.WriteString(emphs)
-				s = strings.TrimSpace(b.String())
-				if raw {
-					return gad.RawStr(s), nil
-				}
-				return gad.Str(s), nil
-			}
 
-			return truncFunc(s, limit, emph.Value.ToString()), nil
+				s = arg.ToString()
+
+				words := reSpaces.Split(s, -1)
+
+				if len(words) == 0 {
+					return ret, nil
+				}
+
+				if words[0] == "" {
+					words = words[1:]
+				}
+
+				ret = make(gad.Array, len(words))
+
+				if raw {
+					for i, word := range words {
+						ret[i] = gad.RawStr(word)
+					}
+				} else {
+					for i, word := range words {
+						ret[i] = gad.Str(word)
+					}
+				}
+
+				return ret, nil
+			},
 		},
-	},
+
+		// gad:doc
+		// TruncWords(s str|rawstr, max int; emph="...", atlimit=off) -> str|rawstr
+		// Truncate words in s to maxLen concatenated with emph. If atlimit is Falsy,
+		// limits at word count equals to max, otherwise at length of s equals to max.
+		"TruncWords": &gad.Function{
+			Module:   module,
+			FuncName: "Trunc",
+			Value: func(c gad.Call) (gad.Object, error) {
+				if err := c.Args.CheckLen(2); err != nil {
+					return gad.Nil, err
+				}
+
+				var (
+					emph = &gad.NamedArgVar{
+						Name:          "emph",
+						Value:         gad.Str("..."),
+						TypeAssertion: gad.TypeAssertionFromTypes(gad.TStr),
+					}
+					atlimit = &gad.NamedArgVar{
+						Name:  "atlimit",
+						Value: gad.No,
+					}
+				)
+
+				if err := c.NamedArgs.Get(emph, atlimit); err != nil {
+					return gad.Nil, err
+				}
+
+				var (
+					arg    = c.Args.Get(0)
+					_, raw = arg.(gad.RawStr)
+					s      string
+				)
+
+				if arg == gad.Nil {
+					return gad.Str(""), nil
+				}
+
+				s = arg.ToString()
+				limit, ok := gad.ToGoInt(c.Args.Get(1))
+				if !ok {
+					return gad.Nil, gad.NewArgumentTypeError("2nd", "int", c.Args.Get(1).Type().Name())
+				}
+
+				if atlimit.Value.IsFalsy() {
+					var (
+						words = reSpaces.Split(s, limit+1)
+						b     strings.Builder
+						emphs = emph.Value.ToString()
+						limit = limit - len(emphs)
+					)
+
+					for _, word := range words {
+						if word == "" {
+							continue
+						}
+						if b.Len()+len(word) > limit {
+							break
+						}
+						b.WriteByte(' ')
+						b.WriteString(word)
+					}
+					b.WriteString(emphs)
+					s = strings.TrimSpace(b.String())
+					if raw {
+						return gad.RawStr(s), nil
+					}
+					return gad.Str(s), nil
+				}
+
+				return truncFunc(s, limit, emph.Value.ToString()), nil
+			},
+		},
+	}, nil
 }
 
 func containsFunc(s, substr string) gad.Object {

@@ -32,10 +32,10 @@ func (b *ModuleMapBuilder) Build() *gad.ModuleMap {
 }
 
 func (b *ModuleMapBuilder) BuildTo(mm *gad.ModuleMap) *gad.ModuleMap {
-	mm.AddBuiltinModule("time", gadtime.Module).
-		AddBuiltinModule("strings", gadstrings.Module).
-		AddBuiltinModule("fmt", gadfmt.Module).
-		AddBuiltinModule("json", gadjson.Module).
+	mm.AddBuiltinModuleInit("time", gadtime.ModuleInit).
+		AddBuiltinModuleInit("strings", gadstrings.ModuleInit).
+		AddBuiltinModuleInit("fmt", gadfmt.ModuleInit).
+		AddBuiltinModuleInit("json", gadjson.ModuleInit).
 		AddBuiltinModule("path", gadpath.Module).
 		AddBuiltinModule("encoding/base64", gadbase64.Module).
 		AddBuiltinModule("compress/flate", goflate.Module)
@@ -45,10 +45,10 @@ func (b *ModuleMapBuilder) BuildTo(mm *gad.ModuleMap) *gad.ModuleMap {
 			mm.AddBuiltinModule("http", gadhttp.Module)
 		}
 		if !b.Disabled["os"] {
-			mm.AddBuiltinModule("os", gados.Module)
+			mm.AddBuiltinModuleInit("os", gados.ModuleInit)
 		}
 		if !b.Disabled["filepath"] {
-			mm.AddBuiltinModule("filepath", gadfpath.Module)
+			mm.AddBuiltinModuleInit("filepath", gadfpath.ModuleInit)
 		}
 	}
 	return mm

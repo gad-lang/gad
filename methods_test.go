@@ -3,22 +3,15 @@ package gad
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMethodArgs(t *testing.T) {
-	co := &Function{Name: "test"}
+	co := &Function{FuncName: "test"}
 	var args MethodArgType
-	assert.NoError(t, args.Add(MultipleObjectTypes{{TStr}}, &CallerMethod{
-		CallerObject: co,
-	}, false))
-	assert.NoError(t, args.Add(MultipleObjectTypes{{TStr}, {TInt}, {TFloat}}, &CallerMethod{
-		CallerObject: co,
-	}, false))
-	assert.Error(t, args.Add(MultipleObjectTypes{{TStr}, {TInt}, {TFloat}}, &CallerMethod{
-		CallerObject: co,
-	}, false))
+	assert.NoError(t, args.Add(ParamsTypes{ObjectTypes{TStr}}, NewCallerMethod(nil, co), false, nil))
+	assert.NoError(t, args.Add(ParamsTypes{ObjectTypes{TStr}, ObjectTypes{TInt}, ObjectTypes{TFloat}}, NewCallerMethod(nil, co), false, nil))
+	assert.Error(t, args.Add(ParamsTypes{ObjectTypes{TStr}, ObjectTypes{TInt}, ObjectTypes{TFloat}}, NewCallerMethod(nil, co), false, nil))
 	assert.NotNil(t, args.GetMethod([]ObjectType{TStr, TInt, TFloat}))
 	assert.Nil(t, args.GetMethod([]ObjectType{TStr, TBool}))
 	assert.Nil(t, args.GetMethod([]ObjectType{TStr, TInt, TFloat, TRawStr}))
@@ -27,53 +20,84 @@ func TestMethodArgs(t *testing.T) {
 }
 
 func TestMethodArgsMixed(t *testing.T) {
-	typeName := &Function{
-		Name: "type_name",
-		Value: func(c Call) (Object, error) {
-			return Str("type_name_result:" + c.Args.Get(0).Type().String()), nil
-		},
-	}
+	f1 := NewFunction("f1", func(c Call) (_ Object, err error) { return }, FunctionWithParams(func(p func(name string) *ParamBuilder) {
+		p("args").Var()
+	}))
+	f2 := NewFunction("f2", func(c Call) (_ Object, err error) { return }, FunctionWithParams(func(p func(name string) *ParamBuilder) {
+		p("i").Type(TInt)
+		p("args").Var()
+	}))
+	f3 := NewFunction("f3", func(c Call) (_ Object, err error) { return }, FunctionWithParams(func(p func(name string) *ParamBuilder) {
+		p("s").Type(TStr)
+	}))
+	f4 := NewFunction("f4", func(c Call) (_ Object, err error) { return }, FunctionWithParams(func(p func(name string) *ParamBuilder) {
+		p("i").Type(TInt)
+		p("i2").Type(TInt)
+		p("args").Type(TInt).Var()
+	}))
+	f5 := NewFunction("f5", func(c Call) (_ Object, err error) { return }, FunctionWithParams(func(p func(name string) *ParamBuilder) {
+		p("v1").Type(TInt)
+		p("v2").Type(TInt)
+		p("v3").Type(TFloat)
+		p("args").Type(TFloat).Var()
+	}))
+	f6 := NewFunction("f6", func(c Call) (_ Object, err error) { return }, FunctionWithParams(func(p func(name string) *ParamBuilder) {
+		p("s").Type(TStr)
+		p("s2").Type(TStr)
+		p("args").Type(TStr).Var()
+	}))
+	f7 := NewFunction("f7", func(c Call) (_ Object, err error) { return }, FunctionWithParams(func(p func(name string) *ParamBuilder) {
+		p("s").Type(TStr)
+		p("s1").Type(TStr)
+		p("s2").Type(TStr)
+		p("args").Var()
+	}))
+	f8 := NewFunction("f8", func(c Call) (_ Object, err error) { return }, FunctionWithParams(func(p func(name string) *ParamBuilder) {
+		p("s").Type(TStr)
+		p("s1").Type(TFloat)
+		p("floats").Type(TFloat).Var()
+	}))
 
-	f := NewCallerObjectWithMethods(&Function{
-		Name: "fn",
-		Value: func(c Call) (Object, error) {
-			return Str("fn_result:" + c.Args.Get(0).Type().String()), nil
-		},
-	})
+	fn, err := NewFuncFunc(Call{Args: Args{Array{f1, f2, f3, f4, f5, f6, f7, f8}}})
+	assert.NoError(t, err)
 
-	assert.NoError(t, f.AddCallerMethod(nil, MultipleObjectTypes{{TDecimal, TInt, TFloat}}, &CallerMethod{
-		CallerObject: typeName,
-	}, false))
+	f := fn.(*Func)
 
-	assert.Equal(t, `‹function:fn› with 3 methods:
-	1. ‹function:type_name›: [decimal]
-	2. ‹function:type_name›: [float]
-	3. ‹function:type_name›: [int]`, f.ToString())
+	assert.Equal(t, f1, f.CallerMethodOfArgsTypes(ObjectTypeArray{}))
+	assert.Equal(t, f2, f.CallerMethodOfArgsTypes(ObjectTypeArray{TInt}))
+	assert.Equal(t, f4, f.CallerMethodOfArgsTypes(ObjectTypeArray{TInt, TInt}))
+	assert.Equal(t, f4, f.CallerMethodOfArgsTypes(ObjectTypeArray{TInt, TInt, TInt}))
+	assert.Equal(t, f4, f.CallerMethodOfArgsTypes(ObjectTypeArray{TInt, TInt, TInt, TInt}))
+	assert.Equal(t, f2, f.CallerMethodOfArgsTypes(ObjectTypeArray{TInt, TInt, TInt, TFloat}))
+	assert.Equal(t, f5, f.CallerMethodOfArgsTypes(ObjectTypeArray{TInt, TInt, TFloat}))
+	assert.Equal(t, f5, f.CallerMethodOfArgsTypes(ObjectTypeArray{TInt, TInt, TFloat, TFloat}))
+	assert.Equal(t, f5, f.CallerMethodOfArgsTypes(ObjectTypeArray{TInt, TInt, TFloat, TFloat, TFloat}))
+	assert.Equal(t, f2, f.CallerMethodOfArgsTypes(ObjectTypeArray{TInt, TInt, TFloat, TFloat, TBool}))
+	assert.Equal(t, f3, f.CallerMethodOfArgsTypes(ObjectTypeArray{TStr}))
+	assert.Equal(t, f6, f.CallerMethodOfArgsTypes(ObjectTypeArray{TStr, TStr}))
+	assert.Equal(t, f7, f.CallerMethodOfArgsTypes(ObjectTypeArray{TStr, TStr, TStr, TStr}))
+	assert.Equal(t, f8, f.CallerMethodOfArgsTypes(ObjectTypeArray{TStr, TFloat}))
+	assert.Equal(t, f1, f.CallerMethodOfArgsTypes(ObjectTypeArray{TBool}))
+	assert.Equal(t, f1, f.CallerMethodOfArgsTypes(ObjectTypeArray{TBool, TChar, TFloat}))
 
-	var tests = []struct {
-		name string
-		v    any
-		s    string
-		ret  string
-	}{
-		{"", "", "‹function:fn›", "fn_result:‹builtinType:str›"},
-		{"", false, "‹function:fn›", "fn_result:‹builtinType:bool›"},
-		{"", 0, "‹function:type_name›", "type_name_result:‹builtinType:int›"},
-		{"", 12.2, "‹function:type_name›", "type_name_result:‹builtinType:float›"},
-		{"", decimal.Zero, "‹function:type_name›", "type_name_result:‹builtinType:decimal›"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			o := MustToObject(tt.v)
-			m := f.CallerMethodOfArgs(Args{{o}})
-			if m == nil {
-				m = f.Caller()
-			}
-			assert.Equal(t, tt.s, m.ToString())
-			ret, err := m.Call(Call{Args: Args{{o}}})
-			assert.NoError(t, err)
-			assert.NotNil(t, ret)
-			assert.Equal(t, tt.ret, ret.ToString())
-		})
-	}
+	f9 := NewFunction("f9", func(c Call) (_ Object, err error) { return }, FunctionWithParams(func(p func(name string) *ParamBuilder) {
+		p("s").Type(TStr)
+		p("f").Type(TFloat)
+	}))
+
+	assert.ErrorContains(t, f.AddMethod(nil, f9, false, nil), "ErrMethodDuplication: params (str, float): ‹function f9(s str, f float)›. Current method is ‹function f8(s str, s1 float, *floats float)›")
+	assert.NoError(t, f.AddMethod(nil, f9, true, nil))
+	assert.Equal(t, f9, f.CallerMethodOfArgsTypes(ObjectTypeArray{TStr, TFloat}))
+	assert.Equal(t, f8, f.CallerMethodOfArgsTypes(ObjectTypeArray{TStr, TFloat, TFloat}))
+
+	f10 := NewFunction("f10", func(c Call) (_ Object, err error) { return }, FunctionWithParams(func(p func(name string) *ParamBuilder) {
+		p("s").Type(TStr)
+		p("f").Type(TFloat)
+		p("fts").Type(TFloat).Var()
+	}))
+
+	assert.ErrorContains(t, f.AddMethod(nil, f10, false, nil), "ErrMethodDuplication: params (str, float): ‹function f10(s str, f float, *fts float)›. Current method is ‹function f9(s str, f float)›")
+	assert.NoError(t, f.AddMethod(nil, f10, true, nil))
+	assert.Equal(t, f10, f.CallerMethodOfArgsTypes(ObjectTypeArray{TStr, TFloat}))
+	assert.Equal(t, f10, f.CallerMethodOfArgsTypes(ObjectTypeArray{TStr, TFloat, TFloat}))
 }

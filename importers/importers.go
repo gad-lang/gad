@@ -53,20 +53,20 @@ func (m *FileImporter) Name() (string, error) {
 
 // Import returns the content of the path determined by Name call. Empty name
 // will return an error.
-func (m *FileImporter) Import(_ context.Context, moduleName string) (data any, url string, err error) {
+func (m *FileImporter) Import(ctx context.Context, module *gad.Module) (data any, uri string, err error) {
 	// Note that; moduleName == Literal()
-	if m.name == "" || moduleName == "" {
+	if m.name == "" || module.Name() == "" {
 		err = errors.New("invalid import call")
 		return
 	}
 	if m.FileReader == nil {
-		if data, err = os.ReadFile(moduleName); err != nil {
+		if data, err = os.ReadFile(module.Name()); err != nil {
 			return
 		}
-		url = "file:" + moduleName
+		uri = "file:" + module.Name()
 		return
 	}
-	return m.FileReader(moduleName)
+	return m.FileReader(module.Name())
 }
 
 // Fork returns a new instance of FileImporter as gad.ExtImporter by capturing
@@ -93,27 +93,27 @@ type EmbedFileImporter struct {
 var _ gad.ExtImporter = (*EmbedFileImporter)(nil)
 
 // Get impelements gad.ExtImporter and returns itself if name is not empty.
-func (m *EmbedFileImporter) Get(name string) gad.ExtImporter {
+func (i *EmbedFileImporter) Get(name string) gad.ExtImporter {
 	if name == "" {
 		return nil
 	}
-	m.name = name
-	return m
+	i.name = name
+	return i
 }
 
 // Name returns the absoule path of the module. A previous Get call is required
 // to get the name of the imported module.
-func (m *EmbedFileImporter) Name() (string, error) {
-	if m.name == "" {
+func (i *EmbedFileImporter) Name() (string, error) {
+	if i.name == "" {
 		return "", nil
 	}
-	if m.NameResolver != nil {
-		return m.NameResolver(m.WorkDir, m.name)
+	if i.NameResolver != nil {
+		return i.NameResolver(i.WorkDir, i.name)
 	}
 
-	path := m.name
+	path := i.name
 	if !filepath.IsAbs(path) {
-		path = filepath.Join(m.WorkDir, path)
+		path = filepath.Join(i.WorkDir, path)
 		if p, err := filepath.Abs(path); err == nil {
 			path = p
 		}
@@ -123,13 +123,14 @@ func (m *EmbedFileImporter) Name() (string, error) {
 
 // Import returns the content of the path determined by Name call. Empty name
 // will return an error.
-func (m *EmbedFileImporter) Import(_ context.Context, pth string) (data any, url string, err error) {
+func (i *EmbedFileImporter) Import(ctx context.Context, mod *gad.Module) (data any, uri string, err error) {
+	pth := mod.Name()
 	// Note that; moduleName == Literal()
-	if m.name == "" || pth == "" {
+	if i.name == "" || pth == "" {
 		err = errors.New("invalid import call")
 		return
 	}
-	if m.FileReader == nil {
+	if i.FileReader == nil {
 		var s os.FileInfo
 		if s, err = os.Stat(pth); err != nil {
 			return
@@ -175,21 +176,21 @@ func (m *EmbedFileImporter) Import(_ context.Context, pth string) (data any, url
 		if data, err = os.ReadFile(pth); err != nil {
 			return
 		}
-		url = "file:" + pth
+		uri = "file:" + pth
 		return
 	}
-	return m.FileReader(pth)
+	return i.FileReader(pth)
 }
 
 // Fork returns a new instance of EmbedFileImporter as gad.ExtImporter by capturing
 // the working directory of the module. moduleName should be the same value
 // provided by Name call.
-func (m *EmbedFileImporter) Fork(moduleName string) gad.ExtImporter {
+func (i *EmbedFileImporter) Fork(moduleName string) gad.ExtImporter {
 	// Note that; moduleName == Literal()
 	return &EmbedFileImporter{
 		WorkDir:      filepath.Dir(moduleName),
-		FileReader:   m.FileReader,
-		NameResolver: m.NameResolver,
+		FileReader:   i.FileReader,
+		NameResolver: i.NameResolver,
 	}
 }
 

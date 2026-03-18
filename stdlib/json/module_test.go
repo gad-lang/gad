@@ -16,31 +16,15 @@ func TestModuleTypes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &RawMessage{Value: Bytes{}}, ret)
 
-	ret, err = ToObject(json.RawMessage([]byte("null")))
+	ret, err = ToObject(json.RawMessage("null"))
 	require.NoError(t, err)
-	require.Equal(t, &RawMessage{Value: Bytes([]byte("null"))}, ret)
+	require.Equal(t, &RawMessage{Value: Bytes("null")}, ret)
 
 	iface := ToInterface(ret)
-	require.Equal(t, json.RawMessage([]byte("null")), iface)
+	require.Equal(t, json.RawMessage("null"), iface)
 }
 
 func TestScript(t *testing.T) {
-	catchf := func(s string, args ...any) string {
-		return fmt.Sprintf(`
-		json := import("json")
-		try {
-			return %s
-		} catch err {
-			return str(err)
-		}
-		`, fmt.Sprintf(s, args...))
-	}
-	scriptf := func(s string, args ...any) string {
-		return fmt.Sprintf(`
-		json := import("json")
-		return %s
-		`, fmt.Sprintf(s, args...))
-	}
 	errnarg := func(want, got int) Str {
 		return Str(ErrWrongNumArguments.NewError(
 			fmt.Sprintf("want=%d got=%d", want, got),
@@ -49,9 +33,10 @@ func TestScript(t *testing.T) {
 
 	expectRun(t, scriptf(""), nil, Nil)
 
-	for key, val := range Module {
-		expectRun(t, scriptf("typeName(json.%s)", key), nil, Str("function"))
-		expectRun(t, scriptf("str(json.%s)", key), nil, Str(fmt.Sprintf(ReprQuote("function:%s"), key)))
+	module, _ := ModuleInit(nil, Call{})
+
+	for key, val := range module.ToDict() {
+		expectRun(t, scriptf("str(json.%s)", key), nil, Str(fmt.Sprintf(ReprQuote("function %s(⋅⋅⋅)"), key)))
 		require.NotNil(t, val)
 		require.NotNil(t, val.(*Function).Value)
 	}
@@ -127,23 +112,23 @@ func TestScript(t *testing.T) {
 	expectRun(t, catchf(`str(json.Marshal(json.Quote(json.NoEscape("<"))))`), nil, Str(`"\"<\""`))
 
 	expectRun(t, catchf(`str(json.Unmarshal(bytes(0)))`),
-		nil, Str(`error: invalid character '\x00' looking for beginning of value`))
+		nil, Str("json.SyntaxError: invalid character '\\x00' looking for beginning of value"))
 	expectRun(t, catchf(`str(json.IndentCount(bytes(0), "", " "))`),
-		nil, Str(`error: invalid character '\x00' looking for beginning of value`))
+		nil, Str("json.SyntaxError: invalid character '\\x00' looking for beginning of value"))
 	expectRun(t, catchf(`str(json.Compact(bytes(0), true))`),
-		nil, Str(`error: invalid character '\x00' looking for beginning of value`))
+		nil, Str("json.SyntaxError: invalid character '\\x00' looking for beginning of value"))
 }
 
 func TestCycle(t *testing.T) {
-	expectRun(t, `json:=import("json");a:=[1,2];a[1]=a;return str(json.Marshal(a))`,
-		nil, Str(`error: json: unsupported value: encountered a cycle via array`))
-	expectRun(t, `json:=import("json");a:=[1,2];a[1]=a;return str(json.MarshalIndent(a,""," "))`,
-		nil, Str(`error: json: unsupported value: encountered a cycle via array`))
-	expectRun(t, `json:=import("json");m:={a:1};m.b=m;return str(json.Marshal(m))`,
-		nil, Str(`error: json: unsupported value: encountered a cycle via dict`))
-	expectRun(t, `param m;json:=import("json");m.b=m;return str(json.Marshal(m))`,
+	expectRun(t, catchpf(`a:=[1,2];a[1]=a;return str(json.Marshal(a))`),
+		nil, Str("json.UnsupportedValueError: json: unsupported value: encountered a cycle via array"))
+	expectRun(t, catchpf(`a:=[1,2];a[1]=a;return str(json.MarshalIndent(a,""," "))`),
+		nil, Str("json.UnsupportedValueError: json: unsupported value: encountered a cycle via array"))
+	expectRun(t, catchpf(`m:={a:1};m.b=m;return str(json.Marshal(m))`),
+		nil, Str("json.UnsupportedValueError: json: unsupported value: encountered a cycle via dict"))
+	expectRun(t, `param m;`+catchpf(`m.b=m;return str(json.Marshal(m))`),
 		newOpts().Args(&SyncDict{Value: Dict{}}),
-		Str(`error: json: unsupported value: encountered a cycle via syncDict`))
+		Str("json.UnsupportedValueError: json: unsupported value: encountered a cycle via syncDict"))
 
 	ptr := &ObjectPtr{}
 	var m Object = Dict{}
@@ -179,12 +164,39 @@ func expectRun(t *testing.T, script string, opts *Opts, expected Object) {
 		opts = newOpts()
 	}
 	mm := NewModuleMap()
-	mm.AddBuiltinModule("json", Module)
+	mm.AddBuiltinModuleInit("json", ModuleInit)
 	c := CompileOptions{CompilerOptions: DefaultCompilerOptions}
 	c.ModuleMap = mm
-	bc, err := Compile([]byte(script), c)
+	_, bc, err := Compile([]byte(script), c)
 	require.NoError(t, err)
 	ret, err := NewVM(bc).RunOpts(&RunOpts{Globals: opts.global, Args: Args{opts.args}})
 	require.NoError(t, err)
 	require.Equal(t, expected, ret)
+}
+
+func catchf(s string, args ...any) string {
+	return fmt.Sprintf(`
+		json := import("json")
+		try {
+			return %s
+		} catch err {
+			return str(err.cause)
+		}
+		`, fmt.Sprintf(s, args...))
+}
+func catchpf(s string, args ...any) string {
+	return fmt.Sprintf(`
+		json := import("json")
+		try {
+			%s
+		} catch err {
+			return str(err.cause)
+		}
+		`, fmt.Sprintf(s, args...))
+}
+func scriptf(s string, args ...any) string {
+	return fmt.Sprintf(`
+		json := import("json")
+		return %s
+		`, fmt.Sprintf(s, args...))
 }

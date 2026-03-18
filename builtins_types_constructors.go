@@ -77,11 +77,14 @@ func NewRawStrFunc(c Call) (ret Object, err error) {
 
 	o := c.Args.Get(0)
 
-	if rs, ok := o.(RawStr); ok {
-		return rs, nil
+	switch v := o.(type) {
+	case RawStr:
+		return v, nil
+	case Str:
+		return RawStr(v), nil
 	}
 
-	if ret, err = Val(c.VM.Builtins.Call(BuiltinStr, c)); err != nil {
+	if ret, err = c.VM.Builtins.Call(BuiltinStr, c); err != nil {
 		return
 	}
 
@@ -139,14 +142,19 @@ func NewStrFunc(c Call) (_ Object, err error) {
 				NamedArgs: c.NamedArgs,
 				Context:   c.Context,
 			})
-		)
 
-		if _, err = c.VM.Builtins.Call(
-			BuiltinPrint, Call{
+			strCall = Call{
 				VM:      c.VM,
 				Args:    Args{Array{state, arg}},
 				Context: c.Context,
-			}); err != nil {
+			}
+		)
+
+		if c.VM == nil {
+			if _, err = BuiltinPrintFunc(strCall); err != nil {
+				return
+			}
+		} else if _, err = c.VM.Builtins.Call(BuiltinPrint, strCall); err != nil {
 			return
 		}
 		return Str(w.String()), nil
@@ -175,6 +183,42 @@ func NewStrFunc(c Call) (_ Object, err error) {
 		}
 		return Str(w.String()), nil
 	}
+}
+
+func NewTypedIdentFunc(c Call) (ret Object, err error) {
+	var (
+		nameArg = &Arg{
+			Name:          "name",
+			TypeAssertion: TypeAssertionFromTypes(TStr),
+		}
+		typesArg = &Arg{
+			Name: "types",
+			TypeAssertion: NewTypeAssertion(TypeAssertionHandlers{
+				"arrayOfTypes": func(v Object) (ok bool) {
+					var arr Array
+					if arr, ok = v.(Array); !ok {
+						return false
+					}
+					for _, o := range arr {
+						if !IsType(o) {
+							return false
+						}
+					}
+					return true
+				},
+			}),
+		}
+	)
+
+	if err = c.Args.Destructure(nameArg, typesArg); err != nil {
+		return
+	}
+
+	ret = &TypedIdent{
+		Name:  string(nameArg.Value.(Str)),
+		Types: typesArg.Value.(Array),
+	}
+	return
 }
 
 func NewBytesFunc(c Call) (_ Object, err error) {
@@ -238,12 +282,31 @@ func NewArrayFunc(c Call) (ret Object, err error) {
 func NewDictFunc(c Call) (ret Object, err error) {
 	if c.Args.IsFalsy() {
 		ret = c.NamedArgs.AllDict()
+	} else if c.Args.Length() == 1 {
+		arg := c.Args.Get(0)
+		switch t := arg.(type) {
+		case ToDictConverter:
+			return t.ToDict(), nil
+		case DictUpdator:
+			d := Dict{}
+			t.UpdateDict(d)
+			return d, nil
+		default:
+			d := Dict{}
+			if err = ItemsOfCb(c.VM, &c.NamedArgs, func(kv *KeyValue) error {
+				d[kv.K.ToString()] = kv.V
+				return nil
+			}, arg); err != nil {
+				return
+			}
+			return d, nil
+		}
 	} else {
 		d := Dict{}
 		err = c.Args.WalkE(func(i int, arg Object) error {
 			switch t := arg.(type) {
-			case ToDictConveter:
-				t.ToDict(d)
+			case DictUpdator:
+				t.UpdateDict(d)
 				return nil
 			default:
 				return ItemsOfCb(c.VM, &c.NamedArgs, func(kv *KeyValue) error {
@@ -340,9 +403,6 @@ func NewPrinterStateFunc(c Call) (ret Object, err error) {
 				"writer": Writeable,
 			}),
 		}
-		maxDepth, _ = c.NamedArgs.GetValue(PrintStateOptionMaxDepth).(Int)
-		raw         = !c.NamedArgs.GetValue(PrintStateOptionRaw).IsFalsy()
-		indent      = c.NamedArgs.GetValue(PrintStateOptionIndent)
 	)
 
 	if err = c.Args.Destructure(wArg); err != nil {
@@ -352,10 +412,138 @@ func NewPrinterStateFunc(c Call) (ret Object, err error) {
 	return NewPrinterState(
 		c.VM,
 		wArg.Value.(Writer).GoWriter(),
-		PrinterStateWithRaw(raw),
-		PrinterStateWithMaxDepth(int(maxDepth)),
-		PrinterStateWithIndent(indent),
-		PrinterStateWithOptions(c.NamedArgs.unreadDict()),
 		PrinterStateWithContext(c.Context),
-	), nil
+	).ParseOptions(&c.NamedArgs), nil
+}
+
+func NewClassFunc(c Call) (ret Object, err error) {
+	var (
+		nameArg = &Arg{
+			Name:          "name",
+			TypeAssertion: TypeAssertionFromTypes(TStr),
+		}
+	)
+
+	if err = c.Args.Destructure(nameArg); err != nil {
+		return
+	}
+
+	t := NewClass(string(nameArg.Value.(Str)), c.VM.CurrentModule())
+
+	var (
+		kvaTA  = TypeAssertionFromTypes(TKeyValueArray)
+		dictTA = TypeAssertionFromTypes(TDict)
+
+		fields = &NamedArgVar{
+			Name:          "fields",
+			TypeAssertion: kvaTA,
+			Do: func(value Object) error {
+				return t.CallAddFields(Call{VM: c.VM, Args: Args{Array{value}}})
+			},
+		}
+
+		methods = &NamedArgVar{
+			Name:          "methods",
+			TypeAssertion: TypeAssertionFromTypes(TDict, TKeyValueArray, TArray),
+			Do: func(value Object) (err error) {
+				return t.CallAddMethods(Call{VM: c.VM, Args: Args{Array{value}}})
+			},
+		}
+
+		properties = &NamedArgVar{
+			Name:          "properties",
+			TypeAssertion: dictTA,
+			Do: func(value Object) (err error) {
+				return t.CallAddProperties(Call{VM: c.VM, Args: Args{Array{value}}})
+			},
+		}
+
+		constructor = &NamedArgVar{
+			Name:          "new",
+			TypeAssertion: NewTypeAssertion(TypeAssertions(WithCallable(), WithArray())),
+			Do: func(value Object) (err error) {
+				return t.CallAddNewHandlers(Call{VM: c.VM, Args: Args{Array{value}}})
+			},
+		}
+
+		extends = &NamedArgVar{
+			Name:          "extends",
+			TypeAssertion: TypeAssertionFromTypes(TArray),
+			Do: func(value Object) (err error) {
+				return t.CallExtends(Call{VM: c.VM, Args: Args{Array{value}}})
+			},
+		}
+	)
+
+	if err = c.NamedArgs.GetDo(constructor, fields, methods, properties, extends); err != nil {
+		return
+	}
+	return t, nil
+}
+
+func NewFuncFunc(c Call) (_ Object, err error) {
+	const anonymous = "‹anonymous›"
+
+	if err = c.Args.CheckMinLen(1); err != nil {
+		return
+	}
+
+	var (
+		arg       = c.Args.Get(0)
+		moduleVar = &NamedArgVar{
+			Name:          "module",
+			TypeAssertion: TypeAssertionFromTypes(TModule),
+		}
+		name string
+	)
+
+	switch t := arg.(type) {
+	case Str:
+		name = string(t)
+		c.Args.Shift()
+	case CallerObject:
+		name = t.Name()
+	default:
+		err = NewArgumentTypeError("1st (nameOrCaller)", "str|CallerObject", arg.Type().Name())
+		return
+	}
+
+	if name == "" {
+		name = anonymous
+	}
+
+	if err = c.NamedArgs.Get(moduleVar); err != nil {
+		return
+	}
+
+	module, _ := moduleVar.Value.(*Module)
+	if module == nil {
+		module = c.VM.CurrentModule()
+	}
+	
+	f := NewFunc(name, module)
+
+	err = c.Args.WalkE(func(i int, arg Object) (err error) {
+		return SplitCaller(c.VM, arg, func(co CallerObject, types ParamsTypes) (err error) {
+			return f.AddMethodByTypes(c.VM, types, co, false, nil)
+		})
+	})
+
+	return f, err
+}
+
+func NewComputedValue(c Call) (_ Object, err error) {
+	f := &Arg{
+		Name:          "func",
+		TypeAssertion: NewTypeAssertion(TypeAssertions(WithRawCallable())),
+	}
+	if err = c.Args.Destructure(f); err != nil {
+		return
+	}
+
+	if cv, ok := f.Value.(*ComputedValue); ok {
+		return cv, nil
+	}
+
+	return &ComputedValue{f.Value.(CallerObject)}, err
 }

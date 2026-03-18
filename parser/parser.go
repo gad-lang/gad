@@ -51,9 +51,9 @@ type Parser struct {
 	File             *source.File
 	Errors           ErrorList
 	Scanner          ScannerInterface
-	Token            Token
-	tokenBuffer      []Token
-	PrevToken        Token
+	Token            PToken
+	tokenBuffer      []PToken
+	PrevToken        PToken
 	ExprLevel        int        // < 0: in control clause, >= 0: in expression
 	syncPos          source.Pos // last sync position
 	syncCount        int        // number of advance calls without progress
@@ -66,9 +66,11 @@ type Parser struct {
 	InCode           bool
 	BlockStart       token.Token
 	BlockEnd         token.Token
-	ScanFunc         func() Token
+	ScanFunc         func() PToken
 	pipes            int
 	postScan         func(p *Parser)
+
+	inHeader bool
 }
 
 // NewParser creates a Parser.
@@ -179,6 +181,10 @@ func ParseFile(pth string, opts *ParserOptions, scannerOpts *ScannerOptions) (fi
 	return p.ParseFile()
 }
 
+func (p *Parser) Failed() bool {
+	return len(p.Errors) > 0
+}
+
 // ParseFile parses the source and returns an AST file unit.
 func (p *Parser) ParseFile() (file *File, err error) {
 	defer func() {
@@ -261,7 +267,7 @@ func (p *Parser) ParseExpr() node.Expr {
 	expr := p.ParseBinaryExpr(token.LowestPrec + 1)
 
 	// ternary conditional expression
-	if p.Token.Token == token.Question {
+	if p.Token.Is(token.Question) {
 		return p.ParseCondExpr(expr)
 	}
 	return expr
@@ -275,7 +281,7 @@ func (p *Parser) ParseBinaryExpr(prec1 int) node.Expr {
 	x := p.ParseUnaryExpr()
 
 	for {
-		op, prec := p.Token.Token, p.Token.Token.Precedence()
+		op, prec := p.Token.Token, p.Token.Precedence()
 		if prec < prec1 {
 			return x
 		}
@@ -356,6 +362,10 @@ func (p *Parser) ParseUnaryExpr() node.Expr {
 			TokenPos: pos,
 			Expr:     x,
 		}
+	case token.And:
+		pos := p.Expect(token.And)
+		expr := p.ParsePrimaryExpr()
+		return &node.Ptr{pos, expr}
 	}
 	return p.ParsePrimaryExpr()
 }
@@ -375,16 +385,6 @@ func (p *Parser) ParsePrimaryExpr() node.Expr {
 				return x
 			}
 			t.Expr = ti.Ident
-		}
-	case *node.MultiParenExpr:
-		for i, expr := range t.Exprs {
-			if ti, _ := expr.(*node.TypedIdentExpr); ti != nil {
-				if len(ti.Type) > 0 {
-					p.Error(ti.Type[0].Pos(), "unexpected COLON")
-					return x
-				}
-				t.Exprs[i] = ti.Ident
-			}
 		}
 	}
 
@@ -410,17 +410,65 @@ L:
 			case token.Ident, token.LParen, token.Else:
 				x = p.ParseSelector(x)
 			default:
-				pos := p.Token.Pos
-				p.ErrorExpected(pos, "selector")
-				p.advance(stmtStart)
-				return &node.BadExpr{From: pos, To: p.Token.Pos}
+				tk := p.Token.Token
+				if tk.IsSpecialKeyword() {
+					x = p.ParseSelector(x)
+				} else {
+					pos := p.Token.Pos
+					p.ErrorExpected(pos, "selector")
+					p.advance(stmtStart)
+					return &node.BadExpr{From: pos, To: p.Token.Pos}
+				}
 			}
 		case token.LBrack:
 			x = p.ParseIndexOrSlice(x)
 		case token.LParen:
-			x = p.ParseCall(x)
-			if p.Token.Token == token.Period && p.pipes == 1 {
-				return x
+			paren := p.ParseParemExpr(token.LParen, token.RParen)
+			ih := p.inHeader
+
+			if !ih && p.Token.Token.Is(token.LBrace, token.Lambda) {
+				if ident, _ := x.(*node.IdentExpr); ident != nil {
+					if params, err := paren.ToMultiParenExpr().ToFuncParams(); err == nil {
+						f := &node.FuncExpr{
+							Type: &node.FuncType{
+								NameExpr: ident,
+								Params:   params,
+							},
+						}
+						x = f
+
+						if p.Token.Token.Is(token.LBrace) {
+							f.Body = p.ParseBlockStmt()
+						} else {
+							f.LambdaPos = p.Expect(token.Lambda)
+							f.BodyExpr = p.ParseExpr()
+						}
+					} else {
+						p.Error(paren.Pos(), "expected function parameters")
+						return &node.BadExpr{From: paren.Pos(), To: p.Token.Pos}
+					}
+				} else {
+					p.Error(x.Pos(), fmt.Sprintf("expected *Ident, but got %T", x))
+					return &node.BadExpr{From: paren.Pos(), To: p.Token.Pos}
+				}
+			} else {
+				p.inHeader = false
+
+				args, err := paren.ToMultiParenExpr().ToCallArgs(true)
+				if err != nil {
+					p.Error(err.Pos(), err.Error())
+				}
+
+				x = &node.CallExpr{
+					Func:     x,
+					CallArgs: *args,
+				}
+
+				if p.Token.Token.Is(token.Period) && p.pipes == 1 {
+					return x
+				}
+
+				p.inHeader = ih
 			}
 		default:
 			break L
@@ -487,16 +535,23 @@ exps:
 			case *node.KeyValuePairLit:
 				switch t2 := t.Key.(type) {
 				case *node.IdentExpr:
-					params.NamedArgs.Names = append(params.NamedArgs.Names, node.NamedArgExpr{Ident: t2})
+					params.NamedArgs.Names = append(params.NamedArgs.Names, &node.NamedArgExpr{Ident: t2})
 				case *node.StringLit:
-					params.NamedArgs.Names = append(params.NamedArgs.Names, node.NamedArgExpr{Lit: t2})
+					params.NamedArgs.Names = append(params.NamedArgs.Names, &node.NamedArgExpr{Lit: t2})
 				default:
 					p.ErrorExpected(t2.Pos(), "expected Ident | StringLit")
 					return
 				}
 				params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
 			case *node.NamedArgVarLit:
-				params.NamedArgs.Var = t
+				e := &node.NamedArgExpr{Var: true}
+				if ident, _ := t.Value.(*node.IdentExpr); ident != nil {
+					e.Ident = ident
+				} else {
+					e.Exp = t.Value
+				}
+				params.NamedArgs.Names = append(params.NamedArgs.Names, e)
+				params.NamedArgs.Values = append(params.NamedArgs.Values, nil)
 				i++
 				break nexps
 			default:
@@ -569,7 +624,7 @@ func (p *Parser) ParseIndexExpr(x node.Expr) *node.IndexExpr {
 	p.ExprLevel--
 	rbrack := p.Expect(token.RBrack)
 	return &node.IndexExpr{
-		Expr:   x,
+		X:      x,
 		LBrack: lbrack,
 		RBrack: rbrack,
 		Index:  index,
@@ -612,7 +667,7 @@ func (p *Parser) ParseIndexOrSlice(x node.Expr) node.Expr {
 		}
 	}
 	return &node.IndexExpr{
-		Expr:   x,
+		X:      x,
 		LBrack: lbrack,
 		RBrack: rbrack,
 		Index:  index[0],
@@ -632,8 +687,13 @@ func (p *Parser) ParseSelectorNode(x node.Expr) (expr, sel node.Expr) {
 		sel = node.String(name, p.Token.Pos)
 		p.Next()
 	default:
-		ident := p.ParseIdent()
-		sel = node.String(ident.Name, ident.NamePos)
+		if tk := p.Token.Token; tk.IsSpecialKeyword() {
+			sel = node.String(tk.String(), p.Token.Pos)
+			p.Next()
+		} else {
+			ident := p.ParseIdent()
+			sel = node.String(ident.Name, ident.NamePos)
+		}
 	}
 	expr = x
 	return
@@ -646,7 +706,7 @@ func (p *Parser) ParseSimpleSelector(x node.Expr) (sel *node.SelectorExpr) {
 
 	var s node.Expr
 	x, s = p.ParseSimpleSelectorNode(x)
-	return &node.SelectorExpr{Expr: x, Sel: s}
+	return &node.SelectorExpr{X: x, Sel: s}
 }
 
 func (p *Parser) ParseSimpleSelectorNode(x node.Expr) (expr, sel node.Expr) {
@@ -672,7 +732,7 @@ func (p *Parser) ParseSelector(x node.Expr) (sel *node.SelectorExpr) {
 
 	var s node.Expr
 	x, s = p.ParseSelectorNode(x)
-	return &node.SelectorExpr{Expr: x, Sel: s}
+	return &node.SelectorExpr{X: x, Sel: s}
 }
 
 func (p *Parser) ParseNullishSelector(x node.Expr) (sel node.Expr) {
@@ -780,8 +840,12 @@ func (p *Parser) ParsePrimitiveOperand() node.Expr {
 		x := &node.DotFileLit{TokenPos: p.Token.Pos}
 		p.Next()
 		return x
-	case token.IsModule:
-		x := &node.IsModuleLit{TokenPos: p.Token.Pos}
+	case token.IsMain:
+		x := &node.IsMainLit{TokenPos: p.Token.Pos}
+		p.Next()
+		return x
+	case token.Module:
+		x := &node.ModuleLit{TokenPos: p.Token.Pos}
 		p.Next()
 		return x
 	}
@@ -883,8 +947,12 @@ func (p *Parser) ParseOperand() node.Expr {
 		x := &node.DotFileLit{TokenPos: p.Token.Pos}
 		p.Next()
 		return x
-	case token.IsModule:
-		x := &node.IsModuleLit{TokenPos: p.Token.Pos}
+	case token.IsMain:
+		x := &node.IsMainLit{TokenPos: p.Token.Pos}
+		p.Next()
+		return x
+	case token.Module:
+		x := &node.ModuleLit{TokenPos: p.Token.Pos}
 		p.Next()
 		return x
 	case token.Callee:
@@ -904,12 +972,15 @@ func (p *Parser) ParseOperand() node.Expr {
 	case token.Embed:
 		return p.ParseEmbedExpr()
 	case token.LParen:
+		if p.Peek().Token == token.Assign {
+			return p.ParseComputedExpr()
+		}
 		return p.ParseAllParemExpr(token.LParen, token.RParen)
 	case token.LBrack: // array literal
 		return p.ParseArrayLitOrKeyValue()
 	case token.LBrace: // dict literal
 		return p.ParseDictLit()
-	case token.Func: // function literal
+	case token.Func, token.Method: // function literal
 		return p.ParseFuncExpr()
 	case token.RawString:
 		return p.ParseRawStringLit()
@@ -939,25 +1010,25 @@ func (p *Parser) ParseOperand() node.Expr {
 
 func (p *Parser) ParseImportExpr() node.Expr {
 	pos := p.Token.Pos
+	ident := node.EIdent(p.Token.Token.String(), pos)
 	p.Next()
-	p.Expect(token.LParen)
-	if p.Token.Token != token.String {
+
+	var (
+		c     = p.ParseCall(ident)
+		valid = len(c.Args.Values) >= 1
+	)
+
+	if valid {
+		_, valid = c.Args.Values[0].(*node.StringLit)
+	}
+
+	if !valid {
 		p.ErrorExpected(p.Token.Pos, "module name")
 		p.advance(stmtStart)
 		return &node.BadExpr{From: pos, To: p.Token.Pos}
 	}
 
-	// module name
-	moduleName, _ := strconv.Unquote(p.Token.Literal)
-	expr := &node.ImportExpr{
-		ModuleName: moduleName,
-		Token:      token.Import,
-		TokenPos:   pos,
-	}
-
-	p.Next()
-	p.Expect(token.RParen)
-	return expr
+	return &node.ImportExpr{CallExpr: *c}
 }
 
 func (p *Parser) ParseEmbedExpr() node.Expr {
@@ -1003,10 +1074,12 @@ func (p *Parser) ParseClosureExpr(lambdaToken token.Token, paren *node.MultiPare
 	}
 
 	return &node.ClosureExpr{
-		LambdaPos:   lambda,
-		LambdaToken: lambdaToken,
-		Params:      params,
-		Body:        body,
+		Lambda: node.Token{
+			Pos:   lambda,
+			Token: lambdaToken,
+		},
+		Params: params,
+		Body:   body,
 	}
 }
 
@@ -1035,7 +1108,7 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 	case lparenToken:
 	default:
 		p.ErrorExpected(lparen, "'"+lparenToken.String()+"'")
-		return nil
+		return &node.ParenExpr{}
 	}
 
 	p.Next()
@@ -1048,7 +1121,9 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 
 	switch p.Token.Token {
 	case token.Semicolon:
-		return p.ParseKeyValueArrayLit(lparen)
+		if p.Token.Literal == ";" {
+			return p.ParseKeyValueArrayLit(lparen)
+		}
 	case token.Comma:
 		multi = true
 		p.Next()
@@ -1086,10 +1161,34 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 			p.SkipSpace()
 		}
 
-		p.ExprLevel++
-		expr = p.ParseExpr()
-		p.ExprLevel--
-		p.SkipSpace()
+		if kv && p.Token.Token == token.Ident {
+			expr = p.ParseIdent()
+			p.SkipSpace()
+			switch p.Token.Token {
+			case token.LParen:
+				value := p.ParseFuncDefLit(token.Lambda)
+				expr = &node.KeyValuePairLit{
+					Key:   expr,
+					Value: value,
+				}
+				goto add
+
+			case token.LBrace:
+				var tok PToken
+				tok.Token = token.Func
+				value := p.ParseFuncExprT(tok)
+				expr = &node.KeyValuePairLit{
+					Key:   expr,
+					Value: value,
+				}
+				goto add
+			}
+		} else {
+			p.ExprLevel++
+			expr = p.ParseExpr()
+			p.ExprLevel--
+			p.SkipSpace()
+		}
 
 		if ident, _ := expr.(*node.IdentExpr); ident != nil {
 			if p.Token.Token == token.Ident {
@@ -1145,9 +1244,11 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 
 		if p.Token.Token == token.Comma {
 			p.Next()
-		} else if p.Token.Token == token.Semicolon && p.Token.Literal == ";" && !kv {
-			exprs = append(exprs, &node.KeyValueSepLit{TokenPos: p.Token.Pos})
-			kv = true
+		} else if p.Token.Token == token.Semicolon {
+			if p.Token.Literal == ";" && !kv {
+				exprs = append(exprs, &node.KeyValueSepLit{TokenPos: p.Token.Pos})
+				kv = true
+			}
 			p.Next()
 		} else {
 			break
@@ -1184,6 +1285,22 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 	}
 }
 
+func (p *Parser) ParseComputedExpr() *node.ComputedExpr {
+	lparen := p.Expect(token.LParen)
+	p.Next()
+	stmts := p.ParseStmtList(token.RParen)
+	if len(stmts) == 1 {
+		if b, _ := stmts[0].(*node.BlockStmt); b != nil {
+			stmts = b.Stmts
+		}
+	}
+	return &node.ComputedExpr{
+		StartPos: lparen,
+		Stmts:    stmts,
+		EndPos:   p.Expect(token.RParen),
+	}
+}
+
 func (p *Parser) ParseCharLit() node.Expr {
 	if n := len(p.Token.Literal); n >= 3 {
 		code, _, _, err := strconv.UnquoteChar(p.Token.Literal[1:n-1], '\'')
@@ -1204,25 +1321,6 @@ func (p *Parser) ParseCharLit() node.Expr {
 	return &node.BadExpr{
 		From: pos,
 		To:   p.Token.Pos,
-	}
-}
-
-func (p *Parser) ParseFuncExpr() node.Expr {
-	if p.Trace {
-		defer untracep(tracep(p, "FuncExpr"))
-	}
-
-	typ := p.ParseFuncType()
-	p.ExprLevel++
-
-	body, lambdaPos, closure := p.ParseBody()
-	p.ExprLevel--
-
-	return &node.FuncExpr{
-		Type:      typ,
-		Body:      body,
-		LambdaPos: lambdaPos,
-		BodyExpr:  closure,
 	}
 }
 
@@ -1250,7 +1348,7 @@ func (p *Parser) ParseArrayLitOrKeyValue() node.Expr {
 			return expr
 		}
 
-		if p.AtComma("array literal", token.RBrack) {
+		if p.AtCommaOrNewLine("array literal", token.RBrack) {
 			p.Next()
 		}
 	}
@@ -1258,7 +1356,7 @@ func (p *Parser) ParseArrayLitOrKeyValue() node.Expr {
 	for p.Token.Token != token.RBrack && p.Token.Token != token.EOF {
 		elements = append(elements, p.ParseExpr())
 
-		if !p.AtComma("array literal", token.RBrack) {
+		if !p.AtCommaOrNewLine("array literal", token.RBrack) {
 			break
 		}
 		p.Next()
@@ -1273,35 +1371,164 @@ func (p *Parser) ParseArrayLitOrKeyValue() node.Expr {
 	}
 }
 
-func (p *Parser) ParseFuncType() *node.FuncType {
+func (p *Parser) ParseFuncStmt() (stmt node.Stmt) {
 	if p.Trace {
-		defer untracep(tracep(p, "FuncType"))
+		defer untracep(tracep(p, "FuncStmt"))
 	}
+
+	e := p.ParseFuncExprT(p.ExpectToken(p.Token.Token))
+
+	if p.Token.Token.Is(token.LParen) {
+		parem := p.ParseParemExpr(token.LParen, token.RParen)
+		params, err := parem.ToMultiParenExpr().ToCallArgs(true)
+		if err != nil {
+			p.Error(parem.Pos(), err.Error())
+			e = &node.BadExpr{From: parem.Pos(), To: parem.End()}
+		} else {
+			e = &node.CallExpr{
+				Func:     e,
+				CallArgs: *params,
+			}
+		}
+	}
+
+	switch t := e.(type) {
+	case *node.FuncExpr:
+		return &node.FuncStmt{t}
+	case *node.FuncWithMethodsExpr:
+		return &node.FuncWithMethodsStmt{*t}
+	}
+	return &node.ExprStmt{Expr: e}
+}
+
+func (p *Parser) ParseFuncExpr() (e node.Expr) {
+	if p.Trace {
+		defer untracep(tracep(p, "FuncExpr"))
+	}
+
+	switch p.Token.Token {
+	case token.Func, token.Method:
+		return p.ParseFuncExprT(p.ExpectToken(p.Token.Token))
+	default:
+		p.ErrorExpectToken(p.Token, token.Func, token.Method)
+		return &node.BadExpr{From: p.Token.Pos, To: p.Token.Pos}
+	}
+}
+
+func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
+	if p.Trace {
+		defer untracep(tracep(p, "FuncExprT"))
+	}
+
+	defer func() {
+		if tok.Token.Is(token.Method) {
+			switch t := e.(type) {
+			case *node.FuncWithMethodsExpr, *node.FuncExpr:
+				e = &node.MethodExpr{t}
+			}
+		}
+	}()
 
 	var (
-		pos          = p.Expect(token.Func)
-		ident        *node.IdentExpr
-		allowMethods bool
+		f = &node.FuncType{
+			FuncPos: tok.Pos,
+		}
 	)
 
-	if p.Token.Token == token.Ident {
-		ident = p.ParseIdent()
-		allowMethods = true
+	defer func() {
+		if e == nil {
+			e = &node.BadExpr{
+				From: f.FuncPos,
+				To:   p.Token.Pos,
+			}
+		}
+	}()
+
+	if tok.Is(token.Method) || p.Token.Token == token.Ident {
+		f.Token = tok.TokenLit
+		f.NameExpr = p.ParseIdent()
+
+		switch p.Token.Token {
+		case token.Period, token.LBrack:
+			f.NameExpr = p.ParseSimpleSelectorExpr(f.NameExpr)
+		case token.LParen, token.LBrace:
+		default:
+			pos := p.Token.Pos
+			p.ExpectLits(token.Period, token.LBrack, token.LParen, token.LBrace)
+			return &node.BadExpr{From: pos, To: p.Token.Pos}
+		}
 	}
 
-	paren := p.ParseParemExpr(token.LParen, token.RParen)
-	params, err := paren.ToMultiParenExpr().ToFuncParams()
+	switch p.Token.Token {
+	case token.LParen:
+		if paren := p.ParseParemExpr(token.LParen, token.RParen); paren != nil && p.Errors.Len() == 0 {
+			var err *node.NodeError
 
-	if err != nil {
-		p.Error(err.Pos(), err.Error())
+			if f.Params, err = paren.ToMultiParenExpr().ToFuncParams(); err != nil {
+				p.Error(err.Pos(), err.Error())
+			} else {
+				p.ExprLevel++
+				body, lambdaPos, closure := p.ParseBody()
+				p.ExprLevel--
+
+				if p.Failed() {
+					return
+				}
+
+				return &node.FuncExpr{
+					Type:      f,
+					Body:      body,
+					LambdaPos: lambdaPos,
+					BodyExpr:  closure,
+				}
+			}
+		}
+	case token.LBrace:
+		// have methods
+		wm := &node.FuncWithMethodsExpr{
+			FuncToken: tok.TokenLit,
+			NameExpr:  f.NameExpr,
+			LBrace:    p.Expect(token.LBrace),
+		}
+
+		p.ExprLevel++
+		p.SkipSpace()
+
+		for p.Token.Token != token.RBrace {
+			p.SkipSpace()
+
+			f := &node.FuncMethod{}
+
+			if paren := p.ParseParemExpr(token.LParen, token.RParen); paren != nil && p.Errors.Len() == 0 {
+				var err *node.NodeError
+
+				if f.Params, err = paren.ToMultiParenExpr().ToFuncParams(); err != nil {
+					p.Error(err.Pos(), err.Error())
+					return
+				} else {
+					p.ExprLevel++
+					f.Body, f.LambdaPos, f.BodyExpr = p.ParseBody()
+					p.ExprLevel--
+
+					if p.Failed() {
+						return
+					}
+
+					wm.Methods = append(wm.Methods, f)
+				}
+			}
+
+			p.ExpectSemi()
+		}
+
+		p.ExprLevel--
+		p.Expect(token.RBrace)
+		e = wm
+	default:
+		p.ErrorExpectToken(p.Token, token.LParen, token.LBrace)
 	}
 
-	return &node.FuncType{
-		FuncPos:      pos,
-		Ident:        ident,
-		Params:       params,
-		AllowMethods: allowMethods,
-	}
+	return
 }
 
 func (p *Parser) ParseBody() (b *node.BlockStmt, lambdaPos source.Pos, closure node.Expr) {
@@ -1498,8 +1725,10 @@ do:
 		return &node.DeclStmt{Decl: p.ParseDecl()}
 	case token.LBrace:
 		return p.ParseScopedBlockStmt()
+	case token.Func:
+		return p.ParseFuncStmt()
 	case // simple statements
-		token.Func, token.Ident, token.Int, token.Uint, token.Float, token.Decimal,
+		token.Method, token.Ident, token.Int, token.Uint, token.Float, token.Decimal,
 		token.Char, token.String, token.RawString, token.RawHeredoc,
 		token.True, token.False, token.Nil,
 		token.LParen, token.LBrack, token.Add, token.Sub,
@@ -1507,7 +1736,7 @@ do:
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
 		token.Yes, token.No,
-		token.DotName, token.DotFile, token.IsModule, token.Template:
+		token.DotName, token.DotFile, token.IsMain, token.Module, token.Template:
 		s := p.ParseSimpleStmt(false)
 		p.ExpectSemi()
 		return s
@@ -1683,12 +1912,13 @@ func (p *Parser) ParseParamDecl() (d *node.GenDecl) {
 		p.Next()
 		d.Specs = append(d.Specs, &node.NamedParamSpec{
 			Ident: p.ParseTypedIdent(),
+			Var:   true,
 		})
 	case token.Mul:
 		p.Next()
 		d.Specs = append(d.Specs, &node.ParamSpec{
-			Ident:    p.ParseTypedIdent(),
-			Variadic: true,
+			Ident: p.ParseTypedIdent(),
+			Var:   true,
 		})
 	case token.Ident:
 		ident := p.ParseIdent()
@@ -1730,8 +1960,8 @@ func (p *Parser) ParseParamDecl() (d *node.GenDecl) {
 
 		if fp.Args.Var != nil {
 			d.Specs = append(d.Specs, &node.ParamSpec{
-				Ident:    fp.Args.Var,
-				Variadic: true,
+				Ident: fp.Args.Var,
+				Var:   true,
 			})
 		}
 
@@ -1744,7 +1974,8 @@ func (p *Parser) ParseParamDecl() (d *node.GenDecl) {
 
 		if fp.NamedArgs.Var != nil {
 			d.Specs = append(d.Specs, &node.NamedParamSpec{
-				Ident: fp.NamedArgs.Var,
+				Ident: &node.TypedIdentExpr{Ident: fp.NamedArgs.Var},
+				Var:   true,
 			})
 		}
 	}
@@ -1817,7 +2048,7 @@ func (p *Parser) ParseParamSpec(keyword token.Token, multi bool, prev []node.Spe
 			}
 			named = true
 		case *node.ParamSpec:
-			if t.Variadic {
+			if t.Var {
 				named = true
 			}
 		}
@@ -1871,8 +2102,8 @@ func (p *Parser) ParseParamSpec(keyword token.Token, multi bool, prev []node.Spe
 	}
 
 	return &node.ParamSpec{
-		Ident:    ident,
-		Variadic: variadic,
+		Ident: ident,
+		Var:   variadic,
 	}
 }
 
@@ -1974,7 +2205,7 @@ func (p *Parser) ParseForStmt() node.Stmt {
 
 	var s1 node.Stmt
 	if p.Token.Token != token.Semicolon { // skipping init
-		s1 = p.ParseSimpleStmt(true)
+		s1 = p.parseHeaderStmt(true)
 	}
 
 	// for _ in seq {}            or
@@ -1997,11 +2228,11 @@ func (p *Parser) ParseForStmt() node.Stmt {
 	if p.Token.Token == token.Semicolon {
 		p.Next()
 		if p.Token.Token != token.Semicolon {
-			s2 = p.ParseSimpleStmt(false) // cond
+			s2 = p.parseHeaderStmt(false) // cond
 		}
 		p.Expect(token.Semicolon)
 		if !p.Token.Token.IsBlockStart() {
-			s3 = p.ParseSimpleStmt(false) // post
+			s3 = p.parseHeaderStmt(false) // post
 		}
 	} else {
 		// for cond {}
@@ -2194,6 +2425,13 @@ func (p *Parser) ParseBlockStmt(ends ...token.Token) *node.BlockStmt {
 	return stmt
 }
 
+func (p *Parser) parseHeaderStmt(forIn bool) (stmt node.Stmt) {
+	p.inHeader = true
+	stmt = p.ParseSimpleStmt(forIn)
+	p.inHeader = false
+	return
+}
+
 func (p *Parser) ParseIfHeader() (init node.Stmt, cond node.Expr) {
 	if p.Token.Token.IsBlockStart() {
 		p.Error(p.Token.Pos, "missing condition in if statement")
@@ -2207,7 +2445,8 @@ func (p *Parser) ParseIfHeader() (init node.Stmt, cond node.Expr) {
 		p.Error(p.Token.Pos, "missing init in if statement")
 		return
 	}
-	init = p.ParseSimpleStmt(false)
+
+	init = p.parseHeaderStmt(false)
 
 	var condStmt node.Stmt
 	switch p.Token.Token {
@@ -2216,7 +2455,7 @@ func (p *Parser) ParseIfHeader() (init node.Stmt, cond node.Expr) {
 		init = nil
 	case token.Semicolon:
 		p.Next()
-		condStmt = p.ParseSimpleStmt(false)
+		condStmt = p.parseHeaderStmt(false)
 	default:
 		p.Error(p.Token.Pos, "missing condition in if statement")
 	}
@@ -2254,7 +2493,19 @@ func (p *Parser) ParseReturn() (ret node.Return) {
 
 	if p.Token.Token != token.Semicolon && p.Token.Token != token.RBrace {
 		lbpos := p.Token.Pos
+
+		if ret.Assign = p.Token.Token == token.Assign; ret.Assign {
+			p.Next()
+		}
+
 		ret.Result = p.ParseExpr()
+
+		if ret.Assign {
+			if _, ok := ret.Result.(*node.IdentExpr); !ok {
+				p.Error(ret.Result.Pos(), fmt.Sprintf("expected *Ident, found %T", ret.Result))
+			}
+		}
+
 		if p.Token.Token != token.Comma {
 			goto done
 		}
@@ -2373,6 +2624,12 @@ func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {
 		s := &node.IncDecStmt{Expr: x[0], Token: p.Token.Token, TokenPos: p.Token.Pos}
 		p.Next()
 		return s
+	default:
+		if len(x) == 1 {
+			if f, _ := x[0].(*node.FuncExpr); f != nil {
+				return &node.FuncStmt{f}
+			}
+		}
 	}
 
 	return &node.ExprStmt{Expr: x[0]}
@@ -2415,9 +2672,12 @@ func (p *Parser) ParseDictElementLit() *node.DictElementLit {
 		valueExpr node.Expr
 	)
 
-	if p.Token.Token == token.LParen {
+	switch p.Token.Token {
+	case token.LParen:
 		valueExpr = p.ParseDictElementLitFunc()
-	} else {
+	case token.LBrace:
+		valueExpr = p.ParseDictLit()
+	default:
 		colonPos = p.Expect(token.Colon)
 		valueExpr = p.ParseExpr()
 	}
@@ -2430,12 +2690,16 @@ func (p *Parser) ParseDictElementLit() *node.DictElementLit {
 	}
 }
 
-func (p *Parser) ParseDictElementLitFunc() *node.DictElementFuncExpr {
-	e := &node.DictElementFuncExpr{}
+func (p *Parser) ParseDictElementLitFunc() *node.FuncDefLit {
+	return p.ParseFuncDefLit(token.Colon)
+}
+
+func (p *Parser) ParseFuncDefLit(colon token.Token) *node.FuncDefLit {
+	e := &node.FuncDefLit{}
 	paren := p.ParseParemExpr(token.LParen, token.RParen)
 
-	if p.Token.Token == token.Colon {
-		e.Expr = p.ParseClosureExpr(token.Colon, paren.ToMultiParenExpr())
+	if p.Token.Token == colon {
+		e.Expr = p.ParseClosureExpr(colon, paren.ToMultiParenExpr())
 	} else {
 		params, err := paren.ToMultiParenExpr().ToFuncParams()
 
@@ -2470,7 +2734,7 @@ func (p *Parser) ParseDictLit() *node.DictExpr {
 	for p.Token.Token != token.RBrace && p.Token.Token != token.EOF {
 		elements = append(elements, p.ParseDictElementLit())
 
-		if !p.AtComma("map literal", token.RBrace) {
+		if !p.AtCommaOrNewLine("map literal", token.RBrace) {
 			break
 		}
 		p.Next()
@@ -2509,13 +2773,17 @@ func (p *Parser) ParseKeyValueLit() *node.KeyValueLit {
 				Type:  p.ParseTypes(),
 			}
 		}
-		fallthrough
-	default:
-		p.Expect(token.Assign)
-		valueExpr = p.ParseExpr()
-		p.SkipSpace()
+	case token.RParen:
+		// is func or closure
+		valueExpr = p.ParseFuncDefLit(token.Lambda)
+		goto done
 	}
 
+	p.Expect(token.Assign)
+	valueExpr = p.ParseExpr()
+
+done:
+	p.SkipSpace()
 	p.Expect(token.RBrack)
 
 	return &node.KeyValueLit{
@@ -2540,6 +2808,12 @@ func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLi
 
 	switch p.Token.Token {
 	case token.Comma, endToken:
+	case token.LParen:
+		valueExpr = p.ParseFuncDefLit(token.Lambda)
+	case token.LBrace:
+		var tok PToken
+		tok.Token = token.Func
+		valueExpr = p.ParseFuncExprT(tok)
 	case token.Ident:
 		if ident, _ := keyExpr.(*node.IdentExpr); ident != nil {
 			keyExpr = &node.TypedIdentExpr{
@@ -2547,12 +2821,22 @@ func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLi
 				Type:  p.ParseTypes(),
 			}
 		}
+		switch p.Token.Token {
+		case token.Comma, endToken:
+			goto done
+		}
 		fallthrough
 	default:
-		p.Expect(token.Assign)
-		valueExpr = p.ParseExpr()
-		p.SkipSpace()
+		if p.Token.IsSpace() && p.PeekNoSpace().Token == token.Assign {
+			p.SkipSpace()
+		}
+
+		if p.Token.Token == token.Assign {
+			p.Next()
+			valueExpr = p.ParseExpr()
+		}
 	}
+done:
 	return &node.KeyValuePairLit{
 		Key:   keyExpr,
 		Value: valueExpr,
@@ -2579,7 +2863,7 @@ l:
 			elements = append(elements, p.ParseKeyValuePairLit(rbraceToken))
 		}
 
-		if !p.AtComma("keyValueArray literal", rbraceToken) {
+		if !p.AtCommaOrNewLine("keyValueArray literal", rbraceToken) {
 			break
 		}
 		p.Next()
@@ -2658,7 +2942,7 @@ func (p *Parser) ExpectLits(toks ...token.Token) ast.Literal {
 	return lit
 }
 
-func (p *Parser) ExpectToken(token token.Token) (tok Token) {
+func (p *Parser) ExpectToken(token token.Token) (tok PToken) {
 	tok = p.Token
 	if tok.Token != token {
 		p.ErrorExpected(tok.Pos, "'"+token.String()+"'")
@@ -2669,6 +2953,7 @@ func (p *Parser) ExpectToken(token token.Token) (tok Token) {
 
 func (p *Parser) ExpectSemi() {
 	switch p.Token.Token {
+	case token.EOF:
 	case token.RParen, token.RBrace, token.Else, token.MixedCodeEnd:
 		// semicolon is optional before a closing ')' or '}'
 	case token.Comma:
@@ -2679,7 +2964,7 @@ func (p *Parser) ExpectSemi() {
 		p.Next()
 	default:
 		switch p.PrevToken.Token {
-		case token.Else, p.BlockEnd, token.DotName, token.DotFile, token.IsModule:
+		case token.Else, p.BlockEnd, token.DotName, token.DotFile, token.IsMain, token.Module:
 			return
 		}
 		p.ErrorExpected(p.Token.Pos, "';'")
@@ -2733,6 +3018,27 @@ func (p *Parser) ErrorExpected(pos source.Pos, msg string) {
 	p.Error(pos, msg)
 }
 
+func (p *Parser) ErrorExpectToken(got PToken, expected ...token.Token) (tok PToken) {
+	names := make([]string, len(expected))
+	for i, t := range expected {
+		names[i] = fmt.Sprintf("'%s'", t.String())
+	}
+
+	msg := "expected " + strings.Join(names, " | ") + ", found "
+	switch {
+	case got.Token == token.Semicolon && got.Literal == "\n":
+		msg += "newline"
+	case got.Token.IsLiteral():
+		msg += got.Literal
+	default:
+		msg += "'" + got.Token.String() + "'"
+	}
+
+	p.Error(got.Pos, msg)
+	p.Next()
+	return
+}
+
 func (p *Parser) ErrorExpectedExpr(expected, got node.Expr) {
 	p.Error(got.Pos(), fmt.Sprintf("expected %T, but got %s (%[2]T)", expected, got))
 }
@@ -2769,14 +3075,14 @@ func (p *Parser) consumeCommentGroup(n int) (comments *ast.CommentGroup) {
 	return
 }
 
-func (p *Parser) scan() (t Token) {
+func (p *Parser) scan() (t PToken) {
 	if p.ScanFunc != nil {
 		return p.ScanFunc()
 	}
 	return p.Scanner.Scan()
 }
 
-func (p *Parser) PeekC(count int) (t []Token) {
+func (p *Parser) PeekC(count int) (t []PToken) {
 	if l := len(p.tokenBuffer); l > 0 {
 		if count <= l {
 			return p.tokenBuffer[:count]
@@ -2791,7 +3097,7 @@ func (p *Parser) PeekC(count int) (t []Token) {
 	return p.tokenBuffer
 }
 
-func (p *Parser) PeekCb(on func(t Token) (more bool)) {
+func (p *Parser) PeekCb(on func(t PToken) (more bool)) {
 	for _, t := range p.tokenBuffer {
 		if !on(t) {
 			return
@@ -2807,13 +3113,13 @@ func (p *Parser) PeekCb(on func(t Token) (more bool)) {
 	}
 }
 
-func (p *Parser) Peek() Token {
+func (p *Parser) Peek() PToken {
 	t := p.PeekC(1)
 	return t[0]
 }
 
-func (p *Parser) PeekNoSpace() (r Token) {
-	p.PeekCb(func(t Token) bool {
+func (p *Parser) PeekNoSpace() (r PToken) {
+	p.PeekCb(func(t PToken) bool {
 		if t.IsSpace() {
 			return true
 		}

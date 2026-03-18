@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strconv"
-	"strings"
 	"sync"
 )
 
@@ -60,9 +58,85 @@ func (s IteratorState) Get() Object {
 	}
 }
 
+type Iterators []Iterator
+
+func (its Iterators) Print(s *PrinterState) (err error) {
+	if err = s.WriteByte('['); err != nil {
+		return
+	}
+
+	l := len(its)
+
+	if l == 0 {
+		return s.WriteByte(']')
+	}
+
+	defer func() {
+		if err == nil {
+			if s.Indented() && !s.SkipDepth() {
+				s.PrintLine()
+				if l > 0 {
+					s.PrintIndent()
+				}
+			}
+			err = s.WriteByte(']')
+		}
+	}()
+
+	if s.SkipDepth() {
+		_, err = s.Write([]byte("…"))
+		return
+	}
+
+	defer s.Enter()()
+
+	var (
+		indexes, _ = s.options.Indexes()
+		item       = func(i int) {
+			err = its[i].Print(s)
+		}
+	)
+
+	if indexes {
+		item = func(i int) {
+			_, _ = fmt.Fprintf(s, "%d 🠆 ", i)
+			err = its[i].Print(s)
+		}
+	}
+
+	var itemSep = []byte{','}
+
+	if s.Indented() {
+		itemSep = append(itemSep, '\n')
+		s.PrintLine()
+
+		old := item
+		item = func(i int) {
+			s.PrintIndent()
+			old(i)
+		}
+	} else {
+		itemSep = append(itemSep, ' ')
+	}
+
+	for i, last := 0, l-1; i <= last; i++ {
+		if i > 0 {
+			if _, err = s.Write(itemSep); err != nil {
+				return
+			}
+		}
+		item(i)
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
 // Iterator wraps the methods required to iterate Objects in VM.
 type Iterator interface {
-	Representer
+	Printer
 	Type() ObjectType
 	Input() Object
 	Start(vm *VM) (state *IteratorState, err error)
@@ -94,6 +168,10 @@ type StartIterationHandler func(vm *VM) (state *IteratorState, err error)
 
 type NextIterationHandler func(vm *VM, state *IteratorState) (err error)
 
+var (
+	_ Iterator = (*Iteration)(nil)
+)
+
 type Iteration struct {
 	itType       ObjectType
 	StartHandler StartIterationHandler
@@ -101,9 +179,9 @@ type Iteration struct {
 	input        Object
 }
 
-var (
-	_ Iterator = (*Iteration)(nil)
-)
+func NewIterator(start StartIterationHandler, next NextIterationHandler) *Iteration {
+	return &Iteration{StartHandler: start, NextHandler: next}
+}
 
 func (it *Iteration) SetInput(input Object) *Iteration {
 	it.input = input
@@ -126,10 +204,6 @@ func (it *Iteration) SetItType(itType ObjectType) *Iteration {
 	return it
 }
 
-func (it *Iteration) Repr(vm *VM) (string, error) {
-	return ToReprTypedRS(vm, it.itType, it.Input().ToString())
-}
-
 func (it *Iteration) Type() ObjectType {
 	return TIterator
 }
@@ -142,8 +216,11 @@ func (it *Iteration) Next(vm *VM, state *IteratorState) (err error) {
 	return it.NextHandler(vm, state)
 }
 
-func NewIterator(start StartIterationHandler, next NextIterationHandler) *Iteration {
-	return &Iteration{StartHandler: start, NextHandler: next}
+func (it *Iteration) Print(state *PrinterState) error {
+	if it.itType != nil {
+		defer state.WrapReprString(it.itType.String())()
+	}
+	return state.Print(it.input)
 }
 
 type LimitedIterator struct {
@@ -190,22 +267,6 @@ func NewRangeIteration(typ ObjectType, o Object, len int, readTo func(e *KeyValu
 
 func (it *RangeIteration) Type() ObjectType {
 	return it.ItType
-}
-
-func (it *RangeIteration) Repr(vm *VM) (string, error) {
-	var opts []string
-	if it.end < it.start {
-		opts = append(opts, "reversed")
-	}
-	if it.step != 1 && it.step != -1 {
-		opts = append(opts, "step="+strconv.Itoa(it.step))
-	}
-	var s string
-	if opts != nil {
-		s = ";"
-		s += strings.Join(opts, ",")
-	}
-	return ToReprTypedRS(vm, it.ItType, it.It.ToString()+s)
 }
 
 func (it *RangeIteration) SetReversed(v bool) *RangeIteration {
@@ -266,6 +327,11 @@ func (it *RangeIteration) Length() int {
 	return it.Len
 }
 
+func (it *RangeIteration) Print(state *PrinterState) error {
+	defer state.WrapReprString(it.ItType.FullName())()
+	return state.Print(it.It)
+}
+
 func SliceIteration[T any](typ ObjectType, o Object, items []T, get func(e *KeyValue, i Int, v T) error) *RangeIteration {
 	return NewRangeIteration(typ, o, len(items), func(e *KeyValue, i int) (err error) {
 		return get(e, Int(i), items[i])
@@ -279,8 +345,12 @@ func SliceEntryIteration[T any](typ ObjectType, o Object, items []T, get func(v 
 	})
 }
 
+var (
+	_ Iterator = (*zipIterator)(nil)
+)
+
 type zipIterator struct {
-	Iterators []Iterator
+	Iterators Iterators
 	itsCount  int
 }
 
@@ -290,16 +360,6 @@ func (it *zipIterator) Type() ObjectType {
 
 func ZipIterator(its ...Iterator) Iterator {
 	return &zipIterator{Iterators: its, itsCount: len(its)}
-}
-
-func (it *zipIterator) Repr(vm *VM) (_ string, err error) {
-	var s = make([]string, len(it.Iterators))
-	for i := range s {
-		if s[i], err = it.Iterators[i].Repr(vm); err != nil {
-			return
-		}
-	}
-	return ToReprTypedRS(vm, it.Type(), strings.Join(s, ", "))
 }
 
 func (it *zipIterator) Input() Object {
@@ -364,6 +424,15 @@ func (it *zipIterator) Next(vm *VM, state *IteratorState) (err error) {
 	return
 }
 
+func (it *zipIterator) Print(state *PrinterState) error {
+	defer state.WrapReprString(it.Type().String())()
+	if !state.IsRepr || state.SkipNexDepth() {
+		fmt.Fprintf(state, "%d of %d iterators", it.itsCount, len(it.Iterators))
+		return nil
+	}
+	return it.Iterators.Print(state)
+}
+
 var _ Object = (*iteratorObject)(nil)
 
 // iteratorObject is used in VM to make an iterable Object.
@@ -391,19 +460,19 @@ func (o *iteratorObject) Type() ObjectType {
 	return o.Iterator.Type()
 }
 
-func (o *iteratorObject) Repr(vm *VM) (string, error) {
-	if o.typ != nil {
-		return ToReprTypedRS(vm, o.typ, o.Iterator)
-	}
-	return o.Iterator.Repr(vm)
-}
-
 func (o *iteratorObject) GetIterator() Iterator {
 	return o.Iterator
 }
 
 func (o *iteratorObject) ToString() string {
 	return "iteratorObject of " + o.Input().ToString()
+}
+
+func (o *iteratorObject) Print(state *PrinterState) error {
+	if o.typ != nil {
+		defer state.WrapReprString(o.typ.FullName())()
+	}
+	return o.Iterator.Print(state)
 }
 
 type StateIteratorObject struct {
@@ -503,13 +572,6 @@ func (s *StateIteratorObject) Type() ObjectType {
 	return TStateIterator
 }
 
-func (s *StateIteratorObject) Repr(vm *VM) (r string, err error) {
-	if r, err = s.Iterator.Repr(vm); err != nil {
-		return
-	}
-	return "StateIterator:" + s.Info().ToString() + " of " + r, nil
-}
-
 func (s *StateIteratorObject) Start(vm *VM) (state *IteratorState, err error) {
 	if state, err = s.Iterator.Start(vm); err != nil {
 		return
@@ -569,12 +631,13 @@ var (
 // nilIteratorObject is used in VM to make an non iterable Object.
 type nilIteratorObject struct{}
 
-func (*nilIteratorObject) Type() ObjectType {
-	return TNilIterator
+func (o *nilIteratorObject) Print(state *PrinterState) error {
+	state.WrapReprString(o.Type().String())()
+	return nil
 }
 
-func (o *nilIteratorObject) Repr(vm *VM) (string, error) {
-	return ReprQuote(o.Type().Name()), nil
+func (*nilIteratorObject) Type() ObjectType {
+	return TNilIterator
 }
 
 func (*nilIteratorObject) Input() Object {

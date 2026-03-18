@@ -40,7 +40,7 @@ v := arg1 ? arg1.Value : "default value"
 
 ## Functions
 
-`Print(...any) -> int`
+`Print(*any) -> int`
 
 Formats using the default formats for its operands and writes to standard
 output. Spaces are added between operands when neither is a string.
@@ -49,7 +49,7 @@ throws a runtime error.
 
 ---
 
-`Printf(format string, ...any) -> int`
+`Printf(format string, *any) -> int`
 
 Formats according to a format specifier and writes to standard output.
 It returns the number of bytes written and any encountered write error
@@ -57,7 +57,7 @@ throws a runtime error.
 
 ---
 
-`Println(...any) -> int`
+`Println(*any) -> int`
 
 Formats using the default formats for its operands and writes to standard
 output. Spaces are always added between operands and a newline
@@ -66,7 +66,7 @@ write error throws a runtime error.
 
 ---
 
-`Sprint(...any) -> string`
+`Sprint(*any) -> string`
 
 Formats using the default formats for its operands and returns the
 resulting string. Spaces are added between operands when neither is a
@@ -74,13 +74,13 @@ string.
 
 ---
 
-`Sprintf(format string, ...any) -> string`
+`Sprintf(format string, *any) -> string`
 
 Formats according to a format specifier and returns the resulting string.
 
 ---
 
-`Sprintln(...any) -> string`
+`Sprintln(*any) -> string`
 
 Formats using the default formats for its operands and returns the
 resulting string. Spaces are always added between operands and a newline
@@ -88,7 +88,7 @@ is appended.
 
 ---
 
-`Sscan(str string, ScanArg[, ...ScanArg]) -> int | error`
+`Sscan(str string, ScanArg[, *ScanArg]) -> int | error`
 
 Scans the argument string, storing successive space-separated values into
 successive ScanArg arguments. Newlines count as space. If no error is
@@ -97,7 +97,7 @@ is less than the number of arguments, error will report why.
 
 ---
 
-`Sscanf(str string, format string, ScanArg[, ...ScanArg]) -> int | error`
+`Sscanf(str string, format string, ScanArg[, *ScanArg]) -> int | error`
 
 Scans the argument string, storing successive space-separated values into
 successive ScanArg arguments as determined by the format. It returns the

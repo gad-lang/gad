@@ -58,7 +58,7 @@ func (n *ArgsList) String() string {
 
 // NamedArgsList represents a list of identifier with value pairs.
 type NamedArgsList struct {
-	Var    *TypedIdentExpr
+	Var    *IdentExpr
 	Names  []*TypedIdentExpr
 	Values []Expr
 }
@@ -178,16 +178,17 @@ func (n *FuncParams) Caller() (c *CallArgs) {
 		c.Args.Values = append(c.Args.Values, value.Ident)
 	}
 	if n.Args.Var != nil {
-		c.Args.Var = &ArgVarLit{Value: n.Args.Var.Ident}
+		c.Args.Var = &ArgVarLit{Value: n.Args.Var}
 	}
 
 	for i, name := range n.NamedArgs.Names {
-		c.NamedArgs.Names = append(c.NamedArgs.Names, NamedArgExpr{Ident: name.Ident})
+		c.NamedArgs.Names = append(c.NamedArgs.Names, &NamedArgExpr{Ident: name.Ident})
 		c.NamedArgs.Values = append(c.NamedArgs.Values, n.NamedArgs.Values[i])
 	}
 
 	if n.NamedArgs.Var != nil {
-		c.NamedArgs.Var = &NamedArgVarLit{Value: n.NamedArgs.Var.Ident}
+		c.NamedArgs.Names = append(c.NamedArgs.Names, &NamedArgExpr{Ident: n.NamedArgs.Var, Var: true})
+		c.NamedArgs.Values = append(c.NamedArgs.Values, nil)
 	}
 	return
 }
@@ -204,10 +205,10 @@ func (n FuncParams) WithNamedValuesNil() (c *FuncParams) {
 
 // FuncType represents a function type definition.
 type FuncType struct {
-	FuncPos      source.Pos
-	Ident        *IdentExpr
-	Params       FuncParams
-	AllowMethods bool
+	Token    TokenLit
+	FuncPos  source.Pos
+	NameExpr Expr
+	Params   FuncParams
 }
 
 func (e *FuncType) ExprNode() {}
@@ -222,11 +223,39 @@ func (e *FuncType) End() source.Pos {
 	return e.Params.End()
 }
 
+func (e *FuncType) NameIdent() *IdentExpr {
+	if e.NameExpr == nil {
+		return nil
+	}
+	return IdentOfSelector(e.NameExpr)
+}
+
+func (e *FuncType) Name() string {
+	if e.NameExpr == nil {
+		return ""
+	}
+	switch t := e.NameExpr.(type) {
+	case *IdentExpr:
+		return t.Name
+	case *IndexExpr:
+		switch it := t.Index.(type) {
+		case *StringLit:
+			return it.Value()
+		}
+	case *SelectorExpr:
+		switch it := t.Sel.(type) {
+		case *IdentExpr:
+			return it.Name
+		}
+	}
+
+	return ""
+}
+
 func (e *FuncType) String() string {
 	var s string
-	if e.Ident != nil {
-		s += " "
-		s += e.Ident.String()
+	if e.NameExpr != nil {
+		s = e.NameExpr.String()
 	}
 	return s + e.Params.String()
 }

@@ -33,7 +33,7 @@ var testObjects = []gad.Object{
 	gad.Bytes{}, gad.Bytes("foo"),
 	gad.ErrIndexOutOfBounds,
 	&gad.RuntimeError{Err: gad.ErrInvalidIndex},
-	gad.Dict{"key": &gad.Function{Name: "f"}},
+	gad.Dict{"key": &gad.Function{FuncName: "f"}},
 	&gad.SyncDict{Value: gad.Dict{"k": gad.Str("")}},
 	gad.Array{gad.Nil, gad.True, gad.False},
 	&time.Time{Value: gotime.Time{}},
@@ -102,7 +102,7 @@ return v*time.Second/time.Second // 1
 		AddBuiltinModule("fmt", fmt.Module).
 		AddBuiltinModule("strings", strings.Module).
 		AddBuiltinModule("time", time.Module).
-		AddBuiltinModule("json", json.Module).
+		AddBuiltinModule("json", json.ModuleInit).
 		AddSourceModule("srcmod", []byte(`
 return {
 	Incr: func(x) { return x + 1 },

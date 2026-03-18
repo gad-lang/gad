@@ -6,6 +6,7 @@ import "github.com/gad-lang/gad/parser/source"
 type Return struct {
 	ReturnPos source.Pos
 	Result    Expr
+	Assign    bool
 }
 
 // Pos returns the position of first character belonging to the node.
@@ -21,7 +22,10 @@ func (s *Return) End() source.Pos {
 func (s *Return) String() string {
 	var expr string
 	if s.Result != nil {
-		expr = " " + s.Result.String()
+		if s.Assign {
+			expr += " ="
+		}
+		expr += " " + s.Result.String()
 	}
 	return "return" + expr
 }
@@ -30,6 +34,9 @@ func (s *Return) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("return")
 	if s.Result != nil {
 		ctx.WriteSingleByte(' ')
+		if s.Assign {
+			ctx.WriteString("= ")
+		}
 		s.Result.WriteCode(ctx)
 	}
 }

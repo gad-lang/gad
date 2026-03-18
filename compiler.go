@@ -16,6 +16,7 @@ import (
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/token"
 )
 
@@ -53,30 +54,31 @@ type (
 
 	// Compiler compiles the AST into a bytecode.
 	Compiler struct {
-		parent         *Compiler
-		file           *source.File
-		constants      []Object
-		constsCache    map[Object]int
-		cfuncCache     map[uint32][]int
-		symbolTable    *SymbolTable
-		instructions   []byte
-		sourceMap      map[int]int
-		embedMap       *EmbedMap
-		embedStore     *moduleStore
-		moduleMap      *ModuleMap
-		moduleStore    *moduleStore
-		module         *ModuleInfo
-		variadic       bool
-		varNamedParams bool
-		loops          []*loopStmts
-		loopIndex      int
-		tryCatchIndex  int
-		iotaVal        int
-		opts           CompilerOptions
-		trace          io.Writer
-		indent         int
-		stack          CompileStack
-		selectorStack  [][][]func()
+		parent             *Compiler
+		file               *source.File
+		constants          []Object
+		constsCache        map[Object]int
+		cfuncCache         map[uint32][]int
+		symbolTable        *SymbolTable
+		instructions       []byte
+		sourceMap          map[int]int
+		embedMap           *EmbedMap
+		embedStore         *moduleStore
+		moduleMap          *ModuleMap
+		moduleStore        *moduleStore
+		module             *Module
+		variadic           bool
+		varNamedParams     bool
+		loops              []*loopStmts
+		loopIndex          int
+		tryCatchIndex      int
+		iotaVal            int
+		opts               CompilerOptions
+		trace              io.Writer
+		indent             int
+		stack              CompileStack
+		selectorStack      [][][]func()
+		anonymousFuncIndex uint
 	}
 
 	// CompilerOptions represents customizable options for Compile().
@@ -84,7 +86,7 @@ type (
 		Context             context.Context
 		EmbedMap            *EmbedMap
 		ModuleMap           *ModuleMap
-		Module              *ModuleInfo
+		Module              *Module
 		ModuleFile          string
 		Constants           []Object
 		SymbolTable         *SymbolTable
@@ -177,9 +179,11 @@ func NewCompiler(file *source.File, opts CompilerOptions) *Compiler {
 	}
 
 	if opts.Module == nil {
-		opts.Module = &ModuleInfo{
-			Name: MainName,
-			File: "file:" + file.Name,
+		opts.Module = &Module{
+			info: ModuleInfo{
+				Name: MainName,
+				File: "file:" + file.Name,
+			},
 		}
 	}
 
@@ -233,32 +237,40 @@ type CompileOptions struct {
 }
 
 // Compile compiles given script to Bytecode.
-func Compile(script []byte, opts CompileOptions) (*Bytecode, error) {
+func Compile(script []byte, opts CompileOptions) (pf *parser.File, bc *Bytecode, err error) {
 	var (
-		fileSet    = source.NewFileSet()
-		moduleName string
+		fileSet = source.NewFileSet()
+		module  = opts.Module
 	)
 
-	if opts.Module != nil {
-		moduleName = opts.Module.Name
+	if opts.Module == nil {
+		module = &Module{info: ModuleInfo{Name: MainName}}
 	}
 
-	if moduleName == "" {
-		moduleName = MainName
-	}
-
-	srcFile := fileSet.AppendFileData(moduleName, script)
+	srcFile := fileSet.AppendFileData(module.info.Name, script)
 	if opts.TraceParser && opts.ParserOptions.Trace == nil {
 		opts.ParserOptions.Trace = opts.Trace
 	}
 
 	p := parser.NewParserWithOptions(srcFile, &opts.ParserOptions, &opts.ScannerOptions)
-	pf, err := p.ParseFile()
+	pf, err = p.ParseFile()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	compiler := NewCompiler(srcFile, opts.CompilerOptions)
+	bc, err = CompileFile(pf, opts)
+	return
+}
+
+// CompileFile compiles given file to Bytecode.
+func CompileFile(pf *parser.File, opts CompileOptions) (bc *Bytecode, err error) {
+	module := opts.Module
+
+	if opts.Module == nil {
+		module = &Module{info: ModuleInfo{Name: MainName}}
+	}
+
+	compiler := NewCompiler(pf.InputFile, opts.CompilerOptions)
 	compiler.SetGlobalSymbolsIndex()
 
 	if opts.OptimizeConst || opts.OptimizeExpr {
@@ -268,11 +280,20 @@ func Compile(script []byte, opts CompileOptions) (*Bytecode, error) {
 		}
 	}
 
+	if module.info.Name == MainName {
+		compiler.addConstant(module)
+		defer func() {
+			if bc != nil {
+				bc.Main.module = module
+			}
+		}()
+	}
+
 	if err := compiler.Compile(pf); err != nil {
 		return nil, err
 	}
 
-	bc := compiler.Bytecode()
+	bc = compiler.Bytecode()
 	if bc.Main.NumLocals > 256 {
 		return nil, ErrSymbolLimit
 	}
@@ -309,6 +330,11 @@ func (c *Compiler) optimize(file *parser.File) error {
 
 	c.opts.OptimizerMaxCycle -= optim.Total()
 	return nil
+}
+
+func (c *Compiler) newAnonymousFuncName() string {
+	c.anonymousFuncIndex++
+	return fmt.Sprintf("#%d", c.anonymousFuncIndex)
 }
 
 // Bytecode returns compiled Bytecode ready to run in VM.
@@ -446,18 +472,27 @@ func (c *Compiler) Compile(nd ast.Node) error {
 	}
 
 	switch nt := nd.(type) {
+	case *ModuleStmt:
+		if err := c.compileModuleFile(nt); err != nil {
+			return err
+		}
+	case *namedParamValue:
+		if err := c.compileNamedParamValue(nt); err != nil {
+			return err
+		}
 	case *parser.File:
-		if err := c.compileStmts(nt.Stmts...); err != nil {
+		if err := c.compileFile(nt); err != nil {
 			return err
 		}
 	case *node.ExprStmt:
 		if err := c.Compile(nt.Expr); err != nil {
 			return err
 		}
-		if f, _ := nt.Expr.(*node.FuncExpr); f != nil && f.Type.Ident != nil {
-			return nil
-		}
 		c.emit(nt, OpPop)
+	case *node.FuncStmt:
+		if err := c.compileFuncStmt(nt); err != nil {
+			return err
+		}
 	case *node.IncDecStmt:
 		op := token.AddAssign
 		if nt.Token == token.Dec {
@@ -521,8 +556,10 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		c.emit(nt, OpDotName)
 	case *node.DotFileLit:
 		c.emit(nt, OpDotFile)
-	case *node.IsModuleLit:
-		c.emit(nt, OpIsModule)
+	case *node.IsMainLit:
+		c.emit(nt, OpIsMain)
+	case *node.ModuleLit:
+		c.emit(nt, OpModule)
 	case *node.CalleeKeywordExpr:
 		c.emit(nt, OpCallee)
 	case *node.ArgsKeywordExpr:
@@ -561,7 +598,7 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileArrayLit(nt)
 	case *node.DictExpr:
 		return c.compileDictLit(nt)
-	case *node.DictElementFuncExpr:
+	case *node.FuncDefLit:
 		return c.Compile(nt.Expr)
 	case *node.KeyValueArrayLit:
 		return c.compileKeyValueArrayLit(nt)
@@ -574,7 +611,13 @@ func (c *Compiler) Compile(nd ast.Node) error {
 	case *node.SliceExpr:
 		return c.compileSliceExpr(nt)
 	case *node.FuncExpr:
-		return c.compileFuncLit(nt)
+		return c.compileFuncExpr(nt)
+	case *node.MethodExpr:
+		return c.compileMethodExpr(nt)
+	case *node.FuncWithMethodsStmt:
+		return c.compileFuncWithMethodsStmt(nt)
+	case *node.FuncWithMethodsExpr:
+		return c.compileFuncWithMethodsExpr(nt)
 	case *node.ClosureExpr:
 		return c.compileClosureLit(nt)
 	case *node.KeyValueLit:
@@ -598,6 +641,14 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return nil
 	case *node.MixedTextExpr:
 		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.Stmt.Value())))
+	case *node.TypedIdentExpr:
+		return c.compileTypedIdentExpr(nt)
+	case *node.NamedArgVarLit:
+		return c.compileNamedArgVarLit(nt)
+	case *node.Ptr:
+		return c.compilePtr(nt)
+	case *node.ComputedExpr:
+		return c.compileComputedExpr(nt)
 	case nil:
 	default:
 		return c.errorf(nt, `%[1]T "%[1]v" not implemented`, nt)
@@ -631,7 +682,7 @@ func (c *Compiler) replaceInstruction(pos int, inst []byte) {
 	copy(c.instructions[pos:], inst)
 	if c.trace != nil {
 		printTrace(c.indent, c.trace, fmt.Sprintf("REPLC %s",
-			FormatInstructions(c.instructions[pos:], pos)[0]))
+			FormatInstructions(nil, c.constants, c.instructions[pos:], pos)[0]))
 	}
 }
 
@@ -684,8 +735,8 @@ func (c *Compiler) addCompiledFunction(obj Object) (index int) {
 			switch t := c.constants[idx].(type) {
 			case *CompiledFunction:
 				f = t
-			case *CallerObjectWithMethods:
-				f = t.CallerObject.(*CompiledFunction)
+			case *Func:
+				f = t.defaul.(*CompiledFunction)
 			}
 			if f.identical(cf) && f.equalSourceMap(cf) {
 				return idx
@@ -693,11 +744,7 @@ func (c *Compiler) addCompiledFunction(obj Object) (index int) {
 		}
 	}
 	index = len(c.constants)
-	var co CallerObject = cf
-	if cf.AllowMethods {
-		co = NewCallerObjectWithMethods(cf)
-	}
-	c.constants = append(c.constants, co)
+	c.constants = append(c.constants, cf)
 	c.cfuncCache[key] = append(c.cfuncCache[key], index)
 	return
 }
@@ -721,8 +768,8 @@ func (c *Compiler) emitPos(filePos source.Pos, nd ast.Node, opcode Opcode, opera
 	c.sourceMap[pos] = int(filePos)
 
 	if c.trace != nil {
-		printTrace(c.indent, c.trace, fmt.Sprintf("EMIT  %s",
-			FormatInstructions(c.instructions[pos:], pos)[0]))
+		printTrace(c.indent, c.trace, fmt.Sprintf("EMIT %s",
+			FormatInstructions(nil, c.constants, c.instructions[pos:], pos)[0]))
 	}
 	return pos
 }
@@ -734,7 +781,7 @@ func (c *Compiler) addInstruction(b []byte) int {
 }
 
 func (c *Compiler) checkCyclicImports(nd ast.Node, modulePath string) error {
-	if c.module.Name == modulePath {
+	if c.module.info.Name == modulePath {
 		return c.errorf(nd, "cyclic module import: %s", modulePath)
 	} else if c.parent != nil {
 		return c.parent.checkCyclicImports(nd, modulePath)
@@ -771,8 +818,8 @@ func (c *Compiler) addEmbed(name string, typ, constantIndex int) *storeItem {
 }
 
 func (c *Compiler) getModule(name string) (*storeItem, bool) {
-	indexes, ok := c.moduleStore.store[name]
-	return indexes, ok
+	index, ok := c.moduleStore.store[name]
+	return index, ok
 }
 
 func (c *Compiler) getEmbed(name string) (*storeItem, bool) {
@@ -798,13 +845,13 @@ func (c *Compiler) BaseEmbedMap() *EmbedMap {
 
 func (c *Compiler) CompileModule(
 	nd ast.Node,
-	module *ModuleInfo,
+	module *Module,
 	moduleMap *ModuleMap,
 	src []byte,
 	parserOptions *parser.ParserOptions,
 	scannerOptions *parser.ScannerOptions,
 ) (bc *Bytecode, err error) {
-	modFile := c.file.Set().AddFileData(module.Name, -1, src)
+	modFile := c.file.Set().AddFileData(module.info.Name, -1, src)
 	var trace io.Writer
 	if c.opts.TraceParser {
 		trace = c.trace
@@ -831,7 +878,10 @@ func (c *Compiler) CompileModule(
 		err = c.error(nd, err)
 		return
 	}
-	if err = fork.Compile(file); err != nil {
+
+	if err = fork.Compile(&ModuleStmt{
+		file,
+	}); err != nil {
 		return
 	}
 
@@ -842,12 +892,12 @@ func (c *Compiler) CompileModule(
 func (c *Compiler) compileModule(
 	nd ast.Node,
 	importable Importable,
-	module *ModuleInfo,
+	module *Module,
 	moduleMap *ModuleMap,
 	src []byte,
 ) (int, error) {
 	var err error
-	if err = c.checkCyclicImports(nd, module.Name); err != nil {
+	if err = c.checkCyclicImports(nd, module.info.Name); err != nil {
 		return 0, err
 	}
 
@@ -865,7 +915,8 @@ func (c *Compiler) compileModule(
 	}
 
 	c.constants = bc.Constants
-	index := c.addConstant(bc.Main)
+	module.init = bc.Main
+	index := c.addConstant(module)
 	return index, nil
 }
 
@@ -897,7 +948,7 @@ func (c *Compiler) currentLoop() *loopStmts {
 
 func (c *Compiler) fork(
 	file *source.File,
-	module *ModuleInfo,
+	module *Module,
 	moduleMap *ModuleMap,
 	symbolTable *SymbolTable,
 ) *Compiler {
@@ -922,7 +973,7 @@ func (c *Compiler) fork(
 	child.parent = c
 	child.cfuncCache = c.cfuncCache
 
-	if module.Name == c.module.Name {
+	if module.info.Name == c.module.info.Name {
 		child.indent = c.indent
 	}
 	return child
@@ -998,8 +1049,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	buf = append(buf[:0], byte(op))
 	switch op {
 	case OpGetBuiltin, OpConstant, OpDict, OpArray, OpGetGlobal, OpSetGlobal, OpJump,
-		OpJumpFalsy, OpAndJump, OpOrJump, OpStoreModule, OpKeyValueArray,
-		OpJumpNil, OpJumpNotNil:
+		OpJumpFalsy, OpAndJump, OpOrJump, OpStoreModule, OpKeyValueArray, OpJumpNil, OpJumpNotNil:
 		buf = append(buf, byte(args[0]>>8))
 		buf = append(buf, byte(args[0]))
 		return buf, nil
@@ -1014,11 +1064,11 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		buf = append(buf, byte(args[0]))
 		buf = append(buf, byte(args[1]))
 		return buf, nil
-	case OpCall, OpCallName:
+	case OpCall, OpCallName, OpInitModule, OpAddMethod:
 		buf = append(buf, byte(args[0]))
 		buf = append(buf, byte(args[1]))
 		return buf, nil
-	case OpReturn, OpBinary, OpUnary, OpSelfAssign, OpGetIndex, OpGetLocal,
+	case OpReturn, OpSetReturn, OpBinary, OpUnary, OpSelfAssign, OpGetIndex, OpGetLocal,
 		OpSetLocal, OpGetFree, OpSetFree, OpGetLocalPtr, OpGetFreePtr, OpThrow,
 		OpFinalizer, OpDefineLocal, OpKeyValue:
 		buf = append(buf, byte(args[0]))
@@ -1026,7 +1076,8 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	case OpEqual, OpNotEqual, OpNil, OpTrue, OpFalse, OpYes, OpNo, OpPop, OpSliceIndex,
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
-		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsModule:
+		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsMain, OpNotIsMain, OpModule,
+		OpNamedParamsVar, OpNamedParamValue, OpComputedValue:
 		return buf, nil
 	default:
 		return buf, &Error{
@@ -1037,27 +1088,57 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 }
 
 // FormatInstructions returns string representation of bytecode instructions.
-func FormatInstructions(b []byte, posOffset int) []string {
+func FormatInstructions(builtins *Builtins, constants Array, b []byte, posOffset int) []string {
 	var out []string
 	var operands = make([]int, 0, 4)
 	var offset int
 	var i int
 
 	for i < len(b) {
-		numOperands := OpcodeOperands[b[i]]
+		op := Opcode(b[i])
+		numOperands := OpcodeOperands[op]
 		operands, offset = ReadOperands(numOperands, b[i+1:], operands)
 
 		switch len(numOperands) {
 		case 0:
-			out = append(out, fmt.Sprintf("%04d %-7s",
-				posOffset+i, OpcodeNames[b[i]]))
+			out = append(out, fmt.Sprintf("%04d %-7s", posOffset+i, OpcodeNames[op]))
 		case 1:
-			out = append(out, fmt.Sprintf("%04d %-7s %-5d",
-				posOffset+i, OpcodeNames[b[i]], operands[0]))
+			f, args := "%04d %-7s %-5d", []any{posOffset + i, OpcodeNames[op], operands[0]}
+
+			switch op {
+			case OpGetBuiltin:
+				f += " " + repr.Quote("%s")
+				var arg any
+				t := BuiltinType(operands[0])
+				if t > BuiltinEnd_ && builtins != nil {
+					o := builtins.Objects[t]
+					arg = ReprQuoteTyped(o.Type().FullName(), o.ToString())
+				} else {
+					arg = t
+				}
+				args = append(args, arg)
+			case OpConstant:
+				if constants != nil {
+					i := operands[0]
+					if i < len(constants) {
+						cons := constants[operands[0]]
+						f += " " + repr.QuoteTyped("%s", "%s")
+						args = append(args, cons.Type().String(), cons.ToString())
+					} else {
+						f += " " + repr.QuoteTyped("bad const", "%d")
+						args = append(args, i)
+					}
+				}
+			case OpBinary, OpUnary, OpSelfAssign:
+				f += " " + repr.Quote("%s")
+				args = append(args, token.Token(operands[0]).String())
+			}
+			out = append(out, fmt.Sprintf(f, args...))
 		case 2:
-			out = append(out, fmt.Sprintf("%04d %-7s %-5d %-5d",
-				posOffset+i, OpcodeNames[b[i]],
-				operands[0], operands[1]))
+			f := "%04d %-7s %-5d %-5d"
+			args := []any{posOffset + i, OpcodeNames[op],
+				operands[0], operands[1]}
+			out = append(out, fmt.Sprintf(f, args...))
 		}
 		i += 1 + offset
 	}

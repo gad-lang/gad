@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+
+	"github.com/dustin/go-humanize"
 )
 
 type ToWriter interface {
@@ -27,7 +29,6 @@ func ToWritable(obj Object) bool {
 
 type writer struct {
 	io.Writer
-	typ ObjectType
 }
 
 func NewWriter(w io.Writer) Writer {
@@ -37,15 +38,8 @@ func NewWriter(w io.Writer) Writer {
 	return &writer{Writer: w}
 }
 
-func NewTypedWriter(w io.Writer, typ ObjectType) Writer {
-	return &writer{Writer: w, typ: typ}
-}
-
 func (w *writer) Type() ObjectType {
-	if w.typ == nil {
-		return TWriter
-	}
-	return w.typ
+	return TWriter
 }
 
 func (w *writer) ToString() string {
@@ -180,7 +174,7 @@ func (o *Buffer) GoReader() io.Reader {
 }
 
 func (o *Buffer) Type() ObjectType {
-	return DetectTypeOf(o)
+	return TBuffer
 }
 
 func (o *Buffer) IsFalsy() bool {
@@ -214,7 +208,26 @@ func (o *Buffer) ToBytes() (Bytes, error) {
 	return o.Bytes(), nil
 }
 
-var DiscardWriter = NewTypedWriter(io.Discard, TDiscardWriter)
+func (o *Buffer) WriteTo(_ *VM, w io.Writer) (int64, error) {
+	return io.Copy(w, &o.Buffer)
+}
+
+func (o *Buffer) Print(state *PrinterState) error {
+	return state.WithRepr(func(s *PrinterState) (err error) {
+		defer s.WrapRepr(o)()
+		return s.WriteString(humanize.Bytes(uint64(o.Len())))
+	})
+}
+
+type discardWriter struct {
+	writer
+}
+
+func (w *discardWriter) Type() ObjectType {
+	return TDiscardWriter
+}
+
+var DiscardWriter = NewWriter(io.Discard)
 
 func ReaderFrom(o Object) (r Reader) {
 	if r, _ = o.(Reader); r != nil {

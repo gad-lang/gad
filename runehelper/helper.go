@@ -24,7 +24,7 @@ func IsIdentifierOrDigitRunes(chs []rune) bool {
 }
 
 func IsIdentifierLetter(ch rune) bool {
-	return ch == '$' || ch == '_' || IsLetter(ch)
+	return ch == '@' || ch == '$' || ch == '_' || IsLetter(ch)
 }
 
 func IsDigit(ch rune) bool {

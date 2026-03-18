@@ -8,7 +8,6 @@ import (
 
 type SetupOpts struct {
 	ObjectConverters *ObjectConverters
-	Builtins         *Builtins
 	ToRawStrHandler  func(vm *VM, s Str) RawStr
 	Context          context.Context
 }
@@ -70,9 +69,9 @@ func (vm *VM) run() (Object, error) {
 
 	if vm.sp < stackSize {
 		if vv, ok := vm.stack[vm.sp-1].(*ObjectPtr); ok {
-			return *vv.Value, nil
+			return Val(*vv.Value, nil)
 		}
-		return vm.stack[vm.sp-1], nil
+		return Val(vm.stack[vm.sp-1], nil)
 	}
 	return nil, ErrStackOverflow
 }

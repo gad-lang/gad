@@ -398,19 +398,19 @@ func TestEncDecObjects(t *testing.T) {
 		}
 	}
 	for _, tC := range builtinFuncs {
-		msg := fmt.Sprintf("BuiltinFunction %s", tC.Name)
+		msg := fmt.Sprintf("BuiltinFunction %s", tC.FuncName)
 		data, err := tC.MarshalBinary()
 		require.NoError(t, err, msg)
 		require.Greater(t, len(data), 0, msg)
 		var v = &gad.BuiltinFunction{}
 		err = (*BuiltinFunction)(v).UnmarshalBinary(data)
 		require.NoError(t, err, msg)
-		require.Equal(t, tC.Name, v.Name)
+		require.Equal(t, tC.FuncName, v.FuncName)
 		require.NotNil(t, v.Value)
 
 		obj, err := DecodeObject(bytes.NewReader(data))
 		require.NoError(t, err, msg)
-		require.Equal(t, tC.Name, obj.(*BuiltinFunction).Name, msg)
+		require.Equal(t, tC.FuncName, obj.(*BuiltinFunction).FuncName, msg)
 		require.NotNil(t, obj.(*BuiltinFunction).Value, msg)
 	}
 
@@ -459,7 +459,7 @@ func TestEncDecBytecode_modules(t *testing.T) {
 	return mod1.run() + mod2.run()
 	`, newOpts().Module("mod1", gad.Dict{
 		"run": &gad.Function{
-			Name: "run",
+			FuncName: "run",
 			Value: func(gad.Call) (gad.Object, error) {
 				return gad.Str("mod1"), nil
 			},
@@ -575,10 +575,8 @@ func testDecodedBytecodeEqual(t *testing.T, actual, decoded *gad.Bytecode) {
 }
 
 func getModuleName(obj gad.Object) (string, bool) {
-	if m, ok := obj.(gad.Dict); ok {
-		if n, ok := m[gad.AttrModuleName]; ok {
-			return string(n.(gad.Str)), true
-		}
+	if m, ok := obj.(*gad.Module); ok {
+		return m.Name(), true
 	}
 	return "", false
 }
@@ -633,7 +631,7 @@ func testBytecodeConstants(t *testing.T, vm *gad.VM, expected, decoded []gad.Obj
 				f1, ok := v1.(*gad.Function)
 				if ok {
 					f2 := v2.(*gad.Function)
-					require.Equal(t, f1.Name, f2.Name)
+					require.Equal(t, f1.FuncName, f2.FuncName)
 					require.NotNil(t, f2.Value)
 					// Note that this is not a guaranteed way to compare func pointers
 					require.Equal(t, reflect.ValueOf(f1.Value).Pointer(),

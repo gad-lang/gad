@@ -85,6 +85,7 @@ const (
 	Tilde       // ~
 	DoubleTilde // ~~
 	TripleTilde // ~~~
+	Lambda      // =>
 	GroupBinaryOperatorEnd
 	GroupDefaultOperatorBegin
 	Nullich // ??
@@ -116,7 +117,6 @@ const (
 	Inc // ++
 	Dec // --
 	GroupUnaryOperatorEnd
-	Lambda          // =>
 	Not             // !
 	Null            // a == nil || nil == a
 	NotNull         // a != nil || nil != a
@@ -140,6 +140,7 @@ const (
 	Else
 	For
 	Func
+	Method
 	If
 	Return
 	True
@@ -158,15 +159,16 @@ const (
 	Catch
 	Finally
 	Throw
-	Callee
-	NamedArgs
-	Args
 	StdIn
 	StdOut
 	StdErr
+	Callee
+	NamedArgs
+	Args
 	DotName
 	DotFile
-	IsModule
+	IsMain
+	Module
 	GroupKeywordEnd
 )
 
@@ -235,7 +237,6 @@ var tokens = [...]string{
 	Less:            "<",
 	Greater:         ">",
 	Assign:          "=",
-	Lambda:          "=>",
 	Not:             "!",
 	NotEqual:        "!=",
 	LessEq:          "<=",
@@ -243,6 +244,7 @@ var tokens = [...]string{
 	Tilde:           "~",
 	DoubleTilde:     "~~",
 	TripleTilde:     "~~~",
+	Lambda:          "=>",
 	Define:          ":=",
 	Pipe:            ".|",
 	LParen:          "(",
@@ -262,6 +264,7 @@ var tokens = [...]string{
 	Else:            "else",
 	For:             "for",
 	Func:            "func",
+	Method:          "met",
 	If:              "if",
 	Return:          "return",
 	True:            "true",
@@ -280,12 +283,13 @@ var tokens = [...]string{
 	Catch:           "catch",
 	Finally:         "finally",
 	Throw:           "throw",
-	Callee:          "__callee__",
-	Args:            "__args__",
-	NamedArgs:       "__named_args__",
-	DotName:         "__name__",
-	DotFile:         "__file__",
-	IsModule:        "__is_module__",
+	Callee:          "@callee",
+	Args:            "@args",
+	NamedArgs:       "@nargs",
+	DotName:         "@name",
+	DotFile:         "@file",
+	IsMain:          "@main",
+	Module:          "@module",
 }
 
 var tokenNames = [...]string{
@@ -335,6 +339,7 @@ var tokenNames = [...]string{
 	Tilde:                        "Tilde",
 	DoubleTilde:                  "DoubleTilde",
 	TripleTilde:                  "TripleTilde",
+	Lambda:                       "Lambda",
 	GroupBinaryOperatorEnd:       "GroupBinaryOperatorEnd",
 	GroupDefaultOperatorBegin:    "GroupDefaultOperatorBegin",
 	Nullich:                      "Nullich",
@@ -366,7 +371,6 @@ var tokenNames = [...]string{
 	Inc:                          "Inc",
 	Dec:                          "Dec",
 	GroupUnaryOperatorEnd:        "GroupUnaryOperatorEnd",
-	Lambda:                       "Lambda",
 	Not:                          "Not",
 	Null:                         "Null",
 	NotNull:                      "NotNull",
@@ -389,7 +393,8 @@ var tokenNames = [...]string{
 	Continue:                     "Continue",
 	Else:                         "Else",
 	For:                          "For",
-	Func:                         "Func",
+	Func:                         "FuncSpec",
+	Method:                       "Met",
 	If:                           "If",
 	Return:                       "Return",
 	True:                         "True",
@@ -416,7 +421,8 @@ var tokenNames = [...]string{
 	StdErr:                       "StdErr",
 	DotName:                      "DotName",
 	DotFile:                      "DotFile",
-	IsModule:                     "IsModule",
+	IsMain:                       "IsMain",
+	Module:                       "Module",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 
@@ -456,9 +462,17 @@ func (tok Token) Precedence() int {
 	return LowestPrec
 }
 
+func (tok Token) IsSpecialKeyword() bool {
+	return tok >= Callee && tok <= Module
+}
+
 // IsLiteral returns true if the token is a literal.
 func (tok Token) IsLiteral() bool {
 	return GroupLiteralBegin < tok && tok < GroupLiteralEnd
+}
+
+func (tok Token) Valid() bool {
+	return tok > 0
 }
 
 // IsOperator returns true if the token is an operator.

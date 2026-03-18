@@ -36,7 +36,6 @@ func Example() {
 }
 
 func TestScript(t *testing.T) {
-
 	testCases := []struct {
 		s string
 		r Object
@@ -228,7 +227,7 @@ func TestScript(t *testing.T) {
 		try {
 			fmt.Printf()
 		} catch err {
-			return str(err)
+			return str(str(err.cause))
 		}
 			`,
 			r: Str("WrongNumberOfArgumentsError: want>=1 got=0"),
@@ -238,7 +237,7 @@ func TestScript(t *testing.T) {
 		try {
 			fmt.Sprintf()
 		} catch err {
-			return str(err)
+			return str(err.cause)
 		}
 			`,
 			r: Str("WrongNumberOfArgumentsError: want>=1 got=0"),
@@ -248,7 +247,7 @@ func TestScript(t *testing.T) {
 		try {
 			arg := fmt.ScanArg("unknown")
 		} catch err {
-			return str(err)
+			return str(err.cause)
 		}
 			`,
 			r: Str("TypeError: \"unknown\" not implemented"),
@@ -258,7 +257,7 @@ func TestScript(t *testing.T) {
 		try {
 			arg := fmt.Sscan()
 		} catch err {
-			return str(err)
+			return str(err.cause)
 		}
 			`,
 			r: Str("WrongNumberOfArgumentsError: want>=2 got=0"),
@@ -268,7 +267,7 @@ func TestScript(t *testing.T) {
 		try {
 			arg := fmt.Sscanf()
 		} catch err {
-			return str(err)
+			return str(err.cause)
 		}
 			`,
 			r: Str("WrongNumberOfArgumentsError: want>=3 got=0"),
@@ -278,7 +277,7 @@ func TestScript(t *testing.T) {
 		try {
 			arg := fmt.Sscanln()
 		} catch err {
-			return str(err)
+			return str(err.cause)
 		}
 			`,
 			r: Str("WrongNumberOfArgumentsError: want>=2 got=0"),
@@ -288,7 +287,7 @@ func TestScript(t *testing.T) {
 		try {
 			arg := fmt.Sscanf("", "", 1)
 		} catch err {
-			return str(err)
+			return str(err.cause)
 		}
 			`,
 			r: Str("TypeError: invalid type for argument '2': expected ScanArg interface, found int"),
@@ -298,7 +297,7 @@ func TestScript(t *testing.T) {
 		try {
 			arg := fmt.Sscanln("", 1)
 		} catch err {
-			return str(err)
+			return str(err.cause)
 		}
 			`,
 			r: Str("TypeError: invalid type for argument '1': expected ScanArg interface, found int"),
@@ -320,10 +319,10 @@ func expectRun(t *testing.T, script string, expected Object) {
 	` + script
 
 	mm := NewModuleMap()
-	mm.AddBuiltinModule("fmt", Module)
+	mm.AddBuiltinModuleInit("fmt", ModuleInit)
 	c := CompileOptions{CompilerOptions: DefaultCompilerOptions}
 	c.ModuleMap = mm
-	bc, err := Compile([]byte(script), c)
+	_, bc, err := Compile([]byte(script), c)
 	require.NoError(t, err, script)
 	ret, err := NewVM(bc).Run(nil)
 	require.NoError(t, err, script)
@@ -332,10 +331,10 @@ func expectRun(t *testing.T, script string, expected Object) {
 
 func exampleRun(script string) {
 	mm := NewModuleMap()
-	mm.AddBuiltinModule("fmt", Module)
+	mm.AddBuiltinModuleInit("fmt", ModuleInit)
 	c := CompileOptions{CompilerOptions: DefaultCompilerOptions}
 	c.ModuleMap = mm
-	bc, err := Compile([]byte(script), c)
+	_, bc, err := Compile([]byte(script), c)
 	if err != nil {
 		panic(err)
 	}

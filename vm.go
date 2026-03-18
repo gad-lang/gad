@@ -35,7 +35,7 @@ type VM struct {
 	curFrame     *frame
 	frameIndex   int
 	bytecode     *Bytecode
-	modulesCache []Object
+	modulesCache Modules
 	globals      IndexGetSetter
 	pool         vmPool
 	mu           sync.Mutex
@@ -45,6 +45,7 @@ type VM struct {
 	StdOut, StdErr *StackWriter
 	StdIn          *StackReader
 	ObjectToWriter ObjectToWriter
+	Builtins       *StaticBuiltins
 
 	*SetupOpts
 }
@@ -61,6 +62,12 @@ func NewVM(bc *Bytecode) *VM {
 	}
 	vm.pool.root = vm
 	return vm
+}
+
+func (vm *VM) Fork(cf *CompiledFunction, usePool bool) (child *VM) {
+	child = vm.pool.acquire(cf, usePool)
+	child.Builtins = vm.Builtins
+	return child
 }
 
 // SetRecover recovers panic when Run panics and returns panic as an error.
@@ -118,6 +125,15 @@ func (vm *VM) GetLocals(locals []Object) []Object {
 	}
 
 	return locals
+}
+
+func (vm *VM) ResolveType(ot ObjectType) ObjectType {
+	switch t := ot.(type) {
+	case BuiltinObjTypeKey:
+		return vm.Builtins.builtins.Objects[BuiltinType(t)].(ObjectType)
+	default:
+		return ot
+	}
 }
 
 // Abort aborts the VM execution. It is safe to call this method from another
@@ -203,14 +219,12 @@ func (vm *VM) Setup(opts SetupOpts) *VM {
 	vm.SetupOpts = &opts
 
 	if vm.Builtins == nil {
-		vm.Builtins = NewBuiltins()
+		vm.Builtins = NewBuiltins().Build()
 	}
 
 	if opts.Context == nil {
 		opts.Context = context.Background()
 	}
-
-	vm.Builtins.Objects = vm.Builtins.Objects.Build()
 
 	if vm.ObjectConverters == nil {
 		vm.ObjectConverters = NewObjectConverters()
@@ -236,12 +250,18 @@ func (vm *VM) initAndRun(opts *RunOpts) (Object, error) {
 		return nil, errors.New("invalid Bytecode")
 	}
 
+	namedArgs := opts.NamedArgs
+	if namedArgs == nil {
+		namedArgs = NewNamedArgs()
+	}
+
 	vm.Setup(SetupOpts{})
 
 	vm.err = nil
 	atomic.StoreInt64(&vm.abort, 0)
 	vm.initGlobals(opts.Globals)
-	vm.initCurrentFrame(opts.Args, opts.NamedArgs)
+
+	vm.initCurrentFrame(opts.Args, namedArgs)
 	vm.frameIndex = 1
 
 	if opts.StdIn != nil {
@@ -287,9 +307,9 @@ func (vm *VM) initAndRun(opts *RunOpts) (Object, error) {
 
 	if vm.sp < stackSize {
 		if vv, ok := vm.stack[vm.sp-1].(*ObjectPtr); ok {
-			return *vv.Value, nil
+			return Val(*vv.Value, nil)
 		}
-		return vm.stack[vm.sp-1], nil
+		return Val(vm.stack[vm.sp-1], nil)
 	}
 	return nil, ErrStackOverflow
 }
@@ -303,37 +323,11 @@ func (vm *VM) initGlobals(globals IndexGetSetter) {
 
 func (vm *VM) initLocals(args Array, namedArgs *NamedArgs) {
 	vm.sp = 0
-	// init all params as nil
-	main := vm.bytecode.Main
-	numParams := len(main.Params)
-	numNamedParams := main.NamedParams.len
-	locals := vm.stack[:main.NumLocals]
-
-	vm.initLocalsOfFunc(main, args)
-
-	if numNamedParams > 0 {
-		if namedArgs == nil {
-			namedArgs = &NamedArgs{}
-		}
-		if main.NamedParams.variadic {
-			locals[numParams+numNamedParams-1] = namedArgs
-			for i, p := range main.NamedParams.Params[:numNamedParams-1] {
-				if v := namedArgs.GetValueOrNil(p.Name); v != nil {
-					locals[numParams+i] = v
-				}
-			}
-		} else {
-			for i, p := range main.NamedParams.Params {
-				if v := namedArgs.GetValueOrNil(p.Name); v != nil {
-					locals[numParams+i] = v
-				}
-			}
-		}
-	}
+	vm.initLocalsOfFunc(vm.bytecode.Main, args, namedArgs)
 }
 
-func (vm *VM) initLocalsOfFunc(main *CompiledFunction, args Array) {
-	numParams := len(main.Params)
+func (vm *VM) initLocalsOfFunc(main *CompiledFunction, args Array, namedArgs *NamedArgs) {
+	numParams := main.Params.len
 	numNamedParams := main.NamedParams.len
 	locals := vm.stack[vm.sp : vm.sp+main.NumLocals]
 
@@ -373,6 +367,23 @@ func (vm *VM) initLocalsOfFunc(main *CompiledFunction, args Array) {
 
 	if numParams > 0 {
 		copy(locals, args[:numParams-1])
+	}
+
+	if numNamedParams > 0 {
+		if main.NamedParams.variadic {
+			locals[numParams+numNamedParams-1] = namedArgs
+			for i, p := range main.NamedParams.Items[:numNamedParams-1] {
+				if v := namedArgs.GetValueOrNil(p.Name); v != nil {
+					locals[numParams+i] = v
+				}
+			}
+		} else {
+			for i, p := range main.NamedParams.Items {
+				if v := namedArgs.GetValueOrNil(p.Name); v != nil {
+					locals[numParams+i] = v
+				}
+			}
+		}
 	}
 
 	vm.sp += main.NumLocals
@@ -446,14 +457,22 @@ func (vm *VM) GetSymbolValue(symbol *SymbolInfo) (value Object, err error) {
 			value = *v.Value
 		}
 	case ScopeBuiltin:
-		value = vm.Builtins.Objects[BuiltinType(symbol.Index)]
+		value = vm.Builtins.builtins.Objects[BuiltinType(symbol.Index)]
 	case ScopeFree:
 		value = *vm.curFrame.freeVars[symbol.Index].Value
 	}
 	return
 }
 
-func (vm *VM) xIndexGet(numSel int, target Object) (value Object, null, abort bool) {
+func (vm *VM) CurrentModule() *Module {
+	return vm.curFrame.fn.module
+}
+
+func (vm *VM) ModuleByIndex(ix int) *Module {
+	return vm.constants[ix].(*Module)
+}
+
+func (vm *VM) xIndexGet(numSel int, target Object, getPtr bool) (value Object, null, abort bool) {
 	value = Nil
 
 	for ; numSel > 0; numSel-- {
@@ -490,6 +509,120 @@ func (vm *VM) xIndexGet(numSel int, target Object) (value Object, null, abort bo
 		}
 	}
 
+	return
+}
+
+func (vm *VM) xAddMethod(numSel, numFuncs int, target Object) (value Object, null, abort bool) {
+	value = Nil
+	var err error
+
+	if numSel == 0 {
+		args := make(Array, numFuncs+1)
+		args[0] = target
+
+		for i := 1; numFuncs > 0; numFuncs-- {
+			ptr := vm.sp - numFuncs
+			args[i] = vm.stack[ptr]
+			vm.stack[ptr] = nil
+			i++
+		}
+
+		value, err = BuiltinAddMethodFunc(Call{VM: vm, Args: Args{args}})
+	} else {
+		var (
+			dot   Object
+			index Object
+		)
+
+		for ; numSel > 0; numSel-- {
+			ptr := vm.sp - numFuncs - numSel
+			index = vm.stack[ptr]
+			vm.stack[ptr] = nil
+			switch ig := target.(type) {
+			case IndexGetter:
+				switch ig.(type) {
+				case IndexMethodAdder:
+					if numSel == 1 {
+						dot = ig
+						goto add
+					}
+				}
+				v, err := Val(ig.IndexGet(vm, index))
+				if err != nil {
+					switch err {
+					case ErrNotIndexable:
+						err = ErrNotIndexable.NewError(target.Type().Name())
+					case ErrIndexOutOfBounds:
+						err = ErrIndexOutOfBounds.NewError(index.ToString())
+					}
+					if err = vm.throwGenErr(err); err != nil {
+						vm.err = err
+						abort = true
+						return
+					}
+					null = true
+					return
+				}
+				dot = target
+				target = v
+				value = v
+			default:
+				if err := vm.throwGenErr(ErrNotIndexable.NewError(target.Type().Name())); err != nil {
+					vm.err = err
+					abort = true
+					return
+				}
+				null = true
+				return
+			}
+		}
+
+	add:
+		args := make(Array, numFuncs+1)
+		args[0] = dot
+
+		for i := 1; numFuncs > 0; numFuncs-- {
+			ptr := vm.sp - numFuncs
+			args[i] = vm.stack[ptr]
+			vm.stack[ptr] = nil
+			i++
+		}
+
+		var module *Module
+		if mg, _ := value.(interface{ GetModule() *Module }); mg != nil {
+			module = mg.GetModule()
+		}
+		c := Call{VM: vm, Args: Args{args}}
+		switch t := dot.(type) {
+		case IndexMethodAdder:
+			args[0] = index
+			value, err = t.AddMethodIndex(c)
+		case IndexSetter:
+			if adder, _ := value.(MethodAdder); adder == nil {
+				f := NewFunc(index.ToString(), module)
+				args[0] = f
+				if value, err = BuiltinAddMethodFunc(Call{VM: vm, Args: Args{Array{f, value}}}); err != nil {
+					goto done
+				}
+			}
+			if value, err = BuiltinAddMethodFunc(c); err == nil {
+				err = t.IndexSet(vm, index, value)
+			}
+		default:
+			err = ErrNotIndexAssignable.NewError(dot.Type().Name())
+		}
+	}
+
+done:
+	if err != nil {
+		if err := vm.throwGenErr(ErrNotIndexable.NewError(target.Type().Name())); err != nil {
+			vm.err = err
+			abort = true
+			return
+		}
+		null = true
+		return
+	}
 	return
 }
 
@@ -691,7 +824,7 @@ func (vm *VM) xOpCallName() (err error) {
 		kwCount++
 		basePointer--
 	}
-	if flags.Has(OpCallFlagVarNamedArgs) {
+	if flags.Has(OpCallFlagNamedArgsVar) {
 		kwCount++
 		basePointer--
 	}
@@ -714,14 +847,14 @@ func (vm *VM) xOpCallName() (err error) {
 				c.Args = append(c.Args, t)
 			default:
 				var values Object
-				if values, err = Val(vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{Array{t}}})); err != nil {
+				if values, err = vm.Builtins.Call(BuiltinValues, Call{VM: vm, Args: Args{Array{t}}}); err != nil {
 					return
 				}
 				c.Args = append(c.Args, values.(Array))
 			}
 		}
 
-		if flags.Has(OpCallFlagNamedArgs) || flags.Has(OpCallFlagVarNamedArgs) {
+		if flags.Has(OpCallFlagNamedArgs) || flags.Has(OpCallFlagNamedArgsVar) {
 			if c.NamedArgs, err = vm.getCalledNamedArgs(flags); err != nil {
 				return
 			}
@@ -762,11 +895,56 @@ func (vm *VM) xOpCall() error {
 	if flags.Has(OpCallFlagNamedArgs) {
 		kwCount++
 	}
-	if flags.Has(OpCallFlagVarNamedArgs) {
+	if flags.Has(OpCallFlagNamedArgsVar) {
 		kwCount++
 	}
 	callee := vm.stack[vm.sp-numArgs-kwCount-1]
 	return vm.xOpCallAny(callee, numArgs, flags)
+}
+
+func (vm *VM) xOpCallModule() (err error) {
+	numArgs := int(vm.curInsts[vm.ip+1])
+	flags := OpCallFlag(vm.curInsts[vm.ip+2])
+	kwCount := 0
+	if flags.Has(OpCallFlagNamedArgs) {
+		kwCount++
+	}
+	if flags.Has(OpCallFlagNamedArgsVar) {
+		kwCount++
+	}
+	ptr := &vm.stack[vm.sp-numArgs-kwCount-1]
+	module := (*ptr).(*Module)
+
+	curFrame := vm.curFrame
+
+	if err = vm.xOpCallAny(module.init, numArgs, flags); err != nil {
+		return
+	}
+
+	onResult := func() {
+		switch t := (*ptr).(type) {
+		case *Module:
+			module.data = t.data
+		case ModuleData:
+			module.data = t
+		default:
+			module.data = Dict{}
+			err = ErrType.NewErrorf("module %q init result (%v) isn't ModuleData value", module.Name(), t.Type().Name())
+		}
+		*ptr = module
+		vm.sp++
+	}
+
+	if vm.curFrame == curFrame {
+		onResult()
+	} else {
+		newFrame := vm.curFrame
+		newFrame.Defer(onResult)
+		module.params.Positional = Copy(newFrame.args.Values())
+		module.params.Named = newFrame.namedArgs.Join()
+	}
+
+	return err
 }
 
 func (vm *VM) xOpCallAny(callee Object, numArgs int, flags OpCallFlag) error {
@@ -774,7 +952,7 @@ do:
 	switch t := callee.(type) {
 	case *CompiledFunction:
 		return vm.xOpCallCompiled(t, numArgs, flags)
-	case MethodCaller:
+	case RawCallerWithMethods:
 		if !t.HasCallerMethods() {
 			callee = t.Caller()
 			goto do
@@ -787,7 +965,7 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 	var (
 		basePointer = vm.sp - numArgs
 		numLocals   = cfunc.NumLocals
-		numParams   = len(cfunc.Params)
+		numParams   = cfunc.Params.len
 		namedParams NamedArgs
 		args        = Args{nil, nil}
 	)
@@ -795,54 +973,20 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 	if flags.Has(OpCallFlagNamedArgs) {
 		basePointer--
 	}
-	if flags.Has(OpCallFlagVarNamedArgs) {
+
+	if flags.Has(OpCallFlagNamedArgsVar) {
 		basePointer--
 	}
 
 	args[0] = vm.stack[basePointer : basePointer+numArgs]
 
-	if flags.Has(OpCallFlagNamedArgs) || flags.Has(OpCallFlagVarNamedArgs) {
+	if flags.Has(OpCallFlagNamedArgs) || flags.Has(OpCallFlagNamedArgsVar) {
 		if namedParams, err = vm.getCalledNamedArgs(flags); err != nil {
 			return
 		}
 		if !cfunc.NamedParams.variadic && namedParams.sources != nil {
 			if err := namedParams.CheckNamesFromSet(cfunc.NamedParamsMap); err != nil {
 				return err
-			}
-		}
-
-		if len(cfunc.NamedParams.Params) > 0 {
-			for _, param := range cfunc.NamedParams.Params {
-				if l := len(param.Type); l > 0 {
-					if v := namedParams.MustGetValueOrNil(param.Name); v != nil {
-						var typeso Object
-						if l == 1 {
-							if typeso, err = vm.GetSymbolValue(param.Type[0]); err != nil {
-								return
-							}
-						} else {
-							types := make(Array, l)
-							for i, symbol := range param.Type {
-								if types[i], err = vm.GetSymbolValue(symbol); err != nil {
-									return
-								}
-							}
-							typeso = types
-						}
-
-						var badTypes string
-						if badTypes, err = NamedParamTypeCheck(param.Name, typeso, v); err != nil {
-							return
-						} else if badTypes != "" {
-							err = NewArgumentTypeError(
-								"types of named param '"+param.Name+"'",
-								badTypes,
-								typeso.ToString(),
-							)
-							return
-						}
-					}
-				}
 			}
 		}
 	}
@@ -866,11 +1010,11 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 
 		if cfunc.Params.Var() {
 			if numArgs < numParams {
-				// f := func(a, ...b) {}
-				// f(...[1]) // f(...[1, 2])
+				// f := func(a, *b) {}
+				// f(*[1]) || f(*[1, 2])
 				if arrSize+numArgs < numParams {
-					// f := func(a, ...b) {}
-					// f(...[])
+					// f := func(a, *b) {}
+					// f(*[])
 					return ErrWrongNumArguments.NewError(
 						wantGEqXGotY(numParams-1, arrSize+numArgs-1),
 					)
@@ -885,8 +1029,8 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 				args = append(args, arr)
 				vm.stack[basePointer+numParams-1] = append(Array{}, arr...)
 			} else if numArgs > numParams {
-				// f := func(a, ...b) {} // a == 1  b == [2, 3]
-				// f(1, 2, ...[3])
+				// f := func(a, *b) {} -> a == 1  b == [2, 3]
+				// f(1, 2, *[3])
 				arr := append(Array{},
 					vm.stack[basePointer+numParams-1:basePointer+numArgs-1]...)
 				arr = append(arr, vargsArr...)
@@ -896,13 +1040,13 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 		} else {
 			if arrSize+numArgs-1 != numParams {
 				// f := func(a, b) {}
-				// f(1, ...[2, 3, 4])
+				// f(1, *[2, 3, 4])
 				return ErrWrongNumArguments.NewError(
 					wantEqXGotY(numParams, arrSize+numArgs-1),
 				)
 			}
 			// f := func(a, b) {}
-			// f(...[1, 2])
+			// f(*[1, 2])
 			args[1] = vargsArr
 			copy(vm.stack[basePointer+numArgs-1:], vargsArr)
 		}
@@ -917,20 +1061,20 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			}
 		} else {
 			if numArgs < numParams-1 {
-				// f := func(a, ...b) {}
+				// f := func(a, *b) {}
 				// f()
 				return ErrWrongNumArguments.NewError(
 					wantGEqXGotY(numParams-1, numArgs),
 				)
 			}
 			if numArgs == numParams-1 {
-				// f := func(a, ...b) {} // a==1 b==[]
+				// f := func(a, *b) {} // a==1 b==[]
 				// f(1)
 				vm.stack[basePointer+numArgs] = Array{}
 			} else {
-				// f := func(a, ...b) {} // a == 1  b == [] // a == 1  b == [2, 3]
+				// f := func(a, *b) {} // a == 1  b == [] // a == 1  b == [2, 3]
 				// f(1, 2) // f(1, 2, 3)
-				args[0] = vm.stack[basePointer : basePointer+len(cfunc.Params)-1]
+				args[0] = vm.stack[basePointer : basePointer+cfunc.Params.len-1]
 				arr := append(Array{}, vm.stack[basePointer+numParams-1:basePointer+numArgs]...)
 				vm.stack[basePointer+numParams-1] = arr
 				args[1] = arr
@@ -939,13 +1083,23 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 	}
 
 	if cfunc.NamedParams.len > 0 {
-		var i int
-		for ; i < cfunc.NamedParams.len; i++ {
-			vm.stack[basePointer+numParams+i] = Nil
+		var (
+			i int
+			l = cfunc.NamedParams.len
+		)
+
+		if cfunc.NamedParams.variadic {
+			l--
+		}
+
+		for ; i < l; i++ {
+			np := cfunc.NamedParams.Items[i]
+			vm.stack[basePointer+numParams+i] = namedParams.GetValue(np.Name)
 		}
 		// define var namedArgs
 		if cfunc.NamedParams.variadic {
-			vm.stack[basePointer+numParams+i-1] = &namedParams
+			vm.stack[basePointer+numParams+i] = &namedParams
+			i++
 		}
 	} else {
 		for i := numParams; i < numLocals; i++ {
@@ -964,12 +1118,12 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			(nextOp == OpPop && OpReturn == Opcode(vm.curInsts[vm.ip+2+2])) {
 			curBp := vm.curFrame.basePointer
 			args = args.Copy().(Args)
-			copy(vm.stack[curBp:curBp+len(cfunc.Params)+cfunc.NamedParams.len], vm.stack[basePointer:])
+			copy(vm.stack[curBp:curBp+cfunc.Params.len+cfunc.NamedParams.len], vm.stack[basePointer:])
 			newSp := vm.sp - numArgs - 1
 			if flags.Has(OpCallFlagNamedArgs) {
 				newSp--
 			}
-			if flags.Has(OpCallFlagVarNamedArgs) {
+			if flags.Has(OpCallFlagNamedArgsVar) {
 				newSp--
 			}
 
@@ -1026,12 +1180,13 @@ func (vm *VM) xOpCallObject(co_ Object, numArgs int, flags OpCallFlag) (err erro
 		kwCount++
 		basePointer--
 	}
-	if flags.Has(OpCallFlagVarNamedArgs) {
+
+	if flags.Has(OpCallFlagNamedArgsVar) {
 		kwCount++
 		basePointer--
 	}
 
-	if flags.Has(OpCallFlagNamedArgs) || flags.Has(OpCallFlagVarNamedArgs) {
+	if flags.Has(OpCallFlagNamedArgs) || flags.Has(OpCallFlagNamedArgsVar) {
 		if namedArgs, err = vm.getCalledNamedArgs(flags); err != nil {
 			return
 		}
@@ -1053,7 +1208,7 @@ func (vm *VM) xOpCallObject(co_ Object, numArgs int, flags OpCallFlag) (err erro
 		result Object
 	)
 
-	if result, err = Val(co.Call(c)); err != nil {
+	if result, err = DoCall(co, c); err != nil {
 		return err
 	}
 
@@ -1301,7 +1456,7 @@ func (vm *VM) getCalledNamedArgs(flags OpCallFlag) (namedArgs NamedArgs, err err
 		hasPairs = 1
 	}
 
-	if flags.Has(OpCallFlagVarNamedArgs) {
+	if flags.Has(OpCallFlagNamedArgsVar) {
 		expand = 1
 	}
 

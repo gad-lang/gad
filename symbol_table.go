@@ -87,6 +87,7 @@ type SymbolTable struct {
 	numDefinition    int
 	params           Params
 	namedParams      NamedParams
+	paramsDefined    bool
 	store            map[string]*Symbol
 	disabledBuiltins map[string]struct{}
 	frees            []*Symbol
@@ -136,31 +137,50 @@ func (st *SymbolTable) InBlock() bool {
 	return st.block
 }
 
-// SetParams sets parameters defined in the scope. This can be called only once.
-func (st *SymbolTable) SetParams(varParams bool, params []string, types []ParamType) (err error) {
-	if len(params) == 0 {
-		return nil
+// DefineParams sets parameters defined in the scope with then variables. This can be called only once.
+func (st *SymbolTable) DefineParams(positional *Params, named *NamedParams) (err error) {
+	if positional == nil {
+		positional = NewParams()
 	}
 
-	if !st.params.Empty() {
+	if named == nil {
+		named = NewNamedParams()
+	}
+
+	if err = st.defineParams(positional, named); err != nil {
+		return
+	}
+
+	var symbols []*Symbol
+
+	if symbols, err = st.defineParamsVar(append(positional.Names(), named.Names()...)); err != nil {
+		return
+	}
+
+	var i int
+
+	for _, item := range positional.Items {
+		item.Symbol = &symbols[i].SymbolInfo
+		i++
+	}
+
+	for _, item := range named.Items {
+		item.Symbol = &symbols[i].SymbolInfo
+		i++
+	}
+
+	return
+}
+
+// defineParams sets parameters defined in the scope. This can be called only once.
+func (st *SymbolTable) defineParams(positional *Params, named *NamedParams) (err error) {
+	if st.paramsDefined {
 		return errors.New("parameters already defined")
 	}
 
-	if err = st.defineParamsVar(params); err == nil {
-		st.params = make(Params, len(params))
-		if len(types) > 0 {
-			for i, param := range params {
-				st.params[i] = NewParam(param, ParamWithType(types[i]...))
-			}
-		} else {
-			for i, param := range params {
-				st.params[i] = NewParam(param)
-			}
-		}
-		if varParams {
-			st.params[len(params)-1].Var = true
-		}
-	}
+	st.paramsDefined = true
+	st.params = *positional
+	st.namedParams = *named
 
 	return
 }
@@ -176,33 +196,34 @@ func (st *SymbolTable) SetNamedParams(params ...*NamedParam) (err error) {
 	}
 
 	namedParams := NewNamedParams(params...)
-
-	if err = st.defineParamsVar(namedParams.Names()); err == nil {
-		st.namedParams = *namedParams
-	}
+	st.namedParams = *namedParams
 
 	return
 }
 
-func (st *SymbolTable) defineParamsVar(names []string) error {
+func (st *SymbolTable) defineParamsVar(names []string) (symbols []*Symbol, err error) {
 	if st.disableParams {
-		return errors.New("parameters disabled")
+		return nil, errors.New("parameters disabled")
 	}
 
-	for _, param := range names {
-		if _, ok := st.store[param]; ok && param != "_" {
-			return fmt.Errorf("%q redeclared in this block", param)
+	symbols = make([]*Symbol, len(names))
+
+	for i, name := range names {
+		if _, ok := st.store[name]; ok && name != "_" {
+			return nil, fmt.Errorf("%q redeclared in this block", name)
 		}
-		symbol := &Symbol{SymbolInfo: SymbolInfo{Name: param,
+		symbol := &Symbol{SymbolInfo: SymbolInfo{
+			Name:  name,
 			Index: st.NextIndex(),
 			Scope: ScopeLocal,
 		}}
 		st.numDefinition++
-		st.store[param] = symbol
+		st.store[name] = symbol
 		st.updateMaxDefs(symbol.Index + 1)
-		st.shadowBuiltin(param)
+		st.shadowBuiltin(name)
+		symbols[i] = symbol
 	}
-	return nil
+	return
 }
 
 func (st *SymbolTable) find(name string, scopes ...SymbolScope) (*Symbol, bool) {

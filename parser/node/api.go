@@ -98,3 +98,22 @@ type ToMultiParenConverter interface {
 	Expr
 	ToMultiParenExpr() *MultiParenExpr
 }
+
+type ExprSelector interface {
+	Expr
+	GetX() Expr
+	GetY() Expr
+}
+
+func IdentOfSelector(x Expr) (ident *IdentExpr) {
+	for {
+		switch t := x.(type) {
+		case *IdentExpr:
+			ident = t
+		case ExprSelector:
+			x = t.GetX()
+		default:
+			return
+		}
+	}
+}

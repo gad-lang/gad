@@ -93,6 +93,10 @@ type CallExpr struct {
 	CallArgs
 }
 
+func (e *CallExpr) GetCallArgs() *CallArgs {
+	return &e.CallArgs
+}
+
 func (e *CallExpr) ExprNode() {}
 
 // CallPos returns the position of the fist valid call pos
@@ -114,14 +118,29 @@ func (e *CallExpr) End() source.Pos {
 }
 
 func (e *CallExpr) String() string {
-	var buf = bytes.NewBufferString(e.Func.String())
+	var s string
+	if f, _ := e.Func.(*FuncExpr); f != nil {
+		s = (&ParenExpr{Expr: f}).String()
+	} else {
+		s = e.Func.String()
+	}
+	var buf = bytes.NewBufferString(s)
 	e.CallArgs.StringW(buf)
 	return buf.String()
 }
 
 func (e *CallExpr) WriteCode(ctx *CodeWriteContext) {
-	e.Func.WriteCode(ctx)
+	if f, _ := e.Func.(*FuncExpr); f != nil {
+		(&ParenExpr{Expr: f}).WriteCode(ctx)
+	} else {
+		e.Func.WriteCode(ctx)
+	}
 	e.CallArgs.WriteCode(ctx)
+}
+
+func WithCallArgs[T interface{ GetCallArgs() *CallArgs }](e T, do func(args *CallArgs)) T {
+	do(e.GetCallArgs())
+	return e
 }
 
 // CondExpr represents a ternary conditional expression.
@@ -211,9 +230,9 @@ func (e *TypeExpr) Ident() *IdentExpr {
 		case *IdentExpr:
 			return e
 		case *IndexExpr:
-			return walk(e.Expr)
+			return walk(e.X)
 		case *SelectorExpr:
-			return walk(e.Expr)
+			return walk(e.X)
 		}
 		return nil
 	}
@@ -261,30 +280,25 @@ func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
 
 // ImportExpr represents an import expression
 type ImportExpr struct {
-	ModuleName string
-	Token      token.Token
-	TokenPos   source.Pos
+	CallExpr
+}
+
+func (e *ImportExpr) ModuleName() string {
+	return e.Args.Values[0].(*StringLit).Value()
 }
 
 func (e *ImportExpr) ExprNode() {}
 
-// Pos returns the position of first character belonging to the node.
-func (e *ImportExpr) Pos() source.Pos {
-	return e.TokenPos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *ImportExpr) End() source.Pos {
-	// import("moduleName")
-	return source.Pos(int(e.TokenPos) + 10 + len(e.ModuleName))
-}
-
-func (e *ImportExpr) String() string {
-	return `import("` + e.ModuleName + `")`
-}
-
 func (e *ImportExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())
+}
+
+func (e *ImportExpr) Build() (moduleName string, args CallArgs) {
+	moduleName = e.ModuleName()
+	call := e.CallExpr
+	call.Args.Values = call.Args.Values[1:]
+	args = call.CallArgs
+	return
 }
 
 // EmbedExpr represents an embed expression
@@ -317,17 +331,25 @@ func (e *EmbedExpr) WriteCode(ctx *CodeWriteContext) {
 
 // IndexExpr represents an index expression.
 type IndexExpr struct {
-	Expr   Expr
+	X      Expr
 	LBrack source.Pos
 	Index  Expr
 	RBrack source.Pos
+}
+
+func (e *IndexExpr) GetX() Expr {
+	return e.X
+}
+
+func (e *IndexExpr) GetY() Expr {
+	return e.Index
 }
 
 func (e *IndexExpr) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
 func (e *IndexExpr) Pos() source.Pos {
-	return e.Expr.Pos()
+	return e.X.Pos()
 }
 
 // End returns the position of first character immediately after the node.
@@ -340,11 +362,11 @@ func (e *IndexExpr) String() string {
 	if e.Index != nil {
 		index = e.Index.String()
 	}
-	return e.Expr.String() + "[" + index + "]"
+	return e.X.String() + "[" + index + "]"
 }
 
 func (e *IndexExpr) WriteCode(ctx *CodeWriteContext) {
-	e.Expr.WriteCode(ctx)
+	e.X.WriteCode(ctx)
 	ctx.WriteString("[")
 	e.Index.WriteCode(ctx)
 	ctx.WriteString("]")
@@ -527,7 +549,7 @@ func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError
 	for _, n = range right {
 		switch t := n.(type) {
 		case *KeyValueLit:
-			na := NamedArgExpr{}
+			na := &NamedArgExpr{}
 			switch t := t.Key.(type) {
 			case *StringLit:
 				na.Lit = t
@@ -543,15 +565,15 @@ func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError
 		case *KeyValuePairLit:
 			switch t2 := t.Key.(type) {
 			case *IdentExpr:
-				args.NamedArgs.Names = append(args.NamedArgs.Names, NamedArgExpr{Ident: t2})
+				args.NamedArgs.Names = append(args.NamedArgs.Names, &NamedArgExpr{Ident: t2})
 			case *StringLit:
-				args.NamedArgs.Names = append(args.NamedArgs.Names, NamedArgExpr{Lit: t2})
+				args.NamedArgs.Names = append(args.NamedArgs.Names, &NamedArgExpr{Lit: t2})
 			case *TypedIdentExpr:
 				if strict {
 					err = NewExpectedError(t2, &StringLit{}, &IdentExpr{})
 					return
 				}
-				args.NamedArgs.Names = append(args.NamedArgs.Names, NamedArgExpr{Ident: t2.Ident})
+				args.NamedArgs.Names = append(args.NamedArgs.Names, &NamedArgExpr{Ident: t2.Ident})
 			default:
 				if strict {
 					err = NewExpectedError(t2, &StringLit{}, &IdentExpr{})
@@ -562,7 +584,8 @@ func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError
 			}
 			args.NamedArgs.Values = append(args.NamedArgs.Values, t.Value)
 		case *NamedArgVarLit:
-			args.NamedArgs.Var = t
+			args.NamedArgs.Names = append(args.NamedArgs.Names, &NamedArgExpr{Var: true, Exp: t.Value})
+			args.NamedArgs.Values = append(args.NamedArgs.Values, nil)
 		}
 	}
 	return
@@ -587,9 +610,7 @@ exps:
 		case *ArgVarLit:
 			switch t2 := t.Value.(type) {
 			case *IdentExpr:
-				params.Args.Var = &TypedIdentExpr{
-					Ident: t2,
-				}
+				params.Args.Var = &TypedIdentExpr{Ident: t2}
 				i++
 				break exps
 			case *TypedIdentExpr:
@@ -630,11 +651,11 @@ exps:
 			case *NamedArgVarLit:
 				switch t2 := t.Value.(type) {
 				case *IdentExpr:
-					params.NamedArgs.Var = &TypedIdentExpr{Ident: t2}
+					params.NamedArgs.Var = t2
 					i++
 					break nexps
 				case *TypedIdentExpr:
-					params.NamedArgs.Var = t2
+					params.NamedArgs.Var = t2.Ident
 					i++
 					break nexps
 				default:
@@ -658,22 +679,17 @@ exps:
 	return
 }
 
-type ExprSelector interface {
-	Expr
-	SelectorExpr() Expr
-}
-
 // SelectorExpr represents a selector expression.
 type SelectorExpr struct {
-	Expr Expr
-	Sel  Expr
+	X   Expr
+	Sel Expr
 }
 
 func (e *SelectorExpr) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
 func (e *SelectorExpr) Pos() source.Pos {
-	return e.Expr.Pos()
+	return e.X.Pos()
 }
 
 // End returns the position of first character immediately after the node.
@@ -682,7 +698,7 @@ func (e *SelectorExpr) End() source.Pos {
 }
 
 func (e *SelectorExpr) String() string {
-	r := e.Expr.String() + "."
+	r := e.X.String() + "."
 	if s, _ := e.Sel.(*StringLit); s != nil {
 		if s.CanIdent() {
 			return r + s.Value()
@@ -692,12 +708,16 @@ func (e *SelectorExpr) String() string {
 	return r + e.Sel.String()
 }
 
-func (e *SelectorExpr) SelectorExpr() Expr {
-	return e.Expr
+func (e *SelectorExpr) GetX() Expr {
+	return e.X
+}
+
+func (e *SelectorExpr) GetY() Expr {
+	return e.Sel
 }
 
 func (e *SelectorExpr) WriteCode(ctx *CodeWriteContext) {
-	e.Expr.WriteCode(ctx)
+	e.X.WriteCode(ctx)
 	ctx.WriteSingleByte('.')
 	if s, _ := e.Sel.(*StringLit); s != nil {
 		if s.CanIdent() {
@@ -739,8 +759,12 @@ func (e *NullishSelectorExpr) String() string {
 	return r + e.Sel.String()
 }
 
-func (e *NullishSelectorExpr) SelectorExpr() Expr {
+func (e *NullishSelectorExpr) GetX() Expr {
 	return e.Expr
+}
+
+func (e *NullishSelectorExpr) GetY() Expr {
+	return e.Sel
 }
 
 func (e *NullishSelectorExpr) WriteCode(ctx *CodeWriteContext) {
@@ -855,6 +879,10 @@ type CallExprArgs struct {
 	Var    *ArgVarLit
 }
 
+func (a *CallExprArgs) AppendValues(e ...Expr) {
+	a.Values = append(a.Values, e...)
+}
+
 func (a *CallExprArgs) Valid() bool {
 	return len(a.Values) > 0 || a.Var != nil
 }
@@ -871,20 +899,35 @@ func (a *CallExprArgs) String() string {
 }
 
 func (a *CallExprArgs) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteExprs(", ", a.Values...)
+	a.WriteCodeWithSep(ctx, false)
+}
+
+func (a *CallExprArgs) WriteCodeWithSep(ctx *CodeWriteContext, sep bool) {
+	values := a.Values
 	if a.Var != nil {
-		if len(a.Values) > 0 {
-			ctx.WriteString(", ")
-		}
-		ctx.WriteSingleByte('*')
-		a.Var.Value.WriteCode(ctx)
+		values = append(values, a.Var)
 	}
+
+	ctx.WriteItems(
+		ctx.Flags.Has(CodeWriteContextFlagFormatCallParamsInNewLine),
+		len(values),
+		func(i int) {
+			values[i].WriteCode(ctx)
+		},
+		func(newLine bool) {
+			if sep {
+				ctx.WriteString("; ")
+			} else if newLine {
+				ctx.WriteSecondLine()
+			}
+		})
 }
 
 type NamedArgExpr struct {
 	Lit   *StringLit
 	Ident *IdentExpr
 	Exp   Expr
+	Var   bool
 }
 
 func (e *NamedArgExpr) Name() string {
@@ -895,7 +938,11 @@ func (e *NamedArgExpr) Name() string {
 }
 
 func (e *NamedArgExpr) String() string {
-	return e.Expr().String()
+	var prefix string
+	if e.Var {
+		prefix = "**"
+	}
+	return prefix + e.Expr().String()
 }
 
 func (e *NamedArgExpr) Expr() Expr {
@@ -909,30 +956,50 @@ func (e *NamedArgExpr) Expr() Expr {
 }
 
 func (e *NamedArgExpr) WriteCode(ctx *CodeWriteContext) {
+	if e.Var {
+		ctx.WriteString("**")
+	}
 	e.Expr().WriteCode(ctx)
 }
 
 // CallExprNamedArgs represents a call expression keyword arguments.
 type CallExprNamedArgs struct {
-	Names  []NamedArgExpr
+	Names  []*NamedArgExpr
 	Values []Expr
-	Var    *NamedArgVarLit
 }
 
-func (a *CallExprNamedArgs) Append(name NamedArgExpr, value Expr) *CallExprNamedArgs {
+func (a *CallExprNamedArgs) Var() *NamedArgExpr {
+	if len(a.Names) > 0 {
+		v := a.Names[len(a.Names)-1]
+		if v.Var {
+			return v
+		}
+	}
+	return nil
+}
+
+func (a *CallExprNamedArgs) Append(name *NamedArgExpr, value Expr) *CallExprNamedArgs {
 	a.Names = append(a.Names, name)
 	a.Values = append(a.Values, value)
 	return a
 }
 
 func (a *CallExprNamedArgs) AppendS(name string, value Expr) *CallExprNamedArgs {
-	a.Names = append(a.Names, NamedArgExpr{Ident: &IdentExpr{Name: name}})
+	a.Names = append(a.Names, &NamedArgExpr{Ident: &IdentExpr{Name: name}})
 	a.Values = append(a.Values, value)
 	return a
 }
 
-func (a *CallExprNamedArgs) Prepend(name NamedArgExpr, value Expr) *CallExprNamedArgs {
-	a.Names = append([]NamedArgExpr{name}, a.Names...)
+func (a *CallExprNamedArgs) AppendFlags(name ...string) *CallExprNamedArgs {
+	for _, name := range name {
+		a.Names = append(a.Names, &NamedArgExpr{Ident: &IdentExpr{Name: name}})
+		a.Values = append(a.Values, nil)
+	}
+	return a
+}
+
+func (a *CallExprNamedArgs) Prepend(name *NamedArgExpr, value Expr) *CallExprNamedArgs {
+	a.Names = append([]*NamedArgExpr{name}, a.Names...)
 	a.Values = append([]Expr{value}, a.Values...)
 	return a
 }
@@ -949,7 +1016,7 @@ func (a *CallExprNamedArgs) Get(name NamedArgExpr) (index int, value Expr) {
 }
 
 func (a *CallExprNamedArgs) Valid() bool {
-	return len(a.Names) > 0 || a.Var != nil
+	return len(a.Names) > 0
 }
 
 func (a *CallExprNamedArgs) NamesExpr() (r []Expr) {
@@ -961,15 +1028,22 @@ func (a *CallExprNamedArgs) NamesExpr() (r []Expr) {
 
 func (a *CallExprNamedArgs) String() string {
 	var s []string
-	do := func(i int, name NamedArgExpr) (es string) {
+	do := func(i int, name *NamedArgExpr) (es string) {
+		if name.Var {
+			return name.String()
+		}
+
 		if name.Exp != nil {
 			es = "["
 		}
-		es += name.Expr().String() + "="
-		if a.Values[i] == nil {
-			es += (&FlagLit{Value: true}).String()
+		es += name.Expr().String()
+
+		if v := a.Values[i]; v == nil {
+			es += "=" + (&FlagLit{Value: true}).String()
+		} else if f, _ := v.(*FuncDefLit); f != nil {
+			es += f.String()
 		} else {
-			es += a.Values[i].String()
+			es += "=" + a.Values[i].String()
 		}
 		if name.Exp != nil {
 			es += "]"
@@ -980,42 +1054,53 @@ func (a *CallExprNamedArgs) String() string {
 	for i, name := range a.Names {
 		s = append(s, do(i, name))
 	}
-	if a.Var != nil {
-		s = append(s, a.Var.String())
-	}
 	return strings.Join(s, ", ")
 }
 
 func (a *CallExprNamedArgs) WriteCode(ctx *CodeWriteContext) {
-	l := len(a.Names) - 1
-	do := func(i int, name NamedArgExpr) {
-		if name.Exp != nil {
-			ctx.WriteSingleByte('[')
-			defer ctx.WriteSingleByte(']')
-		}
-
-		if a.Values[i] == nil {
-			if name.Lit != nil && name.Lit.CanIdent() {
-				ctx.WriteString(name.Lit.Value())
-			} else if name.Ident != nil {
-				ctx.WriteString(name.Ident.String())
-			} else {
-				name.Expr().WriteCode(ctx)
+	ctx.WriteItems(
+		ctx.Flags.Has(CodeWriteContextFlagFormatCallParamsInNewLine),
+		len(a.Names),
+		func(i int) {
+			name := a.Names[i]
+			if name.Var {
+				name.WriteCode(ctx)
+				return
 			}
-		} else {
-			ctx.WriteString(name.Expr().String() + "=")
-			a.Values[i].WriteCode(ctx)
-		}
-	}
-	for i, name := range a.Names {
-		do(i, name)
-		if i != l || a.Var != nil {
-			ctx.WriteString(", ")
-		}
-	}
-	if a.Var != nil {
-		ctx.WriteString(a.Var.String())
-	}
+
+			if name.Exp != nil {
+				ctx.WriteSingleByte('[')
+				defer ctx.WriteSingleByte(']')
+			}
+
+			if v := a.Values[i]; v == nil {
+				if name.Lit != nil && name.Lit.CanIdent() {
+					ctx.WriteString(name.Lit.Value())
+				} else if name.Ident != nil {
+					ctx.WriteString(name.Ident.String())
+				} else {
+					name.Expr().WriteCode(ctx)
+				}
+			} else {
+				switch f := v.(type) {
+				case *FuncDefLit:
+					ctx.WriteString(name.Expr().String())
+					f.WriteCode(ctx)
+				case *FuncWithMethodsExpr:
+					ctx.WriteString(name.Expr().String())
+					ctx.WriteString(" ")
+					f.WriteCode(ctx)
+				default:
+					ctx.WriteString(name.Expr().String() + "=")
+					v.WriteCode(ctx)
+				}
+			}
+		},
+		func(nl bool) {
+			if nl {
+				ctx.WriteSecondLine()
+			}
+		})
 }
 
 type CalleeKeywordExpr struct {
@@ -1182,9 +1267,158 @@ func (e *MixedTextExpr) WriteCode(ctx *CodeWriteContext) {
 	}
 }
 
+type FuncWithMethodsStmt struct {
+	FuncWithMethodsExpr
+}
+
+func (f FuncWithMethodsStmt) StmtNode() {
+}
+
+// FuncWithMethodsExpr represents the function with methods expression.
+type FuncWithMethodsExpr struct {
+	FuncToken TokenLit
+	LBrace    source.Pos
+	RBrace    source.Pos
+	NameExpr  Expr
+	Methods   []*FuncMethod
+}
+
+func (e *FuncWithMethodsExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *FuncWithMethodsExpr) Pos() source.Pos {
+	if e.FuncToken.Pos != source.NoPos {
+		return e.FuncToken.Pos
+	}
+	if e.NameExpr != nil {
+		return e.NameExpr.Pos()
+	}
+	return e.LBrace
+}
+
+// End returns the position of first character immediately after the node.
+func (e *FuncWithMethodsExpr) End() source.Pos {
+	return e.RBrace + 1
+}
+
+func (e *FuncWithMethodsExpr) NameIdent() *IdentExpr {
+	if e.NameExpr == nil {
+		return nil
+	}
+	return IdentOfSelector(e.NameExpr)
+}
+
+func (e *FuncWithMethodsExpr) Funcs() (f Exprs) {
+	f = make(Exprs, len(e.Methods))
+	for i, m := range e.Methods {
+		f[i] = m.Func()
+	}
+	return
+}
+
+func (e *FuncWithMethodsExpr) String() string {
+	var b strings.Builder
+	if e.FuncToken.Valid() {
+		b.WriteString(e.FuncToken.Token.String())
+		b.WriteString(" ")
+	}
+	if e.NameExpr != nil {
+		b.WriteString(e.NameExpr.String())
+		b.WriteString(" ")
+	}
+	b.WriteString("{")
+	if len(e.Methods) > 0 {
+		for _, m := range e.Methods {
+			b.WriteString(m.String())
+			b.WriteString("; ")
+		}
+	}
+	b.WriteString("}")
+	return b.String()
+}
+
+func (e *FuncWithMethodsExpr) WriteCode(ctx *CodeWriteContext) {
+	if e.FuncToken.Pos != source.NoPos {
+		ctx.WriteString(e.FuncToken.Token.String())
+		ctx.WriteString(" ")
+	}
+	if e.NameExpr != nil {
+		ctx.WriteString(e.NameExpr.String())
+		ctx.WriteString(" ")
+	}
+
+	ctx.WriteString("{")
+	ctx.WriteItemsSep(len(ctx.Prefix) > 0, len(e.Methods), "; ", "\n", func(i int) {
+		e.Methods[i].WriteCode(ctx)
+	}, func(newLine bool) {
+		if newLine {
+			ctx.WriteSecondLine()
+		}
+	})
+	if len(e.Methods) > 0 {
+		ctx.WritePrefix()
+	}
+	ctx.WriteString("}")
+}
+
+type FuncMethod struct {
+	Params    FuncParams
+	Body      *BlockStmt
+	LambdaPos source.Pos
+	BodyExpr  Expr
+}
+
+func (m *FuncMethod) Pos() source.Pos {
+	return m.Params.Pos()
+}
+
+func (m *FuncMethod) End() source.Pos {
+	if m.BodyExpr != nil {
+		return m.BodyExpr.Pos()
+	}
+	return m.Body.End()
+}
+
+func (m *FuncMethod) String() string {
+	var b strings.Builder
+	b.WriteString(m.Params.String())
+	b.WriteString(" ")
+	if m.BodyExpr != nil {
+		b.WriteString("=> ")
+		b.WriteString(m.BodyExpr.String())
+	} else {
+		b.WriteString(m.Body.String())
+	}
+	return b.String()
+}
+
+func (m *FuncMethod) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(m.Params.String())
+	ctx.WriteString(" ")
+	if m.BodyExpr != nil {
+		ctx.WriteString("=> ")
+		m.BodyExpr.WriteCode(ctx)
+	} else {
+		ctx.Depth++
+		m.Body.WriteCodeInSelfDepth(ctx, false)
+		ctx.Depth--
+	}
+}
+
+func (m *FuncMethod) Func() *FuncExpr {
+	return &FuncExpr{
+		Type: &FuncType{
+			FuncPos: m.Params.Pos(),
+			Params:  m.Params,
+		},
+		Body:      m.Body,
+		BodyExpr:  m.BodyExpr,
+		LambdaPos: m.LambdaPos,
+	}
+}
+
 // FuncExpr represents a function literal.
 type FuncExpr struct {
-	ast.NodeData
 	Type      *FuncType
 	Body      *BlockStmt
 	LambdaPos source.Pos
@@ -1195,6 +1429,12 @@ func (e *FuncExpr) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
 func (e *FuncExpr) Pos() source.Pos {
+	if e.Type == nil {
+		if e.BodyExpr != nil {
+			return e.BodyExpr.Pos()
+		}
+		return e.Body.Pos()
+	}
 	return e.Type.Pos()
 }
 
@@ -1206,12 +1446,29 @@ func (e *FuncExpr) End() source.Pos {
 	return e.Body.End()
 }
 
-func (e *FuncExpr) String() string {
-	var f string
-	if e.Type.FuncPos != 0 {
-		f = "func"
+func (e *FuncExpr) prefix() (s string) {
+	if e.Type != nil {
+		if e.Type.FuncPos != 0 {
+			if len(e.Type.Token.Literal) > 0 {
+				s = e.Type.Token.Literal
+			} else {
+				s = "func"
+			}
+		}
+		if t := e.Type.String(); len(t) > 0 {
+			if e.Type.NameExpr != nil && len(s) > 0 {
+				s += " "
+			}
+			s += t + " "
+		}
+	} else {
+		s = "func"
 	}
-	s := f + e.Type.String() + " "
+	return
+}
+
+func (e *FuncExpr) String() string {
+	s := e.prefix()
 	if e.BodyExpr != nil {
 		s += "=> " + e.BodyExpr.String()
 	} else {
@@ -1221,14 +1478,10 @@ func (e *FuncExpr) String() string {
 }
 
 func (e *FuncExpr) WriteCode(ctx *CodeWriteContext) {
-	var f string
-	if e.Type.FuncPos != 0 {
-		f = "func"
-	}
-
-	ctx.WriteString(f + e.Type.String() + " ")
+	ctx.WriteString(e.prefix())
 
 	if e.BodyExpr != nil {
+		ctx.WriteString("=> ")
 		ctx.WriteString(e.BodyExpr.String())
 	} else {
 		e.Body.WriteCodeInSelfDepth(ctx, true)
@@ -1238,10 +1491,9 @@ func (e *FuncExpr) WriteCode(ctx *CodeWriteContext) {
 // ClosureExpr represents a function closure literal.
 type ClosureExpr struct {
 	ast.NodeData
-	Params      FuncParams
-	LambdaToken token.Token
-	LambdaPos   source.Pos
-	Body        Expr
+	Params FuncParams
+	Lambda Token
+	Body   Expr
 }
 
 func (e *ClosureExpr) ExprNode() {}
@@ -1257,12 +1509,10 @@ func (e *ClosureExpr) End() source.Pos {
 }
 
 func (e *ClosureExpr) sep() string {
-	var sep string
-	switch e.LambdaToken {
-	case token.Assign, token.Lambda:
-		sep = " "
+	if e.Lambda.Valid() {
+		return " " + e.Lambda.Token.String()
 	}
-	return sep + e.LambdaToken.String()
+	return ""
 }
 
 func (e *ClosureExpr) String() string {
@@ -1276,6 +1526,10 @@ func (e *ClosureExpr) WriteCode(ctx *CodeWriteContext) {
 	} else {
 		e.Body.WriteCode(ctx)
 	}
+}
+
+type MethodExpr struct {
+	Expr
 }
 
 // DictExpr represents a map literal.
@@ -1307,12 +1561,19 @@ func (e *DictExpr) String() string {
 
 func (e *DictExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteSingleByte('{')
-	for i, m := range e.Elements {
-		if i > 0 {
-			ctx.WriteString(", ")
-		}
-		m.WriteCode(ctx)
-	}
+	inLineLine := ctx.Flags.Has(CodeWriteContextFlagFormatDictItemInNewLine)
+	ctx.WriteItems(
+		inLineLine,
+		len(e.Elements),
+		func(i int) {
+			e.Elements[i].WriteCode(ctx)
+		},
+		func(newLine bool) {
+			if newLine {
+				ctx.WriteSecondLine()
+			}
+		})
+	ctx.WritePrefix()
 	ctx.WriteSingleByte('}')
 }
 
@@ -1345,6 +1606,86 @@ func (e *ArrayExpr) String() string {
 
 func (e *ArrayExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteSingleByte('[')
-	ctx.WriteExprs(", ", e.Elements...)
+	inLineLine := ctx.Flags.Has(CodeWriteContextFlagFormatArrayItemInNewLine)
+	ctx.WriteItems(
+		inLineLine,
+		len(e.Elements),
+		func(i int) {
+			e.Elements[i].WriteCode(ctx)
+		},
+		func(newLine bool) {
+			if newLine {
+				ctx.WriteSecondLine()
+			}
+		})
+	ctx.WritePrefix()
 	ctx.WriteSingleByte(']')
+}
+
+type Ptr struct {
+	TokenPos source.Pos
+	Expr
+}
+
+func (e *Ptr) String() string {
+	return "&(" + e.Expr.String() + ")"
+}
+
+func (e *Ptr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteSingleByte('&')
+	e.Expr.WriteCode(ctx)
+}
+
+type ComputedExpr struct {
+	StartPos source.Pos
+	EndPos   source.Pos
+	Stmts    Stmts
+}
+
+func (e *ComputedExpr) ExprNode() {}
+
+func (e *ComputedExpr) Pos() source.Pos {
+	if e.StartPos > 0 {
+		return e.StartPos
+	}
+	return e.Stmts[0].Pos()
+}
+
+func (e *ComputedExpr) End() source.Pos {
+	if e.EndPos > 0 {
+		return e.EndPos
+	}
+	return e.Stmts[len(e.Stmts)-1].End()
+}
+
+func (e *ComputedExpr) String() string {
+	return "(= " + e.Stmts.String() + ")"
+}
+
+func (e *ComputedExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("(=")
+	if len(e.Stmts) == 1 {
+		if e, _ := e.Stmts[0].(*ExprStmt); e != nil {
+			ctx.WriteSingleByte(' ')
+			e.Expr.WriteCode(ctx)
+			goto done
+		}
+	}
+
+	if len(ctx.Prefix) > 0 {
+		ctx.WriteSecondLine()
+		ctx.Depth++
+		ctx.WriteStmts(e.Stmts...)
+		ctx.Depth--
+		if len(ctx.Prefix) > 0 {
+			ctx.WritePrefixedLine()
+		}
+	} else {
+		ctx.WriteSingleByte(' ')
+		ctx.Depth++
+		ctx.WriteStmts(e.Stmts...)
+		ctx.Depth--
+	}
+done:
+	ctx.WriteSingleByte(')')
 }

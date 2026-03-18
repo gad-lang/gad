@@ -1,51 +1,103 @@
 package gad
 
 import (
+	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
+
+	"github.com/gad-lang/gad/repr"
+	"github.com/gad-lang/gad/zeroer"
+	"github.com/xlab/treeprint"
 )
 
+type IndexMethodAdder interface {
+	AddMethodIndex(c Call) (ret Object, err error)
+}
+
+type IndexMethodGetter interface {
+	GetIndexMethod(vm *VM, index Object) (ret Object, err error)
+}
+
 type ObjectTypeNode struct {
-	Type     ObjectType
+	Var  bool
+	Type ObjectType
+	VarChildren,
 	Children []*ObjectTypeNode
 }
 
-func (n *ObjectTypeNode) Append(o MultipleObjectTypes) {
+func (n *ObjectTypeNode) Append(o ParamsTypes) (err error) {
 	if len(o) > 0 {
-		if len(o[0]) == 0 {
+		if o[0].IsZero() {
 			var child = &ObjectTypeNode{}
 			n.Children = append(n.Children, child)
-			child.Append(o[1:])
+			return child.Append(o[1:])
 		} else {
-			for _, ot := range o[0] {
+			_, isvar := o[0].(VarParamTypes)
+
+			for _, ot := range o[0].Items() {
 				var child = &ObjectTypeNode{
+					Var:  isvar,
 					Type: ot,
 				}
-				n.Children = append(n.Children, child)
-				child.Append(o[1:])
+
+				if isvar {
+					n.VarChildren = append(n.VarChildren, child)
+				} else {
+					n.Children = append(n.Children, child)
+				}
+				if !isvar {
+					if err = child.Append(o[1:]); err != nil {
+						return
+					}
+				} else if len(o) > 1 {
+					return errors.New("more than one type for variadic parameter")
+				}
 			}
 		}
 	}
+	return
 }
 
-func (n *ObjectTypeNode) Walk(cb func(types ObjectTypes) any) any {
+func (n *ObjectTypeNode) Walk(cb func(types ObjectTypeArray) any) any {
 	return n.walk(nil, cb)
 }
 
-func (n *ObjectTypeNode) WalkE(cb func(types ObjectTypes) any) error {
+func (n *ObjectTypeNode) WalkE(cb func(types ObjectTypeArray) any) error {
 	if v := n.walk(nil, cb); v != nil {
 		return v.(error)
 	}
 	return nil
 }
 
-func (n *ObjectTypeNode) walk(path ObjectTypes, cb func(types ObjectTypes) any) (v any) {
+func (n *ObjectTypeNode) walk(path ObjectTypeArray, cb func(types ObjectTypeArray) any) (v any) {
 	if len(n.Children) == 0 {
-		return cb(path)
+		if len(n.VarChildren) > 0 {
+			for _, child := range n.VarChildren {
+				dot := path
+				if child.Var {
+					dot = append(dot, &VarObjectType{child.Type})
+				} else {
+					dot = append(dot, child.Type)
+				}
+				if v = child.walk(dot, cb); v != nil {
+					return
+				}
+			}
+			return
+		} else {
+			return cb(path)
+		}
 	}
 	for _, child := range n.Children {
-		if v = child.walk(append(path, child.Type), cb); v != nil {
+		dot := path
+		if child.Var {
+			dot = append(dot, &VarObjectType{child.Type})
+		} else {
+			dot = append(dot, child.Type)
+		}
+		if v = child.walk(dot, cb); v != nil {
 			return
 		}
 	}
@@ -54,39 +106,145 @@ func (n *ObjectTypeNode) walk(path ObjectTypes, cb func(types ObjectTypes) any) 
 
 type ObjectTypes []ObjectType
 
+var _ ParamTypes = ObjectTypes{}
+
+func (t ObjectTypes) Multi() (m ParamsTypes) {
+	m = make(ParamsTypes, len(t))
+	for i := range t {
+		m[i] = t[i : i+1]
+	}
+	return
+}
+
 func (t ObjectTypes) String() string {
 	var s = make([]string, len(t))
 	for i, ot := range t {
 		s[i] = ot.Name()
 	}
-	return strings.Join(s, ", ")
+	return strings.Join(s, "|")
 }
 
-type MultipleObjectTypes []ObjectTypes
+func (t ObjectTypes) Items() ObjectTypes {
+	return t
+}
 
-func (t MultipleObjectTypes) String() string {
-	if len(t) == 1 {
-		return t[0].String()
+func (t ObjectTypes) IsZero() bool {
+	return len(t) == 0
+}
+
+func (t ObjectTypes) Len() int {
+	return len(t)
+}
+
+func (t ObjectTypes) Get(i int) ObjectType {
+	return t[i]
+}
+
+func (t ObjectTypes) Last() ObjectType {
+	return t[len(t)-1]
+}
+
+func (t ObjectTypes) HasVar() (ok bool) {
+	if len(t) > 0 {
+		_, ok = t.Last().(*VarObjectType)
 	}
+	return
+}
+
+func (t ObjectTypes) VarSplit() (nonVar ObjectTypes, varType ObjectType) {
+	nonVar = t
+	if len(t) > 0 {
+		last := t[len(t)-1]
+		if vart, _ := last.(*VarObjectType); vart != nil {
+			varType = vart.ObjectType
+			nonVar = nonVar[:len(nonVar)-1]
+		}
+	}
+	return
+}
+
+func (t ObjectTypes) Var() (_ ObjectType) {
+	if len(t) > 0 {
+		if v, _ := t.Last().(*VarObjectType); v != nil {
+			return v.ObjectType
+		}
+	}
+	return
+}
+
+type VarParamTypes []ObjectType
+
+type VarObjectType struct {
+	ObjectType
+}
+
+func (v *VarObjectType) String() string {
+	return "*" + v.ObjectType.String()
+}
+
+func (v *VarObjectType) Name() string {
+	return "*" + v.ObjectType.Name()
+}
+
+func (v *VarObjectType) FullName() string {
+	return "*" + v.ObjectType.FullName()
+}
+
+var _ ParamTypes = VarParamTypes{}
+
+func (t VarParamTypes) String() string {
+	return "*" + ObjectTypes(t).String()
+}
+
+func (t VarParamTypes) Items() ObjectTypes {
+	return ObjectTypes(t)
+}
+
+func (t VarParamTypes) IsZero() bool {
+	return len(t) == 0
+}
+
+func (t VarParamTypes) Len() int {
+	return len(t)
+}
+
+func (t VarParamTypes) Get(i int) ObjectType {
+	return t[i]
+}
+
+type ParamTypes interface {
+	fmt.Stringer
+	zeroer.Zeroer
+	Items() ObjectTypes
+	Len() int
+	Get(int) ObjectType
+}
+
+type ParamsTypes []ParamTypes
+
+func (t ParamsTypes) String() string {
 	s := make([]string, len(t))
 	for i, types := range t {
 		s[i] = types.String()
 	}
-	return "[" + strings.Join(s, ", ") + "]"
+	return "(" + strings.Join(s, ", ") + ")"
 }
 
-func (t MultipleObjectTypes) Tree() *ObjectTypeNode {
+func (t ParamsTypes) Tree() (r *ObjectTypeNode, err error) {
 	var root ObjectTypeNode
-	root.Append(t)
-	return &root
+	err = root.Append(t)
+	r = &root
+	return
 }
 
 type CallerMethod struct {
-	Default bool
+	target Object
 	CallerObject
-	Types []ObjectType
-	arg   *MethodArgType
-	index int
+	ToStringDetailFunc func(m *CallerMethod) string
+}
+
+func NewCallerMethod(target Object, callerObject CallerObject) *CallerMethod {
+	return &CallerMethod{target: target, CallerObject: callerObject}
 }
 
 func (o *CallerMethod) Caller() CallerObject {
@@ -96,175 +254,119 @@ func (o *CallerMethod) Caller() CallerObject {
 	return o.CallerObject
 }
 
-func (o *CallerMethod) Remove() {
-	for _, method := range o.arg.Methods[o.index+1:] {
-		method.index--
-	}
-	o.arg.Methods = append(o.arg.Methods[:o.index], o.arg.Methods[o.index+1:]...)
-	o.arg = nil
+func (o *CallerMethod) Target() Object {
+	return o.target
 }
 
 func (o *CallerMethod) String() string {
-	var ts = make([]string, len(o.Types))
-	for i := range ts {
-		if o.Types[i] != nil {
-			ts[i] = " " + o.Types[i].Name()
+	return o.StringTarget(true)
+}
+
+func (o *CallerMethod) StringTarget(targets bool) string {
+	var target string
+	if targets && o.target != nil {
+		if t, _ := o.target.(ObjectType); t != nil {
+			target = "[target " + t.String() + "]"
+		} else {
+			target = "[target " + repr.QuoteTyped(o.target.Type().Name(), o.target.ToString()) + "]"
 		}
 	}
 
-	return "(" + strings.Join(ts, ", ") + ") => " + o.CallerObject.ToString()
-}
-
-type CallerObjectWithMethods struct {
-	CallerObject
-	Methods    MethodArgType
-	registered bool
-}
-
-func NewCallerObjectWithMethods(callerObject CallerObject) *CallerObjectWithMethods {
-	return &CallerObjectWithMethods{CallerObject: callerObject}
-}
-
-func (o *CallerObjectWithMethods) HasCallerMethods() bool {
-	if o.registered {
-		return !o.Methods.IsZero()
-	}
-	return false
-}
-
-func (o *CallerObjectWithMethods) RegisterDefaultWithTypes(types MultipleObjectTypes) *CallerObjectWithMethods {
-	o.registered = true
-	o.Methods.Add(types, &CallerMethod{
-		Default:      true,
-		CallerObject: o.CallerObject,
-	}, false)
-	if sm, ok := o.CallerObject.(CallerObjectWithStaticMethods); ok {
-		for _, m := range sm.GetGoMethods() {
-			o.Methods.Add(m.Header.ParamTypes(), &CallerMethod{
-				CallerObject: m,
-			}, true)
-		}
-	}
-	return o
-}
-
-func (o *CallerObjectWithMethods) AddCallerMethod(vm *VM, argTypes MultipleObjectTypes, handler CallerObject, override bool) error {
-	if !o.registered {
-		o.registered = true
-		if cot, _ := o.CallerObject.(CallerObjectWithParamTypes); cot != nil {
-			types, err := o.CallerObject.(CallerObjectWithParamTypes).ParamTypes(vm)
-			if err != nil {
-				return err
-			}
-			o.RegisterDefaultWithTypes(types)
+	var detail string
+	if o.ToStringDetailFunc != nil {
+		detail = o.ToStringDetailFunc(o)
+		if len(detail) > 0 {
+			detail = " " + detail
 		}
 	}
 
-	return o.Methods.Add(argTypes, &CallerMethod{
-		CallerObject: handler,
-	}, override)
-}
-
-func (o *CallerObjectWithMethods) ToString() string {
-	var (
-		s strings.Builder
-		i int
-	)
-
-	if !o.registered {
-		return o.CallerObject.ToString()
+	var sep string
+	if len(target) > 0 || len(detail) > 0 {
+		sep = " 🠆 "
 	}
 
-	o.MethodWalkSorted(func(m *CallerMethod) any {
-		if !m.Default {
-			s.WriteString(fmt.Sprintf("\t%d. ", i+1))
-			s.WriteString(m.CallerObject.ToString())
-			types := make([]string, len(m.Types))
-			for i, t := range m.Types {
-				types[i] = t.Name()
-			}
-			s.WriteString(": [" + strings.Join(types, ", ") + "]\n")
-			i++
-		}
-		return nil
-	})
-
-	return o.CallerObject.ToString() + strings.TrimRight(fmt.Sprintf(" with %d methods:\n", i)+s.String(), "\n")
+	return fmt.Sprintf("%s%s%s%s", o.CallerObject.ToString(), sep, target, detail)
 }
 
-func (o *CallerObjectWithMethods) String() string {
-	return o.ToString()
-}
-
-func (o *CallerObjectWithMethods) Caller() CallerObject {
-	return o.CallerObject
-}
-
-func (o *CallerObjectWithMethods) Call(c Call) (Object, error) {
-	caller, validate := o.CallerMethodWithValidationCheckOfArgs(c.Args)
-	c.SafeArgs = !validate
-	return YieldCall(caller, &c), nil
-}
-
-func (o *CallerObjectWithMethods) CallerMethodWithValidationCheckOfArgs(args Args) (CallerObject, bool) {
-	if !o.registered {
-		if cof, _ := o.CallerObject.(CanCallerObjectTypesValidation); cof != nil {
-			return o.CallerObject, cof.CanValidateParamTypes()
-		}
-		return o.CallerObject, false
+func (o *CallerMethod) IndexGet(vm *VM, index Object) (value Object, err error) {
+	key := index.ToString()
+	switch key {
+	case "target":
+		return o.target, nil
+	case "caller":
+		return o.CallerObject, nil
+	default:
+		return nil, ErrInvalidIndex.NewError(index.ToString())
 	}
-	return o.CallerMethodWithValidationCheckOfArgsTypes(args.Types())
 }
 
-func (o *CallerObjectWithMethods) CallerMethodOfArgs(args Args) (co CallerObject) {
-	if !o.registered {
-		return o.CallerObject
+type TypedCallerMethods []*TypedCallerMethod
+
+var (
+	_ Object       = (*TypedCallerMethod)(nil)
+	_ CallerObject = (*TypedCallerMethod)(nil)
+	_ IndexGetter  = (*TypedCallerMethod)(nil)
+)
+
+type TypedCallerMethod struct {
+	*CallerMethod
+	types ObjectTypeArray
+	isVar bool
+}
+
+func (o *TypedCallerMethod) IndexGet(vm *VM, index Object) (value Object, err error) {
+	key := index.ToString()
+	switch key {
+	case "caller":
+		return o.CallerMethod, nil
+	case "isVar":
+		return Bool(o.isVar), nil
+	case "types":
+		return o.types, nil
+	default:
+		return nil, ErrInvalidIndex.NewError(index.ToString())
 	}
-	return o.CallerMethodOfArgsTypes(args.Types())
 }
 
-func (o *CallerObjectWithMethods) CallerMethodOfArgsTypes(types []ObjectType) (co CallerObject) {
-	return o.Methods.GetMethod(types).Caller()
+func (o *TypedCallerMethod) Types() ObjectTypeArray {
+	return o.types
 }
 
-func (o *CallerObjectWithMethods) CallerMethodWithValidationCheckOfArgsTypes(types []ObjectType) (co CallerObject, validate bool) {
-	if method := o.Methods.GetMethod(types); method != nil {
-		return method.CallerObject, false
+func (o *TypedCallerMethod) IsVar() bool {
+	return o.isVar
+}
+
+func (o *TypedCallerMethod) String() string {
+	return o.StringTarget(true)
+}
+
+func (o *TypedCallerMethod) StringTarget(target bool) string {
+	if o == nil {
+		return ""
 	}
-	if cof, _ := o.CallerObject.(CanCallerObjectTypesValidation); cof != nil {
-		validate = cof.CanValidateParamTypes()
+	var types = make([]string, len(o.types))
+	for i := range types {
+		types[i] = o.types[i].Name()
 	}
-	return o.CallerObject, validate
+
+	return fmt.Sprintf("⨍(%s) 🠆 %s", strings.Join(types, ", "), o.CallerMethod.StringTarget(target))
 }
 
-func (o *CallerObjectWithMethods) CallerMethods() *MethodArgType {
-	return &o.Methods
+func (o *TypedCallerMethod) ToString() string {
+	return o.String()
 }
 
-func (o *CallerObjectWithMethods) MethodWalk(cb func(m *CallerMethod) any) (v any) {
-	if o.registered {
-		return o.Methods.Walk(cb)
-	}
-	return cb(&CallerMethod{
-		CallerObject: o.CallerObject,
-	})
+func (o *TypedCallerMethod) Print(state *PrinterState) error {
+	targets, _ := state.context.Value(typedCallerMethodContextKeyNoTarget).(bool)
+	return state.WriteString(o.StringTarget(!targets))
 }
 
-func (o *CallerObjectWithMethods) MethodWalkSorted(cb func(m *CallerMethod) any) (v any) {
-	if o.registered {
-		return o.Methods.WalkSorted(cb)
-	}
-	return cb(&CallerMethod{
-		CallerObject: o.CallerObject,
-	})
-}
+type typedCallerMethodContextKey uint8
 
-func (o *CallerObjectWithMethods) Equal(right Object) bool {
-	if cowm, _ := right.(*CallerObjectWithMethods); cowm != nil {
-		right = cowm.CallerObject
-	}
-	return o.CallerObject.Equal(right)
-}
+const (
+	typedCallerMethodContextKeyNoTarget typedCallerMethodContextKey = iota + 1
+	typedCallerMethodContextKeyNoMethods
+)
 
 type MethodDefinition struct {
 	Args    []ObjectType
@@ -272,82 +374,390 @@ type MethodDefinition struct {
 }
 
 type MethodArgType struct {
+	parent  *MethodArgType
 	Type    ObjectType
-	Methods []*CallerMethod
+	Method  *TypedCallerMethod
+	Var     bool
 	Next    Methods
+	NextVar Methods
 }
 
-func (at *MethodArgType) Walk(cb func(m *CallerMethod) any) (v any) {
-	for _, method := range at.Methods {
-		if v = cb(method); v != nil {
+func (at *MethodArgType) Parents() (parents []*MethodArgType) {
+	at = at.parent
+	for at != nil {
+		parents = append(parents, at)
+		at = at.parent
+	}
+	slices.Reverse(parents)
+	return
+}
+
+func (at *MethodArgType) Path() (path []*MethodArgType) {
+	path = append(path, at)
+	at = at.parent
+	for at != nil {
+		path = append(path, at)
+		at = at.parent
+	}
+	slices.Reverse(path)
+	return
+}
+
+func (at MethodArgType) Copy() *MethodArgType {
+	if at.Next != nil {
+		at.Next = at.Next.Copy()
+	}
+	if (at.NextVar) != nil {
+		at.NextVar = at.Next.Copy()
+	}
+	return &at
+}
+
+func (at *MethodArgType) Walk(cb func(m *TypedCallerMethod) any) (v any) {
+	if at.Method != nil {
+		if v = cb(at.Method); v != nil {
 			return
 		}
 	}
-	return at.Next.Walk(cb)
-}
 
-func (at *MethodArgType) WalkSorted(cb func(m *CallerMethod) any) (v any) {
-	for _, method := range at.Methods {
-		if v = cb(method); v != nil {
+	if at.Next != nil {
+		if v = at.Next.Walk(cb); v != nil {
 			return
 		}
 	}
-	return at.Next.WalkSorted(cb)
+
+	if at.NextVar != nil {
+		if v = at.NextVar.Walk(cb); v != nil {
+			return
+		}
+	}
+	return
 }
 
-func (at *MethodArgType) Add(types MultipleObjectTypes, m *CallerMethod, override bool) error {
-	return types.Tree().WalkE(func(types ObjectTypes) any {
-		return at.add(nil, types, m, override)
+func (at *MethodArgType) WalkSorted(cb func(m *TypedCallerMethod) any) (v any) {
+	if at.Method != nil {
+		if v = cb(at.Method); v != nil {
+			return
+		}
+	}
+	if at.Next != nil {
+		if v = at.Next.WalkSorted(cb); v != nil {
+			return
+		}
+	}
+	if at.NextVar != nil {
+		if v = at.NextVar.WalkSorted(cb); v != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func (at *MethodArgType) Add(types ParamsTypes, m *CallerMethod, override bool, onAdd func(tcm *TypedCallerMethod) error) (err error) {
+	if len(types) == 0 {
+		return at.add(nil, m, override, onAdd)
+	}
+
+	var root *ObjectTypeNode
+	if root, err = types.Tree(); err != nil {
+		return
+	}
+
+	err = root.WalkE(func(types ObjectTypeArray) any {
+		return at.add(types, m, override, onAdd)
 	})
+	return
 }
 
-func (at *MethodArgType) add(pth, types ObjectTypes, m *CallerMethod, override bool) error {
-	if len(types) == 0 {
-		if len(at.Methods) > 0 && !override {
-			return ErrMethodDuplication.NewError(m.String())
+func (at *MethodArgType) add(types ObjectTypeArray, m *CallerMethod, override bool, onAdd func(tcm *TypedCallerMethod) error) (err error) {
+	var (
+		getOrAdd = func(dst *Methods, t ObjectType) (cur *MethodArgType, added bool) {
+			if *dst == nil {
+				*dst = make(map[ObjectType]*MethodArgType)
+			}
+
+			if bt, _ := t.(*BuiltinObjType); bt != nil {
+				t = bt.TypeKey()
+			}
+
+			cur = (*dst)[t]
+			if cur == nil {
+				cur = &MethodArgType{
+					parent: at,
+					Type:   t,
+				}
+				(*dst)[t] = cur
+				added = true
+			}
+			return
 		}
-		m2 := *m
-		m2.Types = pth
-		m2.index = len(at.Methods)
-		at.Methods = append(at.Methods, &m2)
+		set = func(cur *MethodArgType, added bool, types ObjectTypeArray, raise bool) {
+			if added || override || cur.Method == nil {
+				cur.Method = &TypedCallerMethod{
+					CallerMethod: m,
+					types:        types,
+				}
+
+				if onAdd != nil {
+					if err = onAdd(cur.Method); err != nil {
+						return
+					}
+				}
+			} else if raise {
+				err = ErrMethodDuplication.NewErrorf("params %s: %s. Current method is %s", types.String(), m.StringTarget(false), cur.Method.CallerMethod.StringTarget(false))
+			}
+		}
+	)
+
+	if len(types) == 0 {
+		set(at, at.Method == nil, nil, true)
+		return
+	}
+
+	nonVarT, varT := types.VarSplit()
+
+	if len(nonVarT) > 0 {
+		for _, t := range nonVarT[:len(nonVarT)-1] {
+			at, _ = getOrAdd(&at.Next, t)
+		}
+
+		var (
+			t          = nonVarT[len(nonVarT)-1]
+			cur, added = getOrAdd(&at.Next, t)
+		)
+
+		set(cur, added, nonVarT, true)
+		if err != nil {
+			return
+		}
+
+		at = cur
+	}
+
+	if varT != nil {
+		cur, added := getOrAdd(&at.NextVar, varT)
+		cur.Var = true
+		set(cur, added, types, true)
+	}
+	return
+}
+
+func (at *MethodArgType) GetMethod(types ObjectTypeArray) *TypedCallerMethod {
+	var (
+		l   = len(types)
+		i   int
+		cur = at
+		tmp *MethodArgType
+	)
+
+	if l == 0 {
+		if cur.Method != nil {
+			return cur.Method
+		}
+
+		if cur.NextVar != nil {
+			if arg := cur.NextVar[TAny]; arg != nil {
+				return arg.Method
+			}
+		}
 		return nil
 	}
 
-	if at.Next == nil {
-		at.Next = map[ObjectType]*MethodArgType{}
+	for ; i < l; i++ {
+		if tmp = cur.Next.get(types[i]); tmp == nil {
+			break
+		}
+		cur = tmp
 	}
 
-	return at.Next.Add(pth, types, m, override)
-}
-
-func (at *MethodArgType) GetMethod(types []ObjectType) *CallerMethod {
-	if len(types) == 0 {
-		if len(at.Methods) > 0 {
-			return at.Methods[len(at.Methods)-1]
-		}
+	if cur == nil {
 		return nil
 	}
-	return at.Next.GetMethod(types)
+
+	// has more or not have method, try *args
+	if i < l || cur.Method == nil {
+		atv := cur
+		for ; atv != nil && i != -1; i-- {
+			if atv.NextVar != nil {
+				if tmp = atv.NextVar.get(types[i]); tmp != nil {
+					if tmp.Type != TAny {
+						for _, t := range types[i:] {
+							if !IsAssignableTo(t, tmp.Type) {
+								goto up
+							}
+						}
+					}
+					// check if *args is some type
+					return tmp.Method
+				}
+			}
+		up:
+			atv = atv.parent
+		}
+	} else {
+		return cur.Method
+	}
+	return nil
 }
 
 func (at *MethodArgType) IsZero() (ok bool) {
 	ok = true
-	at.Walk(func(m *CallerMethod) any {
-		if m.Default {
-			return nil
-		}
+	at.Walk(func(m *TypedCallerMethod) any {
 		ok = false
 		return ok
 	})
 	return
 }
 
+func (at *MethodArgType) label() string {
+	return at.labelIndex("")
+}
+
+func (at *MethodArgType) labelIndex(methodIndex string) string {
+	var m, typ string
+
+	if at.Method != nil {
+		m = " " + at.Method.StringTarget(false)
+		if len(methodIndex) > 0 {
+			m = " " + methodIndex + m
+		}
+	}
+
+	if at.Type != nil {
+		typ = at.Type.Name()
+	}
+
+	if at.Var {
+		typ = "*" + typ
+	}
+
+	if len(typ) > 0 && len(m) > 0 {
+		typ += " 🠆"
+	}
+
+	return fmt.Sprintf("%s%s", typ, m)
+}
+
+func (at *MethodArgType) EachMethods() func(func(i int, m *MethodArgType) bool) {
+	return func(yield func(i int, m *MethodArgType) bool) {
+		var i int
+		at.ArgWalk(func(m *MethodArgType) any {
+			if m.Method != nil {
+				if !yield(i, m) {
+					return false
+				}
+				i++
+			}
+			return nil
+		})
+	}
+}
+
+func (at *MethodArgType) MethodsWalk(f func(m *MethodArgType) any) (r any) {
+	if at.Method != nil {
+		if r = f(at); r != nil {
+			return
+		}
+	}
+	if len(at.Next) > 0 {
+		if r = at.Next.Sorted(func(m *MethodArgType) any {
+			return m.MethodsWalk(f)
+		}); r != nil {
+			return
+		}
+	}
+
+	if len(at.NextVar) > 0 {
+		r = at.NextVar.Sorted(func(m *MethodArgType) any {
+			return f(m)
+		})
+	}
+	return
+}
+
+func (at *MethodArgType) ArgWalk(f func(m *MethodArgType) any) (r any) {
+	if len(at.Next) > 0 {
+		if r = at.Next.Sorted(func(m *MethodArgType) any {
+			if r = f(m); r != nil {
+				return r
+			}
+			return m.ArgWalk(f)
+		}); r != nil {
+			return
+		}
+	}
+
+	if len(at.NextVar) > 0 {
+		if r = at.NextVar.Sorted(func(m *MethodArgType) any {
+			if r = f(m); r != nil {
+				return r
+			}
+			return m.ArgWalk(f)
+		}); r != nil {
+			return
+		}
+	}
+	return
+}
+
+func (at *MethodArgType) NumMethods() (i int) {
+	at.MethodsWalk(func(m *MethodArgType) any {
+		i++
+		return nil
+	})
+	return
+}
+
+func (at *MethodArgType) ToString() string {
+	var (
+		t     = treeprint.NewWithRoot(at.label())
+		nodes = map[string]treeprint.Tree{
+			fmt.Sprintf("%p", at): t,
+		}
+		count int
+	)
+
+	at.MethodsWalk(func(m *MethodArgType) any {
+		var (
+			path   = m.Path()[1:]
+			parent = t
+		)
+
+		for i, pmat := range path {
+			pid := fmt.Sprintf("%p", pmat)
+			p := nodes[pid]
+			if p == nil {
+				var methodIndex string
+				if i == len(path)-1 {
+					methodIndex = fmt.Sprintf("#%d", count)
+					count++
+				}
+				p = parent.AddBranch(pmat.labelIndex(methodIndex))
+				nodes[pid] = p
+			}
+			parent = p
+		}
+		return nil
+	})
+
+	return t.String()
+}
+
 type Methods map[ObjectType]*MethodArgType
 
-func (args Methods) IsZero() (ok bool) {
+func (m Methods) Copy() (cp Methods) {
+	cp = make(Methods, len(m))
+	for ot, at := range m {
+		cp[ot] = at.Copy()
+	}
+	return
+}
+
+func (m Methods) IsZero() (ok bool) {
 	ok = true
-	for _, v := range args {
-		if len(v.Methods) > 0 {
+	for _, v := range m {
+		if v.Method != nil {
 			return false
 		}
 		if ok = v.Next.IsZero(); !ok {
@@ -357,34 +767,27 @@ func (args Methods) IsZero() (ok bool) {
 	return
 }
 
-func (args Methods) Walk(cb func(m *CallerMethod) any) (rv any) {
-	for _, v := range args {
-		for _, method := range v.Methods {
-			if rv = cb(method); rv != nil {
-				return
-			}
-		}
-		if v.Next != nil {
-			if rv = v.Next.Walk(cb); rv != nil {
-				return
-			}
+func (m Methods) Walk(cb func(m *TypedCallerMethod) any) (v any) {
+	for _, e := range m {
+		if v = e.Walk(cb); v != nil {
+			return
 		}
 	}
 	return
 }
 
-func (args Methods) WalkSorted(cb func(m *CallerMethod) any) (rv any) {
+func (m Methods) Sorted(cb func(m *MethodArgType) any) (err any) {
 	type kv struct {
 		k string
 		v ObjectType
 	}
 	var (
-		l      = len(args)
+		l      = len(m)
 		values = make([]kv, l)
 		i      int
 	)
 
-	for key := range args {
+	for key := range m {
 		if key == nil {
 			values[i] = kv{"", nil}
 		} else {
@@ -398,81 +801,66 @@ func (args Methods) WalkSorted(cb func(m *CallerMethod) any) (rv any) {
 	})
 
 	for _, kv := range values {
-		v := args[kv.v]
-		for _, method := range v.Methods {
-			if rv = cb(method); rv != nil {
-				return
-			}
-		}
-		if v.Next != nil {
-			if rv = v.Next.WalkSorted(cb); rv != nil {
-				return
-			}
+		if err = cb(m[kv.v]); err != nil {
+			return
 		}
 	}
 	return
 }
 
-func (args Methods) Add(pth, types ObjectTypes, cm *CallerMethod, override bool) (err error) {
-	cur, ok := args[types[0]]
-	if !ok {
-		cur = &MethodArgType{
-			Type: types[0],
-			Next: map[ObjectType]*MethodArgType{},
-		}
-		args[types[0]] = cur
+func (m Methods) WalkSorted(cb func(m *TypedCallerMethod) any) (v any) {
+	type kv struct {
+		k string
+		v ObjectType
 	}
 
-	return cur.add(append(pth, types[0]), types[1:], cm, override)
-}
+	var (
+		l      = len(m)
+		values = make([]kv, l)
+		i      int
+		hasAny bool
+	)
 
-func (args Methods) GetMethod(types []ObjectType) (cm *CallerMethod) {
-	var at *MethodArgType
-
-	for i := len(types); i > 0; i-- {
-		at = args[types[0]]
-		if at == nil {
-			if at = args[nil]; at == nil {
-				return nil
-			}
+	for key := range m {
+		if key.Equal(TAny) {
+			hasAny = true
+		} else {
+			values[i] = kv{key.FullName(), key}
+			i++
 		}
-		args = at.Next
-		types = types[1:]
 	}
 
-	if at != nil && at.Methods != nil {
-		cm = at.Methods[len(at.Methods)-1]
+	sort.Slice(values[:i], func(i, j int) bool {
+		return values[i].k < values[j].k
+	})
+
+	if hasAny {
+		values[i] = kv{TAny.FullName(), TAny}
+	}
+
+	for _, kv := range values {
+		if v = m[kv.v].WalkSorted(cb); v != nil {
+			return
+		}
 	}
 	return
 }
 
-func NewTypedFunction(fn *Function, types MultipleObjectTypes) *CallerObjectWithMethods {
-	return NewCallerObjectWithMethods(fn).RegisterDefaultWithTypes(types)
+func (m Methods) get(t ObjectType) (at *MethodArgType) {
+	TypeAssigners(t, func(t ObjectType) any {
+		if bt, _ := t.(*BuiltinObjType); bt != nil {
+			t = bt.TypeKey()
+		}
+		if at = m[t]; at != nil {
+			return true
+		}
+		return nil
+	})
+	return
 }
 
 type CallerMethodDefinition struct {
 	Handler  CallerObject
-	Types    MultipleObjectTypes
+	Types    ParamsTypes
 	Override bool
-}
-
-func AddCallerMethod(vm *VM, dst CallerObject, methods ...CallerMethodDefinition) (_ *CallerObjectWithMethods, err error) {
-	var o *CallerObjectWithMethods
-	if o, _ = dst.(*CallerObjectWithMethods); o == nil {
-		o = NewCallerObjectWithMethods(dst)
-	}
-	for _, d := range methods {
-		if err = o.AddCallerMethod(vm, d.Types, d.Handler, d.Override); err != nil {
-			return
-		}
-	}
-	return o, nil
-}
-
-func MustAddCallerMethod(vm *VM, dst CallerObject, methods ...CallerMethodDefinition) (co *CallerObjectWithMethods) {
-	var err error
-	if co, err = AddCallerMethod(vm, dst, methods...); err != nil {
-		panic(err)
-	}
-	return
 }

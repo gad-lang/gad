@@ -6,11 +6,11 @@ import (
 
 var Module = gad.Dict{
 	"encode": &gad.Function{
-		Name:  "encode",
-		Value: Encode,
+		FuncName: "encode",
+		Value:    Encode,
 	},
 	"decode": &gad.Function{
-		Name:  "decode",
-		Value: Decode,
+		FuncName: "decode",
+		Value:    Decode,
 	},
 }

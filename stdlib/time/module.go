@@ -19,390 +19,432 @@ var utcLoc gad.Object = &Location{Value: time.UTC}
 var localLoc gad.Object = &Location{Value: time.Local}
 var zeroTime gad.Object = &Time{}
 
-// Module represents time module.
-var Module = map[string]gad.Object{
-	// gad:doc
-	// # time module
-	// ## Types
-	// Type is a type of Time Value
-	"Type": TimeType,
+func getModule() gad.Dict {
+	return ModuleInit.MustGetData(nil).ToDict()
+}
 
-	//
-	// ## Constants
-	// ### Months
-	//
-	// January
-	// February
-	// March
-	// April
-	// May
-	// June
-	// July
-	// August
-	// September
-	// October
-	// November
-	// December
-	"January":   gad.Int(time.January),
-	"February":  gad.Int(time.February),
-	"March":     gad.Int(time.March),
-	"April":     gad.Int(time.April),
-	"May":       gad.Int(time.May),
-	"June":      gad.Int(time.June),
-	"July":      gad.Int(time.July),
-	"August":    gad.Int(time.August),
-	"September": gad.Int(time.September),
-	"October":   gad.Int(time.October),
-	"November":  gad.Int(time.November),
-	"December":  gad.Int(time.December),
+// ModuleInit represents time module.
+var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data gad.ModuleData, err error) {
+	return gad.Dict{
+		// gad:doc
+		// # time module
+		// ## Types
+		// Type is a type of Time Value
+		"Type": TimeType,
 
-	// gad:doc
-	// ### Weekdays
-	//
-	// Sunday
-	// Monday
-	// Tuesday
-	// Wednesday
-	// Thursday
-	// Friday
-	// Saturday
-	"Sunday":    gad.Int(time.Sunday),
-	"Monday":    gad.Int(time.Monday),
-	"Tuesday":   gad.Int(time.Tuesday),
-	"Wednesday": gad.Int(time.Wednesday),
-	"Thursday":  gad.Int(time.Thursday),
-	"Friday":    gad.Int(time.Friday),
-	"Saturday":  gad.Int(time.Saturday),
+		//
+		// ## Constants
+		// ### Months
+		//
+		// January
+		// February
+		// March
+		// April
+		// May
+		// June
+		// July
+		// August
+		// September
+		// October
+		// November
+		// December
+		"January":   gad.Int(time.January),
+		"February":  gad.Int(time.February),
+		"March":     gad.Int(time.March),
+		"April":     gad.Int(time.April),
+		"May":       gad.Int(time.May),
+		"June":      gad.Int(time.June),
+		"July":      gad.Int(time.July),
+		"August":    gad.Int(time.August),
+		"September": gad.Int(time.September),
+		"October":   gad.Int(time.October),
+		"November":  gad.Int(time.November),
+		"December":  gad.Int(time.December),
 
-	// gad:doc
-	// ### Layouts
-	//
-	// ANSIC
-	// UnixDate
-	// RubyDate
-	// RFC822
-	// RFC822Z
-	// RFC850
-	// RFC1123
-	// RFC1123Z
-	// RFC3339
-	// RFC3339Nano
-	// Kitchen
-	// Stamp
-	// StampMilli
-	// StampMicro
-	// StampNano
-	"ANSIC":       gad.Str(time.ANSIC),
-	"UnixDate":    gad.Str(time.UnixDate),
-	"RubyDate":    gad.Str(time.RubyDate),
-	"RFC822":      gad.Str(time.RFC822),
-	"RFC822Z":     gad.Str(time.RFC822Z),
-	"RFC850":      gad.Str(time.RFC850),
-	"RFC1123":     gad.Str(time.RFC1123),
-	"RFC1123Z":    gad.Str(time.RFC1123Z),
-	"RFC3339":     gad.Str(time.RFC3339),
-	"RFC3339Nano": gad.Str(time.RFC3339Nano),
-	"Kitchen":     gad.Str(time.Kitchen),
-	"Stamp":       gad.Str(time.Stamp),
-	"StampMilli":  gad.Str(time.StampMilli),
-	"StampMicro":  gad.Str(time.StampMicro),
-	"StampNano":   gad.Str(time.StampNano),
+		// gad:doc
+		// ### Weekdays
+		//
+		// Sunday
+		// Monday
+		// Tuesday
+		// Wednesday
+		// Thursday
+		// Friday
+		// Saturday
+		"Sunday":    gad.Int(time.Sunday),
+		"Monday":    gad.Int(time.Monday),
+		"Tuesday":   gad.Int(time.Tuesday),
+		"Wednesday": gad.Int(time.Wednesday),
+		"Thursday":  gad.Int(time.Thursday),
+		"Friday":    gad.Int(time.Friday),
+		"Saturday":  gad.Int(time.Saturday),
 
-	// gad:doc
-	// ### Durations
-	//
-	// Nanosecond
-	// Microsecond
-	// Millisecond
-	// Second
-	// Minute
-	// Hour
-	"Nanosecond":  gad.Int(time.Nanosecond),
-	"Microsecond": gad.Int(time.Microsecond),
-	"Millisecond": gad.Int(time.Millisecond),
-	"Second":      gad.Int(time.Second),
-	"Minute":      gad.Int(time.Minute),
-	"Hour":        gad.Int(time.Hour),
+		// gad:doc
+		// ### Layouts
+		//
+		// ANSIC
+		// UnixDate
+		// RubyDate
+		// RFC822
+		// RFC822Z
+		// RFC850
+		// RFC1123
+		// RFC1123Z
+		// RFC3339
+		// RFC3339Nano
+		// Kitchen
+		// Stamp
+		// StampMilli
+		// StampMicro
+		// StampNano
+		"ANSIC":       gad.Str(time.ANSIC),
+		"UnixDate":    gad.Str(time.UnixDate),
+		"RubyDate":    gad.Str(time.RubyDate),
+		"RFC822":      gad.Str(time.RFC822),
+		"RFC822Z":     gad.Str(time.RFC822Z),
+		"RFC850":      gad.Str(time.RFC850),
+		"RFC1123":     gad.Str(time.RFC1123),
+		"RFC1123Z":    gad.Str(time.RFC1123Z),
+		"RFC3339":     gad.Str(time.RFC3339),
+		"RFC3339Nano": gad.Str(time.RFC3339Nano),
+		"Kitchen":     gad.Str(time.Kitchen),
+		"Stamp":       gad.Str(time.Stamp),
+		"StampMilli":  gad.Str(time.StampMilli),
+		"StampMicro":  gad.Str(time.StampMicro),
+		"StampNano":   gad.Str(time.StampNano),
 
-	// gad:doc
-	// ## Functions
-	// UTC() -> location
-	// Returns Universal Coordinated Time (UTC) location.
-	"UTC": &gad.Function{
-		Name:  "UTC",
-		Value: stdlib.FuncPRO(utcFunc),
-	},
+		// gad:doc
+		// ### Durations
+		//
+		// Nanosecond
+		// Microsecond
+		// Millisecond
+		// Second
+		// Minute
+		// Hour
+		"Nanosecond":  gad.Int(time.Nanosecond),
+		"Microsecond": gad.Int(time.Microsecond),
+		"Millisecond": gad.Int(time.Millisecond),
+		"Second":      gad.Int(time.Second),
+		"Minute":      gad.Int(time.Minute),
+		"Hour":        gad.Int(time.Hour),
 
-	// gad:doc
-	// Local() -> location
-	// Returns the system's local time zone location.
-	"Local": &gad.Function{
-		Name:  "Local",
-		Value: stdlib.FuncPRO(localFunc),
-	},
+		// gad:doc
+		// ## Functions
+		// UTC() -> location
+		// Returns Universal Coordinated Time (UTC) location.
+		"UTC": &gad.Function{
+			Module:   module,
+			FuncName: "UTC",
+			Value:    stdlib.FuncPRO(utcFunc),
+		},
 
-	// gad:doc
-	// MonthString(m int) -> month string
-	// Returns English name of the month m ("January", "February", ...).
-	"MonthString": &gad.Function{
-		Name:  "MonthString",
-		Value: stdlib.FuncPiRO(monthStringFunc),
-	},
+		// gad:doc
+		// Local() -> location
+		// Returns the system's local time zone location.
+		"Local": &gad.Function{
+			Module:   module,
+			FuncName: "Local",
+			Value:    stdlib.FuncPRO(localFunc),
+		},
 
-	// gad:doc
-	// WeekdayString(w int) -> weekday string
-	// Returns English name of the int weekday w, note that 0 is Sunday.
-	"WeekdayString": &gad.Function{
-		Name:  "WeekdayString",
-		Value: stdlib.FuncPiRO(weekdayStringFunc),
-	},
+		// gad:doc
+		// MonthString(m int) -> month string
+		// Returns English name of the month m ("January", "February", ...).
+		"MonthString": &gad.Function{
+			Module:   module,
+			FuncName: "MonthString",
+			Value:    stdlib.FuncPiRO(monthStringFunc),
+		},
 
-	// gad:doc
-	// DurationString(d int) -> string
-	// Returns a string representing the duration d in the form "72h3m0.5s".
-	"DurationString": &gad.Function{
-		Name:  "DurationString",
-		Value: stdlib.FuncPi64RO(durationStringFunc),
-	},
-	// gad:doc
-	// DurationNanoseconds(d int) -> int
-	// Returns the duration d as an int nanosecond count.
-	"DurationNanoseconds": &gad.Function{
-		Name:  "DurationNanoseconds",
-		Value: stdlib.FuncPi64RO(durationNanosecondsFunc),
-	},
-	// gad:doc
-	// DurationMicroseconds(d int) -> int
-	// Returns the duration d as an int microsecond count.
-	"DurationMicroseconds": &gad.Function{
-		Name:  "DurationMicroseconds",
-		Value: stdlib.FuncPi64RO(durationMicrosecondsFunc),
-	},
-	// gad:doc
-	// DurationMilliseconds(d int) -> int
-	// Returns the duration d as an int millisecond count.
-	"DurationMilliseconds": &gad.Function{
-		Name:  "DurationMilliseconds",
-		Value: stdlib.FuncPi64RO(durationMillisecondsFunc),
-	},
-	// gad:doc
-	// DurationSeconds(d int) -> float
-	// Returns the duration d as a floating point number of seconds.
-	"DurationSeconds": &gad.Function{
-		Name:  "DurationSeconds",
-		Value: stdlib.FuncPi64RO(durationSecondsFunc),
-	},
-	// gad:doc
-	// DurationMinutes(d int) -> float
-	// Returns the duration d as a floating point number of minutes.
-	"DurationMinutes": &gad.Function{
-		Name:  "DurationMinutes",
-		Value: stdlib.FuncPi64RO(durationMinutesFunc),
-	},
-	// gad:doc
-	// DurationHours(d int) -> float
-	// Returns the duration d as a floating point number of hours.
-	"DurationHours": &gad.Function{
-		Name:  "DurationHours",
-		Value: stdlib.FuncPi64RO(durationHoursFunc),
-	},
-	// gad:doc
-	// Sleep(duration int) -> nil
-	// Pauses the current goroutine for at least the duration.
-	"Sleep": &gad.Function{
-		Name:  "Sleep",
-		Value: sleepFunc,
-	},
-	// gad:doc
-	// ParseDuration(s string) -> duration int
-	// Parses duration s and returns duration as int or error.
-	"ParseDuration": &gad.Function{
-		Name:  "ParseDuration",
-		Value: stdlib.FuncPsROe(parseDurationFunc),
-	},
-	// gad:doc
-	// DurationRound(duration int, m int) -> duration int
-	// Returns the result of rounding duration to the nearest multiple of m.
-	"DurationRound": &gad.Function{
-		Name:  "DurationRound",
-		Value: stdlib.FuncPi64i64RO(durationRoundFunc),
-	},
-	// gad:doc
-	// DurationTruncate(duration int, m int) -> duration int
-	// Returns the result of rounding duration toward zero to a multiple of m.
-	"DurationTruncate": &gad.Function{
-		Name:  "DurationTruncate",
-		Value: stdlib.FuncPi64i64RO(durationTruncateFunc),
-	},
-	// gad:doc
-	// FixedZone(name string, sec int) -> location
-	// Returns a Location that always uses the given zone name and offset
-	// (seconds east of UTC).
-	"FixedZone": &gad.Function{
-		Name:  "FixedZone",
-		Value: stdlib.FuncPsiRO(fixedZoneFunc),
-	},
-	// gad:doc
-	// LoadLocation(name string) -> location
-	// Returns the Location with the given name.
-	"LoadLocation": &gad.Function{
-		Name:  "LoadLocation",
-		Value: stdlib.FuncPsROe(loadLocationFunc),
-	},
-	// gad:doc
-	// IsLocation(any) -> bool
-	// Reports whether any value is of location type.
-	"IsLocation": &gad.Function{
-		Name:  "IsLocation",
-		Value: stdlib.FuncPORO(isLocationFunc),
-	},
-	// gad:doc
-	// Time() -> time
-	// Returns zero time.
-	"Time": &gad.Function{
-		Name:  "Time",
-		Value: stdlib.FuncPRO(zerotimeFunc),
-	},
-	// gad:doc
-	// Since(t time) -> duration int
-	// Returns the time elapsed since t.
-	"Since": &gad.Function{
-		Name:  "Since",
-		Value: funcPTRO(sinceFunc),
-	},
-	// gad:doc
-	// Until(t time) -> duration int
-	// Returns the duration until t.
-	"Until": &gad.Function{
-		Name:  "Until",
-		Value: funcPTRO(untilFunc),
-	},
-	// gad:doc
-	// Date(year int, month int, day int[, hour int, min int, sec int, nsec int, loc location]) -> time
-	// Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds
-	// in the appropriate zone for that time in the given location. Zero values
-	// of optional arguments are used if not provided.
-	"Date": &gad.Function{
-		Name:  "Date",
-		Value: dateFunc,
-	},
-	// gad:doc
-	// Now() -> time
-	// Returns the current local time.
-	"Now": &gad.Function{
-		Name:  "Now",
-		Value: stdlib.FuncPRO(nowFunc),
-	},
-	// gad:doc
-	// Parse(layout string, value string[, loc location]) -> time
-	// Parses a formatted string and returns the time value it represents.
-	// If location is not provided, ToInterface's `time.Parse` function is called
-	// otherwise `time.ParseInLocation` is called.
-	"Parse": &gad.Function{
-		Name:  "Parse",
-		Value: parseFunc,
-	},
-	// gad:doc
-	// Unix(sec int[, nsec int]) -> time
-	// Returns the local time corresponding to the given Unix time,
-	// sec seconds and nsec nanoseconds since January 1, 1970 UTC.
-	// Zero values of optional arguments are used if not provided.
-	"Unix": &gad.Function{
-		Name:  "Unix",
-		Value: unixFunc,
-	},
-	// gad:doc
-	// Add(t time, duration int) -> time
-	// Deprecated: Use .Add method of time object.
-	// Returns the time of t+duration.
-	"Add": &gad.Function{
-		Name:  "Add",
-		Value: funcPTi64RO(timeAdd),
-	},
-	// gad:doc
-	// Sub(t1 time, t2 time) -> int
-	// Deprecated: Use .Sub method of time object.
-	// Returns the duration of t1-t2.
-	"Sub": &gad.Function{
-		Name:  "Sub",
-		Value: funcPTTRO(timeSub),
-	},
-	// gad:doc
-	// AddDate(t time, years int, months int, days int) -> time
-	// Deprecated: Use .AddDate method of time object.
-	// Returns the time corresponding to adding the given number of
-	// years, months, and days to t.
-	"AddDate": &gad.Function{
-		Name:  "AddDate",
-		Value: funcPTiiiRO(timeAddDate),
-	},
-	// gad:doc
-	// After(t1 time, t2 time) -> bool
-	// Deprecated: Use .After method of time object.
-	// Reports whether the time t1 is after t2.
-	"After": &gad.Function{
-		Name:  "After",
-		Value: funcPTTRO(timeAfter),
-	},
-	// gad:doc
-	// Before(t1 time, t2 time) -> bool
-	// Deprecated: Use .Before method of time object.
-	// Reports whether the time t1 is before t2.
-	"Before": &gad.Function{
-		Name:  "Before",
-		Value: funcPTTRO(timeBefore),
-	},
-	// gad:doc
-	// Format(t time, layout string) -> string
-	// Deprecated: Use .Format method of time object.
-	// Returns a textual representation of the time value formatted according
-	// to layout.
-	"Format": &gad.Function{
-		Name:  "Format",
-		Value: funcPTsRO(timeFormat),
-	},
-	// gad:doc
-	// AppendFormat(t time, b bytes, layout string) -> bytes
-	// Deprecated: Use .AppendFormat method of time object.
-	// It is like `Format` but appends the textual representation to b and
-	// returns the extended buffer.
-	"AppendFormat": &gad.Function{
-		Name:  "AppendFormat", // funcPTb2sRO
-		Value: funcPTb2sRO(timeAppendFormat),
-	},
-	// gad:doc
-	// In(t time, loc location) -> time
-	// Deprecated: Use .In method of time object.
-	// Returns a copy of t representing the same time t, but with the copy's
-	// location information set to loc for display purposes.
-	"In": &gad.Function{
-		Name:  "In",
-		Value: funcPTLRO(timeIn),
-	},
-	// gad:doc
-	// Round(t time, duration int) -> time
-	// Deprecated: Use .Round method of time object.
-	// Round returns the result of rounding t to the nearest multiple of
-	// duration.
-	"Round": &gad.Function{
-		Name:  "Round",
-		Value: funcPTi64RO(timeRound),
-	},
-	// gad:doc
-	// Truncate(t time, duration int) -> time
-	// Deprecated: Use .Truncate method of time object.
-	// Truncate returns the result of rounding t down to a multiple of duration.
-	"Truncate": &gad.Function{
-		Name:  "Truncate",
-		Value: funcPTi64RO(timeTruncate),
-	},
-	// gad:doc
-	// IsTime(any) -> bool
-	// Reports whether any value is of time type.
-	"IsTime": &gad.Function{
-		Name:  "IsTime",
-		Value: stdlib.FuncPORO(isTimeFunc),
-	},
+		// gad:doc
+		// WeekdayString(w int) -> weekday string
+		// Returns English name of the int weekday w, note that 0 is Sunday.
+		"WeekdayString": &gad.Function{
+			Module:   module,
+			FuncName: "WeekdayString",
+			Value:    stdlib.FuncPiRO(weekdayStringFunc),
+		},
+
+		// gad:doc
+		// DurationString(d int) -> string
+		// Returns a string representing the duration d in the form "72h3m0.5s".
+		"DurationString": &gad.Function{
+			Module:   module,
+			FuncName: "DurationString",
+			Value:    stdlib.FuncPi64RO(durationStringFunc),
+		},
+		// gad:doc
+		// DurationNanoseconds(d int) -> int
+		// Returns the duration d as an int nanosecond count.
+		"DurationNanoseconds": &gad.Function{
+			Module:   module,
+			FuncName: "DurationNanoseconds",
+			Value:    stdlib.FuncPi64RO(durationNanosecondsFunc),
+		},
+		// gad:doc
+		// DurationMicroseconds(d int) -> int
+		// Returns the duration d as an int microsecond count.
+		"DurationMicroseconds": &gad.Function{
+			Module:   module,
+			FuncName: "DurationMicroseconds",
+			Value:    stdlib.FuncPi64RO(durationMicrosecondsFunc),
+		},
+		// gad:doc
+		// DurationMilliseconds(d int) -> int
+		// Returns the duration d as an int millisecond count.
+		"DurationMilliseconds": &gad.Function{
+			Module:   module,
+			FuncName: "DurationMilliseconds",
+			Value:    stdlib.FuncPi64RO(durationMillisecondsFunc),
+		},
+		// gad:doc
+		// DurationSeconds(d int) -> float
+		// Returns the duration d as a floating point number of seconds.
+		"DurationSeconds": &gad.Function{
+			Module:   module,
+			FuncName: "DurationSeconds",
+			Value:    stdlib.FuncPi64RO(durationSecondsFunc),
+		},
+		// gad:doc
+		// DurationMinutes(d int) -> float
+		// Returns the duration d as a floating point number of minutes.
+		"DurationMinutes": &gad.Function{
+			Module:   module,
+			FuncName: "DurationMinutes",
+			Value:    stdlib.FuncPi64RO(durationMinutesFunc),
+		},
+		// gad:doc
+		// DurationHours(d int) -> float
+		// Returns the duration d as a floating point number of hours.
+		"DurationHours": &gad.Function{
+			Module:   module,
+			FuncName: "DurationHours",
+			Value:    stdlib.FuncPi64RO(durationHoursFunc),
+		},
+		// gad:doc
+		// Sleep(duration int) -> nil
+		// Pauses the current goroutine for at least the duration.
+		"Sleep": &gad.Function{
+			Module:   module,
+			FuncName: "Sleep",
+			Value:    sleepFunc,
+		},
+		// gad:doc
+		// ParseDuration(s string) -> duration int
+		// Parses duration s and returns duration as int or error.
+		"ParseDuration": &gad.Function{
+			Module:   module,
+			FuncName: "ParseDuration",
+			Value:    stdlib.FuncPsROe(parseDurationFunc),
+		},
+		// gad:doc
+		// DurationRound(duration int, m int) -> duration int
+		// Returns the result of rounding duration to the nearest multiple of m.
+		"DurationRound": &gad.Function{
+			Module:   module,
+			FuncName: "DurationRound",
+			Value:    stdlib.FuncPi64i64RO(durationRoundFunc),
+		},
+		// gad:doc
+		// DurationTruncate(duration int, m int) -> duration int
+		// Returns the result of rounding duration toward zero to a multiple of m.
+		"DurationTruncate": &gad.Function{
+			Module:   module,
+			FuncName: "DurationTruncate",
+			Value:    stdlib.FuncPi64i64RO(durationTruncateFunc),
+		},
+		// gad:doc
+		// FixedZone(name string, sec int) -> location
+		// Returns a Location that always uses the given zone name and offset
+		// (seconds east of UTC).
+		"FixedZone": &gad.Function{
+			Module:   module,
+			FuncName: "FixedZone",
+			Value:    stdlib.FuncPsiRO(fixedZoneFunc),
+		},
+		// gad:doc
+		// LoadLocation(name string) -> location
+		// Returns the Location with the given name.
+		"LoadLocation": &gad.Function{
+			Module:   module,
+			FuncName: "LoadLocation",
+			Value:    stdlib.FuncPsROe(loadLocationFunc),
+		},
+		// gad:doc
+		// IsLocation(any) -> bool
+		// Reports whether any value is of location type.
+		"IsLocation": &gad.Function{
+			Module:   module,
+			FuncName: "IsLocation",
+			Value:    stdlib.FuncPORO(isLocationFunc),
+		},
+		// gad:doc
+		// Time() -> time
+		// Returns zero time.
+		"Time": &gad.Function{
+			Module:   module,
+			FuncName: "Time",
+			Value:    stdlib.FuncPRO(zerotimeFunc),
+		},
+		// gad:doc
+		// Since(t time) -> duration int
+		// Returns the time elapsed since t.
+		"Since": &gad.Function{
+			Module:   module,
+			FuncName: "Since",
+			Value:    funcPTRO(sinceFunc),
+		},
+		// gad:doc
+		// Until(t time) -> duration int
+		// Returns the duration until t.
+		"Until": &gad.Function{
+			Module:   module,
+			FuncName: "Until",
+			Value:    funcPTRO(untilFunc),
+		},
+		// gad:doc
+		// Date(year int, month int, day int[, hour int, min int, sec int, nsec int, loc location]) -> time
+		// Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds
+		// in the appropriate zone for that time in the given location. Zero values
+		// of optional arguments are used if not provided.
+		"Date": &gad.Function{
+			Module:   module,
+			FuncName: "Date",
+			Value:    dateFunc,
+		},
+		// gad:doc
+		// Now() -> time
+		// Returns the current local time.
+		"Now": &gad.Function{
+			Module:   module,
+			FuncName: "Now",
+			Value:    stdlib.FuncPRO(nowFunc),
+		},
+		// gad:doc
+		// Parse(layout string, value string[, loc location]) -> time
+		// Parses a formatted string and returns the time value it represents.
+		// If location is not provided, ToInterface's `time.Parse` function is called
+		// otherwise `time.ParseInLocation` is called.
+		"Parse": &gad.Function{
+			Module:   module,
+			FuncName: "Parse",
+			Value:    parseFunc,
+		},
+		// gad:doc
+		// Unix(sec int[, nsec int]) -> time
+		// Returns the local time corresponding to the given Unix time,
+		// sec seconds and nsec nanoseconds since January 1, 1970 UTC.
+		// Zero values of optional arguments are used if not provided.
+		"Unix": &gad.Function{
+			Module:   module,
+			FuncName: "Unix",
+			Value:    unixFunc,
+		},
+		// gad:doc
+		// Add(t time, duration int) -> time
+		// Deprecated: Use .Add method of time object.
+		// Returns the time of t+duration.
+		"Add": &gad.Function{
+			Module:   module,
+			FuncName: "Add",
+			Value:    funcPTi64RO(timeAdd),
+		},
+		// gad:doc
+		// Sub(t1 time, t2 time) -> int
+		// Deprecated: Use .Sub method of time object.
+		// Returns the duration of t1-t2.
+		"Sub": &gad.Function{
+			Module:   module,
+			FuncName: "Sub",
+			Value:    funcPTTRO(timeSub),
+		},
+		// gad:doc
+		// AddDate(t time, years int, months int, days int) -> time
+		// Deprecated: Use .AddDate method of time object.
+		// Returns the time corresponding to adding the given number of
+		// years, months, and days to t.
+		"AddDate": &gad.Function{
+			Module:   module,
+			FuncName: "AddDate",
+			Value:    funcPTiiiRO(timeAddDate),
+		},
+		// gad:doc
+		// After(t1 time, t2 time) -> bool
+		// Deprecated: Use .After method of time object.
+		// Reports whether the time t1 is after t2.
+		"After": &gad.Function{
+			Module:   module,
+			FuncName: "After",
+			Value:    funcPTTRO(timeAfter),
+		},
+		// gad:doc
+		// Before(t1 time, t2 time) -> bool
+		// Deprecated: Use .Before method of time object.
+		// Reports whether the time t1 is before t2.
+		"Before": &gad.Function{
+			Module:   module,
+			FuncName: "Before",
+			Value:    funcPTTRO(timeBefore),
+		},
+		// gad:doc
+		// Format(t time, layout string) -> string
+		// Deprecated: Use .Format method of time object.
+		// Returns a textual representation of the time value formatted according
+		// to layout.
+		"Format": &gad.Function{
+			Module:   module,
+			FuncName: "Format",
+			Value:    funcPTsRO(timeFormat),
+		},
+		// gad:doc
+		// AppendFormat(t time, b bytes, layout string) -> bytes
+		// Deprecated: Use .AppendFormat method of time object.
+		// It is like `Format` but appends the textual representation to b and
+		// returns the extended buffer.
+		"AppendFormat": &gad.Function{
+			Module:   module,
+			FuncName: "AppendFormat", // funcPTb2sRO
+			Value:    funcPTb2sRO(timeAppendFormat),
+		},
+		// gad:doc
+		// In(t time, loc location) -> time
+		// Deprecated: Use .In method of time object.
+		// Returns a copy of t representing the same time t, but with the copy's
+		// location information set to loc for display purposes.
+		"In": &gad.Function{
+			Module:   module,
+			FuncName: "In",
+			Value:    funcPTLRO(timeIn),
+		},
+		// gad:doc
+		// Round(t time, duration int) -> time
+		// Deprecated: Use .Round method of time object.
+		// Round returns the result of rounding t to the nearest multiple of
+		// duration.
+		"Round": &gad.Function{
+			Module:   module,
+			FuncName: "Round",
+			Value:    funcPTi64RO(timeRound),
+		},
+		// gad:doc
+		// Truncate(t time, duration int) -> time
+		// Deprecated: Use .Truncate method of time object.
+		// Truncate returns the result of rounding t down to a multiple of duration.
+		"Truncate": &gad.Function{
+			Module:   module,
+			FuncName: "Truncate",
+			Value:    funcPTi64RO(timeTruncate),
+		},
+		// gad:doc
+		// IsTime(any) -> bool
+		// Reports whether any value is of time type.
+		"IsTime": &gad.Function{
+			Module:   module,
+			FuncName: "IsTime",
+			Value:    stdlib.FuncPORO(isTimeFunc),
+		},
+	}, nil
 }
 
 func utcFunc() gad.Object { return utcLoc }

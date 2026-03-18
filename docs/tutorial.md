@@ -153,9 +153,11 @@ with a `sync.RWMutex`.
 module := `
 global stats
 
-return func() {
-  stats.fn2++
-  /* ... */
+exports = {
+  inc() {
+    stats.fn2++
+    /* ... */
+  }
 }
 `
 script := `
@@ -168,8 +170,8 @@ fn1 := func() {
 
 fn1()
 
-fn2 := import("module")
-fn2()
+m := import("module")
+m.inc()
 `
 mm := gad.NewModuleMap()
 mm.AddSourceModule("module", []byte(module))
@@ -218,7 +220,13 @@ argument initialized as an empty array `[]`, and others are initialized as
 function.
 
 ```go
-param (arg0, arg1, ...vargs)
+param (arg0, arg1, *vargs)
+
+// named args
+param (;x,y=1,z={}, **vnargs)
+
+// mixed
+param (arg0, arg1, *vargs; x, y=1, z={}, **vnargs)
 ```
 
 ```go
@@ -499,30 +507,36 @@ In Gad, everything is a value, and, all values are associated with a type.
 1u + 5u                 // uint values
 "foo" + `bar`           // string values
 -9.22 + 1e10            // float values
+2d                      // decimal values
 true || false           // bool values
+yes || no               // flag values
 'ç' > '9'               // char values
 [1, false, "foo"]       // array value
-{a: 12.34, "b": "bar"}  // map value
+{a: 12.34, "b": "bar"}  // dict value
+(;a=1, b=2, a=2)        // keyValueArray value
+[a=1]                   // keyValue value
 func() { /*...*/ }      // function value
+() => 1                 // closure value
 ```
 
 Here's a list of all available value types in Gad. See [runtime
 types](runtime-types.md) for more information.
 
-| Gad Type          | Description                          | Equivalent Type in Go |
-|:------------------|:-------------------------------------|:----------------------|
-| int               | signed 64-bit integer value          | `int64`               |
-| uint              | unsigned 64-bit integer value        | `uint64`              |
-| float             | 64-bit floating point value          | `float64`             |
-| bool              | boolean value                        | `bool`                |
-| char              | unicode character                    | `rune`                |
-| string            | unicode string                       | `string`              |
-| bytes             | byte array                           | `[]byte`              |
-| error             | [error](#error-values) value         | -                     |
-| array             | value array                          | `[]Object`            |
-| map               | value map with string keys           | `map[string]Object`   |
-| nil         | [nil](#nil-values) value | -                     |
-| compiledFunction  | [function](#function-values) value   | -                     |
+| Gad Type         | Description                        | Equivalent Type in Go |
+|:-----------------|:-----------------------------------|:----------------------|
+| int              | signed 64-bit integer value        | `int64`               |
+| uint             | unsigned 64-bit integer value      | `uint64`              |
+| float            | 64-bit floating point value        | `float64`             |
+| decimal          | decimal value                      | https://github.com/shopspring/decimal 
+| bool             | boolean value                      | `bool`                |
+| char             | unicode character                  | `rune`                |
+| string           | unicode string                     | `string`              |
+| bytes            | byte array                         | `[]byte`              |
+| error            | [error](#error-values) value       | -                     |
+| array            | value array                        | `[]Object`            |
+| dict             | value dict with string keys        | `map[string]Object`   |
+| nil              | [nil](#nil-values) value           | -                     |
+| compiledFunction | [function](#function-values) value | -                     |
 
 ### Error Values
 
@@ -601,11 +615,11 @@ i := 2
 ["foo", 'x', [1, 2, 3], {bar: 2u}, true, nil, bytes()]   // ok
 ```
 
-### Map Values
+### Dict Values
 
-In Gad, map is a set of key-value pairs where key is string and the value is
+In Gad, dict is a set of key-value pairs where key is string and the value is
 of any value types. Value of a map can be accessed using indexer `[]` or
-selector '.' operators.
+selector '.' operators. Items sep is new line or comma.
 
 ```go
 m := { a: 1, "b": false, c: "foo" }
@@ -621,7 +635,33 @@ m.x?.y.z                              // == 1
 key := "x"
 m.(key)?.y.z                          // == 1
 
-{a: [1, 2, 3], b: {c: "foo", d: "bar"}} // ok
+
+{} // new block scope, not dict
+
+({a: [1, 2, 3], b: {c: "foo", d: "bar"}}) // inset paren, ok
+
+({x})
+
+// nested dict
+({
+	x {
+        y {
+			z: 1
+        }		
+    }
+}) // is similar to: {x:{y:{z:1}}}
+
+({
+	a: 1
+	
+	// closure
+	b(): 2 // similar to c
+	c: () => 2
+	
+	// func
+	d() { i++ } // similar to e
+	e: func() { i++ }
+})
 ```  
 
 ### Function Values
@@ -644,6 +684,9 @@ adder := func(base) {
 }
 add5 := adder(5)
 nine := add5(4)    // == 9
+
+f1 := () => 1 // closure, similar to f2 func:
+func f2() { return 1 }
 ```
 
 Unlike Go, Gad does not have function declarations. All functions are anonymous
@@ -658,13 +701,13 @@ func foo(arg1, arg2) {  // illegal
 Gad also supports variadic functions:
 
 ```go
-variadic := func (a, b, ...c) {
+variadic := func (a, b, *c) {
   return [a, b, c]
 }
 variadic(1, 2, 3, 4) // [1, 2, [3, 4]]
 
 variadicClosure := func(a) {
-  return func(b, ...c) {
+  return func(b, *c) {
     return [a, b, c]
   }
 }
@@ -675,7 +718,7 @@ Only the last parameter can be variadic. The following code is illegal:
 
 ```go
 // illegal, because "a" is variadic and is not the last parameter
-illegal := func(...a, b) {}
+illegal := func(*a, b) {}
 ```
 
 When calling a function, the number of passing arguments must match that of
@@ -686,22 +729,43 @@ f := func(a, b) {}
 f(1, 2, 3)    // RuntimeError: WrongNumArgumentsError
 ```
 
-Like Go, you can use ellipsis `...` to pass value of array type as its last
+You can use `*` to pass value of array type as its last
 parameter:
 
 ```go
 f1 := func(a, b, c) { return a + b + c }
-f1(...[1, 2, 3])    // => 6
-f1(1, ...[2, 3])    // => 6
-f1(1, 2, ...[3])    // => 6
-f1(...[1, 2])       // RuntimeError: WrongNumArgumentsError
+f1(*[1, 2, 3])    // => 6
+f1(1, *[2, 3])    // => 6
+f1(1, 2, *[3])    // => 6
+f1(*[1, 2])       // RuntimeError: WrongNumArgumentsError
 
-f2 := func(a, ...b) {}
+f2 := func(a, *b) {}
 f2(1)               // valid; a == 1, b == []
 f2(1, 2)            // valid; a == 1, b == [2]
 f2(1, 2, 3)         // valid; a == 1, b == [2, 3]
-f2(...[1, 2, 3])    // valid; a == 1, b == [2, 3]
+f2(*[1, 2, 3])    // valid; a == 1, b == [2, 3]
 ```
+
+Return value note:
+
+```go
+f1 := func(x) {
+	return = x // only for var
+	1+2
+	return 2 // this result ignore
+}
+f1(1)    // => 1
+f1(10)    // => 10
+
+
+f2 := func(x) {
+  return = x // only for var
+  x++
+}
+f2(1)    // => 2
+f2(10)    // => 11
+```
+
 
 ## Type Conversions
 
@@ -715,6 +779,9 @@ i2 := int("-999")     // -999
 f3 := float(-51)      // -51.0
 b4 := bool(1)         // true
 c5 := char("X")       // 'X'
+d6 := decimal(1)      // 1d
+f3 := flag("a")       // yes
+f4 := flag("")        // no
 ```
 
 See [Operators](operators.md) for more details on type conversions/coercions as
@@ -760,26 +827,27 @@ _* In Gad, all values can be either
 
 ### Binary Operators
 
-| Operator | Usage                    |
+| Operator |          Usage           |
 |:--------:|:------------------------:|
-| `==`     | equal                    |
-| `!=`     | not equal                |
-| `&&`     | logical AND              |
-| `\|\|`   | logical OR               |
-| `+`      | add/concat               |
-| `-`      | subtract                 |
-| `*`      | multiply                 |
-| `/`      | divide                   |
-| `&`      | bitwise AND              |
-| `\|`     | bitwise OR               |
-| `^`      | bitwise XOR              |
-| `&^`     | bitclear (AND NOT)       |
-| `<<`     | shift left               |
-| `>>`     | shift right              |
-| `<`      | less than                |
-| `<=`     | less than or equal to    |
-| `>`      | greater than             |
-| `>=`     | greater than or equal to |
+|   `==`   |          equal           |
+|   `!=`   |        not equal         |
+|   `&&`   |       logical AND        |
+|  `\|\|`  |        logical OR        |
+|   `+`    |        add/concat        |
+|   `-`    |         subtract         |
+|   `*`    |         multiply         |
+|   `**`   |           pow            |
+|   `/`    |          divide          |
+|   `&`    |       bitwise AND        |
+|   `\|`   |        bitwise OR        |
+|   `^`    |       bitwise XOR        |
+|   `&^`   |    bitclear (AND NOT)    |
+|   `<<`   |        shift left        |
+|   `>>`   |       shift right        |
+|   `<`    |        less than         |
+|   `<=`   |  less than or equal to   |
+|   `>`    |       greater than       |
+|   `>=`   | greater than or equal to |
 
 _See [Operators](operators.md) for more details._
 
@@ -799,21 +867,22 @@ b := min(5, 10)      // b == 5
 
 ### Assignment and Increment Operators
 
-| Operator | Usage                     |
-|:--------:|:-------------------------:|
-| `+=`     | `(lhs) = (lhs) + (rhs)`   |
-| `-=`     | `(lhs) = (lhs) - (rhs)`   |
-| `*=`     | `(lhs) = (lhs) * (rhs)`   |
-| `/=`     | `(lhs) = (lhs) / (rhs)`   |
-| `%=`     | `(lhs) = (lhs) % (rhs)`   |
-| `&=`     | `(lhs) = (lhs) & (rhs)`   |
-| `\|=`    | `(lhs) = (lhs) \| (rhs)`  |
-| `&^=`    | `(lhs) = (lhs) &^ (rhs)`  |
-| `^=`     | `(lhs) = (lhs) ^ (rhs)`   |
-| `<<=`    | `(lhs) = (lhs) << (rhs)`  |
-| `>>=`    | `(lhs) = (lhs) >> (rhs)`  |
-| `++`     | `(lhs) = (lhs) + 1`       |
-| `--`     | `(lhs) = (lhs) - 1`       |
+| Operator |          Usage           |
+|:--------:|:------------------------:|
+|   `+=`   | `(lhs) = (lhs) + (rhs)`  |
+|   `-=`   | `(lhs) = (lhs) - (rhs)`  |
+|   `*=`   | `(lhs) = (lhs) * (rhs)`  |
+|  `**=`   | `(lhs) = (lhs) ** (rhs)` |
+|   `/=`   | `(lhs) = (lhs) / (rhs)`  |
+|   `%=`   | `(lhs) = (lhs) % (rhs)`  |
+|   `&=`   | `(lhs) = (lhs) & (rhs)`  |
+|  `\|=`   | `(lhs) = (lhs) \| (rhs)` |
+|  `&^=`   | `(lhs) = (lhs) &^ (rhs)` |
+|   `^=`   | `(lhs) = (lhs) ^ (rhs)`  |
+|  `<<=`   | `(lhs) = (lhs) << (rhs)` |
+|  `>>=`   | `(lhs) = (lhs) >> (rhs)` |
+|   `++`   |   `(lhs) = (lhs) + 1`    |
+|   `--`   |   `(lhs) = (lhs) - 1`    |
 
 ### Operator Precedences
 
@@ -822,13 +891,13 @@ lowest precedence. There are five precedence levels for binary operators.
 Multiplication operators bind strongest, followed by addition operators,
 comparison operators, `&&` (logical AND), and finally `||` (logical OR):
 
-| Precedence | Operator                             |
-|:----------:|:------------------------------------:|
-| 5          | `*`  `/`  `%`  `<<`  `>>`  `&`  `&^` |
-| 4          | `+`  `-`  `\|`  `^`                  |
-| 3          | `==`  `!=`  `<`  `<=`  `>`  `>=`     |
-| 2          | `&&`                                 |
-| 1          | `\|\|`                               |
+| Precedence |                 Operator                 |
+|:----------:|:----------------------------------------:|
+| 5          | `*` `**`  `/`  `%`  `<<`  `>>`  `&`  `&^` |
+| 4          |           `+`  `-`  `\|`  `^`            |
+| 3          |     `==`  `!=`  `<`  `<=`  `>`  `>=`     |
+| 2          |                   `&&`                   |
+| 1          |                  `\|\|`                  |
 
 Like Go, `++` and `--` operators form statements, not expressions, they fall
 outside the operator hierarchy.
@@ -964,7 +1033,7 @@ modules and custom modules. Source module is in the form Gad code. Builtin
 module type is `map[string]Object`. Lastly, any value implementing Go
 `Importable` interface can be a module. `Import` method must return a valid Gad
 Object or `[]byte`. Source module is called like a compiled function and
-returned value is stored for future use. Other module values are copied while
+returned dict is stored for future use. Other module values are copied while
 importing in VM if `Copier` interface is implemented.
 
 ```go
@@ -982,34 +1051,108 @@ type Copier interface {
 Main module:
 
 ```go
-sum := import("sum")    // load a module
-println(sum(10))        // module function
+math := import("math")    // load a module
+println(math.sum(10))     // module function
 ```
 
-Source module as `sum`:
+Source module as `math`:
 
 ```go
 base := 5
 
-return func(x) {
+exports.sum = func(x) {
   return x + base
+}
+```
+
+exporting multiple values:
+
+```go
+base := 5
+
+exports = { // dict expression
+	a: 1
+	
+	sum(x) {
+        return x + base
+    }
+	
+	dec() {
+		// ...
+    }
 }
 ```
 
 In Gad, modules are very similar to functions.
 
 * `import` expression loads the module code and execute it like a function.
-* Module should return a value using `return` statement.
+* Module should return expose dict.
   * Module can return a value of any types: int, map, function, etc.
-  * `return` in a module stops execution and return a value to the importing
-    code.
-  * If the module does not have any `return` statement, `import` expression
-  simply returns `nil`. _(Just like the function that has no `return`.)_  
 * importing same module multiple times at different places or in different
   modules returns the same object so it preserves the state of imported object.
 * Arguments cannot be provided to source modules while importing although it is
   allowed to use `param` statement in module.
 * Modules can use `global` statements to access globally shared object.
+
+### Modules with params:
+
+The parameters are only interpreted on the first import. They have no effect on other imports.
+
+```go
+// file: translations.gad
+
+param (;lang="en")
+
+const byLang = {
+    en {
+        hello: "Hello!"		
+    }
+    
+    br {
+        hello: "Seja bem vindo!"
+    }
+}
+
+const messages = byLang[lang]
+
+exports.all = byLang
+exports.messages = messages
+exports.t = (key;default) = messages[key] ?? (default ?? ("<"+key+">"))
+```
+
+#### Default
+
+Main program:
+
+```go
+const t = import("translations")
+print(t.messages.hello) // Hello!
+print(t.t("hello")) // Hello!
+print(t.t("xy")) // <xy>
+print(t.t("xy";default="XY!")) // XY!
+
+// After the first import, the module is loaded from memory, therefore the parameters 
+// do not generate changes, since they are interpreted in the first import.
+const t2 = import("translations")
+print(t2.messages.hello) // Hello! 
+```
+
+#### Custom
+
+Main program:
+
+```go
+const t1 = import("translations") 
+print(t1.messages.hello; lang="br") // Seja bem vindo!
+
+// loaded from memory 
+const t2 = import("translations")
+print(t2.messages.hello) // Seja bem vindo!
+
+// loaded from memory 
+const t3 = import("translations"; lang="en")
+print(t3.messages.hello) // Seja bem vindo!
+```
 
 ## Comments
 
@@ -1119,9 +1262,16 @@ implemented by object. If not implemented, same object is returned which copies
 the value under the hood by Go.
 
 ```go
-// Copier wraps the Copy method to create a deep copy of an object.
+// Copier wraps the Copy method to create a copy of an object.
 type Copier interface {
   Copy() Object
+}
+```
+
+```go
+// DeepCopier wraps the Copy method to create a deep copy of an object.
+type DeepCopier interface {
+  DeepCopy() Object
 }
 ```
 

@@ -24,9 +24,7 @@ import (
 // }
 // ```
 
-var LocationType = &gad.BuiltinObjType{
-	NameValue: "location",
-}
+var LocationType = gad.NewBuiltinObjType("location")
 
 // Location represents location values and implements gad.Object interface.
 type Location struct {

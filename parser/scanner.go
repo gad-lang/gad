@@ -17,6 +17,7 @@ package parser
 import (
 	"reflect"
 
+	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/parser/utils"
 	"github.com/gad-lang/gad/runehelper"
@@ -47,7 +48,7 @@ const (
 )
 
 type ScannerInterface interface {
-	Scan() (t Token)
+	Scan() (t PToken)
 	Mode() ScanMode
 	SetMode(m ScanMode)
 	SourceFile() *source.File
@@ -56,15 +57,15 @@ type ScannerInterface interface {
 	GetMixedDelimiter() *MixedDelimiter
 }
 
-type TokenPool []*Token
+type TokenPool []*PToken
 
-func (p *TokenPool) Shift() (t *Token) {
+func (p *TokenPool) Shift() (t *PToken) {
 	t = (*p)[0]
 	*p = (*p)[1:]
 	return
 }
 
-func (p TokenPool) Last() (t *Token) {
+func (p TokenPool) Last() (t *PToken) {
 	return p[len(p)-1]
 }
 
@@ -72,19 +73,19 @@ func (p TokenPool) Empty() bool {
 	return len(p) == 0
 }
 
-func (p *TokenPool) Add(t ...*Token) {
+func (p *TokenPool) Add(t ...*PToken) {
 	*p = append(*p, t...)
 }
 
 func (p *TokenPool) Semi() {
-	*p = append(*p, &Token{Token: token.Semicolon, Literal: ";"})
+	*p = append(*p, &PToken{TokenLit: node.TokenLit{Token: token.Semicolon, Literal: ";"}})
 }
 
-func (s *Handlers) TokenHandler(f func(t *Token)) {
+func (s *Handlers) TokenHandler(f func(t *PToken)) {
 	s.TokenHandlers = append(s.TokenHandlers, f)
 }
 
-func (s *Handlers) CallTokenHandlers(t *Token) {
+func (s *Handlers) CallTokenHandlers(t *PToken) {
 	if t.handled {
 		return
 	}
@@ -94,7 +95,7 @@ func (s *Handlers) CallTokenHandlers(t *Token) {
 	}
 }
 
-type TokenHandler func(t *Token)
+type TokenHandler func(t *PToken)
 
 type TokenHandlers []TokenHandler
 
@@ -112,7 +113,7 @@ func (th *TokenHandlers) Remove(h TokenHandler) {
 
 type Handlers struct {
 	source.NextHandlers
-	ScanHandler   func(ch rune) (t Token, insertSemi, ok bool)
+	ScanHandler   func(ch rune) (t PToken, insertSemi, ok bool)
 	TokenHandlers TokenHandlers
 }
 
@@ -144,8 +145,8 @@ type Scanner struct {
 	ParenCount         int
 	TokenPool          TokenPool
 	SkipWhitespaceFunc func(s *Scanner)
-	HandleMixed        func(textStart *int, rt func() *Token)
-	EOF                *Token
+	HandleMixed        func(textStart *int, rt func() *PToken)
+	EOF                *PToken
 }
 
 // NewScanner creates a Scanner.
@@ -196,8 +197,8 @@ func (s *Scanner) GetMixedDelimiter() *MixedDelimiter {
 	return &s.MixedDelimiter
 }
 
-func (s *Scanner) List() (ret []Token) {
-	var t Token
+func (s *Scanner) List() (ret []PToken) {
+	var t PToken
 	for {
 		t = s.Scan()
 		if t.Token == token.EOF {
@@ -207,7 +208,7 @@ func (s *Scanner) List() (ret []Token) {
 	}
 }
 
-func (s *Scanner) AddNextToken(n ...Token) (r *Token) {
+func (s *Scanner) AddNextToken(n ...PToken) (r *PToken) {
 	for _, t := range n {
 		t2 := t
 		r = s.AddNextTokenPtr(&t2)
@@ -215,8 +216,8 @@ func (s *Scanner) AddNextToken(n ...Token) (r *Token) {
 	return
 }
 
-func (s *Scanner) AddNextTokenPtr(n ...*Token) (r *Token) {
-	var newN []*Token
+func (s *Scanner) AddNextTokenPtr(n ...*PToken) (r *PToken) {
+	var newN []*PToken
 	for _, t := range n {
 		if t.Prev != nil {
 			for _, p := range t.Prev {
@@ -261,7 +262,7 @@ func (s *Scanner) SetMode(m ScanMode) {
 	s.mode = m
 }
 
-func (s *Scanner) Scan() (t Token) {
+func (s *Scanner) Scan() (t PToken) {
 	if !s.TokenPool.Empty() {
 		return *s.TokenPool.Shift()
 	} else if s.EOF != nil {
@@ -278,7 +279,7 @@ func (s *Scanner) Scan() (t Token) {
 	return *s.TokenPool.Shift()
 }
 
-func (s Scanner) PeekScan() (t Token) {
+func (s Scanner) PeekScan() (t PToken) {
 	return s.ScanNow()
 }
 
@@ -306,7 +307,7 @@ func (s *Scanner) MixedCodeEnds(offsetInc int) bool {
 	return false
 }
 
-func (s *Scanner) scanConfig(pos source.Pos, skip int) (t Token) {
+func (s *Scanner) scanConfig(pos source.Pos, skip int) (t PToken) {
 	s.NextC(skip)
 	eol := s.NextPosOf('\n')
 	s2 := s.Clone()
@@ -316,9 +317,11 @@ func (s *Scanner) scanConfig(pos source.Pos, skip int) (t Token) {
 	s2.TokenPool = nil
 	t.Token = token.ConfigEnd
 	t.Pos = source.MustFileSetPos(s.File, eol)
-	t.Prev = append([]Token{{
-		Token: token.ConfigStart,
-		Pos:   pos,
+	t.Prev = append([]PToken{{
+		TokenLit: node.TokenLit{
+			Token: token.ConfigStart,
+			Pos:   pos,
+		},
 	}}, s2.List()...)
 	s.NextC(eol - s.Offset + 1)
 	return
@@ -428,7 +431,7 @@ func (s *Scanner) Switch4(
 	return tok0
 }
 
-func (s *Scanner) ScanCodeBlock(leftText *Token) (code Token) {
+func (s *Scanner) ScanCodeBlock(leftText *PToken) (code PToken) {
 	var (
 		end  = s.Offset
 		lit  = string(s.MixedDelimiter.Start)
@@ -449,11 +452,13 @@ func (s *Scanner) ScanCodeBlock(leftText *Token) (code Token) {
 		}
 	}
 
-	code = Token{
-		Token:   token.MixedCodeStart,
-		Pos:     source.MustFileSetPos(s.File, end),
-		Literal: lit,
-		Data:    data,
+	code = PToken{
+		TokenLit: node.TokenLit{
+			Token:   token.MixedCodeStart,
+			Pos:     source.MustFileSetPos(s.File, end),
+			Literal: lit,
+		},
+		Data: data,
 	}
 
 	if s.Ch == '=' {

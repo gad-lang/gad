@@ -6,149 +6,162 @@ package fmt
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/gad-lang/gad"
 )
 
-// Module represents fmt module.
-var Module = map[string]gad.Object{
-	// gad:doc
-	// # fmt module
-	//
-	// ## Scan Examples
-	//
-	// ```go
-	// arg1 := fmt.ScanArg("str")
-	// arg2 := fmt.ScanArg("int")
-	// ret := fmt.Sscanf("abc123", "%3s%d", arg1, arg2)
-	// if isError(ret) {
-	//   // handle error
-	//   fmt.Println(err)
-	// } else {
-	//   fmt.Println(ret)            // 2, number of scanned items
-	//   fmt.Println(arg1.Value)     // abc
-	//   fmt.Println(bool(arg1))     // true, reports whether arg1 is scanned
-	//   fmt.Println(arg2.Value)     // 123
-	//   fmt.Println(bool(arg2))     // true, reports whether arg2 is scanned
-	// }
-	// ```
-	//
-	// ```go
-	// arg1 = fmt.ScanArg("str")
-	// arg2 = fmt.ScanArg("int")
-	// arg3 = fmt.ScanArg("float")
-	// ret = fmt.Sscanf("abc 123", "%s%d%f", arg1, arg2, arg3)
-	// fmt.Println(ret)         // error: EOF
-	// fmt.Println(arg1.Value)  // abc
-	// fmt.Println(bool(arg1))  // true
-	// fmt.Println(arg2.Value)  // 123
-	// fmt.Println(bool(arg2))  // true
-	// fmt.Println(arg3.Value)  // nil
-	// fmt.Println(bool(arg2))  // false, not scanned
-	//
-	// // Use if statement or a ternary expression to get the scanned value or a default value.
-	// v := arg1 ? arg1.Value : "default value"
-	// ```
+// ModuleInit represents fmt module.
+var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data gad.ModuleData, err error) {
+	return gad.Dict{
+		// gad:doc
+		// # fmt module
+		//
+		// ## Scan Examples
+		//
+		// ```go
+		// arg1 := fmt.ScanArg("str")
+		// arg2 := fmt.ScanArg("int")
+		// ret := fmt.Sscanf("abc123", "%3s%d", arg1, arg2)
+		// if isError(ret) {
+		//   // handle error
+		//   fmt.Println(err)
+		// } else {
+		//   fmt.Println(ret)            // 2, number of scanned items
+		//   fmt.Println(arg1.Value)     // abc
+		//   fmt.Println(bool(arg1))     // true, reports whether arg1 is scanned
+		//   fmt.Println(arg2.Value)     // 123
+		//   fmt.Println(bool(arg2))     // true, reports whether arg2 is scanned
+		// }
+		// ```
+		//
+		// ```go
+		// arg1 = fmt.ScanArg("str")
+		// arg2 = fmt.ScanArg("int")
+		// arg3 = fmt.ScanArg("float")
+		// ret = fmt.Sscanf("abc 123", "%s%d%f", arg1, arg2, arg3)
+		// fmt.Println(ret)         // error: EOF
+		// fmt.Println(arg1.Value)  // abc
+		// fmt.Println(bool(arg1))  // true
+		// fmt.Println(arg2.Value)  // 123
+		// fmt.Println(bool(arg2))  // true
+		// fmt.Println(arg3.Value)  // nil
+		// fmt.Println(bool(arg2))  // false, not scanned
+		//
+		// // Use if statement or a ternary expression to get the scanned value or a default value.
+		// v := arg1 ? arg1.Value : "default value"
+		// ```
 
-	// gad:doc
-	// ## Functions
-	// Print(...any) -> int
-	// Formats using the default formats for its operands and writes to standard
-	// output. Spaces are added between operands when neither is a str.
-	// It returns the number of bytes written and any encountered write error
-	// throws a runtime error.
-	"Print": &gad.Function{
-		Name:  "Print",
-		Value: newPrint(fmt.Print),
-	},
-	// gad:doc
-	// Printf(format str, ...any) -> int
-	// Formats according to a format specifier and writes to standard output.
-	// It returns the number of bytes written and any encountered write error
-	// throws a runtime error.
-	"Printf": &gad.Function{
-		Name:  "Printf",
-		Value: newPrintf(fmt.Printf),
-	},
-	// gad:doc
-	// Println(...any) -> int
-	// Formats using the default formats for its operands and writes to standard
-	// output. Spaces are always added between operands and a newline
-	// is appended. It returns the number of bytes written and any encountered
-	// write error throws a runtime error.
-	"Println": &gad.Function{
-		Name:  "Println",
-		Value: newPrint(fmt.Println),
-	},
-	// gad:doc
-	// Sprint(...any) -> str
-	// Formats using the default formats for its operands and returns the
-	// resulting str. Spaces are added between operands when neither is a
-	// str.
-	"Sprint": &gad.Function{
-		Name:  "Sprint",
-		Value: newSprint(fmt.Sprint),
-	},
-	// gad:doc
-	// Sprintf(format str, ...any) -> str
-	// Formats according to a format specifier and returns the resulting str.
-	"Sprintf": &gad.Function{
-		Name:  "Sprintf",
-		Value: newSprintf(fmt.Sprintf),
-	},
-	// gad:doc
-	// Sprintln(...any) -> str
-	// Formats using the default formats for its operands and returns the
-	// resulting str. Spaces are always added between operands and a newline
-	// is appended.
-	"Sprintln": &gad.Function{
-		Name:  "Sprintln",
-		Value: newSprint(fmt.Sprintln),
-	},
-	// gad:doc
-	// Sscan(str str, ScanArg[, ...ScanArg]) -> int | error
-	// Scans the argument str, storing successive space-separated values into
-	// successive ScanArg arguments. Newlines count as space. If no error is
-	// encountered, it returns the number of items successfully scanned. If that
-	// is less than the number of arguments, error will report why.
-	"Sscan": &gad.Function{
-		Name:  "Sscan",
-		Value: newSscan(fmt.Sscan),
-	},
-	// gad:doc
-	// Sscanf(str str, format str, ScanArg[, ...ScanArg]) -> int | error
-	// Scans the argument str, storing successive space-separated values into
-	// successive ScanArg arguments as determined by the format. It returns the
-	// number of items successfully parsed or an error.
-	// Newlines in the input must match newlines in the format.
-	"Sscanf": &gad.Function{
-		Name:  "Sscanf",
-		Value: newSscanf(fmt.Sscanf),
-	},
-	// Sscanln(str str, ScanArg[, ...ScanArg]) -> int | error
-	// Sscanln is similar to Sscan, but stops scanning at a newline and after
-	// the final item there must be a newline or EOF. It returns the number of
-	// items successfully parsed or an error.
-	"Sscanln": &gad.Function{
-		Name:  "Sscanln",
-		Value: newSscan(fmt.Sscanln),
-	},
-	// gad:doc
-	// ScanArg(typeName str) -> scanArg
-	// Returns a `scanArg` object to scan a value of given type name in scan
-	// functions.
-	// Supported type names are `"str", "int", "uint", "float", "char",
-	// "bool", "bytes"`.
-	// It throws a runtime error if type name is not supported.
-	// Alternatively, `str, int, uint, float, char, bool, bytes` builtin
-	// functions can be provided to get the type name from the BuiltinFunction's
-	// Literal field.
-	"ScanArg": &gad.Function{
-		Name:  "ScanArg",
-		Value: newScanArgFunc,
-	},
-}
+		// gad:doc
+		// ## Functions
+		// Print(...any) -> int
+		// Formats using the default formats for its operands and writes to standard
+		// output. Spaces are added between operands when neither is a str.
+		// It returns the number of bytes written and any encountered write error
+		// throws a runtime error.
+		"Print": &gad.Function{
+			Module:   module,
+			FuncName: "Print",
+			Value:    newPrint(fmt.Print),
+		},
+		// gad:doc
+		// Printf(format str, ...any) -> int
+		// Formats according to a format specifier and writes to standard output.
+		// It returns the number of bytes written and any encountered write error
+		// throws a runtime error.
+		"Printf": &gad.Function{
+			Module:   module,
+			FuncName: "Printf",
+			Value:    newPrintf(fmt.Printf),
+		},
+		// gad:doc
+		// Println(...any) -> int
+		// Formats using the default formats for its operands and writes to standard
+		// output. Spaces are always added between operands and a newline
+		// is appended. It returns the number of bytes written and any encountered
+		// write error throws a runtime error.
+		"Println": &gad.Function{
+			Module:   module,
+			FuncName: "Println",
+			Value:    newPrint(fmt.Println),
+		},
+		// gad:doc
+		// Sprint(...any) -> str
+		// Formats using the default formats for its operands and returns the
+		// resulting str. Spaces are added between operands when neither is a
+		// str.
+		"Sprint": &gad.Function{
+			Module:   module,
+			FuncName: "Sprint",
+			Value:    newSprint(fmt.Sprint),
+		},
+		// gad:doc
+		// Sprintf(format str, ...any) -> str
+		// Formats according to a format specifier and returns the resulting str.
+		"Sprintf": &gad.Function{
+			Module:   module,
+			FuncName: "Sprintf",
+			Value:    newSprintf(fmt.Sprintf),
+		},
+		// gad:doc
+		// Sprintln(...any) -> str
+		// Formats using the default formats for its operands and returns the
+		// resulting str. Spaces are always added between operands and a newline
+		// is appended.
+		"Sprintln": &gad.Function{
+			Module:   module,
+			FuncName: "Sprintln",
+			Value:    newSprint(fmt.Sprintln),
+		},
+		// gad:doc
+		// Sscan(str str, ScanArg[, ...ScanArg]) -> int | error
+		// Scans the argument str, storing successive space-separated values into
+		// successive ScanArg arguments. Newlines count as space. If no error is
+		// encountered, it returns the number of items successfully scanned. If that
+		// is less than the number of arguments, error will report why.
+		"Sscan": &gad.Function{
+			Module:   module,
+			FuncName: "Sscan",
+			Value:    newSscan(fmt.Sscan),
+		},
+		// gad:doc
+		// Sscanf(str str, format str, ScanArg[, ...ScanArg]) -> int | error
+		// Scans the argument str, storing successive space-separated values into
+		// successive ScanArg arguments as determined by the format. It returns the
+		// number of items successfully parsed or an error.
+		// Newlines in the input must match newlines in the format.
+		"Sscanf": &gad.Function{
+			Module:   module,
+			FuncName: "Sscanf",
+			Value:    newSscanf(fmt.Sscanf),
+		},
+		// Sscanln(str str, ScanArg[, ...ScanArg]) -> int | error
+		// Sscanln is similar to Sscan, but stops scanning at a newline and after
+		// the final item there must be a newline or EOF. It returns the number of
+		// items successfully parsed or an error.
+		"Sscanln": &gad.Function{
+			Module:   module,
+			FuncName: "Sscanln",
+			Value:    newSscan(fmt.Sscanln),
+		},
+		// gad:doc
+		// ScanArg(typeName str) -> scanArg
+		// Returns a `scanArg` object to scan a value of given type name in scan
+		// functions.
+		// Supported type names are `"str", "int", "uint", "float", "char",
+		// "bool", "bytes"`.
+		// It throws a runtime error if type name is not supported.
+		// Alternatively, `str, int, uint, float, char, bool, bytes` builtin
+		// functions can be provided to get the type name from the BuiltinFunction's
+		// Literal field.
+		"ScanArg": &gad.Function{
+			Module:   module,
+			FuncName: "ScanArg",
+			Value:    newScanArgFunc,
+		},
+	}, nil
+})
 
 func newPrint(fn func(...any) (int, error)) gad.CallableFunc {
 	return func(c gad.Call) (ret gad.Object, err error) {
@@ -250,6 +263,11 @@ func postScan(offset, n int, err error, c gad.Call) gad.Object {
 		c.Args.Get(i).(ScanArg).Set(true)
 	}
 	if err != nil {
+		if s := reflect.TypeOf(err).String(); s == "*errors.errorString" {
+			return &gad.Error{
+				Message: err.Error(),
+			}
+		}
 		return &gad.Error{
 			Message: err.Error(),
 			Cause:   err,

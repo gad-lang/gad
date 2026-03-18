@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad/parser/source"
-	"github.com/gad-lang/gad/token"
 )
 
 // Bytecode holds the compiled functions and constants.
@@ -25,49 +24,46 @@ type Bytecode struct {
 }
 
 // Fprint writes constants and instructions to given Writer in a human readable form.
-func (bc *Bytecode) Fprint(w io.Writer) {
+func (bc *Bytecode) Fprint(builtins *Builtins, w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Bytecode")
 	_, _ = fmt.Fprintf(w, "Modules:%d\n", bc.NumModules)
 	_, _ = fmt.Fprintf(w, "Embeds:%d\n", bc.NumEmbeds)
-	bc.putConstants(w)
-	bc.Main.Fprint(w)
+	bc.putConstants(builtins, w)
+	bc.Main.Fprint(builtins, w, bc)
 }
 
 func (bc *Bytecode) String() string {
 	var buf bytes.Buffer
-	bc.Fprint(&buf)
+	bc.Fprint(nil, &buf)
 	return buf.String()
 }
 
-func (bc *Bytecode) putConstants(w io.Writer) {
-	_, _ = fmt.Fprintf(w, "Constants:\n")
-	for i := range bc.Constants {
-		var cf *CompiledFunction
-
-		switch t := bc.Constants[i].(type) {
-		case *CompiledFunction:
-			cf = t
-		case *CallerObjectWithMethods:
-			if !t.HasCallerMethods() {
-				cf, _ = t.CallerObject.(*CompiledFunction)
-			}
+func (bc *Bytecode) putConstants(builtins *Builtins, w io.Writer) {
+	repr := func(v Object) string {
+		if o, err := ToRepr(nil, v, PrinterStateOptions{}.WithIndent()); err != nil {
+			panic(err)
+		} else {
+			return o.ToString()
 		}
+	}
+	_, _ = fmt.Fprintf(w, "Constants (%d):\n", len(bc.Constants))
+	for i := range bc.Constants {
+		c := bc.Constants[i]
 
-		if cf != nil {
-			_, _ = fmt.Fprintf(w, "%4d: CompiledFunction\n", i)
+		switch t := c.(type) {
+		case *CompiledFunction:
+			_, _ = fmt.Fprintf(w, "%04d: ", i)
 
 			var b bytes.Buffer
-			cf.Fprint(&b)
-
-			_, _ = fmt.Fprint(w, "\t")
-
+			t.Fprint(builtins, &b, bc)
 			str := b.String()
 			c := strings.Count(str, "\n")
 			_, _ = fmt.Fprint(w, strings.Replace(str, "\n", "\n\t", c-1))
 			continue
 		}
-		_, _ = fmt.Fprintf(w, "%4d: %#v|%s\n",
-			i, bc.Constants[i], bc.Constants[i].Type().Name())
+
+		_, _ = fmt.Fprintf(w, "%04d: %s\n",
+			i, repr(bc.Constants[i]))
 	}
 }
 
@@ -76,15 +72,22 @@ type ModuleInfo struct {
 	File string
 }
 
+var (
+	_ Object       = (*CompiledFunction)(nil)
+	_ CallerObject = (*CompiledFunction)(nil)
+	_ Printer      = (*CompiledFunction)(nil)
+)
+
 // CompiledFunction holds the constants and instructions to pass VM.
 type CompiledFunction struct {
-	Name string
+	FuncName string
 
 	AllowMethods bool
 	// number of local variabls including parameters NumLocals>=NumParams
 	NumLocals    int
 	Instructions []byte
 	Free         []*ObjectPtr
+	Return       *ObjectPtr
 	// SourceMap holds the index of instruction and token's position.
 	SourceMap map[int]int
 
@@ -96,54 +99,56 @@ type CompiledFunction struct {
 	// this value allow to perform named args validation.
 	NamedParamsMap map[string]int
 	sourceFile     *source.File
-	module         *ModuleInfo
+	module         *Module
 }
 
-var (
-	_ Object       = (*CompiledFunction)(nil)
-	_ CallerObject = (*CompiledFunction)(nil)
-)
+func (o *CompiledFunction) SetModule(module *Module) {
+	o.module = module
+}
+
+func (o *CompiledFunction) GetModule() *Module {
+	return o.module
+}
+
+func (o *CompiledFunction) Name() string {
+	return o.FuncName
+}
 
 func (*CompiledFunction) Type() ObjectType {
 	return TCompiledFunction
 }
 
 func (o CompiledFunction) ClearSourceFileInfo() *CompiledFunction {
-	o.module = nil
 	o.sourceFile = nil
+	o.module = nil
 	return &o
 }
 
-func (o *CompiledFunction) ToString() string {
-	var (
-		s      []string
-		params []string
-	)
-	s = append(s, " "+o.Name)
-	if !o.Params.Empty() {
-		params = append(params, o.Params.String())
+func (o *CompiledFunction) FullName() string {
+	if o.FuncName == "" {
+		return ""
 	}
-	if o.NamedParams.len > 0 {
-		params = append(params, o.NamedParams.String())
-	}
-	s = append(s, "("+strings.Join(params, ", ")+")")
-	return ReprQuote("compiledFunction" + strings.Join(s, ""))
+	return o.module.info.Name + "." + o.FuncName
 }
 
-func (o *CompiledFunction) Repr(*VM) (_ string, err error) {
-	var (
-		s      []string
-		params []string
-	)
-	s = append(s, " "+o.Name)
+func (o *CompiledFunction) HeaderString() string {
+	var buf strings.Builder
+	buf.WriteString(o.FullName())
+	buf.WriteString("(")
 	if !o.Params.Empty() {
-		params = append(params, o.Params.String())
+		buf.WriteString(o.Params.String())
 	}
+
 	if o.NamedParams.len > 0 {
-		params = append(params, o.NamedParams.String())
+		buf.WriteString("; ")
+		buf.WriteString(o.NamedParams.String())
 	}
-	s = append(s, "("+strings.Join(params, ", ")+")")
-	return ReprQuote("compiledFunction" + strings.Join(s, "")), nil
+	buf.WriteByte(')')
+	return buf.String()
+}
+
+func (o *CompiledFunction) ToString() string {
+	return ReprQuoteTyped("compiledFunction", o.HeaderString())
 }
 
 func (o *CompiledFunction) Format(f fmt.State, verb rune) {
@@ -206,21 +211,24 @@ begin:
 	}
 	return source.NoPos
 }
-
-func (o *CompiledFunction) WithParams(names ...string) *CompiledFunction {
-	o.Params = make(Params, len(names))
-	for i := range o.Params {
-		o.Params[i] = new(Param)
-	}
+func (o *CompiledFunction) WithNamedParams(names ...string) *CompiledFunction {
+	params := make([]*NamedParam, len(names))
 
 	for i, name := range names {
-		if name[0] == '*' {
-			o.Params[i].Var = true
-			name = name[1:]
+		p := &NamedParam{}
+		if strings.HasPrefix(name, "**") {
+			params[i].Var = true
+			name = name[2:]
 		}
+
+		if pos := strings.IndexByte(name, '='); pos > 0 {
+			p.Value = strings.TrimSpace(name[pos+1:])
+			name = strings.TrimSpace(name[:pos])
+		}
+
 		if pos := strings.IndexByte(name, ' '); pos > 0 {
 			t := name[pos+1:]
-			o.Params[i].Name = name[:pos]
+			name = name[:pos]
 			if t[0] == '[' {
 				t = strings.ReplaceAll(t[1:len(t)-1], " ", "")
 			}
@@ -230,48 +238,65 @@ func (o *CompiledFunction) WithParams(names ...string) *CompiledFunction {
 				tname = strings.TrimSpace(tname)
 				symbols[i2] = &SymbolInfo{Name: tname}
 			}
-			o.Params[i].Type = symbols
-		} else {
-			o.Params[i].Name = name
+			p.TypesSymbols = symbols
 		}
+
+		name = strings.TrimSpace(name)
+		p.Name = name
+		p.Symbol = &SymbolInfo{Name: name}
+		params[i] = p
 	}
+
+	o.NamedParams = *NewNamedParams(params...)
+	return o
+}
+
+func (o *CompiledFunction) WithParams(names ...string) *CompiledFunction {
+	params := make([]*Param, len(names))
+	for i, name := range names {
+		p := &Param{}
+
+		if name[0] == '*' {
+			p.Var = true
+			name = name[1:]
+		}
+		if pos := strings.IndexByte(name, ' '); pos > 0 {
+			t := name[pos+1:]
+			p.Name = name[:pos]
+			if t[0] == '[' {
+				t = strings.ReplaceAll(t[1:len(t)-1], " ", "")
+			}
+			tnames := strings.Split(t, ",")
+			symbols := make(ParamType, len(tnames))
+			for i2, tname := range tnames {
+				tname = strings.TrimSpace(tname)
+				symbols[i2] = &SymbolInfo{Name: tname}
+			}
+			p.TypesSymbols = symbols
+		} else {
+			p.Name = name
+		}
+		p.Symbol = &SymbolInfo{Name: name}
+		params[i] = p
+	}
+
+	o.Params = *NewParams(params...)
 	return o
 }
 
 // Fprint writes constants and instructions to given Writer in a human readable form.
-func (o *CompiledFunction) Fprint(w io.Writer) {
-	o.FprintLP("", w)
+func (o *CompiledFunction) Fprint(builtins *Builtins, w io.Writer, bc *Bytecode) {
+	o.FprintLP(builtins, bc.Constants, "", w)
 }
 
 // FprintLP writes constants and instructions to given Writer in a human readable form with line prefix.
-func (o *CompiledFunction) FprintLP(linePrefix string, w io.Writer) {
+func (o *CompiledFunction) FprintLP(builtins *Builtins, constants Array, linePrefix string, w io.Writer) {
+	_, _ = fmt.Fprintf(w, "%s\n", o.ToString())
 	_, _ = fmt.Fprintf(w, "%sLocals: %d\n", linePrefix, o.NumLocals)
-	_, _ = fmt.Fprintf(w, "%sParams: %s\n", linePrefix, o.Params.String())
-	_, _ = fmt.Fprintf(w, "%sNamedParams: %s\n", linePrefix, o.NamedParams.String())
 	_, _ = fmt.Fprintf(w, "%sInstructions:\n", linePrefix)
 
-	i := 0
-	var operands []int
-
-	for i < len(o.Instructions) {
-
-		op := o.Instructions[i]
-		numOperands := OpcodeOperands[op]
-		operands, offset := ReadOperands(numOperands, o.Instructions[i+1:], operands)
-		_, _ = fmt.Fprintf(w, "%s\t%04d %-12s", linePrefix, i, OpcodeNames[op])
-
-		if len(operands) > 0 {
-			for _, r := range operands {
-				_, _ = fmt.Fprint(w, "    ", strconv.Itoa(r))
-			}
-			switch Opcode(op) {
-			case OpBinary, OpSelfAssign:
-				_, _ = fmt.Fprint(w, " (", token.Token(operands[0]).String(), ")")
-			}
-		}
-
-		_, _ = fmt.Fprintln(w)
-		i += offset + 1
+	for _, line := range FormatInstructions(builtins, constants, o.Instructions, 0) {
+		fmt.Fprintf(w, "%s\t%s\n", linePrefix, line)
 	}
 
 	if o.Free != nil {
@@ -281,7 +306,7 @@ func (o *CompiledFunction) FprintLP(linePrefix string, w io.Writer) {
 }
 
 func (o *CompiledFunction) identical(other *CompiledFunction) bool {
-	if o.Name != other.Name ||
+	if o.FuncName != other.FuncName ||
 		o.NumLocals != other.NumLocals ||
 		o.Params.String() != other.Params.String() ||
 		o.NamedParams.String() != other.NamedParams.String() ||
@@ -333,42 +358,42 @@ func (o *CompiledFunction) SetNamedParams(params ...*NamedParam) {
 
 func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 	if o.Params.Var() {
-		if required := len(o.Params) - 1; args.Length() < required {
+		if required := o.Params.RequiredCount() - 1; args.Length() < required {
 			return ErrWrongNumArguments.NewError(fmt.Sprintf("expected >= %d but got %d", required, args.Length()))
 		}
-	} else if args.Length() != len(o.Params) {
-		return ErrWrongNumArguments.NewError(fmt.Sprintf("expected %d but got %d", len(o.Params), args.Length()))
+	} else if args.Length() != o.Params.len {
+		return ErrWrongNumArguments.NewError(fmt.Sprintf("expected %d but got %d", o.Params.len, args.Length()))
 	}
 
 	if o.Params.Typed() {
 		var (
-			l       = len(o.Params)
+			l       = o.Params.len
 			argType ObjectType
 			t       ParamType
 			accept  bool
-			last    = o.Params[l-1]
+			last    = o.Params.Items[l-1]
 		)
 		if last.Var {
 			l--
 		}
 
 		for i := 0; i < l; i++ {
-			argType = args.GetOnly(i).Type()
-			t = o.Params[i].Type
+			argType = vm.ResolveType(args.GetOnly(i).Type())
+			t = o.Params.Items[i].TypesSymbols
 			if t != nil {
 				if accept, err = t.Accept(vm, argType); err != nil {
 					return
 				} else if !accept {
-					return NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params[i].Name+")", t.String(), argType.Name())
+					return NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Items[i].Name+")", t.String(), argType.Name())
 				}
 			}
 		}
 
 		if last.Var {
-			t = last.Type
+			t = last.TypesSymbols
 			args.WalkSkip(l, func(i int, arg Object) any {
 				if accept, err = t.Accept(vm, arg.Type()); err == nil && !accept {
-					err = NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params[i].Name+")", t.String(), arg.Type().Name())
+					err = NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Items[i].Name+")", t.String(), arg.Type().Name())
 				}
 				return err
 			})
@@ -381,25 +406,43 @@ func (o *CompiledFunction) CanValidateParamTypes() bool {
 	return o.Params.Typed()
 }
 
-func (o *CompiledFunction) ParamTypes(vm *VM) (types MultipleObjectTypes, err error) {
+func (o *CompiledFunction) ParamTypes(vm *VM) (types ParamsTypes, err error) {
 	if o.Params.Typed() {
-		types = make(MultipleObjectTypes, len(o.Params))
-		for i, p := range o.Params {
-			ts := make([]ObjectType, len(p.Type))
-			for i2, symbol := range p.Type {
-				if typ, err := vm.GetSymbolValue(symbol); err != nil {
-					return nil, err
-				} else {
-					if cwm, _ := typ.(*CallerObjectWithMethods); cwm != nil {
-						typ = cwm.CallerObject
+		types = make(ParamsTypes, o.Params.len)
+
+		for i, p := range o.Params.Items {
+			var ts ObjectTypes
+			if len(p.TypesSymbols) > 0 {
+				ts = make(ObjectTypes, len(p.TypesSymbols))
+				for i2, symbol := range p.TypesSymbols {
+					if typ, err := vm.GetSymbolValue(symbol); err != nil {
+						return nil, err
+					} else {
+						ts[i2] = typ.(ObjectType)
 					}
-					ts[i2] = typ.(ObjectType)
 				}
+			} else {
+				ts = ObjectTypes{TAny}
 			}
 			types[i] = ts
 		}
+	} else {
+		types = make(ParamsTypes, o.Params.len)
+		for i := range types {
+			types[i] = ObjectTypes{TAny}
+		}
+	}
+
+	if o.Params.variadic {
+		types[len(types)-1] = VarParamTypes(types[len(types)-1].Items())
 	}
 	return
+}
+
+func (o *CompiledFunction) Print(state *PrinterState) error {
+	return state.WithoutRepr(func(s *PrinterState) error {
+		return s.WriteString(ReprQuoteTyped("compiledFunction", o.HeaderString()))
+	})
 }
 
 func hashData32(hash uint32, data []byte) uint32 {

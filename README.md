@@ -139,18 +139,27 @@ return v
 
 ## TODO
 
-- [ ] Dollar as valid ident char
-- [ ] Nullisch Coalescing
-- [ ] Named arguments
+- [x] Dollar as valid ident char
+- [x] Nullisch Coalescing
+- [x] Named arguments
 - [ ] Array Expansion
 - [ ] Array Comprehensions
 - [ ] Map Expansion
 - [ ] Map Comprehensions
 - [ ] Examples for best practices
 - [ ] Better Playground
-- [ ] Configurable Stdin, Stdout and Stderr per Virtual Machine
+- [x] Configurable Stdin, Stdout and Stderr per Virtual Machine
 - [ ] Deferring function calls
 - [ ] Concurrency support
+- [ ] `?` and `!` as valid post 2nd ident char
+  - `valid?() = true`
+  - `if valid? {}`
+  - `push!(values array) { arr += values }`
+- [ ] Parse bytes from hex string (`const data = h"ffccf1c2" // typeof data == bytes`)
+- [ ] Parse bytes from string (`const data = b"Hello" // typeof data == bytes`)
+- [ ] Parse string from unquoted form:
+  - `const data = :hello // data == str("hello")`)
+  - `const data = :(Hello World!) // data == str("Hello World!")`
 
 ## Documentation
 

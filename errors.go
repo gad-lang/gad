@@ -39,6 +39,9 @@ var (
 	// ErrNotIterable is an error where an Object is not iterable.
 	ErrNotIterable = &Error{Name: "NotIterableError"}
 
+	// ErrNotLengther is an error where an Object is not lengther.
+	ErrNotLengther = &Error{Name: "NotLengther"}
+
 	// ErrNotIndexable is an error where an Object is not indexable.
 	ErrNotIndexable = &Error{Name: "NotIndexableError"}
 
@@ -50,6 +53,9 @@ var (
 
 	// ErrNotCallable is an error where Object is not callable.
 	ErrNotCallable = &Error{Name: "NotCallableError"}
+
+	// ErrCall is an error where call Object
+	ErrCall = &Error{Name: "ErrCall"}
 
 	// ErrNotImplemented is an error where an Object has not implemented a required method.
 	ErrNotImplemented = &Error{Name: "NotImplementedError"}
@@ -75,17 +81,47 @@ var (
 	// ErrMethodDuplication is an error where method was duplication.
 	ErrMethodDuplication = &Error{Name: "ErrMethodDuplication"}
 
-	// ErrMethodNotAppendable is an error where method append is disabled.
-	ErrMethodNotAppendable = &Error{Name: "ErrMethodNotAppendable"}
+	// ErrNoMethodFound is an error where no method found.
+	ErrNoMethodFound = &Error{Name: "ErrNoMethodFound"}
+
+	// ErrConstructorRecursiveCall is an error where call recursive constructor.
+	ErrConstructorRecursiveCall = &Error{Name: "ErrConstructorRecursiveCall"}
+
+	// ErrConstructorMethodFound is an error where no constructor method found.
+	ErrConstructorMethodFound = &Error{Name: "ErrConstructorMethodFound"}
 
 	// ErrType represents a type error.
 	ErrType = &Error{Name: "TypeError"}
+
+	// ErrArgument represents a argument error.
+	ErrArgument = &Error{Name: "ArgumentError"}
 
 	// ErrNotInitializable represents a not initializable type error.
 	ErrNotInitializable = &Error{Name: "ErrNotInitializable"}
 
 	// ErrNotWriteable represents a not writeable type error.
 	ErrNotWriteable = &Error{Name: "ErrNotWriteable"}
+
+	// ErrDefineClass represents an error for define class.
+	ErrDefineClass = &Error{Name: "ErrDefineClass"}
+
+	// ErrNewClassInstance represents an error for create new ClassInstance.
+	ErrNewClassInstance = &Error{Name: "ErrNewClassInstance"}
+
+	// ErrClassInstanceInitialized represents an error for initialized ClassInstance.
+	ErrClassInstanceInitialized = &Error{Name: "ErrClassInstanceInitialized"}
+
+	// ErrClassInstanceProperty represents an error of ClassInstance property.
+	ErrClassInstanceProperty = &Error{Name: "ErrClassInstanceProperty"}
+
+	// ErrClassPropertyChange represents an error on change ClassProperty.
+	ErrClassPropertyChange = &Error{Name: "ErrClassPropertyChange"}
+
+	// ErrClassPropertyRegister represents an error on change ClassProperty.
+	ErrClassPropertyRegister = &Error{Name: "ErrClassPropertyRegister"}
+
+	// ErrClassMethodRegister represents an error on register method.
+	ErrClassMethodRegister = &Error{Name: "ErrClassMethodRegister"}
 )
 
 // NewOperandTypeError creates a new Error from ErrType.
@@ -127,9 +163,7 @@ func NewArgumentTypeErrorT(pos string, foundType ObjectType, expectType ...Objec
 	for i, t := range expectType {
 		et[i] = t.ToString()
 	}
-	return ErrType.NewError(
-		fmt.Sprintf("invalid type for argument '%s': expected %s, found %s",
-			pos, strings.Join(et, "|"), foundType))
+	return NewArgumentTypeError(pos, strings.Join(et, "|"), foundType.FullName())
 }
 
 // NewIndexTypeErrorT creates a new Error from ErrType.
@@ -150,6 +184,11 @@ func NewIndexValueTypeErrorT(foundType ObjectType, expectType ...ObjectType) *Er
 	}
 	return ErrType.NewError(
 		fmt.Sprintf("index value type expected %s, found %s", strings.Join(et, "|"), foundType))
+}
+
+// NewStructPropertyInstanceError creates a new Error from ErrClassInstanceProperty.
+func NewStructPropertyInstanceError(propertyName, message string) *Error {
+	return ErrClassInstanceProperty.NewError(fmt.Sprintf("property '%s': %s", propertyName, message))
 }
 
 func IsError(a, b error) *Error {

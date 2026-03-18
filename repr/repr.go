@@ -10,5 +10,5 @@ func Quote(s string) string {
 }
 
 func QuoteTyped(typ, s string) string {
-	return QuotePrefix + typ + ":" + s + QuoteSufix
+	return QuotePrefix + typ + ": " + s + QuoteSufix
 }

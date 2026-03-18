@@ -25,6 +25,8 @@ import (
 	"time"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/stdlib/helper"
 	"github.com/peterh/liner"
@@ -37,6 +39,8 @@ const (
 	title         = "Gad"
 	promptPrefix  = ">>> "
 	promptPrefix2 = "... "
+
+	builtinRetName = "$mainRet$"
 )
 
 var (
@@ -63,7 +67,7 @@ var (
 	scriptGlobals = &gad.SyncDict{
 		Value: gad.Dict{
 			"Gosched": &gad.Function{
-				Name: "Gosched",
+				FuncName: "Gosched",
 				Value: func(gad.Call) (gad.Object, error) {
 					runtime.Gosched()
 					return gad.Nil, nil
@@ -99,15 +103,18 @@ type repl struct {
 	lastBytecode *gad.Bytecode
 	lastResult   gad.Object
 	isMultiline  bool
+	builtinRet   gad.BuiltinType
 }
 
 func newREPL(ctx context.Context, stdout io.Writer) *repl {
+	builtins := gad.NewBuiltins().Build()
+
 	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
-		Module: &gad.ModuleInfo{
+		Module: gad.NewModule(gad.ModuleInfo{
 			Name: "(repl)",
-		},
+		}, gad.Dict{}, nil),
 		ModuleMap:         DefaultModuleMap(".", &sourcePath),
-		SymbolTable:       defaultSymbolTable(),
+		SymbolTable:       defaultSymbolTable(builtins.Builtins()),
 		OptimizerMaxCycle: gad.TraceCompilerOptions.OptimizerMaxCycle,
 		TraceParser:       traceParser,
 		TraceOptimizer:    traceOptimizer,
@@ -124,12 +131,20 @@ func newREPL(ctx context.Context, stdout io.Writer) *repl {
 		opts.Trace = stdout
 	}
 
+	eval := gad.NewEval(opts, &gad.RunOpts{
+		Globals: scriptGlobals,
+	})
+
+	eval.VM.Builtins = builtins
+
 	r := &repl{
-		ctx:    ctx,
-		eval:   gad.NewEval(opts, &gad.RunOpts{Globals: scriptGlobals}),
-		out:    stdout,
-		script: bytes.NewBuffer(nil),
+		ctx:        ctx,
+		eval:       eval,
+		out:        stdout,
+		script:     bytes.NewBuffer(nil),
+		builtinRet: builtins.Set(builtinRetName, gad.Nil),
 	}
+
 	r.setSymbolSuggestions()
 
 	r.commands = map[string]func(string) error{
@@ -152,6 +167,10 @@ func newREPL(ctx context.Context, stdout io.Writer) *repl {
 		".exit":          func(string) error { return errExit },
 	}
 	return r
+}
+
+func (r *repl) setRet(val gad.Object) {
+	r.eval.VM.Builtins.Update(r.builtinRet, val)
 }
 
 func (r *repl) cmdCommands(_ string) error {
@@ -321,23 +340,105 @@ func (r *repl) execute(line string) error {
 	return nil
 }
 
-func (r *repl) executeScript() {
+func (r *repl) compileExecuteFile(pf *parser.File) (bc *gad.Bytecode, ret gad.Object, ok bool) {
+	var (
+		err error
+	)
+
+	bc, err = gad.CompileFile(pf, r.eval.Opts)
+
+	defer func() {
+		if err != nil {
+			r.writeString(fmt.Sprintf("\n!   %+v", err))
+		}
+	}()
+
+	if err != nil {
+		return
+	}
+
+	ret, err = r.eval.Run(r.ctx, bc)
+
+	if err != nil {
+		return
+	}
+
+	ok = true
+	return
+}
+
+func (r *repl) compileExecuteScript(script []byte) (f *parser.File, bc *gad.Bytecode, ret gad.Object, ok bool) {
 	var err error
 
-	r.lastResult, r.lastBytecode, err = r.eval.Run(r.ctx, r.script.Bytes())
+	f, bc, err = gad.Compile(script, r.eval.Opts)
+
+	defer func() {
+		if err != nil {
+			r.writeString(fmt.Sprintf("\n!   %+v", err))
+		}
+	}()
+
 	if err != nil {
-		r.writeString(fmt.Sprintf("\n!   %+v", err))
 		return
+	}
+
+	ret, err = r.eval.Run(r.ctx, bc)
+
+	if err != nil {
+		return
+	}
+
+	ok = true
+	return
+}
+
+func (r *repl) executeScript() {
+	f, bc, ret, ok := r.compileExecuteScript(r.script.Bytes())
+	if !ok {
+		return
+	}
+
+	r.lastBytecode = bc
+	r.lastResult = ret
+
+	runRet := func(v node.Expr) {
+		f.Stmts = node.Stmts{node.SReturn(v.Pos(), v)}
+		if _, ret, ok = r.compileExecuteFile(f); ok {
+			r.lastResult = ret
+		}
+	}
+
+	if ret == gad.Nil {
+		switch t := f.Stmts[len(f.Stmts)-1].(type) {
+		case *node.FuncStmt:
+			runRet(t.Func.Type.NameExpr)
+		case *node.FuncWithMethodsStmt:
+			runRet(t.NameExpr)
+		}
 	}
 
 	switch v := r.lastResult.(type) {
 	case gad.Str:
 		r.writeString(fmt.Sprintf("\n⇦   %q", string(v)))
+	case gad.RawStr:
+		r.writeString(fmt.Sprintf("\n⇦   %q", string(v)))
 	case gad.Char:
 		r.writeString(fmt.Sprintf("\n⇦   %q", rune(v)))
-	case gad.Bytes:
-		r.writeString(fmt.Sprintf("\n⇦   %v", []byte(v)))
 	default:
+		if !gad.IsPrimitive(r.lastResult) {
+			r.setRet(r.lastResult)
+			e := node.ECall(
+				node.EIdent("repr", 0),
+				0, 0,
+				node.CallExprArgs{
+					Values: node.Exprs{node.EIdent(builtinRetName, 0)},
+				},
+				node.NewCallExprNamedArgs(nil, nil).
+					AppendFlags("indent", "indexes", "sortKeys").
+					AppendS("maxDepth", node.Int(2, 0)),
+			)
+			runRet(e)
+		}
 		r.writeString(fmt.Sprintf("\n⇦   %v", r.lastResult))
 	}
 }
@@ -425,8 +526,8 @@ func complete(line string) (completions []string) {
 	return
 }
 
-func defaultSymbolTable() *gad.SymbolTable {
-	table := gad.NewSymbolTable(gad.NewBuiltins())
+func defaultSymbolTable(builtins *gad.Builtins) *gad.SymbolTable {
+	table := gad.NewSymbolTable(builtins)
 	_, err := table.DefineGlobals([]string{"Gosched", "SOURCE_PATH"})
 	if err != nil {
 		panic(&gad.Error{Message: "global symbol define error", Cause: err})
@@ -614,22 +715,23 @@ type Script struct {
 	traceOut   io.Writer
 	args       []string
 	sourcePath *importers.PathList
+	builtins   *gad.StaticBuiltins
 }
 
-func newScript(ctx context.Context, modulePath string, workdir string, script []byte, traceOut io.Writer) *Script {
-	return &Script{ctx: ctx, modulePath: modulePath, workdir: workdir, script: script, traceOut: traceOut, sourcePath: &sourcePath}
+func newScript(builtins *gad.StaticBuiltins, ctx context.Context, modulePath string, workdir string, script []byte, traceOut io.Writer) *Script {
+	return &Script{ctx: ctx, modulePath: modulePath, workdir: workdir, script: script, traceOut: traceOut, sourcePath: &sourcePath, builtins: builtins}
 }
 
 func (s *Script) execute() error {
 	opts := gad.CompileOptions{
 		CompilerOptions: gad.DefaultCompilerOptions,
 	}
-	opts.SymbolTable = defaultSymbolTable()
+	opts.SymbolTable = defaultSymbolTable(s.builtins.Builtins())
 	opts.ModuleMap = DefaultModuleMap(s.workdir, s.sourcePath)
-	opts.Module = &gad.ModuleInfo{
+	opts.Module = gad.NewModule(gad.ModuleInfo{
 		Name: path.Clean(s.modulePath),
 		File: "file:" + s.modulePath,
-	}
+	}, gad.Dict{}, nil)
 
 	if traceEnabled {
 		opts.Trace = s.traceOut
@@ -638,7 +740,7 @@ func (s *Script) execute() error {
 		opts.TraceOptimizer = traceOptimizer
 	}
 
-	bc, err := gad.Compile(s.script, opts)
+	_, bc, err := gad.Compile(s.script, opts)
 	if err != nil {
 		return err
 	}
@@ -777,7 +879,7 @@ func main() {
 		importers.Shebang2Slashes(script)
 
 		checkErr(err, cancel)
-		s := newScript(ctx, modulePath, workdir, script, os.Stdout)
+		s := newScript(gad.NewBuiltins().Build(), ctx, modulePath, workdir, script, os.Stdout)
 		s.args = args
 		err = s.execute()
 		checkErr(err, cancel)

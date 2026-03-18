@@ -925,7 +925,7 @@ func TestConstIota(t *testing.T) {
 
 func TestVM_Invoke(t *testing.T) {
 	applyPool := &Function{
-		Name: "applyPool",
+		FuncName: "applyPool",
 		Value: func(c Call) (Object, error) {
 			inv := NewInvoker(c.VM, c.Args.Shift())
 			inv.Acquire()
@@ -934,7 +934,7 @@ func TestVM_Invoke(t *testing.T) {
 		},
 	}
 	applyNoPool := &Function{
-		Name: "applyNoPool",
+		FuncName: "applyNoPool",
 		Value: func(c Call) (Object, error) {
 			args := make([]Object, 0, c.Args.Length()-1)
 			for i := 1; i < c.Args.Length(); i++ {
@@ -945,7 +945,7 @@ func TestVM_Invoke(t *testing.T) {
 		},
 	}
 	for _, apply := range []*Function{applyPool, applyNoPool} {
-		t.Run(apply.Name, func(t *testing.T) {
+		t.Run(apply.FuncName, func(t *testing.T) {
 			t.Run("apply", func(t *testing.T) {
 				scr := `
 global apply

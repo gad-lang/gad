@@ -3,13 +3,14 @@ package parser
 import (
 	"fmt"
 
+	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/token"
 )
 
 // ScanNow returns a token, token literal and its position.
-func (s *Scanner) ScanNow() (t Token) {
+func (s *Scanner) ScanNow() (t PToken) {
 	t.Pos = source.MustFileSetPos(s.File, s.Offset)
 
 	if s.Ch == -1 {
@@ -19,7 +20,7 @@ func (s *Scanner) ScanNow() (t Token) {
 			t.Token = token.Semicolon
 			return t
 		}
-		return Token{Token: token.EOF, Pos: t.Pos}
+		return PToken{TokenLit: node.TokenLit{Token: token.EOF, Pos: t.Pos}}
 	}
 
 	if s.mode.Has(ScanMixed) && s.Ch != -1 {
@@ -96,7 +97,7 @@ func (s *Scanner) ScanNow() (t Token) {
 					}
 				}
 				if s.HandleMixed != nil {
-					s.HandleMixed(&start, func() *Token {
+					s.HandleMixed(&start, func() *PToken {
 						readText()
 						return &t
 					})

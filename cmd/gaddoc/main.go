@@ -169,16 +169,16 @@ func (dg *docgroup) processFuncBlock(line string) {
 }
 
 func getModuleItem(module, key string) string {
-	var moduleMap map[string]gad.Object
+	var moduleMap gad.Dict
 	switch module {
 	case "time":
-		moduleMap = gadtime.Module
+		moduleMap = gadtime.ModuleInit.MustGetData(nil).ToDict()
 	case "strings":
-		moduleMap = gadstrings.Module
+		moduleMap = gadstrings.ModuleInit.MustGetData(nil).ToDict()
 	case "fmt":
-		moduleMap = gadfmt.Module
+		moduleMap = gadfmt.ModuleInit.MustGetData(nil).ToDict()
 	case "json":
-		moduleMap = gadjson.Module
+		moduleMap = gadjson.ModuleInit.MustGetData(nil).ToDict()
 	default:
 		panic(fmt.Errorf("unknown module:%s", module))
 	}

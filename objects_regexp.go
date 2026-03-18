@@ -6,6 +6,12 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
+var (
+	_ Object           = (*Regexp)(nil)
+	_ NameCallerObject = (*Regexp)(nil)
+	_ Printer          = (*Regexp)(nil)
+)
+
 type Regexp regexp.Regexp
 
 func (o *Regexp) CallName(name string, c Call) (_ Object, err error) {
@@ -117,6 +123,13 @@ func (o *Regexp) Equal(right Object) bool {
 	}
 }
 
+func (o *Regexp) Print(state *PrinterState) error {
+	if state.IsRepr {
+		defer state.WrapRepr(o)()
+	}
+	return state.WriteString(o.Go().String())
+}
+
 type RegexpStrsResult []string
 
 func (o RegexpStrsResult) IsFalsy() bool {
@@ -146,6 +159,15 @@ func (o RegexpStrsResult) Equal(right Object) bool {
 	default:
 		return false
 	}
+}
+
+func (o RegexpStrsResult) Print(state *PrinterState) error {
+	return state.WithoutRepr(func(s *PrinterState) error {
+		defer state.WrapRepr(o)()
+		defer state.options.Backup(PrintStateOptionQuoteStr)
+		state.options.WithQuoteStr()
+		return o.ToArray().PrintObject(state, o)
+	})
 }
 
 type RegexpStrsSliceResult [][]string
@@ -179,6 +201,15 @@ func (o RegexpStrsSliceResult) Equal(right Object) bool {
 	}
 }
 
+func (o RegexpStrsSliceResult) Print(state *PrinterState) error {
+	return state.WithoutRepr(func(s *PrinterState) error {
+		defer state.WrapRepr(o)()
+		defer state.options.Backup(PrintStateOptionQuoteStr)
+		state.options.WithQuoteStr()
+		return o.ToArray().PrintObject(state, o)
+	})
+}
+
 type RegexpBytesResult [][]byte
 
 func (o RegexpBytesResult) IsFalsy() bool {
@@ -210,6 +241,15 @@ func (o RegexpBytesResult) Equal(right Object) bool {
 	}
 }
 
+func (o RegexpBytesResult) Print(state *PrinterState) error {
+	return state.WithoutRepr(func(s *PrinterState) error {
+		defer state.WrapRepr(o)()
+		defer state.options.Backup(PrintStateOptionBytesToHex)
+		state.options.WithBytesToHex()
+		return o.ToArray().PrintObject(state, o)
+	})
+}
+
 type RegexpBytesSliceResult [][][]byte
 
 func (o RegexpBytesSliceResult) IsFalsy() bool {
@@ -239,4 +279,13 @@ func (o RegexpBytesSliceResult) Equal(right Object) bool {
 	default:
 		return false
 	}
+}
+
+func (o RegexpBytesSliceResult) Print(state *PrinterState) error {
+	return state.WithoutRepr(func(s *PrinterState) error {
+		defer state.WrapRepr(o)()
+		defer state.options.Backup(PrintStateOptionBytesToHex)
+		state.options.WithBytesToHex()
+		return o.ToArray().PrintObject(state, o)
+	})
 }

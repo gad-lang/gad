@@ -34,8 +34,8 @@ func NewGenDecl(
 
 func NewParamSpec(variadic bool, ident *TypedIdentExpr) Spec {
 	return &ParamSpec{
-		Ident:    ident,
-		Variadic: variadic,
+		Ident: ident,
+		Var:   variadic,
 	}
 }
 
@@ -170,7 +170,7 @@ func NewFuncType(pos, lparen, rparen source.Pos, v ...any) *FuncType {
 		case NamedArgsList:
 			f.Params.NamedArgs = t
 		case *IdentExpr:
-			f.Ident = t
+			f.NameExpr = t
 		}
 	}
 	return f
@@ -187,18 +187,16 @@ func ProxyFuncType() *FuncType {
 				},
 			},
 			NamedArgs: NamedArgsList{
-				Var: &TypedIdentExpr{
-					Ident: &IdentExpr{
-						Name: "kwargs",
-					},
+				Var: &IdentExpr{
+					Name: "kwargs",
 				},
 			},
 		},
 	}
 }
 
-func Args(vari *TypedIdentExpr, names ...Expr) ArgsList {
-	l := ArgsList{Var: vari}
+func Args(vari *IdentExpr, names ...Expr) ArgsList {
+	l := ArgsList{Var: &TypedIdentExpr{Ident: vari}}
 	for _, name := range names {
 		switch t := name.(type) {
 		case *IdentExpr:
@@ -210,7 +208,7 @@ func Args(vari *TypedIdentExpr, names ...Expr) ArgsList {
 	return l
 }
 
-func NamedArgs(vari *TypedIdentExpr, names []*TypedIdentExpr, values []Expr) NamedArgsList {
+func NamedArgs(vari *IdentExpr, names []*TypedIdentExpr, values []Expr) NamedArgsList {
 	return NamedArgsList{Names: names, Var: vari, Values: values}
 }
 
@@ -236,6 +234,14 @@ func EEmptyIdent(pos source.Pos) *IdentExpr {
 
 func ETypedIdent(ident *IdentExpr, typ ...*TypeExpr) *TypedIdentExpr {
 	return &TypedIdentExpr{Ident: ident, Type: typ}
+}
+
+func EType(expr Expr) *TypeExpr {
+	return &TypeExpr{Expr: expr}
+}
+
+func EMethod(expr *FuncExpr) *MethodExpr {
+	return &MethodExpr{Expr: expr}
 }
 
 func SMixedText(pos source.Pos, vlit string, flags ...MixedTextStmtFlag) *MixedTextStmt {
@@ -311,8 +317,15 @@ func EUnary(x Expr, op token.Token, pos source.Pos) *UnaryExpr {
 	return &UnaryExpr{Expr: x, Token: op, TokenPos: pos}
 }
 
-func EImport(moduleName string, pos source.Pos) *ImportExpr {
-	return &ImportExpr{ModuleName: moduleName, Token: token.Import, TokenPos: pos}
+func EImport(pos source.Pos, moduleName string, lparen, rparen, moduleNamePos source.Pos) *ImportExpr {
+	return &ImportExpr{CallExpr{
+		Func: EIdent(token.Import.String(), pos),
+		CallArgs: CallArgs{
+			LParen: lparen,
+			RParen: rparen,
+			Args: CallExprArgs{
+				Values: Exprs{String(moduleName, moduleNamePos)}}},
+	}}
 }
 
 func EEmbed(path string, pos source.Pos) *EmbedExpr {
@@ -389,24 +402,24 @@ func EDict(lbrace, rbrace source.Pos, list ...*DictElementLit) *DictExpr {
 	return &DictExpr{LBrace: lbrace, RBrace: rbrace, Elements: list}
 }
 
-func EDictElementClosure(c *ClosureExpr) *DictElementFuncExpr {
-	return &DictElementFuncExpr{Expr: c}
+func EDictElementClosure(c *ClosureExpr) *FuncDefLit {
+	return &FuncDefLit{Expr: c}
 }
 
-func EDictElementFunc(f *FuncExpr) *DictElementFuncExpr {
-	return &DictElementFuncExpr{Expr: f}
+func EDictElementFunc(f *FuncExpr) *FuncDefLit {
+	return &FuncDefLit{Expr: f}
 }
 
 func EFunc(funcType *FuncType, body *BlockStmt) *FuncExpr {
 	return &FuncExpr{Type: funcType, Body: body}
 }
 
-func EFuncBodyE(funcType *FuncType, body Expr) *FuncExpr {
-	return &FuncExpr{Type: funcType, BodyExpr: body}
+func EFuncBodyE(funcType *FuncType, lambdaPos source.Pos, body Expr) *FuncExpr {
+	return &FuncExpr{Type: funcType, LambdaPos: lambdaPos, BodyExpr: body}
 }
 
-func EClosure(funcType *FuncType, body Expr) *ClosureExpr {
-	return &ClosureExpr{Body: body}
+func EClosure(params *FuncParams, lambdaPos source.Pos, lambdaToken token.Token, body Expr) *ClosureExpr {
+	return &ClosureExpr{Params: *params, Lambda: Token{lambdaPos, lambdaToken}, Body: body}
 }
 
 func EParen(x Expr, lparen, rparen source.Pos) *ParenExpr {
@@ -423,8 +436,12 @@ func ECall(
 		switch t := v.(type) {
 		case CallExprArgs:
 			ce.Args = t
+		case *CallExprArgs:
+			ce.Args = *t
 		case CallExprNamedArgs:
 			ce.NamedArgs = t
+		case *CallExprNamedArgs:
+			ce.NamedArgs = *t
 		}
 	}
 	return ce
@@ -432,17 +449,13 @@ func ECall(
 
 func ECallProxy(efunc Expr) *CallExpr {
 	return ECall(efunc, 0, 0,
-		Args(ETypedIdent(EIdent("args", 0))),
-		NamedArgs(ETypedIdent(EIdent("kwargs", 0)), nil, nil),
+		Args(EIdent("args", 0)),
+		NamedArgs(EIdent("kwargs", 0), nil, nil),
 	)
 }
 
 func ArgVar(pos source.Pos, value Expr) *ArgVarLit {
 	return &ArgVarLit{TokenPos: pos, Value: value}
-}
-
-func NamedArgVar(pos source.Pos, value Expr) *NamedArgVarLit {
-	return &NamedArgVarLit{TokenPos: pos, Value: value}
 }
 
 func NewCallExprArgs(
@@ -453,10 +466,9 @@ func NewCallExprArgs(
 }
 
 func NewCallExprNamedArgs(
-	argVar *NamedArgVarLit,
-	names []NamedArgExpr, values []Expr,
-) (ce CallExprNamedArgs) {
-	return CallExprNamedArgs{Var: argVar, Names: names, Values: values}
+	names []*NamedArgExpr, values []Expr,
+) (ce *CallExprNamedArgs) {
+	return &CallExprNamedArgs{Names: names, Values: values}
 }
 
 func EIndex(
@@ -464,7 +476,7 @@ func EIndex(
 	lbrack, rbrack source.Pos,
 ) *IndexExpr {
 	return &IndexExpr{
-		Expr: x, Index: index, LBrack: lbrack, RBrack: rbrack,
+		X: x, Index: index, LBrack: lbrack, RBrack: rbrack,
 	}
 }
 
@@ -478,5 +490,13 @@ func ESlice(
 }
 
 func ESelector(x, sel Expr) *SelectorExpr {
-	return &SelectorExpr{Expr: x, Sel: sel}
+	return &SelectorExpr{X: x, Sel: sel}
+}
+
+func EComputed(start, end source.Pos, stmts ...Stmt) *ComputedExpr {
+	return &ComputedExpr{StartPos: start, EndPos: end, Stmts: stmts}
+}
+
+func LNil(pos source.Pos) *NilLit {
+	return &NilLit{TokenPos: pos}
 }

@@ -7,37 +7,46 @@ import (
 )
 
 var (
-	TAny                    = &Type{TypeName: "Any"}
-	TSymbol                 = &Type{Parent: TAny, TypeName: "Symbol"}
-	TIterationStateFlag     = &Type{Parent: TAny, TypeName: "IterationStateFlag"}
-	IterationStop           = &Type{Parent: TIterationStateFlag, TypeName: "IterationStop"}
-	IterationSkip           = &Type{Parent: TIterationStateFlag, TypeName: "IterationSkip"}
-	TBase                   = &Type{Parent: TAny, TypeName: "Base"}
-	TIterator               = &Type{Parent: TAny, TypeName: "Iterator"}
-	TIterabler              = &Type{Parent: TAny, TypeName: "Iterabler"}
-	TNilIterator            = &Type{Parent: TIterator, TypeName: "NilIterator"}
-	TStateIterator          = &Type{Parent: TIterator, TypeName: "StateIterator"}
-	TStrIterator            = &Type{Parent: TIterator, TypeName: "StrIterator"}
-	TRawStrIterator         = &Type{Parent: TIterator, TypeName: "RawStrIterator"}
-	TArrayIterator          = &Type{Parent: TIterator, TypeName: "ArrayIterator"}
-	TDictIterator           = &Type{Parent: TIterator, TypeName: "DictIterator"}
-	TBytesIterator          = &Type{Parent: TIterator, TypeName: "BytesIterator"}
-	TKeyValueArrayIterator  = &Type{Parent: TIterator, TypeName: "KeyValueArrayIterator"}
-	TKeyValueArraysIterator = &Type{Parent: TIterator, TypeName: "KeyValueArraysIterator"}
-	TArgsIterator           = &Type{Parent: TIterator, TypeName: "ArgsIterator"}
-	TReflectArrayIterator   = &Type{Parent: TIterator, TypeName: "ReflectArrayIterator"}
-	TReflectMapIterator     = &Type{Parent: TIterator, TypeName: "ReflectMapIterator"}
-	TReflectStructIterator  = &Type{Parent: TIterator, TypeName: "ReflectStructIterator"}
-	TKeysIterator           = &Type{Parent: TIterator, TypeName: "KeysIterator"}
-	TValuesIterator         = &Type{Parent: TIterator, TypeName: "ValuesIterator"}
-	TEnumerateIterator      = &Type{Parent: TIterator, TypeName: "EnumerateIterator"}
-	TItemsIterator          = &Type{Parent: TIterator, TypeName: "ItemsIterator"}
-	TCallbackIterator       = &Type{Parent: TIterator, TypeName: "CallbackIterator"}
-	TEachIterator           = &Type{Parent: TIterator, TypeName: "EachIterator"}
-	TMapIterator            = &Type{Parent: TIterator, TypeName: "MapIterator"}
-	TFilterIterator         = &Type{Parent: TIterator, TypeName: "FilterIterator"}
-	TZipIterator            = &Type{Parent: TIterator, TypeName: "ZipIterator"}
-	TPipedInvokeIterator    = &Type{Parent: TIterator, TypeName: "PipedInvokeIterator"}
+	TAny                         = NewType("any")
+	TModule                      = NewType("Module")
+	TSymbol                      = NewType("Symbol", TAny)
+	TIterationStateFlag          = NewType("IterationStateFlag", TAny)
+	IterationStop                = NewType("IterationStop", TIterationStateFlag)
+	IterationSkip                = NewType("IterationSkip", TIterationStateFlag)
+	TBase                        = NewType("Base", TAny)
+	TClass                       = NewType("Class", TBase)
+	TClassConstructor            = NewType("ClassConstructor", TBase)
+	TClassProperty               = NewType("ClassProperty", TBase)
+	TClassMethod                 = NewType("ClassMethod", TBase)
+	TClassField                  = NewType("ClassField", TBase)
+	TClassInstanceMethod         = NewType("ClassInstanceMethod", TBase)
+	TClassInstancePropertyGetter = NewType("ClassInstancePropertyGetter", TBase)
+	TClassInstancePropertySetter = NewType("ClassInstancePropertySetter", TBase)
+	TIterator                    = NewType("Iterator", TAny)
+	TIterabler                   = NewType("Iterabler", TAny)
+	TNilIterator                 = NewType("NilIterator", TIterator)
+	TStateIterator               = NewType("StateIterator", TIterator)
+	TStrIterator                 = NewType("StrIterator", TIterator)
+	TRawStrIterator              = NewType("RawStrIterator", TIterator)
+	TArrayIterator               = NewType("ArrayIterator", TIterator)
+	TDictIterator                = NewType("DictIterator", TIterator)
+	TBytesIterator               = NewType("BytesIterator", TIterator)
+	TKeyValueArrayIterator       = NewType("KeyValueArrayIterator", TIterator)
+	TKeyValueArraysIterator      = NewType("KeyValueArraysIterator", TIterator)
+	TArgsIterator                = NewType("ArgsIterator", TIterator)
+	TReflectArrayIterator        = NewType("ReflectArrayIterator", TIterator)
+	TReflectMapIterator          = NewType("ReflectMapIterator", TIterator)
+	TReflectStructIterator       = NewType("ReflectStructIterator", TIterator)
+	TKeysIterator                = NewType("KeysIterator", TIterator)
+	TValuesIterator              = NewType("ValuesIterator", TIterator)
+	TEnumerateIterator           = NewType("EnumerateIterator", TIterator)
+	TItemsIterator               = NewType("ItemsIterator", TIterator)
+	TCallbackIterator            = NewType("CallbackIterator", TIterator)
+	TEachIterator                = NewType("EachIterator", TIterator)
+	TMapIterator                 = NewType("MapIterator", TIterator)
+	TFilterIterator              = NewType("FilterIterator", TIterator)
+	TZipIterator                 = NewType("ZipIterator", TIterator)
+	TPipedInvokeIterator         = NewType("PipedInvokeIterator", TIterator)
 )
 
 var (
@@ -52,15 +61,48 @@ func TypeToString(typeName string) string {
 }
 
 type Type struct {
-	TypeName       string
-	Parent         ObjectType
-	calllerMethods MethodArgType
-	Constructor    CallerObject
-	Static         Dict
+	Parent ObjectType
+	Static Dict
+	Module *Module
+	name   string
+	*FuncSpec
+}
+
+func NewType(typeName string, parent ...ObjectType) (t *Type) {
+	t = &Type{name: typeName}
+	if len(parent) > 0 {
+		t.Parent = parent[0]
+	}
+	t.FuncSpec = NewFuncSpec(t)
+	return
+}
+
+func (Type) GadObjectType() {}
+
+func (t Type) Copy() Object {
+	cp := &t
+	cp.Static = Copy(t.Static)
+	cp.FuncSpec = cp.FuncSpec.CopyWithTarget(cp)
+	return cp
+}
+
+func (t *Type) GetModule() *Module {
+	return t.Module
+}
+
+func (t *Type) FuncSpecName() string {
+	return "type " + ReprQuote(t.FullName())
 }
 
 func (t *Type) String() string {
-	return TypeToString(t.TypeName)
+	return string(MustToStr(nil, t))
+}
+
+func (t *Type) Print(state *PrinterState) (err error) {
+	if ok, _ := state.options.TypesAsFullNames(); ok {
+		return state.WriteString(t.FullName())
+	}
+	return t.PrintFuncWrapper(state, t)
 }
 
 func (t *Type) IndexGet(vm *VM, index Object) (value Object, err error) {
@@ -84,93 +126,26 @@ func (t *Type) IndexDelete(vm *VM, index Object) (err error) {
 	return t.Static.IndexDelete(vm, index)
 }
 
-func (t *Type) AddCallerMethod(vm *VM, types MultipleObjectTypes, handler CallerObject, override bool) error {
-	if len(types) == 0 {
-		// overrides default constructor. uses Type.new to instantiate.
-		override = true
-	}
-	return t.calllerMethods.Add(types, &CallerMethod{
-		CallerObject: handler,
-	}, override)
-}
-
-func (t *Type) WithMethod(types MultipleObjectTypes, handler CallerObject, override bool) *Type {
-	err := t.AddMethod(types, handler, override)
-	if err != nil {
-		panic(err)
-	}
-	return t
-}
-
-func (t *Type) AddMethod(types MultipleObjectTypes, handler CallerObject, override bool) error {
-	if len(types) == 0 {
-		// overrides default constructor. uses Type.new to instantiate.
-		override = true
-	}
-	return t.calllerMethods.Add(types, &CallerMethod{
-		CallerObject: handler,
-	}, override)
-}
-
 func (t *Type) WithConstructor(handler CallerObject) *Type {
-	t.Constructor = handler
+	t.defaul = handler
 	return t
 }
 
-func (t *Type) HasCallerMethods() bool {
-	return !t.calllerMethods.IsZero()
+func (t *Type) WithStatic(d Dict) *Type {
+	t.Static = d
+	return t
 }
 
-func (t *Type) CallerMethods() *MethodArgType {
-	return &t.calllerMethods
-}
-
-func (t *Type) CallerMethodWithValidationCheckOfArgs(args Args) (co CallerObject, ok bool) {
-	var types []ObjectType
-	args.Walk(func(i int, arg Object) any {
-		if t, ok := arg.(ObjectType); ok {
-			types = append(types, t)
-		} else {
-			types = append(types, arg.Type())
-		}
-		return nil
-	})
-	return t.CallerMethodWithValidationCheckOfArgsTypes(types)
-}
-
-func (t *Type) CallerMethodOfArgs(args Args) (co CallerObject) {
-	return t.CallerMethodOfArgsTypes(args.Types())
-}
-
-func (t *Type) CallerMethodOfArgsTypes(types []ObjectType) (co CallerObject) {
-	return t.calllerMethods.GetMethod(types).Caller()
-}
-
-func (t *Type) CallerMethodWithValidationCheckOfArgsTypes(types []ObjectType) (co CallerObject, validate bool) {
-	if method := t.calllerMethods.GetMethod(types); method != nil {
-		return method.CallerObject, false
-	}
-	return t, validate
+func (t *Type) Constructor() CallerObject {
+	return t.defaul
 }
 
 func (t *Type) Caller() CallerObject {
-	return t.Constructor
-}
-
-func (t *Type) Call(c Call) (_ Object, err error) {
-	caller, validate := t.CallerMethodWithValidationCheckOfArgs(c.Args)
-	if caller == nil {
-		if t.Constructor == nil {
-			return nil, ErrNotInitializable
-		}
-		caller = t.Constructor
-	}
-	c.SafeArgs = !validate
-	return YieldCall(caller, &c), nil
+	return t.defaul
 }
 
 func (t *Type) IsFalsy() bool {
-	return t.TypeName == ""
+	return false
 }
 
 func (t *Type) Type() ObjectType {
@@ -178,7 +153,7 @@ func (t *Type) Type() ObjectType {
 }
 
 func (t *Type) ToString() string {
-	return t.TypeName
+	return t.FullName()
 }
 
 func (t *Type) Equal(right Object) bool {
@@ -187,7 +162,14 @@ func (t *Type) Equal(right Object) bool {
 }
 
 func (t Type) Name() string {
-	return t.TypeName
+	return t.name
+}
+
+func (t Type) FullName() string {
+	if t.Module != nil {
+		return t.Module.info.Name + "." + t.name
+	}
+	return t.name
 }
 
 func (Type) Getters() Dict {
@@ -210,10 +192,6 @@ func (Type) New(*VM, Dict) (Object, error) {
 	return nil, ErrNotInitializable
 }
 
-func (t *Type) IsChildOf(ot ObjectType) bool {
-	return ot == t.Parent
-}
-
 var Types = map[reflect.Type]ObjectType{}
 
 func RegisterBuiltinType(typ BuiltinType, name string, val any, init CallableFunc) *BuiltinObjType {
@@ -222,7 +200,8 @@ func RegisterBuiltinType(typ BuiltinType, name string, val any, init CallableFun
 			return nil, ErrNotInitializable
 		}
 	}
-	ot := &BuiltinObjType{NameValue: name, Value: init}
+	ot := NewBuiltinObjType(name).WithNew(init)
+	ot.builtinType = typ
 	BuiltinObjects[typ] = ot
 	BuiltinsMap[name] = typ
 
@@ -234,49 +213,21 @@ func RegisterBuiltinType(typ BuiltinType, name string, val any, init CallableFun
 	return ot
 }
 
-func TypeOf(arg Object) ObjectType {
-	ot := arg.Type()
-	if ot == nil {
-		return DetectTypeOf(arg)
-	}
-	return ot
-}
-
-func DetectTypeOf(arg Object) ObjectType {
-	rt := reflect.TypeOf(arg)
-	for rt.Kind() == reflect.Ptr {
-		rt = rt.Elem()
-	}
-	ot := Types[rt]
-	if ot == nil {
-		ot = Nil.Type()
-	}
-	return ot
-}
-
-func TypesOf(obj Object) (types []ObjectType) {
-	types = append(types, obj.Type())
-
-	var ok bool
-	if _, ok = obj.(Iterabler); ok {
-		types = append(types, TIterabler)
-	}
-	return types
-}
-
 func init() {
-	TIterator.WithMethod(
-		MultipleObjectTypes{{nil}},
-		&Function{
-			Value: func(c Call) (o Object, err error) {
-				if err = c.Args.CheckLen(1); err != nil {
-					return
-				}
-				_, o, err = ToStateIterator(c.VM, c.Args.GetOnly(0), &c.NamedArgs)
+	AddMethod(TIterator, NewFunction(
+		"",
+		func(c Call) (o Object, err error) {
+			if err = c.Args.CheckLen(1); err != nil {
 				return
-			},
+			}
+			_, o, err = ToStateIterator(c.VM, c.Args.GetOnly(0), &c.NamedArgs)
+			return
 		},
-		true)
+		FunctionWithParams(func(p func(name string) *ParamBuilder) {
+			p("iterable").Type(TAny).Usage("An iterable object")
+		}),
+	))
+
 	TZipIterator.WithConstructor(
 		&Function{
 			Value: func(c Call) (o Object, err error) {

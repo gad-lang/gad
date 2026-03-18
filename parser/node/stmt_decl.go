@@ -35,8 +35,8 @@ var _ Spec = (*ParamSpec)(nil)
 
 // A ParamSpec node represents a parameter declaration
 type ParamSpec struct {
-	Ident    *TypedIdentExpr
-	Variadic bool
+	Ident *TypedIdentExpr
+	Var   bool
 }
 
 // specNode() ensures that only spec nodes can be assigned to a Spec.
@@ -55,14 +55,14 @@ func (s *ParamSpec) End() source.Pos {
 
 func (s *ParamSpec) String() string {
 	str := s.Ident.String()
-	if s.Variadic {
+	if s.Var {
 		str = "*" + str
 	}
 	return str
 }
 
 func (s *ParamSpec) WriteCode(ctx *CodeWriteContext) {
-	if s.Variadic {
+	if s.Var {
 		ctx.WriteSingleByte('*')
 	}
 	s.Ident.WriteCode(ctx)
@@ -74,6 +74,7 @@ var _ Spec = (*NamedParamSpec)(nil)
 type NamedParamSpec struct {
 	Ident *TypedIdentExpr
 	Value Expr
+	Var   bool
 }
 
 // specNode() ensures that only spec nodes can be assigned to a Spec.
@@ -92,15 +93,20 @@ func (s *NamedParamSpec) End() source.Pos {
 
 func (s *NamedParamSpec) String() string {
 	str := s.Ident.String()
-	if s.Value == nil {
+	if s.Var {
 		return "**" + str
+	}
+	if s.Value == nil {
+		return str
 	}
 	return str + "=" + s.Value.String()
 }
 
 func (s *NamedParamSpec) WriteCode(ctx *CodeWriteContext) {
-	if s.Value == nil {
+	if s.Var {
 		ctx.WriteString("**")
+		s.Ident.WriteCode(ctx)
+	} else if s.Value == nil {
 		s.Ident.WriteCode(ctx)
 	} else {
 		s.Ident.WriteCode(ctx)
@@ -222,27 +228,47 @@ func (d *GenDecl) End() source.Pos {
 func (*GenDecl) declNode() {}
 
 func (d *GenDecl) String() string {
-	var sb strings.Builder
+	var (
+		sb                strings.Builder
+		paren             = d.Lparen > 0
+		namedParamPrinted bool
+	)
+
+	if !paren && len(d.Specs) > 0 {
+		if _, ok := d.Specs[0].(*NamedParamSpec); ok {
+			paren = true
+		}
+	}
+
 	sb.WriteString(d.Tok.String())
-	if d.Lparen > 0 {
+
+	if paren {
 		sb.WriteString(" (")
 	} else {
 		sb.WriteString(" ")
 	}
+
 	last := len(d.Specs) - 1
 	for i := range d.Specs {
+		if _, ok := d.Specs[i].(*NamedParamSpec); ok {
+			if !namedParamPrinted {
+				sb.WriteString("; ")
+				namedParamPrinted = true
+			}
+		}
+
 		sb.WriteString(d.Specs[i].String())
 		if i != last {
 			if _, ok := d.Specs[i].(*ParamSpec); ok {
 				if _, ok := d.Specs[i+1].(*NamedParamSpec); ok {
-					sb.WriteString(", ")
 					continue
 				}
 			}
 			sb.WriteString(", ")
 		}
 	}
-	if d.Rparen > 0 {
+
+	if paren {
 		sb.WriteString(")")
 	}
 	return sb.String()
@@ -277,4 +303,21 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 			spec.WriteCode(ctx)
 		}
 	}
+}
+
+func (d *GenDecl) Params() (positional []*ParamSpec, named []*NamedParamSpec) {
+	if d.Tok != token.Param {
+		return
+	}
+
+	for _, sp := range d.Specs {
+		switch s := sp.(type) {
+		case *NamedParamSpec:
+			named = append(named, s)
+		case *ParamSpec:
+			positional = append(positional, s)
+		}
+	}
+
+	return
 }

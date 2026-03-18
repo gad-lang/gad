@@ -449,12 +449,12 @@ func TestReflect_Methods(t *testing.T) {
 			assert.IsType(t, (*IndexGetProxy)(nil), v)
 
 			ig := v.(*IndexGetProxy)
-			assert.Equal(t, `["SetV", "V"]`, ig.ToStr())
+			assert.Equal(t, `["SetV", "V"]`, ig.ToStrFunc())
 			values, err := ValuesOf(vm, ig, NewNamedArgs())
 			assert.NoError(t, err)
 			assert.Equal(t, values, Array{Str("SetV"), Str("V")})
 
-			v, err = ig.GetIndex(vm, Str("SetV"))
+			v, err = ig.GetIndexFunc(vm, Str("SetV"))
 			assert.NoError(t, err)
 			assert.IsType(t, (*ReflectFunc)(nil), v)
 			f := v.(*ReflectFunc)
@@ -466,7 +466,7 @@ func TestReflect_Methods(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, 3, getRawValue())
 
-			v, err = ig.GetIndex(vm, Str("V"))
+			v, err = ig.GetIndexFunc(vm, Str("V"))
 			assert.NoError(t, err)
 			assert.IsType(t, (*ReflectFunc)(nil), v)
 			f = v.(*ReflectFunc)
@@ -600,13 +600,11 @@ func TestReflect_ToString(t *testing.T) {
 
 		toStr = func(t *testing.T, o Object, options Dict) string {
 			var w strings.Builder
-
 			err := Print(
 				NewPrinterState(
 					vm,
 					&w,
-					PrinterStateWithOptions(options),
-					PrinterStateWithIndent(options["indent"]),
+					PrinterStateWithOptions(PrinterStateOptions(options)),
 				),
 				o,
 			)
@@ -728,7 +726,7 @@ func (v FormatterValue) Format(f fmt.State, verb rune) {
 type PrintableType int
 
 func init() {
-	ReflectTypeOf(PrintableType(99)).Print = func(state *PrinterState, obj *ReflectValue) (err error) {
+	ReflectTypeOf(PrintableType(99)).InstancePrintFunc = func(state *PrinterState, obj *ReflectValue) (err error) {
 		_, err = state.Write([]byte("`custom reflect printable value = " + strconv.Itoa(int(obj.ToInterface().(PrintableType))) + "`"))
 		return
 	}

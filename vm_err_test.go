@@ -143,7 +143,7 @@ func TestVMErrorHandlers(t *testing.T) {
 
 func TestVMNoPanic(t *testing.T) {
 	panicFunc := &Function{
-		Name: "panicFunc",
+		FuncName: "panicFunc",
 		Value: func(call Call) (Object, error) {
 			panic("panic:" + call.Args.Get(0).ToString())
 		},
@@ -155,7 +155,7 @@ func TestVMNoPanic(t *testing.T) {
 			}
 		}()
 		// expectRun() is not used because panic somehow cannot be recovered in testing.
-		c, err := Compile([]byte(`param panic; panic();`), CompileOptions{})
+		_, c, err := Compile([]byte(`param panic; panic();`), CompileOptions{})
 		require.NoError(t, err)
 		vm := NewVM(c)
 		v, err := vm.Run(nil, panicFunc)

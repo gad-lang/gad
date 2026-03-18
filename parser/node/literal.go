@@ -223,29 +223,29 @@ type DictElementLit struct {
 	Value    Expr
 }
 
-func (e *DictElementLit) Func() (f *DictElementFuncExpr) {
+func (e *DictElementLit) Func() (f *FuncDefLit) {
 	switch t := e.Value.(type) {
-	case *DictElementFuncExpr:
+	case *FuncDefLit:
 		return t
 	case *ClosureExpr:
-		return &DictElementFuncExpr{
+		return &FuncDefLit{
 			Expr: &ClosureExpr{
-				Params:      t.Params,
-				LambdaToken: token.Colon,
-				Body:        t.Body,
+				Params: t.Params,
+				Lambda: Token{Token: token.Colon},
+				Body:   t.Body,
 			},
 		}
 	case *FuncExpr:
 		if t.BodyExpr != nil {
-			return &DictElementFuncExpr{
+			return &FuncDefLit{
 				Expr: &ClosureExpr{
-					Params:      t.Type.Params,
-					LambdaToken: token.Colon,
-					Body:        t.BodyExpr,
+					Params: t.Type.Params,
+					Lambda: Token{Token: token.Colon},
+					Body:   t.BodyExpr,
 				},
 			}
 		}
-		return &DictElementFuncExpr{
+		return &FuncDefLit{
 			Expr: &FuncExpr{
 				Type: &FuncType{
 					Params: t.Type.Params,
@@ -306,7 +306,7 @@ func (e *DictElementLit) WriteCode(ctx *CodeWriteContext) {
 	}
 }
 
-type DictElementFuncExprs []*DictElementFuncExpr
+type DictElementFuncExprs []*FuncDefLit
 
 func (l DictElementFuncExprs) Sort() {
 	sort.Slice(l, func(i, j int) bool {
@@ -332,16 +332,16 @@ func (l DictElementFuncExprs) Sort() {
 	})
 }
 
-type DictElementFuncExpr struct {
+type FuncDefLit struct {
 	Expr
 }
 
-func (e *DictElementFuncExpr) Closure() (c *ClosureExpr) {
+func (e *FuncDefLit) Closure() (c *ClosureExpr) {
 	c, _ = e.Expr.(*ClosureExpr)
 	return
 }
 
-func (e *DictElementFuncExpr) Params() *FuncParams {
+func (e *FuncDefLit) Params() *FuncParams {
 	switch t := e.Expr.(type) {
 	case *ClosureExpr:
 		return &t.Params
@@ -352,7 +352,7 @@ func (e *DictElementFuncExpr) Params() *FuncParams {
 	}
 }
 
-func (e *DictElementFuncExpr) Func() (f *FuncExpr) {
+func (e *FuncDefLit) Func() (f *FuncExpr) {
 	f, _ = e.Expr.(*FuncExpr)
 	return
 }
@@ -556,17 +556,89 @@ func (e *KeyValuePairLit) End() source.Pos {
 	return e.Value.End()
 }
 
+func (e *KeyValuePairLit) Func() (f *FuncDefLit) {
+	switch t := e.Value.(type) {
+	case *FuncDefLit:
+		return t
+	case *ClosureExpr:
+		return &FuncDefLit{
+			Expr: &ClosureExpr{
+				Params: t.Params,
+				Lambda: Token{Token: token.Colon},
+				Body:   t.Body,
+			},
+		}
+	case *FuncExpr:
+		if t.BodyExpr != nil {
+			return &FuncDefLit{
+				Expr: &ClosureExpr{
+					Params: t.Type.Params,
+					Lambda: Token{Token: token.Colon},
+					Body:   t.BodyExpr,
+				},
+			}
+		}
+		return &FuncDefLit{
+			Expr: &FuncExpr{
+				Type: &FuncType{
+					Params: t.Type.Params,
+				},
+				Body:     t.Body,
+				BodyExpr: t.BodyExpr,
+			},
+		}
+
+	}
+	return
+}
+
+func (e *KeyValuePairLit) IsFunc() (ok bool) {
+	return e.Func() != nil
+}
+
 func (e *KeyValuePairLit) String() string {
 	if e.Value == nil {
 		return e.Key.String()
 	}
-	return e.Key.String() + "=" + e.Value.String()
+
+	var (
+		sep string
+		f   = e.Func()
+		v   = e.Value
+	)
+
+	if f == nil {
+		sep = "="
+	} else {
+		v = f
+	}
+
+	return e.Key.String() + sep + v.String()
 }
 
 func (e *KeyValuePairLit) WriteCode(ctx *CodeWriteContext) {
 	e.Key.WriteCode(ctx)
-	ctx.WriteSingleByte('=')
-	e.Value.WriteCode(ctx)
+	if e.Value == nil {
+		return
+	}
+
+	fun := e.Func()
+
+	if fun == nil {
+		if fwm, _ := e.Value.(*FuncWithMethodsExpr); fwm != nil {
+			ctx.WriteString(" ")
+			fwm.WriteCode(ctx)
+			return
+		} else {
+			ctx.WriteString("=")
+		}
+	}
+
+	if fun != nil {
+		fun.WriteCode(ctx)
+	} else {
+		e.Value.WriteCode(ctx)
+	}
 }
 
 // KeyValueArrayLit represents a key value array literal.
@@ -598,24 +670,21 @@ func (e *KeyValueArrayLit) String() string {
 
 func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("(;")
-	l := len(e.Elements) - 1
-	for i, element := range e.Elements {
-		switch t := element.(type) {
-		case *KeyValuePairLit:
-			t.Key.WriteCode(ctx)
-			if t.Value != nil {
-				ctx.WriteSingleByte('=')
-				t.Value.WriteCode(ctx)
+	ctx.WriteItems(
+		ctx.Flags.Has(CodeWriteContextFlagFormatKeyValueArrayItemInNewLine),
+		len(e.Elements),
+		func(i int) {
+			e.Elements[i].WriteCode(ctx)
+		},
+		func(nl bool) {
+			if nl {
+				if len(ctx.Prefix) > 0 {
+					ctx.WriteSecondLine()
+				} else {
+					ctx.WriteLine("")
+				}
 			}
-		case *KeyValueLit:
-			t.WriteCode(ctx)
-		case *NamedArgVarLit:
-			t.WriteCode(ctx)
-		}
-		if i < l {
-			ctx.WriteString(", ")
-		}
-	}
+		})
 	ctx.WriteSingleByte(')')
 }
 
@@ -752,7 +821,7 @@ func (e *NamedArgVarLit) WriteCode(ctx *CodeWriteContext) {
 	e.Value.WriteCode(ctx)
 }
 
-// DotFileNameLit represents an __name__ literal.
+// DotFileNameLit represents an @name literal.
 type DotFileNameLit struct {
 	TokenPos source.Pos
 }
@@ -777,7 +846,7 @@ func (e *DotFileNameLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())
 }
 
-// DotFileLit represents an __name__ literal.
+// DotFileLit represents an @name literal.
 type DotFileLit struct {
 	TokenPos source.Pos
 }
@@ -802,28 +871,53 @@ func (e *DotFileLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())
 }
 
-// IsModuleLit represents an __is_module__ literal.
-type IsModuleLit struct {
+// IsMainLit represents an @main literal.
+type IsMainLit struct {
 	TokenPos source.Pos
 }
 
-func (e *IsModuleLit) ExprNode() {}
+func (e *IsMainLit) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
-func (e *IsModuleLit) Pos() source.Pos {
+func (e *IsMainLit) Pos() source.Pos {
 	return e.TokenPos
 }
 
-// End IsModuleLit the position of first character immediately after the node.
-func (e *IsModuleLit) End() source.Pos {
+// End IsMainLit the position of first character immediately after the node.
+func (e *IsMainLit) End() source.Pos {
 	return e.TokenPos + source.Pos(len(e.String()))
 }
 
-func (e *IsModuleLit) String() string {
-	return token.IsModule.String()
+func (e *IsMainLit) String() string {
+	return token.IsMain.String()
 }
 
-func (e *IsModuleLit) WriteCode(ctx *CodeWriteContext) {
+func (e *IsMainLit) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}
+
+// ModuleLit represents an @module literal.
+type ModuleLit struct {
+	TokenPos source.Pos
+}
+
+func (e *ModuleLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *ModuleLit) Pos() source.Pos {
+	return e.TokenPos
+}
+
+// End IsMainLit the position of first character immediately after the node.
+func (e *ModuleLit) End() source.Pos {
+	return e.TokenPos + source.Pos(len(e.String()))
+}
+
+func (e *ModuleLit) String() string {
+	return token.Module.String()
+}
+
+func (e *ModuleLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())
 }
 
@@ -977,48 +1071,71 @@ func (c *CallArgs) WriteCode(ctx *CodeWriteContext) {
 func (c *CallArgs) WriteCodeBrace(ctx *CodeWriteContext, lbrace, rbrace string) {
 	ctx.WriteString(lbrace)
 	if c.Args.Valid() {
-		c.Args.WriteCode(ctx)
+		c.Args.WriteCodeWithSep(ctx, c.NamedArgs.Valid())
 	}
 	if c.NamedArgs.Valid() {
-		ctx.WriteString("; ")
+		if !c.Args.Valid() {
+			ctx.WriteString("; ")
+		}
 		c.NamedArgs.WriteCode(ctx)
+	}
+	if c.Args.Valid() || c.NamedArgs.Valid() {
+		ctx.WritePrefix()
 	}
 	ctx.WriteString(rbrace)
 }
+
 func (c *CallArgs) ToFuncParams() (fp *FuncParams, err error) {
-	fp = &FuncParams{}
+	fp = &FuncParams{
+		LParen: c.LParen,
+		RParen: c.RParen,
+	}
 
 	for i, v := range c.Args.Values {
-		if s, ok := v.(*IdentExpr); !ok {
+		switch t := v.(type) {
+		case *IdentExpr:
+			fp.Args.Values = append(fp.Args.Values, &TypedIdentExpr{Ident: t})
+		case *TypedIdentExpr:
+			fp.Args.Values = append(fp.Args.Values, t)
+		default:
 			return nil, fmt.Errorf("arg[%d] expected arg type as *Ident, but got %T", i, v)
-		} else {
-			fp.Args.Values = append(fp.Args.Values, &TypedIdentExpr{Ident: s})
 		}
 	}
 
 	if c.Args.Var != nil {
-		if s, ok := c.Args.Var.Value.(*IdentExpr); !ok {
-			return nil, fmt.Errorf("expected arg var type as *Ident, but got %T", c.Args.Var.Value)
-		} else {
-			fp.Args.Var = &TypedIdentExpr{Ident: s}
+		switch t := c.Args.Var.Value.(type) {
+		case *IdentExpr:
+			fp.Args.Var = &TypedIdentExpr{Ident: t}
+		case *TypedIdentExpr:
+			fp.Args.Var = t
+		default:
+			return nil, fmt.Errorf("expected arg var type as *Ident|*TypedIdent, but got %T", c.Args.Var.Value)
 		}
 	}
 
 	for i, n := range c.NamedArgs.Names {
-		if n.Ident == nil {
-			return nil, fmt.Errorf("named arg[%d] expected *Ident, but got %T", i, n.Lit)
-		}
-		fp.NamedArgs.Names = append(fp.NamedArgs.Names, ETypedIdent(n.Ident))
-		fp.NamedArgs.Values = append(fp.NamedArgs.Values, Flag(false, n.Ident.NamePos))
-	}
+		if n.Var {
+			if fp.NamedArgs.Var != nil {
+				return nil, fmt.Errorf("multiple named args var")
+			}
 
-	if c.NamedArgs.Var != nil {
-		var ident, _ = c.NamedArgs.Var.Value.(*IdentExpr)
-
-		if ident == nil {
-			return nil, fmt.Errorf("named arg var expected *Ident, but got %T", c.NamedArgs.Var.Value)
+			if n.Ident != nil {
+				fp.NamedArgs.Var = n.Ident
+			} else {
+				if ident, _ := n.Exp.(*IdentExpr); ident != nil {
+					fp.NamedArgs.Var = ident
+					continue
+				} else {
+					return nil, fmt.Errorf("named arg var %s isn't *Ident", n)
+				}
+			}
+		} else {
+			if n.Ident == nil {
+				return nil, fmt.Errorf("named arg[%d] expected *Ident, but got %T", i, n.Lit)
+			}
+			fp.NamedArgs.Names = append(fp.NamedArgs.Names, ETypedIdent(n.Ident))
+			fp.NamedArgs.Values = append(fp.NamedArgs.Values, nil)
 		}
-		fp.NamedArgs.Names = append(fp.NamedArgs.Names, ETypedIdent(ident))
 	}
 	return
 }

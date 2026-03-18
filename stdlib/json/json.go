@@ -53,9 +53,7 @@ func init() {
 // }
 // ```
 
-var EncoderOptionsType = &gad.BuiltinObjType{
-	NameValue: "encoderOptions",
-}
+var EncoderOptionsType = gad.NewBuiltinObjType("encoderOptions")
 
 // EncoderOptions represents the encoding options (quote, html escape) to
 // Marshal any Object.
@@ -141,9 +139,7 @@ func (eo *EncoderOptions) IndexSet(_ *gad.VM, index, value gad.Object) error {
 // }
 // ```
 
-var RawMessageType = &gad.BuiltinObjType{
-	NameValue: "rawMessage",
-}
+var RawMessageType = gad.NewBuiltinObjType("rawMessage")
 
 // RawMessage represents raw encoded json message to directly use value of
 // MarshalJSON without encoding.

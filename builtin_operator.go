@@ -5,7 +5,7 @@ package gad
 import "github.com/gad-lang/gad/token"
 
 var (
-	TOperator = &Type{TypeName: "Operator", Parent: TBase}
+	TOperator = NewType("Operator", TBase)
 )
 
 var (
@@ -21,6 +21,8 @@ func (b BinaryOperatorType) Token() token.Token {
 func (b BinaryOperatorType) String() string {
 	return b.ToString()
 }
+
+func (BinaryOperatorType) GadObjectType() {}
 
 func (b BinaryOperatorType) IsFalsy() bool {
 	t := b.Token()
@@ -51,6 +53,10 @@ func (b BinaryOperatorType) Name() string {
 	return "TBinaryOperator" + b.Token().Name()
 }
 
+func (b BinaryOperatorType) FullName() string {
+	return b.Name()
+}
+
 func (BinaryOperatorType) Getters() Dict {
 	return nil
 }
@@ -67,19 +73,13 @@ func (BinaryOperatorType) Fields() Dict {
 	return nil
 }
 
-func (BinaryOperatorType) New(*VM, Dict) (Object, error) {
-	return nil, ErrNotInitializable
-}
-
-func (BinaryOperatorType) IsChildOf(t ObjectType) bool {
-	return t == TOperator
-}
-
 func (BinaryOperatorType) MethodsDisabled() bool {
 	return true
 }
 
 type SelfAssignOperatorType token.Token
+
+func (b SelfAssignOperatorType) GadObjectType() {}
 
 func (b SelfAssignOperatorType) Token() token.Token {
 	return token.Token(b)
@@ -117,6 +117,9 @@ func (SelfAssignOperatorType) Call(Call) (Object, error) {
 func (b SelfAssignOperatorType) Name() string {
 	return "TSelfAssignOperator" + b.Token().Name()
 }
+func (b SelfAssignOperatorType) FullName() string {
+	return b.Name()
+}
 
 func (SelfAssignOperatorType) Getters() Dict {
 	return nil
@@ -132,14 +135,6 @@ func (SelfAssignOperatorType) Methods() Dict {
 
 func (SelfAssignOperatorType) Fields() Dict {
 	return nil
-}
-
-func (SelfAssignOperatorType) New(*VM, Dict) (Object, error) {
-	return nil, ErrNotInitializable
-}
-
-func (SelfAssignOperatorType) IsChildOf(t ObjectType) bool {
-	return t == TOperator
 }
 
 func (SelfAssignOperatorType) MethodsDisabled() bool {

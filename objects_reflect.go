@@ -3,379 +3,18 @@ package gad
 import (
 	"errors"
 	"fmt"
-	"go/ast"
 	"io"
 	"math"
 	"reflect"
 	"runtime/debug"
 	"sort"
-	"strconv"
 	"strings"
-	"sync"
 	_ "text/template"
 	_ "unsafe"
 
 	"github.com/gad-lang/gad/repr"
+	"github.com/gad-lang/gad/zeroer"
 )
-
-type ReflectValuePrinter interface {
-	GadPrint(state *PrinterState) (err error)
-}
-
-type ReflectMethod struct {
-	baseType reflect.Type
-	Method   reflect.Method
-	i        int
-}
-
-func (r *ReflectMethod) Type() ObjectType {
-	return TReflectMethod
-}
-
-func (r *ReflectMethod) ToString() string {
-	return r.baseType.String() + "#" + r.Method.Name
-}
-
-func (r *ReflectMethod) IsFalsy() bool {
-	return false
-}
-
-func (r *ReflectMethod) Equal(right Object) bool {
-	if o, _ := right.(*ReflectMethod); o != nil {
-		return o.baseType == r.baseType && o.Method == r.Method
-	}
-	return false
-}
-
-type ReflectField struct {
-	BaseType reflect.Type
-	IsPtr    bool
-	Struct   IndexableStructField
-	Value    reflect.Value
-}
-
-func (r *ReflectField) String() string {
-	return r.Struct.Name + " " + r.Struct.Type.Name() + " " + fmt.Sprint(r.Struct.Index)
-}
-
-func (r *ReflectField) Type() ObjectType {
-	return NewReflectType(r.Value.Type())
-}
-
-func (r *ReflectField) ToString() string {
-	return fmt.Sprint(r.Value.Interface())
-}
-
-func (r *ReflectField) IsFalsy() bool {
-	switch r.Value.Kind() {
-	case reflect.Slice, reflect.Map, reflect.Array, reflect.String:
-		return r.Value.Len() == 0
-	case reflect.Bool:
-		return !r.Value.Bool()
-	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return r.Value.Int() == 0
-	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return r.Value.Uint() == 0
-	case reflect.Float32, reflect.Float64:
-		return r.Value.Float() == 0
-	default:
-		if z, _ := r.Value.Addr().Interface().(interface{ IsZero() bool }); z != nil {
-			return z.IsZero()
-		}
-		return false
-	}
-}
-
-func (r *ReflectField) Equal(right Object) bool {
-	if o, _ := right.(*ReflectField); o != nil {
-		return o.BaseType == r.BaseType && o.Value == r.Value
-	}
-	return false
-}
-
-func (r *ReflectField) Set(f reflect.Value, v Object) {
-
-}
-
-var _ ObjectType = (*ReflectType)(nil)
-
-type ReflectType struct {
-	RType        reflect.Type
-	RMethods     map[string]*ReflectMethod
-	FieldsNames  []string
-	RFields      map[string]*ReflectField
-	formatMethod *ReflectMethod
-	CallObject   func(obj *ReflectStruct, c Call) (Object, error)
-	Print        func(state *PrinterState, obj *ReflectValue) error
-}
-
-func (r *ReflectType) String() string {
-	return TypeToString(r.Name())
-}
-
-var (
-	reflectTypeCache   = map[reflect.Type]*ReflectType{}
-	reflectTypeCacheMu sync.Mutex
-)
-
-type IndexableStructField struct {
-	reflect.StructField
-	Index []int
-	Names []string
-}
-
-func indirectType(reflectType reflect.Type) reflect.Type {
-	for reflectType.Kind() == reflect.Ptr {
-		reflectType = reflectType.Elem()
-	}
-	return reflectType
-}
-
-func FieldsOfReflectType(ityp reflect.Type) (result []*IndexableStructField) {
-	ityp = indirectType(ityp)
-
-	type item struct {
-		fi, i int
-		f     *IndexableStructField
-	}
-	var (
-		walk    func(typ reflect.Type, path []int, name []string)
-		nameMap = map[string]item{}
-		fields  []*IndexableStructField
-	)
-	walk = func(typ reflect.Type, path []int, name []string) {
-		typ = indirectType(typ)
-		if typ.Kind() != reflect.Struct || (path != nil && typ == ityp) {
-			return
-		}
-
-		for i := 0; i < typ.NumField(); i++ {
-			field := typ.Field(i)
-			path := append(append([]int{}, path...), i)
-			name := append(append([]string{}, name...), field.Name)
-			if ast.IsExported(field.Name) {
-				fields = append(fields, &IndexableStructField{field, path, name})
-				if field.Anonymous {
-					walk(field.Type, path, name)
-				}
-			} else if field.Anonymous {
-				walk(field.Type, path, name)
-			}
-		}
-	}
-	walk(ityp, nil, nil)
-
-	for i := len(fields) - 1; i >= 0; i-- {
-		f := fields[i]
-		if old, ok := nameMap[f.Name]; ok {
-			if len(old.f.Index) > len(f.Index) {
-				old.f = f
-				result[old.i] = f
-			}
-		} else {
-			nameMap[f.Name] = item{i, len(result), f}
-			result = append(result, f)
-		}
-	}
-	return
-}
-
-func NewReflectType(typ reflect.Type) (rt *ReflectType) {
-	reflectTypeCacheMu.Lock()
-	defer reflectTypeCacheMu.Unlock()
-
-	if typ.Kind() == reflect.Ptr || typ.Kind() == reflect.Interface {
-		typ = typ.Elem()
-	}
-
-	if rt = reflectTypeCache[typ]; rt != nil {
-		return
-	}
-
-	rt = &ReflectType{RType: typ}
-
-	if typ.Kind() == reflect.Struct {
-		fields := map[string]*ReflectField{}
-		fields_ := FieldsOfReflectType(typ)
-		for _, f := range fields_ {
-			if old, ok := fields[f.Name]; ok {
-				if len(f.Index) >= len(old.Struct.Index) {
-					continue
-				}
-			}
-
-			rf := &ReflectField{
-				BaseType: typ,
-				Value:    reflect.New(f.Type),
-				Struct:   *f,
-			}
-
-			if rf.Value.Kind() == reflect.Ptr {
-				rf.IsPtr = true
-				rf.Value = rf.Value.Elem()
-			}
-			fields[f.Name] = rf
-			rt.FieldsNames = append(rt.FieldsNames, f.Name)
-		}
-
-		rt.RFields = fields
-	}
-	reflectTypeCache[typ] = rt
-
-	var (
-		methods = map[string]*ReflectMethod{}
-		ptrType = reflect.PtrTo(typ)
-		n       = ptrType.NumMethod()
-	)
-
-	for i := 0; i < n; i++ {
-		m := ptrType.Method(i)
-		if !m.IsExported() {
-			continue
-		}
-
-		methods[m.Name] = &ReflectMethod{
-			baseType: ptrType,
-			Method:   m,
-			i:        i,
-		}
-	}
-
-	if format := methods["Format"]; format != nil {
-		t := format.Method.Type
-
-		if t.NumOut() == 0 && t.NumIn() == 3 && t.In(1) == fmtStateType && t.In(2) == runeType {
-			rt.formatMethod = format
-		}
-	}
-
-	rt.RMethods = methods
-
-	if rt.RType.Implements(reflect.TypeOf((*ReflectValuePrinter)(nil)).Elem()) {
-		rt.Print = func(state *PrinterState, obj *ReflectValue) (err error) {
-			return obj.ToInterface().(ReflectValuePrinter).GadPrint(state)
-		}
-	} else if rt.RType.Implements(reflect.TypeOf((*fmt.Formatter)(nil)).Elem()) {
-		rt.Print = func(state *PrinterState, obj *ReflectValue) (err error) {
-			_, err = fmt.Fprintf(state.writer, "%v", obj.ToInterface())
-			return
-		}
-	} else if rt.RType.Implements(reflect.TypeOf((*fmt.Stringer)(nil)).Elem()) {
-		rt.Print = func(state *PrinterState, obj *ReflectValue) (err error) {
-			_, err = state.Write([]byte(obj.ToInterface().(fmt.Stringer).String()))
-			return
-		}
-	}
-
-	return
-}
-
-func (r *ReflectType) Type() ObjectType {
-	return TBase
-}
-
-func (r *ReflectType) ToString() string {
-	return r.RType.String()
-}
-
-func (r *ReflectType) IsFalsy() bool {
-	return false
-}
-
-func (r *ReflectType) Equal(right Object) bool {
-	if o, _ := right.(*ReflectType); o != nil {
-		return o.RType == r.RType
-	}
-	return false
-}
-
-func (r *ReflectType) Call(c Call) (Object, error) {
-	if c.NamedArgs.IsFalsy() {
-		return r.New(c.VM, nil)
-	}
-	return r.New(c.VM, c.NamedArgs.Dict())
-}
-
-func (r *ReflectType) Name() string {
-	return "reflect:" + r.Fqn()
-}
-
-func (r *ReflectType) Fqn() string {
-	var n = r.RType.Name()
-	if n == "" {
-		n = r.RType.Kind().String()
-	} else {
-		n = r.RType.PkgPath() + "." + n
-	}
-	return n
-}
-
-func (r *ReflectType) Getters() Dict {
-	return nil
-}
-
-func (r *ReflectType) Setters() Dict {
-	return nil
-}
-
-func (r *ReflectType) Methods() (m Dict) {
-	m = make(Dict, len(r.RMethods))
-	for key := range r.RMethods {
-		m[key] = Nil
-	}
-	return m
-}
-
-func (r *ReflectType) Fields() (fields Dict) {
-	fields = Dict{}
-	for _, f := range r.RFields {
-		fields[f.Struct.Name] = f
-	}
-	return
-}
-
-func (r *ReflectType) GetRMethods() map[string]*ReflectMethod {
-	return r.RMethods
-}
-
-func (r *ReflectType) New(vm *VM, m Dict) (_ Object, err error) {
-	var rv reflect.Value
-	switch r.RType.Kind() {
-	case reflect.Struct:
-		rv = reflect.New(r.RType).Elem()
-		obj := &ReflectStruct{
-			ReflectValue: ReflectValue{
-				RType:   r,
-				RValue:  rv,
-				Options: &ReflectValueOptions{},
-				ptr:     true,
-			},
-		}
-
-		obj.Init()
-
-		for s, v := range m {
-			if err = obj.indexSet(vm, s, v); err != nil {
-				return
-			}
-		}
-		return obj, nil
-	case reflect.Map:
-		rv = reflect.MakeMap(r.RType)
-		for k, v := range m {
-			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(vm.ToInterface(v)))
-		}
-	}
-	return &ReflectValue{RType: r, RValue: rv, Options: &ReflectValueOptions{}}, nil
-}
-
-func (r *ReflectType) IsChildOf(t ObjectType) bool {
-	return t == TBase
-}
-
-func ReflectTypeOf(v any) (rt *ReflectType) {
-	return NewReflectType(indirectInterface(reflect.ValueOf(v)).Type())
-}
 
 type ReflectValuer interface {
 	Object
@@ -419,7 +58,7 @@ func NewReflectValue(v any, opts ...*ReflectValueOptions) (ReflectValuer, error)
 		defer func() {
 			recover()
 		}()
-		_, isnill = isNil(rv)
+		_, isnill = zeroer.IsNilValue(rv)
 	}()
 
 	rv = indirectInterface(rv)
@@ -475,13 +114,13 @@ type ReflectValue struct {
 	Options                   *ReflectValueOptions
 	fallbackNameCallerHandler func(s ReflectValuer, name string, c Call) (handled bool, value Object, err error)
 	methodsGetter             IndexGetProxy
+	*FuncSpec
 }
 
 var (
 	_ ReflectValuer = (*ReflectValue)(nil)
 	_ Niler         = (*ReflectValue)(nil)
 	_ Copier        = (*ReflectValue)(nil)
-	_ Representer   = (*ReflectValue)(nil)
 	_ Printer       = (*ReflectValue)(nil)
 )
 
@@ -498,18 +137,18 @@ func (r *ReflectValue) Init() {
 		})
 		return names
 	}
-	r.methodsGetter.ToStr = methodsName().ToString
-	r.methodsGetter.It = func(vm *VM, na *NamedArgs) Iterator {
+	r.methodsGetter.ToStrFunc = methodsName().ToString
+	r.methodsGetter.IterateFunc = func(vm *VM, na *NamedArgs) Iterator {
 		return methodsName().Iterate(vm, na)
 	}
-	r.methodsGetter.GetIndex = func(vm *VM, index Object) (value Object, err error) {
+	r.methodsGetter.GetIndexFunc = func(vm *VM, index Object) (value Object, err error) {
 		name := index.ToString()
 		if tm := r.RType.RMethods[name]; tm != nil {
 			return r.method(tm), nil
 		}
 		return nil, ErrInvalidIndex.NewError(name)
 	}
-	r.methodsGetter.CallNameHandler = func(name string, c Call) (Object, error) {
+	r.methodsGetter.CallNameFunc = func(name string, c Call) (Object, error) {
 		if tm := r.RType.RMethods[name]; tm != nil {
 			return r.method(tm).Call(c)
 		}
@@ -571,19 +210,6 @@ func (r *ReflectValue) ToString() string {
 	return fmt.Sprintf("%v", r)
 }
 
-func (r *ReflectValue) Repr(_ *VM) (string, error) {
-	var w strings.Builder
-	w.WriteString(repr.QuotePrefix)
-	w.WriteString("reflectValue:")
-	if r.Options.ToStr == nil {
-		fmt.Fprintf(&w, "%+v", r)
-	} else {
-		w.WriteString(r.Options.ToStr())
-	}
-	w.WriteString(repr.QuoteSufix)
-	return w.String(), nil
-}
-
 func (r *ReflectValue) Format(s fmt.State, verb rune) {
 	if verb == 'v' && s.Flag('+') {
 		s.Write([]byte(r.RType.Fqn()))
@@ -604,13 +230,9 @@ func (r *ReflectValue) Format(s fmt.State, verb rune) {
 	}
 }
 
-func (r *ReflectValue) ToStringW(w io.Writer) {
-	fmt.Fprintf(w, "%+v", r)
-}
-
 func (r *ReflectValue) Print(state *PrinterState) (err error) {
-	if r.RType.Print != nil {
-		return r.RType.Print(state, r)
+	if r.RType.InstancePrintFunc != nil {
+		return r.RType.InstancePrintFunc(state, r)
 	}
 	_, err = state.Write([]byte(r.ToString()))
 	return err
@@ -637,7 +259,7 @@ func (r *ReflectValue) IsFalsy() bool {
 	if r.nil || !r.RValue.IsValid() {
 		return true
 	}
-	return isZero(r.RValue.Addr())
+	return zeroer.IsZeroValue(r.RValue.Addr())
 }
 
 func (r *ReflectValue) Equal(right Object) bool {
@@ -674,8 +296,41 @@ var (
 	_ CallerObject  = (*ReflectFunc)(nil)
 )
 
+func (r *ReflectFunc) Name() string {
+	return r.RType.Name()
+}
+
 func (r *ReflectFunc) ToString() string {
-	return fmt.Sprintf(ReprQuote("reflectFunc: %s"), r.RType.RType.String())
+	var (
+		t    = r.RType.RType
+		name = t.PkgPath() + "." + t.Name()
+		toS  = func(l int, get func(i int) reflect.Type) string {
+			r := make([]string, l)
+
+			for i := 0; i < l; i++ {
+				name := get(i).PkgPath()
+				if len(name) > 0 {
+					name += "."
+				}
+				name += t.Name()
+				r[i] = name
+			}
+			return strings.Join(r, ", ")
+		}
+
+		inArgs  = "(" + toS(t.NumIn(), t.In) + ")"
+		outArgs = toS(t.NumOut(), t.Out)
+	)
+
+	if t.NumOut() > 1 {
+		outArgs = "(" + outArgs + ")"
+	}
+
+	if len(outArgs) > 0 {
+		outArgs = " " + outArgs
+	}
+
+	return fmt.Sprintf(ReprQuote("reflectFunc: %s(%s)%s"), strings.TrimPrefix(name, "."), inArgs, outArgs)
 }
 
 func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
@@ -715,7 +370,7 @@ func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
 	ret, err = safeCall(r.RValue, argv)
 	if err == nil {
 		if ret.IsValid() {
-			if mustIsNil(ret) {
+			if zeroer.MustIsNil(ret) {
 				return Nil, nil
 			}
 			return c.VM.ToObject(ret.Interface())
@@ -755,25 +410,17 @@ type ReflectArray struct {
 }
 
 var (
-	_ ReflectValuer     = (*ReflectArray)(nil)
-	_ Iterabler         = (*ReflectArray)(nil)
-	_ IndexGetSetter    = (*ReflectArray)(nil)
-	_ LengthGetter      = (*ReflectArray)(nil)
-	_ ObjectRepresenter = (*ReflectArray)(nil)
+	_ ReflectValuer  = (*ReflectArray)(nil)
+	_ Iterabler      = (*ReflectArray)(nil)
+	_ IndexGetSetter = (*ReflectArray)(nil)
+	_ LengthGetter   = (*ReflectArray)(nil)
+	_ Printer        = (*ReflectArray)(nil)
 )
 
-func (o *ReflectArray) Format(s fmt.State, verb rune) {
-	if verb == 'v' {
-		s.Write([]byte(repr.QuotePrefix + "reflectArray:"))
-		o.ReflectValue.ToStringW(s)
-		s.Write([]byte(repr.QuoteSufix))
-		return
-	}
-	o.ReflectValue.Format(s, verb)
-}
-
 func (o *ReflectArray) ToString() string {
-	return fmt.Sprintf("%v", o)
+	return NewPrintBuilder(nil).Options(func(opts PrinterStateOptions) {
+		opts.WithIndent()
+	}).MustString(o)
 }
 
 func (o *ReflectArray) IsFalsy() bool {
@@ -850,50 +497,17 @@ func (o *ReflectArray) Copy() (obj Object) {
 	return
 }
 
-func (o *ReflectArray) Repr(vm *VM) (_ string, err error) {
-	var w strings.Builder
-	w.WriteString(repr.QuotePrefix)
-	var (
-		rpr  = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
-		l    = o.RValue.Len()
-		rpro Object
-	)
-	w.WriteString(o.Type().Name())
-	w.WriteString(":[")
-	for i := 0; i < l; i++ {
-		if rpro, err = vm.ToObject(o.RValue.Index(i).Interface()); err != nil {
-			return
-		}
-		if rpro, err = rpr(rpro); err != nil {
-			return
-		}
-		if i > 0 {
-			w.WriteString(", ")
-		}
-		w.WriteString(rpro.ToString())
-	}
-	w.WriteString("]")
-	w.WriteString(repr.QuoteSufix)
-	return w.String(), nil
-}
-
 func (o *ReflectArray) Print(state *PrinterState) (err error) {
-	if o.RType.Print != nil {
-		return o.RType.Print(state, &o.ReflectValue)
+	if o.RType.InstancePrintFunc != nil {
+		return o.RType.InstancePrintFunc(state, &o.ReflectValue)
 	}
-	return PrintArray(state, o.Length(), func(i int) (Object, error) {
+	return state.PrintArray(o.Length(), func(i int) (Object, error) {
 		return o.Get(state.VM, i)
 	})
 }
 
 type ReflectSlice struct {
 	ReflectArray
-}
-
-func (o *ReflectSlice) Slice(low, high int) Object {
-	cp := *o
-	cp.RValue = cp.RValue.Slice(low, high)
-	return &cp
 }
 
 var (
@@ -903,6 +517,27 @@ var (
 	_ Appender       = (*ReflectSlice)(nil)
 	_ Slicer         = (*ReflectSlice)(nil)
 )
+
+func (o *ReflectSlice) ToString() string {
+	return NewPrintBuilder(nil).Options(func(opts PrinterStateOptions) {
+		opts.WithIndent()
+	}).MustString(o)
+}
+
+func (o *ReflectSlice) Print(state *PrinterState) (err error) {
+	if o.RType.InstancePrintFunc != nil {
+		return o.RType.InstancePrintFunc(state, &o.ReflectValue)
+	}
+	return state.PrintArray(o.Length(), func(i int) (Object, error) {
+		return o.Get(state.VM, i)
+	})
+}
+
+func (o *ReflectSlice) Slice(low, high int) Object {
+	cp := *o
+	cp.RValue = cp.RValue.Slice(low, high)
+	return &cp
+}
 
 func (o *ReflectSlice) AppendObjects(vm *VM, items ...Object) (_ Object, err error) {
 	var (
@@ -970,20 +605,6 @@ func (o *ReflectSlice) Insert(vm *VM, at int, items ...Object) (_ Object, err er
 	return &cp, nil
 }
 
-func (o *ReflectSlice) Format(s fmt.State, verb rune) {
-	if verb == 's' {
-		s.Write([]byte(repr.QuotePrefix + "reflectSlice:"))
-		o.ReflectValue.ToStringW(s)
-		s.Write([]byte(repr.QuoteSufix))
-		return
-	}
-	o.ReflectValue.Format(s, verb)
-}
-
-func (o *ReflectSlice) ToString() string {
-	return fmt.Sprintf("%s", o)
-}
-
 func (o *ReflectSlice) Copy() (obj Object) {
 	v := reflect.MakeSlice(o.RType.RType, o.RValue.Len(), o.RValue.Len())
 	reflect.Copy(v, o.RValue)
@@ -998,40 +619,32 @@ type ReflectMap struct {
 }
 
 var (
-	_ ReflectValuer     = (*ReflectMap)(nil)
-	_ Iterabler         = (*ReflectMap)(nil)
-	_ Indexer           = (*ReflectMap)(nil)
-	_ ObjectRepresenter = (*ReflectMap)(nil)
+	_ ReflectValuer = (*ReflectMap)(nil)
+	_ Iterabler     = (*ReflectMap)(nil)
+	_ Indexer       = (*ReflectMap)(nil)
+	_ Printer       = (*ReflectMap)(nil)
 )
-
-func (o *ReflectMap) Format(s fmt.State, verb rune) {
-	if verb == 's' {
-		s.Write([]byte(repr.QuotePrefix + "reflectMap:"))
-		o.ReflectValue.ToStringW(s)
-		s.Write([]byte(repr.QuoteSufix))
-		return
-	}
-	o.ReflectValue.Format(s, verb)
-}
 
 func (o *ReflectMap) Length() int {
 	return o.Value().Len()
 }
 
 func (o *ReflectMap) ToString() string {
-	return fmt.Sprintf("%s", o)
+	return NewPrintBuilder(nil).Options(func(opts PrinterStateOptions) {
+		opts.WithIndent()
+	}).MustString(o)
 }
 
-func (o *ReflectMap) Print(s *PrinterState) (err error) {
-	if o.RType.Print != nil {
-		return o.RType.Print(s, &o.ReflectValue)
+func (o *ReflectMap) Print(state *PrinterState) (err error) {
+	if o.RType.InstancePrintFunc != nil {
+		return o.RType.InstancePrintFunc(state, &o.ReflectValue)
 	}
 
 	var (
-		keys         = o.RValue.MapKeys()
-		sortKeysType = PrintStateOptionsGetSortKeysType(s)
-		getKey       = func(i int) (Object, error) {
-			return s.VM.ToObject(keys[i].Interface())
+		keys            = o.RValue.MapKeys()
+		sortKeysType, _ = state.options.SortKeys()
+		getKey          = func(i int) (Object, error) {
+			return state.VM.ToObject(keys[i].Interface())
 		}
 		getKeyValue = func(i int) reflect.Value {
 			return keys[i]
@@ -1078,41 +691,10 @@ func (o *ReflectMap) Print(s *PrinterState) (err error) {
 		})
 	}
 
-	return PrintDict(s, o.Length(), getKey, func(i int) (Object, error) {
-		return s.VM.ToObject(o.RValue.MapIndex(getKeyValue(i)).Interface())
+	defer state.WrapRepr(o)()
+	return state.PrintDict(o.Length(), getKey, func(i int) (Object, error) {
+		return state.VM.ToObject(o.RValue.MapIndex(getKeyValue(i)).Interface())
 	})
-}
-
-func (o *ReflectMap) Repr(vm *VM) (_ string, err error) {
-	var w strings.Builder
-	w.WriteString(repr.QuotePrefix)
-	var (
-		values   []string
-		rpr      = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
-		ko, rpro Object
-	)
-	for _, k := range o.RValue.MapKeys() {
-		if ko, err = NewReflectValue(k.Interface()); err != nil {
-			return
-		}
-		if ko, err = rpr(ko); err != nil {
-			return
-		}
-		if rpro, err = vm.ToObject(o.RValue.MapIndex(k).Interface()); err != nil {
-			return
-		}
-		if rpro, err = rpr(rpro); err != nil {
-			return
-		}
-		values = append(values, fmt.Sprintf("%s: %v", ko.ToString(), rpro.ToString()))
-	}
-	sort.Strings(values)
-	w.WriteString(o.Type().Name())
-	w.WriteString(":{")
-	w.WriteString(strings.Join(values, ", "))
-	w.WriteString("}")
-	w.WriteString(repr.QuoteSufix)
-	return w.String(), nil
 }
 
 func (o *ReflectMap) IndexDelete(vm *VM, index Object) (err error) {
@@ -1122,7 +704,7 @@ func (o *ReflectMap) IndexDelete(vm *VM, index Object) (err error) {
 
 func (o *ReflectMap) IndexGet(vm *VM, index Object) (value Object, err error) {
 	v := o.RValue.MapIndex(reflect.ValueOf(vm.ToInterface(index)))
-	if !v.IsValid() || mustIsNil(v) {
+	if !v.IsValid() || zeroer.MustIsNil(v) {
 		if index.ToString() == ObjectMethodsGetterFieldName {
 			return o.Methods(), nil
 		}
@@ -1164,6 +746,10 @@ var (
 	_ Iterabler       = (*ReflectStruct)(nil)
 	_ IndexGetSetter  = (*ReflectStruct)(nil)
 	_ Printer         = (*ReflectStruct)(nil)
+	_ ReflectValuer   = (*ReflectStruct)(nil)
+	_ Iterabler       = (*ReflectStruct)(nil)
+	_ IndexGetSetter  = (*ReflectStruct)(nil)
+	_ Printer         = (*ReflectStruct)(nil)
 )
 
 type ReflectStruct struct {
@@ -1172,6 +758,10 @@ type ReflectStruct struct {
 	fallbackIndexHandler func(vm *VM, s *ReflectStruct, name string) (handled bool, value any, err error)
 	Data                 Dict
 	Interface            any
+}
+
+func (s *ReflectStruct) Name() string {
+	return s.RType.Name()
 }
 
 func (s *ReflectStruct) Call(c Call) (Object, error) {
@@ -1215,58 +805,23 @@ func (s *ReflectStruct) IterationDone(vm *VM) error {
 	return ToIterationDoner(s.Interface).IterationDone(vm)
 }
 
-var (
-	_ ReflectValuer     = (*ReflectStruct)(nil)
-	_ Iterabler         = (*ReflectStruct)(nil)
-	_ IndexGetSetter    = (*ReflectStruct)(nil)
-	_ ObjectRepresenter = (*ReflectStruct)(nil)
-)
-
 func (s *ReflectStruct) Init() {
 	s.Interface = s.ToInterface()
 	s.ReflectValue.Init()
 }
 
-func (s *ReflectStruct) ToString() string {
-	i := s.ToInterface()
-	switch t := i.(type) {
-	case fmt.Stringer:
-		return t.String()
-	case fmt.Formatter:
-		return fmt.Sprintf("%v", t)
-	default:
-		if s.Options.ToStr == nil {
-			var (
-				values  []string
-				value   any
-				handled bool
-				err     error
-				w       strings.Builder
-			)
-			for _, name := range s.RType.FieldsNames {
-				if handled, value, err = s.SafeField(nil, name); err == nil && handled {
-					if !IsZero(value) {
-						var (
-							rv = reflect.ValueOf(value)
-							s  string
-						)
-						if rv.Kind() == reflect.String {
-							s = strconv.Quote(rv.String())
-						} else {
-							s = fmt.Sprint(value)
-						}
-						values = append(values, fmt.Sprintf("%s: %v", name, s))
-					}
-				}
-			}
-			sort.Strings(values)
-			w.WriteString("{")
-			w.WriteString(strings.Join(values, ", "))
-			w.WriteString("}")
-			return w.String()
-		}
-		return s.Options.ToStr()
+func (s *ReflectStruct) ReprTypeName() string {
+	n := s.RType.FullName()
+	if s.IsPtr() {
+		n = "*" + n
 	}
+	return "reflect instance of " + ReprQuote(n)
+}
+
+func (s *ReflectStruct) ToString() string {
+	return NewPrintBuilder(nil).Options(func(opts PrinterStateOptions) {
+		opts.WithIndent()
+	}).MustString(s)
 }
 
 // Print prints object writing output to out writer.
@@ -1275,8 +830,22 @@ func (s *ReflectStruct) ToString() string {
 // - zeros flag: include zero fields.
 // - sortKeys int = 0: fields sorting. 1: ASC, 2: DESC.
 func (s *ReflectStruct) Print(state *PrinterState) (err error) {
-	if s.RType.Print != nil {
-		return s.RType.Print(state, &s.ReflectValue)
+	if !state.IsRepr {
+		i := s.ToInterface()
+		switch t := i.(type) {
+		case fmt.Stringer:
+			return state.WriteString(t.String())
+		case fmt.Formatter:
+			return state.WriteString(fmt.Sprintf("%v", t))
+		default:
+			if s.Options.ToStr != nil {
+				return state.WriteString(s.Options.ToStr())
+			}
+
+			if s.RType.InstancePrintFunc != nil {
+				return s.RType.InstancePrintFunc(state, &s.ReflectValue)
+			}
+		}
 	}
 
 	type entry struct {
@@ -1285,20 +854,20 @@ func (s *ReflectStruct) Print(state *PrinterState) (err error) {
 	}
 
 	var (
-		value        any
-		handled      bool
-		o            Object
-		entries      []entry
-		zeros        = PrintStateOptionsGetZeros(state)
-		anonymous    = PrintStateOptionsGetAnonymous(state)
-		sortKeysType = PrintStateOptionsGetSortKeysType(state)
+		value           any
+		handled         bool
+		o               Object
+		entries         []entry
+		zeros, _        = state.options.Zeros()
+		anonymous, _    = state.options.Anonymous()
+		sortKeysType, _ = state.options.SortKeys()
 	)
 
 	for _, name := range s.RType.FieldsNames {
 		isa := s.RType.RFields[name].Struct.Anonymous
 		if anonymous || !isa {
 			if handled, value, err = s.SafeField(nil, name); err == nil && handled {
-				if zeros || !IsZero(value) {
+				if zeros || !zeroer.IsZero(value) {
 					if isa {
 						entries = append(entries, entry{name, nil})
 					} else {
@@ -1323,42 +892,13 @@ func (s *ReflectStruct) Print(state *PrinterState) (err error) {
 		})
 	}
 
-	return PrintDict(state, len(entries),
+	defer state.WrapRepr(s)()
+	return state.PrintDict(len(entries),
 		func(i int) (Object, error) {
 			return Str(entries[i].name), nil
 		}, func(i int) (Object, error) {
 			return entries[i].value, nil
 		})
-}
-
-func (s *ReflectStruct) Repr(vm *VM) (_ string, err error) {
-	var w strings.Builder
-	w.WriteString(repr.QuotePrefix)
-
-	var (
-		values  []string
-		value   any
-		handled bool
-		rpro    Object
-	)
-
-	for _, name := range s.RType.FieldsNames {
-		if handled, value, err = s.SafeField(nil, name); err == nil && handled {
-			if !IsZero(value) {
-				if rpro, err = vm.ToObject(value); err != nil {
-					return
-				}
-				values = append(values, fmt.Sprintf("%s: %v", name, ReprQuote(rpro.Type().Name()+": "+rpro.ToString())))
-			}
-		}
-	}
-	sort.Strings(values)
-	w.WriteString(s.Type().Name())
-	w.WriteString(":{")
-	w.WriteString(strings.Join(values, ", "))
-	w.WriteString("}")
-	w.WriteString(repr.QuoteSufix)
-	return w.String(), nil
 }
 
 func (s *ReflectStruct) FieldHandler(handler func(vm *VM, s *ReflectStruct, name string, v any) any) *ReflectStruct {
@@ -1411,7 +951,7 @@ func (s *ReflectStruct) IndexGetS(vm *VM, index string) (value Object, err error
 	}
 
 	if !handled {
-		return s.methodsGetter.GetIndex(vm, Str(index))
+		return s.methodsGetter.GetIndexFunc(vm, Str(index))
 	}
 
 	if value, _ = vi.(Object); value != nil {
@@ -1561,13 +1101,13 @@ func (s *ReflectStruct) UserData() Indexer {
 	}
 	return &IndexDeleteProxy{
 		IndexGetProxy: IndexGetProxy{
-			It: func(vm *VM, na *NamedArgs) Iterator {
+			IterateFunc: func(vm *VM, na *NamedArgs) Iterator {
 				if s.Data == nil {
 					return Dict{}.Iterate(vm, na)
 				}
 				return s.Data.Iterate(vm, na)
 			},
-			GetIndex: func(vm *VM, index Object) (value Object, err error) {
+			GetIndexFunc: func(vm *VM, index Object) (value Object, err error) {
 				if s.Data == nil {
 					return nil, ErrInvalidIndex.NewError(index.ToString())
 				}
@@ -1656,7 +1196,7 @@ func safeCall(fun reflect.Value, args []reflect.Value) (val reflect.Value, err e
 	case 0:
 	default:
 		if ret[l-1].Type() == errorType {
-			if !mustIsNil(ret[l-1]) {
+			if !zeroer.MustIsNil(ret[l-1]) {
 				err = ret[l-1].Interface().(error)
 			}
 			ret = ret[:l-1]

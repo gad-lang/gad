@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/token"
 )
@@ -15,6 +14,77 @@ import (
 type TypeAssertionHandler func(v Object) bool
 
 type TypeAssertionHandlers map[string]TypeAssertionHandler
+
+type TypeAsssertionOption func(a TypeAssertionHandlers)
+
+func WithCallable() TypeAsssertionOption {
+	return func(a TypeAssertionHandlers) {
+		a["callable"] = Callable
+	}
+}
+
+func WithMethodCaller() TypeAsssertionOption {
+	return func(a TypeAssertionHandlers) {
+		a["methodCaller"] = func(v Object) (ok bool) {
+			_, ok = v.(MethodCaller)
+			return
+		}
+	}
+}
+
+func WithMethodAdder() TypeAsssertionOption {
+	return func(a TypeAssertionHandlers) {
+		a["methodAdder"] = func(v Object) (ok bool) {
+			_, ok = v.(MethodAdder)
+			return
+		}
+	}
+}
+
+func WithIsAssignable(types ...ObjectType) TypeAsssertionOption {
+	tarr := ObjectTypeArray(types)
+	return func(a TypeAssertionHandlers) {
+		a[ObjectTypes(types).String()] = func(v Object) bool {
+			return tarr.Assign(v.Type())
+		}
+	}
+}
+
+func WithArray() TypeAsssertionOption {
+	return func(a TypeAssertionHandlers) {
+		a["array"] = func(v Object) (ok bool) {
+			_, ok = v.(Array)
+			return
+		}
+	}
+}
+
+func WithRawCallable() TypeAsssertionOption {
+	return func(a TypeAssertionHandlers) {
+		a["rawcallable"] = IsFunction
+	}
+}
+
+func WithFlag() TypeAsssertionOption {
+	return func(a TypeAssertionHandlers) {
+		a["flag"] = func(v Object) bool {
+			switch v.(type) {
+			case Flag, Bool:
+				return true
+			default:
+				return false
+			}
+		}
+	}
+}
+
+func TypeAssertions(opt ...TypeAsssertionOption) TypeAssertionHandlers {
+	ta := make(TypeAssertionHandlers)
+	for _, option := range opt {
+		option(ta)
+	}
+	return ta
+}
 
 type TypeAssertion struct {
 	Types    []ObjectType
@@ -31,6 +101,16 @@ func TypeAssertionFromTypes(types ...ObjectType) *TypeAssertion {
 
 func TypeAssertionFlag() *TypeAssertion {
 	return TypeAssertionFromTypes(TFlag)
+}
+
+func (a *TypeAssertion) Options(opt ...TypeAsssertionOption) *TypeAssertion {
+	if a.Handlers == nil {
+		a.Handlers = make(TypeAssertionHandlers)
+	}
+	for _, o := range opt {
+		o(a.Handlers)
+	}
+	return a
 }
 
 func (a *TypeAssertion) AcceptHandler(name string, handler TypeAssertionHandler) *TypeAssertion {
@@ -108,14 +188,6 @@ type ArgValue struct {
 	Value any
 }
 
-// NamedArgVar is a struct to destructure named arguments from Call object.
-type NamedArgVar struct {
-	Name   string
-	Value  Object
-	ValueF func() Object
-	*TypeAssertion
-}
-
 type KeyValue struct {
 	K, V Object
 }
@@ -126,7 +198,6 @@ var (
 	_ Copier         = (*KeyValue)(nil)
 	_ IndexGetSetter = (*KeyValue)(nil)
 	_ Printer        = (*KeyValue)(nil)
-	_ Representer    = (*KeyValue)(nil)
 )
 
 func (o *KeyValue) IndexSet(vm *VM, index, value Object) error {
@@ -150,24 +221,42 @@ func (o *KeyValue) IndexSet(vm *VM, index, value Object) error {
 }
 
 func (o *KeyValue) Type() ObjectType {
-	return DetectTypeOf(o)
+	return TKeyValue
 }
 
 func (o *KeyValue) Print(state *PrinterState) (err error) {
 	var open, close []byte
-	if prev, _ := state.stack.PrevValue().(KeyValueArray); prev == nil {
+	prev := state.stack.PrevValue()
+
+	escape := func(v Object) bool {
+		switch v.(type) {
+		case *KeyValue, Array:
+			return true
+		default:
+			return false
+		}
+	}
+
+	if prev == nil || escape(prev) {
 		open, close = []byte{'['}, []byte{']'}
 	}
-	return PrintPairs(state, 1, open, close, []byte{'='}, nil,
-		func(i int) (Object, error) {
-			return o.K, nil
-		},
-		func(i int) (Object, error) {
-			if o.V == Yes {
-				return nil, nil
-			}
-			return o.V, nil
-		})
+
+	state.Write(open)
+	defer state.Write(close)
+
+	switch t := o.K.(type) {
+	case Str:
+		state.PrintKey(t)
+	default:
+		Print(state, o.K)
+	}
+
+	if o.V != Yes {
+		state.WriteString("=")
+		state.QuoteNextStr(0)
+		state.Print(o.V)
+	}
+	return nil
 }
 
 func (o *KeyValue) ToString() string {
@@ -198,32 +287,6 @@ func (o *KeyValue) ToString() string {
 		}
 	}
 	return sb.String()
-}
-
-func (o *KeyValue) Repr(vm *VM) (_ string, err error) {
-	var (
-		sb    strings.Builder
-		do    = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
-		repro Object
-	)
-
-	if repro, err = do(o.K); err != nil {
-		return
-	}
-	sb.WriteString(repr.QuotePrefix)
-	sb.WriteString(o.Type().Name())
-	sb.WriteString(":")
-	sb.WriteString(string(repro.(Str)))
-
-	if o.V != Yes {
-		sb.WriteString("=")
-		if repro, err = do(o.V); err != nil {
-			return
-		}
-		sb.WriteString(string(repro.(Str)))
-	}
-	sb.WriteString(repr.QuoteSufix)
-	return sb.String(), nil
 }
 
 // DeepCopy implements DeepCopier interface.
@@ -345,7 +408,7 @@ var (
 	_ Sorter       = (*KeyValueArray)(nil)
 	_ KeysGetter   = (*KeyValueArray)(nil)
 	_ ItemsGetter  = (*KeyValueArray)(nil)
-	_ Representer  = (*KeyValueArray)(nil)
+	_ Printer      = (*KeyValueArray)(nil)
 )
 
 func (o *KeyValueArray) Append(vm *VM, items ...Object) (err error) {
@@ -356,11 +419,16 @@ func (o *KeyValueArray) Append(vm *VM, items ...Object) (err error) {
 			cp = append(cp, t)
 		case Array:
 			err = cp.Append(vm, t...)
+		case *NamedParamsVar:
+			err = ItemsOfCb(vm, &NamedArgs{}, func(kv *KeyValue) error {
+				cp = append(cp, kv)
+				return nil
+			}, t.Object)
 		default:
 			err = ItemsOfCb(vm, &NamedArgs{}, func(kv *KeyValue) error {
 				cp = append(cp, kv)
 				return nil
-			}, items...)
+			}, t)
 		}
 		if err != nil {
 			return
@@ -379,64 +447,27 @@ func (o KeyValueArray) AppendObjects(vm *VM, items ...Object) (this Object, err 
 }
 
 func (o KeyValueArray) Type() ObjectType {
-	return DetectTypeOf(o)
+	return TKeyValueArray
 }
 
-func (o KeyValueArray) ToDict(out Dict) Dict {
+func (o KeyValueArray) UpdateDict(out Dict) {
 	for _, v := range o {
 		out[v.K.ToString()] = v.V
 	}
-	return out
 }
 
 func (o KeyValueArray) Print(state *PrinterState) (err error) {
-	return PrintValues(state, len(o), []byte{'(', ';'}, []byte{')'}, []byte{','},
+	if state.IsRepr {
+		defer state.WrapRepr(o)()
+	}
+	return state.PrintValues(len(o), []byte{'(', ';'}, []byte{')'}, []byte{','},
 		func(i int) (Object, error) {
 			return o[i], nil
 		})
 }
 
 func (o KeyValueArray) ToString() string {
-	var sb strings.Builder
-	sb.WriteString("(;")
-	last := len(o) - 1
-
-	for i, v := range o {
-		sb.WriteString(v.ToString())
-		if i != last {
-			sb.WriteString(", ")
-		}
-	}
-
-	sb.WriteString(")")
-	return sb.String()
-}
-
-func (o KeyValueArray) Repr(vm *VM) (_ string, err error) {
-	var (
-		sb    strings.Builder
-		do    = vm.Builtins.ArgsInvoker(BuiltinRepr, Call{VM: vm})
-		repro Object
-	)
-	sb.WriteString(repr.QuotePrefix)
-	sb.WriteString(o.Type().Name())
-	sb.WriteString(":")
-	sb.WriteString("(;")
-	last := len(o) - 1
-
-	for i, v := range o {
-		if repro, err = do(v); err != nil {
-			return
-		}
-		sb.WriteString(repro.ToString())
-		if i != last {
-			sb.WriteString(", ")
-		}
-	}
-
-	sb.WriteString(")")
-	sb.WriteString(repr.QuoteSufix)
-	return sb.String(), nil
+	return string(MustToStr(nil, o))
 }
 
 // DeepCopy implements DeepCopier interface.
@@ -802,14 +833,7 @@ var (
 	_ Printer               = (*KeyValueArrays)(nil)
 	_ IndexGetter           = (*KeyValueArrays)(nil)
 	_ BinaryOperatorHandler = (*KeyValueArrays)(nil)
-	_ Representer           = (*KeyValueArrays)(nil)
 )
-
-func (o KeyValueArrays) Repr(vm *VM) (_ string, err error) {
-	return ArrayRepr(o.Type().Name(), vm, len(o), func(i int) Object {
-		return o[i]
-	})
-}
 
 func (KeyValueArrays) Type() ObjectType {
 	return TKeyValueArrays
@@ -824,7 +848,7 @@ func (o KeyValueArrays) Array() (ret Array) {
 }
 
 func (o KeyValueArrays) Print(state *PrinterState) (err error) {
-	return PrintArray(state, len(o),
+	return state.PrintArray(len(o),
 		func(i int) (Object, error) {
 			return o[i], nil
 		})
@@ -952,6 +976,25 @@ func (o KeyValueArrays) CallName(name string, c Call) (Object, error) {
 
 var EmptyNamedArgs = &NamedArgs{ro: true}
 
+// NamedArgVar is a struct to destructure named arguments from Call object.
+type NamedArgVar struct {
+	Name   string
+	Value  Object
+	ValueF func() Object
+	Do     func(value Object) error
+	*TypeAssertion
+}
+
+func (v *NamedArgVar) IsFalsy() bool {
+	return v.Value == nil || v.Value.IsFalsy()
+}
+
+var (
+	_ Object           = (*NamedArgs)(nil)
+	_ NameCallerObject = (*NamedArgs)(nil)
+	_ IndexGetter      = (*NamedArgs)(nil)
+)
+
 type NamedArgs struct {
 	ro      bool
 	sources KeyValueArrays
@@ -1017,10 +1060,7 @@ func (o *NamedArgs) Join() KeyValueArray {
 }
 
 func (o *NamedArgs) ToString() string {
-	if len(o.ready) == 0 {
-		return o.Join().ToString()
-	}
-	return o.UnreadPairs().ToString()
+	return string(MustToStr(nil, o))
 }
 
 func (o *NamedArgs) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
@@ -1232,11 +1272,56 @@ func (o *NamedArgs) Get(dst ...*NamedArgVar) (err error) {
 	return nil
 }
 
+// GetDo destructure and call dst.Do if is valid.
+// Return errors:
+// - ArgumentTypeError if type check of arg is fail.
+// - UnexpectedNamedArg if have unexpected arg.
+// - other error returned by dst.Do.
+func (o *NamedArgs) GetDo(dst ...*NamedArgVar) (err error) {
+	args := o.unreadDict()
+
+	if err = o.getOneOf(args, dst...); err != nil {
+		return
+	}
+
+	for key := range args {
+		return ErrUnexpectedNamedArg.NewError(strconv.Quote(key))
+	}
+
+	for _, d := range dst {
+		if d.Value != nil && d.Do != nil {
+			if err = d.Do(d.Value); err != nil {
+				return
+			}
+		}
+	}
+
+	return nil
+}
+
 // GetOne get one value.
 // Return errors:
 // - ArgumentTypeError if type check of arg is fail.
 func (o *NamedArgs) GetOne(dst ...*NamedArgVar) (err error) {
 	return o.getOneOf(o.unreadDict(), dst...)
+}
+
+// GetOneDo get one value and call dst.Do handler if is valid.
+// Return errors:
+// - ArgumentTypeError if type check of arg is fail.
+// - other error returned by dst.Do.
+func (o *NamedArgs) GetOneDo(dst ...*NamedArgVar) (err error) {
+	if err = o.getOneOf(o.unreadDict(), dst...); err != nil {
+		return
+	}
+	for _, d := range dst {
+		if d.Value != nil && d.Do != nil {
+			if err = d.Do(d.Value); err != nil {
+				return
+			}
+		}
+	}
+	return
 }
 
 func (o *NamedArgs) getOneOf(args Dict, dst ...*NamedArgVar) (err error) {
@@ -1403,4 +1488,16 @@ func (o NamedArgs) DeepCopy(vm *VM) (_ Object, err error) {
 	}
 	o.sources = r.(KeyValueArrays)
 	return &o, nil
+}
+
+func (o *NamedArgs) Print(state *PrinterState) (err error) {
+	defer state.WrapRepr(o)()
+	if len(o.ready) == 0 {
+		return o.Join().Print(state)
+	}
+	return o.UnreadPairs().Print(state)
+}
+
+type NamedParamsVar struct {
+	Object
 }

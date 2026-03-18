@@ -61,10 +61,40 @@ type TranspileOptions struct {
 	WriteFunc       string
 }
 
+type CodeWriteContextFlag uint8
+
+func (b *CodeWriteContextFlag) Set(flag CodeWriteContextFlag) *CodeWriteContextFlag {
+	*b = *b | flag
+	return b
+}
+func (b *CodeWriteContextFlag) Clear(flag CodeWriteContextFlag) *CodeWriteContextFlag {
+	*b = *b &^ flag
+	return b
+}
+func (b *CodeWriteContextFlag) Toggle(flag CodeWriteContextFlag) *CodeWriteContextFlag {
+	*b = *b ^ flag
+	return b
+}
+func (b CodeWriteContextFlag) Has(flag CodeWriteContextFlag) bool { return b&flag != 0 }
+
+const (
+	CodeWriteContextFlagNone CodeWriteContextFlag = 1 << iota
+	CodeWriteContextFlagFormatArrayItemInNewLine
+	CodeWriteContextFlagFormatDictItemInNewLine
+	CodeWriteContextFlagFormatKeyValueArrayItemInNewLine
+	CodeWriteContextFlagFormatCallParamsInNewLine
+
+	CodeWriteContextFlagFormat = CodeWriteContextFlagFormatArrayItemInNewLine |
+		CodeWriteContextFlagFormatDictItemInNewLine |
+		CodeWriteContextFlagFormatKeyValueArrayItemInNewLine |
+		CodeWriteContextFlagFormatCallParamsInNewLine
+)
+
 type CodeWriteContext struct {
 	Stack     []ast.Node
 	Depth     int
 	Prefix    string
+	Flags     CodeWriteContextFlag
 	Transpile *TranspileOptions
 	CodeWriter
 }
@@ -74,6 +104,18 @@ type CodeOption func(ctx *CodeWriteContext)
 func CodeWithPrefix(prefix string) CodeOption {
 	return func(ctx *CodeWriteContext) {
 		ctx.Prefix = prefix
+	}
+}
+
+func CodeWithFlags(flag CodeWriteContextFlag) CodeOption {
+	return func(ctx *CodeWriteContext) {
+		ctx.Flags.Set(flag)
+	}
+}
+
+func CodeFormat() CodeOption {
+	return func(ctx *CodeWriteContext) {
+		ctx.Flags |= CodeWriteContextFlagFormat
 	}
 }
 
@@ -185,6 +227,45 @@ func (c *CodeWriteContext) WriteStmts(smt ...Stmt) {
 	})
 }
 
+func (c *CodeWriteContext) WriteItems(inNewLine bool, count int, do func(i int), done func(newLine bool)) {
+	c.WriteItemsSep(inNewLine, count, ", ", ",", do, done)
+}
+
+func (c *CodeWriteContext) WriteItemsSep(inNewLine bool, count int, inlineSep, newLineSep string, do func(i int), done func(newLine bool)) {
+	if count == 0 {
+		return
+	}
+
+	last := count - 1
+
+	if inNewLine {
+		c.Depth++
+		c.WriteSecondLine()
+		for i := 0; i < count; i++ {
+			c.WritePrefix()
+			do(i)
+			if i != last {
+				c.WriteString(newLineSep)
+				c.WriteSecondLine()
+			}
+		}
+		if done != nil {
+			done(inNewLine)
+		}
+		c.Depth--
+	} else {
+		for i := 0; i < count; i++ {
+			do(i)
+			if i != last {
+				c.WriteString(inlineSep)
+			}
+		}
+		if done != nil {
+			done(inNewLine)
+		}
+	}
+}
+
 func (c *CodeWriteContext) WriteExprs(sep string, expr ...Expr) {
 	for i, e := range expr {
 		if i > 0 {
@@ -196,14 +277,10 @@ func (c *CodeWriteContext) WriteExprs(sep string, expr ...Expr) {
 
 func Code(n Coder, opt ...CodeOption) string {
 	var buf bytes.Buffer
-	n.WriteCode(NewCodeWriteContext(NewCodeWriter(&buf), opt...))
+	CodeW(&buf, n, opt...)
 	return buf.String()
 }
 
 func CodeW(w io.Writer, n Coder, opt ...CodeOption) {
 	n.WriteCode(NewCodeWriteContext(NewCodeWriter(w), opt...))
-}
-
-func CodeStmtsW(w io.Writer, n Stmts, opt ...CodeOption) {
-	NewCodeWriteContext(NewCodeWriter(w), opt...).WriteStmts(n...)
 }

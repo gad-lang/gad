@@ -9,7 +9,7 @@ or bytes object. (Like Go's `append` builtin)
 
 **Syntax**
 
-> `append(arrayLike [, ...args])`
+> `append(arrayLike [, *args])`
 
 **Parameters**
 
@@ -750,7 +750,7 @@ around".
 
 **Syntax**
 
-> `bytes(...args)`
+> `bytes(*args)`
 
 **Parameters**
 
@@ -822,7 +822,7 @@ converting first argument to a string value and optional arguments to
 
 **Syntax**
 
-> `printf(format, ...args)`
+> `printf(format, *args)`
 
 **Parameters**
 
@@ -854,7 +854,7 @@ after converting arguments to `any`.
 
 **Syntax**
 
-> `println(...args)`
+> `println(*args)`
 
 **Parameters**
 
@@ -885,7 +885,7 @@ value and optional arguments to `any`.
 
 **Syntax**
 
-> `sprintf(format, ...args)`
+> `sprintf(format, *args)`
 
 **Parameters**
 

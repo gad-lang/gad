@@ -145,12 +145,13 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 	allowedOps := [...]bool{
 		OpConstant: true, OpNil: true, OpBinary: true, OpSelfAssign: true, OpUnary: true,
 		OpNoOp: true, OpAndJump: true, OpOrJump: true, OpArray: true,
-		OpReturn: true, OpEqual: true, OpNotEqual: true, OpPop: true,
+		OpReturn: true, OpSetReturn: true, OpEqual: true, OpNotEqual: true, OpPop: true,
 		OpGetBuiltin: true, OpCall: true, OpSetLocal: true, OpDefineLocal: true,
 		OpTrue: true, OpFalse: true, OpYes: true, OpNo: true, OpJumpNil: true,
 		OpJumpNotNil: true, OpCallee: true, OpArgs: true, OpNamedArgs: true,
 		OpStdIn: true, OpStdOut: true, OpStdErr: true, OpTextWriter: true,
-		OpDotName: true, OpDotFile: true, OpIsModule: true,
+		OpDotName: true, OpDotFile: true, OpIsMain: true, OpNotIsMain: true,
+		OpModule: true, OpNamedParamsVar: true, OpComputedValue: true,
 	}
 
 	allowedBuiltins := [...]bool{
@@ -597,6 +598,10 @@ func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 		for _, stmt := range nd.Stmts {
 			_, _ = so.optimize(stmt)
 		}
+	case *node.FuncStmt:
+		_, _ = so.optimize(nd.Func)
+	case *node.FuncWithMethodsStmt:
+		_, _ = so.optimize(&nd.FuncWithMethodsExpr)
 	case *node.ExprStmt:
 		if nd.Expr != nil {
 			if expr, ok = so.optimize(nd.Expr); ok {
@@ -809,6 +814,23 @@ func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 			_, _ = so.optimize(nd.Body)
 		} else if nd.BodyExpr != nil {
 			_, _ = so.optimize(nd.BodyExpr)
+		}
+	case *node.FuncWithMethodsExpr:
+		so.enterScope()
+		defer so.leaveScope()
+
+		for _, m := range nd.Methods {
+			for _, ident := range m.Params.Args.Values {
+				so.scope.define(ident.Ident.Name)
+			}
+			for _, ident := range m.Params.NamedArgs.Names {
+				so.scope.define(ident.Ident.Name)
+			}
+			if m.Body != nil {
+				_, _ = so.optimize(m.Body)
+			} else if m.BodyExpr != nil {
+				_, _ = so.optimize(m.BodyExpr)
+			}
 		}
 	case *node.ReturnStmt:
 		if nd.Result != nil {

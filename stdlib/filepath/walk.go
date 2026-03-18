@@ -169,15 +169,12 @@ func NewSkipMode(c gad.Call) (_ gad.Object, err error) {
 	}
 }
 
-var TWalkSkip = &gad.Type{
-	Parent:   gad.TInt,
-	TypeName: "WalkSkip",
-	Constructor: &gad.Function{
+var TWalkSkip = gad.NewType("WalkSkip").
+	WithConstructor(&gad.Function{
 		Value: NewSkipMode,
-	},
-	Static: gad.Dict{
+	}).
+	WithStatic(gad.Dict{
 		"None": WalkSkipNone,
 		"Dir":  WalkSkipDir,
 		"All":  WalkSkipAll,
-	},
-}
+	})

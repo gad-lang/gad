@@ -14,7 +14,9 @@ import (
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
-	"github.com/gad-lang/gad/tests"
+	"github.com/gad-lang/gad/test_helper/teststrings"
+	"github.com/gad-lang/gad/zeroer"
+	"github.com/igo9go/go-deepdump/spew"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/stretchr/testify/require"
@@ -135,7 +137,7 @@ func VMExpectErrorGen(
 				opts.compileOptions(&co)
 			}
 
-			compiled, err := gad.Compile([]byte(script), co)
+			_, compiled, err := gad.Compile([]byte(script), co)
 			if opts.IsCompilerErr {
 				require.Error(t, err)
 				callback(t, err)
@@ -262,6 +264,8 @@ func (t *VMTestOpts) Module(name string, module any) *VMTestOpts {
 		t.moduleMap.AddBuiltinModule(name, v)
 	case gad.Dict:
 		t.moduleMap.AddBuiltinModule(name, v)
+	case gad.ModuleInitFunc:
+		t.moduleMap.AddBuiltinModuleInit(name, v)
 	case gad.Importable:
 		t.moduleMap.Add(name, v)
 	default:
@@ -305,12 +309,14 @@ func (t *VMTestOpts) Context(ctx context.Context) *VMTestOpts {
 
 func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.Object) {
 	t.Helper()
+
 	if opts == nil {
 		opts = NewVMTestOpts()
 	} else {
 		optsCopy := *opts
 		opts = &optsCopy
 	}
+
 	type testCase struct {
 		name   string
 		opts   gad.CompileOptions
@@ -373,7 +379,7 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.O
 				opts.compileOptions(&tC.opts)
 			}
 
-			gotBc, err := gad.Compile([]byte(script), tC.opts)
+			pf, gotBc, err := gad.Compile([]byte(script), tC.opts)
 			require.NoError(t, err)
 			// create a copy of the bytecode before execution to test bytecode
 			// change after execution
@@ -381,17 +387,29 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.O
 			expectBc.Main = gotBc.Main.Copy().(*gad.CompiledFunction)
 			expectBc.Constants = gad.Array(gotBc.Constants).Copy().(gad.Array)
 			vm := gad.NewVM(gotBc)
+			var noTrace bool
 			defer func() {
+				if noTrace {
+					return
+				}
 				if r := recover(); r != nil {
 					fmt.Fprintf(os.Stderr, "------- Start Trace -------\n%s"+
 						"\n------- End Trace -------\n", tC.tracer.String())
-					gotBc.Fprint(os.Stderr)
-					panic(r)
+					gotBc.Fprint(vm.Builtins.Builtins(), os.Stderr)
+
+					fmt.Fprintf(os.Stderr, "------- Parsed Code -------\n%s"+
+						"\n------- Parsed Code -------\n", teststrings.Indent("\t\t", pf.BuildCode(
+						func(ctx *node.CodeWriteContext) {
+							ctx.Transpile = gad.TranspileOptions()
+						}, node.CodeWithPrefix("\t"))))
+
+					t.Fatalf("panic: %v", r)
 				}
 			}()
+
+			vm.Builtins = tC.opts.SymbolTable.Builtins().Build()
 			vm.Setup(gad.SetupOpts{
-				Builtins: tC.opts.SymbolTable.Builtins(),
-				Context:  opts.context,
+				Context: opts.context,
 			})
 
 			opts, expect := opts.init(opts, expect)
@@ -412,17 +430,51 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.O
 				ropts.StdOut = opts.stdout
 			}
 			got, err := vm.SetRecover(opts.noPanic).RunOpts(ropts)
-			if !assert.NoErrorf(t, err, "Code:\n%s\n", script) {
-				gotBc.Fprint(os.Stderr)
+			lines := strings.Split(script, "\n")
+			for i, line := range lines {
+				lines[i] = fmt.Sprintf("%03d| %s", i+1, line)
+			}
+			if !assert.NoErrorf(t, err, "Code:\n%s\n", strings.Join(lines, "\n")) {
+				gotBc.Fprint(vm.Builtins.Builtins(), os.Stderr)
 			}
 			if opts.buffered {
 				got = gad.Array{got, gad.Str(buf.String())}
 			}
 			if !reflect.DeepEqual(expect, got) {
-				var buf bytes.Buffer
-				gotBc.Fprint(&buf)
-				t.Fatalf("Objects not equal:\nExpected:\n%s\nGot:\n%s\nScript:\n%s\n%s\n",
-					tests.Sdump(expect), tests.Sdump(got), script, buf.String())
+				var bcBuf bytes.Buffer
+				gotBc.Fprint(vm.Builtins.Builtins(), &bcBuf)
+
+				r1, err := vm.CallBuiltin(gad.BuiltinRepr, gad.Dict{"indent": gad.Yes}.ToNamedArgs(), expect)
+				require.NoError(t, err)
+
+				r2, err := vm.CallBuiltin(gad.BuiltinRepr, gad.Dict{"indent": gad.Yes}.ToNamedArgs(), got)
+				require.NoError(t, err)
+
+				e, g := r1.ToString(), r2.ToString()
+
+				stmts := make([]any, len(pf.Stmts))
+				for i, stmt := range pf.Stmts {
+					stmts[i] = stmt
+				}
+				var sbuf strings.Builder
+				cs := &spew.ConfigState{
+					SortKeys:                true,
+					DisableMethods:          true,
+					DisablePointerAddresses: true,
+					DisablePointerMethods:   true,
+					Indent:                  "\t",
+					DisableCapacities:       true,
+					FieldFilter: func(structType reflect.Type, field reflect.StructField, value reflect.Value) bool {
+						return !zeroer.IsZero(value)
+					},
+				}
+				cs.Fdump(&sbuf, pf.Stmts)
+
+				teststrings.EqualStringf(t, e, g, "Result not equal:\nParsed:\n%s\n\n\tParsed Structure:\n%s\n\n\tBytecode:\n%s",
+					teststrings.Indent("\t\t", pf.BuildCode(node.CodeWithPrefix("\t"))),
+					teststrings.Indent("\t\t", sbuf.String()),
+					teststrings.Indent("\t\t", bcBuf.String()))
+				noTrace = true
 			}
 			gad.TestBytecodesEqual(t, &expectBc, gotBc, true)
 		})

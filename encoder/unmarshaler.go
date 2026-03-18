@@ -384,7 +384,7 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 			if err != nil {
 				return err
 			}
-			o.Name = string(obj.(gad.Str))
+			o.FuncName = string(obj.(gad.Str))
 		case 1:
 			o.AllowMethods = true
 		case 3:
@@ -454,7 +454,7 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 					for i2, object := range typesArr {
 						types[i2] = object.(*gad.SymbolInfo)
 					}
-					namedParams[i].Type = types
+					namedParams[i].TypesSymbols = types
 				}
 			}
 			o.NamedParams = *gad.NewNamedParams(namedParams...)
@@ -538,7 +538,7 @@ func (o *BuiltinObjType) UnmarshalBinary(data []byte) error {
 	if err := s.UnmarshalBinary(data[1+offset:]); err != nil {
 		return err
 	}
-	o.NameValue = string(s)
+	o.TypeName = string(s)
 	return nil
 }
 
@@ -561,7 +561,7 @@ func (o *Function) UnmarshalBinary(data []byte) error {
 	if err := s.UnmarshalBinary(data[1+offset:]); err != nil {
 		return err
 	}
-	o.Name = string(s)
+	o.FuncName = string(s)
 	return nil
 }
 

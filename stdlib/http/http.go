@@ -8,20 +8,20 @@ import (
 
 var Module = gad.Dict{
 	"url": &gad.Function{
-		Name:  "url",
-		Value: URL,
+		FuncName: "url",
+		Value:    URL,
 	},
 	"header": &gad.Function{
-		Name:  "header",
-		Value: Header,
+		FuncName: "header",
+		Value:    Header,
 	},
 	"request": &gad.Function{
-		Name:  "request",
-		Value: Request,
+		FuncName: "request",
+		Value:    Request,
 	},
 	"get": &gad.Function{
-		Name:  "get",
-		Value: Get,
+		FuncName: "get",
+		Value:    Get,
 	},
 	"exec": gad.MustNewReflectValue(http.DefaultClient.Do),
 }
