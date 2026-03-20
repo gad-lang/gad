@@ -217,8 +217,7 @@ func (e *CharLit) WriteCode(ctx *CodeWriteContext) {
 
 // DictElementLit represents a map element.
 type DictElementLit struct {
-	Key      string
-	KeyPos   source.Pos
+	Key      Expr
 	ColonPos source.Pos
 	Value    Expr
 }
@@ -266,7 +265,7 @@ func (e *DictElementLit) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
 func (e *DictElementLit) Pos() source.Pos {
-	return e.KeyPos
+	return e.Key.Pos()
 }
 
 // End returns the position of first character immediately after the node.
@@ -274,20 +273,53 @@ func (e *DictElementLit) End() source.Pos {
 	return e.Value.End()
 }
 
+func (e *DictElementLit) BuildKeyExpr() Expr {
+	switch t := e.Key.(type) {
+	case *RawStringLit:
+		return String(t.Value(), e.Key.Pos())
+	case *SymbolLit:
+		return String(t.Value(), e.Key.Pos())
+	case *DecimalLit:
+		return String(t.Value.String(), e.Key.Pos())
+	case *IdentExpr, *IntLit, *UintLit, *FloatLit:
+		return String(t.String(), e.Key.Pos())
+	default:
+		return t
+	}
+}
+
 func (e *DictElementLit) String() string {
 	var (
-		sep string
-		f   = e.Func()
-		v   = e.Value
+		f = e.Func()
+		v = e.Value
+		b strings.Builder
 	)
 
-	if f == nil {
-		sep = ": "
-	} else {
-		v = f
+	switch t := e.Key.(type) {
+	case *IdentExpr, *IntLit, *UintLit, *FloatLit, *DecimalLit, *SymbolLit, *ParenExpr:
+		b.WriteString(e.Key.String())
+	case *StringLit:
+		if v := t.Value(); runehelper.IsIdentifierOrDigitRunes([]rune(v)) {
+			b.WriteString(v)
+		} else {
+			b.WriteString(t.String())
+		}
+	case *RawStringLit:
+		if v := t.Value(); runehelper.IsIdentifierOrDigitRunes([]rune(v)) {
+			b.WriteString(v)
+		} else {
+			b.WriteString(t.String())
+		}
 	}
 
-	return e.Key + sep + v.String()
+	if f == nil {
+		b.WriteString(": ")
+		b.WriteString(v.String())
+	} else {
+		b.WriteString(f.String())
+	}
+
+	return b.String()
 }
 
 func (e *DictElementLit) WriteCode(ctx *CodeWriteContext) {
@@ -298,7 +330,10 @@ func (e *DictElementLit) WriteCode(ctx *CodeWriteContext) {
 	if fun == nil {
 		sep = ": "
 	}
-	ctx.WriteString(e.Key, sep)
+
+	e.Key.WriteCode(ctx)
+
+	ctx.WriteString(sep)
 	if fun != nil {
 		fun.WriteCode(ctx)
 	} else {
@@ -421,7 +456,7 @@ func (e *RawStringLit) String() string {
 	return e.QuotedValue()
 }
 
-func (e *RawStringLit) UnquotedValue() string {
+func (e *RawStringLit) Value() string {
 	if e.Quoted {
 		s, _ := strconv.Unquote(e.Literal)
 		return s
@@ -465,31 +500,6 @@ func (e *NilLit) String() string {
 
 func (e *NilLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("nil")
-}
-
-// KeyValueSepLit represents a key value separator in paren context
-type KeyValueSepLit struct {
-	TokenPos source.Pos
-}
-
-func (e *KeyValueSepLit) ExprNode() {}
-
-// Pos returns the position of first character belonging to the node.
-func (e *KeyValueSepLit) Pos() source.Pos {
-	return e.TokenPos
-}
-
-// End returns the position of first character immediately after the node.
-func (e *KeyValueSepLit) End() source.Pos {
-	return e.TokenPos + 9 // len(nil) == 9
-}
-
-func (e *KeyValueSepLit) String() string {
-	return ";"
-}
-
-func (e *KeyValueSepLit) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString("; ")
 }
 
 // KeyValueLit represents a key value element.
@@ -681,7 +691,7 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 				if len(ctx.Prefix) > 0 {
 					ctx.WriteSecondLine()
 				} else {
-					ctx.WriteLine("")
+					ctx.WriteLine(", ")
 				}
 			}
 		})
@@ -690,9 +700,9 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 
 func (e *KeyValueArrayLit) ToMultiParenExpr() *MultiParenExpr {
 	return &MultiParenExpr{
-		LParen: e.LParen,
-		RParen: e.RParen,
-		Exprs:  append(Exprs{&KeyValueSepLit{}}, e.Elements...),
+		LParen:        e.LParen,
+		RParen:        e.RParen,
+		NamedElements: e.Elements,
 	}
 }
 
@@ -1027,7 +1037,7 @@ func (e *TemplateLit) WriteCode(ctx *CodeWriteContext) {
 
 type CallArgs struct {
 	LParen    source.Pos
-	Args      CallExprArgs
+	Args      CallExprPositionalArgs
 	NamedArgs CallExprNamedArgs
 	RParen    source.Pos
 }
@@ -1071,7 +1081,7 @@ func (c *CallArgs) WriteCode(ctx *CodeWriteContext) {
 func (c *CallArgs) WriteCodeBrace(ctx *CodeWriteContext, lbrace, rbrace string) {
 	ctx.WriteString(lbrace)
 	if c.Args.Valid() {
-		c.Args.WriteCodeWithSep(ctx, c.NamedArgs.Valid())
+		c.Args.WriteCodeWithNamedSep(ctx, c.NamedArgs.Valid())
 	}
 	if c.NamedArgs.Valid() {
 		if !c.Args.Valid() {
@@ -1138,4 +1148,35 @@ func (c *CallArgs) ToFuncParams() (fp *FuncParams, err error) {
 		}
 	}
 	return
+}
+
+type SymbolLit struct {
+	Lit TokenLit
+}
+
+func (s *SymbolLit) Pos() source.Pos {
+	return s.Lit.Pos
+}
+
+func (s *SymbolLit) End() source.Pos {
+	return s.Lit.Pos + source.Pos(len(s.Lit.Literal))
+}
+
+func (s *SymbolLit) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(s.Lit.Literal)
+}
+
+func (s *SymbolLit) ExprNode() {
+}
+
+func (s *SymbolLit) String() string {
+	return "#(" + s.Value() + ")"
+}
+
+func (s *SymbolLit) Value() string {
+	v := s.Lit.Literal[1:]
+	if v[0] == '(' {
+		v = quote.Unquote(v, ")")
+	}
+	return v
 }

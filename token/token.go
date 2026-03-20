@@ -60,6 +60,7 @@ const (
 	RawString
 	RawHeredoc
 	Template
+	Symbol
 	GroupLiteralEnd
 	GroupOperatorBegin
 	GroupBinaryOperatorBegin
@@ -190,6 +191,7 @@ var tokens = [...]string{
 	RawString:       "RAWSTR",
 	RawHeredoc:      "RAWHEREDOC",
 	Template:        "TMPL",
+	Symbol:          "SYMBOL",
 	Null:            "NULL",
 	NotNull:         "NOTNULL",
 	StdIn:           "STDIN",
@@ -314,6 +316,7 @@ var tokenNames = [...]string{
 	RawString:                    "RawString",
 	RawHeredoc:                   "RawHeredoc",
 	Template:                     "Template",
+	Symbol:                       "Symbol",
 	GroupLiteralEnd:              "GroupLiteralEnd",
 	GroupOperatorBegin:           "GroupOperatorBegin",
 	GroupBinaryOperatorBegin:     "GroupBinaryOperatorBegin",
@@ -460,10 +463,6 @@ func (tok Token) Precedence() int {
 		return 9
 	}
 	return LowestPrec
-}
-
-func (tok Token) IsSpecialKeyword() bool {
-	return tok >= Callee && tok <= Module
 }
 
 // IsLiteral returns true if the token is a literal.

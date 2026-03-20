@@ -6,6 +6,7 @@ import (
 
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/quote"
 	"github.com/gad-lang/gad/token"
 	"github.com/shopspring/decimal"
 )
@@ -323,7 +324,7 @@ func EImport(pos source.Pos, moduleName string, lparen, rparen, moduleNamePos so
 		CallArgs: CallArgs{
 			LParen: lparen,
 			RParen: rparen,
-			Args: CallExprArgs{
+			Args: CallExprPositionalArgs{
 				Values: Exprs{String(moduleName, moduleNamePos)}}},
 	}}
 }
@@ -387,17 +388,6 @@ func NamedArgsKW(pos source.Pos) *NamedArgsKeywordExpr {
 	return &NamedArgsKeywordExpr{TokenPos: pos, Literal: token.NamedArgs.String()}
 }
 
-func MapElement(
-	key string,
-	keyPos source.Pos,
-	colonPos source.Pos,
-	value Expr,
-) *DictElementLit {
-	return &DictElementLit{
-		Key: key, KeyPos: keyPos, ColonPos: colonPos, Value: value,
-	}
-}
-
 func EDict(lbrace, rbrace source.Pos, list ...*DictElementLit) *DictExpr {
 	return &DictExpr{LBrace: lbrace, RBrace: rbrace, Elements: list}
 }
@@ -434,9 +424,9 @@ func ECall(
 	ce = &CallExpr{Func: f, CallArgs: CallArgs{LParen: lparen, RParen: rparen}}
 	for _, v := range args {
 		switch t := v.(type) {
-		case CallExprArgs:
+		case CallExprPositionalArgs:
 			ce.Args = t
-		case *CallExprArgs:
+		case *CallExprPositionalArgs:
 			ce.Args = *t
 		case CallExprNamedArgs:
 			ce.NamedArgs = t
@@ -461,8 +451,8 @@ func ArgVar(pos source.Pos, value Expr) *ArgVarLit {
 func NewCallExprArgs(
 	argVar *ArgVarLit,
 	args ...Expr,
-) (ce CallExprArgs) {
-	return CallExprArgs{Var: argVar, Values: args}
+) (ce CallExprPositionalArgs) {
+	return CallExprPositionalArgs{Var: argVar, Values: args}
 }
 
 func NewCallExprNamedArgs(
@@ -499,4 +489,11 @@ func EComputed(start, end source.Pos, stmts ...Stmt) *ComputedExpr {
 
 func LNil(pos source.Pos) *NilLit {
 	return &NilLit{TokenPos: pos}
+}
+
+func LSymbol(pos source.Pos, value string, paren bool) *SymbolLit {
+	if paren {
+		value = "(" + quote.Quote(value, ")")[1:]
+	}
+	return &SymbolLit{Lit: TokenLit{Pos: pos, Token: token.Symbol, Literal: "#" + value}}
 }

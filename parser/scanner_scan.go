@@ -337,7 +337,18 @@ do:
 				}
 			}
 
-			t.Token = token.Template
+			if s.Ch == '(' {
+				insertSemi = true
+				s.Next()
+				t.Literal = "#" + s.ScanStringDelimiter(')')
+				t.Token = token.Symbol
+			} else if runehelper.IsIdentifier(s.Ch) {
+				insertSemi = true
+				t.Literal = "#" + s.ScanIdentifier()
+				t.Token = token.Symbol
+			} else {
+				t.Token = token.Template
+			}
 		default:
 			// next reports unexpected BOMs - don't repeat
 			if ch != source.BOM {

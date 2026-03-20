@@ -307,6 +307,9 @@ func TestScanner_Scan(t *testing.T) {
 		{token.DotFile, "@file"},
 		{token.IsMain, "@main"},
 		{token.Module, "@module"},
+		{token.Symbol, "#abc"},
+		{token.Symbol, "#(abc)"},
+		{token.Symbol, "#(a\n\\)bc)"},
 	})
 }
 

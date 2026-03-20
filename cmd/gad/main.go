@@ -430,7 +430,7 @@ func (r *repl) executeScript() {
 			e := node.ECall(
 				node.EIdent("repr", 0),
 				0, 0,
-				node.CallExprArgs{
+				node.CallExprPositionalArgs{
 					Values: node.Exprs{node.EIdent(builtinRetName, 0)},
 				},
 				node.NewCallExprNamedArgs(nil, nil).

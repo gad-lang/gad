@@ -291,7 +291,7 @@ func (f *File) EqualExpr(expected, actual node.Expr) {
 		f.Equal(expected.Literal, actual.(*node.StringLit).Literal)
 		f.Equal(expected.ValuePos, actual.(*node.StringLit).ValuePos)
 	case *node.RawStringLit:
-		f.Equal(expected.UnquotedValue(), actual.(*node.RawStringLit).UnquotedValue())
+		f.Equal(expected.Value(), actual.(*node.RawStringLit).Value())
 		f.Equal(expected.LiteralPos, actual.(*node.RawStringLit).LiteralPos)
 	case *node.RawHeredocLit:
 		f.Equal(expected.Literal, actual.(*node.RawHeredocLit).Literal)
@@ -404,8 +404,6 @@ func (f *File) EqualExpr(expected, actual node.Expr) {
 	case *node.KeyValuePairLit:
 		f.EqualExpr(expected.Key, actual.(*node.KeyValuePairLit).Key)
 		f.EqualExpr(expected.Value, actual.(*node.KeyValuePairLit).Value)
-	case *node.KeyValueSepLit:
-		f.Equal(expected.TokenPos, actual.(*node.KeyValueSepLit).TokenPos)
 	case *node.FuncWithMethodsExpr:
 		actual := actual.(*node.FuncWithMethodsExpr)
 		f.Equal(expected.FuncToken, actual.FuncToken)
@@ -431,6 +429,8 @@ func (f *File) EqualExpr(expected, actual node.Expr) {
 		f.EqualStmts(expected.Stmts, actual.Stmts)
 	case *node.IsMainLit:
 		f.Equal(expected.TokenPos, actual.(*node.IsMainLit).TokenPos)
+	case *node.SymbolLit:
+		f.Equal(&expected.Lit, &actual.(*node.SymbolLit).Lit)
 	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}
@@ -497,8 +497,7 @@ func (f *File) EqualDictElements(
 ) {
 	f.Equal(len(expected), len(actual))
 	for i := 0; i < len(expected); i++ {
-		f.Equal(expected[i].Key, actual[i].Key)
-		f.Equal(expected[i].KeyPos, actual[i].KeyPos)
+		f.EqualExpr(expected[i].Key, actual[i].Key)
 		f.Equal(expected[i].ColonPos, actual[i].ColonPos)
 		f.EqualExpr(expected[i].Value, actual[i].Value)
 	}

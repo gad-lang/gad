@@ -742,7 +742,7 @@ func TestCompiler_Compile(t *testing.T) {
 		),
 	))
 
-	expectCompile(t, `param (a=1, **na)`, bytecode(
+	expectCompile(t, `param (;a=1, **na)`, bytecode(
 		Array{Int(1)},
 		compFunc(concatInsts(
 			makeInst(OpGetLocal, 0),
@@ -3405,7 +3405,7 @@ func TestCompilerKeyValue(t *testing.T) {
 }
 
 func TestCompilerMultiparen(t *testing.T) {
-	expectCompile(t, `(1,*[2,3],a=4,**{})`, bytecode(
+	expectCompile(t, `(1,*[2,3];a=4,**{})`, bytecode(
 		Array{
 			Int(1),
 			Int(2),
@@ -3461,6 +3461,22 @@ func TestCompiler_CompileReturnAssign(t *testing.T) {
 	))
 
 	expectCompileError(t, `return = 1`, "Parse Error: expected *Ident, found *node.IntLit\n\tat (main):1:10")
+}
+
+func TestCompiler_CompileSymbol(t *testing.T) {
+	expectCompile(t, `#a;#(A
+bc \)
+x	z
+)`, bytecode(
+		Array{Str("a"), Str("A\nbc )\nx\tz\n")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 1),
+			makeInst(OpPop),
+			makeInst(OpConstant, 2),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
 }
 
 func expectCompileError(t *testing.T, script string, errStr string) {

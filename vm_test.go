@@ -73,6 +73,25 @@ func TestVMDict(t *testing.T) {
 	testExpectRun(t, `return {a:1,b:2} - ["a"]`, nil, Dict{"b": Int(2)})
 	testExpectRun(t, `return {a:1,b:2} - {a:1}`, nil, Dict{"b": Int(2)})
 	testExpectRun(t, `return {a:1,b:2} - (;a)`, nil, Dict{"b": Int(2)})
+	testExpectRun(t, `z := (;z1=3); return ({key1: 1, #(key2): 2, #(key 3): #(3), #(key 4): #(value	4), true: 5, false: 6, 
+yes: 7, no: 8, 1: 9, u2: 10, 3d: 11, 67.2345678986987654005678d: 12, 4.56: 13, (2**3): 14, (z):15})`, nil,
+		Dict{
+			"(;z1=3)":                   Int(15),
+			"1":                         Int(9),
+			"3":                         Int(11),
+			"4.56":                      Int(13),
+			"67.2345678986987654005678": Int(12),
+			"8":                         Int(14),
+			"false":                     Int(6),
+			"key 3":                     Str("3"),
+			"key 4":                     Str("value\t4"),
+			"key1":                      Int(1),
+			"key2":                      Int(2),
+			"no":                        Int(8),
+			"true":                      Int(5),
+			"u2":                        Int(10),
+			"yes":                       Int(7),
+		})
 	testExpectRun(t, `param d; return dict((userData(d) + {a:1}).|items()), dict(userData(d))`,
 		newOpts().Args(MustNewReflectValue(&d)),
 		Array{Dict{"a": Int(1)}, Dict{"a": Int(1)}})
@@ -192,21 +211,21 @@ func TestVMDecl(t *testing.T) {
 	testExpectRun(t, `param *a; return a`,
 		newOpts().Args(Int(1), Int(2)), Array{Int(1), Int(2)})
 
-	testExpectRun(t, `param (a, b=2); return [a, b]`, newOpts().Args(Int(1)),
+	testExpectRun(t, `param (a; b=2); return [a, b]`, newOpts().Args(Int(1)),
 		Array{Int(1), Int(2)})
-	testExpectRun(t, `param (a=-1,**namedArgs); return [a, namedArgs.dict]`, newOpts().
+	testExpectRun(t, `param (;a=-1,**namedArgs); return [a, namedArgs.dict]`, newOpts().
 		NamedArgs(Dict{"b": Int(2)}),
 		Array{Int(-1), Dict{"b": Int(2)}})
 	testExpectRun(t, `param (;a=-1,**namedArgs); return [a, namedArgs.dict]`, newOpts().
 		NamedArgs(Dict{"a": Int(1), "b": Int(2)}),
 		Array{Int(1), Dict{"b": Int(2)}})
-	testExpectRun(t, `param (**namedArgs); return namedArgs.dict`, newOpts().
+	testExpectRun(t, `param (;**namedArgs); return namedArgs.dict`, newOpts().
 		NamedArgs(Dict{"a": Int(100)}),
 		Dict{"a": Int(100)})
-	testExpectRun(t, `param (a, b=100,**namedArgs); return [a, b, namedArgs.dict]`, newOpts().Args(Int(1)).
+	testExpectRun(t, `param (a; b=100,**namedArgs); return [a, b, namedArgs.dict]`, newOpts().Args(Int(1)).
 		NamedArgs(Dict{"b": Int(2), "c": Int(3)}),
 		Array{Int(1), Int(2), Dict{"c": Int(3)}})
-	testExpectRun(t, `param (a, b=100,**namedArgs); return [a, b, namedArgs.dict]`, newOpts().Args(Int(1)).
+	testExpectRun(t, `param (a; b=100,**namedArgs); return [a, b, namedArgs.dict]`, newOpts().Args(Int(1)).
 		NamedArgs(Dict{"c": Int(2), "d": Int(3)}),
 		Array{Int(1), Int(100), Dict{"c": Int(2), "d": Int(3)}})
 
@@ -830,7 +849,7 @@ func TestVMRegexp(t *testing.T) {
 }
 
 func TestVMIterator(t *testing.T) {
-	rg := `Range := Class("Range", fields=(;
+	rg := `Range := Class("Range"; fields=(;
 				Start=0
 				End=2
 			))`
@@ -1283,17 +1302,17 @@ func TestVMBuiltinFunction(t *testing.T) {
 	testExpectRun(t, `return typeName(append)`, nil, Str("builtinFunction"))
 	testExpectRun(t, `return typeName((;))`, nil, Str("keyValueArray"))
 	testExpectRun(t, `return typeName((;a,b=2))`, nil, Str("keyValueArray"))
-	testExpectRun(t, `return typeName(func(**na){return na}(;a,b=2))`, nil, Str("namedArgs"))
+	testExpectRun(t, `return typeName(func(;**na){return na}(;a,b=2))`, nil, Str("namedArgs"))
 	testExpectRun(t, `return typeName(buffer())`, nil, Str("buffer"))
 
 	testExpectRun(t, `b := buffer(); return write(b, "abc")`, nil, Int(3))
 	testExpectRun(t, `b := buffer(); write(b, "abc"); return str(b)`, nil, Str("abc"))
 	testExpectRun(t, `b := buffer(); write(b, "abc"); return str(read(b))`, nil, Str("abc"))
-	testExpectRun(t, `b := buffer(); write(b, "abc"); return [str(read(b,limit=2)), str(b)]`, nil,
+	testExpectRun(t, `b := buffer(); write(b, "abc"); return [str(read(b;limit=2)), str(b)]`, nil,
 		Array{Str("ab"), Str("c")})
-	testExpectRun(t, `b := buffer(); write(b, "abc"); return [str(read(b,limit=1)),str(read(b,limit=1)), str(b)]`,
+	testExpectRun(t, `b := buffer(); write(b, "abc"); return [str(read(b;limit=1)),str(read(b;limit=1)), str(b)]`,
 		nil, Array{Str("a"), Str("b"), Str("c")})
-	testExpectRun(t, `b := buffer(); c := bytes(length=2); write(b, "abc"); return [str(read(b, c)),str(read(b, c)), str(char(c[0]))]`,
+	testExpectRun(t, `b := buffer(); c := bytes(;length=2); write(b, "abc"); return [str(read(b, c)),str(read(b, c)), str(char(c[0]))]`,
 		nil, Array{Str("ab"), Str("c"), Str("c")})
 
 	testExpectRun(t, `w := buffer(); r := buffer(); write(r, "abc"); return [copy(w, r), str(w)]`,
@@ -1855,7 +1874,7 @@ return [
 	testExpectRun(t, `return sprintf("test %d %t", 1, true)`,
 		newOpts().Out(&stdOut).Skip2Pass(), Str("test 1 true"))
 	testExpectRun(t, `f := func(*args;**kwargs){ return [args, kwargs.dict] };
-		return wrap(f, 1, a=3)(2, b=4)`,
+		return wrap(f, 1; a=3)(2; b=4)`,
 		nil, Array{Array{Int(1), Int(2)}, Dict{"a": Int(3), "b": Int(4)}})
 
 	expectErrIs(t, `printf()`, nil, ErrWrongNumArguments)
@@ -2038,14 +2057,14 @@ func TestVMClass(t *testing.T) {
 Point := Class(
 	"Point";
 	new {
-		// trace: new(this;**fields) -> default(**fields)
-		(this;**fields) => this(x=10, y=20,**fields)
+		// trace: new(this;**fields) -> default(;**fields)
+		(this;**fields) => this(;x=10, y=20,**fields)
 
-		// trace: new(this, x, y) -> new(this;**fields) -> default(**fields)
-        (this, x, y) => this(x=x, y=y)
+		// trace: new(this, x, y) -> new(this;**fields) -> default(;**fields)
+        (this, x, y) => this(;x=x, y=y)
 		
-		// trace: new(this, x) -> default(**fields)
-		(this, x) => this.@new(x=x)
+		// trace: new(this, x) -> default(;**fields)
+		(this, x) => this.@new(;x=x)
 	}
 )
 
@@ -2200,7 +2219,7 @@ Point := Class(
 		X(this) => "(x=" + this.x + ")"
 	],
 	new(this, x uint, y uint) {
-		this(x=x, y=y)
+		this(;x=x, y=y)
 	}
 )
 `
@@ -2219,12 +2238,12 @@ Point := Class(
 
 	testExpectRun(t, s1+`
 o1 := Point()
-o2 := Point(x=1,y=2)
+o2 := Point(;x=1,y=2)
 
 o3 := Point()
 o3.px = 10
 
-o4 := Point(y=11)
+o4 := Point(;y=11)
 o4pyArr := [o4.py]
 o4.py = 12
 o4pyArr += o4.py
@@ -2346,7 +2365,7 @@ met print(state PrinterState, p Point2) {
 Point3 := Class("Point3")
 
 met Point3(this, r int) {
-	this(r=r)
+	this(;r=r)
 }
 
 met @selfAssignOperator(_ TSelfAssignOperatorMul, p Point3, val int) {
@@ -4414,8 +4433,8 @@ func TestVMMultiParen(t *testing.T) {
 		},
 	}
 	testExpectRun(t, "return (1,*[2,3];a=4,**{b:5})", nil, r)
-	testExpectRun(t, "return (1,2,*[3],a=4,b=5)", nil, r)
-	testExpectRun(t, "return (1,2,*[3],a=4,\"b\"=5)", nil, r)
+	testExpectRun(t, "return (1,2,*[3];a=4,b=5)", nil, r)
+	testExpectRun(t, "return (1,2,*[3];a=4,\"b\"=5)", nil, r)
 }
 
 func TestVMTailCall(t *testing.T) {
@@ -4430,13 +4449,13 @@ func TestVMTailCall(t *testing.T) {
 
 	testExpectRun(t, `
 	var (fac, v1 = 100, v2 = 200)
-	fac = func(n, *args,**na) {
+	fac = func(n, *args;**na) {
 		if n == 1 {
 			return [args, @args.array, na.dict, @nargs.dict]
 		}
 		v1++
 		v2++
-		return fac(n-1, v1, v2,x1=v1,x2=v2)
+		return fac(n-1, v1, v2;x1=v1,x2=v2)
 	}
 	return fac(10, 2, 3)`, nil, Array{
 		Array{Int(109), Int(209)},
@@ -4453,7 +4472,7 @@ func TestVMTailCall(t *testing.T) {
 		}
 		v1++
 		v2++
-		return fac(n-1,x1=v1,x2=v2)
+		return fac(n-1;x1=v1,x2=v2)
 	}
 	return fac(10)`, nil, Array{Dict{"x1": Int(109), "x2": Int(209)}})
 
@@ -4467,7 +4486,7 @@ func TestVMTailCall(t *testing.T) {
 		v2++
 		return fac(n-1,v1,v2;x1=v1,x2=v2)
 	}
-	return fac(4,0,0,x3=2)`, nil, Array{Int(103), Int(203), Dict{"x1": Int(103), "x2": Int(203)}})
+	return fac(4,0,0;x3=2)`, nil, Array{Int(103), Int(203), Dict{"x1": Int(103), "x2": Int(203)}})
 
 	testExpectRun(t, `
 	var (fac, v1 = 100, v2 = 200)
@@ -4735,10 +4754,10 @@ func TestVMCall(t *testing.T) {
 
 func TestVMCallCompiledFunction(t *testing.T) {
 	testExpectRun(t, `
-	f := func(*argv, **nav) {
+	f := func(*argv; **nav) {
 		return [copy(@args.values), @nargs.dict, str(@callee)]
 	}
-	return f(1,2,3, *[8,9],na0=4,na1=5)`, nil,
+	return f(1,2,3, *[8,9];na0=4,na1=5)`, nil,
 		Array{
 			Array{Int(1), Int(2), Int(3), Int(8), Int(9)},
 			Dict{"na0": Int(4), "na1": Int(5)},
@@ -4806,10 +4825,10 @@ func TestVMCallCompiledFunction(t *testing.T) {
 	// }
 
 	testExpectRun(t, `
-	f := func(arg0, arg1, *varg, na0=100, **na) {
+	f := func(arg0, arg1, *varg; na0=100, **na) {
 		return [arg0, arg1, copy(varg), na0, na.dict]
 	}
-	return f(1,2,3,na0=4,na1=5)`, nil,
+	return f(1,2,3;na0=4,na1=5)`, nil,
 		Array{Int(1), Int(2), Array{Int(3)}, Int(4), Dict{"na1": Int(5)}})
 }
 
@@ -4862,7 +4881,7 @@ func TestVMCallWithNamedArgs(t *testing.T) {
 	testExpectRun(t, `return func(x;a=2) { return x+a }(1;a=3,**{"a":4})`, nil, Int(5))
 	testExpectRun(t, `return func(x;a=2) { return x+a }(1;a=4,**{"a":90})`, nil, Int(91))
 	testExpectRun(t, `return func(x;a=2) { return x+a }(1;a=3,**{})`, nil, Int(4))
-	testExpectRun(t, `return func(*z,a="A", b="B", **c) { return [z,a,b,c.dict] }(5,*[6,7,8,9],**{"a":"na", "b":"nb", "c":"C", "d":"D"})`,
+	testExpectRun(t, `return func(*z;a="A", b="B", **c) { return [z,a,b,c.dict] }(5,*[6,7,8,9];**{"a":"na", "b":"nb", "c":"C", "d":"D"})`,
 		nil, Array{Array{Int(5), Int(6), Int(7), Int(8), Int(9)}, Str("na"), Str("nb"), Dict{"c": Str("C"), "d": Str("D")}})
 	testExpectRun(t, `return func(*z;a=false, b="B", **c) { return [a,b,c.dict] }(5,*[6,7,8,9];a=true,**{"a":"na", "b":"nb", "c":"C", "d":"D"})`,
 		nil, Array{Str("na"), Str("nb"), Dict{"c": Str("C"), "d": Str("D")}})
@@ -4870,32 +4889,32 @@ func TestVMCallWithNamedArgs(t *testing.T) {
 		nil, Array{True, Str("nb"), Dict{"c": Str("C"), "d": Str("D")}})
 	testExpectRun(t, `return func(x, y, *z;a="A", b="B", **c) { return [x,y,z,a,b,c.dict] }(5,*[6,7,8,9];**{"a":"na", "b":"nb", "c":"C", "d":"D"})`,
 		nil, Array{Int(5), Int(6), Array{Int(7), Int(8), Int(9)}, Str("na"), Str("nb"), Dict{"c": Str("C"), "d": Str("D")}})
-	testExpectRun(t, `return func(x, y, *z;a="A", b="B", **c) { return [x,y,z,a,b,c.dict] }(5,*[6,7,8,9],**{})`,
+	testExpectRun(t, `return func(x, y, *z;a="A", b="B", **c) { return [x,y,z,a,b,c.dict] }(5,*[6,7,8,9];**{})`,
 		nil, Array{Int(5), Int(6), Array{Int(7), Int(8), Int(9)}, Str("A"), Str("B"), Dict{}})
 	testExpectRun(t, `truncate := func(text; limit=3) {if len(text) > limit { return text[:limit]+"..." }; return text}
 return [ truncate("abcd"), truncate("abc"), truncate("ab"),	truncate("abcd";limit=2) ]
 `, nil, Array{Str("abc..."), Str("abc"), Str("ab"), Str("ab...")})
 	testExpectRun(t, `
-f1 := func(b=1,**c) { return c }
-f2 := func(a=5,**c) {
+f1 := func(;b=1,**c) { return c }
+f2 := func(;a=5,**c) {
 	z := f1(;flag, **c)
 	return str(c),str(z)
 }
 return f2(;a=1,b=2,c=3,d=4,e=5)
 `, nil, Array{Str("‹namedArgs: (;b=2, c=3, d=4, e=5)›"), Str("‹namedArgs: (;flag, c=3, d=4, e=5)›")})
 
-	testExpectRun(t, `return func(a=2) { return a }(**(;a=3))`, nil, Int(3))
-	testExpectRun(t, `f := func(**kw){return kw};return str(f(;x=1,x=2))`, nil, Str("‹namedArgs: (;x=1, x=2)›"))
-	testExpectRun(t, `f := func(**kw){return kw};return str(f(;x=2).dict)`, nil, Str(`{x: 2}`))
-	testExpectRun(t, `f := func(**kw){return kw};return str(f(;x=1,x=2).array)`, nil, Str(`(;x=1, x=2)`))
+	testExpectRun(t, `return func(;a=2) { return a }(;**(;a=3))`, nil, Int(3))
+	testExpectRun(t, `f := func(;**kw){return kw};return str(f(;x=1,x=2))`, nil, Str("‹namedArgs: (;x=1, x=2)›"))
+	testExpectRun(t, `f := func(;**kw){return kw};return str(f(;x=2).dict)`, nil, Str(`{x: 2}`))
+	testExpectRun(t, `f := func(;**kw){return kw};return str(f(;x=1,x=2).array)`, nil, Str(`(;x=1, x=2)`))
 	testExpectRun(t, `f := func(;x=1,**kw){return kw};return str(f(;x=1,x=2).ready)`, nil, Str(`(;x=1, x=2)`))
 	testExpectRun(t, `f := func(;x=1,**kw){return kw};return str(f(;x=1,x=2).readyNames)`, nil, Str(`["x"]`))
 	testExpectRun(t, `f := func(;x=1,**kw){return [1, kw]};_, ret := f(;x=1,x=2); return str(ret.ready)`, nil, Str(`(;x=1, x=2)`))
 	testExpectRun(t, `f := func(;x=1,**kw){return kw};return str(f(;x=1,x=2,y=3,**{x:4}).src)`, nil, Str(`[(;x=1, x=2, y=3, x=4)]`))
-	testExpectRun(t, `f := func(**kw){return kw};return str(f(;**(func() {return [[100=1],["x"=2]]})()))`, nil, Str("‹namedArgs: (;0=[100=1], 1=[x=2])›"))
-	testExpectRun(t, `f := func(**kw){return kw};return str(f(;**(;100=1,x=2,flag,x=4,"a b"=7)))`, nil, Str(`‹namedArgs: (;100=1, x=2, flag, x=4, "a b"=7)›`))
-	testExpectRun(t, `f := func(**kw){return kw};return str(f(;"x y"=2,"user.name"="the user",abc="de"))`, nil, Str(`‹namedArgs: (;"x y"=2, "user.name"="the user", abc="de")›`))
-	testExpectRun(t, `f := func(**kw){return @nargs};return str(f(;"x y"=2,"user.name"="the user",abc="de"))`, nil, Str(`‹namedArgs: (;"x y"=2, "user.name"="the user", abc="de")›`))
+	testExpectRun(t, `f := func(;**kw){return kw};return str(f(;**(func() {return [[100=1],["x"=2]]})()))`, nil, Str("‹namedArgs: (;0=[100=1], 1=[x=2])›"))
+	testExpectRun(t, `f := func(;**kw){return kw};return str(f(;**(;100=1,x=2,flag,x=4,"a b"=7)))`, nil, Str(`‹namedArgs: (;100=1, x=2, flag, x=4, "a b"=7)›`))
+	testExpectRun(t, `f := func(;**kw){return kw};return str(f(;"x y"=2,"user.name"="the user",abc="de"))`, nil, Str(`‹namedArgs: (;"x y"=2, "user.name"="the user", abc="de")›`))
+	testExpectRun(t, `f := func(;**kw){return @nargs};return str(f(;"x y"=2,"user.name"="the user",abc="de"))`, nil, Str(`‹namedArgs: (;"x y"=2, "user.name"="the user", abc="de")›`))
 
 	testExpectRun(t, `return func(;a int=2) { return a }()`, nil, Int(2))
 	testExpectRun(t, `return func(;a int=2) { return a }(;a=3)`, nil, Int(3))
@@ -4969,7 +4988,7 @@ return [
 	fn(1,2),
 	fn(1,2,*[3,4]),
 	fn(*[3,4]; **{a:5}),
-	fn(**{a:5}),
+	fn(;**{a:5}),
 	fn(1,2,*[3,4]; **{a:5}),
 	fn(1,2,*[3,4]; a=5, **{b:6}),
 ]
@@ -5011,11 +5030,11 @@ return [
 	fn(1,2),
 	fn(1,2,*[3,4]),
 	fn(*[3,4]; **{a:5}),
-	fn(**{a:5}),
+	fn(;**{a:5}),
 	fn(1,2,*[3,4]; **{a:5}),
 	fn(1,2,*[3,4]; a=5, **{b:6}),
-	fn(*[1,2], **{a:3}),
-	fn(*[1,2], a=3, **{b:4}),
+	fn(*[1,2]; **{a:3}),
+	fn(*[1,2]; a=3, **{b:4}),
 ]
 `
 	testExpectRun(t, scr,

@@ -83,11 +83,13 @@ const (
 	CodeWriteContextFlagFormatDictItemInNewLine
 	CodeWriteContextFlagFormatKeyValueArrayItemInNewLine
 	CodeWriteContextFlagFormatCallParamsInNewLine
+	CodeWriteContextFlagFormatParemValuesInNewLine
 
 	CodeWriteContextFlagFormat = CodeWriteContextFlagFormatArrayItemInNewLine |
 		CodeWriteContextFlagFormatDictItemInNewLine |
 		CodeWriteContextFlagFormatKeyValueArrayItemInNewLine |
-		CodeWriteContextFlagFormatCallParamsInNewLine
+		CodeWriteContextFlagFormatCallParamsInNewLine |
+		CodeWriteContextFlagFormatParemValuesInNewLine
 )
 
 type CodeWriteContext struct {

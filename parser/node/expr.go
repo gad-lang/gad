@@ -16,7 +16,6 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/gad-lang/gad/internal"
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/repr"
@@ -415,9 +414,9 @@ func (e *ParenExpr) WriteCode(ctx *CodeWriteContext) {
 
 func (e *ParenExpr) ToMultiParenExpr() *MultiParenExpr {
 	return &MultiParenExpr{
-		Exprs:  Exprs{e.Expr},
-		LParen: e.LParen,
-		RParen: e.RParen,
+		PositionalElements: Exprs{e.Expr},
+		LParen:             e.LParen,
+		RParen:             e.RParen,
 	}
 }
 
@@ -427,9 +426,10 @@ func (e *ParenExpr) Items() Exprs {
 
 // MultiParenExpr represents a parenthesis wrapped expressions.
 type MultiParenExpr struct {
-	Exprs  []Expr
-	LParen source.Pos
-	RParen source.Pos
+	LParen             source.Pos
+	RParen             source.Pos
+	PositionalElements Exprs
+	NamedElements      Exprs
 }
 
 func (e *MultiParenExpr) ExprNode() {}
@@ -446,25 +446,22 @@ func (e *MultiParenExpr) End() source.Pos {
 
 func (e *MultiParenExpr) String() string {
 	var s strings.Builder
-	s.WriteByte('(')
-	var left, right = e.Split()
+	s.WriteString("(,")
 
-	if l := len(left) + len(right); l < 2 {
-		if l == 0 || !internal.TSType(append(left, right...)[0], &ArgVarLit{}) {
-			s.WriteString(", ")
-		}
+	if len(e.PositionalElements) > 0 {
+		s.WriteString(" ")
 	}
 
-	for i, expr := range left {
+	for i, expr := range e.PositionalElements {
 		if i > 0 {
 			s.WriteString(", ")
 		}
 		s.WriteString(expr.String())
 	}
 
-	if len(right) > 0 {
+	if len(e.NamedElements) > 0 {
 		s.WriteString("; ")
-		for i, expr := range right {
+		for i, expr := range e.NamedElements {
 			if i > 0 {
 				s.WriteString(", ")
 			}
@@ -479,53 +476,35 @@ func (e *MultiParenExpr) ToMultiParenExpr() *MultiParenExpr {
 	return e
 }
 
-func (e *MultiParenExpr) Split() (left []Expr, right []Expr) {
-	var (
-		add = func(expr Expr) {
-			left = append(left, expr)
-		}
-		righting   bool
-		startRight = func() {
-			righting = true
-			add = func(expr Expr) {
-				right = append(right, expr)
-			}
-		}
-	)
-
-expr:
-	for _, expr := range e.Exprs {
-		if !righting {
-			switch t := expr.(type) {
-			case *KeyValueSepLit:
-				startRight()
-				continue expr
-			case *KeyValuePairLit, *NamedArgVarLit:
-				startRight()
-			case *ArgVarLit:
-				add(t)
-				startRight()
-				continue expr
-			}
-		}
-
-		add(expr)
-	}
-	return
-}
-
 func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteSingleByte('(')
+	ctx.WriteString("(,")
+	nl := ctx.Flags.Has(CodeWriteContextFlagFormatParemValuesInNewLine)
 
-	left, right := e.Split()
-	ctx.WriteExprs(", ", left...)
+	ctx.WriteItems(nl,
+		len(e.PositionalElements),
+		func(i int) {
+			e.PositionalElements[i].WriteCode(ctx)
+		},
+		func(newLine bool) {
+			if len(e.PositionalElements) > 0 {
+				ctx.WriteString("; ")
+			} else if newLine {
+				ctx.WriteSecondLine()
+			}
+		})
 
-	if len(right) > 0 {
-		ctx.WriteString("; ")
-		ctx.WriteExprs(", ", right...)
-	}
+	ctx.WriteItems(nl,
+		len(e.PositionalElements),
+		func(i int) {
+			e.PositionalElements[i].WriteCode(ctx)
+		},
+		func(newLine bool) {
+			if newLine {
+				ctx.WriteSecondLine()
+			}
+		})
 
-	ctx.WriteSingleByte(')')
+	ctx.WriteString(")")
 }
 
 func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError) {
@@ -533,11 +512,9 @@ func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError
 	args.LParen = e.LParen
 	args.RParen = e.RParen
 
-	left, right := e.Split()
-
 	var n Expr
 
-	for _, n = range left {
+	for _, n = range e.PositionalElements {
 		switch t := n.(type) {
 		case *ArgVarLit:
 			args.Args.Var = t
@@ -546,7 +523,7 @@ func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError
 		}
 	}
 
-	for _, n = range right {
+	for _, n = range e.NamedElements {
 		switch t := n.(type) {
 		case *KeyValueLit:
 			na := &NamedArgExpr{}
@@ -601,7 +578,7 @@ func (e *MultiParenExpr) ToFuncParams() (params FuncParams, err *NodeError) {
 	)
 
 exps:
-	for _, n = range e.Exprs {
+	for i, n = range e.PositionalElements {
 		switch t := n.(type) {
 		case *IdentExpr:
 			params.Args.Values = append(params.Args.Values, &TypedIdentExpr{Ident: t})
@@ -611,69 +588,60 @@ exps:
 			switch t2 := t.Value.(type) {
 			case *IdentExpr:
 				params.Args.Var = &TypedIdentExpr{Ident: t2}
-				i++
 				break exps
 			case *TypedIdentExpr:
 				params.Args.Var = t2
-				i++
 				break exps
 			default:
 				err = NewExpectedError(t.Value, &IdentExpr{})
 				return
 			}
-		case *KeyValuePairLit, *NamedArgVarLit:
-			break exps
-		case *KeyValueSepLit:
 		default:
-			err = NewExpectedError(t, &IdentExpr{}, &TypedIdentExpr{}, &NamedArgVarLit{}, &KeyValuePairLit{},
-				&ArgVarLit{})
+			err = NewExpectedError(t, &IdentExpr{}, &TypedIdentExpr{}, &ArgVarLit{})
 			return
 		}
-		i++
 	}
 
-	if i < len(e.Exprs) {
-	nexps:
-		for _, n = range e.Exprs[i:] {
-			switch t := n.(type) {
-			case *KeyValuePairLit:
-				switch t2 := t.Key.(type) {
-				case *IdentExpr:
-					params.NamedArgs.Names = append(params.NamedArgs.Names, &TypedIdentExpr{Ident: t2})
-					params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
-				case *TypedIdentExpr:
-					params.NamedArgs.Names = append(params.NamedArgs.Names, t2)
-					params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
-				default:
-					err = NewExpectedError(t2, &IdentExpr{}, &TypedIdentExpr{})
-					return
-				}
-			case *NamedArgVarLit:
-				switch t2 := t.Value.(type) {
-				case *IdentExpr:
-					params.NamedArgs.Var = t2
-					i++
-					break nexps
-				case *TypedIdentExpr:
-					params.NamedArgs.Var = t2.Ident
-					i++
-					break nexps
-				default:
-					err = NewExpectedError(t2, &IdentExpr{}, &TypedIdentExpr{})
-					return
-				}
-			case *KeyValueSepLit:
+	if i < len(e.PositionalElements)-1 {
+		err = NewUnExpectedError(e.PositionalElements[i])
+		return
+	}
+
+nexps:
+	for i, n = range e.NamedElements {
+		switch t := n.(type) {
+		case *KeyValuePairLit:
+			switch t2 := t.Key.(type) {
+			case *IdentExpr:
+				params.NamedArgs.Names = append(params.NamedArgs.Names, &TypedIdentExpr{Ident: t2})
+				params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
+			case *TypedIdentExpr:
+				params.NamedArgs.Names = append(params.NamedArgs.Names, t2)
+				params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
 			default:
-				err = NewExpectedError(t, &KeyValuePairLit{}, &NamedArgVarLit{})
+				err = NewExpectedError(t2, &IdentExpr{}, &TypedIdentExpr{})
 				return
 			}
-			i++
-		}
-
-		if i < len(e.Exprs) {
-			err = NewUnExpectedError(e.Exprs[i])
+		case *NamedArgVarLit:
+			switch t2 := t.Value.(type) {
+			case *IdentExpr:
+				params.NamedArgs.Var = t2
+				break nexps
+			case *TypedIdentExpr:
+				params.NamedArgs.Var = t2.Ident
+				break nexps
+			default:
+				err = NewExpectedError(t2, &IdentExpr{}, &TypedIdentExpr{})
+				return
+			}
+		default:
+			err = NewExpectedError(t, &KeyValuePairLit{}, &NamedArgVarLit{})
 			return
 		}
+	}
+
+	if i < len(e.NamedElements)-1 {
+		err = NewUnExpectedError(e.NamedElements[i])
 	}
 
 	return
@@ -873,21 +841,21 @@ func (e *UnaryExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteSingleByte(')')
 }
 
-// CallExprArgs represents a call expression arguments.
-type CallExprArgs struct {
+// CallExprPositionalArgs represents a call expression arguments.
+type CallExprPositionalArgs struct {
 	Values []Expr
 	Var    *ArgVarLit
 }
 
-func (a *CallExprArgs) AppendValues(e ...Expr) {
+func (a *CallExprPositionalArgs) AppendValues(e ...Expr) {
 	a.Values = append(a.Values, e...)
 }
 
-func (a *CallExprArgs) Valid() bool {
+func (a *CallExprPositionalArgs) Valid() bool {
 	return len(a.Values) > 0 || a.Var != nil
 }
 
-func (a *CallExprArgs) String() string {
+func (a *CallExprPositionalArgs) String() string {
 	var s []string
 	for _, v := range a.Values {
 		s = append(s, v.String())
@@ -898,24 +866,29 @@ func (a *CallExprArgs) String() string {
 	return strings.Join(s, ", ")
 }
 
-func (a *CallExprArgs) WriteCode(ctx *CodeWriteContext) {
-	a.WriteCodeWithSep(ctx, false)
+func (a *CallExprPositionalArgs) WriteCode(ctx *CodeWriteContext) {
+	a.WriteCodeWithNamedSep(ctx, false)
 }
 
-func (a *CallExprArgs) WriteCodeWithSep(ctx *CodeWriteContext, sep bool) {
+func (a *CallExprPositionalArgs) WriteCodeWithNamedSep(ctx *CodeWriteContext, namedSep bool) {
+	a.WriteCodeWithNamedSepFlag(CodeWriteContextFlagFormatCallParamsInNewLine, ctx, namedSep)
+}
+
+func (a *CallExprPositionalArgs) WriteCodeWithNamedSepFlag(flag CodeWriteContextFlag, ctx *CodeWriteContext, namedSep bool) {
 	values := a.Values
+
 	if a.Var != nil {
 		values = append(values, a.Var)
 	}
 
 	ctx.WriteItems(
-		ctx.Flags.Has(CodeWriteContextFlagFormatCallParamsInNewLine),
+		ctx.Flags.Has(flag),
 		len(values),
 		func(i int) {
 			values[i].WriteCode(ctx)
 		},
 		func(newLine bool) {
-			if sep {
+			if namedSep {
 				ctx.WriteString("; ")
 			} else if newLine {
 				ctx.WriteSecondLine()
@@ -1058,8 +1031,12 @@ func (a *CallExprNamedArgs) String() string {
 }
 
 func (a *CallExprNamedArgs) WriteCode(ctx *CodeWriteContext) {
+	a.WriteCodeWithFlag(CodeWriteContextFlagFormatCallParamsInNewLine, ctx)
+}
+
+func (a *CallExprNamedArgs) WriteCodeWithFlag(flag CodeWriteContextFlag, ctx *CodeWriteContext) {
 	ctx.WriteItems(
-		ctx.Flags.Has(CodeWriteContextFlagFormatCallParamsInNewLine),
+		ctx.Flags.Has(flag),
 		len(a.Names),
 		func(i int) {
 			name := a.Names[i]

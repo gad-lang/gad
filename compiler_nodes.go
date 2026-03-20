@@ -503,7 +503,7 @@ func (c *Compiler) compileAssignStmt(
 			}
 			return c.compileCallExpr(&node.CallExpr{
 				Func: &node.IdentExpr{Name: BuiltinStdIO.String()},
-				CallArgs: node.CallArgs{Args: node.CallExprArgs{Values: []node.Expr{
+				CallArgs: node.CallArgs{Args: node.CallExprPositionalArgs{Values: []node.Expr{
 					&node.IntLit{Value: fd},
 					rhs[0],
 				}}},
@@ -1002,7 +1002,7 @@ func (c *Compiler) compileFuncStmt(nd *node.FuncStmt) (err error) {
 	if err = c.Compile(&node.CallExpr{
 		Func: node.EIdent(TFunc.Name(), nd.Pos()),
 		CallArgs: node.CallArgs{
-			Args: node.CallExprArgs{
+			Args: node.CallExprPositionalArgs{
 				Values: []node.Expr{nd.Func},
 			},
 		},
@@ -1266,7 +1266,7 @@ func (c *Compiler) compileFuncWithMethodsStmt(nd *node.FuncWithMethodsStmt) erro
 		Func: node.EIdent(BuiltinFunc.String(), nd.Pos()),
 
 		CallArgs: node.CallArgs{
-			Args: node.CallExprArgs{
+			Args: node.CallExprPositionalArgs{
 				Values: args,
 			},
 		},
@@ -1310,7 +1310,7 @@ func (c *Compiler) compileFuncWithMethodsExpr(nd *node.FuncWithMethodsExpr) erro
 		Func: node.EIdent(BuiltinFunc.String(), nd.Pos()),
 
 		CallArgs: node.CallArgs{
-			Args: node.CallExprArgs{
+			Args: node.CallExprPositionalArgs{
 				Values: args,
 			},
 		},
@@ -1892,7 +1892,9 @@ func (c *Compiler) compileArrayLit(nd *node.ArrayExpr) error {
 func (c *Compiler) compileDictLit(nd *node.DictExpr) error {
 	for _, elt := range nd.Elements {
 		// key
-		c.emit(nd, OpConstant, c.addConstant(Str(elt.Key)))
+		if err := c.Compile(elt.BuildKeyExpr()); err != nil {
+			return err
+		}
 		// value
 		if err := c.Compile(elt.Value); err != nil {
 			return err
@@ -2009,7 +2011,7 @@ func (c *Compiler) compileTypedIdentExpr(nd *node.TypedIdentExpr) error {
 	return c.compileCallExpr(&node.CallExpr{
 		Func: node.EIdent(BuiltinTypedIdent.String(), nd.Pos()),
 		CallArgs: node.CallArgs{
-			Args: node.CallExprArgs{
+			Args: node.CallExprPositionalArgs{
 				Values: []node.Expr{
 					node.String(nd.Ident.Name, nd.Ident.NamePos),
 					node.Array(nd.Pos(), nd.End(), types...),
@@ -2096,7 +2098,7 @@ func (c *Compiler) helperBuildKwargsIfUndefinedStmts(count int, get func(index i
 							Name:    BuiltinNamedParamTypeCheck.String(),
 						},
 						CallArgs: node.CallArgs{
-							Args: node.CallExprArgs{
+							Args: node.CallExprPositionalArgs{
 								Values: []node.Expr{
 									node.String(name.Name, name.NamePos),
 									typesArg,

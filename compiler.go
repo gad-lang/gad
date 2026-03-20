@@ -440,7 +440,7 @@ stmts:
 			err = c.compileCallExpr(&node.CallExpr{
 				Func: wf,
 				CallArgs: node.CallArgs{
-					Args:      node.CallExprArgs{Values: exprs},
+					Args:      node.CallExprPositionalArgs{Values: exprs},
 					NamedArgs: na,
 				},
 			})
@@ -539,11 +539,13 @@ func (c *Compiler) Compile(nd ast.Node) error {
 	case *node.StringLit:
 		c.emit(nt, OpConstant, c.addConstant(Str(nt.Value())))
 	case *node.RawStringLit:
-		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.UnquotedValue())))
+		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.Value())))
 	case *node.RawHeredocLit:
 		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.Value())))
 	case *node.CharLit:
 		c.emit(nt, OpConstant, c.addConstant(Char(nt.Value)))
+	case *node.SymbolLit:
+		c.emit(nt, OpConstant, c.addConstant(Str(nt.Value())))
 	case *node.NilLit:
 		c.emit(nt, OpNil)
 	case *node.StdInLit:

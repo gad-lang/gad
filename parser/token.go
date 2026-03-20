@@ -23,6 +23,10 @@ func (t PToken) IsSpace() bool {
 	return t.Token == token.Semicolon && t.Literal == "\n"
 }
 
+func (t PToken) IsSemi() bool {
+	return t.Token == token.Semicolon && t.Literal == ";"
+}
+
 func (t PToken) String() string {
 	return t.Token.String() + ": " + t.Literal
 }

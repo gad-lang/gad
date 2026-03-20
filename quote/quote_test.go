@@ -14,6 +14,7 @@ func TestQuote(t *testing.T) {
 		{"", `a"`, `"`, `"a\""`},
 		{"", `a"b`, `"`, `"a\"b"`},
 		{"", `a"""b`, `"""`, `"""a\"""b"""`},
+		{"", `a)b`, `)`, `)a\)b)`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -36,6 +37,7 @@ func TestUnquote(t *testing.T) {
 		{"", `"a\""`, `"`, `a"`},
 		{"", `"a\"b"`, `"`, `a"b`},
 		{"", `"""a\"""b"""`, `"""`, `a"""b`},
+		{"", `)a\)b)`, `)`, `a)b`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
