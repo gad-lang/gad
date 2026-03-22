@@ -112,9 +112,8 @@ func newREPL(ctx context.Context, stdout io.Writer) *repl {
 	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
 		Module: gad.NewModule(gad.ModuleInfo{
 			Name: "(repl)",
-		}, gad.Dict{}, nil),
+		}),
 		ModuleMap:         DefaultModuleMap(".", &sourcePath),
-		SymbolTable:       defaultSymbolTable(builtins.Builtins()),
 		OptimizerMaxCycle: gad.TraceCompilerOptions.OptimizerMaxCycle,
 		TraceParser:       traceParser,
 		TraceOptimizer:    traceOptimizer,
@@ -131,7 +130,7 @@ func newREPL(ctx context.Context, stdout io.Writer) *repl {
 		opts.Trace = stdout
 	}
 
-	eval := gad.NewEval(opts, &gad.RunOpts{
+	eval := gad.NewEval(builtins, defaultSymbolTable(builtins.Builtins().NameSet), opts, &gad.RunOpts{
 		Globals: scriptGlobals,
 	})
 
@@ -285,7 +284,7 @@ func (r *repl) cmdReturnVerbose(_ string) error {
 }
 
 func (r *repl) cmdSymbolsVerbose(_ string) error {
-	_, _ = fmt.Fprintf(r.out, "%v\n", r.eval.Opts.SymbolTable.Symbols())
+	_, _ = fmt.Fprintf(r.out, "%v\n", r.eval.SymbolTable().Symbols())
 	return nil
 }
 
@@ -340,12 +339,8 @@ func (r *repl) execute(line string) error {
 	return nil
 }
 
-func (r *repl) compileExecuteFile(pf *parser.File) (bc *gad.Bytecode, ret gad.Object, ok bool) {
-	var (
-		err error
-	)
-
-	bc, err = gad.CompileFile(pf, r.eval.Opts)
+func (r *repl) compileExecuteFile(pf *parser.File) (bc *gad.Bytecode, ret gad.Object, ok bool, err error) {
+	bc, err = gad.CompileFile(r.eval.SymbolTable(), pf, r.eval.Opts)
 
 	defer func() {
 		if err != nil {
@@ -367,10 +362,8 @@ func (r *repl) compileExecuteFile(pf *parser.File) (bc *gad.Bytecode, ret gad.Ob
 	return
 }
 
-func (r *repl) compileExecuteScript(script []byte) (f *parser.File, bc *gad.Bytecode, ret gad.Object, ok bool) {
-	var err error
-
-	f, bc, err = gad.Compile(script, r.eval.Opts)
+func (r *repl) compileExecuteScript(script []byte) (f *parser.File, bc *gad.Bytecode, ret gad.Object, ok bool, err error) {
+	f, bc, err = gad.Compile(r.eval.SymbolTable(), script, r.eval.Opts)
 
 	defer func() {
 		if err != nil {
@@ -392,10 +385,10 @@ func (r *repl) compileExecuteScript(script []byte) (f *parser.File, bc *gad.Byte
 	return
 }
 
-func (r *repl) executeScript() {
-	f, bc, ret, ok := r.compileExecuteScript(r.script.Bytes())
+func (r *repl) executeScript() error {
+	f, bc, ret, ok, err := r.compileExecuteScript(r.script.Bytes())
 	if !ok {
-		return
+		return err
 	}
 
 	r.lastBytecode = bc
@@ -403,7 +396,7 @@ func (r *repl) executeScript() {
 
 	runRet := func(v node.Expr) {
 		f.Stmts = node.Stmts{node.SReturn(v.Pos(), v)}
-		if _, ret, ok = r.compileExecuteFile(f); ok {
+		if _, ret, ok, err = r.compileExecuteFile(f); ok {
 			r.lastResult = ret
 		}
 	}
@@ -427,6 +420,9 @@ func (r *repl) executeScript() {
 	default:
 		if !gad.IsPrimitive(r.lastResult) {
 			r.setRet(r.lastResult)
+			if err != nil {
+				return err
+			}
 			e := node.ECall(
 				node.EIdent("repr", 0),
 				0, 0,
@@ -441,10 +437,11 @@ func (r *repl) executeScript() {
 		}
 		r.writeString(fmt.Sprintf("\n⇦   %v", r.lastResult))
 	}
+	return nil
 }
 
 func (r *repl) setSymbolSuggestions() {
-	symbols := r.eval.Opts.SymbolTable.Symbols()
+	symbols := r.eval.SymbolTable().Symbols()
 	suggestions = suggestions[:initialSuggLen]
 
 	for _, s := range symbols {
@@ -526,7 +523,7 @@ func complete(line string) (completions []string) {
 	return
 }
 
-func defaultSymbolTable(builtins *gad.Builtins) *gad.SymbolTable {
+func defaultSymbolTable(builtins gad.BuiltinsNameSet) *gad.SymbolTable {
 	table := gad.NewSymbolTable(builtins)
 	_, err := table.DefineGlobals([]string{"Gosched", "SOURCE_PATH"})
 	if err != nil {
@@ -726,12 +723,12 @@ func (s *Script) execute() error {
 	opts := gad.CompileOptions{
 		CompilerOptions: gad.DefaultCompilerOptions,
 	}
-	opts.SymbolTable = defaultSymbolTable(s.builtins.Builtins())
 	opts.ModuleMap = DefaultModuleMap(s.workdir, s.sourcePath)
+
 	opts.Module = gad.NewModule(gad.ModuleInfo{
 		Name: path.Clean(s.modulePath),
-		File: "file:" + s.modulePath,
-	}, gad.Dict{}, nil)
+		File: s.modulePath,
+	})
 
 	if traceEnabled {
 		opts.Trace = s.traceOut
@@ -740,7 +737,7 @@ func (s *Script) execute() error {
 		opts.TraceOptimizer = traceOptimizer
 	}
 
-	_, bc, err := gad.Compile(s.script, opts)
+	_, bc, err := gad.Compile(defaultSymbolTable(s.builtins.Builtins().NameSet), s.script, opts)
 	if err != nil {
 		return err
 	}
@@ -792,7 +789,7 @@ func (s *Script) execute() error {
 		}
 	}
 
-	vm := gad.NewVM(bc).SetRecover(true)
+	vm := gad.NewVM(s.builtins, bc).SetRecover(true)
 
 	done := make(chan struct{})
 

@@ -57,7 +57,6 @@ func (s *AssignStmt) String() string {
 }
 
 func (s *AssignStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WritePrefix()
 	ctx.WriteExprs(", ", s.LHS...)
 	ctx.WriteString(" " + s.Token.String() + " ")
 	ctx.WriteExprs(", ", s.RHS...)
@@ -117,6 +116,7 @@ func (s *BlockStmt) String() string {
 
 	b.WriteString(s.LBrace.Value)
 	rb := s.RBrace.Value
+
 	if len(data) > 0 {
 		b.WriteString(" ")
 		b.WriteString(data)
@@ -126,10 +126,6 @@ func (s *BlockStmt) String() string {
 	}
 	b.WriteString(rb)
 	return b.String()
-}
-
-func (s *BlockStmt) WriteCode(ctx *CodeWriteContext) {
-	s.WriteCodeInSelfDepth(ctx, false)
 }
 
 func (s *BlockStmt) IsEmtpy() bool {
@@ -143,7 +139,7 @@ func (s *BlockStmt) IsEmtpy() bool {
 	return l == 0
 }
 
-func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) {
+func (s *BlockStmt) WriteCode(ctx *CodeWriteContext) {
 	var (
 		lb = s.LBrace.Value
 		rb = s.RBrace.Value
@@ -156,42 +152,30 @@ func (s *BlockStmt) WriteCodeInSelfDepth(ctx *CodeWriteContext, selfDepth bool) 
 
 	if len(s.Stmts) == 0 {
 		var sep string
-		if lb != "{" {
+		if len(rb) > 0 && rb != "}" && rb != ")" {
 			sep += " "
 		}
 		ctx.WriteString(lb + sep + rb)
 		return
 	}
 
-	if s.Scoped {
-		ctx.WritePrefix()
-		ctx.WriteString(lb)
-		ctx.WriteSecondLine()
-		selfDepth = true
-	} else {
-		ctx.WriteString(lb)
-		if ctx.Prefix == "" && len(lb) > 0 && lb != "{" {
-			ctx.WriteString(" ")
-		}
-		ctx.WriteSecondLine()
+	ctx.WriteString(lb)
+
+	if ctx.Prefix == "" && len(lb) > 0 && lb != "{" {
+		ctx.WriteString(" ")
 	}
 
-	if selfDepth {
-		ctx.Depth++
-		ctx.WriteStmts(s.Stmts...)
-		ctx.Depth--
-	} else {
-		ctx.WriteStmts(s.Stmts...)
-	}
-
-	if len(ctx.Prefix) > 0 || rb != "}" {
+	ctx.Depth++
+	if len(ctx.Prefix) > 0 {
 		ctx.WriteSemi()
 	}
+	ctx.WriteStmts(s.Stmts...)
+	ctx.Depth--
 
-	if selfDepth {
-		ctx.WritePrefix()
-	} else {
-		ctx.WritePrevPrefix()
+	if len(ctx.Prefix) > 0 {
+		ctx.WriteSemi()
+	} else if ctx.Prefix == "" && len(rb) > 0 && rb != "}" && rb != ")" {
+		ctx.WriteString(" ")
 	}
 
 	ctx.WriteString(rb)
@@ -229,9 +213,7 @@ func (s *BranchStmt) String() string {
 }
 
 func (s *BranchStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WritePrefix()
 	ctx.WriteString(s.String())
-	ctx.WriteSemi()
 }
 
 // EmptyStmt represents an empty statement.
@@ -283,8 +265,11 @@ func (s *ExprStmt) String() string {
 }
 
 func (s *ExprStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WritePrefix()
-	s.Expr.WriteCode(ctx)
+	if b, _ := s.Expr.(*BinaryExpr); b != nil {
+		b.WriteCodeWithParen(ctx, false)
+	} else {
+		s.Expr.WriteCode(ctx)
+	}
 }
 
 // ForInStmt represents a for-in statement.
@@ -331,7 +316,6 @@ func (s *ForInStmt) String() string {
 }
 
 func (s *ForInStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WritePrefix()
 	ctx.WriteString("for ")
 
 	if !s.Key.Empty {
@@ -342,21 +326,23 @@ func (s *ForInStmt) WriteCode(ctx *CodeWriteContext) {
 	}
 
 	if s.Value != nil {
-		ctx.WriteString(s.Value.String())
+		s.Value.WriteCode(ctx)
 	}
 
-	ctx.WriteString(" in " + s.Iterable.String() + " ")
+	ctx.WriteString(" in ")
+	s.Iterable.WriteCode(ctx)
+	ctx.WriteString(" ")
 
-	s.Body.WriteCodeInSelfDepth(ctx, true)
+	s.Body.WriteCode(ctx)
 
 	if s.Else != nil {
 		var space string
 		if !s.Else.IsEmtpy() {
 			space = " "
 		}
-		ctx.WriteString("else" + space)
 
-		s.Else.WriteCodeInSelfDepth(ctx, true)
+		ctx.WriteString(" else" + space)
+		s.Else.WriteCode(ctx)
 	}
 }
 
@@ -406,7 +392,6 @@ func (s *ForStmt) String() string {
 }
 
 func (s *ForStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WritePrefix()
 	ctx.WriteString("for ")
 
 	if s.Init != nil {
@@ -427,7 +412,7 @@ func (s *ForStmt) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteStmts(s.Post)
 	}
 
-	s.Body.WriteCodeInSelfDepth(ctx, true)
+	s.Body.WriteCode(ctx)
 }
 
 // IfStmt represents an if statement.
@@ -471,7 +456,6 @@ func (s *IfStmt) String() string {
 }
 
 func (s *IfStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WritePrefix()
 	ctx.WriteString("if ")
 	if s.Init != nil {
 		ctx.WithoutPrefix().WriteStmts(s.Init)
@@ -479,13 +463,11 @@ func (s *IfStmt) WriteCode(ctx *CodeWriteContext) {
 	}
 	s.Cond.WriteCode(ctx)
 	ctx.WriteSingleByte(' ')
-	ctx.Depth++
 	s.Body.WriteCode(ctx)
-	ctx.Depth--
 	if s.Else != nil {
 		ctx.WriteString(" else ")
 		if block, ok := s.Else.(*BlockStmt); ok {
-			block.WriteCodeInSelfDepth(ctx, true)
+			block.WriteCode(ctx)
 		} else {
 			ctx.WriteStmts(s.Else)
 		}
@@ -516,7 +498,6 @@ func (s *IncDecStmt) String() string {
 }
 
 func (s *IncDecStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WritePrefix()
 	s.Expr.WriteCode(ctx)
 	ctx.WriteString(s.Token.String())
 }
@@ -529,7 +510,6 @@ type ReturnStmt struct {
 func (s *ReturnStmt) StmtNode() {}
 
 func (s *ReturnStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WritePrefix()
 	s.Return.WriteCode(ctx)
 }
 
@@ -754,14 +734,12 @@ func (s *MixedTextStmt) WriteCode(ctx *CodeWriteContext) {
 		if len(value) == 0 {
 			return
 		}
-		ctx.WritePrefix()
 		ctx.WriteString(ctx.Transpile.WriteFunc)
 		ctx.WriteSingleByte('(')
 		ctx.WriteString(ctx.Transpile.RawStrFuncStart)
 		ctx.WriteString(strconv.Quote(value))
 		ctx.WriteString(ctx.Transpile.RawStrFuncEnd)
 		ctx.WriteSingleByte(')')
-		ctx.WriteSemi()
 	} else {
 		ctx.WriteString(s.Lit.Value)
 	}
@@ -811,12 +789,10 @@ func (s *MixedValueStmt) String() string {
 
 func (s *MixedValueStmt) WriteCode(ctx *CodeWriteContext) {
 	if ctx.Transpile != nil {
-		ctx.WritePrefix()
 		ctx.WriteString(ctx.Transpile.WriteFunc)
 		ctx.WriteSingleByte('(')
 		s.Expr.WriteCode(ctx)
 		ctx.WriteSingleByte(')')
-		ctx.WriteSemi()
 	} else {
 		ctx.WriteString(s.StartLit.Value)
 		if s.RemoveLeftSpace {
@@ -865,19 +841,18 @@ func (c *ConfigStmt) String() string {
 	return "# gad: " + strings.Join(elements, ", ") + "\n"
 }
 
-func (c *ConfigStmt) WriteCode(ctx *CodeWriteContext) {
-	if ctx.Transpile == nil {
-		ctx.WritePrefix()
-		ctx.WriteString("# gad: ")
+func (c *ConfigStmt) SkipCode(ctx *CodeWriteContext) bool {
+	return ctx.Transpile != nil
+}
 
-		last := len(c.Elements) - 1
-		for i, el := range c.Elements {
-			ctx.WriteString(el.String())
-			if i != last {
-				ctx.WriteString(", ")
-			}
+func (c *ConfigStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("# gad: ")
+	last := len(c.Elements) - 1
+	for i, el := range c.Elements {
+		ctx.WriteString(el.String())
+		if i != last {
+			ctx.WriteString(", ")
 		}
-		ctx.WriteSingleByte('\n')
 	}
 }
 
@@ -965,6 +940,10 @@ func (s CodeBeginStmt) String() string {
 func (s CodeBeginStmt) StmtNode() {
 }
 
+func (CodeBeginStmt) SkipCode(ctx *CodeWriteContext) bool {
+	return ctx.Transpile != nil
+}
+
 func (s *CodeBeginStmt) WriteCode(ctx *CodeWriteContext) {
 	if ctx.Transpile == nil {
 		ctx.WriteString(s.String())
@@ -993,6 +972,9 @@ func (s CodeEndStmt) String() string {
 }
 
 func (s CodeEndStmt) StmtNode() {
+}
+func (CodeEndStmt) SkipCode(ctx *CodeWriteContext) bool {
+	return ctx.Transpile != nil
 }
 
 func (s *CodeEndStmt) WriteCode(ctx *CodeWriteContext) {
@@ -1024,6 +1006,5 @@ func (f *FuncStmt) String() string {
 }
 
 func (f *FuncStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WritePrefix()
 	f.Func.WriteCode(ctx)
 }

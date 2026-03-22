@@ -70,6 +70,8 @@ func (o *Error) Error() string {
 		case *Error:
 			if len(ct.Message) > 0 || ct.Cause != nil {
 				cause = ct.Error()
+			} else if ct.Cause == nil && ct.Name != o.Name {
+				cause = ct.Name
 			}
 		default:
 			return fmt.Sprintf("%s: %s", name, ct.Error())

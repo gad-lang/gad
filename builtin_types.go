@@ -46,6 +46,13 @@ func (b BuiltinObjTypeKey) FullName() string {
 	return b.Name()
 }
 
+func (b BuiltinObjTypeKey) Print(state *PrinterState) error {
+	if ok, _ := state.options.TypesAsFullNames(); ok {
+		return state.WriteString(b.Name())
+	}
+	return state.WriteString(b.String())
+}
+
 type BuiltinObjType struct {
 	getters     Dict
 	setters     Dict

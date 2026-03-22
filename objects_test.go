@@ -109,20 +109,20 @@ func TestObjectString(t *testing.T) {
 	require.Equal(t, m.ToString(), (&SyncDict{Value: m}).ToString())
 	require.Equal(t, "{}", (&SyncDict{Value: Dict{}}).ToString())
 
-	require.Equal(t, ReprQuote("function:"), (&Function{}).ToString())
-	require.Equal(t, ReprQuote("function:xyz"), (&Function{FuncName: "xyz"}).ToString())
-	require.Equal(t, ReprQuote("builtinFunction:()"), (&BuiltinFunction{}).ToString())
-	require.Equal(t, ReprQuote("builtinFunction:abc()"), (&BuiltinFunction{FuncName: "abc"}).ToString())
-	require.Equal(t, ReprQuote("compiledFunction ()"), (&CompiledFunction{}).ToString())
-	require.Equal(t, ReprQuote("reflectFunc: func()"), MustToObject(func() {}).ToString())
-	require.Equal(t, ReprQuote("reflectFunc: func(int)"), MustToObject(func(int) {}).ToString())
-	require.Equal(t, ReprQuote("reflectSlice:slice"+ReprQuote("[]int: []")), MustToObject([]int{}).ToString())
+	require.Equal(t, "‹function (⋅⋅⋅)›", (&Function{}).ToString())
+	require.Equal(t, "‹function xyz(⋅⋅⋅)›", (&Function{FuncName: "xyz"}).ToString())
+	require.Equal(t, "‹builtinFunction: ›", (&BuiltinFunction{}).ToString())
+	require.Equal(t, "‹builtinFunction: abc›", (&BuiltinFunction{FuncName: "abc"}).ToString())
+	require.Equal(t, "‹compiledFunction: ()›", (&CompiledFunction{}).ToString())
+	require.Equal(t, "‹reflectFunc: (())›", MustToObject(func() {}).ToString())
+	require.Equal(t, "‹reflectFunc: (())›", MustToObject(func(int) {}).ToString())
+	require.Equal(t, "[]", MustToObject([]int{}).ToString())
 	var arr [2]int
 	arr[1] = 60
-	require.Equal(t, ReprQuote("reflectArray:array"+ReprQuote("[2]int: [0 60]")+""), MustToObject(arr).ToString())
-	require.Equal(t, ReprQuote("reflectMap:map"+ReprQuote("map[string]int: map[a:2]")+""), MustToObject(map[string]int{"a": 2}).ToString())
-	require.Equal(t, "100", MustToObject(t1(100)).ToString())
-	require.Equal(t, "@100", MustToObject(t2(100)).ToString())
+	require.Equal(t, "[0, 60]", MustToObject(arr).ToString())
+	require.Equal(t, "{a: 2}", MustToObject(map[string]int{"a": 2}).ToString())
+	require.Equal(t, "‹github.com/gad-lang/gad_test.t1: 100›", MustToObject(t1(100)).ToString())
+	require.Equal(t, "‹github.com/gad-lang/gad_test.t2: 100›", MustToObject(t2(100)).ToString())
 	require.Equal(t, "#100", MustToObject(t3(100)).ToString())
 }
 
@@ -143,13 +143,13 @@ func TestObjectTypeName(t *testing.T) {
 	require.Equal(t, "function", (&Function{}).Type().Name())
 	require.Equal(t, "builtinFunction", (&BuiltinFunction{}).Type().Name())
 	require.Equal(t, "compiledFunction", (&CompiledFunction{}).Type().Name())
-	require.Equal(t, "reflect:func", MustToObject(func(int) {}).Type().Name())
-	require.Equal(t, "reflect:slice", MustToObject([]int{}).Type().Name())
+	require.Equal(t, "‹reflect type ‹func››", MustToObject(func(int) {}).Type().ToString())
+	require.Equal(t, "‹reflect type ‹slice››", MustToObject([]int{}).Type().ToString())
 	var arr [2]int
 	arr[1] = 60
-	require.Equal(t, "reflect:array", MustToObject(arr).Type().Name())
-	require.Equal(t, "reflect:map", MustToObject(map[string]int{"a": 2}).Type().Name())
-	require.Equal(t, "reflect:github.com/gad-lang/gad_test.t1", MustToObject(t1(10)).Type().Name())
+	require.Equal(t, "‹reflect type ‹array››", MustToObject(arr).Type().ToString())
+	require.Equal(t, "‹reflect type ‹map››", MustToObject(map[string]int{"a": 2}).Type().ToString())
+	require.Equal(t, "‹reflect type ‹github.com/gad-lang/gad_test.t1››", MustToObject(t1(10)).Type().ToString())
 }
 
 type t1 int
@@ -244,22 +244,22 @@ func TestObjectImpl(t *testing.T) {
 
 func TestObjectIndexGet(t *testing.T) {
 	v, err := (&Error{}).IndexGet(nil, Nil)
-	require.NoError(t, err)
-	require.Equal(t, Nil, v)
+	require.ErrorContains(t, err, "InvalidIndexError: nil")
+	require.Nil(t, v)
 
-	v, err = (&Error{}).IndexGet(nil, Str("Literal"))
+	v, err = (&Error{}).IndexGet(nil, Str("name"))
 	require.NoError(t, err)
 	require.Equal(t, Str(""), v)
 
-	v, err = (&Error{Name: "x"}).IndexGet(nil, Str("Literal"))
+	v, err = (&Error{Name: "x"}).IndexGet(nil, Str("name"))
 	require.NoError(t, err)
 	require.Equal(t, Str("x"), v)
 
-	v, err = (&Error{}).IndexGet(nil, Str("Message"))
+	v, err = (&Error{}).IndexGet(nil, Str("message"))
 	require.NoError(t, err)
 	require.Equal(t, Str(""), v)
 
-	v, err = (&Error{Message: "x"}).IndexGet(nil, Str("Message"))
+	v, err = (&Error{Message: "x"}).IndexGet(nil, Str("message"))
 	require.NoError(t, err)
 	require.Equal(t, Str("x"), v)
 
@@ -267,19 +267,19 @@ func TestObjectIndexGet(t *testing.T) {
 	require.Equal(t, Nil, v)
 	require.NoError(t, err)
 
-	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(nil, Str("Literal"))
+	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(nil, Str("name"))
 	require.NoError(t, err)
 	require.Equal(t, Str(""), v)
 
-	v, err = (&RuntimeError{Err: &Error{Name: "x"}}).IndexGet(nil, Str("Literal"))
+	v, err = (&RuntimeError{Err: &Error{Name: "x"}}).IndexGet(nil, Str("name"))
 	require.NoError(t, err)
 	require.Equal(t, Str("x"), v)
 
-	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(nil, Str("Message"))
+	v, err = (&RuntimeError{Err: &Error{}}).IndexGet(nil, Str("message"))
 	require.NoError(t, err)
 	require.Equal(t, Str(""), v)
 
-	v, err = (&RuntimeError{Err: &Error{Message: "x"}}).IndexGet(nil, Str("Message"))
+	v, err = (&RuntimeError{Err: &Error{Message: "x"}}).IndexGet(nil, Str("message"))
 	require.NoError(t, err)
 	require.Equal(t, Str("x"), v)
 

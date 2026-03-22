@@ -365,7 +365,7 @@ func (p *Parser) ParseUnaryExpr() node.Expr {
 	case token.And:
 		pos := p.Expect(token.And)
 		expr := p.ParsePrimaryExpr()
-		return &node.Ptr{pos, expr}
+		return &node.Ptr{TokenPos: pos, Expr: expr}
 	}
 	return p.ParsePrimaryExpr()
 }
@@ -1364,9 +1364,9 @@ func (p *Parser) ParseFuncStmt() (stmt node.Stmt) {
 
 	switch t := e.(type) {
 	case *node.FuncExpr:
-		return &node.FuncStmt{t}
+		return &node.FuncStmt{Func: t}
 	case *node.FuncWithMethodsExpr:
-		return &node.FuncWithMethodsStmt{*t}
+		return &node.FuncWithMethodsStmt{FuncWithMethodsExpr: *t}
 	}
 	return &node.ExprStmt{Expr: e}
 }
@@ -1394,7 +1394,7 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 		if tok.Token.Is(token.Method) {
 			switch t := e.(type) {
 			case *node.FuncWithMethodsExpr, *node.FuncExpr:
-				e = &node.MethodExpr{t}
+				e = &node.MethodExpr{Expr: t}
 			}
 		}
 	}()
@@ -2354,9 +2354,7 @@ func (p *Parser) ParseScopedBlockStmt() *node.BlockStmt {
 		defer untracep(tracep(p, "ScopedBlockStmt"))
 	}
 
-	block := p.ParseBlockStmt()
-	block.Scoped = true
-	return block
+	return p.ParseBlockStmt()
 }
 
 func (p *Parser) ParseBlockStmt(ends ...token.Token) *node.BlockStmt {
@@ -2597,7 +2595,7 @@ func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {
 	default:
 		if len(x) == 1 {
 			if f, _ := x[0].(*node.FuncExpr); f != nil {
-				return &node.FuncStmt{f}
+				return &node.FuncStmt{Func: f}
 			}
 		}
 	}

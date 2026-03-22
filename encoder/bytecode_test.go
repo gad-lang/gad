@@ -33,7 +33,7 @@ var testObjects = []gad.Object{
 	gad.Bytes{}, gad.Bytes("foo"),
 	gad.ErrIndexOutOfBounds,
 	&gad.RuntimeError{Err: gad.ErrInvalidIndex},
-	gad.Dict{"key": &gad.Function{FuncName: "f"}},
+	gad.Dict{"key": gad.Str("xxx")},
 	&gad.SyncDict{Value: gad.Dict{"k": gad.Str("")}},
 	gad.Array{gad.Nil, gad.True, gad.False},
 	&time.Time{Value: gotime.Time{}},
@@ -99,23 +99,22 @@ return v*time.Second/time.Second // 1
 
 	opts := gad.DefaultCompilerOptions
 	opts.ModuleMap = gad.NewModuleMap().
-		AddBuiltinModule("fmt", fmt.Module).
-		AddBuiltinModule("strings", strings.Module).
-		AddBuiltinModule("time", time.Module).
-		AddBuiltinModule("json", json.ModuleInit).
+		AddBuiltinModuleInit("fmt", fmt.ModuleInit).
+		AddBuiltinModuleInit("strings", strings.ModuleInit).
+		AddBuiltinModuleInit("time", time.ModuleInit).
+		AddBuiltinModuleInit("json", json.ModuleInit).
 		AddSourceModule("srcmod", []byte(`
-return {
+exports = {
 	Incr: func(x) { return x + 1 },
 	Decr: func(x) { return x - 1 },
 }
 		`))
 
 	mmCopy := opts.ModuleMap.Copy()
-
-	bc, err := gad.Compile([]byte(src), gad.CompileOptions{CompilerOptions: opts})
+	bc, err := Compile([]byte(src), opts)
 	require.NoError(t, err)
 
-	wantRet, err := gad.NewVM(bc).Run(nil)
+	wantRet, err := NewVM(bc).Run(nil)
 	require.NoError(t, err)
 	require.Equal(t, gad.Int(1), wantRet)
 
@@ -148,7 +147,7 @@ return {
 
 	var gotRet gad.Object
 	logmicros(t, "run time: %d microsecs", func() {
-		gotRet, err = gad.NewVM(gotBc).Run(nil)
+		gotRet, err = NewVM(gotBc).Run(nil)
 	})
 	require.NoError(t, err)
 
@@ -176,7 +175,7 @@ func testBytecodesEqual(t *testing.T, want, got *gad.Bytecode) {
 	require.Equal(t, want.Main, got.Main)
 	require.Equalf(t, want.Constants, got.Constants,
 		"expected:%s\nactual:%s", tests.Sdump(want.Constants), tests.Sdump(want.Constants))
-	testBytecodeConstants(t, gad.NewVM(got).Init(), want.Constants, got.Constants)
+	testBytecodeConstants(t, NewVM(got).Init(), want.Constants, got.Constants)
 	require.Equal(t, want.NumModules, got.NumModules)
 }
 
@@ -184,4 +183,19 @@ func logmicros(t *testing.T, format string, f func()) {
 	t0 := gotime.Now()
 	f()
 	t.Logf(format, gotime.Since(t0).Microseconds())
+}
+
+var builtins = gad.NewBuiltins().Build()
+
+func NewSymbolTable() *gad.SymbolTable {
+	return gad.NewSymbolTable(builtins.Builtins().NameSet)
+}
+
+func Compile(script []byte, opts gad.CompilerOptions) (bc *gad.Bytecode, err error) {
+	_, bc, err = gad.Compile(NewSymbolTable(), []byte(script), gad.CompileOptions{CompilerOptions: opts})
+	return
+}
+
+func NewVM(bc *gad.Bytecode) *gad.VM {
+	return gad.NewVM(builtins, bc).Init()
 }

@@ -91,10 +91,13 @@ func (o PrinterStateOptions) WithRaw() {
 func (o PrinterStateOptions) Zeros() (v bool, ok bool) {
 	var vo Object
 	if vo, ok = o[PrintStateOptionZeros]; ok {
-		var vb Bool
-		vb, _ = vo.(Bool)
-		v = bool(vb)
+		v = !vo.IsFalsy()
 	}
+	return
+}
+
+func (o PrinterStateOptions) IsZeros() (v bool) {
+	v, _ = o.Zeros()
 	return
 }
 
@@ -110,10 +113,13 @@ func (o PrinterStateOptions) WithZeros() PrinterStateOptions {
 func (o PrinterStateOptions) Anonymous() (v bool, ok bool) {
 	var vo Object
 	if vo, ok = o[PrintStateOptionAnonymous]; ok {
-		var vb Bool
-		vb, _ = vo.(Bool)
-		v = bool(vb)
+		v = !vo.IsFalsy()
 	}
+	return
+}
+
+func (o PrinterStateOptions) IsAnonymous() (v bool) {
+	v, _ = o.Anonymous()
 	return
 }
 
@@ -134,6 +140,11 @@ func (o PrinterStateOptions) Indexes() (v bool, ok bool) {
 	return
 }
 
+func (o PrinterStateOptions) IsIndexes() (v bool) {
+	v, _ = o.Indexes()
+	return
+}
+
 func (o PrinterStateOptions) SetIndexes(v bool) {
 	o[PrintStateOptionIndexes] = Bool(v)
 }
@@ -150,6 +161,11 @@ func (o PrinterStateOptions) SortKeys() (v PrintStateOptionSortType, ok bool) {
 		vi, _ = vo.(Int)
 		v = PrintStateOptionSortType(vi)
 	}
+	return
+}
+
+func (o PrinterStateOptions) IsSortKeys() (v PrintStateOptionSortType) {
+	v, _ = o.SortKeys()
 	return
 }
 
@@ -199,9 +215,7 @@ func (o PrinterStateOptions) WithRepr() PrinterStateOptions {
 func (o PrinterStateOptions) BytesToHex() (v bool, ok bool) {
 	var vo Object
 	if vo, ok = o[PrintStateOptionBytesToHex]; ok {
-		var vb Bool
-		vb, _ = vo.(Bool)
-		v = bool(vb)
+		v = !vo.IsFalsy()
 	}
 	return
 }

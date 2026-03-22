@@ -44,7 +44,7 @@ func TestReflectFunction_Call(t *testing.T) {
 				return
 			}
 			gota := ToInterface(got)
-			assert.Equalf(t, tt.want, gota, "Call(%v)", c)
+			require.Equalf(t, tt.want, gota, "Call(%v)", c)
 		})
 	}
 }
@@ -105,7 +105,7 @@ func TestReflectStruct_IndexGet(t *testing.T) {
 					return
 				}
 			}
-			assert.Equalf(t, tt.want, got, "IndexGet(%v)", tt.key)
+			require.Equalf(t, tt.want, got, "IndexGet(%v)", tt.key)
 		})
 	}
 }
@@ -131,53 +131,53 @@ func TestReflectSlice_Insert(t *testing.T) {
 	var a = []int{3, 4}
 	v, err := NewReflectValue(a)
 	require.NoError(t, err)
-	vm := NewVM(nil).Init()
+	vm := NewVM(NewBuiltins().Build(), nil).Init()
 	s := v.(*ReflectSlice)
 
 	v2, err := s.Insert(vm, 0)
-	assert.NoError(t, err)
-	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 4]››")
+	require.NoError(t, err)
+	require.Equal(t, "[3, 4]", v2.ToString())
 
 	v2, err = s.Insert(vm, 0, Int(0))
-	assert.NoError(t, err)
-	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [0 3 4]››")
+	require.NoError(t, err)
+	require.Equal(t, "[0, 3, 4]", v2.ToString())
 
 	v2, err = s.Insert(vm, -2, Int(0))
-	assert.NoError(t, err)
-	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [0 3 4]››")
+	require.NoError(t, err)
+	require.Equal(t, "[0, 3, 4]", v2.ToString())
 
 	v2, err = s.Insert(vm, 0, Int(0), Int(1), Int(2))
-	assert.NoError(t, err)
-	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [0 1 2 3 4]››")
+	require.NoError(t, err)
+	require.Equal(t, "[0, 1, 2, 3, 4]", v2.ToString())
 
 	for _, i := range []int{1, -1} {
 		v2, err = s.Insert(vm, i)
-		assert.NoError(t, err)
-		assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 4]››")
+		require.NoError(t, err)
+		require.Equal(t, "[3, 4]", v2.ToString())
 
 		v2, err = s.Insert(vm, i, Int(0))
-		assert.NoError(t, err)
-		assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 0 4]››")
+		require.NoError(t, err)
+		require.Equal(t, "[3, 0, 4]", v2.ToString())
 
 		v2, err = s.Insert(vm, i, Int(0), Int(1), Int(2))
-		assert.NoError(t, err)
-		assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 0 1 2 4]››")
+		require.NoError(t, err)
+		require.Equal(t, v2.ToString(), "[3, 0, 1, 2, 4]", v2.ToString())
 	}
 
 	v2, err = s.Insert(vm, 2)
-	assert.NoError(t, err)
-	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 4]››")
+	require.NoError(t, err)
+	require.Equal(t, "[3, 4]", v2.ToString())
 
 	v2, err = s.Insert(vm, 2, Int(0))
-	assert.NoError(t, err)
-	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 4 0]››")
+	require.NoError(t, err)
+	require.Equal(t, "[3, 4, 0]", v2.ToString())
 
 	v2, err = s.Insert(vm, 2, Int(0), Int(1), Int(2))
-	assert.NoError(t, err)
-	assert.Equal(t, v2.ToString(), "‹reflectSlice:slice‹[]int: [3 4 0 1 2]››")
+	require.NoError(t, err)
+	require.Equal(t, "[3, 4, 0, 1, 2]", v2.ToString())
 
 	_, err = s.Insert(vm, -3)
-	assert.EqualError(t, err, "InvalidIndexError: negative position is greather then slice length")
+	require.EqualError(t, err, "InvalidIndexError: negative position is greather then slice length")
 }
 
 func TestReflectArray_Copy(t *testing.T) {
@@ -244,7 +244,7 @@ func TestReflectMap_IndexGet(t *testing.T) {
 					return
 				}
 			}
-			assert.Equalf(t, tt.want, got, "IndexGet(%v)", tt.key)
+			require.Equalf(t, tt.want, got, "IndexGet(%v)", tt.key)
 		})
 	}
 }
@@ -272,7 +272,7 @@ func TestReflectSlice_IndexGet(t *testing.T) {
 				return
 			}
 
-			assert.Equalf(t, tt.want, got, "IndexGet(%v)", tt.key)
+			require.Equalf(t, tt.want, got, "IndexGet(%v)", tt.key)
 		})
 	}
 }
@@ -317,7 +317,7 @@ func TestReflectStruct_IndexSet(t *testing.T) {
 			if !checkError(t, fmt.Sprintf("IndexGet(%T)", tt.obj), tt.wantErr, err) {
 				return
 			}
-			assert.True(t, got.Equal(tt.value), "IndexGet(%v)", tt.key)
+			require.True(t, got.Equal(tt.value), "IndexGet(%v)", tt.key)
 		})
 	}
 }
@@ -325,25 +325,25 @@ func TestReflectStruct_IndexSet(t *testing.T) {
 func TestReflectStruct_GetterSetter(t *testing.T) {
 	var (
 		o      = new(reflectStructWithMethods)
-		vm     = NewVM(nil).Setup(SetupOpts{})
+		vm     = NewVM(NewBuiltins().Build(), nil).Setup(SetupOpts{})
 		r, err = NewReflectValue(o)
 		v      Object
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	obj := r.(*ReflectStruct)
-	assert.NoError(t, obj.IndexSet(vm, Str("V"), Int(1)))
-	assert.Equal(t, 1, o.v)
+	require.NoError(t, obj.IndexSet(vm, Str("V"), Int(1)))
+	require.Equal(t, 1, o.v)
 	v, err = obj.IndexGet(vm, Str("V"))
-	assert.NoError(t, err)
-	assert.Equal(t, v, Int(1))
+	require.NoError(t, err)
+	require.Equal(t, v, Int(1))
 
 	_, err = obj.Method("SetV").Call(Call{VM: vm, Args: Args{Array{Int(2)}}})
-	assert.NoError(t, err)
-	assert.Equal(t, 2, o.v)
+	require.NoError(t, err)
+	require.Equal(t, 2, o.v)
 
 	v, err = obj.Method("V").Call(Call{VM: vm})
-	assert.NoError(t, err)
-	assert.Equal(t, v, Int(2))
+	require.NoError(t, err)
+	require.Equal(t, v, Int(2))
 }
 
 type reflectStructWithMethods struct {
@@ -385,7 +385,7 @@ func TestReflectMap_IndexSet(t *testing.T) {
 			if !checkError(t, fmt.Sprintf("IndexGet(%T)", tt.obj), tt.wantErr, err) {
 				return
 			}
-			assert.True(t, got.Equal(tt.value), "IndexGet(%v)", tt.key)
+			require.True(t, got.Equal(tt.value), "IndexGet(%v)", tt.key)
 		})
 	}
 }
@@ -427,56 +427,56 @@ func TestReflectSlice_IndexSet(t *testing.T) {
 			if !checkError(t, fmt.Sprintf("IndexGet(%T)", tt.obj), tt.wantErr, err) {
 				return
 			}
-			assert.True(t, got.Equal(tt.value), "IndexGet(%v)", tt.key)
+			require.True(t, got.Equal(tt.value), "IndexGet(%v)", tt.key)
 		})
 	}
 }
 
 func TestReflect_Methods(t *testing.T) {
 	var (
-		vm = NewVM(nil).Setup(SetupOpts{})
+		vm = NewVM(NewBuiltins().Build(), nil).Setup(SetupOpts{})
 
 		do = func(o any, getRawValue func() int) {
 			var (
 				v      Object
 				r, err = NewReflectValue(o)
 			)
-			assert.NoError(t, err)
-			assert.Implements(t, (*IndexGetter)(nil), r)
+			require.NoError(t, err)
+			require.Implements(t, (*IndexGetter)(nil), r)
 			obj := r.(IndexGetter)
 			v, err = obj.IndexGet(vm, Str(ObjectMethodsGetterFieldName))
-			assert.NoError(t, err)
-			assert.IsType(t, (*IndexGetProxy)(nil), v)
+			require.NoError(t, err)
+			require.IsType(t, (*IndexGetProxy)(nil), v)
 
 			ig := v.(*IndexGetProxy)
-			assert.Equal(t, `["SetV", "V"]`, ig.ToStrFunc())
+			require.Equal(t, `["SetV", "V"]`, ig.ToStrFunc())
 			values, err := ValuesOf(vm, ig, NewNamedArgs())
-			assert.NoError(t, err)
-			assert.Equal(t, values, Array{Str("SetV"), Str("V")})
+			require.NoError(t, err)
+			require.Equal(t, values, Array{Str("SetV"), Str("V")})
 
 			v, err = ig.GetIndexFunc(vm, Str("SetV"))
-			assert.NoError(t, err)
-			assert.IsType(t, (*ReflectFunc)(nil), v)
+			require.NoError(t, err)
+			require.IsType(t, (*ReflectFunc)(nil), v)
 			f := v.(*ReflectFunc)
 			_, err = f.Call(Call{VM: vm, Args: Args{Array{Int(2)}}})
-			assert.NoError(t, err)
-			assert.Equal(t, 2, getRawValue())
+			require.NoError(t, err)
+			require.Equal(t, 2, getRawValue())
 
 			_, err = ig.CallName("SetV", Call{VM: vm, Args: Args{Array{Int(3)}}})
-			assert.NoError(t, err)
-			assert.Equal(t, 3, getRawValue())
+			require.NoError(t, err)
+			require.Equal(t, 3, getRawValue())
 
 			v, err = ig.GetIndexFunc(vm, Str("V"))
-			assert.NoError(t, err)
-			assert.IsType(t, (*ReflectFunc)(nil), v)
+			require.NoError(t, err)
+			require.IsType(t, (*ReflectFunc)(nil), v)
 			f = v.(*ReflectFunc)
 			v, err = f.Call(Call{VM: vm})
-			assert.NoError(t, err)
-			assert.Equal(t, Int(3), v)
+			require.NoError(t, err)
+			require.Equal(t, Int(3), v)
 
 			v, err = ig.CallName("V", Call{VM: vm})
-			assert.NoError(t, err)
-			assert.Equal(t, Int(3), v)
+			require.NoError(t, err)
+			require.Equal(t, Int(3), v)
 		}
 	)
 
@@ -574,7 +574,7 @@ func TestReflect_ToString(t *testing.T) {
 	}
 
 	var (
-		vm = NewVM(nil).Setup(SetupOpts{})
+		vm = NewVM(NewBuiltins().Build(), nil).Setup(SetupOpts{})
 
 		a = MustToObject(&A{})
 		b = MustToObject(&B{})
@@ -595,8 +595,8 @@ func TestReflect_ToString(t *testing.T) {
 		arr   = MustToObject([2]any{&A{}, Int(2)})
 		slice = MustToObject([]any{&A{}, Int(2)})
 
-		zeros       = Dict{"zeros": Yes}
-		zerosIndent = Dict{"zeros": Yes, "indent": Yes}
+		zeros       = Dict{PrintStateOptionZeros: Yes}
+		zerosIndent = Dict{PrintStateOptionZeros: Yes, PrintStateOptionIndent: Yes}
 
 		toStr = func(t *testing.T, o Object, options Dict) string {
 			var w strings.Builder
@@ -608,92 +608,92 @@ func TestReflect_ToString(t *testing.T) {
 				),
 				o,
 			)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			return w.String()
 		}
 	)
 
 	t.Run("A", func(t *testing.T) {
 		s := toStr(t, a, Dict{})
-		assert.Equal(t, "{}", s)
+		require.Equal(t, "{}", s)
 
 		s = toStr(t, a, Copy(zeros))
-		assert.Equal(t, "{F1: 0}", s)
+		require.Equal(t, "{F1: 0}", s)
 
 		s = toStr(t, a, Copy(zerosIndent))
-		assert.Equal(t, "{\n\tF1: 0\n}", s)
+		require.Equal(t, "{\n\tF1: 0\n}", s)
 
 		s = toStr(t, a, Dict{"zeros": Yes, "indent": Str("  ")})
-		assert.Equal(t, "{\n  F1: 0\n}", s)
+		require.Equal(t, "{\n  F1: 0\n}", s)
 	})
 
 	t.Run("B", func(t *testing.T) {
 		s := toStr(t, b, Copy(zeros))
-		assert.Equal(t, "{F1: 0, F2: 0}", s)
+		require.Equal(t, "{F1: 0, F2: 0}", s)
 
 		s = toStr(t, b, Copy(zerosIndent))
-		assert.Equal(t, "{\n\tF1: 0,\n\tF2: 0\n}", s)
+		require.Equal(t, "{\n\tF1: 0,\n\tF2: 0\n}", s)
 
 		s = toStr(t, b, Dict{"zeros": Yes, "indent": Yes, PrintStateOptionSortKeys: Int(PrintStateOptionSortTypeAscending)})
-		assert.Equal(t, "{\n\tF1: 0,\n\tF2: 0\n}", s)
+		require.Equal(t, "{\n\tF1: 0,\n\tF2: 0\n}", s)
 
 		s = toStr(t, b, Dict{"zeros": Yes, "indent": Yes, PrintStateOptionSortKeys: Int(PrintStateOptionSortTypeDescending)})
-		assert.Equal(t, "{\n\tF2: 0,\n\tF1: 0\n}", s)
+		require.Equal(t, "{\n\tF1: 0,\n\tF2: 0\n}", s)
 
 		s = toStr(t, b, Dict{"zeros": Yes, "indent": Yes, PrintStateOptionSortKeys: Int(PrintStateOptionSortTypeAscending), "anonymous": Yes})
-		assert.Equal(t, "{\n\tA,\n\tF1: 0,\n\tF2: 0\n}", s)
+		require.Equal(t, "{\n\tA,\n\tF1: 0,\n\tF2: 0\n}", s)
 	})
 
 	t.Run("C", func(t *testing.T) {
 		s := toStr(t, c, Copy(zeros))
-		assert.Equal(t, "{F3: 0, F4: {F1: 0, F2: 0}}", s)
+		require.Equal(t, "{F3: 0, F4: {F1: 0, F2: 0}}", s)
 
 		s = toStr(t, c, Copy(zerosIndent))
-		assert.Equal(t, "{\n\tF3: 0,\n\tF4: {\n\t\tF1: 0,\n\t\tF2: 0\n\t}\n}", s)
+		require.Equal(t, "{\n\tF3: 0,\n\tF4: {\n\t\tF1: 0,\n\t\tF2: 0\n\t}\n}", s)
 	})
 
 	t.Run("D", func(t *testing.T) {
 		s := toStr(t, d, Dict{})
-		assert.Equal(t, "{}", s)
+		require.Equal(t, "{}", s)
 		s = toStr(t, d, Dict{"indent": Yes})
-		assert.Equal(t, "{}", s)
+		require.Equal(t, "{}", s)
 	})
 
 	t.Run("D2", func(t *testing.T) {
 		s := toStr(t, d2, Dict{})
-		assert.Equal(t, "{Time: 2025-01-01 00:00:00 +0000 UTC, V1: <Value=1>, V2: <Value=2>, V3: formattedValue:3, V4: formattedValue:4}", s)
+		require.Equal(t, "{Time: 2025-01-01 00:00:00 +0000 UTC, V1: <Value=1>, V2: <Value=2>, V3: formattedValue:3, V4: formattedValue:4}", s)
 		s = toStr(t, d2, Dict{"indent": Yes})
-		assert.Equal(t, "{\n\tTime: 2025-01-01 00:00:00 +0000 UTC,\n\tV1: <Value=1>,\n\tV2: <Value=2>,\n\tV3: formattedValue:3,\n\tV4: formattedValue:4\n}", s)
+		require.Equal(t, "{\n\tTime: 2025-01-01 00:00:00 +0000 UTC,\n\tV1: <Value=1>,\n\tV2: <Value=2>,\n\tV3: formattedValue:3,\n\tV4: formattedValue:4\n}", s)
 	})
 
 	t.Run("slice", func(t *testing.T) {
 		s := toStr(t, slice, Copy(zeros))
-		assert.Equal(t, "[{F1: 0}, 2]", s)
+		require.Equal(t, "[{F1: 0}, 2]", s)
 
 		s = toStr(t, slice, Copy(zerosIndent))
-		assert.Equal(t, "[\n\t{\n\t\tF1: 0\n\t},\n\t2\n]", s)
+		require.Equal(t, "[\n\t{\n\t\tF1: 0\n\t},\n\t2\n]", s)
 	})
 
 	t.Run("array", func(t *testing.T) {
 		s := toStr(t, arr, Copy(zeros))
-		assert.Equal(t, "[{F1: 0}, 2]", s)
+		require.Equal(t, "[{F1: 0}, 2]", s)
 
 		s = toStr(t, arr, Copy(zerosIndent))
-		assert.Equal(t, "[\n\t{\n\t\tF1: 0\n\t},\n\t2\n]", s)
+		require.Equal(t, "[\n\t{\n\t\tF1: 0\n\t},\n\t2\n]", s)
 	})
 
 	t.Run("map", func(t *testing.T) {
 		options := Dict{PrintStateOptionSortKeys: Int(PrintStateOptionSortTypeDescending)}
 		s := toStr(t, d1, options)
-		assert.Equal(t, "{i: 2, a: {}}", s)
+		require.Equal(t, "{a: {}, i: 2}", s)
 
 		options[PrintStateOptionZeros] = Yes
 		s = toStr(t, d1, options)
-		assert.Equal(t, "{i: 2, a: {F1: 0}}", s)
+		require.Equal(t, "{a: {F1: 0}, i: 2}", s)
 
 		options[PrintStateOptionIndent] = Yes
 		s = toStr(t, d1, options)
-		assert.Equal(t, "{\n\ti: 2,\n\ta: {\n\t\tF1: 0\n\t}\n}", s)
+		require.Equal(t, "{\n\ta: {\n\t\tF1: 0\n\t},\n\ti: 2\n}", s)
 	})
 
 	t.Run("printable", func(t *testing.T) {
@@ -707,7 +707,7 @@ func TestReflect_ToString(t *testing.T) {
 			V: 2,
 			P: 3,
 		}), Dict{})
-		assert.Equal(t, "{I: 1, P: `custom reflect printable value = 3`, V: <Value=2>}", s)
+		require.Equal(t, "{I: 1, P: `custom reflect printable value = 3`, V: <Value=2>}", s)
 	})
 }
 

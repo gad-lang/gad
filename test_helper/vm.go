@@ -117,7 +117,7 @@ func VMExpectErrorGen(
 
 			builtins := gad.NewBuiltins()
 			builtins.AppendMap(opts.builtins)
-			tC.opts.SymbolTable = gad.NewSymbolTable(builtins)
+			st := gad.NewSymbolTable(builtins.NameSet)
 
 			co := gad.CompileOptions{
 				CompilerOptions: tC.opts,
@@ -137,14 +137,14 @@ func VMExpectErrorGen(
 				opts.compileOptions(&co)
 			}
 
-			_, compiled, err := gad.Compile([]byte(script), co)
+			_, compiled, err := gad.Compile(st, []byte(script), co)
 			if opts.IsCompilerErr {
 				require.Error(t, err)
 				callback(t, err)
 				return
 			}
 			require.NoError(t, err)
-			_, err = gad.NewVM(compiled).SetRecover(opts.IsNoPanic()).RunOpts(&gad.RunOpts{
+			_, err = gad.NewVM(builtins.Build(), compiled).SetRecover(opts.IsNoPanic()).RunOpts(&gad.RunOpts{
 				Globals:   opts.GetGlobals(),
 				Args:      gad.Args{opts.GetArgs()},
 				NamedArgs: opts.GetNameArgs(),
@@ -260,8 +260,6 @@ func (t *VMTestOpts) Module(name string, module any) *VMTestOpts {
 		t.moduleMap.AddSourceModule(name, v)
 	case string:
 		t.moduleMap.AddSourceModule(name, []byte(v))
-	case map[string]gad.Object:
-		t.moduleMap.AddBuiltinModule(name, v)
 	case gad.Dict:
 		t.moduleMap.AddBuiltinModule(name, v)
 	case gad.ModuleInitFunc:
@@ -363,7 +361,8 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.O
 			tC.opts.Trace = &tC.tracer // nolint exportloopref
 			builtins := gad.NewBuiltins()
 			builtins.AppendMap(opts.builtins)
-			tC.opts.SymbolTable = gad.NewSymbolTable(builtins)
+
+			st := gad.NewSymbolTable(builtins.NameSet)
 
 			if opts.exprToTextFunc != "" {
 				tC.opts.MixedExprToTextFunc = &node.IdentExpr{Name: opts.exprToTextFunc}
@@ -379,14 +378,14 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.O
 				opts.compileOptions(&tC.opts)
 			}
 
-			pf, gotBc, err := gad.Compile([]byte(script), tC.opts)
+			pf, gotBc, err := gad.Compile(st, []byte(script), tC.opts)
 			require.NoError(t, err)
 			// create a copy of the bytecode before execution to test bytecode
 			// change after execution
 			expectBc := *gotBc
 			expectBc.Main = gotBc.Main.Copy().(*gad.CompiledFunction)
 			expectBc.Constants = gad.Array(gotBc.Constants).Copy().(gad.Array)
-			vm := gad.NewVM(gotBc)
+			vm := gad.NewVM(builtins.Build(), gotBc)
 			var noTrace bool
 			defer func() {
 				if noTrace {
@@ -407,7 +406,7 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.O
 				}
 			}()
 
-			vm.Builtins = tC.opts.SymbolTable.Builtins().Build()
+			vm.Builtins = builtins.Build()
 			vm.Setup(gad.SetupOpts{
 				Context: opts.context,
 			})

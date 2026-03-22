@@ -18,7 +18,7 @@ import (
 type Bytecode struct {
 	FileSet    *source.FileSet
 	Main       *CompiledFunction
-	Constants  []Object
+	Constants  Array
 	NumModules int
 	NumEmbeds  int
 }
@@ -98,7 +98,6 @@ type CompiledFunction struct {
 	// NamedParamsMap is a map of NamedParams with index
 	// this value allow to perform named args validation.
 	NamedParamsMap map[string]int
-	sourceFile     *source.File
 	module         *Module
 }
 
@@ -118,17 +117,11 @@ func (*CompiledFunction) Type() ObjectType {
 	return TCompiledFunction
 }
 
-func (o CompiledFunction) ClearSourceFileInfo() *CompiledFunction {
-	o.sourceFile = nil
-	o.module = nil
-	return &o
-}
-
 func (o *CompiledFunction) FullName() string {
 	if o.FuncName == "" {
 		return ""
 	}
-	return o.module.info.Name + "." + o.FuncName
+	return o.module.Info.Name + "." + o.FuncName
 }
 
 func (o *CompiledFunction) HeaderString() string {
@@ -215,7 +208,10 @@ func (o *CompiledFunction) WithNamedParams(names ...string) *CompiledFunction {
 	params := make([]*NamedParam, len(names))
 
 	for i, name := range names {
-		p := &NamedParam{}
+		p := &NamedParam{
+			TypesSymbols: make(ParamType, 0),
+		}
+		
 		if strings.HasPrefix(name, "**") {
 			params[i].Var = true
 			name = name[2:]
@@ -253,13 +249,26 @@ func (o *CompiledFunction) WithNamedParams(names ...string) *CompiledFunction {
 
 func (o *CompiledFunction) WithParams(names ...string) *CompiledFunction {
 	params := make([]*Param, len(names))
+	var (
+		si    = -1
+		newSi = func() int {
+			si++
+			return si
+		}
+	)
+
 	for i, name := range names {
-		p := &Param{}
+		p := &Param{
+			Index:        i,
+			Symbol:       &SymbolInfo{Index: newSi()},
+			TypesSymbols: make(ParamType, 0),
+		}
 
 		if name[0] == '*' {
 			p.Var = true
 			name = name[1:]
 		}
+
 		if pos := strings.IndexByte(name, ' '); pos > 0 {
 			t := name[pos+1:]
 			p.Name = name[:pos]
@@ -270,13 +279,14 @@ func (o *CompiledFunction) WithParams(names ...string) *CompiledFunction {
 			symbols := make(ParamType, len(tnames))
 			for i2, tname := range tnames {
 				tname = strings.TrimSpace(tname)
-				symbols[i2] = &SymbolInfo{Name: tname}
+				symbols[i2] = &SymbolInfo{Name: tname, Index: newSi()}
 			}
 			p.TypesSymbols = symbols
 		} else {
 			p.Name = name
 		}
-		p.Symbol = &SymbolInfo{Name: name}
+
+		p.Symbol.Name = name
 		params[i] = p
 	}
 

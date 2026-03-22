@@ -265,6 +265,7 @@ func NewNamedParams(params ...*NamedParam) (np *NamedParams) {
 	for i, param := range params {
 		param.Index = i
 	}
+
 	np = &NamedParams{Items: params}
 	np.len = len(params)
 	np.Items = params

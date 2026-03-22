@@ -141,7 +141,30 @@ func (m *SourceModule) Import(ctx context.Context, module *Module) (any, string,
 
 // BuiltinModule is an importable module that's written in ToInterface.
 type BuiltinModule struct {
-	Attrs map[string]Object
+	Attrs Dict
+}
+
+func (m *BuiltinModule) InitFunc() ModuleInitFunc {
+	return func(module *Module, c Call) (data ModuleData, err error) {
+		cp := make(Dict, len(m.Attrs))
+
+		for k, v := range m.Attrs {
+			switch t := v.(type) {
+			case *Function:
+				t = Copy(t)
+				t.SetModule(module)
+				v = t
+			case *Type:
+				t = Copy(t)
+				t.Module = module
+				v = t
+			case ModuleSetter:
+				t.SetModule(module)
+			}
+			cp[k] = v
+		}
+		return cp, nil
+	}
 }
 
 // Import returns an immutable map for the module.
@@ -150,14 +173,7 @@ func (m *BuiltinModule) Import(ctx context.Context, module *Module) (any, string
 		return nil, "", errors.New("module attributes not set")
 	}
 
-	cp := Copy(Dict(m.Attrs))
-	for _, v := range cp {
-		switch t := v.(type) {
-		case ModuleSetter:
-			t.SetModule(module)
-		}
-	}
-	return cp, "builtin:" + module.Name(), nil
+	return m.InitFunc(), "builtin:" + module.Name(), nil
 }
 
 type ModuleInitFunc func(module *Module, c Call) (data ModuleData, err error)
@@ -168,6 +184,15 @@ func (f ModuleInitFunc) MustGetData(module *Module) (data ModuleData) {
 		panic(err)
 	}
 	return
+}
+
+func (f ModuleInitFunc) Caller(m *Module) CallerObject {
+	return &Function{
+		FuncName: "#moduleInitFunc@" + m.Name(),
+		Value: func(c Call) (Object, error) {
+			return f(m, c)
+		},
+	}
 }
 
 // BuiltinInitModule is an importable module that's written in ToInterface.

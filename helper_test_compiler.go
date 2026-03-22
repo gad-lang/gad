@@ -11,8 +11,21 @@ import (
 	"github.com/gad-lang/gad/tests"
 )
 
+type TestBytecodesEqualOptions struct {
+	NoInsertMainModule bool
+}
+
 func TestBytecodesEqual(t *testing.T,
-	expected, got *Bytecode, checkSourceMap bool) {
+	expected, got *Bytecode, checkSourceMap bool, opt ...*TestBytecodesEqualOptions) {
+	var opts *TestBytecodesEqualOptions
+
+	for _, opts = range opt {
+	}
+
+	if opts == nil {
+		opts = &TestBytecodesEqualOptions{}
+	}
+
 	repr := func(v Object) string {
 		opts := make(PrinterStateOptions)
 		opts.WithIndent()
@@ -59,12 +72,14 @@ func TestBytecodesEqual(t *testing.T,
 			expected.NumModules, got.NumModules)
 	}
 
-	if len(expected.Constants) == 0 {
-		expected.Constants = append(expected.Constants, &Module{info: ModuleInfo{Name: MainName}})
-	} else {
-		m, _ := expected.Constants[0].(*Module)
-		if m == nil || m.Name() != MainName {
-			expected.Constants = append(Array{&Module{info: ModuleInfo{Name: MainName}}}, expected.Constants...)
+	if !opts.NoInsertMainModule {
+		if len(expected.Constants) == 0 {
+			expected.Constants = append(expected.Constants, NewModule(ModuleInfo{Name: MainName}))
+		} else {
+			m, _ := expected.Constants[0].(*Module)
+			if m == nil || m.Name() != MainName {
+				expected.Constants = append(Array{NewModule(ModuleInfo{Name: MainName})}, expected.Constants...)
+			}
 		}
 	}
 
@@ -92,18 +107,18 @@ func TestBytecodesEqual(t *testing.T,
 			continue
 		case *Module:
 			if am, _ := gotObj.(*Module); am != nil {
-				if !reflect.DeepEqual(g.info, am.info) {
+				if !reflect.DeepEqual(g.Info, am.Info) {
 					t.Fatalf("Constants not equal at %d (*Module.info)\nExpected:\n%v (%[2]T)\nGot:\n%v (%[3]T)\n",
-						i, g.info, am.info)
+						i, g.Info, am.Info)
 				}
 
-				if !reflect.DeepEqual(g.data, am.data) {
+				if !reflect.DeepEqual(g.Data, am.Data) {
 					t.Fatalf("Constants not equal at %d (*Module.dict)\nExpected:\n%v (%[2]T)\nGot:\n%v (%[3]T)\n",
-						i, g.data, am.data)
+						i, g.Data, am.Data)
 				}
 
-				if ei, _ := g.init.(*CompiledFunction); ei != nil {
-					if ai, _ := am.init.(*CompiledFunction); ai != nil {
+				if ei, _ := g.Init.(*CompiledFunction); ei != nil {
+					if ai, _ := am.Init.(*CompiledFunction); ai != nil {
 						if !assertCompiledFunctionsEqual(t,
 							ei, ei, checkSourceMap) {
 							t.Fatalf("Constants not equal at %d (*Module.init)\nExpected:\n%v (%[2]T)\nGot:\n%v (%[3]T)\n",

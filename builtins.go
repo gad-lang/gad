@@ -335,7 +335,7 @@ func (b *StaticBuiltins) Builtins() *Builtins {
 
 func (b *StaticBuiltins) Set(name string, obj Object) BuiltinType {
 	b.builtins.last++
-	b.builtins.Map[name] = b.builtins.last
+	b.builtins.NameSet[name] = b.builtins.last
 	b.builtins.Objects[b.builtins.last] = obj
 	return b.builtins.last
 }
@@ -364,14 +364,16 @@ func (b *StaticBuiltins) Get(t BuiltinType) Object {
 	return b.builtins.Get(t)
 }
 
+type BuiltinsNameSet map[string]BuiltinType
+
 type Builtins struct {
 	Objects BuiltinObjectsMap
-	Map     map[string]BuiltinType
+	NameSet BuiltinsNameSet
 	last    BuiltinType
 }
 
 func NewBuiltins() *Builtins {
-	return &Builtins{Objects: BuiltinObjects, Map: BuiltinsMap, last: NewBuiltinType()}
+	return &Builtins{Objects: BuiltinObjects, NameSet: BuiltinsMap, last: NewBuiltinType()}
 }
 
 func (b *Builtins) SetType(typ ObjectType) *Builtins {
@@ -381,18 +383,18 @@ func (b *Builtins) SetType(typ ObjectType) *Builtins {
 func (b *Builtins) Set(name string, obj Object) *Builtins {
 	if b.last == lastBuiltinType {
 		newObjects := make(BuiltinObjectsMap, len(b.Objects))
-		newMap := make(map[string]BuiltinType, len(b.Objects))
+		newMap := make(BuiltinsNameSet, len(b.Objects))
 		for t, o := range b.Objects {
 			newObjects[t] = o
 		}
-		for name, t := range b.Map {
+		for name, t := range b.NameSet {
 			newMap[name] = t
 		}
 		b.Objects = newObjects
-		b.Map = newMap
+		b.NameSet = newMap
 	}
 	b.last++
-	b.Map[name] = b.last
+	b.NameSet[name] = b.last
 	b.Objects[b.last] = obj
 	return b
 }
@@ -437,9 +439,9 @@ func (b *Builtins) Build() (s *StaticBuiltins) {
 			Objects: b.Objects.build(),
 		},
 	}
-	s.builtins.Map = make(map[string]BuiltinType, len(b.Map))
-	for k, v := range b.Map {
-		s.builtins.Map[k] = v
+	s.builtins.NameSet = make(map[string]BuiltinType, len(b.NameSet))
+	for k, v := range b.NameSet {
+		s.builtins.NameSet[k] = v
 	}
 	s.builtins.last = b.last
 	return s

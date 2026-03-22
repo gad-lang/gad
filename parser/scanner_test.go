@@ -294,7 +294,7 @@ func TestScanner_Scan(t *testing.T) {
 		{token.Finally, "finally"},
 		{token.Throw, "throw"},
 		{token.NullishSelector, "?."},
-		{token.Callee, "@callee"},
+		{token.Callee, "@fn"},
 		{token.Args, "@args"},
 		{token.NamedArgs, "@nargs"},
 		{token.StdIn, "STDIN"},

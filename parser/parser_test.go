@@ -1883,6 +1883,32 @@ func TestParseReturn(t *testing.T) {
 }
 
 func TestParseForIn(t *testing.T) {
+	test.New(t, "for a, b in values {}").
+		String("for a, b in values {}").
+		FormattedCode("for a, b in values {}")
+
+	test.New(t, "for a, b in values {a+b}").
+		String("for a, b in values { (a + b) }").
+		FormattedCode("for a, b in values {\n\ta + b\n}")
+
+	test.New(t, "for a, b in values {a+b;c;x++;}").
+		String("for a, b in values { (a + b); c; x++ }").
+		FormattedCode(`for a, b in values {
+	a + b
+	c
+	x++
+}`)
+
+	test.New(t, "func z() { for a, b in values {a+b;c;x++;} }").
+		String("func z() { for a, b in values { (a + b); c; x++ } }").
+		FormattedCode(`func z() {
+	for a, b in values {
+		a + b
+		c
+		x++
+	}
+}`)
+
 	test.ExpectParse(t, "for x in y {}", func(p pfn) []Stmt {
 		return stmts(
 			forInStmt(
@@ -1996,11 +2022,11 @@ func TestParseForIn(t *testing.T) {
 
 	test.New(t, "for x in y do 1 end").
 		String("for _, x in y do 1 end").
-		Code("for x in y do 1; end")
+		Code("for x in y do 1 end")
 
 	test.New(t, "for x in y do 1; end").
 		String("for _, x in y do 1 end").
-		Code("for x in y do 1; end")
+		Code("for x in y do 1 end")
 
 	test.New(t, "for x in y do else end").
 		String("for _, x in y do else end").
@@ -2008,13 +2034,13 @@ func TestParseForIn(t *testing.T) {
 
 	test.New(t, "for x in y do 1 else end").
 		String("for _, x in y do 1 else end").
-		Code("for x in y do 1; else end")
+		Code("for x in y do 1 else end")
 
 	test.ExpectParseString(t, "for x in y do else end", "for _, x in y do else end")
 
 	test.New(t, "for x in y do 1 else 2 end").
 		String("for _, x in y do 1 else 2 end").
-		Code("for x in y do 1; else 2; end")
+		Code("for x in y do 1 else 2 end")
 
 	test.ExpectParseError(t, `for 1 in a {}`)
 	test.ExpectParseError(t, `for "" in a {}`)
@@ -2648,7 +2674,7 @@ func TestParsePtr(t *testing.T) {
 func TestParseSpecialKeywords(t *testing.T) {
 	test.New(t, "@main;x.@main").Stmts(func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(&IsMainLit{p(1, 1)}),
+			exprStmt(&IsMainLit{TokenPos: p(1, 1)}),
 			exprStmt(ESelector(EIdent("x", p(1, 7)), String("@main", p(1, 9)))),
 		)
 	})
@@ -3927,7 +3953,7 @@ func TestComputedExpr(t *testing.T) {
 
 	test.New(t, "(= 1|2 )").
 		String("(= (1 | 2))").
-		Code("(= (1 | 2))")
+		Code("(= 1 | 2)")
 
 	test.New(t, "(= 1; x)").
 		String("(= 1; x)").

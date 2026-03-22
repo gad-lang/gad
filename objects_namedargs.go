@@ -538,6 +538,24 @@ func (KeyValueArray) Call(*NamedArgs, ...Object) (Object, error) {
 	return nil, ErrNotCallable
 }
 
+func (o *KeyValueArray) AppendArrayOfPairs(arr Array) error {
+	kva := make(KeyValueArray, len(*o)+len(arr))
+	copy(kva, *o)
+	i := len(*o)
+
+	for j, v := range arr {
+		switch na := v.(type) {
+		case *KeyValue:
+			kva[i] = na
+			i++
+		default:
+			return NewIndexValueTypeError(strconv.Itoa(j), "keyValue", v.Type().Name())
+		}
+	}
+	*o = kva
+	return nil
+}
+
 func (o KeyValueArray) AppendArray(arr ...Array) (KeyValueArray, error) {
 	var (
 		i  = len(o)
@@ -552,8 +570,8 @@ func (o KeyValueArray) AppendArray(arr ...Array) (KeyValueArray, error) {
 	o2 = make(KeyValueArray, nl)
 	copy(o2, o)
 
-	for _, arr := range arr {
-		for _, v := range arr {
+	for x, arr := range arr {
+		for j, v := range arr {
 			switch na := v.(type) {
 			case *KeyValue:
 				o2[i] = na
@@ -563,7 +581,7 @@ func (o KeyValueArray) AppendArray(arr ...Array) (KeyValueArray, error) {
 					o2[i] = &KeyValue{na[0], na[1]}
 					i++
 				} else {
-					return nil, NewIndexValueTypeError("keyValue|[2]array",
+					return nil, NewIndexValueTypeError(fmt.Sprintf("%d[%d]", x, j), "keyValue|[2]array",
 						fmt.Sprintf("[%d]%s", len(na), v.Type().Name()))
 				}
 			default:
@@ -804,6 +822,14 @@ func (o KeyValueArray) Items(_ *VM, cb ItemsGetterCallback) (err error) {
 		if err = cb(i, value); err != nil {
 			return
 		}
+	}
+	return
+}
+
+func (o KeyValueArray) ToArray() (arr Array) {
+	arr = make(Array, len(o))
+	for i, value := range o {
+		arr[i] = value
 	}
 	return
 }

@@ -279,17 +279,15 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 
 		p.Symbol = &symbol.SymbolInfo
 
-		if len(spec.Ident.Type) > 0 {
-			symbols := make([]*SymbolInfo, len(spec.Ident.Type))
-			for i2, t := range spec.Ident.Type {
-				symbol, err := c.requireSymbol(nd, t.Ident().Name)
-				if err != nil {
-					return err
-				}
-				symbols[i2] = &symbol.SymbolInfo
+		symbols := make([]*SymbolInfo, len(spec.Ident.Type))
+		for i2, t := range spec.Ident.Type {
+			symbol, err := c.requireSymbol(nd, t.Ident().Name)
+			if err != nil {
+				return err
 			}
-			p.TypesSymbols = symbols
+			symbols[i2] = &symbol.SymbolInfo
 		}
+		p.TypesSymbols = symbols
 
 		if spec.Var {
 			if i != len(positionalSpecs)-1 {
@@ -302,14 +300,13 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 		positional[i] = p
 	}
 
-	var (
-		namedSpecCount = len(namedSpecs)
-	)
+	var namedSpecCount = len(namedSpecs)
 
 	for i, spec := range namedSpecs {
 		np := &NamedParam{
-			Name: spec.Ident.Ident.Name,
-			Var:  spec.Var,
+			Name:         spec.Ident.Ident.Name,
+			Var:          spec.Var,
+			TypesSymbols: make(ParamType, 0),
 		}
 
 		symbol, err := c.requireSymbol(nd, np.Name)
@@ -348,9 +345,9 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 		return c.error(nd, err)
 	}
 
-	stmts := c.helperBuildKwargsIfUndefinedStmts(namedSpecCount, func(index int) (name *node.IdentExpr, types []*SymbolInfo, value node.Expr) {
+	stmts := c.helperBuildKwargsStmts(namedSpecCount, func(index int) (name *node.IdentExpr, value node.Expr) {
 		spec := namedSpecs[index]
-		return spec.Ident.Ident, named[index].TypesSymbols, spec.Value
+		return spec.Ident.Ident, spec.Value
 	})
 
 	return c.Compile(&node.BlockStmt{Stmts: stmts})
@@ -1084,12 +1081,12 @@ func (c *Compiler) compileAddMethodsExpr(nd node.Node, nameExpr node.Expr, metho
 	defer c.pushSelector()()
 	expr, selectors := resolveSelectorExprs(nameExpr)
 
-	if err := c.Compile(expr); err != nil {
+	if err = c.Compile(expr); err != nil {
 		return err
 	}
 
 	for _, selector := range selectors {
-		if err := c.Compile(selector); err != nil {
+		if err = c.Compile(selector); err != nil {
 			return err
 		}
 	}
@@ -1150,26 +1147,23 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 		}
 
 		for i, name := range typ.Params.NamedArgs.Names {
-			if nameS, types, err2 := c.nameSymbolsOfTypedIdent(nd, name); err2 != nil {
-				return err2
-			} else {
-				p := &NamedParam{
-					Name:         nameS,
-					TypesSymbols: types,
-				}
-
-				if v := typ.Params.NamedArgs.Values[i]; v != nil {
-					p.Value = v.String()
-				}
-
-				namedParams = append(namedParams, p)
+			p := &NamedParam{}
+			if p.Name, p.TypesSymbols, err = c.nameSymbolsOfTypedIdent(nd, name); err != nil {
+				return
 			}
+
+			if v := typ.Params.NamedArgs.Values[i]; v != nil {
+				p.Value = v.String()
+			}
+
+			namedParams = append(namedParams, p)
 		}
 
 		if typ.Params.NamedArgs.Var != nil {
 			p := &NamedParam{
-				Name: typ.Params.NamedArgs.Var.Name,
-				Var:  true,
+				Name:         typ.Params.NamedArgs.Var.Name,
+				Var:          true,
+				TypesSymbols: make(ParamType, 0),
 			}
 			namedParams = append(namedParams, p)
 		}
@@ -1179,9 +1173,9 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 		}
 
 		if count := len(typ.Params.NamedArgs.Values); count > 0 {
-			body.Stmts = append(c.helperBuildKwargsStmts(count, func(index int) (name string, namePos source.Pos, value node.Expr) {
+			body.Stmts = append(c.helperBuildKwargsStmts(count, func(index int) (name *node.IdentExpr, value node.Expr) {
 				ident := typ.Params.NamedArgs.Names[index].Ident
-				return ident.Name, ident.NamePos, typ.Params.NamedArgs.Values[index]
+				return ident, typ.Params.NamedArgs.Values[index]
 			}), body.Stmts...)
 		}
 	}
@@ -1691,7 +1685,7 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 		}
 	}
 
-	module := &Module{info: ModuleInfo{Name: moduleName}}
+	module := NewModule(ModuleInfo{Name: moduleName})
 	moduleConstant, exists := c.getModule(moduleName)
 	if !exists {
 		mod, url, err := importer.Import(c.opts.Context, module)
@@ -1707,37 +1701,23 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 				moduleMap = c.BaseModuleMap()
 			}
 
-			module.info.File = url
+			module.Info.File = url
 			cidx, err := c.compileModule(nd, importer, module, moduleMap, v)
 
 			if err != nil {
 				return err
 			}
 
-			c.constants[cidx].(*Module).init.(*CompiledFunction).module = module
 			moduleConstant = c.addModule(moduleName, 1, cidx)
-		case Dict:
-			moduleConstant = c.addModule(moduleName, 2, c.addConstant(&Module{
-				info: ModuleInfo{moduleName, url},
-				data: v,
-			}))
 		case ModuleInitFunc:
-			var m *Module
-			m = &Module{
-				info: ModuleInfo{moduleName, url},
-				init: &Function{
-					Value: func(c Call) (Object, error) {
-						return v(m, c)
-					},
-				},
-			}
-			moduleConstant = c.addModule(moduleName, 1, c.addConstant(m))
+			module.Init = v.Caller(module)
+			moduleConstant = c.addModule(moduleName, 1, c.addConstant(module))
 		default:
 			return c.errorf(nd, "invalid import value type: %T", v)
 		}
 	}
 
-	module.constantIndex = moduleConstant.constantIndex
+	module.ConstantIndex = moduleConstant.constantIndex
 
 	switch moduleConstant.typ {
 	case 1:
@@ -1789,7 +1769,7 @@ func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) error {
 
 	embed, exists := c.getEmbed(pth)
 	if !exists {
-		mod, _, err := importer.Import(c.opts.Context, &Module{info: ModuleInfo{Name: pth}})
+		mod, _, err := importer.Import(c.opts.Context, NewModule(ModuleInfo{Name: pth}))
 		if err != nil {
 			return c.error(nd, err)
 		}
@@ -2037,108 +2017,41 @@ func (c *Compiler) compileNamedParamValue(nd *namedParamValue) (err error) {
 	return nil
 }
 
-func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name string, namesPos source.Pos, value node.Expr)) (stmts []node.Stmt) {
+func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name *node.IdentExpr, value node.Expr)) (stmts []node.Stmt) {
 	for i := 0; i < count; i++ {
-		name, namePos, value := get(i)
+		name, value := get(i)
 		if value == nil {
 			value = &node.NilLit{}
+		} else if cv, _ := value.(*node.ComputedExpr); cv != nil {
+			value = &node.CallExpr{Func: cv}
 		}
 		stmts = append(stmts, &node.AssignStmt{
-			Token: token.NullichAssign,
-			LHS:   []node.Expr{node.EIdent(name, namePos)},
-			RHS: []node.Expr{&node.BinaryExpr{
-				Token: token.Nullich,
-				LHS:   &namedParamValue{*node.String(name, namePos)},
-				RHS:   value,
-			}},
+			TokenPos: name.Pos(),
+			Token:    token.NullichAssign,
+			LHS:      []node.Expr{name},
+			RHS:      []node.Expr{value},
 		})
 	}
 	return
 }
 
-func (c *Compiler) helperBuildKwargsIfUndefinedStmts(count int, get func(index int) (ident *node.IdentExpr, types []*SymbolInfo, value node.Expr)) (stmts []node.Stmt) {
-	for i := 0; i < count; i++ {
-		name, types, value := get(i)
-		if value == nil {
-			value = &node.NilLit{}
-		}
-		ident := name
-		if len(types) > 0 {
-			var typesArg node.Expr = &node.IdentExpr{
-				NamePos: name.Pos(),
-				Name:    types[0].Name,
-			}
-
-			if len(types) > 1 {
-				var typesElements = make([]node.Expr, len(types))
-				for i2, symbol := range types {
-					typesElements[i2] = &node.IdentExpr{Name: symbol.Name}
-				}
-				typesArg = &node.ArrayExpr{Elements: typesElements}
-			}
-			stmts = append(stmts, &node.IfStmt{
-				Cond: &node.BinaryExpr{
-					Token: token.Equal,
-					LHS:   ident,
-					RHS:   &node.NilLit{},
-				},
-				Body: &node.BlockStmt{
-					Stmts: []node.Stmt{
-						&node.AssignStmt{
-							Token: token.Assign,
-							LHS:   []node.Expr{ident},
-							RHS:   []node.Expr{value},
-						},
-					},
-				},
-				Else: &node.ExprStmt{
-					Expr: &node.CallExpr{
-						Func: &node.IdentExpr{
-							NamePos: name.Pos(),
-							Name:    BuiltinNamedParamTypeCheck.String(),
-						},
-						CallArgs: node.CallArgs{
-							Args: node.CallExprPositionalArgs{
-								Values: []node.Expr{
-									node.String(name.Name, name.NamePos),
-									typesArg,
-									ident,
-								},
-							},
-						},
-					},
-				},
-			})
-		} else {
-			stmts = append(stmts, &node.AssignStmt{
-				Token: token.NullichAssign,
-				LHS:   []node.Expr{ident},
-				RHS:   []node.Expr{value},
-			})
-		}
-	}
-
-	return
-}
-
 func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdentExpr) (name string, symbols []*SymbolInfo, err error) {
 	name = ti.Ident.Name
-	if len(ti.Type) > 0 {
-		symbols = make([]*SymbolInfo, len(ti.Type))
-		for i2, t := range ti.Type {
-			var symbol *Symbol
-			if symbol, err = c.requireSymbol(nd, t.Ident().Name); err != nil {
-				return
-			}
-			symbols[i2] = &symbol.SymbolInfo
-		}
-	} else {
+
+	if len(ti.Type) == 0 {
+		ti.Type = append(ti.Type, node.EType(node.EIdent("any", ti.Pos())))
+	}
+
+	symbols = make([]*SymbolInfo, len(ti.Type))
+
+	for i2, t := range ti.Type {
 		var symbol *Symbol
-		if symbol, err = c.requireSymbol(nd, "any"); err != nil {
+		if symbol, err = c.requireSymbol(nd, t.Ident().Name); err != nil {
 			return
 		}
-		symbols = append(symbols, &symbol.SymbolInfo)
+		symbols[i2] = &symbol.SymbolInfo
 	}
+
 	return
 }
 

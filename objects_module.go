@@ -23,7 +23,7 @@ type Modules []*Module
 
 func (m Modules) Get(name string) *Module {
 	for _, module := range m {
-		if module.info.Name == name {
+		if module.Info.Name == name {
 			return module
 		}
 	}
@@ -51,51 +51,46 @@ type ModuleSetter interface {
 
 // Module represent the module
 type Module struct {
-	info          ModuleInfo
-	data          ModuleData
-	init          CallerObject
-	params        MixedParams
-	constantIndex int
+	Info          ModuleInfo
+	Data          ModuleData
+	Init          CallerObject
+	Params        MixedParams
+	ConstantIndex int
 }
 
-func NewModule(info ModuleInfo, dict Dict, init CallerObject) *Module {
-	return &Module{info: info, data: dict, init: init}
-}
+func NewModule(info ModuleInfo, f ...func(m *Module)) *Module {
+	m := &Module{Info: info}
+	m.Params.Named = make(KeyValueArray, 0)
+	m.Params.Positional = make(Array, 0)
 
-func (m *Module) ConstantIndex() int {
-	return m.constantIndex
-}
-
-func (m *Module) SetConstantIndex(i int) {
-	m.constantIndex = i
+	for _, f := range f {
+		f(m)
+	}
+	return m
 }
 
 func (m *Module) CanCall() bool {
-	return m.data == nil && m.init != nil
+	return m.Data == nil && m.Init != nil
 }
 
 func (m *Module) Call(c Call) (ret Object, err error) {
-	if ret, err = DoCall(m.init, c); err != nil {
+	if ret, err = DoCall(m.Init, c); err != nil {
 		return nil, err
 	}
 
-	m.params = *c.Params()
+	m.Params = *c.Params()
 
 	switch t := ret.(type) {
 	case *Module:
-		m.data = t.data
+		m.Data = t.Data
 	case Dict:
-		m.data = t
+		m.Data = t
 	default:
-		m.data = Dict{}
+		m.Data = Dict{}
 		err = ErrType.NewErrorf("module %q init result (%v) isn't dict value", m.Name(), ret.Type().Name())
 	}
 	ret = m
 	return
-}
-
-func (m *Module) Dict() Dict {
-	return m.data.ToDict()
 }
 
 func (m *Module) IsFalsy() bool {
@@ -112,20 +107,20 @@ func (m *Module) String() string {
 
 func (m *Module) ToString() string {
 	var s string
-	if m.info.File == "" {
-		s = m.info.Name
+	if m.Info.File == "" {
+		s = m.Info.Name
 	} else {
-		s = fmt.Sprintf("%s %q", m.info.Name, m.info.File)
+		s = fmt.Sprintf("%s %q", m.Info.Name, m.Info.File)
 	}
 	return ReprQuoteTyped("module", s)
 }
 
 func (m *Module) Name() string {
-	return m.info.Name
+	return m.Info.Name
 }
 
 func (m *Module) File() string {
-	return m.info.File
+	return m.Info.File
 }
 
 func (m *Module) Equal(right Object) bool {
@@ -136,45 +131,57 @@ func (m *Module) Equal(right Object) bool {
 }
 
 func (m *Module) Length() int {
-	return m.data.Length()
+	if m.Data == nil {
+		return 0
+	}
+	return m.Data.Length()
 }
 
 func (m *Module) Keys() (arr Array) {
-	return m.data.Keys()
+	if m.Data == nil {
+		return
+	}
+	return m.Data.Keys()
 }
 
 func (m *Module) Values() (arr Array) {
-	return m.data.Values()
+	if m.Data == nil {
+		return
+	}
+	return m.Data.Values()
 }
 
 func (m *Module) Items(vm *VM, cb ItemsGetterCallback) (err error) {
-	return m.data.Items(vm, cb)
+	if m.Data == nil {
+		return
+	}
+	return m.Data.Items(vm, cb)
+}
+
+func (m *Module) CanIterate() bool {
+	return m.Data != nil
 }
 
 func (m *Module) Iterate(vm *VM, na *NamedArgs) Iterator {
-	return m.data.Iterate(vm, na)
+	return m.Data.Iterate(vm, na)
 }
 
 func (m *Module) IndexGet(vm *VM, index Object) (value Object, err error) {
 	switch index.ToString() {
 	case AttrName:
-		return Str(m.info.Name), nil
+		return Str(m.Info.Name), nil
 	case AttrFile:
-		return Str(m.info.File), nil
+		return Str(m.Info.File), nil
 	case AttrParams:
-		return &m.params, nil
+		return &m.Params, nil
 	case "@data":
-		return m.data, nil
+		return m.Data, nil
 	}
-	return m.data.IndexGet(vm, index)
+	return m.Data.IndexGet(vm, index)
 }
 
 func (m *Module) IndexSet(vm *VM, index, value Object) error {
-	return m.data.IndexSet(vm, index, value)
-}
-
-func (m *Module) Main() CallerObject {
-	return m.init
+	return m.Data.IndexSet(vm, index, value)
 }
 
 func (m *Module) Print(state *PrinterState) (err error) {
@@ -183,11 +190,11 @@ func (m *Module) Print(state *PrinterState) (err error) {
 		fmt.Fprintf(state, " at %q", file)
 	}
 	d := Dict{}
-	if m.data != nil && !m.data.IsFalsy() {
-		d["@data"] = m.data
+	if m.Data != nil && !m.Data.IsFalsy() {
+		d["@data"] = m.Data
 	}
-	if !m.params.IsFalsy() {
-		d["@params"] = Copy(&m.params)
+	if !m.Params.IsFalsy() {
+		d["@params"] = Copy(&m.Params)
 	}
 	if !d.IsFalsy() {
 		state.WriteByte(' ')
@@ -198,11 +205,11 @@ func (m *Module) Print(state *PrinterState) (err error) {
 }
 
 func (m *Module) UpdateDict(d Dict) {
-	for k, v := range m.data.ToDict() {
+	for k, v := range m.Data.ToDict() {
 		d[k] = v
 	}
 }
 
 func (m *Module) ToDict() Dict {
-	return m.data.ToDict()
+	return m.Data.ToDict()
 }

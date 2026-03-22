@@ -274,7 +274,6 @@ VMLoop:
 				Free:         free,
 				Params:       fn.Params,
 				NamedParams:  fn.NamedParams,
-				sourceFile:   fn.sourceFile,
 				module:       fn.module,
 			}
 			vm.stack[vm.sp] = newFn

@@ -2,6 +2,7 @@ package importers_test
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,11 +83,8 @@ println("sourcemod")`))
 		opts := gad.DefaultCompilerOptions
 		opts.ModuleMap = moduleMap.Copy()
 		opts.ModuleMap.SetExtImporter(&importers.FileImporter{WorkDir: tempDir})
-		_, bc, err := gad.Compile([]byte(script), gad.CompileOptions{CompilerOptions: opts})
-		require.NoError(t, err)
-		ret, err := gad.NewVM(bc).RunOpts(&gad.RunOpts{
-			StdOut: gad.NewWriter(buf),
-		})
+
+		ret, err := run(buf, []byte(script), opts)
 		require.NoError(t, err)
 		require.Equal(t, gad.Nil, ret)
 		require.Equal(t,
@@ -118,11 +116,7 @@ println("test8")
 
 		script := script
 		script += "\n" + `import("test8.gad")`
-		_, bc, err := gad.Compile([]byte(script), gad.CompileOptions{CompilerOptions: opts})
-		require.NoError(t, err)
-		ret, err := gad.NewVM(bc).RunOpts(&gad.RunOpts{
-			StdOut: gad.NewWriter(buf),
-		})
+		ret, err := run(buf, []byte(script), opts)
 		require.NoError(t, err)
 		require.Equal(t, gad.Nil, ret)
 		require.Equal(t,
@@ -157,11 +151,7 @@ println("test8")
 		script := append([]byte(shebangline), script...)
 		importers.Shebang2Slashes(script)
 
-		_, bc, err := gad.Compile(script, gad.CompileOptions{CompilerOptions: opts})
-		require.NoError(t, err)
-		ret, err := gad.NewVM(bc).RunOpts(&gad.RunOpts{
-			StdOut: gad.NewWriter(buf),
-		})
+		ret, err := run(buf, []byte(script), opts)
 		require.NoError(t, err)
 		require.Equal(t, gad.Nil, ret)
 		require.Equal(t,
@@ -180,4 +170,15 @@ func createModules(t *testing.T, baseDir string, files map[string]string) {
 		err = os.WriteFile(path, []byte(data), 0644)
 		require.NoError(t, err)
 	}
+}
+
+func run(w io.Writer, script []byte, opts gad.CompilerOptions) (ret gad.Object, err error) {
+	builtins := gad.NewBuiltins().Build()
+	_, bc, err := gad.Compile(gad.NewSymbolTable(builtins.Builtins().NameSet), []byte(script), gad.CompileOptions{CompilerOptions: opts})
+	if err != nil {
+		return
+	}
+	return gad.NewVM(builtins, bc).RunOpts(&gad.RunOpts{
+		StdOut: gad.NewWriter(w),
+	})
 }

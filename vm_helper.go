@@ -113,6 +113,7 @@ func DoCall(co CallerObject, c Call) (ret Object, err error) {
 			}
 		} else {
 			err = ErrCall.Wrap(err, co.ToString())
+			ret = nil
 		}
 		return
 	}
@@ -133,6 +134,7 @@ func Val(v Object, e error) (ret Object, err error) {
 				continue
 			} else {
 				err = ErrCall.Wrap(err, yc.CallerObject.ToString())
+				ret = nil
 			}
 		}
 		return

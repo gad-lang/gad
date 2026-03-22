@@ -167,11 +167,18 @@ func expectRun(t *testing.T, script string, opts *Opts, expected Object) {
 	mm.AddBuiltinModuleInit("json", ModuleInit)
 	c := CompileOptions{CompilerOptions: DefaultCompilerOptions}
 	c.ModuleMap = mm
-	_, bc, err := Compile([]byte(script), c)
-	require.NoError(t, err)
-	ret, err := NewVM(bc).RunOpts(&RunOpts{Globals: opts.global, Args: Args{opts.args}})
+	ret, err := run(script, c, &RunOpts{Globals: opts.global, Args: Args{opts.args}})
 	require.NoError(t, err)
 	require.Equal(t, expected, ret)
+}
+
+func run(script string, opts CompileOptions, runOpts *RunOpts) (ret Object, err error) {
+	builtins := NewBuiltins().Build()
+	_, bc, err := Compile(NewSymbolTable(builtins.Builtins().NameSet), []byte(script), opts)
+	if err != nil {
+		return
+	}
+	return NewVM(builtins, bc).RunOpts(runOpts)
 }
 
 func catchf(s string, args ...any) string {

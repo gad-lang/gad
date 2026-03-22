@@ -51,12 +51,13 @@ type VM struct {
 }
 
 // NewVM creates a VM object.
-func NewVM(bc *Bytecode) *VM {
+func NewVM(builtins *StaticBuiltins, bc *Bytecode) *VM {
 	var constants []Object
 	if bc != nil {
 		constants = bc.Constants
 	}
 	vm := &VM{
+		Builtins:  builtins,
 		bytecode:  bc,
 		constants: constants,
 	}
@@ -917,18 +918,18 @@ func (vm *VM) xOpCallModule() (err error) {
 
 	curFrame := vm.curFrame
 
-	if err = vm.xOpCallAny(module.init, numArgs, flags); err != nil {
+	if err = vm.xOpCallAny(module.Init, numArgs, flags); err != nil {
 		return
 	}
 
 	onResult := func() {
 		switch t := (*ptr).(type) {
 		case *Module:
-			module.data = t.data
+			module.Data = t.Data
 		case ModuleData:
-			module.data = t
+			module.Data = t
 		default:
-			module.data = Dict{}
+			module.Data = Dict{}
 			err = ErrType.NewErrorf("module %q init result (%v) isn't ModuleData value", module.Name(), t.Type().Name())
 		}
 		*ptr = module
@@ -940,8 +941,8 @@ func (vm *VM) xOpCallModule() (err error) {
 	} else {
 		newFrame := vm.curFrame
 		newFrame.Defer(onResult)
-		module.params.Positional = Copy(newFrame.args.Values())
-		module.params.Named = newFrame.namedArgs.Join()
+		module.Params.Positional = Copy(newFrame.args.Values())
+		module.Params.Named = newFrame.namedArgs.Join()
 	}
 
 	return err

@@ -13,6 +13,7 @@ import (
 // omitted, it returns last value on stack.
 // Warning: Eval is not safe to use concurrently.
 type Eval struct {
+	st     *SymbolTable
 	Locals []Object
 	*RunOpts
 	Opts         CompileOptions
@@ -21,7 +22,17 @@ type Eval struct {
 }
 
 // NewEval returns new Eval object.
-func NewEval(opts CompileOptions, runOpts ...*RunOpts) *Eval {
+func NewEval(builtins *StaticBuiltins, st *SymbolTable, opts CompileOptions, runOpts ...*RunOpts) *Eval {
+	if builtins == nil {
+		b := NewBuiltins()
+		builtins = b.Build()
+		if st == nil {
+			st = NewSymbolTable(builtins.builtins.NameSet)
+		} else {
+			st.builtins = builtins.builtins.NameSet
+		}
+	}
+
 	var runopts *RunOpts
 	for _, runopts = range runOpts {
 	}
@@ -31,9 +42,6 @@ func NewEval(opts CompileOptions, runOpts ...*RunOpts) *Eval {
 	if runopts.Globals == nil {
 		runopts.Globals = Dict{}
 	}
-	if opts.SymbolTable == nil {
-		opts.SymbolTable = NewSymbolTable(NewBuiltins())
-	}
 	if opts.moduleStore == nil {
 		opts.moduleStore = newModuleStore()
 	}
@@ -42,20 +50,25 @@ func NewEval(opts CompileOptions, runOpts ...*RunOpts) *Eval {
 	}
 
 	return &Eval{
+		st:      st,
 		RunOpts: runopts,
 		Opts:    opts,
-		VM:      NewVM(nil).SetRecover(true),
+		VM:      NewVM(builtins, nil).SetRecover(true),
 	}
 }
 
 // RunScript compiles, runs given script and returns last value on stack.
 func (r *Eval) RunScript(ctx context.Context, script []byte) (ret Object, bytecode *Bytecode, err error) {
-	_, bytecode, err = Compile(script, r.Opts)
+	_, bytecode, err = Compile(r.st, script, r.Opts)
 	if err != nil {
 		return nil, nil, err
 	}
 	ret, err = r.Run(ctx, bytecode)
 	return
+}
+
+func (r *Eval) SymbolTable() *SymbolTable {
+	return r.st
 }
 
 // Run Bytecode and returns last value on stack.
@@ -77,7 +90,6 @@ func (r *Eval) Run(ctx context.Context, bytecode *Bytecode) (ret Object, err err
 }
 
 func (r *Eval) run(ctx context.Context) (ret Object, err error) {
-	ret = Nil
 	doneCh := make(chan struct{})
 	// Always check whether context is done before running VM because
 	// parser and compiler may take longer than expected or context may be

@@ -167,7 +167,7 @@ func (t Type) Name() string {
 
 func (t Type) FullName() string {
 	if t.Module != nil {
-		return t.Module.info.Name + "." + t.name
+		return t.Module.Info.Name + "." + t.name
 	}
 	return t.name
 }

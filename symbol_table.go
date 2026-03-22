@@ -94,11 +94,11 @@ type SymbolTable struct {
 	block            bool
 	disableParams    bool
 	shadowedBuiltins []string
-	builtins         *Builtins
+	builtins         BuiltinsNameSet
 }
 
 // NewSymbolTable creates new symbol table object.
-func NewSymbolTable(builtins *Builtins) *SymbolTable {
+func NewSymbolTable(builtins BuiltinsNameSet) *SymbolTable {
 	return &SymbolTable{
 		store:    make(map[string]*Symbol),
 		builtins: builtins,
@@ -122,7 +122,7 @@ func (st *SymbolTable) Parent(skipBlock bool) *SymbolTable {
 	return st.parent
 }
 
-func (st *SymbolTable) Builtins() *Builtins {
+func (st *SymbolTable) Builtins() BuiltinsNameSet {
 	return st.builtins
 }
 
@@ -161,11 +161,17 @@ func (st *SymbolTable) DefineParams(positional *Params, named *NamedParams) (err
 
 	for _, item := range positional.Items {
 		item.Symbol = &symbols[i].SymbolInfo
+		if item.TypesSymbols == nil {
+			item.TypesSymbols = make(ParamType, 0)
+		}
 		i++
 	}
 
 	for _, item := range named.Items {
 		item.Symbol = &symbols[i].SymbolInfo
+		if item.TypesSymbols == nil {
+			item.TypesSymbols = make(ParamType, 0)
+		}
 		i++
 	}
 
@@ -258,7 +264,7 @@ func (st *SymbolTable) Resolve(name string) (symbol *Symbol, ok bool) {
 	}
 
 	if !ok && st.parent == nil && !st.isBuiltinDisabled(name) {
-		if idx, exists := st.builtins.Map[name]; exists {
+		if idx := st.builtins[name]; idx > 0 {
 			symbol = &Symbol{SymbolInfo: SymbolInfo{
 				Name:  name,
 				Index: int(idx),

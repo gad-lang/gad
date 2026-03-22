@@ -152,9 +152,9 @@ func NewIndexTypeError(expectType, foundType string) *Error {
 }
 
 // NewIndexValueTypeError creates a new Error from ErrType.
-func NewIndexValueTypeError(expectType, foundType string) *Error {
+func NewIndexValueTypeError(index string, expectType, foundType string) *Error {
 	return ErrType.NewError(
-		fmt.Sprintf("index value type expected %s, found %s", expectType, foundType))
+		fmt.Sprintf("index %s value type expected %s, found %s", index, expectType, foundType))
 }
 
 // NewArgumentTypeErrorT creates a new Error from ErrType.

@@ -207,7 +207,7 @@ func (r *ReflectValue) Type() ObjectType {
 }
 
 func (r *ReflectValue) ToString() string {
-	return fmt.Sprintf("%v", r)
+	return string(MustToStr(nil, r))
 }
 
 func (r *ReflectValue) Format(s fmt.State, verb rune) {
@@ -234,8 +234,12 @@ func (r *ReflectValue) Print(state *PrinterState) (err error) {
 	if r.RType.InstancePrintFunc != nil {
 		return r.RType.InstancePrintFunc(state, r)
 	}
-	_, err = state.Write([]byte(r.ToString()))
-	return err
+	defer state.WrapReprString(r.RType.Fqn())()
+	if r.RType.RType.Name() == "" {
+		state.WriteString(r.RType.RType.String())
+		state.WriteString(": ")
+	}
+	return state.WriteString(fmt.Sprint(r.ToInterface()))
 }
 
 func (r *ReflectValue) IsNil() bool {
@@ -362,10 +366,6 @@ func (r *ReflectFunc) Call(c Call) (_ Object, err error) {
 		}
 	}
 
-	if err != nil {
-		return
-	}
-
 	var ret reflect.Value
 	ret, err = safeCall(r.RValue, argv)
 	if err == nil {
@@ -418,9 +418,7 @@ var (
 )
 
 func (o *ReflectArray) ToString() string {
-	return NewPrintBuilder(nil).Options(func(opts PrinterStateOptions) {
-		opts.WithIndent()
-	}).MustString(o)
+	return string(MustToStr(nil, o))
 }
 
 func (o *ReflectArray) IsFalsy() bool {
@@ -428,7 +426,15 @@ func (o *ReflectArray) IsFalsy() bool {
 }
 
 func (o *ReflectArray) Get(vm *VM, i int) (value Object, err error) {
-	return vm.ToObject(o.RValue.Index(i).Interface())
+	e := o.RValue.Index(i).Interface()
+	if value, _ = e.(Object); value == nil {
+		if vm == nil {
+			value, err = ToObject(e)
+		} else {
+			value, err = vm.ToObject(e)
+		}
+	}
+	return
 }
 
 func (o *ReflectArray) IndexGet(vm *VM, index Object) (value Object, err error) {
@@ -519,9 +525,7 @@ var (
 )
 
 func (o *ReflectSlice) ToString() string {
-	return NewPrintBuilder(nil).Options(func(opts PrinterStateOptions) {
-		opts.WithIndent()
-	}).MustString(o)
+	return string(MustToStr(nil, o))
 }
 
 func (o *ReflectSlice) Print(state *PrinterState) (err error) {
@@ -630,9 +634,7 @@ func (o *ReflectMap) Length() int {
 }
 
 func (o *ReflectMap) ToString() string {
-	return NewPrintBuilder(nil).Options(func(opts PrinterStateOptions) {
-		opts.WithIndent()
-	}).MustString(o)
+	return string(MustToStr(nil, o))
 }
 
 func (o *ReflectMap) Print(state *PrinterState) (err error) {
@@ -654,32 +656,40 @@ func (o *ReflectMap) Print(state *PrinterState) (err error) {
 		keysS []string
 	)
 
-	if sortKeysType > 0 {
-		keysO = make(Array, len(keys))
-		keysM = make(map[string]int, len(keys))
-		keysS = make([]string, len(keys))
+	if sortKeysType == 0 {
+		sortKeysType = PrintStateOptionSortTypeAscending
+	}
 
-		var (
-			k  Object
-			ks string
-		)
+	keysO = make(Array, len(keys))
+	keysM = make(map[string]int, len(keys))
+	keysS = make([]string, len(keys))
 
-		for i := range keys {
-			if k, err = getKey(i); err != nil {
-				return
-			}
-			keysO[i] = k
-			ks = k.ToString()
-			keysM[ks] = i
-			keysS[i] = ks
-		}
+	var (
+		k  Object
+		ks string
+	)
 
+	if state.VM == nil {
 		getKey = func(i int) (Object, error) {
-			return keysO[keysM[keysS[i]]], nil
+			return ToObject(keys[i].Interface())
 		}
-		getKeyValue = func(i int) reflect.Value {
-			return keys[keysM[keysS[i]]]
+	}
+
+	for i := range keys {
+		if k, err = getKey(i); err != nil {
+			return
 		}
+		keysO[i] = k
+		ks = k.ToString()
+		keysM[ks] = i
+		keysS[i] = ks
+	}
+
+	getKey = func(i int) (Object, error) {
+		return keysO[keysM[keysS[i]]], nil
+	}
+	getKeyValue = func(i int) reflect.Value {
+		return keys[keysM[keysS[i]]]
 	}
 
 	switch sortKeysType {
@@ -691,9 +701,19 @@ func (o *ReflectMap) Print(state *PrinterState) (err error) {
 		})
 	}
 
-	defer state.WrapRepr(o)()
-	return state.PrintDict(o.Length(), getKey, func(i int) (Object, error) {
-		return state.VM.ToObject(o.RValue.MapIndex(getKeyValue(i)).Interface())
+	if state.IsRepr {
+		defer state.WrapRepr(o)()
+	}
+	return state.PrintDict(o.Length(), getKey, func(i int) (value Object, err error) {
+		e := o.RValue.MapIndex(getKeyValue(i)).Interface()
+		if value, _ = e.(Object); value == nil {
+			if state.VM == nil {
+				value, err = ToObject(e)
+			} else {
+				value, err = state.VM.ToObject(e)
+			}
+		}
+		return
 	})
 }
 
@@ -819,9 +839,7 @@ func (s *ReflectStruct) ReprTypeName() string {
 }
 
 func (s *ReflectStruct) ToString() string {
-	return NewPrintBuilder(nil).Options(func(opts PrinterStateOptions) {
-		opts.WithIndent()
-	}).MustString(s)
+	return string(MustToStr(nil, s))
 }
 
 // Print prints object writing output to out writer.
@@ -854,14 +872,24 @@ func (s *ReflectStruct) Print(state *PrinterState) (err error) {
 	}
 
 	var (
-		value           any
-		handled         bool
-		o               Object
-		entries         []entry
-		zeros, _        = state.options.Zeros()
-		anonymous, _    = state.options.Anonymous()
-		sortKeysType, _ = state.options.SortKeys()
+		value        any
+		handled      bool
+		o            Object
+		entries      []entry
+		zeros        = state.options.IsZeros()
+		anonymous    = state.options.IsAnonymous()
+		sortKeysType = state.options.IsSortKeys()
+
+		toObj = func(v any) (Object, error) {
+			return state.VM.ToObject(v)
+		}
 	)
+
+	if state.VM == nil {
+		toObj = func(v any) (Object, error) {
+			return ToObject(v)
+		}
+	}
 
 	for _, name := range s.RType.FieldsNames {
 		isa := s.RType.RFields[name].Struct.Anonymous
@@ -871,7 +899,7 @@ func (s *ReflectStruct) Print(state *PrinterState) (err error) {
 					if isa {
 						entries = append(entries, entry{name, nil})
 					} else {
-						if o, err = state.VM.ToObject(value); err != nil {
+						if o, err = toObj(value); err != nil {
 							return
 						}
 						entries = append(entries, entry{name, o})
@@ -892,7 +920,9 @@ func (s *ReflectStruct) Print(state *PrinterState) (err error) {
 		})
 	}
 
-	defer state.WrapRepr(s)()
+	if state.IsRepr {
+		defer state.WrapRepr(s)()
+	}
 	return state.PrintDict(len(entries),
 		func(i int) (Object, error) {
 			return Str(entries[i].name), nil

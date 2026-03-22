@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/dustin/go-humanize"
 )
@@ -144,7 +145,7 @@ func (o *Buffer) IndexSet(_ *VM, index, value Object) error {
 		case Uint:
 			o.Bytes()[idx] = byte(v)
 		default:
-			return NewIndexValueTypeError("int|uint", value.Type().Name())
+			return NewIndexValueTypeError(strconv.Itoa(idx), "int|uint", value.Type().Name())
 		}
 		return nil
 	}

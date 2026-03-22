@@ -89,14 +89,14 @@ func TestEval(t *testing.T) {
 		{
 			name: "namedParams0",
 			sr: []scriptResult{
-				{`param (a=1)`, Nil},
+				{`param (;a=1)`, Nil},
 				{`a`, Int(1)},
 			},
 		},
 		{
 			name: "namedParams1",
 			sr: []scriptResult{
-				{`param (a=1,b=2)`, Nil},
+				{`param (;a=1,b=2)`, Nil},
 				{`a`, Int(1)},
 				{`b`, Int(2)},
 			},
@@ -105,7 +105,7 @@ func TestEval(t *testing.T) {
 			name:      "namedParams2",
 			namedArgs: NewNamedArgs(KeyValueArray{&KeyValue{Str("b"), Int(3)}}),
 			sr: []scriptResult{
-				{`param (a=1,b=2)`, Nil},
+				{`param (;a=1,b=2)`, Nil},
 				{`a`, Int(1)},
 				{`b`, Int(3)},
 			},
@@ -114,10 +114,10 @@ func TestEval(t *testing.T) {
 			name:      "namedParams3",
 			namedArgs: NewNamedArgs(KeyValueArray{&KeyValue{Str("b"), Int(3)}, &KeyValue{Str("c"), Int(4)}}),
 			sr: []scriptResult{
-				{`param (a=1,b=2,**other)`, Nil},
+				{`param (;a=1,b=2,**other)`, Nil},
 				{`a`, Int(1)},
 				{`b`, Int(3)},
-				{`str(other)`, Str("(;c=4)")},
+				{`str(other)`, Str("‹namedArgs: (;c=4)›")},
 			},
 		},
 		{
@@ -135,7 +135,7 @@ func TestEval(t *testing.T) {
 				{`param (a;b=1,**other)`, Nil},
 				{`a`, Nil},
 				{`b`, Int(1)},
-				{`str(other)`, Str("(;c=4)")},
+				{`str(other)`, Str("‹namedArgs: (;c=4)›")},
 			},
 		},
 		{
@@ -146,7 +146,7 @@ func TestEval(t *testing.T) {
 				{`a`, Nil},
 				{`b`, Int(1)},
 				{`c`, Int(4)},
-				{`str(other)`, Str("(;d=5)")},
+				{`str(other)`, Str("‹namedArgs: (;d=5)›")},
 			},
 		},
 		{
@@ -159,7 +159,7 @@ func TestEval(t *testing.T) {
 				{`c`, Nil},
 				{`d`, Int(100)},
 				{`e`, Int(10)},
-				{`str(other)`, Str("(;)")},
+				{`str(other)`, Str("‹namedArgs: (;)›")},
 			},
 		},
 		{
@@ -173,7 +173,7 @@ func TestEval(t *testing.T) {
 				{`c`, Nil},
 				{`d`, Int(100)},
 				{`e`, Int(6)},
-				{`str(other)`, Str("(;f=7)")},
+				{`str(other)`, Str("‹namedArgs: (;f=7)›")},
 			},
 		},
 		{
@@ -195,13 +195,13 @@ func TestEval(t *testing.T) {
 				{`str(otherArgs)`, Str("[2, 3]")},
 				{`d`, Int(100)},
 				{`e`, Int(6)},
-				{`str(other)`, Str("(;f=7)")},
+				{`str(other)`, Str("‹namedArgs: (;f=7)›")},
 			},
 		},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.name, func(t *testing.T) {
-			eval := NewEval(tC.opts, &RunOpts{Globals: tC.global, Args: Args{tC.args}, NamedArgs: tC.namedArgs})
+			eval := NewEval(nil, nil, tC.opts, &RunOpts{Globals: tC.global, Args: Args{tC.args}, NamedArgs: tC.namedArgs})
 			for _, sr := range tC.sr {
 				ret, _, err := eval.RunScript(tC.ctx, []byte(sr.script))
 				require.NoError(t, err, sr.script)
@@ -220,7 +220,7 @@ func TestEval(t *testing.T) {
 				},
 			},
 		}
-		eval := NewEval(DefaultCompileOptions, &RunOpts{Globals: globals})
+		eval := NewEval(nil, nil, DefaultCompileOptions, &RunOpts{Globals: globals})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		ret, bc, err := eval.RunScript(ctx, []byte(`
@@ -232,7 +232,7 @@ func TestEval(t *testing.T) {
 
 	// test error
 	t.Run("parser error", func(t *testing.T) {
-		eval := NewEval(DefaultCompileOptions)
+		eval := NewEval(nil, nil, DefaultCompileOptions)
 		ret, bc, err := eval.RunScript(context.Background(), []byte(`...`))
 		require.Nil(t, ret)
 		require.Nil(t, bc)

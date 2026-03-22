@@ -495,7 +495,7 @@ func (o Bytes) IndexSet(_ *VM, index, value Object) error {
 		case Uint:
 			o[idx] = byte(v)
 		default:
-			return NewIndexValueTypeError("int|uint", value.Type().Name())
+			return NewIndexValueTypeError(strconv.Itoa(idx), "int|uint", value.Type().Name())
 		}
 		return nil
 	}
@@ -689,11 +689,9 @@ func (f *Function) ToString() string {
 }
 
 // Copy implements Copier interface.
-func (f *Function) Copy() Object {
-	return &Function{
-		FuncName: f.FuncName,
-		Value:    f.Value,
-	}
+func (f Function) Copy() Object {
+	cp := &f
+	return cp
 }
 
 // Equal implements Object interface.
@@ -743,7 +741,7 @@ func (f *BuiltinFunction) Doc() string {
 	}
 
 	if f.Module != nil {
-		fmt.Fprintf(&buf, "\n\n**Module:** [%s](/modules/%[1]s)", f.Module.info.Name)
+		fmt.Fprintf(&buf, "\n\n**Module:** [%s](/modules/%[1]s)", f.Module.Info.Name)
 	}
 
 	if len(f.Usage) > 0 {
@@ -848,7 +846,7 @@ func (f *BuiltinFunctionWithMethods) Name() string {
 
 func (f *BuiltinFunctionWithMethods) FullName() string {
 	if f.Module != nil {
-		return f.Module.info.Name + "." + f.name
+		return f.Module.Info.Name + "." + f.name
 	}
 	return f.name
 }

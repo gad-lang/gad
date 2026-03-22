@@ -67,12 +67,13 @@ type SimpleOptimizer struct {
 	indent           int
 	optimConsts      bool
 	optimExpr        bool
-	builtins         *Builtins
+	builtins         BuiltinsNameSet
 	disabledBuiltins []string
 	constants        []Object
 	instructions     []byte
 	moduleStore      *moduleStore
 	embedStore       *moduleStore
+	moduleMap        *ModuleMap
 	returnStmt       node.ReturnStmt
 	file             *parser.File
 	errors           multipleErr
@@ -88,24 +89,17 @@ func NewOptimizer(
 	opts CompilerOptions,
 ) *SimpleOptimizer {
 	var disabled []string
-	if base != nil {
-		disabled = base.DisabledBuiltins()
-		disabled = append(disabled, base.ShadowedBuiltins()...)
-	}
+	disabled = base.DisabledBuiltins()
+	disabled = append(disabled, base.ShadowedBuiltins()...)
 
 	var trace io.Writer
 	if opts.TraceOptimizer {
 		trace = opts.Trace
 	}
 
-	var builtins *Builtins
-	if opts.SymbolTable != nil {
-		builtins = opts.SymbolTable.builtins
-	}
-
 	return &SimpleOptimizer{
 		file:             file,
-		vm:               NewVM(nil).SetRecover(true),
+		vm:               NewVM(nil, nil).SetRecover(true),
 		maxCycle:         opts.OptimizerMaxCycle,
 		optimConsts:      opts.OptimizeConst,
 		optimExpr:        opts.OptimizeExpr,
@@ -113,7 +107,8 @@ func NewOptimizer(
 		moduleStore:      newModuleStore(),
 		embedStore:       newModuleStore(),
 		trace:            trace,
-		builtins:         builtins,
+		builtins:         base.builtins,
+		moduleMap:        opts.ModuleMap,
 	}
 }
 
@@ -239,13 +234,14 @@ func (so *SimpleOptimizer) slowEvalExpr(expr node.Expr) (node.Expr, bool) {
 		DisableBuiltin(so.scope.shadowedBuiltins()...)
 
 	compiler := NewCompiler(
+		st,
 		so.file.InputFile,
 		CompilerOptions{
-			SymbolTable: st,
 			moduleStore: so.moduleStore.reset(),
 			embedStore:  so.embedStore.reset(),
 			Constants:   so.constants[:0],
 			Trace:       so.trace,
+			ModuleMap:   so.moduleMap,
 		},
 	)
 	compiler.instructions = so.instructions[:0]

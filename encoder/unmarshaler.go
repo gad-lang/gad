@@ -360,6 +360,7 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 		return errors.New("invalid gad.CompiledFunction data")
 	}
 
+	o.CompiledFunction = &gad.CompiledFunction{}
 	size, offset, err := toVarint(data[1:])
 	if err != nil {
 		return err
@@ -373,6 +374,9 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 	var vi varintConv
 	vi.reader = rd
 
+	f := o.CompiledFunction
+	o.moduleConstantIndex = -1
+
 	for rd.Len() > 0 {
 		field, err := rd.ReadByte()
 		if err != nil {
@@ -380,54 +384,73 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 		}
 		switch field {
 		case 0:
+			var v int64
+			v, err := vi.read()
+			if err != nil {
+				return err
+			}
+			o.moduleConstantIndex = int(v)
+		case 1:
 			obj, err := DecodeObject(rd)
 			if err != nil {
 				return err
 			}
-			o.FuncName = string(obj.(gad.Str))
-		case 1:
-			o.AllowMethods = true
+			f.FuncName = string(obj.(gad.Str))
+		case 2:
+			f.AllowMethods = true
 		case 3:
 			v, err := vi.read()
 			if err != nil {
 				return err
 			}
 
-			o.Params = make(gad.Params, v)
+			params := make([]*gad.Param, v)
 
 			for i := 0; i < int(v); i++ {
 				obj, err := DecodeObject(rd)
 				if err != nil {
 					return err
 				}
-				o.Params[i] = gad.NewParam(string(obj.(gad.Str)))
+
+				p := gad.NewParam(string(obj.(gad.Str)))
+
+				if obj, err = DecodeObject(rd); err != nil {
+					return err
+				}
+
+				p.Symbol = obj.(*gad.SymbolInfo)
+
 				if b, err := rd.ReadByte(); err != nil {
 					return err
 				} else {
-					o.Params[i].Var = b == 1
+					p.Var = b == 1
 				}
 				if types, err := DecodeObject(rd); err != nil {
 					return err
-				} else if typesArr := types.(gad.Array); len(typesArr) > 0 {
+				} else {
+					typesArr := types.(gad.Array)
 					types := make([]*gad.SymbolInfo, len(typesArr))
 					for i2, object := range typesArr {
 						types[i2] = object.(*gad.SymbolInfo)
 					}
-					o.Params[i].Type = types
+					p.TypesSymbols = types
 				}
+				params[i] = p
 			}
+
+			f.Params = *gad.NewParams(params...)
 		case 4:
 			v, err := vi.read()
 			if err != nil {
 				return err
 			}
-			o.NumLocals = int(v)
+			f.NumLocals = int(v)
 		case 5:
 			obj, err := DecodeObject(rd)
 			if err != nil {
 				return err
 			}
-			o.Instructions = obj.(gad.Bytes)
+			f.Instructions = obj.(gad.Bytes)
 		case 7:
 			v, err := vi.read()
 			if err != nil {
@@ -435,29 +458,39 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 			}
 			namedParams := make([]*gad.NamedParam, int(v))
 			for i := range namedParams {
-				if name, err := DecodeObject(rd); err != nil {
+				value, err := DecodeObject(rd)
+				if err != nil {
 					return err
-				} else if value, err := DecodeObject(rd); err != nil {
-					return err
-				} else {
-					namedParams[i] = gad.NewNamedParam(string(name.(gad.Str)), string(value.(gad.Str)))
 				}
+
+				s := value.(*gad.SymbolInfo)
+
+				value, err = DecodeObject(rd)
+				if err != nil {
+					return err
+				}
+
+				p := gad.NewNamedParam(s.Name, string(value.(gad.Str)))
+				p.Symbol = s
+
 				if b, err := rd.ReadByte(); err != nil {
 					return err
 				} else {
-					namedParams[i].Var = b == 1
+					p.Var = b == 1
 				}
 				if types, err := DecodeObject(rd); err != nil {
 					return err
-				} else if typesArr := types.(gad.Array); len(typesArr) > 0 {
+				} else {
+					typesArr := types.(gad.Array)
 					types := make([]*gad.SymbolInfo, len(typesArr))
 					for i2, object := range typesArr {
 						types[i2] = object.(*gad.SymbolInfo)
 					}
-					namedParams[i].TypesSymbols = types
+					p.TypesSymbols = types
 				}
+				namedParams[i] = p
 			}
-			o.NamedParams = *gad.NewNamedParams(namedParams...)
+			f.NamedParams = *gad.NewNamedParams(namedParams...)
 		case 8:
 			length, err := vi.read()
 			if err != nil {
@@ -466,7 +499,7 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 
 			sz := int(length / 2)
 			// always put size to the map to decode faster
-			o.SourceMap = make(map[int]int, sz)
+			f.SourceMap = make(map[int]int, sz)
 			for i := 0; i < sz; i++ {
 				key, err := vi.read()
 				if err != nil {
@@ -476,7 +509,7 @@ func (o *CompiledFunction) UnmarshalBinary(data []byte) error {
 				if err != nil {
 					return err
 				}
-				o.SourceMap[int(key)] = int(value)
+				f.SourceMap[int(key)] = int(value)
 			}
 		default:
 			return errors.New("unknown field:" + strconv.Itoa(int(field)))
@@ -517,52 +550,6 @@ func (o *BuiltinFunction) UnmarshalBinary(data []byte) error {
 		return nil
 	}
 	return fmt.Errorf("builtin '%s' not a gad.BuiltinFunction type", s)
-}
-
-// UnmarshalBinary implements encoding.BinaryUnmarshaler
-func (o *BuiltinObjType) UnmarshalBinary(data []byte) error {
-	if len(data) < 2 || data[0] != binBuiltinObjTypeV1 {
-		return errors.New("invalid gad.BuiltinObjectType data")
-	}
-
-	size, offset, err := toVarint(data[1:])
-	if err != nil {
-		return err
-	}
-
-	if size <= 0 {
-		return errors.New("invalid gad.BuiltinObjectType data size")
-	}
-
-	var s String
-	if err := s.UnmarshalBinary(data[1+offset:]); err != nil {
-		return err
-	}
-	o.TypeName = string(s)
-	return nil
-}
-
-// UnmarshalBinary implements encoding.BinaryUnmarshaler
-func (o *Function) UnmarshalBinary(data []byte) error {
-	if len(data) < 2 || data[0] != binFunctionV1 {
-		return errors.New("invalid gad.Function data")
-	}
-
-	size, offset, err := toVarint(data[1:])
-	if err != nil {
-		return err
-	}
-
-	if size <= 0 {
-		return errors.New("invalid gad.Function data size")
-	}
-
-	var s String
-	if err := s.UnmarshalBinary(data[1+offset:]); err != nil {
-		return err
-	}
-	o.FuncName = string(s)
-	return nil
 }
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaler
@@ -660,8 +647,24 @@ func (sfs *SourceFileSet) UnmarshalBinary(data []byte) error {
 }
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaler
-func (s *Symbol) UnmarshalBinary(data []byte) (err error) {
-	rd := bytes.NewReader(data)
+func (s *SymbolInfo) UnmarshalBinary(data []byte) (err error) {
+	if len(data) < 2 || data[0] != binSymbolV1 {
+		return errors.New("invalid gad.SymbolInfo data")
+	}
+
+	size, offset, err := toVarint(data[1:])
+	if err != nil {
+		return err
+	}
+
+	if size <= 0 {
+		return errors.New("invalid gad.SymbolInfo data size")
+	}
+
+	rd := bytes.NewReader(data[1+offset:])
+
+	var vi varintConv
+	vi.reader = rd
 
 	obj, err := DecodeObject(rd)
 	if err != nil {
@@ -669,8 +672,6 @@ func (s *Symbol) UnmarshalBinary(data []byte) (err error) {
 	}
 	s.Name = string(obj.(gad.Str))
 
-	var vi varintConv
-	vi.reader = rd
 	v, err := vi.read()
 	if err != nil {
 		return err
@@ -683,6 +684,84 @@ func (s *Symbol) UnmarshalBinary(data []byte) (err error) {
 		return err
 	}
 	s.Scope = gad.SymbolScope(v)
+	return
+}
+
+func (s *Module) UnmarshalBinary(data []byte) (err error) {
+	if len(data) < 2 || data[0] != binModuleV1 {
+		return errors.New("invalid gad.Module data")
+	}
+
+	size, offset, err := toVarint(data[1:])
+	if err != nil {
+		return err
+	}
+
+	if size <= 0 {
+		return errors.New("invalid gad.Module data size")
+	}
+
+	rd := bytes.NewReader(data[1+offset:])
+
+	var (
+		vi  varintConv
+		mod gad.Module
+	)
+	vi.reader = rd
+
+	v, err := vi.read()
+	if err != nil {
+		return err
+	}
+
+	mod.ConstantIndex = int(v)
+	obj, err := DecodeObject(rd)
+	if err != nil {
+		return err
+	}
+	mod.Info.Name = string(obj.(gad.Str))
+
+	obj, err = DecodeObject(rd)
+	if err != nil {
+		return err
+	}
+	mod.Info.File = string(obj.(gad.Str))
+
+	obj, err = DecodeObject(rd)
+	if err != nil {
+		return err
+	}
+
+	arr := obj.(gad.Array)
+	mod.Params.Positional = arr
+
+	b, err := rd.ReadByte()
+
+	if err != nil {
+		return err
+	}
+
+	if b == 1 {
+		obj, err = DecodeObject(rd)
+		if err != nil {
+			return err
+		}
+		mod.Init = obj.(*CompiledFunction).CompiledFunction
+	}
+
+	obj, err = DecodeObject(rd)
+
+	if err != nil {
+		return err
+	}
+
+	arr = obj.(gad.Array)
+	if err = mod.Params.Named.AppendArrayOfPairs(arr); err != nil {
+		return err
+	}
+
+	*s = Module(mod)
+
 	return
 }
 

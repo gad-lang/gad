@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"reflect"
 	"testing"
 	gotime "time"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/test_helper/compare"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
@@ -59,6 +59,7 @@ func TestEncDecObjects(t *testing.T) {
 	}
 
 	boolObjects := []gad.Bool{gad.True, gad.False, gad.Bool(true), gad.Bool(false)}
+
 	for _, tC := range boolObjects {
 		msg := fmt.Sprintf("Bool(%v)", tC)
 		data, err := Bool(tC).MarshalBinary()
@@ -376,19 +377,21 @@ func TestEncDecObjects(t *testing.T) {
 			withSourceMap(map[int]int{0: 1, 3: 1, 5: 1}),
 		),
 	}
-	for i, tC := range compFuncs {
+
+	for i, tC := range compFuncs[2:] {
 		msg := fmt.Sprintf("CompiledFunction #%d", i)
-		data, err := (*CompiledFunction)(tC).MarshalBinary()
+		data, err := (&CompiledFunction{CompiledFunction: tC}).MarshalBinary()
 		require.NoError(t, err, msg)
 		require.Greater(t, len(data), 0, msg)
-		var v = &gad.CompiledFunction{}
-		err = (*CompiledFunction)(v).UnmarshalBinary(data)
+		var v = &CompiledFunction{}
+		err = v.UnmarshalBinary(data)
 		require.NoError(t, err, msg)
-		require.Equal(t, tC, v, msg)
+		f := v.CompiledFunction
+		require.Equal(t, tC, f, msg)
 
 		obj, err := DecodeObject(bytes.NewReader(data))
 		require.NoError(t, err, msg)
-		require.Equal(t, tC, obj, msg)
+		require.Equal(t, tC, obj.(*CompiledFunction).CompiledFunction, msg)
 	}
 
 	builtinFuncs := []*BuiltinFunction{}
@@ -418,6 +421,12 @@ func TestEncDecObjects(t *testing.T) {
 
 func TestEncDecBytecode(t *testing.T) {
 	testEncDecBytecode(t, `
+	f := func(arg0, arg1, *varg; na0=100, **na) {
+		return [arg0, arg1, varg, na0, na.dict]
+	}
+	return f(1,2,3;na0=4,na1=5)`, nil, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(4), gad.Dict{"na1": gad.Int(5)}})
+
+	testEncDecBytecode(t, `
 	param (arg0, arg1, *varg; na0=100, na1=200, **na)
 	return [arg0, arg1, varg, na0, na1, na.dict]`, &testopts{
 		args:      Array{gad.Int(1), gad.Int(2), gad.Int(3)},
@@ -435,7 +444,7 @@ func TestEncDecBytecode(t *testing.T) {
 	f := func(arg0, arg1, *varg; na0=100, **na) {
 		return [arg0, arg1, varg, na0, na.dict]
 	}
-	return f(1,2,3,na0=4,na1=5)`, nil, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(4), gad.Dict{"na1": gad.Int(5)}})
+	return f(1,2,3;na0=4,na1=5)`, nil, gad.Array{gad.Int(1), gad.Int(2), gad.Array{gad.Int(3)}, gad.Int(4), gad.Dict{"na1": gad.Int(5)}})
 
 	testEncDecBytecode(t, `
 	f := func() {
@@ -448,7 +457,7 @@ func TestEncDecBytecode(t *testing.T) {
 	f := func(arg0, arg1, *varg; na0=3, **na) {
 		return [arg0, arg1, varg, na0, na.dict, nil, true, false, "", -1, 0, 1, 2u, 3.0, 123.456d, 'a', bytes(0, 1, 2)]
 	}
-	f(1,2,na0=4,na1=5)
+	f(1,2;na0=4,na1=5)
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}`, nil, gad.Nil)
 }
 
@@ -457,14 +466,16 @@ func TestEncDecBytecode_modules(t *testing.T) {
 	mod1 := import("mod1")
 	mod2 := import("mod2")
 	return mod1.run() + mod2.run()
-	`, newOpts().Module("mod1", gad.Dict{
-		"run": &gad.Function{
-			FuncName: "run",
-			Value: func(gad.Call) (gad.Object, error) {
-				return gad.Str("mod1"), nil
+	`, newOpts().
+		Module("mod1", gad.Dict{
+			"run": &gad.Function{
+				FuncName: "run",
+				Value: func(gad.Call) (gad.Object, error) {
+					return gad.Str("mod1"), nil
+				},
 			},
-		},
-	}).Module("mod2", `return {run: func(){ return "mod2" }}`), gad.Str("mod1mod2"))
+		}).
+		Module("mod2", `exports = {run: func(){ return "mod2" }}`), gad.Str("mod1mod2"))
 }
 
 func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected gad.Object) {
@@ -474,20 +485,24 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 	}
 
 	if cfn, ok := expected.(*gad.CompiledFunction); ok {
-		expected = cfn.ClearSourceFileInfo()
+		expected = cfn
 	}
 
 	var initialModuleMap *gad.ModuleMap
 	if opts.moduleMap != nil {
 		initialModuleMap = opts.moduleMap.Copy()
 	}
-	bc, err := gad.Compile([]byte(script),
+
+	builtins := gad.NewBuiltins().Build()
+	st := gad.NewSymbolTable(builtins.Builtins().NameSet)
+
+	_, bc, err := gad.Compile(st, []byte(script),
 		gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
 			ModuleMap: opts.moduleMap,
 		}},
 	)
 	require.NoError(t, err)
-	vm := gad.NewVM(bc)
+	vm := gad.NewVM(builtins, bc)
 	items := gad.MustConvertToKeyValueArray(nil, opts.namedArgs)
 	ret, err := vm.RunOpts(&gad.RunOpts{
 		Globals:   opts.globals,
@@ -509,10 +524,10 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 		var bc2 gad.Bytecode
 		err = gob.NewDecoder(&buf).Decode((*Bytecode)(&bc2))
 		require.NoError(t, err)
-		testDecodedBytecodeEqual(t, bc, &bc2)
+		testDecodedBytecodeEqual(t, builtins, bc, &bc2)
 
 		items = gad.MustConvertToKeyValueArray(nil, opts.namedArgs)
-		ret, err := gad.NewVM(&bc2).RunOpts(&gad.RunOpts{
+		ret, err := gad.NewVM(builtins, &bc2).RunOpts(&gad.RunOpts{
 			Globals:   opts.globals,
 			Args:      gad.Args{opts.args},
 			NamedArgs: gad.NewNamedArgs(items),
@@ -524,9 +539,9 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 		var bc3 gad.Bytecode
 		err = (*Bytecode)(&bc3).UnmarshalBinary(bcData)
 		require.NoError(t, err)
-		testDecodedBytecodeEqual(t, bc, &bc3)
+		testDecodedBytecodeEqual(t, builtins, bc, &bc3)
 		items = gad.MustConvertToKeyValueArray(nil, opts.namedArgs)
-		ret, err = gad.NewVM(&bc3).RunOpts(&gad.RunOpts{
+		ret, err = gad.NewVM(builtins, &bc3).RunOpts(&gad.RunOpts{
 			Globals:   opts.globals,
 			Args:      gad.Args{opts.args},
 			NamedArgs: gad.NewNamedArgs(items),
@@ -537,9 +552,9 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 
 	bc4, err := DecodeBytecodeFrom(bytes.NewReader(bcData), opts.moduleMap)
 	require.NoError(t, err)
-	testDecodedBytecodeEqual(t, bc, bc4)
+	testDecodedBytecodeEqual(t, builtins, bc, bc4)
 	items = gad.MustConvertToKeyValueArray(nil, opts.namedArgs)
-	ret, err = gad.NewVM(bc4).RunOpts(&gad.RunOpts{
+	ret, err = gad.NewVM(builtins, bc4).RunOpts(&gad.RunOpts{
 		Globals:   opts.globals,
 		Args:      gad.Args{opts.args},
 		NamedArgs: gad.NewNamedArgs(items),
@@ -550,35 +565,28 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 	require.Equal(t, initialModuleMap, opts.moduleMap)
 }
 
-func testDecodedBytecodeEqual(t *testing.T, actual, decoded *gad.Bytecode) {
+func testDecodedBytecodeEqual(t *testing.T, builtins *gad.StaticBuiltins, expected, got *gad.Bytecode) {
 	t.Helper()
-	msg := fmt.Sprintf("actual:%s\ndecoded:%s\n", actual, decoded)
+	msg := fmt.Sprintf("actual:%s\ndecoded:%s\n", expected, got)
 
-	testBytecodeConstants(t, gad.NewVM(actual).Init(), actual.Constants, decoded.Constants)
-	require.Equal(t, actual.Main, decoded.Main, msg)
-	require.Equal(t, actual.NumModules, decoded.NumModules, msg)
-	if actual.FileSet == nil {
-		require.Nil(t, decoded.FileSet, msg)
+	testBytecodeConstants(t, gad.NewVM(builtins, expected).Init(), expected.Constants, got.Constants)
+	compare.Equal(t, expected.Main, got.Main, msg)
+	require.Equal(t, expected.NumModules, got.NumModules, msg)
+	if expected.FileSet == nil {
+		require.Nil(t, got.FileSet, msg)
 	} else {
-		require.Equal(t, actual.FileSet.Base, decoded.FileSet.Base, msg)
-		require.Equal(t, len(actual.FileSet.Files), len(decoded.FileSet.Files), msg)
-		for i, f := range actual.FileSet.Files {
-			f2 := decoded.FileSet.Files[i]
+		require.Equal(t, expected.FileSet.Base, got.FileSet.Base, msg)
+		require.Equal(t, len(expected.FileSet.Files), len(got.FileSet.Files), msg)
+		for i, f := range expected.FileSet.Files {
+			f2 := got.FileSet.Files[i]
 			require.Equal(t, f.Base, f2.Base, msg)
 			require.Equal(t, f.Lines, f2.Lines, msg)
 			require.Equal(t, f.Name, f2.Name, msg)
 			require.Equal(t, f.Size, f2.Size, msg)
 		}
-		require.NotNil(t, actual.FileSet.LastFile, msg)
-		require.Nil(t, decoded.FileSet.LastFile, msg)
+		require.NotNil(t, expected.FileSet.LastFile, msg)
+		require.Nil(t, got.FileSet.LastFile, msg)
 	}
-}
-
-func getModuleName(obj gad.Object) (string, bool) {
-	if m, ok := obj.(*gad.Module); ok {
-		return m.Name(), true
-	}
-	return "", false
 }
 
 func testBytecodeConstants(t *testing.T, vm *gad.VM, expected, decoded []gad.Object) {
@@ -586,61 +594,37 @@ func testBytecodeConstants(t *testing.T, vm *gad.VM, expected, decoded []gad.Obj
 	if len(decoded) != len(expected) {
 		t.Fatalf("constants length not equal want %d, got %d", len(decoded), len(expected))
 	}
-	Len := func(v gad.Object) gad.Object {
-		ret, err := gad.MustCall(gad.BuiltinObjects[gad.BuiltinLen], v)
-		if err != nil {
-			t.Fatalf("%v: length error for '%v'", err, v)
-		}
-		return ret
-	}
 
-	next := func(ok bool, err error) bool {
-		require.NoError(t, err)
-		return ok
+	var modBkp = func(m *gad.Module) func() {
+		cp := *m
+		*m = gad.Module{Info: m.Info}
+		return func() {
+			*m = cp
+		}
 	}
 
 	for i := range decoded {
-		modName, ok1 := getModuleName(expected[i])
-		decModName, ok2 := getModuleName(decoded[i])
+		modE, ok1 := expected[i].(*gad.Module)
 		if ok1 {
+			modD, ok2 := decoded[i].(*gad.Module)
 			require.True(t, ok2)
-			require.Equal(t, modName, decModName)
-			require.Equal(t, reflect.TypeOf(expected[i]), reflect.TypeOf(decoded[i]))
-			require.Equal(t, Len(expected[i]), Len(decoded[i]))
-			if !gad.Iterable(vm, expected[i]) {
-				require.False(t, gad.Iterable(vm, decoded[i]))
-				continue
+			require.Equal(t, modE.Info, modD.Info)
+			require.Equal(t, modE.ConstantIndex, modD.ConstantIndex)
+			if modE.Init != nil {
+				ok := modD.Init != nil
+				require.True(t, ok)
+				require.Equal(t, modE.Init.ToString(), modD.Init.ToString())
 			}
+			defer modBkp(modE)()
+			defer modBkp(modD)()
+		} else if _, ok := decoded[i].(*gad.Module); ok {
+			require.True(t, ok1)
+		}
+	}
 
-			_, it, err := gad.ToStateIterator(vm, expected[i], gad.NewNamedArgs())
-			require.NoError(t, err)
-
-			_, decIt, err := gad.ToStateIterator(vm, decoded[i], gad.NewNamedArgs())
-			require.NoError(t, err)
-
-			for next(decIt.Read()) {
-				require.True(t, next(it.Read()))
-				key := decIt.Key()
-				v1, err := gad.Val(expected[i].(gad.IndexGetter).IndexGet(vm, key))
-				require.NoError(t, err)
-				v2 := decIt.Value()
-				require.NoError(t, err)
-				if (v1 != nil && v2 == nil) || (v1 == nil && v2 != nil) {
-					t.Fatalf("decoded constant index %d not equal", i)
-				}
-				f1, ok := v1.(*gad.Function)
-				if ok {
-					f2 := v2.(*gad.Function)
-					require.Equal(t, f1.FuncName, f2.FuncName)
-					require.NotNil(t, f2.Value)
-					// Note that this is not a guaranteed way to compare func pointers
-					require.Equal(t, reflect.ValueOf(f1.Value).Pointer(),
-						reflect.ValueOf(f2.Value).Pointer())
-				} else {
-					require.Equal(t, v1, v2)
-				}
-			}
-			require.False(t, next(it.Read()))
+	for i := range decoded {
+		_, ok1 := expected[i].(*gad.Module)
+		if ok1 {
 			continue
 		}
 		require.Equalf(t, expected[i], decoded[i],

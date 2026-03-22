@@ -35,14 +35,14 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("builtins", func(t *testing.T) {
 		require.NoError(t, r.execute(".builtins"))
-		testHasPrefix(t, string(cw.consume()),
-			"DISCARD_WRITER            \tBuiltin\n")
+		testContains(t, string(cw.consume()),
+			"@binaryOperator           \tBuiltin ")
 	})
 	t.Run("keywords", func(t *testing.T) {
 		require.NoError(t, r.execute(".keywords"))
 		testHasPrefix(t, string(cw.consume()),
 			"break\ncontinue\nelse\nfor\nfunc\nmet\nif\nreturn\ntrue\nfalse\nyes\nno\nin\nnil\nimport\nembed\n"+
-				"param\nglobal\nvar\nconst\ntry\ncatch\nfinally\nthrow\nSTDIN\nSTDOUT\nSTDERR\n@callee\n@nargs\n@args\n"+
+				"param\nglobal\nvar\nconst\ntry\ncatch\nfinally\nthrow\nSTDIN\nSTDOUT\nSTDERR\n@fn\n@nargs\n@args\n"+
 				"@name\n@file\n@main\n@module\n",
 		)
 	})
@@ -161,21 +161,21 @@ func TestREPL(t *testing.T) {
 		require.NoError(t, r.execute(`import("fmt")`))
 		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"fmt\"")
 		require.NoError(t, r.execute(".modules_cache"))
-		testHasPrefix(t, string(cw.consume()), "[‹module: fmt ")
+		testHasPrefix(t, string(cw.consume()), "[‹module: fmt›]")
 	})
 	t.Run("import json", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`import("json")`))
 		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"json\"")
 		require.NoError(t, r.execute(".modules_cache"))
-		testHasPrefix(t, string(cw.consume()), "[‹module: json ")
+		testHasPrefix(t, string(cw.consume()), "[‹module: json›]")
 	})
 	t.Run("import encoding/base64", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`import("encoding/base64")`))
 		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"encoding/base64\" ")
 		require.NoError(t, r.execute(".modules_cache"))
-		testHasPrefix(t, string(cw.consume()), "[‹module: encoding/base64 ")
+		testHasPrefix(t, string(cw.consume()), "[‹module: encoding/base64›]")
 	})
 	t.Run("memory_stats", func(t *testing.T) {
 		require.NoError(t, r.execute(".memory_stats"))
@@ -190,7 +190,7 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("type_method_constructor", func(t *testing.T) {
 		r := newREPL(ctx, cw)
-		require.NoError(t, r.execute(`Point := Class("Point",fields=(;x=0, y=0));met Point(this, x,y)=>this(x=x,y=y)`))
+		require.NoError(t, r.execute(`Point := Class("Point";fields=(;x=0, y=0));met Point(this, x,y)=>this(;x=x,y=y)`))
 		cw.consume()
 		require.NoError(t, r.execute("met int(p Point) => p.x * p.y"))
 		cw.consume()
@@ -310,6 +310,14 @@ func TestExecuteScript(t *testing.T) {
 func testHasPrefix(t *testing.T, s, pref string) {
 	t.Helper()
 	v := strings.HasPrefix(s, pref)
+	if !assert.True(t, v) {
+		t.Fatalf("input: %q\nprefix: %q", s, pref)
+	}
+}
+
+func testContains(t *testing.T, s, pref string) {
+	t.Helper()
+	v := strings.Contains(s, pref)
 	if !assert.True(t, v) {
 		t.Fatalf("input: %q\nprefix: %q", s, pref)
 	}

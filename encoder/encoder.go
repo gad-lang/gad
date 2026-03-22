@@ -29,26 +29,28 @@ const (
 // Types implementing encoding.BinaryMarshaler encoding.BinaryUnmarshaler.
 type (
 	Bytecode         gad.Bytecode
-	CompiledFunction gad.CompiledFunction
-	BuiltinFunction  gad.BuiltinFunction
-	BuiltinObjType   gad.BuiltinObjType
-	Function         gad.Function
-	NilType          gad.NilType
-	String           gad.Str
-	Bytes            gad.Bytes
-	Array            gad.Array
-	Map              gad.Dict
-	SyncMap          gad.SyncDict
-	Int              gad.Int
-	Uint             gad.Uint
-	Char             gad.Char
-	Float            gad.Float
-	Decimal          gad.Decimal
-	Bool             gad.Bool
-	Flag             gad.Flag
-	SourceFileSet    source.FileSet
-	SourceFile       source.File
-	Symbol           gad.SymbolInfo
+	CompiledFunction struct {
+		moduleConstantIndex int
+		*gad.CompiledFunction
+	}
+	BuiltinFunction gad.BuiltinFunction
+	NilType         gad.NilType
+	String          gad.Str
+	Bytes           gad.Bytes
+	Array           gad.Array
+	Map             gad.Dict
+	SyncMap         gad.SyncDict
+	Int             gad.Int
+	Uint            gad.Uint
+	Char            gad.Char
+	Float           gad.Float
+	Decimal         gad.Decimal
+	Bool            gad.Bool
+	Flag            gad.Flag
+	SourceFileSet   source.FileSet
+	SourceFile      source.File
+	SymbolInfo      gad.SymbolInfo
+	Module          gad.Module
 )
 
 const (
@@ -68,10 +70,10 @@ const (
 	binMapV1
 	binSyncMapV1
 	binCompiledFunctionV1
-	binFunctionV1
 	binBuiltinFunctionV1
 	binBuiltinObjTypeV1
 	binSymbolV1
+	binModuleV1
 
 	binUnkownType byte = 255
 )
@@ -122,7 +124,16 @@ func (bc *Bytecode) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaler
 // Do not use this method if builtin modules are used, instead use Decode method.
-func (bc *Bytecode) UnmarshalBinary(data []byte) error {
+func (bc *Bytecode) UnmarshalBinary(data []byte) (err error) {
+	if err = bc.unmarshalBinary(data); err == nil {
+		err = bc.FixObjects(gad.NewModuleMap())
+	}
+	return
+}
+
+// UnmarshalBinary implements encoding.BinaryUnmarshaler
+// Do not use this method if builtin modules are used, instead use Decode method.
+func (bc *Bytecode) unmarshalBinary(data []byte) error {
 	if len(data) < 6 {
 		return &gad.Error{
 			Name:    "encoder.Bytecode.UnmarshalBinary",
@@ -194,7 +205,7 @@ func (bc *Bytecode) bytecodeV1Encoder(w io.Writer) (err error) {
 
 	// Constants, field #1
 	if bc.Constants != nil {
-		_ = writeByteTo(w, 2)
+		_ = writeByteTo(w, 1)
 		var data []byte
 		if data, err = Array(bc.Constants).MarshalBinary(); err != nil {
 			return
@@ -206,9 +217,9 @@ func (bc *Bytecode) bytecodeV1Encoder(w io.Writer) (err error) {
 
 	// Main, field #2
 	if bc.Main != nil {
-		_ = writeByteTo(w, 1)
+		_ = writeByteTo(w, 2)
 		var data []byte
-		if data, err = (*CompiledFunction)(bc.Main).MarshalBinary(); err != nil {
+		if data, err = (&CompiledFunction{CompiledFunction: bc.Main}).MarshalBinary(); err != nil {
 			return
 		}
 		if _, err = w.Write(data); err != nil {
@@ -283,19 +294,18 @@ func (bc *Bytecode) bytecodeV1Decoder(r *bytes.Buffer) error {
 			}
 
 			bc.Constants = obj.(gad.Array)
-			for i, c := range bc.Constants {
-				switch t := c.(type) {
-				case *gad.Module:
-					t.SetConstantIndex(i)
-				}
-			}
 		case 2:
 			f, err := DecodeObject(r)
 			if err != nil {
 				return err
 			}
 
-			bc.Main = f.(*gad.CompiledFunction)
+			cf := f.(*CompiledFunction)
+			if cf.moduleConstantIndex >= 0 && len(bc.Constants) > 0 {
+				cf.SetModule(bc.Constants[cf.moduleConstantIndex].(*gad.Module))
+			}
+
+			bc.Main = cf.CompiledFunction
 		case 3:
 			num, err := DecodeObject(r)
 			if err != nil {
@@ -418,10 +428,10 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 		binStringV1,
 		binMapV1,
 		binSyncMapV1,
-		binFunctionV1,
 		binBuiltinFunctionV1,
 		binBuiltinObjTypeV1,
-		binSymbolV1:
+		binSymbolV1,
+		binModuleV1:
 
 		var vi varintConv
 		value, readBytes, err := vi.readBytes(r)
@@ -450,7 +460,7 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 			if err := v.UnmarshalBinary(buf); err != nil {
 				return nil, err
 			}
-			return (*gad.CompiledFunction)(&v), nil
+			return &v, nil
 		case binArrayV1:
 			var v = Array{}
 			if err := v.UnmarshalBinary(buf); err != nil {
@@ -481,31 +491,26 @@ func DecodeObject(r io.Reader) (gad.Object, error) {
 				return nil, err
 			}
 			return (*gad.SyncDict)(&v), nil
-		case binFunctionV1:
-			var v Function
-			if err := v.UnmarshalBinary(buf); err != nil {
-				return nil, err
-			}
-			return (*gad.Function)(&v), nil
 		case binBuiltinFunctionV1:
 			var v BuiltinFunction
 			if err := v.UnmarshalBinary(buf); err != nil {
 				return nil, err
 			}
 			return (*gad.BuiltinFunction)(&v), nil
-		case binBuiltinObjTypeV1:
-			var v BuiltinObjType
-			if err := v.UnmarshalBinary(buf); err != nil {
-				return nil, err
-			}
-			return (*gad.BuiltinObjType)(&v), nil
 		case binSymbolV1:
-			var v Symbol
+			var v SymbolInfo
 			if err := v.UnmarshalBinary(buf); err != nil {
 				return nil, err
 			}
 			si := gad.SymbolInfo(v)
 			return &si, nil
+		case binModuleV1:
+			var v Module
+			if err := v.UnmarshalBinary(buf); err != nil {
+				return nil, err
+			}
+			o := gad.Module(v)
+			return &o, nil
 		}
 	case binUnkownType:
 		var v gad.Object
@@ -560,15 +565,13 @@ func marshaler(o gad.Object) encoding.BinaryMarshaler {
 	case *gad.SyncDict:
 		return (*SyncMap)(v)
 	case *gad.CompiledFunction:
-		return (*CompiledFunction)(v)
-	case *gad.Function:
-		return (*Function)(v)
+		return &CompiledFunction{CompiledFunction: v}
 	case *gad.BuiltinFunction:
 		return (*BuiltinFunction)(v)
-	case *gad.BuiltinObjType:
-		return (*BuiltinObjType)(v)
 	case *gad.NilType:
 		return (*NilType)(v)
+	case *gad.Module:
+		return (*Module)(v)
 	// case *gad.Func:
 	//	return marshaler(v.F)
 	default:

@@ -285,7 +285,7 @@ var tokens = [...]string{
 	Catch:           "catch",
 	Finally:         "finally",
 	Throw:           "throw",
-	Callee:          "@callee",
+	Callee:          "@fn",
 	Args:            "@args",
 	NamedArgs:       "@nargs",
 	DotName:         "@name",

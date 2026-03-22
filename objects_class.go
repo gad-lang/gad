@@ -415,7 +415,7 @@ func (t *Class) FullName() string {
 	if t.module == nil {
 		return t.name
 	}
-	return t.module.info.Name + "." + t.name
+	return t.module.Info.Name + "." + t.name
 }
 
 func (t *Class) Type() ObjectType {

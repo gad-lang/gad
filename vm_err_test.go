@@ -126,8 +126,8 @@ func TestVMErrorHandlers(t *testing.T) {
 	errZeroDiv = nil
 	expectErrAs(t, `func(x) { return 1/x }(0)`, newOpts().Skip2Pass(), &errZeroDiv, nil)
 	require.NotNil(t, errZeroDiv.Err)
-	require.Equal(t, "", errZeroDiv.Err.Message)
-	require.Equal(t, nil, errZeroDiv.Err.Cause)
+	require.Equal(t, "ErrCall: ‹builtinFunction: @binaryOperator›; caused by: ‹ZeroDivisionError›", errZeroDiv.Err.ToString())
+	require.Equal(t, ErrZeroDivision, errZeroDiv.Err.Cause)
 	require.Equal(t, 2, len(errZeroDiv.Trace))
 	require.Equal(t, source.Pos(18), errZeroDiv.Trace[0])
 	require.Equal(t, source.Pos(23), errZeroDiv.Trace[1])
@@ -135,8 +135,8 @@ func TestVMErrorHandlers(t *testing.T) {
 	errZeroDiv = nil
 	expectErrAs(t, `1/0`, newOpts().Skip2Pass(), &errZeroDiv, nil)
 	require.NotNil(t, invOpErr.Err)
-	require.Equal(t, "", errZeroDiv.Err.Message)
-	require.Equal(t, nil, errZeroDiv.Err.Cause)
+	require.Equal(t, "ErrCall: ‹builtinFunction: @binaryOperator›; caused by: ‹ZeroDivisionError›", errZeroDiv.Err.ToString())
+	require.Equal(t, ErrZeroDivision, errZeroDiv.Err.Cause)
 	require.Equal(t, 1, len(errZeroDiv.Trace))
 	require.Equal(t, source.Pos(1), errZeroDiv.Trace[0])
 }
@@ -154,10 +154,11 @@ func TestVMNoPanic(t *testing.T) {
 				t.Fatal("expected panic but got nil")
 			}
 		}()
+		builtins := NewBuiltins()
 		// expectRun() is not used because panic somehow cannot be recovered in testing.
-		_, c, err := Compile([]byte(`param panic; panic();`), CompileOptions{})
+		_, c, err := Compile(NewSymbolTable(builtins.NameSet), []byte(`param panic; panic();`), CompileOptions{})
 		require.NoError(t, err)
-		vm := NewVM(c)
+		vm := NewVM(builtins.Build(), c)
 		v, err := vm.Run(nil, panicFunc)
 		t.Fatalf("expected panic but got err=%v\nreturn value=%v", err, v)
 	}()
@@ -248,7 +249,7 @@ func TestVMNoPanic(t *testing.T) {
 
 func TestVMCatchAll(t *testing.T) {
 	catchAll := `
-	return func(callable, *args) {
+	exports.f = func(callable, *args) {
 		try {
 			return callable(*args)
 		} catch err {
@@ -256,7 +257,7 @@ func TestVMCatchAll(t *testing.T) {
 		}
 	}`
 	testExpectRun(t, `
-	catchAll := import("catchAll")
+	catchAll := import("catchAll").f
 
 	sum := func(a, b, c) {
 		return a + b + c
@@ -288,7 +289,7 @@ func TestVMCatchAll(t *testing.T) {
 	)
 
 	catchAll2 := `
-	return func(callable, onError, *args) {
+	exports.f = func(callable, onError, *args) {
 		var ret
 		try {
 			return callable(*args)
@@ -305,7 +306,7 @@ func TestVMCatchAll(t *testing.T) {
 		}
 	}`
 	testExpectRun(t, `
-	catchAll2 := import("catchAll2")
+	catchAll2 := import("catchAll2").f
 
 	sum := func(a, b, c) {
 		return a + b + c
@@ -611,8 +612,8 @@ func TestVMErrorUnwrap(t *testing.T) {
 		},
 	}}
 	expectErrIs(t, `global fn; fn()`, newOpts().Globals(g), err1)
-	expectErrIs(t, `import("module")()`,
-		newOpts().Globals(g).Module("module", `global fn; return fn`), err1)
+	expectErrHas(t, `import("module")()`,
+		newOpts().Globals(g).Module("module", `global fn; return fn`), "NotCallableError: Module")
 
 	g.(Dict)["fn"] = &Function{
 		Value: func(Call) (Object, error) {
@@ -666,7 +667,7 @@ func TestVMExamples(t *testing.T) {
 		return total
 	}
 	// return a map to the module importer to export objects.
-	return {
+	exports = {
 		Sum: sum,
 		NumOfErrors: func() { return numOfErrors },
 	}
@@ -851,12 +852,12 @@ func TestVMExamples(t *testing.T) {
 
 	fn1()
 
-	fn2 := import("module")
+	fn2 := import("module").f
 	fn2()
 	`, newOpts().Module("module", `
 	global stats
 
-	return func() {
+	exports.f = func() {
 		stats.fn2++
 		/* ... */
 	}

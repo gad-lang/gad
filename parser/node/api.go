@@ -48,7 +48,7 @@ func (s Stmts) Each(f func(i int, sep bool, s Stmt)) {
 	sep := true
 
 	for i, stmt := range s {
-		f(i, sep && i > 0, stmt)
+		f(i, sep, stmt)
 
 		switch stmt.(type) {
 		case *CodeBeginStmt:
@@ -80,7 +80,7 @@ func (s Stmts) Map(f func(i int, s Stmt) Stmt) (l Stmts) {
 func (s Stmts) String() string {
 	var w bytes.Buffer
 	s.Each(func(i int, sep bool, stmt Stmt) {
-		if sep {
+		if i > 0 && sep {
 			w.WriteString("; ")
 		}
 		w.WriteString(stmt.String())

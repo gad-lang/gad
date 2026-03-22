@@ -4008,7 +4008,7 @@ func TestVMSourceModules(t *testing.T) {
 	return str(mod1)
 	`, newOpts().Module("mod1", ModuleInitFunc(func(module *Module, c Call) (data ModuleData, err error) {
 		return Dict{"x": Int(2)}, nil
-	})), Str("‹module \"mod1\" at \"builtinModuleInit:mod1\" {@data: {x: 2}}›"))
+	})), Str("‹module \"mod1\" {@data: {x: 2}}›"))
 }
 
 func TestVMUnary(t *testing.T) {
@@ -4755,7 +4755,7 @@ func TestVMCall(t *testing.T) {
 func TestVMCallCompiledFunction(t *testing.T) {
 	testExpectRun(t, `
 	f := func(*argv; **nav) {
-		return [copy(@args.values), @nargs.dict, str(@callee)]
+		return [copy(@args.values), @nargs.dict, str(@fn)]
 	}
 	return f(1,2,3, *[8,9];na0=4,na1=5)`, nil,
 		Array{
@@ -4763,6 +4763,8 @@ func TestVMCallCompiledFunction(t *testing.T) {
 			Dict{"na0": Int(4), "na1": Int(5)},
 			Str(ReprQuote("compiledFunction: (main).#1(*argv any; **nav)")),
 		})
+
+	builtins := NewBuiltins()
 
 	script := `
 	var v = 0
@@ -4777,11 +4779,11 @@ func TestVMCallCompiledFunction(t *testing.T) {
 		},
 	}
 	`
-	_, c, err := Compile([]byte(script), CompileOptions{})
+	_, c, err := Compile(NewSymbolTable(builtins.NameSet), []byte(script), CompileOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	vm := NewVM(c)
+	vm := NewVM(builtins.Build(), c)
 	f, err := vm.Run(nil, nil)
 	if err != nil {
 		t.Fatal(err)

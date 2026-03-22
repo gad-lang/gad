@@ -33,7 +33,7 @@ func withEmbeds(numOfEmbeds int) bytecodeOption {
 	}
 }
 
-var mainModule = NewModule(ModuleInfo{Name: MainName, File: "file:" + MainName}, nil, nil)
+var mainModule = NewModule(ModuleInfo{Name: MainName, File: MainName})
 
 func bytecode(
 	consts []Object,
@@ -43,6 +43,7 @@ func bytecode(
 	if cf.GetModule() == nil {
 		cf.SetModule(mainModule)
 	}
+	cf.FuncName = "#main"
 	bc := &Bytecode{
 		Constants: consts,
 		Main:      cf,
@@ -447,15 +448,11 @@ func TestCompiler_Mixed(t *testing.T) {
 func TestCompiler_CompileFuncWithNamedParams(t *testing.T) {
 	expectCompile(t, `func f(;x int=1) {}`, bytecode(
 		Array{
-			Str("x"),
 			Int(1),
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 0),
-				makeInst(OpJumpNotNil, 17),
+				makeInst(OpJumpNotNil, 10),
 				makeInst(OpConstant, 1),
-				makeInst(OpNamedParamValue),
-				makeInst(OpJumpNotNil, 15),
-				makeInst(OpConstant, 2),
 				makeInst(OpSetLocal, 0),
 				makeInst(OpReturn, 0),
 			),
@@ -473,7 +470,7 @@ func TestCompiler_CompileFuncWithNamedParams(t *testing.T) {
 		},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFunc)),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
@@ -482,15 +479,11 @@ func TestCompiler_CompileFuncWithNamedParams(t *testing.T) {
 
 	expectCompile(t, `return func(x;a=2) {return x+a}(1)`, bytecode(
 		Array{
-			Str("a"),
 			Int(2),
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 1),
-				makeInst(OpJumpNotNil, 17),
+				makeInst(OpJumpNotNil, 10),
 				makeInst(OpConstant, 1),
-				makeInst(OpNamedParamValue),
-				makeInst(OpJumpNotNil, 15),
-				makeInst(OpConstant, 2),
 				makeInst(OpSetLocal, 1),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpGetLocal, 1),
@@ -512,8 +505,8 @@ func TestCompiler_CompileFuncWithNamedParams(t *testing.T) {
 			Int(1),
 		},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 2),
 			makeInst(OpConstant, 3),
-			makeInst(OpConstant, 4),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpReturn, 1),
 		)),
@@ -624,9 +617,11 @@ func TestCompiler_CompileImport(t *testing.T) {
 		}},
 		bytecode(
 			Array{
-				NewModule(ModuleInfo{Name: "mod", File: "source:mod"}, nil, compFunc(concatInsts(
-					makeInst(OpReturn, 0),
-				))),
+				NewModule(ModuleInfo{Name: "mod", File: "source:mod"}, func(m *Module) {
+					m.Init = compFunc(concatInsts(
+						makeInst(OpReturn, 0),
+					))
+				}),
 				Int(1),
 			},
 			compFunc(concatInsts(
@@ -648,9 +643,7 @@ func TestCompiler_CompileImport(t *testing.T) {
 		}},
 		bytecode(
 			Array{
-				NewModule(ModuleInfo{Name: "mod", File: "source:mod"}, nil, compFunc(concatInsts(
-					makeInst(OpReturn, 0),
-				))),
+				NewModule(ModuleInfo{Name: "mod", File: "source:mod"}),
 				Int(1),
 				Str("x"),
 				Int(2),
@@ -678,9 +671,7 @@ func TestCompiler_CompileImport(t *testing.T) {
 		}},
 		bytecode(
 			Array{
-				NewModule(ModuleInfo{Name: "mod", File: "source:mod"}, nil, compFunc(concatInsts(
-					makeInst(OpReturn, 0),
-				))),
+				NewModule(ModuleInfo{Name: "mod", File: "source:mod"}),
 			},
 			compFunc(concatInsts(
 				makeInst(OpLoadModule, 1, 0), // 0000 constant, module indexes
@@ -2575,7 +2566,8 @@ func TestCompiler_Compile(t *testing.T) {
 			},
 			compFunc(concatInsts(
 				makeInst(OpLoadModule, 1, 0), // 0000 constant, module indexes
-				makeInst(OpJumpFalsy, 11),    // 0005 if loaded no call is required
+				makeInst(OpJumpFalsy, 14),    // 0005 if loaded no call is required
+				makeInst(OpInitModule, 0, 0), // 0005 if loaded no call is required
 				makeInst(OpStoreModule, 0),   // 0008 store value to module cache
 				makeInst(OpPop),              // 0011
 				makeInst(OpReturn, 0),        // 0012
@@ -3105,7 +3097,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 			funcLocals(2),
 		)))
 
-	expectCompile(t, `@callee`, bytecode(nil,
+	expectCompile(t, `@fn`, bytecode(nil,
 		compFunc(concatInsts(
 			makeInst(OpCallee),
 			makeInst(OpPop),
@@ -3488,7 +3480,7 @@ func expectCompileErrorWithOpts(t *testing.T,
 	script string, opts CompileOptions, errStr string) {
 
 	t.Helper()
-	_, _, err := Compile([]byte(script), opts)
+	_, _, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(script), opts)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), errStr)
 }
@@ -3507,12 +3499,34 @@ func expectCompileMixed(t *testing.T, script string, expected *Bytecode) {
 	}, expected)
 }
 
+type expectCompileOptions struct {
+	builtins *Builtins
+	st       *SymbolTable
+	opts     *TestBytecodesEqualOptions
+}
+
 // SourceMap comparison is ignored if it is nil.
 func expectCompileWithOpts(t *testing.T,
-	script string, opts CompileOptions, expected *Bytecode) {
+	script string, opts CompileOptions, expected *Bytecode, opt ...*expectCompileOptions) {
+
+	var eopts *expectCompileOptions
+	for _, eopts = range opt {
+	}
+
+	if eopts == nil {
+		eopts = &expectCompileOptions{}
+	}
+
+	if eopts.builtins == nil {
+		eopts.builtins = NewBuiltins()
+	}
+
+	if eopts.st == nil {
+		eopts.st = NewSymbolTable(eopts.builtins.NameSet)
+	}
 
 	t.Helper()
-	_, got, err := Compile([]byte(script), opts)
+	_, got, err := Compile(eopts.st, []byte(script), opts)
 	require.NoError(t, err)
-	TestBytecodesEqual(t, expected, got, expected.Main.SourceMap != nil)
+	TestBytecodesEqual(t, expected, got, expected.Main.SourceMap != nil, eopts.opts)
 }

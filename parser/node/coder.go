@@ -92,6 +92,10 @@ const (
 		CodeWriteContextFlagFormatParemValuesInNewLine
 )
 
+type CodeWriteSkiper interface {
+	SkipCode(ctx *CodeWriteContext) bool
+}
+
 type CodeWriteContext struct {
 	Stack     []ast.Node
 	Depth     int
@@ -135,105 +139,125 @@ func NewCodeWriteContext(codeWriter CodeWriter, opt ...CodeOption) *CodeWriteCon
 	return ctx
 }
 
-func (c CodeWriteContext) WithoutPrefix() *CodeWriteContext {
-	c.Prefix = ""
-	return &c
+func (ctx CodeWriteContext) WithoutPrefix() *CodeWriteContext {
+	ctx.Prefix = ""
+	return &ctx
 }
 
-func (c CodeWriteContext) Buffer(do func(ctx *CodeWriteContext)) string {
+func (ctx CodeWriteContext) Buffer(do func(ctx *CodeWriteContext)) string {
 	var buf bytes.Buffer
-	c.CodeWriter = NewCodeWriter(&buf)
-	do(&c)
+	ctx.CodeWriter = NewCodeWriter(&buf)
+	do(&ctx)
 	return buf.String()
 }
 
-func (c *CodeWriteContext) CurrentPrefix() string {
-	return strings.Repeat(c.Prefix, c.Depth)
+func (ctx *CodeWriteContext) CurrentPrefix() string {
+	return strings.Repeat(ctx.Prefix, ctx.Depth)
 }
 
-func (c *CodeWriteContext) WritePrefix() {
-	c.WriteString(c.CurrentPrefix())
+func (ctx *CodeWriteContext) WritePrefix() {
+	ctx.WriteString(ctx.CurrentPrefix())
 }
 
-func (c *CodeWriteContext) PrevPrefix() string {
-	if c.Depth == 0 {
+func (ctx *CodeWriteContext) PrevPrefix() string {
+	if ctx.Depth == 0 {
 		return ""
 	}
-	return strings.Repeat(c.Prefix, c.Depth-1)
+	return strings.Repeat(ctx.Prefix, ctx.Depth-1)
 }
 
-func (c *CodeWriteContext) WritePrevPrefix() {
-	c.WriteString(c.PrevPrefix())
+func (ctx *CodeWriteContext) WritePrevPrefix() {
+	ctx.WriteString(ctx.PrevPrefix())
 }
 
-func (c *CodeWriteContext) WriteLine(s string) {
-	c.WriteString(s)
-	c.WriteString("\n")
+func (ctx *CodeWriteContext) WriteLine(s string) {
+	ctx.WriteString(s)
+	ctx.WriteString("\n")
 }
 
-func (c *CodeWriteContext) WritePrefixedLine() {
-	c.WriteString("\n", c.CurrentPrefix())
+func (ctx *CodeWriteContext) WritePrefixedLine() {
+	ctx.WriteString("\n", ctx.CurrentPrefix())
 }
 
-func (c *CodeWriteContext) WriteSecondLine() {
-	if c.Prefix != "" {
-		c.WriteString("\n")
+func (ctx *CodeWriteContext) WriteSecondLine() {
+	if ctx.Prefix != "" {
+		ctx.WriteString("\n")
 	}
 }
 
-func (c *CodeWriteContext) WriteSemi() {
-	if c.Prefix == "" {
-		c.WriteString("; ")
+func (ctx *CodeWriteContext) WriteSemi() {
+	if ctx.Prefix == "" {
+		ctx.WriteString("; ")
 	} else {
-		c.WriteString("\n")
+		ctx.WriteString("\n" + ctx.CurrentPrefix())
 	}
 }
 
-func (c *CodeWriteContext) WriteSemiOrDoubleLine() {
-	if c.Prefix == "" {
-		c.WriteString("; ")
+func (ctx *CodeWriteContext) WriteSemiOrDoubleLine() {
+	if ctx.Prefix == "" {
+		ctx.WriteString("; ")
 	} else {
-		c.WriteString("\n\n")
+		ctx.WriteString("\n\n")
 	}
 }
 
-func (c *CodeWriteContext) Printf(format string, args ...interface{}) {
-	fmt.Fprintf(c.CodeWriter, format, args...)
+func (ctx *CodeWriteContext) Printf(format string, args ...interface{}) {
+	fmt.Fprintf(ctx.CodeWriter, format, args...)
 }
 
-func (c *CodeWriteContext) Top() ast.Node {
-	return c.Stack[len(c.Stack)-1]
+func (ctx *CodeWriteContext) Top() ast.Node {
+	return ctx.Stack[len(ctx.Stack)-1]
 }
 
-func (c *CodeWriteContext) Push(n ast.Node) {
-	c.Stack = append(c.Stack, n)
+func (ctx *CodeWriteContext) Push(n ast.Node) {
+	ctx.Stack = append(ctx.Stack, n)
 }
 
-func (c *CodeWriteContext) Pop() {
-	c.Stack = c.Stack[:len(c.Stack)-1]
+func (ctx *CodeWriteContext) Pop() {
+	ctx.Stack = ctx.Stack[:len(ctx.Stack)-1]
 }
 
-func (c *CodeWriteContext) With(n ast.Node, cb func() error) (err error) {
-	c.Push(n)
+func (ctx *CodeWriteContext) With(n ast.Node, cb func() error) (err error) {
+	ctx.Push(n)
 	err = cb()
-	c.Pop()
+	ctx.Pop()
 	return
 }
 
-func (c *CodeWriteContext) WriteStmts(smt ...Stmt) {
-	Stmts(smt).Each(func(i int, sep bool, s Stmt) {
-		if sep {
-			c.WriteSemi()
+func (ctx *CodeWriteContext) WriteStmts(smt ...Stmt) {
+	var (
+		i   int
+		sep = true
+	)
+	Stmts(smt).Each(func(_ int, _ bool, s Stmt) {
+		if skiper, _ := s.(CodeWriteSkiper); skiper != nil {
+			if skiper.SkipCode(ctx) {
+				return
+			}
 		}
-		s.WriteCode(c)
+
+		if sep {
+			if i > 0 {
+				ctx.WriteSemi()
+			}
+		}
+		s.WriteCode(ctx)
+		i++
+
+		switch s.(type) {
+		case *CodeBeginStmt:
+			sep = true
+		case *CodeEndStmt, *ConfigStmt:
+			sep = false
+		}
 	})
 }
 
-func (c *CodeWriteContext) WriteItems(inNewLine bool, count int, do func(i int), done func(newLine bool)) {
-	c.WriteItemsSep(inNewLine, count, ", ", ",", do, done)
+func (ctx *CodeWriteContext) WriteItems(inNewLine bool, count int, do func(i int), done func(newLine bool)) {
+	ctx.WriteItemsSep(inNewLine, count, ", ", ",", do, done)
 }
 
-func (c *CodeWriteContext) WriteItemsSep(inNewLine bool, count int, inlineSep, newLineSep string, do func(i int), done func(newLine bool)) {
+func (ctx *CodeWriteContext) WriteItemsSep(inNewLine bool, count int, inlineSep, newLineSep string, do func(i int), done func(newLine bool)) {
 	if count == 0 {
 		return
 	}
@@ -241,25 +265,25 @@ func (c *CodeWriteContext) WriteItemsSep(inNewLine bool, count int, inlineSep, n
 	last := count - 1
 
 	if inNewLine {
-		c.Depth++
-		c.WriteSecondLine()
+		ctx.Depth++
+		ctx.WriteSecondLine()
 		for i := 0; i < count; i++ {
-			c.WritePrefix()
+			ctx.WritePrefix()
 			do(i)
 			if i != last {
-				c.WriteString(newLineSep)
-				c.WriteSecondLine()
+				ctx.WriteString(newLineSep)
+				ctx.WriteSecondLine()
 			}
 		}
 		if done != nil {
 			done(inNewLine)
 		}
-		c.Depth--
+		ctx.Depth--
 	} else {
 		for i := 0; i < count; i++ {
 			do(i)
 			if i != last {
-				c.WriteString(inlineSep)
+				ctx.WriteString(inlineSep)
 			}
 		}
 		if done != nil {
@@ -268,12 +292,12 @@ func (c *CodeWriteContext) WriteItemsSep(inNewLine bool, count int, inlineSep, n
 	}
 }
 
-func (c *CodeWriteContext) WriteExprs(sep string, expr ...Expr) {
+func (ctx *CodeWriteContext) WriteExprs(sep string, expr ...Expr) {
 	for i, e := range expr {
 		if i > 0 {
-			c.WriteString(sep)
+			ctx.WriteString(sep)
 		}
-		e.WriteCode(c)
+		e.WriteCode(ctx)
 	}
 }
 

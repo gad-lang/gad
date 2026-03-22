@@ -236,41 +236,52 @@ func (o *SyncMap) MarshalBinary() ([]byte, error) {
 }
 
 // MarshalBinary implements encoding.BinaryMarshaler
-func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
+func (o CompiledFunction) MarshalBinary() ([]byte, error) {
 	var tmpBuf bytes.Buffer
 	var vi varintConv
 
-	o2 := gad.CompiledFunction(*o)
-	o3 := &o2
-	o3 = o3.ClearSourceFileInfo()
-	*o = CompiledFunction(*o3)
+	f := *o.CompiledFunction
 
-	// Name field #0
-	if o.FuncName != "" {
+	// ModuleConstantIndex field #0
+	if mod := f.GetModule(); mod != nil {
+		// the field
 		tmpBuf.WriteByte(0)
-		b, _ := String(o.FuncName).MarshalBinary()
+		b := vi.toBytes(int64(f.GetModule().ConstantIndex))
 		tmpBuf.Write(b)
 	}
 
-	if o.AllowMethods {
+	// Name field #1
+	if f.FuncName != "" {
 		tmpBuf.WriteByte(1)
+		b, _ := String(f.FuncName).MarshalBinary()
+		tmpBuf.Write(b)
 	}
 
-	if !o.Params.Empty() {
-		// NumParams field #1
+	// AllowMethods field #2
+	if f.AllowMethods {
+		tmpBuf.WriteByte(2)
+	}
+
+	if !f.Params.Empty() {
+		// NumParams field #3
 		tmpBuf.WriteByte(3)
 
-		b := vi.toBytes(int64(o.Params.Len()))
+		b := vi.toBytes(int64(f.Params.Len()))
 		tmpBuf.Write(b)
 
-		for _, p := range o.Params.Items {
+		for _, p := range f.Params.Items {
 			b, _ := String(p.Name).MarshalBinary()
 			tmpBuf.Write(b)
+
+			b, _ = (*SymbolInfo)(p.Symbol).MarshalBinary()
+			tmpBuf.Write(b)
+
 			if p.Var {
 				tmpBuf.WriteByte(1)
 			} else {
 				tmpBuf.WriteByte(0)
 			}
+
 			symbols := make(gad.Array, len(p.TypesSymbols))
 			for i, info := range p.TypesSymbols {
 				symbols[i] = info
@@ -280,55 +291,58 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 		}
 	}
 
-	if o.NumLocals > 0 {
+	if f.NumLocals > 0 {
 		// NumLocals field #4
 		tmpBuf.WriteByte(4)
-		b := vi.toBytes(int64(o.NumLocals))
+		b := vi.toBytes(int64(f.NumLocals))
 		tmpBuf.Write(b)
 	}
 
-	if o.Instructions != nil {
+	if f.Instructions != nil {
 		// Instructions field #5
 		tmpBuf.WriteByte(5)
-		data, err := Bytes(o.Instructions).MarshalBinary()
+		data, err := Bytes(f.Instructions).MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
 		tmpBuf.Write(data)
 	}
 
-	if l := o.NamedParams.Len(); l > 0 {
+	if l := f.NamedParams.Len(); l > 0 {
 		// named params field #7
 		tmpBuf.WriteByte(7)
 		tmpBuf.Write(vi.toBytes(int64(l)))
-		for _, n := range o.NamedParams.Items {
-			b, _ := String(n.Name).MarshalBinary()
+
+		for _, n := range f.NamedParams.Items {
+			b, _ := (*SymbolInfo)(n.Symbol).MarshalBinary()
 			tmpBuf.Write(b)
+
 			b, _ = String(n.Value).MarshalBinary()
 			tmpBuf.Write(b)
+
 			if n.Var {
 				tmpBuf.WriteByte(1)
 			} else {
 				tmpBuf.WriteByte(0)
 			}
+
 			symbols := make(gad.Array, len(n.TypesSymbols))
 			for i, info := range n.TypesSymbols {
 				symbols[i] = info
 			}
 			b, _ = Array(symbols).MarshalBinary()
 			tmpBuf.Write(b)
-			n.TypesSymbols = nil
 		}
 	}
 
 	// Ignore Free variables, doesn't make sense
 
-	if o.SourceMap != nil {
+	if f.SourceMap != nil {
 		// SourceMap field #8
 		tmpBuf.WriteByte(8)
-		b := vi.toBytes(int64(len(o.SourceMap) * 2))
+		b := vi.toBytes(int64(len(f.SourceMap) * 2))
 		tmpBuf.Write(b)
-		for key, value := range o.SourceMap {
+		for key, value := range f.SourceMap {
 			b = vi.toBytes(int64(key))
 			tmpBuf.Write(b)
 			b = vi.toBytes(int64(value))
@@ -337,9 +351,8 @@ func (o *CompiledFunction) MarshalBinary() ([]byte, error) {
 	}
 
 	var buf bytes.Buffer
-	size := vi.toBytes(int64(tmpBuf.Len()))
 	buf.WriteByte(binCompiledFunctionV1)
-	buf.Write(size)
+	buf.Write(vi.toBytes(int64(tmpBuf.Len())))
 	buf.Write(tmpBuf.Bytes())
 	return buf.Bytes(), nil
 }
@@ -356,44 +369,6 @@ func (o *BuiltinFunction) MarshalBinary() ([]byte, error) {
 	b := vi.toBytes(int64(len(s)))
 	data := make([]byte, 0, 1+len(b)+len(s))
 	data = append(data, binBuiltinFunctionV1)
-	data = append(data, b...)
-	data = append(data, s...)
-	return data, nil
-}
-
-func (o *BuiltinObjType) GadType() *gad.BuiltinObjType {
-	t := gad.BuiltinObjType(*o)
-	return &t
-}
-
-// MarshalBinary implements encoding.BinaryMarshaler
-func (o *BuiltinObjType) MarshalBinary() ([]byte, error) {
-	// Note: use string name instead of index of builtin
-	s, err := String(o.GadType().Name()).MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	var vi varintConv
-	b := vi.toBytes(int64(len(s)))
-	data := make([]byte, 0, 1+len(b)+len(s))
-	data = append(data, binBuiltinObjTypeV1)
-	data = append(data, b...)
-	data = append(data, s...)
-	return data, nil
-}
-
-// MarshalBinary implements encoding.BinaryMarshaler
-func (o *Function) MarshalBinary() ([]byte, error) {
-	s, err := String(o.FuncName).MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	var vi varintConv
-	b := vi.toBytes(int64(len(s)))
-	data := make([]byte, 0, 1+len(b)+len(s))
-	data = append(data, binFunctionV1)
 	data = append(data, b...)
 	data = append(data, s...)
 	return data, nil
@@ -452,13 +427,55 @@ func (sfs *SourceFileSet) MarshalBinary() ([]byte, error) {
 }
 
 // MarshalBinary implements encoding.BinaryMarshaler
-func (s Symbol) MarshalBinary() ([]byte, error) {
-	var buf bytes.Buffer
-	buf.WriteByte(binSymbolV1)
+func (s *SymbolInfo) MarshalBinary() ([]byte, error) {
+	var tmpBuf bytes.Buffer
 	var vi varintConv
 	d, _ := String(s.Name).MarshalBinary()
-	buf.Write(d)
-	buf.Write(vi.toBytes(int64(s.Index)))
-	buf.Write(vi.toBytes(int64(s.Scope)))
+	tmpBuf.Write(d)
+	tmpBuf.Write(vi.toBytes(int64(s.Index)))
+	tmpBuf.Write(vi.toBytes(int64(s.Scope)))
+
+	var buf bytes.Buffer
+	buf.WriteByte(binSymbolV1)
+	size := int64(tmpBuf.Len())
+	buf.Write(vi.toBytes(size))
+	buf.Write(tmpBuf.Bytes())
+	return buf.Bytes(), nil
+}
+
+// MarshalBinary implements encoding.BinaryMarshaler
+func (s Module) MarshalBinary() ([]byte, error) {
+	var (
+		buf    bytes.Buffer
+		tmpBuf bytes.Buffer
+		vi     varintConv
+		m      = gad.Module(s)
+	)
+
+	tmpBuf.Write(vi.toBytes(int64(m.ConstantIndex)))
+
+	d, _ := String(m.Info.Name).MarshalBinary()
+	tmpBuf.Write(d)
+
+	d, _ = String(m.Info.File).MarshalBinary()
+	tmpBuf.Write(d)
+
+	d, _ = Array(m.Params.Positional).MarshalBinary()
+	tmpBuf.Write(d)
+
+	if cf, _ := m.Init.(*gad.CompiledFunction); cf != nil {
+		tmpBuf.WriteByte(1)
+		d, _ = CompiledFunction{CompiledFunction: cf}.MarshalBinary()
+		tmpBuf.Write(d)
+	} else {
+		tmpBuf.WriteByte(0)
+	}
+
+	d, _ = Array(m.Params.Named.ToArray()).MarshalBinary()
+	tmpBuf.Write(d)
+
+	buf.WriteByte(binModuleV1)
+	buf.Write(vi.toBytes(int64(tmpBuf.Len())))
+	buf.Write(tmpBuf.Bytes())
 	return buf.Bytes(), nil
 }

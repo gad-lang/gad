@@ -46,7 +46,7 @@ func (f *Func) FullName() string {
 	if f.module == nil {
 		return f.name
 	}
-	return f.module.info.Name + "." + f.name
+	return f.module.Info.Name + "." + f.name
 }
 
 func (f *Func) FuncSpecName() string {

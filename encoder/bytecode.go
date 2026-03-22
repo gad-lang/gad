@@ -3,9 +3,7 @@ package encoder
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
-	"reflect"
 
 	"github.com/gad-lang/gad"
 )
@@ -59,40 +57,28 @@ func (bc *Bytecode) unmarshal(data []byte, modules *gad.ModuleMap) error {
 	if modules == nil {
 		modules = gad.NewModuleMap()
 	}
-	return bc.fixObjects(modules)
+	return bc.FixObjects(modules)
 }
 
-func (bc *Bytecode) fixObjects(modules *gad.ModuleMap) error {
+func (bc *Bytecode) FixObjects(modules *gad.ModuleMap) error {
 	for i := range bc.Constants {
 		switch obj := bc.Constants[i].(type) {
 		case *gad.Module:
-			name := obj.Name()
-			bmod := modules.Get(name)
-			if bmod == nil {
-				return fmt.Errorf("module '%s' not found", name)
+			obj.ConstantIndex = i
+			switch t := modules.Get(obj.Name()).(type) {
+			case *gad.BuiltinInitModule:
+				obj.Init = t.Init.Caller(obj)
+			case *gad.BuiltinModule:
+				obj.Init = t.InitFunc().Caller(obj)
+			case *gad.SourceModule:
+				obj.Init.(*gad.CompiledFunction).SetModule(obj)
 			}
-
-			dict := obj.Dict()
-
-			// copy items from given module to decoded object if key exists in obj
-			for item := range dict {
-				if item == gad.AttrName {
-					// module name may not present in given map, skip it.
-					continue
-				}
-				o := bmod.(*gad.BuiltinModule).Attrs[item]
-				// if item not exists in module, nil will not pass type check
-				want := reflect.TypeOf(dict[item])
-				got := reflect.TypeOf(o)
-				if want != got {
-					// this must not happen
-					return fmt.Errorf("module '%s' item '%s' type mismatch:"+
-						"want '%v', got '%v'", name, item, want, got)
-				}
-				dict[item] = o
+		case *CompiledFunction:
+			f := obj.CompiledFunction
+			if obj.moduleConstantIndex >= 0 {
+				f.SetModule(bc.Constants[obj.moduleConstantIndex].(*gad.Module))
 			}
-		case *Function:
-			return fmt.Errorf("not decodable object of Function type:'%s'", obj.FuncName)
+			bc.Constants[i] = f
 		}
 	}
 	return nil

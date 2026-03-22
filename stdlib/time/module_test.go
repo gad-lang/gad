@@ -861,13 +861,21 @@ func expectRun(t *testing.T, script string, opts *Opts, expected Object) {
 	if opts == nil {
 		opts = newOpts()
 	}
+	ret, err := run(script, &RunOpts{Globals: opts.global, Args: Args{opts.args}})
+	require.NoError(t, err)
+	require.Equal(t, expected, ret)
+}
+
+func run(script string, opts *RunOpts) (ret Object, err error) {
 	mm := NewModuleMap()
 	mm.AddBuiltinModuleInit("time", ModuleInit)
 	c := CompileOptions{CompilerOptions: DefaultCompilerOptions}
 	c.ModuleMap = mm
-	_, bc, err := Compile([]byte(script), c)
-	require.NoError(t, err)
-	ret, err := NewVM(bc).RunOpts(&RunOpts{Globals: opts.global, Args: Args{opts.args}})
-	require.NoError(t, err)
-	require.Equal(t, expected, ret)
+
+	builtins := NewBuiltins().Build()
+	_, bc, err := Compile(NewSymbolTable(builtins.Builtins().NameSet), []byte(script), c)
+	if err != nil {
+		return
+	}
+	return NewVM(builtins, bc).RunOpts(opts)
 }

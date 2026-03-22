@@ -318,28 +318,27 @@ func expectRun(t *testing.T, script string, expected Object) {
 		fmt := import("fmt")
 	` + script
 
-	mm := NewModuleMap()
-	mm.AddBuiltinModuleInit("fmt", ModuleInit)
-	c := CompileOptions{CompilerOptions: DefaultCompilerOptions}
-	c.ModuleMap = mm
-	_, bc, err := Compile([]byte(script), c)
-	require.NoError(t, err, script)
-	ret, err := NewVM(bc).Run(nil)
+	ret, err := run(script)
 	require.NoError(t, err, script)
 	require.Equal(t, expected, ret, script)
 }
 
 func exampleRun(script string) {
+	if _, err := run(script); err != nil {
+		panic(err)
+	}
+}
+
+func run(script string) (ret Object, err error) {
 	mm := NewModuleMap()
 	mm.AddBuiltinModuleInit("fmt", ModuleInit)
 	c := CompileOptions{CompilerOptions: DefaultCompilerOptions}
 	c.ModuleMap = mm
-	_, bc, err := Compile([]byte(script), c)
+
+	builtins := NewBuiltins().Build()
+	_, bc, err := Compile(NewSymbolTable(builtins.Builtins().NameSet), []byte(script), c)
 	if err != nil {
-		panic(err)
+		return
 	}
-	_, err = NewVM(bc).Run(nil)
-	if err != nil {
-		panic(err)
-	}
+	return NewVM(builtins, bc).Run()
 }

@@ -400,7 +400,7 @@ func TestVMConst(t *testing.T) {
 		`Parse Error: missing initializer in const declaration`)
 	expectErrHas(t, `
 	const x = 1
-	func() {
+	func f() {
 		x = 2
 	}`, newOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "x"`)
@@ -432,14 +432,14 @@ func TestVMConst(t *testing.T) {
 		`Compile Error: assignment to constant variable "x"`)
 	expectErrHas(t, `
 	const x = 1
-	func() {
+	func f() {
 		var y
 		x, y = [1, 2]
 	}`, newOpts().CompilerError(),
 		`Compile Error: assignment to constant variable "x"`)
 	expectErrHas(t, `
 	x := 1
-	func() {
+	func f() {
 		const y = 2
 		x, y = [1, 2]
 	}`, newOpts().CompilerError(),
@@ -461,7 +461,7 @@ func TestVMConst(t *testing.T) {
 	expectErrHas(t, `
 	const x = 1
 	if [2] { // not optimized
-		func() {
+		func f() {
 			x = 2
 		}
 	}`, newOpts().CompilerError(),
@@ -469,8 +469,8 @@ func TestVMConst(t *testing.T) {
 	expectErrHas(t, `
 	const x = 1
 	if x {
-		func() {
-			func() {
+		func f() {
+			func f2() {
 				for {
 					x = 2
 				}
@@ -872,7 +872,8 @@ func TestConstIota(t *testing.T) {
 		y
 		z
 	)
-	return str([x, y, z])`, nil, Str("[‹compiledFunction x()›, ‹compiledFunction y()›, ‹compiledFunction z()›]"))
+	return str([x, y, z])`, nil,
+		Str("[‹compiledFunction: (main).#1()›, ‹compiledFunction: (main).#2()›, ‹compiledFunction: (main).#3()›]"))
 
 	testExpectRun(t, `
 	var a

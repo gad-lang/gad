@@ -74,11 +74,19 @@ func (e *BinaryExpr) String() string {
 }
 
 func (e *BinaryExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteSingleByte('(')
+	e.WriteCodeWithParen(ctx, true)
+}
+
+func (e *BinaryExpr) WriteCodeWithParen(ctx *CodeWriteContext, paren bool) {
+	if paren {
+		ctx.WriteSingleByte('(')
+	}
 	e.LHS.WriteCode(ctx)
 	ctx.WriteString(" " + e.Token.String() + " ")
 	e.RHS.WriteCode(ctx)
-	ctx.WriteSingleByte(')')
+	if paren {
+		ctx.WriteSingleByte(')')
+	}
 }
 
 type BoolExpr interface {
@@ -1376,9 +1384,7 @@ func (m *FuncMethod) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString("=> ")
 		m.BodyExpr.WriteCode(ctx)
 	} else {
-		ctx.Depth++
-		m.Body.WriteCodeInSelfDepth(ctx, false)
-		ctx.Depth--
+		m.Body.WriteCode(ctx)
 	}
 }
 
@@ -1461,7 +1467,7 @@ func (e *FuncExpr) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString("=> ")
 		ctx.WriteString(e.BodyExpr.String())
 	} else {
-		e.Body.WriteCodeInSelfDepth(ctx, true)
+		e.Body.WriteCode(ctx)
 	}
 }
 
@@ -1499,7 +1505,7 @@ func (e *ClosureExpr) String() string {
 func (e *ClosureExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.Params.String(), e.sep(), " ")
 	if block, ok := e.Body.(*BlockExpr); ok {
-		block.WriteCodeInSelfDepth(ctx, true)
+		block.WriteCode(ctx)
 	} else {
 		e.Body.WriteCode(ctx)
 	}
@@ -1640,29 +1646,15 @@ func (e *ComputedExpr) String() string {
 }
 
 func (e *ComputedExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString("(=")
 	if len(e.Stmts) == 1 {
-		if e, _ := e.Stmts[0].(*ExprStmt); e != nil {
-			ctx.WriteSingleByte(' ')
-			e.Expr.WriteCode(ctx)
-			goto done
-		}
-	}
-
-	if len(ctx.Prefix) > 0 {
-		ctx.WriteSecondLine()
-		ctx.Depth++
-		ctx.WriteStmts(e.Stmts...)
-		ctx.Depth--
-		if len(ctx.Prefix) > 0 {
-			ctx.WritePrefixedLine()
-		}
+		ctx.WriteString("(= ")
+		e.Stmts[0].WriteCode(ctx)
+		ctx.WriteSingleByte(')')
 	} else {
-		ctx.WriteSingleByte(' ')
-		ctx.Depth++
-		ctx.WriteStmts(e.Stmts...)
-		ctx.Depth--
+		(&BlockStmt{
+			LBrace: Lit("(=", e.StartPos),
+			RBrace: Lit(")", e.StartPos),
+			Stmts:  e.Stmts,
+		}).WriteCode(ctx)
 	}
-done:
-	ctx.WriteSingleByte(')')
 }

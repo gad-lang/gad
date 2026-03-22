@@ -89,7 +89,6 @@ type (
 		Module              *Module
 		ModuleFile          string
 		Constants           []Object
-		SymbolTable         *SymbolTable
 		Trace               io.Writer
 		TraceParser         bool
 		TraceCompiler       bool
@@ -173,18 +172,14 @@ func (e *CompilerError) Unwrap() error {
 }
 
 // NewCompiler creates a new Compiler object.
-func NewCompiler(file *source.File, opts CompilerOptions) *Compiler {
-	if opts.SymbolTable == nil {
-		opts.SymbolTable = NewSymbolTable(NewBuiltins())
-	}
-
+func NewCompiler(st *SymbolTable, file *source.File, opts CompilerOptions) *Compiler {
 	if opts.Module == nil {
-		opts.Module = &Module{
-			info: ModuleInfo{
-				Name: MainName,
-				File: "file:" + file.Name,
-			},
-		}
+		opts.Module = NewModule(ModuleInfo{
+			Name: MainName,
+			File: file.Name,
+		})
+	} else if opts.Module.Info.File == "" {
+		opts.Module.Info.File = file.Name
 	}
 
 	if opts.constsCache == nil {
@@ -215,7 +210,7 @@ func NewCompiler(file *source.File, opts CompilerOptions) *Compiler {
 		constants:     opts.Constants,
 		constsCache:   opts.constsCache,
 		cfuncCache:    make(map[uint32][]int),
-		symbolTable:   opts.SymbolTable,
+		symbolTable:   st,
 		sourceMap:     make(map[int]int),
 		embedMap:      opts.EmbedMap,
 		embedStore:    opts.embedStore,
@@ -237,17 +232,17 @@ type CompileOptions struct {
 }
 
 // Compile compiles given script to Bytecode.
-func Compile(script []byte, opts CompileOptions) (pf *parser.File, bc *Bytecode, err error) {
+func Compile(st *SymbolTable, script []byte, opts CompileOptions) (pf *parser.File, bc *Bytecode, err error) {
 	var (
 		fileSet = source.NewFileSet()
 		module  = opts.Module
 	)
 
 	if opts.Module == nil {
-		module = &Module{info: ModuleInfo{Name: MainName}}
+		module = NewModule(ModuleInfo{Name: MainName})
 	}
 
-	srcFile := fileSet.AppendFileData(module.info.Name, script)
+	srcFile := fileSet.AppendFileData(module.Info.Name, script)
 	if opts.TraceParser && opts.ParserOptions.Trace == nil {
 		opts.ParserOptions.Trace = opts.Trace
 	}
@@ -258,19 +253,13 @@ func Compile(script []byte, opts CompileOptions) (pf *parser.File, bc *Bytecode,
 		return nil, nil, err
 	}
 
-	bc, err = CompileFile(pf, opts)
+	bc, err = CompileFile(st, pf, opts)
 	return
 }
 
 // CompileFile compiles given file to Bytecode.
-func CompileFile(pf *parser.File, opts CompileOptions) (bc *Bytecode, err error) {
-	module := opts.Module
-
-	if opts.Module == nil {
-		module = &Module{info: ModuleInfo{Name: MainName}}
-	}
-
-	compiler := NewCompiler(pf.InputFile, opts.CompilerOptions)
+func CompileFile(st *SymbolTable, pf *parser.File, opts CompileOptions) (bc *Bytecode, err error) {
+	compiler := NewCompiler(st, pf.InputFile, opts.CompilerOptions)
 	compiler.SetGlobalSymbolsIndex()
 
 	if opts.OptimizeConst || opts.OptimizeExpr {
@@ -280,11 +269,11 @@ func CompileFile(pf *parser.File, opts CompileOptions) (bc *Bytecode, err error)
 		}
 	}
 
-	if module.info.Name == MainName {
-		compiler.addConstant(module)
+	if len(compiler.constants) == 0 {
+		compiler.addConstant(compiler.module)
 		defer func() {
 			if bc != nil {
-				bc.Main.module = module
+				bc.Main.module = compiler.module
 			}
 		}()
 	}
@@ -294,6 +283,7 @@ func CompileFile(pf *parser.File, opts CompileOptions) (bc *Bytecode, err error)
 	}
 
 	bc = compiler.Bytecode()
+	bc.Main.FuncName = "#main"
 	if bc.Main.NumLocals > 256 {
 		return nil, ErrSymbolLimit
 	}
@@ -373,7 +363,6 @@ func (c *Compiler) Bytecode() *Bytecode {
 		NumLocals:    c.symbolTable.maxDefinition,
 		Instructions: c.instructions,
 		SourceMap:    c.sourceMap,
-		sourceFile:   c.file,
 		module:       c.module,
 	}
 
@@ -783,7 +772,7 @@ func (c *Compiler) addInstruction(b []byte) int {
 }
 
 func (c *Compiler) checkCyclicImports(nd ast.Node, modulePath string) error {
-	if c.module.info.Name == modulePath {
+	if c.module.Info.Name == modulePath {
 		return c.errorf(nd, "cyclic module import: %s", modulePath)
 	} else if c.parent != nil {
 		return c.parent.checkCyclicImports(nd, modulePath)
@@ -853,7 +842,7 @@ func (c *Compiler) CompileModule(
 	parserOptions *parser.ParserOptions,
 	scannerOptions *parser.ScannerOptions,
 ) (bc *Bytecode, err error) {
-	modFile := c.file.Set().AddFileData(module.info.Name, -1, src)
+	modFile := c.file.Set().AddFileData(module.Info.Name, -1, src)
 	var trace io.Writer
 	if c.opts.TraceParser {
 		trace = c.trace
@@ -888,6 +877,7 @@ func (c *Compiler) CompileModule(
 	}
 
 	bc = fork.Bytecode()
+	bc.Main.FuncName = "#main"
 	return
 }
 
@@ -899,7 +889,7 @@ func (c *Compiler) compileModule(
 	src []byte,
 ) (int, error) {
 	var err error
-	if err = c.checkCyclicImports(nd, module.info.Name); err != nil {
+	if err = c.checkCyclicImports(nd, module.Info.Name); err != nil {
 		return 0, err
 	}
 
@@ -915,9 +905,8 @@ func (c *Compiler) compileModule(
 	if bc.Main.NumLocals > 256 {
 		return 0, c.error(nd, ErrSymbolLimit)
 	}
-
 	c.constants = bc.Constants
-	module.init = bc.Main
+	module.Init = bc.Main
 	index := c.addConstant(module)
 	return index, nil
 }
@@ -952,15 +941,14 @@ func (c *Compiler) fork(
 	file *source.File,
 	module *Module,
 	moduleMap *ModuleMap,
-	symbolTable *SymbolTable,
+	st *SymbolTable,
 ) *Compiler {
-	child := NewCompiler(file, CompilerOptions{
+	child := NewCompiler(st, file, CompilerOptions{
 		Context:           c.opts.Context,
 		EmbedMap:          c.embedMap,
 		ModuleMap:         moduleMap,
 		Module:            module,
 		Constants:         c.constants,
-		SymbolTable:       symbolTable,
 		Trace:             c.trace,
 		TraceParser:       c.opts.TraceParser,
 		TraceCompiler:     c.opts.TraceCompiler,
@@ -975,7 +963,7 @@ func (c *Compiler) fork(
 	child.parent = c
 	child.cfuncCache = c.cfuncCache
 
-	if module.info.Name == c.module.info.Name {
+	if module.Info.Name == c.module.Info.Name {
 		child.indent = c.indent
 	}
 	return child
