@@ -127,7 +127,7 @@ func (e *CallExpr) End() source.Pos {
 func (e *CallExpr) String() string {
 	var s string
 	if f, _ := e.Func.(*FuncExpr); f != nil {
-		s = (&ParenExpr{Expr: f}).String()
+		s = EParen(f, 0, 0).String()
 	} else {
 		s = e.Func.String()
 	}
@@ -138,7 +138,7 @@ func (e *CallExpr) String() string {
 
 func (e *CallExpr) WriteCode(ctx *CodeWriteContext) {
 	if f, _ := e.Func.(*FuncExpr); f != nil {
-		(&ParenExpr{Expr: f}).WriteCode(ctx)
+		(EParen(f, 0, 0)).WriteCode(ctx)
 	} else {
 		e.Func.WriteCode(ctx)
 	}
@@ -382,41 +382,61 @@ func (e *IndexExpr) WriteCode(ctx *CodeWriteContext) {
 // ParenExpr represents a parenthesis wrapped expression.
 type ParenExpr struct {
 	Expr   Expr
-	LParen source.Pos
-	RParen source.Pos
+	LParen Token
+	RParen Token
 }
 
 func (e *ParenExpr) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
 func (e *ParenExpr) Pos() source.Pos {
-	return e.LParen
+	return e.LParen.Pos
 }
 
 // End returns the position of first character immediately after the node.
 func (e *ParenExpr) End() source.Pos {
-	return e.RParen + 1
+	return e.RParen.Pos + 1
 }
 
 func (e *ParenExpr) String() string {
+	var s string
 	switch t := e.Expr.(type) {
 	case *ParenExpr:
-		return t.Expr.String()
+		if e.LParen.Token == token.LParen {
+			s = t.Expr.String()
+		} else {
+			s = t.String()
+		}
 	case *BinaryExpr:
-		return t.String()
+		s = t.LHS.String() + " " + t.Token.String() + " " + t.RHS.String()
 	default:
-		return "(" + e.Expr.String() + ")"
+		s = t.String()
 	}
+	return e.LParen.Token.String() + s + e.RParen.Token.String()
 }
 
 func (e *ParenExpr) WriteCode(ctx *CodeWriteContext) {
-	switch e.Expr.(type) {
-	case *ParenExpr, *BinaryExpr:
-		e.Expr.WriteCode(ctx)
+	switch t := e.Expr.(type) {
+	case *ParenExpr:
+		if e.LParen.Token == token.LParen {
+			e.Expr.WriteCode(ctx)
+		} else {
+			ctx.WriteString(e.LParen.Token.String())
+			t.WriteCode(ctx)
+			ctx.WriteString(e.RParen.Token.String())
+		}
+	case *BinaryExpr:
+		if e.LParen.Token == token.LParen {
+			t.WriteCode(ctx)
+		} else {
+			ctx.WriteString(e.LParen.Token.String())
+			ctx.WriteString(t.LHS.String() + " " + t.Token.String() + " " + t.RHS.String())
+			ctx.WriteString(e.RParen.Token.String())
+		}
 	default:
-		ctx.WriteSingleByte('(')
+		ctx.WriteString(e.LParen.Token.String())
 		e.Expr.WriteCode(ctx)
-		ctx.WriteSingleByte(')')
+		ctx.WriteString(e.RParen.Token.String())
 	}
 }
 
@@ -434,8 +454,8 @@ func (e *ParenExpr) Items() Exprs {
 
 // MultiParenExpr represents a parenthesis wrapped expressions.
 type MultiParenExpr struct {
-	LParen             source.Pos
-	RParen             source.Pos
+	LParen             Token
+	RParen             Token
 	PositionalElements Exprs
 	NamedElements      Exprs
 }
@@ -444,17 +464,17 @@ func (e *MultiParenExpr) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
 func (e *MultiParenExpr) Pos() source.Pos {
-	return e.LParen
+	return e.LParen.Pos
 }
 
 // End returns the position of first character immediately after the node.
 func (e *MultiParenExpr) End() source.Pos {
-	return e.RParen + 1
+	return e.RParen.Pos + 1
 }
 
 func (e *MultiParenExpr) String() string {
 	var s strings.Builder
-	s.WriteString("(,")
+	s.WriteString(e.LParen.Token.String() + ",")
 
 	if len(e.PositionalElements) > 0 {
 		s.WriteString(" ")
@@ -476,7 +496,7 @@ func (e *MultiParenExpr) String() string {
 			s.WriteString(expr.String())
 		}
 	}
-	s.WriteByte(')')
+	s.WriteString(e.RParen.Token.String())
 	return s.String()
 }
 
@@ -485,7 +505,7 @@ func (e *MultiParenExpr) ToMultiParenExpr() *MultiParenExpr {
 }
 
 func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString("(,")
+	ctx.WriteString(e.LParen.Token.String() + ",")
 	var pl, nl = len(e.PositionalElements), len(e.NamedElements)
 	if pl+nl > 0 {
 		inNewLine := ctx.Flags.Has(CodeWriteContextFlagFormatParemValuesInNewLine)
@@ -516,13 +536,13 @@ func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
 				})
 		}
 	}
-	ctx.WriteString(")")
+	ctx.WriteString(e.RParen.Token.String())
 }
 
 func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError) {
 	args = new(CallArgs)
-	args.LParen = e.LParen
-	args.RParen = e.RParen
+	args.LParen = e.LParen.Pos
+	args.RParen = e.RParen.Pos
 
 	var n Expr
 
@@ -547,7 +567,7 @@ func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError
 			case *ParenExpr:
 				na.Exp = t
 			default:
-				na.Exp = &ParenExpr{Expr: t}
+				na.Exp = EParen(t, 0, 0)
 			}
 			args.NamedArgs.Names = append(args.NamedArgs.Names, na)
 			args.NamedArgs.Values = append(args.NamedArgs.Values, t.Value)
@@ -581,8 +601,8 @@ func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError
 }
 
 func (e *MultiParenExpr) ToFuncParams() (params FuncParams, err *NodeError) {
-	params.LParen = e.LParen
-	params.RParen = e.RParen
+	params.LParen = e.LParen.Pos
+	params.RParen = e.RParen.Pos
 
 	var (
 		i int

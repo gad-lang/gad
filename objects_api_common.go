@@ -100,3 +100,10 @@ func (o *NilType) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error)
 		Nil.Type().Name(),
 		right.Type().Name())
 }
+
+func (o *NilType) Print(state *PrinterState) error {
+	if state.IsRepr {
+		return state.WriteString(ReprQuote("nil"))
+	}
+	return state.WriteString("nil")
+}

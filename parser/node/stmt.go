@@ -1008,3 +1008,57 @@ func (f *FuncStmt) String() string {
 func (f *FuncStmt) WriteCode(ctx *CodeWriteContext) {
 	f.Func.WriteCode(ctx)
 }
+
+type ExportStmt struct {
+	TokenPos  source.Pos
+	KeyExpr   Expr
+	ValueExpr Expr
+}
+
+func (s *ExportStmt) End() source.Pos {
+	if s.ValueExpr == nil {
+		return s.KeyExpr.End()
+	}
+	return s.ValueExpr.End()
+}
+
+func (s *ExportStmt) StmtNode() {
+}
+
+func (s *ExportStmt) Pos() source.Pos {
+	if s.TokenPos == 0 {
+		if s.KeyExpr != nil {
+			return s.ValueExpr.Pos()
+		}
+		return s.KeyExpr.Pos()
+	}
+	return s.TokenPos
+}
+
+func (s *ExportStmt) String() string {
+	str := "export "
+	if s.KeyExpr != nil {
+		str += s.KeyExpr.String()
+		if s.ValueExpr != nil {
+			str += " = "
+		}
+	}
+	if s.ValueExpr != nil {
+		str += s.ValueExpr.String()
+	}
+	return str
+}
+
+func (s *ExportStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("export ")
+	if s.KeyExpr != nil {
+		s.KeyExpr.WriteCode(ctx)
+
+		if s.ValueExpr != nil {
+			ctx.WriteString(" = ")
+		}
+	}
+	if s.ValueExpr != nil {
+		s.ValueExpr.WriteCode(ctx)
+	}
+}

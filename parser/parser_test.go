@@ -774,10 +774,13 @@ const (
 		const a2 = func() {
 			x
 		}
+		
 		y
 	}
+	
 	z
 }
+
 s`)
 
 	test.New(t, `const a = func() { const a1 = func() { const (b=1,c=2,d=3)}}`).
@@ -1443,7 +1446,7 @@ func TestParseCall(t *testing.T) {
 							intLit(1, p(1, 16)),
 							token.Mul,
 							p(1, 14)),
-						parenExpr(
+						EParen(
 							binaryExpr(
 								EIdent("b", p(1, 20)),
 								EIdent("c", p(1, 24)),
@@ -2513,7 +2516,7 @@ func TestParseFunction(t *testing.T) {
 		Code("(x() {nil})").
 		IndentedCode("(x() {\n\tnil\n})").
 		Stmts(func(p test.Pfn) []Stmt {
-			return stmts(exprStmt(parenExpr(EFunc(
+			return stmts(exprStmt(EParen(EFunc(
 				funcType(p(1, 2), EIdent("x", p(1, 2)), p(1, 3), p(1, 4)),
 				blockStmt(p(1, 5), p(1, 9), exprStmt(LNil(p(1, 6)))),
 			), p(1, 1), p(1, 10))))
@@ -2757,6 +2760,7 @@ func TestParseFunctionWithMethods(t *testing.T) {
 		if y {
 			return 0
 		}
+		
 		return 1
 	}
 }`)
@@ -2786,6 +2790,7 @@ func TestParseFunctionWithMethods(t *testing.T) {
 		if y {
 			return 0
 		}
+		
 		return 1
 	}
 }`)
@@ -3213,7 +3218,7 @@ func TestParseIndex(t *testing.T) {
 		return stmts(
 			exprStmt(
 				indexExpr(
-					parenExpr(
+					EParen(
 						dictLit(p(1, 2), p(1, 13),
 							dicElementLitE(
 								EIdent("a", p(1, 3)), p(1, 4), intLit(1, p(1, 6))),
@@ -3229,7 +3234,7 @@ func TestParseIndex(t *testing.T) {
 		return stmts(
 			exprStmt(
 				indexExpr(
-					parenExpr(
+					EParen(
 						dictLit(p(1, 2), p(1, 13),
 							dicElementLitE(
 								EIdent("a", p(1, 3)), p(1, 4), intLit(1, p(1, 6))),
@@ -3290,7 +3295,7 @@ func TestParseLogical(t *testing.T) {
 			exprStmt(
 				binaryExpr(
 					EIdent("a", p(1, 1)),
-					parenExpr(
+					EParen(
 						binaryExpr(
 							intLit(5, p(1, 7)),
 							boolLit(true, p(1, 12)),
@@ -3335,13 +3340,13 @@ func TestParseDict(t *testing.T) {
 		Code("({})").
 		FormattedCode("({})").
 		Stmts(func(p pfn) []Stmt {
-			return stmts(exprStmt(parenExpr(dictLit(p(1, 2), p(1, 3)), p(1, 1), p(1, 4))))
+			return stmts(exprStmt(EParen(dictLit(p(1, 2), p(1, 3)), p(1, 1), p(1, 4))))
 		})
 
 	test.ExpectParse(t, "({ \"key1\": 1 })", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				parenExpr(
+				EParen(
 					dictLit(p(1, 2), p(1, 14),
 						dicElementLit(
 							"key1", p(1, 4), p(1, 10), intLit(1, p(1, 12)))),
@@ -3351,7 +3356,7 @@ func TestParseDict(t *testing.T) {
 	test.ExpectParse(t, "({ key1: 1, key2: \"2\", key3: true })", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				parenExpr(
+				EParen(
 					dictLit(p(1, 2), p(1, 35),
 						dicElementLitE(EIdent("key1", p(1, 4)), p(1, 8), intLit(1, p(1, 10))),
 						dicElementLitE(EIdent("key2", p(1, 13)), p(1, 17), stringLit("2", p(1, 19))),
@@ -3374,22 +3379,22 @@ func TestParseDict(t *testing.T) {
 		FormattedCode("a = {\n\tkey1: 1,\n\tkey2: \"2\",\n\tkey3: {\n\t\tk1: `bar`,\n\t\tk2: 4\n\t}\n}")
 
 	test.New(t, `({ "key1": 1, #key2:2, #(key 3): #3, #(key 4): #(value	4), true: 5, false:6, yes:7, no:8`+
-		"\n1:9, u2:10, 3d:11, 4.56:12, (x+1):2})").
-		String(`({key1: 1, #(key2): 2, #(key 3): #(3), #(key 4): #(value	4), true: 5, false: 6, yes: 7, no: 8, 1: 9, u2: 10, 3d: 11, 4.56: 12, (x + 1): 2})`).
+		"\n1:9, u2:10, 3d:11, 4.56:12, [x+1]:2})").
+		String(`({key1: 1, #(key2): 2, #(key 3): #(3), #(key 4): #(value	4), true: 5, false: 6, yes: 7, no: 8, 1: 9, u2: 10, 3d: 11, 4.56: 12, [x + 1]: 2})`).
 		FormattedCode(`({
 	"key1": 1,
 	#key2: 2,
 	#(key 3): #3,
 	#(key 4): #(value	4),
-	"true": 5,
-	"false": 6,
-	"yes": 7,
-	"no": 8,
+	true: 5,
+	false: 6,
+	yes: 7,
+	no: 8,
 	1: 9,
 	u2: 10,
 	3d: 11,
 	4.56: 12,
-	(x + 1): 2
+	[x + 1]: 2
 })`)
 
 	test.ExpectParseError(t, "{,}")
@@ -3411,7 +3416,7 @@ key2: 2
 	test.ExpectParse(t, `({
 	x(): 10,
 })`, func(p pfn) []Stmt {
-		return stmts(exprStmt(parenExpr(dictLit(p(1, 2), p(3, 1),
+		return stmts(exprStmt(EParen(dictLit(p(1, 2), p(3, 1),
 			dicElementLitE(EIdent("x", p(2, 2)), 0,
 				EDictElementClosure(EClosure(funcParams(p(2, 3), p(2, 4)), p(2, 5), token.Colon, intLit(10, p(2, 7))))),
 		), p(1, 1), p(3, 2))))
@@ -3431,14 +3436,14 @@ key2: 2
 	}
 })`).
 		Stmts(func(p pfn) []Stmt {
-			return stmts(exprStmt(parenExpr(dictLit(p(1, 2), p(6, 1),
+			return stmts(exprStmt(EParen(dictLit(p(1, 2), p(6, 1),
 				dicElementLitE(EIdent("x", p(2, 2)), 0, EDictElementClosure(EClosure(funcParams(p(2, 3), p(2, 4)), p(2, 5), token.Colon, intLit(10, p(2, 7))))),
 				dicElementLitE(EIdent("y", p(3, 2)), 0, EDictElementFunc(funcLit(funcType(0, nil, p(3, 3), p(3, 4)), blockStmt(p(3, 6), p(5, 2), returnStmt(p(4, 3), intLit(11, p(4, 10))))))),
 			), p(1, 1), p(6, 2))))
 		})
 
 	test.ExpectParse(t, "({x{y{b:1}}})", func(p pfn) []Stmt {
-		return stmts(exprStmt(parenExpr(dictLit(
+		return stmts(exprStmt(EParen(dictLit(
 			p(1, 2), p(1, 12),
 			dicElementLitE(EIdent("x", p(1, 3)), 0, dictLit(
 				p(1, 4), p(1, 11),
@@ -3573,14 +3578,14 @@ func TestParseSelector(t *testing.T) {
 				selectorExpr(
 					selectorExpr(
 						EIdent("a", p(1, 1)),
-						parenExpr(EIdent("b", p(1, 4)), p(1, 3), p(1, 5))),
+						EParen(EIdent("b", p(1, 4)), p(1, 3), p(1, 5))),
 					stringLit("c", p(1, 7)))))
 	})
 
 	test.ExpectParse(t, "({k1:1}.k1)", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				parenExpr(
+				EParen(
 					selectorExpr(
 						dictLit(
 							p(1, 2), p(1, 7),
@@ -3595,7 +3600,7 @@ func TestParseSelector(t *testing.T) {
 		return stmts(
 			exprStmt(
 				selectorExpr(
-					parenExpr(
+					EParen(
 						dictLit(
 							p(1, 2), p(1, 7),
 							dicElementLitE(
@@ -3608,7 +3613,7 @@ func TestParseSelector(t *testing.T) {
 	test.ExpectParse(t, "({k1:{v1:1}}.k1.v1)", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				parenExpr(
+				EParen(
 					selectorExpr(
 						selectorExpr(
 							dictLit(
@@ -3628,7 +3633,7 @@ func TestParseSelector(t *testing.T) {
 			exprStmt(
 				selectorExpr(
 					selectorExpr(
-						parenExpr(
+						EParen(
 							dictLit(
 								p(1, 2), p(1, 12),
 								dicElementLitE(EIdent("k1", p(1, 3)), p(1, 5),
@@ -4044,8 +4049,10 @@ func TestComputedExpr(t *testing.T) {
 		func x() {
 			i++
 		}
+		
 		z()
 	}
+	
 	x
 )`)
 
@@ -4058,6 +4065,36 @@ func TestComputedExpr(t *testing.T) {
 		z
 	)))
 }`)
+}
+
+func TestParseExportStmt(t *testing.T) {
+	test.New(t, `export a; export a = 2; export func f(){return 1}; export f2(){return 1}; export x() => 3; export["abc"] = 2; export {x:1, y:2}; export (cfn()); export (import("abc"))`).
+		String("export a; export a = 2; export func f() { return 1 }; export f2() { return 1 }; export x() => 3; export [\"abc\"] = 2; export {x: 1, y: 2}; export (cfn()); export (import(\"abc\"))").
+		Code("export a; export a = 2; export func f() {return 1}; export f2() {return 1}; export x() => 3; export [\"abc\"] = 2; export {x: 1, y: 2}; export (cfn()); export (import(\"abc\"))").
+		FormattedCode(`export a
+
+export a = 2
+
+export func f() {
+	return 1
+}
+
+export f2() {
+	return 1
+}
+
+export x() => 3
+
+export ["abc"] = 2
+
+export {
+	x: 1,
+	y: 2
+}
+
+export (cfn())
+
+export (import("abc"))`)
 }
 
 type pfn = test.Pfn               // position conversion function
@@ -4479,10 +4516,6 @@ func funcClosure(funcType *FuncType, lambdaPos source.Pos, body Expr) *FuncExpr 
 		LambdaPos: lambdaPos,
 		BodyExpr:  body,
 	}
-}
-
-func parenExpr(x Expr, lparen, rparen Pos) *ParenExpr {
-	return &ParenExpr{Expr: x, LParen: lparen, RParen: rparen}
 }
 
 func callExpr(

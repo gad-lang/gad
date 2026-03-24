@@ -170,6 +170,7 @@ const (
 	DotFile
 	IsMain
 	Module
+	Export
 	GroupKeywordEnd
 )
 
@@ -292,6 +293,7 @@ var tokens = [...]string{
 	DotFile:         "@file",
 	IsMain:          "@main",
 	Module:          "@module",
+	Export:          "export",
 }
 
 var tokenNames = [...]string{
@@ -426,6 +428,7 @@ var tokenNames = [...]string{
 	DotFile:                      "DotFile",
 	IsMain:                       "IsMain",
 	Module:                       "Module",
+	Export:                       "Export",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 

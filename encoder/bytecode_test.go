@@ -104,7 +104,7 @@ return v*time.Second/time.Second // 1
 		AddBuiltinModuleInit("time", time.ModuleInit).
 		AddBuiltinModuleInit("json", json.ModuleInit).
 		AddSourceModule("srcmod", []byte(`
-exports = {
+export{
 	Incr: func(x) { return x + 1 },
 	Decr: func(x) { return x - 1 },
 }

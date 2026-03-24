@@ -18,7 +18,7 @@ func (c *Compiler) compileMultiParenExpr(nd *node.MultiParenExpr) error {
 		return c.error(err.Node, err)
 	}
 	return c.compileCallExpr(&node.CallExpr{
-		Func:     node.EIdent(TMixedParams.Name(), nd.LParen),
+		Func:     node.EIdent(TMixedParams.Name(), nd.LParen.Pos),
 		CallArgs: *args,
 	})
 }
@@ -1652,12 +1652,12 @@ func (c *Compiler) compileModuleFile(nd *ModuleStmt) (err error) {
 	return c.compileFileStmts(append(node.Stmts{
 		&node.AssignStmt{
 			Token: token.Define,
-			LHS:   node.Exprs{node.EIdent("exports", nd.Pos())},
+			LHS:   node.Exprs{node.EIdent(ExportsName, nd.Pos())},
 			RHS:   node.Exprs{&node.DictExpr{}},
 		},
 		&node.ReturnStmt{
 			Return: node.Return{
-				Result:    node.EIdent("exports", nd.Pos()),
+				Result:    node.EIdent(ExportsName, nd.Pos()),
 				ReturnPos: nd.Pos(),
 				Assign:    true,
 			},
@@ -2015,6 +2015,61 @@ func (c *Compiler) compileNamedParamValue(nd *namedParamValue) (err error) {
 	}
 	c.emit(nd, OpNamedParamValue)
 	return nil
+}
+func (c *Compiler) compileExportStmt(nd *node.ExportStmt) (err error) {
+	var (
+		key   = nd.KeyExpr
+		value = nd.ValueExpr
+	)
+	if key == nil {
+		switch t := nd.ValueExpr.(type) {
+		case *node.DictExpr, *node.ParenExpr:
+			ass := &node.AssignStmt{
+				TokenPos: nd.Pos(),
+				Token:    token.AddAssign,
+				LHS:      []node.Expr{node.EIdent(ExportsName, nd.Pos())},
+				RHS:      []node.Expr{t},
+			}
+			return c.Compile(ass)
+		case *node.FuncWithMethodsExpr:
+			if t.NameExpr == nil {
+				return c.errorf(t, "*ExportStmt of value as %T require NameExpr field", t)
+			}
+			var ok bool
+			if key, ok = t.NameExpr.(*node.IdentExpr); !ok {
+				return c.errorf(t, "*ExportStmt of value as %T require NameExpr field as *Ident", t)
+			}
+		case *node.FuncExpr:
+			if t.Type.NameExpr == nil {
+				return c.errorf(t, "*ExportStmt of value as %T require NameExpr field", t)
+			}
+			var ok bool
+			if key, ok = t.Type.NameExpr.(*node.IdentExpr); !ok {
+				return c.errorf(t, "*ExportStmt of value as %T require NameExpr field as *Ident", t)
+			}
+		default:
+			return c.errorf(t, "*ExportStmt of value must be *DictExpr | *ParenExpr | *FuncWithMethodsExpr | *FuncExpr")
+		}
+	}
+
+	if ident, _ := key.(*node.IdentExpr); ident != nil {
+		key = node.String(ident.Name, ident.NamePos)
+		if value == nil {
+			value = ident
+		}
+	}
+
+	if value == nil {
+		return c.errorf(nd, "*ExportStmt require value")
+	}
+
+	ass := &node.AssignStmt{
+		TokenPos: nd.Pos(),
+		Token:    token.Assign,
+		LHS:      []node.Expr{node.EIndex(node.EIdent(ExportsName, nd.Pos()), key, nd.TokenPos, key.End())},
+		RHS:      []node.Expr{value},
+	}
+	return c.Compile(ass)
 }
 
 func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name *node.IdentExpr, value node.Expr)) (stmts []node.Stmt) {

@@ -277,11 +277,13 @@ func (e *DictElementLit) BuildKeyExpr() Expr {
 	switch t := e.Key.(type) {
 	case *RawStringLit:
 		return String(t.Value(), e.Key.Pos())
+	case *RawHeredocLit:
+		return String(t.Value(), e.Key.Pos())
 	case *SymbolLit:
 		return String(t.Value(), e.Key.Pos())
 	case *DecimalLit:
 		return String(t.Value.String(), e.Key.Pos())
-	case *IdentExpr, *IntLit, *UintLit, *FloatLit:
+	case *IdentExpr, *IntLit, *UintLit, *FloatLit, *NilLit, *BoolLit, *FlagLit:
 		return String(t.String(), e.Key.Pos())
 	default:
 		return t
@@ -296,7 +298,8 @@ func (e *DictElementLit) String() string {
 	)
 
 	switch t := e.Key.(type) {
-	case *IdentExpr, *IntLit, *UintLit, *FloatLit, *DecimalLit, *SymbolLit, *ParenExpr:
+	case *IdentExpr, *IntLit, *UintLit, *FloatLit, *DecimalLit, *SymbolLit,
+		*ParenExpr:
 		b.WriteString(e.Key.String())
 	case *StringLit:
 		if v := t.Value(); runehelper.IsIdentifierOrDigitRunes([]rune(v)) {
@@ -310,6 +313,14 @@ func (e *DictElementLit) String() string {
 		} else {
 			b.WriteString(t.String())
 		}
+	case *RawHeredocLit:
+		if v := t.Value(); runehelper.IsIdentifierOrDigitRunes([]rune(v)) {
+			b.WriteString(v)
+		} else {
+			b.WriteString(t.String())
+		}
+	case *NilLit, *BoolLit, *FlagLit:
+		b.WriteString(t.String())
 	}
 
 	if f == nil {
@@ -332,8 +343,8 @@ func (e *DictElementLit) WriteCode(ctx *CodeWriteContext) {
 	}
 
 	e.Key.WriteCode(ctx)
-
 	ctx.WriteString(sep)
+
 	if fun != nil {
 		fun.WriteCode(ctx)
 	} else {
@@ -709,8 +720,8 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 
 func (e *KeyValueArrayLit) ToMultiParenExpr() *MultiParenExpr {
 	return &MultiParenExpr{
-		LParen:        e.LParen,
-		RParen:        e.RParen,
+		LParen:        Token{Token: token.LParen, Pos: e.LParen},
+		RParen:        Token{Token: token.RParen, Pos: e.RParen},
 		NamedElements: e.Elements,
 	}
 }

@@ -686,6 +686,93 @@ func TestCompiler_CompileImport(t *testing.T) {
 	)
 }
 
+func TestCompiler_Export(t *testing.T) {
+	// all local variables are initialized as nil
+	expectCompile(t, `
+var @exports
+const a = 1
+export a
+export b = 2
+export c(){return 3}
+export func d(){return 3}
+export e() => 4
+export {f:5, g:6}
+export [2**3] = 7
+`, bytecode(
+		Array{
+			Int(1),
+			Str("a"),
+			Int(2),
+			Str("b"),
+			Int(3),
+			compFunc(concatInsts(
+				makeInst(OpConstant, 5),
+				makeInst(OpReturn, 1),
+			), funcName("c")),
+			Str("c"),
+			compFunc(concatInsts(
+				makeInst(OpConstant, 5),
+				makeInst(OpReturn, 1),
+			), funcName("d")),
+			Str("d"),
+			Int(4),
+			compFunc(concatInsts(
+				makeInst(OpConstant, 10),
+				makeInst(OpReturn, 1),
+			), funcName("e")),
+			Str("e"),
+			Str("f"),
+			Int(5),
+			Str("g"),
+			Int(6),
+			Int(7),
+		},
+		compFunc(concatInsts(
+			makeInst(OpNil),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpDefineLocal, 1),
+			makeInst(OpGetLocal, 1),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 2),
+			makeInst(OpSetIndex),
+			makeInst(OpConstant, 3),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 4),
+			makeInst(OpSetIndex),
+			makeInst(OpConstant, 6),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 7),
+			makeInst(OpSetIndex),
+			makeInst(OpConstant, 8),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 9),
+			makeInst(OpSetIndex),
+			makeInst(OpConstant, 11),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 12),
+			makeInst(OpSetIndex),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 13),
+			makeInst(OpConstant, 14),
+			makeInst(OpConstant, 15),
+			makeInst(OpConstant, 16),
+			makeInst(OpDict, 4),
+			makeInst(OpSelfAssign, int(token.Add)),
+			makeInst(OpSetLocal, 0),
+			makeInst(OpConstant, 17),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 5),
+			makeInst(OpBinary, int(token.Pow)),
+			makeInst(OpSetIndex),
+			makeInst(OpReturn, 0),
+		),
+			funcLocals(2),
+		),
+	))
+}
+
 func TestCompiler_Compile(t *testing.T) {
 	// all local variables are initialized as nil
 	expectCompile(t, `var a`, bytecode(

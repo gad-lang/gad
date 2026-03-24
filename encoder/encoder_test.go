@@ -475,7 +475,7 @@ func TestEncDecBytecode_modules(t *testing.T) {
 				},
 			},
 		}).
-		Module("mod2", `exports = {run: func(){ return "mod2" }}`), gad.Str("mod1mod2"))
+		Module("mod2", `export{run: func(){ return "mod2" }}`), gad.Str("mod1mod2"))
 }
 
 func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected gad.Object) {

@@ -680,7 +680,7 @@ func (p *Parser) ParseSelectorNode(x node.Expr) (expr, sel node.Expr) {
 		p.Next()
 		sel = p.ParseExpr()
 		rparen := p.Expect(token.RParen)
-		sel = &node.ParenExpr{Expr: sel, LParen: lparen, RParen: rparen}
+		sel = node.EParen(sel, lparen, rparen)
 	case token.Else:
 		name := p.Token.Token.String()
 		sel = node.String(name, p.Token.Pos)
@@ -715,7 +715,7 @@ func (p *Parser) ParseSimpleSelectorNode(x node.Expr) (expr, sel node.Expr) {
 		p.Next()
 		sel = p.ParseExpr()
 		rparen := p.Expect(token.RParen)
-		sel = &node.ParenExpr{Expr: sel, LParen: lparen, RParen: rparen}
+		sel = node.EParen(sel, lparen, rparen)
 	default:
 		ident := p.ParseIdent()
 		sel = node.String(ident.Name, ident.NamePos)
@@ -826,84 +826,15 @@ func (p *Parser) ParseFlagLit() *node.FlagLit {
 	return x
 }
 
-func (p *Parser) ParsePrimitiveOperand() node.Expr {
+func (p *Parser) ParseLiteral() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "Operand"))
+	}
 	switch p.Token.Token {
-	case token.Ident:
-		return p.ParseIdent()
-	case token.Int:
-		return p.ParseIntLit()
-	case token.Uint:
-		return p.ParseUintLit()
-	case token.Float:
-		return p.ParseFloatLit()
-	case token.Char:
-		return p.ParseCharLit()
-	case token.String:
-		return p.ParseStringLit()
-	case token.Symbol:
-		return p.ParseSymbolLit()
-	case token.True, token.False:
-		return p.ParseBoolLit()
-	case token.Yes, token.No:
-		return p.ParseFlagLit()
 	case token.Nil:
 		x := &node.NilLit{TokenPos: p.Token.Pos}
 		p.Next()
 		return x
-	case token.Callee:
-		x := &node.CalleeKeywordExpr{TokenPos: p.Token.Pos, Literal: p.Token.Literal}
-		p.Next()
-		return x
-	case token.Args:
-		x := &node.ArgsKeywordExpr{TokenPos: p.Token.Pos, Literal: p.Token.Literal}
-		p.Next()
-		return x
-	case token.NamedArgs:
-		x := &node.NamedArgsKeywordExpr{TokenPos: p.Token.Pos, Literal: p.Token.Literal}
-		p.Next()
-		return x
-	case token.StdIn:
-		x := &node.StdInLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.StdOut:
-		x := &node.StdOutLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.StdErr:
-		x := &node.StdErrLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.DotName:
-		x := &node.DotFileNameLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.DotFile:
-		x := &node.DotFileLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.IsMain:
-		x := &node.IsMainLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.Module:
-		x := &node.ModuleLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	}
-
-	pos := p.Token.Pos
-	p.ErrorExpected(pos, "primitive operand")
-	p.advance(stmtStart)
-	return &node.BadExpr{From: pos, To: p.Token.Pos}
-}
-
-func (p *Parser) ParseOperand() node.Expr {
-	if p.Trace {
-		defer untracep(tracep(p, "Operand"))
-	}
-
-	switch p.Token.Token {
 	case token.Ident:
 		return p.ParseIdent()
 	case token.Int:
@@ -918,87 +849,159 @@ func (p *Parser) ParseOperand() node.Expr {
 		return p.ParseCharLit()
 	case token.String:
 		return p.ParseStringLit()
+	case token.RawString:
+		return p.ParseRawStringLit()
 	case token.Symbol:
 		return p.ParseSymbolLit()
 	case token.True, token.False:
 		return p.ParseBoolLit()
 	case token.Yes, token.No:
 		return p.ParseFlagLit()
-	case token.Nil:
-		x := &node.NilLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.StdIn:
-		x := &node.StdInLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.StdOut:
-		x := &node.StdOutLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.StdErr:
-		x := &node.StdErrLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.DotName:
-		x := &node.DotFileNameLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.DotFile:
-		x := &node.DotFileLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.IsMain:
-		x := &node.IsMainLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.Module:
-		x := &node.ModuleLit{TokenPos: p.Token.Pos}
-		p.Next()
-		return x
-	case token.Callee:
-		x := &node.CalleeKeywordExpr{TokenPos: p.Token.Pos, Literal: p.Token.Literal}
-		p.Next()
-		return x
-	case token.Args:
-		x := &node.ArgsKeywordExpr{TokenPos: p.Token.Pos, Literal: p.Token.Literal}
-		p.Next()
-		return x
-	case token.NamedArgs:
-		x := &node.NamedArgsKeywordExpr{TokenPos: p.Token.Pos, Literal: p.Token.Literal}
-		p.Next()
-		return x
-	case token.Import:
-		return p.ParseImportExpr()
-	case token.Embed:
-		return p.ParseEmbedExpr()
-	case token.LParen:
-		if p.Peek().Token == token.Assign {
-			return p.ParseComputedExpr()
-		}
-		return p.ParseAllParemExpr(token.LParen, token.RParen)
-	case token.LBrack: // array literal
-		return p.ParseArrayLitOrKeyValue()
-	case token.LBrace: // dict literal
-		return p.ParseDictLit()
-	case token.Func, token.Method: // function literal
-		return p.ParseFuncExpr()
-	case token.RawString:
-		return p.ParseRawStringLit()
 	case token.RawHeredoc:
 		return p.ParseRawHeredocLit()
-	case token.Throw:
-		return p.ParseThrowExpr()
-	case token.Return:
-		return p.ParseReturnExpr()
-	case token.Template:
+	default:
 		pos := p.Token.Pos
-		p.Next()
+		p.ErrorExpected(pos, "literal value")
+		p.advance(stmtStart)
+		return &node.BadExpr{From: pos, To: p.Token.Pos}
+	}
+}
+
+func (p *Parser) ParsePrimitiveOperand() node.Expr {
+	if isPrimiteValue(p.Token.Token) {
+		return p.ParseLiteral()
+	} else {
 		switch p.Token.Token {
-		case token.String, token.RawString, token.RawHeredoc, token.Symbol:
-			return &node.TemplateLit{
-				TokenPos: pos,
-				Value:    p.ParseOperand(),
+		case token.Nil:
+			x := &node.NilLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.Callee:
+			x := &node.CalleeKeywordExpr{TokenPos: p.Token.Pos, Literal: p.Token.Literal}
+			p.Next()
+			return x
+		case token.Args:
+			x := &node.ArgsKeywordExpr{TokenPos: p.Token.Pos, Literal: p.Token.Literal}
+			p.Next()
+			return x
+		case token.NamedArgs:
+			x := &node.NamedArgsKeywordExpr{TokenPos: p.Token.Pos, Literal: p.Token.Literal}
+			p.Next()
+			return x
+		case token.StdIn:
+			x := &node.StdInLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.StdOut:
+			x := &node.StdOutLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.StdErr:
+			x := &node.StdErrLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.DotName:
+			x := &node.DotFileNameLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.DotFile:
+			x := &node.DotFileLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.IsMain:
+			x := &node.IsMainLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.Module:
+			x := &node.ModuleLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		}
+	}
+
+	pos := p.Token.Pos
+	p.ErrorExpected(pos, "primitive operand")
+	p.advance(stmtStart)
+	return &node.BadExpr{From: pos, To: p.Token.Pos}
+}
+
+func (p *Parser) ParseOperand() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "Operand"))
+	}
+
+	if isPrimiteValue(p.Token.Token) {
+		return p.ParseLiteral()
+	} else {
+		switch p.Token.Token {
+		case token.StdIn:
+			x := &node.StdInLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.StdOut:
+			x := &node.StdOutLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.StdErr:
+			x := &node.StdErrLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.DotName:
+			x := &node.DotFileNameLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.DotFile:
+			x := &node.DotFileLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.IsMain:
+			x := &node.IsMainLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.Module:
+			x := &node.ModuleLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.Callee:
+			x := &node.CalleeKeywordExpr{TokenPos: p.Token.Pos, Literal: p.Token.Literal}
+			p.Next()
+			return x
+		case token.Args:
+			x := &node.ArgsKeywordExpr{TokenPos: p.Token.Pos, Literal: p.Token.Literal}
+			p.Next()
+			return x
+		case token.NamedArgs:
+			x := &node.NamedArgsKeywordExpr{TokenPos: p.Token.Pos, Literal: p.Token.Literal}
+			p.Next()
+			return x
+		case token.Import:
+			return p.ParseImportExpr()
+		case token.Embed:
+			return p.ParseEmbedExpr()
+		case token.LParen:
+			if p.Peek().Token == token.Assign {
+				return p.ParseComputedExpr()
+			}
+			return p.ParseParenOrClosure(token.LParen, token.RParen)
+		case token.LBrack: // array literal
+			return p.ParseArrayLitOrKeyValue()
+		case token.LBrace: // dict literal
+			return p.ParseDictLit()
+		case token.Func, token.Method: // function literal
+			return p.ParseFuncExpr()
+		case token.Throw:
+			return p.ParseThrowExpr()
+		case token.Return:
+			return p.ParseReturnExpr()
+		case token.Template:
+			pos := p.Token.Pos
+			p.Next()
+			switch p.Token.Token {
+			case token.String, token.RawString, token.RawHeredoc, token.Symbol:
+				return &node.TemplateLit{
+					TokenPos: pos,
+					Value:    p.ParseOperand(),
+				}
 			}
 		}
 	}
@@ -1090,22 +1093,24 @@ func (p *Parser) ParseClosureExpr(lambdaToken token.Token, paren *node.MultiPare
 	}
 }
 
-func (p *Parser) ParseAllParemExpr(lparenToken, rparenToken token.Token) node.Expr {
+func (p *Parser) ParseParenOrClosure(lparenToken, rparenToken token.Token) node.Expr {
 	paren := p.ParseParemExpr(lparenToken, rparenToken)
+	if p.Failed() {
+		return paren
+	}
 	switch p.Token.Token {
 	case token.Lambda:
 		return p.ParseClosureExpr(p.Token.Token, paren.ToMultiParenExpr())
-	default:
-		return paren
 	}
+	return paren
 }
 
-func (p *Parser) ParseSingleParemExpr() node.Expr {
+func (p *Parser) ParseSingleParemExpr(lparen, rparen token.Token) node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "SingleParemExpr"))
 	}
 
-	n := p.ParseParemExpr(token.LParen, token.RParen)
+	n := p.ParseParemExpr(lparen, rparen)
 
 	if paren, _ := n.(*node.ParenExpr); paren == nil && p.Errors.Len() == 0 {
 		p.ErrorExpectedExpr(&node.ParenExpr{}, n)
@@ -1167,7 +1172,11 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 		mte.Stmt = *stmt
 		p.ExprLevel--
 		p.ExpectToken(token.RParen)
-		return &node.ParenExpr{Expr: mte}
+		return &node.ParenExpr{
+			LParen: node.Token{Token: lparenToken, Pos: lparen},
+			RParen: node.Token{Token: rparenToken, Pos: rparen},
+			Expr:   mte,
+		}
 	}
 
 	p.SkipSpace()
@@ -1242,16 +1251,16 @@ done:
 		}
 
 		return &node.ParenExpr{
-			LParen: lparen,
+			LParen: node.Token{Token: lparenToken, Pos: lparen},
+			RParen: node.Token{Token: rparenToken, Pos: rparen},
 			Expr:   exprs[0],
-			RParen: rparen,
 		}
 	}
 	return &node.MultiParenExpr{
-		LParen:             lparen,
+		LParen:             node.Token{Token: lparenToken, Pos: lparen},
+		RParen:             node.Token{Token: rparenToken, Pos: rparen},
 		PositionalElements: exprs,
 		NamedElements:      nexprs,
-		RParen:             rparen,
 	}
 }
 
@@ -1485,10 +1494,11 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 					}
 
 					wm.Methods = append(wm.Methods, f)
+					p.ExpectSemi()
 				}
+			} else {
+				return
 			}
-
-			p.ExpectSemi()
 		}
 
 		p.ExprLevel--
@@ -1720,6 +1730,8 @@ do:
 		return p.ParseTryStmt()
 	case token.Throw:
 		return p.ParseThrowStmt()
+	case token.Export:
+		return p.ParseExportStmt()
 	case token.Break, token.Continue:
 		return p.ParseBranchStmt(p.Token.Token)
 	case token.Semicolon:
@@ -2624,31 +2636,19 @@ func (p *Parser) ParseDictElementLit() *node.DictElementLit {
 	pos := p.Token.Pos
 	var key node.Expr
 
-	switch p.Token.Token {
-	case token.Ident:
-		key = p.ParseIdent()
-	case token.String:
-		key = p.ParseStringLit()
-	case token.RawString:
-		key = p.ParseRawStringLit()
-	case token.Symbol:
-		key = p.ParseSymbolLit()
-	case token.Int:
-		key = p.ParseIntLit()
-	case token.Uint:
-		key = p.ParseUintLit()
-	case token.Float:
-		key = p.ParseFloatLit()
-	case token.Decimal:
-		key = p.ParseDecimalLit()
-	case token.LParen:
-		key = p.ParseSingleParemExpr()
-	default:
-		if p.Token.Token.IsKeyword() {
-			key = &node.StringLit{ValuePos: pos, Literal: strconv.Quote(p.Token.Literal)}
-			p.Next()
-		} else {
-			p.ErrorExpected(pos, "map key")
+	if isPrimiteValue(p.Token.Token) {
+		key = p.ParseLiteral()
+	} else {
+		switch p.Token.Token {
+		case token.LBrack:
+			key = p.ParseSingleParemExpr(token.LBrack, token.RBrack)
+		default:
+			if p.Token.Token.IsKeyword() {
+				key = &node.StringLit{ValuePos: pos, Literal: strconv.Quote(p.Token.Literal)}
+				p.Next()
+			} else {
+				p.ErrorExpected(pos, "map key")
+			}
 		}
 	}
 
@@ -2876,6 +2876,87 @@ func (p *Parser) ParseKeyValueArrayLit(lbrace source.Pos) *node.KeyValueArrayLit
 	kva := p.ParseKeyValueArrayLitAt(lbrace, token.RParen)
 	p.Expect(token.RParen)
 	return kva
+}
+
+func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
+	if p.Trace {
+		defer untracep(tracep(p, "Export"))
+	}
+
+	stmt = &node.ExportStmt{
+		TokenPos: p.Expect(token.Export),
+	}
+
+	if p.Failed() {
+		return
+	}
+
+	p.SkipSpace()
+
+	switch p.Token.Token {
+	case token.LBrack:
+		stmt.KeyExpr = p.ParseSingleParemExpr(token.LBrack, token.RBrack)
+	case token.LBrace:
+		stmt.ValueExpr = p.ParseDictLit()
+	case token.LParen:
+		stmt.ValueExpr = p.ParseSingleParemExpr(token.LParen, token.RParen)
+	case token.Func:
+		s := p.ParseFuncExprT(p.ExpectToken(p.Token.Token))
+		if p.Failed() {
+			return
+		}
+		stmt.ValueExpr = s
+	default:
+		stmt.KeyExpr = p.ParseLiteral()
+		if ident, _ := stmt.KeyExpr.(*node.IdentExpr); ident != nil {
+			if p.Token.Token == token.LParen {
+				exp := p.ParseParenOrClosure(token.LParen, token.RParen)
+				switch t := exp.(type) {
+				case *node.ClosureExpr:
+					stmt.ValueExpr = &node.FuncExpr{
+						LambdaPos: t.Lambda.Pos,
+						Type: &node.FuncType{
+							NameExpr: ident,
+							Params:   t.Params,
+						},
+						BodyExpr: t.Body,
+					}
+					stmt.KeyExpr = nil
+				case node.ToMultiParenConverter:
+					if p.Token.Token == token.LBrace {
+						if params, err := t.ToMultiParenExpr().ToFuncParams(); err == nil {
+							block := p.ParseBlockStmt(token.RBrace)
+							stmt.ValueExpr = &node.FuncExpr{
+								Type: &node.FuncType{
+									Params:   params,
+									NameExpr: ident,
+								},
+								Body: block,
+							}
+							stmt.KeyExpr = nil
+						} else {
+							return
+						}
+					} else {
+						p.Error(exp.End(), "expected *FuncExpr | *ClosureExpr")
+					}
+				default:
+					p.Error(exp.End(), "expected *FuncExpr | *ClosureExpr")
+				}
+			}
+		}
+	}
+
+	if p.Failed() {
+		return
+	}
+
+	if p.Token.Token == token.Assign {
+		p.Next()
+		stmt.ValueExpr = p.ParseExpr()
+	}
+
+	return
 }
 
 func (p *Parser) Expect(token token.Token) source.Pos {
@@ -3215,4 +3296,26 @@ type BlockEnd struct {
 type BlockWrap struct {
 	Start token.Token
 	Ends  []BlockEnd
+}
+
+func isPrimiteValue(tok token.Token) bool {
+	switch tok {
+	case token.Ident,
+		token.Int,
+		token.Uint,
+		token.Float,
+		token.Decimal,
+		token.Char,
+		token.String,
+		token.RawString,
+		token.RawHeredoc,
+		token.Symbol,
+		token.Nil,
+		token.True,
+		token.False,
+		token.Yes,
+		token.No:
+		return true
+	}
+	return false
 }

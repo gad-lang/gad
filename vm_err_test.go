@@ -249,7 +249,7 @@ func TestVMNoPanic(t *testing.T) {
 
 func TestVMCatchAll(t *testing.T) {
 	catchAll := `
-	exports.f = func(callable, *args) {
+	export f = func(callable, *args) {
 		try {
 			return callable(*args)
 		} catch err {
@@ -289,7 +289,7 @@ func TestVMCatchAll(t *testing.T) {
 	)
 
 	catchAll2 := `
-	exports.f = func(callable, onError, *args) {
+	export f = func(callable, onError, *args) {
 		var ret
 		try {
 			return callable(*args)
@@ -667,7 +667,7 @@ func TestVMExamples(t *testing.T) {
 		return total
 	}
 	// return a map to the module importer to export objects.
-	exports = {
+	export{
 		Sum: sum,
 		NumOfErrors: func() { return numOfErrors },
 	}
@@ -857,7 +857,7 @@ func TestVMExamples(t *testing.T) {
 	`, newOpts().Module("module", `
 	global stats
 
-	exports.f = func() {
+	export f = func() {
 		stats.fn2++
 		/* ... */
 	}

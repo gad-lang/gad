@@ -413,7 +413,7 @@ func EClosure(params *FuncParams, lambdaPos source.Pos, lambdaToken token.Token,
 }
 
 func EParen(x Expr, lparen, rparen source.Pos) *ParenExpr {
-	return &ParenExpr{Expr: x, LParen: lparen, RParen: rparen}
+	return &ParenExpr{Expr: x, LParen: Token{Token: token.LParen, Pos: lparen}, RParen: Token{Token: token.RParen, Pos: rparen}}
 }
 
 func ECall(

@@ -14,7 +14,7 @@ import (
 
 func (s *PrinterState) WrapRepr(o Object) func() {
 	switch o.(type) {
-	case *CompiledFunction, *ReflectType, *Func:
+	case *CompiledFunction, *ReflectType, *Func, *NilType:
 		return func() {}
 	}
 

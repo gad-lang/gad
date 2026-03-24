@@ -38,7 +38,7 @@ func EqualStringf(t *testing.T, expected, actual, msg string, args ...interface{
 			}
 			return strings.Join(el, "\n")
 		} else {
-			return strconv.Quote(s)
+			return s
 		}
 	}
 

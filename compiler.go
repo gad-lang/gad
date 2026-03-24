@@ -20,7 +20,10 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
-const MainName = parser.MainName
+const (
+	MainName    = parser.MainName
+	ExportsName = "@exports"
+)
 
 var (
 	// DefaultCompilerOptions holds default Compiler options.
@@ -640,6 +643,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compilePtr(nt)
 	case *node.ComputedExpr:
 		return c.compileComputedExpr(nt)
+	case *node.ExportStmt:
+		return c.compileExportStmt(nt)
 	case nil:
 	default:
 		return c.errorf(nt, `%[1]T "%[1]v" not implemented`, nt)

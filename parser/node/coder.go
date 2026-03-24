@@ -259,11 +259,12 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 	stmt = ctx.simplifyStmts(stmt)
 
 	var (
-		i   int
-		sep = true
+		i    int
+		sep  = true
+		last = len(stmt) - 1
 	)
 
-	Stmts(stmt).Each(func(_ int, _ bool, s Stmt) {
+	Stmts(stmt).Each(func(x int, _ bool, s Stmt) {
 		if skiper, _ := s.(CodeWriteSkiper); skiper != nil {
 			if skiper.SkipCode(ctx) {
 				return
@@ -283,6 +284,11 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 			sep = true
 		case *CodeEndStmt, *ConfigStmt:
 			sep = false
+		case *ExprStmt:
+		default:
+			if x < last && ctx.HasPrefix() {
+				ctx.WriteSemi()
+			}
 		}
 	})
 }

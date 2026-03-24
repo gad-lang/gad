@@ -74,7 +74,7 @@ func TestVMDict(t *testing.T) {
 	testExpectRun(t, `return {a:1,b:2} - {a:1}`, nil, Dict{"b": Int(2)})
 	testExpectRun(t, `return {a:1,b:2} - (;a)`, nil, Dict{"b": Int(2)})
 	testExpectRun(t, `z := (;z1=3); return ({key1: 1, #(key2): 2, #(key 3): #(3), #(key 4): #(value	4), true: 5, false: 6, 
-yes: 7, no: 8, 1: 9, u2: 10, 3d: 11, 67.2345678986987654005678d: 12, 4.56: 13, (2**3): 14, (z):15})`, nil,
+yes: 7, no: 8, 1: 9, u2: 10, 3d: 11, 67.2345678986987654005678d: 12, 4.56: 13, [2**3]: 14, [z]:15})`, nil,
 		Dict{
 			"(;z1=3)":                   Int(15),
 			"1":                         Int(9),
@@ -1938,7 +1938,7 @@ met mod.x(v int) {}
 
 return repr(mod;indent,indexes)
 `, newOpts().Module("mod1", `
-exports.x = func() {}
+export x = func() {}
 `), Str(`‹module "mod1" at "source:mod1" ‹dict: {
 	@data: ‹dict: {
 		x: ‹func ‹mod1.x› with 2 methods: [
@@ -2227,8 +2227,8 @@ Point := Class(
 	testExpectRun(t, s1+`;return repr([Point(), Point(1u, 2u)];indent)`,
 		nil, Str(`‹array: [
 	‹class instance of ‹(main).Point›: {
-		x: ‹nil: nil›,
-		y: ‹nil: nil›
+		x: nil,
+		y: nil
 	}›,
 	‹class instance of ‹(main).Point›: {
 		x: ‹uint: 1›,
@@ -2267,8 +2267,8 @@ return repr([
 ];indent)`,
 		nil, Str(`‹array: [
 	‹class instance of ‹(main).Point›: {
-		x: ‹nil: nil›,
-		y: ‹nil: nil›
+		x: nil,
+		y: nil
 	}›,
 	‹class instance of ‹(main).Point›: {
 		x: ‹int: 1›,
@@ -2276,7 +2276,7 @@ return repr([
 	}›,
 	‹class instance of ‹(main).Point›: {
 		x: ‹int: 10›,
-		y: ‹nil: nil›
+		y: nil
 	}›,
 	‹int: 10›,
 	‹array: [
@@ -3818,7 +3818,7 @@ func TestVMBuiltinModules(t *testing.T) {
 
 func TestVMSourceModules(t *testing.T) {
 	testExpectRun(t, `f1 := func(){1}; m := import("mod1"); f2 := func(){2}; return str([f1, f2, m.a];indent)`,
-		newOpts().Module("mod1", `exports.a = func(){"mod1.a"}`),
+		newOpts().Module("mod1", `export a = func(){"mod1.a"}`),
 		Str(`[
 	‹compiledFunction: (main).#1()›,
 	‹compiledFunction: (main).#2()›,
@@ -3826,23 +3826,23 @@ func TestVMSourceModules(t *testing.T) {
 ]`))
 
 	testExpectRun(t, `out := import("mod1"); return dict(out)`,
-		newOpts().Module("mod1", `const y={z:1}; param (;x=y); exports.v = x`),
+		newOpts().Module("mod1", `const y={z:1}; param (;x=y); export v = x`),
 		Dict{"v": Dict{"z": Int(1)}})
 
 	testExpectRun(t, `out := import("mod1"; x=2); return dict(out)`,
-		newOpts().Module("mod1", `const y={z:1}; param (;x=y); exports.v = x`),
+		newOpts().Module("mod1", `const y={z:1}; param (;x=y); export v = x`),
 		Dict{"v": Int(2)})
 
 	testExpectRun(t, `out := import("mod1", 1); return dict(out)`,
-		newOpts().Module("mod1", `param (a); exports.v = a`),
+		newOpts().Module("mod1", `param (a); export v = a`),
 		Dict{"v": Int(1)})
 
 	testExpectRun(t, `out := import("mod1", 1); return dict(out)`,
-		newOpts().Module("mod1", `param (a; x); exports.v = a; exports.v2 = x`),
+		newOpts().Module("mod1", `param (a; x); export v = a; export v2 = x`),
 		Dict{"v": Int(1), "v2": No})
 
 	testExpectRun(t, `out := import("mod1", 1;x=2); return [out["@data"], out["@params"], out["@file"], out["@name"]]`,
-		newOpts().Module("mod1", `param (a; x); exports.v = a; exports.v2 = x`),
+		newOpts().Module("mod1", `param (a; x); export v = a; export v2 = x`),
 		Array{
 			Dict{
 				"v":  Int(1),
@@ -3859,23 +3859,23 @@ func TestVMSourceModules(t *testing.T) {
 		})
 
 	testExpectRun(t, `out := import("mod1", 1;x=2, y, z=3); return dict(out)`,
-		newOpts().Module("mod1", `param (a; x, **kw); exports.v = a; exports.v2 = x; exports.v3 = dict(kw)`),
+		newOpts().Module("mod1", `param (a; x, **kw); export v = a; export v2 = x; export v3 = dict(kw)`),
 		Dict{"v": Int(1), "v2": Int(2), "v3": Dict{"y": Yes, "z": Int(3)}})
 
 	testExpectRun(t, `out := import("mod1", 1;x=2); return dict(out)`,
-		newOpts().Module("mod1", `param (a; x); exports.v = a; exports.v2 = x`),
+		newOpts().Module("mod1", `param (a; x); export v = a; export v2 = x`),
 		Dict{"v": Int(1), "v2": Int(2)})
 
 	testExpectRun(t, `out := import("mod1", 1; x=[1,2]); return dict(out)`,
-		newOpts().Module("mod1", `param (a; x); exports.v = a; exports.v2 = x`),
+		newOpts().Module("mod1", `param (a; x); export v = a; export v2 = x`),
 		Dict{"v": Int(1), "v2": Array{Int(1), Int(2)}})
 
 	testExpectRun(t, `out := import("mod1", 1; **{x:[1,2]}); return dict(out)`,
-		newOpts().Module("mod1", `param (a; x); exports.v = a; exports.v2 = x`),
+		newOpts().Module("mod1", `param (a; x); export v = a; export v2 = x`),
 		Dict{"v": Int(1), "v2": Array{Int(1), Int(2)}})
 
 	testExpectRun(t, `out := import("mod1"); return dict(out)`,
-		newOpts().Module("mod1", `exports = {name: @name, file: @file, ismod: !@main}; x := 1`),
+		newOpts().Module("mod1", `export{name: @name, file: @file, ismod: !@main}; x := 1`),
 		Dict{"name": Str("mod1"), "file": Str("source:mod1"), "ismod": True})
 
 	// modules are evaluated once, calling in different scopes returns same object
@@ -3886,11 +3886,11 @@ func TestVMSourceModules(t *testing.T) {
 		m11 := import("mod1")
 		m11.a = 6
 	}()
-	return dict(m1)`, newOpts().Module("mod1", `exports = {a: 1, b: 2}`), Dict{"a": Int(6), "b": Int(2)})
+	return dict(m1)`, newOpts().Module("mod1", `export{a: 1, b: 2}`), Dict{"a": Int(6), "b": Int(2)})
 
 	// change module var value
 	testExpectRun(t, `m1 := import("mod1"); m1.a.b = 5; return m1.a.b`,
-		newOpts().Module("mod1", `exports = {a: {b: 3}}`), Int(5))
+		newOpts().Module("mod1", `export{a: {b: 3}}`), Int(5))
 
 	// recursive function in module
 	testExpectRun(t, `return import("mod1").r`,
@@ -3899,11 +3899,11 @@ func TestVMSourceModules(t *testing.T) {
 	a = func(x) {
 		return x == 0 ? 0 : x + a(x-1)
 	}
-	exports.r = a(5)`), Int(15))
+	export r = a(5)`), Int(15))
 
 	testExpectRun(t, `out := import("mod1"); return out.v`,
 		newOpts().Module("mod1", `
-	exports.v = func() {
+	export v = func() {
 		var a
 		a = func(x) {
 			return x == 0 ? 0 : x + a(x-1)
@@ -3914,23 +3914,23 @@ func TestVMSourceModules(t *testing.T) {
 
 	// (main) -> mod1 -> mod2
 	testExpectRun(t, `return import("mod1").f1()`,
-		newOpts().Module("mod1", `exports.f1 = import("mod2").f2`).
-			Module("mod2", `exports.f2 = func() { return 5.0 }`),
+		newOpts().Module("mod1", `export f1 = import("mod2").f2`).
+			Module("mod2", `export f2 = func() { return 5.0 }`),
 		Float(5.0))
 
 	// (main) -> mod1 -> mod2
 	//        -> mod2
 	testExpectRun(t, `import("mod1"); return import("mod2").f2()`,
-		newOpts().Module("mod1", `exports.f = import("mod2").f2`).
-			Module("mod2", `exports.f2 = func() { return 5.0 }`),
+		newOpts().Module("mod1", `export f = import("mod2").f2`).
+			Module("mod2", `export f2 = func() { return 5.0 }`),
 		Float(5.0))
 
 	// (main) -> mod1 -> mod2 -> mod3
 	//        -> mod2 -> mod3
 	testExpectRun(t, `import("mod1"); return import("mod2").f()`,
-		newOpts().Module("mod1", `exports = import("mod2")`).
-			Module("mod2", `exports = import("mod3")`).
-			Module("mod3", `exports.f = func() { return 5.0 }`),
+		newOpts().Module("mod1", `export (import("mod2"))`).
+			Module("mod2", `export (import("mod3"))`).
+			Module("mod3", `export f = func() { return 5.0 }`),
 		Float(5.0))
 
 	// cyclic imports
@@ -3962,11 +3962,11 @@ func TestVMSourceModules(t *testing.T) {
 
 	// make sure module has same builtin functions
 	testExpectRun(t, `out := import("mod1"); return out.f`,
-		newOpts().Module("mod1", `exports.f = func() { return typeName(0) }()`), Str("int"))
+		newOpts().Module("mod1", `export f = func() { return typeName(0) }()`), Str("int"))
 
 	// module cannot access outer scope
-	expectErrHas(t, `a := 5; import("mod1")`, newOpts().Module("mod1", `exports.a = a`).CompilerError(),
-		"Compile Error: unresolved reference \"a\"\n\tat mod1:1:13")
+	expectErrHas(t, `a := 5; import("mod1")`, newOpts().Module("mod1", `export a`).CompilerError(),
+		"Compile Error: unresolved reference \"a\"\n\tat mod1:1:8")
 
 	// runtime error within modules
 	expectErrIs(t, `
@@ -3974,7 +3974,7 @@ func TestVMSourceModules(t *testing.T) {
 	b := import("mod1");
 	b.f(a)`,
 		newOpts().Module("mod1", `
-	exports.f = func(a) {
+	export f = func(a) {
 	   a()
 	}
 	`), ErrNotCallable)
@@ -3984,7 +3984,7 @@ func TestVMSourceModules(t *testing.T) {
 	m1 := import("mod")
 	m2 := import("mod")
 	return m1 == m2
-	`, newOpts().Module("mod", `exports.x = 1`), True)
+	`, newOpts().Module("mod", `export x = 1`), True)
 
 	testExpectRun(t, `
 	m1 := import("mod")
@@ -3994,13 +3994,13 @@ func TestVMSourceModules(t *testing.T) {
 		return import("mod")
 	}
 	return [m1 == m2, m2 == import("mod"), m1.x == f().x]
-	`, newOpts().Module("mod", `exports.x = 1`), Array{True, True, True})
+	`, newOpts().Module("mod", `export x = 1`), Array{True, True, True})
 
 	testExpectRun(t, `
 	mod2 := import("mod2")
 	mod1 := import("mod1")
 	return mod1.mod2 == mod2
-	`, newOpts().Module("mod1", `m2 := import("mod2"); m2.x = 2; exports = { x: 1, mod2: m2 }`).
+	`, newOpts().Module("mod1", `m2 := import("mod2"); m2.x = 2; export{ x: 1, mod2: m2 }`).
 		Module("mod2", "m := { x: 0 }; return m"), True)
 
 	testExpectRun(t, `
@@ -5187,6 +5187,55 @@ func TestVMReturn(t *testing.T) {
 	testExpectRun(t, `func f(x) { return = x }; return f(1)`, nil, Int(1))
 	testExpectRun(t, `func f(x) { return = x }; return f(1), f(3)`, nil, Array{Int(1), Int(3)})
 	testExpectRun(t, `func f(x) { return = x; x++; return 5 }; return f(1), f(3)`, nil, Array{Int(2), Int(4)})
+}
+
+func TestVMExport(t *testing.T) {
+	testExpectRun(t, `
+var @exports = {"_":nil}
+const a = 1
+export a
+export b = 2
+export c(){return 3}
+export func d(){return 3}
+export e() => 4
+export {f:5, g:6}
+export [2**3] = 7
+return str(@exports;indent,sortedKeys)
+`,
+		nil,
+		Str(`{
+	8: 7,
+	_: nil,
+	a: 1,
+	b: 2,
+	c: ‹compiledFunction: (main).c()›,
+	d: ‹compiledFunction: (main).d()›,
+	e: ‹compiledFunction: (main).e()›,
+	f: 5,
+	g: 6
+}`))
+	testExpectRun(t, `mod := import("mod"); return str(dict(mod);indent,sortedKeys)`,
+		newOpts().
+			Module("mod", `
+const a = 1
+export a
+export b = 2
+export c(){return 3}
+export func d(){return 3}
+export e() => 4
+export {f:5, g:6}
+export [2**3] = 7
+`),
+		Str(`{
+	8: 7,
+	a: 1,
+	b: 2,
+	c: ‹compiledFunction: mod.c()›,
+	d: ‹compiledFunction: mod.d()›,
+	e: ‹compiledFunction: mod.e()›,
+	f: 5,
+	g: 6
+}`))
 }
 
 type callerObject struct {
