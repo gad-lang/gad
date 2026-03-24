@@ -761,6 +761,46 @@ const (
 	test.ExpectParseString(t, "const (\nx=1\ny=2)", "const (x = 1, y = 2)")
 	test.ExpectParseString(t, "const (x=1,\ny=2)", "const (x = 1, y = 2)")
 
+	test.New(t, `const a = func() { const a1 = func() { const a2 = func() {}}}`).
+		FormattedCode(`const a = func() {
+	const a1 = func() {
+		const a2 = func() {}
+	}
+}`)
+
+	test.New(t, `const a = func() { const a1 = func() { const a2 = func() {x};y};z};s`).
+		FormattedCode(`const a = func() {
+	const a1 = func() {
+		const a2 = func() {
+			x
+		}
+		y
+	}
+	z
+}
+s`)
+
+	test.New(t, `const a = func() { const a1 = func() { const (b=1,c=2,d=3)}}`).
+		FormattedCode(`const a = func() {
+	const a1 = func() {
+		const (
+			b = 1
+			c = 2
+			d = 3
+		)
+	}
+}`)
+	test.New(t, `const a = func() { const a1 = func() { const (b = iota,c,d)}}`).
+		FormattedCode(`const a = func() {
+	const a1 = func() {
+		const (
+			b = iota
+			c
+			d
+		)
+	}
+}`)
+
 	test.ExpectParseError(t, `param a,b`)
 	test.ExpectParseError(t, `param (a... ,b)`)
 	test.ExpectParseError(t, `param (... ,b)`)
@@ -1307,11 +1347,10 @@ func TestParseCall(t *testing.T) {
 	test.New(t, "add(1, 2; x(){y++}, y()=>1, **d)").
 		String("add(1, 2; x() { y++ }, y() => 1, **d)").
 		Code("add(1, 2; x() {y++}, y() => 1, **d)").
-		IndentedCode("add(1, 2; x() {\n\ty++\n}, y() => 1, **d)").
 		FormattedCode(`add(
 	1,
-	2; 
-	x() {
+	2
+	; x() {
 		y++
 	},
 	y() => 1,
@@ -1524,16 +1563,14 @@ f(1; z=1, x{() => nil; (y) => nil}, x=2)
 			"f(1; z, x {() => nil; (y) => nil}, x); " +
 			"f(; z=1, x {() => nil; (y) => nil}); " +
 			"f(1; z=1, x {() => nil; (y) => nil}, x=2)").
-		FormattedCode(`f(; 
-	x {
-		() => nil
+		FormattedCode(`f(; x {
+	() => nil
 
-		(y) => nil
-	}
-)
+	(y) => nil
+})
 f(
-	1; 
-	x {
+	1
+	; x {
 		() => nil
 
 		(y) => nil
@@ -1541,8 +1578,8 @@ f(
 )
 f(
 	1,
-	2; 
-	x {
+	2
+	; x {
 		() => nil
 
 		(y) => nil
@@ -1550,14 +1587,14 @@ f(
 )
 f(
 	1,
-	*s; 
-	x {
+	*s
+	; x {
 		() => nil
 
 		(y) => nil
 	}
 )
-f(; 
+f(;
 	z,
 	x {
 		() => nil
@@ -1566,8 +1603,8 @@ f(;
 	}
 )
 f(
-	1; 
-	z,
+	1
+	; z,
 	x {
 		() => nil
 
@@ -1575,7 +1612,7 @@ f(
 	},
 	x
 )
-f(; 
+f(;
 	z=1,
 	x {
 		() => nil
@@ -1584,8 +1621,8 @@ f(;
 	}
 )
 f(
-	1; 
-	z=1,
+	1
+	; z=1,
 	x {
 		() => nil
 
@@ -1593,9 +1630,7 @@ f(
 	},
 	x=2
 )`)
-}
 
-func TestParseCallWithNamedArgs(t *testing.T) {
 	test.ExpectParse(t, "add(;x=2)", func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
@@ -1648,6 +1683,27 @@ func TestParseCallWithNamedArgs(t *testing.T) {
 	test.ExpectParseString(t, "fn(;**{y:5})", "fn(; **{y: 5})")
 	test.ExpectParseString(t, "fn(1,*[2,3];x=4,**{y:5})", "fn(1, *[2, 3]; x=4, **{y: 5})")
 	test.ExpectParseString(t, "fn(1; a=b)()", "fn(1; a=b)()")
+
+	test.New(t, "add(a;b=1)").
+		FormattedCode(`add(
+	a
+	; b=1
+)`)
+
+	test.New(t, "add(;b=1)").
+		FormattedCode(`add(; b=1)`)
+
+	test.New(t, "add(a, b)").
+		FormattedCode(`add(
+	a,
+	b
+)`)
+
+	test.New(t, "add(a)").
+		FormattedCode(`add(a)`)
+
+	test.New(t, "add()").
+		FormattedCode(`add()`)
 }
 
 func TestParseParenMultiValues(t *testing.T) {
@@ -1731,8 +1787,12 @@ z=
 	(x) => x
 })`).
 		String(`(;fn=func {() => 1; (x) => x; })`).
-		Code("(;fn {() => 1; (x) => x})").
-		IndentedCode("(;\n\tfn {\n\t\t() => 1\n\n\t\t(x) => x\n\t}\n)", CodeWithFlags(CodeWriteContextFlagFormatKeyValueArrayItemInNewLine))
+		Code("(; fn {() => 1; (x) => x})").
+		FormattedCode(`(; fn {
+	() => 1
+
+	(x) => x
+})`)
 
 	test.ExpectParseString(t, `(;
 x int
@@ -3991,9 +4051,9 @@ func TestComputedExpr(t *testing.T) {
 
 	test.New(t, "func a() {a:=(= (;x=(=y();z)))}").
 		String("func a() { a := (= (;x=(= y(); z))) }").
-		Code("func a() {a := (= (;x=(= y(); z)))}").
+		Code("func a() {a := (= (; x=(= y(); z)))}").
 		IndentedCode(`func a() {
-	a := (= (;x=(=
+	a := (= (; x=(=
 		y()
 		z
 	)))

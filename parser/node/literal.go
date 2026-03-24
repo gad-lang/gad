@@ -680,21 +680,30 @@ func (e *KeyValueArrayLit) String() string {
 
 func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("(;")
-	ctx.WriteItems(
-		ctx.Flags.Has(CodeWriteContextFlagFormatKeyValueArrayItemInNewLine),
-		len(e.Elements),
-		func(i int) {
-			e.Elements[i].WriteCode(ctx)
-		},
-		func(nl bool) {
-			if nl {
-				if len(ctx.Prefix) > 0 {
-					ctx.WriteSecondLine()
-				} else {
-					ctx.WriteLine(", ")
-				}
-			}
-		})
+	if l := len(e.Elements); l > 0 {
+		if l == 1 || !ctx.HasPrefix() {
+			ctx.WriteSingleByte(' ')
+		}
+		if l == 1 {
+			e.Elements[0].WriteCode(ctx)
+		} else {
+			ctx.WriteItems(
+				ctx.Flags.Has(CodeWriteContextFlagFormatKeyValueArrayItemInNewLine),
+				len(e.Elements),
+				func(i int) {
+					e.Elements[i].WriteCode(ctx)
+				},
+				func(nl bool) {
+					if nl {
+						if ctx.HasPrefix() {
+							ctx.WriteSecondLine()
+						} else {
+							ctx.WriteLine(", ")
+						}
+					}
+				})
+		}
+	}
 	ctx.WriteSingleByte(')')
 }
 
@@ -1079,15 +1088,14 @@ func (c *CallArgs) WriteCode(ctx *CodeWriteContext) {
 }
 
 func (c *CallArgs) WriteCodeBrace(ctx *CodeWriteContext, lbrace, rbrace string) {
+	inNewLine := ctx.Flags.Has(CodeWriteContextFlagFormatCallParamsInNewLine)
+
 	ctx.WriteString(lbrace)
 	if c.Args.Valid() {
-		c.Args.WriteCodeWithNamedSep(ctx, c.NamedArgs.Valid())
+		c.Args.WriteCodeWithNamed(ctx, inNewLine, c.NamedArgs.Valid())
 	}
 	if c.NamedArgs.Valid() {
-		if !c.Args.Valid() {
-			ctx.WriteString("; ")
-		}
-		c.NamedArgs.WriteCode(ctx)
+		c.NamedArgs.WriteCode(ctx, inNewLine, c.Args.Valid())
 	}
 	if c.Args.Valid() || c.NamedArgs.Valid() {
 		ctx.WritePrefix()

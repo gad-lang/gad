@@ -84,12 +84,14 @@ const (
 	CodeWriteContextFlagFormatKeyValueArrayItemInNewLine
 	CodeWriteContextFlagFormatCallParamsInNewLine
 	CodeWriteContextFlagFormatParemValuesInNewLine
+	CodeWriteContextFlagFormatDeclItemInNewLine
 
 	CodeWriteContextFlagFormat = CodeWriteContextFlagFormatArrayItemInNewLine |
 		CodeWriteContextFlagFormatDictItemInNewLine |
 		CodeWriteContextFlagFormatKeyValueArrayItemInNewLine |
 		CodeWriteContextFlagFormatCallParamsInNewLine |
-		CodeWriteContextFlagFormatParemValuesInNewLine
+		CodeWriteContextFlagFormatParemValuesInNewLine |
+		CodeWriteContextFlagFormatDeclItemInNewLine
 )
 
 type CodeWriteSkiper interface {
@@ -151,6 +153,10 @@ func (ctx CodeWriteContext) Buffer(do func(ctx *CodeWriteContext)) string {
 	return buf.String()
 }
 
+func (ctx *CodeWriteContext) HasPrefix() bool {
+	return ctx.Prefix != ""
+}
+
 func (ctx *CodeWriteContext) CurrentPrefix() string {
 	return strings.Repeat(ctx.Prefix, ctx.Depth)
 }
@@ -180,13 +186,13 @@ func (ctx *CodeWriteContext) WritePrefixedLine() {
 }
 
 func (ctx *CodeWriteContext) WriteSecondLine() {
-	if ctx.Prefix != "" {
+	if ctx.HasPrefix() {
 		ctx.WriteString("\n")
 	}
 }
 
 func (ctx *CodeWriteContext) WriteSemi() {
-	if ctx.Prefix == "" {
+	if !ctx.HasPrefix() {
 		ctx.WriteString("; ")
 	} else {
 		ctx.WriteString("\n" + ctx.CurrentPrefix())
@@ -194,7 +200,7 @@ func (ctx *CodeWriteContext) WriteSemi() {
 }
 
 func (ctx *CodeWriteContext) WriteSemiOrDoubleLine() {
-	if ctx.Prefix == "" {
+	if !ctx.HasPrefix() {
 		ctx.WriteString("; ")
 	} else {
 		ctx.WriteString("\n\n")
@@ -224,12 +230,40 @@ func (ctx *CodeWriteContext) With(n ast.Node, cb func() error) (err error) {
 	return
 }
 
-func (ctx *CodeWriteContext) WriteStmts(smt ...Stmt) {
+func (ctx *CodeWriteContext) simplifyStmts(stmt []Stmt) (ret []Stmt) {
+	l := len(stmt)
+
+loop:
+	for i := 0; i < l; i++ {
+		if i > 0 {
+			switch e := stmt[i].(type) {
+			case *DeclStmt:
+				if ge, _ := e.Decl.(*GenDecl); ge != nil {
+					if last, _ := ret[len(ret)-1].(*DeclStmt); last != nil {
+						if lge, _ := last.Decl.(*GenDecl); lge != nil {
+							if ge.Tok == lge.Tok {
+								lge.Specs = append(lge.Specs, ge.Specs...)
+								continue loop
+							}
+						}
+					}
+				}
+			}
+		}
+		ret = append(ret, stmt[i])
+	}
+	return
+}
+
+func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
+	stmt = ctx.simplifyStmts(stmt)
+
 	var (
 		i   int
 		sep = true
 	)
-	Stmts(smt).Each(func(_ int, _ bool, s Stmt) {
+
+	Stmts(stmt).Each(func(_ int, _ bool, s Stmt) {
 		if skiper, _ := s.(CodeWriteSkiper); skiper != nil {
 			if skiper.SkipCode(ctx) {
 				return

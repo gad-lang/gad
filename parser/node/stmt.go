@@ -161,20 +161,20 @@ func (s *BlockStmt) WriteCode(ctx *CodeWriteContext) {
 
 	ctx.WriteString(lb)
 
-	if ctx.Prefix == "" && len(lb) > 0 && lb != "{" {
+	if !ctx.HasPrefix() && len(lb) > 0 && lb != "{" {
 		ctx.WriteString(" ")
 	}
 
 	ctx.Depth++
-	if len(ctx.Prefix) > 0 {
+	if ctx.HasPrefix() {
 		ctx.WriteSemi()
 	}
 	ctx.WriteStmts(s.Stmts...)
 	ctx.Depth--
 
-	if len(ctx.Prefix) > 0 {
+	if ctx.HasPrefix() {
 		ctx.WriteSemi()
-	} else if ctx.Prefix == "" && len(rb) > 0 && rb != "}" && rb != ")" {
+	} else if !ctx.HasPrefix() && len(rb) > 0 && rb != "}" && rb != ")" {
 		ctx.WriteString(" ")
 	}
 

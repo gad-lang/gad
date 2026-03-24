@@ -275,33 +275,29 @@ func (d *GenDecl) String() string {
 }
 
 func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
-	ctx.WritePrefix()
 	ctx.WriteString(d.Tok.String())
 
-	if d.Lparen > 0 {
+	if len(d.Specs) > 1 {
 		ctx.WriteString(" (")
-		ctx.Depth++
-		ctx.WritePrefixedLine()
-
-		for i, spec := range d.Specs {
-			if i > 0 {
-				ctx.WritePrefixedLine()
-			}
-			spec.WriteCode(ctx)
-		}
-
-		ctx.Depth--
-		ctx.WritePrefixedLine()
+		inLineLine := ctx.Flags.Has(CodeWriteContextFlagFormatDeclItemInNewLine)
+		ctx.WriteItemsSep(
+			inLineLine,
+			len(d.Specs),
+			", ",
+			"",
+			func(i int) {
+				d.Specs[i].WriteCode(ctx)
+			},
+			func(newLine bool) {
+				if newLine {
+					ctx.WriteSecondLine()
+				}
+			})
+		ctx.WritePrefix()
 		ctx.WriteSingleByte(')')
-		ctx.WriteSecondLine()
 	} else {
 		ctx.WriteSingleByte(' ')
-		for i, spec := range d.Specs {
-			if i > 0 {
-				ctx.WriteString(", ")
-			}
-			spec.WriteCode(ctx)
-		}
+		d.Specs[0].WriteCode(ctx)
 	}
 }
 

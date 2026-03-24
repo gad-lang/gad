@@ -486,32 +486,36 @@ func (e *MultiParenExpr) ToMultiParenExpr() *MultiParenExpr {
 
 func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("(,")
-	nl := ctx.Flags.Has(CodeWriteContextFlagFormatParemValuesInNewLine)
-
-	ctx.WriteItems(nl,
-		len(e.PositionalElements),
-		func(i int) {
-			e.PositionalElements[i].WriteCode(ctx)
-		},
-		func(newLine bool) {
-			if len(e.PositionalElements) > 0 {
-				ctx.WriteString("; ")
-			} else if newLine {
-				ctx.WriteSecondLine()
-			}
-		})
-
-	ctx.WriteItems(nl,
-		len(e.PositionalElements),
-		func(i int) {
-			e.PositionalElements[i].WriteCode(ctx)
-		},
-		func(newLine bool) {
-			if newLine {
-				ctx.WriteSecondLine()
-			}
-		})
-
+	var pl, nl = len(e.PositionalElements), len(e.NamedElements)
+	if pl+nl > 0 {
+		inNewLine := ctx.Flags.Has(CodeWriteContextFlagFormatParemValuesInNewLine)
+		if pl > 0 {
+			ctx.WriteItems(inNewLine,
+				len(e.PositionalElements),
+				func(i int) {
+					e.PositionalElements[i].WriteCode(ctx)
+				},
+				func(newLine bool) {
+					if len(e.PositionalElements) > 0 {
+						ctx.WriteString("; ")
+					} else if newLine {
+						ctx.WriteSecondLine()
+					}
+				})
+		}
+		if nl > 0 {
+			ctx.WriteItems(inNewLine,
+				len(e.PositionalElements),
+				func(i int) {
+					e.PositionalElements[i].WriteCode(ctx)
+				},
+				func(newLine bool) {
+					if newLine {
+						ctx.WriteSecondLine()
+					}
+				})
+		}
+	}
 	ctx.WriteString(")")
 }
 
@@ -874,34 +878,30 @@ func (a *CallExprPositionalArgs) String() string {
 	return strings.Join(s, ", ")
 }
 
-func (a *CallExprPositionalArgs) WriteCode(ctx *CodeWriteContext) {
-	a.WriteCodeWithNamedSep(ctx, false)
-}
-
-func (a *CallExprPositionalArgs) WriteCodeWithNamedSep(ctx *CodeWriteContext, namedSep bool) {
-	a.WriteCodeWithNamedSepFlag(CodeWriteContextFlagFormatCallParamsInNewLine, ctx, namedSep)
-}
-
-func (a *CallExprPositionalArgs) WriteCodeWithNamedSepFlag(flag CodeWriteContextFlag, ctx *CodeWriteContext, namedSep bool) {
+func (a *CallExprPositionalArgs) WriteCodeWithNamed(ctx *CodeWriteContext, inNewLine, hasNamed bool) {
 	values := a.Values
 
 	if a.Var != nil {
 		values = append(values, a.Var)
 	}
 
-	ctx.WriteItems(
-		ctx.Flags.Has(flag),
-		len(values),
-		func(i int) {
-			values[i].WriteCode(ctx)
-		},
-		func(newLine bool) {
-			if namedSep {
-				ctx.WriteString("; ")
-			} else if newLine {
-				ctx.WriteSecondLine()
-			}
-		})
+	if l := len(values); l > 0 {
+		if l == 1 && !hasNamed {
+			values[0].WriteCode(ctx)
+		} else {
+			ctx.WriteItems(
+				inNewLine,
+				len(values),
+				func(i int) {
+					values[i].WriteCode(ctx)
+				},
+				func(newLine bool) {
+					if newLine {
+						ctx.WriteSecondLine()
+					}
+				})
+		}
+	}
 }
 
 type NamedArgExpr struct {
@@ -1038,54 +1038,92 @@ func (a *CallExprNamedArgs) String() string {
 	return strings.Join(s, ", ")
 }
 
-func (a *CallExprNamedArgs) WriteCode(ctx *CodeWriteContext) {
-	a.WriteCodeWithFlag(CodeWriteContextFlagFormatCallParamsInNewLine, ctx)
+func (a *CallExprNamedArgs) WriteCode(ctx *CodeWriteContext, inNewLime, hasPositional bool) {
+	a.WriteCodeWithFlag(inNewLime, hasPositional, ctx)
 }
 
-func (a *CallExprNamedArgs) WriteCodeWithFlag(flag CodeWriteContextFlag, ctx *CodeWriteContext) {
-	ctx.WriteItems(
-		ctx.Flags.Has(flag),
-		len(a.Names),
-		func(i int) {
-			name := a.Names[i]
-			if name.Var {
-				name.WriteCode(ctx)
-				return
-			}
+func (a *CallExprNamedArgs) writeItemCode(i int, ctx *CodeWriteContext) {
+	name := a.Names[i]
+	if name.Var {
+		name.WriteCode(ctx)
+		return
+	}
 
-			if name.Exp != nil {
-				ctx.WriteSingleByte('[')
-				defer ctx.WriteSingleByte(']')
-			}
+	if name.Exp != nil {
+		ctx.WriteSingleByte('[')
+		defer ctx.WriteSingleByte(']')
+	}
 
-			if v := a.Values[i]; v == nil {
-				if name.Lit != nil && name.Lit.CanIdent() {
-					ctx.WriteString(name.Lit.Value())
-				} else if name.Ident != nil {
-					ctx.WriteString(name.Ident.String())
+	if v := a.Values[i]; v == nil {
+		if name.Lit != nil && name.Lit.CanIdent() {
+			ctx.WriteString(name.Lit.Value())
+		} else if name.Ident != nil {
+			ctx.WriteString(name.Ident.String())
+		} else {
+			name.Expr().WriteCode(ctx)
+		}
+	} else {
+		switch f := v.(type) {
+		case *FuncDefLit:
+			ctx.WriteString(name.Expr().String())
+			f.WriteCode(ctx)
+		case *FuncWithMethodsExpr:
+			ctx.WriteString(name.Expr().String())
+			ctx.WriteString(" ")
+			f.WriteCode(ctx)
+		default:
+			ctx.WriteString(name.Expr().String() + "=")
+			v.WriteCode(ctx)
+		}
+	}
+}
+
+func (a *CallExprNamedArgs) WriteCodeWithFlag(inNewLine, hasPositional bool, ctx *CodeWriteContext) {
+	if l := len(a.Names); l > 0 {
+		if l == 1 && !hasPositional {
+			ctx.WriteString("; ")
+			a.writeItemCode(0, ctx)
+		} else {
+			var skip int
+			if inNewLine {
+				if !hasPositional {
+					ctx.WriteString(";\n")
+				}
+
+				ctx.Depth++
+
+				ctx.WriteString(ctx.CurrentPrefix())
+
+				if hasPositional {
+					ctx.WriteString("; ")
+				}
+
+				a.writeItemCode(0, ctx)
+				ctx.Depth--
+
+				if l > 1 {
+					ctx.WriteString(",")
 				} else {
-					name.Expr().WriteCode(ctx)
+					ctx.WriteString("\n")
 				}
+				skip++
 			} else {
-				switch f := v.(type) {
-				case *FuncDefLit:
-					ctx.WriteString(name.Expr().String())
-					f.WriteCode(ctx)
-				case *FuncWithMethodsExpr:
-					ctx.WriteString(name.Expr().String())
-					ctx.WriteString(" ")
-					f.WriteCode(ctx)
-				default:
-					ctx.WriteString(name.Expr().String() + "=")
-					v.WriteCode(ctx)
-				}
+				ctx.WriteString("; ")
 			}
-		},
-		func(nl bool) {
-			if nl {
-				ctx.WriteSecondLine()
-			}
-		})
+
+			ctx.WriteItems(
+				inNewLine,
+				len(a.Names)-skip,
+				func(i int) {
+					a.writeItemCode(i+skip, ctx)
+				},
+				func(nl bool) {
+					if nl {
+						ctx.WriteSecondLine()
+					}
+				})
+		}
+	}
 }
 
 type CalleeKeywordExpr struct {
@@ -1333,7 +1371,7 @@ func (e *FuncWithMethodsExpr) WriteCode(ctx *CodeWriteContext) {
 	}
 
 	ctx.WriteString("{")
-	ctx.WriteItemsSep(len(ctx.Prefix) > 0, len(e.Methods), "; ", "\n", func(i int) {
+	ctx.WriteItemsSep(ctx.HasPrefix(), len(e.Methods), "; ", "\n", func(i int) {
 		e.Methods[i].WriteCode(ctx)
 	}, func(newLine bool) {
 		if newLine {
@@ -1544,19 +1582,27 @@ func (e *DictExpr) String() string {
 
 func (e *DictExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteSingleByte('{')
-	inLineLine := ctx.Flags.Has(CodeWriteContextFlagFormatDictItemInNewLine)
-	ctx.WriteItems(
-		inLineLine,
-		len(e.Elements),
-		func(i int) {
-			e.Elements[i].WriteCode(ctx)
-		},
-		func(newLine bool) {
-			if newLine {
-				ctx.WriteSecondLine()
-			}
-		})
-	ctx.WritePrefix()
+	if l := len(e.Elements); l > 0 {
+		if l == 1 {
+			ctx.WriteSingleByte(' ')
+			e.Elements[0].WriteCode(ctx)
+			ctx.WriteSingleByte(' ')
+		} else {
+			inLineLine := ctx.Flags.Has(CodeWriteContextFlagFormatDictItemInNewLine)
+			ctx.WriteItems(
+				inLineLine,
+				len(e.Elements),
+				func(i int) {
+					e.Elements[i].WriteCode(ctx)
+				},
+				func(newLine bool) {
+					if newLine {
+						ctx.WriteSecondLine()
+					}
+				})
+			ctx.WritePrefix()
+		}
+	}
 	ctx.WriteSingleByte('}')
 }
 
@@ -1589,19 +1635,25 @@ func (e *ArrayExpr) String() string {
 
 func (e *ArrayExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteSingleByte('[')
-	inLineLine := ctx.Flags.Has(CodeWriteContextFlagFormatArrayItemInNewLine)
-	ctx.WriteItems(
-		inLineLine,
-		len(e.Elements),
-		func(i int) {
-			e.Elements[i].WriteCode(ctx)
-		},
-		func(newLine bool) {
-			if newLine {
-				ctx.WriteSecondLine()
-			}
-		})
-	ctx.WritePrefix()
+	if l := len(e.Elements); l > 0 {
+		if l == 1 {
+			e.Elements[0].WriteCode(ctx)
+		} else {
+			inLineLine := ctx.Flags.Has(CodeWriteContextFlagFormatArrayItemInNewLine)
+			ctx.WriteItems(
+				inLineLine,
+				len(e.Elements),
+				func(i int) {
+					e.Elements[i].WriteCode(ctx)
+				},
+				func(newLine bool) {
+					if newLine {
+						ctx.WriteSecondLine()
+					}
+				})
+			ctx.WritePrefix()
+		}
+	}
 	ctx.WriteSingleByte(']')
 }
 
