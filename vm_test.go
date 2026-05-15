@@ -4425,6 +4425,14 @@ func TestVMString(t *testing.T) {
 		newOpts().CompileOptions(func(opts *CompileOptions) {
 			opts.ScannerOptions.Mode |= parser.ScanCharAsString
 		}), Array{Str("abc"), Str("d'e"), Str(`f"g`)})
+
+	testExpectRun(t, `return raw 1`, nil, RawStr("1"))
+	testExpectRun(t, `return raw "a"`, nil, RawStr("a"))
+	testExpectRun(t, `x := raw(1) + "a"; return x`, nil, RawStr("1a"))
+	testExpectRun(t, `x := raw(1) + "a"; return x + raw 2 + raw 3`, nil, RawStr("1a23"))
+	testExpectRun(t, "return `foo` ", nil, RawStr("foo"))
+	testExpectRun(t, "return `foo` + \"bar\"", nil, RawStr("foobar"))
+	testExpectRun(t, "return raw \"foo\" + \"bar\"", nil, RawStr("foobar"))
 }
 
 func TestVMMultiParen(t *testing.T) {

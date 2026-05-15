@@ -3854,6 +3854,12 @@ func TestParseString(t *testing.T) {
 				token.Assign,
 				p(1, 3)))
 	})
+
+	test.ExpectParse(t, "raw \"foo\nbar\"", func(p pfn) []Stmt {
+		return stmts(exprStmt(EToRaw(p(1, 1), stringLit("foo\nbar", p(1, 5)))))
+	})
+	test.ExpectParseString(t, `1 + raw "foo"`, `(1 + raw "foo")`)
+	test.ExpectParseString(t, `raw x()`, `raw x()`)
 }
 
 func TestParseSymbol(t *testing.T) {
@@ -4449,9 +4455,7 @@ func rawHeredocLit(q, value string, pos Pos) *RawHeredocLit {
 }
 
 func charLit(value rune, pos Pos) *CharLit {
-	return &CharLit{
-		Value: value, ValuePos: pos, Literal: fmt.Sprintf("'%c'", value),
-	}
+	return &CharLit{Value: value, ValuePos: pos, Literal: fmt.Sprintf("'%c'", value)}
 }
 
 func boolLit(value bool, pos Pos) *BoolLit {

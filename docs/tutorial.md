@@ -505,7 +505,13 @@ In Gad, everything is a value, and, all values are associated with a type.
 ```go
 19 + 84                 // int values
 1u + 5u                 // uint values
-"foo" + `bar`           // string values
+"a"                     // str value "a"
+"foo" + `bar`           // str values "foobar"
+`foo`                   // rawStr value "foo"
+`foo` + "bar"           // rawStr value "foobar"
+raw "foo"               // rawStr value "foo"
+raw "foo" + "bar"       // rawStr value "foobar"
+raw 1                   // rawStr value "1"
 -9.22 + 1e10            // float values
 2d                      // decimal values
 true || false           // bool values

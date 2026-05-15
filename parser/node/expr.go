@@ -1730,3 +1730,31 @@ func (e *ComputedExpr) WriteCode(ctx *CodeWriteContext) {
 		}).WriteCode(ctx)
 	}
 }
+
+type ToRaw struct {
+	TokenPos source.Pos
+	Expr     Expr
+}
+
+func (r *ToRaw) Pos() source.Pos {
+	if r.TokenPos > 0 {
+		return r.TokenPos
+	}
+	return r.Expr.Pos()
+}
+
+func (r *ToRaw) End() source.Pos {
+	return r.Expr.End()
+}
+
+func (r *ToRaw) String() string {
+	return "raw " + r.Expr.String()
+}
+
+func (r *ToRaw) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("raw ")
+	r.Expr.WriteCode(ctx)
+}
+
+func (r *ToRaw) ExprNode() {
+}

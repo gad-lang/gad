@@ -868,6 +868,34 @@ export [2**3] = 7
 	))
 }
 
+func TestCompiler_CompileToRaw(t *testing.T) {
+	expectCompile(t, `raw "abc"`, bytecode(
+		Array{RawStr("abc")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+	expectCompile(t, "raw `abc`", bytecode(
+		Array{RawStr("abc")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+	expectCompile(t, "raw 1", bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpToRawStr),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+}
+
 func TestCompiler_Compile(t *testing.T) {
 	// all local variables are initialized as nil
 	expectCompile(t, `var a`, bytecode(

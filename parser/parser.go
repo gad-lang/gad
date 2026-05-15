@@ -993,6 +993,13 @@ func (p *Parser) ParseOperand() node.Expr {
 			return p.ParseThrowExpr()
 		case token.Return:
 			return p.ParseReturnExpr()
+		case token.Raw:
+			pos := p.Token.Pos
+			p.Next()
+			return &node.ToRaw{
+				TokenPos: pos,
+				Expr:     p.ParsePrimaryExpr(),
+			}
 		case token.Template:
 			pos := p.Token.Pos
 			p.Next()
@@ -1716,7 +1723,7 @@ do:
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
 		token.Yes, token.No,
-		token.DotName, token.DotFile, token.IsMain, token.Module, token.Template:
+		token.DotName, token.DotFile, token.IsMain, token.Module, token.Template, token.Raw:
 		s := p.ParseSimpleStmt(false)
 		p.ExpectSemi()
 		return s

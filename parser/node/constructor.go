@@ -501,3 +501,7 @@ func LSymbol(pos source.Pos, value string, paren bool) *SymbolLit {
 func LModule(pos source.Pos) *ModuleLit {
 	return &ModuleLit{TokenPos: pos}
 }
+
+func EToRaw(pos source.Pos, e Expr) *ToRaw {
+	return &ToRaw{TokenPos: pos, Expr: e}
+}

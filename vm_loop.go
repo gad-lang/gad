@@ -743,6 +743,8 @@ VMLoop:
 				vm.err = err
 				return
 			}
+		case OpToRawStr:
+			vm.stack[vm.sp-1] = RawStr(vm.stack[vm.sp-1].ToString())
 		case OpNoOp:
 		default:
 			vm.err = fmt.Errorf("unknown opcode %d", vm.curInsts[vm.ip])

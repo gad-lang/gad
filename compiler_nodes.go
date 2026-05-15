@@ -2122,6 +2122,26 @@ func (c *Compiler) compileExportStmt(nd *node.ExportStmt) (err error) {
 	return c.Compile(ass)
 }
 
+func (c *Compiler) compileToRawExpr(nd *node.ToRaw) (err error) {
+	e := nd.Expr
+try:
+	switch et := e.(type) {
+	case *node.StringLit:
+		c.emit(nd, OpConstant, c.addConstant(RawStr(et.Value())))
+	case *node.RawStringLit:
+		c.emit(nd, OpConstant, c.addConstant(RawStr(et.Value())))
+	case *node.ParenExpr:
+		e = et.Expr
+		goto try
+	default:
+		if err = c.Compile(et); err != nil {
+			return
+		}
+		c.emit(nd, OpToRawStr)
+	}
+	return
+}
+
 func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name *node.IdentExpr, value node.Expr)) (stmts []node.Stmt) {
 	for i := 0; i < count; i++ {
 		name, value := get(i)

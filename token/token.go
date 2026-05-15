@@ -142,6 +142,7 @@ const (
 	IsMain
 	Module
 	Export
+	Raw
 	GroupKeywordEnd
 )
 
@@ -293,6 +294,7 @@ var tokens = [...]string{
 	DotFile:         "@file",
 	IsMain:          "@main",
 	Module:          "@module",
+	Raw:             "raw",
 	Export:          "export",
 }
 
@@ -429,6 +431,7 @@ var tokenNames = [...]string{
 	IsMain:                       "IsMain",
 	Module:                       "Module",
 	Export:                       "Export",
+	Raw:                          "Raw",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 
@@ -464,6 +467,8 @@ func (tok Token) Precedence() int {
 		return 8
 	case Tilde, DoubleTilde, TripleTilde:
 		return 9
+	case Raw:
+		return 10
 	}
 	return LowestPrec
 }

@@ -311,6 +311,7 @@ func TestScanner_Scan(t *testing.T) {
 		{token.Symbol, "#(abc)"},
 		{token.Symbol, "#(a\n\\)bc)"},
 		{token.Export, "export"},
+		{token.Raw, "raw"},
 	})
 }
 

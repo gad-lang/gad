@@ -431,6 +431,10 @@ func (f *File) EqualExpr(expected, actual node.Expr) {
 		f.Equal(expected.TokenPos, actual.(*node.IsMainLit).TokenPos)
 	case *node.SymbolLit:
 		f.Equal(&expected.Lit, &actual.(*node.SymbolLit).Lit)
+	case *node.ToRaw:
+		actual := actual.(*node.ToRaw)
+		f.Equal(expected.TokenPos, actual.TokenPos)
+		f.EqualExpr(expected.Expr, actual.Expr)
 	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}

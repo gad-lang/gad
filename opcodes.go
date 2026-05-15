@@ -101,6 +101,7 @@ const (
 	OpComputedValue
 	OpAddMethod
 	OpExtendModule
+	OpToRawStr
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -177,6 +178,7 @@ var OpcodeNames = [...]string{
 	OpComputedValue:   "COMPUTEDVALUE",
 	OpAddMethod:       "ADDMETHOD",
 	OpExtendModule:    "EXTENDMODULE",
+	OpToRawStr:        "TORAWSTR",
 }
 
 // OpcodeOperands is the number of operands.
@@ -253,6 +255,7 @@ var OpcodeOperands = [...][]int{
 	OpComputedValue:   {},
 	OpAddMethod:       {1, 1}, // 0: number of selectors, 1: number of funcs
 	OpExtendModule:    {},
+	OpToRawStr:        {},
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

@@ -651,6 +651,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileComputedExpr(nt)
 	case *node.ExportStmt:
 		return c.compileExportStmt(nt)
+	case *node.ToRaw:
+		return c.compileToRawExpr(nt)
 	case nil:
 	default:
 		return c.errorf(nt, `%[1]T "%[1]v" not implemented`, nt)
@@ -1081,7 +1083,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
 		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsMain, OpNotIsMain, OpModule,
-		OpNamedParamsVar, OpNamedParamValue, OpComputedValue, OpExtendModule, OpSetReturnModule:
+		OpNamedParamsVar, OpNamedParamValue, OpComputedValue, OpExtendModule, OpSetReturnModule, OpToRawStr:
 		return buf, nil
 	default:
 		return buf, &Error{
