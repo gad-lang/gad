@@ -107,7 +107,7 @@ func (p *ClassProperty) FullName() string {
 	return p.class.FullName() + "#" + p.name
 }
 
-func (p *ClassProperty) GetModule() *Module {
+func (p *ClassProperty) GetModule() *ModuleSpec {
 	return nil
 }
 
@@ -263,7 +263,7 @@ func (c *ClassConstructor) Print(state *PrinterState) (err error) {
 	return c.f.PrintFuncWrapper(state, c)
 }
 
-func (c *ClassConstructor) GetModule() *Module {
+func (c *ClassConstructor) GetModule() *ModuleSpec {
 	return nil
 }
 
@@ -375,7 +375,7 @@ var (
 type Class struct {
 	new           *ClassConstructor
 	name          string
-	module        *Module
+	module        *ModuleSpec
 	parents       []*ClassParent
 	fieldsMap     map[string]*ClassField
 	propertiesMap map[string]*ClassProperty
@@ -383,7 +383,7 @@ type Class struct {
 	fieldDefaults []CallerObject
 }
 
-func NewClass(name string, module *Module) (t *Class) {
+func NewClass(name string, module *ModuleSpec) (t *Class) {
 	t = &Class{
 		module:        module,
 		name:          name,
@@ -415,14 +415,14 @@ func (t *Class) FullName() string {
 	if t.module == nil {
 		return t.name
 	}
-	return t.module.Info.Name + "." + t.name
+	return t.module.Name + "." + t.name
 }
 
 func (t *Class) Type() ObjectType {
 	return TClass
 }
 
-func (t *Class) Module() *Module {
+func (t *Class) Module() *ModuleSpec {
 	return t.module
 }
 
@@ -985,7 +985,7 @@ func (t *Class) IndexGet(vm *VM, index Object) (value Object, err error) {
 	case "@name":
 		return Str(t.name), nil
 	case "@module":
-		return t.module, nil
+		return vm.ModuleFromIndex(t.module.Index), nil
 	default:
 		if v := t.propertiesMap[key]; v != nil {
 			return v, nil

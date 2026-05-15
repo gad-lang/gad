@@ -251,6 +251,11 @@ type IndexSetter interface {
 	IndexSet(vm *VM, index, value Object) error
 }
 
+type StringIndexSetter interface {
+	Object
+	Set(key string, value Object)
+}
+
 type IndexGetSetter interface {
 	IndexGetter
 	IndexSetter

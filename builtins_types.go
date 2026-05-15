@@ -9,6 +9,7 @@ import (
 var (
 	TAny                         = NewType("any")
 	TModule                      = NewType("Module")
+	TStaticModule                = NewType("ModuleSpec")
 	TSymbol                      = NewType("Symbol", TAny)
 	TIterationStateFlag          = NewType("IterationStateFlag", TAny)
 	IterationStop                = NewType("IterationStop", TIterationStateFlag)
@@ -47,6 +48,7 @@ var (
 	TFilterIterator              = NewType("FilterIterator", TIterator)
 	TZipIterator                 = NewType("ZipIterator", TIterator)
 	TPipedInvokeIterator         = NewType("PipedInvokeIterator", TIterator)
+	TEmbedded                    = NewType("Embedded", TIterator)
 )
 
 var (
@@ -63,7 +65,7 @@ func TypeToString(typeName string) string {
 type Type struct {
 	Parent ObjectType
 	Static Dict
-	Module *Module
+	Module *ModuleSpec
 	name   string
 	*FuncSpec
 }
@@ -86,7 +88,7 @@ func (t Type) Copy() Object {
 	return cp
 }
 
-func (t *Type) GetModule() *Module {
+func (t *Type) GetModule() *ModuleSpec {
 	return t.Module
 }
 
@@ -167,7 +169,7 @@ func (t Type) Name() string {
 
 func (t Type) FullName() string {
 	if t.Module != nil {
-		return t.Module.Info.Name + "." + t.name
+		return t.Module.Name + "." + t.name
 	}
 	return t.name
 }

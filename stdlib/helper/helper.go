@@ -2,7 +2,7 @@ package helper
 
 import (
 	"github.com/gad-lang/gad"
-	goflate "github.com/gad-lang/gad/stdlib/compress/flate"
+	gadflate "github.com/gad-lang/gad/stdlib/compress/flate"
 	gadbase64 "github.com/gad-lang/gad/stdlib/encoding/base64"
 	gadfpath "github.com/gad-lang/gad/stdlib/filepath"
 	gadfmt "github.com/gad-lang/gad/stdlib/fmt"
@@ -32,23 +32,23 @@ func (b *ModuleMapBuilder) Build() *gad.ModuleMap {
 }
 
 func (b *ModuleMapBuilder) BuildTo(mm *gad.ModuleMap) *gad.ModuleMap {
-	mm.AddBuiltinModuleInit("time", gadtime.ModuleInit).
-		AddBuiltinModuleInit("strings", gadstrings.ModuleInit).
-		AddBuiltinModuleInit("fmt", gadfmt.ModuleInit).
-		AddBuiltinModuleInit("json", gadjson.ModuleInit).
-		AddBuiltinModule("path", gadpath.Module).
-		AddBuiltinModule("encoding/base64", gadbase64.Module).
-		AddBuiltinModule("compress/flate", goflate.Module)
+	mm.AddBuiltinModuleInit(gadtime.ModuleName, gadtime.ModuleInit).
+		AddBuiltinModuleInit(gadstrings.ModuleName, gadstrings.ModuleInit).
+		AddBuiltinModuleInit(gadfmt.ModuleName, gadfmt.ModuleInit).
+		AddBuiltinModuleInit(gadjson.ModuleName, gadjson.ModuleInit).
+		AddBuiltinModule(gadpath.ModuleName, gadpath.Module).
+		AddBuiltinModuleInit(gadbase64.ModuleName, gadbase64.ModuleInit).
+		AddBuiltinModuleInit(gadflate.ModuleName, gadflate.ModuleInit)
 
 	if !b.Safe {
-		if !b.Disabled["http"] {
-			mm.AddBuiltinModule("http", gadhttp.Module)
+		if !b.Disabled[gadhttp.ModuleName] {
+			mm.AddBuiltinModuleInit(gadhttp.ModuleName, gadhttp.ModuleInit)
 		}
-		if !b.Disabled["os"] {
-			mm.AddBuiltinModuleInit("os", gados.ModuleInit)
+		if !b.Disabled[gados.ModuleName] {
+			mm.AddBuiltinModuleInit(gados.ModuleName, gados.ModuleInit)
 		}
-		if !b.Disabled["filepath"] {
-			mm.AddBuiltinModuleInit("filepath", gadfpath.ModuleInit)
+		if !b.Disabled[gadfpath.ModuleName] {
+			mm.AddBuiltinModuleInit(gadfpath.ModuleName, gadfpath.ModuleInit)
 		}
 	}
 	return mm

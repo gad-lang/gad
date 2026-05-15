@@ -2,28 +2,30 @@ package gad
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/gad-lang/gad/repr"
 )
 
 var (
-	_ Object          = (*Module)(nil)
-	_ LengthGetter    = (*Module)(nil)
-	_ KeysGetter      = (*Module)(nil)
-	_ ValuesGetter    = (*Module)(nil)
-	_ ItemsGetter     = (*Module)(nil)
-	_ IndexGetSetter  = (*Module)(nil)
-	_ Printer         = (*Module)(nil)
-	_ DictUpdator     = (*Module)(nil)
-	_ ToDictConverter = (*Module)(nil)
-	_ CanCallerObject = (*Module)(nil)
+	_ Object             = (*Module)(nil)
+	_ LengthGetter       = (*Module)(nil)
+	_ KeysGetter         = (*Module)(nil)
+	_ ValuesGetter       = (*Module)(nil)
+	_ ItemsGetter        = (*Module)(nil)
+	_ IndexGetSetter     = (*Module)(nil)
+	_ Printer            = (*Module)(nil)
+	_ IndexSetterUpdater = (*Module)(nil)
+	_ ToDictConverter    = (*Module)(nil)
+	_ StringIndexSetter  = (*Module)(nil)
 )
 
 type Modules []*Module
 
 func (m Modules) Get(name string) *Module {
 	for _, module := range m {
-		if module.Info.Name == name {
+		if module.Spec.Name == name {
 			return module
 		}
 	}
@@ -39,58 +41,42 @@ type ModuleData interface {
 	ValuesGetter
 	ItemsGetter
 	Iterabler
+	StringIndexSetter
 }
 
 type ModuleGetter interface {
-	GetModule() *Module
+	GetModule() *ModuleSpec
 }
 
 type ModuleSetter interface {
-	SetModule(m *Module)
+	SetModule(m *ModuleSpec)
 }
 
 // Module represent the module
 type Module struct {
-	Info          ModuleInfo
-	Data          ModuleData
-	Init          CallerObject
-	Params        MixedParams
-	ConstantIndex int
+	Spec   *ModuleSpec
+	Data   ModuleData
+	Params MixedParams
 }
 
-func NewModule(info ModuleInfo, f ...func(m *Module)) *Module {
-	m := &Module{Info: info}
+func NewModule(static *ModuleSpec, f ...func(m *Module)) *Module {
+	m := &Module{Spec: static}
 	m.Params.Named = make(KeyValueArray, 0)
 	m.Params.Positional = make(Array, 0)
 
 	for _, f := range f {
 		f(m)
 	}
+
+	if m.Data == nil {
+		m.Data = Dict{}
+	}
+
 	return m
 }
 
 func (m *Module) CanCall() bool {
-	return m.Data == nil && m.Init != nil
-}
-
-func (m *Module) Call(c Call) (ret Object, err error) {
-	if ret, err = DoCall(m.Init, c); err != nil {
-		return nil, err
-	}
-
-	m.Params = *c.Params()
-
-	switch t := ret.(type) {
-	case *Module:
-		m.Data = t.Data
-	case Dict:
-		m.Data = t
-	default:
-		m.Data = Dict{}
-		err = ErrType.NewErrorf("module %q init result (%v) isn't dict value", m.Name(), ret.Type().Name())
-	}
-	ret = m
-	return
+	return m.Data == nil && m.Spec.InitGoFunc != nil && m.Spec.InitCompiledFunc != nil
 }
 
 func (m *Module) IsFalsy() bool {
@@ -107,20 +93,20 @@ func (m *Module) String() string {
 
 func (m *Module) ToString() string {
 	var s string
-	if m.Info.File == "" {
-		s = m.Info.Name
+	if m.Spec.URL == "" {
+		s = m.Spec.Name
 	} else {
-		s = fmt.Sprintf("%s %q", m.Info.Name, m.Info.File)
+		s = fmt.Sprintf("%s %q", m.Spec.Name, m.Spec.URL)
 	}
 	return ReprQuoteTyped("module", s)
 }
 
 func (m *Module) Name() string {
-	return m.Info.Name
+	return m.Spec.Name
 }
 
 func (m *Module) File() string {
-	return m.Info.File
+	return m.Spec.URL
 }
 
 func (m *Module) Equal(right Object) bool {
@@ -169,11 +155,13 @@ func (m *Module) Iterate(vm *VM, na *NamedArgs) Iterator {
 func (m *Module) IndexGet(vm *VM, index Object) (value Object, err error) {
 	switch index.ToString() {
 	case AttrName:
-		return Str(m.Info.Name), nil
+		return Str(m.Spec.Name), nil
 	case AttrFile:
-		return Str(m.Info.File), nil
+		return Str(m.Spec.URL), nil
 	case AttrParams:
 		return &m.Params, nil
+	case "@main":
+		return Bool(m.Spec.Main), nil
 	case "@data":
 		return m.Data, nil
 	}
@@ -182,6 +170,22 @@ func (m *Module) IndexGet(vm *VM, index Object) (value Object, err error) {
 
 func (m *Module) IndexSet(vm *VM, index, value Object) error {
 	return m.Data.IndexSet(vm, index, value)
+}
+
+func (m *Module) Set(key string, value Object) {
+	switch t := value.(type) {
+	case *Function:
+		t = Copy(t)
+		t.SetModule(m.Spec)
+		value = t
+	case *Type:
+		t = Copy(t)
+		t.Module = m.Spec
+		value = t
+	case ModuleSetter:
+		t.SetModule(m.Spec)
+	}
+	m.Data.Set(key, value)
 }
 
 func (m *Module) Print(state *PrinterState) (err error) {
@@ -204,12 +208,73 @@ func (m *Module) Print(state *PrinterState) (err error) {
 	return
 }
 
-func (m *Module) UpdateDict(d Dict) {
+func (m *Module) UpdateIndexSetter(out StringIndexSetter) {
 	for k, v := range m.Data.ToDict() {
-		d[k] = v
+		out.Set(k, v)
+	}
+}
+
+func (m *Module) MergeData(d Dict) {
+	for k, v := range d {
+		m.Set(k, v)
 	}
 }
 
 func (m *Module) ToDict() Dict {
 	return m.Data.ToDict()
+}
+
+type ModuleInfo struct {
+	Name string
+	URL  string
+}
+
+type ModuleSpec struct {
+	ModuleInfo
+	Index            int
+	Path             []int
+	Main             bool
+	InitCompiledFunc *CompiledFunction
+	InitGoFunc       func(module *Module) CallerObject
+}
+
+func NewModuleSpecFromName(name string, opt ...func(s *ModuleSpec)) *ModuleSpec {
+	s := &ModuleSpec{ModuleInfo: ModuleInfo{Name: name}}
+	for _, f := range opt {
+		f(s)
+	}
+	return s
+}
+
+func (i *ModuleSpec) InitFunc(module *Module) CallerObject {
+	if i.InitGoFunc != nil {
+		return i.InitGoFunc(module)
+	}
+	return i.InitCompiledFunc
+}
+
+func (i *ModuleSpec) String() string {
+	var entries []string
+
+	if i.Main {
+		entries = append(entries, "main")
+	}
+
+	if len(i.URL) > 0 {
+		entries = append(entries, "file="+strconv.Quote(i.URL))
+	}
+
+	if i.InitGoFunc != nil {
+		entries = append(entries, "init")
+	} else if i.InitCompiledFunc != nil {
+		entries = append(entries, fmt.Sprintf("init%s", i.InitCompiledFunc.HeaderString()))
+	}
+
+	var s string
+
+	if len(entries) > 0 {
+		s = " [" + strings.Join(entries, ", ") + "]"
+	}
+
+	return ReprQuoteTyped("static module", i.Name+s)
 }

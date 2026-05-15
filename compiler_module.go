@@ -5,5 +5,6 @@ import (
 )
 
 type ModuleStmt struct {
+	Module *ModuleSpec
 	*parser.File
 }

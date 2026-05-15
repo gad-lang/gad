@@ -174,7 +174,7 @@ func createModules(t *testing.T, baseDir string, files map[string]string) {
 
 func run(w io.Writer, script []byte, opts gad.CompilerOptions) (ret gad.Object, err error) {
 	builtins := gad.NewBuiltins().Build()
-	_, bc, err := gad.Compile(gad.NewSymbolTable(builtins.Builtins().NameSet), []byte(script), gad.CompileOptions{CompilerOptions: opts})
+	_, bc, err := gad.Compile(gad.NewSymbolTable(builtins.Builtins().NameSet), script, gad.CompileOptions{CompilerOptions: opts})
 	if err != nil {
 		return
 	}

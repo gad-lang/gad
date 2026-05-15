@@ -84,7 +84,9 @@ func ToIterator(vm *VM, obj Object, na *NamedArgs) (l int, it Iterator, err erro
 					return
 				}
 
-				vm.curFrame.Defer(nextCaller.Close)
+				vm.curFrame.Defer(func(ret *Object) {
+					nextCaller.Close()
+				})
 
 				it = NewIterator(
 					func(vm *VM) (state *IteratorState, err error) {

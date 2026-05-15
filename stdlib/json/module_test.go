@@ -33,9 +33,11 @@ func TestScript(t *testing.T) {
 
 	expectRun(t, scriptf(""), nil, Nil)
 
-	module, _ := ModuleInit(nil, Call{})
+	mod := NewModule(NewModuleSpecFromName("json"))
+	ModuleInit(mod, Call{})
+	module := mod.ToDict()
 
-	for key, val := range module.ToDict() {
+	for key, val := range module {
 		expectRun(t, scriptf("str(json.%s)", key), nil, Str(fmt.Sprintf(ReprQuote("function %s(⋅⋅⋅)"), key)))
 		require.NotNil(t, val)
 		require.NotNil(t, val.(*Function).Value)

@@ -14,9 +14,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -106,13 +104,14 @@ type repl struct {
 	builtinRet   gad.BuiltinType
 }
 
+var moduleSpec = gad.NewModuleSpecFromName("(repl)", func(s *gad.ModuleSpec) {
+	s.Main = true
+})
+
 func newREPL(ctx context.Context, stdout io.Writer) *repl {
 	builtins := gad.NewBuiltins().Build()
 
 	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
-		Module: gad.NewModule(gad.ModuleInfo{
-			Name: "(repl)",
-		}),
 		ModuleMap:         DefaultModuleMap(".", &sourcePath),
 		OptimizerMaxCycle: gad.TraceCompilerOptions.OptimizerMaxCycle,
 		TraceParser:       traceParser,
@@ -340,7 +339,7 @@ func (r *repl) execute(line string) error {
 }
 
 func (r *repl) compileExecuteFile(pf *parser.File) (bc *gad.Bytecode, ret gad.Object, ok bool, err error) {
-	bc, err = gad.CompileFile(r.eval.SymbolTable(), pf, r.eval.Opts)
+	bc, err = gad.CompileFile(r.eval.SymbolTable(), moduleSpec, pf, r.eval.Opts)
 
 	defer func() {
 		if err != nil {
@@ -363,7 +362,7 @@ func (r *repl) compileExecuteFile(pf *parser.File) (bc *gad.Bytecode, ret gad.Ob
 }
 
 func (r *repl) compileExecuteScript(script []byte) (f *parser.File, bc *gad.Bytecode, ret gad.Object, ok bool, err error) {
-	f, bc, err = gad.Compile(r.eval.SymbolTable(), script, r.eval.Opts)
+	f, bc, err = gad.CompileModule(r.eval.SymbolTable(), moduleSpec, script, r.eval.Opts)
 
 	defer func() {
 		if err != nil {
@@ -725,9 +724,8 @@ func (s *Script) execute() error {
 	}
 	opts.ModuleMap = DefaultModuleMap(s.workdir, s.sourcePath)
 
-	opts.Module = gad.NewModule(gad.ModuleInfo{
-		Name: path.Clean(s.modulePath),
-		File: s.modulePath,
+	module := gad.NewModuleSpecFromName(s.modulePath, func(ms *gad.ModuleSpec) {
+		ms.ModuleInfo.URL = s.modulePath
 	})
 
 	if traceEnabled {
@@ -737,7 +735,7 @@ func (s *Script) execute() error {
 		opts.TraceOptimizer = traceOptimizer
 	}
 
-	_, bc, err := gad.Compile(defaultSymbolTable(s.builtins.Builtins().NameSet), s.script, opts)
+	_, bc, err := gad.CompileModule(defaultSymbolTable(s.builtins.Builtins().NameSet), module, s.script, opts)
 	if err != nil {
 		return err
 	}
@@ -868,11 +866,15 @@ func main() {
 		)
 		if filePath == "-" {
 			modulePath = "(stdin)"
-			script, err = ioutil.ReadAll(os.Stdin)
+			script, err = io.ReadAll(os.Stdin)
 		} else {
 			workdir = filepath.Dir(filePath)
-			script, err = ioutil.ReadFile(filePath)
+			var r io.Reader
+			r, err = os.Open(filePath)
+			checkErr(err, cancel)
+			script, err = io.ReadAll(r)
 		}
+
 		importers.Shebang2Slashes(script)
 
 		checkErr(err, cancel)

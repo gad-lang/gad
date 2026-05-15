@@ -19,15 +19,14 @@ type Bytecode struct {
 	FileSet    *source.FileSet
 	Main       *CompiledFunction
 	Constants  Array
+	Modules    []*ModuleSpec
 	NumModules int
-	NumEmbeds  int
 }
 
 // Fprint writes constants and instructions to given Writer in a human readable form.
 func (bc *Bytecode) Fprint(builtins *Builtins, w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Bytecode")
 	_, _ = fmt.Fprintf(w, "Modules:%d\n", bc.NumModules)
-	_, _ = fmt.Fprintf(w, "Embeds:%d\n", bc.NumEmbeds)
 	bc.putConstants(builtins, w)
 	bc.Main.Fprint(builtins, w, bc)
 }
@@ -67,11 +66,6 @@ func (bc *Bytecode) putConstants(builtins *Builtins, w io.Writer) {
 	}
 }
 
-type ModuleInfo struct {
-	Name string
-	File string
-}
-
 var (
 	_ Object       = (*CompiledFunction)(nil)
 	_ CallerObject = (*CompiledFunction)(nil)
@@ -98,14 +92,14 @@ type CompiledFunction struct {
 	// NamedParamsMap is a map of NamedParams with index
 	// this value allow to perform named args validation.
 	NamedParamsMap map[string]int
-	module         *Module
+	module         *ModuleSpec
 }
 
-func (o *CompiledFunction) SetModule(module *Module) {
-	o.module = module
+func (o *CompiledFunction) SetModule(m *ModuleSpec) {
+	o.module = m
 }
 
-func (o *CompiledFunction) GetModule() *Module {
+func (o *CompiledFunction) GetModule() *ModuleSpec {
 	return o.module
 }
 
@@ -121,7 +115,7 @@ func (o *CompiledFunction) FullName() string {
 	if o.FuncName == "" {
 		return ""
 	}
-	return o.module.Info.Name + "." + o.FuncName
+	return o.module.Name + "." + o.FuncName
 }
 
 func (o *CompiledFunction) HeaderString() string {
@@ -211,7 +205,7 @@ func (o *CompiledFunction) WithNamedParams(names ...string) *CompiledFunction {
 		p := &NamedParam{
 			TypesSymbols: make(ParamType, 0),
 		}
-		
+
 		if strings.HasPrefix(name, "**") {
 			params[i].Var = true
 			name = name[2:]

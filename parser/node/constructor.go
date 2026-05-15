@@ -497,3 +497,7 @@ func LSymbol(pos source.Pos, value string, paren bool) *SymbolLit {
 	}
 	return &SymbolLit{Lit: TokenLit{Pos: pos, Token: token.Symbol, Literal: "#" + value}}
 }
+
+func LModule(pos source.Pos) *ModuleLit {
+	return &ModuleLit{TokenPos: pos}
+}

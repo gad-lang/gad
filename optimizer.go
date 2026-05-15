@@ -72,8 +72,9 @@ type SimpleOptimizer struct {
 	constants        []Object
 	instructions     []byte
 	moduleStore      *moduleStore
-	embedStore       *moduleStore
+	embedStore       *embeddedStore
 	moduleMap        *ModuleMap
+	module           *ModuleSpec
 	returnStmt       node.ReturnStmt
 	file             *parser.File
 	errors           multipleErr
@@ -85,6 +86,7 @@ type SimpleOptimizer struct {
 // NewOptimizer creates an Optimizer object.
 func NewOptimizer(
 	file *parser.File,
+	module *ModuleSpec,
 	base *SymbolTable,
 	opts CompilerOptions,
 ) *SimpleOptimizer {
@@ -105,10 +107,11 @@ func NewOptimizer(
 		optimExpr:        opts.OptimizeExpr,
 		disabledBuiltins: disabled,
 		moduleStore:      newModuleStore(),
-		embedStore:       newModuleStore(),
+		embedStore:       newEmbeddedStore(),
 		trace:            trace,
 		builtins:         base.builtins,
 		moduleMap:        opts.ModuleMap,
+		module:           module,
 	}
 }
 
@@ -147,6 +150,7 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		OpStdIn: true, OpStdOut: true, OpStdErr: true, OpTextWriter: true,
 		OpDotName: true, OpDotFile: true, OpIsMain: true, OpNotIsMain: true,
 		OpModule: true, OpNamedParamsVar: true, OpComputedValue: true,
+		OpExtendModule: true, OpSetReturnModule: true,
 	}
 
 	allowedBuiltins := [...]bool{
@@ -235,17 +239,20 @@ func (so *SimpleOptimizer) slowEvalExpr(expr node.Expr) (node.Expr, bool) {
 
 	compiler := NewCompiler(
 		st,
+		so.module,
 		so.file.InputFile,
-		CompilerOptions{
-			moduleStore: so.moduleStore.reset(),
-			embedStore:  so.embedStore.reset(),
-			Constants:   so.constants[:0],
-			Trace:       so.trace,
-			ModuleMap:   so.moduleMap,
+		CompileOptions{
+			CompilerOptions: CompilerOptions{
+				moduleStore: so.moduleStore.reset(),
+				embedStore:  so.embedStore.reset(),
+				Constants:   so.constants[:0],
+				Trace:       so.trace,
+				ModuleMap:   so.moduleMap,
+			},
 		},
 	)
+
 	compiler.instructions = so.instructions[:0]
-	compiler.indent = so.indent
 
 	so.returnStmt.Result = expr
 

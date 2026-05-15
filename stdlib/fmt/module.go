@@ -12,9 +12,12 @@ import (
 	"github.com/gad-lang/gad"
 )
 
+const ModuleName = "fmt"
+
 // ModuleInit represents fmt module.
-var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data gad.ModuleData, err error) {
-	return gad.Dict{
+var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (err error) {
+	spec := module.Spec
+	module.Data = gad.Dict{
 		// gad:doc
 		// # fmt module
 		//
@@ -61,7 +64,7 @@ var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data g
 		// It returns the number of bytes written and any encountered write error
 		// throws a runtime error.
 		"Print": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Print",
 			Value:    newPrint(fmt.Print),
 		},
@@ -71,7 +74,7 @@ var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data g
 		// It returns the number of bytes written and any encountered write error
 		// throws a runtime error.
 		"Printf": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Printf",
 			Value:    newPrintf(fmt.Printf),
 		},
@@ -82,7 +85,7 @@ var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data g
 		// is appended. It returns the number of bytes written and any encountered
 		// write error throws a runtime error.
 		"Println": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Println",
 			Value:    newPrint(fmt.Println),
 		},
@@ -92,7 +95,7 @@ var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data g
 		// resulting str. Spaces are added between operands when neither is a
 		// str.
 		"Sprint": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Sprint",
 			Value:    newSprint(fmt.Sprint),
 		},
@@ -100,7 +103,7 @@ var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data g
 		// Sprintf(format str, ...any) -> str
 		// Formats according to a format specifier and returns the resulting str.
 		"Sprintf": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Sprintf",
 			Value:    newSprintf(fmt.Sprintf),
 		},
@@ -110,7 +113,7 @@ var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data g
 		// resulting str. Spaces are always added between operands and a newline
 		// is appended.
 		"Sprintln": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Sprintln",
 			Value:    newSprint(fmt.Sprintln),
 		},
@@ -121,7 +124,7 @@ var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data g
 		// encountered, it returns the number of items successfully scanned. If that
 		// is less than the number of arguments, error will report why.
 		"Sscan": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Sscan",
 			Value:    newSscan(fmt.Sscan),
 		},
@@ -132,7 +135,7 @@ var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data g
 		// number of items successfully parsed or an error.
 		// Newlines in the input must match newlines in the format.
 		"Sscanf": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Sscanf",
 			Value:    newSscanf(fmt.Sscanf),
 		},
@@ -141,7 +144,7 @@ var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data g
 		// the final item there must be a newline or EOF. It returns the number of
 		// items successfully parsed or an error.
 		"Sscanln": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Sscanln",
 			Value:    newSscan(fmt.Sscanln),
 		},
@@ -156,11 +159,12 @@ var ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data g
 		// functions can be provided to get the type name from the BuiltinFunction's
 		// Literal field.
 		"ScanArg": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "ScanArg",
 			Value:    newScanArgFunc,
 		},
-	}, nil
+	}
+	return
 })
 
 func newPrint(fn func(...any) (int, error)) gad.CallableFunc {

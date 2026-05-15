@@ -1,8 +1,9 @@
 module github.com/gad-lang/gad
 
-go 1.24
+go 1.25.0
 
 require (
+	github.com/davecgh/go-spew v1.1.1
 	github.com/dustin/go-humanize v1.0.1
 	github.com/igo9go/go-deepdump v0.0.0-20251127063219-48870f246837
 	github.com/peterh/liner v1.2.2
@@ -11,10 +12,10 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/unapu-go/cmd-utils v0.0.0-20210819145619-98d5bccf2672
 	github.com/xlab/treeprint v1.2.0
+	golang.org/x/mod v0.35.0
 )
 
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/moisespsena-go/path-helpers v0.0.3 // indirect
 	github.com/phayes/permbits v0.0.0-20190612203442-39d7c581d2ee // indirect

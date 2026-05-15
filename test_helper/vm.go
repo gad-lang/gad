@@ -384,7 +384,11 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.O
 			// change after execution
 			expectBc := *gotBc
 			expectBc.Main = gotBc.Main.Copy().(*gad.CompiledFunction)
-			expectBc.Constants = gad.Array(gotBc.Constants).Copy().(gad.Array)
+			expectBc.Constants = gad.Copy(gotBc.Constants)
+			expectBc.Modules = make([]*gad.ModuleSpec, len(gotBc.Modules))
+
+			copy(expectBc.Modules, gotBc.Modules)
+
 			vm := gad.NewVM(builtins.Build(), gotBc)
 			var noTrace bool
 			defer func() {
@@ -435,6 +439,7 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.O
 			}
 			if !assert.NoErrorf(t, err, "Code:\n%s\n", strings.Join(lines, "\n")) {
 				gotBc.Fprint(vm.Builtins.Builtins(), os.Stderr)
+				return
 			}
 			if opts.buffered {
 				got = gad.Array{got, gad.Str(buf.String())}

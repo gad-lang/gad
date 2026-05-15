@@ -20,6 +20,7 @@ const (
 	ScopeLocal
 	ScopeBuiltin
 	ScopeFree
+	ScopeModule
 )
 
 func (s SymbolScope) String() string {
@@ -34,6 +35,8 @@ func (s SymbolScope) String() string {
 		return "BUILTIN"
 	case ScopeFree:
 		return "FREE"
+	case ScopeModule:
+		return "MODULE"
 	default:
 		return "SCOPE:" + strconv.FormatUint(uint64(s), 10)
 	}
@@ -75,9 +78,13 @@ type Symbol struct {
 }
 
 func (s *Symbol) String() string {
+	var original string
+	if s.Original != nil {
+		original = "Original:%s " + s.Original.ToString()
+	}
 	return fmt.Sprintf("Symbol{Literal:%s Index:%d Scope:%s Assigned:%v "+
-		"Original:%s Constant:%t}",
-		s.Name, s.Index, s.Scope, s.Assigned, s.Original, s.Constant)
+		"%sConstant:%t}",
+		s.Name, s.Index, s.Scope, s.Assigned, original, s.Constant)
 }
 
 // SymbolTable represents a symbol table.

@@ -157,15 +157,6 @@ func (s *PrinterState) Print(o Object) (err error) {
 				defer s.WrapRepr(o)()
 			}
 			_, err = s.Write([]byte(t.ToString()))
-		case Bytes:
-			if s.IsRepr {
-				defer s.WrapRepr(o)()
-				err = t.ToStringF(s)
-			} else if s.options.IsBytesToHex() {
-				err = t.ToStringF(s)
-			} else {
-				_, err = s.Write(t)
-			}
 		case *Buffer:
 			if s.IsRepr {
 				defer s.WrapRepr(o)()

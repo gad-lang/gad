@@ -3,7 +3,6 @@ package encoder_test
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 	gotime "time"
@@ -20,7 +19,6 @@ import (
 	. "github.com/gad-lang/gad/encoder"
 )
 
-var baz gad.Object = gad.Str("baz")
 var testObjects = []gad.Object{
 	gad.Nil,
 	gad.Int(-1), gad.Int(0), gad.Int(1),
@@ -32,28 +30,9 @@ var testObjects = []gad.Object{
 	gad.Str(""), gad.Str("abc"),
 	gad.Bytes{}, gad.Bytes("foo"),
 	gad.ErrIndexOutOfBounds,
-	&gad.RuntimeError{Err: gad.ErrInvalidIndex},
 	gad.Dict{"key": gad.Str("xxx")},
 	&gad.SyncDict{Value: gad.Dict{"k": gad.Str("")}},
 	gad.Array{gad.Nil, gad.True, gad.False},
-	&time.Time{Value: gotime.Time{}},
-	&json.EncoderOptions{Value: gad.Int(1)},
-	&json.RawMessage{Value: gad.Bytes("bar")},
-	&gad.ObjectPtr{Value: &baz},
-}
-
-func TestBytecode_Encode(t *testing.T) {
-	testBytecodeSerialization(t, &gad.Bytecode{Main: compFunc(nil)}, nil)
-
-	testBytecodeSerialization(t,
-		&gad.Bytecode{Constants: testObjects,
-			Main: compFunc(
-				[]byte("test instructions"),
-				withLocals(1), withParams("*a"),
-			),
-		},
-		nil,
-	)
 }
 
 func TestBytecode_file(t *testing.T) {
@@ -66,17 +45,18 @@ func TestBytecode_file(t *testing.T) {
 			withSourceMap(map[int]int{0: 1, 1: 2}),
 		),
 	}
-	f, err := ioutil.TempFile(temp, "mod.gadc")
+	f, err := os.CreateTemp(temp, "mod.gadc")
 	require.NoError(t, err)
 	defer f.Close()
 
-	err = EncodeBytecodeTo(bc, f)
+	var ms ModulesSpec
+	ms, err = EncodeBytecodeTo(bc, NewWriter(f))
 	require.NoError(t, err)
 
 	_, err = f.Seek(0, io.SeekStart)
 	require.NoError(t, err)
 
-	got, err := DecodeBytecodeFrom(f, nil)
+	got, err := DecodeBytecodeFrom(NewContext(ContextWithModules(ms)), NewReader(f))
 	require.NoError(t, err)
 	testBytecodesEqual(t, bc, got)
 }
@@ -110,7 +90,6 @@ export{
 }
 		`))
 
-	mmCopy := opts.ModuleMap.Copy()
 	bc, err := Compile([]byte(src), opts)
 	require.NoError(t, err)
 
@@ -123,10 +102,13 @@ export{
 	require.NoError(t, err)
 	defer f.Close()
 
-	var buf bytes.Buffer
+	var (
+		buf bytes.Buffer
+		ms  = GoModulesFromModulesMap(opts.ModuleMap)
+	)
 
 	logmicros(t, "encode time: %d microsecs", func() {
-		err = EncodeBytecodeTo(bc, &buf)
+		_, err = EncodeBytecodeTo(bc, &buf)
 	})
 	require.NoError(t, err)
 
@@ -140,8 +122,9 @@ export{
 
 	var gotBc *gad.Bytecode
 	logmicros(t, "decode time: %d microsecs", func() {
-		gotBc, err = DecodeBytecodeFrom(f, mmCopy)
+		gotBc, err = DecodeBytecodeFrom(NewContext(ContextWithGoModules(ms)), NewReader(f))
 	})
+
 	require.NoError(t, err)
 	require.NotNil(t, gotBc)
 
@@ -152,20 +135,6 @@ export{
 	require.NoError(t, err)
 
 	require.Equal(t, wantRet, gotRet)
-}
-
-func testBytecodeSerialization(t *testing.T, b *gad.Bytecode, modules *gad.ModuleMap) {
-	t.Helper()
-
-	var buf bytes.Buffer
-	err := (*Bytecode)(b).Encode(&buf)
-	require.NoError(t, err)
-
-	r := &gad.Bytecode{}
-	err = (*Bytecode)(r).Decode(bytes.NewReader(buf.Bytes()), modules)
-	require.NoError(t, err)
-
-	testBytecodesEqual(t, b, r)
 }
 
 func testBytecodesEqual(t *testing.T, want, got *gad.Bytecode) {

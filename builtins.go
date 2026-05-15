@@ -482,9 +482,9 @@ func (m BuiltinObjectsMap) build() BuiltinObjectsMap {
 			default:
 				if cma, _ := value.(CanCallerObjectMethodsEnabler); cma == nil || !cma.MethodsDisabled() {
 					if cwm, _ := value.(*Func); cwm == nil {
-						var module *Module
+						var module *ModuleSpec
 						switch t := value.(type) {
-						case interface{ GetModule() *Module }:
+						case ModuleGetter:
 							module = t.GetModule()
 						}
 

@@ -70,7 +70,7 @@ func NewBuiltinObjType(name string) *BuiltinObjType {
 
 func (t *BuiltinObjType) GadObjectType() {}
 
-func (t *BuiltinObjType) GetModule() *Module {
+func (t *BuiltinObjType) GetModule() *ModuleSpec {
 	return nil
 }
 

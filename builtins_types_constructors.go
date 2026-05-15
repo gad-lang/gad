@@ -287,9 +287,9 @@ func NewDictFunc(c Call) (ret Object, err error) {
 		switch t := arg.(type) {
 		case ToDictConverter:
 			return t.ToDict(), nil
-		case DictUpdator:
+		case IndexSetterUpdater:
 			d := Dict{}
-			t.UpdateDict(d)
+			t.UpdateIndexSetter(d)
 			return d, nil
 		default:
 			d := Dict{}
@@ -305,8 +305,8 @@ func NewDictFunc(c Call) (ret Object, err error) {
 		d := Dict{}
 		err = c.Args.WalkE(func(i int, arg Object) error {
 			switch t := arg.(type) {
-			case DictUpdator:
-				t.UpdateDict(d)
+			case IndexSetterUpdater:
+				t.UpdateIndexSetter(d)
 				return nil
 			default:
 				return ItemsOfCb(c.VM, &c.NamedArgs, func(kv *KeyValue) error {
@@ -428,7 +428,7 @@ func NewClassFunc(c Call) (ret Object, err error) {
 		return
 	}
 
-	t := NewClass(string(nameArg.Value.(Str)), c.VM.CurrentModule())
+	t := NewClass(string(nameArg.Value.(Str)), c.VM.CurrentModuleSpec())
 
 	var (
 		kvaTA  = TypeAssertionFromTypes(TKeyValueArray)
@@ -516,12 +516,15 @@ func NewFuncFunc(c Call) (_ Object, err error) {
 		return
 	}
 
-	module, _ := moduleVar.Value.(*Module)
-	if module == nil {
-		module = c.VM.CurrentModule()
+	var moduleSpec *ModuleSpec
+
+	if module, _ := moduleVar.Value.(*Module); module != nil {
+		moduleSpec = module.Spec
+	} else {
+		moduleSpec = c.VM.CurrentModuleSpec()
 	}
-	
-	f := NewFunc(name, module)
+
+	f := NewFunc(name, moduleSpec)
 
 	err = c.Args.WalkE(func(i int, arg Object) (err error) {
 		return SplitCaller(c.VM, arg, func(co CallerObject, types ParamsTypes) (err error) {

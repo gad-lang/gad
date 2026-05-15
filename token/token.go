@@ -8,35 +8,6 @@ import (
 	"strconv"
 )
 
-var keywords map[string]Token
-
-// Token represents a token.
-type Token int
-
-func (tok Token) String() string {
-	s := ""
-
-	if 0 <= tok && int(tok) < NumTokens {
-		s = tokens[tok]
-	} else {
-		s = "token(" + strconv.Itoa(int(tok)) + ")"
-	}
-
-	return s
-}
-
-func (tok Token) Name() string {
-	s := ""
-
-	if 0 <= tok && int(tok) < NumTokens {
-		s = tokenNames[tok]
-	} else {
-		s = "token<" + strconv.Itoa(int(tok)) + ">"
-	}
-
-	return s
-}
-
 // List of tokens
 const (
 	Illegal Token = iota
@@ -175,6 +146,35 @@ const (
 )
 
 const NumTokens = int(GroupKeywordEnd)
+
+var keywords map[string]Token
+
+// Token represents a token.
+type Token int
+
+func (tok Token) String() string {
+	s := ""
+
+	if 0 <= tok && int(tok) < NumTokens {
+		s = tokens[tok]
+	} else {
+		s = "token(" + strconv.Itoa(int(tok)) + ")"
+	}
+
+	return s
+}
+
+func (tok Token) Name() string {
+	s := ""
+
+	if 0 <= tok && int(tok) < NumTokens {
+		s = tokenNames[tok]
+	} else {
+		s = "token<" + strconv.Itoa(int(tok)) + ">"
+	}
+
+	return s
+}
 
 var tokens = [...]string{
 	Illegal:         "ILLEGAL",

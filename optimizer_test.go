@@ -18,7 +18,7 @@ func TestOptimizer(t *testing.T) {
 		cf *CompiledFunction
 	}
 
-	defF := compFunc(concatInsts(makeInst(OpConstant, 1)))
+	defF := compFunc(concatInsts(makeInst(OpConstant, 0)))
 	falseF := compFunc(concatInsts(makeInst(OpFalse)))
 	trueF := compFunc(concatInsts(makeInst(OpTrue)))
 	yesF := compFunc(concatInsts(makeInst(OpYes)))
@@ -192,13 +192,13 @@ func TestOptimizer(t *testing.T) {
 	testCases3 := make([]values, len(testCases2))
 
 	callF0 := compFunc(concatInsts(
-		makeInst(OpConstant, 1),
+		makeInst(OpConstant, 0),
 		makeInst(OpCall, 0, 0),
 		makeInst(OpReturn, 1),
 	))
 
 	callF1 := compFunc(concatInsts(
-		makeInst(OpConstant, 2),
+		makeInst(OpConstant, 1),
 		makeInst(OpCall, 0, 0),
 		makeInst(OpReturn, 1),
 	))
@@ -296,7 +296,7 @@ func TestOptimizerIf(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpJump, 6),
 				makeInst(OpJump, 11),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpReturn, 1),
 				makeInst(OpReturn, 0),
 			)),
@@ -308,7 +308,7 @@ func TestOptimizerFor(t *testing.T) {
 		bytecode(
 			Array{Int(3)},
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpJumpFalsy, 9),
 				makeInst(OpJump, 0),
 				makeInst(OpReturn, 0),
@@ -319,7 +319,7 @@ func TestOptimizerFor(t *testing.T) {
 		bytecode(
 			Array{Int(3)},
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpPop),
 				makeInst(OpJump, 0),
 				makeInst(OpReturn, 0),
@@ -330,14 +330,14 @@ func TestOptimizerFor(t *testing.T) {
 		bytecode(
 			Array{Int(6), Int(14), Int(4)},
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
-				makeInst(OpConstant, 2),
+				makeInst(OpConstant, 1),
 				makeInst(OpBinary, int(token.Less)),
 				makeInst(OpJumpFalsy, 27),
 				makeInst(OpGetLocal, 0),
-				makeInst(OpConstant, 3),
+				makeInst(OpConstant, 2),
 				makeInst(OpSelfAssign, int(token.Add)),
 				makeInst(OpSetLocal, 0),
 				makeInst(OpJump, 5),
@@ -361,15 +361,15 @@ func TestOptimizerTryThrow(t *testing.T) {
 			Array{Int(3), Float(7), Str("a1b")},
 			compFunc(concatInsts(
 				makeInst(OpSetupTry, 12, 18),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpPop),
 				makeInst(OpJump, 18),
 				makeInst(OpSetupCatch),
 				makeInst(OpPop),
-				makeInst(OpConstant, 2),
+				makeInst(OpConstant, 1),
 				makeInst(OpPop),
 				makeInst(OpSetupFinally),
-				makeInst(OpConstant, 3),
+				makeInst(OpConstant, 2),
 				makeInst(OpThrow, 1),
 				makeInst(OpThrow, 0),
 				makeInst(OpReturn, 0),
@@ -383,7 +383,7 @@ func TestOptimizerDictSliceExpr(t *testing.T) {
 			Array{Int(3)},
 			compFunc(concatInsts(
 				makeInst(OpArray, 0),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpGetIndex, 1),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -394,7 +394,7 @@ func TestOptimizerDictSliceExpr(t *testing.T) {
 			Array{Int(3)},
 			compFunc(concatInsts(
 				makeInst(OpArray, 0),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpGetIndex, 1),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -405,7 +405,7 @@ func TestOptimizerDictSliceExpr(t *testing.T) {
 			Array{Int(3)},
 			compFunc(concatInsts(
 				makeInst(OpArray, 0),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpNil),
 				makeInst(OpSliceIndex),
 				makeInst(OpPop),
@@ -417,7 +417,7 @@ func TestOptimizerDictSliceExpr(t *testing.T) {
 			Array{Int(3)},
 			compFunc(concatInsts(
 				makeInst(OpArray, 0),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpNil),
 				makeInst(OpSliceIndex),
 				makeInst(OpPop),
@@ -430,7 +430,7 @@ func TestOptimizerDictSliceExpr(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpArray, 0),
 				makeInst(OpNil),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpSliceIndex),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -442,7 +442,7 @@ func TestOptimizerDictSliceExpr(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpArray, 0),
 				makeInst(OpNil),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpSliceIndex),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -452,7 +452,7 @@ func TestOptimizerDictSliceExpr(t *testing.T) {
 		bytecode(
 			Array{Int(3)},
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpArray, 1),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -473,7 +473,7 @@ func TestOptimizerDictSliceExpr(t *testing.T) {
 			Array{Int(3)},
 			compFunc(concatInsts(
 				makeInst(OpDict, 0),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpGetIndex, 1),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -484,7 +484,7 @@ func TestOptimizerDictSliceExpr(t *testing.T) {
 			Array{Int(3)},
 			compFunc(concatInsts(
 				makeInst(OpDict, 0),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpGetIndex, 1),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -494,8 +494,8 @@ func TestOptimizerDictSliceExpr(t *testing.T) {
 		bytecode(
 			Array{Str("a"), Int(3)},
 			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
 				makeInst(OpConstant, 1),
-				makeInst(OpConstant, 2),
 				makeInst(OpDict, 2),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -505,8 +505,8 @@ func TestOptimizerDictSliceExpr(t *testing.T) {
 		bytecode(
 			Array{Str("a"), Uint(3)},
 			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
 				makeInst(OpConstant, 1),
-				makeInst(OpConstant, 2),
 				makeInst(OpDict, 2),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -521,7 +521,7 @@ func TestOptimizerCondExpr(t *testing.T) {
 		cf *CompiledFunction
 	}
 	f := compFunc(concatInsts(
-		makeInst(OpConstant, 1),
+		makeInst(OpConstant, 0),
 		makeInst(OpPop),
 		makeInst(OpReturn, 0),
 	))
@@ -539,7 +539,7 @@ func TestOptimizerCondExpr(t *testing.T) {
 
 		{s: `a := 0; 1 ? a : 3`, c: Int(0),
 			cf: compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpPop),
@@ -567,7 +567,7 @@ func TestOptimizerShadowing(t *testing.T) {
 			Array{Str("1")},
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 0),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpCall, 1, 0),
 				makeInst(OpReturn, 1),
 			),
@@ -583,7 +583,7 @@ func TestOptimizerShadowing(t *testing.T) {
 				makeInst(OpNil),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpCall, 1, 0),
 				makeInst(OpReturn, 1),
 			),
@@ -598,7 +598,7 @@ func TestOptimizerShadowing(t *testing.T) {
 				Str("1"),
 				compFunc(concatInsts(
 					makeInst(OpGetFree, 0),
-					makeInst(OpConstant, 1),
+					makeInst(OpConstant, 0),
 					makeInst(OpCall, 1, 0),
 					makeInst(OpReturn, 1),
 				)),
@@ -607,7 +607,7 @@ func TestOptimizerShadowing(t *testing.T) {
 				makeInst(OpNil),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocalPtr, 0),
-				makeInst(OpClosure, 2, 1),
+				makeInst(OpClosure, 1, 1),
 				makeInst(OpReturn, 1),
 			),
 				funcLocals(1),
@@ -627,7 +627,7 @@ func TestOptimizerShadowing(t *testing.T) {
 			Array{Str("1")},
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 0),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpCall, 1, 0),
 				makeInst(OpReturn, 1),
 			),
@@ -659,9 +659,6 @@ func TestOptimizerShadowing(t *testing.T) {
 		&expectCompileOptions{
 			builtins: builtins,
 			st:       st,
-			opts: &TestBytecodesEqualOptions{
-				NoInsertMainModule: true,
-			},
 		},
 	)
 
@@ -689,9 +686,6 @@ func TestOptimizerShadowing(t *testing.T) {
 		&expectCompileOptions{
 			builtins: builtins,
 			st:       st,
-			opts: &TestBytecodesEqualOptions{
-				NoInsertMainModule: true,
-			},
 		},
 	)
 
@@ -703,7 +697,7 @@ func TestOptimizerShadowing(t *testing.T) {
 				Str("1"),
 				compFunc(concatInsts(
 					makeInst(OpGetLocal, 0),
-					makeInst(OpConstant, 1),
+					makeInst(OpConstant, 0),
 					makeInst(OpCall, 1, 0),
 					makeInst(OpReturn, 1),
 				),
@@ -713,9 +707,9 @@ func TestOptimizerShadowing(t *testing.T) {
 				Int(1),
 			},
 			compFunc(concatInsts(
-				makeInst(OpConstant, 2),
+				makeInst(OpConstant, 1),
 				makeInst(OpDefineLocal, 0),
-				makeInst(OpConstant, 3),
+				makeInst(OpConstant, 2),
 				makeInst(OpReturn, 1),
 			), funcLocals(1)),
 		),

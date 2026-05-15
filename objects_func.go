@@ -24,11 +24,11 @@ var (
 
 type Func struct {
 	*FuncSpec
-	module *Module
+	module *ModuleSpec
 	name   string
 }
 
-func NewFunc(name string, module *Module) *Func {
+func NewFunc(name string, module *ModuleSpec) *Func {
 	s := &Func{module: module, name: name}
 	s.FuncSpec = &FuncSpec{this: s}
 	return s
@@ -46,14 +46,14 @@ func (f *Func) FullName() string {
 	if f.module == nil {
 		return f.name
 	}
-	return f.module.Info.Name + "." + f.name
+	return f.module.Name + "." + f.name
 }
 
 func (f *Func) FuncSpecName() string {
 	return "func " + ReprQuote(f.FullName())
 }
 
-func (f *Func) GetModule() *Module {
+func (f *Func) GetModule() *ModuleSpec {
 	return f.module
 }
 

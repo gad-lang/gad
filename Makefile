@@ -1,6 +1,7 @@
 SHELL       := bash
 .SHELLFLAGS := -e -o pipefail -c
 MAKEFLAGS   += --warn-nil-variables
+GOTOOLCHAIN=go1.25.0+auto
 
 all: version depcheck generate lint test
 
@@ -12,9 +13,9 @@ build-cli:
 
 .PHONY: test
 test: version generate lint
-	go test -count=1 -cover ./...
-	go test -count=1 -race -coverpkg=./... ./...
-	go run cmd/gad/main.go -timeout 20s cmd/gad/testdata/fibtc.gad
+	GOTOOLCHAIN=go1.25.0+auto go test -count=1 -cover ./...
+	GOTOOLCHAIN=go1.25.0+auto go test -count=1 -race -coverpkg=./... ./...
+	GOTOOLCHAIN=go1.25.0+auto go run cmd/gad/main.go -timeout 20s cmd/gad/testdata/fibtc.gad
 
 .PHONY: generate-all
 generate-all: generate generate-docs

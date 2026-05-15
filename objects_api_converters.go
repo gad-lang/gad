@@ -8,8 +8,8 @@ type ToDictConverter interface {
 	ToDict() Dict
 }
 
-type DictUpdator interface {
-	UpdateDict(out Dict)
+type IndexSetterUpdater interface {
+	UpdateIndexSetter(out StringIndexSetter)
 }
 
 // ConvertToArray convert objects to Array. If success return then, otherwise return error.

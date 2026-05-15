@@ -60,7 +60,7 @@ func TestMethodArgsMixed(t *testing.T) {
 	}))
 
 	vm := NewVM(nil, nil)
-	vm.curFrame = &frame{fn: &CompiledFunction{module: NewModule(ModuleInfo{Name: "test"})}}
+	vm.curFrame = &frame{fn: &CompiledFunction{module: &ModuleSpec{ModuleInfo: ModuleInfo{Name: "test"}}}}
 
 	fn, err := NewFuncFunc(Call{VM: vm, Args: Args{Array{f1, f2, f3, f4, f5, f6, f7, f8}}})
 	assert.NoError(t, err)

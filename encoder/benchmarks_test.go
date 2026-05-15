@@ -2,46 +2,11 @@ package encoder_test
 
 import (
 	"bytes"
-	"encoding/gob"
 	"testing"
 
 	"github.com/gad-lang/gad"
 	. "github.com/gad-lang/gad/encoder"
 )
-
-func BenchmarkBytecodeUnmarshal(b *testing.B) {
-	b.ReportAllocs()
-	script := `
-	f := func() {
-		return [nil, true, false, "", -1, 0, 1, 2u, 3.0, 'a', bytes(0, 1, 2)]
-	}
-	f()
-	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}
-	`
-	var (
-		err error
-		st  = gad.NewSymbolTable(gad.NewBuiltins().NameSet)
-	)
-	_, bc, err := gad.Compile(st, []byte(script), gad.CompileOptions{})
-	if err != nil {
-		b.Fatal(err)
-	}
-	// bc.FileSet = nil
-	// bc.Main.SourceMap = nil
-	d, err := (*Bytecode)(bc).MarshalBinary()
-	if err != nil {
-		b.Fatal(err)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var bc2 Bytecode
-		err := bc2.UnmarshalBinary(d)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-	b.ReportMetric(float64(len(d)), "Bytes")
-}
 
 func BenchmarkBytecodeDecode(b *testing.B) {
 	b.ReportAllocs()
@@ -53,13 +18,13 @@ func BenchmarkBytecodeDecode(b *testing.B) {
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}
 	`
 	var err error
-	_, bc, err := gad.Compile(gad.NewSymbolTable(gad.NewBuiltins().NameSet), []byte(script), gad.CompileOptions{})
+	_, bc, err := gad.Compile(newSt(), []byte(script), gad.CompileOptions{})
 	if err != nil {
 		b.Fatal(err)
 	}
 	// bc.FileSet = nil
 	// bc.Main.SourceMap = nil
-	d, err := (*Bytecode)(bc).MarshalBinary()
+	d, err := encode(bc)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -67,7 +32,7 @@ func BenchmarkBytecodeDecode(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		rd.Reset(d)
-		_, err := DecodeBytecodeFrom(rd, nil)
+		_, err := Decode(rd, NewContext())
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -85,15 +50,14 @@ func BenchmarkBytecodeEncDec(b *testing.B) {
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}
 	`
 	var err error
-	st := gad.NewSymbolTable(gad.NewBuiltins().NameSet)
-	_, bc, err := gad.Compile(st, []byte(script), gad.CompileOptions{})
+	_, bc, err := gad.Compile(newSt(), []byte(script), gad.CompileOptions{})
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	b.Run("compileUnopt", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			_, _, err := gad.Compile(st, []byte(script), gad.CompileOptions{})
+			_, _, err := gad.Compile(newSt(), []byte(script), gad.CompileOptions{})
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -102,7 +66,7 @@ func BenchmarkBytecodeEncDec(b *testing.B) {
 
 	b.Run("compileOpt", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			_, _, err := gad.Compile(st, []byte(script), gad.CompileOptions{
+			_, _, err := gad.Compile(newSt(), []byte(script), gad.CompileOptions{
 				CompilerOptions: gad.CompilerOptions{
 					OptimizeConst:     true,
 					OptimizeExpr:      true,
@@ -115,10 +79,10 @@ func BenchmarkBytecodeEncDec(b *testing.B) {
 		}
 	})
 
-	b.Run("marshal", func(b *testing.B) {
+	b.Run("encode", func(b *testing.B) {
 		var size int
 		for i := 0; i < b.N; i++ {
-			d, err := (*Bytecode)(bc).MarshalBinary()
+			d, err := encode(bc)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -128,77 +92,37 @@ func BenchmarkBytecodeEncDec(b *testing.B) {
 		}
 		b.ReportMetric(float64(size), "Bytes")
 	})
-	b.Run("gobEncode", func(b *testing.B) {
-		var size int
-		for i := 0; i < b.N; i++ {
-			var buf bytes.Buffer
-			err := gob.NewEncoder(&buf).Encode((*Bytecode)(bc))
-			if err != nil {
-				b.Fatal(err)
-			}
-			if size == 0 {
-				size = buf.Len()
-			}
-		}
-		b.ReportMetric(float64(size), "Bytes")
-	})
-	b.Run("unmarshal", func(b *testing.B) {
-		d, err := (*Bytecode)(bc).MarshalBinary()
+	b.Run("decode", func(b *testing.B) {
+		d, err := encode(bc)
 		if err != nil {
 			b.Fatal(err)
 		}
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			var bc2 Bytecode
-			err := bc2.UnmarshalBinary(d)
+			_, err := decode[*gad.Bytecode](d)
 			if err != nil {
 				b.Fatal(err)
 			}
 		}
 		b.ReportMetric(float64(len(d)), "Bytes")
 	})
-	b.Run("gobDecode", func(b *testing.B) {
-		var buf bytes.Buffer
-		err := gob.NewEncoder(&buf).Encode((*Bytecode)(bc))
-		if err != nil {
-			b.Fatal(err)
-		}
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			var bc2 Bytecode
-			err = gob.NewDecoder(bytes.NewReader(buf.Bytes())).Decode(&bc2)
-			if err != nil {
-				b.Fatal(err)
-			}
-		}
-		b.ReportMetric(float64(len(buf.Bytes())), "Bytes")
-	})
 }
 
 func BenchmarkIntEncDec(b *testing.B) {
-	b.Run("marshal unmarshal", func(b *testing.B) {
+	b.Run("encode decode", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			data, err := Int(i).MarshalBinary()
+			data, err := encode(gad.Int(i))
 			if err != nil {
 				b.Fatal(err)
 			}
-			var v Int
-			err = v.UnmarshalBinary(data)
+			_, err = decode[gad.Int](data)
 			if err != nil {
 				b.Fatal(err)
 			}
 		}
 	})
-	b.Run("decode object", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			data, err := Int(i).MarshalBinary()
-			if err != nil {
-				b.Fatal(err)
-			}
-			_, err = DecodeObject(bytes.NewReader(data))
-			if err != nil {
-				b.Fatal(err)
-			}
-		}
-	})
+}
+
+func newSt() *gad.SymbolTable {
+	return gad.NewSymbolTable(gad.NewBuiltins().NameSet)
 }

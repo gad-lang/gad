@@ -13,8 +13,9 @@ import (
 )
 
 func TestEval(t *testing.T) {
-	gtimeModuleData, _ := gadtime.ModuleInit(nil, Call{})
-	gtimeD := gtimeModuleData.(Dict)
+	module := NewModule(&ModuleSpec{})
+	gadtime.ModuleInit(module, Call{})
+	gtimeD := module.Data.(Dict)
 
 	type scriptResult struct {
 		script string

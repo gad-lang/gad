@@ -30,6 +30,7 @@ type VM struct {
 	ip           int
 	curInsts     []byte
 	constants    []Object
+	modules      []*ModuleSpec
 	stack        [stackSize]Object
 	frames       [frameSize]frame
 	curFrame     *frame
@@ -52,15 +53,16 @@ type VM struct {
 
 // NewVM creates a VM object.
 func NewVM(builtins *StaticBuiltins, bc *Bytecode) *VM {
-	var constants []Object
-	if bc != nil {
-		constants = bc.Constants
-	}
 	vm := &VM{
-		Builtins:  builtins,
-		bytecode:  bc,
-		constants: constants,
+		Builtins: builtins,
+		bytecode: bc,
 	}
+
+	if bc != nil {
+		vm.constants = bc.Constants
+		vm.modules = bc.Modules
+	}
+
 	vm.pool.root = vm
 	return vm
 }
@@ -86,6 +88,7 @@ func (vm *VM) SetBytecode(bc *Bytecode) *VM {
 	defer vm.mu.Unlock()
 	vm.bytecode = bc
 	vm.constants = bc.Constants
+	vm.modules = bc.Modules
 	vm.modulesCache = nil
 	return vm
 }
@@ -150,53 +153,6 @@ func (vm *VM) Aborted() bool {
 	return atomic.LoadInt64(&vm.abort) == 1
 }
 
-func (vm *VM) init(opts *RunOpts) error {
-	if vm.bytecode == nil || vm.bytecode.Main == nil {
-		return errors.New("invalid Bytecode")
-	}
-
-	vm.Setup(SetupOpts{})
-
-	if opts.StdIn != nil {
-		if s, _ := opts.StdIn.(*StackReader); s != nil {
-			vm.StdIn = s
-		} else {
-			vm.StdIn = NewStackReader(opts.StdIn)
-		}
-	}
-	if opts.StdOut != nil {
-		if s, _ := opts.StdOut.(*StackWriter); s != nil {
-			vm.StdOut = s
-		} else {
-			vm.StdOut = NewStackWriter(opts.StdOut)
-		}
-	}
-	if opts.StdErr != nil {
-		if s, _ := opts.StdErr.(*StackWriter); s != nil {
-			vm.StdErr = s
-		} else {
-			vm.StdErr = NewStackWriter(opts.StdErr)
-		}
-	}
-
-	if opts.ObjectToWriter != nil {
-		vm.ObjectToWriter = opts.ObjectToWriter
-	}
-
-	// Resize modules cache or create it if not exists.
-	// Note that REPL can set module cache before running, don't recreate it add missing indexes.
-	if diff := vm.bytecode.NumModules - len(vm.modulesCache); diff > 0 {
-		for i := 0; i < diff; i++ {
-			vm.modulesCache = append(vm.modulesCache, nil)
-		}
-	}
-
-	vm.initGlobals(opts.Globals)
-	vm.resetState(opts.Args, opts.NamedArgs)
-
-	return nil
-}
-
 func (vm *VM) resetState(args Args, namedArgs *NamedArgs) {
 	vm.err = nil
 	atomic.StoreInt64(&vm.abort, 0)
@@ -246,24 +202,12 @@ func (vm *VM) toRawStr(_ *VM, s Str) RawStr {
 	return RawStr(s)
 }
 
-func (vm *VM) initAndRun(opts *RunOpts) (Object, error) {
+func (vm *VM) init(opts *RunOpts) error {
 	if vm.bytecode == nil || vm.bytecode.Main == nil {
-		return nil, errors.New("invalid Bytecode")
-	}
-
-	namedArgs := opts.NamedArgs
-	if namedArgs == nil {
-		namedArgs = NewNamedArgs()
+		return errors.New("invalid Bytecode")
 	}
 
 	vm.Setup(SetupOpts{})
-
-	vm.err = nil
-	atomic.StoreInt64(&vm.abort, 0)
-	vm.initGlobals(opts.Globals)
-
-	vm.initCurrentFrame(opts.Args, namedArgs)
-	vm.frameIndex = 1
 
 	if opts.StdIn != nil {
 		if s, _ := opts.StdIn.(*StackReader); s != nil {
@@ -299,9 +243,21 @@ func (vm *VM) initAndRun(opts *RunOpts) (Object, error) {
 		}
 	}
 
+	vm.initGlobals(opts.Globals)
+	vm.resetState(opts.Args, opts.NamedArgs)
+
+	return nil
+}
+
+func (vm *VM) initAndRun(opts *RunOpts) (_ Object, err error) {
+	if err = vm.init(opts); err != nil {
+		return
+	}
+
 	for run := true; run; {
 		run = vm.safeRun()
 	}
+
 	if vm.err != nil {
 		return nil, vm.err
 	}
@@ -391,6 +347,10 @@ func (vm *VM) initLocalsOfFunc(main *CompiledFunction, args Array, namedArgs *Na
 }
 
 func (vm *VM) initCurrentFrame(args Args, named *NamedArgs) {
+	if named == nil {
+		named = NewNamedArgs()
+	}
+
 	vm.initLocals(args.Values(), named)
 
 	// initialize frame and pointers
@@ -413,15 +373,19 @@ func (vm *VM) initCurrentFrame(args Args, named *NamedArgs) {
 }
 
 func (vm *VM) clearCurrentFrame() {
-	for _, f := range vm.curFrame.defers {
-		f()
-	}
 	vm.curFrame.defers = nil
 	vm.curFrame.freeVars = nil
 	vm.curFrame.fn = nil
 	vm.curFrame.errHandlers = nil
 	vm.curFrame.args = nil
 	vm.curFrame.namedArgs = nil
+}
+
+func (vm *VM) finalizeFrame(result *Object) {
+	for _, f := range vm.curFrame.defers {
+		f(result)
+	}
+	vm.clearCurrentFrame()
 }
 
 func (vm *VM) handlePanic(r any) {
@@ -465,8 +429,16 @@ func (vm *VM) GetSymbolValue(symbol *SymbolInfo) (value Object, err error) {
 	return
 }
 
-func (vm *VM) CurrentModule() *Module {
+func (vm *VM) ModuleFromIndex(index int) *Module {
+	return vm.modulesCache[index]
+}
+
+func (vm *VM) CurrentModuleSpec() *ModuleSpec {
 	return vm.curFrame.fn.module
+}
+
+func (vm *VM) CurrentModule() *Module {
+	return vm.modulesCache[vm.CurrentModuleSpec().Index]
 }
 
 func (vm *VM) ModuleByIndex(ix int) *Module {
@@ -589,8 +561,8 @@ func (vm *VM) xAddMethod(numSel, numFuncs int, target Object) (value Object, nul
 			i++
 		}
 
-		var module *Module
-		if mg, _ := value.(interface{ GetModule() *Module }); mg != nil {
+		var module *ModuleSpec
+		if mg, _ := value.(ModuleGetter); mg != nil {
 			module = mg.GetModule()
 		}
 		c := Call{VM: vm, Args: Args{args}}
@@ -903,7 +875,7 @@ func (vm *VM) xOpCall() error {
 	return vm.xOpCallAny(callee, numArgs, flags)
 }
 
-func (vm *VM) xOpCallModule() (err error) {
+func (vm *VM) xOpInitModule() (err error) {
 	numArgs := int(vm.curInsts[vm.ip+1])
 	flags := OpCallFlag(vm.curInsts[vm.ip+2])
 	kwCount := 0
@@ -918,31 +890,19 @@ func (vm *VM) xOpCallModule() (err error) {
 
 	curFrame := vm.curFrame
 
-	if err = vm.xOpCallAny(module.Init, numArgs, flags); err != nil {
+	if err = vm.xOpCallAny(module.Spec.InitFunc(module), numArgs, flags); err != nil {
 		return
 	}
 
-	onResult := func() {
-		switch t := (*ptr).(type) {
-		case *Module:
-			module.Data = t.Data
-		case ModuleData:
-			module.Data = t
-		default:
-			module.Data = Dict{}
-			err = ErrType.NewErrorf("module %q init result (%v) isn't ModuleData value", module.Name(), t.Type().Name())
-		}
-		*ptr = module
-		vm.sp++
-	}
-
-	if vm.curFrame == curFrame {
-		onResult()
-	} else {
+	if vm.curFrame != curFrame {
 		newFrame := vm.curFrame
-		newFrame.Defer(onResult)
+		newFrame.Defer(func(ret *Object) {
+			*ret = module
+		})
 		module.Params.Positional = Copy(newFrame.args.Values())
 		module.Params.Named = newFrame.namedArgs.Join()
+	} else {
+		*ptr = module
 	}
 
 	return err
@@ -1545,10 +1505,10 @@ type frame struct {
 	errHandlers *errHandlers
 	args        Args
 	namedArgs   *NamedArgs
-	defers      []func()
+	defers      []func(ret *Object)
 }
 
-func (f *frame) Defer(fn func()) {
+func (f *frame) Defer(fn func(ret *Object)) {
 	f.defers = append(f.defers, fn)
 }
 
@@ -1622,7 +1582,7 @@ func (v *vmPool) _acquire(vm *VM, cf *CompiledFunction) *VM {
 	vm.bytecode.FileSet = v.root.bytecode.FileSet
 	vm.bytecode.Constants = v.root.bytecode.Constants
 	vm.bytecode.NumModules = v.root.bytecode.NumModules
-	vm.bytecode.NumEmbeds = v.root.bytecode.NumEmbeds
+	vm.bytecode.Modules = v.root.bytecode.Modules
 	vm.bytecode.Main = cf
 	vm.constants = v.root.bytecode.Constants
 	vm.modulesCache = v.root.modulesCache

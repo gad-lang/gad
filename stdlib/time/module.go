@@ -15,17 +15,20 @@ import (
 	"github.com/gad-lang/gad/stdlib"
 )
 
+const ModuleName = "time"
+
 var utcLoc gad.Object = &Location{Value: time.UTC}
 var localLoc gad.Object = &Location{Value: time.Local}
 var zeroTime gad.Object = &Time{}
 
 func getModule() gad.Dict {
-	return ModuleInit.MustGetData(nil).ToDict()
+	return ModuleInit.MustGetData(gad.NewModule(gad.NewModuleSpecFromName(ModuleName))).ToDict()
 }
 
 // ModuleInit represents time module.
-var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data gad.ModuleData, err error) {
-	return gad.Dict{
+var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err error) {
+	spec := module.Spec
+	module.Data = gad.Dict{
 		// gad:doc
 		// # time module
 		// ## Types
@@ -134,7 +137,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// UTC() -> location
 		// Returns Universal Coordinated Time (UTC) location.
 		"UTC": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "UTC",
 			Value:    stdlib.FuncPRO(utcFunc),
 		},
@@ -143,7 +146,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Local() -> location
 		// Returns the system's local time zone location.
 		"Local": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Local",
 			Value:    stdlib.FuncPRO(localFunc),
 		},
@@ -152,7 +155,6 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// MonthString(m int) -> month string
 		// Returns English name of the month m ("January", "February", ...).
 		"MonthString": &gad.Function{
-			Module:   module,
 			FuncName: "MonthString",
 			Value:    stdlib.FuncPiRO(monthStringFunc),
 		},
@@ -161,7 +163,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// WeekdayString(w int) -> weekday string
 		// Returns English name of the int weekday w, note that 0 is Sunday.
 		"WeekdayString": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "WeekdayString",
 			Value:    stdlib.FuncPiRO(weekdayStringFunc),
 		},
@@ -170,7 +172,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// DurationString(d int) -> string
 		// Returns a string representing the duration d in the form "72h3m0.5s".
 		"DurationString": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "DurationString",
 			Value:    stdlib.FuncPi64RO(durationStringFunc),
 		},
@@ -178,7 +180,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// DurationNanoseconds(d int) -> int
 		// Returns the duration d as an int nanosecond count.
 		"DurationNanoseconds": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "DurationNanoseconds",
 			Value:    stdlib.FuncPi64RO(durationNanosecondsFunc),
 		},
@@ -186,7 +188,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// DurationMicroseconds(d int) -> int
 		// Returns the duration d as an int microsecond count.
 		"DurationMicroseconds": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "DurationMicroseconds",
 			Value:    stdlib.FuncPi64RO(durationMicrosecondsFunc),
 		},
@@ -194,7 +196,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// DurationMilliseconds(d int) -> int
 		// Returns the duration d as an int millisecond count.
 		"DurationMilliseconds": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "DurationMilliseconds",
 			Value:    stdlib.FuncPi64RO(durationMillisecondsFunc),
 		},
@@ -202,7 +204,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// DurationSeconds(d int) -> float
 		// Returns the duration d as a floating point number of seconds.
 		"DurationSeconds": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "DurationSeconds",
 			Value:    stdlib.FuncPi64RO(durationSecondsFunc),
 		},
@@ -210,7 +212,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// DurationMinutes(d int) -> float
 		// Returns the duration d as a floating point number of minutes.
 		"DurationMinutes": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "DurationMinutes",
 			Value:    stdlib.FuncPi64RO(durationMinutesFunc),
 		},
@@ -218,7 +220,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// DurationHours(d int) -> float
 		// Returns the duration d as a floating point number of hours.
 		"DurationHours": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "DurationHours",
 			Value:    stdlib.FuncPi64RO(durationHoursFunc),
 		},
@@ -226,7 +228,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Sleep(duration int) -> nil
 		// Pauses the current goroutine for at least the duration.
 		"Sleep": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Sleep",
 			Value:    sleepFunc,
 		},
@@ -234,7 +236,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// ParseDuration(s string) -> duration int
 		// Parses duration s and returns duration as int or error.
 		"ParseDuration": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "ParseDuration",
 			Value:    stdlib.FuncPsROe(parseDurationFunc),
 		},
@@ -242,7 +244,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// DurationRound(duration int, m int) -> duration int
 		// Returns the result of rounding duration to the nearest multiple of m.
 		"DurationRound": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "DurationRound",
 			Value:    stdlib.FuncPi64i64RO(durationRoundFunc),
 		},
@@ -250,7 +252,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// DurationTruncate(duration int, m int) -> duration int
 		// Returns the result of rounding duration toward zero to a multiple of m.
 		"DurationTruncate": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "DurationTruncate",
 			Value:    stdlib.FuncPi64i64RO(durationTruncateFunc),
 		},
@@ -259,7 +261,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Returns a Location that always uses the given zone name and offset
 		// (seconds east of UTC).
 		"FixedZone": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "FixedZone",
 			Value:    stdlib.FuncPsiRO(fixedZoneFunc),
 		},
@@ -267,7 +269,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// LoadLocation(name string) -> location
 		// Returns the Location with the given name.
 		"LoadLocation": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "LoadLocation",
 			Value:    stdlib.FuncPsROe(loadLocationFunc),
 		},
@@ -275,7 +277,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// IsLocation(any) -> bool
 		// Reports whether any value is of location type.
 		"IsLocation": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "IsLocation",
 			Value:    stdlib.FuncPORO(isLocationFunc),
 		},
@@ -283,7 +285,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Time() -> time
 		// Returns zero time.
 		"Time": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Time",
 			Value:    stdlib.FuncPRO(zerotimeFunc),
 		},
@@ -291,7 +293,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Since(t time) -> duration int
 		// Returns the time elapsed since t.
 		"Since": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Since",
 			Value:    funcPTRO(sinceFunc),
 		},
@@ -299,7 +301,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Until(t time) -> duration int
 		// Returns the duration until t.
 		"Until": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Until",
 			Value:    funcPTRO(untilFunc),
 		},
@@ -309,7 +311,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// in the appropriate zone for that time in the given location. Zero values
 		// of optional arguments are used if not provided.
 		"Date": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Date",
 			Value:    dateFunc,
 		},
@@ -317,7 +319,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Now() -> time
 		// Returns the current local time.
 		"Now": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Now",
 			Value:    stdlib.FuncPRO(nowFunc),
 		},
@@ -327,7 +329,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// If location is not provided, ToInterface's `time.Parse` function is called
 		// otherwise `time.ParseInLocation` is called.
 		"Parse": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Parse",
 			Value:    parseFunc,
 		},
@@ -337,7 +339,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// sec seconds and nsec nanoseconds since January 1, 1970 UTC.
 		// Zero values of optional arguments are used if not provided.
 		"Unix": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Unix",
 			Value:    unixFunc,
 		},
@@ -346,7 +348,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Deprecated: Use .Add method of time object.
 		// Returns the time of t+duration.
 		"Add": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Add",
 			Value:    funcPTi64RO(timeAdd),
 		},
@@ -355,7 +357,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Deprecated: Use .Sub method of time object.
 		// Returns the duration of t1-t2.
 		"Sub": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Sub",
 			Value:    funcPTTRO(timeSub),
 		},
@@ -365,7 +367,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Returns the time corresponding to adding the given number of
 		// years, months, and days to t.
 		"AddDate": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "AddDate",
 			Value:    funcPTiiiRO(timeAddDate),
 		},
@@ -374,7 +376,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Deprecated: Use .After method of time object.
 		// Reports whether the time t1 is after t2.
 		"After": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "After",
 			Value:    funcPTTRO(timeAfter),
 		},
@@ -383,7 +385,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Deprecated: Use .Before method of time object.
 		// Reports whether the time t1 is before t2.
 		"Before": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Before",
 			Value:    funcPTTRO(timeBefore),
 		},
@@ -393,7 +395,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Returns a textual representation of the time value formatted according
 		// to layout.
 		"Format": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Format",
 			Value:    funcPTsRO(timeFormat),
 		},
@@ -403,7 +405,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// It is like `Format` but appends the textual representation to b and
 		// returns the extended buffer.
 		"AppendFormat": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "AppendFormat", // funcPTb2sRO
 			Value:    funcPTb2sRO(timeAppendFormat),
 		},
@@ -413,7 +415,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Returns a copy of t representing the same time t, but with the copy's
 		// location information set to loc for display purposes.
 		"In": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "In",
 			Value:    funcPTLRO(timeIn),
 		},
@@ -423,7 +425,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Round returns the result of rounding t to the nearest multiple of
 		// duration.
 		"Round": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Round",
 			Value:    funcPTi64RO(timeRound),
 		},
@@ -432,7 +434,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Deprecated: Use .Truncate method of time object.
 		// Truncate returns the result of rounding t down to a multiple of duration.
 		"Truncate": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Truncate",
 			Value:    funcPTi64RO(timeTruncate),
 		},
@@ -440,11 +442,12 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// IsTime(any) -> bool
 		// Reports whether any value is of time type.
 		"IsTime": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "IsTime",
 			Value:    stdlib.FuncPORO(isTimeFunc),
 		},
-	}, nil
+	}
+	return nil
 }
 
 func utcFunc() gad.Object { return utcLoc }

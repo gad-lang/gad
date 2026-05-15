@@ -21,19 +21,40 @@ func makeInst(op Opcode, args ...int) []byte {
 
 type bytecodeOption func(*Bytecode)
 
-func withModules(numOfModules int) bytecodeOption {
+type ModuleSpecBuilder struct {
+	bc *Bytecode
+}
+
+func (b *ModuleSpecBuilder) Name(name string) {
+	b.bc.Modules = append(b.bc.Modules, &ModuleSpec{
+		ModuleInfo: ModuleInfo{Name: name, URL: name},
+		InitGoFunc: func(module *Module) CallerObject { return nil },
+	})
+}
+
+func (b *ModuleSpecBuilder) Compiled(name string, f *CompiledFunction) {
+	spec := &ModuleSpec{
+		ModuleInfo:       ModuleInfo{Name: name, URL: name},
+		InitCompiledFunc: f,
+	}
+	f.SetModule(spec)
+	b.bc.Modules = append(b.bc.Modules, spec)
+}
+
+func (b *ModuleSpecBuilder) NameFile(name, file string) {
+	b.bc.Modules = append(b.bc.Modules, &ModuleSpec{
+		ModuleInfo: ModuleInfo{Name: name, URL: file},
+		InitGoFunc: func(module *Module) CallerObject { return nil },
+	})
+}
+
+func withModules(f func(b *ModuleSpecBuilder)) bytecodeOption {
 	return func(bc *Bytecode) {
-		bc.NumModules = numOfModules
+		f(&ModuleSpecBuilder{bc: bc})
 	}
 }
 
-func withEmbeds(numOfEmbeds int) bytecodeOption {
-	return func(bc *Bytecode) {
-		bc.NumEmbeds = numOfEmbeds
-	}
-}
-
-var mainModule = NewModule(ModuleInfo{Name: MainName, File: MainName})
+var mainModule = &ModuleSpec{ModuleInfo: ModuleInfo{Name: MainName, URL: MainName}}
 
 func bytecode(
 	consts []Object,
@@ -109,7 +130,7 @@ func TestCompiler_CompileBlock(t *testing.T) {
 	expectCompile(t, `1`, bytecode(
 		Array{Int(1)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -118,7 +139,7 @@ func TestCompiler_CompileBlock(t *testing.T) {
 	expectCompile(t, `{ 1 }`, bytecode(
 		Array{Int(1)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -143,7 +164,7 @@ func TestCompiler_CompilePipe(t *testing.T) {
 		Array{Str("a")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFilter)),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -166,8 +187,8 @@ func TestCompiler_CompilePipe(t *testing.T) {
 		Array{Str("a"), Str("x")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFilter)),
+			makeInst(OpGetGlobal, 0),
 			makeInst(OpGetGlobal, 1),
-			makeInst(OpGetGlobal, 2),
 			makeInst(OpCall, 2, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -178,8 +199,8 @@ func TestCompiler_CompilePipe(t *testing.T) {
 		Array{Str("a"), Str("x")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinMap)),
+			makeInst(OpGetGlobal, 0),
 			makeInst(OpGetGlobal, 1),
-			makeInst(OpGetGlobal, 2),
 			makeInst(OpCall, 2, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -190,8 +211,8 @@ func TestCompiler_CompilePipe(t *testing.T) {
 		Array{Str("a"), Str("x")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinReduce)),
+			makeInst(OpGetGlobal, 0),
 			makeInst(OpGetGlobal, 1),
-			makeInst(OpGetGlobal, 2),
 			makeInst(OpCall, 2, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -221,9 +242,9 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNotNil, 14),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpJump, 17),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpReturn, 1),
 		),
 			funcLocals(1)),
@@ -236,9 +257,9 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNotNil, 14),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpJump, 17),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpReturn, 1),
 		),
 			funcLocals(1)),
@@ -251,9 +272,9 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNil, 14),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpJump, 17),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpReturn, 1),
 		),
 			funcLocals(1)),
@@ -266,12 +287,12 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNotNil, 15),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpJump, 19),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpPop),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		),
@@ -285,12 +306,12 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNotNil, 15),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpJump, 19),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpPop),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		),
@@ -304,12 +325,12 @@ func TestCompiler_CompileIfNull(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNil, 15),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpJump, 19),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpPop),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		),
@@ -321,10 +342,10 @@ func TestCompiler_Mixed(t *testing.T) {
 	expectCompileMixed(t, "{% 1 -%} a", bytecode(
 		Array{Int(1), RawStr("a")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpReturn, 0),
 		)),
@@ -334,7 +355,7 @@ func TestCompiler_Mixed(t *testing.T) {
 		Array{RawStr("a")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpReturn, 0),
 		)),
@@ -346,7 +367,7 @@ func TestCompiler_Mixed(t *testing.T) {
 			makeInst(OpNil),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpReturn, 0),
 		), funcLocals(1)),
@@ -356,9 +377,9 @@ func TestCompiler_Mixed(t *testing.T) {
 		Array{RawStr("a"), Int(1), RawStr("c")},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpCall, 3, 0),
 			makeInst(OpReturn, 0),
 		)),
@@ -368,11 +389,11 @@ func TestCompiler_Mixed(t *testing.T) {
 		Array{RawStr("a"), Int(1), RawStr("c"), Int(5)},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpCall, 3, 0),
-			makeInst(OpConstant, 4),
+			makeInst(OpConstant, 3),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
 			makeInst(OpGetLocal, 0),
@@ -387,7 +408,7 @@ func TestCompiler_Mixed(t *testing.T) {
 			makeInst(OpNil),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpReturn, 0),
 		), funcLocals(1)),
@@ -396,7 +417,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	expectCompile(t, "# gad: mixed\n{%- a := (%} a {%)%}", bytecode(
 		Array{RawStr(" a ")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
 		), funcLocals(1)),
@@ -405,7 +426,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	expectCompile(t, "# gad: mixed\n{%- a := ( -%} a {%- )%}", bytecode(
 		Array{RawStr("a")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
 		), funcLocals(1)),
@@ -414,7 +435,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	expectCompile(t, "# gad: mixed\n{%- a := ( -%} a {%- ); return a%}", bytecode(
 		Array{RawStr("a")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpReturn, 1),
@@ -424,7 +445,7 @@ func TestCompiler_Mixed(t *testing.T) {
 	expectCompile(t, "# gad: mixed\n{%- a := ( -%} a {%- ) %}{%return a%}", bytecode(
 		Array{RawStr("a")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpReturn, 1),
@@ -434,10 +455,10 @@ func TestCompiler_Mixed(t *testing.T) {
 	expectCompile(t, "# gad: mixed\n{%- a := ( -%} a {%- )%} b {%return a%}", bytecode(
 		Array{RawStr("a"), RawStr(" b ")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetBuiltin, int(BuiltinWrite)),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpReturn, 1),
@@ -452,7 +473,7 @@ func TestCompiler_CompileFuncWithNamedParams(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 0),
 				makeInst(OpJumpNotNil, 10),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpSetLocal, 0),
 				makeInst(OpReturn, 0),
 			),
@@ -470,7 +491,7 @@ func TestCompiler_CompileFuncWithNamedParams(t *testing.T) {
 		},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFunc)),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
@@ -483,7 +504,7 @@ func TestCompiler_CompileFuncWithNamedParams(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpGetLocal, 1),
 				makeInst(OpJumpNotNil, 10),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpSetLocal, 1),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpGetLocal, 1),
@@ -505,8 +526,8 @@ func TestCompiler_CompileFuncWithNamedParams(t *testing.T) {
 			Int(1),
 		},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpReturn, 1),
 		)),
@@ -531,7 +552,7 @@ met a {
 				makeInst(OpNil),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpAddMethod, 0, 1),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -556,10 +577,10 @@ met a.x.y {
 				makeInst(OpNil),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpGetIndex, 1),
+				makeInst(OpConstant, 1),
 				makeInst(OpConstant, 2),
-				makeInst(OpConstant, 3),
 				makeInst(OpAddMethod, 1, 1),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -595,15 +616,89 @@ return addToX
 			},
 			compFunc(concatInsts(
 				makeInst(OpGetBuiltin, int(BuiltinFunc)),
+				makeInst(OpConstant, 0),
 				makeInst(OpConstant, 1),
 				makeInst(OpConstant, 2),
 				makeInst(OpConstant, 3),
-				makeInst(OpConstant, 4),
 				makeInst(OpCall, 4, 0),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpReturn, 1),
 			), funcLocals(1)),
+		),
+	)
+}
+
+func TestCompiler_CompileImportCompilableModule(t *testing.T) {
+	moduleMap := NewModuleMap()
+	moduleMap.AddSourceModule("mod", []byte(`export a = 1`))
+	moduleMap.AddBuiltinCompilableModule("cmod", func(ctx *BuiltinCompileModuleContext) (bc *Bytecode, err error) {
+		var (
+			script  = `mod := import("mod", 1); export a = mod.a; export b = 2`
+			srcFile = ctx.SetFileData([]byte(script))
+			opts    = ctx.Compiler.Options()
+			p       = parser.NewParserWithOptions(srcFile, &opts.ParserOptions, &opts.ScannerOptions)
+			pf      *parser.File
+		)
+
+		if pf, err = p.ParseFile(); err != nil {
+			return
+		}
+
+		if err = ctx.Compile(pf.Stmts); err != nil {
+			return
+		}
+
+		bc = ctx.Compiler.Bytecode()
+
+		return
+	})
+	expectCompileWithOpts(t, `c := import("cmod")`,
+		CompileOptions{CompilerOptions: CompilerOptions{
+			ModuleMap: moduleMap,
+		}},
+		bytecode(
+			Array{
+				Int(1),
+				Str("a"),
+				Int(2),
+				Str("b"),
+			},
+			compFunc(concatInsts(
+				makeInst(OpLoadModule, 1),
+				makeInst(OpJumpFalsy, 9),
+				makeInst(OpInitModule, 0, 0),
+				makeInst(OpDefineLocal, 0),
+				makeInst(OpReturn, 0),
+			), funcLocals(1)),
+			withModules(func(b *ModuleSpecBuilder) {
+				b.Compiled("cmod", compFunc(concatInsts(
+					makeInst(OpLoadModule, 2),
+					makeInst(OpJumpFalsy, 12),
+					makeInst(OpConstant, 0),
+					makeInst(OpInitModule, 1, 0),
+					makeInst(OpDefineLocal, 0),
+					makeInst(OpGetLocal, 0),
+					makeInst(OpConstant, 1),
+					makeInst(OpGetIndex, 1),
+					makeInst(OpModule),
+					makeInst(OpConstant, 1),
+					makeInst(OpSetIndex),
+					makeInst(OpConstant, 2),
+					makeInst(OpModule),
+					makeInst(OpConstant, 3),
+					makeInst(OpSetIndex),
+					makeInst(OpReturn, 0),
+				), funcLocals(1)))
+
+				b.Compiled("mod", compFunc(concatInsts(
+					makeInst(OpConstant, 0),
+					makeInst(OpModule),
+					makeInst(OpConstant, 1),
+					makeInst(OpSetIndex),
+					makeInst(OpReturn, 0),
+				), funcName("#main")))
+			}),
 		),
 	)
 }
@@ -617,23 +712,21 @@ func TestCompiler_CompileImport(t *testing.T) {
 		}},
 		bytecode(
 			Array{
-				NewModule(ModuleInfo{Name: "mod", File: "source:mod"}, func(m *Module) {
-					m.Init = compFunc(concatInsts(
-						makeInst(OpReturn, 0),
-					))
-				}),
 				Int(1),
 			},
 			compFunc(concatInsts(
-				makeInst(OpLoadModule, 1, 0),
-				makeInst(OpJumpFalsy, 17),
-				makeInst(OpConstant, 2),
+				makeInst(OpLoadModule, 1),
+				makeInst(OpJumpFalsy, 12),
+				makeInst(OpConstant, 0),
 				makeInst(OpInitModule, 1, 0),
-				makeInst(OpStoreModule, 0),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			)),
-			withModules(1),
+			withModules(func(b *ModuleSpecBuilder) {
+				b.Compiled("mod", compFunc(concatInsts(
+					makeInst(OpReturn, 0),
+				)))
+			}),
 		),
 	)
 
@@ -643,25 +736,27 @@ func TestCompiler_CompileImport(t *testing.T) {
 		}},
 		bytecode(
 			Array{
-				NewModule(ModuleInfo{Name: "mod", File: "source:mod"}),
 				Int(1),
 				Str("x"),
 				Int(2),
 			},
 			compFunc(concatInsts(
-				makeInst(OpLoadModule, 1, 0),
-				makeInst(OpJumpFalsy, 28),
+				makeInst(OpLoadModule, 1),
+				makeInst(OpJumpFalsy, 23),
+				makeInst(OpConstant, 0),
+				makeInst(OpConstant, 1),
 				makeInst(OpConstant, 2),
-				makeInst(OpConstant, 3),
-				makeInst(OpConstant, 4),
 				makeInst(OpKeyValue, 1),
 				makeInst(OpKeyValueArray, 1),
 				makeInst(OpInitModule, 1, 2),
-				makeInst(OpStoreModule, 0),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			)),
-			withModules(1),
+			withModules(func(b *ModuleSpecBuilder) {
+				b.Compiled("mod", compFunc(concatInsts(
+					makeInst(OpReturn, 0),
+				)))
+			}),
 		),
 	)
 
@@ -670,18 +765,19 @@ func TestCompiler_CompileImport(t *testing.T) {
 			ModuleMap: moduleMap,
 		}},
 		bytecode(
-			Array{
-				NewModule(ModuleInfo{Name: "mod", File: "source:mod"}),
-			},
+			Array{},
 			compFunc(concatInsts(
-				makeInst(OpLoadModule, 1, 0), // 0000 constant, module indexes
-				makeInst(OpJumpFalsy, 14),    // 0005 if loaded no call is required
+				makeInst(OpLoadModule, 1),    // 0000 constant, module indexes
+				makeInst(OpJumpFalsy, 9),     // 0005 if loaded no call is required
 				makeInst(OpInitModule, 0, 0), // 0008 obtain return value from module
-				makeInst(OpStoreModule, 0),   // 0011 store returned value to module cache
 				makeInst(OpPop),              // 0014
 				makeInst(OpReturn, 0),        // 0015
 			)),
-			withModules(1),
+			withModules(func(b *ModuleSpecBuilder) {
+				b.Compiled("mod", compFunc(concatInsts(
+					makeInst(OpReturn, 0),
+				)))
+			}),
 		),
 	)
 }
@@ -706,18 +802,18 @@ export [2**3] = 7
 			Str("b"),
 			Int(3),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 5),
+				makeInst(OpConstant, 4),
 				makeInst(OpReturn, 1),
 			), funcName("c")),
 			Str("c"),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 5),
+				makeInst(OpConstant, 4),
 				makeInst(OpReturn, 1),
 			), funcName("d")),
 			Str("d"),
 			Int(4),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 10),
+				makeInst(OpConstant, 9),
 				makeInst(OpReturn, 1),
 			), funcName("e")),
 			Str("e"),
@@ -730,40 +826,39 @@ export [2**3] = 7
 		compFunc(concatInsts(
 			makeInst(OpNil),
 			makeInst(OpDefineLocal, 0),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 1),
 			makeInst(OpGetLocal, 1),
-			makeInst(OpGetLocal, 0),
+			makeInst(OpModule),
+			makeInst(OpConstant, 1),
+			makeInst(OpSetIndex),
 			makeInst(OpConstant, 2),
-			makeInst(OpSetIndex),
+			makeInst(OpModule),
 			makeInst(OpConstant, 3),
-			makeInst(OpGetLocal, 0),
-			makeInst(OpConstant, 4),
 			makeInst(OpSetIndex),
+			makeInst(OpConstant, 5),
+			makeInst(OpModule),
 			makeInst(OpConstant, 6),
-			makeInst(OpGetLocal, 0),
+			makeInst(OpSetIndex),
 			makeInst(OpConstant, 7),
-			makeInst(OpSetIndex),
+			makeInst(OpModule),
 			makeInst(OpConstant, 8),
-			makeInst(OpGetLocal, 0),
-			makeInst(OpConstant, 9),
 			makeInst(OpSetIndex),
+			makeInst(OpConstant, 10),
+			makeInst(OpModule),
 			makeInst(OpConstant, 11),
-			makeInst(OpGetLocal, 0),
-			makeInst(OpConstant, 12),
 			makeInst(OpSetIndex),
-			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 12),
 			makeInst(OpConstant, 13),
 			makeInst(OpConstant, 14),
 			makeInst(OpConstant, 15),
-			makeInst(OpConstant, 16),
 			makeInst(OpDict, 4),
-			makeInst(OpSelfAssign, int(token.Add)),
-			makeInst(OpSetLocal, 0),
-			makeInst(OpConstant, 17),
-			makeInst(OpGetLocal, 0),
-			makeInst(OpConstant, 3),
-			makeInst(OpConstant, 5),
+			makeInst(OpExtendModule),
+			makeInst(OpPop),
+			makeInst(OpConstant, 16),
+			makeInst(OpModule),
+			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 4),
 			makeInst(OpBinary, int(token.Pow)),
 			makeInst(OpSetIndex),
 			makeInst(OpReturn, 0),
@@ -825,7 +920,7 @@ func TestCompiler_Compile(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNotNil, 10),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpSetLocal, 0),
 			makeInst(OpReturn, 0),
 		),
@@ -857,9 +952,9 @@ func TestCompiler_Compile(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpNil),
 			makeInst(OpDefineLocal, 0),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 1),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpDefineLocal, 2),
 			makeInst(OpReturn, 0),
 		),
@@ -906,7 +1001,7 @@ func TestCompiler_Compile(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpGetLocal, 0),
 			makeInst(OpDefineLocal, 2),
-			makeInst(OpGetGlobal, 2),
+			makeInst(OpGetGlobal, 1),
 			makeInst(OpSetLocal, 2),
 			makeInst(OpReturn, 0),
 		),
@@ -918,8 +1013,8 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `1 + 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Add)),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -929,9 +1024,9 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `1; 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -940,8 +1035,8 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `1 - 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Sub)),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -951,8 +1046,8 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `1 * 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Mul)),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -962,8 +1057,8 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `1 ** 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Pow)),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -973,8 +1068,8 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `2 / 1`, bytecode(
 		Array{Int(2), Int(1)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Quo)),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1020,8 +1115,8 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `1 > 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Greater)),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1031,8 +1126,8 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `1 < 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Less)),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1042,8 +1137,8 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `1 >= 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.GreaterEq)),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1053,8 +1148,8 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `1 <= 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.LessEq)),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1064,8 +1159,8 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `1 == 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpEqual),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1075,8 +1170,8 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `1 != 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpNotEqual),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1140,7 +1235,7 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `-1`, bytecode(
 		Array{Int(1)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpUnary, int(token.Sub)),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1171,9 +1266,9 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `if true { 10 }; 3333`, bytecode(
 		Array{Int(10), Int(3333)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -1185,9 +1280,9 @@ func TestCompiler_Compile(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpTrue),         // 0000
 			makeInst(OpJumpFalsy, 8), // 0001
-			makeInst(OpConstant, 1),  // 0004
+			makeInst(OpConstant, 0),  // 0004
 			makeInst(OpPop),          // 0007
-			makeInst(OpConstant, 2),  // 0008
+			makeInst(OpConstant, 1),  // 0008
 			makeInst(OpPop),          // 0011
 			makeInst(OpReturn, 0),    // 0012
 		)),
@@ -1197,9 +1292,9 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `if true { 10 } else { 20 }; 3333;`, bytecode(
 		Array{Int(10), Int(3333)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -1209,9 +1304,9 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `if true { 10 } else {}; 3333;`, bytecode(
 		Array{Int(10), Int(3333)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -1221,9 +1316,9 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `if true { 10 }; 3333;`, bytecode(
 		Array{Int(10), Int(3333)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -1235,7 +1330,7 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{Int(3333)},
 		compFunc(concatInsts(
 			makeInst(OpJump, 3),     // 0000
-			makeInst(OpConstant, 1), // 0003
+			makeInst(OpConstant, 0), // 0003
 			makeInst(OpPop),         // 0006
 			makeInst(OpReturn, 0),   // 0007
 		)),
@@ -1248,9 +1343,9 @@ func TestCompiler_Compile(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpJump, 6),     // 0000
 			makeInst(OpJump, 10),    // 0003
-			makeInst(OpConstant, 1), // 0006
+			makeInst(OpConstant, 0), // 0006
 			makeInst(OpPop),         // 0009
-			makeInst(OpConstant, 2), // 0010
+			makeInst(OpConstant, 1), // 0010
 			makeInst(OpPop),         // 0013
 			makeInst(OpReturn, 0),   // 0014
 		)),
@@ -1262,12 +1357,12 @@ func TestCompiler_Compile(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpTrue),          // 0000
 			makeInst(OpJumpFalsy, 11), // 0001
-			makeInst(OpConstant, 1),   // 0004
+			makeInst(OpConstant, 0),   // 0004
 			makeInst(OpPop),           // 0007
 			makeInst(OpJump, 15),      // 0008
-			makeInst(OpConstant, 2),   // 0011
+			makeInst(OpConstant, 1),   // 0011
 			makeInst(OpPop),           // 0014
-			makeInst(OpConstant, 3),   // 0015
+			makeInst(OpConstant, 2),   // 0015
 			makeInst(OpPop),           // 0018
 			makeInst(OpReturn, 0),     // 0019
 		)),
@@ -1276,7 +1371,7 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `"string"`, bytecode(
 		Array{Str("string")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -1285,8 +1380,8 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `"str" + "ing"`, bytecode(
 		Array{Str("str"), Str("ing")},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Add)),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1296,7 +1391,7 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, "`raw string`", bytecode(
 		Array{RawStr("raw string")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -1305,7 +1400,7 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, "```raw heredoc string```", bytecode(
 		Array{RawStr("raw heredoc string")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -1314,7 +1409,7 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, "```\nraw heredoc string\n```", bytecode(
 		Array{RawStr("raw heredoc string")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -1323,7 +1418,7 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, "```\nraw heredoc string\n           ```", bytecode(
 		Array{RawStr("raw heredoc string")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -1332,7 +1427,7 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, "```\n  raw heredoc\n  string\nx\n```", bytecode(
 		Array{RawStr("raw heredoc\nstring\nx")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -1341,7 +1436,7 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, "```\n  raw heredoc\n\n  string\nx\n```", bytecode(
 		Array{RawStr("raw heredoc\n\nstring\nx")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -1350,7 +1445,7 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, "```\n\t\traw  \n\t\theredoc\n\t\t string\n\tx\n```", bytecode(
 		Array{RawStr("raw  \nheredoc\n string\nx")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -1359,9 +1454,9 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `a := 1; b := 2; a += b`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpDefineLocal, 1),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpGetLocal, 1),
@@ -1375,9 +1470,9 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `var (a = 1, b = 2); a += b`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpDefineLocal, 1),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpGetLocal, 1),
@@ -1393,10 +1488,10 @@ func TestCompiler_Compile(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpNil),
 			makeInst(OpDefineLocal, 0),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 1),
 			makeInst(OpGetLocal, 1),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpBinary, int(token.Add)),
 			makeInst(OpSetLocal, 0),
 			makeInst(OpReturn, 0),
@@ -1419,9 +1514,9 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `a := 1; b := 2; a /= b`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpDefineLocal, 1),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpGetLocal, 1),
@@ -1444,9 +1539,9 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `[1, 2, 3]`, bytecode(
 		Array{Int(1), Int(2), Int(3)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpArray, 3),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1456,17 +1551,17 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `[1 + 2, 3 - 4, 5 * 6, 7 ** 8]`, bytecode(
 		Array{Int(1), Int(2), Int(3), Int(4), Int(5), Int(6), Int(7), Int(8)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Add)),
+			makeInst(OpConstant, 2),
 			makeInst(OpConstant, 3),
-			makeInst(OpConstant, 4),
 			makeInst(OpBinary, int(token.Sub)),
+			makeInst(OpConstant, 4),
 			makeInst(OpConstant, 5),
-			makeInst(OpConstant, 6),
 			makeInst(OpBinary, int(token.Mul)),
+			makeInst(OpConstant, 6),
 			makeInst(OpConstant, 7),
-			makeInst(OpConstant, 8),
 			makeInst(OpBinary, int(token.Pow)),
 			makeInst(OpArray, 4),
 			makeInst(OpPop),
@@ -1486,12 +1581,12 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `({a: 2, b: 4, c: 6})`, bytecode(
 		Array{Str("a"), Int(2), Str("b"), Int(4), Str("c"), Int(6)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
 			makeInst(OpConstant, 3),
 			makeInst(OpConstant, 4),
 			makeInst(OpConstant, 5),
-			makeInst(OpConstant, 6),
 			makeInst(OpDict, 6),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1501,13 +1596,13 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `({a: 2 + 3, b: 5 * 6})`, bytecode(
 		Array{Str("a"), Int(2), Int(3), Str("b"), Int(5), Int(6)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpBinary, int(token.Add)),
+			makeInst(OpConstant, 3),
 			makeInst(OpConstant, 4),
 			makeInst(OpConstant, 5),
-			makeInst(OpConstant, 6),
 			makeInst(OpBinary, int(token.Mul)),
 			makeInst(OpDict, 4),
 			makeInst(OpPop),
@@ -1518,12 +1613,12 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `[1, 2, 3][1 + 1]`, bytecode(
 		Array{Int(1), Int(2), Int(3)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpArray, 3),
-			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 0),
 			makeInst(OpBinary, int(token.Add)),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
@@ -1534,11 +1629,11 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `({a: 2})[2 - 1]`, bytecode(
 		Array{Str("a"), Int(2), Int(1)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpDict, 2),
 			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpDict, 2),
-			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpBinary, int(token.Sub)),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
@@ -1549,9 +1644,9 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `[1, 2, 3][:]`, bytecode(
 		Array{Int(1), Int(2), Int(3)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpArray, 3),
 			makeInst(OpNil),
 			makeInst(OpNil),
@@ -1564,12 +1659,12 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `[1, 2, 3][0 : 2]`, bytecode(
 		Array{Int(1), Int(2), Int(3), Int(0)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpArray, 3),
-			makeInst(OpConstant, 4),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 1),
 			makeInst(OpSliceIndex),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1579,12 +1674,12 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `[1, 2, 3][ : 2]`, bytecode(
 		Array{Int(1), Int(2), Int(3)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpArray, 3),
 			makeInst(OpNil),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpSliceIndex),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1594,11 +1689,11 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `[1, 2, 3][0 : ]`, bytecode(
 		Array{Int(1), Int(2), Int(3), Int(0)},
 		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpArray, 3),
-			makeInst(OpConstant, 4),
+			makeInst(OpConstant, 3),
 			makeInst(OpNil),
 			makeInst(OpSliceIndex),
 			makeInst(OpPop),
@@ -1619,11 +1714,11 @@ func TestCompiler_Compile(t *testing.T) {
 			Int(2),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpArray, 2),
 			makeInst(OpCall, 1, 1),
 			makeInst(OpPop),
@@ -1647,7 +1742,7 @@ func TestCompiler_Compile(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpGetBuiltin, int(BuiltinFunc)),
 				makeInst(OpGetLocalPtr, 0),
-				makeInst(OpClosure, 1, 1),
+				makeInst(OpClosure, 0, 1),
 				makeInst(OpCall, 1, 0),
 				makeInst(OpDefineLocal, 1),
 				makeInst(OpReturn, 0),
@@ -1659,7 +1754,7 @@ func TestCompiler_Compile(t *testing.T) {
 		},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFunc)),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
@@ -1685,11 +1780,11 @@ func TestCompiler_Compile(t *testing.T) {
 				Int(2),
 			},
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
+				makeInst(OpConstant, 1),
 				makeInst(OpConstant, 2),
-				makeInst(OpConstant, 3),
 				makeInst(OpArray, 2),
 				makeInst(OpCall, 1, 1),
 				makeInst(OpPop),
@@ -1705,15 +1800,15 @@ func TestCompiler_Compile(t *testing.T) {
 				Int(5),
 				Int(10),
 				compFunc(concatInsts(
+					makeInst(OpConstant, 0),
 					makeInst(OpConstant, 1),
-					makeInst(OpConstant, 2),
 					makeInst(OpBinary, int(token.Add)),
 					makeInst(OpReturn, 1),
 				), funcName("f")),
 			},
 			compFunc(concatInsts(
 				makeInst(OpGetBuiltin, int(BuiltinFunc)),
-				makeInst(OpConstant, 3),
+				makeInst(OpConstant, 2),
 				makeInst(OpCall, 1, 0),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpReturn, 0),
@@ -1726,16 +1821,16 @@ func TestCompiler_Compile(t *testing.T) {
 			Int(1),
 			Int(2),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpPop),
-				makeInst(OpConstant, 2),
+				makeInst(OpConstant, 1),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			), funcName("f")),
 		},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFunc)),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
@@ -1747,15 +1842,15 @@ func TestCompiler_Compile(t *testing.T) {
 			Int(1),
 			Int(2),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpPop),
-				makeInst(OpConstant, 2),
+				makeInst(OpConstant, 1),
 				makeInst(OpReturn, 1),
 			), funcName("f")),
 		},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFunc)),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
@@ -1769,17 +1864,17 @@ func TestCompiler_Compile(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpTrue),          // 0000
 				makeInst(OpJumpFalsy, 12), // 0001
-				makeInst(OpConstant, 1),   // 0004
+				makeInst(OpConstant, 0),   // 0004
 				makeInst(OpReturn, 1),     // 0007
 				makeInst(OpJump, 17),      // 0009
-				makeInst(OpConstant, 2),   // 0012
+				makeInst(OpConstant, 1),   // 0012
 				makeInst(OpReturn, 1),     // 0015
 				makeInst(OpReturn, 0),     // 0017
 			), funcName("f")),
 		},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFunc)),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
@@ -1793,23 +1888,23 @@ func TestCompiler_Compile(t *testing.T) {
 			Int(3),
 			Int(4),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),   // 0000
+				makeInst(OpConstant, 0),   // 0000
 				makeInst(OpPop),           // 0003
 				makeInst(OpTrue),          // 0004
 				makeInst(OpJumpFalsy, 15), // 0005
-				makeInst(OpConstant, 2),   // 0008
+				makeInst(OpConstant, 1),   // 0008
 				makeInst(OpPop),           // 0011
 				makeInst(OpJump, 19),      // 0012
-				makeInst(OpConstant, 3),   // 0015
+				makeInst(OpConstant, 2),   // 0015
 				makeInst(OpPop),           // 0018
-				makeInst(OpConstant, 4),   // 0019
+				makeInst(OpConstant, 3),   // 0019
 				makeInst(OpPop),           // 0022
 				makeInst(OpReturn, 0),     // 0023
 			), funcName("f")),
 		},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFunc)),
-			makeInst(OpConstant, 5),
+			makeInst(OpConstant, 4),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
@@ -1824,7 +1919,7 @@ func TestCompiler_Compile(t *testing.T) {
 		},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFunc)),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
@@ -1836,15 +1931,15 @@ func TestCompiler_Compile(t *testing.T) {
 			Str("a"),
 			Int(1),
 			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
 				makeInst(OpConstant, 1),
-				makeInst(OpConstant, 2),
 				makeInst(OpDict, 2),
 				makeInst(OpReturn, 1),
 			), funcName("f")),
 		},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFunc)),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
@@ -1855,13 +1950,13 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{
 			Int(24),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			)),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpCall, 0, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1872,12 +1967,12 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{
 			Int(24),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpReturn, 1),
 			)),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpCall, 0, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1888,12 +1983,12 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{
 			Int(24),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpReturn, 1),
 			)),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpCall, 0, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1904,12 +1999,12 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{
 			Int(24),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpReturn, 1),
 			)),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpCall, 0, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1920,12 +2015,12 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{
 			Int(24),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpReturn, 1),
 			)),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpCall, 0, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -1936,14 +2031,14 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{
 			Int(24),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			)),
 		},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFunc)),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
@@ -1959,13 +2054,13 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{
 			Int(24),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			)),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpCall, 0, 0),
@@ -1980,12 +2075,12 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{
 			Int(24),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpReturn, 1),
 			)),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpCall, 0, 0),
@@ -2000,12 +2095,12 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{
 			Int(24),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpReturn, 1),
 			)),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpCall, 0, 0),
@@ -2026,11 +2121,11 @@ func TestCompiler_Compile(t *testing.T) {
 			), funcName("f")),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetBuiltin, int(BuiltinFunc)),
 			makeInst(OpGetLocalPtr, 0),
-			makeInst(OpClosure, 2, 1),
+			makeInst(OpClosure, 1, 1),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpDefineLocal, 1),
 			makeInst(OpReturn, 0),
@@ -2043,7 +2138,7 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{
 			Int(55),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpReturn, 1),
@@ -2054,7 +2149,7 @@ func TestCompiler_Compile(t *testing.T) {
 		},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinFunc)),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
@@ -2066,9 +2161,9 @@ func TestCompiler_Compile(t *testing.T) {
 			Int(55),
 			Int(77),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpDefineLocal, 0),
-				makeInst(OpConstant, 2),
+				makeInst(OpConstant, 1),
 				makeInst(OpDefineLocal, 1),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpGetLocal, 1),
@@ -2079,7 +2174,7 @@ func TestCompiler_Compile(t *testing.T) {
 			),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -2097,10 +2192,10 @@ func TestCompiler_Compile(t *testing.T) {
 			Int(24),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpCall, 1, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -2123,12 +2218,12 @@ func TestCompiler_Compile(t *testing.T) {
 			Int(3),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
 			makeInst(OpConstant, 3),
-			makeInst(OpConstant, 4),
 			makeInst(OpCall, 3, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -2155,12 +2250,12 @@ func TestCompiler_Compile(t *testing.T) {
 			Int(26),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
 			makeInst(OpConstant, 3),
-			makeInst(OpConstant, 4),
 			makeInst(OpCall, 3, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -2174,9 +2269,9 @@ func TestCompiler_Compile(t *testing.T) {
 			Int(55),
 			Int(23),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpDefineLocal, 0),
-				makeInst(OpConstant, 2),
+				makeInst(OpConstant, 1),
 				makeInst(OpSetLocal, 0),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpReturn, 1),
@@ -2185,7 +2280,7 @@ func TestCompiler_Compile(t *testing.T) {
 			),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -2212,7 +2307,7 @@ func TestCompiler_Compile(t *testing.T) {
 			)),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -2232,7 +2327,7 @@ func TestCompiler_Compile(t *testing.T) {
 
 			compFunc(concatInsts(
 				makeInst(OpGetLocalPtr, 0),
-				makeInst(OpClosure, 1, 1),
+				makeInst(OpClosure, 0, 1),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			),
@@ -2241,7 +2336,7 @@ func TestCompiler_Compile(t *testing.T) {
 			),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -2271,7 +2366,7 @@ func TestCompiler_Compile(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpGetFreePtr, 0),
 				makeInst(OpGetLocalPtr, 0),
-				makeInst(OpClosure, 1, 2),
+				makeInst(OpClosure, 0, 2),
 				makeInst(OpReturn, 1),
 			),
 				funcName("#2"),
@@ -2281,7 +2376,7 @@ func TestCompiler_Compile(t *testing.T) {
 
 			compFunc(concatInsts(
 				makeInst(OpGetLocalPtr, 0),
-				makeInst(OpClosure, 2, 1),
+				makeInst(OpClosure, 1, 1),
 				makeInst(OpReturn, 1),
 			),
 				funcName("#3"),
@@ -2290,7 +2385,7 @@ func TestCompiler_Compile(t *testing.T) {
 			),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -2317,7 +2412,7 @@ func TestCompiler_Compile(t *testing.T) {
 			Int(77),
 			Int(88),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 4),
+				makeInst(OpConstant, 3),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetFree, 0),
 				makeInst(OpGetFree, 1),
@@ -2332,33 +2427,33 @@ func TestCompiler_Compile(t *testing.T) {
 			),
 
 			compFunc(concatInsts(
-				makeInst(OpConstant, 3),
+				makeInst(OpConstant, 2),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetFreePtr, 0),
 				makeInst(OpGetFreePtr, 1),
 				makeInst(OpGetLocalPtr, 0),
-				makeInst(OpClosure, 5, 3),
+				makeInst(OpClosure, 4, 3),
 				makeInst(OpReturn, 1),
 			),
 				funcLocals(1),
 			),
 
 			compFunc(concatInsts(
-				makeInst(OpConstant, 2),
+				makeInst(OpConstant, 1),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetFreePtr, 0),
 				makeInst(OpGetLocalPtr, 0),
-				makeInst(OpClosure, 6, 2),
+				makeInst(OpClosure, 5, 2),
 				makeInst(OpReturn, 1),
 			),
 				funcLocals(1),
 			),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocalPtr, 0),
-			makeInst(OpClosure, 7, 1),
+			makeInst(OpClosure, 6, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		),
@@ -2371,18 +2466,18 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `for i:=0; i<10; i++ {}; j := 1`, bytecode(
 		Array{Int(0), Int(10), Int(1)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),                // 0000
+			makeInst(OpConstant, 0),                // 0000
 			makeInst(OpDefineLocal, 0),             // 0003
 			makeInst(OpGetLocal, 0),                // 0005
-			makeInst(OpConstant, 2),                // 0007
+			makeInst(OpConstant, 1),                // 0007
 			makeInst(OpBinary, int(token.Less)),    // 0010
 			makeInst(OpJumpFalsy, 27),              // 0012
 			makeInst(OpGetLocal, 0),                // 0015
-			makeInst(OpConstant, 3),                // 0017
+			makeInst(OpConstant, 2),                // 0017
 			makeInst(OpSelfAssign, int(token.Add)), // 0020
 			makeInst(OpSetLocal, 0),                // 0022
 			makeInst(OpJump, 5),                    // 0024
-			makeInst(OpConstant, 3),                // 0027
+			makeInst(OpConstant, 2),                // 0027
 			makeInst(OpDefineLocal, 0),             // 0030
 			makeInst(OpReturn, 0),                  // 0032
 		),
@@ -2417,18 +2512,18 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `a := 0; a == 0 && a != 1 || a < 1`, bytecode(
 		Array{Int(0), Int(1)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),             // 0000
+			makeInst(OpConstant, 0),             // 0000
 			makeInst(OpDefineLocal, 0),          // 0003
 			makeInst(OpGetLocal, 0),             // 0005
-			makeInst(OpConstant, 1),             // 0007
+			makeInst(OpConstant, 0),             // 0007
 			makeInst(OpEqual),                   // 0010
 			makeInst(OpAndJump, 20),             // 0011
 			makeInst(OpGetLocal, 0),             // 0014
-			makeInst(OpConstant, 2),             // 0016
+			makeInst(OpConstant, 1),             // 0016
 			makeInst(OpNotEqual),                // 0019
 			makeInst(OpOrJump, 30),              // 0020
 			makeInst(OpGetLocal, 0),             // 0023
-			makeInst(OpConstant, 2),             // 0025
+			makeInst(OpConstant, 1),             // 0025
 			makeInst(OpBinary, int(token.Less)), // 0028
 			makeInst(OpPop),                     // 0030
 			makeInst(OpReturn, 0),               // 0031
@@ -2441,7 +2536,7 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{Int(0), Int(1)},
 		compFunc(concatInsts(
 			makeInst(OpSetupTry, 16, 19), // 0000 // catch and finally positions
-			makeInst(OpConstant, 1),      // 0005
+			makeInst(OpConstant, 0),      // 0005
 			makeInst(OpDefineLocal, 0),   // 0008 a
 			makeInst(OpNil),              // 0010
 			makeInst(OpDefineLocal, 1),   // 0011 err
@@ -2454,7 +2549,7 @@ func TestCompiler_Compile(t *testing.T) {
 			makeInst(OpGetLocal, 0),      // 0023
 			makeInst(OpPop),              // 0025
 			makeInst(OpThrow, 0),         // 0026
-			makeInst(OpConstant, 2),      // 0028
+			makeInst(OpConstant, 1),      // 0028
 			makeInst(OpDefineLocal, 0),   // 0031 x
 			makeInst(OpReturn, 0),        // 0033
 		),
@@ -2466,7 +2561,7 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{Int(0)},
 		compFunc(concatInsts(
 			makeInst(OpSetupTry, 16, 19), // 0000
-			makeInst(OpConstant, 1),      // 0005
+			makeInst(OpConstant, 0),      // 0005
 			makeInst(OpDefineLocal, 0),   // 0008 a
 			makeInst(OpNil),              // 0010
 			makeInst(OpDefineLocal, 1),   // 0011 err
@@ -2485,9 +2580,9 @@ func TestCompiler_Compile(t *testing.T) {
 		Array{Int(0), Str("an error")},
 		compFunc(concatInsts(
 			makeInst(OpSetupTry, 18, 20), // 0000
-			makeInst(OpConstant, 1),      // 0005
+			makeInst(OpConstant, 0),      // 0005
 			makeInst(OpDefineLocal, 0),   // 0008 a
-			makeInst(OpConstant, 2),      // 0010
+			makeInst(OpConstant, 1),      // 0010
 			makeInst(OpThrow, 1),         // 0013
 			makeInst(OpJump, 20),         // 0015
 			makeInst(OpSetupCatch),       // 0018
@@ -2514,7 +2609,7 @@ func TestCompiler_Compile(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpNil),
 			makeInst(OpOrJump, 7),   // 0020
-			makeInst(OpConstant, 1), // 0025
+			makeInst(OpConstant, 0), // 0025
 			makeInst(OpPop),         // 0030
 			makeInst(OpReturn, 0),   // 0031
 		)),
@@ -2525,7 +2620,7 @@ func TestCompiler_Compile(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpNil),
 			makeInst(OpJumpNotNil, 7), // 0020
-			makeInst(OpConstant, 1),   // 0025
+			makeInst(OpConstant, 0),   // 0025
 			makeInst(OpPop),           // 0030
 			makeInst(OpReturn, 0),     // 0031
 		)),
@@ -2534,11 +2629,11 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `a := 1; a ??= 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNotNil, 15),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpSetLocal, 0),
 			makeInst(OpReturn, 0),
 		),
@@ -2548,9 +2643,9 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `a := 1; b := 2; a ??= b`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpDefineLocal, 1),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNotNil, 19),
@@ -2564,11 +2659,11 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `a := 1; a ||= 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpOrJump, 15),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpSetLocal, 0),
 			makeInst(OpReturn, 0),
 		),
@@ -2578,9 +2673,9 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `a := 1; b := 2; a ||= b`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpDefineLocal, 1),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpOrJump, 19),
@@ -2605,7 +2700,7 @@ func TestCompiler_Compile(t *testing.T) {
 	expectCompile(t, `$ := 1`, bytecode(
 		Array{Int(1)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpReturn, 0),
 		),
@@ -2622,20 +2717,19 @@ func TestCompiler_Compile(t *testing.T) {
 			ModuleMap: moduleMap,
 		}},
 		bytecode(
-			Array{
-				compFunc(concatInsts(
-					makeInst(OpReturn, 0),
-				)),
-			},
+			Array{},
 			compFunc(concatInsts(
-				makeInst(OpLoadModule, 1, 0), // 0000 constant, module indexes
-				makeInst(OpJumpFalsy, 14),    // 0005 if loaded no call is required
+				makeInst(OpLoadModule, 1),    // 0000 constant, module indexes
+				makeInst(OpJumpFalsy, 9),     // 0005 if loaded no call is required
 				makeInst(OpInitModule, 0, 0), // 0008 obtain return value from module
-				makeInst(OpStoreModule, 0),   // 0011 store returned value to module cache
 				makeInst(OpPop),              // 0014
 				makeInst(OpReturn, 0),        // 0015
 			)),
-			withModules(1),
+			withModules(func(b *ModuleSpecBuilder) {
+				b.Compiled("mod", compFunc(concatInsts(
+					makeInst(OpReturn, 0),
+				)))
+			}),
 		),
 	)
 
@@ -2648,18 +2742,17 @@ func TestCompiler_Compile(t *testing.T) {
 			ModuleMap: moduleMap,
 		}},
 		bytecode(
-			Array{
-				Dict{AttrName: Str("mod")},
-			},
+			Array{},
 			compFunc(concatInsts(
-				makeInst(OpLoadModule, 1, 0), // 0000 constant, module indexes
-				makeInst(OpJumpFalsy, 14),    // 0005 if loaded no call is required
+				makeInst(OpLoadModule, 1),    // 0000 constant, module indexes
+				makeInst(OpJumpFalsy, 9),     // 0005 if loaded no call is required
 				makeInst(OpInitModule, 0, 0), // 0005 if loaded no call is required
-				makeInst(OpStoreModule, 0),   // 0008 store value to module cache
 				makeInst(OpPop),              // 0011
 				makeInst(OpReturn, 0),        // 0012
 			)),
-			withModules(1),
+			withModules(func(b *ModuleSpecBuilder) {
+				b.Name("mod")
+			}),
 		),
 	)
 
@@ -2673,14 +2766,13 @@ func TestCompiler_Compile(t *testing.T) {
 		}},
 		bytecode(
 			Array{
-				Bytes(`abcd`),
+				&Embedded{Name: "file.js", Path: "file.js", Data: Bytes(`abcd`)},
 			},
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			)),
-			withEmbeds(1),
 		),
 	)
 
@@ -2704,16 +2796,16 @@ func TestCompiler_Compile(t *testing.T) {
 			compFunc(concatInsts(
 				makeInst(OpGetBuiltin,
 					int(BuiltinMakeArray)), // load builtin to call
-				makeInst(OpConstant, 1),    // load lhs length
+				makeInst(OpConstant, 0),    // load lhs length
 				makeInst(OpArray, 0),       // rhs empty array
 				makeInst(OpCall, 2, 0),     // call builtin :makeArray(2, [])
 				makeInst(OpDefineLocal, 0), // set builtin call result to :array
 				makeInst(OpGetLocal, 0),    // load :array
-				makeInst(OpConstant, 2),    // load 0 (array index)
+				makeInst(OpConstant, 1),    // load 0 (array index)
 				makeInst(OpGetIndex, 1),    // :array[0]
 				makeInst(OpDefineLocal, 1), // x = :array[0]
 				makeInst(OpGetLocal, 0),    // load :array
-				makeInst(OpConstant, 3),    // load 1 (array index)
+				makeInst(OpConstant, 2),    // load 1 (array index)
 				makeInst(OpGetIndex, 1),    // :array[1]
 				makeInst(OpDefineLocal, 2), // y = :array[1]
 				makeInst(OpNil),            // load nil
@@ -2732,15 +2824,15 @@ func TestCompiler_Compile(t *testing.T) {
 				Int(1),
 				Int(2),
 				compFunc(concatInsts(
+					makeInst(OpConstant, 0),
 					makeInst(OpConstant, 1),
-					makeInst(OpConstant, 2),
 					makeInst(OpArray, 2),
 					makeInst(OpReturn, 1),
 				),
 				),
 			},
 			compFunc(concatInsts(
-				makeInst(OpConstant, 3),
+				makeInst(OpConstant, 2),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
 			),
@@ -2755,7 +2847,7 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpNil),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpGetIndex, 1),
 				makeInst(OpReturn, 1),
 			),
@@ -2771,9 +2863,9 @@ func TestCompiler_Compile(t *testing.T) {
 				makeInst(OpNil),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
+				makeInst(OpConstant, 0),
 				makeInst(OpConstant, 1),
 				makeInst(OpConstant, 2),
-				makeInst(OpConstant, 3),
 				makeInst(OpGetIndex, 3),
 				makeInst(OpReturn, 1),
 			),
@@ -2796,12 +2888,12 @@ func TestCompiler_Compile(t *testing.T) {
 			Int(3),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
 			makeInst(OpConstant, 3),
-			makeInst(OpConstant, 4),
 			makeInst(OpCall, 3, 0),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -2823,7 +2915,7 @@ func TestCompilerReturn(t *testing.T) {
 	expectCompile(t, `return 1`, bytecode(
 		Array{Int(1)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpReturn, 1),
 		),
 			funcLocals(0),
@@ -2846,7 +2938,7 @@ func TestCompilerReturn(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpNil),
 			makeInst(OpOrJump, 9),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpReturn, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -2860,7 +2952,7 @@ func TestCompilerFor(t *testing.T) {
 	expectCompile(t, `var r = ""; for x in [] { r += str(x) } else { r += "@"}; r+="#"; return r`, bytecode(
 		Array{Str(""), Str("@"), Str("#")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpArray, 0),
 			makeInst(OpIterInit),
@@ -2881,11 +2973,11 @@ func TestCompilerFor(t *testing.T) {
 			makeInst(OpSetLocal, 0),
 			makeInst(OpJump, 18),
 			makeInst(OpGetLocal, 0),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpSelfAssign, int(token.Add)),
 			makeInst(OpSetLocal, 0),
 			makeInst(OpGetLocal, 0),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpSelfAssign, int(token.Add)),
 			makeInst(OpSetLocal, 0),
 			makeInst(OpGetLocal, 0),
@@ -2907,12 +2999,12 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpNil),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Add)),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNil, 23),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -2927,18 +3019,18 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNil, 42),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpGetIndex, 1),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpJumpNil, 42),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpGetIndex, 2),
+			makeInst(OpConstant, 3),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNil, 42),
 			makeInst(OpConstant, 4),
 			makeInst(OpGetIndex, 1),
-			makeInst(OpJumpNil, 42),
 			makeInst(OpConstant, 5),
-			makeInst(OpGetIndex, 1),
-			makeInst(OpConstant, 6),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -2955,19 +3047,19 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNil, 44),
+			makeInst(OpConstant, 0),
+			makeInst(OpGetIndex, 1),
 			makeInst(OpConstant, 1),
 			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNil, 44),
 			makeInst(OpConstant, 2),
 			makeInst(OpGetIndex, 1),
-			makeInst(OpJumpNil, 44),
 			makeInst(OpConstant, 3),
 			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNil, 44),
 			makeInst(OpConstant, 4),
 			makeInst(OpGetIndex, 1),
-			makeInst(OpJumpNil, 44),
 			makeInst(OpConstant, 5),
-			makeInst(OpGetIndex, 1),
-			makeInst(OpConstant, 6),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -2982,9 +3074,9 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNil, 18),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpGetIndex, 1),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -2999,7 +3091,7 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNil, 13),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -3014,9 +3106,9 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNil, 18),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpGetIndex, 1),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -3031,10 +3123,10 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNil, 21),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNil, 21),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -3052,12 +3144,12 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpNil),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Add)),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNil, 23),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -3076,12 +3168,12 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNil, 26),
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Add)),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNil, 26),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -3097,14 +3189,14 @@ func TestCompilerNullishSelector(t *testing.T) {
 		compFunc(concatInsts(
 			makeInst(OpNil),
 			makeInst(OpDefineLocal, 0),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 1),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNil, 25),
 			makeInst(OpGetLocal, 1),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNil, 25),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -3126,19 +3218,19 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNil, 44),
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
-			makeInst(OpConstant, 2),
 			makeInst(OpBinary, int(token.Add)),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNil, 44),
+			makeInst(OpConstant, 2),
+			makeInst(OpGetIndex, 1),
 			makeInst(OpConstant, 3),
 			makeInst(OpGetIndex, 1),
+			makeInst(OpJumpNil, 44),
 			makeInst(OpConstant, 4),
 			makeInst(OpGetIndex, 1),
-			makeInst(OpJumpNil, 44),
 			makeInst(OpConstant, 5),
-			makeInst(OpGetIndex, 1),
-			makeInst(OpConstant, 6),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -3162,21 +3254,21 @@ func TestCompilerNullishSelector(t *testing.T) {
 			makeInst(OpDefineLocal, 1),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpNil, 53),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpOrJump, 20),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNil, 53),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpGetIndex, 1),
-			makeInst(OpConstant, 4),
+			makeInst(OpConstant, 3),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpJumpNil, 53),
 			makeInst(OpGetLocal, 1),
 			makeInst(OpJumpNotNil, 46),
-			makeInst(OpConstant, 5),
+			makeInst(OpConstant, 4),
 			makeInst(OpGetIndex, 1),
-			makeInst(OpConstant, 6),
+			makeInst(OpConstant, 5),
 			makeInst(OpGetIndex, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
@@ -3232,7 +3324,7 @@ func TestCompilerStdIO(t *testing.T) {
 		Array{Int(0)},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinStdIO)),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpNil),
 			makeInst(OpCall, 2, 0),
 			makeInst(OpReturn, 0),
@@ -3242,7 +3334,7 @@ func TestCompilerStdIO(t *testing.T) {
 		Array{Int(0)},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinStdIO)),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpNil),
 			makeInst(OpCall, 2, 0),
 			makeInst(OpReturn, 0),
@@ -3252,7 +3344,7 @@ func TestCompilerStdIO(t *testing.T) {
 		Array{Int(1)},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinStdIO)),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpNil),
 			makeInst(OpCall, 2, 0),
 			makeInst(OpReturn, 0),
@@ -3262,7 +3354,7 @@ func TestCompilerStdIO(t *testing.T) {
 		Array{Int(2)},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinStdIO)),
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpNil),
 			makeInst(OpCall, 2, 0),
 			makeInst(OpReturn, 0),
@@ -3280,16 +3372,16 @@ func TestCompilerScopes(t *testing.T) {
         }`, bytecode(
 		Array{Int(1), Int(2), Int(3)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpJumpFalsy, 22),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpSetLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpDefineLocal, 1),
 			makeInst(OpJump, 31),
-			makeInst(OpConstant, 3),
+			makeInst(OpConstant, 2),
 			makeInst(OpSetLocal, 0),
 			makeInst(OpGetLocal, 0),
 			makeInst(OpDefineLocal, 1),
@@ -3314,16 +3406,16 @@ func TestCompilerScopes(t *testing.T) {
 			Int(2),
 			Int(3),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpJumpFalsy, 22),
-				makeInst(OpConstant, 2),
+				makeInst(OpConstant, 1),
 				makeInst(OpSetLocal, 0),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpDefineLocal, 1),
 				makeInst(OpJump, 31),
-				makeInst(OpConstant, 3),
+				makeInst(OpConstant, 2),
 				makeInst(OpSetLocal, 0),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpDefineLocal, 1),
@@ -3333,7 +3425,7 @@ func TestCompilerScopes(t *testing.T) {
 			),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 4),
+			makeInst(OpConstant, 3),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -3354,16 +3446,16 @@ func TestCompilerScopes(t *testing.T) {
 			Int(2),
 			Int(3),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpJumpFalsy, 22),
-				makeInst(OpConstant, 2),
+				makeInst(OpConstant, 1),
 				makeInst(OpSetLocal, 0),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpDefineLocal, 1),
 				makeInst(OpJump, 31),
-				makeInst(OpConstant, 3),
+				makeInst(OpConstant, 2),
 				makeInst(OpSetLocal, 0),
 				makeInst(OpGetLocal, 0),
 				makeInst(OpDefineLocal, 1),
@@ -3373,7 +3465,7 @@ func TestCompilerScopes(t *testing.T) {
 			),
 		},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 4),
+			makeInst(OpConstant, 3),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),
@@ -3391,7 +3483,7 @@ met f0(i int) {
 			Array{
 				Int(100),
 				compFunc(concatInsts(
-					makeInst(OpConstant, 1),
+					makeInst(OpConstant, 0),
 					makeInst(OpReturn, 1),
 				)),
 				compFunc(concatInsts(
@@ -3401,11 +3493,11 @@ met f0(i int) {
 			},
 			compFunc(concatInsts(
 				makeInst(OpGetBuiltin, int(BuiltinFunc)),
-				makeInst(OpConstant, 2),
+				makeInst(OpConstant, 1),
 				makeInst(OpCall, 1, 0),
 				makeInst(OpDefineLocal, 0),
 				makeInst(OpGetLocal, 0),
-				makeInst(OpConstant, 3),
+				makeInst(OpConstant, 2),
 				makeInst(OpAddMethod, 0, 1),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -3422,8 +3514,8 @@ func TestCompilerKeyValue(t *testing.T) {
 				Int(1),
 			},
 			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
 				makeInst(OpConstant, 1),
-				makeInst(OpConstant, 2),
 				makeInst(OpKeyValue, 1),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -3436,7 +3528,7 @@ func TestCompilerKeyValue(t *testing.T) {
 				Str("a"),
 			},
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpYes),
 				makeInst(OpKeyValue, 1),
 				makeInst(OpPop),
@@ -3450,7 +3542,7 @@ func TestCompilerKeyValue(t *testing.T) {
 				Str("a"),
 			},
 			compFunc(concatInsts(
-				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 0),
 				makeInst(OpKeyValue, 0),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),
@@ -3466,13 +3558,13 @@ func TestCompilerKeyValue(t *testing.T) {
 				Str("c"),
 			},
 			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
 				makeInst(OpConstant, 1),
-				makeInst(OpConstant, 2),
 				makeInst(OpKeyValue, 1),
-				makeInst(OpConstant, 3),
+				makeInst(OpConstant, 2),
 				makeInst(OpYes),
 				makeInst(OpKeyValue, 1),
-				makeInst(OpConstant, 4),
+				makeInst(OpConstant, 3),
 				makeInst(OpYes),
 				makeInst(OpKeyValue, 1),
 				makeInst(OpKeyValueArray, 3),
@@ -3494,12 +3586,12 @@ func TestCompilerMultiparen(t *testing.T) {
 		},
 		compFunc(concatInsts(
 			makeInst(OpGetBuiltin, int(BuiltinMixedParams)),
+			makeInst(OpConstant, 0),
 			makeInst(OpConstant, 1),
 			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 3),
 			makeInst(OpArray, 2),
+			makeInst(OpConstant, 3),
 			makeInst(OpConstant, 4),
-			makeInst(OpConstant, 5),
 			makeInst(OpKeyValue, 1),
 			makeInst(OpDict, 0),
 			makeInst(OpNamedParamsVar),
@@ -3515,10 +3607,10 @@ func TestCompiler_CompileReturnAssign(t *testing.T) {
 	expectCompile(t, `x := 1; return = x; x = 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpSetReturn, 0),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpSetLocal, 0),
 			makeInst(OpReturn, 0),
 		),
@@ -3528,10 +3620,10 @@ func TestCompiler_CompileReturnAssign(t *testing.T) {
 	expectCompile(t, `x := 1; return = x; y := 2; return = y`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpSetReturn, 0),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpDefineLocal, 1),
 			makeInst(OpSetReturn, 1),
 			makeInst(OpReturn, 0),
@@ -3549,9 +3641,9 @@ x	z
 )`, bytecode(
 		Array{Str("a"), Str("A\nbc )\nx\tz\n")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 1),
+			makeInst(OpConstant, 0),
 			makeInst(OpPop),
-			makeInst(OpConstant, 2),
+			makeInst(OpConstant, 1),
 			makeInst(OpPop),
 			makeInst(OpReturn, 0),
 		)),

@@ -6,11 +6,14 @@ import (
 	"github.com/gad-lang/gad"
 )
 
+const ModuleName = "filepath"
+
 var (
 	TWalkIterator = gad.NewType("WalkIterator", gad.TIterator)
 
-	ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (data gad.ModuleData, err error) {
-		return gad.Dict{
+	ModuleInit = gad.ModuleInitFunc(func(module *gad.Module, c gad.Call) (err error) {
+		spec := module.Spec
+		module.Data = gad.Dict{
 			"ext":          gad.MustNewReflectValue(filepath.Ext),
 			"clean":        gad.MustNewReflectValue(filepath.Clean),
 			"join":         gad.MustNewReflectValue(filepath.Join),
@@ -25,11 +28,13 @@ var (
 			"fromSlash":    gad.MustNewReflectValue(filepath.FromSlash),
 			"evalSymlinks": gad.MustNewReflectValue(filepath.EvalSymlinks),
 			"walk": &gad.BuiltinFunction{
+				Module:   spec,
 				FuncName: "walk",
 				Value:    Walk,
 			},
 			TWalkSkip.Name(): TWalkSkip,
 			"glob": &gad.BuiltinFunction{
+				Module:   spec,
 				FuncName: "glob",
 				Value: func(c gad.Call) (_ gad.Object, err error) {
 					if err = c.Args.CheckLen(1); err != nil {
@@ -55,6 +60,7 @@ var (
 				},
 			},
 			"splitList": &gad.BuiltinFunction{
+				Module:   spec,
 				FuncName: "splitList",
 				Value: func(c gad.Call) (_ gad.Object, err error) {
 					if err = c.Args.CheckLen(1); err != nil {
@@ -73,6 +79,8 @@ var (
 					return arr, nil
 				},
 			},
-		}, nil
+		}
+
+		return
 	})
 )

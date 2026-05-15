@@ -1939,7 +1939,7 @@ met mod.x(v int) {}
 return repr(mod;indent,indexes)
 `, newOpts().Module("mod1", `
 export x = func() {}
-`), Str(`‹module "mod1" at "source:mod1" ‹dict: {
+`), Str(`‹module "mod1" at "mod1" ‹dict: {
 	@data: ‹dict: {
 		x: ‹func ‹mod1.x› with 2 methods: [
 			0 🠆 ⨍() 🠆 ‹compiledFunction: mod1.#1()›,
@@ -1947,6 +1947,7 @@ export x = func() {}
 		]›
 	}›
 }››`))
+
 	testExpectRun(t, `
 func f {
 	() {}
@@ -3810,10 +3811,12 @@ func TestVMMap(t *testing.T) {
 		nil, Int(3))
 }
 
-func TestVMBuiltinModules(t *testing.T) {
-	testExpectRun(t, `out := import("mod1"); return dict(out)`,
-		newOpts().Module("mod1", Dict{"x": Int(1)}),
-		Dict{"x": Int(1)})
+func TestVMMainModule(t *testing.T) {
+	testExpectRun(t, `export a = 1; return [str(@module), @module.@main, @main]`, nil, Array{
+		Str(`‹module "(main)" {@data: {a: 1}}›`),
+		True,
+		True,
+	})
 }
 
 func TestVMSourceModules(t *testing.T) {
@@ -3854,7 +3857,7 @@ func TestVMSourceModules(t *testing.T) {
 					{K: Str("x"), V: Int(2)},
 				},
 			},
-			Str("source:mod1"),
+			Str("mod1"),
 			Str("mod1"),
 		})
 
@@ -3876,7 +3879,7 @@ func TestVMSourceModules(t *testing.T) {
 
 	testExpectRun(t, `out := import("mod1"); return dict(out)`,
 		newOpts().Module("mod1", `export{name: @name, file: @file, ismod: !@main}; x := 1`),
-		Dict{"name": Str("mod1"), "file": Str("source:mod1"), "ismod": True})
+		Dict{"name": Str("mod1"), "file": Str("mod1"), "ismod": True})
 
 	// modules are evaluated once, calling in different scopes returns same object
 	testExpectRun(t, `
@@ -3938,21 +3941,22 @@ func TestVMSourceModules(t *testing.T) {
 	expectErrHas(t, `import("mod1")`,
 		newOpts().Module("mod1", `import("mod2")`).
 			Module("mod2", `import("mod1")`).CompilerError(),
-		"Compile Error: cyclic module import: mod1\n\tat mod2:1:1")
+		`Compile Error: cyclic module import: "(main)" → "mod1" → "mod2" → "mod1"
+	at mod2:1:1`)
 
 	// (main) -> mod1 -> mod2 -> mod3 -> mod1
 	expectErrHas(t, `import("mod1")`,
 		newOpts().Module("mod1", `import("mod2")`).
 			Module("mod2", `import("mod3")`).
 			Module("mod3", `import("mod1")`).CompilerError(),
-		"Compile Error: cyclic module import: mod1\n\tat mod3:1:1")
+		"Compile Error: cyclic module import: \"(main)\" → \"mod1\" → \"mod2\" → \"mod3\" → \"mod1\"\n\tat mod3:1:1")
 
 	// (main) -> mod1 -> mod2 -> mod3 -> mod2
 	expectErrHas(t, `import("mod1")`,
 		newOpts().Module("mod1", `import("mod2")`).
 			Module("mod2", `import("mod3")`).
 			Module("mod3", `import("mod2")`).CompilerError(),
-		"Compile Error: cyclic module import: mod2\n\tat mod3:1:1")
+		"Compile Error: cyclic module import: \"(main)\" → \"mod1\" → \"mod2\" → \"mod3\" → \"mod2\"\n\tat mod3:1:1")
 
 	// unknown modules
 	expectErrHas(t, `import("mod0")`,
@@ -4006,9 +4010,8 @@ func TestVMSourceModules(t *testing.T) {
 	testExpectRun(t, `
 	mod1 := import("mod1")
 	return str(mod1)
-	`, newOpts().Module("mod1", ModuleInitFunc(func(module *Module, c Call) (data ModuleData, err error) {
-		return Dict{"x": Int(2)}, nil
-	})), Str("‹module \"mod1\" {@data: {x: 2}}›"))
+	`, newOpts().Module("mod1", ModuleInitWithDataDict(Dict{"x": Int(2)})),
+		Str("‹module \"mod1\" at \"builtinModuleInit:mod1\" {@data: {x: 2}}›"))
 }
 
 func TestVMUnary(t *testing.T) {
@@ -5191,29 +5194,30 @@ func TestVMReturn(t *testing.T) {
 
 func TestVMExport(t *testing.T) {
 	testExpectRun(t, `
-var @exports = {"_":nil}
 const a = 1
 export a
 export b = 2
 export c(){return 3}
 export func d(){return 3}
-export e() => 4
+export e(v bool|int) => v
 export {f:5, g:6}
 export [2**3] = 7
-return str(@exports;indent,sortedKeys)
+return str(@module;indent,sortedKeys)
 `,
 		nil,
-		Str(`{
-	8: 7,
-	_: nil,
-	a: 1,
-	b: 2,
-	c: ‹compiledFunction: (main).c()›,
-	d: ‹compiledFunction: (main).d()›,
-	e: ‹compiledFunction: (main).e()›,
-	f: 5,
-	g: 6
-}`))
+		Str(`‹module "(main)" {
+	@data: {
+		8: 7,
+		a: 1,
+		b: 2,
+		c: ‹compiledFunction: (main).c()›,
+		d: ‹compiledFunction: (main).d()›,
+		e: ‹compiledFunction: (main).e(v bool|int)›,
+		f: 5,
+		g: 6
+	}
+}›`))
+
 	testExpectRun(t, `mod := import("mod"); return str(dict(mod);indent,sortedKeys)`,
 		newOpts().
 			Module("mod", `
@@ -5222,7 +5226,7 @@ export a
 export b = 2
 export c(){return 3}
 export func d(){return 3}
-export e() => 4
+export e(v bool|int) => 4
 export {f:5, g:6}
 export [2**3] = 7
 `),
@@ -5232,7 +5236,7 @@ export [2**3] = 7
 	b: 2,
 	c: ‹compiledFunction: mod.c()›,
 	d: ‹compiledFunction: mod.d()›,
-	e: ‹compiledFunction: mod.e()›,
+	e: ‹compiledFunction: mod.e(v bool|int)›,
 	f: 5,
 	g: 6
 }`))

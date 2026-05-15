@@ -68,6 +68,14 @@ VMLoop:
 				vm.err = err
 				return
 			}
+		case OpExtendModule:
+			data := vm.stack[vm.sp-1]
+			if u, _ := data.(IndexSetterUpdater); u != nil {
+				u.UpdateIndexSetter(vm.modulesCache[vm.CurrentModuleSpec().Index])
+			} else if err := vm.throwGenErr(ErrType.NewErrorf("%s can't updates Module", data.Type().FullName())); err != nil {
+				vm.err = err
+				return
+			}
 		case OpSelfAssign:
 			tok := token.Token(vm.curInsts[vm.ip+1])
 			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
@@ -211,6 +219,10 @@ VMLoop:
 			}
 			vm.ip++
 			continue
+		case OpSetReturnModule:
+			var o Object = vm.modulesCache[vm.CurrentModuleSpec().Index]
+			vm.curFrame.fn.Return = &ObjectPtr{Value: &o}
+			continue
 		case OpReturn:
 			numRet := vm.curInsts[vm.ip+1]
 			bp := vm.curFrame.basePointer
@@ -233,7 +245,7 @@ VMLoop:
 			if vm.frameIndex == 1 {
 				return
 			}
-			vm.clearCurrentFrame()
+			vm.finalizeFrame(&vm.stack[bp-1])
 			parent := &(vm.frames[vm.frameIndex-2])
 			vm.frameIndex--
 			switch Opcode(parent.fn.Instructions[parent.ip]) {
@@ -557,19 +569,25 @@ VMLoop:
 			vm.stack[vm.sp] = vm.StdErr
 			vm.sp++
 		case OpDotName:
-			vm.stack[vm.sp] = Str(vm.CurrentModule().Name())
+			vm.stack[vm.sp] = Str(vm.CurrentModuleSpec().Name)
 			vm.sp++
 		case OpDotFile:
-			vm.stack[vm.sp] = Str(vm.CurrentModule().File())
+			vm.stack[vm.sp] = Str(vm.CurrentModuleSpec().URL)
 			vm.sp++
 		case OpIsMain:
-			vm.stack[vm.sp] = Bool(vm.CurrentModule().Name() == MainName)
+			vm.stack[vm.sp] = Bool(vm.CurrentModuleSpec().Main)
 			vm.sp++
 		case OpNotIsMain:
-			vm.stack[vm.sp] = Bool(vm.CurrentModule().Name() != MainName)
+			vm.stack[vm.sp] = Bool(!vm.CurrentModuleSpec().Main)
 			vm.sp++
 		case OpModule:
-			vm.stack[vm.sp] = vm.CurrentModule()
+			static := vm.CurrentModuleSpec()
+			module := vm.modulesCache[static.Index]
+			if module == nil {
+				module = NewModule(static)
+				vm.modulesCache[static.Index] = module
+			}
+			vm.stack[vm.sp] = module
 			vm.sp++
 		case OpCallee:
 			vm.stack[vm.sp] = vm.curFrame.fn
@@ -653,13 +671,15 @@ VMLoop:
 		case OpComputedValue:
 			vm.stack[vm.sp-1] = &ComputedValue{CallerObject: vm.stack[vm.sp-1].(CallerObject)}
 		case OpLoadModule:
-			cidx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
-			midx := int(vm.curInsts[vm.ip+4]) | int(vm.curInsts[vm.ip+3])<<8
-			value := vm.modulesCache[midx]
+			index := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+			value := vm.modulesCache[index]
 
 			if value == nil {
 				// module cache is empty, load the object from constants
-				vm.stack[vm.sp] = vm.constants[cidx]
+				spec := vm.modules[index]
+				module := NewModule(spec)
+				vm.modulesCache[spec.Index] = module
+				vm.stack[vm.sp] = module
 				vm.sp++
 				// load module by putting true for subsequent OpJumpFalsy
 				// if module is a compiledFunction it will be called and result will be stored in module cache
@@ -674,9 +694,9 @@ VMLoop:
 				vm.sp++
 			}
 
-			vm.ip += 4
+			vm.ip += 2
 		case OpInitModule:
-			err := vm.xOpCallModule()
+			err := vm.xOpInitModule()
 			if err == nil {
 				continue
 			}
@@ -684,17 +704,6 @@ VMLoop:
 				vm.err = err
 				return
 			}
-		case OpStoreModule:
-			midx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
-			sp := vm.sp - 1
-			var module *Module
-			if module, _ = vm.stack[sp].(*Module); module == nil {
-				// if module is initializes by OpInitModule, the SP is +1 for ModuleData result
-				module = vm.stack[sp-1].(*Module)
-				vm.sp--
-			}
-			vm.modulesCache[midx] = module
-			vm.ip += 2
 		case OpSetupTry:
 			vm.xOpSetupTry()
 		case OpSetupCatch:

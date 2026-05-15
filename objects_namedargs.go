@@ -450,9 +450,9 @@ func (o KeyValueArray) Type() ObjectType {
 	return TKeyValueArray
 }
 
-func (o KeyValueArray) UpdateDict(out Dict) {
+func (o KeyValueArray) UpdateIndexSetter(out StringIndexSetter) {
 	for _, v := range o {
-		out[v.K.ToString()] = v.V
+		out.Set(v.K.ToString(), v.V)
 	}
 }
 

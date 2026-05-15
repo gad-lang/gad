@@ -9,9 +9,12 @@ import (
 	cmdu "github.com/unapu-go/cmd-utils"
 )
 
+const ModuleName = "os"
+
 var (
-	ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data gad.ModuleData, err error) {
-		return gad.Dict{
+	ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err error) {
+		spec := module.Spec
+		module.Data = gad.Dict{
 			"FileFlag":     TFileFlag,
 			"pwd":          gad.MustNewReflectValue(os.Getwd),
 			"uid":          gad.MustNewReflectValue(os.Getuid),
@@ -30,25 +33,32 @@ var (
 			"rmAll":        gad.MustNewReflectValue(os.RemoveAll),
 			"stat":         gad.MustNewReflectValue(os.Stat),
 			"exec": &gad.Function{
+				Module:   spec,
 				FuncName: "exec",
 				Value:    Exec,
 			},
 			"exists": &gad.Function{
+				Module:   spec,
 				FuncName: "exists",
 				Value:    Exists,
 			},
 			"createFile": &gad.Function{
+				Module:   spec,
 				FuncName: "createFile",
 				Value:    CreateFile,
 			},
 			"openFile": &gad.Function{
+				Module:   spec,
 				FuncName: "openFile",
 				Value:    OpenFile,
 			},
 			"readFile": &gad.Function{
+				Module:   spec,
 				FuncName: "readFile",
 				Value:    ReadFile,
 			},
-		}, err
+		}
+
+		return
 	}
 )

@@ -269,6 +269,8 @@ func (o Uint) Format(s fmt.State, verb rune) {
 // Float represents float values and implements Object interface.
 type Float float64
 
+var NaN = Float(math.NaN())
+
 func (o Float) Type() ObjectType {
 	return TFloat
 }

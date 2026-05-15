@@ -11,9 +11,12 @@ import (
 	"github.com/gad-lang/gad/stdlib"
 )
 
+const ModuleName = "json"
+
 // ModuleInit represents json module.
-var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data gad.ModuleData, err error) {
-	return gad.Dict{
+var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err error) {
+	spec := module.Spec
+	module.Data = gad.Dict{
 		// gad:doc
 		// # json module
 		//
@@ -21,7 +24,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Marshal(v any) -> bytes
 		// Returns the JSON encoding v or error.
 		"Marshal": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Marshal",
 			Value:    funcPpVM_OROe(marshalFunc),
 		},
@@ -29,7 +32,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// MarshalIndent(v any, prefix string, indent string) -> bytes
 		// MarshalIndent is like Marshal but applies IndentCount to format the output.
 		"MarshalIndent": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "MarshalIndent",
 			Value:    funcPpVM_OssROe(marshalIndentFunc),
 		},
@@ -37,7 +40,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// IndentCount(src bytes, prefix string, indent string) -> bytes
 		// Returns indented form of the JSON-encoded src or error.
 		"IndentCount": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "IndentCount",
 			Value:    funcPb2ssROe(indentFunc),
 		},
@@ -46,7 +49,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Returns a wrapped bytes to provide raw encoded JSON value to Marshal
 		// functions.
 		"RawMessage": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "RawMessage",
 			Value:    stdlib.FuncPb2RO(rawMessageFunc),
 		},
@@ -54,7 +57,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Compact(data bytes, escape bool) -> bytes
 		// Returns elided insignificant space characters from data or error.
 		"Compact": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Compact",
 			Value:    funcPb2bROe(compactFunc),
 		},
@@ -62,7 +65,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Quote(v any) -> encoderOptions
 		// Returns a wrapped object to provide Marshal functions to quote v.
 		"Quote": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Quote",
 			Value:    funcPORO(quoteFunc),
 		},
@@ -72,7 +75,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// encoding.
 		// This can be used not to quote all array or map items.
 		"NoQuote": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "NoQuote",
 			Value:    funcPORO(noQuoteFunc),
 		},
@@ -81,7 +84,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Returns a wrapped object to provide Marshal functions not to escape html
 		// while encoding.
 		"NoEscape": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "NoEscape",
 			Value:    funcPORO(noEscapeFunc),
 		},
@@ -92,7 +95,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// if intAsDecimal is true, parses int values as decimal
 		// Unmarshal parses the JSON-encoded p and returns the result or error.
 		"Unmarshal": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Unmarshal",
 			Value:    funcPb2b_numberAsDecimal_b_floatAsDecimal_b_intAsDecimal_ROe(unmarshalFunc),
 		},
@@ -100,11 +103,13 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (data g
 		// Valid(p bytes) -> bool
 		// Reports whether p is a valid JSON encoding.
 		"Valid": &gad.Function{
-			Module:   module,
+			Module:   spec,
 			FuncName: "Valid",
 			Value:    stdlib.FuncPb2RO(validFunc),
 		},
-	}, nil
+	}
+
+	return
 }
 
 func marshalFunc(vm *gad.VM, o gad.Object) (gad.Object, error) {

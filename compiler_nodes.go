@@ -5,6 +5,8 @@
 package gad
 
 import (
+	"slices"
+
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
@@ -488,6 +490,20 @@ func (c *Compiler) compileAssignStmt(
 		c.emit(nd, OpConstant, c.addConstant(Int(len(lhs))))
 	}
 
+	if op == token.AddAssign {
+		switch lhs[0].(type) {
+		case *node.ModuleLit:
+			// compile RHSs
+			for _, expr := range rhs {
+				if err := c.Compile(expr); err != nil {
+					return err
+				}
+			}
+			c.emit(nd, OpSelfAssign, int(token.Unassign(op)))
+			return nil
+		}
+	}
+
 	if op == token.Assign {
 		switch lhs[0].(type) {
 		case *node.StdInLit, *node.StdOutLit, *node.StdErrLit:
@@ -649,32 +665,35 @@ func (c *Compiler) compileDefineAssign(
 	op token.Token,
 	allowRedefine bool,
 ) error {
-	ident, selectors := resolveAssignLHS(lhs)
+	ident, identExpr, selectors := resolveAssignLHS(lhs)
+
 	numSel := len(selectors)
 	if numSel == 0 && op == token.Define {
 		return c.compileDefine(nd, ident, allowRedefine, keyword)
-	}
+	} else if _, ok := identExpr.(*node.ModuleLit); ok {
+		c.emit(nd, OpModule)
+	} else {
+		symbol, err := c.requireSymbol(nd, ident)
+		if err != nil {
+			return err
+		}
 
-	symbol, err := c.requireSymbol(nd, ident)
-	if err != nil {
-		return err
-	}
+		if numSel == 0 {
+			return c.compileAssign(nd, symbol, ident)
+		}
 
-	if numSel == 0 {
-		return c.compileAssign(nd, symbol, ident)
-	}
-
-	// get indexes until last one and set the value to the last index
-	switch symbol.Scope {
-	case ScopeLocal:
-		c.emit(nd, OpGetLocal, symbol.Index)
-	case ScopeFree:
-		c.emit(nd, OpGetFree, symbol.Index)
-	case ScopeGlobal:
-		c.emit(nd, OpGetGlobal, symbol.Index)
-	default:
-		return c.errorf(nd, "unexpected scope %q for symbol %q",
-			symbol.Scope, ident)
+		// get indexes until last one and set the value to the last index
+		switch symbol.Scope {
+		case ScopeLocal:
+			c.emit(nd, OpGetLocal, symbol.Index)
+		case ScopeFree:
+			c.emit(nd, OpGetFree, symbol.Index)
+		case ScopeGlobal:
+			c.emit(nd, OpGetGlobal, symbol.Index)
+		default:
+			return c.errorf(nd, "unexpected scope %q for symbol %q",
+				symbol.Scope, ident)
+		}
 	}
 
 	if numSel > 1 {
@@ -694,16 +713,20 @@ func (c *Compiler) compileDefineAssign(
 	return nil
 }
 
-func resolveAssignLHS(expr node.Expr) (name string, selectors []node.Expr) {
+func resolveAssignLHS(expr node.Expr) (name string, nameExpr node.Expr, selectors []node.Expr) {
 	switch term := expr.(type) {
 	case *node.SelectorExpr:
-		name, selectors = resolveAssignLHS(term.X)
+		name, nameExpr, selectors = resolveAssignLHS(term.X)
 		selectors = append(selectors, term.Sel)
 	case *node.IndexExpr:
-		name, selectors = resolveAssignLHS(term.X)
+		name, nameExpr, selectors = resolveAssignLHS(term.X)
 		selectors = append(selectors, term.Index)
 	case *node.IdentExpr:
 		name = term.Name
+		nameExpr = term
+	case *node.ModuleLit:
+		name = term.String()
+		nameExpr = term
 	}
 	return
 }
@@ -768,14 +791,17 @@ func (c *Compiler) compileReturn(nd *node.Return) error {
 	}
 
 	if nd.Assign {
-		if ident, _ := nd.Result.(*node.IdentExpr); ident != nil {
-			symbol, err := c.requireSymbol(nd, ident.Name)
+		switch t := nd.Result.(type) {
+		case *node.IdentExpr:
+			symbol, err := c.requireSymbol(nd, t.Name)
 			if err != nil {
 				return err
 			}
 			c.emit(nd, OpSetReturn, symbol.Index)
-		} else {
-			return c.errorf(nd, "return of assign require Ident")
+		case *node.ModuleLit:
+			c.emit(nd, OpSetReturnModule)
+		default:
+			return c.errorf(nd, "return of assign require Ident|ModuleLit")
 		}
 	} else {
 		if err := c.Compile(nd.Result); err != nil {
@@ -1180,7 +1206,7 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 		}
 	}
 
-	fork := c.fork(c.file, c.module, c.moduleMap, st)
+	fork := c.fork(c.file, c.moduleMap, st)
 
 	if typ != nil {
 		fork.variadic = typ.Params.Args.Var != nil
@@ -1648,27 +1674,30 @@ func (c *Compiler) compileFileStmts(stmts node.Stmts) (err error) {
 	return c.compileStmts(stmts...)
 }
 
-func (c *Compiler) compileModuleFile(nd *ModuleStmt) (err error) {
-	return c.compileFileStmts(append(node.Stmts{
-		&node.AssignStmt{
-			Token: token.Define,
-			LHS:   node.Exprs{node.EIdent(ExportsName, nd.Pos())},
-			RHS:   node.Exprs{&node.DictExpr{}},
-		},
-		&node.ReturnStmt{
-			Return: node.Return{
-				Result:    node.EIdent(ExportsName, nd.Pos()),
-				ReturnPos: nd.Pos(),
-				Assign:    true,
-			},
-		},
-	}, nd.Stmts...))
+func (c *Compiler) defineModule(module *ModuleSpec) *storeItem {
+	return c.addModule(1, module)
 }
 
-func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
+func (c *Compiler) CompileModule(nd *ModuleStmt) (err error) {
+	c.defineModule(nd.Module)
+	c.module = nd.Module
+	return c.compileFileStmts(nd.Stmts)
+}
+
+func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 	moduleName, args := nd.Build()
 	if moduleName == "" {
 		return c.errorf(nd, "empty module name")
+	}
+
+	var (
+		p   = c
+		pth []int
+	)
+
+	for p != nil {
+		pth = append(pth, p.module.Index)
+		p = p.parent
 	}
 
 	importer := c.moduleMap.Get(moduleName)
@@ -1678,17 +1707,29 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 
 	extImp, isExt := importer.(ExtImporter)
 	if isExt {
-		if name, err := extImp.Name(); name != "" {
-			moduleName = name
-		} else if err != nil {
+		if name, err := extImp.Name(); err != nil {
 			return c.errorf(nd, "resolve name of module '%s': %v", moduleName, err.Error())
+		} else if len(name) > 0 {
+			moduleName = name
 		}
 	}
 
-	module := NewModule(ModuleInfo{Name: moduleName})
-	moduleConstant, exists := c.getModule(moduleName)
+	if err = c.checkCyclicImports(nd, moduleName); err != nil {
+		return
+	}
+
+	pth = pth[:len(pth)-1]
+	slices.Reverse(pth)
+
+	moduleStoreEntry, exists := c.getModule(moduleName)
 	if !exists {
-		mod, url, err := importer.Import(c.opts.Context, module)
+		spec := &ModuleSpec{
+			ModuleInfo: ModuleInfo{
+				Name: moduleName,
+			},
+			Path: pth,
+		}
+		mod, url, err := importer.Import(c.opts.Context, spec)
 		if err != nil {
 			return c.error(nd, err)
 		}
@@ -1701,48 +1742,68 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) error {
 				moduleMap = c.BaseModuleMap()
 			}
 
-			module.Info.File = url
-			cidx, err := c.compileModule(nd, importer, module, moduleMap, v)
+			spec.URL = url
 
+			err = c.compileModule(nd, importer, spec, moduleMap, v)
 			if err != nil {
 				return err
 			}
 
-			moduleConstant = c.addModule(moduleName, 1, cidx)
+			moduleStoreEntry = c.moduleStore.items[spec.Index]
 		case ModuleInitFunc:
-			module.Init = v.Caller(module)
-			moduleConstant = c.addModule(moduleName, 1, c.addConstant(module))
+			spec.URL = url
+			spec.InitGoFunc = v.Caller(spec)
+			moduleStoreEntry = c.addModule(1, spec)
+		case BuiltinCompileModuleFunc:
+			var (
+				st = NewSymbolTable(c.symbolTable.builtins).
+					DisableBuiltin(c.symbolTable.DisabledBuiltins()...)
+				fork = c.fork(c.file, c.moduleMap, st)
+				bc   *Bytecode
+			)
+
+			spec.URL = url
+			moduleStoreEntry = c.addModule(1, spec)
+			fork.module = spec
+			fork.file = nil
+
+			if bc, err = v(&BuiltinCompileModuleContext{
+				Compiler: fork,
+				FileSet:  c.file.Set(),
+				Spec:     spec,
+			}); err != nil {
+				return c.error(nd, err)
+			}
+
+			c.constants = bc.Constants
+			spec.InitCompiledFunc = bc.Main
 		default:
 			return c.errorf(nd, "invalid import value type: %T", v)
 		}
 	}
 
-	module.ConstantIndex = moduleConstant.constantIndex
-
-	switch moduleConstant.typ {
+	switch moduleStoreEntry.typ {
 	case 1:
 		// load module
 		// if module is already stored, load from VM.modulesCache otherwise call compiled function
 		// and store copy of result to VM.modulesCache.
-		c.emit(nd, OpLoadModule, moduleConstant.constantIndex, moduleConstant.storeIndex)
+		c.emit(nd, OpLoadModule, moduleStoreEntry.storeIndex)
 		jumpPos := c.emit(nd, OpJumpFalsy, 0)
 
 		if err := c.compileCallArgs(nd.CallPos(), OpInitModule, &args, nil); err != nil {
 			return c.errorf(nd, "invalid init module args: %v", err)
 		}
 
-		c.emit(nd, OpStoreModule, moduleConstant.storeIndex)
 		c.changeOperand(jumpPos, len(c.instructions))
 	case 2:
 		// load module
 		// if module is already stored, load from VM.modulesCache otherwise copy object
 		// and store it to VM.modulesCache.
-		c.emit(nd, OpLoadModule, moduleConstant.constantIndex, moduleConstant.storeIndex)
+		c.emit(nd, OpLoadModule, moduleStoreEntry.storeIndex)
 		jumpPos := c.emit(nd, OpJumpFalsy, 0)
-		c.emit(nd, OpStoreModule, moduleConstant.storeIndex)
 		c.changeOperand(jumpPos, len(c.instructions))
 	default:
-		return c.errorf(nd, "invalid module type: %v", moduleConstant.typ)
+		return c.errorf(nd, "invalid module type: %v", moduleStoreEntry.typ)
 	}
 	return nil
 }
@@ -1753,42 +1814,31 @@ func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) error {
 		return c.errorf(nd, "empty path")
 	}
 
-	importer := c.embedMap.Get(pth)
+	importer := c.embeddedMap.Get(pth)
 	if importer == nil {
 		return c.errorf(nd, "path '%s' not found", pth)
 	}
 
-	extImp, isExt := importer.(ExtImporter)
+	extImp, isExt := importer.(EmbeddedExtImporter)
 	if isExt {
 		if name, err := extImp.Name(); name != "" {
 			pth = name
 		} else if err != nil {
-			return c.errorf(nd, "resolve name of module '%s': %v", pth, err.Error())
+			return c.errorf(nd, "resolve name of embed '%s': %v", pth, err.Error())
 		}
 	}
 
-	embed, exists := c.getEmbed(pth)
+	e, exists := c.getEmbed(pth)
 	if !exists {
-		mod, _, err := importer.Import(c.opts.Context, NewModule(ModuleInfo{Name: pth}))
+		data, err := importer.Import(c.opts.Context, pth)
 		if err != nil {
 			return c.error(nd, err)
 		}
-		switch v := mod.(type) {
-		case []byte:
-			embed = c.addEmbed(pth, 1, c.addConstant(Bytes(v)))
-		case Object:
-			embed = c.addEmbed(pth, 2, c.addConstant(v))
-		default:
-			return c.errorf(nd, "invalid embed value type: %T", v)
-		}
+		e = data
+		c.addEmbed(data)
 	}
 
-	switch embed.typ {
-	case 1, 2:
-		c.emit(nd, OpConstant, embed.constantIndex)
-	default:
-		return c.errorf(nd, "invalid embed type: %v", embed.typ)
-	}
+	c.emit(nd, OpConstant, c.addConstant(e))
 	return nil
 }
 
@@ -2024,13 +2074,13 @@ func (c *Compiler) compileExportStmt(nd *node.ExportStmt) (err error) {
 	if key == nil {
 		switch t := nd.ValueExpr.(type) {
 		case *node.DictExpr, *node.ParenExpr:
-			ass := &node.AssignStmt{
-				TokenPos: nd.Pos(),
-				Token:    token.AddAssign,
-				LHS:      []node.Expr{node.EIdent(ExportsName, nd.Pos())},
-				RHS:      []node.Expr{t},
+			if err = c.Compile(t); err != nil {
+				return
 			}
-			return c.Compile(ass)
+
+			c.emit(nd, OpExtendModule)
+			c.emit(nd, OpPop)
+			return nil
 		case *node.FuncWithMethodsExpr:
 			if t.NameExpr == nil {
 				return c.errorf(t, "*ExportStmt of value as %T require NameExpr field", t)
@@ -2066,7 +2116,7 @@ func (c *Compiler) compileExportStmt(nd *node.ExportStmt) (err error) {
 	ass := &node.AssignStmt{
 		TokenPos: nd.Pos(),
 		Token:    token.Assign,
-		LHS:      []node.Expr{node.EIndex(node.EIdent(ExportsName, nd.Pos()), key, nd.TokenPos, key.End())},
+		LHS:      []node.Expr{node.EIndex(node.LModule(nd.Pos()), key, nd.TokenPos, key.End())},
 		RHS:      []node.Expr{value},
 	}
 	return c.Compile(ass)

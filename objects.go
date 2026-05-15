@@ -600,6 +600,18 @@ func (o Bytes) ToStringF(w io.Writer) (err error) {
 	return
 }
 
+func (o Bytes) Print(state *PrinterState) (err error) {
+	if state.IsRepr {
+		defer state.WrapRepr(o)()
+		fmt.Fprintf(state, "len=%d", len(o))
+	} else if state.options.IsBytesToHex() {
+		err = o.ToStringF(state)
+	} else {
+		_, err = state.Write(o)
+	}
+	return
+}
+
 type FunctionOption func(f *Function)
 
 func FunctionWithParams(builder func(newParam func(name string) *ParamBuilder)) FunctionOption {
@@ -610,6 +622,7 @@ func FunctionWithParams(builder func(newParam func(name string) *ParamBuilder)) 
 		f.Header.WithParams(builder)
 	}
 }
+
 func FunctionWithNamedParams(builder func(newParam func(name string) *NamedParamBuilder)) FunctionOption {
 	return func(f *Function) {
 		if f.Header == nil {
@@ -627,14 +640,14 @@ type Function struct {
 	ToStringFunc func() string
 	Header       *FunctionHeader
 	pt           ParamsTypes
-	Module       *Module
+	Module       *ModuleSpec
 }
 
-func (f *Function) SetModule(module *Module) {
-	f.Module = module
+func (f *Function) SetModule(m *ModuleSpec) {
+	f.Module = m
 }
 
-func (f *Function) GetModule() *Module {
+func (f *Function) GetModule() *ModuleSpec {
 	return f.Module
 }
 
@@ -717,7 +730,7 @@ var (
 // BuiltinFunction represents a builtin function object and implements Object interface.
 type BuiltinFunction struct {
 	ObjectImpl
-	Module                *Module
+	Module                *ModuleSpec
 	FuncName              string
 	Value                 func(Call) (Object, error)
 	Header                *FunctionHeader
@@ -741,7 +754,7 @@ func (f *BuiltinFunction) Doc() string {
 	}
 
 	if f.Module != nil {
-		fmt.Fprintf(&buf, "\n\n**Module:** [%s](/modules/%[1]s)", f.Module.Info.Name)
+		fmt.Fprintf(&buf, "\n\n**Module:** [%s](/modules/%[1]s)", f.Module.Name)
 	}
 
 	if len(f.Usage) > 0 {
@@ -813,10 +826,10 @@ var (
 type BuiltinFunctionWithMethods struct {
 	*FuncSpec
 	name   string
-	Module *Module
+	Module *ModuleSpec
 }
 
-func NewBuiltinFunctionWithMethods(name string, module *Module) *BuiltinFunctionWithMethods {
+func NewBuiltinFunctionWithMethods(name string, module *ModuleSpec) *BuiltinFunctionWithMethods {
 	b := &BuiltinFunctionWithMethods{Module: module, name: name}
 	b.FuncSpec = NewFuncSpec(b)
 	return b
@@ -836,7 +849,7 @@ func (f BuiltinFunctionWithMethods) Copy() Object {
 	return cp
 }
 
-func (f *BuiltinFunctionWithMethods) GetModule() *Module {
+func (f *BuiltinFunctionWithMethods) GetModule() *ModuleSpec {
 	return f.Module
 }
 
@@ -846,7 +859,7 @@ func (f *BuiltinFunctionWithMethods) Name() string {
 
 func (f *BuiltinFunctionWithMethods) FullName() string {
 	if f.Module != nil {
-		return f.Module.Info.Name + "." + f.name
+		return f.Module.Name + "." + f.name
 	}
 	return f.name
 }
@@ -1233,14 +1246,15 @@ func (o *ObjectPtr) Call(c Call) (Object, error) {
 type Dict map[string]Object
 
 var (
-	_ Object       = Dict{}
-	_ Copier       = Dict{}
-	_ IndexDeleter = Dict{}
-	_ LengthGetter = Dict{}
-	_ KeysGetter   = Dict{}
-	_ ValuesGetter = Dict{}
-	_ ItemsGetter  = Dict{}
-	_ Printer      = Dict{}
+	_ Object            = Dict{}
+	_ Copier            = Dict{}
+	_ IndexDeleter      = Dict{}
+	_ LengthGetter      = Dict{}
+	_ KeysGetter        = Dict{}
+	_ ValuesGetter      = Dict{}
+	_ ItemsGetter       = Dict{}
+	_ Printer           = Dict{}
+	_ StringIndexSetter = Dict{}
 )
 
 func (o Dict) Type() ObjectType {
@@ -1530,11 +1544,8 @@ func (o Dict) Values() Array {
 	return arr
 }
 
-func (o *Dict) Set(key string, value Object) {
-	if *o == nil {
-		*o = Dict{}
-	}
-	(*o)[key] = value
+func (o Dict) Set(key string, value Object) {
+	o[key] = value
 }
 
 func (o Dict) ToNamedArgs() *NamedArgs {
@@ -1576,6 +1587,12 @@ func (o Dict) Backup(key string) func() {
 
 func (o Dict) ToDict() Dict {
 	return o
+}
+
+func (o Dict) UpdateIndexSetter(out StringIndexSetter) {
+	for k, v := range o {
+		out.Set(k, v)
+	}
 }
 
 // SyncDict represents map of objects and implements Object interface.
@@ -2021,13 +2038,13 @@ func (m *MixedParams) Type() ObjectType {
 
 func (m *MixedParams) ToDict() (d Dict) {
 	d = Dict{}
-	m.UpdateDict(d)
+	m.UpdateIndexSetter(d)
 	return
 }
 
-func (m *MixedParams) UpdateDict(d Dict) {
-	d["positional"] = m.Positional
-	d["named"] = m.Named
+func (m *MixedParams) UpdateIndexSetter(out StringIndexSetter) {
+	out.Set("positional", m.Positional)
+	out.Set("named", m.Named)
 }
 
 func (m *MixedParams) ToString() string {

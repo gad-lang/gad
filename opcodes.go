@@ -72,7 +72,6 @@ const (
 	OpIterValue
 	OpLoadModule
 	OpInitModule
-	OpStoreModule
 	OpSetupTry
 	OpSetupCatch
 	OpSetupFinally
@@ -80,6 +79,7 @@ const (
 	OpFinalizer
 	OpReturn
 	OpSetReturn
+	OpSetReturnModule
 	OpDefineLocal
 	OpTrue
 	OpFalse
@@ -100,6 +100,7 @@ const (
 	OpNamedParamValue
 	OpComputedValue
 	OpAddMethod
+	OpExtendModule
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -148,9 +149,9 @@ var OpcodeNames = [...]string{
 	OpIterValue:       "ITERVALUE",
 	OpLoadModule:      "LOADMODULE",
 	OpInitModule:      "INITMODULE",
-	OpStoreModule:     "STOREMODULE",
 	OpReturn:          "RETURN",
 	OpSetReturn:       "SETRETURN",
+	OpSetReturnModule: "SETRETURNMODULE",
 	OpSetupTry:        "SETUPTRY",
 	OpSetupCatch:      "SETUPCATCH",
 	OpSetupFinally:    "SETUPFINALLY",
@@ -175,6 +176,7 @@ var OpcodeNames = [...]string{
 	OpNamedParamValue: "NPARAMVALUE",
 	OpComputedValue:   "COMPUTEDVALUE",
 	OpAddMethod:       "ADDMETHOD",
+	OpExtendModule:    "EXTENDMODULE",
 }
 
 // OpcodeOperands is the number of operands.
@@ -223,11 +225,11 @@ var OpcodeOperands = [...][]int{
 	OpIterNextElse:    {2, 2}, // true pos, false pos
 	OpIterKey:         {},
 	OpIterValue:       {},
-	OpLoadModule:      {2, 2}, // constant index, module index
+	OpLoadModule:      {2},    // store index
 	OpInitModule:      {1, 1}, // number of arguments, named arguments
-	OpStoreModule:     {2},    // module index
 	OpSetReturn:       {1},    // local variable index
-	OpReturn:          {1},    // number of items (0 or 1)
+	OpSetReturnModule: {},
+	OpReturn:          {1}, // number of items (0 or 1)
 	OpSetupTry:        {2, 2},
 	OpSetupCatch:      {},
 	OpSetupFinally:    {},
@@ -250,6 +252,7 @@ var OpcodeOperands = [...][]int{
 	OpNamedParamValue: {},
 	OpComputedValue:   {},
 	OpAddMethod:       {1, 1}, // 0: number of selectors, 1: number of funcs
+	OpExtendModule:    {},
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

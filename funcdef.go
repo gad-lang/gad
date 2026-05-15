@@ -246,7 +246,7 @@ func (p *NamedParam) String() string {
 	return b.String()
 }
 
-func NewNamedParam(name string, value string) *NamedParam {
+func NewNamedParam(name, value string) *NamedParam {
 	return &NamedParam{Name: name, Value: value}
 }
 

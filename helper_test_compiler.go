@@ -9,6 +9,7 @@ import (
 
 	testhelper "github.com/gad-lang/gad/test_helper/teststrings"
 	"github.com/gad-lang/gad/tests"
+	"github.com/stretchr/testify/require"
 )
 
 type TestBytecodesEqualOptions struct {
@@ -67,30 +68,60 @@ func TestBytecodesEqual(t *testing.T,
 
 	t.Helper()
 
-	if expected.NumModules != got.NumModules {
-		t.Fatalf("NumModules not equal expected %d, got %d\n",
-			expected.NumModules, got.NumModules)
-	}
-
 	if !opts.NoInsertMainModule {
-		if len(expected.Constants) == 0 {
-			expected.Constants = append(expected.Constants, NewModule(ModuleInfo{Name: MainName}))
+		if len(expected.Modules) == 0 {
+			expected.Modules = []*ModuleSpec{{ModuleInfo: ModuleInfo{Name: MainName}}}
+			expected.NumModules++
 		} else {
-			m, _ := expected.Constants[0].(*Module)
-			if m == nil || m.Name() != MainName {
-				expected.Constants = append(Array{NewModule(ModuleInfo{Name: MainName})}, expected.Constants...)
+			m := expected.Modules[0]
+			if !m.Main {
+				expected.Modules = append([]*ModuleSpec{{ModuleInfo: ModuleInfo{Name: MainName}}}, expected.Modules...)
+				expected.NumModules++
 			}
 		}
+	}
+
+	expected.NumModules = len(expected.Modules)
+
+	if len(expected.Modules) != len(got.Modules) {
+		t.Fatalf("Modules len not equal\n"+
+			"Expected len(Modules):\n%d\nGot len(Modules):\n%d\n",
+			len(expected.Modules), len(got.Modules))
 	}
 
 	if len(expected.Constants) != len(got.Constants) {
 		t.Fatalf("Constants len not equal\n"+
 			"Expected len(Constants):\n%d\nGot len(Constants):\n%d\n"+
 			"Expected Dump:\n%s\nGot Dump:\n%s\n",
-			len(expected.Constants), len(got.Constants), repr(Array(expected.Constants)), repr(Array(got.Constants)))
+			len(expected.Constants), len(got.Constants), repr(expected.Constants), repr(got.Constants))
 	}
 
 	compareCf(expected.Main, got.Main, false, "Main functions")
+
+	for i, gMod := range got.Modules {
+		eMod := expected.Modules[i]
+		if gMod.ModuleInfo.Name != eMod.ModuleInfo.Name {
+			t.Fatalf("Module not equal at %d\nExpected:\n%v (%[2]T)\nGot:\n%v (%[3]T)\n",
+				i, eMod.ModuleInfo.Name, gMod.ModuleInfo.Name)
+		}
+
+		if eMod.InitGoFunc != nil {
+			require.NotNil(t, gMod.InitGoFunc, "Got module[%d] %s InitGoFunc is nil", i, eMod.ModuleInfo.Name)
+			ef := gMod.InitFunc(NewModule(eMod))
+			gf := gMod.InitFunc(NewModule(gMod))
+			require.Equal(t, ef.ToString(), gf.ToString(), "InitGoFunc not equal at %d", i)
+		} else if eMod.InitCompiledFunc != nil {
+			require.NotNil(t, gMod.InitCompiledFunc, "Got module[%d] %s InitCompiledFunc is nil", i, eMod.ModuleInfo.Name)
+			if !assertCompiledFunctionsEqual(t,
+				eMod.InitCompiledFunc, gMod.InitCompiledFunc, checkSourceMap) {
+				t.Fatalf("InitCompiledFunc not equal at %d \nExpected:\n%v\nGot:\n%v\n",
+					i, eMod.InitCompiledFunc.HeaderString(), gMod.InitCompiledFunc.HeaderString())
+			}
+		} else {
+			require.Nil(t, gMod.InitGoFunc)
+			require.Nil(t, gMod.InitCompiledFunc)
+		}
+	}
 
 	for i, gotObj := range got.Constants {
 		expectObj := expected.Constants[i]
@@ -105,29 +136,6 @@ func TestBytecodesEqual(t *testing.T,
 
 			compareCf(ef, g, true, fmt.Sprintf("Contants[%d]: CompiledFunctions", i))
 			continue
-		case *Module:
-			if am, _ := gotObj.(*Module); am != nil {
-				if !reflect.DeepEqual(g.Info, am.Info) {
-					t.Fatalf("Constants not equal at %d (*Module.info)\nExpected:\n%v (%[2]T)\nGot:\n%v (%[3]T)\n",
-						i, g.Info, am.Info)
-				}
-
-				if !reflect.DeepEqual(g.Data, am.Data) {
-					t.Fatalf("Constants not equal at %d (*Module.dict)\nExpected:\n%v (%[2]T)\nGot:\n%v (%[3]T)\n",
-						i, g.Data, am.Data)
-				}
-
-				if ei, _ := g.Init.(*CompiledFunction); ei != nil {
-					if ai, _ := am.Init.(*CompiledFunction); ai != nil {
-						if !assertCompiledFunctionsEqual(t,
-							ei, ei, checkSourceMap) {
-							t.Fatalf("Constants not equal at %d (*Module.init)\nExpected:\n%v (%[2]T)\nGot:\n%v (%[3]T)\n",
-								i, ei, ai)
-						}
-					}
-				}
-				continue
-			}
 		}
 
 		if !reflect.DeepEqual(expectObj, gotObj) {

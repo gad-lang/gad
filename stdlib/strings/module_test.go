@@ -11,8 +11,9 @@ import (
 )
 
 func TestModuleStrings(t *testing.T) {
-	d, _ := ModuleInit(nil, Call{})
-	module := d.(Dict)
+	mod := NewModule(NewModuleSpecFromName("test"))
+	ModuleInit(mod, Call{})
+	module := mod.ToDict()
 
 	contains := module["Contains"]
 	ret, err := MustCall(contains, Str("abc"), Str("b"))
