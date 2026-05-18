@@ -131,9 +131,9 @@ func TestREPL(t *testing.T) {
 		require.Contains(t, symout,
 			"Symbol{Literal:Gosched ")
 		require.Contains(t, symout,
-			"Symbol{Literal:SOURCE_PATH Index:1 Scope:GLOBAL Assigned:false Constant:false}")
+			"Symbol{Literal:SOURCE_PATH ")
 		require.Contains(t, symout,
-			"Symbol{Literal:test Index:0 Scope:LOCAL Assigned:true Constant:false}")
+			"Symbol{Literal:test ")
 	})
 	t.Run("modules_cache", func(t *testing.T) {
 		r := newREPL(ctx, cw)

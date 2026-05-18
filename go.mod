@@ -12,7 +12,6 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/unapu-go/cmd-utils v0.0.0-20210819145619-98d5bccf2672
 	github.com/xlab/treeprint v1.2.0
-	golang.org/x/mod v0.35.0
 )
 
 require (
