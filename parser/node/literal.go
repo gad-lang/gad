@@ -1030,7 +1030,10 @@ func (e *RawHeredocLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.Literal)
 }
 
-// TemplateLit represents an variadic of argument.
+// TemplateLit represents a template string literal prefixed with `#`, such as
+// `#"text"` or `#'symbol'`. It is parsed in ParseOperand when a token.Template
+// is followed by a string, raw string, heredoc, or symbol token.
+// The Value field holds the string/symbol expression that follows the `#` token.
 type TemplateLit struct {
 	TokenPos source.Pos
 	Value    Expr
