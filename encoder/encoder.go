@@ -11,10 +11,17 @@ import (
 	"github.com/gad-lang/gad"
 )
 
-func Encode(ctx *WriteContext, version byte, o any) (err error) {
-	ed := Encoders.byVersion[version]
+func Encode(ctx *WriteContext, typeID byte, version byte, o any) (err error) {
+	versions := Encoders.byTypeVersion[typeID]
+	if versions == nil {
+		return fmt.Errorf("encoder of type %d not supported", typeID)
+	}
+	ed := versions[version]
 	if ed == nil {
-		return fmt.Errorf("encoder of %d not supported", o)
+		return fmt.Errorf("encoder of type %d version %d not supported", typeID, version)
+	}
+	if err = ctx.WriteByte(typeID); err != nil {
+		return
 	}
 	if err = ctx.WriteByte(version); err != nil {
 		return
@@ -33,7 +40,7 @@ func EncodeObject(ctx *WriteContext, o any) (err error) {
 	if ed == nil {
 		return fmt.Errorf("encoder of %T not supported", o)
 	}
-	return Encode(ctx, ed.LastVersion, o)
+	return Encode(ctx, ed.TypeID, ed.LastVersion, o)
 }
 
 func EncodeArray[T any](ctx *WriteContext, arr []T) (err error) {

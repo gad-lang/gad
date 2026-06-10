@@ -43,7 +43,7 @@ func init() {
 		}
 
 		if s.InitCompiledFunc != nil {
-			err = Encode(ctx, binCompiledFunctionV1, s.InitCompiledFunc)
+			err = Encode(ctx, typeCompiledFunction, versionV1, s.InitCompiledFunc)
 		}
 
 		return

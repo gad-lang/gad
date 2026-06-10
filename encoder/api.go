@@ -113,22 +113,26 @@ type EncDec struct {
 }
 
 type TypeEncoder struct {
+	TypeID      byte
 	Encoders    map[byte]*EncDec
 	LastVersion byte
 }
 
 type encDecRegistrator struct {
-	byVersion map[byte]*EncDec
-	byType    map[reflect.Type]*TypeEncoder
+	byTypeVersion map[byte]map[byte]*EncDec
+	byType        map[reflect.Type]*TypeEncoder
 }
 
 var Encoders = encDecRegistrator{
-	byVersion: make(map[byte]*EncDec),
-	byType:    make(map[reflect.Type]*TypeEncoder),
+	byTypeVersion: make(map[byte]map[byte]*EncDec),
+	byType:        make(map[reflect.Type]*TypeEncoder),
 }
 
-func Register[T any](version byte, encDec *EncDec) {
-	Encoders.byVersion[version] = encDec
+func Register[T any](typeID byte, version byte, encDec *EncDec) {
+	if Encoders.byTypeVersion[typeID] == nil {
+		Encoders.byTypeVersion[typeID] = make(map[byte]*EncDec)
+	}
+	Encoders.byTypeVersion[typeID][version] = encDec
 	rt := reflect.TypeFor[T]()
 
 	for rt.Kind() == reflect.Interface {
@@ -139,10 +143,13 @@ func Register[T any](version byte, encDec *EncDec) {
 
 	if te == nil {
 		te = &TypeEncoder{
+			TypeID:      typeID,
 			Encoders:    make(map[byte]*EncDec),
 			LastVersion: version,
 		}
 		Encoders.byType[rt] = te
+	} else {
+		te.TypeID = typeID
 	}
 	te.Encoders[version] = encDec
 	if te.LastVersion < version {

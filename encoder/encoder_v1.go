@@ -31,51 +31,53 @@ var (
 )
 
 const (
-	binNilV1 byte = iota
-	binBoolV1
-	binFlagV1
-	binIntV1
-	binUintV1
-	binCharV1
-	binFloatV1
-	binDecimalV1
-	binStrV1
-	binRawStrV1
-	binBytesV1
-	binArrayV1
-	binDictV1
-	binSyncDictV1
-	binCompiledFunctionV1
-	binBytecodeV1
-	binSourceFileSetV1
-	binSourceFileV1
-	binSymbolInfoV1
-	binModuleSpecV1
-	binErrorV1
-	binEmbeddedV1
+	typeNil byte = iota
+	typeBool
+	typeFlag
+	typeInt
+	typeUint
+	typeChar
+	typeFloat
+	typeDecimal
+	typeStr
+	typeRawStr
+	typeBytes
+	typeArray
+	typeDict
+	typeSyncDict
+	typeCompiledFunction
+	typeBytecode
+	typeSourceFileSet
+	typeSourceFile
+	typeSymbolInfo
+	typeModuleSpec
+	typeError
+	typeEmbedded
 )
 
+const versionV1 byte = 1
+
 func init() {
-	Register[gad.NilType](binNilV1, &NilV1)
-	Register[gad.Bool](binBoolV1, &BoolV1)
-	Register[gad.Flag](binFlagV1, &FlagV1)
-	Register[gad.Int](binIntV1, &IntV1)
-	Register[gad.Uint](binUintV1, &UintV1)
-	Register[gad.Char](binCharV1, &CharV1)
-	Register[gad.Float](binFloatV1, &FloatV1)
-	Register[gad.Decimal](binDecimalV1, &DecimalV1)
-	Register[gad.Str](binStrV1, &StrV1)
-	Register[gad.RawStr](binRawStrV1, &RawStrV1)
-	Register[gad.Bytes](binBytesV1, &BytesV1)
-	Register[gad.Array](binArrayV1, &ArrayV1)
-	Register[gad.Dict](binDictV1, &DictV1)
-	Register[gad.SyncDict](binSyncDictV1, &SyncDictV1)
-	Register[gad.CompiledFunction](binCompiledFunctionV1, &CompiledFunctionV1)
-	Register[gad.SymbolInfo](binSymbolInfoV1, &SymbolInfoV1)
-	Register[gad.Bytecode](binBytecodeV1, &BytecodeV1)
-	Register[source.FileSet](binSourceFileSetV1, &SourceFileSetV1)
-	Register[source.File](binSourceFileV1, &SourceFileV1)
-	Register[gad.ModuleSpec](binModuleSpecV1, &ModuleSpecV1)
-	Register[gad.Error](binErrorV1, &ErrorV1)
-	Register[gad.Embedded](binEmbeddedV1, &EmbeddedV1)
+	Register[gad.NilType](typeNil, versionV1, &NilV1)
+	Register[gad.Bool](typeBool, versionV1, &BoolV1)
+	Register[gad.Flag](typeFlag, versionV1, &FlagV1)
+	Register[gad.Int](typeInt, versionV1, &IntV1)
+	Register[gad.Uint](typeUint, versionV1, &UintV1)
+	Register[gad.Char](typeChar, versionV1, &CharV1)
+	Register[gad.Float](typeFloat, versionV1, &FloatV1)
+	Register[gad.Decimal](typeDecimal, versionV1, &DecimalV1)
+	Register[gad.Str](typeStr, versionV1, &StrV1)
+	Register[gad.RawStr](typeRawStr, versionV1, &RawStrV1)
+	Register[gad.Bytes](typeBytes, versionV1, &BytesV1)
+	Register[gad.Array](typeArray, versionV1, &ArrayV1)
+	Register[gad.Dict](typeDict, versionV1, &DictV1)
+	Register[gad.SyncDict](typeSyncDict, versionV1, &SyncDictV1)
+	Register[gad.CompiledFunction](typeCompiledFunction, versionV1, &CompiledFunctionV1)
+	Register[gad.SymbolInfo](typeSymbolInfo, versionV1, &SymbolInfoV1)
+	Register[gad.Bytecode](typeBytecode, versionV1, &BytecodeV1)
+	Register[source.FileSet](typeSourceFileSet, versionV1, &SourceFileSetV1)
+	Register[source.File](typeSourceFile, versionV1, &SourceFileV1)
+	Register[gad.ModuleSpec](typeModuleSpec, versionV1, &ModuleSpecV1)
+	Register[gad.Error](typeError, versionV1, &ErrorV1)
+	Register[gad.Embedded](typeEmbedded, versionV1, &EmbeddedV1)
 }

@@ -86,17 +86,27 @@ func DecodeFields(ctx *ReadContext, cb func(field uint8) error) (err error) {
 }
 
 func Decode(ctx *ReadContext) (any, error) {
+	typeID, err := ctx.ReadByte()
+	if err != nil {
+		return nil, err
+	}
 	version, err := ctx.ReadByte()
-
 	if err != nil {
 		return nil, err
 	}
 
-	ed := Encoders.byVersion[version]
+	versions := Encoders.byTypeVersion[typeID]
+	if versions == nil {
+		return nil, errors.New(
+			"decode error: unknown type: " + strconv.Itoa(int(typeID)),
+		)
+	}
 
+	ed := versions[version]
 	if ed == nil {
 		return nil, errors.New(
-			"decode error: unknown encoding type: " + strconv.Itoa(int(version)),
+			"decode error: unknown version " + strconv.Itoa(int(version)) +
+				" for type " + strconv.Itoa(int(typeID)),
 		)
 	}
 
