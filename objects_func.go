@@ -213,9 +213,13 @@ func (s *FuncSpec) CallerMethods() *MethodArgType {
 }
 
 func AddMethod(target Object, method ...CallerObjectWithParamTypes) Object {
+	return AddMethodOverride(false, target, method...)
+}
+
+func AddMethodOverride(override bool, target Object, method ...CallerObjectWithParamTypes) Object {
 	addMethod := func(target MethodAdder, method ...CallerObjectWithParamTypes) {
 		for i, m := range method {
-			if err := target.AddMethodByTypes(nil, m.ParamTypes(), m, false, nil); err != nil {
+			if err := target.AddMethodByTypes(nil, m.ParamTypes(), m, override, nil); err != nil {
 				panic(fmt.Errorf("failed to add method %d: %v", i, err))
 			}
 		}
@@ -223,7 +227,7 @@ func AddMethod(target Object, method ...CallerObjectWithParamTypes) Object {
 	switch t := target.(type) {
 	case *Func:
 		for i, m := range method {
-			if err := t.AddMethodByTypes(nil, m.ParamTypes(), m, false, nil); err != nil {
+			if err := t.AddMethodByTypes(nil, m.ParamTypes(), m, override, nil); err != nil {
 				panic(fmt.Errorf("failed to add method %d: %v", i, err))
 			}
 		}
@@ -237,7 +241,7 @@ func AddMethod(target Object, method ...CallerObjectWithParamTypes) Object {
 		}
 		f := NewBuiltinFunctionWithMethods(t.FuncName, t.Module)
 		if t.Header != nil {
-			if err := f.AddMethodByTypes(nil, t.Header.ParamTypes(), t, false, nil); err != nil {
+			if err := f.AddMethodByTypes(nil, t.Header.ParamTypes(), t, override, nil); err != nil {
 				panic(fmt.Errorf("failed to add method initial: %v", err))
 			}
 		} else {
@@ -248,7 +252,7 @@ func AddMethod(target Object, method ...CallerObjectWithParamTypes) Object {
 	case *Function:
 		f := NewFunc(t.FuncName, t.Module)
 		if t.Header != nil {
-			if err := f.AddMethodByTypes(nil, t.Header.ParamTypes(), t, false, nil); err != nil {
+			if err := f.AddMethodByTypes(nil, t.Header.ParamTypes(), t, override, nil); err != nil {
 				panic(fmt.Errorf("failed to add method initial: %v", err))
 			}
 		} else {

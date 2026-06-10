@@ -699,7 +699,7 @@ func registerConverters(module *gad.ModuleSpec, vm *gad.VM) {
 		return &Location{Value: l}, nil
 	})
 
-	gad.AddMethod(vm.Builtins.Get(gad.BuiltinInt), (&gad.Function{
+	gad.AddMethodOverride(true, vm.Builtins.Get(gad.BuiltinInt), (&gad.Function{
 		Module:   module,
 		FuncName: "timeToInt",
 		Value: func(c gad.Call) (o gad.Object, err error) {
