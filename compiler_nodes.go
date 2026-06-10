@@ -6,7 +6,10 @@ package gad
 
 import (
 	"os"
+	"path/filepath"
 	"slices"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/ast"
@@ -1843,12 +1846,22 @@ func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) (err error) {
 
 	constantIndex, _, exists := c.getEmbed(name)
 	if !exists {
-		data, err := importer.Import(c.opts.Context, name, absPath, &EmbeddedImportOptions{
-			Sources:  nd.Sources(),
-			Includes: nd.Includes(),
-			Excludes: nd.Excludes(),
-			Tree:     nd.Tree(),
-		})
+		opts := &EmbeddedImportOptions{
+			Sources:     nd.Sources(),
+			Includes:    nd.Includes(),
+			Excludes:    nd.Excludes(),
+			IncludesRe:  nd.IncludesRe(),
+			ExcludesRe:  nd.ExcludesRe(),
+			Tree:        nd.Tree(),
+		}
+
+		if configFile := nd.ConfigFile(); configFile != "" {
+			if err = c.applyEmbedConfig(configFile, absPath, opts); err != nil {
+				return c.error(nd, err)
+			}
+		}
+
+		data, err := importer.Import(c.opts.Context, name, absPath, opts)
 		if err != nil {
 			return c.error(nd, err)
 		}
@@ -1856,6 +1869,57 @@ func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) (err error) {
 	}
 
 	c.emit(nd, OpConstant, constantIndex)
+	return nil
+}
+
+
+type embedConfig struct {
+	Sources     []string `yaml:"sources"`
+	Includes    []string `yaml:"includes"`
+	Excludes    []string `yaml:"excludes"`
+	IncludesRe  []string `yaml:"includes_re"`
+	ExcludesRe  []string `yaml:"excludes_re"`
+	Tree        bool     `yaml:"tree"`
+}
+
+func (c *Compiler) applyEmbedConfig(configFile, absPath string, opts *EmbeddedImportOptions) error {
+	var pth string
+	if filepath.IsAbs(configFile) {
+		pth = configFile
+	} else if absPath != "" && filepath.IsAbs(absPath) {
+		pth = filepath.Join(filepath.Dir(absPath), configFile)
+	} else {
+		pth = configFile
+	}
+	data, err := os.ReadFile(pth)
+	if err != nil {
+		return err
+	}
+
+	var cfg embedConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return err
+	}
+
+	if len(opts.Sources) == 0 && len(cfg.Sources) > 0 {
+		opts.Sources = cfg.Sources
+	}
+	if len(opts.Includes) == 0 && len(cfg.Includes) > 0 {
+		opts.Includes = cfg.Includes
+	}
+	if len(opts.Excludes) == 0 && len(cfg.Excludes) > 0 {
+		opts.Excludes = cfg.Excludes
+	}
+	if len(opts.IncludesRe) == 0 && len(cfg.IncludesRe) > 0 {
+		opts.IncludesRe = cfg.IncludesRe
+	}
+	if len(opts.ExcludesRe) == 0 && len(cfg.ExcludesRe) > 0 {
+		opts.ExcludesRe = cfg.ExcludesRe
+	}
+	if !opts.Tree && cfg.Tree {
+		opts.Tree = cfg.Tree
+	}
+
 	return nil
 }
 

@@ -137,6 +137,7 @@ var (
 	_ Object         = (*Embedded)(nil)
 	_ IndexGetter    = (*Embedded)(nil)
 	_ BytesConverter = (*Embedded)(nil)
+	_ Printabler     = (*Embedded)(nil)
 )
 
 type Embedded struct {
@@ -147,6 +148,88 @@ type Embedded struct {
 	ModTime       time.Time
 	Mode          os.FileMode
 	AbsPath       string
+}
+
+func (n *Embedded) Print(state *PrinterState) (err error) {
+	var s []string
+	if n.ReaderFactory == nil {
+		s = append(s, "dir", ReprQuote(n.Path()))
+	} else {
+		var (
+			size int64
+			err  error
+		)
+
+		s = append(s, "file", ReprQuote(n.Path()))
+
+		if size, err = n.Size(); err == nil {
+			s = append(s, humanize.Bytes(uint64(size)))
+		}
+	}
+
+	if len(n.AbsPath) > 0 {
+		absPath := n.AbsPath
+		trim, _ := state.options.TrimEmbedPath()
+		if len(trim) > 0 {
+			for _, v := range trim {
+				absPath = strings.TrimPrefix(absPath, v.ToString())
+				if len(absPath) != len(n.AbsPath) {
+					break
+				}
+			}
+		}
+		s = append(s, strconv.Quote(absPath))
+	}
+
+	if state.SkipNexDepth() && len(n.Entries) > 0 {
+		var fCount, dCount int
+		n.Walk(func(path []string, n *Embedded) error {
+			if n.IsDir() {
+				dCount++
+			} else {
+				fCount++
+			}
+			return nil
+		})
+		if dCount+fCount > 0 {
+			s = append(s, "with")
+			if dCount > 0 {
+				s = append(s, fmt.Sprintf("%d dirs", dCount))
+			}
+			if fCount > 0 {
+				s = append(s, fmt.Sprintf("%d files", fCount))
+			}
+		}
+	}
+
+	defer state.WrapRepr(n)()
+	state.WriteString(strings.Join(s, " "))
+
+	if len(n.Entries) > 0 && !state.SkipNexDepth() {
+		var (
+			names   = n.SortedNames()
+			entries = make([]*Embedded, len(names))
+		)
+
+		for i, name := range names {
+			entries[i] = n.Entries[name]
+		}
+
+		return state.PrintArray(len(entries), func(i int) (Object, error) {
+			return entries[i], nil
+		})
+	}
+
+	return
+}
+
+func (n *Embedded) SortedNames() (ret []string) {
+	ret = make([]string, 0, len(n.Entries))
+	for name := range n.Entries {
+		ret = append(ret, name)
+	}
+	sort.Strings(ret)
+	return
 }
 
 func (n *Embedded) Get(pth string) (e *Embedded, err error) {
@@ -265,46 +348,7 @@ func (n *Embedded) Reader() (r io.ReadSeeker, err error) {
 }
 
 func (n *Embedded) ToString() string {
-	var s []string
-	if n.ReaderFactory == nil {
-		s = append(s, "dir", ReprQuote(n.Path()))
-	} else {
-		var (
-			size int64
-			err  error
-		)
-
-		s = append(s, "file", ReprQuote(n.Path()))
-
-		if size, err = n.Size(); err == nil {
-			s = append(s, humanize.Bytes(uint64(size)))
-		}
-	}
-	if len(n.AbsPath) > 0 {
-		s = append(s, strconv.Quote(n.AbsPath))
-	}
-
-	var fCount, dCount int
-	n.Walk(func(path []string, n *Embedded) error {
-		if n.IsDir() {
-			dCount++
-		} else {
-			fCount++
-		}
-		return nil
-	})
-
-	if dCount+fCount > 0 {
-		s = append(s, "with")
-		if dCount > 0 {
-			s = append(s, fmt.Sprintf("%d dirs", dCount))
-		}
-		if fCount > 0 {
-			s = append(s, fmt.Sprintf("%d files", fCount))
-		}
-	}
-
-	return ReprQuoteTyped(TEmbedded.name, strings.Join(s, " "))
+	return string(MustToStr(nil, n))
 }
 
 func (n *Embedded) Files(recursive bool) (ret []*Embedded) {
@@ -412,10 +456,13 @@ func (n *Embedded) walk(path []string, cb func(path []string, n *Embedded) error
 }
 
 type EmbeddedImportOptions struct {
-	Sources  []string
-	Includes []string
-	Excludes []string
-	Tree     bool
+	Sources    []string
+	Includes   []string
+	Excludes   []string
+	IncludesRe []string
+	ExcludesRe []string
+	ConfigFile string
+	Tree       bool
 }
 
 // EmbeddedImporter interface represents importable embedded instance.

@@ -3155,8 +3155,52 @@ func TestParseEmbed(t *testing.T) {
 				p(1, 1)))
 	})
 
+	test.ExpectParse(t, `embed("dir";sources=["a","b"])`, func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				embedExpr(NewCallArgs(p(1, 6), p(1, 30)).Arg(String("dir", p(1, 7))).NamedValue(EIdent("sources", p(1, 13)), Array(p(1, 21), p(1, 29), String("a", p(1, 22)), String("b", p(1, 26)))), p(1, 1))))
+	})
+
+	test.ExpectParse(t, `embed("file";includes=["*.go"])`, func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				embedExpr(NewCallArgs(p(1, 6), p(1, 31)).Arg(String("file", p(1, 7))).NamedValue(EIdent("includes", p(1, 14)), Array(p(1, 23), p(1, 30), String("*.go", p(1, 24)))), p(1, 1))))
+	})
+
+	test.ExpectParse(t, `embed("dir";tree)`, func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				embedExpr(NewCallArgs(p(1, 6), p(1, 17)).Arg(String("dir", p(1, 7))).NamedFlag(EIdent("tree", p(1, 13))), p(1, 1))))
+	})
+
+	test.ExpectParse(t, `embed("dir";includes_re=["[.go]"])`, func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				embedExpr(NewCallArgs(p(1, 6), p(1, 34)).Arg(String("dir", p(1, 7))).NamedValue(EIdent("includes_re", p(1, 13)), Array(p(1, 25), p(1, 33), String("[.go]", p(1, 26)))), p(1, 1))))
+	})
+
+	test.ExpectParse(t, `embed("dir";excludes_re=["[.go]"])`, func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				embedExpr(NewCallArgs(p(1, 6), p(1, 34)).Arg(String("dir", p(1, 7))).NamedValue(EIdent("excludes_re", p(1, 13)), Array(p(1, 25), p(1, 33), String("[.go]", p(1, 26)))), p(1, 1))))
+	})
+
+	test.ExpectParse(t, `embed("dir";config_file="cfg.yaml")`, func(p pfn) []Stmt {
+		return stmts(
+			exprStmt(
+				embedExpr(NewCallArgs(p(1, 6), p(1, 35)).Arg(String("dir", p(1, 7))).NamedValue(EIdent("config_file", p(1, 13)), String("cfg.yaml", p(1, 25))), p(1, 1))))
+	})
 	test.ExpectParseError(t, `embed(1)`)
 	test.ExpectParseError(t, `embed('a')`)
+	test.ExpectParseError(t, `embed()`)
+	test.ExpectParseError(t, `embed("a","b")`)
+	test.ExpectParseError(t, `embed("a";x=1)`)
+	test.ExpectParseError(t, `embed("a";tree=1)`)
+	test.ExpectParseError(t, `embed("a";sources=1)`)
+	test.ExpectParseError(t, `embed("a";includes_re=1)`)
+	test.ExpectParseError(t, `embed("a";excludes_re=1)`)
+	test.ExpectParseError(t, `embed("a";config_file=1)`)
+	test.ExpectParseError(t, `embed("a";config_file)`)
 }
 
 func TestParseIndex(t *testing.T) {

@@ -6,10 +6,61 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/gad-lang/gad"
 )
+
+func matchFilePath(opts *gad.EmbeddedImportOptions, relPath string) bool {
+	base := filepath.Base(relPath)
+
+	for _, pattern := range opts.Excludes {
+		if matched, _ := filepath.Match(pattern, base); matched {
+			return false
+		}
+		if matched, _ := filepath.Match(pattern, relPath); matched {
+			return false
+		}
+	}
+	for _, pattern := range opts.ExcludesRe {
+		if matched, _ := regexp.MatchString(pattern, relPath); matched {
+			return false
+		}
+	}
+
+	if len(opts.Includes) > 0 {
+		included := false
+		for _, pattern := range opts.Includes {
+			if matched, _ := filepath.Match(pattern, base); matched {
+				included = true
+				break
+			}
+			if matched, _ := filepath.Match(pattern, relPath); matched {
+				included = true
+				break
+			}
+		}
+		if !included {
+			return false
+		}
+	}
+
+	if len(opts.IncludesRe) > 0 {
+		included := false
+		for _, pattern := range opts.IncludesRe {
+			if matched, _ := regexp.MatchString(pattern, relPath); matched {
+				included = true
+				break
+			}
+		}
+		if !included {
+			return false
+		}
+	}
+
+	return true
+}
 
 var _ gad.EmbeddedExtImporter = (*EmbeddedFileImporter)(nil)
 
@@ -127,6 +178,9 @@ func (i *EmbeddedFileImporter) Import(ctx context.Context, name string, absPath 
 				parts = parts[1:]
 			}
 
+				if dir.Entries == nil {
+					dir.Entries = make(map[string]*gad.Embedded)
+				}
 			dir.Entries[parts[0]] = &gad.Embedded{
 				Name:          parts[0],
 				ModTime:       info.ModTime(),
@@ -170,9 +224,14 @@ func (i *EmbeddedFileImporter) Import(ctx context.Context, name string, absPath 
 						if err_ != nil {
 							return err_
 						}
-						if !info.IsDir() {
-							err = addNode(pth, epth, info)
-						}
+							if !info.IsDir() {
+								if relPath, rErr := filepath.Rel(pth, epth); rErr == nil {
+									if !matchFilePath(opts, relPath) {
+										return
+									}
+								}
+								err = addNode(pth, epth, info)
+							}
 						return
 					})
 					if err != nil {
@@ -215,9 +274,14 @@ func (i *EmbeddedFileImporter) Import(ctx context.Context, name string, absPath 
 			if err_ != nil {
 				return err_
 			}
-			if !info.IsDir() {
-				err = addNode(e.AbsPath, pth, info)
-			}
+				if !info.IsDir() {
+					if relPath, rErr := filepath.Rel(e.AbsPath, pth); rErr == nil {
+						if !matchFilePath(opts, relPath) {
+							return
+						}
+					}
+					err = addNode(e.AbsPath, pth, info)
+				}
 			return
 		})
 	} else {

@@ -1075,7 +1075,7 @@ func (p *Parser) ParseEmbedExpr() node.Expr {
 			return &node.BadExpr{From: e.Pos(), To: e.End()}
 		} else {
 			switch name.Ident.Name {
-			case "sources", "includes", "excludes":
+			case "sources", "includes", "excludes", "includes_re", "excludes_re":
 				var (
 					value    = args.NamedArgs.Values[i]
 					valueArr *node.ArrayExpr
@@ -1103,8 +1103,20 @@ func (p *Parser) ParseEmbedExpr() node.Expr {
 					p.Error(v.Pos(), "unexpected")
 					return &node.BadExpr{From: v.Pos(), To: v.End()}
 				}
+			case "config_file":
+				if v := args.NamedArgs.Values[i]; v != nil {
+					switch v.(type) {
+					case *node.StringLit, *node.SymbolLit:
+					default:
+						p.Error(v.Pos(), "expected single str|symbol")
+						return &node.BadExpr{From: v.Pos(), To: v.End()}
+					}
+				} else {
+					p.Error(name.Ident.Pos(), "expected value")
+					return &node.BadExpr{From: name.Ident.Pos(), To: name.Ident.End()}
+				}
 			default:
-				p.Error(name.Ident.Pos(), "expected only sources|includes|excludes|dir named params")
+				p.Error(name.Ident.Pos(), "expected only sources|includes|excludes|includes_re|excludes_re|config_file|tree")
 				return &node.BadExpr{From: name.Ident.Pos(), To: name.Ident.End()}
 			}
 		}

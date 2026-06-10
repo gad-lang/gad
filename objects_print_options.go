@@ -3,6 +3,7 @@ package gad
 const (
 	PrintStateOptionIndent           = "indent"
 	PrintStateOptionMaxDepth         = "maxDepth"
+	PrintStateOptionTrimEmbedPath    = "trimEmbedPath"
 	PrintStateOptionRaw              = "raw"
 	PrintStateOptionZeros            = "zeros"
 	PrintStateOptionAnonymous        = "anonymous"
@@ -68,6 +69,28 @@ func (o PrinterStateOptions) MaxDepth() (v int64, ok bool) {
 
 func (o PrinterStateOptions) SetMaxDepth(v int64) {
 	o[PrintStateOptionMaxDepth] = Int(v)
+}
+
+func (o PrinterStateOptions) WithMaxDepth(v int64) PrinterStateOptions {
+	o.SetMaxDepth(v)
+	return o
+}
+
+func (o PrinterStateOptions) TrimEmbedPath() (v Array, ok bool) {
+	var vo Object
+	if vo, ok = o[PrintStateOptionTrimEmbedPath]; ok {
+		v, _ = vo.(Array)
+	}
+	return
+}
+
+func (o PrinterStateOptions) SetTrimEmbedPath(v Array) {
+	o[PrintStateOptionTrimEmbedPath] = v
+}
+
+func (o PrinterStateOptions) WithTrimEmbedPath(v Array) PrinterStateOptions {
+	o.SetTrimEmbedPath(v)
+	return o
 }
 
 func (o PrinterStateOptions) Raw() (v bool, ok bool) {

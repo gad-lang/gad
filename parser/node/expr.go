@@ -308,7 +308,29 @@ func (e *ImportExpr) Build() (moduleName string, args CallArgs) {
 	return
 }
 
-// EmbedExpr represents an embed expression
+// EmbedExpr represents an embed expression that embeds external files or directories
+// into the compiled program at compile time. It resolves to an EmbeddedNodeFS at runtime.
+//
+// Syntax: embed(path [; namedParams...])
+//
+// The path must be a single string or symbol literal specifying the file or directory to embed.
+//
+// Named parameters (all optional):
+//   - sources: array of string/symbol literals specifying source paths
+//   - includes: array of string/symbol literals for file inclusion patterns
+//   - excludes: array of string/symbol literals for file exclusion patterns
+//   - includes_re: array of string/symbol literals for regex file inclusion patterns
+//   - excludes_re: array of string/symbol literals for regex file exclusion patterns
+//   - config_file: string/symbol literal pointing to a YAML config file with the above named params
+//   - tree: flag (no value) to embed directory tree recursively
+//
+// Example:
+//
+//	embed("file.txt")
+//	embed("dir"; tree)
+//	embed("dir"; includes=["*.go"], excludes=["*_test.go"])
+//	embed("dir"; sources=["a", "b"], tree)
+//	embed("dir"; config_file="embed.yaml")
 type EmbedExpr struct {
 	Args     CallArgs
 	Token    token.Token
@@ -331,6 +353,7 @@ func (e *EmbedExpr) String() string {
 	return `embed` + e.Args.String()
 }
 
+// Path returns the file or directory path specified as the first argument to embed.
 func (e *EmbedExpr) Path() (s string) {
 	switch t := e.Args.Args.Values[0].(type) {
 	case *StringLit:
@@ -341,16 +364,29 @@ func (e *EmbedExpr) Path() (s string) {
 	return
 }
 
+// Sources returns the list of source paths from the "sources" named parameter.
 func (e *EmbedExpr) Sources() []string {
 	return e.getStrings("sources")
 }
 
+// Includes returns the list of inclusion patterns from the "includes" named parameter.
 func (e *EmbedExpr) Includes() []string {
 	return e.getStrings("includes")
 }
 
+// Excludes returns the list of exclusion patterns from the "excludes" named parameter.
 func (e *EmbedExpr) Excludes() []string {
 	return e.getStrings("excludes")
+}
+
+// IncludesRe returns the list of regex inclusion patterns from the "includes_re" named parameter.
+func (e *EmbedExpr) IncludesRe() []string {
+	return e.getStrings("includes_re")
+}
+
+// ExcludesRe returns the list of regex exclusion patterns from the "excludes_re" named parameter.
+func (e *EmbedExpr) ExcludesRe() []string {
+	return e.getStrings("excludes_re")
 }
 
 func (e *EmbedExpr) getNvalue(nameArg string) (v Expr, ok bool) {
@@ -381,6 +417,20 @@ func (e *EmbedExpr) getStrings(nameArg string) (s []string) {
 	return
 }
 
+// ConfigFile returns the config file path from the "config_file" named parameter.
+func (e *EmbedExpr) ConfigFile() string {
+	if v, ok := e.getNvalue("config_file"); ok && v != nil {
+		switch t := v.(type) {
+		case *StringLit:
+			return t.Value()
+		case *SymbolLit:
+			return t.Value()
+		}
+	}
+	return ""
+}
+
+// Tree returns true if the "tree" flag is set, indicating recursive directory embedding.
 func (e *EmbedExpr) Tree() bool {
 	if v, ok := e.getNvalue("tree"); ok {
 		return v == nil

@@ -1,10 +1,15 @@
 package gad_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/gad-lang/gad/importers"
 	"github.com/gad-lang/gad/parser"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	"github.com/gad-lang/gad/token"
 
@@ -894,6 +899,197 @@ func TestCompiler_CompileToRaw(t *testing.T) {
 			makeInst(OpReturn, 0),
 		)),
 	))
+}
+
+func TestCompiler_CompileEmbed(t *testing.T) {
+	// 1 instruction are generated for every source embed import.
+	// If embed's returned value is already stored, ignore storing.
+	embedMap := NewEmbedMap()
+	embedMap.AddFile("file.js", []byte(`abcd`))
+	expectCompileWithOpts(t, `embed("file.js")`,
+		CompileOptions{CompilerOptions: CompilerOptions{
+			EmbededdMap: embedMap,
+		}},
+		bytecode(
+			Array{
+				&Embedded{Name: "file.js", ReaderFactory: EmbeddedBytesReaderFactory(`abcd`)},
+			},
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpPop),
+				makeInst(OpReturn, 0),
+			)),
+		),
+	)
+
+	expectCompileWithOpts(t, `embed("file.js"); embed("file.js")`,
+		CompileOptions{CompilerOptions: CompilerOptions{
+			EmbededdMap: embedMap,
+		}},
+		bytecode(
+			Array{
+				&Embedded{Name: "file.js", ReaderFactory: EmbeddedBytesReaderFactory(`abcd`)},
+			},
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpPop),
+				makeInst(OpConstant, 0),
+				makeInst(OpPop),
+				makeInst(OpReturn, 0),
+			)),
+		),
+	)
+
+	// embed with different names creates separate constants
+	multiMap := NewEmbedMap()
+	multiMap.AddFile("a.js", []byte(`aaa`))
+	multiMap.AddFile("b.js", []byte(`bbb`))
+	expectCompileWithOpts(t, `embed("a.js"); embed("b.js")`,
+		CompileOptions{CompilerOptions: CompilerOptions{
+			EmbededdMap: multiMap,
+		}},
+		bytecode(
+			Array{
+				&Embedded{Name: "a.js", ReaderFactory: EmbeddedBytesReaderFactory(`aaa`)},
+				&Embedded{Name: "b.js", ReaderFactory: EmbeddedBytesReaderFactory(`bbb`)},
+			},
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpPop),
+				makeInst(OpConstant, 1),
+				makeInst(OpPop),
+				makeInst(OpReturn, 0),
+			)),
+		),
+	)
+
+	// embed error: empty path
+	expectCompileError(t, `embed("")`, "Compile Error: empty path")
+
+	// embed error: path not found in embed map
+	expectCompileErrorWithOpts(t, `embed("nonexistent.js")`,
+		CompileOptions{CompilerOptions: CompilerOptions{
+			EmbededdMap: embedMap,
+		}},
+		"Compile Error: path 'nonexistent.js' not found")
+
+	// embed with EmbeddedFile struct (with modTime)
+	timeMap := NewEmbedMap()
+	timeMap.Add("timedata", EmbeddedFile(Embedded{
+		Name:          "timedata",
+		ModTime:       time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC),
+		ReaderFactory: EmbeddedBytesReaderFactory(`time data`),
+	}))
+	expectCompileWithOpts(t, `embed("timedata")`,
+		CompileOptions{CompilerOptions: CompilerOptions{
+			EmbededdMap: timeMap,
+		}},
+		bytecode(
+			Array{
+				&Embedded{
+					Name:          "timedata",
+					ModTime:       time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC),
+					ReaderFactory: EmbeddedBytesReaderFactory(`time data`),
+				},
+			},
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpPop),
+				makeInst(OpReturn, 0),
+			)),
+		),
+	)
+
+	// embed in expression (assign to variable)
+	expectCompileWithOpts(t, `x := embed("file.js"); return x`,
+		CompileOptions{CompilerOptions: CompilerOptions{
+			EmbededdMap: embedMap,
+		}},
+		bytecode(
+			Array{
+				&Embedded{Name: "file.js", ReaderFactory: EmbeddedBytesReaderFactory(`abcd`)},
+			},
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpDefineLocal, 0),
+				makeInst(OpGetLocal, 0),
+				makeInst(OpReturn, 1),
+			),
+				funcLocals(1),
+			),
+		),
+	)
+
+	// embed with EmbeddedFileImporter using temp file
+	t.Run("file importer", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		tmpFile := filepath.Join(tmpDir, "test.txt")
+		require.NoError(t, os.WriteFile(tmpFile, []byte(`hello`), 0644))
+
+		impMap := NewEmbedMap()
+		impMap.SetExtImporter(&importers.EmbeddedFileImporter{
+			WorkDirs: []string{tmpDir},
+		})
+		_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(`embed("test.txt")`),
+			CompileOptions{CompilerOptions: CompilerOptions{EmbededdMap: impMap}})
+		require.NoError(t, err)
+		require.Len(t, bc.Constants, 1)
+		emb, ok := bc.Constants[0].(*Embedded)
+		require.True(t, ok, "constant must be *Embedded")
+		require.Equal(t, "test.txt", emb.Name)
+		data, err := emb.Read()
+		require.NoError(t, err)
+		require.Equal(t, "hello", string(data))
+	})
+
+	// embed with sources param via file importer
+	t.Run("sources param", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "mydir"), 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "mydir", "f.txt"), []byte(`content`), 0644))
+
+		impMap := NewEmbedMap()
+		impMap.SetExtImporter(&importers.EmbeddedFileImporter{
+			WorkDirs: []string{tmpDir},
+		})
+		_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
+			[]byte(`embed("f.txt"; sources=["mydir"])`),
+			CompileOptions{CompilerOptions: CompilerOptions{EmbededdMap: impMap}})
+		require.NoError(t, err)
+		require.Len(t, bc.Constants, 1)
+		emb, ok := bc.Constants[0].(*Embedded)
+		require.True(t, ok)
+		require.Equal(t, "f.txt", emb.Name)
+	})
+
+	// embed with config_file YAML
+	t.Run("config_file", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "dat"), 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "dat", "a.go"), []byte(`pkg a`), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "dat", "b.txt"), []byte(`content`), 0644))
+
+		cfg := map[string]interface{}{"includes": []string{"*.go"}}
+		cfgData, err := yaml.Marshal(cfg)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "embed.yaml"), cfgData, 0644))
+
+		impMap := NewEmbedMap()
+		impMap.SetExtImporter(&importers.EmbeddedFileImporter{
+			WorkDirs: []string{tmpDir},
+		})
+		_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
+			[]byte(`embed("dat"; config_file="embed.yaml")`),
+			CompileOptions{CompilerOptions: CompilerOptions{EmbededdMap: impMap}})
+		require.NoError(t, err)
+		require.Len(t, bc.Constants, 1)
+		emb, ok := bc.Constants[0].(*Embedded)
+		require.True(t, ok)
+		require.Equal(t, "dat", emb.Name)
+		// config had includes=["*.go"], so only .go file should be present
+		require.NotNil(t, emb.GetNode("a.go"))
+		require.Nil(t, emb.GetNode("b.txt"))
+	})
 }
 
 func TestCompiler_Compile(t *testing.T) {
@@ -2781,44 +2977,6 @@ func TestCompiler_Compile(t *testing.T) {
 			withModules(func(b *ModuleSpecBuilder) {
 				b.Name("mod")
 			}),
-		),
-	)
-
-	// 1 instruction are generated for every source embed import.
-	// If embed's returned value is already stored, ignore storing.
-	embedMap := NewEmbedMap()
-	embedMap.AddFile("file.js", []byte(`abcd`))
-	expectCompileWithOpts(t, `embed("file.js")`,
-		CompileOptions{CompilerOptions: CompilerOptions{
-			EmbededdMap: embedMap,
-		}},
-		bytecode(
-			Array{
-				&Embedded{Name: "file.js", ReaderFactory: EmbeddedBytesReaderFactory(`abcd`)},
-			},
-			compFunc(concatInsts(
-				makeInst(OpConstant, 0),
-				makeInst(OpPop),
-				makeInst(OpReturn, 0),
-			)),
-		),
-	)
-
-	expectCompileWithOpts(t, `embed("file.js"); embed("file.js")`,
-		CompileOptions{CompilerOptions: CompilerOptions{
-			EmbededdMap: embedMap,
-		}},
-		bytecode(
-			Array{
-				&Embedded{Name: "file.js", ReaderFactory: EmbeddedBytesReaderFactory(`abcd`)},
-			},
-			compFunc(concatInsts(
-				makeInst(OpConstant, 0),
-				makeInst(OpPop),
-				makeInst(OpConstant, 0),
-				makeInst(OpPop),
-				makeInst(OpReturn, 0),
-			)),
 		),
 	)
 
