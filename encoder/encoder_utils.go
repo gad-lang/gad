@@ -49,10 +49,6 @@ func writeInt64(w Writer, v int64) (err error) {
 	return writeUint64(w, uint64(v))
 }
 
-func writeInt32(w Writer, v int32) (err error) {
-	return writeUint32(w, uint32(v))
-}
-
 func writeBool(w Writer, v bool) (err error) {
 	buf := make([]byte, 1)
 	if v {

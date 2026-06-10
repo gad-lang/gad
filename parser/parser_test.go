@@ -3129,7 +3129,6 @@ func TestParseEmbed(t *testing.T) {
 				token.Define, p(1, 3)))
 	})
 
-	return
 	test.ExpectParse(t, `a := embed("file")`, func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(

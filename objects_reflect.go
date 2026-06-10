@@ -288,7 +288,7 @@ func (r *ReflectValue) CallNameOf(this ReflectValuer, name string, c Call) (Obje
 			return value, err
 		}
 	}
-	if sm, _ := r.RType.StaticMethods[name]; sm != nil {
+	if sm := r.RType.StaticMethods[name]; sm != nil {
 		return sm.Call(c)
 	}
 	return nil, ErrInvalidIndex.NewError(name)

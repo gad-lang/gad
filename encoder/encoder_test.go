@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"testing"
 	gotime "time"
 
@@ -184,12 +182,3 @@ func edecode[t any](b, eb []byte, opt ...ReadContextOption) (v t, err error) {
 	return DecodeT[t](NewReadContext(NewReader(bytes.NewReader(b)), opt...))
 }
 
-func createFiles(t *testing.T, baseDir string, files map[string]string) {
-	for file, data := range files {
-		path := filepath.Join(baseDir, file)
-		err := os.MkdirAll(filepath.Dir(path), 0755)
-		require.NoError(t, err)
-		err = os.WriteFile(path, []byte(data), 0644)
-		require.NoError(t, err)
-	}
-}

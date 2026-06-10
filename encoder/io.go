@@ -36,7 +36,7 @@ func (s *stdReader) ReadAt(p []byte, off int64) (n int, err error) {
 	if curPos, err = s.Seek(0, io.SeekCurrent); err != nil {
 		return
 	}
-	if curPos, err = s.Seek(off, io.SeekStart); err != nil {
+	if _, err = s.Seek(off, io.SeekStart); err != nil {
 		return
 	}
 	if n, err = s.Read(p); err != nil {

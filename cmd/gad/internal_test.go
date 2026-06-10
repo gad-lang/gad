@@ -203,7 +203,7 @@ func TestREPL(t *testing.T) {
 		require.NoError(t, r.execute("met int(p Point) => p.x * p.y"))
 		cw.consume()
 		require.NoError(t, r.execute("str(int)"))
-		require.Equal(t, "⇦   \"‹builtin type ‹int› with 1 methods›\"",
+		require.Equal(t, "⇦   \"‹builtin type ‹int› with 2 methods›\"",
 			strings.TrimSpace(string(cw.consume())))
 		require.NoError(t, r.execute("int(Point(2,8))"))
 		require.Equal(t, "⇦   16", strings.TrimSpace(string(cw.consume())))

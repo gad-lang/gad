@@ -22,7 +22,7 @@ func RegisterAnyConverter(typ reflect.Type, converter Converter) {
 	anyConverters[typ] = converter
 }
 
-// RegisterToObjectFor registers a converter for a specific parametric type to be used
+// RegisterConvertorFor registers a converter for a specific parametric type to be used
 // with ToObject that converts to a gad.Object.
 func RegisterConvertorFor[T any](converter Converter) {
 	rt := reflect.TypeFor[T]()

@@ -86,13 +86,15 @@ func NewWriteContext(ctx context.Context, writer Writer, opt ...WriteContextOpti
 	return w
 }
 
+type contextKey string
+
 func (ctx *WriteContext) WithValue(key string, value any) *WriteContext {
-	ctx.Context = context.WithValue(ctx.Context, key, value)
+	ctx.Context = context.WithValue(ctx.Context, contextKey(key), value)
 	return ctx
 }
 
 func (ctx *WriteContext) Value(key string) any {
-	return ctx.Context.Value(key)
+	return ctx.Context.Value(contextKey(key))
 }
 
 type ReadContext struct {

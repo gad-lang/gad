@@ -53,8 +53,8 @@ func (e *EmbeddedNodeFS) Print(state *PrinterState) error {
 
 func (e *EmbeddedNodeFS) IndexGet(_ *VM, index Object) (value Object, err error) {
 	if name, _ := index.(Str); len(name) > 0 {
-		value = e.node.Entries[string(name)]
-		if value == nil {
+		var ok bool
+		if value, ok = e.node.Entries[string(name)]; !ok {
 			return nil, ErrInvalidIndex.NewError(string(name))
 		}
 	} else {

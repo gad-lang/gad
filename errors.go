@@ -194,7 +194,7 @@ func NewStructPropertyInstanceError(propertyName, message string) *Error {
 	return ErrClassInstanceProperty.NewError(fmt.Sprintf("property '%s': %s", propertyName, message))
 }
 
-// NewEmbeddedPathIsNtDirectory creates a new ErrEmbedded when path isn't a directory
+// NewEmbeddedPathIsNtDir creates a new ErrEmbedded when path isn't a directory
 func NewEmbeddedPathIsNtDir(path string) *Error {
 	return ErrEmbedded.NewErrorf("%q is not a directory", path)
 }
