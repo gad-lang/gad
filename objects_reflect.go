@@ -121,7 +121,7 @@ var (
 	_ ReflectValuer = (*ReflectValue)(nil)
 	_ Niler         = (*ReflectValue)(nil)
 	_ Copier        = (*ReflectValue)(nil)
-	_ Printer       = (*ReflectValue)(nil)
+	_ Printabler    = (*ReflectValue)(nil)
 )
 
 func (r *ReflectValue) Init() {
@@ -288,6 +288,9 @@ func (r *ReflectValue) CallNameOf(this ReflectValuer, name string, c Call) (Obje
 			return value, err
 		}
 	}
+	if sm, _ := r.RType.StaticMethods[name]; sm != nil {
+		return sm.Call(c)
+	}
 	return nil, ErrInvalidIndex.NewError(name)
 }
 
@@ -414,7 +417,7 @@ var (
 	_ Iterabler      = (*ReflectArray)(nil)
 	_ IndexGetSetter = (*ReflectArray)(nil)
 	_ LengthGetter   = (*ReflectArray)(nil)
-	_ Printer        = (*ReflectArray)(nil)
+	_ Printabler     = (*ReflectArray)(nil)
 )
 
 func (o *ReflectArray) ToString() string {
@@ -626,7 +629,7 @@ var (
 	_ ReflectValuer = (*ReflectMap)(nil)
 	_ Iterabler     = (*ReflectMap)(nil)
 	_ Indexer       = (*ReflectMap)(nil)
-	_ Printer       = (*ReflectMap)(nil)
+	_ Printabler    = (*ReflectMap)(nil)
 )
 
 func (o *ReflectMap) Length() int {
@@ -765,11 +768,11 @@ var (
 	_ CanCallerObject = (*ReflectStruct)(nil)
 	_ Iterabler       = (*ReflectStruct)(nil)
 	_ IndexGetSetter  = (*ReflectStruct)(nil)
-	_ Printer         = (*ReflectStruct)(nil)
+	_ Printabler      = (*ReflectStruct)(nil)
 	_ ReflectValuer   = (*ReflectStruct)(nil)
 	_ Iterabler       = (*ReflectStruct)(nil)
 	_ IndexGetSetter  = (*ReflectStruct)(nil)
-	_ Printer         = (*ReflectStruct)(nil)
+	_ Printabler      = (*ReflectStruct)(nil)
 )
 
 type ReflectStruct struct {

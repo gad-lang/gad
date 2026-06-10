@@ -136,7 +136,7 @@ func (its Iterators) Print(s *PrinterState) (err error) {
 
 // Iterator wraps the methods required to iterate Objects in VM.
 type Iterator interface {
-	Printer
+	Printabler
 	Type() ObjectType
 	Input() Object
 	Start(vm *VM) (state *IteratorState, err error)

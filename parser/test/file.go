@@ -86,6 +86,31 @@ func (f *File) Equal(expected, actual any, msgAndArgs ...any) {
 			f.Equal(&t.Params, &actual.Params, msgAndArgs...)
 			return
 		}
+	case *node.CallArgs:
+		if actual, ok := actual.(*node.CallArgs); ok {
+			f.Equal(t.LParen, actual.LParen)
+			f.Equal(t.RParen, actual.RParen)
+			f.EqualExprs(t.Args.Values, actual.Args.Values)
+
+			if t.Args.Var == nil && actual.Args.Var != nil {
+				require.Nil(f.t, t.Args.Var)
+			}
+
+			if t.Args.Var != nil && actual.Args.Var == nil {
+				require.NotNil(f.t, t.Args.Var)
+			}
+
+			if t.Args.Var != nil && actual.Args.Var != nil {
+				f.Equal(t.Args.Var.TokenPos,
+					actual.Args.Var.TokenPos)
+				f.EqualExpr(t.Args.Var.Value,
+					actual.Args.Var.Value)
+			}
+
+			f.EqualNamedArgsNames(t.NamedArgs.Names, actual.NamedArgs.Names)
+			f.EqualExprs(t.NamedArgs.Values, actual.NamedArgs.Values)
+			return
+		}
 	}
 
 	require.Equal(f.t, expected, actual, msgAndArgs...)
@@ -331,27 +356,7 @@ func (f *File) EqualExpr(expected, actual node.Expr) {
 	case *node.CallExpr:
 		actual := actual.(*node.CallExpr)
 		f.EqualExpr(expected.Func, actual.Func)
-		f.Equal(expected.LParen, actual.LParen)
-		f.Equal(expected.RParen, actual.RParen)
-		f.EqualExprs(expected.Args.Values, actual.Args.Values)
-
-		if expected.Args.Var == nil && actual.Args.Var != nil {
-			require.Nil(t, expected.Args.Var)
-		}
-
-		if expected.Args.Var != nil && actual.Args.Var == nil {
-			require.NotNil(t, expected.Args.Var)
-		}
-
-		if expected.Args.Var != nil && actual.Args.Var != nil {
-			f.Equal(expected.Args.Var.TokenPos,
-				actual.Args.Var.TokenPos)
-			f.EqualExpr(expected.Args.Var.Value,
-				actual.Args.Var.Value)
-		}
-
-		f.EqualNamedArgsNames(expected.NamedArgs.Names, actual.NamedArgs.Names)
-		f.EqualExprs(expected.NamedArgs.Values, actual.NamedArgs.Values)
+		f.Equal(&expected.CallArgs, &actual.CallArgs)
 	case *node.ParenExpr:
 		f.EqualExpr(expected.Expr, actual.(*node.ParenExpr).Expr)
 		f.Equal(expected.LParen, actual.(*node.ParenExpr).LParen)
@@ -373,9 +378,10 @@ func (f *File) EqualExpr(expected, actual node.Expr) {
 	case *node.ImportExpr:
 		f.EqualExpr(&expected.CallExpr, &actual.(*node.ImportExpr).CallExpr)
 	case *node.EmbedExpr:
-		f.Equal(expected.Path, actual.(*node.EmbedExpr).Path)
-		f.Equal(int(expected.TokenPos), int(actual.(*node.EmbedExpr).TokenPos))
-		f.Equal(expected.Token, actual.(*node.EmbedExpr).Token)
+		actual := actual.(*node.EmbedExpr)
+		f.Equal(expected.TokenPos, actual.TokenPos)
+		f.Equal(expected.Token, actual.Token)
+		f.Equal(&expected.Args, &actual.Args)
 	case *node.CondExpr:
 		f.EqualExpr(expected.Cond, actual.(*node.CondExpr).Cond)
 		f.EqualExpr(expected.True, actual.(*node.CondExpr).True)

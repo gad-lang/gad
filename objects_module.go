@@ -15,7 +15,7 @@ var (
 	_ ValuesGetter       = (*Module)(nil)
 	_ ItemsGetter        = (*Module)(nil)
 	_ IndexGetSetter     = (*Module)(nil)
-	_ Printer            = (*Module)(nil)
+	_ Printabler         = (*Module)(nil)
 	_ IndexSetterUpdater = (*Module)(nil)
 	_ ToDictConverter    = (*Module)(nil)
 	_ StringIndexSetter  = (*Module)(nil)

@@ -26,7 +26,8 @@ var (
 	SourceFileV1,
 	SymbolInfoV1,
 	ModuleSpecV1,
-	ErrorV1 EncDec
+	ErrorV1,
+	EmbeddedV1 EncDec
 )
 
 const (
@@ -51,6 +52,7 @@ const (
 	binSymbolInfoV1
 	binModuleSpecV1
 	binErrorV1
+	binEmbeddedV1
 )
 
 func init() {
@@ -75,4 +77,5 @@ func init() {
 	Register[source.File](binSourceFileV1, &SourceFileV1)
 	Register[gad.ModuleSpec](binModuleSpecV1, &ModuleSpecV1)
 	Register[gad.Error](binErrorV1, &ErrorV1)
+	Register[gad.Embedded](binEmbeddedV1, &EmbeddedV1)
 }

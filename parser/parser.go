@@ -1044,31 +1044,77 @@ func (p *Parser) ParseImportExpr() node.Expr {
 
 func (p *Parser) ParseEmbedExpr() node.Expr {
 	pos := p.Token.Pos
-
 	p.Next()
-	p.Expect(token.LParen)
 
-	var pth string
-	switch p.Token.Token {
-	case token.String:
-		pth, _ = strconv.Unquote(p.Token.Literal)
-	case token.Symbol:
-		pth = p.ParseSymbolLit().Value()
-	default:
-		p.ErrorExpected(p.Token.Pos, "path")
-		p.advance(stmtStart)
-		return &node.BadExpr{From: pos, To: p.Token.Pos}
+	parem := p.ParseParemExpr(token.LParen, token.RParen)
+	args, err := parem.ToMultiParenExpr().ToCallArgs(true)
+
+	if err != nil {
+		p.Error(parem.Pos(), err.Error())
+		return &node.BadExpr{From: parem.Pos(), To: parem.End()}
 	}
 
-	expr := &node.EmbedExpr{
-		Path:     pth,
+	var pth node.Expr
+
+	if len(args.Args.Values) == 1 && args.Args.Var == nil {
+		switch t := args.Args.Values[0].(type) {
+		case *node.StringLit, *node.SymbolLit:
+			pth = t
+		}
+	}
+
+	if pth == nil {
+		p.Error(parem.Pos(), "expected single str|symbol param as path")
+		return &node.BadExpr{From: parem.Pos(), To: parem.End()}
+	}
+
+	for i, name := range args.NamedArgs.Names {
+		if name.Ident == nil || name.Var {
+			e := name.Expr()
+			p.Error(e.Pos(), "expected ident non var named param")
+			return &node.BadExpr{From: e.Pos(), To: e.End()}
+		} else {
+			switch name.Ident.Name {
+			case "sources", "includes", "excludes":
+				var (
+					value    = args.NamedArgs.Values[i]
+					valueArr *node.ArrayExpr
+				)
+
+				if value != nil {
+					valueArr, _ = value.(*node.ArrayExpr)
+				}
+
+				if valueArr == nil {
+					p.Error(name.Ident.Pos(), "expected array value")
+					return &node.BadExpr{From: name.Ident.Pos(), To: name.Ident.End()}
+				}
+
+				for _, el := range valueArr.Elements {
+					switch t := el.(type) {
+					case *node.StringLit, *node.SymbolLit:
+					default:
+						p.Error(parem.Pos(), "expected single str|symbol")
+						return &node.BadExpr{From: t.Pos(), To: t.End()}
+					}
+				}
+			case "tree":
+				if v := args.NamedArgs.Values[i]; v != nil {
+					p.Error(v.Pos(), "unexpected")
+					return &node.BadExpr{From: v.Pos(), To: v.End()}
+				}
+			default:
+				p.Error(name.Ident.Pos(), "expected only sources|includes|excludes|dir named params")
+				return &node.BadExpr{From: name.Ident.Pos(), To: name.Ident.End()}
+			}
+		}
+	}
+
+	return &node.EmbedExpr{
+		Args:     *args,
 		Token:    token.Embed,
 		TokenPos: pos,
 	}
-
-	p.Next()
-	p.Expect(token.RParen)
-	return expr
 }
 
 func (p *Parser) ParseClosureExpr(lambdaToken token.Token, paren *node.MultiParenExpr) *node.ClosureExpr {

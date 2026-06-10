@@ -329,8 +329,8 @@ func EImport(pos source.Pos, moduleName string, lparen, rparen, moduleNamePos so
 	}}
 }
 
-func EEmbed(path string, pos source.Pos) *EmbedExpr {
-	return &EmbedExpr{Path: path, Token: token.Embed, TokenPos: pos}
+func EEmbed(args *CallArgs, pos source.Pos) *EmbedExpr {
+	return &EmbedExpr{Args: *args, Token: token.Embed, TokenPos: pos}
 }
 
 func Int(value int64, pos source.Pos) *IntLit {

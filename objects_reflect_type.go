@@ -163,6 +163,7 @@ type ReflectType struct {
 	formatMethod      *ReflectMethod
 	CallObject        func(obj *ReflectStruct, c Call) (Object, error)
 	InstancePrintFunc func(state *PrinterState, obj *ReflectValue) error
+	StaticMethods     map[string]CallerObject
 	*FuncSpec
 }
 
@@ -307,6 +308,16 @@ func (t *ReflectType) Equal(right Object) bool {
 	return false
 }
 
+func (t *ReflectType) StaticMethod(name string, co CallerObject) {
+	if t.StaticMethods == nil {
+		t.StaticMethods = map[string]CallerObject{
+			name: co,
+		}
+	} else {
+		t.StaticMethods[name] = co
+	}
+}
+
 func (t *ReflectType) NewDefault(c Call) (Object, error) {
 	if c.NamedArgs.IsFalsy() {
 		return t.New(c.VM, nil)
@@ -380,4 +391,19 @@ func (t *ReflectType) New(vm *VM, m Dict) (_ Object, err error) {
 
 func ReflectTypeOf(v any) (rt *ReflectType) {
 	return NewReflectType(indirectInterface(reflect.ValueOf(v)).Type())
+}
+
+func ReflectTypeFor[T any]() *ReflectType {
+	rt := reflect.TypeFor[T]()
+
+try:
+	for {
+		switch rt.Kind() {
+		case reflect.Interface, reflect.Ptr:
+			rt = rt.Elem()
+		default:
+			break try
+		}
+	}
+	return NewReflectType(rt)
 }

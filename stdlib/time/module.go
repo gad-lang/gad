@@ -8,6 +8,7 @@
 package time
 
 import (
+	"reflect"
 	"strconv"
 	"time"
 
@@ -28,6 +29,11 @@ func getModule() gad.Dict {
 // ModuleInit represents time module.
 var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err error) {
 	spec := module.Spec
+
+	if c.VM != nil {
+		registerConverters(spec, c.VM)
+	}
+
 	module.Data = gad.Dict{
 		// gad:doc
 		// # time module
@@ -645,4 +651,109 @@ func unixFunc(c gad.Call) (gad.Object, error) {
 func isTimeFunc(o gad.Object) gad.Object {
 	_, ok := o.(*Time)
 	return gad.Bool(ok)
+}
+
+func registerConverters(module *gad.ModuleSpec, vm *gad.VM) {
+	vm.ObjectConverters.RegisterToGo(TimeType, func(vm *gad.VM, v gad.Object) any {
+		return v.(*Time).Value
+	})
+
+	vm.ObjectConverters.RegisterToObject(reflect.TypeFor[time.Time](), func(vm *gad.VM, v any) (gad.Object, error) {
+		switch t := v.(type) {
+		case *time.Time:
+			return &Time{Value: *t}, nil
+		case time.Time:
+			return &Time{Value: t}, nil
+		default:
+			return nil, gad.ErrType.NewErrorf("cannot convert %T to Time", v)
+		}
+	})
+
+	vm.ObjectConverters.RegisterToObject(reflect.TypeFor[*time.Time](), func(vm *gad.VM, v any) (gad.Object, error) {
+		t := v.(*time.Time)
+		if t == nil {
+			return gad.Nil, nil
+		}
+		return &Time{Value: *t}, nil
+	})
+
+	vm.ObjectConverters.RegisterToObject(reflect.TypeFor[time.Duration](), func(vm *gad.VM, v any) (gad.Object, error) {
+		return gad.Int(v.(time.Duration)), nil
+	})
+
+	vm.ObjectConverters.RegisterToGo(LocationType, func(vm *gad.VM, v gad.Object) any {
+		return v.(*Location).Value
+	})
+
+	vm.ObjectConverters.RegisterToObject(reflect.TypeFor[time.Location](), func(vm *gad.VM, v any) (gad.Object, error) {
+		var l *time.Location
+		switch t := v.(type) {
+		case *time.Location:
+			l = t
+		case time.Location:
+			l = &t
+		}
+		if l == nil {
+			return gad.Nil, nil
+		}
+		return &Location{Value: l}, nil
+	})
+
+	gad.AddMethod(vm.Builtins.Get(gad.BuiltinInt), (&gad.Function{
+		Module:   module,
+		FuncName: "timeToInt",
+		Value: func(c gad.Call) (o gad.Object, err error) {
+			var (
+				arg = &gad.Arg{Name: "v"}
+				get = GoTimeArg(arg)
+			)
+
+			if err = c.Args.Destructure(arg); err != nil {
+				return
+			}
+
+			var (
+				t       = get().Value
+				unit, _ = c.NamedArgs.MustGetValueOrNil("unit").(gad.Char)
+			)
+
+			switch unit {
+			case 'n':
+				return gad.Int(t.UnixNano()), nil
+			case 'm':
+				return gad.Int(t.UnixMicro()), nil
+			case 'l':
+				return gad.Int(t.UnixMilli()), nil
+			default:
+				return gad.Int(t.Unix()), nil
+			}
+		},
+
+		Usage: `converts time to Unix time value elapsed since January 1, 1970 UTC`,
+	}).
+		WithOption(
+			gad.FunctionWithParams(func(p func(name string) *gad.ParamBuilder) {
+				p("v").Type(TimeType).Usage("time object")
+			}),
+			gad.FunctionWithNamedParams(func(newParam func(name string) *gad.NamedParamBuilder) {
+				newParam("unit").Type(gad.TChar).Usage(`
+Available values:
+
+'n'
+	the number of nano seconds.
+'m'
+	the number of micro seconds.
+'l'
+	the number of milli seconds.
+default
+	the number of seconds.
+`)
+			})))
+}
+
+func GoTimeArg(arg *gad.Arg) (get func() *Time) {
+	arg.TypeAssertion = gad.TypeAssertionFromTypes(TimeType)
+	return func() *Time {
+		return arg.Value.(*Time)
+	}
 }

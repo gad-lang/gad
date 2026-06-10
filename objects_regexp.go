@@ -9,7 +9,7 @@ import (
 var (
 	_ Object           = (*Regexp)(nil)
 	_ NameCallerObject = (*Regexp)(nil)
-	_ Printer          = (*Regexp)(nil)
+	_ Printabler       = (*Regexp)(nil)
 )
 
 type Regexp regexp.Regexp

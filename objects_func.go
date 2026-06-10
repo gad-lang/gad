@@ -10,7 +10,7 @@ import (
 type FuncWrapper interface {
 	fmt.Stringer
 	Object
-	Printer
+	Printabler
 	Name() string
 	FullName() string
 	FuncSpecName() string

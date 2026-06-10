@@ -3121,11 +3121,20 @@ func TestParseImport(t *testing.T) {
 }
 
 func TestParseEmbed(t *testing.T) {
+	test.ExpectParse(t, `a := embed("file";sources=[])`, func(p pfn) []Stmt {
+		return stmts(
+			assignStmt(
+				exprs(EIdent("a", p(1, 1))),
+				exprs(embedExpr(NewCallArgs(p(1, 11), p(1, 29)).Arg(String("file", p(1, 12))).NamedValue(EIdent("sources", p(1, 19)), Array(p(1, 27), p(1, 28))), p(1, 6))),
+				token.Define, p(1, 3)))
+	})
+
+	return
 	test.ExpectParse(t, `a := embed("file")`, func(p pfn) []Stmt {
 		return stmts(
 			assignStmt(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(embedExpr("file", p(1, 6))),
+				exprs(embedExpr(NewCallArgs(p(1, 11), p(1, 18)).Arg(String("file", p(1, 12))), p(1, 6))),
 				token.Define, p(1, 3)))
 	})
 
@@ -3133,7 +3142,7 @@ func TestParseEmbed(t *testing.T) {
 		return stmts(
 			exprStmt(
 				selectorExpr(
-					embedExpr("file", p(1, 1)),
+					embedExpr(NewCallArgs(p(1, 6), p(1, 13)).Arg(String("file", p(1, 7))), p(1, 1)),
 					stringLit("var1", p(1, 15)))))
 	})
 
@@ -3142,7 +3151,7 @@ func TestParseEmbed(t *testing.T) {
 			forInStmt(
 				EIdent("x", p(1, 5)),
 				EIdent("y", p(1, 8)),
-				embedExpr("file", p(1, 13)),
+				embedExpr(NewCallArgs(p(1, 18), p(1, 25)).Arg(String("file", p(1, 19))), p(1, 13)),
 				blockStmt(p(1, 27), p(1, 28)),
 				p(1, 1)))
 	})
@@ -4417,8 +4426,8 @@ func unaryExpr(x Expr, op token.Token, pos Pos) *UnaryExpr {
 
 var importExpr = EImport
 
-func embedExpr(path string, pos Pos) *EmbedExpr {
-	return &EmbedExpr{Path: path, Token: token.Embed, TokenPos: pos}
+func embedExpr(args *CallArgs, pos Pos) *EmbedExpr {
+	return &EmbedExpr{Args: *args, Token: token.Embed, TokenPos: pos}
 }
 
 func exprs(list ...Expr) []Expr {

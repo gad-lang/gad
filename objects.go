@@ -632,10 +632,23 @@ func FunctionWithNamedParams(builder func(newParam func(name string) *NamedParam
 	}
 }
 
+func FunctionWithUsage(usage string) FunctionOption {
+	return func(f *Function) {
+		f.Usage = usage
+	}
+}
+
+func FunctionWithModule(spec *ModuleSpec) FunctionOption {
+	return func(f *Function) {
+		f.Module = spec
+	}
+}
+
 // Function represents a function object and implements Object interface.
 type Function struct {
 	ObjectImpl
 	FuncName     string
+	Usage        string
 	Value        func(Call) (Object, error)
 	ToStringFunc func() string
 	Header       *FunctionHeader
@@ -662,6 +675,13 @@ func NewFunction(name string, v func(Call) (Object, error), opt ...FunctionOptio
 func (f *Function) WithHeader(do func(h *FunctionHeader)) *Function {
 	f.Header = &FunctionHeader{}
 	do(f.Header)
+	return f
+}
+
+func (f *Function) WithOption(opt ...FunctionOption) *Function {
+	for _, o := range opt {
+		o(f)
+	}
 	return f
 }
 
@@ -893,7 +913,7 @@ var (
 	_ KeysGetter                = (Array)(nil)
 	_ ItemsGetter               = (Array)(nil)
 	_ SelfAssignOperatorHandler = (Array)(nil)
-	_ Printer                   = (Array)(nil)
+	_ Printabler                = (Array)(nil)
 )
 
 func (o Array) Type() ObjectType {
@@ -1253,7 +1273,7 @@ var (
 	_ KeysGetter        = Dict{}
 	_ ValuesGetter      = Dict{}
 	_ ItemsGetter       = Dict{}
-	_ Printer           = Dict{}
+	_ Printabler        = Dict{}
 	_ StringIndexSetter = Dict{}
 )
 
@@ -1304,37 +1324,13 @@ func (o Dict) PrintObject(state *PrinterState, dot Object) (err error) {
 		defer state.WrapRepr(dot)()
 	}
 
-	type entry struct {
-		name  string
-		value Object
-	}
-
-	var (
-		entries         []entry
-		sortKeysType, _ = state.options.SortKeys()
-	)
+	var entries PrintStateDictEntries
 
 	for name, value := range o {
-		entries = append(entries, entry{name, value})
+		entries = append(entries, &PrintStateDictEntry{name, value})
 	}
 
-	switch sortKeysType {
-	case 2:
-		sort.Slice(entries, func(i, j int) bool {
-			return entries[i].name > entries[j].name
-		})
-	default:
-		sort.Slice(entries, func(i, j int) bool {
-			return entries[i].name < entries[j].name
-		})
-	}
-
-	return state.PrintDict(len(entries),
-		func(i int) (Object, error) {
-			return Str(entries[i].name), nil
-		}, func(i int) (Object, error) {
-			return entries[i].value, nil
-		})
+	return state.PrintDictEntries(entries)
 }
 
 func (o Dict) ToString() string {
@@ -2067,7 +2063,7 @@ func (m *MixedParams) Print(state *PrinterState) error {
 var (
 	_ Object         = (*TypedIdent)(nil)
 	_ IndexGetSetter = (*TypedIdent)(nil)
-	_ Printer        = (*TypedIdent)(nil)
+	_ Printabler     = (*TypedIdent)(nil)
 )
 
 type TypedIdent struct {

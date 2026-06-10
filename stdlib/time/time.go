@@ -5,56 +5,11 @@
 package time
 
 import (
-	"reflect"
 	"time"
 
 	"github.com/gad-lang/gad"
-	"github.com/gad-lang/gad/registry"
 	"github.com/gad-lang/gad/token"
 )
-
-func init() {
-	registry.RegisterObjectConverter(reflect.TypeOf(time.Duration(0)),
-		func(in any) (any, bool) {
-			return gad.Int(in.(time.Duration)), true
-		},
-	)
-
-	registry.RegisterObjectConverter(reflect.TypeOf(time.Time{}),
-		func(in any) (any, bool) {
-			return &Time{Value: in.(time.Time)}, true
-		},
-	)
-	registry.RegisterObjectConverter(reflect.TypeOf((*time.Time)(nil)),
-		func(in any) (any, bool) {
-			v := in.(*time.Time)
-			if v == nil {
-				return gad.Nil, true
-			}
-			return &Time{Value: *v}, true
-		},
-	)
-	registry.RegisterAnyConverter(reflect.TypeOf((*Time)(nil)),
-		func(in any) (any, bool) {
-			return in.(*Time).Value, true
-		},
-	)
-
-	registry.RegisterObjectConverter(reflect.TypeOf((*time.Location)(nil)),
-		func(in any) (any, bool) {
-			v := in.(*time.Location)
-			if v == nil {
-				return gad.Nil, true
-			}
-			return &Location{Value: v}, true
-		},
-	)
-	registry.RegisterAnyConverter(reflect.TypeOf((*Location)(nil)),
-		func(in any) (any, bool) {
-			return in.(*Location).Value, true
-		},
-	)
-}
 
 // gad:doc
 // ## Types

@@ -72,6 +72,14 @@ func readInt64(r io.Reader) (v int64, err error) {
 	return int64(u), nil
 }
 
+func readInt32(r io.Reader) (v int32, err error) {
+	var u uint32
+	if u, err = readUint32(r); err != nil {
+		return
+	}
+	return int32(u), nil
+}
+
 func readInt(r io.Reader) (v int, err error) {
 	var u uint64
 	if u, err = readUint64(r); err != nil {

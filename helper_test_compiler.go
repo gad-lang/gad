@@ -136,6 +136,15 @@ func TestBytecodesEqual(t *testing.T,
 
 			compareCf(ef, g, true, fmt.Sprintf("Contants[%d]: CompiledFunctions", i))
 			continue
+		case *Embedded:
+			ee, ok := expectObj.(*Embedded)
+			if !ok {
+				t.Fatalf("%T expected at index %d but got %T",
+					expectObj, i, gotObj)
+			}
+			if ee.Path() == g.Path() {
+				continue
+			}
 		}
 
 		if !reflect.DeepEqual(expectObj, gotObj) {

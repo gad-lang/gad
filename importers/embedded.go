@@ -3,6 +3,7 @@ package importers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,9 +16,9 @@ var _ gad.EmbeddedExtImporter = (*EmbeddedFileImporter)(nil)
 // EmbeddedFileImporter is an implemention of gad.ExtImporter to import files from file
 // system. It uses absolute paths of module as import names.
 type EmbeddedFileImporter struct {
-	NameResolver func(cwd, name string) (string, error)
-	WorkDir      string
-	FileReader   func(string) (data []byte, uri string, err error)
+	NameResolver func(dirs []string, name string) (relPath, absPath string, err error)
+	WorkDirs     []string
+	AbsDisabled  bool
 	name         string
 }
 
@@ -30,107 +31,199 @@ func (i *EmbeddedFileImporter) Get(name string) gad.EmbeddedExtImporter {
 	return i
 }
 
-// Name returns the absoule path of the module. A previous Get call is required
-// to get the name of the imported module.
-func (i *EmbeddedFileImporter) Name() (string, error) {
+// Paths returns the paths of the file.
+func (i *EmbeddedFileImporter) Paths() (name, absPath string, err error) {
 	if i.name == "" {
-		return "", nil
-	}
-	if i.NameResolver != nil {
-		return i.NameResolver(i.WorkDir, i.name)
+		return
 	}
 
-	path := i.name
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(i.WorkDir, path)
-		if p, err := filepath.Abs(path); err == nil {
-			path = p
-		}
+	if i.NameResolver != nil {
+		return i.NameResolver(i.WorkDirs, i.name)
 	}
-	return path, nil
+
+	return ResolvePath(i.WorkDirs, !i.AbsDisabled, i.name)
 }
 
 // Import returns the content of the path determined by Name call. Empty name
 // will return an error.
-func (i *EmbeddedFileImporter) Import(_ context.Context, pth string) (e *gad.Embedded, err error) {
-	e = &gad.Embedded{Name: i.name}
-
-	// Note that; moduleName == Literal()
-	if i.name == "" || pth == "" {
-		err = errors.New("invalid import call")
+func (i *EmbeddedFileImporter) Import(ctx context.Context, name string, absPath string, opts *gad.EmbeddedImportOptions) (e *gad.Embedded, err error) {
+	if name == "" {
+		err = errors.New("invalid import")
 		return
 	}
-	if i.FileReader == nil {
-		var s os.FileInfo
-		if s, err = os.Stat(pth); err != nil {
+
+	name = filepath.Clean(name)
+
+	if strings.HasPrefix(name, ".") {
+		err = errors.New("invalid import path")
+		return
+	}
+
+	if opts == nil {
+		opts = new(gad.EmbeddedImportOptions)
+	}
+
+	e = &gad.Embedded{Name: name}
+
+	var (
+		s           os.FileInfo
+		ready       = make(map[string]bool)
+		resolvePath = func(absPath string, s os.FileInfo) (_ string, _ os.FileInfo, err error) {
+			for !s.IsDir() && !s.Mode().IsRegular() {
+				if _, ok := ready[absPath]; ok {
+					err = errors.New("link loop: " + absPath)
+					return
+				}
+				ready[absPath] = true
+
+				if absPath, err = os.Readlink(absPath); err != nil {
+					return
+				}
+			}
+
+			if !filepath.IsAbs(absPath) {
+				if absPath, err = filepath.Abs(absPath); err != nil {
+					return
+				}
+			}
+
+			for _, dir := range i.WorkDirs {
+				if strings.HasPrefix(absPath, dir) {
+					if s, err = os.Stat(absPath); err != nil {
+						return
+					}
+					return absPath, s, nil
+				}
+			}
+			err = fmt.Errorf("invalid import path: %s", absPath)
 			return
 		}
-		if s.IsDir() {
-			d := gad.Dict{}
-			root := pth
-			filepath.Walk(pth, func(pth string, info os.FileInfo, err_ error) (err error) {
-				if err_ != nil {
-					return err_
-				}
-				if !info.IsDir() {
-					var b []byte
-					if b, err = os.ReadFile(pth); err != nil {
-						return
-					}
-					if pth, err = filepath.Rel(root, pth); err != nil {
-						return
-					}
-
-					d := d
-					parts := strings.Split(filepath.ToSlash(pth), "/")
-					for len(parts) > 1 {
-						p := parts[0]
-
-						if sub, ok := d[p]; ok {
-							d = sub.(gad.Dict)
-						} else {
-							sub := gad.Dict{}
-							d[p] = sub
-							d = sub
-						}
-
-						parts = parts[1:]
-					}
-
-					d[parts[0]] = gad.Bytes(b)
-				}
+		addNode = func(root string, abs string, info os.FileInfo) (err error) {
+			var pth string
+			if pth, err = filepath.Rel(root, abs); err != nil {
 				return
-			})
-			e.Path = pth
-			e.Data = d
+			}
+
+			parts := strings.Split(pth, string(filepath.Separator))
+			dir := e
+
+			for len(parts) > 1 {
+				p := parts[0]
+
+				if sub, ok := dir.Entries[p]; ok {
+					dir = sub
+				} else {
+					sub := new(gad.Embedded)
+					sub.Parent = dir
+					sub.Name = p
+					sub.Entries = make(map[string]*gad.Embedded)
+					if dir.Entries == nil {
+						dir.Entries = make(map[string]*gad.Embedded)
+					}
+					dir.Entries[p] = sub
+					dir = sub
+				}
+
+				parts = parts[1:]
+			}
+
+			dir.Entries[parts[0]] = &gad.Embedded{
+				Name:          parts[0],
+				ModTime:       info.ModTime(),
+				Mode:          info.Mode(),
+				ReaderFactory: &gad.EmbeddedOsFileReaderFactory{},
+				Parent:        dir,
+				AbsPath:       abs,
+			}
+
 			return
 		}
-		var data []byte
-		if data, err = os.ReadFile(pth); err != nil {
-			return
+	)
+
+	// if not resolved
+	if len(absPath) == 0 {
+		sources := opts.Sources
+		if len(sources) == 0 {
+			sources = []string{"."}
 		}
-		e.Path = pth
-		e.Data = gad.Bytes(data)
+
+		if opts.Tree && len(sources) > 1 {
+			for _, src := range sources {
+				for _, dir := range i.WorkDirs {
+					pth := filepath.Join(dir, src)
+					if s, err = os.Stat(pth); err != nil {
+						err = nil
+						continue
+					}
+
+					if !s.IsDir() {
+						if pth, s, err = resolvePath(pth, s); err != nil {
+							return
+						}
+					}
+
+					if !s.IsDir() {
+						continue
+					}
+
+					err = filepath.Walk(pth, func(epth string, info os.FileInfo, err_ error) (err error) {
+						if err_ != nil {
+							return err_
+						}
+						if !info.IsDir() {
+							err = addNode(pth, epth, info)
+						}
+						return
+					})
+					if err != nil {
+						return
+					}
+				}
+			}
+
+			return
+		} else {
+		sources:
+			for _, src := range sources {
+				for _, dir := range i.WorkDirs {
+					pth := filepath.Join(dir, filepath.FromSlash(src), filepath.Clean(name))
+					if s, err = os.Stat(pth); err != nil {
+						err = nil
+						continue
+					}
+					e.AbsPath = pth
+					break sources
+				}
+			}
+		}
+	} else if s, err = os.Stat(absPath); err != nil {
+		return
+	} else {
+		e.AbsPath = absPath
+	}
+
+	if e.AbsPath, s, err = resolvePath(e.AbsPath, s); err != nil {
 		return
 	}
 
-	var data []byte
-	if data, pth, err = i.FileReader(pth); err != nil {
-		return
+	if s == nil {
+		return nil, os.ErrNotExist
 	}
-	e.Path = pth
-	e.Data = gad.Bytes(data)
+
+	if s.IsDir() {
+		err = filepath.Walk(e.AbsPath, func(pth string, info os.FileInfo, err_ error) (err error) {
+			if err_ != nil {
+				return err_
+			}
+			if !info.IsDir() {
+				err = addNode(e.AbsPath, pth, info)
+			}
+			return
+		})
+	} else {
+		e.Mode = s.Mode()
+		e.ModTime = s.ModTime()
+		e.ReaderFactory = &gad.EmbeddedOsFileReaderFactory{}
+	}
 	return
-}
-
-// Fork returns a new instance of EmbeddedFileImporter as gad.ExtImporter by capturing
-// the working directory of the module. moduleName should be the same value
-// provided by Name call.
-func (i *EmbeddedFileImporter) Fork(pth string) gad.EmbeddedExtImporter {
-	// Note that; moduleName == Literal()
-	return &EmbeddedFileImporter{
-		WorkDir:      filepath.Dir(pth),
-		FileReader:   i.FileReader,
-		NameResolver: i.NameResolver,
-	}
 }

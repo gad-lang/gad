@@ -24,6 +24,20 @@ func (oc *ObjectConverters) Register(objType ObjectType, togo func(vm *VM, v Obj
 	return oc
 }
 
+func (oc *ObjectConverters) RegisterToObject(goType reflect.Type, toObject func(vm *VM, v any) (Object, error)) *ObjectConverters {
+	if goType != nil {
+		oc.ToObjectHandlers[goType] = toObject
+	}
+	return oc
+}
+
+func (oc *ObjectConverters) RegisterToGo(objType ObjectType, togo func(vm *VM, v Object) any) *ObjectConverters {
+	if objType != nil {
+		oc.ToGoHandlers[objType] = togo
+	}
+	return oc
+}
+
 func (oc *ObjectConverters) ToObject(vm *VM, v any) (Object, error) {
 	typ := reflect.TypeOf(v)
 	for typ.Kind() == reflect.Ptr {

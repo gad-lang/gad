@@ -2,15 +2,14 @@ package encoder
 
 import (
 	"errors"
-	"io"
 	"strconv"
 
 	"github.com/gad-lang/gad"
 )
 
-func DecodeIterator(r Reader, init func(l int), cb func(i int) error) (err error) {
+func DecodeIterator(ctx *ReadContext, init func(l int), cb func(i int) error) (err error) {
 	var l int
-	if l, err = readInt(r); err != nil {
+	if l, err = readInt(ctx); err != nil {
 		return
 	}
 
@@ -26,18 +25,18 @@ func DecodeIterator(r Reader, init func(l int), cb func(i int) error) (err error
 	return
 }
 
-func DecodeItems[V any](r Reader, ctx *Context, init func(l int), cb func(i int, v V) error) (err error) {
-	return DecodeIterator(r, init, func(i int) (err error) {
+func DecodeItems[V any](ctx *ReadContext, init func(l int), cb func(i int, v V) error) (err error) {
+	return DecodeIterator(ctx, init, func(i int) (err error) {
 		var v any
-		if v, err = Decode(r, ctx); err != nil {
+		if v, err = Decode(ctx); err != nil {
 			return
 		}
 		return cb(i, v.(V))
 	})
 }
 
-func DecodeArray[T any](r Reader, ctx *Context, init ...func(arr []T)) (arr []T, err error) {
-	err = DecodeItems(r, ctx,
+func DecodeArray[T any](ctx *ReadContext, init ...func(arr []T)) (arr []T, err error) {
+	err = DecodeItems(ctx,
 		func(l int) {
 			arr = make([]T, l)
 			for _, f := range init {
@@ -52,18 +51,18 @@ func DecodeArray[T any](r Reader, ctx *Context, init ...func(arr []T)) (arr []T,
 	return
 }
 
-func DecodeDict(r Reader, ctx *Context) (d gad.Dict, err error) {
-	err = DecodeIterator(r,
+func DecodeDict(ctx *ReadContext) (d gad.Dict, err error) {
+	err = DecodeIterator(ctx,
 		func(l int) {
 			d = make(gad.Dict, l)
 		},
 		func(i int) (err error) {
 			var k string
-			if k, err = readString(r); err != nil {
+			if k, err = readString(ctx); err != nil {
 				return
 			}
 			var v any
-			if v, err = Decode(r, ctx); err != nil {
+			if v, err = Decode(ctx); err != nil {
 				return
 			}
 			d[k] = v.(gad.Object)
@@ -73,10 +72,10 @@ func DecodeDict(r Reader, ctx *Context) (d gad.Dict, err error) {
 	return
 }
 
-func DecodeFields(r Reader, cb func(field uint8) error) (err error) {
+func DecodeFields(ctx *ReadContext, cb func(field uint8) error) (err error) {
 	var field byte
 	for {
-		if field, err = r.ReadByte(); err != nil || field == FieldEOF {
+		if field, err = ctx.ReadByte(); err != nil || field == FieldEOF {
 			return
 		}
 
@@ -86,30 +85,8 @@ func DecodeFields(r Reader, cb func(field uint8) error) (err error) {
 	}
 }
 
-func readByteFrom(r io.Reader) (byte, error) {
-	if br, ok := r.(io.ByteReader); ok {
-		return br.ReadByte()
-	}
-
-	var one = []byte{0}
-	n, err := r.Read(one)
-	if err != nil {
-		if err == io.EOF {
-			if n == 1 {
-				return one[0], nil
-			}
-		}
-		return 0, err
-	}
-
-	if n == 1 {
-		return one[0], nil
-	}
-	return 0, errors.New("byte read error")
-}
-
-func Decode(r Reader, ctx *Context) (any, error) {
-	version, err := readByteFrom(r)
+func Decode(ctx *ReadContext) (any, error) {
+	version, err := ctx.ReadByte()
 
 	if err != nil {
 		return nil, err
@@ -123,12 +100,12 @@ func Decode(r Reader, ctx *Context) (any, error) {
 		)
 	}
 
-	return ed.Decode(r, ctx)
+	return ed.Decode(ctx)
 }
 
-func DecodeT[T any](r Reader, ctx *Context) (o T, err error) {
+func DecodeT[T any](ctx *ReadContext) (o T, err error) {
 	var ret any
-	if ret, err = Decode(r, ctx); err == nil {
+	if ret, err = Decode(ctx); err == nil {
 		o = ret.(T)
 	}
 	return

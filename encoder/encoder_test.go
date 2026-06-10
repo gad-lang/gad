@@ -2,8 +2,11 @@ package encoder_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"testing"
 	gotime "time"
 
@@ -150,14 +153,43 @@ func randString(length int) string {
 }
 
 func encode(v any) (b []byte, err error) {
-	var w bytes.Buffer
-	err = EncodeObject(&w, v)
+	var (
+		w bytes.Buffer
+	)
+	err = EncodeObject(NewWriteContext(context.Background(), NewWriter(&w)), v)
 	if err != nil {
 		return
 	}
 	return w.Bytes(), nil
 }
 
-func decode[t any](b []byte, opt ...ContextOption) (v t, err error) {
-	return DecodeT[t](bytes.NewBuffer(b), NewContext(opt...))
+func eencode(v any) (b, eb []byte, err error) {
+	var (
+		w  bytes.Buffer
+		ew bytes.Buffer
+	)
+	err = EncodeObject(NewWriteContext(context.Background(), NewWriter(&w), WriteContextWithEmbededWriter(NewWriter(&ew))), v)
+	if err != nil {
+		return
+	}
+	return w.Bytes(), ew.Bytes(), nil
+}
+
+func decode[t any](b []byte, opt ...ReadContextOption) (v t, err error) {
+	return DecodeT[t](NewReadContext(NewReader(bytes.NewReader(b)), opt...))
+}
+
+func edecode[t any](b, eb []byte, opt ...ReadContextOption) (v t, err error) {
+	opt = append(opt, ReadContextWithEmbeddedReader(bytes.NewReader(eb)))
+	return DecodeT[t](NewReadContext(NewReader(bytes.NewReader(b)), opt...))
+}
+
+func createFiles(t *testing.T, baseDir string, files map[string]string) {
+	for file, data := range files {
+		path := filepath.Join(baseDir, file)
+		err := os.MkdirAll(filepath.Dir(path), 0755)
+		require.NoError(t, err)
+		err = os.WriteFile(path, []byte(data), 0644)
+		require.NoError(t, err)
+	}
 }

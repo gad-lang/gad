@@ -72,9 +72,10 @@ type SimpleOptimizer struct {
 	constants        []Object
 	instructions     []byte
 	moduleStore      *moduleStore
-	embedStore       *embeddedStore
+	embedStore       map[string]int
 	moduleMap        *ModuleMap
 	module           *ModuleSpec
+	embeddedMap      *EmbeddedMap
 	returnStmt       node.ReturnStmt
 	file             *parser.File
 	errors           multipleErr
@@ -111,6 +112,7 @@ func NewOptimizer(
 		trace:            trace,
 		builtins:         base.builtins,
 		moduleMap:        opts.ModuleMap,
+		embeddedMap:      opts.EmbededdMap,
 		module:           module,
 	}
 }
@@ -243,11 +245,12 @@ func (so *SimpleOptimizer) slowEvalExpr(expr node.Expr) (node.Expr, bool) {
 		so.file.InputFile,
 		CompileOptions{
 			CompilerOptions: CompilerOptions{
-				moduleStore: so.moduleStore.reset(),
-				embedStore:  so.embedStore.reset(),
-				Constants:   so.constants[:0],
-				Trace:       so.trace,
-				ModuleMap:   so.moduleMap,
+				moduleStore:   so.moduleStore.reset(),
+				embeddedStore: make(map[string]int),
+				Constants:     so.constants[:0],
+				Trace:         so.trace,
+				ModuleMap:     so.moduleMap,
+				EmbededdMap:   so.embeddedMap,
 			},
 		},
 	)

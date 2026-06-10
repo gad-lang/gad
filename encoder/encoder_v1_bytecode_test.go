@@ -117,7 +117,7 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 	require.Greater(t, len(data), 0, "Encoded data")
 
 	var v *gad.Bytecode
-	v, err = decode[*gad.Bytecode](data, ContextWithGoModules(goModules))
+	v, err = decode[*gad.Bytecode](data, ReadContextWithGoModules(goModules))
 	require.NoError(t, err, "Decode")
 
 	testDecodedBytecodeEqual(t, builtins, bc, v)

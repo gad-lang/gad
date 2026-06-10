@@ -367,7 +367,7 @@ var (
 	_ IndexGetter      = (*Class)(nil)
 	_ CallerObject     = (*Class)(nil)
 	_ NameCallerObject = (*Class)(nil)
-	_ Printer          = (*Class)(nil)
+	_ Printabler       = (*Class)(nil)
 	_ MethodAdder      = (*Class)(nil)
 )
 

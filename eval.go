@@ -45,8 +45,8 @@ func NewEval(builtins *StaticBuiltins, st *SymbolTable, opts CompileOptions, run
 	if opts.moduleStore == nil {
 		opts.moduleStore = newModuleStore()
 	}
-	if opts.embedStore == nil {
-		opts.embedStore = newEmbeddedStore()
+	if opts.embeddedStore == nil {
+		opts.embeddedStore = newEmbeddedStore()
 	}
 
 	return &Eval{

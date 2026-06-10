@@ -1057,9 +1057,14 @@ func (e *TemplateLit) WriteCode(ctx *CodeWriteContext) {
 
 type CallArgs struct {
 	LParen    source.Pos
+	RParen    source.Pos
 	Args      CallExprPositionalArgs
 	NamedArgs CallExprNamedArgs
-	RParen    source.Pos
+}
+
+func NewCallArgs(LParen source.Pos, RParen source.Pos) *CallArgs {
+	ca := &CallArgs{LParen: LParen, RParen: RParen}
+	return ca
 }
 
 // Pos returns the position of first character belonging to the node.
@@ -1112,6 +1117,30 @@ func (c *CallArgs) WriteCodeBrace(ctx *CodeWriteContext, lbrace, rbrace string) 
 		ctx.WritePrefix()
 	}
 	ctx.WriteString(rbrace)
+}
+
+func (c *CallArgs) Arg(e ...Expr) *CallArgs {
+	c.Args.AppendValues(e...)
+	return c
+}
+
+func (c *CallArgs) ArgVar(pos source.Pos, e Expr) *CallArgs {
+	c.Args.Var = &ArgVarLit{Value: e, TokenPos: pos}
+	return c
+}
+
+func (c *CallArgs) NamedFlag(e ...Expr) *CallArgs {
+	for _, flagE := range e {
+		c.NamedArgs.AppendFlagE(flagE)
+	}
+	return c
+}
+
+func (c *CallArgs) NamedValue(e ...Expr) *CallArgs {
+	for i := 0; i < len(e); i += 2 {
+		c.NamedArgs.AppendE(e[i], e[i+1])
+	}
+	return c
 }
 
 func (c *CallArgs) ToFuncParams() (fp *FuncParams, err error) {

@@ -310,7 +310,7 @@ func (e *ImportExpr) Build() (moduleName string, args CallArgs) {
 
 // EmbedExpr represents an embed expression
 type EmbedExpr struct {
-	Path     string
+	Args     CallArgs
 	Token    token.Token
 	TokenPos source.Pos
 }
@@ -324,16 +324,73 @@ func (e *EmbedExpr) Pos() source.Pos {
 
 // End returns the position of first character immediately after the node.
 func (e *EmbedExpr) End() source.Pos {
-	// import("moduleName")
-	return source.Pos(int(e.TokenPos) + 10 + len(e.Path))
+	return e.Args.End()
 }
 
 func (e *EmbedExpr) String() string {
-	return `embed("` + e.Path + `")`
+	return `embed` + e.Args.String()
+}
+
+func (e *EmbedExpr) Path() (s string) {
+	switch t := e.Args.Args.Values[0].(type) {
+	case *StringLit:
+		s = t.Value()
+	case *SymbolLit:
+		s = t.Value()
+	}
+	return
+}
+
+func (e *EmbedExpr) Sources() []string {
+	return e.getStrings("sources")
+}
+
+func (e *EmbedExpr) Includes() []string {
+	return e.getStrings("includes")
+}
+
+func (e *EmbedExpr) Excludes() []string {
+	return e.getStrings("excludes")
+}
+
+func (e *EmbedExpr) getNvalue(nameArg string) (v Expr, ok bool) {
+	for i, expr := range e.Args.NamedArgs.Names {
+		if expr.Ident != nil && expr.Ident.Name == nameArg {
+			ok = true
+			v = e.Args.NamedArgs.Values[i]
+			break
+		}
+	}
+	return
+}
+
+func (e *EmbedExpr) getStrings(nameArg string) (s []string) {
+	if v, _ := e.getNvalue(nameArg); v != nil {
+		switch t := v.(type) {
+		case *ArrayExpr:
+			for _, av := range t.Elements {
+				switch a := av.(type) {
+				case *StringLit:
+					s = append(s, a.Value())
+				case *SymbolLit:
+					s = append(s, a.Value())
+				}
+			}
+		}
+	}
+	return
+}
+
+func (e *EmbedExpr) Tree() bool {
+	if v, ok := e.getNvalue("tree"); ok {
+		return v == nil
+	}
+	return false
 }
 
 func (e *EmbedExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(e.String())
+	ctx.WriteString("embed")
+	e.Args.WriteCode(ctx)
 }
 
 // IndexExpr represents an index expression.
@@ -983,6 +1040,25 @@ func (a *CallExprNamedArgs) Append(name *NamedArgExpr, value Expr) *CallExprName
 	a.Names = append(a.Names, name)
 	a.Values = append(a.Values, value)
 	return a
+}
+
+func (a *CallExprNamedArgs) AppendE(name Expr, value Expr) *CallExprNamedArgs {
+	ne := new(NamedArgExpr)
+	switch t := name.(type) {
+	case *IdentExpr:
+		ne.Ident = t
+	case *StringLit:
+		ne.Lit = t
+	default:
+		ne.Exp = t
+	}
+	a.Names = append(a.Names, ne)
+	a.Values = append(a.Values, value)
+	return a
+}
+
+func (a *CallExprNamedArgs) AppendFlagE(name Expr) *CallExprNamedArgs {
+	return a.AppendE(name, nil)
 }
 
 func (a *CallExprNamedArgs) AppendS(name string, value Expr) *CallExprNamedArgs {

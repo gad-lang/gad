@@ -78,7 +78,7 @@ println("sourcemod")`))
 
 		tempDir := t.TempDir()
 
-		createModules(t, tempDir, files)
+		createFiles(t, tempDir, files)
 
 		opts := gad.DefaultCompilerOptions
 		opts.ModuleMap = moduleMap.Copy()
@@ -97,10 +97,10 @@ println("sourcemod")`))
 		buf.Reset()
 
 		tempDir := t.TempDir()
-		createModules(t, tempDir, files)
+		createFiles(t, tempDir, files)
 
 		tempDir2 := t.TempDir()
-		createModules(t, tempDir2, map[string]string{
+		createFiles(t, tempDir2, map[string]string{
 			"./test8.gad": `
 import("./test1.gad")
 println("test8")
@@ -137,7 +137,7 @@ println("test8")
 
 		tempDir := t.TempDir()
 
-		createModules(t, tempDir, mfiles)
+		createFiles(t, tempDir, mfiles)
 
 		opts := gad.DefaultCompilerOptions
 		opts.ModuleMap = moduleMap.Copy()
@@ -151,7 +151,7 @@ println("test8")
 		script := append([]byte(shebangline), script...)
 		importers.Shebang2Slashes(script)
 
-		ret, err := run(buf, []byte(script), opts)
+		ret, err := run(buf, script, opts)
 		require.NoError(t, err)
 		require.Equal(t, gad.Nil, ret)
 		require.Equal(t,
@@ -162,7 +162,7 @@ println("test8")
 
 }
 
-func createModules(t *testing.T, baseDir string, files map[string]string) {
+func createFiles(t *testing.T, baseDir string, files map[string]string) {
 	for file, data := range files {
 		path := filepath.Join(baseDir, file)
 		err := os.MkdirAll(filepath.Dir(path), 0755)

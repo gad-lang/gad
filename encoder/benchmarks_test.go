@@ -32,7 +32,7 @@ func BenchmarkBytecodeDecode(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		rd.Reset(d)
-		_, err := Decode(rd, NewContext())
+		_, err := Decode(NewReadContext(rd))
 		if err != nil {
 			b.Fatal(err)
 		}

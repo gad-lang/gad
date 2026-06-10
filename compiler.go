@@ -59,16 +59,17 @@ type (
 
 	// Compiler compiles the AST into a bytecode.
 	Compiler struct {
-		parent             *Compiler
-		file               *source.File
-		constants          []Object
-		constsCache        map[Object]int
-		cfuncCache         map[uint32][]int
-		symbolTable        *SymbolTable
-		instructions       []byte
-		sourceMap          map[int]int
-		embeddedMap        *EmbeddedMap
-		embeddedStore      *embeddedStore
+		parent       *Compiler
+		file         *source.File
+		constants    []Object
+		constsCache  map[Object]int
+		cfuncCache   map[uint32][]int
+		symbolTable  *SymbolTable
+		instructions []byte
+		sourceMap    map[int]int
+		embeddedMap  *EmbeddedMap
+		// embeddedStore embeddeds represents map of name and constant index
+		embeddedStore      map[string]int
 		moduleMap          *ModuleMap
 		moduleStore        *moduleStore
 		module             *ModuleSpec
@@ -88,7 +89,7 @@ type (
 	// CompilerOptions represents customizable options for Compile().
 	CompilerOptions struct {
 		Context             context.Context
-		EmbedMap            *EmbeddedMap
+		EmbededdMap         *EmbeddedMap
 		ModuleMap           *ModuleMap
 		ModuleFile          string
 		Constants           []Object
@@ -101,7 +102,7 @@ type (
 		OptimizeExpr        bool
 		MixedWriteFunction  node.Expr
 		MixedExprToTextFunc node.Expr
-		embedStore          *embeddedStore
+		embeddedStore       map[string]int
 		moduleStore         *moduleStore
 		constsCache         map[Object]int
 	}
@@ -126,14 +127,6 @@ type (
 		count int
 		store map[string]*storeItem
 		items []*storeItem
-	}
-
-	// embeddedStore represents embedded indexes and total count that are defined
-	// while compiling.
-	embeddedStore struct {
-		count int
-		store map[string]int
-		items []*Embedded
 	}
 
 	// loopStmts represents a loopStmts construct that the compiler uses to
@@ -197,8 +190,8 @@ func NewCompiler(st *SymbolTable, module *ModuleSpec, file *source.File, opts Co
 		opts.moduleStore = newModuleStore()
 	}
 
-	if opts.embedStore == nil {
-		opts.embedStore = newEmbeddedStore()
+	if opts.embeddedStore == nil {
+		opts.embeddedStore = newEmbeddedStore()
 	}
 
 	var trace io.Writer
@@ -213,8 +206,8 @@ func NewCompiler(st *SymbolTable, module *ModuleSpec, file *source.File, opts Co
 		cfuncCache:    make(map[uint32][]int),
 		symbolTable:   st,
 		sourceMap:     make(map[int]int),
-		embeddedMap:   opts.EmbedMap,
-		embeddedStore: opts.embedStore,
+		embeddedMap:   opts.EmbededdMap,
+		embeddedStore: opts.embeddedStore,
 		moduleMap:     opts.ModuleMap,
 		moduleStore:   opts.moduleStore,
 		loopIndex:     -1,
@@ -819,11 +812,9 @@ func (c *Compiler) addModule(typ int, spec *ModuleSpec) *storeItem {
 }
 
 func (c *Compiler) addEmbed(embedded *Embedded) int {
-	storeIndex := c.embeddedStore.count
-	c.embeddedStore.count++
-	c.embeddedStore.store[embedded.Path] = storeIndex
-	c.embeddedStore.items = append(c.embeddedStore.items, embedded)
-	return storeIndex
+	index := c.addConstant(embedded)
+	c.embeddedStore[embedded.Name] = index
+	return index
 }
 
 func (c *Compiler) getModule(name string) (*storeItem, bool) {
@@ -831,10 +822,9 @@ func (c *Compiler) getModule(name string) (*storeItem, bool) {
 	return index, ok
 }
 
-func (c *Compiler) getEmbed(name string) (e *Embedded, ok bool) {
-	var index int
-	if index, ok = c.embeddedStore.store[name]; ok {
-		e = c.embeddedStore.items[index]
+func (c *Compiler) getEmbed(name string) (constantIndex int, e *Embedded, ok bool) {
+	if constantIndex, ok = c.embeddedStore[name]; ok {
+		e = c.constants[constantIndex].(*Embedded)
 	}
 	return
 }
@@ -964,7 +954,7 @@ func (c *Compiler) fork(
 		ScannerOptions: c.opts.ScannerOptions,
 		CompilerOptions: CompilerOptions{
 			Context:           c.opts.Context,
-			EmbedMap:          c.embeddedMap,
+			EmbededdMap:       c.embeddedMap,
 			ModuleMap:         moduleMap,
 			Constants:         c.constants,
 			Trace:             c.trace,
@@ -1183,16 +1173,6 @@ func (ms *moduleStore) reset() *moduleStore {
 	return ms
 }
 
-func newEmbeddedStore() *embeddedStore {
-	return &embeddedStore{
-		store: make(map[string]int),
-	}
-}
-
-func (ms *embeddedStore) reset() *embeddedStore {
-	ms.count = 0
-	for k := range ms.store {
-		delete(ms.store, k)
-	}
-	return ms
+func newEmbeddedStore() map[string]int {
+	return make(map[string]int)
 }

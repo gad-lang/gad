@@ -463,6 +463,6 @@ func (s PrinterState) Copy() *PrinterState {
 	return &s
 }
 
-type Printer interface {
+type Printabler interface {
 	Print(state *PrinterState) error
 }

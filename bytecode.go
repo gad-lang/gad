@@ -69,7 +69,7 @@ func (bc *Bytecode) putConstants(builtins *Builtins, w io.Writer) {
 var (
 	_ Object       = (*CompiledFunction)(nil)
 	_ CallerObject = (*CompiledFunction)(nil)
-	_ Printer      = (*CompiledFunction)(nil)
+	_ Printabler   = (*CompiledFunction)(nil)
 )
 
 // CompiledFunction holds the constants and instructions to pass VM.

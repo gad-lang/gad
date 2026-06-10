@@ -11,18 +11,18 @@ import (
 	"github.com/gad-lang/gad"
 )
 
-func Encode(w Writer, version byte, o any) (err error) {
+func Encode(ctx *WriteContext, version byte, o any) (err error) {
 	ed := Encoders.byVersion[version]
 	if ed == nil {
 		return fmt.Errorf("encoder of %d not supported", o)
 	}
-	if err = w.WriteByte(version); err != nil {
+	if err = ctx.WriteByte(version); err != nil {
 		return
 	}
-	return ed.Encode(w, o)
+	return ed.Encode(ctx, o)
 }
 
-func EncodeObject(w Writer, o any) (err error) {
+func EncodeObject(ctx *WriteContext, o any) (err error) {
 	rt := reflect.TypeOf(o)
 
 	for rt.Kind() == reflect.Interface || rt.Kind() == reflect.Ptr {
@@ -33,25 +33,25 @@ func EncodeObject(w Writer, o any) (err error) {
 	if ed == nil {
 		return fmt.Errorf("encoder of %T not supported", o)
 	}
-	return Encode(w, ed.LastVersion, o)
+	return Encode(ctx, ed.LastVersion, o)
 }
 
-func EncodeArray[T any](w Writer, arr []T) (err error) {
-	return WriteArray(w, arr, func(w Writer, v T) error {
-		return EncodeObject(w, v)
+func EncodeArray[T any](ctx *WriteContext, arr []T) (err error) {
+	return WriteArray(ctx, arr, func(w Writer, v T) error {
+		return EncodeObject(ctx, v)
 	})
 }
 
-func EncodeDict(w Writer, d gad.Dict) (err error) {
-	if err = writeInt(w, len(d)); err != nil {
+func EncodeDict(ctx *WriteContext, d gad.Dict) (err error) {
+	if err = writeInt(ctx, len(d)); err != nil {
 		return
 	}
 
 	for k, v := range d {
-		if err = writeString(w, k); err != nil {
+		if err = writeString(ctx, k); err != nil {
 			return
 		}
-		if err = EncodeObject(w, v); err != nil {
+		if err = EncodeObject(ctx, v); err != nil {
 			return
 		}
 	}

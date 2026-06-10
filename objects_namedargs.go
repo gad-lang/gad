@@ -197,7 +197,7 @@ var (
 	_ DeepCopier     = (*KeyValue)(nil)
 	_ Copier         = (*KeyValue)(nil)
 	_ IndexGetSetter = (*KeyValue)(nil)
-	_ Printer        = (*KeyValue)(nil)
+	_ Printabler     = (*KeyValue)(nil)
 )
 
 func (o *KeyValue) IndexSet(vm *VM, index, value Object) error {
@@ -408,7 +408,7 @@ var (
 	_ Sorter       = (*KeyValueArray)(nil)
 	_ KeysGetter   = (*KeyValueArray)(nil)
 	_ ItemsGetter  = (*KeyValueArray)(nil)
-	_ Printer      = (*KeyValueArray)(nil)
+	_ Printabler   = (*KeyValueArray)(nil)
 )
 
 func (o *KeyValueArray) Append(vm *VM, items ...Object) (err error) {
@@ -856,7 +856,7 @@ var (
 	_ Object                = (*KeyValueArrays)(nil)
 	_ DeepCopier            = (*KeyValueArrays)(nil)
 	_ Copier                = (*KeyValueArrays)(nil)
-	_ Printer               = (*KeyValueArrays)(nil)
+	_ Printabler            = (*KeyValueArrays)(nil)
 	_ IndexGetter           = (*KeyValueArrays)(nil)
 	_ BinaryOperatorHandler = (*KeyValueArrays)(nil)
 )

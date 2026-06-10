@@ -2,6 +2,7 @@ package encoder_test
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"testing"
@@ -50,13 +51,13 @@ func TestBytecode_file(t *testing.T) {
 	defer f.Close()
 
 	var ms ModulesSpec
-	ms, err = EncodeBytecodeTo(bc, NewWriter(f))
+	ms, err = EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(f)), bc)
 	require.NoError(t, err)
 
 	_, err = f.Seek(0, io.SeekStart)
 	require.NoError(t, err)
 
-	got, err := DecodeBytecodeFrom(NewContext(ContextWithModules(ms)), NewReader(f))
+	got, err := DecodeBytecodeFrom(NewReadContext(NewReader(f), ReadContextWithModules(ms)))
 	require.NoError(t, err)
 	testBytecodesEqual(t, bc, got)
 }
@@ -108,7 +109,7 @@ export{
 	)
 
 	logmicros(t, "encode time: %d microsecs", func() {
-		_, err = EncodeBytecodeTo(bc, &buf)
+		_, err = EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(&buf)), bc)
 	})
 	require.NoError(t, err)
 
@@ -122,7 +123,7 @@ export{
 
 	var gotBc *gad.Bytecode
 	logmicros(t, "decode time: %d microsecs", func() {
-		gotBc, err = DecodeBytecodeFrom(NewContext(ContextWithGoModules(ms)), NewReader(f))
+		gotBc, err = DecodeBytecodeFrom(NewReadContext(NewReader(f), ReadContextWithGoModules(ms)))
 	})
 
 	require.NoError(t, err)

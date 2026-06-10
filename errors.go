@@ -122,6 +122,9 @@ var (
 
 	// ErrClassMethodRegister represents an error on register method.
 	ErrClassMethodRegister = &Error{Name: "ErrClassMethodRegister"}
+
+	// ErrEmbedded represents an embeddedNode errors
+	ErrEmbedded = &Error{Name: "ErrEmbeddedNode"}
 )
 
 // NewOperandTypeError creates a new Error from ErrType.
@@ -189,6 +192,16 @@ func NewIndexValueTypeErrorT(foundType ObjectType, expectType ...ObjectType) *Er
 // NewStructPropertyInstanceError creates a new Error from ErrClassInstanceProperty.
 func NewStructPropertyInstanceError(propertyName, message string) *Error {
 	return ErrClassInstanceProperty.NewError(fmt.Sprintf("property '%s': %s", propertyName, message))
+}
+
+// NewEmbeddedPathIsNtDirectory creates a new ErrEmbedded when path isn't a directory
+func NewEmbeddedPathIsNtDir(path string) *Error {
+	return ErrEmbedded.NewErrorf("%q is not a directory", path)
+}
+
+// NewEmbeddedPathIsDir creates a new ErrEmbedded when path is directory
+func NewEmbeddedPathIsDir(path string) *Error {
+	return ErrEmbedded.NewErrorf("%q is directory", path)
 }
 
 func IsError(a, b error) *Error {

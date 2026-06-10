@@ -5,6 +5,7 @@
 package gad
 
 import (
+	"os"
 	"slices"
 
 	"github.com/gad-lang/gad/parser"
@@ -1808,8 +1809,8 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 	return nil
 }
 
-func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) error {
-	pth := nd.Path
+func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) (err error) {
+	pth := nd.Path()
 	if pth == "" {
 		return c.errorf(nd, "empty path")
 	}
@@ -1819,26 +1820,42 @@ func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) error {
 		return c.errorf(nd, "path '%s' not found", pth)
 	}
 
-	extImp, isExt := importer.(EmbeddedExtImporter)
-	if isExt {
-		if name, err := extImp.Name(); name != "" {
-			pth = name
-		} else if err != nil {
-			return c.errorf(nd, "resolve name of embed '%s': %v", pth, err.Error())
+	var (
+		name,
+		absPath string
+	)
+
+	if extImp, _ := importer.(EmbeddedExtImporter); extImp != nil {
+		var tempName string
+		if tempName, absPath, err = extImp.Paths(); err == nil {
+			name = tempName
+		} else {
+			// if not exists, try import using current name
+			if !os.IsNotExist(err) {
+				return c.errorf(nd, "resolve name of embed '%s': %v", pth, err.Error())
+			}
+			err = nil
+			name = pth
 		}
+	} else {
+		name = pth
 	}
 
-	e, exists := c.getEmbed(pth)
+	constantIndex, _, exists := c.getEmbed(name)
 	if !exists {
-		data, err := importer.Import(c.opts.Context, pth)
+		data, err := importer.Import(c.opts.Context, name, absPath, &EmbeddedImportOptions{
+			Sources:  nd.Sources(),
+			Includes: nd.Includes(),
+			Excludes: nd.Excludes(),
+			Tree:     nd.Tree(),
+		})
 		if err != nil {
 			return c.error(nd, err)
 		}
-		e = data
-		c.addEmbed(data)
+		constantIndex = c.addEmbed(data)
 	}
 
-	c.emit(nd, OpConstant, c.addConstant(e))
+	c.emit(nd, OpConstant, constantIndex)
 	return nil
 }
 

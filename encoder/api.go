@@ -2,6 +2,7 @@ package encoder
 
 import (
 	"context"
+	"io"
 	"reflect"
 
 	"github.com/gad-lang/gad"
@@ -14,29 +15,29 @@ const (
 	BytecodeVersion   uint16 = 1
 )
 
-type ContextOption func(ctx *Context)
+type ReadContextOption func(ctx *ReadContext)
 
-func ContextWithParent(parent context.Context) ContextOption {
-	return func(ctx *Context) {
-		ctx.Context = parent
-	}
-}
-
-func ContextWithModules(modules ModulesSpec) ContextOption {
-	return func(ctx *Context) {
+func ReadContextWithModules(modules ModulesSpec) ReadContextOption {
+	return func(ctx *ReadContext) {
 		ctx.Modules = modules
 	}
 }
 
-func ContextWithModuleMap(mm *gad.ModuleMap) ContextOption {
-	return func(ctx *Context) {
+func ReadContextWithModuleMap(mm *gad.ModuleMap) ReadContextOption {
+	return func(ctx *ReadContext) {
 		ctx.GoModules = GoModulesFromModulesMap(mm)
 	}
 }
 
-func ContextWithGoModules(modules GoModules) ContextOption {
-	return func(ctx *Context) {
+func ReadContextWithGoModules(modules GoModules) ReadContextOption {
+	return func(ctx *ReadContext) {
 		ctx.GoModules = modules
+	}
+}
+
+func ReadContextWithEmbeddedReader(r io.ReaderAt) ReadContextOption {
+	return func(ctx *ReadContext) {
+		ctx.EmbeddedReader = r
 	}
 }
 
@@ -46,8 +47,11 @@ type Context struct {
 	GoModules GoModules
 }
 
-func NewContext(opt ...ContextOption) *Context {
-	ctx := &Context{}
+func NewReadContext(r Reader, opt ...ReadContextOption) *ReadContext {
+	ctx := &ReadContext{
+		Reader:         r,
+		EmbeddedReader: r,
+	}
 
 	for _, option := range opt {
 		option(ctx)
@@ -60,9 +64,48 @@ func NewContext(opt ...ContextOption) *Context {
 	return ctx
 }
 
-type EncodeFunc func(w Writer, o any) error
+type WriteContextOption func(ctx *WriteContext)
 
-type DecodeFunc func(r Reader, ctx *Context) (any, error)
+func WriteContextWithEmbededWriter(w EmbeddedWriter) WriteContextOption {
+	return func(ctx *WriteContext) {
+		ctx.EmbeddedWriter = w
+	}
+}
+
+type WriteContext struct {
+	Context        context.Context
+	EmbeddedWriter EmbeddedWriter
+	Writer
+}
+
+func NewWriteContext(ctx context.Context, writer Writer, opt ...WriteContextOption) *WriteContext {
+	w := &WriteContext{Context: ctx, Writer: writer}
+	for _, option := range opt {
+		option(w)
+	}
+	return w
+}
+
+func (ctx *WriteContext) WithValue(key string, value any) *WriteContext {
+	ctx.Context = context.WithValue(ctx.Context, key, value)
+	return ctx
+}
+
+func (ctx *WriteContext) Value(key string) any {
+	return ctx.Context.Value(key)
+}
+
+type ReadContext struct {
+	Reader
+	Context        context.Context
+	Modules        []*gad.ModuleSpec
+	GoModules      GoModules
+	EmbeddedReader io.ReaderAt
+}
+
+type EncodeFunc func(ctx *WriteContext, o any) error
+
+type DecodeFunc func(ctx *ReadContext) (any, error)
 
 type EncDec struct {
 	Encode EncodeFunc

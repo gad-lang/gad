@@ -2790,13 +2790,31 @@ func TestCompiler_Compile(t *testing.T) {
 	embedMap.AddFile("file.js", []byte(`abcd`))
 	expectCompileWithOpts(t, `embed("file.js")`,
 		CompileOptions{CompilerOptions: CompilerOptions{
-			EmbedMap: embedMap,
+			EmbededdMap: embedMap,
 		}},
 		bytecode(
 			Array{
-				&Embedded{Name: "file.js", Path: "file.js", Data: Bytes(`abcd`)},
+				&Embedded{Name: "file.js", ReaderFactory: EmbeddedBytesReaderFactory(`abcd`)},
 			},
 			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpPop),
+				makeInst(OpReturn, 0),
+			)),
+		),
+	)
+
+	expectCompileWithOpts(t, `embed("file.js"); embed("file.js")`,
+		CompileOptions{CompilerOptions: CompilerOptions{
+			EmbededdMap: embedMap,
+		}},
+		bytecode(
+			Array{
+				&Embedded{Name: "file.js", ReaderFactory: EmbeddedBytesReaderFactory(`abcd`)},
+			},
+			compFunc(concatInsts(
+				makeInst(OpConstant, 0),
+				makeInst(OpPop),
 				makeInst(OpConstant, 0),
 				makeInst(OpPop),
 				makeInst(OpReturn, 0),

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/token"
@@ -11,6 +12,67 @@ import (
 )
 
 func TestEncDecObjects(t *testing.T) {
+
+	t.Run("encodded embedded dir", func(t *testing.T) {
+		files := map[string]string{
+			"f1.txt":       `f1`,
+			"a/a1.txt":     `a1`,
+			"a/a2.txt":     `a2`,
+			"b/b1.txt":     `b1`,
+			"b/b2.txt":     `b2`,
+			"c/d/d1.txt":   `d1`,
+			"c/d/d2.txt":   `d2`,
+			"c/d/e/e1.txt": `e1`,
+		}
+
+		tempDir := t.TempDir()
+		createFiles(t, tempDir, files)
+
+		o := &gad.Embedded{
+			AbsPath: tempDir,
+		}
+
+		data, err := encode(o)
+		require.NoError(t, err)
+		if obj, err := decode[*gad.Embedded](data); err != nil {
+			t.Fatal(err)
+		} else {
+			require.Equal(t, o.Name, obj.Name)
+			require.Equal(t, o.Mode, obj.Mode)
+			require.Equal(t, o.ModTime.UnixNano(), obj.ModTime.UnixNano())
+			eData, err := o.Read()
+			require.NoError(t, err)
+			gData, err := obj.Read()
+			require.NoError(t, err)
+			require.Equal(t, eData, gData)
+		}
+	})
+
+	return
+	t.Run("encodded simgle file", func(t *testing.T) {
+		o := &gad.Embedded{
+			Name:          "test.txt",
+			Mode:          0755,
+			ModTime:       time.Now(),
+			ReaderFactory: gad.EmbeddedBytesReaderFactory(`abc`),
+		}
+
+		data, edata, err := eencode(o)
+		require.NoError(t, err)
+		if obj, err := edecode[*gad.Embedded](data, edata); err != nil {
+			t.Fatal(err)
+		} else {
+			require.Equal(t, o.Name, obj.Name)
+			require.Equal(t, o.Mode, obj.Mode)
+			require.Equal(t, o.ModTime.UnixNano(), obj.ModTime.UnixNano())
+			eData, err := o.Read()
+			require.NoError(t, err)
+			gData, err := obj.Read()
+			require.NoError(t, err)
+			require.Equal(t, eData, gData)
+		}
+	})
+
 	data, err := encode(gad.Nil)
 	require.NoError(t, err)
 	if obj, err := decode[*gad.NilType](data); err != nil {

@@ -5,11 +5,11 @@ import (
 )
 
 // EncodeBytecodeTo encodes given bc to w io.Writer.
-func EncodeBytecodeTo(bc *gad.Bytecode, w Writer) (ModulesSpec, error) {
-	return nil, EncodeObject(w, bc)
+func EncodeBytecodeTo(ctx *WriteContext, bc *gad.Bytecode) (ModulesSpec, error) {
+	return nil, EncodeObject(ctx, bc)
 }
 
 // DecodeBytecodeFrom decodes *gad.Bytecode from given r io.Reader.
-func DecodeBytecodeFrom(ctx *Context, r Reader) (*gad.Bytecode, error) {
-	return DecodeT[*gad.Bytecode](r, ctx)
+func DecodeBytecodeFrom(ctx *ReadContext) (*gad.Bytecode, error) {
+	return DecodeT[*gad.Bytecode](ctx)
 }

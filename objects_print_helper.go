@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -11,6 +12,26 @@ import (
 	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/runehelper"
 )
+
+type PrintStateDictEntries []*PrintStateDictEntry
+
+func (s PrintStateDictEntries) Sort(typ PrintStateOptionSortType) {
+	switch typ {
+	case 2:
+		sort.Slice(s, func(i, j int) bool {
+			return s[i].Name > s[j].Name
+		})
+	default:
+		sort.Slice(s, func(i, j int) bool {
+			return s[i].Name < s[j].Name
+		})
+	}
+}
+
+type PrintStateDictEntry struct {
+	Name  string
+	Value Object
+}
 
 func (s *PrinterState) WrapRepr(o Object) func() {
 	switch o.(type) {
@@ -112,7 +133,7 @@ func (s *PrinterState) PrintKeySafe(safe bool, o Object) (err error) {
 			}
 
 			err = t.ToStringF(s)
-		case Printer:
+		case Printabler:
 			err = t.Print(s)
 		default:
 			if s.VM == nil {
@@ -167,7 +188,7 @@ func (s *PrinterState) Print(o Object) (err error) {
 			} else {
 				_, err = s.Write(t.Bytes())
 			}
-		case Printer:
+		case Printabler:
 			err = t.Print(s)
 		case *Error:
 			o = Str(o.ToString())
@@ -185,6 +206,18 @@ func (s *PrinterState) Print(o Object) (err error) {
 		}
 		return
 	})
+}
+
+func (s *PrinterState) PrintDictEntries(entries PrintStateDictEntries) (err error) {
+	sortKeysType, _ := s.options.SortKeys()
+	entries.Sort(sortKeysType)
+
+	return s.PrintDict(len(entries),
+		func(i int) (Object, error) {
+			return Str(entries[i].Name), nil
+		}, func(i int) (Object, error) {
+			return entries[i].Value, nil
+		})
 }
 
 func (s *PrinterState) PrintDict(l int, key, value func(i int) (Object, error)) (err error) {

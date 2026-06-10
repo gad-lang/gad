@@ -19,7 +19,7 @@ var (
 	_ ItemsGetter      = (*ClassInstance)(nil)
 	_ IndexGetter      = (*ClassInstance)(nil)
 	_ IndexSetter      = (*ClassInstance)(nil)
-	_ Printer          = (*ClassInstance)(nil)
+	_ Printabler       = (*ClassInstance)(nil)
 	_ NameCallerObject = (*ClassInstance)(nil)
 	_ CallerObject     = (*ClassInstance)(nil)
 )

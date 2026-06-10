@@ -1,66 +1,427 @@
 package gad
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/dustin/go-humanize"
 )
 
-// EmbeddedExtImporter wraps methods for a module which will be impored dynamically like
-// a file.
+// EmbeddedExtImporter wraps methods for a embedded which will be imported dynamically like a file.
 type EmbeddedExtImporter interface {
 	EmbeddedImporter
-	// Get returns Extimporter instance which will import a module.
-	Get(moduleName string) EmbeddedExtImporter
-	// Name returns the full name of the module e.g. absoule path of a file.
-	// Import names are generally relative, this overwrites module name and used
-	// as unique key for compiler module cache.
-	Name() (string, error)
-	// Fork returns an EmbeddedExtImporter instance which will be used to import the
-	// modules. Fork will get the result of Name() if it is not empty, otherwise
-	// module name will be same with the Get call.
-	Fork(moduleName string) EmbeddedExtImporter
+	// Get returns EmbeddedExtImporter instance which will import an embedded file.
+	Get(name string) EmbeddedExtImporter
+	// Paths returns the unique relative and absolute paths of embedded.
+	Paths() (relPath, absPath string, err error)
 }
 
-// Embedded represents an Embedded Object
+var (
+	_ Object          = (*EmbeddedNodeFS)(nil)
+	_ IndexGetter     = (*EmbeddedNodeFS)(nil)
+	_ Iterabler       = (*EmbeddedNodeFS)(nil)
+	_ Printabler      = (*EmbeddedNodeFS)(nil)
+	_ ToDictConverter = (*EmbeddedNodeFS)(nil)
+)
+
+type EmbeddedNodeFS struct {
+	node *Embedded
+}
+
+func (e *EmbeddedNodeFS) Print(state *PrinterState) error {
+	if state.IsRepr {
+		defer state.WrapRepr(e)()
+	}
+
+	var entries PrintStateDictEntries
+
+	for name, value := range e.node.Entries {
+		entries = append(entries, &PrintStateDictEntry{name, value})
+	}
+
+	return state.PrintDictEntries(entries)
+}
+
+func (e *EmbeddedNodeFS) IndexGet(_ *VM, index Object) (value Object, err error) {
+	if name, _ := index.(Str); len(name) > 0 {
+		value = e.node.Entries[string(name)]
+		if value == nil {
+			return nil, ErrInvalidIndex.NewError(string(name))
+		}
+	} else {
+		return nil, ErrInvalidIndex
+	}
+	return
+}
+
+func (e *EmbeddedNodeFS) ToDict() (d Dict) {
+	d = make(Dict, len(e.node.Entries))
+	for k, v := range e.node.Entries {
+		d[k] = v
+	}
+	return
+}
+
+func (e *EmbeddedNodeFS) IsFalsy() bool {
+	return len(e.node.Entries) == 0
+}
+
+func (e *EmbeddedNodeFS) Type() ObjectType {
+	return TEmbeddedFS
+}
+
+func (e *EmbeddedNodeFS) ToString() string {
+	return fmt.Sprintf("%s of %q", TEmbeddedFS.name, e.node.Path())
+}
+
+func (e *EmbeddedNodeFS) Equal(right Object) bool {
+	switch right := right.(type) {
+	case *EmbeddedNodeFS:
+		return e.node == right.node
+	}
+	return false
+}
+
+func (e *EmbeddedNodeFS) Iterate(_ *VM, na *NamedArgs) Iterator {
+	keys := make([]string, 0, len(e.node.Entries))
+	for k := range e.node.Entries {
+		keys = append(keys, k)
+	}
+	if !na.GetValue("sorted").IsFalsy() || !na.MustGetValue("reversed").IsFalsy() {
+		sort.Strings(keys)
+	}
+	return SliceEntryIteration(TEmbeddedNodeEntriesIterator, e, keys, func(v string) (_, _ Object, _ error) {
+		return Str(v), e.node.Entries[v], nil
+	}).ParseNamedArgs(na)
+}
+
+type EmbeddedReaderFactory interface {
+	Reader(e *Embedded) (io.ReadSeeker, error)
+}
+
+type EmbeddedOsFileReaderFactory struct{}
+
+func (s *EmbeddedOsFileReaderFactory) Reader(e *Embedded) (io.ReadSeeker, error) {
+	if len(e.AbsPath) == 0 {
+		return nil, errors.New("EmbeddedOsFileReaderFactory needs an absolute path")
+	}
+	return os.OpenFile(e.AbsPath, os.O_RDONLY, 0666)
+}
+
+type EmbeddedBytesReaderFactory []byte
+
+func (b EmbeddedBytesReaderFactory) Reader(*Embedded) (io.ReadSeeker, error) {
+	return bytes.NewReader(b), nil
+}
+
+type EmbeddedLimittedReaderFactory struct {
+	AtReader io.ReaderAt
+	Offset   int64
+	Limit    int64
+}
+
+func (b *EmbeddedLimittedReaderFactory) Reader(*Embedded) (io.ReadSeeker, error) {
+	return io.NewSectionReader(b.AtReader, b.Offset, b.Limit), nil
+}
+
+var (
+	_ Object         = (*Embedded)(nil)
+	_ IndexGetter    = (*Embedded)(nil)
+	_ BytesConverter = (*Embedded)(nil)
+)
+
 type Embedded struct {
-	Name string
-	Path string
-	Data Object
+	ReaderFactory EmbeddedReaderFactory
+	Name          string
+	Entries       map[string]*Embedded
+	Parent        *Embedded
+	ModTime       time.Time
+	Mode          os.FileMode
+	AbsPath       string
 }
 
-func (e *Embedded) IsFalsy() bool {
-	return e.Data.IsFalsy()
+func (n *Embedded) Get(pth string) (e *Embedded, err error) {
+	if n.ReaderFactory != nil {
+		return nil, NewEmbeddedPathIsNtDir(n.Path())
+	}
+	parts := strings.Split(pth, "/")
+	last, parts := parts[len(parts)-1], parts[:len(parts)-1]
+
+	e = n
+
+	for i, part := range parts {
+		if e = e.Entries[part]; e == nil {
+			return nil, ErrEmbedded.NewErrorf("%q does not exists", path.Join(parts[:i]...))
+		} else if !e.IsDir() {
+			return nil, NewEmbeddedPathIsNtDir(path.Join(parts[:i]...))
+		}
+	}
+
+	if e = e.Entries[last]; e == nil {
+		return nil, ErrEmbedded.NewErrorf("%q does not exists", pth)
+	}
+	return
 }
 
-func (e *Embedded) Type() ObjectType {
+func (n *Embedded) ToBytes() (Bytes, error) {
+	if n.ReaderFactory == nil {
+		return nil, NewEmbeddedPathIsDir(n.Path())
+	}
+	return n.Read()
+}
+
+func (n *Embedded) FS() (*EmbeddedNodeFS, error) {
+	if n.ReaderFactory != nil {
+		return nil, NewEmbeddedPathIsNtDir(n.Path())
+	}
+	return &EmbeddedNodeFS{n}, nil
+}
+
+func (n *Embedded) IndexGet(vm *VM, index Object) (value Object, err error) {
+	if key, _ := index.(Str); len(key) > 0 {
+		switch key {
+		case "parent":
+			if n.Parent != nil {
+				return n.Parent, nil
+			}
+			return Nil, nil
+		case "name":
+			return Str(n.Name), nil
+		case "path":
+			return Str(n.Path()), nil
+		case "data":
+			return n.ToBytes()
+		case "fs":
+			return n.FS()
+		case "modTime":
+			return vm.ToObject(n.ModTime)
+		case "size":
+			var size int64
+			size, err = n.Size()
+			return Int(size), err
+		case "reader":
+			if n.ReaderFactory != nil {
+				var r io.ReadSeeker
+				if r, err = n.ReaderFactory.Reader(nil); err != nil {
+					return nil, err
+				}
+				return NewReader(r), nil
+			} else {
+				return nil, ErrEmbedded.NewError("is dir")
+			}
+		default:
+			return n.Get(string(key))
+		}
+	}
+	return nil, ErrInvalidIndex.NewError(index.ToString())
+}
+
+func (n *Embedded) IsFalsy() bool {
+	return false
+}
+
+func (n *Embedded) Type() ObjectType {
 	return TEmbedded
 }
 
-func (e *Embedded) ToString() string {
-	r, _ := ToRepr(nil, e.Data)
-	return ReprQuote(ReprQuote(e.Path) + " path=" + ReprQuote(e.Path) + " data=" + string(r))
+func (n *Embedded) Size() (_ int64, err error) {
+	var r io.ReadSeeker
+	if r, err = n.Reader(); err != nil {
+		return
+	}
+
+	switch t := r.(type) {
+	case interface{ Size() int }:
+		return int64(t.Size()), nil
+	case interface{ Size() int64 }:
+		return t.Size(), nil
+	}
+
+	return r.Seek(0, io.SeekEnd)
 }
 
-func (e *Embedded) Print(state *PrinterState) error {
-	defer state.WrapRepr(e)()
-	fmt.Fprintf(state, "%s path=%s ", ReprQuote(e.Name), ReprQuote(e.Path))
+func (n *Embedded) Read() (b []byte, err error) {
+	var r io.Reader
+	if r, err = n.Reader(); err != nil {
+		return
+	}
+	return io.ReadAll(r)
+}
 
-	return state.WithRepr(func(s *PrinterState) error {
-		return s.Print(e.Data)
+func (n *Embedded) Reader() (r io.ReadSeeker, err error) {
+	if n.ReaderFactory == nil {
+		return nil, ErrEmbedded.NewError("is dir")
+	}
+	return n.ReaderFactory.Reader(n)
+}
+
+func (n *Embedded) ToString() string {
+	var s []string
+	if n.ReaderFactory == nil {
+		s = append(s, "dir", ReprQuote(n.Path()))
+	} else {
+		var (
+			size int64
+			err  error
+		)
+
+		s = append(s, "file", ReprQuote(n.Path()))
+
+		if size, err = n.Size(); err == nil {
+			s = append(s, humanize.Bytes(uint64(size)))
+		}
+	}
+	if len(n.AbsPath) > 0 {
+		s = append(s, strconv.Quote(n.AbsPath))
+	}
+
+	var fCount, dCount int
+	n.Walk(func(path []string, n *Embedded) error {
+		if n.IsDir() {
+			dCount++
+		} else {
+			fCount++
+		}
+		return nil
 	})
+
+	if dCount+fCount > 0 {
+		s = append(s, "with")
+		if dCount > 0 {
+			s = append(s, fmt.Sprintf("%d dirs", dCount))
+		}
+		if fCount > 0 {
+			s = append(s, fmt.Sprintf("%d files", fCount))
+		}
+	}
+
+	return ReprQuoteTyped(TEmbedded.name, strings.Join(s, " "))
 }
 
-func (e *Embedded) Equal(right Object) bool {
-	if r, _ := right.(*Embedded); r == e {
-		return true
+func (n *Embedded) Files(recursive bool) (ret []*Embedded) {
+	n.WalkR(recursive, func(path []string, n *Embedded) error {
+		if !n.IsDir() {
+			ret = append(ret, n)
+		}
+		return nil
+	})
+	return
+}
+
+func (n *Embedded) Dirs(recursive bool) (ret []*Embedded) {
+	n.WalkR(recursive, func(path []string, n *Embedded) error {
+		if !n.IsDir() {
+			ret = append(ret, n)
+		}
+		return nil
+	})
+	return
+}
+
+func (n *Embedded) JoinToArray() (ret []*Embedded) {
+	n.Walk(func(path []string, n *Embedded) error {
+		ret = append(ret, n)
+		return nil
+	})
+	return
+}
+
+func (n *Embedded) Equal(right Object) bool {
+	if r, ok := right.(*Embedded); ok {
+		return r == n
 	}
 	return false
+}
+
+func (n *Embedded) GetNode(name string) *Embedded {
+	return n.Entries[name]
+}
+
+func (n *Embedded) IsDir() bool {
+	return n.ReaderFactory == nil
+}
+
+func (n *Embedded) Path() string {
+	var pth []string
+	for n != nil {
+		pth = append(pth, n.Name)
+		n = n.Parent
+	}
+
+	for i, j := 0, len(pth)-1; i < j; i, j = i+1, j-1 {
+		pth[i], pth[j] = pth[j], pth[i]
+	}
+
+	return strings.Join(pth, "/")
+}
+
+func (n *Embedded) FullPath() string {
+	var pth []string
+	for n != nil {
+		if len(n.AbsPath) > 0 {
+			pth = append(pth, n.AbsPath)
+			break
+		}
+		pth = append(pth, n.Name)
+		n = n.Parent
+	}
+
+	for i, j := 0, len(pth)-1; i < j; i, j = i+1, j-1 {
+		pth[i], pth[j] = pth[j], pth[i]
+	}
+
+	return strings.Join(pth, "/")
+}
+
+func (n *Embedded) Walk(cb func(path []string, n *Embedded) error) (err error) {
+	return n.walk(nil, cb)
+}
+
+func (n *Embedded) WalkR(recursive bool, cb func(path []string, n *Embedded) error) (err error) {
+	if !recursive {
+		for _, node := range n.Entries {
+			if err = cb([]string{node.Name}, node); err != nil {
+				return
+			}
+		}
+		return
+	}
+	return n.walk(nil, cb)
+}
+
+func (n *Embedded) walk(path []string, cb func(path []string, n *Embedded) error) (err error) {
+	for _, node := range n.Entries {
+		if node.ReaderFactory == nil {
+			if err = node.walk(append(path, n.Name), cb); err != nil {
+				return
+			}
+		} else if err = cb(append(path, n.Name), node); err != nil {
+			return
+		}
+	}
+	return
+}
+
+type EmbeddedImportOptions struct {
+	Sources  []string
+	Includes []string
+	Excludes []string
+	Tree     bool
 }
 
 // EmbeddedImporter interface represents importable embedded instance.
 type EmbeddedImporter interface {
 	// Import should return either an Object or module source code ([]byte).
-	Import(ctx context.Context, pth string) (data *Embedded, err error)
+	Import(ctx context.Context, relPath string, absPath string, opts *EmbeddedImportOptions) (data *Embedded, err error)
 }
 
 // EmbeddedMap represents a set of named modules. Use NewEmbedMap to create a
@@ -89,8 +450,8 @@ func (m *EmbeddedMap) Add(name string, module EmbeddedImporter) *EmbeddedMap {
 }
 
 // AddFile adds a source file data.
-func (m *EmbeddedMap) AddFile(path string, src []byte) *EmbeddedMap {
-	m.m[path] = &EmbeddedFileData{Path: path, Src: src}
+func (m *EmbeddedMap) AddFile(path string, data []byte) *EmbeddedMap {
+	m.m[path] = EmbeddedFileData(data)
 	return m
 }
 
@@ -131,13 +492,20 @@ type EmbeddedFileImporter struct {
 	FileReader   func(string) (data []byte, uri string, err error)
 }
 
-// EmbeddedFileData is an importable embed that's written in Gad.
-type EmbeddedFileData struct {
-	Path string
-	Src  Bytes
+// EmbeddedFileData is an importable embed for data that's written in Gad.
+type EmbeddedFileData []byte
+
+func (m EmbeddedFileData) Import(_ context.Context, name, _ string, _ *EmbeddedImportOptions) (*Embedded, error) {
+	return &Embedded{
+		Name:          name,
+		ReaderFactory: EmbeddedBytesReaderFactory(m),
+	}, nil
 }
 
-// Import returns a embeded data.
-func (m *EmbeddedFileData) Import(context.Context, string) (*Embedded, error) {
-	return &Embedded{Name: m.Path, Path: m.Path, Data: m.Src}, nil
+// EmbeddedFile is an importable embed that's written in Gad.
+type EmbeddedFile Embedded
+
+func (m EmbeddedFile) Import(_ context.Context, _, _ string, _ *EmbeddedImportOptions) (*Embedded, error) {
+	e := Embedded(m)
+	return &e, nil
 }
