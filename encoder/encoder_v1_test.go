@@ -11,66 +11,178 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEncDecObjects(t *testing.T) {
+func TestEmbeddedV1BigTree(t *testing.T) {
+	const (
+		depth = 4
+		width = 5
+	)
 
-	t.Run("encodded embedded dir", func(t *testing.T) {
-		files := map[string]string{
-			"f1.txt":       `f1`,
-			"a/a1.txt":     `a1`,
-			"a/a2.txt":     `a2`,
-			"b/b1.txt":     `b1`,
-			"b/b2.txt":     `b2`,
-			"c/d/d1.txt":   `d1`,
-			"c/d/d2.txt":   `d2`,
-			"c/d/e/e1.txt": `e1`,
+	root := &gad.Embedded{
+		Name:    "root",
+		Entries: make(map[string]*gad.Embedded),
+	}
+
+	var totalFiles int
+	expectedContent := make(map[string]string)
+
+	var addNodes func(parent *gad.Embedded, parentPath string, depth int)
+	addNodes = func(parent *gad.Embedded, parentPath string, depth int) {
+		for i := 0; i < width; i++ {
+			fileName := fmt.Sprintf("f%d.txt", i)
+			content := fmt.Sprintf("content-%s-%s", parentPath, fileName)
+			file := &gad.Embedded{
+				Name:          fileName,
+				Mode:          0644,
+				ModTime:       time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				ReaderFactory: gad.EmbeddedBytesReaderFactory(content),
+				Parent:        parent,
+			}
+			parent.Entries[fileName] = file
+			expectedContent[parentPath+"/"+fileName] = content
+			totalFiles++
+
+			if depth > 1 {
+				dirName := fmt.Sprintf("d%d", i)
+				dir := &gad.Embedded{
+					Name:    dirName,
+					Entries: make(map[string]*gad.Embedded),
+					Parent:  parent,
+				}
+				parent.Entries[dirName] = dir
+				addNodes(dir, parentPath+"/"+dirName, depth-1)
+			}
 		}
+	}
 
-		tempDir := t.TempDir()
-		createFiles(t, tempDir, files)
+	addNodes(root, "root", depth)
 
-		o := &gad.Embedded{
-			AbsPath: tempDir,
+	data, edata, err := eencode(root)
+	require.NoError(t, err)
+	t.Logf("encoded main size: %d bytes, embedded data size: %d bytes", len(data), len(edata))
+
+	obj, err := edecode[*gad.Embedded](data, edata)
+	require.NoError(t, err)
+	require.Equal(t, root.Name, obj.Name)
+	require.True(t, obj.IsDir())
+
+	// Walk decoded tree and verify all files
+	var decodedCount int
+	obj.Walk(func(path []string, n *gad.Embedded) error {
+		fullPath := ""
+		for _, p := range path {
+			fullPath += "/" + p
 		}
+		fullPath += "/" + n.Name
+		fullPath = fullPath[1:] // strip leading "/"
 
-		data, err := encode(o)
+		expected, ok := expectedContent[fullPath]
+		require.True(t, ok, "unexpected file: %s", fullPath)
+		data, err := n.Read()
 		require.NoError(t, err)
-		if obj, err := decode[*gad.Embedded](data); err != nil {
-			t.Fatal(err)
-		} else {
-			require.Equal(t, o.Name, obj.Name)
-			require.Equal(t, o.Mode, obj.Mode)
-			require.Equal(t, o.ModTime.UnixNano(), obj.ModTime.UnixNano())
-			eData, err := o.Read()
-			require.NoError(t, err)
-			gData, err := obj.Read()
-			require.NoError(t, err)
-			require.Equal(t, eData, gData)
-		}
+		require.Equal(t, expected, string(data), "content mismatch for %s", fullPath)
+		decodedCount++
+		return nil
 	})
 
-	return
-	t.Run("encodded simgle file", func(t *testing.T) {
+	require.Equal(t, totalFiles, decodedCount, "file count mismatch")
+}
+
+func TestEncDecObjects(t *testing.T) {
+
+	t.Run("encodded embedded single file", func(t *testing.T) {
 		o := &gad.Embedded{
 			Name:          "test.txt",
-			Mode:          0755,
-			ModTime:       time.Now(),
-			ReaderFactory: gad.EmbeddedBytesReaderFactory(`abc`),
+			Mode:          0644,
+			ModTime:       time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			ReaderFactory: gad.EmbeddedBytesReaderFactory(`hello world`),
 		}
 
 		data, edata, err := eencode(o)
 		require.NoError(t, err)
-		if obj, err := edecode[*gad.Embedded](data, edata); err != nil {
-			t.Fatal(err)
-		} else {
-			require.Equal(t, o.Name, obj.Name)
-			require.Equal(t, o.Mode, obj.Mode)
-			require.Equal(t, o.ModTime.UnixNano(), obj.ModTime.UnixNano())
-			eData, err := o.Read()
-			require.NoError(t, err)
-			gData, err := obj.Read()
-			require.NoError(t, err)
-			require.Equal(t, eData, gData)
+		obj, err := edecode[*gad.Embedded](data, edata)
+		require.NoError(t, err)
+		require.Equal(t, o.Name, obj.Name)
+		require.Equal(t, o.Mode, obj.Mode)
+		require.Equal(t, o.ModTime.UnixNano(), obj.ModTime.UnixNano())
+		eData, err := o.Read()
+		require.NoError(t, err)
+		gData, err := obj.Read()
+		require.NoError(t, err)
+		require.Equal(t, eData, gData)
+	})
+
+	t.Run("encodded embedded dir tree", func(t *testing.T) {
+		root := &gad.Embedded{
+			Name:    "root",
+			Entries: make(map[string]*gad.Embedded),
 		}
+
+		f1 := &gad.Embedded{
+			Name:          "f1.txt",
+			Mode:          0644,
+			ModTime:       time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			ReaderFactory: gad.EmbeddedBytesReaderFactory(`content1`),
+			Parent:        root,
+		}
+		root.Entries["f1.txt"] = f1
+
+		sub := &gad.Embedded{
+			Name:    "sub",
+			Entries: make(map[string]*gad.Embedded),
+			Parent:  root,
+		}
+		root.Entries["sub"] = sub
+
+		f2 := &gad.Embedded{
+			Name:          "f2.txt",
+			Mode:          0644,
+			ModTime:       time.Date(2024, 6, 15, 12, 30, 0, 0, time.UTC),
+			ReaderFactory: gad.EmbeddedBytesReaderFactory(`content2`),
+			Parent:        sub,
+		}
+		sub.Entries["f2.txt"] = f2
+
+		data, edata, err := eencode(root)
+		require.NoError(t, err)
+		obj, err := edecode[*gad.Embedded](data, edata)
+		require.NoError(t, err)
+		require.Equal(t, root.Name, obj.Name)
+		require.True(t, obj.IsDir())
+
+		f1Obj := obj.Entries["f1.txt"]
+		require.NotNil(t, f1Obj)
+		require.Equal(t, f1.Name, f1Obj.Name)
+		require.Equal(t, f1.Mode, f1Obj.Mode)
+		f1Data, err := f1Obj.Read()
+		require.NoError(t, err)
+		require.Equal(t, "content1", string(f1Data))
+
+		subObj := obj.Entries["sub"]
+		require.NotNil(t, subObj)
+		require.True(t, subObj.IsDir())
+		require.Equal(t, sub.Name, subObj.Name)
+
+		f2Obj := subObj.Entries["f2.txt"]
+		require.NotNil(t, f2Obj)
+		require.Equal(t, f2.Name, f2Obj.Name)
+		f2Data, err := f2Obj.Read()
+		require.NoError(t, err)
+		require.Equal(t, "content2", string(f2Data))
+	})
+
+	t.Run("encodded embedded empty dir", func(t *testing.T) {
+		o := &gad.Embedded{
+			Name:    "empty",
+			Entries: make(map[string]*gad.Embedded),
+		}
+
+		data, err := encode(o)
+		require.NoError(t, err)
+		obj, err := decode[*gad.Embedded](data)
+		require.NoError(t, err)
+		require.Equal(t, o.Name, obj.Name)
+		require.True(t, obj.IsDir())
+		require.Empty(t, obj.Entries)
 	})
 
 	data, err := encode(gad.Nil)

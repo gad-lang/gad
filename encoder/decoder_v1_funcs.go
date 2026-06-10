@@ -414,7 +414,7 @@ func init() {
 		return e, nil
 	}
 
-	EmbeddedV1.Decode = func(ctx *ReadContext) (_ any, err error) {
+	EmbeddedV1.Decode = func(ctx *ReadContext) (any, error) {
 		var (
 			readHeader = func() (e *gad.Embedded, isDir bool, err error) {
 				e = new(gad.Embedded)
@@ -444,20 +444,20 @@ func init() {
 				if isDirB == 0 {
 					var (
 						size  int64
-						start int32
+						start int64
 					)
 
 					if size, err = readInt64(ctx); err != nil {
 						return
 					}
 
-					if start, err = readInt32(ctx); err != nil {
+					if start, err = readInt64(ctx); err != nil {
 						return
 					}
 
 					e.ReaderFactory = &gad.EmbeddedLimittedReaderFactory{
 						AtReader: ctx.EmbeddedReader,
-						Offset:   int64(start),
+						Offset:   start,
 						Limit:    size,
 					}
 				} else {
@@ -472,16 +472,20 @@ func init() {
 		var (
 			e     *gad.Embedded
 			isDir bool
+			err   error
 		)
 
-		if e, isDir, err = readHeader(); err != nil || !isDir {
-			return
+		if e, isDir, err = readHeader(); err != nil {
+			return nil, err
+		}
+		if !isDir {
+			return e, nil
 		}
 
 		var length int64
 
 		if length, err = readInt64(ctx); err != nil {
-			return
+			return nil, err
 		}
 
 		nodesMap := map[int]*gad.Embedded{
@@ -495,11 +499,11 @@ func init() {
 			)
 
 			if parentIndex, err = readInt(ctx); err != nil {
-				return
+				return nil, err
 			}
 
 			if n, _, err = readHeader(); err != nil {
-				return
+				return nil, err
 			}
 
 			nodesMap[parentIndex].Entries[n.Name] = n

@@ -377,7 +377,6 @@ func init() {
 	}
 
 	EmbeddedV1.Encode = func(ctx *WriteContext, o any) (err error) {
-		const encodingTree = "encodingTree"
 		var (
 			e  = o.(*gad.Embedded)
 			ew = ctx.EmbeddedWriter
@@ -446,17 +445,23 @@ func init() {
 					e: 0,
 				}
 
-				nodes = []*embeddedNode{nil}
+				nodes  = []*embeddedNode{nil}
+				walkFn func(n *gad.Embedded)
 			)
 
-			e.Walk(func(path []string, n *gad.Embedded) error {
-				indexMap[n] = len(nodes)
-				nodes = append(nodes, &embeddedNode{
-					parent: indexMap[n.Parent],
-					entry:  n,
-				})
-				return nil
-			})
+			walkFn = func(n *gad.Embedded) {
+				for _, child := range n.Entries {
+					indexMap[child] = len(nodes)
+					nodes = append(nodes, &embeddedNode{
+						parent: indexMap[child.Parent],
+						entry:  child,
+					})
+					if child.IsDir() {
+						walkFn(child)
+					}
+				}
+			}
+			walkFn(e)
 
 			if err = writeInt64(ctx, int64(len(nodes))-1); err != nil {
 				return
