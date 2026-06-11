@@ -15,6 +15,10 @@ func SExpr(x Expr) *ExprStmt {
 	return &ExprStmt{Expr: x}
 }
 
+func SFunc(x *FuncExpr) *FuncStmt {
+	return &FuncStmt{Func: x}
+}
+
 func SDecl(decl Decl) *DeclStmt {
 	return &DeclStmt{Decl: decl}
 }
@@ -47,6 +51,13 @@ func NewNamedParamSpec(ident *TypedIdentExpr, value Expr) Spec {
 	}
 }
 
+func NewNamedParamSpecVar(ident *TypedIdentExpr) Spec {
+	return &NamedParamSpec{
+		Ident: ident,
+		Var:   true,
+	}
+}
+
 func NewValueSpec(idents []*IdentExpr, values []Expr) Spec {
 	return &ValueSpec{
 		Idents: idents,
@@ -64,6 +75,10 @@ func SAssign(
 
 func SReturn(pos source.Pos, result Expr) *ReturnStmt {
 	return &ReturnStmt{Return: Return{Result: result, ReturnPos: pos}}
+}
+
+func SReturnAssign(pos source.Pos, result Expr) *ReturnStmt {
+	return &ReturnStmt{Return: Return{Result: result, ReturnPos: pos, Assign: true}}
 }
 
 func EReturnExpr(pos source.Pos, result Expr) *ReturnExpr {
@@ -160,6 +175,19 @@ func SIncDec(
 	pos source.Pos,
 ) *IncDecStmt {
 	return &IncDecStmt{Expr: expr, Token: tok, TokenPos: pos}
+}
+
+func NewFuncParams(lparen, rparen source.Pos, v ...any) *FuncParams {
+	p := &FuncParams{LParen: lparen, RParen: rparen}
+	for _, v := range v {
+		switch t := v.(type) {
+		case ArgsList:
+			p.Args = t
+		case NamedArgsList:
+			p.NamedArgs = t
+		}
+	}
+	return p
 }
 
 func NewFuncType(pos, lparen, rparen source.Pos, v ...any) *FuncType {
@@ -394,6 +422,14 @@ func NamedArgsKW(pos source.Pos) *NamedArgsKeywordExpr {
 
 func EDict(lbrace, rbrace source.Pos, list ...*DictElementLit) *DictExpr {
 	return &DictExpr{LBrace: lbrace, RBrace: rbrace, Elements: list}
+}
+
+func EDictElement(key Expr, colonPos source.Pos, value Expr) *DictElementLit {
+	return &DictElementLit{Key: key, ColonPos: colonPos, Value: value}
+}
+
+func EDictElementStr(key string, keyPos, colonPos source.Pos, value Expr) *DictElementLit {
+	return EDictElement(Str(key, keyPos), colonPos, value)
 }
 
 func EDictElementClosure(c *ClosureExpr) *FuncDefLit {

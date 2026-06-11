@@ -24,9 +24,7 @@ func TestRawHeredocLit_Value(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &RawHeredocLit{
-				Literal: tt.Literal,
-			}
+			e := RawHeredoc(tt.Literal, 0)
 			assert.Equal(t, tt.want, e.Value())
 		})
 	}
@@ -57,9 +55,7 @@ func TestHeredocLit_Value(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &HeredocLit{
-				Literal: tt.Literal,
-			}
+			e := Heredoc(tt.Literal, 0)
 			assert.Equal(t, tt.want, e.Value())
 		})
 	}

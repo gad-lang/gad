@@ -13,7 +13,6 @@ import (
 	. "github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/parser/test"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gad-lang/gad/token"
@@ -86,17 +85,17 @@ x := func() { throw error("bad code")  }
 x()
 ›››</p>`, func(p pfn) []Stmt {
 		return stmts(
-			codeBegin(lit("‹‹‹", p(1, 1)), false),
-			assignStmt(
+			SCodeBegin(Lit("‹‹‹", p(1, 1)), false),
+			SAssign(
 				exprs(EIdent("x", p(3, 1))),
-				exprs(funcLit(funcType(p(3, 6), nil, p(3, 10), p(3, 11)),
-					blockStmt(p(3, 13), p(3, 40), throwStmt(p(3, 15), callExpr(EIdent("error", p(3, 21)), p(3, 26), p(3, 37), callExprArgs(nil, stringLit("bad code", p(3, 27)))))))),
+				exprs(EFunc(funcType(p(3, 6), nil, p(3, 10), p(3, 11)),
+					SBlock(p(3, 13), p(3, 40), SThrow(p(3, 15), ECall(EIdent("error", p(3, 21)), p(3, 26), p(3, 37), NewCallExprArgs(nil, stringLit("bad code", p(3, 27)))))))),
 				token.Define, p(3, 3),
 			),
-			codeEnd(lit("›››", p(4, 1)), false),
-			mixedTextStmt(p(4, 10), "<p>"),
-			mixedValue(lit("‹‹‹", p(4, 13)), lit("›››", p(7, 1)), callExpr(EIdent("x", p(6, 1)), p(6, 2), p(6, 3))),
-			mixedTextStmt(p(7, 10), "</p>"),
+			SCodeEnd(Lit("›››", p(4, 1)), false),
+			SMixedText(p(4, 10), "<p>"),
+			SMixedValue(Lit("‹‹‹", p(4, 13)), Lit("›››", p(7, 1)), ECall(EIdent("x", p(6, 1)), p(6, 2), p(6, 3))),
+			SMixedText(p(7, 10), "</p>"),
 		)
 	})
 
@@ -112,12 +111,12 @@ x()
 %} 
 `, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
-			mixedTextStmt(p(1, 14), "\t"),
-			codeBegin(lit("{%", p(2, 2)), false),
-			exprStmt(intLit(1, p(3, 2))),
-			codeEnd(lit("%}", p(4, 1)), false),
-			mixedTextStmt(p(4, 3), " \n"),
+			SConfig(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
+			SMixedText(p(1, 14), "\t"),
+			SCodeBegin(Lit("{%", p(2, 2)), false),
+			SExpr(Int(1, p(3, 2))),
+			SCodeEnd(Lit("%}", p(4, 1)), false),
+			SMixedText(p(4, 3), " \n"),
 		)
 	})
 
@@ -125,12 +124,12 @@ x()
 	{%   1   %} 
 `, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
-			mixedTextStmt(p(1, 14), "\t"),
-			codeBegin(lit("{%", p(2, 2)), false),
-			exprStmt(intLit(1, p(2, 7))),
-			codeEnd(lit("%}", p(2, 11)), false),
-			mixedTextStmt(p(1, 26), " \n"),
+			SConfig(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
+			SMixedText(p(1, 14), "\t"),
+			SCodeBegin(Lit("{%", p(2, 2)), false),
+			SExpr(Int(1, p(2, 7))),
+			SCodeEnd(Lit("%}", p(2, 11)), false),
+			SMixedText(p(1, 26), " \n"),
 		)
 	})
 
@@ -138,12 +137,12 @@ x()
 	{%   1   -%} 
 `, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
-			mixedTextStmt(p(1, 14), "\t"),
-			codeBegin(lit("{%", p(2, 2)), false),
-			exprStmt(intLit(1, p(2, 7))),
-			codeEnd(lit("%}", p(2, 12)), true),
-			mixedTextStmt(p(1, 27), " \n", RemoveLeftSpaces),
+			SConfig(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
+			SMixedText(p(1, 14), "\t"),
+			SCodeBegin(Lit("{%", p(2, 2)), false),
+			SExpr(Int(1, p(2, 7))),
+			SCodeEnd(Lit("%}", p(2, 12)), true),
+			SMixedText(p(1, 27), " \n", RemoveLeftSpaces),
 		)
 	})
 	defaultExpectParse(`# gad: mixed
@@ -151,13 +150,13 @@ x()
 a
 {%- =   2   -%}`, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
-			mixedTextStmt(p(1, 14), "\t"),
-			codeBegin(lit("{%", p(2, 2)), false),
-			exprStmt(intLit(1, p(2, 7))),
-			codeEnd(lit("%}", p(2, 12)), true),
-			mixedTextStmt(p(1, 27), "\na\n", RemoveLeftSpaces|RemoveRightSpaces),
-			mixedValue(lit("{%", p(4, 1)), lit("%}", p(4, 14)), intLit(2, p(4, 9))),
+			SConfig(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
+			SMixedText(p(1, 14), "\t"),
+			SCodeBegin(Lit("{%", p(2, 2)), false),
+			SExpr(Int(1, p(2, 7))),
+			SCodeEnd(Lit("%}", p(2, 12)), true),
+			SMixedText(p(1, 27), "\na\n", RemoveLeftSpaces|RemoveRightSpaces),
+			SMixedValue(Lit("{%", p(4, 1)), Lit("%}", p(4, 14)), Int(2, p(4, 9))),
 		)
 	})
 
@@ -169,18 +168,18 @@ a
 {%   3   %}
 `, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
-			mixedTextStmt(p(1, 14), "\t"),
-			codeBegin(lit("{%", p(2, 2)), false),
-			exprStmt(intLit(1, p(2, 7))),
-			codeEnd(lit("%}", p(2, 12)), true),
-			mixedTextStmt(p(1, 27), "\na\n", RemoveLeftSpaces|RemoveRightSpaces),
-			mixedValue(lit("{%", p(4, 1)), lit("%}", p(4, 14)), intLit(2, p(4, 9))),
-			mixedTextStmt(p(4, 16), "\n\n", RemoveLeftSpaces),
-			codeBegin(lit("{%", p(6, 1)), false),
-			exprStmt(intLit(3, p(6, 6))),
-			codeEnd(lit("%}", p(6, 10)), false),
-			mixedTextStmt(p(6, 12), "\n"),
+			SConfig(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
+			SMixedText(p(1, 14), "\t"),
+			SCodeBegin(Lit("{%", p(2, 2)), false),
+			SExpr(Int(1, p(2, 7))),
+			SCodeEnd(Lit("%}", p(2, 12)), true),
+			SMixedText(p(1, 27), "\na\n", RemoveLeftSpaces|RemoveRightSpaces),
+			SMixedValue(Lit("{%", p(4, 1)), Lit("%}", p(4, 14)), Int(2, p(4, 9))),
+			SMixedText(p(4, 16), "\n\n", RemoveLeftSpaces),
+			SCodeBegin(Lit("{%", p(6, 1)), false),
+			SExpr(Int(3, p(6, 6))),
+			SCodeEnd(Lit("%}", p(6, 10)), false),
+			SMixedText(p(6, 12), "\n"),
 		)
 	})
 
@@ -192,26 +191,26 @@ a
 {%   3   -%}
 `, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
-			mixedTextStmt(p(1, 14), "\t"),
-			codeBegin(lit("{%", p(2, 2)), false),
-			exprStmt(intLit(1, p(2, 7))),
-			codeEnd(lit("%}", p(2, 12)), true),
-			mixedTextStmt(p(1, 27), "\na\n", RemoveLeftSpaces|RemoveRightSpaces),
-			mixedValue(lit("{%", p(4, 1)), lit("%}", p(4, 14)), intLit(2, p(4, 9))),
-			mixedTextStmt(p(4, 16), "\n\n", RemoveLeftSpaces),
-			codeBegin(lit("{%", p(6, 1)), false),
-			exprStmt(intLit(3, p(6, 6))),
-			codeEnd(lit("%}", p(6, 11)), true),
-			mixedTextStmt(p(6, 13), "\n", RemoveLeftSpaces),
+			SConfig(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
+			SMixedText(p(1, 14), "\t"),
+			SCodeBegin(Lit("{%", p(2, 2)), false),
+			SExpr(Int(1, p(2, 7))),
+			SCodeEnd(Lit("%}", p(2, 12)), true),
+			SMixedText(p(1, 27), "\na\n", RemoveLeftSpaces|RemoveRightSpaces),
+			SMixedValue(Lit("{%", p(4, 1)), Lit("%}", p(4, 14)), Int(2, p(4, 9))),
+			SMixedText(p(4, 16), "\n\n", RemoveLeftSpaces),
+			SCodeBegin(Lit("{%", p(6, 1)), false),
+			SExpr(Int(3, p(6, 6))),
+			SCodeEnd(Lit("%}", p(6, 11)), true),
+			SMixedText(p(6, 13), "\n", RemoveLeftSpaces),
 		)
 	})
 	test.ExpectParseMixed(t, "‹- 1 -› a", func(p pfn) []Stmt {
 		return stmts(
-			codeBegin(lit("‹", p(1, 1)), true),
-			exprStmt(intLit(1, p(1, 6))),
-			codeEnd(lit("›", p(1, 9)), true),
-			mixedTextStmt(p(1, 12), " a", RemoveLeftSpaces),
+			SCodeBegin(Lit("‹", p(1, 1)), true),
+			SExpr(Int(1, p(1, 6))),
+			SCodeEnd(Lit("›", p(1, 9)), true),
+			SMixedText(p(1, 12), " a", RemoveLeftSpaces),
 		)
 	})
 	test.ExpectParseStringMixed(t, "‹- var myfn -› a", "‹-; var myfn; -› a")
@@ -337,28 +336,28 @@ func TestParsePipe(t *testing.T) {
 func TestParseDecl(t *testing.T) {
 	test.ExpectParse(t, `param a`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Param, p(1, 1), 0, 0,
-					paramSpec(false, typedIdent(EIdent("a", p(1, 7)))),
+			SDecl(
+				NewGenDecl(token.Param, p(1, 1), 0, 0,
+					NewParamSpec(false, ETypedIdent(EIdent("a", p(1, 7)))),
 				),
 			),
 		)
 	})
 	test.ExpectParse(t, `param *a;`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Param, p(1, 1), 0, 0,
-					paramSpec(true, typedIdent(EIdent("a", p(1, 8)))),
+			SDecl(
+				NewGenDecl(token.Param, p(1, 1), 0, 0,
+					NewParamSpec(true, ETypedIdent(EIdent("a", p(1, 8)))),
 				),
 			),
 		)
 	})
 	test.ExpectParse(t, `param (a, *b)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 13),
-					paramSpec(false, typedIdent(EIdent("a", p(1, 8)))),
-					paramSpec(true, typedIdent(EIdent("b", p(1, 12)))),
+			SDecl(
+				NewGenDecl(token.Param, p(1, 1), p(1, 7), p(1, 13),
+					NewParamSpec(false, ETypedIdent(EIdent("a", p(1, 8)))),
+					NewParamSpec(true, ETypedIdent(EIdent("b", p(1, 12)))),
 				),
 			),
 		)
@@ -366,10 +365,10 @@ func TestParseDecl(t *testing.T) {
 	test.ExpectParse(t, `param (a,
 *b)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Param, p(1, 1), p(1, 7), p(2, 3),
-					paramSpec(false, typedIdent(EIdent("a", p(1, 8)))),
-					paramSpec(true, typedIdent(EIdent("b", p(2, 2)))),
+			SDecl(
+				NewGenDecl(token.Param, p(1, 1), p(1, 7), p(2, 3),
+					NewParamSpec(false, ETypedIdent(EIdent("a", p(1, 8)))),
+					NewParamSpec(true, ETypedIdent(EIdent("b", p(2, 2)))),
 				),
 			),
 		)
@@ -377,35 +376,35 @@ func TestParseDecl(t *testing.T) {
 
 	test.ExpectParse(t, `param (a, *b; c=1, d=2, **e)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 28),
-					paramSpec(false, typedIdent(EIdent("a", p(1, 8)))),
-					paramSpec(true, typedIdent(EIdent("b", p(1, 12)))),
-					nparamSpec(typedIdent(EIdent("c", p(1, 15))), intLit(1, p(1, 17))),
-					nparamSpec(typedIdent(EIdent("d", p(1, 20))), intLit(2, p(1, 22))),
-					nparamSpecVar(typedIdent(EIdent("e", p(1, 27)))),
+			SDecl(
+				NewGenDecl(token.Param, p(1, 1), p(1, 7), p(1, 28),
+					NewParamSpec(false, ETypedIdent(EIdent("a", p(1, 8)))),
+					NewParamSpec(true, ETypedIdent(EIdent("b", p(1, 12)))),
+					NewNamedParamSpec(ETypedIdent(EIdent("c", p(1, 15))), Int(1, p(1, 17))),
+					NewNamedParamSpec(ETypedIdent(EIdent("d", p(1, 20))), Int(2, p(1, 22))),
+					NewNamedParamSpecVar(ETypedIdent(EIdent("e", p(1, 27)))),
 				),
 			),
 		)
 	})
 	test.ExpectParse(t, `param (;c=1, d=2, **e)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 22),
-					nparamSpec(typedIdent(EIdent("c", p(1, 9))), intLit(1, p(1, 11))),
-					nparamSpec(typedIdent(EIdent("d", p(1, 14))), intLit(2, p(1, 16))),
-					nparamSpecVar(typedIdent(EIdent("e", p(1, 21)))),
+			SDecl(
+				NewGenDecl(token.Param, p(1, 1), p(1, 7), p(1, 22),
+					NewNamedParamSpec(ETypedIdent(EIdent("c", p(1, 9))), Int(1, p(1, 11))),
+					NewNamedParamSpec(ETypedIdent(EIdent("d", p(1, 14))), Int(2, p(1, 16))),
+					NewNamedParamSpecVar(ETypedIdent(EIdent("e", p(1, 21)))),
 				),
 			),
 		)
 	})
 	test.ExpectParse(t, `param (;c=1, d=2, **e)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 22),
-					nparamSpec(typedIdent(EIdent("c", p(1, 9))), intLit(1, p(1, 11))),
-					nparamSpec(typedIdent(EIdent("d", p(1, 14))), intLit(2, p(1, 16))),
-					nparamSpecVar(typedIdent(EIdent("e", p(1, 21)))),
+			SDecl(
+				NewGenDecl(token.Param, p(1, 1), p(1, 7), p(1, 22),
+					NewNamedParamSpec(ETypedIdent(EIdent("c", p(1, 9))), Int(1, p(1, 11))),
+					NewNamedParamSpec(ETypedIdent(EIdent("d", p(1, 14))), Int(2, p(1, 16))),
+					NewNamedParamSpecVar(ETypedIdent(EIdent("e", p(1, 21)))),
 				),
 			),
 		)
@@ -413,14 +412,14 @@ func TestParseDecl(t *testing.T) {
 
 	test.ExpectParse(t, `param (a, *b; c=1, d=2, x, **e)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Param, p(1, 1), p(1, 7), p(1, 31),
-					paramSpec(false, typedIdent(EIdent("a", p(1, 8)))),
-					paramSpec(true, typedIdent(EIdent("b", p(1, 12)))),
-					nparamSpec(typedIdent(EIdent("c", p(1, 15))), intLit(1, p(1, 17))),
-					nparamSpec(typedIdent(EIdent("d", p(1, 20))), intLit(2, p(1, 22))),
-					nparamSpec(typedIdent(EIdent("x", p(1, 25))), nil),
-					nparamSpecVar(typedIdent(EIdent("e", p(1, 30)))),
+			SDecl(
+				NewGenDecl(token.Param, p(1, 1), p(1, 7), p(1, 31),
+					NewParamSpec(false, ETypedIdent(EIdent("a", p(1, 8)))),
+					NewParamSpec(true, ETypedIdent(EIdent("b", p(1, 12)))),
+					NewNamedParamSpec(ETypedIdent(EIdent("c", p(1, 15))), Int(1, p(1, 17))),
+					NewNamedParamSpec(ETypedIdent(EIdent("d", p(1, 20))), Int(2, p(1, 22))),
+					NewNamedParamSpec(ETypedIdent(EIdent("x", p(1, 25))), nil),
+					NewNamedParamSpecVar(ETypedIdent(EIdent("e", p(1, 30)))),
 				),
 			),
 		)
@@ -460,9 +459,9 @@ func TestParseDecl(t *testing.T) {
 
 	test.ExpectParse(t, `global a`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Global, p(1, 1), 0, 0,
-					paramSpec(false, typedIdent(EIdent("a", p(1, 8)))),
+			SDecl(
+				NewGenDecl(token.Global, p(1, 1), 0, 0,
+					NewParamSpec(false, ETypedIdent(EIdent("a", p(1, 8)))),
 				),
 			),
 		)
@@ -471,24 +470,24 @@ func TestParseDecl(t *testing.T) {
 global a
 global b`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Global, p(2, 1), 0, 0,
-					paramSpec(false, typedIdent(EIdent("a", p(2, 8)))),
+			SDecl(
+				NewGenDecl(token.Global, p(2, 1), 0, 0,
+					NewParamSpec(false, ETypedIdent(EIdent("a", p(2, 8)))),
 				),
 			),
-			declStmt(
-				genDecl(token.Global, p(3, 1), 0, 0,
-					paramSpec(false, typedIdent(EIdent("b", p(3, 8)))),
+			SDecl(
+				NewGenDecl(token.Global, p(3, 1), 0, 0,
+					NewParamSpec(false, ETypedIdent(EIdent("b", p(3, 8)))),
 				),
 			),
 		)
 	})
 	test.ExpectParse(t, `global (a, b)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Global, p(1, 1), p(1, 8), p(1, 13),
-					paramSpec(false, typedIdent(EIdent("a", p(1, 9)))),
-					paramSpec(false, typedIdent(EIdent("b", p(1, 12)))),
+			SDecl(
+				NewGenDecl(token.Global, p(1, 1), p(1, 8), p(1, 13),
+					NewParamSpec(false, ETypedIdent(EIdent("a", p(1, 9)))),
+					NewParamSpec(false, ETypedIdent(EIdent("b", p(1, 12)))),
 				),
 			),
 		)
@@ -496,10 +495,10 @@ global b`, func(p pfn) []Stmt {
 	test.ExpectParse(t, `global (a, 
 b)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Global, p(1, 1), p(1, 8), p(2, 2),
-					paramSpec(false, typedIdent(EIdent("a", p(1, 9)))),
-					paramSpec(false, typedIdent(EIdent("b", p(2, 1)))),
+			SDecl(
+				NewGenDecl(token.Global, p(1, 1), p(1, 8), p(2, 2),
+					NewParamSpec(false, ETypedIdent(EIdent("a", p(1, 9)))),
+					NewParamSpec(false, ETypedIdent(EIdent("b", p(2, 1)))),
 				),
 			),
 		)
@@ -507,10 +506,10 @@ b)`, func(p pfn) []Stmt {
 	test.ExpectParse(t, `global (a 
 b)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Global, p(1, 1), p(1, 8), p(2, 2),
-					paramSpec(false, typedIdent(EIdent("a", p(1, 9)))),
-					paramSpec(false, typedIdent(EIdent("b", p(2, 1)))),
+			SDecl(
+				NewGenDecl(token.Global, p(1, 1), p(1, 8), p(2, 2),
+					NewParamSpec(false, ETypedIdent(EIdent("a", p(1, 9)))),
+					NewParamSpec(false, ETypedIdent(EIdent("b", p(2, 1)))),
 				),
 			),
 		)
@@ -525,9 +524,9 @@ b)`, func(p pfn) []Stmt {
 
 	test.ExpectParse(t, `var a`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Var, p(1, 1), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(1, 1), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(1, 5))},
 						[]Expr{nil}),
 				),
@@ -536,27 +535,27 @@ b)`, func(p pfn) []Stmt {
 	})
 	test.ExpectParse(t, `var a=1`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Var, p(1, 1), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(1, 1), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(1, 5))},
-						[]Expr{intLit(1, p(1, 7))}),
+						[]Expr{Int(1, p(1, 7))}),
 				),
 			),
 		)
 	})
 	test.ExpectParse(t, `var a;var b`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Var, p(1, 1), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(1, 1), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(1, 5))},
 						[]Expr{nil}),
 				),
 			),
-			declStmt(
-				genDecl(token.Var, p(1, 7), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(1, 7), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("b", p(1, 11))},
 						[]Expr{nil}),
 				),
@@ -565,16 +564,16 @@ b)`, func(p pfn) []Stmt {
 	})
 	test.ExpectParse(t, `var a="x";var b`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Var, p(1, 1), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(1, 1), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(1, 5))},
 						[]Expr{stringLit("x", p(1, 7))}),
 				),
 			),
-			declStmt(
-				genDecl(token.Var, p(1, 11), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(1, 11), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("b", p(1, 15))},
 						[]Expr{nil}),
 				),
@@ -586,16 +585,16 @@ var a
 var b
 `, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Var, p(2, 1), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(2, 1), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(2, 5))},
 						[]Expr{nil}),
 				),
 			),
-			declStmt(
-				genDecl(token.Var, p(3, 1), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(3, 1), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("b", p(3, 5))},
 						[]Expr{nil}),
 				),
@@ -607,46 +606,46 @@ var a
 var b=2
 `, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Var, p(2, 1), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(2, 1), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(2, 5))},
 						[]Expr{nil}),
 				),
 			),
-			declStmt(
-				genDecl(token.Var, p(3, 1), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(3, 1), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("b", p(3, 5))},
-						[]Expr{intLit(2, p(3, 7))}),
+						[]Expr{Int(2, p(3, 7))}),
 				),
 			),
 		)
 	})
 	test.ExpectParse(t, `var (a, b=2)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Var, p(1, 1), p(1, 5), p(1, 12),
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(1, 1), p(1, 5), p(1, 12),
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(1, 6))},
 						[]Expr{nil}),
-					valueSpec(
+					NewValueSpec(
 						[]*IdentExpr{EIdent("b", p(1, 9))},
-						[]Expr{intLit(2, p(1, 11))}),
+						[]Expr{Int(2, p(1, 11))}),
 				),
 			),
 		)
 	})
 	test.ExpectParse(t, `var (a=1, b=2)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Var, p(1, 1), p(1, 5), p(1, 14),
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(1, 1), p(1, 5), p(1, 14),
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(1, 6))},
-						[]Expr{intLit(1, p(1, 8))}),
-					valueSpec(
+						[]Expr{Int(1, p(1, 8))}),
+					NewValueSpec(
 						[]*IdentExpr{EIdent("b", p(1, 11))},
-						[]Expr{intLit(2, p(1, 13))}),
+						[]Expr{Int(2, p(1, 13))}),
 				),
 			),
 		)
@@ -654,14 +653,14 @@ var b=2
 	test.ExpectParse(t, `var (a=1,
 b=2)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Var, p(1, 1), p(1, 5), p(2, 4),
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(1, 1), p(1, 5), p(2, 4),
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(1, 6))},
-						[]Expr{intLit(1, p(1, 8))}),
-					valueSpec(
+						[]Expr{Int(1, p(1, 8))}),
+					NewValueSpec(
 						[]*IdentExpr{EIdent("b", p(2, 1))},
-						[]Expr{intLit(2, p(2, 3))}),
+						[]Expr{Int(2, p(2, 3))}),
 				),
 			),
 		)
@@ -669,14 +668,14 @@ b=2)`, func(p pfn) []Stmt {
 	test.ExpectParse(t, `var (a=1
 b=2)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Var, p(1, 1), p(1, 5), p(2, 4),
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Var, p(1, 1), p(1, 5), p(2, 4),
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(1, 6))},
-						[]Expr{intLit(1, p(1, 8))}),
-					valueSpec(
+						[]Expr{Int(1, p(1, 8))}),
+					NewValueSpec(
 						[]*IdentExpr{EIdent("b", p(2, 1))},
-						[]Expr{intLit(2, p(2, 3))}),
+						[]Expr{Int(2, p(2, 3))}),
 				),
 			),
 		)
@@ -695,43 +694,43 @@ b=2)`, func(p pfn) []Stmt {
 
 	test.ExpectParse(t, `const a = 1`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Const, p(1, 1), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Const, p(1, 1), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(1, 7))},
-						[]Expr{intLit(1, p(1, 11))}),
+						[]Expr{Int(1, p(1, 11))}),
 				),
 			),
 		)
 	})
 	test.ExpectParse(t, `const a = 1; const b = 2`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Const, p(1, 1), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Const, p(1, 1), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(1, 7))},
-						[]Expr{intLit(1, p(1, 11))}),
+						[]Expr{Int(1, p(1, 11))}),
 				),
 			),
-			declStmt(
-				genDecl(token.Const, p(1, 14), 0, 0,
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Const, p(1, 14), 0, 0,
+					NewValueSpec(
 						[]*IdentExpr{EIdent("b", p(1, 20))},
-						[]Expr{intLit(2, p(1, 24))}),
+						[]Expr{Int(2, p(1, 24))}),
 				),
 			),
 		)
 	})
 	test.ExpectParse(t, `const (a = 1, b = 2)`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Const, p(1, 1), p(1, 7), p(1, 20),
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Const, p(1, 1), p(1, 7), p(1, 20),
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(1, 8))},
-						[]Expr{intLit(1, p(1, 12))}),
-					valueSpec(
+						[]Expr{Int(1, p(1, 12))}),
+					NewValueSpec(
 						[]*IdentExpr{EIdent("b", p(1, 15))},
-						[]Expr{intLit(2, p(1, 19))}),
+						[]Expr{Int(2, p(1, 19))}),
 				),
 			),
 		)
@@ -742,14 +741,14 @@ const (
     b = 2
 )`, func(p pfn) []Stmt {
 		return stmts(
-			declStmt(
-				genDecl(token.Const, p(2, 1), p(2, 7), p(5, 1),
-					valueSpec(
+			SDecl(
+				NewGenDecl(token.Const, p(2, 1), p(2, 7), p(5, 1),
+					NewValueSpec(
 						[]*IdentExpr{EIdent("a", p(3, 5))},
-						[]Expr{intLit(1, p(3, 9))}),
-					valueSpec(
+						[]Expr{Int(1, p(3, 9))}),
+					NewValueSpec(
 						[]*IdentExpr{EIdent("b", p(4, 5))},
-						[]Expr{intLit(2, p(4, 9))}),
+						[]Expr{Int(2, p(4, 9))}),
 				),
 			),
 		)
@@ -846,37 +845,37 @@ s`)
 func TestCommaSepReturn(t *testing.T) {
 	test.ExpectParse(t, "return 1, 23", func(p pfn) []Stmt {
 		return stmts(
-			returnStmt(
+			SReturn(
 				p(1, 1),
-				arrayLit(
+				Array(
 					p(1, 8),
 					p(1, 13),
-					intLit(1, p(1, 8)),
-					intLit(23, p(1, 11)),
+					Int(1, p(1, 8)),
+					Int(23, p(1, 11)),
 				),
 			),
 		)
 	})
 	test.ExpectParse(t, "return 1, 23, 2.2, 12.34d", func(p pfn) []Stmt {
 		return stmts(
-			returnStmt(
+			SReturn(
 				p(1, 1),
-				arrayLit(
+				Array(
 					p(1, 8),
 					p(1, 26),
-					intLit(1, p(1, 8)),
-					intLit(23, p(1, 11)),
-					floatLit(2.2, p(1, 15)),
-					decimalLit("12.34", p(1, 20)),
+					Int(1, p(1, 8)),
+					Int(23, p(1, 11)),
+					Float(2.2, p(1, 15)),
+					Decimal("12.34", p(1, 20)),
 				),
 			),
 		)
 	})
 	test.ExpectParse(t, "return a, b", func(p pfn) []Stmt {
 		return stmts(
-			returnStmt(
+			SReturn(
 				p(1, 1),
-				arrayLit(
+				Array(
 					p(1, 8),
 					p(1, 12),
 					EIdent("a", p(1, 8)),
@@ -887,15 +886,15 @@ func TestCommaSepReturn(t *testing.T) {
 	})
 	test.ExpectParse(t, "func() { return a, b }", func(p pfn) []Stmt {
 		return stmts(
-			funcStmt(
+			SFunc(
 				EFunc(
 					funcType(p(1, 1), nil, p(1, 5), p(1, 6)),
-					blockStmt(
+					SBlock(
 						p(1, 8),
 						p(1, 22),
-						returnStmt(
+						SReturn(
 							p(1, 10),
-							arrayLit(
+							Array(
 								p(1, 17),
 								p(1, 21),
 								EIdent("a", p(1, 17)),
@@ -917,11 +916,11 @@ func TestCommaSepReturn(t *testing.T) {
 func TestParseArray(t *testing.T) {
 	test.ExpectParse(t, "[1, 2, 3]", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				arrayLit(p(1, 1), p(1, 9),
-					intLit(1, p(1, 2)),
-					intLit(2, p(1, 5)),
-					intLit(3, p(1, 8)))))
+			SExpr(
+				Array(p(1, 1), p(1, 9),
+					Int(1, p(1, 2)),
+					Int(2, p(1, 5)),
+					Int(3, p(1, 8)))))
 	})
 
 	test.ExpectParse(t, `
@@ -931,11 +930,11 @@ func TestParseArray(t *testing.T) {
 	3,
 ]`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				arrayLit(p(2, 1), p(6, 1),
-					intLit(1, p(3, 2)),
-					intLit(2, p(4, 2)),
-					intLit(3, p(5, 2)))))
+			SExpr(
+				Array(p(2, 1), p(6, 1),
+					Int(1, p(3, 2)),
+					Int(2, p(4, 2)),
+					Int(3, p(5, 2)))))
 	})
 	test.ExpectParse(t, `
 [
@@ -945,51 +944,51 @@ func TestParseArray(t *testing.T) {
 
 ]`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				arrayLit(p(2, 1), p(7, 1),
-					intLit(1, p(3, 2)),
-					intLit(2, p(4, 2)),
-					intLit(3, p(5, 2)))))
+			SExpr(
+				Array(p(2, 1), p(7, 1),
+					Int(1, p(3, 2)),
+					Int(2, p(4, 2)),
+					Int(3, p(5, 2)))))
 	})
 
 	test.ExpectParse(t, `[1, "foo", 12.34]`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				arrayLit(p(1, 1), p(1, 17),
-					intLit(1, p(1, 2)),
+			SExpr(
+				Array(p(1, 1), p(1, 17),
+					Int(1, p(1, 2)),
 					stringLit("foo", p(1, 5)),
-					floatLit(12.34, p(1, 12)))))
+					Float(12.34, p(1, 12)))))
 	})
 
 	test.ExpectParse(t, "a = [1, 2, 3]", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(arrayLit(p(1, 5), p(1, 13),
-					intLit(1, p(1, 6)),
-					intLit(2, p(1, 9)),
-					intLit(3, p(1, 12)))),
+				exprs(Array(p(1, 5), p(1, 13),
+					Int(1, p(1, 6)),
+					Int(2, p(1, 9)),
+					Int(3, p(1, 12)))),
 				token.Assign,
 				p(1, 3)))
 	})
 
 	test.ExpectParse(t, "a = [1 + 2, b * 4, [4, c]]", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(arrayLit(p(1, 5), p(1, 26),
-					binaryExpr(
-						intLit(1, p(1, 6)),
-						intLit(2, p(1, 10)),
+				exprs(Array(p(1, 5), p(1, 26),
+					EBinary(
+						Int(1, p(1, 6)),
+						Int(2, p(1, 10)),
 						token.Add,
 						p(1, 8)),
-					binaryExpr(
+					EBinary(
 						EIdent("b", p(1, 13)),
-						intLit(4, p(1, 17)),
+						Int(4, p(1, 17)),
 						token.Mul,
 						p(1, 15)),
-					arrayLit(p(1, 20), p(1, 25),
-						intLit(4, p(1, 21)),
+					Array(p(1, 20), p(1, 25),
+						Int(4, p(1, 21)),
 						EIdent("c", p(1, 24))))),
 				token.Assign,
 				p(1, 3)))
@@ -1010,63 +1009,63 @@ func TestParseArray(t *testing.T) {
 func TestParseAssignment(t *testing.T) {
 	test.ExpectParse(t, "a = 5", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(intLit(5, p(1, 5))),
+				exprs(Int(5, p(1, 5))),
 				token.Assign,
 				p(1, 3)))
 	})
 
 	test.ExpectParse(t, "a := 5", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(intLit(5, p(1, 6))),
+				exprs(Int(5, p(1, 6))),
 				token.Define,
 				p(1, 3)))
 	})
 
 	test.ExpectParse(t, "a, b = 5, 10", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
 					EIdent("a", p(1, 1)),
 					EIdent("b", p(1, 4))),
 				exprs(
-					intLit(5, p(1, 8)),
-					intLit(10, p(1, 11))),
+					Int(5, p(1, 8)),
+					Int(10, p(1, 11))),
 				token.Assign,
 				p(1, 6)))
 	})
 
 	test.ExpectParse(t, "a, b := 5, 10", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
 					EIdent("a", p(1, 1)),
 					EIdent("b", p(1, 4))),
 				exprs(
-					intLit(5, p(1, 9)),
-					intLit(10, p(1, 12))),
+					Int(5, p(1, 9)),
+					Int(10, p(1, 12))),
 				token.Define,
 				p(1, 6)))
 	})
 
 	test.ExpectParse(t, "a, b = a + 2, b - 8", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
 					EIdent("a", p(1, 1)),
 					EIdent("b", p(1, 4))),
 				exprs(
-					binaryExpr(
+					EBinary(
 						EIdent("a", p(1, 8)),
-						intLit(2, p(1, 12)),
+						Int(2, p(1, 12)),
 						token.Add,
 						p(1, 10)),
-					binaryExpr(
+					EBinary(
 						EIdent("b", p(1, 15)),
-						intLit(8, p(1, 19)),
+						Int(8, p(1, 19)),
 						token.Sub,
 						p(1, 17))),
 				token.Assign,
@@ -1075,33 +1074,33 @@ func TestParseAssignment(t *testing.T) {
 
 	test.ExpectParse(t, "a = [1, 2, 3]", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(arrayLit(p(1, 5), p(1, 13),
-					intLit(1, p(1, 6)),
-					intLit(2, p(1, 9)),
-					intLit(3, p(1, 12)))),
+				exprs(Array(p(1, 5), p(1, 13),
+					Int(1, p(1, 6)),
+					Int(2, p(1, 9)),
+					Int(3, p(1, 12)))),
 				token.Assign,
 				p(1, 3)))
 	})
 
 	test.ExpectParse(t, "a = [1 + 2, b * 4, [4, c]]", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(arrayLit(p(1, 5), p(1, 26),
-					binaryExpr(
-						intLit(1, p(1, 6)),
-						intLit(2, p(1, 10)),
+				exprs(Array(p(1, 5), p(1, 26),
+					EBinary(
+						Int(1, p(1, 6)),
+						Int(2, p(1, 10)),
 						token.Add,
 						p(1, 8)),
-					binaryExpr(
+					EBinary(
 						EIdent("b", p(1, 13)),
-						intLit(4, p(1, 17)),
+						Int(4, p(1, 17)),
 						token.Mul,
 						p(1, 15)),
-					arrayLit(p(1, 20), p(1, 25),
-						intLit(4, p(1, 21)),
+					Array(p(1, 20), p(1, 25),
+						Int(4, p(1, 21)),
 						EIdent("c", p(1, 24))))),
 				token.Assign,
 				p(1, 3)))
@@ -1109,21 +1108,21 @@ func TestParseAssignment(t *testing.T) {
 
 	test.ExpectParse(t, "a += 5", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(intLit(5, p(1, 6))),
+				exprs(Int(5, p(1, 6))),
 				token.AddAssign,
 				p(1, 3)))
 	})
 
 	test.ExpectParse(t, "a *= 5 + 10", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
 				exprs(
-					binaryExpr(
-						intLit(5, p(1, 6)),
-						intLit(10, p(1, 10)),
+					EBinary(
+						Int(5, p(1, 6)),
+						Int(10, p(1, 10)),
 						token.Add,
 						p(1, 8))),
 				token.MulAssign,
@@ -1132,21 +1131,21 @@ func TestParseAssignment(t *testing.T) {
 
 	test.ExpectParse(t, "a ||= 5", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(intLit(5, p(1, 7))),
+				exprs(Int(5, p(1, 7))),
 				token.LOrAssign,
 				p(1, 3)))
 	})
 
 	test.ExpectParse(t, "a ||= 5 + 10", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
 				exprs(
-					binaryExpr(
-						intLit(5, p(1, 7)),
-						intLit(10, p(1, 11)),
+					EBinary(
+						Int(5, p(1, 7)),
+						Int(10, p(1, 11)),
 						token.Add,
 						p(1, 9))),
 				token.LOrAssign,
@@ -1155,21 +1154,21 @@ func TestParseAssignment(t *testing.T) {
 
 	test.ExpectParse(t, "a ??= 5", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(intLit(5, p(1, 7))),
+				exprs(Int(5, p(1, 7))),
 				token.NullichAssign,
 				p(1, 3)))
 	})
 
 	test.ExpectParse(t, "a ??= 5 + 10", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
 				exprs(
-					binaryExpr(
-						intLit(5, p(1, 7)),
-						intLit(10, p(1, 11)),
+					EBinary(
+						Int(5, p(1, 7)),
+						Int(10, p(1, 11)),
 						token.Add,
 						p(1, 9))),
 				token.NullichAssign,
@@ -1178,30 +1177,30 @@ func TestParseAssignment(t *testing.T) {
 
 	test.ExpectParse(t, "a ++= 5", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(intLit(5, p(1, 7))),
+				exprs(Int(5, p(1, 7))),
 				token.IncAssign,
 				p(1, 3)))
 	})
 
 	test.ExpectParse(t, "a --= 5", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(intLit(5, p(1, 7))),
+				exprs(Int(5, p(1, 7))),
 				token.DecAssign,
 				p(1, 3)))
 	})
 
 	test.ExpectParse(t, "a **= 5 + 10", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
 				exprs(
-					binaryExpr(
-						intLit(5, p(1, 7)),
-						intLit(10, p(1, 11)),
+					EBinary(
+						Int(5, p(1, 7)),
+						Int(10, p(1, 11)),
 						token.Add,
 						p(1, 9))),
 				token.PowAssign,
@@ -1212,18 +1211,18 @@ func TestParseAssignment(t *testing.T) {
 func TestParseUnaryNulls(t *testing.T) {
 	test.ExpectParse(t, "false == nil", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				unaryExpr(
-					boolLit(false, p(1, 1)),
+			SExpr(
+				EUnary(
+					Bool(false, p(1, 1)),
 					token.Null,
 					p(1, 7))))
 	})
 
 	test.ExpectParse(t, "false != nil", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				unaryExpr(
-					boolLit(false, p(1, 1)),
+			SExpr(
+				EUnary(
+					Bool(false, p(1, 1)),
 					token.NotNull,
 					p(1, 7))))
 	})
@@ -1235,9 +1234,9 @@ func TestParseUnaryNulls(t *testing.T) {
 
 	test.ExpectParse(t, "a == nil ? b : c", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				condExpr(
-					unaryExpr(
+			SExpr(
+				ECond(
+					EUnary(
 						EIdent("a", p(1, 1)),
 						token.Null,
 						p(1, 3)),
@@ -1249,9 +1248,9 @@ func TestParseUnaryNulls(t *testing.T) {
 
 	test.ExpectParse(t, "a != nil ? b : c", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				condExpr(
-					unaryExpr(
+			SExpr(
+				ECond(
+					EUnary(
 						EIdent("a", p(1, 1)),
 						token.NotNull,
 						p(1, 3)),
@@ -1268,31 +1267,31 @@ func TestParseUnaryNulls(t *testing.T) {
 func TestParseBoolean(t *testing.T) {
 	test.ExpectParse(t, "true", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				boolLit(true, p(1, 1))))
+			SExpr(
+				Bool(true, p(1, 1))))
 	})
 
 	test.ExpectParse(t, "false", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				boolLit(false, p(1, 1))))
+			SExpr(
+				Bool(false, p(1, 1))))
 	})
 
 	test.ExpectParse(t, "true != false", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				binaryExpr(
-					boolLit(true, p(1, 1)),
-					boolLit(false, p(1, 9)),
+			SExpr(
+				EBinary(
+					Bool(true, p(1, 1)),
+					Bool(false, p(1, 9)),
 					token.NotEqual,
 					p(1, 6))))
 	})
 
 	test.ExpectParse(t, "!false", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				unaryExpr(
-					boolLit(false, p(1, 2)),
+			SExpr(
+				EUnary(
+					Bool(false, p(1, 2)),
 					token.Not,
 					p(1, 1))))
 	})
@@ -1301,31 +1300,31 @@ func TestParseBoolean(t *testing.T) {
 func TestParseFlag(t *testing.T) {
 	test.ExpectParse(t, "yes", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				flagLit(true, p(1, 1))))
+			SExpr(
+				Flag(true, p(1, 1))))
 	})
 
 	test.ExpectParse(t, "no", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				flagLit(false, p(1, 1))))
+			SExpr(
+				Flag(false, p(1, 1))))
 	})
 
 	test.ExpectParse(t, "yes != no", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				binaryExpr(
-					flagLit(true, p(1, 1)),
-					flagLit(false, p(1, 8)),
+			SExpr(
+				EBinary(
+					Flag(true, p(1, 1)),
+					Flag(false, p(1, 8)),
 					token.NotEqual,
 					p(1, 5))))
 	})
 
 	test.ExpectParse(t, "!no", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				unaryExpr(
-					flagLit(false, p(1, 2)),
+			SExpr(
+				EUnary(
+					Flag(false, p(1, 2)),
 					token.Not,
 					p(1, 1))))
 	})
@@ -1333,13 +1332,13 @@ func TestParseFlag(t *testing.T) {
 
 func TestParseCallKeywords(t *testing.T) {
 	test.ExpectParse(t, token.Callee.String(), func(p pfn) []Stmt {
-		return stmts(exprStmt(caleeKw(p(1, 1))))
+		return stmts(SExpr(CaleeKW(p(1, 1))))
 	})
 	test.ExpectParse(t, token.Args.String(), func(p pfn) []Stmt {
-		return stmts(exprStmt(argsKw(p(1, 1))))
+		return stmts(SExpr(ArgsKW(p(1, 1))))
 	})
 	test.ExpectParse(t, token.NamedArgs.String(), func(p pfn) []Stmt {
-		return stmts(exprStmt(nargsKw(p(1, 1))))
+		return stmts(SExpr(NamedArgsKW(p(1, 1))))
 	})
 	test.ExpectParseString(t, token.Callee.String(), token.Callee.String())
 	test.ExpectParseString(t, token.Args.String(), token.Args.String())
@@ -1361,93 +1360,93 @@ func TestParseCall(t *testing.T) {
 )`)
 	test.ExpectParse(t, "add(,)", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
+			SExpr(
+				ECall(
 					EIdent("add", p(1, 1)),
 					p(1, 4), p(1, 6),
-					callExprArgs(nil))))
+					NewCallExprArgs(nil))))
 	})
 	test.ExpectParse(t, "add(\n\t,)", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
+			SExpr(
+				ECall(
 					EIdent("add", p(1, 1)),
 					p(1, 4), p(2, 3),
-					callExprArgs(nil))))
+					NewCallExprArgs(nil))))
 	})
 	test.ExpectParse(t, "add(1, 2, 3)", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
+			SExpr(
+				ECall(
 					EIdent("add", p(1, 1)),
 					p(1, 4), p(1, 12),
-					callExprArgs(nil,
-						intLit(1, p(1, 5)),
-						intLit(2, p(1, 8)),
-						intLit(3, p(1, 11))))))
+					NewCallExprArgs(nil,
+						Int(1, p(1, 5)),
+						Int(2, p(1, 8)),
+						Int(3, p(1, 11))))))
 	})
 	test.ExpectParse(t, "add(1, 2, *v)", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
+			SExpr(
+				ECall(
 					EIdent("add", p(1, 1)),
 					p(1, 4), p(1, 13),
-					callExprArgs(
-						argVar(p(1, 11), EIdent("v", p(1, 12))),
-						intLit(1, p(1, 5)),
-						intLit(2, p(1, 8))))))
+					NewCallExprArgs(
+						ArgVar(p(1, 11), EIdent("v", p(1, 12))),
+						Int(1, p(1, 5)),
+						Int(2, p(1, 8))))))
 	})
 	test.ExpectParse(t, "a = add(1, 2, 3)", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
 					EIdent("a", p(1, 1))),
 				exprs(
-					callExpr(
+					ECall(
 						EIdent("add", p(1, 5)),
 						p(1, 8), p(1, 16),
-						callExprArgs(nil,
-							intLit(1, p(1, 9)),
-							intLit(2, p(1, 12)),
-							intLit(3, p(1, 15))))),
+						NewCallExprArgs(nil,
+							Int(1, p(1, 9)),
+							Int(2, p(1, 12)),
+							Int(3, p(1, 15))))),
 				token.Assign,
 				p(1, 3)))
 	})
 	test.ExpectParse(t, "a, b = add(1, 2, 3)", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
 					EIdent("a", p(1, 1)),
 					EIdent("b", p(1, 4))),
 				exprs(
-					callExpr(
+					ECall(
 						EIdent("add", p(1, 8)),
 						p(1, 11), p(1, 19),
-						callExprArgs(nil, intLit(1, p(1, 12)),
-							intLit(2, p(1, 15)),
-							intLit(3, p(1, 18))))),
+						NewCallExprArgs(nil, Int(1, p(1, 12)),
+							Int(2, p(1, 15)),
+							Int(3, p(1, 18))))),
 				token.Assign,
 				p(1, 6)))
 	})
 	test.ExpectParse(t, "add(a + 1, 2 * 1, (b + c))", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
+			SExpr(
+				ECall(
 					EIdent("add", p(1, 1)),
 					p(1, 4), p(1, 26),
-					callExprArgs(nil,
-						binaryExpr(
+					NewCallExprArgs(nil,
+						EBinary(
 							EIdent("a", p(1, 5)),
-							intLit(1, p(1, 9)),
+							Int(1, p(1, 9)),
 							token.Add,
 							p(1, 7)),
-						binaryExpr(
-							intLit(2, p(1, 12)),
-							intLit(1, p(1, 16)),
+						EBinary(
+							Int(2, p(1, 12)),
+							Int(1, p(1, 16)),
 							token.Mul,
 							p(1, 14)),
 						EParen(
-							binaryExpr(
+							EBinary(
 								EIdent("b", p(1, 20)),
 								EIdent("c", p(1, 24)),
 								token.Add,
@@ -1474,34 +1473,34 @@ func TestParseCall(t *testing.T) {
 
 	test.ExpectParse(t, "func(a, b) { a + b }(1, 2)", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
-					funcLit(
+			SExpr(
+				ECall(
+					EFunc(
 						funcType(p(1, 1), nil, p(1, 5), p(1, 10),
 							funcArgs(nil,
 								EIdent("a", p(1, 6)),
 								EIdent("b", p(1, 9))),
 						),
-						blockStmt(
+						SBlock(
 							p(1, 12), p(1, 20),
-							exprStmt(
-								binaryExpr(
+							SExpr(
+								EBinary(
 									EIdent("a", p(1, 14)),
 									EIdent("b", p(1, 18)),
 									token.Add,
 									p(1, 16))))),
 					p(1, 21),
 					p(1, 26),
-					callExprArgs(nil,
-						intLit(1, p(1, 22)),
-						intLit(2, p(1, 25))))))
+					NewCallExprArgs(nil,
+						Int(1, p(1, 22)),
+						Int(2, p(1, 25))))))
 	})
 
 	test.ExpectParse(t, `a.b()`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
-					selectorExpr(
+			SExpr(
+				ECall(
+					ESelector(
 						EIdent("a", p(1, 1)),
 						stringLit("b", p(1, 3))),
 					p(1, 4), p(1, 5), NoPos)))
@@ -1509,10 +1508,10 @@ func TestParseCall(t *testing.T) {
 
 	test.ExpectParse(t, `a.b.c()`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
-					selectorExpr(
-						selectorExpr(
+			SExpr(
+				ECall(
+					ESelector(
+						ESelector(
 							EIdent("a", p(1, 1)),
 							stringLit("b", p(1, 3))),
 						stringLit("c", p(1, 5))),
@@ -1521,10 +1520,10 @@ func TestParseCall(t *testing.T) {
 
 	test.ExpectParse(t, `a["b"].c()`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
-					selectorExpr(
-						indexExpr(
+			SExpr(
+				ECall(
+					ESelector(
+						EIndex(
 							EIdent("a", p(1, 1)),
 							stringLit("b", p(1, 3)),
 							p(1, 2), p(1, 6)),
@@ -1636,46 +1635,46 @@ f(
 
 	test.ExpectParse(t, "add(;x=2)", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
+			SExpr(
+				ECall(
 					EIdent("add", p(1, 1)),
 					p(1, 4), p(1, 9),
 					callExprNamedArgs(
 						[]*NamedArgExpr{{Ident: EIdent("x", p(1, 6))}},
-						[]Expr{intLit(2, p(1, 8))},
+						[]Expr{Int(2, p(1, 8))},
 					))))
 	})
 	test.ExpectParse(t, "add(;x=2,y=3)", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
+			SExpr(
+				ECall(
 					EIdent("add", p(1, 1)),
 					p(1, 4), p(1, 13),
 					callExprNamedArgs(
 						[]*NamedArgExpr{{Ident: EIdent("x", p(1, 6))}, {Ident: EIdent("y", p(1, 10))}},
-						[]Expr{intLit(2, p(1, 8)), intLit(3, p(1, 12))},
+						[]Expr{Int(2, p(1, 8)), Int(3, p(1, 12))},
 					))))
 	})
 	test.ExpectParse(t, "add(;x=2,**{})", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
+			SExpr(
+				ECall(
 					EIdent("add", p(1, 1)),
 					p(1, 4), p(1, 14),
 					callExprNamedArgs(
-						[]*NamedArgExpr{{Ident: EIdent("x", p(1, 6))}, {Var: true, Exp: dictLit(12, 13)}},
-						[]Expr{intLit(2, p(1, 8)), nil},
+						[]*NamedArgExpr{{Ident: EIdent("x", p(1, 6))}, {Var: true, Exp: EDict(12, 13)}},
+						[]Expr{Int(2, p(1, 8)), nil},
 					))))
 	})
 	test.ExpectParse(t, "add(;\"x\"=2,y=3)", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
+			SExpr(
+				ECall(
 					EIdent("add", p(1, 1)),
 					p(1, 4), p(1, 15),
 					callExprNamedArgs(
 						[]*NamedArgExpr{{Lit: stringLit("x", p(1, 6))}, {Ident: EIdent("y", p(1, 12))}},
-						[]Expr{intLit(2, p(1, 10)), intLit(3, p(1, 14))},
+						[]Expr{Int(2, p(1, 10)), Int(3, p(1, 14))},
 					))))
 	})
 
@@ -1737,8 +1736,8 @@ func TestParseKeyValue(t *testing.T) {
 	test.ExpectParseString(t, `[(1+1)=1]`, `[(1 + 1)=1]`)
 	test.ExpectParse(t, `[a=1]`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				kv(EIdent("a", p(1, 2)), intLit(1, p(1, 4)))))
+			SExpr(
+				KV(EIdent("a", p(1, 2)), Int(1, p(1, 4)))))
 	})
 	test.ExpectParseString(t, `[a=1]`, `[a=1]`)
 }
@@ -1938,7 +1937,7 @@ func TestTemplateString(t *testing.T) {
 		of := test.New(t, `x := #"hello {user}!"`).File().Expect(func(p test.Pfn) []Stmt {
 			ofPos = p
 			return stmts(
-				assignStmt(
+				SAssign(
 					exprs(EIdent("x", p(1, 1))),
 					exprs(&TemplateLit{
 						TokenPos: p(1, 6),
@@ -1952,11 +1951,11 @@ func TestTemplateString(t *testing.T) {
 		test.NewFile(t, tf).Expect(func(pos test.Pfn) []Stmt {
 			tfPos = pos
 			return stmts(
-				mixedTextStmt(pos(1, 1), "hello "),
-				codeBegin(lit("{", pos(1, 7)), false),
-				exprStmt(EIdent("user", pos(1, 8))),
-				codeEnd(lit("}", pos(1, 12)), false),
-				mixedTextStmt(pos(1, 13), "!"),
+				SMixedText(pos(1, 1), "hello "),
+				SCodeBegin(Lit("{", pos(1, 7)), false),
+				SExpr(EIdent("user", pos(1, 8))),
+				SCodeEnd(Lit("}", pos(1, 12)), false),
+				SMixedText(pos(1, 13), "!"),
 			)
 		})
 
@@ -2095,8 +2094,8 @@ func TestTemplateString(t *testing.T) {
 }
 
 func TestParseChar(t *testing.T) {
-	test.ExpectParseExpr(t, `'A'`, charLit('A', 1))
-	test.ExpectParseExpr(t, `'九'`, charLit('九', 1))
+	test.ExpectParseExpr(t, `'A'`, Char('A', 1))
+	test.ExpectParseExpr(t, `'九'`, Char('九', 1))
 
 	test.ExpectParseError(t, `''`)
 	test.ExpectParseError(t, `'AB'`)
@@ -2111,8 +2110,8 @@ func TestParseChar(t *testing.T) {
 func TestParseCondExpr(t *testing.T) {
 	test.ExpectParse(t, "a ? b : c", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				condExpr(
+			SExpr(
+				ECond(
 					EIdent("a", p(1, 1)),
 					EIdent("b", p(1, 5)),
 					EIdent("c", p(1, 9)),
@@ -2123,8 +2122,8 @@ func TestParseCondExpr(t *testing.T) {
 b :
 c`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				condExpr(
+			SExpr(
+				ECond(
 					EIdent("a", p(1, 1)),
 					EIdent("b", p(1, 5)),
 					EIdent("c", p(1, 9)),
@@ -2158,11 +2157,11 @@ c`, func(p pfn) []Stmt {
 
 func TestParseReturn(t *testing.T) {
 	test.ExpectParse(t, "return", func(p pfn) []Stmt {
-		return stmts(returnStmt(p(1, 1), nil))
+		return stmts(SReturn(p(1, 1), nil))
 	})
 
 	test.ExpectParse(t, "1 || return", func(p pfn) []Stmt {
-		return stmts(exprStmt(binaryExpr(intLit(1, p(1, 1)), returnExpr(p(1, 6), nil), token.LOr, p(1, 3))))
+		return stmts(SExpr(EBinary(Int(1, p(1, 1)), EReturnExpr(p(1, 6), nil), token.LOr, p(1, 3))))
 	})
 
 	test.ExpectParseString(t, `var x; x || return`,
@@ -2172,7 +2171,7 @@ func TestParseReturn(t *testing.T) {
 		"return 1")
 
 	test.ExpectParse(t, "return = myvar", func(p pfn) []Stmt {
-		return stmts(returnAssignStmt(p(1, 1), EIdent("myvar", p(1, 10))))
+		return stmts(SReturnAssign(p(1, 1), EIdent("myvar", p(1, 10))))
 	})
 
 	test.ExpectParseError(t, "return = 1")
@@ -2207,90 +2206,90 @@ func TestParseForIn(t *testing.T) {
 
 	test.ExpectParse(t, "for x in y {}", func(p pfn) []Stmt {
 		return stmts(
-			forInStmt(
+			SForIn(
 				EIdent("_", p(1, 5)),
 				EIdent("x", p(1, 5)),
 				EIdent("y", p(1, 10)),
-				blockStmt(p(1, 12), p(1, 13)),
+				SBlock(p(1, 12), p(1, 13)),
 				p(1, 1)))
 	})
 
 	test.ExpectParse(t, "for _ in y {}", func(p pfn) []Stmt {
 		return stmts(
-			forInStmt(
+			SForIn(
 				EIdent("_", p(1, 5)),
 				EIdent("_", p(1, 5)),
 				EIdent("y", p(1, 10)),
-				blockStmt(p(1, 12), p(1, 13)),
+				SBlock(p(1, 12), p(1, 13)),
 				p(1, 1)))
 	})
 
 	test.ExpectParse(t, "for x in [1, 2, 3] {}", func(p pfn) []Stmt {
 		return stmts(
-			forInStmt(
+			SForIn(
 				EIdent("_", p(1, 5)),
 				EIdent("x", p(1, 5)),
-				arrayLit(
+				Array(
 					p(1, 10), p(1, 18),
-					intLit(1, p(1, 11)),
-					intLit(2, p(1, 14)),
-					intLit(3, p(1, 17))),
-				blockStmt(p(1, 20), p(1, 21)),
+					Int(1, p(1, 11)),
+					Int(2, p(1, 14)),
+					Int(3, p(1, 17))),
+				SBlock(p(1, 20), p(1, 21)),
 				p(1, 1)))
 	})
 
 	test.ExpectParse(t, "for x, y in z {}", func(p pfn) []Stmt {
 		return stmts(
-			forInStmt(
+			SForIn(
 				EIdent("x", p(1, 5)),
 				EIdent("y", p(1, 8)),
 				EIdent("z", p(1, 13)),
-				blockStmt(p(1, 15), p(1, 16)),
+				SBlock(p(1, 15), p(1, 16)),
 				p(1, 1)))
 	})
 
 	test.ExpectParse(t, "for x, y in {k1: 1, k2: 2} {}", func(p pfn) []Stmt {
 		return stmts(
-			forInStmt(
+			SForIn(
 				EIdent("x", p(1, 5)),
 				EIdent("y", p(1, 8)),
-				dictLit(
+				EDict(
 					p(1, 13), p(1, 26),
-					dicElementLitE(
-						EIdent("k1", p(1, 14)), p(1, 16), intLit(1, p(1, 18))),
-					dicElementLitE(
-						EIdent("k2", p(1, 21)), p(1, 23), intLit(2, p(1, 25)))),
-				blockStmt(p(1, 28), p(1, 29)),
+					EDictElement(
+						EIdent("k1", p(1, 14)), p(1, 16), Int(1, p(1, 18))),
+					EDictElement(
+						EIdent("k2", p(1, 21)), p(1, 23), Int(2, p(1, 25)))),
+				SBlock(p(1, 28), p(1, 29)),
 				p(1, 1)))
 	})
 
 	test.ExpectParse(t, "for x in y {} else {}", func(p pfn) []Stmt {
 		return stmts(
-			forInStmt(
+			SForIn(
 				EIdent("_", p(1, 5)),
 				EIdent("x", p(1, 5)),
 				EIdent("y", p(1, 10)),
-				blockStmt(p(1, 12), p(1, 13)),
+				SBlock(p(1, 12), p(1, 13)),
 				p(1, 1),
-				blockStmt(p(1, 20), p(1, 21))))
+				SBlock(p(1, 20), p(1, 21))))
 	})
 
 	test.ExpectParse(t, "for x in y do x else 1 end", func(p pfn) []Stmt {
 		return stmts(
-			forInStmt(
+			SForIn(
 				EIdent("_", p(1, 5)),
 				EIdent("x", p(1, 5)),
 				EIdent("y", p(1, 10)),
-				blockLitStmt(
-					lit("do", p(1, 12)), ast.Literal{},
-					exprStmt(
+				SBlockLit(
+					Lit("do", p(1, 12)), ast.Literal{},
+					SExpr(
 						EIdent("x", p(1, 15)),
 					),
 				),
 				p(1, 1),
-				blockLitStmt(lit("", p(1, 22)), lit("end", p(1, 24)),
-					exprStmt(
-						intLit(1, p(1, 22)),
+				SBlockLit(Lit("", p(1, 22)), Lit("end", p(1, 24)),
+					SExpr(
+						Int(1, p(1, 22)),
 					),
 				)))
 	})
@@ -2299,15 +2298,15 @@ func TestParseForIn(t *testing.T) {
 
 	test.ExpectParse(t, "for x in y {} else 1 end", func(p pfn) []Stmt {
 		return stmts(
-			forInStmt(
+			SForIn(
 				EIdent("_", p(1, 5)),
 				EIdent("x", p(1, 5)),
 				EIdent("y", p(1, 10)),
-				blockStmt(p(1, 12), p(1, 13)),
+				SBlock(p(1, 12), p(1, 13)),
 				p(1, 1),
-				blockLitStmt(lit("", p(1, 20)), lit("end", p(1, 22)),
-					exprStmt(
-						intLit(1, p(1, 20)),
+				SBlockLit(Lit("", p(1, 20)), Lit("end", p(1, 22)),
+					SExpr(
+						Int(1, p(1, 20)),
 					),
 				)))
 	})
@@ -2347,117 +2346,117 @@ func TestParseForIn(t *testing.T) {
 func TestParseFor(t *testing.T) {
 	test.ExpectParse(t, "for {}", func(p pfn) []Stmt {
 		return stmts(
-			forStmt(nil, nil, nil, blockStmt(p(1, 5), p(1, 6)), p(1, 1)))
+			SFor(nil, nil, nil, SBlock(p(1, 5), p(1, 6)), p(1, 1)))
 	})
 
 	test.ExpectParse(t, "for a == 5 {}", func(p pfn) []Stmt {
 		return stmts(
-			forStmt(
+			SFor(
 				nil,
-				binaryExpr(
+				EBinary(
 					EIdent("a", p(1, 5)),
-					intLit(5, p(1, 10)),
+					Int(5, p(1, 10)),
 					token.Equal,
 					p(1, 7)),
 				nil,
-				blockStmt(p(1, 12), p(1, 13)),
+				SBlock(p(1, 12), p(1, 13)),
 				p(1, 1)))
 	})
 
 	test.ExpectParse(t, "for a := 0; a == 5;  {}", func(p pfn) []Stmt {
 		return stmts(
-			forStmt(
-				assignStmt(
+			SFor(
+				SAssign(
 					exprs(EIdent("a", p(1, 5))),
-					exprs(intLit(0, p(1, 10))),
+					exprs(Int(0, p(1, 10))),
 					token.Define, p(1, 7)),
-				binaryExpr(
+				EBinary(
 					EIdent("a", p(1, 13)),
-					intLit(5, p(1, 18)),
+					Int(5, p(1, 18)),
 					token.Equal,
 					p(1, 15)),
 				nil,
-				blockStmt(p(1, 22), p(1, 23)),
+				SBlock(p(1, 22), p(1, 23)),
 				p(1, 1)))
 	})
 
 	test.ExpectParse(t, "for a := 0; a < 5; a++ {}", func(p pfn) []Stmt {
 		return stmts(
-			forStmt(
-				assignStmt(
+			SFor(
+				SAssign(
 					exprs(EIdent("a", p(1, 5))),
-					exprs(intLit(0, p(1, 10))),
+					exprs(Int(0, p(1, 10))),
 					token.Define, p(1, 7)),
-				binaryExpr(
+				EBinary(
 					EIdent("a", p(1, 13)),
-					intLit(5, p(1, 17)),
+					Int(5, p(1, 17)),
 					token.Less,
 					p(1, 15)),
-				incDecStmt(
+				SIncDec(
 					EIdent("a", p(1, 20)),
 					token.Inc, p(1, 21)),
-				blockStmt(p(1, 24), p(1, 25)),
+				SBlock(p(1, 24), p(1, 25)),
 				p(1, 1)))
 	})
 
 	test.ExpectParse(t, "for ; a < 5; a++ {}", func(p pfn) []Stmt {
 		return stmts(
-			forStmt(
+			SFor(
 				nil,
-				binaryExpr(
+				EBinary(
 					EIdent("a", p(1, 7)),
-					intLit(5, p(1, 11)),
+					Int(5, p(1, 11)),
 					token.Less,
 					p(1, 9)),
-				incDecStmt(
+				SIncDec(
 					EIdent("a", p(1, 14)),
 					token.Inc, p(1, 15)),
-				blockStmt(p(1, 18), p(1, 19)),
+				SBlock(p(1, 18), p(1, 19)),
 				p(1, 1)))
 	})
 
 	test.ExpectParse(t, "for a := 0; ; a++ {}", func(p pfn) []Stmt {
 		return stmts(
-			forStmt(
-				assignStmt(
+			SFor(
+				SAssign(
 					exprs(EIdent("a", p(1, 5))),
-					exprs(intLit(0, p(1, 10))),
+					exprs(Int(0, p(1, 10))),
 					token.Define, p(1, 7)),
 				nil,
-				incDecStmt(
+				SIncDec(
 					EIdent("a", p(1, 15)),
 					token.Inc, p(1, 16)),
-				blockStmt(p(1, 19), p(1, 20)),
+				SBlock(p(1, 19), p(1, 20)),
 				p(1, 1)))
 	})
 
 	test.ExpectParse(t, "for a == 5 && b != 4 {}", func(p pfn) []Stmt {
 		return stmts(
-			forStmt(
+			SFor(
 				nil,
-				binaryExpr(
-					binaryExpr(
+				EBinary(
+					EBinary(
 						EIdent("a", p(1, 5)),
-						intLit(5, p(1, 10)),
+						Int(5, p(1, 10)),
 						token.Equal,
 						p(1, 7)),
-					binaryExpr(
+					EBinary(
 						EIdent("b", p(1, 15)),
-						intLit(4, p(1, 20)),
+						Int(4, p(1, 20)),
 						token.NotEqual,
 						p(1, 17)),
 					token.LAnd,
 					p(1, 12)),
 				nil,
-				blockStmt(p(1, 22), p(1, 23)),
+				SBlock(p(1, 22), p(1, 23)),
 				p(1, 1)))
 	})
 
 	test.ExpectParse(t, `for { break }`, func(p pfn) []Stmt {
 		return stmts(
-			forStmt(nil, nil, nil,
-				blockStmt(p(1, 5), p(1, 13),
-					breakStmt(p(1, 7)),
+			SFor(nil, nil, nil,
+				SBlock(p(1, 5), p(1, 13),
+					SBreak(p(1, 7)),
 				),
 				p(1, 1)),
 		)
@@ -2465,9 +2464,9 @@ func TestParseFor(t *testing.T) {
 
 	test.ExpectParse(t, `for { continue }`, func(p pfn) []Stmt {
 		return stmts(
-			forStmt(nil, nil, nil,
-				blockStmt(p(1, 5), p(1, 16),
-					continueStmt(p(1, 7)),
+			SFor(nil, nil, nil,
+				SBlock(p(1, 5), p(1, 16),
+					SContinue(p(1, 7)),
 				),
 				p(1, 1)),
 		)
@@ -2486,12 +2485,12 @@ func TestParseClosure(t *testing.T) {
 	test.ExpectParseStringT(t, `(a,*b;c=2) => 3`, `(a, *b; c=2) => 3`, &ClosureExpr{})
 	test.ExpectParse(t, "a = (b, c, d) => d", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
 					EIdent("a", p(1, 1))),
 				exprs(
 					EClosure(
-						funcParams(p(1, 1), p(1, 5), p(1, 13),
+						NewFuncParams(p(1, 1), p(1, 5), p(1, 13),
 							funcArgs(nil,
 								EIdent("b", p(1, 6)),
 								EIdent("c", p(1, 9)),
@@ -2506,12 +2505,12 @@ func TestParseClosure(t *testing.T) {
 
 	test.ExpectParse(t, "a = (b, c, d) => {d}", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
 					EIdent("a", p(1, 1))),
 				exprs(
 					EClosure(
-						funcParams(p(1, 5), p(1, 5), p(1, 13),
+						NewFuncParams(p(1, 5), p(1, 5), p(1, 13),
 							funcArgs(nil,
 								EIdent("b", p(1, 6)),
 								EIdent("c", p(1, 9)),
@@ -2519,8 +2518,8 @@ func TestParseClosure(t *testing.T) {
 						),
 						p(1, 15),
 						token.Lambda,
-						blockExpr(p(1, 18), p(1, 20),
-							exprStmt(EIdent("d", p(1, 19)))))),
+						EBlock(p(1, 18), p(1, 20),
+							SExpr(EIdent("d", p(1, 19)))))),
 				token.Assign,
 				p(1, 3)))
 	})
@@ -2530,8 +2529,8 @@ func TestParseClosure(t *testing.T) {
 		Code("() => nil").
 		IndentedCode("() => nil").
 		Stmts(func(p test.Pfn) []Stmt {
-			return stmts(exprStmt(EClosure(
-				funcParams(p(1, 1), p(1, 2)),
+			return stmts(SExpr(EClosure(
+				NewFuncParams(p(1, 1), p(1, 2)),
 				p(1, 4), token.Lambda,
 				LNil(p(1, 7)),
 			)))
@@ -2545,15 +2544,15 @@ func TestParseFunction(t *testing.T) {
 	test.ExpectParseString(t, "func(a \n int|\n\tbool){}", "func(a int|bool) {}")
 	test.ExpectParse(t, "func fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(
-			funcStmt(
-				funcLit(
+			SFunc(
+				EFunc(
 					funcType(p(1, 5), EIdent("fn", p(1, 6)), p(1, 9), p(1, 11),
 						EIdent("fn", p(1, 6)),
 						funcArgs(nil,
 							EIdent("b", p(1, 10))),
 					),
-					blockStmt(p(1, 13), p(1, 24),
-						returnStmt(p(1, 15), EIdent("d", p(1, 22)))))))
+					SBlock(p(1, 13), p(1, 24),
+						SReturn(p(1, 15), EIdent("d", p(1, 22)))))))
 	})
 	test.ExpectParseString(t, "func(v int){}", "func(v int) {}")
 	test.ExpectParseString(t, "func(v a.b.int){}", "func(v a.b.int) {}")
@@ -2565,59 +2564,59 @@ func TestParseFunction(t *testing.T) {
 
 	test.ExpectParse(t, "func(;x){}", func(p pfn) []Stmt {
 		return stmts(
-			funcStmt(
+			SFunc(
 				EFunc(
 					funcType(p(1, 1), nil, p(1, 5), p(1, 8),
-						funcNamedArgs(
+						NamedArgs(
 							nil,
 							[]*TypedIdentExpr{
-								typedIdent(EIdent("x", p(1, 7))),
+								ETypedIdent(EIdent("x", p(1, 7))),
 							},
 							[]Expr{nil}),
 					),
-					blockStmt(p(1, 9), p(1, 10)))),
+					SBlock(p(1, 9), p(1, 10)))),
 		)
 	})
 	test.ExpectParseString(t, "func(;x){}", "func(; x) {}")
 	test.ExpectParse(t, "a = func(b, c, d; e=1, f=2, **g) { return d }", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
 					EIdent("a", p(1, 1))),
 				exprs(
-					funcLit(
+					EFunc(
 						funcType(p(1, 5), nil, p(1, 9), p(1, 32),
 							funcArgs(nil,
 								EIdent("b", p(1, 10)),
 								EIdent("c", p(1, 13)),
 								EIdent("d", p(1, 16))),
-							funcNamedArgs(
+							NamedArgs(
 								EIdent("g", p(1, 31)),
 								[]*TypedIdentExpr{
-									typedIdent(EIdent("e", p(1, 19))),
-									typedIdent(EIdent("f", p(1, 24))),
+									ETypedIdent(EIdent("e", p(1, 19))),
+									ETypedIdent(EIdent("f", p(1, 24))),
 								},
 								[]Expr{
-									intLit(1, p(1, 21)),
-									intLit(2, p(1, 26)),
+									Int(1, p(1, 21)),
+									Int(2, p(1, 26)),
 								}),
 						),
-						blockStmt(p(1, 34), p(1, 45),
-							returnStmt(p(1, 36), EIdent("d", p(1, 43)))))),
+						SBlock(p(1, 34), p(1, 45),
+							SReturn(p(1, 36), EIdent("d", p(1, 43)))))),
 				token.Assign,
 				p(1, 3)))
 	})
 	test.ExpectParse(t, "a = func(*args) { return args }", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
 					EIdent("a", p(1, 1))),
 				exprs(
-					funcLit(
+					EFunc(
 						funcType(p(1, 5), nil, p(1, 9), p(1, 15),
 							funcArgs(EIdent("args", p(1, 11)))),
-						blockStmt(p(1, 17), p(1, 31),
-							returnStmt(p(1, 19),
+						SBlock(p(1, 17), p(1, 31),
+							SReturn(p(1, 19),
 								EIdent("args", p(1, 26)),
 							),
 						),
@@ -2629,34 +2628,34 @@ func TestParseFunction(t *testing.T) {
 
 	test.ExpectParse(t, "func(n,a,b;**na) {}", func(p pfn) []Stmt {
 		return stmts(
-			funcStmt(
+			SFunc(
 				EFunc(
 					funcType(p(1, 5), nil, p(1, 5), p(1, 16),
 						funcArgs(nil,
 							EIdent("n", p(1, 6)),
 							EIdent("a", p(1, 8)),
 							EIdent("b", p(1, 10))),
-						funcNamedArgs(EIdent("na", p(1, 14)), nil, nil),
+						NamedArgs(EIdent("na", p(1, 14)), nil, nil),
 					),
-					blockStmt(p(1, 18), p(1, 19)))),
+					SBlock(p(1, 18), p(1, 19)))),
 		)
 	})
 
 	test.ExpectParse(t, "func(n,a,b;x=1,**na) {}", func(p pfn) []Stmt {
 		return stmts(
-			funcStmt(
+			SFunc(
 				EFunc(
 					funcType(p(1, 5), nil, p(1, 5), p(1, 20),
 						funcArgs(nil,
 							EIdent("n", p(1, 6)),
 							EIdent("a", p(1, 8)),
 							EIdent("b", p(1, 10))),
-						funcNamedArgs(
+						NamedArgs(
 							EIdent("na", p(1, 18)),
-							[]*TypedIdentExpr{typedIdent(EIdent("x", p(1, 12)))},
-							[]Expr{intLit(1, p(1, 14))}),
+							[]*TypedIdentExpr{ETypedIdent(EIdent("x", p(1, 12)))},
+							[]Expr{Int(1, p(1, 14))}),
 					),
-					blockStmt(p(1, 22), p(1, 23)))),
+					SBlock(p(1, 22), p(1, 23)))),
 		)
 	})
 
@@ -2701,7 +2700,7 @@ func TestParseFunction(t *testing.T) {
 
 	test.ExpectParse(t, "func fn(n) => 1", func(p pfn) []Stmt {
 		return stmts(
-			funcStmt(
+			SFunc(
 				EFuncBodyE(
 					funcType(p(1, 5), EIdent("fn", p(1, 6)), p(1, 8), p(1, 10),
 						funcArgs(nil,
@@ -2709,7 +2708,7 @@ func TestParseFunction(t *testing.T) {
 						),
 					),
 					p(1, 12),
-					intLit(1, p(1, 15)),
+					Int(1, p(1, 15)),
 				),
 			),
 		)
@@ -2717,15 +2716,15 @@ func TestParseFunction(t *testing.T) {
 
 	test.ExpectParse(t, "func fn(n) => 1", func(p pfn) []Stmt {
 		return stmts(
-			funcStmt(
-				funcClosure(
+			SFunc(
+				EFuncBodyE(
 					funcType(p(1, 5), EIdent("fn", p(1, 6)), p(1, 8), p(1, 10),
 						funcArgs(nil,
 							EIdent("n", p(1, 9)),
 						),
 					),
 					p(1, 12),
-					intLit(1, p(1, 15)),
+					Int(1, p(1, 15)),
 				),
 			),
 		)
@@ -2738,7 +2737,7 @@ func TestParseFunction(t *testing.T) {
 		Code("x() => nil").
 		IndentedCode("x() => nil").
 		Stmts(func(p test.Pfn) []Stmt {
-			return stmts(funcStmt(EFuncBodyE(
+			return stmts(SFunc(EFuncBodyE(
 				funcType(p(1, 1), EIdent("x", p(1, 1)), p(1, 2), p(1, 3)),
 				p(1, 5), LNil(p(1, 8)),
 			)))
@@ -2749,9 +2748,9 @@ func TestParseFunction(t *testing.T) {
 		Code("(x() {nil})").
 		IndentedCode("(x() {\n\tnil\n})").
 		Stmts(func(p test.Pfn) []Stmt {
-			return stmts(exprStmt(EParen(EFunc(
+			return stmts(SExpr(EParen(EFunc(
 				funcType(p(1, 2), EIdent("x", p(1, 2)), p(1, 3), p(1, 4)),
-				blockStmt(p(1, 5), p(1, 9), exprStmt(LNil(p(1, 6)))),
+				SBlock(p(1, 5), p(1, 9), SExpr(LNil(p(1, 6)))),
 			), p(1, 1), p(1, 10))))
 		})
 
@@ -2760,9 +2759,9 @@ func TestParseFunction(t *testing.T) {
 		Code("x() {nil}").
 		IndentedCode("x() {\n\tnil\n}").
 		Stmts(func(p test.Pfn) []Stmt {
-			return stmts(funcStmt(EFunc(
+			return stmts(SFunc(EFunc(
 				funcType(p(1, 1), EIdent("x", p(1, 1)), p(1, 2), p(1, 3)),
-				blockStmt(p(1, 4), p(1, 8), exprStmt(&NilLit{TokenPos: p(1, 5)})),
+				SBlock(p(1, 4), p(1, 8), SExpr(&NilLit{TokenPos: p(1, 5)})),
 			)))
 		})
 
@@ -2776,27 +2775,27 @@ func TestParseFunction(t *testing.T) {
 		Code("x(a int, *args; b, c=1, **kwargs) {nil}").
 		IndentedCode("x(a int, *args; b, c=1, **kwargs) {\n\tnil\n}").
 		Stmts(func(p test.Pfn) []Stmt {
-			return stmts(funcStmt(EFunc(
+			return stmts(SFunc(EFunc(
 				funcType(p(1, 1), EIdent("x", p(1, 1)), p(1, 2), p(1, 33),
 					funcArgs(
 						EIdent("args", p(1, 11)),
 						ETypedIdent(EIdent("a", p(1, 3)), EType(EIdent("int", p(1, 5)))),
 					),
-					funcNamedArgs(EIdent("kwargs", p(1, 27)), []*TypedIdentExpr{
+					NamedArgs(EIdent("kwargs", p(1, 27)), []*TypedIdentExpr{
 						ETypedIdent(EIdent("b", p(1, 17))),
 						ETypedIdent(EIdent("c", p(1, 20))),
 					}, Exprs{nil, Int(1, p(1, 22))}),
 				),
-				blockStmt(p(1, 34), p(1, 38), exprStmt(LNil(p(1, 35)))),
+				SBlock(p(1, 34), p(1, 38), SExpr(LNil(p(1, 35)))),
 			)))
 		})
 	test.ExpectParse(t, "[func () {}]", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				arrayLit(p(1, 1), p(1, 12), EFunc(funcType(p(1, 2), nil, p(1, 7), p(1, 8)), blockStmt(p(1, 10), p(1, 11))))))
+			SExpr(
+				Array(p(1, 1), p(1, 12), EFunc(funcType(p(1, 2), nil, p(1, 7), p(1, 8)), SBlock(p(1, 10), p(1, 11))))))
 	})
 	test.ExpectParse(t, "return [func () {}]", func(p pfn) []Stmt {
-		return stmts(returnStmt(p(1, 1), arrayLit(p(1, 8), p(1, 19), EFunc(funcType(p(1, 9), nil, p(1, 14), p(1, 15)), blockStmt(p(1, 17), p(1, 18))))))
+		return stmts(SReturn(p(1, 1), Array(p(1, 8), p(1, 19), EFunc(funcType(p(1, 9), nil, p(1, 14), p(1, 15)), SBlock(p(1, 17), p(1, 18))))))
 	})
 	test.New(t, "func () {}()").String("(func() {})()").Code("(func() {})()")
 	test.New(t, "func x() {return 1}()").
@@ -2805,31 +2804,31 @@ func TestParseFunction(t *testing.T) {
 
 	test.ExpectParse(t, "func fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(
-			funcStmt(
+			SFunc(
 				EFunc(
 					funcType(p(1, 4), EIdent("fn", p(1, 6)), p(1, 9), p(1, 11),
 						funcArgs(nil,
 							EIdent("b", p(1, 10))),
 					),
-					blockStmt(p(1, 13), p(1, 24),
-						returnStmt(p(1, 15), EIdent("d", p(1, 22)))))))
+					SBlock(p(1, 13), p(1, 24),
+						SReturn(p(1, 15), EIdent("d", p(1, 22)))))))
 	})
 
 	test.ExpectParse(t, "func class.fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(
-			funcStmt(
+			SFunc(
 				EFunc(
 					funcType(p(1, 4), ESelector(EIdent("class", p(1, 6)), Str("fn", p(1, 12))), p(1, 15), p(1, 17),
 						funcArgs(nil,
 							EIdent("b", p(1, 16))),
 					),
-					blockStmt(p(1, 19), p(1, 30),
-						returnStmt(p(1, 21), EIdent("d", p(1, 28)))))))
+					SBlock(p(1, 19), p(1, 30),
+						SReturn(p(1, 21), EIdent("d", p(1, 28)))))))
 	})
 
 	test.ExpectParse(t, `func class["fn"] (b) { return d }`, func(p pfn) []Stmt {
 		return stmts(
-			funcStmt(
+			SFunc(
 				EFunc(
 					funcType(p(1, 4),
 						EIndex(
@@ -2841,8 +2840,8 @@ func TestParseFunction(t *testing.T) {
 						funcArgs(nil,
 							EIdent("b", p(1, 19))),
 					),
-					blockStmt(p(1, 22), p(1, 33),
-						returnStmt(p(1, 24), EIdent("d", p(1, 31)))))))
+					SBlock(p(1, 22), p(1, 33),
+						SReturn(p(1, 24), EIdent("d", p(1, 31)))))))
 	})
 
 	test.New(t, `func class.fn["x"][y()].z (b) { return d }`).
@@ -2853,7 +2852,7 @@ func TestParseFunction(t *testing.T) {
 }`).
 		Stmts(func(p pfn) []Stmt {
 			return stmts(
-				funcStmt(
+				SFunc(
 					EFunc(
 						funcType(p(1, 4),
 							ESelector(
@@ -2877,39 +2876,39 @@ func TestParseFunction(t *testing.T) {
 							funcArgs(nil,
 								EIdent("b", p(1, 28))),
 						),
-						blockStmt(p(1, 31), p(1, 42),
-							returnStmt(p(1, 33), EIdent("d", p(1, 40)))))))
+						SBlock(p(1, 31), p(1, 42),
+							SReturn(p(1, 33), EIdent("d", p(1, 40)))))))
 		})
 }
 
 func TestParseMethod(t *testing.T) {
 	test.ExpectParse(t, "met fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				EMethod(funcLit(
+			SExpr(
+				EMethod(EFunc(
 					funcType(p(1, 4), EIdent("fn", p(1, 5)), p(1, 8), p(1, 10),
 						funcArgs(nil,
 							EIdent("b", p(1, 9))),
 					),
-					blockStmt(p(1, 12), p(1, 23),
-						returnStmt(p(1, 14), EIdent("d", p(1, 21))))))))
+					SBlock(p(1, 12), p(1, 23),
+						SReturn(p(1, 14), EIdent("d", p(1, 21))))))))
 	})
 
 	test.ExpectParse(t, "met class.fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				EMethod(funcLit(
+			SExpr(
+				EMethod(EFunc(
 					funcType(p(1, 4), ESelector(EIdent("class", p(1, 5)), Str("fn", p(1, 11))), p(1, 14), p(1, 16),
 						funcArgs(nil,
 							EIdent("b", p(1, 15))),
 					),
-					blockStmt(p(1, 18), p(1, 29),
-						returnStmt(p(1, 20), EIdent("d", p(1, 27))))))))
+					SBlock(p(1, 18), p(1, 29),
+						SReturn(p(1, 20), EIdent("d", p(1, 27))))))))
 	})
 
 	test.ExpectParse(t, `met class["fn"] (b) { return d }`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
+			SExpr(
 				EMethod(
 					EFunc(
 						funcType(p(1, 4),
@@ -2922,8 +2921,8 @@ func TestParseMethod(t *testing.T) {
 							funcArgs(nil,
 								EIdent("b", p(1, 18))),
 						),
-						blockStmt(p(1, 21), p(1, 32),
-							returnStmt(p(1, 23), EIdent("d", p(1, 30))))))))
+						SBlock(p(1, 21), p(1, 32),
+							SReturn(p(1, 23), EIdent("d", p(1, 30))))))))
 	})
 
 	test.New(t, `met class.fn["x"][y()].z (b) { return d }`).
@@ -2934,8 +2933,8 @@ func TestParseMethod(t *testing.T) {
 }`).
 		Stmts(func(p pfn) []Stmt {
 			return stmts(
-				exprStmt(
-					EMethod(funcLit(
+				SExpr(
+					EMethod(EFunc(
 						funcType(p(1, 4),
 							ESelector(
 								EIndex(
@@ -2958,8 +2957,8 @@ func TestParseMethod(t *testing.T) {
 							funcArgs(nil,
 								EIdent("b", p(1, 27))),
 						),
-						blockStmt(p(1, 30), p(1, 41),
-							returnStmt(p(1, 32), EIdent("d", p(1, 39))))))))
+						SBlock(p(1, 30), p(1, 41),
+							SReturn(p(1, 32), EIdent("d", p(1, 39))))))))
 		})
 }
 
@@ -2970,8 +2969,8 @@ func TestParsePtr(t *testing.T) {
 func TestParseSpecialKeywords(t *testing.T) {
 	test.New(t, "@main;x.@main").Stmts(func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(&IsMainLit{TokenPos: p(1, 1)}),
-			exprStmt(ESelector(EIdent("x", p(1, 7)), Str("@main", p(1, 9)))),
+			SExpr(&IsMainLit{TokenPos: p(1, 1)}),
+			SExpr(ESelector(EIdent("x", p(1, 7)), Str("@main", p(1, 9)))),
 		)
 	})
 }
@@ -3034,17 +3033,17 @@ func TestParseFunctionWithMethods(t *testing.T) {
 func TestParseVariadicFunctionWithArgs(t *testing.T) {
 	test.ExpectParse(t, "a = func(x, y, *z) { return z }", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
 					EIdent("a", p(1, 1))),
 				exprs(
-					funcLit(
+					EFunc(
 						funcType(p(1, 5), nil, p(1, 9), p(1, 18),
 							funcArgs(EIdent("z", p(1, 17)),
 								EIdent("x", p(1, 10)),
 								EIdent("y", p(1, 13)))),
-						blockStmt(p(1, 20), p(1, 31),
-							returnStmt(p(1, 22),
+						SBlock(p(1, 20), p(1, 31),
+							SReturn(p(1, 22),
 								EIdent("z", p(1, 29)),
 							),
 						),
@@ -3062,12 +3061,12 @@ func TestParseVariadicFunctionWithArgs(t *testing.T) {
 func TestParseIf(t *testing.T) {
 	test.ExpectParse(t, "if a == nil {}", func(p pfn) []Stmt {
 		return stmts(
-			ifStmt(
+			SIf(
 				nil,
-				unaryExpr(EIdent("a", p(1, 4)),
+				EUnary(EIdent("a", p(1, 4)),
 					token.Null,
 					p(1, 6)),
-				blockStmt(
+				SBlock(
 					p(1, 13), p(1, 14)),
 				nil,
 				p(1, 1)))
@@ -3075,12 +3074,12 @@ func TestParseIf(t *testing.T) {
 
 	test.ExpectParse(t, "if a != nil {}", func(p pfn) []Stmt {
 		return stmts(
-			ifStmt(
+			SIf(
 				nil,
-				unaryExpr(EIdent("a", p(1, 4)),
+				EUnary(EIdent("a", p(1, 4)),
 					token.NotNull,
 					p(1, 6)),
-				blockStmt(
+				SBlock(
 					p(1, 13), p(1, 14)),
 				nil,
 				p(1, 1)))
@@ -3088,14 +3087,14 @@ func TestParseIf(t *testing.T) {
 
 	test.ExpectParse(t, "if a == 5 {}", func(p pfn) []Stmt {
 		return stmts(
-			ifStmt(
+			SIf(
 				nil,
-				binaryExpr(
+				EBinary(
 					EIdent("a", p(1, 4)),
-					intLit(5, p(1, 9)),
+					Int(5, p(1, 9)),
 					token.Equal,
 					p(1, 6)),
-				blockStmt(
+				SBlock(
 					p(1, 11), p(1, 12)),
 				nil,
 				p(1, 1)))
@@ -3103,22 +3102,22 @@ func TestParseIf(t *testing.T) {
 
 	test.ExpectParse(t, "if a == 5 && b != 3 {}", func(p pfn) []Stmt {
 		return stmts(
-			ifStmt(
+			SIf(
 				nil,
-				binaryExpr(
-					binaryExpr(
+				EBinary(
+					EBinary(
 						EIdent("a", p(1, 4)),
-						intLit(5, p(1, 9)),
+						Int(5, p(1, 9)),
 						token.Equal,
 						p(1, 6)),
-					binaryExpr(
+					EBinary(
 						EIdent("b", p(1, 14)),
-						intLit(3, p(1, 19)),
+						Int(3, p(1, 19)),
 						token.NotEqual,
 						p(1, 16)),
 					token.LAnd,
 					p(1, 11)),
-				blockStmt(
+				SBlock(
 					p(1, 21), p(1, 22)),
 				nil,
 				p(1, 1)))
@@ -3126,23 +3125,23 @@ func TestParseIf(t *testing.T) {
 
 	test.ExpectParse(t, "if a == 5 { a = 3; a = 1 }", func(p pfn) []Stmt {
 		return stmts(
-			ifStmt(
+			SIf(
 				nil,
-				binaryExpr(
+				EBinary(
 					EIdent("a", p(1, 4)),
-					intLit(5, p(1, 9)),
+					Int(5, p(1, 9)),
 					token.Equal,
 					p(1, 6)),
-				blockStmt(
+				SBlock(
 					p(1, 11), p(1, 26),
-					assignStmt(
+					SAssign(
 						exprs(EIdent("a", p(1, 13))),
-						exprs(intLit(3, p(1, 17))),
+						exprs(Int(3, p(1, 17))),
 						token.Assign,
 						p(1, 15)),
-					assignStmt(
+					SAssign(
 						exprs(EIdent("a", p(1, 20))),
-						exprs(intLit(1, p(1, 24))),
+						exprs(Int(1, p(1, 24))),
 						token.Assign,
 						p(1, 22))),
 				nil,
@@ -3152,35 +3151,35 @@ func TestParseIf(t *testing.T) {
 	test.ExpectParse(t, "if a == 5 { a = 3; a = 1 } else { a = 2; a = 4 }",
 		func(p pfn) []Stmt {
 			return stmts(
-				ifStmt(
+				SIf(
 					nil,
-					binaryExpr(
+					EBinary(
 						EIdent("a", p(1, 4)),
-						intLit(5, p(1, 9)),
+						Int(5, p(1, 9)),
 						token.Equal,
 						p(1, 6)),
-					blockStmt(
+					SBlock(
 						p(1, 11), p(1, 26),
-						assignStmt(
+						SAssign(
 							exprs(EIdent("a", p(1, 13))),
-							exprs(intLit(3, p(1, 17))),
+							exprs(Int(3, p(1, 17))),
 							token.Assign,
 							p(1, 15)),
-						assignStmt(
+						SAssign(
 							exprs(EIdent("a", p(1, 20))),
-							exprs(intLit(1, p(1, 24))),
+							exprs(Int(1, p(1, 24))),
 							token.Assign,
 							p(1, 22))),
-					blockStmt(
+					SBlock(
 						p(1, 33), p(1, 48),
-						assignStmt(
+						SAssign(
 							exprs(EIdent("a", p(1, 35))),
-							exprs(intLit(2, p(1, 39))),
+							exprs(Int(2, p(1, 39))),
 							token.Assign,
 							p(1, 37)),
-						assignStmt(
+						SAssign(
 							exprs(EIdent("a", p(1, 42))),
-							exprs(intLit(4, p(1, 46))),
+							exprs(Int(4, p(1, 46))),
 							token.Assign,
 							p(1, 44))),
 					p(1, 1)))
@@ -3198,54 +3197,54 @@ if a == 5 {
 	h = 4
 }`, func(p pfn) []Stmt {
 		return stmts(
-			ifStmt(
+			SIf(
 				nil,
-				binaryExpr(
+				EBinary(
 					EIdent("a", p(2, 4)),
-					intLit(5, p(2, 9)),
+					Int(5, p(2, 9)),
 					token.Equal,
 					p(2, 6)),
-				blockStmt(
+				SBlock(
 					p(2, 11), p(5, 1),
-					assignStmt(
+					SAssign(
 						exprs(EIdent("b", p(3, 2))),
-						exprs(intLit(3, p(3, 6))),
+						exprs(Int(3, p(3, 6))),
 						token.Assign,
 						p(3, 4)),
-					assignStmt(
+					SAssign(
 						exprs(EIdent("c", p(4, 2))),
-						exprs(intLit(1, p(4, 6))),
+						exprs(Int(1, p(4, 6))),
 						token.Assign,
 						p(4, 4))),
-				ifStmt(
+				SIf(
 					nil,
-					binaryExpr(
+					EBinary(
 						EIdent("d", p(5, 11)),
-						intLit(3, p(5, 16)),
+						Int(3, p(5, 16)),
 						token.Equal,
 						p(5, 13)),
-					blockStmt(
+					SBlock(
 						p(5, 18), p(8, 1),
-						assignStmt(
+						SAssign(
 							exprs(EIdent("e", p(6, 2))),
-							exprs(intLit(8, p(6, 6))),
+							exprs(Int(8, p(6, 6))),
 							token.Assign,
 							p(6, 4)),
-						assignStmt(
+						SAssign(
 							exprs(EIdent("f", p(7, 2))),
-							exprs(intLit(3, p(7, 6))),
+							exprs(Int(3, p(7, 6))),
 							token.Assign,
 							p(7, 4))),
-					blockStmt(
+					SBlock(
 						p(8, 8), p(11, 1),
-						assignStmt(
+						SAssign(
 							exprs(EIdent("g", p(9, 2))),
-							exprs(intLit(2, p(9, 6))),
+							exprs(Int(2, p(9, 6))),
 							token.Assign,
 							p(9, 4)),
-						assignStmt(
+						SAssign(
 							exprs(EIdent("h", p(10, 2))),
-							exprs(intLit(4, p(10, 6))),
+							exprs(Int(4, p(10, 6))),
 							token.Assign,
 							p(10, 4))),
 					p(5, 8)),
@@ -3254,16 +3253,16 @@ if a == 5 {
 
 	test.ExpectParse(t, "if a := 3; a < b {}", func(p pfn) []Stmt {
 		return stmts(
-			ifStmt(
-				assignStmt(
+			SIf(
+				SAssign(
 					exprs(EIdent("a", p(1, 4))),
-					exprs(intLit(3, p(1, 9))),
+					exprs(Int(3, p(1, 9))),
 					token.Define, p(1, 6)),
-				binaryExpr(
+				EBinary(
 					EIdent("a", p(1, 12)),
 					EIdent("b", p(1, 16)),
 					token.Less, p(1, 14)),
-				blockStmt(
+				SBlock(
 					p(1, 18), p(1, 19)),
 				nil,
 				p(1, 1)))
@@ -3271,13 +3270,13 @@ if a == 5 {
 
 	test.ExpectParse(t, "if a++; a < b {}", func(p pfn) []Stmt {
 		return stmts(
-			ifStmt(
-				incDecStmt(EIdent("a", p(1, 4)), token.Inc, p(1, 5)),
-				binaryExpr(
+			SIf(
+				SIncDec(EIdent("a", p(1, 4)), token.Inc, p(1, 5)),
+				EBinary(
 					EIdent("a", p(1, 9)),
 					EIdent("b", p(1, 13)),
 					token.Less, p(1, 11)),
-				blockStmt(
+				SBlock(
 					p(1, 15), p(1, 16)),
 				nil,
 				p(1, 1)))
@@ -3303,49 +3302,49 @@ if a == 5 {
 func TestParseImport(t *testing.T) {
 	test.ExpectParse(t, `a := import("mod1")`, func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(importExpr(p(1, 6), "mod1", p(1, 12), p(1, 19), p(1, 13))),
+				exprs(EImport(p(1, 6), "mod1", p(1, 12), p(1, 19), p(1, 13))),
 				token.Define, p(1, 3)))
 	})
 
 	test.ExpectParse(t, `a := import("mod1", 1; x=2)`, func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(WithCallArgs(importExpr(p(1, 6), "mod1", p(1, 12), p(1, 27), p(1, 13)), func(args *CallArgs) {
-					args.Args.AppendValues(intLit(1, p(1, 21)))
-					args.NamedArgs.Append(ENamedArg().Ident(EIdent("x", p(1, 24))).Build(), intLit(2, p(1, 26)))
+				exprs(WithCallArgs(EImport(p(1, 6), "mod1", p(1, 12), p(1, 27), p(1, 13)), func(args *CallArgs) {
+					args.Args.AppendValues(Int(1, p(1, 21)))
+					args.NamedArgs.Append(ENamedArg().Ident(EIdent("x", p(1, 24))).Build(), Int(2, p(1, 26)))
 				})),
 				token.Define, p(1, 3)))
 	})
 
 	test.ExpectParse(t, `import("mod1").var1`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				selectorExpr(
-					importExpr(p(1, 1), "mod1", p(1, 7), p(1, 14), p(1, 8)),
+			SExpr(
+				ESelector(
+					EImport(p(1, 1), "mod1", p(1, 7), p(1, 14), p(1, 8)),
 					stringLit("var1", p(1, 16)))))
 	})
 
 	test.ExpectParse(t, `import("mod1").func1()`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				callExpr(
-					selectorExpr(
-						importExpr(p(1, 1), "mod1", p(1, 7), p(1, 14), p(1, 8)),
+			SExpr(
+				ECall(
+					ESelector(
+						EImport(p(1, 1), "mod1", p(1, 7), p(1, 14), p(1, 8)),
 						stringLit("func1", p(1, 16))),
 					p(1, 21), p(1, 22), NoPos)))
 	})
 
 	test.ExpectParse(t, `for x, y in import("mod1").v {}`, func(p pfn) []Stmt {
 		return stmts(
-			forInStmt(
+			SForIn(
 				EIdent("x", p(1, 5)),
 				EIdent("y", p(1, 8)),
-				selectorExpr(importExpr(p(1, 13), "mod1", p(1, 19), p(1, 26), p(1, 20)),
+				ESelector(EImport(p(1, 13), "mod1", p(1, 19), p(1, 26), p(1, 20)),
 					stringLit("v", p(1, 28))),
-				blockStmt(p(1, 30), p(1, 31)),
+				SBlock(p(1, 30), p(1, 31)),
 				p(1, 1)))
 	})
 
@@ -3356,72 +3355,72 @@ func TestParseImport(t *testing.T) {
 func TestParseEmbed(t *testing.T) {
 	test.ExpectParse(t, `a := embed("file";sources=[])`, func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(embedExpr(NewCallArgs(p(1, 11), p(1, 29)).Arg(Str("file", p(1, 12))).NamedValue(EIdent("sources", p(1, 19)), Array(p(1, 27), p(1, 28))), p(1, 6))),
+				exprs(EEmbed(NewCallArgs(p(1, 11), p(1, 29)).Arg(Str("file", p(1, 12))).NamedValue(EIdent("sources", p(1, 19)), Array(p(1, 27), p(1, 28))), p(1, 6))),
 				token.Define, p(1, 3)))
 	})
 
 	test.ExpectParse(t, `a := embed("file")`, func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(embedExpr(NewCallArgs(p(1, 11), p(1, 18)).Arg(Str("file", p(1, 12))), p(1, 6))),
+				exprs(EEmbed(NewCallArgs(p(1, 11), p(1, 18)).Arg(Str("file", p(1, 12))), p(1, 6))),
 				token.Define, p(1, 3)))
 	})
 
 	test.ExpectParse(t, `embed("file").var1`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				selectorExpr(
-					embedExpr(NewCallArgs(p(1, 6), p(1, 13)).Arg(Str("file", p(1, 7))), p(1, 1)),
+			SExpr(
+				ESelector(
+					EEmbed(NewCallArgs(p(1, 6), p(1, 13)).Arg(Str("file", p(1, 7))), p(1, 1)),
 					stringLit("var1", p(1, 15)))))
 	})
 
 	test.ExpectParse(t, `for x, y in embed("file") {}`, func(p pfn) []Stmt {
 		return stmts(
-			forInStmt(
+			SForIn(
 				EIdent("x", p(1, 5)),
 				EIdent("y", p(1, 8)),
-				embedExpr(NewCallArgs(p(1, 18), p(1, 25)).Arg(Str("file", p(1, 19))), p(1, 13)),
-				blockStmt(p(1, 27), p(1, 28)),
+				EEmbed(NewCallArgs(p(1, 18), p(1, 25)).Arg(Str("file", p(1, 19))), p(1, 13)),
+				SBlock(p(1, 27), p(1, 28)),
 				p(1, 1)))
 	})
 
 	test.ExpectParse(t, `embed("dir";sources=["a","b"])`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				embedExpr(NewCallArgs(p(1, 6), p(1, 30)).Arg(Str("dir", p(1, 7))).NamedValue(EIdent("sources", p(1, 13)), Array(p(1, 21), p(1, 29), Str("a", p(1, 22)), Str("b", p(1, 26)))), p(1, 1))))
+			SExpr(
+				EEmbed(NewCallArgs(p(1, 6), p(1, 30)).Arg(Str("dir", p(1, 7))).NamedValue(EIdent("sources", p(1, 13)), Array(p(1, 21), p(1, 29), Str("a", p(1, 22)), Str("b", p(1, 26)))), p(1, 1))))
 	})
 
 	test.ExpectParse(t, `embed("file";includes=["*.go"])`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				embedExpr(NewCallArgs(p(1, 6), p(1, 31)).Arg(Str("file", p(1, 7))).NamedValue(EIdent("includes", p(1, 14)), Array(p(1, 23), p(1, 30), Str("*.go", p(1, 24)))), p(1, 1))))
+			SExpr(
+				EEmbed(NewCallArgs(p(1, 6), p(1, 31)).Arg(Str("file", p(1, 7))).NamedValue(EIdent("includes", p(1, 14)), Array(p(1, 23), p(1, 30), Str("*.go", p(1, 24)))), p(1, 1))))
 	})
 
 	test.ExpectParse(t, `embed("dir";tree)`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				embedExpr(NewCallArgs(p(1, 6), p(1, 17)).Arg(Str("dir", p(1, 7))).NamedFlag(EIdent("tree", p(1, 13))), p(1, 1))))
+			SExpr(
+				EEmbed(NewCallArgs(p(1, 6), p(1, 17)).Arg(Str("dir", p(1, 7))).NamedFlag(EIdent("tree", p(1, 13))), p(1, 1))))
 	})
 
 	test.ExpectParse(t, `embed("dir";includes_re=["[.go]"])`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				embedExpr(NewCallArgs(p(1, 6), p(1, 34)).Arg(Str("dir", p(1, 7))).NamedValue(EIdent("includes_re", p(1, 13)), Array(p(1, 25), p(1, 33), Str("[.go]", p(1, 26)))), p(1, 1))))
+			SExpr(
+				EEmbed(NewCallArgs(p(1, 6), p(1, 34)).Arg(Str("dir", p(1, 7))).NamedValue(EIdent("includes_re", p(1, 13)), Array(p(1, 25), p(1, 33), Str("[.go]", p(1, 26)))), p(1, 1))))
 	})
 
 	test.ExpectParse(t, `embed("dir";excludes_re=["[.go]"])`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				embedExpr(NewCallArgs(p(1, 6), p(1, 34)).Arg(Str("dir", p(1, 7))).NamedValue(EIdent("excludes_re", p(1, 13)), Array(p(1, 25), p(1, 33), Str("[.go]", p(1, 26)))), p(1, 1))))
+			SExpr(
+				EEmbed(NewCallArgs(p(1, 6), p(1, 34)).Arg(Str("dir", p(1, 7))).NamedValue(EIdent("excludes_re", p(1, 13)), Array(p(1, 25), p(1, 33), Str("[.go]", p(1, 26)))), p(1, 1))))
 	})
 
 	test.ExpectParse(t, `embed("dir";config_file="cfg.yaml")`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				embedExpr(NewCallArgs(p(1, 6), p(1, 35)).Arg(Str("dir", p(1, 7))).NamedValue(EIdent("config_file", p(1, 13)), Str("cfg.yaml", p(1, 25))), p(1, 1))))
+			SExpr(
+				EEmbed(NewCallArgs(p(1, 6), p(1, 35)).Arg(Str("dir", p(1, 7))).NamedValue(EIdent("config_file", p(1, 13)), Str("cfg.yaml", p(1, 25))), p(1, 1))))
 	})
 	test.ExpectParseError(t, `embed(1)`)
 	test.ExpectParseError(t, `embed('a')`)
@@ -3439,26 +3438,26 @@ func TestParseEmbed(t *testing.T) {
 func TestParseIndex(t *testing.T) {
 	test.ExpectParse(t, "[1, 2, 3][1]", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				indexExpr(
-					arrayLit(p(1, 1), p(1, 9),
-						intLit(1, p(1, 2)),
-						intLit(2, p(1, 5)),
-						intLit(3, p(1, 8))),
-					intLit(1, p(1, 11)),
+			SExpr(
+				EIndex(
+					Array(p(1, 1), p(1, 9),
+						Int(1, p(1, 2)),
+						Int(2, p(1, 5)),
+						Int(3, p(1, 8))),
+					Int(1, p(1, 11)),
 					p(1, 10), p(1, 12))))
 	})
 
 	test.ExpectParse(t, "[1, 2, 3][5 - a]", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				indexExpr(
-					arrayLit(p(1, 1), p(1, 9),
-						intLit(1, p(1, 2)),
-						intLit(2, p(1, 5)),
-						intLit(3, p(1, 8))),
-					binaryExpr(
-						intLit(5, p(1, 11)),
+			SExpr(
+				EIndex(
+					Array(p(1, 1), p(1, 9),
+						Int(1, p(1, 2)),
+						Int(2, p(1, 5)),
+						Int(3, p(1, 8))),
+					EBinary(
+						Int(5, p(1, 11)),
 						EIdent("a", p(1, 15)),
 						token.Sub,
 						p(1, 13)),
@@ -3467,33 +3466,33 @@ func TestParseIndex(t *testing.T) {
 
 	test.ExpectParse(t, "[1, 2, 3][5 : a]", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				sliceExpr(
-					arrayLit(p(1, 1), p(1, 9),
-						intLit(1, p(1, 2)),
-						intLit(2, p(1, 5)),
-						intLit(3, p(1, 8))),
-					intLit(5, p(1, 11)),
+			SExpr(
+				ESlice(
+					Array(p(1, 1), p(1, 9),
+						Int(1, p(1, 2)),
+						Int(2, p(1, 5)),
+						Int(3, p(1, 8))),
+					Int(5, p(1, 11)),
 					EIdent("a", p(1, 15)),
 					p(1, 10), p(1, 16))))
 	})
 
 	test.ExpectParse(t, "[1, 2, 3][a + 3 : b - 8]", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				sliceExpr(
-					arrayLit(p(1, 1), p(1, 9),
-						intLit(1, p(1, 2)),
-						intLit(2, p(1, 5)),
-						intLit(3, p(1, 8))),
-					binaryExpr(
+			SExpr(
+				ESlice(
+					Array(p(1, 1), p(1, 9),
+						Int(1, p(1, 2)),
+						Int(2, p(1, 5)),
+						Int(3, p(1, 8))),
+					EBinary(
 						EIdent("a", p(1, 11)),
-						intLit(3, p(1, 15)),
+						Int(3, p(1, 15)),
 						token.Add,
 						p(1, 13)),
-					binaryExpr(
+					EBinary(
 						EIdent("b", p(1, 19)),
-						intLit(8, p(1, 23)),
+						Int(8, p(1, 23)),
 						token.Sub,
 						p(1, 21)),
 					p(1, 10), p(1, 24))))
@@ -3501,14 +3500,14 @@ func TestParseIndex(t *testing.T) {
 
 	test.ExpectParse(t, `({a: 1, b: 2})["b"]`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				indexExpr(
+			SExpr(
+				EIndex(
 					EParen(
-						dictLit(p(1, 2), p(1, 13),
-							dicElementLitE(
-								EIdent("a", p(1, 3)), p(1, 4), intLit(1, p(1, 6))),
-							dicElementLitE(
-								EIdent("b", p(1, 9)), p(1, 10), intLit(2, p(1, 12)))),
+						EDict(p(1, 2), p(1, 13),
+							EDictElement(
+								EIdent("a", p(1, 3)), p(1, 4), Int(1, p(1, 6))),
+							EDictElement(
+								EIdent("b", p(1, 9)), p(1, 10), Int(2, p(1, 12)))),
 						p(1, 1), p(1, 14),
 					),
 					stringLit("b", p(1, 16)),
@@ -3517,17 +3516,17 @@ func TestParseIndex(t *testing.T) {
 
 	test.ExpectParse(t, `({a: 1, b: 2})[a + b]`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				indexExpr(
+			SExpr(
+				EIndex(
 					EParen(
-						dictLit(p(1, 2), p(1, 13),
-							dicElementLitE(
-								EIdent("a", p(1, 3)), p(1, 4), intLit(1, p(1, 6))),
-							dicElementLitE(
-								EIdent("b", p(1, 9)), p(1, 10), intLit(2, p(1, 12)))),
+						EDict(p(1, 2), p(1, 13),
+							EDictElement(
+								EIdent("a", p(1, 3)), p(1, 4), Int(1, p(1, 6))),
+							EDictElement(
+								EIdent("b", p(1, 9)), p(1, 10), Int(2, p(1, 12)))),
 						p(1, 1), p(1, 14),
 					),
-					binaryExpr(
+					EBinary(
 						EIdent("a", p(1, 16)),
 						EIdent("b", p(1, 20)),
 						token.Add,
@@ -3539,36 +3538,36 @@ func TestParseIndex(t *testing.T) {
 func TestParseLogical(t *testing.T) {
 	test.ExpectParse(t, "2 ** 3", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				binaryExpr(
-					intLit(2, p(1, 1)),
-					intLit(3, p(1, 6)),
+			SExpr(
+				EBinary(
+					Int(2, p(1, 1)),
+					Int(3, p(1, 6)),
 					token.Pow,
 					p(1, 3))))
 	})
 
 	test.ExpectParse(t, "a && 5 || true", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				binaryExpr(
-					binaryExpr(
+			SExpr(
+				EBinary(
+					EBinary(
 						EIdent("a", p(1, 1)),
-						intLit(5, p(1, 6)),
+						Int(5, p(1, 6)),
 						token.LAnd,
 						p(1, 3)),
-					boolLit(true, p(1, 11)),
+					Bool(true, p(1, 11)),
 					token.LOr,
 					p(1, 8))))
 	})
 
 	test.ExpectParse(t, "a || 5 && true", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				binaryExpr(
+			SExpr(
+				EBinary(
 					EIdent("a", p(1, 1)),
-					binaryExpr(
-						intLit(5, p(1, 6)),
-						boolLit(true, p(1, 11)),
+					EBinary(
+						Int(5, p(1, 6)),
+						Bool(true, p(1, 11)),
 						token.LAnd,
 						p(1, 8)),
 					token.LOr,
@@ -3577,13 +3576,13 @@ func TestParseLogical(t *testing.T) {
 
 	test.ExpectParse(t, "a && (5 || true)", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				binaryExpr(
+			SExpr(
+				EBinary(
 					EIdent("a", p(1, 1)),
 					EParen(
-						binaryExpr(
-							intLit(5, p(1, 7)),
-							boolLit(true, p(1, 12)),
+						EBinary(
+							Int(5, p(1, 7)),
+							Bool(true, p(1, 12)),
 							token.LOr,
 							p(1, 9)),
 						p(1, 6), p(1, 16)),
@@ -3594,23 +3593,23 @@ func TestParseLogical(t *testing.T) {
 
 func TestParseBlock(t *testing.T) {
 	test.ExpectParse(t, "{}", func(p pfn) []Stmt {
-		return stmts(blockStmt(p(1, 1), p(1, 2)))
+		return stmts(SBlock(p(1, 1), p(1, 2)))
 	})
 
 	test.ExpectParse(t, "x := 1; {x := 2}", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				Exprs{EIdent("x", p(1, 1))},
-				Exprs{intLit(1, p(1, 6))},
+				Exprs{Int(1, p(1, 6))},
 				token.Define,
 				p(1, 3),
 			),
-			blockStmt(
+			SBlock(
 				p(1, 9),
 				p(1, 16),
-				assignStmt(
+				SAssign(
 					Exprs{EIdent("x", p(1, 10))},
-					Exprs{intLit(2, p(1, 15))},
+					Exprs{Int(2, p(1, 15))},
 					token.Define,
 					p(1, 12),
 				),
@@ -3625,36 +3624,36 @@ func TestParseDict(t *testing.T) {
 		Code("({})").
 		FormattedCode("({})").
 		Stmts(func(p pfn) []Stmt {
-			return stmts(exprStmt(EParen(dictLit(p(1, 2), p(1, 3)), p(1, 1), p(1, 4))))
+			return stmts(SExpr(EParen(EDict(p(1, 2), p(1, 3)), p(1, 1), p(1, 4))))
 		})
 
 	test.ExpectParse(t, "({ \"key1\": 1 })", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
+			SExpr(
 				EParen(
-					dictLit(p(1, 2), p(1, 14),
-						dicElementLit(
-							"key1", p(1, 4), p(1, 10), intLit(1, p(1, 12)))),
+					EDict(p(1, 2), p(1, 14),
+						EDictElementStr(
+							"key1", p(1, 4), p(1, 10), Int(1, p(1, 12)))),
 					p(1, 1), p(1, 15))))
 	})
 
 	test.ExpectParse(t, "({ key1: 1, key2: \"2\", key3: true })", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
+			SExpr(
 				EParen(
-					dictLit(p(1, 2), p(1, 35),
-						dicElementLitE(EIdent("key1", p(1, 4)), p(1, 8), intLit(1, p(1, 10))),
-						dicElementLitE(EIdent("key2", p(1, 13)), p(1, 17), stringLit("2", p(1, 19))),
-						dicElementLitE(EIdent("key3", p(1, 24)), p(1, 28), boolLit(true, p(1, 30)))),
+					EDict(p(1, 2), p(1, 35),
+						EDictElement(EIdent("key1", p(1, 4)), p(1, 8), Int(1, p(1, 10))),
+						EDictElement(EIdent("key2", p(1, 13)), p(1, 17), stringLit("2", p(1, 19))),
+						EDictElement(EIdent("key3", p(1, 24)), p(1, 28), Bool(true, p(1, 30)))),
 					p(1, 1), p(1, 36))))
 	})
 
 	test.ExpectParse(t, "a = { key1: 1 }",
 		func(p pfn) []Stmt {
-			return stmts(assignStmt(
+			return stmts(SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(dictLit(p(1, 5), p(1, 15),
-					dicElementLitE(EIdent("key1", p(1, 7)), p(1, 11), intLit(1, p(1, 13))))),
+				exprs(EDict(p(1, 5), p(1, 15),
+					EDictElement(EIdent("key1", p(1, 7)), p(1, 11), Int(1, p(1, 13))))),
 				token.Assign,
 				p(1, 3)))
 		})
@@ -3701,9 +3700,9 @@ key2: 2
 	test.ExpectParse(t, `({
 	x(): 10,
 })`, func(p pfn) []Stmt {
-		return stmts(exprStmt(EParen(dictLit(p(1, 2), p(3, 1),
-			dicElementLitE(EIdent("x", p(2, 2)), 0,
-				EDictElementClosure(EClosure(funcParams(p(2, 3), p(2, 4)), p(2, 5), token.Colon, intLit(10, p(2, 7))))),
+		return stmts(SExpr(EParen(EDict(p(1, 2), p(3, 1),
+			EDictElement(EIdent("x", p(2, 2)), 0,
+				EDictElementClosure(EClosure(NewFuncParams(p(2, 3), p(2, 4)), p(2, 5), token.Colon, Int(10, p(2, 7))))),
 		), p(1, 1), p(3, 2))))
 	})
 
@@ -3721,20 +3720,20 @@ key2: 2
 	}
 })`).
 		Stmts(func(p pfn) []Stmt {
-			return stmts(exprStmt(EParen(dictLit(p(1, 2), p(6, 1),
-				dicElementLitE(EIdent("x", p(2, 2)), 0, EDictElementClosure(EClosure(funcParams(p(2, 3), p(2, 4)), p(2, 5), token.Colon, intLit(10, p(2, 7))))),
-				dicElementLitE(EIdent("y", p(3, 2)), 0, EDictElementFunc(funcLit(funcType(0, nil, p(3, 3), p(3, 4)), blockStmt(p(3, 6), p(5, 2), returnStmt(p(4, 3), intLit(11, p(4, 10))))))),
+			return stmts(SExpr(EParen(EDict(p(1, 2), p(6, 1),
+				EDictElement(EIdent("x", p(2, 2)), 0, EDictElementClosure(EClosure(NewFuncParams(p(2, 3), p(2, 4)), p(2, 5), token.Colon, Int(10, p(2, 7))))),
+				EDictElement(EIdent("y", p(3, 2)), 0, EDictElementFunc(EFunc(funcType(0, nil, p(3, 3), p(3, 4)), SBlock(p(3, 6), p(5, 2), SReturn(p(4, 3), Int(11, p(4, 10))))))),
 			), p(1, 1), p(6, 2))))
 		})
 
 	test.ExpectParse(t, "({x{y{b:1}}})", func(p pfn) []Stmt {
-		return stmts(exprStmt(EParen(dictLit(
+		return stmts(SExpr(EParen(EDict(
 			p(1, 2), p(1, 12),
-			dicElementLitE(EIdent("x", p(1, 3)), 0, dictLit(
+			EDictElement(EIdent("x", p(1, 3)), 0, EDict(
 				p(1, 4), p(1, 11),
-				dicElementLitE(EIdent("y", p(1, 5)), 0, dictLit(
+				EDictElement(EIdent("y", p(1, 5)), 0, EDict(
 					p(1, 6), p(1, 10),
-					dicElementLitE(EIdent("b", p(1, 7)), p(1, 8), intLit(1, p(1, 9))),
+					EDictElement(EIdent("b", p(1, 7)), p(1, 8), Int(1, p(1, 9))),
 				)),
 			)),
 		), p(1, 1), p(1, 13))))
@@ -3768,10 +3767,10 @@ func TestParseNullishSelector(t *testing.T) {
 	test.ExpectParseString(t, `a?.(k+x)`, `a?.(k + x)`)
 	test.ExpectParse(t, "a?.b.c?.d", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				nullishSelector(
-					selectorExpr(
-						nullishSelector(
+			SExpr(
+				ENullish(
+					ESelector(
+						ENullish(
 							EIdent("a", p(1, 1)),
 							stringLit("b", p(1, 4))),
 						stringLit("c", p(1, 6))),
@@ -3779,11 +3778,11 @@ func TestParseNullishSelector(t *testing.T) {
 	})
 	test.ExpectParse(t, "a?.b.c?.d.e", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				selectorExpr(
-					nullishSelector(
-						selectorExpr(
-							nullishSelector(
+			SExpr(
+				ESelector(
+					ENullish(
+						ESelector(
+							ENullish(
 								EIdent("a", p(1, 1)),
 								stringLit("b", p(1, 4))),
 							stringLit("c", p(1, 6))),
@@ -3792,13 +3791,13 @@ func TestParseNullishSelector(t *testing.T) {
 	})
 	test.ExpectParse(t, "a?.b.c?.d.e?.f.g", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				selectorExpr(
-					nullishSelector(
-						selectorExpr(
-							nullishSelector(
-								selectorExpr(
-									nullishSelector(
+			SExpr(
+				ESelector(
+					ENullish(
+						ESelector(
+							ENullish(
+								ESelector(
+									ENullish(
 										EIdent("a", p(1, 1)),
 										stringLit("b", p(1, 4))),
 									stringLit("c", p(1, 6))),
@@ -3809,17 +3808,17 @@ func TestParseNullishSelector(t *testing.T) {
 	})
 	test.ExpectParse(t, "a?.b?.c", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				nullishSelector(
-					nullishSelector(
+			SExpr(
+				ENullish(
+					ENullish(
 						EIdent("a", p(1, 1)),
 						stringLit("b", p(1, 4))),
 					stringLit("c", p(1, 7)))))
 	})
 	test.ExpectParse(t, "a?.b", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				nullishSelector(
+			SExpr(
+				ENullish(
 					EIdent("a", p(1, 1)),
 					stringLit("b", p(1, 4)))))
 	})
@@ -3841,17 +3840,17 @@ func TestParseNullishSelector(t *testing.T) {
 func TestParseSelector(t *testing.T) {
 	test.ExpectParse(t, "a.b", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				selectorExpr(
+			SExpr(
+				ESelector(
 					EIdent("a", p(1, 1)),
 					stringLit("b", p(1, 3)))))
 	})
 
 	test.ExpectParse(t, "a.b.c", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				selectorExpr(
-					selectorExpr(
+			SExpr(
+				ESelector(
+					ESelector(
 						EIdent("a", p(1, 1)),
 						stringLit("b", p(1, 3))),
 					stringLit("c", p(1, 5)))))
@@ -3859,9 +3858,9 @@ func TestParseSelector(t *testing.T) {
 
 	test.ExpectParse(t, "a.(b).c", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				selectorExpr(
-					selectorExpr(
+			SExpr(
+				ESelector(
+					ESelector(
 						EIdent("a", p(1, 1)),
 						EParen(EIdent("b", p(1, 4)), p(1, 3), p(1, 5))),
 					stringLit("c", p(1, 7)))))
@@ -3869,13 +3868,13 @@ func TestParseSelector(t *testing.T) {
 
 	test.ExpectParse(t, "({k1:1}.k1)", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
+			SExpr(
 				EParen(
-					selectorExpr(
-						dictLit(
+					ESelector(
+						EDict(
 							p(1, 2), p(1, 7),
-							dicElementLitE(
-								EIdent("k1", p(1, 3)), p(1, 5), intLit(1, p(1, 6)))),
+							EDictElement(
+								EIdent("k1", p(1, 3)), p(1, 5), Int(1, p(1, 6)))),
 						stringLit("k1", p(1, 9))),
 					p(1, 1), p(1, 11))))
 
@@ -3883,13 +3882,13 @@ func TestParseSelector(t *testing.T) {
 
 	test.ExpectParse(t, "({k1:1}).k1", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				selectorExpr(
+			SExpr(
+				ESelector(
 					EParen(
-						dictLit(
+						EDict(
 							p(1, 2), p(1, 7),
-							dicElementLitE(
-								EIdent("k1", p(1, 3)), p(1, 5), intLit(1, p(1, 6)))),
+							EDictElement(
+								EIdent("k1", p(1, 3)), p(1, 5), Int(1, p(1, 6)))),
 						p(1, 1), p(1, 8)),
 					stringLit("k1", p(1, 10)))))
 
@@ -3897,17 +3896,17 @@ func TestParseSelector(t *testing.T) {
 
 	test.ExpectParse(t, "({k1:{v1:1}}.k1.v1)", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
+			SExpr(
 				EParen(
-					selectorExpr(
-						selectorExpr(
-							dictLit(
+					ESelector(
+						ESelector(
+							EDict(
 								p(1, 2), p(1, 12),
-								dicElementLitE(EIdent("k1", p(1, 3)), p(1, 5),
-									dictLit(p(1, 6), p(1, 11),
-										dicElementLitE(
+								EDictElement(EIdent("k1", p(1, 3)), p(1, 5),
+									EDict(p(1, 6), p(1, 11),
+										EDictElement(
 											EIdent("v1", p(1, 7)),
-											p(1, 9), intLit(1, p(1, 10)))))),
+											p(1, 9), Int(1, p(1, 10)))))),
 							stringLit("k1", p(1, 14))),
 						stringLit("v1", p(1, 17))),
 					p(1, 1), p(1, 19))))
@@ -3915,17 +3914,17 @@ func TestParseSelector(t *testing.T) {
 
 	test.ExpectParse(t, "({k1:{v1:1}}).k1.v1", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(
-				selectorExpr(
-					selectorExpr(
+			SExpr(
+				ESelector(
+					ESelector(
 						EParen(
-							dictLit(
+							EDict(
 								p(1, 2), p(1, 12),
-								dicElementLitE(EIdent("k1", p(1, 3)), p(1, 5),
-									dictLit(p(1, 6), p(1, 11),
-										dicElementLitE(
+								EDictElement(EIdent("k1", p(1, 3)), p(1, 5),
+									EDict(p(1, 6), p(1, 11),
+										EDictElement(
 											EIdent("v1", p(1, 7)),
-											p(1, 9), intLit(1, p(1, 10)))))),
+											p(1, 9), Int(1, p(1, 10)))))),
 							p(1, 1), p(1, 13)),
 						stringLit("k1", p(1, 15))),
 					stringLit("v1", p(1, 18)))))
@@ -3933,41 +3932,41 @@ func TestParseSelector(t *testing.T) {
 
 	test.ExpectParse(t, "a.b = 4", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
-					selectorExpr(
+					ESelector(
 						EIdent("a", p(1, 1)),
 						stringLit("b", p(1, 3)))),
-				exprs(intLit(4, p(1, 7))),
+				exprs(Int(4, p(1, 7))),
 				token.Assign, p(1, 5)))
 	})
 
 	test.ExpectParse(t, "a.b.c = 4", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
-					selectorExpr(
-						selectorExpr(
+					ESelector(
+						ESelector(
 							EIdent("a", p(1, 1)),
 							stringLit("b", p(1, 3))),
 						stringLit("c", p(1, 5)))),
-				exprs(intLit(4, p(1, 9))),
+				exprs(Int(4, p(1, 9))),
 				token.Assign, p(1, 7)))
 	})
 
 	test.ExpectParse(t, "a.b.c = 4 + 5", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
-					selectorExpr(
-						selectorExpr(
+					ESelector(
+						ESelector(
 							EIdent("a", p(1, 1)),
 							stringLit("b", p(1, 3))),
 						stringLit("c", p(1, 5)))),
 				exprs(
-					binaryExpr(
-						intLit(4, p(1, 9)),
-						intLit(5, p(1, 13)),
+					EBinary(
+						Int(4, p(1, 9)),
+						Int(5, p(1, 13)),
 						token.Add,
 						p(1, 11))),
 				token.Assign, p(1, 7)))
@@ -3975,88 +3974,88 @@ func TestParseSelector(t *testing.T) {
 
 	test.ExpectParse(t, "a[0].c = 4", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
-					selectorExpr(
-						indexExpr(
+					ESelector(
+						EIndex(
 							EIdent("a", p(1, 1)),
-							intLit(0, p(1, 3)),
+							Int(0, p(1, 3)),
 							p(1, 2), p(1, 4)),
 						stringLit("c", p(1, 6)))),
-				exprs(intLit(4, p(1, 10))),
+				exprs(Int(4, p(1, 10))),
 				token.Assign, p(1, 8)))
 	})
 
 	test.ExpectParse(t, "a.b[0].c = 4", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
-					selectorExpr(
-						indexExpr(
-							selectorExpr(
+					ESelector(
+						EIndex(
+							ESelector(
 								EIdent("a", p(1, 1)),
 								stringLit("b", p(1, 3))),
-							intLit(0, p(1, 5)),
+							Int(0, p(1, 5)),
 							p(1, 4), p(1, 6)),
 						stringLit("c", p(1, 8)))),
-				exprs(intLit(4, p(1, 12))),
+				exprs(Int(4, p(1, 12))),
 				token.Assign, p(1, 10)))
 	})
 
 	test.ExpectParse(t, "a.b[0][2].c = 4", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
-					selectorExpr(
-						indexExpr(
-							indexExpr(
-								selectorExpr(
+					ESelector(
+						EIndex(
+							EIndex(
+								ESelector(
 									EIdent("a", p(1, 1)),
 									stringLit("b", p(1, 3))),
-								intLit(0, p(1, 5)),
+								Int(0, p(1, 5)),
 								p(1, 4), p(1, 6)),
-							intLit(2, p(1, 8)),
+							Int(2, p(1, 8)),
 							p(1, 7), p(1, 9)),
 						stringLit("c", p(1, 11)))),
-				exprs(intLit(4, p(1, 15))),
+				exprs(Int(4, p(1, 15))),
 				token.Assign, p(1, 13)))
 	})
 
 	test.ExpectParse(t, `a.b["key1"][2].c = 4`, func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
-					selectorExpr(
-						indexExpr(
-							indexExpr(
-								selectorExpr(
+					ESelector(
+						EIndex(
+							EIndex(
+								ESelector(
 									EIdent("a", p(1, 1)),
 									stringLit("b", p(1, 3))),
 								stringLit("key1", p(1, 5)),
 								p(1, 4), p(1, 11)),
-							intLit(2, p(1, 13)),
+							Int(2, p(1, 13)),
 							p(1, 12), p(1, 14)),
 						stringLit("c", p(1, 16)))),
-				exprs(intLit(4, p(1, 20))),
+				exprs(Int(4, p(1, 20))),
 				token.Assign, p(1, 18)))
 	})
 
 	test.ExpectParse(t, "a[0].b[2].c = 4", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(
-					selectorExpr(
-						indexExpr(
-							selectorExpr(
-								indexExpr(
+					ESelector(
+						EIndex(
+							ESelector(
+								EIndex(
 									EIdent("a", p(1, 1)),
-									intLit(0, p(1, 3)),
+									Int(0, p(1, 3)),
 									p(1, 2), p(1, 4)),
 								stringLit("b", p(1, 6))),
-							intLit(2, p(1, 8)),
+							Int(2, p(1, 8)),
 							p(1, 7), p(1, 9)),
 						stringLit("c", p(1, 11)))),
-				exprs(intLit(4, p(1, 15))),
+				exprs(Int(4, p(1, 15))),
 				token.Assign, p(1, 13)))
 	})
 }
@@ -4064,63 +4063,63 @@ func TestParseSelector(t *testing.T) {
 func TestParseSemicolon(t *testing.T) {
 	test.ExpectParse(t, "1", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(intLit(1, p(1, 1))))
+			SExpr(Int(1, p(1, 1))))
 	})
 
 	test.ExpectParse(t, "1;", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(intLit(1, p(1, 1))))
+			SExpr(Int(1, p(1, 1))))
 	})
 
 	test.ExpectParse(t, "1;;", func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(intLit(1, p(1, 1))))
+			SExpr(Int(1, p(1, 1))))
 	})
 
 	test.ExpectParse(t, `1
 `, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(intLit(1, p(1, 1))))
+			SExpr(Int(1, p(1, 1))))
 	})
 
 	test.ExpectParse(t, `1
 ;`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(intLit(1, p(1, 1))))
+			SExpr(Int(1, p(1, 1))))
 	})
 
 	test.ExpectParse(t, `1;
 ;`, func(p pfn) []Stmt {
 		return stmts(
-			exprStmt(intLit(1, p(1, 1))))
+			SExpr(Int(1, p(1, 1))))
 	})
 }
 
 func TestParseString(t *testing.T) {
 	test.ExpectParse(t, "\"foo\nbar\"", func(p pfn) []Stmt {
-		return stmts(exprStmt(stringLit("foo\nbar", p(1, 1))))
+		return stmts(SExpr(stringLit("foo\nbar", p(1, 1))))
 	})
 	test.ExpectParse(t, "\"foo\nbar\"", func(p pfn) []Stmt {
-		return stmts(exprStmt(stringLit("foo\nbar", p(1, 1))))
+		return stmts(SExpr(stringLit("foo\nbar", p(1, 1))))
 	})
 	test.ExpectParse(t, "\"foo\n"+"\n"+"bar\"", func(p pfn) []Stmt {
-		return stmts(exprStmt(stringLit("foo\n\nbar", p(1, 1))))
+		return stmts(SExpr(stringLit("foo\n\nbar", p(1, 1))))
 	})
 	test.ExpectParse(t, `"foo\n`+"\n"+`bar"`, func(p pfn) []Stmt {
-		return stmts(exprStmt(stringLit("foo\\n\nbar", p(1, 1))))
+		return stmts(SExpr(stringLit("foo\\n\nbar", p(1, 1))))
 	})
 	test.ExpectParse(t, "`abc`", func(p pfn) []Stmt {
-		return stmts(exprStmt(rawStrLit(`abc`, p(1, 1))))
+		return stmts(SExpr(RawStr(`abc`, p(1, 1))))
 	})
 	test.ExpectParse(t, "```\nabc\n```", func(p pfn) []Stmt {
-		return stmts(exprStmt(rawHeredocLit("```", `abc`, p(1, 1))))
+		return stmts(SExpr(rawHeredocLit("```", `abc`, p(1, 1))))
 	})
 	test.ExpectParse(t, `"""`+"\nabc\n"+`"""`, func(p pfn) []Stmt {
-		return stmts(exprStmt(heredocLit(`"""`, `abc`, p(1, 1))))
+		return stmts(SExpr(heredocLit(`"""`, `abc`, p(1, 1))))
 	})
 	test.ExpectParse(t, "a = \"foo\nbar\"", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
 				exprs(stringLit("foo\nbar", p(1, 5))),
 				token.Assign,
@@ -4128,7 +4127,7 @@ func TestParseString(t *testing.T) {
 	})
 	test.ExpectParse(t, `a = "foo\nbar"`, func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
 				exprs(stringLit(`foo\nbar`, p(1, 5))),
 				token.Assign,
@@ -4136,15 +4135,15 @@ func TestParseString(t *testing.T) {
 	})
 	test.ExpectParse(t, "a = `raw string`", func(p pfn) []Stmt {
 		return stmts(
-			assignStmt(
+			SAssign(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(rawStrLit("`raw string`", p(1, 5))),
+				exprs(RawStr("`raw string`", p(1, 5))),
 				token.Assign,
 				p(1, 3)))
 	})
 
 	test.ExpectParse(t, "raw \"foo\nbar\"", func(p pfn) []Stmt {
-		return stmts(exprStmt(EToRaw(p(1, 1), stringLit("foo\nbar", p(1, 5)))))
+		return stmts(SExpr(EToRaw(p(1, 1), stringLit("foo\nbar", p(1, 5)))))
 	})
 	test.ExpectParseString(t, `1 + raw "foo"`, `(1 + raw "foo")`)
 	test.ExpectParseString(t, `raw x()`, `raw x()`)
@@ -4152,10 +4151,10 @@ func TestParseString(t *testing.T) {
 
 func TestParseSymbol(t *testing.T) {
 	test.ExpectParse(t, "#abc", func(p pfn) []Stmt {
-		return stmts(exprStmt(LSymbol(p(1, 1), "abc", false)))
+		return stmts(SExpr(LSymbol(p(1, 1), "abc", false)))
 	})
 	test.ExpectParse(t, "#(a\n\\)\tbc)", func(p pfn) []Stmt {
-		return stmts(exprStmt(LSymbol(p(1, 1), "a\n)\tbc", true)))
+		return stmts(SExpr(LSymbol(p(1, 1), "a\n)\tbc", true)))
 	})
 }
 
@@ -4163,23 +4162,23 @@ func TestParseConfig(t *testing.T) {
 	test.ExpectParse(t, `# gad: mixed
 	a`, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
-			mixedTextStmt(p(2, 1), "\ta"),
+			SConfig(p(1, 1), KVp(EIdent("mixed", p(1, 8)))),
+			SMixedText(p(2, 1), "\ta"),
 		)
 	})
 	test.ExpectParse(t, `# gad: mixed, mixed_start = "[[[", mixed_end = "]]]"
 y
 [[[b]]]`, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1),
+			SConfig(p(1, 1),
 				KVp(EIdent("mixed", p(1, 8))),
 				KVp(EIdent("mixed_start", p(1, 15)), stringLit("[[[", p(1, 29))),
 				KVp(EIdent("mixed_end", p(1, 36)), stringLit("]]]", p(1, 48))),
 			),
-			mixedTextStmt(p(2, 1), "y\n"),
-			codeBegin(lit("[[[", p(3, 1)), false),
-			exprStmt(EIdent("b", p(3, 4))),
-			codeEnd(lit("]]]", p(3, 5)), false),
+			SMixedText(p(2, 1), "y\n"),
+			SCodeBegin(Lit("[[[", p(3, 1)), false),
+			SExpr(EIdent("b", p(3, 4))),
+			SCodeEnd(Lit("]]]", p(3, 5)), false),
 		)
 	})
 
@@ -4189,49 +4188,49 @@ y
 		"# gad: mixed, mixed_start=\"[[[\", mixed_end=\"]]]\"\ny\n[[[; b; true; ]]]")
 	test.ExpectParse(t, `# gad: mixed`, func(p pfn) []Stmt {
 		return stmts(
-			config(p(1, 1), KVp(EIdent("mixed", p(1, 8)))))
+			SConfig(p(1, 1), KVp(EIdent("mixed", p(1, 8)))))
 	})
 }
 
 func TestParseTryThrow(t *testing.T) {
 	test.ExpectParse(t, `try {} catch e {} finally {}`, func(p pfn) []Stmt {
 		return stmts(
-			tryStmt(p(1, 1),
-				blockStmt(p(1, 5), p(1, 6)),
-				catchStmt(p(1, 8), EIdent("e", p(1, 14)),
-					blockStmt(p(1, 16), p(1, 17))),
-				finallyStmt(p(1, 19),
-					blockStmt(p(1, 27), p(1, 28))),
+			STry(p(1, 1),
+				SBlock(p(1, 5), p(1, 6)),
+				SCatch(p(1, 8), EIdent("e", p(1, 14)),
+					SBlock(p(1, 16), p(1, 17))),
+				SFinally(p(1, 19),
+					SBlock(p(1, 27), p(1, 28))),
 			),
 		)
 	})
 	test.ExpectParse(t, `try {} finally {}`, func(p pfn) []Stmt {
 		return stmts(
-			tryStmt(p(1, 1),
-				blockStmt(p(1, 5), p(1, 6)),
+			STry(p(1, 1),
+				SBlock(p(1, 5), p(1, 6)),
 				nil,
-				finallyStmt(p(1, 8),
-					blockStmt(p(1, 16), p(1, 17))),
+				SFinally(p(1, 8),
+					SBlock(p(1, 16), p(1, 17))),
 			),
 		)
 	})
 	test.ExpectParse(t, `try {
 } finally {}`, func(p pfn) []Stmt {
 		return stmts(
-			tryStmt(p(1, 1),
-				blockStmt(p(1, 5), p(2, 1)),
+			STry(p(1, 1),
+				SBlock(p(1, 5), p(2, 1)),
 				nil,
-				finallyStmt(p(2, 3),
-					blockStmt(p(2, 11), p(2, 12))),
+				SFinally(p(2, 3),
+					SBlock(p(2, 11), p(2, 12))),
 			),
 		)
 	})
 	test.ExpectParse(t, `try {} catch {}`, func(p pfn) []Stmt {
 		return stmts(
-			tryStmt(p(1, 1),
-				blockStmt(p(1, 5), p(1, 6)),
-				catchStmt(p(1, 8), nil,
-					blockStmt(p(1, 14), p(1, 15))),
+			STry(p(1, 1),
+				SBlock(p(1, 5), p(1, 6)),
+				SCatch(p(1, 8), nil,
+					SBlock(p(1, 14), p(1, 15))),
 				nil,
 			),
 		)
@@ -4239,22 +4238,22 @@ func TestParseTryThrow(t *testing.T) {
 	test.ExpectParse(t, `try {
 } catch {}`, func(p pfn) []Stmt {
 		return stmts(
-			tryStmt(p(1, 1),
-				blockStmt(p(1, 5), p(2, 1)),
-				catchStmt(p(2, 3), nil,
-					blockStmt(p(2, 9), p(2, 10))),
+			STry(p(1, 1),
+				SBlock(p(1, 5), p(2, 1)),
+				SCatch(p(2, 3), nil,
+					SBlock(p(2, 9), p(2, 10))),
 				nil,
 			),
 		)
 	})
 	test.ExpectParse(t, `throw "error"`, func(p pfn) []Stmt {
 		return stmts(
-			throwStmt(p(1, 1), stringLit("error", p(1, 7))),
+			SThrow(p(1, 1), stringLit("error", p(1, 7))),
 		)
 	})
 	test.ExpectParse(t, `throw 1`, func(p pfn) []Stmt {
 		return stmts(
-			throwStmt(p(1, 1), intLit(1, p(1, 7))),
+			SThrow(p(1, 1), Int(1, p(1, 7))),
 		)
 	})
 
@@ -4307,7 +4306,7 @@ func TestComputedExpr(t *testing.T) {
 		String("(= 1)").
 		Code("(= 1)").
 		Stmts(func(p test.Pfn) []Stmt {
-			return stmts(exprStmt(EComputed(p(1, 1), p(1, 4), exprStmt(Int(1, p(1, 3))))))
+			return stmts(SExpr(EComputed(p(1, 1), p(1, 4), SExpr(Int(1, p(1, 3))))))
 		})
 
 	test.New(t, "(= 1|2 )").
@@ -4398,202 +4397,20 @@ func stmts(s ...Stmt) []Stmt {
 	return s
 }
 
-func exprStmt(x Expr) *ExprStmt {
-	return &ExprStmt{Expr: x}
+func exprs(list ...Expr) []Expr {
+	return list
 }
 
-func funcStmt(x *FuncExpr) *FuncStmt {
-	return &FuncStmt{Func: x}
-}
-
-func declStmt(decl Decl) *DeclStmt {
-	return &DeclStmt{Decl: decl}
-}
-
-func genDecl(
-	tok token.Token,
-	tokPos, lparen, rparen Pos,
-	specs ...Spec,
-) Decl {
-	return &GenDecl{
-		Tok:    tok,
-		TokPos: tokPos,
-		Lparen: lparen,
-		Specs:  specs,
-		Rparen: rparen,
-	}
-}
-
-func paramSpec(variadic bool, ident *TypedIdentExpr) Spec {
-	return &ParamSpec{
-		Ident: ident,
-		Var:   variadic,
-	}
-}
-
-func nparamSpec(ident *TypedIdentExpr, value Expr) Spec {
-	return &NamedParamSpec{
-		Ident: ident,
-		Value: value,
-	}
-}
-
-func nparamSpecVar(ident *TypedIdentExpr) Spec {
-	return &NamedParamSpec{
-		Ident: ident,
-		Var:   true,
-	}
-}
-
-func valueSpec(idents []*IdentExpr, values []Expr) Spec {
-	return &ValueSpec{
-		Idents: idents,
-		Values: values,
-	}
-}
-
-func assignStmt(
-	lhs, rhs []Expr,
-	token token.Token,
-	pos Pos,
-) *AssignStmt {
-	return &AssignStmt{LHS: lhs, RHS: rhs, Token: token, TokenPos: pos}
-}
-
-func returnStmt(pos Pos, result Expr) *ReturnStmt {
-	return &ReturnStmt{Return: Return{Result: result, ReturnPos: pos}}
-}
-
-func returnAssignStmt(pos Pos, result Expr) *ReturnStmt {
-	return &ReturnStmt{Return: Return{Result: result, ReturnPos: pos, Assign: true}}
-}
-
-func returnExpr(pos Pos, result Expr) *ReturnExpr {
-	return &ReturnExpr{Return: Return{Result: result, ReturnPos: pos}}
-}
-
-func forStmt(
-	init Stmt,
-	cond Expr,
-	post Stmt,
-	body *BlockStmt,
-	pos Pos,
-) *ForStmt {
-	return &ForStmt{
-		Cond: cond, Init: init, Post: post, Body: body, ForPos: pos,
-	}
-}
-
-func forInStmt(
-	key, value *IdentExpr,
-	seq Expr,
-	body *BlockStmt,
-	pos Pos,
-	elseb ...*BlockStmt,
-) *ForInStmt {
-	f := &ForInStmt{
-		Key: key, Value: value, Iterable: seq, Body: body, ForPos: pos,
-	}
-	for _, f.Else = range elseb {
-	}
-	return f
-}
-
-func breakStmt(pos Pos) *BranchStmt {
-	return &BranchStmt{
-		Token:    token.Break,
-		TokenPos: pos,
-	}
-}
-
-func continueStmt(pos Pos) *BranchStmt {
-	return &BranchStmt{
-		Token:    token.Continue,
-		TokenPos: pos,
-	}
-}
-
-func ifStmt(
-	init Stmt,
-	cond Expr,
-	body *BlockStmt,
-	elseStmt Stmt,
-	pos Pos,
-) *IfStmt {
-	return &IfStmt{
-		Init: init, Cond: cond, Body: body, Else: elseStmt, IfPos: pos,
-	}
-}
-
-func tryStmt(
-	tryPos Pos,
-	body *BlockStmt,
-	catch *CatchStmt,
-	finally *FinallyStmt,
-) *TryStmt {
-	return &TryStmt{TryPos: tryPos, Body: body, Catch: catch, Finally: finally}
-}
-
-func catchStmt(
-	catchPos Pos,
-	ident *IdentExpr,
-	body *BlockStmt,
-) *CatchStmt {
-	return &CatchStmt{CatchPos: catchPos, Ident: ident, Body: body}
-}
-
-func finallyStmt(
-	finallyPos Pos,
-	body *BlockStmt,
-) *FinallyStmt {
-	return &FinallyStmt{FinallyPos: finallyPos, Body: body}
-}
-
-func throwStmt(
-	throwPos Pos,
-	expr Expr,
-) *ThrowStmt {
-	return &ThrowStmt{ThrowPos: throwPos, Expr: expr}
-}
-
-func incDecStmt(
-	expr Expr,
-	tok token.Token,
-	pos Pos,
-) *IncDecStmt {
-	return &IncDecStmt{Expr: expr, Token: tok, TokenPos: pos}
-}
-
-func funcParams(lparen, rparen Pos, v ...any) *FuncParams {
-	p := &FuncParams{LParen: lparen, RParen: rparen}
-	for _, v := range v {
-		switch t := v.(type) {
-		case ArgsList:
-			p.Args = t
-		case NamedArgsList:
-			p.NamedArgs = t
-		}
-	}
-	return p
-}
-
+// funcType keeps the positional name argument used throughout the tests; the
+// rest delegates to the node constructor.
 func funcType(pos source.Pos, ident Expr, lparen, rparen Pos, v ...any) *FuncType {
-	f := &FuncType{
-		NameExpr: ident,
-		Params:   FuncParams{LParen: lparen, RParen: rparen},
-		FuncPos:  pos,
-	}
-	for _, v := range v {
-		switch t := v.(type) {
-		case ArgsList:
-			f.Params.Args = t
-		case NamedArgsList:
-			f.Params.NamedArgs = t
-		}
-	}
+	f := NewFuncType(pos, lparen, rparen, v...)
+	f.NameExpr = ident
 	return f
 }
 
+// funcArgs accepts either an *IdentExpr or a *TypedIdentExpr as the variadic
+// param, which the node Args constructor does not.
 func funcArgs(vari any, names ...Expr) ArgsList {
 	l := ArgsList{}
 	if vari != nil {
@@ -4609,7 +4426,7 @@ func funcArgs(vari any, names ...Expr) ArgsList {
 	for _, name := range names {
 		switch t := name.(type) {
 		case *IdentExpr:
-			l.Values = append(l.Values, typedIdent(t))
+			l.Values = append(l.Values, ETypedIdent(t))
 		case *TypedIdentExpr:
 			l.Values = append(l.Values, t)
 		}
@@ -4617,115 +4434,7 @@ func funcArgs(vari any, names ...Expr) ArgsList {
 	return l
 }
 
-func funcNamedArgs(vari *IdentExpr, names []*TypedIdentExpr, values []Expr) NamedArgsList {
-	return NamedArgsList{Names: names, Var: vari, Values: values}
-}
-
-func blockStmt(lbrace, rbrace Pos, list ...Stmt) *BlockStmt {
-	return &BlockStmt{Stmts: list, LBrace: lit("{", lbrace), RBrace: lit("}", rbrace)}
-}
-
-func blockLitStmt(lbrace, rbrace ast.Literal, list ...Stmt) *BlockStmt {
-	return &BlockStmt{Stmts: list, LBrace: lbrace, RBrace: rbrace}
-}
-
-func blockExpr(lbrace, rbrace Pos, list ...Stmt) *BlockExpr {
-	return &BlockExpr{BlockStmt: blockStmt(lbrace, rbrace, list...)}
-}
-
-func typedIdent(ident *IdentExpr, typ ...*TypeExpr) *TypedIdentExpr {
-	return &TypedIdentExpr{Ident: ident, Type: typ}
-}
-
-func mixedTextStmt(pos Pos, vlit string, flags ...MixedTextStmtFlag) *MixedTextStmt {
-	var f MixedTextStmtFlag
-	for _, f = range flags {
-	}
-	return &MixedTextStmt{Lit: lit(vlit, pos), Flags: f}
-}
-
-func codeBegin(lit ast.Literal, removeSpace bool) *CodeBeginStmt {
-	return &CodeBeginStmt{Lit: lit, RemoveSpace: removeSpace}
-}
-
-func codeEnd(lit ast.Literal, removeSpace bool) *CodeEndStmt {
-	return &CodeEndStmt{Lit: lit, RemoveSpace: removeSpace}
-}
-
-func mixedValue(start, end ast.Literal, expr Expr) *MixedValueStmt {
-	return &MixedValueStmt{Expr: expr, StartLit: start, EndLit: end}
-}
-
-func lit(value string, pos Pos) ast.Literal {
-	return ast.Literal{Value: value, Pos: pos}
-}
-
-func kv(key Expr, value ...Expr) *KeyValueLit {
-	kv := &KeyValueLit{Key: key}
-	for _, expr := range value {
-		kv.Value = expr
-	}
-	return kv
-}
-
-func config(start Pos, opts ...*KeyValuePairLit) *ConfigStmt {
-	c := &ConfigStmt{ConfigPos: start, Elements: opts}
-	c.ParseElements()
-	return c
-}
-
-func nullishSelector(
-	sel,
-	expr Expr,
-) *NullishSelectorExpr {
-	return &NullishSelectorExpr{Expr: sel, Sel: expr}
-}
-
-func binaryExpr(
-	x, y Expr,
-	op token.Token,
-	pos Pos,
-) *BinaryExpr {
-	return &BinaryExpr{LHS: x, RHS: y, Token: op, TokenPos: pos}
-}
-
-func condExpr(
-	cond, trueExpr, falseExpr Expr,
-	questionPos, colonPos Pos,
-) *CondExpr {
-	return &CondExpr{
-		Cond: cond, True: trueExpr, False: falseExpr,
-		QuestionPos: questionPos, ColonPos: colonPos,
-	}
-}
-
-func unaryExpr(x Expr, op token.Token, pos Pos) *UnaryExpr {
-	return &UnaryExpr{Expr: x, Token: op, TokenPos: pos}
-}
-
-var importExpr = EImport
-
-func embedExpr(args *CallArgs, pos Pos) *EmbedExpr {
-	return &EmbedExpr{Args: *args, Token: token.Embed, TokenPos: pos}
-}
-
-func exprs(list ...Expr) []Expr {
-	return list
-}
-
-func intLit(value int64, pos Pos) *IntLit {
-	return &IntLit{Value: value, ValuePos: pos}
-}
-
-func floatLit(value float64, pos Pos) *FloatLit {
-	return &FloatLit{Value: value, ValuePos: pos}
-}
-
-func decimalLit(value string, pos Pos) *DecimalLit {
-	v, _ := decimal.NewFromString(value)
-	return &DecimalLit{Value: v, ValuePos: pos}
-}
-
+// stringLit builds a string literal without escaping, unlike node.Str.
 func stringLit(value string, pos Pos) *StrLit {
 	return &StrLit{Literal: `"` + value + `"`, ValuePos: pos}
 }
@@ -4734,138 +4443,16 @@ func charAsStrLit(value string, pos Pos) *StrLit {
 	return &StrLit{Literal: `'` + strings.ReplaceAll(value, "'", `\'`) + `'`, ValuePos: pos}
 }
 
-func rawStrLit(value string, pos Pos) *RawStrLit {
-	return &RawStrLit{Literal: value, LiteralPos: pos, Quoted: value[0] == '`'}
-}
-
 func rawHeredocLit(q, value string, pos Pos) *RawHeredocLit {
-	return &RawHeredocLit{Literal: q + "\n" + value + "\n" + q, LiteralPos: pos}
+	return RawHeredoc(q+"\n"+value+"\n"+q, pos)
 }
 
 func heredocLit(q, value string, pos Pos) *HeredocLit {
-	return &HeredocLit{Literal: q + "\n" + value + "\n" + q, LiteralPos: pos}
-}
-
-func charLit(value rune, pos Pos) *CharLit {
-	return &CharLit{Value: value, ValuePos: pos, Literal: fmt.Sprintf("'%c'", value)}
-}
-
-func boolLit(value bool, pos Pos) *BoolLit {
-	return &BoolLit{Value: value, ValuePos: pos}
-}
-
-func flagLit(value bool, pos Pos) *FlagLit {
-	return &FlagLit{Value: value, ValuePos: pos}
-}
-
-func arrayLit(lbracket, rbracket Pos, list ...Expr) *ArrayExpr {
-	return &ArrayExpr{LBrack: lbracket, RBrack: rbracket, Elements: list}
-}
-
-func caleeKw(pos Pos) *CalleeKeywordExpr {
-	return &CalleeKeywordExpr{TokenPos: pos, Literal: token.Callee.String()}
-}
-
-func argsKw(pos Pos) *ArgsKeywordExpr {
-	return &ArgsKeywordExpr{TokenPos: pos, Literal: token.Args.String()}
-}
-
-func nargsKw(pos Pos) *NamedArgsKeywordExpr {
-	return &NamedArgsKeywordExpr{TokenPos: pos, Literal: token.NamedArgs.String()}
-}
-
-func dicElementLit(
-	key string,
-	keyPos Pos,
-	colonPos Pos,
-	value Expr,
-) *DictElementLit {
-	return &DictElementLit{
-		Key: Str(key, keyPos), ColonPos: colonPos, Value: value,
-	}
-}
-
-func dicElementLitE(
-	key Expr,
-	colonPos Pos,
-	value Expr,
-) *DictElementLit {
-	return &DictElementLit{
-		Key: key, ColonPos: colonPos, Value: value,
-	}
-}
-
-func dictLit(
-	lbrace, rbrace Pos,
-	list ...*DictElementLit,
-) *DictExpr {
-	return &DictExpr{LBrace: lbrace, RBrace: rbrace, Elements: list}
-}
-
-func funcLit(funcType *FuncType, body *BlockStmt) *FuncExpr {
-	return &FuncExpr{Type: funcType, Body: body}
-}
-
-func funcClosure(funcType *FuncType, lambdaPos source.Pos, body Expr) *FuncExpr {
-	return &FuncExpr{
-		Type:      funcType,
-		LambdaPos: lambdaPos,
-		BodyExpr:  body,
-	}
-}
-
-func callExpr(
-	f Expr,
-	lparen, rparen Pos,
-	args ...any,
-) (ce *CallExpr) {
-	ce = &CallExpr{Func: f, CallArgs: CallArgs{LParen: lparen, RParen: rparen}}
-	for _, v := range args {
-		switch t := v.(type) {
-		case CallExprPositionalArgs:
-			ce.Args = t
-		case CallExprNamedArgs:
-			ce.NamedArgs = t
-		}
-	}
-	return ce
-}
-
-func argVar(pos Pos, value Expr) *ArgVarLit {
-	return &ArgVarLit{TokenPos: pos, Value: value}
-}
-
-func callExprArgs(
-	argVar *ArgVarLit,
-	args ...Expr,
-) (ce CallExprPositionalArgs) {
-	return CallExprPositionalArgs{Var: argVar, Values: args}
+	return Heredoc(q+"\n"+value+"\n"+q, pos)
 }
 
 func callExprNamedArgs(
 	names []*NamedArgExpr, values []Expr,
 ) (ce CallExprNamedArgs) {
 	return CallExprNamedArgs{Names: names, Values: values}
-}
-
-func indexExpr(
-	x, index Expr,
-	lbrack, rbrack Pos,
-) *IndexExpr {
-	return &IndexExpr{
-		X: x, Index: index, LBrack: lbrack, RBrack: rbrack,
-	}
-}
-
-func sliceExpr(
-	x, low, high Expr,
-	lbrack, rbrack Pos,
-) *SliceExpr {
-	return &SliceExpr{
-		Expr: x, Low: low, High: high, LBrack: lbrack, RBrack: rbrack,
-	}
-}
-
-func selectorExpr(x, sel Expr) *SelectorExpr {
-	return &SelectorExpr{X: x, Sel: sel}
 }
