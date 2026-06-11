@@ -275,16 +275,18 @@ func (e *DictElementLit) End() source.Pos {
 
 func (e *DictElementLit) BuildKeyExpr() Expr {
 	switch t := e.Key.(type) {
-	case *RawStringLit:
-		return String(t.Value(), e.Key.Pos())
+	case *RawStrLit:
+		return Str(t.Value(), e.Key.Pos())
 	case *RawHeredocLit:
-		return String(t.Value(), e.Key.Pos())
+		return Str(t.Value(), e.Key.Pos())
+	case *HeredocLit:
+		return Str(t.Value(), e.Key.Pos())
 	case *SymbolLit:
-		return String(t.Value(), e.Key.Pos())
+		return Str(t.Value(), e.Key.Pos())
 	case *DecimalLit:
-		return String(t.Value.String(), e.Key.Pos())
+		return Str(t.Value.String(), e.Key.Pos())
 	case *IdentExpr, *IntLit, *UintLit, *FloatLit, *NilLit, *BoolLit, *FlagLit:
-		return String(t.String(), e.Key.Pos())
+		return Str(t.String(), e.Key.Pos())
 	default:
 		return t
 	}
@@ -301,19 +303,25 @@ func (e *DictElementLit) String() string {
 	case *IdentExpr, *IntLit, *UintLit, *FloatLit, *DecimalLit, *SymbolLit,
 		*ParenExpr:
 		b.WriteString(e.Key.String())
-	case *StringLit:
+	case *StrLit:
 		if v := t.Value(); runehelper.IsIdentifierOrDigitRunes([]rune(v)) {
 			b.WriteString(v)
 		} else {
 			b.WriteString(t.String())
 		}
-	case *RawStringLit:
+	case *RawStrLit:
 		if v := t.Value(); runehelper.IsIdentifierOrDigitRunes([]rune(v)) {
 			b.WriteString(v)
 		} else {
 			b.WriteString(t.String())
 		}
 	case *RawHeredocLit:
+		if v := t.Value(); runehelper.IsIdentifierOrDigitRunes([]rune(v)) {
+			b.WriteString(v)
+		} else {
+			b.WriteString(t.String())
+		}
+	case *HeredocLit:
 		if v := t.Value(); runehelper.IsIdentifierOrDigitRunes([]rune(v)) {
 			b.WriteString(v)
 		} else {
@@ -403,71 +411,71 @@ func (e *FuncDefLit) Func() (f *FuncExpr) {
 	return
 }
 
-// StringLit represents a string literal.
-type StringLit struct {
+// StrLit represents a string literal.
+type StrLit struct {
 	ValuePos source.Pos
 	Literal  string
 }
 
-func (e *StringLit) Value() string {
+func (e *StrLit) Value() string {
 	var lit = e.Literal
 	if len(lit) > 0 && lit[0] == '\'' {
 		lit = `"` + strings.ReplaceAll(strings.ReplaceAll(lit[1:len(lit)-1], "\\'", "'"), `"`, `\"`) + `"`
 	}
 	v, err := strconv.Unquote(lit)
 	if err != nil {
-		panic(fmt.Sprintf("StringLit can not unquote: %v", err))
+		panic(fmt.Sprintf("StrLit can not unquote: %v", err))
 	}
 	return v
 }
 
-func (e *StringLit) CanIdent() bool {
+func (e *StrLit) CanIdent() bool {
 	return runehelper.IsIdentifierRunes([]rune(e.Value()))
 }
 
-func (e *StringLit) ExprNode() {}
+func (e *StrLit) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
-func (e *StringLit) Pos() source.Pos {
+func (e *StrLit) Pos() source.Pos {
 	return e.ValuePos
 }
 
 // End returns the position of first character immediately after the node.
-func (e *StringLit) End() source.Pos {
+func (e *StrLit) End() source.Pos {
 	return source.Pos(int(e.ValuePos) + len(e.Literal))
 }
 
-func (e *StringLit) String() string {
+func (e *StrLit) String() string {
 	return e.Literal
 }
 
-func (e *StringLit) WriteCode(ctx *CodeWriteContext) {
+func (e *StrLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.Literal)
 }
 
-type RawStringLit struct {
+type RawStrLit struct {
 	Literal    string
 	LiteralPos source.Pos
 	Quoted     bool
 }
 
-func (e *RawStringLit) ExprNode() {}
+func (e *RawStrLit) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
-func (e *RawStringLit) Pos() source.Pos {
+func (e *RawStrLit) Pos() source.Pos {
 	return e.LiteralPos
 }
 
 // End returns the position of first character immediately after the node.
-func (e *RawStringLit) End() source.Pos {
+func (e *RawStrLit) End() source.Pos {
 	return source.Pos(int(e.LiteralPos) + len(e.Literal))
 }
 
-func (e *RawStringLit) String() string {
+func (e *RawStrLit) String() string {
 	return e.QuotedValue()
 }
 
-func (e *RawStringLit) Value() string {
+func (e *RawStrLit) Value() string {
 	if e.Quoted {
 		s, _ := strconv.Unquote(e.Literal)
 		return s
@@ -476,7 +484,7 @@ func (e *RawStringLit) Value() string {
 	}
 }
 
-func (e *RawStringLit) QuotedValue() string {
+func (e *RawStrLit) QuotedValue() string {
 	if e.Quoted {
 		return e.Literal
 	} else {
@@ -484,7 +492,7 @@ func (e *RawStringLit) QuotedValue() string {
 	}
 }
 
-func (e *RawStringLit) WriteCode(ctx *CodeWriteContext) {
+func (e *RawStrLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.QuotedValue())
 }
 
@@ -1084,6 +1092,130 @@ func (e *RawHeredocLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.Literal)
 }
 
+// HeredocLit represents a non-raw heredoc string literal delimited by a fence
+// of three or more double quotes (`"""`). It shares RawHeredocLit's fencing,
+// opening-line and common-indentation handling, but, like a double-quoted
+// StrLit, it interprets escape sequences (e.g. \n, \t, \", \xFF, \uXXXX) in
+// its content.
+type HeredocLit struct {
+	Literal    string
+	LiteralPos source.Pos
+}
+
+func (e *HeredocLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *HeredocLit) Pos() source.Pos {
+	return e.LiteralPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *HeredocLit) End() source.Pos {
+	return source.Pos(int(e.LiteralPos) + len(e.Literal))
+}
+
+// quotes returns the number of leading double-quote fence characters.
+func (e *HeredocLit) quotes() int {
+	n := 0
+	for n < len(e.Literal) && e.Literal[n] == '"' {
+		n++
+	}
+	return n
+}
+
+// contentOffset returns the byte offset within Literal at which RawContent
+// begins: past the leading quotes and, for the common multiline form, the
+// newline that ends the opening fence line.
+func (e *HeredocLit) contentOffset() int {
+	n := e.quotes()
+	if n < len(e.Literal) && e.Literal[n] == '\n' {
+		return n + 1
+	}
+	return n
+}
+
+// ContentPos returns the source position of the first byte of RawContent.
+func (e *HeredocLit) ContentPos() source.Pos {
+	return source.Pos(int(e.LiteralPos) + e.contentOffset())
+}
+
+// RawContent returns the heredoc body with the surrounding quote fences, the
+// opening fence line and the closing line removed, but with interior
+// indentation preserved and escape sequences left unprocessed. It keeps a 1:1
+// byte correspondence with the original source starting at ContentPos.
+func (e *HeredocLit) RawContent() string {
+	n := e.quotes()
+	body := e.Literal[n : len(e.Literal)-n]
+	if len(body) > 0 && body[0] == '\n' {
+		body = body[1:]
+		if i := strings.LastIndexByte(body, '\n'); i >= 0 {
+			body = body[:i]
+		}
+	}
+	return body
+}
+
+// StripCount returns the common leading indentation (spaces/tabs) removed from
+// each content line by Value. It is zero for the single-line form (no newline
+// after the opening fence), which is not indentation-stripped.
+func (e *HeredocLit) StripCount() int {
+	n := e.quotes()
+	if n >= len(e.Literal) || e.Literal[n] != '\n' {
+		return 0
+	}
+	c := e.RawContent()
+	i := 0
+	for i < len(c) && (c[i] == ' ' || c[i] == '\t') {
+		i++
+	}
+	return i
+}
+
+func (e *HeredocLit) String() string {
+	return e.Literal
+}
+
+func (e *HeredocLit) Value() string {
+	return unescapeHeredoc(stripHeredocIndent(e.RawContent(), e.StripCount()))
+}
+
+func (e *HeredocLit) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.Literal)
+}
+
+// unescapeHeredoc interprets the escape sequences in a non-raw heredoc body the
+// same way a double-quoted string literal does. Literal newlines and unescaped
+// double quotes are preserved as-is, and any unrecognized escape is kept
+// verbatim rather than reported as an error.
+func unescapeHeredoc(s string) string {
+	if !strings.ContainsRune(s, '\\') {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); {
+		if s[i] != '\\' {
+			b.WriteByte(s[i])
+			i++
+			continue
+		}
+		value, multibyte, tail, err := strconv.UnquoteChar(s[i:], '"')
+		if err != nil {
+			// keep the backslash verbatim on an unrecognized escape sequence
+			b.WriteByte(s[i])
+			i++
+			continue
+		}
+		if multibyte {
+			b.WriteRune(value)
+		} else {
+			b.WriteByte(byte(value))
+		}
+		i = len(s) - len(tail)
+	}
+	return b.String()
+}
+
 // TemplateLit represents a template string literal prefixed with `#`, such as
 // `#"text"` or `#'symbol'`. It is parsed in ParseOperand when a token.Template
 // is followed by a string, raw string, heredoc, or symbol token.
@@ -1109,14 +1241,19 @@ func (e *TemplateLit) String() string {
 
 func (e *TemplateLit) StringValue() string {
 	switch vt := e.Value.(type) {
-	case *StringLit:
+	case *StrLit:
 		return vt.Value()
-	case *RawStringLit:
+	case *RawStrLit:
 		return vt.Value()
 	case *RawHeredocLit:
 		// Parse the untrimmed body so interpolation positions map 1:1 to the
 		// source; Build re-applies the heredoc indentation stripping to the
 		// rendered text segments.
+		return vt.RawContent()
+	case *HeredocLit:
+		// Parse the untrimmed, un-escaped body so interpolation positions map
+		// 1:1 to the source; Build re-applies indentation stripping and escape
+		// processing to the rendered text segments.
 		return vt.RawContent()
 	case *SymbolLit:
 		return vt.Value()
@@ -1132,7 +1269,10 @@ func (e *TemplateLit) StringValue() string {
 // heredoc it is the newline that ends the opening backtick line, since the
 // surrounding backticks and the opening line are stripped from the content.
 func (e *TemplateLit) StringValuePos() source.Pos {
-	if h, ok := e.Value.(*RawHeredocLit); ok {
+	switch h := e.Value.(type) {
+	case *RawHeredocLit:
+		return h.ContentPos() - 1
+	case *HeredocLit:
 		return h.ContentPos() - 1
 	}
 	return e.Value.Pos()
@@ -1145,6 +1285,11 @@ func (e *TemplateLit) WriteCode(ctx *CodeWriteContext) {
 
 func (e *TemplateLit) Build(sourceStmts Stmts) (expr Expr, err error) {
 	var raw bool
+	// unescape marks a non-raw heredoc whose rendered text segments must have
+	// their escape sequences interpreted (like a double-quoted string), even
+	// though they were parsed un-escaped to keep interpolation positions mapped
+	// to the original source.
+	var unescape bool
 	// stripCount > 0 marks a heredoc whose rendered text segments must be
 	// indentation-stripped, even though they were parsed untrimmed (to keep
 	// interpolation positions mapped to the original source).
@@ -1153,9 +1298,12 @@ func (e *TemplateLit) Build(sourceStmts Stmts) (expr Expr, err error) {
 	case *RawHeredocLit:
 		raw = true
 		stripCount = v.StripCount()
-	case *RawStringLit:
+	case *HeredocLit:
+		unescape = true
+		stripCount = v.StripCount()
+	case *RawStrLit:
 		raw = true
-	case *StringLit, *SymbolLit:
+	case *StrLit, *SymbolLit:
 	default:
 		return nil, errors.New("template literal must be a string, raw string, heredoc, or symbol")
 	}
@@ -1175,14 +1323,20 @@ func (e *TemplateLit) Build(sourceStmts Stmts) (expr Expr, err error) {
 				val = trimmed
 			}
 			if raw {
-				// Raw text is kept verbatim; a RawStringLit emits it as-is,
-				// whereas a StringLit would later be unquoted by the compiler.
-				exp = &RawStringLit{
+				// Raw text is kept verbatim; a RawStrLit emits it as-is,
+				// whereas a StrLit would later be unquoted by the compiler.
+				exp = &RawStrLit{
 					Literal:    val,
 					LiteralPos: lit.Pos(),
 				}
 			} else {
-				exp = String(val, lit.Pos())
+				if unescape {
+					// Interpret escape sequences after indentation stripping;
+					// String re-quotes the result so the compiler reproduces it
+					// verbatim instead of re-processing the escapes.
+					val = unescapeHeredoc(val)
+				}
+				exp = Str(val, lit.Pos())
 			}
 		case *ExprStmt:
 			exp = lit.Expr

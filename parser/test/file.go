@@ -313,15 +313,18 @@ func (f *File) EqualExpr(expected, actual node.Expr) {
 	case *node.CharLit:
 		f.Equal(expected.Value, actual.(*node.CharLit).Value)
 		f.Equal(expected.ValuePos, actual.(*node.CharLit).ValuePos)
-	case *node.StringLit:
-		f.Equal(expected.Literal, actual.(*node.StringLit).Literal)
-		f.Equal(expected.ValuePos, actual.(*node.StringLit).ValuePos)
-	case *node.RawStringLit:
-		f.Equal(expected.Value(), actual.(*node.RawStringLit).Value())
-		f.Equal(expected.LiteralPos, actual.(*node.RawStringLit).LiteralPos)
+	case *node.StrLit:
+		f.Equal(expected.Literal, actual.(*node.StrLit).Literal)
+		f.Equal(expected.ValuePos, actual.(*node.StrLit).ValuePos)
+	case *node.RawStrLit:
+		f.Equal(expected.Value(), actual.(*node.RawStrLit).Value())
+		f.Equal(expected.LiteralPos, actual.(*node.RawStrLit).LiteralPos)
 	case *node.RawHeredocLit:
 		f.Equal(expected.Literal, actual.(*node.RawHeredocLit).Literal)
 		f.Equal(expected.LiteralPos, actual.(*node.RawHeredocLit).LiteralPos)
+	case *node.HeredocLit:
+		f.Equal(expected.Literal, actual.(*node.HeredocLit).Literal)
+		f.Equal(expected.LiteralPos, actual.(*node.HeredocLit).LiteralPos)
 	case *node.ArrayExpr:
 		f.Equal(expected.LBrack, actual.(*node.ArrayExpr).LBrack)
 		f.Equal(expected.RBrack, actual.(*node.ArrayExpr).RBrack)

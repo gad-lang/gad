@@ -657,8 +657,51 @@ func (s *Reader) ScanRune() string {
 	return string(s.Src[offs:s.Offset])
 }
 
-func (s *Reader) ScanString() string {
-	return s.ScanStringDelimiter('"')
+// ScanString scans a double-quoted string literal. When the opening quote is
+// followed by two or more additional quotes it is instead a (non-raw) heredoc
+// delimited by a fence of three or more double quotes (`"""`), in which case
+// the second return value is true. The opening '"' has already been consumed.
+func (s *Reader) ScanString() (string, bool) {
+	// if is heredoc, minimal 3 chars (current more 2)
+	if s.Ch == '"' && s.Peek() == '"' {
+		offs := s.Offset - 1 // '"' opening already consumed
+
+		// count the opening fence: the first quote was consumed before entry,
+		// the rest (>=2) are read here, so n is the full fence width.
+		n := 1 + len(s.ReadWhen('"'))
+		if n%2 != 1 {
+			s.Error(offs, "heredoc literal not open")
+		}
+
+		// scan the body until a run of n consecutive quotes closes the fence.
+		// Unlike the raw heredoc this is escape-aware: a backslash escapes the
+		// following byte so an escaped quote does not contribute to the closing
+		// fence (escape interpretation itself happens later in HeredocLit.Value).
+		run := 0
+		for run < n {
+			switch s.Ch {
+			case -1:
+				s.Error(offs, "heredoc literal not terminated")
+				return string(s.Src[offs:s.Offset]), true
+			case '\\':
+				s.Next() // consume backslash
+				if s.Ch != -1 {
+					s.Next() // consume the escaped byte
+				}
+				run = 0
+			case '"':
+				run++
+				s.Next()
+			default:
+				run = 0
+				s.Next()
+			}
+		}
+
+		return string(s.Src[offs:s.Offset]), true
+	}
+
+	return s.ScanStringDelimiter('"'), false
 }
 
 func (s *Reader) ScanStringDelimiter(delimiter rune) string {

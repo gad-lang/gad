@@ -325,7 +325,7 @@ func EImport(pos source.Pos, moduleName string, lparen, rparen, moduleNamePos so
 			LParen: lparen,
 			RParen: rparen,
 			Args: CallExprPositionalArgs{
-				Values: Exprs{String(moduleName, moduleNamePos)}}},
+				Values: Exprs{Str(moduleName, moduleNamePos)}}},
 	}}
 }
 
@@ -346,16 +346,20 @@ func Decimal(value string, pos source.Pos) *DecimalLit {
 	return &DecimalLit{Value: v, ValuePos: pos}
 }
 
-func String(value string, pos source.Pos) *StringLit {
-	return &StringLit{Literal: strconv.Quote(value), ValuePos: pos}
+func Str(value string, pos source.Pos) *StrLit {
+	return &StrLit{Literal: strconv.Quote(value), ValuePos: pos}
 }
 
-func RawString(value string, pos source.Pos) *RawStringLit {
-	return &RawStringLit{Literal: value, LiteralPos: pos, Quoted: value[0] == '`'}
+func RawStr(value string, pos source.Pos) *RawStrLit {
+	return &RawStrLit{Literal: value, LiteralPos: pos, Quoted: value[0] == '`'}
 }
 
 func RawHeredoc(value string, pos source.Pos) *RawHeredocLit {
 	return &RawHeredocLit{Literal: value, LiteralPos: pos}
+}
+
+func Heredoc(value string, pos source.Pos) *HeredocLit {
+	return &HeredocLit{Literal: value, LiteralPos: pos}
 }
 
 func Char(value rune, pos source.Pos) *CharLit {

@@ -97,7 +97,7 @@ func TestEmbeddedFileImporter_Import(t *testing.T) {
 
 	ret, err = run(&buf, []byte(`return str(embed("d1"))`), opts)
 	require.NoError(t, err)
-require.Contains(t, string(ret.(gad.Str)), "d1/test2.txt")
+	require.Contains(t, string(ret.(gad.Str)), "d1/test2.txt")
 
 	ret, err = run(&buf, []byte(`return str(embed("df1.txt"; sources=["d1/f"]))`), opts)
 	require.NoError(t, err)
@@ -138,15 +138,15 @@ func makeEmbedDir(t *testing.T) (dirName, root string, opts gad.CompilerOptions)
 	t.Helper()
 	root = t.TempDir()
 	createFiles(t, root, map[string]string{
-		"src/a.go":           "package a",
-		"src/b.go":           "package b",
-		"src/c_test.go":      "package c",
-		"src/d.txt":          "content d",
-		"src/e.md":           "# readme",
-		"src/sub/f.go":       "package f",
-		"src/sub/g_test.go":  "package g",
-		"src/sub/h.txt":      "content h",
-		"src/sub/sub2/i.go":  "package i",
+		"src/a.go":          "package a",
+		"src/b.go":          "package b",
+		"src/c_test.go":     "package c",
+		"src/d.txt":         "content d",
+		"src/e.md":          "# readme",
+		"src/sub/f.go":      "package f",
+		"src/sub/g_test.go": "package g",
+		"src/sub/h.txt":     "content h",
+		"src/sub/sub2/i.go": "package i",
 	})
 	opts = gad.DefaultCompilerOptions
 	opts.ModuleMap = gad.NewModuleMap()
@@ -268,7 +268,7 @@ func TestEmbeddedFileImporter_IncludesExcludes(t *testing.T) {
 	t.Run("include *.go exclude *_test.go", func(t *testing.T) {
 		ret, err := runScript(fmt.Sprintf(`e := embed("src"; includes=["*.go"], excludes=["*_test.go"]); return str(e;%s)`, tp), opts)
 		require.NoError(t, err)
-		
+
 		require.Contains(t, string(ret.(gad.Str)), "src/a.go")
 		require.Contains(t, string(ret.(gad.Str)), "src/sub/f.go")
 		require.NotContains(t, string(ret.(gad.Str)), "src/c_test.go")
@@ -278,7 +278,7 @@ func TestEmbeddedFileImporter_IncludesExcludes(t *testing.T) {
 	t.Run("include *.go exclude *.txt", func(t *testing.T) {
 		ret, err := runScript(fmt.Sprintf(`e := embed("src"; includes=["*.go"], excludes=["*.txt"]); return str(e;%s)`, tp), opts)
 		require.NoError(t, err)
-require.Contains(t, string(ret.(gad.Str)), "src/a.go")
+		require.Contains(t, string(ret.(gad.Str)), "src/a.go")
 		require.NotContains(t, string(ret.(gad.Str)), "src/d.txt")
 	})
 }
@@ -415,9 +415,9 @@ func TestEmbeddedFileImporter_TreeOnly(t *testing.T) {
 
 	ret, err := runScript(fmt.Sprintf(`e := embed("src"; tree); return str(e;%s)`, tp), opts)
 	require.NoError(t, err)
-		// 9 files total
-		require.Contains(t, string(ret.(gad.Str)), "src/a.go")
-		require.Contains(t, string(ret.(gad.Str)), "src/sub/sub2/i.go")
+	// 9 files total
+	require.Contains(t, string(ret.(gad.Str)), "src/a.go")
+	require.Contains(t, string(ret.(gad.Str)), "src/sub/sub2/i.go")
 }
 
 func TestEmbeddedFileImporter_SingleFile(t *testing.T) {
@@ -447,7 +447,7 @@ func TestEmbeddedFileImporter_WithSources(t *testing.T) {
 	})
 
 	t.Run("sources with includes filtering", func(t *testing.T) {
-	tp := fmt.Sprintf("indent,trimEmbedPath=%q", dir0)
+		tp := fmt.Sprintf("indent,trimEmbedPath=%q", dir0)
 		ret, err := runScript(fmt.Sprintf(`e := embed("d0"; includes=["*.go"]); return str(e;%s)`, tp), opts)
 		require.NoError(t, err)
 		require.Contains(t, string(ret.(gad.Str)), "d0/a.go")
@@ -459,4 +459,3 @@ func runScript(script string, opts gad.CompilerOptions) (gad.Object, error) {
 	var buf bytes.Buffer
 	return run(&buf, []byte(script), opts)
 }
-

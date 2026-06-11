@@ -362,6 +362,7 @@ type FunctionHeader struct {
 	Params      Params
 	NamedParams NamedParams
 	pt          ParamsTypes
+	ReturnTypes []ObjectType
 }
 
 func NewFunctionHeader() *FunctionHeader {
@@ -376,7 +377,22 @@ func (h *FunctionHeader) String() string {
 	if h.NamedParams.len > 0 {
 		s = append(s, "; ", h.NamedParams.String())
 	}
-	return "(" + strings.Join(s, "") + ")"
+	var ret string
+	if len(h.ReturnTypes) > 0 {
+		rets := make([]string, len(h.ReturnTypes))
+		for i, t := range h.ReturnTypes {
+			rets[i] = t.String()
+		}
+
+		ret = " -> "
+		if len(h.ReturnTypes) == 1 {
+			ret += h.ReturnTypes[0].String()
+		} else {
+			ret += "(" + strings.Join(rets, ", ") + ")"
+		}
+	}
+
+	return "(" + strings.Join(s, "") + ")" + ret
 }
 
 func (h *FunctionHeader) ParamTypes() ParamsTypes {

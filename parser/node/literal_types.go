@@ -209,6 +209,7 @@ type FuncType struct {
 	FuncPos  source.Pos
 	NameExpr Expr
 	Params   FuncParams
+	Return   []*TypedIdentExpr
 }
 
 func (e *FuncType) ExprNode() {}
@@ -239,7 +240,7 @@ func (e *FuncType) Name() string {
 		return t.Name
 	case *IndexExpr:
 		switch it := t.Index.(type) {
-		case *StringLit:
+		case *StrLit:
 			return it.Value()
 		}
 	case *SelectorExpr:
@@ -257,5 +258,18 @@ func (e *FuncType) String() string {
 	if e.NameExpr != nil {
 		s = e.NameExpr.String()
 	}
-	return s + e.Params.String()
+	s += e.Params.String()
+	if len(e.Return) > 0 {
+		s += " -> "
+		rests := make([]string, len(e.Return))
+		for i := range e.Return {
+			rests[i] = e.Return[i].String()
+		}
+		if len(rests) > 1 {
+			s += "(" + strings.Join(rests, ", ") + ")"
+		} else {
+			s += rests[0]
+		}
+	}
+	return s
 }

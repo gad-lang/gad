@@ -876,11 +876,11 @@ func (c *ConfigStmt) ParseElements() {
 				}
 			}
 		case "mixed_start":
-			if s, ok := k.Value.(*StringLit); ok {
+			if s, ok := k.Value.(*StrLit); ok {
 				c.Options.MixedStart = s.Value()
 			}
 		case "mixed_end":
-			if s, ok := k.Value.(*StringLit); ok {
+			if s, ok := k.Value.(*StrLit); ok {
 				c.Options.MixedEnd = s.Value()
 			}
 		}

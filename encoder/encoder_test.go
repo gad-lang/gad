@@ -181,4 +181,3 @@ func edecode[t any](b, eb []byte, opt ...ReadContextOption) (v t, err error) {
 	opt = append(opt, ReadContextWithEmbeddedReader(bytes.NewReader(eb)))
 	return DecodeT[t](NewReadContext(NewReader(bytes.NewReader(b)), opt...))
 }
-

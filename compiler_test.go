@@ -1129,6 +1129,47 @@ func TestCompiler_CompileTemplateLit(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, Str("1 + 2 = 3"), ret)
 	})
+
+	runTmpl := func(t *testing.T, src string) Object {
+		t.Helper()
+		st := NewSymbolTable(NewBuiltins().NameSet)
+		_, bc, err := Compile(st, []byte(src), CompileOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, bc)
+		vm := NewVM(NewBuiltins().Build(), bc)
+		ret, err := vm.Run()
+		require.NoError(t, err)
+		return ret
+	}
+
+	t.Run("heredoc plain", func(t *testing.T) {
+		require.Equal(t, Str("hello"), runTmpl(t, `return #"""hello"""`))
+	})
+
+	t.Run("heredoc with interpolation", func(t *testing.T) {
+		require.Equal(t, Str("hello world"),
+			runTmpl(t, `name := "world"; return #"""hello {name}"""`))
+	})
+
+	t.Run("heredoc interprets escapes", func(t *testing.T) {
+		// unlike the raw ``` heredoc, \t and \n are interpreted
+		require.Equal(t, Str("a\tb\nc"), runTmpl(t, `return #"""a\tb\nc"""`))
+	})
+
+	t.Run("heredoc escapes with interpolation", func(t *testing.T) {
+		require.Equal(t, Str("1\t2"),
+			runTmpl(t, `a := 1; b := 2; return #"""{a}\t{b}"""`))
+	})
+
+	t.Run("heredoc multiline strips indentation", func(t *testing.T) {
+		src := "name := \"bob\"\nreturn #\"\"\"\n\t\tHello {name}\n\t\tBye\n\t\"\"\""
+		require.Equal(t, Str("Hello bob\nBye"), runTmpl(t, src))
+	})
+
+	t.Run("heredoc multiline strips indentation then escapes", func(t *testing.T) {
+		src := "return #\"\"\"\n\t\ta\\tb\n\t\tc\n\t\"\"\""
+		require.Equal(t, Str("a\tb\nc"), runTmpl(t, src))
+	})
 }
 
 func TestCompiler_Compile(t *testing.T) {
@@ -1707,6 +1748,34 @@ func TestCompiler_Compile(t *testing.T) {
 
 	expectCompile(t, "```\n\t\traw  \n\t\theredoc\n\t\t string\n\tx\n```", bytecode(
 		Array{RawStr("raw  \nheredoc\n string\nx")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, `"""heredoc string"""`, bytecode(
+		Array{Str("heredoc string")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	expectCompile(t, "\"\"\"\nheredoc string\n\"\"\"", bytecode(
+		Array{Str("heredoc string")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	// indentation stripping and escape processing
+	expectCompile(t, "\"\"\"\n\t\ta\\tb\n\t\tc\n\t\"\"\"", bytecode(
+		Array{Str("a\tb\nc")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),
 			makeInst(OpPop),

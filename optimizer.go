@@ -128,7 +128,7 @@ func canOptimizeExpr(expr node.Expr) bool {
 		*node.UintLit,
 		*node.FloatLit,
 		*node.CharLit,
-		*node.StringLit,
+		*node.StrLit,
 		*node.NilLit,
 		*node.FlagLit:
 		return false
@@ -289,7 +289,7 @@ func (so *SimpleOptimizer) slowEvalExpr(expr node.Expr) (node.Expr, bool) {
 
 	switch v := obj.(type) {
 	case Str:
-		expr = node.String(string(v), expr.Pos())
+		expr = node.Str(string(v), expr.Pos())
 	case *NilType:
 		expr = &node.NilLit{TokenPos: expr.Pos()}
 	case Flag:
@@ -493,10 +493,10 @@ func (so *SimpleOptimizer) binaryop(
 		if right, ok := right.(*node.FloatLit); ok {
 			return so.binaryopFloats(op, left, right)
 		}
-	case *node.StringLit:
-		right, ok := right.(*node.StringLit)
+	case *node.StrLit:
+		right, ok := right.(*node.StrLit)
 		if ok && op == token.Add {
-			return node.String(left.Value()+right.Value(), left.ValuePos), true
+			return node.Str(left.Value()+right.Value(), left.ValuePos), true
 		}
 	}
 	return nil, false
@@ -973,7 +973,7 @@ func isLitFalsy(expr node.Expr) (bool, bool) {
 		return Uint(v.Value).IsFalsy(), true
 	case *node.FloatLit:
 		return Float(v.Value).IsFalsy(), true
-	case *node.StringLit:
+	case *node.StrLit:
 		return Str(v.Value()).IsFalsy(), true
 	case *node.CharLit:
 		return Char(v.Value).IsFalsy(), true

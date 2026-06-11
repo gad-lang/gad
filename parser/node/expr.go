@@ -291,7 +291,7 @@ type ImportExpr struct {
 }
 
 func (e *ImportExpr) ModuleName() string {
-	return e.Args.Values[0].(*StringLit).Value()
+	return e.Args.Values[0].(*StrLit).Value()
 }
 
 func (e *ImportExpr) ExprNode() {}
@@ -356,7 +356,7 @@ func (e *EmbedExpr) String() string {
 // Path returns the file or directory path specified as the first argument to embed.
 func (e *EmbedExpr) Path() (s string) {
 	switch t := e.Args.Args.Values[0].(type) {
-	case *StringLit:
+	case *StrLit:
 		s = t.Value()
 	case *SymbolLit:
 		s = t.Value()
@@ -406,7 +406,7 @@ func (e *EmbedExpr) getStrings(nameArg string) (s []string) {
 		case *ArrayExpr:
 			for _, av := range t.Elements {
 				switch a := av.(type) {
-				case *StringLit:
+				case *StrLit:
 					s = append(s, a.Value())
 				case *SymbolLit:
 					s = append(s, a.Value())
@@ -421,7 +421,7 @@ func (e *EmbedExpr) getStrings(nameArg string) (s []string) {
 func (e *EmbedExpr) ConfigFile() string {
 	if v, ok := e.getNvalue("config_file"); ok && v != nil {
 		switch t := v.(type) {
-		case *StringLit:
+		case *StrLit:
 			return t.Value()
 		case *SymbolLit:
 			return t.Value()
@@ -667,7 +667,7 @@ func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError
 		case *KeyValueLit:
 			na := &NamedArgExpr{}
 			switch t := t.Key.(type) {
-			case *StringLit:
+			case *StrLit:
 				na.Lit = t
 			case *IdentExpr:
 				na.Ident = t
@@ -682,19 +682,19 @@ func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError
 			switch t2 := t.Key.(type) {
 			case *IdentExpr:
 				args.NamedArgs.Names = append(args.NamedArgs.Names, &NamedArgExpr{Ident: t2})
-			case *StringLit:
+			case *StrLit:
 				args.NamedArgs.Names = append(args.NamedArgs.Names, &NamedArgExpr{Lit: t2})
 			case *TypedIdentExpr:
 				if strict {
-					err = NewExpectedError(t2, &StringLit{}, &IdentExpr{})
+					err = NewExpectedError(t2, &StrLit{}, &IdentExpr{})
 					return
 				}
 				args.NamedArgs.Names = append(args.NamedArgs.Names, &NamedArgExpr{Ident: t2.Ident})
 			default:
 				if strict {
-					err = NewExpectedError(t2, &StringLit{}, &IdentExpr{})
+					err = NewExpectedError(t2, &StrLit{}, &IdentExpr{})
 				} else {
-					err = NewExpectedError(t2, &StringLit{}, &IdentExpr{}, &TypedIdentExpr{})
+					err = NewExpectedError(t2, &StrLit{}, &IdentExpr{}, &TypedIdentExpr{})
 				}
 				return
 			}
@@ -806,7 +806,7 @@ func (e *SelectorExpr) End() source.Pos {
 
 func (e *SelectorExpr) String() string {
 	r := e.X.String() + "."
-	if s, _ := e.Sel.(*StringLit); s != nil {
+	if s, _ := e.Sel.(*StrLit); s != nil {
 		if s.CanIdent() {
 			return r + s.Value()
 		}
@@ -826,7 +826,7 @@ func (e *SelectorExpr) GetY() Expr {
 func (e *SelectorExpr) WriteCode(ctx *CodeWriteContext) {
 	e.X.WriteCode(ctx)
 	ctx.WriteSingleByte('.')
-	if s, _ := e.Sel.(*StringLit); s != nil {
+	if s, _ := e.Sel.(*StrLit); s != nil {
 		if s.CanIdent() {
 			ctx.WriteString(s.Value())
 		} else {
@@ -857,7 +857,7 @@ func (e *NullishSelectorExpr) End() source.Pos {
 
 func (e *NullishSelectorExpr) String() string {
 	r := e.Expr.String() + "?."
-	if s, _ := e.Sel.(*StringLit); s != nil {
+	if s, _ := e.Sel.(*StrLit); s != nil {
 		if s.CanIdent() {
 			return r + s.Value()
 		}
@@ -877,7 +877,7 @@ func (e *NullishSelectorExpr) GetY() Expr {
 func (e *NullishSelectorExpr) WriteCode(ctx *CodeWriteContext) {
 	e.Expr.WriteCode(ctx)
 	ctx.WriteString("?.")
-	if s, _ := e.Sel.(*StringLit); s != nil {
+	if s, _ := e.Sel.(*StrLit); s != nil {
 		if s.CanIdent() {
 			ctx.WriteString(s.Value())
 		} else {
@@ -1032,7 +1032,7 @@ func (a *CallExprPositionalArgs) WriteCodeWithNamed(ctx *CodeWriteContext, inNew
 }
 
 type NamedArgExpr struct {
-	Lit   *StringLit
+	Lit   *StrLit
 	Ident *IdentExpr
 	Exp   Expr
 	Var   bool
@@ -1097,7 +1097,7 @@ func (a *CallExprNamedArgs) AppendE(name Expr, value Expr) *CallExprNamedArgs {
 	switch t := name.(type) {
 	case *IdentExpr:
 		ne.Ident = t
-	case *StringLit:
+	case *StrLit:
 		ne.Lit = t
 	default:
 		ne.Exp = t

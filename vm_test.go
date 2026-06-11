@@ -4433,6 +4433,17 @@ func TestVMString(t *testing.T) {
 	testExpectRun(t, "return `foo` ", nil, RawStr("foo"))
 	testExpectRun(t, "return `foo` + \"bar\"", nil, RawStr("foobar"))
 	testExpectRun(t, "return raw \"foo\" + \"bar\"", nil, RawStr("foobar"))
+
+	// non-raw heredoc: """..."""
+	testExpectRun(t, `return """foo"""`, nil, Str("foo"))
+	testExpectRun(t, "return \"\"\"\nfoo\n\"\"\"", nil, Str("foo"))
+	// escape sequences are interpreted, unlike the raw ``` heredoc
+	testExpectRun(t, `return """a\tb\nc"""`, nil, Str("a\tb\nc"))
+	testExpectRun(t, `return """a\"b"""`, nil, Str(`a"b`))
+	// common leading indentation is stripped, then escapes are processed
+	testExpectRun(t, "return \"\"\"\n\t\ta\\tb\n\t\tc\n\t\"\"\"", nil, Str("a\tb\nc"))
+	// concatenation yields a (non-raw) str
+	testExpectRun(t, `return """foo""" + "bar"`, nil, Str("foobar"))
 }
 
 func TestVMMultiParen(t *testing.T) {

@@ -1273,9 +1273,9 @@ func (c *Compiler) compileFuncWithMethodsStmt(nd *node.FuncWithMethodsStmt) erro
 		if name == nil {
 			return c.errorf(nd, "require NameExpr as *Ident")
 		}
-		args[0] = node.String(name.String(), name.NamePos)
+		args[0] = node.Str(name.String(), name.NamePos)
 	} else {
-		args[0] = node.String("", 0)
+		args[0] = node.Str("", 0)
 	}
 
 	if len(nd.Methods) == 0 {
@@ -1321,9 +1321,9 @@ func (c *Compiler) compileFuncWithMethodsExpr(nd *node.FuncWithMethodsExpr) erro
 		if name == nil {
 			return c.errorf(nd, "require NameExpr as *Ident")
 		}
-		args[0] = node.String(name.String(), name.NamePos)
+		args[0] = node.Str(name.String(), name.NamePos)
 	} else {
-		args[0] = node.String("", 0)
+		args[0] = node.Str("", 0)
 	}
 
 	for i, m := range nd.Methods {
@@ -1968,13 +1968,17 @@ func (c *Compiler) compileCondExpr(nd *node.CondExpr) error {
 func (c *Compiler) compileTemplateLit(nd *node.TemplateLit) error {
 	var tmplValue string
 	switch t := nd.Value.(type) {
-	case *node.StringLit:
+	case *node.StrLit:
 		tmplValue = t.Value()
-	case *node.RawStringLit:
+	case *node.RawStrLit:
 		tmplValue = t.Value()
 	case *node.RawHeredocLit:
 		// Parse the untrimmed body so interpolation positions map to source;
 		// Build re-applies the heredoc indentation stripping.
+		tmplValue = t.RawContent()
+	case *node.HeredocLit:
+		// Parse the untrimmed, un-escaped body so interpolation positions map to
+		// source; Build re-applies indentation stripping and escape processing.
 		tmplValue = t.RawContent()
 	case *node.SymbolLit:
 		tmplValue = t.Value()
@@ -2153,7 +2157,7 @@ func (c *Compiler) compileTypedIdentExpr(nd *node.TypedIdentExpr) error {
 		CallArgs: node.CallArgs{
 			Args: node.CallExprPositionalArgs{
 				Values: []node.Expr{
-					node.String(nd.Ident.Name, nd.Ident.NamePos),
+					node.Str(nd.Ident.Name, nd.Ident.NamePos),
 					node.Array(nd.Pos(), nd.End(), types...),
 				},
 			},
@@ -2170,7 +2174,7 @@ func (c *Compiler) compileNamedArgVarLit(nd *node.NamedArgVarLit) (err error) {
 }
 
 func (c *Compiler) compileNamedParamValue(nd *namedParamValue) (err error) {
-	if err = c.Compile(&nd.StringLit); err != nil {
+	if err = c.Compile(&nd.StrLit); err != nil {
 		return
 	}
 	c.emit(nd, OpNamedParamValue)
@@ -2213,7 +2217,7 @@ func (c *Compiler) compileExportStmt(nd *node.ExportStmt) (err error) {
 	}
 
 	if ident, _ := key.(*node.IdentExpr); ident != nil {
-		key = node.String(ident.Name, ident.NamePos)
+		key = node.Str(ident.Name, ident.NamePos)
 		if value == nil {
 			value = ident
 		}
@@ -2236,9 +2240,9 @@ func (c *Compiler) compileToRawExpr(nd *node.ToRaw) (err error) {
 	e := nd.Expr
 try:
 	switch et := e.(type) {
-	case *node.StringLit:
+	case *node.StrLit:
 		c.emit(nd, OpConstant, c.addConstant(RawStr(et.Value())))
-	case *node.RawStringLit:
+	case *node.RawStrLit:
 		c.emit(nd, OpConstant, c.addConstant(RawStr(et.Value())))
 	case *node.ParenExpr:
 		e = et.Expr

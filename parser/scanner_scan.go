@@ -161,7 +161,10 @@ do:
 		case '"':
 			insertSemi = true
 			t.Token = token.String
-			t.Literal = s.ScanString()
+			var ishd bool
+			if t.Literal, ishd = s.ScanString(); ishd {
+				t.Token = token.Heredoc
+			}
 		case '\'':
 			insertSemi = true
 			if s.mode.Has(ScanCharAsString) {

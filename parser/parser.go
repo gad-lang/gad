@@ -535,10 +535,10 @@ exps:
 				switch t2 := t.Key.(type) {
 				case *node.IdentExpr:
 					params.NamedArgs.Names = append(params.NamedArgs.Names, &node.NamedArgExpr{Ident: t2})
-				case *node.StringLit:
+				case *node.StrLit:
 					params.NamedArgs.Names = append(params.NamedArgs.Names, &node.NamedArgExpr{Lit: t2})
 				default:
-					p.ErrorExpected(t2.Pos(), "expected Ident | StringLit")
+					p.ErrorExpected(t2.Pos(), "expected Ident | StrLit")
 					return
 				}
 				params.NamedArgs.Values = append(params.NamedArgs.Values, t.Value)
@@ -683,15 +683,15 @@ func (p *Parser) ParseSelectorNode(x node.Expr) (expr, sel node.Expr) {
 		sel = node.EParen(sel, lparen, rparen)
 	case token.Else:
 		name := p.Token.Token.String()
-		sel = node.String(name, p.Token.Pos)
+		sel = node.Str(name, p.Token.Pos)
 		p.Next()
 	default:
 		if tk := p.Token.Token; tk.IsKeyword() {
-			sel = node.String(tk.String(), p.Token.Pos)
+			sel = node.Str(tk.String(), p.Token.Pos)
 			p.Next()
 		} else {
 			ident := p.ParseIdent()
-			sel = node.String(ident.Name, ident.NamePos)
+			sel = node.Str(ident.Name, ident.NamePos)
 		}
 	}
 	expr = x
@@ -718,7 +718,7 @@ func (p *Parser) ParseSimpleSelectorNode(x node.Expr) (expr, sel node.Expr) {
 		sel = node.EParen(sel, lparen, rparen)
 	default:
 		ident := p.ParseIdent()
-		sel = node.String(ident.Name, ident.NamePos)
+		sel = node.Str(ident.Name, ident.NamePos)
 	}
 	expr = x
 	return
@@ -743,8 +743,8 @@ func (p *Parser) ParseNullishSelector(x node.Expr) (sel node.Expr) {
 	return &node.NullishSelectorExpr{Expr: x, Sel: sel}
 }
 
-func (p *Parser) ParseStringLit() *node.StringLit {
-	x := &node.StringLit{
+func (p *Parser) ParseStrLit() *node.StrLit {
+	x := &node.StrLit{
 		ValuePos: p.Token.Pos,
 		Literal:  p.Token.Literal,
 	}
@@ -848,9 +848,9 @@ func (p *Parser) ParseLiteral() node.Expr {
 	case token.Char:
 		return p.ParseCharLit()
 	case token.String:
-		return p.ParseStringLit()
+		return p.ParseStrLit()
 	case token.RawString:
-		return p.ParseRawStringLit()
+		return p.ParseRawStrLit()
 	case token.Symbol:
 		return p.ParseSymbolLit()
 	case token.True, token.False:
@@ -859,6 +859,8 @@ func (p *Parser) ParseLiteral() node.Expr {
 		return p.ParseFlagLit()
 	case token.RawHeredoc:
 		return p.ParseRawHeredocLit()
+	case token.Heredoc:
+		return p.ParseHeredocLit()
 	default:
 		pos := p.Token.Pos
 		p.ErrorExpected(pos, "literal value")
@@ -1004,7 +1006,7 @@ func (p *Parser) ParseOperand() node.Expr {
 			pos := p.Token.Pos
 			p.Next()
 			switch p.Token.Token {
-			case token.String, token.RawString, token.RawHeredoc, token.Symbol:
+			case token.String, token.RawString, token.RawHeredoc, token.Heredoc, token.Symbol:
 				return &node.TemplateLit{
 					TokenPos: pos,
 					Value:    p.ParseOperand(),
@@ -1030,7 +1032,7 @@ func (p *Parser) ParseImportExpr() node.Expr {
 	)
 
 	if valid {
-		_, valid = c.Args.Values[0].(*node.StringLit)
+		_, valid = c.Args.Values[0].(*node.StrLit)
 	}
 
 	if !valid {
@@ -1058,7 +1060,7 @@ func (p *Parser) ParseEmbedExpr() node.Expr {
 
 	if len(args.Args.Values) == 1 && args.Args.Var == nil {
 		switch t := args.Args.Values[0].(type) {
-		case *node.StringLit, *node.SymbolLit:
+		case *node.StrLit, *node.SymbolLit:
 			pth = t
 		}
 	}
@@ -1092,7 +1094,7 @@ func (p *Parser) ParseEmbedExpr() node.Expr {
 
 				for _, el := range valueArr.Elements {
 					switch t := el.(type) {
-					case *node.StringLit, *node.SymbolLit:
+					case *node.StrLit, *node.SymbolLit:
 					default:
 						p.Error(parem.Pos(), "expected single str|symbol")
 						return &node.BadExpr{From: t.Pos(), To: t.End()}
@@ -1106,7 +1108,7 @@ func (p *Parser) ParseEmbedExpr() node.Expr {
 			case "config_file":
 				if v := args.NamedArgs.Values[i]; v != nil {
 					switch v.(type) {
-					case *node.StringLit, *node.SymbolLit:
+					case *node.StrLit, *node.SymbolLit:
 					default:
 						p.Error(v.Pos(), "expected single str|symbol")
 						return &node.BadExpr{From: v.Pos(), To: v.End()}
@@ -1774,7 +1776,7 @@ do:
 		return p.ParseFuncStmt()
 	case // simple statements
 		token.Method, token.Ident, token.Int, token.Uint, token.Float, token.Decimal,
-		token.Char, token.String, token.RawString, token.RawHeredoc, token.Symbol,
+		token.Char, token.String, token.RawString, token.RawHeredoc, token.Heredoc, token.Symbol,
 		token.True, token.False, token.Nil,
 		token.LParen, token.LBrack, token.Add, token.Sub,
 		token.Mul, token.And, token.Xor, token.Not, token.Import, token.Embed,
@@ -1869,11 +1871,11 @@ func (p *Parser) ParseMixedValue() (ett *node.MixedValueStmt) {
 	return
 }
 
-func (p *Parser) ParseRawStringLit() (t *node.RawStringLit) {
+func (p *Parser) ParseRawStrLit() (t *node.RawStrLit) {
 	if p.Trace {
-		defer untracep(tracep(p, "RawStringLit"))
+		defer untracep(tracep(p, "RawStrLit"))
 	}
-	t = &node.RawStringLit{
+	t = &node.RawStrLit{
 		Literal:    p.Token.Literal,
 		LiteralPos: p.Token.Pos,
 		Quoted:     p.Token.Literal[0] == '`',
@@ -1918,6 +1920,18 @@ func (p *Parser) ParseRawHeredocLit() (t *node.RawHeredocLit) {
 		defer untracep(tracep(p, "RawHeredocLit"))
 	}
 	t = &node.RawHeredocLit{
+		Literal:    p.Token.Literal,
+		LiteralPos: p.Token.Pos,
+	}
+	p.Next()
+	return
+}
+
+func (p *Parser) ParseHeredocLit() (t *node.HeredocLit) {
+	if p.Trace {
+		defer untracep(tracep(p, "HeredocLit"))
+	}
+	t = &node.HeredocLit{
 		Literal:    p.Token.Literal,
 		LiteralPos: p.Token.Pos,
 	}
@@ -2709,7 +2723,7 @@ func (p *Parser) ParseDictElementLit() *node.DictElementLit {
 			key = p.ParseSingleParemExpr(token.LBrack, token.RBrack)
 		default:
 			if p.Token.Token.IsKeyword() {
-				key = &node.StringLit{ValuePos: pos, Literal: strconv.Quote(p.Token.Literal)}
+				key = &node.StrLit{ValuePos: pos, Literal: strconv.Quote(p.Token.Literal)}
 				p.Next()
 			} else {
 				p.ErrorExpected(pos, "map key")
@@ -3374,6 +3388,7 @@ func isPrimiteValue(tok token.Token) bool {
 		token.String,
 		token.RawString,
 		token.RawHeredoc,
+		token.Heredoc,
 		token.Symbol,
 		token.Nil,
 		token.True,

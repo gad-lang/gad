@@ -1855,7 +1855,7 @@ d=#dVal,e=#(e val)
 	test.ExpectParseString(t, `(;a int|bool|str=1)`, `(;a int|bool|str=1)`)
 }
 
-func TestTemplateStringLit(t *testing.T) {
+func TestTemplateStrLit(t *testing.T) {
 	test.ExpectParseString(t, `#"A"`, `#"A"`)
 	test.ExpectParseString(t, "#`A`", "#`A`")
 	test.ExpectParseString(t, "#```A```", "#```A```")
@@ -1907,18 +1907,18 @@ func TestTemplateString(t *testing.T) {
 	// value, located at ofp in the source and tfp in the template file.
 	expectText := func(t *testing.T, arg Expr, value string, ofp, tfp Pos) {
 		t.Helper()
-		s, ok := arg.(*StringLit)
-		require.True(t, ok, "expected *StringLit, got %T", arg)
+		s, ok := arg.(*StrLit)
+		require.True(t, ok, "expected *StrLit, got %T", arg)
 		require.Equal(t, value, s.Value())
 		expectPos(t, ofp, tfp, s.Pos())
 	}
 
 	// expectRawText asserts a text segment of a raw (backtick) template, kept
-	// verbatim as a RawStringLit (no unquoting), located at ofp/tfp.
+	// verbatim as a RawStrLit (no unquoting), located at ofp/tfp.
 	expectRawText := func(t *testing.T, arg Expr, literal string, ofp, tfp Pos) {
 		t.Helper()
-		s, ok := arg.(*RawStringLit)
-		require.True(t, ok, "expected *RawStringLit, got %T", arg)
+		s, ok := arg.(*RawStrLit)
+		require.True(t, ok, "expected *RawStrLit, got %T", arg)
 		require.Equal(t, literal, s.Value())
 		expectPos(t, ofp, tfp, s.Pos())
 	}
@@ -1942,7 +1942,7 @@ func TestTemplateString(t *testing.T) {
 					exprs(EIdent("x", p(1, 1))),
 					exprs(&TemplateLit{
 						TokenPos: p(1, 6),
-						Value:    String("hello {user}!", p(1, 7)),
+						Value:    Str("hello {user}!", p(1, 7)),
 					}), token.Define, p(1, 3)))
 		}).File()
 
@@ -2102,10 +2102,10 @@ func TestParseChar(t *testing.T) {
 	test.ExpectParseError(t, `'AB'`)
 	test.ExpectParseError(t, `'A九'`)
 
-	test.ExpectParseExpr(t, `'A'`, charAsStringLit("A", 1), test.OptParseCharAsString)
-	test.ExpectParseExpr(t, `'九'`, charAsStringLit("九", 1), test.OptParseCharAsString)
-	test.ExpectParseExpr(t, `'A九'`, charAsStringLit("A九", 1), test.OptParseCharAsString)
-	test.ExpectParseExpr(t, "'a\\'b'", charAsStringLit(`a'b`, 1), test.OptParseCharAsString)
+	test.ExpectParseExpr(t, `'A'`, charAsStrLit("A", 1), test.OptParseCharAsString)
+	test.ExpectParseExpr(t, `'九'`, charAsStrLit("九", 1), test.OptParseCharAsString)
+	test.ExpectParseExpr(t, `'A九'`, charAsStrLit("A九", 1), test.OptParseCharAsString)
+	test.ExpectParseExpr(t, "'a\\'b'", charAsStrLit(`a'b`, 1), test.OptParseCharAsString)
 }
 
 func TestParseCondExpr(t *testing.T) {
@@ -2819,7 +2819,7 @@ func TestParseFunction(t *testing.T) {
 		return stmts(
 			funcStmt(
 				EFunc(
-					funcType(p(1, 4), ESelector(EIdent("class", p(1, 6)), String("fn", p(1, 12))), p(1, 15), p(1, 17),
+					funcType(p(1, 4), ESelector(EIdent("class", p(1, 6)), Str("fn", p(1, 12))), p(1, 15), p(1, 17),
 						funcArgs(nil,
 							EIdent("b", p(1, 16))),
 					),
@@ -2834,7 +2834,7 @@ func TestParseFunction(t *testing.T) {
 					funcType(p(1, 4),
 						EIndex(
 							EIdent("class", p(1, 6)),
-							String("fn", p(1, 12)),
+							Str("fn", p(1, 12)),
 							p(1, 11),
 							p(1, 16),
 						), p(1, 18), p(1, 20),
@@ -2861,9 +2861,9 @@ func TestParseFunction(t *testing.T) {
 									EIndex(
 										ESelector(
 											EIdent("class", p(1, 6)),
-											String("fn", p(1, 12)),
+											Str("fn", p(1, 12)),
 										),
-										String("x", p(1, 15)),
+										Str("x", p(1, 15)),
 										p(1, 14),
 										p(1, 18),
 									),
@@ -2871,7 +2871,7 @@ func TestParseFunction(t *testing.T) {
 									p(1, 19),
 									p(1, 23),
 								),
-								String("z", p(1, 25)),
+								Str("z", p(1, 25)),
 							),
 							p(1, 27), p(1, 29),
 							funcArgs(nil,
@@ -2899,7 +2899,7 @@ func TestParseMethod(t *testing.T) {
 		return stmts(
 			exprStmt(
 				EMethod(funcLit(
-					funcType(p(1, 4), ESelector(EIdent("class", p(1, 5)), String("fn", p(1, 11))), p(1, 14), p(1, 16),
+					funcType(p(1, 4), ESelector(EIdent("class", p(1, 5)), Str("fn", p(1, 11))), p(1, 14), p(1, 16),
 						funcArgs(nil,
 							EIdent("b", p(1, 15))),
 					),
@@ -2915,7 +2915,7 @@ func TestParseMethod(t *testing.T) {
 						funcType(p(1, 4),
 							EIndex(
 								EIdent("class", p(1, 5)),
-								String("fn", p(1, 11)),
+								Str("fn", p(1, 11)),
 								p(1, 10),
 								p(1, 15),
 							), p(1, 17), p(1, 19),
@@ -2942,9 +2942,9 @@ func TestParseMethod(t *testing.T) {
 									EIndex(
 										ESelector(
 											EIdent("class", p(1, 5)),
-											String("fn", p(1, 11)),
+											Str("fn", p(1, 11)),
 										),
-										String("x", p(1, 14)),
+										Str("x", p(1, 14)),
 										p(1, 13),
 										p(1, 17),
 									),
@@ -2952,7 +2952,7 @@ func TestParseMethod(t *testing.T) {
 									p(1, 18),
 									p(1, 22),
 								),
-								String("z", p(1, 24)),
+								Str("z", p(1, 24)),
 							),
 							p(1, 26), p(1, 28),
 							funcArgs(nil,
@@ -2971,7 +2971,7 @@ func TestParseSpecialKeywords(t *testing.T) {
 	test.New(t, "@main;x.@main").Stmts(func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(&IsMainLit{TokenPos: p(1, 1)}),
-			exprStmt(ESelector(EIdent("x", p(1, 7)), String("@main", p(1, 9)))),
+			exprStmt(ESelector(EIdent("x", p(1, 7)), Str("@main", p(1, 9)))),
 		)
 	})
 }
@@ -3358,7 +3358,7 @@ func TestParseEmbed(t *testing.T) {
 		return stmts(
 			assignStmt(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(embedExpr(NewCallArgs(p(1, 11), p(1, 29)).Arg(String("file", p(1, 12))).NamedValue(EIdent("sources", p(1, 19)), Array(p(1, 27), p(1, 28))), p(1, 6))),
+				exprs(embedExpr(NewCallArgs(p(1, 11), p(1, 29)).Arg(Str("file", p(1, 12))).NamedValue(EIdent("sources", p(1, 19)), Array(p(1, 27), p(1, 28))), p(1, 6))),
 				token.Define, p(1, 3)))
 	})
 
@@ -3366,7 +3366,7 @@ func TestParseEmbed(t *testing.T) {
 		return stmts(
 			assignStmt(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(embedExpr(NewCallArgs(p(1, 11), p(1, 18)).Arg(String("file", p(1, 12))), p(1, 6))),
+				exprs(embedExpr(NewCallArgs(p(1, 11), p(1, 18)).Arg(Str("file", p(1, 12))), p(1, 6))),
 				token.Define, p(1, 3)))
 	})
 
@@ -3374,7 +3374,7 @@ func TestParseEmbed(t *testing.T) {
 		return stmts(
 			exprStmt(
 				selectorExpr(
-					embedExpr(NewCallArgs(p(1, 6), p(1, 13)).Arg(String("file", p(1, 7))), p(1, 1)),
+					embedExpr(NewCallArgs(p(1, 6), p(1, 13)).Arg(Str("file", p(1, 7))), p(1, 1)),
 					stringLit("var1", p(1, 15)))))
 	})
 
@@ -3383,7 +3383,7 @@ func TestParseEmbed(t *testing.T) {
 			forInStmt(
 				EIdent("x", p(1, 5)),
 				EIdent("y", p(1, 8)),
-				embedExpr(NewCallArgs(p(1, 18), p(1, 25)).Arg(String("file", p(1, 19))), p(1, 13)),
+				embedExpr(NewCallArgs(p(1, 18), p(1, 25)).Arg(Str("file", p(1, 19))), p(1, 13)),
 				blockStmt(p(1, 27), p(1, 28)),
 				p(1, 1)))
 	})
@@ -3391,37 +3391,37 @@ func TestParseEmbed(t *testing.T) {
 	test.ExpectParse(t, `embed("dir";sources=["a","b"])`, func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				embedExpr(NewCallArgs(p(1, 6), p(1, 30)).Arg(String("dir", p(1, 7))).NamedValue(EIdent("sources", p(1, 13)), Array(p(1, 21), p(1, 29), String("a", p(1, 22)), String("b", p(1, 26)))), p(1, 1))))
+				embedExpr(NewCallArgs(p(1, 6), p(1, 30)).Arg(Str("dir", p(1, 7))).NamedValue(EIdent("sources", p(1, 13)), Array(p(1, 21), p(1, 29), Str("a", p(1, 22)), Str("b", p(1, 26)))), p(1, 1))))
 	})
 
 	test.ExpectParse(t, `embed("file";includes=["*.go"])`, func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				embedExpr(NewCallArgs(p(1, 6), p(1, 31)).Arg(String("file", p(1, 7))).NamedValue(EIdent("includes", p(1, 14)), Array(p(1, 23), p(1, 30), String("*.go", p(1, 24)))), p(1, 1))))
+				embedExpr(NewCallArgs(p(1, 6), p(1, 31)).Arg(Str("file", p(1, 7))).NamedValue(EIdent("includes", p(1, 14)), Array(p(1, 23), p(1, 30), Str("*.go", p(1, 24)))), p(1, 1))))
 	})
 
 	test.ExpectParse(t, `embed("dir";tree)`, func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				embedExpr(NewCallArgs(p(1, 6), p(1, 17)).Arg(String("dir", p(1, 7))).NamedFlag(EIdent("tree", p(1, 13))), p(1, 1))))
+				embedExpr(NewCallArgs(p(1, 6), p(1, 17)).Arg(Str("dir", p(1, 7))).NamedFlag(EIdent("tree", p(1, 13))), p(1, 1))))
 	})
 
 	test.ExpectParse(t, `embed("dir";includes_re=["[.go]"])`, func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				embedExpr(NewCallArgs(p(1, 6), p(1, 34)).Arg(String("dir", p(1, 7))).NamedValue(EIdent("includes_re", p(1, 13)), Array(p(1, 25), p(1, 33), String("[.go]", p(1, 26)))), p(1, 1))))
+				embedExpr(NewCallArgs(p(1, 6), p(1, 34)).Arg(Str("dir", p(1, 7))).NamedValue(EIdent("includes_re", p(1, 13)), Array(p(1, 25), p(1, 33), Str("[.go]", p(1, 26)))), p(1, 1))))
 	})
 
 	test.ExpectParse(t, `embed("dir";excludes_re=["[.go]"])`, func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				embedExpr(NewCallArgs(p(1, 6), p(1, 34)).Arg(String("dir", p(1, 7))).NamedValue(EIdent("excludes_re", p(1, 13)), Array(p(1, 25), p(1, 33), String("[.go]", p(1, 26)))), p(1, 1))))
+				embedExpr(NewCallArgs(p(1, 6), p(1, 34)).Arg(Str("dir", p(1, 7))).NamedValue(EIdent("excludes_re", p(1, 13)), Array(p(1, 25), p(1, 33), Str("[.go]", p(1, 26)))), p(1, 1))))
 	})
 
 	test.ExpectParse(t, `embed("dir";config_file="cfg.yaml")`, func(p pfn) []Stmt {
 		return stmts(
 			exprStmt(
-				embedExpr(NewCallArgs(p(1, 6), p(1, 35)).Arg(String("dir", p(1, 7))).NamedValue(EIdent("config_file", p(1, 13)), String("cfg.yaml", p(1, 25))), p(1, 1))))
+				embedExpr(NewCallArgs(p(1, 6), p(1, 35)).Arg(Str("dir", p(1, 7))).NamedValue(EIdent("config_file", p(1, 13)), Str("cfg.yaml", p(1, 25))), p(1, 1))))
 	})
 	test.ExpectParseError(t, `embed(1)`)
 	test.ExpectParseError(t, `embed('a')`)
@@ -4110,10 +4110,13 @@ func TestParseString(t *testing.T) {
 		return stmts(exprStmt(stringLit("foo\\n\nbar", p(1, 1))))
 	})
 	test.ExpectParse(t, "`abc`", func(p pfn) []Stmt {
-		return stmts(exprStmt(rawStringLit(`abc`, p(1, 1))))
+		return stmts(exprStmt(rawStrLit(`abc`, p(1, 1))))
 	})
 	test.ExpectParse(t, "```\nabc\n```", func(p pfn) []Stmt {
 		return stmts(exprStmt(rawHeredocLit("```", `abc`, p(1, 1))))
+	})
+	test.ExpectParse(t, `"""`+"\nabc\n"+`"""`, func(p pfn) []Stmt {
+		return stmts(exprStmt(heredocLit(`"""`, `abc`, p(1, 1))))
 	})
 	test.ExpectParse(t, "a = \"foo\nbar\"", func(p pfn) []Stmt {
 		return stmts(
@@ -4135,7 +4138,7 @@ func TestParseString(t *testing.T) {
 		return stmts(
 			assignStmt(
 				exprs(EIdent("a", p(1, 1))),
-				exprs(rawStringLit("`raw string`", p(1, 5))),
+				exprs(rawStrLit("`raw string`", p(1, 5))),
 				token.Assign,
 				p(1, 3)))
 	})
@@ -4723,20 +4726,24 @@ func decimalLit(value string, pos Pos) *DecimalLit {
 	return &DecimalLit{Value: v, ValuePos: pos}
 }
 
-func stringLit(value string, pos Pos) *StringLit {
-	return &StringLit{Literal: `"` + value + `"`, ValuePos: pos}
+func stringLit(value string, pos Pos) *StrLit {
+	return &StrLit{Literal: `"` + value + `"`, ValuePos: pos}
 }
 
-func charAsStringLit(value string, pos Pos) *StringLit {
-	return &StringLit{Literal: `'` + strings.ReplaceAll(value, "'", `\'`) + `'`, ValuePos: pos}
+func charAsStrLit(value string, pos Pos) *StrLit {
+	return &StrLit{Literal: `'` + strings.ReplaceAll(value, "'", `\'`) + `'`, ValuePos: pos}
 }
 
-func rawStringLit(value string, pos Pos) *RawStringLit {
-	return &RawStringLit{Literal: value, LiteralPos: pos, Quoted: value[0] == '`'}
+func rawStrLit(value string, pos Pos) *RawStrLit {
+	return &RawStrLit{Literal: value, LiteralPos: pos, Quoted: value[0] == '`'}
 }
 
 func rawHeredocLit(q, value string, pos Pos) *RawHeredocLit {
 	return &RawHeredocLit{Literal: q + "\n" + value + "\n" + q, LiteralPos: pos}
+}
+
+func heredocLit(q, value string, pos Pos) *HeredocLit {
+	return &HeredocLit{Literal: q + "\n" + value + "\n" + q, LiteralPos: pos}
 }
 
 func charLit(value rune, pos Pos) *CharLit {
@@ -4774,7 +4781,7 @@ func dicElementLit(
 	value Expr,
 ) *DictElementLit {
 	return &DictElementLit{
-		Key: String(key, keyPos), ColonPos: colonPos, Value: value,
+		Key: Str(key, keyPos), ColonPos: colonPos, Value: value,
 	}
 }
 

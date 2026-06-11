@@ -13,7 +13,7 @@ func (b *NamedArgBuilder) Ident(v *IdentExpr) *NamedArgBuilder {
 	return b
 }
 
-func (b *NamedArgBuilder) Literal(v *StringLit) *NamedArgBuilder {
+func (b *NamedArgBuilder) Literal(v *StrLit) *NamedArgBuilder {
 	b.v.Lit = v
 	return b
 }

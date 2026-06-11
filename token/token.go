@@ -30,6 +30,7 @@ const (
 	String
 	RawString
 	RawHeredoc
+	Heredoc
 	Template
 	Symbol
 	GroupLiteralEnd
@@ -192,6 +193,7 @@ var tokens = [...]string{
 	String:          "STR",
 	RawString:       "RAWSTR",
 	RawHeredoc:      "RAWHEREDOC",
+	Heredoc:         "HEREDOC",
 	Template:        "TMPL",
 	Symbol:          "SYMBOL",
 	Null:            "NULL",
@@ -319,6 +321,7 @@ var tokenNames = [...]string{
 	String:                       "String",
 	RawString:                    "RawString",
 	RawHeredoc:                   "RawHeredoc",
+	Heredoc:                      "Heredoc",
 	Template:                     "Template",
 	Symbol:                       "Symbol",
 	GroupLiteralEnd:              "GroupLiteralEnd",

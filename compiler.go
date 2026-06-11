@@ -406,7 +406,7 @@ stmts:
 				switch t := s.(type) {
 				case *node.MixedTextStmt:
 					lit := t.ValidLit()
-					exprs[z] = &node.RawStringLit{
+					exprs[z] = &node.RawStrLit{
 						Literal:    lit.Value,
 						LiteralPos: lit.Pos,
 					}
@@ -527,12 +527,14 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		} else {
 			c.emit(nt, OpNo)
 		}
-	case *node.StringLit:
+	case *node.StrLit:
 		c.emit(nt, OpConstant, c.addConstant(Str(nt.Value())))
-	case *node.RawStringLit:
+	case *node.RawStrLit:
 		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.Value())))
 	case *node.RawHeredocLit:
 		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.Value())))
+	case *node.HeredocLit:
+		c.emit(nt, OpConstant, c.addConstant(Str(nt.Value())))
 	case *node.CharLit:
 		c.emit(nt, OpConstant, c.addConstant(Char(nt.Value)))
 	case *node.SymbolLit:
