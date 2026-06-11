@@ -197,6 +197,10 @@ func (f *File) LineCount() int {
 	return len(f.Lines)
 }
 
+func (f *File) Pos(line, column int) Pos {
+	return Pos(int(MustFileLineStartPos(f, line)) + (column - 1))
+}
+
 // AddLine adds a new line by first data offset (after LF char).
 func (f *File) AddLine(offset int) {
 	if offset > f.Size {

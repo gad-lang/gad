@@ -32,11 +32,8 @@ func (f *File) File() *parser.File {
 }
 
 func (f *File) Expect(fn ExpectedFn, post ...PostFileCallback) *File {
-	buildPos := func(line, column int) source.Pos {
-		return source.Pos(int(source.MustFileLineStartPos(f.actual.InputFile, line)) + (column - 1))
-	}
-
-	expectedStmts := fn(buildPos)
+	pos := f.actual.InputFile.Pos
+	expectedStmts := fn(pos)
 
 	f.Equal(len(expectedStmts), len(f.actual.Stmts), "len(file.Stmts)")
 
@@ -45,7 +42,7 @@ func (f *File) Expect(fn ExpectedFn, post ...PostFileCallback) *File {
 	}
 
 	for _, pt := range post {
-		pt(f.t, f.actual.InputFile, buildPos)
+		pt(f.t, f.actual.InputFile, pos)
 	}
 	return f
 }
@@ -446,7 +443,7 @@ func (f *File) EqualExpr(expected, actual node.Expr) {
 		act := actual.(*node.TemplateLit)
 		f.Equal(expected.TokenPos, act.TokenPos)
 		f.EqualExpr(expected.Value, act.Value)
-		default:
+	default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}
 }

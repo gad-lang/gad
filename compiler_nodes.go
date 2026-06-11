@@ -1972,13 +1972,17 @@ func (c *Compiler) compileTemplateLit(nd *node.TemplateLit) error {
 		tmplValue = t.Value()
 	case *node.RawStringLit:
 		tmplValue = t.Value()
+	case *node.RawHeredocLit:
+		// Parse the untrimmed body so interpolation positions map to source;
+		// Build re-applies the heredoc indentation stripping.
+		tmplValue = t.RawContent()
 	case *node.SymbolLit:
 		tmplValue = t.Value()
 	default:
 		return c.errorf(nd, "expected string for template literal")
 	}
 
-	file, err := parser.ParseTemplateString(tmplValue, nd.Value.Pos())
+	file, err := parser.ParseTemplateString(tmplValue, nd.StringValuePos())
 	if err != nil {
 		return c.errorf(nd, "template parse error: %w", err)
 	}

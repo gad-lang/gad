@@ -1,7 +1,6 @@
 package node
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -969,62 +968,116 @@ func (e *RawHeredocLit) End() source.Pos {
 	return source.Pos(int(e.LiteralPos) + len(e.Literal))
 }
 
+// backticks returns the number of leading backtick fence characters.
+func (e *RawHeredocLit) backticks() int {
+	n := 0
+	for n < len(e.Literal) && e.Literal[n] == '`' {
+		n++
+	}
+	return n
+}
+
+// contentOffset returns the byte offset within Literal at which RawContent
+// begins: past the leading backticks and, for the common multiline form, the
+// newline that ends the opening fence line.
+func (e *RawHeredocLit) contentOffset() int {
+	n := e.backticks()
+	if n < len(e.Literal) && e.Literal[n] == '\n' {
+		return n + 1
+	}
+	return n
+}
+
+// ContentPos returns the source position of the first byte of RawContent.
+func (e *RawHeredocLit) ContentPos() source.Pos {
+	return source.Pos(int(e.LiteralPos) + e.contentOffset())
+}
+
+// RawContent returns the heredoc body with the surrounding backtick fences, the
+// opening fence line and the closing line removed, but with interior
+// indentation preserved. Unlike Value it keeps a 1:1 byte correspondence with
+// the original source starting at ContentPos, so it is what gets parsed for
+// template interpolation so positions map back to the source.
+func (e *RawHeredocLit) RawContent() string {
+	n := e.backticks()
+	body := e.Literal[n : len(e.Literal)-n]
+	if len(body) > 0 && body[0] == '\n' {
+		body = body[1:]
+		if i := strings.LastIndexByte(body, '\n'); i >= 0 {
+			body = body[:i]
+		}
+	}
+	return body
+}
+
+// StripCount returns the common leading indentation (spaces/tabs) removed from
+// each content line by Value. It is zero for the single-line form (no newline
+// after the opening fence), which is not indentation-stripped.
+func (e *RawHeredocLit) StripCount() int {
+	n := e.backticks()
+	if n >= len(e.Literal) || e.Literal[n] != '\n' {
+		return 0
+	}
+	c := e.RawContent()
+	i := 0
+	for i < len(c) && (c[i] == ' ' || c[i] == '\t') {
+		i++
+	}
+	return i
+}
+
+// stripHeredocIndent removes up to n leading spaces/tabs from every line of s.
+func stripHeredocIndent(s string, n int) string {
+	if n <= 0 {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		j := 0
+		for j < n && j < len(line) && (line[j] == ' ' || line[j] == '\t') {
+			j++
+		}
+		lines[i] = line[j:]
+	}
+	return strings.Join(lines, "\n")
+}
+
+// stripIndentAfterNewlines removes up to n leading spaces/tabs after every
+// newline in s, and also at the start when atStart is true. It applies the same
+// per-line heredoc indentation stripping as stripHeredocIndent to a single text
+// segment, without touching the segment's source position.
+func stripIndentAfterNewlines(s string, n int, atStart bool) string {
+	if n <= 0 {
+		return s
+	}
+	var out strings.Builder
+	out.Grow(len(s))
+	i := 0
+	skip := func() {
+		for c := 0; c < n && i < len(s) && (s[i] == ' ' || s[i] == '\t'); c++ {
+			i++
+		}
+	}
+	if atStart {
+		skip()
+	}
+	for i < len(s) {
+		c := s[i]
+		out.WriteByte(c)
+		i++
+		if c == '\n' {
+			skip()
+		}
+	}
+	return out.String()
+}
+
 func (e *RawHeredocLit) String() string {
 	return e.Literal
 }
 
 func (e *RawHeredocLit) Value() string {
-	var bts = []byte(e.Literal)
-
-	for i, r := range bts {
-		if r != '`' {
-			if r == '\n' {
-				bts = bts[i+1 : len(bts)-i]
-				// remove Last Line
-				bts = bts[:bytes.LastIndexByte(bts, '\n')]
-				var stripCount int
-			l2:
-				for j, r := range bts {
-					switch r {
-					case ' ', '\t':
-					default:
-						stripCount = j
-						break l2
-					}
-				}
-
-				if stripCount > 0 {
-					var (
-						lines = bytes.Split(bts, []byte{'\n'})
-						out   strings.Builder
-					)
-					for j, line := range lines {
-						var i int
-					l3:
-						for ; i < stripCount && i < len(line); i++ {
-							switch line[i] {
-							case '\t', ' ':
-							default:
-								break l3
-							}
-						}
-
-						if j > 0 {
-							out.WriteByte('\n')
-						}
-
-						out.Write(line[i:])
-					}
-
-					return out.String()
-				}
-			} else {
-				bts = bts[i : len(bts)-i]
-			}
-			break
-		}
-	}
-	return string(bts)
+	return stripHeredocIndent(e.RawContent(), e.StripCount())
 }
 
 func (e *RawHeredocLit) WriteCode(ctx *CodeWriteContext) {
@@ -1060,11 +1113,29 @@ func (e *TemplateLit) StringValue() string {
 		return vt.Value()
 	case *RawStringLit:
 		return vt.Value()
+	case *RawHeredocLit:
+		// Parse the untrimmed body so interpolation positions map 1:1 to the
+		// source; Build re-applies the heredoc indentation stripping to the
+		// rendered text segments.
+		return vt.RawContent()
 	case *SymbolLit:
 		return vt.Value()
 	default:
 		return ""
 	}
+}
+
+// StringValuePos returns the source position to pass to
+// parser.ParseTemplateString: the position of the byte immediately before the
+// first content byte of StringValue (the template content begins one byte
+// after it). For single-delimiter values that is the opening delimiter; for a
+// heredoc it is the newline that ends the opening backtick line, since the
+// surrounding backticks and the opening line are stripped from the content.
+func (e *TemplateLit) StringValuePos() source.Pos {
+	if h, ok := e.Value.(*RawHeredocLit); ok {
+		return h.ContentPos() - 1
+	}
+	return e.Value.Pos()
 }
 
 func (e *TemplateLit) WriteCode(ctx *CodeWriteContext) {
@@ -1074,31 +1145,51 @@ func (e *TemplateLit) WriteCode(ctx *CodeWriteContext) {
 
 func (e *TemplateLit) Build(sourceStmts Stmts) (expr Expr, err error) {
 	var raw bool
-	switch e.Value.(type) {
+	// stripCount > 0 marks a heredoc whose rendered text segments must be
+	// indentation-stripped, even though they were parsed untrimmed (to keep
+	// interpolation positions mapped to the original source).
+	var stripCount int
+	switch v := e.Value.(type) {
+	case *RawHeredocLit:
+		raw = true
+		stripCount = v.StripCount()
 	case *RawStringLit:
 		raw = true
 	case *StringLit, *SymbolLit:
 	default:
-		return nil, errors.New("template literal must be a string or a RawStringLit or SymbolLit")
+		return nil, errors.New("template literal must be a string, raw string, heredoc, or symbol")
 	}
 
+	// The first text segment begins a source line, so its leading indentation
+	// is stripped too; later segments follow an interpolation mid-line.
+	atLineStart := true
 	var exprs Exprs
 	for _, stmt := range sourceStmts {
 		var exp Expr
 		switch lit := stmt.(type) {
 		case *MixedTextStmt:
+			val := lit.Value()
+			if stripCount > 0 {
+				trimmed := stripIndentAfterNewlines(val, stripCount, atLineStart)
+				atLineStart = strings.HasSuffix(val, "\n")
+				val = trimmed
+			}
 			if raw {
-				exp = &StringLit{
-					Literal:  lit.Value(),
-					ValuePos: lit.Pos(),
+				// Raw text is kept verbatim; a RawStringLit emits it as-is,
+				// whereas a StringLit would later be unquoted by the compiler.
+				exp = &RawStringLit{
+					Literal:    val,
+					LiteralPos: lit.Pos(),
 				}
 			} else {
-				exp = String(lit.Value(), lit.Pos())
+				exp = String(val, lit.Pos())
 			}
 		case *ExprStmt:
 			exp = lit.Expr
+			atLineStart = false
 		case *MixedValueStmt:
 			exp = lit.Expr
+			atLineStart = false
 		default:
 			continue
 		}

@@ -1862,51 +1862,78 @@ func TestTemplateStringLit(t *testing.T) {
 }
 
 func TestTemplateString(t *testing.T) {
-	t.Run("ParseTemplateString raw plain", func(t *testing.T) {
-		f, err := ParseTemplateString("hello", 100)
-		require.NoError(t, err)
-		test.NewFile(t, f).Expect(func(pos test.Pfn) []Stmt {
-			return stmts(mixedTextStmt(pos(1, 1), "hello"))
-		})
-	})
-
-	t.Run("ParseTemplateString raw hello user", func(t *testing.T) {
-		f, err := ParseTemplateString("hello {user}!", 100)
-		require.NoError(t, err)
-		test.NewFile(t, f).Expect(func(pos test.Pfn) []Stmt {
-			return stmts(
-				mixedTextStmt(pos(1, 1), "hello "),
-				codeBegin(lit("{", pos(1, 7)), false),
-				exprStmt(EIdent("user", pos(1, 8))),
-				codeEnd(lit("}", pos(1, 12)), false),
-				mixedTextStmt(pos(1, 13), "!"),
-			)
-		})
-	})
-
-	t.Run("ParseTemplateString plain", func(t *testing.T) {
-		of := test.New(t, `x := #"hello"`).File().Expect(func(p test.Pfn) []Stmt {
-			return stmts(
-				assignStmt(
-					exprs(EIdent("x", p(1, 1))),
-					exprs(&TemplateLit{
-						TokenPos: p(1, 6),
-						Value:    String("hello", p(1, 7)),
-					}), token.Define, p(1, 3)))
-		}).File()
-
+	// build parses `src` (an `x := #<template>` assignment), extracts the
+	// TemplateLit, parses its template body and compiles it via Build. It
+	// returns the original file's position function and the positional
+	// arguments of the generated `str(...)` call, unwrapping the ToRaw
+	// wrapper produced for raw (backtick) templates.
+	// ofPos is original pos build
+	// tfPos is template pos build
+	build := func(t *testing.T, src string) (ofPos test.Pfn, tfPos test.Pfn, _ []Expr) {
+		t.Helper()
+		of := test.New(t, src).File().File()
 		tmpl := of.Stmts[0].(*AssignStmt).RHS[0].(*TemplateLit)
-		f, err := ParseTemplateString(tmpl.StringValue(), tmpl.Value.Pos())
-
+		tf, err := ParseTemplateString(tmpl.StringValue(), tmpl.StringValuePos())
 		require.NoError(t, err)
-		test.NewFile(t, f).Expect(func(pos test.Pfn) []Stmt {
-			return stmts(
-				mixedTextStmt(pos(1, 1), "hello"),
-			)
-		})
-	})
+		expr, err := tmpl.Build(tf.Stmts)
+		require.NoError(t, err)
 
-	t.Run("ParseTemplateString hello user", func(t *testing.T) {
+		call, ok := expr.(*CallExpr)
+		if !ok {
+			raw, isRaw := expr.(*ToRaw)
+			require.True(t, isRaw, "expected *CallExpr or *ToRaw, got %T", expr)
+			call, ok = raw.Expr.(*CallExpr)
+			require.True(t, ok, "expected *CallExpr inside ToRaw, got %T", raw.Expr)
+		}
+
+		fn, ok := call.Func.(*IdentExpr)
+		require.True(t, ok, "expected *IdentExpr func, got %T", call.Func)
+		require.Equal(t, "str", fn.Name)
+		require.Equal(t, tmpl.Pos(), fn.NamePos)
+
+		return of.InputFile.Pos, tf.InputFile.Pos, call.Args.Values
+	}
+
+	// expectPos asserts that the original-source position ofp and the
+	// template-file position tfp resolve to the same absolute Pos (the template
+	// base-offset mapping) and that the node sits at that position.
+	expectPos := func(t *testing.T, ofp, tfp, got Pos) {
+		t.Helper()
+		require.Equal(t, ofp, tfp, "ofPos must equal tfPos")
+		require.Equal(t, ofp, got)
+	}
+
+	// expectText asserts that arg is a text segment with the given (unescaped)
+	// value, located at ofp in the source and tfp in the template file.
+	expectText := func(t *testing.T, arg Expr, value string, ofp, tfp Pos) {
+		t.Helper()
+		s, ok := arg.(*StringLit)
+		require.True(t, ok, "expected *StringLit, got %T", arg)
+		require.Equal(t, value, s.Value())
+		expectPos(t, ofp, tfp, s.Pos())
+	}
+
+	// expectRawText asserts a text segment of a raw (backtick) template, kept
+	// verbatim as a RawStringLit (no unquoting), located at ofp/tfp.
+	expectRawText := func(t *testing.T, arg Expr, literal string, ofp, tfp Pos) {
+		t.Helper()
+		s, ok := arg.(*RawStringLit)
+		require.True(t, ok, "expected *RawStringLit, got %T", arg)
+		require.Equal(t, literal, s.Value())
+		expectPos(t, ofp, tfp, s.Pos())
+	}
+
+	// expectIdent asserts that arg is an identifier with the given name,
+	// located at ofp in the source and tfp in the template file.
+	expectIdent := func(t *testing.T, arg Expr, name string, ofp, tfp Pos) {
+		t.Helper()
+		id, ok := arg.(*IdentExpr)
+		require.True(t, ok, "expected *IdentExpr, got %T", arg)
+		require.Equal(t, name, id.Name)
+		expectPos(t, ofp, tfp, id.Pos())
+	}
+
+	t.Run("hello {user}!", func(t *testing.T) {
 		var ofPos, tfPos test.Pfn
 		of := test.New(t, `x := #"hello {user}!"`).File().Expect(func(p test.Pfn) []Stmt {
 			ofPos = p
@@ -1920,7 +1947,7 @@ func TestTemplateString(t *testing.T) {
 		}).File()
 
 		tmpl := of.Stmts[0].(*AssignStmt).RHS[0].(*TemplateLit)
-		tf, err := ParseTemplateString(tmpl.StringValue(), tmpl.Value.Pos())
+		tf, err := ParseTemplateString(tmpl.StringValue(), tmpl.StringValuePos())
 		require.NoError(t, err)
 		test.NewFile(t, tf).Expect(func(pos test.Pfn) []Stmt {
 			tfPos = pos
@@ -1940,39 +1967,131 @@ func TestTemplateString(t *testing.T) {
 		require.Equal(t, string(tf.InputFile.Data.Bytes()[tUserStartIndex:tUserStartIndex+4]), "user")
 
 		require.Equal(t, ofPos(1, 15), tfPos(1, 8))
+
+		// Build turns the parsed template into a `str(...)` call whose
+		// arguments carry the source positions of the original template, so
+		// each argument maps back to its location in `of` (p) while still being
+		// reachable through the template file (tp).
+		p, tp, args := build(t, `x := #"hello {user}!"`)
+		require.Len(t, args, 3)
+		expectText(t, args[0], "hello ", p(1, 8), tp(1, 1)) // leading text
+		expectIdent(t, args[1], "user", p(1, 15), tp(1, 8)) // interpolated `user`
+		expectText(t, args[2], "!", p(1, 20), tp(1, 13))    // trailing text
 	})
 
-	t.Run("ParseTemplateString multiple expressions", func(t *testing.T) {
-		of := test.New(t, `x := #"{a}+{b}={a+b}"`).File().Expect(func(p test.Pfn) []Stmt {
-			return stmts(
-				assignStmt(
-					exprs(EIdent("x", p(1, 1))),
-					exprs(&TemplateLit{
-						TokenPos: p(1, 6),
-						Value:    String("{a}+{b}={a+b}", p(1, 7)),
-					}), token.Define, p(1, 3)))
-		}).File()
-
-		tmpl := of.Stmts[0].(*AssignStmt).RHS[0].(*TemplateLit)
-		f, err := ParseTemplateString(tmpl.StringValue(), tmpl.Value.Pos())
-		require.NoError(t, err)
-		test.NewFile(t, f).Expect(func(pos test.Pfn) []Stmt {
-			return stmts(
-				codeBegin(lit("{", pos(1, 1)), false),
-				exprStmt(EIdent("a", pos(1, 2))),
-				codeEnd(lit("}", pos(1, 3)), false),
-				mixedTextStmt(pos(1, 4), "+"),
-				codeBegin(lit("{", pos(1, 5)), false),
-				exprStmt(EIdent("b", pos(1, 6))),
-				codeEnd(lit("}", pos(1, 7)), false),
-				mixedTextStmt(pos(1, 8), "="),
-				codeBegin(lit("{", pos(1, 9)), false),
-				exprStmt(&BinaryExpr{LHS: EIdent("a", pos(1, 10)), TokenPos: pos(1, 11), Token: token.Add, RHS: EIdent("b", pos(1, 12))}),
-				codeEnd(lit("}", pos(1, 13)), false),
-			)
-		})
+	// A lone interpolation with no surrounding text yields a single argument.
+	t.Run("{name}", func(t *testing.T) {
+		p, tp, args := build(t, `x := #"{name}"`)
+		require.Len(t, args, 1)
+		expectIdent(t, args[0], "name", p(1, 9), tp(1, 2))
 	})
 
+	// Adjacent interpolations produce one argument each, with no empty text
+	// segments between them.
+	t.Run("{a}{b}", func(t *testing.T) {
+		p, tp, args := build(t, `x := #"{a}{b}"`)
+		require.Len(t, args, 2)
+		expectIdent(t, args[0], "a", p(1, 9), tp(1, 2))
+		expectIdent(t, args[1], "b", p(1, 12), tp(1, 5))
+	})
+
+	// Text and variables interleaved: each piece maps back to its column in
+	// the original source.
+	t.Run("a={x}, b={y}!", func(t *testing.T) {
+		p, tp, args := build(t, `x := #"a={x}, b={y}!"`)
+		require.Len(t, args, 5)
+		expectText(t, args[0], "a=", p(1, 8), tp(1, 1))
+		expectIdent(t, args[1], "x", p(1, 11), tp(1, 4))
+		expectText(t, args[2], ", b=", p(1, 13), tp(1, 6))
+		expectIdent(t, args[3], "y", p(1, 18), tp(1, 11))
+		expectText(t, args[4], "!", p(1, 20), tp(1, 13))
+	})
+
+	// An interpolated binary expression keeps the positions of its operands
+	// and operator mapped to the original source.
+	t.Run("sum={a + b}.", func(t *testing.T) {
+		p, tp, args := build(t, `x := #"sum={a + b}."`)
+		require.Len(t, args, 3)
+		expectText(t, args[0], "sum=", p(1, 8), tp(1, 1))
+
+		bin, ok := args[1].(*BinaryExpr)
+		require.True(t, ok, "expected *BinaryExpr, got %T", args[1])
+		require.Equal(t, token.Add, bin.Token)
+		expectPos(t, p(1, 15), tp(1, 8), bin.TokenPos)
+		expectIdent(t, bin.LHS, "a", p(1, 13), tp(1, 6))
+		expectIdent(t, bin.RHS, "b", p(1, 17), tp(1, 10))
+
+		expectText(t, args[2], ".", p(1, 19), tp(1, 12))
+	})
+
+	// An interpolated selector expression (`user.name`).
+	t.Run("{user.name}", func(t *testing.T) {
+		p, tp, args := build(t, `x := #"{user.name}"`)
+		require.Len(t, args, 1)
+
+		sel, ok := args[0].(*SelectorExpr)
+		require.True(t, ok, "expected *SelectorExpr, got %T", args[0])
+		expectPos(t, p(1, 9), tp(1, 2), sel.Pos())
+		expectIdent(t, sel.X, "user", p(1, 9), tp(1, 2))
+		// The selector key is carried as a string literal `name`.
+		expectText(t, sel.Sel, "name", p(1, 14), tp(1, 7))
+	})
+
+	// An interpolated function call (`upper(name)`).
+	t.Run("{upper(name)}", func(t *testing.T) {
+		p, tp, args := build(t, `x := #"{upper(name)}"`)
+		require.Len(t, args, 1)
+
+		call, ok := args[0].(*CallExpr)
+		require.True(t, ok, "expected *CallExpr, got %T", args[0])
+		expectIdent(t, call.Func, "upper", p(1, 9), tp(1, 2))
+		require.Len(t, call.Args.Values, 1)
+		expectIdent(t, call.Args.Values[0], "name", p(1, 15), tp(1, 8))
+	})
+
+	// A multiline raw (backtick) template spanning two source lines. The
+	// generated call is wrapped in ToRaw, text segments stay verbatim
+	// (newlines preserved), and interpolations on the second line map to their
+	// real line/column in both files.
+	t.Run("multiline raw", func(t *testing.T) {
+		p, tp, args := build(t, "x := #`Hello {name},\nwelcome to {place}!`")
+		require.Len(t, args, 5)
+		expectRawText(t, args[0], "Hello ", p(1, 8), tp(1, 1))
+		expectIdent(t, args[1], "name", p(1, 15), tp(1, 8))
+		expectRawText(t, args[2], ",\nwelcome to ", p(1, 20), tp(1, 13))
+		expectIdent(t, args[3], "place", p(2, 13), tp(2, 13))
+		expectRawText(t, args[4], "!", p(2, 19), tp(2, 19))
+	})
+
+	// A heredoc template (triple backticks). Value strips the surrounding
+	// backticks, the opening line and the closing line, so the template content
+	// sits on its own lines: the source is two lines further down than the
+	// template file, but interpolation positions still map between them.
+	t.Run("multiline raw with multiples quotes", func(t *testing.T) {
+		p, tp, args := build(t, "x := #```\n\nHello {name},\nwelcome to {place}!\n\n```")
+		require.Len(t, args, 5)
+		expectRawText(t, args[0], "\nHello ", p(2, 1), tp(1, 1))
+		expectIdent(t, args[1], "name", p(3, 8), tp(2, 8))
+		expectRawText(t, args[2], ",\nwelcome to ", p(3, 13), tp(2, 13))
+		expectIdent(t, args[3], "place", p(4, 13), tp(3, 13))
+		expectRawText(t, args[4], "!\n", p(4, 19), tp(3, 19))
+	})
+
+	// An indented heredoc: Value strips the common leading indentation from the
+	// rendered text (the text segments come out trimmed: "Hello ", "!", ...),
+	// yet interpolation positions still map to their real, *indented* columns in
+	// the original source -- `name` at column 16 and `place` at column 21, not
+	// the trimmed columns 8 and 13. Interior positions are preserved because the
+	// body is parsed untrimmed and only the text values are stripped.
+	t.Run("indented heredoc preserves interior positions", func(t *testing.T) {
+		p, tp, args := build(t, "x := #```\n        Hello {name},\n        welcome to {place}!\n        ```")
+		require.Len(t, args, 5)
+		expectRawText(t, args[0], "Hello ", p(2, 1), tp(1, 1))
+		expectIdent(t, args[1], "name", p(2, 16), tp(1, 16))
+		expectRawText(t, args[2], ",\nwelcome to ", p(2, 21), tp(1, 21))
+		expectIdent(t, args[3], "place", p(3, 21), tp(2, 21))
+		expectRawText(t, args[4], "!", p(3, 27), tp(2, 27))
+	})
 }
 
 func TestParseChar(t *testing.T) {
