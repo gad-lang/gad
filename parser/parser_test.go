@@ -1855,11 +1855,13 @@ d=#dVal,e=#(e val)
 	test.ExpectParseString(t, `(;a int|bool|str=1)`, `(;a int|bool|str=1)`)
 }
 
-func TestTemplateString(t *testing.T) {
+func TestTemplateStringLit(t *testing.T) {
 	test.ExpectParseString(t, `#"A"`, `#"A"`)
 	test.ExpectParseString(t, "#`A`", "#`A`")
 	test.ExpectParseString(t, "#```A```", "#```A```")
+}
 
+func TestTemplateString(t *testing.T) {
 	t.Run("ParseTemplateString raw plain", func(t *testing.T) {
 		f, err := ParseTemplateString("hello", 100)
 		require.NoError(t, err)
@@ -1899,13 +1901,15 @@ func TestTemplateString(t *testing.T) {
 		require.NoError(t, err)
 		test.NewFile(t, f).Expect(func(pos test.Pfn) []Stmt {
 			return stmts(
-				mixedTextStmt(tmpl.Value.Pos(), "hello"),
+				mixedTextStmt(pos(1, 1), "hello"),
 			)
 		})
 	})
 
 	t.Run("ParseTemplateString hello user", func(t *testing.T) {
+		var ofPos, tfPos test.Pfn
 		of := test.New(t, `x := #"hello {user}!"`).File().Expect(func(p test.Pfn) []Stmt {
+			ofPos = p
 			return stmts(
 				assignStmt(
 					exprs(EIdent("x", p(1, 1))),
@@ -1916,17 +1920,26 @@ func TestTemplateString(t *testing.T) {
 		}).File()
 
 		tmpl := of.Stmts[0].(*AssignStmt).RHS[0].(*TemplateLit)
-		f, err := ParseTemplateString(tmpl.StringValue(), tmpl.Value.Pos())
+		tf, err := ParseTemplateString(tmpl.StringValue(), tmpl.Value.Pos())
 		require.NoError(t, err)
-		test.NewFile(t, f).Expect(func(pos test.Pfn) []Stmt {
+		test.NewFile(t, tf).Expect(func(pos test.Pfn) []Stmt {
+			tfPos = pos
 			return stmts(
-				mixedTextStmt(tmpl.Value.Pos(), "hello "),
+				mixedTextStmt(pos(1, 1), "hello "),
 				codeBegin(lit("{", pos(1, 7)), false),
 				exprStmt(EIdent("user", pos(1, 8))),
 				codeEnd(lit("}", pos(1, 12)), false),
 				mixedTextStmt(pos(1, 13), "!"),
 			)
 		})
+
+		userStartIndex := of.InputFile.DataIndex(ofPos(1, 15))
+		require.Equal(t, string(of.InputFile.Data.Bytes()[userStartIndex:userStartIndex+4]), "user")
+
+		tUserStartIndex := of.InputFile.DataIndex(ofPos(1, 8))
+		require.Equal(t, string(tf.InputFile.Data.Bytes()[tUserStartIndex:tUserStartIndex+4]), "user")
+
+		require.Equal(t, ofPos(1, 15), tfPos(1, 8))
 	})
 
 	t.Run("ParseTemplateString multiple expressions", func(t *testing.T) {
