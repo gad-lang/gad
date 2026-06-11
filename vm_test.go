@@ -4446,6 +4446,76 @@ func TestVMString(t *testing.T) {
 	testExpectRun(t, `return """foo""" + "bar"`, nil, Str("foobar"))
 }
 
+// TestVMRawHeredoc exercises the raw heredoc literal (```...```): its content
+// is taken verbatim (no escape processing, no interpolation) and evaluates to a
+// RawStr.
+func TestVMRawHeredoc(t *testing.T) {
+	// --- simple ---
+	// single-line form: the body between the fences is taken verbatim, with no
+	// indentation stripping
+	testExpectRun(t, "return ```abc```", nil, RawStr("abc"))
+	testExpectRun(t, "return ``` abc ```", nil, RawStr(" abc "))
+	// multiline form: the opening and closing fence lines are removed
+	testExpectRun(t, "return ```\nabc\n```", nil, RawStr("abc"))
+	// empty body
+	testExpectRun(t, "return ```\n```", nil, RawStr(""))
+
+	// --- complex ---
+	// the common leading indentation is stripped from every line
+	testExpectRun(t, "return ```\n  a\n  b\nc\n```", nil, RawStr("a\nb\nc"))
+	// stripping uses the first line's indent; trailing spaces are preserved
+	testExpectRun(t, "return ```\n\t\ta  \n\t\tb\n\t\t c\n\tx\n```",
+		nil, RawStr("a  \nb\n c\nx"))
+	// blank interior lines are preserved
+	testExpectRun(t, "return ```\n  a\n\n  b\n```", nil, RawStr("a\n\nb"))
+	// a fence of more than three backticks lets the body contain backticks
+	testExpectRun(t, "return `````a``b```c`````", nil, RawStr("a``b```c"))
+	// the body is raw: interpolation braces are kept verbatim (this is not a
+	// template, so {x} is literal and x need not exist)
+	testExpectRun(t, "return ```a {x} b```", nil, RawStr("a {x} b"))
+	// concatenation: raw + raw and raw + str both stay raw (left operand type
+	// wins); str + raw coerces to str
+	testExpectRun(t, "return ```a``` + ```b```", nil, RawStr("ab"))
+	testExpectRun(t, "return ```a``` + \"b\"", nil, RawStr("ab"))
+	testExpectRun(t, "return \"x\" + ```a```", nil, Str("xa"))
+}
+
+// TestVMTemplateLit exercises the #-template literal across every supported
+// Value type: StrLit (#"..."), RawStrLit (#`...`), RawHeredocLit (#```...```),
+// HeredocLit (#"""..."""), and SymbolLit (##sym / ##(...)). Raw value types
+// produce a RawStr and keep escapes verbatim; the others produce a Str and
+// interpret escapes. All of them support {expr} interpolation.
+func TestVMTemplateLit(t *testing.T) {
+	// --- StrLit: #"..." (str, escapes interpreted) ---
+	testExpectRun(t, `return #"hello"`, nil, Str("hello"))
+	testExpectRun(t, `name := "world"; return #"hello {name}"`, nil, Str("hello world"))
+	// multiple interpolations, expressions and interpreted escapes
+	testExpectRun(t, `x := 3; return #"a\t{x*2}b\nc"`, nil, Str("a\t6b\nc"))
+
+	// --- RawStrLit: #`...` (rawstr, escapes kept verbatim) ---
+	testExpectRun(t, "return #`hello`", nil, RawStr("hello"))
+	testExpectRun(t, "x := 3; return #`a\\t{x}b`", nil, RawStr(`a\t3b`))
+
+	// --- RawHeredocLit: #```...``` (rawstr, verbatim, with indent strip) ---
+	testExpectRun(t, "return #```hello```", nil, RawStr("hello"))
+	testExpectRun(t,
+		"name := \"bob\"; return #```\n  hi {name}\n  bye\n```",
+		nil, RawStr("hi bob\nbye"))
+
+	// --- HeredocLit: #"""...""" (str, escapes interpreted, indent strip) ---
+	testExpectRun(t, `return #"""hello"""`, nil, Str("hello"))
+	testExpectRun(t,
+		"name := \"bob\"; return #\"\"\"\n\thi {name}\\t!\n\tbye\n\t\"\"\"",
+		nil, Str("hi bob\t!\nbye"))
+
+	// --- SymbolLit: ##sym and ##(...) (str) ---
+	testExpectRun(t, `return ##abc`, nil, Str("abc"))
+	testExpectRun(t, `v := 7; return ##(sum = {v*3})`, nil, Str("sum = 21"))
+
+	// --- cross-type: templates compose with normal string operations ---
+	testExpectRun(t, `a := 1; b := 2; return #"{a}+{b}=" + #"{a+b}"`, nil, Str("1+2=3"))
+}
+
 func TestVMMultiParen(t *testing.T) {
 	r := &MixedParams{
 		Positional: Array{Int(1), Int(2), Int(3)},
