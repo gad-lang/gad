@@ -1092,6 +1092,45 @@ func TestCompiler_CompileEmbed(t *testing.T) {
 	})
 }
 
+func TestCompiler_CompileTemplateLit(t *testing.T) {
+	t.Run("plain string", func(t *testing.T) {
+		st := NewSymbolTable(NewBuiltins().NameSet)
+		_, bc, err := Compile(st, []byte(`return #"hello"`), CompileOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, bc)
+
+		// Run it
+		vm := NewVM(NewBuiltins().Build(), bc)
+		ret, err := vm.Run()
+		require.NoError(t, err)
+		require.Equal(t, Str("hello"), ret)
+	})
+
+	t.Run("with interpolation", func(t *testing.T) {
+		st := NewSymbolTable(NewBuiltins().NameSet)
+		_, bc, err := Compile(st, []byte(`name := "world"; return #"hello {name}"`), CompileOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, bc)
+
+		vm := NewVM(NewBuiltins().Build(), bc)
+		ret, err := vm.Run()
+		require.NoError(t, err)
+		require.Equal(t, Str("hello world"), ret)
+	})
+
+	t.Run("multiple interpolations", func(t *testing.T) {
+		st := NewSymbolTable(NewBuiltins().NameSet)
+		_, bc, err := Compile(st, []byte(`a, b := 1, 2; return #"{a} + {b} = {a+b}"`), CompileOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, bc)
+
+		vm := NewVM(NewBuiltins().Build(), bc)
+		ret, err := vm.Run()
+		require.NoError(t, err)
+		require.Equal(t, Str("1 + 2 = 3"), ret)
+	})
+}
+
 func TestCompiler_Compile(t *testing.T) {
 	// all local variables are initialized as nil
 	expectCompile(t, `var a`, bytecode(

@@ -1859,6 +1859,107 @@ func TestTemplateString(t *testing.T) {
 	test.ExpectParseString(t, `#"A"`, `#"A"`)
 	test.ExpectParseString(t, "#`A`", "#`A`")
 	test.ExpectParseString(t, "#```A```", "#```A```")
+
+	t.Run("ParseTemplateString raw plain", func(t *testing.T) {
+		f, err := ParseTemplateString("hello", 100)
+		require.NoError(t, err)
+		test.NewFile(t, f).Expect(func(pos test.Pfn) []Stmt {
+			return stmts(mixedTextStmt(pos(1, 1), "hello"))
+		})
+	})
+
+	t.Run("ParseTemplateString raw hello user", func(t *testing.T) {
+		f, err := ParseTemplateString("hello {user}!", 100)
+		require.NoError(t, err)
+		test.NewFile(t, f).Expect(func(pos test.Pfn) []Stmt {
+			return stmts(
+				mixedTextStmt(pos(1, 1), "hello "),
+				codeBegin(lit("{", pos(1, 7)), false),
+				exprStmt(EIdent("user", pos(1, 8))),
+				codeEnd(lit("}", pos(1, 12)), false),
+				mixedTextStmt(pos(1, 13), "!"),
+			)
+		})
+	})
+
+	t.Run("ParseTemplateString plain", func(t *testing.T) {
+		of := test.New(t, `x := #"hello"`).File().Expect(func(p test.Pfn) []Stmt {
+			return stmts(
+				assignStmt(
+					exprs(EIdent("x", p(1, 1))),
+					exprs(&TemplateLit{
+						TokenPos: p(1, 6),
+						Value:    String("hello", p(1, 7)),
+					}), token.Define, p(1, 3)))
+		}).File()
+
+		tmpl := of.Stmts[0].(*AssignStmt).RHS[0].(*TemplateLit)
+		f, err := ParseTemplateString(tmpl.StringValue(), tmpl.Value.Pos())
+
+		require.NoError(t, err)
+		test.NewFile(t, f).Expect(func(pos test.Pfn) []Stmt {
+			return stmts(
+				mixedTextStmt(tmpl.Value.Pos(), "hello"),
+			)
+		})
+	})
+
+	t.Run("ParseTemplateString hello user", func(t *testing.T) {
+		of := test.New(t, `x := #"hello {user}!"`).File().Expect(func(p test.Pfn) []Stmt {
+			return stmts(
+				assignStmt(
+					exprs(EIdent("x", p(1, 1))),
+					exprs(&TemplateLit{
+						TokenPos: p(1, 6),
+						Value:    String("hello {user}!", p(1, 7)),
+					}), token.Define, p(1, 3)))
+		}).File()
+
+		tmpl := of.Stmts[0].(*AssignStmt).RHS[0].(*TemplateLit)
+		f, err := ParseTemplateString(tmpl.StringValue(), tmpl.Value.Pos())
+		require.NoError(t, err)
+		test.NewFile(t, f).Expect(func(pos test.Pfn) []Stmt {
+			return stmts(
+				mixedTextStmt(tmpl.Value.Pos(), "hello "),
+				codeBegin(lit("{", pos(1, 7)), false),
+				exprStmt(EIdent("user", pos(1, 8))),
+				codeEnd(lit("}", pos(1, 12)), false),
+				mixedTextStmt(pos(1, 13), "!"),
+			)
+		})
+	})
+
+	t.Run("ParseTemplateString multiple expressions", func(t *testing.T) {
+		of := test.New(t, `x := #"{a}+{b}={a+b}"`).File().Expect(func(p test.Pfn) []Stmt {
+			return stmts(
+				assignStmt(
+					exprs(EIdent("x", p(1, 1))),
+					exprs(&TemplateLit{
+						TokenPos: p(1, 6),
+						Value:    String("{a}+{b}={a+b}", p(1, 7)),
+					}), token.Define, p(1, 3)))
+		}).File()
+
+		tmpl := of.Stmts[0].(*AssignStmt).RHS[0].(*TemplateLit)
+		f, err := ParseTemplateString(tmpl.StringValue(), tmpl.Value.Pos())
+		require.NoError(t, err)
+		test.NewFile(t, f).Expect(func(pos test.Pfn) []Stmt {
+			return stmts(
+				codeBegin(lit("{", pos(1, 1)), false),
+				exprStmt(EIdent("a", pos(1, 2))),
+				codeEnd(lit("}", pos(1, 3)), false),
+				mixedTextStmt(pos(1, 4), "+"),
+				codeBegin(lit("{", pos(1, 5)), false),
+				exprStmt(EIdent("b", pos(1, 6))),
+				codeEnd(lit("}", pos(1, 7)), false),
+				mixedTextStmt(pos(1, 8), "="),
+				codeBegin(lit("{", pos(1, 9)), false),
+				exprStmt(&BinaryExpr{LHS: EIdent("a", pos(1, 10)), TokenPos: pos(1, 11), Token: token.Add, RHS: EIdent("b", pos(1, 12))}),
+				codeEnd(lit("}", pos(1, 13)), false),
+			)
+		})
+	})
+
 }
 
 func TestParseChar(t *testing.T) {
@@ -4399,6 +4500,10 @@ func blockExpr(lbrace, rbrace Pos, list ...Stmt) *BlockExpr {
 
 func typedIdent(ident *IdentExpr, typ ...*TypeExpr) *TypedIdentExpr {
 	return &TypedIdentExpr{Ident: ident, Type: typ}
+}
+
+func mixedValueStmt(start, end Pos, expr Expr) *MixedValueStmt {
+	return SMixedValue(lit("{", start), lit("}", end), expr)
 }
 
 func mixedTextStmt(pos Pos, vlit string, flags ...MixedTextStmtFlag) *MixedTextStmt {

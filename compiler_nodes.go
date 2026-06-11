@@ -1067,11 +1067,11 @@ func (c *Compiler) compilePtr(nd *node.Ptr) (err error) {
 
 func (c *Compiler) compileComputedExpr(nd *node.ComputedExpr) (err error) {
 	stmts := nd.Stmts
-	switch t := stmts[len(stmts)-1].(type) {
+	switch t := file.Stmts[len(stmts)-1].(type) {
 	case *node.IncDecStmt:
 		stmts = append(stmts, &node.ReturnStmt{Return: node.Return{Result: t.Expr}})
 	case *node.ExprStmt:
-		stmts = append(stmts[:len(stmts)-1], &node.ReturnStmt{Return: node.Return{Result: t.Expr}})
+		stmts = append(file.Stmts[:len(stmts)-1], &node.ReturnStmt{Return: node.Return{Result: t.Expr}})
 	}
 	if err = c.Compile(&node.FuncExpr{
 		Body: &node.BlockStmt{Stmts: stmts},
@@ -1136,9 +1136,9 @@ func (c *Compiler) compileClosureLit(nd *node.ClosureExpr) error {
 	if b, ok := nd.Body.(*node.BlockExpr); ok {
 		stmts = b.Stmts
 		if l := len(stmts); l > 0 {
-			switch t := stmts[l-1].(type) {
+			switch t := file.Stmts[l-1].(type) {
 			case *node.ExprStmt:
-				stmts[l-1] = &node.ReturnStmt{
+				file.Stmts[l-1] = &node.ReturnStmt{
 					Return: node.Return{
 						ReturnPos: t.Pos(),
 						Result:    t.Expr,
@@ -1847,12 +1847,12 @@ func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) (err error) {
 	constantIndex, _, exists := c.getEmbed(name)
 	if !exists {
 		opts := &EmbeddedImportOptions{
-			Sources:     nd.Sources(),
-			Includes:    nd.Includes(),
-			Excludes:    nd.Excludes(),
-			IncludesRe:  nd.IncludesRe(),
-			ExcludesRe:  nd.ExcludesRe(),
-			Tree:        nd.Tree(),
+			Sources:    nd.Sources(),
+			Includes:   nd.Includes(),
+			Excludes:   nd.Excludes(),
+			IncludesRe: nd.IncludesRe(),
+			ExcludesRe: nd.ExcludesRe(),
+			Tree:       nd.Tree(),
 		}
 
 		if configFile := nd.ConfigFile(); configFile != "" {
@@ -1872,14 +1872,13 @@ func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) (err error) {
 	return nil
 }
 
-
 type embedConfig struct {
-	Sources     []string `yaml:"sources"`
-	Includes    []string `yaml:"includes"`
-	Excludes    []string `yaml:"excludes"`
-	IncludesRe  []string `yaml:"includes_re"`
-	ExcludesRe  []string `yaml:"excludes_re"`
-	Tree        bool     `yaml:"tree"`
+	Sources    []string `yaml:"sources"`
+	Includes   []string `yaml:"includes"`
+	Excludes   []string `yaml:"excludes"`
+	IncludesRe []string `yaml:"includes_re"`
+	ExcludesRe []string `yaml:"excludes_re"`
+	Tree       bool     `yaml:"tree"`
 }
 
 func (c *Compiler) applyEmbedConfig(configFile, absPath string, opts *EmbeddedImportOptions) error {
@@ -1964,6 +1963,37 @@ func (c *Compiler) compileCondExpr(nd *node.CondExpr) error {
 	curPos = len(c.instructions)
 	c.changeOperand(jumpPos2, curPos)
 	return nil
+}
+
+func (c *Compiler) compileTemplateLit(nd *node.TemplateLit) error {
+	var tmplValue string
+	switch t := nd.Value.(type) {
+	case *node.StringLit:
+		tmplValue = t.Value()
+	case *node.RawStringLit:
+		tmplValue = t.Value()
+	case *node.SymbolLit:
+		tmplValue = t.Value()
+	default:
+		return c.errorf(nd, "expected string for template literal")
+	}
+
+	file, err := parser.ParseTemplateString(tmplValue, nd.Value.Pos())
+	if err != nil {
+		return c.errorf(nd, "template parse error: %w", err)
+	}
+
+	expr, _ := nd.Build(file.Stmts)
+
+	// Emit buffer() call
+	if err := c.compileCallExpr(&node.CallExpr{
+		Func:     &node.IdentExpr{Name: "buffer", NamePos: nd.Pos()},
+		CallArgs: node.CallArgs{Args: node.CallExprPositionalArgs{}},
+	}); err != nil {
+		return err
+	}
+
+	return c.Compile(expr)
 }
 
 func (c *Compiler) compileIdent(nd *node.IdentExpr) error {

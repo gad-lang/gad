@@ -27,6 +27,10 @@ func NewFile(t *testing.T, actual *parser.File) *File {
 	return &File{t: t, actual: actual}
 }
 
+func (f *File) File() *parser.File {
+	return f.actual
+}
+
 func (f *File) Expect(fn ExpectedFn, post ...PostFileCallback) *File {
 	buildPos := func(line, column int) source.Pos {
 		return source.Pos(int(source.MustFileLineStartPos(f.actual.InputFile, line)) + (column - 1))
@@ -438,10 +442,11 @@ func (f *File) EqualExpr(expected, actual node.Expr) {
 	case *node.SymbolLit:
 		f.Equal(&expected.Lit, &actual.(*node.SymbolLit).Lit)
 	case *node.ToRaw:
-		actual := actual.(*node.ToRaw)
-		f.Equal(expected.TokenPos, actual.TokenPos)
-		f.EqualExpr(expected.Expr, actual.Expr)
-	default:
+	case *node.TemplateLit:
+		act := actual.(*node.TemplateLit)
+		f.Equal(expected.TokenPos, act.TokenPos)
+		f.EqualExpr(expected.Value, act.Value)
+		default:
 		panic(fmt.Errorf("unknown type: %T", expected))
 	}
 }

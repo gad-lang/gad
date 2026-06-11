@@ -119,10 +119,17 @@ type Handlers struct {
 
 type MixedDelimiter = source.StartEndDelimiter
 
-var DefaultMixedDelimiter = MixedDelimiter{
-	Start: []rune("{%"),
-	End:   []rune("%}"),
-}
+var (
+	DefaultMixedDelimiter = MixedDelimiter{
+		Start: []rune("{%"),
+		End:   []rune("%}"),
+	}
+
+	TemplateStrDelimiter = MixedDelimiter{
+		Start: []rune("{"),
+		End:   []rune("}"),
+	}
+)
 
 type ScannerOptions struct {
 	Mode           ScanMode

@@ -2,6 +2,7 @@ package node
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -1053,9 +1054,62 @@ func (e *TemplateLit) String() string {
 	return "#" + e.Value.String()
 }
 
+func (e *TemplateLit) StringValue() string {
+	switch vt := e.Value.(type) {
+	case *StringLit:
+		return vt.Value()
+	case *RawStringLit:
+		return vt.Value()
+	case *SymbolLit:
+		return vt.Value()
+	default:
+		return ""
+	}
+}
+
 func (e *TemplateLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteSingleByte('#')
 	e.Value.WriteCode(ctx)
+}
+func (e *TemplateLit) Build(sourceStmts Stmts) (expr Expr, err error) {
+	var raw bool
+	switch e.Value.(type) {
+	case *RawStringLit:
+		raw = true
+	case *StringLit, *SymbolLit:
+	default:
+		return nil, errors.New("template literal must be a string or a RawStringLit or SymbolLit")
+	}
+
+	var exprs Exprs
+	for _, stmt := range sourceStmts {
+		var exp Expr
+		switch lit := stmt.(type) {
+		case *MixedTextStmt:
+			if raw {
+				exp = &RawStringLit{
+					Literal:    lit.Value(),
+					LiteralPos: lit.Pos(),
+				}
+			} else {
+				exp = String(lit.Value(), lit.Pos())
+			}
+		case *MixedValueStmt:
+			exp = lit.Expr
+		}
+		exprs = append(exprs, exp)
+	}
+
+	call := &CallExpr{
+		Func:     &IdentExpr{Name: "str", NamePos: e.Pos()},
+		CallArgs: CallArgs{Args: CallExprPositionalArgs{Values: exprs}},
+	}
+
+	if raw {
+		return &ToRaw{Expr: call, TokenPos: e.Pos()}, nil
+	}
+
+	return call, nil
 }
 
 type CallArgs struct {

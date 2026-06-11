@@ -84,6 +84,7 @@ type (
 		stack              CompileStack
 		selectorStack      [][][]func()
 		anonymousFuncIndex uint
+			templateVarIndex  uint
 	}
 
 	// CompilerOptions represents customizable options for Compile().
@@ -634,6 +635,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return nil
 	case *node.MixedTextExpr:
 		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.Stmt.Value())))
+		case *node.TemplateLit:
+			return c.compileTemplateLit(nt)
 	case *node.TypedIdentExpr:
 		return c.compileTypedIdentExpr(nt)
 	case *node.NamedArgVarLit:
