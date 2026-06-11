@@ -282,9 +282,9 @@ func (f *File) DataPosition(p Pos) (pos FilePos, err error) {
 	return
 }
 
-func (f *File) Slice(slicedSet *FileSet, name string, startLine, numLines int) (_ *SliceFile, err error) {
+func (f *File) SliceLines(slicedSet *FileSet, name string, startLine, numLines int) (_ *SliceFile, err error) {
 	var data []byte
-	if data, err = f.Data.Slice(startLine, numLines); err != nil {
+	if data, err = f.Data.SliceLines(startLine, numLines); err != nil {
 		return
 	}
 

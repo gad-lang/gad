@@ -1071,6 +1071,7 @@ func (e *TemplateLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteSingleByte('#')
 	e.Value.WriteCode(ctx)
 }
+
 func (e *TemplateLit) Build(sourceStmts Stmts) (expr Expr, err error) {
 	var raw bool
 	switch e.Value.(type) {
@@ -1087,15 +1088,19 @@ func (e *TemplateLit) Build(sourceStmts Stmts) (expr Expr, err error) {
 		switch lit := stmt.(type) {
 		case *MixedTextStmt:
 			if raw {
-				exp = &RawStringLit{
-					Literal:    lit.Value(),
-					LiteralPos: lit.Pos(),
+				exp = &StringLit{
+					Literal:  lit.Value(),
+					ValuePos: lit.Pos(),
 				}
 			} else {
 				exp = String(lit.Value(), lit.Pos())
 			}
+		case *ExprStmt:
+			exp = lit.Expr
 		case *MixedValueStmt:
 			exp = lit.Expr
+		default:
+			continue
 		}
 		exprs = append(exprs, exp)
 	}

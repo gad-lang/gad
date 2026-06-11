@@ -1120,7 +1120,7 @@ func TestCompiler_CompileTemplateLit(t *testing.T) {
 
 	t.Run("multiple interpolations", func(t *testing.T) {
 		st := NewSymbolTable(NewBuiltins().NameSet)
-		_, bc, err := Compile(st, []byte(`a, b := 1, 2; return #"{a} + {b} = {a+b}"`), CompileOptions{})
+		_, bc, err := Compile(st, []byte(`a := 1; b := 2; return #"{a} + {b} = {a+b}"`), CompileOptions{})
 		require.NoError(t, err)
 		require.NotNil(t, bc)
 

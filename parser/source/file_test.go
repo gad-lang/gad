@@ -178,7 +178,7 @@ func TestFile_Slice(t *testing.T) {
 
 	for _, tt := range tests[9:] {
 		t.Run(tt.name, func(t *testing.T) {
-			sf, err := joinedFile.Slice(slicesSet, tt.name, tt.startLine, tt.numLines)
+			sf, err := joinedFile.SliceLines(slicesSet, tt.name, tt.startLine, tt.numLines)
 			require.NoError(t, err)
 			require.Equal(t, string(tt.data), string(sf.Data.Bytes()))
 

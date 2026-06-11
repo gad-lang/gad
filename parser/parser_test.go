@@ -4502,10 +4502,6 @@ func typedIdent(ident *IdentExpr, typ ...*TypeExpr) *TypedIdentExpr {
 	return &TypedIdentExpr{Ident: ident, Type: typ}
 }
 
-func mixedValueStmt(start, end Pos, expr Expr) *MixedValueStmt {
-	return SMixedValue(lit("{", start), lit("}", end), expr)
-}
-
 func mixedTextStmt(pos Pos, vlit string, flags ...MixedTextStmtFlag) *MixedTextStmt {
 	var f MixedTextStmtFlag
 	for _, f = range flags {

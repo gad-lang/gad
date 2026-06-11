@@ -172,7 +172,7 @@ func (d *Data) LineSliceDataUpDown(line, upCount, downCount int) (up, down []*Li
 	return
 }
 
-func (d *Data) Slice(startLine, numLines int) (_ []byte, err error) {
+func (d *Data) SliceLines(startLine, numLines int) (_ []byte, err error) {
 	var startIndex, endIndex int
 	if startIndex, err = d.LineOffset(startLine); err != nil {
 		return

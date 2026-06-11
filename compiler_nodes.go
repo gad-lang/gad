@@ -1067,11 +1067,11 @@ func (c *Compiler) compilePtr(nd *node.Ptr) (err error) {
 
 func (c *Compiler) compileComputedExpr(nd *node.ComputedExpr) (err error) {
 	stmts := nd.Stmts
-	switch t := file.Stmts[len(stmts)-1].(type) {
+	switch t := stmts[len(stmts)-1].(type) {
 	case *node.IncDecStmt:
 		stmts = append(stmts, &node.ReturnStmt{Return: node.Return{Result: t.Expr}})
 	case *node.ExprStmt:
-		stmts = append(file.Stmts[:len(stmts)-1], &node.ReturnStmt{Return: node.Return{Result: t.Expr}})
+		stmts = append(stmts[:len(stmts)-1], &node.ReturnStmt{Return: node.Return{Result: t.Expr}})
 	}
 	if err = c.Compile(&node.FuncExpr{
 		Body: &node.BlockStmt{Stmts: stmts},
@@ -1136,9 +1136,9 @@ func (c *Compiler) compileClosureLit(nd *node.ClosureExpr) error {
 	if b, ok := nd.Body.(*node.BlockExpr); ok {
 		stmts = b.Stmts
 		if l := len(stmts); l > 0 {
-			switch t := file.Stmts[l-1].(type) {
+			switch t := stmts[l-1].(type) {
 			case *node.ExprStmt:
-				file.Stmts[l-1] = &node.ReturnStmt{
+				stmts[l-1] = &node.ReturnStmt{
 					Return: node.Return{
 						ReturnPos: t.Pos(),
 						Result:    t.Expr,
@@ -1983,14 +1983,9 @@ func (c *Compiler) compileTemplateLit(nd *node.TemplateLit) error {
 		return c.errorf(nd, "template parse error: %w", err)
 	}
 
-	expr, _ := nd.Build(file.Stmts)
-
-	// Emit buffer() call
-	if err := c.compileCallExpr(&node.CallExpr{
-		Func:     &node.IdentExpr{Name: "buffer", NamePos: nd.Pos()},
-		CallArgs: node.CallArgs{Args: node.CallExprPositionalArgs{}},
-	}); err != nil {
-		return err
+	expr, err := nd.Build(file.Stmts)
+	if err != nil {
+		return c.errorf(nd, "template build error: %w", err)
 	}
 
 	return c.Compile(expr)
