@@ -41,7 +41,9 @@ var (
 	reTypeHeader   = regexp.MustCompile(`^\s*##\s+Types`)
 	reConstHeader  = regexp.MustCompile(`^\s*##\s+Constants`)
 	reFuncHeader   = regexp.MustCompile(`^\s*##\s+Functions`)
-	reFuncAnnot    = regexp.MustCompile(`^\s*(\w+)\(.*?\)\s+->\s+.*?$`)
+	// Function header annotation: `Name(params) <ret>` (new syntax) or the
+	// legacy `Name(params) -> ret`. The params may include named params (`;`).
+	reFuncAnnot    = regexp.MustCompile(`^\s*(\w+)\(.*\)\s*(?:<[^>]*>|->\s+\S.*)\s*$`)
 	reLevel2header = regexp.MustCompile(`^\s*##\s`)
 	reWordStart    = regexp.MustCompile(`^\s*\w+`)
 )
@@ -169,21 +171,29 @@ func (dg *docgroup) processFuncBlock(line string) {
 }
 
 func getModuleItem(module, key string) string {
-	var moduleMap gad.Dict
+	var initFn gad.ModuleInitFunc
 	switch module {
 	case "time":
-		moduleMap = gadtime.ModuleInit.MustGetData(nil).ToDict()
+		initFn = gadtime.ModuleInit
 	case "strings":
-		moduleMap = gadstrings.ModuleInit.MustGetData(nil).ToDict()
+		initFn = gadstrings.ModuleInit
 	case "fmt":
-		moduleMap = gadfmt.ModuleInit.MustGetData(nil).ToDict()
+		initFn = gadfmt.ModuleInit
 	case "json":
-		moduleMap = gadjson.ModuleInit.MustGetData(nil).ToDict()
+		initFn = gadjson.ModuleInit
 	default:
 		panic(fmt.Errorf("unknown module:%s", module))
 	}
 
+	// the module init requires a real *Module (it reads module.Spec), so build
+	// one from the module name instead of passing nil
+	moduleMap := initFn.MustGetData(
+		gad.NewModule(gad.NewModuleSpecFromName(module))).ToDict()
+
 	v := moduleMap[key]
+	if v == nil {
+		return ""
+	}
 	t := v.Type().Name()
 	format := "%s(%q)"
 	if t != "string" {

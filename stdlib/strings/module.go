@@ -30,7 +30,7 @@ var (
 			// # strings module
 			//
 			// ## Functions
-			// Contains(s string, substr string) -> bool
+			// Contains(s str, substr str) <bool>
 			// Reports whether substr is within s.
 			"Contains": &gad.Function{
 				Module:   spec,
@@ -38,7 +38,7 @@ var (
 				Value:    stdlib.FuncPssRO(containsFunc),
 			},
 			// gad:doc
-			// ContainsAny(s string, chars string) -> bool
+			// ContainsAny(s str, chars str) <bool>
 			// Reports whether any char in chars are within s.
 			"ContainsAny": &gad.Function{
 				Module:   spec,
@@ -46,7 +46,7 @@ var (
 				Value:    stdlib.FuncPssRO(containsAnyFunc),
 			},
 			// gad:doc
-			// ContainsChar(s string, c char) -> bool
+			// ContainsChar(s str, c char) <bool>
 			// Reports whether the char c is within s.
 			"ContainsChar": &gad.Function{
 				Module:   spec,
@@ -54,7 +54,7 @@ var (
 				Value:    stdlib.FuncPsrRO(containsCharFunc),
 			},
 			// gad:doc
-			// Count(s string, substr string) -> int
+			// Count(s str, substr str) <int>
 			// Counts the number of non-overlapping instances of substr in s.
 			"Count": &gad.Function{
 				Module:   spec,
@@ -62,7 +62,7 @@ var (
 				Value:    stdlib.FuncPssRO(countFunc),
 			},
 			// gad:doc
-			// EqualFold(s string, t string) -> bool
+			// EqualFold(s str, t str) <bool>
 			// EqualFold reports whether s and t, interpreted as UTF-8 strings,
 			// are equal under Unicode case-folding, which is a more general form of
 			// case-insensitivity.
@@ -72,7 +72,7 @@ var (
 				Value:    stdlib.FuncPssRO(equalFoldFunc),
 			},
 			// gad:doc
-			// Fields(s string) -> array
+			// Fields(s str) <array>
 			// Splits the string s around each instance of one or more consecutive white
 			// space characters, returning an array of substrings of s or an empty array
 			// if s contains only white space.
@@ -82,7 +82,7 @@ var (
 				Value:    stdlib.FuncPsRO(fieldsFunc),
 			},
 			// gad:doc
-			// FieldsFunc(s string, f func(char) bool) -> array
+			// FieldsFunc(s str, f func(char) bool) <array>
 			// Splits the string s at each run of Unicode code points c satisfying f(c),
 			// and returns an array of slices of s. If all code points in s satisfy
 			// f(c) or the string is empty, an empty array is returned.
@@ -92,7 +92,7 @@ var (
 				Value:    fieldsFuncInv,
 			},
 			// gad:doc
-			// HasPrefix(s string, prefix string) -> bool
+			// HasPrefix(s str, prefix str) <bool>
 			// Reports whether the string s begins with prefix.
 			"HasPrefix": &gad.Function{
 				Module:   spec,
@@ -100,7 +100,7 @@ var (
 				Value:    stdlib.FuncPssRO(hasPrefixFunc),
 			},
 			// gad:doc
-			// HasSuffix(s string, suffix string) -> bool
+			// HasSuffix(s str, suffix str) <bool>
 			// Reports whether the string s ends with prefix.
 			"HasSuffix": &gad.Function{
 				Module:   spec,
@@ -108,7 +108,7 @@ var (
 				Value:    stdlib.FuncPssRO(hasSuffixFunc),
 			},
 			// gad:doc
-			// Index(s string, substr string) -> int
+			// Index(s str, substr str) <int>
 			// Returns the index of the first instance of substr in s, or -1 if substr
 			// is not present in s.
 			"Index": &gad.Function{
@@ -117,7 +117,7 @@ var (
 				Value:    stdlib.FuncPssRO(indexFunc),
 			},
 			// gad:doc
-			// IndexAny(s string, chars string) -> int
+			// IndexAny(s str, chars str) <int>
 			// Returns the index of the first instance of any char from chars in s, or
 			// -1 if no char from chars is present in s.
 			"IndexAny": &gad.Function{
@@ -126,7 +126,7 @@ var (
 				Value:    stdlib.FuncPssRO(indexAnyFunc),
 			},
 			// gad:doc
-			// IndexByte(s string, c char|int) -> int
+			// IndexByte(s str, c char|int) <int>
 			// Returns the index of the first byte value of c in s, or -1 if byte value
 			// of c is not present in s. c's integer value must be between 0 and 255.
 			"IndexByte": &gad.Function{
@@ -135,7 +135,7 @@ var (
 				Value:    stdlib.FuncPsrRO(indexByteFunc),
 			},
 			// gad:doc
-			// IndexChar(s string, c char) -> int
+			// IndexChar(s str, c char) <int>
 			// Returns the index of the first instance of the char c, or -1 if char is
 			// not present in s.
 			"IndexChar": &gad.Function{
@@ -144,7 +144,7 @@ var (
 				Value:    stdlib.FuncPsrRO(indexCharFunc),
 			},
 			// gad:doc
-			// IndexFunc(s string, f func(char) bool) -> int
+			// IndexFunc(s str, f func(char) bool) <int>
 			// Returns the index into s of the first Unicode code point satisfying f(c),
 			// or -1 if none do.
 			"IndexFunc": &gad.Function{
@@ -153,7 +153,7 @@ var (
 				Value:    newIndexFuncInv(strings.IndexFunc),
 			},
 			// gad:doc
-			// Join(arr array, sep string) -> string
+			// Join(arr array, sep str) <str>
 			// Concatenates the string values of array arr elements to create a
 			// single string. The separator string sep is placed between elements in the
 			// resulting string.
@@ -163,7 +163,7 @@ var (
 				Value:    stdlib.FuncPAsRO(joinFunc),
 			},
 			// gad:doc
-			// JoinAnd(arr array, sep, lastSep string) -> string
+			// JoinAnd(arr array, sep, lastSep str) <str>
 			// Concatenates the string values of array arr elements to create a
 			// single string. The separator string sep is placed between elements
 			// and lastSep is placed between non last and last elements in the
@@ -174,7 +174,7 @@ var (
 				Value:    stdlib.FuncPAssRO(joinAndFunc),
 			},
 			// gad:doc
-			// LastIndex(s string, substr string) -> int
+			// LastIndex(s str, substr str) <int>
 			// Returns the index of the last instance of substr in s, or -1 if substr
 			// is not present in s.
 			"LastIndex": &gad.Function{
@@ -183,7 +183,7 @@ var (
 				Value:    stdlib.FuncPssRO(lastIndexFunc),
 			},
 			// gad:doc
-			// LastIndexAny(s string, chars string) -> int
+			// LastIndexAny(s str, chars str) <int>
 			// Returns the index of the last instance of any char from chars in s, or
 			// -1 if no char from chars is present in s.
 			"LastIndexAny": &gad.Function{
@@ -192,7 +192,7 @@ var (
 				Value:    stdlib.FuncPssRO(lastIndexAnyFunc),
 			},
 			// gad:doc
-			// LastIndexByte(s string, c char|int) -> int
+			// LastIndexByte(s str, c char|int) <int>
 			// Returns the index of byte value of the last instance of c in s, or -1
 			// if c is not present in s. c's integer value must be between 0 and 255.
 			"LastIndexByte": &gad.Function{
@@ -201,7 +201,7 @@ var (
 				Value:    stdlib.FuncPsrRO(lastIndexByteFunc),
 			},
 			// gad:doc
-			// LastIndexFunc(s string, f func(char) bool) -> int
+			// LastIndexFunc(s str, f func(char) bool) <int>
 			// Returns the index into s of the last Unicode code point satisfying f(c),
 			// or -1 if none do.
 			"LastIndexFunc": &gad.Function{
@@ -210,7 +210,7 @@ var (
 				Value:    newIndexFuncInv(strings.LastIndexFunc),
 			},
 			// gad:doc
-			// Dict(f func(char) char, s string) -> string
+			// Dict(f func(char) char, s str) <str>
 			// Returns a copy of the string s with all its characters modified
 			// according to the mapping function f. If f returns a negative value, the
 			// character is dropped from the string with no replacement.
@@ -220,7 +220,7 @@ var (
 				Value:    mapFuncInv,
 			},
 			// gad:doc
-			// PadLeft(s string, padLen int[, padWith any]) -> string
+			// PadLeft(s str, padLen int[, padWith any]) <str>
 			// Returns a string that is padded on the left with the string `padWith` until
 			// the `padLen` length is reached. If padWith is not given, a white space is
 			// used as default padding.
@@ -232,7 +232,7 @@ var (
 				},
 			},
 			// gad:doc
-			// PadRight(s string, padLen int[, padWith any]) -> string
+			// PadRight(s str, padLen int[, padWith any]) <str>
 			// Returns a string that is padded on the right with the string `padWith` until
 			// the `padLen` length is reached. If padWith is not given, a white space is
 			// used as default padding.
@@ -244,7 +244,7 @@ var (
 				},
 			},
 			// gad:doc
-			// Repeat(s string, count int) -> string
+			// Repeat(s str, count int) <str>
 			// Returns a new string consisting of count copies of the string s.
 			//
 			// - If count is a negative int, it returns empty string.
@@ -255,7 +255,7 @@ var (
 				Value:    stdlib.FuncPsiRO(repeatFunc),
 			},
 			// gad:doc
-			// Replace(s string, old string, new string[, n int]) -> string
+			// Replace(s str, old str, new str[, n int]) <str>
 			// Returns a copy of the string s with the first n non-overlapping instances
 			// of old replaced by new. If n is not provided or -1, it replaces all
 			// instances.
@@ -265,7 +265,7 @@ var (
 				Value:    replaceFunc,
 			},
 			// gad:doc
-			// Split(s string, sep string[, n int]) -> [string]
+			// Split(s str, sep str[, n int]) <[str]>
 			// Splits s into substrings separated by sep and returns an array of
 			// the substrings between those separators.
 			//
@@ -280,7 +280,7 @@ var (
 				Value:    newSplitFunc(strings.SplitN),
 			},
 			// gad:doc
-			// SplitAfter(s string, sep string[, n int]) -> [string]
+			// SplitAfter(s str, sep str[, n int]) <[str]>
 			// Slices s into substrings after each instance of sep and returns an array
 			// of those substrings.
 			//
@@ -295,7 +295,7 @@ var (
 				Value:    newSplitFunc(strings.SplitAfterN),
 			},
 			// gad:doc
-			// Title(s string) -> string
+			// Title(s str) <str>
 			// Deprecated: Returns a copy of the string s with all Unicode letters that
 			// begin words mapped to their Unicode title case.
 			"Title": &gad.Function{
@@ -304,7 +304,7 @@ var (
 				Value:    stdlib.FuncPsRO(titleFunc),
 			},
 			// gad:doc
-			// ToLower(s string) -> string
+			// ToLower(s str) <str>
 			// Returns s with all Unicode letters mapped to their lower case.
 			"ToLower": &gad.Function{
 				Module:   spec,
@@ -312,7 +312,7 @@ var (
 				Value:    stdlib.FuncPsRO(toLowerFunc),
 			},
 			// gad:doc
-			// ToTitle(s string) -> string
+			// ToTitle(s str) <str>
 			// Returns a copy of the string s with all Unicode letters mapped to their
 			// Unicode title case.
 			"ToTitle": &gad.Function{
@@ -321,7 +321,7 @@ var (
 				Value:    stdlib.FuncPsRO(toTitleFunc),
 			},
 			// gad:doc
-			// ToUpper(s string) -> string
+			// ToUpper(s str) <str>
 			// Returns s with all Unicode letters mapped to their upper case.
 			"ToUpper": &gad.Function{
 				Module:   spec,
@@ -329,7 +329,7 @@ var (
 				Value:    stdlib.FuncPsRO(toUpperFunc),
 			},
 			// gad:doc
-			// ToValidUTF8(s string[, replacement string]) -> string
+			// ToValidUTF8(s str[, replacement str]) <str>
 			// Returns a copy of the string s with each run of invalid UTF-8 byte
 			// sequences replaced by the replacement string, which may be empty.
 			"ToValidUTF8": &gad.Function{
@@ -338,7 +338,7 @@ var (
 				Value:    toValidUTF8Func,
 			},
 			// gad:doc
-			// Trim(s string, cutset string) -> string
+			// Trim(s str, cutset str) <str>
 			// Returns a slice of the string s with all leading and trailing Unicode
 			// code points contained in cutset removed.
 			"Trim": &gad.Function{
@@ -347,7 +347,7 @@ var (
 				Value:    stdlib.FuncPssRO(trimFunc),
 			},
 			// gad:doc
-			// TrimFunc(s string, f func(char) bool) -> string
+			// TrimFunc(s str, f func(char) bool) <str>
 			// Returns a slice of the string s with all leading and trailing Unicode
 			// code points satisfying f removed.
 			"TrimFunc": &gad.Function{
@@ -356,7 +356,7 @@ var (
 				Value:    newTrimFuncInv(strings.TrimFunc),
 			},
 			// gad:doc
-			// TrimLeft(s string, cutset string) -> string
+			// TrimLeft(s str, cutset str) <str>
 			// Returns a slice of the string s with all leading Unicode code points
 			// contained in cutset removed.
 			"TrimLeft": &gad.Function{
@@ -365,7 +365,7 @@ var (
 				Value:    stdlib.FuncPssRO(trimLeftFunc),
 			},
 			// gad:doc
-			// TrimLeftFunc(s string, f func(char) bool) -> string
+			// TrimLeftFunc(s str, f func(char) bool) <str>
 			// Returns a slice of the string s with all leading Unicode code points
 			// c satisfying f(c) removed.
 			"TrimLeftFunc": &gad.Function{
@@ -374,7 +374,7 @@ var (
 				Value:    newTrimFuncInv(strings.TrimLeftFunc),
 			},
 			// gad:doc
-			// TrimPrefix(s string, prefix string) -> string
+			// TrimPrefix(s str, prefix str) <str>
 			// Returns s without the provided leading prefix string. If s doesn't start
 			// with prefix, s is returned unchanged.
 			"TrimPrefix": &gad.Function{
@@ -383,7 +383,7 @@ var (
 				Value:    stdlib.FuncPssRO(trimPrefixFunc),
 			},
 			// gad:doc
-			// TrimRight(s string, cutset string) -> string
+			// TrimRight(s str, cutset str) <str>
 			// Returns a slice of the string s with all trailing Unicode code points
 			// contained in cutset removed.
 			"TrimRight": &gad.Function{
@@ -392,7 +392,7 @@ var (
 				Value:    stdlib.FuncPssRO(trimRightFunc),
 			},
 			// gad:doc
-			// TrimRightFunc(s string, f func(char) bool) -> string
+			// TrimRightFunc(s str, f func(char) bool) <str>
 			// Returns a slice of the string s with all trailing Unicode code points
 			// c satisfying f(c) removed.
 			"TrimRightFunc": &gad.Function{
@@ -401,7 +401,7 @@ var (
 				Value:    newTrimFuncInv(strings.TrimRightFunc),
 			},
 			// gad:doc
-			// TrimSpace(s string) -> string
+			// TrimSpace(s str) <str>
 			// Returns a slice of the string s, with all leading and trailing white
 			// space removed, as defined by Unicode.
 			"TrimSpace": &gad.Function{
@@ -410,7 +410,7 @@ var (
 				Value:    stdlib.FuncPsRO(trimSpaceFunc),
 			},
 			// gad:doc
-			// TrimSuffix(s string, suffix string) -> string
+			// TrimSuffix(s str, suffix str) <str>
 			// Returns s without the provided trailing suffix string. If s doesn't end
 			// with suffix, s is returned unchanged.
 			"TrimSuffix": &gad.Function{
@@ -420,7 +420,7 @@ var (
 			},
 
 			// gad:doc
-			// Trunc(s string, maxLen int; emph="...") -> string
+			// Trunc(s str, maxLen int; emph="...") <str>
 			// Truncate s to maxLen concatenated with emph.
 			"Trunc": &gad.Function{
 				Module:   spec,
@@ -454,7 +454,7 @@ var (
 			},
 
 			// gad:doc
-			// SlitWords(s str|rawstr) -> Array
+			// SlitWords(s str|rawstr) <array>
 			// Split words by spaces using regex `\s+`.
 			// If s is rawstr, returns Array of Rawstr, otherwise, Array of Str.
 			"SlitWords": &gad.Function{
@@ -505,7 +505,7 @@ var (
 			},
 
 			// gad:doc
-			// TruncWords(s str|rawstr, max int; emph="...", atlimit=off) -> str|rawstr
+			// TruncWords(s str|rawstr, max int; emph="...", atlimit=off) <str|rawstr>
 			// Truncate words in s to maxLen concatenated with emph. If atlimit is Falsy,
 			// limits at word count equals to max, otherwise at length of s equals to max.
 			"TruncWords": &gad.Function{

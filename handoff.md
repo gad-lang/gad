@@ -68,6 +68,23 @@ tests (plus encoder tests where relevant), `make test` green, and committed to
 `vm_loop.go` has an uncommitted `OpExtendModule` nil-module fix made by
 tooling/user during the session — left untouched.
 
+## Post-feature work (committed)
+- `OpFinalizer` return-through-finally bug fixed; `deferb` improved ($ret
+  shadowed, handler throws captured into $err); `OpExtendModule` nil guard.
+- godoc completed for new nodes; README updated + examples verified; CLAUDE.md /
+  ia_todo.md / handoff.md committed.
+
+## Doc tooling (IN PROGRESS — ia_todo.md)
+`cmd/gaddoc` stays a **markdown** generator (YAML/HTML-UI ideas dropped per
+user). Remaining work: support the new function-header syntax.
+- `cmd/gaddoc/main.go`: `reFuncAnnot` matches `Name(params) -> ret`; update it to
+  the new `Name(params) <ret>` syntax (see `node.FuncExpr.prefix()` /
+  `FuncType.String()`). The `(\w+)\(.*\)` part already accepts named-param `;`.
+- Convert all `// gad:doc` function headers in `stdlib/*` from `-> ret` to
+  `<ret>` with gad type names (`string`→`str`) and the named-param `;` variation.
+- Regenerate `docs/stdlib-*.md` via `make generate-docs`; verify gaddoc has no
+  errors (it validates each function name exists in the module).
+
 ## Verify
 `make test` (lint + cover + -race + fib smoke). Per feature:
 `go test . -run 'TestVMOrExpr|TestVMMatchExpr|TestVMDeferStmt|TestVMDeferbStmt|TestVMComprehension|TestVMRegexLit|TestVMRegexpReplace|TestVMDictDestructure|TestVMMixedParamsDestructure|TestVMSpreadLiterals'`

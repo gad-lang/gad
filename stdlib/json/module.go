@@ -21,7 +21,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 		// # json module
 		//
 		// ## Functions
-		// Marshal(v any) -> bytes
+		// Marshal(v any) <bytes>
 		// Returns the JSON encoding v or error.
 		"Marshal": &gad.Function{
 			Module:   spec,
@@ -29,7 +29,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 			Value:    funcPpVM_OROe(marshalFunc),
 		},
 		// gad:doc
-		// MarshalIndent(v any, prefix string, indent string) -> bytes
+		// MarshalIndent(v any, prefix str, indent str) <bytes>
 		// MarshalIndent is like Marshal but applies IndentCount to format the output.
 		"MarshalIndent": &gad.Function{
 			Module:   spec,
@@ -37,7 +37,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 			Value:    funcPpVM_OssROe(marshalIndentFunc),
 		},
 		// gad:doc
-		// IndentCount(src bytes, prefix string, indent string) -> bytes
+		// IndentCount(src bytes, prefix str, indent str) <bytes>
 		// Returns indented form of the JSON-encoded src or error.
 		"IndentCount": &gad.Function{
 			Module:   spec,
@@ -45,7 +45,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 			Value:    funcPb2ssROe(indentFunc),
 		},
 		// gad:doc
-		// RawMessage(v bytes) -> rawMessage
+		// RawMessage(v bytes) <rawMessage>
 		// Returns a wrapped bytes to provide raw encoded JSON value to Marshal
 		// functions.
 		"RawMessage": &gad.Function{
@@ -54,7 +54,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 			Value:    stdlib.FuncPb2RO(rawMessageFunc),
 		},
 		// gad:doc
-		// Compact(data bytes, escape bool) -> bytes
+		// Compact(data bytes, escape bool) <bytes>
 		// Returns elided insignificant space characters from data or error.
 		"Compact": &gad.Function{
 			Module:   spec,
@@ -62,7 +62,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 			Value:    funcPb2bROe(compactFunc),
 		},
 		// gad:doc
-		// Quote(v any) -> encoderOptions
+		// Quote(v any) <encoderOptions>
 		// Returns a wrapped object to provide Marshal functions to quote v.
 		"Quote": &gad.Function{
 			Module:   spec,
@@ -70,7 +70,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 			Value:    funcPORO(quoteFunc),
 		},
 		// gad:doc
-		// NoQuote(v any) -> encoderOptions
+		// NoQuote(v any) <encoderOptions>
 		// Returns a wrapped object to provide Marshal functions not to quote while
 		// encoding.
 		// This can be used not to quote all array or map items.
@@ -80,7 +80,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 			Value:    funcPORO(noQuoteFunc),
 		},
 		// gad:doc
-		// NoEscape(v any) -> encoderOptions
+		// NoEscape(v any) <encoderOptions>
 		// Returns a wrapped object to provide Marshal functions not to escape html
 		// while encoding.
 		"NoEscape": &gad.Function{
@@ -89,7 +89,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 			Value:    funcPORO(noEscapeFunc),
 		},
 		// gad:doc
-		// Unmarshal(p bytes,numericAsDecimal=false,floatsAsDecimal=false,intAsDecimal=false) -> any
+		// Unmarshal(p bytes; numericAsDecimal=false, floatsAsDecimal=false, intAsDecimal=false) <any>
 		// if numericAsDecimal is true, set floatsAsDecimal to true and intAsDecimal to true
 		// if floatsAsDecimal is true, parses float values as decimal
 		// if intAsDecimal is true, parses int values as decimal
@@ -100,7 +100,7 @@ var ModuleInit gad.ModuleInitFunc = func(module *gad.Module, c gad.Call) (err er
 			Value:    funcPb2b_numberAsDecimal_b_floatAsDecimal_b_intAsDecimal_ROe(unmarshalFunc),
 		},
 		// gad:doc
-		// Valid(p bytes) -> bool
+		// Valid(p bytes) <bool>
 		// Reports whether p is a valid JSON encoding.
 		"Valid": &gad.Function{
 			Module:   spec,
