@@ -724,6 +724,73 @@ func (s *Reader) ScanStringDelimiter(delimiter rune) string {
 	return string(s.Src[offs:s.Offset])
 }
 
+// LooksLikeRegex reports whether the input starting at the current position
+// (just after an opening '/') contains a closing '/' on the same line, i.e.
+// whether it should be scanned as a regex literal rather than a division
+// operator. It does not consume input.
+func (s *Reader) LooksLikeRegex() bool {
+	offset, readOffset, ch, lineOffset := s.Offset, s.ReadOffset, s.Ch, s.lineOffset
+	found := false
+	inClass := false
+	for {
+		c := s.Ch
+		if c < 0 || c == '\n' {
+			break
+		}
+		s.Next()
+		switch {
+		case c == '\\':
+			if s.Ch >= 0 && s.Ch != '\n' {
+				s.Next()
+			}
+		case c == '[':
+			inClass = true
+		case c == ']':
+			inClass = false
+		case c == '/' && !inClass:
+			found = true
+		}
+		if found {
+			break
+		}
+	}
+	s.Offset, s.ReadOffset, s.Ch, s.lineOffset = offset, readOffset, ch, lineOffset
+	return found
+}
+
+// ScanRegex scans a `/regex/` literal (the opening '/' is already consumed),
+// handling '\' escapes and '[...]' character classes, plus an optional trailing
+// 'p' POSIX flag. It returns the full literal text including delimiters.
+func (s *Reader) ScanRegex() string {
+	offs := s.Offset - 1 // opening '/' already consumed
+	inClass := false
+
+	for {
+		ch := s.Ch
+		if ch < 0 || ch == '\n' {
+			s.Error(offs, "regex literal not terminated")
+			break
+		}
+		s.Next()
+		switch {
+		case ch == '\\':
+			if s.Ch >= 0 && s.Ch != '\n' {
+				s.Next()
+			}
+		case ch == '[':
+			inClass = true
+		case ch == ']':
+			inClass = false
+		case ch == '/' && !inClass:
+			if s.Ch == 'p' {
+				s.Next() // POSIX flag
+			}
+			return string(s.Src[offs:s.Offset])
+		}
+	}
+	return string(s.Src[offs:s.Offset])
+}
+
 func (s *Reader) ScanRawString() (string, bool) {
 	offs := s.Offset - 1 // '`' opening already consumed
 

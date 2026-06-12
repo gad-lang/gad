@@ -27,7 +27,8 @@ var (
 	SymbolInfoV1,
 	ModuleSpecV1,
 	ErrorV1,
-	EmbeddedV1 EncDec
+	EmbeddedV1,
+	RegexpV1 EncDec
 )
 
 const (
@@ -53,6 +54,7 @@ const (
 	typeModuleSpec
 	typeError
 	typeEmbedded
+	typeRegexp
 )
 
 const versionV1 byte = 1
@@ -80,4 +82,5 @@ func init() {
 	Register[gad.ModuleSpec](typeModuleSpec, versionV1, &ModuleSpecV1)
 	Register[gad.Error](typeError, versionV1, &ErrorV1)
 	Register[gad.Embedded](typeEmbedded, versionV1, &EmbeddedV1)
+	Register[gad.Regexp](typeRegexp, versionV1, &RegexpV1)
 }

@@ -290,6 +290,11 @@ do:
 				}
 				t.Token = token.Comment
 				t.Literal = comment
+			} else if !s.InsertSemi && s.LooksLikeRegex() {
+				// operand position with a closing '/' on the same line: regex
+				insertSemi = true
+				t.Token = token.Regex
+				t.Literal = s.ScanRegex()
 			} else {
 				t.Token = s.Switch2(token.Quo, token.QuoAssign)
 			}

@@ -511,6 +511,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileOrExpr(nt)
 	case *node.MatchExpr:
 		return c.compileMatchExpr(nt)
+	case *node.RegexLit:
+		return c.compileRegexLit(nt)
 	case *node.ArrayComprehension:
 		return c.compileArrayComprehension(nt)
 	case *node.DictComprehension:

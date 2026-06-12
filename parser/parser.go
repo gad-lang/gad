@@ -867,6 +867,10 @@ func (p *Parser) ParseLiteral() node.Expr {
 		return p.ParseCharLit()
 	case token.String:
 		return p.ParseStrLit()
+	case token.Regex:
+		x := &node.RegexLit{ValuePos: p.Token.Pos, Literal: p.Token.Literal}
+		p.Next()
+		return x
 	case token.RawString:
 		return p.ParseRawStrLit()
 	case token.Symbol:
@@ -3737,6 +3741,7 @@ func isPrimiteValue(tok token.Token) bool {
 		token.RawHeredoc,
 		token.Heredoc,
 		token.Symbol,
+		token.Regex,
 		token.Nil,
 		token.True,
 		token.False,

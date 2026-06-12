@@ -75,6 +75,27 @@ func TestVMDeferStmt(t *testing.T) {
 	return [f(true), f(false)]`, nil, Array{Str("by"), Str("b")})
 }
 
+func TestVMRegexLit(t *testing.T) {
+	// the literal evaluates to a regexp object
+	testExpectRun(t, `return typeName(/ab+/)`, nil, Str("regexp"))
+	testExpectRun(t, `r := /ab+/; return r.match("abbb")`, nil, True)
+	testExpectRun(t, `r := /ab+/; return r.match("xyz")`, nil, False)
+	// equivalent to the regexp() constructor
+	testExpectRun(t, `return (/ab+/).match("abbb") == regexp("ab+").match("abbb")`,
+		nil, True)
+	// escapes and character classes
+	testExpectRun(t, `r := /[0-9]+\/[0-9]+/; return r.match("12/34")`, nil, True)
+	// POSIX flag compiles and matches
+	testExpectRun(t, `return typeName(/a+/p)`, nil, Str("regexp"))
+	testExpectRun(t, `r := /a+/p; return r.match("aaa")`, nil, True)
+	// in operand positions
+	testExpectRun(t, `f := func(re) { return re.match("ab") }; return f(/ab/)`, nil, True)
+	// division still works (after a value `/` is the operator)
+	testExpectRun(t, `return 10 / 2`, nil, Int(5))
+	testExpectRun(t, `a := 12; b := 3; return a / b`, nil, Int(4))
+	testExpectRun(t, `return [6/2, 8/4]`, nil, Array{Int(3), Int(2)})
+}
+
 func TestVMDeferbStmt(t *testing.T) {
 	// runs at block exit, LIFO
 	testExpectRun(t, `

@@ -3,6 +3,7 @@ package encoder
 import (
 	"math"
 	"os"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -264,6 +265,18 @@ func init() {
 			return
 		}
 		return gad.RawStr(s), nil
+	}
+
+	RegexpV1.Decode = func(ctx *ReadContext) (_ any, err error) {
+		var s string
+		if s, err = readString(ctx); err != nil {
+			return
+		}
+		re, err := regexp.Compile(s)
+		if err != nil {
+			return nil, err
+		}
+		return (*gad.Regexp)(re), nil
 	}
 
 	BytesV1.Decode = func(ctx *ReadContext) (_ any, err error) {

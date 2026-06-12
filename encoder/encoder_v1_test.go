@@ -3,6 +3,7 @@ package encoder_test
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"testing"
 	"time"
 
@@ -10,6 +11,19 @@ import (
 	"github.com/gad-lang/gad/token"
 	"github.com/stretchr/testify/require"
 )
+
+func TestEncDecRegexp(t *testing.T) {
+	for _, pat := range []string{`ab+`, `[0-9]+/[a-z]*`, `^\d{3}-\d{4}$`} {
+		re := (*gad.Regexp)(regexp.MustCompile(pat))
+		data, err := encode(re)
+		require.NoError(t, err, pat)
+		require.Greater(t, len(data), 0, pat)
+
+		got, err := decode[*gad.Regexp](data)
+		require.NoError(t, err, pat)
+		require.Equal(t, pat, got.Go().String(), pat)
+	}
+}
 
 func TestEmbeddedV1BigTree(t *testing.T) {
 	const (

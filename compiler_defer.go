@@ -2,11 +2,31 @@ package gad
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 )
+
+// compileRegexLit compiles a `/regex/` (or `/regex/p` POSIX) literal: the
+// pattern is compiled once at compile time and stored as a *Regexp constant.
+func (c *Compiler) compileRegexLit(nd *node.RegexLit) error {
+	var (
+		re  *regexp.Regexp
+		err error
+	)
+	if nd.Posix() {
+		re, err = regexp.CompilePOSIX(nd.Pattern())
+	} else {
+		re, err = regexp.Compile(nd.Pattern())
+	}
+	if err != nil {
+		return c.errorf(nd, "invalid regex %s: %v", nd.Literal, err)
+	}
+	c.emit(nd, OpConstant, c.addConstant((*Regexp)(re)))
+	return nil
+}
 
 // deferWrapperTemplate is spliced around a function body that uses `defer`.
 // The original body is moved into $__body so its return value can be captured

@@ -374,14 +374,27 @@ func NewRegexpFunc(c Call) (_ Object, err error) {
 			Name:          "input",
 			TypeAssertion: TypeAssertionFromTypes(TStr, TRawStr),
 		}
+		posix = NamedArgVar{
+			Name:          "posix",
+			Value:         False,
+			TypeAssertion: TypeAssertionFromTypes(TBool),
+		}
 	)
 
 	if err = c.Args.Destructure(&input); err != nil {
 		return
 	}
+	if err = c.NamedArgs.Get(&posix); err != nil {
+		return
+	}
 
 	var re *regexp.Regexp
-	if re, err = regexp.Compile(input.Value.ToString()); err != nil {
+	if !posix.Value.IsFalsy() {
+		re, err = regexp.CompilePOSIX(input.Value.ToString())
+	} else {
+		re, err = regexp.Compile(input.Value.ToString())
+	}
+	if err != nil {
 		return
 	}
 

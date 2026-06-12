@@ -433,6 +433,45 @@ func (e *FuncDefLit) Func() (f *FuncExpr) {
 	return
 }
 
+// RegexLit represents a `/regex/` (or `/regex/p` POSIX) literal. Literal holds
+// the raw source including the delimiters and optional flag.
+type RegexLit struct {
+	ValuePos source.Pos
+	Literal  string
+}
+
+func (e *RegexLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *RegexLit) Pos() source.Pos { return e.ValuePos }
+
+// End returns the position of first character immediately after the node.
+func (e *RegexLit) End() source.Pos {
+	return source.Pos(int(e.ValuePos) + len(e.Literal))
+}
+
+func (e *RegexLit) String() string { return e.Literal }
+
+func (e *RegexLit) WriteCode(ctx *CodeWriteContext) { ctx.WriteString(e.Literal) }
+
+// Posix reports whether the literal carries the trailing `p` POSIX flag.
+func (e *RegexLit) Posix() bool {
+	return strings.HasSuffix(e.Literal, "/p")
+}
+
+// Pattern returns the regex source between the delimiters, with `\/` unescaped.
+func (e *RegexLit) Pattern() string {
+	lit := e.Literal
+	if e.Posix() {
+		lit = lit[:len(lit)-1] // drop trailing 'p'
+	}
+	// strip surrounding '/'
+	if len(lit) >= 2 && lit[0] == '/' && lit[len(lit)-1] == '/' {
+		lit = lit[1 : len(lit)-1]
+	}
+	return strings.ReplaceAll(lit, `\/`, `/`)
+}
+
 // StrLit represents a string literal.
 type StrLit struct {
 	ValuePos source.Pos

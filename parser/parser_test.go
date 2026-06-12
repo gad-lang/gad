@@ -3720,6 +3720,18 @@ func TestParseOrExpr(t *testing.T) {
 	test.ExpectParseString(t, "or := 1", "or := 1")
 }
 
+func TestParseRegexLit(t *testing.T) {
+	test.ExpectParseString(t, `r := /ab+/`, `r := /ab+/`)
+	test.ExpectParseString(t, `r := /a+/p`, `r := /a+/p`)
+	// escapes and char classes
+	test.ExpectParseString(t, `r := /[0-9]+\/[0-9]+/`, `r := /[0-9]+\/[0-9]+/`)
+	// division is unaffected (after a value, `/` is the operator)
+	test.ExpectParseString(t, `x := 10 / 2`, `x := (10 / 2)`)
+	test.ExpectParseString(t, `x := a / b / c`, `x := ((a / b) / c)`)
+	// regex as a call argument / in operand position
+	test.ExpectParseString(t, `f(/ab/)`, `f(/ab/)`)
+}
+
 func TestParseDeferStmt(t *testing.T) {
 	test.ExpectParseString(t, `defer { x }`, `defer { x }`)
 	test.ExpectParseString(t, `defer handler`, `defer handler`)

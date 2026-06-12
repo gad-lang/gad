@@ -33,6 +33,7 @@ const (
 	Heredoc
 	Template
 	Symbol
+	Regex
 	GroupLiteralEnd
 	GroupOperatorBegin
 	GroupBinaryOperatorBegin
@@ -203,6 +204,7 @@ var tokens = [...]string{
 	Heredoc:         "HEREDOC",
 	Template:        "TMPL",
 	Symbol:          "SYMBOL",
+	Regex:           "REGEX",
 	Null:            "NULL",
 	NotNull:         "NOTNULL",
 	StdIn:           "STDIN",
@@ -338,6 +340,7 @@ var tokenNames = [...]string{
 	Heredoc:                      "Heredoc",
 	Template:                     "Template",
 	Symbol:                       "Symbol",
+	Regex:                        "Regex",
 	GroupLiteralEnd:              "GroupLiteralEnd",
 	GroupOperatorBegin:           "GroupOperatorBegin",
 	GroupBinaryOperatorBegin:     "GroupBinaryOperatorBegin",

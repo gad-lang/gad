@@ -228,6 +228,12 @@ func init() {
 		return writeString(ctx, string(o.(gad.RawStr)))
 	}
 
+	RegexpV1.Encode = func(ctx *WriteContext, o any) (err error) {
+		// encode the pattern source; POSIX-ness is not recoverable from a
+		// compiled *regexp.Regexp, so it is decoded as a standard pattern.
+		return writeString(ctx, o.(*gad.Regexp).Go().String())
+	}
+
 	BytesV1.Encode = func(ctx *WriteContext, o any) (err error) {
 		return writeChunk(ctx, o.(gad.Bytes))
 	}

@@ -3339,6 +3339,19 @@ func TestCompilerSpreadLiterals(t *testing.T) {
 	))
 }
 
+func TestCompilerRegexLit(t *testing.T) {
+	// `/re/` and `/re/p` compile to the regexp() constructor (POSIX via named arg)
+	st := NewSymbolTable(NewBuiltins().NameSet)
+	_, _, err := Compile(st, []byte(`a := /ab+/; b := /a+/p`), CompileOptions{})
+	require.NoError(t, err)
+
+	// the pattern is compiled at compile time, so an invalid one errors then
+	st = NewSymbolTable(NewBuiltins().NameSet)
+	_, _, err = Compile(st, []byte(`a := /(/`), CompileOptions{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid regex")
+}
+
 func TestCompilerMixedParamsDestructure(t *testing.T) {
 	// the MultiParenExpr LHS compiles (positional index/slice + dict destructure
 	// of the named side); just assert it compiles cleanly.
