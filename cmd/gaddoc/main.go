@@ -173,11 +173,11 @@ func (dg *docgroup) processFuncBlock(line string) {
 	// the gad:doc comment when the metadata is absent.
 	sig := line
 	var usage string
-	if fn := getModuleFunc(dg.module, name); fn != nil {
-		if fn.Header != nil {
-			sig = fn.FuncName + fn.Header.String()
+	if fm, ok := getModuleFunc(dg.module, name); ok {
+		if fm.header != nil {
+			sig = fm.name + fm.header.String()
 		}
-		usage = strings.TrimSpace(fn.Usage)
+		usage = strings.TrimSpace(fm.usage)
 	}
 
 	if dg.funcHLine {
@@ -228,11 +228,26 @@ func moduleData(module string) gad.Dict {
 	return d
 }
 
-// getModuleFunc returns the *gad.Function exported by module under name, or nil
-// when the item is missing or is not a plain function.
-func getModuleFunc(module, name string) *gad.Function {
-	fn, _ := moduleData(module)[name].(*gad.Function)
-	return fn
+// funcMeta is the doc-relevant metadata shared by *gad.Function and
+// *gad.BuiltinFunction.
+type funcMeta struct {
+	name   string
+	header *gad.FunctionHeader
+	usage  string
+}
+
+// getModuleFunc returns the documentable metadata for the named module item
+// when it is a plain function (*gad.Function or *gad.BuiltinFunction). The
+// signature is built from FuncName + Header and the description from Usage
+// (e.g. set via FunctionWithUsage).
+func getModuleFunc(module, name string) (m funcMeta, ok bool) {
+	switch fn := moduleData(module)[name].(type) {
+	case *gad.Function:
+		return funcMeta{fn.FuncName, fn.Header, fn.Usage}, true
+	case *gad.BuiltinFunction:
+		return funcMeta{fn.FuncName, fn.Header, fn.Usage}, true
+	}
+	return funcMeta{}, false
 }
 
 func getModuleItem(module, key string) string {
