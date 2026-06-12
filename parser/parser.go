@@ -761,6 +761,29 @@ func (p *Parser) ParseNullishSelector(x node.Expr) (sel node.Expr) {
 	return &node.NullishSelectorExpr{Expr: x, Sel: sel}
 }
 
+// ParseBytesLit parses the underlying string literal of a b"..."/h"..." bytes
+// literal and wraps it in a *node.BytesLit. The current token is the string
+// literal token carrying the bytes prefix data.
+func (p *Parser) ParseBytesLit(prefix node.BytesLitPrefix) node.Expr {
+	pos := p.Token.Pos
+	var str node.Expr
+	switch p.Token.Token {
+	case token.String:
+		str = p.ParseStrLit()
+	case token.RawString:
+		str = p.ParseRawStrLit()
+	case token.Heredoc:
+		str = p.ParseHeredocLit()
+	case token.RawHeredoc:
+		str = p.ParseRawHeredocLit()
+	default:
+		p.ErrorExpected(pos, "string literal")
+		p.advance(stmtStart)
+		return &node.BadExpr{From: pos, To: p.Token.Pos}
+	}
+	return &node.BytesLit{Prefix: prefix, PrefixPos: pos, Str: str}
+}
+
 func (p *Parser) ParseStrLit() *node.StrLit {
 	x := &node.StrLit{
 		ValuePos: p.Token.Pos,
@@ -847,6 +870,9 @@ func (p *Parser) ParseFlagLit() *node.FlagLit {
 func (p *Parser) ParseLiteral() node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "Operand"))
+	}
+	if prefix, ok := p.Token.GetOk(bytesLitPrefixKey); ok {
+		return p.ParseBytesLit(node.BytesLitPrefix(prefix.(string)))
 	}
 	switch p.Token.Token {
 	case token.Nil:

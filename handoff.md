@@ -1,8 +1,41 @@
-# Handoff: ia_todo.md language features — ALL DONE
+# Handoff: ia_todo.md language features
 
-Every item in `ia_todo.md` is implemented, each with parser + compiler + VM
-tests (plus encoder tests where relevant), `make test` green, and committed to
-`main`. Commits (newest first):
+## NEW BATCH (current session)
+`ia_todo.md` was reset with 3 new asks:
+1. **Bytes from hex string** `h"ffccf1c2"` → `bytes` — **DONE** (committed below).
+2. **Bytes from string/rawstring/heredoc/rawheredoc** `b"Hello"` → `bytes` —
+   **DONE** (same commit; both share one `BytesLit` node).
+3. **Recreate user docs in `./doc`** with examples for all gad features, split
+   into multiple files — **IN PROGRESS / TODO**.
+
+### Bytes literals (items 1+2) — design
+- **Scanner** (`parser/scanner_scan.go`): in the identifier case, a 1-letter
+  `b`/`h` ident glued (no space) to a `"` or `` ` `` delimiter is a bytes-literal
+  prefix. The underlying string is scanned with the existing `ScanString`/
+  `ScanRawString` (so `"` may become a Heredoc, `` ` `` a RawHeredoc); the prefix
+  is stashed on the PToken via `t.Set(bytesLitPrefixKey, prefix)`. A space breaks
+  the literal (`b "x"` is ident+string → parse error), so existing `b`/`h`
+  variables are unaffected.
+- **AST** (`parser/node/literal.go`): `BytesLit{Prefix BytesLitPrefix, PrefixPos,
+  Str Expr}`. `Prefix` is `BytesLitHex`("h") or `BytesLitRaw`("b"). `Str` is the
+  inner `*StrLit/*RawStrLit/*HeredocLit/*RawHeredocLit`. `Bytes()` decodes:
+  hex → `hex.DecodeString` (whitespace stripped first), raw → `[]byte(content)`.
+  `String()`/`WriteCode()` re-emit `prefix + inner`.
+- **Parser** (`parser/parser.go`): `ParseLiteral` checks the prefix flag up front
+  and delegates to `ParseBytesLit`, which parses the inner literal and wraps it.
+- **Compiler** (`compiler.go`): `case *node.BytesLit` → `c.addConstant(Bytes(b))`;
+  invalid hex is a compile error (`invalid bytes literal: ...`). No new opcode,
+  no encoder change (compiles to the existing `Bytes` object).
+- **Tests**: `new_test.go` `TestVMBytesLit` (hex/raw/heredoc/whitespace/empty/
+  concat/index + invalid-hex compile errors), `parser/parser_test.go`
+  `TestParseBytesLit` + Code round-trips in `TestCodeNewNodes`.
+
+---
+
+## PRIOR BATCH — ALL DONE
+Every item in the previous `ia_todo.md` is implemented, each with parser +
+compiler + VM tests (plus encoder tests where relevant), `make test` green, and
+committed to `main`. Commits (newest first):
 
 | Commit    | Feature |
 |-----------|---------|

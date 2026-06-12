@@ -75,6 +75,43 @@ func TestVMDeferStmt(t *testing.T) {
 	return [f(true), f(false)]`, nil, Array{Str("by"), Str("b")})
 }
 
+func TestVMBytesLit(t *testing.T) {
+	// h"..." decodes a hexadecimal sequence to bytes
+	testExpectRun(t, `return h"ffccf1c2"`, nil,
+		Bytes{0xff, 0xcc, 0xf1, 0xc2})
+	testExpectRun(t, `return typeName(h"ffccf1c2")`, nil, Str("bytes"))
+	// uppercase hex digits work too
+	testExpectRun(t, `return h"FFCC"`, nil, Bytes{0xff, 0xcc})
+	// whitespace inside hex is ignored
+	testExpectRun(t, `return h"ff cc f1 c2"`, nil,
+		Bytes{0xff, 0xcc, 0xf1, 0xc2})
+	// empty hex literal yields empty bytes
+	testExpectRun(t, `return len(h"")`, nil, Int(0))
+
+	// b"..." uses the UTF-8 bytes of the string content
+	testExpectRun(t, `return b"Hello"`, nil, Bytes("Hello"))
+	testExpectRun(t, `return typeName(b"Hello")`, nil, Str("bytes"))
+	testExpectRun(t, `return str(b"Hello")`, nil, Str("Hello"))
+	// escapes are processed in the regular string form
+	testExpectRun(t, `return b"a\nb"`, nil, Bytes("a\nb"))
+	// raw string form keeps escapes literal
+	testExpectRun(t, "return b`a\\nb`", nil, Bytes(`a\nb`))
+	// heredoc form
+	testExpectRun(t, "return b\"\"\"\nab\ncd\n\"\"\"", nil, Bytes("ab\ncd"))
+	// hex from a raw string
+	testExpectRun(t, "return h`ffcc`", nil, Bytes{0xff, 0xcc})
+
+	// usable in larger expressions
+	testExpectRun(t, `return b"ab" + b"cd"`, nil, Bytes("abcd"))
+	testExpectRun(t, `b := b"Hi"; return b[0]`, nil, Int('H'))
+
+	// invalid hex content is a compile error
+	expectErrHas(t, `return h"xy"`, newOpts().CompilerError(),
+		`Compile Error: invalid bytes literal`)
+	expectErrHas(t, `return h"abc"`, newOpts().CompilerError(),
+		`Compile Error: invalid bytes literal`)
+}
+
 func TestVMRegexLit(t *testing.T) {
 	// the literal evaluates to a regexp object
 	testExpectRun(t, `return typeName(/ab+/)`, nil, Str("regexp"))

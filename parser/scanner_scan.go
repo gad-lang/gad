@@ -9,6 +9,10 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
+// bytesLitPrefixKey is the PToken data key under which a bytes literal prefix
+// ("b" or "h") is stored when the scanner recognises a b"..."/h"..." literal.
+const bytesLitPrefixKey = "bytesLitPrefix"
+
 // ScanNow returns a token, token literal and its position.
 func (s *Scanner) ScanNow() (t PToken) {
 	t.Pos = source.MustFileSetPos(s.File, s.Offset)
@@ -122,6 +126,32 @@ do:
 	case runehelper.IsIdentifierLetter(ch):
 		t.Literal = s.ScanIdentifier()
 		t.Token = token.Lookup(t.Literal)
+		// A single-letter b/h identifier immediately followed by a string
+		// delimiter is a bytes literal prefix: b"..." (raw bytes) or h"..."
+		// (hex). The underlying string may be a regular string, raw string,
+		// heredoc or raw heredoc.
+		if t.Token == token.Ident && (t.Literal == "b" || t.Literal == "h") &&
+			(s.Ch == '"' || s.Ch == '`') {
+			prefix := t.Literal
+			delim := s.Ch
+			s.Next() // consume the opening delimiter
+			var ishd bool
+			switch delim {
+			case '"':
+				t.Token = token.String
+				if t.Literal, ishd = s.ScanString(); ishd {
+					t.Token = token.Heredoc
+				}
+			case '`':
+				t.Token = token.RawString
+				if t.Literal, ishd = s.ScanRawString(); ishd {
+					t.Token = token.RawHeredoc
+				}
+			}
+			t.Set(bytesLitPrefixKey, prefix)
+			insertSemi = true
+			break
+		}
 		switch t.Literal {
 		case "do", "then":
 			t.Token = token.LBrace

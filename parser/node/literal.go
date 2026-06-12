@@ -1,6 +1,7 @@
 package node
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -1610,4 +1611,88 @@ func (s *SymbolLit) Value() string {
 		v = quote.Unquote(v, ")")
 	}
 	return v
+}
+
+// BytesLitPrefix identifies how a BytesLit's underlying string is decoded into
+// a byte slice.
+type BytesLitPrefix string
+
+const (
+	// BytesLitHex decodes the string content as a hexadecimal byte sequence,
+	// e.g. h"ffccf1c2". Whitespace inside the string is ignored.
+	BytesLitHex BytesLitPrefix = "h"
+	// BytesLitRaw uses the UTF-8 bytes of the string content as-is,
+	// e.g. b"Hello".
+	BytesLitRaw BytesLitPrefix = "b"
+)
+
+// BytesLit represents a prefixed string literal that evaluates to a byte slice.
+//
+// The prefix is a single letter immediately preceding the opening string
+// delimiter (no whitespace): h for a hexadecimal sequence (h"ffccf1c2") and b
+// for the raw UTF-8 bytes of the content (b"Hello"). Any string form may be
+// used as the body: a regular string, a raw string, a heredoc or a raw
+// heredoc.
+type BytesLit struct {
+	// Prefix is the literal prefix (BytesLitHex or BytesLitRaw).
+	Prefix BytesLitPrefix
+	// PrefixPos is the position of the prefix letter.
+	PrefixPos source.Pos
+	// Str is the underlying string literal node (*StrLit, *RawStrLit,
+	// *HeredocLit or *RawHeredocLit).
+	Str Expr
+}
+
+func (e *BytesLit) ExprNode() {}
+
+// Pos returns the position of the prefix letter.
+func (e *BytesLit) Pos() source.Pos {
+	return e.PrefixPos
+}
+
+// End returns the position immediately after the underlying string literal.
+func (e *BytesLit) End() source.Pos {
+	return e.Str.End()
+}
+
+// StrValue returns the decoded string content of the underlying string literal.
+func (e *BytesLit) StrValue() string {
+	switch t := e.Str.(type) {
+	case *StrLit:
+		return t.Value()
+	case *RawStrLit:
+		return t.Value()
+	case *HeredocLit:
+		return t.Value()
+	case *RawHeredocLit:
+		return t.Value()
+	default:
+		return ""
+	}
+}
+
+// Bytes decodes the literal into its byte slice value. For BytesLitHex the
+// content is parsed as hexadecimal (whitespace ignored); for BytesLitRaw the
+// UTF-8 bytes of the content are returned unchanged.
+func (e *BytesLit) Bytes() ([]byte, error) {
+	s := e.StrValue()
+	if e.Prefix == BytesLitHex {
+		s = strings.Map(func(r rune) rune {
+			if r == ' ' || r == '\t' || r == '\n' || r == '\r' {
+				return -1
+			}
+			return r
+		}, s)
+		return hex.DecodeString(s)
+	}
+	return []byte(s), nil
+}
+
+func (e *BytesLit) String() string {
+	return string(e.Prefix) + e.Str.String()
+}
+
+func (e *BytesLit) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(string(e.Prefix))
+	e.Str.WriteCode(ctx)
 }

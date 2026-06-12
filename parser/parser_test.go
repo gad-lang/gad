@@ -3732,6 +3732,18 @@ func TestParseRegexLit(t *testing.T) {
 	test.ExpectParseString(t, `f(/ab/)`, `f(/ab/)`)
 }
 
+func TestParseBytesLit(t *testing.T) {
+	// hex and raw forms round-trip with the prefix preserved
+	test.ExpectParseString(t, `x := h"ffccf1c2"`, `x := h"ffccf1c2"`)
+	test.ExpectParseString(t, `x := b"Hello"`, `x := b"Hello"`)
+	// raw string body
+	test.ExpectParseString(t, "x := b`raw`", "x := b`raw`")
+	// in operand position (call argument)
+	test.ExpectParseString(t, `f(b"x")`, `f(b"x")`)
+	// the prefix must be glued to the delimiter: a space breaks the literal
+	test.ExpectParseError(t, `b "x"`)
+}
+
 func TestParseDeferStmt(t *testing.T) {
 	test.ExpectParseString(t, `defer { x }`, `defer { x }`)
 	test.ExpectParseString(t, `defer handler`, `defer handler`)
@@ -3751,6 +3763,8 @@ func TestCodeNewNodes(t *testing.T) {
 	test.New(t, `x := match (a) { 1: "one", else: "other" }`).
 		Code(`x := match (a) { 1: "one", else: "other" }`)
 	test.New(t, `x := /ab+/`).Code(`x := /ab+/`)
+	test.New(t, `x := h"ffcc"`).Code(`x := h"ffcc"`)
+	test.New(t, `x := b"Hello"`).Code(`x := b"Hello"`)
 
 	// statement-form match with block arms: one arm per line, bodies indented
 	test.New(t, `match (a) { 1 { b = 1 }, else { b = 2 } }`).

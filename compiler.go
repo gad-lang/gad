@@ -545,6 +545,12 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.Value())))
 	case *node.HeredocLit:
 		c.emit(nt, OpConstant, c.addConstant(Str(nt.Value())))
+	case *node.BytesLit:
+		b, err := nt.Bytes()
+		if err != nil {
+			return c.errorf(nt, "invalid bytes literal: %v", err)
+		}
+		c.emit(nt, OpConstant, c.addConstant(Bytes(b)))
 	case *node.CharLit:
 		c.emit(nt, OpConstant, c.addConstant(Char(nt.Value)))
 	case *node.SymbolLit:
