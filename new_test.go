@@ -174,6 +174,31 @@ func TestVMSpreadLiterals(t *testing.T) {
 		nil, Array{Dict{"x": Int(1)}, Dict{"x": Int(9)}})
 }
 
+func TestVMMixedParamsDestructure(t *testing.T) {
+	const x = `x := (1, 2, *[3, 4]; c=5, **{d:6, e:7}); `
+
+	// full destructure: positional with rest + named with rename/default/rest
+	testExpectRun(t, x+`(a, b, **pos_rest; c, p:d, r=2, **named_rest) := x; return [a, b, pos_rest]`,
+		nil, Array{Int(1), Int(2), Array{Int(3), Int(4)}})
+	testExpectRun(t, x+`(a, b, **pos_rest; c, p:d, r=2, **named_rest) := x; return [c, p, r, named_rest]`,
+		nil, Array{Int(5), Int(6), Int(2), Dict{"e": Int(7)}})
+
+	// positional only
+	testExpectRun(t, x+`(m, n) := x; return [m, n]`, nil, Array{Int(1), Int(2)})
+	// positional rest collects the remainder
+	testExpectRun(t, x+`(m, **rest) := x; return [m, rest]`,
+		nil, Array{Int(1), Array{Int(2), Int(3), Int(4)}})
+
+	// `=` assigns to pre-defined variables
+	testExpectRun(t, x+`var (p, q, rest); (p, q, **rest; ) = x; return [p, q, rest]`,
+		nil, Array{Int(1), Int(2), Array{Int(3), Int(4)}})
+
+	// the MixedParams value round-trips through .positional/.named
+	testExpectRun(t, x+`return x.positional`, nil, Array{Int(1), Int(2), Int(3), Int(4)})
+	testExpectRun(t, x+`return dict(x.named)`, nil,
+		Dict{"c": Int(5), "d": Int(6), "e": Int(7)})
+}
+
 func TestVMDictDestructure(t *testing.T) {
 	const d = `d := {a:2, b:3, x:4, y:5}; `
 

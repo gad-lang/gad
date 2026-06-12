@@ -1282,6 +1282,30 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 			mul bool
 		)
 
+		// `**rest` in the positional section: a destructuring rest target.
+		if p.Token.Token == token.Pow {
+			p.Next()
+			p.SkipSpace()
+			p.ExprLevel++
+			exprs = append(exprs, &node.NamedArgVarLit{TokenPos: pos, Value: p.ParseExpr()})
+			p.ExprLevel--
+			p.SkipSpace()
+			if p.Token.Token == token.Comma {
+				p.Next()
+				continue
+			} else if p.Token.Token == token.Semicolon {
+				if p.Token.IsSemi() {
+					kv := p.ParseKeyValueArrayLit(0)
+					rparen = kv.RParen
+					nexprs = kv.Elements
+					goto done
+				}
+				p.Next()
+				continue
+			}
+			break
+		}
+
 		switch p.Token.Token {
 		case token.Mul:
 			mul = true

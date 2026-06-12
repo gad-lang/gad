@@ -3335,6 +3335,16 @@ func TestCompilerSpreadLiterals(t *testing.T) {
 	))
 }
 
+func TestCompilerMixedParamsDestructure(t *testing.T) {
+	// the MultiParenExpr LHS compiles (positional index/slice + dict destructure
+	// of the named side); just assert it compiles cleanly.
+	st := NewSymbolTable(NewBuiltins().NameSet)
+	_, _, err := Compile(st,
+		[]byte(`x := (1, 2; c=3); (a, b, **pr; c, p:d, r=2, **nr) := x`),
+		CompileOptions{})
+	require.NoError(t, err)
+}
+
 func TestCompilerDictDestructure(t *testing.T) {
 	// (;a, _b:b, **o) := d  evaluates d once into :dict, copies it (because of
 	// **o), reads each key (renamed for _b), deletes consumed keys, and binds

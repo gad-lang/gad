@@ -722,6 +722,10 @@ func (c *Compiler) compileAssignStmt(
 		if kva, ok := lhs[0].(*node.KeyValueArrayLit); ok {
 			return c.compileDictDestructuring(nd, kva, rhs, keyword, op)
 		}
+		// MixedParams destructuring: `(a, b, **pos_rest; c, p:d, **named_rest) = mp`
+		if mp, ok := lhs[0].(*node.MultiParenExpr); ok {
+			return c.compileMixedParamsDestructuring(nd, mp, rhs, keyword, op)
+		}
 	}
 
 	var isArrDestruct bool
@@ -981,6 +985,94 @@ func (c *Compiler) compileDictDestructuring(
 		c.emit(nd, OpSetLocal, dictSym.Index)
 	}
 	return nil
+}
+
+// compileMixedParamsDestructuring compiles
+// `(a, b, **pos_rest; c, p:d, r=2, **named_rest) = mp` against a MixedParams
+// value. The positional side reads mp.positional (with an optional `**rest`
+// slice); the named side reuses dict destructuring against dict(mp.named).
+func (c *Compiler) compileMixedParamsDestructuring(
+	nd ast.Node,
+	mp *node.MultiParenExpr,
+	rhs []node.Expr,
+	keyword token.Token,
+	op token.Token,
+) error {
+	if op != token.Assign && op != token.Define {
+		return c.errorf(nd, "operator %q not allowed with destructuring", op.String())
+	}
+
+	// evaluate the source MixedParams once into a temp local
+	if err := c.Compile(rhs[0]); err != nil {
+		return err
+	}
+	mpSym, _ := c.symbolTable.DefineLocal("$__mp")
+	c.emit(nd, OpDefineLocal, mpSym.Index)
+
+	mpIdent := func() node.Expr { return &node.IdentExpr{Name: "$__mp"} }
+	positional := func() node.Expr { return node.ESelector(mpIdent(), node.Str("positional", 0)) }
+
+	allowRedefine := keyword != token.Const
+
+	// positional targets: a = mp.positional[i]; **rest = mp.positional[i:]
+	var restSeen bool
+	for i, el := range mp.PositionalElements {
+		if av, ok := el.(*node.NamedArgVarLit); ok {
+			if restSeen {
+				return c.errorf(nd, "only one ** rest target is allowed in the positional section")
+			}
+			restSeen = true
+			slice := node.ESlice(positional(), &node.IntLit{Value: int64(i)}, nil, 0, 0)
+			if err := c.compileDefineAssignValue(nd, av.Value, slice, keyword, op, allowRedefine); err != nil {
+				return err
+			}
+			continue
+		}
+		if restSeen {
+			return c.errorf(nd, "** rest target must be the last positional element")
+		}
+		idx := node.EIndex(positional(), &node.IntLit{Value: int64(i)}, 0, 0)
+		if err := c.compileDefineAssignValue(nd, el, idx, keyword, op, allowRedefine); err != nil {
+			return err
+		}
+	}
+
+	// named targets: reuse dict destructuring against dict(mp.named)
+	if len(mp.NamedElements) > 0 {
+		named := node.ESelector(mpIdent(), node.Str("named", 0))
+		dictCall := &node.CallExpr{
+			Func: &node.IdentExpr{Name: BuiltinDict.String()},
+			CallArgs: node.CallArgs{Args: node.CallExprPositionalArgs{
+				Values: []node.Expr{named},
+			}},
+		}
+		kva := &node.KeyValueArrayLit{Elements: mp.NamedElements}
+		if err := c.compileDictDestructuring(nd, kva, []node.Expr{dictCall}, keyword, op); err != nil {
+			return err
+		}
+	}
+
+	if !c.symbolTable.InBlock() {
+		c.emit(nd, OpNil)
+		c.emit(nd, OpSetLocal, mpSym.Index)
+	}
+	return nil
+}
+
+// compileDefineAssignValue compiles `target OP value`, where value is an
+// expression that is evaluated and then bound to target.
+func (c *Compiler) compileDefineAssignValue(
+	nd ast.Node,
+	target node.Expr,
+	value node.Expr,
+	keyword token.Token,
+	op token.Token,
+	allowRedefine bool,
+) error {
+	if err := c.Compile(value); err != nil {
+		return err
+	}
+	return c.compileDefineAssign(nd, target, keyword, op, allowRedefine)
 }
 
 func (c *Compiler) compileDefine(

@@ -3763,6 +3763,13 @@ func TestParseSpreadLiterals(t *testing.T) {
 	test.ExpectParseString(t, `x := {*b, *d}`, `x := {*b, *d}`)
 }
 
+func TestParseMixedParamsDestructure(t *testing.T) {
+	// `**rest` is now accepted in the positional section of a paren group
+	test.ExpectParseString(t, `(a, b, **pr; c, p:d, r=2, **nr) := x`,
+		`(, a, b, **pr; c, p:d, r=2, **nr) := x`)
+	test.ExpectParseString(t, `(a, b) := x`, `(, a, b) := x`)
+}
+
 func TestParseDictDestructure(t *testing.T) {
 	// the `(;...)` LHS parses to a KeyValueArrayLit; `:` is a rename mapping,
 	// `=` is a fallback default and `**` is the optional rest target.
