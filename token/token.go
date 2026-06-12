@@ -145,6 +145,9 @@ const (
 	Export
 	Raw
 	Match
+	Defer
+	DeferOk
+	DeferErr
 	GroupKeywordEnd
 )
 
@@ -299,6 +302,9 @@ var tokens = [...]string{
 	Module:          "@module",
 	Raw:             "raw",
 	Match:           "match",
+	Defer:           "defer",
+	DeferOk:         "defer_ok",
+	DeferErr:        "defer_err",
 	Export:          "export",
 }
 
@@ -438,6 +444,9 @@ var tokenNames = [...]string{
 	Export:                       "Export",
 	Raw:                          "Raw",
 	Match:                        "Match",
+	Defer:                        "Defer",
+	DeferOk:                      "DeferOk",
+	DeferErr:                     "DeferErr",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 

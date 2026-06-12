@@ -1944,6 +1944,8 @@ do:
 		return p.ParseForStmt()
 	case token.Try:
 		return p.ParseTryStmt()
+	case token.Defer, token.DeferOk, token.DeferErr:
+		return p.ParseDeferStmt()
 	case token.Throw:
 		return p.ParseThrowStmt()
 	case token.Export:
@@ -2635,6 +2637,32 @@ func (p *Parser) parseComprehensionClauses() []*node.ComprehensionClause {
 			return clauses
 		}
 	}
+}
+
+func (p *Parser) ParseDeferStmt() node.Stmt {
+	if p.Trace {
+		defer untracep(tracep(p, "DeferStmt"))
+	}
+
+	variant := node.DeferAlways
+	switch p.Token.Token {
+	case token.DeferOk:
+		variant = node.DeferOnOk
+	case token.DeferErr:
+		variant = node.DeferOnErr
+	}
+	pos := p.Token.Pos
+	p.Next()
+	p.SkipSpace()
+
+	stmt := &node.DeferStmt{DeferPos: pos, Variant: variant}
+	if p.Token.Token == token.LBrace {
+		stmt.Body = p.ParseBlockStmt()
+	} else {
+		stmt.Call = p.ParseExpr()
+	}
+	p.ExpectSemi()
+	return stmt
 }
 
 func (p *Parser) ParseMatchExpr() node.Expr {

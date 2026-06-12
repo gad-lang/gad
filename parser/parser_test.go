@@ -3720,6 +3720,14 @@ func TestParseOrExpr(t *testing.T) {
 	test.ExpectParseString(t, "or := 1", "or := 1")
 }
 
+func TestParseDeferStmt(t *testing.T) {
+	test.ExpectParseString(t, `defer { x }`, `defer { x }`)
+	test.ExpectParseString(t, `defer handler`, `defer handler`)
+	test.ExpectParseString(t, `defer handler(x)`, `defer handler(x)`)
+	test.ExpectParseString(t, `defer_ok { x }`, `defer_ok { x }`)
+	test.ExpectParseString(t, `defer_err { x }`, `defer_err { x }`)
+}
+
 func TestParseComprehension(t *testing.T) {
 	test.ExpectParseString(t, `x := [i for i in a]`, `x := [i for i in a]`)
 	test.ExpectParseString(t, `x := [i * 2 for i in a if i > 1]`,

@@ -8,6 +8,73 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
+func TestVMDeferStmt(t *testing.T) {
+	// runs after the body
+	testExpectRun(t, `
+	out := ""
+	f := func() { defer { out += "d" }; out += "b" }
+	f()
+	return out`, nil, Str("bd"))
+
+	// $ret can be modified by a defer
+	testExpectRun(t, `f := func(x) { defer { $ret = $ret + 100 }; return x }; return f(5)`,
+		nil, Int(105))
+
+	// LIFO order, $ret threaded across defers
+	testExpectRun(t, `f := func() { defer { $ret += "-A" }; defer { $ret += "-B" }; return "x" }; return f()`,
+		nil, Str("x-B-A"))
+
+	// `defer handler` calls the handler; `defer handler(x)` calls with args
+	testExpectRun(t, `
+	out := ""
+	h := func(m) { out += m }
+	f := func() { defer h("done"); defer h("step") }
+	f()
+	return out`, nil, Str("stepdone"))
+
+	// defer_err recovers: sets $ret and clears $err
+	testExpectRun(t, `
+	f := func() { defer_err { $ret = "recovered:" + str($err); $err = nil }; throw "boom" }
+	return f()`, nil, Str("recovered:error: boom"))
+
+	// defer_ok runs only on success
+	testExpectRun(t, `
+	out := ""
+	f := func(fail) {
+		defer_ok { out += "ok " }
+		defer_err { out += "err " }
+		if fail { throw "x" }
+	}
+	f(false)
+	try { f(true) } catch {}
+	return out`, nil, Str("ok err "))
+
+	// throw inside a defer becomes the function's error
+	expectErrHas(t, `f := func() { defer { throw "from-defer" }; return 1 }; return f()`,
+		newOpts(), "from-defer")
+
+	// an error from the body still propagates when no defer suppresses it
+	expectErrHas(t, `f := func() { defer { $ret = 1 }; throw "boom" }; return f()`,
+		newOpts(), "boom")
+
+	// nested functions have independent defers (inner runs at inner exit)
+	testExpectRun(t, `
+	out := ""
+	g := func() {
+		defer { out += "outer " }
+		inner := func() { defer { out += "inner " }; out += "in " }
+		inner()
+		out += "out "
+	}
+	g()
+	return out`, nil, Str("in inner out outer "))
+
+	// conditional defer only registers (and runs) when reached
+	testExpectRun(t, `
+	f := func(c) { if c { defer { $ret += "y" } }; return "b" }
+	return [f(true), f(false)]`, nil, Array{Str("by"), Str("b")})
+}
+
 func TestVMComprehension(t *testing.T) {
 	// array comprehension
 	testExpectRun(t, `return [i * 2 for i in [1, 2, 3]]`,

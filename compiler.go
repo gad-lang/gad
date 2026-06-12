@@ -583,6 +583,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileFinallyStmt(nt)
 	case *node.ThrowStmt:
 		return c.compileThrowStmt(nt)
+	case *node.DeferStmt:
+		return c.compileDeferStmt(nt)
 	case *node.ForStmt:
 		return c.compileForStmt(nt)
 	case *node.ForInStmt:

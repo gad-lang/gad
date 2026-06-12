@@ -1598,6 +1598,15 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 		fork.variadic = typ.Params.Args.Var != nil
 	}
 
+	// desugar `defer` by wrapping the body in the defer runner; mark the
+	// original body claimed so the inner $__body thunk is not re-wrapped
+	if !body.DeferClaimed && stmtsHaveDefer(body.Stmts) {
+		body.DeferClaimed = true
+		if body, err = c.wrapDeferBody(body); err != nil {
+			return err
+		}
+	}
+
 	if err := fork.Compile(body); err != nil {
 		return err
 	}

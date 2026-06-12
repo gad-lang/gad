@@ -3216,6 +3216,29 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 }
 
+func TestCompilerDeferStmt(t *testing.T) {
+	// defer outside a function body is rejected with a friendly message
+	expectCompileError(t, `defer { x }`,
+		`Compile Error: defer is only allowed inside a function body`)
+
+	// a defer-using function desugars into a wrapper that creates extra
+	// compiled functions (the $__body thunk and one handler closure per defer)
+	st := NewSymbolTable(NewBuiltins().NameSet)
+	_, bc, err := Compile(st, []byte(`f := func() { defer { x := 1 } }`),
+		CompileOptions{})
+	require.NoError(t, err)
+
+	var fnCount int
+	for _, cnst := range bc.Constants {
+		if _, ok := cnst.(*CompiledFunction); ok {
+			fnCount++
+		}
+	}
+	// f itself + $__body thunk + defer handler closure
+	require.GreaterOrEqual(t, fnCount, 3,
+		"expected defer desugar to generate the thunk and handler closures")
+}
+
 func TestCompilerArrayComprehension(t *testing.T) {
 	// `[i for i in [9]]` desugars to: :compr = []; for i in [9] { :compr =
 	// append(:compr, i) }; <push :compr>

@@ -94,6 +94,10 @@ type BlockStmt struct {
 	LBrace ast.Literal
 	RBrace ast.Literal
 	Scoped bool
+	// DeferClaimed marks a function body whose `defer` statements have already
+	// been claimed by an enclosing defer wrapper, so it must not be wrapped
+	// again (its defers register to the outer $__defers list).
+	DeferClaimed bool
 }
 
 func (s *BlockStmt) StmtNode() {}
@@ -623,6 +627,67 @@ func (s *FinallyStmt) String() string {
 func (s *FinallyStmt) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("finally ")
 	s.Body.WriteCode(ctx)
+}
+
+// DeferVariant selects when a deferred handler runs.
+type DeferVariant int
+
+const (
+	DeferAlways DeferVariant = iota // defer
+	DeferOnOk                       // defer_ok: only when no error
+	DeferOnErr                      // defer_err: only when an error occurred
+)
+
+func (v DeferVariant) String() string {
+	switch v {
+	case DeferOnOk:
+		return "defer_ok"
+	case DeferOnErr:
+		return "defer_err"
+	default:
+		return "defer"
+	}
+}
+
+// DeferStmt represents a `defer`, `defer_ok` or `defer_err` statement. Exactly
+// one of Body (`defer { ... }`) or Call (`defer handler` / `defer handler(x)`)
+// is set. The handler runs when the enclosing function returns; inside it the
+// locals `$ret` (return value) and `$err` (caught error) are available and may
+// be modified.
+type DeferStmt struct {
+	DeferPos source.Pos
+	Variant  DeferVariant
+	Body     *BlockStmt
+	Call     Expr
+}
+
+func (s *DeferStmt) StmtNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (s *DeferStmt) Pos() source.Pos { return s.DeferPos }
+
+// End returns the position of first character immediately after the node.
+func (s *DeferStmt) End() source.Pos {
+	if s.Body != nil {
+		return s.Body.End()
+	}
+	return s.Call.End()
+}
+
+func (s *DeferStmt) String() string {
+	if s.Body != nil {
+		return s.Variant.String() + " " + s.Body.String()
+	}
+	return s.Variant.String() + " " + s.Call.String()
+}
+
+func (s *DeferStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(s.Variant.String() + " ")
+	if s.Body != nil {
+		s.Body.WriteCode(ctx)
+	} else {
+		s.Call.WriteCode(ctx)
+	}
 }
 
 // ThrowStmt represents an throw statement.
