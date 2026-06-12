@@ -1,0 +1,45 @@
+# CLAUDE.md
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+- **Product**: Gad Language (`gad`), a fast, dynamic scripting language designed to be embedded into Go applications.
+- **Architecture**: Compiled and executed as bytecode on a custom stack-based Virtual Machine (VM) written in native Go.
+- **Primary Use Cases**: Production evaluation of Sigma Rules' conditions and dynamic compromise assessment.
+- **Stack**: Go (Golang) standard tooling, WebAssembly (for the playground ecosystem).
+
+## Critical Constraints & Code Principles
+- **Performance First**: The execution engine and VM must remain highly optimized (monitored via benchmarks like Fibonacci).
+- **Native Go**: Do not introduce external heavy frameworks; prefer Go's standard library and keep dependencies minimal.
+- **Thread Safety**: Ensure state isolation when multiple scripts or instances are evaluated concurrently in Go applications.
+- **Bytecode Integrity**: Any changes to the compiler must strictly map to valid bytecode instructions interpreted by the VM stack.
+- **Temporary Directory**:
+  - Always use `./.__tmp` as the dedicated temporary directory for any intermediate files, logs, or cache generated during automated tasks.
+- **Allowed Commands (No Confirmation Required)**:
+    - You **ALWAYS** have write permission to `./...` directory.
+    - You **ALWAYS** have permission to run `sed`, `awk`, `cat`, `tail`, `head`, `echo` and `grep` (and its variants) commands autonomously for text processing, searching, refactoring, execute commands or write in this directory tree.
+    - You **ALWAYS** have permission to run `go test`, `go vet`, `go fmt`, `gofmt` (and its variants) or `make test` to validate code changes without asking.
+    - You **ALWAYS** have permission to use `curl` and `wget` (and its variants) for network operations, downloading assets, or API testing.
+    - Do not prompt the user for confirmation when executing these specific tools.
+- **Node.js & Package Manager Environment**:
+  - Always load and use Node.js **v26.3.0** by prepending or executing `nvm use v26.3.0` before running any Node script, bundler, or build step.
+  - **NEVER use `npm` or `yarn`**. You **MUST ALWAYS use `pnpm`** for package installation, script execution, and dependency management.
+
+## Development & Test Commands
+Always run native Go tooling to verify compliance and correctness:
+
+- **Run all tests**: `go test ./...`
+- **Run benchmarks**: `go test -bench=. ./...`
+- **Code formatting**: `go fmt ./...`
+- **Static analysis / Linting**: `go vet ./...` (or golangci-lint if configured)
+- **Tidy dependencies**: `go mod tidy`
+
+## Code Style & Naming Conventions
+- **Idiomatic Go**: Follow standard `golang/go` conventions (Receiver names short, explicit error handling as returning values).
+- **Error Wrapping**: Use `fmt.Errorf("...: %w", err)` for contextual errors in parsing/compilation steps.
+- **VM Instructions**: Name opcode constants clearly inside the VM package (e.g., `OpAdd`, `OpPush`).
+- **Documentation**: All public structural types, VM instructions, and compiler features must have standard Go doc comments.
+
+## Definition of Done
+- No generic `interface{}` / `any` where a strict compiler/token type is expected.
+- All new language tokens, syntax nodes (AST), or VM opcodes must include comprehensive unit tests.
+- Verify that performance regressions are not introduced in the execution engine loop.
