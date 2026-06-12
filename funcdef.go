@@ -384,12 +384,7 @@ func (h *FunctionHeader) String() string {
 			rets[i] = t.String()
 		}
 
-		ret = " -> "
-		if len(h.ReturnTypes) == 1 {
-			ret += h.ReturnTypes[0].String()
-		} else {
-			ret += "(" + strings.Join(rets, ", ") + ")"
-		}
+		ret += " <" + strings.Join(rets, ", ") + ">"
 	}
 
 	return "(" + strings.Join(s, "") + ")" + ret

@@ -260,16 +260,11 @@ func (e *FuncType) String() string {
 	}
 	s += e.Params.String()
 	if len(e.Return) > 0 {
-		s += " -> "
 		rests := make([]string, len(e.Return))
 		for i := range e.Return {
 			rests[i] = e.Return[i].String()
 		}
-		if len(rests) > 1 {
-			s += "(" + strings.Join(rests, ", ") + ")"
-		} else {
-			s += rests[0]
-		}
+		s += " <" + strings.Join(rests, ", ") + ">"
 	}
 	return s
 }
