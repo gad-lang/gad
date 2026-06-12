@@ -3751,6 +3751,10 @@ func TestParseComprehension(t *testing.T) {
 		`x := [(i + j) for i in a for j in b]`)
 	test.ExpectParseString(t, `x := {k: v for k, v in m}`, `x := {k: v for k, v in m}`)
 	test.ExpectParseString(t, `x := {i: i for i in a if i}`, `x := {i: i for i in a if i}`)
+	// computed key + multiple keys + $ access
+	test.ExpectParseString(t, `x := {[i]: i * i for i in a}`, `x := {[i]: (i * i) for i in a}`)
+	test.ExpectParseString(t, `x := {a: 1, [k]: v for k, v in m}`,
+		`x := {a: 1, [k]: v for k, v in m}`)
 }
 
 func TestParseMatchExpr(t *testing.T) {

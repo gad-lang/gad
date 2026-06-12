@@ -671,11 +671,10 @@ func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 		}
 		so.optimizeComprehensionClauses(nd.Clauses)
 	case *node.DictComprehension:
-		if expr, ok = so.optimize(nd.Key); ok {
-			nd.Key = expr
-		}
-		if expr, ok = so.optimize(nd.Value); ok {
-			nd.Value = expr
+		for _, el := range nd.Elements {
+			if expr, ok = so.optimize(el.Value); ok {
+				el.Value = expr
+			}
 		}
 		so.optimizeComprehensionClauses(nd.Clauses)
 	case *node.MatchExpr:

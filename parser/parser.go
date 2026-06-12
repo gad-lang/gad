@@ -3122,18 +3122,16 @@ func (p *Parser) ParseDictLit() node.Expr {
 	for p.Token.Token != token.RBrace && p.Token.Token != token.EOF {
 		elements = append(elements, p.ParseDictElementLit())
 
-		// dict comprehension: `{key: value for x in it if cond ...}`
-		if len(elements) == 1 && p.Token.Token == token.For {
-			first := elements[0]
+		// dict comprehension: `{k1: v1, [ke]: ve, ... for x in it if cond}`
+		if p.Token.Token == token.For {
 			clauses := p.parseComprehensionClauses()
 			p.ExprLevel--
 			rbrace := p.Expect(token.RBrace)
 			return &node.DictComprehension{
-				LBrace:  lbrace,
-				Key:     first.Key,
-				Value:   first.Value,
-				Clauses: clauses,
-				RBrace:  rbrace,
+				LBrace:   lbrace,
+				Elements: elements,
+				Clauses:  clauses,
+				RBrace:   rbrace,
 			}
 		}
 

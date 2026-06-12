@@ -332,25 +332,34 @@ func (c *Compiler) compileArrayComprehension(nd *node.ArrayComprehension) error 
 	return nil
 }
 
-// compileDictComprehension compiles `{key: value for x in it if cond ...}` by
-// building a temp dict and setting key=>value for each passing iteration, then
-// leaving the dict on the stack.
+// compileDictComprehension compiles
+// `{k1: v1, [ke]: ve, ... for x in it if cond}` by building a dict bound to the
+// special variable `_` and, for each passing iteration, assigning every element
+// into it. Static keys (`name:`) use the literal name; computed keys (`[expr]:`)
+// evaluate the expression. Value expressions may read/modify the in-progress
+// dict via `_` (e.g. `_.z ?? 20`).
 func (c *Compiler) compileDictComprehension(nd *node.DictComprehension) error {
 	c.symbolTable = c.symbolTable.Fork(true)
 	defer func() { c.symbolTable = c.symbolTable.Parent(false) }()
 
-	// :compr := {}
-	resultSym, _ := c.symbolTable.DefineLocal(":compr")
+	// `_` refers to the dict being built
+	resultSym, _ := c.symbolTable.DefineLocal("_")
 	c.emit(nd, OpDict, 0)
 	c.emit(nd, OpDefineLocal, resultSym.Index)
 
-	result := &node.IdentExpr{Name: ":compr"}
-	// :compr[key] = value
-	inner := &node.AssignStmt{
-		LHS:   []node.Expr{&node.IndexExpr{X: result, Index: nd.Key}},
-		RHS:   []node.Expr{nd.Value},
-		Token: token.Assign,
+	// inner body: _[k1] = v1; _[k2] = v2; ...
+	var stmts node.Stmts
+	for _, el := range nd.Elements {
+		stmts = append(stmts, &node.AssignStmt{
+			LHS: []node.Expr{&node.IndexExpr{
+				X:     &node.IdentExpr{Name: "_"},
+				Index: el.BuildKeyExpr(),
+			}},
+			RHS:   []node.Expr{el.Value},
+			Token: token.Assign,
+		})
 	}
+	inner := &node.BlockStmt{Stmts: stmts}
 
 	if err := c.Compile(wrapComprehensionClauses(nd.Clauses, inner)); err != nil {
 		return err

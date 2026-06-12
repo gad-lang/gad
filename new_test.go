@@ -176,12 +176,21 @@ func TestVMComprehension(t *testing.T) {
 	testExpectRun(t, `return [[j for j in [1, 2]] for i in [0, 0]]`,
 		nil, Array{Array{Int(1), Int(2)}, Array{Int(1), Int(2)}})
 
-	// dict comprehension (keys are evaluated expressions, like Python)
-	testExpectRun(t, `return {i: i * i for i in [1, 2, 3]}`,
+	// dict comprehension: `[expr]` is a computed key (the value of i)
+	testExpectRun(t, `return {[i]: i * i for i in [1, 2, 3]}`,
 		nil, Dict{"1": Int(1), "2": Int(4), "3": Int(9)})
-	// k, v iteration with filter
-	testExpectRun(t, `return {k: v * 10 for k, v in {a: 1, b: 2} if v == 2}`,
+	// k, v iteration with filter and computed key
+	testExpectRun(t, `return {[k]: v * 10 for k, v in {a: 1, b: 2} if v == 2}`,
 		nil, Dict{"b": Int(20)})
+	// a static key keeps its literal name (last write wins)
+	testExpectRun(t, `return {n: i for i in [1, 2, 3]}`, nil, Dict{"n": Int(3)})
+	// multiple keys (static + computed) and `_` reads the dict being built
+	testExpectRun(t,
+		`return {i: 100, x: 10 + i, z: (_.z ?? 20) + i, [i]: i * i for i in [1, 2, 3]}`,
+		nil, Dict{
+			"i": Int(100), "x": Int(13), "z": Int(26),
+			"1": Int(1), "2": Int(4), "3": Int(9),
+		})
 
 	// loop variable does not leak into the surrounding scope
 	expectErrHas(t, `x := [i for i in [1, 2]]; return i`,

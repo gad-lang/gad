@@ -1941,21 +1941,32 @@ func (e *ArrayComprehension) String() string {
 }
 func (e *ArrayComprehension) WriteCode(ctx *CodeWriteContext) { ctx.WriteString(e.String()) }
 
-// DictComprehension represents `{key: value for x in it if cond ...}`.
+// DictComprehension represents `{k1: v1, [ke]: ve, ... for x in it if cond}`.
+// Each iteration assigns every element into the dict being built; element keys
+// may be static (`name:`) or computed (`[expr]:`). Inside value expressions the
+// special variable `_` refers to the dict being built.
 type DictComprehension struct {
-	LBrace  source.Pos
-	Key     Expr
-	Value   Expr
-	Clauses []*ComprehensionClause
-	RBrace  source.Pos
+	LBrace   source.Pos
+	Elements []*DictElementLit
+	Clauses  []*ComprehensionClause
+	RBrace   source.Pos
 }
 
 func (e *DictComprehension) ExprNode()       {}
 func (e *DictComprehension) Pos() source.Pos { return e.LBrace }
 func (e *DictComprehension) End() source.Pos { return e.RBrace + 1 }
 func (e *DictComprehension) String() string {
-	return "{" + e.Key.String() + ": " + e.Value.String() +
-		comprehensionClausesString(e.Clauses) + "}"
+	var b strings.Builder
+	b.WriteString("{")
+	for i, el := range e.Elements {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(el.String())
+	}
+	b.WriteString(comprehensionClausesString(e.Clauses))
+	b.WriteString("}")
+	return b.String()
 }
 func (e *DictComprehension) WriteCode(ctx *CodeWriteContext) { ctx.WriteString(e.String()) }
 
