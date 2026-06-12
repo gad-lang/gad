@@ -677,6 +677,13 @@ func (vm *VM) xOpThrow() error {
 			}
 			vm.sp = handler.sp
 			vm.ip = pos - 1
+		} else if h := errHandlers.last(); h != nil && h.catch == 0 && h.finally == 0 {
+			// A finalized handler with no error and no pending return: discard
+			// it so an enclosing finalizer is not shadowed by it. This matters
+			// for a nested try inside a finally: without popping, the nested
+			// (spent) handler would hide the outer handler's pending returnTo and
+			// a `return` value would be lost on the way out of the finally.
+			errHandlers.pop()
 		}
 	case 1: // user
 		obj := vm.stack[vm.sp-1]

@@ -49,6 +49,16 @@ func TestVMErrorHandlers(t *testing.T) {
 	} catch err {} finally { return err }; return 0`,
 		newOpts().Skip2Pass(), Nil)
 
+	// return through a finally that contains a nested try must preserve the
+	// returned value (regression for the OpThrow/return-through-finally fix)
+	testExpectRun(t, `var a = "B"; try { return a } finally { try {} catch {} }`,
+		newOpts().Skip2Pass(), Str("B"))
+	testExpectRun(t, `var a = "B"; try { return a } finally { try { a = "C" } catch {} }`,
+		newOpts().Skip2Pass(), Str("B"))
+	// a return inside the nested try (in the finally) still overrides
+	testExpectRun(t, `var a = "B"; try { return a } finally { try { return "X" } catch {} }`,
+		newOpts().Skip2Pass(), Str("X"))
+
 	// return
 	testExpectRun(t, `var a = 1; try { return a } finally { a = 2 }`,
 		newOpts().Skip2Pass(), Int(1))
