@@ -2115,6 +2115,23 @@ return [str(f), str(f;indent), repr(f), repr(f;indent)]`, nil, Array{
 		Str(`‹func ‹(main).g› with 2 methods: [⨍(int) 🠆 ‹compiledFunction: (main).#1(a int) <int>›, ⨍(str) 🠆 ‹compiledFunction: (main).#2(a str) <str>›]›`),
 		Str("‹func ‹(main).g› with 2 methods: [\n\t⨍(int) 🠆 ‹compiledFunction: (main).#1(a int) <int>›,\n\t⨍(str) 🠆 ‹compiledFunction: (main).#2(a str) <str>›\n]›"),
 	})
+
+	// Shorthand func syntaxes carry return types too.
+
+	// name(params) <ret> {body} shorthand: executes and keeps the name + types.
+	testExpectRun(t, `x := foo(a) <int> { return a * 2 }; return x(21)`, nil, Int(42))
+	testExpectRun(t, `x := foo(a, b) <int, str> { return [a, b] }; return x(1, "z")`,
+		nil, Array{Int(1), Str("z")})
+	testExpectRun(t, `x := foo(a) <int> { return a }; return repr(x)`,
+		nil, Str(`‹compiledFunction: (main).foo(a any) <int>›`))
+
+	// dict-element func shorthand.
+	testExpectRun(t, `m := {f(a) <int> { return a * 2 }}; return m.f(21)`, nil, Int(42))
+	testExpectRun(t, `m := {f(a) <int> { return a }}; return repr(m.f)`,
+		nil, Str(`‹compiledFunction: (main).#1(a any) <int>›`))
+
+	// the return-type list does not break the "<" comparison operator.
+	testExpectRun(t, `foo := func(a) => a; return foo(1) < 2`, nil, True)
 }
 
 func TestVMClass(t *testing.T) {

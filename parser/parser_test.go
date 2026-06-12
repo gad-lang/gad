@@ -2926,6 +2926,36 @@ func TestParseFunctionReturnType(t *testing.T) {
 	})
 }
 
+func TestParseShorthandFuncReturnType(t *testing.T) {
+	// name(params) <ret> {body} shorthand.
+	test.ExpectParseString(t, "foo(a) <int> { return a }", "foo(a) <int> { return a }")
+	test.ExpectParseString(t, "foo(a, b) <int, str> { return a }", "foo(a, b) <int, str> { return a }")
+	test.ExpectParseString(t, "foo(a) <x int|bool> => a", "foo(a) <x int|bool> => a")
+	test.ExpectParseString(t, "foo(a)<int>{return a}", "foo(a) <int> { return a }")
+
+	// the return-type list must not be confused with a comparison operator.
+	test.ExpectParseString(t, "foo(1) < 2", "(foo(1) < 2)")
+	test.ExpectParseString(t, "foo(a) < b > c", "((foo(a) < b) > c)")
+
+	// dict-element funcs.
+	test.ExpectParseString(t, "d := {g(a, b) <int, str> { return a }}", "d := {g(a, b) <int, str> { return a }}")
+	test.ExpectParseString(t, "[a (x) <int> { return x }]", "[a(x) <int> { return x }]")
+	test.ExpectParseString(t, "return (;f(a) <int> { return a })", "return (;f(a) <int> { return a })")
+
+	// full AST for the named shorthand (FuncExpr wrapped in a FuncStmt).
+	test.ExpectParse(t, "foo(a) <int> { return a }", func(p pfn) []Stmt {
+		return stmts(
+			SFunc(
+				EFunc(
+					funcType(NoPos, EIdent("foo", p(1, 1)), p(1, 4), p(1, 6),
+						funcArgs(nil, EIdent("a", p(1, 5))),
+						FuncReturn(ETypedIdent(EIdent("int", p(1, 9)))),
+					),
+					SBlock(p(1, 14), p(1, 25),
+						SReturn(p(1, 16), EIdent("a", p(1, 23)))))))
+	})
+}
+
 func TestParseMethod(t *testing.T) {
 	test.ExpectParse(t, "met fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(

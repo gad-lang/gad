@@ -426,7 +426,8 @@ L:
 			paren := p.ParseParemExpr(token.LParen, token.RParen)
 			ih := p.inHeader
 
-			if !ih && p.Token.Token.Is(token.LBrace, token.Lambda) {
+			if !ih && (p.Token.Token.Is(token.LBrace, token.Lambda) ||
+				p.peekFuncReturnTypeThenBody()) {
 				if ident, _ := x.(*node.IdentExpr); ident != nil {
 					if params, err := paren.ToMultiParenExpr().ToFuncParams(); err == nil {
 						f := &node.FuncExpr{
@@ -436,6 +437,8 @@ L:
 							},
 						}
 						x = f
+
+						f.Type.Return = p.ParseFuncReturnTypes()
 
 						if p.Token.Token.Is(token.LBrace) {
 							f.Body = p.ParseBlockStmt()
@@ -1704,6 +1707,53 @@ func (p *Parser) ParseFuncReturnTypes() (types []*node.TypedIdentExpr) {
 	return
 }
 
+// peekFuncReturnTypeThenBody reports whether the current '<' token begins a
+// function return-type list — a balanced "<...>" immediately followed by a body
+// start ('{' or '=>') — rather than a comparison operator. It is used to
+// disambiguate the shorthand "name(params) <ret> {body}" from the comparison
+// "name(params) < x". No tokens are consumed.
+func (p *Parser) peekFuncReturnTypeThenBody() bool {
+	if p.Token.Token != token.Less {
+		return false
+	}
+
+	var (
+		depth  = 1 // the current token is the opening '<'
+		closed bool
+		result bool
+	)
+
+	p.PeekCb(func(t PToken) bool {
+		if t.IsSpace() {
+			return true
+		}
+
+		if closed {
+			// the token right after the balanced "<...>" decides it.
+			result = t.Token.Is(token.LBrace, token.Lambda)
+			return false
+		}
+
+		switch t.Token {
+		case token.Less:
+			depth++
+		case token.Greater:
+			if depth--; depth == 0 {
+				closed = true
+			}
+		case token.Ident, token.Or, token.Comma, token.Period,
+			token.LParen, token.RParen, token.LBrack, token.RBrack, token.Int:
+			// tokens that may appear within a (typed) return list.
+		default:
+			// anything else means this is not a return-type list.
+			return false
+		}
+		return true
+	})
+
+	return result
+}
+
 func (p *Parser) ParseSimpleSelectorExpr(x node.Expr) node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "SimpleSelectorExpr"))
@@ -2813,6 +2863,8 @@ func (p *Parser) ParseFuncDefLit(colon token.Token) *node.FuncDefLit {
 			p.Error(err.Pos(), err.Error())
 		}
 
+		returnTypes := p.ParseFuncReturnTypes()
+
 		p.ExprLevel++
 		body := p.ParseBlockStmt()
 		p.ExprLevel--
@@ -2820,6 +2872,7 @@ func (p *Parser) ParseFuncDefLit(colon token.Token) *node.FuncDefLit {
 		e.Expr = &node.FuncExpr{
 			Type: &node.FuncType{
 				Params: params,
+				Return: returnTypes,
 			},
 			Body: body,
 		}
@@ -3045,13 +3098,15 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 					}
 					stmt.KeyExpr = nil
 				case node.ToMultiParenConverter:
-					if p.Token.Token == token.LBrace {
+					if p.Token.Token == token.LBrace || p.Token.Token == token.Less {
 						if params, err := t.ToMultiParenExpr().ToFuncParams(); err == nil {
+							returnTypes := p.ParseFuncReturnTypes()
 							block := p.ParseBlockStmt(token.RBrace)
 							stmt.ValueExpr = &node.FuncExpr{
 								Type: &node.FuncType{
 									Params:   params,
 									NameExpr: ident,
+									Return:   returnTypes,
 								},
 								Body: block,
 							}

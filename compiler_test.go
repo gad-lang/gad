@@ -4009,6 +4009,18 @@ func TestCompilerFuncReturnType(t *testing.T) {
 			" <x int|bool>",
 		},
 		{
+			"shorthand name",
+			`x := foo(a) <int> { return a }; return x`,
+			[]ret{{"", "int"}},
+			" <int>",
+		},
+		{
+			"shorthand dict element",
+			`return {g(a, b) <int, str> { return a }}`,
+			[]ret{{"", "int"}, {"", "str"}},
+			" <int, str>",
+		},
+		{
 			"no return type",
 			`return func(a) { return a }`,
 			nil,
