@@ -90,7 +90,23 @@ tooling/user during the session — left untouched.
   optional `[, n int]` markers, or `[str]` element types — would degrade those
   signatures. Would need a `NamedParamBuilder.Default(...)` core addition.
 
-## CURRENT TASK (ia_todo.md) — IN PROGRESS
+## PENDING (current asks)
+- **README** (DONE, ready to commit): fixed the Go-embedding example to the
+  current API — `gad.NewBuiltins()` + `NewSymbolTable(b.NameSet)` +
+  `Compile(st, []byte, CompileOptions{})` + `NewVM(b.Build(), bc).RunOpts(&RunOpts{
+  Globals: Dict{...}, Args: Args{Array{...}}})`. Also `gad.Map`->`gad.Dict`,
+  `param ...args`->`param *args` (Go-style `...` is invalid gad), and
+  Fibonacci `fib(arg0)`->`fib(int(arg0))` (CLI args are strings). Verified the
+  Go example outputs `[2, 4, 6, 8]`.
+- **User docs** (ia_todo): recreate comprehensive user docs in ./docs with
+  examples/variations for ALL gad features (incl. the new ones); split into
+  multiple files as needed.
+- **Bytes literals** (ia_todo): `h"ffccf1c2"` -> bytes from hex; `b"Hello"`
+  (and `b` + raw string / heredoc / rawheredoc) -> bytes from string content.
+  Needs scanner prefix handling (like `raw`/template), AST node, compiler, VM
+  tests. `typeof data == bytes`.
+
+## DONE TASK (ia_todo.md)
 Create gad:doc strings for: `vm.ObjectConverters.RegisterToObject`,
 `gad.AddMethodOverride`/`gad.AddMethod`, and `module.Data` entries.
 DONE so far: extended `cmd/gaddoc` to recognize `## Converters` and

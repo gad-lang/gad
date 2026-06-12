@@ -34,7 +34,7 @@ fib = func(x) {
     }
     return fib(x-1) + fib(x-2)
 }
-return fib(arg0)
+return fib(int(arg0))
 ```
 
 ## Features
@@ -137,7 +137,7 @@ import (
 
 func main() {
     script := `
-param ...args
+param *args
 
 mapEach := func(seq, fn) {
 
@@ -173,15 +173,17 @@ if err != nil {
 return v
 `
 
-    bytecode, err := gad.Compile([]byte(script), gad.DefaultCompilerOptions)
+    builtins := gad.NewBuiltins()
+    st := gad.NewSymbolTable(builtins.NameSet)
+    _, bc, err := gad.Compile(st, []byte(script), gad.CompileOptions{})
     if err != nil {
         panic(err)
     }
-    globals := gad.Map{"multiplier": gad.Int(2)}
-    ret, err := gad.NewVM(bytecode).Run(
-        globals,
-        gad.Int(1), gad.Int(2), gad.Int(3), gad.Int(4),
-    )
+
+    ret, err := gad.NewVM(builtins.Build(), bc).RunOpts(&gad.RunOpts{
+        Globals: gad.Dict{"multiplier": gad.Int(2)},
+        Args:    gad.Args{gad.Array{gad.Int(1), gad.Int(2), gad.Int(3), gad.Int(4)}},
+    })
     if err != nil {
         panic(err)
     }
