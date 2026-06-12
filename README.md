@@ -44,6 +44,14 @@ return fib(arg0)
 * `if else` statements.
 * `for` and `for in` statements.
 * `try catch finally` statements.
+* `match` expression and statement (PHP 8 like).
+* `defer` / `defer_ok` / `defer_err` (function) and `deferb*` (block-scoped)
+  deferred handlers, with `$ret` / `$err` access and recovery.
+* `or` error-fallback operator (`z := x() or fallback`).
+* Array and dict comprehensions (`[e for x in it if c]`, `{k: v for ...}`).
+* Array and dict spread/merge literals (`[1, *a, *b]`, `{a: 1, *b}`).
+* Dict and `MixedParams` destructuring assignment.
+* `/regex/` literals backed by a built-in `regexp` type (match / find / replace).
 * `param`, `global`, `var` and `const` declarations.
 * Rich builtins.
 * Pure Gad and Go Module support.
@@ -51,6 +59,50 @@ return fib(arg0)
 * Call Gad functions from Go.
 * Import Gad modules from any source (file system, HTTP, etc.).
 * Create wrapper functions for Go functions using code generation.
+
+## Language additions
+
+A few of the syntax additions over a Go-like base:
+
+```go
+// or: error fallback (re-throws if the fallback is itself an error)
+z := mayThrow() or 2
+y := 1 + (mayThrow() or 10)
+
+// match (PHP 8 like) — expression and statement forms
+label := match (n) {
+    1: "one"
+    2: "two",
+    else: "other"
+}
+match (n) { 1 { return "one" }, else { return "other" } }
+
+// comprehensions; dict keys are static by default, computed with [..],
+// and `_` is the dict being built
+squares := [i * i for i in [1, 2, 3] if i > 1]
+m := {x: 10, [i]: i * i, z: (_.z ?? 0) + i for i in [1, 2, 3]}
+
+// spread / merge literals (a leading spread yields a fresh copy)
+all := [1, *a, 4, *b]
+merged := {a: 1, *b, c: 2, *d}
+
+// destructuring: dict and MixedParams
+(;a, _b:b, r=2, **other) := {a: 2, b: 3, x: 4}     // a=2, _b=3, r=2, other={x:4}
+x := (1, 2, *[3, 4]; c=5, **{d:6, e:7})
+(a, b, **pos_rest; c, p:d, r=2, **named_rest) := x
+
+// defer with $ret/$err (recover by clearing $err); deferb runs at block exit
+f := func() {
+    defer_err { $ret = "recovered: " + str($err); $err = nil }
+    throw "boom"
+}
+
+// regexp literals and replacement (| yields a replacer; composes with .|)
+re := /(\d+)-(\d+)/
+re.match("12-34")                 // true
+re.replace("12-34", "$2/$1")      // "34/12"
+"hello world".|(/o/ | "0")        // "hell0 w0rld"
+```
 
 ## Why Gad
 
@@ -142,14 +194,14 @@ return v
 - [x] Dollar as valid ident char
 - [x] Nullisch Coalescing
 - [x] Named arguments
-- [ ] Array Expansion
-- [ ] Array Comprehensions
-- [ ] Map Expansion
-- [ ] Map Comprehensions
+- [x] Array Expansion
+- [x] Array Comprehensions
+- [x] Map Expansion
+- [x] Map Comprehensions
 - [ ] Examples for best practices
 - [ ] Better Playground
 - [x] Configurable Stdin, Stdout and Stderr per Virtual Machine
-- [ ] Deferring function calls
+- [x] Deferring function calls
 - [ ] Concurrency support
 - [ ] `?` and `!` as valid post 2nd ident char
   - `valid?() = true`
