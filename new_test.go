@@ -96,6 +96,30 @@ func TestVMRegexLit(t *testing.T) {
 	testExpectRun(t, `return [6/2, 8/4]`, nil, Array{Int(3), Int(2)})
 }
 
+func TestVMRegexpReplace(t *testing.T) {
+	// replace method with a string template
+	testExpectRun(t, `r := /o/; return r.replace("hello world", "0")`,
+		nil, Str("hell0 w0rld"))
+	// $1/$2 group expansion
+	testExpectRun(t, `r := /(\d+)-(\d+)/; return r.replace("12-34", "$2/$1")`,
+		nil, Str("34/12"))
+	// callable replacement (invoked per match)
+	testExpectRun(t, `r := /[a-z]+/; return r.replace("ab cd", func(m) { return "<" + m + ">" })`,
+		nil, Str("<ab> <cd>"))
+	// bytes subject -> bytes result
+	testExpectRun(t, `r := /o/; return str(r.replace(bytes("foo"), "0"))`,
+		nil, Str("f00"))
+
+	// `|` operator yields a unary replacer function
+	testExpectRun(t, `r := /o/; f := r | "0"; return f("hello world")`,
+		nil, Str("hell0 w0rld"))
+	testExpectRun(t, `r := /[a-z]+/; f := r | func(m) { return m + "!" }; return f("ab cd")`,
+		nil, Str("ab! cd!"))
+	// composes with the pipe operator
+	testExpectRun(t, `r := /o/; return "hello world".|(r | "0")`,
+		nil, Str("hell0 w0rld"))
+}
+
 func TestVMDeferbStmt(t *testing.T) {
 	// runs at block exit, LIFO
 	testExpectRun(t, `

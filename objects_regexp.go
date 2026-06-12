@@ -40,9 +40,61 @@ func (o *Regexp) CallName(name string, c Call) (_ Object, err error) {
 			return
 		}
 		return o.Match(c.Args.MustGet(0)), nil
+	case "replace":
+		if err = c.Args.CheckLen(2); err != nil {
+			return
+		}
+		return o.Replace(c.VM, c.Args.MustGet(0), c.Args.MustGet(1))
 	}
 
 	return nil, ErrInvalidIndex.NewError(name)
+}
+
+// Replace replaces all matches of o in subject with repl. repl may be a
+// Str/RawStr/Bytes template (Go's $1 group expansion applies) or a callable
+// invoked with each matched substring, returning its replacement.
+func (o *Regexp) Replace(vm *VM, subject, repl Object) (Object, error) {
+	_, subjIsBytes := subject.(Bytes)
+
+	switch r := repl.(type) {
+	case Str, RawStr:
+		if subjIsBytes {
+			return Bytes(o.Go().ReplaceAll(subject.(Bytes), []byte(r.ToString()))), nil
+		}
+		return Str(o.Go().ReplaceAllString(subject.ToString(), r.ToString())), nil
+	case Bytes:
+		if subjIsBytes {
+			return Bytes(o.Go().ReplaceAll(subject.(Bytes), r)), nil
+		}
+		return Str(o.Go().ReplaceAllString(subject.ToString(), string(r))), nil
+	default:
+		if !Callable(repl) {
+			return nil, NewOperandTypeError("replace", repl.Type().Name(), o.Type().Name())
+		}
+		inv := NewInvoker(vm, repl)
+		inv.Acquire()
+		defer inv.Release()
+
+		var callErr error
+		result := o.Go().ReplaceAllStringFunc(subject.ToString(), func(m string) string {
+			if callErr != nil {
+				return m
+			}
+			res, err := inv.Invoke(Args{Array{Str(m)}}, nil)
+			if err != nil {
+				callErr = err
+				return m
+			}
+			return res.ToString()
+		})
+		if callErr != nil {
+			return nil, callErr
+		}
+		if subjIsBytes {
+			return Bytes(result), nil
+		}
+		return Str(result), nil
+	}
 }
 
 func (o *Regexp) Match(arg Object) (ret Bool) {
@@ -87,6 +139,18 @@ func (o *Regexp) BinaryOp(vm *VM, tok token.Token, right Object) (ret Object, er
 		return o.Find(right), nil
 	case token.TripleTilde:
 		return o.FindAll(right, -1), nil
+	case token.Or:
+		// `re | repl` yields a unary replacer: f(subject) -> replaced value.
+		repl := right
+		return &Function{
+			FuncName: "regexpReplacer",
+			Value: func(c Call) (Object, error) {
+				if err := c.Args.CheckLen(1); err != nil {
+					return nil, err
+				}
+				return o.Replace(c.VM, c.Args.MustGet(0), repl)
+			},
+		}, nil
 	}
 	return nil, NewOperandTypeError(
 		tok.String(),
