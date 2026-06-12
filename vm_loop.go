@@ -71,7 +71,13 @@ VMLoop:
 		case OpExtendModule:
 			data := vm.stack[vm.sp-1]
 			if u, _ := data.(IndexSetterUpdater); u != nil {
-				u.UpdateIndexSetter(vm.modulesCache[vm.CurrentModuleSpec().Index])
+				ms := vm.CurrentModuleSpec()
+				module := vm.modulesCache[ms.Index]
+				if module == nil {
+					module = NewModule(ms)
+					vm.modulesCache[ms.Index] = module
+				}
+				u.UpdateIndexSetter(module)
 			} else if err := vm.throwGenErr(ErrType.NewErrorf("%s can't updates Module", data.Type().FullName())); err != nil {
 				vm.err = err
 				return
