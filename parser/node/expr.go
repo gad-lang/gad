@@ -1916,6 +1916,22 @@ func (c *ComprehensionClause) String() string {
 	return b.String()
 }
 
+func (c *ComprehensionClause) WriteCode(ctx *CodeWriteContext) {
+	if !c.For {
+		ctx.WriteString("if ")
+		c.Cond.WriteCode(ctx)
+		return
+	}
+	ctx.WriteString("for ")
+	if c.Key != nil {
+		c.Key.WriteCode(ctx)
+		ctx.WriteString(", ")
+	}
+	c.Value.WriteCode(ctx)
+	ctx.WriteString(" in ")
+	c.Iterable.WriteCode(ctx)
+}
+
 func comprehensionClausesString(clauses []*ComprehensionClause) string {
 	var b strings.Builder
 	for _, cl := range clauses {
@@ -1923,6 +1939,13 @@ func comprehensionClausesString(clauses []*ComprehensionClause) string {
 		b.WriteString(cl.String())
 	}
 	return b.String()
+}
+
+func writeComprehensionClauses(ctx *CodeWriteContext, clauses []*ComprehensionClause) {
+	for _, cl := range clauses {
+		ctx.WriteString(" ")
+		cl.WriteCode(ctx)
+	}
 }
 
 // ArrayComprehension represents `[elem for x in it if cond ...]`.
@@ -1939,7 +1962,12 @@ func (e *ArrayComprehension) End() source.Pos { return e.RBrack + 1 }
 func (e *ArrayComprehension) String() string {
 	return "[" + e.Element.String() + comprehensionClausesString(e.Clauses) + "]"
 }
-func (e *ArrayComprehension) WriteCode(ctx *CodeWriteContext) { ctx.WriteString(e.String()) }
+func (e *ArrayComprehension) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("[")
+	e.Element.WriteCode(ctx)
+	writeComprehensionClauses(ctx, e.Clauses)
+	ctx.WriteString("]")
+}
 
 // DictComprehension represents `{k1: v1, [ke]: ve, ... for x in it if cond}`.
 // Each iteration assigns every element into the dict being built; element keys
@@ -1968,7 +1996,17 @@ func (e *DictComprehension) String() string {
 	b.WriteString("}")
 	return b.String()
 }
-func (e *DictComprehension) WriteCode(ctx *CodeWriteContext) { ctx.WriteString(e.String()) }
+func (e *DictComprehension) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("{")
+	for i, el := range e.Elements {
+		if i > 0 {
+			ctx.WriteString(", ")
+		}
+		el.WriteCode(ctx)
+	}
+	writeComprehensionClauses(ctx, e.Clauses)
+	ctx.WriteString("}")
+}
 
 // MatchArm is a single arm of a MatchExpr. A normal arm has a Cond; the `else`
 // arm has Cond == nil. Exactly one of Result (expression form `cond: result`)
@@ -1994,6 +2032,21 @@ func (a *MatchArm) String() string {
 		b.WriteString(a.Result.String())
 	}
 	return b.String()
+}
+
+func (a *MatchArm) WriteCode(ctx *CodeWriteContext) {
+	if a.Cond == nil {
+		ctx.WriteString("else")
+	} else {
+		a.Cond.WriteCode(ctx)
+	}
+	if a.Body != nil {
+		ctx.WriteString(" ")
+		a.Body.WriteCode(ctx)
+	} else {
+		ctx.WriteString(": ")
+		a.Result.WriteCode(ctx)
+	}
 }
 
 // MatchExpr represents a PHP8-like match: `match (subject) { cond: result, ... }`
@@ -2045,7 +2098,34 @@ func (e *MatchExpr) String() string {
 }
 
 func (e *MatchExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(e.String())
+	ctx.WriteString("match (")
+	e.Expr.WriteCode(ctx)
+	ctx.WriteString(") {")
+
+	if ctx.HasPrefix() {
+		// indented: one arm per line (the newline separates arms, and the
+		// `else` arm is not preceded by a comma)
+		ctx.Depth++
+		for i, a := range e.Arms {
+			if i > 0 && a.Cond != nil {
+				ctx.WriteString(",")
+			}
+			ctx.WriteSemi()
+			a.WriteCode(ctx)
+		}
+		ctx.Depth--
+		ctx.WriteSemi()
+	} else {
+		for i, a := range e.Arms {
+			if i > 0 {
+				ctx.WriteString(",")
+			}
+			ctx.WriteString(" ")
+			a.WriteCode(ctx)
+		}
+		ctx.WriteString(" ")
+	}
+	ctx.WriteString("}")
 }
 
 // OrExpr represents an error-fallback expression: `expr or fallback`.

@@ -3743,6 +3743,20 @@ func TestParseDeferStmt(t *testing.T) {
 	test.ExpectParseString(t, `deferb_err handler(x)`, `deferb_err handler(x)`)
 }
 
+func TestCodeNewNodes(t *testing.T) {
+	// expression-form nodes round-trip on a single line via Code()
+	test.New(t, `x := a or b`).Code(`x := a or b`)
+	test.New(t, `x := [i * 2 for i in a if i > 1]`).Code(`x := [(i * 2) for i in a if (i > 1)]`)
+	test.New(t, `x := {[k]: v for k, v in m}`).Code(`x := {[k]: v for k, v in m}`)
+	test.New(t, `x := match (a) { 1: "one", else: "other" }`).
+		Code(`x := match (a) { 1: "one", else: "other" }`)
+	test.New(t, `x := /ab+/`).Code(`x := /ab+/`)
+
+	// statement-form match with block arms: one arm per line, bodies indented
+	test.New(t, `match (a) { 1 { b = 1 }, else { b = 2 } }`).
+		IndentedCode("match (a) {\n\t1 {\n\t\tb = 1\n\t}\n\telse {\n\t\tb = 2\n\t}\n}")
+}
+
 func TestParseComprehension(t *testing.T) {
 	test.ExpectParseString(t, `x := [i for i in a]`, `x := [i for i in a]`)
 	test.ExpectParseString(t, `x := [i * 2 for i in a if i > 1]`,
