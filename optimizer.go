@@ -776,6 +776,16 @@ func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 		}
 	case *node.ArrayExpr:
 		for i := range nd.Elements {
+			// `*expr` spread element: optimize the spread operand in place
+			if av, isSpread := nd.Elements[i].(*node.ArgVarLit); isSpread {
+				if expr, ok = so.optimize(av.Value); ok {
+					av.Value = expr
+				}
+				if expr, ok = so.evalExpr(av.Value); ok {
+					av.Value = expr
+				}
+				continue
+			}
 			if expr, ok = so.optimize(nd.Elements[i]); ok {
 				nd.Elements[i] = expr
 			}
@@ -785,6 +795,16 @@ func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 		}
 	case *node.DictExpr:
 		for i := range nd.Elements {
+			// `*expr` merge element: Key/Value are nil, optimize the spread
+			if nd.Elements[i].Spread != nil {
+				if expr, ok = so.optimize(nd.Elements[i].Spread); ok {
+					nd.Elements[i].Spread = expr
+				}
+				if expr, ok = so.evalExpr(nd.Elements[i].Spread); ok {
+					nd.Elements[i].Spread = expr
+				}
+				continue
+			}
 			if expr, ok = so.optimize(nd.Elements[i].Value); ok {
 				nd.Elements[i].Value = expr
 			}

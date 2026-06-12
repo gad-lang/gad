@@ -2228,29 +2228,151 @@ func (c *Compiler) compileIdent(nd *node.IdentExpr) error {
 }
 
 func (c *Compiler) compileArrayLit(nd *node.ArrayExpr) error {
+	var hasSpread bool
 	for _, elem := range nd.Elements {
-		if err := c.Compile(elem); err != nil {
-			return err
+		if _, ok := elem.(*node.ArgVarLit); ok {
+			hasSpread = true
+			break
 		}
 	}
 
-	c.emit(nd, OpArray, len(nd.Elements))
+	if !hasSpread {
+		for _, elem := range nd.Elements {
+			if err := c.Compile(elem); err != nil {
+				return err
+			}
+		}
+		c.emit(nd, OpArray, len(nd.Elements))
+		return nil
+	}
+
+	// `[1, 2, *a, 4, *b]` merges by concatenation: runs of plain elements are
+	// built with OpArray and joined to spread operands with `+`.
+	var (
+		run     []node.Expr
+		emitted bool
+	)
+	flush := func() error {
+		if len(run) == 0 {
+			return nil
+		}
+		for _, e := range run {
+			if err := c.Compile(e); err != nil {
+				return err
+			}
+		}
+		c.emit(nd, OpArray, len(run))
+		if emitted {
+			c.emit(nd, OpBinary, int(token.Add))
+		}
+		emitted = true
+		run = run[:0]
+		return nil
+	}
+	for _, elem := range nd.Elements {
+		if av, ok := elem.(*node.ArgVarLit); ok {
+			if err := flush(); err != nil {
+				return err
+			}
+			if !emitted {
+				// start from an empty array so the first spread is copied,
+				// never aliased
+				c.emit(nd, OpArray, 0)
+				emitted = true
+			}
+			if err := c.Compile(av.Value); err != nil {
+				return err
+			}
+			c.emit(nd, OpBinary, int(token.Add))
+		} else {
+			run = append(run, elem)
+		}
+	}
+	if err := flush(); err != nil {
+		return err
+	}
+	if !emitted {
+		c.emit(nd, OpArray, 0)
+	}
 	return nil
 }
 
 func (c *Compiler) compileDictLit(nd *node.DictExpr) error {
+	var hasSpread bool
 	for _, elt := range nd.Elements {
-		// key
-		if err := c.Compile(elt.BuildKeyExpr()); err != nil {
-			return err
-		}
-		// value
-		if err := c.Compile(elt.Value); err != nil {
-			return err
+		if elt.Spread != nil {
+			hasSpread = true
+			break
 		}
 	}
 
-	c.emit(nd, OpDict, len(nd.Elements)*2)
+	if !hasSpread {
+		for _, elt := range nd.Elements {
+			// key
+			if err := c.Compile(elt.BuildKeyExpr()); err != nil {
+				return err
+			}
+			// value
+			if err := c.Compile(elt.Value); err != nil {
+				return err
+			}
+		}
+		c.emit(nd, OpDict, len(nd.Elements)*2)
+		return nil
+	}
+
+	// `{a:1, *b, c:2, *d}` merges by concatenation: runs of plain key/value
+	// elements are built with OpDict and joined to spread operands with `+`
+	// (later keys win).
+	var (
+		run     []*node.DictElementLit
+		emitted bool
+	)
+	flush := func() error {
+		if len(run) == 0 {
+			return nil
+		}
+		for _, elt := range run {
+			if err := c.Compile(elt.BuildKeyExpr()); err != nil {
+				return err
+			}
+			if err := c.Compile(elt.Value); err != nil {
+				return err
+			}
+		}
+		c.emit(nd, OpDict, len(run)*2)
+		if emitted {
+			c.emit(nd, OpBinary, int(token.Add))
+		}
+		emitted = true
+		run = run[:0]
+		return nil
+	}
+	for _, elt := range nd.Elements {
+		if elt.Spread != nil {
+			if err := flush(); err != nil {
+				return err
+			}
+			if !emitted {
+				// start from an empty dict so the first spread is copied,
+				// never aliased
+				c.emit(nd, OpDict, 0)
+				emitted = true
+			}
+			if err := c.Compile(elt.Spread); err != nil {
+				return err
+			}
+			c.emit(nd, OpBinary, int(token.Add))
+		} else {
+			run = append(run, elt)
+		}
+	}
+	if err := flush(); err != nil {
+		return err
+	}
+	if !emitted {
+		c.emit(nd, OpDict, 0)
+	}
 	return nil
 }
 

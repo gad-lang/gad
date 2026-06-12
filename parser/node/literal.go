@@ -220,6 +220,9 @@ type DictElementLit struct {
 	Key      Expr
 	ColonPos source.Pos
 	Value    Expr
+	// Spread, when set, marks a `*expr` merge element (`{a:1, *b}`); Key and
+	// Value are nil in that case.
+	Spread Expr
 }
 
 func (e *DictElementLit) Func() (f *FuncDefLit) {
@@ -268,11 +271,17 @@ func (e *DictElementLit) ExprNode() {}
 
 // Pos returns the position of first character belonging to the node.
 func (e *DictElementLit) Pos() source.Pos {
+	if e.Spread != nil {
+		return e.Spread.Pos()
+	}
 	return e.Key.Pos()
 }
 
 // End returns the position of first character immediately after the node.
 func (e *DictElementLit) End() source.Pos {
+	if e.Spread != nil {
+		return e.Spread.End()
+	}
 	return e.Value.End()
 }
 
@@ -296,6 +305,10 @@ func (e *DictElementLit) BuildKeyExpr() Expr {
 }
 
 func (e *DictElementLit) String() string {
+	if e.Spread != nil {
+		return "*" + e.Spread.String()
+	}
+
 	var (
 		f = e.Func()
 		v = e.Value
@@ -345,6 +358,12 @@ func (e *DictElementLit) String() string {
 }
 
 func (e *DictElementLit) WriteCode(ctx *CodeWriteContext) {
+	if e.Spread != nil {
+		ctx.WriteString("*")
+		e.Spread.WriteCode(ctx)
+		return
+	}
+
 	var (
 		fun = e.Func()
 		sep string

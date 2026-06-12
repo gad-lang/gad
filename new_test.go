@@ -8,6 +8,28 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
+func TestVMSpreadLiterals(t *testing.T) {
+	// array merge
+	testExpectRun(t, `a := [2, 3]; b := [5, 6]; return [1, *a, 4, *b]`,
+		nil, Array{Int(1), Int(2), Int(3), Int(4), Int(5), Int(6)})
+	testExpectRun(t, `a := [2, 3]; return [*a]`, nil, Array{Int(2), Int(3)})
+	testExpectRun(t, `a := [2]; b := [3]; return [*a, *b]`, nil, Array{Int(2), Int(3)})
+	testExpectRun(t, `return []`, nil, Array{})
+	// spread yields a copy, source not mutated/aliased
+	testExpectRun(t, `a := [1, 2]; b := [*a]; b[0] = 9; return [a, b]`,
+		nil, Array{Array{Int(1), Int(2)}, Array{Int(9), Int(2)}})
+
+	// dict merge (later keys win)
+	testExpectRun(t, `b := {x:9}; d := {y:8, x:100}; return {a:1, *b, e:2, *d}`,
+		nil, Dict{"a": Int(1), "e": Int(2), "x": Int(100), "y": Int(8)})
+	testExpectRun(t, `b := {x:9}; return {*b}`, nil, Dict{"x": Int(9)})
+	testExpectRun(t, `b := {x:9}; d := {y:8}; return {*b, *d}`,
+		nil, Dict{"x": Int(9), "y": Int(8)})
+	// spread yields a copy, source not mutated/aliased
+	testExpectRun(t, `c := {x:1}; d := {*c}; d.x = 9; return [c, d]`,
+		nil, Array{Dict{"x": Int(1)}, Dict{"x": Int(9)}})
+}
+
 func TestVMDictDestructure(t *testing.T) {
 	const d = `d := {a:2, b:3, x:4, y:5}; `
 

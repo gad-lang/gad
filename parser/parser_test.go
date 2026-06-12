@@ -3720,6 +3720,17 @@ func TestParseOrExpr(t *testing.T) {
 	test.ExpectParseString(t, "or := 1", "or := 1")
 }
 
+func TestParseSpreadLiterals(t *testing.T) {
+	// array spread/merge
+	test.ExpectParseString(t, `[1, 2, *a, 4, *b]`, `[1, 2, *a, 4, *b]`)
+	test.ExpectParseString(t, `[*a]`, `[*a]`)
+	test.ExpectParseString(t, `[*a, *b]`, `[*a, *b]`)
+	// dict spread/merge (wrapped in `x := ...` to force expression context)
+	test.ExpectParseString(t, `x := {a: 1, *b, c: 2, *d}`, `x := {a: 1, *b, c: 2, *d}`)
+	test.ExpectParseString(t, `x := {*b}`, `x := {*b}`)
+	test.ExpectParseString(t, `x := {*b, *d}`, `x := {*b, *d}`)
+}
+
 func TestParseDictDestructure(t *testing.T) {
 	// the `(;...)` LHS parses to a KeyValueArrayLit; `:` is a rename mapping,
 	// `=` is a fallback default and `**` is the optional rest target.

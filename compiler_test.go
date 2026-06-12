@@ -3216,6 +3216,47 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 }
 
+func TestCompilerSpreadLiterals(t *testing.T) {
+	// array merge: runs build sub-arrays joined with `+`
+	expectCompile(t, `a := [9]; return [1, *a, 4]`, bytecode(
+		Array{Int(9), Int(1), Int(4)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),            // 0000 9
+			makeInst(OpArray, 1),               // 0003 [9]
+			makeInst(OpDefineLocal, 0),         // 0006 a
+			makeInst(OpConstant, 1),            // 0008 1
+			makeInst(OpArray, 1),               // 0011 [1]
+			makeInst(OpGetLocal, 0),            // 0014 a
+			makeInst(OpBinary, int(token.Add)), // 0016 [1] + a
+			makeInst(OpConstant, 2),            // 0018 4
+			makeInst(OpArray, 1),               // 0021 [4]
+			makeInst(OpBinary, int(token.Add)), // 0024 + [4]
+			makeInst(OpReturn, 1),              // 0026
+		),
+			funcLocals(1),
+		),
+	))
+
+	// dict merge: runs build sub-dicts joined with `+`
+	expectCompile(t, `a := {p:9}; return {x:1, *a}`, bytecode(
+		Array{Str("p"), Int(9), Str("x"), Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),            // 0000 "p"
+			makeInst(OpConstant, 1),            // 0003 9
+			makeInst(OpDict, 2),                // 0006 {p:9}
+			makeInst(OpDefineLocal, 0),         // 0009 a
+			makeInst(OpConstant, 2),            // 0011 "x"
+			makeInst(OpConstant, 3),            // 0014 1
+			makeInst(OpDict, 2),                // 0017 {x:1}
+			makeInst(OpGetLocal, 0),            // 0020 a
+			makeInst(OpBinary, int(token.Add)), // 0022 {x:1} + a
+			makeInst(OpReturn, 1),              // 0024
+		),
+			funcLocals(1),
+		),
+	))
+}
+
 func TestCompilerDictDestructure(t *testing.T) {
 	// (;a, _b:b, **o) := d  evaluates d once into :dict, copies it (because of
 	// **o), reads each key (renamed for _b), deletes consumed keys, and binds

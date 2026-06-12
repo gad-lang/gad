@@ -1408,8 +1408,19 @@ func (p *Parser) ParseArrayLitOrKeyValue() node.Expr {
 		elements []node.Expr
 	)
 
+	// parseElem parses one array element, supporting `*expr` spread/merge.
+	parseElem := func() node.Expr {
+		if p.Token.Token == token.Mul {
+			starPos := p.Token.Pos
+			p.Next()
+			p.SkipSpace()
+			return &node.ArgVarLit{TokenPos: starPos, Value: p.ParseExpr()}
+		}
+		return p.ParseExpr()
+	}
+
 	if p.Token.Token != token.RBrack && p.Token.Token != token.EOF {
-		elements = append(elements, p.ParseExpr())
+		elements = append(elements, parseElem())
 		if p.Token.Token == token.Assign {
 			p.Next()
 			expr := &node.KeyValueLit{
@@ -1426,7 +1437,7 @@ func (p *Parser) ParseArrayLitOrKeyValue() node.Expr {
 	}
 
 	for p.Token.Token != token.RBrack && p.Token.Token != token.EOF {
-		elements = append(elements, p.ParseExpr())
+		elements = append(elements, parseElem())
 
 		if !p.AtCommaOrNewLine("array literal", token.RBrack) {
 			break
@@ -2835,6 +2846,14 @@ func (p *Parser) ParseDictElementLit() *node.DictElementLit {
 	}
 
 	pos := p.Token.Pos
+
+	// spread/merge element: `*expr`
+	if p.Token.Token == token.Mul {
+		p.Next()
+		p.SkipSpace()
+		return &node.DictElementLit{Spread: p.ParseExpr()}
+	}
+
 	var key node.Expr
 
 	if isPrimiteValue(p.Token.Token) {
