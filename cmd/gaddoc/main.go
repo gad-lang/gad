@@ -56,6 +56,9 @@ type docgroup struct {
 	funcs     []string
 	errs      []string
 	funcHLine bool
+	// skipDesc skips the gad:doc comment description lines of the current
+	// function because the description is taken from the function's Usage.
+	skipDesc bool
 }
 
 func (dg *docgroup) addError(msg string) {
@@ -148,29 +151,62 @@ func (dg *docgroup) processConstBlock(line string) {
 
 func (dg *docgroup) processFuncBlock(line string) {
 	if !reFuncAnnot.MatchString(line) {
-		dg.funcs = append(dg.funcs, line)
+		// description line: skip it when the doc comes from the function Usage
+		if !dg.skipDesc {
+			dg.funcs = append(dg.funcs, line)
+		}
 		return
 	}
+
+	dg.skipDesc = false
 	line = strings.TrimSpace(line)
 	parts := reFuncAnnot.FindStringSubmatch(line)
-	line = fmt.Sprintf("`%s`\n", line)
+
+	var name string
+	if len(parts) >= 2 {
+		name = parts[len(parts)-1]
+	}
+
+	// Prefer the live function definition: the signature is generated from the
+	// function Header (set via WithHeader / FunctionWithParams /
+	// FunctionWithNamedParams) and the description from its Usage. Fall back to
+	// the gad:doc comment when the metadata is absent.
+	sig := line
+	var usage string
+	if fn := getModuleFunc(dg.module, name); fn != nil {
+		if fn.Header != nil {
+			sig = fn.FuncName + fn.Header.String()
+		}
+		usage = strings.TrimSpace(fn.Usage)
+	}
+
 	if dg.funcHLine {
 		dg.funcs = append(dg.funcs, "---\n")
 	} else {
 		dg.funcHLine = true
 	}
-	if len(parts) < 2 {
+
+	if name == "" {
 		dg.addError(fmt.Sprintf("invalid function name at %s", line))
-	} else {
-		if getModuleItem(dg.module, parts[len(parts)-1]) == "" {
-			msg := fmt.Sprintf("function not exist in module:%s", line)
-			dg.addError(msg)
-		}
+	} else if getModuleItem(dg.module, name) == "" {
+		dg.addError(fmt.Sprintf("function not exist in module:%s", line))
 	}
-	dg.funcs = append(dg.funcs, line)
+
+	dg.funcs = append(dg.funcs, fmt.Sprintf("`%s`\n", sig))
+
+	if usage != "" {
+		dg.funcs = append(dg.funcs, "", usage, "")
+		dg.skipDesc = true
+	}
 }
 
-func getModuleItem(module, key string) string {
+var moduleDataCache = map[string]gad.Dict{}
+
+// moduleData returns (and caches) the runtime data dict of a stdlib module.
+func moduleData(module string) gad.Dict {
+	if d, ok := moduleDataCache[module]; ok {
+		return d
+	}
 	var initFn gad.ModuleInitFunc
 	switch module {
 	case "time":
@@ -184,13 +220,23 @@ func getModuleItem(module, key string) string {
 	default:
 		panic(fmt.Errorf("unknown module:%s", module))
 	}
-
 	// the module init requires a real *Module (it reads module.Spec), so build
 	// one from the module name instead of passing nil
-	moduleMap := initFn.MustGetData(
+	d := initFn.MustGetData(
 		gad.NewModule(gad.NewModuleSpecFromName(module))).ToDict()
+	moduleDataCache[module] = d
+	return d
+}
 
-	v := moduleMap[key]
+// getModuleFunc returns the *gad.Function exported by module under name, or nil
+// when the item is missing or is not a plain function.
+func getModuleFunc(module, name string) *gad.Function {
+	fn, _ := moduleData(module)[name].(*gad.Function)
+	return fn
+}
+
+func getModuleItem(module, key string) string {
+	v := moduleData(module)[key]
 	if v == nil {
 		return ""
 	}
