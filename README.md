@@ -209,14 +209,16 @@ return v
   - `valid?() = true`
   - `if valid? {}`
   - `push!(values array) { arr += values }`
-- [ ] Parse bytes from hex string (`const data = h"ffccf1c2" // typeof data == bytes`)
-- [ ] Parse bytes from string (`const data = b"Hello" // typeof data == bytes`)
+- [x] Parse bytes from hex string (`const data = h"ffccf1c2" // typeof data == bytes`)
+- [x] Parse bytes from string (`const data = b"Hello" // typeof data == bytes`)
 - [ ] Parse string from unquoted form:
   - `const data = :hello // data == str("hello")`)
   - `const data = :(Hello World!) // data == str("Hello World!")`
 
 ## Documentation
 
+* **[User Guide](doc/README.md)** — hands-on, example-driven docs for every
+  language feature (start here).
 * [Tutorial](https://github.com/gad-lang/gad/blob/main/docs/tutorial.md)
 * [Runtime Types](https://github.com/gad-lang/gad/blob/main/docs/runtime-types.md)
 * [Builtins](https://github.com/gad-lang/gad/blob/main/docs/builtins.md)

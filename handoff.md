@@ -6,7 +6,35 @@
 2. **Bytes from string/rawstring/heredoc/rawheredoc** `b"Hello"` → `bytes` —
    **DONE** (same commit; both share one `BytesLit` node).
 3. **Recreate user docs in `./doc`** with examples for all gad features, split
-   into multiple files — **IN PROGRESS / TODO**.
+   into multiple files — **DONE** (committed below).
+4. **`gad` CLI → subcommands + `fmt` subcommand** (uses
+   `github.com/moisespsena-go/command-context`) — **TODO** (newest ask).
+
+### User docs (item 3) — what was written
+New `./doc/` guide, 13 example-driven markdown files, every snippet verified by
+running the built CLI (`./.__tmp/gad`):
+- `README.md` (index/TOC), `getting-started.md`, `values-and-types.md`,
+  `variables-and-scopes.md`, `operators.md`, `control-flow.md`, `functions.md`,
+  `collections.md`, `strings-bytes-regex.md` (covers the new `b"…"`/`h"…"`
+  literals), `error-handling.md`, `modules.md`, `builtins.md`, `embedding.md`.
+- Root `README.md` now links the guide; its TODO checkboxes for the two bytes
+  items are ticked.
+- **Verified facts worth remembering** (the old `docs/tutorial.md` is partly
+  stale): error fields are lowercase selectors `.name`/`.message` (+ `.New`);
+  builtin-error idents (`WrongNumArgumentsError`, …) have `.name` like
+  `WrongNumberOfArgumentsError`. Module export is the `export` keyword (NOT an
+  `exports` dict): `export x`, `export f(){…}`, `export {a:1}`. Imports use
+  explicit paths `import("./mod.gad")`. Modules take params via
+  `import("…"; k=v)` (first import only). Template strings are `#"… {expr} …"`.
+  Octal is `0NN` (no `0o`/`0b`). `char`+int stays a `char`. `globals()` is a
+  `syncDict`. Iterator builtin callback arity differs: `each(key,value)` but
+  `map(value,key)`, `filter(value,key,iterable)`, `reduce(acc,value,key)`;
+  `map`/`filter`/`keys`/`values` are LAZY — consume via for-in/comprehension or
+  `collect`. Embedding API (verified to print `[2,4,6,8]`): `NewBuiltins()` +
+  `NewSymbolTable(b.NameSet)` + `Compile(st, src, CompileOptions{})` +
+  `NewVM(b.Build(), bc).RunOpts(&RunOpts{Globals, Args})`; Go funcs use
+  `&gad.Function{FuncName:…, Value: func(Call)(Object,error)}` (field is
+  `FuncName`, not `Name`).
 
 ### Bytes literals (items 1+2) — design
 - **Scanner** (`parser/scanner_scan.go`): in the identifier case, a 1-letter
