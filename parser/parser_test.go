@@ -3720,6 +3720,18 @@ func TestParseOrExpr(t *testing.T) {
 	test.ExpectParseString(t, "or := 1", "or := 1")
 }
 
+func TestParseDictDestructure(t *testing.T) {
+	// the `(;...)` LHS parses to a KeyValueArrayLit; `:` is a rename mapping,
+	// `=` is a fallback default and `**` is the optional rest target.
+	test.ExpectParseString(t, `(;a, _b:b, r=2, **other) := d`,
+		`(;a, _b:b, r=2, **other) := d`)
+	test.ExpectParseString(t, `(;a, _b:b, r=2, **other) = d`,
+		`(;a, _b:b, r=2, **other) = d`)
+	test.ExpectParseString(t, `(;a) := d`, `(;a) := d`)
+	test.ExpectParseString(t, `(;x:k) := d`, `(;x:k) := d`)
+	test.ExpectParseString(t, `(;a, **rest) := d`, `(;a, **rest) := d`)
+}
+
 func TestParseBlock(t *testing.T) {
 	test.ExpectParse(t, "{}", func(p pfn) []Stmt {
 		return stmts(SBlock(p(1, 1), p(1, 2)))

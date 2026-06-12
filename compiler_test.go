@@ -3216,6 +3216,52 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 }
 
+func TestCompilerDictDestructure(t *testing.T) {
+	// (;a, _b:b, **o) := d  evaluates d once into :dict, copies it (because of
+	// **o), reads each key (renamed for _b), deletes consumed keys, and binds
+	// the remainder to o.
+	expectCompile(t, `d := {a:1}; (;a, _b:b, **o) := d`, bytecode(
+		Array{Str("a"), Int(1), Str("b")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),                    // 0000 "a"
+			makeInst(OpConstant, 1),                    // 0003 1
+			makeInst(OpDict, 2),                        // 0006 {a:1}
+			makeInst(OpDefineLocal, 0),                 // 0009 d
+			makeInst(OpGetLocal, 0),                    // 0011 d
+			makeInst(OpDefineLocal, 1),                 // 0013 :dict = d
+			makeInst(OpGetBuiltin, int(BuiltinCopy)),   // 0015
+			makeInst(OpGetLocal, 1),                    // 0018
+			makeInst(OpCall, 1, 0),                     // 0020 copy(:dict)
+			makeInst(OpSetLocal, 1),                    // 0023 :dict = copy
+			makeInst(OpGetLocal, 1),                    // 0025
+			makeInst(OpConstant, 0),                    // 0027 "a"
+			makeInst(OpGetIndex, 1),                    // 0030 :dict["a"]
+			makeInst(OpDefineLocal, 2),                 // 0032 a
+			makeInst(OpGetBuiltin, int(BuiltinDelete)), // 0034
+			makeInst(OpGetLocal, 1),                    // 0037
+			makeInst(OpConstant, 0),                    // 0039 "a"
+			makeInst(OpCall, 2, 0),                     // 0042 delete(:dict,"a")
+			makeInst(OpPop),                            // 0045
+			makeInst(OpGetLocal, 1),                    // 0046
+			makeInst(OpConstant, 2),                    // 0048 "b"
+			makeInst(OpGetIndex, 1),                    // 0051 :dict["b"]
+			makeInst(OpDefineLocal, 3),                 // 0053 _b
+			makeInst(OpGetBuiltin, int(BuiltinDelete)), // 0055
+			makeInst(OpGetLocal, 1),                    // 0058
+			makeInst(OpConstant, 2),                    // 0060 "b"
+			makeInst(OpCall, 2, 0),                     // 0063 delete(:dict,"b")
+			makeInst(OpPop),                            // 0066
+			makeInst(OpGetLocal, 1),                    // 0067
+			makeInst(OpDefineLocal, 4),                 // 0069 o = :dict
+			makeInst(OpNil),                            // 0071
+			makeInst(OpSetLocal, 1),                    // 0072 cleanup :dict
+			makeInst(OpReturn, 0),                      // 0074
+		),
+			funcLocals(5),
+		),
+	))
+}
+
 func TestCompilerOrExpr(t *testing.T) {
 	// `a or 2` desugars to a try/catch that stores the result in a temp local
 	// (:or). On a thrown error the fallback is evaluated and bound `$err`; if the

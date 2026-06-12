@@ -2993,10 +2993,17 @@ func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLi
 	var (
 		keyExpr   = p.ParsePrimitiveOperand()
 		valueExpr node.Expr
+		colon     bool
 	)
 
 	switch p.Token.Token {
 	case token.Comma, endToken:
+	case token.Colon:
+		// `name:key` rename mapping used by dict-destructuring targets.
+		p.Next()
+		p.SkipSpace()
+		valueExpr = p.ParseExpr()
+		colon = true
 	case token.LParen:
 		valueExpr = p.ParseFuncDefLit(token.Lambda)
 	case token.LBrace:
@@ -3030,6 +3037,7 @@ done:
 	return &node.KeyValuePairLit{
 		Key:   keyExpr,
 		Value: valueExpr,
+		Colon: colon,
 	}
 }
 

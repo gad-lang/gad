@@ -539,6 +539,13 @@ func (c *Compiler) compileAssignStmt(
 		return err
 	}
 
+	// dict destructuring: `(;a, _b:b, r=2, **other) = dict`
+	if len(lhs) == 1 {
+		if kva, ok := lhs[0].(*node.KeyValueArrayLit); ok {
+			return c.compileDictDestructuring(nd, kva, rhs, keyword, op)
+		}
+	}
+
 	var isArrDestruct bool
 	var tempArrSymbol *Symbol
 	// +=, -=, *=, /=
@@ -665,6 +672,135 @@ func (c *Compiler) compileDestructuring(
 		// blocks set nil to variables defined in it after block
 		c.emit(nd, OpNil)
 		c.emit(nd, OpSetLocal, tempArrSymbol.Index)
+	}
+	return nil
+}
+
+// destructureKeyName extracts the identifier or string-literal name used as a
+// dict key / target variable in a dict-destructuring element.
+func destructureKeyName(e node.Expr) (string, bool) {
+	switch t := e.(type) {
+	case *node.IdentExpr:
+		return t.Name, true
+	case *node.TypedIdentExpr:
+		return t.Ident.Name, true
+	case *node.StrLit:
+		return t.Value(), true
+	}
+	return "", false
+}
+
+// compileDictDestructuring compiles `(;a, _b:b, r=2, **other) = dict`.
+//
+//	a        -> a    = dict["a"]            (nil when absent)
+//	_b:b     -> _b   = dict["b"]            (rename)
+//	r=2      -> r    = dict["r"] ?? 2       (fallback default)
+//	**other  -> other = remaining keys      (optional, must be last)
+func (c *Compiler) compileDictDestructuring(
+	nd ast.Node,
+	kva *node.KeyValueArrayLit,
+	rhs []node.Expr,
+	keyword token.Token,
+	op token.Token,
+) error {
+	if op != token.Assign && op != token.Define {
+		return c.errorf(nd, "operator %q not allowed with dict destructuring",
+			op.String())
+	}
+
+	var (
+		pairs   []*node.KeyValuePairLit
+		restVar node.Expr
+	)
+	for _, el := range kva.Elements {
+		switch e := el.(type) {
+		case *node.KeyValuePairLit:
+			if restVar != nil {
+				return c.errorf(nd, "** rest target must be the last element")
+			}
+			pairs = append(pairs, e)
+		case *node.NamedArgVarLit:
+			if restVar != nil {
+				return c.errorf(nd, "only one ** rest target is allowed")
+			}
+			restVar = e.Value
+		default:
+			return c.errorf(nd, "invalid dict destructuring target %T", el)
+		}
+	}
+
+	// evaluate the source dict once into a temp local
+	if err := c.Compile(rhs[0]); err != nil {
+		return err
+	}
+	dictSym, _ := c.symbolTable.DefineLocal(":dict")
+	c.emit(nd, OpDefineLocal, dictSym.Index)
+
+	hasRest := restVar != nil
+	if hasRest {
+		// copy so consumed keys can be removed for **other without mutating the
+		// source dict
+		c.emit(nd, OpGetBuiltin, int(BuiltinCopy))
+		c.emit(nd, OpGetLocal, dictSym.Index)
+		c.emit(nd, OpCall, 1, 0)
+		c.emit(nd, OpSetLocal, dictSym.Index)
+	}
+
+	// `:=` defines new locals for all targets; `=` assigns to all targets
+	// (which must already be defined).
+	allowRedefine := keyword != token.Const
+	for _, pair := range pairs {
+		dictKey, ok := destructureKeyName(pair.Key)
+		if !ok {
+			return c.errorf(nd, "invalid dict destructuring key %T", pair.Key)
+		}
+		if pair.Colon {
+			// rename: the value names the source key
+			dictKey, ok = destructureKeyName(pair.Value)
+			if !ok {
+				return c.errorf(nd, "invalid dict destructuring source key %T",
+					pair.Value)
+			}
+		}
+
+		// push dict[dictKey]
+		c.emit(nd, OpGetLocal, dictSym.Index)
+		c.emit(nd, OpConstant, c.addConstant(Str(dictKey)))
+		c.emit(nd, OpGetIndex, 1)
+
+		// fallback default: `name=expr` uses expr when the key is absent (nil)
+		if !pair.Colon && pair.Value != nil {
+			jp := c.emit(nd, OpJumpNotNil, 0)
+			if err := c.Compile(pair.Value); err != nil {
+				return err
+			}
+			c.changeOperand(jp, len(c.instructions))
+		}
+
+		if err := c.compileDefineAssign(nd, pair.Key, keyword, op, allowRedefine); err != nil {
+			return err
+		}
+
+		if hasRest {
+			// remove the consumed key from the copy
+			c.emit(nd, OpGetBuiltin, int(BuiltinDelete))
+			c.emit(nd, OpGetLocal, dictSym.Index)
+			c.emit(nd, OpConstant, c.addConstant(Str(dictKey)))
+			c.emit(nd, OpCall, 2, 0)
+			c.emit(nd, OpPop)
+		}
+	}
+
+	if hasRest {
+		c.emit(nd, OpGetLocal, dictSym.Index)
+		if err := c.compileDefineAssign(nd, restVar, keyword, op, allowRedefine); err != nil {
+			return err
+		}
+	}
+
+	if !c.symbolTable.InBlock() {
+		c.emit(nd, OpNil)
+		c.emit(nd, OpSetLocal, dictSym.Index)
 	}
 	return nil
 }

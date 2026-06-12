@@ -571,6 +571,10 @@ func (e *KeyValueLit) WriteCode(ctx *CodeWriteContext) {
 type KeyValuePairLit struct {
 	Key   Expr
 	Value Expr
+	// Colon reports that the key and value were separated by ':' instead of
+	// '='. It is used by the dict-destructuring target `(;name:key, ...)` where
+	// the value names the source dict key to read into the variable `name`.
+	Colon bool
 }
 
 func (e *KeyValuePairLit) ExprNode() {}
@@ -642,7 +646,9 @@ func (e *KeyValuePairLit) String() string {
 		v   = e.Value
 	)
 
-	if f == nil {
+	if e.Colon {
+		sep = ":"
+	} else if f == nil {
 		sep = "="
 	} else {
 		v = f
@@ -658,6 +664,12 @@ func (e *KeyValuePairLit) WriteCode(ctx *CodeWriteContext) {
 	}
 
 	fun := e.Func()
+
+	if e.Colon {
+		ctx.WriteString(":")
+		e.Value.WriteCode(ctx)
+		return
+	}
 
 	if fun == nil {
 		if fwm, _ := e.Value.(*FuncWithMethodsExpr); fwm != nil {

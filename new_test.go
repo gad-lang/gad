@@ -8,6 +8,34 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
+func TestVMDictDestructure(t *testing.T) {
+	const d = `d := {a:2, b:3, x:4, y:5}; `
+
+	// `:=` defines new locals; plain name reads same-named key
+	testExpectRun(t, d+`(;a) := d; return a`, nil, Int(2))
+	// rename: variable `_b` from dict key `b`
+	testExpectRun(t, d+`(;_b:b) := d; return _b`, nil, Int(3))
+	// fallback default used only when the key is absent
+	testExpectRun(t, d+`(;r=9) := d; return r`, nil, Int(9))
+	testExpectRun(t, d+`(;a=9) := d; return a`, nil, Int(2))
+	// **rest collects the keys not consumed
+	testExpectRun(t, d+`(;a, _b:b, **other) := d; return other`,
+		nil, Dict{"x": Int(4), "y": Int(5)})
+	testExpectRun(t, d+`(;a, _b:b, **other) := d; return [a, _b]`,
+		nil, Array{Int(2), Int(3)})
+	// rest with all keys consumed -> empty dict; source dict is not mutated
+	testExpectRun(t, d+`(;a:a, b2:b, x2:x, y2:y, **other) := d; return [other, d]`,
+		nil, Array{Dict{}, Dict{"a": Int(2), "b": Int(3), "x": Int(4), "y": Int(5)}})
+
+	// `=` assigns to predefined variables (all must already exist)
+	testExpectRun(t, d+`var (p, q, rest); (;p:a, q:b, **rest) = d; return [p, q, rest]`,
+		nil, Array{Int(2), Int(3), Dict{"x": Int(4), "y": Int(5)}})
+
+	// errors
+	expectErrHas(t, `d := {a:1}; (;a) = d; return a`,
+		newOpts().CompilerError(), `Compile Error: unresolved reference "a"`)
+}
+
 func TestVMDestructuring(t *testing.T) {
 	expectErrHas(t, `x, y = nil; return x`,
 		newOpts().CompilerError(), `Compile Error: unresolved reference "x"`)
