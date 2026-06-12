@@ -41,6 +41,8 @@ var (
 	reTypeHeader   = regexp.MustCompile(`^\s*##\s+Types`)
 	reConstHeader  = regexp.MustCompile(`^\s*##\s+Constants`)
 	reFuncHeader   = regexp.MustCompile(`^\s*##\s+Functions`)
+	reConvHeader   = regexp.MustCompile(`^\s*##\s+Converters`)
+	reMethHeader   = regexp.MustCompile(`^\s*##\s+Method Overrides`)
 	// Function header annotation: `Name(params) <ret>` (new syntax) or the
 	// legacy `Name(params) -> ret`. The params may include named params (`;`).
 	reFuncAnnot    = regexp.MustCompile(`^\s*(\w+)\(.*\)\s*(?:<[^>]*>|->\s+\S.*)\s*$`)
@@ -54,6 +56,8 @@ type docgroup struct {
 	types     []string
 	consts    []string
 	funcs     []string
+	convs     []string
+	methods   []string
 	errs      []string
 	funcHLine bool
 	// skipDesc skips the gad:doc comment description lines of the current
@@ -69,6 +73,8 @@ func (dg *docgroup) process(comments []string) {
 	dg.types = append(dg.types, "## Types\n")
 	dg.consts = append(dg.consts, "## Constants\n")
 	dg.funcs = append(dg.funcs, "## Functions\n")
+	dg.convs = append(dg.convs, "## Converters\n")
+	dg.methods = append(dg.methods, "## Method Overrides\n")
 	var lines []string
 	for _, p := range comments {
 		lines = append(lines, strings.Split(p, "\n")...)
@@ -96,6 +102,8 @@ func (dg *docgroup) processBlocks(lines []string) {
 		typeBlock
 		constBlock
 		funcBlock
+		convBlock
+		methBlock
 	)
 	block := unknown
 	for i := 0; i < len(lines); i++ {
@@ -110,12 +118,18 @@ func (dg *docgroup) processBlocks(lines []string) {
 				block = constBlock
 			} else if reFuncHeader.MatchString(line) {
 				block = funcBlock
+			} else if reConvHeader.MatchString(line) {
+				block = convBlock
+			} else if reMethHeader.MatchString(line) {
+				block = methBlock
 			} else {
 				dg.docs = append(dg.docs, line)
 			}
 		case typeBlock,
 			constBlock,
-			funcBlock:
+			funcBlock,
+			convBlock,
+			methBlock:
 			if reLevel2header.MatchString(line) {
 				if i > 0 {
 					i--
@@ -130,6 +144,10 @@ func (dg *docgroup) processBlocks(lines []string) {
 				dg.processConstBlock(line)
 			case funcBlock:
 				dg.processFuncBlock(line)
+			case convBlock:
+				dg.convs = append(dg.convs, line)
+			case methBlock:
+				dg.methods = append(dg.methods, line)
 			}
 		}
 	}
@@ -289,6 +307,12 @@ func formatComments(comments []string) ([]string, error) {
 	}
 	if len(d.funcs) > 1 {
 		out = append(out, d.funcs...)
+	}
+	if len(d.convs) > 1 {
+		out = append(out, d.convs...)
+	}
+	if len(d.methods) > 1 {
+		out = append(out, d.methods...)
 	}
 	return out, nil
 }

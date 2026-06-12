@@ -658,6 +658,20 @@ func registerConverters(module *gad.ModuleSpec, vm *gad.VM) {
 		return v.(*Time).Value
 	})
 
+	// gad:doc
+	// ## Converters
+	// When Go values cross into scripts they are converted to these gad types:
+	//
+	// - `time.Time`, `*time.Time` -> `time`
+	// - `time.Duration` -> `int` (nanoseconds)
+	// - `time.Location` -> `location`
+	//
+	// ## Method Overrides
+	// `int(v time; unit=char) <int>`
+	//
+	// Converts a `time` to a Unix timestamp (elapsed since 1970-01-01 UTC). The
+	// `unit` named argument selects the resolution: `'n'` nanoseconds, `'m'`
+	// microseconds, `'l'` milliseconds, or seconds (default).
 	vm.ObjectConverters.RegisterToObject(reflect.TypeFor[time.Time](), func(vm *gad.VM, v any) (gad.Object, error) {
 		switch t := v.(type) {
 		case *time.Time:

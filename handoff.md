@@ -74,7 +74,33 @@ tooling/user during the session — left untouched.
 - godoc completed for new nodes; README updated + examples verified; CLAUDE.md /
   ia_todo.md / handoff.md committed.
 
-## Doc tooling (IN PROGRESS — ia_todo.md)
+## Doc tooling (committed; metadata path ready)
+- `cmd/gaddoc` stays a **markdown** generator. Headers converted to new syntax
+  `Name(params) <ret>` with gad types + `*args` variadic; operator-overload docs
+  left as `->`. Fixed `getModuleItem` (built module via NewModule instead of
+  MustGetData(nil), which had broken `time` doc gen). Regenerated `docs/stdlib-*`.
+- gaddoc now PREFERS live function metadata: for a documented `*gad.Function`
+  OR `*gad.BuiltinFunction` with a `Header`, the signature is generated from
+  `FuncName + Header.String()`; a non-empty `Usage` is used as the description;
+  otherwise it falls back to the gad:doc comment. `getModuleFunc` returns a
+  shared `funcMeta`.
+- ABANDONED "migrate all stdlib funcs to Header/Usage": doc-only (safe, no
+  runtime validation — `Function.Call` is just `f.Value(call)`), but ~100 funcs
+  and the builder API can't represent named-param defaults (`emph="..."`),
+  optional `[, n int]` markers, or `[str]` element types — would degrade those
+  signatures. Would need a `NamedParamBuilder.Default(...)` core addition.
+
+## CURRENT TASK (ia_todo.md) — IN PROGRESS
+Create gad:doc strings for: `vm.ObjectConverters.RegisterToObject`,
+`gad.AddMethodOverride`/`gad.AddMethod`, and `module.Data` entries.
+DONE so far: extended `cmd/gaddoc` to recognize `## Converters` and
+`## Method Overrides` gad:doc sections (new docgroup buffers convs/methods,
+recognized in processBlocks, emitted after Functions). TODO: write the gad:doc
+section strings near the RegisterToObject converters + AddMethod(Override) calls
+(time module: registerConverters at ~line 656; int override timeToInt ~line 702),
+regenerate docs, verify, commit.
+
+## (history) Doc tooling earlier notes
 `cmd/gaddoc` stays a **markdown** generator (YAML/HTML-UI ideas dropped per
 user). Remaining work: support the new function-header syntax.
 - `cmd/gaddoc/main.go`: `reFuncAnnot` matches `Name(params) -> ret`; update it to

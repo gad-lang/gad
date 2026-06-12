@@ -379,3 +379,19 @@ Truncate returns the result of rounding t down to a multiple of duration.
 `IsTime(any) <bool>`
 
 Reports whether any value is of time type.
+## Converters
+
+When Go values cross into scripts they are converted to these gad types:
+
+- `time.Time`, `*time.Time` -> `time`
+- `time.Duration` -> `int` (nanoseconds)
+- `time.Location` -> `location`
+
+## Method Overrides
+
+`int(v time; unit=char) <int>`
+
+Converts a `time` to a Unix timestamp (elapsed since 1970-01-01 UTC). The
+`unit` named argument selects the resolution: `'n'` nanoseconds, `'m'`
+microseconds, `'l'` milliseconds, or seconds (default).
+
