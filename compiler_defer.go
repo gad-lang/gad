@@ -52,15 +52,14 @@ if $err != nil { throw $err }
 return $ret
 `
 
-// deferbWrapperTemplate is spliced around a block that uses `deferb`. Unlike
-// the function-level wrapper it has no $ret (a block yields no value); handlers
-// run at block exit (including via `return`) honouring the variants, with `$err`
-// holding any error thrown in the block (suppressible by setting it to nil).
-// NOTE: handlers are invoked directly (not inside a per-handler try/catch):
-// a nested try inside a finally currently clobbers a pending return value
-// during return-through-finally, so a throw inside a deferb handler propagates
-// rather than being captured into $err (unlike function-level defer).
+// deferbWrapperTemplate is spliced around a block that uses `deferb`. A block
+// yields no value, so $ret has no meaning here: it is shadowed as a block-local
+// (always nil) so a deferb handler cannot reach — and corrupt — an enclosing
+// function's $ret. Handlers run at block exit (including via `return`) honouring
+// the variants; `$err` holds any error thrown in the block (suppressible by
+// setting it to nil), and a throw inside a handler is captured back into `$err`.
 const deferbWrapperTemplate = `
+$ret := nil
 $err := nil
 $__deferb := []
 try {
@@ -71,7 +70,7 @@ try {
 		$__d := $__deferb[$__i]
 		if $__d[1] == 1 && $err != nil { continue }
 		if $__d[1] == 2 && $err == nil { continue }
-		$__d[0]()
+		try { $__d[0]() } catch $de { $err = $de }
 	}
 	if $err != nil { throw $err }
 }

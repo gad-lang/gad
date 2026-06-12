@@ -158,6 +158,29 @@ func TestVMDeferbStmt(t *testing.T) {
 	g := func() { { deferb_err { } ; throw "x" } }
 	return g()`, newOpts(), "x")
 
+	// a throw inside a deferb handler is captured into $err (recoverable)
+	testExpectRun(t, `
+	out := ""
+	f := func() {
+		{
+			deferb_err { out += "recovered:" + str($err) + " "; $err = nil }
+			deferb { throw "from-handler" }
+			out += "body "
+		}
+		out += "after"
+		return out
+	}
+	return f()`, nil, Str("body recovered:error: from-handler after"))
+
+	// $ret is inappropriate in a block: it is a shadowed nil local and does not
+	// reach an enclosing function's return value
+	testExpectRun(t, `
+	f := func() {
+		{ deferb { } }
+		return "base"
+	}
+	return f()`, nil, Str("base"))
+
 	// `return` inside the block runs the handlers AND preserves the value
 	testExpectRun(t, `
 	out := []
