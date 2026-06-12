@@ -3216,6 +3216,41 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 }
 
+func TestCompilerOrExpr(t *testing.T) {
+	// `a or 2` desugars to a try/catch that stores the result in a temp local
+	// (:or). On a thrown error the fallback is evaluated and bound `$err`; if the
+	// fallback is itself an error it is re-thrown, else it becomes the value.
+	expectCompile(t, `a := 1; return a or 2`, bytecode(
+		Array{Int(1), Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),                     // 0000 a := 1
+			makeInst(OpDefineLocal, 0),                  // 0003 a
+			makeInst(OpNil),                             // 0005 :or = nil
+			makeInst(OpDefineLocal, 1),                  // 0006 :or
+			makeInst(OpSetupTry, 20, 43),                // 0008
+			makeInst(OpGetLocal, 0),                     // 0013 eval a
+			makeInst(OpSetLocal, 1),                     // 0015 :or = a
+			makeInst(OpJump, 43),                        // 0017 -> finally
+			makeInst(OpSetupCatch),                      // 0020
+			makeInst(OpDefineLocal, 2),                  // 0021 $err
+			makeInst(OpConstant, 1),                     // 0023 eval fallback 2
+			makeInst(OpSetLocal, 1),                     // 0026 :or = 2
+			makeInst(OpGetBuiltin, int(BuiltinIsError)), // 0028
+			makeInst(OpGetLocal, 1),                     // 0031
+			makeInst(OpCall, 1, 0),                      // 0033 isError(:or)
+			makeInst(OpJumpFalsy, 43),                   // 0036 not error -> finally
+			makeInst(OpGetLocal, 1),                     // 0039
+			makeInst(OpThrow, 1),                        // 0041 re-throw error fallback
+			makeInst(OpSetupFinally),                    // 0043
+			makeInst(OpThrow, 0),                        // 0044 implicit re-throw (no-op)
+			makeInst(OpGetLocal, 1),                     // 0046 push result
+			makeInst(OpReturn, 1),                       // 0048
+		),
+			funcLocals(3),
+		),
+	))
+}
+
 func TestCompilerReturn(t *testing.T) {
 	expectCompile(t, `return`, bytecode(
 		Array{},

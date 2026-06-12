@@ -3694,6 +3694,32 @@ func TestParseLogical(t *testing.T) {
 	})
 }
 
+func TestParseOrExpr(t *testing.T) {
+	// structural check incl. positions
+	test.ExpectParse(t, "a or b", func(p pfn) []Stmt {
+		return stmts(
+			SExpr(
+				&OrExpr{
+					Expr:     EIdent("a", p(1, 1)),
+					Fallback: EIdent("b", p(1, 6)),
+					OrPos:    p(1, 3),
+				}))
+	})
+
+	// round-trip / precedence checks
+	test.ExpectParseString(t, "x() or 2", "x() or 2")
+	// `or` has the lowest precedence: `1 + x or 2` => `(1 + x) or 2`
+	test.ExpectParseString(t, "1 + x or 2", "(1 + x) or 2")
+	// parentheses scope the `or` to the inner expression
+	test.ExpectParseString(t, "1 + (x() or 2)", "(1 + (x() or 2))")
+	// left associative
+	test.ExpectParseString(t, "a or b or c", "a or b or c")
+	// fallback may reference $err
+	test.ExpectParseString(t, "x() or error($err)", "x() or error($err)")
+	// `or` remains usable as a normal identifier outside infix position
+	test.ExpectParseString(t, "or := 1", "or := 1")
+}
+
 func TestParseBlock(t *testing.T) {
 	test.ExpectParse(t, "{}", func(p pfn) []Stmt {
 		return stmts(SBlock(p(1, 1), p(1, 2)))

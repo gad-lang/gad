@@ -273,6 +273,10 @@ func (p *Parser) ParseExpr() node.Expr {
 	return expr
 }
 
+// orPrec is the precedence of the `or` error-fallback operator. It is the
+// lowest binary precedence so `a + b or c` parses as `(a + b) or c`.
+const orPrec = token.LowestPrec + 1
+
 func (p *Parser) ParseBinaryExpr(prec1 int) node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "BinaryExpression"))
@@ -281,6 +285,17 @@ func (p *Parser) ParseBinaryExpr(prec1 int) node.Expr {
 	x := p.ParseUnaryExpr()
 
 	for {
+		// `or` is an error-fallback operator with the lowest precedence
+		// (orPrec == 1). It is recognised as the bare identifier "or" in
+		// infix position so it stays usable as a normal identifier elsewhere.
+		if prec1 <= orPrec && p.Token.Token == token.Ident && p.Token.Literal == "or" {
+			orPos := p.Token.Pos
+			p.Next()
+			y := p.ParseBinaryExpr(orPrec + 1)
+			x = &node.OrExpr{Expr: x, Fallback: y, OrPos: orPos}
+			continue
+		}
+
 		op, prec := p.Token.Token, p.Token.Precedence()
 		if prec < prec1 {
 			return x

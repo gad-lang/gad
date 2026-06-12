@@ -633,6 +633,15 @@ func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 			return expr, ok
 		}
 		return so.evalExpr(nd)
+	case *node.OrExpr:
+		// optimize the sub-expressions, but never constant-fold the whole
+		// expression: its semantics depend on whether Expr throws at runtime.
+		if expr, ok = so.optimize(nd.Expr); ok {
+			nd.Expr = expr
+		}
+		if expr, ok = so.optimize(nd.Fallback); ok {
+			nd.Fallback = expr
+		}
 	case *node.UnaryExpr:
 		if expr, ok = so.optimize(nd.Expr); ok {
 			nd.Expr = expr

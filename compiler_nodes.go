@@ -182,6 +182,69 @@ func (c *Compiler) compileTryStmt(nd *node.TryStmt) error {
 	return nil
 }
 
+// compileOrExpr compiles an `expr or fallback` error-fallback expression. It is
+// desugared to a try/catch that evaluates Expr and, on a thrown error, evaluates
+// Fallback instead with the caught error bound to the local `$err`. The result
+// (either value) is left on the stack.
+func (c *Compiler) compileOrExpr(nd *node.OrExpr) error {
+	// fork a new symbol table so `$err` and the temp result do not leak
+	c.symbolTable = c.symbolTable.Fork(true)
+	c.tryCatchIndex++
+
+	// temp local holding the resulting value of the whole expression
+	tmp, _ := c.symbolTable.DefineLocal(":or")
+	c.emit(nd, OpNil)
+	c.emit(nd, OpDefineLocal, tmp.Index)
+
+	optry := c.emit(nd, OpSetupTry, 0, 0)
+
+	// try body: evaluate Expr and store its value
+	if err := c.Compile(nd.Expr); err != nil {
+		return err
+	}
+	c.emit(nd, OpSetLocal, tmp.Index)
+	opjump := c.emit(nd, OpJump, 0)
+
+	// catch body: bind $err and evaluate Fallback
+	catchPos := len(c.instructions)
+	c.emit(nd, OpSetupCatch)
+	errSym, exists := c.symbolTable.DefineLocal("$err")
+	if exists {
+		c.emit(nd, OpSetLocal, errSym.Index)
+	} else {
+		c.emit(nd, OpDefineLocal, errSym.Index)
+	}
+	if err := c.Compile(nd.Fallback); err != nil {
+		return err
+	}
+	c.emit(nd, OpSetLocal, tmp.Index)
+	// If the fallback itself evaluated to an error, re-throw it (so
+	// `x() or error("...")` propagates the new error); otherwise it is the
+	// resulting value (so `x() or 2` / `x() or ("..." + $err)` yield a value).
+	c.emit(nd, OpGetBuiltin, int(BuiltinIsError))
+	c.emit(nd, OpGetLocal, tmp.Index)
+	c.emit(nd, OpCall, 1, 0)
+	opNotErr := c.emit(nd, OpJumpFalsy, 0)
+	c.emit(nd, OpGetLocal, tmp.Index)
+	c.emit(nd, OpThrow, 1)
+
+	c.tryCatchIndex--
+
+	// finally: cleanup + implicit re-throw (no-op when catch handled the error)
+	finallyPos := c.emit(nd, OpSetupFinally)
+	c.emit(nd, OpThrow, 0)
+
+	c.changeOperand(optry, catchPos, finallyPos)
+	c.changeOperand(opjump, finallyPos)
+	c.changeOperand(opNotErr, finallyPos)
+
+	c.symbolTable = c.symbolTable.Parent(false)
+
+	// push the resulting value
+	c.emit(nd, OpGetLocal, tmp.Index)
+	return nil
+}
+
 func (c *Compiler) compileCatchStmt(nd *node.CatchStmt) error {
 	c.emit(nd, OpSetupCatch)
 	if nd.Ident != nil {

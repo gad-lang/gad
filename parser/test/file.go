@@ -442,6 +442,11 @@ func (f *File) EqualExpr(expected, actual node.Expr) {
 	case *node.SymbolLit:
 		f.Equal(&expected.Lit, &actual.(*node.SymbolLit).Lit)
 	case *node.ToRaw:
+	case *node.OrExpr:
+		act := actual.(*node.OrExpr)
+		f.Equal(expected.OrPos, act.OrPos)
+		f.EqualExpr(expected.Expr, act.Expr)
+		f.EqualExpr(expected.Fallback, act.Fallback)
 	case *node.TemplateLit:
 		act := actual.(*node.TemplateLit)
 		f.Equal(expected.TokenPos, act.TokenPos)

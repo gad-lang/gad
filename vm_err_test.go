@@ -604,6 +604,45 @@ func TestVMLoop(t *testing.T) {
 	`, nil, Int(1))
 }
 
+func TestVMOrExpr(t *testing.T) {
+	const defs = `f := func() { throw "boom" }; g := func(x) { return x }; `
+
+	// success: value of left expression is used, fallback ignored
+	testExpectRun(t, defs+`return g(42) or 99`, newOpts().Skip2Pass(), Int(42))
+	// non-error left value passes through unchanged
+	testExpectRun(t, `return 1 or 2`, newOpts().Skip2Pass(), Int(1))
+	// error left: form 1 - value fallback
+	testExpectRun(t, defs+`return f() or 7`, newOpts().Skip2Pass(), Int(7))
+	// error left: form 3 - fallback references $err and yields a value
+	testExpectRun(t, defs+`return f() or ("caught: " + str($err))`,
+		newOpts().Skip2Pass(), Str("caught: error: boom"))
+	// error left: form 2 - fallback is itself an error => re-thrown
+	testExpectRun(t, defs+`
+		try {
+			return f() or error("wrapped: " + str($err))
+		} catch e {
+			return str(e)
+		}`, newOpts().Skip2Pass(), Str("error: wrapped: error: boom"))
+	// chaining is left-associative; first non-error wins
+	testExpectRun(t, defs+`return f() or f() or 5`, newOpts().Skip2Pass(), Int(5))
+	testExpectRun(t, defs+`return f() or g(8) or 5`, newOpts().Skip2Pass(), Int(8))
+	// inline form inside a larger expression
+	testExpectRun(t, defs+`return 1 + (f() or 10)`, newOpts().Skip2Pass(), Int(11))
+	// usable inside a function body / as a return value
+	testExpectRun(t, defs+`h := func() { return f() or 100 }; return h()`,
+		newOpts().Skip2Pass(), Int(100))
+	// handler is cleaned up: a real throw after a handled `or` still propagates
+	testExpectRun(t, defs+`
+		try {
+			a := f() or 1
+			throw "real"
+		} catch e {
+			return str(e)
+		}`, newOpts().Skip2Pass(), Str("error: real"))
+	// `or` remains usable as a plain identifier
+	testExpectRun(t, `or := 5; return or + 1`, newOpts().Skip2Pass(), Int(6))
+}
+
 func TestVMErrorUnwrap(t *testing.T) {
 	err1 := errors.New("err1")
 	var g IndexGetSetter = Dict{"fn": &Function{

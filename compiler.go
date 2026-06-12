@@ -507,6 +507,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		default:
 			return c.compileBinaryExpr(nt)
 		}
+	case *node.OrExpr:
+		return c.compileOrExpr(nt)
 	case *node.IntLit:
 		c.emit(nt, OpConstant, c.addConstant(Int(nt.Value)))
 	case *node.UintLit:

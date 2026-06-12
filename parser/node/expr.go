@@ -1889,3 +1889,35 @@ func (r *ToRaw) WriteCode(ctx *CodeWriteContext) {
 
 func (r *ToRaw) ExprNode() {
 }
+
+// OrExpr represents an error-fallback expression: `expr or fallback`.
+// If evaluating Expr throws an error, Fallback is evaluated instead, with the
+// caught error bound to the local `$err`. The whole expression yields the value
+// of Expr on success, or the value of Fallback when Expr throws.
+type OrExpr struct {
+	Expr     Expr
+	Fallback Expr
+	OrPos    source.Pos
+}
+
+func (e *OrExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *OrExpr) Pos() source.Pos {
+	return e.Expr.Pos()
+}
+
+// End returns the position of first character immediately after the node.
+func (e *OrExpr) End() source.Pos {
+	return e.Fallback.End()
+}
+
+func (e *OrExpr) String() string {
+	return e.Expr.String() + " or " + e.Fallback.String()
+}
+
+func (e *OrExpr) WriteCode(ctx *CodeWriteContext) {
+	e.Expr.WriteCode(ctx)
+	ctx.WriteString(" or ")
+	e.Fallback.WriteCode(ctx)
+}
