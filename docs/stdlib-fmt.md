@@ -40,7 +40,7 @@ v := arg1 ? arg1.Value : "default value"
 
 ## Functions
 
-`Print(...any) <int>`
+`Print(*any) <int>`
 
 Formats using the default formats for its operands and writes to standard
 output. Spaces are added between operands when neither is a str.
@@ -49,7 +49,7 @@ throws a runtime error.
 
 ---
 
-`Printf(format str, ...any) <int>`
+`Printf(format str, *any) <int>`
 
 Formats according to a format specifier and writes to standard output.
 It returns the number of bytes written and any encountered write error
@@ -57,7 +57,7 @@ throws a runtime error.
 
 ---
 
-`Println(...any) <int>`
+`Println(*any) <int>`
 
 Formats using the default formats for its operands and writes to standard
 output. Spaces are always added between operands and a newline
@@ -66,7 +66,7 @@ write error throws a runtime error.
 
 ---
 
-`Sprint(...any) <str>`
+`Sprint(*any) <str>`
 
 Formats using the default formats for its operands and returns the
 resulting str. Spaces are added between operands when neither is a
@@ -74,13 +74,13 @@ str.
 
 ---
 
-`Sprintf(format str, ...any) <str>`
+`Sprintf(format str, *any) <str>`
 
 Formats according to a format specifier and returns the resulting str.
 
 ---
 
-`Sprintln(...any) <str>`
+`Sprintln(*any) <str>`
 
 Formats using the default formats for its operands and returns the
 resulting str. Spaces are always added between operands and a newline
@@ -88,7 +88,7 @@ is appended.
 
 ---
 
-`Sscan(str str, ScanArg[, ...ScanArg]) <int | error>`
+`Sscan(str str, ScanArg[, *ScanArg]) <int | error>`
 
 Scans the argument str, storing successive space-separated values into
 successive ScanArg arguments. Newlines count as space. If no error is
@@ -97,7 +97,7 @@ is less than the number of arguments, error will report why.
 
 ---
 
-`Sscanf(str str, format str, ScanArg[, ...ScanArg]) <int | error>`
+`Sscanf(str str, format str, ScanArg[, *ScanArg]) <int | error>`
 
 Scans the argument str, storing successive space-separated values into
 successive ScanArg arguments as determined by the format. It returns the
