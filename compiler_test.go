@@ -4021,6 +4021,18 @@ func TestCompilerFuncReturnType(t *testing.T) {
 			" <int, str>",
 		},
 		{
+			"closure lambda",
+			`x := (a) <int> => a; return x`,
+			[]ret{{"", "int"}},
+			" <int>",
+		},
+		{
+			"closure dict element",
+			`return {f(a) <x int|bool> : a}`,
+			[]ret{{"x", "int|bool"}},
+			" <x int|bool>",
+		},
+		{
 			"no return type",
 			`return func(a) { return a }`,
 			nil,

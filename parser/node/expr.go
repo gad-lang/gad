@@ -1663,6 +1663,7 @@ func (e *FuncExpr) WriteCode(ctx *CodeWriteContext) {
 type ClosureExpr struct {
 	ast.NodeData
 	Params FuncParams
+	Return []*TypedIdentExpr
 	Lambda Token
 	Body   Expr
 }
@@ -1687,11 +1688,11 @@ func (e *ClosureExpr) sep() string {
 }
 
 func (e *ClosureExpr) String() string {
-	return e.Params.String() + e.sep() + " " + e.Body.String()
+	return e.Params.String() + FormatFuncReturn(e.Return) + e.sep() + " " + e.Body.String()
 }
 
 func (e *ClosureExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(e.Params.String(), e.sep(), " ")
+	ctx.WriteString(e.Params.String(), FormatFuncReturn(e.Return), e.sep(), " ")
 	if block, ok := e.Body.(*BlockExpr); ok {
 		block.WriteCode(ctx)
 	} else {

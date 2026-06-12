@@ -2956,6 +2956,34 @@ func TestParseShorthandFuncReturnType(t *testing.T) {
 	})
 }
 
+func TestParseClosureFuncReturnType(t *testing.T) {
+	// (params) <ret> => body closure forms.
+	test.ExpectParseString(t, "x := (a) <int> => a", "x := (a) <int> => a")
+	test.ExpectParseString(t, "x := (a, b) <int, str> => [a, b]", "x := (a, b) <int, str> => [a, b]")
+	test.ExpectParseString(t, "x := (a) <x int|bool> => a", "x := (a) <x int|bool> => a")
+	test.ExpectParseString(t, "x := (a) <int> => {a}", "x := (a) <int> => { a }")
+
+	// the return-type list must not be confused with a comparison operator.
+	test.ExpectParseString(t, "x := (a) < b", "x := ((a) < b)")
+
+	// dict-element closure (':' body).
+	test.ExpectParseString(t, "d := {f(a) <int> : a}", "d := {f(a) <int> : a}")
+
+	// full AST for a closure with a return type.
+	test.ExpectParse(t, "a = (b) <int> => b", func(p pfn) []Stmt {
+		cl := EClosure(
+			NewFuncParams(p(1, 5), p(1, 7), funcArgs(nil, EIdent("b", p(1, 6)))),
+			p(1, 15), token.Lambda, EIdent("b", p(1, 18)))
+		cl.Return = FuncReturn(ETypedIdent(EIdent("int", p(1, 10))))
+		return stmts(
+			SAssign(
+				exprs(EIdent("a", p(1, 1))),
+				exprs(cl),
+				token.Assign,
+				p(1, 3)))
+	})
+}
+
 func TestParseMethod(t *testing.T) {
 	test.ExpectParse(t, "met fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(

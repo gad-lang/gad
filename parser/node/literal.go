@@ -230,6 +230,7 @@ func (e *DictElementLit) Func() (f *FuncDefLit) {
 		return &FuncDefLit{
 			Expr: &ClosureExpr{
 				Params: t.Params,
+				Return: t.Return,
 				Lambda: Token{Token: token.Colon},
 				Body:   t.Body,
 			},
@@ -239,6 +240,7 @@ func (e *DictElementLit) Func() (f *FuncDefLit) {
 			return &FuncDefLit{
 				Expr: &ClosureExpr{
 					Params: t.Type.Params,
+					Return: t.Type.Return,
 					Lambda: Token{Token: token.Colon},
 					Body:   t.BodyExpr,
 				},
@@ -248,6 +250,7 @@ func (e *DictElementLit) Func() (f *FuncDefLit) {
 			Expr: &FuncExpr{
 				Type: &FuncType{
 					Params: t.Type.Params,
+					Return: t.Type.Return,
 				},
 				Body:     t.Body,
 				BodyExpr: t.BodyExpr,
@@ -593,6 +596,7 @@ func (e *KeyValuePairLit) Func() (f *FuncDefLit) {
 		return &FuncDefLit{
 			Expr: &ClosureExpr{
 				Params: t.Params,
+				Return: t.Return,
 				Lambda: Token{Token: token.Colon},
 				Body:   t.Body,
 			},
@@ -602,6 +606,7 @@ func (e *KeyValuePairLit) Func() (f *FuncDefLit) {
 			return &FuncDefLit{
 				Expr: &ClosureExpr{
 					Params: t.Type.Params,
+					Return: t.Type.Return,
 					Lambda: Token{Token: token.Colon},
 					Body:   t.BodyExpr,
 				},
@@ -611,6 +616,7 @@ func (e *KeyValuePairLit) Func() (f *FuncDefLit) {
 			Expr: &FuncExpr{
 				Type: &FuncType{
 					Params: t.Type.Params,
+					Return: t.Type.Return,
 				},
 				Body:     t.Body,
 				BodyExpr: t.BodyExpr,

@@ -2132,6 +2132,20 @@ return [str(f), str(f;indent), repr(f), repr(f;indent)]`, nil, Array{
 
 	// the return-type list does not break the "<" comparison operator.
 	testExpectRun(t, `foo := func(a) => a; return foo(1) < 2`, nil, True)
+
+	// Closure shorthands ((params) <ret> => expr) carry return types too.
+	testExpectRun(t, `x := (a) <int> => a * 2; return x(21)`, nil, Int(42))
+	testExpectRun(t, `x := (a, b) <int, str> => [a, b]; return x(1, "z")`,
+		nil, Array{Int(1), Str("z")})
+	testExpectRun(t, `x := (a) <int> => a; return repr(x)`,
+		nil, Str(`‹compiledFunction: (main).#1(a any) <int>›`))
+
+	// dict-element closure (':' body) keeps its return type.
+	testExpectRun(t, `m := {f(a) <int> : a}; return [m.f(5), repr(m.f)]`,
+		nil, Array{Int(5), Str(`‹compiledFunction: (main).#1(a any) <int>›`)})
+
+	// closure "<" comparison is unaffected.
+	testExpectRun(t, `a := 1; return (a) < 2`, nil, True)
 }
 
 func TestVMClass(t *testing.T) {

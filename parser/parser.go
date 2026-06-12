@@ -1171,6 +1171,14 @@ func (p *Parser) ParseParenOrClosure(lparenToken, rparenToken token.Token) node.
 	switch p.Token.Token {
 	case token.Lambda:
 		return p.ParseClosureExpr(p.Token.Token, paren.ToMultiParenExpr())
+	case token.Less:
+		// "(params) <ret> => body" closure vs. the "(expr) < x" comparison.
+		if p.peekFuncReturnTypeThen(token.Lambda) {
+			returnTypes := p.ParseFuncReturnTypes()
+			c := p.ParseClosureExpr(token.Lambda, paren.ToMultiParenExpr())
+			c.Return = returnTypes
+			return c
+		}
 	}
 	return paren
 }
@@ -1707,12 +1715,12 @@ func (p *Parser) ParseFuncReturnTypes() (types []*node.TypedIdentExpr) {
 	return
 }
 
-// peekFuncReturnTypeThenBody reports whether the current '<' token begins a
-// function return-type list — a balanced "<...>" immediately followed by a body
-// start ('{' or '=>') — rather than a comparison operator. It is used to
-// disambiguate the shorthand "name(params) <ret> {body}" from the comparison
-// "name(params) < x". No tokens are consumed.
-func (p *Parser) peekFuncReturnTypeThenBody() bool {
+// peekFuncReturnTypeThen reports whether the current '<' token begins a function
+// return-type list — a balanced "<...>" immediately followed by one of the given
+// body-start tokens — rather than a comparison operator. It is used to
+// disambiguate, e.g., the shorthand "name(params) <ret> {body}" from the
+// comparison "name(params) < x". No tokens are consumed.
+func (p *Parser) peekFuncReturnTypeThen(follow ...token.Token) bool {
 	if p.Token.Token != token.Less {
 		return false
 	}
@@ -1730,7 +1738,7 @@ func (p *Parser) peekFuncReturnTypeThenBody() bool {
 
 		if closed {
 			// the token right after the balanced "<...>" decides it.
-			result = t.Token.Is(token.LBrace, token.Lambda)
+			result = t.Token.Is(follow...)
 			return false
 		}
 
@@ -1752,6 +1760,12 @@ func (p *Parser) peekFuncReturnTypeThenBody() bool {
 	})
 
 	return result
+}
+
+// peekFuncReturnTypeThenBody reports whether the current '<' begins a return-type
+// list followed by a block or lambda body ('{' or '=>').
+func (p *Parser) peekFuncReturnTypeThenBody() bool {
+	return p.peekFuncReturnTypeThen(token.LBrace, token.Lambda)
 }
 
 func (p *Parser) ParseSimpleSelectorExpr(x node.Expr) node.Expr {
@@ -2854,16 +2868,19 @@ func (p *Parser) ParseFuncDefLit(colon token.Token) *node.FuncDefLit {
 	e := &node.FuncDefLit{}
 	paren := p.ParseParemExpr(token.LParen, token.RParen)
 
+	// the optional "<ret>" list precedes the closure ':'/'=>' or the '{' block.
+	returnTypes := p.ParseFuncReturnTypes()
+
 	if p.Token.Token == colon {
-		e.Expr = p.ParseClosureExpr(colon, paren.ToMultiParenExpr())
+		c := p.ParseClosureExpr(colon, paren.ToMultiParenExpr())
+		c.Return = returnTypes
+		e.Expr = c
 	} else {
 		params, err := paren.ToMultiParenExpr().ToFuncParams()
 
 		if err != nil {
 			p.Error(err.Pos(), err.Error())
 		}
-
-		returnTypes := p.ParseFuncReturnTypes()
 
 		p.ExprLevel++
 		body := p.ParseBlockStmt()
@@ -3093,6 +3110,7 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 						Type: &node.FuncType{
 							NameExpr: ident,
 							Params:   t.Params,
+							Return:   t.Return,
 						},
 						BodyExpr: t.Body,
 					}
