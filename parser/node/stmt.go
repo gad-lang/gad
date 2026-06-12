@@ -659,9 +659,22 @@ type DeferStmt struct {
 	Variant  DeferVariant
 	Body     *BlockStmt
 	Call     Expr
+	// Block reports a `deferb*` statement, which runs at the end of the
+	// enclosing block instead of the enclosing function.
+	Block bool
 }
 
 func (s *DeferStmt) StmtNode() {}
+
+// Keyword returns the source keyword for this statement (defer / defer_ok /
+// deferb_err / ...).
+func (s *DeferStmt) Keyword() string {
+	kw := s.Variant.String()
+	if s.Block {
+		kw = "deferb" + kw[len("defer"):]
+	}
+	return kw
+}
 
 // Pos returns the position of first character belonging to the node.
 func (s *DeferStmt) Pos() source.Pos { return s.DeferPos }
@@ -676,13 +689,13 @@ func (s *DeferStmt) End() source.Pos {
 
 func (s *DeferStmt) String() string {
 	if s.Body != nil {
-		return s.Variant.String() + " " + s.Body.String()
+		return s.Keyword() + " " + s.Body.String()
 	}
-	return s.Variant.String() + " " + s.Call.String()
+	return s.Keyword() + " " + s.Call.String()
 }
 
 func (s *DeferStmt) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(s.Variant.String() + " ")
+	ctx.WriteString(s.Keyword() + " ")
 	if s.Body != nil {
 		s.Body.WriteCode(ctx)
 	} else {

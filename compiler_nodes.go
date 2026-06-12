@@ -1245,6 +1245,15 @@ func (c *Compiler) compileBlockStmt(nd *node.BlockStmt) error {
 		return nil
 	}
 
+	// desugar block-scoped `deferb` by wrapping the block in the deferb runner
+	if stmtsHaveDeferb(nd.Stmts) {
+		wrapped, err := c.wrapDeferbBlock(nd.Stmts)
+		if err != nil {
+			return err
+		}
+		nd.Stmts = wrapped
+	}
+
 	c.symbolTable = c.symbolTable.Fork(true)
 	if err := c.compileStmts(nd.Stmts...); err != nil {
 		return err

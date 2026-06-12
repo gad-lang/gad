@@ -75,6 +75,68 @@ func TestVMDeferStmt(t *testing.T) {
 	return [f(true), f(false)]`, nil, Array{Str("by"), Str("b")})
 }
 
+func TestVMDeferbStmt(t *testing.T) {
+	// runs at block exit, LIFO
+	testExpectRun(t, `
+	out := ""
+	{ deferb { out += "d1 " }; deferb { out += "d2 " }; out += "b " }
+	out += "after"
+	return out`, nil, Str("b d2 d1 after"))
+
+	// deferb_err recovers within the block; execution continues after it
+	testExpectRun(t, `
+	out := ""
+	{
+		deferb_err { out += "caught:" + str($err) + " "; $err = nil }
+		out += "before "
+		throw "boom"
+		out += "unreached "
+	}
+	out += "after"
+	return out`, nil, Str("before caught:error: boom after"))
+
+	// deferb_ok runs only on success
+	testExpectRun(t, `
+	g := func(fail) {
+		res := ""
+		{
+			deferb_ok { res += "ok " }
+			deferb_err { res += "err " }
+			if fail { throw "x" }
+		}
+		return res
+	}
+	return g(false)`, nil, Str("ok "))
+
+	// unsuppressed block error still propagates
+	expectErrHas(t, `
+	g := func() { { deferb_err { } ; throw "x" } }
+	return g()`, newOpts(), "x")
+
+	// `return` inside the block runs the handlers AND preserves the value
+	testExpectRun(t, `
+	out := []
+	h := func() {
+		{
+			deferb { out = append(out, "D") }
+			out = append(out, "B")
+			return "RET"
+		}
+	}
+	r := h()
+	return [r, out]`, nil, Array{Str("RET"), Array{Str("B"), Str("D")}})
+
+	// each block has its own deferb scope (nested blocks are independent)
+	testExpectRun(t, `
+	out := ""
+	{
+		deferb { out += "outer " }
+		{ deferb { out += "inner " }; out += "in " }
+		out += "out "
+	}
+	return out`, nil, Str("in inner out outer "))
+}
+
 func TestVMComprehension(t *testing.T) {
 	// array comprehension
 	testExpectRun(t, `return [i * 2 for i in [1, 2, 3]]`,

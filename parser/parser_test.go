@@ -3726,6 +3726,9 @@ func TestParseDeferStmt(t *testing.T) {
 	test.ExpectParseString(t, `defer handler(x)`, `defer handler(x)`)
 	test.ExpectParseString(t, `defer_ok { x }`, `defer_ok { x }`)
 	test.ExpectParseString(t, `defer_err { x }`, `defer_err { x }`)
+	test.ExpectParseString(t, `deferb { x }`, `deferb { x }`)
+	test.ExpectParseString(t, `deferb_ok { x }`, `deferb_ok { x }`)
+	test.ExpectParseString(t, `deferb_err handler(x)`, `deferb_err handler(x)`)
 }
 
 func TestParseComprehension(t *testing.T) {

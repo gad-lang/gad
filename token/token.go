@@ -148,6 +148,9 @@ const (
 	Defer
 	DeferOk
 	DeferErr
+	Deferb
+	DeferbOk
+	DeferbErr
 	GroupKeywordEnd
 )
 
@@ -305,6 +308,9 @@ var tokens = [...]string{
 	Defer:           "defer",
 	DeferOk:         "defer_ok",
 	DeferErr:        "defer_err",
+	Deferb:          "deferb",
+	DeferbOk:        "deferb_ok",
+	DeferbErr:       "deferb_err",
 	Export:          "export",
 }
 
@@ -447,6 +453,9 @@ var tokenNames = [...]string{
 	Defer:                        "Defer",
 	DeferOk:                      "DeferOk",
 	DeferErr:                     "DeferErr",
+	Deferb:                       "Deferb",
+	DeferbOk:                     "DeferbOk",
+	DeferbErr:                    "DeferbErr",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 

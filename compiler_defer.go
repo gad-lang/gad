@@ -32,6 +32,31 @@ if $err != nil { throw $err }
 return $ret
 `
 
+// deferbWrapperTemplate is spliced around a block that uses `deferb`. Unlike
+// the function-level wrapper it has no $ret (a block yields no value); handlers
+// run at block exit (including via `return`) honouring the variants, with `$err`
+// holding any error thrown in the block (suppressible by setting it to nil).
+// NOTE: handlers are invoked directly (not inside a per-handler try/catch):
+// a nested try inside a finally currently clobbers a pending return value
+// during return-through-finally, so a throw inside a deferb handler propagates
+// rather than being captured into $err (unlike function-level defer).
+const deferbWrapperTemplate = `
+$err := nil
+$__deferb := []
+try {
+} catch $eb {
+	$err = $eb
+} finally {
+	for $__i := len($__deferb) - 1; $__i >= 0; $__i-- {
+		$__d := $__deferb[$__i]
+		if $__d[1] == 1 && $err != nil { continue }
+		if $__d[1] == 2 && $err == nil { continue }
+		$__d[0]()
+	}
+	if $err != nil { throw $err }
+}
+`
+
 // parseGadSnippet parses a small gad source snippet into its top-level
 // statements. It is used to build the defer desugaring from templates instead
 // of constructing the AST by hand.
@@ -87,6 +112,34 @@ func stmtHasDefer(s node.Stmt) bool {
 	return false
 }
 
+// stmtsHaveDeferb reports whether any direct statement is a block-scoped
+// `deferb`. Detection is intentionally non-recursive: every block owns its own
+// deferb scope, so a deferb inside a nested block belongs to that block.
+func stmtsHaveDeferb(stmts []node.Stmt) bool {
+	for _, s := range stmts {
+		if d, ok := s.(*node.DeferStmt); ok && d.Block {
+			return true
+		}
+	}
+	return false
+}
+
+// wrapDeferbBlock returns new block statements that desugar `deferb` by wrapping
+// the original statements in the block-level defer runner.
+func (c *Compiler) wrapDeferbBlock(stmts []node.Stmt) ([]node.Stmt, error) {
+	tmpl, err := parseGadSnippet(deferbWrapperTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("deferb wrapper: %w", err)
+	}
+	for _, s := range tmpl {
+		if ts, ok := s.(*node.TryStmt); ok {
+			ts.Body.Stmts = stmts
+			return tmpl, nil
+		}
+	}
+	return nil, fmt.Errorf("deferb wrapper: try slot not found")
+}
+
 // wrapDeferBody returns a new function body that desugars `defer` by wrapping
 // the original body in the defer runner (see deferWrapperTemplate).
 func (c *Compiler) wrapDeferBody(body *node.BlockStmt) (*node.BlockStmt, error) {
@@ -139,7 +192,14 @@ func (c *Compiler) compileDeferStmt(nd *node.DeferStmt) error {
 		bodyStmts = node.Stmts{&node.ExprStmt{Expr: call}}
 	}
 
-	src := fmt.Sprintf(`$__defers = append($__defers, [func() {}, %d])`, int(nd.Variant))
+	registry := "$__defers"
+	scope := "a function body"
+	if nd.Block {
+		registry = "$__deferb"
+		scope = "a block"
+	}
+
+	src := fmt.Sprintf(`%s = append(%s, [func() {}, %d])`, registry, registry, int(nd.Variant))
 	stmts, err := parseGadSnippet(src)
 	if err != nil {
 		return c.errorf(nd, "defer: %v", err)
@@ -155,8 +215,8 @@ func (c *Compiler) compileDeferStmt(nd *node.DeferStmt) error {
 	}
 	fe.Body = &node.BlockStmt{Stmts: bodyStmts}
 
-	if _, ok := c.symbolTable.Resolve("$__defers"); !ok {
-		return c.errorf(nd, "defer is only allowed inside a function body")
+	if _, ok := c.symbolTable.Resolve(registry); !ok {
+		return c.errorf(nd, "%s is only allowed inside %s", nd.Keyword(), scope)
 	}
 	return c.Compile(assign)
 }

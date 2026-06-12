@@ -1968,7 +1968,8 @@ do:
 		return p.ParseForStmt()
 	case token.Try:
 		return p.ParseTryStmt()
-	case token.Defer, token.DeferOk, token.DeferErr:
+	case token.Defer, token.DeferOk, token.DeferErr,
+		token.Deferb, token.DeferbOk, token.DeferbErr:
 		return p.ParseDeferStmt()
 	case token.Throw:
 		return p.ParseThrowStmt()
@@ -2668,18 +2669,27 @@ func (p *Parser) ParseDeferStmt() node.Stmt {
 		defer untracep(tracep(p, "DeferStmt"))
 	}
 
-	variant := node.DeferAlways
+	var (
+		variant = node.DeferAlways
+		block   bool
+	)
 	switch p.Token.Token {
 	case token.DeferOk:
 		variant = node.DeferOnOk
 	case token.DeferErr:
 		variant = node.DeferOnErr
+	case token.Deferb:
+		block = true
+	case token.DeferbOk:
+		variant, block = node.DeferOnOk, true
+	case token.DeferbErr:
+		variant, block = node.DeferOnErr, true
 	}
 	pos := p.Token.Pos
 	p.Next()
 	p.SkipSpace()
 
-	stmt := &node.DeferStmt{DeferPos: pos, Variant: variant}
+	stmt := &node.DeferStmt{DeferPos: pos, Variant: variant, Block: block}
 	if p.Token.Token == token.LBrace {
 		stmt.Body = p.ParseBlockStmt()
 	} else {

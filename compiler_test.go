@@ -3221,6 +3221,10 @@ func TestCompilerDeferStmt(t *testing.T) {
 	expectCompileError(t, `defer { x }`,
 		`Compile Error: defer is only allowed inside a function body`)
 
+	// deferb outside a block is rejected
+	expectCompileError(t, `deferb { x }`,
+		`Compile Error: deferb is only allowed inside a block`)
+
 	// a defer-using function desugars into a wrapper that creates extra
 	// compiled functions (the $__body thunk and one handler closure per defer)
 	st := NewSymbolTable(NewBuiltins().NameSet)
