@@ -1433,6 +1433,19 @@ func (p *Parser) ParseArrayLitOrKeyValue() node.Expr {
 			return expr
 		}
 
+		// array comprehension: `[elem for x in it if cond ...]`
+		if p.Token.Token == token.For {
+			clauses := p.parseComprehensionClauses()
+			p.ExprLevel--
+			rbrack := p.Expect(token.RBrack)
+			return &node.ArrayComprehension{
+				LBrack:  lbrack,
+				Element: elements[0],
+				Clauses: clauses,
+				RBrack:  rbrack,
+			}
+		}
+
 		if p.AtCommaOrNewLine("array literal", token.RBrack) {
 			p.Next()
 		}
@@ -2584,6 +2597,46 @@ func (p *Parser) ParseScopedBlockStmt() *node.BlockStmt {
 	return p.ParseBlockStmt()
 }
 
+// parseComprehensionClauses parses one or more `for k, v in iter` / `if cond`
+// clauses, stopping at the given end token.
+func (p *Parser) parseComprehensionClauses() []*node.ComprehensionClause {
+	if p.Trace {
+		defer untracep(tracep(p, "ComprehensionClauses"))
+	}
+
+	var clauses []*node.ComprehensionClause
+	for {
+		p.SkipSpace()
+		switch p.Token.Token {
+		case token.For:
+			p.Next()
+			p.SkipSpace()
+			cl := &node.ComprehensionClause{For: true}
+			first := p.ParseIdent()
+			p.SkipSpace()
+			if p.Token.Token == token.Comma {
+				p.Next()
+				p.SkipSpace()
+				cl.Key = first
+				cl.Value = p.ParseIdent()
+			} else {
+				cl.Value = first
+			}
+			p.SkipSpace()
+			p.Expect(token.In)
+			p.SkipSpace()
+			cl.Iterable = p.ParseExpr()
+			clauses = append(clauses, cl)
+		case token.If:
+			p.Next()
+			p.SkipSpace()
+			clauses = append(clauses, &node.ComprehensionClause{Cond: p.ParseExpr()})
+		default:
+			return clauses
+		}
+	}
+}
+
 func (p *Parser) ParseMatchExpr() node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "MatchExpr"))
@@ -2991,7 +3044,7 @@ func (p *Parser) ParseFuncDefLit(colon token.Token) *node.FuncDefLit {
 	return e
 }
 
-func (p *Parser) ParseDictLit() *node.DictExpr {
+func (p *Parser) ParseDictLit() node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "DictExpr"))
 	}
@@ -3002,6 +3055,21 @@ func (p *Parser) ParseDictLit() *node.DictExpr {
 	var elements []*node.DictElementLit
 	for p.Token.Token != token.RBrace && p.Token.Token != token.EOF {
 		elements = append(elements, p.ParseDictElementLit())
+
+		// dict comprehension: `{key: value for x in it if cond ...}`
+		if len(elements) == 1 && p.Token.Token == token.For {
+			first := elements[0]
+			clauses := p.parseComprehensionClauses()
+			p.ExprLevel--
+			rbrace := p.Expect(token.RBrace)
+			return &node.DictComprehension{
+				LBrace:  lbrace,
+				Key:     first.Key,
+				Value:   first.Value,
+				Clauses: clauses,
+				RBrace:  rbrace,
+			}
+		}
 
 		if !p.AtCommaOrNewLine("map literal", token.RBrace) {
 			break

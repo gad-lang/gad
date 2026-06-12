@@ -8,6 +8,36 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
+func TestVMComprehension(t *testing.T) {
+	// array comprehension
+	testExpectRun(t, `return [i * 2 for i in [1, 2, 3]]`,
+		nil, Array{Int(2), Int(4), Int(6)})
+	// with filter
+	testExpectRun(t, `return [i for i in [1, 2, 3, 4, 5] if i % 2 == 0]`,
+		nil, Array{Int(2), Int(4)})
+	// nested generators
+	testExpectRun(t, `return [i + j for i in [1, 2] for j in [10, 20]]`,
+		nil, Array{Int(11), Int(21), Int(12), Int(22)})
+	// empty source
+	testExpectRun(t, `return [i for i in []]`, nil, Array{})
+	// captures outer variable
+	testExpectRun(t, `n := 10; return [i + n for i in [1, 2]]`, nil, Array{Int(11), Int(12)})
+	// nested comprehension
+	testExpectRun(t, `return [[j for j in [1, 2]] for i in [0, 0]]`,
+		nil, Array{Array{Int(1), Int(2)}, Array{Int(1), Int(2)}})
+
+	// dict comprehension (keys are evaluated expressions, like Python)
+	testExpectRun(t, `return {i: i * i for i in [1, 2, 3]}`,
+		nil, Dict{"1": Int(1), "2": Int(4), "3": Int(9)})
+	// k, v iteration with filter
+	testExpectRun(t, `return {k: v * 10 for k, v in {a: 1, b: 2} if v == 2}`,
+		nil, Dict{"b": Int(20)})
+
+	// loop variable does not leak into the surrounding scope
+	expectErrHas(t, `x := [i for i in [1, 2]]; return i`,
+		newOpts().CompilerError(), `Compile Error: unresolved reference "i"`)
+}
+
 func TestVMMatchExpr(t *testing.T) {
 	// expression form: first matching arm wins, else is the default
 	const f = `f := func(x) { return match (x) { 1: "one", 2: "two", else: "other" } }; `

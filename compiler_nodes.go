@@ -274,6 +274,92 @@ func (c *Compiler) compileMatchArmBody(nd *node.MatchExpr, arm *node.MatchArm, i
 	return c.Compile(arm.Result)
 }
 
+// wrapComprehensionClauses wraps an innermost statement with the comprehension's
+// `for`/`if` clauses (outermost clause first), producing nested ForInStmt/IfStmt.
+func wrapComprehensionClauses(clauses []*node.ComprehensionClause, inner node.Stmt) node.Stmt {
+	body := inner
+	for i := len(clauses) - 1; i >= 0; i-- {
+		cl := clauses[i]
+		block := &node.BlockStmt{Stmts: node.Stmts{body}}
+		if cl.For {
+			key := cl.Key
+			if key == nil {
+				key = node.EEmptyIdent(cl.Value.Pos())
+			}
+			body = &node.ForInStmt{
+				Key:      key,
+				Value:    cl.Value,
+				Iterable: cl.Iterable,
+				Body:     block,
+			}
+		} else {
+			body = &node.IfStmt{Cond: cl.Cond, Body: block}
+		}
+	}
+	return body
+}
+
+// compileArrayComprehension compiles `[elem for x in it if cond ...]` by
+// building a temp array and appending elem for each iteration that passes the
+// filters, then leaving the array on the stack.
+func (c *Compiler) compileArrayComprehension(nd *node.ArrayComprehension) error {
+	c.symbolTable = c.symbolTable.Fork(true)
+	defer func() { c.symbolTable = c.symbolTable.Parent(false) }()
+
+	// :compr := []
+	resultSym, _ := c.symbolTable.DefineLocal(":compr")
+	c.emit(nd, OpArray, 0)
+	c.emit(nd, OpDefineLocal, resultSym.Index)
+
+	result := &node.IdentExpr{Name: ":compr"}
+	// :compr = append(:compr, elem)
+	inner := &node.AssignStmt{
+		LHS: []node.Expr{result},
+		RHS: []node.Expr{&node.CallExpr{
+			Func: &node.IdentExpr{Name: BuiltinAppend.String()},
+			CallArgs: node.CallArgs{Args: node.CallExprPositionalArgs{
+				Values: []node.Expr{result, nd.Element},
+			}},
+		}},
+		Token: token.Assign,
+	}
+
+	if err := c.Compile(wrapComprehensionClauses(nd.Clauses, inner)); err != nil {
+		return err
+	}
+
+	c.emit(nd, OpGetLocal, resultSym.Index)
+	return nil
+}
+
+// compileDictComprehension compiles `{key: value for x in it if cond ...}` by
+// building a temp dict and setting key=>value for each passing iteration, then
+// leaving the dict on the stack.
+func (c *Compiler) compileDictComprehension(nd *node.DictComprehension) error {
+	c.symbolTable = c.symbolTable.Fork(true)
+	defer func() { c.symbolTable = c.symbolTable.Parent(false) }()
+
+	// :compr := {}
+	resultSym, _ := c.symbolTable.DefineLocal(":compr")
+	c.emit(nd, OpDict, 0)
+	c.emit(nd, OpDefineLocal, resultSym.Index)
+
+	result := &node.IdentExpr{Name: ":compr"}
+	// :compr[key] = value
+	inner := &node.AssignStmt{
+		LHS:   []node.Expr{&node.IndexExpr{X: result, Index: nd.Key}},
+		RHS:   []node.Expr{nd.Value},
+		Token: token.Assign,
+	}
+
+	if err := c.Compile(wrapComprehensionClauses(nd.Clauses, inner)); err != nil {
+		return err
+	}
+
+	c.emit(nd, OpGetLocal, resultSym.Index)
+	return nil
+}
+
 // compileOrExpr compiles an `expr or fallback` error-fallback expression. It is
 // desugared to a try/catch that evaluates Expr and, on a thrown error, evaluates
 // Fallback instead with the caught error bound to the local `$err`. The result

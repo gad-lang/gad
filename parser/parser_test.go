@@ -3720,6 +3720,16 @@ func TestParseOrExpr(t *testing.T) {
 	test.ExpectParseString(t, "or := 1", "or := 1")
 }
 
+func TestParseComprehension(t *testing.T) {
+	test.ExpectParseString(t, `x := [i for i in a]`, `x := [i for i in a]`)
+	test.ExpectParseString(t, `x := [i * 2 for i in a if i > 1]`,
+		`x := [(i * 2) for i in a if (i > 1)]`)
+	test.ExpectParseString(t, `x := [i + j for i in a for j in b]`,
+		`x := [(i + j) for i in a for j in b]`)
+	test.ExpectParseString(t, `x := {k: v for k, v in m}`, `x := {k: v for k, v in m}`)
+	test.ExpectParseString(t, `x := {i: i for i in a if i}`, `x := {i: i for i in a if i}`)
+}
+
 func TestParseMatchExpr(t *testing.T) {
 	// expression form, comma and newline separators, else arm
 	test.ExpectParseString(t,

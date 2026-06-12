@@ -1890,6 +1890,75 @@ func (r *ToRaw) WriteCode(ctx *CodeWriteContext) {
 func (r *ToRaw) ExprNode() {
 }
 
+// ComprehensionClause is one clause of a comprehension: a `for k, v in iter`
+// generator (For == true) or an `if cond` filter (For == false).
+type ComprehensionClause struct {
+	For      bool
+	Key      *IdentExpr // for k, v in ...; nil when only a value var is given
+	Value    *IdentExpr // for v in ...
+	Iterable Expr
+	Cond     Expr // if cond
+}
+
+func (c *ComprehensionClause) String() string {
+	if !c.For {
+		return "if " + c.Cond.String()
+	}
+	var b strings.Builder
+	b.WriteString("for ")
+	if c.Key != nil {
+		b.WriteString(c.Key.String())
+		b.WriteString(", ")
+	}
+	b.WriteString(c.Value.String())
+	b.WriteString(" in ")
+	b.WriteString(c.Iterable.String())
+	return b.String()
+}
+
+func comprehensionClausesString(clauses []*ComprehensionClause) string {
+	var b strings.Builder
+	for _, cl := range clauses {
+		b.WriteString(" ")
+		b.WriteString(cl.String())
+	}
+	return b.String()
+}
+
+// ArrayComprehension represents `[elem for x in it if cond ...]`.
+type ArrayComprehension struct {
+	LBrack  source.Pos
+	Element Expr
+	Clauses []*ComprehensionClause
+	RBrack  source.Pos
+}
+
+func (e *ArrayComprehension) ExprNode()       {}
+func (e *ArrayComprehension) Pos() source.Pos { return e.LBrack }
+func (e *ArrayComprehension) End() source.Pos { return e.RBrack + 1 }
+func (e *ArrayComprehension) String() string {
+	return "[" + e.Element.String() + comprehensionClausesString(e.Clauses) + "]"
+}
+func (e *ArrayComprehension) WriteCode(ctx *CodeWriteContext) { ctx.WriteString(e.String()) }
+
+// DictComprehension represents `{key: value for x in it if cond ...}`.
+type DictComprehension struct {
+	LBrace  source.Pos
+	Key     Expr
+	Value   Expr
+	Clauses []*ComprehensionClause
+	RBrace  source.Pos
+}
+
+func (e *DictComprehension) ExprNode()       {}
+func (e *DictComprehension) Pos() source.Pos { return e.LBrace }
+func (e *DictComprehension) End() source.Pos { return e.RBrace + 1 }
+func (e *DictComprehension) String() string {
+	return "{" + e.Key.String() + ": " + e.Value.String() +
+		comprehensionClausesString(e.Clauses) + "}"
+}
+func (e *DictComprehension) WriteCode(ctx *CodeWriteContext) { ctx.WriteString(e.String()) }
+
 // MatchArm is a single arm of a MatchExpr. A normal arm has a Cond; the `else`
 // arm has Cond == nil. Exactly one of Result (expression form `cond: result`)
 // or Body (statement form `cond { body }`) is set.

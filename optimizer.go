@@ -579,6 +579,20 @@ func (so *SimpleOptimizer) unaryop(
 	return nil, false
 }
 
+func (so *SimpleOptimizer) optimizeComprehensionClauses(clauses []*node.ComprehensionClause) {
+	for _, cl := range clauses {
+		if cl.For {
+			if expr, ok := so.optimize(cl.Iterable); ok {
+				cl.Iterable = expr
+			}
+		} else if cl.Cond != nil {
+			if expr, ok := so.optimize(cl.Cond); ok {
+				cl.Cond = expr
+			}
+		}
+	}
+}
+
 func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 	if so.trace != nil {
 		if nd != nil {
@@ -651,6 +665,19 @@ func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 			return expr, ok
 		}
 		return so.evalExpr(nd)
+	case *node.ArrayComprehension:
+		if expr, ok = so.optimize(nd.Element); ok {
+			nd.Element = expr
+		}
+		so.optimizeComprehensionClauses(nd.Clauses)
+	case *node.DictComprehension:
+		if expr, ok = so.optimize(nd.Key); ok {
+			nd.Key = expr
+		}
+		if expr, ok = so.optimize(nd.Value); ok {
+			nd.Value = expr
+		}
+		so.optimizeComprehensionClauses(nd.Clauses)
 	case *node.MatchExpr:
 		if expr, ok = so.optimize(nd.Expr); ok {
 			nd.Expr = expr

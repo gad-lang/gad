@@ -3216,6 +3216,39 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 }
 
+func TestCompilerArrayComprehension(t *testing.T) {
+	// `[i for i in [9]]` desugars to: :compr = []; for i in [9] { :compr =
+	// append(:compr, i) }; <push :compr>
+	expectCompile(t, `return [i for i in [9]]`, bytecode(
+		Array{Int(9)},
+		compFunc(concatInsts(
+			makeInst(OpArray, 0),                       // 0000 :compr = []
+			makeInst(OpDefineLocal, 0),                 // 0003
+			makeInst(OpConstant, 0),                    // 0005 9
+			makeInst(OpArray, 1),                       // 0008 [9]
+			makeInst(OpIterInit),                       // 0011
+			makeInst(OpDefineLocal, 1),                 // 0012 iterator
+			makeInst(OpGetLocal, 1),                    // 0014 loop head
+			makeInst(OpIterNext),                       // 0016
+			makeInst(OpJumpFalsy, 40),                  // 0017 -> end
+			makeInst(OpGetLocal, 1),                    // 0020
+			makeInst(OpIterValue),                      // 0022
+			makeInst(OpDefineLocal, 2),                 // 0023 i
+			makeInst(OpGetBuiltin, int(BuiltinAppend)), // 0025
+			makeInst(OpGetLocal, 0),                    // 0028 :compr
+			makeInst(OpGetLocal, 2),                    // 0030 i
+			makeInst(OpCall, 2, 0),                     // 0032 append(:compr, i)
+			makeInst(OpSetLocal, 0),                    // 0035 :compr = ...
+			makeInst(OpJump, 14),                       // 0037 loop
+			makeInst(OpGetLocal, 0),                    // 0040 push :compr
+			makeInst(OpReturn, 1),                      // 0042
+			makeInst(OpReturn, 0),                      // 0044 implicit trailing return
+		),
+			funcLocals(3),
+		),
+	))
+}
+
 func TestCompilerMatchExpr(t *testing.T) {
 	// subject -> :match local; each arm compares with OpEqual and jumps; the
 	// else arm is the fallthrough default.
