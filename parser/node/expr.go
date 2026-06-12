@@ -1890,6 +1890,84 @@ func (r *ToRaw) WriteCode(ctx *CodeWriteContext) {
 func (r *ToRaw) ExprNode() {
 }
 
+// MatchArm is a single arm of a MatchExpr. A normal arm has a Cond; the `else`
+// arm has Cond == nil. Exactly one of Result (expression form `cond: result`)
+// or Body (statement form `cond { body }`) is set.
+type MatchArm struct {
+	Cond   Expr       // condition; nil for the else arm
+	Result Expr       // `cond: result`
+	Body   *BlockStmt // `cond { body }`
+}
+
+func (a *MatchArm) String() string {
+	var b strings.Builder
+	if a.Cond == nil {
+		b.WriteString("else")
+	} else {
+		b.WriteString(a.Cond.String())
+	}
+	if a.Body != nil {
+		b.WriteString(" ")
+		b.WriteString(a.Body.String())
+	} else {
+		b.WriteString(": ")
+		b.WriteString(a.Result.String())
+	}
+	return b.String()
+}
+
+// MatchExpr represents a PHP8-like match: `match (subject) { cond: result, ... }`
+// (expression form, yields a value) or `match (subject) { cond { body }, ... }`
+// (statement form, runs the matching block). Arms are compared against the
+// subject with strict equality; the first match wins. An optional `else` arm is
+// the default.
+type MatchExpr struct {
+	MatchPos source.Pos
+	Expr     Expr // subject
+	Arms     []*MatchArm
+	LBrace   source.Pos
+	RBrace   source.Pos
+}
+
+func (e *MatchExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *MatchExpr) Pos() source.Pos { return e.MatchPos }
+
+// End returns the position of first character immediately after the node.
+func (e *MatchExpr) End() source.Pos { return e.RBrace + 1 }
+
+// IsStmt reports whether the match uses statement-form (block) arms.
+func (e *MatchExpr) IsStmt() bool {
+	for _, a := range e.Arms {
+		if a.Body != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func (e *MatchExpr) String() string {
+	var b strings.Builder
+	b.WriteString("match (")
+	b.WriteString(e.Expr.String())
+	b.WriteString(") {")
+	for i, a := range e.Arms {
+		if i > 0 {
+			b.WriteString(", ")
+		} else {
+			b.WriteString(" ")
+		}
+		b.WriteString(a.String())
+	}
+	b.WriteString(" }")
+	return b.String()
+}
+
+func (e *MatchExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}
+
 // OrExpr represents an error-fallback expression: `expr or fallback`.
 // If evaluating Expr throws an error, Fallback is evaluated instead, with the
 // caught error bound to the local `$err`. The whole expression yields the value

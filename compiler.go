@@ -509,6 +509,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		}
 	case *node.OrExpr:
 		return c.compileOrExpr(nt)
+	case *node.MatchExpr:
+		return c.compileMatchExpr(nt)
 	case *node.IntLit:
 		c.emit(nt, OpConstant, c.addConstant(Int(nt.Value)))
 	case *node.UintLit:

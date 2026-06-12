@@ -3720,6 +3720,20 @@ func TestParseOrExpr(t *testing.T) {
 	test.ExpectParseString(t, "or := 1", "or := 1")
 }
 
+func TestParseMatchExpr(t *testing.T) {
+	// expression form, comma and newline separators, else arm
+	test.ExpectParseString(t,
+		`x := match (a) { 1: "one", 2: "two", else: "other" }`,
+		`x := match (a) { 1: "one", 2: "two", else: "other" }`)
+	test.ExpectParseString(t,
+		"x := match (a) {\n1: \"one\"\n2: \"two\"\nelse: \"other\"\n}",
+		`x := match (a) { 1: "one", 2: "two", else: "other" }`)
+	// non-literal conditions
+	test.ExpectParseString(t,
+		`x := match (a) { b: 1, c + 1: 2 }`,
+		`x := match (a) { b: 1, (c + 1): 2 }`)
+}
+
 func TestParseSpreadLiterals(t *testing.T) {
 	// array spread/merge
 	test.ExpectParseString(t, `[1, 2, *a, 4, *b]`, `[1, 2, *a, 4, *b]`)

@@ -651,6 +651,28 @@ func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 			return expr, ok
 		}
 		return so.evalExpr(nd)
+	case *node.MatchExpr:
+		if expr, ok = so.optimize(nd.Expr); ok {
+			nd.Expr = expr
+		}
+		for _, arm := range nd.Arms {
+			if arm.Cond != nil {
+				if expr, ok = so.optimize(arm.Cond); ok {
+					arm.Cond = expr
+				}
+			}
+			if arm.Result != nil {
+				if expr, ok = so.optimize(arm.Result); ok {
+					arm.Result = expr
+				}
+				if expr, ok = so.evalExpr(arm.Result); ok {
+					arm.Result = expr
+				}
+			}
+			if arm.Body != nil {
+				_, _ = so.optimize(arm.Body)
+			}
+		}
 	case *node.IfStmt:
 		if nd.Init != nil {
 			_, _ = so.optimize(nd.Init)

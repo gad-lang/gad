@@ -182,6 +182,98 @@ func (c *Compiler) compileTryStmt(nd *node.TryStmt) error {
 	return nil
 }
 
+// compileMatchExpr compiles a PHP8-like match. The subject is evaluated once
+// into a temp local and compared (strict equality) against each arm's
+// condition; the first match wins. Expression-form arms (`cond: result`) leave
+// the matched result on the stack; statement-form arms (`cond { body }`) run
+// the block and the whole match yields nil. An optional `else` arm is the
+// default; with no else and no match, the expression form throws.
+func (c *Compiler) compileMatchExpr(nd *node.MatchExpr) error {
+	isStmt := nd.IsStmt()
+
+	// validate arm shapes are consistent and locate the else arm
+	var elseArm *node.MatchArm
+	for _, arm := range nd.Arms {
+		if arm.Cond == nil {
+			if elseArm != nil {
+				return c.errorf(nd, "multiple else arms in match")
+			}
+			elseArm = arm
+		}
+		if isStmt && arm.Result != nil {
+			return c.errorf(nd, "cannot mix `cond: result` and `cond { body }` match arms")
+		}
+		if !isStmt && arm.Body != nil {
+			return c.errorf(nd, "cannot mix `cond: result` and `cond { body }` match arms")
+		}
+	}
+
+	c.symbolTable = c.symbolTable.Fork(true)
+	defer func() { c.symbolTable = c.symbolTable.Parent(false) }()
+
+	// evaluate the subject once into a temp local
+	if err := c.Compile(nd.Expr); err != nil {
+		return err
+	}
+	subjectSym, _ := c.symbolTable.DefineLocal(":match")
+	c.emit(nd, OpDefineLocal, subjectSym.Index)
+
+	var endJumps []int
+	for _, arm := range nd.Arms {
+		if arm.Cond == nil {
+			continue // else handled after the loop
+		}
+		c.emit(arm.Cond, OpGetLocal, subjectSym.Index)
+		if err := c.Compile(arm.Cond); err != nil {
+			return err
+		}
+		c.emit(arm.Cond, OpEqual)
+		next := c.emit(arm.Cond, OpJumpFalsy, 0)
+
+		if err := c.compileMatchArmBody(nd, arm, isStmt); err != nil {
+			return err
+		}
+		endJumps = append(endJumps, c.emit(nd, OpJump, 0))
+
+		c.changeOperand(next, len(c.instructions))
+	}
+
+	// no condition matched
+	if elseArm != nil {
+		if err := c.compileMatchArmBody(nd, elseArm, isStmt); err != nil {
+			return err
+		}
+	} else if isStmt {
+		c.emit(nd, OpNil)
+	} else {
+		// faithful to PHP: unhandled match throws (never falls through)
+		c.emit(nd, OpConstant, c.addConstant(Str("match: no matching arm")))
+		c.emit(nd, OpThrow, 1)
+	}
+
+	end := len(c.instructions)
+	for _, j := range endJumps {
+		c.changeOperand(j, end)
+	}
+	return nil
+}
+
+// compileMatchArmBody compiles a single match arm body, leaving exactly one
+// value on the stack (the result for expression form, or nil for statement
+// form so the surrounding ExprStmt can pop it).
+func (c *Compiler) compileMatchArmBody(nd *node.MatchExpr, arm *node.MatchArm, isStmt bool) error {
+	if isStmt {
+		if arm.Body != nil {
+			if err := c.Compile(arm.Body); err != nil {
+				return err
+			}
+		}
+		c.emit(nd, OpNil)
+		return nil
+	}
+	return c.Compile(arm.Result)
+}
+
 // compileOrExpr compiles an `expr or fallback` error-fallback expression. It is
 // desugared to a try/catch that evaluates Expr and, on a thrown error, evaluates
 // Fallback instead with the caught error bound to the local `$err`. The result

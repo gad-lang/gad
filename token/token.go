@@ -144,6 +144,7 @@ const (
 	Module
 	Export
 	Raw
+	Match
 	GroupKeywordEnd
 )
 
@@ -297,6 +298,7 @@ var tokens = [...]string{
 	IsMain:          "@main",
 	Module:          "@module",
 	Raw:             "raw",
+	Match:           "match",
 	Export:          "export",
 }
 
@@ -435,6 +437,7 @@ var tokenNames = [...]string{
 	Module:                       "Module",
 	Export:                       "Export",
 	Raw:                          "Raw",
+	Match:                        "Match",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 

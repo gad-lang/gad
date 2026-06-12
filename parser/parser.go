@@ -1013,6 +1013,8 @@ func (p *Parser) ParseOperand() node.Expr {
 			return p.ParseThrowExpr()
 		case token.Return:
 			return p.ParseReturnExpr()
+		case token.Match:
+			return p.ParseMatchExpr()
 		case token.Raw:
 			pos := p.Token.Pos
 			p.Next()
@@ -1916,7 +1918,8 @@ do:
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
 		token.Yes, token.No,
-		token.DotName, token.DotFile, token.IsMain, token.Module, token.Template, token.Raw:
+		token.DotName, token.DotFile, token.IsMain, token.Module, token.Template, token.Raw,
+		token.Match:
 		s := p.ParseSimpleStmt(false)
 		p.ExpectSemi()
 		return s
@@ -2579,6 +2582,62 @@ func (p *Parser) ParseScopedBlockStmt() *node.BlockStmt {
 	}
 
 	return p.ParseBlockStmt()
+}
+
+func (p *Parser) ParseMatchExpr() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "MatchExpr"))
+	}
+
+	matchPos := p.Expect(token.Match)
+	p.Expect(token.LParen)
+	subject := p.ParseExpr()
+	p.Expect(token.RParen)
+	p.SkipSpace()
+	lbrace := p.Expect(token.LBrace)
+
+	m := &node.MatchExpr{MatchPos: matchPos, Expr: subject, LBrace: lbrace}
+
+	// arms are separated by commas and/or new lines
+	skipSeps := func() {
+		for {
+			p.SkipSpace()
+			if p.Token.Token == token.Comma || p.Token.Token == token.Semicolon {
+				p.Next()
+				continue
+			}
+			return
+		}
+	}
+
+	skipSeps()
+	for p.Token.Token != token.RBrace && p.Token.Token != token.EOF {
+		arm := &node.MatchArm{}
+		if p.Token.Token == token.Else {
+			p.Next()
+		} else {
+			arm.Cond = p.ParseExpr()
+		}
+		p.SkipSpace()
+
+		switch p.Token.Token {
+		case token.Colon:
+			p.Next()
+			p.SkipSpace()
+			arm.Result = p.ParseExpr()
+		case token.LBrace:
+			arm.Body = p.ParseBlockStmt()
+		default:
+			p.ErrorExpected(p.Token.Pos, "':' or '{'")
+			return m
+		}
+
+		m.Arms = append(m.Arms, arm)
+		skipSeps()
+	}
+
+	m.RBrace = p.Expect(token.RBrace)
+	return m
 }
 
 func (p *Parser) ParseBlockStmt(ends ...token.Token) *node.BlockStmt {

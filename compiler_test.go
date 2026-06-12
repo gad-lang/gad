@@ -3216,6 +3216,28 @@ func TestCompiler_Compile(t *testing.T) {
 	))
 }
 
+func TestCompilerMatchExpr(t *testing.T) {
+	// subject -> :match local; each arm compares with OpEqual and jumps; the
+	// else arm is the fallthrough default.
+	expectCompile(t, `return match (1) { 1: "a", else: "b" }`, bytecode(
+		Array{Int(1), Str("a"), Str("b")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),    // 0000 subject 1
+			makeInst(OpDefineLocal, 0), // 0003 :match
+			makeInst(OpGetLocal, 0),    // 0005 :match
+			makeInst(OpConstant, 0),    // 0007 cond 1
+			makeInst(OpEqual),          // 0010
+			makeInst(OpJumpFalsy, 20),  // 0011 -> else
+			makeInst(OpConstant, 1),    // 0014 "a"
+			makeInst(OpJump, 23),       // 0017 -> end
+			makeInst(OpConstant, 2),    // 0020 else "b"
+			makeInst(OpReturn, 1),      // 0023
+		),
+			funcLocals(1),
+		),
+	))
+}
+
 func TestCompilerSpreadLiterals(t *testing.T) {
 	// array merge: runs build sub-arrays joined with `+`
 	expectCompile(t, `a := [9]; return [1, *a, 4]`, bytecode(
