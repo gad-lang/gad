@@ -2053,6 +2053,70 @@ func TestVMComputedValue(t *testing.T) {
 		nil, Array{Int(1), Int(2), Int(3), Int(11), Int(12), Int(13)})
 }
 
+func TestVMFuncReturnType(t *testing.T) {
+	// Functions carrying return-type annotations execute exactly like their
+	// unannotated counterparts.
+	testExpectRun(t, `f := func(a) <int> { return a * 2 }; return f(21)`, nil, Int(42))
+	testExpectRun(t, `f := func(a, b) <int, str> { return [a, b] }; return f(1, "x")`,
+		nil, Array{Int(1), Str("x")})
+	testExpectRun(t, `f := func(a) <x int> => a + 1; return f(41)`, nil, Int(42))
+	testExpectRun(t, `f := func(a, b) <int, str> => a + b; return f(40, 2)`, nil, Int(42))
+
+	// method dispatch is unaffected by per-method return types.
+	testExpectRun(t, `
+m := func g {
+	(a int) <int> => a + 1
+	(a str) <str> => a + "!"
+}
+return [m(1), m("x")]`, nil, Array{Int(2), Str("x!")})
+
+	// Return types are stored on the compiled function and rendered by
+	// str/repr in the " <...>" form, for every func/method shape.
+
+	// single, anonymous return type.
+	testExpectRun(t, `
+f := func(a) <int> { return a }
+return [str(f), str(f;indent), repr(f), repr(f;indent)]`, nil, Array{
+		Str(`‹compiledFunction: (main).#1(a any) <int>›`),
+		Str(`‹compiledFunction: (main).#1(a any) <int>›`),
+		Str(`‹compiledFunction: (main).#1(a any) <int>›`),
+		Str(`‹compiledFunction: (main).#1(a any) <int>›`),
+	})
+
+	// multiple, anonymous return types.
+	testExpectRun(t, `
+f := func(a, b) <int, str> { return [a, b] }
+return [str(f), str(f;indent), repr(f), repr(f;indent)]`, nil, Array{
+		Str(`‹compiledFunction: (main).#1(a any, b any) <int, str>›`),
+		Str(`‹compiledFunction: (main).#1(a any, b any) <int, str>›`),
+		Str(`‹compiledFunction: (main).#1(a any, b any) <int, str>›`),
+		Str(`‹compiledFunction: (main).#1(a any, b any) <int, str>›`),
+	})
+
+	// named return with a union type, lambda body.
+	testExpectRun(t, `
+f := func(a int) <x int|bool> => a
+return [str(f), str(f;indent), repr(f), repr(f;indent)]`, nil, Array{
+		Str(`‹compiledFunction: (main).#1(a int) <x int|bool>›`),
+		Str(`‹compiledFunction: (main).#1(a int) <x int|bool>›`),
+		Str(`‹compiledFunction: (main).#1(a int) <x int|bool>›`),
+		Str(`‹compiledFunction: (main).#1(a int) <x int|bool>›`),
+	})
+
+	// function with methods: each method body carries its own return type.
+	testExpectRun(t, `
+f := func g {
+	(a int) <int> => a
+	(a str) <str> => a
+}
+return [str(f), str(f;indent), repr(f), repr(f;indent)]`, nil, Array{
+		Str(`‹func ‹(main).g› with 2 methods›`),
+		Str(`‹func ‹(main).g› with 2 methods›`),
+		Str(`‹func ‹(main).g› with 2 methods: [⨍(int) 🠆 ‹compiledFunction: (main).#1(a int) <int>›, ⨍(str) 🠆 ‹compiledFunction: (main).#2(a str) <str>›]›`),
+		Str("‹func ‹(main).g› with 2 methods: [\n\t⨍(int) 🠆 ‹compiledFunction: (main).#1(a int) <int>›,\n\t⨍(str) 🠆 ‹compiledFunction: (main).#2(a str) <str>›\n]›"),
+	})
+}
+
 func TestVMClass(t *testing.T) {
 	s0 := `
 Point := Class(

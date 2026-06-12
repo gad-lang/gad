@@ -3,6 +3,7 @@ package gad_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -3960,6 +3961,78 @@ x	z
 			makeInst(OpReturn, 0),
 		)),
 	))
+}
+
+func TestCompilerFuncReturnType(t *testing.T) {
+	// Return-type annotations are compiled onto CompiledFunction.ReturnTypes and
+	// rendered by HeaderString, without affecting the generated instructions.
+	compileFn := func(t *testing.T, script string) *CompiledFunction {
+		t.Helper()
+		_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(script), CompileOptions{})
+		require.NoError(t, err)
+		for _, c := range bc.Constants {
+			if cf, ok := c.(*CompiledFunction); ok {
+				return cf
+			}
+		}
+		t.Fatalf("no compiled function constant in: %s", script)
+		return nil
+	}
+
+	type ret struct {
+		name  string
+		types string
+	}
+
+	for _, c := range []struct {
+		name   string
+		script string
+		want   []ret
+		header string
+	}{
+		{
+			"anonymous single",
+			`return func(a) <int> { return a }`,
+			[]ret{{"", "int"}},
+			" <int>",
+		},
+		{
+			"anonymous multiple",
+			`return func(a, b) <int, str> { return [a, b] }`,
+			[]ret{{"", "int"}, {"", "str"}},
+			" <int, str>",
+		},
+		{
+			"named union",
+			`return func(a int) <x int|bool> => a`,
+			[]ret{{"x", "int|bool"}},
+			" <x int|bool>",
+		},
+		{
+			"no return type",
+			`return func(a) { return a }`,
+			nil,
+			"",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			f := compileFn(t, c.script)
+			require.Len(t, f.ReturnTypes, len(c.want))
+			for i, w := range c.want {
+				require.Equal(t, w.name, f.ReturnTypes[i].Name)
+				require.Equal(t, w.types, f.ReturnTypes[i].TypesSymbols.String())
+			}
+			// The rendered suffix is appended to the function header.
+			require.Equal(t, c.header, FormatReturnTypes(f.ReturnTypes))
+			require.True(t, strings.HasSuffix(f.HeaderString(), c.header))
+		})
+	}
+
+	// Unresolved return types are reported, mirroring parameter type resolution.
+	_, _, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
+		[]byte(`return func(a) <NopeType> { return a }`), CompileOptions{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `unresolved reference "NopeType"`)
 }
 
 func expectCompileError(t *testing.T, script string, errStr string) {

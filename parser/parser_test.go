@@ -2881,6 +2881,51 @@ func TestParseFunction(t *testing.T) {
 		})
 }
 
+func TestParseFunctionReturnType(t *testing.T) {
+	// round-trip rendering: single, multiple, named, union and lambda forms.
+	test.ExpectParseString(t, "func(a) <int> { return a }", "func(a) <int> { return a }")
+	test.ExpectParseString(t, "func(a, b) <int, str> { return a }", "func(a, b) <int, str> { return a }")
+	test.ExpectParseString(t, "func() <int> {}", "func() <int> {}")
+	test.ExpectParseString(t, "func(a) <x int> => a", "func(a) <x int> => a")
+	test.ExpectParseString(t, "func(a) <x int|bool> => a", "func(a) <x int|bool> => a")
+	// insignificant whitespace / newlines around the return list.
+	test.ExpectParseString(t, "func(a)<int>{return a}", "func(a) <int> { return a }")
+	test.ExpectParseString(t, "func(a) <\n\tint,\n\tstr> => a", "func(a) <int, str> => a")
+	// methods carry their own return types.
+	test.ExpectParseString(t,
+		"func f { (a) <int> { return a }\n(a, b) <int, str> { return b } }",
+		"func f {(a) <int> { return a }; (a, b) <int, str> { return b }; }")
+
+	// single return type, full AST.
+	test.ExpectParse(t, "func(a) <int> { return a }", func(p pfn) []Stmt {
+		return stmts(
+			SFunc(
+				EFunc(
+					funcType(p(1, 1), nil, p(1, 5), p(1, 7),
+						funcArgs(nil, EIdent("a", p(1, 6))),
+						FuncReturn(ETypedIdent(EIdent("int", p(1, 10)))),
+					),
+					SBlock(p(1, 15), p(1, 26),
+						SReturn(p(1, 17), EIdent("a", p(1, 24)))))))
+	})
+
+	// multiple, named return types, full AST.
+	test.ExpectParse(t, "func(a) <x int, y str> => a", func(p pfn) []Stmt {
+		return stmts(
+			SFunc(
+				EFuncBodyE(
+					funcType(p(1, 1), nil, p(1, 5), p(1, 7),
+						funcArgs(nil, EIdent("a", p(1, 6))),
+						FuncReturn(
+							ETypedIdent(EIdent("x", p(1, 10)), EType(EIdent("int", p(1, 12)))),
+							ETypedIdent(EIdent("y", p(1, 17)), EType(EIdent("str", p(1, 19)))),
+						),
+					),
+					p(1, 24),
+					EIdent("a", p(1, 27)))))
+	})
+}
+
 func TestParseMethod(t *testing.T) {
 	test.ExpectParse(t, "met fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(

@@ -61,6 +61,43 @@ func ParamWithTypeO(t ...ObjectType) ParamOption {
 	}
 }
 
+type ReturnType struct {
+	Name         string
+	TypesSymbols ParamType
+	Types        ObjectTypes
+}
+
+// String renders a return type as "type" (anonymous) or "name type" (named),
+// where multiple types are joined by "|".
+func (r *ReturnType) String() string {
+	var b strings.Builder
+	if r.Name != "" {
+		b.WriteString(r.Name)
+		b.WriteByte(' ')
+	}
+	if len(r.TypesSymbols) > 0 {
+		b.WriteString(r.TypesSymbols.String())
+	} else if len(r.Types) > 0 {
+		b.WriteString(r.Types.String())
+	} else {
+		b.WriteString(ObjectTypes{TAny}.String())
+	}
+	return b.String()
+}
+
+// FormatReturnTypes renders a function return-type list as " <T1, T2, ...>".
+// It returns an empty string when there are no return types.
+func FormatReturnTypes(types []*ReturnType) string {
+	if len(types) == 0 {
+		return ""
+	}
+	s := make([]string, len(types))
+	for i, t := range types {
+		s[i] = t.String()
+	}
+	return " <" + strings.Join(s, ", ") + ">"
+}
+
 type Param struct {
 	Name         string
 	TypesSymbols ParamType

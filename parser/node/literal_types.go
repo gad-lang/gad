@@ -259,12 +259,19 @@ func (e *FuncType) String() string {
 		s = e.NameExpr.String()
 	}
 	s += e.Params.String()
-	if len(e.Return) > 0 {
-		rests := make([]string, len(e.Return))
-		for i := range e.Return {
-			rests[i] = e.Return[i].String()
-		}
-		s += " <" + strings.Join(rests, ", ") + ">"
-	}
+	s += FormatFuncReturn(e.Return)
 	return s
+}
+
+// FormatFuncReturn renders an optional function return-type list as
+// " <T1, T2, ...>". It returns an empty string when there are no return types.
+func FormatFuncReturn(ret []*TypedIdentExpr) string {
+	if len(ret) == 0 {
+		return ""
+	}
+	s := make([]string, len(ret))
+	for i, t := range ret {
+		s[i] = t.String()
+	}
+	return " <" + strings.Join(s, ", ") + ">"
 }

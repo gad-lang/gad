@@ -1532,6 +1532,7 @@ func (e *FuncWithMethodsExpr) WriteCode(ctx *CodeWriteContext) {
 
 type FuncMethod struct {
 	Params    FuncParams
+	Return    []*TypedIdentExpr
 	Body      *BlockStmt
 	LambdaPos source.Pos
 	BodyExpr  Expr
@@ -1551,6 +1552,7 @@ func (m *FuncMethod) End() source.Pos {
 func (m *FuncMethod) String() string {
 	var b strings.Builder
 	b.WriteString(m.Params.String())
+	b.WriteString(FormatFuncReturn(m.Return))
 	b.WriteString(" ")
 	if m.BodyExpr != nil {
 		b.WriteString("=> ")
@@ -1563,6 +1565,7 @@ func (m *FuncMethod) String() string {
 
 func (m *FuncMethod) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(m.Params.String())
+	ctx.WriteString(FormatFuncReturn(m.Return))
 	ctx.WriteString(" ")
 	if m.BodyExpr != nil {
 		ctx.WriteString("=> ")
@@ -1577,6 +1580,7 @@ func (m *FuncMethod) Func() *FuncExpr {
 		Type: &FuncType{
 			FuncPos: m.Params.Pos(),
 			Params:  m.Params,
+			Return:  m.Return,
 		},
 		Body:      m.Body,
 		BodyExpr:  m.BodyExpr,

@@ -1156,6 +1156,7 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 	var (
 		params      []*Param
 		namedParams []*NamedParam
+		returnTypes []*ReturnType
 		st          = c.symbolTable.Fork(false)
 	)
 
@@ -1208,6 +1209,10 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 				return ident, typ.Params.NamedArgs.Values[index]
 			}), body.Stmts...)
 		}
+
+		if returnTypes, err = c.returnTypesOf(nd, typ.Return); err != nil {
+			return
+		}
 	}
 
 	fork := c.fork(c.file, c.moduleMap, st)
@@ -1231,6 +1236,7 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 
 	bc := fork.Bytecode()
 	bc.Main.module = c.module
+	bc.Main.ReturnTypes = returnTypes
 
 	if typ != nil {
 		if typ.NameExpr != nil {
@@ -2271,6 +2277,48 @@ func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name *
 			RHS:      []node.Expr{value},
 		})
 	}
+	return
+}
+
+// returnTypesOf builds the compiled return-type list from the function type's
+// return idents. A bare entry ("<int>") yields an anonymous return whose type
+// is the ident itself; a typed entry ("<x int|bool>") yields a named return
+// whose types come from the type list. Type names are resolved in the enclosing
+// scope, mirroring parameter type resolution.
+func (c *Compiler) returnTypesOf(nd ast.Node, rets []*node.TypedIdentExpr) (types []*ReturnType, err error) {
+	if len(rets) == 0 {
+		return nil, nil
+	}
+
+	types = make([]*ReturnType, len(rets))
+	for i, ti := range rets {
+		var (
+			rt        = &ReturnType{}
+			typeNames []string
+		)
+
+		if len(ti.Type) == 0 {
+			typeNames = []string{ti.Ident.Name}
+		} else {
+			rt.Name = ti.Ident.Name
+			typeNames = make([]string, len(ti.Type))
+			for j, t := range ti.Type {
+				typeNames[j] = t.Ident().Name
+			}
+		}
+
+		rt.TypesSymbols = make(ParamType, len(typeNames))
+		for j, name := range typeNames {
+			var symbol *Symbol
+			if symbol, err = c.requireSymbol(nd, name); err != nil {
+				return
+			}
+			rt.TypesSymbols[j] = &symbol.SymbolInfo
+		}
+
+		types[i] = rt
+	}
+
 	return
 }
 

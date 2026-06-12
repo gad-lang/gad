@@ -1513,6 +1513,12 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 			if f.Params, err = paren.ToMultiParenExpr().ToFuncParams(); err != nil {
 				p.Error(err.Pos(), err.Error())
 			} else {
+				f.Return = p.ParseFuncReturnTypes()
+
+				if p.Failed() {
+					return
+				}
+
 				p.ExprLevel++
 				body, lambdaPos, closure := p.ParseBody()
 				p.ExprLevel--
@@ -1552,6 +1558,12 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 					p.Error(err.Pos(), err.Error())
 					return
 				} else {
+					f.Return = p.ParseFuncReturnTypes()
+
+					if p.Failed() {
+						return
+					}
+
 					p.ExprLevel++
 					f.Body, f.LambdaPos, f.BodyExpr = p.ParseBody()
 					p.ExprLevel--
@@ -1659,6 +1671,37 @@ func (p *Parser) ParseTypedIdent() *node.TypedIdentExpr {
 		Ident: p.ParseIdent(),
 		Type:  p.ParseTypes(),
 	}
+}
+
+// ParseFuncReturnTypes parses an optional function return-type list following
+// the parameter list, of the form "<T>" (single) or "<T1, T2, ...>" (multiple).
+// Each entry is a typed ident, so bare types ("<int>") and named returns
+// ("<x int>") are both supported. It returns nil when no return type is present.
+func (p *Parser) ParseFuncReturnTypes() (types []*node.TypedIdentExpr) {
+	if p.Token.Token != token.Less {
+		return nil
+	}
+
+	if p.Trace {
+		defer untracep(tracep(p, "FuncReturnTypes"))
+	}
+
+	p.Next() // consume '<'
+	p.SkipSpace()
+
+	for p.Token.Token != token.Greater && p.Token.Token != token.EOF {
+		types = append(types, p.ParseTypedIdent())
+		p.SkipSpace()
+
+		if p.Token.Token != token.Comma {
+			break
+		}
+		p.Next() // consume ','
+		p.SkipSpace()
+	}
+
+	p.Expect(token.Greater)
+	return
 }
 
 func (p *Parser) ParseSimpleSelectorExpr(x node.Expr) node.Expr {

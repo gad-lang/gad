@@ -396,6 +396,25 @@ func init() {
 					}
 					o.SourceMap[k] = v
 				}
+			case 8:
+				err = DecodeIterator(ctx,
+					func(l int) {
+						o.ReturnTypes = make([]*gad.ReturnType, l)
+					},
+					func(i int) (err error) {
+						rt := &gad.ReturnType{}
+						if rt.Name, err = readString(ctx); err != nil {
+							return
+						}
+
+						if rt.TypesSymbols, err = DecodeArray[*gad.SymbolInfo](ctx); err != nil {
+							return
+						}
+
+						o.ReturnTypes[i] = rt
+						return
+					},
+				)
 			}
 			return
 		})

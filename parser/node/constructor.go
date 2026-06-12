@@ -200,9 +200,16 @@ func NewFuncType(pos, lparen, rparen source.Pos, v ...any) *FuncType {
 			f.Params.NamedArgs = t
 		case *IdentExpr:
 			f.NameExpr = t
+		case []*TypedIdentExpr:
+			f.Return = t
 		}
 	}
 	return f
+}
+
+// FuncReturn builds a function return-type list from typed idents.
+func FuncReturn(types ...*TypedIdentExpr) []*TypedIdentExpr {
+	return types
 }
 
 func ProxyFuncType() *FuncType {

@@ -364,6 +364,27 @@ func init() {
 			}
 		}
 
+		if l := len(cf.ReturnTypes); l > 0 {
+			if err = ctx.WriteByte(8); err != nil {
+				return
+			}
+
+			if err = writeInt(ctx, l); err != nil {
+				return
+			}
+
+			for i := 0; i < l; i++ {
+				rt := cf.ReturnTypes[i]
+				if err = writeString(ctx, rt.Name); err != nil {
+					return
+				}
+
+				if err = EncodeArray(ctx, rt.TypesSymbols); err != nil {
+					return
+				}
+			}
+		}
+
 		err = ctx.WriteByte(FieldEOF)
 		return
 	}
