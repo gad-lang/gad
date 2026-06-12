@@ -1956,9 +1956,14 @@ type ArrayComprehension struct {
 	RBrack  source.Pos
 }
 
-func (e *ArrayComprehension) ExprNode()       {}
+func (e *ArrayComprehension) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
 func (e *ArrayComprehension) Pos() source.Pos { return e.LBrack }
+
+// End returns the position of first character immediately after the node.
 func (e *ArrayComprehension) End() source.Pos { return e.RBrack + 1 }
+
 func (e *ArrayComprehension) String() string {
 	return "[" + e.Element.String() + comprehensionClausesString(e.Clauses) + "]"
 }
@@ -1980,9 +1985,14 @@ type DictComprehension struct {
 	RBrace   source.Pos
 }
 
-func (e *DictComprehension) ExprNode()       {}
+func (e *DictComprehension) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
 func (e *DictComprehension) Pos() source.Pos { return e.LBrace }
+
+// End returns the position of first character immediately after the node.
 func (e *DictComprehension) End() source.Pos { return e.RBrace + 1 }
+
 func (e *DictComprehension) String() string {
 	var b strings.Builder
 	b.WriteString("{")
