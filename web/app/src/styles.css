@@ -303,6 +303,57 @@ footer {
   color: var(--tok-punct);
 }
 
+/* Debug page */
+.debug-panel {
+  padding: 0.8rem;
+}
+.debug-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+.debug-controls input[type="text"],
+.debug-controls input:not([type]) {
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.2rem 0.4rem;
+}
+.debug-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+.debug-buttons button {
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+.debug-status {
+  font-family: monospace;
+  margin-bottom: 0.4rem;
+}
+.debug-panel h4 {
+  margin: 0.6rem 0 0.2rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+.debug-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-family: monospace;
+}
+.muted {
+  color: var(--muted);
+}
+
 /* Theme toggle button. */
 .theme-toggle {
   background: transparent;

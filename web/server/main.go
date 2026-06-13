@@ -31,6 +31,10 @@ func main() {
 		return map[string]any{"diagnostics": gadbridge.Diagnose(src)}
 	}))
 
+	dbg := newDebugManager()
+	mux.HandleFunc("/api/debug/start", postOnly(dbg.handleStart))
+	mux.HandleFunc("/api/debug/command", postOnly(dbg.handleCommand))
+
 	if info, err := os.Stat(*static); err == nil && info.IsDir() {
 		log.Printf("serving static files from %s", *static)
 		mux.Handle("/", spaFileServer(*static))
@@ -61,6 +65,17 @@ func jsonHandler(fn func(src string) any) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(fn(req.Source))
+	}
+}
+
+// postOnly wraps a handler, rejecting non-POST requests.
+func postOnly(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		h(w, r)
 	}
 }
 

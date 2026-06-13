@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Editor, type EditorHandle } from "./Editor";
 import { Notebook } from "./Notebook";
 import { Highlight } from "./Highlight";
+import { Debug } from "./Debug";
 import { useTheme } from "./useTheme";
 import { serverBackend } from "./backends/server";
 import { wasmBackend } from "./backends/wasm";
@@ -24,7 +25,7 @@ println(greet("Gad"), squares)
 return squares
 `;
 
-type Tab = "format" | "notebook" | "highlight";
+type Tab = "format" | "notebook" | "debug" | "highlight";
 
 export function App() {
   const [backendKey, setBackendKey] = useState<keyof typeof BACKENDS>("wasm");
@@ -55,6 +56,9 @@ export function App() {
             <button className={tab === "notebook" ? "on" : ""} onClick={() => setTab("notebook")}>
               Notebook
             </button>
+            <button className={tab === "debug" ? "on" : ""} onClick={() => setTab("debug")}>
+              Debug
+            </button>
             <button className={tab === "highlight" ? "on" : ""} onClick={() => setTab("highlight")}>
               Highlight
             </button>
@@ -64,6 +68,7 @@ export function App() {
 
       {tab === "format" && <Formatter backend={backend} dark={dark} />}
       {tab === "notebook" && <Notebook backend={backend} dark={dark} />}
+      {tab === "debug" && <Debug dark={dark} />}
       {tab === "highlight" && <Highlight />}
 
       <footer>

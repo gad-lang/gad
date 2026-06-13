@@ -8,7 +8,7 @@ an **in-browser WebAssembly** module.
 ```
 web/
 ├── gadbridge/        Go package: Format / Diagnose / Run (shared core)
-├── server/           Go HTTP server  (/api/fmt, /api/run, /api/diagnose)
+├── server/           Go HTTP server  (/api/fmt, /api/run, /api/diagnose, /api/debug/*)
 ├── wasm/             Go WASM module  (gadFormat / gadRun / gadDiagnose globals)
 ├── codemirror-gad/   CodeMirror 6 plugin: highlight + autocomplete + linter
 ├── prism-gad/        PrismJS grammar for static (read-only) highlighting
@@ -78,6 +78,10 @@ make web-server   # now serves the built app + API on :8080
   `Format & apply` and `Run` use the selected backend.
 - **Notebook** — independently runnable cells, each showing stdout/stderr and
   the return value, for interactive exploration.
+- **Debug** — a "Run & Debug" view driving the server-side debugger
+  (`/api/debug/*`): set breakpoints, start, and step (over/in/out) while
+  inspecting the call stack, locals and output. Requires the Go server
+  (`make web-server`).
 - **Highlight** — static, read-only Gad snippets rendered with the
   `@gad-lang/prism-gad` PrismJS grammar (for docs and blog-style code blocks).
 

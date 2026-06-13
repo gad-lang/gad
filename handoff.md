@@ -225,11 +225,24 @@ sync by a Go tool; full-stack scope.
   provider defaults `program` to `${file}`. Compiles with `tsc` (out/ + node_
   modules gitignored).
 
-### Debugger — STILL TODO
-- React run/debug plugin (using gad-codemirror) + a web-app run/debug page.
-  Needs a WASM debug bridge: run the VM in a goroutine and expose
-  start/continue/step + a JS stop callback (Go WASM multiplexes the blocked VM
-  goroutine with JS-invoked resume calls).
+### Web Run & Debug page — DONE (committed below) → DEBUGGER FULL-STACK COMPLETE
+- `web/server/debug.go`: a request/response debug protocol (stdlib only, no WS):
+  POST `/api/debug/start` (compile + run to first stop/end) and
+  `/api/debug/command` (continue/next/stepIn/stepOut/pause → next stop/end).
+  Each response carries state/reason/line, call stack, locals and new output
+  (delta). Sessions kept in a map; removed on terminate. Tested
+  (`web/server/debug_test.go`: breakpoint+locals+continue, stepping, compile
+  error). curl-verified end-to-end through the real mux.
+- `web/app`: `backends/debug.ts` + `Debug.tsx` "Debug" tab — breakpoints input,
+  stop-on-entry, Start/Continue/Step Over/In/Out, call stack + locals + output
+  panes, editor via gad-codemirror. (Server backend only; the WASM debug
+  variant — VM goroutine + JS stop callback — is a possible future add.)
+- Whole debugger stack now done: VM debug loop (generated, synced by
+  cmd/update-delve) → engine → `gad debug` CLI → DAP → VS Code ext → web page.
+
+### REMAINING ask (ia_todo #19)
+- Full gad-lang website (dark/light, WASM examples, GitHub-Pages-ready) + a
+  GitHub Action to auto-rebuild and publish it.
 
 ### REMAINING asks (ia_todo)
 - Build a full gad-lang website (dark/light, WASM examples, GitHub-Pages-ready)
