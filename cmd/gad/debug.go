@@ -26,6 +26,7 @@ import (
 type debugOptions struct {
 	breaks      breakList
 	stopOnEntry bool
+	dap         bool
 }
 
 const debugOptionsKey ctxKey = "debugOptions"
@@ -65,34 +66,51 @@ func debugCommand() *cc.Command {
 			o := &debugOptions{}
 			ctx.Flags().Var(&o.breaks, "break", "breakpoint line (repeatable, comma-separated)")
 			ctx.Flags().BoolVar(&o.stopOnEntry, "stop-on-entry", false, "pause before the first instruction")
+			ctx.Flags().BoolVar(&o.dap, "dap", false, "speak the Debug Adapter Protocol over stdio (for editors)")
 			ctx.WithValue(debugOptionsKey, o)
 			return nil
 		},
 		ParseArgs: func(ctx *cc.CommandContext) error {
+			o := ctx.Value(debugOptionsKey).(*debugOptions)
+			if o.dap {
+				// In DAP mode the program comes from the launch request; a file
+				// arg is optional.
+				return ctx.Args.Range(0, 1)
+			}
 			return ctx.Args.Eq(1)
 		},
 		Run: func(ctx *cc.CommandContext) error {
 			o := ctx.Value(debugOptionsKey).(*debugOptions)
+			if o.dap {
+				return serveDAP(ctx)
+			}
 			return runDebug(ctx, ctx.Args[0], o)
 		},
 	}
 }
 
-// runDebug compiles the script, attaches a debug engine, runs the VM in a
-// goroutine and drives an interactive command loop.
-func runDebug(ctx *cc.CommandContext, file string, o *debugOptions) error {
+// loadProgram compiles file, returning the bytecode, a fresh builtins set (for
+// the VM) and the source split into lines.
+func loadProgram(file string) (*gad.Bytecode, *gad.Builtins, []string, error) {
 	src, err := os.ReadFile(file)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
-	lines := strings.Split(string(src), "\n")
-
 	builtins := gad.NewBuiltins()
 	st := defaultSymbolTable(builtins.NameSet)
 	opts := gad.CompileOptions{CompilerOptions: gad.DefaultCompilerOptions}
 	opts.ModuleMap = DefaultModuleMap(filepath.Dir(file), &sourcePath)
-
 	_, bc, err := gad.Compile(st, src, opts)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return bc, builtins, strings.Split(string(src), "\n"), nil
+}
+
+// runDebug compiles the script, attaches a debug engine, runs the VM in a
+// goroutine and drives an interactive command loop.
+func runDebug(ctx *cc.CommandContext, file string, o *debugOptions) error {
+	bc, builtins, lines, err := loadProgram(file)
 	if err != nil {
 		return err
 	}

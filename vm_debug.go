@@ -60,14 +60,18 @@ func (vm *VM) DebugFrames() []DebugFrame {
 		return nil
 	}
 	fs := vm.bytecode.FileSet
-	out := make([]DebugFrame, 0, vm.frameIndex+1)
-	for i := 0; i <= vm.frameIndex && i < len(vm.frames); i++ {
+	// Active frames are frames[0 .. frameIndex-1]; the innermost (current) frame
+	// is frames[frameIndex-1] and tracks its instruction in vm.ip, while outer
+	// frames hold their saved return ip.
+	cur := vm.frameIndex - 1
+	out := make([]DebugFrame, 0, vm.frameIndex)
+	for i := 0; i < vm.frameIndex && i < len(vm.frames); i++ {
 		f := &vm.frames[i]
 		if f.fn == nil {
 			continue
 		}
 		ip := f.ip
-		if i == vm.frameIndex {
+		if i == cur {
 			ip = vm.ip
 		}
 		var pos source.FilePos

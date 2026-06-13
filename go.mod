@@ -17,6 +17,7 @@ require (
 )
 
 require (
+	github.com/google/go-dap v0.12.0 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/moisespsena-go/path-helpers v0.0.3 // indirect
 	github.com/phayes/permbits v0.0.0-20190612203442-39d7c581d2ee // indirect
