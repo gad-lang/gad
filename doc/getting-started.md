@@ -163,7 +163,10 @@ Useful flags:
 In the React UI, set breakpoints by clicking the editor's left gutter (next to
 the line numbers) and remove them with a double-click; the **Breakpoints** panel
 lists them grouped per file (with *Current file* and *All* tabs) and they are
-saved to `.gad.yaml` under `ide.breakpoints`.
+saved to `.gad.yaml` under `ide.breakpoints`. While a debug session is paused,
+**F9** resumes to the next breakpoint, **F8** steps over, **F7** steps into and
+**Shift+F8** steps out — all remappable in the **⌨ Keys** panel (stored under
+`ide.keys`).
 
 The command ships a build-free bundled UI. For the richer **React + CodeMirror**
 interface, build `web/app` and point `--static` at it (or use `make ide-react`):

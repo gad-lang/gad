@@ -358,7 +358,45 @@ Backend + CLI + bundled UI are done and tested; a React/CodeMirror frontend
   (the debug dialog no longer has a breakpoints field) and adds a **Breakpoints**
   bottom pane with *Current file* / *All* (grouped-per-file) tabs and per-row
   remove. `pnpm run build` clean.
-- #23 COMPLETE (bundled UI + React UI + samples + gutter breakpoints).
+- Debugger keybindings (React UI): defaults F9=resume/continue, F8=step over,
+  F7=step into, Shift+F8=step out. A global keydown handler (active only while
+  paused) maps chords→debug commands; `eventToKey` renders chords like
+  "Shift+F8". A **⌨ Keys** dialog (`KeybindingsDialog`) rebinds them by capturing
+  a keypress; saved under `.gad.yaml` `ide.keys`. Toolbar buttons show their
+  shortcut. `pnpm run build` clean.
+- #23 COMPLETE (bundled UI + React UI + samples + gutter breakpoints + keys).
+
+### `gad ide` — later enhancement passes (uncommitted batch)
+- **Debug decorations** (`web/app/src/debugDecorations.ts`): while paused the
+  current line is highlighted, the current node (identifier at the stop column)
+  is "super" highlighted, and hovering any identifier that is a current local
+  shows a type/value tooltip. Editor gains `debugLine/debugColumn/locals` props
+  and scrolls to the stop. Stop line/column come from the top frame.
+- **Editor font size**: `Editor` `fontSize` prop via a theme compartment;
+  toolbar A−/A+ control; persisted to `.gad.yaml` `ide.fontSize`.
+- **Debugger keybindings** (already noted) stored in `ide.keys`.
+- **Material UI**: `@mui/material` + icons + emotion added. `Ide.tsx` wrapped in
+  `ThemeProvider`/`CssBaseline` (palette follows light/dark); header `AppBar`,
+  toolbar `Button`s, and all three dialogs (run/debug, settings, keybindings)
+  are MUI. Bundle ~860 KB (acceptable for an IDE).
+- **Real local names** (backend): `CompiledFunction.LocalNames` (slot->name) is
+  populated by the compiler. Names are recorded at definition time on the
+  function-root `SymbolTable` (`localNames` map + `fnRoot()`), so nested-block
+  locals are named too (params + body). Round-trips through the encoder (v1 tag
+  9). VM `DebugFrame` carries per-frame `Locals`/`LocalNames`; `frameLocals`
+  helper reads any frame. Engine `Frame.Locals` + `variablesOf`.
+- **Call stack panel**: each frame shows function name + file:line:column and its
+  OWN locals. Single click selects a frame and shows its locals in the Locals
+  pane (with a 250 ms timer to distinguish); double click opens the file and
+  moves the cursor to the position (`Editor.gotoLocation` + active-line
+  highlight; bundled app sets the textarea caret). Mirrored in both UIs.
+- **Production embed** (`web/app/embed_prod.go`, build tag `prod`;
+  `embed_dev.go` for `!prod`): `//go:embed all:dist` packages the built React
+  app. `gad ide` serves the embedded SPA (`spaFSServer`) when present, else the
+  bundled UI, else `--static`. `make build-prod` (web-build + `go build -tags
+  prod`). Verified: 36 MB binary serves the hashed React assets + API.
+- Tests: `web/ide` `TestDebugFramesCarryLocals` (2 frames, named inner locals).
+  Full `go test ./...` green; `pnpm run build` clean.
 
 ### REMAINING asks (ia_todo)
 - #20 `cmd/build-website` (in progress).

@@ -30,8 +30,10 @@ export interface RunConfig {
 
 export interface DebugFrame {
   name: string;
+  file: string;
   line: number;
   column: number;
+  locals: DebugVariable[];
 }
 
 export interface DebugVariable {

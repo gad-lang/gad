@@ -9,13 +9,16 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	cc "github.com/moisespsena-go/command-context"
 
+	webapp "github.com/gad-lang/gad/web/app"
 	"github.com/gad-lang/gad/web/ide"
 )
 
@@ -58,15 +61,26 @@ func ideCommand() *cc.Command {
 			}
 
 			handler := srv.Handler()
-			if *static != "" {
+			ui := "bundled UI"
+			switch {
+			case *static != "":
+				// Serve a pre-built app directory at the site root.
 				srv.Static = *static
 				handler = srv.Handler()
-			} else {
-				sub, err := fs.Sub(ideApp, "ideapp")
-				if err != nil {
-					return err
+				ui = "static " + *static
+			default:
+				if assets, ok := webapp.Assets(); ok {
+					// Production build: serve the embedded React app (SPA).
+					handler = withAppFallback(srv.Handler(), spaFSServer(assets))
+					ui = "embedded React UI"
+				} else {
+					// Development: serve the bundled, build-free UI.
+					sub, err := fs.Sub(ideApp, "ideapp")
+					if err != nil {
+						return err
+					}
+					handler = withAppFallback(srv.Handler(), http.FileServer(http.FS(sub)))
 				}
-				handler = withAppFallback(srv.Handler(), http.FileServer(http.FS(sub)))
 			}
 
 			ln, err := listenWithFallback(*addr)
@@ -74,7 +88,7 @@ func ideCommand() *cc.Command {
 				return fmt.Errorf("ide: listen %s: %w", *addr, err)
 			}
 			url := "http://" + browserHost(ln.Addr()) + "/"
-			fmt.Fprintf(ctx.Out, "Gad IDE for %s\nopen %s\n", srv.Root, url)
+			fmt.Fprintf(ctx.Out, "Gad IDE for %s (%s)\nopen %s\n", srv.Root, ui, url)
 			if !*noOpen {
 				go openBrowser(url)
 			}
@@ -125,6 +139,24 @@ func listenWithFallback(addr string) (net.Listener, error) {
 		}
 	}
 	return nil, fmt.Errorf("no free port in range %d-%d", first, first+maxPortScan-1)
+}
+
+// spaFSServer serves a built single-page app from fsys, falling back to
+// index.html for unknown (client-routed) paths.
+func spaFSServer(fsys fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(fsys))
+	index, _ := fs.ReadFile(fsys, "index.html")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+		if p != "" {
+			if info, err := fs.Stat(fsys, p); err == nil && !info.IsDir() {
+				fileServer.ServeHTTP(w, r)
+				return
+			}
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write(index)
+	})
 }
 
 // withAppFallback serves the API via primary and everything else (the bundled

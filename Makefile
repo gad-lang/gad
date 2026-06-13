@@ -16,6 +16,12 @@ build: build-cli build-wasm
 build-cli:
 	go build -o ./dist/gad ./cmd/gad
 
+# Production CLI: build the React web app, then compile gad with the embedded UI
+# (`gad ide` serves it without --static). Requires Node/pnpm for the web build.
+.PHONY: build-prod
+build-prod: web-build
+	go build -tags prod -o ./dist/gad ./cmd/gad
+
 # Build the Gad WASM module (and copy Go's wasm_exec.js) into web/app/public.
 .PHONY: build-wasm
 build-wasm:

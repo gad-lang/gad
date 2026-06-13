@@ -1,4 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AppBar,
+  Box,
+  Button,
+  Checkbox,
+  CssBaseline,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
+  IconButton,
+  TextField,
+  ThemeProvider,
+  Toolbar,
+  Tooltip,
+  Typography,
+  createTheme,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 import { Editor, type EditorHandle } from "./Editor";
 import { useTheme } from "./useTheme";
 import {
@@ -21,6 +41,39 @@ type Pane = "output" | "stack" | "locals" | "breakpoints";
 
 const emptyRunCfg = (): RunConfig => ({ args: [], disabled: [], safe: false, saveOut: "" });
 
+// Debugger keybindings: action -> default key chord. Stored under ide.keys.
+const DEFAULT_KEYS: Record<string, string> = {
+  continue: "F9",
+  stepOver: "F8",
+  stepInto: "F7",
+  stepOut: "Shift+F8",
+};
+
+// KEY_ACTIONS maps each bindable action to its debug command + label.
+const KEY_ACTIONS: { action: string; cmd: string; label: string }[] = [
+  { action: "continue", cmd: "continue", label: "Resume (next breakpoint)" },
+  { action: "stepOver", cmd: "next", label: "Step over" },
+  { action: "stepInto", cmd: "stepIn", label: "Step into" },
+  { action: "stepOut", cmd: "stepOut", label: "Step out" },
+];
+
+const MODIFIER_KEYS = ["Shift", "Control", "Alt", "Meta"];
+
+/** eventToKey renders a keydown event as a chord string like "Shift+F8". */
+function eventToKey(e: KeyboardEvent): string {
+  const parts: string[] = [];
+  if (e.ctrlKey) parts.push("Ctrl");
+  if (e.shiftKey) parts.push("Shift");
+  if (e.altKey) parts.push("Alt");
+  if (e.metaKey) parts.push("Meta");
+  if (!MODIFIER_KEYS.includes(e.key)) parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+  return parts.join("+");
+}
+
+function keysFromConfig(config: Record<string, unknown>): Record<string, string> {
+  return { ...DEFAULT_KEYS, ...((config.ide as Record<string, unknown>)?.keys as Record<string, string>) };
+}
+
 /** The multi-file React IDE served by `gad ide`. */
 export function Ide({ workspace }: { workspace: Workspace }) {
   const [theme, toggleTheme] = useTheme();
@@ -37,9 +90,14 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [locals, setLocals] = useState<DebugResponse["locals"]>([]);
   const [status, setStatus] = useState("");
   const [debug, setDebug] = useState<{ session: string; path: string } | null>(null);
+  const [debugLoc, setDebugLoc] = useState<{ line: number; column: number } | null>(null);
+  const [pendingGoto, setPendingGoto] = useState<{ path: string; line: number; column: number } | null>(null);
   const [dialog, setDialog] = useState<null | { kind: "run" | "debug"; tab: OpenTab }>(null);
   const [settings, setSettings] = useState(false);
+  const [keybinds, setKeybinds] = useState(false);
   const [bpScope, setBpScope] = useState<"current" | "all">("current");
+  const [selectedFrame, setSelectedFrame] = useState(0);
+  const frameClickTimer = useRef<number | null>(null);
 
   const editorRef = useRef<EditorHandle>(null);
   const activeTab = active >= 0 ? tabs[active] : null;
@@ -82,6 +140,33 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       ideApi.saveConfig(next).catch(() => {});
       return next;
     });
+  }
+
+  // onFrameClick distinguishes a single click (select the frame and show its
+  // locals) from a double click (navigate to the frame's source position).
+  function onFrameClick(i: number, f: { file: string; line: number; column: number }) {
+    if (frameClickTimer.current !== null) {
+      window.clearTimeout(frameClickTimer.current);
+      frameClickTimer.current = null;
+      gotoFrame(f.file, f.line, f.column);
+      return;
+    }
+    frameClickTimer.current = window.setTimeout(() => {
+      frameClickTimer.current = null;
+      setSelectedFrame(i);
+      setPane("locals");
+    }, 250);
+  }
+
+  // gotoFrame opens the frame's file (if needed) and queues a cursor move.
+  async function gotoFrame(file: string, line: number, column: number) {
+    if (!file) return;
+    try {
+      await openFile(file);
+      setPendingGoto({ path: file, line, column });
+    } catch {
+      /* synthetic or missing source file */
+    }
   }
 
   async function openFile(path: string) {
@@ -189,6 +274,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     if (!debug) return;
     if (command === "stop") {
       setDebug(null);
+      setDebugLoc(null);
       setStatus("stopped");
       return;
     }
@@ -202,17 +288,21 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       setDebug({ session: res.session!, path });
       setStack(res.frames || []);
       setLocals(res.locals || []);
+      setSelectedFrame(0);
+      setDebugLoc({ line: res.line ?? 0, column: res.column ?? 1 });
       setStatus(`stopped (${res.reason}) at line ${res.line}`);
       setPane("stack");
     } else if (res.state === "terminated") {
       if (res.result) setOutput((o) => o + "\n⇦ " + res.result + "\n");
       if (res.error) setOutput((o) => o + "\n" + res.error + "\n");
       setDebug(null);
+      setDebugLoc(null);
       setStatus("program exited");
     } else {
       setOutput(res.error || "debug error");
       if (res.diagnostics) showDiagnostics(res.diagnostics);
       setDebug(null);
+      setDebugLoc(null);
     }
   }
 
@@ -228,26 +318,84 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     });
   }
 
+  // Debugger keyboard shortcuts (active only while a debug session is paused).
+  useEffect(() => {
+    if (!debug) return;
+    const keys = keysFromConfig(config);
+    const handler = (e: KeyboardEvent) => {
+      const pressed = eventToKey(e);
+      const hit = KEY_ACTIONS.find((a) => keys[a.action] === pressed);
+      if (hit) {
+        e.preventDefault();
+        dbgCommand(hit.cmd);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debug, config]);
+
+  // Apply a queued cursor move once its file's tab is active and mounted.
+  useEffect(() => {
+    if (pendingGoto && activeTab?.path === pendingGoto.path) {
+      editorRef.current?.gotoLocation(pendingGoto.line, pendingGoto.column);
+      setPendingGoto(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingGoto, active]);
+
   const diagnose = useMemo(() => ideApi.diagnose, []);
+  const keys = keysFromConfig(config);
+  const fontSize = ((config.ide as Record<string, unknown>)?.fontSize as number) || 14;
+
+  function setFontSize(px: number) {
+    const clamped = Math.min(28, Math.max(9, px));
+    setConfig((c) => {
+      const ide = { ...((c.ide as Record<string, unknown>) || {}), fontSize: clamped };
+      const next = { ...c, ide };
+      ideApi.saveConfig(next).catch(() => {});
+      return next;
+    });
+  }
+
+  const muiTheme = useMemo(
+    () => createTheme({ palette: { mode: dark ? "dark" : "light", primary: { main: dark ? "#8aa6ff" : "#3b5bdb" } } }),
+    [dark],
+  );
 
   return (
-    <div className="ide" data-theme={theme}>
-      <IdeStyles />
-      <header className="ide-header">
-        <span className="brand">Gad IDE</span>
-        <span className="ws" title={workspace.root}>
-          {workspace.root}
-        </span>
-        <span className="spacer" />
-        <button onClick={() => setSettings(true)}>⚙ Settings</button>
-        <button onClick={toggleTheme}>{dark ? "☀" : "☾"}</button>
-      </header>
+    <ThemeProvider theme={muiTheme}>
+      <CssBaseline />
+      <Box className="ide" data-theme={theme}>
+        <IdeStyles />
+        <AppBar position="static" color="default" elevation={1}>
+          <Toolbar variant="dense" sx={{ gap: 1 }}>
+            <Typography variant="h6" sx={{ fontSize: "1.05rem", fontWeight: 700 }}>
+              Gad IDE
+            </Typography>
+            <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: "40vw" }} title={workspace.root}>
+              {workspace.root}
+            </Typography>
+            <Box sx={{ flex: 1 }} />
+            <Button size="small" onClick={() => setKeybinds(true)}>
+              ⌨ Keys
+            </Button>
+            <Button size="small" onClick={() => setSettings(true)}>
+              ⚙ Settings
+            </Button>
+            <IconButton size="small" onClick={toggleTheme} title="Toggle theme">
+              {dark ? "☀" : "☾"}
+            </IconButton>
+          </Toolbar>
+        </AppBar>
 
       <div className="ide-main">
         <aside className="ide-sidebar">
           <div className="side-head">
             <span>Explorer</span>
-            <button
+            <IconButton
+              size="small"
+              title="New file"
               onClick={async () => {
                 const name = prompt("New file path (relative to workspace):", "untitled.gad");
                 if (!name) return;
@@ -256,8 +404,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                 openFile(name);
               }}
             >
-              +
-            </button>
+              <AddIcon fontSize="small" />
+            </IconButton>
           </div>
           <div className="tree">
             {tree?.children?.map((n) => (
@@ -287,31 +435,72 @@ export function Ide({ workspace }: { workspace: Workspace }) {
             ))}
           </div>
 
-          <div className="toolbar">
-            <button onClick={save} disabled={!activeTab}>
+          <Toolbar variant="dense" className="toolbar" disableGutters sx={{ gap: 1, minHeight: 44 }}>
+            <Button size="small" variant="outlined" onClick={save} disabled={!activeTab}>
               Save
-            </button>
-            <button onClick={format} disabled={!activeTab}>
+            </Button>
+            <Button size="small" variant="outlined" onClick={format} disabled={!activeTab}>
               Format
-            </button>
-            <button onClick={() => activeTab && setDialog({ kind: "run", tab: activeTab })} disabled={!activeTab}>
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="success"
+              onClick={() => activeTab && setDialog({ kind: "run", tab: activeTab })}
+              disabled={!activeTab}
+            >
               Run ▶
-            </button>
-            <button onClick={() => activeTab && setDialog({ kind: "debug", tab: activeTab })} disabled={!activeTab}>
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="warning"
+              onClick={() => activeTab && setDialog({ kind: "debug", tab: activeTab })}
+              disabled={!activeTab}
+            >
               Debug 🐞
-            </button>
+            </Button>
             {debug && (
-              <span className="dbgbar">
-                <button onClick={() => dbgCommand("continue")}>Continue</button>
-                <button onClick={() => dbgCommand("next")}>Step Over</button>
-                <button onClick={() => dbgCommand("stepIn")}>Step In</button>
-                <button onClick={() => dbgCommand("stepOut")}>Step Out</button>
-                <button onClick={() => dbgCommand("stop")}>Stop</button>
-              </span>
+              <Box className="dbgbar">
+                <Tooltip title={`Resume (${keys.continue})`}>
+                  <Button size="small" onClick={() => dbgCommand("continue")}>
+                    Continue ({keys.continue})
+                  </Button>
+                </Tooltip>
+                <Tooltip title={`Step over (${keys.stepOver})`}>
+                  <Button size="small" onClick={() => dbgCommand("next")}>
+                    Step Over ({keys.stepOver})
+                  </Button>
+                </Tooltip>
+                <Tooltip title={`Step into (${keys.stepInto})`}>
+                  <Button size="small" onClick={() => dbgCommand("stepIn")}>
+                    Step In ({keys.stepInto})
+                  </Button>
+                </Tooltip>
+                <Tooltip title={`Step out (${keys.stepOut})`}>
+                  <Button size="small" onClick={() => dbgCommand("stepOut")}>
+                    Step Out ({keys.stepOut})
+                  </Button>
+                </Tooltip>
+                <Button size="small" color="error" onClick={() => dbgCommand("stop")}>
+                  Stop
+                </Button>
+              </Box>
             )}
-            <span className="spacer" />
-            <span className="status">{status}</span>
-          </div>
+            <Box sx={{ flex: 1 }} />
+            <Box className="font-control" title="Editor font size">
+              <Button size="small" onClick={() => setFontSize(fontSize - 1)}>
+                A−
+              </Button>
+              <span className="font-size">{fontSize}px</span>
+              <Button size="small" onClick={() => setFontSize(fontSize + 1)}>
+                A+
+              </Button>
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              {status}
+            </Typography>
+          </Toolbar>
 
           <div className="editor-host">
             {activeTab ? (
@@ -324,6 +513,10 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                 onChange={onEdit}
                 breakpoints={bpFor(activeTab.path)}
                 onBreakpointsChange={(lines) => setBreakpoints(activeTab.path, lines)}
+                fontSize={fontSize}
+                debugLine={debug && debug.path === activeTab.path ? debugLoc?.line : undefined}
+                debugColumn={debug && debug.path === activeTab.path ? debugLoc?.column : undefined}
+                locals={debug && debug.path === activeTab.path ? locals : undefined}
               />
             ) : (
               <div className="empty">Open a file from the explorer</div>
@@ -350,27 +543,53 @@ export function Ide({ workspace }: { workspace: Workspace }) {
             {pane === "stack" && (
               <div className="pane-body">
                 {(stack || []).map((f, i) => (
-                  <div key={i} className="frame">
-                    {f.name || "main"} <span className="muted">line {f.line}</span>
+                  <div
+                    key={i}
+                    className={"frame" + (i === selectedFrame ? " selected" : "")}
+                    title={`${f.file}:${f.line}:${f.column} — click to inspect, double-click to open`}
+                    onClick={() => onFrameClick(i, f)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <span className="fn">{f.name || "main"}</span>{" "}
+                    <span className="muted">
+                      {f.file ? `${f.file.split("/").pop()}:` : ""}
+                      {f.line}:{f.column}
+                    </span>
                   </div>
                 ))}
               </div>
             )}
-            {pane === "locals" && (
-              <div className="pane-body">
-                <table className="locals">
-                  <tbody>
-                    {(locals || []).map((v, i) => (
-                      <tr key={i}>
-                        <td>{v.name}</td>
-                        <td className="muted">{v.type}</td>
-                        <td>{v.value}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {pane === "locals" &&
+              (() => {
+                const frame = stack && stack[selectedFrame];
+                const frameLocals = frame ? frame.locals : locals;
+                return (
+                  <div className="pane-body">
+                    {frame && (
+                      <div className="locals-head muted">
+                        {frame.name || "main"} — {frame.file ? frame.file.split("/").pop() + ":" : ""}
+                        {frame.line}:{frame.column}
+                      </div>
+                    )}
+                    <table className="locals">
+                      <tbody>
+                        {(frameLocals || []).map((v, i) => (
+                          <tr key={i}>
+                            <td>{v.name}</td>
+                            <td className="muted">{v.type}</td>
+                            <td>{v.value}</td>
+                          </tr>
+                        ))}
+                        {(frameLocals || []).length === 0 && (
+                          <tr>
+                            <td className="muted">(no locals)</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             {pane === "breakpoints" && (
               <div className="pane-body">
                 <div className="bp-scope">
@@ -432,7 +651,90 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           }}
         />
       )}
-    </div>
+
+      {keybinds && (
+        <KeybindingsDialog
+          config={config}
+          onClose={() => setKeybinds(false)}
+          onSave={async (next) => {
+            setConfig(next);
+            await ideApi.saveConfig(next);
+            setKeybinds(false);
+            setStatus("keybindings saved");
+          }}
+        />
+      )}
+      </Box>
+    </ThemeProvider>
+  );
+}
+
+function KeybindingsDialog({
+  config,
+  onClose,
+  onSave,
+}: {
+  config: Record<string, unknown>;
+  onClose: () => void;
+  onSave: (next: Record<string, unknown>) => void;
+}) {
+  const [bindings, setBindings] = useState<Record<string, string>>(keysFromConfig(config));
+  const [capturing, setCapturing] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!capturing) return;
+    const h = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === "Escape") {
+        setCapturing(null);
+        return;
+      }
+      if (MODIFIER_KEYS.includes(e.key)) return; // wait for the non-modifier key
+      setBindings((b) => ({ ...b, [capturing]: eventToKey(e) }));
+      setCapturing(null);
+    };
+    window.addEventListener("keydown", h, true);
+    return () => window.removeEventListener("keydown", h, true);
+  }, [capturing]);
+
+  function save() {
+    const ide = { ...((config.ide as Record<string, unknown>) || {}) };
+    ide.keys = bindings;
+    onSave({ ...config, ide });
+  }
+
+  return (
+    <Dialog open onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>Debugger keybindings</DialogTitle>
+      <DialogContent dividers>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Click a key, then press the shortcut. Esc cancels capture.
+        </Typography>
+        <Box className="keybinds">
+          {KEY_ACTIONS.map((a) => (
+            <div key={a.action} className="kb-row">
+              <span>{a.label}</span>
+              <Button
+                size="small"
+                variant={capturing === a.action ? "contained" : "outlined"}
+                onClick={() => setCapturing(a.action)}
+              >
+                {capturing === a.action ? "press a key…" : bindings[a.action] || "—"}
+              </Button>
+            </div>
+          ))}
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setBindings({ ...DEFAULT_KEYS })}>Reset to defaults</Button>
+        <Box sx={{ flex: 1 }} />
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={save}>
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -560,51 +862,64 @@ function RunDialog({
   });
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onCancel()}>
-      <div className="modal">
-        <h3>
-          {kind === "debug" ? "Debug" : "Run"} {tab.path}
-        </h3>
-        <label className="row">
-          Arguments (one per line)
-          <textarea rows={3} value={args} onChange={(e) => setArgs(e.target.value)} />
-        </label>
+    <Dialog open onClose={onCancel} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        {kind === "debug" ? "Debug" : "Run"} {tab.path}
+      </DialogTitle>
+      <DialogContent dividers>
+        <TextField
+          label="Arguments (one per line)"
+          multiline
+          minRows={3}
+          fullWidth
+          margin="dense"
+          value={args}
+          onChange={(e) => setArgs(e.target.value)}
+        />
         {kind === "debug" && (
-          <label className="ck">
-            <input type="checkbox" checked={entry} onChange={(e) => setEntry(e.target.checked)} /> Stop on entry
-            <span className="muted"> (set breakpoints by clicking the gutter)</span>
-          </label>
+          <FormControlLabel
+            control={<Checkbox checked={entry} onChange={(e) => setEntry(e.target.checked)} />}
+            label="Stop on entry (set breakpoints by clicking the gutter)"
+          />
         )}
-        <div className="row">
+        <Typography variant="subtitle2" sx={{ mt: 1 }}>
           Builtin modules (checked = enabled)
-          <div className="mods">
-            {modules.map((m) => (
-              <label key={m.name} className="ck">
-                <input type="checkbox" checked={!disabled.includes(m.name)} onChange={() => toggle(m.name)} />{" "}
-                {m.name}
-                {m.unsafe ? " (unsafe)" : ""}
-              </label>
-            ))}
-          </div>
-        </div>
-        <label className="ck">
-          <input type="checkbox" checked={safe} onChange={(e) => setSafe(e.target.checked)} /> Safe mode (disable
-          unsafe modules)
-        </label>
-        <label className="row">
-          Save stdout+stderr to file (optional)
-          <input value={saveOut} onChange={(e) => setSaveOut(e.target.value)} placeholder="output.log" />
-        </label>
-        <div className="actions">
-          <button onClick={onCancel}>Cancel</button>
-          {kind === "debug" ? (
-            <button onClick={() => onDebug(cfg(), entry)}>Start Debug</button>
-          ) : (
-            <button onClick={() => onRun(cfg())}>Run</button>
-          )}
-        </div>
-      </div>
-    </div>
+        </Typography>
+        <Box className="mods">
+          {modules.map((m) => (
+            <FormControlLabel
+              key={m.name}
+              control={<Checkbox size="small" checked={!disabled.includes(m.name)} onChange={() => toggle(m.name)} />}
+              label={m.name + (m.unsafe ? " (unsafe)" : "")}
+            />
+          ))}
+        </Box>
+        <FormControlLabel
+          control={<Checkbox checked={safe} onChange={(e) => setSafe(e.target.checked)} />}
+          label="Safe mode (disable unsafe modules)"
+        />
+        <TextField
+          label="Save stdout+stderr to file (optional)"
+          fullWidth
+          margin="dense"
+          value={saveOut}
+          onChange={(e) => setSaveOut(e.target.value)}
+          placeholder="output.log"
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel}>Cancel</Button>
+        {kind === "debug" ? (
+          <Button variant="contained" onClick={() => onDebug(cfg(), entry)}>
+            Start Debug
+          </Button>
+        ) : (
+          <Button variant="contained" onClick={() => onRun(cfg())}>
+            Run
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -642,32 +957,36 @@ function SettingsDialog({
   }
 
   return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <h3>Settings</h3>
-        <div className="row">
-          Formatter (.gad.yaml → fmt)
+    <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Settings</DialogTitle>
+      <DialogContent dividers>
+        <Typography variant="subtitle2">Formatter (.gad.yaml → fmt)</Typography>
+        <Box sx={{ display: "flex", flexDirection: "column" }}>
           {NEWLINE_FLAGS.map(([k, label]) => (
-            <label key={k} className="ck">
-              <input
-                type="checkbox"
-                checked={expanded[k]}
-                onChange={(e) => setExpanded((s) => ({ ...s, [k]: e.target.checked }))}
-              />{" "}
-              {label}
-            </label>
+            <FormControlLabel
+              key={k}
+              control={
+                <Checkbox
+                  checked={expanded[k]}
+                  onChange={(e) => setExpanded((s) => ({ ...s, [k]: e.target.checked }))}
+                />
+              }
+              label={label}
+            />
           ))}
-          <label className="ck">
-            <input type="checkbox" checked={backup} onChange={(e) => setBackup(e.target.checked)} /> Keep .backup on
-            format
-          </label>
-        </div>
-        <div className="actions">
-          <button onClick={onClose}>Cancel</button>
-          <button onClick={save}>Save</button>
-        </div>
-      </div>
-    </div>
+          <FormControlLabel
+            control={<Checkbox checked={backup} onChange={(e) => setBackup(e.target.checked)} />}
+            label="Keep .backup on format"
+          />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={save}>
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -694,6 +1013,8 @@ function IdeStyles() {
 .tabbar .tab .x{opacity:.6}.tabbar .tab .x:hover{opacity:1}
 .toolbar{display:flex;gap:.4rem;align-items:center;padding:.35rem .6rem;border-bottom:1px solid var(--border)}
 .toolbar .status{color:var(--muted);font-size:.85rem}
+.font-control{display:flex;align-items:center;gap:.25rem}
+.font-control .font-size{color:var(--muted);font-size:.8rem;min-width:2.6rem;text-align:center}
 .dbgbar{display:flex;gap:.3rem}
 .editor-host{flex:1;min-height:0;display:flex}
 .editor-host>div{flex:1;min-width:0}
@@ -702,7 +1023,13 @@ function IdeStyles() {
 .pane-tabs{display:flex;gap:.3rem;align-items:center;padding:.25rem .6rem;border-bottom:1px solid var(--border)}
 .pane-tabs button.on{background:var(--accent);color:#fff}
 .panes .pane-body{flex:1;overflow:auto;margin:0;padding:.5rem .8rem;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:.85rem}
-.frame{padding:.1rem .3rem}.muted{color:var(--muted)}
+.frame{padding:.1rem .3rem;border-radius:4px}
+.frame:hover{background:var(--code-bg,rgba(125,125,125,.12))}
+.frame.selected{background:var(--accent);color:#fff}
+.frame.selected .muted{color:rgba(255,255,255,.8)}
+.frame .fn{font-weight:600}
+.locals-head{margin-bottom:.3rem;font-size:.8rem}
+.muted{color:var(--muted)}
 table.locals td{padding:.1rem .5rem;border-bottom:1px solid var(--border);font-family:ui-monospace,monospace}
 .bp-scope{display:flex;gap:.3rem;margin-bottom:.4rem}
 .bp-scope button.on{background:var(--accent);color:#fff}
@@ -718,9 +1045,11 @@ table.locals td{padding:.1rem .5rem;border-bottom:1px solid var(--border);font-f
 .modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:1rem 1.2rem;min-width:380px;max-width:90vw;max-height:85vh;overflow:auto}
 .modal h3{margin:.2rem 0 .8rem}
 .modal .row{display:flex;flex-direction:column;gap:.25rem;margin:.5rem 0}
-.modal .mods{display:grid;grid-template-columns:1fr 1fr;gap:.2rem .8rem;max-height:160px;overflow:auto}
-.modal .ck{display:flex;gap:.35rem;align-items:center;margin:.25rem 0}
-.modal .actions{display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:0 .8rem;max-height:180px;overflow:auto}
+.keybinds{display:flex;flex-direction:column;gap:.4rem;margin:.5rem 0}
+.kb-row{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.kb-row button{min-width:7rem;font-family:ui-monospace,monospace}
+.kb-row button.capturing{outline:2px solid var(--accent)}
     `}</style>
   );
 }

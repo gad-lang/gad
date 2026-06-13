@@ -251,9 +251,50 @@ function applyDebugResponse(res) {
   }
 }
 function endDebug() { state.debug = null; $("dbgbar").style.display = "none"; }
+let frameClickTimer = null;
 function renderStack(frames) {
-  $("stackPane").innerHTML = frames.map((f) =>
-    `<div class="frame">${escapeHtml(f.name || "main")} <span class="muted">line ${f.line}</span></div>`).join("") || "(empty)";
+  const pane = $("stackPane");
+  pane.innerHTML = "";
+  if (!frames.length) { pane.textContent = "(empty)"; return; }
+  frames.forEach((f) => {
+    const file = f.file ? f.file.split("/").pop() + ":" : "";
+    const div = document.createElement("div");
+    div.className = "frame";
+    div.style.cursor = "pointer";
+    div.title = (f.file || "") + ":" + f.line + ":" + f.column + " — click to inspect, double-click to open";
+    div.innerHTML = `<b>${escapeHtml(f.name || "main")}</b> <span class="muted">${escapeHtml(file)}${f.line}:${f.column}</span>`;
+    // Single click shows this frame's locals; double click navigates.
+    div.onclick = () => {
+      if (frameClickTimer !== null) {
+        clearTimeout(frameClickTimer); frameClickTimer = null;
+        gotoFrame(f.file, f.line, f.column);
+        return;
+      }
+      frameClickTimer = setTimeout(() => {
+        frameClickTimer = null;
+        pane.querySelectorAll(".frame").forEach((n) => n.classList.remove("selected"));
+        div.classList.add("selected");
+        renderLocals(f.locals || []);
+        selectPane("locals");
+      }, 250);
+    };
+    pane.appendChild(div);
+  });
+}
+// gotoFrame opens the frame's file (if needed) and moves the cursor there.
+async function gotoFrame(file, line, column) {
+  try { await openFile(file); } catch (e) { return; }
+  const ta = $("editorWrap")._ta;
+  if (!ta) return;
+  const lines = ta.value.split("\n");
+  let pos = 0;
+  for (let i = 0; i < line - 1 && i < lines.length; i++) pos += lines[i].length + 1;
+  pos += Math.max(0, column - 1);
+  ta.focus();
+  ta.setSelectionRange(pos, pos);
+  // Scroll the caret roughly into view.
+  const approxLineH = ta.scrollHeight / Math.max(lines.length, 1);
+  ta.scrollTop = Math.max(0, (line - 3) * approxLineH);
 }
 function renderLocals(locals) {
   if (!locals.length) { $("localsPane").textContent = "(no locals)"; return; }
