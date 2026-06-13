@@ -210,10 +210,26 @@ sync by a Go tool; full-stack scope.
   `cmd/gad` (added to `subcommandNames` + root). `cmd/update-delve` (the sync
   tool) is unrelated and keeps its name.
 
-### Debugger — STILL TODO (full-stack)
-- DAP (Debug Adapter Protocol) server so editors can drive the Engine.
-- VS Code extension (vscode-go-like) to launch/attach the DAP.
+### DAP server — DONE (committed `a7d8be1`)
+- `gad debug --dap` (`cmd/gad/dap.go`): stdio DAP server via `google/go-dap`.
+  initialize/setBreakpoints/launch/threads/stackTrace/scopes/variables/
+  continue/next/stepIn/stepOut/pause/disconnect/terminate +
+  stopped/output/exited/terminated events. Program from the launch request.
+  Tested in-process (`dap_test.go`). Fixed `DebugFrames` off-by-one
+  (frameIndex starts at 1; current frame = frames[frameIndex-1]).
+
+### VS Code extension — DONE (committed below)
+- `editors/vscode-gad/`: registers the `gad` language (.gad) + a `gad` debugger
+  type whose adapter is `gad debug --dap` (DebugAdapterExecutable; `gad.path`
+  setting). package.json contributes languages/breakpoints/debuggers; a config
+  provider defaults `program` to `${file}`. Compiles with `tsc` (out/ + node_
+  modules gitignored).
+
+### Debugger — STILL TODO
 - React run/debug plugin (using gad-codemirror) + a web-app run/debug page.
+  Needs a WASM debug bridge: run the VM in a goroutine and expose
+  start/continue/step + a JS stop callback (Go WASM multiplexes the blocked VM
+  goroutine with JS-invoked resume calls).
 
 ### REMAINING asks (ia_todo)
 - Build a full gad-lang website (dark/light, WASM examples, GitHub-Pages-ready)

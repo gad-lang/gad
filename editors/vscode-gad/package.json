@@ -1,0 +1,93 @@
+{
+  "name": "vscode-gad",
+  "displayName": "Gad",
+  "description": "Gad language support and debugging for VS Code (runs `gad debug --dap`).",
+  "version": "0.1.0",
+  "publisher": "gad-lang",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": ["Programming Languages", "Debuggers"],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onDebugResolve:gad",
+    "onLanguage:gad"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "gad",
+        "aliases": ["Gad", "gad"],
+        "extensions": [".gad"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "breakpoints": [{ "language": "gad" }],
+    "configuration": {
+      "title": "Gad",
+      "properties": {
+        "gad.path": {
+          "type": "string",
+          "default": "gad",
+          "description": "Path to the `gad` executable used for debugging."
+        }
+      }
+    },
+    "debuggers": [
+      {
+        "type": "gad",
+        "label": "Gad Debug",
+        "languages": ["gad"],
+        "configurationAttributes": {
+          "launch": {
+            "required": ["program"],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Path to the Gad script to debug.",
+                "default": "${file}"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Pause before the first instruction.",
+                "default": false
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "gad",
+            "request": "launch",
+            "name": "Debug Gad file",
+            "program": "${file}",
+            "stopOnEntry": false
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Gad: Launch file",
+            "description": "Debug the current Gad file",
+            "body": {
+              "type": "gad",
+              "request": "launch",
+              "name": "Debug Gad file",
+              "program": "^\"\\${file}\""
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.6.0"
+  }
+}
