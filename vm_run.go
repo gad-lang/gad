@@ -55,7 +55,11 @@ func (vm *VM) safeRun() (rerun bool) {
 		}
 		vm.clearCurrentFrame()
 	}()
-	vm.loop()
+	if vm.dbg != nil {
+		vm.loopDebug()
+	} else {
+		vm.loop()
+	}
 	return
 }
 

@@ -21,6 +21,16 @@ build-cli:
 build-wasm:
 	bash web/app/scripts/build-wasm.sh
 
+# Regenerate the VM debug loop (vm_loop_debug.go) from the production loop.
+.PHONY: gen-delve
+gen-delve:
+	go run ./cmd/update-delve gen
+
+# Fail if the VM debug loop is out of date with the production loop.
+.PHONY: check-delve
+check-delve:
+	go run ./cmd/update-delve check
+
 # --- Web example (CodeMirror plugin + React app) ---------------------------
 # Use Node v26.3.0 via nvm when available; always use pnpm.
 NVM_USE := { [ -s "$$HOME/.nvm/nvm.sh" ] && . "$$HOME/.nvm/nvm.sh" && nvm use v26.3.0 >/dev/null; } || true
@@ -60,7 +70,7 @@ generate: version
 	go generate ./...
 
 .PHONY: lint
-lint: version
+lint: version check-delve
 	staticcheck -checks all,-SA1019,-ST1000 ./...
 	go vet ./...
 

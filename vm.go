@@ -42,6 +42,7 @@ type VM struct {
 	mu           sync.Mutex
 	err          error
 	noPanic      bool
+	dbg          DebugStepper // non-nil only in debug mode; see vm_debug.go
 
 	StdOut, StdErr *StackWriter
 	StdIn          *StackReader

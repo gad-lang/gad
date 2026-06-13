@@ -171,9 +171,35 @@ running the built CLI (`./.__tmp/gad`):
   `dark` prop, threaded through Formatter/Notebook).
 - App still builds clean (`pnpm build`).
 
+### Debugger foundation (item 6) — DONE so far (committed below)
+Decision (user): **separate debug VM** (not a guarded hot-loop hook), kept in
+sync by a Go tool; full-stack scope.
+- `cmd/update-delve` — command-context CLI (`gen`/`check`) that GENERATES
+  `vm_loop_debug.go` from `vm_loop.go` by renaming `VM.loop`→`VM.loopDebug` and
+  injecting `vm.dbg.Step(vm)` right after the instruction fetch
+  (`op = Opcode(vm.curInsts[vm.ip])`, the unique anchor). `//go:generate` in
+  `vm_debug.go`; `make gen-delve`/`check-delve`; `check-delve` wired into `lint`
+  so drift fails CI.
+- Production loop UNTOUCHED. `vm.go` gains a nil `dbg DebugStepper` field;
+  `vm_run.go safeRun` dispatches `loopDebug()` vs `loop()` once per run (not per
+  instruction).
+- `vm_debug.go` (hand-written): `DebugStepper{ Step(vm *VM) }`,
+  `SetDebugger/Debugger`, and accessors `DebugIP/DebugOpcode/DebugSourcePos`
+  (FilePos line/col), `DebugFrames()` ([]DebugFrame{FuncName,Pos}),
+  `DebugLocals()`, `DebugAbort()`.
+- Tests (`vm_debug_test.go`): stepping records lines; debug run == normal run;
+  frames depth + locals observed inside a function call. All green;
+  `go test ./...` clean.
+
+### Debugger — STILL TODO (full-stack)
+- Debugger ENGINE (a `DebugStepper` impl): breakpoints by line, step
+  over/into/out, continue, pause; expose stack/vars. Likely a `debug` package +
+  control channels driven by the engine; `Step` blocks until resumed.
+- DAP (Debug Adapter Protocol) server (cmd) so editors can drive it.
+- VS Code extension (vscode-go-like) to launch/attach the DAP.
+- React run/debug plugin (using gad-codemirror) + a web-app run/debug page.
+
 ### REMAINING asks (ia_todo)
-- `cmd/delve` Gad debugger (delve-like) + VS Code extension (vscode-go-like) +
-  React run/debug plugin using gad-codemirror + a web-app run/debug page.
 - Build a full gad-lang website (dark/light, WASM examples, GitHub-Pages-ready)
   + a GitHub Action to auto-rebuild and publish it.
 
