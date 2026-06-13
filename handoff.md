@@ -240,9 +240,67 @@ sync by a Go tool; full-stack scope.
 - Whole debugger stack now done: VM debug loop (generated, synced by
   cmd/update-delve) → engine → `gad debug` CLI → DAP → VS Code ext → web page.
 
-### REMAINING ask (ia_todo #19)
-- Full gad-lang website (dark/light, WASM examples, GitHub-Pages-ready) + a
-  GitHub Action to auto-rebuild and publish it.
+### Debugger (ia_todo #17) — DONE (all 6 commits above), marked [x].
+
+7. **`cmd/build-website`** (ia_todo #20) — **DONE** (committed below).
+   Full static gad-lang website: language API + user docs (`./doc`, `docs/`)
+   with client-side term search, dark/light, WASM playground examples,
+   GitHub-Pages-ready; a GitHub Action to rebuild+publish per-commit
+   (`/COMMIT-ID`) and to the release version on RELEASE.
+
+### `cmd/build-website` (item 7) — implementation (DONE)
+- `cmd/build-website/`: command-context CLI with `build` (`--out` default
+  `dist/website`, `--repo .`, `--no-wasm`) and `serve` (`--out`, `--addr :8090`).
+- `markdown.go` — dependency-free Markdown renderer (no goldmark; CLAUDE.md
+  minimal-deps) for the doc subset: ATX headings (with slug IDs for TOC/anchors),
+  fenced code, tables, ordered/unordered + NESTED lists, blockquotes, hr,
+  paragraphs, inline code/bold/italic/links; `.md`→`.html` link rewrite
+  (README.md→index.html). Returns `[]Heading` for the per-page TOC + search.
+- `site.go` — `buildSite`: `collectPages` over curated `guideOrder` (`./doc`) +
+  `refOrder` (`docs/`, prefixed `ref-`); README→index.html. Renders each page
+  through `layoutTemplate` (sidebar nav + right-hand TOC of H2s), writes
+  `search.json` (client index), CSS/JS assets, and (unless `--no-wasm`) builds
+  `gad.wasm` (`GOOS=js GOARCH=wasm ./web/wasm`) + copies `wasm_exec.js` from
+  GOROOT. 33 pages output; verified `exit 0` with and without WASM.
+- `assets.go` — `layoutTemplate` (RELATIVE asset paths so the site works at any
+  base path incl. `/<commit-id>/`), `playgroundBody`, `siteCSS` (light/dark via
+  `[data-theme]` + pre-paint bootstrap), `themeJS`, `searchJS` (fuzzy
+  title/text + keyboard nav), `playJS` (WASM run/format).
+- BUG FIXED (caused exit 137 OOM): `renderList`'s nested-list recursion reused
+  the inner call's last-consumed index then `continue`d WITHOUT advancing,
+  re-entering the same line forever and growing the buffer unbounded. Fix:
+  nested call advances `+1` past the last consumed line. Regression test
+  `markdown_test.go` (`TestRenderNestedList` + terminates/blocks tests).
+- `.github/workflows/website.yml` — on push to `main`, on release `published`,
+  and `workflow_dispatch`: builds the site and deploys to gh-pages via
+  `peaceiris/actions-gh-pages@v4` with `keep_files: true`, staging into
+  `public/<sha>/` (+ `dev/` alias) for commits and `public/<tag>/` (+ `latest/`
+  alias) for releases; a root `index.html` redirects to `latest/`. `concurrency:
+  website` serialises commit vs release deploys.
+
+### `cmd/build-website` (item 7) — plan
+- Go command (command-context subcommands like `gad`): `build` (+ maybe
+  `serve` preview). Renders `./doc/*.md` (and `docs/stdlib-*`, `builtins.md`)
+  to themed HTML with a sidebar nav; generates a JSON search index + vanilla-JS
+  client search; a Playground page loading `gad.wasm`+`wasm_exec.js` with a
+  CodeMirror editor (CDN ESM to avoid a bundler). `--base-url` for GH Pages
+  project paths (`/gad/`, `/gad/<commit>/`). Output to a `dist/` dir (gitignored).
+- Markdown: render with a SMALL in-repo converter (no new dep — CLAUDE.md
+  "keep dependencies minimal"; user interrupted a `go get goldmark`). The
+  `./doc` files use a regular subset: headings, fenced ```code```, tables,
+  lists, blockquotes, hr, links, inline code, bold.
+- GitHub Action: build Go + wasm, render site, publish to gh-pages — per-commit
+  under `/<commit>` and the release version on release.
+
+### IDE task (ia_todo #23) refinement
+- Also: allow panel RESIZING and GROUPING with a tabs layout (added by user).
+
+### REMAINING asks (ia_todo)
+- #20 `cmd/build-website` (in progress).
+- #23 `gad ide` subcommand: launch the React web app as a tabbed multi-file IDE
+  (format/run/debug buttons, fmt settings ↔ `.gad.yaml`, movable/hideable panels
+  saved to `.gad.yaml` `ide` key, per-file run/debug dialogs: params,
+  enable/disable builtin modules, save STDOUT/STDERR to file).
 
 ### REMAINING asks (ia_todo)
 - Build a full gad-lang website (dark/light, WASM examples, GitHub-Pages-ready)

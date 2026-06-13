@@ -1,0 +1,69 @@
+name: website
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types: [published]
+  workflow_dispatch:
+
+# Allow only one concurrent deployment, so commit and release builds don't race
+# each other while merging into the gh-pages branch.
+concurrency:
+  group: website
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    name: Build and publish the documentation website
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build website
+        run: go run ./cmd/build-website build --out dist/website
+
+      - name: Compute publish paths
+        id: paths
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "dir=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            echo "alias=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "alias=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Stage publish directory
+        run: |
+          set -eu
+          dir='${{ steps.paths.outputs.dir }}'
+          alias='${{ steps.paths.outputs.alias }}'
+          mkdir -p "public/$dir"
+          cp -r dist/website/. "public/$dir/"
+          rm -rf "public/$alias"
+          mkdir -p "public/$alias"
+          cp -r dist/website/. "public/$alias/"
+          # Root index redirects to the latest published build.
+          printf '<!DOCTYPE html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./latest/index.html"><title>Gad</title><a href="./latest/index.html">Gad documentation</a>\n' > public/index.html
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          # keep_files preserves previously published commit/version directories
+          # so each build accumulates under its own /<commit-id> or /<tag> path.
+          keep_files: true
+          destination_dir: .
+          commit_message: "docs: publish website for ${{ steps.paths.outputs.dir }}"
