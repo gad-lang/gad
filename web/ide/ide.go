@@ -15,6 +15,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/gad-lang/gad"
 )
 
 // Server serves the IDE API for a single workspace directory.
@@ -50,6 +52,17 @@ func New(path string) (*Server, error) {
 	} else {
 		s.Root = filepath.Dir(abs)
 		s.OpenFile = filepath.Base(abs)
+	}
+	// Debug sessions resolve imports relative to the file's directory and honour
+	// the request's module toggles, matching the run path.
+	s.dbg.BuildModuleMap = func(req StartRequest) *gad.ModuleMap {
+		workdir := s.Root
+		if req.Path != "" {
+			if abs, err := s.resolve(req.Path); err == nil {
+				workdir = filepath.Dir(abs)
+			}
+		}
+		return buildModuleMap(workdir, req.Disabled, req.Safe)
 	}
 	return s, nil
 }

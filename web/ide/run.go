@@ -27,6 +27,29 @@ type moduleInfo struct {
 	Unsafe bool   `json:"unsafe"`
 }
 
+// buildModuleMap creates a module map with the stdlib builtin modules (honouring
+// safe mode and per-module disables) and a file importer rooted at workdir so
+// relative imports resolve. Shared by run and debug.
+func buildModuleMap(workdir string, disabled []string, safe bool) *gad.ModuleMap {
+	mb := helper.NewModuleMapBuilder()
+	mb.Safe = safe
+	mb.Disabled = make(map[string]bool, len(disabled))
+	for _, n := range disabled {
+		mb.Disabled[n] = true
+	}
+	mm := mb.Build()
+	// helper only honours Disabled for the unsafe modules; remove any other
+	// requested module from the built map so every toggle takes effect.
+	for _, n := range disabled {
+		mm.Remove(n)
+	}
+	mm.SetExtImporter(&importers.FileImporter{
+		WorkDir:    workdir,
+		FileReader: importers.ShebangReadFile,
+	})
+	return mm
+}
+
 // handleModules lists the toggleable builtin modules.
 func (s *Server) handleModules(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, builtinModules)
@@ -123,22 +146,7 @@ func (s *Server) run(src, workdir string, req runRequest) gadbridge.RunResult {
 	builtins := gad.NewBuiltins()
 	st := gad.NewSymbolTable(builtins.NameSet)
 
-	mb := helper.NewModuleMapBuilder()
-	mb.Safe = req.Safe
-	mb.Disabled = make(map[string]bool, len(req.Disabled))
-	for _, n := range req.Disabled {
-		mb.Disabled[n] = true
-	}
-	mm := mb.Build()
-	// helper only honours Disabled for the unsafe modules; remove any other
-	// requested module from the built map so every toggle takes effect.
-	for _, n := range req.Disabled {
-		mm.Remove(n)
-	}
-	mm.SetExtImporter(&importers.FileImporter{
-		WorkDir:    workdir,
-		FileReader: importers.ShebangReadFile,
-	})
+	mm := buildModuleMap(workdir, req.Disabled, req.Safe)
 
 	_, bc, err := gad.Compile(st, []byte(src), gad.CompileOptions{
 		CompilerOptions: gad.CompilerOptions{ModuleMap: mm},

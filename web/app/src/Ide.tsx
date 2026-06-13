@@ -262,7 +262,16 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     setStatus("debugging…");
     setOutput("");
     try {
-      const res = await ideApi.dbgStart({ source: content, breakpoints: bpFor(tab.path), stopOnEntry });
+      const cfg = tab.runCfg;
+      const res = await ideApi.dbgStart({
+        source: content,
+        breakpoints: bpFor(tab.path),
+        stopOnEntry,
+        path: tab.path,
+        args: cfg.args,
+        disabled: cfg.disabled,
+        safe: cfg.safe,
+      });
       applyDebug(res, tab.path);
     } catch (e) {
       setOutput(String(e));

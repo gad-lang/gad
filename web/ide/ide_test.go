@@ -249,6 +249,26 @@ func TestDebugFramesCarryLocals(t *testing.T) {
 	}
 }
 
+func TestDebugResolvesBuiltinModule(t *testing.T) {
+	_, h, _ := newTestServer(t)
+	// A debug session must resolve stdlib imports (regression: "module time not
+	// found"). Stop-on-entry then run to completion.
+	src := "time := import(\"time\")\nreturn time.Hour\n"
+	w := do(t, h, "POST", "/api/ide/debug/start", StartRequest{Source: src})
+	resp := decode[DebugResponse](t, w)
+	if resp.State == "error" {
+		t.Fatalf("debug start errored (import failed?): %+v", resp)
+	}
+	// It runs straight through (no breakpoints) to termination.
+	if resp.State == "stopped" {
+		resp = decode[DebugResponse](t, do(t, h, "POST", "/api/ide/debug/command",
+			CommandRequest{Session: resp.Session, Command: "continue"}))
+	}
+	if resp.State != "terminated" || resp.Error != "" {
+		t.Fatalf("expected clean termination, got %+v", resp)
+	}
+}
+
 func TestDebugSessionOverHTTP(t *testing.T) {
 	_, h, _ := newTestServer(t)
 	w := do(t, h, "POST", "/api/ide/debug/start", StartRequest{

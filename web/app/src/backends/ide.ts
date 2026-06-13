@@ -96,8 +96,15 @@ export const ideApi = {
     safe?: boolean;
     saveOut?: string;
   }) => jsonFetch<RunResult>("POST", "api/ide/run", req),
-  dbgStart: (req: { source: string; breakpoints: number[]; stopOnEntry: boolean }) =>
-    jsonFetch<DebugResponse>("POST", "api/ide/debug/start", req),
+  dbgStart: (req: {
+    source: string;
+    breakpoints: number[];
+    stopOnEntry: boolean;
+    path?: string;
+    args?: string[];
+    disabled?: string[];
+    safe?: boolean;
+  }) => jsonFetch<DebugResponse>("POST", "api/ide/debug/start", req),
   dbgCmd: (session: string, command: string) =>
     jsonFetch<DebugResponse>("POST", "api/ide/debug/command", { session, command }),
 };

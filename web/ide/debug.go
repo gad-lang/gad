@@ -11,6 +11,7 @@ import (
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/debug"
+	"github.com/gad-lang/gad/stdlib/helper"
 	"github.com/gad-lang/gad/web/gadbridge"
 )
 
@@ -24,6 +25,11 @@ import (
 type DebugManager struct {
 	mu       sync.Mutex
 	sessions map[string]*debugSession
+	// BuildModuleMap, when set, builds the module map for a debug session from
+	// its start request (e.g. rooted at the file's directory with the requested
+	// module toggles). When nil, a default stdlib module map is used so builtin
+	// imports such as `import("time")` still resolve.
+	BuildModuleMap func(req StartRequest) *gad.ModuleMap
 }
 
 // NewDebugManager returns an empty DebugManager.
@@ -68,9 +74,13 @@ func (b *syncBuffer) since(n int) (string, int) {
 
 // StartRequest launches a debug session.
 type StartRequest struct {
-	Source      string `json:"source"`
-	Breakpoints []int  `json:"breakpoints"`
-	StopOnEntry bool   `json:"stopOnEntry"`
+	Source      string   `json:"source"`
+	Breakpoints []int    `json:"breakpoints"`
+	StopOnEntry bool     `json:"stopOnEntry"`
+	Path        string   `json:"path"`     // workspace-relative file, for imports
+	Args        []string `json:"args"`     // CLI-style positional arguments
+	Disabled    []string `json:"disabled"` // builtin modules to disable
+	Safe        bool     `json:"safe"`     // disable all unsafe modules
 }
 
 // CommandRequest resumes a session (continue/next/stepIn/stepOut/pause).
@@ -121,7 +131,17 @@ func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
 
 	builtins := gad.NewBuiltins()
 	st := gad.NewSymbolTable(builtins.NameSet)
-	_, bc, err := gad.Compile(st, []byte(req.Source), gad.CompileOptions{})
+
+	var mm *gad.ModuleMap
+	if m.BuildModuleMap != nil {
+		mm = m.BuildModuleMap(req)
+	} else {
+		// Default: builtin stdlib modules so imports like time/strings resolve.
+		mm = helper.NewModuleMapBuilder().Build()
+	}
+	_, bc, err := gad.Compile(st, []byte(req.Source), gad.CompileOptions{
+		CompilerOptions: gad.CompilerOptions{ModuleMap: mm},
+	})
 	if err != nil {
 		writeJSON(w, DebugResponse{State: "error", Diagnostics: gadbridge.Diagnose(req.Source)})
 		return
@@ -133,9 +153,18 @@ func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
 	vm := gad.NewVM(builtins.Build(), bc).SetRecover(true)
 	vm.SetDebugger(eng)
 
+	args := gad.Args{}
+	if len(req.Args) > 0 {
+		arr := make(gad.Array, len(req.Args))
+		for i, a := range req.Args {
+			arr[i] = gad.Str(a)
+		}
+		args = append(args, arr)
+	}
+
 	sess := &debugSession{eng: eng, done: make(chan debugRunResult, 1), out: out}
 	go func() {
-		ret, rerr := vm.RunOpts(&gad.RunOpts{StdOut: out, StdErr: out})
+		ret, rerr := vm.RunOpts(&gad.RunOpts{Args: args, StdOut: out, StdErr: out})
 		res := ""
 		if ret != nil && ret != gad.Nil {
 			res = ret.ToString()

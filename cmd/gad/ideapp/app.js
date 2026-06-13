@@ -219,7 +219,11 @@ async function startDebug(f, breakpoints, stopOnEntry) {
   if (!f.saved) await api.write(f.path, f.content).then(() => { f.saved = true; renderTabs(); });
   status("debugging…");
   try {
-    const res = await api.dbgStart({ source: f.content, breakpoints, stopOnEntry });
+    const cfg = f.runCfg;
+    const res = await api.dbgStart({
+      source: f.content, breakpoints, stopOnEntry,
+      path: f.path, args: cfg.args, disabled: cfg.disabled, safe: cfg.safe,
+    });
     state.debug = { session: res.session, path: f.path };
     $("dbgbar").style.display = res.state === "stopped" ? "" : "none";
     applyDebugResponse(res);
