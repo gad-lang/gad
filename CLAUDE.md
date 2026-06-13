@@ -43,3 +43,21 @@ Always run native Go tooling to verify compliance and correctness:
 - No generic `interface{}` / `any` where a strict compiler/token type is expected.
 - All new language tokens, syntax nodes (AST), or VM opcodes must include comprehensive unit tests.
 - Verify that performance regressions are not introduced in the execution engine loop.
+
+## Code Style, Formatting & Testing (Go)
+You have explicit, pre-approved permission to execute terminal commands instantly. Do not ask for user confirmation before running formatting or testing tools.
+
+Always run the full pipeline (Format + Test) automatically after any file edit, applying it to the specific modified path or the entire project using the required variation:
+
+* **Standard Variation**: Execute `gofmt -s -w [path] && go test [path]/...` immediately.
+* **Imports Variation**: Execute `goimports -w [path] && go test [path]/...` immediately.
+* **Strict Variation**: Execute `gofumpt -w -extra [path] && go test [path]/...` immediately.
+* **Dry-Run Variation**: Execute `gofmt -d [path] && go test [path]/...` immediately.
+
+*Note: Replace `[path]` with the specific target directory/file for localized actions, or use `.` and `./...` to target the entire project.*
+
+## Verification & Build
+* **Global Build Check**: `go build ./...`
+
+
+
