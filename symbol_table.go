@@ -102,7 +102,24 @@ type SymbolTable struct {
 	disableParams    bool
 	shadowedBuiltins []string
 	builtins         BuiltinsNameSet
+	// localNames records slot index -> name for every local defined in this
+	// function scope (including nested blocks), used for debug symbols. Only the
+	// function-root table (block == false) accumulates it.
+	localNames map[int]string
 }
+
+// fnRoot returns the enclosing function (or global) scope, i.e. the first
+// non-block table walking up the parent chain.
+func (st *SymbolTable) fnRoot() *SymbolTable {
+	for st.block && st.parent != nil {
+		st = st.parent
+	}
+	return st
+}
+
+// LocalNames returns the recorded slot index -> name map for this function
+// scope (debug symbols). The returned map must not be mutated.
+func (st *SymbolTable) LocalNames() map[int]string { return st.fnRoot().localNames }
 
 // NewSymbolTable creates new symbol table object.
 func NewSymbolTable(builtins BuiltinsNameSet) *SymbolTable {
@@ -304,6 +321,13 @@ func (st *SymbolTable) DefineLocal(name string) (*Symbol, bool) {
 
 	st.updateMaxDefs(symbol.Index + 1)
 	st.shadowBuiltin(name)
+
+	// Record the slot name on the function-root table for debug symbols.
+	root := st.fnRoot()
+	if root.localNames == nil {
+		root.localNames = map[int]string{}
+	}
+	root.localNames[symbol.Index] = name
 
 	return symbol, false
 }

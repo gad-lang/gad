@@ -47,10 +47,13 @@ func (vm *VM) DebugSourcePos() source.FilePos {
 	return vm.bytecode.FileSet.Position(pos)
 }
 
-// DebugFrame describes one active call frame for the debugger's stack view.
+// DebugFrame describes one active call frame for the debugger's stack view,
+// including that frame's local values and their debug names.
 type DebugFrame struct {
-	FuncName string
-	Pos      source.FilePos
+	FuncName   string
+	Pos        source.FilePos
+	Locals     []Object
+	LocalNames []string
 }
 
 // DebugFrames returns the active call frames from outermost to innermost (the
@@ -80,19 +83,24 @@ func (vm *VM) DebugFrames() []DebugFrame {
 				pos = fs.Position(p)
 			}
 		}
-		out = append(out, DebugFrame{FuncName: f.fn.Name(), Pos: pos})
+		out = append(out, DebugFrame{
+			FuncName:   f.fn.Name(),
+			Pos:        pos,
+			Locals:     vm.frameLocals(f),
+			LocalNames: f.fn.LocalNames,
+		})
 	}
 	return out
 }
 
-// DebugLocals returns the local variable values of the current frame
-// (dereferencing captured pointers).
-func (vm *VM) DebugLocals() []Object {
-	if vm.curFrame == nil || vm.curFrame.fn == nil {
+// frameLocals returns the local values of frame f (dereferencing captured
+// pointers). Returns nil when f has no compiled function.
+func (vm *VM) frameLocals(f *frame) []Object {
+	if f == nil || f.fn == nil {
 		return nil
 	}
-	base := vm.curFrame.basePointer
-	n := vm.curFrame.fn.NumLocals
+	base := f.basePointer
+	n := f.fn.NumLocals
 	out := make([]Object, 0, n)
 	for i := 0; i < n; i++ {
 		idx := base + i
@@ -106,6 +114,24 @@ func (vm *VM) DebugLocals() []Object {
 		out = append(out, v)
 	}
 	return out
+}
+
+// DebugLocals returns the local variable values of the current frame
+// (dereferencing captured pointers).
+func (vm *VM) DebugLocals() []Object {
+	if vm.curFrame == nil {
+		return nil
+	}
+	return vm.frameLocals(vm.curFrame)
+}
+
+// DebugLocalNames returns the debug names of the current frame's local slots
+// (index -> name); entries may be empty when a name is unavailable.
+func (vm *VM) DebugLocalNames() []string {
+	if vm.curFrame == nil || vm.curFrame.fn == nil {
+		return nil
+	}
+	return vm.curFrame.fn.LocalNames
 }
 
 // DebugAbort requests the running VM to stop (equivalent to Abort).

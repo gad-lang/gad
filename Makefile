@@ -62,6 +62,11 @@ DIR ?= samples
 ide:
 	go run ./cmd/gad ide $(DIR)
 
+# Launch the IDE with the richer React + CodeMirror UI (builds web/app first).
+.PHONY: ide-react
+ide-react: web-build
+	go run ./cmd/gad ide --static web/app/dist $(DIR)
+
 .PHONY: test
 test: version generate lint
 	GOTOOLCHAIN=go1.25.0+auto go test -count=1 -cover ./...

@@ -297,6 +297,30 @@ func (c *Compiler) SetGlobalSymbolsIndex() {
 	}
 }
 
+// localNames returns debug names for the current function's local slots
+// (index -> name), sourced from the function-scope symbol table. Slots without
+// a name in this scope (e.g. defined in nested blocks) are left empty.
+func (c *Compiler) localNames() []string {
+	n := c.symbolTable.maxDefinition
+	if n <= 0 {
+		return nil
+	}
+	names := make([]string, n)
+	// Names recorded at definition time cover locals from nested blocks too.
+	for idx, name := range c.symbolTable.LocalNames() {
+		if idx >= 0 && idx < n {
+			names[idx] = name
+		}
+	}
+	// Overlay the current function scope's symbols (params + function-level).
+	for _, s := range c.symbolTable.Symbols() {
+		if s.Scope == ScopeLocal && s.Index >= 0 && s.Index < n && names[s.Index] == "" {
+			names[s.Index] = s.Name
+		}
+	}
+	return names
+}
+
 // optimize runs the Optimizer and returns Optimizer object and error from Optimizer.
 // Note:If optimizer cannot run for some reason, a nil optimizer and errSkip
 // error will be returned.
@@ -360,6 +384,7 @@ func (c *Compiler) Bytecode() *Bytecode {
 		Instructions: c.instructions,
 		SourceMap:    c.sourceMap,
 		module:       c.module,
+		LocalNames:   c.localNames(),
 	}
 
 	bc := &Bytecode{

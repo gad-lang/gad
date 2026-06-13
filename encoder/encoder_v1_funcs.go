@@ -391,6 +391,20 @@ func init() {
 			}
 		}
 
+		if l := len(cf.LocalNames); l > 0 {
+			if err = ctx.WriteByte(9); err != nil {
+				return
+			}
+			if err = writeInt(ctx, l); err != nil {
+				return
+			}
+			for _, n := range cf.LocalNames {
+				if err = writeString(ctx, n); err != nil {
+					return
+				}
+			}
+		}
+
 		err = ctx.WriteByte(FieldEOF)
 		return
 	}

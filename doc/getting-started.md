@@ -156,9 +156,22 @@ Useful flags:
 
 | Flag             | Purpose                                                     |
 |------------------|-------------------------------------------------------------|
-| `--addr host:port` | Listen address (defaults to `127.0.0.1` on a free port).  |
+| `--addr host:port` | Listen address (defaults to `0.0.0.0:17000`; the next free port is used if it is busy). |
 | `--no-open`      | Do not open the browser automatically.                      |
 | `--static DIR`   | Serve a pre-built web app from DIR instead of the bundled UI. |
+
+In the React UI, set breakpoints by clicking the editor's left gutter (next to
+the line numbers) and remove them with a double-click; the **Breakpoints** panel
+lists them grouped per file (with *Current file* and *All* tabs) and they are
+saved to `.gad.yaml` under `ide.breakpoints`.
+
+The command ships a build-free bundled UI. For the richer **React + CodeMirror**
+interface, build `web/app` and point `--static` at it (or use `make ide-react`):
+
+```sh
+make ide-react                                   # builds web/app and serves it
+gad ide --static web/app/dist samples            # equivalent, after a build
+```
 
 To embed Gad in a Go program instead of running it from the CLI, see
 [Embedding in Go](embedding.md).

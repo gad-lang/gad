@@ -223,6 +223,32 @@ func TestModulesList(t *testing.T) {
 	}
 }
 
+func TestDebugFramesCarryLocals(t *testing.T) {
+	_, h, _ := newTestServer(t)
+	// Breakpoint inside the function: there should be two frames, the innermost
+	// carrying its own named locals (a, b, s).
+	src := "add := func(a, b) {\n  s := a + b\n  return s\n}\nr := add(10, 20)\nreturn r\n"
+	w := do(t, h, "POST", "/api/ide/debug/start", StartRequest{Source: src, Breakpoints: []int{3}})
+	resp := decode[DebugResponse](t, w)
+	if resp.State != "stopped" {
+		t.Fatalf("expected stopped, got %+v", resp)
+	}
+	if len(resp.Frames) < 2 {
+		t.Fatalf("expected at least 2 frames, got %d: %+v", len(resp.Frames), resp.Frames)
+	}
+	inner := resp.Frames[0]
+	if inner.File == "" || inner.Line == 0 {
+		t.Errorf("inner frame missing file/line: %+v", inner)
+	}
+	names := map[string]string{}
+	for _, v := range inner.Locals {
+		names[v.Name] = v.Value
+	}
+	if names["a"] != "10" || names["b"] != "20" || names["s"] != "30" {
+		t.Fatalf("inner frame locals wrong: %+v", inner.Locals)
+	}
+}
+
 func TestDebugSessionOverHTTP(t *testing.T) {
 	_, h, _ := newTestServer(t)
 	w := do(t, h, "POST", "/api/ide/debug/start", StartRequest{

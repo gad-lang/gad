@@ -95,6 +95,11 @@ type CompiledFunction struct {
 	// this value allow to perform named args validation.
 	NamedParamsMap map[string]int
 	module         *ModuleSpec
+
+	// LocalNames holds debug names for local slots (slot index -> name), used by
+	// the debugger to label locals. It is populated by the compiler and may be
+	// nil (e.g. for hand-built functions); it round-trips through the encoder.
+	LocalNames []string
 }
 
 func (o *CompiledFunction) SetModule(m *ModuleSpec) {
@@ -178,6 +183,7 @@ func (o *CompiledFunction) Copy() Object {
 		Params:       o.Params,
 		NamedParams:  o.NamedParams,
 		ReturnTypes:  o.ReturnTypes,
+		LocalNames:   o.LocalNames,
 	}
 }
 

@@ -5,6 +5,7 @@ import { defaultKeymap, indentWithTab } from "@codemirror/commands";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { basicSetup } from "codemirror";
 import { gad, type DiagnoseFn } from "@gad-lang/codemirror-gad";
+import { breakpointGutter, getBreakpointLines, setEditorBreakpoints } from "./breakpointGutter";
 
 export interface EditorHandle {
   getValue(): string;
@@ -16,6 +17,9 @@ interface EditorProps {
   diagnose?: DiagnoseFn;
   dark?: boolean;
   onChange?: (value: string) => void;
+  /** Initial breakpoint lines (1-based) and a callback when they change. */
+  breakpoints?: number[];
+  onBreakpointsChange?: (lines: number[]) => void;
 }
 
 /** Editor theme for the active light/dark mode. */
@@ -30,13 +34,16 @@ function themeExtension(dark: boolean): Extension {
  * view, via a Compartment reconfigure.
  */
 export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
-  { initialDoc, diagnose, dark = false, onChange },
+  { initialDoc, diagnose, dark = false, onChange, breakpoints, onBreakpointsChange },
   ref,
 ) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const gadCompartment = useRef(new Compartment());
   const themeCompartment = useRef(new Compartment());
+  // Keep the latest breakpoint callback so the gutter (created once) can call it.
+  const onBpRef = useRef(onBreakpointsChange);
+  onBpRef.current = onBreakpointsChange;
 
   useImperativeHandle(ref, () => ({
     getValue: () => view.current?.state.doc.toString() ?? "",
@@ -52,6 +59,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     if (!host.current) return;
     const extensions: Extension[] = [
       basicSetup,
+      breakpointGutter((lines) => onBpRef.current?.(lines)),
       keymap.of([...defaultKeymap, indentWithTab]),
       themeCompartment.current.of(themeExtension(dark)),
       gadCompartment.current.of(gad({ diagnose })),
@@ -65,6 +73,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       parent: host.current,
     });
     view.current = v;
+    if (breakpoints && breakpoints.length) setEditorBreakpoints(v, breakpoints);
     return () => v.destroy();
     // Intentionally run once; doc/diagnose updates are handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,6 +92,14 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       effects: themeCompartment.current.reconfigure(themeExtension(dark)),
     });
   }, [dark]);
+
+  // Reconcile when breakpoints are changed externally (e.g. via the panel).
+  useEffect(() => {
+    const v = view.current;
+    if (!v) return;
+    const next = breakpoints ?? [];
+    if (getBreakpointLines(v).join(",") !== next.join(",")) setEditorBreakpoints(v, next);
+  }, [breakpoints]);
 
   return <div className="editor" ref={host} />;
 });

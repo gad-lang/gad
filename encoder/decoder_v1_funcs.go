@@ -428,6 +428,16 @@ func init() {
 						return
 					},
 				)
+			case 9:
+				err = DecodeIterator(ctx,
+					func(l int) {
+						o.LocalNames = make([]string, l)
+					},
+					func(i int) (err error) {
+						o.LocalNames[i], err = readString(ctx)
+						return
+					},
+				)
 			}
 			return
 		})

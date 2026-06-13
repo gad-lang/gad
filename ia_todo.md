@@ -20,7 +20,7 @@
 - [x] create cmd/build-website for build full gad lang static website (language API, user documentation with term searcher) 
       with dark/light theme and examples with WASM compatible for github web page, create github action for auto rebuild website and publish then.
       the website generator per commit `/COMMIT-ID` and must publish to github release version on RELEASE.
-- [ ] create subcommand "ide" in cmd/gad to start web app with dark/light theme, in React, providing best ide with tabs
+- [x] create subcommand "ide" in cmd/gad to start web app with dark/light theme, in React, providing best ide with tabs
       for multiples files editing (on CWD or first command arg PATH - if PATH is single file, must edit here), 
       format, run and debug buttons. formatting settings (reading and save to .gad.yaml), using codemirron plugin.
       allowing open/hide panels and move to left/right/buttom. saving panel positions to .gad.yaml "ide" key.

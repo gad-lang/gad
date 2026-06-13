@@ -340,9 +340,25 @@ Backend + CLI + bundled UI are done and tested; a React/CodeMirror frontend
   writes the real inverted `no-*-in-new-line` keys so `gad fmt` accepts them.
   The canonical formatter drops comments, so samples are intentionally not
   auto-formatted.
-- REMAINING for #23: a React + gad-codemirror IDE page in `web/app` (served via
-  `gad ide --static web/app/dist`) to satisfy the literal "in React" ask; the
-  bundled vanilla UI already covers the functionality.
+- React + gad-codemirror IDE (the literal "in React" ask) — DONE: `web/app`
+  gains `src/backends/ide.ts` (typed `/api/ide/*` client + `probeIde`) and
+  `src/Ide.tsx` (the full IDE: tree, tabs, CodeMirror `Editor`, Save/Format/
+  Run/Debug, run+debug dialogs, call stack + locals, settings, theme,
+  self-contained `<IdeStyles>`). `src/main.tsx` probes the IDE backend on boot
+  and renders `<Ide/>` when present, else the playground `<App/>` — so one Vite
+  build serves both. Served via `gad ide --static web/app/dist` / `make
+  ide-react`. `pnpm run build` clean; verified `gad ide --static` serves the
+  built app + API. NOTE: dist/ is gitignored (build artifact), so the bundled
+  vanilla UI remains the default out-of-the-box experience.
+- Gutter breakpoints (React UI): `src/breakpointGutter.ts` is a CM6 breakpoint
+  gutter — single click on the gutter sets a breakpoint, double-click removes it
+  (1-based lines). `Editor.tsx` gains `breakpoints`/`onBreakpointsChange` props
+  (controlled, reconciled via `setBreakpointsEffect`). `Ide.tsx` stores them in
+  `.gad.yaml` `ide.breakpoints` ({path:[lines]}), feeds them to the debugger
+  (the debug dialog no longer has a breakpoints field) and adds a **Breakpoints**
+  bottom pane with *Current file* / *All* (grouped-per-file) tabs and per-row
+  remove. `pnpm run build` clean.
+- #23 COMPLETE (bundled UI + React UI + samples + gutter breakpoints).
 
 ### REMAINING asks (ia_todo)
 - #20 `cmd/build-website` (in progress).

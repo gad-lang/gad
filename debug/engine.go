@@ -52,6 +52,8 @@ type Frame struct {
 	File     string
 	Line     int
 	Column   int
+	// Locals holds this frame's local variables.
+	Locals []Variable
 }
 
 // Variable is a named local value snapshot.
@@ -200,7 +202,22 @@ func (e *Engine) Frames() []Frame {
 	df := vm.DebugFrames()
 	out := make([]Frame, len(df))
 	for i, f := range df {
-		out[i] = Frame{FuncName: f.FuncName, File: f.Pos.FileName(), Line: f.Pos.Line, Column: f.Pos.Column}
+		out[i] = Frame{
+			FuncName: f.FuncName,
+			File:     f.Pos.FileName(),
+			Line:     f.Pos.Line,
+			Column:   f.Pos.Column,
+			Locals:   variablesOf(f.Locals, f.LocalNames),
+		}
+	}
+	return out
+}
+
+// variablesOf builds named Variable snapshots from raw local values and names.
+func variablesOf(objs []gad.Object, names []string) []Variable {
+	out := make([]Variable, len(objs))
+	for i, o := range objs {
+		out[i] = Variable{Name: localName(names, i), Type: objectType(o), Value: objectString(o)}
 	}
 	return out
 }
@@ -214,10 +231,11 @@ func (e *Engine) Locals() []Variable {
 		return nil
 	}
 	objs := vm.DebugLocals()
+	names := vm.DebugLocalNames()
 	out := make([]Variable, len(objs))
 	for i, o := range objs {
 		out[i] = Variable{
-			Name:  localName(i),
+			Name:  localName(names, i),
 			Type:  objectType(o),
 			Value: objectString(o),
 		}
@@ -225,7 +243,11 @@ func (e *Engine) Locals() []Variable {
 	return out
 }
 
-func localName(i int) string {
+// localName returns the debug name for slot i, falling back to "local<i>".
+func localName(names []string, i int) string {
+	if i < len(names) && names[i] != "" {
+		return names[i]
+	}
 	return "local" + itoa(i)
 }
 

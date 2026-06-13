@@ -86,11 +86,13 @@ type DebugVariable struct {
 	Value string `json:"value"`
 }
 
-// DebugFrame is one call-stack frame.
+// DebugFrame is one call-stack frame, including its own local variables.
 type DebugFrame struct {
-	Name   string `json:"name"`
-	Line   int    `json:"line"`
-	Column int    `json:"column"`
+	Name   string          `json:"name"`
+	File   string          `json:"file"`
+	Line   int             `json:"line"`
+	Column int             `json:"column"`
+	Locals []DebugVariable `json:"locals"`
 }
 
 // DebugResponse is the result of a start/command call.
@@ -233,7 +235,11 @@ func framesOf(eng *debug.Engine) []DebugFrame {
 	// Innermost first.
 	for i := len(src) - 1; i >= 0; i-- {
 		f := src[i]
-		out = append(out, DebugFrame{Name: f.FuncName, Line: f.Line, Column: f.Column})
+		locals := make([]DebugVariable, len(f.Locals))
+		for j, v := range f.Locals {
+			locals[j] = DebugVariable{Name: v.Name, Type: v.Type, Value: v.Value}
+		}
+		out = append(out, DebugFrame{Name: f.FuncName, File: f.File, Line: f.Line, Column: f.Column, Locals: locals})
 	}
 	return out
 }
