@@ -56,6 +56,12 @@ web-server:
 web-build: web-install
 	cd web/app && $(NVM_USE) && pnpm run build
 
+# Launch the bundled web IDE for the samples workspace (override with DIR=path).
+DIR ?= samples
+.PHONY: ide
+ide:
+	go run ./cmd/gad ide $(DIR)
+
 .PHONY: test
 test: version generate lint
 	GOTOOLCHAIN=go1.25.0+auto go test -count=1 -cover ./...

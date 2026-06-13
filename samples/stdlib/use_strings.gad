@@ -1,0 +1,13 @@
+// use_strings.gad — the builtin `strings` module.
+
+strings := import("strings")
+
+s := "  Gad Lang  "
+println("upper:  ", strings.ToUpper(s))
+println("lower:  ", strings.ToLower(s))
+println("trimmed:", strings.TrimSpace(s))
+println("split:  ", strings.Split("a,b,c", ","))
+println("hasPfx: ", strings.HasPrefix("gadlang", "gad"))
+println("replace:", strings.Replace("aaa", "a", "b", -1))
+
+return strings.ToUpper("done")

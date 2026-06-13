@@ -1,0 +1,11 @@
+// use_fmt.gad — the builtin `fmt` module: formatted strings.
+
+fmt := import("fmt")
+
+name := "Gad"
+n := 42
+
+println(fmt.Sprintf("%s has %d letters", name, len(name)))
+println(fmt.Sprintf("hex %x, padded %05d", n, n))
+
+return fmt.Sprintf("%s=%d", name, n)

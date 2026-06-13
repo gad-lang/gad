@@ -1,0 +1,24 @@
+// 02_values_and_types.gad — primitive values and the typeof builtin.
+
+i := 42                 // int
+f := 3.14               // float
+b := true               // bool
+s := "text"             // str
+r := `raw\ttext`        // rawStr (no escapes)
+c := 'A'                // char
+n := nil                // nil
+arr := [1, 2, 3]        // array
+d := {a: 1, b: 2}       // dict
+
+// typeof(v) returns the runtime type of a value.
+println("int    ", i, typeof(i))
+println("float  ", f, typeof(f))
+println("bool   ", b, typeof(b))
+println("str    ", s, typeof(s))
+println("rawStr ", r, typeof(r))
+println("char   ", c, typeof(c))
+println("nil    ", n, typeof(n))
+println("array  ", arr, typeof(arr))
+println("dict   ", d, typeof(d))
+
+return [typeof(i), typeof(s), typeof(arr), typeof(d)]

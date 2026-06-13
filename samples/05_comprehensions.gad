@@ -1,0 +1,14 @@
+// 05_comprehensions.gad — Python-like array and dict comprehensions.
+
+// Array comprehension: [expr for x in iterable if cond]
+evens := [n for n in [1, 2, 3, 4, 5, 6] if n % 2 == 0]
+println("evens   =", evens)
+
+squares := [n * n for n in [1, 2, 3, 4] if n > 1]
+println("squares =", squares)
+
+// Dict comprehension: {key: value for x in iterable}
+lengths := {w: len(w) for w in ["a", "bb", "ccc"]}
+println("lengths =", lengths)
+
+return squares

@@ -1,0 +1,16 @@
+// use_time.gad — the builtin `time` module: durations and arithmetic.
+
+time := import("time")
+
+d := 2 * time.Hour + 30 * time.Minute
+println("duration ns:", d)
+println("as string:  ", time.DurationString(d))
+
+// Build a fixed timestamp so the output is deterministic.
+// Date(year, month, day[, hour, min, sec, nsec, loc]); loc from time.UTC().
+t := time.Date(2026, 6, 13, 9, 0, 0, 0, time.UTC())
+println("date:       ", t)
+println("year:       ", t.Year())
+println("plus 1 day: ", t.Add(24 * time.Hour))
+
+return t.Year()

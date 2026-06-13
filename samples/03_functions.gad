@@ -1,0 +1,31 @@
+// 03_functions.gad — functions, arrow closures, closures and variadics.
+
+// Regular function.
+sum := func(a, b) {
+    return a + b
+}
+
+// Arrow closure: (params) => expr
+double := (x) => x * 2
+
+// Closure capturing an enclosing variable.
+adder := func(base) {
+    return (x) => base + x
+}
+add5 := adder(5)
+
+// Variadic: the last positional parameter (*rest) collects extra arguments.
+total := func(*nums) {
+    acc := 0
+    for _, n in nums {
+        acc += n
+    }
+    return acc
+}
+
+println("sum(2, 3)    =", sum(2, 3))
+println("double(21)   =", double(21))
+println("add5(4)      =", add5(4))
+println("total(1..4)  =", total(1, 2, 3, 4))
+
+return total(1, 2, 3, 4)

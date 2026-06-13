@@ -1,4 +1,4 @@
-package main
+package ide
 
 import (
 	"bytes"
@@ -14,18 +14,21 @@ import (
 	"github.com/gad-lang/gad/web/gadbridge"
 )
 
-// A request/response debugging protocol that the web "Run & Debug" page drives:
-// /api/debug/start launches a session and runs to the first stop (or end);
-// /api/debug/command resumes (continue/step) to the next stop (or end). Each
+// A request/response debugging protocol that the web "Run & Debug" page (and the
+// IDE) drive: HandleStart launches a session and runs to the first stop (or
+// end); HandleCommand resumes (continue/step) to the next stop (or end). Each
 // response carries the stop event, the call stack, locals and any new output.
+// It is exported so both web/server and web/ide share one implementation.
 
-type debugManager struct {
+// DebugManager owns the live debug sessions.
+type DebugManager struct {
 	mu       sync.Mutex
 	sessions map[string]*debugSession
 }
 
-func newDebugManager() *debugManager {
-	return &debugManager{sessions: map[string]*debugSession{}}
+// NewDebugManager returns an empty DebugManager.
+func NewDebugManager() *DebugManager {
+	return &DebugManager{sessions: map[string]*debugSession{}}
 }
 
 type debugSession struct {
@@ -63,46 +66,52 @@ func (b *syncBuffer) since(n int) (string, int) {
 	return s[n:], len(s)
 }
 
-// Wire structures.
-type startRequest struct {
+// StartRequest launches a debug session.
+type StartRequest struct {
 	Source      string `json:"source"`
 	Breakpoints []int  `json:"breakpoints"`
 	StopOnEntry bool   `json:"stopOnEntry"`
 }
 
-type commandRequest struct {
+// CommandRequest resumes a session (continue/next/stepIn/stepOut/pause).
+type CommandRequest struct {
 	Session string `json:"session"`
 	Command string `json:"command"`
 }
 
-type debugVariable struct {
+// DebugVariable is a local variable observed at a stop.
+type DebugVariable struct {
 	Name  string `json:"name"`
 	Type  string `json:"type"`
 	Value string `json:"value"`
 }
 
-type debugFrame struct {
+// DebugFrame is one call-stack frame.
+type DebugFrame struct {
 	Name   string `json:"name"`
 	Line   int    `json:"line"`
 	Column int    `json:"column"`
 }
 
-type debugResponse struct {
+// DebugResponse is the result of a start/command call.
+type DebugResponse struct {
 	Session     string                 `json:"session,omitempty"`
 	State       string                 `json:"state"` // "stopped" | "terminated" | "error"
 	Reason      string                 `json:"reason,omitempty"`
 	Line        int                    `json:"line,omitempty"`
 	Column      int                    `json:"column,omitempty"`
-	Frames      []debugFrame           `json:"frames,omitempty"`
-	Locals      []debugVariable        `json:"locals,omitempty"`
+	Frames      []DebugFrame           `json:"frames,omitempty"`
+	Locals      []DebugVariable        `json:"locals,omitempty"`
 	Output      string                 `json:"output,omitempty"`
 	Result      string                 `json:"result,omitempty"`
 	Error       string                 `json:"error,omitempty"`
 	Diagnostics []gadbridge.Diagnostic `json:"diagnostics,omitempty"`
 }
 
-func (m *debugManager) handleStart(w http.ResponseWriter, r *http.Request) {
-	var req startRequest
+// HandleStart compiles the source, starts a VM under the debugger and runs to
+// the first stop (breakpoint, stop-on-entry) or to completion.
+func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
+	var req StartRequest
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
@@ -112,7 +121,7 @@ func (m *debugManager) handleStart(w http.ResponseWriter, r *http.Request) {
 	st := gad.NewSymbolTable(builtins.NameSet)
 	_, bc, err := gad.Compile(st, []byte(req.Source), gad.CompileOptions{})
 	if err != nil {
-		writeJSON(w, debugResponse{State: "error", Diagnostics: gadbridge.Diagnose(req.Source)})
+		writeJSON(w, DebugResponse{State: "error", Diagnostics: gadbridge.Diagnose(req.Source)})
 		return
 	}
 
@@ -145,8 +154,9 @@ func (m *debugManager) handleStart(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, resp)
 }
 
-func (m *debugManager) handleCommand(w http.ResponseWriter, r *http.Request) {
-	var req commandRequest
+// HandleCommand resumes an existing session to the next stop or completion.
+func (m *DebugManager) HandleCommand(w http.ResponseWriter, r *http.Request) {
+	var req CommandRequest
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
@@ -155,7 +165,7 @@ func (m *debugManager) handleCommand(w http.ResponseWriter, r *http.Request) {
 	sess := m.sessions[req.Session]
 	m.mu.Unlock()
 	if sess == nil {
-		writeJSON(w, debugResponse{State: "error", Error: "unknown or finished session"})
+		writeJSON(w, DebugResponse{State: "error", Error: "unknown or finished session"})
 		return
 	}
 
@@ -171,7 +181,7 @@ func (m *debugManager) handleCommand(w http.ResponseWriter, r *http.Request) {
 	case "pause":
 		sess.eng.Pause()
 	default:
-		writeJSON(w, debugResponse{State: "error", Error: "unknown command " + req.Command})
+		writeJSON(w, DebugResponse{State: "error", Error: "unknown command " + req.Command})
 		return
 	}
 
@@ -183,7 +193,7 @@ func (m *debugManager) handleCommand(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, resp)
 }
 
-func (m *debugManager) remove(id string) {
+func (m *DebugManager) remove(id string) {
 	m.mu.Lock()
 	delete(m.sessions, id)
 	m.mu.Unlock()
@@ -191,12 +201,12 @@ func (m *debugManager) remove(id string) {
 
 // waitNext resumes the session until the next stop or program completion and
 // builds the response (including the call stack, locals and new output).
-func (s *debugSession) waitNext() debugResponse {
+func (s *debugSession) waitNext() DebugResponse {
 	select {
 	case ev := <-s.eng.Stops():
 		out, n := s.out.since(s.outLen)
 		s.outLen = n
-		return debugResponse{
+		return DebugResponse{
 			State:  "stopped",
 			Reason: string(ev.Reason),
 			Line:   ev.Line,
@@ -209,7 +219,7 @@ func (s *debugSession) waitNext() debugResponse {
 		s.ended = true
 		out, n := s.out.since(s.outLen)
 		s.outLen = n
-		resp := debugResponse{State: "terminated", Output: out, Result: r.result}
+		resp := DebugResponse{State: "terminated", Output: out, Result: r.result}
 		if r.err != nil {
 			resp.Error = r.err.Error()
 		}
@@ -217,22 +227,22 @@ func (s *debugSession) waitNext() debugResponse {
 	}
 }
 
-func framesOf(eng *debug.Engine) []debugFrame {
+func framesOf(eng *debug.Engine) []DebugFrame {
 	src := eng.Frames()
-	out := make([]debugFrame, 0, len(src))
+	out := make([]DebugFrame, 0, len(src))
 	// Innermost first.
 	for i := len(src) - 1; i >= 0; i-- {
 		f := src[i]
-		out = append(out, debugFrame{Name: f.FuncName, Line: f.Line, Column: f.Column})
+		out = append(out, DebugFrame{Name: f.FuncName, Line: f.Line, Column: f.Column})
 	}
 	return out
 }
 
-func localsOf(eng *debug.Engine) []debugVariable {
+func localsOf(eng *debug.Engine) []DebugVariable {
 	src := eng.Locals()
-	out := make([]debugVariable, len(src))
+	out := make([]DebugVariable, len(src))
 	for i, v := range src {
-		out[i] = debugVariable{Name: v.Name, Type: v.Type, Value: v.Value}
+		out[i] = DebugVariable{Name: v.Name, Type: v.Type, Value: v.Value}
 	}
 	return out
 }
@@ -241,9 +251,4 @@ func newSessionID() string {
 	var b [8]byte
 	_, _ = rand.Read(b[:])
 	return hex.EncodeToString(b[:])
-}
-
-func writeJSON(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(v)
 }

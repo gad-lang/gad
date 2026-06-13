@@ -102,6 +102,8 @@ The CLI is organised as subcommands. Run `gad help` for the list, or
 |---------------|----------------------------------------------------------|
 | `gad run`     | Run a script file/stdin, or start the REPL (the default).|
 | `gad fmt`     | Format Gad source files in place.                        |
+| `gad debug`   | Debug a script (interactive REPL or `--dap` for editors).|
+| `gad ide`     | Start a local web IDE for a workspace directory or file. |
 | `gad help`    | Show help and list subcommands.                          |
 
 `gad` with no subcommand behaves as `gad run`, so `gad script.gad`,
@@ -132,6 +134,31 @@ It supports include/exclude globs and regexes, `--out`, `--backup`, parallel
 `--jobs`, layout `--no-*` flags, transpile flags, machine-readable `--report`
 output and a `.gad.yaml` config file. See **[Formatting](formatting.md)** for
 the full reference.
+
+### The web IDE (`gad ide`)
+
+`gad ide [PATH]` starts a local web IDE in your browser for a workspace
+directory (or a single file to edit; PATH defaults to the current directory):
+
+```sh
+gad ide                # edit the current directory
+gad ide src/           # open a project directory
+gad ide main.gad       # open just one file
+```
+
+The IDE offers a file tree, multi-file tabs, formatting, running and debugging
+(breakpoints, stepping, call stack and locals). Per-file **Run**/**Debug**
+dialogs let you set arguments, enable or disable builtin modules, toggle safe
+mode and save the combined STDOUT/STDERR to a file. Formatter settings and the
+panel layout are stored in the workspace `.gad.yaml` (`fmt` and `ide` keys).
+
+Useful flags:
+
+| Flag             | Purpose                                                     |
+|------------------|-------------------------------------------------------------|
+| `--addr host:port` | Listen address (defaults to `127.0.0.1` on a free port).  |
+| `--no-open`      | Do not open the browser automatically.                      |
+| `--static DIR`   | Serve a pre-built web app from DIR instead of the bundled UI. |
 
 To embed Gad in a Go program instead of running it from the CLI, see
 [Embedding in Go](embedding.md).

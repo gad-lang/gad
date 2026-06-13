@@ -122,6 +122,11 @@ func compile(src string) (*parser.File, *gad.Bytecode, error) {
 	return gad.Compile(st, []byte(src), gad.CompileOptions{})
 }
 
+// ErrorDiagnostics converts a Gad parse/compile/runtime error into positioned
+// diagnostics, for callers (such as the IDE backend) that run Gad with custom
+// options but still want editor-friendly error positions.
+func ErrorDiagnostics(err error) []Diagnostic { return errorDiagnostics(err) }
+
 // errorDiagnostics converts a Gad parse/compile/runtime error into positioned
 // diagnostics. parser.ErrorList yields one diagnostic per error; positioned
 // single errors (parser/compiler) are mapped to their line/column; anything

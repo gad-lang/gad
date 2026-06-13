@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gad IDE</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");if(s==="light"||s==="dark")document.documentElement.dataset.theme=s;else document.documentElement.dataset.theme=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";})();</script>
+<style>
+:root{--bg:#fafafa;--panel:#fff;--border:#e2e2ea;--fg:#1d1d28;--muted:#6b6b80;--accent:#3b5bdb;--code:#f3f3f7;--ok:#2b8a3e;--err:#e03131;font-family:system-ui,sans-serif;color-scheme:light}
+:root[data-theme=dark]{--bg:#1e1e2e;--panel:#252539;--border:#3a3a52;--fg:#e4e4f0;--muted:#9a9ab5;--accent:#8aa6ff;--code:#2a2a3d;--ok:#51cf66;--err:#ff6b6b;color-scheme:dark}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font-size:14px}
+button{background:var(--panel);border:1px solid var(--border);color:var(--fg);border-radius:6px;padding:.3rem .6rem;cursor:pointer;font:inherit}
+button:hover{border-color:var(--accent)}button:disabled{opacity:.5;cursor:default}
+input,select,textarea{background:var(--code);border:1px solid var(--border);color:var(--fg);border-radius:6px;padding:.3rem .5rem;font:inherit}
+header{display:flex;align-items:center;gap:.5rem;padding:.4rem .7rem;border-bottom:1px solid var(--border);background:var(--panel)}
+header .brand{font-weight:700;margin-right:.5rem}
+header .ws{color:var(--muted);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40vw}
+header .spacer{flex:1}
+.main{flex:1;display:flex;min-height:0}
+.sidebar{width:240px;min-width:120px;border-right:1px solid var(--border);background:var(--panel);overflow:auto;padding:.4rem}
+.sidebar .head{display:flex;justify-content:space-between;align-items:center;font-size:.72rem;text-transform:uppercase;color:var(--muted);letter-spacing:.05em;padding:.2rem .3rem}
+.tree{user-select:none}
+.tree .node{display:flex;align-items:center;gap:.25rem;padding:.12rem .3rem;border-radius:4px;cursor:pointer;white-space:nowrap}
+.tree .node:hover{background:var(--code)}
+.tree .node.active{background:var(--accent);color:#fff}
+.tree .children{margin-left:.8rem}
+.gutter{width:5px;cursor:col-resize;background:transparent}
+.gutter.h{height:5px;width:auto;cursor:row-resize}
+.gutter:hover{background:var(--accent)}
+.center{flex:1;display:flex;flex-direction:column;min-width:0}
+.tabs{display:flex;overflow:auto;border-bottom:1px solid var(--border);background:var(--panel)}
+.tab{display:flex;align-items:center;gap:.4rem;padding:.3rem .6rem;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap}
+.tab.active{background:var(--bg)}.tab.dirty .name::after{content:" •";color:var(--accent)}
+.tab .x{opacity:.6}.tab .x:hover{opacity:1;color:var(--err)}
+.toolbar{display:flex;gap:.4rem;align-items:center;padding:.35rem .6rem;border-bottom:1px solid var(--border)}
+.editor{flex:1;display:flex;min-height:0}
+.editor textarea{flex:1;border:0;border-radius:0;resize:none;padding:.6rem .8rem;font-family:ui-monospace,monospace;line-height:1.5;tab-size:4}
+.editor textarea:focus{outline:none}
+.empty{margin:auto;color:var(--muted)}
+.output{height:200px;min-height:60px;border-top:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.output .head{display:flex;gap:.5rem;align-items:center;padding:.25rem .6rem;border-bottom:1px solid var(--border);font-size:.8rem}
+.output .head .seg{display:flex;gap:.3rem}
+.output .head .seg button.active{background:var(--accent);color:#fff}
+.output pre{flex:1;margin:0;overflow:auto;padding:.5rem .8rem;white-space:pre-wrap;font-family:ui-monospace,monospace}
+.diag{color:var(--err)}.ok{color:var(--ok)}.muted{color:var(--muted)}
+.stack{font-size:.85rem}.stack .frame{padding:.1rem .3rem;cursor:pointer;border-radius:4px}.stack .frame:hover{background:var(--code)}
+.locals td{padding:.1rem .5rem;border-bottom:1px solid var(--border);font-family:ui-monospace,monospace;font-size:.82rem}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:50}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:1rem 1.2rem;min-width:380px;max-width:90vw;max-height:85vh;overflow:auto}
+.modal h3{margin:.2rem 0 .8rem}.modal .row{margin:.5rem 0;display:flex;flex-direction:column;gap:.25rem}
+.modal .mods{display:grid;grid-template-columns:1fr 1fr;gap:.2rem .8rem;max-height:160px;overflow:auto}
+.modal .actions{display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem}
+.dbgbar{display:flex;gap:.3rem;align-items:center}
+label.ck{display:flex;gap:.35rem;align-items:center;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">Gad IDE</span>
+  <span class="ws" id="ws"></span>
+  <span class="spacer"></span>
+  <button id="cfgBtn" title="Formatter & layout settings">⚙ Settings</button>
+  <button id="themeBtn" title="Toggle theme">◐</button>
+</header>
+<div class="main" id="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="head"><span>Explorer</span><button id="newBtn" title="New file" style="padding:.05rem .35rem">+</button></div>
+    <div class="tree" id="tree"></div>
+  </aside>
+  <div class="gutter" id="gutterX"></div>
+  <section class="center">
+    <div class="tabs" id="tabs"></div>
+    <div class="toolbar" id="toolbar">
+      <button id="saveBtn">Save</button>
+      <button id="fmtBtn">Format</button>
+      <button id="runBtn">Run ▶</button>
+      <button id="dbgBtn">Debug 🐞</button>
+      <span class="dbgbar" id="dbgbar" style="display:none">
+        <button data-cmd="continue">Continue</button>
+        <button data-cmd="next">Step Over</button>
+        <button data-cmd="stepIn">Step In</button>
+        <button data-cmd="stepOut">Step Out</button>
+        <button data-cmd="stop">Stop</button>
+      </span>
+      <span class="spacer" style="flex:1"></span>
+      <span class="muted" id="status"></span>
+    </div>
+    <div class="editor" id="editorWrap"><div class="empty" id="empty">Open a file from the explorer</div></div>
+    <div class="gutter h" id="gutterY"></div>
+    <div class="output" id="output">
+      <div class="head">
+        <div class="seg" id="outTabs">
+          <button data-pane="out" class="active">Output</button>
+          <button data-pane="stack">Call stack</button>
+          <button data-pane="locals">Locals</button>
+        </div>
+        <span class="spacer" style="flex:1"></span>
+        <button id="clearOut" style="padding:.05rem .4rem">Clear</button>
+      </div>
+      <pre id="outPane"></pre>
+      <pre id="stackPane" style="display:none"></pre>
+      <pre id="localsPane" style="display:none"></pre>
+    </div>
+  </section>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

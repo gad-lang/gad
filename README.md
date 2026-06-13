@@ -122,6 +122,32 @@ Gad has a REPL application to learn and test Gad scripts.
 
 ![repl-gif](https://github.com/gad-lang/gad/blob/main/docs/repl.gif)
 
+### CLI tools
+
+The `gad` binary is organised as subcommands:
+
+| Command     | Purpose                                                           |
+|-------------|------------------------------------------------------------------|
+| `gad run`   | Run a script/stdin or start the REPL (the default).              |
+| `gad fmt`   | Format Gad source files in place.                                |
+| `gad debug` | Debug a script — interactive REPL or `--dap` for editors.        |
+| `gad ide`   | Start a local web IDE (file tree, tabs, format/run/debug).       |
+
+### Samples & the web IDE
+
+The [`samples/`](samples) directory is a guided tour of the language and the
+standard library. Open it in the bundled web IDE:
+
+```sh
+make ide                 # serves the samples workspace in your browser
+# or: gad ide samples    # or: gad ide path/to/your/project
+```
+
+The IDE offers multi-file tabs, formatting, running and full debugging
+(breakpoints, stepping, call stack and locals), with per-file run/debug dialogs
+(arguments, builtin-module toggles, output capture) and settings stored in the
+workspace `.gad.yaml`. See [samples/README.md](samples/README.md).
+
 This example is to show some features of Gad.
 
 <https://play.golang.org/p/1Tj6joRmLiX>

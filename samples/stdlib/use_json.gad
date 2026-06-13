@@ -1,0 +1,14 @@
+// use_json.gad — the builtin `json` module: encode and decode.
+
+json := import("json")
+
+data := {name: "Gad", tags: ["fast", "embeddable"], version: 1}
+
+encoded := json.Marshal(data)
+println("encoded:", str(encoded))
+
+decoded := json.Unmarshal(`{"a": 1, "b": [2, 3]}`)
+println("decoded:", decoded)
+println("a + b0:", decoded.a + decoded.b[0])
+
+return decoded

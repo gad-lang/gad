@@ -1,0 +1,19 @@
+// 08_strings_bytes_regex.gad — strings, bytes literals and regex.
+
+s := "Hello, Gad"
+println("upper:", chars(s))           // characters
+println("len:  ", len(s))
+
+// Bytes literals: b"..." from string content, h"..." from hex.
+fromText := b"Hello"
+fromHex := h"48656c6c6f"              // "Hello" in hex
+println("b\"Hello\"        =", fromText, typeof(fromText))
+println("h\"48656c6c6f\"   =", fromHex)
+println("equal bytes:", str(fromText) == str(fromHex))
+
+// Regex literal /pattern/ and the match method.
+re := /(\w+)@(\w+)/
+m := re.match("user@example")
+println("regex match:", m)
+
+return str(fromText)

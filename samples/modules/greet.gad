@@ -1,0 +1,13 @@
+// greet.gad — a parameterised module. Import-time params are passed as
+// import("./greet.gad"; lang="pt").
+
+param (;lang="en")
+
+hello := match (lang) {
+    "pt": "Olá",
+    "es": "Hola",
+    else: "Hello",
+}
+
+export greet(name) => #"{hello}, {name}!"
+export language = lang

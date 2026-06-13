@@ -295,6 +295,55 @@ sync by a Go tool; full-stack scope.
 ### IDE task (ia_todo #23) refinement
 - Also: allow panel RESIZING and GROUPING with a tabs layout (added by user).
 
+### `gad ide` (ia_todo #23) — IMPLEMENTED so far (committed below)
+Backend + CLI + bundled UI are done and tested; a React/CodeMirror frontend
+(served via `--static`) is the remaining polish.
+- `web/ide/` package — the IDE HTTP backend, transport-agnostic (`New(path)` →
+  `*Server`; `Handler()`):
+  - `ide.go`: server, workspace metadata (`/api/ide/workspace`), JSON/CORS
+    helpers, optional static SPA serving.
+  - `fs.go`: sandboxed workspace filesystem — `tree` (skips hidden +
+    node_modules/dist/.git/.__tmp/vendor), `file` GET/PUT, `mkdir`, `delete`,
+    `rename`. `resolve()` rejects path traversal outside Root.
+  - `config.go`: `.gad.yaml` round-trip as a generic doc (preserves `fmt`, `ide`
+    and any other keys); missing file → empty doc.
+  - `run.go`: format/diagnose (reuse gadbridge), `modules` list, and `run` with
+    options — args (`param (*args)`), per-module enable/disable (helper +
+    `ModuleMap.Remove` for the always-on modules), safe mode, and saving
+    stdout+stderr to a workspace file.
+  - `debug.go`: the request/response debug manager MOVED here from
+    web/server/debug.go (now exported `DebugManager`/`StartRequest`/etc.);
+    web/server imports it (removed its duplicate + test). gadbridge gained an
+    exported `ErrorDiagnostics`.
+- `cmd/gad/ide.go` — `gad ide [--addr] [--static] [--no-open] [PATH]`. Default
+  addr `0.0.0.0:17000`; `listenWithFallback` scans forward to the next free port
+  (≤100) printing an `ALERT:` to STDERR; `browserHost` maps wildcard binds to
+  127.0.0.1 for the opened URL. Serves the embedded UI (`//go:embed ideapp`) or
+  `--static` build. Registered in `subcommandNames` + root.
+- `cmd/gad/ideapp/` — bundled single-file UI (index.html + app.js, vanilla JS,
+  no build step): file tree, multi-file tabs, Save/Format/Run/Debug, run+debug
+  dialogs (args, module toggles, safe mode, save-output, breakpoints,
+  stop-on-entry), call stack + locals panes, light/dark theme, resizable
+  sidebar/output gutters, layout + per-file run config persisted to `.gad.yaml`
+  `ide` key.
+- Tests `web/ide/ide_test.go` (tree/read/write/traversal/delete/rename/config/
+  format/diagnose/run+args/save-output/disabled-module/modules/debug-session) —
+  all green. `make ide` rule. Docs: `gad ide` section in
+  `doc/getting-started.md`.
+- `samples/` — a workspace of runnable, commented examples (01–08 language tour,
+  `modules/` source modules + imports, `stdlib/` builtin-module usage) plus
+  `samples/.gad.yaml` (valid `fmt:` keys = `no-*-in-new-line`, + `ide:` layout).
+  `make ide` defaults `DIR=samples`. All 13 verified with `.__tmp/gad run`; the
+  module example relies on the IDE's per-file workdir to resolve `./mathx.gad`
+  (it needs CWD=its dir under plain `gad run`). README + samples/README +
+  getting-started document `gad ide`. NOTE: the IDE fmt settings dialog now
+  writes the real inverted `no-*-in-new-line` keys so `gad fmt` accepts them.
+  The canonical formatter drops comments, so samples are intentionally not
+  auto-formatted.
+- REMAINING for #23: a React + gad-codemirror IDE page in `web/app` (served via
+  `gad ide --static web/app/dist`) to satisfy the literal "in React" ask; the
+  bundled vanilla UI already covers the functionality.
+
 ### REMAINING asks (ia_todo)
 - #20 `cmd/build-website` (in progress).
 - #23 `gad ide` subcommand: launch the React web app as a tabbed multi-file IDE

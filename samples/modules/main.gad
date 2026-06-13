@@ -1,0 +1,17 @@
+// main.gad — imports the sibling source modules in this directory.
+// Run from the repo root:  gad run samples/modules/main.gad
+
+mathx := import("./mathx.gad")
+println("pi          =", mathx.pi)
+println("square(7)   =", mathx.square(7))
+println("cube(3)     =", mathx.cube(3))
+println("circleArea  =", mathx.circleArea(2))
+println("rectArea    =", mathx.rectArea(3, 4))
+
+// Import with parameters (named import args). A module runs once and is then
+// cached, so the params apply on its first import.
+pt := import("./greet.gad"; lang="pt")
+println("language:", pt.language)   // pt
+println(pt.greet("Gad"))            // Olá, Gad!
+
+return mathx.square(7)

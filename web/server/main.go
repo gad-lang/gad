@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 
 	"github.com/gad-lang/gad/web/gadbridge"
+	"github.com/gad-lang/gad/web/ide"
 )
 
 func main() {
@@ -31,9 +32,9 @@ func main() {
 		return map[string]any{"diagnostics": gadbridge.Diagnose(src)}
 	}))
 
-	dbg := newDebugManager()
-	mux.HandleFunc("/api/debug/start", postOnly(dbg.handleStart))
-	mux.HandleFunc("/api/debug/command", postOnly(dbg.handleCommand))
+	dbg := ide.NewDebugManager()
+	mux.HandleFunc("/api/debug/start", postOnly(dbg.HandleStart))
+	mux.HandleFunc("/api/debug/command", postOnly(dbg.HandleCommand))
 
 	if info, err := os.Stat(*static); err == nil && info.IsDir() {
 		log.Printf("serving static files from %s", *static)

@@ -47,6 +47,7 @@ var subcommandNames = map[string]bool{
 	"run":    true,
 	"fmt":    true,
 	"debug":  true,
+	"ide":    true,
 	"help":   true,
 	"--help": true,
 }
@@ -67,6 +68,7 @@ func buildRootCommand() *cc.Command {
 	root.Sub(runCommand())
 	root.Sub(fmtCommand())
 	root.Sub(debugCommand())
+	root.Sub(ideCommand())
 	return root
 }
 
