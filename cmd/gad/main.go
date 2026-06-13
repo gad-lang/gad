@@ -27,6 +27,7 @@ import (
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/stdlib/helper"
+	cc "github.com/moisespsena-go/command-context"
 	"github.com/peterh/liner"
 
 	"github.com/gad-lang/gad/importers"
@@ -617,28 +618,7 @@ func parseFlags(
 	flagset *flag.FlagSet,
 	args []string,
 ) (filePath string, timeout time.Duration, params []string, err error) {
-	var (
-		trace    string
-		disabled string
-		module   bool
-	)
-	flagset.StringVar(&trace, "trace", "",
-		`Comma separated units: -trace parser,optimizer,compiler`)
-	flagset.BoolVar(&noOptimizer, "no-optimizer", false, `Disable optimization`)
-	flagset.BoolVar(&safe, "safe", false, `Disable al external acess modules: "http", "os" and "filepath"`)
-	flagset.BoolVar(&module, "module", false, `if SCRIPT_FILE does not exists, check exists in GADPATH`)
-	flagset.StringVar(&disabled, "disabled-modules", "", `Disable external acess modules by comma separated units: -disabled-modules http,os`)
-	flagset.DurationVar(&timeout, "timeout", 0,
-		"Program timeout. It is applicable if a script file is provided and "+
-			"must be non-zero duration")
-
-	disabledModules = map[string]bool{}
-
-	for _, v := range strings.Split(disabled, ",") {
-		if v = strings.TrimSpace(v); v != "" {
-			disabledModules[v] = true
-		}
-	}
+	rf := registerRunFlags(flagset)
 
 	flagset.Usage = func() {
 		_, _ = fmt.Fprint(flagset.Output(),
@@ -662,44 +642,71 @@ func parseFlags(
 		return
 	}
 
-	if trace != "" {
+	filePath, params = rf.apply(flagset)
+	timeout = rf.timeout
+	if filePath != "" && filePath != "-" {
+		_, err = os.Stat(filePath)
+		if os.IsNotExist(err) && rf.module {
+			for _, p := range sourcePath {
+				if _, err2 := os.Stat(p); err2 == nil {
+					filePath = filepath.Join(p, filePath)
+					break
+				}
+			}
+		}
+	}
+	return
+}
+
+// runFlags holds the flag values shared by the legacy entry point and the
+// `run` subcommand.
+type runFlags struct {
+	trace    string
+	disabled string
+	module   bool
+	timeout  time.Duration
+}
+
+// registerRunFlags registers the script-execution flags on flagset and returns
+// a runFlags holding their parsed values (valid after flagset.Parse).
+func registerRunFlags(flagset *flag.FlagSet) *runFlags {
+	rf := &runFlags{}
+	flagset.StringVar(&rf.trace, "trace", "",
+		`Comma separated units: -trace parser,optimizer,compiler`)
+	flagset.BoolVar(&noOptimizer, "no-optimizer", false, `Disable optimization`)
+	flagset.BoolVar(&safe, "safe", false, `Disable al external acess modules: "http", "os" and "filepath"`)
+	flagset.BoolVar(&rf.module, "module", false, `if SCRIPT_FILE does not exists, check exists in GADPATH`)
+	flagset.StringVar(&rf.disabled, "disabled-modules", "", `Disable external acess modules by comma separated units: -disabled-modules http,os`)
+	flagset.DurationVar(&rf.timeout, "timeout", 0,
+		"Program timeout. It is applicable if a script file is provided and "+
+			"must be non-zero duration")
+	return rf
+}
+
+// apply processes the parsed runFlags: it populates the disabled-modules set,
+// enables tracing, and resolves the script path and trailing params from the
+// remaining positional arguments.
+func (rf *runFlags) apply(flagset *flag.FlagSet) (filePath string, params []string) {
+	disabledModules = map[string]bool{}
+	for _, v := range strings.Split(rf.disabled, ",") {
+		if v = strings.TrimSpace(v); v != "" {
+			disabledModules[v] = true
+		}
+	}
+
+	if rf.trace != "" {
 		traceEnabled = true
-		trace = "," + trace + ","
-		if strings.Contains(trace, ",parser,") {
-			traceParser = true
-		}
-		if strings.Contains(trace, ",optimizer,") {
-			traceOptimizer = true
-		}
-		if strings.Contains(trace, ",compiler,") {
-			traceCompiler = true
-		}
+		trace := "," + rf.trace + ","
+		traceParser = strings.Contains(trace, ",parser,")
+		traceOptimizer = strings.Contains(trace, ",optimizer,")
+		traceCompiler = strings.Contains(trace, ",compiler,")
 	}
 
 	if flagset.NArg() < 1 {
 		return
 	}
-
 	filePath = flagset.Arg(0)
-
 	params = flagset.Args()[1:]
-
-	if filePath == "-" {
-		return
-	}
-
-	_, err = os.Stat(filePath)
-
-	if os.IsNotExist(err) && module {
-		var err2 error
-		for _, p := range sourcePath {
-			if _, err2 = os.Stat(p); err2 == nil {
-				filePath = filepath.Join(p, filePath)
-				break
-			}
-		}
-	}
-
 	return
 }
 
@@ -843,10 +850,38 @@ func setTerminalTitle(title string) {
 }
 
 func main() {
-	filePath, timeout, args, err := parseFlags(flag.CommandLine, os.Args[1:])
-	checkErr(err, nil)
+	args := os.Args[1:]
 
-	ctx, cancel := context.WithCancel(context.Background())
+	// Subcommands are dispatched through command-context; a bare invocation
+	// (REPL, `gad FILE ...`, stdin) keeps the legacy behavior so existing usage
+	// and scripts are unaffected.
+	if len(args) > 0 && isSubcommand(args[0]) {
+		ctx, err := buildRootCommand().Parse(&cc.CommandContext{
+			InputArgs: args,
+			Context:   context.Background(),
+		})
+		checkErr(err, nil)
+		if err := ctx.Run(); err != nil {
+			var ee *exitError
+			if errors.As(err, &ee) {
+				os.Exit(ee.code) // errors already reported to stderr
+			}
+			checkErr(err, nil)
+		}
+		return
+	}
+
+	filePath, timeout, params, err := parseFlags(flag.CommandLine, args)
+	checkErr(err, nil)
+	runScriptOrREPL(context.Background(), filePath, timeout, params)
+}
+
+// runScriptOrREPL runs the resolved script (or stdin), or starts the REPL when
+// no script is provided. It is the legacy `gad [flags] [FILE [ARGS...]]`
+// behavior, shared by the bare invocation and the `run` subcommand.
+func runScriptOrREPL(parent context.Context, filePath string, timeout time.Duration, args []string) {
+	var err error
+	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
 	if len(filePath) == 0 && hasInputRedirection() {

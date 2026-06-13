@@ -33,6 +33,8 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
 11. [Builtin Functions](builtins.md) — overview of the builtin library.
 12. [Embedding in Go](embedding.md) — compile and run Gad from Go, pass
     globals and arguments, expose Go functions.
+13. [Formatting](formatting.md) — the `gad fmt` source formatter, its flags and
+    the `.gad.yaml` config file.
 
 ## A Taste of Gad
 
