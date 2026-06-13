@@ -119,6 +119,69 @@ running the built CLI (`./.__tmp/gad`):
 
 ---
 
+5. **CodeMirror 6 Gad plugin + example web app** — **DONE** (committed below).
+6. **`cmd/delve` Gad debugger + VS Code plugin + React debug plugin** — **TODO**
+   (newest ask): a delve-like debugger for Gad, a vscode-go-like extension to
+   drive it, and a React plugin using gad-codemirror to execute/debug source.
+
+### CM6 plugin + web app (item 5) — implementation (all under `web/`)
+- `web/gadbridge/` — shared Go core: `Format`/`Diagnose`/`Run` returning
+  JSON-friendly structs with positioned `Diagnostic{Line,Column,Message,
+  Severity}`. Parse via `NewParserWithOptions(...).ParseFile()`; format via the
+  same `node.Code` path; run via compile + `NewVM(...).RunOpts{StdOut,StdErr}`.
+  Errors→diagnostics handles `parser.ErrorList`, `*parser.Error` and
+  `*gad.CompilerError` (`.FileSet.Position(.Node.Pos())`). Tested
+  (`bridge_test.go`).
+- `web/server/` — Go HTTP server: POST `/api/fmt|run|diagnose` (in-process via
+  gadbridge), CORS, optional static SPA serving. Smoke-tested with curl.
+- `web/wasm/` — `//go:build js && wasm`; installs `gadFormat`/`gadRun`/
+  `gadDiagnose` globals (source→JSON string) + `gadReady`/`onGadReady`.
+- `web/codemirror-gad/` — CM6 plugin (`@gad-lang/codemirror-gad`): StreamLanguage
+  tokenizer (`language.ts`), keyword/builtin lists (`keywords.ts`), completion
+  (`complete.ts`), async linter mapping line/col→offsets (`lint.ts`), `gad()`
+  bundler (`index.ts`). Typechecks clean.
+- `web/app/` — Vite+React: `Editor.tsx` (CM6 wrapper, Compartment reconfigures
+  diagnose on backend switch), `Formatter` (right editor + LEFT viewer, live
+  diagnostics, Format/Format&apply/Run), `Notebook.tsx` (interactive cells),
+  backend abstraction (`backends/{server,wasm}.ts`) selectable in the header.
+  Builds clean (`pnpm build`).
+- Build: `web/app/scripts/build-wasm.sh` builds `gad.wasm` + copies Go's
+  `wasm_exec.js` into `web/app/public` (must `chmod u+w` — module-cache copy is
+  read-only). `.gitignore` excludes the 16MB wasm + wasm_exec.js (build
+  artifacts). Node v26.3.0 + pnpm; workspace `pnpm-workspace.yaml` (esbuild build
+  approved via `allowBuilds`).
+- Makefile: `build` (=`build-cli`+`build-wasm`), `build-wasm`, `web`
+  (install+dev), `web-server`, `web-build`, `web-install`. Docs in
+  `web/README.md` + `web/codemirror-gad/README.md`.
+- VERIFY UI in a browser next session (couldn't here): WASM load path
+  (`/wasm_exec.js`, `/gad.wasm`), linter underlines, backend switch.
+
+### CM6 plugin + web app (item 5) — plan
+Deliverables (under `web/`):
+- `web/codemirror-gad/` — a CodeMirror 6 plugin package (TS): Gad syntax
+  highlighting, autocompletion (keywords + builtins), and a linter that turns
+  `{line, column, message, severity}` diagnostics into CM6 `Diagnostic`s. The
+  diagnose/format/run backend is injected so the same plugin works against the
+  HTTP server OR the WASM module.
+- A **diagnostics/format/run bridge** in Go reused by both backends:
+  - HTTP server (`web/server/`, Go): endpoints `/fmt` (source→formatted +
+    per-line/col errors) and `/run` (source→stdout/stderr). `gad` itself can
+    `fmt -`/`run -` from stdin→stdout; the server reuses the gad packages
+    in-process (parse+format via the same Coder; compile+run for execution).
+  - WASM (`web/wasm/`, `//go:build js,wasm`): exposes `gadFormat`, `gadRun`,
+    `gadDiagnose` to JS via syscall/js.
+- React app (`web/app/`, Vite + pnpm, node v26.3.0): editor on the right, the
+  formatted/output on the LEFT viewer; errors reported inline per line/col.
+  Two examples: (a) backend-server-powered, (b) WASM-powered. Plus a
+  notebook-like interactive execution example.
+
+NOTE: must use pnpm (never npm/yarn) and `nvm use v26.3.0`. Reuse the parser
+`ParseFile`/`node.Code` formatting path and the eval/VM run path; surface
+parser error positions (line/column) for diagnostics. Explore existing
+WASM/JS infra first (CLAUDE.md mentions a WASM playground ecosystem).
+
+---
+
 ## PRIOR BATCH — ALL DONE
 Every item in the previous `ia_todo.md` is implemented, each with parser +
 compiler + VM tests (plus encoder tests where relevant), `make test` green, and

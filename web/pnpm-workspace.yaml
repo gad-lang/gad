@@ -1,0 +1,5 @@
+packages:
+  - "codemirror-gad"
+  - "app"
+allowBuilds:
+  esbuild: true

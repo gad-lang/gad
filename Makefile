@@ -8,8 +8,43 @@ all: version depcheck generate lint test
 depcheck:
 	go install honnef.co/go/tools/cmd/staticcheck@latest
 
+# Default build: the CLI plus the WebAssembly module.
+.PHONY: build
+build: build-cli build-wasm
+
+.PHONY: build-cli
 build-cli:
 	go build -o ./dist/gad ./cmd/gad
+
+# Build the Gad WASM module (and copy Go's wasm_exec.js) into web/app/public.
+.PHONY: build-wasm
+build-wasm:
+	bash web/app/scripts/build-wasm.sh
+
+# --- Web example (CodeMirror plugin + React app) ---------------------------
+# Use Node v26.3.0 via nvm when available; always use pnpm.
+NVM_USE := { [ -s "$$HOME/.nvm/nvm.sh" ] && . "$$HOME/.nvm/nvm.sh" && nvm use v26.3.0 >/dev/null; } || true
+
+.PHONY: web-install
+web-install:
+	cd web && $(NVM_USE) && pnpm install
+
+# Build and run the Vite dev server (right: editor, left: formatted/output).
+# The WASM example works standalone; for the "Go server" example also run
+# `make web-server` in another terminal.
+.PHONY: web
+web: web-install
+	cd web/app && $(NVM_USE) && pnpm run dev
+
+# Run the Go backend (API at /api/*, also serves web/app/dist when built).
+.PHONY: web-server
+web-server:
+	go run ./web/server -addr :8080 -static web/app/dist
+
+# Production build of the React app (outputs web/app/dist).
+.PHONY: web-build
+web-build: web-install
+	cd web/app && $(NVM_USE) && pnpm run build
 
 .PHONY: test
 test: version generate lint
