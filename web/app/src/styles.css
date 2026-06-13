@@ -1,4 +1,32 @@
 :root {
+  font-family: system-ui, sans-serif;
+  color-scheme: light;
+
+  /* Light theme (default). */
+  --bg: #fafafa;
+  --panel: #ffffff;
+  --border: #e0e0e8;
+  --fg: #1e1e2e;
+  --muted: #6b6b80;
+  --accent: #3b5bdb;
+  --err: #d6336c;
+  --ok: #2b8a3e;
+
+  --tok-comment: #8a8a9a;
+  --tok-keyword: #7048e8;
+  --tok-string: #2b8a3e;
+  --tok-number: #e8590c;
+  --tok-builtin: #1971c2;
+  --tok-function: #1098ad;
+  --tok-class: #c2255c;
+  --tok-operator: #495057;
+  --tok-punct: #868e96;
+  --tok-atom: #e8590c;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
   --bg: #1e1e2e;
   --panel: #252539;
   --border: #3a3a52;
@@ -7,7 +35,17 @@
   --accent: #7aa2f7;
   --err: #f7768e;
   --ok: #9ece6a;
-  font-family: system-ui, sans-serif;
+
+  --tok-comment: #6a6a85;
+  --tok-keyword: #bb9af7;
+  --tok-string: #9ece6a;
+  --tok-number: #ff9e64;
+  --tok-builtin: #7aa2f7;
+  --tok-function: #2ac3de;
+  --tok-class: #f7768e;
+  --tok-operator: #89ddff;
+  --tok-punct: #9a9ab5;
+  --tok-atom: #ff9e64;
 }
 
 * {
@@ -204,4 +242,73 @@ footer {
 
 .add-cell {
   display: block;
+}
+
+/* Highlight (PrismJS) page */
+.highlight-page {
+  padding: 1rem 1.5rem;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.sample {
+  margin: 0 0 1.2rem;
+}
+
+.sample figcaption {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.sample pre {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 0;
+  background: var(--bg);
+}
+
+/* PrismJS token colors, driven by the theme variables. */
+.token.comment {
+  color: var(--tok-comment);
+  font-style: italic;
+}
+.token.keyword {
+  color: var(--tok-keyword);
+}
+.token.string,
+.token.regex {
+  color: var(--tok-string);
+}
+.token.number {
+  color: var(--tok-number);
+}
+.token.boolean {
+  color: var(--tok-atom);
+}
+.token.builtin {
+  color: var(--tok-builtin);
+}
+.token.function {
+  color: var(--tok-function);
+}
+.token.class-name {
+  color: var(--tok-class);
+}
+.token.operator {
+  color: var(--tok-operator);
+}
+.token.punctuation {
+  color: var(--tok-punct);
+}
+
+/* Theme toggle button. */
+.theme-toggle {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
 }

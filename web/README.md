@@ -11,8 +11,13 @@ web/
 ├── server/           Go HTTP server  (/api/fmt, /api/run, /api/diagnose)
 ├── wasm/             Go WASM module  (gadFormat / gadRun / gadDiagnose globals)
 ├── codemirror-gad/   CodeMirror 6 plugin: highlight + autocomplete + linter
-└── app/              React + Vite app (Formatter + Notebook examples)
+├── prism-gad/        PrismJS grammar for static (read-only) highlighting
+└── app/              React + Vite app (Formatter + Notebook + Highlight)
 ```
+
+The app supports a light/dark theme (toggle in the header; it follows the OS
+preference by default and is persisted). The CodeMirror editor and the PrismJS
+tokens both follow the active theme.
 
 ## The CodeMirror plugin (`@gad-lang/codemirror-gad`)
 
@@ -73,6 +78,8 @@ make web-server   # now serves the built app + API on :8080
   `Format & apply` and `Run` use the selected backend.
 - **Notebook** — independently runnable cells, each showing stdout/stderr and
   the return value, for interactive exploration.
+- **Highlight** — static, read-only Gad snippets rendered with the
+  `@gad-lang/prism-gad` PrismJS grammar (for docs and blog-style code blocks).
 
 Switch between the WebAssembly and Go-server backends with the selector in the
 header.

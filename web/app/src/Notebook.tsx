@@ -23,7 +23,7 @@ const SAMPLE = [
  * Notebook is the interactive-execution example: a column of independently
  * runnable cells, each showing its stdout/stderr/return value.
  */
-export function Notebook({ backend }: { backend: GadBackend }) {
+export function Notebook({ backend, dark }: { backend: GadBackend; dark: boolean }) {
   const [cells, setCells] = useState<Cell[]>(() => SAMPLE.map((s) => newCell(s)));
   const handles = useRef(new Map<number, EditorHandle | null>());
 
@@ -58,6 +58,7 @@ export function Notebook({ backend }: { backend: GadBackend }) {
               ref={(h) => handles.current.set(cell.id, h)}
               initialDoc={cell.source}
               diagnose={backend.diagnose}
+              dark={dark}
             />
           </div>
           <div className="cell-bar">

@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { Editor, type EditorHandle } from "./Editor";
 import { Notebook } from "./Notebook";
+import { Highlight } from "./Highlight";
+import { useTheme } from "./useTheme";
 import { serverBackend } from "./backends/server";
 import { wasmBackend } from "./backends/wasm";
 import type { GadBackend, FormatResult, RunResult } from "./backends/types";
@@ -22,18 +24,23 @@ println(greet("Gad"), squares)
 return squares
 `;
 
-type Tab = "format" | "notebook";
+type Tab = "format" | "notebook" | "highlight";
 
 export function App() {
   const [backendKey, setBackendKey] = useState<keyof typeof BACKENDS>("wasm");
   const [tab, setTab] = useState<Tab>("format");
+  const [theme, toggleTheme] = useTheme();
   const backend = BACKENDS[backendKey];
+  const dark = theme === "dark";
 
   return (
     <div className="app">
       <header>
         <h1>Gad Playground</h1>
         <div className="controls">
+          <button className="theme-toggle" onClick={toggleTheme} title="Toggle light/dark">
+            {dark ? "☀ Light" : "☾ Dark"}
+          </button>
           <label>
             Backend:{" "}
             <select value={backendKey} onChange={(e) => setBackendKey(e.target.value)}>
@@ -48,11 +55,16 @@ export function App() {
             <button className={tab === "notebook" ? "on" : ""} onClick={() => setTab("notebook")}>
               Notebook
             </button>
+            <button className={tab === "highlight" ? "on" : ""} onClick={() => setTab("highlight")}>
+              Highlight
+            </button>
           </nav>
         </div>
       </header>
 
-      {tab === "format" ? <Formatter backend={backend} /> : <Notebook backend={backend} />}
+      {tab === "format" && <Formatter backend={backend} dark={dark} />}
+      {tab === "notebook" && <Notebook backend={backend} dark={dark} />}
+      {tab === "highlight" && <Highlight />}
 
       <footer>
         Editor uses <code>@gad-lang/codemirror-gad</code>. Diagnostics and formatting come from the{" "}
@@ -62,7 +74,7 @@ export function App() {
   );
 }
 
-function Formatter({ backend }: { backend: GadBackend }) {
+function Formatter({ backend, dark }: { backend: GadBackend; dark: boolean }) {
   const editorRef = useRef<EditorHandle>(null);
   const [left, setLeft] = useState<{ kind: "format" | "run"; fmt?: FormatResult; run?: RunResult } | null>(
     null,
@@ -121,7 +133,7 @@ function Formatter({ backend }: { backend: GadBackend }) {
           </span>
         </div>
         <div className="pane-body">
-          <Editor ref={editorRef} initialDoc={SAMPLE} diagnose={diagnose} />
+          <Editor ref={editorRef} initialDoc={SAMPLE} diagnose={diagnose} dark={dark} />
         </div>
       </section>
     </div>

@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { EditorState, Extension, Compartment } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { defaultKeymap, indentWithTab } from "@codemirror/commands";
+import { oneDark } from "@codemirror/theme-one-dark";
 import { basicSetup } from "codemirror";
 import { gad, type DiagnoseFn } from "@gad-lang/codemirror-gad";
 
@@ -13,7 +14,13 @@ export interface EditorHandle {
 interface EditorProps {
   initialDoc: string;
   diagnose?: DiagnoseFn;
+  dark?: boolean;
   onChange?: (value: string) => void;
+}
+
+/** Editor theme for the active light/dark mode. */
+function themeExtension(dark: boolean): Extension {
+  return dark ? oneDark : [];
 }
 
 /**
@@ -23,12 +30,13 @@ interface EditorProps {
  * view, via a Compartment reconfigure.
  */
 export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
-  { initialDoc, diagnose, onChange },
+  { initialDoc, diagnose, dark = false, onChange },
   ref,
 ) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const gadCompartment = useRef(new Compartment());
+  const themeCompartment = useRef(new Compartment());
 
   useImperativeHandle(ref, () => ({
     getValue: () => view.current?.state.doc.toString() ?? "",
@@ -45,6 +53,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     const extensions: Extension[] = [
       basicSetup,
       keymap.of([...defaultKeymap, indentWithTab]),
+      themeCompartment.current.of(themeExtension(dark)),
       gadCompartment.current.of(gad({ diagnose })),
       EditorView.updateListener.of((u) => {
         if (u.docChanged && onChange) onChange(u.state.doc.toString());
@@ -67,6 +76,13 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       effects: gadCompartment.current.reconfigure(gad({ diagnose })),
     });
   }, [diagnose]);
+
+  // Switch the editor theme when the light/dark mode changes.
+  useEffect(() => {
+    view.current?.dispatch({
+      effects: themeCompartment.current.reconfigure(themeExtension(dark)),
+    });
+  }, [dark]);
 
   return <div className="editor" ref={host} />;
 });

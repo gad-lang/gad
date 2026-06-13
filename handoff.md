@@ -156,6 +156,27 @@ running the built CLI (`./.__tmp/gad`):
 - VERIFY UI in a browser next session (couldn't here): WASM load path
   (`/wasm_exec.js`, `/gad.wasm`), linter underlines, backend switch.
 
+### PrismJS plugin + dark/light theme (follow-ups to item 5) — DONE
+- `web/prism-gad/` (`@gad-lang/prism-gad`): PrismJS grammar (`registerGad(Prism)`
+  → `Prism.languages.gad`); covers comments, string/heredoc/bytes forms, regex
+  literals, keywords/atoms/builtins, `@`-specials, numbers, operators. Added to
+  the pnpm workspace; typechecks clean.
+- App "Highlight" tab (`Highlight.tsx`): static read-only snippets via Prism.
+  Token colors come from CSS variables (no imported Prism theme) so they follow
+  the app theme.
+- Light/dark theme: `useTheme.ts` (localStorage `gad-theme` + prefers-color-
+  scheme; sets `<html data-theme>`); pre-paint bootstrap script in `index.html`;
+  header toggle; CSS variables for both themes in `styles.css`. CodeMirror uses
+  `@codemirror/theme-one-dark` in dark via a theme Compartment (`Editor` takes a
+  `dark` prop, threaded through Formatter/Notebook).
+- App still builds clean (`pnpm build`).
+
+### REMAINING asks (ia_todo)
+- `cmd/delve` Gad debugger (delve-like) + VS Code extension (vscode-go-like) +
+  React run/debug plugin using gad-codemirror + a web-app run/debug page.
+- Build a full gad-lang website (dark/light, WASM examples, GitHub-Pages-ready)
+  + a GitHub Action to auto-rebuild and publish it.
+
 ### CM6 plugin + web app (item 5) — plan
 Deliverables (under `web/`):
 - `web/codemirror-gad/` — a CodeMirror 6 plugin package (TS): Gad syntax
