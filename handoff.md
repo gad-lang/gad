@@ -191,11 +191,27 @@ sync by a Go tool; full-stack scope.
   frames depth + locals observed inside a function call. All green;
   `go test ./...` clean.
 
+### Debugger ENGINE + `gad debug` CLI — DONE (committed below)
+- `debug/` package: `Engine` implements `gad.DebugStepper`. `Step(vm)` decides
+  to stop (pause / stop-on-entry / breakpoint at new line / step into|over|out by
+  comparing frame depth to the depth captured at the last stop) and parks the VM
+  on an unbuffered `stops`/`resume` channel handshake — the controller inspects
+  `Frames()`/`Locals()` while parked, then `Continue/StepInto/StepOver/StepOut`.
+  Stepping is line-granular (`lastLine` tracks the current source line).
+  Tested (`debug/engine_test.go`): breakpoint+inspect+step, stop-on-entry,
+  step-into/out depth changes, continue-to-completion.
+- `gad debug [--break N,... ] [--stop-on-entry] FILE` (`cmd/gad/debug.go`):
+  interactive delve-style REPL (c/n/s/o, b/clear, bt, locals, q). Verified
+  manually: breakpoint → bt/locals → next → locals(updated) → continue.
+  NOTE: locals show generic names `local0..` (slot→name mapping isn't retained
+  in CompiledFunction; a future compiler-side debug-symbols enhancement could
+  surface real names).
+- The user renamed this from `cmd/delve`: it is the `debug` SUBCOMMAND of
+  `cmd/gad` (added to `subcommandNames` + root). `cmd/update-delve` (the sync
+  tool) is unrelated and keeps its name.
+
 ### Debugger — STILL TODO (full-stack)
-- Debugger ENGINE (a `DebugStepper` impl): breakpoints by line, step
-  over/into/out, continue, pause; expose stack/vars. Likely a `debug` package +
-  control channels driven by the engine; `Step` blocks until resumed.
-- DAP (Debug Adapter Protocol) server (cmd) so editors can drive it.
+- DAP (Debug Adapter Protocol) server so editors can drive the Engine.
 - VS Code extension (vscode-go-like) to launch/attach the DAP.
 - React run/debug plugin (using gad-codemirror) + a web-app run/debug page.
 
