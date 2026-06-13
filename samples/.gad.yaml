@@ -1,18 +1,16 @@
+# Workspace configuration for the Gad samples.
+# `gad fmt` reads the `fmt:` key (keys match `gad fmt` flags without `--`);
+# `gad ide` reads and writes both keys (it adds ide.breakpoints, ide.run, etc.
+# as you use it).
+
 fmt:
-    no-array-item-in-new-line: true
-    no-call-params-in-new-line: true
-    no-dict-item-in-new-line: true
+  # Keep collections compact on one line where possible.
+  no-array-item-in-new-line: true
+  no-dict-item-in-new-line: true
+  no-call-params-in-new-line: true
+
 ide:
-    breakpoints:
-        01_hello.gad:
-            - 4
-            - 12
-    outputHeight: 200
-    run:
-        01_hello.gad:
-            args: []
-            disabled: []
-            safe: false
-            saveOut: ""
-    sidebarWidth: 240
-    theme: dark
+  # Layout (the IDE updates these as you resize panels / switch theme).
+  theme: dark
+  sidebarWidth: 240
+  outputHeight: 200
