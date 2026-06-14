@@ -269,6 +269,44 @@ func TestDebugResolvesBuiltinModule(t *testing.T) {
 	}
 }
 
+func TestDebugRelativeImportSamples(t *testing.T) {
+	// Debug the real samples/modules/main.gad, which imports ./mathx.gad and the
+	// parameterised ./greet.gad — verifying relative imports resolve relative to
+	// the debugged file's directory.
+	root := filepath.Join("..", "..", "samples", "modules")
+	src, err := os.ReadFile(filepath.Join(root, "main.gad"))
+	if err != nil {
+		t.Skipf("samples not present: %v", err)
+	}
+	s, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := s.Handler()
+
+	w := do(t, h, "POST", "/api/ide/debug/start", StartRequest{
+		Path: "main.gad", Source: string(src), Breakpoints: []int{4},
+	})
+	resp := decode[DebugResponse](t, w)
+	if resp.State == "error" {
+		t.Fatalf("debug start errored (relative import failed?): %+v", resp)
+	}
+	// Drive to completion; relative imports must not raise along the way.
+	for i := 0; i < 10 && resp.State == "stopped"; i++ {
+		resp = decode[DebugResponse](t, do(t, h, "POST", "/api/ide/debug/command",
+			CommandRequest{Session: resp.Session, Command: "continue"}))
+	}
+	if resp.State != "terminated" {
+		t.Fatalf("expected terminated, got %+v", resp)
+	}
+	if resp.Error != "" {
+		t.Fatalf("debug run errored: %s", resp.Error)
+	}
+	if resp.Result != "49" { // mathx.square(7)
+		t.Fatalf("expected result 49, got %q (output=%q)", resp.Result, resp.Output)
+	}
+}
+
 func TestDebugSessionOverHTTP(t *testing.T) {
 	_, h, _ := newTestServer(t)
 	w := do(t, h, "POST", "/api/ide/debug/start", StartRequest{
