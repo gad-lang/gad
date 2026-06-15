@@ -1524,7 +1524,7 @@ func (e *FuncWithMethodsExpr) WriteCode(ctx *CodeWriteContext) {
 			ctx.WriteSecondLine()
 		}
 	})
-	if len(e.Methods) > 0 {
+	if len(e.Methods) > 0 && ctx.HasPrefix() {
 		ctx.WritePrefix()
 	}
 	ctx.WriteString("}")
@@ -1751,7 +1751,9 @@ func (e *DictExpr) WriteCode(ctx *CodeWriteContext) {
 						ctx.WriteSecondLine()
 					}
 				})
-			ctx.WritePrefix()
+			if inLineLine {
+				ctx.WritePrefix()
+			}
 		}
 	}
 	ctx.WriteSingleByte('}')
@@ -1802,7 +1804,9 @@ func (e *ArrayExpr) WriteCode(ctx *CodeWriteContext) {
 						ctx.WriteSecondLine()
 					}
 				})
-			ctx.WritePrefix()
+			if inLineLine {
+				ctx.WritePrefix()
+			}
 		}
 	}
 	ctx.WriteSingleByte(']')

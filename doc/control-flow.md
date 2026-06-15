@@ -20,10 +20,10 @@ if v := compute(); v > 10 {
 }
 ```
 
-The body braces can also be written with `do` / `then` … `end`:
+The body braces can also be written with `begin` … `end`:
 
 ```go
-if a > 0 then println("yes") end
+if a > 0 begin println("yes") end
 ```
 
 ## For

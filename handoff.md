@@ -1,5 +1,68 @@
 # Handoff: ia_todo.md language features
 
+## ACTIVE WORK (2026-06-15): `gad fmt` + mixed/template mode (todo.md)
+
+`todo.md` (renamed from `ia_todo.md`) has 3 pending tasks:
+
+1. **Mixed/template formatting** — DONE (UNCOMMITTED, all tests green):
+   - Parser already sets RemoveLeft/RightSpaces on MixedText from `{%-`/`-%}`
+     (verified via parse tests); formatting preserves `Lit.Value` verbatim.
+   - `WriteStmts` (coder.go) redesigned with sep kinds (newline/space/glue) +
+     `inTag`: `{% … %}` tags render INLINE (no reflow); `%}` hugs preceding code
+     with one space; template text/value segments are glued.
+   - `BlockStmt.WriteCode` (stmt.go): a template body (`isMixedBlock`) renders
+     inline as `do <segments> end`, injecting `do` when the opener is implicit.
+   - `MixedValueStmt.WriteCode`: pads to `{%= expr %}` (and `{%- = expr -%}`).
+   - `normalizeMixedEndTags` (coder.go) regex normalizes `{% end %}` spacing,
+     applied in `Code()` (guarded to sources containing `{%`).
+   - Block-keyword aliases reduced to `begin … end` (user requests, in order:
+     removed `then`, removed `done`, then renamed `do`→`begin`). scanner_scan.go
+     maps only `begin`→`{` and `end`→`}`. All tests + doc/control-flow.md use
+     `begin … end`. `if a > 0 begin … end` works; `do`/`then`/`done` now error.
+     BlockStmt injects `begin` for implicit template openers.
+   - Test: `parser_test.go TestFormatMixedMode` (delimiters set to `{%`/`%}` —
+     note `test.New` defaults MixedDelimiter to `‹ ›`). Fixture
+     `samples/09_template.gad`: `gad fmt` output runs identical to the original.
+2. **godoc + template CLI + `--` markers**: godoc for CodeBegin/End/MixedValue;
+   `gad run`/STDIN non-interactive; `--template` flag (ParseMixed + ScanMixed |
+   ScanConfigDisabled); `--template-start-delimiter`/`--template-end-delimiter`
+   (stored in config `template`); new `{%--`/`--%}` forms (`-` strips blanks up
+   to `\n` keeping it; `--` strips ALL blanks); tests + docs + README.
+3. **Build tags** to exclude `ide`/`debug` subcommands; make `run` the default.
+
+### `gad fmt` spacing fixes already done this session (UNCOMMITTED in working tree)
+- **Stray closing-delimiter whitespace** fixed (`println(a‹TAB›)`→`println(a)`,
+  `[1,2‹TAB›]`→`[1, 2]`): the closing `WritePrefix()` in `CallArgs`
+  (`literal.go`), `ArrayExpr`/`DictExpr`/`FuncWithMethodsExpr` (`expr.go`),
+  `GenDecl` (`stmt_decl.go`) is now guarded by the multiline flag; `CallArgs`
+  computes `multiline = n>1 && CallParamsInNewLine` so single-arg calls stay
+  inline.
+- **Trailing whitespace on blank separator lines** fixed: `WriteStmts`
+  (`coder.go`) emits a bare `\n` (not `\n<prefix>`) for the blank line; 6 stale
+  goldens in `parser_test.go` (whitespace-only lines) were cleaned.
+- Full `go test ./...` was green for these (non-template) changes.
+
+### Mixed-mode investigation findings (key AST facts)
+- Scanner (`scanner_scan.go:156-158`): `do`/`then` → `{` (LBrace);
+  `done`/`end` → `}` (RBrace). Template block syntax = `do … end`.
+- `{% for x in y %}BODY{% end %}` parses to a FLAT top-level
+  `[CodeBegin, ForInStmt, CodeEnd, …]` where the **ForInStmt CONTAINS its body**:
+  `Body` is a `BlockStmt` with `LBrace=""`, `RBrace="end"`, and
+  `Stmts=[CodeEnd "%}", MixedText "BODY", CodeBegin "{%"]`. So the for-body
+  block is delimited by the implicit `%}`/`{%` and closed by `end`.
+- `ConfigStmt.WriteCode` now emits its trailing `\n`; CodeBegin/CodeEnd depth
+  moved into `WriteStmts` (CodeEnd dedents before its separator).
+- REMAINING BUG: `{% %}` tags are still REFLOWED (broken onto multiple lines),
+  which is INVALID for control-flow openers (`{% for … do %}` must stay inline).
+  Fix direction: render each `{% … %}` segment's gad code; keep the tag INLINE
+  when single-line (required for for/if/end), expand only when multi-line (e.g.
+  the `var (…)` block). Then apply the end/done normalization regex.
+- The `do` keyword is already being emitted for the for body (good), but the
+  reflow corrupts it. `samples/09_template.gad` is the test fixture; verify by
+  `diff` of `gad run` original vs formatted (must be identical).
+
+---
+
 ## NEW BATCH (current session)
 `ia_todo.md` was reset with 3 new asks:
 1. **Bytes from hex string** `h"ffccf1c2"` → `bytes` — **DONE** (committed below).

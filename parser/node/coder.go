@@ -4,10 +4,25 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
 )
+
+// mixedEndTagRe matches a template block terminator `{% end %}` (with optional
+// `-` trim markers and any surrounding spaces) so it can be normalized to a
+// canonical `{% end %}`.
+var mixedEndTagRe = regexp.MustCompile(`(\{%-?)\s*end\s*(-?%\})`)
+
+// normalizeMixedEndTags rewrites template block terminators to `{% end %}`
+// (preserving the `-` trim markers). It is a no-op for sources without `{%`.
+func normalizeMixedEndTags(s string) string {
+	if !strings.Contains(s, "{%") {
+		return s
+	}
+	return mixedEndTagRe.ReplaceAllString(s, "${1} end ${2}")
+}
 
 type Coder interface {
 	WriteCode(ctx *CodeWriteContext)
@@ -255,13 +270,21 @@ loop:
 	return
 }
 
+// statement separator kinds used by WriteStmts.
+const (
+	sepNewline = iota // normal: a newline+indent (or "; " inline) between stmts
+	sepSpace          // a single space (the code right after a `{%` tag)
+	sepGlue           // no separator (template text/value segments)
+)
+
 func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 	stmt = ctx.simplifyStmts(stmt)
 
 	var (
-		i    int
-		sep  = true
-		last = len(stmt) - 1
+		i     int
+		sep   = sepNewline
+		inTag bool // currently between a `{%` and its `%}`
+		last  = len(stmt) - 1
 	)
 
 	Stmts(stmt).Each(func(x int, _ bool, s Stmt) {
@@ -271,23 +294,45 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 			}
 		}
 
-		if sep {
-			if i > 0 {
+		// Leading separator. A `%}` terminator always hugs the preceding code
+		// with a single space so the whole `{% … %}` tag stays on one line.
+		if _, isEnd := s.(*CodeEndStmt); isEnd {
+			ctx.WriteString(" ")
+		} else if i > 0 {
+			switch sep {
+			case sepSpace:
+				ctx.WriteString(" ")
+			case sepNewline:
 				ctx.WriteSemi()
 			}
 		}
 		s.WriteCode(ctx)
 		i++
 
+		// Separator for the NEXT statement.
 		switch s.(type) {
 		case *CodeBeginStmt:
-			sep = true
-		case *CodeEndStmt, *ConfigStmt:
-			sep = false
+			// The code after `{%` is kept on the same line, one space away.
+			sep = sepSpace
+			inTag = true
+		case *CodeEndStmt:
+			sep = sepGlue
+			inTag = false
+		case *ConfigStmt, *MixedTextStmt, *MixedValueStmt:
+			// Template segments carry their own (significant) whitespace, so the
+			// next statement is glued to them without an inserted separator.
+			sep = sepGlue
 		case *ExprStmt:
+			sep = sepNewline
 		default:
-			if x < last && ctx.HasPrefix() {
-				ctx.WriteSemi()
+			sep = sepNewline
+			// Separate block/declaration statements from the next with a blank
+			// line, except when inside a `{% … %}` tag (kept inline). Emit a bare
+			// newline (no indentation) so the blank line never carries trailing
+			// whitespace; the next statement's leading separator writes its own
+			// indentation.
+			if x < last && ctx.HasPrefix() && !inTag {
+				ctx.WriteString("\n")
 			}
 		}
 	})
@@ -344,7 +389,7 @@ func (ctx *CodeWriteContext) WriteExprs(sep string, expr ...Expr) {
 func Code(n Coder, opt ...CodeOption) string {
 	var buf bytes.Buffer
 	CodeW(&buf, n, opt...)
-	return buf.String()
+	return normalizeMixedEndTags(buf.String())
 }
 
 func CodeW(w io.Writer, n Coder, opt ...CodeOption) {

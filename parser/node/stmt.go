@@ -154,6 +154,20 @@ func (s *BlockStmt) WriteCode(ctx *CodeWriteContext) {
 		rb = "}"
 	}
 
+	// A template control-flow body (e.g. `{% for … begin %}TEXT{% end %}`)
+	// carries its own `{%`/`%}`/text segments and significant whitespace, so it
+	// must be rendered inline: write the `begin` opener, the segments verbatim,
+	// then the `end` closer. A missing opener is made explicit as `begin`.
+	if ctx.Transpile == nil && isMixedBlock(s.Stmts) {
+		if lb == "" {
+			lb = "begin"
+		}
+		ctx.WriteString(lb)
+		ctx.WriteStmts(s.Stmts...)
+		ctx.WriteString(" " + rb)
+		return
+	}
+
 	if len(s.Stmts) == 0 {
 		var sep string
 		if len(rb) > 0 && rb != "}" && rb != ")" {
@@ -183,6 +197,19 @@ func (s *BlockStmt) WriteCode(ctx *CodeWriteContext) {
 	}
 
 	ctx.WriteString(rb)
+}
+
+// isMixedBlock reports whether stmts contain mixed/template segments (the
+// `{%`/`%}` markers, literal text or `{%= … %}` values), i.e. a block whose body
+// is template content rather than plain code.
+func isMixedBlock(stmts []Stmt) bool {
+	for _, s := range stmts {
+		switch s.(type) {
+		case *CodeBeginStmt, *CodeEndStmt, *MixedTextStmt, *MixedValueStmt:
+			return true
+		}
+	}
+	return false
 }
 
 // BranchStmt represents a branch statement.
@@ -872,16 +899,22 @@ func (s *MixedValueStmt) WriteCode(ctx *CodeWriteContext) {
 		s.Expr.WriteCode(ctx)
 		ctx.WriteSingleByte(')')
 	} else {
+		// Normalize to `{%= expr %}` (with the trim markers `{%- … -%}` and a
+		// single space padding the expression).
 		ctx.WriteString(s.StartLit.Value)
 		if s.RemoveLeftSpace {
-			ctx.WriteSingleByte('-')
+			ctx.WriteString("- ")
 		}
 		if s.Eq {
-			ctx.WriteSingleByte('=')
+			ctx.WriteString("= ")
+		} else {
+			ctx.WriteSingleByte(' ')
 		}
 		s.Expr.WriteCode(ctx)
 		if s.RemoveRightSpace {
-			ctx.WriteSingleByte('-')
+			ctx.WriteString(" -")
+		} else {
+			ctx.WriteSingleByte(' ')
 		}
 		ctx.WriteString(s.EndLit.Value)
 	}
@@ -932,6 +965,8 @@ func (c *ConfigStmt) WriteCode(ctx *CodeWriteContext) {
 			ctx.WriteString(", ")
 		}
 	}
+	// The directive owns its line; the following mixed text starts fresh.
+	ctx.WriteString("\n")
 }
 
 func (c *ConfigStmt) ParseElements() {
@@ -1025,7 +1060,7 @@ func (CodeBeginStmt) SkipCode(ctx *CodeWriteContext) bool {
 func (s *CodeBeginStmt) WriteCode(ctx *CodeWriteContext) {
 	if ctx.Transpile == nil {
 		ctx.WriteString(s.String())
-		ctx.Depth++
+		// Indentation of the enclosed code block is managed by WriteStmts.
 	}
 }
 
@@ -1058,7 +1093,7 @@ func (CodeEndStmt) SkipCode(ctx *CodeWriteContext) bool {
 func (s *CodeEndStmt) WriteCode(ctx *CodeWriteContext) {
 	if ctx.Transpile == nil {
 		ctx.WriteString(s.String())
-		ctx.Depth--
+		// De-indentation back to the block level is managed by WriteStmts.
 	}
 }
 

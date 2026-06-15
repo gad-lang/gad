@@ -1488,16 +1488,24 @@ func (c *CallArgs) WriteCode(ctx *CodeWriteContext) {
 }
 
 func (c *CallArgs) WriteCodeBrace(ctx *CodeWriteContext, lbrace, rbrace string) {
-	inNewLine := ctx.Flags.Has(CodeWriteContextFlagFormatCallParamsInNewLine)
+	// Count the total arguments; a call with a single argument is always kept
+	// inline, so it must not be expanded across lines (and gets no closing
+	// indentation).
+	n := len(c.Args.Values)
+	if c.Args.Var != nil {
+		n++
+	}
+	n += len(c.NamedArgs.Names)
+	multiline := n > 1 && ctx.Flags.Has(CodeWriteContextFlagFormatCallParamsInNewLine)
 
 	ctx.WriteString(lbrace)
 	if c.Args.Valid() {
-		c.Args.WriteCodeWithNamed(ctx, inNewLine, c.NamedArgs.Valid())
+		c.Args.WriteCodeWithNamed(ctx, multiline, c.NamedArgs.Valid())
 	}
 	if c.NamedArgs.Valid() {
-		c.NamedArgs.WriteCode(ctx, inNewLine, c.Args.Valid())
+		c.NamedArgs.WriteCode(ctx, multiline, c.Args.Valid())
 	}
-	if c.Args.Valid() || c.NamedArgs.Valid() {
+	if multiline {
 		ctx.WritePrefix()
 	}
 	ctx.WriteString(rbrace)

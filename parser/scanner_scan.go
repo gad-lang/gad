@@ -153,9 +153,9 @@ do:
 			break
 		}
 		switch t.Literal {
-		case "do", "then":
+		case "begin":
 			t.Token = token.LBrace
-		case "done", "end":
+		case "end":
 			t.Token = token.RBrace
 		default:
 			switch t.Token {

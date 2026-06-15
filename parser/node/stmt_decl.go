@@ -293,7 +293,9 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 					ctx.WriteSecondLine()
 				}
 			})
-		ctx.WritePrefix()
+		if inLineLine {
+			ctx.WritePrefix()
+		}
 		ctx.WriteSingleByte(')')
 	} else {
 		ctx.WriteSingleByte(' ')

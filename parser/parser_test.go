@@ -236,11 +236,11 @@ a
 	test.ExpectParseStringMixed(t, `a‹=1›c‹x := 5›‹=x›`, "a; ‹=1›; c; ‹; x := 5; ›‹=x›")
 
 	test.ExpectParseStringMixed(t, "‹if 1›2‹end›", "‹; if 1  ›2‹ end; ›")
-	test.ExpectParseStringMixed(t, "‹if 1 then›2‹end›", "‹; if 1 then ›2‹ end; ›")
-	test.ExpectParseStringMixed(t, "‹if 1 then›2‹else if 3 then›4‹end›", "‹; if 1 then ›2‹ else if 3 then ›4‹ end; ›")
-	test.ExpectParseStringMixed(t, "‹if 1 then›2‹else›3‹end›", "‹; if 1 then ›2‹ else ›3‹ end; ›")
-	test.ExpectParseStringMixed(t, "‹if 1 then›2‹if 2 then›3‹end›‹end›", "‹; if 1 then ›2‹; if 2 then ›3‹ end end; ›")
-	test.ExpectParseStringMixed(t, "‹ if 1 then › 2 ‹ end ›", "‹; if 1 then › 2 ‹ end; ›")
+	test.ExpectParseStringMixed(t, "‹if 1 begin›2‹end›", "‹; if 1 begin ›2‹ end; ›")
+	test.ExpectParseStringMixed(t, "‹if 1 begin›2‹else if 3 begin›4‹end›", "‹; if 1 begin ›2‹ else if 3 begin ›4‹ end; ›")
+	test.ExpectParseStringMixed(t, "‹if 1 begin›2‹else›3‹end›", "‹; if 1 begin ›2‹ else ›3‹ end; ›")
+	test.ExpectParseStringMixed(t, "‹if 1 begin›2‹if 2 begin›3‹end›‹end›", "‹; if 1 begin ›2‹; if 2 begin ›3‹ end end; ›")
+	test.ExpectParseStringMixed(t, "‹ if 1 begin › 2 ‹ end ›", "‹; if 1 begin › 2 ‹ end; ›")
 
 	test.ExpectParseStringMixed(t, "‹for a in b›2‹end›", "‹; for _, a in b  ›2‹ end; ›")
 	test.ExpectParseStringMixed(t, "‹for i:=0;i<2;i++›v‹end›", "‹; for i := 0 ; (i < 2)  ; i++ ›v‹ end; ›")
@@ -270,7 +270,7 @@ x ** 10
 c
 ‹
 //src:3
-if 1 then
+if 1 begin
 //
 ›
 d
@@ -279,7 +279,31 @@ d
 end
 //
 ›
-`, "\na\n; ‹; x := 2; ›\nb\n‹=(x ** 10)›\nc\n‹; if 1 then ›\nd\n‹ end; ›\n")
+`, "\na\n; ‹; x := 2; ›\nb\n‹=(x ** 10)›\nc\n‹; if 1 begin ›\nd\n‹ end; ›\n")
+}
+
+func TestFormatMixedMode(t *testing.T) {
+	mixed := func(src string) *test.Parser {
+		return test.New(t, src).WithMixed().
+			WithScannerOptions(func(o *ScannerOptions) {
+				o.Mode |= ScanMixed
+				o.MixedDelimiter.Start = []rune("{%")
+				o.MixedDelimiter.End = []rune("%}")
+			})
+	}
+
+	// Tags stay inline; text is preserved verbatim; `{%= … %}` is padded; the
+	// for-body block gains an explicit `begin` opener and a normalized `end`.
+	src := "# gad: mixed\n{% for i, x in items begin %}[{%= x %}]{%- end -%}\n"
+	mixed(src).FormattedCode(src)
+
+	// Surrounding spaces around the terminator normalize to `{% end %}`.
+	mixed("# gad: mixed\n{% if x begin %}y{%   end   %}\n").
+		FormattedCode("# gad: mixed\n{% if x begin %}y{% end %}\n")
+
+	// A for-loop without an explicit opener gains `begin`.
+	mixed("# gad: mixed\n{% for x in items %}a{% end %}\n").
+		FormattedCode("# gad: mixed\n{% for x in items begin %}a{% end %}\n")
 }
 
 func TestParserError(t *testing.T) {
@@ -773,10 +797,10 @@ const (
 		const a2 = func() {
 			x
 		}
-		
+
 		y
 	}
-	
+
 	z
 }
 
@@ -2274,27 +2298,27 @@ func TestParseForIn(t *testing.T) {
 				SBlock(p(1, 20), p(1, 21))))
 	})
 
-	test.ExpectParse(t, "for x in y do x else 1 end", func(p pfn) []Stmt {
+	test.ExpectParse(t, "for x in y begin x else 1 end", func(p pfn) []Stmt {
 		return stmts(
 			SForIn(
 				EIdent("_", p(1, 5)),
 				EIdent("x", p(1, 5)),
 				EIdent("y", p(1, 10)),
 				SBlockLit(
-					Lit("do", p(1, 12)), ast.Literal{},
+					Lit("begin", p(1, 12)), ast.Literal{},
 					SExpr(
-						EIdent("x", p(1, 15)),
+						EIdent("x", p(1, 18)),
 					),
 				),
 				p(1, 1),
-				SBlockLit(Lit("", p(1, 22)), Lit("end", p(1, 24)),
+				SBlockLit(Lit("", p(1, 25)), Lit("end", p(1, 27)),
 					SExpr(
-						Int(1, p(1, 22)),
+						Int(1, p(1, 25)),
 					),
 				)))
 	})
 
-	test.ExpectParseString(t, "for x in y do x else 1 end", "for _, x in y do x else 1 end")
+	test.ExpectParseString(t, "for x in y begin x else 1 end", "for _, x in y begin x else 1 end")
 
 	test.ExpectParse(t, "for x in y {} else 1 end", func(p pfn) []Stmt {
 		return stmts(
@@ -2311,31 +2335,31 @@ func TestParseForIn(t *testing.T) {
 				)))
 	})
 
-	test.New(t, "for x in y do end").
-		String("for _, x in y do end").
-		Code("for x in y do end")
+	test.New(t, "for x in y begin end").
+		String("for _, x in y begin end").
+		Code("for x in y begin end")
 
-	test.New(t, "for x in y do 1 end").
-		String("for _, x in y do 1 end").
-		Code("for x in y do 1 end")
+	test.New(t, "for x in y begin 1 end").
+		String("for _, x in y begin 1 end").
+		Code("for x in y begin 1 end")
 
-	test.New(t, "for x in y do 1; end").
-		String("for _, x in y do 1 end").
-		Code("for x in y do 1 end")
+	test.New(t, "for x in y begin 1; end").
+		String("for _, x in y begin 1 end").
+		Code("for x in y begin 1 end")
 
-	test.New(t, "for x in y do else end").
-		String("for _, x in y do else end").
-		Code("for x in y do else end")
+	test.New(t, "for x in y begin else end").
+		String("for _, x in y begin else end").
+		Code("for x in y begin else end")
 
-	test.New(t, "for x in y do 1 else end").
-		String("for _, x in y do 1 else end").
-		Code("for x in y do 1 else end")
+	test.New(t, "for x in y begin 1 else end").
+		String("for _, x in y begin 1 else end").
+		Code("for x in y begin 1 else end")
 
-	test.ExpectParseString(t, "for x in y do else end", "for _, x in y do else end")
+	test.ExpectParseString(t, "for x in y begin else end", "for _, x in y begin else end")
 
-	test.New(t, "for x in y do 1 else 2 end").
-		String("for _, x in y do 1 else 2 end").
-		Code("for x in y do 1 else 2 end")
+	test.New(t, "for x in y begin 1 else 2 end").
+		String("for _, x in y begin 1 else 2 end").
+		Code("for x in y begin 1 else 2 end")
 
 	test.ExpectParseError(t, `for 1 in a {}`)
 	test.ExpectParseError(t, `for "" in a {}`)
@@ -2472,7 +2496,7 @@ func TestParseFor(t *testing.T) {
 		)
 	})
 
-	test.ExpectParseString(t, `for do continue end`, "for do continue end")
+	test.ExpectParseString(t, `for begin continue end`, "for begin continue end")
 
 	// labels are parsed by parser but not supported by compiler yet
 	// expectParseError(t, `for { break x }`)
@@ -3095,7 +3119,7 @@ func TestParseFunctionWithMethods(t *testing.T) {
 		if y {
 			return 0
 		}
-		
+
 		return 1
 	}
 }`)
@@ -3125,7 +3149,7 @@ func TestParseFunctionWithMethods(t *testing.T) {
 		if y {
 			return 0
 		}
-		
+
 		return 1
 	}
 }`)
@@ -3385,13 +3409,13 @@ if a == 5 {
 				p(1, 1)))
 	})
 
-	test.ExpectParseString(t, "if a then end", "if a then end")
-	test.ExpectParseString(t, "if a then b end", "if a then b end")
-	test.ExpectParseString(t, "if true; a then b end", "if true; a then b end")
-	test.ExpectParseString(t, "if a then b else c end", "if a then b else c end")
-	test.ExpectParseString(t, "if a then b; else c end", "if a then b else c end")
-	test.ExpectParseString(t, "if a then b else if 1 then 2 else c end", "if a then b else if 1 then 2 else c end")
-	test.ExpectParseString(t, "if a then b; else if 1 then 2; else c end", "if a then b else if 1 then 2 else c end")
+	test.ExpectParseString(t, "if a begin end", "if a begin end")
+	test.ExpectParseString(t, "if a begin b end", "if a begin b end")
+	test.ExpectParseString(t, "if true; a begin b end", "if true; a begin b end")
+	test.ExpectParseString(t, "if a begin b else c end", "if a begin b else c end")
+	test.ExpectParseString(t, "if a begin b; else c end", "if a begin b else c end")
+	test.ExpectParseString(t, "if a begin b else if 1 begin 2 else c end", "if a begin b else if 1 begin 2 else c end")
+	test.ExpectParseString(t, "if a begin b; else if 1 begin 2; else c end", "if a begin b else if 1 begin 2 else c end")
 
 	test.ExpectParseError(t, `if {}`)
 	test.ExpectParseError(t, `if a == b { } else a != b { }`)
@@ -4580,10 +4604,10 @@ func TestComputedExpr(t *testing.T) {
 		func x() {
 			i++
 		}
-		
+
 		z()
 	}
-	
+
 	x
 )`)
 

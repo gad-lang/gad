@@ -1,0 +1,23 @@
+// this program is a gad template to generate JSON output of users list:
+// {
+//   "users": [
+//     "joe",
+//     "mary",
+//     "george"
+//   ]
+// }
+
+# gad: mixed
+{%
+var (
+  users = [    "joe", "mary", "george"   ]
+  lastIndex = len(users)-1
+)
+-%}
+{
+  "users": [
+{%-  for i,      name in    users begin %}
+    "{%=name    %}"{%= i < lastIndex ? "," : "" %}
+{%- end %}
+  ]
+}
