@@ -33,6 +33,8 @@
 gad script.gad      # run a script
 gad - &lt; script.gad  # read the script from stdin</code></pre>
 <p>The CLI also exposes subcommands (<code>run</code>, <code>fmt</code>); see <a href="#subcommands">Subcommands</a> below. A bare <code>gad FILE</code> is shorthand for <code>gad run FILE</code>.</p>
+<p>To build a smaller binary without the <code>ide</code> and <code>debug</code> subcommands (and their web/DAP dependencies), use the <code>noide</code> / <code>nodebug</code> build tags:</p>
+<pre><code class="language-sh">go build -tags 'noide nodebug' ./cmd/gad   # or: make build-min</code></pre>
 <h2 id="your-first-script">Your First Script</h2>
 <p>Create <code>hello.gad</code>:</p>
 <pre><code class="language-go">println("Hello, Gad!")</code></pre>
@@ -89,8 +91,11 @@ $ gad join.gad a b c --ln       # a,b,c\n</code></pre>
 <tr><td><code>-disabled-modules a,b</code></td><td>Disable specific modules.</td></tr>
 <tr><td><code>-timeout 5s</code></td><td>Abort the script after a duration.</td></tr>
 <tr><td><code>-trace parser,compiler</code></td><td>Trace the parse/optimize/compile steps.</td></tr>
+<tr><td><code>-template</code></td><td>Run the input as a template (see <a href="templates.html">Templates</a>).</td></tr>
+<tr><td><code>-template-start-delimiter</code> / <code>-template-end-delimiter</code></td><td>Override the <code>{%</code>/<code>%}</code> code delimiters.</td></tr>
 </tbody>
 </table>
+<p>A <code>.gadt</code> file is run as a template automatically. See <strong><a href="templates.html">Templates</a></strong> for the full mixed-mode reference.</p>
 <h3 id="formatting-with-gad-fmt">Formatting with <code>gad fmt</code></h3>
 <p><code>gad fmt PATH...</code> rewrites Gad source files with the canonical formatter, in place by default:</p>
 <pre><code class="language-sh">gad fmt main.gad     # format a single file

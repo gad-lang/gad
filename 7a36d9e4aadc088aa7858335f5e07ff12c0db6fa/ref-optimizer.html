@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optimizer · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link active" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="optimizer">Optimizer</h1>
+<p>Gad has a builtin simple optimizer to improve bytecode execution performance. Optimizer is loosely coupled in compiler which enables to disable optimizer before compilation. If your script has many constants and arithmetic operations, optimizer may save some cpu cycles.</p>
+<p>As of now optimizer works on Abstract Syntax Tree (AST) like compiler but it replaces expressions, if applicable, with constant literals. Optimizer uses two techniques to modify AST, constant folding and dynamically evaluating expressions, which has no side effect. Optimizer greedily tries to modify AST until the given limit is reached. Constant propagation will be implemented in the future which may improve execution performance more than current implementation.</p>
+<p>Following example shows how the optimizer works:</p>
+<p>If optimizer is not enabled, for a basic binary operation, at least 3 instructions, 2 constants are emitted by compiler in bytecode as can be seen in the comments (ignore SETLOCAL and RETURN opcodes for the example).</p>
+<pre><code class="language-go">a := 1 &lt;&lt; 4</code></pre>
+<pre><code class="language-console">Bytecode
+Modules:0
+Constants:
+   0: 1|int
+   1: 4|int
+Params:1 Variadic:false Locals:1
+Instructions:
+0000 CONSTANT        0
+0003 CONSTANT        1
+0006 BINARYOP        20
+0008 SETLOCAL        0
+0010 RETURN          0
+SourceMap:map[0:6 3:11 6:6 8:1 10:0]</code></pre>
+<p>If optimizer is enabled, 1 instruction is emitted by the compiler as below. We saved 2 instructions, 1 constant and a few source map entries.</p>
+<pre><code class="language-go">a := 1 &lt;&lt; 4</code></pre>
+<pre><code class="language-console">Bytecode
+Modules:0
+Constants:
+   0: 16|int
+Params:1 Variadic:false Locals:1
+Instructions:
+0000 CONSTANT        0
+0003 SETLOCAL        0
+0005 RETURN          0
+SourceMap:map[0:6 3:1 5:0]</code></pre>
+<p>Of course user can directly write constant value instead of writing <code>1 &lt;&lt; 4</code> but for readibility purposes and cases where verbosity matters, it may be useful.</p>
+<p>Another advantage of using optimizer is to get some builtin function results at compile time.</p>
+<pre><code class="language-go">a := uint("0b0101")   // a == 5</code></pre>
+<p>As be seen in generated bytecode below, builtin function is not called.</p>
+<pre><code class="language-console">Bytecode
+Modules:0
+Constants:
+   0: 0x5|uint
+Params:1 Variadic:false Locals:1
+Instructions:
+0000 CONSTANT        0
+0003 SETLOCAL        0
+0005 RETURN          0
+SourceMap:map[0:6 3:1 5:0]</code></pre>
+<blockquote>Gad's terminal application enables you to see the generated bytecode for the last executed code. To see the bytecode, type <code>.bytecode</code> command in terminal.</blockquote>
+<p>To see unoptimized bytecode start application like this</p>
+<pre><code class="language-sh">./gad -no-optimizer</code></pre>
+<p>Gad's terminal application provides trace output for parser, optimizer and compiler that can help you to learn, test or debug. To enable traces see usage of the application like below.</p>
+<pre><code class="language-console">./gad -h
+
+Usage of gad:
+  -no-optimizer
+        disable optimization
+  -trace string
+        comma separated units: -trace parser,optimizer,compiler</code></pre>
+<p>The options to configure the optimizer are passed by compiler options. Optimizer is enabled by default in default compiler options.</p>
+<p>Please don't expect much from the optimizer, but it is going to be smarter!</p>
+</main>
+  
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operators · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link active" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="operators">Operators</h1>
+<p><a href="index.html">← Back to index</a></p>
+<h2 id="unary-operators">Unary Operators</h2>
+<table>
+<thead><tr><th>Operator</th><th>Meaning</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>+</code></td><td>identity (<code>0 + x</code>)</td><td>numeric / char / bool</td></tr>
+<tr><td><code>-</code></td><td>negation (<code>0 - x</code>)</td><td>numeric / char / bool</td></tr>
+<tr><td><code>^</code></td><td>bitwise complement</td><td>integer / char / bool</td></tr>
+<tr><td><code>!</code></td><td>logical NOT</td><td>any value (truthy/falsy)</td></tr>
+</tbody>
+</table>
+<p>Every value is either truthy or falsy. <code>0</code>, <code>0u</code>, <code>0.0</code>, <code>""</code>, empty collections, <code>nil</code>, <code>no</code> and <code>false</code> are falsy; everything else is truthy.</p>
+<pre><code class="language-go">println(!0, !"", ![], !nil)   // true true true true
+println(!1, !"x", ![1])       // false false false</code></pre>
+<h2 id="binary-operators">Binary Operators</h2>
+<table>
+<thead><tr><th>Op</th><th>Meaning</th><th>Op</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>+</code></td><td>add / concat</td><td><code>==</code></td><td>equal</td></tr>
+<tr><td><code>-</code></td><td>subtract</td><td><code>!=</code></td><td>not equal</td></tr>
+<tr><td><code>*</code></td><td>multiply</td><td><code>&lt;</code></td><td>less than</td></tr>
+<tr><td><code>/</code></td><td>divide</td><td><code>&lt;=</code></td><td>less or equal</td></tr>
+<tr><td><code>%</code></td><td>modulo</td><td><code>&gt;</code></td><td>greater than</td></tr>
+<tr><td><code>**</code></td><td>power</td><td><code>&gt;=</code></td><td>greater or equal</td></tr>
+<tr><td><code>&amp;</code></td><td>bitwise AND</td><td>`\</td><td>`</td><td>bitwise OR</td></tr>
+<tr><td><code>^</code></td><td>bitwise XOR</td><td><code>&amp;^</code></td><td>bit clear (AND NOT)</td></tr>
+<tr><td><code>&lt;&lt;</code></td><td>shift left</td><td><code>&gt;&gt;</code></td><td>shift right</td></tr>
+<tr><td><code>&amp;&amp;</code></td><td>logical AND</td><td>`\</td><td>\</td><td>`</td><td>logical OR</td></tr>
+</tbody>
+</table>
+<pre><code class="language-go">println(7 / 2, 7 % 2, 2 ** 10)   // 3 1 1024
+println("foo" + "bar")           // foobar
+println([1, 2] + [3])            // [1, 2, 3]
+println(6 &amp; 3, 6 | 1, 6 ^ 3)     // 2 7 5</code></pre>
+<p><code>&amp;&amp;</code> and <code>||</code> short-circuit and return one of their operands (not necessarily a bool):</p>
+<pre><code class="language-go">println(0 || "fallback")   // fallback
+println("a" &amp;&amp; "b")        // b</code></pre>
+<h2 id="ternary-operator">Ternary Operator</h2>
+<p><code>cond ? a : b</code> evaluates to <code>a</code> when <code>cond</code> is truthy, otherwise <code>b</code>.</p>
+<pre><code class="language-go">a := true ? 1 : -1            // 1
+min := (x, y) =&gt; x &lt; y ? x : y
+println(min(5, 10))           // 5</code></pre>
+<h2 id="nullish-operators">Nullish Operators</h2>
+<p><code>??</code> returns its right operand only when the left is <code>nil</code>. <code>??=</code> assigns only when the current value is <code>nil</code>.</p>
+<pre><code class="language-go">println(2 ?? 3)     // 2
+println(nil ?? 3)   // 3
+
+a := nil
+a ??= 5             // assigns, a == 5
+a ??= 9             // no-op,   a == 5</code></pre>
+<p><code>?.</code> is a nullish selector: it stops and yields <code>nil</code> as soon as the receiver is <code>nil</code>, instead of raising an error.</p>
+<pre><code class="language-go">m := {}
+println(m.x?.y.z)   // nil  (no error)
+m.x = {y: {z: 1}}
+println(m.x?.y.z)   // 1</code></pre>
+<h2 id="assignment-and-increment">Assignment and Increment</h2>
+<table>
+<thead><tr><th>Op</th><th>Equivalent</th><th>Op</th><th>Equivalent</th></tr></thead>
+<tbody>
+<tr><td><code>+=</code></td><td><code>lhs = lhs + rhs</code></td><td><code>&amp;=</code></td><td><code>lhs = lhs &amp; rhs</code></td></tr>
+<tr><td><code>-=</code></td><td><code>lhs = lhs - rhs</code></td><td>`\</td><td>=`</td><td>`lhs = lhs \</td><td>rhs`</td></tr>
+<tr><td><code>*=</code></td><td><code>lhs = lhs * rhs</code></td><td><code>^=</code></td><td><code>lhs = lhs ^ rhs</code></td></tr>
+<tr><td><code>/=</code></td><td><code>lhs = lhs / rhs</code></td><td><code>&amp;^=</code></td><td><code>lhs = lhs &amp;^ rhs</code></td></tr>
+<tr><td><code>%=</code></td><td><code>lhs = lhs % rhs</code></td><td><code>&lt;&lt;=</code></td><td><code>lhs = lhs &lt;&lt; rhs</code></td></tr>
+<tr><td><code>**=</code></td><td><code>lhs = lhs ** rhs</code></td><td><code>&gt;&gt;=</code></td><td><code>lhs = lhs &gt;&gt; rhs</code></td></tr>
+<tr><td><code>??=</code></td><td>assign if <code>nil</code></td><td><code>++</code></td><td><code>lhs = lhs + 1</code></td></tr>
+<tr><td></td><td></td><td><code>--</code></td><td><code>lhs = lhs - 1</code></td></tr>
+</tbody>
+</table>
+<p><code>++</code> and <code>--</code> are statements, not expressions.</p>
+<h2 id="precedence">Precedence</h2>
+<p>Unary operators bind tightest; the ternary operator binds loosest. Binary operators have five levels:</p>
+<table>
+<thead><tr><th>Level</th><th>Operators</th></tr></thead>
+<tbody>
+<tr><td>5</td><td><code>*</code> <code>**</code> <code>/</code> <code>%</code> <code>&lt;&lt;</code> <code>&gt;&gt;</code> <code>&amp;</code> <code>&amp;^</code></td></tr>
+<tr><td>4</td><td><code>+</code> <code>-</code> `\</td><td><code> </code>^`</td></tr>
+<tr><td>3</td><td><code>==</code> <code>!=</code> <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td></tr>
+<tr><td>2</td><td><code>&amp;&amp;</code></td></tr>
+<tr><td>1</td><td>`\</td><td>\</td><td>`</td></tr>
+</tbody>
+</table>
+<h2 id="selectors-indexers-and-slicing">Selectors, Indexers and Slicing</h2>
+<p>Use <code>.</code> (selector) and <code>[]</code> (indexer) to read or write elements of arrays, dicts, strings and bytes. A computed selector uses <code>.(expr)</code>.</p>
+<pre><code class="language-go">["one", "two", "three"][1]   // "two"
+"foobarbaz"[4]               // 97  (a byte, as int)
+
+m := {a: 1, b: [2, 3, 4]}
+println(m.a, m["b"][1])      // 1 3
+
+key := "b"
+println(m.(key)[0])          // 2</code></pre>
+<p>Slices use <code>[start:end]</code> on arrays, strings and bytes. A negative index counts from the end.</p>
+<pre><code class="language-go">[1, 2, 3, 4, 5][1:3]   // [2, 3]
+[1, 2, 3, 4, 5][3:]    // [4, 5]
+[1, 2, 3, 4, 5][:3]    // [1, 2, 3]
+"hello world"[:5]      // "hello"
+[1, 2, 3][:-1]         // [1, 2]</code></pre>
+<p>Keywords cannot be used as bare selectors; index with a string instead:</p>
+<pre><code class="language-go">a := {}
+a["func"] = 1   // ok
+// a.func = 1   // parse error</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#unary-operators">Unary Operators</a><a href="#binary-operators">Binary Operators</a><a href="#ternary-operator">Ternary Operator</a><a href="#nullish-operators">Nullish Operators</a><a href="#assignment-and-increment">Assignment and Increment</a><a href="#precedence">Precedence</a><a href="#selectors-indexers-and-slicing">Selectors, Indexers and Slicing</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

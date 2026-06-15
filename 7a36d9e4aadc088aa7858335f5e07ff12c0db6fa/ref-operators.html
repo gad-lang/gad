@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operators · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link active" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="operators">Operators</h1>
+<p>Gad uses same binary and unary operators with Go. Gad relies on Go's wrap-around behavior if compiler does not catch any overflow. Floating point numbers may be rounded due to conversions. It is a good practice to use <a href="builtins.html">builtin conversion functions</a> to resolve ambiguities. If optimizer is enabled in compiler options, using conversion functions with constant values has no overhead at runtime.</p>
+<h2 id="binary-operators">Binary Operators</h2>
+<h3 id="relational-operators">Relational Operators</h3>
+<p>Relational operators yields bool values.</p>
+<table>
+<thead><tr><th>Symbol</th><th>Operation</th></tr></thead>
+<tbody>
+<tr><td>==</td><td>equal</td></tr>
+<tr><td>!=</td><td>not equal</td></tr>
+<tr><td>&lt;</td><td>less than</td></tr>
+<tr><td>&gt;</td><td>greater than</td></tr>
+<tr><td>&lt;=</td><td>less than or equal</td></tr>
+<tr><td>&gt;=</td><td>greater than or equal</td></tr>
+</tbody>
+</table>
+<p>All relational operators apply to int, uint, float, char, bool, string, bytes. Gad's <a href="tutorial.html#interfaces">Object</a> interface methods <code>Equal and BinaryOp</code> evaluates these operations. A runtime error is thrown if types are not comparable. Note that, bool values are converted to untyped 1 or 0 for true or false to compare with numeric values.</p>
+<p>Following is the conversion table to apply relational operators to different numeric types. <code>p</code> is the left hand side (LHS) in the first column and <code>q</code> is the right hand side (RHS) in the first row.</p>
+<table>
+<thead><tr><th>Type</th><th>int</th><th>uint</th><th>float</th><th>char</th></tr></thead>
+<tbody>
+<tr><td><strong>int</strong></td><td>-</td><td>uint64(p)</td><td>float64(p)</td><td>rune(p)</td></tr>
+<tr><td><strong>uint</strong></td><td>uint64(q)</td><td>-</td><td>float64(p)</td><td>rune(p)</td></tr>
+<tr><td><strong>float</strong></td><td>float64(q)</td><td>float64(q)</td><td>-</td><td><strong>TypeError</strong></td></tr>
+<tr><td><strong>char</strong></td><td>rune(q)</td><td>rune(q)</td><td><strong>TypeError</strong></td><td>-</td></tr>
+</tbody>
+</table>
+<ul>
+<li>For <code>map</code> values, <code>==</code> and <code>!=</code> operators are applicable if LHS and RHS</li>
+</ul>
+<p>  operands are of <code>map</code> type</p>
+<ul>
+<li>For <code>array</code> values, <code>==</code> and <code>!=</code> operators are applicable if LHS and RHS</li>
+</ul>
+<p>  operands are of <code>array</code> type</p>
+<ul>
+<li>For <code>string</code> and <code>bytes</code> values, all relational operators are applicable if</li>
+</ul>
+<p>  LHS and RHS are of same type</p>
+<h3 id="binary-arithmetic-operators">Binary Arithmetic Operators</h3>
+<table>
+<thead><tr><th>Symbol</th><th>Operation</th><th>Supported Types</th></tr></thead>
+<tbody>
+<tr><td>+</td><td>sum</td><td>int, uint, float, char, string, bytes, array</td></tr>
+<tr><td>-</td><td>difference</td><td>int, uint, float, char</td></tr>
+<tr><td>*</td><td>product</td><td>int, uint, float</td></tr>
+<tr><td>/</td><td>quotient</td><td>int, uint, float</td></tr>
+<tr><td>%</td><td>remainder</td><td>int, uint</td></tr>
+<tr><td>&amp;</td><td>bitwise AND</td><td>int, uint</td></tr>
+<tr><td>\</td><td></td><td>bitwise OR</td><td>int, uint</td></tr>
+<tr><td>^</td><td>bitwise XOR</td><td>int, uint</td></tr>
+<tr><td>&amp;^</td><td>bit clear (AND NOT)</td><td>int, uint</td></tr>
+<tr><td>&lt;&lt;</td><td>shift left</td><td>int, uint</td></tr>
+<tr><td>&gt;&gt;</td><td>shift right</td><td>int, uint</td></tr>
+</tbody>
+</table>
+<p><strong>Rules</strong></p>
+<p>LHS: left hand side, RHS: right hand side</p>
+<ul>
+<li><code>string</code> values only support <code>+</code> operator for string concatenation as LHS</li>
+</ul>
+<p>  operand regardless of other operand's type. Result is always of <code>string</code> type</p>
+<ul>
+<li><code>bytes</code> values only support <code>+</code> operator for byte concatenation if it is LHS</li>
+</ul>
+<p>  operand and RHS is of <code>bytes</code> or <code>string</code> type</p>
+<ul>
+<li><code>array</code> values only support <code>+</code> operator to append object if it is LHS operand</li>
+<li><code>bool</code> values are treated as untyped 1 or 0 before arithmetic operation</li>
+<li><code>char</code> values only support <code>+</code>, <code>-</code> operators with <code>char</code>, <code>int</code>, <code>uint</code></li>
+</ul>
+<p>  values</p>
+<ul>
+<li><code>char</code> values support <code>*</code>, <code>/</code>, <code>%</code>, <code>|</code>, <code>^</code>, <code>&amp;^</code>, <code>&lt;&lt;</code>, <code>&gt;&gt;</code> operators</li>
+</ul>
+<p>  if both operands are of <code>char</code> type</p>
+<ul>
+<li>if LHS or RHS is of <code>char</code> type, other operand is converted to <code>char</code> value</li>
+<li>if LHS or RHS is of <code>float</code> type, other operand is converted to <code>float</code> value</li>
+<li>if LHS or RHS is unsigned integer, signed integer is converted to unsigned</li>
+</ul>
+<p>  integer</p>
+<ul>
+<li>A runtime error <code>TypeError</code> is thrown if operand is not of expected type</li>
+</ul>
+<h2 id="unary-operators">Unary Operators</h2>
+<table>
+<thead><tr><th>Symbol</th><th>Operation</th><th>Supported Types</th></tr></thead>
+<tbody>
+<tr><td>+</td><td>positive <code>0 + x</code></td><td>int, uint, float, char, bool*</td></tr>
+<tr><td>-</td><td>negation <code>0 - x</code></td><td>int, uint, float, char, bool*</td></tr>
+<tr><td>^</td><td>bitwise complement** <code>m^x</code></td><td>int, uint, char, bool*</td></tr>
+<tr><td>!</td><td>logical negation NOT <code>!x</code></td><td>all types</td></tr>
+<tr><td>++</td><td>increment <code>x = x + 1</code></td><td>all types except map and error</td></tr>
+<tr><td>--</td><td>decrement <code>x = x - 1</code></td><td>all types except map and error</td></tr>
+</tbody>
+</table>
+<p>\* bool values are converted to int 1 or 0 to apply operation</p>
+<p>\*\* with m = "all bits set to 1" for unsigned x and  m = -1 for signed x</p>
+<h2 id="logical-operators">Logical Operators</h2>
+<p>Logical operators apply to all types and yield a result of the same type as the operands. The right operand is evaluated conditionally.</p>
+<table>
+<thead><tr><th>Symbol</th><th>Operation</th></tr></thead>
+<tbody>
+<tr><td>&amp;&amp;</td><td>Logical AND  <code>p &amp;&amp; q  is  "if p then q else false"</code></td></tr>
+<tr><td>\</td><td>\</td><td></td><td>Logical OR  `p \</td><td>\</td><td>q  is  "if p then true else q"`</td></tr>
+<tr><td>??</td><td>Logical NULLISH. The nullish coalescing (??) operator is a logical operator that returns its right-hand side operand when its left-hand side operand is null or nil, and otherwise returns its left-hand side operand.</td></tr>
+</tbody>
+</table>
+<h3 id="nullish-coalescing-examples">Nullish coalescing examples</h3>
+<pre><code class="language-go">nil ?? 1 // 1
+0 ?? 1 // 0
+
+a := nil
+b := nil
+a ?? b ?? 2 // 2
+
+b = 1
+a ?? b ?? 2 // 1</code></pre>
+<p><strong>Assign to nil variable value</strong></p>
+<pre><code class="language-go">a := nil
+a ??= 2 // set a to 2
+a // 2
+
+a ??= 3 // don't set a, a isn't nil
+a // 2</code></pre>
+<p><strong>Assign to FALSYS variable value</strong></p>
+<pre><code class="language-go">a := nil
+a ||= 2 // set a because nil is a falsy value
+a // 2
+
+a ||= 3 // don't set a, a isn't falsy
+a // 2
+
+a = 0
+a ||= 3 // set a because 0 is a falsy value
+a // 3
+
+a = ""
+a ||= 4 // set a because "" is a falsy value
+a // 4</code></pre>
+<p><em>See <a href="builtins.html">builtins</a> for conversion and type checking functions</em></p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#binary-operators">Binary Operators</a><a href="#unary-operators">Unary Operators</a><a href="#logical-operators">Logical Operators</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

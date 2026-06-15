@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builtin Objects · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link active" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="builtin-objects">Builtin Objects</h1>
+<h2 id="functions">Functions</h2>
+<h3 id="append">append</h3>
+<p>Appends object(s) to an array or bytes (first argument) and returns a new array or bytes object. (Like Go's <code>append</code> builtin)</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>append(arrayLike [, *args])</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>arrayLike</code>: array or bytes types.</li>
+<li>&gt; <code>args</code>: any valid object for array, int|uint|char value for bytes.</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>A new array or bytes.</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+<li>&gt; <code>TypeError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">// append to an existing array
+v := [1]
+v = append(v, 2, 3)    // v == [1, 2, 3]
+
+// append to bytes
+b := bytes()
+b = append(b, 0, 1, 2)    // b == [0 1 2] Go equivalent []byte{0, 1, 2}
+
+// if first argument is nil, an array is created and
+// rest of arguments is appended to the new array
+c := append(nil, "a", "b", 'c')    // c == ["a", "b", 'c']</code></pre>
+<hr>
+<h3 id="delete">delete</h3>
+<p>Deletes the element with the specified key from an object type. First argument should implement <code>IndexDeleter</code> interface and second argument is converted to string to delete specified string index. <code>map</code> and <code>syncMap</code> types implement <code>IndexDeleter</code> interface. <code>delete</code> returns <code>nil</code> value if successful and it mutates given object.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>delete(object, key)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: map, syncMap or object implementing <code>IndexDeleter</code> to delete given</li>
+</ul>
+<p>  &gt; key from.</p>
+<ul>
+<li>&gt; <code>key</code>: String value of the key will be used as index.</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote><code>nil</code></blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+<li>&gt; <code>TypeError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v := {key: "value"}
+delete(v, "key") // v == {}</code></pre>
+<pre><code class="language-go">v := {key: "value"}
+delete(v, "missing") // v == {"key": "value"}</code></pre>
+<hr>
+<h3 id="copy">copy</h3>
+<p>Creates a copy of the given variable. <code>copy</code> function calls <code>Copy() Object</code> method if implemented, which is expected to return a non deep-copy of the value it holds. int, uint, char, float, string, bool types do not implement a [<code>Copier</code>](tutorial.md#interfaces) interface which wraps <code>Copy() Object</code> method. Assignment is sufficient to copy these types.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>copy(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>copy of the given object if <code>Copier</code> interface is implemented otherwise given value is returned.</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := [1, 2, {a:3}]
+v2 := v1
+v3 := copy(v1)
+v1[1] = 0
+println(v2[1]) // "0"; 'v1' and 'v2' referencing the same array
+println(v3[1]) // "2"; 'v3' not affected by 'v1'
+
+println(v1[2].a) // 3
+println(v3[2].a) // 3
+
+v1[2].a = 4
+println(v1[2].a) // 4
+println(v3[2].a) // 4
+
+v3[2].a = 5
+println(v1[2].a) // 5
+println(v3[2].a) // 5</code></pre>
+<hr>
+<h3 id="dcopy">dcopy</h3>
+<p>Creates a copy of the given variable. <code>dcopy</code> function calls <code>DeepCopy() Object</code> method if implemented, which is expected to return a deep-copy of the value it holds. int, uint, char, float, string, bool types do not implement a [<code>DeepCopier</code>](tutorial.md#interfaces) interface which wraps <code>DeepCopy() Object</code> method. Assignment is sufficient to copy these types. array, bytes, map, syncMap can be deeply copied with <code>dcopy</code> builtin function.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>dcopy(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>deep copy of the given object if <code>DeepCopier</code> interface is implemented otherwise if object is <code>Copier</code>, given a single copy, otherwise, given value is returned.</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := [1, 2, 3]
+v2 := v1
+v3 := copy(v1)
+v1[1] = 0
+println(v2[1]) // "0"; 'v1' and 'v2' referencing the same array
+println(v3[1]) // "2"; 'v3' not affected by 'v1'</code></pre>
+<hr>
+<h3 id="repeat">repeat</h3>
+<p>Creates new array, string or bytes from given array, string or bytes by repeating input "count" times.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>repeat(sequence, count)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>sequence</code>: array, string or bytes</li>
+<li>&gt; <code>count</code>: count of repeat as non-negative int or uint value</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>array, string or bytes</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+<li>&gt; <code>TypeError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := repeat([1, 2], 2)      // v1 == [1, 2, 1, 2]
+v2 := repeat("abc", 2)       // v2 == "abcabc"
+v3 := repeat(bytes(0), 1024) // bytes with 1024 elements all zero
+
+// if count is zero, zero sized object is returned
+v4 := repeat([1, 2], 0)        // v4 == []
+v5 := repeat("abc", 0)         // v5 == ""
+v6 := repeat(bytes("abc"), 0)  // v6 == bytes()</code></pre>
+<hr>
+<h3 id="contains">contains</h3>
+<p>Reports whether given element is in object.</p>
+<p><strong>Syntax</strong></p>
+<ul>
+<li>&gt; <code>contains(object, element)</code></li>
+</ul>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: valid types are following</li>
+<ul>
+<li>array</li>
+<li>string</li>
+<li>bytes</li>
+<li>map</li>
+<li>syncMap</li>
+<li>nil: contains returns false if object value is nil</li>
+</ul>
+<li>&gt; <code>element</code>:</li>
+<ul>
+<li>if object's type is array, element can be of any type and sequential search</li>
+</ul>
+</ul>
+<p>    is applied in array.</p>
+<ul>
+<li>if object's type is string, element can be of any type. element's string</li>
+</ul>
+<p>    representation is searched as substring.</p>
+<ul>
+<li>if object's type is bytes, element can be of int, uint, char, string or</li>
+</ul>
+<p>    bytes type.</p>
+<ul>
+<li>if object's type is map or syncMap, element's string representation is</li>
+</ul>
+<p>    looked up in the map's keys.</p>
+<ul>
+<li>if object value is nil, element is ignored.</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+<li>&gt; <code>TypeError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v := contains([1, 2, "a"], "b")            // v == false
+v = contains([1, 2, "a"], "a")             // v == true
+v = contains("abc3", "d")                  // v == false
+v = contains("abc3", "a")                  // v == true
+v = contains("abc3", 3)                    // v == true
+v = contains(bytes(0, 1, 2), 3)            // v == false
+v = contains(bytes(0, 1, 2), 0)            // v == true
+v = contains(bytes(0, 1, 2), bytes(0, 1))  // v == true
+v = contains({foo: "bar"}, "baz")          // v == false
+v = contains({foo: "bar"}, "foo")          // v == true</code></pre>
+<hr>
+<h3 id="len">len</h3>
+<p>Returns the number of elements if the given variable implements <code>LengthGetter</code> interface. <code>array</code>, <code>string</code>, <code>bytes</code>, <code>map</code>, <code>syncMap</code> implements <code>LengthGetter</code>. If object doesn't implement <code>LengthGetter</code>, it returns 0. Note that, <code>len</code> returns byte count of string values.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>len(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: valid types are following</li>
+<ul>
+<li>array</li>
+<li>string</li>
+<li>bytes</li>
+<li>map</li>
+<li>syncMap</li>
+<li>other types implementing <code>LengthGetter</code></li>
+</ul>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>int value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v := len([1, 2, []])          // v == 3
+v = len("x")                  // v == 1
+v = len({foo: "", bar: ""})   // v == 2
+v = len(bytes("xyz"))         // v == 3
+v = len(1)                    // v == 0</code></pre>
+<hr>
+<h3 id="cap">cap</h3>
+<p>Returns the capacity of an array or bytes type. It always returns 0 for other types.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>cap(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: valid types are following</li>
+<ul>
+<li>array</li>
+<li>bytes</li>
+</ul>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>int value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v := cap([1, 2])
+v = cap(bytes("abc"))</code></pre>
+<hr>
+<h3 id="sort">sort</h3>
+<p>Returns sorted object in ascending order. Given object is modified if it is not a string. Note that, string value is converted to Go rune slice before sort and sorted rune slice is converted back to string.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>sort(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: valid types are following</li>
+<ul>
+<li>array</li>
+<li>string</li>
+<li>bytes</li>
+<li>nil</li>
+</ul>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>sorted object</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+<li>&gt; <code>TypeError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := [3u, 2.0, 1]
+v2 := sort(v1)        // v1 == v2, v1 == [1, 2.0, 3u]
+
+v3 := "zyx"
+v4 := sort(v3)        // v4 == "xyz", v3 == "zyx"
+
+v5 := bytes("cba")
+v6 := sort(v5)        // v5 == v6, v5 == bytes("abc")
+
+v7 := sort(nil) // v7 == nil
+
+// if array elements are not comparable, a runtime error is thrown.
+sort(["a", 1])        // RuntimeError: TypeError</code></pre>
+<hr>
+<h3 id="sortreverse">sortReverse</h3>
+<p>Returns sorted object in descending order. Given object is modified if it is not a string. Note that, string value is converted to Go rune slice before sort and sorted rune slice is converted back to string.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>sortReverse(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: valid types are following</li>
+<ul>
+<li>array</li>
+<li>string</li>
+<li>bytes</li>
+<li>nil</li>
+</ul>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>sorted object</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+<li>&gt; <code>TypeError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := [1, 2.0, 3]
+v2 := sortReverse(v1)        // v1 == v2, v1 == [3u, 2.0, 1]
+
+v3 := "xyz"
+v4 := sortReverse(v3)        // v4 == "zyx", v3 == "xyz"
+
+v5 := bytes("abc")
+v6 := sortReverse(v5)        // v5 == v6, v5 == bytes("cba")
+
+v7 := sortReverse(nil) // v7 == nil
+
+// if array elements are not comparable, a runtime error is thrown.
+sortReverse(["a", 1])        // RuntimeError: TypeError</code></pre>
+<hr>
+<h3 id="error">error</h3>
+<p>Returns a new <a href="tutorial.html#error-values">error value</a>. Given object's string representation is used as Message of the new error.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>error(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any type</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>error value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<pre><code class="language-go">err := error("foo error")    // err.Message == "foo error"</code></pre>
+<hr>
+<h3 id="typename">typeName</h3>
+<p>Returns the type name of given object. Note that, it calls <code>TypeName</code> method of the object.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>typeName(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any type</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>type name as string value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := typeName(1)          // v1 == "int"
+v2 := typeName("str")      // v2 == "string"
+v3 := typeName([1, 2, 3])  // v3 == "array"</code></pre>
+<hr>
+<h3 id="bool">bool</h3>
+<p>Converts the given object to a bool value and returns it. It calls <code>IsFalsy</code> method of the object under the hood. Note that, float value is falsy if its value is NaN.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>bool(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any type</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := bool(1)          // v1 == true
+v2 := bool(0)          // v2 == false
+v3 := bool("str")      // v3 == true
+v4 := bool("")         // v4 == false
+v5 := bool([1, 2, 3])  // v5 == true
+v6 := bool([])         // v5 == false</code></pre>
+<hr>
+<h3 id="int">int</h3>
+<p>Tries to convert the given object to an int value and returns it. Note that, <code>int</code> type is derived from Go's int64 type, see numeric conversions in <a href="https://golang.org/ref/spec#Conversions">Go spec.</a> and conversion relies on Go's "wrap around". See Go's <code>strconv.ParseInt</code> function for more information about string conversion.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>int(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: valid types are following</li>
+<ul>
+<li>string</li>
+<li>uint</li>
+<li>float</li>
+<li>char</li>
+<li>bool</li>
+<li>int</li>
+</ul>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>int value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+<li>&gt; <code>TypeError</code></li>
+<li>&gt; Unspecified errors from Go standard library</li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := int("123")          // v1 == 123
+v2 := int("-12")          // v2 == -12
+v3 := int("0x10")         // v3 == 16
+v4 := int("0b101")        // v4 == 5
+v5 := int(1u)             // v5 == 1
+v6 := int(1.1)            // v6 == 1
+v7 := int('a')            // v7 == 97
+v8 := int(true)           // v8 == 1
+v9 := int(false)          // v9 == 0</code></pre>
+<hr>
+<h3 id="uint">uint</h3>
+<p>Tries to convert the given object to an uint value and returns it. Note that, <code>uint</code> type is derived from Go's uint64 type, see numeric conversions in <a href="https://golang.org/ref/spec#Conversions">Go spec.</a>. See Go's <code>strconv.ParseUint</code> function for more information about string conversion and conversion relies on Go's "wrap around".</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>uint(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: valid types are following</li>
+<ul>
+<li>string</li>
+<li>int</li>
+<li>float</li>
+<li>char</li>
+<li>bool</li>
+<li>uint</li>
+</ul>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>uint value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+<li>&gt; <code>TypeError</code></li>
+<li>&gt; Unspecified errors from Go standard library</li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := uint("123")          // v1 == 123u
+v3 := uint("0x10")         // v3 == 16u
+v4 := uint("0b101")        // v4 == 5u
+v5 := uint(1)              // v5 == 1u
+v6 := uint(1.1)            // v6 == 1u
+v7 := uint('a')            // v7 == 97u
+v8 := uint(true)           // v8 == 1u
+v9 := uint(false)          // v9 == 0u</code></pre>
+<hr>
+<h3 id="char">char</h3>
+<p>Tries to convert the given object to a char value and returns it. Note that, if string object is provided and encoding is invalid or string is empty, nil is returned. Note that, <code>char</code> type is derived from Go's rune type, see numeric conversions in <a href="https://golang.org/ref/spec#Conversions">Go spec.</a> and conversion relies on Go's "wrap around".</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>char(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: valid types are following</li>
+<ul>
+<li>string</li>
+<li>int</li>
+<li>uint</li>
+<li>float</li>
+<li>bool</li>
+<li>char</li>
+</ul>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>char value / nil</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+<li>&gt; <code>TypeError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := char("abc")          // v1 == 'a'
+v2 := char(1)              // v2 == '\x01'
+v3 := char(1u)             // v3 == '\x01'
+v4 := char(1.1)            // v4 == '\x01'
+v5 := char(true)           // v5 == '\x01'
+v6 := char(false)          // v6 == '\x00'
+v7 := char("")             // v7 == nil</code></pre>
+<hr>
+<h3 id="float">float</h3>
+<p>Tries to convert the given object to a float value and returns it. Note that, <code>float</code> type is derived from Go's float64 type, see numeric conversions in <a href="https://golang.org/ref/spec#Conversions">Go spec.</a>. See Go's <code>strconv.ParseFloat</code> function for more information about string conversion.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>float(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: valid types are following</li>
+<ul>
+<li>string</li>
+<li>int</li>
+<li>uint</li>
+<li>bool</li>
+<li>char</li>
+<li>float</li>
+</ul>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>float value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+<li>&gt; <code>TypeError</code></li>
+<li>&gt; Unspecified errors from Go standard library</li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := float("1.1")        // v1 == 1.1
+v2 := float(5)            // v2 == 5.0
+v3 := float(true)         // v3 == 1.0
+v4 := float(false)        // v4 == 0.0</code></pre>
+<hr>
+<h3 id="string">string</h3>
+<p>Converts the given object to a string value and returns it. It calls <code>String</code> method of the object under the hood. Note that, map or syncMap types are derived from Go's map type which has randomized iteration. This may cause different results.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>string(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>string value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := string([1, 2])     // v1 == "[1, 2]"
+v2 := string(12)         // v2 == "12"
+v3 := string('a')        // v3 == "a"
+v4 := string(1.0)        // v4 == "1"
+v5 := string(1.1)        // v5 == "1.1"
+v6 := string(nil)  // v6 == "nil"
+v7 := string(true)       // v7 == "true"</code></pre>
+<hr>
+<h3 id="bytes">bytes</h3>
+<p>Returns a bytes value from given value(s). If argument is not provided, an empty bytes value is returned. Note that numeric value conversion relies on Go's "wrap around".</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>bytes(*args)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>args</code>: valid types are following</li>
+<ul>
+<li>string</li>
+<li>bytes</li>
+<li>int</li>
+<li>uint</li>
+<li>char</li>
+</ul>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bytes value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>TypeError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := bytes()              // v1 == empty bytes object
+v2 := bytes(0, 1, 2u)      // v2 == bytes [0 1 2]
+v3 := bytes('a')           // v3 == bytes [97]
+v4 := bytes("abc")         // v4 == bytes [97 98 99]
+v5 := bytes(256, 257)      // v5 == bytes [0 1] wrapped around</code></pre>
+<hr>
+<h3 id="chars">chars</h3>
+<p>Returns an array containing chars of given string or bytes. If given string/bytes has invalid encoding (incorrect UTF-8), it returns nil.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>chars(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: string or bytes value</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>array of char values or nil</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+<li>&gt; <code>TypeError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := chars("abc")              // v1 == ['a', 'b', 'c']
+v2 := chars(bytes(0, 1, 2))     // v2 == ['\x00', '\x01', '\x02']
+v3 := chars("a\xc5")            // v3 == nil, incorrect UTF-8</code></pre>
+<hr>
+<h3 id="printf">printf</h3>
+<p>Writes the given format and arguments to default writer, which is stdout. Note that, default writer can be updated. It calls Go's <code>fmt.Fprintf</code> function after converting first argument to a string value and optional arguments to <code>any</code>.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>printf(format, *args)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>format</code>: any object</li>
+<li>&gt; <code>args</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>nil</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+<li>&gt; Unspecified write errors</li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">printf("%s%d%v", 'a', 5, [1, 2])    // a5[1, 2]</code></pre>
+<hr>
+<h3 id="println">println</h3>
+<p>Writes the given arguments to default writer, which is stdout, with a newline. Note that, default writer can be updated. It calls Go's <code>fmt.Fprintln</code> function after converting arguments to <code>any</code>.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>println(*args)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>args</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>nil</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; Unspecified write errors</li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">println()                  // \n
+println('a', 5, [1, 2])    // a 5 [1, 2]\n</code></pre>
+<hr>
+<h3 id="sprintf">sprintf</h3>
+<p>Formats according to a format specifier and returns the resulting string. It calls Go's <code>fmt.Sprintf</code> function after converting first argument to a string value and optional arguments to <code>any</code>.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>sprintf(format, *args)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>format</code>: any object</li>
+<li>&gt; <code>args</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>string value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := sprintf("%s%d", "x", 5)    // v1 == "x5"
+v2 := sprintf("test")            // v2 == "test"</code></pre>
+<hr>
+<h3 id="iserror">isError</h3>
+<p>Reports whether given value is of error type. Optionally if second argument is provided, reports whether the error's cause is the provided error.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isError(errorValue [, cause])</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>errorValue</code>: an error value</li>
+<li>&gt; <code>cause</code>: an error value</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-go">v1 := isError(error("foo error: bar"))               // v1 == true
+v2 := isError(error("foo error: bar"), TypeError)    // v2 == false
+v3 := isError(TypeError.New("foo"), TypeError)       // v3 == true
+
+try {
+    1 / 0
+} catch err {
+    v4 := isError(err)                       // v4 == true
+    v5 := isError(err, ZeroDivisionError)    // v5 == true
+}</code></pre>
+<hr>
+<h3 id="isint">isInt</h3>
+<p>Reports whether given object is of int type.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isInt(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="isuint">isUint</h3>
+<p>Reports whether given object is of uint type.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isUint(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="isfloat">isFloat</h3>
+<p>Reports whether given object is of float type.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isFloat(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="ischar">isChar</h3>
+<p>Reports whether given object is of char type.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isChar(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="isbool">isBool</h3>
+<p>Reports whether given object is of bool type.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isBool(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="isstring">isString</h3>
+<p>Reports whether given object is of string type.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isString(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="isbytes">isBytes</h3>
+<p>Reports whether given object is of bytes type.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isBytes(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="ismap">isMap</h3>
+<p>Reports whether given object is of map type.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isMap(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="issyncmap">isSyncMap</h3>
+<p>Reports whether given object is of syncMap type.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isSyncMap(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="isarray">isArray</h3>
+<p>Reports whether given object is of array type.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isArray(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="isnil">isNil</h3>
+<p>Reports whether given object value is nil.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isNil(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="isfunction">isFunction</h3>
+<p>Reports whether given object is of function, compiledFunction or builtinFunction type.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isFunction(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="iscallable">isCallable</h3>
+<p>Reports whether given object is a callable object. It reports objects <code>CanCall</code> method result.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isCallable(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+<hr>
+<h3 id="isiterable">isIterable</h3>
+<p>Reports whether given object is an iterable object. It reports objects <code>CanIterate</code> method result.</p>
+<p><strong>Syntax</strong></p>
+<blockquote><code>isIterable(object)</code></blockquote>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>&gt; <code>object</code>: any object</li>
+</ul>
+<p><strong>Return Value</strong></p>
+<blockquote>bool value</blockquote>
+<p><strong>Runtime Errors</strong></p>
+<ul>
+<li>&gt; <code>WrongNumArgumentsError</code></li>
+</ul>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#functions">Functions</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
