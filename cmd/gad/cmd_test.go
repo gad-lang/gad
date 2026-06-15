@@ -122,6 +122,30 @@ func TestFormatTargetInPlace(t *testing.T) {
 	require.Equal(t, string(formatted), string(again))
 }
 
+func TestFormatTargetTranspileGadt(t *testing.T) {
+	dir := t.TempDir()
+	p := writeFile(t, dir, "page.gadt", "Hi {%= name %}!\n{% x := 1 %}")
+
+	o := &fmtOptions{codeFlags: fmtFormatFlag(), transpileOn: true}
+	o.finalizeTranspile()
+	var mu sync.Mutex
+
+	out := bytes.NewBuffer(nil)
+	require.NoError(t, o.formatTarget(fmtTarget{path: p, transpile: true}, false, &mu, out))
+
+	// A .gadt is transpiled to a sibling .gad; the original template is kept.
+	gadPath := filepath.Join(dir, "page.gad")
+	require.FileExists(t, gadPath)
+	require.FileExists(t, p)
+	require.Contains(t, out.String(), gadPath)
+
+	got, err := os.ReadFile(gadPath)
+	require.NoError(t, err)
+	require.Contains(t, string(got), `write(raw "Hi ")`)
+	require.Contains(t, string(got), "write(name)")
+	require.Contains(t, string(got), "x := 1")
+}
+
 func TestFormatTargetBackup(t *testing.T) {
 	dir := t.TempDir()
 	const orig = "y:=2\nif y>0{println(y)}\n"

@@ -222,6 +222,7 @@ type inputDir struct {
 	BackupFormat string   `yaml:"backup_format"`
 	Report       string   `yaml:"report"`
 	ReportFormat string   `yaml:"report_format"`
+	Transpile    bool     `yaml:"transpile"`
 }
 
 // fmtReportFile is the per-file outcome recorded in a format report. Error is
@@ -255,6 +256,7 @@ type fmtOptions struct {
 	codeFlags    node.CodeWriteContextFlag
 	transpile    node.TranspileOptions
 	transpileSet bool
+	transpileOn  bool // --transpile / config `transpile`
 	jobs         int
 	out          string
 	report       string
@@ -292,6 +294,7 @@ func fmtCommand() *cc.Command {
 			if err := o.loadConfig(ctx.Flags()); err != nil {
 				return err
 			}
+			o.finalizeTranspile()
 			if err := validateReportFormat(o.reportFormat); err != nil {
 				return err
 			}
@@ -353,7 +356,34 @@ func (o *fmtOptions) registerFlags(fs *flag.FlagSet) {
 	clear("no-decl-item-in-new-line", "keep declaration items on a single line",
 		node.CodeWriteContextFlagFormatDeclItemInNewLine)
 
+	fs.BoolVar(&o.transpileOn, "transpile", false,
+		"transpile templates to Gad write(...) calls; a .gadt file is saved as .gad")
 	registerTranspileFlags(fs, o)
+}
+
+// finalizeTranspile turns on transpile mode when requested (the `--transpile`
+// flag or any `--transpile-*` option) and fills the TranspileOptions function
+// names that were not set explicitly with runnable defaults.
+func (o *fmtOptions) finalizeTranspile() {
+	if o.transpileOn {
+		o.transpileSet = true
+	}
+	// The TranspileOptions function names are shared; fill the defaults whenever
+	// transpile is active anywhere (the global flags or any input_dir).
+	active := o.transpileSet
+	for _, d := range o.inputDirs {
+		active = active || d.Transpile
+	}
+	if !active {
+		return
+	}
+	if o.transpile.WriteFunc == "" {
+		o.transpile.WriteFunc = "write"
+	}
+	if o.transpile.RawStrFuncStart == "" {
+		o.transpile.RawStrFuncStart = "raw "
+	}
+	// RawStrFuncEnd has no default (the `raw "…"` operator needs no suffix).
 }
 
 // registerTranspileFlags registers one --transpile-NAME string flag per string
@@ -482,6 +512,7 @@ type fmtTarget struct {
 	backup       bool
 	backupFormat string
 	fromStdin    bool
+	transpile    bool // transpile this file (and save .gadt as .gad)
 }
 
 // relPath returns the target path relative to its input root, used to mirror
@@ -493,6 +524,15 @@ func (t fmtTarget) relPath() string {
 		}
 	}
 	return filepath.Base(t.path)
+}
+
+// destBase returns the destination file name for path, mapping a transpiled
+// `.gadt` template to its `.gad` output (so the template is not overwritten).
+func (t fmtTarget) destBase(path string) string {
+	if t.transpile && strings.HasSuffix(path, ".gadt") {
+		return strings.TrimSuffix(path, "t") // .gadt -> .gad
+	}
+	return path
 }
 
 // fmtJob is a unit of parallel work: one explicit file/stdin, or all files of a
@@ -678,6 +718,7 @@ func (o *fmtOptions) buildJobs(args []string) ([]fmtJob, error) {
 		if !info.IsDir() {
 			jobs = append(jobs, fmtJob{targets: []fmtTarget{{
 				path: path, backup: o.backup, backupFormat: o.backupFormat,
+				transpile: o.transpileSet,
 			}}})
 			continue
 		}
@@ -687,7 +728,7 @@ func (o *fmtOptions) buildJobs(args []string) ([]fmtJob, error) {
 			return nil, err
 		}
 		jobs = append(jobs, fmtJob{
-			targets: dirTargets(path, files, o.backup, o.backupFormat),
+			targets: dirTargets(path, files, o.backup, o.backupFormat, o.transpileSet),
 			dir:     path,
 		})
 	}
@@ -711,7 +752,7 @@ func (o *fmtOptions) buildJobs(args []string) ([]fmtJob, error) {
 			rf = o.reportFormat
 		}
 		jobs = append(jobs, fmtJob{
-			targets:      dirTargets(path, files, d.Backup, bf),
+			targets:      dirTargets(path, files, d.Backup, bf, o.transpileSet || d.Transpile),
 			dir:          path,
 			report:       d.Report,
 			reportFormat: rf,
@@ -759,12 +800,18 @@ func concatGlobs(base globList, extra []string) globList {
 	return append(out, extra...)
 }
 
-func dirTargets(root string, files []string, backup bool, backupFormat string) []fmtTarget {
+func dirTargets(root string, files []string, backup bool, backupFormat string, transpile bool) []fmtTarget {
 	targets := make([]fmtTarget, len(files))
 	for i, f := range files {
-		targets[i] = fmtTarget{path: f, root: root, backup: backup, backupFormat: backupFormat}
+		targets[i] = fmtTarget{path: f, root: root, backup: backup, backupFormat: backupFormat, transpile: transpile}
 	}
 	return targets
+}
+
+// isGadSource reports whether name is a formattable Gad source file (.gad or
+// the template variant .gadt).
+func isGadSource(name string) bool {
+	return strings.HasSuffix(name, ".gad") || strings.HasSuffix(name, ".gadt")
 }
 
 // splitRecursive strips a trailing "/..." (or a lone "...") recursion marker,
@@ -798,7 +845,7 @@ func scanDir(dir string, recursive bool, filter *fileFilter) (files []string, er
 				}
 				return nil
 			}
-			if !isHidden(name) && strings.HasSuffix(name, ".gad") && filter.match(p) {
+			if !isHidden(name) && isGadSource(name) && filter.match(p) {
 				files = append(files, p)
 			}
 			return nil
@@ -812,7 +859,7 @@ func scanDir(dir string, recursive bool, filter *fileFilter) (files []string, er
 	}
 	for _, d := range entries {
 		name := d.Name()
-		if d.IsDir() || isHidden(name) || !strings.HasSuffix(name, ".gad") {
+		if d.IsDir() || isHidden(name) || !isGadSource(name) {
 			continue
 		}
 		p := filepath.Join(dir, name)
@@ -874,10 +921,19 @@ func matchAnyRe(res reList, candidates ...string) bool {
 
 // formatSource parses src and returns its formatted form using the configured
 // code flags and transpile options. name is used for error positions.
-func (o *fmtOptions) formatSource(name string, src []byte) (string, error) {
+func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (string, error) {
 	fileSet := source.NewFileSet()
 	srcFile := fileSet.AddFileData(name, -1, src)
-	file, err := parser.NewParserWithOptions(srcFile, nil, nil).ParseFile()
+
+	// `.gadt` files are templates: parse them in mixed mode (the `# gad: …`
+	// config directives are disabled since the file is template from byte 0).
+	var po *parser.ParserOptions
+	var so *parser.ScannerOptions
+	if strings.HasSuffix(name, ".gadt") {
+		po = &parser.ParserOptions{Mode: parser.ParseMixed}
+		so = &parser.ScannerOptions{Mode: parser.ScanMixed | parser.ScanConfigDisabled}
+	}
+	file, err := parser.NewParserWithOptions(srcFile, po, so).ParseFile()
 	if err != nil {
 		return "", err
 	}
@@ -886,7 +942,7 @@ func (o *fmtOptions) formatSource(name string, src []byte) (string, error) {
 		node.CodeWithFlags(o.codeFlags),
 		node.CodeWithPrefix("\t"),
 	}
-	if o.transpileSet {
+	if transpile {
 		opts = append(opts, node.CodeTranspile(&o.transpile))
 	}
 
@@ -914,7 +970,7 @@ func (o *fmtOptions) formatTarget(t fmtTarget, outIsFile bool, mu *sync.Mutex, s
 		return err
 	}
 
-	formatted, err := o.formatSource(t.displayName(), src)
+	formatted, err := o.formatSource(t.displayName(), src, t.transpile)
 	if err != nil {
 		return err
 	}
@@ -929,7 +985,7 @@ func (o *fmtOptions) formatTarget(t fmtTarget, outIsFile bool, mu *sync.Mutex, s
 	case o.out != "":
 		dest := o.out
 		if !outIsFile {
-			dest = filepath.Join(o.out, t.relPath())
+			dest = t.destBase(filepath.Join(o.out, t.relPath()))
 		}
 		if err = os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return err
@@ -937,7 +993,9 @@ func (o *fmtOptions) formatTarget(t fmtTarget, outIsFile bool, mu *sync.Mutex, s
 		return os.WriteFile(dest, []byte(formatted), 0o644)
 
 	default:
-		if string(src) == formatted {
+		dest := t.destBase(t.path)
+		// In place, skip a no-op rewrite; a transpiled .gadt -> .gad always writes.
+		if dest == t.path && string(src) == formatted {
 			return nil // already formatted
 		}
 		if t.backup {
@@ -945,15 +1003,15 @@ func (o *fmtOptions) formatTarget(t fmtTarget, outIsFile bool, mu *sync.Mutex, s
 				return err
 			}
 		}
-		info, statErr := os.Stat(t.path)
-		if statErr != nil {
-			return statErr
+		mode := os.FileMode(0o644)
+		if info, statErr := os.Stat(t.path); statErr == nil {
+			mode = info.Mode().Perm()
 		}
-		if err = os.WriteFile(t.path, []byte(formatted), info.Mode().Perm()); err != nil {
+		if err = os.WriteFile(dest, []byte(formatted), mode); err != nil {
 			return err
 		}
 		mu.Lock()
-		fmt.Fprintln(stdout, t.path)
+		fmt.Fprintln(stdout, dest)
 		mu.Unlock()
 		return nil
 	}

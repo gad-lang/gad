@@ -311,6 +311,35 @@ func TestFormatMixedMode(t *testing.T) {
 		FormattedCode("# gad: mixed\nA\n{%-- = 1 --%}\nB{%- = 2 -%}C")
 }
 
+func TestTranspileMixed(t *testing.T) {
+	parseMixed := func(src string) []Stmt {
+		fs := source.NewFileSet()
+		f := fs.AddFileData("t", -1, []byte(src))
+		file, err := NewParserWithOptions(f,
+			&ParserOptions{Mode: ParseMixed}, &ScannerOptions{Mode: ScanMixed}).ParseFile()
+		require.NoError(t, err)
+		return file.Stmts
+	}
+
+	src := "# gad: mixed\n{% name := \"Gad\" -%}\nHi, {%= name %}!\n" +
+		"{% for x in [1, 2] begin -%}\n- {%= x %}\n{%- end %}"
+	to := &TranspileOptions{RawStrFuncStart: "rawstr(", RawStrFuncEnd: ")", WriteFunc: "write"}
+	out := Code(Stmts(parseMixed(src)),
+		CodeWithFlags(CodeWriteContextFlagFormat), CodeWithPrefix("\t"), CodeTranspile(to))
+
+	// Transpiled write(...) statements must be separated, not glued together.
+	for _, bad := range []string{"))name", ")write(", "}for ", "}write("} {
+		if strings.Contains(out, bad) {
+			t.Fatalf("transpiled statements glued (%q):\n%s", bad, out)
+		}
+	}
+	// The transpiled output must itself be valid Gad source.
+	fs := source.NewFileSet()
+	if _, err := NewParserWithOptions(fs.AddFileData("o", -1, []byte(out)), nil, nil).ParseFile(); err != nil {
+		t.Fatalf("transpiled output does not parse: %v\n%s", err, out)
+	}
+}
+
 func TestMixedTrimMarkers(t *testing.T) {
 	// value parses src as a template and returns the run-time Value() of the
 	// MixedText statement at index i.

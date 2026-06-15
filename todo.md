@@ -80,7 +80,7 @@
       compile values to time.Date, time.Time, time.Duration (create constructor for this type). generate samples and docs.
 - [ ] updated doc to add examples for "~" and "~~" regexp operators and POSIX `/.../p` (`p` sufix), add examples using
       captured groups and regexp flags.
-      `@raw EXPR`, produces `rawStr` type (`@raw "a"` is in compiler time, but `@raw str(100)` is in execution time) - update doc for here.
+      `raw EXPR`, produces `rawStr` type (`raw "a"` is in compiler time, but `raw str(100)` is in execution time) - update doc for here.
       add examples for The `or` Fallback Operator using `$err` variable.
       replace match else `else:` must to `else`, update doc with examples.
       add godoc and docs with examples for ComputedValue

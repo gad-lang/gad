@@ -294,9 +294,14 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 			}
 		}
 
+		// When transpiling, the mixed segments become ordinary write(...) calls,
+		// so they must be separated like normal statements (not glued/inlined as
+		// template tags).
+		transpiling := ctx.Transpile != nil
+
 		// Leading separator. A `%}` terminator always hugs the preceding code
 		// with a single space so the whole `{% … %}` tag stays on one line.
-		if _, isEnd := s.(*CodeEndStmt); isEnd {
+		if _, isEnd := s.(*CodeEndStmt); isEnd && !transpiling {
 			ctx.WriteString(" ")
 		} else if i > 0 {
 			switch sep {
@@ -319,9 +324,15 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 			sep = sepGlue
 			inTag = false
 		case *ConfigStmt, *MixedTextStmt, *MixedValueStmt:
-			// Template segments carry their own (significant) whitespace, so the
-			// next statement is glued to them without an inserted separator.
-			sep = sepGlue
+			if transpiling {
+				// Transpiled write(...) statements need a real separator.
+				sep = sepNewline
+			} else {
+				// Template segments carry their own (significant) whitespace, so
+				// the next statement is glued to them without an inserted
+				// separator.
+				sep = sepGlue
+			}
 		case *ExprStmt:
 			sep = sepNewline
 		default:
