@@ -100,6 +100,13 @@ func TestVMCodeStr(t *testing.T) {
 	testExpectRun(t, "code := 41\nreturn code + 1", nil, Int(42))
 }
 
+func TestVMBuiltinModuleBase64(t *testing.T) {
+	// the base64 module is available as a builtin namespace, without an import
+	testExpectRun(t, `return base64.StdEncoding.EncodeToString(bytes("hi"))`, nil, Str("aGk="))
+	testExpectRun(t, `return base64.RawStdEncoding.EncodeToString(bytes("hi"))`, nil, Str("aGk"))
+	testExpectRun(t, `return base64.URLEncoding.EncodeToString(bytes("hi"))`, nil, Str("aGk="))
+}
+
 func TestVMBytesLit(t *testing.T) {
 	// h"..." decodes a hexadecimal sequence to bytes
 	testExpectRun(t, `return h"ffccf1c2"`, nil,

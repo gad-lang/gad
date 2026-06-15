@@ -217,11 +217,19 @@ const (
 	BuiltinSelfAssignOperatorLOr
 	GroupBuiltinSelfAssignOperatorsEnd
 
+	// Builtin module namespaces (stdlib modules exposed without `import`).
+	GroupBuiltinModulesBegin
+	BuiltinModuleBase64
+	BuiltinModuleStrings
+	BuiltinModuleTime
+	BuiltinModuleFmt
+	GroupBuiltinModulesEnd
+
 	BuiltinEnd_
 )
 
 var (
-	lastBuiltinType = GroupBuiltinSelfAssignOperatorsEnd
+	lastBuiltinType = GroupBuiltinModulesEnd
 	lastBuiltinMux  = sync.Mutex{}
 )
 
@@ -323,6 +331,9 @@ var BuiltinsMap = map[string]BuiltinType{
 	"obend":          BuiltinOBEnd,
 	"flush":          BuiltinFlush,
 	"DISCARD_WRITER": BuiltinDiscardWriter,
+
+	// Builtin module namespaces.
+	"base64": BuiltinModuleBase64,
 }
 
 type StaticBuiltins struct {
@@ -801,6 +812,10 @@ var BuiltinObjects = BuiltinObjectsMap{
 
 func init() {
 	// initialization prevent cycle for BuiltinObjects
+
+	// Builtin module namespaces (registered here so their package-level dicts are
+	// fully initialized first).
+	BuiltinObjects[BuiltinModuleBase64] = base64Module
 
 	BuiltinObjects[BuiltinRead] = &BuiltinFunction{
 		FuncName: "read",
