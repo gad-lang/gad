@@ -850,7 +850,12 @@ func (s *MixedTextStmt) WriteCode(ctx *CodeWriteContext) {
 	}
 }
 
-// MixedValueStmt represents to text wrapped expression.
+// MixedValueStmt is an inline value-emitting tag in mixed/template mode, e.g.
+// `{%= expr %}`, whose Expr is evaluated and written into the surrounding text.
+// StartLit/EndLit hold the opening/closing delimiters (`{%`/`%}`); Eq reports
+// the `=` value marker. RemoveLeftSpace/RemoveRightSpace mirror the `-` trim
+// markers (`{%- … -%}`) that strip surrounding whitespace from the adjacent
+// text at run time.
 type MixedValueStmt struct {
 	Expr             Expr
 	StartLit         ast.Literal
@@ -1030,6 +1035,11 @@ func (s *StmtsExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.Depth--
 }
 
+// CodeBeginStmt is the opening delimiter of a mixed/template code block, e.g.
+// `{%` (or `{%-`). Lit holds the literal delimiter; RemoveSpace reports the `-`
+// trim suffix (`{%-`), which strips trailing whitespace from the preceding text
+// at run time. The statements that follow, up to the matching CodeEndStmt, are
+// ordinary Gad code.
 type CodeBeginStmt struct {
 	Lit         ast.Literal
 	RemoveSpace bool
@@ -1064,6 +1074,10 @@ func (s *CodeBeginStmt) WriteCode(ctx *CodeWriteContext) {
 	}
 }
 
+// CodeEndStmt is the closing delimiter of a mixed/template code block, e.g.
+// `%}` (or `-%}`). Lit holds the literal delimiter; RemoveSpace reports the `-`
+// trim prefix (`-%}`), which strips leading whitespace from the following text
+// at run time.
 type CodeEndStmt struct {
 	Lit         ast.Literal
 	RemoveSpace bool

@@ -39,7 +39,45 @@ const (
 	// fmtConfigKey is the root mapping key in the config file holding the `fmt`
 	// subcommand settings.
 	fmtConfigKey = "fmt"
+	// templateConfigKey is the root mapping key holding template/mixed-mode
+	// settings (the start/end delimiters).
+	templateConfigKey = "template"
 )
+
+// templateConfig is the `.gad.yaml` `template:` section.
+type templateConfig struct {
+	StartDelimiter string `yaml:"start_delimiter"`
+	EndDelimiter   string `yaml:"end_delimiter"`
+}
+
+// loadTemplateConfig reads the `template:` section of `<dir>/.gad.yaml` and
+// fills the template delimiter globals that were not already set on the command
+// line (CLI flags win). Missing file/section is not an error.
+func loadTemplateConfig(dir string) {
+	data, err := os.ReadFile(filepath.Join(dir, defaultCfgFile))
+	if err != nil {
+		return
+	}
+	var top map[string]any
+	if yaml.Unmarshal(data, &top) != nil {
+		return
+	}
+	section, ok := top[templateConfigKey]
+	if !ok {
+		return
+	}
+	b, _ := yaml.Marshal(section)
+	var tc templateConfig
+	if yaml.Unmarshal(b, &tc) != nil {
+		return
+	}
+	if templateStartDelim == "" {
+		templateStartDelim = tc.StartDelimiter
+	}
+	if templateEndDelim == "" {
+		templateEndDelim = tc.EndDelimiter
+	}
+}
 
 // subcommandNames is the set of first-argument tokens routed through the
 // command-context framework instead of the legacy run/REPL entry point.

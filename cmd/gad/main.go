@@ -50,6 +50,11 @@ var (
 	traceCompiler   bool
 	safe            bool
 	disabledModules map[string]bool
+
+	// Template/mixed-mode execution options (set by --template* flags).
+	templateMode       bool
+	templateStartDelim string
+	templateEndDelim   string
 )
 
 var suggestions []suggest
@@ -680,6 +685,13 @@ func registerRunFlags(flagset *flag.FlagSet) *runFlags {
 	flagset.DurationVar(&rf.timeout, "timeout", 0,
 		"Program timeout. It is applicable if a script file is provided and "+
 			"must be non-zero duration")
+	flagset.BoolVar(&templateMode, "template", false,
+		"Run the input as a template/mixed file (enables ParseMixed + ScanMixed, "+
+			"config directives disabled)")
+	flagset.StringVar(&templateStartDelim, "template-start-delimiter", "",
+		"Template code-block start delimiter (default \"{%\"); implies --template")
+	flagset.StringVar(&templateEndDelim, "template-end-delimiter", "",
+		"Template code-block end delimiter (default \"%}\"); implies --template")
 	return rf
 }
 
@@ -730,6 +742,23 @@ func (s *Script) execute() error {
 		CompilerOptions: gad.DefaultCompilerOptions,
 	}
 	opts.ModuleMap = DefaultModuleMap(s.workdir, s.sourcePath)
+
+	// Template/mixed mode: parse the whole input as a template with the
+	// configured (or default) delimiters; the `# gad: …` config directives are
+	// disabled since the file is template content from the first byte.
+	if templateMode || templateStartDelim != "" || templateEndDelim != "" {
+		loadTemplateConfig(s.workdir)
+		opts.ParserOptions.Mode |= parser.ParseMixed
+		opts.ScannerOptions.Mode |= parser.ScanMixed | parser.ScanConfigDisabled
+		delim := parser.DefaultMixedDelimiter
+		if templateStartDelim != "" {
+			delim.Start = []rune(templateStartDelim)
+		}
+		if templateEndDelim != "" {
+			delim.End = []rune(templateEndDelim)
+		}
+		opts.ScannerOptions.MixedDelimiter = delim
+	}
 
 	module := gad.NewModuleSpecFromName(s.modulePath, func(ms *gad.ModuleSpec) {
 		ms.ModuleInfo.URL = s.modulePath
