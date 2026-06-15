@@ -32,14 +32,14 @@
       MixedTextStmt (next stmt). when format (call CodeWriter.WriteCode), preserves MixedTextStmt Literal value,
       buf format gad code between CodeBeginStmt to CodeEndStmt. then MixedValueStmt likes (joined form if CodeBeginStmt and CodeEndStmt).
       when format `(\{%-?)\s*end|done\s*(-?%\})` (regexp syntaxe), format to `$1 end $2`.
-- [ ] generate godoc strings for CodeBeginStmt, CodeEndStmt, MixedValueStmt. update gad program when run from STDIN buffer or run PATH,
+- [x] generate godoc strings for CodeBeginStmt, CodeEndStmt, MixedValueStmt. update gad program when run from STDIN buffer or run PATH,
       to run without interactive mode. change gad program to add flag `--template` to run template files (ParserOptions.Mode |= ParseMixed and
       ScannerOptions.mode |= ScanMixed | ScanConfigDisabled); flags `--template-start-delimiter DELIMITER` and `--template-end-delimiter DELIMITER`.
       put template-start/end-delimiter to config `tempate`; if demilimiters is not set, use default. change parser of mixed/template mode
       to add new Code Begin/End suffix `--` (`{%--` and `--%}`) resulting in two prefix/sufix forms: 1) `-` remove all black chars at `\n` (preserve it);
       2) `--` remove all blank chars. generate parser/vm tests. generate docs and samples. update README and doc.
       change gad program when run `.gadt` files, run as template mode.
-- [ ] add go build tags to skip build gad program subcommands `ide` and `debug`. set `run` subcommand as default command.
+- [x] add go build tags to skip build gad program subcommands `ide` and `debug`. set `run` subcommand as default command.
 - [ ] gad codemirror plugin isn't working on ide. change ide files tree to allow rename file/dir with F2 or RIGHT CLICK MENU (with options: `run`, `format`, `transpile` 
       (format with TranspileOptions for `.gad` and `.gadt` exts. add fields of config file key `transpile` (add to settings dialog)), and `remove` 
       (with confirmation dialog - if is nom empty dir, add check field RECURSIVELY)). put run/debug options dialog into new

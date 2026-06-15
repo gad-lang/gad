@@ -2,8 +2,8 @@
 // Use of this source code is governed by a MIT License
 // that can be found in the LICENSE file.
 
-//go:build !js
-// +build !js
+//go:build !js && !nodebug
+// +build !js,!nodebug
 
 package main
 

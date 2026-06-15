@@ -84,17 +84,26 @@ func loadTemplateConfig(dir string) {
 var subcommandNames = map[string]bool{
 	"run":    true,
 	"fmt":    true,
-	"debug":  true,
-	"ide":    true,
 	"help":   true,
 	"--help": true,
+}
+
+// optionalCommands holds subcommand factories registered by build-tagged files
+// (e.g. `debug` and `ide`), so they can be excluded with `-tags nodebug,noide`.
+var optionalCommands []func() *cc.Command
+
+// registerCommand adds an optional subcommand and routes its name through the
+// command-context dispatcher. Called from build-tagged init functions.
+func registerCommand(name string, factory func() *cc.Command) {
+	subcommandNames[name] = true
+	optionalCommands = append(optionalCommands, factory)
 }
 
 // isSubcommand reports whether name selects a command-context subcommand.
 func isSubcommand(name string) bool { return subcommandNames[name] }
 
 // buildRootCommand assembles the `gad` command tree: a root that prints help
-// plus the `run` and `fmt` subcommands.
+// plus the `run` and `fmt` subcommands and any optional (build-tagged) ones.
 func buildRootCommand() *cc.Command {
 	root := &cc.Command{
 		Name:        "gad",
@@ -105,8 +114,9 @@ func buildRootCommand() *cc.Command {
 	}
 	root.Sub(runCommand())
 	root.Sub(fmtCommand())
-	root.Sub(debugCommand())
-	root.Sub(ideCommand())
+	for _, f := range optionalCommands {
+		root.Sub(f())
+	}
 	return root
 }
 

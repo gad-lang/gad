@@ -1,3 +1,5 @@
+//go:build !noide
+
 package main
 
 import (
@@ -27,6 +29,8 @@ import (
 //
 //go:embed ideapp
 var ideApp embed.FS
+
+func init() { registerCommand("ide", ideCommand) }
 
 // ideCommand is `gad ide [flags] [PATH]`: it starts a local web IDE rooted at
 // PATH (a directory, or a single file to edit; defaults to the current

@@ -23,6 +23,13 @@ The CLI also exposes subcommands (`run`, `fmt`); see
 [Subcommands](#subcommands) below. A bare `gad FILE` is shorthand for
 `gad run FILE`.
 
+To build a smaller binary without the `ide` and `debug` subcommands (and their
+web/DAP dependencies), use the `noide` / `nodebug` build tags:
+
+```sh
+go build -tags 'noide nodebug' ./cmd/gad   # or: make build-min
+```
+
 ## Your First Script
 
 Create `hello.gad`:

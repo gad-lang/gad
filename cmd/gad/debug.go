@@ -2,8 +2,8 @@
 // Use of this source code is governed by a MIT License
 // that can be found in the LICENSE file.
 
-//go:build !js
-// +build !js
+//go:build !js && !nodebug
+// +build !js,!nodebug
 
 package main
 
@@ -57,6 +57,8 @@ func (b *breakList) Set(v string) error {
 
 // debugCommand is `gad debug [flags] SCRIPT_FILE`: an interactive, delve-style
 // debugger for Gad scripts (breakpoints, stepping, stack and locals).
+func init() { registerCommand("debug", debugCommand) }
+
 func debugCommand() *cc.Command {
 	return &cc.Command{
 		Name:        "debug",

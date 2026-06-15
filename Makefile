@@ -16,6 +16,12 @@ build: build-cli build-wasm
 build-cli:
 	go build -o ./dist/gad ./cmd/gad
 
+# Minimal CLI: exclude the `ide` and `debug` subcommands (and their web/DAP
+# dependencies) via build tags. Useful for small, embeddable binaries.
+.PHONY: build-min
+build-min:
+	go build -tags 'noide nodebug' -o ./dist/gad-min ./cmd/gad
+
 # Production CLI: build the React web app, then compile gad with the embedded UI
 # (`gad ide` serves it without --static). Requires Node/pnpm for the web build.
 .PHONY: build-prod
