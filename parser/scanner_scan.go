@@ -30,15 +30,20 @@ func (s *Scanner) ScanNow() (t PToken) {
 	if s.mode.Has(ScanMixed) && s.Ch != -1 {
 		start := s.Offset
 		if s.InCode {
-			var removeLeftSpace bool
+			var removeLeftSpace, removeAllSpace bool
 			s.SkipWhitespace()
 			switch s.Ch {
 			case '\'', '"', '`':
 				// ignore quotes
 				goto do
 			case '-':
-				// test if remove spaces before end delimiter `-END_DELIMITER`
-				if s.MixedCodeEnds(1) {
+				// test if remove spaces before end delimiter: `--END` (strip all)
+				// or `-END` (strip blanks, keep a boundary newline)
+				if s.Offset+1 < len(s.Src) && s.Src[s.Offset+1] == '-' && s.MixedCodeEnds(2) {
+					s.Next()
+					s.Next()
+					removeAllSpace = true
+				} else if s.MixedCodeEnds(1) {
 					s.Next()
 					removeLeftSpace = true
 				}
@@ -51,6 +56,7 @@ func (s *Scanner) ScanNow() (t PToken) {
 				t.Literal = string(s.MixedDelimiter.End)
 				t.Pos = source.MustFileSetPos(s.File, s.Offset)
 				t.Set("remove-spaces", removeLeftSpace)
+				t.Set("remove-spaces-all", removeAllSpace)
 
 				s.Next()
 				s.NextC(len(s.MixedDelimiter.End) - 1)

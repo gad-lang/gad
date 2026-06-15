@@ -1954,7 +1954,8 @@ do:
 				Value: p.Token.Literal,
 				Pos:   p.Token.Pos,
 			},
-			RemoveSpace: RemoveSpaces(p.Token),
+			RemoveSpace:    RemoveSpaces(p.Token),
+			RemoveAllSpace: RemoveAllSpaces(p.Token),
 		}
 		p.Next()
 		return n
@@ -1964,7 +1965,8 @@ do:
 				Value: p.Token.Literal,
 				Pos:   p.Token.Pos,
 			},
-			RemoveSpace: RemoveSpaces(p.Token),
+			RemoveSpace:    RemoveSpaces(p.Token),
+			RemoveAllSpace: RemoveAllSpaces(p.Token),
 		}
 		p.Next()
 		return n
@@ -2066,6 +2068,7 @@ func (p *Parser) ParseMixedValue() (ett *node.MixedValueStmt) {
 	ett = &node.MixedValueStmt{
 		StartLit:        ast.Literal{Value: p.Token.Literal, Pos: p.Token.Pos},
 		RemoveLeftSpace: RemoveSpaces(p.Token),
+		RemoveLeftAll:   RemoveAllSpaces(p.Token),
 		Eq:              p.Token.Data.Flag("eq"),
 	}
 	p.Next()
@@ -2073,6 +2076,7 @@ func (p *Parser) ParseMixedValue() (ett *node.MixedValueStmt) {
 	p.SkipSpace()
 	end := p.ExpectToken(token.MixedValueEnd)
 	ett.RemoveRightSpace = RemoveSpaces(end)
+	ett.RemoveRightAll = RemoveAllSpaces(end)
 	ett.EndLit = ast.Literal{Value: end.Literal, Pos: end.Pos}
 	return
 }
@@ -2104,7 +2108,9 @@ func (p *Parser) ParseMixedTextStmt() (t *node.MixedTextStmt) {
 
 	switch p.PrevToken.Token {
 	case token.MixedValueEnd, token.MixedCodeEnd:
-		if RemoveSpaces(p.PrevToken) {
+		if RemoveAllSpaces(p.PrevToken) {
+			t.Flags |= node.RemoveLeftAll
+		} else if RemoveSpaces(p.PrevToken) {
 			t.Flags |= node.RemoveLeftSpaces
 		}
 	}
@@ -2113,7 +2119,9 @@ func (p *Parser) ParseMixedTextStmt() (t *node.MixedTextStmt) {
 
 	switch p.Token.Token {
 	case token.MixedCodeStart, token.MixedValueStart:
-		if RemoveSpaces(p.Token) {
+		if RemoveAllSpaces(p.Token) {
+			t.Flags |= node.RemoveRightAll
+		} else if RemoveSpaces(p.Token) {
 			t.Flags |= node.RemoveRightSpaces
 		}
 	}

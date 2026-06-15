@@ -2,9 +2,37 @@
 
 ## ACTIVE WORK (2026-06-15): `gad fmt` + mixed/template mode (todo.md)
 
-`todo.md` (renamed from `ia_todo.md`) has 3 pending tasks:
+STATUS: Task 1 (mixed/template formatting) = DONE + COMMITTED (`ed73d1d`).
+Task 2 (godoc/`--template`/`--` markers/`.gadt`/docs) = IN PROGRESS:
+  - godoc + `--template` flag + delimiter flags + `.gad.yaml` `template:` config
+    = COMMITTED. `--template` runs config-less templates; delimiters default to
+    `{%`/`%}`, overridable by flags or config; CLI flags win.
+  - `{%--`/`--%}` markers (`-` keeps a single boundary newline, `--` strips all)
+    = IN PROGRESS in the working tree: node side mostly done in
+    `parser/node/stmt.go` (flags RemoveLeftAll/RemoveRightAll on MixedTextStmt;
+    `trimmed()` helper with isMixedSpace; RemoveAllSpace on CodeBegin/CodeEnd;
+    MixedValueStmt RemoveLeftAll/RemoveRightAll + leftMark/rightMark; String +
+    WriteCode emit `--`). STILL TODO: the SCANNER (`scanner.go ScanCodeBlock`
+    start `{%--`; `scanner_scan.go` end `--%}`) must detect the double dash and
+    set token data `"remove-spaces-all"`; `parser/mixed.go` add
+    `RemoveAllSpaces(t)`; the 6 parser propagation points (parser.go ~1957/1967
+    CodeBegin/End, ~2068/2075 MixedValue, ~2107/2116 MixedText) set the All
+    flags; `parser/node/expr.go` MixedTextExpr may need the All flags. `utils`
+    import in stmt.go is now UNUSED — remove it. NOTE: redefining `-` to keep a
+    newline changes runtime output of templates using `-`; update
+    `samples/09_template.gad` to use `--` where full collapse is wanted, verify
+    `gad run` output. Then parser+vm tests, docs+samples, README.
+  - NEW (todo updated): run `.gadt` files in template mode automatically.
+Task 3 (build tags for ide/debug; `run` as default) = pending.
+LATER backlog (todo.md, growing): IDE file-tree rename/context-menu + run/debug
+  settings dialog + breakpoint dialog + builtin tooltips; `gad fmt` per-file
+  JSON report + `--to-stdout` boundary stream; IDE "evaluate" panel; CodeStrLit
+  heredoc-style token (`code…end`); make stdlib time+strings builtin modules;
+  date/time literal parsing; regexp operator (`~`/`~~`, POSIX `/…/p`) doc
+  examples. (Work top-down; commit each task.)
 
-1. **Mixed/template formatting** — DONE (UNCOMMITTED, all tests green):
+### Task 1 detail — DONE + COMMITTED (`ed73d1d`)
+1. **Mixed/template formatting** — DONE:
    - Parser already sets RemoveLeft/RightSpaces on MixedText from `{%-`/`-%}`
      (verified via parse tests); formatting preserves `Lit.Value` verbatim.
    - `WriteStmts` (coder.go) redesigned with sep kinds (newline/space/glue) +

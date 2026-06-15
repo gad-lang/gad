@@ -35,6 +35,8 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
     globals and arguments, expose Go functions.
 13. [Formatting](formatting.md) — the `gad fmt` source formatter, its flags and
     the `.gad.yaml` config file.
+14. [Templates](templates.md) — mixed/template mode (`{% … %}`, `{%= … %}`,
+    `begin … end`, whitespace trim markers, `.gadt` files).
 
 ## A Taste of Gad
 

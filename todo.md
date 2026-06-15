@@ -26,7 +26,7 @@
       allowing open/hide panels and move to left/right/buttom. saving panel positions to .gad.yaml "ide" key.
       with dialogs for per file configure run/debug with field for set params, enable/disable builtins modules, and
       save STDOUT/STDERR to file. allow panels resizing and grouping with tabs layout.
-- [ ] in the mixed/template mode, the CodeBeginStmt haves optional `-` suffix (example: `{%-`); if
+- [x] in the mixed/template mode, the CodeBeginStmt haves optional `-` suffix (example: `{%-`); if
       this sufix is set, add flag RemoveRightSpaces to MixedTextStmt (previous stmt). 
       the CodeEndStmt haves optional `-` prefix (example: `-%}`); if this suffix is set, add flag RemoveLeftSpaces to 
       MixedTextStmt (next stmt). when format (call CodeWriter.WriteCode), preserves MixedTextStmt Literal value,
@@ -48,7 +48,20 @@
       on line number panel, open brackpoint dialog with fields "disabled" (if is set, ignore debug this breackpoint), "condition"
       (with gad codemirror plugin, to specify and expression and pause no debug only `!value.IsFalsy()`) and cancel/save buttons; change brackpoints
       panel, to add right button to remove here, and when click over brackpoint entry open the brackpoint dialog, when click
-      here with double click, goto location here.
+      here with double click, goto location here. change ide to support tooltip for ident of builtin values.
+      change ide to add panel "evaluate". this panel haves list of evaluated expressions. on fixed top of this panel, puts form
+      for add new expression to evalue, with expression field, flag field "repr" and "+" button; when add, include here
+      to list and evaluate returning result of "str(EXPRESSION)" if flag "repr" is set, replace "str" to "repr". each
+      list entry, add right buttons "edit" (open into top form and change button to save icon). trash icon, to remove then;
+      "output" button to open new dialog with result value as codemirror editor for plain text in readonly mode and "copy"
+      button (must icon) to copy to clipboard. update evaluated expressions when debugger step changing.
+      change ide file editor controls add button "reload" to reload file from disk. add header to explore three to add flag field to show/hide hidden files/dirs.
+      add file editor support for JSON, YAML, HTML, CSS, SCSS, JS (with types script e JSX) and open other types to plain/text editor.
+      change id to alert error in dialog when fail to request to backend. change ide explorer add button to open and dialog to get file from web
+      and allow to change your output name and choose directory to save then (default is current selected directory on tree).
+      add buttons to history REDO and UNDO on file editor control header. change local variables panel to add copy to clipboard button (must icon) per entry.
+      on gad editor, add copy to clipboard button (must icon) on tooltip. change codemirror plugin to add code editor features (auto complete etc) on
+      edit code/expression in template strings.      
 - [ ] change gad fmt to write report per file, not grouped (current version) as single line JSON (remove YAML support) string with keys:
       `{ input_dir: (only if file in INPUT_DIR), file: (the file name, if in INPUT_DIR, relative to here), error: (if failt) }\n`.
       add flag `--to-stdout`. in this case if report file isn't set, print report to stdout, when format files print 
@@ -58,3 +71,18 @@
       FORMATTED_FILE_RESULT
       -- BOUNDARY #FILE_INDEX
       ```
+- [ ] add parser for new token for CodeStrLit, like strheredoc with `code\s|\n` (start quote) and `\s|\nend` (end quote, \n only if start `code\n`).
+      compiles to Str. no parses contents like Template. change codemirror plugin and prism plugin to recognize contents of this as gad source code. 
+      add tests for scanner/parser/compiler/vm.
+- [ ] takes stdlib/time and strings modules as builtin module, mapping all functions as BuiltinFunction and BuiltinType.
+- [ ] add parser of `\d{4}\d{2}\d{2}D` as new type time.Date ("time" is gad module, not go time); `\d{4}\d{2}\d{2}_\d{2}\d{2}\d{2}(.(\d{3}|\d{6}|\d{9}))(Z\d{2}\d{2})T` as type time.Time.
+      implements encoder for time.Date and time.Time. add parser for go time.Duration string (to new type time.Duration alias og go time.Duration). 
+      compile values to time.Date, time.Time, time.Duration (create constructor for this type). generate samples and docs.
+- [ ] updated doc to add examples for "~" and "~~" regexp operators and POSIX `/.../p` (`p` sufix), add examples using
+      captured groups and regexp flags.
+      `@raw EXPR`, produces `rawStr` type (`@raw "a"` is in compiler time, but `@raw str(100)` is in execution time) - update doc for here.
+      add examples for The `or` Fallback Operator using `$err` variable.
+      replace match else `else:` must to `else`, update doc with examples.
+      add godoc and docs with examples for ComputedValue
+      create dog of func/closure/method syntax and add examples.
+      

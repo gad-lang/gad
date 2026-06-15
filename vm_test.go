@@ -5245,24 +5245,24 @@ return [
 
 func TestVMMixedOutput(t *testing.T) {
 	testExpectRun(t, `# gad: mixed
-{%obstart() -%}
+{%obstart() --%}
 a
-{%- = 2 -%}
+{%-- = 2 --%}
 b
-{%- return str(obend())%}
+{%-- return str(obend())%}
 `,
 		newOpts(),
 		Str("a2b"),
 	)
 
 	testExpectRun(t, `# gad: mixed
-{%obstart() -%}
+{%obstart() --%}
 a
-{%- obstart() -%}
-{%- = 2 -%}
+{%-- obstart() --%}
+{%-- = 2 --%}
 b
-{%- flush(); obend() -%}
-{%- return str(obend())%}
+{%-- flush(); obend() --%}
+{%-- return str(obend())%}
 `,
 		newOpts(),
 		Str("a2b"),
@@ -5278,12 +5278,12 @@ b
 	)
 
 	testExpectRun(t, `
-{%-
+{%--
 	global value
 	obstart()
--%}
+--%}
 {key:"{%= value%}"}
-{%- return str(obend())%}
+{%-- return str(obend())%}
 `,
 		newOpts().
 			Mixed().

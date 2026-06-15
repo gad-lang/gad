@@ -304,6 +304,39 @@ func TestFormatMixedMode(t *testing.T) {
 	// A for-loop without an explicit opener gains `begin`.
 	mixed("# gad: mixed\n{% for x in items %}a{% end %}\n").
 		FormattedCode("# gad: mixed\n{% for x in items begin %}a{% end %}\n")
+
+	// Single (`-`, keep a newline) and double (`--`, strip all) trim markers
+	// round-trip through the formatter.
+	mixed("# gad: mixed\nA\n{%-- = 1 --%}\nB{%- = 2 -%}C").
+		FormattedCode("# gad: mixed\nA\n{%-- = 1 --%}\nB{%- = 2 -%}C")
+}
+
+func TestMixedTrimMarkers(t *testing.T) {
+	// value parses src as a template and returns the run-time Value() of the
+	// MixedText statement at index i.
+	value := func(src string, i int) string {
+		fs := source.NewFileSet()
+		f := fs.AddFileData("t", -1, []byte(src))
+		file, err := NewParserWithOptions(f,
+			&ParserOptions{Mode: ParseMixed}, &ScannerOptions{Mode: ScanMixed}).ParseFile()
+		require.NoError(t, err)
+		return file.Stmts[i].(*MixedTextStmt).Value()
+	}
+
+	// `-` keeps a single boundary newline; `--` strips all boundary whitespace.
+	// Stmts: [MixedText "A\n", value, MixedText "\nB"].
+	if got := value("A\n{%- = 1 -%}\nB", 0); got != "A\n" {
+		t.Errorf("single left text = %q, want %q", got, "A\n")
+	}
+	if got := value("A\n{%- = 1 -%}\nB", 2); got != "\nB" {
+		t.Errorf("single right text = %q, want %q", got, "\nB")
+	}
+	if got := value("A\n{%-- = 1 --%}\nB", 0); got != "A" {
+		t.Errorf("double left text = %q, want %q", got, "A")
+	}
+	if got := value("A\n{%-- = 1 --%}\nB", 2); got != "B" {
+		t.Errorf("double right text = %q, want %q", got, "B")
+	}
 }
 
 func TestParserError(t *testing.T) {
@@ -4428,14 +4461,17 @@ func TestParseConfig(t *testing.T) {
 			SMixedText(p(2, 1), "\ta"),
 		)
 	})
-	test.ExpectParse(t, `# gad: mixed, mixed_start = "[[[", mixed_end = "]]]"
+	test.ExpectParse(t, `# gad: mixed, delimiter = ["[[[", "]]]"]
 y
 [[[b]]]`, func(p pfn) []Stmt {
 		return stmts(
 			SConfig(p(1, 1),
 				KVp(EIdent("mixed", p(1, 8))),
-				KVp(EIdent("mixed_start", p(1, 15)), stringLit("[[[", p(1, 29))),
-				KVp(EIdent("mixed_end", p(1, 36)), stringLit("]]]", p(1, 48))),
+				KVp(EIdent("delimiter", p(1, 15)),
+					Array(p(1, 27), p(1, 40),
+						stringLit("[[[", p(1, 28)),
+						stringLit("]]]", p(1, 35)),
+					)),
 			),
 			SMixedText(p(2, 1), "y\n"),
 			SCodeBegin(Lit("[[[", p(3, 1)), false),
@@ -4444,10 +4480,10 @@ y
 		)
 	})
 
-	test.ExpectParseString(t, "# gad: mixed, mixed_start=\"[[[\", mixed_end=\"]]]\"\ny\n[[[b]]]",
-		`# gad: mixed, mixed_start="[[[", mixed_end="]]]"`+"\ny\n[[[; b; ]]]")
-	test.ExpectParseString(t, "# gad: mixed, mixed_start=\"[[[\", mixed_end=\"]]]\"\ny\n[[[b; true]]]",
-		"# gad: mixed, mixed_start=\"[[[\", mixed_end=\"]]]\"\ny\n[[[; b; true; ]]]")
+	test.ExpectParseString(t, "# gad: mixed, delimiter=[\"[[[\", \"]]]\"]\ny\n[[[b]]]",
+		"# gad: mixed, delimiter=[\"[[[\", \"]]]\"]\ny\n[[[; b; ]]]")
+	test.ExpectParseString(t, "# gad: mixed, delimiter=[\"[[[\", \"]]]\"]\ny\n[[[b; true]]]",
+		"# gad: mixed, delimiter=[\"[[[\", \"]]]\"]\ny\n[[[; b; true; ]]]")
 	test.ExpectParse(t, `# gad: mixed`, func(p pfn) []Stmt {
 		return stmts(
 			SConfig(p(1, 1), KVp(EIdent("mixed", p(1, 8)))))

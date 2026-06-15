@@ -21,7 +21,6 @@ import (
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/token"
-	"github.com/gad-lang/gad/utils"
 )
 
 // AssignStmt represents an assignment statement.
@@ -766,8 +765,15 @@ func (s *ThrowStmt) WriteCode(ctx *CodeWriteContext) {
 type MixedTextStmtFlag uint
 
 const (
+	// RemoveLeftSpaces / RemoveRightSpaces are the single-dash markers (`-%}`
+	// trims the following text's leading blanks; `{%-` trims the preceding
+	// text's trailing blanks) and preserve a single boundary newline.
 	RemoveLeftSpaces MixedTextStmtFlag = 1 << iota
 	RemoveRightSpaces
+	// RemoveLeftAll / RemoveRightAll are the double-dash markers (`--%}` / `{%--`)
+	// and strip ALL boundary whitespace, newlines included.
+	RemoveLeftAll
+	RemoveRightAll
 )
 
 func (s MixedTextStmtFlag) Has(f MixedTextStmtFlag) bool {
@@ -776,13 +782,30 @@ func (s MixedTextStmtFlag) Has(f MixedTextStmtFlag) bool {
 
 func (s MixedTextStmtFlag) String() string {
 	var v []string
-	if s.Has(RemoveLeftSpaces) {
-		v = append(v, "RemoveLeftSpaces")
-	}
-	if s.Has(RemoveRightSpaces) {
-		v = append(v, "RemoveRightSpaces")
+	for _, f := range []struct {
+		flag MixedTextStmtFlag
+		name string
+	}{
+		{RemoveLeftSpaces, "RemoveLeftSpaces"},
+		{RemoveRightSpaces, "RemoveRightSpaces"},
+		{RemoveLeftAll, "RemoveLeftAll"},
+		{RemoveRightAll, "RemoveRightAll"},
+	} {
+		if s.Has(f.flag) {
+			v = append(v, f.name)
+		}
 	}
 	return strings.Join(v, "|")
+}
+
+// isMixedSpace reports whether c is ASCII whitespace handled by the template
+// trim markers.
+func isMixedSpace(c byte) bool {
+	switch c {
+	case ' ', '\t', '\n', '\r', '\v', '\f':
+		return true
+	}
+	return false
 }
 
 // MixedTextStmt represents an MixedTextStmt.
@@ -820,13 +843,48 @@ func (s *MixedTextStmt) String() string {
 	return s.Lit.Value
 }
 
+// trimmed applies the template trim markers to the literal, returning the
+// number of leading bytes removed (for position tracking) and the result.
+// Single-dash markers preserve a single boundary newline; double-dash markers
+// strip all boundary whitespace.
+func (s *MixedTextStmt) trimmed() (start int, v string) {
+	v = s.Lit.Value
+	if s.Flags.Has(RemoveLeftSpaces) || s.Flags.Has(RemoveLeftAll) {
+		i, nl := 0, false
+		for i < len(v) && isMixedSpace(v[i]) {
+			if v[i] == '\n' {
+				nl = true
+			}
+			i++
+		}
+		start, v = i, v[i:]
+		if nl && !s.Flags.Has(RemoveLeftAll) {
+			v = "\n" + v
+		}
+	}
+	if s.Flags.Has(RemoveRightSpaces) || s.Flags.Has(RemoveRightAll) {
+		j, nl := len(v), false
+		for j > 0 && isMixedSpace(v[j-1]) {
+			if v[j-1] == '\n' {
+				nl = true
+			}
+			j--
+		}
+		v = v[:j]
+		if nl && !s.Flags.Has(RemoveRightAll) {
+			v += "\n"
+		}
+	}
+	return
+}
+
 func (s *MixedTextStmt) Value() string {
-	_, v := utils.TrimStringSpace(s.Lit.Value, s.Flags.Has(RemoveLeftSpaces), s.Flags.Has(RemoveRightSpaces))
+	_, v := s.trimmed()
 	return v
 }
 
 func (s *MixedTextStmt) ValidLit() ast.Literal {
-	start, v := utils.TrimStringSpace(s.Lit.Value, s.Flags.Has(RemoveLeftSpaces), s.Flags.Has(RemoveRightSpaces))
+	start, v := s.trimmed()
 	return ast.Literal{
 		Value: v,
 		Pos:   s.Lit.Pos + source.Pos(start),
@@ -862,7 +920,32 @@ type MixedValueStmt struct {
 	EndLit           ast.Literal
 	RemoveLeftSpace  bool
 	RemoveRightSpace bool
-	Eq               bool
+	// RemoveLeftAll/RemoveRightAll are the double-dash markers (`{%--= … --%}`)
+	// that strip ALL adjacent whitespace (newlines included).
+	RemoveLeftAll  bool
+	RemoveRightAll bool
+	Eq             bool
+}
+
+// leftMark / rightMark return the trim marker (“, `-` or `--`) for each side.
+func (s *MixedValueStmt) leftMark() string {
+	if s.RemoveLeftAll {
+		return "--"
+	}
+	if s.RemoveLeftSpace {
+		return "-"
+	}
+	return ""
+}
+
+func (s *MixedValueStmt) rightMark() string {
+	if s.RemoveRightAll {
+		return "--"
+	}
+	if s.RemoveRightSpace {
+		return "-"
+	}
+	return ""
 }
 
 func (s *MixedValueStmt) StmtNode() {}
@@ -883,16 +966,12 @@ func (s *MixedValueStmt) End() source.Pos {
 func (s *MixedValueStmt) String() string {
 	var b strings.Builder
 	b.WriteString(s.StartLit.Value)
-	if s.RemoveLeftSpace {
-		b.WriteByte('-')
-	}
+	b.WriteString(s.leftMark())
 	if s.Eq {
 		b.WriteByte('=')
 	}
 	b.WriteString(s.Expr.String())
-	if s.RemoveRightSpace {
-		b.WriteByte('-')
-	}
+	b.WriteString(s.rightMark())
 	b.WriteString(s.EndLit.Value)
 	return b.String()
 }
@@ -904,11 +983,11 @@ func (s *MixedValueStmt) WriteCode(ctx *CodeWriteContext) {
 		s.Expr.WriteCode(ctx)
 		ctx.WriteSingleByte(')')
 	} else {
-		// Normalize to `{%= expr %}` (with the trim markers `{%- … -%}` and a
-		// single space padding the expression).
+		// Normalize to `{%= expr %}` (with the trim markers `{%- … -%}` /
+		// `{%-- … --%}` and a single space padding the expression).
 		ctx.WriteString(s.StartLit.Value)
-		if s.RemoveLeftSpace {
-			ctx.WriteString("- ")
+		if m := s.leftMark(); m != "" {
+			ctx.WriteString(m + " ")
 		}
 		if s.Eq {
 			ctx.WriteString("= ")
@@ -916,8 +995,8 @@ func (s *MixedValueStmt) WriteCode(ctx *CodeWriteContext) {
 			ctx.WriteSingleByte(' ')
 		}
 		s.Expr.WriteCode(ctx)
-		if s.RemoveRightSpace {
-			ctx.WriteString(" -")
+		if m := s.rightMark(); m != "" {
+			ctx.WriteString(" " + m)
 		} else {
 			ctx.WriteSingleByte(' ')
 		}
@@ -974,6 +1053,17 @@ func (c *ConfigStmt) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("\n")
 }
 
+// strLitValue returns the string value of a string or raw-string literal.
+func strLitValue(e Expr) (string, bool) {
+	switch s := e.(type) {
+	case *StrLit:
+		return s.Value(), true
+	case *RawStrLit:
+		return s.Value(), true
+	}
+	return "", false
+}
+
 func (c *ConfigStmt) ParseElements() {
 	for _, k := range c.Elements {
 		switch k.Key.String() {
@@ -993,13 +1083,15 @@ func (c *ConfigStmt) ParseElements() {
 					c.Options.NoMixed = true
 				}
 			}
-		case "mixed_start":
-			if s, ok := k.Value.(*StrLit); ok {
-				c.Options.MixedStart = s.Value()
-			}
-		case "mixed_end":
-			if s, ok := k.Value.(*StrLit); ok {
-				c.Options.MixedEnd = s.Value()
+		case "delimiter":
+			// delimiter = [START, END]
+			if arr, ok := k.Value.(*ArrayExpr); ok && len(arr.Elements) == 2 {
+				if s, ok := strLitValue(arr.Elements[0]); ok {
+					c.Options.MixedStart = s
+				}
+				if s, ok := strLitValue(arr.Elements[1]); ok {
+					c.Options.MixedEnd = s
+				}
 			}
 		}
 	}
@@ -1043,6 +1135,9 @@ func (s *StmtsExpr) WriteCode(ctx *CodeWriteContext) {
 type CodeBeginStmt struct {
 	Lit         ast.Literal
 	RemoveSpace bool
+	// RemoveAllSpace reports the double-dash trim suffix (`{%--`), which strips
+	// ALL trailing whitespace (newlines included) from the preceding text.
+	RemoveAllSpace bool
 }
 
 func (s CodeBeginStmt) Pos() source.Pos {
@@ -1054,6 +1149,9 @@ func (s CodeBeginStmt) End() source.Pos {
 }
 
 func (s CodeBeginStmt) String() string {
+	if s.RemoveAllSpace {
+		return s.Lit.Value + "--"
+	}
 	if s.RemoveSpace {
 		return s.Lit.Value + "-"
 	}
@@ -1081,6 +1179,9 @@ func (s *CodeBeginStmt) WriteCode(ctx *CodeWriteContext) {
 type CodeEndStmt struct {
 	Lit         ast.Literal
 	RemoveSpace bool
+	// RemoveAllSpace reports the double-dash trim prefix (`--%}`), which strips
+	// ALL leading whitespace (newlines included) from the following text.
+	RemoveAllSpace bool
 }
 
 func (s CodeEndStmt) Pos() source.Pos {
@@ -1092,6 +1193,9 @@ func (s CodeEndStmt) End() source.Pos {
 }
 
 func (s CodeEndStmt) String() string {
+	if s.RemoveAllSpace {
+		return "--" + s.Lit.Value
+	}
 	if s.RemoveSpace {
 		return "-" + s.Lit.Value
 	}

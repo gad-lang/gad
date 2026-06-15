@@ -743,6 +743,11 @@ func (s *Script) execute() error {
 	}
 	opts.ModuleMap = DefaultModuleMap(s.workdir, s.sourcePath)
 
+	// `.gadt` files are templates by convention.
+	if strings.HasSuffix(s.modulePath, ".gadt") {
+		templateMode = true
+	}
+
 	// Template/mixed mode: parse the whole input as a template with the
 	// configured (or default) delimiters; the `# gad: …` config directives are
 	// disabled since the file is template content from the first byte.

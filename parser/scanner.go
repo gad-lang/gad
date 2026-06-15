@@ -451,8 +451,16 @@ func (s *Scanner) ScanCodeBlock(leftText *PToken) (code PToken) {
 	if leftText != nil {
 		switch s.Ch {
 		case '-':
-			s.NextNoSpace()
-			data.Set("remove-spaces", true)
+			s.Next() // consume the first '-'
+			if s.Ch == '-' {
+				// `{%--`: strip ALL trailing whitespace of the preceding text.
+				s.NextNoSpace() // consume the second '-' and skip whitespace
+				data.Set("remove-spaces-all", true)
+			} else {
+				// `{%-`: strip trailing blanks, keeping a boundary newline.
+				s.SkipWhitespace()
+				data.Set("remove-spaces", true)
+			}
 		}
 		if leftText.Literal == "" {
 			leftText = nil

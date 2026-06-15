@@ -128,10 +128,14 @@ The `gad` binary is organised as subcommands:
 
 | Command     | Purpose                                                           |
 |-------------|------------------------------------------------------------------|
-| `gad run`   | Run a script/stdin or start the REPL (the default).              |
+| `gad run`   | Run a script/stdin (or a `.gadt`/`--template` template), or the REPL. |
 | `gad fmt`   | Format Gad source files in place.                                |
 | `gad debug` | Debug a script — interactive REPL or `--dap` for editors.        |
 | `gad ide`   | Start a local web IDE (file tree, tabs, format/run/debug).       |
+
+Gad also has a **template / mixed mode** (`{% … %}` code, `{%= … %}` values,
+`begin … end` blocks, whitespace trim markers) — see
+[doc/templates.md](doc/templates.md).
 
 ### Samples & the web IDE
 

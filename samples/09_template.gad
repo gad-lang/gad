@@ -13,11 +13,11 @@ var (
   users = [    "joe", "mary", "george"   ]
   lastIndex = len(users)-1
 )
--%}
+--%}
 {
   "users": [
-{%-  for i,      name in    users begin %}
+{%--  for i,      name in    users begin %}
     "{%=name    %}"{%= i < lastIndex ? "," : "" %}
-{%- end %}
+{%-- end %}
   ]
 }
