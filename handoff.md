@@ -2,7 +2,32 @@
 
 ## ACTIVE WORK (2026-06-15): `gad fmt` + mixed/template mode (todo.md)
 
-STATUS: Task 1 (mixed/template formatting) = DONE + COMMITTED (`ed73d1d`).
+STATUS: Tasks 1–3 DONE + COMMITTED.
+- Task 1 (mixed/template formatting + `begin/end`) → `ed73d1d`.
+- Task 2 (godoc, `--template`+delimiter flags+config, `{%--`/`--%}` trim markers,
+  `.gadt`, per-file `delimiter=[…]` config, doc/templates.md) → `f2fd892`,
+  `46cfb8c`. Trim semantics: `-` keeps a boundary newline, `--` strips all.
+- Task 3 (build tags `noide`/`nodebug`; `run` already the default) → `fa58a3e`.
+  Optional subcommands self-register via init() into `optionalCommands`.
+IDE codemirror finding (todo task 4, started): the DEFAULT `gad ide` serves the
+build-free VANILLA UI (`cmd/gad/ideapp/app.js`) which uses a plain `<textarea>`
+— there is NO CodeMirror there. CodeMirror (the React `Editor` +
+`@gad-lang/codemirror-gad`) only runs in the React UI served via `gad ide
+--static web/app/dist` or `-tags prod`. So "codemirror not working on ide"
+is largely "the default UI has no codemirror". Fixed the stale keyword list
+(`do`/`then`/`done`→`begin`) in web/codemirror-gad/src/keywords.ts. The big
+IDE task needs browser-based iteration; remaining sub-features (file-tree
+rename/menu, run/debug dialog, breakpoint dialog, evaluate panel, editors for
+JSON/YAML/etc., tooltips, undo/redo, …) are best done with the IDE running.
+
+NEXT (todo.md, top-down): big IDE enhancement task (codemirror fix, file-tree
+rename + context menu run/format/transpile/remove, run/debug settings dialog,
+breakpoint dialog with disabled/condition, builtin tooltips); then `gad fmt`
+per-file JSON report + `--to-stdout` boundary stream; IDE "evaluate" panel;
+CodeStrLit heredoc token; time+strings as builtin modules; date/time literals;
+regexp `~`/`~~` + POSIX `/…/p` doc examples.
+
+--- (superseded detail below) ---
 Task 2 (godoc/`--template`/`--` markers/`.gadt`/docs) = IN PROGRESS:
   - godoc + `--template` flag + delimiter flags + `.gad.yaml` `template:` config
     = COMMITTED. `--template` runs config-less templates; delimiters default to

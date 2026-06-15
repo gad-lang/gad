@@ -6,7 +6,7 @@ export const keywords: string[] = [
   "defer", "defer_ok", "defer_err", "deferb", "deferb_ok", "deferb_err",
   "param", "global", "var", "const", "export",
   "import", "embed", "raw", "template",
-  "do", "then", "done", "end",
+  "begin", "end",
   "or", "is",
 ];
 
