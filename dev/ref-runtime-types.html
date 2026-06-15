@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gad Runtime Types · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link active" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="gad-runtime-types">Gad Runtime Types</h1>
+<ul>
+<li><strong>int</strong>: signed 64bit integer (<code>int64</code> in Go)</li>
+<li><strong>uint</strong>: unsigned 64bit integer (<code>uint64</code> in Go)</li>
+<li><strong>float</strong>: 64bit floating point (<code>float64</code> in Go)</li>
+<li><strong>bool</strong>: boolean (<code>bool</code> in Go)</li>
+<li><strong>char</strong>: character (<code>rune</code> in Go)</li>
+<li><strong>string</strong>: string (<code>string</code> in Go)</li>
+<li><strong>bytes</strong>: byte array (<code>[]byte</code> in Go)</li>
+<li><strong>array</strong>: objects array (<code>[]Object</code> in Go)</li>
+<li><strong>map</strong>: objects map with string keys (<code>map[string]Object</code> in Go)</li>
+<li><strong>error</strong>: an error with a string Name and Message</li>
+<li><strong>nil</strong>: nil</li>
+</ul>
+<p>Note: Gad does not have <code>byte</code> type. <code>uint</code>, <code>int</code> or <code>string</code> values can be used to create/modify <code>bytes</code> values.</p>
+<h2 id="go-type-definitions">Go Type Definitions</h2>
+<ul>
+<li><code>int</code></li>
+</ul>
+<pre><code class="language-go">type Int int64</code></pre>
+<ul>
+<li><code>uint</code></li>
+</ul>
+<pre><code class="language-go">type Uint uint64</code></pre>
+<p>Note: uint values can be represented by adding <code>u</code> suffix to integer values.</p>
+<ul>
+<li><code>float</code></li>
+</ul>
+<pre><code class="language-go">type Float float64</code></pre>
+<ul>
+<li><code>bool</code></li>
+</ul>
+<pre><code class="language-go">type Bool bool</code></pre>
+<ul>
+<li><code>char</code></li>
+</ul>
+<pre><code class="language-go">type Char rune</code></pre>
+<ul>
+<li><code>string</code></li>
+</ul>
+<pre><code class="language-go">type String string</code></pre>
+<ul>
+<li><code>bytes</code></li>
+</ul>
+<pre><code class="language-go">type Bytes []byte</code></pre>
+<ul>
+<li><code>error</code></li>
+</ul>
+<pre><code class="language-go">type Error struct {
+  Name    string
+  Message string
+  Cause   error
+}</code></pre>
+<ul>
+<li><code>array</code></li>
+</ul>
+<pre><code class="language-go">type Array []Object</code></pre>
+<ul>
+<li><code>map</code></li>
+</ul>
+<pre><code class="language-go">type Map map[string]Object</code></pre>
+<ul>
+<li><code>syncMap</code></li>
+</ul>
+<pre><code class="language-go">type SyncMap struct {
+  mu sync.RWMutex
+  Map
+}</code></pre>
+<h2 id="type-conversioncoercion-table">Type Conversion/Coercion Table</h2>
+<table>
+<thead><tr><th></th><th>int</th><th>uint</th><th>float</th><th>bool</th><th>char</th><th>string</th><th>bytes</th><th>array</th><th>map</th><th>error</th><th>nil</th></tr></thead>
+<tbody>
+<tr><td>int</td><td>-</td><td>uint64(v)</td><td>float64(v)</td><td>!IsFalsy()</td><td>rune(v)</td><td><em>strconv</em></td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td>String()</td><td><strong>X</strong></td></tr>
+<tr><td>uint</td><td>int64(v)</td><td>-</td><td>float64(v)</td><td>!IsFalsy()</td><td>rune(v)</td><td><em>strconv</em></td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td>String()</td><td><strong>X</strong></td></tr>
+<tr><td>float</td><td>int64(v)</td><td>uint64(v)</td><td>-</td><td>!IsFalsy()</td><td>rune(v)</td><td><em>strconv</em></td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td>String()</td><td><strong>X</strong></td></tr>
+<tr><td>bool</td><td>1 / 0</td><td>1 / 0</td><td>1.0 / 0.0</td><td>-</td><td>1 / 0</td><td>"true" / "false"</td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td>String()</td><td><strong>X</strong></td></tr>
+<tr><td>char</td><td>int64(v)</td><td>uint64(v)</td><td>float64(v)</td><td>!IsFalsy()</td><td>-</td><td>string(v)</td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td>String()</td><td><strong>X</strong></td></tr>
+<tr><td>string</td><td><em>strconv</em></td><td><em>strconv</em></td><td><em>strconv</em></td><td>!IsFalsy()</td><td>utf8. DecodeRuneInString(v)</td><td>-</td><td>[]byte(v)</td><td><strong>X</strong></td><td><strong>X</strong></td><td>String()</td><td><strong>X</strong></td></tr>
+<tr><td>bytes</td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td>!IsFalsy()</td><td><strong>X</strong></td><td>string(v)</td><td>-</td><td><strong>X</strong></td><td><strong>X</strong></td><td>String()</td><td><strong>X</strong></td></tr>
+<tr><td>array</td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td>!IsFalsy()</td><td><strong>X</strong></td><td>String()</td><td><strong>X</strong></td><td>-</td><td><strong>X</strong></td><td>String()</td><td><strong>X</strong></td></tr>
+<tr><td>map</td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td>!IsFalsy()</td><td><strong>X</strong></td><td>String()</td><td><strong>X</strong></td><td><strong>X</strong></td><td>-</td><td>String()</td><td><strong>X</strong></td></tr>
+<tr><td>error</td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td>String()</td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td>-</td><td><strong>X</strong></td></tr>
+<tr><td>nil</td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td>!IsFalsy()</td><td><strong>X</strong></td><td>String()</td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td><strong>X</strong></td><td>-</td></tr>
+</tbody>
+</table>
+<ul>
+<li><strong>X</strong>: No conversion. Conversion function will throw runtime error, TypeError.</li>
+<li>strconv: converted using Go's conversion functions from <code>strconv</code> package.</li>
+<li>IsFalsy(): use <a href="#objectisfalsy">Object.IsFalsy()</a> function.</li>
+<li>String(): use <code>Object.String()</code> function.</li>
+</ul>
+<h2 id="objectisfalsy">Object.IsFalsy()</h2>
+<p><code>Object.IsFalsy()</code> interface method is used to determine if a given value should evaluate to <code>false</code> (e.g. for condition expression of <code>if</code> statement).</p>
+<ul>
+<li><strong>int</strong>: <code>v == 0</code></li>
+<li><strong>uint</strong>: <code>v == 0</code></li>
+<li><strong>float</strong>: <code>math.IsNaN(v)</code></li>
+<li><strong>bool</strong>: <code>!v</code></li>
+<li><strong>char</strong>: <code>v == 0</code></li>
+<li><strong>string</strong>: <code>len(v) == 0</code></li>
+<li><strong>bytes</strong>: <code>len(v) == 0</code></li>
+<li><strong>array</strong>: <code>len(v) == 0</code></li>
+<li><strong>map</strong>: <code>len(v) == 0</code></li>
+<li><strong>error</strong>: <code>true</code> <em>(error is always falsy)</em></li>
+<li><strong>nil</strong>: <code>true</code> <em>(nil is always falsy)</em></li>
+</ul>
+<p><em>See <a href="builtins.html">builtins</a> for conversion and type checking functions</em></p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#go-type-definitions">Go Type Definitions</a><a href="#type-conversioncoercion-table">Type Conversion/Coercion Table</a><a href="#objectisfalsy">Object.IsFalsy()</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

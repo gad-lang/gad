@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control Flow · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link active" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="control-flow">Control Flow</h1>
+<p><a href="index.html">← Back to index</a></p>
+<h2 id="if">If</h2>
+<p><code>if</code> works like Go's, including an optional init statement before the condition.</p>
+<pre><code class="language-go">if a &lt; 0 {
+    println("negative")
+} else if a == 0 {
+    println("zero")
+} else {
+    println("positive")
+}
+
+if v := compute(); v &gt; 10 {
+    println("big", v)
+}</code></pre>
+<p>The body braces can also be written with <code>begin</code> … <code>end</code>:</p>
+<pre><code class="language-go">if a &gt; 0 begin println("yes") end</code></pre>
+<h2 id="for">For</h2>
+<p>The three-clause, condition-only and infinite forms all exist.</p>
+<pre><code class="language-go">for i := 0; i &lt; 3; i++ {   // classic
+    println(i)
+}
+
+for x &lt; 10 {               // while-style
+    x++
+}
+
+for {                      // infinite; use break to stop
+    if done() { break }
+}</code></pre>
+<p><code>break</code> and <code>continue</code> behave as in Go.</p>
+<h2 id="for-in">For-In</h2>
+<p><code>for in</code> iterates any iterable: arrays, dicts, strings, bytes and lazy iterators (such as the result of <code>map</code>/<code>filter</code>). Bind one variable for the value, or two for key/index and value.</p>
+<pre><code class="language-go">for v in [10, 20, 30] {
+    println(v)                 // 10, 20, 30
+}
+for i, v in [10, 20, 30] {
+    println(i, v)              // 0 10, 1 20, 2 30
+}
+for k, v in {a: 1, b: 2} {
+    println(k, v)              // a 1, b 2
+}
+for i, c in "ab" {
+    println(i, c)              // 0 'a', 1 'b'
+}</code></pre>
+<h2 id="match">Match</h2>
+<p><code>match</code> (PHP 8-style) compares a subject against arms and yields the first matching result. It has an expression form (each arm is <code>cond: value</code>) and a statement form (each arm is <code>cond { … }</code>). The <code>else</code> arm is the default.</p>
+<p>Expression form — arms separated by commas or newlines:</p>
+<pre><code class="language-go">label := match (n) {
+    1: "one"
+    2: "two",
+    else: "other"
+}</code></pre>
+<p>Statement form — arms run a block:</p>
+<pre><code class="language-go">match (n) {
+    1 { return "one" }
+    else { return "other" }
+}</code></pre>
+<p>Arm conditions are arbitrary expressions, so <code>match</code> doubles as a clean multi-branch conditional:</p>
+<pre><code class="language-go">size := match (true) {
+    n &lt; 10:   "small"
+    n &lt; 100:  "medium"
+    else:     "large"
+}</code></pre>
+<h2 id="try--catch--finally">Try / Catch / Finally</h2>
+<p>Gad handles runtime errors (and Go panics surfaced as errors) with <code>try</code>/<code>catch</code>/<code>finally</code>, similar to ECMAScript. <code>catch</code> may bind the error; <code>finally</code> always runs.</p>
+<pre><code class="language-go">try {
+    throw "boom"
+} catch err {
+    println("caught:", err)   // caught: error: boom
+} finally {
+    println("cleanup")        // always runs
+}</code></pre>
+<p><code>catch</code> and <code>finally</code> are each optional, but at least one must be present. <code>throw</code> raises any value as an error. For error values, fallbacks and the <code>or</code> operator, see <a href="error-handling.html">Error Handling</a>.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#if">If</a><a href="#for">For</a><a href="#for-in">For-In</a><a href="#match">Match</a><a href="#try--catch--finally">Try / Catch / Finally</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

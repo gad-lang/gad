@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Error Handling · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link active" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="error-handling">Error Handling</h1>
+<p><a href="index.html">← Back to index</a></p>
+<h2 id="error-values">Error Values</h2>
+<p>An <code>error</code> value carries a <code>name</code> and a <code>message</code>. Create one with the <code>error</code> builtin (its first argument is converted to a string message) and inspect it with the <code>.name</code> and <code>.message</code> selectors.</p>
+<pre><code class="language-go">err := error("oops")
+println(isError(err))   // true
+println(err.name)       // error
+println(err.message)    // oops</code></pre>
+<p>An error value is <strong>falsy</strong>, so it can be tested directly, but note that simply *holding* an error does not stop execution — only <code>throw</code> (or a failing operation) does.</p>
+<h2 id="throw">throw</h2>
+<p><code>throw</code> raises any value as an error, unwinding until a <code>catch</code> handles it.</p>
+<pre><code class="language-go">func() {
+    throw "something went wrong"
+}()</code></pre>
+<h2 id="try--catch--finally">try / catch / finally</h2>
+<p><code>try</code> runs a block; <code>catch</code> handles a raised error (optionally binding it); <code>finally</code> always runs. <code>catch</code> and <code>finally</code> are each optional, but at least one must be present.</p>
+<pre><code class="language-go">try {
+    throw "boom"
+} catch err {
+    println("caught:", err.message)   // caught: boom
+} finally {
+    println("always runs")
+}</code></pre>
+<p>A <code>catch</code> without a binding ignores the error value:</p>
+<pre><code class="language-go">try {
+    risky()
+} catch {
+    println("failed, continuing")
+}</code></pre>
+<h2 id="builtin-errors">Builtin Errors</h2>
+<p>Builtin errors have a <code>name</code> but no message. Call <code>.New(message)</code> to create a wrapped instance with a message.</p>
+<pre><code class="language-go">e := NotImplementedError.New("todo: parse v2")
+println(e.name)      // NotImplementedError
+println(e.message)   // todo: parse v2</code></pre>
+<p>Available builtin errors:</p>
+<table>
+<thead><tr><th>Identifier</th><th>Raised when…</th></tr></thead>
+<tbody>
+<tr><td><code>WrongNumArgumentsError</code></td><td>a call has the wrong number of arguments</td></tr>
+<tr><td><code>InvalidOperatorError</code></td><td>an operator is not defined for the types</td></tr>
+<tr><td><code>IndexOutOfBoundsError</code></td><td>an index is outside a sequence</td></tr>
+<tr><td><code>NotIterableError</code></td><td>a value cannot be iterated</td></tr>
+<tr><td><code>NotIndexableError</code></td><td>a value cannot be indexed</td></tr>
+<tr><td><code>NotIndexAssignableError</code></td><td>an index cannot be assigned</td></tr>
+<tr><td><code>NotCallableError</code></td><td>a non-function value is called</td></tr>
+<tr><td><code>NotImplementedError</code></td><td>a feature is not implemented</td></tr>
+<tr><td><code>ZeroDivisionError</code></td><td>division (or modulo) by zero</td></tr>
+<tr><td><code>TypeError</code></td><td>an unexpected type is encountered</td></tr>
+</tbody>
+</table>
+<p>You can <code>catch</code> these like any other error, or compare an error's <code>.name</code>.</p>
+<h2 id="the-or-fallback-operator">The <code>or</code> Fallback Operator</h2>
+<p><code>expr or fallback</code> evaluates <code>expr</code>; if evaluating it <strong>throws</strong>, the thrown error is swallowed and <code>fallback</code> is used instead. It is a concise alternative to a <code>try/catch</code> for expression-level recovery.</p>
+<pre><code class="language-go">mayThrow := func() { throw "fail" }
+
+z := mayThrow() or 99            // 99
+y := 1 + (mayThrow() or 10)      // 11
+ok := (2 * 3) or 0               // 6  (no throw → left value)</code></pre>
+<p><code>or</code> triggers only on a *thrown* error, not on a value that merely *is* an error. If the fallback is itself an error value, it is re-thrown.</p>
+<h2 id="recovering-with-defer-err">Recovering with <code>defer_err</code></h2>
+<p>A <code>defer_err</code> handler runs when a function exits with an error and can recover by clearing <code>$err</code>, optionally setting the result via <code>$ret</code>. See <a href="functions.html#deferred-handlers">Functions → Deferred Handlers</a>.</p>
+<pre><code class="language-go">safe := func() {
+    defer_err {
+        $ret = "recovered: " + str($err)
+        $err = nil
+    }
+    throw "boom"
+}
+println(safe())   // recovered: error: boom</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#error-values">Error Values</a><a href="#throw">throw</a><a href="#try--catch--finally">try / catch / finally</a><a href="#builtin-errors">Builtin Errors</a><a href="#the-or-fallback-operator">The or Fallback Operator</a><a href="#recovering-with-defer-err">Recovering with defer_err</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
