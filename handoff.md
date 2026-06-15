@@ -2,13 +2,31 @@
 
 ## ACTIVE WORK (2026-06-15): `gad fmt` + mixed/template mode (todo.md)
 
-STATUS: Tasks 1–3 DONE + COMMITTED.
+STATUS: Tasks 1–3 + transpile DONE + COMMITTED.
 - Task 1 (mixed/template formatting + `begin/end`) → `ed73d1d`.
 - Task 2 (godoc, `--template`+delimiter flags+config, `{%--`/`--%}` trim markers,
   `.gadt`, per-file `delimiter=[…]` config, doc/templates.md) → `f2fd892`,
   `46cfb8c`. Trim semantics: `-` keeps a boundary newline, `--` strips all.
 - Task 3 (build tags `noide`/`nodebug`; `run` already the default) → `fa58a3e`.
   Optional subcommands self-register via init() into `optionalCommands`.
+- Transpile (`--transpile` flag, `fmt.transpile` config, per-input_dir
+  `transpile`, `.gadt`→sibling `.gad`, WriteStmts separator fix for transpiled
+  write() calls, default `RawStrFuncStart="raw "`/`WriteFunc="write"`) → `7a36d9e`.
+
+CURRENT TASK (todo.md ~L65): rework `gad fmt` reporting to PER-FILE NDJSON
+(single-line JSON, one obj per line, keys `{input_dir?, file, error?}`; remove
+YAML report support, drop `--report-format`). `input_dir` only when the file is
+in a dir job; `file` is relative to that dir then. Add `--to-stdout`: stream
+formatted results to stdout (no file writes) and, when `--report` is unset,
+print the NDJSON report to stdout too. Add `--boundary BOUNDARY`: if unset,
+generate a UUID and print `>> BOUNDARY` as the first stdout line. Stream frame
+per file:
+  -- BOUNDARY #FILE_INDEX [INPUT_DIR] FILE_NAME   (brackets only if in dir job)
+  FORMATTED_FILE_RESULT
+  -- BOUNDARY #FILE_INDEX
+Plan: t.root!="" ⟺ "in input dir" (use t.root as input_dir, t.relPath() as
+file). Store boundary + toStdout on fmtOptions; assign a global file index in
+run(). Tests TestMarshalReport/TestValidateReportFormat must be replaced.
 IDE codemirror finding (todo task 4, started): the DEFAULT `gad ide` serves the
 build-free VANILLA UI (`cmd/gad/ideapp/app.js`) which uses a plain `<textarea>`
 — there is NO CodeMirror there. CodeMirror (the React `Editor` +

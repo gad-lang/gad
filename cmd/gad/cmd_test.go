@@ -146,6 +146,30 @@ func TestFormatTargetTranspileGadt(t *testing.T) {
 	require.Contains(t, string(got), "x := 1")
 }
 
+func TestFormatTargetToStdout(t *testing.T) {
+	dir := t.TempDir()
+	const orig = "x:=1\nif x>0{println(x)}\n"
+	p := writeFile(t, dir, "src/a.gad", orig)
+
+	o := &fmtOptions{codeFlags: fmtFormatFlag(), toStdout: true, boundary: "BND"}
+	var mu sync.Mutex
+	out := bytes.NewBuffer(nil)
+	tgt := fmtTarget{path: p, root: filepath.Join(dir, "src"), index: 7}
+
+	require.NoError(t, o.formatTarget(tgt, false, &mu, out))
+
+	got := out.String()
+	// Header carries the input dir (bracketed) and the file relative to it.
+	require.Contains(t, got, "-- BND #7 ["+filepath.Join(dir, "src")+"] a.gad\n")
+	require.Contains(t, got, "if (x > 0) {\n")
+	require.True(t, strings.HasSuffix(got, "-- BND #7\n"), "trailer closes the frame")
+
+	// The input file is left untouched (streamed, not written).
+	in, err := os.ReadFile(p)
+	require.NoError(t, err)
+	require.Equal(t, orig, string(in))
+}
+
 func TestFormatTargetBackup(t *testing.T) {
 	dir := t.TempDir()
 	const orig = "y:=2\nif y>0{println(y)}\n"
@@ -201,11 +225,10 @@ func TestLoadConfig(t *testing.T) {
 		"  exclude:",
 		"    - '*_gen.gad'",
 		"  backup-format: 'BASE_NAME.bak.gad'",
-		"  report-format: json",
 		"  input_dirs:",
 		"    - path: src",
 		"      backup: true",
-		"      report: src.json",
+		"      report: src.ndjson",
 		"other:",
 		"  ignored: true",
 	}, "\n"))
@@ -217,11 +240,10 @@ func TestLoadConfig(t *testing.T) {
 
 	require.Equal(t, globList{"*_gen.gad"}, o.exclude)
 	require.Equal(t, "BASE_NAME.bak.gad", o.backupFormat)
-	require.Equal(t, "json", o.reportFormat)
 	require.Len(t, o.inputDirs, 1)
 	require.Equal(t, "src", o.inputDirs[0].Path)
 	require.True(t, o.inputDirs[0].Backup)
-	require.Equal(t, "src.json", o.inputDirs[0].Report)
+	require.Equal(t, "src.ndjson", o.inputDirs[0].Report)
 }
 
 func TestLoadConfigCLIOverrides(t *testing.T) {
@@ -257,25 +279,34 @@ func TestTranspileFlags(t *testing.T) {
 	require.Equal(t, "out.Write", o.transpile.WriteFunc)
 }
 
-func TestMarshalReport(t *testing.T) {
-	r := fmtReport{
-		Files: []fmtReportFile{{Path: "a.gad", Error: nil}, {Path: "b.gad", Error: "boom"}},
-	}
+func TestMarshalReportLine(t *testing.T) {
+	// A successful file in an input dir: input_dir + relative file, no error.
+	ok := marshalReportLine(fmtReportRecord{InputDir: "src", File: "a.gad"})
+	require.Equal(t, `{"input_dir":"src","file":"a.gad"}`+"\n", string(ok))
 
-	yamlOut, err := marshalReport("yaml", r)
-	require.NoError(t, err)
-	require.Contains(t, string(yamlOut), "error: null")
-	require.Contains(t, string(yamlOut), "error: boom")
-
-	jsonOut, err := marshalReport("json", r)
-	require.NoError(t, err)
-	require.Contains(t, string(jsonOut), `"error": null`)
-	require.Contains(t, string(jsonOut), `"error": "boom"`)
+	// A failed explicit file: no input_dir, error present.
+	bad := marshalReportLine(fmtReportRecord{File: "b.gad", Error: "boom"})
+	require.Equal(t, `{"file":"b.gad","error":"boom"}`+"\n", string(bad))
 }
 
-func TestValidateReportFormat(t *testing.T) {
-	require.NoError(t, validateReportFormat(""))
-	require.NoError(t, validateReportFormat("yaml"))
-	require.NoError(t, validateReportFormat("json"))
-	require.Error(t, validateReportFormat("xml"))
+func TestWriteReportNDJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nested", "report.ndjson")
+	records := []fmtReportRecord{
+		{File: "a.gad"},
+		{InputDir: "src", File: "b.gad", Error: "boom"},
+	}
+	require.NoError(t, writeReport(path, records))
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t,
+		`{"file":"a.gad"}`+"\n"+`{"input_dir":"src","file":"b.gad","error":"boom"}`+"\n",
+		string(data))
+}
+
+func TestNewBoundaryUnique(t *testing.T) {
+	a, b := newBoundary(), newBoundary()
+	require.NotEqual(t, a, b)
+	require.Len(t, a, 36) // canonical UUID length
 }

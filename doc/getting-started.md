@@ -143,8 +143,8 @@ gad fmt -            # format stdin to stdout
 ```
 
 It supports include/exclude globs and regexes, `--out`, `--backup`, parallel
-`--jobs`, layout `--no-*` flags, transpile flags, machine-readable `--report`
-output and a `.gad.yaml` config file. See **[Formatting](formatting.md)** for
+`--jobs`, layout `--no-*` flags, transpile flags, NDJSON `--report` output,
+`--to-stdout` streaming and a `.gad.yaml` config file. See **[Formatting](formatting.md)** for
 the full reference.
 
 ### The web IDE (`gad ide`)

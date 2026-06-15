@@ -84,28 +84,40 @@ emits transpiled output instead of plain formatting.
 
 ## Reports
 
-`--report PATH` writes one machine-readable report of every file's status.
-`--report-format` selects `yaml` (default) or `json`.
+`--report PATH` writes a per-file status report as **NDJSON** — one JSON object
+per line. Each line carries `file` (relative to its input directory when the
+file came from one), `input_dir` (only for files discovered through a directory
+job), and `error` (only on failure):
 
 ```sh
-gad fmt --report report.yaml src/...
-gad fmt --report report.json --report-format json src/...
+gad fmt --report report.ndjson src/...
 ```
 
-The report lists explicitly-named files under `files` and directory files
-grouped under `input_dirs`; `error` is null on success or the message on
-failure:
-
-```yaml
-files:
-  - path: oops.gad
-    error: "Parse Error: ..."
-input_dirs:
-  - path: src
-    files:
-      - path: src/a.gad
-        error: null
+```json
+{"input_dir":"src","file":"a.gad"}
+{"input_dir":"src","file":"b.gad","error":"Parse Error: ..."}
+{"file":"oops.gad"}
 ```
+
+### Streaming to stdout
+
+`--to-stdout` formats every file but writes nothing to disk: each result is
+streamed to stdout, framed by boundary markers, and (when `--report` is unset)
+the NDJSON report follows. The boundary token frames the stream so a caller can
+split the results reliably; pass `--boundary TOKEN` to choose it, otherwise a
+random UUID is generated and announced on the first line as `>> TOKEN`:
+
+```text
+>> 8f883eb4-a13a-491a-8209-72d89ccaeee1
+-- 8f883eb4-a13a-491a-8209-72d89ccaeee1 #0 [src] a.gad
+x := 1
+-- 8f883eb4-a13a-491a-8209-72d89ccaeee1 #0
+{"input_dir":"src","file":"a.gad"}
+```
+
+Each block is `-- TOKEN #INDEX [INPUT_DIR] FILE` (the `[INPUT_DIR]` bracket is
+present only for directory-job files, and `FILE` is then relative to it),
+followed by the formatted source, then a closing `-- TOKEN #INDEX` line.
 
 ## Config File (`.gad.yaml`)
 
@@ -116,21 +128,20 @@ with `--no-config`. Command-line flags override config values.
 Keys use the flag names (without the leading `--`). A special `input_dirs` list
 declares directories to format with their own include/exclude/backup/report
 settings (these merge with the global include/exclude globs; `backup` defaults
-to false per directory, and `backup_format`/`report_format` default to the
-global values).
+to false per directory, and `backup_format` defaults to the global value). A
+per-directory `report` writes that directory's NDJSON lines on its own.
 
 ```yaml
 fmt:
   exclude:
     - "*_gen.gad"
   backup-format: "BASE_NAME.bak.gad"
-  report: report.yaml
-  report-format: yaml
+  report: report.ndjson
   input_dirs:
     - path: src
       backup: true
       excludes: ["*_test.gad"]
-      report: src-report.yaml
+      report: src-report.ndjson
 ```
 
 With such a file present, a bare `gad fmt` (no path arguments) formats the

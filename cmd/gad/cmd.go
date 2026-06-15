@@ -8,6 +8,8 @@
 package main
 
 import (
+	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -221,28 +223,19 @@ type inputDir struct {
 	Backup       bool     `yaml:"backup"`
 	BackupFormat string   `yaml:"backup_format"`
 	Report       string   `yaml:"report"`
-	ReportFormat string   `yaml:"report_format"`
 	Transpile    bool     `yaml:"transpile"`
 }
 
-// fmtReportFile is the per-file outcome recorded in a format report. Error is
-// nil on success or the error message string on failure.
-type fmtReportFile struct {
-	Path  string `yaml:"path" json:"path"`
-	Error any    `yaml:"error" json:"error"`
-}
+// fmtReportRecord is the per-file outcome emitted as one NDJSON line. InputDir
+// is set only when the file belongs to a directory job (File is then relative
+// to that directory). Error carries the failure message, omitted on success.
+type fmtReportRecord struct {
+	InputDir string `json:"input_dir,omitempty"`
+	File     string `json:"file"`
+	Error    string `json:"error,omitempty"`
 
-// fmtReportDir groups the per-file outcomes of a single input directory.
-type fmtReportDir struct {
-	Path  string          `yaml:"path" json:"path"`
-	Files []fmtReportFile `yaml:"files" json:"files"`
-}
-
-// fmtReport is the document written by --report: explicit files plus the files
-// grouped per input directory.
-type fmtReport struct {
-	Files     []fmtReportFile `yaml:"files" json:"files"`
-	InputDirs []fmtReportDir  `yaml:"input_dirs" json:"input_dirs"`
+	// display is a human-readable path used for stderr; not serialized.
+	display string
 }
 
 // fmtOptions holds the parsed flags (and config) of the `fmt` subcommand.
@@ -260,7 +253,8 @@ type fmtOptions struct {
 	jobs         int
 	out          string
 	report       string
-	reportFormat string
+	toStdout     bool
+	boundary     string
 	config       string
 	noConfig     bool
 	inputDirs    []inputDir
@@ -295,14 +289,6 @@ func fmtCommand() *cc.Command {
 				return err
 			}
 			o.finalizeTranspile()
-			if err := validateReportFormat(o.reportFormat); err != nil {
-				return err
-			}
-			for _, d := range o.inputDirs {
-				if err := validateReportFormat(d.ReportFormat); err != nil {
-					return fmt.Errorf("input_dir %q: %w", d.Path, err)
-				}
-			}
 			if len(ctx.Args) == 0 && len(o.inputDirs) == 0 {
 				return fmt.Errorf("no input: provide PATH... or input_dirs in the config")
 			}
@@ -326,8 +312,12 @@ func (o *fmtOptions) registerFlags(fs *flag.FlagSet) {
 		"backup file name pattern; BASE_NAME is the file name without its extension")
 	fs.IntVar(&o.jobs, "jobs", runtime.NumCPU(), "max concurrent format jobs")
 	fs.StringVar(&o.out, "out", "", "output file (single input) or directory; inputs are left unchanged")
-	fs.StringVar(&o.report, "report", "", "write a per-file status report to this path")
-	fs.StringVar(&o.reportFormat, "report-format", reportFmtYAML, "report file format: yaml or json")
+	fs.StringVar(&o.report, "report", "", "write a per-file NDJSON status report to this path")
+	fs.BoolVar(&o.toStdout, "to-stdout", false,
+		"stream formatted results to stdout (framed by --boundary markers) instead of writing files; "+
+			"the NDJSON report also goes to stdout when --report is unset")
+	fs.StringVar(&o.boundary, "boundary", "",
+		"boundary token framing --to-stdout output; a random UUID (announced as `>> BOUNDARY`) is generated when unset")
 	fs.StringVar(&o.config, "config", defaultCfgFile, "YAML config file with default flag values")
 	fs.BoolVar(&o.noConfig, "no-config", false, "do not read the config file")
 
@@ -513,6 +503,7 @@ type fmtTarget struct {
 	backupFormat string
 	fromStdin    bool
 	transpile    bool // transpile this file (and save .gadt as .gad)
+	index        int  // global file index used for --to-stdout boundary framing
 }
 
 // relPath returns the target path relative to its input root, used to mirror
@@ -538,10 +529,9 @@ func (t fmtTarget) destBase(path string) string {
 // fmtJob is a unit of parallel work: one explicit file/stdin, or all files of a
 // single input directory.
 type fmtJob struct {
-	targets      []fmtTarget
-	dir          string // input directory ("" for explicit files / stdin)
-	report       string // per-directory report path ("" when none)
-	reportFormat string // per-directory report format
+	targets []fmtTarget
+	dir     string // input directory ("" for explicit files / stdin)
+	report  string // per-directory report path ("" when none)
 }
 
 // run builds the jobs from the args + config input_dirs and formats them, with
@@ -554,14 +544,25 @@ func (o *fmtOptions) run(ctx *cc.CommandContext) error {
 		return err
 	}
 
+	// Assign a stable global file index used for --to-stdout boundary framing.
 	total := 0
-	for _, j := range jobs {
-		total += len(j.targets)
+	for ji := range jobs {
+		for ti := range jobs[ji].targets {
+			jobs[ji].targets[ti].index = total
+			total++
+		}
 	}
 	if total == 0 {
 		return nil
 	}
 	outIsFile := o.out != "" && total == 1
+
+	// In --to-stdout mode, announce the boundary token on the first line unless
+	// the caller supplied one (then it already knows it).
+	if o.toStdout && o.boundary == "" {
+		o.boundary = newBoundary()
+		fmt.Fprintf(ctx.Out, ">> %s\n", o.boundary)
+	}
 
 	limit := o.jobs
 	if limit < 1 {
@@ -572,7 +573,7 @@ func (o *fmtOptions) run(ctx *cc.CommandContext) error {
 		mu         sync.Mutex // guards ctx.Out and reportErrs
 		wg         sync.WaitGroup
 		sem        = make(chan struct{}, limit)
-		outcomes   = make([]fmtReportDir, len(jobs))
+		records    = make([][]fmtReportRecord, len(jobs))
 		reportErrs []error
 	)
 
@@ -584,17 +585,24 @@ func (o *fmtOptions) run(ctx *cc.CommandContext) error {
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			files := make([]fmtReportFile, len(j.targets))
+			recs := make([]fmtReportRecord, len(j.targets))
 			for k, t := range j.targets {
-				files[k] = fmtReportFile{Path: t.displayName()}
-				if err := o.formatTarget(t, outIsFile, &mu, ctx.Out); err != nil {
-					files[k].Error = err.Error()
+				rec := fmtReportRecord{display: t.displayName()}
+				if t.root != "" {
+					rec.InputDir = t.root
+					rec.File = t.relPath()
+				} else {
+					rec.File = t.displayName()
 				}
+				if err := o.formatTarget(t, outIsFile, &mu, ctx.Out); err != nil {
+					rec.Error = err.Error()
+				}
+				recs[k] = rec
 			}
-			outcomes[i] = fmtReportDir{Path: j.dir, Files: files}
+			records[i] = recs
 
 			if j.report != "" {
-				if werr := writeReport(j.report, j.reportFormat, outcomes[i]); werr != nil {
+				if werr := writeReport(j.report, recs); werr != nil {
 					mu.Lock()
 					reportErrs = append(reportErrs, fmt.Errorf("report %s: %w", j.report, werr))
 					mu.Unlock()
@@ -604,29 +612,32 @@ func (o *fmtOptions) run(ctx *cc.CommandContext) error {
 	}
 	wg.Wait()
 
-	// Assemble the global report and report per-file failures.
-	var report fmtReport
+	// Collect every record (in job order) and report per-file failures.
+	var all []fmtReportRecord
 	failures := 0
-	for i, j := range jobs {
-		oc := outcomes[i]
-		for _, f := range oc.Files {
-			if f.Error != nil {
+	for i := range jobs {
+		for _, r := range records[i] {
+			if r.Error != "" {
 				failures++
-				fmt.Fprintf(ctx.Err, "%s: %v\n", f.Path, f.Error)
+				fmt.Fprintf(ctx.Err, "%s: %s\n", r.display, r.Error)
 			}
-		}
-		if j.dir == "" {
-			report.Files = append(report.Files, oc.Files...)
-		} else {
-			report.InputDirs = append(report.InputDirs, oc)
+			all = append(all, r)
 		}
 	}
 
-	if o.report != "" {
-		if werr := writeReport(o.report, o.reportFormat, report); werr != nil {
+	switch {
+	case o.report != "":
+		if werr := writeReport(o.report, all); werr != nil {
 			reportErrs = append(reportErrs, fmt.Errorf("report %s: %w", o.report, werr))
 		}
+	case o.toStdout:
+		mu.Lock()
+		for _, r := range all {
+			ctx.Out.Write(marshalReportLine(r))
+		}
+		mu.Unlock()
 	}
+
 	for _, e := range reportErrs {
 		fmt.Fprintln(ctx.Err, e)
 	}
@@ -637,52 +648,43 @@ func (o *fmtOptions) run(ctx *cc.CommandContext) error {
 	return nil
 }
 
-// Report file formats.
-const (
-	reportFmtYAML = "yaml"
-	reportFmtJSON = "json"
-)
-
-// writeReport marshals v in the given format (yaml or json) and writes it to
-// path, creating parent directories as needed. An empty format defaults to
-// yaml.
-func writeReport(path, format string, v any) error {
-	data, err := marshalReport(format, v)
+// marshalReportLine encodes one record as a single-line JSON object terminated
+// by a newline (NDJSON).
+func marshalReportLine(r fmtReportRecord) []byte {
+	data, err := json.Marshal(r)
 	if err != nil {
-		return err
+		// fmtReportRecord is plain strings; marshalling cannot fail in practice.
+		data = []byte(fmt.Sprintf(`{"file":%q,"error":%q}`, r.File, err.Error()))
+	}
+	return append(data, '\n')
+}
+
+// writeReport writes the records as NDJSON to path, creating parent directories
+// as needed.
+func writeReport(path string, records []fmtReportRecord) error {
+	var buf bytes.Buffer
+	for _, r := range records {
+		buf.Write(marshalReportLine(r))
 	}
 	if dir := filepath.Dir(path); dir != "" && dir != "." {
-		if err = os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
 		}
 	}
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, buf.Bytes(), 0o644)
 }
 
-// validateReportFormat accepts an empty value (defaults to yaml), "yaml" or
-// "json".
-func validateReportFormat(format string) error {
-	switch strings.ToLower(format) {
-	case "", reportFmtYAML, reportFmtJSON:
-		return nil
-	default:
-		return fmt.Errorf("invalid report-format %q (want yaml or json)", format)
+// newBoundary returns a random RFC-4122 v4 UUID used to frame --to-stdout
+// output.
+func newBoundary() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// crypto/rand essentially never fails; fall back to a fixed-length token.
+		return fmt.Sprintf("%032x", b)
 	}
-}
-
-// marshalReport encodes v as yaml or json. An empty or unknown format defaults
-// to yaml.
-func marshalReport(format string, v any) ([]byte, error) {
-	switch strings.ToLower(format) {
-	case reportFmtJSON:
-		data, err := json.MarshalIndent(v, "", "  ")
-		if err != nil {
-			return nil, err
-		}
-		return append(data, '\n'), nil
-	default:
-		return yaml.Marshal(v)
-	}
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // variant 10
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
 
 // exitError carries a process exit code from a subcommand up to main, which
@@ -747,15 +749,10 @@ func (o *fmtOptions) buildJobs(args []string) ([]fmtJob, error) {
 		if bf == "" {
 			bf = o.backupFormat
 		}
-		rf := d.ReportFormat
-		if rf == "" {
-			rf = o.reportFormat
-		}
 		jobs = append(jobs, fmtJob{
-			targets:      dirTargets(path, files, d.Backup, bf, o.transpileSet || d.Transpile),
-			dir:          path,
-			report:       d.Report,
-			reportFormat: rf,
+			targets: dirTargets(path, files, d.Backup, bf, o.transpileSet || d.Transpile),
+			dir:     path,
+			report:  d.Report,
 		})
 	}
 
@@ -973,6 +970,24 @@ func (o *fmtOptions) formatTarget(t fmtTarget, outIsFile bool, mu *sync.Mutex, s
 	formatted, err := o.formatSource(t.displayName(), src, t.transpile)
 	if err != nil {
 		return err
+	}
+
+	// --to-stdout streams every result to stdout, framed by boundary markers,
+	// and writes no files.
+	if o.toStdout {
+		mu.Lock()
+		defer mu.Unlock()
+		if t.root != "" {
+			fmt.Fprintf(stdout, "-- %s #%d [%s] %s\n", o.boundary, t.index, t.root, t.relPath())
+		} else {
+			fmt.Fprintf(stdout, "-- %s #%d %s\n", o.boundary, t.index, t.displayName())
+		}
+		io.WriteString(stdout, formatted)
+		if !strings.HasSuffix(formatted, "\n") {
+			io.WriteString(stdout, "\n")
+		}
+		fmt.Fprintf(stdout, "-- %s #%d\n", o.boundary, t.index)
+		return nil
 	}
 
 	switch {

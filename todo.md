@@ -62,10 +62,10 @@
       add buttons to history REDO and UNDO on file editor control header. change local variables panel to add copy to clipboard button (must icon) per entry.
       on gad editor, add copy to clipboard button (must icon) on tooltip. change codemirror plugin to add code editor features (auto complete etc) on
       edit code/expression in template strings.      
-- [ ] change gad fmt to write report per file, not grouped (current version) as single line JSON (remove YAML support) string with keys:
+- [x] change gad fmt to write report per file, not grouped (current version) as single line JSON (remove YAML support) string with keys:
       `{ input_dir: (only if file in INPUT_DIR), file: (the file name, if in INPUT_DIR, relative to here), error: (if failt) }\n`.
       add flag `--to-stdout`. in this case if report file isn't set, print report to stdout, when format files print 
-      result to stdout stream. generate new UUID as BOUNDARY and print it to stdout line `>> BOUNDARY` with this syntaxe:
+      result to stdout stream. add flag `--boundary BOUNDARY` if not set, generate new UUID as BOUNDARY and print it to first line of stdout `>> BOUNDARY`, the stream syntaxe:
       ```
       -- BOUNDARY #FILE_INDEX [INPUT_DIR] (with brackets, if in INPUT_DIR) FILE_NAME (if in INPUT_DIR, relative to here)
       FORMATTED_FILE_RESULT
