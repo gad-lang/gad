@@ -3830,6 +3830,17 @@ func TestParseBytesLit(t *testing.T) {
 	test.ExpectParseError(t, `b "x"`)
 }
 
+func TestParseCodeStr(t *testing.T) {
+	// inline form round-trips verbatim
+	test.ExpectParseString(t, `x := code a + b end`, `x := code a + b end`)
+	// in operand position (call argument)
+	test.ExpectParseString(t, `f(code a end)`, `f(code a end)`)
+	// block form round-trips verbatim through Code() (literal kept as-is)
+	test.New(t, "x := code\n    a := 1\nend").Code("x := code\n    a := 1\nend")
+	// a `code` identifier with no fence stays an identifier
+	test.ExpectParseString(t, `code = 1`, `code = 1`)
+}
+
 func TestParseDeferStmt(t *testing.T) {
 	test.ExpectParseString(t, `defer { x }`, `defer { x }`)
 	test.ExpectParseString(t, `defer handler`, `defer handler`)

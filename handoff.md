@@ -13,7 +13,18 @@ STATUS: Tasks 1–3 + transpile DONE + COMMITTED.
   `transpile`, `.gadt`→sibling `.gad`, WriteStmts separator fix for transpiled
   write() calls, default `RawStrFuncStart="raw "`/`WriteFunc="write"`) → `7a36d9e`.
 
-CURRENT TASK (todo.md ~L65): rework `gad fmt` reporting to PER-FILE NDJSON
+- NDJSON report + `--to-stdout`/`--boundary` streaming (todo.md L65) → `a2f4787`.
+- `CodeStrLit` (`code … end` code-string literal) → committed below. New
+  `token.CodeStr`; scanner `scanCodeStr` (block form: closing `end` at the
+  opening line's indentation, deeper `end`s are body; inline `code … end`;
+  falls back to a `code` identifier when no fence — non-breaking). Body is
+  captured verbatim (compiles to `Str`, NOT template-parsed) and dedented to its
+  least-indented line. Node `CodeStrLit` in literal.go; compiler emits
+  `Str(Value())`. `code` added to codemirror+prism keyword lists (also fixed the
+  stale prism do/then/done → begin/end). Tests: `TestScanner_ScanCodeStr`,
+  `TestParseCodeStr`, `TestVMCodeStr`. Doc: strings-bytes-regex.md.
+
+PREVIOUS TASK (todo.md ~L65): rework `gad fmt` reporting to PER-FILE NDJSON
 (single-line JSON, one obj per line, keys `{input_dir?, file, error?}`; remove
 YAML report support, drop `--report-format`). `input_dir` only when the file is
 in a dir job; `file` is relative to that dir then. Add `--to-stdout`: stream

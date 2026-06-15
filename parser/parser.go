@@ -909,6 +909,8 @@ func (p *Parser) ParseLiteral() node.Expr {
 		return p.ParseRawHeredocLit()
 	case token.Heredoc:
 		return p.ParseHeredocLit()
+	case token.CodeStr:
+		return p.ParseCodeStrLit()
 	default:
 		pos := p.Token.Pos
 		p.ErrorExpected(pos, "literal value")
@@ -1980,7 +1982,7 @@ do:
 		return p.ParseFuncStmt()
 	case // simple statements
 		token.Method, token.Ident, token.Int, token.Uint, token.Float, token.Decimal,
-		token.Char, token.String, token.RawString, token.RawHeredoc, token.Heredoc, token.Symbol,
+		token.Char, token.String, token.RawString, token.RawHeredoc, token.Heredoc, token.CodeStr, token.Symbol,
 		token.True, token.False, token.Nil,
 		token.LParen, token.LBrack, token.Add, token.Sub,
 		token.Mul, token.And, token.Xor, token.Not, token.Import, token.Embed,
@@ -2146,6 +2148,18 @@ func (p *Parser) ParseHeredocLit() (t *node.HeredocLit) {
 		defer untracep(tracep(p, "HeredocLit"))
 	}
 	t = &node.HeredocLit{
+		Literal:    p.Token.Literal,
+		LiteralPos: p.Token.Pos,
+	}
+	p.Next()
+	return
+}
+
+func (p *Parser) ParseCodeStrLit() (t *node.CodeStrLit) {
+	if p.Trace {
+		defer untracep(tracep(p, "CodeStrLit"))
+	}
+	t = &node.CodeStrLit{
 		Literal:    p.Token.Literal,
 		LiteralPos: p.Token.Pos,
 	}
@@ -3772,6 +3786,7 @@ func isPrimiteValue(tok token.Token) bool {
 		token.RawString,
 		token.RawHeredoc,
 		token.Heredoc,
+		token.CodeStr,
 		token.Symbol,
 		token.Regex,
 		token.Nil,

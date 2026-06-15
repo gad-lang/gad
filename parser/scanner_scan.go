@@ -13,6 +13,105 @@ import (
 // ("b" or "h") is stored when the scanner recognises a b"..."/h"..." literal.
 const bytesLitPrefixKey = "bytesLitPrefix"
 
+// scanCodeStr scans a `code … end` code-string literal whose `code` keyword
+// starts at codeStart (already consumed: s.Ch is the first character after it).
+// Two forms are accepted:
+//
+//	code
+//	    <body lines>
+//	end
+//
+// and the single-line form `code <body> end`. For the block form the closing
+// fence is the first line sharing the opening line's indentation whose only word
+// is `end`; deeper-indented `end`s belong to the body. It returns the full
+// source literal (`code … end`), advancing the reader past the closing `end`.
+// ok is false (reader untouched) when no fence is found, so a bare `code`
+// identifier is left alone.
+func (s *Scanner) scanCodeStr(codeStart int) (lit string, ok bool) {
+	const kw, end = "code", "end"
+	src := s.Src
+
+	// Leading whitespace of the line that contains `code`.
+	lineStart := codeStart
+	for lineStart > 0 && src[lineStart-1] != '\n' {
+		lineStart--
+	}
+	indentEnd := lineStart
+	for indentEnd < codeStart && isInlineSpace(src[indentEnd]) {
+		indentEnd++
+	}
+	indentStr := string(src[lineStart:indentEnd])
+
+	// Skip the inline whitespace after `code` to classify block vs inline.
+	i := codeStart + len(kw)
+	j := i
+	for j < len(src) && isInlineSpace(src[j]) {
+		j++
+	}
+
+	var closeEnd int
+	if j < len(src) && src[j] == '\n' {
+		// Block form: a closing fence line == indentStr + "end".
+		for off := j + 1; off <= len(src); {
+			lineEnd := off
+			for lineEnd < len(src) && src[lineEnd] != '\n' {
+				lineEnd++
+			}
+			if isCodeStrFence(src, off, lineEnd, indentStr) {
+				closeEnd = off + len(indentStr) + len(end)
+				ok = true
+				break
+			}
+			if lineEnd >= len(src) {
+				break
+			}
+			off = lineEnd + 1
+		}
+	} else {
+		// Inline form: code <body> end on a single line.
+		for k := i; k < len(src) && src[k] != '\n'; k++ {
+			if k > i && isInlineSpace(src[k-1]) &&
+				k+len(end) <= len(src) && string(src[k:k+len(end)]) == end &&
+				(k+len(end) == len(src) || isWordBoundary(src[k+len(end)])) {
+				closeEnd = k + len(end)
+				ok = true
+				break
+			}
+		}
+	}
+	if !ok {
+		return "", false
+	}
+
+	lit = string(src[codeStart:closeEnd])
+	for s.Offset < closeEnd && s.Ch >= 0 {
+		s.Next()
+	}
+	return lit, true
+}
+
+// isCodeStrFence reports whether src[off:lineEnd] is a `code … end` closing
+// fence line: the opening indentation followed by `end` and only trailing
+// inline whitespace.
+func isCodeStrFence(src []byte, off, lineEnd int, indentStr string) bool {
+	line := string(src[off:lineEnd])
+	if len(line) < len(indentStr)+len("end") || line[:len(indentStr)] != indentStr {
+		return false
+	}
+	rest := line[len(indentStr):]
+	for len(rest) > 0 && isInlineSpace(rest[len(rest)-1]) {
+		rest = rest[:len(rest)-1]
+	}
+	return rest == "end"
+}
+
+func isInlineSpace(b byte) bool { return b == ' ' || b == '\t' }
+
+// isWordBoundary reports whether b ends the `end` fence word: anything that is
+// not an identifier continuation character (so a trailing space, newline, `)`,
+// etc. all close the inline form).
+func isWordBoundary(b byte) bool { return !runehelper.IsIdentifier(rune(b)) }
+
 // ScanNow returns a token, token literal and its position.
 func (s *Scanner) ScanNow() (t PToken) {
 	t.Pos = source.MustFileSetPos(s.File, s.Offset)
@@ -130,8 +229,22 @@ do:
 	// determine token value
 	switch ch := s.Ch; {
 	case runehelper.IsIdentifierLetter(ch):
+		identStart := s.Offset
 		t.Literal = s.ScanIdentifier()
 		t.Token = token.Lookup(t.Literal)
+		// A `code` keyword immediately followed by whitespace opens a `code … end`
+		// code-string literal (its body becomes a Str and is NOT parsed). It only
+		// triggers when a matching `end` fence is present, so a plain `code`
+		// identifier without one is unaffected.
+		if t.Token == token.Ident && t.Literal == "code" &&
+			(s.Ch == ' ' || s.Ch == '\t' || s.Ch == '\n') {
+			if lit, ok := s.scanCodeStr(identStart); ok {
+				t.Token = token.CodeStr
+				t.Literal = lit
+				insertSemi = true
+				break
+			}
+		}
 		// A single-letter b/h identifier immediately followed by a string
 		// delimiter is a bytes literal prefix: b"..." (raw bytes) or h"..."
 		// (hex). The underlying string may be a regular string, raw string,

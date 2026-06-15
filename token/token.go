@@ -31,6 +31,7 @@ const (
 	RawString
 	RawHeredoc
 	Heredoc
+	CodeStr
 	Template
 	Symbol
 	Regex
@@ -202,6 +203,7 @@ var tokens = [...]string{
 	RawString:       "RAWSTR",
 	RawHeredoc:      "RAWHEREDOC",
 	Heredoc:         "HEREDOC",
+	CodeStr:         "CODESTR",
 	Template:        "TMPL",
 	Symbol:          "SYMBOL",
 	Regex:           "REGEX",
@@ -338,6 +340,7 @@ var tokenNames = [...]string{
 	RawString:                    "RawString",
 	RawHeredoc:                   "RawHeredoc",
 	Heredoc:                      "Heredoc",
+	CodeStr:                      "CodeStr",
 	Template:                     "Template",
 	Symbol:                       "Symbol",
 	Regex:                        "Regex",

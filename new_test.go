@@ -75,6 +75,31 @@ func TestVMDeferStmt(t *testing.T) {
 	return [f(true), f(false)]`, nil, Array{Str("by"), Str("b")})
 }
 
+func TestVMCodeStr(t *testing.T) {
+	// inline form: body becomes a plain str
+	testExpectRun(t, `return code a + b end`, nil, Str("a + b"))
+	testExpectRun(t, `return typeName(code x end)`, nil, Str("str"))
+
+	// block form: the body is captured verbatim (NOT evaluated as code), with the
+	// opening line's indentation stripped from every line.
+	testExpectRun(t, "x := code\n    a := 1\n    b := 2\nend\nreturn x",
+		nil, Str("a := 1\nb := 2"))
+
+	// a deeper-indented `end` belongs to the body; the fence is the `end` at the
+	// opening indentation.
+	testExpectRun(t,
+		"x := code\n    begin\n        y := 1\n    end\nend\nreturn x",
+		nil, Str("begin\n    y := 1\nend"))
+
+	// nested in a function: dedent uses the opening line's indentation (4 here)
+	testExpectRun(t,
+		"f := func() {\n    return code\n        a\n    end\n}\nreturn f()",
+		nil, Str("a"))
+
+	// a `code` identifier with no matching `end` fence is unaffected
+	testExpectRun(t, "code := 41\nreturn code + 1", nil, Int(42))
+}
+
 func TestVMBytesLit(t *testing.T) {
 	// h"..." decodes a hexadecimal sequence to bytes
 	testExpectRun(t, `return h"ffccf1c2"`, nil,

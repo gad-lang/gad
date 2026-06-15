@@ -6,7 +6,9 @@ export const keywords: string[] = [
   "defer", "defer_ok", "defer_err", "deferb", "deferb_ok", "deferb_err",
   "param", "global", "var", "const", "export",
   "import", "embed", "raw", "template",
-  "begin", "end",
+  // `code … end` code-string fences; the body between them is itself Gad source
+  // and is highlighted by the same tokenizer.
+  "begin", "end", "code",
   "or", "is",
 ];
 

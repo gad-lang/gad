@@ -37,6 +37,41 @@ s := """
 println(s)   // line1\nline2
 ```
 
+## Code Strings (`code … end`)
+
+A `code … end` literal is a heredoc-like string whose body is captured
+**verbatim** — it is not parsed, evaluated or template-interpolated, it just
+becomes a plain `str`. The `code`/`end` fences signal that the body is Gad
+source (editors highlight it accordingly), which makes it handy for embedding
+snippets, templates or generated code.
+
+The block form spans multiple lines; the closing `end` is the line at the
+opening statement's indentation whose only word is `end`. A deeper-indented
+`end` (e.g. from an embedded `begin … end`) belongs to the body, and the body is
+dedented to its own least-indented line:
+
+```go
+src := code
+    for x in [1, 2] {
+        println(x)
+    }
+end
+println(src)
+// for x in [1, 2] {
+//     println(x)
+// }
+```
+
+There is also a single-line form `code <body> end`:
+
+```go
+s := code a + b end
+println(s)   // a + b
+```
+
+A bare `code` identifier (with no matching `end` fence) is unaffected, so
+`code := 1` still declares a variable.
+
 ## Template Strings
 
 A `#"…"` (or `` #`…` ``) literal is a template string: `{expr}` is interpolated

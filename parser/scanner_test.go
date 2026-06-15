@@ -24,6 +24,36 @@ func TestScanner_ScanFloatAsDecimal(t *testing.T) {
 	)
 }
 
+func TestScanner_ScanCodeStr(t *testing.T) {
+	tr := &scanTester{}
+
+	// Block form: the closing fence is the line at the opening indentation whose
+	// only word is `end`; a deeper-indented `end` belongs to the body.
+	tr.scanExpect(t, "src := code\n    begin\n    end\nend",
+		parser.DontInsertSemis, []scanResult{
+			{Token: token.Ident, Literal: "src", Line: 1, Column: 1},
+			{Token: token.Define, Literal: "", Line: 1, Column: 5},
+			{Token: token.CodeStr, Literal: "code\n    begin\n    end\nend", Line: 1, Column: 8},
+		}...,
+	)
+
+	// Inline form.
+	tr.scanExpect(t, "code a + b end",
+		parser.DontInsertSemis, []scanResult{
+			{Token: token.CodeStr, Literal: "code a + b end", Line: 1, Column: 1},
+		}...,
+	)
+
+	// No matching fence: `code` stays a plain identifier.
+	tr.scanExpect(t, "code = 1",
+		parser.DontInsertSemis, []scanResult{
+			{Token: token.Ident, Literal: "code", Line: 1, Column: 1},
+			{Token: token.Assign, Literal: "", Line: 1, Column: 6},
+			{Token: token.Int, Literal: "1", Line: 1, Column: 8},
+		}...,
+	)
+}
+
 func TestScanner_ScanCharAsString(t *testing.T) {
 	tr := &scanTester{}
 

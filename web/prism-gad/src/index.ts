@@ -13,7 +13,8 @@ const keywords = [
   "defer_ok", "defer_err", "defer", "deferb_ok", "deferb_err", "deferb",
   "param", "global", "var", "const", "export",
   "import", "embed", "raw", "template",
-  "do", "then", "done", "end", "or", "is",
+  // `code … end` code-string fences; the body between them is itself Gad source.
+  "begin", "end", "code", "or", "is",
 ];
 
 const atoms = ["true", "false", "yes", "no", "nil"];

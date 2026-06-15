@@ -71,7 +71,7 @@
       FORMATTED_FILE_RESULT
       -- BOUNDARY #FILE_INDEX
       ```
-- [ ] add parser for new token for CodeStrLit, like strheredoc with `code\s|\n` (start quote) and `\s|\nend` (end quote, \n only if start `code\n`).
+- [x] add parser for new token for CodeStrLit, like strheredoc with `code\s|\n` (start quote) and `\s|\nend` (end quote, \n only if start `code\n`).
       compiles to Str. no parses contents like Template. change codemirror plugin and prism plugin to recognize contents of this as gad source code. 
       add tests for scanner/parser/compiler/vm.
 - [ ] takes stdlib/time and strings modules as builtin module, mapping all functions as BuiltinFunction and BuiltinType.

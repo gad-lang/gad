@@ -570,6 +570,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.Value())))
 	case *node.HeredocLit:
 		c.emit(nt, OpConstant, c.addConstant(Str(nt.Value())))
+	case *node.CodeStrLit:
+		c.emit(nt, OpConstant, c.addConstant(Str(nt.Value())))
 	case *node.BytesLit:
 		b, err := nt.Bytes()
 		if err != nil {

@@ -1260,6 +1260,97 @@ func (e *HeredocLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.Literal)
 }
 
+// CodeStrLit represents a `code … end` code-string literal: a heredoc-like form
+// whose body is captured verbatim (it is NOT parsed or template-interpolated)
+// and compiled to a plain Str. The `code`/`end` fences signal to editors that
+// the body is Gad source. Two forms are accepted, a block form
+//
+//	code
+//	    <body>
+//	end
+//
+// and the single-line form `code <body> end`. For the block form Value strips
+// the least-indented body line's common indentation from every line (like a
+// squiggly heredoc) so the embedded source dedents to its own baseline.
+type CodeStrLit struct {
+	Literal    string
+	LiteralPos source.Pos
+}
+
+func (e *CodeStrLit) ExprNode() {}
+
+// Pos returns the position of the opening `code` keyword.
+func (e *CodeStrLit) Pos() source.Pos {
+	return e.LiteralPos
+}
+
+// End returns the position immediately after the closing `end`.
+func (e *CodeStrLit) End() source.Pos {
+	return source.Pos(int(e.LiteralPos) + len(e.Literal))
+}
+
+// block reports whether the literal uses the multiline `code\n…\nend` form and
+// returns the body offset just past the newline that ends the opening line.
+func (e *CodeStrLit) block() (bodyStart int, ok bool) {
+	i := len("code")
+	for i < len(e.Literal) && (e.Literal[i] == ' ' || e.Literal[i] == '\t') {
+		i++
+	}
+	if i < len(e.Literal) && e.Literal[i] == '\n' {
+		return i + 1, true
+	}
+	return 0, false
+}
+
+// Value returns the body of the code-string with the fences removed and, for
+// the block form, the common (minimum) body indentation stripped from each line.
+func (e *CodeStrLit) Value() string {
+	if bodyStart, ok := e.block(); ok {
+		// The literal ends with `\n<indent>end`; the newline before that closing
+		// fence is the last newline in the literal.
+		bodyEnd := strings.LastIndexByte(e.Literal, '\n')
+		if bodyEnd < bodyStart {
+			return ""
+		}
+		return dedentCodeStr(e.Literal[bodyStart:bodyEnd])
+	}
+	// Inline form: trim the `code` prefix, surrounding spaces and the `end`.
+	body := strings.TrimLeft(e.Literal[len("code"):], " \t")
+	body = strings.TrimSuffix(body, "end")
+	return strings.TrimRight(body, " \t")
+}
+
+// dedentCodeStr removes the common leading indentation (the minimum over all
+// non-blank lines) from every line of s.
+func dedentCodeStr(s string) string {
+	lines := strings.Split(s, "\n")
+	indent := -1
+	for _, line := range lines {
+		if strings.TrimRight(line, " \t") == "" {
+			continue // blank lines do not constrain the common indentation
+		}
+		n := 0
+		for n < len(line) && (line[n] == ' ' || line[n] == '\t') {
+			n++
+		}
+		if indent < 0 || n < indent {
+			indent = n
+		}
+	}
+	if indent <= 0 {
+		return s
+	}
+	return stripHeredocIndent(s, indent)
+}
+
+func (e *CodeStrLit) String() string {
+	return e.Literal
+}
+
+func (e *CodeStrLit) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.Literal)
+}
+
 // unescapeHeredoc interprets the escape sequences in a non-raw heredoc body the
 // same way a double-quoted string literal does. Literal newlines and unescaped
 // double quotes are preserved as-is, and any unrecognized escape is kept
