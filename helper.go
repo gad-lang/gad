@@ -104,7 +104,7 @@ func ObjectOrNil(v Object) Object {
 
 func SplitCaller(vm *VM, caller Object, cb func(co CallerObject, types ParamsTypes) error, fallback ...func(co CallerObject) error) (err error) {
 	switch v := caller.(type) {
-	case CallerObjectWithParamTypes:
+	case TypedCallerObjectWithParamTypes:
 		return cb(v, v.ParamTypes())
 	case CallerObjectWithVMParamTypes:
 		var types ParamsTypes
@@ -121,6 +121,12 @@ func SplitCaller(vm *VM, caller Object, cb func(co CallerObject, types ParamsTyp
 			return cb(m.CallerObject, types)
 		}).(error)
 		return err
+	case Array:
+		for _, e := range v {
+			if err = SplitCaller(vm, e, cb, fallback...); err != nil {
+				return
+			}
+		}
 	default:
 		if Callable(caller) && len(fallback) == 1 {
 			return fallback[0](caller.(CallerObject))
@@ -131,7 +137,7 @@ func SplitCaller(vm *VM, caller Object, cb func(co CallerObject, types ParamsTyp
 
 func ParamTypesOfRawCaller(vm *VM, caller Object) (types ParamsTypes, err error) {
 	switch v := caller.(type) {
-	case CallerObjectWithParamTypes:
+	case TypedCallerObjectWithParamTypes:
 		return v.ParamTypes(), nil
 	case CallerObjectWithVMParamTypes:
 		return v.ParamTypes(vm)

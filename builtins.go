@@ -461,7 +461,7 @@ func (b *Builtins) Build() (s *StaticBuiltins) {
 
 type BuiltinObjectsMap map[BuiltinType]Object
 
-func (m BuiltinObjectsMap) AddMethod(typ BuiltinType, method ...CallerObjectWithParamTypes) {
+func (m BuiltinObjectsMap) AddMethod(typ BuiltinType, method ...TypedCallerObjectWithParamTypes) {
 	m[typ] = AddMethod(m[typ], method...)
 }
 

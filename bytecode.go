@@ -89,7 +89,7 @@ type CompiledFunction struct {
 
 	NamedParams NamedParams
 
-	ReturnTypes []*ReturnType
+	ReturnVars ReturnVars
 
 	// NamedParamsMap is a map of NamedParams with index
 	// this value allow to perform named args validation.
@@ -138,7 +138,7 @@ func (o *CompiledFunction) HeaderString() string {
 		buf.WriteString(o.NamedParams.String())
 	}
 	buf.WriteByte(')')
-	buf.WriteString(FormatReturnTypes(o.ReturnTypes))
+	buf.WriteString(FormatReturnVars(o.ReturnVars))
 	return buf.String()
 }
 
@@ -182,7 +182,7 @@ func (o *CompiledFunction) Copy() Object {
 		SourceMap:    sourceMap,
 		Params:       o.Params,
 		NamedParams:  o.NamedParams,
-		ReturnTypes:  o.ReturnTypes,
+		ReturnVars:   o.ReturnVars,
 		LocalNames:   o.LocalNames,
 	}
 }
@@ -451,6 +451,10 @@ func (o *CompiledFunction) ParamTypes(vm *VM) (types ParamsTypes, err error) {
 		types[len(types)-1] = VarParamTypes(types[len(types)-1].Items())
 	}
 	return
+}
+
+func (o *CompiledFunction) GetReturnVars() ReturnVars {
+	return o.ReturnVars
 }
 
 func (o *CompiledFunction) Print(state *PrinterState) error {

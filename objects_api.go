@@ -288,11 +288,12 @@ type CallerObjectWithVMParamTypes interface {
 	ParamTypes(vm *VM) (ParamsTypes, error)
 }
 
-// CallerObjectWithParamTypes is an interface for objects that can be called with Call
-// method with parameters with types.
-type CallerObjectWithParamTypes interface {
+// TypedCallerObjectWithParamTypes is an interface for objects that can be called with Call
+// method with parameters with types and typed return vars.
+type TypedCallerObjectWithParamTypes interface {
 	CallerObject
 	ParamTypes() ParamsTypes
+	ReturnVars() ReturnVars
 }
 
 // CanCallerObject is an interface for objects that can be objects implements

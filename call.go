@@ -459,12 +459,59 @@ func (o Args) DestructureVar(dst ...*Arg) (other Array, err error) {
 	return
 }
 
+// DestructureRangeVar shifts argument and set value to dst, and returns left arguments.
+// If the number of arguments is less then to called args length, it returns an error.
+// If type check of arg is fails, returns ArgumentTypeError.
+func (o Args) DestructureRangeVar(maxVar int, dst ...*Arg) (other Array, err error) {
+	if err = o.CheckRangeLen(len(dst), len(dst)+maxVar); err != nil {
+		return
+	}
+
+	for i, d := range dst {
+		d.Value = o.Shift()
+
+		if expectedTypes := d.Accept(d.Value); expectedTypes != "" {
+			return nil, NewArgumentTypeError(
+				strconv.Itoa(i)+"st ("+d.Name+")",
+				expectedTypes,
+				d.Value.Type().Name(),
+			)
+		}
+	}
+	other = o.Values()
+	return
+}
+
 // DestructureVarMinCb shifts argument and set value to dst, and returns left arguments.
 // If the number of arguments is less then to called args length + min, it returns an error.
 // If type check of arg is fails, returns ArgumentTypeError.
 // If has more args, call otherCb.
 func (o Args) DestructureVarMinCb(min int, otherCb func(i int, arg Object) error, dst ...*Arg) (err error) {
 	if err = o.CheckMinLen(len(dst) + min); err != nil {
+		return
+	}
+
+	for i, d := range dst {
+		d.Value = o.Shift()
+
+		if expectedTypes := d.Accept(d.Value); expectedTypes != "" {
+			return NewArgumentTypeError(
+				strconv.Itoa(i)+"st ("+d.Name+")",
+				expectedTypes,
+				d.Value.Type().Name(),
+			)
+		}
+	}
+
+	return o.WalkE(otherCb)
+}
+
+// DestructureVarRangeCb shifts argument and set value to dst, and returns left arguments.
+// If the number of arguments is less then to called args length + min, it returns an error.
+// If type check of arg is fails, returns ArgumentTypeError.
+// If has more args, call otherCb.
+func (o Args) DestructureVarRangeCb(min, max int, otherCb func(i int, arg Object) error, dst ...*Arg) (err error) {
+	if err = o.CheckRangeLen(len(dst)+min, len(dst)+max); err != nil {
 		return
 	}
 

@@ -61,41 +61,81 @@ func ParamWithTypeO(t ...ObjectType) ParamOption {
 	}
 }
 
-type ReturnType struct {
+type ReturnVar struct {
 	Name         string
 	TypesSymbols ParamType
 	Types        ObjectTypes
 }
 
+type ReturnVars []*ReturnVar
+
+// String renders a function return-type list as " <T1, T2, ...>".
+// It returns an empty string when there are no return types.
+func (v ReturnVars) String() string {
+	if len(v) == 0 {
+		return ""
+	}
+	s := make([]string, len(v))
+	for i, t := range v {
+		s[i] = t.String()
+	}
+	return "<" + strings.Join(s, ", ") + ">"
+}
+
+func (v ReturnVars) Types() (t []ObjectTypes) {
+	t = make([]ObjectTypes, len(v))
+	for i, rv := range v {
+		t[i] = rv.Types
+	}
+	return
+}
+
+func (v ReturnVars) VMTypes(vm *VM) (t []ObjectTypes, err error) {
+	t = make([]ObjectTypes, len(v))
+
+	for i, p := range v {
+		var ts ObjectTypes
+		if len(p.TypesSymbols) > 0 {
+			ts = make(ObjectTypes, len(p.TypesSymbols))
+			for i2, symbol := range p.TypesSymbols {
+				if typ, err := vm.GetSymbolValue(symbol); err != nil {
+					return nil, err
+				} else {
+					ts[i2] = typ.(ObjectType)
+				}
+			}
+		} else {
+			ts = ObjectTypes{TAny}
+		}
+		t[i] = ts
+	}
+
+	return
+}
+
 // String renders a return type as "type" (anonymous) or "name type" (named),
 // where multiple types are joined by "|".
-func (r *ReturnType) String() string {
+func (v *ReturnVar) String() string {
 	var b strings.Builder
-	if r.Name != "" {
-		b.WriteString(r.Name)
+	if v.Name != "" {
+		b.WriteString(v.Name)
 		b.WriteByte(' ')
 	}
-	if len(r.TypesSymbols) > 0 {
-		b.WriteString(r.TypesSymbols.String())
-	} else if len(r.Types) > 0 {
-		b.WriteString(r.Types.String())
+	if len(v.TypesSymbols) > 0 {
+		b.WriteString(v.TypesSymbols.String())
+	} else if len(v.Types) > 0 {
+		b.WriteString(v.Types.String())
 	} else {
 		b.WriteString(ObjectTypes{TAny}.String())
 	}
 	return b.String()
 }
 
-// FormatReturnTypes renders a function return-type list as " <T1, T2, ...>".
-// It returns an empty string when there are no return types.
-func FormatReturnTypes(types []*ReturnType) string {
-	if len(types) == 0 {
+func FormatReturnVars(vars ReturnVars) string {
+	if len(vars) == 0 {
 		return ""
 	}
-	s := make([]string, len(types))
-	for i, t := range types {
-		s[i] = t.String()
-	}
-	return " <" + strings.Join(s, ", ") + ">"
+	return " " + vars.String()
 }
 
 type Param struct {
@@ -399,7 +439,7 @@ type FunctionHeader struct {
 	Params      Params
 	NamedParams NamedParams
 	pt          ParamsTypes
-	ReturnTypes []ObjectType
+	ReturnVars  ReturnVars
 }
 
 func NewFunctionHeader() *FunctionHeader {
@@ -414,17 +454,7 @@ func (h *FunctionHeader) String() string {
 	if h.NamedParams.len > 0 {
 		s = append(s, "; ", h.NamedParams.String())
 	}
-	var ret string
-	if len(h.ReturnTypes) > 0 {
-		rets := make([]string, len(h.ReturnTypes))
-		for i, t := range h.ReturnTypes {
-			rets[i] = t.String()
-		}
-
-		ret += " <" + strings.Join(rets, ", ") + ">"
-	}
-
-	return "(" + strings.Join(s, "") + ")" + ret
+	return "(" + strings.Join(s, "") + ")" + FormatReturnVars(h.ReturnVars)
 }
 
 func (h *FunctionHeader) ParamTypes() ParamsTypes {
@@ -474,6 +504,19 @@ func (h *FunctionHeader) WithParams(builder func(newParam func(name string) *Par
 		})
 	}
 	h.Params = *NewParams(h.Params.Items...)
+	return h
+}
+
+func (h *FunctionHeader) WithReturnVars(builder func(ret func(name string, typ ...ObjectType))) *FunctionHeader {
+	builder(func(name string, typ ...ObjectType) {
+		if len(typ) == 0 {
+			typ = []ObjectType{TAny}
+		}
+		h.ReturnVars = append(h.ReturnVars, &ReturnVar{
+			Name:  name,
+			Types: typ,
+		})
+	})
 	return h
 }
 

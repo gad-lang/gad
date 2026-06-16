@@ -370,7 +370,7 @@ func init() {
 			}
 		}
 
-		if l := len(cf.ReturnTypes); l > 0 {
+		if l := len(cf.ReturnVars); l > 0 {
 			if err = ctx.WriteByte(8); err != nil {
 				return
 			}
@@ -380,7 +380,7 @@ func init() {
 			}
 
 			for i := 0; i < l; i++ {
-				rt := cf.ReturnTypes[i]
+				rt := cf.ReturnVars[i]
 				if err = writeString(ctx, rt.Name); err != nil {
 					return
 				}

@@ -4220,7 +4220,7 @@ x	z
 }
 
 func TestCompilerFuncReturnType(t *testing.T) {
-	// Return-type annotations are compiled onto CompiledFunction.ReturnTypes and
+	// Return-type annotations are compiled onto CompiledFunction.ReturnVars and
 	// rendered by HeaderString, without affecting the generated instructions.
 	compileFn := func(t *testing.T, script string) *CompiledFunction {
 		t.Helper()
@@ -4297,13 +4297,13 @@ func TestCompilerFuncReturnType(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			f := compileFn(t, c.script)
-			require.Len(t, f.ReturnTypes, len(c.want))
+			require.Len(t, f.ReturnVars, len(c.want))
 			for i, w := range c.want {
-				require.Equal(t, w.name, f.ReturnTypes[i].Name)
-				require.Equal(t, w.types, f.ReturnTypes[i].TypesSymbols.String())
+				require.Equal(t, w.name, f.ReturnVars[i].Name)
+				require.Equal(t, w.types, f.ReturnVars[i].TypesSymbols.String())
 			}
 			// The rendered suffix is appended to the function header.
-			require.Equal(t, c.header, FormatReturnTypes(f.ReturnTypes))
+			require.Equal(t, c.header, FormatReturnVars(f.ReturnVars))
 			require.True(t, strings.HasSuffix(f.HeaderString(), c.header))
 		})
 	}

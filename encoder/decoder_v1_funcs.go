@@ -412,10 +412,10 @@ func init() {
 			case 8:
 				err = DecodeIterator(ctx,
 					func(l int) {
-						o.ReturnTypes = make([]*gad.ReturnType, l)
+						o.ReturnVars = make([]*gad.ReturnVar, l)
 					},
 					func(i int) (err error) {
-						rt := &gad.ReturnType{}
+						rt := &gad.ReturnVar{}
 						if rt.Name, err = readString(ctx); err != nil {
 							return
 						}
@@ -424,7 +424,7 @@ func init() {
 							return
 						}
 
-						o.ReturnTypes[i] = rt
+						o.ReturnVars[i] = rt
 						return
 					},
 				)

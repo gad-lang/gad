@@ -698,6 +698,13 @@ func (f *Function) ParamTypes() (types ParamsTypes) {
 	return f.pt
 }
 
+func (f *Function) ReturnVars() ReturnVars {
+	if f.Header != nil {
+		return f.Header.ReturnVars
+	}
+	return nil
+}
+
 func (f *Function) String() string {
 	s := f.Name()
 	if f.Header != nil {
@@ -807,6 +814,13 @@ func (f *BuiltinFunction) ToString() string {
 func (f *BuiltinFunction) ParamTypes() ParamsTypes {
 	if f.Header != nil {
 		return f.Header.ParamTypes()
+	}
+	return nil
+}
+
+func (f *BuiltinFunction) ReturnVars() ReturnVars {
+	if f.Header != nil {
+		return f.Header.ReturnVars
 	}
 	return nil
 }

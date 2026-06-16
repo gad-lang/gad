@@ -125,6 +125,9 @@ var (
 
 	// ErrEmbedded represents an embeddedNode errors
 	ErrEmbedded = &Error{Name: "ErrEmbeddedNode"}
+
+	// ErrProperty represents an error of Property.
+	ErrProperty = &Error{Name: "ErrProperty"}
 )
 
 // NewOperandTypeError creates a new Error from ErrType.

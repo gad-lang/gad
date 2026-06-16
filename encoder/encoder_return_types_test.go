@@ -10,9 +10,9 @@ import (
 	. "github.com/gad-lang/gad/encoder"
 )
 
-func withReturnTypes(rts ...*gad.ReturnType) funcOpt {
+func withReturnTypes(rts ...*gad.ReturnVar) funcOpt {
 	return func(cf *gad.CompiledFunction) {
-		cf.ReturnTypes = rts
+		cf.ReturnVars = rts
 	}
 }
 
@@ -36,19 +36,19 @@ func TestEncDecCompiledFuncReturnTypes(t *testing.T) {
 	cases := []*gad.CompiledFunction{
 		// anonymous single: "<int>"
 		compFunc(nil, withReturnTypes(
-			&gad.ReturnType{TypesSymbols: gad.ParamType{sym("int")}},
+			&gad.ReturnVar{TypesSymbols: gad.ParamType{sym("int")}},
 		)),
 		// anonymous multiple: "<int, str>"
 		compFunc(nil,
 			withParams("a", "b"),
 			withReturnTypes(
-				&gad.ReturnType{TypesSymbols: gad.ParamType{sym("int")}},
-				&gad.ReturnType{TypesSymbols: gad.ParamType{sym("str")}},
+				&gad.ReturnVar{TypesSymbols: gad.ParamType{sym("int")}},
+				&gad.ReturnVar{TypesSymbols: gad.ParamType{sym("str")}},
 			),
 		),
 		// named union: "<x int|bool>"
 		compFunc(nil, withReturnTypes(
-			&gad.ReturnType{Name: "x", TypesSymbols: gad.ParamType{sym("int"), sym("bool")}},
+			&gad.ReturnVar{Name: "x", TypesSymbols: gad.ParamType{sym("int"), sym("bool")}},
 		)),
 		// mixed with instructions, params, locals and source map.
 		compFunc(concatInsts(
@@ -59,7 +59,7 @@ func TestEncDecCompiledFuncReturnTypes(t *testing.T) {
 			withLocals(1),
 			withSourceMap(map[int]int{0: 1, 3: 1}),
 			withReturnTypes(
-				&gad.ReturnType{Name: "out", TypesSymbols: gad.ParamType{sym("int")}},
+				&gad.ReturnVar{Name: "out", TypesSymbols: gad.ParamType{sym("int")}},
 			),
 		),
 		// regression: no return types — field must be absent and stay nil.
@@ -80,7 +80,7 @@ func TestEncDecCompiledFuncReturnTypes(t *testing.T) {
 		}
 
 		require.Equal(t, tC, v, msg)
-		require.Equal(t, tC.ReturnTypes, v.ReturnTypes, msg)
+		require.Equal(t, tC.ReturnVars, v.ReturnVars, msg)
 		require.Equal(t, tC.HeaderString(), v.HeaderString(), msg)
 	}
 }
@@ -127,15 +127,15 @@ func TestEncDecBytecodeReturnTypes(t *testing.T) {
 		require.NotNil(t, got, msg)
 
 		// the encoded/decoded function must be identical, including ReturnTypes.
-		require.Equal(t, orig.ReturnTypes, got.ReturnTypes, msg)
+		require.Equal(t, orig.ReturnVars, got.ReturnVars, msg)
 		require.Equal(t, orig.HeaderString(), got.HeaderString(), msg)
 		require.True(t, len(got.HeaderString()) > 0, msg)
 		require.Contains(t, got.HeaderString(), c.suffix, msg)
 
-		require.Len(t, got.ReturnTypes, len(c.want), msg)
+		require.Len(t, got.ReturnVars, len(c.want), msg)
 		for j, w := range c.want {
-			require.Equal(t, w.name, got.ReturnTypes[j].Name, msg)
-			require.Equal(t, w.types, got.ReturnTypes[j].TypesSymbols.String(), msg)
+			require.Equal(t, w.name, got.ReturnVars[j].Name, msg)
+			require.Equal(t, w.types, got.ReturnVars[j].TypesSymbols.String(), msg)
 		}
 	}
 }

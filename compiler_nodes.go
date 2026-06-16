@@ -1643,7 +1643,7 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 	var (
 		params      []*Param
 		namedParams []*NamedParam
-		returnTypes []*ReturnType
+		returnTypes []*ReturnVar
 		st          = c.symbolTable.Fork(false)
 	)
 
@@ -1732,7 +1732,7 @@ func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.Block
 
 	bc := fork.Bytecode()
 	bc.Main.module = c.module
-	bc.Main.ReturnTypes = returnTypes
+	bc.Main.ReturnVars = returnTypes
 
 	if typ != nil {
 		if typ.NameExpr != nil {
@@ -2919,15 +2919,15 @@ func (c *Compiler) helperBuildKwargsStmts(count int, get func(index int) (name *
 // is the ident itself; a typed entry ("<x int|bool>") yields a named return
 // whose types come from the type list. Type names are resolved in the enclosing
 // scope, mirroring parameter type resolution.
-func (c *Compiler) returnTypesOf(nd ast.Node, rets []*node.TypedIdentExpr) (types []*ReturnType, err error) {
+func (c *Compiler) returnTypesOf(nd ast.Node, rets []*node.TypedIdentExpr) (types []*ReturnVar, err error) {
 	if len(rets) == 0 {
 		return nil, nil
 	}
 
-	types = make([]*ReturnType, len(rets))
+	types = make([]*ReturnVar, len(rets))
 	for i, ti := range rets {
 		var (
-			rt        = &ReturnType{}
+			rt        = &ReturnVar{}
 			typeNames []string
 		)
 

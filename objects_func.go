@@ -3,6 +3,7 @@ package gad
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/gad-lang/gad/repr"
 )
@@ -212,12 +213,20 @@ func (s *FuncSpec) CallerMethods() *MethodArgType {
 	return &s.Methods
 }
 
-func AddMethod(target Object, method ...CallerObjectWithParamTypes) Object {
+func AddMethod(target Object, method ...TypedCallerObjectWithParamTypes) Object {
 	return AddMethodOverride(false, target, method...)
 }
 
-func AddMethodOverride(override bool, target Object, method ...CallerObjectWithParamTypes) Object {
-	addMethod := func(target MethodAdder, method ...CallerObjectWithParamTypes) {
+func AddMethodT[T Object](target T, method ...TypedCallerObjectWithParamTypes) T {
+	ret := AddMethodOverride(false, target, method...)
+	if reflect.TypeFor[T]() != reflect.TypeOf(ret) {
+		panic("AddMethodT[T] must be of type T")
+	}
+	return target
+}
+
+func AddMethodOverride(override bool, target Object, method ...TypedCallerObjectWithParamTypes) Object {
+	addMethod := func(target MethodAdder, method ...TypedCallerObjectWithParamTypes) {
 		for i, m := range method {
 			if err := target.AddMethodByTypes(nil, m.ParamTypes(), m, override, nil); err != nil {
 				panic(fmt.Errorf("failed to add method %d: %v", i, err))
