@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strings, Bytes and Regex · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link active" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="strings-bytes-and-regex">Strings, Bytes and Regex</h1>
+<p><a href="index.html">← Back to index</a></p>
+<h2 id="string-forms">String Forms</h2>
+<p>Gad has several textual literal forms:</p>
+<table>
+<thead><tr><th>Form</th><th>Example</th><th>Type</th><th>Escapes?</th></tr></thead>
+<tbody>
+<tr><td>string</td><td><code>"a\tb"</code></td><td><code>str</code></td><td>yes</td></tr>
+<tr><td>raw string</td><td><code></code> <code>a\tb</code> <code></code></td><td><code>rawStr</code></td><td>no</td></tr>
+<tr><td><code>raw</code> prefix</td><td><code>raw "x"</code></td><td><code>rawStr</code></td><td>n/a</td></tr>
+<tr><td>heredoc</td><td><code>"""…"""</code></td><td><code>str</code></td><td>yes</td></tr>
+<tr><td>raw heredoc</td><td><code></code> <code></code><code>…</code><code></code> <code></code></td><td><code>rawStr</code></td><td>no</td></tr>
+<tr><td>template string</td><td><code>#"hi {name}"</code></td><td><code>str</code></td><td>yes</td></tr>
+</tbody>
+</table>
+<pre><code class="language-go">"tab\there"     // tab&lt;TAB&gt;here
+`no\tescape`    // literally  no\tescape
+raw "x" + "y"   // "xy"  (rawStr concatenates with str)</code></pre>
+<p><code>str</code> and <code>rawStr</code> interoperate; mixing them in <code>+</code> yields a string.</p>
+<h2 id="heredocs">Heredocs</h2>
+<p>A heredoc is delimited by a fence of three or more <code>"</code> (or <code></code> <code> </code>` for the raw form). Leading indentation is stripped to match the closing fence, so heredocs stay aligned with surrounding code.</p>
+<pre><code class="language-go">s := """
+  line1
+  line2
+  """
+println(s)   // line1\nline2</code></pre>
+<h2 id="code-strings-code--end">Code Strings (<code>code … end</code>)</h2>
+<p>A <code>code … end</code> literal is a heredoc-like string whose body is captured <strong>verbatim</strong> — it is not parsed, evaluated or template-interpolated, it just becomes a plain <code>str</code>. The <code>code</code>/<code>end</code> fences signal that the body is Gad source (editors highlight it accordingly), which makes it handy for embedding snippets, templates or generated code.</p>
+<p>The block form spans multiple lines; the closing <code>end</code> is the line at the opening statement's indentation whose only word is <code>end</code>. A deeper-indented <code>end</code> (e.g. from an embedded <code>begin … end</code>) belongs to the body, and the body is dedented to its own least-indented line:</p>
+<pre><code class="language-go">src := code
+    for x in [1, 2] {
+        println(x)
+    }
+end
+println(src)
+// for x in [1, 2] {
+//     println(x)
+// }</code></pre>
+<p>There is also a single-line form <code>code &lt;body&gt; end</code>:</p>
+<pre><code class="language-go">s := code a + b end
+println(s)   // a + b</code></pre>
+<p>A bare <code>code</code> identifier (with no matching <code>end</code> fence) is unaffected, so <code>code := 1</code> still declares a variable.</p>
+<h2 id="template-strings">Template Strings</h2>
+<p>A <code>#"…"</code> (or <code></code> #<code>…</code> <code></code>) literal is a template string: <code>{expr}</code> is interpolated and the whole thing evaluates to a normal string.</p>
+<pre><code class="language-go">name := "Gad"
+println(#"Hello {name}!")     // Hello Gad!
+println(#"sum = {2 + 3}")     // sum = 5
+println(#`raw {name}`)        // raw Gad</code></pre>
+<h2 id="bytes">Bytes</h2>
+<p><code>bytes</code> is a mutable byte slice. Build one with the <code>bytes</code> constructor, or with a <strong>bytes literal</strong>.</p>
+<h3 id="bytes-literals">Bytes literals</h3>
+<p>A single-letter prefix glued directly to a string literal produces a <code>bytes</code> value:</p>
+<ul>
+<li><code>b"…"</code> — the UTF-8 bytes of the string content.</li>
+<li><code>h"…"</code> — the bytes decoded from a hexadecimal sequence.</li>
+</ul>
+<pre><code class="language-go">b"Hello"        // bytes: H e l l o
+h"ffccf1c2"     // bytes: 0xff 0xcc 0xf1 0xc2
+typeName(b"x")  // "bytes"
+str(h"4869")    // "Hi"</code></pre>
+<p>Any string form may be used as the body — regular string, raw string, heredoc or raw heredoc — so escapes follow the body's rules:</p>
+<pre><code class="language-go">b"a\nb"     // 3 bytes: 'a', newline, 'b'  (escape processed)
+b`a\nb`     // 4 bytes: 'a', '\', 'n', 'b' (raw, no escape)
+b"""
+hello
+"""         // bytes of the heredoc body</code></pre>
+<p>For <code>h"…"</code>, whitespace inside the literal is ignored, so you can group digits:</p>
+<pre><code class="language-go">h"ff cc f1 c2"   // same as h"ffccf1c2"</code></pre>
+<p>Invalid hex (odd length or non-hex characters) is reported as a <strong>compile error</strong>.</p>
+<blockquote>The prefix must touch the opening quote. <code>b "x"</code> (with a space) is a plain identifier <code>b</code> followed by a string, not a bytes literal — so existing variables named <code>b</code> or <code>h</code> keep working.</blockquote>
+<h3 id="indexing-and-slicing-bytes">Indexing and slicing bytes</h3>
+<pre><code class="language-go">data := b"Hello"
+println(data[0])     // 72  (the byte value, as int)
+println(data[1:3])   // bytes "el"
+println(len(data))   // 5</code></pre>
+<h2 id="regular-expressions">Regular Expressions</h2>
+<p>A <code>/pattern/</code> literal compiles to a <code>regexp</code> value at compile time (an invalid pattern is a compile error). Append <code>p</code> for POSIX semantics. The same object can be created at runtime with the <code>regexp(...)</code> constructor.</p>
+<pre><code class="language-go">re := /ab+/
+re.match("abbb")          // true
+re.match("xyz")           // false
+
+// capture groups and replacement; $1, $2 expand groups
+r := /(\d+)-(\d+)/
+r.replace("12-34", "$2/$1")   // "34/12"</code></pre>
+<p>Because <code>/</code> is also division, a <code>/regex/</code> literal is only recognised in operand position (where a value is expected); after a value, <code>/</code> is the division operator. Use parentheses after value-position keywords, e.g. <code>return (/re/)</code>.</p>
+<h3 id="the-replace-operator">The replace operator <code>|</code></h3>
+<p><code>regexp | replacement</code> yields a unary replacer function. The replacement may be a string (with <code>$1</code> group expansion) or a callable invoked per match. It composes with the pipe operator <code>.|</code>:</p>
+<pre><code class="language-go">f := /o/ | "0"
+f("hello world")              // "hell0 w0rld"
+"hello world".|(/o/ | "0")    // "hell0 w0rld"
+
+/[a-z]+/ | func(m) { return "&lt;" + m + "&gt;" }   // wrap each match</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#string-forms">String Forms</a><a href="#heredocs">Heredocs</a><a href="#code-strings-code--end">Code Strings (code … end)</a><a href="#template-strings">Template Strings</a><a href="#bytes">Bytes</a><a href="#regular-expressions">Regular Expressions</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

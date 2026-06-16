@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embedding Gad in Go · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link active" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="embedding-gad-in-go">Embedding Gad in Go</h1>
+<p><a href="index.html">← Back to index</a></p>
+<p>Gad is built to be embedded. A script is compiled to a <code>Bytecode</code> object and then run on a <code>VM</code>. This chapter shows the minimal flow and the common extension points.</p>
+<h2 id="minimal-example">Minimal Example</h2>
+<pre><code class="language-go">package main
+
+import (
+	"fmt"
+
+	"github.com/gad-lang/gad"
+)
+
+func main() {
+	script := `
+param *args
+global multiplier
+return [x * multiplier for x in args]
+`
+	builtins := gad.NewBuiltins()
+	st := gad.NewSymbolTable(builtins.NameSet)
+
+	_, bc, err := gad.Compile(st, []byte(script), gad.CompileOptions{})
+	if err != nil {
+		panic(err)
+	}
+
+	ret, err := gad.NewVM(builtins.Build(), bc).RunOpts(&amp;gad.RunOpts{
+		Globals: gad.Dict{"multiplier": gad.Int(2)},
+		Args:    gad.Args{gad.Array{gad.Int(1), gad.Int(2), gad.Int(3), gad.Int(4)}},
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(ret) // [2, 4, 6, 8]
+}</code></pre>
+<p>The flow is:</p>
+<ol>
+<li><strong>Builtins</strong> — <code>gad.NewBuiltins()</code> creates the builtin set; <code>.NameSet</code> seeds</li>
+</ol>
+<p>   the symbol table and <code>.Build()</code> produces the runtime objects.</p>
+<ol>
+<li><strong>Symbol table</strong> — <code>gad.NewSymbolTable(builtins.NameSet)</code> tracks declared</li>
+</ol>
+<p>   names at compile time.</p>
+<ol>
+<li><strong>Compile</strong> — <code>gad.Compile(st, src, opts)</code> returns the bytecode (<code>bc</code>).</li>
+<li><strong>Run</strong> — <code>gad.NewVM(builtins.Build(), bc).RunOpts(&amp;gad.RunOpts{…})</code> executes</li>
+</ol>
+<p>   it and returns the script's <code>return</code> value as a <code>gad.Object</code>.</p>
+<h2 id="passing-globals-and-arguments">Passing Globals and Arguments</h2>
+<ul>
+<li><code>Globals</code> is any map-like <code>gad.Object</code> (e.g. <code>gad.Dict</code>). Script <code>global</code></li>
+</ul>
+<p>  declarations read and write through it, so it is also how the script returns   data back to Go by mutation.</p>
+<ul>
+<li><code>Args</code> provides the positional/variadic values consumed by the script's</li>
+</ul>
+<p>  <code>param</code> statement.</p>
+<pre><code class="language-go">RunOpts{
+    Globals: gad.Dict{"multiplier": gad.Int(2)},
+    Args:    gad.Args{gad.Array{gad.Int(1), gad.Int(2)}},
+}</code></pre>
+<h2 id="exposing-go-functions">Exposing Go Functions</h2>
+<p>A Go function exposed as a <code>*gad.Function</code> becomes callable from a script. Returning a <code>gad.Array</code> lets the script destructure multiple values:</p>
+<pre><code class="language-go">globals := gad.Dict{
+    "goAdd": &amp;gad.Function{
+        FuncName: "goAdd",
+        Value: func(c gad.Call) (gad.Object, error) {
+            a := c.Args.Get(0).(gad.Int)
+            b := c.Args.Get(1).(gad.Int)
+            return a + b, nil
+        },
+    },
+}
+// script: global goAdd; return goAdd(2, 3)</code></pre>
+<p>For wrapping existing Go functions with less boilerplate, the repository provides the <code>cmd/mkcallable</code> code generator.</p>
+<h2 id="reusing-a-vm">Reusing a VM</h2>
+<p>A <code>VM</code> is reusable. After a run you can run again; <code>Clear</code> releases references and resets the stack and module cache between unrelated runs.</p>
+<h2 id="modules-from-go">Modules from Go</h2>
+<p>To make modules importable, build a module map and pass it through the compile options. Source modules are added as bytes; builtin modules are <code>map[string]Object</code>; any value implementing <code>Importable</code> can serve as a custom module. The CLI wires a file-system importer that resolves <code>.gad</code> files along <code>GADPATH</code> — see <a href="modules.html">Modules</a> for the script-side view.</p>
+<h2 id="safety">Safety</h2>
+<p>Gad does not impose allocation limits and relies on Go's garbage collector. To run untrusted scripts, disable risky builtins/modules before compilation (the CLI's <code>-safe</code> and <code>-disabled-modules</code> flags do this) and run inside whatever sandbox your application provides. Compilation is deterministic, and bytecode can be serialized for transport and executed later.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#minimal-example">Minimal Example</a><a href="#passing-globals-and-arguments">Passing Globals and Arguments</a><a href="#exposing-go-functions">Exposing Go Functions</a><a href="#reusing-a-vm">Reusing a VM</a><a href="#modules-from-go">Modules from Go</a><a href="#safety">Safety</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

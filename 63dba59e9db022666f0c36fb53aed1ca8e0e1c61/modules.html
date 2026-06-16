@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modules · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link active" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="modules">Modules</h1>
+<p><a href="index.html">← Back to index</a></p>
+<p>A module is a unit of Gad code that exposes values to other modules via the <code>export</code> keyword. Import a module with the <code>import(...)</code> expression, which runs the module once and returns a dict of its exports.</p>
+<p>There are three kinds of modules:</p>
+<ul>
+<li><strong>Source modules</strong> — Gad code (the focus of this chapter).</li>
+<li><strong>Builtin modules</strong> — provided by the host as a <code>map[string]Object</code></li>
+</ul>
+<p>  (e.g. the <a href="builtins.html">standard library</a>).</p>
+<ul>
+<li><strong>Custom modules</strong> — any Go value implementing the <code>Importable</code> interface.</li>
+</ul>
+<blockquote>A few stdlib modules — <code>time</code>, <code>strings</code>, <code>fmt</code> and <code>base64</code> — are also exposed as <strong>builtin namespaces</strong> that work without an <code>import</code> (e.g. <code>strings.ToUpper("hi")</code>). <code>import(...)</code> still works for them. See <a href="builtins.html#builtin-modules">Builtins → Builtin Modules</a>.</blockquote>
+<h2 id="importing">Importing</h2>
+<pre><code class="language-go">strings := import("strings")    // a builtin module
+println(strings.ToUpper("hi"))  // HI</code></pre>
+<p>A source module is referenced by path; the file importer resolves <code>.gad</code> files relative to the importing file (and along <code>GADPATH</code>):</p>
+<pre><code class="language-go">m := import("./greet.gad")</code></pre>
+<p>A module's code runs <strong>once</strong>; importing the same module again returns the same exports object, so module state is preserved across imports.</p>
+<h2 id="exporting">Exporting</h2>
+<p>Use <code>export</code> to expose values from a module. Several forms are supported:</p>
+<pre><code class="language-go">// greet.gad
+hello := "Hello"
+
+export hello                       // export an existing binding
+export add(a, b) { return a + b }  // export a function
+export greet(name) =&gt; hello + ", " + name   // arrow form
+export pi = 3.14                   // export a new binding
+export {e: 2.71, phi: 1.61}        // export several keys at once</code></pre>
+<p>Importing it:</p>
+<pre><code class="language-go">g := import("./greet.gad")
+println(g.hello)         // Hello
+println(g.add(2, 3))     // 5
+println(g.greet("Gad"))  // Hello, Gad
+println(g.pi, g.e)       // 3.14 2.71</code></pre>
+<h2 id="module-parameters">Module Parameters</h2>
+<p>A module may declare <code>param</code> just like the main script. Parameters are supplied as <strong>named arguments</strong> to <code>import</code> and are interpreted <strong>only on the first import</strong> — later imports reuse the already-loaded module and ignore any arguments.</p>
+<pre><code class="language-go">// greet.gad
+param (;lang="en")
+const msgs = {en: "Hello", br: "Olá"}
+hello := msgs[lang]
+export hello
+export greet(name) =&gt; hello + ", " + name</code></pre>
+<pre><code class="language-go">g := import("./greet.gad"; lang="br")
+println(g.hello)          // Olá
+println(g.greet("Gad"))   // Olá, Gad</code></pre>
+<h2 id="shared-state-via-globals">Shared State via globals</h2>
+<p>Modules can use <code>global</code> to reach the same host-provided globals object as the main script — a simple way to share mutable state across modules. See <a href="variables-and-scopes.html#global">Variables → global</a>. For goroutine-safe shared maps, the host can provide a <code>syncDict</code>.</p>
+<p>To configure which modules are importable from Go, see <a href="embedding.html">Embedding in Go</a>.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#importing">Importing</a><a href="#exporting">Exporting</a><a href="#module-parameters">Module Parameters</a><a href="#shared-state-via-globals">Shared State via globals</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Values and Types · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link active" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="values-and-types">Values and Types</h1>
+<p><a href="index.html">← Back to index</a></p>
+<p>In Gad, everything is a value and every value has a type. Use the <code>typeName</code> builtin to inspect a value's type at runtime.</p>
+<pre><code class="language-go">println(typeName(42))      // int
+println(typeName(3.14))    // float
+println(typeName("hi"))    // str
+println(typeName([1, 2]))  // array</code></pre>
+<h2 id="type-overview">Type Overview</h2>
+<table>
+<thead><tr><th>Type</th><th>Description</th><th>Go equivalent</th></tr></thead>
+<tbody>
+<tr><td><code>int</code></td><td>signed 64-bit integer</td><td><code>int64</code></td></tr>
+<tr><td><code>uint</code></td><td>unsigned 64-bit integer</td><td><code>uint64</code></td></tr>
+<tr><td><code>float</code></td><td>64-bit floating point</td><td><code>float64</code></td></tr>
+<tr><td><code>decimal</code></td><td>arbitrary-precision decimal</td><td>shopspring/decimal</td></tr>
+<tr><td><code>bool</code></td><td><code>true</code> / <code>false</code></td><td><code>bool</code></td></tr>
+<tr><td><code>flag</code></td><td><code>yes</code> / <code>no</code> (prints <code>on</code> / <code>off</code>)</td><td><code>bool</code></td></tr>
+<tr><td><code>char</code></td><td>a single unicode code point</td><td><code>rune</code></td></tr>
+<tr><td><code>str</code></td><td>unicode string</td><td><code>string</code></td></tr>
+<tr><td><code>rawStr</code></td><td>raw (un-escaped) string</td><td><code>string</code></td></tr>
+<tr><td><code>bytes</code></td><td>byte slice</td><td><code>[]byte</code></td></tr>
+<tr><td><code>array</code></td><td>ordered list of values</td><td><code>[]Object</code></td></tr>
+<tr><td><code>dict</code></td><td>string-keyed map of values</td><td><code>map[string]Object</code></td></tr>
+<tr><td><code>keyValue</code></td><td>a single <code>key=value</code> pair</td><td>—</td></tr>
+<tr><td><code>keyValueArray</code></td><td>ordered list of <code>key=value</code> pairs</td><td>—</td></tr>
+<tr><td><code>error</code></td><td>error value</td><td>—</td></tr>
+<tr><td><code>nil</code></td><td>absence of a value</td><td>—</td></tr>
+<tr><td><code>compiledFunction</code></td><td>a Gad function</td><td>—</td></tr>
+</tbody>
+</table>
+<h2 id="numbers">Numbers</h2>
+<pre><code class="language-go">19 + 84        // int
+1u + 5u        // uint
+-9.22 + 1e10   // float
+2d + 0.5d      // decimal (suffix d)
+0x1F           // hex int   == 31
+017            // octal int == 15</code></pre>
+<p>Convert between numeric types with the constructor builtins:</p>
+<pre><code class="language-go">println(int("-999"))   // -999
+println(int("0x1F"))   // 31
+println(float(-51))    // -51
+println(decimal(1))    // 1
+println(string(1984))  // "1984"</code></pre>
+<h2 id="booleans-and-flags">Booleans and Flags</h2>
+<p>Gad has two boolean-like types. <code>bool</code> is the usual <code>true</code>/<code>false</code>. <code>flag</code> is a distinct on/off type written <code>yes</code>/<code>no</code> and printed as <code>on</code>/<code>off</code>.</p>
+<pre><code class="language-go">println(true || false)      // true
+println(yes, no)            // on off
+println(typeName(yes))      // flag
+println(flag("a"), flag("")) // on off</code></pre>
+<h2 id="characters">Characters</h2>
+<p>A <code>char</code> is a single unicode code point written with single quotes. Characters support arithmetic and comparison; adding an int shifts the code point and keeps the <code>char</code> type.</p>
+<pre><code class="language-go">'ç' &gt; '9'         // true
+println('A' + 1)  // B   (still a char)
+println(char(88)) // X   (code point 88)
+println(int('A')) // 65</code></pre>
+<h2 id="strings-bytes-and-regex">Strings, Bytes and Regex</h2>
+<p>Strings, raw strings, heredocs, template strings, <strong>bytes literals</strong> (<code>b"…"</code>, <code>h"…"</code>) and <code>/regex/</code> literals each have their own chapter: <a href="strings-bytes-regex.html">Strings, Bytes and Regex</a>. A quick taste:</p>
+<pre><code class="language-go">"foo" + `bar`    // "foobar"   (str + rawStr)
+b"Hello"         // bytes from a string
+h"ffccf1c2"      // bytes from hex
+/ab+/            // a compiled regexp</code></pre>
+<h2 id="arrays">Arrays</h2>
+<p>An array is an ordered list of values of any type, indexed with <code>[]</code>.</p>
+<pre><code class="language-go">a := ["foo", 'x', [1, 2, 3], {bar: 2u}, true, nil]
+println(a[0])    // "foo"
+println(a[2][1]) // 2
+println(len(a))  // 6</code></pre>
+<p>See <a href="collections.html">Collections</a> for slicing, comprehensions and spreading.</p>
+<h2 id="dicts">Dicts</h2>
+<p>A dict maps string keys to values. Access elements with <code>[]</code> or the <code>.</code> selector.</p>
+<pre><code class="language-go">m := {a: 1, "b": false, c: "foo"}
+println(m.a)      // 1
+println(m["b"])   // false
+println(m.x)      // nil  (missing key)
+m.x = 10          // add a key</code></pre>
+<p><code>{}</code> at statement position opens a block, <strong>not</strong> an empty dict. Wrap a dict in parentheses where a block would otherwise be parsed: <code>({})</code>.</p>
+<h2 id="keyvalue-and-keyvaluearray">keyValue and keyValueArray</h2>
+<p>A <code>key=value</code> pair is its own value, and a parenthesised <code>;</code>-prefixed list is a <code>keyValueArray</code> — the literal form behind named arguments.</p>
+<pre><code class="language-go">println([a=1])              // [a=1]            (keyValue)
+println((;a=1, b=2))        // (;a=1, b=2)      (keyValueArray)
+println(typeName([a=1]))    // keyValue
+println(typeName((;a=1)))   // keyValueArray</code></pre>
+<h2 id="nil">Nil</h2>
+<p><code>nil</code> represents a missing or undefined value. Functions with no explicit <code>return</code>, missing dict keys and some builtins yield <code>nil</code>.</p>
+<pre><code class="language-go">a := func() { b := 4 }()  // a == nil
+c := {a: "foo"}["b"]      // c == nil
+println(isNil(a), c == nil)</code></pre>
+<h2 id="functions">Functions</h2>
+<p>Functions are first-class values; they can be stored, passed and returned.</p>
+<pre><code class="language-go">add := func(a, b) { return a + b }
+mul := (a, b) =&gt; a * b      // arrow closure
+println(add(2, 3), mul(2, 3))</code></pre>
+<p>See <a href="functions.html">Functions</a> for closures, variadics, named arguments and deferred handlers.</p>
+<h2 id="properties">Properties</h2>
+<p>A <code>Prop</code> is a named, callable value whose getter and setter are dispatched by the call signature: calling it with no argument runs the getter, calling it with one argument runs the setter whose parameter type matches.</p>
+<p>A property can be built with the <code>Prop</code> constructor:</p>
+<pre><code class="language-go">var value
+const p = Prop("x", () =&gt; value, (v) =&gt; { value = v })
+
+// attach a typed setter later with `met`
+met p(v int) {
+  value = "int value= " + v
+}
+
+p()      // nil
+p("a")   // setter runs: value = "a"
+p()      // "a"
+p(1)     // typed (int) setter selected
+p()      // "int value= 1"</code></pre>
+<p>The same property can be declared with the <code>prop</code> keyword, which uses the <a href="functions.html#functions-with-methods">func-with-methods</a> body syntax. A method with no parameters is the getter; a method with one parameter is a setter:</p>
+<pre><code class="language-go">var value
+prop x {
+  ()      =&gt; value          // getter
+  (v)     { value = v }     // setter
+  (v int) { value = "int value= " + v }   // typed setter
+}</code></pre>
+<p>At most one getter may be registered; any number of setters may be registered and are selected by their parameter type. A property created with no methods is valid, but calling it is an error because no matching method exists.</p>
+<pre><code class="language-go">const pi = Prop("pi", () =&gt; 3.14)   // read-only
+pi()        // 3.14</code></pre>
+<h2 id="copy-semantics">Copy Semantics</h2>
+<p>Assignment copies values, except for the reference types <code>array</code>, <code>dict</code> and <code>bytes</code>, which share their backing storage (as in Go). Use <code>copy</code> for a shallow copy and <code>dcopy</code> for a deep copy.</p>
+<pre><code class="language-go">a := [1, 2, 3]
+b := a          // shares storage
+b[0] = 99
+println(a[0])   // 99
+
+c := copy(a)    // independent copy
+c[0] = 0
+println(a[0])   // 99</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#type-overview">Type Overview</a><a href="#numbers">Numbers</a><a href="#booleans-and-flags">Booleans and Flags</a><a href="#characters">Characters</a><a href="#strings-bytes-and-regex">Strings, Bytes and Regex</a><a href="#arrays">Arrays</a><a href="#dicts">Dicts</a><a href="#keyvalue-and-keyvaluearray">keyValue and keyValueArray</a><a href="#nil">Nil</a><a href="#functions">Functions</a><a href="#properties">Properties</a><a href="#copy-semantics">Copy Semantics</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

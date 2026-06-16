@@ -49,6 +49,22 @@ raw "x" + "y"   // "xy"  (rawStr concatenates with str)</code></pre>
   line2
   """
 println(s)   // line1\nline2</code></pre>
+<h2 id="code-strings-code--end">Code Strings (<code>code … end</code>)</h2>
+<p>A <code>code … end</code> literal is a heredoc-like string whose body is captured <strong>verbatim</strong> — it is not parsed, evaluated or template-interpolated, it just becomes a plain <code>str</code>. The <code>code</code>/<code>end</code> fences signal that the body is Gad source (editors highlight it accordingly), which makes it handy for embedding snippets, templates or generated code.</p>
+<p>The block form spans multiple lines; the closing <code>end</code> is the line at the opening statement's indentation whose only word is <code>end</code>. A deeper-indented <code>end</code> (e.g. from an embedded <code>begin … end</code>) belongs to the body, and the body is dedented to its own least-indented line:</p>
+<pre><code class="language-go">src := code
+    for x in [1, 2] {
+        println(x)
+    }
+end
+println(src)
+// for x in [1, 2] {
+//     println(x)
+// }</code></pre>
+<p>There is also a single-line form <code>code &lt;body&gt; end</code>:</p>
+<pre><code class="language-go">s := code a + b end
+println(s)   // a + b</code></pre>
+<p>A bare <code>code</code> identifier (with no matching <code>end</code> fence) is unaffected, so <code>code := 1</code> still declares a variable.</p>
 <h2 id="template-strings">Template Strings</h2>
 <p>A <code>#"…"</code> (or <code></code> #<code>…</code> <code></code>) literal is a template string: <code>{expr}</code> is interpolated and the whole thing evaluates to a normal string.</p>
 <pre><code class="language-go">name := "Gad"
@@ -100,7 +116,7 @@ f("hello world")              // "hell0 w0rld"
 
 /[a-z]+/ | func(m) { return "&lt;" + m + "&gt;" }   // wrap each match</code></pre>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#string-forms">String Forms</a><a href="#heredocs">Heredocs</a><a href="#template-strings">Template Strings</a><a href="#bytes">Bytes</a><a href="#regular-expressions">Regular Expressions</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#string-forms">String Forms</a><a href="#heredocs">Heredocs</a><a href="#code-strings-code--end">Code Strings (code … end)</a><a href="#template-strings">Template Strings</a><a href="#bytes">Bytes</a><a href="#regular-expressions">Regular Expressions</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

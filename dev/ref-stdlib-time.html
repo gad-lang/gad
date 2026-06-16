@@ -35,14 +35,14 @@
 <p>Nanosecond Microsecond Millisecond Second Minute Hour</p>
 <h3 id="location">location</h3>
 <p>ToInterface Type</p>
-<pre><code class="language-go">// Location represents location values and implements gad.Object interface.
+<pre><code class="language-go">// Location represents location values and implements Object interface.
 type Location struct {
-   gad.ObjectImpl
+   ObjectImpl
    Value *time.Location
 }</code></pre>
 <h3 id="time">time</h3>
 <p>ToInterface Type</p>
-<pre><code class="language-go">// Time represents time values and implements gad.Object interface.
+<pre><code class="language-go">// Time represents time values and implements Object interface.
 type Time struct {
   Value time.Time
 }</code></pre>
@@ -121,125 +121,115 @@ type Time struct {
 </tbody>
 </table>
 <h2 id="functions">Functions</h2>
-<p><code>UTC() &lt;location&gt;</code></p>
+<p><code>utc() &lt;Location&gt;</code></p>
 <p>Returns Universal Coordinated Time (UTC) location.</p>
 <hr>
-<p><code>Local() &lt;location&gt;</code></p>
+<p><code>local() &lt;Location&gt;</code></p>
 <p>Returns the system's local time zone location.</p>
 <hr>
-<p><code>MonthString(m int) &lt;month str&gt;</code></p>
+<p><code>monthString(m int) &lt;month str&gt;</code></p>
 <p>Returns English name of the month m ("January", "February", ...).</p>
 <hr>
-<p><code>WeekdayString(w int) &lt;weekday str&gt;</code></p>
+<p><code>weekdayString(w int) &lt;weekday str&gt;</code></p>
 <p>Returns English name of the int weekday w, note that 0 is Sunday.</p>
 <hr>
-<p><code>DurationString(d int) &lt;str&gt;</code></p>
+<p><code>durationString(d int) &lt;str&gt;</code></p>
 <p>Returns a string representing the duration d in the form "72h3m0.5s".</p>
 <hr>
-<p><code>DurationNanoseconds(d int) &lt;int&gt;</code></p>
+<p><code>durationNanoseconds(d int) &lt;int&gt;</code></p>
 <p>Returns the duration d as an int nanosecond count.</p>
 <hr>
-<p><code>DurationMicroseconds(d int) &lt;int&gt;</code></p>
+<p><code>durationMicroseconds(d int) &lt;int&gt;</code></p>
 <p>Returns the duration d as an int microsecond count.</p>
 <hr>
-<p><code>DurationMilliseconds(d int) &lt;int&gt;</code></p>
+<p><code>durationMilliseconds(d int) &lt;int&gt;</code></p>
 <p>Returns the duration d as an int millisecond count.</p>
 <hr>
-<p><code>DurationSeconds(d int) &lt;float&gt;</code></p>
+<p><code>durationSeconds(d int) &lt;float&gt;</code></p>
 <p>Returns the duration d as a floating point number of seconds.</p>
 <hr>
-<p><code>DurationMinutes(d int) &lt;float&gt;</code></p>
+<p><code>durationMinutes(d int) &lt;float&gt;</code></p>
 <p>Returns the duration d as a floating point number of minutes.</p>
 <hr>
-<p><code>DurationHours(d int) &lt;float&gt;</code></p>
+<p><code>durationHours(d int) &lt;float&gt;</code></p>
 <p>Returns the duration d as a floating point number of hours.</p>
 <hr>
-<p><code>Sleep(duration int) &lt;nil&gt;</code></p>
+<p><code>sleep(duration int) &lt;nil&gt;</code></p>
 <p>Pauses the current goroutine for at least the duration.</p>
 <hr>
-<p><code>ParseDuration(s str) &lt;duration int&gt;</code></p>
+<p><code>parseDuration(s str) &lt;duration int&gt;</code></p>
 <p>Parses duration s and returns duration as int or error.</p>
 <hr>
-<p><code>DurationRound(duration int, m int) &lt;duration int&gt;</code></p>
+<p><code>durationRound(duration int, m int) &lt;duration int&gt;</code></p>
 <p>Returns the result of rounding duration to the nearest multiple of m.</p>
 <hr>
-<p><code>DurationTruncate(duration int, m int) &lt;duration int&gt;</code></p>
+<p><code>durationTruncate(duration int, m int) &lt;duration int&gt;</code></p>
 <p>Returns the result of rounding duration toward zero to a multiple of m.</p>
 <hr>
-<p><code>FixedZone(name str, sec int) &lt;location&gt;</code></p>
+<p><code>fixedZone(name str, sec int) &lt;Location&gt;</code></p>
 <p>Returns a Location that always uses the given zone name and offset (seconds east of UTC).</p>
 <hr>
-<p><code>LoadLocation(name str) &lt;location&gt;</code></p>
+<p><code>loadLocation(name str) &lt;Location&gt;</code></p>
 <p>Returns the Location with the given name.</p>
 <hr>
-<p><code>IsLocation(any) &lt;bool&gt;</code></p>
+<p><code>isLocation(any) &lt;bool&gt;</code></p>
 <p>Reports whether any value is of location type.</p>
 <hr>
-<p><code>Time() &lt;time&gt;</code></p>
+<p><code>time() &lt;time&gt;</code></p>
 <p>Returns zero time.</p>
 <hr>
-<p><code>Since(t time) &lt;duration int&gt;</code></p>
+<p><code>since(t time) &lt;duration int&gt;</code></p>
 <p>Returns the time elapsed since t.</p>
 <hr>
-<p><code>Until(t time) &lt;duration int&gt;</code></p>
+<p><code>until(t time) &lt;duration int&gt;</code></p>
 <p>Returns the duration until t.</p>
 <hr>
-<p><code>Date(year int, month int, day int[, hour int, min int, sec int, nsec int, loc location]) &lt;time&gt;</code></p>
+<p><code>date(year int, month int, day int[, hour int, min int, sec int, nsec int, loc Location]) &lt;time&gt;</code></p>
 <p>Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds in the appropriate zone for that time in the given location. Zero values of optional arguments are used if not provided.</p>
 <hr>
-<p><code>Now() &lt;time&gt;</code></p>
+<p><code>now() &lt;time&gt;</code></p>
 <p>Returns the current local time.</p>
 <hr>
-<p><code>Parse(layout str, value str[, loc location]) &lt;time&gt;</code></p>
+<p><code>parse(layout str, value str[, loc Location]) &lt;time&gt;</code></p>
 <p>Parses a formatted string and returns the time value it represents. If location is not provided, ToInterface's <code>time.Parse</code> function is called otherwise <code>time.ParseInLocation</code> is called.</p>
 <hr>
-<p><code>Unix(sec int[, nsec int]) &lt;time&gt;</code></p>
+<p><code>unix(sec int[, nsec int]) &lt;time&gt;</code></p>
 <p>Returns the local time corresponding to the given Unix time, sec seconds and nsec nanoseconds since January 1, 1970 UTC. Zero values of optional arguments are used if not provided.</p>
 <hr>
-<p><code>Add(t time, duration int) &lt;time&gt;</code></p>
+<p><code>add(t time, duration int) &lt;time&gt;</code></p>
 <p>Deprecated: Use .Add method of time object. Returns the time of t+duration.</p>
 <hr>
-<p><code>Sub(t1 time, t2 time) &lt;int&gt;</code></p>
+<p><code>sub(t1 time, t2 time) &lt;int&gt;</code></p>
 <p>Deprecated: Use .Sub method of time object. Returns the duration of t1-t2.</p>
 <hr>
-<p><code>AddDate(t time, years int, months int, days int) &lt;time&gt;</code></p>
+<p><code>addDate(t time, years int, months int, days int) &lt;time&gt;</code></p>
 <p>Deprecated: Use .AddDate method of time object. Returns the time corresponding to adding the given number of years, months, and days to t.</p>
 <hr>
-<p><code>After(t1 time, t2 time) &lt;bool&gt;</code></p>
+<p><code>after(t1 time, t2 time) &lt;bool&gt;</code></p>
 <p>Deprecated: Use .After method of time object. Reports whether the time t1 is after t2.</p>
 <hr>
-<p><code>Before(t1 time, t2 time) &lt;bool&gt;</code></p>
+<p><code>before(t1 time, t2 time) &lt;bool&gt;</code></p>
 <p>Deprecated: Use .Before method of time object. Reports whether the time t1 is before t2.</p>
 <hr>
-<p><code>Format(t time, layout str) &lt;str&gt;</code></p>
+<p><code>format(t time, layout str) &lt;str&gt;</code></p>
 <p>Deprecated: Use .Format method of time object. Returns a textual representation of the time value formatted according to layout.</p>
 <hr>
-<p><code>AppendFormat(t time, b bytes, layout str) &lt;bytes&gt;</code></p>
+<p><code>appendFormat(t time, b bytes, layout str) &lt;bytes&gt;</code></p>
 <p>Deprecated: Use .AppendFormat method of time object. It is like <code>Format</code> but appends the textual representation to b and returns the extended buffer.</p>
 <hr>
-<p><code>In(t time, loc location) &lt;time&gt;</code></p>
+<p><code>in(t time, loc Location) &lt;time&gt;</code></p>
 <p>Deprecated: Use .In method of time object. Returns a copy of t representing the same time t, but with the copy's location information set to loc for display purposes.</p>
 <hr>
-<p><code>Round(t time, duration int) &lt;time&gt;</code></p>
+<p><code>round(t time, duration int) &lt;time&gt;</code></p>
 <p>Deprecated: Use .Round method of time object. Round returns the result of rounding t to the nearest multiple of duration.</p>
 <hr>
-<p><code>Truncate(t time, duration int) &lt;time&gt;</code></p>
+<p><code>truncate(t time, duration int) &lt;time&gt;</code></p>
 <p>Deprecated: Use .Truncate method of time object. Truncate returns the result of rounding t down to a multiple of duration.</p>
 <hr>
-<p><code>IsTime(any) &lt;bool&gt;</code></p>
+<p><code>isTime(any) &lt;bool&gt;</code></p>
 <p>Reports whether any value is of time type.</p>
-<h2 id="converters">Converters</h2>
-<p>When Go values cross into scripts they are converted to these gad types:</p>
-<ul>
-<li><code>time.Time</code>, <code>*time.Time</code> -&gt; <code>time</code></li>
-<li><code>time.Duration</code> -&gt; <code>int</code> (nanoseconds)</li>
-<li><code>time.Location</code> -&gt; <code>location</code></li>
-</ul>
-<h2 id="method-overrides">Method Overrides</h2>
-<p><code>int(v time; unit=char) &lt;int&gt;</code></p>
-<p>Converts a <code>time</code> to a Unix timestamp (elapsed since 1970-01-01 UTC). The <code>unit</code> named argument selects the resolution: <code>'n'</code> nanoseconds, <code>'m'</code> microseconds, <code>'l'</code> milliseconds, or seconds (default).</p>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#types">Types</a><a href="#functions">Functions</a><a href="#converters">Converters</a><a href="#method-overrides">Method Overrides</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#types">Types</a><a href="#functions">Functions</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

@@ -73,6 +73,33 @@ greet("Gad"; **{greeting: "Hey"})  // "Hey, Gad"</code></pre>
 <p>A call must supply the right number of positional arguments (variadics aside), or it raises <code>WrongNumArgumentsError</code>:</p>
 <pre><code class="language-go">f := func(a, b) {}
 f(1, 2, 3)   // RuntimeError: WrongNumArgumentsError</code></pre>
+<h2 id="functions-with-methods">Functions with methods</h2>
+<p>A function can hold several <strong>methods</strong> — overloads selected at call time by the argument types. Instead of a single parameter list and body, write a brace block whose entries are each <code>(params) &lt;ret&gt; {body}</code> (the return-type list and a <code>=&gt;</code> expression body are optional, exactly as for a plain function):</p>
+<pre><code class="language-go">func area {
+  (r float)          =&gt; 3.14159 * r * r        // circle
+  (w float, h float) =&gt; w * h                   // rectangle
+}
+
+area(2.0)        // 12.56636  — the one-parameter method
+area(2.0, 3.0)   // 6.0       — the two-parameter method</code></pre>
+<p>The dispatcher picks the method whose parameters match the call; if none match it raises <code>ErrNoMethodFound</code>. A named declaration (<code>func area { ... }</code>) binds the function to <code>area</code>; the same form is also valid as an expression value.</p>
+<p>New methods can be added to an existing callable later with the <code>met</code> statement:</p>
+<pre><code class="language-go">met area(s str) =&gt; "n/a"     // add a string overload
+area("x")                    // "n/a"</code></pre>
+<h2 id="properties-prop">Properties (prop)</h2>
+<p>A <strong>property</strong> is a named, callable value defined with the func-with-methods body syntax but introduced by the <code>prop</code> keyword. A method with no parameters is the *getter*; a method with one parameter is a *setter*, chosen by the argument type:</p>
+<pre><code class="language-go">var value
+prop x {
+  ()      =&gt; value          // getter:  x()
+  (v)     { value = v }     // setter:  x(v)
+  (v int) { value = "int= " + v }   // typed setter
+}
+
+x("a")   // setter runs
+x()      // "a"
+x(1)     // typed (int) setter
+x()      // "int= 1"</code></pre>
+<p>A single-accessor property may drop the braces: <code>prop pi() =&gt; 3.14</code>. Properties are also available through the [<code>Prop</code>](values-and-types.md#properties) constructor for building them programmatically.</p>
 <h2 id="return--assign-the-result">return = (assign the result)</h2>
 <p><code>return = expr</code> sets the function's result value without leaving the function; execution continues. The final result is whatever <code>return =</code> last set (any later bare expression value is ignored). This pairs naturally with <a href="#deferred-handlers">deferred handlers</a>, which can read and rewrite it via <code>$ret</code>.</p>
 <pre><code class="language-go">f := func(x) {
@@ -115,7 +142,7 @@ println(safe())   // recovered: error: boom</code></pre>
 out += "after"
 println(out)   // body d2 d1 after   (LIFO at block exit)</code></pre>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#arrow-closures">Arrow Closures</a><a href="#closures">Closures</a><a href="#variadic-parameters">Variadic Parameters</a><a href="#spreading-arguments">Spreading Arguments</a><a href="#named-arguments">Named Arguments</a><a href="#argument-count">Argument Count</a><a href="#return--assign-the-result">return = (assign the result)</a><a href="#deferred-handlers">Deferred Handlers</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#arrow-closures">Arrow Closures</a><a href="#closures">Closures</a><a href="#variadic-parameters">Variadic Parameters</a><a href="#spreading-arguments">Spreading Arguments</a><a href="#named-arguments">Named Arguments</a><a href="#argument-count">Argument Count</a><a href="#functions-with-methods">Functions with methods</a><a href="#properties-prop">Properties (prop)</a><a href="#return--assign-the-result">return = (assign the result)</a><a href="#deferred-handlers">Deferred Handlers</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

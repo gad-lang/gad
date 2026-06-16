@@ -101,7 +101,7 @@ $ gad join.gad a b c --ln       # a,b,c\n</code></pre>
 <pre><code class="language-sh">gad fmt main.gad     # format a single file
 gad fmt src/...      # recurse into ./src
 gad fmt -            # format stdin to stdout</code></pre>
-<p>It supports include/exclude globs and regexes, <code>--out</code>, <code>--backup</code>, parallel <code>--jobs</code>, layout <code>--no-*</code> flags, transpile flags, machine-readable <code>--report</code> output and a <code>.gad.yaml</code> config file. See <strong><a href="formatting.html">Formatting</a></strong> for the full reference.</p>
+<p>It supports include/exclude globs and regexes, <code>--out</code>, <code>--backup</code>, parallel <code>--jobs</code>, layout <code>--no-*</code> flags, transpile flags, NDJSON <code>--report</code> output, <code>--to-stdout</code> streaming and a <code>.gad.yaml</code> config file. See <strong><a href="formatting.html">Formatting</a></strong> for the full reference.</p>
 <h3 id="the-web-ide-gad-ide">The web IDE (<code>gad ide</code>)</h3>
 <p><code>gad ide [PATH]</code> starts a local web IDE in your browser for a workspace directory (or a single file to edit; PATH defaults to the current directory):</p>
 <pre><code class="language-sh">gad ide                # edit the current directory

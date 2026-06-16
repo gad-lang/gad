@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Error Handling · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link active" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="error-handling">Error Handling</h1>
+<p>Gad's <code>try-catch-finally</code> statements can handle all kinds of runtime errors even runtime <code>panic</code> in Go. It is similar to Ecmascript's error handling statements. Although <code>try-catch-finally</code> statements are not a must to handle all kinds of errors, one often needs finalizers for cleanup operations while interacting with Go code, which makes error handling very important for long running or repetitive executions.</p>
+<p><strong>Syntax</strong></p>
+<pre><code class="language-go">try {
+    var x
+
+    // braces are required to create blocks even if they are empty
+    // catch statement can be elided
+    try {} finally {}
+
+} catch err {
+    // no parenthesis is allowed around "err" variable
+    // thrown error is assigned to "err" variable
+    // "x" variable is accessible from catch block
+} finally {
+    // "x" variable is accessible from finally block
+    // "err" variable is accessible from finally block
+    try {} catch {
+        // variable name can be elided after catch keyword
+        // finally statement can be elided
+    }
+}</code></pre>
+<pre><code class="language-go">// illegal; catch or finally statement is missing
+try {}</code></pre>
+<pre><code class="language-go">// illegal; catch must be above finally
+try {
+
+} finally {
+
+} catch  {
+
+}</code></pre>
+<pre><code class="language-go">// illegal; catch or finally keyword must follow the
+// previous closing brace without a newline or semicolon.
+try {}
+catch {}</code></pre>
+<pre><code class="language-go">// illegal; missing try block
+catch {} finally {}</code></pre>
+<p>Runtime errors stop Virtual Machine (VM) execution if they are not handled. Some <a href="tutorial.html#interfaces">Object interface</a> methods have <code>error</code> typed return parameters which generates runtime error. Gad tries to minimize the runtime errors in builtin functions and modules but dynamic nature of Gad requires proper error handling. Runtime errors can also be generated with <code>throw</code> statements in scripts.</p>
+<p>List of Builtin Errors:</p>
+<ul>
+<li>WrongNumArgumentsError</li>
+<li>InvalidOperatorError</li>
+<li>IndexOutOfBoundsError</li>
+<li>NotIterableError</li>
+<li>NotIndexableError</li>
+<li>NotIndexAssignableError</li>
+<li>NotCallableError</li>
+<li>NotImplementedError</li>
+<li>ZeroDivisionError</li>
+<li>TypeError</li>
+</ul>
+<p>Error names are self explanatory. <code>.Name</code> selector of error values returns the same name with builtin name <code>TypeError.Name == "TypeError"</code>. Errors are immutable so fields of an error cannot be modified.</p>
+<pre><code class="language-go">// create error from a builtin error
+err := TypeError.New("want X type, but got Y type")
+err.Name == "TypeError"
+err.Message == "want X type, but got Y type"</code></pre>
+<pre><code class="language-go">// create a custom error
+err := error("custom error message")
+err.Name == "error"
+err.Message == "custom error message"</code></pre>
+<p>Creating error from a builtin error using <code>.New</code> method enables to check error types using <code>isError</code> <a href="builtins.html#iserror">builtin function</a>.</p>
+<pre><code class="language-go">var ErrNotAnInt = error("not an integer")
+
+fn := func(x) {
+    if !isInt(x) {
+        throw ErrNotAnInt
+        /* OR set a new message
+        msg := sprintf("%s %s", typeName(x), ErrNotAnInt.Message)
+        throw ErrNotAnInt.New(msg)
+        */
+    }
+    return 10 / x
+}
+
+try {
+
+   result := fn("x")
+
+} catch myerr {
+
+    if isError(myerr, ErrNotAnInt) {
+        /* ... */
+    } else if isError(myerr, ZeroDivisionError) {
+        /* ... */
+    }
+
+} finally {
+    if myerr != nil {
+        return -1
+    }
+    return result
+}</code></pre>
+<h2 id="throw-statement">throw Statement</h2>
+<p><code>throw &lt;expression&gt;</code> statement enables to generate runtime errors. If thrown expression is an error, it is wrapped in a <code>RuntimeError</code> object and propagated to upper levels until an error handler is found. If expression is not of error type, expression's string value is used as a message to build a new error.</p>
+<p>Errors can be returned as values from functions like Go but under some circumstances using <code>throw</code> is inevitable.</p>
+<h2 id="panic">panic</h2>
+<p>To handle Go runtime <code>panic</code>, use VM's <code>SetRecover(true)</code>. One can also use <code>SetRecover(true)</code> to get panic messages as a Go error from VM's <code>Run</code> method.</p>
+<p>Stack overflow errors is not handled even if they are thrown in a <code>try</code> block, because of zero stack size. Unhandled panic is propagated if it is not handled.</p>
+<pre><code class="language-go">bytecode, _ := gad.Compile(script, options)
+// handle error here
+
+vm := gad.NewVM(bytecode).SetRecover(true)</code></pre>
+<h2 id="stack-trace">Stack Trace</h2>
+<p>Generated runtime errors holds stack trace information which can be printed using <code>%+v</code> format specifier.</p>
+<pre><code class="language-go">val, err := gad.NewVM(bytecode).Run(nil)
+if err != nil {
+    fmt.Printf("%+v\n", err)
+    /*
+    e := err.(*gad.RuntimeError)
+    _ = e.StackTrace()
+    */
+}</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#throw-statement">throw Statement</a><a href="#panic">panic</a><a href="#stack-trace">Stack Trace</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

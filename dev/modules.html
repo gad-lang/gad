@@ -35,6 +35,7 @@
 <ul>
 <li><strong>Custom modules</strong> — any Go value implementing the <code>Importable</code> interface.</li>
 </ul>
+<blockquote>A few stdlib modules — <code>time</code>, <code>strings</code>, <code>fmt</code> and <code>base64</code> — are also exposed as <strong>builtin namespaces</strong> that work without an <code>import</code> (e.g. <code>strings.ToUpper("hi")</code>). <code>import(...)</code> still works for them. See <a href="builtins.html#builtin-modules">Builtins → Builtin Modules</a>.</blockquote>
 <h2 id="importing">Importing</h2>
 <pre><code class="language-go">strings := import("strings")    // a builtin module
 println(strings.ToUpper("hi"))  // HI</code></pre>

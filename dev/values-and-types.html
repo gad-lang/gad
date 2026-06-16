@@ -116,6 +116,32 @@ println(isNil(a), c == nil)</code></pre>
 mul := (a, b) =&gt; a * b      // arrow closure
 println(add(2, 3), mul(2, 3))</code></pre>
 <p>See <a href="functions.html">Functions</a> for closures, variadics, named arguments and deferred handlers.</p>
+<h2 id="properties">Properties</h2>
+<p>A <code>Prop</code> is a named, callable value whose getter and setter are dispatched by the call signature: calling it with no argument runs the getter, calling it with one argument runs the setter whose parameter type matches.</p>
+<p>A property can be built with the <code>Prop</code> constructor:</p>
+<pre><code class="language-go">var value
+const p = Prop("x", () =&gt; value, (v) =&gt; { value = v })
+
+// attach a typed setter later with `met`
+met p(v int) {
+  value = "int value= " + v
+}
+
+p()      // nil
+p("a")   // setter runs: value = "a"
+p()      // "a"
+p(1)     // typed (int) setter selected
+p()      // "int value= 1"</code></pre>
+<p>The same property can be declared with the <code>prop</code> keyword, which uses the <a href="functions.html#functions-with-methods">func-with-methods</a> body syntax. A method with no parameters is the getter; a method with one parameter is a setter:</p>
+<pre><code class="language-go">var value
+prop x {
+  ()      =&gt; value          // getter
+  (v)     { value = v }     // setter
+  (v int) { value = "int value= " + v }   // typed setter
+}</code></pre>
+<p>At most one getter may be registered; any number of setters may be registered and are selected by their parameter type. A property created with no methods is valid, but calling it is an error because no matching method exists.</p>
+<pre><code class="language-go">const pi = Prop("pi", () =&gt; 3.14)   // read-only
+pi()        // 3.14</code></pre>
 <h2 id="copy-semantics">Copy Semantics</h2>
 <p>Assignment copies values, except for the reference types <code>array</code>, <code>dict</code> and <code>bytes</code>, which share their backing storage (as in Go). Use <code>copy</code> for a shallow copy and <code>dcopy</code> for a deep copy.</p>
 <pre><code class="language-go">a := [1, 2, 3]
@@ -127,7 +153,7 @@ c := copy(a)    // independent copy
 c[0] = 0
 println(a[0])   // 99</code></pre>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#type-overview">Type Overview</a><a href="#numbers">Numbers</a><a href="#booleans-and-flags">Booleans and Flags</a><a href="#characters">Characters</a><a href="#strings-bytes-and-regex">Strings, Bytes and Regex</a><a href="#arrays">Arrays</a><a href="#dicts">Dicts</a><a href="#keyvalue-and-keyvaluearray">keyValue and keyValueArray</a><a href="#nil">Nil</a><a href="#functions">Functions</a><a href="#copy-semantics">Copy Semantics</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#type-overview">Type Overview</a><a href="#numbers">Numbers</a><a href="#booleans-and-flags">Booleans and Flags</a><a href="#characters">Characters</a><a href="#strings-bytes-and-regex">Strings, Bytes and Regex</a><a href="#arrays">Arrays</a><a href="#dicts">Dicts</a><a href="#keyvalue-and-keyvaluearray">keyValue and keyValueArray</a><a href="#nil">Nil</a><a href="#functions">Functions</a><a href="#properties">Properties</a><a href="#copy-semantics">Copy Semantics</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

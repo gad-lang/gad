@@ -75,13 +75,25 @@ repr("hi")               // a debug representation</code></pre>
 <h2 id="misc">Misc</h2>
 <p><code>globals</code>, <code>cast</code>, <code>wrap</code>, <code>addMethod</code>, <code>Class</code>, <code>userData</code>.</p>
 <p><code>globals()</code> returns the host-provided globals object (see <a href="variables-and-scopes.html#global">Variables → global</a>); <code>Class</code> and <code>addMethod</code> support the object/class system.</p>
-<h2 id="standard-library-modules">Standard Library Modules</h2>
-<p>Beyond builtins, functionality is grouped into importable modules such as <code>strings</code>, <code>fmt</code>, <code>json</code>, <code>time</code>, <code>os</code>, <code>filepath</code> and <code>path</code>:</p>
+<h2 id="builtin-modules">Builtin Modules</h2>
+<p><code>time</code>, <code>strings</code>, <code>fmt</code> and <code>base64</code> are exposed as <strong>builtin namespaces</strong>: they are always available, so you can use them **without an <code>import</code>**:</p>
+<pre><code class="language-go">println(strings.Contains("abcd", "bc"))          // true
+println(fmt.Sprintf("%d-%s", 7, "x"))            // 7-x
+println(base64.StdEncoding.EncodeToString(bytes("hi")))  // aGk=
+
+d := time.date(2026, 6, 13, 9, 0, 0, 0, time.utc())
+println(d.Year())                                // 2026</code></pre>
+<p><code>import(...)</code> still works for these (and is required for other stdlib modules), returning the same members:</p>
 <pre><code class="language-go">strings := import("strings")
 println(strings.ToUpper("hi"))   // HI</code></pre>
+<h3 id="member-naming">Member naming</h3>
+<p><code>strings</code>, <code>fmt</code> and <code>base64</code> keep their original member names (<code>strings.ToUpper</code>, <code>fmt.Sprintf</code>, <code>base64.StdEncoding</code>). The **<code>time</code><strong> module uses </strong>lowerCamelCase** member names (<code>time.now</code>, <code>time.date</code>, <code>time.utc</code>, <code>time.durationString</code>, <code>time.hour</code>, …); the value types are <code>time</code> and <code>Location</code>, and methods on a time value stay PascalCase (<code>t.Add(…)</code>, <code>t.Format(…)</code>).</p>
+<h2 id="other-standard-library-modules">Other Standard Library Modules</h2>
+<p>Further functionality is grouped into importable modules such as <code>json</code>, <code>os</code>, <code>filepath</code> and <code>path</code>:</p>
+<pre><code class="language-go">json := import("json")</code></pre>
 <p>See the generated <code>docs/stdlib-*.md</code> files for per-module references.</p>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#type-constructors--conversions">Type Constructors / Conversions</a><a href="#type-inspection">Type Inspection</a><a href="#sequences-and-collections">Sequences and Collections</a><a href="#iteration">Iteration</a><a href="#io-and-formatting">I/O and Formatting</a><a href="#misc">Misc</a><a href="#standard-library-modules">Standard Library Modules</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#type-constructors--conversions">Type Constructors / Conversions</a><a href="#type-inspection">Type Inspection</a><a href="#sequences-and-collections">Sequences and Collections</a><a href="#iteration">Iteration</a><a href="#io-and-formatting">I/O and Formatting</a><a href="#misc">Misc</a><a href="#builtin-modules">Builtin Modules</a><a href="#other-standard-library-modules">Other Standard Library Modules</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>
