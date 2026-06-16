@@ -21,6 +21,8 @@ import (
 // const prop = Property("x", () => value, (v) => {value = v})
 // met prop(v int) => {value = "int value= " + v}
 // ```
+
+// TProperty is the builtin `Property` object type.
 var TProperty = NewBuiltinObjType("Property").WithNew(NewPropertyFunc)
 
 type Property struct {
@@ -122,7 +124,6 @@ func (p *Property) AddGetter(v Object, onAdd func(method *TypedCallerMethod) err
 
 func (p *Property) AddSetter(v Object, valueType ParamTypes, override bool, onAdd func(method *TypedCallerMethod) error) (err error) {
 	if IsFunction(v) {
-		v := v.(CallerObject)
 		err = p.f.Methods.Add(ParamsTypes{valueType}, NewCallerMethod(p, v.(CallerObject)), override, onAdd)
 	} else {
 		err = ErrProperty.NewErrorf("Setter of property %s is not a raw caller object", ReprQuote(p.FullName()))
