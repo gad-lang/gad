@@ -3012,6 +3012,52 @@ func TestParseFunctionReturnType(t *testing.T) {
 	})
 }
 
+func TestParseProperty(t *testing.T) {
+	// single-accessor form: prop name(params) {body} (no surrounding braces).
+	test.ExpectParseString(t, "prop x(n int) { v = n }", "prop x(n int) { v = n }")
+	test.ExpectParseString(t, "prop x() { return v }", "prop x() { return v }")
+	test.ExpectParseString(t, "prop x() => v", "prop x() => v")
+
+	// multi-accessor form: prop name { (params) {body} ... } shares the
+	// func-with-methods body syntax.
+	test.ExpectParseString(t,
+		"prop x { () { return v }\n(n int) { v = n } }",
+		"prop x {() { return v }; (n int) { v = n }; }")
+
+	// accessors carry their own return types.
+	test.ExpectParseString(t,
+		"prop x { () <int> { return v }\n(n int) { v = n } }",
+		"prop x {() <int> { return v }; (n int) { v = n }; }")
+
+	// lambda bodies and a typed setter.
+	test.ExpectParseString(t,
+		"prop x { () => v\n(n int) => n }",
+		"prop x {() => v; (n int) => n; }")
+
+	// selector and index names.
+	test.ExpectParseString(t, "prop obj.x { () => v }", "prop obj.x {() => v; }")
+	test.ExpectParseString(t, `prop obj["x"] { () => v }`, `prop obj["x"] {() => v; }`)
+
+	// as an expression value (anonymous and named).
+	test.ExpectParseString(t, "const p = prop y { () => v }", "const p = prop y {() => v; }")
+	test.ExpectParseString(t, "const p = prop { () => v }", "const p = prop {() => v; }")
+
+	// full AST for the single-accessor getter form.
+	test.ExpectParse(t, "prop x() { return v }", func(p pfn) []Stmt {
+		return stmts(&PropStmt{PropExpr: PropExpr{
+			PropToken: TokenLit{Token: token.Prop, Literal: "prop", Pos: p(1, 1)},
+			NameExpr:  EIdent("x", p(1, 6)),
+			RBrace:    p(1, 22),
+			Methods: []*FuncMethod{
+				{
+					Params: FuncParams{Args: funcArgs(nil), LParen: p(1, 7), RParen: p(1, 8)},
+					Body:   SBlock(p(1, 10), p(1, 21), SReturn(p(1, 12), EIdent("v", p(1, 19)))),
+				},
+			},
+		}})
+	})
+}
+
 func TestParseShorthandFuncReturnType(t *testing.T) {
 	// name(params) <ret> {body} shorthand.
 	test.ExpectParseString(t, "foo(a) <int> { return a }", "foo(a) <int> { return a }")

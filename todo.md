@@ -99,7 +99,7 @@
       remove `:` after match arms expr and `(` of match expr, update doc with examples (syntaxe: `match Expr { Expr { ... }, Expr { ... } }`).
       create vm tests for match expr and match stmt.
       create doc of func/closure/method/ComputedValue syntax and add examples.
-- [ ] create doc for code conventions:
+- [ ] create doc for gad code conventions:
       - primitive type name is camelCase.
       - no primitive type name is PascalCase (or spefic names is upper (example `URL` - like golang convention).
       - constant names is PascalCase (or spefic names is upper (example `URL` - like golang convention))

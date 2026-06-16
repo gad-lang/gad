@@ -127,6 +127,7 @@ func SplitCaller(vm *VM, caller Object, cb func(co CallerObject, types ParamsTyp
 				return
 			}
 		}
+		return
 	default:
 		if Callable(caller) && len(fallback) == 1 {
 			return fallback[0](caller.(CallerObject))

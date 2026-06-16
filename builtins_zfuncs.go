@@ -2,8 +2,6 @@
 
 package gad
 
-import ()
-
 // funcPOsRe is a generated function to make CallableFunc.
 // Source: func(o Object, k string) (err error)
 func funcPOsRe(fn func(Object, string) error) CallableFunc {

@@ -1060,6 +1060,8 @@ func (p *Parser) ParseOperand() node.Expr {
 			return p.ParseDictLit()
 		case token.Func, token.Method: // function literal
 			return p.ParseFuncExpr()
+		case token.Prop: // property literal
+			return p.ParsePropExpr()
 		case token.Throw:
 			return p.ParseThrowExpr()
 		case token.Return:
@@ -1717,6 +1719,128 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 	return
 }
 
+func (p *Parser) ParsePropStmt() (stmt node.Stmt) {
+	if p.Trace {
+		defer untracep(tracep(p, "PropStmt"))
+	}
+
+	e := p.ParsePropExprT(p.ExpectToken(token.Prop))
+
+	if t, _ := e.(*node.PropExpr); t != nil {
+		return &node.PropStmt{PropExpr: *t}
+	}
+	return &node.ExprStmt{Expr: e}
+}
+
+func (p *Parser) ParsePropExpr() (e node.Expr) {
+	if p.Trace {
+		defer untracep(tracep(p, "PropExpr"))
+	}
+
+	if p.Token.Token.Is(token.Prop) {
+		return p.ParsePropExprT(p.ExpectToken(token.Prop))
+	}
+
+	p.ErrorExpectToken(p.Token, token.Prop)
+	return &node.BadExpr{From: p.Token.Pos, To: p.Token.Pos}
+}
+
+// ParsePropExprT parses a property expression introduced by the `prop`
+// keyword. It mirrors the func-with-methods body syntax: an optional name
+// followed by either a single accessor `(params) <ret> {body}` or a brace
+// block holding several accessors. A method with no parameters is the getter
+// and a method with one parameter is a setter.
+func (p *Parser) ParsePropExprT(tok PToken) (e node.Expr) {
+	if p.Trace {
+		defer untracep(tracep(p, "PropExprT"))
+	}
+
+	prop := &node.PropExpr{PropToken: tok.TokenLit}
+
+	defer func() {
+		if e == nil {
+			e = &node.BadExpr{From: tok.Pos, To: p.Token.Pos}
+		}
+	}()
+
+	if p.Token.Token == token.Ident {
+		prop.NameExpr = p.ParseIdent()
+		switch p.Token.Token {
+		case token.Period, token.LBrack:
+			prop.NameExpr = p.ParseSimpleSelectorExpr(prop.NameExpr)
+		}
+	}
+
+	switch p.Token.Token {
+	case token.LParen:
+		// single accessor: prop name(params) <ret> {body}
+		m := p.parsePropMethod()
+		if m == nil || p.Failed() {
+			return
+		}
+		prop.Methods = append(prop.Methods, m)
+		prop.RBrace = m.End()
+		e = prop
+	case token.LBrace:
+		// several accessors: prop name { (params) {body} ... }
+		prop.LBrace = p.Expect(token.LBrace)
+
+		p.ExprLevel++
+		p.SkipSpace()
+
+		for p.Token.Token != token.RBrace {
+			p.SkipSpace()
+
+			m := p.parsePropMethod()
+			if m == nil || p.Failed() {
+				p.ExprLevel--
+				return
+			}
+			prop.Methods = append(prop.Methods, m)
+			p.ExpectSemi()
+		}
+
+		p.ExprLevel--
+		prop.RBrace = p.Expect(token.RBrace)
+		e = prop
+	default:
+		p.ErrorExpectToken(p.Token, token.LParen, token.LBrace)
+	}
+
+	return
+}
+
+// parsePropMethod parses a single property accessor of the form
+// `(params) <ret> {body}` (or `=> expr`). It returns nil on error.
+func (p *Parser) parsePropMethod() (m *node.FuncMethod) {
+	paren := p.ParseParemExpr(token.LParen, token.RParen)
+	if paren == nil || p.Errors.Len() != 0 {
+		return nil
+	}
+
+	m = &node.FuncMethod{}
+
+	var err *node.NodeError
+	if m.Params, err = paren.ToMultiParenExpr().ToFuncParams(); err != nil {
+		p.Error(err.Pos(), err.Error())
+		return nil
+	}
+
+	m.Return = p.ParseFuncReturnTypes()
+	if p.Failed() {
+		return nil
+	}
+
+	p.ExprLevel++
+	m.Body, m.LambdaPos, m.BodyExpr = p.ParseBody()
+	p.ExprLevel--
+
+	if p.Failed() {
+		return nil
+	}
+	return m
+}
+
 func (p *Parser) ParseBody() (b *node.BlockStmt, lambdaPos source.Pos, closure node.Expr) {
 	if p.Trace {
 		defer untracep(tracep(p, "Body"))
@@ -1999,6 +2123,8 @@ do:
 		return p.ParseScopedBlockStmt()
 	case token.Func:
 		return p.ParseFuncStmt()
+	case token.Prop:
+		return p.ParsePropStmt()
 	case // simple statements
 		token.Method, token.Ident, token.Int, token.Uint, token.Float, token.Decimal,
 		token.Char, token.String, token.RawString, token.RawHeredoc, token.Heredoc, token.CodeStr, token.Symbol,

@@ -259,6 +259,8 @@ func (f *File) EqualStmt(expected, actual node.Stmt) {
 		f.Equal(expected.Lit.Value, actual.(*node.CodeEndStmt).Lit.Value)
 	case *node.FuncWithMethodsStmt:
 		f.EqualExpr(&expected.FuncWithMethodsExpr, &actual.(*node.FuncWithMethodsStmt).FuncWithMethodsExpr)
+	case *node.PropStmt:
+		f.EqualExpr(&expected.PropExpr, &actual.(*node.PropStmt).PropExpr)
 	case *node.FuncStmt:
 		f.EqualExpr(expected.Func, actual.(*node.FuncStmt).Func)
 	default:
@@ -417,6 +419,22 @@ func (f *File) EqualExpr(expected, actual node.Expr) {
 	case *node.FuncWithMethodsExpr:
 		actual := actual.(*node.FuncWithMethodsExpr)
 		f.Equal(expected.FuncToken, actual.FuncToken)
+		f.EqualExpr(expected.NameExpr, actual.NameExpr)
+		f.Equal(expected.LBrace, actual.LBrace)
+		f.Equal(expected.RBrace, actual.RBrace)
+		f.Equal(len(expected.Methods), len(actual.Methods), "methods count")
+
+		for i, em := range expected.Methods {
+			msg := fmt.Sprintf("method[%d]", i)
+			am := actual.Methods[i]
+			f.Equal(&em.Params, &am.Params, msg+".Params")
+			f.Equal(&em.LambdaPos, &am.LambdaPos, msg+".LambdaPos")
+			f.EqualStmt(em.Body, am.Body)
+			f.EqualExpr(em.BodyExpr, am.BodyExpr)
+		}
+	case *node.PropExpr:
+		actual := actual.(*node.PropExpr)
+		f.Equal(expected.PropToken, actual.PropToken)
 		f.EqualExpr(expected.NameExpr, actual.NameExpr)
 		f.Equal(expected.LBrace, actual.LBrace)
 		f.Equal(expected.RBrace, actual.RBrace)

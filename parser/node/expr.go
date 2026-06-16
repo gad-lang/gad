@@ -1588,6 +1588,121 @@ func (m *FuncMethod) Func() *FuncExpr {
 	}
 }
 
+// PropStmt represents a property declaration statement, e.g.
+// `prop name { () { ... } (v int) { ... } }`.
+type PropStmt struct {
+	PropExpr
+}
+
+func (s PropStmt) StmtNode() {}
+
+// PropExpr represents a property expression: a named value defined by one
+// or more accessor methods, sharing the func-with-methods body syntax but
+// introduced by the `prop` keyword. A method with no parameters is the getter
+// and a method with one parameter is a setter.
+type PropExpr struct {
+	PropToken TokenLit
+	LBrace    source.Pos
+	RBrace    source.Pos
+	NameExpr  Expr
+	Methods   []*FuncMethod
+}
+
+func (e *PropExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *PropExpr) Pos() source.Pos {
+	if e.PropToken.Pos != source.NoPos {
+		return e.PropToken.Pos
+	}
+	if e.NameExpr != nil {
+		return e.NameExpr.Pos()
+	}
+	return e.LBrace
+}
+
+// End returns the position of first character immediately after the node.
+func (e *PropExpr) End() source.Pos {
+	return e.RBrace + 1
+}
+
+func (e *PropExpr) NameIdent() *IdentExpr {
+	if e.NameExpr == nil {
+		return nil
+	}
+	return IdentOfSelector(e.NameExpr)
+}
+
+func (e *PropExpr) Funcs() (f Exprs) {
+	f = make(Exprs, len(e.Methods))
+	for i, m := range e.Methods {
+		f[i] = m.Func()
+	}
+	return
+}
+
+// single reports whether the property was written in the single-accessor form
+// `prop name(params) {body}` (no surrounding braces).
+func (e *PropExpr) single() bool {
+	return e.LBrace == source.NoPos && len(e.Methods) == 1
+}
+
+func (e *PropExpr) String() string {
+	var b strings.Builder
+	if e.PropToken.Valid() {
+		b.WriteString(e.PropToken.Token.String())
+		b.WriteString(" ")
+	}
+	if e.NameExpr != nil {
+		b.WriteString(e.NameExpr.String())
+		if !e.single() {
+			b.WriteString(" ")
+		}
+	}
+	if e.single() {
+		b.WriteString(e.Methods[0].String())
+		return b.String()
+	}
+	b.WriteString("{")
+	for _, m := range e.Methods {
+		b.WriteString(m.String())
+		b.WriteString("; ")
+	}
+	b.WriteString("}")
+	return b.String()
+}
+
+func (e *PropExpr) WriteCode(ctx *CodeWriteContext) {
+	if e.PropToken.Pos != source.NoPos {
+		ctx.WriteString(e.PropToken.Token.String())
+		ctx.WriteString(" ")
+	}
+	if e.NameExpr != nil {
+		ctx.WriteString(e.NameExpr.String())
+		if !e.single() {
+			ctx.WriteString(" ")
+		}
+	}
+
+	if e.single() {
+		e.Methods[0].WriteCode(ctx)
+		return
+	}
+
+	ctx.WriteString("{")
+	ctx.WriteItemsSep(ctx.HasPrefix(), len(e.Methods), "; ", "\n", func(i int) {
+		e.Methods[i].WriteCode(ctx)
+	}, func(newLine bool) {
+		if newLine {
+			ctx.WriteSecondLine()
+		}
+	})
+	if len(e.Methods) > 0 && ctx.HasPrefix() {
+		ctx.WritePrefix()
+	}
+	ctx.WriteString("}")
+}
+
 // FuncExpr represents a function literal.
 type FuncExpr struct {
 	Type      *FuncType

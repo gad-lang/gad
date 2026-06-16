@@ -153,6 +153,7 @@ const (
 	Deferb
 	DeferbOk
 	DeferbErr
+	Prop
 	GroupKeywordEnd
 )
 
@@ -315,6 +316,7 @@ var tokens = [...]string{
 	Deferb:          "deferb",
 	DeferbOk:        "deferb_ok",
 	DeferbErr:       "deferb_err",
+	Prop:            "prop",
 	Export:          "export",
 }
 
@@ -462,6 +464,7 @@ var tokenNames = [...]string{
 	Deferb:                       "Deferb",
 	DeferbOk:                     "DeferbOk",
 	DeferbErr:                    "DeferbErr",
+	Prop:                         "Prop",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 

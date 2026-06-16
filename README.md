@@ -260,9 +260,15 @@ return v
 
 ## LICENSE
 
-Gad is licensed under the MIT License.
+Gad is licensed under the **MIT License** — see [LICENSE](LICENSE) for the full
+text. You are free to use, copy, modify and distribute it, including in
+commercial and closed-source projects, provided the copyright and license
+notice is retained.
 
-See [LICENSE](LICENSE) for the full license text.
+Gad includes code derived from third-party projects, each under its own license:
+
+* [LICENSE.golang](LICENSE.golang) — the Go standard library (BSD-3-Clause).
+* [LICENSE.tengo](LICENSE.tengo) — the Tengo language (MIT).
 
 ## Acknowledgements
 

@@ -1845,6 +1845,78 @@ func (c *Compiler) compileFuncWithMethodsExpr(nd *node.FuncWithMethodsExpr) erro
 	return c.Compile(call)
 }
 
+// propCallExpr builds the `Prop(name, methods...)` constructor call that a
+// `prop` statement or expression compiles to. The accessor methods are lowered
+// to function literals, exactly like func-with-methods.
+func (c *Compiler) propCallExpr(nd *node.PropExpr) (*node.CallExpr, error) {
+	if len(nd.Methods) == 0 {
+		return nil, c.errorf(nd, "prop does not have methods")
+	}
+
+	args := make(node.Exprs, len(nd.Methods)+1)
+
+	if nd.NameExpr != nil {
+		name, _ := nd.NameExpr.(*node.IdentExpr)
+		if name == nil {
+			return nil, c.errorf(nd, "require NameExpr as *Ident")
+		}
+		args[0] = node.Str(name.String(), name.NamePos)
+	} else {
+		args[0] = node.Str("", 0)
+	}
+
+	for i, m := range nd.Methods {
+		args[i+1] = m.Func()
+	}
+
+	return &node.CallExpr{
+		Func: node.EIdent(BuiltinProp.String(), nd.Pos()),
+		CallArgs: node.CallArgs{
+			Args: node.CallExprPositionalArgs{
+				Values: args,
+			},
+		},
+	}, nil
+}
+
+func (c *Compiler) compilePropStmt(nd *node.PropStmt) error {
+	// An anonymous prop statement has nothing to bind to: evaluate it as an
+	// expression statement.
+	if nd.NameExpr == nil {
+		return c.compilePropExpr(&nd.PropExpr)
+	}
+
+	name, _ := nd.NameExpr.(*node.IdentExpr)
+	if name == nil {
+		return c.errorf(nd, "require NameExpr as *Ident")
+	}
+
+	call, err := c.propCallExpr(&nd.PropExpr)
+	if err != nil {
+		return err
+	}
+
+	return c.Compile(&node.DeclStmt{
+		Decl: &node.GenDecl{
+			Tok: token.Const,
+			Specs: []node.Spec{
+				&node.ValueSpec{
+					Idents: []*node.IdentExpr{name},
+					Values: []node.Expr{call},
+				},
+			},
+		},
+	})
+}
+
+func (c *Compiler) compilePropExpr(nd *node.PropExpr) error {
+	call, err := c.propCallExpr(nd)
+	if err != nil {
+		return err
+	}
+	return c.Compile(call)
+}
+
 func (c *Compiler) compileLogical(nd *node.BinaryExpr) error {
 	// left side term
 	if err := c.Compile(nd.LHS); err != nil {

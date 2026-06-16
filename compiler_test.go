@@ -4075,6 +4075,68 @@ met f0(i int) {
 		))
 }
 
+func TestCompilerProp(t *testing.T) {
+	// statement form: `prop name { ... }` lowers to a const bound to a
+	// Prop(name, methods...) constructor call.
+	expectCompile(t, `
+prop x {
+        () {}
+
+        (i int) {}
+
+        (v float) {}
+}
+
+return x
+`,
+		bytecode(
+			Array{
+				Str("x"),
+				compFunc(concatInsts(
+					makeInst(OpReturn, 0),
+				), funcName("#1")),
+				compFunc(concatInsts(
+					makeInst(OpReturn, 0),
+				), funcName("#2"), funcParams("i int"), funcLocals(1)),
+				compFunc(concatInsts(
+					makeInst(OpReturn, 0),
+				), funcName("#3"), funcParams("v float"), funcLocals(1)),
+			},
+			compFunc(concatInsts(
+				makeInst(OpGetBuiltin, int(BuiltinProp)),
+				makeInst(OpConstant, 0),
+				makeInst(OpConstant, 1),
+				makeInst(OpConstant, 2),
+				makeInst(OpConstant, 3),
+				makeInst(OpCall, 4, 0),
+				makeInst(OpDefineLocal, 0),
+				makeInst(OpGetLocal, 0),
+				makeInst(OpReturn, 1),
+			), funcLocals(1)),
+		),
+	)
+
+	// expression form (single accessor): `prop name(params) {body}` lowers to
+	// the same constructor call, used directly as a value.
+	expectCompile(t, `return prop x() {}`,
+		bytecode(
+			Array{
+				Str("x"),
+				compFunc(concatInsts(
+					makeInst(OpReturn, 0),
+				), funcName("#1")),
+			},
+			compFunc(concatInsts(
+				makeInst(OpGetBuiltin, int(BuiltinProp)),
+				makeInst(OpConstant, 0),
+				makeInst(OpConstant, 1),
+				makeInst(OpCall, 2, 0),
+				makeInst(OpReturn, 1),
+			), funcLocals(0)),
+		),
+	)
+}
+
 func TestCompilerKeyValue(t *testing.T) {
 	expectCompile(t, `[a=1]`,
 		bytecode(

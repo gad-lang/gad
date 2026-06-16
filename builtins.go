@@ -65,6 +65,8 @@ const (
 	BuiltinTypedIdent
 	BuiltinFunc
 	BuiltinComputedValue
+	// BuiltinProp is the builtin object type for getter/setter properties.
+	BuiltinProp
 	BuiltinTypesEnd_
 
 	BuiltinStaticTypesStart_

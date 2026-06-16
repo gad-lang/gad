@@ -158,6 +158,52 @@ println(add(2, 3), mul(2, 3))
 See [Functions](functions.md) for closures, variadics, named arguments and
 deferred handlers.
 
+## Properties
+
+A `Prop` is a named, callable value whose getter and setter are dispatched by
+the call signature: calling it with no argument runs the getter, calling it with
+one argument runs the setter whose parameter type matches.
+
+A property can be built with the `Prop` constructor:
+
+```go
+var value
+const p = Prop("x", () => value, (v) => { value = v })
+
+// attach a typed setter later with `met`
+met p(v int) {
+  value = "int value= " + v
+}
+
+p()      // nil
+p("a")   // setter runs: value = "a"
+p()      // "a"
+p(1)     // typed (int) setter selected
+p()      // "int value= 1"
+```
+
+The same property can be declared with the `prop` keyword, which uses the
+[func-with-methods](functions.md#functions-with-methods) body syntax. A method
+with no parameters is the getter; a method with one parameter is a setter:
+
+```go
+var value
+prop x {
+  ()      => value          // getter
+  (v)     { value = v }     // setter
+  (v int) { value = "int value= " + v }   // typed setter
+}
+```
+
+At most one getter may be registered; any number of setters may be registered
+and are selected by their parameter type. A property created with no methods is
+valid, but calling it is an error because no matching method exists.
+
+```go
+const pi = Prop("pi", () => 3.14)   // read-only
+pi()        // 3.14
+```
+
 ## Copy Semantics
 
 Assignment copies values, except for the reference types `array`, `dict` and

@@ -100,6 +100,93 @@ func TestVMCodeStr(t *testing.T) {
 	testExpectRun(t, "code := 41\nreturn code + 1", nil, Int(42))
 }
 
+func TestVMProperty(t *testing.T) {
+	// a getter-only property: calling with no args invokes the getter
+	testExpectRun(t, `p := Prop("x", () => 42); return p()`, nil, Int(42))
+	testExpectRun(t, `return typeName(Prop("x", () => 1))`, nil, Str("Prop"))
+
+	// getter + setter: no args reads, one arg writes
+	testExpectRun(t, `
+	var v
+	p := Prop("x", () => v, (n) => {v = n})
+	out := [p()]          // nil (unset)
+	p("a")
+	out = append(out, p())
+	return out`, nil, Array{Nil, Str("a")})
+
+	// a typed setter added with `met` is dispatched by the argument type
+	testExpectRun(t, `
+	var v
+	const p = Prop("x", () => v, (n) => {v = n})
+	met p(n int) { v = "int= " + n }
+	p("a"); s1 := p()
+	p(1);   s2 := p()
+	return [s1, s2]`, nil, Array{Str("a"), Str("int= 1")})
+
+	// a property may be created with no methods, but calling it without a
+	// matching method is an error
+	testExpectRun(t, `return typeName(Prop("x"))`, nil, Str("Prop"))
+	expectErrHas(t, `return Prop("x")()`, newOpts(), "no have method without params")
+}
+
+func TestVMPropStmt(t *testing.T) {
+	// statement form: `prop name { ... }` declares a const property
+	testExpectRun(t, `
+	var v
+	prop x {
+		() => v          // getter
+		(n) { v = n }    // setter
+	}
+	x("a")
+	return x()`, nil, Str("a"))
+
+	// the declared name carries the Prop type
+	testExpectRun(t, `
+	prop x { () => 1 }
+	return typeName(x)`, nil, Str("Prop"))
+
+	// single-accessor (brace-less) form
+	testExpectRun(t, `
+	prop pi() => 3.14
+	return pi()`, nil, Float(3.14))
+
+	// a typed setter is dispatched by the argument type
+	testExpectRun(t, `
+	var v
+	prop x {
+		() => v
+		(n) { v = n }
+		(n int) { v = "int= " + n }
+	}
+	x("a"); s1 := x()
+	x(2);   s2 := x()
+	return [s1, s2]`, nil, Array{Str("a"), Str("int= 2")})
+
+	// a typed setter may also be added afterwards with `met`
+	testExpectRun(t, `
+	var v
+	prop x {
+		() => v
+		(n) { v = n }
+	}
+	met x(n int) { v = "int= " + n }
+	x(7)
+	return x()`, nil, Str("int= 7"))
+
+	// expression form: an anonymous prop assigned to a variable
+	testExpectRun(t, `
+	var v
+	p := prop { () => v
+	(n) { v = n } }
+	p(9)
+	return p()`, nil, Int(9))
+
+	// getter with no matching setter: calling with an unmatched arg is an error
+	expectErrHas(t, `
+	prop x { () => 1 }
+	return x("nope")`, newOpts(), "no have method")
+}
+
 func TestVMBuiltinModuleStringsFmt(t *testing.T) {
 	// strings and fmt are available as builtin namespaces, without an import
 	testExpectRun(t, `return strings.Contains("abcd", "bc")`, nil, Bool(true))

@@ -95,6 +95,58 @@ f := func(a, b) {}
 f(1, 2, 3)   // RuntimeError: WrongNumArgumentsError
 ```
 
+## Functions with methods
+
+A function can hold several **methods** — overloads selected at call time by the
+argument types. Instead of a single parameter list and body, write a brace block
+whose entries are each `(params) <ret> {body}` (the return-type list and a `=>`
+expression body are optional, exactly as for a plain function):
+
+```go
+func area {
+  (r float)          => 3.14159 * r * r        // circle
+  (w float, h float) => w * h                   // rectangle
+}
+
+area(2.0)        // 12.56636  — the one-parameter method
+area(2.0, 3.0)   // 6.0       — the two-parameter method
+```
+
+The dispatcher picks the method whose parameters match the call; if none match
+it raises `ErrNoMethodFound`. A named declaration (`func area { ... }`) binds the
+function to `area`; the same form is also valid as an expression value.
+
+New methods can be added to an existing callable later with the `met` statement:
+
+```go
+met area(s str) => "n/a"     // add a string overload
+area("x")                    // "n/a"
+```
+
+## Properties (prop)
+
+A **property** is a named, callable value defined with the func-with-methods body
+syntax but introduced by the `prop` keyword. A method with no parameters is the
+*getter*; a method with one parameter is a *setter*, chosen by the argument type:
+
+```go
+var value
+prop x {
+  ()      => value          // getter:  x()
+  (v)     { value = v }     // setter:  x(v)
+  (v int) { value = "int= " + v }   // typed setter
+}
+
+x("a")   // setter runs
+x()      // "a"
+x(1)     // typed (int) setter
+x()      // "int= 1"
+```
+
+A single-accessor property may drop the braces: `prop pi() => 3.14`. Properties
+are also available through the [`Prop`](values-and-types.md#properties)
+constructor for building them programmatically.
+
 ## return = (assign the result)
 
 `return = expr` sets the function's result value without leaving the function;
