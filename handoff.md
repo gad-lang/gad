@@ -1,5 +1,51 @@
 # Handoff: ia_todo.md language features
 
+## ACTIVE WORK (2026-06-16): builtin modules DONE; next = time literals (todo L78)
+
+DONE this batch — `time`/`strings`/`fmt`/`base64` are now **builtin module
+namespaces** (usable without `import`); todo.md L77 marked [x]. Commits:
+- `e7a836b` base64 + the builtin-module infra (reserved enum group
+  `GroupBuiltinModules…`, import-compat re-export).
+- `4a82dd3` fmt + compiler optimization: `module.NAME` for a builtin module →
+  single `OpGetBuiltin` (qualified builtin); shadowing local/global disables it.
+- `8aedc67` strings + per-module `*ModuleSpec` set on each member; optimizer
+  `allowedBuiltins[256]` bounds-checked (now >256 builtins).
+- `e9ef527` time + camelCase members + global converters. **Naming convention**
+  (todo L102): module functions/methods = lowerCamelCase (`time.now`,
+  `time.durationString`), CONSTANTS = PascalCase (`time.Hour`, `time.January`,
+  `time.RFC3339`, `time.Type`), value types `time`/`Location` (Location is
+  UpperCamelCase per user); `strings`/`fmt`/`base64` members KEPT PascalCase for
+  now (L94 will lowerCamelCase strings+fmt). The time↔Go converters + the
+  `int(time)` override are registered GLOBALLY in `init()` via the `registry`
+  package + `BuiltinObjects` (no VM) — `objects_go_time.go` removed.
+  `registerBuiltinModule` pins a member `BuiltinObjType.builtinType` so its
+  method-table identity is stable; `BuiltinObjType` gained `Module`; `FullName`
+  qualifies module types (`time.time`, `time.Location`).
+- `0ee4784` docs/samples/godoc: doc/builtins.md "Builtin Modules" section,
+  modules.md note, regenerated docs/stdlib-time.md, samples drop `import`
+  (+use_base64.gad). gaddoc gained a 3rd-arg module filter (multi-module root);
+  Makefile generate-docs runs `gaddoc . <out> <module>` for time/fmt/strings.
+- `690cde9` make-test fixes: moved //go:generate path in module_time_funcs.go;
+  mkcallable `*Location`→"Location"; ide.go SA4006; Makefile fib smoke uses
+  `go run ./cmd/gad`. **`make test` is GREEN.**
+
+Module impl lives in root: `module_base64.go`, `module_fmt.go`+`_scan`,
+`module_strings.go`, `module_time*.go`, shared `module_callable.go` (funcP*
+helpers). stdlib/{time,strings,fmt,encoding/base64} are thin shims (ModuleInit
++ type aliases) delegating to root `XModule()` constructors. Their tests stay in
+stdlib/<mod> (user said "skip moves"). Qualified members registered as builtins
+"time.now", "base64.StdEncoding", etc. (sorted → deterministic indices).
+
+NEXT (todo L78, big): time literals + new primitive types. Add scanner/parser
+literals: `\d{8}D`→`time.Date` (alias of go uint); `(\d{8})?(_?\d{6})(.frac)?(Z…|NAME)T`
+→`time.time`; `\d+(.\d+)?U`→unix `time.time`; go-duration string→`time.Duration`
+(alias of go time.Duration). Compile to those types; encoder for Date/time;
+constructors with `strToTime`/`strToDate`/`strToDuration`/`strToLocation`
+methods; make time/Date/Duration primitive types; samples+docs. (Then L94:
+strings+fmt → lowerCamelCase; L95 regexp/match docs; L102 conventions doc.)
+
+--- (older detail below) ---
+
 ## ACTIVE WORK (2026-06-15): `gad fmt` + mixed/template mode (todo.md)
 
 STATUS: Tasks 1–3 + transpile DONE + COMMITTED.

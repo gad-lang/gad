@@ -74,15 +74,34 @@
 - [x] add parser for new token for CodeStrLit, like strheredoc with `code\s|\n` (start quote) and `\s|\nend` (end quote, \n only if start `code\n`).
       compiles to Str. no parses contents like Template. change codemirror plugin and prism plugin to recognize contents of this as gad source code. 
       add tests for scanner/parser/compiler/vm.
-- [ ] takes stdlib/time and strings modules as builtin module, mapping all functions as BuiltinFunction and BuiltinType.
-- [ ] add parser of `\d{4}\d{2}\d{2}D` as new type time.Date ("time" is gad module, not go time); `\d{4}\d{2}\d{2}_\d{2}\d{2}\d{2}(.(\d{3}|\d{6}|\d{9}))(Z\d{2}\d{2})T` as type time.Time.
-      implements encoder for time.Date and time.Time. add parser for go time.Duration string (to new type time.Duration alias og go time.Duration). 
-      compile values to time.Date, time.Time, time.Duration (create constructor for this type). generate samples and docs.
+- [x] takes stdlib/time and strings modules as builtin module, mapping all functions as BuiltinFunction and BuiltinType.
+- [ ] add parser of `\d{4}\d{2}\d{2}D` as new type time.Date (alias of go uint) ("time" is gad module, not go time);
+      parse Time syntaxe `(\d{4}\d{2}\d{2})?(_?\d{2}\d{2}\d{2})(.(\d{3}|\d{6}|\d{9}))(Z(-?\d{2}\d{2})|[A-Z]{3})T`(grop1) the date; group2) the time; 
+      group3 the seconds fraction (\.d{3} as mili; \.d{6} as micro; \.d{9} as nano); group4) location offset or name), as type time.time; 
+      examples: (must time date: `20260131T` (year: 2026, month: 01, day: 31); must time `235955T` (hour: 23, minute: 59, second: 55);
+      `20260131_235955T` (year: 2026, month: 01, day: 31, our: 23, minute: 59, second: 55);
+      time with seconds fractions `235955.001T`, `235955.001300T`, `235955.001300200T`;
+      time with location: `235955.001ZGRUT` (location `GRU`), `235955.001Z-03:15T` (location `-03:15`);
+      unix time seconds `1781609136U`; unix time fraction `1781609136.123U` (micro), `1781609136.123456U` (mili), `1781609136.123456789U` (nano)).
+      implements encoder for time.Date and time.time. add parser for go time.Duration string (to new type time.Duration alias of go time.Duration). 
+      compile values to time.Date, time.time, time.Duration (create constructor for this type). generate samples and docs.
+      add method "strToTime" of time.time constructor to parse time from str (with parser syntaxe with/without `U` sufix).
+      add method "strToDate" of time.Date constructor to parse Date from str (with parser syntaxe with/without `T` sufix).
+      add method "strToDuration" of time.Duration constructor to parse Duration from str (with parser syntaxe).
+      add method "strToLocation" of time.Location constructor to parse Location from str. 
+      takes time.time, time.Date and time.Duration as primitive types.
+      update docs and samples.
+- [ ] change all strings and fmt methods to lowerCamelCase. update docs and samples.
 - [ ] updated doc to add examples for "~" and "~~" regexp operators and POSIX `/.../p` (`p` sufix), add examples using
       captured groups and regexp flags.
       `raw EXPR`, produces `rawStr` type (`raw "a"` is in compiler time, but `raw str(100)` is in execution time) - update doc for here.
       add examples for The `or` Fallback Operator using `$err` variable.
-      replace match else `else:` must to `else`, update doc with examples.
-      add godoc and docs with examples for ComputedValue
-      create dog of func/closure/method syntax and add examples.
-      
+      remove `:` after match arms expr and `(` of match expr, update doc with examples (syntaxe: `match Expr { Expr { ... }, Expr { ... } }`).
+      create vm tests for match expr and match stmt.
+      create doc of func/closure/method/ComputedValue syntax and add examples.
+- [ ] create doc for code conventions:
+      - primitive type name is camelCase.
+      - no primitive type name is PascalCase (or spefic names is upper (example `URL` - like golang convention).
+      - constant names is PascalCase (or spefic names is upper (example `URL` - like golang convention))
+      - module name is snake_case.
+      - methods/property names is camelCase (or spefic names is upper (example `URL` - like golang convention)).
