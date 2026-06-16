@@ -36,6 +36,7 @@ layout settings are stored in [`.gad.yaml`](.gad.yaml).
 | `06_control_flow.gad`         | `if`/`else`, `for`, `match`                        |
 | `07_error_handling.gad`       | errors, `try`/`catch`/`finally`, the `or` fallback |
 | `08_strings_bytes_regex.gad`  | strings, `b"…"`/`h"…"` bytes, `/regex/` literals  |
+| `10_functions_with_methods.gad` | typed params, func-with-methods, `met`, `prop` |
 
 ## Modules
 

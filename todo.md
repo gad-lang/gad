@@ -91,7 +91,8 @@
       add method "strToLocation" of time.Location constructor to parse Location from str. 
       takes time.time, time.Date and time.Duration as primitive types.
       update docs and samples.
-- [ ] change all strings and fmt methods to lowerCamelCase. update docs and samples.
+- [x] change all strings and fmt methods to lowerCamelCase. update docs and samples.
+- [x] add sample file for "prop", "met" and functions with params
 - [ ] updated doc to add examples for "~" and "~~" regexp operators and POSIX `/.../p` (`p` sufix), add examples using
       captured groups and regexp flags.
       `raw EXPR`, produces `rawStr` type (`raw "a"` is in compiler time, but `raw str(100)` is in execution time) - update doc for here.
@@ -99,7 +100,7 @@
       remove `:` after match arms expr and `(` of match expr, update doc with examples (syntaxe: `match Expr { Expr { ... }, Expr { ... } }`).
       create vm tests for match expr and match stmt.
       create doc of func/closure/method/ComputedValue syntax and add examples.
-- [ ] create doc for gad code conventions:
+- [x] create doc for gad code conventions:
       - primitive type name is camelCase.
       - no primitive type name is PascalCase (or spefic names is upper (example `URL` - like golang convention).
       - constant names is PascalCase (or spefic names is upper (example `URL` - like golang convention))
