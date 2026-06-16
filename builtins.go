@@ -827,6 +827,7 @@ func registerBuiltinModule(modType BuiltinType, spec *ModuleSpec, d Dict) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
+		t := NewBuiltinType()
 		// Tie each callable member back to its module spec.
 		switch m := d[k].(type) {
 		case *BuiltinFunction:
@@ -835,8 +836,11 @@ func registerBuiltinModule(modType BuiltinType, spec *ModuleSpec, d Dict) {
 			m.Module = spec
 		case *BuiltinObjType:
 			m.Module = spec
+			// Pin the type's builtinType now so its identity (used as the method
+			// table key, see Methods.get) is stable before any init registers
+			// methods against it and before StaticBuiltins.build runs.
+			m.builtinType = t
 		}
-		t := NewBuiltinType()
 		BuiltinsMap[name+"."+k] = t
 		BuiltinObjects[t] = d[k]
 	}
@@ -851,6 +855,7 @@ func init() {
 	// OpGetBuiltin instead of indexing the namespace dict.
 	registerBuiltinModule(BuiltinModuleBase64, base64ModuleSpec, base64Module)
 	registerBuiltinModule(BuiltinModuleStrings, stringsModuleSpec, newStringsModule())
+	registerBuiltinModule(BuiltinModuleTime, TimeModuleSpec, newTimeModule())
 	registerBuiltinModule(BuiltinModuleFmt, fmtModuleSpec, newFmtModule())
 
 	BuiltinObjects[BuiltinRead] = &BuiltinFunction{

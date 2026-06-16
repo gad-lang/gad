@@ -2,15 +2,15 @@
 
 time := import("time")
 
-d := 2 * time.Hour + 30 * time.Minute
+d := 2 * time.hour + 30 * time.minute
 println("duration ns:", d)
-println("as string:  ", time.DurationString(d))
+println("as string:  ", time.durationString(d))
 
 // Build a fixed timestamp so the output is deterministic.
-// Date(year, month, day[, hour, min, sec, nsec, loc]); loc from time.UTC().
-t := time.Date(2026, 6, 13, 9, 0, 0, 0, time.UTC())
+// Date(year, month, day[, hour, min, sec, nsec, loc]); loc from time.utc().
+t := time.date(2026, 6, 13, 9, 0, 0, 0, time.utc())
 println("date:       ", t)
 println("year:       ", t.Year())
-println("plus 1 day: ", t.Add(24 * time.Hour))
+println("plus 1 day: ", t.Add(24 * time.hour))
 
 return t.Year()

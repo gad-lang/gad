@@ -15,7 +15,7 @@ import (
 
 func TestModuleTypes(t *testing.T) {
 	l := &Location{Value: time.UTC}
-	require.Equal(t, "location", l.Type().Name())
+	require.Equal(t, "Location", l.Type().Name())
 	require.False(t, l.IsFalsy())
 	require.Equal(t, "UTC", l.ToString())
 	require.True(t, (&Location{}).Equal(&Location{}))
@@ -47,31 +47,40 @@ func TestModuleTypes(t *testing.T) {
 		tm3.Value.Format(time.RFC3339Nano))
 }
 
+// lcFirst lowercases the first byte (ASCII) of s, matching the camelCase keys
+// of the time module (e.g. Go's "January" -> the module key "january").
+func lcFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	return string(s[0]|0x20) + s[1:]
+}
+
 func TestModuleMonthWeekday(t *testing.T) {
 	module := getModule()
-	f := module["MonthString"].(*gad.Function)
+	f := module["monthString"].(gad.CallerObject)
 	_, err := gad.MustCall(f)
 	require.Error(t, err)
 	_, err = gad.MustCall(f, gad.Str(""))
 	require.Error(t, err)
 
 	for i := 1; i <= 12; i++ {
-		require.Contains(t, module, time.Month(i).String())
-		require.Equal(t, gad.Int(i), module[time.Month(i).String()])
+		require.Contains(t, module, lcFirst(time.Month(i).String()))
+		require.Equal(t, gad.Int(i), module[lcFirst(time.Month(i).String())])
 
 		r, err := gad.MustCall(f, gad.Int(i))
 		require.NoError(t, err)
 		require.EqualValues(t, time.Month(i).String(), r)
 	}
 
-	f = module["WeekdayString"].(*gad.Function)
+	f = module["weekdayString"].(gad.CallerObject)
 	_, err = gad.MustCall(f)
 	require.Error(t, err)
 	_, err = gad.MustCall(f, gad.Str(""))
 	require.Error(t, err)
 	for i := 0; i <= 6; i++ {
-		require.Contains(t, module, time.Weekday(i).String())
-		require.Equal(t, gad.Int(i), module[time.Weekday(i).String()])
+		require.Contains(t, module, lcFirst(time.Weekday(i).String()))
+		require.Equal(t, gad.Int(i), module[lcFirst(time.Weekday(i).String())])
 
 		r, err := gad.MustCall(f, gad.Int(i))
 		require.NoError(t, err)
@@ -81,31 +90,31 @@ func TestModuleMonthWeekday(t *testing.T) {
 
 func TestModuleFormats(t *testing.T) {
 	var module = getModule()
-	require.Equal(t, module["ANSIC"], gad.Str(time.ANSIC))
-	require.Equal(t, module["UnixDate"], gad.Str(time.UnixDate))
-	require.Equal(t, module["RubyDate"], gad.Str(time.RubyDate))
-	require.Equal(t, module["RFC822"], gad.Str(time.RFC822))
-	require.Equal(t, module["RFC822Z"], gad.Str(time.RFC822Z))
-	require.Equal(t, module["RFC850"], gad.Str(time.RFC850))
-	require.Equal(t, module["RFC1123"], gad.Str(time.RFC1123))
-	require.Equal(t, module["RFC1123Z"], gad.Str(time.RFC1123Z))
-	require.Equal(t, module["RFC3339"], gad.Str(time.RFC3339))
-	require.Equal(t, module["RFC3339Nano"], gad.Str(time.RFC3339Nano))
-	require.Equal(t, module["Kitchen"], gad.Str(time.Kitchen))
-	require.Equal(t, module["Stamp"], gad.Str(time.Stamp))
-	require.Equal(t, module["StampMilli"], gad.Str(time.StampMilli))
-	require.Equal(t, module["StampMicro"], gad.Str(time.StampMicro))
-	require.Equal(t, module["StampNano"], gad.Str(time.StampNano))
+	require.Equal(t, module["ansic"], gad.Str(time.ANSIC))
+	require.Equal(t, module["unixDate"], gad.Str(time.UnixDate))
+	require.Equal(t, module["rubyDate"], gad.Str(time.RubyDate))
+	require.Equal(t, module["rfc822"], gad.Str(time.RFC822))
+	require.Equal(t, module["rfc822Z"], gad.Str(time.RFC822Z))
+	require.Equal(t, module["rfc850"], gad.Str(time.RFC850))
+	require.Equal(t, module["rfc1123"], gad.Str(time.RFC1123))
+	require.Equal(t, module["rfc1123Z"], gad.Str(time.RFC1123Z))
+	require.Equal(t, module["rfc3339"], gad.Str(time.RFC3339))
+	require.Equal(t, module["rfc3339Nano"], gad.Str(time.RFC3339Nano))
+	require.Equal(t, module["kitchen"], gad.Str(time.Kitchen))
+	require.Equal(t, module["stamp"], gad.Str(time.Stamp))
+	require.Equal(t, module["stampMilli"], gad.Str(time.StampMilli))
+	require.Equal(t, module["stampMicro"], gad.Str(time.StampMicro))
+	require.Equal(t, module["stampNano"], gad.Str(time.StampNano))
 }
 
 func TestModuleDuration(t *testing.T) {
 	var module = getModule()
-	require.Equal(t, module["Nanosecond"], gad.Int(time.Nanosecond))
-	require.Equal(t, module["Microsecond"], gad.Int(time.Microsecond))
-	require.Equal(t, module["Millisecond"], gad.Int(time.Millisecond))
-	require.Equal(t, module["Second"], gad.Int(time.Second))
-	require.Equal(t, module["Minute"], gad.Int(time.Minute))
-	require.Equal(t, module["Hour"], gad.Int(time.Hour))
+	require.Equal(t, module["nanosecond"], gad.Int(time.Nanosecond))
+	require.Equal(t, module["microsecond"], gad.Int(time.Microsecond))
+	require.Equal(t, module["millisecond"], gad.Int(time.Millisecond))
+	require.Equal(t, module["second"], gad.Int(time.Second))
+	require.Equal(t, module["minute"], gad.Int(time.Minute))
+	require.Equal(t, module["hour"], gad.Int(time.Hour))
 
 	goFnMap := map[string]func(time.Duration) any{
 		"Nanoseconds": func(d time.Duration) any {
@@ -127,11 +136,11 @@ func TestModuleDuration(t *testing.T) {
 			return d.Hours()
 		},
 	}
-	durToString := module["DurationString"].(*gad.Function)
+	durToString := module["durationString"].(gad.CallerObject)
 	_, err := gad.MustCall(durToString)
 	require.Error(t, err)
 
-	durParse := module["ParseDuration"].(*gad.Function)
+	durParse := module["parseDuration"].(gad.CallerObject)
 	_, err = gad.MustCall(durParse)
 	require.Error(t, err)
 	_, err = gad.MustCall(durParse, gad.Str(""))
@@ -152,7 +161,7 @@ func TestModuleDuration(t *testing.T) {
 	for _, tC := range testCases {
 		for fn := range goFnMap {
 			t.Run(fmt.Sprintf("%s:%s", tC.dur, fn), func(t *testing.T) {
-				f := module["Duration"+fn].(*gad.Function)
+				f := module["duration"+fn].(gad.CallerObject)
 				ret, err := gad.MustCall(f, gad.Int(tC.dur))
 				require.NoError(t, err)
 				expect := goFnMap[fn](tC.dur)
@@ -180,7 +189,7 @@ func TestModuleDuration(t *testing.T) {
 		}
 	}
 
-	durRound := module["DurationRound"].(*gad.Function)
+	durRound := module["durationRound"].(gad.CallerObject)
 	r, err := gad.MustCall(durRound, gad.Int(time.Second+time.Millisecond),
 		gad.Int(time.Second))
 	require.NoError(t, err)
@@ -192,7 +201,7 @@ func TestModuleDuration(t *testing.T) {
 	_, err = gad.MustCall(durRound, gad.Int(0), gad.Str(""))
 	require.Error(t, err)
 
-	durTruncate := module["DurationTruncate"].(*gad.Function)
+	durTruncate := module["durationTruncate"].(gad.CallerObject)
 	r, err = gad.MustCall(durTruncate, gad.Int(time.Second+5*time.Millisecond),
 		gad.Int(2*time.Millisecond))
 	require.NoError(t, err)
@@ -207,7 +216,7 @@ func TestModuleDuration(t *testing.T) {
 
 func TestModuleLocation(t *testing.T) {
 	var module = getModule()
-	fixedZone := module["FixedZone"].(*gad.Function)
+	fixedZone := module["fixedZone"].(gad.CallerObject)
 	r, err := gad.MustCall(fixedZone, gad.Str("Ankara"), gad.Int(3*60*60))
 	require.NoError(t, err)
 	require.Equal(t, "Ankara", r.ToString())
@@ -221,7 +230,7 @@ func TestModuleLocation(t *testing.T) {
 	_, err = gad.MustCall(fixedZone)
 	require.Error(t, err)
 
-	loadLocation := module["LoadLocation"].(*gad.Function)
+	loadLocation := module["loadLocation"].(gad.CallerObject)
 	r, err = gad.MustCall(loadLocation, gad.Str("Europe/Istanbul"))
 	require.NoError(t, err)
 	require.Equal(t, "Europe/Istanbul", r.ToString())
@@ -235,7 +244,7 @@ func TestModuleLocation(t *testing.T) {
 	_, err = gad.MustCall(loadLocation, gad.Str("invalid"))
 	require.Error(t, err)
 
-	isLocation := module["IsLocation"].(*gad.Function)
+	isLocation := module["isLocation"].(gad.CallerObject)
 	r, err = gad.MustCall(isLocation, &Location{Value: time.Local})
 	require.NoError(t, err)
 	require.EqualValues(t, true, r)
@@ -254,14 +263,14 @@ func TestModuleTime(t *testing.T) {
 
 	require.Equal(t, now.String(), (&Time{Value: now}).ToString())
 
-	zTime := module["Time"].(*gad.Function)
+	zTime := module["time"].(gad.CallerObject)
 	r, err := gad.MustCall(zTime)
 	require.NoError(t, err)
 	require.True(t, r.(*Time).Value.IsZero())
 	_, err = gad.MustCall(zTime, gad.Str(""))
 	require.Error(t, err)
 
-	since := module["Since"].(*gad.Function)
+	since := module["since"].(gad.CallerObject)
 	r, err = gad.MustCall(since, &Time{Value: now})
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, int64(r.(gad.Int)), int64(0))
@@ -270,7 +279,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(since, gad.Str(""))
 	require.Error(t, err)
 
-	until := module["Until"].(*gad.Function)
+	until := module["until"].(gad.CallerObject)
 	r, err = gad.MustCall(until, &Time{Value: now})
 	require.NoError(t, err)
 	require.LessOrEqual(t, int64(r.(gad.Int)), int64(0))
@@ -279,7 +288,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(until, gad.Str(""))
 	require.Error(t, err)
 
-	date := module["Date"].(*gad.Function)
+	date := module["date"].(gad.CallerObject)
 	r, err = gad.MustCall(date, gad.Int(2020), gad.Int(11), gad.Int(8),
 		gad.Int(1), gad.Int(2), gad.Int(3), gad.Int(4),
 		&Location{Value: time.Local})
@@ -291,15 +300,15 @@ func TestModuleTime(t *testing.T) {
 	require.Equal(t,
 		time.Date(2020, 11, 8, 0, 0, 0, 0, time.Local), r.(*Time).Value)
 
-	nowf := module["Now"].(*gad.Function)
+	nowf := module["now"].(gad.CallerObject)
 	r, err = gad.MustCall(nowf)
 	require.NoError(t, err)
 	require.False(t, r.(*Time).Value.IsZero())
 	_, err = gad.MustCall(nowf, gad.Int(0))
 	require.Error(t, err)
 
-	RFC3339Nano := module["RFC3339Nano"]
-	parse := module["Parse"].(*gad.Function)
+	RFC3339Nano := module["rfc3339Nano"]
+	parse := module["parse"].(gad.CallerObject)
 	r, err = gad.MustCall(parse, RFC3339Nano, gad.Str(now.Format(time.RFC3339Nano)))
 	require.NoError(t, err)
 	require.Equal(t, now.Format(time.RFC3339Nano),
@@ -314,7 +323,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(parse)
 	require.Error(t, err)
 
-	unix := module["Unix"].(*gad.Function)
+	unix := module["unix"].(gad.CallerObject)
 	r, err = gad.MustCall(unix, gad.Int(now.Unix()))
 	require.NoError(t, err)
 	require.Equal(t, time.Unix(now.Unix(), 0), r.(*Time).Value)
@@ -324,7 +333,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(unix)
 	require.Error(t, err)
 
-	add := module["Add"].(*gad.Function)
+	add := module["add"].(gad.CallerObject)
 	r, err = gad.MustCall(add, &Time{Value: now}, gad.Int(time.Second))
 	require.NoError(t, err)
 	require.Equal(t, now.Add(time.Second), r.(*Time).Value)
@@ -335,7 +344,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(add)
 	require.Error(t, err)
 
-	sub := module["Sub"].(*gad.Function)
+	sub := module["sub"].(gad.CallerObject)
 	r, err = gad.MustCall(sub, &Time{Value: now}, &Time{Value: now.Add(-time.Hour)})
 	require.NoError(t, err)
 	require.EqualValues(t, time.Hour, r.(gad.Int))
@@ -346,7 +355,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(sub)
 	require.Error(t, err)
 
-	addDate := module["AddDate"].(*gad.Function)
+	addDate := module["addDate"].(gad.CallerObject)
 	r, err = gad.MustCall(addDate, &Time{Value: now},
 		gad.Int(1), gad.Int(2), gad.Int(3))
 	require.NoError(t, err)
@@ -358,7 +367,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(addDate)
 	require.Error(t, err)
 
-	after := module["After"].(*gad.Function)
+	after := module["after"].(gad.CallerObject)
 	r, err = gad.MustCall(after, &Time{Value: now}, &Time{Value: now.Add(time.Hour)})
 	require.NoError(t, err)
 	require.EqualValues(t, false, r)
@@ -372,7 +381,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(after)
 	require.Error(t, err)
 
-	before := module["Before"].(*gad.Function)
+	before := module["before"].(gad.CallerObject)
 	r, err = gad.MustCall(before, &Time{Value: now}, &Time{Value: now.Add(time.Hour)})
 	require.NoError(t, err)
 	require.EqualValues(t, true, r)
@@ -386,7 +395,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(before)
 	require.Error(t, err)
 
-	appendFormat := module["AppendFormat"].(*gad.Function)
+	appendFormat := module["appendFormat"].(gad.CallerObject)
 	b := make(gad.Bytes, 100)
 	r, err = gad.MustCall(appendFormat, &Time{Value: now}, b, RFC3339Nano)
 	require.NoError(t, err)
@@ -399,7 +408,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(appendFormat)
 	require.Error(t, err)
 
-	format := module["Format"].(*gad.Function)
+	format := module["format"].(gad.CallerObject)
 	r, err = gad.MustCall(format, &Time{Value: now}, RFC3339Nano)
 	require.NoError(t, err)
 	require.EqualValues(t, now.Format(time.RFC3339Nano), r)
@@ -408,7 +417,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(format)
 	require.Error(t, err)
 
-	timeIn := module["In"].(*gad.Function)
+	timeIn := module["in"].(gad.CallerObject)
 	r, err = gad.MustCall(timeIn, &Time{Value: now}, &Location{Value: time.Local})
 	require.NoError(t, err)
 	require.False(t, r.(*Time).Value.IsZero())
@@ -417,7 +426,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(timeIn)
 	require.Error(t, err)
 
-	round := module["Round"].(*gad.Function)
+	round := module["round"].(gad.CallerObject)
 	r, err = gad.MustCall(round, &Time{Value: now}, gad.Int(time.Second))
 	require.NoError(t, err)
 	require.Equal(t, now.Round(time.Second), r.(*Time).Value)
@@ -426,7 +435,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(round)
 	require.Error(t, err)
 
-	truncate := module["Truncate"].(*gad.Function)
+	truncate := module["truncate"].(gad.CallerObject)
 	r, err = gad.MustCall(truncate, &Time{Value: now}, gad.Int(time.Hour))
 	require.NoError(t, err)
 	require.Equal(t, now.Truncate(time.Hour), r.(*Time).Value)
@@ -435,7 +444,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(truncate)
 	require.Error(t, err)
 
-	isTime := module["IsTime"].(*gad.Function)
+	isTime := module["isTime"].(gad.CallerObject)
 	r, err = gad.MustCall(isTime, &Time{Value: now})
 	require.NoError(t, err)
 	require.EqualValues(t, true, r)
@@ -553,49 +562,49 @@ func TestScript(t *testing.T) {
 	typeOf(t, "Tp", TimeType, now.String(), true)
 	typeOf(t, "L", LocationType, "UTC", false)
 
-	expectRun(t, catch(`time.Now()[1]`),
+	expectRun(t, catch(`time.now()[1]`),
 		nil, idxTypeErr("str", "int"))
-	expectRun(t, catch(`time.Now() + 'c'`),
+	expectRun(t, catch(`time.now() + 'c'`),
 		nil, opTypeErr("+", "time", "char"))
-	expectRun(t, catch(`time.Now()()`), nil, gad.Str("NotCallableError: time"))
-	expectRun(t, catch(`time.Date()`), nil, nwrongArgs(3, 8, 0))
-	expectRun(t, catch(`time.Date(1)`), nil, nwrongArgs(3, 8, 1))
-	expectRun(t, catch(`time.Date(1, 2)`), nil, nwrongArgs(3, 8, 2))
-	expectRun(t, catch(`time.Date(1, 2, "")`),
+	expectRun(t, catch(`time.now()()`), nil, gad.Str("NotCallableError: time"))
+	expectRun(t, catch(`time.date()`), nil, nwrongArgs(3, 8, 0))
+	expectRun(t, catch(`time.date(1)`), nil, nwrongArgs(3, 8, 1))
+	expectRun(t, catch(`time.date(1, 2)`), nil, nwrongArgs(3, 8, 2))
+	expectRun(t, catch(`time.date(1, 2, "")`),
 		nil, typeErr("3", "int", "str"))
-	expectRun(t, catch(`time.Date(1, 2, 3, 4, 5, 6, 7, "")`),
-		nil, typeErr("8", "location", "str"))
-	expectRun(t, catch(`time.Parse("", 1)`),
+	expectRun(t, catch(`time.date(1, 2, 3, 4, 5, 6, 7, "")`),
+		nil, typeErr("8", "Location", "str"))
+	expectRun(t, catch(`time.parse("", 1)`),
 		nil, gad.Str("ErrCall: parsing time \"1\": extra text: \"1\""))
-	expectRun(t, catch(`time.Parse("", "", 1)`),
-		nil, typeErr("3rd", "location", "int"))
-	expectRun(t, catch(`time.Unix("")`),
+	expectRun(t, catch(`time.parse("", "", 1)`),
+		nil, typeErr("3rd", "Location", "int"))
+	expectRun(t, catch(`time.unix("")`),
 		nil, typeErr("1st", "int", "str"))
-	expectRun(t, catch(`time.Unix(1, "")`),
+	expectRun(t, catch(`time.unix(1, "")`),
 		nil, typeErr("2nd", "int", "str"))
-	expectRun(t, catch(`time.AddDate(time.Now(), "", 1, 2)`),
+	expectRun(t, catch(`time.addDate(time.now(), "", 1, 2)`),
 		nil, typeErr("2nd", "int", "str"))
-	expectRun(t, catch(`time.AddDate(time.Now(), 1, "", 2)`),
+	expectRun(t, catch(`time.addDate(time.now(), 1, "", 2)`),
 		nil, typeErr("3rd", "int", "str"))
-	expectRun(t, catch(`time.AddDate(time.Now(), 1, 2, "")`),
+	expectRun(t, catch(`time.addDate(time.now(), 1, 2, "")`),
 		nil, typeErr("4th", "int", "str"))
-	expectRun(t, catch(`time.After(1, 2)`), nil, gad.False)
-	expectRun(t, catch(`time.Before(1, 2)`), nil, gad.True)
-	expectRun(t, catch(`time.AppendFormat(1, 2, 3)`),
+	expectRun(t, catch(`time.after(1, 2)`), nil, gad.False)
+	expectRun(t, catch(`time.before(1, 2)`), nil, gad.True)
+	expectRun(t, catch(`time.appendFormat(1, 2, 3)`),
 		nil, typeErr("2nd", "bytes", "int"))
-	expectRun(t, catch(`time.AppendFormat(time.Now(), 1, 2)`),
+	expectRun(t, catch(`time.appendFormat(time.now(), 1, 2)`),
 		nil, typeErr("2nd", "bytes", "int"))
-	expectRun(t, catch(`time.AppendFormat(time.Time(), bytes(), 1)`),
+	expectRun(t, catch(`time.appendFormat(time.time(), bytes(), 1)`),
 		nil, gad.Bytes{0x31})
-	expectRun(t, catch(`time.In(1, 2)`),
-		nil, typeErr("2nd", "location", "int"))
-	expectRun(t, catch(`time.In(time.Now(), 2)`),
-		nil, typeErr("2nd", "location", "int"))
-	expectRun(t, catch(`time.Round(time.Now(), "")`),
+	expectRun(t, catch(`time.in(1, 2)`),
+		nil, typeErr("2nd", "Location", "int"))
+	expectRun(t, catch(`time.in(time.now(), 2)`),
+		nil, typeErr("2nd", "Location", "int"))
+	expectRun(t, catch(`time.round(time.now(), "")`),
 		nil, typeErr("2nd", "int", "str"))
-	expectRun(t, catch(`time.Truncate(time.Now(), "")`),
+	expectRun(t, catch(`time.truncate(time.now(), "")`),
 		nil, typeErr("2nd", "int", "str"))
-	expectRun(t, catch(`time.Sleep("")`),
+	expectRun(t, catch(`time.sleep("")`),
 		nil, typeErr("1st", "int", "str"))
 
 	expectRun(t, `mod := import("time"); return mod.@name`,
@@ -603,7 +612,7 @@ func TestScript(t *testing.T) {
 
 	tm := time.Now()
 	expectRun(t, `
-	param p1; time := import("time"); return time.Format(p1, time.RFC3339Nano)`,
+	param p1; time := import("time"); return time.format(p1, time.rfc3339Nano)`,
 		newOpts().Args(&Time{Value: tm}), gad.Str(tm.Format(time.RFC3339Nano)))
 	expectRun(t, `param p1; return p1.UnixNano`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.UnixNano()))
@@ -612,217 +621,217 @@ func TestScript(t *testing.T) {
 	param p1
 	time := import("time")
 	try {
-		time.Sleep(time.Millisecond)
+		time.sleep(time.millisecond)
 	} finally {
-		dur := time.Since(p1)
+		dur := time.since(p1)
 		return dur > 0 ? true: false 
 	}
 	`, newOpts().Args(&Time{Value: tm}), gad.True)
 
-	expectRun(t, `return import("time").IsTime(0)`, nil, gad.False)
-	expectRun(t, `param p1; time := import("time"); return time.IsTime(p1)`,
+	expectRun(t, `return import("time").isTime(0)`, nil, gad.False)
+	expectRun(t, `param p1; time := import("time"); return time.isTime(p1)`,
 		newOpts().Args(&Time{Value: tm}), gad.True)
-	expectRun(t, `time := import("time"); return time.IsTime(time.Now())`,
+	expectRun(t, `time := import("time"); return time.isTime(time.now())`,
 		nil, gad.True)
 	expectRun(t, `
 	time := import("time")
-	return time.IsLocation(time.FixedZone("abc", 3*60*60))`, nil, gad.True)
+	return time.isLocation(time.fixedZone("abc", 3*60*60))`, nil, gad.True)
 	expectRun(t, `param p1; return p1==p1`,
 		newOpts().Args(&Time{Value: tm}), gad.True)
-	expectRun(t, `param p1; time := import("time"); return time.Now()==p1`,
+	expectRun(t, `param p1; time := import("time"); return time.now()==p1`,
 		newOpts().Args(&Time{Value: tm}), gad.False)
-	expectRun(t, `param p1; time := import("time"); return time.Now()>=p1`,
+	expectRun(t, `param p1; time := import("time"); return time.now()>=p1`,
 		newOpts().Args(&Time{Value: tm}), gad.True)
-	expectRun(t, `param p1; time := import("time"); return time.Now()<p1`,
+	expectRun(t, `param p1; time := import("time"); return time.now()<p1`,
 		newOpts().Args(&Time{Value: tm}), gad.False)
-	expectRun(t, `param p1; time := import("time"); return time.Now()>p1`,
+	expectRun(t, `param p1; time := import("time"); return time.now()>p1`,
 		newOpts().Args(&Time{Value: tm}), gad.True)
-	expectRun(t, `time := import("time"); return (time.Now()+time.Second)>=time.Now()`, nil, gad.True)
-	expectRun(t, `time := import("time"); return (time.Now()+time.Second)<=time.Now()`, nil, gad.False)
-	expectRun(t, `time := import("time"); return (time.Now()-10*time.Second)<=time.Now()`, nil, gad.True)
-	expectRun(t, `time := import("time"); return time.Now() == nil`, nil, gad.False)
-	expectRun(t, `time := import("time"); return time.Now() > nil`, nil, gad.True)
-	expectRun(t, `time := import("time"); return time.Now() >= nil`, nil, gad.True)
-	expectRun(t, `time := import("time"); return time.Now() < nil`, nil, gad.False)
-	expectRun(t, `time := import("time"); return time.Now() <= nil`, nil, gad.False)
+	expectRun(t, `time := import("time"); return (time.now()+time.second)>=time.now()`, nil, gad.True)
+	expectRun(t, `time := import("time"); return (time.now()+time.second)<=time.now()`, nil, gad.False)
+	expectRun(t, `time := import("time"); return (time.now()-10*time.second)<=time.now()`, nil, gad.True)
+	expectRun(t, `time := import("time"); return time.now() == nil`, nil, gad.False)
+	expectRun(t, `time := import("time"); return time.now() > nil`, nil, gad.True)
+	expectRun(t, `time := import("time"); return time.now() >= nil`, nil, gad.True)
+	expectRun(t, `time := import("time"); return time.now() < nil`, nil, gad.False)
+	expectRun(t, `time := import("time"); return time.now() <= nil`, nil, gad.False)
 	expectRun(t, `
 	time := import("time")
-	t1 := time.Now()
-	t2 := t1 + time.Second
+	t1 := time.now()
+	t2 := t1 + time.second
 	return t2 - t1
 	`, nil, gad.Int(time.Second))
 
 	// methods
 	// .Add
-	expectRun(t, `time := import("time"); return time.Time().Add(10*time.Second)`,
+	expectRun(t, `time := import("time"); return time.time().Add(10*time.second)`,
 		nil, &Time{Value: time.Time{}.Add(10 * time.Second)})
-	expectRun(t, catch(`time.Time().Add()`), nil, nwrongArgs(1, -1, 0))
-	expectRun(t, catch(`time.Time().Add(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Add(nil)`), nil, typeErr("1st", "int", "nil"))
+	expectRun(t, catch(`time.time().Add()`), nil, nwrongArgs(1, -1, 0))
+	expectRun(t, catch(`time.time().Add(1, 2)`), nil, nwrongArgs(1, -1, 2))
+	expectRun(t, catch(`time.time().Add(nil)`), nil, typeErr("1st", "int", "nil"))
 
 	// .Sub
 	expectRun(t, `time := import("time");
-	t1 := time.Time()
-	t2 := time.Time().Add(10*time.Second)
+	t1 := time.time()
+	t2 := time.time().Add(10*time.second)
 	return t2.Sub(t1)`,
 		nil, gad.Int(10*time.Second))
-	expectRun(t, catch(`time.Time().Sub()`), nil, nwrongArgs(1, -1, 0))
-	expectRun(t, catch(`time.Time().Sub(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Sub(nil)`), nil, typeErr("1st", "time", "nil"))
+	expectRun(t, catch(`time.time().Sub()`), nil, nwrongArgs(1, -1, 0))
+	expectRun(t, catch(`time.time().Sub(1, 2)`), nil, nwrongArgs(1, -1, 2))
+	expectRun(t, catch(`time.time().Sub(nil)`), nil, typeErr("1st", "time", "nil"))
 
 	// .AddDate
-	expectRun(t, `time := import("time"); return time.Time().AddDate(1, 2, 3)`,
+	expectRun(t, `time := import("time"); return time.time().AddDate(1, 2, 3)`,
 		nil, &Time{Value: time.Time{}.AddDate(1, 2, 3)})
-	expectRun(t, catch(`time.Time().AddDate()`), nil, nwrongArgs(3, -1, 0))
-	expectRun(t, catch(`time.Time().AddDate(1, 2)`), nil, nwrongArgs(3, -1, 2))
-	expectRun(t, catch(`time.Time().AddDate(1, 2, 3, 4)`), nil, nwrongArgs(3, -1, 4))
-	expectRun(t, catch(`time.Time().AddDate(nil, 2, 3)`), nil, typeErr("1st", "int", "nil"))
+	expectRun(t, catch(`time.time().AddDate()`), nil, nwrongArgs(3, -1, 0))
+	expectRun(t, catch(`time.time().AddDate(1, 2)`), nil, nwrongArgs(3, -1, 2))
+	expectRun(t, catch(`time.time().AddDate(1, 2, 3, 4)`), nil, nwrongArgs(3, -1, 4))
+	expectRun(t, catch(`time.time().AddDate(nil, 2, 3)`), nil, typeErr("1st", "int", "nil"))
 
 	// .After
-	expectRun(t, `time := import("time"); return time.Time().After(time.Time())`, nil, gad.False)
-	expectRun(t, `time := import("time"); return time.Time().Add(time.Second).After(time.Time())`, nil, gad.True)
-	expectRun(t, catch(`time.Time().After()`), nil, nwrongArgs(1, -1, 0))
-	expectRun(t, catch(`time.Time().After(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().After(nil)`), nil, typeErr("1st", "time", "nil"))
+	expectRun(t, `time := import("time"); return time.time().After(time.time())`, nil, gad.False)
+	expectRun(t, `time := import("time"); return time.time().Add(time.second).After(time.time())`, nil, gad.True)
+	expectRun(t, catch(`time.time().After()`), nil, nwrongArgs(1, -1, 0))
+	expectRun(t, catch(`time.time().After(1, 2)`), nil, nwrongArgs(1, -1, 2))
+	expectRun(t, catch(`time.time().After(nil)`), nil, typeErr("1st", "time", "nil"))
 
 	// .Before
-	expectRun(t, `time := import("time"); return time.Time().Before(time.Time())`, nil, gad.False)
-	expectRun(t, `time := import("time"); return time.Time().Add(-time.Second).Before(time.Time())`, nil, gad.True)
-	expectRun(t, catch(`time.Time().Before()`), nil, nwrongArgs(1, -1, 0))
-	expectRun(t, catch(`time.Time().Before(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Before(nil)`), nil, typeErr("1st", "time", "nil"))
+	expectRun(t, `time := import("time"); return time.time().Before(time.time())`, nil, gad.False)
+	expectRun(t, `time := import("time"); return time.time().Add(-time.second).Before(time.time())`, nil, gad.True)
+	expectRun(t, catch(`time.time().Before()`), nil, nwrongArgs(1, -1, 0))
+	expectRun(t, catch(`time.time().Before(1, 2)`), nil, nwrongArgs(1, -1, 2))
+	expectRun(t, catch(`time.time().Before(nil)`), nil, typeErr("1st", "time", "nil"))
 
 	// .Format
-	expectRun(t, `time := import("time"); return time.Time().Format("2006-01-02")`, nil, gad.Str("0001-01-01"))
-	expectRun(t, catch(`time.Time().Format()`), nil, nwrongArgs(1, -1, 0))
-	expectRun(t, catch(`time.Time().Format(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Format(nil)`), nil, typeErr("1st", "str", "nil"))
+	expectRun(t, `time := import("time"); return time.time().Format("2006-01-02")`, nil, gad.Str("0001-01-01"))
+	expectRun(t, catch(`time.time().Format()`), nil, nwrongArgs(1, -1, 0))
+	expectRun(t, catch(`time.time().Format(1, 2)`), nil, nwrongArgs(1, -1, 2))
+	expectRun(t, catch(`time.time().Format(nil)`), nil, typeErr("1st", "str", "nil"))
 
 	// .AppendFormat
-	expectRun(t, `time := import("time"); return time.Time().AppendFormat("", "2006-01-02")`, nil, gad.Bytes("0001-01-01"))
-	expectRun(t, catch(`time.Time().AppendFormat()`), nil, nwrongArgs(2, -1, 0))
-	expectRun(t, catch(`time.Time().AppendFormat(1)`), nil, nwrongArgs(2, -1, 1))
-	expectRun(t, catch(`time.Time().AppendFormat(1, 2, 3)`), nil, nwrongArgs(2, -1, 3))
-	expectRun(t, catch(`time.Time().AppendFormat(nil, "2006-01-02")`), nil, typeErr("1st", "bytes", "nil"))
+	expectRun(t, `time := import("time"); return time.time().AppendFormat("", "2006-01-02")`, nil, gad.Bytes("0001-01-01"))
+	expectRun(t, catch(`time.time().AppendFormat()`), nil, nwrongArgs(2, -1, 0))
+	expectRun(t, catch(`time.time().AppendFormat(1)`), nil, nwrongArgs(2, -1, 1))
+	expectRun(t, catch(`time.time().AppendFormat(1, 2, 3)`), nil, nwrongArgs(2, -1, 3))
+	expectRun(t, catch(`time.time().AppendFormat(nil, "2006-01-02")`), nil, typeErr("1st", "bytes", "nil"))
 
 	// .In
-	expectRun(t, `param p1; time := import("time"); return p1.In(time.UTC())`,
+	expectRun(t, `param p1; time := import("time"); return p1.In(time.utc())`,
 		newOpts().Args(&Time{Value: tm}), &Time{Value: tm.In(time.UTC)})
-	expectRun(t, catch(`time.Time().In()`), nil, nwrongArgs(1, -1, 0))
-	expectRun(t, catch(`time.Time().In(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().In(nil)`), nil, typeErr("1st", "location", "nil"))
+	expectRun(t, catch(`time.time().In()`), nil, nwrongArgs(1, -1, 0))
+	expectRun(t, catch(`time.time().In(1, 2)`), nil, nwrongArgs(1, -1, 2))
+	expectRun(t, catch(`time.time().In(nil)`), nil, typeErr("1st", "Location", "nil"))
 
 	// .Round
-	expectRun(t, `param p1; time := import("time"); return p1.Round(time.Second)`,
+	expectRun(t, `param p1; time := import("time"); return p1.Round(time.second)`,
 		newOpts().Args(&Time{Value: tm}), &Time{Value: tm.Round(time.Second)})
-	expectRun(t, catch(`time.Time().Round()`), nil, nwrongArgs(1, -1, 0))
-	expectRun(t, catch(`time.Time().Round(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Round(nil)`), nil, typeErr("1st", "int", "nil"))
+	expectRun(t, catch(`time.time().Round()`), nil, nwrongArgs(1, -1, 0))
+	expectRun(t, catch(`time.time().Round(1, 2)`), nil, nwrongArgs(1, -1, 2))
+	expectRun(t, catch(`time.time().Round(nil)`), nil, typeErr("1st", "int", "nil"))
 
 	// .Truncate
-	expectRun(t, `param p1; time := import("time"); return p1.Truncate(time.Second)`,
+	expectRun(t, `param p1; time := import("time"); return p1.Truncate(time.second)`,
 		newOpts().Args(&Time{Value: tm}), &Time{Value: tm.Truncate(time.Second)})
-	expectRun(t, catch(`time.Time().Truncate()`), nil, nwrongArgs(1, -1, 0))
-	expectRun(t, catch(`time.Time().Truncate(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Truncate(nil)`), nil, typeErr("1st", "int", "nil"))
+	expectRun(t, catch(`time.time().Truncate()`), nil, nwrongArgs(1, -1, 0))
+	expectRun(t, catch(`time.time().Truncate(1, 2)`), nil, nwrongArgs(1, -1, 2))
+	expectRun(t, catch(`time.time().Truncate(nil)`), nil, typeErr("1st", "int", "nil"))
 
 	// .Equal
-	expectRun(t, `time := import("time"); return time.Time().Equal(time.Time())`, nil, gad.True)
+	expectRun(t, `time := import("time"); return time.time().Equal(time.time())`, nil, gad.True)
 	expectRun(t, `param (p1,p2); return p1.Equal(p2)`,
 		newOpts().Args(&Time{Value: tm}, &Time{Value: tm}), gad.True)
 	expectRun(t, `param (p1,p2); return p1.Equal(p2)`,
 		newOpts().Args(&Time{Value: tm}, &Time{Value: tm.Add(time.Second)}), gad.False)
-	expectRun(t, catch(`time.Time().Equal()`), nil, nwrongArgs(1, -1, 0))
-	expectRun(t, catch(`time.Time().Equal(1, 2)`), nil, nwrongArgs(1, -1, 2))
-	expectRun(t, catch(`time.Time().Equal(nil)`), nil, typeErr("1st", "time", "nil"))
+	expectRun(t, catch(`time.time().Equal()`), nil, nwrongArgs(1, -1, 0))
+	expectRun(t, catch(`time.time().Equal(1, 2)`), nil, nwrongArgs(1, -1, 2))
+	expectRun(t, catch(`time.time().Equal(nil)`), nil, typeErr("1st", "time", "nil"))
 
 	// .Date
-	expectRun(t, `time := import("time"); return time.Time().Date()`,
+	expectRun(t, `time := import("time"); return time.time().Date()`,
 		nil, gad.Dict{"day": gad.Int(1), "month": gad.Int(1), "year": gad.Int(1)})
-	expectRun(t, catch(`time.Time().Date(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().Date(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Clock
 	hour, minute, second := tm.Clock()
 	expectRun(t, `param p1; return p1.Clock()`,
 		newOpts().Args(&Time{Value: tm}),
 		gad.Dict{"hour": gad.Int(hour), "minute": gad.Int(minute), "second": gad.Int(second)})
-	expectRun(t, catch(`time.Time().Clock(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().Clock(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .UTC
 	expectRun(t, `param p1; return p1.UTC()`,
 		newOpts().Args(&Time{Value: tm}), &Time{Value: tm.UTC()})
-	expectRun(t, catch(`time.Time().UTC(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().UTC(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Unix
 	expectRun(t, `param p1; return p1.Unix()`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.Unix()))
-	expectRun(t, catch(`time.Time().Unix(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().Unix(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .UnixNano
 	expectRun(t, `param p1; return p1.UnixNano()`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.UnixNano()))
-	expectRun(t, catch(`time.Time().UnixNano(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().UnixNano(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Year
 	expectRun(t, `param p1; return p1.Year()`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.Year()))
-	expectRun(t, catch(`time.Time().Year(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().Year(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Month
 	expectRun(t, `param p1; return p1.Month()`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.Month()))
-	expectRun(t, catch(`time.Time().Month(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().Month(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Day
 	expectRun(t, `param p1; return p1.Day()`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.Day()))
-	expectRun(t, catch(`time.Time().Day(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().Day(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Hour
 	expectRun(t, `param p1; return p1.Hour()`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.Hour()))
-	expectRun(t, catch(`time.Time().Hour(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().Hour(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Minute
 	expectRun(t, `param p1; return p1.Minute()`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.Minute()))
-	expectRun(t, catch(`time.Time().Minute(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().Minute(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Second
 	expectRun(t, `param p1; return p1.Second()`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.Second()))
-	expectRun(t, catch(`time.Time().Second(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().Second(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Nanosecond
 	expectRun(t, `param p1; return p1.Nanosecond()`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.Nanosecond()))
-	expectRun(t, catch(`time.Time().Nanosecond(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().Nanosecond(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Weekday
 	expectRun(t, `param p1; return p1.Weekday()`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.Weekday()))
-	expectRun(t, catch(`time.Time().Weekday(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().Weekday(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .ISOWeek
 	year, week := tm.ISOWeek()
 	expectRun(t, `param p1; return p1.ISOWeek()`,
 		newOpts().Args(&Time{Value: tm}), gad.Dict{"year": gad.Int(year), "week": gad.Int(week)})
-	expectRun(t, catch(`time.Time().ISOWeek(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().ISOWeek(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .YearDay
 	expectRun(t, `param p1; return p1.YearDay()`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.YearDay()))
-	expectRun(t, catch(`time.Time().YearDay(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().YearDay(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Location
-	expectRun(t, `time := import("time"); return time.Time().Location()`, nil, &Location{Value: time.Time{}.Location()})
-	expectRun(t, catch(`time.Time().Location(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, `time := import("time"); return time.time().Location()`, nil, &Location{Value: time.Time{}.Location()})
+	expectRun(t, catch(`time.time().Location(1)`), nil, nwrongArgs(0, -1, 1))
 
 	// .Zone
 	zone, offset := tm.Zone()
 	expectRun(t, `param p1; return p1.Zone()`,
 		newOpts().Args(&Time{Value: tm}), gad.Dict{"name": gad.Str(zone), "offset": gad.Int(offset)})
-	expectRun(t, catch(`time.Time().Zone(1)`), nil, nwrongArgs(0, -1, 1))
+	expectRun(t, catch(`time.time().Zone(1)`), nil, nwrongArgs(0, -1, 1))
 }
 
 var IllegalType = gad.NewBuiltinObjType("illegal")

@@ -126,7 +126,13 @@ func (t *BuiltinObjType) Name() string {
 	return t.name
 }
 
+// FullName returns the type's display name, qualified with its module when it
+// belongs to one (e.g. `time.Time`, `time.Location`). Standalone types (int,
+// str, …) render by their bare name.
 func (t *BuiltinObjType) FullName() string {
+	if t.Module != nil && t.Module.Name != "" {
+		return t.Module.Name + "." + t.name
+	}
 	return t.name
 }
 

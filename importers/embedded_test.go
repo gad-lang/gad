@@ -107,13 +107,15 @@ func TestEmbeddedFileImporter_Import(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, gad.Str("[‹Embedded: file ‹f1› 6 B›, 6, -62135596800]"), ret)
 
+	// The time module's Go<->object converters are now registered globally (no
+	// import needed), so a Go time.Time field surfaces as the builtin `time`.
 	ret, err = run(&buf, []byte(`f := embed("f2"); return str([f, f.size, typeof(f.modTime), int(f.modTime)])`), opts)
 	require.NoError(t, err)
-	require.Equal(t, gad.Str("[‹Embedded: file ‹f2› 7 B›, 7, ‹reflect type ‹time.Time››, 1257894000]"), ret)
+	require.Equal(t, gad.Str("[‹Embedded: file ‹f2› 7 B›, 7, ‹builtin type ‹time.time››, 1257894000]"), ret)
 
 	ret, err = run(&buf, []byte(`import("time"); f := embed("f2"); return str([f, f.size, typeof(f.modTime), int(f.modTime)])`), opts)
 	require.NoError(t, err)
-	require.Equal(t, gad.Str("[‹Embedded: file ‹f2› 7 B›, 7, ‹builtin type ‹time››, 1257894000]"), ret)
+	require.Equal(t, gad.Str("[‹Embedded: file ‹f2› 7 B›, 7, ‹builtin type ‹time.time››, 1257894000]"), ret)
 }
 
 // makeEmbedDir creates a temp directory with a subdirectory containing test files

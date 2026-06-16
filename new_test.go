@@ -113,6 +113,19 @@ func TestVMBuiltinModuleStringsFmt(t *testing.T) {
 		nil, Str("local"))
 }
 
+func TestVMBuiltinModuleTime(t *testing.T) {
+	// time is a builtin namespace usable without an import; members are camelCase
+	testExpectRun(t, `d := time.date(2009, 11, 10, 23, 0, 0, 0, time.utc()); return d.Year()`, nil, Int(2009))
+	testExpectRun(t, `return typeName(time.now())`, nil, Str("time"))
+	// the type renders module-qualified (FullName)
+	testExpectRun(t, `return str(typeof(time.now()))`, nil, Str("‹builtin type ‹time.time››"))
+	// the int(time) override is registered globally (no import), converting to a
+	// Unix timestamp
+	testExpectRun(t, `d := time.date(1970, 1, 1, 0, 0, 1, 0, time.utc()); return int(d)`, nil, Int(1))
+	// constants and duration helpers
+	testExpectRun(t, `return time.durationString(time.hour + 30 * time.minute)`, nil, Str("1h30m0s"))
+}
+
 func TestVMBuiltinModuleBase64(t *testing.T) {
 	// the base64 module is available as a builtin namespace, without an import
 	testExpectRun(t, `return base64.StdEncoding.EncodeToString(bytes("hi"))`, nil, Str("aGk="))

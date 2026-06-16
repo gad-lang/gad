@@ -75,7 +75,7 @@ v = int(strings.Join([v], ""))
 v = srcmod.Incr(v)
 v = srcmod.Decr(v)
 v = int(fmt.Sprintf("%d", v))
-return v*time.Second/time.Second // 1
+return v*time.second/time.second // 1
 `
 
 	opts := gad.DefaultCompilerOptions

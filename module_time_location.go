@@ -2,12 +2,10 @@
 // Use of this source code is governed by a MIT License
 // that can be found in the LICENSE file.
 
-package time
+package gad
 
 import (
 	"time"
-
-	"github.com/gad-lang/gad"
 )
 
 // gad:doc
@@ -17,41 +15,41 @@ import (
 // ToInterface Type
 //
 // ```go
-// // Location represents location values and implements gad.Object interface.
+// // Location represents location values and implements Object interface.
 // type Location struct {
-//    gad.ObjectImpl
+//    ObjectImpl
 //    Value *time.Location
 // }
 // ```
 
-var LocationType = gad.NewBuiltinObjType("location")
+var TimeLocationType = NewBuiltinObjType("Location")
 
-// Location represents location values and implements gad.Object interface.
+// Location represents location values and implements Object interface.
 type Location struct {
-	gad.ObjectImpl
+	ObjectImpl
 	Value *time.Location
 }
 
-func (*Location) Type() gad.ObjectType {
-	return LocationType
+func (*Location) Type() ObjectType {
+	return TimeLocationType
 }
 
-// ToString implements gad.Object interface.
+// ToString implements Object interface.
 func (o *Location) ToString() string {
 	return o.Value.String()
 }
 
-// IsFalsy implements gad.Object interface.
+// IsFalsy implements Object interface.
 func (o *Location) IsFalsy() bool {
 	return o.Value == nil
 }
 
-// Equal implements gad.Object interface.
-func (o *Location) Equal(right gad.Object) bool {
+// Equal implements Object interface.
+func (o *Location) Equal(right Object) bool {
 	if v, ok := right.(*Location); ok {
 		return v == o || v.ToString() == o.ToString()
 	}
-	if v, ok := right.(gad.Str); ok {
+	if v, ok := right.(Str); ok {
 		return o.ToString() == v.ToString()
 	}
 	return false

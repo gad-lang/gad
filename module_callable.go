@@ -126,3 +126,66 @@ func funcPAssRO(fn func(Array, string, string) Object) CallableFunc {
 		return
 	}
 }
+
+func funcPRO(fn func() Object) CallableFunc {
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(0); err != nil {
+			return Nil, err
+		}
+
+		ret = fn()
+		return
+	}
+}
+
+func funcPiRO(fn func(int) Object) CallableFunc {
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return Nil, err
+		}
+
+		i1, ok := ToGoInt(c.Args.Get(0))
+		if !ok {
+			return Nil, NewArgumentTypeError("1st", "int", c.Args.Get(0).Type().Name())
+		}
+
+		ret = fn(i1)
+		return
+	}
+}
+
+func funcPsROe(fn func(string) (Object, error)) CallableFunc {
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(1); err != nil {
+			return Nil, err
+		}
+
+		s, ok := ToGoString(c.Args.Get(0))
+		if !ok {
+			return Nil, NewArgumentTypeError("1st", "str", c.Args.Get(0).Type().Name())
+		}
+
+		ret, err = fn(s)
+		return
+	}
+}
+
+func funcPi64i64RO(fn func(int64, int64) Object) CallableFunc {
+	return func(c Call) (ret Object, err error) {
+		if err := c.Args.CheckLen(2); err != nil {
+			return Nil, err
+		}
+
+		i1, ok := ToGoInt64(c.Args.Get(0))
+		if !ok {
+			return Nil, NewArgumentTypeError("1st", "int", c.Args.Get(0).Type().Name())
+		}
+		i2, ok := ToGoInt64(c.Args.Get(1))
+		if !ok {
+			return Nil, NewArgumentTypeError("2nd", "int", c.Args.Get(1).Type().Name())
+		}
+
+		ret = fn(i1, i2)
+		return
+	}
+}
