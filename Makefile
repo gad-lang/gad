@@ -83,7 +83,7 @@ ide-react: web-build
 test: version generate lint
 	GOTOOLCHAIN=go1.25.0+auto go test -count=1 -cover ./...
 	GOTOOLCHAIN=go1.25.0+auto go test -count=1 -race -coverpkg=./... ./...
-	GOTOOLCHAIN=go1.25.0+auto go run cmd/gad/main.go -timeout 20s cmd/gad/testdata/fibtc.gad
+	GOTOOLCHAIN=go1.25.0+auto go run ./cmd/gad -timeout 20s cmd/gad/testdata/fibtc.gad
 
 .PHONY: generate-all
 generate-all: generate generate-docs

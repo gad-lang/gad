@@ -110,7 +110,7 @@ var gadTypeNames = map[string]string{
 	"rune":             "char",
 	"error":            "error",
 	"*Time":            "time",
-	"*Location":        "location",
+	"*Location":        "Location",
 }
 
 var ordinals = [...]string{

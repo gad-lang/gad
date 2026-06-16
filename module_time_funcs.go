@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-//go:generate go run ../../cmd/mkcallable -output zfuncs.go funcs.go
+//go:generate go run ./cmd/mkcallable -output module_time_zfuncs.go module_time_funcs.go
 
 //gad:callable:convert *Location ToLocation
 //gad:callable:convert *Time ToTime

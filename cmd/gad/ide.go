@@ -64,7 +64,7 @@ func ideCommand() *cc.Command {
 				return fmt.Errorf("ide: %w", err)
 			}
 
-			handler := srv.Handler()
+			var handler http.Handler
 			ui := "bundled UI"
 			switch {
 			case *static != "":
