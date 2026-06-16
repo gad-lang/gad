@@ -132,6 +132,35 @@ func concatInsts(insts ...[]byte) []byte {
 	return out
 }
 
+func TestCompiler_BuiltinModuleSelector(t *testing.T) {
+	// `module.NAME` for a builtin module namespace compiles to a single
+	// OpGetBuiltin (the qualified builtin), with no namespace dict load + index.
+	expectCompile(t, `base64.StdEncoding`, bytecode(
+		Array{},
+		compFunc(concatInsts(
+			makeInst(OpGetBuiltin, int(BuiltinsMap["base64.StdEncoding"])),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	// a shadowing local `fmt` disables the optimization: the member is read by
+	// indexing the local value, not via OpGetBuiltin.
+	expectCompile(t, `fmt := {Print: 1}; return fmt.Print`, bytecode(
+		Array{Str("Print"), Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpDict, 2),
+			makeInst(OpDefineLocal, 0),
+			makeInst(OpGetLocal, 0),
+			makeInst(OpConstant, 0),
+			makeInst(OpGetIndex, 1),
+			makeInst(OpReturn, 1),
+		), funcLocals(1)),
+	))
+}
+
 func TestCompiler_CompileBlock(t *testing.T) {
 	expectCompile(t, `1`, bytecode(
 		Array{Int(1)},

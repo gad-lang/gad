@@ -1933,6 +1933,22 @@ func (c *Compiler) compileSelectorExpr(nd *node.SelectorExpr) error {
 	defer c.pushSelector()()
 	expr, selectors := resolveSelectorExprs(nd)
 
+	// Builtin module member access: `module.NAME`, where `module` is a builtin
+	// module namespace and `module.NAME` is a registered qualified builtin,
+	// compiles to a single OpGetBuiltin instead of loading the namespace dict
+	// and indexing it. A shadowing local/global `module` disables this.
+	if ident, ok := expr.(*node.IdentExpr); ok && len(selectors) == 1 {
+		if sel, _ := selectors[0].(*node.StrLit); sel != nil {
+			if base, ok := c.symbolTable.Resolve(ident.Name); ok && base.Scope == ScopeBuiltin {
+				if sym, ok := c.symbolTable.Resolve(ident.Name + "." + sel.Value()); ok &&
+					sym.Scope == ScopeBuiltin {
+					c.emit(nd, OpGetBuiltin, sym.Index)
+					return nil
+				}
+			}
+		}
+	}
+
 	if err := c.Compile(expr); err != nil {
 		return err
 	}

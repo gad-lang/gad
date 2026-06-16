@@ -6,6 +6,7 @@ package gad
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 )
 
@@ -332,8 +333,8 @@ var BuiltinsMap = map[string]BuiltinType{
 	"flush":          BuiltinFlush,
 	"DISCARD_WRITER": BuiltinDiscardWriter,
 
-	// Builtin module namespaces.
-	"base64": BuiltinModuleBase64,
+	// Builtin module namespaces and their members are registered in init() via
+	// registerBuiltinModule (names like "base64" and "base64.StdEncoding").
 }
 
 type StaticBuiltins struct {
@@ -810,12 +811,36 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinDiscardWriter: DiscardWriter,
 }
 
+// registerBuiltinModule registers a stdlib module namespace as a builtin: the
+// dict itself under modType/name, and every member under the qualified builtin
+// name `name.member`. Members are registered in sorted key order so the
+// assigned builtin indices are deterministic (stable across runs for serialized
+// bytecode).
+func registerBuiltinModule(modType BuiltinType, name string, d Dict) {
+	BuiltinsMap[name] = modType
+	BuiltinObjects[modType] = d
+
+	keys := make([]string, 0, len(d))
+	for k := range d {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		t := NewBuiltinType()
+		BuiltinsMap[name+"."+k] = t
+		BuiltinObjects[t] = d[k]
+	}
+}
+
 func init() {
 	// initialization prevent cycle for BuiltinObjects
 
 	// Builtin module namespaces (registered here so their package-level dicts are
-	// fully initialized first).
-	BuiltinObjects[BuiltinModuleBase64] = base64Module
+	// fully initialized first). Each member is also registered as a qualified
+	// builtin `module.NAME` so the compiler can resolve `module.NAME` to a single
+	// OpGetBuiltin instead of indexing the namespace dict.
+	registerBuiltinModule(BuiltinModuleBase64, "base64", base64Module)
+	registerBuiltinModule(BuiltinModuleFmt, "fmt", newFmtModule())
 
 	BuiltinObjects[BuiltinRead] = &BuiltinFunction{
 		FuncName: "read",
