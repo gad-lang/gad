@@ -47,15 +47,6 @@ func TestModuleTypes(t *testing.T) {
 		tm3.Value.Format(time.RFC3339Nano))
 }
 
-// lcFirst lowercases the first byte (ASCII) of s, matching the camelCase keys
-// of the time module (e.g. Go's "January" -> the module key "january").
-func lcFirst(s string) string {
-	if s == "" {
-		return s
-	}
-	return string(s[0]|0x20) + s[1:]
-}
-
 func TestModuleMonthWeekday(t *testing.T) {
 	module := getModule()
 	f := module["monthString"].(gad.CallerObject)
@@ -65,8 +56,8 @@ func TestModuleMonthWeekday(t *testing.T) {
 	require.Error(t, err)
 
 	for i := 1; i <= 12; i++ {
-		require.Contains(t, module, lcFirst(time.Month(i).String()))
-		require.Equal(t, gad.Int(i), module[lcFirst(time.Month(i).String())])
+		require.Contains(t, module, time.Month(i).String())
+		require.Equal(t, gad.Int(i), module[time.Month(i).String()])
 
 		r, err := gad.MustCall(f, gad.Int(i))
 		require.NoError(t, err)
@@ -79,8 +70,8 @@ func TestModuleMonthWeekday(t *testing.T) {
 	_, err = gad.MustCall(f, gad.Str(""))
 	require.Error(t, err)
 	for i := 0; i <= 6; i++ {
-		require.Contains(t, module, lcFirst(time.Weekday(i).String()))
-		require.Equal(t, gad.Int(i), module[lcFirst(time.Weekday(i).String())])
+		require.Contains(t, module, time.Weekday(i).String())
+		require.Equal(t, gad.Int(i), module[time.Weekday(i).String()])
 
 		r, err := gad.MustCall(f, gad.Int(i))
 		require.NoError(t, err)
@@ -90,31 +81,31 @@ func TestModuleMonthWeekday(t *testing.T) {
 
 func TestModuleFormats(t *testing.T) {
 	var module = getModule()
-	require.Equal(t, module["ansic"], gad.Str(time.ANSIC))
-	require.Equal(t, module["unixDate"], gad.Str(time.UnixDate))
-	require.Equal(t, module["rubyDate"], gad.Str(time.RubyDate))
-	require.Equal(t, module["rfc822"], gad.Str(time.RFC822))
-	require.Equal(t, module["rfc822Z"], gad.Str(time.RFC822Z))
-	require.Equal(t, module["rfc850"], gad.Str(time.RFC850))
-	require.Equal(t, module["rfc1123"], gad.Str(time.RFC1123))
-	require.Equal(t, module["rfc1123Z"], gad.Str(time.RFC1123Z))
-	require.Equal(t, module["rfc3339"], gad.Str(time.RFC3339))
-	require.Equal(t, module["rfc3339Nano"], gad.Str(time.RFC3339Nano))
-	require.Equal(t, module["kitchen"], gad.Str(time.Kitchen))
-	require.Equal(t, module["stamp"], gad.Str(time.Stamp))
-	require.Equal(t, module["stampMilli"], gad.Str(time.StampMilli))
-	require.Equal(t, module["stampMicro"], gad.Str(time.StampMicro))
-	require.Equal(t, module["stampNano"], gad.Str(time.StampNano))
+	require.Equal(t, module["ANSIC"], gad.Str(time.ANSIC))
+	require.Equal(t, module["UnixDate"], gad.Str(time.UnixDate))
+	require.Equal(t, module["RubyDate"], gad.Str(time.RubyDate))
+	require.Equal(t, module["RFC822"], gad.Str(time.RFC822))
+	require.Equal(t, module["RFC822Z"], gad.Str(time.RFC822Z))
+	require.Equal(t, module["RFC850"], gad.Str(time.RFC850))
+	require.Equal(t, module["RFC1123"], gad.Str(time.RFC1123))
+	require.Equal(t, module["RFC1123Z"], gad.Str(time.RFC1123Z))
+	require.Equal(t, module["RFC3339"], gad.Str(time.RFC3339))
+	require.Equal(t, module["RFC3339Nano"], gad.Str(time.RFC3339Nano))
+	require.Equal(t, module["Kitchen"], gad.Str(time.Kitchen))
+	require.Equal(t, module["Stamp"], gad.Str(time.Stamp))
+	require.Equal(t, module["StampMilli"], gad.Str(time.StampMilli))
+	require.Equal(t, module["StampMicro"], gad.Str(time.StampMicro))
+	require.Equal(t, module["StampNano"], gad.Str(time.StampNano))
 }
 
 func TestModuleDuration(t *testing.T) {
 	var module = getModule()
-	require.Equal(t, module["nanosecond"], gad.Int(time.Nanosecond))
-	require.Equal(t, module["microsecond"], gad.Int(time.Microsecond))
-	require.Equal(t, module["millisecond"], gad.Int(time.Millisecond))
-	require.Equal(t, module["second"], gad.Int(time.Second))
-	require.Equal(t, module["minute"], gad.Int(time.Minute))
-	require.Equal(t, module["hour"], gad.Int(time.Hour))
+	require.Equal(t, module["Nanosecond"], gad.Int(time.Nanosecond))
+	require.Equal(t, module["Microsecond"], gad.Int(time.Microsecond))
+	require.Equal(t, module["Millisecond"], gad.Int(time.Millisecond))
+	require.Equal(t, module["Second"], gad.Int(time.Second))
+	require.Equal(t, module["Minute"], gad.Int(time.Minute))
+	require.Equal(t, module["Hour"], gad.Int(time.Hour))
 
 	goFnMap := map[string]func(time.Duration) any{
 		"Nanoseconds": func(d time.Duration) any {
@@ -307,7 +298,7 @@ func TestModuleTime(t *testing.T) {
 	_, err = gad.MustCall(nowf, gad.Int(0))
 	require.Error(t, err)
 
-	RFC3339Nano := module["rfc3339Nano"]
+	RFC3339Nano := module["RFC3339Nano"]
 	parse := module["parse"].(gad.CallerObject)
 	r, err = gad.MustCall(parse, RFC3339Nano, gad.Str(now.Format(time.RFC3339Nano)))
 	require.NoError(t, err)
@@ -612,7 +603,7 @@ func TestScript(t *testing.T) {
 
 	tm := time.Now()
 	expectRun(t, `
-	param p1; time := import("time"); return time.format(p1, time.rfc3339Nano)`,
+	param p1; time := import("time"); return time.format(p1, time.RFC3339Nano)`,
 		newOpts().Args(&Time{Value: tm}), gad.Str(tm.Format(time.RFC3339Nano)))
 	expectRun(t, `param p1; return p1.UnixNano`,
 		newOpts().Args(&Time{Value: tm}), gad.Int(tm.UnixNano()))
@@ -621,7 +612,7 @@ func TestScript(t *testing.T) {
 	param p1
 	time := import("time")
 	try {
-		time.sleep(time.millisecond)
+		time.sleep(time.Millisecond)
 	} finally {
 		dur := time.since(p1)
 		return dur > 0 ? true: false 
@@ -646,9 +637,9 @@ func TestScript(t *testing.T) {
 		newOpts().Args(&Time{Value: tm}), gad.False)
 	expectRun(t, `param p1; time := import("time"); return time.now()>p1`,
 		newOpts().Args(&Time{Value: tm}), gad.True)
-	expectRun(t, `time := import("time"); return (time.now()+time.second)>=time.now()`, nil, gad.True)
-	expectRun(t, `time := import("time"); return (time.now()+time.second)<=time.now()`, nil, gad.False)
-	expectRun(t, `time := import("time"); return (time.now()-10*time.second)<=time.now()`, nil, gad.True)
+	expectRun(t, `time := import("time"); return (time.now()+time.Second)>=time.now()`, nil, gad.True)
+	expectRun(t, `time := import("time"); return (time.now()+time.Second)<=time.now()`, nil, gad.False)
+	expectRun(t, `time := import("time"); return (time.now()-10*time.Second)<=time.now()`, nil, gad.True)
 	expectRun(t, `time := import("time"); return time.now() == nil`, nil, gad.False)
 	expectRun(t, `time := import("time"); return time.now() > nil`, nil, gad.True)
 	expectRun(t, `time := import("time"); return time.now() >= nil`, nil, gad.True)
@@ -657,13 +648,13 @@ func TestScript(t *testing.T) {
 	expectRun(t, `
 	time := import("time")
 	t1 := time.now()
-	t2 := t1 + time.second
+	t2 := t1 + time.Second
 	return t2 - t1
 	`, nil, gad.Int(time.Second))
 
 	// methods
 	// .Add
-	expectRun(t, `time := import("time"); return time.time().Add(10*time.second)`,
+	expectRun(t, `time := import("time"); return time.time().Add(10*time.Second)`,
 		nil, &Time{Value: time.Time{}.Add(10 * time.Second)})
 	expectRun(t, catch(`time.time().Add()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.time().Add(1, 2)`), nil, nwrongArgs(1, -1, 2))
@@ -672,7 +663,7 @@ func TestScript(t *testing.T) {
 	// .Sub
 	expectRun(t, `time := import("time");
 	t1 := time.time()
-	t2 := time.time().Add(10*time.second)
+	t2 := time.time().Add(10*time.Second)
 	return t2.Sub(t1)`,
 		nil, gad.Int(10*time.Second))
 	expectRun(t, catch(`time.time().Sub()`), nil, nwrongArgs(1, -1, 0))
@@ -689,14 +680,14 @@ func TestScript(t *testing.T) {
 
 	// .After
 	expectRun(t, `time := import("time"); return time.time().After(time.time())`, nil, gad.False)
-	expectRun(t, `time := import("time"); return time.time().Add(time.second).After(time.time())`, nil, gad.True)
+	expectRun(t, `time := import("time"); return time.time().Add(time.Second).After(time.time())`, nil, gad.True)
 	expectRun(t, catch(`time.time().After()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.time().After(1, 2)`), nil, nwrongArgs(1, -1, 2))
 	expectRun(t, catch(`time.time().After(nil)`), nil, typeErr("1st", "time", "nil"))
 
 	// .Before
 	expectRun(t, `time := import("time"); return time.time().Before(time.time())`, nil, gad.False)
-	expectRun(t, `time := import("time"); return time.time().Add(-time.second).Before(time.time())`, nil, gad.True)
+	expectRun(t, `time := import("time"); return time.time().Add(-time.Second).Before(time.time())`, nil, gad.True)
 	expectRun(t, catch(`time.time().Before()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.time().Before(1, 2)`), nil, nwrongArgs(1, -1, 2))
 	expectRun(t, catch(`time.time().Before(nil)`), nil, typeErr("1st", "time", "nil"))
@@ -722,14 +713,14 @@ func TestScript(t *testing.T) {
 	expectRun(t, catch(`time.time().In(nil)`), nil, typeErr("1st", "Location", "nil"))
 
 	// .Round
-	expectRun(t, `param p1; time := import("time"); return p1.Round(time.second)`,
+	expectRun(t, `param p1; time := import("time"); return p1.Round(time.Second)`,
 		newOpts().Args(&Time{Value: tm}), &Time{Value: tm.Round(time.Second)})
 	expectRun(t, catch(`time.time().Round()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.time().Round(1, 2)`), nil, nwrongArgs(1, -1, 2))
 	expectRun(t, catch(`time.time().Round(nil)`), nil, typeErr("1st", "int", "nil"))
 
 	// .Truncate
-	expectRun(t, `param p1; time := import("time"); return p1.Truncate(time.second)`,
+	expectRun(t, `param p1; time := import("time"); return p1.Truncate(time.Second)`,
 		newOpts().Args(&Time{Value: tm}), &Time{Value: tm.Truncate(time.Second)})
 	expectRun(t, catch(`time.time().Truncate()`), nil, nwrongArgs(1, -1, 0))
 	expectRun(t, catch(`time.time().Truncate(1, 2)`), nil, nwrongArgs(1, -1, 2))

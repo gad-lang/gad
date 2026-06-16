@@ -99,9 +99,11 @@ lint: version check-delve
 
 .PHONY: generate-docs
 generate-docs: version
-	go run ./cmd/gaddoc ./stdlib/time ./docs/stdlib-time.md
-	go run ./cmd/gaddoc ./stdlib/fmt ./docs/stdlib-fmt.md
-	go run ./cmd/gaddoc ./stdlib/strings ./docs/stdlib-strings.md
+	# time, fmt and strings are builtin module namespaces in the root package;
+	# the 3rd arg selects which module's gad:doc to emit.
+	go run ./cmd/gaddoc . ./docs/stdlib-time.md time
+	go run ./cmd/gaddoc . ./docs/stdlib-fmt.md fmt
+	go run ./cmd/gaddoc . ./docs/stdlib-strings.md strings
 	go run ./cmd/gaddoc ./stdlib/json ./docs/stdlib-json.md
 
 .PHONY: version

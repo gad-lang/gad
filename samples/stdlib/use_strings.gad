@@ -1,6 +1,4 @@
-// use_strings.gad — the builtin `strings` module.
-
-strings := import("strings")
+// use_strings.gad — the builtin `strings` module (available without import).
 
 s := "  Gad Lang  "
 println("upper:  ", strings.ToUpper(s))

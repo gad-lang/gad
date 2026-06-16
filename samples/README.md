@@ -55,11 +55,14 @@ cd samples/modules && gad run main.gad
 
 ## Standard library
 
-The [`stdlib/`](stdlib) directory imports builtin modules:
+The [`stdlib/`](stdlib) directory uses stdlib modules. `strings`, `fmt`, `time`
+and `base64` are **builtin namespaces** — available without an `import`; `json`
+is imported:
 
-| File                       | Module    |
-|----------------------------|-----------|
-| `stdlib/use_strings.gad`   | `strings` |
-| `stdlib/use_fmt.gad`       | `fmt`     |
-| `stdlib/use_json.gad`      | `json`    |
-| `stdlib/use_time.gad`      | `time`    |
+| File                       | Module    | Import? |
+|----------------------------|-----------|---------|
+| `stdlib/use_strings.gad`   | `strings` | no      |
+| `stdlib/use_fmt.gad`       | `fmt`     | no      |
+| `stdlib/use_time.gad`      | `time`    | no      |
+| `stdlib/use_base64.gad`    | `base64`  | no      |
+| `stdlib/use_json.gad`      | `json`    | yes     |

@@ -48,9 +48,9 @@ Hour
 ToInterface Type
 
 ```go
-// Location represents location values and implements gad.Object interface.
+// Location represents location values and implements Object interface.
 type Location struct {
-   gad.ObjectImpl
+   ObjectImpl
    Value *time.Location
 }
 ```
@@ -60,7 +60,7 @@ type Location struct {
 ToInterface Type
 
 ```go
-// Time represents time values and implements gad.Object interface.
+// Time represents time values and implements Object interface.
 type Time struct {
   Value time.Time
 }
@@ -144,134 +144,134 @@ Dynamically calculated getters for a time value are as follows:
 
 ## Functions
 
-`UTC() <location>`
+`utc() <Location>`
 
 Returns Universal Coordinated Time (UTC) location.
 
 ---
 
-`Local() <location>`
+`local() <Location>`
 
 Returns the system's local time zone location.
 
 ---
 
-`MonthString(m int) <month str>`
+`monthString(m int) <month str>`
 
 Returns English name of the month m ("January", "February", ...).
 
 ---
 
-`WeekdayString(w int) <weekday str>`
+`weekdayString(w int) <weekday str>`
 
 Returns English name of the int weekday w, note that 0 is Sunday.
 
 ---
 
-`DurationString(d int) <str>`
+`durationString(d int) <str>`
 
 Returns a string representing the duration d in the form "72h3m0.5s".
 
 ---
 
-`DurationNanoseconds(d int) <int>`
+`durationNanoseconds(d int) <int>`
 
 Returns the duration d as an int nanosecond count.
 
 ---
 
-`DurationMicroseconds(d int) <int>`
+`durationMicroseconds(d int) <int>`
 
 Returns the duration d as an int microsecond count.
 
 ---
 
-`DurationMilliseconds(d int) <int>`
+`durationMilliseconds(d int) <int>`
 
 Returns the duration d as an int millisecond count.
 
 ---
 
-`DurationSeconds(d int) <float>`
+`durationSeconds(d int) <float>`
 
 Returns the duration d as a floating point number of seconds.
 
 ---
 
-`DurationMinutes(d int) <float>`
+`durationMinutes(d int) <float>`
 
 Returns the duration d as a floating point number of minutes.
 
 ---
 
-`DurationHours(d int) <float>`
+`durationHours(d int) <float>`
 
 Returns the duration d as a floating point number of hours.
 
 ---
 
-`Sleep(duration int) <nil>`
+`sleep(duration int) <nil>`
 
 Pauses the current goroutine for at least the duration.
 
 ---
 
-`ParseDuration(s str) <duration int>`
+`parseDuration(s str) <duration int>`
 
 Parses duration s and returns duration as int or error.
 
 ---
 
-`DurationRound(duration int, m int) <duration int>`
+`durationRound(duration int, m int) <duration int>`
 
 Returns the result of rounding duration to the nearest multiple of m.
 
 ---
 
-`DurationTruncate(duration int, m int) <duration int>`
+`durationTruncate(duration int, m int) <duration int>`
 
 Returns the result of rounding duration toward zero to a multiple of m.
 
 ---
 
-`FixedZone(name str, sec int) <location>`
+`fixedZone(name str, sec int) <Location>`
 
 Returns a Location that always uses the given zone name and offset
 (seconds east of UTC).
 
 ---
 
-`LoadLocation(name str) <location>`
+`loadLocation(name str) <Location>`
 
 Returns the Location with the given name.
 
 ---
 
-`IsLocation(any) <bool>`
+`isLocation(any) <bool>`
 
 Reports whether any value is of location type.
 
 ---
 
-`Time() <time>`
+`time() <time>`
 
 Returns zero time.
 
 ---
 
-`Since(t time) <duration int>`
+`since(t time) <duration int>`
 
 Returns the time elapsed since t.
 
 ---
 
-`Until(t time) <duration int>`
+`until(t time) <duration int>`
 
 Returns the duration until t.
 
 ---
 
-`Date(year int, month int, day int[, hour int, min int, sec int, nsec int, loc location]) <time>`
+`date(year int, month int, day int[, hour int, min int, sec int, nsec int, loc Location]) <time>`
 
 Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds
 in the appropriate zone for that time in the given location. Zero values
@@ -279,13 +279,13 @@ of optional arguments are used if not provided.
 
 ---
 
-`Now() <time>`
+`now() <time>`
 
 Returns the current local time.
 
 ---
 
-`Parse(layout str, value str[, loc location]) <time>`
+`parse(layout str, value str[, loc Location]) <time>`
 
 Parses a formatted string and returns the time value it represents.
 If location is not provided, ToInterface's `time.Parse` function is called
@@ -293,7 +293,7 @@ otherwise `time.ParseInLocation` is called.
 
 ---
 
-`Unix(sec int[, nsec int]) <time>`
+`unix(sec int[, nsec int]) <time>`
 
 Returns the local time corresponding to the given Unix time,
 sec seconds and nsec nanoseconds since January 1, 1970 UTC.
@@ -301,21 +301,21 @@ Zero values of optional arguments are used if not provided.
 
 ---
 
-`Add(t time, duration int) <time>`
+`add(t time, duration int) <time>`
 
 Deprecated: Use .Add method of time object.
 Returns the time of t+duration.
 
 ---
 
-`Sub(t1 time, t2 time) <int>`
+`sub(t1 time, t2 time) <int>`
 
 Deprecated: Use .Sub method of time object.
 Returns the duration of t1-t2.
 
 ---
 
-`AddDate(t time, years int, months int, days int) <time>`
+`addDate(t time, years int, months int, days int) <time>`
 
 Deprecated: Use .AddDate method of time object.
 Returns the time corresponding to adding the given number of
@@ -323,21 +323,21 @@ years, months, and days to t.
 
 ---
 
-`After(t1 time, t2 time) <bool>`
+`after(t1 time, t2 time) <bool>`
 
 Deprecated: Use .After method of time object.
 Reports whether the time t1 is after t2.
 
 ---
 
-`Before(t1 time, t2 time) <bool>`
+`before(t1 time, t2 time) <bool>`
 
 Deprecated: Use .Before method of time object.
 Reports whether the time t1 is before t2.
 
 ---
 
-`Format(t time, layout str) <str>`
+`format(t time, layout str) <str>`
 
 Deprecated: Use .Format method of time object.
 Returns a textual representation of the time value formatted according
@@ -345,7 +345,7 @@ to layout.
 
 ---
 
-`AppendFormat(t time, b bytes, layout str) <bytes>`
+`appendFormat(t time, b bytes, layout str) <bytes>`
 
 Deprecated: Use .AppendFormat method of time object.
 It is like `Format` but appends the textual representation to b and
@@ -353,7 +353,7 @@ returns the extended buffer.
 
 ---
 
-`In(t time, loc location) <time>`
+`in(t time, loc Location) <time>`
 
 Deprecated: Use .In method of time object.
 Returns a copy of t representing the same time t, but with the copy's
@@ -361,7 +361,7 @@ location information set to loc for display purposes.
 
 ---
 
-`Round(t time, duration int) <time>`
+`round(t time, duration int) <time>`
 
 Deprecated: Use .Round method of time object.
 Round returns the result of rounding t to the nearest multiple of
@@ -369,29 +369,13 @@ duration.
 
 ---
 
-`Truncate(t time, duration int) <time>`
+`truncate(t time, duration int) <time>`
 
 Deprecated: Use .Truncate method of time object.
 Truncate returns the result of rounding t down to a multiple of duration.
 
 ---
 
-`IsTime(any) <bool>`
+`isTime(any) <bool>`
 
 Reports whether any value is of time type.
-## Converters
-
-When Go values cross into scripts they are converted to these gad types:
-
-- `time.Time`, `*time.Time` -> `time`
-- `time.Duration` -> `int` (nanoseconds)
-- `time.Location` -> `location`
-
-## Method Overrides
-
-`int(v time; unit=char) <int>`
-
-Converts a `time` to a Unix timestamp (elapsed since 1970-01-01 UTC). The
-`unit` named argument selects the resolution: `'n'` nanoseconds, `'m'`
-microseconds, `'l'` milliseconds, or seconds (default).
-

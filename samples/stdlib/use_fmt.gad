@@ -1,6 +1,4 @@
-// use_fmt.gad — the builtin `fmt` module: formatted strings.
-
-fmt := import("fmt")
+// use_fmt.gad — the builtin `fmt` module (available without import).
 
 name := "Gad"
 n := 42

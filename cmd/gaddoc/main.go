@@ -79,22 +79,60 @@ func (dg *docgroup) process(comments []string) {
 	for _, p := range comments {
 		lines = append(lines, strings.Split(p, "\n")...)
 	}
+
+	// Collect every `# NAME module` header position. A source directory may now
+	// hold several modules (the builtin module namespaces live together in the
+	// root package), so moduleFilter selects which one to emit; the module's
+	// blocks run from its header up to the next module header (or EOF).
+	type hdr struct {
+		idx  int
+		name string
+	}
+	var hdrs []hdr
 	for i, p := range lines {
-		if reModuleHeader.MatchString(p) {
-			parts := reModuleHeader.FindStringSubmatch(p)
-			if len(parts) > 1 {
-				dg.module = parts[len(parts)-1]
-				dg.docs = append(dg.docs,
-					fmt.Sprintf("# `%s` module", dg.module))
-			} else {
-				dg.addError("module header is invalid")
+		if m := reModuleHeader.FindStringSubmatch(p); len(m) > 1 {
+			hdrs = append(hdrs, hdr{i, m[len(m)-1]})
+		}
+	}
+	if len(hdrs) == 0 {
+		dg.addError("no module header found")
+		return
+	}
+
+	sel := 0
+	if moduleFilter != "" {
+		sel = -1
+		for k, h := range hdrs {
+			if h.name == moduleFilter {
+				sel = k
+				break
 			}
-			dg.processBlocks(lines[i+1:])
+		}
+		if sel < 0 {
+			dg.addError("module header not found: " + moduleFilter)
 			return
 		}
-		dg.docs = append(dg.docs, p)
 	}
+
+	// Preamble before the first module header (intro text); later modules'
+	// ranges are bounded by the preceding module, so they have none.
+	if sel == 0 {
+		dg.docs = append(dg.docs, lines[:hdrs[0].idx]...)
+	}
+	dg.module = hdrs[sel].name
+	dg.docs = append(dg.docs, fmt.Sprintf("# `%s` module", dg.module))
+
+	end := len(lines)
+	if sel+1 < len(hdrs) {
+		end = hdrs[sel+1].idx
+	}
+	dg.processBlocks(lines[hdrs[sel].idx+1 : end])
 }
+
+// moduleFilter, when non-empty, selects which module's gad:doc to emit from a
+// source directory that defines more than one (set from the optional 3rd CLI
+// argument).
+var moduleFilter string
 
 func (dg *docgroup) processBlocks(lines []string) {
 	const (
@@ -392,6 +430,9 @@ func main() {
 
 	srcDir := os.Args[1]
 	outFile := os.Args[2]
+	if len(os.Args) > 3 {
+		moduleFilter = os.Args[3]
+	}
 
 	fset := token.NewFileSet()
 

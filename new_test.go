@@ -123,7 +123,7 @@ func TestVMBuiltinModuleTime(t *testing.T) {
 	// Unix timestamp
 	testExpectRun(t, `d := time.date(1970, 1, 1, 0, 0, 1, 0, time.utc()); return int(d)`, nil, Int(1))
 	// constants and duration helpers
-	testExpectRun(t, `return time.durationString(time.hour + 30 * time.minute)`, nil, Str("1h30m0s"))
+	testExpectRun(t, `return time.durationString(time.Hour + 30 * time.Minute)`, nil, Str("1h30m0s"))
 }
 
 func TestVMBuiltinModuleBase64(t *testing.T) {

@@ -34,7 +34,7 @@ func newTimeModule() Dict {
 		// # time module
 		// ## Types
 		// Type is a type of Time Value
-		"type": TimeType,
+		"Type": TimeType,
 
 		//
 		// ## Constants
@@ -52,18 +52,18 @@ func newTimeModule() Dict {
 		// October
 		// November
 		// December
-		"january":   Int(time.January),
-		"february":  Int(time.February),
-		"march":     Int(time.March),
-		"april":     Int(time.April),
-		"may":       Int(time.May),
-		"june":      Int(time.June),
-		"july":      Int(time.July),
-		"august":    Int(time.August),
-		"september": Int(time.September),
-		"october":   Int(time.October),
-		"november":  Int(time.November),
-		"december":  Int(time.December),
+		"January":   Int(time.January),
+		"February":  Int(time.February),
+		"March":     Int(time.March),
+		"April":     Int(time.April),
+		"May":       Int(time.May),
+		"June":      Int(time.June),
+		"July":      Int(time.July),
+		"August":    Int(time.August),
+		"September": Int(time.September),
+		"October":   Int(time.October),
+		"November":  Int(time.November),
+		"December":  Int(time.December),
 
 		// gad:doc
 		// ### Weekdays
@@ -75,13 +75,13 @@ func newTimeModule() Dict {
 		// Thursday
 		// Friday
 		// Saturday
-		"sunday":    Int(time.Sunday),
-		"monday":    Int(time.Monday),
-		"tuesday":   Int(time.Tuesday),
-		"wednesday": Int(time.Wednesday),
-		"thursday":  Int(time.Thursday),
-		"friday":    Int(time.Friday),
-		"saturday":  Int(time.Saturday),
+		"Sunday":    Int(time.Sunday),
+		"Monday":    Int(time.Monday),
+		"Tuesday":   Int(time.Tuesday),
+		"Wednesday": Int(time.Wednesday),
+		"Thursday":  Int(time.Thursday),
+		"Friday":    Int(time.Friday),
+		"Saturday":  Int(time.Saturday),
 
 		// gad:doc
 		// ### Layouts
@@ -101,21 +101,21 @@ func newTimeModule() Dict {
 		// StampMilli
 		// StampMicro
 		// StampNano
-		"ansic":       Str(time.ANSIC),
-		"unixDate":    Str(time.UnixDate),
-		"rubyDate":    Str(time.RubyDate),
-		"rfc822":      Str(time.RFC822),
-		"rfc822Z":     Str(time.RFC822Z),
-		"rfc850":      Str(time.RFC850),
-		"rfc1123":     Str(time.RFC1123),
-		"rfc1123Z":    Str(time.RFC1123Z),
-		"rfc3339":     Str(time.RFC3339),
-		"rfc3339Nano": Str(time.RFC3339Nano),
-		"kitchen":     Str(time.Kitchen),
-		"stamp":       Str(time.Stamp),
-		"stampMilli":  Str(time.StampMilli),
-		"stampMicro":  Str(time.StampMicro),
-		"stampNano":   Str(time.StampNano),
+		"ANSIC":       Str(time.ANSIC),
+		"UnixDate":    Str(time.UnixDate),
+		"RubyDate":    Str(time.RubyDate),
+		"RFC822":      Str(time.RFC822),
+		"RFC822Z":     Str(time.RFC822Z),
+		"RFC850":      Str(time.RFC850),
+		"RFC1123":     Str(time.RFC1123),
+		"RFC1123Z":    Str(time.RFC1123Z),
+		"RFC3339":     Str(time.RFC3339),
+		"RFC3339Nano": Str(time.RFC3339Nano),
+		"Kitchen":     Str(time.Kitchen),
+		"Stamp":       Str(time.Stamp),
+		"StampMilli":  Str(time.StampMilli),
+		"StampMicro":  Str(time.StampMicro),
+		"StampNano":   Str(time.StampNano),
 
 		// gad:doc
 		// ### Durations
@@ -126,16 +126,16 @@ func newTimeModule() Dict {
 		// Second
 		// Minute
 		// Hour
-		"nanosecond":  Int(time.Nanosecond),
-		"microsecond": Int(time.Microsecond),
-		"millisecond": Int(time.Millisecond),
-		"second":      Int(time.Second),
-		"minute":      Int(time.Minute),
-		"hour":        Int(time.Hour),
+		"Nanosecond":  Int(time.Nanosecond),
+		"Microsecond": Int(time.Microsecond),
+		"Millisecond": Int(time.Millisecond),
+		"Second":      Int(time.Second),
+		"Minute":      Int(time.Minute),
+		"Hour":        Int(time.Hour),
 
 		// gad:doc
 		// ## Functions
-		// UTC() <location>
+		// utc() <Location>
 		// Returns Universal Coordinated Time (UTC) location.
 		"utc": &BuiltinFunction{
 			FuncName: "utc",
@@ -143,7 +143,7 @@ func newTimeModule() Dict {
 		},
 
 		// gad:doc
-		// Local() <location>
+		// local() <Location>
 		// Returns the system's local time zone location.
 		"local": &BuiltinFunction{
 			FuncName: "local",
@@ -151,7 +151,7 @@ func newTimeModule() Dict {
 		},
 
 		// gad:doc
-		// MonthString(m int) <month str>
+		// monthString(m int) <month str>
 		// Returns English name of the month m ("January", "February", ...).
 		"monthString": &BuiltinFunction{
 			FuncName: "monthString",
@@ -159,7 +159,7 @@ func newTimeModule() Dict {
 		},
 
 		// gad:doc
-		// WeekdayString(w int) <weekday str>
+		// weekdayString(w int) <weekday str>
 		// Returns English name of the int weekday w, note that 0 is Sunday.
 		"weekdayString": &BuiltinFunction{
 			FuncName: "weekdayString",
@@ -167,84 +167,84 @@ func newTimeModule() Dict {
 		},
 
 		// gad:doc
-		// DurationString(d int) <str>
+		// durationString(d int) <str>
 		// Returns a string representing the duration d in the form "72h3m0.5s".
 		"durationString": &BuiltinFunction{
 			FuncName: "durationString",
 			Value:    funcPi64RO(TimeDurationStringFunc),
 		},
 		// gad:doc
-		// DurationNanoseconds(d int) <int>
+		// durationNanoseconds(d int) <int>
 		// Returns the duration d as an int nanosecond count.
 		"durationNanoseconds": &BuiltinFunction{
 			FuncName: "durationNanoseconds",
 			Value:    funcPi64RO(TimeDurationNanosecondsFunc),
 		},
 		// gad:doc
-		// DurationMicroseconds(d int) <int>
+		// durationMicroseconds(d int) <int>
 		// Returns the duration d as an int microsecond count.
 		"durationMicroseconds": &BuiltinFunction{
 			FuncName: "durationMicroseconds",
 			Value:    funcPi64RO(TimeDurationMicrosecondsFunc),
 		},
 		// gad:doc
-		// DurationMilliseconds(d int) <int>
+		// durationMilliseconds(d int) <int>
 		// Returns the duration d as an int millisecond count.
 		"durationMilliseconds": &BuiltinFunction{
 			FuncName: "durationMilliseconds",
 			Value:    funcPi64RO(TimeDurationMillisecondsFunc),
 		},
 		// gad:doc
-		// DurationSeconds(d int) <float>
+		// durationSeconds(d int) <float>
 		// Returns the duration d as a floating point number of seconds.
 		"durationSeconds": &BuiltinFunction{
 			FuncName: "durationSeconds",
 			Value:    funcPi64RO(TimeDurationSecondsFunc),
 		},
 		// gad:doc
-		// DurationMinutes(d int) <float>
+		// durationMinutes(d int) <float>
 		// Returns the duration d as a floating point number of minutes.
 		"durationMinutes": &BuiltinFunction{
 			FuncName: "durationMinutes",
 			Value:    funcPi64RO(TimeDurationMinutesFunc),
 		},
 		// gad:doc
-		// DurationHours(d int) <float>
+		// durationHours(d int) <float>
 		// Returns the duration d as a floating point number of hours.
 		"durationHours": &BuiltinFunction{
 			FuncName: "durationHours",
 			Value:    funcPi64RO(TimeDurationHoursFunc),
 		},
 		// gad:doc
-		// Sleep(duration int) <nil>
+		// sleep(duration int) <nil>
 		// Pauses the current goroutine for at least the duration.
 		"sleep": &BuiltinFunction{
 			FuncName: "sleep",
 			Value:    TimeSleepFunc,
 		},
 		// gad:doc
-		// ParseDuration(s str) <duration int>
+		// parseDuration(s str) <duration int>
 		// Parses duration s and returns duration as int or error.
 		"parseDuration": &BuiltinFunction{
 			FuncName: "parseDuration",
 			Value:    funcPsROe(TimeParseDurationFunc),
 		},
 		// gad:doc
-		// DurationRound(duration int, m int) <duration int>
+		// durationRound(duration int, m int) <duration int>
 		// Returns the result of rounding duration to the nearest multiple of m.
 		"durationRound": &BuiltinFunction{
 			FuncName: "durationRound",
 			Value:    funcPi64i64RO(TimeDurationRoundFunc),
 		},
 		// gad:doc
-		// DurationTruncate(duration int, m int) <duration int>
+		// durationTruncate(duration int, m int) <duration int>
 		// Returns the result of rounding duration toward zero to a multiple of m.
 		"durationTruncate": &BuiltinFunction{
 			FuncName: "durationTruncate",
 			Value:    funcPi64i64RO(TimeDurationTruncateFunc),
 		},
 		// gad:doc
-		// FixedZone(name str, sec int) <location>
+		// fixedZone(name str, sec int) <Location>
 		// Returns a Location that always uses the given zone name and offset
 		// (seconds east of UTC).
 		"fixedZone": &BuiltinFunction{
@@ -252,42 +252,42 @@ func newTimeModule() Dict {
 			Value:    funcPsiRO(TimeFixedZoneFunc),
 		},
 		// gad:doc
-		// LoadLocation(name str) <location>
+		// loadLocation(name str) <Location>
 		// Returns the Location with the given name.
 		"loadLocation": &BuiltinFunction{
 			FuncName: "loadLocation",
 			Value:    funcPsROe(TimeLoadLocationFunc),
 		},
 		// gad:doc
-		// IsLocation(any) <bool>
+		// isLocation(any) <bool>
 		// Reports whether any value is of location type.
 		"isLocation": &BuiltinFunction{
 			FuncName: "isLocation",
 			Value:    funcPORO(TimeIsLocationFunc),
 		},
 		// gad:doc
-		// Time() <time>
+		// time() <time>
 		// Returns zero time.
 		"time": &BuiltinFunction{
 			FuncName: "time",
 			Value:    funcPRO(TimeZerotimeFunc),
 		},
 		// gad:doc
-		// Since(t time) <duration int>
+		// since(t time) <duration int>
 		// Returns the time elapsed since t.
 		"since": &BuiltinFunction{
 			FuncName: "since",
 			Value:    FuncPTRO(TimeSinceFunc),
 		},
 		// gad:doc
-		// Until(t time) <duration int>
+		// until(t time) <duration int>
 		// Returns the duration until t.
 		"until": &BuiltinFunction{
 			FuncName: "until",
 			Value:    FuncPTRO(TimeUntilFunc),
 		},
 		// gad:doc
-		// Date(year int, month int, day int[, hour int, min int, sec int, nsec int, loc location]) <time>
+		// date(year int, month int, day int[, hour int, min int, sec int, nsec int, loc Location]) <time>
 		// Returns the Time corresponding to yyyy-mm-dd hh:mm:ss + nsec nanoseconds
 		// in the appropriate zone for that time in the given location. Zero values
 		// of optional arguments are used if not provided.
@@ -296,14 +296,14 @@ func newTimeModule() Dict {
 			Value:    TimeDateFunc,
 		},
 		// gad:doc
-		// Now() <time>
+		// now() <time>
 		// Returns the current local time.
 		"now": &BuiltinFunction{
 			FuncName: "now",
 			Value:    funcPRO(TimeNowFunc),
 		},
 		// gad:doc
-		// Parse(layout str, value str[, loc location]) <time>
+		// parse(layout str, value str[, loc Location]) <time>
 		// Parses a formatted string and returns the time value it represents.
 		// If location is not provided, ToInterface's `time.Parse` function is called
 		// otherwise `time.ParseInLocation` is called.
@@ -312,7 +312,7 @@ func newTimeModule() Dict {
 			Value:    TimeParseFunc,
 		},
 		// gad:doc
-		// Unix(sec int[, nsec int]) <time>
+		// unix(sec int[, nsec int]) <time>
 		// Returns the local time corresponding to the given Unix time,
 		// sec seconds and nsec nanoseconds since January 1, 1970 UTC.
 		// Zero values of optional arguments are used if not provided.
@@ -321,7 +321,7 @@ func newTimeModule() Dict {
 			Value:    TimeUnixFunc,
 		},
 		// gad:doc
-		// Add(t time, duration int) <time>
+		// add(t time, duration int) <time>
 		// Deprecated: Use .Add method of time object.
 		// Returns the time of t+duration.
 		"add": &BuiltinFunction{
@@ -329,7 +329,7 @@ func newTimeModule() Dict {
 			Value:    FuncPTi64RO(TimeAdd),
 		},
 		// gad:doc
-		// Sub(t1 time, t2 time) <int>
+		// sub(t1 time, t2 time) <int>
 		// Deprecated: Use .Sub method of time object.
 		// Returns the duration of t1-t2.
 		"sub": &BuiltinFunction{
@@ -337,7 +337,7 @@ func newTimeModule() Dict {
 			Value:    FuncPTTRO(TimeSub),
 		},
 		// gad:doc
-		// AddDate(t time, years int, months int, days int) <time>
+		// addDate(t time, years int, months int, days int) <time>
 		// Deprecated: Use .AddDate method of time object.
 		// Returns the time corresponding to adding the given number of
 		// years, months, and days to t.
@@ -346,7 +346,7 @@ func newTimeModule() Dict {
 			Value:    FuncPTiiiRO(TimeAddDate),
 		},
 		// gad:doc
-		// After(t1 time, t2 time) <bool>
+		// after(t1 time, t2 time) <bool>
 		// Deprecated: Use .After method of time object.
 		// Reports whether the time t1 is after t2.
 		"after": &BuiltinFunction{
@@ -354,7 +354,7 @@ func newTimeModule() Dict {
 			Value:    FuncPTTRO(TimeAfter),
 		},
 		// gad:doc
-		// Before(t1 time, t2 time) <bool>
+		// before(t1 time, t2 time) <bool>
 		// Deprecated: Use .Before method of time object.
 		// Reports whether the time t1 is before t2.
 		"before": &BuiltinFunction{
@@ -362,7 +362,7 @@ func newTimeModule() Dict {
 			Value:    FuncPTTRO(TimeBefore),
 		},
 		// gad:doc
-		// Format(t time, layout str) <str>
+		// format(t time, layout str) <str>
 		// Deprecated: Use .Format method of time object.
 		// Returns a textual representation of the time value formatted according
 		// to layout.
@@ -371,7 +371,7 @@ func newTimeModule() Dict {
 			Value:    FuncPTsRO(TimeFormat),
 		},
 		// gad:doc
-		// AppendFormat(t time, b bytes, layout str) <bytes>
+		// appendFormat(t time, b bytes, layout str) <bytes>
 		// Deprecated: Use .AppendFormat method of time object.
 		// It is like `Format` but appends the textual representation to b and
 		// returns the extended buffer.
@@ -380,7 +380,7 @@ func newTimeModule() Dict {
 			Value:    FuncPTb2sRO(TimeAppendFormat),
 		},
 		// gad:doc
-		// In(t time, loc location) <time>
+		// in(t time, loc Location) <time>
 		// Deprecated: Use .In method of time object.
 		// Returns a copy of t representing the same time t, but with the copy's
 		// location information set to loc for display purposes.
@@ -389,7 +389,7 @@ func newTimeModule() Dict {
 			Value:    FuncPTLRO(TimeIn),
 		},
 		// gad:doc
-		// Round(t time, duration int) <time>
+		// round(t time, duration int) <time>
 		// Deprecated: Use .Round method of time object.
 		// Round returns the result of rounding t to the nearest multiple of
 		// duration.
@@ -398,7 +398,7 @@ func newTimeModule() Dict {
 			Value:    FuncPTi64RO(TimeRound),
 		},
 		// gad:doc
-		// Truncate(t time, duration int) <time>
+		// truncate(t time, duration int) <time>
 		// Deprecated: Use .Truncate method of time object.
 		// Truncate returns the result of rounding t down to a multiple of duration.
 		"truncate": &BuiltinFunction{
@@ -406,7 +406,7 @@ func newTimeModule() Dict {
 			Value:    FuncPTi64RO(TimeTruncate),
 		},
 		// gad:doc
-		// IsTime(any) <bool>
+		// isTime(any) <bool>
 		// Reports whether any value is of time type.
 		"isTime": &BuiltinFunction{
 			FuncName: "isTime",

@@ -1,8 +1,8 @@
-// use_time.gad — the builtin `time` module: durations and arithmetic.
+// use_time.gad — the builtin `time` module (available without import).
+// Member names are lowerCamelCase (time.now, time.date, time.utc, …);
+// methods on a time value stay PascalCase (t.Year(), t.Add()).
 
-time := import("time")
-
-d := 2 * time.hour + 30 * time.minute
+d := 2 * time.Hour + 30 * time.Minute
 println("duration ns:", d)
 println("as string:  ", time.durationString(d))
 
@@ -11,6 +11,6 @@ println("as string:  ", time.durationString(d))
 t := time.date(2026, 6, 13, 9, 0, 0, 0, time.utc())
 println("date:       ", t)
 println("year:       ", t.Year())
-println("plus 1 day: ", t.Add(24 * time.hour))
+println("plus 1 day: ", t.Add(24 * time.Hour))
 
 return t.Year()

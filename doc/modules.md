@@ -13,6 +13,11 @@ There are three kinds of modules:
   (e.g. the [standard library](builtins.md)).
 * **Custom modules** — any Go value implementing the `Importable` interface.
 
+> A few stdlib modules — `time`, `strings`, `fmt` and `base64` — are also
+> exposed as **builtin namespaces** that work without an `import` (e.g.
+> `strings.ToUpper("hi")`). `import(...)` still works for them. See
+> [Builtins → Builtin Modules](builtins.md#builtin-modules).
+
 ## Importing
 
 ```go

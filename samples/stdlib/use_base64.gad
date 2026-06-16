@@ -1,0 +1,8 @@
+// use_base64.gad — the builtin `base64` module (available without import).
+
+data := bytes("Gad Lang")
+println("std:    ", base64.StdEncoding.EncodeToString(data))     // R2FkIExhbmc=
+println("rawStd: ", base64.RawStdEncoding.EncodeToString(data))  // R2FkIExhbmc
+println("url:    ", base64.URLEncoding.EncodeToString(data))     // R2FkIExhbmc=
+
+return base64.StdEncoding.EncodeToString(data)

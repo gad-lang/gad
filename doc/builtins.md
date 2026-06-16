@@ -100,14 +100,43 @@ repr("hi")               // a debug representation
 [Variables → global](variables-and-scopes.md#global)); `Class` and `addMethod`
 support the object/class system.
 
-## Standard Library Modules
+## Builtin Modules
 
-Beyond builtins, functionality is grouped into importable modules such as
-`strings`, `fmt`, `json`, `time`, `os`, `filepath` and `path`:
+`time`, `strings`, `fmt` and `base64` are exposed as **builtin namespaces**:
+they are always available, so you can use them **without an `import`**:
+
+```go
+println(strings.Contains("abcd", "bc"))          // true
+println(fmt.Sprintf("%d-%s", 7, "x"))            // 7-x
+println(base64.StdEncoding.EncodeToString(bytes("hi")))  // aGk=
+
+d := time.date(2026, 6, 13, 9, 0, 0, 0, time.utc())
+println(d.Year())                                // 2026
+```
+
+`import(...)` still works for these (and is required for other stdlib modules),
+returning the same members:
 
 ```go
 strings := import("strings")
 println(strings.ToUpper("hi"))   // HI
+```
+
+### Member naming
+
+`strings`, `fmt` and `base64` keep their original member names (`strings.ToUpper`,
+`fmt.Sprintf`, `base64.StdEncoding`). The **`time`** module uses **lowerCamelCase**
+member names (`time.now`, `time.date`, `time.utc`, `time.durationString`,
+`time.hour`, …); the value types are `time` and `Location`, and methods on a time
+value stay PascalCase (`t.Add(…)`, `t.Format(…)`).
+
+## Other Standard Library Modules
+
+Further functionality is grouped into importable modules such as `json`, `os`,
+`filepath` and `path`:
+
+```go
+json := import("json")
 ```
 
 See the generated `docs/stdlib-*.md` files for per-module references.
