@@ -6,6 +6,10 @@ package gad
 
 import "encoding/base64"
 
+// base64ModuleSpec is the module spec shared by the builtin `base64` namespace
+// members and the importable encoding/base64 module.
+var base64ModuleSpec = NewModuleSpecFromName("base64")
+
 // base64Module is the `base64` builtin namespace (Go's encoding/base64),
 // available to scripts without an import.
 var base64Module = Dict{

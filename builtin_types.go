@@ -58,6 +58,7 @@ type BuiltinObjType struct {
 	setters     Dict
 	methods     Dict
 	builtinType BuiltinType
+	Module      *ModuleSpec
 	name        string
 	*FuncSpec
 }
@@ -68,11 +69,15 @@ func NewBuiltinObjType(name string) *BuiltinObjType {
 	return t
 }
 
-func (t *BuiltinObjType) GadObjectType() {}
+func (t *BuiltinObjType) SetModule(m *ModuleSpec) {
+	t.Module = m
+}
 
 func (t *BuiltinObjType) GetModule() *ModuleSpec {
-	return nil
+	return t.Module
 }
+
+func (t *BuiltinObjType) GadObjectType() {}
 
 func (t *BuiltinObjType) FuncSpecName() string {
 	return "builtin type " + ReprQuote(t.FullName())

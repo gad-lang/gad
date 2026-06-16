@@ -816,7 +816,8 @@ var BuiltinObjects = BuiltinObjectsMap{
 // name `name.member`. Members are registered in sorted key order so the
 // assigned builtin indices are deterministic (stable across runs for serialized
 // bytecode).
-func registerBuiltinModule(modType BuiltinType, name string, d Dict) {
+func registerBuiltinModule(modType BuiltinType, spec *ModuleSpec, d Dict) {
+	name := spec.Name
 	BuiltinsMap[name] = modType
 	BuiltinObjects[modType] = d
 
@@ -826,6 +827,15 @@ func registerBuiltinModule(modType BuiltinType, name string, d Dict) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
+		// Tie each callable member back to its module spec.
+		switch m := d[k].(type) {
+		case *BuiltinFunction:
+			m.Module = spec
+		case *BuiltinFunctionWithMethods:
+			m.Module = spec
+		case *BuiltinObjType:
+			m.Module = spec
+		}
 		t := NewBuiltinType()
 		BuiltinsMap[name+"."+k] = t
 		BuiltinObjects[t] = d[k]
@@ -839,8 +849,9 @@ func init() {
 	// fully initialized first). Each member is also registered as a qualified
 	// builtin `module.NAME` so the compiler can resolve `module.NAME` to a single
 	// OpGetBuiltin instead of indexing the namespace dict.
-	registerBuiltinModule(BuiltinModuleBase64, "base64", base64Module)
-	registerBuiltinModule(BuiltinModuleFmt, "fmt", newFmtModule())
+	registerBuiltinModule(BuiltinModuleBase64, base64ModuleSpec, base64Module)
+	registerBuiltinModule(BuiltinModuleStrings, stringsModuleSpec, newStringsModule())
+	registerBuiltinModule(BuiltinModuleFmt, fmtModuleSpec, newFmtModule())
 
 	BuiltinObjects[BuiltinRead] = &BuiltinFunction{
 		FuncName: "read",

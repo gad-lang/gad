@@ -10,6 +10,10 @@ import (
 	"strconv"
 )
 
+// fmtModuleSpec is the module spec shared by the builtin `fmt` namespace members
+// and the importable fmt module.
+var fmtModuleSpec = NewModuleSpecFromName("fmt")
+
 // FmtModule returns the `fmt` builtin namespace (Print/Printf/Sprint/Scan…). It
 // is also used by the stdlib `fmt` importable module.
 func FmtModule() Dict { return newFmtModule() }

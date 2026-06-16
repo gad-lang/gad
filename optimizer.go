@@ -187,7 +187,7 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 			}
 
 			if opcode == OpGetBuiltin &&
-				!allowedBuiltins[operands[0]] {
+				(operands[0] >= len(allowedBuiltins) || !allowedBuiltins[operands[0]]) {
 				canOptimize = false
 				return false
 			}
