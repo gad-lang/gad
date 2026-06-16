@@ -71,10 +71,10 @@ json := import("json")
 srcmod := import("srcmod")
 
 v := int(json.Unmarshal(json.Marshal(1)))
-v = int(strings.Join([v], ""))
+v = int(strings.join([v], ""))
 v = srcmod.Incr(v)
 v = srcmod.Decr(v)
-v = int(fmt.Sprintf("%d", v))
+v = int(fmt.sprintf("%d", v))
 return v*time.Second/time.Second // 1
 `
 

@@ -1,11 +1,11 @@
 // use_strings.gad — the builtin `strings` module (available without import).
 
 s := "  Gad Lang  "
-println("upper:  ", strings.ToUpper(s))
-println("lower:  ", strings.ToLower(s))
-println("trimmed:", strings.TrimSpace(s))
-println("split:  ", strings.Split("a,b,c", ","))
-println("hasPfx: ", strings.HasPrefix("gadlang", "gad"))
-println("replace:", strings.Replace("aaa", "a", "b", -1))
+println("upper:  ", strings.toUpper(s))
+println("lower:  ", strings.toLower(s))
+println("trimmed:", strings.trimSpace(s))
+println("split:  ", strings.split("a,b,c", ","))
+println("hasPfx: ", strings.hasPrefix("gadlang", "gad"))
+println("replace:", strings.replace("aaa", "a", "b", -1))
 
-return strings.ToUpper("done")
+return strings.toUpper("done")

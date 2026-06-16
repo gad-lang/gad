@@ -189,14 +189,14 @@ func TestVMPropStmt(t *testing.T) {
 
 func TestVMBuiltinModuleStringsFmt(t *testing.T) {
 	// strings and fmt are available as builtin namespaces, without an import
-	testExpectRun(t, `return strings.Contains("abcd", "bc")`, nil, Bool(true))
-	testExpectRun(t, `return strings.ToUpper("hi")`, nil, Str("HI"))
-	testExpectRun(t, `return strings.Join(["a", "b"], "-")`, nil, Str("a-b"))
-	testExpectRun(t, `return fmt.Sprintf("%d-%s", 7, "x")`, nil, Str("7-x"))
+	testExpectRun(t, `return strings.contains("abcd", "bc")`, nil, Bool(true))
+	testExpectRun(t, `return strings.toUpper("hi")`, nil, Str("HI"))
+	testExpectRun(t, `return strings.join(["a", "b"], "-")`, nil, Str("a-b"))
+	testExpectRun(t, `return fmt.sprintf("%d-%s", 7, "x")`, nil, Str("7-x"))
 	// members are builtin functions carrying their module spec
-	testExpectRun(t, `return typeName(strings.Contains)`, nil, Str("builtinFunction"))
+	testExpectRun(t, `return typeName(strings.contains)`, nil, Str("builtinFunction"))
 	// a shadowing local disables the namespace: indexes the local dict instead
-	testExpectRun(t, `strings := {Contains: func(a, b) { return "local" }}; return strings.Contains(1, 2)`,
+	testExpectRun(t, `strings := {contains: func(a, b) { return "local" }}; return strings.contains(1, 2)`,
 		nil, Str("local"))
 }
 

@@ -15,14 +15,14 @@ There are three kinds of modules:
 
 > A few stdlib modules — `time`, `strings`, `fmt` and `base64` — are also
 > exposed as **builtin namespaces** that work without an `import` (e.g.
-> `strings.ToUpper("hi")`). `import(...)` still works for them. See
+> `strings.toUpper("hi")`). `import(...)` still works for them. See
 > [Builtins → Builtin Modules](builtins.md#builtin-modules).
 
 ## Importing
 
 ```go
 strings := import("strings")    // a builtin module
-println(strings.ToUpper("hi"))  // HI
+println(strings.toUpper("hi"))  // HI
 ```
 
 A source module is referenced by path; the file importer resolves `.gad`

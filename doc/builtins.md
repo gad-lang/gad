@@ -106,8 +106,8 @@ support the object/class system.
 they are always available, so you can use them **without an `import`**:
 
 ```go
-println(strings.Contains("abcd", "bc"))          // true
-println(fmt.Sprintf("%d-%s", 7, "x"))            // 7-x
+println(strings.contains("abcd", "bc"))          // true
+println(fmt.sprintf("%d-%s", 7, "x"))            // 7-x
 println(base64.StdEncoding.EncodeToString(bytes("hi")))  // aGk=
 
 d := time.date(2026, 6, 13, 9, 0, 0, 0, time.utc())
@@ -119,15 +119,18 @@ returning the same members:
 
 ```go
 strings := import("strings")
-println(strings.ToUpper("hi"))   // HI
+println(strings.toUpper("hi"))   // HI
 ```
 
 ### Member naming
 
-`strings`, `fmt` and `base64` keep their original member names (`strings.ToUpper`,
-`fmt.Sprintf`, `base64.StdEncoding`). The **`time`** module uses **lowerCamelCase**
-member names (`time.now`, `time.date`, `time.utc`, `time.durationString`,
-`time.hour`, …); the value types are `time` and `Location`, and methods on a time
+The **`strings`**, **`fmt`** and **`time`** modules expose their functions with
+**lowerCamelCase** member names, following Gad's [naming
+conventions](conventions.md) (`strings.toUpper`, `strings.contains`,
+`fmt.sprintf`, `time.now`, `time.date`, `time.durationString`, …). The
+**`base64`** module keeps Go-style PascalCase names (`base64.StdEncoding`,
+`base64.RawURLEncoding`), because those members are package-level **constants**.
+For `time`, the value types are `time` and `Location`, and methods on a time
 value stay PascalCase (`t.Add(…)`, `t.Format(…)`).
 
 ## Other Standard Library Modules

@@ -28,217 +28,217 @@ func newStringsModule() Dict {
 		// # strings module
 		//
 		// ## Functions
-		// Contains(s str, substr str) <bool>
+		// contains(s str, substr str) <bool>
 		// Reports whether substr is within s.
-		"Contains": &BuiltinFunction{
-			FuncName: "Contains",
+		"contains": &BuiltinFunction{
+			FuncName: "contains",
 			Value:    funcPssRO(stringsContainsFunc),
 		},
 		// gad:doc
-		// ContainsAny(s str, chars str) <bool>
+		// containsAny(s str, chars str) <bool>
 		// Reports whether any char in chars are within s.
-		"ContainsAny": &BuiltinFunction{
-			FuncName: "ContainsAny",
+		"containsAny": &BuiltinFunction{
+			FuncName: "containsAny",
 			Value:    funcPssRO(stringsContainsAnyFunc),
 		},
 		// gad:doc
-		// ContainsChar(s str, c char) <bool>
+		// containsChar(s str, c char) <bool>
 		// Reports whether the char c is within s.
-		"ContainsChar": &BuiltinFunction{
-			FuncName: "ContainsChar",
+		"containsChar": &BuiltinFunction{
+			FuncName: "containsChar",
 			Value:    funcPsrRO(stringsContainsCharFunc),
 		},
 		// gad:doc
-		// Count(s str, substr str) <int>
+		// count(s str, substr str) <int>
 		// Counts the number of non-overlapping instances of substr in s.
-		"Count": &BuiltinFunction{
-			FuncName: "Count",
+		"count": &BuiltinFunction{
+			FuncName: "count",
 			Value:    funcPssRO(stringsCountFunc),
 		},
 		// gad:doc
-		// EqualFold(s str, t str) <bool>
+		// equalFold(s str, t str) <bool>
 		// EqualFold reports whether s and t, interpreted as UTF-8 strings,
 		// are equal under Unicode case-folding, which is a more general form of
 		// case-insensitivity.
-		"EqualFold": &BuiltinFunction{
-			FuncName: "EqualFold",
+		"equalFold": &BuiltinFunction{
+			FuncName: "equalFold",
 			Value:    funcPssRO(stringsEqualFoldFunc),
 		},
 		// gad:doc
-		// Fields(s str) <array>
+		// fields(s str) <array>
 		// Splits the string s around each instance of one or more consecutive white
 		// space characters, returning an array of substrings of s or an empty array
 		// if s contains only white space.
-		"Fields": &BuiltinFunction{
-			FuncName: "Fields",
+		"fields": &BuiltinFunction{
+			FuncName: "fields",
 			Value:    funcPsRO(stringsFieldsFunc),
 		},
 		// gad:doc
-		// FieldsFunc(s str, f func(char) bool) <array>
+		// fieldsFunc(s str, f func(char) bool) <array>
 		// Splits the string s at each run of Unicode code points c satisfying f(c),
 		// and returns an array of slices of s. If all code points in s satisfy
 		// f(c) or the string is empty, an empty array is returned.
-		"FieldsFunc": &BuiltinFunction{
-			FuncName: "FieldsFunc",
+		"fieldsFunc": &BuiltinFunction{
+			FuncName: "fieldsFunc",
 			Value:    stringsFieldsFuncInv,
 		},
 		// gad:doc
-		// HasPrefix(s str, prefix str) <bool>
+		// hasPrefix(s str, prefix str) <bool>
 		// Reports whether the string s begins with prefix.
-		"HasPrefix": &BuiltinFunction{
-			FuncName: "HasPrefix",
+		"hasPrefix": &BuiltinFunction{
+			FuncName: "hasPrefix",
 			Value:    funcPssRO(stringsHasPrefixFunc),
 		},
 		// gad:doc
-		// HasSuffix(s str, suffix str) <bool>
+		// hasSuffix(s str, suffix str) <bool>
 		// Reports whether the string s ends with prefix.
-		"HasSuffix": &BuiltinFunction{
-			FuncName: "HasSuffix",
+		"hasSuffix": &BuiltinFunction{
+			FuncName: "hasSuffix",
 			Value:    funcPssRO(stringsHasSuffixFunc),
 		},
 		// gad:doc
-		// Index(s str, substr str) <int>
+		// index(s str, substr str) <int>
 		// Returns the index of the first instance of substr in s, or -1 if substr
 		// is not present in s.
-		"Index": &BuiltinFunction{
-			FuncName: "Index",
+		"index": &BuiltinFunction{
+			FuncName: "index",
 			Value:    funcPssRO(stringsIndexFunc),
 		},
 		// gad:doc
-		// IndexAny(s str, chars str) <int>
+		// indexAny(s str, chars str) <int>
 		// Returns the index of the first instance of any char from chars in s, or
 		// -1 if no char from chars is present in s.
-		"IndexAny": &BuiltinFunction{
-			FuncName: "IndexAny",
+		"indexAny": &BuiltinFunction{
+			FuncName: "indexAny",
 			Value:    funcPssRO(stringsIndexAnyFunc),
 		},
 		// gad:doc
-		// IndexByte(s str, c char|int) <int>
+		// indexByte(s str, c char|int) <int>
 		// Returns the index of the first byte value of c in s, or -1 if byte value
 		// of c is not present in s. c's integer value must be between 0 and 255.
-		"IndexByte": &BuiltinFunction{
-			FuncName: "IndexByte",
+		"indexByte": &BuiltinFunction{
+			FuncName: "indexByte",
 			Value:    funcPsrRO(stringsIndexByteFunc),
 		},
 		// gad:doc
-		// IndexChar(s str, c char) <int>
+		// indexChar(s str, c char) <int>
 		// Returns the index of the first instance of the char c, or -1 if char is
 		// not present in s.
-		"IndexChar": &BuiltinFunction{
-			FuncName: "IndexChar",
+		"indexChar": &BuiltinFunction{
+			FuncName: "indexChar",
 			Value:    funcPsrRO(stringsIndexCharFunc),
 		},
 		// gad:doc
-		// IndexFunc(s str, f func(char) bool) <int>
+		// indexFunc(s str, f func(char) bool) <int>
 		// Returns the index into s of the first Unicode code point satisfying f(c),
 		// or -1 if none do.
-		"IndexFunc": &BuiltinFunction{
-			FuncName: "IndexFunc",
+		"indexFunc": &BuiltinFunction{
+			FuncName: "indexFunc",
 			Value:    stringsNewIndexFuncInv(strings.IndexFunc),
 		},
 		// gad:doc
-		// Join(arr array, sep str) <str>
+		// join(arr array, sep str) <str>
 		// Concatenates the string values of array arr elements to create a
 		// single string. The separator string sep is placed between elements in the
 		// resulting string.
-		"Join": &BuiltinFunction{
-			FuncName: "Join",
+		"join": &BuiltinFunction{
+			FuncName: "join",
 			Value:    funcPAsRO(stringsJoinFunc),
 		},
 		// gad:doc
-		// JoinAnd(arr array, sep, lastSep str) <str>
+		// joinAnd(arr array, sep, lastSep str) <str>
 		// Concatenates the string values of array arr elements to create a
 		// single string. The separator string sep is placed between elements
 		// and lastSep is placed between non last and last elements in the
 		// resulting string.
-		"JoinAnd": &BuiltinFunction{
-			FuncName: "JoinAnd",
+		"joinAnd": &BuiltinFunction{
+			FuncName: "joinAnd",
 			Value:    funcPAssRO(stringsJoinAndFunc),
 		},
 		// gad:doc
-		// LastIndex(s str, substr str) <int>
+		// lastIndex(s str, substr str) <int>
 		// Returns the index of the last instance of substr in s, or -1 if substr
 		// is not present in s.
-		"LastIndex": &BuiltinFunction{
-			FuncName: "LastIndex",
+		"lastIndex": &BuiltinFunction{
+			FuncName: "lastIndex",
 			Value:    funcPssRO(stringsLastIndexFunc),
 		},
 		// gad:doc
-		// LastIndexAny(s str, chars str) <int>
+		// lastIndexAny(s str, chars str) <int>
 		// Returns the index of the last instance of any char from chars in s, or
 		// -1 if no char from chars is present in s.
-		"LastIndexAny": &BuiltinFunction{
-			FuncName: "LastIndexAny",
+		"lastIndexAny": &BuiltinFunction{
+			FuncName: "lastIndexAny",
 			Value:    funcPssRO(stringsLastIndexAnyFunc),
 		},
 		// gad:doc
-		// LastIndexByte(s str, c char|int) <int>
+		// lastIndexByte(s str, c char|int) <int>
 		// Returns the index of byte value of the last instance of c in s, or -1
 		// if c is not present in s. c's integer value must be between 0 and 255.
-		"LastIndexByte": &BuiltinFunction{
-			FuncName: "LastIndexByte",
+		"lastIndexByte": &BuiltinFunction{
+			FuncName: "lastIndexByte",
 			Value:    funcPsrRO(stringsLastIndexByteFunc),
 		},
 		// gad:doc
-		// LastIndexFunc(s str, f func(char) bool) <int>
+		// lastIndexFunc(s str, f func(char) bool) <int>
 		// Returns the index into s of the last Unicode code point satisfying f(c),
 		// or -1 if none do.
-		"LastIndexFunc": &BuiltinFunction{
-			FuncName: "LastIndexFunc",
+		"lastIndexFunc": &BuiltinFunction{
+			FuncName: "lastIndexFunc",
 			Value:    stringsNewIndexFuncInv(strings.LastIndexFunc),
 		},
 		// gad:doc
-		// Dict(f func(char) char, s str) <str>
+		// dict(f func(char) char, s str) <str>
 		// Returns a copy of the string s with all its characters modified
 		// according to the mapping function f. If f returns a negative value, the
 		// character is dropped from the string with no replacement.
-		"Dict": &BuiltinFunction{
-			FuncName: "Dict",
+		"dict": &BuiltinFunction{
+			FuncName: "dict",
 			Value:    stringsMapFuncInv,
 		},
 		// gad:doc
-		// PadLeft(s str, padLen int[, padWith any]) <str>
+		// padLeft(s str, padLen int[, padWith any]) <str>
 		// Returns a string that is padded on the left with the string `padWith` until
 		// the `padLen` length is reached. If padWith is not given, a white space is
 		// used as default padding.
-		"PadLeft": &BuiltinFunction{
-			FuncName: "PadLeft",
+		"padLeft": &BuiltinFunction{
+			FuncName: "padLeft",
 			Value: func(c Call) (Object, error) {
 				return stringsPad(c, true)
 			},
 		},
 		// gad:doc
-		// PadRight(s str, padLen int[, padWith any]) <str>
+		// padRight(s str, padLen int[, padWith any]) <str>
 		// Returns a string that is padded on the right with the string `padWith` until
 		// the `padLen` length is reached. If padWith is not given, a white space is
 		// used as default padding.
-		"PadRight": &BuiltinFunction{
-			FuncName: "PadRight",
+		"padRight": &BuiltinFunction{
+			FuncName: "padRight",
 			Value: func(c Call) (Object, error) {
 				return stringsPad(c, false)
 			},
 		},
 		// gad:doc
-		// Repeat(s str, count int) <str>
+		// repeat(s str, count int) <str>
 		// Returns a new string consisting of count copies of the string s.
 		//
 		// - If count is a negative int, it returns empty string.
 		// - If (len(s) * count) overflows, it panics.
-		"Repeat": &BuiltinFunction{
-			FuncName: "Repeat",
+		"repeat": &BuiltinFunction{
+			FuncName: "repeat",
 			Value:    funcPsiRO(stringsRepeatFunc),
 		},
 		// gad:doc
-		// Replace(s str, old str, new str[, n int]) <str>
+		// replace(s str, old str, new str[, n int]) <str>
 		// Returns a copy of the string s with the first n non-overlapping instances
 		// of old replaced by new. If n is not provided or -1, it replaces all
 		// instances.
-		"Replace": &BuiltinFunction{
-			FuncName: "Replace",
+		"replace": &BuiltinFunction{
+			FuncName: "replace",
 			Value:    stringsReplaceFunc,
 		},
 		// gad:doc
-		// Split(s str, sep str[, n int]) <[str]>
+		// split(s str, sep str[, n int]) <[str]>
 		// Splits s into substrings separated by sep and returns an array of
 		// the substrings between those separators.
 		//
@@ -247,12 +247,12 @@ func newStringsModule() Dict {
 		// - n < 0: all substrings (default)
 		// - n > 0: at most n substrings; the last substring will be the unsplit remainder.
 		// - n == 0: the result is empty array
-		"Split": &BuiltinFunction{
-			FuncName: "Split",
+		"split": &BuiltinFunction{
+			FuncName: "split",
 			Value:    stringsNewSplitFunc(strings.SplitN),
 		},
 		// gad:doc
-		// SplitAfter(s str, sep str[, n int]) <[str]>
+		// splitAfter(s str, sep str[, n int]) <[str]>
 		// Slices s into substrings after each instance of sep and returns an array
 		// of those substrings.
 		//
@@ -261,126 +261,126 @@ func newStringsModule() Dict {
 		// - n < 0: all substrings (default)
 		// - n > 0: at most n substrings; the last substring will be the unsplit remainder.
 		// - n == 0: the result is empty array
-		"SplitAfter": &BuiltinFunction{
-			FuncName: "SplitAfter",
+		"splitAfter": &BuiltinFunction{
+			FuncName: "splitAfter",
 			Value:    stringsNewSplitFunc(strings.SplitAfterN),
 		},
 		// gad:doc
-		// Title(s str) <str>
+		// title(s str) <str>
 		// Deprecated: Returns a copy of the string s with all Unicode letters that
 		// begin words mapped to their Unicode title case.
-		"Title": &BuiltinFunction{
-			FuncName: "Title",
+		"title": &BuiltinFunction{
+			FuncName: "title",
 			Value:    funcPsRO(stringsTitleFunc),
 		},
 		// gad:doc
-		// ToLower(s str) <str>
+		// toLower(s str) <str>
 		// Returns s with all Unicode letters mapped to their lower case.
-		"ToLower": &BuiltinFunction{
-			FuncName: "ToLower",
+		"toLower": &BuiltinFunction{
+			FuncName: "toLower",
 			Value:    funcPsRO(stringsToLowerFunc),
 		},
 		// gad:doc
-		// ToTitle(s str) <str>
+		// toTitle(s str) <str>
 		// Returns a copy of the string s with all Unicode letters mapped to their
 		// Unicode title case.
-		"ToTitle": &BuiltinFunction{
-			FuncName: "ToTitle",
+		"toTitle": &BuiltinFunction{
+			FuncName: "toTitle",
 			Value:    funcPsRO(stringsToTitleFunc),
 		},
 		// gad:doc
-		// ToUpper(s str) <str>
+		// toUpper(s str) <str>
 		// Returns s with all Unicode letters mapped to their upper case.
-		"ToUpper": &BuiltinFunction{
-			FuncName: "ToUpper",
+		"toUpper": &BuiltinFunction{
+			FuncName: "toUpper",
 			Value:    funcPsRO(stringsToUpperFunc),
 		},
 		// gad:doc
-		// ToValidUTF8(s str[, replacement str]) <str>
+		// toValidUTF8(s str[, replacement str]) <str>
 		// Returns a copy of the string s with each run of invalid UTF-8 byte
 		// sequences replaced by the replacement string, which may be empty.
-		"ToValidUTF8": &BuiltinFunction{
-			FuncName: "ToValidUTF8",
+		"toValidUTF8": &BuiltinFunction{
+			FuncName: "toValidUTF8",
 			Value:    stringsToValidUTF8Func,
 		},
 		// gad:doc
-		// Trim(s str, cutset str) <str>
+		// trim(s str, cutset str) <str>
 		// Returns a slice of the string s with all leading and trailing Unicode
 		// code points contained in cutset removed.
-		"Trim": &BuiltinFunction{
-			FuncName: "Trim",
+		"trim": &BuiltinFunction{
+			FuncName: "trim",
 			Value:    funcPssRO(stringsTrimFunc),
 		},
 		// gad:doc
-		// TrimFunc(s str, f func(char) bool) <str>
+		// trimFunc(s str, f func(char) bool) <str>
 		// Returns a slice of the string s with all leading and trailing Unicode
 		// code points satisfying f removed.
-		"TrimFunc": &BuiltinFunction{
-			FuncName: "TrimFunc",
+		"trimFunc": &BuiltinFunction{
+			FuncName: "trimFunc",
 			Value:    stringsNewTrimFuncInv(strings.TrimFunc),
 		},
 		// gad:doc
-		// TrimLeft(s str, cutset str) <str>
+		// trimLeft(s str, cutset str) <str>
 		// Returns a slice of the string s with all leading Unicode code points
 		// contained in cutset removed.
-		"TrimLeft": &BuiltinFunction{
-			FuncName: "TrimLeft",
+		"trimLeft": &BuiltinFunction{
+			FuncName: "trimLeft",
 			Value:    funcPssRO(stringsTrimLeftFunc),
 		},
 		// gad:doc
-		// TrimLeftFunc(s str, f func(char) bool) <str>
+		// trimLeftFunc(s str, f func(char) bool) <str>
 		// Returns a slice of the string s with all leading Unicode code points
 		// c satisfying f(c) removed.
-		"TrimLeftFunc": &BuiltinFunction{
-			FuncName: "TrimLeftFunc",
+		"trimLeftFunc": &BuiltinFunction{
+			FuncName: "trimLeftFunc",
 			Value:    stringsNewTrimFuncInv(strings.TrimLeftFunc),
 		},
 		// gad:doc
-		// TrimPrefix(s str, prefix str) <str>
+		// trimPrefix(s str, prefix str) <str>
 		// Returns s without the provided leading prefix string. If s doesn't start
 		// with prefix, s is returned unchanged.
-		"TrimPrefix": &BuiltinFunction{
-			FuncName: "TrimPrefix",
+		"trimPrefix": &BuiltinFunction{
+			FuncName: "trimPrefix",
 			Value:    funcPssRO(stringsTrimPrefixFunc),
 		},
 		// gad:doc
-		// TrimRight(s str, cutset str) <str>
+		// trimRight(s str, cutset str) <str>
 		// Returns a slice of the string s with all trailing Unicode code points
 		// contained in cutset removed.
-		"TrimRight": &BuiltinFunction{
-			FuncName: "TrimRight",
+		"trimRight": &BuiltinFunction{
+			FuncName: "trimRight",
 			Value:    funcPssRO(stringsTrimRightFunc),
 		},
 		// gad:doc
-		// TrimRightFunc(s str, f func(char) bool) <str>
+		// trimRightFunc(s str, f func(char) bool) <str>
 		// Returns a slice of the string s with all trailing Unicode code points
 		// c satisfying f(c) removed.
-		"TrimRightFunc": &BuiltinFunction{
-			FuncName: "TrimRightFunc",
+		"trimRightFunc": &BuiltinFunction{
+			FuncName: "trimRightFunc",
 			Value:    stringsNewTrimFuncInv(strings.TrimRightFunc),
 		},
 		// gad:doc
-		// TrimSpace(s str) <str>
+		// trimSpace(s str) <str>
 		// Returns a slice of the string s, with all leading and trailing white
 		// space removed, as defined by Unicode.
-		"TrimSpace": &BuiltinFunction{
-			FuncName: "TrimSpace",
+		"trimSpace": &BuiltinFunction{
+			FuncName: "trimSpace",
 			Value:    funcPsRO(stringsTrimSpaceFunc),
 		},
 		// gad:doc
-		// TrimSuffix(s str, suffix str) <str>
+		// trimSuffix(s str, suffix str) <str>
 		// Returns s without the provided trailing suffix string. If s doesn't end
 		// with suffix, s is returned unchanged.
-		"TrimSuffix": &BuiltinFunction{
-			FuncName: "TrimSuffix",
+		"trimSuffix": &BuiltinFunction{
+			FuncName: "trimSuffix",
 			Value:    funcPssRO(stringsTrimSuffixFunc),
 		},
 
 		// gad:doc
-		// Trunc(s str, maxLen int; emph="...") <str>
+		// trunc(s str, maxLen int; emph="...") <str>
 		// Truncate s to maxLen concatenated with emph.
-		"Trunc": &BuiltinFunction{
-			FuncName: "Trunc",
+		"trunc": &BuiltinFunction{
+			FuncName: "trunc",
 			Value: func(c Call) (Object, error) {
 				if err := c.Args.CheckLen(2); err != nil {
 					return Nil, err
@@ -410,11 +410,11 @@ func newStringsModule() Dict {
 		},
 
 		// gad:doc
-		// SlitWords(s str|rawstr) <array>
+		// slitWords(s str|rawstr) <array>
 		// Split words by spaces using regex `\s+`.
 		// If s is rawstr, returns Array of Rawstr, otherwise, Array of Str.
-		"SlitWords": &BuiltinFunction{
-			FuncName: "Trunc",
+		"slitWords": &BuiltinFunction{
+			FuncName: "trunc",
 			Value: func(c Call) (Object, error) {
 				if err := c.Args.CheckLen(1); err != nil {
 					return Nil, err
@@ -460,11 +460,11 @@ func newStringsModule() Dict {
 		},
 
 		// gad:doc
-		// TruncWords(s str|rawstr, max int; emph="...", atlimit=off) <str|rawstr>
+		// truncWords(s str|rawstr, max int; emph="...", atlimit=off) <str|rawstr>
 		// Truncate words in s to maxLen concatenated with emph. If atlimit is Falsy,
 		// limits at word count equals to max, otherwise at length of s equals to max.
-		"TruncWords": &BuiltinFunction{
-			FuncName: "Trunc",
+		"truncWords": &BuiltinFunction{
+			FuncName: "trunc",
 			Value: func(c Call) (Object, error) {
 				if err := c.Args.CheckLen(2); err != nil {
 					return Nil, err
@@ -720,7 +720,7 @@ func stringsPad(c Call, left bool) (Object, error) {
 }
 
 func stringsRepeatFunc(s string, count int) Object {
-	// if n is negative strings.Repeat function panics
+	// if n is negative strings.repeat function panics
 	if count < 0 {
 		return Str("")
 	}

@@ -15,7 +15,7 @@ func TestModuleStrings(t *testing.T) {
 	ModuleInit(mod, Call{})
 	module := mod.ToDict()
 
-	contains := module["Contains"]
+	contains := module["contains"]
 	ret, err := MustCall(contains, Str("abc"), Str("b"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
@@ -29,7 +29,7 @@ func TestModuleStrings(t *testing.T) {
 	_, err = MustCall(contains)
 	require.Error(t, err)
 
-	containsAny := module["ContainsAny"]
+	containsAny := module["containsAny"]
 	ret, err = MustCall(containsAny, Str("abc"), Str("ax"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
@@ -37,7 +37,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
-	containsChar := module["ContainsChar"]
+	containsChar := module["containsChar"]
 	ret, err = MustCall(containsChar, Str("abc"), Char('a'))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
@@ -45,7 +45,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
-	count := module["Count"]
+	count := module["count"]
 	ret, err = MustCall(count, Str("cheese"), Str("e"))
 	require.NoError(t, err)
 	require.EqualValues(t, 3, ret)
@@ -53,7 +53,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 0, ret)
 
-	equalFold := module["EqualFold"]
+	equalFold := module["equalFold"]
 	ret, err = MustCall(equalFold, Str("GAD"), Str("gad"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
@@ -61,7 +61,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
-	fields := module["Fields"]
+	fields := module["fields"]
 	ret, err = MustCall(fields, Str("\tfoo bar\nbaz"))
 	require.NoError(t, err)
 	require.Equal(t, 3, len(ret.(Array)))
@@ -69,7 +69,7 @@ func TestModuleStrings(t *testing.T) {
 	require.EqualValues(t, "bar", ret.(Array)[1].(Str))
 	require.EqualValues(t, "baz", ret.(Array)[2].(Str))
 
-	hasPrefix := module["HasPrefix"]
+	hasPrefix := module["hasPrefix"]
 	ret, err = MustCall(hasPrefix, Str("foobarbaz"), Str("foo"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
@@ -77,7 +77,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
-	hasSuffix := module["HasSuffix"]
+	hasSuffix := module["hasSuffix"]
 	ret, err = MustCall(hasSuffix, Str("foobarbaz"), Str("baz"))
 	require.NoError(t, err)
 	require.EqualValues(t, true, ret)
@@ -85,7 +85,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, false, ret)
 
-	index := module["Index"]
+	index := module["index"]
 	ret, err = MustCall(index, Str("foobarbaz"), Str("bar"))
 	require.NoError(t, err)
 	require.EqualValues(t, 3, ret)
@@ -93,7 +93,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	indexAny := module["IndexAny"]
+	indexAny := module["indexAny"]
 	ret, err = MustCall(indexAny, Str("foobarbaz"), Str("xz"))
 	require.NoError(t, err)
 	require.EqualValues(t, 8, ret)
@@ -101,7 +101,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	indexByte := module["IndexByte"]
+	indexByte := module["indexByte"]
 	ret, err = MustCall(indexByte, Str("foobarbaz"), Char('z'))
 	require.NoError(t, err)
 	require.EqualValues(t, 8, ret)
@@ -112,7 +112,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	indexChar := module["IndexChar"]
+	indexChar := module["indexChar"]
 	ret, err = MustCall(indexChar, Str("foobarbaz"), Char('z'))
 	require.NoError(t, err)
 	require.EqualValues(t, 8, ret)
@@ -120,12 +120,12 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	join := module["Join"]
+	join := module["join"]
 	ret, err = MustCall(join, Array{Str("foo"), Str("bar")}, Str(";"))
 	require.NoError(t, err)
 	require.EqualValues(t, "foo;bar", ret)
 
-	lastIndex := module["LastIndex"]
+	lastIndex := module["lastIndex"]
 	ret, err = MustCall(lastIndex, Str("zfoobarbaz"), Str("z"))
 	require.NoError(t, err)
 	require.EqualValues(t, 9, ret)
@@ -133,7 +133,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	lastIndexAny := module["LastIndexAny"]
+	lastIndexAny := module["lastIndexAny"]
 	ret, err = MustCall(lastIndexAny, Str("zfoobarbaz"), Str("xz"))
 	require.NoError(t, err)
 	require.EqualValues(t, 9, ret)
@@ -144,7 +144,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	lastIndexByte := module["LastIndexByte"]
+	lastIndexByte := module["lastIndexByte"]
 	ret, err = MustCall(lastIndexByte, Str("zfoobarbaz"), Char('z'))
 	require.NoError(t, err)
 	require.EqualValues(t, 9, ret)
@@ -155,7 +155,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, -1, ret)
 
-	padLeft := module["PadLeft"]
+	padLeft := module["padLeft"]
 	ret, err = MustCall(padLeft, Str("abc"), Int(3))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc", ret)
@@ -172,7 +172,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, "======", ret)
 
-	padRight := module["PadRight"]
+	padRight := module["padRight"]
 	ret, err = MustCall(padRight, Str("abc"), Int(3))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc", ret)
@@ -189,7 +189,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, "======", ret)
 
-	repeat := module["Repeat"]
+	repeat := module["repeat"]
 	ret, err = MustCall(repeat, Str("abc"), Int(3))
 	require.NoError(t, err)
 	require.EqualValues(t, "abcabcabc", ret)
@@ -197,7 +197,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, "", ret)
 
-	replace := module["Replace"]
+	replace := module["replace"]
 	ret, err = MustCall(replace, Str("abcdefbc"), Str("bc"), Str("(bc)"))
 	require.NoError(t, err)
 	require.EqualValues(t, "a(bc)def(bc)", ret)
@@ -206,7 +206,7 @@ func TestModuleStrings(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, "a(bc)defbc", ret)
 
-	split := module["Split"]
+	split := module["split"]
 	ret, err = MustCall(split, Str("abc;def;"), Str(";"))
 	require.NoError(t, err)
 	require.Equal(t, 3, len(ret.(Array)))
@@ -226,7 +226,7 @@ func TestModuleStrings(t *testing.T) {
 	require.EqualValues(t, "abc", ret.(Array)[0])
 	require.EqualValues(t, "def;", ret.(Array)[1])
 
-	splitAfter := module["SplitAfter"]
+	splitAfter := module["splitAfter"]
 	ret, err = MustCall(splitAfter, Str("abc;def;"), Str(";"))
 	require.NoError(t, err)
 	require.Equal(t, 3, len(ret.(Array)))
@@ -246,57 +246,57 @@ func TestModuleStrings(t *testing.T) {
 	require.EqualValues(t, "abc;", ret.(Array)[0])
 	require.EqualValues(t, "def;", ret.(Array)[1])
 
-	title := module["Title"]
+	title := module["title"]
 	ret, err = MustCall(title, Str("хлеб"))
 	require.NoError(t, err)
 	require.EqualValues(t, "Хлеб", ret)
 
-	toLower := module["ToLower"]
+	toLower := module["toLower"]
 	ret, err = MustCall(toLower, Str("ÇİĞÖŞÜ"))
 	require.NoError(t, err)
 	require.EqualValues(t, "çiğöşü", ret)
 
-	toTitle := module["ToTitle"]
+	toTitle := module["toTitle"]
 	ret, err = MustCall(toTitle, Str("хлеб"))
 	require.NoError(t, err)
 	require.EqualValues(t, "ХЛЕБ", ret)
 
-	toUpper := module["ToUpper"]
+	toUpper := module["toUpper"]
 	ret, err = MustCall(toUpper, Str("çığöşü"))
 	require.NoError(t, err)
 	require.EqualValues(t, "ÇIĞÖŞÜ", ret)
 
-	trim := module["Trim"]
+	trim := module["trim"]
 	ret, err = MustCall(trim, Str("!!??abc?!"), Str("!?"))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc", ret)
 
-	trimLeft := module["TrimLeft"]
+	trimLeft := module["trimLeft"]
 	ret, err = MustCall(trimLeft, Str("!!??abc?!"), Str("!?"))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc?!", ret)
 
-	trimPrefix := module["TrimPrefix"]
+	trimPrefix := module["trimPrefix"]
 	ret, err = MustCall(trimPrefix, Str("abcdef"), Str("abc"))
 	require.NoError(t, err)
 	require.EqualValues(t, "def", ret)
 
-	trimRight := module["TrimRight"]
+	trimRight := module["trimRight"]
 	ret, err = MustCall(trimRight, Str("!!??abc?!"), Str("!?"))
 	require.NoError(t, err)
 	require.EqualValues(t, "!!??abc", ret)
 
-	trimSpace := module["TrimSpace"]
+	trimSpace := module["trimSpace"]
 	ret, err = MustCall(trimSpace, Str("\n \tabcdef\t \n"))
 	require.NoError(t, err)
 	require.EqualValues(t, "abcdef", ret)
 
-	trimSuffix := module["TrimSuffix"]
+	trimSuffix := module["trimSuffix"]
 	ret, err = MustCall(trimSuffix, Str("abcdef"), Str("def"))
 	require.NoError(t, err)
 	require.EqualValues(t, "abc", ret)
 
-	trunc := module["Trunc"]
+	trunc := module["trunc"]
 	ret, err = MustCall(trunc, Str("abcdef"), Int(6))
 	require.NoError(t, err)
 
@@ -339,166 +339,166 @@ func TestScript(t *testing.T) {
 		m func(string) string
 		e Object
 	}{
-		{s: `strings.Contains()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.Contains(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.Contains(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.Contains(1, 2)`, e: False},
-		{s: `strings.Contains("", 2)`, e: False},
-		{s: `strings.Contains("acbdef", "de")`, e: True},
-		{s: `strings.Contains("acbdef", "dex")`, e: False},
+		{s: `strings.contains()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.contains(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.contains(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.contains(1, 2)`, e: False},
+		{s: `strings.contains("", 2)`, e: False},
+		{s: `strings.contains("acbdef", "de")`, e: True},
+		{s: `strings.contains("acbdef", "dex")`, e: False},
 
-		{s: `strings.ContainsAny()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.ContainsAny(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.ContainsAny(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.ContainsAny(1, 2)`, e: False},
-		{s: `strings.ContainsAny("", 2)`, e: False},
-		{s: `strings.ContainsAny("acbdef", "de")`, e: True},
-		{s: `strings.ContainsAny("acbdef", "xw")`, e: False},
+		{s: `strings.containsAny()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.containsAny(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.containsAny(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.containsAny(1, 2)`, e: False},
+		{s: `strings.containsAny("", 2)`, e: False},
+		{s: `strings.containsAny("acbdef", "de")`, e: True},
+		{s: `strings.containsAny("acbdef", "xw")`, e: False},
 
-		{s: `strings.ContainsChar()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.ContainsChar(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.ContainsChar(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.ContainsChar(1, 2)`, e: False},
-		{s: `strings.ContainsChar("", 2)`, e: False},
-		{s: `strings.ContainsChar("acbdef", 'd')`, e: True},
-		{s: `strings.ContainsChar("acbdef", 'x')`, e: False},
+		{s: `strings.containsChar()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.containsChar(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.containsChar(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.containsChar(1, 2)`, e: False},
+		{s: `strings.containsChar("", 2)`, e: False},
+		{s: `strings.containsChar("acbdef", 'd')`, e: True},
+		{s: `strings.containsChar("acbdef", 'x')`, e: False},
 
-		{s: `strings.Count()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.Count(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.Count(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.Count(1, 2)`, e: Int(0)},
-		{s: `strings.Count("", 2)`, e: Int(0)},
-		{s: `strings.Count("abcddef", "d")`, e: Int(2)},
-		{s: `strings.Count("abcddef", "x")`, e: Int(0)},
+		{s: `strings.count()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.count(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.count(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.count(1, 2)`, e: Int(0)},
+		{s: `strings.count("", 2)`, e: Int(0)},
+		{s: `strings.count("abcddef", "d")`, e: Int(2)},
+		{s: `strings.count("abcddef", "x")`, e: Int(0)},
 
-		{s: `strings.EqualFold()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.EqualFold(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.EqualFold(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.EqualFold(1, 2)`, e: False},
-		{s: `strings.EqualFold("", 2)`, e: False},
-		{s: `strings.EqualFold("çğöşü", "ÇĞÖŞÜ")`, e: True},
-		{s: `strings.EqualFold("x", "y")`, e: False},
+		{s: `strings.equalFold()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.equalFold(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.equalFold(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.equalFold(1, 2)`, e: False},
+		{s: `strings.equalFold("", 2)`, e: False},
+		{s: `strings.equalFold("çğöşü", "ÇĞÖŞÜ")`, e: True},
+		{s: `strings.equalFold("x", "y")`, e: False},
 
-		{s: `strings.Fields()`, m: catch, e: wrongArgs(1, 0)},
-		{s: `strings.Fields(1)`, e: Array{Str("1")}},
-		{s: `strings.Fields(1, 2)`, m: catch, e: wrongArgs(1, 2)},
-		{s: `strings.Fields("a\nb c\td ")`,
+		{s: `strings.fields()`, m: catch, e: wrongArgs(1, 0)},
+		{s: `strings.fields(1)`, e: Array{Str("1")}},
+		{s: `strings.fields(1, 2)`, m: catch, e: wrongArgs(1, 2)},
+		{s: `strings.fields("a\nb c\td ")`,
 			e: Array{Str("a"), Str("b"), Str("c"), Str("d")}},
-		{s: `strings.Fields("")`, e: Array{}},
+		{s: `strings.fields("")`, e: Array{}},
 
-		{s: `strings.FieldsFunc()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.FieldsFunc("")`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.FieldsFunc("axbxcx", func(c){ return c == 'x' })`,
+		{s: `strings.fieldsFunc()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.fieldsFunc("")`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.fieldsFunc("axbxcx", func(c){ return c == 'x' })`,
 			e: Array{Str("a"), Str("b"), Str("c")}},
-		{s: `strings.FieldsFunc("axbxcx", func(c){ return false })`,
+		{s: `strings.fieldsFunc("axbxcx", func(c){ return false })`,
 			e: Array{Str("axbxcx")}},
 
-		{s: `strings.HasPrefix()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.HasPrefix(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.HasPrefix(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.HasPrefix(1, 2)`, e: False},
-		{s: `strings.HasPrefix("", 2)`, e: False},
-		{s: `strings.HasPrefix("abcdef", "abcde")`, e: True},
-		{s: `strings.HasPrefix("abcdef", "x")`, e: False},
+		{s: `strings.hasPrefix()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.hasPrefix(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.hasPrefix(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.hasPrefix(1, 2)`, e: False},
+		{s: `strings.hasPrefix("", 2)`, e: False},
+		{s: `strings.hasPrefix("abcdef", "abcde")`, e: True},
+		{s: `strings.hasPrefix("abcdef", "x")`, e: False},
 
-		{s: `strings.HasSuffix()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.HasSuffix(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.HasSuffix(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.HasSuffix(1, 2)`, e: False},
-		{s: `strings.HasSuffix("", 2)`, e: False},
-		{s: `strings.HasSuffix("abcdef", "ef")`, e: True},
-		{s: `strings.HasSuffix("abcdef", "abc")`, e: False},
+		{s: `strings.hasSuffix()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.hasSuffix(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.hasSuffix(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.hasSuffix(1, 2)`, e: False},
+		{s: `strings.hasSuffix("", 2)`, e: False},
+		{s: `strings.hasSuffix("abcdef", "ef")`, e: True},
+		{s: `strings.hasSuffix("abcdef", "abc")`, e: False},
 
-		{s: `strings.Index()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.Index(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.Index(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.Index(1, 2)`, e: Int(-1)},
-		{s: `strings.Index("", 2)`, e: Int(-1)},
-		{s: `strings.Index("abcdef", "ef")`, e: Int(4)},
-		{s: `strings.Index("abcdef", "x")`, e: Int(-1)},
+		{s: `strings.index()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.index(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.index(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.index(1, 2)`, e: Int(-1)},
+		{s: `strings.index("", 2)`, e: Int(-1)},
+		{s: `strings.index("abcdef", "ef")`, e: Int(4)},
+		{s: `strings.index("abcdef", "x")`, e: Int(-1)},
 
-		{s: `strings.IndexAny()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.IndexAny(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.IndexAny(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.IndexAny(1, 2)`, e: Int(-1)},
-		{s: `strings.IndexAny("", 2)`, e: Int(-1)},
-		{s: `strings.IndexAny("abcdef", "ef")`, e: Int(4)},
-		{s: `strings.IndexAny("abcdef", "x")`, e: Int(-1)},
-		{s: `strings.IndexAny("abcdef", "xa")`, e: Int(0)},
+		{s: `strings.indexAny()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.indexAny(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.indexAny(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.indexAny(1, 2)`, e: Int(-1)},
+		{s: `strings.indexAny("", 2)`, e: Int(-1)},
+		{s: `strings.indexAny("abcdef", "ef")`, e: Int(4)},
+		{s: `strings.indexAny("abcdef", "x")`, e: Int(-1)},
+		{s: `strings.indexAny("abcdef", "xa")`, e: Int(0)},
 
-		{s: `strings.IndexByte()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.IndexByte(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.IndexByte(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.IndexByte(1, 2)`, e: Int(-1)},
-		{s: `strings.IndexByte("", "")`, e: Int(-1)},
-		{s: `strings.IndexByte("abcdef", 'b')`, e: Int(1)},
-		{s: `strings.IndexByte("abcdef", int('c'))`, e: Int(2)},
-		{s: `strings.IndexByte("abcdef", 'g')`, e: Int(-1)},
-		{s: `strings.IndexByte("abcdef", int('g'))`, e: Int(-1)},
+		{s: `strings.indexByte()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.indexByte(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.indexByte(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.indexByte(1, 2)`, e: Int(-1)},
+		{s: `strings.indexByte("", "")`, e: Int(-1)},
+		{s: `strings.indexByte("abcdef", 'b')`, e: Int(1)},
+		{s: `strings.indexByte("abcdef", int('c'))`, e: Int(2)},
+		{s: `strings.indexByte("abcdef", 'g')`, e: Int(-1)},
+		{s: `strings.indexByte("abcdef", int('g'))`, e: Int(-1)},
 
-		{s: `strings.IndexChar()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.IndexChar(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.IndexChar(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.IndexChar(1, 2)`, e: Int(-1)},
-		{s: `strings.IndexChar("", 1)`, e: Int(-1)},
-		{s: `strings.IndexChar("abcdef", 'c')`, e: Int(2)},
+		{s: `strings.indexChar()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.indexChar(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.indexChar(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.indexChar(1, 2)`, e: Int(-1)},
+		{s: `strings.indexChar("", 1)`, e: Int(-1)},
+		{s: `strings.indexChar("abcdef", 'c')`, e: Int(2)},
 
-		{s: `strings.IndexFunc()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.IndexFunc("")`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.IndexFunc("abcd", func(c){return c == 'c'})`, e: Int(2)},
-		{s: `strings.IndexFunc("abcd", func(c){return c == 'e'})`, e: Int(-1)},
+		{s: `strings.indexFunc()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.indexFunc("")`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.indexFunc("abcd", func(c){return c == 'c'})`, e: Int(2)},
+		{s: `strings.indexFunc("abcd", func(c){return c == 'e'})`, e: Int(-1)},
 
-		{s: `strings.Join()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.Join(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.Join(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.Join(1, 2)`, m: catch,
+		{s: `strings.join()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.join(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.join(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.join(1, 2)`, m: catch,
 			e: typeErr("1st", "array", "int")},
-		{s: `strings.Join([], 1)`, e: Str("")},
-		{s: `strings.Join(["a", "b", "c"], "\t")`, e: Str("a\tb\tc")},
+		{s: `strings.join([], 1)`, e: Str("")},
+		{s: `strings.join(["a", "b", "c"], "\t")`, e: Str("a\tb\tc")},
 
-		{s: `strings.JoinAnd()`, m: catch, e: wrongArgs(3, 0)},
-		{s: `strings.JoinAnd(1)`, m: catch, e: wrongArgs(3, 1)},
-		{s: `strings.JoinAnd(1, 2)`, m: catch, e: wrongArgs(3, 2)},
-		{s: `strings.JoinAnd(1, 2, 3, 4)`, m: catch, e: wrongArgs(3, 4)},
-		{s: `strings.JoinAnd(1, 2, 3)`, m: catch,
+		{s: `strings.joinAnd()`, m: catch, e: wrongArgs(3, 0)},
+		{s: `strings.joinAnd(1)`, m: catch, e: wrongArgs(3, 1)},
+		{s: `strings.joinAnd(1, 2)`, m: catch, e: wrongArgs(3, 2)},
+		{s: `strings.joinAnd(1, 2, 3, 4)`, m: catch, e: wrongArgs(3, 4)},
+		{s: `strings.joinAnd(1, 2, 3)`, m: catch,
 			e: typeErr("1st", "array", "int")},
-		{s: `strings.JoinAnd([], 1, 2)`, e: Str("")},
-		{s: `strings.JoinAnd(["a", "b", "c"], "\t", "\n")`, e: Str("a\tb\nc")},
-		{s: `strings.JoinAnd(["a", "b", "c"], ",", "|")`, e: Str("a,b|c")},
+		{s: `strings.joinAnd([], 1, 2)`, e: Str("")},
+		{s: `strings.joinAnd(["a", "b", "c"], "\t", "\n")`, e: Str("a\tb\nc")},
+		{s: `strings.joinAnd(["a", "b", "c"], ",", "|")`, e: Str("a,b|c")},
 
-		{s: `strings.LastIndex()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.LastIndex(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.LastIndex(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.LastIndex(1, 2)`, e: Int(-1)},
-		{s: `strings.LastIndex("", 2)`, e: Int(-1)},
-		{s: `strings.LastIndex("efabcdef", "ef")`, e: Int(6)},
-		{s: `strings.LastIndex("abcdef", "g")`, e: Int(-1)},
+		{s: `strings.lastIndex()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.lastIndex(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.lastIndex(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.lastIndex(1, 2)`, e: Int(-1)},
+		{s: `strings.lastIndex("", 2)`, e: Int(-1)},
+		{s: `strings.lastIndex("efabcdef", "ef")`, e: Int(6)},
+		{s: `strings.lastIndex("abcdef", "g")`, e: Int(-1)},
 
-		{s: `strings.LastIndexAny()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.LastIndexAny(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.LastIndexAny(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.LastIndexAny(1, 2)`, e: Int(-1)},
-		{s: `strings.LastIndexAny("", 2)`, e: Int(-1)},
-		{s: `strings.LastIndexAny("efabcdef", "xf")`, e: Int(7)},
-		{s: `strings.LastIndexAny("abcdef", "g")`, e: Int(-1)},
+		{s: `strings.lastIndexAny()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.lastIndexAny(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.lastIndexAny(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.lastIndexAny(1, 2)`, e: Int(-1)},
+		{s: `strings.lastIndexAny("", 2)`, e: Int(-1)},
+		{s: `strings.lastIndexAny("efabcdef", "xf")`, e: Int(7)},
+		{s: `strings.lastIndexAny("abcdef", "g")`, e: Int(-1)},
 
-		{s: `strings.LastIndexByte()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.LastIndexByte(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.LastIndexByte(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.LastIndexByte(1, 2)`, e: Int(-1)},
-		{s: `strings.LastIndexByte("", "")`, e: Int(-1)},
-		{s: `strings.LastIndexByte("efabcdef", 'f')`, e: Int(7)},
-		{s: `strings.LastIndexByte("efabcdef", int('f'))`, e: Int(7)},
-		{s: `strings.LastIndexByte("abcdef", 'g')`, e: Int(-1)},
+		{s: `strings.lastIndexByte()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.lastIndexByte(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.lastIndexByte(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.lastIndexByte(1, 2)`, e: Int(-1)},
+		{s: `strings.lastIndexByte("", "")`, e: Int(-1)},
+		{s: `strings.lastIndexByte("efabcdef", 'f')`, e: Int(7)},
+		{s: `strings.lastIndexByte("efabcdef", int('f'))`, e: Int(7)},
+		{s: `strings.lastIndexByte("abcdef", 'g')`, e: Int(-1)},
 
-		{s: `strings.LastIndexFunc()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.LastIndexFunc("")`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.LastIndexFunc("acbcd", func(c){return c=='c'})`, e: Int(3)},
-		{s: `strings.LastIndexFunc("abcd", func(c){return c=='e'})`, e: Int(-1)},
+		{s: `strings.lastIndexFunc()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.lastIndexFunc("")`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.lastIndexFunc("acbcd", func(c){return c=='c'})`, e: Int(3)},
+		{s: `strings.lastIndexFunc("abcd", func(c){return c=='e'})`, e: Int(-1)},
 
-		{s: `strings.Dict()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.Dict(func(){})`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.Dict(
+		{s: `strings.dict()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.dict(func(){})`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.dict(
 			func(c){
 				if c == 't' { return 'I' }
 				if c == 'e' { return '❤' }
@@ -508,220 +508,220 @@ func TestScript(t *testing.T) {
 				return c
 			},
 			"tengo")`, e: Str("I❤Gad")},
-		{s: `strings.Dict(func(c){return c}, "test")`,
+		{s: `strings.dict(func(c){return c}, "test")`,
 			m: catch, e: Str("test")},
 
-		{s: `strings.PadLeft()`, m: catch, e: nwrongArgs(2, 3, 0)},
-		{s: `strings.PadLeft(1)`, m: catch, e: nwrongArgs(2, 3, 1)},
-		{s: `strings.PadLeft(1, 2, 3, 4)`, m: catch, e: nwrongArgs(2, 3, 4)},
-		{s: `strings.PadLeft(1, 2, 3)`, e: Str("31")},
-		{s: `strings.PadLeft("", "", "")`, m: catch,
+		{s: `strings.padLeft()`, m: catch, e: nwrongArgs(2, 3, 0)},
+		{s: `strings.padLeft(1)`, m: catch, e: nwrongArgs(2, 3, 1)},
+		{s: `strings.padLeft(1, 2, 3, 4)`, m: catch, e: nwrongArgs(2, 3, 4)},
+		{s: `strings.padLeft(1, 2, 3)`, e: Str("31")},
+		{s: `strings.padLeft("", "", "")`, m: catch,
 			e: typeErr("2nd", "int", "str")},
-		{s: `strings.PadLeft("", 0, "")`, e: Str("")},
-		{s: `strings.PadLeft("", -1, "")`, e: Str("")},
-		{s: `strings.PadLeft("", 1, "")`, e: Str("")},
-		{s: `strings.PadLeft("", 1, "x")`, e: Str("x")},
-		{s: `strings.PadLeft("abc", 3)`, e: Str("abc")},
-		{s: `strings.PadLeft("abc", 4)`, e: Str(" abc")},
-		{s: `strings.PadLeft("abc", 5)`, e: Str("  abc")},
-		{s: `strings.PadLeft("abc", 6)`, e: Str("   abc")},
-		{s: `strings.PadLeft("abc", -1, "x")`, e: Str("abc")},
-		{s: `strings.PadLeft("abc", 0, "x")`, e: Str("abc")},
-		{s: `strings.PadLeft("abc", 1, "x")`, e: Str("abc")},
-		{s: `strings.PadLeft("abc", 2, "x")`, e: Str("abc")},
-		{s: `strings.PadLeft("abc", 3, "x")`, e: Str("abc")},
-		{s: `strings.PadLeft("abc", 4, "x")`, e: Str("xabc")},
-		{s: `strings.PadLeft("abc", 5, "x")`, e: Str("xxabc")},
-		{s: `strings.PadLeft("abc", 5, "xy")`, e: Str("xyabc")},
-		{s: `strings.PadLeft("abc", 6, "xy")`, e: Str("xyxabc")},
-		{s: `strings.PadLeft("abc", 6, "wxyz")`, e: Str("wxyabc")},
+		{s: `strings.padLeft("", 0, "")`, e: Str("")},
+		{s: `strings.padLeft("", -1, "")`, e: Str("")},
+		{s: `strings.padLeft("", 1, "")`, e: Str("")},
+		{s: `strings.padLeft("", 1, "x")`, e: Str("x")},
+		{s: `strings.padLeft("abc", 3)`, e: Str("abc")},
+		{s: `strings.padLeft("abc", 4)`, e: Str(" abc")},
+		{s: `strings.padLeft("abc", 5)`, e: Str("  abc")},
+		{s: `strings.padLeft("abc", 6)`, e: Str("   abc")},
+		{s: `strings.padLeft("abc", -1, "x")`, e: Str("abc")},
+		{s: `strings.padLeft("abc", 0, "x")`, e: Str("abc")},
+		{s: `strings.padLeft("abc", 1, "x")`, e: Str("abc")},
+		{s: `strings.padLeft("abc", 2, "x")`, e: Str("abc")},
+		{s: `strings.padLeft("abc", 3, "x")`, e: Str("abc")},
+		{s: `strings.padLeft("abc", 4, "x")`, e: Str("xabc")},
+		{s: `strings.padLeft("abc", 5, "x")`, e: Str("xxabc")},
+		{s: `strings.padLeft("abc", 5, "xy")`, e: Str("xyabc")},
+		{s: `strings.padLeft("abc", 6, "xy")`, e: Str("xyxabc")},
+		{s: `strings.padLeft("abc", 6, "wxyz")`, e: Str("wxyabc")},
 
-		{s: `strings.PadRight()`, m: catch, e: nwrongArgs(2, 3, 0)},
-		{s: `strings.PadRight(1)`, m: catch, e: nwrongArgs(2, 3, 1)},
-		{s: `strings.PadRight(1, 2, 3, 4)`, m: catch, e: nwrongArgs(2, 3, 4)},
-		{s: `strings.PadRight(1, 2, 3)`, e: Str("13")},
-		{s: `strings.PadRight("", "", "")`, m: catch,
+		{s: `strings.padRight()`, m: catch, e: nwrongArgs(2, 3, 0)},
+		{s: `strings.padRight(1)`, m: catch, e: nwrongArgs(2, 3, 1)},
+		{s: `strings.padRight(1, 2, 3, 4)`, m: catch, e: nwrongArgs(2, 3, 4)},
+		{s: `strings.padRight(1, 2, 3)`, e: Str("13")},
+		{s: `strings.padRight("", "", "")`, m: catch,
 			e: typeErr("2nd", "int", "str")},
-		{s: `strings.PadRight("", 0, "")`, e: Str("")},
-		{s: `strings.PadRight("", -1, "")`, e: Str("")},
-		{s: `strings.PadRight("", 1, "")`, e: Str("")},
-		{s: `strings.PadRight("", 1, "x")`, e: Str("x")},
-		{s: `strings.PadRight("abc", 3)`, e: Str("abc")},
-		{s: `strings.PadRight("abc", 4)`, e: Str("abc ")},
-		{s: `strings.PadRight("abc", 5)`, e: Str("abc  ")},
-		{s: `strings.PadRight("abc", 6)`, e: Str("abc   ")},
-		{s: `strings.PadRight("abc", -1, "x")`, e: Str("abc")},
-		{s: `strings.PadRight("abc", 0, "x")`, e: Str("abc")},
-		{s: `strings.PadRight("abc", 1, "x")`, e: Str("abc")},
-		{s: `strings.PadRight("abc", 2, "x")`, e: Str("abc")},
-		{s: `strings.PadRight("abc", 3, "x")`, e: Str("abc")},
-		{s: `strings.PadRight("abc", 4, "x")`, e: Str("abcx")},
-		{s: `strings.PadRight("abc", 5, "x")`, e: Str("abcxx")},
-		{s: `strings.PadRight("abc", 5, "xy")`, e: Str("abcxy")},
-		{s: `strings.PadRight("abc", 6, "xy")`, e: Str("abcxyx")},
-		{s: `strings.PadRight("abc", 6, "wxyz")`, e: Str("abcwxy")},
+		{s: `strings.padRight("", 0, "")`, e: Str("")},
+		{s: `strings.padRight("", -1, "")`, e: Str("")},
+		{s: `strings.padRight("", 1, "")`, e: Str("")},
+		{s: `strings.padRight("", 1, "x")`, e: Str("x")},
+		{s: `strings.padRight("abc", 3)`, e: Str("abc")},
+		{s: `strings.padRight("abc", 4)`, e: Str("abc ")},
+		{s: `strings.padRight("abc", 5)`, e: Str("abc  ")},
+		{s: `strings.padRight("abc", 6)`, e: Str("abc   ")},
+		{s: `strings.padRight("abc", -1, "x")`, e: Str("abc")},
+		{s: `strings.padRight("abc", 0, "x")`, e: Str("abc")},
+		{s: `strings.padRight("abc", 1, "x")`, e: Str("abc")},
+		{s: `strings.padRight("abc", 2, "x")`, e: Str("abc")},
+		{s: `strings.padRight("abc", 3, "x")`, e: Str("abc")},
+		{s: `strings.padRight("abc", 4, "x")`, e: Str("abcx")},
+		{s: `strings.padRight("abc", 5, "x")`, e: Str("abcxx")},
+		{s: `strings.padRight("abc", 5, "xy")`, e: Str("abcxy")},
+		{s: `strings.padRight("abc", 6, "xy")`, e: Str("abcxyx")},
+		{s: `strings.padRight("abc", 6, "wxyz")`, e: Str("abcwxy")},
 
-		{s: `strings.Repeat()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.Repeat(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.Repeat(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.Repeat(1, 2)`, e: Str("11")},
-		{s: `strings.Repeat("", "")`, m: catch,
+		{s: `strings.repeat()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.repeat(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.repeat(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.repeat(1, 2)`, e: Str("11")},
+		{s: `strings.repeat("", "")`, m: catch,
 			e: typeErr("2nd", "int", "str")},
-		{s: `strings.Repeat("a", -1)`, e: Str("")},
-		{s: `strings.Repeat("a", 0)`, e: Str("")},
-		{s: `strings.Repeat("a", 2)`, e: Str("aa")},
+		{s: `strings.repeat("a", -1)`, e: Str("")},
+		{s: `strings.repeat("a", 0)`, e: Str("")},
+		{s: `strings.repeat("a", 2)`, e: Str("aa")},
 
-		{s: `strings.Replace()`, m: catch, e: nwrongArgs(3, 4, 0)},
-		{s: `strings.Replace(1)`, m: catch, e: nwrongArgs(3, 4, 1)},
-		{s: `strings.Replace(1, 2)`, m: catch, e: nwrongArgs(3, 4, 2)},
-		{s: `strings.Replace(1, 2, 3, 4, 5)`, m: catch, e: nwrongArgs(3, 4, 5)},
-		{s: `strings.Replace(1, 2, 3)`, e: Str("1")},
-		{s: `strings.Replace("", 1, 3)`, e: Str("")},
-		{s: `strings.Replace("", "", 1)`, e: Str("1")},
-		{s: `strings.Replace("", "", "", "")`, m: catch,
+		{s: `strings.replace()`, m: catch, e: nwrongArgs(3, 4, 0)},
+		{s: `strings.replace(1)`, m: catch, e: nwrongArgs(3, 4, 1)},
+		{s: `strings.replace(1, 2)`, m: catch, e: nwrongArgs(3, 4, 2)},
+		{s: `strings.replace(1, 2, 3, 4, 5)`, m: catch, e: nwrongArgs(3, 4, 5)},
+		{s: `strings.replace(1, 2, 3)`, e: Str("1")},
+		{s: `strings.replace("", 1, 3)`, e: Str("")},
+		{s: `strings.replace("", "", 1)`, e: Str("1")},
+		{s: `strings.replace("", "", "", "")`, m: catch,
 			e: typeErr("4th", "int", "str")},
-		{s: `strings.Replace("abc", "s", "ş")`, e: Str("abc")},
-		{s: `strings.Replace("abbc", "b", "a")`, e: Str("aaac")},
-		{s: `strings.Replace("abbc", "b", "a", 0)`, e: Str("abbc")},
-		{s: `strings.Replace("abbc", "b", "a", 1)`, e: Str("aabc")},
+		{s: `strings.replace("abc", "s", "ş")`, e: Str("abc")},
+		{s: `strings.replace("abbc", "b", "a")`, e: Str("aaac")},
+		{s: `strings.replace("abbc", "b", "a", 0)`, e: Str("abbc")},
+		{s: `strings.replace("abbc", "b", "a", 1)`, e: Str("aabc")},
 
-		{s: `strings.Split()`, m: catch, e: nwrongArgs(2, 3, 0)},
-		{s: `strings.Split(1)`, m: catch, e: nwrongArgs(2, 3, 1)},
-		{s: `strings.Split(1, 2, 3, 4)`, m: catch, e: nwrongArgs(2, 3, 4)},
-		{s: `strings.Split(1, 2)`, e: Array{Str("1")}},
-		{s: `strings.Split("", 1, 3)`, e: Array{Str("")}},
-		{s: `strings.Split("", "", "")`, m: catch,
+		{s: `strings.split()`, m: catch, e: nwrongArgs(2, 3, 0)},
+		{s: `strings.split(1)`, m: catch, e: nwrongArgs(2, 3, 1)},
+		{s: `strings.split(1, 2, 3, 4)`, m: catch, e: nwrongArgs(2, 3, 4)},
+		{s: `strings.split(1, 2)`, e: Array{Str("1")}},
+		{s: `strings.split("", 1, 3)`, e: Array{Str("")}},
+		{s: `strings.split("", "", "")`, m: catch,
 			e: typeErr("3rd", "int", "str")},
-		{s: `strings.Split("a.b.c", ".", 0)`, e: Array{}},
-		{s: `strings.Split("a.b.c", ".", 1)`, e: Array{Str("a.b.c")}},
-		{s: `strings.Split("a.b.c", ".", -1)`,
+		{s: `strings.split("a.b.c", ".", 0)`, e: Array{}},
+		{s: `strings.split("a.b.c", ".", 1)`, e: Array{Str("a.b.c")}},
+		{s: `strings.split("a.b.c", ".", -1)`,
 			e: Array{Str("a"), Str("b"), Str("c")}},
-		{s: `strings.Split("a.b.c", ".")`,
+		{s: `strings.split("a.b.c", ".")`,
 			e: Array{Str("a"), Str("b"), Str("c")}},
-		{s: `strings.Split("a.b.c.", ".")`,
+		{s: `strings.split("a.b.c.", ".")`,
 			e: Array{Str("a"), Str("b"), Str("c"), Str("")}},
-		{s: `strings.Split("a.b.c.", ".", 5)`,
+		{s: `strings.split("a.b.c.", ".", 5)`,
 			e: Array{Str("a"), Str("b"), Str("c"), Str("")}},
 
-		{s: `strings.SplitAfter()`, m: catch, e: nwrongArgs(2, 3, 0)},
-		{s: `strings.SplitAfter(1)`, m: catch, e: nwrongArgs(2, 3, 1)},
-		{s: `strings.SplitAfter(1, 2, 3, 4)`, m: catch, e: nwrongArgs(2, 3, 4)},
-		{s: `strings.SplitAfter(1, 2)`, e: Array{Str("1")}},
-		{s: `strings.SplitAfter("", 1, 3)`, e: Array{Str("")}},
-		{s: `strings.SplitAfter("", "", "")`, m: catch,
+		{s: `strings.splitAfter()`, m: catch, e: nwrongArgs(2, 3, 0)},
+		{s: `strings.splitAfter(1)`, m: catch, e: nwrongArgs(2, 3, 1)},
+		{s: `strings.splitAfter(1, 2, 3, 4)`, m: catch, e: nwrongArgs(2, 3, 4)},
+		{s: `strings.splitAfter(1, 2)`, e: Array{Str("1")}},
+		{s: `strings.splitAfter("", 1, 3)`, e: Array{Str("")}},
+		{s: `strings.splitAfter("", "", "")`, m: catch,
 			e: typeErr("3rd", "int", "str")},
-		{s: `strings.SplitAfter("a.b.c", ".", 0)`, e: Array{}},
-		{s: `strings.SplitAfter("a.b.c", ".", 1)`, e: Array{Str("a.b.c")}},
-		{s: `strings.SplitAfter("a.b.c", ".", -1)`,
+		{s: `strings.splitAfter("a.b.c", ".", 0)`, e: Array{}},
+		{s: `strings.splitAfter("a.b.c", ".", 1)`, e: Array{Str("a.b.c")}},
+		{s: `strings.splitAfter("a.b.c", ".", -1)`,
 			e: Array{Str("a."), Str("b."), Str("c")}},
-		{s: `strings.SplitAfter("a.b.c", ".")`,
+		{s: `strings.splitAfter("a.b.c", ".")`,
 			e: Array{Str("a."), Str("b."), Str("c")}},
-		{s: `strings.SplitAfter("a.b.c.", ".")`,
+		{s: `strings.splitAfter("a.b.c.", ".")`,
 			e: Array{Str("a."), Str("b."), Str("c."), Str("")}},
-		{s: `strings.SplitAfter("a.b.c.", ".", 5)`,
+		{s: `strings.splitAfter("a.b.c.", ".", 5)`,
 			e: Array{Str("a."), Str("b."), Str("c."), Str("")}},
 
-		{s: `strings.Title()`, m: catch, e: wrongArgs(1, 0)},
-		{s: `strings.Title(1, 2)`, m: catch, e: wrongArgs(1, 2)},
-		{s: `strings.Title(1)`, e: Str("1")},
-		{s: `strings.Title("")`, e: Str("")},
-		{s: `strings.Title("abc def")`, e: Str("Abc Def")},
+		{s: `strings.title()`, m: catch, e: wrongArgs(1, 0)},
+		{s: `strings.title(1, 2)`, m: catch, e: wrongArgs(1, 2)},
+		{s: `strings.title(1)`, e: Str("1")},
+		{s: `strings.title("")`, e: Str("")},
+		{s: `strings.title("abc def")`, e: Str("Abc Def")},
 
-		{s: `strings.ToLower()`, m: catch, e: wrongArgs(1, 0)},
-		{s: `strings.ToLower(1, 2)`, m: catch, e: wrongArgs(1, 2)},
-		{s: `strings.ToLower(1)`, e: Str("1")},
-		{s: `strings.ToLower("")`, e: Str("")},
-		{s: `strings.ToLower("XYZ")`, e: Str("xyz")},
+		{s: `strings.toLower()`, m: catch, e: wrongArgs(1, 0)},
+		{s: `strings.toLower(1, 2)`, m: catch, e: wrongArgs(1, 2)},
+		{s: `strings.toLower(1)`, e: Str("1")},
+		{s: `strings.toLower("")`, e: Str("")},
+		{s: `strings.toLower("XYZ")`, e: Str("xyz")},
 
-		{s: `strings.ToTitle()`, m: catch, e: wrongArgs(1, 0)},
-		{s: `strings.ToTitle(1, 2)`, m: catch, e: wrongArgs(1, 2)},
-		{s: `strings.ToTitle(1)`, e: Str("1")},
-		{s: `strings.ToTitle("")`, e: Str("")},
-		{s: `strings.ToTitle("çğ öşü")`, e: Str("ÇĞ ÖŞÜ")},
+		{s: `strings.toTitle()`, m: catch, e: wrongArgs(1, 0)},
+		{s: `strings.toTitle(1, 2)`, m: catch, e: wrongArgs(1, 2)},
+		{s: `strings.toTitle(1)`, e: Str("1")},
+		{s: `strings.toTitle("")`, e: Str("")},
+		{s: `strings.toTitle("çğ öşü")`, e: Str("ÇĞ ÖŞÜ")},
 
-		{s: `strings.ToUpper()`, m: catch, e: wrongArgs(1, 0)},
-		{s: `strings.ToUpper(1, 2)`, m: catch, e: wrongArgs(1, 2)},
-		{s: `strings.ToUpper(1)`, e: Str("1")},
-		{s: `strings.ToUpper("")`, e: Str("")},
-		{s: `strings.ToUpper("çğ öşü")`, e: Str("ÇĞ ÖŞÜ")},
+		{s: `strings.toUpper()`, m: catch, e: wrongArgs(1, 0)},
+		{s: `strings.toUpper(1, 2)`, m: catch, e: wrongArgs(1, 2)},
+		{s: `strings.toUpper(1)`, e: Str("1")},
+		{s: `strings.toUpper("")`, e: Str("")},
+		{s: `strings.toUpper("çğ öşü")`, e: Str("ÇĞ ÖŞÜ")},
 
-		{s: `strings.ToValidUTF8()`, m: catch, e: nwrongArgs(1, 2, 0)},
-		{s: `strings.ToValidUTF8(1, 2, 2)`, m: catch, e: nwrongArgs(1, 2, 3)},
-		{s: `strings.ToValidUTF8("a")`, e: Str("a")},
-		{s: `strings.ToValidUTF8("a☺\xffb☺\xC0\xAFc☺\xff", "日本語")`, e: Str("a☺日本語b☺日本語c☺日本語")},
-		{s: `strings.ToValidUTF8("a☺\xffb☺\xC0\xAFc☺\xff", "")`, e: Str("a☺b☺c☺")},
+		{s: `strings.toValidUTF8()`, m: catch, e: nwrongArgs(1, 2, 0)},
+		{s: `strings.toValidUTF8(1, 2, 2)`, m: catch, e: nwrongArgs(1, 2, 3)},
+		{s: `strings.toValidUTF8("a")`, e: Str("a")},
+		{s: `strings.toValidUTF8("a☺\xffb☺\xC0\xAFc☺\xff", "日本語")`, e: Str("a☺日本語b☺日本語c☺日本語")},
+		{s: `strings.toValidUTF8("a☺\xffb☺\xC0\xAFc☺\xff", "")`, e: Str("a☺b☺c☺")},
 
-		{s: `strings.Trim()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.Trim(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.Trim(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.Trim(1, 2)`, e: Str("1")},
-		{s: `strings.Trim("", 2)`, e: Str("")},
-		{s: `strings.Trim("!!xyz!!", "")`, e: Str("!!xyz!!")},
-		{s: `strings.Trim("!!xyz!!", "!")`, e: Str("xyz")},
-		{s: `strings.Trim("!!xyz!!", "!?")`, e: Str("xyz")},
+		{s: `strings.trim()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.trim(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.trim(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.trim(1, 2)`, e: Str("1")},
+		{s: `strings.trim("", 2)`, e: Str("")},
+		{s: `strings.trim("!!xyz!!", "")`, e: Str("!!xyz!!")},
+		{s: `strings.trim("!!xyz!!", "!")`, e: Str("xyz")},
+		{s: `strings.trim("!!xyz!!", "!?")`, e: Str("xyz")},
 
-		{s: `strings.TrimFunc()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.TrimFunc("")`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.TrimFunc("xabcxx",
+		{s: `strings.trimFunc()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.trimFunc("")`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.trimFunc("xabcxx",
 			func(c){return c=='x'})`, e: Str("abc")},
 
-		{s: `strings.TrimLeft()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.TrimLeft(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.TrimLeft(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.TrimLeft(1, 2)`, e: Str("1")},
-		{s: `strings.TrimLeft("", 2)`, e: Str("")},
-		{s: `strings.TrimLeft("!!xyz!!", "")`, e: Str("!!xyz!!")},
-		{s: `strings.TrimLeft("!!xyz!!", "!")`, e: Str("xyz!!")},
-		{s: `strings.TrimLeft("!!?xyz!!", "!?")`, e: Str("xyz!!")},
+		{s: `strings.trimLeft()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.trimLeft(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.trimLeft(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.trimLeft(1, 2)`, e: Str("1")},
+		{s: `strings.trimLeft("", 2)`, e: Str("")},
+		{s: `strings.trimLeft("!!xyz!!", "")`, e: Str("!!xyz!!")},
+		{s: `strings.trimLeft("!!xyz!!", "!")`, e: Str("xyz!!")},
+		{s: `strings.trimLeft("!!?xyz!!", "!?")`, e: Str("xyz!!")},
 
-		{s: `strings.TrimLeftFunc()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.TrimLeftFunc("")`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.TrimLeftFunc("xxabcxx",
+		{s: `strings.trimLeftFunc()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.trimLeftFunc("")`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.trimLeftFunc("xxabcxx",
 			func(c){return c=='x'})`, e: Str("abcxx")},
-		{s: `strings.TrimLeftFunc("abcxx",
+		{s: `strings.trimLeftFunc("abcxx",
 			func(c){return c=='x'})`, e: Str("abcxx")},
 
-		{s: `strings.TrimPrefix()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.TrimPrefix(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.TrimPrefix(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.TrimPrefix(1, 2)`, e: Str("1")},
-		{s: `strings.TrimPrefix("", 2)`, e: Str("")},
-		{s: `strings.TrimPrefix("!!xyz!!", "")`, e: Str("!!xyz!!")},
-		{s: `strings.TrimPrefix("!!xyz!!", "!")`, e: Str("!xyz!!")},
-		{s: `strings.TrimPrefix("!!xyz!!", "!!")`, e: Str("xyz!!")},
-		{s: `strings.TrimPrefix("!!xyz!!", "!!x")`, e: Str("yz!!")},
+		{s: `strings.trimPrefix()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.trimPrefix(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.trimPrefix(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.trimPrefix(1, 2)`, e: Str("1")},
+		{s: `strings.trimPrefix("", 2)`, e: Str("")},
+		{s: `strings.trimPrefix("!!xyz!!", "")`, e: Str("!!xyz!!")},
+		{s: `strings.trimPrefix("!!xyz!!", "!")`, e: Str("!xyz!!")},
+		{s: `strings.trimPrefix("!!xyz!!", "!!")`, e: Str("xyz!!")},
+		{s: `strings.trimPrefix("!!xyz!!", "!!x")`, e: Str("yz!!")},
 
-		{s: `strings.TrimRight()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.TrimRight(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.TrimRight(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.TrimRight(1, 2)`, e: Str("1")},
-		{s: `strings.TrimRight("", 2)`, e: Str("")},
-		{s: `strings.TrimRight("!!xyz!!", "")`, e: Str("!!xyz!!")},
-		{s: `strings.TrimRight("!!xyz!!", "!")`, e: Str("!!xyz")},
-		{s: `strings.TrimRight("!!xyz?!!", "!?")`, e: Str("!!xyz")},
+		{s: `strings.trimRight()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.trimRight(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.trimRight(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.trimRight(1, 2)`, e: Str("1")},
+		{s: `strings.trimRight("", 2)`, e: Str("")},
+		{s: `strings.trimRight("!!xyz!!", "")`, e: Str("!!xyz!!")},
+		{s: `strings.trimRight("!!xyz!!", "!")`, e: Str("!!xyz")},
+		{s: `strings.trimRight("!!xyz?!!", "!?")`, e: Str("!!xyz")},
 
-		{s: `strings.TrimRightFunc()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.TrimRightFunc("")`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.TrimRightFunc("xxabcxx",
+		{s: `strings.trimRightFunc()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.trimRightFunc("")`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.trimRightFunc("xxabcxx",
 			func(c){return c=='x'})`, e: Str("xxabc")},
-		{s: `strings.TrimRightFunc("xxabc",
+		{s: `strings.trimRightFunc("xxabc",
 			func(c){return c=='x'})`, e: Str("xxabc")},
 
-		{s: `strings.TrimSpace()`, m: catch, e: wrongArgs(1, 0)},
-		{s: `strings.TrimSpace(1, 2)`, m: catch, e: wrongArgs(1, 2)},
-		{s: `strings.TrimSpace(1)`, e: Str("1")},
-		{s: `strings.TrimSpace(" \txyz\n\r")`, e: Str("xyz")},
-		{s: `strings.TrimSpace("xyz")`, e: Str("xyz")},
+		{s: `strings.trimSpace()`, m: catch, e: wrongArgs(1, 0)},
+		{s: `strings.trimSpace(1, 2)`, m: catch, e: wrongArgs(1, 2)},
+		{s: `strings.trimSpace(1)`, e: Str("1")},
+		{s: `strings.trimSpace(" \txyz\n\r")`, e: Str("xyz")},
+		{s: `strings.trimSpace("xyz")`, e: Str("xyz")},
 
-		{s: `strings.TrimSuffix()`, m: catch, e: wrongArgs(2, 0)},
-		{s: `strings.TrimSuffix(1)`, m: catch, e: wrongArgs(2, 1)},
-		{s: `strings.TrimSuffix(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
-		{s: `strings.TrimSuffix(1, 2)`, e: Str("1")},
-		{s: `strings.TrimSuffix("", 2)`, e: Str("")},
-		{s: `strings.TrimSuffix("!!xyz!!", "")`, e: Str("!!xyz!!")},
-		{s: `strings.TrimSuffix("!!xyz!!", "!")`, e: Str("!!xyz!")},
-		{s: `strings.TrimSuffix("!!xyz!!", "!!")`, e: Str("!!xyz")},
-		{s: `strings.TrimSuffix("!!xyz!!", "z!!")`, e: Str("!!xy")},
+		{s: `strings.trimSuffix()`, m: catch, e: wrongArgs(2, 0)},
+		{s: `strings.trimSuffix(1)`, m: catch, e: wrongArgs(2, 1)},
+		{s: `strings.trimSuffix(1, 2, 3)`, m: catch, e: wrongArgs(2, 3)},
+		{s: `strings.trimSuffix(1, 2)`, e: Str("1")},
+		{s: `strings.trimSuffix("", 2)`, e: Str("")},
+		{s: `strings.trimSuffix("!!xyz!!", "")`, e: Str("!!xyz!!")},
+		{s: `strings.trimSuffix("!!xyz!!", "!")`, e: Str("!!xyz!")},
+		{s: `strings.trimSuffix("!!xyz!!", "!!")`, e: Str("!!xyz")},
+		{s: `strings.trimSuffix("!!xyz!!", "z!!")`, e: Str("!!xy")},
 	}
 	for _, tt := range testCases {
 		var s string

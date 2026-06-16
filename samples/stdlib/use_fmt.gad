@@ -3,7 +3,7 @@
 name := "Gad"
 n := 42
 
-println(fmt.Sprintf("%s has %d letters", name, len(name)))
-println(fmt.Sprintf("hex %x, padded %05d", n, n))
+println(fmt.sprintf("%s has %d letters", name, len(name)))
+println(fmt.sprintf("hex %x, padded %05d", n, n))
 
-return fmt.Sprintf("%s=%d", name, n)
+return fmt.sprintf("%s=%d", name, n)
