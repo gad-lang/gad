@@ -13,6 +13,10 @@ import (
 // ("b" or "h") is stored when the scanner recognises a b"..."/h"..." literal.
 const bytesLitPrefixKey = "bytesLitPrefix"
 
+// durationLitKey is the PToken data flag set when the scanner recognises a
+// d"..."/d`...` duration literal (its string body is a Go duration string).
+const durationLitKey = "durationLit"
+
 // scanCodeStr scans a `code … end` code-string literal whose `code` keyword
 // starts at codeStart (already consumed: s.Ch is the first character after it).
 // Two forms are accepted:
@@ -268,6 +272,25 @@ do:
 				}
 			}
 			t.Set(bytesLitPrefixKey, prefix)
+			insertSemi = true
+			break
+		}
+		// A single-letter `d` identifier glued to a string delimiter is a
+		// duration literal: d"1h30m" / d`1h30m`, whose content is a Go duration
+		// string. A space breaks it, so a `d` variable is unaffected.
+		if t.Token == token.Ident && t.Literal == "d" &&
+			(s.Ch == '"' || s.Ch == '`') {
+			delim := s.Ch
+			s.Next() // consume the opening delimiter
+			switch delim {
+			case '"':
+				t.Token = token.String
+				t.Literal, _ = s.ScanString()
+			case '`':
+				t.Token = token.RawString
+				t.Literal, _ = s.ScanRawString()
+			}
+			t.Set(durationLitKey, true)
 			insertSemi = true
 			break
 		}

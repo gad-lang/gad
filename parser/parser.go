@@ -784,6 +784,22 @@ func (p *Parser) ParseBytesLit(prefix node.BytesLitPrefix) node.Expr {
 	return &node.BytesLit{Prefix: prefix, PrefixPos: pos, Str: str}
 }
 
+func (p *Parser) ParseDurationLit() node.Expr {
+	pos := p.Token.Pos
+	var str node.Expr
+	switch p.Token.Token {
+	case token.String:
+		str = p.ParseStrLit()
+	case token.RawString:
+		str = p.ParseRawStrLit()
+	default:
+		p.ErrorExpected(pos, "string literal")
+		p.advance(stmtStart)
+		return &node.BadExpr{From: pos, To: p.Token.Pos}
+	}
+	return &node.DurationLit{PrefixPos: pos, Str: str}
+}
+
 func (p *Parser) ParseStrLit() *node.StrLit {
 	x := &node.StrLit{
 		ValuePos: p.Token.Pos,
@@ -873,6 +889,9 @@ func (p *Parser) ParseLiteral() node.Expr {
 	}
 	if prefix, ok := p.Token.GetOk(bytesLitPrefixKey); ok {
 		return p.ParseBytesLit(node.BytesLitPrefix(prefix.(string)))
+	}
+	if p.Token.Flag(durationLitKey) {
+		return p.ParseDurationLit()
 	}
 	switch p.Token.Token {
 	case token.Nil:

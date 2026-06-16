@@ -3841,6 +3841,16 @@ func TestParseCodeStr(t *testing.T) {
 	test.ExpectParseString(t, `code = 1`, `code = 1`)
 }
 
+func TestParseDurationLit(t *testing.T) {
+	// d"…" / d`…` round-trip with the prefix preserved
+	test.ExpectParseString(t, `x := d"1h30m"`, `x := d"1h30m"`)
+	test.ExpectParseString(t, "x := d`500ms`", "x := d`500ms`")
+	// in operand position (call argument)
+	test.ExpectParseString(t, `f(d"2s")`, `f(d"2s")`)
+	// the prefix must be glued: a space breaks the literal (d is then an ident)
+	test.ExpectParseError(t, `d "2s"`)
+}
+
 func TestParseDeferStmt(t *testing.T) {
 	test.ExpectParseString(t, `defer { x }`, `defer { x }`)
 	test.ExpectParseString(t, `defer handler`, `defer handler`)

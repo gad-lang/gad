@@ -1795,3 +1795,39 @@ func (e *BytesLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(string(e.Prefix))
 	e.Str.WriteCode(ctx)
 }
+
+// DurationLit is a `d"…"` / `d`…“ duration literal whose body is a Go duration
+// string (e.g. "1h30m"). It compiles to a Duration value.
+type DurationLit struct {
+	// PrefixPos is the position of the `d` prefix letter.
+	PrefixPos source.Pos
+	// Str is the underlying string literal node (*StrLit or *RawStrLit).
+	Str Expr
+}
+
+func (e *DurationLit) ExprNode() {}
+
+// Pos returns the position of the `d` prefix.
+func (e *DurationLit) Pos() source.Pos { return e.PrefixPos }
+
+// End returns the position immediately after the underlying string literal.
+func (e *DurationLit) End() source.Pos { return e.Str.End() }
+
+// StrValue returns the duration string content (the inner literal's value).
+func (e *DurationLit) StrValue() string {
+	switch t := e.Str.(type) {
+	case *StrLit:
+		return t.Value()
+	case *RawStrLit:
+		return t.Value()
+	default:
+		return ""
+	}
+}
+
+func (e *DurationLit) String() string { return "d" + e.Str.String() }
+
+func (e *DurationLit) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("d")
+	e.Str.WriteCode(ctx)
+}

@@ -126,6 +126,28 @@ func TestVMBuiltinModuleTime(t *testing.T) {
 	testExpectRun(t, `return time.durationString(time.Hour + 30 * time.Minute)`, nil, Str("1h30m0s"))
 }
 
+func TestVMTimeDurationDate(t *testing.T) {
+	// d"…" duration literal compiles to a duration value
+	testExpectRun(t, `return typeName(d"1h30m")`, nil, Str("duration"))
+	testExpectRun(t, `return str(d"1h30m")`, nil, Str("1h30m0s"))
+	testExpectRun(t, `return d"1h30m".minutes()`, nil, Float(90))
+	// duration arithmetic and comparison
+	testExpectRun(t, `return str(d"1h" + d"30m")`, nil, Str("1h30m0s"))
+	testExpectRun(t, `return d"1h" > d"30m"`, nil, Bool(true))
+	// the Duration constructor: from int (ns) or a string
+	testExpectRun(t, `return d"1s" == time.Duration("1s")`, nil, Bool(true))
+	testExpectRun(t, `return str(time.Duration(1000000000))`, nil, Str("1s"))
+	// invalid duration literal is a compile error
+	expectErrHas(t, `return d"nope"`, newOpts().CompilerError(),
+		`Compile Error: invalid duration literal`)
+
+	// the Date type: constructor + accessors (gad methods are camelCase)
+	testExpectRun(t, `dt := time.Date(20260131); return [dt.year(), dt.month(), dt.day()]`,
+		nil, Array{Int(2026), Int(1), Int(31)})
+	testExpectRun(t, `return str(time.Date("2026-01-31"))`, nil, Str("2026-01-31"))
+	testExpectRun(t, `return typeName(time.Date(20260131))`, nil, Str("date"))
+}
+
 func TestVMBuiltinModuleBase64(t *testing.T) {
 	// the base64 module is available as a builtin namespace, without an import
 	testExpectRun(t, `return base64.StdEncoding.EncodeToString(bytes("hi"))`, nil, Str("aGk="))

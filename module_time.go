@@ -35,6 +35,12 @@ func newTimeModule() Dict {
 		// ## Types
 		// Type is a type of Time Value
 		"Type": TimeType,
+		// Date is the `date` value type (YYYYMMDD); callable as a constructor.
+		"Date": DateType,
+		// Duration is the `duration` value type; callable as a constructor.
+		"Duration": DurationType,
+		// Location is the `Location` value type.
+		"Location": TimeLocationType,
 
 		//
 		// ## Constants
@@ -627,6 +633,12 @@ func init() {
 	})
 	registry.RegisterAnyConverter(reflect.TypeOf((*Location)(nil)), func(in any) (any, bool) {
 		return in.(*Location).Value, true
+	})
+	registry.RegisterAnyConverter(reflect.TypeOf(Duration(0)), func(in any) (any, bool) {
+		return time.Duration(in.(Duration)), true
+	})
+	registry.RegisterAnyConverter(reflect.TypeOf(Date(0)), func(in any) (any, bool) {
+		return uint(in.(Date)), true
 	})
 	registry.RegisterObjectConverter(reflect.TypeFor[time.Time](), func(in any) (any, bool) {
 		return &Time{Value: in.(time.Time)}, true

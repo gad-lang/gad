@@ -37,6 +37,8 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
     the `.gad.yaml` config file.
 14. [Templates](templates.md) — mixed/template mode (`{% … %}`, `{%= … %}`,
     `begin … end`, whitespace trim markers, `.gadt` files).
+15. [Naming Conventions](conventions.md) — how primitive types, constants,
+    modules and methods are cased.
 
 ## A Taste of Gad
 

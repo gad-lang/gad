@@ -101,6 +101,35 @@ func TestEmbeddedV1BigTree(t *testing.T) {
 	require.Equal(t, totalFiles, decodedCount, "file count mismatch")
 }
 
+func TestEncDecTimeTypes(t *testing.T) {
+	t.Run("duration", func(t *testing.T) {
+		o := gad.Duration(90 * time.Minute)
+		b, eb, err := eencode(o)
+		require.NoError(t, err)
+		got, err := edecode[gad.Duration](b, eb)
+		require.NoError(t, err)
+		require.Equal(t, o, got)
+	})
+
+	t.Run("date", func(t *testing.T) {
+		o := gad.Date(20260131)
+		b, eb, err := eencode(o)
+		require.NoError(t, err)
+		got, err := edecode[gad.Date](b, eb)
+		require.NoError(t, err)
+		require.Equal(t, o, got)
+	})
+
+	t.Run("time", func(t *testing.T) {
+		o := &gad.Time{Value: time.Date(2026, 1, 31, 9, 0, 0, 0, time.UTC)}
+		b, eb, err := eencode(o)
+		require.NoError(t, err)
+		got, err := edecode[*gad.Time](b, eb)
+		require.NoError(t, err)
+		require.True(t, o.Value.Equal(got.Value))
+	})
+}
+
 func TestEncDecObjects(t *testing.T) {
 
 	t.Run("encodded embedded single file", func(t *testing.T) {

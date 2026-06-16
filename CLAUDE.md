@@ -38,6 +38,12 @@ Always run native Go tooling to verify compliance and correctness:
 - **Error Wrapping**: Use `fmt.Errorf("...: %w", err)` for contextual errors in parsing/compilation steps.
 - **VM Instructions**: Name opcode constants clearly inside the VM package (e.g., `OpAdd`, `OpPush`).
 - **Documentation**: All public structural types, VM instructions, and compiler features must have standard Go doc comments.
+- **Gad Lang code Conventions**
+  - primitive type name is camelCase.
+  - no primitive type name is PascalCase (or spefic names is upper (example `URL` - like golang convention).
+  - constant names is PascalCase (or spefic names is upper (example `URL` - like golang convention))
+  - module name is snake_case.
+  - methods/property names is camelCase (or spefic names is upper (example `URL` - like golang convention)).
 
 ## Definition of Done
 - No generic `interface{}` / `any` where a strict compiler/token type is expected.
