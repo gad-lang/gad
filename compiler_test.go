@@ -3306,9 +3306,10 @@ func TestCompilerArrayComprehension(t *testing.T) {
 }
 
 func TestCompilerMatchExpr(t *testing.T) {
-	// subject -> :match local; each arm compares with OpEqual and jumps; the
-	// else arm is the fallthrough default.
-	expectCompile(t, `return match (1) { 1: "a", else: "b" }`, bytecode(
+	// subject -> :match local; each arm condition compares with OpEqual; a match
+	// jumps to the arm body, otherwise control falls to the next arm. The else
+	// arm is the fallthrough default.
+	expectCompile(t, `return match 1 { 1: "a", else: "b" }`, bytecode(
 		Array{Int(1), Str("a"), Str("b")},
 		compFunc(concatInsts(
 			makeInst(OpConstant, 0),    // 0000 subject 1
@@ -3316,11 +3317,130 @@ func TestCompilerMatchExpr(t *testing.T) {
 			makeInst(OpGetLocal, 0),    // 0005 :match
 			makeInst(OpConstant, 0),    // 0007 cond 1
 			makeInst(OpEqual),          // 0010
-			makeInst(OpJumpFalsy, 20),  // 0011 -> else
-			makeInst(OpConstant, 1),    // 0014 "a"
-			makeInst(OpJump, 23),       // 0017 -> end
-			makeInst(OpConstant, 2),    // 0020 else "b"
-			makeInst(OpReturn, 1),      // 0023
+			makeInst(OpJumpFalsy, 17),  // 0011 -> next arm
+			makeInst(OpJump, 20),       // 0014 -> body
+			makeInst(OpJump, 26),       // 0017 -> else
+			makeInst(OpConstant, 1),    // 0020 "a"
+			makeInst(OpJump, 29),       // 0023 -> end
+			makeInst(OpConstant, 2),    // 0026 else "b"
+			makeInst(OpReturn, 1),      // 0029
+		),
+			funcLocals(1),
+		),
+	))
+
+	// statement form leaves no value on the stack (no OpNil, no OpPop), and a
+	// no-match with no else simply falls through.
+	expectCompile(t, `match 1 { 1 {} }`, bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),    // 0000 subject 1
+			makeInst(OpDefineLocal, 0), // 0003 :match
+			makeInst(OpGetLocal, 0),    // 0005 :match
+			makeInst(OpConstant, 0),    // 0007 cond 1
+			makeInst(OpEqual),          // 0010
+			makeInst(OpJumpFalsy, 17),  // 0011 -> next arm
+			makeInst(OpJump, 20),       // 0014 -> body
+			makeInst(OpJump, 23),       // 0017 -> after arm
+			makeInst(OpJump, 23),       // 0020 body end -> end
+			makeInst(OpReturn, 0),      // 0023
+		),
+			funcLocals(1),
+		),
+	))
+}
+
+func TestCompilerMatchExprForms(t *testing.T) {
+	// multiple conditions per arm (OR): each cond jumps to the shared body.
+	expectCompile(t, `return match 1 { 1, 2: "a", else: "b" }`, bytecode(
+		Array{Int(1), Int(2), Str("a"), Str("b")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),    // 0000 subject 1
+			makeInst(OpDefineLocal, 0), // 0003 :match
+			makeInst(OpGetLocal, 0),    // 0005 cond 1
+			makeInst(OpConstant, 0),    // 0007
+			makeInst(OpEqual),          // 0010
+			makeInst(OpJumpFalsy, 17),  // 0011 -> next cond
+			makeInst(OpJump, 32),       // 0014 -> body
+			makeInst(OpGetLocal, 0),    // 0017 cond 2
+			makeInst(OpConstant, 1),    // 0019
+			makeInst(OpEqual),          // 0022
+			makeInst(OpJumpFalsy, 29),  // 0023 -> next arm
+			makeInst(OpJump, 32),       // 0026 -> body
+			makeInst(OpJump, 38),       // 0029 -> else
+			makeInst(OpConstant, 2),    // 0032 "a"
+			makeInst(OpJump, 41),       // 0035 -> end
+			makeInst(OpConstant, 3),    // 0038 else "b"
+			makeInst(OpReturn, 1),      // 0041
+		),
+			funcLocals(1),
+		),
+	))
+
+	// no else: a no-match falls through to OpNil (the expression yields nil).
+	expectCompile(t, `return match 1 { 1: "a", 2: "b" }`, bytecode(
+		Array{Int(1), Str("a"), Int(2), Str("b")},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),    // 0000 subject 1
+			makeInst(OpDefineLocal, 0), // 0003 :match
+			makeInst(OpGetLocal, 0),    // 0005 arm0 cond 1
+			makeInst(OpConstant, 0),    // 0007
+			makeInst(OpEqual),          // 0010
+			makeInst(OpJumpFalsy, 17),  // 0011 -> next arm
+			makeInst(OpJump, 20),       // 0014 -> body0
+			makeInst(OpJump, 26),       // 0017 -> arm1
+			makeInst(OpConstant, 1),    // 0020 "a"
+			makeInst(OpJump, 48),       // 0023 -> end
+			makeInst(OpGetLocal, 0),    // 0026 arm1 cond 2
+			makeInst(OpConstant, 2),    // 0028
+			makeInst(OpEqual),          // 0031
+			makeInst(OpJumpFalsy, 38),  // 0032 -> after
+			makeInst(OpJump, 41),       // 0035 -> body1
+			makeInst(OpJump, 47),       // 0038 -> nil
+			makeInst(OpConstant, 3),    // 0041 "b"
+			makeInst(OpJump, 48),       // 0044 -> end
+			makeInst(OpNil),            // 0047 no-match default
+			makeInst(OpReturn, 1),      // 0048
+		),
+			funcLocals(1),
+		),
+	))
+
+	// an empty match yields nil.
+	expectCompile(t, `return match 1 {}`, bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),    // 0000 subject 1
+			makeInst(OpDefineLocal, 0), // 0003 :match
+			makeInst(OpNil),            // 0005
+			makeInst(OpReturn, 1),      // 0006
+		),
+			funcLocals(1),
+		),
+	))
+}
+
+func TestCompilerMatchStmtForms(t *testing.T) {
+	// statement form, multi-condition arm + else: bodies leave no value, and the
+	// whole match is value-less (no OpNil, no OpPop).
+	expectCompile(t, `match 1 { 1, 2 {} else {} }`, bytecode(
+		Array{Int(1), Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),    // 0000 subject 1
+			makeInst(OpDefineLocal, 0), // 0003 :match
+			makeInst(OpGetLocal, 0),    // 0005 cond 1
+			makeInst(OpConstant, 0),    // 0007
+			makeInst(OpEqual),          // 0010
+			makeInst(OpJumpFalsy, 17),  // 0011 -> next cond
+			makeInst(OpJump, 32),       // 0014 -> body
+			makeInst(OpGetLocal, 0),    // 0017 cond 2
+			makeInst(OpConstant, 1),    // 0019
+			makeInst(OpEqual),          // 0022
+			makeInst(OpJumpFalsy, 29),  // 0023 -> next arm
+			makeInst(OpJump, 32),       // 0026 -> body
+			makeInst(OpJump, 35),       // 0029 -> else
+			makeInst(OpJump, 35),       // 0032 body end -> end
+			makeInst(OpReturn, 0),      // 0035
 		),
 			funcLocals(1),
 		),

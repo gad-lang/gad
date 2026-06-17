@@ -3,7 +3,7 @@
 
 param (;lang="en")
 
-hello := match (lang) {
+hello := match lang {
     "pt": "Olá",
     "es": "Hola",
     else: "Hello",

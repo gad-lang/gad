@@ -69,13 +69,14 @@ A few of the syntax additions over a Go-like base:
 z := mayThrow() or 2
 y := 1 + (mayThrow() or 10)
 
-// match (PHP 8 like) — expression and statement forms
-label := match (n) {
-    1: "one"
-    2: "two",
+// match (PHP 8 like) — no parens; arms may list several conditions (OR);
+// no matching arm (and no else) yields nil
+label := match n {
+    1, 2: "one or two"
+    3:    "three",
     else: "other"
 }
-match (n) { 1 { return "one" }, else { return "other" } }
+match n { 1 { return "one" }, else { return "other" } }
 
 // comprehensions; dict keys are static by default, computed with [..],
 // and `_` is the dict being built

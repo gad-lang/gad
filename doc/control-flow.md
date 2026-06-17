@@ -70,15 +70,18 @@ for i, c in "ab" {
 ## Match
 
 `match` (PHP 8-style) compares a subject against arms and yields the first
-matching result. It has an expression form (each arm is `cond: value`) and a
-statement form (each arm is `cond { … }`). The `else` arm is the default.
+matching result. The subject needs no parentheses. Each arm lists one or more
+conditions (matched against the subject with OR), followed by either `: value`
+(expression form) or a `{ … }` block (statement form). An optional `else` arm is
+the default; when nothing matches and there is no `else`, the match yields nil.
 
-Expression form — arms separated by commas or newlines:
+Expression form — arms are separated by commas or newlines, and an arm may carry
+several comma-separated conditions:
 
 ```go
-label := match (n) {
-    1: "one"
-    2: "two",
+label := match n {
+    1, 2: "one or two"
+    3:    "three",
     else: "other"
 }
 ```
@@ -86,8 +89,9 @@ label := match (n) {
 Statement form — arms run a block:
 
 ```go
-match (n) {
+match n {
     1 { return "one" }
+    2, 3 { return "few" }
     else { return "other" }
 }
 ```
@@ -96,11 +100,19 @@ Arm conditions are arbitrary expressions, so `match` doubles as a clean
 multi-branch conditional:
 
 ```go
-size := match (true) {
+size := match true {
     n < 10:   "small"
     n < 100:  "medium"
     else:     "large"
 }
+```
+
+An empty match — or one with no matching arm and no `else` — yields nil. An
+`else` arm may not be the only arm.
+
+```go
+x := match n {}            // nil
+y := match 1 { 2: "ok" }   // nil (no match)
 ```
 
 ## Try / Catch / Finally

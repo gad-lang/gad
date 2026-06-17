@@ -184,17 +184,18 @@ func (c *Compiler) compileTryStmt(nd *node.TryStmt) error {
 
 // compileMatchExpr compiles a PHP8-like match. The subject is evaluated once
 // into a temp local and compared (strict equality) against each arm's
-// condition; the first match wins. Expression-form arms (`cond: result`) leave
-// the matched result on the stack; statement-form arms (`cond { body }`) run
-// the block and the whole match yields nil. An optional `else` arm is the
-// default; with no else and no match, the expression form throws.
+// conditions; an arm matches when the subject equals any of its conditions
+// (`A, B: …`), and the first matching arm wins. Expression-form arms
+// (`conds: result`) leave the matched result on the stack; statement-form arms
+// (`conds { body }`) run the block and yield nil. An optional `else` arm is the
+// default; when nothing matches and there is no `else`, the match yields nil.
 func (c *Compiler) compileMatchExpr(nd *node.MatchExpr) error {
 	isStmt := nd.IsStmt()
 
 	// validate arm shapes are consistent and locate the else arm
 	var elseArm *node.MatchArm
 	for _, arm := range nd.Arms {
-		if arm.Cond == nil {
+		if arm.IsElse() {
 			if elseArm != nil {
 				return c.errorf(nd, "multiple else arms in match")
 			}
@@ -220,35 +221,46 @@ func (c *Compiler) compileMatchExpr(nd *node.MatchExpr) error {
 
 	var endJumps []int
 	for _, arm := range nd.Arms {
-		if arm.Cond == nil {
+		if arm.IsElse() {
 			continue // else handled after the loop
 		}
-		c.emit(arm.Cond, OpGetLocal, subjectSym.Index)
-		if err := c.Compile(arm.Cond); err != nil {
-			return err
-		}
-		c.emit(arm.Cond, OpEqual)
-		next := c.emit(arm.Cond, OpJumpFalsy, 0)
 
+		// `subject == cond_0 || subject == cond_1 || ...` — jump to the body on
+		// the first matching condition, otherwise fall through to the next arm.
+		var matchJumps []int
+		for _, cond := range arm.Conds {
+			c.emit(cond, OpGetLocal, subjectSym.Index)
+			if err := c.Compile(cond); err != nil {
+				return err
+			}
+			c.emit(cond, OpEqual)
+			noMatch := c.emit(cond, OpJumpFalsy, 0)
+			matchJumps = append(matchJumps, c.emit(cond, OpJump, 0))
+			c.changeOperand(noMatch, len(c.instructions))
+		}
+		toNext := c.emit(nd, OpJump, 0)
+
+		// body
+		bodyStart := len(c.instructions)
+		for _, j := range matchJumps {
+			c.changeOperand(j, bodyStart)
+		}
 		if err := c.compileMatchArmBody(nd, arm, isStmt); err != nil {
 			return err
 		}
 		endJumps = append(endJumps, c.emit(nd, OpJump, 0))
 
-		c.changeOperand(next, len(c.instructions))
+		c.changeOperand(toNext, len(c.instructions))
 	}
 
-	// no condition matched
+	// no condition matched: the expression form yields the else value or nil;
+	// the statement form runs the else block or does nothing (leaves no value).
 	if elseArm != nil {
 		if err := c.compileMatchArmBody(nd, elseArm, isStmt); err != nil {
 			return err
 		}
-	} else if isStmt {
+	} else if !isStmt {
 		c.emit(nd, OpNil)
-	} else {
-		// faithful to PHP: unhandled match throws (never falls through)
-		c.emit(nd, OpConstant, c.addConstant(Str("match: no matching arm")))
-		c.emit(nd, OpThrow, 1)
 	}
 
 	end := len(c.instructions)
@@ -258,17 +270,14 @@ func (c *Compiler) compileMatchExpr(nd *node.MatchExpr) error {
 	return nil
 }
 
-// compileMatchArmBody compiles a single match arm body, leaving exactly one
-// value on the stack (the result for expression form, or nil for statement
-// form so the surrounding ExprStmt can pop it).
+// compileMatchArmBody compiles a single match arm body. The expression form
+// leaves the arm's result value on the stack; the statement form runs the arm
+// block and leaves nothing (the match as a whole is value-less).
 func (c *Compiler) compileMatchArmBody(nd *node.MatchExpr, arm *node.MatchArm, isStmt bool) error {
 	if isStmt {
 		if arm.Body != nil {
-			if err := c.Compile(arm.Body); err != nil {
-				return err
-			}
+			return c.Compile(arm.Body)
 		}
-		c.emit(nd, OpNil)
 		return nil
 	}
 	return c.Compile(arm.Result)

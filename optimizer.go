@@ -682,9 +682,9 @@ func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 			nd.Expr = expr
 		}
 		for _, arm := range nd.Arms {
-			if arm.Cond != nil {
-				if expr, ok = so.optimize(arm.Cond); ok {
-					arm.Cond = expr
+			for i, cond := range arm.Conds {
+				if expr, ok = so.optimize(cond); ok {
+					arm.Conds[i] = expr
 				}
 			}
 			if arm.Result != nil {

@@ -3919,9 +3919,10 @@ func TestCodeNewNodes(t *testing.T) {
 	test.New(t, `x := h"ffcc"`).Code(`x := h"ffcc"`)
 	test.New(t, `x := b"Hello"`).Code(`x := b"Hello"`)
 
-	// statement-form match with block arms: one arm per line, bodies indented
-	test.New(t, `match (a) { 1 { b = 1 }, else { b = 2 } }`).
-		IndentedCode("match (a) {\n\t1 {\n\t\tb = 1\n\t}\n\telse {\n\t\tb = 2\n\t}\n}")
+	// statement-form match with block arms: with the match formatter flag, one
+	// arm per line, bodies indented
+	test.New(t, `match a { 1 { b = 1 }, else { b = 2 } }`).
+		FormattedCode("match a {\n\t1 {\n\t\tb = 1\n\t}\n\telse {\n\t\tb = 2\n\t}\n}")
 }
 
 func TestParseComprehension(t *testing.T) {
@@ -3939,17 +3940,40 @@ func TestParseComprehension(t *testing.T) {
 }
 
 func TestParseMatchExpr(t *testing.T) {
-	// expression form, comma and newline separators, else arm
+	// the subject no longer needs parentheses
 	test.ExpectParseString(t,
-		`x := match (a) { 1: "one", 2: "two", else: "other" }`,
-		`x := match (a) { 1: "one", 2: "two", else: "other" }`)
+		`x := match a { 1: "one", 2: "two", else: "other" }`,
+		`x := match a { 1: "one", 2: "two", else: "other" }`)
+	// `(a)` is preserved as a parenthesized expression
 	test.ExpectParseString(t,
-		"x := match (a) {\n1: \"one\"\n2: \"two\"\nelse: \"other\"\n}",
-		`x := match (a) { 1: "one", 2: "two", else: "other" }`)
+		`x := match (a) { 1: "one", else: "other" }`,
+		`x := match (a) { 1: "one", else: "other" }`)
+	// comma and newline separators between arms
+	test.ExpectParseString(t,
+		"x := match a {\n1: \"one\"\n2: \"two\"\nelse: \"other\"\n}",
+		`x := match a { 1: "one", 2: "two", else: "other" }`)
 	// non-literal conditions
 	test.ExpectParseString(t,
-		`x := match (a) { b: 1, c + 1: 2 }`,
-		`x := match (a) { b: 1, (c + 1): 2 }`)
+		`x := match a { b: 1, c + 1: 2 }`,
+		`x := match a { b: 1, (c + 1): 2 }`)
+	// multiple conditions per arm (comma- and/or newline-separated)
+	test.ExpectParseString(t,
+		`x := match a { 1, 2, 3: "low", else: "hi" }`,
+		`x := match a { 1, 2, 3: "low", else: "hi" }`)
+	test.ExpectParseString(t,
+		"x := match a {\n1, 2\n3: \"x\"\nelse: \"y\"\n}",
+		`x := match a { 1, 2, 3: "x", else: "y" }`)
+	// statement form, multi-condition arms
+	test.ExpectParseString(t,
+		`match a { 1, 2 { b = 1 } else { b = 2 } }`,
+		`match a { 1, 2 { b = 1 }, else { b = 2 } }`)
+	// an empty match is valid
+	test.ExpectParseString(t, `x := match a {}`, `x := match a {}`)
+}
+
+func TestParseMatchExprError(t *testing.T) {
+	// `else` may not be the only arm
+	test.ExpectParseError(t, `x := match a { else: 2 }`)
 }
 
 func TestParseSpreadLiterals(t *testing.T) {

@@ -1,16 +1,18 @@
 // 06_control_flow.gad — if/else, for loops and match expressions.
 
 classify := func(n) {
-    // match (PHP 8-style) yields the first matching arm.
-    return match (true) {
-        n < 0:  "negative"
-        n == 0: "zero"
-        n < 10: "small"
-        else:   "large"
+    // match (PHP 8-style) yields the first matching arm; the subject needs no
+    // parentheses and an arm may list several conditions (matched with OR).
+    return match true {
+        n < 0:        "negative"
+        n == 0:       "zero"
+        n == 1, n == 2: "one or two"
+        n < 10:       "small"
+        else:         "large"
     }
 }
 
-for _, n in [-3, 0, 4, 42] {
+for _, n in [-3, 0, 1, 4, 42] {
     println(#"{n} is {classify(n)}")
 }
 

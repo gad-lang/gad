@@ -2137,21 +2137,43 @@ func (e *DictComprehension) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("}")
 }
 
-// MatchArm is a single arm of a MatchExpr. A normal arm has a Cond; the `else`
-// arm has Cond == nil. Exactly one of Result (expression form `cond: result`)
-// or Body (statement form `cond { body }`) is set.
+// MatchArm is a single arm of a MatchExpr. A normal arm has one or more Conds,
+// matched against the subject with OR semantics (`A, B: …`); the `else` arm has
+// no Conds. Exactly one of Result (expression form `conds: result`) or Body
+// (statement form `conds { body }`) is set.
 type MatchArm struct {
-	Cond   Expr       // condition; nil for the else arm
-	Result Expr       // `cond: result`
-	Body   *BlockStmt // `cond { body }`
+	Conds  []Expr     // conditions (OR); empty for the else arm
+	Result Expr       // `conds: result`
+	Body   *BlockStmt // `conds { body }`
+}
+
+// IsElse reports whether this arm is the default `else` arm.
+func (a *MatchArm) IsElse() bool { return len(a.Conds) == 0 }
+
+func (a *MatchArm) writeConds(ctx *CodeWriteContext) {
+	if a.IsElse() {
+		ctx.WriteString("else")
+		return
+	}
+	for i, c := range a.Conds {
+		if i > 0 {
+			ctx.WriteString(", ")
+		}
+		c.WriteCode(ctx)
+	}
 }
 
 func (a *MatchArm) String() string {
 	var b strings.Builder
-	if a.Cond == nil {
+	if a.IsElse() {
 		b.WriteString("else")
 	} else {
-		b.WriteString(a.Cond.String())
+		for i, c := range a.Conds {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(c.String())
+		}
 	}
 	if a.Body != nil {
 		b.WriteString(" ")
@@ -2164,11 +2186,7 @@ func (a *MatchArm) String() string {
 }
 
 func (a *MatchArm) WriteCode(ctx *CodeWriteContext) {
-	if a.Cond == nil {
-		ctx.WriteString("else")
-	} else {
-		a.Cond.WriteCode(ctx)
-	}
+	a.writeConds(ctx)
 	if a.Body != nil {
 		ctx.WriteString(" ")
 		a.Body.WriteCode(ctx)
@@ -2178,11 +2196,12 @@ func (a *MatchArm) WriteCode(ctx *CodeWriteContext) {
 	}
 }
 
-// MatchExpr represents a PHP8-like match: `match (subject) { cond: result, ... }`
-// (expression form, yields a value) or `match (subject) { cond { body }, ... }`
-// (statement form, runs the matching block). Arms are compared against the
-// subject with strict equality; the first match wins. An optional `else` arm is
-// the default.
+// MatchExpr represents a PHP8-like match: `match subject { cond: result, ... }`
+// (expression form, yields a value) or `match subject { cond { body }, ... }`
+// (statement form, runs the matching block). Each arm holds one or more
+// conditions compared against the subject with strict equality; the first arm
+// with a matching condition wins. An optional `else` arm is the default. When
+// nothing matches and there is no `else`, the match yields nil.
 type MatchExpr struct {
 	MatchPos source.Pos
 	Expr     Expr // subject
@@ -2211,9 +2230,9 @@ func (e *MatchExpr) IsStmt() bool {
 
 func (e *MatchExpr) String() string {
 	var b strings.Builder
-	b.WriteString("match (")
+	b.WriteString("match ")
 	b.WriteString(e.Expr.String())
-	b.WriteString(") {")
+	b.WriteString(" {")
 	for i, a := range e.Arms {
 		if i > 0 {
 			b.WriteString(", ")
@@ -2222,21 +2241,35 @@ func (e *MatchExpr) String() string {
 		}
 		b.WriteString(a.String())
 	}
-	b.WriteString(" }")
+	if len(e.Arms) > 0 {
+		b.WriteString(" ")
+	}
+	b.WriteString("}")
 	return b.String()
 }
 
-func (e *MatchExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString("match (")
-	e.Expr.WriteCode(ctx)
-	ctx.WriteString(") {")
+// armsInNewLine reports whether arms should each go on their own line, based on
+// the active formatter flag for the match form (expression vs statement).
+func (e *MatchExpr) armsInNewLine(ctx *CodeWriteContext) bool {
+	if !ctx.HasPrefix() {
+		return false
+	}
+	if e.IsStmt() {
+		return ctx.Flags.Has(CodeWriteContextFlagFormatMatchStmtArmsInNewLine)
+	}
+	return ctx.Flags.Has(CodeWriteContextFlagFormatMatchExprArmsInNewLine)
+}
 
-	if ctx.HasPrefix() {
-		// indented: one arm per line (the newline separates arms, and the
-		// `else` arm is not preceded by a comma)
+func (e *MatchExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("match ")
+	e.Expr.WriteCode(ctx)
+	ctx.WriteString(" {")
+
+	if e.armsInNewLine(ctx) {
+		// one arm per line; the `else` arm is not preceded by a comma
 		ctx.Depth++
 		for i, a := range e.Arms {
-			if i > 0 && a.Cond != nil {
+			if i > 0 && !a.IsElse() {
 				ctx.WriteString(",")
 			}
 			ctx.WriteSemi()
@@ -2252,7 +2285,9 @@ func (e *MatchExpr) WriteCode(ctx *CodeWriteContext) {
 			ctx.WriteString(" ")
 			a.WriteCode(ctx)
 		}
-		ctx.WriteString(" ")
+		if len(e.Arms) > 0 {
+			ctx.WriteString(" ")
+		}
 	}
 	ctx.WriteString("}")
 }

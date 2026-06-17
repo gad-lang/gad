@@ -504,6 +504,11 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		if err := c.Compile(nt.Expr); err != nil {
 			return err
 		}
+		// a statement-form match leaves no value on the stack, so there is
+		// nothing to pop.
+		if m, ok := nt.Expr.(*node.MatchExpr); ok && m.IsStmt() {
+			break
+		}
 		c.emit(nt, OpPop)
 	case *node.FuncStmt:
 		if err := c.compileFuncStmt(nt); err != nil {

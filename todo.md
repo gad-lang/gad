@@ -1,45 +1,3 @@
-- [x] Parse bytes from hex string (const data = h"ffccf1c2" // typeof data == bytes)
-- [x] Parse bytes from string/raw string/heredoc/rawheredoc (co[zeroer](zeroer)nst data = b"Hello" // typeof data == bytes)
-- [x] recreate user documentation in ./doc with various examples and variations for all gad features. if necessary,
-  split doc into multiples files.
-- [x] change gad cmd replace flags to subcommands use github.com/moisespsena-go/command-context.
-      add fmt subcommand for format input files (one or more) from args. the files args accepts dir paths.
-      if dirs likes with `PATH/...` run it recursively, but ignore hidden files and skip hidden directories.
-      fmt has flag "--exclude GLOB_PATTERN" (allow many separated by "," or more same flag) and flag "--include GLOB_PATTERN" 
-      (like "--exclude") to include ignoring exclusion rules. fmt has flag "--backup" (bool, default false) and
-      "--backup-format" (default is "BASE_NAME.backup.gad"). use logic like parse/test/Parser.FormattedCode, but create boolean flags to 
-      remove command context flags for all flags (example: "--no-call-params-in-new-line" (for remove flag CodeWriteContextFlagFormatCallParamsInNewLine).
-      update user documentation. commit changes to main.
-- [x] create codemirror 6 plugin with auto complete and line/colunm warn or error messages. create example web app with Golang server and React to proccess
-      source file from (`gad` reading from stdin writing to stdout and report errors to editor per line/colum) and put result to
-      left viewer. create on example for interactive execution, like notebook. taks one example from backend server proccess and other example using WASM.
-- [x] create prismjs plugin and create page on web app for usage example.
-- [x] create cmd/delve as a debugger for gad language like github.com/go-delve/delve and create Visual Studio Code plugin like https://github.com/golang/vscode-go
-      for execute delve (create script on your package.json for export as VSCode plugin file to friendly installation must importing her). 
-      create React pugin using gad-codemirror for execute and debug source file. create new page on web app for run and debug.
-- [x] create cmd/build-website for build full gad lang static website (language API, user documentation with term searcher) 
-      with dark/light theme and examples with WASM compatible for github web page, create github action for auto rebuild website and publish then.
-      the website generator per commit `/COMMIT-ID` and must publish to github release version on RELEASE.
-- [x] create subcommand "ide" in cmd/gad to start web app with dark/light theme, in React, providing best ide with tabs
-      for multiples files editing (on CWD or first command arg PATH - if PATH is single file, must edit here), 
-      format, run and debug buttons. formatting settings (reading and save to .gad.yaml), using codemirron plugin.
-      allowing open/hide panels and move to left/right/buttom. saving panel positions to .gad.yaml "ide" key.
-      with dialogs for per file configure run/debug with field for set params, enable/disable builtins modules, and
-      save STDOUT/STDERR to file. allow panels resizing and grouping with tabs layout.
-- [x] in the mixed/template mode, the CodeBeginStmt haves optional `-` suffix (example: `{%-`); if
-      this sufix is set, add flag RemoveRightSpaces to MixedTextStmt (previous stmt). 
-      the CodeEndStmt haves optional `-` prefix (example: `-%}`); if this suffix is set, add flag RemoveLeftSpaces to 
-      MixedTextStmt (next stmt). when format (call CodeWriter.WriteCode), preserves MixedTextStmt Literal value,
-      buf format gad code between CodeBeginStmt to CodeEndStmt. then MixedValueStmt likes (joined form if CodeBeginStmt and CodeEndStmt).
-      when format `(\{%-?)\s*end|done\s*(-?%\})` (regexp syntaxe), format to `$1 end $2`.
-- [x] generate godoc strings for CodeBeginStmt, CodeEndStmt, MixedValueStmt. update gad program when run from STDIN buffer or run PATH,
-      to run without interactive mode. change gad program to add flag `--template` to run template files (ParserOptions.Mode |= ParseMixed and
-      ScannerOptions.mode |= ScanMixed | ScanConfigDisabled); flags `--template-start-delimiter DELIMITER` and `--template-end-delimiter DELIMITER`.
-      put template-start/end-delimiter to config `tempate`; if demilimiters is not set, use default. change parser of mixed/template mode
-      to add new Code Begin/End suffix `--` (`{%--` and `--%}`) resulting in two prefix/sufix forms: 1) `-` remove all black chars at `\n` (preserve it);
-      2) `--` remove all blank chars. generate parser/vm tests. generate docs and samples. update README and doc.
-      change gad program when run `.gadt` files, run as template mode.
-- [x] add go build tags to skip build gad program subcommands `ide` and `debug`. set `run` subcommand as default command.
 - [ ] gad codemirror plugin isn't working on ide. change ide files tree to allow rename file/dir with F2 or RIGHT CLICK MENU (with options: `run`, `format`, `transpile` 
       (format with TranspileOptions for `.gad` and `.gadt` exts. add fields of config file key `transpile` (add to settings dialog)), and `remove` 
       (with confirmation dialog - if is nom empty dir, add check field RECURSIVELY)). put run/debug options dialog into new
@@ -61,20 +19,24 @@
       and allow to change your output name and choose directory to save then (default is current selected directory on tree).
       add buttons to history REDO and UNDO on file editor control header. change local variables panel to add copy to clipboard button (must icon) per entry.
       on gad editor, add copy to clipboard button (must icon) on tooltip. change codemirror plugin to add code editor features (auto complete etc) on
-      edit code/expression in template strings.      
-- [x] change gad fmt to write report per file, not grouped (current version) as single line JSON (remove YAML support) string with keys:
-      `{ input_dir: (only if file in INPUT_DIR), file: (the file name, if in INPUT_DIR, relative to here), error: (if failt) }\n`.
-      add flag `--to-stdout`. in this case if report file isn't set, print report to stdout, when format files print 
-      result to stdout stream. add flag `--boundary BOUNDARY` if not set, generate new UUID as BOUNDARY and print it to first line of stdout `>> BOUNDARY`, the stream syntaxe:
+      edit code/expression in template strings.
+- [ ] change gad fmt to write report, write file goroutine (per file) is done (success or error) as single JSON inline string:
+      `{ "input_dir": (only if file in INPUT_DIR), "file": (the file name, if in INPUT_DIR, relative to here), "error": (if failt) }\n`.
+      default result example:
+      ```json
+      { "input_dir": "src", "file": "a.gad", err: "bad format" }
+      { "input_dir": "src_2", "file": "b.gad" }
       ```
-      -- BOUNDARY #FILE_INDEX [INPUT_DIR] (with brackets, if in INPUT_DIR) FILE_NAME (if in INPUT_DIR, relative to here)
-      FORMATTED_FILE_RESULT
-      -- BOUNDARY #FILE_INDEX
+      replace flag `--to-stdout` to new flag `--report-stream` and allow `--report -` (`-` is to stdout).
+      add flag `--report-contents` to put formatted result to report to file key "result".
+      add flag `--no-save` to no save formatted result, must readonly (not backup, no write, no create ...).
+      remove flag `--boundary`.
+      the report output with contents flag example:
       ```
-- [x] add parser for new token for CodeStrLit, like strheredoc with `code\s|\n` (start quote) and `\s|\nend` (end quote, \n only if start `code\n`).
-      compiles to Str. no parses contents like Template. change codemirror plugin and prism plugin to recognize contents of this as gad source code. 
-      add tests for scanner/parser/compiler/vm.
-- [x] takes stdlib/time and strings modules as builtin module, mapping all functions as BuiltinFunction and BuiltinType.
+      BOUNDARY
+      { "input_dir": "src", "file": "a.gad", err: "bad format" }
+      { input_dir: "src_2", "file": "b.gad", "result": "FORMATTED RESULT" }
+      ```
 - [ ] add parser of `\d{4}\d{2}\d{2}D` as new type time.Date (alias of go uint) ("time" is gad module, not go time);
       parse Time syntaxe `(\d{4}\d{2}\d{2})?(_?\d{2}\d{2}\d{2})(.(\d{3}|\d{6}|\d{9}))(Z(-?\d{2}\d{2})|[A-Z]{3})T`(grop1) the date; group2) the time; 
       group3 the seconds fraction (\.d{3} as mili; \.d{6} as micro; \.d{9} as nano); group4) location offset or name), as type time.time; 
@@ -91,18 +53,90 @@
       add method "strToLocation" of time.Location constructor to parse Location from str. 
       takes time.time, time.Date and time.Duration as primitive types.
       update docs and samples.
-- [x] change all strings and fmt methods to lowerCamelCase. update docs and samples.
-- [x] add sample file for "prop", "met" and functions with params
 - [ ] updated doc to add examples for "~" and "~~" regexp operators and POSIX `/.../p` (`p` sufix), add examples using
       captured groups and regexp flags.
       `raw EXPR`, produces `rawStr` type (`raw "a"` is in compiler time, but `raw str(100)` is in execution time) - update doc for here.
       add examples for The `or` Fallback Operator using `$err` variable.
-      remove `:` after match arms expr and `(` of match expr, update doc with examples (syntaxe: `match Expr { Expr { ... }, Expr { ... } }`).
-      create vm tests for match expr and match stmt.
-      create doc of func/closure/method/ComputedValue syntax and add examples.
-- [x] create doc for gad code conventions:
-      - primitive type name is camelCase.
-      - no primitive type name is PascalCase (or spefic names is upper (example `URL` - like golang convention).
-      - constant names is PascalCase (or spefic names is upper (example `URL` - like golang convention))
-      - module name is snake_case.
-      - methods/property names is camelCase (or spefic names is upper (example `URL` - like golang convention)).
+- [ ] on MatchExpr, take as just syntaxe: `x := match Expr { ArmExpr: ValueExpr, ArmExpr, ArmExpr: ValueExpr, else: ValueExpr }`; 
+      allowing multiples Exprs per arm (separated by comma or new line or both). arms or `else` is optional, if not
+      set both the value is `nil`. this is valid: `x := match Expr {}` (`x` is nil); `x := match 1 { 2: "ok"}` (`x` is nil).
+      this is bad: `x := match Expr { else: 2 }`.
+      on WriteCode, put arms to new line when `ctx.Flags.Has(CodeWriteContextFlagFormatMatchStmtArmsInNewLine)` (for all to new lines),
+      or when `NEW_LINE_CALC` (put to new lines only cases when `writed_line_columns + formatted_inline_writed_arm_expr_columns + current_current_arm_expr_columns > ctx.MaxColumns`),
+      include `CodeWriteContextFlagFormatMatchExprArmsInNewLine` to `CodeWriteContextFlagFormat`.
+      example:
+      ```gad
+      x := match Expr { 
+          ArmExpr: ValueExpr
+          ArmExpr, ArmExpr, ArmExpr, ArmExpr, ArmExpr,
+          ArmExpr, ExpArmExprr: ValueExpr
+          else: ValueExpr
+      }
+      ```
+      no new line split example: `x := match Expr { ArmExpr: ValueExpr, ArmExpr, ArmExpr: ValueExpr, else: ValueExpr }` (small columns count).
+      create doc, parser/compiler/vm tests for match expr (including multiples Exprs per arm).
+- [ ] on MatchStmt with syntaxe:
+      ```gad
+      match Expr { 
+          Expr {
+            // Stmt...
+          }
+          Expr, Expr {
+              // Stmt...
+          }
+          else {
+              // Stmt...
+          }
+      }
+      ```
+      no idented example:
+      ```gad
+      match Expr { Expr { // Stmt... } Expr, Expr { // Stmt... } else { // Stmt... }
+      ```
+      this is valid: `match Expr {}`.
+      on WriteCode, split arms to new line when `ctx.Flags.Has(CodeWriteContextFlagFormatMatchStmtArmsInNewLine)` (for all to new lines),
+      when `NEW_LINE_CALC`, put to new lines only cases when `writed_line_columns + formatted_inline_writed_arm_expr_columns + current_current_arm_expr_columns > ctx.MaxColumns` like:
+      ```gad
+      match Expr { 
+          Expr {
+            // Stmt...
+          }
+          Expr, Expr, Expr, // big columns count
+          Expr {
+              // Stmt...
+          }
+          else {
+              // Stmt...
+          }
+      }
+      ```
+      allowing multiples Exprs per arm.
+      create doc, parser/compiler/vm tests for match expr (including multiples Exprs per arm).
+      
+- [ ] create doc of func/closure/method/ComputedValue syntax and add examples.
+- [ ] add doc for gad code conventions:
+      - single Decl without params. `var x` insteadof `var (x)`. (apply this rule for related CodeWriter).
+      - split args/dict keys/named params keys etc to new lines for all or when `NEW_LINE_CALC`.
+        good: `var (x, y)`, `var (x = 1, y = 2)`
+        good:
+        ```gad
+        var (
+            // group declarations without value as first
+            a, b, c // big
+            d, e
+            f = 1
+            g = 2
+            r = 1, s = 2
+            t, u = 3, 4
+            v, x, y, x = Expr // destructuring
+            (a1, a2; a3, **r) = Expr
+        ) 
+        ```
+        bad:
+        ```gad
+        var ( a, b, c
+            d, e
+            f = 1,  g = 2
+        ) 
+        ``` 
+        apply this rule for related CodeWriter when `ctx.Flags.Has(CodeWriteContextFlagFormat*InNewLine)` (force all to new lines) or `NEW_LINE_CALC`

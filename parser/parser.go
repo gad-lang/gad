@@ -2902,15 +2902,17 @@ func (p *Parser) ParseMatchExpr() node.Expr {
 	}
 
 	matchPos := p.Expect(token.Match)
-	p.Expect(token.LParen)
+	// the subject no longer requires parentheses; `(subject)` still parses as a
+	// parenthesized expression. An expression never consumes a following `{`,
+	// so it terminates naturally at the match block.
 	subject := p.ParseExpr()
-	p.Expect(token.RParen)
 	p.SkipSpace()
 	lbrace := p.Expect(token.LBrace)
 
 	m := &node.MatchExpr{MatchPos: matchPos, Expr: subject, LBrace: lbrace}
 
-	// arms are separated by commas and/or new lines
+	// arms (and the conditions within an arm) are separated by commas and/or
+	// new lines (semicolons)
 	skipSeps := func() {
 		for {
 			p.SkipSpace()
@@ -2928,7 +2930,16 @@ func (p *Parser) ParseMatchExpr() node.Expr {
 		if p.Token.Token == token.Else {
 			p.Next()
 		} else {
-			arm.Cond = p.ParseExpr()
+			// one or more conditions, separated by comma/new line, collected
+			// until the arm terminator (`:` for a value, `{` for a block).
+			for {
+				arm.Conds = append(arm.Conds, p.ParseExpr())
+				skipSeps()
+				if p.Token.Token == token.Colon || p.Token.Token == token.LBrace ||
+					p.Token.Token == token.RBrace || p.Token.Token == token.EOF {
+					break
+				}
+			}
 		}
 		p.SkipSpace()
 
@@ -2949,6 +2960,11 @@ func (p *Parser) ParseMatchExpr() node.Expr {
 	}
 
 	m.RBrace = p.Expect(token.RBrace)
+
+	// `else` may not be the only arm
+	if len(m.Arms) == 1 && m.Arms[0].IsElse() {
+		p.Error(matchPos, "match: `else` arm requires at least one preceding arm")
+	}
 	return m
 }
 

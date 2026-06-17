@@ -466,9 +466,22 @@ func TestVMMatchExpr(t *testing.T) {
 	// string subject
 	testExpectRun(t, `return match ("hi") { "hi": 1, "bye": 2, else: 0 }`, nil, Int(1))
 
-	// no matching arm and no else => throws
-	expectErrHas(t, `return match (7) { 1: "a" }`, newOpts(),
-		"match: no matching arm")
+	// no matching arm and no else => yields nil
+	testExpectRun(t, `return match (7) { 1: "a" }`, nil, Nil)
+	// an empty match yields nil
+	testExpectRun(t, `x := match 7 {}; return x`, nil, Nil)
+
+	// the subject no longer requires parentheses
+	testExpectRun(t, `return match 2 { 1: "a", 2: "b", else: "z" }`, nil, Str("b"))
+
+	// multiple conditions per arm (OR), comma- and newline-separated
+	testExpectRun(t, `return match 3 { 1, 2, 3: "low", else: "hi" }`, nil, Str("low"))
+	testExpectRun(t, "return match 4 {\n1, 2\n3, 4: \"x\"\nelse: \"y\"\n}", nil, Str("x"))
+	// multi-condition statement-form arm
+	testExpectRun(t, `
+	var out = 0
+	match 3 { 1, 2 { out = 12 } 3, 4 { out = 34 } }
+	return out`, nil, Int(34))
 
 	// statement form: runs the matching block; returns from the enclosing func
 	const g = `g := func(x) { match (x) { 1 { return "ONE" }, 2 { return "TWO" }, else { return "OTHER" } } }; `

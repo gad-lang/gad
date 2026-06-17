@@ -76,7 +76,7 @@ type TranspileOptions struct {
 	WriteFunc       string
 }
 
-type CodeWriteContextFlag uint8
+type CodeWriteContextFlag uint16
 
 func (b *CodeWriteContextFlag) Set(flag CodeWriteContextFlag) *CodeWriteContextFlag {
 	*b = *b | flag
@@ -90,7 +90,14 @@ func (b *CodeWriteContextFlag) Toggle(flag CodeWriteContextFlag) *CodeWriteConte
 	*b = *b ^ flag
 	return b
 }
-func (b CodeWriteContextFlag) Has(flag CodeWriteContextFlag) bool { return b&flag != 0 }
+func (b CodeWriteContextFlag) Has(flag ...CodeWriteContextFlag) bool {
+	for _, f := range flag {
+		if b&f != 0 {
+			return true
+		}
+	}
+	return false
+}
 
 const (
 	CodeWriteContextFlagNone CodeWriteContextFlag = 1 << iota
@@ -100,13 +107,17 @@ const (
 	CodeWriteContextFlagFormatCallParamsInNewLine
 	CodeWriteContextFlagFormatParemValuesInNewLine
 	CodeWriteContextFlagFormatDeclItemInNewLine
+	CodeWriteContextFlagFormatMatchExprArmsInNewLine
+	CodeWriteContextFlagFormatMatchStmtArmsInNewLine
 
 	CodeWriteContextFlagFormat = CodeWriteContextFlagFormatArrayItemInNewLine |
 		CodeWriteContextFlagFormatDictItemInNewLine |
 		CodeWriteContextFlagFormatKeyValueArrayItemInNewLine |
 		CodeWriteContextFlagFormatCallParamsInNewLine |
 		CodeWriteContextFlagFormatParemValuesInNewLine |
-		CodeWriteContextFlagFormatDeclItemInNewLine
+		CodeWriteContextFlagFormatDeclItemInNewLine |
+		CodeWriteContextFlagFormatMatchExprArmsInNewLine |
+		CodeWriteContextFlagFormatMatchStmtArmsInNewLine
 )
 
 type CodeWriteSkiper interface {
