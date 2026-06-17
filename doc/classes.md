@@ -19,7 +19,7 @@ Point := Class("Point";
         y int = 0
     ),
     methods = [
-        dist(this) => float(this.x ** 2 + this.y ** 2) ** 0.5
+        dist(this) => (this.x ** 2 + this.y ** 2) ** 0.5
     ]
 )
 

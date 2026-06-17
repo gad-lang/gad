@@ -8,7 +8,7 @@ Point := Class("Point";
         (this, x, y) => this(; x=x, y=y)        // positional
     },
     methods = [
-        dist(this) => float(this.x ** 2 + this.y ** 2) ** 0.5
+        dist(this) => (this.x ** 2 + this.y ** 2) ** 0.5
     ]
 )
 

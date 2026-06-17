@@ -8,6 +8,19 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
+func TestVMPowFractional(t *testing.T) {
+	// integer powers are unchanged (int**int and decimal yield a decimal)
+	testExpectRun(t, `return 2 ** 10`, nil, DecimalFromInt(1024))
+	testExpectRun(t, `return decimal(2) ** 10`, nil, DecimalFromInt(1024))
+	// a fractional exponent on a decimal base falls back to float (regression:
+	// decimal.Pow truncated the exponent, so `** 0.5` wrongly yielded 1)
+	testExpectRun(t, `return decimal(25) ** 0.5`, nil, Float(5))
+	testExpectRun(t, `return 25.0 ** 0.5`, nil, Float(5))
+	// int**int produces a decimal, so `(a**2 + b**2) ** 0.5` (a hypotenuse) must
+	// still compute the square root
+	testExpectRun(t, `return (3 ** 2 + 4 ** 2) ** 0.5`, nil, Float(5))
+}
+
 func TestVMClassFeatures(t *testing.T) {
 	// --- fields: declarations, types (not enforced) and defaults ---
 	testExpectRun(t, `

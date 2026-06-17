@@ -436,7 +436,15 @@ func (o Decimal) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error)
 		case token.Mul:
 			return Decimal(o.ToGo().Mul(v.ToGo())), nil
 		case token.Pow:
-			return Decimal(o.ToGo().Pow(v.ToGo())), nil
+			exp := v.ToGo()
+			if !exp.IsInteger() {
+				// decimal.Pow handles only integer exponents; use float64 for
+				// fractional powers (e.g. square roots via `** 0.5`).
+				base, _ := o.ToGo().Float64()
+				e, _ := exp.Float64()
+				return Float(math.Pow(base, e)), nil
+			}
+			return Decimal(o.ToGo().Pow(exp)), nil
 		case token.Quo:
 			return Decimal(o.ToGo().Div(v.ToGo())), nil
 		case token.Less:
