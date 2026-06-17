@@ -1021,15 +1021,44 @@ var (
 	_ IndexGetter      = (*NamedArgs)(nil)
 )
 
+// NamedArgs holds the keyword (name=value) arguments of a call.
+//
+// Values are lazily materialised from sources into the m map on first access
+// (see check). By default reading a value with GetValue/GetValueOrNil
+// *consumes* it — the key is removed from m and recorded in ready — so a
+// function only sees each named argument once and leftover names can be
+// detected. When the NamedArgs is read-only (see WithReadOnly), reads do not
+// consume, so the same NamedArgs can be reused across several calls; this is
+// useful when reusing one instance in a loop and mutating a backing Dict
+// between calls (Dict.ToNamedArgs keeps a live reference to that Dict in m).
 type NamedArgs struct {
-	ro      bool
-	sources KeyValueArrays
-	m       Dict
-	ready   Dict
+	ro      bool           // when true, reads do not consume values
+	sources KeyValueArrays // original name=value pairs (last wins on duplicate)
+	m       Dict           // materialised, not-yet-consumed values
+	ready   Dict           // keys already consumed
 }
 
+// NewNamedArgs returns a NamedArgs from the given name=value pair lists. Later
+// pairs take precedence over earlier ones for duplicate keys.
 func NewNamedArgs(pairs ...KeyValueArray) *NamedArgs {
 	return &NamedArgs{sources: pairs}
+}
+
+// WithReadOnly sets the read-only flag and returns o. While read-only, reads do
+// not consume values and Add returns ErrNotWriteable.
+func (o *NamedArgs) WithReadOnly(v bool) *NamedArgs {
+	o.ro = v
+	return o
+}
+
+// SetReadOnly sets the read-only flag (see WithReadOnly).
+func (o *NamedArgs) SetReadOnly(v bool) {
+	o.ro = v
+}
+
+// IsReadOnly reports whether reads consume values.
+func (o *NamedArgs) IsReadOnly() bool {
+	return o.ro
 }
 
 func (o *NamedArgs) Contains(key string) bool {
@@ -1207,6 +1236,11 @@ func (o *NamedArgs) IndexGet(vm *VM, index Object) (value Object, err error) {
 	}
 }
 
+// check lazily materialises sources into m (and initialises ready) on first
+// use. It iterates sources from last to first so that, with later-wins
+// precedence, the first write of a key is the effective one. It is a no-op once
+// m is set — including when m is supplied directly (e.g. by Dict.ToNamedArgs),
+// in which case that Dict is used live.
 func (o *NamedArgs) check() {
 	if o.m == nil {
 		o.m = Dict{}
@@ -1236,7 +1270,9 @@ func (o *NamedArgs) MustGetValue(key string) (val Object) {
 	return
 }
 
-// GetValueOrNil Must return value from key
+// GetValueOrNil returns the value for key, or nil if absent. Unless the
+// NamedArgs is read-only, the key is consumed (removed from m and recorded in
+// ready) so it is reported only once.
 func (o *NamedArgs) GetValueOrNil(key string) (val Object) {
 	o.check()
 

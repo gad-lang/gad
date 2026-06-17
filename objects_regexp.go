@@ -2,6 +2,7 @@ package gad
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/gad-lang/gad/token"
 )
@@ -51,8 +52,11 @@ func (o *Regexp) CallName(name string, c Call) (_ Object, err error) {
 }
 
 // Replace replaces all matches of o in subject with repl. repl may be a
-// Str/RawStr/Bytes template (Go's $1 group expansion applies) or a callable
-// invoked with each matched substring, returning its replacement.
+// Str/RawStr/Bytes template (Go's $1 / ${name} group expansion applies) or a
+// callable returning each replacement. The callable is invoked once per match
+// with the matched substring as the positional argument and two named
+// arguments: `m`, the full submatch (whole match + capture groups, so groups
+// are `m[1]`, `m[2]`, …), and `re`, the regexp itself.
 func (o *Regexp) Replace(vm *VM, subject, repl Object) (Object, error) {
 	_, subjIsBytes := subject.(Bytes)
 
@@ -75,21 +79,46 @@ func (o *Regexp) Replace(vm *VM, subject, repl Object) (Object, error) {
 		inv.Acquire()
 		defer inv.Release()
 
-		var callErr error
-		result := o.Go().ReplaceAllStringFunc(subject.ToString(), func(m string) string {
-			if callErr != nil {
-				return m
+		var (
+			// The callable receives the whole match as the positional argument and
+			// the full submatch (whole match + capture groups) as the named
+			// argument `m`, so it can reference groups via `m[1]`, `m[2]`, … The
+			// NamedArgs is built once and reused read-only across matches; the
+			// backing Dict's `m` value is updated in place each iteration.
+			subj          = subject.ToString()
+			namedArgsDict = Dict{"m": Nil, "re": o}
+			namedArgs     = namedArgsDict.ToNamedArgs().WithReadOnly(true)
+
+			callErr error
+			sb      strings.Builder
+			last    int
+		)
+
+		for _, idx := range o.Go().FindAllStringSubmatchIndex(subj, -1) {
+			groups := make(RegexpStrsResult, len(idx)/2)
+			for i := 0; i < len(idx); i += 2 {
+				if idx[i] >= 0 {
+					groups[i/2] = subj[idx[i]:idx[i+1]]
+				}
 			}
-			res, err := inv.Invoke(Args{Array{Str(m)}}, nil)
+			namedArgsDict["m"] = groups
+
+			res, err := inv.Invoke(Args{Array{Str(subj[idx[0]:idx[1]])}}, namedArgs)
 			if err != nil {
 				callErr = err
-				return m
+				break
 			}
-			return res.ToString()
-		})
+
+			sb.WriteString(subj[last:idx[0]])
+			sb.WriteString(res.ToString())
+			last = idx[1]
+		}
 		if callErr != nil {
 			return nil, callErr
 		}
+		sb.WriteString(subj[last:])
+
+		result := sb.String()
 		if subjIsBytes {
 			return Bytes(result), nil
 		}
@@ -234,6 +263,51 @@ func (o RegexpStrsResult) Print(state *PrinterState) error {
 	})
 }
 
+// regexpResultIndex resolves an index Object against a result of length n,
+// supporting negative indices (from the end) for Int, like Array.
+func regexpResultIndex(index Object, n int) (int, error) {
+	switch v := index.(type) {
+	case Int:
+		idx := int(v)
+		if idx < 0 {
+			idx = n + idx
+		}
+		if idx >= 0 && idx < n {
+			return idx, nil
+		}
+		return 0, ErrIndexOutOfBounds
+	case Uint:
+		idx := int(v)
+		if idx >= 0 && idx < n {
+			return idx, nil
+		}
+		return 0, ErrIndexOutOfBounds
+	default:
+		return 0, NewIndexTypeError("int|uint", index.Type().Name())
+	}
+}
+
+// Length returns the number of submatches (the full match plus capture groups).
+func (o RegexpStrsResult) Length() int { return len(o) }
+
+// IndexGet returns submatch i (i == 0 is the full match, i >= 1 are the capture
+// groups), so groups are accessed like an array.
+func (o RegexpStrsResult) IndexGet(_ *VM, index Object) (Object, error) {
+	i, err := regexpResultIndex(index, len(o))
+	if err != nil {
+		return nil, err
+	}
+	return Str(o[i]), nil
+}
+
+func (o RegexpStrsResult) Iterate(_ *VM, na *NamedArgs) Iterator {
+	return SliceIteration(TArrayIterator, o, []string(o), func(e *KeyValue, i Int, v string) error {
+		e.K = i
+		e.V = Str(v)
+		return nil
+	}).ParseNamedArgs(na)
+}
+
 type RegexpStrsSliceResult [][]string
 
 func (o RegexpStrsSliceResult) IsFalsy() bool {
@@ -272,6 +346,26 @@ func (o RegexpStrsSliceResult) Print(state *PrinterState) error {
 		state.options.WithQuoteStr()
 		return o.ToArray().PrintObject(state, o)
 	})
+}
+
+// Length returns the number of matches.
+func (o RegexpStrsSliceResult) Length() int { return len(o) }
+
+// IndexGet returns match i, itself a submatch list (full match + groups).
+func (o RegexpStrsSliceResult) IndexGet(_ *VM, index Object) (Object, error) {
+	i, err := regexpResultIndex(index, len(o))
+	if err != nil {
+		return nil, err
+	}
+	return RegexpStrsResult(o[i]), nil
+}
+
+func (o RegexpStrsSliceResult) Iterate(_ *VM, na *NamedArgs) Iterator {
+	return SliceIteration(TArrayIterator, o, [][]string(o), func(e *KeyValue, i Int, v []string) error {
+		e.K = i
+		e.V = RegexpStrsResult(v)
+		return nil
+	}).ParseNamedArgs(na)
 }
 
 type RegexpBytesResult [][]byte
@@ -314,6 +408,26 @@ func (o RegexpBytesResult) Print(state *PrinterState) error {
 	})
 }
 
+// Length returns the number of submatches (the full match plus capture groups).
+func (o RegexpBytesResult) Length() int { return len(o) }
+
+// IndexGet returns submatch i as bytes (i == 0 is the full match).
+func (o RegexpBytesResult) IndexGet(_ *VM, index Object) (Object, error) {
+	i, err := regexpResultIndex(index, len(o))
+	if err != nil {
+		return nil, err
+	}
+	return Bytes(o[i]), nil
+}
+
+func (o RegexpBytesResult) Iterate(_ *VM, na *NamedArgs) Iterator {
+	return SliceIteration(TArrayIterator, o, [][]byte(o), func(e *KeyValue, i Int, v []byte) error {
+		e.K = i
+		e.V = Bytes(v)
+		return nil
+	}).ParseNamedArgs(na)
+}
+
 type RegexpBytesSliceResult [][][]byte
 
 func (o RegexpBytesSliceResult) IsFalsy() bool {
@@ -352,4 +466,24 @@ func (o RegexpBytesSliceResult) Print(state *PrinterState) error {
 		state.options.WithBytesToHex()
 		return o.ToArray().PrintObject(state, o)
 	})
+}
+
+// Length returns the number of matches.
+func (o RegexpBytesSliceResult) Length() int { return len(o) }
+
+// IndexGet returns match i, itself a submatch list (full match + groups).
+func (o RegexpBytesSliceResult) IndexGet(_ *VM, index Object) (Object, error) {
+	i, err := regexpResultIndex(index, len(o))
+	if err != nil {
+		return nil, err
+	}
+	return RegexpBytesResult(o[i]), nil
+}
+
+func (o RegexpBytesSliceResult) Iterate(_ *VM, na *NamedArgs) Iterator {
+	return SliceIteration(TArrayIterator, o, [][][]byte(o), func(e *KeyValue, i Int, v [][]byte) error {
+		e.K = i
+		e.V = RegexpBytesResult(v)
+		return nil
+	}).ParseNamedArgs(na)
 }

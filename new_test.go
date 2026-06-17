@@ -279,6 +279,20 @@ func TestVMBytesLit(t *testing.T) {
 		`Compile Error: invalid bytes literal`)
 }
 
+func TestVMRawStr(t *testing.T) {
+	// `raw "..."` of a string literal yields a rawStr at compile time (the
+	// double-quoted string's escapes are still processed before conversion)
+	testExpectRun(t, `return raw "a\nb"`, nil, RawStr("a\nb"))
+	testExpectRun(t, "return raw `a\\nb`", nil, RawStr(`a\nb`))
+	testExpectRun(t, `return typeName(raw "x")`, nil, Str("rawstr"))
+	// `raw EXPR` of a runtime expression converts at evaluation time. This also
+	// exercises the constant-folding optimizer over OpToRawStr (regression for a
+	// panic when the opcode was outside the optimizer's allowed-ops table).
+	testExpectRun(t, `return raw str(100)`, nil, RawStr("100"))
+	testExpectRun(t, `x := raw ("a" + str(1)); return x`, nil, RawStr("a1"))
+	testExpectRun(t, `return typeName(raw str(100))`, nil, Str("rawstr"))
+}
+
 func TestVMRegexLit(t *testing.T) {
 	// the literal evaluates to a regexp object
 	testExpectRun(t, `return typeName(/ab+/)`, nil, Str("regexp"))
@@ -300,16 +314,62 @@ func TestVMRegexLit(t *testing.T) {
 	testExpectRun(t, `return [6/2, 8/4]`, nil, Array{Int(3), Int(2)})
 }
 
+func TestVMRegexpOperators(t *testing.T) {
+	// ~ tests for a match (regexp on the left)
+	testExpectRun(t, `return (/\d+/) ~ "abc123"`, nil, True)
+	testExpectRun(t, `return (/\d+/) ~ "abc"`, nil, False)
+	// ~~ returns the first match as a submatch result (full match + groups);
+	// the submatch result is indexable (0 = whole match, 1.. = capture groups)
+	// and supports negative indices and len()
+	testExpectRun(t, `m := /(\w+)@(\w+)/ ~~ "user@host"; return [m[0], m[1], m[2], m[-1], len(m)]`,
+		nil, Array{Str("user@host"), Str("user"), Str("host"), Str("host"), Int(3)})
+	// ... and iterable
+	testExpectRun(t, `
+	re := /(\w+)@(\w+)/
+	out := []
+	for i, g in re ~~ "user@host" { out = append(out, [i, g]) }
+	return out`, nil, Array{
+		Array{Int(0), Str("user@host")},
+		Array{Int(1), Str("user")},
+		Array{Int(2), Str("host")},
+	})
+	// ~~~ returns all matches; each is itself an indexable submatch result
+	testExpectRun(t, `all := /\d+/ ~~~ "a1 b22 c333"; return [len(all), all[0][0], all[2][0]]`,
+		nil, Array{Int(3), Str("1"), Str("333")})
+	// an out-of-range group index errors
+	expectErrHas(t, `m := /(\w+)/ ~~ "ab"; return m[5]`, newOpts(), "IndexOutOfBounds")
+}
+
 func TestVMRegexpReplace(t *testing.T) {
 	// replace method with a string template
 	testExpectRun(t, `r := /o/; return r.replace("hello world", "0")`,
 		nil, Str("hell0 w0rld"))
-	// $1/$2 group expansion
+	// $1/$2 numbered group expansion
 	testExpectRun(t, `r := /(\d+)-(\d+)/; return r.replace("12-34", "$2/$1")`,
 		nil, Str("34/12"))
-	// callable replacement (invoked per match)
+	// ${name} named group expansion
+	testExpectRun(t, `r := /(?P<y>\d+)-(?P<m>\d+)/; return r.replace("2024-06", "${m}/${y}")`,
+		nil, Str("06/2024"))
+	// $$ is a literal dollar sign
+	testExpectRun(t, `r := /x/; return r.replace("ax", "$$")`, nil, Str("a$"))
+	// groups can be reused/duplicated in the template
+	testExpectRun(t, `r := /(\w)/; return r.replace("ab", "$1$1")`, nil, Str("aabb"))
+	// callable replacement (invoked per whole match)
 	testExpectRun(t, `r := /[a-z]+/; return r.replace("ab cd", func(m) { return "<" + m + ">" })`,
 		nil, Str("<ab> <cd>"))
+	// callable replacement using a builtin-module function
+	testExpectRun(t, `r := /[a-z]+/; return r.replace("hi bye", strings.toUpper)`,
+		nil, Str("HI BYE"))
+	// callable receives capture groups via the named arg `m` (m[0] is the whole
+	// match, m[1].. are the groups)
+	testExpectRun(t, `r := /(\w+)@(\w+)/; return r.replace("user@host", func(whole; m) { return m[2] + "@" + m[1] })`,
+		nil, Str("host@user"))
+	// the whole match is also available positionally alongside the groups
+	testExpectRun(t, `r := /(\w)(\w)/; return r.replace("ab cd", func(whole; m) { return whole + ":" + m[2] + m[1] })`,
+		nil, Str("ab:ba cd:dc"))
+	// the named arg `re` is the regexp itself
+	testExpectRun(t, `r := /\d+/; return r.replace("a12 b3", func(whole; re) { return "<" + str(re) + ">" })`,
+		nil, Str("a<\\d+> b<\\d+>"))
 	// bytes subject -> bytes result
 	testExpectRun(t, `r := /o/; return str(r.replace(bytes("foo"), "0"))`,
 		nil, Str("f00"))
@@ -319,6 +379,10 @@ func TestVMRegexpReplace(t *testing.T) {
 		nil, Str("hell0 w0rld"))
 	testExpectRun(t, `r := /[a-z]+/; f := r | func(m) { return m + "!" }; return f("ab cd")`,
 		nil, Str("ab! cd!"))
+	// `|` with a group-using callable
+	testExpectRun(t, `
+	redact := /(\d{2})(\d+)/ | func(whole; m) { return m[1] + strings.repeat("*", len(m[2])) }
+	return "card 1234567890".|redact`, nil, Str("card 12********"))
 	// composes with the pipe operator
 	testExpectRun(t, `r := /o/; return "hello world".|(r | "0")`,
 		nil, Str("hell0 w0rld"))
