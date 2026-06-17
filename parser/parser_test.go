@@ -3976,6 +3976,16 @@ func TestParseMatchExprError(t *testing.T) {
 	test.ExpectParseError(t, `x := match a { else: 2 }`)
 }
 
+func TestParsePrefixIncDec(t *testing.T) {
+	// prefix ++/-- are unary operators (parenthesized like other unary exprs)
+	test.ExpectParseString(t, `++x`, `(++x)`)
+	test.ExpectParseString(t, `--x`, `(--x)`)
+	test.ExpectParseString(t, `y := ++x`, `y := (++x)`)
+	test.ExpectParseString(t, `return --x`, `return (--x)`)
+	// postfix form is unchanged
+	test.ExpectParseString(t, `x++`, `x++`)
+}
+
 func TestParseSpreadLiterals(t *testing.T) {
 	// array spread/merge
 	test.ExpectParseString(t, `[1, 2, *a, 4, *b]`, `[1, 2, *a, 4, *b]`)

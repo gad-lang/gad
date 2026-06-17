@@ -1267,6 +1267,36 @@ func (vm *VM) xOpUnary() error {
 		default:
 			goto invalidType
 		}
+	case token.Inc:
+		switch o := right.(type) {
+		case Int:
+			value = o + 1
+		case Uint:
+			value = o + 1
+		case Float:
+			value = o + 1
+		case Char:
+			value = o + 1
+		case Decimal:
+			value = Decimal(o.ToGo().Add(DecimalFromInt(1).ToGo()))
+		default:
+			goto invalidType
+		}
+	case token.Dec:
+		switch o := right.(type) {
+		case Int:
+			value = o - 1
+		case Uint:
+			value = o - 1
+		case Float:
+			value = o - 1
+		case Char:
+			value = o - 1
+		case Decimal:
+			value = Decimal(o.ToGo().Sub(DecimalFromInt(1).ToGo()))
+		default:
+			goto invalidType
+		}
 	case token.Null:
 		vm.stack[vm.sp-1] = Bool(right == Nil)
 		vm.ip++

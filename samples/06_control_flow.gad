@@ -29,11 +29,16 @@ grade := func(score) {
 println("grade(95) =", grade(95))
 println("grade(83) =", grade(83))
 
-// for with a counter.
+// for with a counter (postfix `i++` is a statement).
 fact := 1
 for i := 1; i <= 5; i++ {
     fact *= i
 }
 println("5! =", fact)
+
+// prefix `++x` / `--x` mutate and yield the new value, so they work in
+// expressions (postfix forms are statements only).
+n := 0
+println("prefix:", ++n, ++n, --n)   // 1 2 1
 
 return fact

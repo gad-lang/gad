@@ -3420,6 +3420,24 @@ func TestCompilerMatchExprForms(t *testing.T) {
 	))
 }
 
+func TestCompilerPrefixIncDec(t *testing.T) {
+	// ++a : load a, apply the unary Inc operator, store back, then yield a
+	expectCompile(t, `a := 1; return ++a`, bytecode(
+		Array{Int(1)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),           // 0000 a := 1
+			makeInst(OpDefineLocal, 0),        // 0003
+			makeInst(OpGetLocal, 0),           // 0005 load a
+			makeInst(OpUnary, int(token.Inc)), // 0007 a + 1
+			makeInst(OpSetLocal, 0),           // 0009 store a
+			makeInst(OpGetLocal, 0),           // 0011 yield a
+			makeInst(OpReturn, 1),             // 0013
+		),
+			funcLocals(1),
+		),
+	))
+}
+
 func TestCompilerMatchStmtForms(t *testing.T) {
 	// statement form, multi-condition arm + else: bodies leave no value, and the
 	// whole match is value-less (no OpNil, no OpPop).

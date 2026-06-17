@@ -368,7 +368,7 @@ func (p *Parser) ParseUnaryExpr() node.Expr {
 	}
 
 	switch p.Token.Token {
-	case token.Add, token.Sub, token.Not, token.Xor:
+	case token.Add, token.Sub, token.Not, token.Xor, token.Inc, token.Dec:
 		pos, op := p.Token.Pos, p.Token.Token
 		p.Next()
 		x := p.ParseUnaryExpr()
@@ -2129,7 +2129,7 @@ do:
 		token.Method, token.Ident, token.Int, token.Uint, token.Float, token.Decimal,
 		token.Char, token.String, token.RawString, token.RawHeredoc, token.Heredoc, token.CodeStr, token.Symbol,
 		token.True, token.False, token.Nil,
-		token.LParen, token.LBrack, token.Add, token.Sub,
+		token.LParen, token.LBrack, token.Add, token.Sub, token.Inc, token.Dec,
 		token.Mul, token.And, token.Xor, token.Not, token.Import, token.Embed,
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,

@@ -10,6 +10,19 @@
 | `-`      | negation (`0 - x`)  | numeric / char / bool                  |
 | `^`      | bitwise complement  | integer / char / bool                  |
 | `!`      | logical NOT         | any value (truthy/falsy)               |
+| `++x`    | pre-increment       | variable of int/uint/float/decimal/char |
+| `--x`    | pre-decrement       | variable of int/uint/float/decimal/char |
+
+The prefix `++x` / `--x` operators mutate the variable **and** evaluate to its
+new value, so they can be used inside expressions:
+
+```go
+x := 5
+y := ++x        // x is 6, y is 6
+arr := [0, 0, 0]
+i := 0
+arr[++i] = 9    // assigns arr[1]
+```
 
 Every value is either truthy or falsy. `0`, `0u`, `0.0`, `""`, empty
 collections, `nil`, `no` and `false` are falsy; everything else is truthy.
@@ -93,10 +106,11 @@ println(m.x?.y.z)   // 1
 | `/=`  | `lhs = lhs / rhs`    | `&^=`  | `lhs = lhs &^ rhs`    |
 | `%=`  | `lhs = lhs % rhs`    | `<<=`  | `lhs = lhs << rhs`    |
 | `**=` | `lhs = lhs ** rhs`   | `>>=`  | `lhs = lhs >> rhs`    |
-| `??=` | assign if `nil`      | `++`   | `lhs = lhs + 1`       |
-|       |                      | `--`   | `lhs = lhs - 1`       |
+| `??=` | assign if `nil`      | `x++`  | `x = x + 1`           |
+|       |                      | `x--`  | `x = x - 1`           |
 
-`++` and `--` are statements, not expressions.
+The **postfix** `x++` / `x--` are statements. The **prefix** `++x` / `--x` are
+[unary expressions](#unary-operators) that also yield the new value.
 
 ## Precedence
 

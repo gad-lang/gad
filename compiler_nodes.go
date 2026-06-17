@@ -1990,6 +1990,10 @@ func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
 }
 
 func (c *Compiler) compileUnaryExpr(nd *node.UnaryExpr) error {
+	// prefix `++x` / `--x` mutate the operand and yield its new value
+	if nd.Token == token.Inc || nd.Token == token.Dec {
+		return c.compilePrefixIncDec(nd)
+	}
 	if isMain, _ := nd.Expr.(*node.IsMainLit); isMain != nil && nd.Token == token.Not {
 		c.emit(nd, OpNotIsMain)
 	} else if err := c.Compile(nd.Expr); err != nil {
@@ -2008,6 +2012,27 @@ func (c *Compiler) compileUnaryExpr(nd *node.UnaryExpr) error {
 		}
 	}
 	return nil
+}
+
+// compilePrefixIncDec compiles `++ident` / `--ident`: apply the unary
+// increment/decrement operator to the variable's current value, store the
+// result back and leave the new value on the stack.
+func (c *Compiler) compilePrefixIncDec(nd *node.UnaryExpr) error {
+	ident, _ := nd.Expr.(*node.IdentExpr)
+	if ident == nil {
+		return c.errorf(nd, "operator %q requires a variable operand", nd.Token.String())
+	}
+	// load current value, apply the operator
+	if err := c.Compile(ident); err != nil {
+		return err
+	}
+	c.emit(nd, OpUnary, int(nd.Token))
+	// store the new value back into the variable (consumes it)
+	if err := c.compileDefineAssign(nd, ident, token.Var, token.Assign, false); err != nil {
+		return err
+	}
+	// yield the new value
+	return c.Compile(ident)
 }
 
 func (c *Compiler) compileSelectorExpr(nd *node.SelectorExpr) error {

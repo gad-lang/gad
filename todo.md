@@ -140,3 +140,129 @@
         ) 
         ``` 
         apply this rule for related CodeWriter when `ctx.Flags.Has(CodeWriteContextFlagFormat*InNewLine)` (force all to new lines) or `NEW_LINE_CALC`
+- [x] implement unary operators `--IDENT` and `++IDENT`. create samples, doc, and parser/compiler/vm tests for here.
+- [ ] FuncHeader feature:
+  - create new node FuncHeader and use it as anonymous field of FuncType:
+    ```go
+    type FuncHeader struct {
+        NameExpr Expr
+        Params   FuncParams
+        Return   []*TypedIdentExpr
+    }
+      
+      // Pos returns the position of first character belonging to the node.
+      func (e *FuncHeader) Pos() source.Pos {
+		  // detect order
+          // NameExpr.Pos if set
+          // Params.Pos if set
+          // Return[0] if set
+          // NoPos
+      }
+      
+      // End returns the position of first character immediately after the node.
+      func (e *FuncHeader) End() source.Pos {
+          // detect order
+          // Return[len(Return)-1] if set
+          // Params.End if set
+          // NameExpr.Pos if set
+          // NoPos
+      }
+      
+      func (e *FuncHeader) NameIdent() *IdentExpr {
+          if e.NameExpr == nil {
+              return nil
+          }
+          return IdentOfSelector(e.NameExpr)
+      }
+      
+      func (e *FuncHeader) Name() string {
+          if e.NameExpr == nil {
+              return ""
+          }
+          switch t := e.NameExpr.(type) {
+          case *IdentExpr:
+              return t.Name
+          case *IndexExpr:
+              switch it := t.Index.(type) {
+              case *StrLit:
+                  return it.Value()
+              }
+          case *SelectorExpr:
+              switch it := t.Sel.(type) {
+              case *IdentExpr:
+                  return it.Name
+              }
+          }
+      
+          return ""
+      }
+      
+      func (e *FuncHeader) String() string {
+          var s string
+          if e.NameExpr != nil {
+              s = e.NameExpr.String()
+          }
+          s += e.Params.String()
+          s += FormatFuncReturn(e.Return)
+          return s
+      }
+    
+    type FuncType struct {
+        Token    TokenLit
+        FuncPos  source.Pos
+        FuncHeader
+    }
+    
+    // Pos returns the position of first character belonging to the node.
+      func (e *FuncType) Pos() source.Pos {
+		  // detect order
+          // Token.Pos if set
+          // FuncPos.Pos if set
+          // Header.Pos
+      }
+      
+      // End returns the position of first character immediately after the node.
+      func (e *FuncType) End() source.Pos {
+          // Header.Pos
+      }
+    
+    type FuncHeaderExpr struct {
+        OpenPos    source.Pos // `<`
+        ClosePos    source.Pos // `>`
+        FuncHeader
+    }
+
+    // Pos returns the position of first character belonging to the node.
+      func (e *FuncHeaderExpr) Pos() source.Pos {
+		  // detect order
+          // OpenPos.Pos if set
+          // FuncHeader.Pos if set
+      }
+      
+      // End returns the position of first character immediately after the node.
+      func (e *FuncHeaderExpr) End() source.Pos {
+          // detect order
+          // Header.Pos
+      }
+    
+      func (e *FuncHeaderExpr) String() string {
+            return "<" + e.FuncHeader.String() + ">"
+      }
+    
+    ```
+    - create FuncHeaderExpr syntaxe like func type `<()>`,`<(v int)<x uint|int>>`
+    - take gad.FunctionHeader as Object with `IndexGet` for `name`, `params` and `namedParams` (see gad.CompiledFunction) - builtin type is `TFunctionHeader` (name "FunctionHeader") 
+    - compile FuncHeaderExpr to call builtin type FunctionHeader
+    - create `MethodInterfaceExpr{ NameExpr Expr (optional), Headers []*FuncHeaderExpr // min 1 header }` parsed from:
+      `meti { () }`/`meti { (), (v)<int> }`/`meti IDENT { () }` (IDENT as NameExpr, if is *Ident define `const IDENT = meti IDENT {...}`)
+      allowing `x := meti { () }`/`x := meti Z { () }`, when headers was separated by command or new line. Take `WriteCode` here
+      like MatchExpr with context format flag for here.
+    - create object type `MethodInterface` (builtin type - global var `TMethodInterface`) and compile `MethodInterfaceExpr` to call `MethodInterface(name, *headers)`,
+      return instance of `MethodInterfaceInstance` (`Type()` method return `TMethodInterface`).
+    - allow `append` function to create new `MethodInterface` join multiples `MethodInterface` 
+    - implement builtin operator `add` to merge `MethodInterfaceInstances` to new `MethodInterfaceInstance`
+    - create builtin function `implements(fn CALLABLE, mi MethodInterfaceInstance, *otherMi MethodInterfaceInstance) <bool>` to return if
+      fn has all defined headers of all items in the list `[mi, *otherMi]`.
+    - create samples, doc, and parser/compiler/vm tests for all new features.
+    
+- [ ] allow `--`;`++` as binary operator (preserves unary operator). if `++` not handled on Object, call `append` function as fallback. create samples, doc, and parser/compiler/vm tests for here. 

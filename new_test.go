@@ -8,6 +8,32 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
+func TestVMPrefixIncDec(t *testing.T) {
+	// prefix ++/-- mutate the variable and yield the new value
+	testExpectRun(t, `x := 5; return ++x`, nil, Int(6))
+	testExpectRun(t, `x := 5; return --x`, nil, Int(4))
+	testExpectRun(t, `x := 5; ++x; return x`, nil, Int(6))
+	testExpectRun(t, `x := 5; r := ++x; return [r, x]`, nil, Array{Int(6), Int(6)})
+
+	// all numeric types
+	testExpectRun(t, `y := 3u; return ++y`, nil, Uint(4))
+	testExpectRun(t, `f := 1.5; return ++f`, nil, Float(2.5))
+	testExpectRun(t, `d := decimal(2); return --d`, nil, DecimalFromInt(1))
+
+	// usable inside expressions; evaluated left to right
+	testExpectRun(t, `i := 0; return ++i + ++i`, nil, Int(3)) // 1 + 2
+	testExpectRun(t, `arr := [10, 20, 30]; i := 0; arr[++i] = 99; return arr`,
+		nil, Array{Int(10), Int(99), Int(30)})
+
+	// statement form, repeated
+	testExpectRun(t, `n := 0; ++n; ++n; --n; return n`, nil, Int(1))
+
+	// the operand must be a variable
+	expectErrHas(t, `return ++5`, newOpts().CompilerError(), "requires a variable operand")
+	// a non-numeric operand is a runtime type error
+	expectErrHas(t, `s := "a"; return ++s`, newOpts(), "invalid type for unary")
+}
+
 func TestVMPowFractional(t *testing.T) {
 	// integer powers are unchanged (int**int and decimal yield a decimal)
 	testExpectRun(t, `return 2 ** 10`, nil, DecimalFromInt(1024))
