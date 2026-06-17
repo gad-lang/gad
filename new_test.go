@@ -8,6 +8,95 @@ import (
 	. "github.com/gad-lang/gad"
 )
 
+func TestVMClassFeatures(t *testing.T) {
+	// --- fields: declarations, types (not enforced) and defaults ---
+	testExpectRun(t, `
+	P := Class("P"; fields=(; a, b int, c = "x", d str = "y"))
+	p := P()
+	return [p.a, p.b, p.c, p.d]`, nil, Array{Nil, Nil, Str("x"), Str("y")})
+
+	// a computed field default is evaluated fresh for every instance
+	testExpectRun(t, `
+	n := 0
+	C := Class("C"; fields=(; id = (= n++)))
+	return [C().id, C().id, C().id]`, nil, Array{Int(1), Int(2), Int(3)})
+
+	// --- methods (overloaded by arity/type) ---
+	testExpectRun(t, `
+	Calc := Class("Calc"; methods=[
+		add(this, a, b) => a + b
+		add(this, a) => a + a
+	])
+	c := Calc()
+	return [c.add(2, 3), c.add(5)]`, nil, Array{Int(5), Int(10)})
+
+	// --- constructor `new` with overloads; this(;..) sets fields ---
+	testExpectRun(t, `
+	Point := Class("Point"; new {
+		(this; **f) => this(; x=0, y=0, **f)
+		(this, x, y) => this(; x=x, y=y)
+	})
+	a := Point()
+	b := Point(3, 4)
+	c := Point(; x=7)
+	return [a.x, a.y, b.x, b.y, c.x, c.y]`,
+		nil, Array{Int(0), Int(0), Int(3), Int(4), Int(7), Int(0)})
+
+	// --- properties: getter + (typed) setters ---
+	testExpectRun(t, `
+	Box := Class("Box"; fields=(; v), properties={
+		val: func {
+			(this) => this.v
+			(this, x) { this.v = "any:" + str(x) }
+			(this, x int) { this.v = "int:" + str(x) }
+		}
+	})
+	b := Box()
+	out := []
+	b.val = "a"; out = append(out, b.val)
+	b.val = 5;   out = append(out, b.val)
+	return out`, nil, Array{Str("any:a"), Str("int:5")})
+
+	// --- inheritance: override, inherited method, promoted (anonymous) field ---
+	testExpectRun(t, `
+	Animal := Class("Animal"; fields=(; name str = "?"), methods=[
+		speak(this) => this.name + " makes a sound"
+		describe(this) => "I am " + this.name
+	])
+	Dog := Class("Dog"; extends=[Animal], methods=[ speak(this) => this.name + " barks" ])
+	d := Dog(; name="Rex")
+	return [d.speak(), d.describe(), d.name]`,
+		nil, Array{Str("Rex barks"), Str("I am Rex"), Str("Rex")})
+
+	// promoted field is shared with the embedded parent (set routes to parent)
+	testExpectRun(t, `
+	Animal := Class("Animal"; fields=(; name str = "?"), methods=[ describe(this) => "I am " + this.name ])
+	Dog := Class("Dog"; extends=[Animal])
+	d := Dog(; name="Rex")
+	d.name = "Buddy"
+	return [d.name, d.describe()]`, nil, Array{Str("Buddy"), Str("I am Buddy")})
+
+	// multiple inheritance: methods from several parents are promoted
+	testExpectRun(t, `
+	A := Class("A"; methods=[ a(this) => "a" ])
+	B := Class("B"; methods=[ b(this) => "b" ])
+	C := Class("C"; extends=[A, B], methods=[ c(this) => "c" ])
+	o := C()
+	return [o.a(), o.b(), o.c()]`, nil, Array{Str("a"), Str("b"), Str("c")})
+
+	// --- operator overload + conversion + external method via `met` ---
+	testExpectRun(t, `
+	Vec := Class("Vec"; fields=(; x int = 0, y int = 0))
+	met @binaryOperator(_ TBinaryOperatorAdd, a Vec, b Vec) {
+		return Vec(; x=a.x+b.x, y=a.y+b.y)
+	}
+	met str(v Vec) => "(" + v.x + ", " + v.y + ")"
+	met Vec.len2(this) => this.x*this.x + this.y*this.y
+	a := Vec(; x=1, y=2)
+	b := Vec(; x=10, y=20)
+	return [str(a + b), a.len2()]`, nil, Array{Str("(11, 22)"), Int(5)})
+}
+
 func TestVMDeferStmt(t *testing.T) {
 	// runs after the body
 	testExpectRun(t, `

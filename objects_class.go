@@ -469,6 +469,32 @@ func (t *Class) AddField(field ...*ClassField) error {
 	return nil
 }
 
+// DeclaresField reports whether the class or one of its (transitive) parents
+// declares a field named name.
+func (t *Class) DeclaresField(name string) bool {
+	if _, ok := t.fieldsMap[name]; ok {
+		return true
+	}
+	for _, p := range t.parents {
+		if p.Type.DeclaresField(name) {
+			return true
+		}
+	}
+	return false
+}
+
+// parentDeclaringField returns the first parent whose subtree declares a field
+// named name, or nil. Used to route a promoted (anonymous-field) value to the
+// embedded parent instance that owns it.
+func (t *Class) parentDeclaringField(name string) *ClassParent {
+	for _, p := range t.parents {
+		if p.Type.DeclaresField(name) {
+			return p
+		}
+	}
+	return nil
+}
+
 func (t *Class) AddProperty(name string, f *Func) (err error) {
 	if _, ok := t.propertiesMap[name]; ok {
 		return ErrClassPropertyRegister.NewErrorf("property %s already exists", name)

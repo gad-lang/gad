@@ -1,0 +1,62 @@
+// 11_classes.gad — the class system: fields, methods, properties,
+// constructors, inheritance and `met` extensions.
+
+// --- a class with fields, a constructor and methods ---
+Point := Class("Point";
+    new {
+        (this; **f)  => this(; x=0, y=0, **f)   // defaults + extra named fields
+        (this, x, y) => this(; x=x, y=y)        // positional
+    },
+    methods = [
+        dist(this) => float(this.x ** 2 + this.y ** 2) ** 0.5
+    ]
+)
+
+p := Point(3, 4)
+println("Point(3, 4).dist() =", p.dist())   // 5
+println("Point().x =", Point().x)           // 0
+
+// --- a property (getter + typed setters) ---
+Box := Class("Box"; fields = (; v), properties = {
+    val: func {
+        (this)        => this.v
+        (this, x)     { this.v = "any:" + str(x) }
+        (this, x int) { this.v = "int:" + str(x) }
+    }
+})
+b := Box()
+b.val = "hi"
+println("box any:", b.val)        // any:hi
+b.val = 7
+println("box int:", b.val)        // int:7
+
+// --- inheritance (Go-style anonymous fields) ---
+Animal := Class("Animal";
+    fields  = (; name str = "?"),
+    methods = [
+        speak(this)    => this.name + " makes a sound"
+        describe(this) => "I am " + this.name
+    ]
+)
+Dog := Class("Dog";
+    extends = [Animal],
+    methods = [ speak(this) => this.name + " barks" ]   // override
+)
+d := Dog(; name="Rex")
+println("dog speak:   ", d.speak())       // override -> Rex barks
+println("dog describe:", d.describe())    // inherited -> I am Rex
+
+// --- extend an existing class with `met` ---
+Vec := Class("Vec"; fields = (; x int = 0, y int = 0))
+met @binaryOperator(_ TBinaryOperatorAdd, a Vec, b Vec) {
+    return Vec(; x=a.x+b.x, y=a.y+b.y)
+}
+met str(v Vec) => "(" + v.x + ", " + v.y + ")"
+met Vec.len2(this) => this.x*this.x + this.y*this.y
+
+a := Vec(; x=1, y=2)
+sum := a + Vec(; x=10, y=20)
+println("vec add: ", str(sum))    // (11, 22)
+println("vec len2:", a.len2())    // 5
+
+return p.dist()

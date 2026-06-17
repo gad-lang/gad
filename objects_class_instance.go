@@ -95,6 +95,24 @@ func (o *ClassInstance) Init(vm *VM, fields Dict) (err error) {
 	}
 
 	for name, v := range fields {
+		// Go-style promoted (anonymous-field) routing: a passed field that this
+		// class does not declare itself, but a parent does, is set on that
+		// embedded parent instance so the promoted accessor and the parent's
+		// inherited methods share one value.
+		if _, declaredHere := o.class.fieldsMap[name]; !declaredHere {
+			if parent := o.class.parentDeclaringField(name); parent != nil {
+				pf, _ := parentsFields[parent.Alias].(Dict)
+				if pf == nil {
+					pf = Dict{}
+					if parentsFields == nil {
+						parentsFields = Dict{}
+					}
+					parentsFields[parent.Alias] = pf
+				}
+				pf[name] = v
+				continue
+			}
+		}
 		o.fields[name] = v
 	}
 

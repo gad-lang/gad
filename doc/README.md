@@ -24,20 +24,22 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
    `return =`, and `defer` / `deferb` handlers.
 7. [Collections](collections.md) — arrays, dicts, comprehensions, spread/merge
    literals, and destructuring.
-8. [Strings, Bytes and Regex](strings-bytes-regex.md) — string forms, raw
+8. [Classes and Objects](classes.md) — `Class(...)`, fields, methods,
+   properties, constructors, inheritance and `met` extensions.
+9. [Strings, Bytes and Regex](strings-bytes-regex.md) — string forms, raw
    strings, heredocs, template strings, **bytes literals** (`b"…"`, `h"…"`) and
    `/regex/` literals.
-9. [Error Handling](error-handling.md) — error values, builtin errors,
-   `try/catch/finally`, and the `or` fallback operator.
-10. [Modules](modules.md) — `import`, `exports`, module parameters.
-11. [Builtin Functions](builtins.md) — overview of the builtin library.
-12. [Embedding in Go](embedding.md) — compile and run Gad from Go, pass
+10. [Error Handling](error-handling.md) — error values, builtin errors,
+    `try/catch/finally`, and the `or` fallback operator.
+11. [Modules](modules.md) — `import`, `exports`, module parameters.
+12. [Builtin Functions](builtins.md) — overview of the builtin library.
+13. [Embedding in Go](embedding.md) — compile and run Gad from Go, pass
     globals and arguments, expose Go functions.
-13. [Formatting](formatting.md) — the `gad fmt` source formatter, its flags and
+14. [Formatting](formatting.md) — the `gad fmt` source formatter, its flags and
     the `.gad.yaml` config file.
-14. [Templates](templates.md) — mixed/template mode (`{% … %}`, `{%= … %}`,
+15. [Templates](templates.md) — mixed/template mode (`{% … %}`, `{%= … %}`,
     `begin … end`, whitespace trim markers, `.gadt` files).
-15. [Naming Conventions](conventions.md) — how primitive types, constants,
+16. [Naming Conventions](conventions.md) — how primitive types, constants,
     modules and methods are cased.
 
 ## A Taste of Gad

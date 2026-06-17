@@ -482,8 +482,11 @@ func NewClassFunc(c Call) (ret Object, err error) {
 		extends = &NamedArgVar{
 			Name:          "extends",
 			TypeAssertion: TypeAssertionFromTypes(TArray),
+			// The extends array lists the parent classes; each element is a
+			// parent class or an [parentClass, alias] pair. Spread the elements
+			// so each is handled as its own parent spec.
 			Do: func(value Object) (err error) {
-				return t.CallExtends(Call{VM: c.VM, Args: Args{Array{value}}})
+				return t.CallExtends(Call{VM: c.VM, Args: Args{value.(Array)}})
 			},
 		}
 	)
