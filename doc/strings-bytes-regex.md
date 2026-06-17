@@ -23,6 +23,23 @@ raw "x" + "y"   // "xy"  (rawStr concatenates with str)
 
 `str` and `rawStr` interoperate; mixing them in `+` yields a string.
 
+### The `raw` prefix
+
+`raw EXPR` produces a `rawStr` from any expression. When `EXPR` is a string
+literal the conversion happens at **compile time** (it folds to a constant);
+otherwise it converts the evaluated value at **run time**:
+
+```go
+raw `a\nb`         // rawStr with a literal backslash-n — folded at compile time
+raw "x" + str(1)   // rawStr "x1"
+raw str(100)       // rawStr "100" — converted at run time
+typeName(raw "x")  // "rawstr"
+```
+
+`raw` does not skip a string literal's own escapes: `raw "a\nb"` first turns the
+double-quoted `"a\nb"` into a two-line string and then converts it, so use a
+raw-string literal (`` raw `a\nb` ``) when you want to keep the backslashes.
+
 ## Heredocs
 
 A heredoc is delimited by a fence of three or more `"` (or `` ` `` for the raw

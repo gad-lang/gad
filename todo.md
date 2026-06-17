@@ -53,7 +53,7 @@
       add method "strToLocation" of time.Location constructor to parse Location from str. 
       takes time.time, time.Date and time.Duration as primitive types.
       update docs and samples.
-- [ ] updated doc to add examples for "~" and "~~" regexp operators and POSIX `/.../p` (`p` sufix), add examples using
+- [x] updated doc to add examples for "~" and "~~" regexp operators and POSIX `/.../p` (`p` sufix), add examples using
       captured groups and regexp flags.
       `raw EXPR`, produces `rawStr` type (`raw "a"` is in compiler time, but `raw str(100)` is in execution time) - update doc for here.
       add examples for The `or` Fallback Operator using `$err` variable.

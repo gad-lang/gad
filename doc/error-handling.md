@@ -97,6 +97,15 @@ y := 1 + (mayThrow() or 10)      // 11
 ok := (2 * 3) or 0               // 6  (no throw → left value)
 ```
 
+Inside the fallback, the caught error is bound to `$err`, so the fallback can
+inspect or reuse it:
+
+```go
+v := mayThrow() or ("recovered: " + str($err))   // "recovered: error: fail"
+// reuse $err to re-throw selectively
+n := compute() or ($err.name == "error" ? -1 : throw $err)
+```
+
 `or` triggers only on a *thrown* error, not on a value that merely *is* an
 error. If the fallback is itself an error value, it is re-thrown.
 
