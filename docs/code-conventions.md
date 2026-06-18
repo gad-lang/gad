@@ -1,0 +1,95 @@
+# Gad Code Conventions
+
+This document describes the conventions the Gad formatter (`gad fmt` and the
+`node.Code` writer) follows, and the naming rules expected of Gad source.
+
+## Naming
+
+| Kind                         | Convention            | Examples                         |
+|:-----------------------------|:----------------------|:---------------------------------|
+| primitive type name          | `lowerCamelCase`      | `int`, `rawStr`, `calendarDate`  |
+| non-primitive type name      | `PascalCase`          | `Location`, `Range`              |
+| constant                     | `PascalCase`          | `RFC3339`, `Nanosecond`          |
+| module name                  | `snake_case`          | `time`, `std_io`                 |
+| method / property            | `lowerCamelCase`      | `t.year()`, `d.minutes()`        |
+
+Well-known acronyms stay upper-case (Go convention), e.g. `URL`, `UTC`.
+
+## Declarations
+
+Declaration statements (`var`, `const`, `global`, `param`) share one layout.
+
+### Single declaration: no parentheses
+
+A declaration of a single spec is written **without** parentheses:
+
+```gad
+var x
+const Pi = 3.14159
+global state
+```
+
+Never `var (x)` — the formatter rewrites it to `var x`. This applies to every
+declaration keyword.
+
+### Group declaration: parentheses
+
+Two or more specs are grouped in parentheses. Short groups stay on one line:
+
+```gad
+var (x, y)
+var (x = 1, y = 2)
+const (Min = 0, Max = 10)
+```
+
+### Grouping order
+
+When a group mixes specs with and without an initial value, put the
+value-less declarations **first**:
+
+```gad
+var (
+    // group declarations without value as first
+    a, b, c
+    d, e
+    f = 1
+    g = 2
+    r = 1, s = 2
+    t, u = 3, 4
+    v, w, x, y = expr      // destructuring
+    (a1, a2; a3, **r) = expr
+)
+```
+
+Avoid mixing alignment and irregular spacing:
+
+```gad
+// bad
+var ( a, b, c
+    d, e
+    f = 1,  g = 2
+)
+```
+
+## Splitting to new lines
+
+List-like constructs — declaration specs, call arguments, array items, dict
+items, key-value arrays and named parameters — are either kept inline or split
+one-per-line. The formatter chooses between two modes:
+
+- **Force all to new lines** — when the corresponding
+  `CodeWriteContextFlagFormat*InNewLine` flag is set (this is what `gad fmt`
+  uses via `CodeWriteContextFlagFormat`), every item goes on its own line:
+
+  ```gad
+  var (
+      x
+      y
+  )
+  ```
+
+- **Column-aware (`NEW_LINE_CALC`)** — items are wrapped only when the rendered
+  line would exceed `ctx.MaxColumns`; otherwise they stay inline (`var (x, y)`,
+  `[1, 2, 3]`). Short constructs are left compact.
+
+A trailing item never carries a separator comma when split one-per-line.

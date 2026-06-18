@@ -282,6 +282,29 @@ end
 `, "\na\n; ‹; x := 2; ›\nb\n‹=(x ** 10)›\nc\n‹; if 1 begin ›\nd\n‹ end; ›\n")
 }
 
+func TestFormatDecl(t *testing.T) {
+	// A single declaration is written without parentheses, for every keyword.
+	test.New(t, "var (x)").Code("var x").FormattedCode("var x")
+	test.New(t, "var x").Code("var x").FormattedCode("var x")
+	test.New(t, "const x = 1").Code("const x = 1").FormattedCode("const x = 1")
+	test.New(t, "global g").Code("global g").FormattedCode("global g")
+
+	// A group keeps parentheses; inline stays compact, formatted splits one
+	// spec per line (no trailing comma on the last).
+	test.New(t, "var (x, y)").Code("var (x, y)").FormattedCode("var (\n\tx\n\ty\n)")
+	test.New(t, "const (a = 1, b = 2)").Code("const (a = 1, b = 2)").
+		FormattedCode("const (\n\ta = 1\n\tb = 2\n)")
+
+	// A lone named param keeps its parens and the `;` (the single-decl rule
+	// must not turn `param (; x)` into `param x`).
+	test.New(t, "param x").Code("param x").FormattedCode("param x")
+	test.New(t, "param (;x)").Code("param (; x)").FormattedCode("param (\n\t; x\n)")
+	test.New(t, "param (a; x)").Code("param (a; x)").
+		FormattedCode("param (\n\ta\n\t; x\n)")
+	test.New(t, "param (a, b; c)").Code("param (a, b; c)")
+	test.New(t, "param (;x, **y)").Code("param (; x, **y)")
+}
+
 func TestFormatMixedMode(t *testing.T) {
 	mixed := func(src string) *test.Parser {
 		return test.New(t, src).WithMixed().

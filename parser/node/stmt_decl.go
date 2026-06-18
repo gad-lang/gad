@@ -277,30 +277,66 @@ func (d *GenDecl) String() string {
 func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(d.Tok.String())
 
-	if len(d.Specs) > 1 {
-		ctx.WriteString(" (")
-		inLineLine := ctx.Flags.Has(CodeWriteContextFlagFormatDeclItemInNewLine)
-		ctx.WriteItemsSep(
-			inLineLine,
-			len(d.Specs),
-			", ",
-			"",
-			func(i int) {
-				d.Specs[i].WriteCode(ctx)
-			},
-			func(newLine bool) {
-				if newLine {
-					ctx.WriteSecondLine()
-				}
-			})
-		if inLineLine {
-			ctx.WritePrefix()
+	// A single spec is written without parentheses (`var x`, `const Pi = 1`),
+	// except a lone named param which must keep them so the `;` survives
+	// (`param (; x)`).
+	paren := len(d.Specs) > 1
+	if !paren && len(d.Specs) > 0 {
+		if _, ok := d.Specs[0].(*NamedParamSpec); ok {
+			paren = true
 		}
-		ctx.WriteSingleByte(')')
-	} else {
-		ctx.WriteSingleByte(' ')
-		d.Specs[0].WriteCode(ctx)
 	}
+
+	if !paren {
+		ctx.WriteSingleByte(' ')
+		if len(d.Specs) > 0 {
+			d.Specs[0].WriteCode(ctx)
+		}
+		return
+	}
+
+	ctx.WriteString(" (")
+	inNewLine := ctx.Flags.Has(CodeWriteContextFlagFormatDeclItemInNewLine)
+	if inNewLine {
+		ctx.Depth++
+	}
+
+	namedStarted := false
+	for i, sp := range d.Specs {
+		_, isNamed := sp.(*NamedParamSpec)
+		startNamed := isNamed && !namedStarted
+
+		if inNewLine {
+			ctx.WriteSecondLine()
+			ctx.WritePrefix()
+			if startNamed {
+				ctx.WriteString("; ")
+			}
+		} else {
+			switch {
+			case i == 0:
+				if startNamed {
+					ctx.WriteString("; ")
+				}
+			case startNamed:
+				ctx.WriteString("; ")
+			default:
+				ctx.WriteString(", ")
+			}
+		}
+
+		sp.WriteCode(ctx)
+		if isNamed {
+			namedStarted = true
+		}
+	}
+
+	if inNewLine {
+		ctx.WriteSecondLine()
+		ctx.Depth--
+		ctx.WritePrefix()
+	}
+	ctx.WriteSingleByte(')')
 }
 
 func (d *GenDecl) Params() (positional []*ParamSpec, named []*NamedParamSpec) {
