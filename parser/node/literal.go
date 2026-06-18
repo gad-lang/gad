@@ -1829,3 +1829,55 @@ func (e *DurationLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString("d")
 	e.Str.WriteCode(ctx)
 }
+
+// DateTimeLitKind discriminates the digit-suffix date/time literal forms.
+type DateTimeLitKind uint8
+
+const (
+	// DateLitKind is a `YYYYMMDD` date literal with a `D` suffix.
+	DateLitKind DateTimeLitKind = iota
+	// TimeLitKind is a `[YYYYMMDD]HHMMSS[.frac]` time literal with a `T` suffix.
+	TimeLitKind
+	// UnixTimeLitKind is a unix-seconds literal with a `U` suffix.
+	UnixTimeLitKind
+)
+
+// Suffix returns the source suffix letter for the kind.
+func (k DateTimeLitKind) Suffix() string {
+	switch k {
+	case DateLitKind:
+		return "D"
+	case UnixTimeLitKind:
+		return "U"
+	default:
+		return "T"
+	}
+}
+
+// DateTimeLit is a digit-suffix date/time literal: `20260131D` (date),
+// `235955T` (time) or `1781609136U` (unix time). Body holds the numeric body
+// without the suffix letter; it folds to a date or time value at compile time.
+type DateTimeLit struct {
+	// ValuePos is the position of the first digit.
+	ValuePos source.Pos
+	// Body is the numeric literal without the suffix letter.
+	Body string
+	// Kind selects the date/time/unix interpretation.
+	Kind DateTimeLitKind
+}
+
+func (e *DateTimeLit) ExprNode() {}
+
+// Pos returns the position of the first digit.
+func (e *DateTimeLit) Pos() source.Pos { return e.ValuePos }
+
+// End returns the position immediately after the suffix letter.
+func (e *DateTimeLit) End() source.Pos {
+	return source.Pos(int(e.ValuePos) + len(e.Body) + 1)
+}
+
+func (e *DateTimeLit) String() string { return e.Body + e.Kind.Suffix() }
+
+func (e *DateTimeLit) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}

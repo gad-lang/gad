@@ -589,6 +589,12 @@ func (c *Compiler) Compile(nd ast.Node) error {
 			return c.errorf(nt, "invalid duration literal: %v", err)
 		}
 		c.emit(nt, OpConstant, c.addConstant(d))
+	case *node.DateTimeLit:
+		obj, err := dateTimeLitObject(nt.Kind, nt.Body)
+		if err != nil {
+			return c.errorf(nt, "invalid %s literal: %v", nt.Kind.Suffix(), err)
+		}
+		c.emit(nt, OpConstant, c.addConstant(obj))
 	case *node.CharLit:
 		c.emit(nt, OpConstant, c.addConstant(Char(nt.Value)))
 	case *node.SymbolLit:

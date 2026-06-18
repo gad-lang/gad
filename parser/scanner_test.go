@@ -24,6 +24,30 @@ func TestScanner_ScanFloatAsDecimal(t *testing.T) {
 	)
 }
 
+func TestScanner_ScanDateTimeLit(t *testing.T) {
+	tr := &scanTester{}
+
+	// digit-suffix date/time literals scan as a String whose literal is the
+	// numeric body without the D/T/U suffix.
+	tr.scanExpect(t, "20260131D 235955T 1781609136U 235955.001T",
+		parser.DontInsertSemis, []scanResult{
+			{Token: token.String, Literal: "20260131", Line: 1, Column: 1},
+			{Token: token.String, Literal: "235955", Line: 1, Column: 11},
+			{Token: token.String, Literal: "1781609136", Line: 1, Column: 19},
+			{Token: token.String, Literal: "235955.001", Line: 1, Column: 31},
+		}...,
+	)
+
+	// a suffix letter glued to an identifier is not a literal: 123 stays an
+	// int and Drive stays an identifier.
+	tr.scanExpect(t, "123Drive",
+		parser.DontInsertSemis, []scanResult{
+			{Token: token.Int, Literal: "123", Line: 1, Column: 1},
+			{Token: token.Ident, Literal: "Drive", Line: 1, Column: 4},
+		}...,
+	)
+}
+
 func TestScanner_ScanCodeStr(t *testing.T) {
 	tr := &scanTester{}
 

@@ -461,6 +461,33 @@ func TestVMTimeStrTo(t *testing.T) {
 	expectErrHas(t, `return time.strToTime("99T")`, newOpts(), "invalid time")
 }
 
+func TestVMDateTimeLit(t *testing.T) {
+	// digit-suffix literals fold to constants at compile time:
+	// D -> date, T -> time, U -> unix time.
+	testExpectRun(t, `return typeName(20260131D)`, nil, Str("date"))
+	testExpectRun(t, `return typeName(235955T)`, nil, Str("time"))
+	testExpectRun(t, `return typeName(1781609136U)`, nil, Str("time"))
+
+	testExpectRun(t, `return str(20260131D)`, nil, Str("2026-01-31"))
+	testExpectRun(t, `return str(235955T)`, nil, Str("0001-01-01 23:59:55 +0000 UTC"))
+	testExpectRun(t, `return str(20260131235955T)`, nil, Str("2026-01-31 23:59:55 +0000 UTC"))
+	testExpectRun(t, `return str(1781609136U)`, nil, Str("2026-06-16 11:25:36 +0000 UTC"))
+
+	// fractional time literal (3/6/9 digits)
+	testExpectRun(t, `return 235955.001T.ns()`, nil, Int(1000000))
+
+	// method dispatch on the folded values
+	testExpectRun(t, `return 20260131D.year()`, nil, Int(2026))
+	testExpectRun(t, `return 235955T.hour()`, nil, Int(23))
+
+	// a digit-suffix glued to an identifier stays a number + identifier, so
+	// the literal form is not triggered (and 123 is just an int here).
+	testExpectRun(t, `Drive := 5; return 123 * Drive`, nil, Int(615))
+
+	// invalid literal bodies fail at compile time
+	expectErrHas(t, `return 9999T`, newOpts().CompilerError(), "invalid T literal")
+}
+
 func TestVMBuiltinModuleBase64(t *testing.T) {
 	// the base64 module is available as a builtin namespace, without an import
 	testExpectRun(t, `return base64.StdEncoding.EncodeToString(bytes("hi"))`, nil, Str("aGk="))

@@ -836,6 +836,25 @@ func (p *Parser) ParseDurationLit() node.Expr {
 	return &node.DurationLit{PrefixPos: pos, Str: str}
 }
 
+func (p *Parser) ParseDateTimeLit(suffix rune) node.Expr {
+	var kind node.DateTimeLitKind
+	switch suffix {
+	case 'D':
+		kind = node.DateLitKind
+	case 'U':
+		kind = node.UnixTimeLitKind
+	default:
+		kind = node.TimeLitKind
+	}
+	x := &node.DateTimeLit{
+		ValuePos: p.Token.Pos,
+		Body:     p.Token.Literal,
+		Kind:     kind,
+	}
+	p.Next()
+	return x
+}
+
 func (p *Parser) ParseStrLit() *node.StrLit {
 	x := &node.StrLit{
 		ValuePos: p.Token.Pos,
@@ -928,6 +947,9 @@ func (p *Parser) ParseLiteral() node.Expr {
 	}
 	if p.Token.Flag(durationLitKey) {
 		return p.ParseDurationLit()
+	}
+	if suffix, ok := p.Token.GetOk(dateTimeLitKey); ok {
+		return p.ParseDateTimeLit(suffix.(rune))
 	}
 	switch p.Token.Token {
 	case token.Nil:

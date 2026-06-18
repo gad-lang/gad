@@ -13,6 +13,12 @@ import (
 // ("b" or "h") is stored when the scanner recognises a b"..."/h"..." literal.
 const bytesLitPrefixKey = "bytesLitPrefix"
 
+// dateTimeLitKey is the PToken data key set when the scanner recognises a
+// digit-suffix date/time literal (20260131D, 235955T, 1781609136U). Its value
+// is the suffix rune ('D', 'T' or 'U'); the token's Literal holds the numeric
+// body without the suffix.
+const dateTimeLitKey = "dateTimeLit"
+
 // durationLitKey is the PToken data flag set when the scanner recognises a
 // d"..."/d`...` duration literal (its string body is a Go duration string).
 const durationLitKey = "durationLit"
@@ -311,6 +317,18 @@ do:
 	case '0' <= ch && ch <= '9':
 		insertSemi = true
 		t.Token, t.Literal = s.ScanNumber(false)
+		// digit-suffix date/time literals: 20260131D (date), 235955T (time),
+		// 1781609136U (unix time). The suffix letter must be glued to a plain
+		// numeric body and not be the first rune of an identifier, so that
+		// `123Drive` stays a number followed by an identifier.
+		if (s.Ch == 'D' || s.Ch == 'T' || s.Ch == 'U') &&
+			(t.Token == token.Int || t.Token == token.Uint || t.Token == token.Float) &&
+			!runehelper.IsIdentifier(rune(s.Peek())) {
+			suffix := s.Ch
+			s.Next() // consume the suffix letter
+			t.Token = token.String
+			t.Set(dateTimeLitKey, suffix)
+		}
 	default:
 		s.Next() // always make progress
 

@@ -9,7 +9,35 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gad-lang/gad/parser/node"
 )
+
+// dateTimeLitObject folds a digit-suffix date/time literal body into its
+// constant Object — a Date (`D`), or a *Time for the `T` (calendar) and `U`
+// (unix seconds) forms.
+func dateTimeLitObject(kind node.DateTimeLitKind, body string) (Object, error) {
+	switch kind {
+	case node.DateLitKind:
+		d, err := strToDate(body)
+		if err != nil {
+			return nil, err
+		}
+		return d, nil
+	case node.UnixTimeLitKind:
+		t, err := strToUnixTime(body)
+		if err != nil {
+			return nil, err
+		}
+		return &Time{Value: t}, nil
+	default:
+		t, err := strToTime(body)
+		if err != nil {
+			return nil, err
+		}
+		return &Time{Value: t}, nil
+	}
+}
 
 // timeStrToFunc adapts a string parser into a builtin function that takes one
 // str argument and wraps a parse failure as ErrType.
