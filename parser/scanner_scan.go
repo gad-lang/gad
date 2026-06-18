@@ -23,6 +23,59 @@ const dateTimeLitKey = "dateTimeLit"
 // d"..."/d`...` duration literal (its string body is a Go duration string).
 const durationLitKey = "durationLit"
 
+// isDateTimeBodyByte reports whether b may appear in the numeric body of a
+// date/time literal: a digit, the `_` date/time separator or the `.` fraction.
+func isDateTimeBodyByte(b byte) bool {
+	return b >= '0' && b <= '9' || b == '_' || b == '.'
+}
+
+// isDateTimeLocByte reports whether b may appear in the Z<location> segment of a
+// time literal: offset digits/sign/colon or an alphabetic zone name.
+func isDateTimeLocByte(b byte) bool {
+	return b >= '0' && b <= '9' ||
+		b >= 'A' && b <= 'Z' || b >= 'a' && b <= 'z' ||
+		b == ':' || b == '+' || b == '-'
+}
+
+// scanDateTimeLit looks ahead (without consuming) from the current position —
+// the first digit — for a digit-suffix date/time literal: a numeric body,
+// an optional `Z<location>` segment, and a trailing D/T/U suffix letter that
+// must not be the first rune of an identifier. On success it returns the body
+// (the literal without the suffix), the suffix byte and the total byte span of
+// body+suffix; otherwise ok is false and the reader is left untouched for plain
+// number scanning.
+func (s *Scanner) scanDateTimeLit() (body string, suffix byte, span int, ok bool) {
+	src := s.Src
+	i := s.Offset
+	j := i
+	for j < len(src) && isDateTimeBodyByte(src[j]) {
+		j++
+	}
+	end := j // index of the suffix letter (tentative)
+	if j < len(src) && src[j] == 'Z' {
+		k := j + 1
+		for k < len(src) && isDateTimeLocByte(src[k]) {
+			k++
+		}
+		if k == j+1 {
+			return "", 0, 0, false // empty Z<location>
+		}
+		end = k - 1 // the suffix is the last char of the location run
+	}
+	if end >= len(src) {
+		return "", 0, 0, false
+	}
+	switch src[end] {
+	case 'D', 'T', 'U':
+	default:
+		return "", 0, 0, false
+	}
+	if end+1 < len(src) && runehelper.IsIdentifier(rune(src[end+1])) {
+		return "", 0, 0, false
+	}
+	return string(src[i:end]), src[end], end + 1 - i, true
+}
+
 // scanCodeStr scans a `code … end` code-string literal whose `code` keyword
 // starts at codeStart (already consumed: s.Ch is the first character after it).
 // Two forms are accepted:
@@ -316,18 +369,18 @@ do:
 		}
 	case '0' <= ch && ch <= '9':
 		insertSemi = true
-		t.Token, t.Literal = s.ScanNumber(false)
 		// digit-suffix date/time literals: 20260131D (date), 235955T (time),
-		// 1781609136U (unix time). The suffix letter must be glued to a plain
-		// numeric body and not be the first rune of an identifier, so that
-		// `123Drive` stays a number followed by an identifier.
-		if (s.Ch == 'D' || s.Ch == 'T' || s.Ch == 'U') &&
-			(t.Token == token.Int || t.Token == token.Uint || t.Token == token.Float) &&
-			!runehelper.IsIdentifier(rune(s.Peek())) {
-			suffix := s.Ch
-			s.Next() // consume the suffix letter
+		// 1781609136U (unix time), optionally with a `_` date/time separator,
+		// a `.` fraction and a `Z<location>` zone. The suffix letter must end
+		// the run and not be the first rune of an identifier, so `123Drive`
+		// stays a number followed by an identifier.
+		if body, suffix, span, ok := s.scanDateTimeLit(); ok {
 			t.Token = token.String
-			t.Set(dateTimeLitKey, suffix)
+			t.Literal = body
+			s.NextC(span) // consume the body and the suffix letter
+			t.Set(dateTimeLitKey, rune(suffix))
+		} else {
+			t.Token, t.Literal = s.ScanNumber(false)
 		}
 	default:
 		s.Next() // always make progress

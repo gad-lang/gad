@@ -473,8 +473,16 @@ func TestVMDateTimeLit(t *testing.T) {
 	testExpectRun(t, `return str(20260131235955T)`, nil, Str("2026-01-31 23:59:55 +0000 UTC"))
 	testExpectRun(t, `return str(1781609136U)`, nil, Str("2026-06-16 11:25:36 +0000 UTC"))
 
+	// date+time with the `_` separator
+	testExpectRun(t, `return str(20260131_235955T)`, nil, Str("2026-01-31 23:59:55 +0000 UTC"))
 	// fractional time literal (3/6/9 digits)
 	testExpectRun(t, `return 235955.001T.ns()`, nil, Int(1000000))
+	testExpectRun(t, `return 235955.000001T.ns()`, nil, Int(1000))
+	// Z<location>: numeric offset and a named zone
+	testExpectRun(t, `return str(235955Z-0315T)`, nil, Str("0001-01-01 23:59:55 -0315 -0315"))
+	testExpectRun(t, `return str(235955ZGRUT)`, nil, Str("0001-01-01 23:59:55 +0000 GRU"))
+	// no zone part compiles to UTC
+	testExpectRun(t, `return str(235955T)`, nil, Str("0001-01-01 23:59:55 +0000 UTC"))
 
 	// method dispatch on the folded values
 	testExpectRun(t, `return 20260131D.year()`, nil, Int(2026))

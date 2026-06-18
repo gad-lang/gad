@@ -38,6 +38,15 @@ func TestScanner_ScanDateTimeLit(t *testing.T) {
 		}...,
 	)
 
+	// the body keeps the `_` separator and the Z<location> segment, dropping
+	// only the trailing suffix letter.
+	tr.scanExpect(t, "20260131_235955T 235955.001Z-03:15T",
+		parser.DontInsertSemis, []scanResult{
+			{Token: token.String, Literal: "20260131_235955", Line: 1, Column: 1},
+			{Token: token.String, Literal: "235955.001Z-03:15", Line: 1, Column: 18},
+		}...,
+	)
+
 	// a suffix letter glued to an identifier is not a literal: 123 stays an
 	// int and Drive stays an identifier.
 	tr.scanExpect(t, "123Drive",
