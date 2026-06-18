@@ -1,16 +1,25 @@
 // use_time.gad — the builtin `time` module (available without import).
 // Member names are lowerCamelCase (time.now, time.date, time.utc, …);
-// methods on a time value stay PascalCase (t.Year(), t.Add()).
+// value methods are camelCase too (t.year(), t.add(), d.day()).
 
-d := 2 * time.Hour + 30 * time.Minute
-println("duration ns:", d)
-println("as string:  ", time.durationString(d))
+// Durations: arithmetic on time.Hour/Minute or the `dur …` literal.
+span := 2 * time.Hour + 30 * time.Minute
+println("duration:   ", span, "==", dur 2h30m)
 
-// Build a fixed timestamp so the output is deterministic.
-// Date(year, month, day[, hour, min, sec, nsec, loc]); loc from time.utc().
-t := time.date(2026, 6, 13, 9, 0, 0, 0, time.utc())
-println("date:       ", t)
-println("year:       ", t.Year())
-println("plus 1 day: ", t.Add(24 * time.Hour))
+// Calendar date literal: YYYY-MM-DD with a `D` suffix.
+day := 2026-01-31D
+println("date:       ", day, "->", day.year(), day.month(), day.day())
 
-return t.Year()
+// Zone-less calendar time (`t` suffix) stores nanoseconds.
+cal := time.strToCalendarTime("2026-01-31 09:30:00.001")
+println("calendar:   ", cal, "ns:", cal.ns())
+
+// Zoned time: `T` literal (midnight UTC), unix `U`, or RFC3339 string.
+println("midnight:   ", 2026-01-31T)
+println("unix:       ", 1781609136U)
+println("rfc3339:    ", time.strToTime("2026-01-31T09:00:00Z"))
+
+t := time.strToTime("2026-01-31T09:00:00Z")
+println("plus 1 day: ", t.add(24 * time.Hour))
+
+return [typeName(day), typeName(cal), typeName(2026-01-31T)]

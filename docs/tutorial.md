@@ -514,6 +514,11 @@ raw "foo" + "bar"       // rawStr value "foobar"
 raw 1                   // rawStr value "1"
 -9.22 + 1e10            // float values
 2d                      // decimal values
+dur 1h30m               // duration value (Go duration string)
+2026-01-31D             // calendarDate value (YYYY-MM-DD)
+2026-01-31T             // time value at 00:00:00 UTC
+2026-01-31t             // calendarTime value (zone-less, nanosecond)
+1781609136U             // time value from unix seconds
 true || false           // bool values
 yes || no               // flag values
 'ç' > '9'               // char values
@@ -543,6 +548,42 @@ types](runtime-types.md) for more information.
 | dict             | value dict with string keys        | `map[string]Object`   |
 | nil              | [nil](#nil-values) value           | -                     |
 | compiledFunction | [function](#function-values) value | -                     |
+| duration         | time span                          | `time.Duration`       |
+| calendarDate     | calendar date (YYYYMMDD)           | `uint`                |
+| calendarTime     | zone-less wall clock (nanoseconds) | `uint64`              |
+| time             | instant with location              | `time.Time`           |
+
+### Date and Time Values
+
+The `time` builtin module provides value types for dates and times, each with a
+literal form and a string constructor:
+
+| Literal         | Type           | Meaning                                   |
+|:----------------|:---------------|:------------------------------------------|
+| `dur 1h30m`     | `duration`     | a Go duration string                      |
+| `2026-01-31D`   | `calendarDate` | a calendar date (also `20260131D`)        |
+| `2026-01-31T`   | `time`         | that date at `00:00:00` UTC               |
+| `2026-01-31t`   | `calendarTime` | zone-less wall clock (nanosecond)         |
+| `1781609136U`   | `time`         | unix seconds (optional `.fraction`)       |
+
+A digit-suffix literal must be glued to the number (a space breaks it), so
+`2026 - 1` is still subtraction and `0xABCD` is still a hex int. Date/time
+literals carry a calendar date only; time-of-day comes from the string parsers:
+
+```go
+time.strToTime("2026-01-31T23:59:55Z")      // RFC3339 -> time
+time.strToTime("2026-01-31 23:59:55")       // UTC (no zone)
+time.strToCalendarTime("2026-01-31 23:59:55.001")  // zone-less calendarTime
+time.strToDate("2026-01-31")                // calendarDate
+time.strToDuration("1h30m")                 // duration
+time.strToLocation("-03:00")                // Location
+
+d := 2026-01-31D
+d.year(); d.month(); d.day()                // 2026, 1, 31
+
+t := 2026-01-31t
+t.hour(); t.minute(); t.second(); t.ns()    // accessors
+```
 
 ### Error Values
 

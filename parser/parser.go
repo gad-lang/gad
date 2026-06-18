@@ -821,19 +821,9 @@ func (p *Parser) ParseBytesLit(prefix node.BytesLitPrefix) node.Expr {
 }
 
 func (p *Parser) ParseDurationLit() node.Expr {
-	pos := p.Token.Pos
-	var str node.Expr
-	switch p.Token.Token {
-	case token.String:
-		str = p.ParseStrLit()
-	case token.RawString:
-		str = p.ParseRawStrLit()
-	default:
-		p.ErrorExpected(pos, "string literal")
-		p.advance(stmtStart)
-		return &node.BadExpr{From: pos, To: p.Token.Pos}
-	}
-	return &node.DurationLit{PrefixPos: pos, Str: str}
+	x := &node.DurationLit{PrefixPos: p.Token.Pos, Body: p.Token.Literal}
+	p.Next()
+	return x
 }
 
 func (p *Parser) ParseDateTimeLit(suffix rune) node.Expr {

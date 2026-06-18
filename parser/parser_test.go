@@ -3888,13 +3888,13 @@ func TestParseCodeStr(t *testing.T) {
 }
 
 func TestParseDurationLit(t *testing.T) {
-	// d"…" / d`…` round-trip with the prefix preserved
-	test.ExpectParseString(t, `x := d"1h30m"`, `x := d"1h30m"`)
-	test.ExpectParseString(t, "x := d`500ms`", "x := d`500ms`")
+	// `dur …` round-trips with the keyword preserved
+	test.ExpectParseString(t, `x := dur 1h30m`, `x := dur 1h30m`)
+	test.ExpectParseString(t, `x := dur 500ms`, `x := dur 500ms`)
 	// in operand position (call argument)
-	test.ExpectParseString(t, `f(d"2s")`, `f(d"2s")`)
-	// the prefix must be glued: a space breaks the literal (d is then an ident)
-	test.ExpectParseError(t, `d "2s"`)
+	test.ExpectParseString(t, `f(dur 2s)`, `f(dur 2s)`)
+	// `dur` not followed by a number stays a plain identifier
+	test.ExpectParseString(t, `dur := 2`, `dur := 2`)
 }
 
 func TestParseDeferStmt(t *testing.T) {

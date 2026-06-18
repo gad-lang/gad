@@ -419,18 +419,20 @@ func TestVMBuiltinModuleTime(t *testing.T) {
 }
 
 func TestVMTimeDurationDate(t *testing.T) {
-	// d"…" duration literal compiles to a duration value
-	testExpectRun(t, `return typeName(d"1h30m")`, nil, Str("duration"))
-	testExpectRun(t, `return str(d"1h30m")`, nil, Str("1h30m0s"))
-	testExpectRun(t, `return d"1h30m".minutes()`, nil, Float(90))
+	// `dur …` duration literal compiles to a duration value
+	testExpectRun(t, `return typeName(dur 1h30m)`, nil, Str("duration"))
+	testExpectRun(t, `return str(dur 1h30m)`, nil, Str("1h30m0s"))
+	testExpectRun(t, `return (dur 1h30m).minutes()`, nil, Float(90))
 	// duration arithmetic and comparison
-	testExpectRun(t, `return str(d"1h" + d"30m")`, nil, Str("1h30m0s"))
-	testExpectRun(t, `return d"1h" > d"30m"`, nil, Bool(true))
+	testExpectRun(t, `return str(dur 1h + dur 30m)`, nil, Str("1h30m0s"))
+	testExpectRun(t, `return dur 1h > dur 30m`, nil, Bool(true))
+	// `dur` is still usable as an identifier when not followed by a number
+	testExpectRun(t, `dur := 5; return dur`, nil, Int(5))
 	// the Duration constructor: from int (ns) or a string
-	testExpectRun(t, `return d"1s" == time.Duration("1s")`, nil, Bool(true))
+	testExpectRun(t, `return dur 1s == time.Duration("1s")`, nil, Bool(true))
 	testExpectRun(t, `return str(time.Duration(1000000000))`, nil, Str("1s"))
 	// invalid duration literal is a compile error
-	expectErrHas(t, `return d"nope"`, newOpts().CompilerError(),
+	expectErrHas(t, `return dur 1nope`, newOpts().CompilerError(),
 		`Compile Error: invalid duration literal`)
 
 	// the Date type: constructor + accessors (gad methods are camelCase)

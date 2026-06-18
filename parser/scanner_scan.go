@@ -29,6 +29,37 @@ func isDateTimeBodyByte(b byte) bool {
 	return b >= '0' && b <= '9' || b == '-' || b == '.'
 }
 
+// isDurationByte reports whether b may appear in a bare duration body: a digit,
+// a `.` fraction or an ASCII unit letter (h, m, s, ms, us, ns).
+func isDurationByte(b byte) bool {
+	return b >= '0' && b <= '9' || b == '.' || b >= 'a' && b <= 'z'
+}
+
+// scanDurationLit looks ahead (without consuming) from just after the `dur`
+// keyword for a bare duration body: optional inline whitespace, an optional
+// sign and then a duration run starting with a digit (e.g. ` 1h25s`). On
+// success it returns the body (without the leading gap) and the total byte span
+// from the current position through the body; otherwise ok is false and the
+// reader is untouched so `dur` stays a plain identifier.
+func (s *Scanner) scanDurationLit() (body string, span int, ok bool) {
+	src := s.Src
+	k := s.Offset
+	for k < len(src) && (src[k] == ' ' || src[k] == '\t') {
+		k++
+	}
+	start := k
+	if k < len(src) && (src[k] == '-' || src[k] == '+') {
+		k++
+	}
+	if k >= len(src) || src[k] < '0' || src[k] > '9' {
+		return "", 0, false
+	}
+	for k < len(src) && isDurationByte(src[k]) {
+		k++
+	}
+	return string(src[start:k]), k - s.Offset, true
+}
+
 // scanDateTimeLit looks ahead (without consuming) from the current position —
 // the first digit — for a digit-suffix date/time literal: a dashed date / unix
 // body followed by a D/T/U suffix letter that must not be the first rune of an
@@ -315,24 +346,19 @@ do:
 			insertSemi = true
 			break
 		}
-		// A single-letter `d` identifier glued to a string delimiter is a
-		// duration literal: d"1h30m" / d`1h30m`, whose content is a Go duration
-		// string. A space breaks it, so a `d` variable is unaffected.
-		if t.Token == token.Ident && t.Literal == "d" &&
-			(s.Ch == '"' || s.Ch == '`') {
-			delim := s.Ch
-			s.Next() // consume the opening delimiter
-			switch delim {
-			case '"':
+		// The `dur` keyword followed by a bare Go duration string is a duration
+		// literal: `dur 1h25s`, `dur 500ms`, `dur 1.5h`. It only triggers when a
+		// duration body (a digit) follows, so a `dur` variable is unaffected
+		// unless it is immediately followed by a number.
+		if t.Token == token.Ident && t.Literal == "dur" {
+			if body, span, ok := s.scanDurationLit(); ok {
+				s.NextC(span) // consume the gap + duration body
 				t.Token = token.String
-				t.Literal, _ = s.ScanString()
-			case '`':
-				t.Token = token.RawString
-				t.Literal, _ = s.ScanRawString()
+				t.Literal = body
+				t.Set(durationLitKey, true)
+				insertSemi = true
+				break
 			}
-			t.Set(durationLitKey, true)
-			insertSemi = true
-			break
 		}
 		switch t.Literal {
 		case "begin":
