@@ -145,18 +145,6 @@ func (o Duration) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error)
 	return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
 }
 
-// durationOperand interprets right as a Duration: a Duration directly, or an int
-// nanosecond count.
-func durationOperand(right Object) (Duration, bool) {
-	switch v := right.(type) {
-	case Duration:
-		return v, true
-	case Int:
-		return Duration(v), true
-	}
-	return 0, false
-}
-
 // CallName dispatches the duration methods (Go time.Duration accessors).
 func (o Duration) CallName(name string, c Call) (Object, error) {
 	d := time.Duration(o)
@@ -174,9 +162,15 @@ func (o Duration) CallName(name string, c Call) (Object, error) {
 	case "hours":
 		return Float(d.Hours()), nil
 	case "round":
-		return durationUnaryDur(c, func(m time.Duration) Object {
-			return Duration(d.Round(m))
-		})
+		unit, err := truncateUnitArg(c)
+		if err != nil {
+			return Nil, err
+		}
+		rd, err := roundDurationUnit(d, unit)
+		if err != nil {
+			return Nil, err
+		}
+		return Duration(rd), nil
 	case "trunc":
 		unit, err := truncateUnitArg(c)
 		if err != nil {
@@ -189,17 +183,6 @@ func (o Duration) CallName(name string, c Call) (Object, error) {
 		return Duration(td), nil
 	}
 	return Nil, ErrInvalidIndex.NewError(name)
-}
-
-func durationUnaryDur(c Call, fn func(m time.Duration) Object) (Object, error) {
-	if err := c.Args.CheckLen(1); err != nil {
-		return Nil, err
-	}
-	m, ok := durationOperand(c.Args.Get(0))
-	if !ok {
-		return Nil, NewArgumentTypeError("1st", "duration|int", c.Args.Get(0).Type().Name())
-	}
-	return fn(time.Duration(m)), nil
 }
 
 // strToDuration parses a Go duration string (e.g. "1h30m") into a Duration.

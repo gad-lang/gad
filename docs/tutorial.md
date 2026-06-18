@@ -604,20 +604,24 @@ dur 1h / dur 30m            // 2.0   (ratio)
 2025-01-01D + dur 1s        // 2025-01-01 00:00:01  (now a calendarTime)
 ```
 
-#### Truncating
+#### Truncating and rounding
 
-`.trunc(unit)` lower-truncates a value to the start of a unit. The unit is a
-char/string: the calendar units `'y'`, `'M'`, `'w'` (week, Monday), `'d'`, or
-the Go duration units `'h'`, `'m'`, `'s'`, `"ms"`, `"us"`, `"ns"`:
+`.trunc(unit)` lower-truncates a value to the start of a unit and `.round(unit)`
+rounds it to the nearest boundary (a tie rounds up). The unit is a char/string:
+the calendar units `'y'`, `'M'`, `'w'` (week, Monday), `'d'`, or the Go duration
+units `'h'`, `'m'`, `'s'`, `"ms"`, `"us"`, `"ns"`:
 
 ```go
 t := time.strToTime("2026-08-17T14:37:52.123Z")
 t.trunc('M')                // 2026-08-01 00:00:00 UTC
 t.trunc('h')                // 2026-08-17 14:00:00 UTC
 t.trunc("ms")               // 2026-08-17 14:37:52.123 UTC
+t.round('h')                // 2026-08-17 15:00:00 UTC  (52m rounds up)
+t.round('d')                // 2026-08-18 00:00:00 UTC
 
 (2026-08-17D).trunc('M')    // 2026-08-01 (calendarDate)
 (dur 1h37m52s).trunc('m')   // 1h37m0s   ('y'/'M' are rejected for durations)
+(dur 1h37m52s).round('m')   // 1h38m0s
 ```
 
 ### Error Values

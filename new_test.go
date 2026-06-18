@@ -502,6 +502,18 @@ func TestVMTimeTruncate(t *testing.T) {
 	// invalid units error; 'y'/'M' are rejected for durations
 	expectErrHas(t, `return (dur 1h).trunc('z')`, newOpts(), "invalid truncate unit")
 	expectErrHas(t, `return (dur 1h).trunc('y')`, newOpts(), "invalid truncate unit")
+
+	// .round(unit) rounds to the nearest boundary (a tie rounds up)
+	const rsrc = `time.strToTime("2026-08-17T14:37:52Z")`
+	testExpectRun(t, `return str(`+rsrc+`.round('h'))`, nil, Str("2026-08-17 15:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+rsrc+`.round('d'))`, nil, Str("2026-08-18 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+rsrc+`.round('M'))`, nil, Str("2026-09-01 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return str((2026-08-17D).round('M'))`, nil, Str("2026-09-01"))
+	testExpectRun(t, `return str(time.strToCalendarTime("2026-08-17 14:37:52").round('m'))`,
+		nil, Str("2026-08-17 14:38:00"))
+	testExpectRun(t, `return str((dur 1h37m52s).round('m'))`, nil, Str("1h38m0s"))
+	testExpectRun(t, `return str((dur 1h37m52s).round('h'))`, nil, Str("2h0m0s"))
+	expectErrHas(t, `return (dur 1h).round('y')`, newOpts(), "invalid round unit")
 }
 
 func TestVMTimeMethods(t *testing.T) {

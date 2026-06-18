@@ -217,6 +217,16 @@ func (o CalendarTime) CallName(name string, c Call) (Object, error) {
 			return Nil, err
 		}
 		return CalendarTimeFromTime(t), nil
+	case "round":
+		unit, err := truncateUnitArg(c)
+		if err != nil {
+			return Nil, err
+		}
+		t, err := roundTimeUnit(o.wall(), unit)
+		if err != nil {
+			return Nil, err
+		}
+		return CalendarTimeFromTime(t), nil
 	case "addDate":
 		years, months, days, err := dateShiftArgs(c)
 		if err != nil {

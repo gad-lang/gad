@@ -88,6 +88,76 @@ func truncateTimeUnit(t time.Time, unit string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("invalid truncate unit %q (want y, M, w, d, h, m, s, ms, us or ns)", unit)
 }
 
+// advanceTimeUnit returns the start of the unit immediately after floor, which
+// must already be unit-aligned (the output of truncateTimeUnit).
+func advanceTimeUnit(floor time.Time, unit string) time.Time {
+	switch unit {
+	case "y":
+		return floor.AddDate(1, 0, 0)
+	case "M":
+		return floor.AddDate(0, 1, 0)
+	case "w":
+		return floor.AddDate(0, 0, 7)
+	case "d":
+		return floor.AddDate(0, 0, 1)
+	case "h":
+		return floor.Add(time.Hour)
+	case "m":
+		return floor.Add(time.Minute)
+	case "s":
+		return floor.Add(time.Second)
+	case "ms":
+		return floor.Add(time.Millisecond)
+	case "us", "µs", "μs":
+		return floor.Add(time.Microsecond)
+	}
+	return floor // "ns": already exact
+}
+
+// roundTimeUnit rounds t to the nearest unit boundary (a tie rounds up). It
+// honours variable-length units (year, month, week) by measuring the real gap
+// to the next boundary.
+func roundTimeUnit(t time.Time, unit string) (time.Time, error) {
+	floor, err := truncateTimeUnit(t, unit)
+	if err != nil {
+		return time.Time{}, err
+	}
+	next := advanceTimeUnit(floor, unit)
+	if next.Equal(floor) {
+		return floor, nil
+	}
+	mid := floor.Add(next.Sub(floor) / 2)
+	if t.Before(mid) {
+		return floor, nil
+	}
+	return next, nil
+}
+
+// roundDurationUnit rounds a duration to the nearest whole multiple of the
+// fixed-length unit ("w", "d", "h", "m", "s", "ms", "us"/"µs", "ns"). The
+// calendar units 'y' and 'M' have no fixed length and are rejected.
+func roundDurationUnit(d time.Duration, unit string) (time.Duration, error) {
+	switch unit {
+	case "w":
+		return d.Round(7 * 24 * time.Hour), nil
+	case "d":
+		return d.Round(24 * time.Hour), nil
+	case "h":
+		return d.Round(time.Hour), nil
+	case "m":
+		return d.Round(time.Minute), nil
+	case "s":
+		return d.Round(time.Second), nil
+	case "ms":
+		return d.Round(time.Millisecond), nil
+	case "us", "µs", "μs":
+		return d.Round(time.Microsecond), nil
+	case "ns":
+		return d, nil
+	}
+	return 0, fmt.Errorf("invalid round unit %q (want w, d, h, m, s, ms, us or ns)", unit)
+}
+
 // truncateDurationUnit truncates a duration toward zero to a whole multiple of
 // the fixed-length unit named by unit ("w", "d", "h", "m", "s", "ms",
 // "us"/"µs", "ns"). The calendar units 'y' and 'M' have no fixed length and are

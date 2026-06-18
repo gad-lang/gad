@@ -209,6 +209,16 @@ func (o CalendarDate) CallName(name string, c Call) (Object, error) {
 			return Nil, err
 		}
 		return CalendarDateFromTime(t), nil
+	case "round":
+		unit, err := truncateUnitArg(c)
+		if err != nil {
+			return Nil, err
+		}
+		t, err := roundTimeUnit(o.Time(time.UTC), unit)
+		if err != nil {
+			return Nil, err
+		}
+		return CalendarDateFromTime(t), nil
 	case "time":
 		loc := time.UTC
 		if c.Args.Length() > 0 {
