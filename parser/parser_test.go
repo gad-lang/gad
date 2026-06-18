@@ -1454,6 +1454,16 @@ func TestParseCallKeywords(t *testing.T) {
 	test.ExpectParseString(t, token.NamedArgs.String(), token.NamedArgs.String())
 }
 
+func TestParseCallNewlineArgs(t *testing.T) {
+	// call args and func params may be newline-separated (comma optional); a
+	// comma may still be followed by a newline, and named args follow `;`.
+	test.ExpectParseString(t, "f(1\n2\n3)", "f(1, 2, 3)")
+	test.ExpectParseString(t, "f(1,\n2\n3)", "f(1, 2, 3)")
+	test.ExpectParseString(t, "f(\n1\n2\n; x=3\n)", "f(1, 2; x=3)")
+	test.ExpectParseString(t, "func(\na\nb\n){}", "func(a, b) {}")
+	test.ExpectParseString(t, "func(a\nb int\nc){}", "func(a, b int, c) {}")
+}
+
 func TestParseCall(t *testing.T) {
 	test.New(t, "add(1, 2; x(){y++}, y()=>1, **d)").
 		String("add(1, 2; x() { y++ }, y() => 1, **d)").
@@ -2650,7 +2660,9 @@ func TestParseFunction(t *testing.T) {
 	test.ExpectParseString(t, "func(){}", "func() {}")
 	test.ExpectParseString(t, "func(a int){}", "func(a int) {}")
 	test.ExpectParseString(t, "func(a int|bool|int){}", "func(a int|bool) {}")
-	test.ExpectParseString(t, "func(a \n int|\n\tbool){}", "func(a int|bool) {}")
+	// a typed param keeps its ident and type on the same line; the type union
+	// may still continue after a `|` on the next line.
+	test.ExpectParseString(t, "func(a int|\n\tbool){}", "func(a int|bool) {}")
 	test.ExpectParse(t, "func fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(
 			SFunc(

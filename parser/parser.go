@@ -1383,7 +1383,20 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 
 	p.SkipSpace()
 
-	for p.Token.Token != end {
+	for {
+		// Skip blank lines / newlines that separate items so a comma may be
+		// followed by a newline (`(a,\nb)`) and items may be newline-separated.
+		p.SkipSpace()
+		if p.Token.Token == end || p.Token.Token == token.EOF {
+			break
+		}
+		// A `;` (after newline-separated positionals) starts the named section.
+		if p.Token.Token == token.Semicolon && p.Token.IsSemi() {
+			kv := p.ParseKeyValueArrayLit(0)
+			rparen = kv.RParen
+			nexprs = kv.Elements
+			goto done
+		}
 		var (
 			pos = p.Token.Pos
 			mul bool
@@ -1423,7 +1436,9 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 		p.ExprLevel++
 		expr = p.ParseExpr()
 		p.ExprLevel--
-		p.SkipSpace()
+		// Note: the space after the expression is intentionally NOT skipped, so
+		// a newline acts as an item separator and a typed param keeps its ident
+		// and type on the same line (`a int`, never `a\nint`).
 
 		if ident, _ := expr.(*node.IdentExpr); ident != nil {
 			if p.Token.Token == token.Ident {
@@ -1443,20 +1458,31 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 
 		exprs = append(exprs, expr)
 
-		if p.Token.Token == token.Comma {
+		// Separator. The type of a typed param was already consumed on the same
+		// line. Skip any newlines (remembering one was seen): an explicit `,`
+		// or `;` then wins, otherwise a bare newline separates the items, and
+		// anything else ends the list.
+		sawNewLine := false
+		for p.Token.IsSpace() {
+			sawNewLine = true
 			p.Next()
-		} else if p.Token.Token == token.Semicolon {
-			if p.Token.IsSemi() {
-				kv := p.ParseKeyValueArrayLit(0)
-				rparen = kv.RParen
-				nexprs = kv.Elements
-				goto done
-			}
+		}
+		switch {
+		case p.Token.Token == token.Comma:
 			p.Next()
-		} else {
-			break
+		case p.Token.Token == token.Semicolon && p.Token.IsSemi():
+			kv := p.ParseKeyValueArrayLit(0)
+			rparen = kv.RParen
+			nexprs = kv.Elements
+			goto done
+		case sawNewLine:
+			// a newline-only separator; the next item is parsed by the loop.
+		default:
+			goto closeParen
 		}
 	}
+
+closeParen:
 
 	rparen = p.Expect(end)
 
