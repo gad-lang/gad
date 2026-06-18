@@ -109,6 +109,7 @@ const (
 	CodeWriteContextFlagFormatDeclItemInNewLine
 	CodeWriteContextFlagFormatMatchExprArmsInNewLine
 	CodeWriteContextFlagFormatMatchStmtArmsInNewLine
+	CodeWriteContextFlagFormatMethodInterfaceInNewLine
 
 	CodeWriteContextFlagFormat = CodeWriteContextFlagFormatArrayItemInNewLine |
 		CodeWriteContextFlagFormatDictItemInNewLine |
@@ -117,7 +118,8 @@ const (
 		CodeWriteContextFlagFormatParemValuesInNewLine |
 		CodeWriteContextFlagFormatDeclItemInNewLine |
 		CodeWriteContextFlagFormatMatchExprArmsInNewLine |
-		CodeWriteContextFlagFormatMatchStmtArmsInNewLine
+		CodeWriteContextFlagFormatMatchStmtArmsInNewLine |
+		CodeWriteContextFlagFormatMethodInterfaceInNewLine
 )
 
 type CodeWriteSkiper interface {

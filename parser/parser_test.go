@@ -3976,6 +3976,14 @@ func TestParseMatchExprError(t *testing.T) {
 	test.ExpectParseError(t, `x := match a { else: 2 }`)
 }
 
+func TestParseMethodInterface(t *testing.T) {
+	test.ExpectParseString(t, `x := meti { () }`, `x := meti {(); }`)
+	test.ExpectParseString(t, `x := meti { (), (v) <int> }`, `x := meti {(); (v) <int>; }`)
+	test.ExpectParseString(t, `x := meti Z { (a int) <r bool> }`, `x := meti Z {(a int) <r bool>; }`)
+	// statement form binds a const
+	test.ExpectParseString(t, `meti S { () }`, `meti S {(); }`)
+}
+
 func TestParseFuncHeaderExpr(t *testing.T) {
 	test.ExpectParseString(t, `x := <()>`, `x := <()>`)
 	test.ExpectParseString(t, `x := <(v int)>`, `x := <(v int)>`)

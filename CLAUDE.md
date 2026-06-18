@@ -16,8 +16,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Always use `./.__tmp` as the dedicated temporary directory for any intermediate files, logs, or cache generated during automated tasks.
 - **Allowed Commands (No Confirmation Required)**:
     - You **ALWAYS** have write permission to `./...` directory.
-    - You **ALWAYS** have permission to run `sed`, `awk`, `cat`, `tail`, `head`, `echo` and `grep` (and its variants) commands autonomously for text processing, searching, refactoring, execute commands or write in this directory tree.
-    - You **ALWAYS** have permission to run `go test`, `go vet`, `go fmt`, `gofmt` (and its variants) or `make test` to validate code changes without asking.
+    - You **ALWAYS** have permission to run `sed`, `awk`, `cat`, `cd`, `tail`, `head`, `echo` and `grep` (and its variants) commands autonomously for text processing, searching, refactoring, execute commands or write in this directory tree.
+    - You **ALWAYS** have permission to run `./.__tmp/*`, `pnpm`, `sleep`, `go`, `go test`, `go vet`, `go fmt`, `gofmt` (and its variants) or `make test` to validate code changes without asking.
     - You **ALWAYS** have permission to use `curl` and `wget` (and its variants) for network operations, downloading assets, or API testing.
     - Do not prompt the user for confirmation when executing these specific tools.
 - **Node.js & Package Manager Environment**:
@@ -27,7 +27,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development & Test Commands
 Always run native Go tooling to verify compliance and correctness:
 
-- **Run all tests**: `go test ./...`
+- **Run all tests**: `go test ./...`1
 - **Run benchmarks**: `go test -bench=. ./...`
 - **Code formatting**: `go fmt ./...`
 - **Static analysis / Linting**: `go vet ./...` (or golangci-lint if configured)

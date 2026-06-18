@@ -53,6 +53,41 @@ func TestVMFuncHeaderExpr(t *testing.T) {
 	testExpectRun(t, `return str(<(a int) <r str>>)`, nil, Str("<(a int) <r str>>"))
 }
 
+func TestVMMethodInterface(t *testing.T) {
+	// a `meti { … }` value is a MethodInterface of required headers
+	testExpectRun(t, `return typeName(meti { () })`, nil, Str("MethodInterface"))
+	testExpectRun(t, `mi := meti { (), (v) <int> }
+	return [len(mi.headers), mi.headers[1].params[0].name]`, nil, Array{Int(2), Str("v")})
+	// the named statement form binds a const
+	testExpectRun(t, `meti S { () <str> }
+	return [typeName(S), S.name, len(S.headers)]`, nil, Array{Str("MethodInterface"), Str("S"), Int(1)})
+
+	// implements: matched by parameter arity and assignable types
+	testExpectRun(t, `St := meti { () <str> }; f := func() => "x"; return implements(f, St)`,
+		nil, True)
+	testExpectRun(t, `St := meti { () }; g := func(a) => a; return implements(g, St)`,
+		nil, False) // arity mismatch
+	testExpectRun(t, `Add := meti { (a int) }; g := func(a int) => a; return implements(g, Add)`,
+		nil, True)
+	// a single function rarely satisfies two distinct headers
+	testExpectRun(t, `St := meti { () }; Ad := meti { (a int) }; g := func(a int) => a
+	return implements(g, St, Ad)`, nil, False)
+
+	// merge with `+` and append
+	testExpectRun(t, `a := meti { () }; b := meti { (x int) }; return len((a + b).headers)`,
+		nil, Int(2))
+	testExpectRun(t, `a := meti { () }; b := meti { (x int) }; return len(append(a, b).headers)`,
+		nil, Int(2))
+
+	// a func with methods can satisfy several interfaces at once
+	testExpectRun(t, `
+	St := meti { () <str> }
+	Ad := meti { (a int) }
+	func m() => "x"
+	met m(a int) => a
+	return [implements(m, St, Ad), implements(m, St + Ad)]`, nil, Array{True, True})
+}
+
 func TestVMBinaryIncDec(t *testing.T) {
 	// the binary form does not disturb the postfix/prefix forms
 	testExpectRun(t, `x := 5; x++; return x`, nil, Int(6))

@@ -69,6 +69,8 @@ const (
 	BuiltinProp
 	// BuiltinFunctionHeader is the builtin object type for func-header values.
 	BuiltinFunctionHeader
+	// BuiltinMethodInterface is the builtin object type for method interfaces.
+	BuiltinMethodInterface
 	BuiltinTypesEnd_
 
 	BuiltinStaticTypesStart_
@@ -158,6 +160,7 @@ const (
 	BuiltinIsCallable
 	BuiltinIsIterable
 	BuiltinIsIterator
+	BuiltinImplements
 
 	BuiltinFunctionsEnd_
 	BuiltinErrorsBegin_
@@ -305,6 +308,7 @@ var BuiltinsMap = map[string]BuiltinType{
 	"isCallable": BuiltinIsCallable,
 	"isIterable": BuiltinIsIterable,
 	"isIterator": BuiltinIsIterator,
+	"implements": BuiltinImplements,
 
 	"WrongNumArgumentsError":  BuiltinWrongNumArgumentsError,
 	"InvalidOperatorError":    BuiltinInvalidOperatorError,
@@ -743,6 +747,10 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinIsIterator: &BuiltinFunction{
 		FuncName: "isIterator",
 		Value:    funcPORO(BuiltinIsIteratorFunc),
+	},
+	BuiltinImplements: &BuiltinFunction{
+		FuncName: "implements",
+		Value:    BuiltinImplementsFunc,
 	},
 	BuiltinStdIO: &BuiltinFunction{
 		FuncName: "stdio",

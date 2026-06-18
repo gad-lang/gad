@@ -26,6 +26,8 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
    literals, and destructuring.
 8. [Classes and Objects](classes.md) — `Class(...)`, fields, methods,
    properties, constructors, inheritance and `met` extensions.
+   - [Func Headers and Method Interfaces](method-interfaces.md) — `<…>` header
+     values, `meti` interfaces and `implements`.
 9. [Strings, Bytes and Regex](strings-bytes-regex.md) — string forms, raw
    strings, heredocs, template strings, **bytes literals** (`b"…"`, `h"…"`) and
    `/regex/` literals.

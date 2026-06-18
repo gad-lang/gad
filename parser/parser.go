@@ -1100,6 +1100,8 @@ func (p *Parser) ParseOperand() node.Expr {
 			return p.ParsePropExpr()
 		case token.Less: // func-header value: `<()>`, `<(v int) <x int>>`
 			return p.ParseFuncHeaderExpr()
+		case token.Meti: // method interface: `meti { () }`
+			return p.ParseMethodInterfaceExpr()
 		case token.Throw:
 			return p.ParseThrowExpr()
 		case token.Return:
@@ -1879,6 +1881,103 @@ func (p *Parser) parsePropMethod() (m *node.FuncMethod) {
 	return m
 }
 
+func (p *Parser) ParseMethodInterfaceStmt() node.Stmt {
+	if p.Trace {
+		defer untracep(tracep(p, "MethodInterfaceStmt"))
+	}
+	e := p.ParseMethodInterfaceExprT(p.ExpectToken(token.Meti))
+	if t, _ := e.(*node.MethodInterfaceExpr); t != nil {
+		return &node.MethodInterfaceStmt{MethodInterfaceExpr: *t}
+	}
+	return &node.ExprStmt{Expr: e}
+}
+
+func (p *Parser) ParseMethodInterfaceExpr() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "MethodInterfaceExpr"))
+	}
+	if p.Token.Token.Is(token.Meti) {
+		return p.ParseMethodInterfaceExprT(p.ExpectToken(token.Meti))
+	}
+	p.ErrorExpectToken(p.Token, token.Meti)
+	return &node.BadExpr{From: p.Token.Pos, To: p.Token.Pos}
+}
+
+// ParseMethodInterfaceExprT parses `meti Name? { (params) <return>, … }`. Each
+// header is a func header written without the surrounding angle brackets.
+func (p *Parser) ParseMethodInterfaceExprT(tok PToken) (e node.Expr) {
+	if p.Trace {
+		defer untracep(tracep(p, "MethodInterfaceExprT"))
+	}
+
+	mi := &node.MethodInterfaceExpr{MetiToken: tok.TokenLit}
+
+	defer func() {
+		if e == nil {
+			e = &node.BadExpr{From: tok.Pos, To: p.Token.Pos}
+		}
+	}()
+
+	if p.Token.Token == token.Ident {
+		mi.NameExpr = p.ParseIdent()
+	}
+
+	mi.LBrace = p.Expect(token.LBrace)
+
+	skipSeps := func() {
+		for {
+			p.SkipSpace()
+			if p.Token.Token == token.Comma || p.Token.Token == token.Semicolon {
+				p.Next()
+				continue
+			}
+			return
+		}
+	}
+
+	p.ExprLevel++
+	skipSeps()
+	for p.Token.Token != token.RBrace && p.Token.Token != token.EOF {
+		if p.Token.Token != token.LParen {
+			p.ExprLevel--
+			p.ErrorExpectToken(p.Token, token.LParen)
+			return
+		}
+		h := p.parseInterfaceHeader()
+		if h == nil || p.Failed() {
+			p.ExprLevel--
+			return
+		}
+		mi.Headers = append(mi.Headers, h)
+		skipSeps()
+	}
+	p.ExprLevel--
+
+	mi.RBrace = p.Expect(token.RBrace)
+
+	if len(mi.Headers) == 0 {
+		p.Error(tok.Pos, "meti: requires at least one method header")
+	}
+	e = mi
+	return
+}
+
+// parseInterfaceHeader parses a bracket-less func header `(params) <return>`.
+func (p *Parser) parseInterfaceHeader() *node.FuncHeaderExpr {
+	paren := p.ParseParemExpr(token.LParen, token.RParen)
+	if paren == nil || p.Errors.Len() != 0 {
+		return nil
+	}
+	params, err := paren.ToMultiParenExpr().ToFuncParams()
+	if err != nil {
+		p.Error(err.Pos(), err.Error())
+		return nil
+	}
+	return &node.FuncHeaderExpr{
+		FuncHeader: node.FuncHeader{Params: params, Return: p.ParseFuncReturnTypes()},
+	}
+}
+
 // ParseFuncHeaderExpr parses a func-header value `< (params) <return> >`.
 func (p *Parser) ParseFuncHeaderExpr() node.Expr {
 	if p.Trace {
@@ -2189,6 +2288,8 @@ do:
 		return p.ParseFuncStmt()
 	case token.Prop:
 		return p.ParsePropStmt()
+	case token.Meti:
+		return p.ParseMethodInterfaceStmt()
 	case // simple statements
 		token.Method, token.Ident, token.Int, token.Uint, token.Float, token.Decimal,
 		token.Char, token.String, token.RawString, token.RawHeredoc, token.Heredoc, token.CodeStr, token.Symbol,

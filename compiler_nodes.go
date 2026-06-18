@@ -1926,6 +1926,51 @@ func (c *Compiler) compilePropExpr(nd *node.PropExpr) error {
 	return c.Compile(call)
 }
 
+// methodInterfaceCallExpr builds the MethodInterface(name, headers...) call a
+// `meti` expression lowers to.
+func (c *Compiler) methodInterfaceCallExpr(nd *node.MethodInterfaceExpr) *node.CallExpr {
+	var name string
+	if id := nd.NameIdent(); id != nil {
+		name = id.Name
+	}
+	args := make(node.Exprs, 0, len(nd.Headers)+1)
+	args = append(args, node.Str(name, nd.Pos()))
+	for _, h := range nd.Headers {
+		args = append(args, h)
+	}
+	return &node.CallExpr{
+		Func:     node.EIdent(BuiltinMethodInterface.String(), nd.Pos()),
+		CallArgs: node.CallArgs{Args: node.CallExprPositionalArgs{Values: args}},
+	}
+}
+
+func (c *Compiler) compileMethodInterfaceExpr(nd *node.MethodInterfaceExpr) error {
+	return c.Compile(c.methodInterfaceCallExpr(nd))
+}
+
+func (c *Compiler) compileMethodInterfaceStmt(nd *node.MethodInterfaceStmt) error {
+	// an anonymous `meti { … }` statement is just an expression statement
+	if nd.NameExpr == nil {
+		return c.compileMethodInterfaceExpr(&nd.MethodInterfaceExpr)
+	}
+	name, _ := nd.NameExpr.(*node.IdentExpr)
+	if name == nil {
+		return c.errorf(nd, "require NameExpr as *Ident")
+	}
+	// `meti Name { … }` -> `const Name = MethodInterface("Name", …)`
+	return c.Compile(&node.DeclStmt{
+		Decl: &node.GenDecl{
+			Tok: token.Const,
+			Specs: []node.Spec{
+				&node.ValueSpec{
+					Idents: []*node.IdentExpr{name},
+					Values: []node.Expr{c.methodInterfaceCallExpr(&nd.MethodInterfaceExpr)},
+				},
+			},
+		},
+	})
+}
+
 // compileFuncHeaderExpr lowers a `<(params) <return>>` header value to a
 // FunctionHeader(name, params, namedParams, return) constructor call, where
 // each parameter/return is a typedIdent.

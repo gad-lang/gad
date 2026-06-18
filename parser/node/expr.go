@@ -258,12 +258,21 @@ func (e *TypedIdentExpr) Pos() source.Pos {
 	if e.Ident != nil {
 		return e.Ident.Pos()
 	}
-	return e.Ident.Pos()
+	if len(e.Type) > 0 {
+		return e.Type[0].Pos()
+	}
+	return source.NoPos
 }
 
 // End returns the position of first character immediately after the node.
 func (e *TypedIdentExpr) End() source.Pos {
-	return e.Type[len(e.Type)-1].End()
+	if len(e.Type) > 0 {
+		return e.Type[len(e.Type)-1].End()
+	}
+	if e.Ident != nil {
+		return e.Ident.End()
+	}
+	return source.NoPos
 }
 
 func (e *TypedIdentExpr) String() string {
@@ -1698,6 +1707,111 @@ func (e *PropExpr) WriteCode(ctx *CodeWriteContext) {
 	})
 	if len(e.Methods) > 0 && ctx.HasPrefix() {
 		ctx.WritePrefix()
+	}
+	ctx.WriteString("}")
+}
+
+// MethodInterfaceStmt is the statement form of a method interface, e.g.
+// `meti Name { () }`, which binds the interface to a const.
+type MethodInterfaceStmt struct {
+	MethodInterfaceExpr
+}
+
+func (s MethodInterfaceStmt) StmtNode() {}
+
+// MethodInterfaceExpr is a set of required function headers introduced by the
+// `meti` keyword: `meti { () }`, `meti { (), (v) <int> }`, `meti Name { … }`.
+// Each header is a FuncHeaderExpr written without the surrounding angle
+// brackets.
+type MethodInterfaceExpr struct {
+	MetiToken TokenLit
+	NameExpr  Expr
+	LBrace    source.Pos
+	RBrace    source.Pos
+	Headers   []*FuncHeaderExpr
+}
+
+func (e *MethodInterfaceExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *MethodInterfaceExpr) Pos() source.Pos {
+	if e.MetiToken.Pos != source.NoPos {
+		return e.MetiToken.Pos
+	}
+	if e.NameExpr != nil {
+		return e.NameExpr.Pos()
+	}
+	return e.LBrace
+}
+
+// End returns the position of first character immediately after the node.
+func (e *MethodInterfaceExpr) End() source.Pos {
+	return e.RBrace + 1
+}
+
+func (e *MethodInterfaceExpr) NameIdent() *IdentExpr {
+	if e.NameExpr == nil {
+		return nil
+	}
+	return IdentOfSelector(e.NameExpr)
+}
+
+func (e *MethodInterfaceExpr) String() string {
+	var b strings.Builder
+	if e.MetiToken.Valid() {
+		b.WriteString(e.MetiToken.Token.String())
+		b.WriteString(" ")
+	}
+	if e.NameExpr != nil {
+		b.WriteString(e.NameExpr.String())
+		b.WriteString(" ")
+	}
+	b.WriteString("{")
+	for _, h := range e.Headers {
+		b.WriteString(h.FuncHeader.String())
+		b.WriteString("; ")
+	}
+	b.WriteString("}")
+	return b.String()
+}
+
+// armsInNewLine reports whether the headers should be one per line.
+func (e *MethodInterfaceExpr) headersInNewLine(ctx *CodeWriteContext) bool {
+	return ctx.HasPrefix() && ctx.Flags.Has(CodeWriteContextFlagFormatMethodInterfaceInNewLine)
+}
+
+func (e *MethodInterfaceExpr) WriteCode(ctx *CodeWriteContext) {
+	if e.MetiToken.Pos != source.NoPos {
+		ctx.WriteString(e.MetiToken.Token.String())
+		ctx.WriteString(" ")
+	}
+	if e.NameExpr != nil {
+		ctx.WriteString(e.NameExpr.String())
+		ctx.WriteString(" ")
+	}
+	ctx.WriteString("{")
+	if e.headersInNewLine(ctx) {
+		ctx.Depth++
+		for i := range e.Headers {
+			if i > 0 {
+				ctx.WriteString(",")
+			}
+			ctx.WriteSemi()
+			ctx.WriteString(e.Headers[i].FuncHeader.String())
+		}
+		ctx.Depth--
+		ctx.WriteSemi()
+	} else {
+		for i := range e.Headers {
+			if i > 0 {
+				ctx.WriteString(",")
+			}
+			ctx.WriteString(" ")
+			ctx.WriteString(e.Headers[i].FuncHeader.String())
+		}
+		if len(e.Headers) > 0 {
+			ctx.WriteString(" ")
+		}
 	}
 	ctx.WriteString("}")
 }

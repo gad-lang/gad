@@ -675,6 +675,10 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compilePropExpr(nt)
 	case *node.FuncHeaderExpr:
 		return c.compileFuncHeaderExpr(nt)
+	case *node.MethodInterfaceStmt:
+		return c.compileMethodInterfaceStmt(nt)
+	case *node.MethodInterfaceExpr:
+		return c.compileMethodInterfaceExpr(nt)
 	case *node.ClosureExpr:
 		return c.compileClosureLit(nt)
 	case *node.KeyValueLit:

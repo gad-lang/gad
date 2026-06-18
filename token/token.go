@@ -154,6 +154,7 @@ const (
 	DeferbOk
 	DeferbErr
 	Prop
+	Meti
 	GroupKeywordEnd
 )
 
@@ -317,6 +318,7 @@ var tokens = [...]string{
 	DeferbOk:        "deferb_ok",
 	DeferbErr:       "deferb_err",
 	Prop:            "prop",
+	Meti:            "meti",
 	Export:          "export",
 }
 
@@ -465,6 +467,7 @@ var tokenNames = [...]string{
 	DeferbOk:                     "DeferbOk",
 	DeferbErr:                    "DeferbErr",
 	Prop:                         "Prop",
+	Meti:                         "Meti",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 

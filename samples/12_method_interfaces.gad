@@ -1,0 +1,26 @@
+// 12_method_interfaces.gad — func-header values, `meti` interfaces and
+// `implements` (a structural contract for callables).
+
+// A func-header value `<…>` describes a signature.
+h := <(a int, b str) <r bool>>
+println("header params:", len(h.params), h.params[0].name, h.params[1].name)
+println("header return:", h.return[0].name)
+
+// A method interface lists required headers.
+Stringer := meti { () <str> }
+HasAdd   := meti { (a int) }
+
+// implements(fn, mi…) checks parameter arity and assignable types.
+println("() => str  is Stringer:", implements(func() => "x", Stringer))   // true
+println("(a) => a   is Stringer:", implements(func(a) => a, Stringer))    // false (arity)
+println("(a int)    is HasAdd:  ", implements(func(a int) => a, HasAdd))  // true
+
+// A function with several methods can satisfy several interfaces at once.
+func shape() => "shape"
+met shape(a int) => a * a
+
+println("shape is both:        ", implements(shape, Stringer, HasAdd))    // true
+println("shape is merged:      ", implements(shape, Stringer + HasAdd))   // true (`+` merges)
+println("shape is appended:    ", implements(shape, append(Stringer, HasAdd)))
+
+return implements(shape, Stringer, HasAdd)

@@ -109,7 +109,7 @@ func IdentOfSelector(x Expr) (ident *IdentExpr) {
 	for {
 		switch t := x.(type) {
 		case *IdentExpr:
-			ident = t
+			return t
 		case ExprSelector:
 			x = t.GetX()
 		default:
