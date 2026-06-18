@@ -9,7 +9,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -233,6 +232,8 @@ type fmtReportRecord struct {
 	InputDir string `json:"input_dir,omitempty"`
 	File     string `json:"file"`
 	Error    string `json:"error,omitempty"`
+	// Result holds the formatted source, included only with --report-contents.
+	Result string `json:"result,omitempty"`
 
 	// display is a human-readable path used for stderr; not serialized.
 	display string
@@ -240,24 +241,25 @@ type fmtReportRecord struct {
 
 // fmtOptions holds the parsed flags (and config) of the `fmt` subcommand.
 type fmtOptions struct {
-	exclude      globList
-	include      globList
-	excludeRe    reList
-	includeRe    reList
-	backup       bool
-	backupFormat string
-	codeFlags    node.CodeWriteContextFlag
-	transpile    node.TranspileOptions
-	transpileSet bool
-	transpileOn  bool // --transpile / config `transpile`
-	jobs         int
-	out          string
-	report       string
-	toStdout     bool
-	boundary     string
-	config       string
-	noConfig     bool
-	inputDirs    []inputDir
+	exclude        globList
+	include        globList
+	excludeRe      reList
+	includeRe      reList
+	backup         bool
+	backupFormat   string
+	codeFlags      node.CodeWriteContextFlag
+	transpile      node.TranspileOptions
+	transpileSet   bool
+	transpileOn    bool // --transpile / config `transpile`
+	jobs           int
+	out            string
+	report         string
+	reportStream   bool
+	reportContents bool
+	noSave         bool
+	config         string
+	noConfig       bool
+	inputDirs      []inputDir
 }
 
 // fmtFormatFlag returns the default formatting flag (full multi-line layout)
@@ -312,12 +314,15 @@ func (o *fmtOptions) registerFlags(fs *flag.FlagSet) {
 		"backup file name pattern; BASE_NAME is the file name without its extension")
 	fs.IntVar(&o.jobs, "jobs", runtime.NumCPU(), "max concurrent format jobs")
 	fs.StringVar(&o.out, "out", "", "output file (single input) or directory; inputs are left unchanged")
-	fs.StringVar(&o.report, "report", "", "write a per-file NDJSON status report to this path")
-	fs.BoolVar(&o.toStdout, "to-stdout", false,
-		"stream formatted results to stdout (framed by --boundary markers) instead of writing files; "+
-			"the NDJSON report also goes to stdout when --report is unset")
-	fs.StringVar(&o.boundary, "boundary", "",
-		"boundary token framing --to-stdout output; a random UUID (announced as `>> BOUNDARY`) is generated when unset")
+	fs.StringVar(&o.report, "report", "",
+		"write a per-file NDJSON status report to this path (- for stdout)")
+	fs.BoolVar(&o.reportStream, "report-stream", false,
+		"write each report record as soon as its file is done, rather than all at the end; "+
+			"the report goes to stdout when --report is unset")
+	fs.BoolVar(&o.reportContents, "report-contents", false,
+		"include the formatted source in each report record under the \"result\" key")
+	fs.BoolVar(&o.noSave, "no-save", false,
+		"do not write, create or back up any file (read-only); format and report only")
 	fs.StringVar(&o.config, "config", defaultCfgFile, "YAML config file with default flag values")
 	fs.BoolVar(&o.noConfig, "no-config", false, "do not read the config file")
 
@@ -503,7 +508,6 @@ type fmtTarget struct {
 	backupFormat string
 	fromStdin    bool
 	transpile    bool // transpile this file (and save .gadt as .gad)
-	index        int  // global file index used for --to-stdout boundary framing
 }
 
 // relPath returns the target path relative to its input root, used to mirror
@@ -544,24 +548,18 @@ func (o *fmtOptions) run(ctx *cc.CommandContext) error {
 		return err
 	}
 
-	// Assign a stable global file index used for --to-stdout boundary framing.
 	total := 0
 	for ji := range jobs {
-		for ti := range jobs[ji].targets {
-			jobs[ji].targets[ti].index = total
-			total++
-		}
+		total += len(jobs[ji].targets)
 	}
 	if total == 0 {
 		return nil
 	}
 	outIsFile := o.out != "" && total == 1
 
-	// In --to-stdout mode, announce the boundary token on the first line unless
-	// the caller supplied one (then it already knows it).
-	if o.toStdout && o.boundary == "" {
-		o.boundary = newBoundary()
-		fmt.Fprintf(ctx.Out, ">> %s\n", o.boundary)
+	sink, err := o.newReportSink(ctx.Out)
+	if err != nil {
+		return err
 	}
 
 	limit := o.jobs
@@ -594,10 +592,14 @@ func (o *fmtOptions) run(ctx *cc.CommandContext) error {
 				} else {
 					rec.File = t.displayName()
 				}
-				if err := o.formatTarget(t, outIsFile, &mu, ctx.Out); err != nil {
-					rec.Error = err.Error()
+				formatted, ferr := o.formatTarget(t, outIsFile, &mu, ctx.Out)
+				if ferr != nil {
+					rec.Error = ferr.Error()
+				} else if o.reportContents {
+					rec.Result = formatted
 				}
 				recs[k] = rec
+				sink.emit(rec) // streams now, or buffers for the end
 			}
 			records[i] = recs
 
@@ -612,8 +614,7 @@ func (o *fmtOptions) run(ctx *cc.CommandContext) error {
 	}
 	wg.Wait()
 
-	// Collect every record (in job order) and report per-file failures.
-	var all []fmtReportRecord
+	// report per-file failures to stderr (in job order)
 	failures := 0
 	for i := range jobs {
 		for _, r := range records[i] {
@@ -621,21 +622,12 @@ func (o *fmtOptions) run(ctx *cc.CommandContext) error {
 				failures++
 				fmt.Fprintf(ctx.Err, "%s: %s\n", r.display, r.Error)
 			}
-			all = append(all, r)
 		}
 	}
 
-	switch {
-	case o.report != "":
-		if werr := writeReport(o.report, all); werr != nil {
-			reportErrs = append(reportErrs, fmt.Errorf("report %s: %w", o.report, werr))
-		}
-	case o.toStdout:
-		mu.Lock()
-		for _, r := range all {
-			ctx.Out.Write(marshalReportLine(r))
-		}
-		mu.Unlock()
+	// flush the global report (no-op in stream mode, where it was written live)
+	if werr := sink.finish(); werr != nil {
+		reportErrs = append(reportErrs, fmt.Errorf("report %s: %w", o.report, werr))
 	}
 
 	for _, e := range reportErrs {
@@ -644,6 +636,69 @@ func (o *fmtOptions) run(ctx *cc.CommandContext) error {
 
 	if failures > 0 || len(reportErrs) > 0 {
 		return &exitError{code: 2}
+	}
+	return nil
+}
+
+// reportSink is the destination of the global NDJSON report. In stream mode it
+// writes each record as it arrives; otherwise it buffers and writes them all
+// from finish. w is nil when no report is requested.
+type reportSink struct {
+	mu     sync.Mutex
+	w      io.Writer
+	closer io.Closer
+	stream bool
+	buf    []fmtReportRecord
+}
+
+// newReportSink resolves the report destination from the flags: a file
+// (--report PATH), stdout (--report - or --report-stream with no --report), or
+// none.
+func (o *fmtOptions) newReportSink(stdout io.Writer) (*reportSink, error) {
+	s := &reportSink{stream: o.reportStream}
+	switch {
+	case o.report == "-":
+		s.w = stdout
+	case o.report != "":
+		if dir := filepath.Dir(o.report); dir != "" {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return nil, err
+			}
+		}
+		f, err := os.Create(o.report)
+		if err != nil {
+			return nil, err
+		}
+		s.w, s.closer = f, f
+	case o.reportStream:
+		s.w = stdout
+	}
+	return s, nil
+}
+
+func (s *reportSink) emit(r fmtReportRecord) {
+	if s.w == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.stream {
+		s.w.Write(marshalReportLine(r))
+	} else {
+		s.buf = append(s.buf, r)
+	}
+}
+
+func (s *reportSink) finish() error {
+	if s.w != nil && !s.stream {
+		for _, r := range s.buf {
+			if _, err := s.w.Write(marshalReportLine(r)); err != nil {
+				return err
+			}
+		}
+	}
+	if s.closer != nil {
+		return s.closer.Close()
 	}
 	return nil
 }
@@ -672,19 +727,6 @@ func writeReport(path string, records []fmtReportRecord) error {
 		}
 	}
 	return os.WriteFile(path, buf.Bytes(), 0o644)
-}
-
-// newBoundary returns a random RFC-4122 v4 UUID used to frame --to-stdout
-// output.
-func newBoundary() string {
-	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		// crypto/rand essentially never fails; fall back to a fixed-length token.
-		return fmt.Sprintf("%032x", b)
-	}
-	b[6] = (b[6] & 0x0f) | 0x40 // version 4
-	b[8] = (b[8] & 0x3f) | 0x80 // variant 10
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
 
 // exitError carries a process exit code from a subcommand up to main, which
@@ -953,41 +995,25 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 // formatTarget formats a single target and writes the result to its
 // destination: stdout for stdin, the --out location when set, or the input file
 // in place otherwise.
-func (o *fmtOptions) formatTarget(t fmtTarget, outIsFile bool, mu *sync.Mutex, stdout io.Writer) error {
-	var (
-		src []byte
-		err error
-	)
+func (o *fmtOptions) formatTarget(t fmtTarget, outIsFile bool, mu *sync.Mutex, stdout io.Writer) (formatted string, err error) {
+	var src []byte
 	if t.fromStdin {
 		src, err = io.ReadAll(os.Stdin)
 	} else {
 		src, err = os.ReadFile(t.path)
 	}
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	formatted, err := o.formatSource(t.displayName(), src, t.transpile)
+	formatted, err = o.formatSource(t.displayName(), src, t.transpile)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	// --to-stdout streams every result to stdout, framed by boundary markers,
-	// and writes no files.
-	if o.toStdout {
-		mu.Lock()
-		defer mu.Unlock()
-		if t.root != "" {
-			fmt.Fprintf(stdout, "-- %s #%d [%s] %s\n", o.boundary, t.index, t.root, t.relPath())
-		} else {
-			fmt.Fprintf(stdout, "-- %s #%d %s\n", o.boundary, t.index, t.displayName())
-		}
-		io.WriteString(stdout, formatted)
-		if !strings.HasSuffix(formatted, "\n") {
-			io.WriteString(stdout, "\n")
-		}
-		fmt.Fprintf(stdout, "-- %s #%d\n", o.boundary, t.index)
-		return nil
+	// --no-save is read-only: format and report only, write nothing.
+	if o.noSave {
+		return formatted, nil
 	}
 
 	switch {
@@ -995,7 +1021,7 @@ func (o *fmtOptions) formatTarget(t fmtTarget, outIsFile bool, mu *sync.Mutex, s
 		mu.Lock()
 		_, err = io.WriteString(stdout, formatted)
 		mu.Unlock()
-		return err
+		return formatted, err
 
 	case o.out != "":
 		dest := o.out
@@ -1003,19 +1029,19 @@ func (o *fmtOptions) formatTarget(t fmtTarget, outIsFile bool, mu *sync.Mutex, s
 			dest = t.destBase(filepath.Join(o.out, t.relPath()))
 		}
 		if err = os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			return err
+			return formatted, err
 		}
-		return os.WriteFile(dest, []byte(formatted), 0o644)
+		return formatted, os.WriteFile(dest, []byte(formatted), 0o644)
 
 	default:
 		dest := t.destBase(t.path)
 		// In place, skip a no-op rewrite; a transpiled .gadt -> .gad always writes.
 		if dest == t.path && string(src) == formatted {
-			return nil // already formatted
+			return formatted, nil // already formatted
 		}
 		if t.backup {
 			if err = writeBackup(t, src); err != nil {
-				return err
+				return formatted, err
 			}
 		}
 		mode := os.FileMode(0o644)
@@ -1023,13 +1049,21 @@ func (o *fmtOptions) formatTarget(t fmtTarget, outIsFile bool, mu *sync.Mutex, s
 			mode = info.Mode().Perm()
 		}
 		if err = os.WriteFile(dest, []byte(formatted), mode); err != nil {
-			return err
+			return formatted, err
 		}
-		mu.Lock()
-		fmt.Fprintln(stdout, dest)
-		mu.Unlock()
-		return nil
+		// echo the written path, unless the report is itself going to stdout
+		if !o.reportToStdout() {
+			mu.Lock()
+			fmt.Fprintln(stdout, dest)
+			mu.Unlock()
+		}
+		return formatted, nil
 	}
+}
+
+// reportToStdout reports whether the NDJSON report is written to stdout.
+func (o *fmtOptions) reportToStdout() bool {
+	return o.report == "-" || (o.reportStream && o.report == "")
 }
 
 // writeBackup saves the original source next to the target using its

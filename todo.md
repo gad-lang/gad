@@ -20,7 +20,7 @@
       add buttons to history REDO and UNDO on file editor control header. change local variables panel to add copy to clipboard button (must icon) per entry.
       on gad editor, add copy to clipboard button (must icon) on tooltip. change codemirror plugin to add code editor features (auto complete etc) on
       edit code/expression in template strings.
-- [ ] change gad fmt to write report, write file goroutine (per file) is done (success or error) as single JSON inline string:
+- [x] change gad fmt to write report, write file goroutine (per file) is done (success or error) as single JSON inline string:
       `{ "input_dir": (only if file in INPUT_DIR), "file": (the file name, if in INPUT_DIR, relative to here), "error": (if failt) }\n`.
       default result example:
       ```json

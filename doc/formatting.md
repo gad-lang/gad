@@ -85,9 +85,10 @@ emits transpiled output instead of plain formatting.
 ## Reports
 
 `--report PATH` writes a per-file status report as **NDJSON** — one JSON object
-per line. Each line carries `file` (relative to its input directory when the
-file came from one), `input_dir` (only for files discovered through a directory
-job), and `error` (only on failure):
+per line. Use `--report -` to write the report to stdout. Each line carries
+`file` (relative to its input directory when the file came from one),
+`input_dir` (only for files discovered through a directory job), and `error`
+(only on failure):
 
 ```sh
 gad fmt --report report.ndjson src/...
@@ -99,25 +100,25 @@ gad fmt --report report.ndjson src/...
 {"file":"oops.gad"}
 ```
 
-### Streaming to stdout
+- `--report-stream` writes each record as soon as its file is done, rather than
+  buffering them all until the end. With no `--report`, the report streams to
+  stdout.
+- `--report-contents` adds a `result` key to each record holding the formatted
+  source — useful with `--no-save` to format without touching files:
 
-`--to-stdout` formats every file but writes nothing to disk: each result is
-streamed to stdout, framed by boundary markers, and (when `--report` is unset)
-the NDJSON report follows. The boundary token frames the stream so a caller can
-split the results reliably; pass `--boundary TOKEN` to choose it, otherwise a
-random UUID is generated and announced on the first line as `>> TOKEN`:
-
-```text
->> 8f883eb4-a13a-491a-8209-72d89ccaeee1
--- 8f883eb4-a13a-491a-8209-72d89ccaeee1 #0 [src] a.gad
-x := 1
--- 8f883eb4-a13a-491a-8209-72d89ccaeee1 #0
-{"input_dir":"src","file":"a.gad"}
+```sh
+gad fmt --no-save --report-contents --report - src/...
 ```
 
-Each block is `-- TOKEN #INDEX [INPUT_DIR] FILE` (the `[INPUT_DIR]` bracket is
-present only for directory-job files, and `FILE` is then relative to it),
-followed by the formatted source, then a closing `-- TOKEN #INDEX` line.
+```json
+{"input_dir":"src","file":"a.gad","result":"x := 1\n"}
+```
+
+### Read-only formatting
+
+`--no-save` formats every file but writes, creates and backs up nothing. Combine
+it with `--report-contents` (and `--report -`) to obtain the formatted source as
+data without modifying the working tree.
 
 ## Config File (`.gad.yaml`)
 

@@ -105,7 +105,8 @@ func TestFormatTargetInPlace(t *testing.T) {
 	var mu sync.Mutex
 	tgt := fmtTarget{path: p}
 
-	require.NoError(t, o.formatTarget(tgt, false, &mu, out))
+	_, ferr := o.formatTarget(tgt, false, &mu, out)
+	require.NoError(t, ferr)
 
 	formatted, err := os.ReadFile(p)
 	require.NoError(t, err)
@@ -114,7 +115,8 @@ func TestFormatTargetInPlace(t *testing.T) {
 
 	// Idempotent: a second pass reports no change.
 	out2 := bytes.NewBuffer(nil)
-	require.NoError(t, o.formatTarget(tgt, false, &mu, out2))
+	_, ferr = o.formatTarget(tgt, false, &mu, out2)
+	require.NoError(t, ferr)
 	require.Empty(t, out2.String())
 
 	again, err := os.ReadFile(p)
@@ -131,7 +133,8 @@ func TestFormatTargetTranspileGadt(t *testing.T) {
 	var mu sync.Mutex
 
 	out := bytes.NewBuffer(nil)
-	require.NoError(t, o.formatTarget(fmtTarget{path: p, transpile: true}, false, &mu, out))
+	_, ferr := o.formatTarget(fmtTarget{path: p, transpile: true}, false, &mu, out)
+	require.NoError(t, ferr)
 
 	// A .gadt is transpiled to a sibling .gad; the original template is kept.
 	gadPath := filepath.Join(dir, "page.gad")
@@ -146,28 +149,25 @@ func TestFormatTargetTranspileGadt(t *testing.T) {
 	require.Contains(t, string(got), "x := 1")
 }
 
-func TestFormatTargetToStdout(t *testing.T) {
+func TestFormatTargetNoSave(t *testing.T) {
 	dir := t.TempDir()
 	const orig = "x:=1\nif x>0{println(x)}\n"
-	p := writeFile(t, dir, "src/a.gad", orig)
+	p := writeFile(t, dir, "a.gad", orig)
 
-	o := &fmtOptions{codeFlags: fmtFormatFlag(), toStdout: true, boundary: "BND"}
+	o := &fmtOptions{codeFlags: fmtFormatFlag(), noSave: true}
 	var mu sync.Mutex
 	out := bytes.NewBuffer(nil)
-	tgt := fmtTarget{path: p, root: filepath.Join(dir, "src"), index: 7}
 
-	require.NoError(t, o.formatTarget(tgt, false, &mu, out))
+	formatted, ferr := o.formatTarget(fmtTarget{path: p}, false, &mu, out)
+	require.NoError(t, ferr)
 
-	got := out.String()
-	// Header carries the input dir (bracketed) and the file relative to it.
-	require.Contains(t, got, "-- BND #7 ["+filepath.Join(dir, "src")+"] a.gad\n")
-	require.Contains(t, got, "if (x > 0) {\n")
-	require.True(t, strings.HasSuffix(got, "-- BND #7\n"), "trailer closes the frame")
-
-	// The input file is left untouched (streamed, not written).
+	// the formatted result is returned (for --report-contents) but nothing is
+	// written or echoed.
+	require.Contains(t, formatted, "if (x > 0) {\n")
+	require.Empty(t, out.String())
 	in, err := os.ReadFile(p)
 	require.NoError(t, err)
-	require.Equal(t, orig, string(in))
+	require.Equal(t, orig, string(in), "--no-save leaves the file untouched")
 }
 
 func TestFormatTargetBackup(t *testing.T) {
@@ -179,7 +179,8 @@ func TestFormatTargetBackup(t *testing.T) {
 	var mu sync.Mutex
 	tgt := fmtTarget{path: p, backup: true, backupFormat: "BASE_NAME.backup.gad"}
 
-	require.NoError(t, o.formatTarget(tgt, false, &mu, bytes.NewBuffer(nil)))
+	_, ferr := o.formatTarget(tgt, false, &mu, bytes.NewBuffer(nil))
+	require.NoError(t, ferr)
 
 	backup, err := os.ReadFile(filepath.Join(dir, "bk.backup.gad"))
 	require.NoError(t, err)
@@ -196,7 +197,8 @@ func TestFormatTargetOutDir(t *testing.T) {
 	var mu sync.Mutex
 	tgt := fmtTarget{path: p, root: filepath.Join(dir, "src")}
 
-	require.NoError(t, o.formatTarget(tgt, false, &mu, bytes.NewBuffer(nil)))
+	_, ferr := o.formatTarget(tgt, false, &mu, bytes.NewBuffer(nil))
+	require.NoError(t, ferr)
 
 	// input unchanged
 	in, err := os.ReadFile(p)
@@ -303,10 +305,4 @@ func TestWriteReportNDJSON(t *testing.T) {
 	require.Equal(t,
 		`{"file":"a.gad"}`+"\n"+`{"input_dir":"src","file":"b.gad","error":"boom"}`+"\n",
 		string(data))
-}
-
-func TestNewBoundaryUnique(t *testing.T) {
-	a, b := newBoundary(), newBoundary()
-	require.NotEqual(t, a, b)
-	require.Len(t, a, 36) // canonical UUID length
 }
