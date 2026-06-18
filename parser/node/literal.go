@@ -1834,8 +1834,8 @@ func (e *DurationLit) WriteCode(ctx *CodeWriteContext) {
 type DateTimeLitKind uint8
 
 const (
-	// DateLitKind is a `YYYYMMDD` date literal with a `D` suffix.
-	DateLitKind DateTimeLitKind = iota
+	// CalendarDateLitKind is a `YYYYMMDD` date literal with a `D` suffix.
+	CalendarDateLitKind DateTimeLitKind = iota
 	// TimeLitKind is a `[YYYYMMDD]HHMMSS[.frac]` time literal with a `T` suffix.
 	TimeLitKind
 	// UnixTimeLitKind is a unix-seconds literal with a `U` suffix.
@@ -1845,7 +1845,7 @@ const (
 // Suffix returns the source suffix letter for the kind.
 func (k DateTimeLitKind) Suffix() string {
 	switch k {
-	case DateLitKind:
+	case CalendarDateLitKind:
 		return "D"
 	case UnixTimeLitKind:
 		return "U"

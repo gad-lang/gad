@@ -434,10 +434,10 @@ func TestVMTimeDurationDate(t *testing.T) {
 		`Compile Error: invalid duration literal`)
 
 	// the Date type: constructor + accessors (gad methods are camelCase)
-	testExpectRun(t, `dt := time.Date(20260131); return [dt.year(), dt.month(), dt.day()]`,
+	testExpectRun(t, `dt := time.CalendarDate(20260131); return [dt.year(), dt.month(), dt.day()]`,
 		nil, Array{Int(2026), Int(1), Int(31)})
-	testExpectRun(t, `return str(time.Date("2026-01-31"))`, nil, Str("2026-01-31"))
-	testExpectRun(t, `return typeName(time.Date(20260131))`, nil, Str("date"))
+	testExpectRun(t, `return str(time.CalendarDate("2026-01-31"))`, nil, Str("2026-01-31"))
+	testExpectRun(t, `return typeName(time.CalendarDate(20260131))`, nil, Str("calendarDate"))
 }
 
 func TestVMTimeStrTo(t *testing.T) {
@@ -467,7 +467,7 @@ func TestVMTimeStrTo(t *testing.T) {
 func TestVMDateTimeLit(t *testing.T) {
 	// digit-suffix literals fold to constants at compile time:
 	// 2006-01-02D -> date, 2006-01-02T -> time (midnight UTC), 123U -> unix.
-	testExpectRun(t, `return typeName(2026-01-31D)`, nil, Str("date"))
+	testExpectRun(t, `return typeName(2026-01-31D)`, nil, Str("calendarDate"))
 	testExpectRun(t, `return typeName(2026-01-31T)`, nil, Str("time"))
 	testExpectRun(t, `return typeName(1781609136U)`, nil, Str("time"))
 

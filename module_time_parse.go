@@ -18,7 +18,7 @@ import (
 // UTC, `1781609136U` -> *Time from unix seconds.
 func dateTimeLitObject(kind node.DateTimeLitKind, body string) (Object, error) {
 	switch kind {
-	case node.DateLitKind:
+	case node.CalendarDateLitKind:
 		d, err := strToDate(body)
 		if err != nil {
 			return nil, err
@@ -105,7 +105,7 @@ func timeNew(c Call) (Object, error) {
 			return Nil, ErrType.NewError(err.Error())
 		}
 		return &Time{Value: t}, nil
-	case Date:
+	case CalendarDate:
 		return &Time{Value: v.Time(time.UTC)}, nil
 	case Int:
 		return &Time{Value: time.Unix(int64(v), 0).UTC()}, nil

@@ -112,10 +112,10 @@ func TestEncDecTimeTypes(t *testing.T) {
 	})
 
 	t.Run("date", func(t *testing.T) {
-		o := gad.Date(20260131)
+		o := gad.CalendarDate(20260131)
 		b, eb, err := eencode(o)
 		require.NoError(t, err)
-		got, err := edecode[gad.Date](b, eb)
+		got, err := edecode[gad.CalendarDate](b, eb)
 		require.NoError(t, err)
 		require.Equal(t, o, got)
 	})

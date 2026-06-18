@@ -91,5 +91,5 @@ func init() {
 	Register[gad.Regexp](typeRegexp, versionV1, &RegexpV1)
 	Register[gad.Time](typeTime, versionV1, &TimeV1)
 	Register[gad.Duration](typeDuration, versionV1, &DurationV1)
-	Register[gad.Date](typeDate, versionV1, &DateV1)
+	Register[gad.CalendarDate](typeDate, versionV1, &DateV1)
 }

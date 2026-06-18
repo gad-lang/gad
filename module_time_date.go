@@ -11,22 +11,23 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
-// DateType is the object type of Date values (the gad `date` type). It is
-// callable as a constructor: Date(uint|int) from a YYYYMMDD integer, or
-// Date(str) parsing "YYYYMMDD"/"YYYY-MM-DD". See also strToDate.
-var DateType = NewBuiltinObjType("date").WithNew(dateNew)
+// CalendarDateType is the object type of CalendarDate values (the gad
+// `calendarDate` type). It is callable as a constructor:
+// CalendarDate(uint|int) from a YYYYMMDD integer, or CalendarDate(str) parsing
+// "YYYYMMDD"/"YYYY-MM-DD". See also strToDate.
+var CalendarDateType = NewBuiltinObjType("calendarDate").WithNew(calendarDateNew)
 
-func dateNew(c Call) (Object, error) {
+func calendarDateNew(c Call) (Object, error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return Nil, err
 	}
 	switch v := c.Args.Get(0).(type) {
-	case Date:
+	case CalendarDate:
 		return v, nil
 	case Uint:
-		return Date(v), nil
+		return CalendarDate(v), nil
 	case Int:
-		return Date(v), nil
+		return CalendarDate(v), nil
 	case Str:
 		d, err := strToDate(string(v))
 		if err != nil {
@@ -37,31 +38,31 @@ func dateNew(c Call) (Object, error) {
 	return Nil, NewArgumentTypeError("1st", "uint|int|str", c.Args.Get(0).Type().Name())
 }
 
-// Date is a calendar date encoded as the unsigned integer YYYYMMDD (e.g.
-// 20260131 for 2026-01-31); it mirrors a Go uint and is one of the time
+// CalendarDate is a calendar date encoded as the unsigned integer YYYYMMDD
+// (e.g. 20260131 for 2026-01-31); it mirrors a Go uint and is one of the time
 // module's value types.
-type Date uint
+type CalendarDate uint
 
-var _ NameCallerObject = Date(0)
+var _ NameCallerObject = CalendarDate(0)
 
-// NewDate builds a Date from its year, month and day components.
-func NewDate(year, month, day int) Date {
-	return Date(year*10000 + month*100 + day)
+// NewCalendarDate builds a CalendarDate from its year, month and day components.
+func NewCalendarDate(year, month, day int) CalendarDate {
+	return CalendarDate(year*10000 + month*100 + day)
 }
 
-// DateFromTime returns the Date (YYYYMMDD) part of t.
-func DateFromTime(t time.Time) Date {
-	return NewDate(t.Year(), int(t.Month()), t.Day())
+// CalendarDateFromTime returns the CalendarDate (YYYYMMDD) part of t.
+func CalendarDateFromTime(t time.Time) CalendarDate {
+	return NewCalendarDate(t.Year(), int(t.Month()), t.Day())
 }
 
-func (Date) Type() ObjectType { return DateType }
+func (CalendarDate) Type() ObjectType { return CalendarDateType }
 
-func (o Date) Year() int  { return int(o) / 10000 }
-func (o Date) Month() int { return (int(o) / 100) % 100 }
-func (o Date) Day() int   { return int(o) % 100 }
+func (o CalendarDate) Year() int  { return int(o) / 10000 }
+func (o CalendarDate) Month() int { return (int(o) / 100) % 100 }
+func (o CalendarDate) Day() int   { return int(o) % 100 }
 
 // Time returns midnight of this date in the given location (UTC when nil).
-func (o Date) Time(loc *time.Location) time.Time {
+func (o CalendarDate) Time(loc *time.Location) time.Time {
 	if loc == nil {
 		loc = time.UTC
 	}
@@ -69,13 +70,13 @@ func (o Date) Time(loc *time.Location) time.Time {
 }
 
 // ToString renders the date as YYYY-MM-DD.
-func (o Date) ToString() string {
+func (o CalendarDate) ToString() string {
 	return fmt.Sprintf("%04d-%02d-%02d", o.Year(), o.Month(), o.Day())
 }
 
 // Print writes the date (Printabler); without it the printer's reflection
 // fallback would recurse on this named-uint Object.
-func (o Date) Print(s *PrinterState) error {
+func (o CalendarDate) Print(s *PrinterState) error {
 	if s.IsRepr {
 		defer s.WrapRepr(o)()
 	}
@@ -83,13 +84,13 @@ func (o Date) Print(s *PrinterState) error {
 }
 
 // IsFalsy reports whether the date is the zero value.
-func (o Date) IsFalsy() bool { return o == 0 }
+func (o CalendarDate) IsFalsy() bool { return o == 0 }
 
-// Equal implements Object. A Date equals another Date or a uint/int with the
-// same YYYYMMDD value.
-func (o Date) Equal(right Object) bool {
+// Equal implements Object. A CalendarDate equals another CalendarDate or a
+// uint/int with the same YYYYMMDD value.
+func (o CalendarDate) Equal(right Object) bool {
 	switch v := right.(type) {
-	case Date:
+	case CalendarDate:
 		return o == v
 	case Uint:
 		return uint64(o) == uint64(v)
@@ -101,15 +102,15 @@ func (o Date) Equal(right Object) bool {
 
 // BinaryOp supports the ordered comparisons between dates (their YYYYMMDD
 // encoding compares chronologically).
-func (o Date) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
-	var r Date
+func (o CalendarDate) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
+	var r CalendarDate
 	switch v := right.(type) {
-	case Date:
+	case CalendarDate:
 		r = v
 	case Uint:
-		r = Date(v)
+		r = CalendarDate(v)
 	case Int:
-		r = Date(v)
+		r = CalendarDate(v)
 	default:
 		return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
 	}
@@ -127,7 +128,7 @@ func (o Date) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 }
 
 // CallName dispatches the date accessor methods.
-func (o Date) CallName(name string, c Call) (Object, error) {
+func (o CalendarDate) CallName(name string, c Call) (Object, error) {
 	switch name {
 	case "year":
 		return Int(o.Year()), nil
@@ -148,13 +149,13 @@ func (o Date) CallName(name string, c Call) (Object, error) {
 }
 
 // strToDate parses a date from "YYYYMMDD" or "YYYY-MM-DD".
-func strToDate(s string) (Date, error) {
+func strToDate(s string) (CalendarDate, error) {
 	var y, m, d int
 	if _, err := fmt.Sscanf(s, "%04d-%02d-%02d", &y, &m, &d); err == nil && len(s) == 10 {
-		return NewDate(y, m, d), nil
+		return NewCalendarDate(y, m, d), nil
 	}
 	if _, err := fmt.Sscanf(s, "%04d%02d%02d", &y, &m, &d); err == nil && len(s) == 8 {
-		return NewDate(y, m, d), nil
+		return NewCalendarDate(y, m, d), nil
 	}
 	return 0, fmt.Errorf("invalid date %q (want YYYYMMDD or YYYY-MM-DD)", s)
 }

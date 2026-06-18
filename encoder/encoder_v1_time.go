@@ -38,11 +38,11 @@ func init() {
 	}
 
 	DateV1.Encode = func(ctx *WriteContext, o any) (err error) {
-		return writeUint64(ctx, uint64(o.(gad.Date)))
+		return writeUint64(ctx, uint64(o.(gad.CalendarDate)))
 	}
 	DateV1.Decode = func(ctx *ReadContext) (_ any, err error) {
 		var i uint64
 		i, err = readUint64(ctx)
-		return gad.Date(i), err
+		return gad.CalendarDate(i), err
 	}
 }
