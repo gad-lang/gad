@@ -841,6 +841,8 @@ func (p *Parser) ParseDateTimeLit(suffix rune) node.Expr {
 	switch suffix {
 	case 'D':
 		kind = node.CalendarDateLitKind
+	case 't':
+		kind = node.CalendarTimeLitKind
 	case 'U':
 		kind = node.UnixTimeLitKind
 	default:

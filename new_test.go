@@ -475,6 +475,15 @@ func TestVMDateTimeLit(t *testing.T) {
 	testExpectRun(t, `return str(2026-01-31T)`, nil, Str("2026-01-31 00:00:00 +0000 UTC"))
 	testExpectRun(t, `return str(1781609136U)`, nil, Str("2026-06-16 11:25:36 +0000 UTC"))
 
+	// lowercase `t` is the zone-less calendarTime
+	testExpectRun(t, `return typeName(2026-01-31t)`, nil, Str("calendarTime"))
+	testExpectRun(t, `return str(2026-01-31t)`, nil, Str("2026-01-31 00:00:00"))
+	testExpectRun(t, `return 2026-01-31t.day()`, nil, Int(31))
+	testExpectRun(t, `return 2026-01-31t < 2026-02-01t`, nil, True)
+	// calendarTime stores nanoseconds (via the string parser / constructor)
+	testExpectRun(t, `return time.strToCalendarTime("2026-01-31 23:59:55.001").ns()`,
+		nil, Int(1000000))
+
 	// the compact YYYYMMDD form is still accepted for dates
 	testExpectRun(t, `return str(20260131D)`, nil, Str("2026-01-31"))
 

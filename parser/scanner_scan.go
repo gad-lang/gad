@@ -47,7 +47,7 @@ func (s *Scanner) scanDateTimeLit() (body string, suffix byte, span int, ok bool
 		return "", 0, 0, false
 	}
 	switch src[j] {
-	case 'D', 'T', 'U':
+	case 'D', 'T', 't', 'U':
 	default:
 		return "", 0, 0, false
 	}

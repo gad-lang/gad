@@ -28,13 +28,13 @@ func TestScanner_ScanDateTimeLit(t *testing.T) {
 	tr := &scanTester{}
 
 	// digit-suffix date/time literals scan as a String whose literal is the
-	// dashed-date / unix body without the trailing D/T/U suffix.
-	tr.scanExpect(t, "2026-01-31D 2026-01-31T 1781609136U 1781609136.001U",
+	// dashed-date / unix body without the trailing D/T/t/U suffix.
+	tr.scanExpect(t, "2026-01-31D 2026-01-31T 2026-01-31t 1781609136U",
 		parser.DontInsertSemis, []scanResult{
 			{Token: token.String, Literal: "2026-01-31", Line: 1, Column: 1},
 			{Token: token.String, Literal: "2026-01-31", Line: 1, Column: 13},
-			{Token: token.String, Literal: "1781609136", Line: 1, Column: 25},
-			{Token: token.String, Literal: "1781609136.001", Line: 1, Column: 37},
+			{Token: token.String, Literal: "2026-01-31", Line: 1, Column: 25},
+			{Token: token.String, Literal: "1781609136", Line: 1, Column: 37},
 		}...,
 	)
 

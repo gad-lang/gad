@@ -37,6 +37,8 @@ func newTimeModule() Dict {
 		"Type": TimeType,
 		// CalendarDate is the `calendarDate` value type (YYYYMMDD); a constructor.
 		"CalendarDate": CalendarDateType,
+		// CalendarTime is the zone-less `calendarTime` value type; a constructor.
+		"CalendarTime": CalendarTimeType,
 		// Duration is the `duration` value type; callable as a constructor.
 		"Duration": DurationType,
 		// Location is the `Location` value type.
@@ -326,13 +328,24 @@ func newTimeModule() Dict {
 		},
 		// gad:doc
 		// strToTime(s str) <time>
-		// Parses a time literal `[YYYYMMDD[_]]HHMMSS[.frac][Zloc][T]`.
+		// Parses an RFC3339 timestamp or "YYYY-MM-DD[ HH:MM:SS]" (UTC when no
+		// zone is present).
 		"strToTime": &BuiltinFunction{
 			FuncName: "strToTime",
 			Value: timeStrToFunc(func(s string) (Object, error) {
 				t, err := strToTime(s)
-				return &Time{Value: t}, err
+				if err != nil {
+					return nil, err
+				}
+				return &Time{Value: t}, nil
 			}),
+		},
+		// gad:doc
+		// strToCalendarTime(s str) <calendarTime>
+		// Parses a zone-less "YYYY-MM-DD[ HH:MM:SS[.frac]]" timestamp.
+		"strToCalendarTime": &BuiltinFunction{
+			FuncName: "strToCalendarTime",
+			Value:    timeStrToFunc(func(s string) (Object, error) { return strToCalendarTime(s) }),
 		},
 		// gad:doc
 		// strToDuration(s str) <duration>

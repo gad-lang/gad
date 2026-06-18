@@ -24,6 +24,12 @@ func dateTimeLitObject(kind node.DateTimeLitKind, body string) (Object, error) {
 			return nil, err
 		}
 		return d, nil
+	case node.CalendarTimeLitKind:
+		t, err := strToCalendarTime(body)
+		if err != nil {
+			return nil, err
+		}
+		return t, nil
 	case node.UnixTimeLitKind:
 		t, err := strToUnixTime(body)
 		if err != nil {
