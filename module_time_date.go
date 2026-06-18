@@ -6,6 +6,7 @@ package gad
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/gad-lang/gad/token"
@@ -85,6 +86,11 @@ func (o CalendarDate) Print(s *PrinterState) error {
 		defer s.WrapRepr(o)()
 	}
 	return s.WriteString(o.ToString())
+}
+
+// MarshalJSON encodes the date as the JSON string "YYYY-MM-DD".
+func (o CalendarDate) MarshalJSON() ([]byte, error) {
+	return []byte(strconv.Quote(o.ToString())), nil
 }
 
 // IsFalsy reports whether the date is the zero value.

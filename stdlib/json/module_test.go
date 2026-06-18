@@ -55,6 +55,10 @@ func TestScript(t *testing.T) {
 	expectRun(t, catchf(`str(json.Marshal(3.4d))`), nil, Str("3.4"))
 	expectRun(t, catchf(`str(json.Marshal('x'))`), nil, Str("120"))
 	expectRun(t, catchf(`str(json.Marshal("test"))`), nil, Str(`"test"`))
+	// time module value types marshal as JSON strings
+	expectRun(t, catchf(`str(json.Marshal(2026-01-31D))`), nil, Str(`"2026-01-31"`))
+	expectRun(t, catchf(`str(json.Marshal(2026-01-31t))`), nil, Str(`"2026-01-31 00:00:00"`))
+	expectRun(t, catchf(`str(json.Marshal(dur 1h30m))`), nil, Str(`"1h30m0s"`))
 	expectRun(t, catchf(`str(json.Marshal(bytes(0,1)))`), nil, Str(`"AAE="`))
 	expectRun(t, catchf(`str(json.Marshal([]))`), nil, Str("[]"))
 	expectRun(t, catchf(`str(json.Marshal([1, "a", 2u, 'x',3.4,3.4d,true,false,

@@ -5,6 +5,7 @@
 package gad
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/gad-lang/gad/token"
@@ -54,6 +55,11 @@ func (o Duration) Print(s *PrinterState) error {
 		defer s.WrapRepr(o)()
 	}
 	return s.WriteString(o.ToString())
+}
+
+// MarshalJSON encodes the duration as a JSON string, e.g. "1h30m0s".
+func (o Duration) MarshalJSON() ([]byte, error) {
+	return []byte(strconv.Quote(o.ToString())), nil
 }
 
 // IsFalsy reports whether the duration is zero.
