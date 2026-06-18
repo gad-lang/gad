@@ -3976,6 +3976,15 @@ func TestParseMatchExprError(t *testing.T) {
 	test.ExpectParseError(t, `x := match a { else: 2 }`)
 }
 
+func TestParseFuncHeaderExpr(t *testing.T) {
+	test.ExpectParseString(t, `x := <()>`, `x := <()>`)
+	test.ExpectParseString(t, `x := <(v int)>`, `x := <(v int)>`)
+	test.ExpectParseString(t, `x := <(a, b str)>`, `x := <(a, b str)>`)
+	// nested return list closes with `>>` (the scanner's Shr is split)
+	test.ExpectParseString(t, `x := <(v int) <r uint|int>>`, `x := <(v int) <r uint|int>>`)
+	test.ExpectParseString(t, `x := <(a, b str) <int, str>>`, `x := <(a, b str) <int, str>>`)
+}
+
 func TestParsePrefixIncDec(t *testing.T) {
 	// prefix ++/-- are unary operators (parenthesized like other unary exprs)
 	test.ExpectParseString(t, `++x`, `(++x)`)

@@ -34,6 +34,25 @@ func TestVMPrefixIncDec(t *testing.T) {
 	expectErrHas(t, `s := "a"; return ++s`, newOpts(), "invalid type for unary")
 }
 
+func TestVMFuncHeaderExpr(t *testing.T) {
+	// a `<…>` value is a FunctionHeader describing a signature
+	testExpectRun(t, `return typeName(<()>)`, nil, Str("FunctionHeader"))
+	testExpectRun(t, `return len((<()>).params)`, nil, Int(0))
+	// positional params (each a typedIdent)
+	testExpectRun(t, `h := <(a int, b str)>
+	return [len(h.params), h.params[0].name, h.params[1].name]`,
+		nil, Array{Int(2), Str("a"), Str("b")})
+	// param type captured
+	testExpectRun(t, `h := <(v int)>
+	return h.params[0].types[0] == int`, nil, True)
+	// name (empty) and return list
+	testExpectRun(t, `h := <(v int) <r bool>>
+	return [h.name, len(h.return), h.return[0].name]`,
+		nil, Array{Str(""), Int(1), Str("r")})
+	// round-trips through str
+	testExpectRun(t, `return str(<(a int) <r str>>)`, nil, Str("<(a int) <r str>>"))
+}
+
 func TestVMBinaryIncDec(t *testing.T) {
 	// the binary form does not disturb the postfix/prefix forms
 	testExpectRun(t, `x := 5; x++; return x`, nil, Int(6))

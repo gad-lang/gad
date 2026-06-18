@@ -298,6 +298,41 @@ func (e *FuncType) End() source.Pos {
 	return e.Params.End()
 }
 
+// FuncHeaderExpr is a function-header value expression written between angle
+// brackets: `<()>`, `<(v int)>`, `<(v int) <x uint|int>>`. It evaluates to a
+// FunctionHeader value describing a signature.
+type FuncHeaderExpr struct {
+	OpenPos  source.Pos // `<`
+	ClosePos source.Pos // `>`
+	FuncHeader
+}
+
+func (e *FuncHeaderExpr) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *FuncHeaderExpr) Pos() source.Pos {
+	if e.OpenPos != source.NoPos {
+		return e.OpenPos
+	}
+	return e.FuncHeader.Pos()
+}
+
+// End returns the position of first character immediately after the node.
+func (e *FuncHeaderExpr) End() source.Pos {
+	if e.ClosePos != source.NoPos {
+		return e.ClosePos + 1
+	}
+	return e.FuncHeader.End()
+}
+
+func (e *FuncHeaderExpr) String() string {
+	return "<" + e.FuncHeader.String() + ">"
+}
+
+func (e *FuncHeaderExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}
+
 // FormatFuncReturn renders an optional function return-type list as
 // " <T1, T2, ...>". It returns an empty string when there are no return types.
 func FormatFuncReturn(ret []*TypedIdentExpr) string {

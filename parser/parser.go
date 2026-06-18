@@ -1098,6 +1098,8 @@ func (p *Parser) ParseOperand() node.Expr {
 			return p.ParseFuncExpr()
 		case token.Prop: // property literal
 			return p.ParsePropExpr()
+		case token.Less: // func-header value: `<()>`, `<(v int) <x int>>`
+			return p.ParseFuncHeaderExpr()
 		case token.Throw:
 			return p.ParseThrowExpr()
 		case token.Return:
@@ -1877,6 +1879,32 @@ func (p *Parser) parsePropMethod() (m *node.FuncMethod) {
 	return m
 }
 
+// ParseFuncHeaderExpr parses a func-header value `< (params) <return> >`.
+func (p *Parser) ParseFuncHeaderExpr() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "FuncHeaderExpr"))
+	}
+
+	h := &node.FuncHeaderExpr{OpenPos: p.Expect(token.Less)}
+
+	if p.Token.Token == token.LParen {
+		paren := p.ParseParemExpr(token.LParen, token.RParen)
+		if paren == nil || p.Errors.Len() != 0 {
+			return &node.BadExpr{From: h.OpenPos, To: p.Token.Pos}
+		}
+		params, err := paren.ToMultiParenExpr().ToFuncParams()
+		if err != nil {
+			p.Error(err.Pos(), err.Error())
+			return &node.BadExpr{From: h.OpenPos, To: p.Token.Pos}
+		}
+		h.Params = params
+	}
+
+	h.Return = p.ParseFuncReturnTypes()
+	h.ClosePos = p.expectGreater()
+	return h
+}
+
 func (p *Parser) ParseBody() (b *node.BlockStmt, lambdaPos source.Pos, closure node.Expr) {
 	if p.Trace {
 		defer untracep(tracep(p, "Body"))
@@ -1987,7 +2015,7 @@ func (p *Parser) ParseFuncReturnTypes() (types []*node.TypedIdentExpr) {
 		p.SkipSpace()
 	}
 
-	p.Expect(token.Greater)
+	p.expectGreater()
 	return
 }
 
@@ -3631,6 +3659,20 @@ func (p *Parser) Expect(token token.Token) source.Pos {
 	return p.ExpectToken(token).Pos
 }
 
+// expectGreater consumes a closing `>`. When the scanner produced a `>>` (Shr)
+// token from two adjacent closing brackets (e.g. `<(v) <int>>`), it splits it:
+// one `>` is consumed here and the other is left as the current token.
+func (p *Parser) expectGreater() source.Pos {
+	if p.Token.Token == token.Shr {
+		pos := p.Token.Pos
+		p.Token.Token = token.Greater
+		p.Token.Pos = pos + 1
+		p.Token.Literal = ">"
+		return pos
+	}
+	return p.Expect(token.Greater)
+}
+
 func (p *Parser) ExpectLit(token token.Token) ast.Literal {
 	lit := ast.Literal{
 		Pos:   p.Token.Pos,
@@ -3697,7 +3739,10 @@ func (p *Parser) ExpectSemi() {
 		p.Next()
 	default:
 		switch p.PrevToken.Token {
-		case token.Else, p.BlockEnd, token.DotName, token.DotFile, token.IsMain, token.Module:
+		case token.Else, p.BlockEnd, token.DotName, token.DotFile, token.IsMain, token.Module,
+			// a closing `>` ends a func-header value `<…>`; it is the previous
+			// token at a statement boundary only in that case.
+			token.Greater:
 			return
 		}
 		p.ErrorExpected(p.Token.Pos, "';'")

@@ -67,6 +67,8 @@ const (
 	BuiltinComputedValue
 	// BuiltinProp is the builtin object type for getter/setter properties.
 	BuiltinProp
+	// BuiltinFunctionHeader is the builtin object type for func-header values.
+	BuiltinFunctionHeader
 	BuiltinTypesEnd_
 
 	BuiltinStaticTypesStart_

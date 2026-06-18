@@ -1926,6 +1926,43 @@ func (c *Compiler) compilePropExpr(nd *node.PropExpr) error {
 	return c.Compile(call)
 }
 
+// compileFuncHeaderExpr lowers a `<(params) <return>>` header value to a
+// FunctionHeader(name, params, namedParams, return) constructor call, where
+// each parameter/return is a typedIdent.
+func (c *Compiler) compileFuncHeaderExpr(nd *node.FuncHeaderExpr) error {
+	typedIdents := func(idents ...*node.TypedIdentExpr) node.Exprs {
+		out := make(node.Exprs, 0, len(idents))
+		for _, ti := range idents {
+			if ti != nil {
+				out = append(out, ti)
+			}
+		}
+		return out
+	}
+
+	pos, end := nd.Pos(), nd.End()
+	params := typedIdents(nd.Params.Args.Values...)
+	if nd.Params.Args.Var != nil {
+		params = append(params, nd.Params.Args.Var)
+	}
+	named := typedIdents(nd.Params.NamedArgs.Names...)
+	ret := typedIdents(nd.Return...)
+
+	return c.Compile(&node.CallExpr{
+		Func: node.EIdent(BuiltinFunctionHeader.String(), pos),
+		CallArgs: node.CallArgs{
+			Args: node.CallExprPositionalArgs{
+				Values: []node.Expr{
+					node.Str(nd.Name(), pos),
+					node.Array(pos, end, params...),
+					node.Array(pos, end, named...),
+					node.Array(pos, end, ret...),
+				},
+			},
+		},
+	})
+}
+
 func (c *Compiler) compileLogical(nd *node.BinaryExpr) error {
 	// left side term
 	if err := c.Compile(nd.LHS); err != nil {
