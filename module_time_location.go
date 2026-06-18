@@ -22,7 +22,7 @@ import (
 // }
 // ```
 
-var TimeLocationType = NewBuiltinObjType("Location")
+var TimeLocationType = NewBuiltinObjType("Location").WithNew(locationNew)
 
 // Location represents location values and implements Object interface.
 type Location struct {

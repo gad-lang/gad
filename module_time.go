@@ -318,6 +318,40 @@ func newTimeModule() Dict {
 			Value:    TimeParseFunc,
 		},
 		// gad:doc
+		// strToDate(s str) <date>
+		// Parses a date from "YYYYMMDD" or "YYYY-MM-DD".
+		"strToDate": &BuiltinFunction{
+			FuncName: "strToDate",
+			Value:    timeStrToFunc(func(s string) (Object, error) { return strToDate(s) }),
+		},
+		// gad:doc
+		// strToTime(s str) <time>
+		// Parses a time literal `[YYYYMMDD[_]]HHMMSS[.frac][Zloc][T]`.
+		"strToTime": &BuiltinFunction{
+			FuncName: "strToTime",
+			Value: timeStrToFunc(func(s string) (Object, error) {
+				t, err := strToTime(s)
+				return &Time{Value: t}, err
+			}),
+		},
+		// gad:doc
+		// strToDuration(s str) <duration>
+		// Parses a Go duration string (e.g. "1h30m").
+		"strToDuration": &BuiltinFunction{
+			FuncName: "strToDuration",
+			Value:    timeStrToFunc(func(s string) (Object, error) { return strToDuration(s) }),
+		},
+		// gad:doc
+		// strToLocation(s str) <Location>
+		// Parses a location from an offset ("-0300"/"-03:00") or an IANA name.
+		"strToLocation": &BuiltinFunction{
+			FuncName: "strToLocation",
+			Value: timeStrToFunc(func(s string) (Object, error) {
+				loc, err := strToLocation(s)
+				return &Location{Value: loc}, err
+			}),
+		},
+		// gad:doc
 		// unix(sec int[, nsec int]) <time>
 		// Returns the local time corresponding to the given Unix time,
 		// sec seconds and nsec nanoseconds since January 1, 1970 UTC.

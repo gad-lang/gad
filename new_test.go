@@ -407,7 +407,7 @@ func TestVMBuiltinModuleStringsFmt(t *testing.T) {
 
 func TestVMBuiltinModuleTime(t *testing.T) {
 	// time is a builtin namespace usable without an import; members are camelCase
-	testExpectRun(t, `d := time.date(2009, 11, 10, 23, 0, 0, 0, time.utc()); return d.Year()`, nil, Int(2009))
+	testExpectRun(t, `d := time.date(2009, 11, 10, 23, 0, 0, 0, time.utc()); return d.year()`, nil, Int(2009))
 	testExpectRun(t, `return typeName(time.now())`, nil, Str("time"))
 	// the type renders module-qualified (FullName)
 	testExpectRun(t, `return str(typeof(time.now()))`, nil, Str("‹builtin type ‹time.time››"))
@@ -438,6 +438,27 @@ func TestVMTimeDurationDate(t *testing.T) {
 		nil, Array{Int(2026), Int(1), Int(31)})
 	testExpectRun(t, `return str(time.Date("2026-01-31"))`, nil, Str("2026-01-31"))
 	testExpectRun(t, `return typeName(time.Date(20260131))`, nil, Str("date"))
+}
+
+func TestVMTimeStrTo(t *testing.T) {
+	// strToDate / strToDuration / strToLocation module functions
+	testExpectRun(t, `return str(time.strToDate("2026-01-31"))`, nil, Str("2026-01-31"))
+	testExpectRun(t, `return str(time.strToDuration("1h30m"))`, nil, Str("1h30m0s"))
+	testExpectRun(t, `return str(time.strToLocation("-03:00"))`, nil, Str("-03:00"))
+	// strToTime parses the date/time literal syntax
+	testExpectRun(t, `return str(time.strToTime("20260131_235955T"))`,
+		nil, Str("2026-01-31 23:59:55 +0000 UTC"))
+	// fractional seconds (3/6/9 digits)
+	testExpectRun(t, `return time.strToTime("235955.001T").ns()`, nil, Int(1000000))
+	// location offset in the time literal
+	testExpectRun(t, `return time.strToTime("20260131_120000Z-0300T").hour()`, nil, Int(12))
+	// the time and Location constructors accept strings / unix ints
+	testExpectRun(t, `return str(time.Type("20260131T"))`,
+		nil, Str("2026-01-31 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return time.Type(1781609136).year()`, nil, Int(2026))
+	testExpectRun(t, `return str(time.Location("America/Sao_Paulo"))`, nil, Str("America/Sao_Paulo"))
+	// invalid input is an error
+	expectErrHas(t, `return time.strToTime("99T")`, newOpts(), "invalid time")
 }
 
 func TestVMBuiltinModuleBase64(t *testing.T) {

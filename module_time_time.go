@@ -23,7 +23,7 @@ import (
 // }
 // ```
 
-var TimeType = NewBuiltinObjType("time")
+var TimeType = NewBuiltinObjType("time").WithNew(timeNew)
 
 // Time represents time values and implements Object interface.
 type Time struct {
@@ -195,9 +195,22 @@ func (o *Time) IndexGet(_ *VM, index Object) (Object, error) {
 func (o *Time) CallName(name string, c Call) (Object, error) {
 	fn, ok := MethodTable[name]
 	if !ok {
+		// gad methods are camelCase; the table is keyed by the Go (PascalCase)
+		// names, so capitalise the first letter and retry.
+		fn, ok = MethodTable[capitalizeFirst(name)]
+	}
+	if !ok {
 		return Nil, ErrInvalidIndex.NewError(name)
 	}
 	return fn(o, &c)
+}
+
+// capitalizeFirst upper-cases the first ASCII letter of s.
+func capitalizeFirst(s string) string {
+	if s == "" || s[0] < 'a' || s[0] > 'z' {
+		return s
+	}
+	return string(s[0]-'a'+'A') + s[1:]
 }
 
 var MethodTable = map[string]func(*Time, *Call) (Object, error){
@@ -394,6 +407,13 @@ var MethodTable = map[string]func(*Time, *Call) (Object, error){
 		return Int(o.Value.Second()), nil
 	},
 	"Nanosecond": func(o *Time, c *Call) (Object, error) {
+		if err := c.Args.CheckLen(0); err != nil {
+			return Nil, err
+		}
+		return Int(o.Value.Nanosecond()), nil
+	},
+	// ns is the camelCase short alias of Nanosecond.
+	"ns": func(o *Time, c *Call) (Object, error) {
 		if err := c.Args.CheckLen(0); err != nil {
 			return Nil, err
 		}
