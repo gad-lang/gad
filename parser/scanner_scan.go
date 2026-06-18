@@ -23,27 +23,19 @@ const dateTimeLitKey = "dateTimeLit"
 // d"..."/d`...` duration literal (its string body is a Go duration string).
 const durationLitKey = "durationLit"
 
-// isDateTimeBodyByte reports whether b may appear in the numeric body of a
-// date/time literal: a digit, the `_` date/time separator or the `.` fraction.
+// isDateTimeBodyByte reports whether b may appear in the body of a date/time
+// literal: a digit, the `-` calendar separator or the `.` unix fraction dot.
 func isDateTimeBodyByte(b byte) bool {
-	return b >= '0' && b <= '9' || b == '_' || b == '.'
-}
-
-// isDateTimeLocByte reports whether b may appear in the Z<location> segment of a
-// time literal: offset digits/sign/colon or an alphabetic zone name.
-func isDateTimeLocByte(b byte) bool {
-	return b >= '0' && b <= '9' ||
-		b >= 'A' && b <= 'Z' || b >= 'a' && b <= 'z' ||
-		b == ':' || b == '+' || b == '-'
+	return b >= '0' && b <= '9' || b == '-' || b == '.'
 }
 
 // scanDateTimeLit looks ahead (without consuming) from the current position —
-// the first digit — for a digit-suffix date/time literal: a numeric body,
-// an optional `Z<location>` segment, and a trailing D/T/U suffix letter that
-// must not be the first rune of an identifier. On success it returns the body
-// (the literal without the suffix), the suffix byte and the total byte span of
-// body+suffix; otherwise ok is false and the reader is left untouched for plain
-// number scanning.
+// the first digit — for a digit-suffix date/time literal: a dashed date / unix
+// body followed by a D/T/U suffix letter that must not be the first rune of an
+// identifier (so `0xABCD` and `123Drive` are left alone). On success it returns
+// the body (the literal without the suffix), the suffix byte and the total byte
+// span of body+suffix; otherwise ok is false and the reader is untouched so the
+// caller falls back to plain number scanning.
 func (s *Scanner) scanDateTimeLit() (body string, suffix byte, span int, ok bool) {
 	src := s.Src
 	i := s.Offset
@@ -51,29 +43,18 @@ func (s *Scanner) scanDateTimeLit() (body string, suffix byte, span int, ok bool
 	for j < len(src) && isDateTimeBodyByte(src[j]) {
 		j++
 	}
-	end := j // index of the suffix letter (tentative)
-	if j < len(src) && src[j] == 'Z' {
-		k := j + 1
-		for k < len(src) && isDateTimeLocByte(src[k]) {
-			k++
-		}
-		if k == j+1 {
-			return "", 0, 0, false // empty Z<location>
-		}
-		end = k - 1 // the suffix is the last char of the location run
-	}
-	if end >= len(src) {
+	if j >= len(src) || j == i {
 		return "", 0, 0, false
 	}
-	switch src[end] {
+	switch src[j] {
 	case 'D', 'T', 'U':
 	default:
 		return "", 0, 0, false
 	}
-	if end+1 < len(src) && runehelper.IsIdentifier(rune(src[end+1])) {
+	if j+1 < len(src) && runehelper.IsIdentifier(rune(src[j+1])) {
 		return "", 0, 0, false
 	}
-	return string(src[i:end]), src[end], end + 1 - i, true
+	return string(src[i:j]), src[j], j + 1 - i, true
 }
 
 // scanCodeStr scans a `code … end` code-string literal whose `code` keyword

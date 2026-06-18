@@ -14,8 +14,8 @@ import (
 )
 
 // dateTimeLitObject folds a digit-suffix date/time literal body into its
-// constant Object — a Date (`D`), or a *Time for the `T` (calendar) and `U`
-// (unix seconds) forms.
+// constant Object: `2006-01-02D` -> Date, `2006-01-02T` -> *Time at 00:00:00
+// UTC, `1781609136U` -> *Time from unix seconds.
 func dateTimeLitObject(kind node.DateTimeLitKind, body string) (Object, error) {
 	switch kind {
 	case node.DateLitKind:
@@ -31,11 +31,13 @@ func dateTimeLitObject(kind node.DateTimeLitKind, body string) (Object, error) {
 		}
 		return &Time{Value: t}, nil
 	default:
-		t, err := strToTime(body)
+		// `T` literals carry a calendar date only; the value is that date at
+		// midnight UTC. Time-of-day comes from strToTime / time("RFC3339").
+		d, err := strToDate(body)
 		if err != nil {
 			return nil, err
 		}
-		return &Time{Value: t}, nil
+		return &Time{Value: d.Time(time.UTC)}, nil
 	}
 }
 
@@ -180,81 +182,26 @@ func pow10(n int) int64 {
 	return r
 }
 
-// strToTime parses a date/time literal (with an optional trailing `T`) of the
-// form `[YYYYMMDD[_]]HHMMSS[.fraction][Zlocation]`. The date defaults to
-// 0001-01-01 when only a time is given, and the location to UTC.
+// timeLayouts are the layouts strToTime tries, in order. RFC3339 honours an
+// explicit offset; the zone-less layouts parse as UTC. A bare calendar date
+// becomes that day at 00:00:00 UTC.
+var timeLayouts = []string{
+	time.RFC3339Nano,
+	time.RFC3339,
+	"2006-01-02T15:04:05",
+	"2006-01-02 15:04:05",
+	"2006-01-02",
+}
+
+// strToTime parses an RFC3339 timestamp (e.g. "2026-01-31T23:59:55Z" or
+// "2026-01-31T23:59:55.001-03:00"), a space-separated "YYYY-MM-DD HH:MM:SS",
+// or a bare "YYYY-MM-DD" (midnight UTC). When no zone is present the value is
+// UTC.
 func strToTime(s string) (time.Time, error) {
-	body := strings.TrimSuffix(s, "T")
-
-	loc := time.UTC
-	if i := strings.IndexByte(body, 'Z'); i >= 0 {
-		var err error
-		if loc, err = strToLocation(body[i+1:]); err != nil {
-			return time.Time{}, err
-		}
-		body = body[:i]
-	}
-
-	// optional fractional seconds
-	var nsec int
-	if dot := strings.IndexByte(body, '.'); dot >= 0 {
-		frac := body[dot+1:]
-		switch len(frac) {
-		case 3, 6, 9:
-		default:
-			return time.Time{}, fmt.Errorf("time fraction %q must have 3, 6 or 9 digits", frac)
-		}
-		f, err := strconv.Atoi(frac)
-		if err != nil {
-			return time.Time{}, fmt.Errorf("invalid time fraction %q", frac)
-		}
-		nsec = f * int(pow10(9-len(frac)))
-		body = body[:dot]
-	}
-
-	// split optional date from the time
-	datePart, timePart := "", body
-	if u := strings.IndexByte(body, '_'); u >= 0 {
-		datePart, timePart = body[:u], body[u+1:]
-	} else if len(body) == 14 {
-		datePart, timePart = body[:8], body[8:]
-	} else if len(body) == 8 {
-		datePart, timePart = body, ""
-	}
-
-	year, month, day := 1, 1, 1
-	if datePart != "" {
-		if len(datePart) != 8 {
-			return time.Time{}, fmt.Errorf("invalid date %q (want YYYYMMDD)", datePart)
-		}
-		var err error
-		if year, err = strconv.Atoi(datePart[:4]); err != nil {
-			return time.Time{}, err
-		}
-		if month, err = strconv.Atoi(datePart[4:6]); err != nil {
-			return time.Time{}, err
-		}
-		if day, err = strconv.Atoi(datePart[6:8]); err != nil {
-			return time.Time{}, err
+	for _, layout := range timeLayouts {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, nil
 		}
 	}
-
-	hour, min, sec := 0, 0, 0
-	if timePart != "" {
-		if len(timePart) != 6 {
-			return time.Time{}, fmt.Errorf("invalid time %q (want HHMMSS)", timePart)
-		}
-		var err error
-		if hour, err = strconv.Atoi(timePart[:2]); err != nil {
-			return time.Time{}, err
-		}
-		if min, err = strconv.Atoi(timePart[2:4]); err != nil {
-			return time.Time{}, err
-		}
-		if sec, err = strconv.Atoi(timePart[4:6]); err != nil {
-			return time.Time{}, err
-		}
-	}
-
-	return time.Date(year, time.Month(month), day, hour, min, sec, nsec, loc), nil
+	return time.Time{}, fmt.Errorf("invalid time %q (want RFC3339 or YYYY-MM-DD[ HH:MM:SS])", s)
 }

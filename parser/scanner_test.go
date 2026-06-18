@@ -28,22 +28,13 @@ func TestScanner_ScanDateTimeLit(t *testing.T) {
 	tr := &scanTester{}
 
 	// digit-suffix date/time literals scan as a String whose literal is the
-	// numeric body without the D/T/U suffix.
-	tr.scanExpect(t, "20260131D 235955T 1781609136U 235955.001T",
+	// dashed-date / unix body without the trailing D/T/U suffix.
+	tr.scanExpect(t, "2026-01-31D 2026-01-31T 1781609136U 1781609136.001U",
 		parser.DontInsertSemis, []scanResult{
-			{Token: token.String, Literal: "20260131", Line: 1, Column: 1},
-			{Token: token.String, Literal: "235955", Line: 1, Column: 11},
-			{Token: token.String, Literal: "1781609136", Line: 1, Column: 19},
-			{Token: token.String, Literal: "235955.001", Line: 1, Column: 31},
-		}...,
-	)
-
-	// the body keeps the `_` separator and the Z<location> segment, dropping
-	// only the trailing suffix letter.
-	tr.scanExpect(t, "20260131_235955T 235955.001Z-03:15T",
-		parser.DontInsertSemis, []scanResult{
-			{Token: token.String, Literal: "20260131_235955", Line: 1, Column: 1},
-			{Token: token.String, Literal: "235955.001Z-03:15", Line: 1, Column: 18},
+			{Token: token.String, Literal: "2026-01-31", Line: 1, Column: 1},
+			{Token: token.String, Literal: "2026-01-31", Line: 1, Column: 13},
+			{Token: token.String, Literal: "1781609136", Line: 1, Column: 25},
+			{Token: token.String, Literal: "1781609136.001", Line: 1, Column: 37},
 		}...,
 	)
 
@@ -53,6 +44,21 @@ func TestScanner_ScanDateTimeLit(t *testing.T) {
 		parser.DontInsertSemis, []scanResult{
 			{Token: token.Int, Literal: "123", Line: 1, Column: 1},
 			{Token: token.Ident, Literal: "Drive", Line: 1, Column: 4},
+		}...,
+	)
+
+	// a dashed run without a suffix is plain subtraction; a hex literal whose
+	// last digit is D is not mistaken for a date.
+	tr.scanExpect(t, "2026-1",
+		parser.DontInsertSemis, []scanResult{
+			{Token: token.Int, Literal: "2026", Line: 1, Column: 1},
+			{Token: token.Sub, Literal: "", Line: 1, Column: 5},
+			{Token: token.Int, Literal: "1", Line: 1, Column: 6},
+		}...,
+	)
+	tr.scanExpect(t, "0xABCD",
+		parser.DontInsertSemis, []scanResult{
+			{Token: token.Int, Literal: "0xABCD", Line: 1, Column: 1},
 		}...,
 	)
 }

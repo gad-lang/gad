@@ -445,55 +445,54 @@ func TestVMTimeStrTo(t *testing.T) {
 	testExpectRun(t, `return str(time.strToDate("2026-01-31"))`, nil, Str("2026-01-31"))
 	testExpectRun(t, `return str(time.strToDuration("1h30m"))`, nil, Str("1h30m0s"))
 	testExpectRun(t, `return str(time.strToLocation("-03:00"))`, nil, Str("-03:00"))
-	// strToTime parses the date/time literal syntax
-	testExpectRun(t, `return str(time.strToTime("20260131_235955T"))`,
+	// strToTime parses RFC3339 timestamps
+	testExpectRun(t, `return str(time.strToTime("2026-01-31T23:59:55Z"))`,
 		nil, Str("2026-01-31 23:59:55 +0000 UTC"))
-	// fractional seconds (3/6/9 digits)
-	testExpectRun(t, `return time.strToTime("235955.001T").ns()`, nil, Int(1000000))
-	// location offset in the time literal
-	testExpectRun(t, `return time.strToTime("20260131_120000Z-0300T").hour()`, nil, Int(12))
+	// fractional seconds
+	testExpectRun(t, `return time.strToTime("2026-01-31T23:59:55.001Z").ns()`, nil, Int(1000000))
+	// an explicit offset is honoured
+	testExpectRun(t, `return time.strToTime("2026-01-31T23:59:55-03:00").hour()`, nil, Int(23))
+	// a bare calendar date is midnight UTC
+	testExpectRun(t, `return str(time.strToTime("2026-01-31"))`,
+		nil, Str("2026-01-31 00:00:00 +0000 UTC"))
 	// the time and Location constructors accept strings / unix ints
-	testExpectRun(t, `return str(time.Type("20260131T"))`,
+	testExpectRun(t, `return str(time.Type("2026-01-31T00:00:00Z"))`,
 		nil, Str("2026-01-31 00:00:00 +0000 UTC"))
 	testExpectRun(t, `return time.Type(1781609136).year()`, nil, Int(2026))
 	testExpectRun(t, `return str(time.Location("America/Sao_Paulo"))`, nil, Str("America/Sao_Paulo"))
 	// invalid input is an error
-	expectErrHas(t, `return time.strToTime("99T")`, newOpts(), "invalid time")
+	expectErrHas(t, `return time.strToTime("nope")`, newOpts(), "invalid time")
 }
 
 func TestVMDateTimeLit(t *testing.T) {
 	// digit-suffix literals fold to constants at compile time:
-	// D -> date, T -> time, U -> unix time.
-	testExpectRun(t, `return typeName(20260131D)`, nil, Str("date"))
-	testExpectRun(t, `return typeName(235955T)`, nil, Str("time"))
+	// 2006-01-02D -> date, 2006-01-02T -> time (midnight UTC), 123U -> unix.
+	testExpectRun(t, `return typeName(2026-01-31D)`, nil, Str("date"))
+	testExpectRun(t, `return typeName(2026-01-31T)`, nil, Str("time"))
 	testExpectRun(t, `return typeName(1781609136U)`, nil, Str("time"))
 
-	testExpectRun(t, `return str(20260131D)`, nil, Str("2026-01-31"))
-	testExpectRun(t, `return str(235955T)`, nil, Str("0001-01-01 23:59:55 +0000 UTC"))
-	testExpectRun(t, `return str(20260131235955T)`, nil, Str("2026-01-31 23:59:55 +0000 UTC"))
+	testExpectRun(t, `return str(2026-01-31D)`, nil, Str("2026-01-31"))
+	testExpectRun(t, `return str(2026-01-31T)`, nil, Str("2026-01-31 00:00:00 +0000 UTC"))
 	testExpectRun(t, `return str(1781609136U)`, nil, Str("2026-06-16 11:25:36 +0000 UTC"))
 
-	// date+time with the `_` separator
-	testExpectRun(t, `return str(20260131_235955T)`, nil, Str("2026-01-31 23:59:55 +0000 UTC"))
-	// fractional time literal (3/6/9 digits)
-	testExpectRun(t, `return 235955.001T.ns()`, nil, Int(1000000))
-	testExpectRun(t, `return 235955.000001T.ns()`, nil, Int(1000))
-	// Z<location>: numeric offset and a named zone
-	testExpectRun(t, `return str(235955Z-0315T)`, nil, Str("0001-01-01 23:59:55 -0315 -0315"))
-	testExpectRun(t, `return str(235955ZGRUT)`, nil, Str("0001-01-01 23:59:55 +0000 GRU"))
-	// no zone part compiles to UTC
-	testExpectRun(t, `return str(235955T)`, nil, Str("0001-01-01 23:59:55 +0000 UTC"))
+	// the compact YYYYMMDD form is still accepted for dates
+	testExpectRun(t, `return str(20260131D)`, nil, Str("2026-01-31"))
+
+	// unix fractional seconds
+	testExpectRun(t, `return 1781609136.001U.ns()`, nil, Int(1000000))
 
 	// method dispatch on the folded values
-	testExpectRun(t, `return 20260131D.year()`, nil, Int(2026))
-	testExpectRun(t, `return 235955T.hour()`, nil, Int(23))
+	testExpectRun(t, `return 2026-01-31D.year()`, nil, Int(2026))
+	testExpectRun(t, `return 2026-01-31T.day()`, nil, Int(31))
 
-	// a digit-suffix glued to an identifier stays a number + identifier, so
-	// the literal form is not triggered (and 123 is just an int here).
+	// arithmetic is unaffected: a dashed run without a D/T/U suffix is just
+	// subtraction, and a suffix glued to an identifier stays number + ident.
+	testExpectRun(t, `return 2026 - 1`, nil, Int(2025))
 	testExpectRun(t, `Drive := 5; return 123 * Drive`, nil, Int(615))
+	testExpectRun(t, `return 0xABCD`, nil, Int(0xABCD))
 
 	// invalid literal bodies fail at compile time
-	expectErrHas(t, `return 9999T`, newOpts().CompilerError(), "invalid T literal")
+	expectErrHas(t, `return 2026D`, newOpts().CompilerError(), "invalid date")
 }
 
 func TestVMBuiltinModuleBase64(t *testing.T) {
