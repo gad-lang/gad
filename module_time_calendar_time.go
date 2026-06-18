@@ -195,6 +195,16 @@ func (o CalendarTime) CallName(name string, c Call) (Object, error) {
 			return Nil, err
 		}
 		return CalendarTime(int64(o) - d), nil
+	case "trunc":
+		unit, err := truncateUnitArg(c)
+		if err != nil {
+			return Nil, err
+		}
+		t, err := truncateTimeUnit(o.wall(), unit)
+		if err != nil {
+			return Nil, err
+		}
+		return CalendarTimeFromTime(t), nil
 	case "addDate":
 		var years, months, days int
 		if err := c.Args.Destructure(

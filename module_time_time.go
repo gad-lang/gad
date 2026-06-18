@@ -343,6 +343,19 @@ var MethodTable = map[string]func(*Time, *Call) (Object, error){
 		}
 		return TimeTruncate(o, d), nil
 	},
+	// trunc(unit char) lower-truncates to the start of a calendar unit
+	// (y, M, w, d, h, m, s).
+	"trunc": func(o *Time, c *Call) (Object, error) {
+		unit, err := truncateUnitArg(*c)
+		if err != nil {
+			return Nil, err
+		}
+		t, err := truncateTimeUnit(o.Value, unit)
+		if err != nil {
+			return Nil, err
+		}
+		return &Time{Value: t}, nil
+	},
 	"Equal": func(o *Time, c *Call) (Object, error) {
 		if err := c.Args.CheckLen(1); err != nil {
 			return Nil, err

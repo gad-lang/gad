@@ -171,10 +171,16 @@ func (o Duration) CallName(name string, c Call) (Object, error) {
 		return durationUnaryDur(c, func(m time.Duration) Object {
 			return Duration(d.Round(m))
 		})
-	case "truncate":
-		return durationUnaryDur(c, func(m time.Duration) Object {
-			return Duration(d.Truncate(m))
-		})
+	case "trunc":
+		unit, err := truncateUnitArg(c)
+		if err != nil {
+			return Nil, err
+		}
+		td, err := truncateDurationUnit(d, unit)
+		if err != nil {
+			return Nil, err
+		}
+		return Duration(td), nil
 	}
 	return Nil, ErrInvalidIndex.NewError(name)
 }

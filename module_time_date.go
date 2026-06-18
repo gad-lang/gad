@@ -179,6 +179,16 @@ func (o CalendarDate) CallName(name string, c Call) (Object, error) {
 		return Int(o.Month()), nil
 	case "day":
 		return Int(o.Day()), nil
+	case "trunc":
+		unit, err := truncateUnitArg(c)
+		if err != nil {
+			return Nil, err
+		}
+		t, err := truncateTimeUnit(o.Time(time.UTC), unit)
+		if err != nil {
+			return Nil, err
+		}
+		return CalendarDateFromTime(t), nil
 	case "time":
 		loc := time.UTC
 		if c.Args.Length() > 0 {

@@ -478,6 +478,32 @@ func TestVMTimeArithmetic(t *testing.T) {
 	testExpectRun(t, `return typeName(time.Type(2026-01-31t))`, nil, Str("time"))
 }
 
+func TestVMTimeTruncate(t *testing.T) {
+	// .trunc(unit) lower-truncates to a calendar ('y','M','w','d') or Go
+	// duration ('h','m','s','ms','us','ns') unit.
+	const src = `time.strToTime("2026-08-17T14:37:52.123456789Z")` // 2026-08-17 is a Monday
+	testExpectRun(t, `return str(`+src+`.trunc('y'))`, nil, Str("2026-01-01 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+src+`.trunc('M'))`, nil, Str("2026-08-01 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+src+`.trunc('w'))`, nil, Str("2026-08-17 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+src+`.trunc('d'))`, nil, Str("2026-08-17 00:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+src+`.trunc('h'))`, nil, Str("2026-08-17 14:00:00 +0000 UTC"))
+	testExpectRun(t, `return str(`+src+`.trunc("ms"))`, nil, Str("2026-08-17 14:37:52.123 +0000 UTC"))
+
+	// calendarTime and calendarDate keep their own types
+	testExpectRun(t, `return str(time.strToCalendarTime("2026-08-17 14:37:52.5").trunc('h'))`,
+		nil, Str("2026-08-17 14:00:00"))
+	testExpectRun(t, `return typeName((2026-08-17D).trunc('M'))`, nil, Str("calendarDate"))
+	testExpectRun(t, `return str((2026-08-17D).trunc('M'))`, nil, Str("2026-08-01"))
+
+	// durations truncate toward zero by a fixed unit
+	testExpectRun(t, `return str((dur 1h37m52s).trunc('m'))`, nil, Str("1h37m0s"))
+	testExpectRun(t, `return str((dur 200h).trunc('w'))`, nil, Str("168h0m0s"))
+
+	// invalid units error; 'y'/'M' are rejected for durations
+	expectErrHas(t, `return (dur 1h).trunc('z')`, newOpts(), "invalid truncate unit")
+	expectErrHas(t, `return (dur 1h).trunc('y')`, newOpts(), "invalid truncate unit")
+}
+
 func TestVMTimeStrTo(t *testing.T) {
 	// strToDate / strToDuration / strToLocation module functions
 	testExpectRun(t, `return str(time.strToDate("2026-01-31"))`, nil, Str("2026-01-31"))
