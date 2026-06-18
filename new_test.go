@@ -504,6 +504,19 @@ func TestVMTimeTruncate(t *testing.T) {
 	expectErrHas(t, `return (dur 1h).trunc('y')`, newOpts(), "invalid truncate unit")
 }
 
+func TestVMTimeMethods(t *testing.T) {
+	// addDate, weekday and format on calendarDate / calendarTime
+	testExpectRun(t, `return str((2026-08-17D).addDate(0, 0, 5))`, nil, Str("2026-08-22"))
+	testExpectRun(t, `return str((2026-08-17D).addDate(1, 1, 0))`, nil, Str("2027-09-17"))
+	testExpectRun(t, `return (2026-08-17D).weekday()`, nil, Int(1)) // Monday
+	testExpectRun(t, `return (2026-08-17D).format("Mon 02 Jan 2006")`, nil, Str("Mon 17 Aug 2026"))
+
+	testExpectRun(t, `return str(time.strToCalendarTime("2026-08-17 10:00:00").addDate(0, 1, 0))`,
+		nil, Str("2026-09-17 10:00:00"))
+	testExpectRun(t, `return time.strToCalendarTime("2026-08-17 14:37:00").format("15:04")`,
+		nil, Str("14:37"))
+}
+
 func TestVMTimeStrTo(t *testing.T) {
 	// strToDate / strToDuration / strToLocation module functions
 	testExpectRun(t, `return str(time.strToDate("2026-01-31"))`, nil, Str("2026-01-31"))

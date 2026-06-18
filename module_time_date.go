@@ -185,6 +185,20 @@ func (o CalendarDate) CallName(name string, c Call) (Object, error) {
 		return Int(o.Month()), nil
 	case "day":
 		return Int(o.Day()), nil
+	case "weekday":
+		return Int(o.Time(time.UTC).Weekday()), nil
+	case "addDate":
+		years, months, days, err := dateShiftArgs(c)
+		if err != nil {
+			return Nil, err
+		}
+		return CalendarDateFromTime(o.Time(time.UTC).AddDate(years, months, days)), nil
+	case "format":
+		layout, err := timeLayoutArg(c)
+		if err != nil {
+			return Nil, err
+		}
+		return Str(o.Time(time.UTC).Format(layout)), nil
 	case "trunc":
 		unit, err := truncateUnitArg(c)
 		if err != nil {

@@ -28,6 +28,33 @@ func truncateUnitArg(c Call) (string, error) {
 	return "", NewArgumentTypeError("1st", "char|str", c.Args.Get(0).Type().Name())
 }
 
+// dateShiftArgs reads the (years, months, days) int arguments shared by the
+// .addDate methods of the calendar value types.
+func dateShiftArgs(c Call) (years, months, days int, err error) {
+	y := &Arg{Name: "years", TypeAssertion: TypeAssertionFromTypes(TInt)}
+	m := &Arg{Name: "months", TypeAssertion: TypeAssertionFromTypes(TInt)}
+	d := &Arg{Name: "days", TypeAssertion: TypeAssertionFromTypes(TInt)}
+	if err = c.Args.Destructure(y, m, d); err != nil {
+		return
+	}
+	return int(y.Value.(Int)), int(m.Value.(Int)), int(d.Value.(Int)), nil
+}
+
+// timeLayoutArg reads a single Go layout string argument for the .format
+// methods of the calendar value types.
+func timeLayoutArg(c Call) (string, error) {
+	if err := c.Args.CheckLen(1); err != nil {
+		return "", err
+	}
+	switch v := c.Args.Get(0).(type) {
+	case Str:
+		return string(v), nil
+	case RawStr:
+		return string(v), nil
+	}
+	return "", NewArgumentTypeError("1st", "str", c.Args.Get(0).Type().Name())
+}
+
 // truncateTimeUnit lower-truncates t to the start of the unit named by unit:
 // 'y' year, 'M' month, 'w' week (Monday), 'd' day, 'h' hour, 'm' minute,
 // 's' second, "ms" millisecond, "us"/"µs" microsecond, "ns" nanosecond.

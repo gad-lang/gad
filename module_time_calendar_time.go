@@ -189,6 +189,12 @@ func (o CalendarTime) CallName(name string, c Call) (Object, error) {
 		return Int(o.wall().Weekday()), nil
 	case "unix":
 		return Int(o.wall().Unix()), nil
+	case "format":
+		layout, err := timeLayoutArg(c)
+		if err != nil {
+			return Nil, err
+		}
+		return Str(o.wall().Format(layout)), nil
 	case "add":
 		d, err := calendarTimeShiftArg(c)
 		if err != nil {
@@ -212,12 +218,8 @@ func (o CalendarTime) CallName(name string, c Call) (Object, error) {
 		}
 		return CalendarTimeFromTime(t), nil
 	case "addDate":
-		var years, months, days int
-		if err := c.Args.Destructure(
-			&Arg{Name: "years", TypeAssertion: TypeAssertionFromTypes(TInt)},
-			&Arg{Name: "months", TypeAssertion: TypeAssertionFromTypes(TInt)},
-			&Arg{Name: "days", TypeAssertion: TypeAssertionFromTypes(TInt)},
-		); err != nil {
+		years, months, days, err := dateShiftArgs(c)
+		if err != nil {
 			return Nil, err
 		}
 		return CalendarTimeFromTime(o.wall().AddDate(years, months, days)), nil
