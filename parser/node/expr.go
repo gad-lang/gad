@@ -624,7 +624,24 @@ func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.LParen.Token.String() + ",")
 	var pl, nl = len(e.PositionalElements), len(e.NamedElements)
 	if pl+nl > 0 {
-		inNewLine := ctx.Flags.Has(CodeWriteContextFlagFormatParemValuesInNewLine)
+		inNewLine := ctx.DecideNewLineFunc(
+			CodeWriteContextFlagFormatParemValuesInNewLine, pl+nl, 1, func() {
+				for i := 0; i < pl; i++ {
+					if i > 0 {
+						ctx.WriteString(", ")
+					}
+					e.PositionalElements[i].WriteCode(ctx)
+				}
+				if pl > 0 && nl > 0 {
+					ctx.WriteString("; ")
+				}
+				for i := 0; i < nl; i++ {
+					if i > 0 {
+						ctx.WriteString(", ")
+					}
+					e.NamedElements[i].WriteCode(ctx)
+				}
+			})
 		if pl > 0 {
 			ctx.WriteItems(inNewLine,
 				len(e.PositionalElements),
@@ -1967,10 +1984,14 @@ func (e *DictExpr) WriteCode(ctx *CodeWriteContext) {
 			e.Elements[0].WriteCode(ctx)
 			ctx.WriteSingleByte(' ')
 		} else {
-			inLineLine := ctx.Flags.Has(CodeWriteContextFlagFormatDictItemInNewLine)
-			ctx.WriteItems(
+			inLineLine := ctx.DecideNewLine(
+				CodeWriteContextFlagFormatDictItemInNewLine, len(e.Elements), ", ", 1,
+				func(i int) { e.Elements[i].WriteCode(ctx) })
+			ctx.WriteItemsSep(
 				inLineLine,
 				len(e.Elements),
+				", ",
+				"",
 				func(i int) {
 					e.Elements[i].WriteCode(ctx)
 				},
@@ -2020,10 +2041,14 @@ func (e *ArrayExpr) WriteCode(ctx *CodeWriteContext) {
 		if l == 1 {
 			e.Elements[0].WriteCode(ctx)
 		} else {
-			inLineLine := ctx.Flags.Has(CodeWriteContextFlagFormatArrayItemInNewLine)
-			ctx.WriteItems(
+			inLineLine := ctx.DecideNewLine(
+				CodeWriteContextFlagFormatArrayItemInNewLine, len(e.Elements), ", ", 1,
+				func(i int) { e.Elements[i].WriteCode(ctx) })
+			ctx.WriteItemsSep(
 				inLineLine,
 				len(e.Elements),
+				", ",
+				"",
 				func(i int) {
 					e.Elements[i].WriteCode(ctx)
 				},

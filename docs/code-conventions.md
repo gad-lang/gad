@@ -92,4 +92,23 @@ one-per-line. The formatter chooses between two modes:
   line would exceed `ctx.MaxColumns`; otherwise they stay inline (`var (x, y)`,
   `[1, 2, 3]`). Short constructs are left compact.
 
-A trailing item never carries a separator comma when split one-per-line.
+When items are split one per line, the newline **is** the separator: no comma is
+written between items (and none trails the last). Inline lists keep the `, `
+separator.
+
+```gad
+// inline: comma-separated
+x := [1, 2, 3]
+d := {a: 1, b: 2}
+
+// wrapped: newline-separated, no commas
+x := [
+    1
+    2
+    3
+]
+d := {
+    a: 1
+    b: 2
+}
+```

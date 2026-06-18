@@ -1874,22 +1874,22 @@ z=
 )`).
 		String(`(;a=1, b=2, "c"=3, 4=5, true=false, my_closure() => 1, my_func() { i++ }, myflag, d=#(dVal), e=#(e val), x A, x1 A1=10, y B|C=11, y1 B|C=12, z=(5 + 7))`).
 		FormattedCode(`(;
-	a=1,
-	b=2,
-	"c"=3,
-	4=5,
-	true=false,
-	my_closure() => 1,
+	a=1
+	b=2
+	"c"=3
+	4=5
+	true=false
+	my_closure() => 1
 	my_func() {
 		i++
-	},
-	myflag,
-	d=#dVal,
-	e=#(e val),
-	x A,
-	x1 A1=10,
-	y B|C=11,
-	y1 B|C=12,
+	}
+	myflag
+	d=#dVal
+	e=#(e val)
+	x A
+	x1 A1=10
+	y B|C=11
+	y1 B|C=12
 	z=(5 + 7)
 )`)
 
@@ -1933,15 +1933,15 @@ my_func() {
 myflag)`).
 		String(`(;a=1, b=2, "c"=3, 4=5, true=false, my_closure() => 1, my_func() { i++ }, myflag)`).
 		IndentedCode(`(;
-	a=1,
-	b=2,
-	"c"=3,
-	4=5,
-	true=false,
-	my_closure() => 1,
+	a=1
+	b=2
+	"c"=3
+	4=5
+	true=false
+	my_closure() => 1
 	my_func() {
 		i++
-	},
+	}
 	myflag
 )`, CodeWithFlags(CodeWriteContextFlagFormatKeyValueArrayItemInNewLine))
 
@@ -4132,24 +4132,24 @@ func TestParseDict(t *testing.T) {
 
 	test.New(t, "a = { key1: 1, key2: \"2\", key3: { k1: `bar`, k2: 4 } }").
 		String("a = {key1: 1, key2: \"2\", key3: {k1: `bar`, k2: 4}}").
-		FormattedCode("a = {\n\tkey1: 1,\n\tkey2: \"2\",\n\tkey3: {\n\t\tk1: `bar`,\n\t\tk2: 4\n\t}\n}")
+		FormattedCode("a = {\n\tkey1: 1\n\tkey2: \"2\"\n\tkey3: {\n\t\tk1: `bar`\n\t\tk2: 4\n\t}\n}")
 
 	test.New(t, `({ "key1": 1, #key2:2, #(key 3): #3, #(key 4): #(value	4), true: 5, false:6, yes:7, no:8`+
 		"\n1:9, u2:10, 3d:11, 4.56:12, [x+1]:2})").
 		String(`({key1: 1, #(key2): 2, #(key 3): #(3), #(key 4): #(value	4), true: 5, false: 6, yes: 7, no: 8, 1: 9, u2: 10, 3d: 11, 4.56: 12, [x + 1]: 2})`).
 		FormattedCode(`({
-	"key1": 1,
-	#key2: 2,
-	#(key 3): #3,
-	#(key 4): #(value	4),
-	true: 5,
-	false: 6,
-	yes: 7,
-	no: 8,
-	1: 9,
-	u2: 10,
-	3d: 11,
-	4.56: 12,
+	"key1": 1
+	#key2: 2
+	#(key 3): #3
+	#(key 4): #(value	4)
+	true: 5
+	false: 6
+	yes: 7
+	no: 8
+	1: 9
+	u2: 10
+	3d: 11
+	4.56: 12
 	[x + 1]: 2
 })`)
 
@@ -4186,7 +4186,7 @@ key2: 2
 })`).
 		String("({x() : 10, y() { return 11 }})").
 		FormattedCode(`({
-	x() : 10,
+	x() : 10
 	y() {
 		return 11
 	}
@@ -4856,7 +4856,7 @@ export x() => 3
 export ["abc"] = 2
 
 export {
-	x: 1,
+	x: 1
 	y: 2
 }
 

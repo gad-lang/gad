@@ -6,9 +6,14 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gad-lang/gad/parser/ast"
 )
+
+// DefaultMaxColumns is the line-width budget used by the NEW_LINE_CALC
+// formatting mode when no explicit MaxColumns is set.
+const DefaultMaxColumns = 80
 
 // mixedEndTagRe matches a template block terminator `{% end %}` (with optional
 // `-` trim markers and any surrounding spaces) so it can be normalized to a
@@ -39,6 +44,35 @@ type CodeWriter interface {
 
 type cw struct {
 	io.Writer
+	// col is the current column (runes written since the last newline); max is
+	// the widest column reached; multiline records whether a newline was seen.
+	col, max  int
+	multiline bool
+}
+
+// Write tracks the cursor column so the NEW_LINE_CALC formatter can measure how
+// wide a construct renders.
+func (w *cw) Write(p []byte) (n int, err error) {
+	n, err = w.Writer.Write(p)
+	s := string(p)
+	for {
+		i := strings.IndexByte(s, '\n')
+		if i < 0 {
+			w.col += utf8.RuneCountInString(s)
+			break
+		}
+		w.col += utf8.RuneCountInString(s[:i])
+		if w.col > w.max {
+			w.max = w.col
+		}
+		w.multiline = true
+		w.col = 0
+		s = s[i+1:]
+	}
+	if w.col > w.max {
+		w.max = w.col
+	}
+	return
 }
 
 func (w *cw) WriteString(s ...string) {
@@ -110,6 +144,11 @@ const (
 	CodeWriteContextFlagFormatMatchExprArmsInNewLine
 	CodeWriteContextFlagFormatMatchStmtArmsInNewLine
 	CodeWriteContextFlagFormatMethodInterfaceInNewLine
+	// CodeWriteContextFlagFormatNewLineCalc (NEW_LINE_CALC) switches the
+	// formatter from "force all to new lines" to column-aware wrapping: a list
+	// construct stays inline unless it would overflow ctx.MaxColumns. It is not
+	// part of CodeWriteContextFlagFormat.
+	CodeWriteContextFlagFormatNewLineCalc
 
 	CodeWriteContextFlagFormat = CodeWriteContextFlagFormatArrayItemInNewLine |
 		CodeWriteContextFlagFormatDictItemInNewLine |
@@ -127,11 +166,14 @@ type CodeWriteSkiper interface {
 }
 
 type CodeWriteContext struct {
-	Stack     []ast.Node
-	Depth     int
-	Prefix    string
-	Flags     CodeWriteContextFlag
-	Transpile *TranspileOptions
+	Stack  []ast.Node
+	Depth  int
+	Prefix string
+	Flags  CodeWriteContextFlag
+	// MaxColumns is the line-width budget for the NEW_LINE_CALC mode (0 uses
+	// DefaultMaxColumns).
+	MaxColumns int
+	Transpile  *TranspileOptions
 	CodeWriter
 }
 
@@ -152,6 +194,16 @@ func CodeWithFlags(flag CodeWriteContextFlag) CodeOption {
 func CodeFormat() CodeOption {
 	return func(ctx *CodeWriteContext) {
 		ctx.Flags |= CodeWriteContextFlagFormat
+	}
+}
+
+// CodeNewLineCalc enables the column-aware (NEW_LINE_CALC) formatting mode with
+// the given column budget (<= 0 uses DefaultMaxColumns). List constructs stay
+// inline unless they would overflow the budget.
+func CodeNewLineCalc(maxColumns int) CodeOption {
+	return func(ctx *CodeWriteContext) {
+		ctx.Flags |= CodeWriteContextFlagFormat | CodeWriteContextFlagFormatNewLineCalc
+		ctx.MaxColumns = maxColumns
 	}
 }
 
@@ -360,6 +412,64 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 			}
 		}
 	})
+}
+
+// Column returns the current cursor column (0 when unknown).
+func (ctx *CodeWriteContext) Column() int {
+	if c, ok := ctx.CodeWriter.(*cw); ok {
+		return c.col
+	}
+	return 0
+}
+
+// maxColumns resolves the effective line-width budget.
+func (ctx *CodeWriteContext) maxColumns() int {
+	if ctx.MaxColumns > 0 {
+		return ctx.MaxColumns
+	}
+	return DefaultMaxColumns
+}
+
+// measure renders `do` to a throwaway writer that starts at startCol and
+// reports the widest column reached and whether any newline was emitted, while
+// leaving the real output untouched.
+func (ctx *CodeWriteContext) measure(startCol int, do func()) (width int, multiline bool) {
+	saved := ctx.CodeWriter
+	m := &cw{Writer: io.Discard, col: startCol, max: startCol}
+	ctx.CodeWriter = m
+	do()
+	ctx.CodeWriter = saved
+	return m.max, m.multiline
+}
+
+// DecideNewLine reports whether a list construct's items should be written one
+// per line. Without NEW_LINE_CALC it honours the per-construct force `flag`.
+// With NEW_LINE_CALC it renders the items inline (separated by inlineSep) and
+// wraps only when they would overflow MaxColumns (or already contain a
+// newline). `closing` is the width of the trailing delimiter (e.g. 1 for `)`).
+func (ctx *CodeWriteContext) DecideNewLine(flag CodeWriteContextFlag, count int, inlineSep string, closing int, do func(i int)) bool {
+	return ctx.DecideNewLineFunc(flag, count, closing, func() {
+		for i := 0; i < count; i++ {
+			if i > 0 {
+				ctx.WriteString(inlineSep)
+			}
+			do(i)
+		}
+	})
+}
+
+// DecideNewLineFunc is DecideNewLine for constructs whose inline form does not
+// map to a uniform per-item callback: renderInline writes the whole inline body
+// (to a throwaway writer during measurement).
+func (ctx *CodeWriteContext) DecideNewLineFunc(flag CodeWriteContextFlag, count, closing int, renderInline func()) bool {
+	if !ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {
+		return ctx.Flags.Has(flag)
+	}
+	if count <= 1 {
+		return false
+	}
+	width, multiline := ctx.measure(ctx.Column(), renderInline)
+	return multiline || width+closing > ctx.maxColumns()
 }
 
 func (ctx *CodeWriteContext) WriteItems(inNewLine bool, count int, do func(i int), done func(newLine bool)) {

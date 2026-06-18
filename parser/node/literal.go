@@ -781,9 +781,14 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 		if l == 1 {
 			e.Elements[0].WriteCode(ctx)
 		} else {
-			ctx.WriteItems(
-				ctx.Flags.Has(CodeWriteContextFlagFormatKeyValueArrayItemInNewLine),
+			ctx.WriteItemsSep(
+				ctx.DecideNewLine(
+					CodeWriteContextFlagFormatKeyValueArrayItemInNewLine,
+					len(e.Elements), ", ", 1,
+					func(i int) { e.Elements[i].WriteCode(ctx) }),
 				len(e.Elements),
+				", ",
+				"",
 				func(i int) {
 					e.Elements[i].WriteCode(ctx)
 				},
@@ -1585,7 +1590,15 @@ func (c *CallArgs) WriteCodeBrace(ctx *CodeWriteContext, lbrace, rbrace string) 
 		n++
 	}
 	n += len(c.NamedArgs.Names)
-	multiline := n > 1 && ctx.Flags.Has(CodeWriteContextFlagFormatCallParamsInNewLine)
+	multiline := n > 1 && ctx.DecideNewLineFunc(
+		CodeWriteContextFlagFormatCallParamsInNewLine, n, 1, func() {
+			if c.Args.Valid() {
+				c.Args.WriteCodeWithNamed(ctx, false, c.NamedArgs.Valid())
+			}
+			if c.NamedArgs.Valid() {
+				c.NamedArgs.WriteCode(ctx, false, c.Args.Valid())
+			}
+		})
 
 	ctx.WriteString(lbrace)
 	if c.Args.Valid() {

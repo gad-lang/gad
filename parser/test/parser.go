@@ -154,6 +154,18 @@ func (p *Parser) FormattedCode(s string, opt ...node.CodeOption) *Parser {
 	return p
 }
 
+// FormattedCalcCode formats with the NEW_LINE_CALC column-aware mode and the
+// given max column budget.
+func (p *Parser) FormattedCalcCode(s string, maxColumns int, opt ...node.CodeOption) *Parser {
+	p.Run(func(pt *Parser) {
+		opts := append(append(p.codeOptions, opt...),
+			node.CodeNewLineCalc(maxColumns), node.CodeWithPrefix("\t"))
+		code := node.Code(p.actual.Stmts, opts...)
+		require.Equal(p.t, s, code, "EXPECT NEW_LINE_CALC CODE")
+	})
+	return p
+}
+
 func (p *Parser) Type(v any) *Parser {
 	if v != nil {
 		typ := reflect.TypeOf(v)

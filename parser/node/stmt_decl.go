@@ -296,7 +296,9 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 	}
 
 	ctx.WriteString(" (")
-	inNewLine := ctx.Flags.Has(CodeWriteContextFlagFormatDeclItemInNewLine)
+	inNewLine := ctx.DecideNewLine(
+		CodeWriteContextFlagFormatDeclItemInNewLine, len(d.Specs), ", ", 1,
+		func(i int) { d.Specs[i].WriteCode(ctx) })
 	if inNewLine {
 		ctx.Depth++
 	}
