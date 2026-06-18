@@ -585,6 +585,41 @@ t := 2026-01-31t
 t.hour(); t.minute(); t.second(); t.ns()    // accessors
 ```
 
+#### Arithmetic
+
+`duration` supports `+ - * / %` and unary `-`; dividing two durations yields a
+`float` ratio. A `time`, `calendarTime` or `calendarDate` plus/minus a
+`duration` shifts it, and subtracting two of the same kind yields a `duration`.
+A `calendarDate ± duration` stays a `calendarDate` when the result lands on
+midnight, otherwise it becomes a `calendarTime`:
+
+```go
+dur 1h + dur 30m            // 1h30m0s
+dur 1h / dur 30m            // 2.0   (ratio)
+-(dur 1h)                   // -1h0m0s
+
+2026-01-31T + dur 90m       // 2026-01-31 01:30:00 UTC
+2026-02-01t - 2026-01-31t   // 24h0m0s  (a duration)
+2025-01-01D + dur 24h       // 2025-01-02   (still a calendarDate)
+2025-01-01D + dur 1s        // 2025-01-01 00:00:01  (now a calendarTime)
+```
+
+#### Truncating
+
+`.trunc(unit)` lower-truncates a value to the start of a unit. The unit is a
+char/string: the calendar units `'y'`, `'M'`, `'w'` (week, Monday), `'d'`, or
+the Go duration units `'h'`, `'m'`, `'s'`, `"ms"`, `"us"`, `"ns"`:
+
+```go
+t := time.strToTime("2026-08-17T14:37:52.123Z")
+t.trunc('M')                // 2026-08-01 00:00:00 UTC
+t.trunc('h')                // 2026-08-17 14:00:00 UTC
+t.trunc("ms")               // 2026-08-17 14:37:52.123 UTC
+
+(2026-08-17D).trunc('M')    // 2026-08-01 (calendarDate)
+(dur 1h37m52s).trunc('m')   // 1h37m0s   ('y'/'M' are rejected for durations)
+```
+
 ### Error Values
 
 In Gad, an error can be represented using "error" typed values. An error value

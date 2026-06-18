@@ -22,4 +22,14 @@ println("rfc3339:    ", time.strToTime("2026-01-31T09:00:00Z"))
 t := time.strToTime("2026-01-31T09:00:00Z")
 println("plus 1 day: ", t.add(24 * time.Hour))
 
+// Arithmetic: value ± duration, and a duration as the difference of two values.
+println("ratio:      ", dur 1h / dur 30m)            // 2 (float)
+println("date + 1s:  ", typeName(day + dur 1s))      // -> calendarTime
+println("t1 - t0:    ", 2026-02-01t - 2026-01-31t)   // -> duration (24h)
+
+// Truncate to the start of a unit: 'y' 'M' 'w' 'd' 'h' 'm' 's' "ms" "us" "ns".
+println("trunc M:    ", t.trunc('M'))
+println("trunc h:    ", cal.trunc('h'))
+println("trunc dur:  ", (dur 1h37m52s).trunc('m'))
+
 return [typeName(day), typeName(cal), typeName(2026-01-31T)]
