@@ -1578,9 +1578,8 @@ func (m *FuncMethod) WriteCode(ctx *CodeWriteContext) {
 func (m *FuncMethod) Func() *FuncExpr {
 	return &FuncExpr{
 		Type: &FuncType{
-			FuncPos: m.Params.Pos(),
-			Params:  m.Params,
-			Return:  m.Return,
+			FuncPos:    m.Params.Pos(),
+			FuncHeader: FuncHeader{Params: m.Params, Return: m.Return},
 		},
 		Body:      m.Body,
 		BodyExpr:  m.BodyExpr,

@@ -191,7 +191,7 @@ func NewFuncParams(lparen, rparen source.Pos, v ...any) *FuncParams {
 }
 
 func NewFuncType(pos, lparen, rparen source.Pos, v ...any) *FuncType {
-	f := &FuncType{Params: FuncParams{LParen: lparen, RParen: rparen}, FuncPos: pos}
+	f := &FuncType{FuncHeader: FuncHeader{Params: FuncParams{LParen: lparen, RParen: rparen}}, FuncPos: pos}
 	for _, v := range v {
 		switch t := v.(type) {
 		case ArgsList:
@@ -214,17 +214,19 @@ func FuncReturn(types ...*TypedIdentExpr) []*TypedIdentExpr {
 
 func ProxyFuncType() *FuncType {
 	return &FuncType{
-		Params: FuncParams{
-			Args: ArgsList{
-				Var: &TypedIdentExpr{
-					Ident: &IdentExpr{
-						Name: "args",
+		FuncHeader: FuncHeader{
+			Params: FuncParams{
+				Args: ArgsList{
+					Var: &TypedIdentExpr{
+						Ident: &IdentExpr{
+							Name: "args",
+						},
 					},
 				},
-			},
-			NamedArgs: NamedArgsList{
-				Var: &IdentExpr{
-					Name: "kwargs",
+				NamedArgs: NamedArgsList{
+					Var: &IdentExpr{
+						Name: "kwargs",
+					},
 				},
 			},
 		},

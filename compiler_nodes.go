@@ -1645,7 +1645,7 @@ func (c *Compiler) compileClosureLit(nd *node.ClosureExpr) error {
 	} else {
 		stmts = append(stmts, &node.ReturnStmt{Return: node.Return{Result: nd.Body}})
 	}
-	return c.compileFunc(nd, &node.FuncType{Params: nd.Params, Return: nd.Return}, &node.BlockStmt{Stmts: stmts})
+	return c.compileFunc(nd, &node.FuncType{FuncHeader: node.FuncHeader{Params: nd.Params, Return: nd.Return}}, &node.BlockStmt{Stmts: stmts})
 }
 
 func (c *Compiler) compileFunc(nd ast.Node, typ *node.FuncType, body *node.BlockStmt) (err error) {

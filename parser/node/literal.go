@@ -253,8 +253,7 @@ func (e *DictElementLit) Func() (f *FuncDefLit) {
 		return &FuncDefLit{
 			Expr: &FuncExpr{
 				Type: &FuncType{
-					Params: t.Type.Params,
-					Return: t.Type.Return,
+					FuncHeader: FuncHeader{Params: t.Type.Params, Return: t.Type.Return},
 				},
 				Body:     t.Body,
 				BodyExpr: t.BodyExpr,
@@ -678,8 +677,7 @@ func (e *KeyValuePairLit) Func() (f *FuncDefLit) {
 		return &FuncDefLit{
 			Expr: &FuncExpr{
 				Type: &FuncType{
-					Params: t.Type.Params,
-					Return: t.Type.Return,
+					FuncHeader: FuncHeader{Params: t.Type.Params, Return: t.Type.Return},
 				},
 				Body:     t.Body,
 				BodyExpr: t.BodyExpr,

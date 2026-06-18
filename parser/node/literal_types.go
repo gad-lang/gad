@@ -203,35 +203,51 @@ func (n FuncParams) WithNamedValuesNil() (c *FuncParams) {
 	return
 }
 
-// FuncType represents a function type definition.
-type FuncType struct {
-	Token    TokenLit
-	FuncPos  source.Pos
+// FuncHeader is the shared shape of a function/method signature: an optional
+// name, a parameter list and an optional return-type list. It is embedded in
+// FuncType and FuncHeaderExpr.
+type FuncHeader struct {
 	NameExpr Expr
 	Params   FuncParams
 	Return   []*TypedIdentExpr
 }
 
-func (e *FuncType) ExprNode() {}
-
 // Pos returns the position of first character belonging to the node.
-func (e *FuncType) Pos() source.Pos {
-	return e.FuncPos
+func (e *FuncHeader) Pos() source.Pos {
+	if e.NameExpr != nil {
+		return e.NameExpr.Pos()
+	}
+	if p := e.Params.Pos(); p != source.NoPos {
+		return p
+	}
+	if len(e.Return) > 0 {
+		return e.Return[0].Pos()
+	}
+	return source.NoPos
 }
 
 // End returns the position of first character immediately after the node.
-func (e *FuncType) End() source.Pos {
-	return e.Params.End()
+func (e *FuncHeader) End() source.Pos {
+	if n := len(e.Return); n > 0 {
+		return e.Return[n-1].End()
+	}
+	if p := e.Params.End(); p != source.NoPos {
+		return p
+	}
+	if e.NameExpr != nil {
+		return e.NameExpr.End()
+	}
+	return source.NoPos
 }
 
-func (e *FuncType) NameIdent() *IdentExpr {
+func (e *FuncHeader) NameIdent() *IdentExpr {
 	if e.NameExpr == nil {
 		return nil
 	}
 	return IdentOfSelector(e.NameExpr)
 }
 
-func (e *FuncType) Name() string {
+func (e *FuncHeader) Name() string {
 	if e.NameExpr == nil {
 		return ""
 	}
@@ -253,7 +269,7 @@ func (e *FuncType) Name() string {
 	return ""
 }
 
-func (e *FuncType) String() string {
+func (e *FuncHeader) String() string {
 	var s string
 	if e.NameExpr != nil {
 		s = e.NameExpr.String()
@@ -261,6 +277,25 @@ func (e *FuncType) String() string {
 	s += e.Params.String()
 	s += FormatFuncReturn(e.Return)
 	return s
+}
+
+// FuncType represents a function type definition.
+type FuncType struct {
+	Token   TokenLit
+	FuncPos source.Pos
+	FuncHeader
+}
+
+func (e *FuncType) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *FuncType) Pos() source.Pos {
+	return e.FuncPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *FuncType) End() source.Pos {
+	return e.Params.End()
 }
 
 // FormatFuncReturn renders an optional function return-type list as

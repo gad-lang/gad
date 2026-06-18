@@ -484,8 +484,7 @@ L:
 					if params, err := paren.ToMultiParenExpr().ToFuncParams(); err == nil {
 						f := &node.FuncExpr{
 							Type: &node.FuncType{
-								NameExpr: ident,
-								Params:   params,
+								FuncHeader: node.FuncHeader{NameExpr: ident, Params: params},
 							},
 						}
 						x = f
@@ -3346,8 +3345,7 @@ func (p *Parser) ParseFuncDefLit(colon token.Token) *node.FuncDefLit {
 
 		e.Expr = &node.FuncExpr{
 			Type: &node.FuncType{
-				Params: params,
-				Return: returnTypes,
+				FuncHeader: node.FuncHeader{Params: params, Return: returnTypes},
 			},
 			Body: body,
 		}
@@ -3587,9 +3585,7 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 					stmt.ValueExpr = &node.FuncExpr{
 						LambdaPos: t.Lambda.Pos,
 						Type: &node.FuncType{
-							NameExpr: ident,
-							Params:   t.Params,
-							Return:   t.Return,
+							FuncHeader: node.FuncHeader{NameExpr: ident, Params: t.Params, Return: t.Return},
 						},
 						BodyExpr: t.Body,
 					}
@@ -3601,9 +3597,7 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 							block := p.ParseBlockStmt(token.RBrace)
 							stmt.ValueExpr = &node.FuncExpr{
 								Type: &node.FuncType{
-									Params:   params,
-									NameExpr: ident,
-									Return:   returnTypes,
+									FuncHeader: node.FuncHeader{Params: params, NameExpr: ident, Return: returnTypes},
 								},
 								Body: block,
 							}
