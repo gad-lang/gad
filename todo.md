@@ -265,4 +265,4 @@
       fn has all defined headers of all items in the list `[mi, *otherMi]`.
     - create samples, doc, and parser/compiler/vm tests for all new features.
     
-- [ ] allow `--`;`++` as binary operator (preserves unary operator). if `++` not handled on Object, call `append` function as fallback. create samples, doc, and parser/compiler/vm tests for here. 
+- [x] allow `--`;`++` as binary operator (preserves unary operator). if `++` not handled on Object, call `append` function as fallback. create samples, doc, and parser/compiler/vm tests for here. (append fallback skipped per request)

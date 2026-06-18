@@ -112,6 +112,22 @@ println(m.x?.y.z)   // 1
 The **postfix** `x++` / `x--` are statements. The **prefix** `++x` / `--x` are
 [unary expressions](#unary-operators) that also yield the new value.
 
+`++` and `--` are also **binary operators** when an operand follows them
+(`a ++ b`, `a -- b`); they have additive precedence and are left-associative.
+The built-in numeric types do not define them, but a type can — typically a
+class via `met @binaryOperator(_ TBinaryOperatorInc, …)` — for example to model
+a "push":
+
+```go
+Stack := Class("Stack"; fields = (; items = (= [])))
+met @binaryOperator(_ TBinaryOperatorInc, s Stack, v) {
+    s.items = append(s.items, v)
+    return s
+}
+s := Stack()
+s ++ 1 ++ 2 ++ 3      // s.items == [1, 2, 3]
+```
+
 ## Precedence
 
 Unary operators bind tightest; the ternary operator binds loosest. Binary

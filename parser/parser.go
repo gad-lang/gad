@@ -296,6 +296,21 @@ func (p *Parser) ParseBinaryExpr(prec1 int) node.Expr {
 			continue
 		}
 
+		// `a ++ b` / `a -- b` are binary operators, but only when an operand
+		// follows; otherwise the `++`/`--` is the postfix `a++` statement form,
+		// handled by the caller. Additive precedence, left-associative.
+		if p.Token.Token == token.Inc || p.Token.Token == token.Dec {
+			const incDecBinPrec = 5
+			if prec1 <= incDecBinPrec && tokenStartsOperand(p.Peek().Token) {
+				op, pos := p.Token.Token, p.Token.Pos
+				p.Next()
+				y := p.ParseBinaryExpr(incDecBinPrec + 1)
+				x = &node.BinaryExpr{LHS: x, RHS: y, Token: op, TokenPos: pos}
+				continue
+			}
+			return x
+		}
+
 		op, prec := p.Token.Token, p.Token.Precedence()
 		if prec < prec1 {
 			return x
@@ -340,6 +355,28 @@ func (p *Parser) ParseBinaryExpr(prec1 int) node.Expr {
 			TokenPos: pos,
 		}
 	}
+}
+
+// tokenStartsOperand reports whether tok can begin an operand expression. It is
+// used to tell the binary `a ++ b` form from the postfix `a++` statement.
+func tokenStartsOperand(tok token.Token) bool {
+	switch tok {
+	case token.Ident, token.Int, token.Uint, token.Float, token.Decimal,
+		token.Char, token.String, token.RawString, token.RawHeredoc, token.Heredoc,
+		token.CodeStr, token.Symbol,
+		token.True, token.False, token.Nil, token.Yes, token.No,
+		// note: `{` (LBrace) is intentionally excluded so `i++ {` (e.g. a for
+		// loop body) stays postfix rather than `i ++ {dict}`.
+		token.LParen, token.LBrack,
+		token.Add, token.Sub, token.Not, token.Xor, token.And, token.Inc, token.Dec,
+		token.Func, token.Method, token.Prop, token.Import, token.Embed,
+		token.Throw, token.Return, token.Match, token.Raw, token.Template,
+		token.Callee, token.Args, token.NamedArgs,
+		token.StdIn, token.StdOut, token.StdErr,
+		token.DotName, token.DotFile, token.IsMain, token.Module:
+		return true
+	}
+	return false
 }
 
 func (p *Parser) ParseCondExpr(cond node.Expr) node.Expr {

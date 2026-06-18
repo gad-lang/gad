@@ -34,6 +34,29 @@ func TestVMPrefixIncDec(t *testing.T) {
 	expectErrHas(t, `s := "a"; return ++s`, newOpts(), "invalid type for unary")
 }
 
+func TestVMBinaryIncDec(t *testing.T) {
+	// the binary form does not disturb the postfix/prefix forms
+	testExpectRun(t, `x := 5; x++; return x`, nil, Int(6))
+	testExpectRun(t, `x := 5; return ++x`, nil, Int(6))
+	// the for-loop post statement `i++` stays postfix (followed by `{`)
+	testExpectRun(t, `s := 0; for i := 0; i < 5; i++ { s += i }; return s`, nil, Int(10))
+
+	// `a ++ b` / `a -- b` are binary operators an object can override
+	const stack = `
+	Stack := Class("Stack"; fields=(; items=(= [])))
+	met @binaryOperator(_ TBinaryOperatorInc, s Stack, v) { s.items = append(s.items, v); return s }
+	met @binaryOperator(_ TBinaryOperatorDec, s Stack, i) { return s.items[i] }
+	`
+	// left-associative chaining: ((s ++ 1) ++ 2) ++ 3
+	testExpectRun(t, stack+`s := Stack(); s ++ 1; s ++ 2 ++ 3; return s.items`,
+		nil, Array{Int(1), Int(2), Int(3)})
+	testExpectRun(t, stack+`s := Stack(); s ++ 10; return s -- 0`, nil, Int(10))
+
+	// numeric types do not handle the binary form (there is no fallback)
+	expectErrHas(t, `f := func(a, b) { return a ++ b }; return f(2, 3)`,
+		newOpts(), "unsupported operand")
+}
+
 func TestVMPowFractional(t *testing.T) {
 	// integer powers are unchanged (int**int and decimal yield a decimal)
 	testExpectRun(t, `return 2 ** 10`, nil, DecimalFromInt(1024))

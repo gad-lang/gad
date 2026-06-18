@@ -3984,6 +3984,13 @@ func TestParsePrefixIncDec(t *testing.T) {
 	test.ExpectParseString(t, `return --x`, `return (--x)`)
 	// postfix form is unchanged
 	test.ExpectParseString(t, `x++`, `x++`)
+
+	// binary `a ++ b` / `a -- b` (an operand follows); left-associative
+	test.ExpectParseString(t, `a ++ b`, `(a ++ b)`)
+	test.ExpectParseString(t, `a -- b`, `(a -- b)`)
+	test.ExpectParseString(t, `a ++ b ++ c`, `((a ++ b) ++ c)`)
+	// postfix is preserved when no operand follows (e.g. a for-loop post stmt)
+	test.ExpectParseString(t, `for i := 0; i < 5; i++ {}`, `for i := 0 ; (i < 5)  ; i++{}`)
 }
 
 func TestParseSpreadLiterals(t *testing.T) {

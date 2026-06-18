@@ -200,6 +200,8 @@ const (
 	BuiltinBinaryOperatorDoubleTilde
 	BuiltinBinaryOperatorTripleTilde
 	BuiltinBinaryOperatorLambda
+	BuiltinBinaryOperatorInc
+	BuiltinBinaryOperatorDec
 	GroupBuiltinBinaryOperatorsEnd
 
 	GroupBuiltinSelfAssignOperatorsBegin

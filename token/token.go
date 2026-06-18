@@ -543,7 +543,9 @@ func (tok Token) IsBinaryOperator() bool {
 		NotEqual,
 		Tilde,
 		DoubleTilde,
-		TripleTilde:
+		TripleTilde,
+		Inc,
+		Dec:
 		return true
 	}
 	return false

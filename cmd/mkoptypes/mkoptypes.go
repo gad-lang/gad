@@ -20,6 +20,9 @@ const (
 
 func main() {
 	binaryOperators := listGroup(token.GroupBinaryOperatorBegin, token.GroupBinaryOperatorEnd)
+	// `++` and `--` are usable as binary operators too (they live in the
+	// self-assign token group, so add them explicitly).
+	binaryOperators = append(binaryOperators, token.Inc, token.Dec)
 	selfAssignOperators := listGroup(token.GroupSelfAssignOperatorBegin, token.NullichAssign)
 	for i, op := range selfAssignOperators {
 		selfAssignOperators[i] = token.Unassign(op)
