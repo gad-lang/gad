@@ -2,8 +2,8 @@
 
 [← Back to index](README.md)
 
-Functions are first-class values. Gad has no named function declarations — every
-function is an anonymous value bound to a variable.
+Functions are first-class values. A function literal is `func(params) { … }`,
+usually bound to a variable:
 
 ```go
 sum := func(a, b) {
@@ -13,6 +13,17 @@ sum := func(a, b) {
 var mul = func(a, b) {
     return a * b
 }
+```
+
+A `func` with a name is a declaration that binds that name (a `const`); there is
+also a shorthand `name(params) { … }` / `name(params) => expr`:
+
+```go
+func area(r) {
+    return 3.14159 * r * r
+}
+double(x) => x * 2          // shorthand
+println(area(2), double(21))
 ```
 
 ## Arrow Closures
@@ -146,6 +157,33 @@ x()      // "int= 1"
 A single-accessor property may drop the braces: `prop pi() => 3.14`. Properties
 are also available through the [`Prop`](values-and-types.md#properties)
 constructor for building them programmatically.
+
+## Computed values
+
+`(= expr)` — or `(= stmt; …; result)` for several statements — creates a
+**computed value**: a lazy callable that runs its body and yields the result
+each time it is called.
+
+```go
+v := 10
+c := (= v * 2)
+typeName(c)   // "ComputedValue"
+c()           // 20
+v = 100
+c()           // 200  — the body is re-evaluated on every call
+```
+
+Computed values shine as class field defaults, where each instance gets its own
+freshly-evaluated value (see [Classes → Fields](classes.md#fields)):
+
+```go
+n := 0
+C := Class("C"; fields = (; id = (= n++)))
+[C().id, C().id]   // [1, 2]
+```
+
+> See also [Func Headers and Method Interfaces](method-interfaces.md) for
+> describing and checking function signatures (`<…>`, `meti`, `implements`).
 
 ## return = (assign the result)
 

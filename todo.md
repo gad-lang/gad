@@ -113,7 +113,7 @@
       allowing multiples Exprs per arm.
       create doc, parser/compiler/vm tests for match expr (including multiples Exprs per arm).
       
-- [ ] create doc of func/closure/method/ComputedValue syntax and add examples.
+- [x] create doc of func/closure/method/ComputedValue syntax and add examples.
 - [ ] add doc for gad code conventions:
       - single Decl without params. `var x` insteadof `var (x)`. (apply this rule for related CodeWriter).
       - split args/dict keys/named params keys etc to new lines for all or when `NEW_LINE_CALC`.
@@ -141,7 +141,7 @@
         ``` 
         apply this rule for related CodeWriter when `ctx.Flags.Has(CodeWriteContextFlagFormat*InNewLine)` (force all to new lines) or `NEW_LINE_CALC`
 - [x] implement unary operators `--IDENT` and `++IDENT`. create samples, doc, and parser/compiler/vm tests for here.
-- [ ] FuncHeader feature:
+- [x] FuncHeader feature:
   - create new node FuncHeader and use it as anonymous field of FuncType:
     ```go
     type FuncHeader struct {
