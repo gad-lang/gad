@@ -1216,6 +1216,8 @@ func (vm *VM) xOpUnary() error {
 			value = Int(-o)
 		case Uint:
 			value = -o
+		case Duration:
+			value = -o
 		case Bool:
 			if o {
 				value = Int(-1)
@@ -1250,7 +1252,7 @@ func (vm *VM) xOpUnary() error {
 		}
 	case token.Add:
 		switch o := right.(type) {
-		case Int, Uint, Float, Char:
+		case Int, Uint, Float, Char, Duration:
 			value = right
 		case Bool:
 			if o {

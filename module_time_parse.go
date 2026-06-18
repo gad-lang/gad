@@ -113,6 +113,8 @@ func timeNew(c Call) (Object, error) {
 		return &Time{Value: t}, nil
 	case CalendarDate:
 		return &Time{Value: v.Time(time.UTC)}, nil
+	case CalendarTime:
+		return &Time{Value: v.Time(time.UTC)}, nil
 	case Int:
 		return &Time{Value: time.Unix(int64(v), 0).UTC()}, nil
 	case Uint:

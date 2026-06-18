@@ -24,6 +24,8 @@ func calendarTimeNew(c Call) (Object, error) {
 	switch v := c.Args.Get(0).(type) {
 	case CalendarTime:
 		return v, nil
+	case *Time:
+		return CalendarTimeFromTime(v.Value), nil
 	case CalendarDate:
 		return CalendarTimeFromTime(v.Time(time.UTC)), nil
 	case Uint:
@@ -122,31 +124,42 @@ func (o CalendarTime) Equal(right Object) bool {
 	return false
 }
 
-// BinaryOp supports the ordered comparisons between timestamps (the nanosecond
-// count compares chronologically).
+// BinaryOp supports duration arithmetic and ordered comparisons:
+//   - `calendarTime ± int|duration` -> calendarTime (the int is nanoseconds)
+//   - `calendarTime - calendarTime`  -> duration
+//   - `calendarTime <|<=|>|>= calendarTime` -> bool
 func (o CalendarTime) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
-	var r CalendarTime
 	switch v := right.(type) {
-	case CalendarTime:
-		r = v
-	case Uint:
-		r = CalendarTime(v)
 	case Int:
-		r = CalendarTime(v)
-	default:
-		return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
-	}
-	switch tok {
-	case token.Less:
-		return Bool(o < r), nil
-	case token.LessEq:
-		return Bool(o <= r), nil
-	case token.Greater:
-		return Bool(o > r), nil
-	case token.GreaterEq:
-		return Bool(o >= r), nil
+		return o.shift(tok, int64(v))
+	case Duration:
+		return o.shift(tok, int64(v))
+	case CalendarTime:
+		switch tok {
+		case token.Sub:
+			return Duration(int64(o) - int64(v)), nil
+		case token.Less:
+			return Bool(o < v), nil
+		case token.LessEq:
+			return Bool(o <= v), nil
+		case token.Greater:
+			return Bool(o > v), nil
+		case token.GreaterEq:
+			return Bool(o >= v), nil
+		}
 	}
 	return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
+}
+
+// shift applies a nanosecond offset for the Add/Sub operators.
+func (o CalendarTime) shift(tok token.Token, ns int64) (Object, error) {
+	switch tok {
+	case token.Add:
+		return CalendarTime(int64(o) + ns), nil
+	case token.Sub:
+		return CalendarTime(int64(o) - ns), nil
+	}
+	return nil, NewOperandTypeError(tok.String(), CalendarTimeType.Name(), "int|duration")
 }
 
 // CallName dispatches the calendar-time accessor methods.
@@ -166,6 +179,32 @@ func (o CalendarTime) CallName(name string, c Call) (Object, error) {
 		return Int(o.Second()), nil
 	case "ns":
 		return Int(o.Nanosecond()), nil
+	case "weekday":
+		return Int(o.wall().Weekday()), nil
+	case "unix":
+		return Int(o.wall().Unix()), nil
+	case "add":
+		d, err := calendarTimeShiftArg(c)
+		if err != nil {
+			return Nil, err
+		}
+		return CalendarTime(int64(o) + d), nil
+	case "sub":
+		d, err := calendarTimeShiftArg(c)
+		if err != nil {
+			return Nil, err
+		}
+		return CalendarTime(int64(o) - d), nil
+	case "addDate":
+		var years, months, days int
+		if err := c.Args.Destructure(
+			&Arg{Name: "years", TypeAssertion: TypeAssertionFromTypes(TInt)},
+			&Arg{Name: "months", TypeAssertion: TypeAssertionFromTypes(TInt)},
+			&Arg{Name: "days", TypeAssertion: TypeAssertionFromTypes(TInt)},
+		); err != nil {
+			return Nil, err
+		}
+		return CalendarTimeFromTime(o.wall().AddDate(years, months, days)), nil
 	case "date":
 		return o.Date(), nil
 	case "time":
@@ -178,6 +217,21 @@ func (o CalendarTime) CallName(name string, c Call) (Object, error) {
 		return &Time{Value: o.Time(loc)}, nil
 	}
 	return Nil, ErrInvalidIndex.NewError(name)
+}
+
+// calendarTimeShiftArg reads a single int|duration argument as a nanosecond
+// offset for the .add/.sub methods.
+func calendarTimeShiftArg(c Call) (int64, error) {
+	if err := c.Args.CheckLen(1); err != nil {
+		return 0, err
+	}
+	switch v := c.Args.Get(0).(type) {
+	case Int:
+		return int64(v), nil
+	case Duration:
+		return int64(v), nil
+	}
+	return 0, NewArgumentTypeError("1st", "int|duration", c.Args.Get(0).Type().Name())
 }
 
 // calendarTimeLayouts are the zone-less layouts strToCalendarTime accepts.

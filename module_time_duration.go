@@ -71,38 +71,69 @@ func (o Duration) Equal(right Object) bool {
 	return false
 }
 
-// BinaryOp supports duration arithmetic and comparison: duration ± duration,
-// duration */ int (scale), and the ordered comparisons. An int operand is taken
-// as a nanosecond count.
+// BinaryOp supports duration arithmetic and comparison:
+//   - `duration ± duration`      -> duration
+//   - `duration * int`           -> duration (scale)
+//   - `duration / int`           -> duration (scale)
+//   - `duration / duration`      -> float (ratio)
+//   - `duration % int|duration`  -> duration (remainder)
+//   - ordered comparisons        -> bool
+//
+// An int operand is taken as a nanosecond count.
 func (o Duration) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
-	d, ok := durationOperand(right)
-	if !ok {
-		return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
-	}
-	switch tok {
-	case token.Add:
-		return o + d, nil
-	case token.Sub:
-		return o - d, nil
-	case token.Less:
-		return Bool(o < d), nil
-	case token.LessEq:
-		return Bool(o <= d), nil
-	case token.Greater:
-		return Bool(o > d), nil
-	case token.GreaterEq:
-		return Bool(o >= d), nil
-	}
-	// scaling by a plain int
-	if i, isInt := right.(Int); isInt {
+	switch v := right.(type) {
+	case Duration:
 		switch tok {
-		case token.Mul:
-			return Duration(int64(o) * int64(i)), nil
+		case token.Add:
+			return o + v, nil
+		case token.Sub:
+			return o - v, nil
 		case token.Quo:
-			if i == 0 {
+			if v == 0 {
 				return nil, ErrZeroDivision
 			}
-			return Duration(int64(o) / int64(i)), nil
+			return Float(float64(o) / float64(v)), nil
+		case token.Rem:
+			if v == 0 {
+				return nil, ErrZeroDivision
+			}
+			return o % v, nil
+		case token.Less:
+			return Bool(o < v), nil
+		case token.LessEq:
+			return Bool(o <= v), nil
+		case token.Greater:
+			return Bool(o > v), nil
+		case token.GreaterEq:
+			return Bool(o >= v), nil
+		}
+	case Int:
+		d := Duration(v)
+		switch tok {
+		case token.Add:
+			return o + d, nil
+		case token.Sub:
+			return o - d, nil
+		case token.Mul:
+			return Duration(int64(o) * int64(v)), nil
+		case token.Quo:
+			if v == 0 {
+				return nil, ErrZeroDivision
+			}
+			return Duration(int64(o) / int64(v)), nil
+		case token.Rem:
+			if v == 0 {
+				return nil, ErrZeroDivision
+			}
+			return Duration(int64(o) % int64(v)), nil
+		case token.Less:
+			return Bool(o < d), nil
+		case token.LessEq:
+			return Bool(o <= d), nil
+		case token.Greater:
+			return Bool(o > d), nil
+		case token.GreaterEq:
+			return Bool(o >= d), nil
 		}
 	}
 	return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())

@@ -89,6 +89,13 @@ func (o *Time) BinaryOp(_ *VM, tok token.Token,
 		case token.Sub:
 			return &Time{Value: o.Value.Add(time.Duration(-v))}, nil
 		}
+	case Duration:
+		switch tok {
+		case token.Add:
+			return &Time{Value: o.Value.Add(time.Duration(v))}, nil
+		case token.Sub:
+			return &Time{Value: o.Value.Add(-time.Duration(v))}, nil
+		}
 	case *Time:
 		switch tok {
 		case token.Sub:

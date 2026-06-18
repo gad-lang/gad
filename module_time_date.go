@@ -24,6 +24,10 @@ func calendarDateNew(c Call) (Object, error) {
 	switch v := c.Args.Get(0).(type) {
 	case CalendarDate:
 		return v, nil
+	case CalendarTime:
+		return v.Date(), nil
+	case *Time:
+		return CalendarDateFromTime(v.Value), nil
 	case Uint:
 		return CalendarDate(v), nil
 	case Int:
@@ -100,31 +104,70 @@ func (o CalendarDate) Equal(right Object) bool {
 	return false
 }
 
-// BinaryOp supports the ordered comparisons between dates (their YYYYMMDD
-// encoding compares chronologically).
+// BinaryOp supports duration arithmetic, date difference and ordered
+// comparisons:
+//   - `calendarDate ± duration`  -> calendarDate when the result lands on
+//     midnight (a whole number of days), otherwise calendarTime
+//   - `calendarDate - calendarDate` -> duration
+//   - ordered comparisons        -> bool (the YYYYMMDD encoding is monotonic)
 func (o CalendarDate) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
-	var r CalendarDate
 	switch v := right.(type) {
+	case Duration:
+		switch tok {
+		case token.Add:
+			return o.addDuration(time.Duration(v)), nil
+		case token.Sub:
+			return o.addDuration(-time.Duration(v)), nil
+		}
 	case CalendarDate:
-		r = v
-	case Uint:
-		r = CalendarDate(v)
-	case Int:
-		r = CalendarDate(v)
-	default:
-		return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
-	}
-	switch tok {
-	case token.Less:
-		return Bool(o < r), nil
-	case token.LessEq:
-		return Bool(o <= r), nil
-	case token.Greater:
-		return Bool(o > r), nil
-	case token.GreaterEq:
-		return Bool(o >= r), nil
+		switch tok {
+		case token.Sub:
+			return Duration(o.Time(time.UTC).Sub(v.Time(time.UTC))), nil
+		case token.Less:
+			return Bool(o < v), nil
+		case token.LessEq:
+			return Bool(o <= v), nil
+		case token.Greater:
+			return Bool(o > v), nil
+		case token.GreaterEq:
+			return Bool(o >= v), nil
+		}
+	case Uint, Int:
+		r := CalendarDate(toUint64(v))
+		switch tok {
+		case token.Less:
+			return Bool(o < r), nil
+		case token.LessEq:
+			return Bool(o <= r), nil
+		case token.Greater:
+			return Bool(o > r), nil
+		case token.GreaterEq:
+			return Bool(o >= r), nil
+		}
 	}
 	return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
+}
+
+// addDuration adds d to midnight of this date, returning a CalendarDate when the
+// result lands exactly on midnight (a whole number of days) and a CalendarTime
+// otherwise (the duration carries a time-of-day part).
+func (o CalendarDate) addDuration(d time.Duration) Object {
+	t := o.Time(time.UTC).Add(d)
+	if t.Hour() == 0 && t.Minute() == 0 && t.Second() == 0 && t.Nanosecond() == 0 {
+		return CalendarDateFromTime(t)
+	}
+	return CalendarTimeFromTime(t)
+}
+
+// toUint64 reads an Int or Uint as a uint64.
+func toUint64(v Object) uint64 {
+	switch n := v.(type) {
+	case Uint:
+		return uint64(n)
+	case Int:
+		return uint64(n)
+	}
+	return 0
 }
 
 // CallName dispatches the date accessor methods.

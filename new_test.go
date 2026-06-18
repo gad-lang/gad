@@ -442,6 +442,42 @@ func TestVMTimeDurationDate(t *testing.T) {
 	testExpectRun(t, `return typeName(time.CalendarDate(20260131))`, nil, Str("calendarDate"))
 }
 
+func TestVMTimeArithmetic(t *testing.T) {
+	// duration arithmetic: ±, scale, ratio, remainder, unary minus
+	testExpectRun(t, `return str(dur 1h + dur 30m)`, nil, Str("1h30m0s"))
+	testExpectRun(t, `return str(dur 1h - dur 30m)`, nil, Str("30m0s"))
+	testExpectRun(t, `return str(dur 1h * 3)`, nil, Str("3h0m0s"))
+	testExpectRun(t, `return str(dur 90m / 2)`, nil, Str("45m0s"))
+	testExpectRun(t, `return dur 1h / dur 30m`, nil, Float(2)) // ratio
+	testExpectRun(t, `return str(dur 1h % dur 45m)`, nil, Str("15m0s"))
+	testExpectRun(t, `return str(-(dur 1h))`, nil, Str("-1h0m0s"))
+	testExpectRun(t, `return dur 1h > dur 30m`, nil, True)
+	expectErrHas(t, `return dur 1h / dur 0s`, newOpts(), "ZeroDivision")
+
+	// time ± duration -> time
+	testExpectRun(t, `return str(2026-01-01T + dur 90m)`,
+		nil, Str("2026-01-01 01:30:00 +0000 UTC"))
+	testExpectRun(t, `return str(2026-01-01T - dur 1h)`,
+		nil, Str("2025-12-31 23:00:00 +0000 UTC"))
+
+	// calendarTime ± duration -> calendarTime; difference -> duration
+	testExpectRun(t, `return str(2026-01-31t + dur 25h)`, nil, Str("2026-02-01 01:00:00"))
+	testExpectRun(t, `return str(2026-02-01t - 2026-01-31t)`, nil, Str("24h0m0s"))
+	testExpectRun(t, `return str(2026-01-31t.add(dur 1h))`, nil, Str("2026-01-31 01:00:00"))
+
+	// calendarDate + duration: stays a date when day-aligned, else calendarTime
+	testExpectRun(t, `return typeName(2025-01-01D + dur 1s)`, nil, Str("calendarTime"))
+	testExpectRun(t, `return str(2025-01-01D + dur 1s)`, nil, Str("2025-01-01 00:00:01"))
+	testExpectRun(t, `return typeName(2025-01-01D + dur 24h)`, nil, Str("calendarDate"))
+	testExpectRun(t, `return str(2025-01-01D + dur 24h)`, nil, Str("2025-01-02"))
+	testExpectRun(t, `return str(2025-02-01D - 2025-01-01D)`, nil, Str("744h0m0s"))
+
+	// cross-type conversions
+	testExpectRun(t, `return typeName(time.CalendarTime(2026-01-31T))`, nil, Str("calendarTime"))
+	testExpectRun(t, `return typeName(time.CalendarDate(2026-01-31t))`, nil, Str("calendarDate"))
+	testExpectRun(t, `return typeName(time.Type(2026-01-31t))`, nil, Str("time"))
+}
+
 func TestVMTimeStrTo(t *testing.T) {
 	// strToDate / strToDuration / strToLocation module functions
 	testExpectRun(t, `return str(time.strToDate("2026-01-31"))`, nil, Str("2026-01-31"))

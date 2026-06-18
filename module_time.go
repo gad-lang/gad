@@ -687,6 +687,9 @@ func init() {
 	registry.RegisterAnyConverter(reflect.TypeOf(CalendarDate(0)), func(in any) (any, bool) {
 		return uint(in.(CalendarDate)), true
 	})
+	registry.RegisterAnyConverter(reflect.TypeOf(CalendarTime(0)), func(in any) (any, bool) {
+		return uint64(in.(CalendarTime)), true
+	})
 	registry.RegisterObjectConverter(reflect.TypeFor[time.Time](), func(in any) (any, bool) {
 		return &Time{Value: in.(time.Time)}, true
 	})
