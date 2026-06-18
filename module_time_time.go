@@ -41,6 +41,16 @@ func (o *Time) ToString() string {
 	return o.Value.String()
 }
 
+// Print writes the time as a leaf value. *Time is a primitive (see
+// IsPrimitive), so it must print as its ToString rather than letting the
+// generic printer recurse into the wrapped time.Time internals.
+func (o *Time) Print(s *PrinterState) error {
+	if s.IsRepr {
+		defer s.WrapRepr(o)()
+	}
+	return s.WriteString(o.ToString())
+}
+
 // IsFalsy implements Object interface.
 func (o *Time) IsFalsy() bool {
 	return o.Value.IsZero()
