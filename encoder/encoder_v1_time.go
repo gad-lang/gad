@@ -6,7 +6,8 @@ package encoder
 
 import "github.com/gad-lang/gad"
 
-// Encoders/decoders for the time module value types (time, duration, date).
+// Encoders/decoders for the time module value types (time, duration,
+// calendarDate, calendarTime).
 // The tags are registered in encoder_v1.go.
 func init() {
 	TimeV1.Encode = func(ctx *WriteContext, o any) (err error) {
@@ -37,12 +38,21 @@ func init() {
 		return gad.Duration(i), err
 	}
 
-	DateV1.Encode = func(ctx *WriteContext, o any) (err error) {
+	CalendarDateV1.Encode = func(ctx *WriteContext, o any) (err error) {
 		return writeUint64(ctx, uint64(o.(gad.CalendarDate)))
 	}
-	DateV1.Decode = func(ctx *ReadContext) (_ any, err error) {
+	CalendarDateV1.Decode = func(ctx *ReadContext) (_ any, err error) {
 		var i uint64
 		i, err = readUint64(ctx)
 		return gad.CalendarDate(i), err
+	}
+
+	CalendarTimeV1.Encode = func(ctx *WriteContext, o any) (err error) {
+		return writeUint64(ctx, uint64(o.(gad.CalendarTime)))
+	}
+	CalendarTimeV1.Decode = func(ctx *ReadContext) (_ any, err error) {
+		var i uint64
+		i, err = readUint64(ctx)
+		return gad.CalendarTime(i), err
 	}
 }

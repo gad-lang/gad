@@ -31,7 +31,8 @@ var (
 	RegexpV1,
 	TimeV1,
 	DurationV1,
-	DateV1 EncDec
+	CalendarDateV1,
+	CalendarTimeV1 EncDec
 )
 
 const (
@@ -60,7 +61,8 @@ const (
 	typeRegexp
 	typeTime
 	typeDuration
-	typeDate
+	typeCalendarDate
+	typeCalendarTime
 )
 
 const versionV1 byte = 1
@@ -91,5 +93,6 @@ func init() {
 	Register[gad.Regexp](typeRegexp, versionV1, &RegexpV1)
 	Register[gad.Time](typeTime, versionV1, &TimeV1)
 	Register[gad.Duration](typeDuration, versionV1, &DurationV1)
-	Register[gad.CalendarDate](typeDate, versionV1, &DateV1)
+	Register[gad.CalendarDate](typeCalendarDate, versionV1, &CalendarDateV1)
+	Register[gad.CalendarTime](typeCalendarTime, versionV1, &CalendarTimeV1)
 }

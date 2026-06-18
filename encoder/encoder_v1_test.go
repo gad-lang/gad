@@ -120,6 +120,15 @@ func TestEncDecTimeTypes(t *testing.T) {
 		require.Equal(t, o, got)
 	})
 
+	t.Run("calendarTime", func(t *testing.T) {
+		o := gad.CalendarTimeFromTime(time.Date(2026, 1, 31, 9, 30, 0, 1000, time.UTC))
+		b, eb, err := eencode(o)
+		require.NoError(t, err)
+		got, err := edecode[gad.CalendarTime](b, eb)
+		require.NoError(t, err)
+		require.Equal(t, o, got)
+	})
+
 	t.Run("time", func(t *testing.T) {
 		o := &gad.Time{Value: time.Date(2026, 1, 31, 9, 0, 0, 0, time.UTC)}
 		b, eb, err := eencode(o)
