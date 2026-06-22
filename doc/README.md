@@ -44,6 +44,13 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
 16. [Conventions](conventions.md) — how primitive types, constants, modules and
     methods are cased, plus the code layout the formatter produces.
 
+## Reference
+
+- [Tutorial](tutorial.md) — a guided walk-through of the language.
+- Generated standard-library references: [`time`](stdlib-time.md),
+  [`fmt`](stdlib-fmt.md), [`strings`](stdlib-strings.md),
+  [`json`](stdlib-json.md).
+
 ## A Taste of Gad
 
 ```go

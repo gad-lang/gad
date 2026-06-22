@@ -1,4 +1,4 @@
-// Command build-website renders the Gad documentation (./doc and docs/) into a
+// Command build-website renders the Gad documentation (./doc) into a
 // static, GitHub-Pages-ready website with client-side search, a light/dark
 // theme and a WebAssembly playground.
 //
@@ -49,7 +49,7 @@ func buildCommand() *cc.Command {
 		Description: "Render the website into the output directory.",
 		New: func(ctx *cc.CommandContext) error {
 			out = ctx.Flags().String("out", "dist/website", "output directory")
-			repo = ctx.Flags().String("repo", ".", "repository root (contains doc/ and docs/)")
+			repo = ctx.Flags().String("repo", ".", "repository root (contains doc/)")
 			noWASM = ctx.Flags().Bool("no-wasm", false, "skip building the WebAssembly playground module")
 			return nil
 		},

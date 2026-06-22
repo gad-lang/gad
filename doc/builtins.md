@@ -3,8 +3,7 @@
 [← Back to index](README.md)
 
 Gad ships with a library of builtin functions available without an `import`.
-This page is a categorised overview; for the full, detailed reference see the
-generated [`docs/builtins.md`](../docs/builtins.md).
+This page is a categorised overview of the builtins.
 
 The host can disable any builtin before compilation, so a sandboxed script may
 see a reduced set.
@@ -142,4 +141,4 @@ Further functionality is grouped into importable modules such as `json`, `os`,
 json := import("json")
 ```
 
-See the generated `docs/stdlib-*.md` files for per-module references.
+See the generated `stdlib-*.md` files for per-module references.

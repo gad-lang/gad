@@ -37,9 +37,7 @@ var guideOrder = []string{
 }
 
 var refOrder = []string{
-	"tutorial", "runtime-types", "builtins", "operators", "error-handling",
-	"destructuring", "classes", "optimizer", "stdlib", "stdlib-strings",
-	"stdlib-fmt", "stdlib-json", "stdlib-time",
+	"tutorial", "stdlib-strings", "stdlib-fmt", "stdlib-json", "stdlib-time",
 }
 
 // buildSite renders the whole website into outDir.
@@ -52,7 +50,7 @@ func buildSite(repoRoot, outDir string, buildWASM bool) error {
 	if err != nil {
 		return err
 	}
-	ref, err := collectPages(filepath.Join(repoRoot, "docs"), refOrder, "Reference", false)
+	ref, err := collectPages(filepath.Join(repoRoot, "doc"), refOrder, "Reference", false)
 	if err != nil {
 		return err
 	}

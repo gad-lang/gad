@@ -9,7 +9,7 @@
 //
 // Examples:
 //
-// go run ./cmd/gaddoc ./stdlib/time ./docs/stdlib-time.md
+// go run ./cmd/gaddoc ./stdlib/time ./doc/stdlib-time.md
 //
 // go run ./cmd/gaddoc ./stdlib/json -
 package main

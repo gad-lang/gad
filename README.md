@@ -121,8 +121,6 @@ Gad has a REPL application to learn and test Gad scripts.
 
 `./gad`
 
-![repl-gif](https://github.com/gad-lang/gad/blob/main/docs/repl.gif)
-
 ### CLI tools
 
 The `gad` binary is organised as subcommands:
@@ -250,14 +248,12 @@ return v
 
 * **[User Guide](doc/README.md)** — hands-on, example-driven docs for every
   language feature (start here).
-* [Tutorial](https://github.com/gad-lang/gad/blob/main/docs/tutorial.md)
-* [Runtime Types](https://github.com/gad-lang/gad/blob/main/docs/runtime-types.md)
-* [Builtins](https://github.com/gad-lang/gad/blob/main/docs/builtins.md)
-* [Operators](https://github.com/gad-lang/gad/blob/main/docs/operators.md)
-* [Error Handling](https://github.com/gad-lang/gad/blob/main/docs/error-handling.md)
-* [Standard Library](https://github.com/gad-lang/gad/blob/main/docs/stdlib.md)
-* [Optimizer](https://github.com/gad-lang/gad/blob/main/docs/optimizer.md)
-* [Destructuring](https://github.com/gad-lang/gad/blob/main/docs/destructuring.md)
+* [Tutorial](https://github.com/gad-lang/gad/blob/main/doc/tutorial.md)
+* [Runtime Types](https://github.com/gad-lang/gad/blob/main/doc/values-and-types.md)
+* [Builtins](https://github.com/gad-lang/gad/blob/main/doc/builtins.md)
+* [Operators](https://github.com/gad-lang/gad/blob/main/doc/operators.md)
+* [Error Handling](https://github.com/gad-lang/gad/blob/main/doc/error-handling.md)
+* [Standard Library](https://github.com/gad-lang/gad/blob/main/doc/modules.md)
 
 ## LICENSE
 

@@ -101,10 +101,10 @@ lint: version check-delve
 generate-docs: version
 	# time, fmt and strings are builtin module namespaces in the root package;
 	# the 3rd arg selects which module's gad:doc to emit.
-	go run ./cmd/gaddoc . ./docs/stdlib-time.md time
-	go run ./cmd/gaddoc . ./docs/stdlib-fmt.md fmt
-	go run ./cmd/gaddoc . ./docs/stdlib-strings.md strings
-	go run ./cmd/gaddoc ./stdlib/json ./docs/stdlib-json.md
+	go run ./cmd/gaddoc . ./doc/stdlib-time.md time
+	go run ./cmd/gaddoc . ./doc/stdlib-fmt.md fmt
+	go run ./cmd/gaddoc . ./doc/stdlib-strings.md strings
+	go run ./cmd/gaddoc ./stdlib/json ./doc/stdlib-json.md
 
 .PHONY: version
 version:
