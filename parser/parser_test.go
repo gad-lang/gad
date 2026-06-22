@@ -1469,7 +1469,7 @@ func TestParseCall(t *testing.T) {
 		String("add(1, 2; x() { y++ }, y() => 1, **d)").
 		Code("add(1, 2; x() {y++}, y() => 1, **d)").
 		FormattedCode(`add(
-	1,
+	1
 	2
 	; x() {
 		y++
@@ -1698,7 +1698,7 @@ f(
 	}
 )
 f(
-	1,
+	1
 	2
 	; x {
 		() => nil
@@ -1707,7 +1707,7 @@ f(
 	}
 )
 f(
-	1,
+	1
 	*s
 	; x {
 		() => nil
@@ -1816,7 +1816,7 @@ f(
 
 	test.New(t, "add(a, b)").
 		FormattedCode(`add(
-	a,
+	a
 	b
 )`)
 

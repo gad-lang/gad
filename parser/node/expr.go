@@ -643,8 +643,10 @@ func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
 				}
 			})
 		if pl > 0 {
-			ctx.WriteItems(inNewLine,
+			ctx.WriteItemsSep(inNewLine,
 				len(e.PositionalElements),
+				", ",
+				"",
 				func(i int) {
 					e.PositionalElements[i].WriteCode(ctx)
 				},
@@ -1042,9 +1044,11 @@ func (a *CallExprPositionalArgs) WriteCodeWithNamed(ctx *CodeWriteContext, inNew
 		if l == 1 && !hasNamed {
 			values[0].WriteCode(ctx)
 		} else {
-			ctx.WriteItems(
+			ctx.WriteItemsSep(
 				inNewLine,
 				len(values),
+				", ",
+				"",
 				func(i int) {
 					values[i].WriteCode(ctx)
 				},
@@ -1590,7 +1594,7 @@ func (m *FuncMethod) String() string {
 }
 
 func (m *FuncMethod) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(m.Params.String())
+	m.Params.WriteCode(ctx)
 	ctx.WriteString(FormatFuncReturn(m.Return))
 	ctx.WriteString(" ")
 	if m.BodyExpr != nil {
@@ -1894,11 +1898,28 @@ func (e *FuncExpr) String() string {
 }
 
 func (e *FuncExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(e.prefix())
+	if e.Type != nil {
+		var kw string
+		if e.Type.FuncPos != 0 {
+			if len(e.Type.Token.Literal) > 0 {
+				kw = e.Type.Token.Literal
+			} else {
+				kw = "func"
+			}
+		}
+		ctx.WriteString(kw)
+		if e.Type.NameExpr != nil && len(kw) > 0 {
+			ctx.WriteString(" ")
+		}
+		e.Type.WriteCode(ctx)
+		ctx.WriteString(" ")
+	} else {
+		ctx.WriteString("func")
+	}
 
 	if e.BodyExpr != nil {
 		ctx.WriteString("=> ")
-		ctx.WriteString(e.BodyExpr.String())
+		e.BodyExpr.WriteCode(ctx)
 	} else {
 		e.Body.WriteCode(ctx)
 	}
@@ -1937,7 +1958,8 @@ func (e *ClosureExpr) String() string {
 }
 
 func (e *ClosureExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(e.Params.String(), FormatFuncReturn(e.Return), e.sep(), " ")
+	e.Params.WriteCode(ctx)
+	ctx.WriteString(FormatFuncReturn(e.Return), e.sep(), " ")
 	if block, ok := e.Body.(*BlockExpr); ok {
 		block.WriteCode(ctx)
 	} else {

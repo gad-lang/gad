@@ -112,3 +112,23 @@ d := {
     b: 2
 }
 ```
+
+### Function and call parameters
+
+Function declaration parameters and call arguments may also be written one per
+line (a comma is optional; the newline separates them). Two extra rules apply:
+
+- A **typed parameter keeps its ident and type on the same line** (`a int`).
+  `a` and `int` on separate lines are two parameters, not a typed one.
+- When a parameter's **type union is too wide** for the line, continue the type
+  on the next line **after a `|`** (the ident stays with the start of the type),
+  and put the next parameter on its own following line:
+
+  ```gad
+  func(
+      a int|
+          bool|
+          string
+      b int
+  )
+  ```

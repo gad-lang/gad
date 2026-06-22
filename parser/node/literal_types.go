@@ -172,6 +172,106 @@ func (n *FuncParams) String() string {
 	return buf.String()
 }
 
+// funcParamItem is one rendered parameter plus whether it belongs to the named
+// (`;`) section.
+type funcParamItem struct {
+	s     string
+	named bool
+}
+
+// items flattens the positional and named parameters into their rendered forms.
+func (n *FuncParams) items() []funcParamItem {
+	var items []funcParamItem
+	for _, e := range n.Args.Values {
+		items = append(items, funcParamItem{s: e.String()})
+	}
+	if n.Args.Var != nil {
+		items = append(items, funcParamItem{s: "*" + n.Args.Var.String()})
+	}
+	for i, e := range n.NamedArgs.Names {
+		s := e.String()
+		if v := n.NamedArgs.Values[i]; v != nil {
+			s += "=" + v.String()
+		}
+		items = append(items, funcParamItem{s: s, named: true})
+	}
+	if n.NamedArgs.Var != nil {
+		items = append(items, funcParamItem{s: "**" + n.NamedArgs.Var.String(), named: true})
+	}
+	return items
+}
+
+// WriteCode renders the parameter list, wrapping one parameter per line when
+// NEW_LINE_CALC decides it overflows (no comma between wrapped items). The
+// named section is introduced by `;`; a typed param keeps its ident and type on
+// one line (each item is a single rendered string).
+func (n *FuncParams) WriteCode(ctx *CodeWriteContext) {
+	items := n.items()
+
+	ctx.WriteSingleByte('(')
+
+	if len(items) <= 1 {
+		for _, it := range items {
+			if it.named {
+				ctx.WriteString("; ")
+			}
+			ctx.WriteString(it.s)
+		}
+		ctx.WriteSingleByte(')')
+		return
+	}
+
+	firstNamed := -1
+	for i, it := range items {
+		if it.named {
+			firstNamed = i
+			break
+		}
+	}
+
+	sep := func(i int) {
+		switch {
+		case i == 0:
+			if i == firstNamed {
+				ctx.WriteString("; ")
+			}
+		case i == firstNamed:
+			ctx.WriteString("; ")
+		default:
+			ctx.WriteString(", ")
+		}
+	}
+
+	inNewLine := ctx.DecideNewLineFunc(
+		CodeWriteContextFlagFormatCallParamsInNewLine, len(items), 1, func() {
+			for i, it := range items {
+				sep(i)
+				ctx.WriteString(it.s)
+			}
+		})
+
+	if inNewLine {
+		ctx.Depth++
+		for i, it := range items {
+			ctx.WriteSecondLine()
+			ctx.WritePrefix()
+			if it.named && i == firstNamed {
+				ctx.WriteString("; ")
+			}
+			ctx.WriteString(it.s)
+		}
+		ctx.WriteSecondLine()
+		ctx.Depth--
+		ctx.WritePrefix()
+	} else {
+		for i, it := range items {
+			sep(i)
+			ctx.WriteString(it.s)
+		}
+	}
+	ctx.WriteSingleByte(')')
+}
+
 func (n *FuncParams) Caller() (c *CallArgs) {
 	c = &CallArgs{}
 	for _, value := range n.Args.Values {
@@ -277,6 +377,16 @@ func (e *FuncHeader) String() string {
 	s += e.Params.String()
 	s += FormatFuncReturn(e.Return)
 	return s
+}
+
+// WriteCode renders the header (name + params + return) routing the parameter
+// list through FuncParams.WriteCode so it participates in formatting.
+func (e *FuncHeader) WriteCode(ctx *CodeWriteContext) {
+	if e.NameExpr != nil {
+		ctx.WriteString(e.NameExpr.String())
+	}
+	e.Params.WriteCode(ctx)
+	ctx.WriteString(FormatFuncReturn(e.Return))
 }
 
 // FuncType represents a function type definition.
