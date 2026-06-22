@@ -2459,16 +2459,36 @@ func (e *MatchExpr) String() string {
 	return b.String()
 }
 
-// armsInNewLine reports whether arms should each go on their own line, based on
-// the active formatter flag for the match form (expression vs statement).
+// armsInNewLine reports whether arms should each go on their own line. Without
+// NEW_LINE_CALC it honours the per-form force flag (expression vs statement);
+// with NEW_LINE_CALC the arms are wrapped only when their inline rendering would
+// overflow ctx.MaxColumns.
 func (e *MatchExpr) armsInNewLine(ctx *CodeWriteContext) bool {
 	if !ctx.HasPrefix() {
 		return false
 	}
+	flag := CodeWriteContextFlagFormatMatchExprArmsInNewLine
 	if e.IsStmt() {
-		return ctx.Flags.Has(CodeWriteContextFlagFormatMatchStmtArmsInNewLine)
+		flag = CodeWriteContextFlagFormatMatchStmtArmsInNewLine
 	}
-	return ctx.Flags.Has(CodeWriteContextFlagFormatMatchExprArmsInNewLine)
+	return ctx.DecideNewLineFunc(flag, len(e.Arms), 1, func() {
+		e.writeArmsInline(ctx)
+	})
+}
+
+// writeArmsInline renders the arms on a single line: `, `-separated, with a
+// leading and trailing space inside the braces.
+func (e *MatchExpr) writeArmsInline(ctx *CodeWriteContext) {
+	for i, a := range e.Arms {
+		if i > 0 {
+			ctx.WriteString(",")
+		}
+		ctx.WriteString(" ")
+		a.WriteCode(ctx)
+	}
+	if len(e.Arms) > 0 {
+		ctx.WriteString(" ")
+	}
 }
 
 func (e *MatchExpr) WriteCode(ctx *CodeWriteContext) {
@@ -2489,16 +2509,7 @@ func (e *MatchExpr) WriteCode(ctx *CodeWriteContext) {
 		ctx.Depth--
 		ctx.WriteSemi()
 	} else {
-		for i, a := range e.Arms {
-			if i > 0 {
-				ctx.WriteString(",")
-			}
-			ctx.WriteString(" ")
-			a.WriteCode(ctx)
-		}
-		if len(e.Arms) > 0 {
-			ctx.WriteString(" ")
-		}
+		e.writeArmsInline(ctx)
 	}
 	ctx.WriteString("}")
 }

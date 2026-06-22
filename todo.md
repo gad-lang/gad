@@ -33,7 +33,7 @@
   features (auto complete etc) on
   edit code/expression in template strings.
 
-- [ ] on MatchExpr, take as just syntaxe:
+- [x] on MatchExpr, take as just syntaxe:
   `x := match Expr { ArmExpr: ValueExpr, ArmExpr, ArmExpr: ValueExpr, else: ValueExpr }`;
   allowing multiples Exprs per arm (separated by comma or new line or both). arms or `else` is optional, if not
   set both the value is `nil`. this is valid: `x := match Expr {}` (`x` is nil); `x := match 1 { 2: "ok"}` (`x` is nil).
@@ -55,7 +55,7 @@
   no new line split example: `x := match Expr { ArmExpr: ValueExpr, ArmExpr, ArmExpr: ValueExpr, else: ValueExpr }` (
   small columns count).
   create doc, parser/compiler/vm tests for match expr (including multiples Exprs per arm).
-- [ ] on MatchStmt with syntaxe:
+- [x] on MatchStmt with syntaxe:
   ```gad
   match Expr { 
       Expr {

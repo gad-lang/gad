@@ -4035,6 +4035,21 @@ func TestParseMatchExprError(t *testing.T) {
 	test.ExpectParseError(t, `x := match a { else: 2 }`)
 }
 
+func TestFormatMatchArms(t *testing.T) {
+	// NEW_LINE_CALC: a match that fits the budget stays inline.
+	test.New(t, `x := match n { 1: "a", else: "b" }`).
+		FormattedCalcCode(`x := match n { 1: "a", else: "b" }`, 80)
+
+	// NEW_LINE_CALC: when the inline arms overflow, each arm goes on its own
+	// line (the `else` arm is not preceded by a comma).
+	test.New(t, `x := match n { 1, 2: "one or two", 3: "three", else: "other" }`).
+		FormattedCalcCode("x := match n {\n\t1, 2: \"one or two\",\n\t3: \"three\"\n\telse: \"other\"\n}", 40)
+
+	// Force-all: arms always split, one per line.
+	test.New(t, `x := match n { 1: "a", 2: "b", else: "c" }`).
+		FormattedCode("x := match n {\n\t1: \"a\",\n\t2: \"b\"\n\telse: \"c\"\n}")
+}
+
 func TestParseMethodInterface(t *testing.T) {
 	test.ExpectParseString(t, `x := meti { () }`, `x := meti {(); }`)
 	test.ExpectParseString(t, `x := meti { (), (v) <int> }`, `x := meti {(); (v) <int>; }`)

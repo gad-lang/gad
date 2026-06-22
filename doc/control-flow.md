@@ -115,6 +115,11 @@ x := match n {}            // nil
 y := match 1 { 2: "ok" }   // nil (no match)
 ```
 
+The formatter keeps a match inline while it fits the line budget and splits the
+arms one-per-line only when they overflow (column-aware `NEW_LINE_CALC`), or
+always when the corresponding force flag is set. When split, the newline
+separates the arms and the `else` arm carries no leading comma.
+
 ## Try / Catch / Finally
 
 Gad handles runtime errors (and Go panics surfaced as errors) with
