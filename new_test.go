@@ -131,6 +131,22 @@ func TestVMRange(t *testing.T) {
 	testExpectRun(t, collect(`(1 .. 10).step(5)`), nil, Array{Int(1), Int(6)})
 	// from/to fields.
 	testExpectRun(t, `r := 3 .. 9; return [r.from, r.to]`, nil, Array{Int(3), Int(9)})
+
+	// other numeric element kinds.
+	testExpectRun(t, collect(`uint(1) .. uint(4)`), nil,
+		Array{Uint(1), Uint(2), Uint(3), Uint(4)})
+	testExpectRun(t, collect(`1.0 .. 3.0`), nil, Array{Float(1), Float(2), Float(3)})
+	testExpectRun(t, collect(`decimal(1) .. decimal(3)`), nil,
+		Array{DecimalFromInt(1), DecimalFromInt(2), DecimalFromInt(3)})
+
+	// temporal ranges step by a duration (default one day).
+	collectStr := func(src string) string {
+		return `out := []; for v in ` + src + ` { out = append(out, str(v)) }; return out`
+	}
+	testExpectRun(t, collectStr(`2026-01-30D .. 2026-02-02D`), nil,
+		Array{Str("2026-01-30"), Str("2026-01-31"), Str("2026-02-01"), Str("2026-02-02")})
+	testExpectRun(t, collectStr(`(2026-01-30D .. 2026-02-05D) / (dur 48h)`), nil,
+		Array{Str("2026-01-30"), Str("2026-02-01"), Str("2026-02-03"), Str("2026-02-05")})
 }
 
 func TestVMPowFractional(t *testing.T) {
