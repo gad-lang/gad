@@ -62,6 +62,35 @@ println(0 || "fallback")   // fallback
 println("a" && "b")        // b
 ```
 
+## Range Operator
+
+`from .. to` builds an inclusive, iterable `Range` (sugar for the `Range(from,
+to)` builtin). It supports the numeric kinds (`int`, `uint`, `float`,
+`decimal`), `char`, and the temporal types (`time`, `calendarDate`,
+`calendarTime`). A range runs ascending or descending depending on its bounds.
+
+```go
+for v in 1 .. 5 { print(v) }        // 1 2 3 4 5
+for v in 5 .. 1 { print(v) }        // 5 4 3 2 1
+for c in 'a' .. 'e' { print(c) }    // a b c d e
+```
+
+The step is set with `/` (note `..` binds *tighter* than `/`, so `1 .. 10 / 2`
+is `(1 .. 10) / 2`), with the `Range` constructor's `step` named argument, or
+with the `r.step(n)` method. For numeric/char ranges the step is a number
+(default `1`); for temporal ranges it is a `duration` (default one day).
+
+```go
+for v in 1 .. 10 / 2 { print(v) }              // 1 3 5 7 9
+for v in Range(0, 10; step=3) { print(v) }     // 0 3 6 9
+r := (1 .. 100).step(25)                       // 1, 26, 51, 76
+for d in 2026-01-30D .. 2026-02-05D / (dur 48h) { } // every 2 days
+
+r.from   // 1
+r.to     // 100
+r.step() // 25
+```
+
 ## Ternary Operator
 
 `cond ? a : b` evaluates to `a` when `cond` is truthy, otherwise `b`.

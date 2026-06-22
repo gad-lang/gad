@@ -1,0 +1,45 @@
+// 13_ranges.gad — the `..` range operator and the Range builtin.
+
+// `from .. to` is an inclusive, iterable range. It runs ascending or
+// descending depending on its bounds.
+for v in 1 .. 5 {
+    print(v, "")        // 1 2 3 4 5
+}
+println()
+
+for v in 5 .. 1 {
+    print(v, "")        // 5 4 3 2 1
+}
+println()
+
+// char ranges.
+for c in 'a' .. 'e' {
+    print(c, "")        // a b c d e
+}
+println()
+
+// The step is set with `/` — `..` binds tighter than `/`, so `1 .. 10 / 2`
+// groups as `(1 .. 10) / 2`.
+for v in 1 .. 10 / 2 {
+    print(v, "")        // 1 3 5 7 9
+}
+println()
+
+// The Range constructor with a named `step`, plus the `.step(n)` method.
+// `collect` gathers an iterable's values into an array.
+r := Range(0, 10; step=3)
+println(collect(r))                 // [0, 3, 6, 9]
+
+stepped := (1 .. 100).step(25)
+println(stepped.from, stepped.to, stepped.step())   // 1 100 25
+
+// Temporal ranges step by a duration (default one day).
+for d in 2026-01-30D .. 2026-02-02D {
+    print(str(d), "")               // 2026-01-30 2026-01-31 2026-02-01 2026-02-02
+}
+println()
+
+for d in 2026-01-30D .. 2026-02-05D / (dur 48h) {
+    print(str(d), "")               // 2026-01-30 2026-02-01 2026-02-03 2026-02-05
+}
+println()

@@ -112,9 +112,8 @@ func TestVMBinaryIncDec(t *testing.T) {
 }
 
 func TestVMRange(t *testing.T) {
-	collect := func(src string) string {
-		return `out := []; for v in ` + src + ` { out = append(out, v) }; return out`
-	}
+	collect := func(src string) string { return `return collect(` + src + `)` }
+
 	// `..` ascending and descending integer ranges (inclusive).
 	testExpectRun(t, collect(`1 .. 5`), nil, Array{Int(1), Int(2), Int(3), Int(4), Int(5)})
 	testExpectRun(t, collect(`5 .. 1`), nil, Array{Int(5), Int(4), Int(3), Int(2), Int(1)})
@@ -140,13 +139,12 @@ func TestVMRange(t *testing.T) {
 		Array{DecimalFromInt(1), DecimalFromInt(2), DecimalFromInt(3)})
 
 	// temporal ranges step by a duration (default one day).
-	collectStr := func(src string) string {
-		return `out := []; for v in ` + src + ` { out = append(out, str(v)) }; return out`
-	}
-	testExpectRun(t, collectStr(`2026-01-30D .. 2026-02-02D`), nil,
-		Array{Str("2026-01-30"), Str("2026-01-31"), Str("2026-02-01"), Str("2026-02-02")})
-	testExpectRun(t, collectStr(`(2026-01-30D .. 2026-02-05D) / (dur 48h)`), nil,
-		Array{Str("2026-01-30"), Str("2026-02-01"), Str("2026-02-03"), Str("2026-02-05")})
+	testExpectRun(t, collect(`2026-01-30D .. 2026-02-02D`), nil, Array{
+		NewCalendarDate(2026, 1, 30), NewCalendarDate(2026, 1, 31),
+		NewCalendarDate(2026, 2, 1), NewCalendarDate(2026, 2, 2)})
+	testExpectRun(t, collect(`(2026-01-30D .. 2026-02-05D) / (dur 48h)`), nil, Array{
+		NewCalendarDate(2026, 1, 30), NewCalendarDate(2026, 2, 1),
+		NewCalendarDate(2026, 2, 3), NewCalendarDate(2026, 2, 5)})
 }
 
 func TestVMPowFractional(t *testing.T) {
