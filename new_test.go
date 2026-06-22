@@ -3,6 +3,8 @@
 package gad_test
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	. "github.com/gad-lang/gad"
@@ -165,17 +167,30 @@ func TestVMRangeRepr(t *testing.T) {
 }
 
 func TestVMTimeModuleTypesRepr(t *testing.T) {
-	// repr(time.<Type>; indent) of every type exported by the time module.
-	for _, c := range []struct{ member, typ string }{
-		{"Type", "time.time"},
-		{"CalendarDate", "time.calendarDate"},
-		{"CalendarTime", "time.calendarTime"},
-		{"Duration", "time.duration"},
-		{"Location", "time.Location"},
+	// repr(time.<Type>; indent) of every type exported by the time module dumps
+	// the headers of its typed single-argument constructor methods (one per
+	// accepted input kind), sorted by parameter type.
+	dump := func(typ string, kinds ...string) Str {
+		lines := make([]string, len(kinds))
+		for i, k := range kinds {
+			lines[i] = "\t⨍(" + k + ") 🠆 ‹function " + typ + "(v " + k + ")›"
+		}
+		return Str("‹time." + typ + ": ‹builtin type ‹time." + typ + "› with " +
+			strconv.Itoa(len(kinds)) + " methods: [\n" + strings.Join(lines, ",\n") + "\n]››")
+	}
+
+	for _, c := range []struct {
+		member string
+		want   Str
+	}{
+		{"Type", dump("time", "calendarDate", "calendarTime", "int", "rawstr", "str", "time", "uint")},
+		{"CalendarDate", dump("calendarDate", "calendarDate", "calendarTime", "int", "str", "time", "uint")},
+		{"CalendarTime", dump("calendarTime", "calendarDate", "calendarTime", "int", "str", "time", "uint")},
+		{"Duration", dump("duration", "duration", "int", "str", "uint")},
+		{"Location", dump("Location", "Location", "int", "rawstr", "str")},
 	} {
 		src := `time := import("time"); return repr(time.` + c.member + `; indent)`
-		want := Str("‹" + c.typ + ": ‹builtin type ‹" + c.typ + "› without methods››")
-		testExpectRun(t, src, newOpts().Module("time", gadtime.ModuleInit), want)
+		testExpectRun(t, src, newOpts().Module("time", gadtime.ModuleInit), c.want)
 	}
 }
 
@@ -496,7 +511,7 @@ func TestVMBuiltinModuleTime(t *testing.T) {
 	testExpectRun(t, `d := time.date(2009, 11, 10, 23, 0, 0, 0, time.utc()); return d.year()`, nil, Int(2009))
 	testExpectRun(t, `return typeName(time.now())`, nil, Str("time"))
 	// the type renders module-qualified (FullName)
-	testExpectRun(t, `return str(typeof(time.now()))`, nil, Str("‹builtin type ‹time.time››"))
+	testExpectRun(t, `return str(typeof(time.now()))`, nil, Str("‹builtin type ‹time.time› with 7 methods›"))
 	// the int(time) override is registered globally (no import), converting to a
 	// Unix timestamp
 	testExpectRun(t, `d := time.date(1970, 1, 1, 0, 0, 1, 0, time.utc()); return int(d)`, nil, Int(1))
