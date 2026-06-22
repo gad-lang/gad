@@ -33,7 +33,6 @@
   features (auto complete etc) on
   edit code/expression in template strings.
 
-- [ ] gad  "fmt" subcommand isn't preserving correctly comments `//` and `/* ... */`
 - [ ] parse RANGE binary operator `..` (example: `1 .. 2`).
 - [ ] implement this binary operator for knowed objects. compile to call `Range(FROM, TO; STEP=nil)<Range>`. `Range` is new builtin and `Iterable` type. with
   `from`, `to` and `step` fields.
