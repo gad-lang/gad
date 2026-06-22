@@ -33,16 +33,6 @@
   features (auto complete etc) on
   edit code/expression in template strings.
 
-- [ ] parse RANGE binary operator `..` (example: `1 .. 2`).
-- [ ] implement this binary operator for knowed objects. compile to call `Range(FROM, TO; STEP=nil)<Range>`. `Range` is new builtin and `Iterable` type. with
-  `from`, `to` and `step` fields.
-  the name of iterable object struct is [OBJECT_TYPE_NAME]Range. add method to here to set `step` (and binary operator
-  `/`) (example `rg := 1 .. 10; rg.step(2)`,
-  `rg := (1 .. 10).step(2)`, `rg := 1 .. 10 / 2 // as (1 .. 10) / 2`). default step is a mininal defined value of type,
-  example: `1..10 // step 1`/`2026-01-31T..2026-02-15T // step 1 day`/
-  `2026-01-31T09:00..2026-02-31T09:00T // step 1 hour` (for dates and types, step receives duration).
-  create samples, docs and parser/compiler/vm tests with `for` loop of range knowed objects with differents steps using binary operators (`..` and `/`) and `Range` constructor.
-   
 - [ ] parse binary user operators: 1) TripleLess `<<<`; 2) TripleGreater `>>>`; 3) DoubleMod `%%`; create assign
   operators version `<<<=`, `>>>=`, `%%=`. created samples (using `met @binaryOperator`), docs and parser/compiler/vm
   tests.
