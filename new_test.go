@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	. "github.com/gad-lang/gad"
+	gadtime "github.com/gad-lang/gad/stdlib/time"
 )
 
 func TestVMPrefixIncDec(t *testing.T) {
@@ -161,6 +162,21 @@ func TestVMRangeRepr(t *testing.T) {
 		"\t⨍(uint, uint) 🠆 ‹function Range(from uint, to uint; step)›\n" +
 		"]››"
 	testExpectRun(t, `return repr(Range; indent)`, nil, Str(want))
+}
+
+func TestVMTimeModuleTypesRepr(t *testing.T) {
+	// repr(time.<Type>; indent) of every type exported by the time module.
+	for _, c := range []struct{ member, typ string }{
+		{"Type", "time.time"},
+		{"CalendarDate", "time.calendarDate"},
+		{"CalendarTime", "time.calendarTime"},
+		{"Duration", "time.duration"},
+		{"Location", "time.Location"},
+	} {
+		src := `time := import("time"); return repr(time.` + c.member + `; indent)`
+		want := Str("‹" + c.typ + ": ‹builtin type ‹" + c.typ + "› without methods››")
+		testExpectRun(t, src, newOpts().Module("time", gadtime.ModuleInit), want)
+	}
 }
 
 func TestVMToArray(t *testing.T) {
