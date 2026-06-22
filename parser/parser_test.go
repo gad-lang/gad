@@ -315,10 +315,30 @@ func TestFormatCalcParams(t *testing.T) {
 	test.New(t, "func(a int|bool|string, b int) { return }").
 		FormattedCalcCode("func(\n\ta int | bool | string\n\tb int\n) {\n\treturn\n}", 28)
 
-	// When a single param's type union is still too wide, it continues after
-	// each `|` on its own indented line, the next param starting a new line.
+	// When a single param's type union is still too wide, its types wrap
+	// greedily (packed per line) with the `|` trailing each wrapped line and the
+	// continuation indented one extra level.
 	test.New(t, "f := func(verylongname int|boolean|string|number, other int) { return }").
-		FormattedCalcCode("f := func(\n\tverylongname int |\n\t\tboolean |\n\t\tstring |\n\t\tnumber\n\tother int\n) {\n\treturn\n}", 28)
+		FormattedCalcCode("f := func(\n\tverylongname int | boolean |\n\t\tstring | number\n\tother int\n) {\n\treturn\n}", 28)
+}
+
+func TestFormatCalcGreedy(t *testing.T) {
+	// Array items wrap greedily: packed per line, no comma at a break, content
+	// indented one level (no extra indent for continuation lines).
+	test.New(t, "x := [1, 2, 3, 4, 5, 6, 7, 8]").
+		FormattedCalcCode("x := [\n\t1, 2, 3, 4, 5\n\t6, 7, 8\n]", 14)
+
+	// Key-value array items wrap greedily the same way.
+	test.New(t, "x := (;a=1, b=2, c=3, d=4, e=5, f=6)").
+		FormattedCalcCode("x := (;\n\ta=1, b=2, c=3\n\td=4, e=5, f=6\n)", 14)
+
+	// A value-less declaration group wraps greedily with continuation lines
+	// indented one extra level.
+	test.New(t, "var (a, b, c, d, e, f, g, h)").
+		FormattedCalcCode("var (\n\ta, b, c, d, e\n\t\tf, g, h\n)", 14)
+
+	// A short construct stays inline.
+	test.New(t, "x := [1, 2, 3]").FormattedCalcCode("x := [1, 2, 3]", 80)
 }
 
 func TestFormatReturnUnion(t *testing.T) {

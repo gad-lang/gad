@@ -511,6 +511,33 @@ func (ctx *CodeWriteContext) WriteItemsSep(inNewLine bool, count int, inlineSep,
 	}
 }
 
+// WriteGreedy renders count items using the column-aware overflow rule: items
+// are packed onto the current line with itemSep between them and continue on a
+// new line only when the next item would overflow MaxColumns. breakConnector is
+// appended to the line just before a wrap newline (e.g. "" to drop a comma, or
+// " |" to keep a union bar). Continuation lines are written at the current
+// ctx.Depth, so a caller wanting an extra indent level bumps Depth before
+// calling. The caller positions the cursor for item 0 (this writes no leading
+// newline).
+func (ctx *CodeWriteContext) WriteGreedy(count int, itemSep, breakConnector string, do func(i int)) {
+	if count == 0 {
+		return
+	}
+	do(0)
+	for i := 1; i < count; i++ {
+		w, _ := ctx.measure(0, func() { do(i) })
+		if ctx.Column()+len(itemSep)+w > ctx.maxColumns() {
+			ctx.WriteString(breakConnector)
+			ctx.WriteSecondLine()
+			ctx.WritePrefix()
+			do(i)
+		} else {
+			ctx.WriteString(itemSep)
+			do(i)
+		}
+	}
+}
+
 func (ctx *CodeWriteContext) WriteExprs(sep string, expr ...Expr) {
 	for i, e := range expr {
 		if i > 0 {

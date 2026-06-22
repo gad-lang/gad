@@ -147,7 +147,30 @@ func (s *ValueSpec) String() string {
 	return strings.Join(vals, ", ")
 }
 
+// valueless reports whether the spec declares only identifiers (no initial
+// values), e.g. `a, b, c`.
+func (s *ValueSpec) valueless() bool {
+	for _, v := range s.Values {
+		if v != nil {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *ValueSpec) WriteCode(ctx *CodeWriteContext) {
+	// A value-less spec wraps its identifiers greedily under NEW_LINE_CALC:
+	// packed onto the line, continued on the next (extra-indented) line only on
+	// overflow, with no comma at the break.
+	if s.valueless() && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {
+		ctx.Depth++
+		ctx.WriteGreedy(len(s.Idents), ", ", "", func(i int) {
+			s.Idents[i].WriteCode(ctx)
+		})
+		ctx.Depth--
+		return
+	}
+
 	last := len(s.Idents) - 1
 	for i := range s.Idents {
 		s.Idents[i].WriteCode(ctx)
@@ -296,9 +319,27 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 	}
 
 	ctx.WriteString(" (")
+	write := func(i int) { d.Specs[i].WriteCode(ctx) }
 	inNewLine := ctx.DecideNewLine(
-		CodeWriteContextFlagFormatDeclItemInNewLine, len(d.Specs), ", ", 1,
-		func(i int) { d.Specs[i].WriteCode(ctx) })
+		CodeWriteContextFlagFormatDeclItemInNewLine, len(d.Specs), ", ", 1, write)
+
+	// A group of only value-less specs wraps greedily under NEW_LINE_CALC:
+	// packed onto the line, continued on the next (extra-indented) line only on
+	// overflow, with no comma at the break.
+	if inNewLine && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) && d.allValueless() {
+		ctx.Depth++
+		ctx.WriteSecondLine()
+		ctx.WritePrefix()
+		ctx.Depth++
+		ctx.WriteGreedy(len(d.Specs), ", ", "", write)
+		ctx.Depth--
+		ctx.WriteSecondLine()
+		ctx.Depth--
+		ctx.WritePrefix()
+		ctx.WriteSingleByte(')')
+		return
+	}
+
 	if inNewLine {
 		ctx.Depth++
 	}
@@ -339,6 +380,18 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 		ctx.WritePrefix()
 	}
 	ctx.WriteSingleByte(')')
+}
+
+// allValueless reports whether every spec in the group is a value-less value
+// spec (just identifiers, no initial values), e.g. `var (a, b, c)`.
+func (d *GenDecl) allValueless() bool {
+	for _, sp := range d.Specs {
+		vs, ok := sp.(*ValueSpec)
+		if !ok || !vs.valueless() {
+			return false
+		}
+	}
+	return len(d.Specs) > 0
 }
 
 func (d *GenDecl) Params() (positional []*ParamSpec, named []*NamedParamSpec) {

@@ -781,26 +781,34 @@ func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
 		if l == 1 {
 			e.Elements[0].WriteCode(ctx)
 		} else {
-			ctx.WriteItemsSep(
-				ctx.DecideNewLine(
-					CodeWriteContextFlagFormatKeyValueArrayItemInNewLine,
-					len(e.Elements), ", ", 1,
-					func(i int) { e.Elements[i].WriteCode(ctx) }),
-				len(e.Elements),
-				", ",
-				"",
-				func(i int) {
-					e.Elements[i].WriteCode(ctx)
-				},
-				func(nl bool) {
-					if nl {
-						if ctx.HasPrefix() {
-							ctx.WriteSecondLine()
-						} else {
-							ctx.WriteLine(", ")
+			write := func(i int) { e.Elements[i].WriteCode(ctx) }
+			inNewLine := ctx.DecideNewLine(
+				CodeWriteContextFlagFormatKeyValueArrayItemInNewLine, l, ", ", 1, write)
+			if inNewLine && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {
+				// greedy: pack items per line, no comma at a wrap, no extra indent.
+				ctx.Depth++
+				ctx.WriteSecondLine()
+				ctx.WritePrefix()
+				ctx.WriteGreedy(l, ", ", "", write)
+				ctx.WriteSecondLine()
+				ctx.Depth--
+			} else {
+				ctx.WriteItemsSep(
+					inNewLine,
+					l,
+					", ",
+					"",
+					write,
+					func(nl bool) {
+						if nl {
+							if ctx.HasPrefix() {
+								ctx.WriteSecondLine()
+							} else {
+								ctx.WriteLine(", ")
+							}
 						}
-					}
-				})
+					})
+			}
 		}
 	}
 	ctx.WriteSingleByte(')')

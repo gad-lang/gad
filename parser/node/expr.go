@@ -303,8 +303,9 @@ func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
 
 	// A union is spelled with a space before each `|`. When it stays on one line
 	// the `|` also has a trailing space (`int | bool`); when a multi-type union
-	// overflows under NEW_LINE_CALC each type continues on its own indented line
-	// with the `|` trailing the line and no space after it.
+	// overflows under NEW_LINE_CALC the types wrap greedily — packed onto the
+	// line and continued on the next (extra-indented) line only when the next
+	// type would overflow, with the `|` trailing the line and no space after it.
 	wrap := false
 	if len(e.Type) > 1 && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {
 		width, multiline := ctx.measure(ctx.Column(), func() {
@@ -319,18 +320,10 @@ func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
 	}
 
 	ctx.WriteString(e.Ident.String(), " ")
-	ctx.Depth++
-	last := len(e.Type) - 1
-	for i, t := range e.Type {
-		if i > 0 {
-			ctx.WriteSecondLine()
-			ctx.WritePrefix()
-		}
-		ctx.WriteString(t.String())
-		if i != last {
-			ctx.WriteString(" |")
-		}
-	}
+	ctx.Depth++ // continuation lines indent one extra level
+	ctx.WriteGreedy(len(e.Type), " | ", " |", func(i int) {
+		ctx.WriteString(e.Type[i].String())
+	})
 	ctx.Depth--
 }
 
@@ -2115,24 +2108,34 @@ func (e *ArrayExpr) WriteCode(ctx *CodeWriteContext) {
 		if l == 1 {
 			e.Elements[0].WriteCode(ctx)
 		} else {
-			inLineLine := ctx.DecideNewLine(
-				CodeWriteContextFlagFormatArrayItemInNewLine, len(e.Elements), ", ", 1,
-				func(i int) { e.Elements[i].WriteCode(ctx) })
-			ctx.WriteItemsSep(
-				inLineLine,
-				len(e.Elements),
-				", ",
-				"",
-				func(i int) {
-					e.Elements[i].WriteCode(ctx)
-				},
-				func(newLine bool) {
-					if newLine {
-						ctx.WriteSecondLine()
-					}
-				})
-			if inLineLine {
+			write := func(i int) { e.Elements[i].WriteCode(ctx) }
+			inNewLine := ctx.DecideNewLine(
+				CodeWriteContextFlagFormatArrayItemInNewLine, len(e.Elements), ", ", 1, write)
+			if inNewLine && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {
+				// greedy: pack items onto each line, no comma at a wrap, content
+				// indented one level (no extra indent for continuation lines).
+				ctx.Depth++
+				ctx.WriteSecondLine()
 				ctx.WritePrefix()
+				ctx.WriteGreedy(len(e.Elements), ", ", "", write)
+				ctx.WriteSecondLine()
+				ctx.Depth--
+				ctx.WritePrefix()
+			} else {
+				ctx.WriteItemsSep(
+					inNewLine,
+					len(e.Elements),
+					", ",
+					"",
+					write,
+					func(newLine bool) {
+						if newLine {
+							ctx.WriteSecondLine()
+						}
+					})
+				if inNewLine {
+					ctx.WritePrefix()
+				}
 			}
 		}
 	}

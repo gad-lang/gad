@@ -135,6 +135,40 @@ d := {
 }
 ```
 
+### Greedy overflow wrapping
+
+Some constructs use the **overflow rule** instead of one-item-per-line under
+`NEW_LINE_CALC`: the items are **packed greedily** onto each line and continue on
+a new line only when the *next* item would overflow `ctx.MaxColumns`. A
+newline-separable item carries **no comma** at the break (commas still separate
+items that share a line). The constructs and whether their continuation lines get
+an extra indent level:
+
+| Construct                       | Separator | Extra indent on continuation |
+|:--------------------------------|:----------|:-----------------------------|
+| array items                     | `, `      | no                           |
+| key-value array items           | `, `      | no                           |
+| type unions (params, returns)   | ` \| `    | yes                          |
+| value-less declaration groups   | `, `      | yes                          |
+| match arm conditions            | `, `      | yes                          |
+
+```gad
+// array / key-value array: no extra indent
+x := [
+    1, 2, 3, 4
+    5, 6, 7, 8
+]
+
+// value-less declaration group: continuation indented one extra level
+var (
+    a, b, c, d, e
+        f, g, h
+)
+```
+
+A type union keeps its `|` connector at the break (the newline cannot separate
+union members), so a wrapped union line ends with a trailing ` |`.
+
 ### Function and call parameters
 
 Function declaration parameters and call arguments may also be written one per
@@ -145,16 +179,16 @@ line (a comma is optional; the newline separates them). Two extra rules apply:
 - A **type union is spaced around each `|`** when it stays on one line:
   `a int | bool | string`. A single space always precedes the `|`; a trailing
   space follows it **only when the next type is on the same line**.
-- When a parameter's **type union is too wide** for the line, continue the type
-  on the next line **after a `|`** (the ident stays with the start of the type),
-  and put the next parameter on its own following line. Because the next type
-  starts a new line, the `|` has no trailing space:
+- When a parameter's **type union is too wide** for the line, the types wrap
+  **greedily** (see [Greedy overflow wrapping](#greedy-overflow-wrapping)): they
+  are packed onto the line and continue on the next line only when the next type
+  would overflow. A wrapped line ends with a trailing `|` (no space after it) and
+  the continuation is indented one extra level:
 
   ```gad
   func(
-      a int |
-          bool |
-          string
+      verylongname int | boolean |
+          string | number
       b int
   )
   ```
