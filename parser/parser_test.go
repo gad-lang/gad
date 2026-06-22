@@ -4325,6 +4325,14 @@ func TestParsePrecedence(t *testing.T) {
 	test.ExpectParseString(t, `a ~ b ~ c .| d`, `(((a ~ b) ~ c) .| d)`)
 	test.ExpectParseString(t, `a ~ b / c`, `((a ~ b) / c)`)
 	test.ExpectParseString(t, `a ** b * c; d * e ** f`, `((a ** b) * c); (d * (e ** f))`)
+	// the range operator `..` binds tighter than `/` so the `/ step` groups
+	// outside the range.
+	test.ExpectParseString(t, `1 .. 2`, `(1 .. 2)`)
+	test.ExpectParseString(t, `1..2`, `(1 .. 2)`)
+	test.ExpectParseString(t, `1 .. 10 / 2`, `((1 .. 10) / 2)`)
+	test.ExpectParseString(t, `(1 .. 10) / 2`, `((1 .. 10) / 2)`)
+	test.ExpectParseString(t, `a.b .. c`, `(a.b .. c)`)
+	test.ExpectParseString(t, `1.5 .. 2.0`, `(1.5 .. 2.0)`)
 }
 
 func TestParseNullishSelector(t *testing.T) {

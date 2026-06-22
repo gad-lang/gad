@@ -434,7 +434,10 @@ do:
 		case ':':
 			t.Token = s.Switch2(token.Colon, token.Define)
 		case '.':
-			if s.Ch == '|' {
+			if s.Ch == '.' {
+				s.Next()
+				t.Token = token.DotDot
+			} else if s.Ch == '|' {
 				s.Next()
 				t.Token = token.Pipe
 			} else if '0' <= s.Ch && s.Ch <= '9' {

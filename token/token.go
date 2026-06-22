@@ -60,6 +60,7 @@ const (
 	Tilde       // ~
 	DoubleTilde // ~~
 	TripleTilde // ~~~
+	DotDot      // ..
 	Lambda      // =>
 	GroupBinaryOperatorEnd
 	GroupDefaultOperatorBegin
@@ -263,6 +264,7 @@ var tokens = [...]string{
 	Tilde:           "~",
 	DoubleTilde:     "~~",
 	TripleTilde:     "~~~",
+	DotDot:          "..",
 	Lambda:          "=>",
 	Define:          ":=",
 	Pipe:            ".|",
@@ -373,6 +375,7 @@ var tokenNames = [...]string{
 	Tilde:                        "Tilde",
 	DoubleTilde:                  "DoubleTilde",
 	TripleTilde:                  "TripleTilde",
+	DotDot:                       "DotDot",
 	Lambda:                       "Lambda",
 	GroupBinaryOperatorEnd:       "GroupBinaryOperatorEnd",
 	GroupDefaultOperatorBegin:    "GroupDefaultOperatorBegin",
@@ -499,6 +502,10 @@ func (tok Token) Precedence() int {
 		return 6
 	case Pow:
 		return 7
+	case DotDot:
+		// the range operator binds tighter than `/` so that `1 .. 10 / 2`
+		// groups as `(1 .. 10) / 2` (the `/ 2` becomes the range step).
+		return 8
 	case Pipe:
 		return 8
 	case Tilde, DoubleTilde, TripleTilde:

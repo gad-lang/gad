@@ -909,7 +909,9 @@ func (s *Reader) ScanNumber(seenDecimalPoint bool) (tok NumberType, lit string) 
 	}
 
 fraction:
-	if s.Ch == '.' {
+	// A `.` immediately followed by another `.` is the range operator `..`
+	// (e.g. `1..2`), not a decimal point, so the number stops before it.
+	if s.Ch == '.' && s.Peek() != '.' {
 		tok = Float
 		s.Next()
 		s.ScanMantissa(10)
