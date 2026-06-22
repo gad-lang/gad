@@ -37,6 +37,7 @@ Always run native Go tooling to verify compliance and correctness:
 - **Idiomatic Go**: Follow standard `golang/go` conventions (Receiver names short, explicit error handling as returning values).
 - **Error Wrapping**: Use `fmt.Errorf("...: %w", err)` for contextual errors in parsing/compilation steps.
 - **VM Instructions**: Name opcode constants clearly inside the VM package (e.g., `OpAdd`, `OpPush`).
+- **Typed methods via `AddMethod`**: When a builtin function or object type accepts more than one argument shape, register typed overloads with `AddMethod` + `NewFunction(name, handler, FunctionWithParams(...))` (use `BuiltinObjects.AddMethod` for global builtins) instead of a single hand-rolled type switch. The VM dispatches on argument types and the signatures appear in `repr(x; indent)`. See `doc/embedding.md` (Typed Methods with `AddMethod`), `objects_range.go` and `module_time_ctors.go`.
 - **Documentation**: All public structural types, VM instructions, and compiler features must have standard Go doc comments.
 - **Gad Lang code Conventions**
   - primitive type name is camelCase.

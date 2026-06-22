@@ -89,6 +89,79 @@ globals := gad.Dict{
 For wrapping existing Go functions with less boilerplate, the repository
 provides the `cmd/mkcallable` code generator.
 
+## Typed Methods with `AddMethod`
+
+A plain `*gad.Function` has one body that must type-check its own arguments. To
+give a callable **several typed overloads** that the VM dispatches on by argument
+type — and to surface their signatures in `repr(f; indent)` and generated docs —
+build each overload with `gad.NewFunction(...)` plus `gad.FunctionWithParams` /
+`gad.FunctionWithNamedParams`, then attach them with `gad.AddMethod`.
+
+**Convention:** prefer `AddMethod` (over a single hand-rolled type switch)
+whenever a builtin function or type accepts more than one argument shape. Each
+overload then carries a declared header, dispatch is handled by the VM, and the
+signatures show up in tooling.
+
+```go
+// A `clamp` builtin with two typed overloads. The VM picks the int or the
+// float method based on the argument types; an unmatched call falls through to
+// the function's default body (here, an error).
+clamp := gad.NewFunction("clamp",
+    func(c gad.Call) (gad.Object, error) {
+        return nil, gad.NewArgumentTypeError("0", "int|float", c.Args.Get(0).Type().Name())
+    })
+
+method := func(t gad.ObjectType, run func(c gad.Call) (gad.Object, error)) *gad.Function {
+    return gad.NewFunction("clamp", run,
+        gad.FunctionWithParams(func(p func(name string) *gad.ParamBuilder) {
+            p("v").Type(t)
+            p("lo").Type(t)
+            p("hi").Type(t)
+        }))
+}
+
+gad.AddMethod(clamp,
+    method(gad.TInt, func(c gad.Call) (gad.Object, error) {
+        v, lo, hi := c.Args.Get(0).(gad.Int), c.Args.Get(1).(gad.Int), c.Args.Get(2).(gad.Int)
+        return max(lo, min(v, hi)), nil
+    }),
+    method(gad.TFloat, func(c gad.Call) (gad.Object, error) {
+        v, lo, hi := c.Args.Get(0).(gad.Float), c.Args.Get(1).(gad.Float), c.Args.Get(2).(gad.Float)
+        return max(lo, min(v, hi)), nil
+    }),
+)
+// script: global clamp; return [clamp(5, 0, 3), clamp(0.2, 0.0, 1.0)] // [3, 0.2]
+```
+
+`AddMethod` works on any method target: a `*gad.Function` (as above), a builtin
+object type (`*gad.BuiltinObjType`), or a registered global builtin. For a
+**type**, the overloads become typed constructors/methods:
+
+```go
+// Add typed single-argument constructors to a builtin type. Each delegates to
+// the type's own constructor; the typed `T(v <kind>)` headers then appear in
+// repr(T; indent). (`AddMethod` mutates the type in place.)
+gad.AddMethod(MyType,
+    gad.NewFunction("MyType", myTypeNew,
+        gad.FunctionWithParams(func(p func(name string) *gad.ParamBuilder) {
+            p("v").Type(gad.TStr)
+        })),
+    gad.NewFunction("MyType", myTypeNew,
+        gad.FunctionWithParams(func(p func(name string) *gad.ParamBuilder) {
+            p("v").Type(gad.TInt)
+        })),
+)
+```
+
+For a **global builtin** registered in `gad.BuiltinObjects`, use
+`gad.BuiltinObjects.AddMethod(BuiltinX, methods...)` instead of the package-level
+`AddMethod` — it reassigns the entry so the methods survive the static-builtins
+snapshot. (See `objects_range.go` for the `Range` type and `module_time_ctors.go`
+for the time-module constructors, both built this way.)
+
+`gad.AddMethodOverride(true, target, methods...)` replaces an existing overload
+with the same parameter types instead of erroring on the duplicate.
+
 ## Reusing a VM
 
 A `VM` is reusable. After a run you can run again; `Clear` releases references
