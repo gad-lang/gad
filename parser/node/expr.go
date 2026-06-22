@@ -1645,7 +1645,7 @@ func (m *FuncMethod) String() string {
 
 func (m *FuncMethod) WriteCode(ctx *CodeWriteContext) {
 	m.Params.WriteCode(ctx)
-	ctx.WriteString(FormatFuncReturn(m.Return))
+	WriteFuncReturn(ctx, m.Return)
 	ctx.WriteString(" ")
 	if m.BodyExpr != nil {
 		ctx.WriteString("=> ")
@@ -2009,7 +2009,8 @@ func (e *ClosureExpr) String() string {
 
 func (e *ClosureExpr) WriteCode(ctx *CodeWriteContext) {
 	e.Params.WriteCode(ctx)
-	ctx.WriteString(FormatFuncReturn(e.Return), e.sep(), " ")
+	WriteFuncReturn(ctx, e.Return)
+	ctx.WriteString(e.sep(), " ")
 	if block, ok := e.Body.(*BlockExpr); ok {
 		block.WriteCode(ctx)
 	} else {

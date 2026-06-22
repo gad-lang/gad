@@ -136,3 +136,15 @@ line (a comma is optional; the newline separates them). Two extra rules apply:
       b int
   )
   ```
+
+### Function return types
+
+A function's return-type list is written in angle brackets after the
+parameters: ` <T1, T2, ...>`. Each return type follows the same **union spacing**
+rule as parameters — a space around each `|` when it stays on one line:
+
+```gad
+func() <x int | bool, y str> {
+    return 1
+}
+```

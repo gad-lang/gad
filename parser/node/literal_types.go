@@ -398,7 +398,7 @@ func (e *FuncHeader) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString(e.NameExpr.String())
 	}
 	e.Params.WriteCode(ctx)
-	ctx.WriteString(FormatFuncReturn(e.Return))
+	WriteFuncReturn(ctx, e.Return)
 }
 
 // FuncType represents a function type definition.
@@ -466,4 +466,25 @@ func FormatFuncReturn(ret []*TypedIdentExpr) string {
 		s[i] = t.String()
 	}
 	return " <" + strings.Join(s, ", ") + ">"
+}
+
+// WriteFuncReturn is the WriteCode counterpart of FormatFuncReturn: it renders
+// the return-type list applying the union spacing rule (` | ` around each `|`),
+// inline within the `< >`.
+func WriteFuncReturn(ctx *CodeWriteContext, ret []*TypedIdentExpr) {
+	if len(ret) == 0 {
+		return
+	}
+	ctx.WriteString(" <")
+	for i, t := range ret {
+		if i > 0 {
+			ctx.WriteString(", ")
+		}
+		if len(t.Type) == 0 {
+			ctx.WriteString(t.String())
+		} else {
+			t.writeInlineUnion(ctx)
+		}
+	}
+	ctx.WriteString(">")
 }

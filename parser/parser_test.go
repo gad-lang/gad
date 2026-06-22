@@ -321,6 +321,14 @@ func TestFormatCalcParams(t *testing.T) {
 		FormattedCalcCode("f := func(\n\tverylongname int |\n\t\tboolean |\n\t\tstring |\n\t\tnumber\n\tother int\n) {\n\treturn\n}", 28)
 }
 
+func TestFormatReturnUnion(t *testing.T) {
+	// Return-type unions are spaced around `|` just like parameter unions.
+	test.New(t, "func() <x int|bool> { return 1 }").
+		IndentedCode("func() <x int | bool> {\n\treturn 1\n}")
+	test.New(t, "func() <x int|bool, y str> { return 1 }").
+		IndentedCode("func() <x int | bool, y str> {\n\treturn 1\n}")
+}
+
 func TestFormatMixedMode(t *testing.T) {
 	mixed := func(src string) *test.Parser {
 		return test.New(t, src).WithMixed().
