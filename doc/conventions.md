@@ -148,21 +148,19 @@ an extra indent level:
 |:--------------------------------|:----------|:-----------------------------|
 | array items                     | `, `      | no                           |
 | key-value array items           | `, `      | no                           |
+| value-less declaration groups   | `, `      | no                           |
 | type unions (params, returns)   | ` \| `    | yes                          |
-| value-less declaration groups   | `, `      | yes                          |
 | match arm conditions            | `, `      | yes                          |
 
 ```gad
-// array / key-value array: no extra indent
+// array / key-value array / value-less declaration: no extra indent
 x := [
     1, 2, 3, 4
     5, 6, 7, 8
 ]
-
-// value-less declaration group: continuation indented one extra level
 var (
     a, b, c, d, e
-        f, g, h
+    f, g, h
 )
 ```
 

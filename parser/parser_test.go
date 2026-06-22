@@ -332,10 +332,9 @@ func TestFormatCalcGreedy(t *testing.T) {
 	test.New(t, "x := (;a=1, b=2, c=3, d=4, e=5, f=6)").
 		FormattedCalcCode("x := (;\n\ta=1, b=2, c=3\n\td=4, e=5, f=6\n)", 14)
 
-	// A value-less declaration group wraps greedily with continuation lines
-	// indented one extra level.
+	// A value-less declaration group wraps greedily (no extra indent).
 	test.New(t, "var (a, b, c, d, e, f, g, h)").
-		FormattedCalcCode("var (\n\ta, b, c, d, e\n\t\tf, g, h\n)", 14)
+		FormattedCalcCode("var (\n\ta, b, c, d, e\n\tf, g, h\n)", 14)
 
 	// A short construct stays inline.
 	test.New(t, "x := [1, 2, 3]").FormattedCalcCode("x := [1, 2, 3]", 80)

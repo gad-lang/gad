@@ -324,15 +324,13 @@ func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
 		CodeWriteContextFlagFormatDeclItemInNewLine, len(d.Specs), ", ", 1, write)
 
 	// A group of only value-less specs wraps greedily under NEW_LINE_CALC:
-	// packed onto the line, continued on the next (extra-indented) line only on
-	// overflow, with no comma at the break.
+	// packed onto the line, continued on the next line only on overflow, with no
+	// comma at the break (content indented one level, no extra indent).
 	if inNewLine && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) && d.allValueless() {
 		ctx.Depth++
 		ctx.WriteSecondLine()
 		ctx.WritePrefix()
-		ctx.Depth++
 		ctx.WriteGreedy(len(d.Specs), ", ", "", write)
-		ctx.Depth--
 		ctx.WriteSecondLine()
 		ctx.Depth--
 		ctx.WritePrefix()
