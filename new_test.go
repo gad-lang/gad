@@ -111,6 +111,28 @@ func TestVMBinaryIncDec(t *testing.T) {
 		newOpts(), "unsupported operand")
 }
 
+func TestVMRange(t *testing.T) {
+	collect := func(src string) string {
+		return `out := []; for v in ` + src + ` { out = append(out, v) }; return out`
+	}
+	// `..` ascending and descending integer ranges (inclusive).
+	testExpectRun(t, collect(`1 .. 5`), nil, Array{Int(1), Int(2), Int(3), Int(4), Int(5)})
+	testExpectRun(t, collect(`5 .. 1`), nil, Array{Int(5), Int(4), Int(3), Int(2), Int(1)})
+	// `1 .. 10 / 2` parses as `(1 .. 10) / 2` -> Range(1, 10; step=2).
+	testExpectRun(t, collect(`1 .. 10 / 2`), nil, Array{Int(1), Int(3), Int(5), Int(7), Int(9)})
+	testExpectRun(t, collect(`(1 .. 10) / 3`), nil, Array{Int(1), Int(4), Int(7), Int(10)})
+	// char ranges.
+	testExpectRun(t, collect(`'a' .. 'e'`), nil, Array{Char('a'), Char('b'), Char('c'), Char('d'), Char('e')})
+	// the Range constructor and its named step.
+	testExpectRun(t, collect(`Range(0, 6; step=2)`), nil, Array{Int(0), Int(2), Int(4), Int(6)})
+	// `.step()` reads the magnitude; `.step(n)` returns a new range.
+	testExpectRun(t, `return (1 .. 10).step()`, nil, Int(1))
+	testExpectRun(t, `return (1 .. 10 / 4).step()`, nil, Int(4))
+	testExpectRun(t, collect(`(1 .. 10).step(5)`), nil, Array{Int(1), Int(6)})
+	// from/to fields.
+	testExpectRun(t, `r := 3 .. 9; return [r.from, r.to]`, nil, Array{Int(3), Int(9)})
+}
+
 func TestVMPowFractional(t *testing.T) {
 	// integer powers are unchanged (int**int and decimal yield a decimal)
 	testExpectRun(t, `return 2 ** 10`, nil, DecimalFromInt(1024))

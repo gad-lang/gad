@@ -2033,7 +2033,47 @@ func (c *Compiler) compileLogical(nd *node.BinaryExpr) error {
 	return nil
 }
 
+// asRangeExpr unwraps parentheses and returns the underlying `..` BinaryExpr,
+// or nil when e is not a range expression.
+func asRangeExpr(e node.Expr) *node.BinaryExpr {
+	for {
+		switch t := e.(type) {
+		case *node.ParenExpr:
+			e = t.Expr
+		case *node.BinaryExpr:
+			if t.Token == token.DotDot {
+				return t
+			}
+			return nil
+		default:
+			return nil
+		}
+	}
+}
+
+// rangeCallExpr builds the `Range(from, to[; step=step])` call that a `..`
+// expression compiles to.
+func rangeCallExpr(from, to, step node.Expr) *node.CallExpr {
+	call := &node.CallExpr{Func: &node.IdentExpr{Name: "Range"}}
+	call.CallArgs.Args.Values = []node.Expr{from, to}
+	if step != nil {
+		call.CallArgs.NamedArgs.AppendS("step", step)
+	}
+	return call
+}
+
 func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
+	// `from .. to` is sugar for `Range(from, to)`; `(from .. to) / step` (and the
+	// equivalent `from .. to / step`) is `Range(from, to; step=step)`.
+	if nd.Token == token.DotDot {
+		return c.Compile(rangeCallExpr(nd.LHS, nd.RHS, nil))
+	}
+	if nd.Token == token.Quo {
+		if rng := asRangeExpr(nd.LHS); rng != nil {
+			return c.Compile(rangeCallExpr(rng.LHS, rng.RHS, nd.RHS))
+		}
+	}
+
 	if nd.Token == token.Pipe {
 		var call node.CallExpr
 		switch t := nd.RHS.(type) {

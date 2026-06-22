@@ -88,6 +88,7 @@ const (
 	BuiltinStaticTypeObjectTypeArray
 	BuiltinStaticTypeReflectMethod
 	BuiltinStaticTypeIndexGetProxy
+	BuiltinRange
 	BuiltinStaticTypesEnd_
 
 	BuiltinFunctionsBegin_
