@@ -172,31 +172,43 @@ func (n *FuncParams) String() string {
 	return buf.String()
 }
 
-// funcParamItem is one rendered parameter plus whether it belongs to the named
-// (`;`) section.
+// funcParamItem is one parameter: a column-aware writer plus whether it belongs
+// to the named (`;`) section.
 type funcParamItem struct {
-	s     string
+	write func(ctx *CodeWriteContext)
 	named bool
 }
 
-// items flattens the positional and named parameters into their rendered forms.
+// items flattens the positional and named parameters into their writers. A
+// typed param is written via TypedIdentExpr.WriteCode so its type union can wrap
+// when it overflows the line.
 func (n *FuncParams) items() []funcParamItem {
 	var items []funcParamItem
 	for _, e := range n.Args.Values {
-		items = append(items, funcParamItem{s: e.String()})
+		e := e
+		items = append(items, funcParamItem{write: e.WriteCode})
 	}
 	if n.Args.Var != nil {
-		items = append(items, funcParamItem{s: "*" + n.Args.Var.String()})
+		e := n.Args.Var
+		items = append(items, funcParamItem{write: func(ctx *CodeWriteContext) {
+			ctx.WriteString("*")
+			e.WriteCode(ctx)
+		}})
 	}
 	for i, e := range n.NamedArgs.Names {
-		s := e.String()
-		if v := n.NamedArgs.Values[i]; v != nil {
-			s += "=" + v.String()
-		}
-		items = append(items, funcParamItem{s: s, named: true})
+		e, v := e, n.NamedArgs.Values[i]
+		items = append(items, funcParamItem{named: true, write: func(ctx *CodeWriteContext) {
+			e.WriteCode(ctx)
+			if v != nil {
+				ctx.WriteString("=", v.String())
+			}
+		}})
 	}
 	if n.NamedArgs.Var != nil {
-		items = append(items, funcParamItem{s: "**" + n.NamedArgs.Var.String(), named: true})
+		v := n.NamedArgs.Var.String()
+		items = append(items, funcParamItem{named: true, write: func(ctx *CodeWriteContext) {
+			ctx.WriteString("**", v)
+		}})
 	}
 	return items
 }
@@ -215,7 +227,7 @@ func (n *FuncParams) WriteCode(ctx *CodeWriteContext) {
 			if it.named {
 				ctx.WriteString("; ")
 			}
-			ctx.WriteString(it.s)
+			it.write(ctx)
 		}
 		ctx.WriteSingleByte(')')
 		return
@@ -246,7 +258,7 @@ func (n *FuncParams) WriteCode(ctx *CodeWriteContext) {
 		CodeWriteContextFlagFormatCallParamsInNewLine, len(items), 1, func() {
 			for i, it := range items {
 				sep(i)
-				ctx.WriteString(it.s)
+				it.write(ctx)
 			}
 		})
 
@@ -258,7 +270,7 @@ func (n *FuncParams) WriteCode(ctx *CodeWriteContext) {
 			if it.named && i == firstNamed {
 				ctx.WriteString("; ")
 			}
-			ctx.WriteString(it.s)
+			it.write(ctx)
 		}
 		ctx.WriteSecondLine()
 		ctx.Depth--
@@ -266,7 +278,7 @@ func (n *FuncParams) WriteCode(ctx *CodeWriteContext) {
 	} else {
 		for i, it := range items {
 			sep(i)
-			ctx.WriteString(it.s)
+			it.write(ctx)
 		}
 	}
 	ctx.WriteSingleByte(')')

@@ -291,7 +291,38 @@ func (e *TypedIdentExpr) String() string {
 }
 
 func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(e.String())
+	// Only a multi-type union may wrap, and only under NEW_LINE_CALC when it
+	// overflows the line. Otherwise render inline via String().
+	if e == nil || len(e.Type) <= 1 ||
+		!ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {
+		ctx.WriteString(e.String())
+		return
+	}
+
+	width, multiline := ctx.measure(ctx.Column(), func() {
+		ctx.WriteString(e.String())
+	})
+	if !multiline && width <= ctx.maxColumns() {
+		ctx.WriteString(e.String())
+		return
+	}
+
+	// Wrap the union: keep `ident type0|` on the first line, then continue each
+	// remaining type on its own indented line, the `|` trailing the line.
+	ctx.WriteString(e.Ident.String(), " ")
+	ctx.Depth++
+	last := len(e.Type) - 1
+	for i, t := range e.Type {
+		if i > 0 {
+			ctx.WriteSecondLine()
+			ctx.WritePrefix()
+		}
+		ctx.WriteString(t.String())
+		if i != last {
+			ctx.WriteString("|")
+		}
+	}
+	ctx.Depth--
 }
 
 // ImportExpr represents an import expression

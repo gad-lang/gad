@@ -305,6 +305,22 @@ func TestFormatDecl(t *testing.T) {
 	test.New(t, "param (;x, **y)").Code("param (; x, **y)")
 }
 
+func TestFormatCalcParams(t *testing.T) {
+	// Short param lists stay inline under the column budget.
+	test.New(t, "func(a int, b int) { return }").
+		FormattedCalcCode("func(a int, b int) {\n\treturn\n}", 40)
+
+	// When the list overflows, params split one per line (no commas); a typed
+	// param keeps its ident and type together.
+	test.New(t, "func(a int|bool|string, b int) { return }").
+		FormattedCalcCode("func(\n\ta int|bool|string\n\tb int\n) {\n\treturn\n}", 28)
+
+	// When a single param's type union is still too wide, it continues after
+	// each `|` on its own indented line, the next param starting a new line.
+	test.New(t, "f := func(verylongname int|boolean|string|number, other int) { return }").
+		FormattedCalcCode("f := func(\n\tverylongname int|\n\t\tboolean|\n\t\tstring|\n\t\tnumber\n\tother int\n) {\n\treturn\n}", 28)
+}
+
 func TestFormatMixedMode(t *testing.T) {
 	mixed := func(src string) *test.Parser {
 		return test.New(t, src).WithMixed().
