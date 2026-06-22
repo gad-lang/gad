@@ -317,9 +317,10 @@ func TestFormatCalcParams(t *testing.T) {
 
 	// When a single param's type union is still too wide, its types wrap
 	// greedily (packed per line) with the `|` trailing each wrapped line and the
-	// continuation indented one extra level.
+	// continuation indented one extra level; the params themselves also pack
+	// greedily, so the next param joins the union's last line when it fits.
 	test.New(t, "f := func(verylongname int|boolean|string|number, other int) { return }").
-		FormattedCalcCode("f := func(\n\tverylongname int | boolean |\n\t\tstring | number\n\tother int\n) {\n\treturn\n}", 28)
+		FormattedCalcCode("f := func(\n\tverylongname int | boolean |\n\t\tstring | number, other int\n) {\n\treturn\n}", 28)
 }
 
 func TestFormatCalcGreedy(t *testing.T) {
@@ -338,6 +339,19 @@ func TestFormatCalcGreedy(t *testing.T) {
 
 	// A short construct stays inline.
 	test.New(t, "x := [1, 2, 3]").FormattedCalcCode("x := [1, 2, 3]", 80)
+
+	// Function header params wrap greedily (no extra indent).
+	test.New(t, "func(aa, bb, cc, dd, ee, ff, gg) { return }").
+		FormattedCalcCode("func(\n\taa, bb, cc, dd\n\tee, ff, gg\n) {\n\treturn\n}", 16)
+
+	// Call args wrap greedily.
+	test.New(t, "f(aa, bb, cc, dd, ee, ff, gg)").
+		FormattedCalcCode("f(\n\taa, bb, cc, dd\n\tee, ff, gg\n)", 16)
+
+	// Named params/args: the `;` introduces the named section inline and the
+	// items pack greedily.
+	test.New(t, "f(aa, bb; xx=1, yy=2, zz=3, ww=4)").
+		FormattedCalcCode("f(\n\taa, bb; xx=1\n\tyy=2, zz=3, ww=4\n)", 18)
 }
 
 func TestFormatReturnUnion(t *testing.T) {

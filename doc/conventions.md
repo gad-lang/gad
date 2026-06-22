@@ -144,13 +144,15 @@ newline-separable item carries **no comma** at the break (commas still separate
 items that share a line). The constructs and whether their continuation lines get
 an extra indent level:
 
-| Construct                       | Separator | Extra indent on continuation |
-|:--------------------------------|:----------|:-----------------------------|
-| array items                     | `, `      | no                           |
-| key-value array items           | `, `      | no                           |
-| value-less declaration groups   | `, `      | no                           |
-| type unions (params, returns)   | ` \| `    | yes                          |
-| match arm conditions            | `, `      | yes                          |
+| Construct                              | Separator | Extra indent on continuation |
+|:---------------------------------------|:----------|:-----------------------------|
+| array items                            | `, `      | no                           |
+| key-value array items                  | `, `      | no                           |
+| value-less declaration groups          | `, `      | no                           |
+| function header / call params          | `, `      | no                           |
+| named params / args                    | `, `      | no                           |
+| type unions (params, returns)          | ` \| `    | yes                          |
+| match arm conditions                   | `, `      | yes                          |
 
 ```gad
 // array / key-value array / value-less declaration: no extra indent
@@ -162,15 +164,25 @@ var (
     a, b, c, d, e
     f, g, h
 )
+
+// function/call params pack greedily; `;` introduces the named section inline
+f(
+    aa, bb; xx=1
+    yy=2, zz=3, ww=4
+)
 ```
 
 A type union keeps its `|` connector at the break (the newline cannot separate
-union members), so a wrapped union line ends with a trailing ` |`.
+union members), so a wrapped union line ends with a trailing ` |`. The named
+parameter section is introduced by `; `, which is preserved when it falls at a
+line break.
 
 ### Function and call parameters
 
-Function declaration parameters and call arguments may also be written one per
-line (a comma is optional; the newline separates them). Two extra rules apply:
+Function declaration parameters and call arguments wrap with the
+[greedy overflow rule](#greedy-overflow-wrapping) (a comma is optional; the
+newline separates them), the named section introduced by `; `. Two extra rules
+apply:
 
 - A **typed parameter keeps its ident and type on the same line** (`a int`).
   `a` and `int` on separate lines are two parameters, not a typed one.

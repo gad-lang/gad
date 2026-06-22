@@ -1609,6 +1609,12 @@ func (c *CallArgs) WriteCodeBrace(ctx *CodeWriteContext, lbrace, rbrace string) 
 		})
 
 	ctx.WriteString(lbrace)
+	if multiline && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {
+		// greedy: pack args per line, no comma at a break, no extra indent.
+		writeGreedyParams(ctx, c.greedyItems())
+		ctx.WriteString(rbrace)
+		return
+	}
 	if c.Args.Valid() {
 		c.Args.WriteCodeWithNamed(ctx, multiline, c.NamedArgs.Valid())
 	}
@@ -1619,6 +1625,29 @@ func (c *CallArgs) WriteCodeBrace(ctx *CodeWriteContext, lbrace, rbrace string) 
 		ctx.WritePrefix()
 	}
 	ctx.WriteString(rbrace)
+}
+
+// greedyItems flattens the positional and named call arguments into the
+// param-item form used by writeGreedyParams.
+func (c *CallArgs) greedyItems() []funcParamItem {
+	var items []funcParamItem
+	for _, v := range c.Args.Values {
+		v := v
+		items = append(items, funcParamItem{write: v.WriteCode})
+	}
+	if c.Args.Var != nil {
+		v := c.Args.Var
+		items = append(items, funcParamItem{write: v.WriteCode})
+	}
+	na := &c.NamedArgs
+	for i := range na.Names {
+		i := i
+		items = append(items, funcParamItem{
+			named: true,
+			write: func(ctx *CodeWriteContext) { na.writeItemCode(i, ctx) },
+		})
+	}
+	return items
 }
 
 func (c *CallArgs) Arg(e ...Expr) *CallArgs {

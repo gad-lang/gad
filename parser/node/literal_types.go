@@ -262,7 +262,11 @@ func (n *FuncParams) WriteCode(ctx *CodeWriteContext) {
 			}
 		})
 
-	if inNewLine {
+	switch {
+	case inNewLine && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc):
+		// greedy: pack params per line, no comma at a break, no extra indent.
+		writeGreedyParams(ctx, items)
+	case inNewLine:
 		ctx.Depth++
 		for i, it := range items {
 			ctx.WriteSecondLine()
@@ -275,13 +279,61 @@ func (n *FuncParams) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteSecondLine()
 		ctx.Depth--
 		ctx.WritePrefix()
-	} else {
+	default:
 		for i, it := range items {
 			sep(i)
 			it.write(ctx)
 		}
 	}
 	ctx.WriteSingleByte(')')
+}
+
+// writeGreedyParams renders parameter/argument items greedily inside an
+// already-open paren (the caller wrote `(`): it opens an indented line, packs
+// items onto each line and breaks to a new line only when the next item would
+// overflow (no comma at the break, no extra indent), introducing the named
+// section with `; `, then returns the cursor to the closing-paren prefix.
+func writeGreedyParams(ctx *CodeWriteContext, items []funcParamItem) {
+	firstNamed := -1
+	for i, it := range items {
+		if it.named {
+			firstNamed = i
+			break
+		}
+	}
+
+	ctx.Depth++
+	ctx.WriteSecondLine()
+	ctx.WritePrefix()
+	for i, it := range items {
+		boundary := i == firstNamed
+		if i == 0 {
+			if boundary {
+				ctx.WriteString("; ")
+			}
+			it.write(ctx)
+			continue
+		}
+		inlineSep := ", "
+		if boundary {
+			inlineSep = "; "
+		}
+		w, _ := ctx.measure(0, func() { it.write(ctx) })
+		if ctx.Column()+len(inlineSep)+w > ctx.maxColumns() {
+			ctx.WriteSecondLine()
+			ctx.WritePrefix()
+			if boundary {
+				ctx.WriteString("; ")
+			}
+			it.write(ctx)
+		} else {
+			ctx.WriteString(inlineSep)
+			it.write(ctx)
+		}
+	}
+	ctx.WriteSecondLine()
+	ctx.Depth--
+	ctx.WritePrefix()
 }
 
 func (n *FuncParams) Caller() (c *CallArgs) {
