@@ -170,3 +170,36 @@ func() <x int | bool, y str> {
     return 1
 }
 ```
+
+### Match arms
+
+A `match` stays inline while it fits the line budget. When it overflows
+(column-aware `NEW_LINE_CALC`), or when the force flag is set, it switches to the
+multi-line layout:
+
+- **One arm per line**, separated by the newline — **no comma between arms**.
+- Within an arm, the **conditions wrap greedily**: they are packed onto the line
+  and continue on a new line only when the next condition would overflow
+  `ctx.MaxColumns`. A continuation line is indented **one extra level** (`\t`)
+  and is **not** preceded by a comma; conditions sharing a line keep the `, `
+  separator. The arm's `: result` / `{ body }` follows the last condition.
+
+```gad
+match i {
+    1, 2, 3
+        4, 5, 6
+        7, 8 {}
+}
+```
+
+When **every** non-else arm's conditions are primitive literals of one comparable
+kind (all numeric, or all string), the formatter **sorts** them ascending — the
+conditions within each arm and the arms themselves — keeping the `else` arm last:
+
+```gad
+// match n { 3: "c", 1: "a", 2: "b", else: "z" }  formats as:
+match n { 1: "a", 2: "b", 3: "c", else: "z" }
+```
+
+Arms with non-primitive conditions (identifiers, expressions) keep their source
+order.

@@ -4041,13 +4041,22 @@ func TestFormatMatchArms(t *testing.T) {
 		FormattedCalcCode(`x := match n { 1: "a", else: "b" }`, 80)
 
 	// NEW_LINE_CALC: when the inline arms overflow, each arm goes on its own
-	// line (the `else` arm is not preceded by a comma).
+	// line with no comma between arms (the newline separates them).
 	test.New(t, `x := match n { 1, 2: "one or two", 3: "three", else: "other" }`).
-		FormattedCalcCode("x := match n {\n\t1, 2: \"one or two\",\n\t3: \"three\"\n\telse: \"other\"\n}", 40)
+		FormattedCalcCode("x := match n {\n\t1, 2: \"one or two\"\n\t3: \"three\"\n\telse: \"other\"\n}", 40)
 
-	// Force-all: arms always split, one per line.
-	test.New(t, `x := match n { 1: "a", 2: "b", else: "c" }`).
-		FormattedCode("x := match n {\n\t1: \"a\",\n\t2: \"b\"\n\telse: \"c\"\n}")
+	// NEW_LINE_CALC: a single arm whose conditions overflow wraps them greedily
+	// (packed per line, broken only on overflow, no comma at the break).
+	test.New(t, `match i { 1, 2, 3, 4, 5, 6, 7, 8 {} }`).
+		FormattedCalcCode("match i {\n\t1, 2, 3\n\t\t4, 5, 6\n\t\t7, 8 {}\n}", 10)
+
+	// Primitive arms are sorted ascending (else stays last).
+	test.New(t, `x := match n { 3: "c", 1: "a", 2: "b", else: "z" }`).
+		FormattedCalcCode(`x := match n { 1: "a", 2: "b", 3: "c", else: "z" }`, 80)
+
+	// Force-all: arms always split, one per line, no commas.
+	test.New(t, `x := match n { 2: "b", 1: "a", else: "c" }`).
+		FormattedCode("x := match n {\n\t1: \"a\"\n\t2: \"b\"\n\telse: \"c\"\n}")
 }
 
 func TestParseMethodInterface(t *testing.T) {

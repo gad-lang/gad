@@ -14,6 +14,7 @@ package node
 
 import (
 	"bytes"
+	"sort"
 	"strings"
 
 	"github.com/gad-lang/gad/parser/ast"
@@ -2396,8 +2397,7 @@ func (a *MatchArm) String() string {
 	return b.String()
 }
 
-func (a *MatchArm) WriteCode(ctx *CodeWriteContext) {
-	a.writeConds(ctx)
+func (a *MatchArm) writeResult(ctx *CodeWriteContext) {
 	if a.Body != nil {
 		ctx.WriteString(" ")
 		a.Body.WriteCode(ctx)
@@ -2405,6 +2405,41 @@ func (a *MatchArm) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString(": ")
 		a.Result.WriteCode(ctx)
 	}
+}
+
+func (a *MatchArm) WriteCode(ctx *CodeWriteContext) {
+	a.writeConds(ctx)
+	a.writeResult(ctx)
+}
+
+// writeWrapped renders the arm in the multi-line match layout: the conditions
+// are packed greedily onto the line and continue on a new (same-indent) line
+// only when the next condition would overflow ctx.MaxColumns; no comma is
+// written at such a line break. The result/body follows the last condition.
+func (a *MatchArm) writeWrapped(ctx *CodeWriteContext) {
+	if a.IsElse() {
+		ctx.WriteString("else")
+		a.writeResult(ctx)
+		return
+	}
+	// continuation lines are indented one extra level relative to the arm.
+	ctx.Depth++
+	for i, c := range a.Conds {
+		if i == 0 {
+			c.WriteCode(ctx)
+			continue
+		}
+		w, _ := ctx.measure(0, func() { c.WriteCode(ctx) })
+		if ctx.Column()+len(", ")+w > ctx.maxColumns() {
+			ctx.WriteSemi() // newline + prefix, no comma
+			c.WriteCode(ctx)
+		} else {
+			ctx.WriteString(", ")
+			c.WriteCode(ctx)
+		}
+	}
+	ctx.Depth--
+	a.writeResult(ctx)
 }
 
 // MatchExpr represents a PHP8-like match: `match subject { cond: result, ... }`
@@ -2459,59 +2494,168 @@ func (e *MatchExpr) String() string {
 	return b.String()
 }
 
-// armsInNewLine reports whether arms should each go on their own line. Without
+// wrap reports whether the match should use the multi-line arm layout. Without
 // NEW_LINE_CALC it honours the per-form force flag (expression vs statement);
-// with NEW_LINE_CALC the arms are wrapped only when their inline rendering would
-// overflow ctx.MaxColumns.
-func (e *MatchExpr) armsInNewLine(ctx *CodeWriteContext) bool {
-	if !ctx.HasPrefix() {
+// with NEW_LINE_CALC it wraps only when the inline rendering would overflow
+// ctx.MaxColumns (a single overflowing arm is enough).
+func (e *MatchExpr) wrap(ctx *CodeWriteContext) bool {
+	if !ctx.HasPrefix() || len(e.Arms) == 0 {
 		return false
 	}
 	flag := CodeWriteContextFlagFormatMatchExprArmsInNewLine
 	if e.IsStmt() {
 		flag = CodeWriteContextFlagFormatMatchStmtArmsInNewLine
 	}
-	return ctx.DecideNewLineFunc(flag, len(e.Arms), 1, func() {
-		e.writeArmsInline(ctx)
+	if !ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {
+		return ctx.Flags.Has(flag)
+	}
+	width, multiline := ctx.measure(ctx.Column(), func() {
+		e.writeInline(ctx)
 	})
+	return multiline || width > ctx.maxColumns()
 }
 
-// writeArmsInline renders the arms on a single line: `, `-separated, with a
-// leading and trailing space inside the braces.
-func (e *MatchExpr) writeArmsInline(ctx *CodeWriteContext) {
-	for i, a := range e.Arms {
+// writeInline renders the whole match on a single line:
+// `match subj { a, b, else }`.
+func (e *MatchExpr) writeInline(ctx *CodeWriteContext) {
+	arms := e.orderedArms()
+	ctx.WriteString("match ")
+	e.Expr.WriteCode(ctx)
+	ctx.WriteString(" {")
+	for i, a := range arms {
 		if i > 0 {
 			ctx.WriteString(",")
 		}
 		ctx.WriteString(" ")
 		a.WriteCode(ctx)
 	}
-	if len(e.Arms) > 0 {
+	if len(arms) > 0 {
 		ctx.WriteString(" ")
 	}
+	ctx.WriteString("}")
 }
 
-func (e *MatchExpr) WriteCode(ctx *CodeWriteContext) {
+// writeWrapped renders the multi-line layout: one arm per line, no comma
+// between arms (the newline separates them); within an arm the conditions wrap
+// greedily.
+func (e *MatchExpr) writeWrapped(ctx *CodeWriteContext) {
+	arms := e.orderedArms()
 	ctx.WriteString("match ")
 	e.Expr.WriteCode(ctx)
 	ctx.WriteString(" {")
-
-	if e.armsInNewLine(ctx) {
-		// one arm per line; the `else` arm is not preceded by a comma
-		ctx.Depth++
-		for i, a := range e.Arms {
-			if i > 0 && !a.IsElse() {
-				ctx.WriteString(",")
-			}
-			ctx.WriteSemi()
-			a.WriteCode(ctx)
-		}
-		ctx.Depth--
-		ctx.WriteSemi()
-	} else {
-		e.writeArmsInline(ctx)
+	ctx.Depth++
+	for _, a := range arms {
+		ctx.WriteSemi() // newline + prefix
+		a.writeWrapped(ctx)
 	}
+	ctx.Depth--
+	ctx.WriteSemi()
 	ctx.WriteString("}")
+}
+
+func (e *MatchExpr) WriteCode(ctx *CodeWriteContext) {
+	if e.wrap(ctx) {
+		e.writeWrapped(ctx)
+		return
+	}
+	e.writeInline(ctx)
+}
+
+// orderedArms returns the arms in render order. When every non-else arm's
+// conditions are primitive literals of a single comparable kind (all numeric or
+// all string), the conditions within each arm and the arms themselves are
+// sorted ascending, with the `else` arm kept last. Otherwise the source order
+// is preserved.
+func (e *MatchExpr) orderedArms() []*MatchArm {
+	if !e.sortableArms() {
+		return e.Arms
+	}
+	arms := make([]*MatchArm, 0, len(e.Arms))
+	for _, a := range e.Arms {
+		if a.IsElse() {
+			arms = append(arms, a)
+			continue
+		}
+		conds := append([]Expr(nil), a.Conds...)
+		sort.SliceStable(conds, func(i, j int) bool {
+			return matchCondLess(conds[i], conds[j])
+		})
+		arms = append(arms, &MatchArm{Conds: conds, Result: a.Result, Body: a.Body})
+	}
+	sort.SliceStable(arms, func(i, j int) bool {
+		switch {
+		case arms[i].IsElse():
+			return false
+		case arms[j].IsElse():
+			return true
+		default:
+			return matchCondLess(arms[i].Conds[0], arms[j].Conds[0])
+		}
+	})
+	return arms
+}
+
+// sortableArms reports whether the arms can be sorted: there is at least one
+// non-else arm and every condition is a primitive literal of one common kind.
+func (e *MatchExpr) sortableArms() bool {
+	kind, has := -1, false
+	for _, a := range e.Arms {
+		if a.IsElse() {
+			continue
+		}
+		if len(a.Conds) == 0 {
+			return false
+		}
+		for _, c := range a.Conds {
+			k, _, _, ok := matchCondKey(c)
+			if !ok {
+				return false
+			}
+			if kind == -1 {
+				kind = k
+			} else if kind != k {
+				return false
+			}
+			has = true
+		}
+	}
+	return has
+}
+
+// matchCondKey extracts a sort key from a condition expression. kind 0 is
+// numeric (int/uint/float/char/bool) and kind 1 is string; ok is false when the
+// expression is not a primitive literal.
+func matchCondKey(e Expr) (kind int, num float64, str string, ok bool) {
+	switch t := e.(type) {
+	case *IntLit:
+		return 0, float64(t.Value), "", true
+	case *UintLit:
+		return 0, float64(t.Value), "", true
+	case *FloatLit:
+		return 0, t.Value, "", true
+	case *CharLit:
+		return 0, float64(t.Value), "", true
+	case *BoolLit:
+		if t.Value {
+			return 0, 1, "", true
+		}
+		return 0, 0, "", true
+	case *StrLit:
+		return 1, 0, t.Value(), true
+	case *RawStrLit:
+		return 1, 0, t.Literal, true
+	}
+	return 0, 0, "", false
+}
+
+// matchCondLess compares two primitive-literal conditions of the same kind.
+func matchCondLess(a, b Expr) bool {
+	ka, na, sa, _ := matchCondKey(a)
+	_, nb, sb, _ := matchCondKey(b)
+	if ka == 1 {
+		return sa < sb
+	}
+	return na < nb
 }
 
 // OrExpr represents an error-fallback expression: `expr or fallback`.

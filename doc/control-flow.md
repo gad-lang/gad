@@ -115,10 +115,12 @@ x := match n {}            // nil
 y := match 1 { 2: "ok" }   // nil (no match)
 ```
 
-The formatter keeps a match inline while it fits the line budget and splits the
-arms one-per-line only when they overflow (column-aware `NEW_LINE_CALC`), or
-always when the corresponding force flag is set. When split, the newline
-separates the arms and the `else` arm carries no leading comma.
+The formatter keeps a match inline while it fits the line budget and switches to
+a one-arm-per-line layout only when it overflows (column-aware `NEW_LINE_CALC`),
+or always when the corresponding force flag is set. When split, the newline
+separates the arms (no commas), each arm's conditions wrap greedily, and arms
+with primitive-literal conditions are sorted ascending (`else` stays last). See
+[Conventions](conventions.md#match-arms) for details.
 
 ## Try / Catch / Finally
 
