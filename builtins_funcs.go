@@ -1684,8 +1684,12 @@ func BuiltinToArrayFunc(c Call) (_ Object, err error) {
 				arr = append(arr, t...)
 			}
 		default:
+			// The generic iterator path reuses a single *KeyValue (it yields
+			// &state.Entry each step), so the entry must be copied before it is
+			// retained or every element would alias the final value.
 			err = ItemsOfCb(c.VM, &c.NamedArgs, func(kv *KeyValue) error {
-				arr = append(arr, kv)
+				kv2 := *kv
+				arr = append(arr, &kv2)
 				return nil
 			}, arg)
 		}

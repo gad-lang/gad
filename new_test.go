@@ -147,6 +147,40 @@ func TestVMRange(t *testing.T) {
 		NewCalendarDate(2026, 2, 3), NewCalendarDate(2026, 2, 5)})
 }
 
+func TestVMRangeRepr(t *testing.T) {
+	// repr(Range; indent) dumps the headers of every typed constructor method
+	// (one per element kind), tab-indented and sorted by parameter types.
+	want := "‹Range: ‹builtin type ‹Range› with 8 methods: [\n" +
+		"\t⨍(calendarDate, calendarDate) 🠆 ‹function Range(from calendarDate, to calendarDate; step)›,\n" +
+		"\t⨍(calendarTime, calendarTime) 🠆 ‹function Range(from calendarTime, to calendarTime; step)›,\n" +
+		"\t⨍(char, char) 🠆 ‹function Range(from char, to char; step)›,\n" +
+		"\t⨍(decimal, decimal) 🠆 ‹function Range(from decimal, to decimal; step)›,\n" +
+		"\t⨍(float, float) 🠆 ‹function Range(from float, to float; step)›,\n" +
+		"\t⨍(int, int) 🠆 ‹function Range(from int, to int; step)›,\n" +
+		"\t⨍(time, time) 🠆 ‹function Range(from time, to time; step)›,\n" +
+		"\t⨍(uint, uint) 🠆 ‹function Range(from uint, to uint; step)›\n" +
+		"]››"
+	testExpectRun(t, `return repr(Range; indent)`, nil, Str(want))
+}
+
+func TestVMToArray(t *testing.T) {
+	// toArray yields index=value KeyValue pairs; entries from a custom iterator
+	// must be distinct copies, not aliases of the iterator's shared state.
+	testExpectRun(t, `return toArray("abc")`, nil, Array{
+		&KeyValue{K: Int(0), V: Char('a')},
+		&KeyValue{K: Int(1), V: Char('b')},
+		&KeyValue{K: Int(2), V: Char('c')},
+	})
+	testExpectRun(t, `return toArray(1 .. 4)`, nil, Array{
+		&KeyValue{K: Int(0), V: Int(1)},
+		&KeyValue{K: Int(1), V: Int(2)},
+		&KeyValue{K: Int(2), V: Int(3)},
+		&KeyValue{K: Int(3), V: Int(4)},
+	})
+	// arrays pass through unchanged.
+	testExpectRun(t, `return toArray([1, 2, 3])`, nil, Array{Int(1), Int(2), Int(3)})
+}
+
 func TestVMPowFractional(t *testing.T) {
 	// integer powers are unchanged (int**int and decimal yield a decimal)
 	testExpectRun(t, `return 2 ** 10`, nil, DecimalFromInt(1024))
