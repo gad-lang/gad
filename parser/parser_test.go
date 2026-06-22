@@ -313,12 +313,12 @@ func TestFormatCalcParams(t *testing.T) {
 	// When the list overflows, params split one per line (no commas); a typed
 	// param keeps its ident and type together.
 	test.New(t, "func(a int|bool|string, b int) { return }").
-		FormattedCalcCode("func(\n\ta int|bool|string\n\tb int\n) {\n\treturn\n}", 28)
+		FormattedCalcCode("func(\n\ta int | bool | string\n\tb int\n) {\n\treturn\n}", 28)
 
 	// When a single param's type union is still too wide, it continues after
 	// each `|` on its own indented line, the next param starting a new line.
 	test.New(t, "f := func(verylongname int|boolean|string|number, other int) { return }").
-		FormattedCalcCode("f := func(\n\tverylongname int|\n\t\tboolean|\n\t\tstring|\n\t\tnumber\n\tother int\n) {\n\treturn\n}", 28)
+		FormattedCalcCode("f := func(\n\tverylongname int |\n\t\tboolean |\n\t\tstring |\n\t\tnumber\n\tother int\n) {\n\treturn\n}", 28)
 }
 
 func TestFormatMixedMode(t *testing.T) {
@@ -1914,8 +1914,8 @@ z=
 	e=#(e val)
 	x A
 	x1 A1=10
-	y B|C=11
-	y1 B|C=12
+	y B | C=11
+	y1 B | C=12
 	z=(5 + 7)
 )`)
 

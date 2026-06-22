@@ -120,14 +120,18 @@ line (a comma is optional; the newline separates them). Two extra rules apply:
 
 - A **typed parameter keeps its ident and type on the same line** (`a int`).
   `a` and `int` on separate lines are two parameters, not a typed one.
+- A **type union is spaced around each `|`** when it stays on one line:
+  `a int | bool | string`. A single space always precedes the `|`; a trailing
+  space follows it **only when the next type is on the same line**.
 - When a parameter's **type union is too wide** for the line, continue the type
   on the next line **after a `|`** (the ident stays with the start of the type),
-  and put the next parameter on its own following line:
+  and put the next parameter on its own following line. Because the next type
+  starts a new line, the `|` has no trailing space:
 
   ```gad
   func(
-      a int|
-          bool|
+      a int |
+          bool |
           string
       b int
   )

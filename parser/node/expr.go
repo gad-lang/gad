@@ -291,24 +291,32 @@ func (e *TypedIdentExpr) String() string {
 }
 
 func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
-	// Only a multi-type union may wrap, and only under NEW_LINE_CALC when it
-	// overflows the line. Otherwise render inline via String().
-	if e == nil || len(e.Type) <= 1 ||
-		!ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {
-		ctx.WriteString(e.String())
+	if e == nil {
+		ctx.WriteString(nullRep)
+		return
+	}
+	if len(e.Type) == 0 {
+		ctx.WriteString(e.Ident.String())
 		return
 	}
 
-	width, multiline := ctx.measure(ctx.Column(), func() {
-		ctx.WriteString(e.String())
-	})
-	if !multiline && width <= ctx.maxColumns() {
-		ctx.WriteString(e.String())
+	// A union is spelled with a space before each `|`. When it stays on one line
+	// the `|` also has a trailing space (`int | bool`); when a multi-type union
+	// overflows under NEW_LINE_CALC each type continues on its own indented line
+	// with the `|` trailing the line and no space after it.
+	wrap := false
+	if len(e.Type) > 1 && ctx.Flags.Has(CodeWriteContextFlagFormatNewLineCalc) {
+		width, multiline := ctx.measure(ctx.Column(), func() {
+			e.writeInlineUnion(ctx)
+		})
+		wrap = multiline || width > ctx.maxColumns()
+	}
+
+	if !wrap {
+		e.writeInlineUnion(ctx)
 		return
 	}
 
-	// Wrap the union: keep `ident type0|` on the first line, then continue each
-	// remaining type on its own indented line, the `|` trailing the line.
 	ctx.WriteString(e.Ident.String(), " ")
 	ctx.Depth++
 	last := len(e.Type) - 1
@@ -319,10 +327,21 @@ func (e *TypedIdentExpr) WriteCode(ctx *CodeWriteContext) {
 		}
 		ctx.WriteString(t.String())
 		if i != last {
-			ctx.WriteString("|")
+			ctx.WriteString(" |")
 		}
 	}
 	ctx.Depth--
+}
+
+// writeInlineUnion renders `ident T1 | T2 | ...` on a single line.
+func (e *TypedIdentExpr) writeInlineUnion(ctx *CodeWriteContext) {
+	ctx.WriteString(e.Ident.String(), " ")
+	for i, t := range e.Type {
+		if i > 0 {
+			ctx.WriteString(" | ")
+		}
+		ctx.WriteString(t.String())
+	}
 }
 
 // ImportExpr represents an import expression
