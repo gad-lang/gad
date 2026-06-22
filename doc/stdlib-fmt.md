@@ -6,33 +6,33 @@
 ## Scan Examples
 
 ```go
-arg1 := fmt.ScanArg("str")
-arg2 := fmt.ScanArg("int")
-ret := fmt.Sscanf("abc123", "%3s%d", arg1, arg2)
+arg1 := fmt.scanArg("str")
+arg2 := fmt.scanArg("int")
+ret := fmt.sscanf("abc123", "%3s%d", arg1, arg2)
 if isError(ret) {
   // handle error
-  fmt.Println(err)
+  fmt.println(err)
 } else {
-  fmt.Println(ret)            // 2, number of scanned items
-  fmt.Println(arg1.Value)     // abc
-  fmt.Println(bool(arg1))     // true, reports whether arg1 is scanned
-  fmt.Println(arg2.Value)     // 123
-  fmt.Println(bool(arg2))     // true, reports whether arg2 is scanned
+  fmt.println(ret)            // 2, number of scanned items
+  fmt.println(arg1.Value)     // abc
+  fmt.println(bool(arg1))     // true, reports whether arg1 is scanned
+  fmt.println(arg2.Value)     // 123
+  fmt.println(bool(arg2))     // true, reports whether arg2 is scanned
 }
 ```
 
 ```go
-arg1 = fmt.ScanArg("str")
-arg2 = fmt.ScanArg("int")
-arg3 = fmt.ScanArg("float")
-ret = fmt.Sscanf("abc 123", "%s%d%f", arg1, arg2, arg3)
-fmt.Println(ret)         // error: EOF
-fmt.Println(arg1.Value)  // abc
-fmt.Println(bool(arg1))  // true
-fmt.Println(arg2.Value)  // 123
-fmt.Println(bool(arg2))  // true
-fmt.Println(arg3.Value)  // nil
-fmt.Println(bool(arg2))  // false, not scanned
+arg1 = fmt.scanArg("str")
+arg2 = fmt.scanArg("int")
+arg3 = fmt.scanArg("float")
+ret = fmt.sscanf("abc 123", "%s%d%f", arg1, arg2, arg3)
+fmt.println(ret)         // error: EOF
+fmt.println(arg1.Value)  // abc
+fmt.println(bool(arg1))  // true
+fmt.println(arg2.Value)  // 123
+fmt.println(bool(arg2))  // true
+fmt.println(arg3.Value)  // nil
+fmt.println(bool(arg2))  // false, not scanned
 
 // Use if statement or a ternary expression to get the scanned value or a default value.
 v := arg1 ? arg1.Value : "default value"
@@ -40,7 +40,7 @@ v := arg1 ? arg1.Value : "default value"
 
 ## Functions
 
-`Print(*any) <int>`
+`print(*any) <int>`
 
 Formats using the default formats for its operands and writes to standard
 output. Spaces are added between operands when neither is a str.
@@ -49,7 +49,7 @@ throws a runtime error.
 
 ---
 
-`Printf(format str, *any) <int>`
+`printf(format str, *any) <int>`
 
 Formats according to a format specifier and writes to standard output.
 It returns the number of bytes written and any encountered write error
@@ -57,7 +57,7 @@ throws a runtime error.
 
 ---
 
-`Println(*any) <int>`
+`println(*any) <int>`
 
 Formats using the default formats for its operands and writes to standard
 output. Spaces are always added between operands and a newline
@@ -66,7 +66,7 @@ write error throws a runtime error.
 
 ---
 
-`Sprint(*any) <str>`
+`sprint(*any) <str>`
 
 Formats using the default formats for its operands and returns the
 resulting str. Spaces are added between operands when neither is a
@@ -74,13 +74,13 @@ str.
 
 ---
 
-`Sprintf(format str, *any) <str>`
+`sprintf(format str, *any) <str>`
 
 Formats according to a format specifier and returns the resulting str.
 
 ---
 
-`Sprintln(*any) <str>`
+`sprintln(*any) <str>`
 
 Formats using the default formats for its operands and returns the
 resulting str. Spaces are always added between operands and a newline
@@ -88,25 +88,25 @@ is appended.
 
 ---
 
-`Sscan(str str, ScanArg[, *ScanArg]) <int | error>`
+`sscan(str str, scanArg[, *scanArg]) <int | error>`
 
 Scans the argument str, storing successive space-separated values into
-successive ScanArg arguments. Newlines count as space. If no error is
+successive scanArg arguments. Newlines count as space. If no error is
 encountered, it returns the number of items successfully scanned. If that
 is less than the number of arguments, error will report why.
 
 ---
 
-`Sscanf(str str, format str, ScanArg[, *ScanArg]) <int | error>`
+`sscanf(str str, format str, scanArg[, *scanArg]) <int | error>`
 
 Scans the argument str, storing successive space-separated values into
-successive ScanArg arguments as determined by the format. It returns the
+successive scanArg arguments as determined by the format. It returns the
 number of items successfully parsed or an error.
 Newlines in the input must match newlines in the format.
 
 ---
 
-`ScanArg(typeName str) <scanArg>`
+`scanArg(typeName str) <scanArg>`
 
 Returns a `scanArg` object to scan a value of given type name in scan
 functions.
