@@ -21,6 +21,14 @@ A failing file (e.g. a syntax error) does not stop the others — every target i
 attempted, errors are reported to stderr, and the command exits with status `2`
 (gofmt-style) when anything failed, otherwise `0`.
 
+## Comments
+
+`gad fmt` preserves `//` line comments and `/* … */` block comments. A comment
+on the same line as a statement stays attached to it as a trailing comment;
+comments on their own line are kept on their own line before the following
+statement. (A comment sitting between the last statement of a block and its
+closing `}` is currently re-emitted just after the `}`.)
+
 ## Selecting Files
 
 | Flag            | Effect                                                            |

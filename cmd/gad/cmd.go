@@ -966,10 +966,10 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 
 	// `.gadt` files are templates: parse them in mixed mode (the `# gad: …`
 	// config directives are disabled since the file is template from byte 0).
-	var po *parser.ParserOptions
+	po := &parser.ParserOptions{Mode: parser.ParseComments}
 	var so *parser.ScannerOptions
 	if strings.HasSuffix(name, ".gadt") {
-		po = &parser.ParserOptions{Mode: parser.ParseMixed}
+		po.Mode |= parser.ParseMixed
 		so = &parser.ScannerOptions{Mode: parser.ScanMixed | parser.ScanConfigDisabled}
 	}
 	file, err := parser.NewParserWithOptions(srcFile, po, so).ParseFile()
@@ -980,6 +980,7 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 	opts := []node.CodeOption{
 		node.CodeWithFlags(o.codeFlags),
 		node.CodeWithPrefix("\t"),
+		node.CodeWithComments(srcFile, file.Comments),
 	}
 	if transpile {
 		opts = append(opts, node.CodeTranspile(&o.transpile))

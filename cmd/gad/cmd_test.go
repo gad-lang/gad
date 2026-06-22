@@ -124,6 +124,36 @@ func TestFormatTargetInPlace(t *testing.T) {
 	require.Equal(t, string(formatted), string(again))
 }
 
+func TestFormatPreservesComments(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	src := "// leading comment\n" +
+		"x := 1 // trailing on x\n\n" +
+		"/* block comment */\n" +
+		"func f() {\n" +
+		"\t// inside block\n" +
+		"\treturn 1\n" +
+		"}\n" +
+		"// final comment\n"
+
+	out, err := o.formatSource("c.gad", []byte(src), false)
+	require.NoError(t, err)
+
+	for _, want := range []string{
+		"// leading comment",
+		"x := 1 // trailing on x",
+		"/* block comment */",
+		"// inside block",
+		"// final comment",
+	} {
+		require.Contains(t, out, want)
+	}
+
+	// Idempotent: formatting the formatted output yields the same result.
+	out2, err := o.formatSource("c.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, out2)
+}
+
 func TestFormatTargetTranspileGadt(t *testing.T) {
 	dir := t.TempDir()
 	p := writeFile(t, dir, "page.gadt", "Hi {%= name %}!\n{% x := 1 %}")

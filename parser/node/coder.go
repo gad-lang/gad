@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/gad-lang/gad/parser/ast"
+	"github.com/gad-lang/gad/parser/source"
 )
 
 // DefaultMaxColumns is the line-width budget used by the NEW_LINE_CALC
@@ -175,6 +177,14 @@ type CodeWriteContext struct {
 	MaxColumns int
 	Transpile  *TranspileOptions
 	CodeWriter
+
+	// srcFile and comments support preserving source comments during
+	// formatting. comments is flattened and sorted by position; commentIdx is
+	// the cursor into it, advanced (across nested statement lists) as comments
+	// are emitted in position order.
+	srcFile    *source.File
+	comments   []*ast.Comment
+	commentIdx int
 }
 
 type CodeOption func(ctx *CodeWriteContext)
@@ -210,6 +220,64 @@ func CodeNewLineCalc(maxColumns int) CodeOption {
 func CodeTranspile(v *TranspileOptions) CodeOption {
 	return func(ctx *CodeWriteContext) {
 		ctx.Transpile = v
+	}
+}
+
+// CodeWithComments threads the source comments (collected by parsing with
+// ParseComments) into the formatter so they are preserved in the output. The
+// file is required for line lookups (to tell trailing same-line comments from
+// own-line ones).
+func CodeWithComments(f *source.File, groups []*ast.CommentGroup) CodeOption {
+	return func(ctx *CodeWriteContext) {
+		ctx.srcFile = f
+		for _, g := range groups {
+			ctx.comments = append(ctx.comments, g.List...)
+		}
+		sort.SliceStable(ctx.comments, func(i, j int) bool {
+			return ctx.comments[i].Pos() < ctx.comments[j].Pos()
+		})
+	}
+}
+
+// hasComments reports whether comment preservation is active.
+func (ctx *CodeWriteContext) hasComments() bool {
+	return ctx.srcFile != nil && ctx.commentIdx < len(ctx.comments)
+}
+
+// peekComment returns the next un-emitted comment, or nil.
+func (ctx *CodeWriteContext) peekComment() *ast.Comment {
+	if ctx.commentIdx < len(ctx.comments) {
+		return ctx.comments[ctx.commentIdx]
+	}
+	return nil
+}
+
+// lineOf returns the 1-based source line of pos (0 when unknown).
+func (ctx *CodeWriteContext) lineOf(pos source.Pos) int {
+	if ctx.srcFile == nil {
+		return 0
+	}
+	return source.MustFileLine(ctx.srcFile, pos)
+}
+
+// wroteAny reports whether any output has been produced yet.
+func (ctx *CodeWriteContext) wroteAny() bool {
+	if c, ok := ctx.CodeWriter.(*cw); ok {
+		return c.col > 0 || c.multiline
+	}
+	return false
+}
+
+// flushRemainingComments writes any comments not yet emitted, each on its own
+// line. Used at the very end of the top-level statement list for file-trailing
+// comments (and comment-only files).
+func (ctx *CodeWriteContext) flushRemainingComments() {
+	for c := ctx.peekComment(); c != nil; c = ctx.peekComment() {
+		if ctx.wroteAny() {
+			ctx.WriteSemi()
+		}
+		ctx.WriteString(c.Text)
+		ctx.commentIdx++
 	}
 }
 
@@ -352,6 +420,15 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 		last  = len(stmt) - 1
 	)
 
+	emitLeadingSep := func() {
+		switch sep {
+		case sepSpace:
+			ctx.WriteString(" ")
+		case sepNewline:
+			ctx.WriteSemi()
+		}
+	}
+
 	Stmts(stmt).Each(func(x int, _ bool, s Stmt) {
 		if skiper, _ := s.(CodeWriteSkiper); skiper != nil {
 			if skiper.SkipCode(ctx) {
@@ -364,20 +441,39 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 		// template tags).
 		transpiling := ctx.Transpile != nil
 
+		// Own-line comments that precede this statement: each on its own line,
+		// then the statement follows on a fresh line.
+		if ctx.hasComments() {
+			for c := ctx.peekComment(); c != nil && c.Pos() < s.Pos(); c = ctx.peekComment() {
+				if i > 0 {
+					emitLeadingSep()
+				}
+				ctx.WriteString(c.Text)
+				ctx.commentIdx++
+				sep = sepNewline
+				i++
+			}
+		}
+
 		// Leading separator. A `%}` terminator always hugs the preceding code
 		// with a single space so the whole `{% … %}` tag stays on one line.
 		if _, isEnd := s.(*CodeEndStmt); isEnd && !transpiling {
 			ctx.WriteString(" ")
 		} else if i > 0 {
-			switch sep {
-			case sepSpace:
-				ctx.WriteString(" ")
-			case sepNewline:
-				ctx.WriteSemi()
-			}
+			emitLeadingSep()
 		}
 		s.WriteCode(ctx)
 		i++
+
+		// Trailing comment(s) on the same source line as this statement stay
+		// glued to it (` // ...`).
+		if ctx.hasComments() {
+			endLine := ctx.lineOf(s.End())
+			for c := ctx.peekComment(); c != nil && ctx.lineOf(c.Pos()) == endLine; c = ctx.peekComment() {
+				ctx.WriteString(" ", c.Text)
+				ctx.commentIdx++
+			}
+		}
 
 		// Separator for the NEXT statement.
 		switch s.(type) {
@@ -554,5 +650,12 @@ func Code(n Coder, opt ...CodeOption) string {
 }
 
 func CodeW(w io.Writer, n Coder, opt ...CodeOption) {
-	n.WriteCode(NewCodeWriteContext(NewCodeWriter(w), opt...))
+	ctx := NewCodeWriteContext(NewCodeWriter(w), opt...)
+	n.WriteCode(ctx)
+	// File-trailing comments (after the last statement) are not flushed by
+	// WriteStmts (which only emits comments that precede a statement); emit them
+	// here at the top level.
+	if ctx.hasComments() {
+		ctx.flushRemainingComments()
+	}
 }
