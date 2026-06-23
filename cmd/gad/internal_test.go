@@ -36,7 +36,7 @@ func TestREPL(t *testing.T) {
 	t.Run("builtins", func(t *testing.T) {
 		require.NoError(t, r.execute(".builtins"))
 		testContains(t, string(cw.consume()),
-			"@binaryOperator           \tBuiltin ")
+			"@binaryOperator           \tBuiltin\n")
 	})
 	t.Run("keywords", func(t *testing.T) {
 		require.NoError(t, r.execute(".keywords"))

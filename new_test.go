@@ -194,6 +194,40 @@ func TestVMTimeModuleTypesRepr(t *testing.T) {
 	}
 }
 
+func TestVMOperatorMethods(t *testing.T) {
+	// Binary operators dispatch through the @binaryOperator methods (which run
+	// each type's BinaryOp); results are unchanged.
+	testExpectRun(t, `return 1 + 2`, nil, Int(3))
+	testExpectRun(t, `return 7 / 2`, nil, Int(3))
+	testExpectRun(t, `return 2 ** 8`, nil, DecimalFromInt(256))
+	testExpectRun(t, `return "a" + "b"`, nil, Str("ab"))
+	testExpectRun(t, `return [1, 2] + [3]`, nil, Array{Int(1), Int(2), Int(3)})
+	testExpectRun(t, `return 3.5 * 2.0`, nil, Float(7))
+	testExpectRun(t, `return 'a' < 'b'`, nil, True)
+	testExpectRun(t, `return uint(6) - uint(2)`, nil, Uint(4))
+
+	// The operator can be invoked directly via the @binaryOperator builtin.
+	testExpectRun(t, `return @binaryOperator(TBinaryOperatorAdd, 1, 1)`, nil, Int(2))
+	testExpectRun(t, `return @binaryOperator(TBinaryOperatorMul, 2, 10)`, nil, Int(20))
+
+	// Self-assign operators dispatch through @selfAssignOperator: `+=` appends
+	// the element, `++=` extends.
+	testExpectRun(t, `a := [1, 2]; a += [3, 4]; return a`, nil,
+		Array{Int(1), Int(2), Array{Int(3), Int(4)}})
+	testExpectRun(t, `a := [1, 2]; a ++= [3, 4]; return a`, nil,
+		Array{Int(1), Int(2), Int(3), Int(4)})
+	testExpectRun(t, `s := 0; s += 5; return s`, nil, Int(5))
+
+	// A user-defined operator method takes precedence over the built-in one.
+	testExpectRun(t, `
+	met @binaryOperator(_ TBinaryOperatorMul, p str, n int) {
+		out := ""
+		for i in 1 .. n { out += p }
+		return out
+	}
+	return "ab" * 3`, nil, Str("ababab"))
+}
+
 func TestVMToArray(t *testing.T) {
 	// toArray yields index=value KeyValue pairs; entries from a custom iterator
 	// must be distinct copies, not aliases of the iterator's shared state.

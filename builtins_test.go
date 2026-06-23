@@ -21,8 +21,13 @@ func TestBuiltinTypes(t *testing.T) {
 				t.Fatalf("builtin '%s' (%T) is not *BuiltinObjType type", k, v2)
 			}
 		} else if v < BuiltinFunctionsEnd_ {
-			if v2, ok := BuiltinObjects[v].(*BuiltinFunction); !ok {
-				t.Fatalf("builtin '%s' (%T) is not *BuiltinFunction type", k, v2)
+			// @binaryOperator / @selfAssignOperator carry typed operator methods
+			// (registerOperatorMethods), so they are wrapped as
+			// *BuiltinFunctionWithMethods rather than a bare *BuiltinFunction.
+			switch BuiltinObjects[v].(type) {
+			case *BuiltinFunction, *BuiltinFunctionWithMethods:
+			default:
+				t.Fatalf("builtin '%s' (%T) is not a function type", k, BuiltinObjects[v])
 			}
 		} else if v < BuiltinErrorsEnd_ {
 			if v2, ok := BuiltinObjects[v].(*Error); !ok {

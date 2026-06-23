@@ -273,4 +273,6 @@ func init() {
 
 	// Register the typed constructor overloads now that every type exists.
 	registerCtorMethods()
+	// Expose the builtin types' BinaryOp / SelfAssignOp as operator methods.
+	registerOperatorMethods()
 }
