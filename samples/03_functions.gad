@@ -23,9 +23,49 @@ total := func(*nums) {
     return acc
 }
 
-println("sum(2, 3)    =", sum(2, 3))
-println("double(21)   =", double(21))
-println("add5(4)      =", add5(4))
-println("total(1..4)  =", total(1, 2, 3, 4))
+// --- Deferred handlers ---
+
+// `defer` runs when the enclosing function returns, in last-in-first-out order.
+// Inside a handler `$ret` is the mutable return value (and `$err` the error
+// being propagated, if any).
+deferOrder := func() {
+    defer { $ret = append($ret, "defer-A") } // runs last (LIFO)
+    defer { $ret = append($ret, "defer-B") } // runs first
+    return ["body"]
+}
+
+// `defer_err` runs only when an error propagates; it can recover by clearing
+// `$err` (and setting `$ret`). `defer_ok` (not shown) runs only on success.
+safeCall := func(fail) {
+    defer_err {
+        $ret = "recovered: " + str($err)
+        $err = nil // swallow the error
+    }
+    if fail {
+        throw "boom"
+    }
+    return "ok"
+}
+
+// `deferb` runs when the enclosing *block* exits (not the whole function),
+// also LIFO. A block has no return value, so there is no `$ret` here.
+blockCleanup := func() {
+    out := ""
+    {
+        deferb { out += "b1 " } // runs last
+        deferb { out += "b2 " } // runs first
+        out += "body "
+    }
+    return out + "after"
+}
+
+println("sum(2, 3)       =", sum(2, 3))
+println("double(21)      =", double(21))
+println("add5(4)         =", add5(4))
+println("total(1..4)     =", total(1, 2, 3, 4))
+println("deferOrder()    =", deferOrder())     // [body, defer-B, defer-A]
+println("safeCall(false) =", safeCall(false))
+println("safeCall(true)  =", safeCall(true))   // recovered: error: boom
+println("blockCleanup()  =", blockCleanup())   // body b2 b1 after
 
 return total(1, 2, 3, 4)
