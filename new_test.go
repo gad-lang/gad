@@ -228,6 +228,33 @@ func TestVMOperatorMethods(t *testing.T) {
 	return "ab" * 3`, nil, Str("ababab"))
 }
 
+func TestVMUserOperators(t *testing.T) {
+	// `<<<`, `>>>` and `%%` have no built-in semantics; they are defined per
+	// type with `met @binaryOperator`.
+	testExpectRun(t, `
+	met @binaryOperator(_ TBinaryOperatorTripleLess, a int, b int) { return a + b * 100 }
+	return 1 <<< 2`, nil, Int(201))
+	testExpectRun(t, `
+	met @binaryOperator(_ TBinaryOperatorTripleGreater, a int, b int) { return a - b }
+	x := 9; y := 4; return x >>> y`, nil, Int(5))
+	testExpectRun(t, `
+	met @binaryOperator(_ TBinaryOperatorDoubleMod, a int, b int) { return [a, b] }
+	return 5 %% 3`, nil, Array{Int(5), Int(3)})
+
+	// Without a handler the operator is a runtime error (not constant-folded).
+	expectErrIs(t, `return 1 <<< 2`, nil, ErrType)
+
+	// The self-assign forms `<<<=` / `>>>=` / `%%=` reuse the binary handler via
+	// the @selfAssignOperator fallback.
+	testExpectRun(t, `
+	met @binaryOperator(_ TBinaryOperatorTripleGreater, a int, b int) { return a * b }
+	x := 10; x >>>= 3; return x`, nil, Int(30))
+	// ...or a dedicated @selfAssignOperator handler.
+	testExpectRun(t, `
+	met @selfAssignOperator(_ TSelfAssignOperatorDoubleMod, a int, b int) { return a + b }
+	x := 7; x %%= 5; return x`, nil, Int(12))
+}
+
 func TestVMToArray(t *testing.T) {
 	// toArray yields index=value KeyValue pairs; entries from a custom iterator
 	// must be distinct copies, not aliases of the iterator's shared state.

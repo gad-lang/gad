@@ -552,15 +552,38 @@ do:
 				t.Token = s.Switch2(token.Quo, token.QuoAssign)
 			}
 		case '%':
-			t.Token = s.Switch2(token.Rem, token.RemAssign)
+			if s.Ch == '%' {
+				s.Next()
+				t.Token = s.Switch2(token.DoubleMod, token.DoubleModAssign)
+			} else {
+				t.Token = s.Switch2(token.Rem, token.RemAssign)
+			}
 		case '^':
 			t.Token = s.Switch2(token.Xor, token.XorAssign)
 		case '<':
-			t.Token = s.Switch4(token.Less, token.LessEq, '<',
-				token.Shl, token.ShlAssign)
+			if s.Ch == '<' {
+				s.Next()
+				if s.Ch == '<' {
+					s.Next()
+					t.Token = s.Switch2(token.TripleLess, token.TripleLessAssign)
+				} else {
+					t.Token = s.Switch2(token.Shl, token.ShlAssign)
+				}
+			} else {
+				t.Token = s.Switch2(token.Less, token.LessEq)
+			}
 		case '>':
-			t.Token = s.Switch4(token.Greater, token.GreaterEq, '>',
-				token.Shr, token.ShrAssign)
+			if s.Ch == '>' {
+				s.Next()
+				if s.Ch == '>' {
+					s.Next()
+					t.Token = s.Switch2(token.TripleGreater, token.TripleGreaterAssign)
+				} else {
+					t.Token = s.Switch2(token.Shr, token.ShrAssign)
+				}
+			} else {
+				t.Token = s.Switch2(token.Greater, token.GreaterEq)
+			}
 		case '=':
 			t.Token = s.Switch3(token.Assign, token.Equal, '>', token.Lambda)
 		case '!':

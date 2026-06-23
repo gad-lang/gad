@@ -157,15 +157,36 @@ s := Stack()
 s ++ 1 ++ 2 ++ 3      // s.items == [1, 2, 3]
 ```
 
+## User Operators
+
+Three binary operators have **no built-in meaning** and exist purely for types to
+define: `<<<`, `>>>` and `%%` (with self-assign forms `<<<=`, `>>>=`, `%%=`).
+They have multiplicative precedence (level 5). Give them semantics per type with
+`met @binaryOperator`, referencing the operator's type
+(`TBinaryOperatorTripleLess`, `TBinaryOperatorTripleGreater`,
+`TBinaryOperatorDoubleMod`):
+
+```go
+met @binaryOperator(_ TBinaryOperatorTripleLess, a int, b int) {
+    return a * 1000 + b
+}
+println(12 <<< 345)        // 12345
+```
+
+Using one without a handler is a runtime error (these operators are never
+constant-folded by the optimizer). The self-assign form `x <<<= y` runs as
+`x = x <<< y` via the `@selfAssignOperator` fallback; a type can also intercept
+it directly with `met @selfAssignOperator(_ TSelfAssignOperatorTripleLess, …)`.
+
 ## Precedence
 
 Unary operators bind tightest; the ternary operator binds loosest. Binary
 operators have five levels:
 
-| Level | Operators                                  |
-|:-----:|--------------------------------------------|
-| 5     | `*` `**` `/` `%` `<<` `>>` `&` `&^`         |
-| 4     | `+` `-` `\|` `^`                            |
+| Level | Operators                                       |
+|:-----:|-------------------------------------------------|
+| 5     | `*` `**` `/` `%` `<<` `>>` `&` `&^` `<<<` `>>>` `%%` |
+| 4     | `+` `-` `\|` `^`                                 |
 | 3     | `==` `!=` `<` `<=` `>` `>=`                 |
 | 2     | `&&`                                        |
 | 1     | `\|\|`                                      |

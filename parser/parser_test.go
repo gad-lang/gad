@@ -4333,6 +4333,13 @@ func TestParsePrecedence(t *testing.T) {
 	test.ExpectParseString(t, `(1 .. 10) / 2`, `((1 .. 10) / 2)`)
 	test.ExpectParseString(t, `a.b .. c`, `(a.b .. c)`)
 	test.ExpectParseString(t, `1.5 .. 2.0`, `(1.5 .. 2.0)`)
+	// user binary operators bind like the other multiplicative operators.
+	test.ExpectParseString(t, `a <<< b`, `(a <<< b)`)
+	test.ExpectParseString(t, `a >>> b`, `(a >>> b)`)
+	test.ExpectParseString(t, `a %% b`, `(a %% b)`)
+	test.ExpectParseString(t, `a <<< b + c`, `((a <<< b) + c)`)
+	test.ExpectParseString(t, `a + b %% c`, `(a + (b %% c))`)
+	test.ExpectParseString(t, `a << b <<< c`, `((a << b) <<< c)`)
 }
 
 func TestParseNullishSelector(t *testing.T) {

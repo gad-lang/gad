@@ -38,30 +38,33 @@ const (
 	GroupLiteralEnd
 	GroupOperatorBegin
 	GroupBinaryOperatorBegin
-	Add         // +
-	Sub         // -
-	Mul         // *
-	Pow         // **
-	Quo         // /
-	Rem         // %
-	And         // &
-	Or          // |
-	Xor         // ^
-	Shl         // <<
-	Shr         // >>
-	AndNot      // &^
-	LAnd        // &&
-	Equal       // ==
-	NotEqual    // !=
-	Less        // <
-	Greater     // >
-	LessEq      // <=
-	GreaterEq   // >=
-	Tilde       // ~
-	DoubleTilde // ~~
-	TripleTilde // ~~~
-	DotDot      // ..
-	Lambda      // =>
+	Add           // +
+	Sub           // -
+	Mul           // *
+	Pow           // **
+	Quo           // /
+	Rem           // %
+	And           // &
+	Or            // |
+	Xor           // ^
+	Shl           // <<
+	Shr           // >>
+	AndNot        // &^
+	LAnd          // &&
+	Equal         // ==
+	NotEqual      // !=
+	Less          // <
+	Greater       // >
+	LessEq        // <=
+	GreaterEq     // >=
+	Tilde         // ~
+	DoubleTilde   // ~~
+	TripleTilde   // ~~~
+	DotDot        // ..
+	TripleLess    // <<<
+	TripleGreater // >>>
+	DoubleMod     // %%
+	Lambda        // =>
 	GroupBinaryOperatorEnd
 	GroupDefaultOperatorBegin
 	Nullich // ??
@@ -71,22 +74,25 @@ const (
 	Define // :=
 	Assign // =
 	GroupSelfAssignOperatorBegin
-	AddAssign     // +=
-	IncAssign     // ++=
-	SubAssign     // -=
-	DecAssign     // --=
-	MulAssign     // *=
-	PowAssign     // **=
-	QuoAssign     // /=
-	RemAssign     // %=
-	AndAssign     // &=
-	OrAssign      // |=
-	XorAssign     // ^=
-	ShlAssign     // <<=
-	ShrAssign     // >>=
-	AndNotAssign  // &^=
-	LOrAssign     // ||=
-	NullichAssign // ??=
+	AddAssign           // +=
+	IncAssign           // ++=
+	SubAssign           // -=
+	DecAssign           // --=
+	MulAssign           // *=
+	PowAssign           // **=
+	QuoAssign           // /=
+	RemAssign           // %=
+	AndAssign           // &=
+	OrAssign            // |=
+	XorAssign           // ^=
+	ShlAssign           // <<=
+	ShrAssign           // >>=
+	TripleLessAssign    // <<<=
+	TripleGreaterAssign // >>>=
+	DoubleModAssign     // %%=
+	AndNotAssign        // &^=
+	LOrAssign           // ||=
+	NullichAssign       // ??=
 	GroupSelfAssignOperatorEnd
 	GroupAssignOperatorEnd
 	GroupUnaryOperatorBegin
@@ -191,137 +197,143 @@ func (tok Token) Name() string {
 }
 
 var tokens = [...]string{
-	Illegal:         "ILLEGAL",
-	EOF:             "EOF",
-	ConfigStart:     "CONFIGSTART",
-	ConfigEnd:       "CONFIGEND",
-	Comment:         "COMMENT",
-	Ident:           "IDENT",
-	Int:             "INT",
-	Uint:            "UINT",
-	Float:           "FLOAT",
-	Decimal:         "DECIMAL",
-	Char:            "CHAR",
-	String:          "STR",
-	RawString:       "RAWSTR",
-	RawHeredoc:      "RAWHEREDOC",
-	Heredoc:         "HEREDOC",
-	CodeStr:         "CODESTR",
-	Template:        "TMPL",
-	Symbol:          "SYMBOL",
-	Regex:           "REGEX",
-	Null:            "NULL",
-	NotNull:         "NOTNULL",
-	StdIn:           "STDIN",
-	StdOut:          "STDOUT",
-	StdErr:          "STDERR",
-	MixedCodeStart:  "MIXEDCODESTART",
-	MixedCodeEnd:    "MIXEDCODEEND",
-	MixedValueStart: "MIXEDVALUESTART",
-	MixedValueEnd:   "MIXEDVALUEEND",
-	MixedText:       "MIXEDTEXT",
-	Add:             "+",
-	Sub:             "-",
-	Mul:             "*",
-	Pow:             "**",
-	Quo:             "/",
-	Rem:             "%",
-	And:             "&",
-	Or:              "|",
-	Xor:             "^",
-	Shl:             "<<",
-	Shr:             ">>",
-	AndNot:          "&^",
-	AddAssign:       "+=",
-	IncAssign:       "++=",
-	SubAssign:       "-=",
-	DecAssign:       "--=",
-	MulAssign:       "*=",
-	PowAssign:       "**=",
-	QuoAssign:       "/=",
-	RemAssign:       "%=",
-	AndAssign:       "&=",
-	OrAssign:        "|=",
-	XorAssign:       "^=",
-	ShlAssign:       "<<=",
-	ShrAssign:       ">>=",
-	AndNotAssign:    "&^=",
-	LOrAssign:       "||=",
-	NullichAssign:   "??=",
-	LAnd:            "&&",
-	LOr:             "||",
-	Nullich:         "??",
-	Inc:             "++",
-	Dec:             "--",
-	Equal:           "==",
-	Less:            "<",
-	Greater:         ">",
-	Assign:          "=",
-	Not:             "!",
-	NotEqual:        "!=",
-	LessEq:          "<=",
-	GreaterEq:       ">=",
-	Tilde:           "~",
-	DoubleTilde:     "~~",
-	TripleTilde:     "~~~",
-	DotDot:          "..",
-	Lambda:          "=>",
-	Define:          ":=",
-	Pipe:            ".|",
-	LParen:          "(",
-	LBrack:          "[",
-	LBrace:          "{",
-	Comma:           ",",
-	Period:          ".",
-	RParen:          ")",
-	RBrack:          "]",
-	RBrace:          "}",
-	Semicolon:       ";",
-	Colon:           ":",
-	Question:        "?",
-	NullishSelector: "?.",
-	Break:           "break",
-	Continue:        "continue",
-	Else:            "else",
-	For:             "for",
-	Func:            "func",
-	Method:          "met",
-	If:              "if",
-	Return:          "return",
-	True:            "true",
-	False:           "false",
-	Yes:             "yes",
-	No:              "no",
-	In:              "in",
-	Nil:             "nil",
-	Import:          "import",
-	Embed:           "embed",
-	Param:           "param",
-	Global:          "global",
-	Var:             "var",
-	Const:           "const",
-	Try:             "try",
-	Catch:           "catch",
-	Finally:         "finally",
-	Throw:           "throw",
-	Callee:          "@fn",
-	Args:            "@args",
-	NamedArgs:       "@nargs",
-	DotName:         "@name",
-	DotFile:         "@file",
-	IsMain:          "@main",
-	Module:          "@module",
-	Raw:             "raw",
-	Match:           "match",
-	Defer:           "defer",
-	DeferOk:         "defer_ok",
-	DeferErr:        "defer_err",
-	Deferb:          "deferb",
-	DeferbOk:        "deferb_ok",
-	DeferbErr:       "deferb_err",
-	Prop:            "prop",
-	Meti:            "meti",
-	Export:          "export",
+	Illegal:             "ILLEGAL",
+	EOF:                 "EOF",
+	ConfigStart:         "CONFIGSTART",
+	ConfigEnd:           "CONFIGEND",
+	Comment:             "COMMENT",
+	Ident:               "IDENT",
+	Int:                 "INT",
+	Uint:                "UINT",
+	Float:               "FLOAT",
+	Decimal:             "DECIMAL",
+	Char:                "CHAR",
+	String:              "STR",
+	RawString:           "RAWSTR",
+	RawHeredoc:          "RAWHEREDOC",
+	Heredoc:             "HEREDOC",
+	CodeStr:             "CODESTR",
+	Template:            "TMPL",
+	Symbol:              "SYMBOL",
+	Regex:               "REGEX",
+	Null:                "NULL",
+	NotNull:             "NOTNULL",
+	StdIn:               "STDIN",
+	StdOut:              "STDOUT",
+	StdErr:              "STDERR",
+	MixedCodeStart:      "MIXEDCODESTART",
+	MixedCodeEnd:        "MIXEDCODEEND",
+	MixedValueStart:     "MIXEDVALUESTART",
+	MixedValueEnd:       "MIXEDVALUEEND",
+	MixedText:           "MIXEDTEXT",
+	Add:                 "+",
+	Sub:                 "-",
+	Mul:                 "*",
+	Pow:                 "**",
+	Quo:                 "/",
+	Rem:                 "%",
+	And:                 "&",
+	Or:                  "|",
+	Xor:                 "^",
+	Shl:                 "<<",
+	Shr:                 ">>",
+	AndNot:              "&^",
+	AddAssign:           "+=",
+	IncAssign:           "++=",
+	SubAssign:           "-=",
+	DecAssign:           "--=",
+	MulAssign:           "*=",
+	PowAssign:           "**=",
+	QuoAssign:           "/=",
+	RemAssign:           "%=",
+	AndAssign:           "&=",
+	OrAssign:            "|=",
+	XorAssign:           "^=",
+	ShlAssign:           "<<=",
+	ShrAssign:           ">>=",
+	TripleLessAssign:    "<<<=",
+	TripleGreaterAssign: ">>>=",
+	DoubleModAssign:     "%%=",
+	AndNotAssign:        "&^=",
+	LOrAssign:           "||=",
+	NullichAssign:       "??=",
+	LAnd:                "&&",
+	LOr:                 "||",
+	Nullich:             "??",
+	Inc:                 "++",
+	Dec:                 "--",
+	Equal:               "==",
+	Less:                "<",
+	Greater:             ">",
+	Assign:              "=",
+	Not:                 "!",
+	NotEqual:            "!=",
+	LessEq:              "<=",
+	GreaterEq:           ">=",
+	Tilde:               "~",
+	DoubleTilde:         "~~",
+	TripleTilde:         "~~~",
+	DotDot:              "..",
+	TripleLess:          "<<<",
+	TripleGreater:       ">>>",
+	DoubleMod:           "%%",
+	Lambda:              "=>",
+	Define:              ":=",
+	Pipe:                ".|",
+	LParen:              "(",
+	LBrack:              "[",
+	LBrace:              "{",
+	Comma:               ",",
+	Period:              ".",
+	RParen:              ")",
+	RBrack:              "]",
+	RBrace:              "}",
+	Semicolon:           ";",
+	Colon:               ":",
+	Question:            "?",
+	NullishSelector:     "?.",
+	Break:               "break",
+	Continue:            "continue",
+	Else:                "else",
+	For:                 "for",
+	Func:                "func",
+	Method:              "met",
+	If:                  "if",
+	Return:              "return",
+	True:                "true",
+	False:               "false",
+	Yes:                 "yes",
+	No:                  "no",
+	In:                  "in",
+	Nil:                 "nil",
+	Import:              "import",
+	Embed:               "embed",
+	Param:               "param",
+	Global:              "global",
+	Var:                 "var",
+	Const:               "const",
+	Try:                 "try",
+	Catch:               "catch",
+	Finally:             "finally",
+	Throw:               "throw",
+	Callee:              "@fn",
+	Args:                "@args",
+	NamedArgs:           "@nargs",
+	DotName:             "@name",
+	DotFile:             "@file",
+	IsMain:              "@main",
+	Module:              "@module",
+	Raw:                 "raw",
+	Match:               "match",
+	Defer:               "defer",
+	DeferOk:             "defer_ok",
+	DeferErr:            "defer_err",
+	Deferb:              "deferb",
+	DeferbOk:            "deferb_ok",
+	DeferbErr:           "deferb_err",
+	Prop:                "prop",
+	Meti:                "meti",
+	Export:              "export",
 }
 
 var tokenNames = [...]string{
@@ -376,6 +388,9 @@ var tokenNames = [...]string{
 	DoubleTilde:                  "DoubleTilde",
 	TripleTilde:                  "TripleTilde",
 	DotDot:                       "DotDot",
+	TripleLess:                   "TripleLess",
+	TripleGreater:                "TripleGreater",
+	DoubleMod:                    "DoubleMod",
 	Lambda:                       "Lambda",
 	GroupBinaryOperatorEnd:       "GroupBinaryOperatorEnd",
 	GroupDefaultOperatorBegin:    "GroupDefaultOperatorBegin",
@@ -399,6 +414,9 @@ var tokenNames = [...]string{
 	XorAssign:                    "XorAssign",
 	ShlAssign:                    "ShlAssign",
 	ShrAssign:                    "ShrAssign",
+	TripleLessAssign:             "TripleLessAssign",
+	TripleGreaterAssign:          "TripleGreaterAssign",
+	DoubleModAssign:              "DoubleModAssign",
 	AndNotAssign:                 "AndNotAssign",
 	LOrAssign:                    "LOrAssign",
 	NullichAssign:                "NullichAssign",
@@ -498,7 +516,7 @@ func (tok Token) Precedence() int {
 		return 4
 	case Add, Sub, Or, Xor:
 		return 5
-	case Mul, Quo, Rem, Shl, Shr, And, AndNot:
+	case Mul, Quo, Rem, Shl, Shr, And, AndNot, TripleLess, TripleGreater, DoubleMod:
 		return 6
 	case Pow:
 		return 7
@@ -554,8 +572,22 @@ func (tok Token) IsBinaryOperator() bool {
 		Tilde,
 		DoubleTilde,
 		TripleTilde,
+		TripleLess,
+		TripleGreater,
+		DoubleMod,
 		Inc,
 		Dec:
+		return true
+	}
+	return false
+}
+
+// IsUserBinaryOperator reports whether tok is a binary operator that has no
+// built-in semantics and must be implemented via `met @binaryOperator` (and the
+// self-assign forms via `met @selfAssignOperator`): `<<<`, `>>>`, `%%`.
+func (tok Token) IsUserBinaryOperator() bool {
+	switch tok {
+	case TripleLess, TripleGreater, DoubleMod:
 		return true
 	}
 	return false
@@ -629,6 +661,12 @@ func Unassign(tok Token) Token {
 		return Shl
 	case ShrAssign:
 		return Shr
+	case TripleLessAssign:
+		return TripleLess
+	case TripleGreaterAssign:
+		return TripleGreater
+	case DoubleModAssign:
+		return DoubleMod
 	case AndNotAssign:
 		return AndNot
 	case LOrAssign:

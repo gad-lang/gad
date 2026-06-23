@@ -205,6 +205,10 @@ const (
 	BuiltinBinaryOperatorTilde
 	BuiltinBinaryOperatorDoubleTilde
 	BuiltinBinaryOperatorTripleTilde
+	BuiltinBinaryOperatorDotDot
+	BuiltinBinaryOperatorTripleLess
+	BuiltinBinaryOperatorTripleGreater
+	BuiltinBinaryOperatorDoubleMod
 	BuiltinBinaryOperatorLambda
 	BuiltinBinaryOperatorInc
 	BuiltinBinaryOperatorDec
@@ -224,6 +228,9 @@ const (
 	BuiltinSelfAssignOperatorXor
 	BuiltinSelfAssignOperatorShl
 	BuiltinSelfAssignOperatorShr
+	BuiltinSelfAssignOperatorTripleLess
+	BuiltinSelfAssignOperatorTripleGreater
+	BuiltinSelfAssignOperatorDoubleMod
 	BuiltinSelfAssignOperatorAndNot
 	BuiltinSelfAssignOperatorLOr
 	GroupBuiltinSelfAssignOperatorsEnd
