@@ -1849,6 +1849,15 @@ func (e *MethodInterfaceExpr) String() string {
 
 // armsInNewLine reports whether the headers should be one per line.
 func (e *MethodInterfaceExpr) headersInNewLine(ctx *CodeWriteContext) bool {
+	if ctx.HasPrefix() {
+		// A header carrying a doc forces the one-per-line layout so the doc can
+		// sit on its own line above the header.
+		for _, h := range e.Headers {
+			if ctx.isClaimedDoc(h.Doc) {
+				return true
+			}
+		}
+	}
 	return ctx.HasPrefix() && ctx.Flags.Has(CodeWriteContextFlagFormatMethodInterfaceInNewLine)
 }
 
@@ -1870,6 +1879,7 @@ func (e *MethodInterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 				ctx.WriteString(",")
 			}
 			ctx.WriteSemi()
+			ctx.WriteLeadDoc(e.Headers[i].Doc)
 			ctx.WriteString(e.Headers[i].FuncHeader.String())
 		}
 		ctx.Depth--

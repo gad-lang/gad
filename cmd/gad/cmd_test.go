@@ -331,6 +331,29 @@ func TestFormatDocPropAndMeti(t *testing.T) {
 	require.Equal(t, out, out2)
 }
 
+// TestFormatDocMetiPerHeader verifies a doc preceding a meti header is kept on
+// its own line above the header (forcing the one-per-line layout).
+func TestFormatDocMetiPerHeader(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	src := "/? a calculator interface\n" +
+		"meti calc {\n" +
+		"\t/? add two ints\n" +
+		"\t(a int, b int) <int>\n\n" +
+		"\t/? subtract\n" +
+		"\t(a int, b int) <int>\n" +
+		"}\n"
+
+	out, err := o.formatSource("d.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Contains(t, out, "/? a calculator interface\nmeti calc")
+	require.Contains(t, out, "/? add two ints")
+	require.Contains(t, out, "/? subtract")
+
+	out2, err := o.formatSource("d.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, out2)
+}
+
 // TestFormatDocCommaIdentError verifies a doc trailing a comma-separated
 // valueless identifier is a parse error.
 func TestFormatDocCommaIdentError(t *testing.T) {

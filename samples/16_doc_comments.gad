@@ -1,0 +1,50 @@
+// 16_doc_comments.gad — doc comments (`/?`, `/??`, `/???`).
+//
+// Doc comments document the identifier, declaration, func/met/meti/prop they
+// precede (or trail, inline). Their contents are Markdown. Unlike ordinary `//`
+// and `/* */` comments, a doc comment is attached to the node it documents, so
+// `gad fmt` keeps it with that node and `gad doc` can render it.
+
+/???
+This whole sample is a tour of doc comments. A `/???` … `???` block is a
+ROOT_BLOCK: a module-level doc, not attached to the next statement.
+???
+
+/? the service listen address (SINGLE form, on its own line)
+const ServerAddr = ":8080"
+
+const (
+	/? the greeting prefix (SINGLE, linked to the spec ident)
+	Greeting = "hello"
+
+	Retries = 3 /? how many times to retry (INLINE_VALUE, trailing)
+)
+
+/??
+`sum` returns the sum of `a` and `b`.
+
+A `/??` … `??` block is the BLOCK form; its lines are reflowed as Markdown.
+??
+func sum(a, b) {
+	return a + b
+}
+
+/? a tiny calculator dispatching on argument types
+func calc {
+	/? add two ints
+	(a int, b int) => a + b
+
+	/? add two floats
+	(a float, b float) => a + b
+}
+
+/? a difference contract
+meti differ {
+	/? difference of two ints
+	(a int, b int) <int>
+}
+
+println(Greeting, ServerAddr, "retries:", Retries)
+println("sum:", sum(2, 3))                 // sum: 5
+println("calc ints:", calc(2, 3))          // calc ints: 5
+println("calc floats:", calc(2.5, 0.5))    // calc floats: 3

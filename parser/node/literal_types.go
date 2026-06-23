@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 
+	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
 )
 
@@ -476,8 +477,9 @@ func (e *FuncType) End() source.Pos {
 // brackets: `<()>`, `<(v int)>`, `<(v int) <x uint|int>>`. It evaluates to a
 // FunctionHeader value describing a signature.
 type FuncHeaderExpr struct {
-	OpenPos  source.Pos // `<`
-	ClosePos source.Pos // `>`
+	OpenPos  source.Pos        // `<`
+	ClosePos source.Pos        // `>`
+	Doc      *ast.CommentGroup // doc comment preceding the header (in a meti); or nil
 	FuncHeader
 }
 

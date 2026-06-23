@@ -2051,6 +2051,7 @@ func (p *Parser) ParseMethodInterfaceExprT(tok PToken) (e node.Expr) {
 
 // parseInterfaceHeader parses a bracket-less func header `(params) <return>`.
 func (p *Parser) parseInterfaceHeader() *node.FuncHeaderExpr {
+	doc := p.leadComment
 	paren := p.ParseParemExpr(token.LParen, token.RParen)
 	if paren == nil || p.Errors.Len() != 0 {
 		return nil
@@ -2061,6 +2062,7 @@ func (p *Parser) parseInterfaceHeader() *node.FuncHeaderExpr {
 		return nil
 	}
 	return &node.FuncHeaderExpr{
+		Doc:        doc,
 		FuncHeader: node.FuncHeader{Params: params, Return: p.ParseFuncReturnTypes()},
 	}
 }

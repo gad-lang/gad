@@ -325,6 +325,9 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 			}
 		case *MethodInterfaceStmt:
 			ctx.claimLeadDoc(t.Doc, &t.MethodInterfaceExpr)
+			for _, h := range t.Headers {
+				ctx.claimLeadDoc(h.Doc, h)
+			}
 		}
 	}
 	if len(ctx.docClaim) == 0 {
