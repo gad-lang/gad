@@ -249,6 +249,46 @@ func TestFormatDocLeadOnGenDeclAndFunc(t *testing.T) {
 	require.Equal(t, out, out2)
 }
 
+// TestFormatDocSingleBlockConversion verifies a short BLOCK doc collapses to a
+// SINGLE doc and a long SINGLE doc expands to a BLOCK, both idempotently.
+func TestFormatDocSingleBlockConversion(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+
+	// short block -> single
+	short := "/??\nthe pi value\n??\nconst pi = 3.14\n"
+	out, err := o.formatSource("d.gad", []byte(short), false)
+	require.NoError(t, err)
+	require.Contains(t, out, "/? the pi value\nconst pi = 3.14")
+	out2, err := o.formatSource("d.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, out2)
+
+	// long single -> block (content wrapped, fenced)
+	long := "/? " + strings.Repeat("word ", 30) + "\nconst x = 1\n"
+	out, err = o.formatSource("d.gad", []byte(long), false)
+	require.NoError(t, err)
+	require.Contains(t, out, "/??\n")
+	require.Contains(t, out, "\n??\nconst x = 1")
+	out2, err = o.formatSource("d.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, out2)
+}
+
+// TestFormatDocInGroupTrailing verifies an inline trailing doc inside a `( … )`
+// group stays attached to its spec on the same line.
+func TestFormatDocInGroupTrailing(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	src := "var (\n\tc = 1\n\td = 2 /? the value of d\n\te = 3\n)\n"
+
+	out, err := o.formatSource("d.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Contains(t, out, "d = 2 /? the value of d")
+
+	out2, err := o.formatSource("d.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, out2)
+}
+
 func TestFormatTargetTranspileGadt(t *testing.T) {
 	dir := t.TempDir()
 	p := writeFile(t, dir, "page.gadt", "Hi {%= name %}!\n{% x := 1 %}")

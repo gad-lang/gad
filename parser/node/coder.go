@@ -302,7 +302,10 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 				ctx.claimLeadDoc(gd.Doc, gd)
 				for _, sp := range gd.Specs {
 					if vs, _ := sp.(*ValueSpec); vs != nil {
-						ctx.claimLeadDoc(vs.Doc, vs)
+						// A spec doc is emitted by the spec whether it is a lead
+						// doc (before the ident) or a trailing inline doc, since
+						// the position machinery does not reach inside a group.
+						ctx.claimDoc(vs.Doc)
 					}
 				}
 			}
@@ -330,6 +333,14 @@ func (ctx *CodeWriteContext) claimLeadDoc(g *ast.CommentGroup, n ast.Node) {
 	if g == nil || len(g.List) == 0 || g.End() > n.Pos() {
 		return
 	}
+	ctx.claimDoc(g)
+}
+
+// claimDoc claims every comment of g for node-based emission.
+func (ctx *CodeWriteContext) claimDoc(g *ast.CommentGroup) {
+	if g == nil || len(g.List) == 0 {
+		return
+	}
 	if ctx.docClaim == nil {
 		ctx.docClaim = map[*ast.Comment]bool{}
 	}
@@ -351,19 +362,32 @@ func (ctx *CodeWriteContext) isClaimedDoc(g *ast.CommentGroup) bool {
 	return true
 }
 
+// docLines returns the lines of g for emission. In a format mode the doc is
+// reflowed (Markdown paragraphs re-wrapped, SINGLE<->BLOCK chosen by the column
+// budget); otherwise the source lines are kept verbatim. Continuation lines
+// carry no prefix — callers re-indent them to the current prefix.
+func (ctx *CodeWriteContext) docLines(g *ast.CommentGroup) []string {
+	if ctx.Flags.Has(CodeWriteContextFlagFormat) {
+		if d, ok := parseDocComment(g); ok {
+			return renderDocLines(d, ctx.maxColumns()-len(ctx.CurrentPrefix()))
+		}
+	}
+	var lines []string
+	for _, c := range g.List {
+		lines = append(lines, strings.Split(c.Text, "\n")...)
+	}
+	return lines
+}
+
 // writeDocComment writes a doc comment group, re-indenting continuation lines to
 // the current prefix so a block doc (`/??` … `??`) aligns with its construct.
 func (ctx *CodeWriteContext) writeDocComment(g *ast.CommentGroup) {
 	prefix := ctx.CurrentPrefix()
-	first := true
-	for _, c := range g.List {
-		for _, line := range strings.Split(c.Text, "\n") {
-			if !first {
-				ctx.WriteString("\n", prefix)
-			}
-			ctx.WriteString(line)
-			first = false
+	for i, line := range ctx.docLines(g) {
+		if i > 0 {
+			ctx.WriteString("\n", prefix)
 		}
+		ctx.WriteString(line)
 	}
 }
 
@@ -378,6 +402,28 @@ func (ctx *CodeWriteContext) WriteLeadDoc(g *ast.CommentGroup) bool {
 	ctx.writeDocComment(g)
 	ctx.WriteString("\n", ctx.CurrentPrefix())
 	return true
+}
+
+// WriteTrailingDoc emits g as a trailing inline doc (` /? …`) on the current
+// line when g is a claimed doc. Inline docs are kept on one line regardless of
+// width. Returns true when it emitted the doc.
+func (ctx *CodeWriteContext) WriteTrailingDoc(g *ast.CommentGroup) bool {
+	if !ctx.isClaimedDoc(g) {
+		return false
+	}
+	if ctx.Flags.Has(CodeWriteContextFlagFormat) {
+		if d, ok := parseDocComment(g); ok {
+			ctx.WriteString(" ", "/? "+strings.Join(strings.Fields(d.content), " "))
+			return true
+		}
+	}
+	ctx.WriteString(" ", g.List[0].Text)
+	return true
+}
+
+// isLeadDoc reports whether g precedes n (a lead doc) rather than trailing it.
+func isLeadDoc(g *ast.CommentGroup, n ast.Node) bool {
+	return g != nil && len(g.List) > 0 && g.End() <= n.Pos()
 }
 
 func NewCodeWriteContext(codeWriter CodeWriter, opt ...CodeOption) *CodeWriteContext {

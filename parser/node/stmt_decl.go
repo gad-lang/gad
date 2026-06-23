@@ -160,7 +160,12 @@ func (s *ValueSpec) valueless() bool {
 }
 
 func (s *ValueSpec) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteLeadDoc(s.Doc)
+	// A spec doc preceding the ident is a lead doc (own line above); a doc
+	// trailing the value is an inline doc kept on the same line after it.
+	lead := isLeadDoc(s.Doc, s)
+	if lead {
+		ctx.WriteLeadDoc(s.Doc)
+	}
 
 	// A value-less spec wraps its identifiers greedily under NEW_LINE_CALC:
 	// packed onto the line, continued on the next (extra-indented) line only on
@@ -171,6 +176,9 @@ func (s *ValueSpec) WriteCode(ctx *CodeWriteContext) {
 			s.Idents[i].WriteCode(ctx)
 		})
 		ctx.Depth--
+		if !lead {
+			ctx.WriteTrailingDoc(s.Doc)
+		}
 		return
 	}
 
@@ -184,6 +192,9 @@ func (s *ValueSpec) WriteCode(ctx *CodeWriteContext) {
 		if i != last {
 			ctx.WriteString(", ")
 		}
+	}
+	if !lead {
+		ctx.WriteTrailingDoc(s.Doc)
 	}
 }
 
