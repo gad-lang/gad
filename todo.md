@@ -33,14 +33,6 @@
   features (auto complete etc) on
   edit code/expression in template strings.
 
-- [ ] parse binary operator `in` (`A in B`). it compiles to `OpIn` to call `Contains` method (implements
-  `interface Container { Contains(v Object) (bool, error) }`),
-  for fallback, calls binary operator handlers. take Dict (of key name), Array (of value), KeyValueArray (of key name),
-  SyncDict (of key name),
-  MethodInterfaceInstance (of FunctionHeader value, or FunctionHeaders), Bytes
-  to implements `Container` interface. for loop isn't binary operator (`for x in y {}` - ` x in y` ins't operator;
-  `for (x in y) {}` - ` x in y` is operator).
-  create samples, docs and parser/compiler/vm tests.
 - [ ] parse binary operator `ins`, like `in`, but accept `array` of values. (`A ins B`/`[...] ins B`). it compiles to
   `OpInOfArray` to call `ContainsArray` method (implements
   `interface ArrayContainer { ContainsArray(v Array) (bool, error) }`,
@@ -179,7 +171,8 @@
       ```
     - create samples, docs and parser/compiler/vm tests.
     - create gad subcommand `doc` like `fmt`, to save result with `.md` extension (if no flag `--no-save`).
-      the flag `--out` (default is `"doc"`)
+      the flag `--out` (default is `"doc"`). the doc generator, generate only of ROOT_BLOCKs and DOC of exported INDENTS 
+      (including `export IDENT`/`export func/method IDENT ...`/`export IDENT = ...` and `export { IDENT ... }` (when IDENT is dict key).
       - generate output like godoc: 
         ```markdonw
         # MODULE_NAME
@@ -232,3 +225,17 @@
           generator for here, but not exit program.
         - when absolute path of `INPUT_DIR.doc.dst` equals to root `doc.dst`, raise an error and exit program with error status.
       - create doc and samples for this subcommand.
+- [ ] create "core" module like "strings" and move "@binaryOperator" (rename to "binOp") and "@selfAssignOperator" (rename to "selfAssignOp") to here. update samples, docs and tests.
+- [ ] update `mkoptypes` to auto generate "op_api.go" with specific interface of binary operators, with syntaxe 
+  `type ObjectWith[OPERATOR_NAME]BinOperator interface { BinOp[OPERATOR_NAME](vm *VM, right Object) (Object, error) }`.
+  example: `type ObjectWithAddBinOperator interface { BinOpAdd(vm *VM, right Object) }`. replace all `BinaryOperatorHandler` 
+  implementations to new API, and use new API into `registerOperatorMethods`.
+  replace all `Container` implementations to new API of `In` operator. use new API and remove `OpIn` from opcodes and `VM.loop()`.
+  update go doc, gad doc and samples.
+- [ ] update `mkoptypes` generator for `op_api.go` to generate interfaces of unary operators `--`/`++`
+  with syntaxe `type ObjectWith[OPERATOR_NAME]UnaryOperator interface { UnOp[OPERATOR_NAME](vm *VM) (Object, error) }`.
+  add builtin function "unOp" to module "core" for unary operators. change `VM.xOpUnary()` to call "core.unOp(&vm.stack[vm.sp-1])" and move all
+  per type implementatios to use `AddMethod` API of `core.unOp` builtin function, calling `obj.UnOp(vm)`.
+- [ ] update `mkoptypes` generator for `op_api.go` to generate interfaces of self assign operators.
+  with syntaxe `type ObjectWith[OPERATOR_NAME]SelfAssigOperator interface { SelfAssignOp[OPERATOR_NAME](vm *VM, value Object) (Object, error) }`.
+  change builtin function "core.selfAssignOp" methods (`AddMethod` API) to call `obj.SelfAssignOp(vm, value)`.
