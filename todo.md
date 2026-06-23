@@ -33,9 +33,6 @@
   features (auto complete etc) on
   edit code/expression in template strings.
 
-- [ ] parse binary user operators: 1) TripleLess `<<<`; 2) TripleGreater `>>>`; 3) DoubleMod `%%`; create assign
-  operators version `<<<=`, `>>>=`, `%%=`. created samples (using `met @binaryOperator`), docs and parser/compiler/vm
-  tests.
 - [ ] parse binary operator `in` (`A in B`). it compiles to `OpIn` to call `Contains` method (implements
   `interface Container { Contains(v Object) (bool, error) }`),
   for fallback, calls binary operator handlers. take Dict (of key name), Array (of value), KeyValueArray (of key name),
