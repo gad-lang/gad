@@ -119,9 +119,10 @@ var _ Spec = (*ValueSpec)(nil)
 
 // A ValueSpec node represents a variable declaration
 type ValueSpec struct {
-	Idents []*IdentExpr // TODO: slice is reserved for tuple assignment
-	Values []Expr       // initial values; or nil
-	Data   any          // iota
+	Idents []*IdentExpr      // TODO: slice is reserved for tuple assignment
+	Values []Expr            // initial values; or nil
+	Data   any               // iota
+	Doc    *ast.CommentGroup // doc comment preceding the spec (linked to ident); or nil
 }
 
 // specNode() ensures that only spec nodes can be assigned to a Spec.
@@ -234,7 +235,8 @@ type GenDecl struct {
 	Tok    token.Token // Var
 	Lparen source.Pos  // position of '(', if any
 	Specs  []Spec
-	Rparen source.Pos // position of ')', if any
+	Rparen source.Pos        // position of ')', if any
+	Doc    *ast.CommentGroup // associated doc comment (`/?`, `/??`, `/???`); or nil
 }
 
 // Pos returns the position of first character belonging to the node.

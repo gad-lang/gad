@@ -76,6 +76,15 @@ type Parser struct {
 	// header's left-hand side, so `for x in y` keeps `in` as the for-in
 	// separator. Parentheses reset it (`for (x in y)` → `in` is the operator).
 	noInOp bool
+
+	// leadComment is the doc comment group (`/?`, `/??`, `/???`) immediately
+	// preceding the current token, on the line directly above it; lineComment
+	// is the doc comment trailing the previous token on the same line. Both are
+	// refreshed by Next and consumed by the decl/func parsers to populate Doc
+	// fields. Only doc comments (see isDocCommentGroup) are tracked here;
+	// regular `//` and `/* */` comments flow only into p.comments.
+	leadComment *ast.CommentGroup
+	lineComment *ast.CommentGroup
 }
 
 // NewParser creates a Parser.
@@ -1648,7 +1657,18 @@ func (p *Parser) ParseFuncStmt() (stmt node.Stmt) {
 		defer untracep(tracep(p, "FuncStmt"))
 	}
 
+	doc := p.leadComment
 	e := p.ParseFuncExprT(p.ExpectToken(p.Token.Token))
+	if doc != nil {
+		switch t := e.(type) {
+		case *node.FuncExpr:
+			t.Doc = doc
+		case *node.MethodExpr:
+			if fe, ok := t.Expr.(*node.FuncExpr); ok {
+				fe.Doc = doc
+			}
+		}
+	}
 
 	if p.Token.Token.Is(token.LParen) {
 		parem := p.ParseParemExpr(token.LParen, token.RParen)
@@ -2646,6 +2666,7 @@ func (p *Parser) ParseGenDecl(
 	if p.Trace {
 		defer untracep(tracep(p, "GenDecl("+keyword.String()+")"))
 	}
+	doc := p.leadComment
 	pos := p.Expect(keyword)
 	var lparen, rparen source.Pos
 	var list []node.Spec
@@ -2668,6 +2689,7 @@ func (p *Parser) ParseGenDecl(
 		Lparen: lparen,
 		Specs:  list,
 		Rparen: rparen,
+		Doc:    doc,
 	}
 }
 
@@ -2767,6 +2789,8 @@ func (p *Parser) ParseValueSpec(keyword token.Token, multi bool, _ []node.Spec, 
 	if p.Trace {
 		defer untracep(tracep(p, keyword.String()+"Spec"))
 	}
+	// lead doc comment precedes the spec; linked to the ident.
+	doc := p.leadComment
 	pos := p.Token.Pos
 	var idents []*node.IdentExpr
 	var values []node.Expr
@@ -2789,6 +2813,12 @@ func (p *Parser) ParseValueSpec(keyword token.Token, multi bool, _ []node.Spec, 
 		} else if multi {
 			p.ExpectSemi()
 		}
+		// INLINE / INLINE_VALUE: a doc trailing the spec on the same line
+		// (`a /? doc` or `a = 1 /? doc`) is linked to this ident when there is
+		// no lead doc.
+		if doc == nil && p.lineComment != nil {
+			doc = p.lineComment
+		}
 	}
 	if len(idents) == 0 {
 		p.Error(pos, "wrong var declaration")
@@ -2798,6 +2828,7 @@ func (p *Parser) ParseValueSpec(keyword token.Token, multi bool, _ []node.Spec, 
 		Idents: idents,
 		Values: values,
 		Data:   i,
+		Doc:    doc,
 	}
 	return spec
 }
@@ -4096,6 +4127,8 @@ func (p *Parser) next0() {
 func (p *Parser) Next() *Parser {
 	prev := p.Token.Pos
 	p.PrevToken = p.Token
+	p.leadComment = nil
+	p.lineComment = nil
 
 next:
 	p.next0()
@@ -4107,17 +4140,48 @@ next:
 	case token.Comment:
 		if source.MustFileLine(p.File, p.Token.Pos) == source.MustFileLine(p.File, prev) {
 			// line comment of prev token
-			_ = p.consumeCommentGroup(0)
+			grp := p.consumeCommentGroup(0)
+			if isDocCommentGroup(grp) {
+				p.lineComment = grp
+			}
 		}
 		// consume successor comments, if any
+		var lead *ast.CommentGroup
 		for p.Token.Token == token.Comment {
 			// lead comment of next token
-			_ = p.consumeCommentGroup(1)
+			lead = p.consumeCommentGroup(1)
+		}
+		// only attach as a lead doc when the group sits on the line directly
+		// above the upcoming token (a blank line detaches it, e.g. a standalone
+		// ROOT_BLOCK separated from the next statement).
+		if isDocCommentGroup(lead) &&
+			source.MustFileLine(p.File, p.Token.Pos) == p.commentGroupEndLine(lead)+1 {
+			p.leadComment = lead
 		}
 	}
 
 	p.postScan(p)
 	return p
+}
+
+// commentGroupEndLine returns the source line of the group's last character.
+func (p *Parser) commentGroupEndLine(g *ast.CommentGroup) int {
+	return source.MustFileLine(p.File, g.End()-1)
+}
+
+// isDocCommentGroup reports whether every comment in g is a doc comment, i.e.
+// begins with the `/?` marker (covering SINGLE `/?`, BLOCK `/??`, and
+// ROOT_BLOCK `/???` forms). Regular `//` and `/* */` comments are not docs.
+func isDocCommentGroup(g *ast.CommentGroup) bool {
+	if g == nil || len(g.List) == 0 {
+		return false
+	}
+	for _, c := range g.List {
+		if !strings.HasPrefix(c.Text, "/?") {
+			return false
+		}
+	}
+	return true
 }
 
 func (p *Parser) SkipSpace() {

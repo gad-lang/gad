@@ -32,14 +32,6 @@
   on gad editor, add copy to clipboard button (must icon) on tooltip. change codemirror plugin to add code editor
   features (auto complete etc) on
   edit code/expression in template strings.
-
-- [ ] parse binary operator `ins`, like `in`, but accept `array` of values. (`A ins B`/`[...] ins B`). it compiles to
-  `OpInOfArray` to call `ContainsArray` method (implements
-  `interface ArrayContainer { ContainsArray(v Array) (bool, error) }`,
-  `ContainsArray` return `true` only if all values exists on object),
-  if `B` does not implements `ArrayContainer` interface, but implements `Container` takes
-  `for v in A { if !B.Contains(v) { return false } }; return true`, fallback calls binary operator for this Token.
-  create samples, docs and parser/compiler/vm tests.
 - [ ] implements parser of doc comments, contents is in Markdown (allowing safe HTML code).
   the doc is linked to IDENT (set to Doc field) or STMT. take to accept doc idents of DECL, `func/met/meti/prop` stmts (
   set to Doc field). put formatted doc in `WriteCode`.
@@ -224,6 +216,18 @@
         - if skips because `skip` or `doc.dst` is empty, log coloured (if stderr is tty) message to stderr and skip doc 
           generator for here, but not exit program.
         - when absolute path of `INPUT_DIR.doc.dst` equals to root `doc.dst`, raise an error and exit program with error status.
+      - example validation: if a BLOCK/ROOT_BLOCK doc contains a ```gad code block, validate it on doc generation by
+        running its contents. fail doc generation (or report error) if the example does not run.
+        ```gad
+        const x = 2
+        println(x)
+        ```
+        when an example code-block line starts with `>>> `, check the result of the previous statement against the
+        value after `>>> ` (doctest-style):
+        ```gad
+        const x = 2
+        >>> 1 // check this result
+        ```
       - create doc and samples for this subcommand.
 - [ ] create "core" module like "strings" and move "@binaryOperator" (rename to "binOp") and "@selfAssignOperator" (rename to "selfAssignOp") to here. update samples, docs and tests.
 - [ ] update `mkoptypes` to auto generate "op_api.go" with specific interface of binary operators, with syntaxe 
@@ -239,3 +243,8 @@
 - [ ] update `mkoptypes` generator for `op_api.go` to generate interfaces of self assign operators.
   with syntaxe `type ObjectWith[OPERATOR_NAME]SelfAssigOperator interface { SelfAssignOp[OPERATOR_NAME](vm *VM, value Object) (Object, error) }`.
   change builtin function "core.selfAssignOp" methods (`AddMethod` API) to call `obj.SelfAssignOp(vm, value)`.
+- [ ] parse binary operator `ain`, like `in`, but accept `array` of values. (`A ain B`/`[...] ain B`).
+  update `mkoptypes` generator for `op_api.go` to add interface of `ain` operator (`ArrayIn`.
+  if `B` does not implements `ObjectWithArrayInBinOp` interface, but implements `ObjectWithInBinOp` takes
+  `for v in A { v, err := B.BinOpIn(v); // check error\nif v.IsFalsy() { return false } }; return true`.
+  create samples, docs and parser/compiler/vm tests.

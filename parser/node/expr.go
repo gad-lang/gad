@@ -1887,6 +1887,7 @@ type FuncExpr struct {
 	Body      *BlockStmt
 	LambdaPos source.Pos
 	BodyExpr  Expr
+	Doc       *ast.CommentGroup // associated doc comment (`/?`, `/??`, `/???`); or nil
 }
 
 func (e *FuncExpr) ExprNode() {}

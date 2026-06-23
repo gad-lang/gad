@@ -247,3 +247,41 @@ match n { 1: "a", 2: "b", 3: "c", else: "z" }
 
 Arms with non-primitive conditions (identifiers, expressions) keep their source
 order.
+
+## Doc comments
+
+Doc comments document an identifier, declaration, or `func`/`met`/`meti`/`prop`
+statement. Their contents are **Markdown** (safe HTML allowed). They differ from
+regular `//` and `/* */` comments: a doc comment is *attached* to an AST node's
+`Doc` field, while ordinary comments are only preserved for formatting.
+
+### Forms
+
+| Form         | Syntax                       | Example                                  |
+|--------------|------------------------------|------------------------------------------|
+| `SINGLE`     | `/? text` on its own line    | `/? the pi value`<br>`pi = 3.14`         |
+| `INLINE`     | `IDENT /? text` (no value)   | `var pi /? the pi value`                 |
+| `INLINE_VALUE` | `IDENT = EXPR /? text`     | `const pi = 3.14 /? the pi value`        |
+| `BLOCK`      | `/??` … `??` fenced block    | `/??`<br>`the pi value`<br>`??`          |
+| `ROOT_BLOCK` | `/???` … `???` fenced block  | `/???`<br>`module overview`<br>`???`     |
+
+### Attachment rules
+
+- A `SINGLE`/`BLOCK`/`ROOT_BLOCK` doc on the line **directly above** a target is its
+  *lead* doc and links to that target. Inside a `const (...)`/`var (...)` group it
+  links to the following **spec/ident** (`ValueSpec.Doc`); at statement level it
+  links to the `GenDecl`/`FuncExpr`.
+- A **blank line** between the doc and the next statement **detaches** it (a
+  standalone `ROOT_BLOCK` documents the module/section, not the next statement).
+- `INLINE`/`INLINE_VALUE` docs trail the target on the **same line** and link to its
+  ident; they apply only when there is no lead doc.
+- A doc trailing a multi-ident value-less spec (`f, g /? ...`) is invalid and is a
+  parser error.
+
+### Format rules (applied by `WriteCode`)
+
+- A `SINGLE` doc that is **long** (per `NEW_LINE_CALC`) is rewritten as a `BLOCK`.
+- A `BLOCK` doc that is **short** (per `NEW_LINE_CALC`) is rewritten as `SINGLE`.
+- Contents are auto-formatted with the Markdown formatter.
+- When `SINGLE` or `BLOCK`, a newline is inserted **after** the target when needed
+  to separate it from following code.
