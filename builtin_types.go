@@ -268,4 +268,7 @@ func init() {
 	TObjectTypeArray = RegisterBuiltinType(BuiltinStaticTypeObjectTypeArray, "objectTypeArray", ObjectTypeArray{}, nil).TypeKey()
 	TReflectMethod = RegisterBuiltinType(BuiltinStaticTypeReflectMethod, "reflectMethod", ReflectMethod{}, nil).TypeKey()
 	TIndexGetProxy = RegisterBuiltinType(BuiltinStaticTypeIndexGetProxy, "indexGetProxy", IndexGetProxy{}, nil).TypeKey()
+
+	// Register the typed constructor overloads now that every type exists.
+	registerCtorMethods()
 }
