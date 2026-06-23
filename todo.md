@@ -32,204 +32,6 @@
   on gad editor, add copy to clipboard button (must icon) on tooltip. change codemirror plugin to add code editor
   features (auto complete etc) on
   edit code/expression in template strings.
-- [ ] implements parser of doc comments, contents is in Markdown (allowing safe HTML code).
-  the doc is linked to IDENT (set to Doc field) or STMT. take to accept doc idents of DECL, `func/met/meti/prop` stmts (
-  set to Doc field). put formatted doc in `WriteCode`.
-
-  syntaxe: 
-  - SINGLE: `/? ...\nSTMT`. `const (\n\t/? the pi value\n\tpi = 3.14\n)` (linked to `pi`);
-  - INLINE (no value): `IDENT /? ...`. `var pi = 3.14 /? the pi value` (linked to `pi`);
-  - INLINE_VALUE (with value): `IDENT = EXPR /? ...`. `const pi = 3.14 /? the pi value` (linked to `pi`);
-  - BLOCK: `??\n...\n??\nSTMT`. `const (\n\t/??\n\tthe pi value\n\t??\n\tpi = 3.14\n)` (linked to `pi`).
-  - ROOT_BLOCK: like BLOCK, but use `???` insteadof `??`.
-
-  examples:
-  ```gad
-  ???
-  this is a root doc
-  ???
-  
-  const pi = 3.14 /? the pi value
-  
-  ???
-  this an anoter root doc
-  ???
-  
-  /? this is the server addr
-  const ServerAddr = ":0"
-  
-  var (
-    /? the value of a
-    a
-    
-    /? the value of b
-    b
-  
-    c = 1
-    d = 2 /? the value of d
-    e = 3
-  
-    f, g /? f and g (this is bad, throw parser error)
-  )
-  
-  /? sum values
-  func sum(a, b) { return a + b )
-  
-  /? sum values
-  sum(a, b) => a + b 
-  
-  ??
-  this is a difference calculator.
-  see all methods of here to check
-  specific diffenrece handler.
-  ??
-  func diff {
-    /? compute difference of b and a
-    (a int, b int) => b - a
-    
-    ??
-    compute difference of b and a
-    values.
-    ??
-    (a int, b flaot) => b - a
-  }
-  ```
-  **format rules** (save it on conventions):
-  - if is SINGLE, but it's long (see `NEW_LINE_CALC`), take it to BLOCK.
-  - if is BLOCK, but it's short (see `NEW_LINE_CALC`), take it to SINGLE.
-  - auto format contents using Markdown formatter.
-  - when SINGLE or BLOCK, put new line after target (if necessary):
-    - no formatted source:
-      ```
-      var (
-        /? the a value
-        a
-        b
-        c
-      )
-      
-      ??
-      this is a difference calculator
-      see all methods of here to check.
-      
-      specific diffenrece handler.
-      ??
-      func diff {
-        /? compute difference of b and a sa ash dkas dahs daks kjahd kash dasdh asdahd a dh a dasdh ad ah a skdahsd as dkad as dhkahs da sd
-        (a int, b int) => b - a
-
-        ??
-        compute difference of b and a values.
-        ??
-        (a int, b flaot) => b - a
-      }
-      ```
-    
-      formatted
-
-      ```
-      var (
-        /? the a value
-        a
-      
-        b
-        c
-      )
-      
-      ??
-      this is a difference calculator see all methods of here to check.
-      
-      specific diffenrece handler.
-      ??
-      func diff {
-        ?? compute difference of b and a sa ash dkas dahs daks kjahd kash dasdh asdahd a dh a dasdh
-        ad ah a skdahsd as dkad as dhkahs da sd
-        ??
-        (a int, b int) => b - a
-
-        /? compute difference of b and a values
-        (a int, b flaot) => b - a
-      }
-      ```
-    - formatted source (no change formatted result):
-      ```
-      var (
-        /? the a value
-        a
-      
-        b
-        c
-      )
-      ```
-    - create samples, docs and parser/compiler/vm tests.
-    - create gad subcommand `doc` like `fmt`, to save result with `.md` extension (if no flag `--no-save`).
-      the flag `--out` (default is `"doc"`). the doc generator, generate only of ROOT_BLOCKs and DOC of exported INDENTS 
-      (including `export IDENT`/`export func/method IDENT ...`/`export IDENT = ...` and `export { IDENT ... }` (when IDENT is dict key).
-      - generate output like godoc: 
-        ```markdonw
-        # MODULE_NAME
-        
-        TABLE OF CONTENTS
-        
-        ## Constants
-        section of constants
-        
-        ### const **pi**
-          
-          const pi = 3.14
-        
-        this is a pi value rounded to two fracts.
-        
-        ## Types
-        section of func/met/meti/closures
-        
-        ### func **sum** // no methods or one method
-        
-          sum(a int, b int) <int> // this a HEADER
-        
-        returns a + b.
-        
-        ### func **diff** // this is func with 2 methods
-        
-          (a int, b int) <int> // default method
-        
-        compute difference of a and b int values
-        
-        **other methods**
-        
-          (a float, b float) <int>
-        
-        compute difference of a and b float values.
-        
-          (a int, b float) <int>
-        
-        compute difference of a int and b float values.
-        ```
-      - add root config file key `doc: { dst: DIR, skip: false }` when `DIR` is absolute path or relative to WORKSPACE_DIR.
-        default value of `doc.dst` is value of flag `--out`. if `doc.skip` is `true`, no parse/doc for non INPUT_DIR sources.
-      - add flag `--no-skip`, to set `doc.skip` to `false`.
-      - add `doc: { dst: DIR (default is root "doc.dst" only if isn't absolute path), skip: (default is root "doc.skip") }` per INPUT_DIR, its absolute path or relative to INPUT_DIR path.
-        if no flag `--no-save` and `doc.dst` is set, write doc files preserving tree relative to WORKSPACE.
-        for sources in INPUT_DIR:
-        - if `INPUT_DIR.doc.skip`. if is `true`, no parse/doc for here.
-        - if `INPUT_DIR.doc.dst`. if not set, must skip.
-        - if skips because `skip` or `doc.dst` is empty, log coloured (if stderr is tty) message to stderr and skip doc 
-          generator for here, but not exit program.
-        - when absolute path of `INPUT_DIR.doc.dst` equals to root `doc.dst`, raise an error and exit program with error status.
-      - example validation: if a BLOCK/ROOT_BLOCK doc contains a ```gad code block, validate it on doc generation by
-        running its contents. fail doc generation (or report error) if the example does not run.
-        ```gad
-        const x = 2
-        println(x)
-        ```
-        when an example code-block line starts with `>>> `, check the result of the previous statement against the
-        value after `>>> ` (doctest-style):
-        ```gad
-        const x = 2
-        >>> 1 // check this result
-        ```
-      - create doc and samples for this subcommand.
-- [ ] create gad subcommand `doctest` like "doc", but reports run example code status.
 - [ ] create "core" module like "strings" and move "@binaryOperator" (rename to "binOp") and "@selfAssignOperator" (rename to "selfAssignOp") to here. update samples, docs and tests.
 - [ ] update `mkoptypes` to auto generate "op_api.go" with specific interface of binary operators, with syntaxe 
   `type ObjectWith[OPERATOR_NAME]BinOperator interface { BinOp[OPERATOR_NAME](vm *VM, right Object) (Object, error) }`.
@@ -249,3 +51,76 @@
   if `B` does not implements `ObjectWithArrayInBinOp` interface, but implements `ObjectWithInBinOp` takes
   `for v in A { v, err := B.BinOpIn(v); // check error\nif v.IsFalsy() { return false } }; return true`.
   create samples, docs and parser/compiler/vm tests.
+
+
+- [ ] `with` implementation. add new gad objects interface `type ObjectEnter interface { Enter(*VM) (error) }` and
+  `type ObjectExit interface { Exit(*VM, err error) (Object, error) }`.
+  add new builtin functions "enter" and "exit" (with empty body) to "core" module.
+  parse `with` Stmt and Expr, like python, with syntaxe:
+  - Stmt:
+  
+    ```gad
+    with Expr [as IDENT] {
+      // STMT
+    }
+    
+    //////////////////////
+    // with assign
+    //////////////////////
+    var x
+    
+    with x = Expr { ... }
+    
+    // is shortcut form of:
+    x = Expr
+    with x { ...}
+    
+    //////////////////////
+    // with define
+    //////////////////////
+    with x := Expr { ... }
+    
+    // is shortcut form of:
+    x := Expr
+    with x { ...}
+    
+    //////////////////////
+    // with "as"
+    //////////////////////
+    with open("file") as f {}
+    
+    // is shortcut form of (in new block)`
+    {
+      const f = open("file")
+      with f { //.. }
+    }
+    
+    ```
+  
+  - Expr: `x := with Expr [as IDENT]: ValueExpr`, examples:
+  
+    ```gad
+    const f = open("file")
+    contents := with f: f.read()
+    
+    // with "as"
+    const f2 = with open("f2") as f: f.read()
+    
+    // joined values
+    const data = "a" + (with open("f3") as f: f.read()) + "b"
+    ```
+  
+  all forms compile like to `deferb`, no require new Op Code:
+  ```gad
+  {
+    deferb { core.exit(x, $err) }
+    core.enter(x)
+    // Body or result set
+  }
+  ```
+
+  create samples, docs and parser/compiler/vm tests.
+- [ ] create command cmd/update-codemirror-plugin to update codemirror-gad plugin with language changes
+      after last codemirror plugin updates by git log.
+- [ ] create command cmd/update-prism-plugin to update prism-gad plugin with language changes
+  after last prism-gad plugin updates by git log.
