@@ -32,12 +32,7 @@
   on gad editor, add copy to clipboard button (must icon) on tooltip. change codemirror plugin to add code editor
   features (auto complete etc) on
   edit code/expression in template strings.
-- [ ] update `mkoptypes` to auto generate "op_api.go" with specific interface of binary operators, with syntaxe 
-  `type ObjectWith[OPERATOR_NAME]BinOperator interface { BinOp[OPERATOR_NAME](vm *VM, right Object) (Object, error) }`.
-  example: `type ObjectWithAddBinOperator interface { BinOpAdd(vm *VM, right Object) }`. replace all `BinaryOperatorHandler` 
-  implementations to new API, and use new API into `registerOperatorMethods`.
-  replace all `Container` implementations to new API of `In` operator. use new API and remove `OpIn` from opcodes and `VM.loop()`.
-  update go doc, gad doc and samples.
+  add right closable panel to render doc comments of current editing file. it reloads 5s after edit or now (with reload button). 
 - [ ] update `mkoptypes` generator for `op_api.go` to generate interfaces of unary operators `--`/`++`
   with syntaxe `type ObjectWith[OPERATOR_NAME]UnaryOperator interface { UnOp[OPERATOR_NAME](vm *VM) (Object, error) }`.
   add builtin function "unOp" to module "core" for unary operators. change `VM.xOpUnary()` to call "core.unOp(&vm.stack[vm.sp-1])" and move all
@@ -50,8 +45,12 @@
   if `B` does not implements `ObjectWithArrayInBinOp` interface, but implements `ObjectWithInBinOp` takes
   `for v in A { v, err := B.BinOpIn(v); // check error\nif v.IsFalsy() { return false } }; return true`.
   create samples, docs and parser/compiler/vm tests.
-
-
+- [ ] add binary operator `===` (Same) and your negative version `!==` (NotSame). NotSame must compiles to `!(LEFT === RIGHT)`.
+  put Same operator to binary operator groups and run `mkoptypes` to generate related api. By default,
+  when LEFT does not implement interface for her `BinOpSame(vm *VM, right Object)`, try RIGHT implementation for here, 
+  otherwise, if object is primitive go value, use go reflect to check same equality, otherwise use `gad.AddressOf` (see `PrinterState.DoVisit`).
+  examples: `1 == 1u` (true), `1 === 1u` (false). create doc, samples and parser/compiler/vm tests.
+  implement `ObjectWithSameBinOperator` for all knowed objects (int/uint/decimal etc).
 - [ ] `with` implementation. add new gad objects interface `type ObjectEnter interface { Enter(*VM) (error) }` and
   `type ObjectExit interface { Exit(*VM, err error) (Object, error) }`.
   add new builtin functions "enter" and "exit" (with empty body) to "core" module.
