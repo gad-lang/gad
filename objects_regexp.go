@@ -3,8 +3,6 @@ package gad
 import (
 	"regexp"
 	"strings"
-
-	"github.com/gad-lang/gad/token"
 )
 
 var (
@@ -160,31 +158,29 @@ func (o *Regexp) FindAll(arg Object, n int) (ret Object) {
 	return
 }
 
-func (o *Regexp) BinaryOp(vm *VM, tok token.Token, right Object) (ret Object, err error) {
-	switch tok {
-	case token.Tilde:
-		return o.Match(right), nil
-	case token.DoubleTilde:
-		return o.Find(right), nil
-	case token.TripleTilde:
-		return o.FindAll(right, -1), nil
-	case token.Or:
-		// `re | repl` yields a unary replacer: f(subject) -> replaced value.
-		repl := right
-		return &Function{
-			FuncName: "regexpReplacer",
-			Value: func(c Call) (Object, error) {
-				if err := c.Args.CheckLen(1); err != nil {
-					return nil, err
-				}
-				return o.Replace(c.VM, c.Args.MustGet(0), repl)
-			},
-		}, nil
-	}
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+// BinOpTilde (`re ~ s`) matches, BinOpDoubleTilde (`re ~~ s`) finds the first
+// match, BinOpTripleTilde (`re ~~~ s`) finds all, and BinOpOr (`re | repl`)
+// yields a unary replacer. These implement the per-operator interfaces.
+func (o *Regexp) BinOpTilde(_ *VM, right Object) (Object, error) { return o.Match(right), nil }
+
+func (o *Regexp) BinOpDoubleTilde(_ *VM, right Object) (Object, error) { return o.Find(right), nil }
+
+func (o *Regexp) BinOpTripleTilde(_ *VM, right Object) (Object, error) {
+	return o.FindAll(right, -1), nil
+}
+
+func (o *Regexp) BinOpOr(_ *VM, right Object) (Object, error) {
+	// `re | repl` yields a unary replacer: f(subject) -> replaced value.
+	repl := right
+	return &Function{
+		FuncName: "regexpReplacer",
+		Value: func(c Call) (Object, error) {
+			if err := c.Args.CheckLen(1); err != nil {
+				return nil, err
+			}
+			return o.Replace(c.VM, c.Args.MustGet(0), repl)
+		},
+	}, nil
 }
 
 func (o *Regexp) IsFalsy() bool {

@@ -80,33 +80,46 @@ func (o Args) Types() (types ObjectTypeArray) {
 	return
 }
 
-func (o Args) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
-	switch tok {
-	case token.Less, token.LessEq:
-		if right == Nil {
-			return False, nil
-		}
-		if other, ok := right.(Args); ok {
-			if tok == token.LessEq {
-				return Bool(o.Length() <= other.Length()), nil
-			}
-			return Bool(o.Length() < other.Length()), nil
-		}
-	case token.Greater, token.GreaterEq:
-		if right == Nil {
-			return True, nil
-		}
-		if other, ok := right.(Args); ok {
-			if tok == token.GreaterEq {
-				return Bool(o.Length() >= other.Length()), nil
-			}
-			return Bool(o.Length() > other.Length()), nil
-		}
+// Args compares by length against another Args, and orders after nil; these
+// implement the comparison ObjectWith{Op}BinOperator interfaces.
+func (o Args) BinOpLess(_ *VM, right Object) (Object, error) {
+	if right == Nil {
+		return False, nil
 	}
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+	if other, ok := right.(Args); ok {
+		return Bool(o.Length() < other.Length()), nil
+	}
+	return nil, NewOperandTypeError(token.Less.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Args) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	if right == Nil {
+		return False, nil
+	}
+	if other, ok := right.(Args); ok {
+		return Bool(o.Length() <= other.Length()), nil
+	}
+	return nil, NewOperandTypeError(token.LessEq.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Args) BinOpGreater(_ *VM, right Object) (Object, error) {
+	if right == Nil {
+		return True, nil
+	}
+	if other, ok := right.(Args); ok {
+		return Bool(o.Length() > other.Length()), nil
+	}
+	return nil, NewOperandTypeError(token.Greater.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Args) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	if right == Nil {
+		return True, nil
+	}
+	if other, ok := right.(Args); ok {
+		return Bool(o.Length() >= other.Length()), nil
+	}
+	return nil, NewOperandTypeError(token.GreaterEq.String(), o.Type().Name(), right.Type().Name())
 }
 
 func (o Args) IsFalsy() bool {

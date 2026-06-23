@@ -2,6 +2,8 @@ package gad
 
 import (
 	"fmt"
+
+	"github.com/gad-lang/gad/token"
 )
 
 const (
@@ -95,6 +97,22 @@ func (o *NilType) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
 		return True, nil
 	}
 	return False, nil
+}
+
+// binCmpAfterNil implements one comparison operator for a type that sorts after
+// nil and is otherwise not comparable: `< nil` / `<= nil` are false,
+// `> nil` / `>= nil` are true; any other operand is an unsupported-operand
+// error. self is the left operand (for the error message).
+func binCmpAfterNil(tok token.Token, self, right Object) (Object, error) {
+	if right == Nil {
+		switch tok {
+		case token.Less, token.LessEq:
+			return False, nil
+		case token.Greater, token.GreaterEq:
+			return True, nil
+		}
+	}
+	return nil, NewOperandTypeError(tok.String(), self.Type().Name(), right.Type().Name())
 }
 
 func (o *NilType) Print(state *PrinterState) error {

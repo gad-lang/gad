@@ -323,41 +323,45 @@ func (KeyValue) Call(*NamedArgs, ...Object) (Object, error) {
 	return nil, ErrNotCallable
 }
 
-// BinaryOp implements Object interface.
-func (o *KeyValue) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
-	switch tok {
-	case token.Less, token.LessEq:
-		if right == Nil {
-			return False, nil
-		}
-		if kv, ok := right.(*KeyValue); ok {
-			if o.IsLess(vm, kv) {
-				return True, nil
-			}
-			if tok == token.LessEq {
-				return Bool(o.Equal(kv)), nil
-			}
-			return False, nil
-		}
-	case token.Greater, token.GreaterEq:
-		if right == Nil {
-			return True, nil
-		}
-
-		if tok == token.GreaterEq {
-			if o.Equal(right) {
-				return True, nil
-			}
-		}
-
-		if kv, ok := right.(*KeyValue); ok {
-			return Bool(!o.IsLess(vm, kv)), nil
-		}
+// A *KeyValue orders after nil and against another *KeyValue by IsLess; these
+// implement the comparison ObjectWith{Op}BinOperator interfaces.
+func (o *KeyValue) BinOpLess(vm *VM, right Object) (Object, error) {
+	if right == Nil {
+		return False, nil
 	}
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+	if kv, ok := right.(*KeyValue); ok {
+		return Bool(o.IsLess(vm, kv)), nil
+	}
+	return nil, NewOperandTypeError(token.Less.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o *KeyValue) BinOpLessEq(vm *VM, right Object) (Object, error) {
+	if right == Nil {
+		return False, nil
+	}
+	if kv, ok := right.(*KeyValue); ok {
+		return Bool(o.IsLess(vm, kv) || o.Equal(kv)), nil
+	}
+	return nil, NewOperandTypeError(token.LessEq.String(), o.Type().Name(), right.Type().Name())
+}
+
+// Greater and GreaterEq both report !IsLess (matching the original behavior).
+func (o *KeyValue) BinOpGreater(vm *VM, right Object) (Object, error) {
+	return o.greater(token.Greater, vm, right)
+}
+
+func (o *KeyValue) BinOpGreaterEq(vm *VM, right Object) (Object, error) {
+	return o.greater(token.GreaterEq, vm, right)
+}
+
+func (o *KeyValue) greater(tok token.Token, vm *VM, right Object) (Object, error) {
+	if right == Nil {
+		return True, nil
+	}
+	if kv, ok := right.(*KeyValue); ok {
+		return Bool(!o.IsLess(vm, kv)), nil
+	}
+	return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
 }
 
 func (o *KeyValue) IsLess(vm *VM, other *KeyValue) bool {
@@ -622,24 +626,26 @@ func (o KeyValueArray) AddItems(arg ...*KeyValue) KeyValueArray {
 	return arr
 }
 
-// BinaryOp implements Object interface.
-func (o KeyValueArray) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
-	switch tok {
-	case token.Add:
-		return o.AppendObjects(vm, right)
-	case token.Less, token.LessEq:
-		if right == Nil {
-			return False, nil
-		}
-	case token.Greater, token.GreaterEq:
-		if right == Nil {
-			return True, nil
-		}
-	}
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+// BinOpAdd appends right's entries (ObjectWithAddBinOperator); the comparison
+// operators order the array after nil and are otherwise unsupported.
+func (o KeyValueArray) BinOpAdd(vm *VM, right Object) (Object, error) {
+	return o.AppendObjects(vm, right)
+}
+
+func (o KeyValueArray) BinOpLess(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Less, o, right)
+}
+
+func (o KeyValueArray) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.LessEq, o, right)
+}
+
+func (o KeyValueArray) BinOpGreater(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Greater, o, right)
+}
+
+func (o KeyValueArray) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.GreaterEq, o, right)
 }
 
 func (o KeyValueArray) Sort(vm *VM, less CallerObject) (_ Object, err error) {
@@ -864,12 +870,12 @@ func (o KeyValueArray) Values() (arr Array) {
 type KeyValueArrays []KeyValueArray
 
 var (
-	_ Object                = (*KeyValueArrays)(nil)
-	_ DeepCopier            = (*KeyValueArrays)(nil)
-	_ Copier                = (*KeyValueArrays)(nil)
-	_ Printabler            = (*KeyValueArrays)(nil)
-	_ IndexGetter           = (*KeyValueArrays)(nil)
-	_ BinaryOperatorHandler = (*KeyValueArrays)(nil)
+	_ Object                    = (*KeyValueArrays)(nil)
+	_ DeepCopier                = (*KeyValueArrays)(nil)
+	_ Copier                    = (*KeyValueArrays)(nil)
+	_ Printabler                = (*KeyValueArrays)(nil)
+	_ IndexGetter               = (*KeyValueArrays)(nil)
+	_ ObjectWithLessBinOperator = (*KeyValueArrays)(nil)
 )
 
 func (KeyValueArrays) Type() ObjectType {
@@ -970,22 +976,21 @@ func (o KeyValueArrays) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o KeyValueArrays) IsFalsy() bool { return len(o) == 0 }
 
-// BinaryOp implements Object interface.
-func (o KeyValueArrays) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
-	switch tok {
-	case token.Less, token.LessEq:
-		if right == Nil {
-			return False, nil
-		}
-	case token.Greater, token.GreaterEq:
-		if right == Nil {
-			return True, nil
-		}
-	}
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+// KeyValueArrays orders after nil and is otherwise not comparable.
+func (o KeyValueArrays) BinOpLess(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Less, o, right)
+}
+
+func (o KeyValueArrays) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.LessEq, o, right)
+}
+
+func (o KeyValueArrays) BinOpGreater(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Greater, o, right)
+}
+
+func (o KeyValueArrays) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.GreaterEq, o, right)
 }
 
 // Length implements LengthGetter interface.
@@ -1129,25 +1134,32 @@ func (o *NamedArgs) ToString() string {
 	return string(MustToStr(nil, o))
 }
 
-func (o *NamedArgs) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
+// BinOpAdd merges a nil right operand (a no-op add); NamedArgs otherwise orders
+// after nil and is not comparable to other operands.
+func (o *NamedArgs) BinOpAdd(_ *VM, right Object) (Object, error) {
 	if right == Nil {
-		switch tok {
-		case token.Add:
-			if err := o.Add(right); err != nil {
-				return nil, err
-			}
-			return o, nil
-		case token.Less, token.LessEq:
-			return False, nil
-		case token.Greater, token.GreaterEq:
-			return True, nil
+		if err := o.Add(right); err != nil {
+			return nil, err
 		}
+		return o, nil
 	}
+	return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
+}
 
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+func (o *NamedArgs) BinOpLess(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Less, o, right)
+}
+
+func (o *NamedArgs) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.LessEq, o, right)
+}
+
+func (o *NamedArgs) BinOpGreater(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Greater, o, right)
+}
+
+func (o *NamedArgs) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.GreaterEq, o, right)
 }
 
 func (o *NamedArgs) IsFalsy() bool {
