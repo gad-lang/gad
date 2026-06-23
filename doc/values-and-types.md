@@ -34,6 +34,37 @@ println(typeName([1, 2]))  // array
 | `nil`              | absence of a value                   | —                      |
 | `compiledFunction` | a Gad function                       | —                      |
 
+## Type Constructors and Methods
+
+Every value type is **callable as a constructor** that converts a compatible
+value: `int("42")`, `float(3)`, `str(7)`, `char(65)`, `bool(0)`,
+`bytes("hi")`, … Each constructor is built from **typed methods** — one
+overload per accepted input kind — so the conversion that runs is chosen by the
+argument's type.
+
+You can list a type's constructor methods (and any methods added to it) with
+`repr(T; indent)`:
+
+```go
+repr(int; indent)
+// ‹builtin type ‹int› with N methods: [
+//   ⨍(bool)    🠆 ‹function int(v bool)›,
+//   ⨍(char)    🠆 ‹function int(v char)›,
+//   ⨍(float)   🠆 ‹function int(v float)›,
+//   ⨍(str)     🠆 ‹function int(v str)›,
+//   … ]
+```
+
+The value-type constructors (`bool`, `int`, `uint`, `float`, `decimal`, `char`,
+`str`, `rawStr`, `bytes`) accept the numeric kinds, `char`, `bool` and string
+forms; an input not matched by a typed method falls back to the constructor's
+default coercion. The `time` module types (`time`, `calendarDate`,
+`calendarTime`, `duration`, `Location`) and the `Range` type expose their typed
+constructors the same way.
+
+New typed methods can be added to a type from a script with `met`, or from Go
+with `AddMethod` — see [Embedding](embedding.md#typed-methods-with-addmethod).
+
 ## Numbers
 
 ```go
