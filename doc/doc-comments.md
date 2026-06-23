@@ -131,5 +131,33 @@ gad doc --no-save main.gad # render and report paths only
 The output directory and skip behaviour can also be set in `.gad.yaml` under a
 `doc:` section (`dst`, `skip`, `input_dirs`).
 
+## Runnable examples (doctest)
+
+A `BLOCK` / `ROOT_BLOCK` doc may embed a runnable example in a ```` ```gad ````
+code fence. Examples are **self-contained** snippets. A line beginning with
+`>>> ` asserts that the value produced by the program up to that point equals the
+value of the expression after `>>>` (a trailing `// …` comment is ignored):
+
+````gad
+/??
+`sum` returns the sum of `a` and `b`.
+
+```gad
+sum := func(a, b) { return a + b }
+sum(2, 3)
+>>> 5
+```
+??
+export func sum(a, b) { return a + b }
+````
+
+`gad doctest PATH...` runs every embedded example and reports its status,
+exiting non-zero if any fails. `gad doc` also runs them while generating (unless
+`--no-doctest` is given) and reports failures.
+
+```sh
+gad doctest src/...   # run all examples, report pass/fail
+```
+
 See also the runnable [`samples/16_doc_comments.gad`](../samples/16_doc_comments.gad)
 and the doc-comment layout rules in [Conventions](conventions.md).

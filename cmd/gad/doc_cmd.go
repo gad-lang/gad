@@ -34,10 +34,13 @@ type docOptions struct {
 	skip      bool   // root doc.skip
 	noSkip    bool   // --no-skip forces skip=false
 	noSave    bool   // --no-save: do not write any file
+	noDoctest bool   // --no-doctest: skip running embedded examples
 	config    string
 	noConfig  bool
 	inputDirs []docInputDir
 	workspace string // WORKSPACE_DIR (config dir, else cwd)
+
+	examplesFailed int // count of failed embedded examples
 }
 
 const defaultDocOut = "doc"
@@ -82,6 +85,7 @@ func (o *docOptions) registerFlags(fs *flag.FlagSet) {
 	fs.StringVar(&o.out, "out", defaultDocOut, "output directory (root doc.dst)")
 	fs.BoolVar(&o.noSkip, "no-skip", false, "force doc.skip to false")
 	fs.BoolVar(&o.noSave, "no-save", false, "do not write any file (render and report only)")
+	fs.BoolVar(&o.noDoctest, "no-doctest", false, "do not run the ```gad examples embedded in doc comments")
 	fs.StringVar(&o.config, "config", "", "YAML config file with default flag values (default "+defaultCfgFile+")")
 	fs.BoolVar(&o.noConfig, "no-config", false, "do not read the config file")
 }
@@ -244,6 +248,9 @@ func (o *docOptions) run(ctx *cc.CommandContext) error {
 			return err
 		}
 	}
+	if o.examplesFailed > 0 {
+		return fmt.Errorf("doc: %d embedded example(s) failed", o.examplesFailed)
+	}
 	return nil
 }
 
@@ -280,6 +287,15 @@ func (o *docOptions) processFile(ctx *cc.CommandContext, path, dst, base string)
 	md, err := generateDoc(path, src)
 	if err != nil {
 		return fmt.Errorf("%s: %w", path, err)
+	}
+
+	if !o.noDoctest {
+		for _, r := range checkFileExamples(path, src) {
+			if r.err != nil {
+				o.examplesFailed++
+				fmt.Fprintf(ctx.Err, "doc: %s:%d: example failed: %s\n", path, r.line, r.err)
+			}
+		}
 	}
 
 	rel, err := filepath.Rel(base, path)

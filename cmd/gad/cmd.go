@@ -87,11 +87,12 @@ func loadTemplateConfig(dir string) {
 // subcommandNames is the set of first-argument tokens routed through the
 // command-context framework instead of the legacy run/REPL entry point.
 var subcommandNames = map[string]bool{
-	"run":    true,
-	"fmt":    true,
-	"doc":    true,
-	"help":   true,
-	"--help": true,
+	"run":     true,
+	"fmt":     true,
+	"doc":     true,
+	"doctest": true,
+	"help":    true,
+	"--help":  true,
 }
 
 // optionalCommands holds subcommand factories registered by build-tagged files
@@ -121,6 +122,7 @@ func buildRootCommand() *cc.Command {
 	root.Sub(runCommand())
 	root.Sub(fmtCommand())
 	root.Sub(docCommand())
+	root.Sub(doctestCommand())
 	for _, f := range optionalCommands {
 		root.Sub(f())
 	}

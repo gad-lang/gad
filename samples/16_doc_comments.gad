@@ -23,7 +23,15 @@ const (
 /??
 `sum` returns the sum of `a` and `b`.
 
-A `/??` … `??` block is the BLOCK form; its lines are reflowed as Markdown.
+A `/??` … `??` block is the BLOCK form; its lines are reflowed as Markdown. It
+can embed a runnable example; `gad doctest` runs it and a `>>>` line checks the
+previous result:
+
+```gad
+sum := func(a, b) { return a + b }
+sum(2, 3)
+>>> 5
+```
 ??
 func sum(a, b) {
 	return a + b
