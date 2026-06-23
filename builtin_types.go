@@ -228,11 +228,13 @@ func init() {
 	TNil = RegisterBuiltinType(BuiltinNil, "nil", Nil, nil).TypeKey()
 	TFlag = RegisterBuiltinType(BuiltinFlag, "flag", Yes, NewFlagFunc).TypeKey()
 	TBool = RegisterBuiltinType(BuiltinBool, "bool", True, NewBoolFunc).TypeKey()
-	TInt = RegisterBuiltinType(BuiltinInt, "int", Int(0), NewIntFunc).TypeKey()
-	TUint = RegisterBuiltinType(BuiltinUint, "uint", Uint(0), NewUintFunc).TypeKey()
-	TFloat = RegisterBuiltinType(BuiltinFloat, "float", Float(0), NewFloatFunc).TypeKey()
+	// int/uint/float/char convert only via their typed overloads (registered in
+	// registerCtorMethods); the default rejects anything else.
+	TInt = RegisterBuiltinType(BuiltinInt, "int", Int(0), ctorTypeError(convAccepts)).TypeKey()
+	TUint = RegisterBuiltinType(BuiltinUint, "uint", Uint(0), ctorTypeError(convAccepts)).TypeKey()
+	TFloat = RegisterBuiltinType(BuiltinFloat, "float", Float(0), ctorTypeError(convAccepts)).TypeKey()
 	TDecimal = RegisterBuiltinType(BuiltinDecimal, "decimal", Decimal{}, NewDecimalFunc).TypeKey()
-	TChar = RegisterBuiltinType(BuiltinChar, "char", Char(0), NewCharFunc).TypeKey()
+	TChar = RegisterBuiltinType(BuiltinChar, "char", Char(0), ctorTypeError(convAccepts)).TypeKey()
 	TRawStr = RegisterBuiltinType(BuiltinRawStr, "rawstr", RawStr(""), NewRawStrFunc).TypeKey()
 	TStr = RegisterBuiltinType(BuiltinStr, "str", Str(""), NewStrFunc).TypeKey()
 	TTypedIdent = RegisterBuiltinType(BuiltinTypedIdent, "typedIdent", TypedIdent{}, NewTypedIdentFunc).TypeKey()

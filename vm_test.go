@@ -5108,7 +5108,7 @@ return f2(;a=1,b=2,c=3,d=4,e=5)
 	testExpectRun(t, `return func(;a int=2) { return a }()`, nil, Int(2))
 	testExpectRun(t, `return func(;a int=2) { return a }(;a=3)`, nil, Int(3))
 	testExpectRun(t, `f := func(;a int|uint=2) { return str(typeof(a)) }; return f(;a=1), f(;a=1u)`, nil,
-		Array{Str("‹builtin type ‹int› with 8 methods›"), Str("‹builtin type ‹uint› with 7 methods›")})
+		Array{Str("‹builtin type ‹int› with 9 methods›"), Str("‹builtin type ‹uint› with 8 methods›")})
 }
 
 func TestVMClosure(t *testing.T) {
