@@ -16,9 +16,12 @@ import (
 // `calendarDate` type). It is callable as a constructor:
 // CalendarDate(uint|int) from a YYYYMMDD integer, or CalendarDate(str) parsing
 // "YYYYMMDD"/"YYYY-MM-DD". See also strToDate.
-var CalendarDateType = NewBuiltinObjType("calendarDate").WithNew(calendarDateNew)
+var CalendarDateType = NewBuiltinObjType("calendarDate").WithNew(NewCalendarDateFunc)
 
-func calendarDateNew(c Call) (Object, error) {
+// NewCalendarDateFunc is the calendarDate(...) constructor: a calendarDate
+// pass-through, a calendarTime/time (its date part), an int/uint (YYYYMMDD) or
+// a string (see strToDate).
+func NewCalendarDateFunc(c Call) (Object, error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return Nil, err
 	}

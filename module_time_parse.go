@@ -63,9 +63,9 @@ func timeStrToFunc(parse func(string) (Object, error)) CallableFunc {
 	}
 }
 
-// locationNew is the Location(...) constructor: a Location pass-through, a
+// NewLocationFunc is the Location(...) constructor: a Location pass-through, a
 // string (offset/name, see strToLocation) or an int offset in seconds.
-func locationNew(c Call) (Object, error) {
+func NewLocationFunc(c Call) (Object, error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return Nil, err
 	}
@@ -90,9 +90,9 @@ func locationNew(c Call) (Object, error) {
 	return Nil, NewArgumentTypeError("1st", "str|int", c.Args.Get(0).Type().Name())
 }
 
-// timeNew is the time(...) constructor: a time pass-through, a string (see
+// NewTimeFunc is the time(...) constructor: a time pass-through, a string (see
 // strToTime), a Date (midnight UTC) or an int (unix seconds).
-func timeNew(c Call) (Object, error) {
+func NewTimeFunc(c Call) (Object, error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return Nil, err
 	}

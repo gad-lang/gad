@@ -18,14 +18,14 @@ func addTypeCtors(typ *BuiltinObjType, name string, ctor func(Call) (Object, err
 }
 
 func init() {
-	addTypeCtors(TimeType, "time", timeNew,
+	addTypeCtors(TimeType, "time", NewTimeFunc,
 		TimeType, TStr, TRawStr, CalendarDateType, CalendarTimeType, TInt, TUint)
-	addTypeCtors(CalendarDateType, "calendarDate", calendarDateNew,
+	addTypeCtors(CalendarDateType, "calendarDate", NewCalendarDateFunc,
 		CalendarDateType, CalendarTimeType, TimeType, TUint, TInt, TStr)
-	addTypeCtors(CalendarTimeType, "calendarTime", calendarTimeNew,
+	addTypeCtors(CalendarTimeType, "calendarTime", NewCalendarTimeFunc,
 		CalendarTimeType, TimeType, CalendarDateType, TUint, TInt, TStr)
-	addTypeCtors(DurationType, "duration", durationNew,
+	addTypeCtors(DurationType, "duration", NewDurationFunc,
 		DurationType, TInt, TUint, TStr)
-	addTypeCtors(TimeLocationType, "Location", locationNew,
+	addTypeCtors(TimeLocationType, "Location", NewLocationFunc,
 		TimeLocationType, TStr, TRawStr, TInt)
 }

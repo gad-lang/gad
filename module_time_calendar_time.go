@@ -16,9 +16,12 @@ import (
 // `calendarTime` type). It is callable as a constructor:
 // CalendarTime(uint|int) from a nanosecond count, or CalendarTime(str) parsing
 // a zone-less timestamp. See also strToCalendarTime.
-var CalendarTimeType = NewBuiltinObjType("calendarTime").WithNew(calendarTimeNew)
+var CalendarTimeType = NewBuiltinObjType("calendarTime").WithNew(NewCalendarTimeFunc)
 
-func calendarTimeNew(c Call) (Object, error) {
+// NewCalendarTimeFunc is the calendarTime(...) constructor: a calendarTime
+// pass-through, a time/calendarDate (its wall-clock value), an int/uint
+// (UnixNano) or a string (see strToCalendarTime).
+func NewCalendarTimeFunc(c Call) (Object, error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return Nil, err
 	}

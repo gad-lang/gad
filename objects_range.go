@@ -9,7 +9,7 @@ import (
 
 // RangeType is the builtin `Range` object type. The `Range(from, to; step)`
 // constructor and the `..` operator both produce *Range values.
-var RangeType = RegisterBuiltinType(BuiltinRange, "Range", (*Range)(nil), rangeCtor)
+var RangeType = RegisterBuiltinType(BuiltinRange, "Range", (*Range)(nil), NewRangeFunc)
 
 // Range is an iterable produced by the `..` operator or the Range(from, to;
 // step) constructor. It yields values from From toward To (inclusive),
@@ -42,6 +42,7 @@ func (o *Range) effectiveStep() Object {
 	}
 }
 
+// ToString renders the range as `from .. to` (with ` / step` when a step is set).
 func (o *Range) ToString() string {
 	s := o.From.ToString() + " .. " + o.To.ToString()
 	if o.Step != nil {
@@ -50,12 +51,14 @@ func (o *Range) ToString() string {
 	return s
 }
 
+// Equal reports whether right is a range with equal bounds and effective step.
 func (o *Range) Equal(right Object) bool {
 	r, ok := right.(*Range)
 	return ok && o.From.Equal(r.From) && o.To.Equal(r.To) &&
 		o.effectiveStep().Equal(r.effectiveStep())
 }
 
+// IsFalsy always reports false: a range yields at least its From element.
 func (o *Range) IsFalsy() bool { return false }
 
 // withStep returns a copy of the range with the given step.
@@ -136,9 +139,9 @@ func (o *Range) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
 }
 
-// rangeCtor is the Range(from, to; step) constructor body shared by the typed
+// NewRangeFunc is the Range(from, to; step) constructor body shared by the typed
 // methods.
-func rangeCtor(c Call) (Object, error) {
+func NewRangeFunc(c Call) (Object, error) {
 	r := &Range{From: c.Args.GetOnly(0), To: c.Args.GetOnly(1)}
 	if step := c.NamedArgs.GetValueOrNil("step"); step != nil && step != Nil {
 		r.Step = step
@@ -296,7 +299,7 @@ func init() {
 	// a numeric step (default 1); temporal ranges take a duration step (default
 	// one day).
 	numeric := func(t ObjectType) *Function {
-		return NewFunction("Range", rangeCtor,
+		return NewFunction("Range", NewRangeFunc,
 			FunctionWithParams(func(p func(name string) *ParamBuilder) {
 				p("from").Type(t)
 				p("to").Type(t)
@@ -307,7 +310,7 @@ func init() {
 		)
 	}
 	temporal := func(t ObjectType) *Function {
-		return NewFunction("Range", rangeCtor,
+		return NewFunction("Range", NewRangeFunc,
 			FunctionWithParams(func(p func(name string) *ParamBuilder) {
 				p("from").Type(t)
 				p("to").Type(t)

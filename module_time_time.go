@@ -23,7 +23,7 @@ import (
 // }
 // ```
 
-var TimeType = NewBuiltinObjType("time").WithNew(timeNew)
+var TimeType = NewBuiltinObjType("time").WithNew(NewTimeFunc)
 
 // Time represents time values and implements Object interface.
 type Time struct {

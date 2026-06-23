@@ -14,9 +14,11 @@ import (
 // DurationType is the object type of Duration values (the gad `duration` type).
 // It is callable as a constructor: Duration(int) from a nanosecond count, or
 // Duration(str) parsing a Go duration string ("1h30m"). See also strToDuration.
-var DurationType = NewBuiltinObjType("duration").WithNew(durationNew)
+var DurationType = NewBuiltinObjType("duration").WithNew(NewDurationFunc)
 
-func durationNew(c Call) (Object, error) {
+// NewDurationFunc is the duration(...) constructor: a duration pass-through, an
+// int/uint (nanoseconds) or a string (see strToDuration, e.g. "1h30m").
+func NewDurationFunc(c Call) (Object, error) {
 	if err := c.Args.CheckLen(1); err != nil {
 		return Nil, err
 	}
