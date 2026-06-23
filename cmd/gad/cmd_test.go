@@ -289,6 +289,57 @@ func TestFormatDocInGroupTrailing(t *testing.T) {
 	require.Equal(t, out, out2)
 }
 
+// TestFormatDocPerMethod verifies a func-with-methods keeps its func-level doc
+// and per-method docs in place.
+func TestFormatDocPerMethod(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	src := "/??\nthis is a difference calculator.\nsee all methods here.\n??\n" +
+		"func diff {\n" +
+		"\t/? compute diff of b and a\n" +
+		"\t(a, b) => b - a\n\n" +
+		"\t/? compute diff with floats\n" +
+		"\t(a, b) => b - a\n" +
+		"}\n"
+
+	out, err := o.formatSource("d.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Contains(t, out, "/? this is a difference calculator. see all methods here.\nfunc diff")
+	require.Contains(t, out, "/? compute diff of b and a")
+	require.Contains(t, out, "/? compute diff with floats")
+
+	out2, err := o.formatSource("d.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, out2)
+}
+
+// TestFormatDocPropAndMeti verifies prop and meti statements keep their docs.
+func TestFormatDocPropAndMeti(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	src := "/? the name property\n" +
+		"prop name {\n\t/? getter\n\t() => \"x\"\n}\n\n" +
+		"/? a stringer interface\n" +
+		"meti stringer {\n\t() <str>\n}\n"
+
+	out, err := o.formatSource("d.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Contains(t, out, "/? the name property\nprop name")
+	require.Contains(t, out, "/? getter")
+	require.Contains(t, out, "/? a stringer interface\nmeti stringer")
+
+	out2, err := o.formatSource("d.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, out2)
+}
+
+// TestFormatDocCommaIdentError verifies a doc trailing a comma-separated
+// valueless identifier is a parse error.
+func TestFormatDocCommaIdentError(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	_, err := o.formatSource("d.gad", []byte("var (\n\tf, g /? f and g\n)\n"), false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "comma-separated identifier")
+}
+
 func TestFormatTargetTranspileGadt(t *testing.T) {
 	dir := t.TempDir()
 	p := writeFile(t, dir, "page.gadt", "Hi {%= name %}!\n{% x := 1 %}")

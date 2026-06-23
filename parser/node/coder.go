@@ -313,6 +313,18 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 			if t.Func != nil {
 				ctx.claimLeadDoc(t.Func.Doc, t.Func)
 			}
+		case *FuncWithMethodsStmt:
+			ctx.claimLeadDoc(t.Doc, &t.FuncWithMethodsExpr)
+			for _, m := range t.Methods {
+				ctx.claimLeadDoc(m.Doc, m)
+			}
+		case *PropStmt:
+			ctx.claimLeadDoc(t.Doc, &t.PropExpr)
+			for _, m := range t.Methods {
+				ctx.claimLeadDoc(m.Doc, m)
+			}
+		case *MethodInterfaceStmt:
+			ctx.claimLeadDoc(t.Doc, &t.MethodInterfaceExpr)
 		}
 	}
 	if len(ctx.docClaim) == 0 {

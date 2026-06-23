@@ -1663,9 +1663,14 @@ func (p *Parser) ParseFuncStmt() (stmt node.Stmt) {
 		switch t := e.(type) {
 		case *node.FuncExpr:
 			t.Doc = doc
+		case *node.FuncWithMethodsExpr:
+			t.Doc = doc
 		case *node.MethodExpr:
-			if fe, ok := t.Expr.(*node.FuncExpr); ok {
-				fe.Doc = doc
+			switch inner := t.Expr.(type) {
+			case *node.FuncExpr:
+				inner.Doc = doc
+			case *node.FuncWithMethodsExpr:
+				inner.Doc = doc
 			}
 		}
 	}
@@ -1795,7 +1800,7 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 		for p.Token.Token != token.RBrace {
 			p.SkipSpace()
 
-			f := &node.FuncMethod{}
+			f := &node.FuncMethod{Doc: p.leadComment}
 
 			if paren := p.ParseParemExpr(token.LParen, token.RParen); paren != nil && p.Errors.Len() == 0 {
 				var err *node.NodeError
@@ -1841,9 +1846,11 @@ func (p *Parser) ParsePropStmt() (stmt node.Stmt) {
 		defer untracep(tracep(p, "PropStmt"))
 	}
 
+	doc := p.leadComment
 	e := p.ParsePropExprT(p.ExpectToken(token.Prop))
 
 	if t, _ := e.(*node.PropExpr); t != nil {
+		t.Doc = doc
 		return &node.PropStmt{PropExpr: *t}
 	}
 	return &node.ExprStmt{Expr: e}
@@ -1930,12 +1937,13 @@ func (p *Parser) ParsePropExprT(tok PToken) (e node.Expr) {
 // parsePropMethod parses a single property accessor of the form
 // `(params) <ret> {body}` (or `=> expr`). It returns nil on error.
 func (p *Parser) parsePropMethod() (m *node.FuncMethod) {
+	doc := p.leadComment
 	paren := p.ParseParemExpr(token.LParen, token.RParen)
 	if paren == nil || p.Errors.Len() != 0 {
 		return nil
 	}
 
-	m = &node.FuncMethod{}
+	m = &node.FuncMethod{Doc: doc}
 
 	var err *node.NodeError
 	if m.Params, err = paren.ToMultiParenExpr().ToFuncParams(); err != nil {
@@ -1962,8 +1970,10 @@ func (p *Parser) ParseMethodInterfaceStmt() node.Stmt {
 	if p.Trace {
 		defer untracep(tracep(p, "MethodInterfaceStmt"))
 	}
+	doc := p.leadComment
 	e := p.ParseMethodInterfaceExprT(p.ExpectToken(token.Meti))
 	if t, _ := e.(*node.MethodInterfaceExpr); t != nil {
+		t.Doc = doc
 		return &node.MethodInterfaceStmt{MethodInterfaceExpr: *t}
 	}
 	return &node.ExprStmt{Expr: e}
@@ -2785,7 +2795,7 @@ func (p *Parser) ParseParamSpec(keyword token.Token, multi bool, prev []node.Spe
 	}
 }
 
-func (p *Parser) ParseValueSpec(keyword token.Token, multi bool, _ []node.Spec, i int) node.Spec {
+func (p *Parser) ParseValueSpec(keyword token.Token, multi bool, prev []node.Spec, i int) node.Spec {
 	if p.Trace {
 		defer untracep(tracep(p, keyword.String()+"Spec"))
 	}
@@ -2817,6 +2827,14 @@ func (p *Parser) ParseValueSpec(keyword token.Token, multi bool, _ []node.Spec, 
 		// (`a /? doc` or `a = 1 /? doc`) is linked to this ident when there is
 		// no lead doc.
 		if doc == nil && p.lineComment != nil {
+			// A doc trailing a comma-separated valueless identifier
+			// (`f, g /? ...`) is ambiguous and not allowed.
+			if expr == nil && len(prev) > 0 &&
+				source.MustFileLine(p.File, prev[len(prev)-1].End()) ==
+					source.MustFileLine(p.File, ident.Pos()) {
+				p.Error(p.lineComment.Pos(),
+					"doc comment is not allowed on a comma-separated identifier")
+			}
 			doc = p.lineComment
 		}
 	}

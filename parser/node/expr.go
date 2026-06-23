@@ -1524,6 +1524,7 @@ type FuncWithMethodsExpr struct {
 	RBrace    source.Pos
 	NameExpr  Expr
 	Methods   []*FuncMethod
+	Doc       *ast.CommentGroup // doc comment preceding the func; or nil
 }
 
 func (e *FuncWithMethodsExpr) ExprNode() {}
@@ -1581,6 +1582,7 @@ func (e *FuncWithMethodsExpr) String() string {
 }
 
 func (e *FuncWithMethodsExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteLeadDoc(e.Doc)
 	if e.FuncToken.Pos != source.NoPos {
 		ctx.WriteString(e.FuncToken.Token.String())
 		ctx.WriteString(" ")
@@ -1610,6 +1612,7 @@ type FuncMethod struct {
 	Body      *BlockStmt
 	LambdaPos source.Pos
 	BodyExpr  Expr
+	Doc       *ast.CommentGroup // doc comment preceding the method header; or nil
 }
 
 func (m *FuncMethod) Pos() source.Pos {
@@ -1638,6 +1641,7 @@ func (m *FuncMethod) String() string {
 }
 
 func (m *FuncMethod) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteLeadDoc(m.Doc)
 	m.Params.WriteCode(ctx)
 	WriteFuncReturn(ctx, m.Return)
 	ctx.WriteString(" ")
@@ -1679,6 +1683,7 @@ type PropExpr struct {
 	RBrace    source.Pos
 	NameExpr  Expr
 	Methods   []*FuncMethod
+	Doc       *ast.CommentGroup // doc comment preceding the prop; or nil
 }
 
 func (e *PropExpr) ExprNode() {}
@@ -1746,6 +1751,7 @@ func (e *PropExpr) String() string {
 }
 
 func (e *PropExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteLeadDoc(e.Doc)
 	if e.PropToken.Pos != source.NoPos {
 		ctx.WriteString(e.PropToken.Token.String())
 		ctx.WriteString(" ")
@@ -1794,6 +1800,7 @@ type MethodInterfaceExpr struct {
 	LBrace    source.Pos
 	RBrace    source.Pos
 	Headers   []*FuncHeaderExpr
+	Doc       *ast.CommentGroup // doc comment preceding the meti; or nil
 }
 
 func (e *MethodInterfaceExpr) ExprNode() {}
@@ -1846,6 +1853,7 @@ func (e *MethodInterfaceExpr) headersInNewLine(ctx *CodeWriteContext) bool {
 }
 
 func (e *MethodInterfaceExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteLeadDoc(e.Doc)
 	if e.MetiToken.Pos != source.NoPos {
 		ctx.WriteString(e.MetiToken.Token.String())
 		ctx.WriteString(" ")
