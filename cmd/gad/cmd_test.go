@@ -154,6 +154,32 @@ func TestFormatPreservesComments(t *testing.T) {
 	require.Equal(t, out, out2)
 }
 
+func TestFormatPreservesDocComments(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	src := "/? the pi value\n" +
+		"pi := 3.14\n\n" +
+		"const x = 1 /? inline doc on x\n\n" +
+		"func f() {\n" +
+		"\t/? local doc\n" +
+		"\treturn 1\n" +
+		"}\n"
+
+	out, err := o.formatSource("d.gad", []byte(src), false)
+	require.NoError(t, err)
+
+	for _, want := range []string{
+		"/? the pi value",
+		"const x = 1 /? inline doc on x",
+		"/? local doc",
+	} {
+		require.Contains(t, out, want)
+	}
+
+	out2, err := o.formatSource("d.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, out2)
+}
+
 func TestFormatTargetTranspileGadt(t *testing.T) {
 	dir := t.TempDir()
 	p := writeFile(t, dir, "page.gadt", "Hi {%= name %}!\n{% x := 1 %}")

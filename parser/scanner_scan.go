@@ -523,8 +523,8 @@ do:
 				t.Token = s.Switch2(token.Mul, token.MulAssign)
 			}
 		case '/':
-			if s.Ch == '/' || s.Ch == '*' {
-				// comment
+			if s.Ch == '/' || s.Ch == '*' || s.Ch == '?' {
+				// comment (`//`, `/* */`) or the single doc comment `/?`
 				if s.InsertSemi && s.FindLineEnd() {
 					// reset position to the beginning of the comment
 					s.Ch = '/'

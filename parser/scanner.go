@@ -335,11 +335,11 @@ func (s *Scanner) scanConfig(pos source.Pos, skip int) (t PToken) {
 }
 
 func (s *Scanner) ScanComment() string {
-	// initial '/' already consumed; s.ch == '/' || s.ch == '*'
+	// initial '/' already consumed; s.ch == '/' || s.ch == '*' || s.ch == '?'
 	offs := s.Offset - 1 // position of initial '/'
 
-	if s.Ch == '/' {
-		// -style comment
+	if s.Ch == '/' || s.Ch == '?' {
+		// line-style comment: `//…` or the single doc comment `/?…`
 		// (the final '\n' is not considered part of the comment)
 		s.Next()
 		for s.Ch != '\n' && s.Ch >= 0 {

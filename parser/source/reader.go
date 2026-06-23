@@ -457,9 +457,9 @@ func (s *Reader) FindLineEnd() bool {
 	}(s.Offset - 1)
 
 	// read ahead until a newline, EOF, or non-comment tok is found
-	for s.Ch == '/' || s.Ch == '*' {
-		if s.Ch == '/' {
-			// -style comment always contains a newline
+	for s.Ch == '/' || s.Ch == '*' || s.Ch == '?' {
+		if s.Ch == '/' || s.Ch == '?' {
+			// line-style comment (`//…`, `/?…`) always contains a newline
 			return true
 		}
 		/*-style comment: look for newline */
