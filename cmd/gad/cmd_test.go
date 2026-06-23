@@ -207,6 +207,48 @@ func TestFormatPreservesDocBlockComments(t *testing.T) {
 	require.Equal(t, out, out2)
 }
 
+// TestFormatDocTravelsWithMergedDecl verifies a lead doc on a declaration that
+// gets merged into the previous declaration group travels onto its spec instead
+// of being misplaced by position-based comment preservation.
+func TestFormatDocTravelsWithMergedDecl(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	src := "const a = 1\n" +
+		"/? the b value\n" +
+		"const b = 2\n"
+
+	out, err := o.formatSource("d.gad", []byte(src), false)
+	require.NoError(t, err)
+
+	// The two const decls merge; the doc stays attached to `b` inside the group.
+	require.Equal(t, "const (\n\ta = 1\n\t/? the b value\n\tb = 2\n)", strings.TrimSpace(out))
+
+	out2, err := o.formatSource("d.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, out2)
+}
+
+// TestFormatDocLeadOnGenDeclAndFunc verifies lead docs on a top-level decl and a
+// func statement are emitted by their node (preserved, idempotent).
+func TestFormatDocLeadOnGenDeclAndFunc(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	src := "/? this is the server addr\n" +
+		"const ServerAddr = \":0\"\n\n" +
+		"/? sum values\n" +
+		"func sum(a, b) {\n" +
+		"\treturn a + b\n" +
+		"}\n"
+
+	out, err := o.formatSource("d.gad", []byte(src), false)
+	require.NoError(t, err)
+
+	require.Contains(t, out, "/? this is the server addr\nconst ServerAddr = \":0\"")
+	require.Contains(t, out, "/? sum values\nfunc sum")
+
+	out2, err := o.formatSource("d.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, out2)
+}
+
 func TestFormatTargetTranspileGadt(t *testing.T) {
 	dir := t.TempDir()
 	p := writeFile(t, dir, "page.gadt", "Hi {%= name %}!\n{% x := 1 %}")

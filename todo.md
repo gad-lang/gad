@@ -229,6 +229,7 @@
         >>> 1 // check this result
         ```
       - create doc and samples for this subcommand.
+- [ ] create gad subcommand `doctest` like "doc", but reports run example code status.
 - [ ] create "core" module like "strings" and move "@binaryOperator" (rename to "binOp") and "@selfAssignOperator" (rename to "selfAssignOp") to here. update samples, docs and tests.
 - [ ] update `mkoptypes` to auto generate "op_api.go" with specific interface of binary operators, with syntaxe 
   `type ObjectWith[OPERATOR_NAME]BinOperator interface { BinOp[OPERATOR_NAME](vm *VM, right Object) (Object, error) }`.

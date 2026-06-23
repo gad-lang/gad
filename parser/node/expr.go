@@ -1943,6 +1943,7 @@ func (e *FuncExpr) String() string {
 }
 
 func (e *FuncExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteLeadDoc(e.Doc)
 	if e.Type != nil {
 		var kw string
 		if e.Type.FuncPos != 0 {

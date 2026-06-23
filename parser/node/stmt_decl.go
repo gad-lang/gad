@@ -160,6 +160,8 @@ func (s *ValueSpec) valueless() bool {
 }
 
 func (s *ValueSpec) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteLeadDoc(s.Doc)
+
 	// A value-less spec wraps its identifiers greedily under NEW_LINE_CALC:
 	// packed onto the line, continued on the next (extra-indented) line only on
 	// overflow, with no comma at the break.
@@ -300,6 +302,7 @@ func (d *GenDecl) String() string {
 }
 
 func (d *GenDecl) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteLeadDoc(d.Doc)
 	ctx.WriteString(d.Tok.String())
 
 	// A single spec is written without parentheses (`var x`, `const Pi = 1`),

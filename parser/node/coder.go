@@ -185,6 +185,14 @@ type CodeWriteContext struct {
 	srcFile    *source.File
 	comments   []*ast.Comment
 	commentIdx int
+
+	// docClaim holds the doc comments (`/?`, `/??`, `/???`) that are emitted by
+	// their owning AST node (via its Doc field) rather than by position. Claimed
+	// comments are filtered out of `comments` so the position machinery does not
+	// also emit them; this lets a lead doc travel with its node through
+	// declaration merges and reordering. Only lead docs are claimed; trailing/
+	// inline docs stay with the position machinery.
+	docClaim map[*ast.Comment]bool
 }
 
 type CodeOption func(ctx *CodeWriteContext)
@@ -279,6 +287,97 @@ func (ctx *CodeWriteContext) flushRemainingComments() {
 		ctx.WriteString(c.Text)
 		ctx.commentIdx++
 	}
+}
+
+// claimLeadDocs records the lead doc comments attached to top-level decl/func
+// nodes (and the value specs inside a group) so each is emitted by its owning
+// node instead of by position, then removes them from the position-based comment
+// stream. Only lead docs — those appearing before their node — are claimed;
+// trailing/inline docs are left to the position machinery.
+func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
+	for _, s := range stmts {
+		switch t := s.(type) {
+		case *DeclStmt:
+			if gd, _ := t.Decl.(*GenDecl); gd != nil {
+				ctx.claimLeadDoc(gd.Doc, gd)
+				for _, sp := range gd.Specs {
+					if vs, _ := sp.(*ValueSpec); vs != nil {
+						ctx.claimLeadDoc(vs.Doc, vs)
+					}
+				}
+			}
+		case *FuncStmt:
+			if t.Func != nil {
+				ctx.claimLeadDoc(t.Func.Doc, t.Func)
+			}
+		}
+	}
+	if len(ctx.docClaim) == 0 {
+		return
+	}
+	filtered := ctx.comments[:0]
+	for _, c := range ctx.comments {
+		if !ctx.docClaim[c] {
+			filtered = append(filtered, c)
+		}
+	}
+	ctx.comments = filtered
+}
+
+// claimLeadDoc claims g as the lead doc of n when g precedes n; trailing/inline
+// docs (g.End() > n.Pos()) are ignored.
+func (ctx *CodeWriteContext) claimLeadDoc(g *ast.CommentGroup, n ast.Node) {
+	if g == nil || len(g.List) == 0 || g.End() > n.Pos() {
+		return
+	}
+	if ctx.docClaim == nil {
+		ctx.docClaim = map[*ast.Comment]bool{}
+	}
+	for _, c := range g.List {
+		ctx.docClaim[c] = true
+	}
+}
+
+// isClaimedDoc reports whether g is a doc group claimed for node-based emission.
+func (ctx *CodeWriteContext) isClaimedDoc(g *ast.CommentGroup) bool {
+	if g == nil || ctx.docClaim == nil {
+		return false
+	}
+	for _, c := range g.List {
+		if !ctx.docClaim[c] {
+			return false
+		}
+	}
+	return true
+}
+
+// writeDocComment writes a doc comment group, re-indenting continuation lines to
+// the current prefix so a block doc (`/??` … `??`) aligns with its construct.
+func (ctx *CodeWriteContext) writeDocComment(g *ast.CommentGroup) {
+	prefix := ctx.CurrentPrefix()
+	first := true
+	for _, c := range g.List {
+		for _, line := range strings.Split(c.Text, "\n") {
+			if !first {
+				ctx.WriteString("\n", prefix)
+			}
+			ctx.WriteString(line)
+			first = false
+		}
+	}
+}
+
+// WriteLeadDoc emits g as a lead doc — the documented construct follows on its
+// own (prefixed) line — when g has been claimed for node-based emission. It
+// returns true when it emitted the doc. Nodes call this at the start of their
+// WriteCode so the doc travels with the node.
+func (ctx *CodeWriteContext) WriteLeadDoc(g *ast.CommentGroup) bool {
+	if !ctx.isClaimedDoc(g) {
+		return false
+	}
+	ctx.writeDocComment(g)
+	ctx.WriteString("\n", ctx.CurrentPrefix())
+	return true
 }
 
 func NewCodeWriteContext(codeWriter CodeWriter, opt ...CodeOption) *CodeWriteContext {
@@ -390,6 +489,14 @@ loop:
 					if last, _ := ret[len(ret)-1].(*DeclStmt); last != nil {
 						if lge, _ := last.Decl.(*GenDecl); lge != nil {
 							if ge.Tok == lge.Tok {
+								// Preserve the merged decl's own lead doc by moving
+								// it onto its first spec, so it is not lost when ge
+								// is dropped into lge.
+								if ge.Doc != nil && len(ge.Specs) > 0 {
+									if vs, _ := ge.Specs[0].(*ValueSpec); vs != nil && vs.Doc == nil {
+										vs.Doc = ge.Doc
+									}
+								}
 								lge.Specs = append(lge.Specs, ge.Specs...)
 								continue loop
 							}
@@ -651,6 +758,11 @@ func Code(n Coder, opt ...CodeOption) string {
 
 func CodeW(w io.Writer, n Coder, opt ...CodeOption) {
 	ctx := NewCodeWriteContext(NewCodeWriter(w), opt...)
+	if ctx.srcFile != nil {
+		if stmts, ok := n.(Stmts); ok {
+			ctx.claimLeadDocs(stmts)
+		}
+	}
 	n.WriteCode(ctx)
 	// File-trailing comments (after the last statement) are not flushed by
 	// WriteStmts (which only emits comments that precede a statement); emit them
