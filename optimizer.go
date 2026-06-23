@@ -118,13 +118,13 @@ func NewOptimizer(
 }
 
 // exprHasUserOperator reports whether expr (or a nested operand) uses a binary
-// operator with no built-in semantics (e.g. `<<<`). Such operators are
-// implemented at runtime via `met core.binOp`, so the optimizer must not
-// constant-fold them.
+// operator the optimizer must not constant-fold: a user operator with no
+// built-in semantics (e.g. `<<<`), or `in` — both are dispatched at runtime
+// through core.binOp (and `in` may be overridden via `met core.binOp`).
 func exprHasUserOperator(expr node.Expr) bool {
 	switch e := expr.(type) {
 	case *node.BinaryExpr:
-		return e.Token.IsUserBinaryOperator() ||
+		return e.Token.IsUserBinaryOperator() || e.Token == token.In ||
 			exprHasUserOperator(e.LHS) || exprHasUserOperator(e.RHS)
 	case *node.ParenExpr:
 		return exprHasUserOperator(e.Expr)

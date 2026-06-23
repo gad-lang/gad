@@ -704,14 +704,15 @@ func (o KeyValueArray) Get(keys ...Object) Object {
 	return Nil
 }
 
-// Contains reports whether v is a key of the key-value array (`v in kva`).
-func (o KeyValueArray) Contains(v Object) (bool, error) {
+// BinOpIn implements the `in` operator (ObjectWithInBinOperator): reports
+// whether v is a key of the key-value array (`v in kva`).
+func (o KeyValueArray) BinOpIn(_ *VM, v Object) (Object, error) {
 	for _, e := range o {
 		if e.K.Equal(v) {
-			return true, nil
+			return True, nil
 		}
 	}
-	return false, nil
+	return False, nil
 }
 
 func (o KeyValueArray) Delete(keys ...Object) Object {

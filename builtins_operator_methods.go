@@ -10,6 +10,14 @@ package gad
 func operatorBinaryMethod(c Call) (Object, error) {
 	op := c.Args.Get(0).(BinaryOperatorType)
 	left, right := c.Args.Get(1), c.Args.Get(2)
+	// `in` dispatches on the right operand (the container) via the per-operator
+	// ObjectWithInBinOperator API, so it is tried before the left operand's
+	// BinaryOperatorHandler.
+	if op == TBinaryOperatorIn {
+		if ret, err, handled := binOpObject(c.VM, op, left, right); handled {
+			return ret, err
+		}
+	}
 	// The legacy single-method BinaryOperatorHandler is tried first while types
 	// are migrated; types using the per-operator ObjectWith{Op}BinOperator API
 	// (op_api.go) are picked up by binOpObject.

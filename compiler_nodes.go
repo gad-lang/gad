@@ -2123,8 +2123,6 @@ func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
 		c.emit(nd, OpEqual)
 	case token.NotEqual:
 		c.emit(nd, OpNotEqual)
-	case token.In:
-		c.emit(nd, OpIn)
 	default:
 		if !nd.Token.IsBinaryOperator() {
 			return c.errorf(nd, "invalid binary operator: %s",

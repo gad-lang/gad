@@ -22,9 +22,9 @@ func main() {
 	binaryOperators := listGroup(token.GroupBinaryOperatorBegin, token.GroupBinaryOperatorEnd)
 	// `++` and `--` are usable as binary operators too (they live in the
 	// self-assign token group, so add them explicitly). `in` is the membership
-	// operator (a keyword, not in the operator group); it is added so it is
-	// user-overridable via `met core.binOp(_ TBinaryOperatorIn, …)` and so
-	// the OpIn fallback resolves.
+	// operator (a keyword, not in the operator token group); it is added so it
+	// gets a TBinaryOperatorIn type and an ObjectWithInBinOperator interface,
+	// and is user-overridable via `met core.binOp(_ TBinaryOperatorIn, …)`.
 	binaryOperators = append(binaryOperators, token.Inc, token.Dec, token.In)
 	selfAssignOperators := listGroup(token.GroupSelfAssignOperatorBegin, token.NullichAssign)
 	for i, op := range selfAssignOperators {
@@ -113,6 +113,16 @@ func writeOpAPI(binaryOperators []token.Token) {
 	f.WriteString("func binOpObject(vm *VM, op BinaryOperatorType, left, right Object) (ret Object, err error, handled bool) {\n")
 	f.WriteString("\tswitch op.Token() {\n")
 	for _, o := range binaryOperators {
+		if o == token.In {
+			// `a in b` tests membership of a in b, so the implementing object is
+			// the right operand (the container) and the value is passed as arg.
+			fmt.Fprintf(&f,
+				"\tcase token.In:\n"+
+					"\t\tif h, ok := right.(ObjectWithInBinOperator); ok {\n"+
+					"\t\t\tret, err = h.BinOpIn(vm, left)\n"+
+					"\t\t\thandled = true\n\t\t}\n")
+			continue
+		}
 		fmt.Fprintf(&f,
 			"\tcase token.%s:\n"+
 				"\t\tif h, ok := left.(ObjectWith%[2]sBinOperator); ok {\n"+

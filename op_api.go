@@ -335,8 +335,8 @@ func binOpObject(vm *VM, op BinaryOperatorType, left, right Object) (ret Object,
 			handled = true
 		}
 	case token.In:
-		if h, ok := left.(ObjectWithInBinOperator); ok {
-			ret, err = h.BinOpIn(vm, right)
+		if h, ok := right.(ObjectWithInBinOperator); ok {
+			ret, err = h.BinOpIn(vm, left)
 			handled = true
 		}
 	}

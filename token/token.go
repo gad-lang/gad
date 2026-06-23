@@ -576,7 +576,10 @@ func (tok Token) IsBinaryOperator() bool {
 		TripleGreater,
 		DoubleMod,
 		Inc,
-		Dec:
+		Dec,
+		// `in` is a keyword, but it is also the membership binary operator
+		// (`a in b`), dispatched through core.binOp like the others.
+		In:
 		return true
 	}
 	return false

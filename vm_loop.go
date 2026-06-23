@@ -184,40 +184,6 @@ VMLoop:
 			}
 			vm.sp--
 			vm.stack[vm.sp] = nil
-		case OpIn:
-			// `left in right`: membership. The container reports membership via
-			// Contains; otherwise fall back to the binary-operator handlers.
-			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
-
-			var (
-				value Object
-				err   error
-			)
-			if c, ok := right.(Container); ok {
-				var found bool
-				if found, err = c.Contains(left); err == nil {
-					value = Bool(found)
-				}
-			} else {
-				value, err = vm.Builtins.Call(BuiltinBinaryOperator, Call{
-					VM:   vm,
-					Args: Args{Array{BinaryOperatorType(token.In), left, right}},
-				})
-			}
-
-			if err != nil {
-				if err == ErrInvalidOperator {
-					err = ErrInvalidOperator.NewError(token.In.String())
-				}
-				if err = vm.throwGenErr(err); err != nil {
-					vm.err = err
-					return
-				}
-			} else {
-				vm.stack[vm.sp-2] = value
-				vm.sp--
-				vm.stack[vm.sp] = nil
-			}
 		case OpTrue:
 			vm.stack[vm.sp] = True
 			vm.sp++

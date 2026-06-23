@@ -540,12 +540,14 @@ func (o Bytes) IsFalsy() bool { return len(o) == 0 }
 
 // Contains reports whether v (a byte-valued number/char in 0..255) is present
 // in the bytes (`v in bytes`).
-func (o Bytes) Contains(v Object) (bool, error) {
+// BinOpIn implements the `in` operator (ObjectWithInBinOperator): reports
+// whether the byte value v is present in o.
+func (o Bytes) BinOpIn(_ *VM, v Object) (Object, error) {
 	n, ok := ToGoInt64(v)
 	if !ok || n < 0 || n > 255 {
-		return false, nil
+		return False, nil
 	}
-	return bytes.IndexByte(o, byte(n)) >= 0, nil
+	return Bool(bytes.IndexByte(o, byte(n)) >= 0), nil
 }
 
 // BinaryOp implements Object interface.
@@ -1074,13 +1076,15 @@ func (o Array) Equal(right Object) bool {
 func (o Array) IsFalsy() bool { return len(o) == 0 }
 
 // Contains reports whether v equals an element of the array (`v in array`).
-func (o Array) Contains(v Object) (bool, error) {
+// BinOpIn implements the `in` operator (ObjectWithInBinOperator): reports
+// whether v is an element of o.
+func (o Array) BinOpIn(_ *VM, v Object) (Object, error) {
 	for _, e := range o {
 		if e.Equal(v) {
-			return true, nil
+			return True, nil
 		}
 	}
-	return false, nil
+	return False, nil
 }
 
 // BinaryOp implements Object interface.
@@ -1460,9 +1464,11 @@ func (o Dict) Equal(right Object) bool {
 func (o Dict) IsFalsy() bool { return len(o) == 0 }
 
 // Contains reports whether v is a key of the dict (`v in dict`).
-func (o Dict) Contains(v Object) (bool, error) {
+// BinOpIn implements the `in` operator (ObjectWithInBinOperator): reports
+// whether v is a key of o.
+func (o Dict) BinOpIn(_ *VM, v Object) (Object, error) {
 	_, ok := o[v.ToString()]
-	return ok, nil
+	return Bool(ok), nil
 }
 
 // BinaryOp implements Object interface.
@@ -1732,11 +1738,13 @@ func (o *SyncDict) IndexGet(vm *VM, index Object) (Object, error) {
 }
 
 // Contains reports whether v is a key of the dict (`v in syncDict`).
-func (o *SyncDict) Contains(v Object) (bool, error) {
+// BinOpIn implements the `in` operator (ObjectWithInBinOperator): reports
+// whether v is a key of the guarded dict.
+func (o *SyncDict) BinOpIn(vm *VM, v Object) (Object, error) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
-	return o.Value.Contains(v)
+	return o.Value.BinOpIn(vm, v)
 }
 
 // Equal implements Object interface.

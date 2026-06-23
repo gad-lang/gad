@@ -210,9 +210,10 @@ function header). It has comparison precedence.
 `for (x in y) { … }` is a for-cond loop. Everywhere else (`if x in y`, the for
 condition clause, any expression) `in` is the operator.
 
-A Go type implements membership with the `Container` interface
-(`Contains(v Object) (bool, error)`). When the right operand isn't a `Container`,
-`in` falls back to the binary-operator handlers, so a type can define it with
+A Go type implements membership with the `ObjectWithInBinOperator` interface
+(`BinOpIn(vm *VM, value Object) (Object, error)`), implemented by the **right**
+operand (the container); it returns a `bool`-valued object for the membership of
+`value`. In Gad, a type can define `in` with
 `met core.binOp(_ TBinaryOperatorIn, left T, right U)`.
 
 ## Precedence

@@ -69,15 +69,15 @@ func (m *MethodInterfaceInstance) Equal(right Object) bool {
 	return true
 }
 
-// Contains reports whether v is one of the interface's function headers
-// (`header in meti`).
-func (m *MethodInterfaceInstance) Contains(v Object) (bool, error) {
+// BinOpIn implements the `in` operator (ObjectWithInBinOperator): reports
+// whether v is one of the interface's function headers (`header in meti`).
+func (m *MethodInterfaceInstance) BinOpIn(_ *VM, v Object) (Object, error) {
 	for _, h := range m.Headers {
 		if h.Equal(v) {
-			return true, nil
+			return True, nil
 		}
 	}
-	return false, nil
+	return False, nil
 }
 
 // HeadersArray returns the headers as an Array of FunctionHeader values.

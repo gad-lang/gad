@@ -34,3 +34,19 @@ func TestBinOpObjectDispatch(t *testing.T) {
 	_, _, handled = binOpObject(nil, TBinaryOperatorSub, left, Int(3))
 	require.False(t, handled)
 }
+
+func TestBinOpObjectInDispatch(t *testing.T) {
+	// `a in b` dispatches on the right operand (the container) via BinOpIn.
+	ret, err, handled := binOpObject(nil, TBinaryOperatorIn, Int(2), Array{Int(1), Int(2), Int(3)})
+	require.True(t, handled)
+	require.NoError(t, err)
+	require.Equal(t, True, ret)
+
+	ret, _, handled = binOpObject(nil, TBinaryOperatorIn, Int(9), Array{Int(1), Int(2)})
+	require.True(t, handled)
+	require.Equal(t, False, ret)
+
+	// a non-container right operand is not handled.
+	_, _, handled = binOpObject(nil, TBinaryOperatorIn, Int(1), Int(2))
+	require.False(t, handled)
+}

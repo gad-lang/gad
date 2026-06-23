@@ -1145,7 +1145,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		OpFinalizer, OpDefineLocal, OpKeyValue:
 		buf = append(buf, byte(args[0]))
 		return buf, nil
-	case OpEqual, OpNotEqual, OpIn, OpNil, OpTrue, OpFalse, OpYes, OpNo, OpPop, OpSliceIndex,
+	case OpEqual, OpNotEqual, OpNil, OpTrue, OpFalse, OpYes, OpNo, OpPop, OpSliceIndex,
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
 		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsMain, OpNotIsMain, OpModule,
