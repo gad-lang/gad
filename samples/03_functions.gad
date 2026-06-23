@@ -34,8 +34,21 @@ deferOrder := func() {
     return ["body"]
 }
 
-// `defer_err` runs only when an error propagates; it can recover by clearing
-// `$err` (and setting `$ret`). `defer_ok` (not shown) runs only on success.
+// Shortcut form: `defer Expr` defers a single call (no braces), passing `$ret`
+// and `$err` as arguments. The conditional variants run only on the matching
+// exit:  defer (always) · defer_ok (no error) · defer_err (error).
+trace := func(label, *a) { println("  " + label, a) }
+audited := func(fail) {
+    defer trace("defer   ", $ret, $err) // always
+    defer_ok trace("defer_ok", $ret)    // only on success
+    defer_err trace("defer_err", $err)  // only on error
+    if fail {
+        throw "boom"
+    }
+    return 42
+}
+
+// `defer_err` can recover by clearing `$err` (and optionally setting `$ret`).
 safeCall := func(fail) {
     defer_err {
         $ret = "recovered: " + str($err)
@@ -47,13 +60,15 @@ safeCall := func(fail) {
     return "ok"
 }
 
-// `deferb` runs when the enclosing *block* exits (not the whole function),
-// also LIFO. A block has no return value, so there is no `$ret` here.
+// `deferb` (and `deferb_ok` / `deferb_err`) run when the enclosing *block*
+// exits — not the whole function — also LIFO, and with no `$ret`. The shortcut
+// form also accepts an assignment (`deferb out += "x"`) or `i++`, not just a
+// call.
 blockCleanup := func() {
     out := ""
     {
-        deferb { out += "b1 " } // runs last
-        deferb { out += "b2 " } // runs first
+        deferb out += "b1 " // shortcut form (no braces); runs last
+        deferb out += "b2 " // runs first
         out += "body "
     }
     return out + "after"
@@ -67,5 +82,9 @@ println("deferOrder()    =", deferOrder())     // [body, defer-B, defer-A]
 println("safeCall(false) =", safeCall(false))
 println("safeCall(true)  =", safeCall(true))   // recovered: error: boom
 println("blockCleanup()  =", blockCleanup())   // body b2 b1 after
+println("-- audited(false): defer_ok then defer (LIFO) --")
+audited(false)
+println("-- audited(true): defer_err then defer, error then propagates --")
+_ := audited(true) or println("  caught:", $err)
 
 return total(1, 2, 3, 4)

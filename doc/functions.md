@@ -225,6 +225,24 @@ Three conditional variants run only on the matching exit:
 * `defer_err { … }` — runs only when an error is propagating.
 * `defer` — always runs.
 
+### Shortcut form
+
+Besides the block form, a handler may be a single statement written **without
+braces** — `defer Stmt`. It accepts a call (with `$ret` / `$err` passed as
+arguments), an assignment, or an increment/decrement:
+
+```go
+f := func() {
+    defer cleanup($ret, $err)   // call, receives the result and error
+    defer_ok log($ret)          // call, only on success
+    defer $ret += 1             // assignment to the result
+    return 1
+}
+```
+
+The same shortcut applies to the `deferb*` variants (`deferb out += "x"`,
+`deferb i++`, `deferb_err report($err)`).
+
 A `defer_err` handler can **recover** by clearing `$err` (and optionally setting
 `$ret`):
 

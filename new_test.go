@@ -467,6 +467,23 @@ func TestVMDeferStmt(t *testing.T) {
 	testExpectRun(t, `
 	f := func(c) { if c { defer { $ret += "y" } }; return "b" }
 	return [f(true), f(false)]`, nil, Array{Str("by"), Str("b")})
+
+	// shortcut form: assignment to $ret (no braces)
+	testExpectRun(t, `f := func() { defer $ret += 100; return 1 }; return f()`,
+		nil, Int(101))
+
+	// shortcut form: a call receiving $ret and $err as arguments
+	testExpectRun(t, `
+	out := ""
+	rec := func(r, e) { out += "r=" + str(r) + " e=" + str(e) }
+	f := func() { defer rec($ret, $err); return 7 }
+	f()
+	return out`, nil, Str("r=7 e=nil"))
+
+	// shortcut form: defer_ok with an assignment runs only on success
+	testExpectRun(t, `
+	f := func(fail) { defer_ok $ret = "ok"; if fail { throw "x" }; return "raw" }
+	return f(false)`, nil, Str("ok"))
 }
 
 func TestVMCodeStr(t *testing.T) {
@@ -1018,6 +1035,26 @@ func TestVMDeferbStmt(t *testing.T) {
 		out += "out "
 	}
 	return out`, nil, Str("in inner out outer "))
+
+	// shortcut form: assignment at block exit, LIFO
+	testExpectRun(t, `
+	out := ""
+	{ deferb out += "b1 "; deferb out += "b2 "; out += "body " }
+	out += "after"
+	return out`, nil, Str("body b2 b1 after"))
+
+	// shortcut form: increment at block exit
+	testExpectRun(t, `
+	n := 0
+	{ deferb n++; deferb n++ }
+	return n`, nil, Int(2))
+
+	// shortcut form: a call receiving $err at block exit
+	testExpectRun(t, `
+	out := ""
+	rec := func(e) { out += "e=" + str(e) }
+	{ deferb rec($err) }
+	return out`, nil, Str("e=nil"))
 }
 
 func TestVMComprehension(t *testing.T) {

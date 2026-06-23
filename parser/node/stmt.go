@@ -688,6 +688,9 @@ type DeferStmt struct {
 	// Block reports a `deferb*` statement, which runs at the end of the
 	// enclosing block instead of the enclosing function.
 	Block bool
+	// Inline reports that Body holds a single braceless shortcut statement
+	// (e.g. `defer x += 1`), rendered without surrounding braces.
+	Inline bool
 }
 
 func (s *DeferStmt) StmtNode() {}
@@ -714,6 +717,9 @@ func (s *DeferStmt) End() source.Pos {
 }
 
 func (s *DeferStmt) String() string {
+	if s.Inline && s.Body != nil && len(s.Body.Stmts) == 1 {
+		return s.Keyword() + " " + s.Body.Stmts[0].String()
+	}
 	if s.Body != nil {
 		return s.Keyword() + " " + s.Body.String()
 	}
@@ -722,9 +728,12 @@ func (s *DeferStmt) String() string {
 
 func (s *DeferStmt) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(s.Keyword() + " ")
-	if s.Body != nil {
+	switch {
+	case s.Inline && s.Body != nil && len(s.Body.Stmts) == 1:
+		s.Body.Stmts[0].WriteCode(ctx)
+	case s.Body != nil:
 		s.Body.WriteCode(ctx)
-	} else {
+	default:
 		s.Call.WriteCode(ctx)
 	}
 }

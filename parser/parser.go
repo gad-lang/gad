@@ -3163,7 +3163,18 @@ func (p *Parser) ParseDeferStmt() node.Stmt {
 	if p.Token.Token == token.LBrace {
 		stmt.Body = p.ParseBlockStmt()
 	} else {
-		stmt.Call = p.ParseExpr()
+		// Shortcut form `defer Expr`: an expression/call runs as the handler;
+		// an assignment or increment/decrement (`defer x += 1`, `defer i++`)
+		// becomes a single braceless statement.
+		switch st := p.ParseSimpleStmt(false).(type) {
+		case *node.ExprStmt:
+			stmt.Call = st.Expr
+		case *node.FuncStmt:
+			stmt.Call = st.Func
+		default:
+			stmt.Body = &node.BlockStmt{Stmts: node.Stmts{st}}
+			stmt.Inline = true
+		}
 	}
 	p.ExpectSemi()
 	return stmt

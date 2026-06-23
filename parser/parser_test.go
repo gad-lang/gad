@@ -3998,6 +3998,16 @@ func TestParseDeferStmt(t *testing.T) {
 	test.ExpectParseString(t, `deferb { x }`, `deferb { x }`)
 	test.ExpectParseString(t, `deferb_ok { x }`, `deferb_ok { x }`)
 	test.ExpectParseString(t, `deferb_err handler(x)`, `deferb_err handler(x)`)
+
+	// shortcut form: call passing $ret/$err
+	test.ExpectParseString(t, `defer cleanup($ret, $err)`, `defer cleanup($ret, $err)`)
+	test.ExpectParseString(t, `defer_ok log($ret)`, `defer_ok log($ret)`)
+	test.ExpectParseString(t, `deferb_err report($err)`, `deferb_err report($err)`)
+
+	// shortcut form: assignment / increment (braceless statement)
+	test.ExpectParseString(t, `defer $ret += 1`, `defer $ret += 1`)
+	test.ExpectParseString(t, `deferb out += "x"`, `deferb out += "x"`)
+	test.ExpectParseString(t, `defer i++`, `defer i++`)
 }
 
 func TestCodeNewNodes(t *testing.T) {

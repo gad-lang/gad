@@ -3270,6 +3270,18 @@ func TestCompilerDeferStmt(t *testing.T) {
 	// f itself + $__body thunk + defer handler closure
 	require.GreaterOrEqual(t, fnCount, 3,
 		"expected defer desugar to generate the thunk and handler closures")
+
+	// shortcut forms compile: a call (passing $ret/$err) and a braceless
+	// assignment both desugar without error.
+	for _, src := range []string{
+		`cleanup := func(r, e) {}; f := func() { defer cleanup($ret, $err); return 1 }`,
+		`f := func() { defer $ret += 1; return 1 }`,
+		`f := func() { out := ""; { deferb out += "x" } }`,
+		`f := func() { n := 0; { deferb n++ } }`,
+	} {
+		_, _, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), CompileOptions{})
+		require.NoError(t, err, src)
+	}
 }
 
 func TestCompilerArrayComprehension(t *testing.T) {
