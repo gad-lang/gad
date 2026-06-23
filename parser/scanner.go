@@ -16,6 +16,7 @@ package parser
 
 import (
 	"reflect"
+	"strings"
 
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
@@ -338,10 +339,46 @@ func (s *Scanner) ScanComment() string {
 	// initial '/' already consumed; s.ch == '/' || s.ch == '*' || s.ch == '?'
 	offs := s.Offset - 1 // position of initial '/'
 
-	if s.Ch == '/' || s.Ch == '?' {
-		// line-style comment: `//…` or the single doc comment `/?…`
+	if s.Ch == '/' {
+		// //-style line comment
 		// (the final '\n' is not considered part of the comment)
 		s.Next()
+		for s.Ch != '\n' && s.Ch >= 0 {
+			s.Next()
+		}
+		goto exit
+	}
+
+	if s.Ch == '?' {
+		s.Next() // consume the first '?' (past `/?`)
+		if s.Ch == '?' {
+			// block doc comment: `/??…\n??` or root `/???…\n???`. It is scanned
+			// atomically up to a line that is exactly the closing fence, so the
+			// fence never collides with the `??` (nullish) operator.
+			fence := "??"
+			s.Next() // second '?'
+			if s.Ch == '?' {
+				fence = "???"
+				s.Next() // third '?'
+			}
+			firstLine := true
+			var line []rune
+			for s.Ch >= 0 {
+				if s.Ch == '\n' {
+					if !firstLine && strings.TrimSpace(string(line)) == fence {
+						goto exit // leave the '\n' as the statement separator
+					}
+					firstLine = false
+					line = line[:0]
+				} else {
+					line = append(line, s.Ch)
+				}
+				s.Next()
+			}
+			s.Error(offs, "doc comment not terminated")
+			goto exit
+		}
+		// single doc comment `/?…` (line-style, to end of line)
 		for s.Ch != '\n' && s.Ch >= 0 {
 			s.Next()
 		}

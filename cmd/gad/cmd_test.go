@@ -180,6 +180,33 @@ func TestFormatPreservesDocComments(t *testing.T) {
 	require.Equal(t, out, out2)
 }
 
+func TestFormatPreservesDocBlockComments(t *testing.T) {
+	o := &fmtOptions{codeFlags: fmtFormatFlag()}
+	src := "/??\n" +
+		"a block doc\n" +
+		"spanning lines\n" +
+		"??\n" +
+		"x := 1\n\n" +
+		"/???\n" +
+		"a root block doc\n" +
+		"???\n" +
+		"y := 2\n"
+
+	out, err := o.formatSource("d.gad", []byte(src), false)
+	require.NoError(t, err)
+
+	for _, want := range []string{
+		"/??\na block doc\nspanning lines\n??",
+		"/???\na root block doc\n???",
+	} {
+		require.Contains(t, out, want)
+	}
+
+	out2, err := o.formatSource("d.gad", []byte(out), false)
+	require.NoError(t, err)
+	require.Equal(t, out, out2)
+}
+
 func TestFormatTargetTranspileGadt(t *testing.T) {
 	dir := t.TempDir()
 	p := writeFile(t, dir, "page.gadt", "Hi {%= name %}!\n{% x := 1 %}")
