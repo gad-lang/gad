@@ -3512,6 +3512,7 @@ func (p *Parser) ParseDictElementLit() *node.DictElementLit {
 	}
 
 	pos := p.Token.Pos
+	doc := p.leadComment
 
 	// spread/merge element: `*expr`
 	if p.Token.Token == token.Mul {
@@ -3557,6 +3558,7 @@ func (p *Parser) ParseDictElementLit() *node.DictElementLit {
 		Key:      key,
 		ColonPos: colonPos,
 		Value:    valueExpr,
+		Doc:      doc,
 	}
 }
 
@@ -3795,8 +3797,10 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 		defer untracep(tracep(p, "Export"))
 	}
 
+	doc := p.leadComment
 	stmt = &node.ExportStmt{
 		TokenPos: p.Expect(token.Export),
+		Doc:      doc,
 	}
 
 	if p.Failed() {

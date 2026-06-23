@@ -1244,6 +1244,7 @@ type ExportStmt struct {
 	TokenPos  source.Pos
 	KeyExpr   Expr
 	ValueExpr Expr
+	Doc       *ast.CommentGroup // doc comment preceding the export; or nil
 }
 
 func (s *ExportStmt) End() source.Pos {

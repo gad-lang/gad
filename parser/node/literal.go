@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/quote"
 	"github.com/gad-lang/gad/runehelper"
@@ -224,6 +225,7 @@ type DictElementLit struct {
 	// Spread, when set, marks a `*expr` merge element (`{a:1, *b}`); Key and
 	// Value are nil in that case.
 	Spread Expr
+	Doc    *ast.CommentGroup // doc comment preceding the element; or nil
 }
 
 func (e *DictElementLit) Func() (f *FuncDefLit) {

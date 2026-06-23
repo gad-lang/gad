@@ -16,13 +16,66 @@ func newDocCtx(args ...string) (*cc.CommandContext, *bytes.Buffer, *bytes.Buffer
 	return ctx, &out, &errBuf
 }
 
-func TestGenerateDocStub(t *testing.T) {
-	md, err := generateDoc("foo/bar.gad", []byte("/? pi\nconst Pi = 3.14\n"))
+func TestGenerateDocModuleHeadingAndErrors(t *testing.T) {
+	// No exports: just the heading.
+	md, err := generateDoc("foo/bar.gad", []byte("x := 1\n"))
 	require.NoError(t, err)
 	require.Equal(t, "# bar\n", md)
 
 	_, err = generateDoc("bad.gad", []byte("const = \n"))
 	require.Error(t, err)
+}
+
+func TestGenerateDocSections(t *testing.T) {
+	src := "/???\nmodule overview.\n???\n\n" +
+		"/? the pi value\nexport Pi = 3.14\n\n" +
+		"/? returns a + b\nexport func sum(a, b) { return a + b }\n"
+	md, err := generateDoc("m.gad", []byte(src))
+	require.NoError(t, err)
+
+	require.Contains(t, md, "# m\n")
+	require.Contains(t, md, "module overview.")
+	require.Contains(t, md, "## Table of Contents")
+	require.Contains(t, md, "## Constants")
+	require.Contains(t, md, "### const **Pi**")
+	require.Contains(t, md, "    const Pi = 3.14")
+	require.Contains(t, md, "the pi value")
+	require.Contains(t, md, "## Types")
+	require.Contains(t, md, "### func **sum**")
+	require.Contains(t, md, "    sum(a, b)")
+	require.Contains(t, md, "returns a + b")
+}
+
+func TestGenerateDocFuncWithMethods(t *testing.T) {
+	src := "/? a difference calculator\n" +
+		"export func diff {\n" +
+		"\t/? difference of two ints\n\t(a int, b int) => b - a\n\n" +
+		"\t/? difference of two floats\n\t(a float, b float) => b - a\n}\n"
+	md, err := generateDoc("m.gad", []byte(src))
+	require.NoError(t, err)
+
+	require.Contains(t, md, "### func **diff**")
+	require.Contains(t, md, "a difference calculator")
+	require.Contains(t, md, "    (a int, b int)")
+	require.Contains(t, md, "difference of two ints")
+	require.Contains(t, md, "**other methods**")
+	require.Contains(t, md, "    (a float, b float)")
+	require.Contains(t, md, "difference of two floats")
+}
+
+func TestGenerateDocDictExport(t *testing.T) {
+	src := "/? public API\nexport {\n" +
+		"\t/? the max retries\n\tmaxRetries: 3,\n" +
+		"\t/? compute the area\n\tarea: func(r) { return r * r },\n}\n"
+	md, err := generateDoc("m.gad", []byte(src))
+	require.NoError(t, err)
+
+	require.Contains(t, md, "### const **maxRetries**")
+	require.Contains(t, md, "    const maxRetries = 3")
+	require.Contains(t, md, "the max retries")
+	require.Contains(t, md, "### func **area**")
+	require.Contains(t, md, "    area(r)")
+	require.Contains(t, md, "compute the area")
 }
 
 func TestDocWritesTree(t *testing.T) {
