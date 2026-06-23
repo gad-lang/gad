@@ -1607,6 +1607,28 @@ func (c *Compiler) compileAddMethodsExpr(nd node.Node, nameExpr node.Expr, metho
 	defer c.pushSelector()()
 	expr, selectors := resolveSelectorExprs(nameExpr)
 
+	// `met module.NAME(...)` on a builtin namespace member (e.g. core.binOp)
+	// resolves to the single qualified builtin so the method is added to the
+	// same object the VM dispatches against, rather than to the namespace dict
+	// member (which build() does not keep identical to the enum object).
+	if ident, ok := expr.(*node.IdentExpr); ok && len(selectors) == 1 {
+		if sel, _ := selectors[0].(*node.StrLit); sel != nil {
+			if base, ok := c.symbolTable.Resolve(ident.Name); ok && base.Scope == ScopeBuiltin {
+				if sym, ok := c.symbolTable.Resolve(ident.Name + "." + sel.Value()); ok &&
+					sym.Scope == ScopeBuiltin {
+					c.emit(nd, OpGetBuiltin, sym.Index)
+					for _, method := range methods {
+						if err = c.Compile(method); err != nil {
+							return err
+						}
+					}
+					c.emit(nd, OpAddMethod, 0, len(methods))
+					return nil
+				}
+			}
+		}
+	}
+
 	if err = c.Compile(expr); err != nil {
 		return err
 	}

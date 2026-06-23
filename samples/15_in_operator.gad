@@ -30,7 +30,7 @@ for (i in [0, 1, 2]) {
 // When the right operand is not a container, `in` falls back to the binary
 // operator machinery, so a type can define it.
 strings := import("strings")
-met @binaryOperator(_ TBinaryOperatorIn, needle str, haystack str) {
+met core.binOp(_ TBinaryOperatorIn, needle str, haystack str) {
     return strings.contains(haystack, needle)
 }
 println("ell" in "hello")      // true

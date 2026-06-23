@@ -2,13 +2,13 @@
 // their self-assign forms `<<<=`, `>>>=`, `%%=`.
 //
 // These operators have no built-in meaning; each type gives them semantics with
-// `met @binaryOperator` (and, optionally, `met @selfAssignOperator`).
+// `met core.binOp` (and, optionally, `met core.selfAssignOp`).
 
 // Define `<<<` and `>>>` on ints as "push"/"pop"-ish helpers.
-met @binaryOperator(_ TBinaryOperatorTripleLess, a int, b int) {
+met core.binOp(_ TBinaryOperatorTripleLess, a int, b int) {
     return a * 1000 + b           // pack two small ints
 }
-met @binaryOperator(_ TBinaryOperatorTripleGreater, a int, b int) {
+met core.binOp(_ TBinaryOperatorTripleGreater, a int, b int) {
     return [a / 1000, a % 1000]   // unpack
 }
 
@@ -17,19 +17,19 @@ println(packed)                   // 12345
 println(packed >>> 0)             // [12, 345]
 
 // `%%` as a "clamp into range" operator.
-met @binaryOperator(_ TBinaryOperatorDoubleMod, v int, hi int) {
+met core.binOp(_ TBinaryOperatorDoubleMod, v int, hi int) {
     return v < 0 ? 0 : (v > hi ? hi : v)
 }
 println(50 %% 10, -3 %% 10, 7 %% 10)   // 10 0 7
 
-// The self-assign forms reuse the binary handler via @selfAssignOperator's
+// The self-assign forms reuse the binary handler via core.selfAssignOp's
 // fallback: `x <<<= y` is `x = x <<< y`.
 acc := 1
 acc <<<= 2
 println(acc)                      // 1002
 
-// A dedicated @selfAssignOperator handler can differ from the binary one.
-met @selfAssignOperator(_ TSelfAssignOperatorDoubleMod, a int, b int) {
+// A dedicated core.selfAssignOp handler can differ from the binary one.
+met core.selfAssignOp(_ TSelfAssignOperatorDoubleMod, a int, b int) {
     return a + b
 }
 n := 7

@@ -28,15 +28,15 @@ func TestVMBinaryOperator(t *testing.T) {
 	// pow
 	testExpectRun(t, `return 2 ** 3`, nil, DecimalFromInt(8))
 	testExpectRun(t, `x := 2; x **= 3; return x`, nil, DecimalFromInt(8))
-	testExpectRun(t, `return @binaryOperator(TBinaryOperatorPow, 2, 3)`, nil, DecimalFromInt(8))
+	testExpectRun(t, `return core.binOp(TBinaryOperatorPow, 2, 3)`, nil, DecimalFromInt(8))
 
 	testExpectRun(t, `return TBinaryOperatorAdd`, nil, TBinaryOperatorAdd)
-	testExpectRun(t, `return @binaryOperator(TBinaryOperatorAdd, 1, 1)`, nil, Int(2))
+	testExpectRun(t, `return core.binOp(TBinaryOperatorAdd, 1, 1)`, nil, Int(2))
 
 	// custom OP
-	testExpectRun(t, `return @binaryOperator(TBinaryOperatorMul, 2, 10)`, nil, Int(20))
+	testExpectRun(t, `return core.binOp(TBinaryOperatorMul, 2, 10)`, nil, Int(20))
 	testExpectRun(t, `
-met @binaryOperator(_ TBinaryOperatorMul, p str, val int) {
+met core.binOp(_ TBinaryOperatorMul, p str, val int) {
 	ret := p
 	for i := 0; i < val-1; i++ {
 		ret += "-" + p
@@ -46,9 +46,9 @@ met @binaryOperator(_ TBinaryOperatorMul, p str, val int) {
 return "a" * 3`, nil, Str("a-a-a"))
 	testExpectRun(t, `
 // get original binary operator handler without methods
-bo := rawCaller(@binaryOperator) 
+bo := rawCaller(core.binOp) 
 
-met @binaryOperator(_ TBinaryOperatorAdd, p str, val str) {
+met core.binOp(_ TBinaryOperatorAdd, p str, val str) {
 	ret := p
 	for i := 0; i < int(val)-1; i++ {
 		// cant't uses ret += ... to prevents caller overflows on this method 
@@ -2464,12 +2464,12 @@ met Point3(this, r int) {
 	this(;r=r)
 }
 
-met @selfAssignOperator(_ TSelfAssignOperatorMul, p Point3, val int) {
+met core.selfAssignOp(_ TSelfAssignOperatorMul, p Point3, val int) {
 	p.r *= val
 	return p
 }
 
-met @binaryOperator(_ TBinaryOperatorAdd, i int, p Point3) {
+met core.binOp(_ TBinaryOperatorAdd, i int, p Point3) {
 	return i + p.r
 }
 

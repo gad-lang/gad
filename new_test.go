@@ -101,8 +101,8 @@ func TestVMBinaryIncDec(t *testing.T) {
 	// `a ++ b` / `a -- b` are binary operators an object can override
 	const stack = `
 	Stack := Class("Stack"; fields=(; items=(= [])))
-	met @binaryOperator(_ TBinaryOperatorInc, s Stack, v) { s.items = append(s.items, v); return s }
-	met @binaryOperator(_ TBinaryOperatorDec, s Stack, i) { return s.items[i] }
+	met core.binOp(_ TBinaryOperatorInc, s Stack, v) { s.items = append(s.items, v); return s }
+	met core.binOp(_ TBinaryOperatorDec, s Stack, i) { return s.items[i] }
 	`
 	// left-associative chaining: ((s ++ 1) ++ 2) ++ 3
 	testExpectRun(t, stack+`s := Stack(); s ++ 1; s ++ 2 ++ 3; return s.items`,
@@ -194,8 +194,36 @@ func TestVMTimeModuleTypesRepr(t *testing.T) {
 	}
 }
 
+func TestCoreNamespace(t *testing.T) {
+	// `core` is a global namespace (no import needed).
+	testExpectRun(t, `return core.binOp(TBinaryOperatorAdd, 2, 3)`, nil, Int(5))
+	testExpectRun(t, `return core.binOp(TBinaryOperatorMul, 4, 5)`, nil, Int(20))
+
+	// `met core.binOp` adds a typed operator method that the VM dispatches.
+	testExpectRun(t, `
+	met core.binOp(_ TBinaryOperatorMul, p str, n int) {
+		s := ""
+		for i in 1..n { s += p }
+		return s
+	}
+	p := "ab"
+	return p * 3`, nil, Str("ababab"))
+
+	// `met core.selfAssignOp` extends the self-assign fallback.
+	testExpectRun(t, `
+	met core.selfAssignOp(_ TSelfAssignOperatorAdd, a str, b str) { return a + "-" + b }
+	x := "a"; y := "b"; x += y
+	return x`, nil, Str("a-b"))
+
+	// the old global @binaryOperator / @selfAssignOperator names no longer resolve.
+	expectErrHas(t, `return @binaryOperator(TBinaryOperatorAdd, 1, 1)`,
+		newOpts().CompilerError(), `unresolved reference "@binaryOperator"`)
+	expectErrHas(t, `return @selfAssignOperator(TSelfAssignOperatorAdd, 1, 1)`,
+		newOpts().CompilerError(), `unresolved reference "@selfAssignOperator"`)
+}
+
 func TestVMOperatorMethods(t *testing.T) {
-	// Binary operators dispatch through the @binaryOperator methods (which run
+	// Binary operators dispatch through the core.binOp methods (which run
 	// each type's BinaryOp); results are unchanged.
 	testExpectRun(t, `return 1 + 2`, nil, Int(3))
 	testExpectRun(t, `return 7 / 2`, nil, Int(3))
@@ -206,11 +234,11 @@ func TestVMOperatorMethods(t *testing.T) {
 	testExpectRun(t, `return 'a' < 'b'`, nil, True)
 	testExpectRun(t, `return uint(6) - uint(2)`, nil, Uint(4))
 
-	// The operator can be invoked directly via the @binaryOperator builtin.
-	testExpectRun(t, `return @binaryOperator(TBinaryOperatorAdd, 1, 1)`, nil, Int(2))
-	testExpectRun(t, `return @binaryOperator(TBinaryOperatorMul, 2, 10)`, nil, Int(20))
+	// The operator can be invoked directly via the core.binOp builtin.
+	testExpectRun(t, `return core.binOp(TBinaryOperatorAdd, 1, 1)`, nil, Int(2))
+	testExpectRun(t, `return core.binOp(TBinaryOperatorMul, 2, 10)`, nil, Int(20))
 
-	// Self-assign operators dispatch through @selfAssignOperator: `+=` appends
+	// Self-assign operators dispatch through core.selfAssignOp: `+=` appends
 	// the element, `++=` extends.
 	testExpectRun(t, `a := [1, 2]; a += [3, 4]; return a`, nil,
 		Array{Int(1), Int(2), Array{Int(3), Int(4)}})
@@ -220,7 +248,7 @@ func TestVMOperatorMethods(t *testing.T) {
 
 	// A user-defined operator method takes precedence over the built-in one.
 	testExpectRun(t, `
-	met @binaryOperator(_ TBinaryOperatorMul, p str, n int) {
+	met core.binOp(_ TBinaryOperatorMul, p str, n int) {
 		out := ""
 		for i in 1 .. n { out += p }
 		return out
@@ -230,28 +258,28 @@ func TestVMOperatorMethods(t *testing.T) {
 
 func TestVMUserOperators(t *testing.T) {
 	// `<<<`, `>>>` and `%%` have no built-in semantics; they are defined per
-	// type with `met @binaryOperator`.
+	// type with `met core.binOp`.
 	testExpectRun(t, `
-	met @binaryOperator(_ TBinaryOperatorTripleLess, a int, b int) { return a + b * 100 }
+	met core.binOp(_ TBinaryOperatorTripleLess, a int, b int) { return a + b * 100 }
 	return 1 <<< 2`, nil, Int(201))
 	testExpectRun(t, `
-	met @binaryOperator(_ TBinaryOperatorTripleGreater, a int, b int) { return a - b }
+	met core.binOp(_ TBinaryOperatorTripleGreater, a int, b int) { return a - b }
 	x := 9; y := 4; return x >>> y`, nil, Int(5))
 	testExpectRun(t, `
-	met @binaryOperator(_ TBinaryOperatorDoubleMod, a int, b int) { return [a, b] }
+	met core.binOp(_ TBinaryOperatorDoubleMod, a int, b int) { return [a, b] }
 	return 5 %% 3`, nil, Array{Int(5), Int(3)})
 
 	// Without a handler the operator is a runtime error (not constant-folded).
 	expectErrIs(t, `return 1 <<< 2`, nil, ErrType)
 
 	// The self-assign forms `<<<=` / `>>>=` / `%%=` reuse the binary handler via
-	// the @selfAssignOperator fallback.
+	// the core.selfAssignOp fallback.
 	testExpectRun(t, `
-	met @binaryOperator(_ TBinaryOperatorTripleGreater, a int, b int) { return a * b }
+	met core.binOp(_ TBinaryOperatorTripleGreater, a int, b int) { return a * b }
 	x := 10; x >>>= 3; return x`, nil, Int(30))
-	// ...or a dedicated @selfAssignOperator handler.
+	// ...or a dedicated core.selfAssignOp handler.
 	testExpectRun(t, `
-	met @selfAssignOperator(_ TSelfAssignOperatorDoubleMod, a int, b int) { return a + b }
+	met core.selfAssignOp(_ TSelfAssignOperatorDoubleMod, a int, b int) { return a + b }
 	x := 7; x %%= 5; return x`, nil, Int(12))
 }
 
@@ -276,7 +304,7 @@ func TestVMInOperator(t *testing.T) {
 	// Fallback: when the right operand is not a Container, `in` goes through the
 	// binary-operator handlers, so a type can define it.
 	testExpectRun(t, `
-	met @binaryOperator(_ TBinaryOperatorIn, a int, b str) { return a > 0 }
+	met core.binOp(_ TBinaryOperatorIn, a int, b str) { return a > 0 }
 	return 5 in "anything"`, nil, True)
 	// No Container and no handler -> error.
 	expectErrIs(t, `return 1 in 2`, nil, ErrType)
@@ -392,7 +420,7 @@ func TestVMClassFeatures(t *testing.T) {
 	// --- operator overload + conversion + external method via `met` ---
 	testExpectRun(t, `
 	Vec := Class("Vec"; fields=(; x int = 0, y int = 0))
-	met @binaryOperator(_ TBinaryOperatorAdd, a Vec, b Vec) {
+	met core.binOp(_ TBinaryOperatorAdd, a Vec, b Vec) {
 		return Vec(; x=a.x+b.x, y=a.y+b.y)
 	}
 	met str(v Vec) => "(" + v.x + ", " + v.y + ")"

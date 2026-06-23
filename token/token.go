@@ -583,8 +583,8 @@ func (tok Token) IsBinaryOperator() bool {
 }
 
 // IsUserBinaryOperator reports whether tok is a binary operator that has no
-// built-in semantics and must be implemented via `met @binaryOperator` (and the
-// self-assign forms via `met @selfAssignOperator`): `<<<`, `>>>`, `%%`.
+// built-in semantics and must be implemented via `met core.binOp` (and the
+// self-assign forms via `met core.selfAssignOp`): `<<<`, `>>>`, `%%`.
 func (tok Token) IsUserBinaryOperator() bool {
 	switch tok {
 	case TripleLess, TripleGreater, DoubleMod:

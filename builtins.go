@@ -242,6 +242,7 @@ const (
 	BuiltinModuleStrings
 	BuiltinModuleTime
 	BuiltinModuleFmt
+	BuiltinModuleCore
 	GroupBuiltinModulesEnd
 
 	BuiltinEnd_
@@ -262,8 +263,8 @@ func NewBuiltinType() (t BuiltinType) {
 
 // BuiltinsMap is list of builtin types, exported for REPL.
 var BuiltinsMap = map[string]BuiltinType{
-	"@binaryOperator":     BuiltinBinaryOperator,
-	"@selfAssignOperator": BuiltinSelfAssignOperator,
+	// @binaryOperator / @selfAssignOperator are exposed as core.binOp /
+	// core.selfAssignOp (registered in registerCoreModule).
 	"cast":                BuiltinCast,
 	"append":              BuiltinAppend,
 	"delete":              BuiltinDelete,
@@ -569,11 +570,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinBinaryOperator: &BuiltinFunction{
-		FuncName: "@binaryOperator",
+		FuncName: "binOp",
 		Value:    BuiltinBinaryOperatorFunc,
 	},
 	BuiltinSelfAssignOperator: &BuiltinFunction{
-		FuncName: "@selfAssignOperator",
+		FuncName: "selfAssignOp",
 		Value:    BuiltinSelfAssignOperatorFunc,
 	},
 	BuiltinCast: &BuiltinFunction{

@@ -144,12 +144,12 @@ The **postfix** `x++` / `x--` are statements. The **prefix** `++x` / `--x` are
 `++` and `--` are also **binary operators** when an operand follows them
 (`a ++ b`, `a -- b`); they have additive precedence and are left-associative.
 The built-in numeric types do not define them, but a type can — typically a
-class via `met @binaryOperator(_ TBinaryOperatorInc, …)` — for example to model
+class via `met core.binOp(_ TBinaryOperatorInc, …)` — for example to model
 a "push":
 
 ```go
 Stack := Class("Stack"; fields = (; items = (= [])))
-met @binaryOperator(_ TBinaryOperatorInc, s Stack, v) {
+met core.binOp(_ TBinaryOperatorInc, s Stack, v) {
     s.items = append(s.items, v)
     return s
 }
@@ -157,17 +157,31 @@ s := Stack()
 s ++ 1 ++ 2 ++ 3      // s.items == [1, 2, 3]
 ```
 
+## Operator handlers and the `core` namespace
+
+Operator behaviour is dispatched through two functions in the global **`core`**
+namespace (available everywhere without `import`, like `strings`):
+`core.binOp(op, left, right)` for binary operators and
+`core.selfAssignOp(op, left, right)` for the self-assign forms. A type customises
+an operator by adding a typed method to one of them:
+
+```go
+met core.binOp(_ TBinaryOperatorAdd, a Vec, b Vec) { … }
+```
+
+You can also call them directly, e.g. `core.binOp(TBinaryOperatorAdd, 1, 2)`.
+
 ## User Operators
 
 Three binary operators have **no built-in meaning** and exist purely for types to
 define: `<<<`, `>>>` and `%%` (with self-assign forms `<<<=`, `>>>=`, `%%=`).
 They have multiplicative precedence (level 5). Give them semantics per type with
-`met @binaryOperator`, referencing the operator's type
+`met core.binOp`, referencing the operator's type
 (`TBinaryOperatorTripleLess`, `TBinaryOperatorTripleGreater`,
 `TBinaryOperatorDoubleMod`):
 
 ```go
-met @binaryOperator(_ TBinaryOperatorTripleLess, a int, b int) {
+met core.binOp(_ TBinaryOperatorTripleLess, a int, b int) {
     return a * 1000 + b
 }
 println(12 <<< 345)        // 12345
@@ -175,8 +189,8 @@ println(12 <<< 345)        // 12345
 
 Using one without a handler is a runtime error (these operators are never
 constant-folded by the optimizer). The self-assign form `x <<<= y` runs as
-`x = x <<< y` via the `@selfAssignOperator` fallback; a type can also intercept
-it directly with `met @selfAssignOperator(_ TSelfAssignOperatorTripleLess, …)`.
+`x = x <<< y` via the `core.selfAssignOp` fallback; a type can also intercept
+it directly with `met core.selfAssignOp(_ TSelfAssignOperatorTripleLess, …)`.
 
 ## Membership (`in`)
 
@@ -199,7 +213,7 @@ condition clause, any expression) `in` is the operator.
 A Go type implements membership with the `Container` interface
 (`Contains(v Object) (bool, error)`). When the right operand isn't a `Container`,
 `in` falls back to the binary-operator handlers, so a type can define it with
-`met @binaryOperator(_ TBinaryOperatorIn, left T, right U)`.
+`met core.binOp(_ TBinaryOperatorIn, left T, right U)`.
 
 ## Precedence
 

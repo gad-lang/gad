@@ -161,7 +161,7 @@ Vec := Class("Vec"; fields = (; x int = 0, y int = 0))
 met Vec.len2(this) => this.x*this.x + this.y*this.y
 
 // overload a binary operator
-met @binaryOperator(_ TBinaryOperatorAdd, a Vec, b Vec) {
+met core.binOp(_ TBinaryOperatorAdd, a Vec, b Vec) {
     return Vec(; x=a.x+b.x, y=a.y+b.y)
 }
 

@@ -58,10 +58,52 @@ func registerOperatorMethods() {
 	}
 	for _, t := range binaryTypes {
 		BuiltinObjects.AddMethod(BuiltinBinaryOperator,
-			operatorMethod("@binaryOperator", operatorBinaryMethod, t))
+			operatorMethod("binOp", operatorBinaryMethod, t))
 	}
 
 	// Array is the only builtin type with a SelfAssignOp implementation.
 	BuiltinObjects.AddMethod(BuiltinSelfAssignOperator,
-		operatorMethod("@selfAssignOperator", operatorSelfAssignMethod, TArray))
+		operatorMethod("selfAssignOp", operatorSelfAssignMethod, TArray))
+
+	// Expose the operator functions under the global `core` namespace
+	// (core.binOp / core.selfAssignOp). Done here, after the methods are
+	// registered, so the namespace references the final method-bearing objects.
+	registerCoreModule()
+}
+
+// coreModuleSpec is the spec for the global `core` namespace.
+var coreModuleSpec = NewModuleSpecFromName("core")
+
+// CoreModule returns the `core` builtin namespace (the operator functions).
+func CoreModule() Dict {
+	return Dict{
+		"binOp":        BuiltinObjects[BuiltinBinaryOperator],
+		"selfAssignOp": BuiltinObjects[BuiltinSelfAssignOperator],
+	}
+}
+
+// registerCoreModule registers `core` as a global namespace whose members
+// `binOp` / `selfAssignOp` resolve to the existing operator builtins. The
+// qualified names map to the same builtin enums used by the VM's operator
+// dispatch, so `core.binOp(...)` and `met core.binOp(...)` share identity with
+// it.
+func registerCoreModule() {
+	name := coreModuleSpec.Name
+	setOperatorModule(BuiltinObjects[BuiltinBinaryOperator])
+	setOperatorModule(BuiltinObjects[BuiltinSelfAssignOperator])
+
+	BuiltinsMap[name] = BuiltinModuleCore
+	BuiltinObjects[BuiltinModuleCore] = CoreModule()
+	BuiltinsMap[name+".binOp"] = BuiltinBinaryOperator
+	BuiltinsMap[name+".selfAssignOp"] = BuiltinSelfAssignOperator
+}
+
+// setOperatorModule ties an operator builtin to the core module spec.
+func setOperatorModule(o Object) {
+	switch m := o.(type) {
+	case *BuiltinFunctionWithMethods:
+		m.Module = coreModuleSpec
+	case *BuiltinFunction:
+		m.Module = coreModuleSpec
+	}
 }
