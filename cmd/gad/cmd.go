@@ -36,7 +36,11 @@ type ctxKey string
 const (
 	runFlagsKey    ctxKey = "runFlags"
 	fmtOptionsKey  ctxKey = "fmtOptions"
+	docOptionsKey  ctxKey = "docOptions"
 	defaultCfgFile        = ".gad.yaml"
+	// docConfigKey is the root mapping key in the config file holding the `doc`
+	// subcommand settings.
+	docConfigKey = "doc"
 	// fmtConfigKey is the root mapping key in the config file holding the `fmt`
 	// subcommand settings.
 	fmtConfigKey = "fmt"
@@ -85,6 +89,7 @@ func loadTemplateConfig(dir string) {
 var subcommandNames = map[string]bool{
 	"run":    true,
 	"fmt":    true,
+	"doc":    true,
 	"help":   true,
 	"--help": true,
 }
@@ -115,6 +120,7 @@ func buildRootCommand() *cc.Command {
 	}
 	root.Sub(runCommand())
 	root.Sub(fmtCommand())
+	root.Sub(docCommand())
 	for _, f := range optionalCommands {
 		root.Sub(f())
 	}
