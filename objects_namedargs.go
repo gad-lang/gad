@@ -368,7 +368,7 @@ func (o *KeyValue) IsLess(vm *VM, other *KeyValue) bool {
 	if o.K.ToString() < other.K.ToString() {
 		return true
 	}
-	v, _ := objBinaryOp(vm, token.Less, o.V, other.V)
+	v, _ := BinaryOp(vm, token.Less, o.V, other.V)
 	return v == nil || !v.IsFalsy()
 }
 

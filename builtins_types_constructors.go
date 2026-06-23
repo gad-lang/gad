@@ -8,7 +8,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/gad-lang/gad/token"
 	"github.com/shopspring/decimal"
 )
 
@@ -34,7 +33,7 @@ var (
 	})
 
 	NewDecimalFunc = funcPpVM_OROe(func(vm *VM, v Object) (Object, error) {
-		return Decimal(decimal.Zero).BinaryOp(vm, token.Add, v)
+		return Decimal(decimal.Zero).BinOpAdd(vm, v)
 	})
 
 	NewCharFunc = funcPOROe(func(arg Object) (Object, error) {

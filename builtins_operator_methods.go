@@ -2,11 +2,12 @@ package gad
 
 import "github.com/gad-lang/gad/token"
 
-// objBinaryOp runs a binary operator on two objects through the same dispatch as
+// BinaryOp runs a binary operator on two objects through the same dispatch as
 // core.binOp: the legacy BinaryOperatorHandler and the per-operator
 // ObjectWith{Op}BinOperator API (binOpObject). Internal callers (sort, value
-// comparisons) use it so they work for types implementing either API.
-func objBinaryOp(vm *VM, tok token.Token, left, right Object) (Object, error) {
+// comparisons) and embedders use it so they work for types implementing either
+// API.
+func BinaryOp(vm *VM, tok token.Token, left, right Object) (Object, error) {
 	op := BinaryOperatorType(tok)
 	if tok == token.In {
 		if ret, err, handled := binOpObject(vm, op, left, right); handled {

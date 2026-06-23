@@ -94,7 +94,7 @@ try:
 		right = FileFlag(v)
 		goto try
 	case FileFlag:
-		if ret, err = gad.Int(f).BinaryOp(vm, tok, gad.Int(right.(FileFlag))); err == nil {
+		if ret, err = gad.BinaryOp(vm, tok, gad.Int(f), gad.Int(right.(FileFlag))); err == nil {
 			if r2, ok := ret.(gad.Int); ok {
 				ret = FileFlag(r2)
 			}

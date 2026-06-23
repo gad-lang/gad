@@ -56,106 +56,201 @@ func (o Bool) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Bool) IsFalsy() bool { return bool(!o) }
 
-// BinaryOp implements Object interface.
-func (o Bool) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
-	bval := Int(0)
-	if o {
-		bval = Int(1)
-	}
-switchpos:
+// A Bool behaves as 0/1 in arithmetic, with the result type following the
+// numeric right operand (Int or Uint). These implement the per-operator
+// ObjectWith{Op}BinOperator interfaces.
+func (o Bool) BinOpAdd(vm *VM, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Int:
-		switch tok {
-		case token.Add:
-			return bval + v, nil
-		case token.Sub:
-			return bval - v, nil
-		case token.Mul:
-			return bval * v, nil
-		case token.Quo:
-			if v == 0 {
-				return nil, ErrZeroDivision
-			}
-			return bval / v, nil
-		case token.Rem:
-			return bval % v, nil
-		case token.And:
-			return bval & v, nil
-		case token.Or:
-			return bval | v, nil
-		case token.Xor:
-			return bval ^ v, nil
-		case token.AndNot:
-			return bval &^ v, nil
-		case token.Shl:
-			return bval << v, nil
-		case token.Shr:
-			return bval >> v, nil
-		case token.Less:
-			return Bool(bval < v), nil
-		case token.LessEq:
-			return Bool(bval <= v), nil
-		case token.Greater:
-			return Bool(bval > v), nil
-		case token.GreaterEq:
-			return Bool(bval >= v), nil
-		}
+		return boolInt(o) + v, nil
 	case Uint:
-		bval := Uint(bval)
-		switch tok {
-		case token.Add:
-			return bval + v, nil
-		case token.Sub:
-			return bval - v, nil
-		case token.Mul:
-			return bval * v, nil
-		case token.Quo:
-			if v == 0 {
-				return nil, ErrZeroDivision
-			}
-			return bval / v, nil
-		case token.Rem:
-			return bval % v, nil
-		case token.And:
-			return bval & v, nil
-		case token.Or:
-			return bval | v, nil
-		case token.Xor:
-			return bval ^ v, nil
-		case token.AndNot:
-			return bval &^ v, nil
-		case token.Shl:
-			return bval << v, nil
-		case token.Shr:
-			return bval >> v, nil
-		case token.Less:
-			return Bool(bval < v), nil
-		case token.LessEq:
-			return Bool(bval <= v), nil
-		case token.Greater:
-			return Bool(bval > v), nil
-		case token.GreaterEq:
-			return Bool(bval >= v), nil
-		}
+		return Uint(boolInt(o)) + v, nil
 	case Bool:
-		if v {
-			right = Int(1)
-		} else {
-			right = Int(0)
-		}
-		goto switchpos
-	case *NilType:
-		switch tok {
-		case token.Less, token.LessEq:
-			return False, nil
-		case token.Greater, token.GreaterEq:
-			return True, nil
-		}
+		return o.BinOpAdd(vm, boolInt(v))
 	}
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+	return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpSub(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return boolInt(o) - v, nil
+	case Uint:
+		return Uint(boolInt(o)) - v, nil
+	case Bool:
+		return o.BinOpSub(vm, boolInt(v))
+	}
+	return nil, NewOperandTypeError(token.Sub.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpMul(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return boolInt(o) * v, nil
+	case Uint:
+		return Uint(boolInt(o)) * v, nil
+	case Bool:
+		return o.BinOpMul(vm, boolInt(v))
+	}
+	return nil, NewOperandTypeError(token.Mul.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpQuo(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		if v == 0 {
+			return nil, ErrZeroDivision
+		}
+		return boolInt(o) / v, nil
+	case Uint:
+		if v == 0 {
+			return nil, ErrZeroDivision
+		}
+		return Uint(boolInt(o)) / v, nil
+	case Bool:
+		return o.BinOpQuo(vm, boolInt(v))
+	}
+	return nil, NewOperandTypeError(token.Quo.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpRem(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return boolInt(o) % v, nil
+	case Uint:
+		return Uint(boolInt(o)) % v, nil
+	case Bool:
+		return o.BinOpRem(vm, boolInt(v))
+	}
+	return nil, NewOperandTypeError(token.Rem.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpAnd(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return boolInt(o) & v, nil
+	case Uint:
+		return Uint(boolInt(o)) & v, nil
+	case Bool:
+		return o.BinOpAnd(vm, boolInt(v))
+	}
+	return nil, NewOperandTypeError(token.And.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpOr(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return boolInt(o) | v, nil
+	case Uint:
+		return Uint(boolInt(o)) | v, nil
+	case Bool:
+		return o.BinOpOr(vm, boolInt(v))
+	}
+	return nil, NewOperandTypeError(token.Or.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpXor(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return boolInt(o) ^ v, nil
+	case Uint:
+		return Uint(boolInt(o)) ^ v, nil
+	case Bool:
+		return o.BinOpXor(vm, boolInt(v))
+	}
+	return nil, NewOperandTypeError(token.Xor.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpAndNot(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return boolInt(o) &^ v, nil
+	case Uint:
+		return Uint(boolInt(o)) &^ v, nil
+	case Bool:
+		return o.BinOpAndNot(vm, boolInt(v))
+	}
+	return nil, NewOperandTypeError(token.AndNot.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpShl(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return boolInt(o) << v, nil
+	case Uint:
+		return Uint(boolInt(o)) << v, nil
+	case Bool:
+		return o.BinOpShl(vm, boolInt(v))
+	}
+	return nil, NewOperandTypeError(token.Shl.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpShr(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return boolInt(o) >> v, nil
+	case Uint:
+		return Uint(boolInt(o)) >> v, nil
+	case Bool:
+		return o.BinOpShr(vm, boolInt(v))
+	}
+	return nil, NewOperandTypeError(token.Shr.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpLess(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return Bool(boolInt(o) < v), nil
+	case Uint:
+		return Bool(Uint(boolInt(o)) < v), nil
+	case Bool:
+		return o.BinOpLess(vm, boolInt(v))
+	case *NilType:
+		return False, nil
+	}
+	return nil, NewOperandTypeError(token.Less.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpLessEq(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return Bool(boolInt(o) <= v), nil
+	case Uint:
+		return Bool(Uint(boolInt(o)) <= v), nil
+	case Bool:
+		return o.BinOpLessEq(vm, boolInt(v))
+	case *NilType:
+		return False, nil
+	}
+	return nil, NewOperandTypeError(token.LessEq.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpGreater(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return Bool(boolInt(o) > v), nil
+	case Uint:
+		return Bool(Uint(boolInt(o)) > v), nil
+	case Bool:
+		return o.BinOpGreater(vm, boolInt(v))
+	case *NilType:
+		return True, nil
+	}
+	return nil, NewOperandTypeError(token.Greater.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bool) BinOpGreaterEq(vm *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return Bool(boolInt(o) >= v), nil
+	case Uint:
+		return Bool(Uint(boolInt(o)) >= v), nil
+	case Bool:
+		return o.BinOpGreaterEq(vm, boolInt(v))
+	case *NilType:
+		return True, nil
+	}
+	return nil, NewOperandTypeError(token.GreaterEq.String(), o.Type().Name(), right.Type().Name())
 }
 
 // Format implements fmt.Formatter interface.
@@ -188,11 +283,59 @@ func (o Flag) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Flag) IsFalsy() bool { return bool(!o) }
 
-func (o Flag) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
+// A Flag behaves like its Bool value in operators; flagRHS normalizes a Flag
+// right operand to a Bool so the operation runs on Bool.
+func flagRHS(right Object) Object {
 	if v, ok := right.(Flag); ok {
-		right = Bool(v)
+		return Bool(v)
 	}
-	return Bool(o).BinaryOp(vm, tok, right)
+	return right
+}
+
+func (o Flag) BinOpAdd(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpAdd(vm, flagRHS(right))
+}
+func (o Flag) BinOpSub(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpSub(vm, flagRHS(right))
+}
+func (o Flag) BinOpMul(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpMul(vm, flagRHS(right))
+}
+func (o Flag) BinOpQuo(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpQuo(vm, flagRHS(right))
+}
+func (o Flag) BinOpRem(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpRem(vm, flagRHS(right))
+}
+func (o Flag) BinOpAnd(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpAnd(vm, flagRHS(right))
+}
+func (o Flag) BinOpOr(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpOr(vm, flagRHS(right))
+}
+func (o Flag) BinOpXor(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpXor(vm, flagRHS(right))
+}
+func (o Flag) BinOpAndNot(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpAndNot(vm, flagRHS(right))
+}
+func (o Flag) BinOpShl(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpShl(vm, flagRHS(right))
+}
+func (o Flag) BinOpShr(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpShr(vm, flagRHS(right))
+}
+func (o Flag) BinOpLess(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpLess(vm, flagRHS(right))
+}
+func (o Flag) BinOpLessEq(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpLessEq(vm, flagRHS(right))
+}
+func (o Flag) BinOpGreater(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpGreater(vm, flagRHS(right))
+}
+func (o Flag) BinOpGreaterEq(vm *VM, right Object) (Object, error) {
+	return Bool(o).BinOpGreaterEq(vm, flagRHS(right))
 }
 
 // RawStr represents safe string values and implements Object interface.
@@ -1195,7 +1338,7 @@ func (o Array) Items(_ *VM, cb ItemsGetterCallback) (err error) {
 func (o Array) Sort(vm *VM, less CallerObject) (_ Object, err error) {
 	if less == nil {
 		sort.Slice(o, func(i, j int) bool {
-			v, e := objBinaryOp(vm, token.Less, o[i], o[j])
+			v, e := BinaryOp(vm, token.Less, o[i], o[j])
 			if e != nil && err == nil {
 				err = e
 				return false
@@ -1227,7 +1370,7 @@ func (o Array) Sort(vm *VM, less CallerObject) (_ Object, err error) {
 
 func (o Array) SortReverse(vm *VM) (_ Object, err error) {
 	sort.Slice(o, func(i, j int) bool {
-		v, e := objBinaryOp(vm, token.Less, o[j], o[i])
+		v, e := BinaryOp(vm, token.Less, o[j], o[i])
 		if e != nil && err == nil {
 			err = e
 			return false
@@ -1313,7 +1456,7 @@ func (o *ObjectPtr) BinaryOp(vm *VM, tok token.Token, right Object) (Object, err
 	if o.Value == nil {
 		return nil, errors.New("nil pointer")
 	}
-	return objBinaryOp(vm, tok, *o.Value, right)
+	return BinaryOp(vm, tok, *o.Value, right)
 }
 
 // CanCall implements Object interface.
