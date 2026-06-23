@@ -32,7 +32,6 @@
   on gad editor, add copy to clipboard button (must icon) on tooltip. change codemirror plugin to add code editor
   features (auto complete etc) on
   edit code/expression in template strings.
-- [ ] create "core" module like "strings" and move "@binaryOperator" (rename to "binOp") and "@selfAssignOperator" (rename to "selfAssignOp") to here. update samples, docs and tests.
 - [ ] update `mkoptypes` to auto generate "op_api.go" with specific interface of binary operators, with syntaxe 
   `type ObjectWith[OPERATOR_NAME]BinOperator interface { BinOp[OPERATOR_NAME](vm *VM, right Object) (Object, error) }`.
   example: `type ObjectWithAddBinOperator interface { BinOpAdd(vm *VM, right Object) }`. replace all `BinaryOperatorHandler` 
