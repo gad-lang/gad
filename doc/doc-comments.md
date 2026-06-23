@@ -115,5 +115,21 @@ const Pi = 3.14
 const Pi = 3.14
 ```
 
+## Generating documentation
+
+`gad doc PATH...` renders Markdown from a file's doc comments: the module
+heading, any `ROOT_BLOCK` prose, and `Constants` / `Types` sections for the
+**exported, documented** symbols (`export IDENT`, `export IDENT = …`,
+`export func/met IDENT …` and `export { … }` members). Output is written under
+`--out` (default `doc/`), mirroring the source tree, unless `--no-save` is given.
+
+```sh
+gad doc src/...            # write doc/src/<tree>/*.md
+gad doc --no-save main.gad # render and report paths only
+```
+
+The output directory and skip behaviour can also be set in `.gad.yaml` under a
+`doc:` section (`dst`, `skip`, `input_dirs`).
+
 See also the runnable [`samples/16_doc_comments.gad`](../samples/16_doc_comments.gad)
 and the doc-comment layout rules in [Conventions](conventions.md).
