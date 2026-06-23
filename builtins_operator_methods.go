@@ -9,8 +9,15 @@ package gad
 // precedence.
 func operatorBinaryMethod(c Call) (Object, error) {
 	op := c.Args.Get(0).(BinaryOperatorType)
-	if h, ok := c.Args.Get(1).(BinaryOperatorHandler); ok {
-		return h.BinaryOp(c.VM, op.Token(), c.Args.Get(2))
+	left, right := c.Args.Get(1), c.Args.Get(2)
+	// The legacy single-method BinaryOperatorHandler is tried first while types
+	// are migrated; types using the per-operator ObjectWith{Op}BinOperator API
+	// (op_api.go) are picked up by binOpObject.
+	if h, ok := left.(BinaryOperatorHandler); ok {
+		return h.BinaryOp(c.VM, op.Token(), right)
+	}
+	if ret, err, handled := binOpObject(c.VM, op, left, right); handled {
+		return ret, err
 	}
 	return Nil, ErrInvalidOperator.NewError(op.Name())
 }

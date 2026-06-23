@@ -1490,10 +1490,16 @@ func BuiltinBinaryOperatorFunc(c Call) (ret Object, err error) {
 
 	opType := op.Value.(BinaryOperatorType)
 
+	// The legacy single-method BinaryOperatorHandler is tried first while types
+	// are migrated; types using the per-operator ObjectWith{Op}BinOperator API
+	// (op_api.go) are picked up by binOpObject.
 	switch left := left.Value.(type) {
 	case BinaryOperatorHandler:
 		ret, err = left.BinaryOp(c.VM, opType.Token(), right.Value)
 	default:
+		if r, e, handled := binOpObject(c.VM, opType, left, right.Value); handled {
+			return r, e
+		}
 		err = ErrInvalidOperator.NewError(opType.Name())
 	}
 	return
