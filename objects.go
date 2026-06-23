@@ -538,6 +538,16 @@ func (o Bytes) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Bytes) IsFalsy() bool { return len(o) == 0 }
 
+// Contains reports whether v (a byte-valued number/char in 0..255) is present
+// in the bytes (`v in bytes`).
+func (o Bytes) Contains(v Object) (bool, error) {
+	n, ok := ToGoInt64(v)
+	if !ok || n < 0 || n > 255 {
+		return false, nil
+	}
+	return bytes.IndexByte(o, byte(n)) >= 0, nil
+}
+
 // BinaryOp implements Object interface.
 func (o Bytes) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
 	switch v := right.(type) {
@@ -1063,6 +1073,16 @@ func (o Array) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Array) IsFalsy() bool { return len(o) == 0 }
 
+// Contains reports whether v equals an element of the array (`v in array`).
+func (o Array) Contains(v Object) (bool, error) {
+	for _, e := range o {
+		if e.Equal(v) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // BinaryOp implements Object interface.
 func (o Array) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err error) {
 	switch tok {
@@ -1439,6 +1459,12 @@ func (o Dict) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Dict) IsFalsy() bool { return len(o) == 0 }
 
+// Contains reports whether v is a key of the dict (`v in dict`).
+func (o Dict) Contains(v Object) (bool, error) {
+	_, ok := o[v.ToString()]
+	return ok, nil
+}
+
 // BinaryOp implements Object interface.
 func (o Dict) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err error) {
 	if right == Nil {
@@ -1703,6 +1729,14 @@ func (o *SyncDict) IndexGet(vm *VM, index Object) (Object, error) {
 	defer o.mu.RUnlock()
 
 	return o.Value.IndexGet(vm, index)
+}
+
+// Contains reports whether v is a key of the dict (`v in syncDict`).
+func (o *SyncDict) Contains(v Object) (bool, error) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	return o.Value.Contains(v)
 }
 
 // Equal implements Object interface.

@@ -493,6 +493,15 @@ type BinaryOperatorHandler interface {
 	BinaryOp(vm *VM, tok token.Token, right Object) (Object, error)
 }
 
+// Container is implemented by objects that support the membership operator
+// `v in container`. Contains reports whether v is a member (a key for the dict
+// kinds, a value for array/bytes). When the right operand of `in` does not
+// implement Container, the operator falls back to the binary-operator handlers.
+type Container interface {
+	Object
+	Contains(v Object) (bool, error)
+}
+
 type SelfAssignOperatorHandler interface {
 	Object
 	// SelfAssignOp handles self assign operators.

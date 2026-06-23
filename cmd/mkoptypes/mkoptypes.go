@@ -21,8 +21,11 @@ const (
 func main() {
 	binaryOperators := listGroup(token.GroupBinaryOperatorBegin, token.GroupBinaryOperatorEnd)
 	// `++` and `--` are usable as binary operators too (they live in the
-	// self-assign token group, so add them explicitly).
-	binaryOperators = append(binaryOperators, token.Inc, token.Dec)
+	// self-assign token group, so add them explicitly). `in` is the membership
+	// operator (a keyword, not in the operator group); it is added so it is
+	// user-overridable via `met @binaryOperator(_ TBinaryOperatorIn, …)` and so
+	// the OpIn fallback resolves.
+	binaryOperators = append(binaryOperators, token.Inc, token.Dec, token.In)
 	selfAssignOperators := listGroup(token.GroupSelfAssignOperatorBegin, token.NullichAssign)
 	for i, op := range selfAssignOperators {
 		selfAssignOperators[i] = token.Unassign(op)

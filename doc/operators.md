@@ -178,6 +178,29 @@ constant-folded by the optimizer). The self-assign form `x <<<= y` runs as
 `x = x <<< y` via the `@selfAssignOperator` fallback; a type can also intercept
 it directly with `met @selfAssignOperator(_ TSelfAssignOperatorTripleLess, …)`.
 
+## Membership (`in`)
+
+`A in B` tests membership and yields a bool — a **value** for arrays and bytes, a
+**key** for the dict kinds. Built-in containers: `array`, `dict`, `syncDict`,
+`keyValueArray`, `bytes`, and method-interface instances (membership of a
+function header). It has comparison precedence.
+
+```go
+2 in [1, 2, 3]        // true
+"a" in {a: 1}         // true (key)
+104 in bytes("hi")    // true ('h')
+```
+
+`in` is also the **for-in loop** separator, so at the top of a for header
+`for x in y` is the loop. Parenthesize to use the operator there:
+`for (x in y) { … }` is a for-cond loop. Everywhere else (`if x in y`, the for
+condition clause, any expression) `in` is the operator.
+
+A Go type implements membership with the `Container` interface
+(`Contains(v Object) (bool, error)`). When the right operand isn't a `Container`,
+`in` falls back to the binary-operator handlers, so a type can define it with
+`met @binaryOperator(_ TBinaryOperatorIn, left T, right U)`.
+
 ## Precedence
 
 Unary operators bind tightest; the ternary operator binds loosest. Binary
@@ -187,7 +210,7 @@ operators have five levels:
 |:-----:|-------------------------------------------------|
 | 5     | `*` `**` `/` `%` `<<` `>>` `&` `&^` `<<<` `>>>` `%%` |
 | 4     | `+` `-` `\|` `^`                                 |
-| 3     | `==` `!=` `<` `<=` `>` `>=`                 |
+| 3     | `==` `!=` `<` `<=` `>` `>=` `in`            |
 | 2     | `&&`                                        |
 | 1     | `\|\|`                                      |
 

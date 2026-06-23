@@ -212,6 +212,7 @@ const (
 	BuiltinBinaryOperatorLambda
 	BuiltinBinaryOperatorInc
 	BuiltinBinaryOperatorDec
+	BuiltinBinaryOperatorIn
 	GroupBuiltinBinaryOperatorsEnd
 
 	GroupBuiltinSelfAssignOperatorsBegin

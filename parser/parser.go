@@ -71,6 +71,11 @@ type Parser struct {
 	postScan         func(p *Parser)
 
 	inHeader bool
+
+	// noInOp suppresses `in` as the membership operator while parsing a for-in
+	// header's left-hand side, so `for x in y` keeps `in` as the for-in
+	// separator. Parentheses reset it (`for (x in y)` → `in` is the operator).
+	noInOp bool
 }
 
 // NewParser creates a Parser.
@@ -308,6 +313,12 @@ func (p *Parser) ParseBinaryExpr(prec1 int) node.Expr {
 				x = &node.BinaryExpr{LHS: x, RHS: y, Token: op, TokenPos: pos}
 				continue
 			}
+			return x
+		}
+
+		// `in` is the membership operator (`A in B`) inside expressions, but the
+		// for-in separator while parsing a for-in header's LHS (noInOp).
+		if p.Token.Token == token.In && p.noInOp {
 			return x
 		}
 
@@ -1326,6 +1337,12 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 	if p.Trace {
 		defer untracep(tracep(p, "ParemExpr"))
 	}
+
+	// A parenthesized sub-expression is a fresh context: `in` is the membership
+	// operator again (so `for (x in y)` is a for-cond, not a for-in).
+	noInOp := p.noInOp
+	p.noInOp = false
+	defer func() { p.noInOp = noInOp }()
 
 	var (
 		lparen = p.Token.Pos
@@ -3332,7 +3349,12 @@ func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {
 		defer untracep(tracep(p, "SimpleStmt"))
 	}
 
+	// In a for-in header (`for x in y`), the top-level `in` is the for-in
+	// separator, not the membership operator. Suppress it while parsing the LHS;
+	// parentheses reset it (see ParseParemExpr).
+	p.noInOp = forIn
 	x := p.ParseExprList()
+	p.noInOp = false
 
 	switch p.Token.Token {
 	case token.Assign, token.Define: // assignment statement

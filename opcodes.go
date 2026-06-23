@@ -41,6 +41,7 @@ const (
 	OpSelfAssign
 	OpEqual
 	OpNotEqual
+	OpIn
 	OpJump
 	OpJumpFalsy
 	OpAndJump
@@ -119,6 +120,7 @@ var OpcodeNames = [...]string{
 	OpSelfAssign:      "SELFASSIGN",
 	OpEqual:           "EQUAL",
 	OpNotEqual:        "NOTEQUAL",
+	OpIn:              "IN",
 	OpJump:            "JUMP",
 	OpJumpFalsy:       "JUMPFALSY",
 	OpAndJump:         "ANDJUMP",
@@ -196,6 +198,7 @@ var OpcodeOperands = [...][]int{
 	OpSelfAssign:      {1},    // operator
 	OpEqual:           {},
 	OpNotEqual:        {},
+	OpIn:              {},
 	OpIsNil:           {},
 	OpNotIsNil:        {},
 	OpJump:            {2}, // position

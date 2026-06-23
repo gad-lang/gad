@@ -4340,6 +4340,15 @@ func TestParsePrecedence(t *testing.T) {
 	test.ExpectParseString(t, `a <<< b + c`, `((a <<< b) + c)`)
 	test.ExpectParseString(t, `a + b %% c`, `(a + (b %% c))`)
 	test.ExpectParseString(t, `a << b <<< c`, `((a << b) <<< c)`)
+	// the `in` membership operator (comparison precedence), and its
+	// disambiguation from the for-in separator.
+	test.ExpectParseString(t, `a in b`, `(a in b)`)
+	test.ExpectParseString(t, `1 in [1, 2, 3]`, `(1 in [1, 2, 3])`)
+	test.ExpectParseString(t, `a in b && c in d`, `((a in b) && (c in d))`)
+	test.ExpectParseString(t, `a + b in c`, `((a + b) in c)`)
+	test.ExpectParseString(t, `if x in y { }`, `if (x in y) {}`)
+	test.ExpectParseString(t, `for x in y { }`, `for _, x in y {}`)
+	test.ExpectParseString(t, `for (x in y) { }`, `for (x in y) {}`)
 }
 
 func TestParseNullishSelector(t *testing.T) {

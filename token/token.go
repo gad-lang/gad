@@ -512,7 +512,7 @@ func (tok Token) Precedence() int {
 		return 2
 	case LAnd:
 		return 3
-	case Equal, NotEqual, Less, LessEq, Greater, GreaterEq, Null, NotNull:
+	case Equal, NotEqual, Less, LessEq, Greater, GreaterEq, Null, NotNull, In:
 		return 4
 	case Add, Sub, Or, Xor:
 		return 5

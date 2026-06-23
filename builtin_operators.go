@@ -33,6 +33,7 @@ var (
 	TBinaryOperatorLambda        = BinaryOperatorType(token.Lambda)        // =>
 	TBinaryOperatorInc           = BinaryOperatorType(token.Inc)           // ++
 	TBinaryOperatorDec           = BinaryOperatorType(token.Dec)           // --
+	TBinaryOperatorIn            = BinaryOperatorType(token.In)            // in
 
 	TSelfAssignOperatorAdd           = SelfAssignOperatorType(token.Add)           // +
 	TSelfAssignOperatorInc           = SelfAssignOperatorType(token.Inc)           // ++
@@ -88,6 +89,7 @@ func init() {
 	add(BuiltinBinaryOperatorLambda, TBinaryOperatorLambda)
 	add(BuiltinBinaryOperatorInc, TBinaryOperatorInc)
 	add(BuiltinBinaryOperatorDec, TBinaryOperatorDec)
+	add(BuiltinBinaryOperatorIn, TBinaryOperatorIn)
 
 	add(BuiltinSelfAssignOperatorAdd, TSelfAssignOperatorAdd)
 	add(BuiltinSelfAssignOperatorInc, TSelfAssignOperatorInc)

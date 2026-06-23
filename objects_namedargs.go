@@ -704,6 +704,16 @@ func (o KeyValueArray) Get(keys ...Object) Object {
 	return Nil
 }
 
+// Contains reports whether v is a key of the key-value array (`v in kva`).
+func (o KeyValueArray) Contains(v Object) (bool, error) {
+	for _, e := range o {
+		if e.K.Equal(v) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (o KeyValueArray) Delete(keys ...Object) Object {
 	if len(keys) == 0 {
 		return o

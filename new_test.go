@@ -255,6 +255,33 @@ func TestVMUserOperators(t *testing.T) {
 	x := 7; x %%= 5; return x`, nil, Int(12))
 }
 
+func TestVMInOperator(t *testing.T) {
+	// Array: value membership.
+	testExpectRun(t, `return 2 in [1, 2, 3]`, nil, True)
+	testExpectRun(t, `return 9 in [1, 2, 3]`, nil, False)
+	// Dict / SyncDict: key membership.
+	testExpectRun(t, `return "a" in {a: 1, b: 2}`, nil, True)
+	testExpectRun(t, `return "z" in {a: 1}`, nil, False)
+	testExpectRun(t, `return "x" in syncDict({x: 1})`, nil, True)
+	// KeyValueArray: key membership.
+	testExpectRun(t, `return "b" in (;a=1, b=2)`, nil, True)
+	// Bytes: byte-value membership ('h' == 104).
+	testExpectRun(t, `return [104 in bytes("hi"), 65 in bytes("hi")]`, nil, Array{True, False})
+
+	// Precedence and use as a condition.
+	testExpectRun(t, `return 1 + 1 in [2, 3]`, nil, True)
+	testExpectRun(t, `out := []; for x in [1, 2, 3] { if x in [2] { out = append(out, x) } }; return out`,
+		nil, Array{Int(2)})
+
+	// Fallback: when the right operand is not a Container, `in` goes through the
+	// binary-operator handlers, so a type can define it.
+	testExpectRun(t, `
+	met @binaryOperator(_ TBinaryOperatorIn, a int, b str) { return a > 0 }
+	return 5 in "anything"`, nil, True)
+	// No Container and no handler -> error.
+	expectErrIs(t, `return 1 in 2`, nil, ErrType)
+}
+
 func TestVMToArray(t *testing.T) {
 	// toArray yields index=value KeyValue pairs; entries from a custom iterator
 	// must be distinct copies, not aliases of the iterator's shared state.
