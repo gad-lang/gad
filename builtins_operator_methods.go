@@ -2,51 +2,25 @@ package gad
 
 import "github.com/gad-lang/gad/token"
 
-// BinaryOp runs a binary operator on two objects through the same dispatch as
-// core.binOp: the legacy BinaryOperatorHandler and the per-operator
-// ObjectWith{Op}BinOperator API (binOpObject). Internal callers (sort, value
-// comparisons) and embedders use it so they work for types implementing either
-// API.
+// BinaryOp runs a binary operator on two objects through the per-operator
+// ObjectWith{Op}BinOperator dispatch (binOpObject), matching core.binOp.
+// Internal callers (sort, value comparisons) and embedders use it.
 func BinaryOp(vm *VM, tok token.Token, left, right Object) (Object, error) {
 	op := BinaryOperatorType(tok)
-	if tok == token.In {
-		if ret, err, handled := binOpObject(vm, op, left, right); handled {
-			return ret, err
-		}
-	}
-	if h, ok := left.(BinaryOperatorHandler); ok {
-		return h.BinaryOp(vm, tok, right)
-	}
 	if ret, err, handled := binOpObject(vm, op, left, right); handled {
 		return ret, err
 	}
 	return nil, NewOperandTypeError(tok.String(), left.Type().Name(), right.Type().Name())
 }
 
-// operatorBinaryMethod is the shared handler for the per-type `@binaryOperator`
-// overloads: it runs the left operand's BinaryOp. The overloads differ only in
-// the typed `left` parameter, which is what exposes each type's operator support
-// as a method of `@binaryOperator` (visible in repr and dispatched by type). A
-// user-defined `met @binaryOperator(_ TBinaryOperatorX, left T, right U)` is
-// more specific (its operator and right types are typed) and so takes
-// precedence.
+// operatorBinaryMethod is the default handler of core.binOp: it dispatches to
+// the left (or, for `in`, the right) operand's per-operator
+// ObjectWith{Op}BinOperator implementation via binOpObject. A user-defined
+// `met core.binOp(_ TBinaryOperatorX, left T, right U)` is more specific (its
+// operator and operand types are typed) and so takes precedence.
 func operatorBinaryMethod(c Call) (Object, error) {
 	op := c.Args.Get(0).(BinaryOperatorType)
 	left, right := c.Args.Get(1), c.Args.Get(2)
-	// `in` dispatches on the right operand (the container) via the per-operator
-	// ObjectWithInBinOperator API, so it is tried before the left operand's
-	// BinaryOperatorHandler.
-	if op == TBinaryOperatorIn {
-		if ret, err, handled := binOpObject(c.VM, op, left, right); handled {
-			return ret, err
-		}
-	}
-	// The legacy single-method BinaryOperatorHandler is tried first while types
-	// are migrated; types using the per-operator ObjectWith{Op}BinOperator API
-	// (op_api.go) are picked up by binOpObject.
-	if h, ok := left.(BinaryOperatorHandler); ok {
-		return h.BinaryOp(c.VM, op.Token(), right)
-	}
 	if ret, err, handled := binOpObject(c.VM, op, left, right); handled {
 		return ret, err
 	}

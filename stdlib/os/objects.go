@@ -83,8 +83,55 @@ func (f *FileFlag) Parse(str string) {
 	}
 }
 
-// BinaryOp implements Object interface.
-func (f FileFlag) BinaryOp(vm *gad.VM, tok token.Token, right gad.Object) (ret gad.Object, err error) {
+// The per-operator methods delegate to binOp, which forwards to the integer
+// bit operations and re-wraps the result as a FileFlag.
+func (f FileFlag) BinOpAdd(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.Add, right)
+}
+func (f FileFlag) BinOpSub(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.Sub, right)
+}
+func (f FileFlag) BinOpMul(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.Mul, right)
+}
+func (f FileFlag) BinOpQuo(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.Quo, right)
+}
+func (f FileFlag) BinOpRem(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.Rem, right)
+}
+func (f FileFlag) BinOpAnd(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.And, right)
+}
+func (f FileFlag) BinOpOr(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.Or, right)
+}
+func (f FileFlag) BinOpXor(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.Xor, right)
+}
+func (f FileFlag) BinOpAndNot(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.AndNot, right)
+}
+func (f FileFlag) BinOpShl(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.Shl, right)
+}
+func (f FileFlag) BinOpShr(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.Shr, right)
+}
+func (f FileFlag) BinOpLess(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.Less, right)
+}
+func (f FileFlag) BinOpLessEq(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.LessEq, right)
+}
+func (f FileFlag) BinOpGreater(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.Greater, right)
+}
+func (f FileFlag) BinOpGreaterEq(vm *gad.VM, right gad.Object) (gad.Object, error) {
+	return f.binOp(vm, token.GreaterEq, right)
+}
+
+func (f FileFlag) binOp(vm *gad.VM, tok token.Token, right gad.Object) (ret gad.Object, err error) {
 try:
 	switch v := right.(type) {
 	case gad.Int:

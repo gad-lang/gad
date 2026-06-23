@@ -1451,12 +1451,63 @@ func (o *ObjectPtr) Equal(x Object) bool {
 	return o == x
 }
 
-// BinaryOp implements Object interface.
-func (o *ObjectPtr) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
+// binOp forwards a binary operator to the pointed-to value's dispatch. The
+// per-operator methods below delegate to it so *ObjectPtr supports every
+// operator its target does.
+func (o *ObjectPtr) binOp(vm *VM, tok token.Token, right Object) (Object, error) {
 	if o.Value == nil {
 		return nil, errors.New("nil pointer")
 	}
 	return BinaryOp(vm, tok, *o.Value, right)
+}
+
+func (o *ObjectPtr) BinOpAdd(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.Add, right)
+}
+func (o *ObjectPtr) BinOpSub(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.Sub, right)
+}
+func (o *ObjectPtr) BinOpMul(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.Mul, right)
+}
+func (o *ObjectPtr) BinOpPow(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.Pow, right)
+}
+func (o *ObjectPtr) BinOpQuo(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.Quo, right)
+}
+func (o *ObjectPtr) BinOpRem(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.Rem, right)
+}
+func (o *ObjectPtr) BinOpAnd(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.And, right)
+}
+func (o *ObjectPtr) BinOpOr(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.Or, right)
+}
+func (o *ObjectPtr) BinOpXor(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.Xor, right)
+}
+func (o *ObjectPtr) BinOpAndNot(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.AndNot, right)
+}
+func (o *ObjectPtr) BinOpShl(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.Shl, right)
+}
+func (o *ObjectPtr) BinOpShr(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.Shr, right)
+}
+func (o *ObjectPtr) BinOpLess(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.Less, right)
+}
+func (o *ObjectPtr) BinOpLessEq(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.LessEq, right)
+}
+func (o *ObjectPtr) BinOpGreater(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.Greater, right)
+}
+func (o *ObjectPtr) BinOpGreaterEq(vm *VM, right Object) (Object, error) {
+	return o.binOp(vm, token.GreaterEq, right)
 }
 
 // CanCall implements Object interface.
@@ -2159,36 +2210,37 @@ type IndexProxy struct {
 	IndexSetProxy
 }
 
-// BinaryOp implements Object interface.
-func (o *IndexProxy) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err error) {
-	if right == Nil {
-		switch tok {
-		case token.Less, token.LessEq:
-			return False, nil
-		case token.Greater, token.GreaterEq:
-			return True, nil
-		}
-	} else {
-		switch tok {
-		case token.Add:
-			if Iterable(vm, right) {
-				err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
-					return o.Set(vm, e.K, e.V)
-				})
-				return o, err
-			}
-		}
+// BinOpAdd merges an iterable's entries via the proxied index setter; the
+// comparison operators order the proxy after nil.
+func (o *IndexProxy) BinOpAdd(vm *VM, right Object) (Object, error) {
+	if right != Nil && Iterable(vm, right) {
+		err := IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
+			return o.Set(vm, e.K, e.V)
+		})
+		return o, err
 	}
+	return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
+}
 
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+func (o *IndexProxy) BinOpLess(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Less, o, right)
+}
+
+func (o *IndexProxy) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.LessEq, o, right)
+}
+
+func (o *IndexProxy) BinOpGreater(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Greater, o, right)
+}
+
+func (o *IndexProxy) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.GreaterEq, o, right)
 }
 
 var (
-	_ Indexer               = (*IndexDeleteProxy)(nil)
-	_ BinaryOperatorHandler = (*IndexDeleteProxy)(nil)
+	_ Indexer                  = (*IndexDeleteProxy)(nil)
+	_ ObjectWithSubBinOperator = (*IndexDeleteProxy)(nil)
 )
 
 type IndexDeleteProxy struct {
@@ -2198,61 +2250,66 @@ type IndexDeleteProxy struct {
 }
 
 // BinaryOp implements Object interface.
-func (o *IndexDeleteProxy) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err error) {
-	if right == Nil {
-		switch tok {
-		case token.Less, token.LessEq:
-			return False, nil
-		case token.Greater, token.GreaterEq:
-			return True, nil
+// BinOpAdd merges an iterable via the proxied index setter.
+func (o *IndexDeleteProxy) BinOpAdd(vm *VM, right Object) (Object, error) {
+	if right != Nil && Iterable(vm, right) {
+		err := IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
+			return o.Set(vm, e.K, e.V)
+		})
+		return o, err
+	}
+	return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
+}
+
+// BinOpSub deletes the keys in right via the proxied delete.
+func (o *IndexDeleteProxy) BinOpSub(vm *VM, right Object) (_ Object, err error) {
+	switch t := right.(type) {
+	case Array:
+		for _, key := range t {
+			if err = o.Del(vm, key); err != nil {
+				return
+			}
 		}
-	} else {
-		switch tok {
-		case token.Add:
-			if Iterable(vm, right) {
-				err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
-					return o.Set(vm, e.K, e.V)
-				})
-				return o, err
+		return o, nil
+	case Dict:
+		for key := range t {
+			if err = o.Del(vm, Str(key)); err != nil {
+				return
 			}
-		case token.Sub:
-			switch t := right.(type) {
-			case Array:
-				for _, key := range t {
-					if err = o.Del(vm, key); err != nil {
-						return
-					}
-				}
-				return o, nil
-			case Dict:
-				for key := range t {
-					if err = o.Del(vm, Str(key)); err != nil {
-						return
-					}
-				}
-				return o, nil
-			case KeyValueArray:
-				for _, kv := range t {
-					if err = o.Del(vm, kv.K); err != nil {
-						return
-					}
-				}
-				return o, nil
-			default:
-				if Iterable(vm, right) {
-					err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
-						return o.Del(vm, e.K)
-					})
-					return o, err
-				}
+		}
+		return o, nil
+	case KeyValueArray:
+		for _, kv := range t {
+			if err = o.Del(vm, kv.K); err != nil {
+				return
 			}
+		}
+		return o, nil
+	default:
+		if right != Nil && Iterable(vm, right) {
+			err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
+				return o.Del(vm, e.K)
+			})
+			return o, err
 		}
 	}
+	return nil, NewOperandTypeError(token.Sub.String(), o.Type().Name(), right.Type().Name())
+}
 
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+func (o *IndexDeleteProxy) BinOpLess(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Less, o, right)
+}
+
+func (o *IndexDeleteProxy) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.LessEq, o, right)
+}
+
+func (o *IndexDeleteProxy) BinOpGreater(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Greater, o, right)
+}
+
+func (o *IndexDeleteProxy) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.GreaterEq, o, right)
 }
 
 func StringIndexGetProxy(handler func(vm *VM, index string) (value Object, err error)) *IndexGetProxy {

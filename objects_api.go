@@ -485,13 +485,9 @@ type UserDataStorage interface {
 	UserData() Indexer
 }
 
-type BinaryOperatorHandler interface {
-	Object
-	// BinaryOp handles binary operators.
-	// Returned error stops VM execution if not handled with an error handler
-	// and VM.Run returns the same error as wrapped.
-	BinaryOp(vm *VM, tok token.Token, right Object) (Object, error)
-}
+// Binary operators are implemented via the per-operator ObjectWith{Op}BinOperator
+// interfaces (see the generated op_api.go); dispatch goes through binOpObject /
+// the exported BinaryOp.
 
 type SelfAssignOperatorHandler interface {
 	Object

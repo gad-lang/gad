@@ -1490,26 +1490,12 @@ func BuiltinBinaryOperatorFunc(c Call) (ret Object, err error) {
 
 	opType := op.Value.(BinaryOperatorType)
 
-	// `in` dispatches on the right operand (the container) via the per-operator
-	// ObjectWithInBinOperator API.
-	if opType == TBinaryOperatorIn {
-		if r, e, handled := binOpObject(c.VM, opType, left.Value, right.Value); handled {
-			return r, e
-		}
+	// Dispatch to the operand's per-operator ObjectWith{Op}BinOperator
+	// implementation (op_api.go). `in` dispatches on the right operand.
+	if r, e, handled := binOpObject(c.VM, opType, left.Value, right.Value); handled {
+		return r, e
 	}
-
-	// The legacy single-method BinaryOperatorHandler is tried first while types
-	// are migrated; types using the per-operator ObjectWith{Op}BinOperator API
-	// (op_api.go) are picked up by binOpObject.
-	switch left := left.Value.(type) {
-	case BinaryOperatorHandler:
-		ret, err = left.BinaryOp(c.VM, opType.Token(), right.Value)
-	default:
-		if r, e, handled := binOpObject(c.VM, opType, left, right.Value); handled {
-			return r, e
-		}
-		err = NewOperandTypeError(opType.Token().String(), left.Type().Name(), right.Value.Type().Name())
-	}
+	err = NewOperandTypeError(opType.Token().String(), left.Value.Type().Name(), right.Value.Type().Name())
 	return
 }
 
