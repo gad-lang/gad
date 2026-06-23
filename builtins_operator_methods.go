@@ -1,5 +1,27 @@
 package gad
 
+import "github.com/gad-lang/gad/token"
+
+// objBinaryOp runs a binary operator on two objects through the same dispatch as
+// core.binOp: the legacy BinaryOperatorHandler and the per-operator
+// ObjectWith{Op}BinOperator API (binOpObject). Internal callers (sort, value
+// comparisons) use it so they work for types implementing either API.
+func objBinaryOp(vm *VM, tok token.Token, left, right Object) (Object, error) {
+	op := BinaryOperatorType(tok)
+	if tok == token.In {
+		if ret, err, handled := binOpObject(vm, op, left, right); handled {
+			return ret, err
+		}
+	}
+	if h, ok := left.(BinaryOperatorHandler); ok {
+		return h.BinaryOp(vm, tok, right)
+	}
+	if ret, err, handled := binOpObject(vm, op, left, right); handled {
+		return ret, err
+	}
+	return nil, NewOperandTypeError(tok.String(), left.Type().Name(), right.Type().Name())
+}
+
 // operatorBinaryMethod is the shared handler for the per-type `@binaryOperator`
 // overloads: it runs the left operand's BinaryOp. The overloads differ only in
 // the typed `left` parameter, which is what exposes each type's operator support

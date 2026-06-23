@@ -368,11 +368,8 @@ func (o *KeyValue) IsLess(vm *VM, other *KeyValue) bool {
 	if o.K.ToString() < other.K.ToString() {
 		return true
 	}
-	if bo, _ := o.V.(BinaryOperatorHandler); bo != nil {
-		v, _ := bo.BinaryOp(vm, token.Less, other.V)
-		return v == nil || !v.IsFalsy()
-	}
-	return false
+	v, _ := objBinaryOp(vm, token.Less, o.V, other.V)
+	return v == nil || !v.IsFalsy()
 }
 
 // CanIterate implements Object interface.

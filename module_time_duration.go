@@ -87,64 +87,104 @@ func (o Duration) Equal(right Object) bool {
 //   - `duration % int|duration`  -> duration (remainder)
 //   - ordered comparisons        -> bool
 //
-// An int operand is taken as a nanosecond count.
-func (o Duration) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
+// The operators accept a Duration or an Int (taken as a nanosecond count).
+func (o Duration) BinOpAdd(_ *VM, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Duration:
-		switch tok {
-		case token.Add:
-			return o + v, nil
-		case token.Sub:
-			return o - v, nil
-		case token.Quo:
-			if v == 0 {
-				return nil, ErrZeroDivision
-			}
-			return Float(float64(o) / float64(v)), nil
-		case token.Rem:
-			if v == 0 {
-				return nil, ErrZeroDivision
-			}
-			return o % v, nil
-		case token.Less:
-			return Bool(o < v), nil
-		case token.LessEq:
-			return Bool(o <= v), nil
-		case token.Greater:
-			return Bool(o > v), nil
-		case token.GreaterEq:
-			return Bool(o >= v), nil
-		}
+		return o + v, nil
 	case Int:
-		d := Duration(v)
-		switch tok {
-		case token.Add:
-			return o + d, nil
-		case token.Sub:
-			return o - d, nil
-		case token.Mul:
-			return Duration(int64(o) * int64(v)), nil
-		case token.Quo:
-			if v == 0 {
-				return nil, ErrZeroDivision
-			}
-			return Duration(int64(o) / int64(v)), nil
-		case token.Rem:
-			if v == 0 {
-				return nil, ErrZeroDivision
-			}
-			return Duration(int64(o) % int64(v)), nil
-		case token.Less:
-			return Bool(o < d), nil
-		case token.LessEq:
-			return Bool(o <= d), nil
-		case token.Greater:
-			return Bool(o > d), nil
-		case token.GreaterEq:
-			return Bool(o >= d), nil
-		}
+		return o + Duration(v), nil
 	}
-	return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
+	return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Duration) BinOpSub(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Duration:
+		return o - v, nil
+	case Int:
+		return o - Duration(v), nil
+	}
+	return nil, NewOperandTypeError(token.Sub.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Duration) BinOpMul(_ *VM, right Object) (Object, error) {
+	if v, ok := right.(Int); ok {
+		return Duration(int64(o) * int64(v)), nil
+	}
+	return nil, NewOperandTypeError(token.Mul.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Duration) BinOpQuo(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Duration:
+		if v == 0 {
+			return nil, ErrZeroDivision
+		}
+		return Float(float64(o) / float64(v)), nil
+	case Int:
+		if v == 0 {
+			return nil, ErrZeroDivision
+		}
+		return Duration(int64(o) / int64(v)), nil
+	}
+	return nil, NewOperandTypeError(token.Quo.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Duration) BinOpRem(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Duration:
+		if v == 0 {
+			return nil, ErrZeroDivision
+		}
+		return o % v, nil
+	case Int:
+		if v == 0 {
+			return nil, ErrZeroDivision
+		}
+		return Duration(int64(o) % int64(v)), nil
+	}
+	return nil, NewOperandTypeError(token.Rem.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Duration) BinOpLess(_ *VM, right Object) (Object, error) {
+	if v, ok := durationRHS(right); ok {
+		return Bool(o < v), nil
+	}
+	return nil, NewOperandTypeError(token.Less.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Duration) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	if v, ok := durationRHS(right); ok {
+		return Bool(o <= v), nil
+	}
+	return nil, NewOperandTypeError(token.LessEq.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Duration) BinOpGreater(_ *VM, right Object) (Object, error) {
+	if v, ok := durationRHS(right); ok {
+		return Bool(o > v), nil
+	}
+	return nil, NewOperandTypeError(token.Greater.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Duration) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	if v, ok := durationRHS(right); ok {
+		return Bool(o >= v), nil
+	}
+	return nil, NewOperandTypeError(token.GreaterEq.String(), o.Type().Name(), right.Type().Name())
+}
+
+// durationRHS converts a comparable right operand (Duration or Int) to a
+// Duration.
+func durationRHS(right Object) (Duration, bool) {
+	switch v := right.(type) {
+	case Duration:
+		return v, true
+	case Int:
+		return Duration(v), true
+	}
+	return 0, false
 }
 
 // CallName dispatches the duration methods (Go time.Duration accessors).

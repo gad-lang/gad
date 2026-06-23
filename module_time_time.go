@@ -77,51 +77,68 @@ func (o *Time) Equal(right Object) bool {
 //
 // Note that, `int` values as duration must be the right hand side operand.
 
-// BinaryOp implements Object interface.
-func (o *Time) BinaryOp(_ *VM, tok token.Token,
-	right Object) (Object, error) {
-
+// BinOpAdd shifts the time forward by an Int (nanoseconds) or Duration.
+func (o *Time) BinOpAdd(_ *VM, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Int:
-		switch tok {
-		case token.Add:
-			return &Time{Value: o.Value.Add(time.Duration(v))}, nil
-		case token.Sub:
-			return &Time{Value: o.Value.Add(time.Duration(-v))}, nil
-		}
+		return &Time{Value: o.Value.Add(time.Duration(v))}, nil
 	case Duration:
-		switch tok {
-		case token.Add:
-			return &Time{Value: o.Value.Add(time.Duration(v))}, nil
-		case token.Sub:
-			return &Time{Value: o.Value.Add(-time.Duration(v))}, nil
-		}
-	case *Time:
-		switch tok {
-		case token.Sub:
-			return Int(o.Value.Sub(v.Value)), nil
-		case token.Less:
-			return Bool(o.Value.Before(v.Value)), nil
-		case token.LessEq:
-			return Bool(o.Value.Before(v.Value) || o.Value.Equal(v.Value)), nil
-		case token.Greater:
-			return Bool(o.Value.After(v.Value)), nil
-		case token.GreaterEq:
-			return Bool(o.Value.After(v.Value) || o.Value.Equal(v.Value)),
-				nil
-		}
-	case *NilType:
-		switch tok {
-		case token.Less, token.LessEq:
-			return False, nil
-		case token.Greater, token.GreaterEq:
-			return True, nil
-		}
+		return &Time{Value: o.Value.Add(time.Duration(v))}, nil
 	}
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+	return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
+}
+
+// BinOpSub shifts back by an Int/Duration, or returns the gap between two times.
+func (o *Time) BinOpSub(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Int:
+		return &Time{Value: o.Value.Add(time.Duration(-v))}, nil
+	case Duration:
+		return &Time{Value: o.Value.Add(-time.Duration(v))}, nil
+	case *Time:
+		return Int(o.Value.Sub(v.Value)), nil
+	}
+	return nil, NewOperandTypeError(token.Sub.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o *Time) BinOpLess(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case *Time:
+		return Bool(o.Value.Before(v.Value)), nil
+	case *NilType:
+		return False, nil
+	}
+	return nil, NewOperandTypeError(token.Less.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o *Time) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case *Time:
+		return Bool(o.Value.Before(v.Value) || o.Value.Equal(v.Value)), nil
+	case *NilType:
+		return False, nil
+	}
+	return nil, NewOperandTypeError(token.LessEq.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o *Time) BinOpGreater(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case *Time:
+		return Bool(o.Value.After(v.Value)), nil
+	case *NilType:
+		return True, nil
+	}
+	return nil, NewOperandTypeError(token.Greater.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o *Time) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case *Time:
+		return Bool(o.Value.After(v.Value) || o.Value.Equal(v.Value)), nil
+	case *NilType:
+		return True, nil
+	}
+	return nil, NewOperandTypeError(token.GreaterEq.String(), o.Type().Name(), right.Type().Name())
 }
 
 // gad:doc

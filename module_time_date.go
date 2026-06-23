@@ -119,42 +119,61 @@ func (o CalendarDate) Equal(right Object) bool {
 //     midnight (a whole number of days), otherwise calendarTime
 //   - `calendarDate - calendarDate` -> duration
 //   - ordered comparisons        -> bool (the YYYYMMDD encoding is monotonic)
-func (o CalendarDate) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
+func (o CalendarDate) BinOpAdd(_ *VM, right Object) (Object, error) {
+	if v, ok := right.(Duration); ok {
+		return o.addDuration(time.Duration(v)), nil
+	}
+	return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o CalendarDate) BinOpSub(_ *VM, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Duration:
-		switch tok {
-		case token.Add:
-			return o.addDuration(time.Duration(v)), nil
-		case token.Sub:
-			return o.addDuration(-time.Duration(v)), nil
-		}
+		return o.addDuration(-time.Duration(v)), nil
 	case CalendarDate:
-		switch tok {
-		case token.Sub:
-			return Duration(o.Time(time.UTC).Sub(v.Time(time.UTC))), nil
-		case token.Less:
-			return Bool(o < v), nil
-		case token.LessEq:
-			return Bool(o <= v), nil
-		case token.Greater:
-			return Bool(o > v), nil
-		case token.GreaterEq:
-			return Bool(o >= v), nil
-		}
-	case Uint, Int:
-		r := CalendarDate(toUint64(v))
-		switch tok {
-		case token.Less:
-			return Bool(o < r), nil
-		case token.LessEq:
-			return Bool(o <= r), nil
-		case token.Greater:
-			return Bool(o > r), nil
-		case token.GreaterEq:
-			return Bool(o >= r), nil
-		}
+		return Duration(o.Time(time.UTC).Sub(v.Time(time.UTC))), nil
 	}
-	return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
+	return nil, NewOperandTypeError(token.Sub.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o CalendarDate) BinOpLess(_ *VM, right Object) (Object, error) {
+	if v, ok := calendarDateRHS(right); ok {
+		return Bool(o < v), nil
+	}
+	return nil, NewOperandTypeError(token.Less.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o CalendarDate) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	if v, ok := calendarDateRHS(right); ok {
+		return Bool(o <= v), nil
+	}
+	return nil, NewOperandTypeError(token.LessEq.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o CalendarDate) BinOpGreater(_ *VM, right Object) (Object, error) {
+	if v, ok := calendarDateRHS(right); ok {
+		return Bool(o > v), nil
+	}
+	return nil, NewOperandTypeError(token.Greater.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o CalendarDate) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	if v, ok := calendarDateRHS(right); ok {
+		return Bool(o >= v), nil
+	}
+	return nil, NewOperandTypeError(token.GreaterEq.String(), o.Type().Name(), right.Type().Name())
+}
+
+// calendarDateRHS converts a comparable right operand (CalendarDate, Uint or
+// Int) into a CalendarDate.
+func calendarDateRHS(right Object) (CalendarDate, bool) {
+	switch right.(type) {
+	case CalendarDate:
+		return right.(CalendarDate), true
+	case Uint, Int:
+		return CalendarDate(toUint64(right)), true
+	}
+	return 0, false
 }
 
 // addDuration adds d to midnight of this date, returning a CalendarDate when the

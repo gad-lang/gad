@@ -137,27 +137,61 @@ func (o CalendarTime) Equal(right Object) bool {
 //   - `calendarTime ± int|duration` -> calendarTime (the int is nanoseconds)
 //   - `calendarTime - calendarTime`  -> duration
 //   - `calendarTime <|<=|>|>= calendarTime` -> bool
-func (o CalendarTime) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
+func (o CalendarTime) BinOpAdd(_ *VM, right Object) (Object, error) {
+	if ns, ok := calendarTimeShiftRHS(right); ok {
+		return o.shift(token.Add, ns)
+	}
+	return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o CalendarTime) BinOpSub(_ *VM, right Object) (Object, error) {
+	if ns, ok := calendarTimeShiftRHS(right); ok {
+		return o.shift(token.Sub, ns)
+	}
+	if v, ok := right.(CalendarTime); ok {
+		return Duration(int64(o) - int64(v)), nil
+	}
+	return nil, NewOperandTypeError(token.Sub.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o CalendarTime) BinOpLess(_ *VM, right Object) (Object, error) {
+	if v, ok := right.(CalendarTime); ok {
+		return Bool(o < v), nil
+	}
+	return nil, NewOperandTypeError(token.Less.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o CalendarTime) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	if v, ok := right.(CalendarTime); ok {
+		return Bool(o <= v), nil
+	}
+	return nil, NewOperandTypeError(token.LessEq.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o CalendarTime) BinOpGreater(_ *VM, right Object) (Object, error) {
+	if v, ok := right.(CalendarTime); ok {
+		return Bool(o > v), nil
+	}
+	return nil, NewOperandTypeError(token.Greater.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o CalendarTime) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	if v, ok := right.(CalendarTime); ok {
+		return Bool(o >= v), nil
+	}
+	return nil, NewOperandTypeError(token.GreaterEq.String(), o.Type().Name(), right.Type().Name())
+}
+
+// calendarTimeShiftRHS returns the nanosecond shift for an Int or Duration
+// right operand.
+func calendarTimeShiftRHS(right Object) (int64, bool) {
 	switch v := right.(type) {
 	case Int:
-		return o.shift(tok, int64(v))
+		return int64(v), true
 	case Duration:
-		return o.shift(tok, int64(v))
-	case CalendarTime:
-		switch tok {
-		case token.Sub:
-			return Duration(int64(o) - int64(v)), nil
-		case token.Less:
-			return Bool(o < v), nil
-		case token.LessEq:
-			return Bool(o <= v), nil
-		case token.Greater:
-			return Bool(o > v), nil
-		case token.GreaterEq:
-			return Bool(o >= v), nil
-		}
+		return int64(v), true
 	}
-	return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
+	return 0, false
 }
 
 // shift applies a nanosecond offset for the Add/Sub operators.

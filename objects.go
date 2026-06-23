@@ -1195,15 +1195,13 @@ func (o Array) Items(_ *VM, cb ItemsGetterCallback) (err error) {
 func (o Array) Sort(vm *VM, less CallerObject) (_ Object, err error) {
 	if less == nil {
 		sort.Slice(o, func(i, j int) bool {
-			if bo, _ := o[i].(BinaryOperatorHandler); bo != nil {
-				v, e := bo.BinaryOp(vm, token.Less, o[j])
-				if e != nil && err == nil {
-					err = e
-					return false
-				}
-				if v != nil {
-					return !v.IsFalsy()
-				}
+			v, e := objBinaryOp(vm, token.Less, o[i], o[j])
+			if e != nil && err == nil {
+				err = e
+				return false
+			}
+			if v != nil {
+				return !v.IsFalsy()
 			}
 			return false
 		})
@@ -1229,15 +1227,13 @@ func (o Array) Sort(vm *VM, less CallerObject) (_ Object, err error) {
 
 func (o Array) SortReverse(vm *VM) (_ Object, err error) {
 	sort.Slice(o, func(i, j int) bool {
-		if bo, _ := o[j].(BinaryOperatorHandler); bo != nil {
-			v, e := bo.BinaryOp(vm, token.Less, o[i])
-			if e != nil && err == nil {
-				err = e
-				return false
-			}
-			if v != nil {
-				return !v.IsFalsy()
-			}
+		v, e := objBinaryOp(vm, token.Less, o[j], o[i])
+		if e != nil && err == nil {
+			err = e
+			return false
+		}
+		if v != nil {
+			return !v.IsFalsy()
 		}
 		return false
 	})
@@ -1317,10 +1313,7 @@ func (o *ObjectPtr) BinaryOp(vm *VM, tok token.Token, right Object) (Object, err
 	if o.Value == nil {
 		return nil, errors.New("nil pointer")
 	}
-	if bo, _ := (*o.Value).(BinaryOperatorHandler); bo != nil {
-		return bo.BinaryOp(vm, tok, right)
-	}
-	return nil, ErrInvalidOperator
+	return objBinaryOp(vm, tok, *o.Value, right)
 }
 
 // CanCall implements Object interface.
