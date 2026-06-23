@@ -247,68 +247,77 @@ func (o RawStr) IndexGet(_ *VM, index Object) (Object, error) {
 	return nil, ErrIndexOutOfBounds
 }
 
-// BinaryOp implements Object interface.
-func (o RawStr) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
+// BinOpAdd concatenates; a non-string/Bytes operand is stringified
+// (ObjectWithAddBinOperator).
+func (o RawStr) BinOpAdd(_ *VM, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Str:
-		switch tok {
-		case token.Add:
-			return o + RawStr(v), nil
-		case token.Less:
-			return Bool(o < RawStr(v)), nil
-		case token.LessEq:
-			return Bool(o <= RawStr(v)), nil
-		case token.Greater:
-			return Bool(o > RawStr(v)), nil
-		case token.GreaterEq:
-			return Bool(o >= RawStr(v)), nil
-		}
+		return o + RawStr(v), nil
 	case RawStr:
-		switch tok {
-		case token.Add:
-			return o + v, nil
-		case token.Less:
-			return Bool(o < v), nil
-		case token.LessEq:
-			return Bool(o <= v), nil
-		case token.Greater:
-			return Bool(o > v), nil
-		case token.GreaterEq:
-			return Bool(o >= v), nil
-		}
+		return o + v, nil
 	case Bytes:
-		switch tok {
-		case token.Add:
-			var sb strings.Builder
-			sb.WriteString(string(o))
-			sb.Write(v)
-			return Str(sb.String()), nil
-		case token.Less:
-			return Bool(string(o) < string(v)), nil
-		case token.LessEq:
-			return Bool(string(o) <= string(v)), nil
-		case token.Greater:
-			return Bool(string(o) > string(v)), nil
-		case token.GreaterEq:
-			return Bool(string(o) >= string(v)), nil
-		}
+		var sb strings.Builder
+		sb.WriteString(string(o))
+		sb.Write(v)
+		return Str(sb.String()), nil
+	}
+	return o + RawStr(right.ToString()), nil
+}
+
+func (o RawStr) BinOpLess(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Str:
+		return Bool(o < RawStr(v)), nil
+	case RawStr:
+		return Bool(o < v), nil
+	case Bytes:
+		return Bool(string(o) < string(v)), nil
 	case *NilType:
-		switch tok {
-		case token.Less, token.LessEq:
-			return False, nil
-		case token.Greater, token.GreaterEq:
-			return True, nil
-		}
+		return False, nil
 	}
+	return nil, NewOperandTypeError(token.Less.String(), o.Type().Name(), right.Type().Name())
+}
 
-	if tok == token.Add {
-		return o + RawStr(right.ToString()), nil
+func (o RawStr) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Str:
+		return Bool(o <= RawStr(v)), nil
+	case RawStr:
+		return Bool(o <= v), nil
+	case Bytes:
+		return Bool(string(o) <= string(v)), nil
+	case *NilType:
+		return False, nil
 	}
+	return nil, NewOperandTypeError(token.LessEq.String(), o.Type().Name(), right.Type().Name())
+}
 
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+func (o RawStr) BinOpGreater(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Str:
+		return Bool(o > RawStr(v)), nil
+	case RawStr:
+		return Bool(o > v), nil
+	case Bytes:
+		return Bool(string(o) > string(v)), nil
+	case *NilType:
+		return True, nil
+	}
+	return nil, NewOperandTypeError(token.Greater.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o RawStr) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Str:
+		return Bool(o >= RawStr(v)), nil
+	case RawStr:
+		return Bool(o >= v), nil
+	case Bytes:
+		return Bool(string(o) >= string(v)), nil
+	case *NilType:
+		return True, nil
+	}
+	return nil, NewOperandTypeError(token.GreaterEq.String(), o.Type().Name(), right.Type().Name())
 }
 
 // Length implements LengthGetter interface.
@@ -382,55 +391,67 @@ func (o Str) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Str) IsFalsy() bool { return len(o) == 0 }
 
-// BinaryOp implements Object interface.
-func (o Str) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
+// BinOpAdd concatenates; a non-Str/Bytes operand is stringified
+// (ObjectWithAddBinOperator).
+func (o Str) BinOpAdd(_ *VM, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Str:
-		switch tok {
-		case token.Add:
-			return o + v, nil
-		case token.Less:
-			return Bool(o < v), nil
-		case token.LessEq:
-			return Bool(o <= v), nil
-		case token.Greater:
-			return Bool(o > v), nil
-		case token.GreaterEq:
-			return Bool(o >= v), nil
-		}
+		return o + v, nil
 	case Bytes:
-		switch tok {
-		case token.Add:
-			var sb strings.Builder
-			sb.WriteString(string(o))
-			sb.Write(v)
-			return Str(sb.String()), nil
-		case token.Less:
-			return Bool(string(o) < string(v)), nil
-		case token.LessEq:
-			return Bool(string(o) <= string(v)), nil
-		case token.Greater:
-			return Bool(string(o) > string(v)), nil
-		case token.GreaterEq:
-			return Bool(string(o) >= string(v)), nil
-		}
+		var sb strings.Builder
+		sb.WriteString(string(o))
+		sb.Write(v)
+		return Str(sb.String()), nil
+	}
+	return o + Str(right.ToString()), nil
+}
+
+func (o Str) BinOpLess(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Str:
+		return Bool(o < v), nil
+	case Bytes:
+		return Bool(string(o) < string(v)), nil
 	case *NilType:
-		switch tok {
-		case token.Less, token.LessEq:
-			return False, nil
-		case token.Greater, token.GreaterEq:
-			return True, nil
-		}
+		return False, nil
 	}
+	return nil, NewOperandTypeError(token.Less.String(), o.Type().Name(), right.Type().Name())
+}
 
-	if tok == token.Add {
-		return o + Str(right.ToString()), nil
+func (o Str) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Str:
+		return Bool(o <= v), nil
+	case Bytes:
+		return Bool(string(o) <= string(v)), nil
+	case *NilType:
+		return False, nil
 	}
+	return nil, NewOperandTypeError(token.LessEq.String(), o.Type().Name(), right.Type().Name())
+}
 
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+func (o Str) BinOpGreater(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Str:
+		return Bool(o > v), nil
+	case Bytes:
+		return Bool(string(o) > string(v)), nil
+	case *NilType:
+		return True, nil
+	}
+	return nil, NewOperandTypeError(token.Greater.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Str) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Str:
+		return Bool(o >= v), nil
+	case Bytes:
+		return Bool(string(o) >= string(v)), nil
+	case *NilType:
+		return True, nil
+	}
+	return nil, NewOperandTypeError(token.GreaterEq.String(), o.Type().Name(), right.Type().Name())
 }
 
 // Length implements LengthGetter interface.
@@ -550,49 +571,65 @@ func (o Bytes) BinOpIn(_ *VM, v Object) (Object, error) {
 	return Bool(bytes.IndexByte(o, byte(n)) >= 0), nil
 }
 
-// BinaryOp implements Object interface.
-func (o Bytes) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
+// BinOpAdd appends Bytes or a Str to the bytes (ObjectWithAddBinOperator).
+func (o Bytes) BinOpAdd(_ *VM, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Bytes:
-		switch tok {
-		case token.Add:
-			return append(o, v...), nil
-		case token.Less:
-			return Bool(bytes.Compare(o, v) == -1), nil
-		case token.LessEq:
-			cmp := bytes.Compare(o, v)
-			return Bool(cmp == 0 || cmp == -1), nil
-		case token.Greater:
-			return Bool(bytes.Compare(o, v) == 1), nil
-		case token.GreaterEq:
-			cmp := bytes.Compare(o, v)
-			return Bool(cmp == 0 || cmp == 1), nil
-		}
+		return append(o, v...), nil
 	case Str:
-		switch tok {
-		case token.Add:
-			return append(o, v...), nil
-		case token.Less:
-			return Bool(string(o) < string(v)), nil
-		case token.LessEq:
-			return Bool(string(o) <= string(v)), nil
-		case token.Greater:
-			return Bool(string(o) > string(v)), nil
-		case token.GreaterEq:
-			return Bool(string(o) >= string(v)), nil
-		}
-	case *NilType:
-		switch tok {
-		case token.Less, token.LessEq:
-			return False, nil
-		case token.Greater, token.GreaterEq:
-			return True, nil
-		}
+		return append(o, v...), nil
 	}
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+	return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bytes) BinOpLess(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Bytes:
+		return Bool(bytes.Compare(o, v) == -1), nil
+	case Str:
+		return Bool(string(o) < string(v)), nil
+	case *NilType:
+		return False, nil
+	}
+	return nil, NewOperandTypeError(token.Less.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bytes) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Bytes:
+		cmp := bytes.Compare(o, v)
+		return Bool(cmp == 0 || cmp == -1), nil
+	case Str:
+		return Bool(string(o) <= string(v)), nil
+	case *NilType:
+		return False, nil
+	}
+	return nil, NewOperandTypeError(token.LessEq.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bytes) BinOpGreater(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Bytes:
+		return Bool(bytes.Compare(o, v) == 1), nil
+	case Str:
+		return Bool(string(o) > string(v)), nil
+	case *NilType:
+		return True, nil
+	}
+	return nil, NewOperandTypeError(token.Greater.String(), o.Type().Name(), right.Type().Name())
+}
+
+func (o Bytes) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	switch v := right.(type) {
+	case Bytes:
+		cmp := bytes.Compare(o, v)
+		return Bool(cmp == 0 || cmp == 1), nil
+	case Str:
+		return Bool(string(o) >= string(v)), nil
+	case *NilType:
+		return True, nil
+	}
+	return nil, NewOperandTypeError(token.GreaterEq.String(), o.Type().Name(), right.Type().Name())
 }
 
 // Length implements LengthGetter interface.
@@ -1087,44 +1124,46 @@ func (o Array) BinOpIn(_ *VM, v Object) (Object, error) {
 	return False, nil
 }
 
-// BinaryOp implements Object interface.
-func (o Array) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err error) {
-	switch tok {
-	case token.Add:
-		var arr Array
-		switch t := right.(type) {
-		case Str, RawStr:
-			arr = make(Array, 0, len(o)+1)
-			arr = append(arr, o...)
-			arr = append(arr, t)
-		case Iterabler:
-			var values Array
-			if values, err = ValuesOf(vm, t, &NamedArgs{}); err != nil {
-				return
-			}
-			arr = make(Array, 0, len(o)+len(values))
-			arr = append(arr, o...)
-			arr = append(arr, values...)
-		default:
-			arr = make(Array, 0, len(o)+1)
-			arr = append(arr, o...)
-			arr = append(arr, t)
+// BinOpAdd appends right to the array (ObjectWithAddBinOperator): an iterable
+// extends it, any other value (including strings) is appended as one element.
+func (o Array) BinOpAdd(vm *VM, right Object) (_ Object, err error) {
+	var arr Array
+	switch t := right.(type) {
+	case Str, RawStr:
+		arr = make(Array, 0, len(o)+1)
+		arr = append(arr, o...)
+		arr = append(arr, t)
+	case Iterabler:
+		var values Array
+		if values, err = ValuesOf(vm, t, &NamedArgs{}); err != nil {
+			return
 		}
-
-		return arr, nil
-	case token.Less, token.LessEq:
-		if right == Nil {
-			return False, nil
-		}
-	case token.Greater, token.GreaterEq:
-		if right == Nil {
-			return True, nil
-		}
+		arr = make(Array, 0, len(o)+len(values))
+		arr = append(arr, o...)
+		arr = append(arr, values...)
+	default:
+		arr = make(Array, 0, len(o)+1)
+		arr = append(arr, o...)
+		arr = append(arr, t)
 	}
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+	return arr, nil
+}
+
+// An array orders after nil and is otherwise not comparable.
+func (o Array) BinOpLess(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Less, o, right)
+}
+
+func (o Array) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.LessEq, o, right)
+}
+
+func (o Array) BinOpGreater(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Greater, o, right)
+}
+
+func (o Array) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.GreaterEq, o, right)
 }
 
 func (o Array) AppendToArray(arr Array) Array {
@@ -1471,59 +1510,66 @@ func (o Dict) BinOpIn(_ *VM, v Object) (Object, error) {
 	return Bool(ok), nil
 }
 
-// BinaryOp implements Object interface.
-func (o Dict) BinaryOp(vm *VM, tok token.Token, right Object) (_ Object, err error) {
+// BinOpAdd merges right's entries into the dict (ObjectWithAddBinOperator).
+func (o Dict) BinOpAdd(vm *VM, right Object) (Object, error) {
 	if right == Nil {
-		switch tok {
-		case token.Less, token.LessEq:
-			return False, nil
-		case token.Greater, token.GreaterEq:
-			return True, nil
+		return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
+	}
+	err := IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
+		o[e.K.ToString()] = e.V
+		return nil
+	})
+	return o, err
+}
+
+// BinOpSub removes the keys in right from the dict (ObjectWithSubBinOperator).
+func (o Dict) BinOpSub(vm *VM, right Object) (Object, error) {
+	switch t := right.(type) {
+	case Array:
+		for _, key := range t {
+			delete(o, key.ToString())
 		}
-	} else {
-		switch tok {
-		case token.Add:
-			err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
-				o[e.K.ToString()] = e.V
+		return o, nil
+	case Dict:
+		for key := range t {
+			delete(o, key)
+		}
+		return o, nil
+	case Str:
+		delete(o, string(t))
+		return o, nil
+	case KeyValueArray:
+		for _, kv := range t {
+			delete(o, kv.K.ToString())
+		}
+		return o, nil
+	default:
+		if right != Nil && Iterable(vm, right) {
+			err := IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
+				delete(o, e.K.ToString())
 				return nil
 			})
 			return o, err
-		case token.Sub:
-			switch t := right.(type) {
-			case Array:
-				for _, key := range t {
-					delete(o, key.ToString())
-				}
-				return o, nil
-			case Dict:
-				for key := range t {
-					delete(o, key)
-				}
-				return o, nil
-			case Str:
-				delete(o, string(t))
-				return o, nil
-			case KeyValueArray:
-				for _, kv := range t {
-					delete(o, kv.K.ToString())
-				}
-				return o, nil
-			default:
-				if Iterable(vm, right) {
-					err = IterateObject(vm, right, &NamedArgs{}, nil, func(e *KeyValue) error {
-						delete(o, e.K.ToString())
-						return nil
-					})
-					return o, err
-				}
-			}
 		}
 	}
+	return nil, NewOperandTypeError(token.Sub.String(), o.Type().Name(), right.Type().Name())
+}
 
-	return nil, NewOperandTypeError(
-		tok.String(),
-		o.Type().Name(),
-		right.Type().Name())
+// A dict orders after nil and is otherwise not comparable.
+func (o Dict) BinOpLess(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Less, o, right)
+}
+
+func (o Dict) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.LessEq, o, right)
+}
+
+func (o Dict) BinOpGreater(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.Greater, o, right)
+}
+
+func (o Dict) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	return binCmpAfterNil(token.GreaterEq, o, right)
 }
 
 // IndexDelete tries to delete the string value of key from the map.
@@ -1787,12 +1833,42 @@ func (o *SyncDict) IndexDelete(vm *VM, key Object) error {
 	return o.Value.IndexDelete(vm, key)
 }
 
-// BinaryOp implements Object interface.
-func (o *SyncDict) BinaryOp(vm *VM, tok token.Token, right Object) (Object, error) {
+// The binary operators delegate to the guarded dict under a read lock,
+// mirroring Dict's per-operator ObjectWith{Op}BinOperator implementations.
+func (o *SyncDict) BinOpAdd(vm *VM, right Object) (Object, error) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
+	return o.Value.BinOpAdd(vm, right)
+}
 
-	return o.Value.BinaryOp(vm, tok, right)
+func (o *SyncDict) BinOpSub(vm *VM, right Object) (Object, error) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	return o.Value.BinOpSub(vm, right)
+}
+
+func (o *SyncDict) BinOpLess(vm *VM, right Object) (Object, error) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	return o.Value.BinOpLess(vm, right)
+}
+
+func (o *SyncDict) BinOpLessEq(vm *VM, right Object) (Object, error) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	return o.Value.BinOpLessEq(vm, right)
+}
+
+func (o *SyncDict) BinOpGreater(vm *VM, right Object) (Object, error) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	return o.Value.BinOpGreater(vm, right)
+}
+
+func (o *SyncDict) BinOpGreaterEq(vm *VM, right Object) (Object, error) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	return o.Value.BinOpGreaterEq(vm, right)
 }
 
 func (o *SyncDict) Items(vm *VM, cb ItemsGetterCallback) (err error) {
