@@ -27,7 +27,7 @@ func operatorBinaryMethod(c Call) (Object, error) {
 	if ret, err, handled := binOpObject(c.VM, op, left, right); handled {
 		return ret, err
 	}
-	return Nil, ErrInvalidOperator.NewError(op.Name())
+	return Nil, NewOperandTypeError(op.Token().String(), left.Type().Name(), right.Type().Name())
 }
 
 // operatorSelfAssignMethod is the shared handler for `@selfAssignOperator`

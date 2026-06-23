@@ -2,8 +2,6 @@ package gad
 
 import (
 	"fmt"
-
-	"github.com/gad-lang/gad/token"
 )
 
 const (
@@ -77,28 +75,26 @@ func (o *NilType) IsNil() bool {
 	return true
 }
 
-// BinaryOp implements Object interface.
-func (o *NilType) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
-	switch right.(type) {
-	case *NilType:
-		switch tok {
-		case token.Less, token.Greater:
-			return False, nil
-		case token.LessEq, token.GreaterEq:
-			return True, nil
-		}
-	default:
-		switch tok {
-		case token.Less, token.LessEq:
-			return True, nil
-		case token.Greater, token.GreaterEq:
-			return False, nil
-		}
+// nil orders before every non-nil value and equals itself, so `nil < x` and
+// `nil <= x` are true (false only against nil for `<`), while `nil > x` is false
+// and `nil >= x` is true only against nil. These implement the comparison
+// ObjectWith{Op}BinOperator interfaces.
+func (o *NilType) BinOpLess(_ *VM, right Object) (Object, error) {
+	if _, ok := right.(*NilType); ok {
+		return False, nil
 	}
-	return nil, NewOperandTypeError(
-		tok.String(),
-		Nil.Type().Name(),
-		right.Type().Name())
+	return True, nil
+}
+
+func (o *NilType) BinOpLessEq(_ *VM, _ Object) (Object, error) { return True, nil }
+
+func (o *NilType) BinOpGreater(_ *VM, _ Object) (Object, error) { return False, nil }
+
+func (o *NilType) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	if _, ok := right.(*NilType); ok {
+		return True, nil
+	}
+	return False, nil
 }
 
 func (o *NilType) Print(state *PrinterState) error {

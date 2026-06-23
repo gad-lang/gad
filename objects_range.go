@@ -3,7 +3,6 @@ package gad
 import (
 	"time"
 
-	"github.com/gad-lang/gad/token"
 	"github.com/shopspring/decimal"
 )
 
@@ -131,12 +130,10 @@ func (o *Range) IndexGet(_ *VM, index Object) (Object, error) {
 	return nil, ErrNotIndexable
 }
 
-// BinaryOp handles `range / step`, returning a new range with that step.
-func (o *Range) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
-	if tok == token.Quo {
-		return o.withStep(right), nil
-	}
-	return nil, NewOperandTypeError(tok.String(), o.Type().Name(), right.Type().Name())
+// BinOpQuo handles `range / step` (ObjectWithQuoBinOperator), returning a new
+// range with that step.
+func (o *Range) BinOpQuo(_ *VM, right Object) (Object, error) {
+	return o.withStep(right), nil
 }
 
 // NewRangeFunc is the Range(from, to; step) constructor body shared by the typed

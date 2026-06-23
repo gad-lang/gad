@@ -1044,18 +1044,26 @@ func (t *Class) Equal(right Object) bool {
 
 func (Class) IsFalsy() bool { return false }
 
-func (t *Class) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
-	if right == Nil {
-		switch tok {
-		case token.Less, token.LessEq:
-			return False, nil
-		case token.Greater, token.GreaterEq:
-			return True, nil
-		}
-	}
+// A class compares as greater than nil and is otherwise not comparable, so
+// `class < nil` / `class <= nil` are false and `class > nil` / `class >= nil`
+// are true; any other operand is unsupported.
+func (t *Class) BinOpLess(_ *VM, right Object) (Object, error) {
+	return t.cmpNil(token.Less, right, False)
+}
+func (t *Class) BinOpLessEq(_ *VM, right Object) (Object, error) {
+	return t.cmpNil(token.LessEq, right, False)
+}
+func (t *Class) BinOpGreater(_ *VM, right Object) (Object, error) {
+	return t.cmpNil(token.Greater, right, True)
+}
+func (t *Class) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
+	return t.cmpNil(token.GreaterEq, right, True)
+}
 
-	return nil, NewOperandTypeError(
-		tok.String(),
-		t.Type().Name(),
-		right.Type().Name())
+// cmpNil returns ifNil when right is nil, otherwise an unsupported-operand error.
+func (t *Class) cmpNil(tok token.Token, right Object, ifNil Bool) (Object, error) {
+	if right == Nil {
+		return ifNil, nil
+	}
+	return nil, NewOperandTypeError(tok.String(), t.Type().Name(), right.Type().Name())
 }

@@ -22,8 +22,8 @@ import (
 var TMethodInterface = RegisterBuiltinType(BuiltinMethodInterface, "MethodInterface", MethodInterfaceInstance{}, NewMethodInterfaceFunc)
 
 var (
-	_ IndexGetter           = (*MethodInterfaceInstance)(nil)
-	_ BinaryOperatorHandler = (*MethodInterfaceInstance)(nil)
+	_ IndexGetter              = (*MethodInterfaceInstance)(nil)
+	_ ObjectWithAddBinOperator = (*MethodInterfaceInstance)(nil)
 )
 
 // MethodInterfaceInstance is the value of a method interface (see
@@ -100,14 +100,13 @@ func (m *MethodInterfaceInstance) IndexGet(_ *VM, index Object) (Object, error) 
 	return nil, ErrInvalidIndex.NewError(index.ToString())
 }
 
-// BinaryOp implements `mi + mi2`, merging two interfaces.
-func (m *MethodInterfaceInstance) BinaryOp(_ *VM, tok token.Token, right Object) (Object, error) {
-	if tok == token.Add {
-		if o, ok := right.(*MethodInterfaceInstance); ok {
-			return mergeMethodInterfaces(m, o), nil
-		}
+// BinOpAdd implements `mi + mi2` (ObjectWithAddBinOperator), merging two
+// interfaces.
+func (m *MethodInterfaceInstance) BinOpAdd(_ *VM, right Object) (Object, error) {
+	if o, ok := right.(*MethodInterfaceInstance); ok {
+		return mergeMethodInterfaces(m, o), nil
 	}
-	return nil, NewOperandTypeError(tok.String(), m.Type().Name(), right.Type().Name())
+	return nil, NewOperandTypeError(token.Add.String(), m.Type().Name(), right.Type().Name())
 }
 
 func mergeMethodInterfaces(items ...*MethodInterfaceInstance) *MethodInterfaceInstance {

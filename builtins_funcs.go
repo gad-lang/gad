@@ -1508,7 +1508,7 @@ func BuiltinBinaryOperatorFunc(c Call) (ret Object, err error) {
 		if r, e, handled := binOpObject(c.VM, opType, left, right.Value); handled {
 			return r, e
 		}
-		err = ErrInvalidOperator.NewError(opType.Name())
+		err = NewOperandTypeError(opType.Token().String(), left.Type().Name(), right.Value.Type().Name())
 	}
 	return
 }
