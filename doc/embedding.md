@@ -162,6 +162,44 @@ for the time-module constructors, both built this way.)
 `gad.AddMethodOverride(true, target, methods...)` replaces an existing overload
 with the same parameter types instead of erroring on the duplicate.
 
+## Operators on custom types
+
+A Go type opts into a binary operator by implementing the matching per-operator
+interface from the generated `op_api.go` — one interface per operator, named
+`ObjectWith{Op}BinOperator` with a method `BinOp{Op}(vm *VM, right Object)`:
+
+```go
+// Vec supports `vec + vec` and `vec < vec`.
+type Vec struct{ X, Y int }
+
+func (v Vec) BinOpAdd(_ *gad.VM, right gad.Object) (gad.Object, error) {
+    o, ok := right.(Vec)
+    if !ok {
+        return nil, gad.NewOperandTypeError("+", "Vec", right.Type().Name())
+    }
+    return Vec{v.X + o.X, v.Y + o.Y}, nil
+}
+
+func (v Vec) BinOpLess(_ *gad.VM, right gad.Object) (gad.Object, error) {
+    o, ok := right.(Vec)
+    if !ok {
+        return nil, gad.NewOperandTypeError("<", "Vec", right.Type().Name())
+    }
+    return gad.Bool(v.X*v.X+v.Y*v.Y < o.X*o.X+o.Y*o.Y), nil
+}
+```
+
+A type implements only the operators it supports; unsupported ones fall back to
+an "unsupported operand types" error. The membership operator `a in b` is
+special: it is dispatched on the **right** operand via
+`ObjectWithInBinOperator.BinOpIn(vm, value)` (the container reports whether
+`value` is a member). To run an operator generically from Go, call
+`gad.BinaryOp(vm, tok, left, right)`.
+
+The same operators are also overridable from Gad with
+`met core.binOp(_ TBinaryOperator{Op}, left T, right U)` (see
+[Operators](operators.md)).
+
 ## Reusing a VM
 
 A `VM` is reusable. After a run you can run again; `Clear` releases references

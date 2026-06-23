@@ -1286,10 +1286,14 @@ type Object interface {
   // String should return a string of the type's value.
   String() string
 
-  // BinaryOp handles +,-,*,/,%,<<,>>,<=,>=,<,> operators.
-  // Returned error stops VM execution if not handled with an error handler
-  // and VM.Run returns the same error as wrapped.
-  BinaryOp(tok token.Token, right Object) (Object, error)
+  // Binary operators are NOT part of Object: a type opts into each operator it
+  // supports by implementing the matching per-operator interface from the
+  // generated op_api.go, e.g.
+  //   type ObjectWithAddBinOperator interface { BinOpAdd(vm *VM, right Object) (Object, error) }
+  //   type ObjectWithLessBinOperator interface { BinOpLess(vm *VM, right Object) (Object, error) }
+  // (membership `a in b` is ObjectWithInBinOperator.BinOpIn on the right
+  // operand). A returned error stops VM execution unless handled. Use
+  // gad.BinaryOp(vm, tok, left, right) to run an operator generically.
 
   // IsFalsy returns true if value is falsy otherwise false.
   IsFalsy() bool
