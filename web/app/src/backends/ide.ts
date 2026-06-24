@@ -55,6 +55,21 @@ export interface EvalResult {
   stdout: string;
 }
 
+export interface InspectEntry {
+  key: string;
+  accessor: string;
+  type: string;
+  value: string;
+  expandable: boolean;
+}
+
+export interface InspectResult {
+  type: string;
+  value: string;
+  expandable: boolean;
+  entries: InspectEntry[];
+}
+
 export interface DebugFrame {
   name: string;
   file: string;
@@ -124,6 +139,8 @@ export const ideApi = {
     jsonFetch<{ docs: DocComment[] }>("POST", "api/ide/doc", { source }).then((r) => r.docs || []),
   eval: (req: { expr: string; repr?: boolean; source?: string; path?: string }) =>
     jsonFetch<EvalResult>("POST", "api/ide/eval", req),
+  inspect: (req: { expr: string; session?: string; source?: string; path?: string }) =>
+    jsonFetch<{ ok: boolean; inspect?: InspectResult; error?: string }>("POST", "api/ide/inspect", req),
   diagnose: (source: string) =>
     jsonFetch<{ diagnostics: GadDiagnostic[] }>("POST", "api/ide/diagnose", { source }).then(
       (r) => r.diagnostics || [],

@@ -31,12 +31,14 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import OutputIcon from "@mui/icons-material/Notes";
 import CloseIcon from "@mui/icons-material/Close";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
 
 /** copyText writes text to the clipboard, ignoring failures (e.g. no permission). */
 function copyText(text: string): void {
   void navigator.clipboard?.writeText(text).catch(() => {});
 }
 import { Editor, type EditorHandle } from "./Editor";
+import { InspectDialog, type InspectFn } from "./TreeNavigator";
 import { useTheme } from "./useTheme";
 import {
   ideApi,
@@ -119,6 +121,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [bpDialog, setBpDialog] = useState<{ path: string; line: number } | null>(null);
   const [docPanel, setDocPanel] = useState(false);
   const [docs, setDocs] = useState<DocComment[]>([]);
+  const [inspectTarget, setInspectTarget] = useState<{ title: string; expr: string } | null>(null);
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [tabs, setTabs] = useState<OpenTab[]>([]);
@@ -316,6 +319,24 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       }
     },
     [activeTab, debug],
+  );
+
+  // Inspect an expression for the tree navigator: in the paused frame while
+  // debugging, else standalone against the active file.
+  const inspectExpr: InspectFn = useCallback(
+    async (expr: string) => {
+      try {
+        const res = await ideApi.inspect(
+          debug
+            ? { expr, session: debug.session }
+            : { expr, source: editorRef.current?.getValue() ?? activeTab?.content ?? "", path: activeTab?.path },
+        );
+        return res.ok && res.inspect ? res.inspect : null;
+      } catch {
+        return null;
+      }
+    },
+    [debug, activeTab],
   );
 
   // Re-evaluate every entry (used on add and whenever the debugger steps).
@@ -961,6 +982,13 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                             <td className="locals-copy">
                               <IconButton
                                 size="small"
+                                title="Inspect (tree)"
+                                onClick={() => setInspectTarget({ title: v.name, expr: v.name })}
+                              >
+                                <AccountTreeIcon sx={{ fontSize: 14 }} />
+                              </IconButton>
+                              <IconButton
+                                size="small"
                                 title="Copy value"
                                 onClick={() => copyText(v.value)}
                               >
@@ -1021,6 +1049,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                   setOutputDialog({ title: e.expr, text: e.error || e.value })
                 }
                 onCopy={copyText}
+                onInspect={(e) => setInspectTarget({ title: e.expr, expr: e.expr })}
               />
             )}
           </div>
@@ -1086,6 +1115,14 @@ export function Ide({ workspace }: { workspace: Workspace }) {
             setBpMeta(bpDialog.path, bpDialog.line, meta);
             setBpDialog(null);
           }}
+        />
+      )}
+      {inspectTarget && (
+        <InspectDialog
+          title={inspectTarget.title}
+          rootExpr={inspectTarget.expr}
+          inspect={inspectExpr}
+          onClose={() => setInspectTarget(null)}
         />
       )}
       {outputDialog && (
@@ -1379,6 +1416,7 @@ function EvaluatePanel({
   onRemove,
   onShowOutput,
   onCopy,
+  onInspect,
 }: {
   entries: EvalEntry[];
   onAdd: (expr: string, repr: boolean) => void;
@@ -1386,6 +1424,7 @@ function EvaluatePanel({
   onRemove: (id: number) => void;
   onShowOutput: (e: EvalEntry) => void;
   onCopy: (text: string) => void;
+  onInspect: (e: EvalEntry) => void;
 }) {
   const [expr, setExpr] = useState("");
   const [repr, setRepr] = useState(false);
@@ -1442,6 +1481,9 @@ function EvaluatePanel({
                   }}
                 >
                   <EditIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+                <IconButton size="small" title="Inspect (tree)" onClick={() => onInspect(e)}>
+                  <AccountTreeIcon sx={{ fontSize: 14 }} />
                 </IconButton>
                 <IconButton size="small" title="Output" onClick={() => onShowOutput(e)}>
                   <OutputIcon sx={{ fontSize: 14 }} />
@@ -1847,7 +1889,15 @@ table.eval-list td{padding:.15rem .4rem;border-bottom:1px solid var(--border);fo
 table.eval-list td.eval-expr{white-space:nowrap;color:var(--muted)}
 table.eval-list td.eval-val{white-space:pre-wrap;word-break:break-word}
 table.eval-list tr.err td.eval-val{color:#e5484d}
-table.eval-list td.eval-actions{width:7rem;text-align:right;white-space:nowrap;opacity:.3;transition:opacity .1s}
+table.eval-list td.eval-actions{width:9rem;text-align:right;white-space:nowrap;opacity:.3;transition:opacity .1s}
+.tree-nav{font-family:ui-monospace,monospace;font-size:.85rem}
+.tn-row{display:flex;align-items:center;gap:.5rem;padding:.1rem .2rem;cursor:default;border-radius:4px}
+.tn-row:hover{background:var(--code-bg,rgba(125,125,125,.12))}
+.tn-twist{width:1rem;color:var(--muted);text-align:center}
+.tn-key{color:var(--accent)}
+.tn-type{color:var(--muted);font-size:.78rem}
+.tn-val{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.tn-loading{color:var(--muted)}
 table.eval-list tr:hover td.eval-actions{opacity:.9}
 .bp-scope{display:flex;gap:.3rem;margin-bottom:.4rem}
 .bp-scope button.on{background:var(--accent);color:#fff}
