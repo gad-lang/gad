@@ -39,6 +39,8 @@ import { Editor, type EditorHandle } from "./Editor";
 import { useTheme } from "./useTheme";
 import {
   ideApi,
+  type BreakpointMeta,
+  type BreakpointSpec,
   type DebugResponse,
   type ModuleInfo,
   type RunConfig,
@@ -112,6 +114,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [errorDialog, setErrorDialog] = useState<{ title: string; detail: string } | null>(null);
   const [evals, setEvals] = useState<EvalEntry[]>([]);
   const [outputDialog, setOutputDialog] = useState<{ title: string; text: string } | null>(null);
+  const [bpDialog, setBpDialog] = useState<{ path: string; line: number } | null>(null);
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [tabs, setTabs] = useState<OpenTab[]>([]);
@@ -185,11 +188,52 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       if (lines.length) bps[path] = [...lines].sort((a, b) => a - b);
       else delete bps[path];
       ide.breakpoints = bps;
+      // Drop metadata for lines that no longer have a breakpoint.
+      const allMeta = { ...((ide.breakpointMeta as Record<string, BreakpointMeta>) || {}) };
+      if (allMeta[path]) {
+        const kept: BreakpointMeta = {};
+        for (const l of lines) if (allMeta[path][l]) kept[l] = allMeta[path][l];
+        if (Object.keys(kept).length) allMeta[path] = kept;
+        else delete allMeta[path];
+        ide.breakpointMeta = allMeta;
+      }
       const next = { ...c, ide };
       ideApi.saveConfig(next).catch(() => {});
       return next;
     });
   }
+
+  // Per-line breakpoint metadata (disabled / condition), keyed by path then line.
+  const bpMetaFor = (path?: string): BreakpointMeta =>
+    (path
+      ? ((config.ide as Record<string, unknown>)?.breakpointMeta as Record<string, BreakpointMeta>)?.[path]
+      : undefined) || {};
+
+  function setBpMeta(path: string, line: number, meta: { disabled?: boolean; condition?: string }) {
+    setConfig((c) => {
+      const ide = { ...((c.ide as Record<string, unknown>) || {}) };
+      const allMeta = { ...((ide.breakpointMeta as Record<string, BreakpointMeta>) || {}) };
+      const forPath = { ...(allMeta[path] || {}) };
+      const clean = {
+        ...(meta.disabled ? { disabled: true } : {}),
+        ...(meta.condition && meta.condition.trim() ? { condition: meta.condition.trim() } : {}),
+      };
+      if (Object.keys(clean).length) forPath[line] = clean;
+      else delete forPath[line];
+      if (Object.keys(forPath).length) allMeta[path] = forPath;
+      else delete allMeta[path];
+      ide.breakpointMeta = allMeta;
+      const next = { ...c, ide };
+      ideApi.saveConfig(next).catch(() => {});
+      return next;
+    });
+  }
+
+  // Build the breakpointSpecs payload for a debug start from lines + metadata.
+  const bpSpecsFor = (path: string): BreakpointSpec[] => {
+    const meta = bpMetaFor(path);
+    return bpFor(path).map((line) => ({ line, ...(meta[line] || {}) }));
+  };
 
   // onFrameClick distinguishes a single click (select the frame and show its
   // locals) from a double click (navigate to the frame's source position).
@@ -480,6 +524,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       const res = await ideApi.dbgStart({
         source: content,
         breakpoints: bpFor(tab.path),
+        breakpointSpecs: bpSpecsFor(tab.path),
         stopOnEntry,
         path: tab.path,
         args: cfg.args,
@@ -887,6 +932,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                   <BreakpointList
                     path={activeTab?.path}
                     lines={bpFor(activeTab?.path)}
+                    meta={bpMetaFor(activeTab?.path)}
+                    onEdit={(line) => activeTab && setBpDialog({ path: activeTab.path, line })}
                     onRemove={(line) =>
                       activeTab && setBreakpoints(activeTab.path, bpFor(activeTab.path).filter((l) => l !== line))
                     }
@@ -967,6 +1014,17 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           node={removeTarget}
           onClose={() => setRemoveTarget(null)}
           onConfirm={confirmRemove}
+        />
+      )}
+      {bpDialog && (
+        <BreakpointDialog
+          line={bpDialog.line}
+          initial={bpMetaFor(bpDialog.path)[bpDialog.line] || {}}
+          onClose={() => setBpDialog(null)}
+          onSave={(meta) => {
+            setBpMeta(bpDialog.path, bpDialog.line, meta);
+            setBpDialog(null);
+          }}
         />
       )}
       {outputDialog && (
@@ -1311,25 +1369,78 @@ function EvaluatePanel({
 function BreakpointList({
   path,
   lines,
+  meta,
+  onEdit,
   onRemove,
 }: {
   path?: string;
   lines: number[];
+  meta: BreakpointMeta;
+  onEdit: (line: number) => void;
   onRemove: (line: number) => void;
 }) {
   if (!path) return <div className="muted">No file open.</div>;
   if (!lines.length) return <div className="muted">No breakpoints in {path.split("/").pop()}.</div>;
   return (
     <ul className="bp-list">
-      {lines.map((l) => (
-        <li key={l}>
-          <span>line {l}</span>
-          <button className="x" title="Remove" onClick={() => onRemove(l)}>
-            ✕
-          </button>
-        </li>
-      ))}
+      {lines.map((l) => {
+        const m = meta[l] || {};
+        return (
+          <li key={l} className={m.disabled ? "bp-disabled" : ""}>
+            <span className="bp-entry" title="Click to edit condition" onClick={() => onEdit(l)}>
+              line {l}
+              {m.disabled ? " (disabled)" : ""}
+              {m.condition ? <em className="bp-cond"> if {m.condition}</em> : null}
+            </span>
+            <button className="x" title="Remove" onClick={() => onRemove(l)}>
+              ✕
+            </button>
+          </li>
+        );
+      })}
     </ul>
+  );
+}
+
+function BreakpointDialog({
+  line,
+  initial,
+  onClose,
+  onSave,
+}: {
+  line: number;
+  initial: { disabled?: boolean; condition?: string };
+  onClose: () => void;
+  onSave: (meta: { disabled?: boolean; condition?: string }) => void;
+}) {
+  const [disabled, setDisabled] = useState(!!initial.disabled);
+  const [condition, setCondition] = useState(initial.condition ?? "");
+  return (
+    <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Breakpoint — line {line}</DialogTitle>
+      <DialogContent dividers>
+        <FormControlLabel
+          control={<Checkbox checked={disabled} onChange={(e) => setDisabled(e.target.checked)} />}
+          label="Disabled (ignore this breakpoint while debugging)"
+        />
+        <TextField
+          fullWidth
+          size="small"
+          sx={{ mt: 1 }}
+          label="Condition (Gad expression)"
+          placeholder="e.g. i > 10"
+          helperText="Pauses only when the expression is truthy (!value.IsFalsy()). Locals are in scope."
+          value={condition}
+          onChange={(e) => setCondition(e.target.value)}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={() => onSave({ disabled, condition })}>
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -1638,6 +1749,10 @@ table.eval-list tr:hover td.eval-actions{opacity:.9}
 .bp-list li::before{content:"●";color:#e5484d}
 .bp-list .x{margin-left:auto;cursor:pointer;border:0;background:transparent;color:var(--muted)}
 .bp-list .x:hover{color:#e5484d}
+.bp-list .bp-entry{cursor:pointer}
+.bp-list .bp-entry:hover{color:var(--accent)}
+.bp-list li.bp-disabled{opacity:.5}
+.bp-list .bp-cond{color:var(--muted);font-style:italic}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:50}
 .modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:1rem 1.2rem;min-width:380px;max-width:90vw;max-height:85vh;overflow:auto}
 .modal h3{margin:.2rem 0 .8rem}

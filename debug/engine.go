@@ -63,12 +63,21 @@ type Variable struct {
 	Value string
 }
 
+// Breakpoint describes a source breakpoint. Disabled breakpoints never pause;
+// a non-empty Condition pauses only when the expression evaluates truthy
+// (`!value.IsFalsy()`) in the current frame's scope.
+type Breakpoint struct {
+	Line      int
+	Disabled  bool
+	Condition string
+}
+
 // Engine is a gad.DebugStepper implementing breakpoints and stepping.
 type Engine struct {
 	mu          sync.Mutex
-	breakpoints map[int]struct{} // source lines (1-based)
-	cmd         command          // active resume directive
-	refDepth    int              // frame depth captured at the last stop
+	breakpoints map[int]Breakpoint // source line (1-based) -> breakpoint
+	cmd         command            // active resume directive
+	refDepth    int                // frame depth captured at the last stop
 	stopOnEntry bool
 
 	pause atomic.Bool
@@ -89,7 +98,7 @@ type Engine struct {
 // first instruction.
 func New(stopOnEntry bool) *Engine {
 	return &Engine{
-		breakpoints: map[int]struct{}{},
+		breakpoints: map[int]Breakpoint{},
 		cmd:         cmdContinue,
 		stopOnEntry: stopOnEntry,
 		stops:       make(chan StopEvent),
@@ -101,17 +110,28 @@ func New(stopOnEntry bool) *Engine {
 // pending; resume it with Continue/StepInto/StepOver/StepOut.
 func (e *Engine) Stops() <-chan StopEvent { return e.stops }
 
-// SetBreakpoints replaces the breakpoint set with the given source lines and
-// returns the lines that were accepted (all, here — lines are not validated
-// against the source map).
+// SetBreakpoints replaces the breakpoint set with plain (enabled,
+// unconditional) breakpoints on the given source lines and returns the accepted
+// lines (all, here — lines are not validated against the source map).
 func (e *Engine) SetBreakpoints(lines []int) []int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.breakpoints = make(map[int]struct{}, len(lines))
+	e.breakpoints = make(map[int]Breakpoint, len(lines))
 	for _, l := range lines {
-		e.breakpoints[l] = struct{}{}
+		e.breakpoints[l] = Breakpoint{Line: l}
 	}
 	return lines
+}
+
+// SetConditionalBreakpoints replaces the breakpoint set with the given
+// breakpoints (each may carry a Disabled flag and a Condition expression).
+func (e *Engine) SetConditionalBreakpoints(bps []Breakpoint) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.breakpoints = make(map[int]Breakpoint, len(bps))
+	for _, bp := range bps {
+		e.breakpoints[bp.Line] = bp
+	}
 }
 
 // Continue resumes until the next breakpoint or pause.
@@ -140,7 +160,7 @@ func (e *Engine) Step(vm *gad.VM) {
 	e.vm = vm
 	cmd := e.cmd
 	refDepth := e.refDepth
-	_, isBp := e.breakpoints[line]
+	bp, isBp := e.breakpoints[line]
 	entry := e.stopOnEntry && !e.started
 	e.mu.Unlock()
 
@@ -148,12 +168,16 @@ func (e *Engine) Step(vm *gad.VM) {
 	stop := false
 	reason := StopStep
 
+	// A breakpoint pauses only when enabled, on a new line, and (if it has a
+	// condition) when that condition evaluates truthy in the current scope.
+	bpHit := isBp && !bp.Disabled && line > 0 && !sameSpot && e.conditionMet(vm, bp)
+
 	switch {
 	case e.pause.Load():
 		stop, reason = true, StopPause
 	case entry:
 		stop, reason = true, StopEntry
-	case isBp && line > 0 && !sameSpot:
+	case bpHit:
 		stop, reason = true, StopBreakpoint
 	default:
 		switch cmd {

@@ -72,15 +72,25 @@ func (b *syncBuffer) since(n int) (string, int) {
 	return s[n:], len(s)
 }
 
+// BreakpointSpec is a breakpoint with optional disabled flag and condition,
+// sent by the IDE. A bare line in StartRequest.Breakpoints is an enabled,
+// unconditional breakpoint; BreakpointSpecs (when present) take precedence.
+type BreakpointSpec struct {
+	Line      int    `json:"line"`
+	Disabled  bool   `json:"disabled"`
+	Condition string `json:"condition"`
+}
+
 // StartRequest launches a debug session.
 type StartRequest struct {
-	Source      string   `json:"source"`
-	Breakpoints []int    `json:"breakpoints"`
-	StopOnEntry bool     `json:"stopOnEntry"`
-	Path        string   `json:"path"`     // workspace-relative file, for imports
-	Args        []string `json:"args"`     // CLI-style positional arguments
-	Disabled    []string `json:"disabled"` // builtin modules to disable
-	Safe        bool     `json:"safe"`     // disable all unsafe modules
+	Source          string           `json:"source"`
+	Breakpoints     []int            `json:"breakpoints"`
+	BreakpointSpecs []BreakpointSpec `json:"breakpointSpecs"`
+	StopOnEntry     bool             `json:"stopOnEntry"`
+	Path            string           `json:"path"`     // workspace-relative file, for imports
+	Args            []string         `json:"args"`     // CLI-style positional arguments
+	Disabled        []string         `json:"disabled"` // builtin modules to disable
+	Safe            bool             `json:"safe"`     // disable all unsafe modules
 }
 
 // CommandRequest resumes a session (continue/next/stepIn/stepOut/pause).
@@ -148,7 +158,15 @@ func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	eng := debug.New(req.StopOnEntry)
-	eng.SetBreakpoints(req.Breakpoints)
+	if len(req.BreakpointSpecs) > 0 {
+		bps := make([]debug.Breakpoint, len(req.BreakpointSpecs))
+		for i, s := range req.BreakpointSpecs {
+			bps[i] = debug.Breakpoint{Line: s.Line, Disabled: s.Disabled, Condition: s.Condition}
+		}
+		eng.SetConditionalBreakpoints(bps)
+	} else {
+		eng.SetBreakpoints(req.Breakpoints)
+	}
 	out := &syncBuffer{}
 	vm := gad.NewVM(builtins.Build(), bc).SetRecover(true)
 	vm.SetDebugger(eng)

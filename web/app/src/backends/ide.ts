@@ -32,6 +32,15 @@ export interface RunConfig {
   combine?: boolean;
 }
 
+export interface BreakpointSpec {
+  line: number;
+  disabled?: boolean;
+  condition?: string;
+}
+
+/** Per-line breakpoint metadata, keyed by line number. */
+export type BreakpointMeta = Record<number, { disabled?: boolean; condition?: string }>;
+
 export interface EvalResult {
   ok: boolean;
   value: string;
@@ -123,6 +132,7 @@ export const ideApi = {
   dbgStart: (req: {
     source: string;
     breakpoints: number[];
+    breakpointSpecs?: BreakpointSpec[];
     stopOnEntry: boolean;
     path?: string;
     args?: string[];

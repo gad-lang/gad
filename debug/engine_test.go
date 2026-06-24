@@ -151,3 +151,42 @@ func TestContinueNoBreakpoints(t *testing.T) {
 		t.Fatalf("expected 7, got %v", r)
 	}
 }
+
+func TestDisabledBreakpoint(t *testing.T) {
+	const src = "a := 1\nb := 2\nreturn a + b\n" // lines 1..3
+	eng := debug.New(false)
+	eng.SetConditionalBreakpoints([]debug.Breakpoint{{Line: 2, Disabled: true}})
+	out := run(t, compile(t, src), eng)
+	// The only breakpoint is disabled, so the program runs to completion.
+	if r := waitResult(t, out); r.(gad.Int) != 3 {
+		t.Fatalf("expected 3 (disabled bp must not pause), got %v", r)
+	}
+}
+
+func TestConditionalBreakpointSkips(t *testing.T) {
+	// Loop body on line 2; a false condition must never pause.
+	const src = "s := 0\nfor i := 0; i < 3; i++ { s += i }\nreturn s\n"
+	eng := debug.New(false)
+	eng.SetConditionalBreakpoints([]debug.Breakpoint{{Line: 2, Condition: "i > 100"}})
+	out := run(t, compile(t, src), eng)
+	if r := waitResult(t, out); r.(gad.Int) != 3 {
+		t.Fatalf("expected 3 (condition never true), got %v", r)
+	}
+}
+
+func TestConditionalBreakpointPauses(t *testing.T) {
+	const src = "a := 1\nb := 5\nc := a + b\nreturn c\n" // lines 1..4
+	eng := debug.New(false)
+	// Pause at line 3 only when b == 5 (true), so it should stop.
+	eng.SetConditionalBreakpoints([]debug.Breakpoint{{Line: 3, Condition: "b == 5"}})
+	out := run(t, compile(t, src), eng)
+
+	ev := waitStop(t, eng)
+	if ev.Reason != debug.StopBreakpoint || ev.Line != 3 {
+		t.Fatalf("expected conditional breakpoint at line 3, got %+v", ev)
+	}
+	eng.Continue()
+	if r := waitResult(t, out); r.(gad.Int) != 6 {
+		t.Fatalf("expected 6, got %v", r)
+	}
+}

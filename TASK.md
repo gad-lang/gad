@@ -27,10 +27,13 @@ verification for full sign-off.
 - [ ] Run/Debug settings: one dialog with Run and Debug tabs; surface the split
       stdout/stderr file fields + combine flag in the Run tab.
 - [ ] Explorer header: "get file from web" dialog (URL, output name, target dir).
-- [ ] Breakpoint dialog: click a gutter breakpoint to edit `disabled` + a gad
-      expression `condition` (pause only when `!value.IsFalsy()`); cancel/save.
-- [ ] Breakpoints panel: per-entry remove button; click opens the breakpoint
-      dialog; double-click navigates to the location.
+- [x] Breakpoint condition + disabled: debug.Engine honours per-breakpoint
+      Disabled flag and a Gad `condition` (evaluated in the paused frame's scope,
+      pauses only when truthy); wired through /api/ide/debug/start
+      (BreakpointSpecs). Breakpoints panel entry opens a dialog to edit
+      disabled/condition (stored in .gad.yaml ide.breakpointMeta).
+- [ ] Breakpoints panel: double-click an entry to navigate to its location
+      (remove button + click-to-edit-condition done).
 - [ ] Tooltip for builtin-value identifiers in the gad editor.
 - [ ] Evaluate panel: debug-session-aware eval (run in the paused frame's scope,
       not a fresh VM) — needs a `debug.Engine` eval hook. (panel + standalone

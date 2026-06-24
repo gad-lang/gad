@@ -393,6 +393,31 @@ func TestDebugFramesCarryLocals(t *testing.T) {
 	}
 }
 
+func TestDebugConditionalBreakpoint(t *testing.T) {
+	_, h, _ := newTestServer(t)
+	src := "a := 1\nb := 5\nc := a + b\nreturn c\n" // lines 1..4
+
+	// Condition true at line 3 -> stops.
+	w := do(t, h, "POST", "/api/ide/debug/start", StartRequest{
+		Source:          src,
+		BreakpointSpecs: []BreakpointSpec{{Line: 3, Condition: "b == 5"}},
+	})
+	resp := decode[DebugResponse](t, w)
+	if resp.State != "stopped" || resp.Line != 3 {
+		t.Fatalf("expected stop at line 3, got %+v", resp)
+	}
+
+	// Disabled breakpoint -> runs to completion.
+	w = do(t, h, "POST", "/api/ide/debug/start", StartRequest{
+		Source:          src,
+		BreakpointSpecs: []BreakpointSpec{{Line: 3, Disabled: true}},
+	})
+	resp = decode[DebugResponse](t, w)
+	if resp.State != "terminated" {
+		t.Fatalf("disabled bp should run to completion, got %+v", resp)
+	}
+}
+
 func TestDebugResolvesBuiltinModule(t *testing.T) {
 	_, h, _ := newTestServer(t)
 	// A debug session must resolve stdlib imports (regression: "module time not
