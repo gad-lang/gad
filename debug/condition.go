@@ -56,6 +56,19 @@ func (e *Engine) EvalInFrame(expr string, repr bool) (string, error) {
 	return ret.ToString(), nil
 }
 
+// EvalObject evaluates expr against the paused frame's locals and returns the
+// resulting object (for the tree navigator / inspection). Valid only while
+// parked at a stop.
+func (e *Engine) EvalObject(expr string) (gad.Object, error) {
+	e.mu.Lock()
+	vm := e.vm
+	e.mu.Unlock()
+	if vm == nil {
+		return nil, errors.New("no paused frame")
+	}
+	return evalInFrame(vm, "return ("+expr+")")
+}
+
 // evalInFrame compiles src with the current frame's local variables bound as
 // globals and runs it in a fresh VM, returning the result object. The locals are
 // a snapshot, so the evaluation cannot mutate the debugged program's state.

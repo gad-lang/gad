@@ -207,6 +207,76 @@ func (s *Server) handleTranspile(w http.ResponseWriter, r *http.Request) {
 
 // handleDoc returns the doc comments (`/?`, `/??`, `/???`) of a source, for the
 // doc-comment side panel.
+// inspectRequest inspects the value of an expression for the tree navigator.
+// When Session is set the expression is evaluated in the paused debug frame;
+// otherwise it runs standalone with Source as a prelude.
+type inspectRequest struct {
+	Session  string   `json:"session"`
+	Expr     string   `json:"expr"`
+	Source   string   `json:"source"`
+	Path     string   `json:"path"`
+	Disabled []string `json:"disabled"`
+	Safe     bool     `json:"safe"`
+}
+
+// handleInspect evaluates Expr and returns its tree-navigator description (type,
+// value and, for containers, its immediate children with Gad accessors).
+func (s *Server) handleInspect(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req inspectRequest
+	if err := decodeBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if strings.TrimSpace(req.Expr) == "" {
+		writeJSON(w, map[string]any{"ok": false, "error": "empty expression"})
+		return
+	}
+
+	var (
+		obj gad.Object
+		err error
+	)
+	if req.Session != "" {
+		obj, err = s.dbg.evalObject(req.Session, req.Expr)
+	} else {
+		workdir := s.Root
+		if req.Path != "" {
+			if abs, e := s.resolve(req.Path); e == nil {
+				workdir = filepath.Dir(abs)
+			}
+		}
+		obj, err = s.evalObject(req.Source, req.Expr, workdir, runRequest{Disabled: req.Disabled, Safe: req.Safe})
+	}
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "inspect": gadbridge.InspectObject(nil, obj)})
+}
+
+// evalObject compiles `<prelude>\nreturn (expr)` (prelude returns stripped) and
+// runs it, returning the resulting object for inspection.
+func (s *Server) evalObject(source, expr, workdir string, req runRequest) (gad.Object, error) {
+	script := gadbridge.EvalSource(source, expr, "")
+	builtins := gad.NewBuiltins()
+	st := gad.NewSymbolTable(builtins.NameSet)
+	mm := buildModuleMap(workdir, req.Disabled, req.Safe)
+	_, bc, err := gad.Compile(st, []byte(script), gad.CompileOptions{
+		CompilerOptions: gad.CompilerOptions{ModuleMap: mm},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var stdout, stderr bytes.Buffer
+	return gad.NewVM(builtins.Build(), bc).SetRecover(true).RunOpts(&gad.RunOpts{
+		StdOut: &stdout, StdErr: &stderr,
+	})
+}
+
 func (s *Server) handleDoc(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")

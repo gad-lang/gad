@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"sync"
@@ -14,6 +15,9 @@ import (
 	"github.com/gad-lang/gad/stdlib/helper"
 	"github.com/gad-lang/gad/web/gadbridge"
 )
+
+// errSessionNotFound is returned when a debug session id is unknown or finished.
+var errSessionNotFound = errors.New("unknown or finished session")
 
 // A request/response debugging protocol that the web "Run & Debug" page (and the
 // IDE) drive: HandleStart launches a session and runs to the first stop (or
@@ -283,6 +287,18 @@ func (m *DebugManager) HandleEval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "value": value})
+}
+
+// evalObject evaluates expr in a paused session's current frame and returns the
+// resulting object (for the inspect/tree-navigator endpoint).
+func (m *DebugManager) evalObject(session, expr string) (gad.Object, error) {
+	m.mu.Lock()
+	sess := m.sessions[session]
+	m.mu.Unlock()
+	if sess == nil {
+		return nil, errSessionNotFound
+	}
+	return sess.eng.EvalObject(expr)
 }
 
 func (m *DebugManager) remove(id string) {

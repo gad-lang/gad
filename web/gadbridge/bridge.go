@@ -220,6 +220,126 @@ func nextCodeLine(lines []string, afterLine int) string {
 	return ""
 }
 
+// InspectEntry is one child of an inspected container value.
+type InspectEntry struct {
+	Key        string `json:"key"`        // display key (dict key / array index)
+	Accessor   string `json:"accessor"`   // Gad index suffix to reach it from the parent (`["a"]`, `[0]`)
+	Type       string `json:"type"`       // child type name
+	Value      string `json:"value"`      // child str(), truncated
+	Expandable bool   `json:"expandable"` // child is itself a container
+}
+
+// InspectResult describes a value for the tree navigator: its type, rendered
+// value and (for containers) its immediate children.
+type InspectResult struct {
+	Type       string         `json:"type"`
+	Value      string         `json:"value"`
+	Expandable bool           `json:"expandable"`
+	Entries    []InspectEntry `json:"entries"`
+}
+
+const inspectValueMax = 200
+
+// InspectObject describes obj for the tree navigator. When obj is a container
+// (any ItemsGetter: dict, array, keyValueArray, module namespace, …) its
+// immediate children are enumerated with a Gad accessor so the caller can drill
+// in by appending the accessor to the parent expression.
+func InspectObject(vm *gad.VM, obj gad.Object) InspectResult {
+	res := InspectResult{
+		Type:       objectTypeName(obj),
+		Value:      truncate(objectToString(obj), inspectValueMax),
+		Expandable: isExpandable(obj),
+	}
+	ig, ok := obj.(gad.ItemsGetter)
+	if !ok {
+		return res
+	}
+	_, isArray := obj.(gad.Array)
+	_ = ig.Items(vm, func(i int, item *gad.KeyValue) error {
+		key, accessor := inspectKey(item.K, i, isArray)
+		res.Entries = append(res.Entries, InspectEntry{
+			Key:        key,
+			Accessor:   accessor,
+			Type:       objectTypeName(item.V),
+			Value:      truncate(objectToString(item.V), inspectValueMax),
+			Expandable: isExpandable(item.V),
+		})
+		return nil
+	})
+	return res
+}
+
+// inspectKey renders a child's display key and the Gad accessor that reaches it
+// from the parent expression. Array elements index by position; map-like keys
+// index by their value (string keys quoted, integer keys bare).
+func inspectKey(k gad.Object, i int, isArray bool) (display, accessor string) {
+	if isArray {
+		s := intToString(i)
+		return s, "[" + s + "]"
+	}
+	switch kv := k.(type) {
+	case gad.Str:
+		return string(kv), "[" + quoteGad(string(kv)) + "]"
+	case gad.Int:
+		s := k.ToString()
+		return s, "[" + s + "]"
+	default:
+		return k.ToString(), ""
+	}
+}
+
+func isExpandable(o gad.Object) bool {
+	if o == nil {
+		return false
+	}
+	_, ok := o.(gad.ItemsGetter)
+	return ok
+}
+
+func objectTypeName(o gad.Object) string {
+	if o == nil || o == gad.Nil {
+		return "nil"
+	}
+	return o.Type().Name()
+}
+
+func objectToString(o gad.Object) string {
+	if o == nil {
+		return "nil"
+	}
+	return o.ToString()
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
+}
+
+func quoteGad(s string) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range s {
+		switch r {
+		case '"':
+			b.WriteString(`\"`)
+		case '\\':
+			b.WriteString(`\\`)
+		case '\n':
+			b.WriteString(`\n`)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
+}
+
+func intToString(i int) string {
+	return gad.Int(i).ToString()
+}
+
 // Diagnose returns the syntax and compile diagnostics for src (empty when the
 // source is valid).
 func Diagnose(src string) []Diagnostic {

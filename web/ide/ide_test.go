@@ -224,6 +224,70 @@ func TestEval(t *testing.T) {
 	}
 }
 
+func TestInspect(t *testing.T) {
+	_, h, _ := newTestServer(t)
+
+	// Standalone: inspect a dict literal defined in the prelude, then drill in.
+	w := do(t, h, "POST", "/api/ide/inspect", inspectRequest{
+		Source: `m := {a: [1, 2], b: "x"}`, Expr: "m",
+	})
+	res := decode[map[string]any](t, w)
+	if res["ok"] != true {
+		t.Fatalf("inspect m not ok: %+v", res)
+	}
+	insp := res["inspect"].(map[string]any)
+	if insp["expandable"] != true {
+		t.Fatalf("dict should be expandable: %+v", insp)
+	}
+	entries := insp["entries"].([]any)
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(entries))
+	}
+	// The array child must be expandable with accessor ["a"].
+	var aAcc string
+	var aExpandable bool
+	for _, e := range entries {
+		em := e.(map[string]any)
+		if em["key"] == "a" {
+			aAcc = em["accessor"].(string)
+			aExpandable = em["expandable"].(bool)
+		}
+	}
+	if aAcc != `["a"]` || !aExpandable {
+		t.Fatalf("array child: accessor=%q expandable=%v", aAcc, aExpandable)
+	}
+
+	// Drill into m["a"] -> a 2-element array.
+	w = do(t, h, "POST", "/api/ide/inspect", inspectRequest{
+		Source: `m := {a: [1, 2], b: "x"}`, Expr: `m["a"]`,
+	})
+	insp = decode[map[string]any](t, w)["inspect"].(map[string]any)
+	if insp["type"] != "array" || len(insp["entries"].([]any)) != 2 {
+		t.Fatalf("m[\"a\"] inspect = %+v", insp)
+	}
+}
+
+func TestInspectInDebugFrame(t *testing.T) {
+	_, h, _ := newTestServer(t)
+	src := "m := {a: 1, b: 2}\nx := 3\nreturn x\n"
+	resp := decode[DebugResponse](t, do(t, h, "POST", "/api/ide/debug/start",
+		StartRequest{Source: src, Breakpoints: []int{2}}))
+	if resp.State != "stopped" {
+		t.Fatalf("expected stopped, got %+v", resp)
+	}
+	w := do(t, h, "POST", "/api/ide/inspect",
+		inspectRequest{Session: resp.Session, Expr: "m"})
+	res := decode[map[string]any](t, w)
+	if res["ok"] != true {
+		t.Fatalf("debug inspect not ok: %+v", res)
+	}
+	insp := res["inspect"].(map[string]any)
+	if insp["expandable"] != true || len(insp["entries"].([]any)) != 2 {
+		t.Fatalf("debug inspect of m = %+v", insp)
+	}
+	do(t, h, "POST", "/api/ide/debug/command", CommandRequest{Session: resp.Session, Command: "continue"})
+}
+
 func TestDoc(t *testing.T) {
 	_, h, _ := newTestServer(t)
 	src := "/? the answer\nconst Answer = 42\n\n/??\na block\n??\nx := 1\n"

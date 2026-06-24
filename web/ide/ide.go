@@ -122,6 +122,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/ide/diagnose", s.handleDiagnose)   // POST
 	mux.HandleFunc("/api/ide/run", s.handleRun)             // POST
 	mux.HandleFunc("/api/ide/eval", s.handleEval)           // POST
+	mux.HandleFunc("/api/ide/inspect", s.handleInspect)     // POST
 	mux.HandleFunc("/api/ide/modules", s.handleModules)     // GET
 
 	// Debug (shares the request/response protocol used by web/server).

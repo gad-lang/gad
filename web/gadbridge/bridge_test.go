@@ -1,6 +1,7 @@
 package gadbridge
 
 import (
+	gad "github.com/gad-lang/gad"
 	"strings"
 	"testing"
 )
@@ -54,5 +55,38 @@ func TestRun(t *testing.T) {
 	}
 	if r.Result != "3" {
 		t.Fatalf("expected result 3, got %q", r.Result)
+	}
+}
+
+func TestInspectObject(t *testing.T) {
+	// Array: indexed children; a nested dict child is expandable.
+	arr := gad.Array{gad.Int(10), gad.Dict{"k": gad.Str("v")}}
+	r := InspectObject(nil, arr)
+	if r.Type != "array" || !r.Expandable || len(r.Entries) != 2 {
+		t.Fatalf("array inspect = %+v", r)
+	}
+	if r.Entries[0].Key != "0" || r.Entries[0].Accessor != "[0]" || r.Entries[0].Value != "10" {
+		t.Fatalf("array entry 0 = %+v", r.Entries[0])
+	}
+	if r.Entries[1].Accessor != "[1]" || !r.Entries[1].Expandable {
+		t.Fatalf("nested dict entry should be expandable: %+v", r.Entries[1])
+	}
+
+	// Dict: string keys quoted in the accessor.
+	d := gad.Dict{"name": gad.Str("gad"), "n": gad.Int(3)}
+	r = InspectObject(nil, d)
+	if !r.Expandable || len(r.Entries) != 2 {
+		t.Fatalf("dict inspect = %+v", r)
+	}
+	for _, e := range r.Entries {
+		if e.Key == "name" && e.Accessor != `["name"]` {
+			t.Fatalf("string-key accessor = %q, want [\"name\"]", e.Accessor)
+		}
+	}
+
+	// A scalar is not expandable and has no entries.
+	r = InspectObject(nil, gad.Int(42))
+	if r.Expandable || len(r.Entries) != 0 || r.Value != "42" {
+		t.Fatalf("scalar inspect = %+v", r)
 	}
 }
