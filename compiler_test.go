@@ -1355,6 +1355,31 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
+	// `===` compiles to OpBinary(Same); it is not constant-folded.
+	expectCompile(t, `1 === 2`, bytecode(
+		Array{Int(1), Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpBinary, int(token.Same)),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
+	// `!==` desugars to `!(a === b)`: OpBinary(Same) then OpUnary(Not).
+	expectCompile(t, `1 !== 2`, bytecode(
+		Array{Int(1), Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpBinary, int(token.Same)),
+			makeInst(OpUnary, int(token.Not)),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
 	expectCompile(t, `1; 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(

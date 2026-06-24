@@ -210,6 +210,8 @@ const (
 	BuiltinBinaryOperatorTripleGreater
 	BuiltinBinaryOperatorDoubleMod
 	BuiltinBinaryOperatorLambda
+	BuiltinBinaryOperatorSame
+	BuiltinBinaryOperatorNotSame
 	BuiltinBinaryOperatorInc
 	BuiltinBinaryOperatorDec
 	BuiltinBinaryOperatorIn

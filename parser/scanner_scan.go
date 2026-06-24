@@ -585,9 +585,34 @@ do:
 				t.Token = s.Switch2(token.Greater, token.GreaterEq)
 			}
 		case '=':
-			t.Token = s.Switch3(token.Assign, token.Equal, '>', token.Lambda)
+			// `=` `==` `===` (Same) `=>` (Lambda)
+			if s.Ch == '=' {
+				s.Next()
+				if s.Ch == '=' {
+					s.Next()
+					t.Token = token.Same
+				} else {
+					t.Token = token.Equal
+				}
+			} else if s.Ch == '>' {
+				s.Next()
+				t.Token = token.Lambda
+			} else {
+				t.Token = token.Assign
+			}
 		case '!':
-			t.Token = s.Switch2(token.Not, token.NotEqual)
+			// `!` `!=` `!==` (NotSame)
+			if s.Ch == '=' {
+				s.Next()
+				if s.Ch == '=' {
+					s.Next()
+					t.Token = token.NotSame
+				} else {
+					t.Token = token.NotEqual
+				}
+			} else {
+				t.Token = token.Not
+			}
 		case '&':
 			if s.Ch == '^' {
 				s.Next()

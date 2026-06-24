@@ -1,6 +1,10 @@
 package gad
 
-import "github.com/gad-lang/gad/token"
+import (
+	"reflect"
+
+	"github.com/gad-lang/gad/token"
+)
 
 // BinaryOp runs a binary operator on two objects through the per-operator
 // ObjectWith{Op}BinOperator dispatch (binOpObject), matching core.binOp.
@@ -10,7 +14,24 @@ func BinaryOp(vm *VM, tok token.Token, left, right Object) (Object, error) {
 	if ret, err, handled := binOpObject(vm, op, left, right); handled {
 		return ret, err
 	}
+	if op == TBinaryOperatorSame {
+		return binSameFallback(vm, left, right)
+	}
 	return nil, NewOperandTypeError(tok.String(), left.Type().Name(), right.Type().Name())
+}
+
+// binSameFallback computes `left === right` (strict same-identity) when left
+// does not implement ObjectWithSameBinOperator: it tries the right operand's
+// implementation, then compares primitive go values by reflect (type + value)
+// and any other object by address identity. It never errors.
+func binSameFallback(vm *VM, left, right Object) (Object, error) {
+	if h, ok := right.(ObjectWithSameBinOperator); ok {
+		return h.BinOpSame(vm, left)
+	}
+	if IsPrimitive(left) && IsPrimitive(right) {
+		return Bool(reflect.DeepEqual(left, right)), nil
+	}
+	return Bool(AddressOf(left) == AddressOf(right)), nil
 }
 
 // operatorBinaryMethod is the default handler of core.binOp: it dispatches to
@@ -23,6 +44,9 @@ func operatorBinaryMethod(c Call) (Object, error) {
 	left, right := c.Args.Get(1), c.Args.Get(2)
 	if ret, err, handled := binOpObject(c.VM, op, left, right); handled {
 		return ret, err
+	}
+	if op == TBinaryOperatorSame {
+		return binSameFallback(c.VM, left, right)
 	}
 	return Nil, NewOperandTypeError(op.Token().String(), left.Type().Name(), right.Type().Name())
 }

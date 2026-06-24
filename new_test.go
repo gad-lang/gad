@@ -283,6 +283,40 @@ func TestVMUserOperators(t *testing.T) {
 	x := 7; x %%= 5; return x`, nil, Int(12))
 }
 
+func TestVMSameOperator(t *testing.T) {
+	// `===` is strict: no numeric coercion, unlike `==`.
+	testExpectRun(t, `return 1 == 1u`, nil, True)
+	testExpectRun(t, `return 1 === 1u`, nil, False)
+	testExpectRun(t, `return 1 === 1`, nil, True)
+	testExpectRun(t, `return 1.0 === 1`, nil, False)
+	testExpectRun(t, `return 1.5 === 1.5`, nil, True)
+	testExpectRun(t, `return "a" === "a"`, nil, True)
+	testExpectRun(t, `return "a" === "b"`, nil, False)
+	testExpectRun(t, `return nil === nil`, nil, True)
+	testExpectRun(t, `return nil === 0`, nil, False)
+	testExpectRun(t, `return 'a' === 'a'`, nil, True)
+
+	// `!==` is `!(a === b)`.
+	testExpectRun(t, `return 1 !== 1u`, nil, True)
+	testExpectRun(t, `return 1 !== 1`, nil, False)
+	testExpectRun(t, `return "a" !== "b"`, nil, True)
+
+	// non-primitive objects compare by identity; each array/dict literal is a
+	// fresh object, so equal-looking literals are not the same.
+	testExpectRun(t, `a := [1, 2]; return a === a`, nil, True)
+	testExpectRun(t, `a := [1, 2]; return a === [1, 2]`, nil, False)
+	testExpectRun(t, `a := [1, 2]; b := [1, 2]; return a === b`, nil, False)
+	testExpectRun(t, `return [1, 2] === [1, 2]`, nil, False)
+	testExpectRun(t, `d := {x: 1}; return d === d`, nil, True)
+	testExpectRun(t, `return {x: 1} === {x: 1}`, nil, False)
+
+	// a type can define `===` via met core.binOp.
+	testExpectRun(t, `
+	met core.binOp(_ TBinaryOperatorSame, a str, b int) { return true }
+	p := "x"
+	return p === 1`, nil, True)
+}
+
 func TestVMInOperator(t *testing.T) {
 	// Array: value membership.
 	testExpectRun(t, `return 2 in [1, 2, 3]`, nil, True)

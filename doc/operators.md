@@ -38,6 +38,7 @@ println(!1, !"x", ![1])       // false false false
 |:---:|--------------------|:----:|--------------------------|
 | `+` | add / concat       | `==` | equal                    |
 | `-` | subtract           | `!=` | not equal                |
+| `===`| strict same       | `!==`| not strict same          |
 | `*` | multiply           | `<`  | less than                |
 | `/` | divide             | `<=` | less or equal            |
 | `%` | modulo             | `>`  | greater than             |
@@ -61,6 +62,37 @@ bool):
 println(0 || "fallback")   // fallback
 println("a" && "b")        // b
 ```
+
+### Strict same (`===` / `!==`)
+
+`==` compares values and **coerces** across numeric kinds; `===` is **strict**:
+the operands must be the same concrete type (and equal value). `a !== b` is just
+`!(a === b)`.
+
+```go
+println(1 == 1u)    // true   (coerced)
+println(1 === 1u)   // false  (int vs uint)
+println(1 === 1)    // true
+println(1.0 === 1)  // false  (float vs int)
+println(1 !== 1u)   // true
+```
+
+For non-primitive values (arrays, dicts, class instances, …), `===` is **object
+identity**, not deep equality. Every array/dict literal evaluates to a *fresh*
+object, so two equal-looking literals are never the same:
+
+```go
+a := [1, 2]
+println(a === a)         // true   (same object)
+println(a === [1, 2])    // false  (a fresh array)
+println([1, 2] === [1, 2]) // false
+```
+
+A type can customise `===` from Gad with
+`met core.binOp(_ TBinaryOperatorSame, …)`, or from Go via
+`ObjectWithSameBinOperator`. When the left operand defines neither, the right
+operand's is tried, then primitives fall back to a reflect type+value check and
+other objects to address identity.
 
 ## Range Operator
 
@@ -225,7 +257,7 @@ operators have five levels:
 |:-----:|-------------------------------------------------|
 | 5     | `*` `**` `/` `%` `<<` `>>` `&` `&^` `<<<` `>>>` `%%` |
 | 4     | `+` `-` `\|` `^`                                 |
-| 3     | `==` `!=` `<` `<=` `>` `>=` `in`            |
+| 3     | `==` `!=` `===` `!==` `<` `<=` `>` `>=` `in` |
 | 2     | `&&`                                        |
 | 1     | `\|\|`                                      |
 

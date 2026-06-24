@@ -31,6 +31,8 @@ var (
 	TBinaryOperatorTripleGreater = BinaryOperatorType(token.TripleGreater) // >>>
 	TBinaryOperatorDoubleMod     = BinaryOperatorType(token.DoubleMod)     // %%
 	TBinaryOperatorLambda        = BinaryOperatorType(token.Lambda)        // =>
+	TBinaryOperatorSame          = BinaryOperatorType(token.Same)          // ===
+	TBinaryOperatorNotSame       = BinaryOperatorType(token.NotSame)       // !==
 	TBinaryOperatorInc           = BinaryOperatorType(token.Inc)           // ++
 	TBinaryOperatorDec           = BinaryOperatorType(token.Dec)           // --
 	TBinaryOperatorIn            = BinaryOperatorType(token.In)            // in
@@ -87,6 +89,8 @@ func init() {
 	add(BuiltinBinaryOperatorTripleGreater, TBinaryOperatorTripleGreater)
 	add(BuiltinBinaryOperatorDoubleMod, TBinaryOperatorDoubleMod)
 	add(BuiltinBinaryOperatorLambda, TBinaryOperatorLambda)
+	add(BuiltinBinaryOperatorSame, TBinaryOperatorSame)
+	add(BuiltinBinaryOperatorNotSame, TBinaryOperatorNotSame)
 	add(BuiltinBinaryOperatorInc, TBinaryOperatorInc)
 	add(BuiltinBinaryOperatorDec, TBinaryOperatorDec)
 	add(BuiltinBinaryOperatorIn, TBinaryOperatorIn)

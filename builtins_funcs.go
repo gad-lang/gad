@@ -1495,6 +1495,9 @@ func BuiltinBinaryOperatorFunc(c Call) (ret Object, err error) {
 	if r, e, handled := binOpObject(c.VM, opType, left.Value, right.Value); handled {
 		return r, e
 	}
+	if opType == TBinaryOperatorSame {
+		return binSameFallback(c.VM, left.Value, right.Value)
+	}
 	err = NewOperandTypeError(opType.Token().String(), left.Value.Type().Name(), right.Value.Type().Name())
 	return
 }

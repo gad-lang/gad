@@ -2283,6 +2283,15 @@ func TestParseChar(t *testing.T) {
 	test.ExpectParseExpr(t, "'a\\'b'", charAsStrLit(`a'b`, 1), test.OptParseCharAsString)
 }
 
+func TestParseSameOperator(t *testing.T) {
+	// `===` (Same) and `!==` (NotSame) are comparison-level binary operators.
+	test.ExpectParseString(t, `a === b`, `(a === b)`)
+	test.ExpectParseString(t, `a !== b`, `(a !== b)`)
+	test.ExpectParseString(t, `a === b === c`, `((a === b) === c)`)
+	test.ExpectParseString(t, `a == b === c`, `((a == b) === c)`)
+	test.ExpectParseString(t, `!a !== b`, `((!a) !== b)`)
+}
+
 func TestParseCondExpr(t *testing.T) {
 	test.ExpectParse(t, "a ? b : c", func(p pfn) []Stmt {
 		return stmts(

@@ -166,6 +166,18 @@ type ObjectWithLambdaBinOperator interface {
 	BinOpLambda(vm *VM, right Object) (Object, error)
 }
 
+// ObjectWithSameBinOperator is implemented by an object that handles the `===`
+// binary operator as the left operand.
+type ObjectWithSameBinOperator interface {
+	BinOpSame(vm *VM, right Object) (Object, error)
+}
+
+// ObjectWithNotSameBinOperator is implemented by an object that handles the `!==`
+// binary operator as the left operand.
+type ObjectWithNotSameBinOperator interface {
+	BinOpNotSame(vm *VM, right Object) (Object, error)
+}
+
 // ObjectWithIncBinOperator is implemented by an object that handles the `++`
 // binary operator as the left operand.
 type ObjectWithIncBinOperator interface {
@@ -322,6 +334,16 @@ func binOpObject(vm *VM, op BinaryOperatorType, left, right Object) (ret Object,
 	case token.Lambda:
 		if h, ok := left.(ObjectWithLambdaBinOperator); ok {
 			ret, err = h.BinOpLambda(vm, right)
+			handled = true
+		}
+	case token.Same:
+		if h, ok := left.(ObjectWithSameBinOperator); ok {
+			ret, err = h.BinOpSame(vm, right)
+			handled = true
+		}
+	case token.NotSame:
+		if h, ok := left.(ObjectWithNotSameBinOperator); ok {
+			ret, err = h.BinOpNotSame(vm, right)
 			handled = true
 		}
 	case token.Inc:

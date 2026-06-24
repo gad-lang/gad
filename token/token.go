@@ -65,6 +65,8 @@ const (
 	TripleGreater // >>>
 	DoubleMod     // %%
 	Lambda        // =>
+	Same          // ===
+	NotSame       // !==
 	GroupBinaryOperatorEnd
 	GroupDefaultOperatorBegin
 	Nullich // ??
@@ -263,6 +265,8 @@ var tokens = [...]string{
 	Inc:                 "++",
 	Dec:                 "--",
 	Equal:               "==",
+	Same:                "===",
+	NotSame:             "!==",
 	Less:                "<",
 	Greater:             ">",
 	Assign:              "=",
@@ -380,6 +384,8 @@ var tokenNames = [...]string{
 	LAnd:                         "LAnd",
 	Equal:                        "Equal",
 	NotEqual:                     "NotEqual",
+	Same:                         "Same",
+	NotSame:                      "NotSame",
 	Less:                         "Less",
 	Greater:                      "Greater",
 	LessEq:                       "LessEq",
@@ -512,7 +518,7 @@ func (tok Token) Precedence() int {
 		return 2
 	case LAnd:
 		return 3
-	case Equal, NotEqual, Less, LessEq, Greater, GreaterEq, Null, NotNull, In:
+	case Equal, NotEqual, Same, NotSame, Less, LessEq, Greater, GreaterEq, Null, NotNull, In:
 		return 4
 	case Add, Sub, Or, Xor:
 		return 5
@@ -569,6 +575,8 @@ func (tok Token) IsBinaryOperator() bool {
 		Shr,
 		Equal,
 		NotEqual,
+		Same,
+		NotSame,
 		Tilde,
 		DoubleTilde,
 		TripleTilde,
