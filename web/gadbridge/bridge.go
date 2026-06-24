@@ -11,6 +11,7 @@ import (
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 )
@@ -133,6 +134,90 @@ func EvalSource(prelude, expr, render string) string {
 		body += "\n"
 	}
 	return body + "return " + render + "(" + expr + ")\n"
+}
+
+// DocComment is one rendered doc comment (`/?`, `/??` or `/???`) from a source
+// file: its 1-based start line, kind, the following code line as a title (when
+// any) and the Markdown content.
+type DocComment struct {
+	Line    int    `json:"line"`
+	Kind    string `json:"kind"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
+}
+
+// DocComments extracts the doc comments from src, in source order. A parse error
+// yields whatever comments were collected before it (best effort), so the panel
+// still shows docs for a file being edited.
+func DocComments(src string) []DocComment {
+	fileSet := source.NewFileSet()
+	srcFile := fileSet.AddFileData(sourceName, -1, []byte(src))
+	po := &parser.ParserOptions{Mode: parser.ParseComments}
+	file, _ := parser.NewParserWithOptions(srcFile, po, nil).ParseFile()
+	if file == nil {
+		return nil
+	}
+	lines := strings.Split(src, "\n")
+	var out []DocComment
+	for _, g := range file.Comments {
+		kind, content, ok := docContent(g)
+		if !ok {
+			continue
+		}
+		out = append(out, DocComment{
+			Line:    fileSet.Position(g.Pos()).Line,
+			Kind:    kind,
+			Title:   nextCodeLine(lines, fileSet.Position(g.End()).Line),
+			Content: content,
+		})
+	}
+	return out
+}
+
+// docContent classifies a comment group as a doc comment and returns its kind
+// ("single"/"block"/"root") and Markdown content (markers stripped). ok is false
+// for non-doc comments.
+func docContent(g *ast.CommentGroup) (kind, content string, ok bool) {
+	if g == nil || len(g.List) == 0 {
+		return "", "", false
+	}
+	first := g.List[0].Text
+	switch {
+	case strings.HasPrefix(first, "/???"):
+		return "root", trimFence(first, "???"), true
+	case strings.HasPrefix(first, "/??"):
+		return "block", trimFence(first, "??"), true
+	case strings.HasPrefix(first, "/?"):
+		ls := make([]string, len(g.List))
+		for i, c := range g.List {
+			ls[i] = strings.TrimPrefix(strings.TrimPrefix(c.Text, "/?"), " ")
+		}
+		return "single", strings.Join(ls, "\n"), true
+	}
+	return "", "", false
+}
+
+// trimFence returns the inner text of a fenced block doc `/<fence> … <fence>`.
+func trimFence(text, fence string) string {
+	body := strings.TrimPrefix(strings.TrimPrefix(text, "/"), fence)
+	body = strings.TrimSuffix(body, fence)
+	return strings.Trim(body, "\n")
+}
+
+// nextCodeLine returns the first non-empty, non-comment source line at or after
+// the 1-based line afterLine+1 (trimmed, truncated), as a doc-entry title.
+func nextCodeLine(lines []string, afterLine int) string {
+	for i := afterLine; i < len(lines); i++ {
+		s := strings.TrimSpace(lines[i])
+		if s == "" || strings.HasPrefix(s, "//") || strings.HasPrefix(s, "/?") || strings.HasPrefix(s, "/*") {
+			continue
+		}
+		if len(s) > 80 {
+			s = s[:80] + "…"
+		}
+		return s
+	}
+	return ""
 }
 
 // Diagnose returns the syntax and compile diagnostics for src (empty when the

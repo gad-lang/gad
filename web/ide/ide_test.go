@@ -224,6 +224,26 @@ func TestEval(t *testing.T) {
 	}
 }
 
+func TestDoc(t *testing.T) {
+	_, h, _ := newTestServer(t)
+	src := "/? the answer\nconst Answer = 42\n\n/??\na block\n??\nx := 1\n"
+	w := do(t, h, "POST", "/api/ide/doc", formatRequest{Source: src})
+	res := decode[map[string][]map[string]any](t, w)
+	docs := res["docs"]
+	if len(docs) != 2 {
+		t.Fatalf("expected 2 doc comments, got %d: %+v", len(docs), docs)
+	}
+	if docs[0]["kind"] != "single" || docs[0]["content"] != "the answer" {
+		t.Fatalf("first doc unexpected: %+v", docs[0])
+	}
+	if docs[0]["title"] != "const Answer = 42" {
+		t.Fatalf("first doc title = %v, want the following code line", docs[0]["title"])
+	}
+	if docs[1]["kind"] != "block" {
+		t.Fatalf("second doc should be a block: %+v", docs[1])
+	}
+}
+
 func TestFetch(t *testing.T) {
 	_, h, dir := newTestServer(t)
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

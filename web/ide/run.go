@@ -205,6 +205,21 @@ func (s *Server) handleTranspile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, gadbridge.Transpile(req.Source, mixed, s.transpileOptions(req)))
 }
 
+// handleDoc returns the doc comments (`/?`, `/??`, `/???`) of a source, for the
+// doc-comment side panel.
+func (s *Server) handleDoc(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req formatRequest
+	if err := decodeBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	writeJSON(w, map[string]any{"docs": gadbridge.DocComments(req.Source)})
+}
+
 func (s *Server) handleDiagnose(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")

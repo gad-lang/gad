@@ -30,6 +30,7 @@ import RedoIcon from "@mui/icons-material/Redo";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import OutputIcon from "@mui/icons-material/Notes";
+import CloseIcon from "@mui/icons-material/Close";
 
 /** copyText writes text to the clipboard, ignoring failures (e.g. no permission). */
 function copyText(text: string): void {
@@ -42,6 +43,7 @@ import {
   type BreakpointMeta,
   type BreakpointSpec,
   type DebugResponse,
+  type DocComment,
   type ModuleInfo,
   type RunConfig,
   type TreeNode,
@@ -115,6 +117,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [evals, setEvals] = useState<EvalEntry[]>([]);
   const [outputDialog, setOutputDialog] = useState<{ title: string; text: string } | null>(null);
   const [bpDialog, setBpDialog] = useState<{ path: string; line: number } | null>(null);
+  const [docPanel, setDocPanel] = useState(false);
+  const [docs, setDocs] = useState<DocComment[]>([]);
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [tabs, setTabs] = useState<OpenTab[]>([]);
@@ -335,6 +339,30 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     if (debug) void evalAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debugLoc]);
+
+  // --- Doc-comment panel ----------------------------------------------------
+
+  const reloadDocs = useCallback(async () => {
+    if (!docPanel) return;
+    const src = editorRef.current?.getValue() ?? activeTab?.content ?? "";
+    try {
+      setDocs(await ideApi.doc(src));
+    } catch {
+      /* leave previous docs on a transient failure */
+    }
+  }, [docPanel, activeTab]);
+
+  // Refresh docs when the panel opens or the active file changes.
+  useEffect(() => {
+    void reloadDocs();
+  }, [reloadDocs, active]);
+
+  // Auto-reload docs 5s after the last edit while the panel is open.
+  useEffect(() => {
+    if (!docPanel || !activeTab || activeTab.saved) return;
+    const t = window.setTimeout(() => void reloadDocs(), 5000);
+    return () => window.clearTimeout(t);
+  }, [docPanel, activeTab, reloadDocs]);
 
   // Reload the active file from disk, discarding unsaved edits (after a confirm
   // when the buffer is dirty).
@@ -821,6 +849,15 @@ export function Ide({ workspace }: { workspace: Workspace }) {
               </Box>
             )}
             <Box sx={{ flex: 1 }} />
+            <Tooltip title="Toggle doc-comments panel">
+              <Button
+                size="small"
+                variant={docPanel ? "contained" : "outlined"}
+                onClick={() => setDocPanel((v) => !v)}
+              >
+                Docs
+              </Button>
+            </Tooltip>
             <Box className="font-control" title="Editor font size">
               <Button size="small" onClick={() => setFontSize(fontSize - 1)}>
                 A−
@@ -853,6 +890,14 @@ export function Ide({ workspace }: { workspace: Workspace }) {
               />
             ) : (
               <div className="empty">Open a file from the explorer</div>
+            )}
+            {docPanel && (
+              <DocPanel
+                docs={docs}
+                onReload={reloadDocs}
+                onClose={() => setDocPanel(false)}
+                onGoto={(line) => editorRef.current?.gotoLocation(line, 1)}
+              />
             )}
           </div>
 
@@ -1284,6 +1329,45 @@ function TreeView({
     >
       📄 {node.name}
       {contextMenu}
+    </div>
+  );
+}
+
+function DocPanel({
+  docs,
+  onReload,
+  onClose,
+  onGoto,
+}: {
+  docs: DocComment[];
+  onReload: () => void;
+  onClose: () => void;
+  onGoto: (line: number) => void;
+}) {
+  return (
+    <div className="doc-panel">
+      <div className="doc-head">
+        <span>Doc comments</span>
+        <span style={{ flex: 1 }} />
+        <IconButton size="small" title="Reload" onClick={onReload}>
+          <RefreshIcon fontSize="small" />
+        </IconButton>
+        <IconButton size="small" title="Close" onClick={onClose}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </div>
+      <div className="doc-body">
+        {docs.length === 0 && <div className="muted">No doc comments in this file.</div>}
+        {docs.map((d, i) => (
+          <div key={i} className="doc-entry">
+            <div className="doc-entry-head" onClick={() => onGoto(d.line)} title={`Go to line ${d.line}`}>
+              <span className={"doc-kind doc-kind-" + d.kind}>{d.kind}</span>
+              <span className="doc-title">{d.title || `line ${d.line}`}</span>
+            </div>
+            <pre className="doc-content">{d.content}</pre>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1730,6 +1814,16 @@ function IdeStyles() {
 .font-control .font-size{color:var(--muted);font-size:.8rem;min-width:2.6rem;text-align:center}
 .dbgbar{display:flex;gap:.3rem}
 .editor-host{flex:1;min-height:0;display:flex}
+.doc-panel{width:320px;min-width:200px;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column;overflow:hidden}
+.doc-head{display:flex;align-items:center;gap:.3rem;padding:.3rem .6rem;border-bottom:1px solid var(--border);font-size:.72rem;text-transform:uppercase;color:var(--muted);letter-spacing:.05em}
+.doc-body{flex:1;overflow:auto;padding:.4rem .6rem}
+.doc-entry{margin-bottom:.7rem}
+.doc-entry-head{display:flex;align-items:center;gap:.4rem;cursor:pointer}
+.doc-entry-head:hover .doc-title{color:var(--accent)}
+.doc-title{font-family:ui-monospace,monospace;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-kind{font-size:.62rem;text-transform:uppercase;padding:0 .3rem;border-radius:3px;background:var(--code-bg,rgba(125,125,125,.18));color:var(--muted)}
+.doc-kind-root{background:var(--accent);color:#fff}
+.doc-content{margin:.2rem 0 0;white-space:pre-wrap;word-break:break-word;font-size:.82rem;color:var(--fg)}
 .editor-host>div{flex:1;min-width:0}
 .editor-host .empty{margin:auto;color:var(--muted)}
 .panes{height:200px;border-top:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column;resize:vertical;overflow:hidden}

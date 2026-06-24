@@ -44,8 +44,10 @@ verification for full sign-off.
       fallback for other types.
 - [ ] Tooltip: copy-to-clipboard button on the gad editor hover tooltip.
 - [ ] codemirror plugin: editor features (autocomplete, etc.) inside template strings.
-- [ ] Right closable panel rendering the current file's doc comments; reloads 5s
-      after an edit (and a manual reload button).
+- [x] Right closable doc-comments panel: backend gadbridge.DocComments +
+      /api/ide/doc extract `/?`/`/??`/`/???` docs (kind, title=following code
+      line, content, line). Toolbar "Docs" toggle; panel lists entries (click to
+      jump to the line), with a manual reload and auto-reload 5s after an edit.
 
 - [x] STEP IN module import now opens the module file: the debugger reported
       imported-module frames as absolute `file:<abs>` paths (and the main file as
@@ -57,6 +59,8 @@ verification for full sign-off.
       ended in a top-level `return` which short-circuited the eval. Fixed with
       gadbridge.EvalSource (strips top-level returns, keeps definitions). repr's
       `‹int: 2›` is the correct repr form.
+- [ ] allow tree navigator of `IndexGetter` objects (dict/array/module...), in tooltip, locals panel and evaluate panel.
+  allow to open tree navigator in new dialog. 
 
 ## Editor plugins (separate)
 (none — keyword/builtin sync commands shipped via cmd/update-*-plugin.)

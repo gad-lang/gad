@@ -32,6 +32,13 @@ export interface RunConfig {
   combine?: boolean;
 }
 
+export interface DocComment {
+  line: number;
+  kind: string;
+  title: string;
+  content: string;
+}
+
 export interface BreakpointSpec {
   line: number;
   disabled?: boolean;
@@ -113,6 +120,8 @@ export const ideApi = {
   format: (source: string) => jsonFetch<FormatResult>("POST", "api/ide/format", { source }),
   transpile: (source: string, path?: string) =>
     jsonFetch<FormatResult>("POST", "api/ide/transpile", { source, path }),
+  doc: (source: string) =>
+    jsonFetch<{ docs: DocComment[] }>("POST", "api/ide/doc", { source }).then((r) => r.docs || []),
   eval: (req: { expr: string; repr?: boolean; source?: string; path?: string }) =>
     jsonFetch<EvalResult>("POST", "api/ide/eval", req),
   diagnose: (source: string) =>
