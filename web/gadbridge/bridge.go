@@ -7,6 +7,7 @@ package gadbridge
 import (
 	"bytes"
 	"errors"
+	"strings"
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/parser"
@@ -103,6 +104,35 @@ func Transpile(src string, mixed bool, opts *node.TranspileOptions) FormatResult
 		out += "\n"
 	}
 	return FormatResult{OK: true, Source: out}
+}
+
+// EvalSource builds a runnable script that evaluates expr (rendered by render,
+// "str" or "repr") in the context of an optional prelude. Top-level `return`
+// statements in the prelude are dropped so the file's definitions stay in scope
+// but the file's own return value does not short-circuit the evaluation. An
+// unparseable prelude is used as-is so the compile error surfaces.
+func EvalSource(prelude, expr, render string) string {
+	body := ""
+	if strings.TrimSpace(prelude) != "" {
+		if file, err := parseSource(prelude); err == nil {
+			var kept node.Stmts
+			for _, s := range file.Stmts {
+				if _, ok := s.(*node.ReturnStmt); ok {
+					continue
+				}
+				kept = append(kept, s)
+			}
+			body = node.Code(kept,
+				node.CodeWithFlags(node.CodeWriteContextFlagFormat),
+				node.CodeWithPrefix("\t"))
+		} else {
+			body = prelude
+		}
+	}
+	if body != "" && !strings.HasSuffix(body, "\n") {
+		body += "\n"
+	}
+	return body + "return " + render + "(" + expr + ")\n"
 }
 
 // Diagnose returns the syntax and compile diagnostics for src (empty when the

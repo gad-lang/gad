@@ -100,17 +100,10 @@ func (s *Server) handleEval(w http.ResponseWriter, r *http.Request) {
 	if req.Repr {
 		render = "repr"
 	}
-	// Prepend the file context (if any), then return the rendered expression.
-	var b strings.Builder
-	if req.Source != "" {
-		b.WriteString(req.Source)
-		b.WriteByte('\n')
-	}
-	b.WriteString("return ")
-	b.WriteString(render)
-	b.WriteByte('(')
-	b.WriteString(req.Expr)
-	b.WriteString(")\n")
+	// Build the evaluation script: the file context's top-level returns are
+	// stripped so its definitions are in scope but its return value does not mask
+	// the expression result.
+	script := gadbridge.EvalSource(req.Source, req.Expr, render)
 
 	workdir := s.Root
 	if req.Path != "" {
@@ -119,7 +112,7 @@ func (s *Server) handleEval(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	res := s.run(b.String(), workdir, runRequest{Disabled: req.Disabled, Safe: req.Safe})
+	res := s.run(script, workdir, runRequest{Disabled: req.Disabled, Safe: req.Safe})
 	out := evalResult{OK: res.OK, Stdout: res.Stdout}
 	if res.OK {
 		out.Value = res.Result

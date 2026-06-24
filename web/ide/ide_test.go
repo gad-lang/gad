@@ -191,6 +191,24 @@ func TestEval(t *testing.T) {
 		t.Fatalf("eval with prelude = %+v", res)
 	}
 
+	// A prelude that ends with a top-level `return` must not mask the expression
+	// result (regression: the file's return short-circuited the eval).
+	w = do(t, h, "POST", "/api/ide/eval", evalRequest{
+		Source: "i := 42\nreturn [i]\n", Expr: "1 + 1",
+	})
+	res = decode[evalResult](t, w)
+	if !res.OK || res.Value != "2" {
+		t.Fatalf("eval past prelude return = %+v (want 2)", res)
+	}
+	// Definitions from such a prelude stay in scope.
+	w = do(t, h, "POST", "/api/ide/eval", evalRequest{
+		Source: "i := 42\nreturn [i]\n", Expr: "i",
+	})
+	res = decode[evalResult](t, w)
+	if !res.OK || res.Value != "42" {
+		t.Fatalf("eval prelude def in scope = %+v (want 42)", res)
+	}
+
 	// An error expression reports !ok with a message.
 	w = do(t, h, "POST", "/api/ide/eval", evalRequest{Expr: "1 +"})
 	res = decode[evalResult](t, w)
