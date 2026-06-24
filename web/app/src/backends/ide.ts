@@ -32,6 +32,13 @@ export interface RunConfig {
   combine?: boolean;
 }
 
+export interface EvalResult {
+  ok: boolean;
+  value: string;
+  error: string;
+  stdout: string;
+}
+
 export interface DebugFrame {
   name: string;
   file: string;
@@ -96,6 +103,8 @@ export const ideApi = {
   format: (source: string) => jsonFetch<FormatResult>("POST", "api/ide/format", { source }),
   transpile: (source: string, path?: string) =>
     jsonFetch<FormatResult>("POST", "api/ide/transpile", { source, path }),
+  eval: (req: { expr: string; repr?: boolean; source?: string; path?: string }) =>
+    jsonFetch<EvalResult>("POST", "api/ide/eval", req),
   diagnose: (source: string) =>
     jsonFetch<{ diagnostics: GadDiagnostic[] }>("POST", "api/ide/diagnose", { source }).then(
       (r) => r.diagnostics || [],

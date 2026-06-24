@@ -13,6 +13,10 @@ verification for full sign-off.
 - [x] Explorer: "get file from web" backend (`/api/ide/fetch`, URL → workspace path).
 - [x] Transpile: `gadbridge.Transpile` + `/api/ide/transpile`, config-driven `TranspileOptions`.
 - [x] Settings dialog: Transpile options (writeFunc, rawStrFunc start/end → `.gad.yaml`).
+- [x] Editor controls: reload-from-disk, undo, redo buttons.
+- [x] Error dialog when a backend request fails (status line + modal, copyable).
+- [x] Evaluate panel: add/edit/remove expressions, repr flag, output dialog, copy,
+      re-eval on debug step. Backend `/api/ide/eval` (standalone, file as prelude).
 
 ## To do
 - [ ] Diagnose why the gad codemirror plugin "isn't working" in the IDE and fix it.
@@ -24,14 +28,11 @@ verification for full sign-off.
 - [ ] Breakpoints panel: per-entry remove button; click opens the breakpoint
       dialog; double-click navigates to the location.
 - [ ] Tooltip for builtin-value identifiers in the gad editor.
-- [ ] Evaluate panel: add-expression form (expr, `repr` flag, `+`), list with
-      per-row edit / trash / output-dialog / copy; re-evaluate on debug step.
-      (needs a backend evaluate endpoint, ideally debug-session aware.)
-- [ ] File editor controls: "reload from disk" button.
-- [ ] File editor controls: undo / redo buttons.
+- [ ] Evaluate panel: debug-session-aware eval (run in the paused frame's scope,
+      not a fresh VM) — needs a `debug.Engine` eval hook. (panel + standalone
+      eval done; this is the frame-scope upgrade.)
 - [ ] Multi-format editors: JSON, YAML, HTML, CSS, SCSS, JS (TS/JSX); plain-text
       fallback for other types.
-- [ ] Error dialog when a backend request fails.
 - [ ] Tooltip: copy-to-clipboard button on the gad editor hover tooltip.
 - [ ] codemirror plugin: editor features (autocomplete, etc.) inside template strings.
 - [ ] Right closable panel rendering the current file's doc comments; reloads 5s

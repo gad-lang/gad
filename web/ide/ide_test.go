@@ -167,6 +167,45 @@ func TestTranspile(t *testing.T) {
 	}
 }
 
+func TestEval(t *testing.T) {
+	_, h, _ := newTestServer(t)
+
+	// Plain expression, str() rendering.
+	w := do(t, h, "POST", "/api/ide/eval", evalRequest{Expr: "2 + 3 * 4"})
+	res := decode[evalResult](t, w)
+	if !res.OK || res.Value != "14" {
+		t.Fatalf("eval 2+3*4 = %+v", res)
+	}
+
+	// repr() rendering uses Gad's repr form (type-tagged), unlike str().
+	w = do(t, h, "POST", "/api/ide/eval", evalRequest{Expr: `"hi"`, Repr: true})
+	res = decode[evalResult](t, w)
+	if !res.OK || !strings.Contains(res.Value, `"hi"`) || res.Value == "hi" {
+		t.Fatalf("repr eval = %+v (want a repr form containing \"hi\")", res)
+	}
+
+	// Source prelude provides context.
+	w = do(t, h, "POST", "/api/ide/eval", evalRequest{Source: "x := 21", Expr: "x * 2"})
+	res = decode[evalResult](t, w)
+	if !res.OK || res.Value != "42" {
+		t.Fatalf("eval with prelude = %+v", res)
+	}
+
+	// An error expression reports !ok with a message.
+	w = do(t, h, "POST", "/api/ide/eval", evalRequest{Expr: "1 +"})
+	res = decode[evalResult](t, w)
+	if res.OK || res.Error == "" {
+		t.Fatalf("eval of bad expr should fail: %+v", res)
+	}
+
+	// Empty expression is rejected.
+	w = do(t, h, "POST", "/api/ide/eval", evalRequest{Expr: "  "})
+	res = decode[evalResult](t, w)
+	if res.OK {
+		t.Fatalf("empty expr should not be ok: %+v", res)
+	}
+}
+
 func TestFetch(t *testing.T) {
 	_, h, dir := newTestServer(t)
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

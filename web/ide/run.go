@@ -2,10 +2,10 @@ package ide
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
-
 	"strings"
 
 	"github.com/gad-lang/gad"
@@ -56,6 +56,81 @@ func buildModuleMap(workdir string, disabled []string, safe bool) *gad.ModuleMap
 // handleModules lists the toggleable builtin modules.
 func (s *Server) handleModules(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, builtinModules)
+}
+
+// evalRequest evaluates a single expression for the Evaluate panel. Source, when
+// set, is prepended as context (the file's top-level definitions); the result is
+// rendered with repr() when Repr is set, otherwise str().
+type evalRequest struct {
+	Expr     string   `json:"expr"`
+	Repr     bool     `json:"repr"`
+	Source   string   `json:"source"`   // optional prelude (file context)
+	Path     string   `json:"path"`     // for relative imports
+	Disabled []string `json:"disabled"` // builtin modules to disable
+	Safe     bool     `json:"safe"`
+}
+
+// evalResult is the outcome of evaluating an expression.
+type evalResult struct {
+	OK     bool   `json:"ok"`
+	Value  string `json:"value"`
+	Error  string `json:"error"`
+	Stdout string `json:"stdout"` // output produced while evaluating (prelude side effects)
+}
+
+// handleEval evaluates an expression in a fresh VM (optionally seeded with the
+// file as a prelude) and returns its str()/repr() rendering. It does not run in a
+// paused debug frame — the panel re-requests on step to refresh.
+func (s *Server) handleEval(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req evalRequest
+	if err := decodeBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if strings.TrimSpace(req.Expr) == "" {
+		writeJSON(w, evalResult{OK: false, Error: "empty expression"})
+		return
+	}
+
+	render := "str"
+	if req.Repr {
+		render = "repr"
+	}
+	// Prepend the file context (if any), then return the rendered expression.
+	var b strings.Builder
+	if req.Source != "" {
+		b.WriteString(req.Source)
+		b.WriteByte('\n')
+	}
+	b.WriteString("return ")
+	b.WriteString(render)
+	b.WriteByte('(')
+	b.WriteString(req.Expr)
+	b.WriteString(")\n")
+
+	workdir := s.Root
+	if req.Path != "" {
+		if abs, err := s.resolve(req.Path); err == nil {
+			workdir = filepath.Dir(abs)
+		}
+	}
+
+	res := s.run(b.String(), workdir, runRequest{Disabled: req.Disabled, Safe: req.Safe})
+	out := evalResult{OK: res.OK, Stdout: res.Stdout}
+	if res.OK {
+		out.Value = res.Result
+	} else {
+		out.Error = res.Stderr
+		if out.Error == "" && len(res.Diagnostics) > 0 {
+			d := res.Diagnostics[0]
+			out.Error = fmt.Sprintf("%d:%d %s", d.Line, d.Column, d.Message)
+		}
+	}
+	writeJSON(w, out)
 }
 
 // formatRequest carries source for format/diagnose.

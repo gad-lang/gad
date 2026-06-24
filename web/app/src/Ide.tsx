@@ -27,6 +27,9 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import UndoIcon from "@mui/icons-material/Undo";
 import RedoIcon from "@mui/icons-material/Redo";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import OutputIcon from "@mui/icons-material/Notes";
 
 /** copyText writes text to the clipboard, ignoring failures (e.g. no permission). */
 function copyText(text: string): void {
@@ -42,6 +45,7 @@ import {
   type TreeNode,
   type Workspace,
 } from "./backends/ide";
+// EvalResult is referenced indirectly through ideApi.eval; no direct import needed.
 
 interface OpenTab {
   path: string;
@@ -50,7 +54,16 @@ interface OpenTab {
   runCfg: RunConfig;
 }
 
-type Pane = "output" | "stack" | "locals" | "breakpoints";
+type Pane = "output" | "stack" | "locals" | "breakpoints" | "evaluate";
+
+/** One entry in the Evaluate panel. */
+interface EvalEntry {
+  id: number;
+  expr: string;
+  repr: boolean;
+  value: string;
+  error: string;
+}
 
 const emptyRunCfg = (): RunConfig => ({ args: [], disabled: [], safe: false, saveOut: "" });
 
@@ -97,6 +110,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [removeTarget, setRemoveTarget] = useState<TreeNode | null>(null);
   const [pendingRunPath, setPendingRunPath] = useState<string | null>(null);
   const [errorDialog, setErrorDialog] = useState<{ title: string; detail: string } | null>(null);
+  const [evals, setEvals] = useState<EvalEntry[]>([]);
+  const [outputDialog, setOutputDialog] = useState<{ title: string; text: string } | null>(null);
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [tabs, setTabs] = useState<OpenTab[]>([]);
@@ -227,6 +242,43 @@ export function Ide({ workspace }: { workspace: Workspace }) {
 
   function onEdit(value: string) {
     setTabs((ts) => ts.map((t, i) => (i === active ? { ...t, content: value, saved: false } : t)));
+  }
+
+  // --- Evaluate panel -------------------------------------------------------
+
+  // evalOne evaluates a single expression entry against the active file as
+  // context and returns the updated entry.
+  const evalOne = useCallback(
+    async (entry: EvalEntry): Promise<EvalEntry> => {
+      try {
+        const res = await ideApi.eval({
+          expr: entry.expr,
+          repr: entry.repr,
+          source: editorRef.current?.getValue() ?? activeTab?.content ?? "",
+          path: activeTab?.path,
+        });
+        return res.ok
+          ? { ...entry, value: res.value, error: "" }
+          : { ...entry, value: "", error: res.error || "error" };
+      } catch (e) {
+        return { ...entry, value: "", error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+    [activeTab],
+  );
+
+  // Re-evaluate every entry (used on add and whenever the debugger steps).
+  const evalAll = useCallback(async () => {
+    setEvals((cur) => {
+      void Promise.all(cur.map(evalOne)).then(setEvals);
+      return cur;
+    });
+  }, [evalOne]);
+
+  async function addEval(expr: string, repr: boolean) {
+    const entry: EvalEntry = { id: Date.now(), expr, repr, value: "", error: "" };
+    const evaluated = await evalOne(entry);
+    setEvals((cur) => [...cur, evaluated]);
   }
 
   // Reload the active file from disk, discarding unsaved edits (after a confirm
@@ -463,6 +515,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       setDebugLoc({ line: res.line ?? 0, column: res.column ?? 1 });
       setStatus(`stopped (${res.reason}) at line ${res.line}`);
       setPane("stack");
+      // Refresh the Evaluate panel against the new program state.
+      void evalAll();
     } else if (res.state === "terminated") {
       if (res.result) setOutput((o) => o + "\n⇦ " + res.result + "\n");
       if (res.error) setOutput((o) => o + "\n" + res.error + "\n");
@@ -743,7 +797,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
 
           <div className="panes">
             <div className="pane-tabs">
-              {(["output", "stack", "locals", "breakpoints"] as Pane[]).map((p) => (
+              {(["output", "stack", "locals", "breakpoints", "evaluate"] as Pane[]).map((p) => (
                 <button key={p} className={pane === p ? "on" : ""} onClick={() => setPane(p)}>
                   {p === "output"
                     ? "Output"
@@ -751,7 +805,9 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                       ? "Call stack"
                       : p === "locals"
                         ? "Locals"
-                        : "Breakpoints"}
+                        : p === "breakpoints"
+                          ? "Breakpoints"
+                          : "Evaluate"}
                 </button>
               ))}
               <span className="spacer" />
@@ -844,6 +900,21 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                 )}
               </div>
             )}
+            {pane === "evaluate" && (
+              <EvaluatePanel
+                entries={evals}
+                onAdd={addEval}
+                onUpdate={async (id, expr, repr) => {
+                  const updated = await evalOne({ id, expr, repr, value: "", error: "" });
+                  setEvals((cur) => cur.map((e) => (e.id === id ? updated : e)));
+                }}
+                onRemove={(id) => setEvals((cur) => cur.filter((e) => e.id !== id))}
+                onShowOutput={(e) =>
+                  setOutputDialog({ title: e.expr, text: e.error || e.value })
+                }
+                onCopy={copyText}
+              />
+            )}
           </div>
         </section>
       </div>
@@ -897,6 +968,30 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           onClose={() => setRemoveTarget(null)}
           onConfirm={confirmRemove}
         />
+      )}
+      {outputDialog && (
+        <Dialog open onClose={() => setOutputDialog(null)} maxWidth="md" fullWidth>
+          <DialogTitle>{outputDialog.title}</DialogTitle>
+          <DialogContent dividers>
+            <TextField
+              multiline
+              fullWidth
+              minRows={6}
+              maxRows={20}
+              value={outputDialog.text}
+              slotProps={{
+                input: { readOnly: true, sx: { fontFamily: "ui-monospace, monospace", fontSize: ".85rem" } },
+              }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => copyText(outputDialog.text)}>Copy</Button>
+            <Box sx={{ flex: 1 }} />
+            <Button variant="contained" onClick={() => setOutputDialog(null)}>
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
       )}
       {errorDialog && (
         <Dialog open onClose={() => setErrorDialog(null)} maxWidth="sm" fullWidth>
@@ -1115,6 +1210,100 @@ function TreeView({
     >
       📄 {node.name}
       {contextMenu}
+    </div>
+  );
+}
+
+function EvaluatePanel({
+  entries,
+  onAdd,
+  onUpdate,
+  onRemove,
+  onShowOutput,
+  onCopy,
+}: {
+  entries: EvalEntry[];
+  onAdd: (expr: string, repr: boolean) => void;
+  onUpdate: (id: number, expr: string, repr: boolean) => void;
+  onRemove: (id: number) => void;
+  onShowOutput: (e: EvalEntry) => void;
+  onCopy: (text: string) => void;
+}) {
+  const [expr, setExpr] = useState("");
+  const [repr, setRepr] = useState(false);
+  const [editing, setEditing] = useState<number | null>(null);
+
+  const submit = () => {
+    const e = expr.trim();
+    if (!e) return;
+    if (editing !== null) {
+      onUpdate(editing, e, repr);
+      setEditing(null);
+    } else {
+      onAdd(e, repr);
+    }
+    setExpr("");
+    setRepr(false);
+  };
+
+  return (
+    <div className="pane-body eval">
+      <div className="eval-form">
+        <TextField
+          size="small"
+          fullWidth
+          placeholder="expression"
+          value={expr}
+          onChange={(ev) => setExpr(ev.target.value)}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter") submit();
+          }}
+        />
+        <FormControlLabel
+          control={<Checkbox size="small" checked={repr} onChange={(ev) => setRepr(ev.target.checked)} />}
+          label="repr"
+        />
+        <IconButton size="small" title={editing !== null ? "Save" : "Add"} onClick={submit}>
+          {editing !== null ? <RefreshIcon fontSize="small" /> : <AddIcon fontSize="small" />}
+        </IconButton>
+      </div>
+      <table className="eval-list">
+        <tbody>
+          {entries.map((e) => (
+            <tr key={e.id} className={e.error ? "err" : ""}>
+              <td className="eval-expr">{e.repr ? "repr " : ""}{e.expr}</td>
+              <td className="eval-val">{e.error || e.value}</td>
+              <td className="eval-actions">
+                <IconButton
+                  size="small"
+                  title="Edit"
+                  onClick={() => {
+                    setEditing(e.id);
+                    setExpr(e.expr);
+                    setRepr(e.repr);
+                  }}
+                >
+                  <EditIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+                <IconButton size="small" title="Output" onClick={() => onShowOutput(e)}>
+                  <OutputIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+                <IconButton size="small" title="Copy" onClick={() => onCopy(e.error || e.value)}>
+                  <ContentCopyIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+                <IconButton size="small" title="Remove" onClick={() => onRemove(e.id)}>
+                  <DeleteIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </td>
+            </tr>
+          ))}
+          {entries.length === 0 && (
+            <tr>
+              <td className="muted">(no expressions — add one above)</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -1430,6 +1619,15 @@ function IdeStyles() {
 table.locals td{padding:.1rem .5rem;border-bottom:1px solid var(--border);font-family:ui-monospace,monospace}
 table.locals td.locals-copy{padding:0;width:1.6rem;text-align:right;opacity:0;transition:opacity .1s}
 table.locals tr:hover td.locals-copy{opacity:.8}
+.eval{display:flex;flex-direction:column;gap:.4rem}
+.eval-form{display:flex;align-items:center;gap:.4rem;position:sticky;top:0;background:var(--panel);padding-bottom:.3rem}
+table.eval-list{width:100%;border-collapse:collapse}
+table.eval-list td{padding:.15rem .4rem;border-bottom:1px solid var(--border);font-family:ui-monospace,monospace;vertical-align:top}
+table.eval-list td.eval-expr{white-space:nowrap;color:var(--muted)}
+table.eval-list td.eval-val{white-space:pre-wrap;word-break:break-word}
+table.eval-list tr.err td.eval-val{color:#e5484d}
+table.eval-list td.eval-actions{width:7rem;text-align:right;white-space:nowrap;opacity:.3;transition:opacity .1s}
+table.eval-list tr:hover td.eval-actions{opacity:.9}
 .bp-scope{display:flex;gap:.3rem;margin-bottom:.4rem}
 .bp-scope button.on{background:var(--accent);color:#fff}
 .bp-group{margin-bottom:.5rem}
