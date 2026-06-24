@@ -10,6 +10,8 @@ export const keywords: string[] = [
   // and is highlighted by the same tokenizer.
   "begin", "end", "code",
   "or", "is",
+  // added by update plugin
+  "ain", "met", "meti", "prop", "with",
 ];
 
 export const atoms: string[] = ["true", "false", "yes", "no", "nil"];

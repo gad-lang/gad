@@ -33,7 +33,3 @@
   features (auto complete etc) on
   edit code/expression in template strings.
   add right closable panel to render doc comments of current editing file. it reloads 5s after edit or now (with reload button). 
-- [ ] create command cmd/update-codemirror-plugin to update codemirror-gad plugin with language changes
-      after last codemirror plugin updates by git log.
-- [ ] create command cmd/update-prism-plugin to update prism-gad plugin with language changes
-  after last prism-gad plugin updates by git log.

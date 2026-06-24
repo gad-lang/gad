@@ -15,6 +15,8 @@ const keywords = [
   "import", "embed", "raw", "template",
   // `code … end` code-string fences; the body between them is itself Gad source.
   "begin", "end", "code", "or", "is",
+  // added by update plugin
+  "ain", "met", "meti", "prop", "with",
 ];
 
 const atoms = ["true", "false", "yes", "no", "nil"];
