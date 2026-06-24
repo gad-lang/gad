@@ -19,8 +19,15 @@
       {
         "id": "gad",
         "aliases": ["Gad", "gad"],
-        "extensions": [".gad"],
+        "extensions": [".gad", ".gadt"],
         "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "gad",
+        "scopeName": "source.gad",
+        "path": "./syntaxes/gad.tmLanguage.json"
       }
     ],
     "breakpoints": [{ "language": "gad" }],
@@ -30,7 +37,12 @@
         "gad.path": {
           "type": "string",
           "default": "gad",
-          "description": "Path to the `gad` executable used for debugging."
+          "description": "Path to the `gad` executable used for debugging and formatting."
+        },
+        "gad.format.useConfig": {
+          "type": "boolean",
+          "default": true,
+          "description": "Apply the workspace `.gad.yaml` `fmt`/`transpile` settings when formatting."
         }
       }
     },

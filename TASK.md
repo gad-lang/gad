@@ -92,6 +92,11 @@ verification for full sign-off.
 ## Editor plugins (separate)
 (none — keyword/builtin sync commands shipped via cmd/update-*-plugin.)
 
-- [ ] create cmd/update-*-plugin to update vscode plugin. add config to set `gad` binary path and settings of `.gad.yaml`.
-  full debugger support, evaluation, etc (like IDE)
+- [~] VS Code plugin: cmd/update-vscode-plugin generates a TextMate grammar
+      (was missing — no highlighting) from the shared vocabulary; package.json
+      gains the grammars contribution, .gadt ext, and a gad.format.useConfig
+      setting (gad.path existed). DAP gained EvaluateRequest (Watch/Console/hover
+      via EvalInFrame) and conditional breakpoints. Tested: TestTextMateGrammar,
+      TestDAPSession (evaluate). TODO: format-on-save / .gad.yaml-driven format
+      command, and richer IDE-like panels (inspect/doc) inside VS Code.
 - [ ] create plugin like vscode to JetBrains.

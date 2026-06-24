@@ -1,0 +1,139 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Gad",
+  "scopeName": "source.gad",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#specials"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.documentation.gad",
+          "begin": "/\\?\\?\\?",
+          "end": "\\?\\?\\?"
+        },
+        {
+          "name": "comment.block.documentation.gad",
+          "begin": "/\\?\\?",
+          "end": "\\?\\?"
+        },
+        {
+          "name": "comment.line.documentation.gad",
+          "match": "/\\?.*$"
+        },
+        {
+          "name": "comment.line.double-slash.gad",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.gad",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.gad",
+          "match": "\\b(?:deferb_err|defer_err|deferb_ok|continue|defer_ok|finally|export|deferb|global|import|return|const|break|defer|catch|match|param|embed|throw|func|prop|else|meti|with|raw|ain|for|try|var|met|in|if)\\b"
+        },
+        {
+          "name": "constant.language.gad",
+          "match": "\\b(?:false|true|nil|yes|no)\\b"
+        },
+        {
+          "name": "constant.language.gad",
+          "match": "\\b(?:STDERR|STDOUT|STDIN)\\b"
+        },
+        {
+          "name": "support.function.gad",
+          "match": "\\b(?:namedParamTypeCheck|iteratorInput|vmPushWriter|vmPopWriter|sortReverse|isSyncDict|implements|isCallable|isFunction|isIterable|isIterator|addMethod|enumerate|rawCaller|typeName|userData|isRawStr|contains|collect|obstart|println|isArray|isBytes|sprintf|toArray|globals|isError|iterate|isFloat|filter|reduce|repeat|isUint|isBool|delete|append|typeof|isChar|values|printf|isDict|dcopy|items|isInt|close|stdio|Class|obend|isNil|print|chars|isStr|flush|write|copy|repr|sort|each|cast|read|wrap|keys|cap|len|map|is)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.gad",
+          "match": "\\b0[xX][0-9a-fA-F]+\\b|\\b\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?[uUdD]?\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.gad",
+          "match": "\\?\\?=?|\\.\\.|=\u003e|:=|\\|\\||\u0026\u0026|\\*\\*=?|\u003c\u003c\u003c?=?|\u003e\u003e\u003e?=?|\u0026\\^=?|%%=?|===?|!==?|[-+*/%\u0026|^!\u003c\u003e=]=?|[~?:]"
+        }
+      ]
+    },
+    "specials": {
+      "patterns": [
+        {
+          "name": "variable.language.gad",
+          "match": "@[A-Za-z_$][\\w$]*"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.gad",
+          "begin": "\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.quoted.raw.gad",
+          "begin": "```",
+          "end": "```"
+        },
+        {
+          "name": "string.quoted.double.gad",
+          "begin": "[bh]?\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.gad",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.raw.gad",
+          "begin": "[bh]?`",
+          "end": "`"
+        },
+        {
+          "name": "string.quoted.single.gad",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.gad",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
