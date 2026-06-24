@@ -152,6 +152,39 @@ func TestContinueNoBreakpoints(t *testing.T) {
 	}
 }
 
+func TestEvalInFrame(t *testing.T) {
+	const src = "a := 6\nb := 7\nc := a * b\nreturn c\n" // lines 1..4
+	eng := debug.New(false)
+	eng.SetBreakpoints([]int{3}) // a and b assigned, c not yet
+	out := run(t, compile(t, src), eng)
+
+	ev := waitStop(t, eng)
+	if ev.Line != 3 {
+		t.Fatalf("expected stop at line 3, got %+v", ev)
+	}
+
+	// Evaluate an expression using the paused frame's locals.
+	if v, err := eng.EvalInFrame("a * b", false); err != nil || v != "42" {
+		t.Fatalf("EvalInFrame(a*b) = %q, %v (want 42)", v, err)
+	}
+	// repr renders the Gad repr form.
+	if v, err := eng.EvalInFrame("a", true); err != nil || v == "6" || v == "" {
+		t.Fatalf("EvalInFrame(a, repr) = %q, %v (want a repr form)", v, err)
+	}
+
+	eng.Continue()
+	if r := waitResult(t, out); r.(gad.Int) != 42 {
+		t.Fatalf("expected 42, got %v", r)
+	}
+}
+
+func TestEvalInFrameNotPaused(t *testing.T) {
+	eng := debug.New(false)
+	if _, err := eng.EvalInFrame("1 + 1", false); err == nil {
+		t.Fatal("EvalInFrame should error when not paused")
+	}
+}
+
 func TestDisabledBreakpoint(t *testing.T) {
 	const src = "a := 1\nb := 2\nreturn a + b\n" // lines 1..3
 	eng := debug.New(false)

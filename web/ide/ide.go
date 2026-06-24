@@ -126,6 +126,7 @@ func (s *Server) Handler() http.Handler {
 	// Debug (shares the request/response protocol used by web/server).
 	mux.HandleFunc("/api/ide/debug/start", postOnly(s.dbg.HandleStart))
 	mux.HandleFunc("/api/ide/debug/command", postOnly(s.dbg.HandleCommand))
+	mux.HandleFunc("/api/ide/debug/eval", postOnly(s.dbg.HandleEval))
 
 	if s.Static != "" {
 		mux.Handle("/", spaFileServer(s.Static))

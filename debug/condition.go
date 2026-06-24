@@ -1,6 +1,8 @@
 package debug
 
 import (
+	"errors"
+
 	gad "github.com/gad-lang/gad"
 )
 
@@ -21,10 +23,43 @@ func (e *Engine) conditionMet(vm *gad.VM, bp Breakpoint) bool {
 	return ok
 }
 
-// evalCondition compiles `return (cond)` with the current frame's local
-// variables bound as globals and runs it in a fresh VM, returning whether the
-// result is truthy.
+// evalCondition reports whether `cond` is truthy in the paused frame's scope.
 func evalCondition(vm *gad.VM, cond string) (bool, error) {
+	ret, err := evalInFrame(vm, "return ("+cond+")")
+	if err != nil {
+		return false, err
+	}
+	return ret != nil && !ret.IsFalsy(), nil
+}
+
+// EvalInFrame evaluates expr against the paused frame's locals and returns the
+// result rendered with str() (or repr() when repr is set). It is valid only
+// while the engine is parked at a stop; otherwise it returns an error.
+func (e *Engine) EvalInFrame(expr string, repr bool) (string, error) {
+	e.mu.Lock()
+	vm := e.vm
+	e.mu.Unlock()
+	if vm == nil {
+		return "", errors.New("no paused frame")
+	}
+	render := "str"
+	if repr {
+		render = "repr"
+	}
+	ret, err := evalInFrame(vm, "return "+render+"("+expr+")")
+	if err != nil {
+		return "", err
+	}
+	if ret == nil {
+		return "", nil
+	}
+	return ret.ToString(), nil
+}
+
+// evalInFrame compiles src with the current frame's local variables bound as
+// globals and runs it in a fresh VM, returning the result object. The locals are
+// a snapshot, so the evaluation cannot mutate the debugged program's state.
+func evalInFrame(vm *gad.VM, src string) (gad.Object, error) {
 	names := vm.DebugLocalNames()
 	objs := vm.DebugLocals()
 
@@ -45,14 +80,9 @@ func evalCondition(vm *gad.VM, cond string) (bool, error) {
 		}
 	}
 
-	src := "return (" + cond + ")"
 	_, bc, err := gad.Compile(st, []byte(src), gad.CompileOptions{})
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	ret, err := gad.NewVM(builtins.Build(), bc).RunOpts(&gad.RunOpts{Globals: globals})
-	if err != nil {
-		return false, err
-	}
-	return ret != nil && !ret.IsFalsy(), nil
+	return gad.NewVM(builtins.Build(), bc).RunOpts(&gad.RunOpts{Globals: globals})
 }

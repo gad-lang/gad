@@ -255,6 +255,36 @@ func (m *DebugManager) HandleCommand(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, resp)
 }
 
+// EvalRequest evaluates an expression in a paused session's current frame.
+type EvalRequest struct {
+	Session string `json:"session"`
+	Expr    string `json:"expr"`
+	Repr    bool   `json:"repr"`
+}
+
+// HandleEval evaluates an expression against the paused frame's locals, so the
+// Evaluate panel reflects the live debug state (not a fresh standalone VM).
+func (m *DebugManager) HandleEval(w http.ResponseWriter, r *http.Request) {
+	var req EvalRequest
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+	m.mu.Lock()
+	sess := m.sessions[req.Session]
+	m.mu.Unlock()
+	if sess == nil {
+		writeJSON(w, map[string]any{"ok": false, "error": "unknown or finished session"})
+		return
+	}
+	value, err := sess.eng.EvalInFrame(req.Expr, req.Repr)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "value": value})
+}
+
 func (m *DebugManager) remove(id string) {
 	m.mu.Lock()
 	delete(m.sessions, id)

@@ -142,6 +142,12 @@ export const ideApi = {
   }) => jsonFetch<DebugResponse>("POST", "api/ide/debug/start", req),
   dbgCmd: (session: string, command: string) =>
     jsonFetch<DebugResponse>("POST", "api/ide/debug/command", { session, command }),
+  dbgEval: (session: string, expr: string, repr: boolean) =>
+    jsonFetch<{ ok: boolean; value?: string; error?: string }>("POST", "api/ide/debug/eval", {
+      session,
+      expr,
+      repr,
+    }),
 };
 
 /** probeIde resolves true when the IDE backend is reachable (served by gad ide). */

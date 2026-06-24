@@ -436,6 +436,32 @@ func TestDebugConditionalBreakpoint(t *testing.T) {
 	}
 }
 
+func TestDebugEvalInFrame(t *testing.T) {
+	_, h, _ := newTestServer(t)
+	src := "a := 6\nb := 7\nc := a * b\nreturn c\n"
+	resp := decode[DebugResponse](t, do(t, h, "POST", "/api/ide/debug/start",
+		StartRequest{Source: src, Breakpoints: []int{3}}))
+	if resp.State != "stopped" {
+		t.Fatalf("expected stopped, got %+v", resp)
+	}
+
+	// Evaluate using the paused frame's locals (a, b are set; c is not).
+	ev := decode[map[string]any](t, do(t, h, "POST", "/api/ide/debug/eval",
+		EvalRequest{Session: resp.Session, Expr: "a * b"}))
+	if ev["ok"] != true || ev["value"] != "42" {
+		t.Fatalf("debug eval a*b = %+v (want 42)", ev)
+	}
+
+	// An unknown identifier surfaces an error, not a crash.
+	ev = decode[map[string]any](t, do(t, h, "POST", "/api/ide/debug/eval",
+		EvalRequest{Session: resp.Session, Expr: "nope + 1"}))
+	if ev["ok"] != false || ev["error"] == "" {
+		t.Fatalf("debug eval of unknown ident should fail: %+v", ev)
+	}
+
+	do(t, h, "POST", "/api/ide/debug/command", CommandRequest{Session: resp.Session, Command: "continue"})
+}
+
 func TestDebugResolvesBuiltinModule(t *testing.T) {
 	_, h, _ := newTestServer(t)
 	// A debug session must resolve stdlib imports (regression: "module time not

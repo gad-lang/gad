@@ -35,9 +35,11 @@ verification for full sign-off.
 - [ ] Breakpoints panel: double-click an entry to navigate to its location
       (remove button + click-to-edit-condition done).
 - [ ] Tooltip for builtin-value identifiers in the gad editor.
-- [ ] Evaluate panel: debug-session-aware eval (run in the paused frame's scope,
-      not a fresh VM) — needs a `debug.Engine` eval hook. (panel + standalone
-      eval done; this is the frame-scope upgrade.)
+- [x] Evaluate panel: debug-session-aware eval. debug.Engine.EvalInFrame
+      evaluates against the paused frame's locals; /api/ide/debug/eval exposes
+      it; the panel routes through it while a session is paused (and re-evaluates
+      on each step via a debugLoc effect), falling back to standalone eval
+      otherwise.
 - [ ] Multi-format editors: JSON, YAML, HTML, CSS, SCSS, JS (TS/JSX); plain-text
       fallback for other types.
 - [ ] Tooltip: copy-to-clipboard button on the gad editor hover tooltip.

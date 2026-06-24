@@ -290,25 +290,28 @@ export function Ide({ workspace }: { workspace: Workspace }) {
 
   // --- Evaluate panel -------------------------------------------------------
 
-  // evalOne evaluates a single expression entry against the active file as
-  // context and returns the updated entry.
+  // evalOne evaluates a single expression entry and returns the updated entry.
+  // While a debug session is paused it evaluates in the live frame's scope;
+  // otherwise it runs standalone against the active file as context.
   const evalOne = useCallback(
     async (entry: EvalEntry): Promise<EvalEntry> => {
       try {
-        const res = await ideApi.eval({
-          expr: entry.expr,
-          repr: entry.repr,
-          source: editorRef.current?.getValue() ?? activeTab?.content ?? "",
-          path: activeTab?.path,
-        });
+        const res = debug
+          ? await ideApi.dbgEval(debug.session, entry.expr, entry.repr)
+          : await ideApi.eval({
+              expr: entry.expr,
+              repr: entry.repr,
+              source: editorRef.current?.getValue() ?? activeTab?.content ?? "",
+              path: activeTab?.path,
+            });
         return res.ok
-          ? { ...entry, value: res.value, error: "" }
+          ? { ...entry, value: res.value ?? "", error: "" }
           : { ...entry, value: "", error: res.error || "error" };
       } catch (e) {
         return { ...entry, value: "", error: e instanceof Error ? e.message : String(e) };
       }
     },
-    [activeTab],
+    [activeTab, debug],
   );
 
   // Re-evaluate every entry (used on add and whenever the debugger steps).
@@ -324,6 +327,14 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     const evaluated = await evalOne(entry);
     setEvals((cur) => [...cur, evaluated]);
   }
+
+  // Refresh the Evaluate panel whenever the debugger stops at a new location
+  // (debugLoc changes per step). Runs after state settles, so evalOne sees the
+  // current debug session and evaluates in the live frame.
+  useEffect(() => {
+    if (debug) void evalAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debugLoc]);
 
   // Reload the active file from disk, discarding unsaved edits (after a confirm
   // when the buffer is dirty).
@@ -565,8 +576,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       setStatus(`stopped (${res.reason}) at ${stopFile}:${res.line}`);
       setPane("stack");
       if (stopFile && stopFile !== activeTab?.path) void openFile(stopFile);
-      // Refresh the Evaluate panel against the new program state.
-      void evalAll();
+      // The Evaluate panel refreshes via an effect on debugLoc (so it sees the
+      // just-updated debug session).
     } else if (res.state === "terminated") {
       if (res.result) setOutput((o) => o + "\n⇦ " + res.result + "\n");
       if (res.error) setOutput((o) => o + "\n" + res.error + "\n");
