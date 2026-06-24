@@ -4219,6 +4219,27 @@ func TestVMUnaryOverride(t *testing.T) {
 	testExpectRun(t, `return core.unOp(TUnaryOperatorNot, 0)`, nil, True)
 }
 
+func TestVMSelfAssignDispatch(t *testing.T) {
+	// Array's per-operator handlers: `+=` appends one value, `++=` extends.
+	testExpectRun(t, `a := [1, 2]; a += 3; return a`, nil,
+		Array{Int(1), Int(2), Int(3)})
+	testExpectRun(t, `a := [1, 2]; a ++= [3, 4]; return a`, nil,
+		Array{Int(1), Int(2), Int(3), Int(4)})
+
+	// Operators a type does not handle fall back to the binary operator.
+	testExpectRun(t, `n := 5; n *= 3; return n`, nil, Int(15))
+
+	// core.selfAssignOp is callable directly.
+	testExpectRun(t, `return core.selfAssignOp(TSelfAssignOperatorAdd, [1], 2)`, nil,
+		Array{Int(1), Int(2)})
+
+	// A met core.selfAssignOp override intercepts directly (not via the fallback).
+	testExpectRun(t, `
+		met core.selfAssignOp(_ TSelfAssignOperatorSub, a int, b int) { return a - b * 10 }
+		x := 100; x -= 3; return x
+	`, nil, Int(70))
+}
+
 func TestVMScopes(t *testing.T) {
 	// shadowed local variable
 	testExpectRun(t, `

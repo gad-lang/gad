@@ -70,16 +70,16 @@ func operatorUnaryMethod(c Call) (Object, error) {
 			operand.Type().Name() + "'")
 }
 
-// operatorSelfAssignMethod is the shared handler for `@selfAssignOperator`
-// overloads: it runs the left operand's SelfAssignOp and, when the operator is
-// not handled, falls back to the binary operator (mirroring the default).
+// operatorSelfAssignMethod is the shared handler for core.selfAssignOp
+// overloads: it dispatches to the left operand's per-operator
+// ObjectWith{Op}SelfAssignOperator implementation (selfAssignOpObject) and, when
+// the operator is not handled, falls back to the binary operator (so `x op= y`
+// runs as `x = x op y`).
 func operatorSelfAssignMethod(c Call) (Object, error) {
 	op := c.Args.Get(0).(SelfAssignOperatorType)
 	left, right := c.Args.Get(1), c.Args.Get(2)
-	if h, ok := left.(SelfAssignOperatorHandler); ok {
-		if ret, handled, err := h.SelfAssignOp(c.VM, op.Token(), right); err != nil || handled {
-			return ret, err
-		}
+	if ret, err, handled := selfAssignOpObject(c.VM, op, left, right); handled {
+		return ret, err
 	}
 	return c.VM.Builtins.Call(BuiltinBinaryOperator,
 		Call{VM: c.VM, Args: Args{{BinaryOperatorType(op), left, right}}})

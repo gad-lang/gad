@@ -1526,11 +1526,11 @@ func BuiltinSelfAssignOperatorFunc(c Call) (ret Object, err error) {
 
 	opType := op.Value.(SelfAssignOperatorType)
 
-	if left, ok := left.Value.(SelfAssignOperatorHandler); ok {
-		var handled bool
-		if ret, handled, err = left.SelfAssignOp(c.VM, opType.Token(), right.Value); err != nil || handled {
-			return
-		}
+	// Dispatch to the operand's per-operator ObjectWith{Op}SelfAssignOperator
+	// implementation (op_api.go); when unhandled, fall back to the binary
+	// operator so `x op= y` runs as `x = x op y`.
+	if r, e, handled := selfAssignOpObject(c.VM, opType, left.Value, right.Value); handled {
+		return r, e
 	}
 	c.Args = Args{{BinaryOperatorType(opType), left.Value, right.Value}}
 	return c.VM.Builtins.Call(BuiltinBinaryOperator, c)

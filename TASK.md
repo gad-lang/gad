@@ -33,9 +33,6 @@
   features (auto complete etc) on
   edit code/expression in template strings.
   add right closable panel to render doc comments of current editing file. it reloads 5s after edit or now (with reload button). 
-- [ ] update `mkoptypes` generator for `op_api.go` to generate interfaces of self assign operators.
-  with syntaxe `type ObjectWith[OPERATOR_NAME]SelfAssigOperator interface { SelfAssignOp[OPERATOR_NAME](vm *VM, value Object) (Object, error) }`.
-  change builtin function "core.selfAssignOp" methods (`AddMethod` API) to call `obj.SelfAssignOp(vm, value)`.
 - [ ] parse binary operator `ain`, like `in`, but accept `array` of values. (`A ain B`/`[...] ain B`).
   update `mkoptypes` generator for `op_api.go` to add interface of `ain` operator (`ArrayIn`.
   if `B` does not implements `ObjectWithArrayInBinOp` interface, but implements `ObjectWithInBinOp` takes

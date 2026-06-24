@@ -200,6 +200,26 @@ The same operators are also overridable from Gad with
 `met core.binOp(_ TBinaryOperator{Op}, left T, right U)` (see
 [Operators](operators.md)).
 
+Unary and self-assign operators follow the same pattern with their own generated
+interfaces:
+
+- Unary (`!`, `-`, `+`, `^`, `++`, `--`): `ObjectWith{Op}UnaryOperator` with
+  `UnOp{Op}(vm *gad.VM) (gad.Object, error)`. Logical NOT is universal (any value
+  falls back to its truthiness), so only override `UnOpNot` for a custom result.
+  Dispatch is `core.unOp` / `met core.unOp(_ TUnaryOperator{Op}, operand T)`.
+- Self-assign (`x op= y`): `ObjectWith{Op}SelfAssignOperator` with
+  `SelfAssignOp{Op}(vm *gad.VM, value gad.Object) (gad.Object, error)`. An
+  operator a type does not implement falls back to the binary operator (so
+  `x op= y` runs as `x = x op y`). Dispatch is `core.selfAssignOp` /
+  `met core.selfAssignOp(_ TSelfAssignOperator{Op}, left T, right U)`.
+
+```go
+// Array += v appends one value; ++= v extends.
+func (o Array) SelfAssignOpAdd(_ *gad.VM, value gad.Object) (gad.Object, error) {
+    return append(o, value), nil
+}
+```
+
 ## Reusing a VM
 
 A `VM` is reusable. After a run you can run again; `Clear` releases references

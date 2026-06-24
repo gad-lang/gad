@@ -1110,16 +1110,17 @@ func (f *BuiltinFunctionWithMethods) Print(state *PrinterState) (err error) {
 type Array []Object
 
 var (
-	_ Object                    = (Array)(nil)
-	_ LengthGetter              = (Array)(nil)
-	_ ToArrayAppenderObject     = (Array)(nil)
-	_ DeepCopier                = (Array)(nil)
-	_ Copier                    = (Array)(nil)
-	_ Sorter                    = (Array)(nil)
-	_ KeysGetter                = (Array)(nil)
-	_ ItemsGetter               = (Array)(nil)
-	_ SelfAssignOperatorHandler = (Array)(nil)
-	_ Printabler                = (Array)(nil)
+	_ Object                          = (Array)(nil)
+	_ LengthGetter                    = (Array)(nil)
+	_ ToArrayAppenderObject           = (Array)(nil)
+	_ DeepCopier                      = (Array)(nil)
+	_ Copier                          = (Array)(nil)
+	_ Sorter                          = (Array)(nil)
+	_ KeysGetter                      = (Array)(nil)
+	_ ItemsGetter                     = (Array)(nil)
+	_ ObjectWithAddSelfAssignOperator = (Array)(nil)
+	_ ObjectWithIncSelfAssignOperator = (Array)(nil)
+	_ Printabler                      = (Array)(nil)
 )
 
 func (o Array) Type() ObjectType {
@@ -1393,18 +1394,18 @@ func (o Array) AppendObjects(_ *VM, items ...Object) (Object, error) {
 	return o, nil
 }
 
-func (o Array) SelfAssignOp(vm *VM, tok token.Token, right Object) (ret Object, handled bool, err error) {
-	switch tok {
-	case token.Add:
-		return append(o, right), true, nil
-	case token.Inc:
-		var other Array
-		if other, err = ValuesOf(vm, right, &NamedArgs{}); err != nil {
-			return
-		}
-		return append(o, other...), true, nil
+// SelfAssignOpAdd handles `arr += v`: append the single value v.
+func (o Array) SelfAssignOpAdd(_ *VM, value Object) (Object, error) {
+	return append(o, value), nil
+}
+
+// SelfAssignOpInc handles `arr ++= v`: append the elements of v (spread).
+func (o Array) SelfAssignOpInc(vm *VM, value Object) (Object, error) {
+	other, err := ValuesOf(vm, value, &NamedArgs{})
+	if err != nil {
+		return nil, err
 	}
-	return
+	return append(o, other...), nil
 }
 
 // ObjectPtr represents a pointer variable.

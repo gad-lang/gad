@@ -439,3 +439,210 @@ func unOpObject(vm *VM, op UnaryOperatorType, operand Object) (ret Object, err e
 	}
 	return
 }
+
+// ObjectWithAddSelfAssignOperator is implemented by an object that handles
+// the `+=` self-assign operator as the left operand.
+type ObjectWithAddSelfAssignOperator interface {
+	SelfAssignOpAdd(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithIncSelfAssignOperator is implemented by an object that handles
+// the `++=` self-assign operator as the left operand.
+type ObjectWithIncSelfAssignOperator interface {
+	SelfAssignOpInc(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithSubSelfAssignOperator is implemented by an object that handles
+// the `-=` self-assign operator as the left operand.
+type ObjectWithSubSelfAssignOperator interface {
+	SelfAssignOpSub(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithDecSelfAssignOperator is implemented by an object that handles
+// the `--=` self-assign operator as the left operand.
+type ObjectWithDecSelfAssignOperator interface {
+	SelfAssignOpDec(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithMulSelfAssignOperator is implemented by an object that handles
+// the `*=` self-assign operator as the left operand.
+type ObjectWithMulSelfAssignOperator interface {
+	SelfAssignOpMul(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithPowSelfAssignOperator is implemented by an object that handles
+// the `**=` self-assign operator as the left operand.
+type ObjectWithPowSelfAssignOperator interface {
+	SelfAssignOpPow(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithQuoSelfAssignOperator is implemented by an object that handles
+// the `/=` self-assign operator as the left operand.
+type ObjectWithQuoSelfAssignOperator interface {
+	SelfAssignOpQuo(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithRemSelfAssignOperator is implemented by an object that handles
+// the `%=` self-assign operator as the left operand.
+type ObjectWithRemSelfAssignOperator interface {
+	SelfAssignOpRem(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithAndSelfAssignOperator is implemented by an object that handles
+// the `&=` self-assign operator as the left operand.
+type ObjectWithAndSelfAssignOperator interface {
+	SelfAssignOpAnd(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithOrSelfAssignOperator is implemented by an object that handles
+// the `|=` self-assign operator as the left operand.
+type ObjectWithOrSelfAssignOperator interface {
+	SelfAssignOpOr(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithXorSelfAssignOperator is implemented by an object that handles
+// the `^=` self-assign operator as the left operand.
+type ObjectWithXorSelfAssignOperator interface {
+	SelfAssignOpXor(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithShlSelfAssignOperator is implemented by an object that handles
+// the `<<=` self-assign operator as the left operand.
+type ObjectWithShlSelfAssignOperator interface {
+	SelfAssignOpShl(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithShrSelfAssignOperator is implemented by an object that handles
+// the `>>=` self-assign operator as the left operand.
+type ObjectWithShrSelfAssignOperator interface {
+	SelfAssignOpShr(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithTripleLessSelfAssignOperator is implemented by an object that handles
+// the `<<<=` self-assign operator as the left operand.
+type ObjectWithTripleLessSelfAssignOperator interface {
+	SelfAssignOpTripleLess(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithTripleGreaterSelfAssignOperator is implemented by an object that handles
+// the `>>>=` self-assign operator as the left operand.
+type ObjectWithTripleGreaterSelfAssignOperator interface {
+	SelfAssignOpTripleGreater(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithDoubleModSelfAssignOperator is implemented by an object that handles
+// the `%%=` self-assign operator as the left operand.
+type ObjectWithDoubleModSelfAssignOperator interface {
+	SelfAssignOpDoubleMod(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithAndNotSelfAssignOperator is implemented by an object that handles
+// the `&^=` self-assign operator as the left operand.
+type ObjectWithAndNotSelfAssignOperator interface {
+	SelfAssignOpAndNot(vm *VM, value Object) (Object, error)
+}
+
+// ObjectWithLOrSelfAssignOperator is implemented by an object that handles
+// the `||=` self-assign operator as the left operand.
+type ObjectWithLOrSelfAssignOperator interface {
+	SelfAssignOpLOr(vm *VM, value Object) (Object, error)
+}
+
+// selfAssignOpObject dispatches a self-assign operator to left's typed
+// ObjectWith{Op}SelfAssignOperator implementation. handled is false when left
+// does not implement the operator's interface.
+func selfAssignOpObject(vm *VM, op SelfAssignOperatorType, left, value Object) (ret Object, err error, handled bool) {
+	switch op.Token() {
+	case token.Add:
+		if h, ok := left.(ObjectWithAddSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpAdd(vm, value)
+			handled = true
+		}
+	case token.Inc:
+		if h, ok := left.(ObjectWithIncSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpInc(vm, value)
+			handled = true
+		}
+	case token.Sub:
+		if h, ok := left.(ObjectWithSubSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpSub(vm, value)
+			handled = true
+		}
+	case token.Dec:
+		if h, ok := left.(ObjectWithDecSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpDec(vm, value)
+			handled = true
+		}
+	case token.Mul:
+		if h, ok := left.(ObjectWithMulSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpMul(vm, value)
+			handled = true
+		}
+	case token.Pow:
+		if h, ok := left.(ObjectWithPowSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpPow(vm, value)
+			handled = true
+		}
+	case token.Quo:
+		if h, ok := left.(ObjectWithQuoSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpQuo(vm, value)
+			handled = true
+		}
+	case token.Rem:
+		if h, ok := left.(ObjectWithRemSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpRem(vm, value)
+			handled = true
+		}
+	case token.And:
+		if h, ok := left.(ObjectWithAndSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpAnd(vm, value)
+			handled = true
+		}
+	case token.Or:
+		if h, ok := left.(ObjectWithOrSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpOr(vm, value)
+			handled = true
+		}
+	case token.Xor:
+		if h, ok := left.(ObjectWithXorSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpXor(vm, value)
+			handled = true
+		}
+	case token.Shl:
+		if h, ok := left.(ObjectWithShlSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpShl(vm, value)
+			handled = true
+		}
+	case token.Shr:
+		if h, ok := left.(ObjectWithShrSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpShr(vm, value)
+			handled = true
+		}
+	case token.TripleLess:
+		if h, ok := left.(ObjectWithTripleLessSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpTripleLess(vm, value)
+			handled = true
+		}
+	case token.TripleGreater:
+		if h, ok := left.(ObjectWithTripleGreaterSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpTripleGreater(vm, value)
+			handled = true
+		}
+	case token.DoubleMod:
+		if h, ok := left.(ObjectWithDoubleModSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpDoubleMod(vm, value)
+			handled = true
+		}
+	case token.AndNot:
+		if h, ok := left.(ObjectWithAndNotSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpAndNot(vm, value)
+			handled = true
+		}
+	case token.LOr:
+		if h, ok := left.(ObjectWithLOrSelfAssignOperator); ok {
+			ret, err = h.SelfAssignOpLOr(vm, value)
+			handled = true
+		}
+	}
+	return
+}

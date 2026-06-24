@@ -5,8 +5,6 @@ import (
 	"io"
 	"sort"
 	"strings"
-
-	"github.com/gad-lang/gad/token"
 )
 
 // Falser represents an Falser object.
@@ -489,13 +487,10 @@ type UserDataStorage interface {
 // interfaces (see the generated op_api.go); dispatch goes through binOpObject /
 // the exported BinaryOp.
 
-type SelfAssignOperatorHandler interface {
-	Object
-	// SelfAssignOp handles self assign operators.
-	// Returned error stops VM execution if not handled with an error handler
-	// and VM.Run returns the same error as wrapped.
-	SelfAssignOp(vm *VM, tok token.Token, right Object) (ret Object, handled bool, err error)
-}
+// Self-assign operators (`x op= y`) are implemented via the per-operator
+// ObjectWith{Op}SelfAssignOperator interfaces (see the generated op_api.go);
+// dispatch goes through selfAssignOpObject (core.selfAssignOp), falling back to
+// the binary operator when the left operand does not handle the operator.
 
 type Writer interface {
 	Object
