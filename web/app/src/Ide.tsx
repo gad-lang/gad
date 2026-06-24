@@ -19,6 +19,14 @@ import {
   createTheme,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+
+/** copyText writes text to the clipboard, ignoring failures (e.g. no permission). */
+function copyText(text: string): void {
+  void navigator.clipboard?.writeText(text).catch(() => {});
+}
 import { Editor, type EditorHandle } from "./Editor";
 import { useTheme } from "./useTheme";
 import {
@@ -80,6 +88,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const dark = theme === "dark";
 
   const [tree, setTree] = useState<TreeNode | null>(null);
+  const [showHidden, setShowHidden] = useState(false);
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [tabs, setTabs] = useState<OpenTab[]>([]);
@@ -102,14 +111,22 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const editorRef = useRef<EditorHandle>(null);
   const activeTab = active >= 0 ? tabs[active] : null;
 
-  const refreshTree = useCallback(async () => setTree(await ideApi.tree()), []);
+  const refreshTree = useCallback(
+    async () => setTree(await ideApi.tree(showHidden)),
+    [showHidden],
+  );
+
+  // Reload the tree whenever the hidden-files toggle changes.
+  useEffect(() => {
+    void refreshTree();
+  }, [refreshTree]);
 
   useEffect(() => {
     (async () => {
       try {
         setConfig(await ideApi.config());
         setModules(await ideApi.modules());
-        await refreshTree();
+        // The tree is loaded by the showHidden effect above.
         if (workspace.openFile) openFile(workspace.openFile);
       } catch (e) {
         setStatus("failed to start: " + e);
@@ -402,6 +419,18 @@ export function Ide({ workspace }: { workspace: Workspace }) {
         <aside className="ide-sidebar">
           <div className="side-head">
             <span>Explorer</span>
+            <span style={{ flex: 1 }} />
+            <IconButton
+              size="small"
+              title={showHidden ? "Hide hidden files" : "Show hidden files"}
+              onClick={() => setShowHidden((v) => !v)}
+            >
+              {showHidden ? (
+                <VisibilityIcon fontSize="small" />
+              ) : (
+                <VisibilityOffIcon fontSize="small" />
+              )}
+            </IconButton>
             <IconButton
               size="small"
               title="New file"
@@ -587,6 +616,15 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                             <td>{v.name}</td>
                             <td className="muted">{v.type}</td>
                             <td>{v.value}</td>
+                            <td className="locals-copy">
+                              <IconButton
+                                size="small"
+                                title="Copy value"
+                                onClick={() => copyText(v.value)}
+                              >
+                                <ContentCopyIcon sx={{ fontSize: 14 }} />
+                              </IconButton>
+                            </td>
                           </tr>
                         ))}
                         {(frameLocals || []).length === 0 && (
@@ -1040,6 +1078,8 @@ function IdeStyles() {
 .locals-head{margin-bottom:.3rem;font-size:.8rem}
 .muted{color:var(--muted)}
 table.locals td{padding:.1rem .5rem;border-bottom:1px solid var(--border);font-family:ui-monospace,monospace}
+table.locals td.locals-copy{padding:0;width:1.6rem;text-align:right;opacity:0;transition:opacity .1s}
+table.locals tr:hover td.locals-copy{opacity:.8}
 .bp-scope{display:flex;gap:.3rem;margin-bottom:.4rem}
 .bp-scope button.on{background:var(--accent);color:#fff}
 .bp-group{margin-bottom:.5rem}

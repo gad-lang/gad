@@ -40,10 +40,12 @@ type treeNode struct {
 	Children []*treeNode `json:"children,omitempty"`
 }
 
-// handleTree returns the workspace file tree, skipping hidden entries and common
-// build/vendor directories.
+// handleTree returns the workspace file tree. Build/vendor directories are
+// always skipped; dot-prefixed (hidden) entries are skipped unless the request
+// passes ?hidden=true.
 func (s *Server) handleTree(w http.ResponseWriter, r *http.Request) {
-	root, err := s.buildTree(s.Root)
+	showHidden := r.URL.Query().Get("hidden") == "true"
+	root, err := s.buildTree(s.Root, showHidden)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -51,16 +53,17 @@ func (s *Server) handleTree(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, root)
 }
 
-// ignoredDir reports whether a directory should be omitted from the tree.
-func ignoredDir(name string) bool {
+// alwaysIgnoredDir reports whether a directory is always omitted from the tree
+// (heavy build/vendor/VCS dirs), regardless of the show-hidden toggle.
+func alwaysIgnoredDir(name string) bool {
 	switch name {
 	case "node_modules", "dist", ".git", ".__tmp", "vendor":
 		return true
 	}
-	return strings.HasPrefix(name, ".")
+	return false
 }
 
-func (s *Server) buildTree(dir string) (*treeNode, error) {
+func (s *Server) buildTree(dir string, showHidden bool) (*treeNode, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -71,18 +74,19 @@ func (s *Server) buildTree(dir string) (*treeNode, error) {
 	}
 	for _, e := range entries {
 		name := e.Name()
+		hidden := strings.HasPrefix(name, ".")
 		if e.IsDir() {
-			if ignoredDir(name) {
+			if alwaysIgnoredDir(name) || (hidden && !showHidden) {
 				continue
 			}
-			child, err := s.buildTree(filepath.Join(dir, name))
+			child, err := s.buildTree(filepath.Join(dir, name), showHidden)
 			if err != nil {
 				return nil, err
 			}
 			node.Children = append(node.Children, child)
 			continue
 		}
-		if strings.HasPrefix(name, ".") {
+		if hidden && !showHidden {
 			continue
 		}
 		node.Children = append(node.Children, &treeNode{

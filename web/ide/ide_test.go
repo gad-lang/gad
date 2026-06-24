@@ -82,6 +82,20 @@ func TestTree(t *testing.T) {
 	if names[".hidden"] || names["node_modules"] {
 		t.Fatalf("tree should skip hidden/ignored: %+v", names)
 	}
+
+	// ?hidden=true reveals dot entries but still hides always-ignored dirs.
+	w = do(t, h, "GET", "/api/ide/tree?hidden=true", nil)
+	root = decode[treeNode](t, w)
+	names = map[string]bool{}
+	for _, c := range root.Children {
+		names[c.Name] = true
+	}
+	if !names[".hidden"] {
+		t.Fatalf("tree?hidden=true should include .hidden: %+v", names)
+	}
+	if names["node_modules"] {
+		t.Fatalf("tree?hidden=true must still skip node_modules: %+v", names)
+	}
 }
 
 func TestFileReadWrite(t *testing.T) {

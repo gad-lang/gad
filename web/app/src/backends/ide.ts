@@ -69,7 +69,8 @@ async function jsonFetch<T>(method: string, url: string, body?: unknown): Promis
 
 export const ideApi = {
   workspace: () => jsonFetch<Workspace>("GET", "api/ide/workspace"),
-  tree: () => jsonFetch<TreeNode>("GET", "api/ide/tree"),
+  tree: (hidden = false) =>
+    jsonFetch<TreeNode>("GET", "api/ide/tree" + (hidden ? "?hidden=true" : "")),
   read: (path: string) =>
     jsonFetch<{ path: string; content: string }>(
       "GET",
