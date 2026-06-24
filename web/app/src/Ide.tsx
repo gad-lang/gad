@@ -39,6 +39,7 @@ function copyText(text: string): void {
 }
 import { Editor, type EditorHandle } from "./Editor";
 import { InspectDialog, type InspectFn } from "./TreeNavigator";
+import { renderDocMarkdown } from "./docMarkdown";
 import { useTheme } from "./useTheme";
 import {
   ideApi,
@@ -1401,7 +1402,10 @@ function DocPanel({
               <span className={"doc-kind doc-kind-" + d.kind}>{d.kind}</span>
               <span className="doc-title">{d.title || `line ${d.line}`}</span>
             </div>
-            <pre className="doc-content">{d.content}</pre>
+            <div
+              className="doc-content language-gad"
+              dangerouslySetInnerHTML={{ __html: renderDocMarkdown(d.content) }}
+            />
           </div>
         ))}
       </div>
@@ -1865,7 +1869,14 @@ function IdeStyles() {
 .doc-title{font-family:ui-monospace,monospace;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .doc-kind{font-size:.62rem;text-transform:uppercase;padding:0 .3rem;border-radius:3px;background:var(--code-bg,rgba(125,125,125,.18));color:var(--muted)}
 .doc-kind-root{background:var(--accent);color:#fff}
-.doc-content{margin:.2rem 0 0;white-space:pre-wrap;word-break:break-word;font-size:.82rem;color:var(--fg)}
+.doc-content{margin:.2rem 0 0;font-size:.82rem;color:var(--fg);line-height:1.45}
+.doc-content p{margin:.3rem 0}
+.doc-content h1,.doc-content h2,.doc-content h3,.doc-content h4{margin:.5rem 0 .25rem;font-size:.92rem}
+.doc-content ul{margin:.3rem 0;padding-left:1.1rem}
+.doc-content code{font-family:ui-monospace,monospace;font-size:.92em;background:var(--code-bg,rgba(125,125,125,.15));padding:0 .2rem;border-radius:3px}
+.doc-content blockquote{margin:.3rem 0;padding-left:.6rem;border-left:3px solid var(--border);color:var(--muted)}
+.doc-content pre.doc-code{margin:.4rem 0;padding:.4rem .6rem;overflow:auto;background:var(--code-bg,rgba(125,125,125,.12));border-radius:5px}
+.doc-content pre.doc-code code{background:none;padding:0;white-space:pre}
 .editor-host>div{flex:1;min-width:0}
 .editor-host .empty{margin:auto;color:var(--muted)}
 .panes{height:200px;border-top:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column;resize:vertical;overflow:hidden}
