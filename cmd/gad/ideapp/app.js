@@ -1,7 +1,9 @@
 "use strict";
 // Bundled Gad IDE frontend. Talks to the /api/ide/* backend exposed by
-// `gad ide`. Vanilla JS, no build step — a richer React/CodeMirror UI can be
-// served instead via `gad ide --static <dist>`.
+// `gad ide`. Vanilla JS, no build step. The editor upgrades to CodeMirror 6 with
+// the gad language (loaded from a pinned ESM CDN) when online, falling back to a
+// plain textarea otherwise. A richer React/CodeMirror UI can be served instead
+// via `gad ide --static <dist>` (see web/app) or a `make build-prod` binary.
 
 const $ = (id) => document.getElementById(id);
 const api = {
@@ -110,21 +112,195 @@ function renderTabs() {
     el.appendChild(t);
   });
 }
-function renderEditor() {
-  const wrap = $("editorWrap");
-  wrap.innerHTML = "";
-  if (state.active < 0) { wrap.innerHTML = '<div class="empty">Open a file from the explorer</div>'; return; }
-  const f = state.open[state.active];
+// --- CodeMirror (gad language) ----------------------------------------------
+// The build-free UI loads CodeMirror 6 and the gad language from a pinned ESM
+// CDN on demand. If the import fails (e.g. offline), the editor falls back to a
+// plain textarea, so editing always works.
+
+const CM_CDN = "https://esm.sh";
+// Pin a single state/view across packages (?deps) to avoid CM6 "multiple
+// instances of @codemirror/state" breakage.
+const CM_DEPS = "deps=@codemirror/state@6.4.1,@codemirror/view@6.34.1";
+let cmPromise = null;
+
+// Gad language vocabulary (kept in sync with @gad-lang/codemirror-gad/keywords).
+const GAD_KEYWORDS = new Set([
+  "if", "else", "for", "in", "func", "method", "return", "break", "continue",
+  "try", "catch", "finally", "throw", "match",
+  "defer", "defer_ok", "defer_err", "deferb", "deferb_ok", "deferb_err",
+  "param", "global", "var", "const", "export", "import", "embed", "raw",
+  "template", "begin", "end", "code", "or", "is",
+  "ain", "met", "meti", "prop", "with",
+]);
+const GAD_ATOMS = new Set(["true", "false", "yes", "no", "nil"]);
+const GAD_CONSTANTS = new Set(["STDIN", "STDOUT", "STDERR"]);
+
+function loadCM() {
+  if (cmPromise) return cmPromise;
+  cmPromise = (async () => {
+    const imp = (pkg) => import(`${CM_CDN}/${pkg}?${CM_DEPS}`);
+    const [state, view, commands, language, highlight, oneDarkMod] = await Promise.all([
+      import(`${CM_CDN}/@codemirror/state@6.4.1`),
+      import(`${CM_CDN}/@codemirror/view@6.34.1`),
+      imp("@codemirror/commands@6.6.0"),
+      imp("@codemirror/language@6.10.2"),
+      import(`${CM_CDN}/@lezer/highlight@1.2.0`),
+      imp("@codemirror/theme-one-dark@6.1.2"),
+    ]);
+    const gad = buildGadLanguage(language, highlight.tags);
+    return { state, view, commands, language, oneDark: oneDarkMod.oneDark, gad };
+  })().catch((e) => { cmPromise = null; throw e; });
+  return cmPromise;
+}
+
+// buildGadLanguage ports the @gad-lang/codemirror-gad StreamLanguage tokenizer.
+function buildGadLanguage(language, t) {
+  const isIdentStart = (c) => /[A-Za-z_$]/.test(c);
+  const isIdent = (c) => /[A-Za-z0-9_$]/.test(c);
+  const blockComment = (stream, st) => {
+    while (!stream.eol()) {
+      if (stream.match("*/")) { st.block = 0; return "blockComment"; }
+      stream.next();
+    }
+    return "blockComment";
+  };
+  const str = (stream, q) => {
+    let esc = false;
+    while (!stream.eol()) { const c = stream.next(); if (c === q && !esc) return; esc = !esc && c === "\\"; }
+  };
+  const rawStr = (stream) => { while (!stream.eol()) { if (stream.next() === "`") return; } };
+  const fenced = (stream, fence) => { while (!stream.eol()) { if (stream.match(fence)) return "string"; stream.next(); } return "string"; };
+
+  const parser = {
+    name: "gad",
+    startState: () => ({ block: 0 }),
+    token(stream, st) {
+      if (st.block > 0) return blockComment(stream, st);
+      if (stream.eatSpace()) return null;
+      const ch = stream.peek();
+      if (stream.match("//")) { stream.skipToEnd(); return "lineComment"; }
+      if (stream.match("/*")) { st.block = 1; return blockComment(stream, st); }
+      if (stream.match('"""') || stream.match("```")) return fenced(stream, ch === '"' ? '"""' : "```");
+      if (ch === '"') { stream.next(); str(stream, '"'); return "string"; }
+      if (ch === "`") { stream.next(); rawStr(stream); return "string"; }
+      if (ch === "'") { stream.next(); str(stream, "'"); return "character"; }
+      if (/[0-9]/.test(ch) || (ch === "." && /[0-9]/.test(stream.string[stream.pos + 1] || ""))) {
+        stream.match(/^0[xX][0-9a-fA-F]+/) || stream.match(/^[0-9]+\.[0-9]*([eE][-+]?[0-9]+)?[dD]?/) ||
+          stream.match(/^\.[0-9]+([eE][-+]?[0-9]+)?/) || stream.match(/^[0-9]+([eE][-+]?[0-9]+)?[uUdD]?/);
+        return "number";
+      }
+      if ((ch === "b" || ch === "h") && /["`]/.test(stream.string[stream.pos + 1] || "")) {
+        stream.next(); const q = stream.next(); if (q === "`") rawStr(stream); else str(stream, q); return "string";
+      }
+      if (isIdentStart(ch)) {
+        let word = "";
+        while (!stream.eol() && isIdent(stream.peek())) word += stream.next();
+        if (GAD_KEYWORDS.has(word)) return "keyword";
+        if (GAD_ATOMS.has(word)) return "atom";
+        if (GAD_CONSTANTS.has(word)) return "standard";
+        return "variable";
+      }
+      if (ch === "@") { stream.next(); while (!stream.eol() && isIdent(stream.peek())) stream.next(); return "standard"; }
+      if (/[-+*/%<>=!&|^~?:.,;(){}\[\]]/.test(ch)) { stream.next(); return "operator"; }
+      stream.next();
+      return null;
+    },
+    tokenTable: {
+      lineComment: t.lineComment, blockComment: t.blockComment, string: t.string,
+      character: t.character, number: t.number, keyword: t.keyword, atom: t.atom,
+      standard: t.standard(t.variableName), variable: t.variableName, operator: t.operator,
+    },
+  };
+  return new language.LanguageSupport(language.StreamLanguage.define(parser));
+}
+
+// mountCodeMirror replaces the wrap's textarea with a CodeMirror editor for f.
+async function mountCodeMirror(wrap, f) {
+  const cm = await loadCM();
+  if (activeFile() !== f) return; // user switched files while loading
+  const { EditorState } = cm.state;
+  const { EditorView, keymap, lineNumbers, highlightActiveLine } = cm.view;
+  const { defaultKeymap, history, historyKeymap, indentWithTab } = cm.commands;
+  const { syntaxHighlighting, defaultHighlightStyle } = cm.language;
+
+  const exts = [
+    lineNumbers(),
+    highlightActiveLine(),
+    history(),
+    keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+    syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+    cm.gad,
+    EditorView.updateListener.of((u) => {
+      if (u.docChanged) { f.content = u.state.doc.toString(); markDirty(f); }
+    }),
+    EditorView.theme({ "&": { height: "100%" }, ".cm-scroller": { fontFamily: "ui-monospace, monospace" } }),
+  ];
+  if (isDark()) exts.push(cm.oneDark);
+
+  const view = new EditorView({ state: EditorState.create({ doc: f.content, extensions: exts }), parent: (wrap.innerHTML = "", wrap) });
+  wrap._ta = null;
+  wrap._editor = {
+    getValue: () => view.state.doc.toString(),
+    setValue: (v) => view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: v } }),
+    gotoLocation: (line, col) => {
+      const ln = Math.min(Math.max(line, 1), view.state.doc.lines);
+      const lo = view.state.doc.line(ln);
+      const pos = lo.from + Math.min(Math.max(col - 1, 0), lo.length);
+      view.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
+      view.focus();
+    },
+    focus: () => view.focus(),
+    destroy: () => view.destroy(),
+  };
+}
+
+function isDark() { return document.documentElement.dataset.theme === "dark"; }
+function isGadPath(p) { return /\.gadt?$/.test(p); }
+function markDirty(f) { if (f.saved) { f.saved = false; renderTabs(); } }
+
+function mountTextarea(wrap, f) {
   const ta = document.createElement("textarea");
   ta.spellcheck = false;
   ta.value = f.content;
-  ta.oninput = () => { f.content = ta.value; if (f.saved) { f.saved = false; renderTabs(); } };
+  ta.oninput = () => { f.content = ta.value; markDirty(f); };
   ta.onkeydown = (e) => {
     if (e.key === "Tab") { e.preventDefault(); insertAtCursor(ta, "\t"); f.content = ta.value; }
     if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); saveActive(); }
   };
   wrap.appendChild(ta);
   wrap._ta = ta;
+  wrap._editor = {
+    getValue: () => ta.value,
+    setValue: (v) => { ta.value = v; },
+    gotoLocation: (line, col) => textareaGoto(ta, line, col),
+    focus: () => ta.focus(),
+    destroy: () => {},
+  };
+}
+
+function renderEditor() {
+  const wrap = $("editorWrap");
+  if (wrap._editor && wrap._editor.destroy) wrap._editor.destroy();
+  wrap.innerHTML = "";
+  wrap._ta = null;
+  wrap._editor = null;
+  if (state.active < 0) { wrap.innerHTML = '<div class="empty">Open a file from the explorer</div>'; return; }
+  const f = state.open[state.active];
+  // Mount a textarea immediately (instant editing) and, for gad files, upgrade
+  // to CodeMirror once it loads. A load failure keeps the textarea.
+  mountTextarea(wrap, f);
+  if (isGadPath(f.path)) mountCodeMirror(wrap, f).catch(() => status("highlighting unavailable (offline)"));
+}
+
+function textareaGoto(ta, line, column) {
+  const lines = ta.value.split("\n");
+  let pos = 0;
+  for (let i = 0; i < line - 1 && i < lines.length; i++) pos += lines[i].length + 1;
+  pos += Math.max(0, column - 1);
+  ta.focus();
+  ta.setSelectionRange(pos, pos);
+  const approxLineH = ta.scrollHeight / Math.max(lines.length, 1);
+  ta.scrollTop = Math.max(0, (line - 3) * approxLineH);
 }
 function insertAtCursor(ta, text) {
   const s = ta.selectionStart, e = ta.selectionEnd;
@@ -288,17 +464,8 @@ function renderStack(frames) {
 // gotoFrame opens the frame's file (if needed) and moves the cursor there.
 async function gotoFrame(file, line, column) {
   try { await openFile(file); } catch (e) { return; }
-  const ta = $("editorWrap")._ta;
-  if (!ta) return;
-  const lines = ta.value.split("\n");
-  let pos = 0;
-  for (let i = 0; i < line - 1 && i < lines.length; i++) pos += lines[i].length + 1;
-  pos += Math.max(0, column - 1);
-  ta.focus();
-  ta.setSelectionRange(pos, pos);
-  // Scroll the caret roughly into view.
-  const approxLineH = ta.scrollHeight / Math.max(lines.length, 1);
-  ta.scrollTop = Math.max(0, (line - 3) * approxLineH);
+  const ed = $("editorWrap")._editor;
+  if (ed) ed.gotoLocation(line, column);
 }
 function renderLocals(locals) {
   if (!locals.length) { $("localsPane").textContent = "(no locals)"; return; }

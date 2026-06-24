@@ -19,7 +19,11 @@ verification for full sign-off.
       re-eval on debug step. Backend `/api/ide/eval` (standalone, file as prelude).
 
 ## To do
-- [ ] Diagnose why the gad codemirror plugin "isn't working" in the IDE and fix it.
+- [x] gad codemirror plugin not working in the IDE: root cause was the default
+      `gad ide` serving the build-free `cmd/gad/ideapp` (plain textarea, no
+      CodeMirror) — the plugin only loaded in the React `web/app` (prod/--static
+      build). Fixed by loading CodeMirror 6 + the gad language into the build-free
+      app from a pinned ESM CDN, with a textarea fallback when offline.
 - [ ] Run/Debug settings: one dialog with Run and Debug tabs; surface the split
       stdout/stderr file fields + combine flag in the Run tab.
 - [ ] Explorer header: "get file from web" dialog (URL, output name, target dir).
