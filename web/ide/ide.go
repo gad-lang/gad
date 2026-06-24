@@ -69,7 +69,19 @@ func New(path string) (*Server, error) {
 		return buildModuleMap(workdir, req.Disabled, req.Safe)
 	}
 	s.dbg.NormalizeFile = s.normalizeDebugFile
+	s.dbg.RelativizeValue = s.relativizeValue
 	return s, nil
+}
+
+// relativizeValue rewrites absolute workspace paths embedded in a rendered value
+// (module / compiledFunction ToString carries the file's absolute path) to the
+// workspace-relative form, so the UI shows `mathx.gad` instead of a long
+// `/abs/…/mathx.gad`.
+func (s *Server) relativizeValue(v string) string {
+	sep := string(os.PathSeparator)
+	v = strings.ReplaceAll(v, "file:"+s.Root+sep, "")
+	v = strings.ReplaceAll(v, s.Root+sep, "")
+	return v
 }
 
 // normalizeDebugFile maps a debugger source file name to a workspace-relative

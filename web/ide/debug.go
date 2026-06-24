@@ -39,6 +39,9 @@ type DebugManager struct {
 	// workspace-relative path the UI can open. mainPath is the session's entry
 	// file. When nil, file names are passed through unchanged.
 	NormalizeFile func(mainPath, engineFile string) string
+	// RelativizeValue, when set, rewrites absolute workspace paths embedded in a
+	// rendered variable value (module / function ToString) to a relative form.
+	RelativizeValue func(value string) string
 }
 
 // NewDebugManager returns an empty DebugManager.
@@ -55,6 +58,9 @@ type debugSession struct {
 	// normalize maps a debugger file name to a workspace-relative path; identity
 	// when the manager has no NormalizeFile hook.
 	normalize func(engineFile string) string
+	// relativize rewrites absolute workspace paths in a rendered value; identity
+	// when the manager has no RelativizeValue hook.
+	relativize func(value string) string
 }
 
 type debugRunResult struct {
@@ -197,7 +203,14 @@ func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
 	if m.NormalizeFile != nil {
 		normalize = func(f string) string { return m.NormalizeFile(req.Path, f) }
 	}
-	sess := &debugSession{eng: eng, done: make(chan debugRunResult, 1), out: out, normalize: normalize}
+	relativize := func(v string) string { return v }
+	if m.RelativizeValue != nil {
+		relativize = m.RelativizeValue
+	}
+	sess := &debugSession{
+		eng: eng, done: make(chan debugRunResult, 1), out: out,
+		normalize: normalize, relativize: relativize,
+	}
 	go func() {
 		ret, rerr := vm.RunOpts(&gad.RunOpts{Args: args, StdOut: out, StdErr: out})
 		res := ""
@@ -286,7 +299,7 @@ func (m *DebugManager) HandleEval(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "value": value})
+	writeJSON(w, map[string]any{"ok": true, "value": sess.relativize(value)})
 }
 
 // evalObject evaluates expr in a paused session's current frame and returns the
@@ -320,8 +333,8 @@ func (s *debugSession) waitNext() DebugResponse {
 			File:   s.normalize(ev.File),
 			Line:   ev.Line,
 			Column: ev.Column,
-			Frames: framesOf(s.eng, s.normalize),
-			Locals: localsOf(s.eng),
+			Frames: framesOf(s.eng, s.normalize, s.relativize),
+			Locals: localsOf(s.eng, s.relativize),
 			Output: out,
 		}
 	case r := <-s.done:
@@ -336,7 +349,7 @@ func (s *debugSession) waitNext() DebugResponse {
 	}
 }
 
-func framesOf(eng *debug.Engine, normalize func(string) string) []DebugFrame {
+func framesOf(eng *debug.Engine, normalize, relativize func(string) string) []DebugFrame {
 	src := eng.Frames()
 	out := make([]DebugFrame, 0, len(src))
 	// Innermost first.
@@ -344,18 +357,18 @@ func framesOf(eng *debug.Engine, normalize func(string) string) []DebugFrame {
 		f := src[i]
 		locals := make([]DebugVariable, len(f.Locals))
 		for j, v := range f.Locals {
-			locals[j] = DebugVariable{Name: v.Name, Type: v.Type, Value: v.Value}
+			locals[j] = DebugVariable{Name: v.Name, Type: v.Type, Value: relativize(v.Value)}
 		}
-		out = append(out, DebugFrame{Name: f.FuncName, File: normalize(f.File), Line: f.Line, Column: f.Column, Locals: locals})
+		out = append(out, DebugFrame{Name: relativize(f.FuncName), File: normalize(f.File), Line: f.Line, Column: f.Column, Locals: locals})
 	}
 	return out
 }
 
-func localsOf(eng *debug.Engine) []DebugVariable {
+func localsOf(eng *debug.Engine, relativize func(string) string) []DebugVariable {
 	src := eng.Locals()
 	out := make([]DebugVariable, len(src))
 	for i, v := range src {
-		out[i] = DebugVariable{Name: v.Name, Type: v.Type, Value: v.Value}
+		out[i] = DebugVariable{Name: v.Name, Type: v.Type, Value: relativize(v.Value)}
 	}
 	return out
 }

@@ -604,6 +604,44 @@ func TestDebugRelativeImportSamples(t *testing.T) {
 	}
 }
 
+func TestDebugModulePathsAreRelative(t *testing.T) {
+	// Module / function values render their file's absolute path; the IDE must
+	// rewrite it to a workspace-relative path in locals and inspect output.
+	root := filepath.Join("..", "..", "samples", "modules")
+	src, err := os.ReadFile(filepath.Join(root, "main.gad"))
+	if err != nil {
+		t.Skipf("samples not present: %v", err)
+	}
+	s, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := s.Handler()
+
+	// Stop after the import (line 5) so mathx is bound.
+	resp := decode[DebugResponse](t, do(t, h, "POST", "/api/ide/debug/start",
+		StartRequest{Path: "main.gad", Source: string(src), Breakpoints: []int{5}}))
+	if resp.State != "stopped" {
+		t.Fatalf("expected stopped, got %+v", resp)
+	}
+	var mathx string
+	for _, l := range resp.Locals {
+		if l.Name == "mathx" {
+			mathx = l.Value
+		}
+	}
+	if mathx == "" {
+		t.Fatalf("mathx local not found in %+v", resp.Locals)
+	}
+	if strings.Contains(mathx, s.Root) || strings.Contains(mathx, "file:") {
+		t.Fatalf("module value should not contain the absolute path: %q", mathx)
+	}
+	if !strings.Contains(mathx, "mathx.gad") {
+		t.Fatalf("module value should mention the relative file: %q", mathx)
+	}
+	do(t, h, "POST", "/api/ide/debug/command", CommandRequest{Session: resp.Session, Command: "continue"})
+}
+
 func TestDebugStepIntoModuleReportsRelativeFile(t *testing.T) {
 	// Stepping into an imported module must report that module's workspace-
 	// relative path (so the UI can open it), not an absolute file:<abs> name.

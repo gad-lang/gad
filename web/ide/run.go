@@ -115,7 +115,7 @@ func (s *Server) handleEval(w http.ResponseWriter, r *http.Request) {
 	res := s.run(script, workdir, runRequest{Disabled: req.Disabled, Safe: req.Safe})
 	out := evalResult{OK: res.OK, Stdout: res.Stdout}
 	if res.OK {
-		out.Value = res.Result
+		out.Value = s.relativizeValue(res.Result)
 	} else {
 		out.Error = res.Stderr
 		if out.Error == "" && len(res.Diagnostics) > 0 {
@@ -255,7 +255,13 @@ func (s *Server) handleInspect(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "inspect": gadbridge.InspectObject(nil, obj)})
+	insp := gadbridge.InspectObject(nil, obj)
+	// Show workspace-relative paths in module/function renderings.
+	insp.Value = s.relativizeValue(insp.Value)
+	for i := range insp.Entries {
+		insp.Entries[i].Value = s.relativizeValue(insp.Entries[i].Value)
+	}
+	writeJSON(w, map[string]any{"ok": true, "inspect": insp})
 }
 
 // evalObject compiles `<prelude>\nreturn (expr)` (prelude returns stripped) and

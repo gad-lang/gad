@@ -72,7 +72,11 @@ verification for full sign-off.
       single + `/??`…`??` / `/???`…`???` block doc comments as a docComment token
       (verified: prism tokenizes them distinctly). TODO: highlight embedded source
       code and `>>>` result blocks inside doc comments (sub-language regions).
-- [ ] change module NAME and PATH render to render relative to current workspace insteadof absolute paths.
+- [x] module/function values rendered absolute file paths (baked into their
+      ToString) in locals/eval/inspect. The IDE now rewrites workspace-absolute
+      paths (and `file:` prefixes) to workspace-relative in debug locals/frames,
+      eval and inspect output (Server.relativizeValue via DebugManager hook).
+      Test TestDebugModulePathsAreRelative.
 - [ ] change input fields of evaluate and breakpoint condition to use codemirror plugin. 
 - [x] FORMAT not preserving comments/doc comments: gadbridge.Format parsed
       without ParseComments and omitted CodeWithComments, so it dropped all
