@@ -168,6 +168,8 @@ const (
 	// member of B. Appended at the end of the keyword group so existing token
 	// values are not shifted.
 	Ain
+	// With is the `with` context-manager statement/expression keyword.
+	With
 	GroupKeywordEnd
 )
 
@@ -343,6 +345,7 @@ var tokens = [...]string{
 	Meti:                "meti",
 	Export:              "export",
 	Ain:                 "ain",
+	With:                "with",
 }
 
 var tokenNames = [...]string{
@@ -501,6 +504,7 @@ var tokenNames = [...]string{
 	Prop:                         "Prop",
 	Meti:                         "Meti",
 	Ain:                          "Ain",
+	With:                         "With",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 

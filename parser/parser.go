@@ -1142,6 +1142,8 @@ func (p *Parser) ParseOperand() node.Expr {
 			return p.ParseReturnExpr()
 		case token.Match:
 			return p.ParseMatchExpr()
+		case token.With:
+			return p.ParseWithExpr()
 		case token.Raw:
 			pos := p.Token.Pos
 			p.Next()
@@ -2406,6 +2408,8 @@ do:
 		return p.ParseDeferStmt()
 	case token.Throw:
 		return p.ParseThrowStmt()
+	case token.With:
+		return p.ParseWithStmt()
 	case token.Export:
 		return p.ParseExportStmt()
 	case token.Break, token.Continue:
@@ -3178,6 +3182,107 @@ func (p *Parser) ParseDeferStmt() node.Stmt {
 	}
 	p.ExpectSemi()
 	return stmt
+}
+
+// ParseWithStmt parses a `with` context-manager statement:
+//
+//	with Resource { ... }
+//	with Resource as IDENT { ... }
+//	with IDENT = Resource { ... }
+//	with IDENT := Resource { ... }
+//
+// The `with Resource [as IDENT]: Value` expression form may also appear here as a
+// statement (returning an ExprStmt wrapping a WithExpr).
+func (p *Parser) ParseWithStmt() node.Stmt {
+	if p.Trace {
+		defer untracep(tracep(p, "WithStmt"))
+	}
+	pos := p.Token.Pos
+	p.Next()
+	p.SkipSpace()
+
+	// inHeader stops `Resource(...)` immediately before the body `{` from being
+	// parsed as a `name(params) { body }` function definition.
+	outerHeader := p.inHeader
+	p.inHeader = true
+
+	expr := p.ParseExpr()
+	p.SkipSpace()
+
+	// Assign / define forms: `with IDENT = Resource` / `with IDENT := Resource`.
+	if p.Token.Token == token.Assign || p.Token.Token == token.Define {
+		ident, ok := expr.(*node.IdentExpr)
+		if !ok {
+			p.inHeader = outerHeader
+			p.Error(expr.Pos(), "with: assignment target must be an identifier")
+			return &node.BadStmt{From: pos, To: p.Token.Pos}
+		}
+		bind := node.WithBindAssign
+		if p.Token.Token == token.Define {
+			bind = node.WithBindDefine
+		}
+		p.Next()
+		p.SkipSpace()
+		resource := p.ParseExpr()
+		p.SkipSpace()
+		p.inHeader = outerHeader
+		body := p.ParseBlockStmt()
+		p.ExpectSemi()
+		return &node.WithStmt{WithPos: pos, Bind: bind, Ident: ident, Resource: resource, Body: body}
+	}
+
+	// Optional `as IDENT`.
+	var ident *node.IdentExpr
+	bind := node.WithBindNone
+	if p.Token.Token == token.Ident && p.Token.Literal == "as" {
+		p.Next()
+		p.SkipSpace()
+		ident = p.ParseIdent()
+		p.SkipSpace()
+		bind = node.WithBindAs
+	}
+
+	// Expression form used as a statement: `with Resource [as IDENT]: Value`.
+	if p.Token.Token == token.Colon {
+		colon := p.Token.Pos
+		p.Next()
+		p.SkipSpace()
+		p.inHeader = outerHeader
+		value := p.ParseExpr()
+		p.ExpectSemi()
+		return &node.ExprStmt{Expr: &node.WithExpr{
+			WithPos: pos, Resource: expr, Ident: ident, ColonPos: colon, Value: value,
+		}}
+	}
+
+	p.inHeader = outerHeader
+	body := p.ParseBlockStmt()
+	p.ExpectSemi()
+	return &node.WithStmt{WithPos: pos, Bind: bind, Ident: ident, Resource: expr, Body: body}
+}
+
+// ParseWithExpr parses the `with Resource [as IDENT]: Value` expression form.
+func (p *Parser) ParseWithExpr() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "WithExpr"))
+	}
+	pos := p.Expect(token.With)
+	p.SkipSpace()
+	resource := p.ParseExpr()
+	p.SkipSpace()
+
+	var ident *node.IdentExpr
+	if p.Token.Token == token.Ident && p.Token.Literal == "as" {
+		p.Next()
+		p.SkipSpace()
+		ident = p.ParseIdent()
+		p.SkipSpace()
+	}
+
+	colon := p.Expect(token.Colon)
+	p.SkipSpace()
+	value := p.ParseExpr()
+	return &node.WithExpr{WithPos: pos, Resource: resource, Ident: ident, ColonPos: colon, Value: value}
 }
 
 func (p *Parser) ParseMatchExpr() node.Expr {

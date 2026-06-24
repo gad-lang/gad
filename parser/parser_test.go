@@ -3871,6 +3871,19 @@ func TestParseIndex(t *testing.T) {
 	})
 }
 
+func TestParseWith(t *testing.T) {
+	// Statement forms.
+	test.ExpectParseString(t, "with r { x() }", "with r { x() }")
+	test.ExpectParseString(t, "with r as f { x() }", "with r as f { x() }")
+	test.ExpectParseString(t, "with x = mk() { y() }", "with x = mk() { y() }")
+	test.ExpectParseString(t, "with x := mk() { y() }", "with x := mk() { y() }")
+	// The resource may be a call (its body `{` is not consumed as a func def).
+	test.ExpectParseString(t, "with open(p) { use() }", "with open(p) { use() }")
+	// Expression form (yields a value).
+	test.ExpectParseString(t, "v := with r: r.read()", "v := (with r: r.read())")
+	test.ExpectParseString(t, "v := with mk() as f: f.read()", "v := (with mk() as f: f.read())")
+}
+
 func TestParseAin(t *testing.T) {
 	// `a ain b` parses as a binary operator.
 	test.ExpectParse(t, "a ain b", func(p pfn) []Stmt {

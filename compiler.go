@@ -541,6 +541,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileOrExpr(nt)
 	case *node.MatchExpr:
 		return c.compileMatchExpr(nt)
+	case *node.WithExpr:
+		return c.compileWithExpr(nt)
 	case *node.RegexLit:
 		return c.compileRegexLit(nt)
 	case *node.ArrayComprehension:
@@ -637,6 +639,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileThrowStmt(nt)
 	case *node.DeferStmt:
 		return c.compileDeferStmt(nt)
+	case *node.WithStmt:
+		return c.compileWithStmt(nt)
 	case *node.ForStmt:
 		return c.compileForStmt(nt)
 	case *node.ForInStmt:

@@ -141,3 +141,52 @@ try {
 `catch` and `finally` are each optional, but at least one must be present.
 `throw` raises any value as an error. For error values, fallbacks and the `or`
 operator, see [Error Handling](error-handling.md).
+
+## With
+
+`with` runs a resource's enter/exit hooks around a block, so cleanup always
+happens — even on an early return or an error. A resource is any value that
+provides the hooks: a Gad object with `enter()` / `exit(err)` methods, or a Go
+type implementing the `ObjectEnter` / `ObjectExit` interfaces. A value with
+neither is a silent no-op.
+
+```go
+File := Class("File"; fields = (; name = (= ""), open = (= false)),
+    methods = [
+        enter(this) { this.open = true;  println("open",  this.name); return this }
+        exit(this, err) { this.open = false; println("close", this.name) }
+    ])
+
+with File(; name = "a.txt") as f {
+    println("use", f.name)
+}
+// open a.txt / use a.txt / close a.txt
+```
+
+`exit` receives any error raised in the block (`nil` on normal exit) and the
+error still propagates after it runs. Resources nest; their `exit` hooks run in
+reverse order.
+
+The statement has four binding forms:
+
+```go
+with resource { … }            // use an existing value
+with mk() as f { … }           // bind the resource to a block-local `f`
+with x := mk() { … }           // define `x` (visible after the block)
+var x
+with x = mk() { … }            // assign to an existing variable
+```
+
+There is also an **expression** form, `with resource [as name]: value`, which
+enters the resource, evaluates `value`, runs `exit`, and yields `value`:
+
+```go
+contents := with open("f") as f: f.read()
+data := "[" + (with open("g") as g: g.read()) + "]"
+```
+
+`with` introduces no new opcode: it desugars to a block that registers
+`core.exit(resource, $err)` as a [`deferb`](functions.md#defer) and then calls
+`core.enter(resource)`. The hooks are dispatched through the `core.enter` /
+`core.exit` functions in the global [`core`](operators.md#operator-handlers-and-the-core-namespace)
+namespace.

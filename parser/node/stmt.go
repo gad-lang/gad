@@ -738,6 +738,57 @@ func (s *DeferStmt) WriteCode(ctx *CodeWriteContext) {
 	}
 }
 
+// WithBind selects how a `with` statement binds its resource.
+type WithBind int
+
+const (
+	WithBindNone   WithBind = iota // with Resource { ... }
+	WithBindAs                     // with Resource as IDENT { ... }
+	WithBindAssign                 // with IDENT = Resource { ... }
+	WithBindDefine                 // with IDENT := Resource { ... }
+)
+
+// WithStmt represents a `with` context-manager statement. The resource's
+// enter/exit hooks (core.enter / core.exit) run around Body. Resource is the
+// context value; Ident is the `as` block-local binding or the assign/define
+// target (nil for WithBindNone).
+type WithStmt struct {
+	WithPos  source.Pos
+	Bind     WithBind
+	Ident    *IdentExpr
+	Resource Expr
+	Body     *BlockStmt
+}
+
+func (s *WithStmt) StmtNode() {}
+
+func (s *WithStmt) Pos() source.Pos { return s.WithPos }
+
+func (s *WithStmt) End() source.Pos { return s.Body.End() }
+
+// head renders the part between `with` and the body block.
+func (s *WithStmt) head() string {
+	switch s.Bind {
+	case WithBindAs:
+		return s.Resource.String() + " as " + s.Ident.String()
+	case WithBindAssign:
+		return s.Ident.String() + " = " + s.Resource.String()
+	case WithBindDefine:
+		return s.Ident.String() + " := " + s.Resource.String()
+	default:
+		return s.Resource.String()
+	}
+}
+
+func (s *WithStmt) String() string {
+	return "with " + s.head() + " " + s.Body.String()
+}
+
+func (s *WithStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("with " + s.head() + " ")
+	s.Body.WriteCode(ctx)
+}
+
 // ThrowStmt represents an throw statement.
 type ThrowStmt struct {
 	ThrowPos source.Pos

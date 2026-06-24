@@ -1,0 +1,45 @@
+// 18_with.gad — the `with` context-manager statement and expression.
+//
+// `with` runs a resource's enter/exit hooks around a block so cleanup always
+// happens, even on an error. A resource provides `enter()` / `exit(err)`
+// methods (or the Go ObjectEnter/ObjectExit interfaces).
+
+Res := Class("Res"; fields = (; name = (= ""), open = (= false)),
+    methods = [
+        enter(this) { this.open = true;  println("  open ", this.name); return this }
+        exit(this, err) { this.open = false; println("  close", this.name, "err =", err) }
+        read(this) => this.name + "-data"
+    ])
+
+// `as` binds the resource to a block-local name.
+println("as:")
+with Res(; name = "a") as f {
+    println("  use  ", f.name, "open =", f.open)
+}
+
+// `:=` defines a variable visible after the block.
+println("define:")
+with r := Res(; name = "b") { println("  use  ", r.name) }
+println("  after, open =", r.open)   // false (exit ran)
+
+// An error still runs exit, then propagates.
+println("error:")
+try {
+    with Res(; name = "c") { throw "boom" }
+} catch e {
+    println("  caught:", e)
+}
+
+// Resources nest; exits run in reverse order.
+println("nested:")
+with Res(; name = "outer") {
+    with Res(; name = "inner") { println("  body") }
+}
+
+// Expression form: enter, evaluate, exit, yield the value.
+println("expr:")
+contents := with Res(; name = "d") as g: g.read()
+println("  contents:", contents)
+
+// A non-resource value is a silent no-op (the body still runs).
+with 42 as n { println("noop:", n) }

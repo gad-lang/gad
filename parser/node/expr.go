@@ -187,6 +187,38 @@ func (e *CondExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteSingleByte(')')
 }
 
+// WithExpr is the expression form `with Resource [as IDENT]: Value`: it enters
+// the resource (core.enter), evaluates Value, exits (core.exit) and yields Value.
+type WithExpr struct {
+	WithPos  source.Pos
+	Resource Expr
+	Ident    *IdentExpr // `as IDENT`, or nil
+	ColonPos source.Pos
+	Value    Expr
+}
+
+func (e *WithExpr) ExprNode() {}
+
+func (e *WithExpr) Pos() source.Pos { return e.WithPos }
+
+func (e *WithExpr) End() source.Pos { return e.Value.End() }
+
+func (e *WithExpr) head() string {
+	if e.Ident != nil {
+		return e.Resource.String() + " as " + e.Ident.String()
+	}
+	return e.Resource.String()
+}
+
+func (e *WithExpr) String() string {
+	return "(with " + e.head() + ": " + e.Value.String() + ")"
+}
+
+func (e *WithExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("with " + e.head() + ": ")
+	e.Value.WriteCode(ctx)
+}
+
 // IdentExpr represents an identifier.
 type IdentExpr struct {
 	Name    string

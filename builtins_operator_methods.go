@@ -187,6 +187,8 @@ func CoreModule() Dict {
 		"binOp":        BuiltinObjects[BuiltinBinaryOperator],
 		"selfAssignOp": BuiltinObjects[BuiltinSelfAssignOperator],
 		"unOp":         BuiltinObjects[BuiltinUnaryOperator],
+		"enter":        BuiltinObjects[BuiltinEnter],
+		"exit":         BuiltinObjects[BuiltinExit],
 	}
 }
 
@@ -200,12 +202,16 @@ func registerCoreModule() {
 	setOperatorModule(BuiltinObjects[BuiltinBinaryOperator])
 	setOperatorModule(BuiltinObjects[BuiltinSelfAssignOperator])
 	setOperatorModule(BuiltinObjects[BuiltinUnaryOperator])
+	setOperatorModule(BuiltinObjects[BuiltinEnter])
+	setOperatorModule(BuiltinObjects[BuiltinExit])
 
 	BuiltinsMap[name] = BuiltinModuleCore
 	BuiltinObjects[BuiltinModuleCore] = CoreModule()
 	BuiltinsMap[name+".binOp"] = BuiltinBinaryOperator
 	BuiltinsMap[name+".selfAssignOp"] = BuiltinSelfAssignOperator
 	BuiltinsMap[name+".unOp"] = BuiltinUnaryOperator
+	BuiltinsMap[name+".enter"] = BuiltinEnter
+	BuiltinsMap[name+".exit"] = BuiltinExit
 }
 
 // setOperatorModule ties an operator builtin to the core module spec.

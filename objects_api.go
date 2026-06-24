@@ -492,6 +492,23 @@ type UserDataStorage interface {
 // dispatch goes through selfAssignOpObject (core.selfAssignOp), falling back to
 // the binary operator when the left operand does not handle the operator.
 
+// ObjectEnter is implemented by values usable as a `with` resource. Enter runs
+// when the `with` block is entered, via core.enter(resource). The `with`
+// statement/expression desugars to a deferb that pairs it with ObjectExit.
+type ObjectEnter interface {
+	Object
+	Enter(vm *VM) error
+}
+
+// ObjectExit is implemented by values usable as a `with` resource. Exit runs
+// when the `with` block is left, via core.exit(resource, err), receiving any
+// error raised in the block (nil on normal exit). A non-nil returned error
+// propagates from the block.
+type ObjectExit interface {
+	Object
+	Exit(vm *VM, err error) (Object, error)
+}
+
 type Writer interface {
 	Object
 	io.Writer

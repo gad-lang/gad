@@ -378,6 +378,71 @@ func TestVMAinOperator(t *testing.T) {
 	expectErrIs(t, `return [1] ain 2`, nil, ErrType)
 }
 
+func TestVMWith(t *testing.T) {
+	// A resource whose enter/exit hooks record into its own `log` field (the
+	// with-protocol: a Gad object provides `enter()` / `exit(err)` methods).
+	prelude := `
+	Res := Class("Res"; fields = (; log = (= [])), methods = [
+		enter(this) { this.log = append(this.log, "enter"); return this }
+		exit(this, err) { this.log = append(this.log, "exit") }
+		read(this) { return "data" }
+	])
+	`
+	str := func(s string) string { return prelude + s }
+
+	// Bare identifier resource.
+	testExpectRun(t, str(`r := Res(); with r { r.log = append(r.log, "body") }; return r.log`),
+		nil, Array{Str("enter"), Str("body"), Str("exit")})
+
+	// `as` binding (f aliases the resource).
+	testExpectRun(t, str(`r := Res(); with r as f { f.log = append(f.log, "body") }; return r.log`),
+		nil, Array{Str("enter"), Str("body"), Str("exit")})
+
+	// `:=` define: the variable is visible after the block.
+	testExpectRun(t, str(`with r := Res() { r.log = append(r.log, "body") }; return r.log`),
+		nil, Array{Str("enter"), Str("body"), Str("exit")})
+
+	// `=` assign onto a pre-declared variable.
+	testExpectRun(t, str(`var r; with r = Res() { r.log = append(r.log, "body") }; return r.log`),
+		nil, Array{Str("enter"), Str("body"), Str("exit")})
+
+	// Bare non-identifier resource (bound to an internal temp).
+	testExpectRun(t, str(`a := [Res()]; with a[0] { a[0].log = append(a[0].log, "body") }; return a[0].log`),
+		nil, Array{Str("enter"), Str("body"), Str("exit")})
+
+	// Nesting: exits run in LIFO order.
+	testExpectRun(t, str(`
+		o := Res(); i := Res()
+		with o { with i { i.log = append(i.log, "body") } }
+		return [o.log, i.log]`),
+		nil, Array{Array{Str("enter"), Str("exit")}, Array{Str("enter"), Str("body"), Str("exit")}})
+
+	// An error in the body still runs exit and propagates.
+	testExpectRun(t, str(`
+		r := Res()
+		try { with r { throw "boom" } } catch e { }
+		return r.log`),
+		nil, Array{Str("enter"), Str("exit")})
+
+	// exit receives the block error (nil on success).
+	testExpectRun(t, `
+		Res := Class("Res"; fields = (; got = (= "?")), methods = [
+			exit(this, err) { this.got = str(err) }
+		])
+		r := Res()
+		try { with r { throw "boom" } } catch e { }
+		return r.got`,
+		nil, Str("error: boom"))
+
+	// Expression form yields the value; exit runs around it.
+	testExpectRun(t, str(`r := Res(); v := with r as h: h.read(); return [r.log, v]`),
+		nil, Array{Array{Str("enter"), Str("exit")}, Str("data")})
+
+	// A non-resource value is a no-op (enter/exit do nothing; the body still runs).
+	testExpectRun(t, str(`a := [1]; with a { a = append(a, 2) }; return a`),
+		nil, Array{Int(1), Int(2)})
+}
+
 func TestVMToArray(t *testing.T) {
 	// toArray yields index=value KeyValue pairs; entries from a custom iterator
 	// must be distinct copies, not aliases of the iterator's shared state.

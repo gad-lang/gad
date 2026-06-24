@@ -95,6 +95,8 @@ const (
 	BuiltinBinaryOperator
 	BuiltinSelfAssignOperator
 	BuiltinUnaryOperator
+	BuiltinEnter
+	BuiltinExit
 	BuiltinRepr
 	BuiltinCast
 	BuiltinAppend
@@ -593,6 +595,14 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinUnaryOperator: &BuiltinFunction{
 		FuncName: "unOp",
 		Value:    BuiltinUnaryOperatorFunc,
+	},
+	BuiltinEnter: &BuiltinFunction{
+		FuncName: "enter",
+		Value:    BuiltinEnterFunc,
+	},
+	BuiltinExit: &BuiltinFunction{
+		FuncName: "exit",
+		Value:    BuiltinExitFunc,
 	},
 	BuiltinCast: &BuiltinFunction{
 		FuncName: "cast",
