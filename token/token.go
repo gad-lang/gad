@@ -164,6 +164,10 @@ const (
 	DeferbErr
 	Prop
 	Meti
+	// Ain is the "array membership" operator `A ain B`: every value of A is a
+	// member of B. Appended at the end of the keyword group so existing token
+	// values are not shifted.
+	Ain
 	GroupKeywordEnd
 )
 
@@ -338,6 +342,7 @@ var tokens = [...]string{
 	Prop:                "prop",
 	Meti:                "meti",
 	Export:              "export",
+	Ain:                 "ain",
 }
 
 var tokenNames = [...]string{
@@ -495,6 +500,7 @@ var tokenNames = [...]string{
 	DeferbErr:                    "DeferbErr",
 	Prop:                         "Prop",
 	Meti:                         "Meti",
+	Ain:                          "Ain",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 
@@ -518,7 +524,7 @@ func (tok Token) Precedence() int {
 		return 2
 	case LAnd:
 		return 3
-	case Equal, NotEqual, Same, NotSame, Less, LessEq, Greater, GreaterEq, Null, NotNull, In:
+	case Equal, NotEqual, Same, NotSame, Less, LessEq, Greater, GreaterEq, Null, NotNull, In, Ain:
 		return 4
 	case Add, Sub, Or, Xor:
 		return 5
@@ -587,7 +593,10 @@ func (tok Token) IsBinaryOperator() bool {
 		Dec,
 		// `in` is a keyword, but it is also the membership binary operator
 		// (`a in b`), dispatched through core.binOp like the others.
-		In:
+		In,
+		// `ain` is the array-membership operator (`A ain B`): every value of A
+		// is a member of B. Like `in`, dispatched through core.binOp.
+		Ain:
 		return true
 	}
 	return false

@@ -3871,6 +3871,35 @@ func TestParseIndex(t *testing.T) {
 	})
 }
 
+func TestParseAin(t *testing.T) {
+	// `a ain b` parses as a binary operator.
+	test.ExpectParse(t, "a ain b", func(p pfn) []Stmt {
+		return stmts(
+			SExpr(
+				EBinary(
+					EIdent("a", p(1, 1)),
+					EIdent("b", p(1, 7)),
+					token.Ain,
+					p(1, 3))))
+	})
+
+	// `ain` has comparison precedence and is left-associative, like `in` / `==`,
+	// so `a ain b == c` groups as `(a ain b) == c`.
+	test.ExpectParse(t, "a ain b == c", func(p pfn) []Stmt {
+		return stmts(
+			SExpr(
+				EBinary(
+					EBinary(
+						EIdent("a", p(1, 1)),
+						EIdent("b", p(1, 7)),
+						token.Ain,
+						p(1, 3)),
+					EIdent("c", p(1, 12)),
+					token.Equal,
+					p(1, 9))))
+	})
+}
+
 func TestParseLogical(t *testing.T) {
 	test.ExpectParse(t, "2 ** 3", func(p pfn) []Stmt {
 		return stmts(

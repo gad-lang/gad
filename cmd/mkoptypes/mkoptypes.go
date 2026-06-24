@@ -28,7 +28,10 @@ func main() {
 	// operator (a keyword, not in the operator token group); it is added so it
 	// gets a TBinaryOperatorIn type and an ObjectWithInBinOperator interface,
 	// and is user-overridable via `met core.binOp(_ TBinaryOperatorIn, …)`.
-	binaryOperators = append(binaryOperators, token.Inc, token.Dec, token.In)
+	// `ain` is the array-membership operator (`A ain B`): like `in`, it is a
+	// keyword dispatched on the right operand (the container), so it gets a
+	// TBinaryOperatorAin type and an ObjectWithAinBinOperator interface.
+	binaryOperators = append(binaryOperators, token.Inc, token.Dec, token.In, token.Ain)
 	selfAssignOperators := listGroup(token.GroupSelfAssignOperatorBegin, token.NullichAssign)
 	for i, op := range selfAssignOperators {
 		selfAssignOperators[i] = token.Unassign(op)
@@ -132,14 +135,16 @@ func writeOpAPI(binaryOperators, unaryOperators, selfAssignOperators []token.Tok
 	f.WriteString("func binOpObject(vm *VM, op BinaryOperatorType, left, right Object) (ret Object, err error, handled bool) {\n")
 	f.WriteString("\tswitch op.Token() {\n")
 	for _, o := range binaryOperators {
-		if o == token.In {
-			// `a in b` tests membership of a in b, so the implementing object is
-			// the right operand (the container) and the value is passed as arg.
+		if o == token.In || o == token.Ain {
+			// `a in b` / `A ain b` test membership in b, so the implementing
+			// object is the right operand (the container) and the value(s) are
+			// passed as arg.
 			fmt.Fprintf(&f,
-				"\tcase token.In:\n"+
-					"\t\tif h, ok := right.(ObjectWithInBinOperator); ok {\n"+
-					"\t\t\tret, err = h.BinOpIn(vm, left)\n"+
-					"\t\t\thandled = true\n\t\t}\n")
+				"\tcase token.%s:\n"+
+					"\t\tif h, ok := right.(ObjectWith%[2]sBinOperator); ok {\n"+
+					"\t\t\tret, err = h.BinOp%[2]s(vm, left)\n"+
+					"\t\t\thandled = true\n\t\t}\n",
+				o.Name(), o.Name())
 			continue
 		}
 		fmt.Fprintf(&f,

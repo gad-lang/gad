@@ -344,6 +344,40 @@ func TestVMInOperator(t *testing.T) {
 	expectErrIs(t, `return 1 in 2`, nil, ErrType)
 }
 
+func TestVMAinOperator(t *testing.T) {
+	// `A ain B` is true when every value of A is a member of B.
+	testExpectRun(t, `return [1, 2] ain [1, 2, 3]`, nil, True)
+	testExpectRun(t, `return [1, 4] ain [1, 2, 3]`, nil, False)
+	// An empty left array is vacuously true.
+	testExpectRun(t, `return [] ain [1, 2, 3]`, nil, True)
+	// A non-array left is treated as a single value (matches `in`).
+	testExpectRun(t, `return 2 ain [1, 2, 3]`, nil, True)
+	testExpectRun(t, `return 5 ain [1, 2, 3]`, nil, False)
+	// Dict key membership and bytes value membership.
+	testExpectRun(t, `return ["a", "b"] ain {a: 1, b: 2}`, nil, True)
+	testExpectRun(t, `return ["a", "z"] ain {a: 1, b: 2}`, nil, False)
+	testExpectRun(t, `return [104, 105] ain bytes("hi")`, nil, True)
+
+	// Precedence: comparison level, like `in`.
+	testExpectRun(t, `return [1 + 1] ain [2, 3]`, nil, True)
+
+	// Falls back through `in`, so a Gad type that defines only `in` works.
+	testExpectRun(t, `
+	met core.binOp(_ TBinaryOperatorIn, v, b str) { return v > 0 }
+	return [1, 2, 3] ain "anything"`, nil, True)
+
+	// A type can intercept `ain` directly, taking precedence over the fallback.
+	testExpectRun(t, `
+	met core.binOp(_ TBinaryOperatorAin, a array, b str) { return "custom" }
+	return [1, 2] ain "x"`, nil, Str("custom"))
+
+	// core.binOp is callable directly with the ain operator type.
+	testExpectRun(t, `return core.binOp(TBinaryOperatorAin, [1, 2], [1, 2, 3])`, nil, True)
+
+	// No `in` support on the right operand -> error.
+	expectErrIs(t, `return [1] ain 2`, nil, ErrType)
+}
+
 func TestVMToArray(t *testing.T) {
 	// toArray yields index=value KeyValue pairs; entries from a custom iterator
 	// must be distinct copies, not aliases of the iterator's shared state.

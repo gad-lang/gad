@@ -33,11 +33,6 @@
   features (auto complete etc) on
   edit code/expression in template strings.
   add right closable panel to render doc comments of current editing file. it reloads 5s after edit or now (with reload button). 
-- [ ] parse binary operator `ain`, like `in`, but accept `array` of values. (`A ain B`/`[...] ain B`).
-  update `mkoptypes` generator for `op_api.go` to add interface of `ain` operator (`ArrayIn`.
-  if `B` does not implements `ObjectWithArrayInBinOp` interface, but implements `ObjectWithInBinOp` takes
-  `for v in A { v, err := B.BinOpIn(v); // check error\nif v.IsFalsy() { return false } }; return true`.
-  create samples, docs and parser/compiler/vm tests.
 - [ ] `with` implementation. add new gad objects interface `type ObjectEnter interface { Enter(*VM) (error) }` and
   `type ObjectExit interface { Exit(*VM, err error) (Object, error) }`.
   add new builtin functions "enter" and "exit" (with empty body) to "core" module.

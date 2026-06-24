@@ -1380,6 +1380,19 @@ func TestCompiler_Compile(t *testing.T) {
 		)),
 	))
 
+	// `ain` compiles to OpBinary(Ain) and is not constant-folded (it is dispatched
+	// at runtime through core.binOp, like `in` / `===`).
+	expectCompile(t, `1 ain 2`, bytecode(
+		Array{Int(1), Int(2)},
+		compFunc(concatInsts(
+			makeInst(OpConstant, 0),
+			makeInst(OpConstant, 1),
+			makeInst(OpBinary, int(token.Ain)),
+			makeInst(OpPop),
+			makeInst(OpReturn, 0),
+		)),
+	))
+
 	expectCompile(t, `1; 2`, bytecode(
 		Array{Int(1), Int(2)},
 		compFunc(concatInsts(

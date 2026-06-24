@@ -1,4 +1,5 @@
-// 15_in_operator.gad — the `in` membership operator (`A in B`).
+// 15_in_operator.gad — the `in` membership operator (`A in B`) and the `ain`
+// array-membership operator (`A ain B`).
 //
 // `A in B` tests membership: a value for arrays/bytes, a key for the dict kinds.
 // It is distinct from the `for x in y` loop (where `in` is the loop separator) —
@@ -34,3 +35,15 @@ met core.binOp(_ TBinaryOperatorIn, needle str, haystack str) {
     return strings.contains(haystack, needle)
 }
 println("ell" in "hello")      // true
+
+// `A ain B` ("all in") is true when every value of A is a member of B. The left
+// operand is an array of values (a scalar is treated as one element); an empty
+// array is vacuously true.
+println([1, 2] ain [1, 2, 3])      // true
+println([1, 4] ain [1, 2, 3])      // false
+println([] ain [1, 2, 3])          // true
+println(["a", "b"] ain {a: 1, b: 2})  // true   (dict keys)
+
+// `ain` falls back through `in`, so the custom str `in` above also powers it.
+println(["ell", "hel"] ain "hello")   // true
+

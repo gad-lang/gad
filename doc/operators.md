@@ -269,6 +269,28 @@ operand (the container); it returns a `bool`-valued object for the membership of
 `value`. In Gad, a type can define `in` with
 `met core.binOp(_ TBinaryOperatorIn, left T, right U)`.
 
+## Array membership (`ain`)
+
+`A ain B` ("all in") is true when **every** value of the left operand is a member
+of `B`. It has the same comparison precedence as `in`. The left operand is an
+array of values (a non-array value is treated as a single element, so `x ain B`
+matches `x in B`); an empty array is vacuously true.
+
+```go
+[1, 2] ain [1, 2, 3]        // true
+[1, 4] ain [1, 2, 3]        // false
+[] ain [1, 2, 3]            // true   (vacuous)
+2 ain [1, 2, 3]             // true   (scalar, like `in`)
+["a", "b"] ain {a: 1, b: 2} // true   (dict keys)
+```
+
+`ain` is dispatched on the **right** operand. A type provides an optimized
+all-membership check by implementing `ObjectWithAinBinOperator`
+(`BinOpAin(vm *VM, values Object)`) in Go, or `met core.binOp(_ TBinaryOperatorAin,
+left T, right U)` in Gad. When the right operand defines neither, `ain` falls back
+to testing each value with `in`, so it works for every container that supports
+`in`.
+
 ## Precedence
 
 Unary operators bind tightest; the ternary operator binds loosest. Binary
@@ -278,7 +300,7 @@ operators have five levels:
 |:-----:|-------------------------------------------------|
 | 5     | `*` `**` `/` `%` `<<` `>>` `&` `&^` `<<<` `>>>` `%%` |
 | 4     | `+` `-` `\|` `^`                                 |
-| 3     | `==` `!=` `===` `!==` `<` `<=` `>` `>=` `in` |
+| 3     | `==` `!=` `===` `!==` `<` `<=` `>` `>=` `in` `ain` |
 | 2     | `&&`                                        |
 | 1     | `\|\|`                                      |
 

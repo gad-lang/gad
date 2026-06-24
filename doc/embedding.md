@@ -193,8 +193,10 @@ A type implements only the operators it supports; unsupported ones fall back to
 an "unsupported operand types" error. The membership operator `a in b` is
 special: it is dispatched on the **right** operand via
 `ObjectWithInBinOperator.BinOpIn(vm, value)` (the container reports whether
-`value` is a member). To run an operator generically from Go, call
-`gad.BinaryOp(vm, tok, left, right)`.
+`value` is a member). The array-membership operator `A ain B` ("all in") is
+dispatched the same way via `ObjectWithAinBinOperator.BinOpAin(vm, values)`;
+without it, `ain` falls back to testing each value with `in`. To run an operator
+generically from Go, call `gad.BinaryOp(vm, tok, left, right)`.
 
 The same operators are also overridable from Gad with
 `met core.binOp(_ TBinaryOperator{Op}, left T, right U)` (see

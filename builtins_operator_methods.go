@@ -17,7 +17,35 @@ func BinaryOp(vm *VM, tok token.Token, left, right Object) (Object, error) {
 	if op == TBinaryOperatorSame {
 		return binSameFallback(vm, left, right)
 	}
+	if op == TBinaryOperatorAin {
+		return binAinFallback(vm, left, right)
+	}
 	return nil, NewOperandTypeError(tok.String(), left.Type().Name(), right.Type().Name())
+}
+
+// binAinFallback computes `left ain right` (every value of the left operand is a
+// member of right) when right does not implement ObjectWithAinBinOperator: it
+// tests each value of left with the `in` membership operator, routed through
+// core.binOp so it resolves both Go containers (ObjectWithInBinOperator) and Gad
+// types that define `met core.binOp(_ TBinaryOperatorIn, …)`. A non-array left is
+// treated as a single value, so `x ain B` matches `x in B`; an empty left array
+// yields true.
+func binAinFallback(vm *VM, left, right Object) (Object, error) {
+	values, ok := left.(Array)
+	if !ok {
+		values = Array{left}
+	}
+	for _, v := range values {
+		r, err := vm.Builtins.Call(BuiltinBinaryOperator,
+			Call{VM: vm, Args: Args{{TBinaryOperatorIn, v, right}}})
+		if err != nil {
+			return nil, err
+		}
+		if r.IsFalsy() {
+			return False, nil
+		}
+	}
+	return True, nil
 }
 
 // binSameFallback computes `left === right` (strict same-identity) when left
@@ -47,6 +75,9 @@ func operatorBinaryMethod(c Call) (Object, error) {
 	}
 	if op == TBinaryOperatorSame {
 		return binSameFallback(c.VM, left, right)
+	}
+	if op == TBinaryOperatorAin {
+		return binAinFallback(c.VM, left, right)
 	}
 	return Nil, NewOperandTypeError(op.Token().String(), left.Type().Name(), right.Type().Name())
 }

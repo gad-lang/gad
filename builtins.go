@@ -216,6 +216,7 @@ const (
 	BuiltinBinaryOperatorInc
 	BuiltinBinaryOperatorDec
 	BuiltinBinaryOperatorIn
+	BuiltinBinaryOperatorAin
 	GroupBuiltinBinaryOperatorsEnd
 
 	GroupBuiltinSelfAssignOperatorsBegin

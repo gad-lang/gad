@@ -196,6 +196,12 @@ type ObjectWithInBinOperator interface {
 	BinOpIn(vm *VM, right Object) (Object, error)
 }
 
+// ObjectWithAinBinOperator is implemented by an object that handles the `ain`
+// binary operator as the left operand.
+type ObjectWithAinBinOperator interface {
+	BinOpAin(vm *VM, right Object) (Object, error)
+}
+
 // binOpObject dispatches a binary operator to left's typed
 // ObjectWith{Op}BinOperator implementation. handled is false when left does
 // not implement the operator's interface.
@@ -359,6 +365,11 @@ func binOpObject(vm *VM, op BinaryOperatorType, left, right Object) (ret Object,
 	case token.In:
 		if h, ok := right.(ObjectWithInBinOperator); ok {
 			ret, err = h.BinOpIn(vm, left)
+			handled = true
+		}
+	case token.Ain:
+		if h, ok := right.(ObjectWithAinBinOperator); ok {
+			ret, err = h.BinOpAin(vm, left)
 			handled = true
 		}
 	}
