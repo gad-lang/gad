@@ -39,6 +39,11 @@ layout settings are stored in [`.gad.yaml`](.gad.yaml).
 | `10_functions_with_methods.gad` | typed params, func-with-methods, `met`, `prop` |
 | `11_classes.gad`              | classes: fields, methods, properties, inheritance |
 | `12_method_interfaces.gad`   | `<…>` func headers, `meti` interfaces, `implements` |
+| `13_ranges.gad`               | the `..` range operator, steps, temporal ranges   |
+| `14_user_operators.gad`       | user operators `<<<` `>>>` `%%` via `core.binOp`  |
+| `15_in_operator.gad`          | the `in` membership operator                       |
+| `16_doc_comments.gad`         | doc comments and `>>>` examples                    |
+| `17_unary_operators.gad`      | unary `!` `-` `+` `^` `++` `--` and `core.unOp`   |
 
 ## Modules
 

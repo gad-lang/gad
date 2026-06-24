@@ -77,6 +77,58 @@ func (BinaryOperatorType) MethodsDisabled() bool {
 	return true
 }
 
+type UnaryOperatorType token.Token
+
+func (b UnaryOperatorType) GadObjectType() {}
+
+func (b UnaryOperatorType) Token() token.Token {
+	return token.Token(b)
+}
+
+func (b UnaryOperatorType) String() string {
+	return b.ToString()
+}
+
+func (b UnaryOperatorType) IsFalsy() bool { return false }
+
+func (b UnaryOperatorType) Type() ObjectType {
+	return TOperator
+}
+
+func (b UnaryOperatorType) ToString() string {
+	t := b.Token()
+	return t.Name() + ReprQuote(t.String())
+}
+
+func (b UnaryOperatorType) Equal(right Object) bool {
+	if ob, ok := right.(UnaryOperatorType); ok {
+		return ob == b
+	}
+	return false
+}
+
+func (UnaryOperatorType) Call(Call) (Object, error) {
+	return nil, ErrNotCallable
+}
+
+func (b UnaryOperatorType) Name() string {
+	return "TUnaryOperator" + b.Token().Name()
+}
+
+func (b UnaryOperatorType) FullName() string {
+	return b.Name()
+}
+
+func (UnaryOperatorType) Getters() Dict { return nil }
+
+func (UnaryOperatorType) Setters() Dict { return nil }
+
+func (UnaryOperatorType) Methods() Dict { return nil }
+
+func (UnaryOperatorType) Fields() Dict { return nil }
+
+func (UnaryOperatorType) MethodsDisabled() bool { return true }
+
 type SelfAssignOperatorType token.Token
 
 func (b SelfAssignOperatorType) GadObjectType() {}

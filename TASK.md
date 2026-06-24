@@ -33,10 +33,6 @@
   features (auto complete etc) on
   edit code/expression in template strings.
   add right closable panel to render doc comments of current editing file. it reloads 5s after edit or now (with reload button). 
-- [ ] update `mkoptypes` generator for `op_api.go` to generate interfaces of unary operators `--`/`++`
-  with syntaxe `type ObjectWith[OPERATOR_NAME]UnaryOperator interface { UnOp[OPERATOR_NAME](vm *VM) (Object, error) }`.
-  add builtin function "unOp" to module "core" for unary operators. change `VM.xOpUnary()` to call "core.unOp(&vm.stack[vm.sp-1])" and move all
-  per type implementatios to use `AddMethod` API of `core.unOp` builtin function, calling `obj.UnOp(vm)`.
 - [ ] update `mkoptypes` generator for `op_api.go` to generate interfaces of self assign operators.
   with syntaxe `type ObjectWith[OPERATOR_NAME]SelfAssigOperator interface { SelfAssignOp[OPERATOR_NAME](vm *VM, value Object) (Object, error) }`.
   change builtin function "core.selfAssignOp" methods (`AddMethod` API) to call `obj.SelfAssignOp(vm, value)`.

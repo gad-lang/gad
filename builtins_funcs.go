@@ -1536,6 +1536,43 @@ func BuiltinSelfAssignOperatorFunc(c Call) (ret Object, err error) {
 	return c.VM.Builtins.Call(BuiltinBinaryOperator, c)
 }
 
+// BuiltinUnaryOperatorFunc is the default handler of core.unOp: it dispatches to
+// the operand's per-operator ObjectWith{Op}UnaryOperator implementation
+// (unOpObject). The logical NOT operator (`!`) is universal — any value that
+// does not implement UnOpNot falls back to its truthiness.
+func BuiltinUnaryOperatorFunc(c Call) (ret Object, err error) {
+	var (
+		op = &Arg{
+			Name: "Op",
+			TypeAssertion: new(TypeAssertion).
+				AcceptHandler("UnaryOperatorType", func(v Object) (ok bool) {
+					_, ok = v.(UnaryOperatorType)
+					return
+				}),
+		}
+		operand = &Arg{
+			Name: "operand",
+		}
+	)
+
+	if err = c.Args.Destructure(op, operand); err != nil {
+		return
+	}
+
+	opType := op.Value.(UnaryOperatorType)
+
+	if r, e, handled := unOpObject(c.VM, opType, operand.Value); handled {
+		return r, e
+	}
+	if opType == TUnaryOperatorNot {
+		return Bool(operand.Value.IsFalsy()), nil
+	}
+	err = ErrType.NewError(
+		"invalid type for unary '" + opType.Token().String() + "': '" +
+			operand.Value.Type().Name() + "'")
+	return
+}
+
 func BuiltinCastFunc(c Call) (ret Object, err error) {
 	if err = c.Args.CheckLen(2); err != nil {
 		return

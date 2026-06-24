@@ -4168,6 +4168,55 @@ func TestVMUnary(t *testing.T) {
 
 	expectErrIs(t, `return ^1.0`, nil, ErrType)
 	expectErrHas(t, `return ^1.0`, nil, `TypeError: invalid type for unary '^': 'float'`)
+
+	// `!` on a flag stays a flag; on anything else it yields a bool.
+	testExpectRun(t, `return !yes`, nil, No)
+	testExpectRun(t, `return !no`, nil, Yes)
+}
+
+func TestVMUnaryIncDec(t *testing.T) {
+	// prefix ++/-- mutate the variable and yield the new value.
+	testExpectRun(t, `x := 5; return ++x`, nil, Int(6))
+	testExpectRun(t, `x := 5; return --x`, nil, Int(4))
+	testExpectRun(t, `x := 5u; return ++x`, nil, Uint(6))
+	testExpectRun(t, `x := 2.5; return ++x`, nil, Float(3.5))
+	testExpectRun(t, `x := 'A'; return ++x`, nil, Char('B'))
+	testExpectRun(t, `x := 'B'; return --x`, nil, Char('A'))
+	testExpectRun(t, `x := 2.5d; return ++x`, nil, MustDecimalFromString("3.5"))
+	testExpectRun(t, `x := 2.5d; return --x`, nil, MustDecimalFromString("1.5"))
+
+	// ++/-- has no meaning for bool/flag operands.
+	expectErrIs(t, `x := true; return ++x`, nil, ErrType)
+}
+
+func TestVMUnaryTemporal(t *testing.T) {
+	// A calendar date carries no time-of-day, so it always steps by one day.
+	testExpectRun(t, `x := 2026-01-31D; return ++x`, nil, NewCalendarDate(2026, 2, 1))
+	testExpectRun(t, `x := 2026-02-01D; return --x`, nil, NewCalendarDate(2026, 1, 31))
+
+	// A calendar time steps by its least-significant non-zero clock component.
+	testExpectRun(t, `x := time.CalendarTime("2026-01-31 08:05:00"); return ++x`, nil,
+		NewCalendarTime(2026, 1, 31, 8, 6, 0, 0)) // minute (seconds are zero)
+	testExpectRun(t, `x := time.CalendarTime("2026-01-31 08:05:30"); return ++x`, nil,
+		NewCalendarTime(2026, 1, 31, 8, 5, 31, 0)) // second
+	testExpectRun(t, `x := time.CalendarTime("2026-01-31 08:00:00"); return ++x`, nil,
+		NewCalendarTime(2026, 1, 31, 9, 0, 0, 0)) // hour
+	testExpectRun(t, `x := time.CalendarTime("2026-01-31 08:05:00"); return --x`, nil,
+		NewCalendarTime(2026, 1, 31, 8, 4, 0, 0)) // minute, decreasing
+}
+
+func TestVMUnaryOverride(t *testing.T) {
+	// A Gad type customises a unary operator with met core.unOp(_ TUnaryOperatorX, …).
+	testExpectRun(t, `
+		Vec := Class("Vec"; fields = (; x = (= 0)))
+		met core.unOp(_ TUnaryOperatorSub, v Vec) { return Vec(; x = -v.x) }
+		a := Vec(; x = 7)
+		return (-a).x
+	`, nil, Int(-7))
+
+	// core.unOp is also callable directly.
+	testExpectRun(t, `return core.unOp(TUnaryOperatorInc, 41)`, nil, Int(42))
+	testExpectRun(t, `return core.unOp(TUnaryOperatorNot, 0)`, nil, True)
 }
 
 func TestVMScopes(t *testing.T) {

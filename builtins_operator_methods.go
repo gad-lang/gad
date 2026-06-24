@@ -51,6 +51,25 @@ func operatorBinaryMethod(c Call) (Object, error) {
 	return Nil, NewOperandTypeError(op.Token().String(), left.Type().Name(), right.Type().Name())
 }
 
+// operatorUnaryMethod is the default handler of core.unOp: it dispatches to the
+// operand's per-operator ObjectWith{Op}UnaryOperator implementation via
+// unOpObject. The logical NOT (`!`) is universal and falls back to truthiness. A
+// user-defined `met core.unOp(_ TUnaryOperatorX, operand T)` is more specific and
+// so takes precedence.
+func operatorUnaryMethod(c Call) (Object, error) {
+	op := c.Args.Get(0).(UnaryOperatorType)
+	operand := c.Args.Get(1)
+	if ret, err, handled := unOpObject(c.VM, op, operand); handled {
+		return ret, err
+	}
+	if op.Token() == token.Not {
+		return Bool(operand.IsFalsy()), nil
+	}
+	return Nil, ErrType.NewError(
+		"invalid type for unary '" + op.Token().String() + "': '" +
+			operand.Type().Name() + "'")
+}
+
 // operatorSelfAssignMethod is the shared handler for `@selfAssignOperator`
 // overloads: it runs the left operand's SelfAssignOp and, when the operator is
 // not handled, falls back to the binary operator (mirroring the default).
@@ -74,6 +93,15 @@ func operatorMethod(name string, h CallableFunc, t ObjectType) *Function {
 		p("op")
 		p("left").Type(t)
 		p("right")
+	}))
+}
+
+// unaryOperatorMethod builds one `(op, operand T)` unary operator overload. `op`
+// is untyped so the overload matches any unary operator for an operand of type t.
+func unaryOperatorMethod(name string, h CallableFunc, t ObjectType) *Function {
+	return NewFunction(name, h, FunctionWithParams(func(p func(name string) *ParamBuilder) {
+		p("op")
+		p("operand").Type(t)
 	}))
 }
 
@@ -101,6 +129,18 @@ func registerOperatorMethods() {
 	BuiltinObjects.AddMethod(BuiltinSelfAssignOperator,
 		operatorMethod("selfAssignOp", operatorSelfAssignMethod, TArray))
 
+	// Expose the primitive types' UnOp implementations as typed methods of
+	// core.unOp. The temporal types (time/duration/calendarDate/calendarTime)
+	// have no builtin-type key, so their UnOp implementations are reached through
+	// the default handler (unOpObject) instead.
+	unaryTypes := []ObjectType{
+		TInt, TUint, TFloat, TDecimal, TChar, TBool, TFlag,
+	}
+	for _, t := range unaryTypes {
+		BuiltinObjects.AddMethod(BuiltinUnaryOperator,
+			unaryOperatorMethod("unOp", operatorUnaryMethod, t))
+	}
+
 	// Expose the operator functions under the global `core` namespace
 	// (core.binOp / core.selfAssignOp). Done here, after the methods are
 	// registered, so the namespace references the final method-bearing objects.
@@ -115,6 +155,7 @@ func CoreModule() Dict {
 	return Dict{
 		"binOp":        BuiltinObjects[BuiltinBinaryOperator],
 		"selfAssignOp": BuiltinObjects[BuiltinSelfAssignOperator],
+		"unOp":         BuiltinObjects[BuiltinUnaryOperator],
 	}
 }
 
@@ -127,11 +168,13 @@ func registerCoreModule() {
 	name := coreModuleSpec.Name
 	setOperatorModule(BuiltinObjects[BuiltinBinaryOperator])
 	setOperatorModule(BuiltinObjects[BuiltinSelfAssignOperator])
+	setOperatorModule(BuiltinObjects[BuiltinUnaryOperator])
 
 	BuiltinsMap[name] = BuiltinModuleCore
 	BuiltinObjects[BuiltinModuleCore] = CoreModule()
 	BuiltinsMap[name+".binOp"] = BuiltinBinaryOperator
 	BuiltinsMap[name+".selfAssignOp"] = BuiltinSelfAssignOperator
+	BuiltinsMap[name+".unOp"] = BuiltinUnaryOperator
 }
 
 // setOperatorModule ties an operator builtin to the core module spec.

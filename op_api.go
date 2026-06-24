@@ -364,3 +364,78 @@ func binOpObject(vm *VM, op BinaryOperatorType, left, right Object) (ret Object,
 	}
 	return
 }
+
+// ObjectWithNotUnaryOperator is implemented by an object that handles the
+// `!` unary operator.
+type ObjectWithNotUnaryOperator interface {
+	UnOpNot(vm *VM) (Object, error)
+}
+
+// ObjectWithSubUnaryOperator is implemented by an object that handles the
+// `-` unary operator.
+type ObjectWithSubUnaryOperator interface {
+	UnOpSub(vm *VM) (Object, error)
+}
+
+// ObjectWithAddUnaryOperator is implemented by an object that handles the
+// `+` unary operator.
+type ObjectWithAddUnaryOperator interface {
+	UnOpAdd(vm *VM) (Object, error)
+}
+
+// ObjectWithXorUnaryOperator is implemented by an object that handles the
+// `^` unary operator.
+type ObjectWithXorUnaryOperator interface {
+	UnOpXor(vm *VM) (Object, error)
+}
+
+// ObjectWithIncUnaryOperator is implemented by an object that handles the
+// `++` unary operator.
+type ObjectWithIncUnaryOperator interface {
+	UnOpInc(vm *VM) (Object, error)
+}
+
+// ObjectWithDecUnaryOperator is implemented by an object that handles the
+// `--` unary operator.
+type ObjectWithDecUnaryOperator interface {
+	UnOpDec(vm *VM) (Object, error)
+}
+
+// unOpObject dispatches a unary operator to the operand's typed
+// ObjectWith{Op}UnaryOperator implementation. handled is false when operand
+// does not implement the operator's interface.
+func unOpObject(vm *VM, op UnaryOperatorType, operand Object) (ret Object, err error, handled bool) {
+	switch op.Token() {
+	case token.Not:
+		if h, ok := operand.(ObjectWithNotUnaryOperator); ok {
+			ret, err = h.UnOpNot(vm)
+			handled = true
+		}
+	case token.Sub:
+		if h, ok := operand.(ObjectWithSubUnaryOperator); ok {
+			ret, err = h.UnOpSub(vm)
+			handled = true
+		}
+	case token.Add:
+		if h, ok := operand.(ObjectWithAddUnaryOperator); ok {
+			ret, err = h.UnOpAdd(vm)
+			handled = true
+		}
+	case token.Xor:
+		if h, ok := operand.(ObjectWithXorUnaryOperator); ok {
+			ret, err = h.UnOpXor(vm)
+			handled = true
+		}
+	case token.Inc:
+		if h, ok := operand.(ObjectWithIncUnaryOperator); ok {
+			ret, err = h.UnOpInc(vm)
+			handled = true
+		}
+	case token.Dec:
+		if h, ok := operand.(ObjectWithDecUnaryOperator); ok {
+			ret, err = h.UnOpDec(vm)
+			handled = true
+		}
+	}
+	return
+}

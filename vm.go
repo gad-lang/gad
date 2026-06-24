@@ -1191,136 +1191,28 @@ func (vm *VM) xOpCallObject(co_ Object, numArgs int, flags OpCallFlag) (err erro
 	return nil
 }
 
+// xOpUnary applies a unary operator (`!`, `-`, `+`, `^`, `++`, `--`) to the top
+// of the stack by dispatching through core.unOp (BuiltinUnaryOperator), which
+// routes to the operand's per-operator ObjectWith{Op}UnaryOperator method
+// (op_api.go) and lets a `met core.unOp(...)` override it.
 func (vm *VM) xOpUnary() error {
 	tok := token.Token(vm.curInsts[vm.ip+1])
-	right := vm.stack[vm.sp-1]
-	var value Object
+	operand := vm.stack[vm.sp-1]
 
-	switch tok {
-	case token.Not:
-		switch right.(type) {
-		case Flag:
-			vm.stack[vm.sp-1] = Flag(right == No)
-		default:
-			vm.stack[vm.sp-1] = Bool(right.IsFalsy())
-		}
-		vm.ip++
-		return nil
-	case token.Sub:
-		switch o := right.(type) {
-		case Int:
-			value = -o
-		case Float:
-			value = -o
-		case Char:
-			value = Int(-o)
-		case Uint:
-			value = -o
-		case Duration:
-			value = -o
-		case Bool:
-			if o {
-				value = Int(-1)
-			} else {
-				value = Int(0)
-			}
-		default:
-			goto invalidType
-		}
-	case token.Xor:
-		switch o := right.(type) {
-		case Int:
-			value = ^o
-		case Uint:
-			value = ^o
-		case Char:
-			value = ^Int(o)
-		case Bool:
-			if o {
-				value = ^Int(1)
-			} else {
-				value = ^Int(0)
-			}
-		case Flag:
-			if o {
-				value = ^Int(1)
-			} else {
-				value = ^Int(0)
-			}
-		default:
-			goto invalidType
-		}
-	case token.Add:
-		switch o := right.(type) {
-		case Int, Uint, Float, Char, Duration:
-			value = right
-		case Bool:
-			if o {
-				value = Int(1)
-			} else {
-				value = Int(0)
-			}
-		case Flag:
-			if o {
-				value = Int(1)
-			} else {
-				value = Int(0)
-			}
-		default:
-			goto invalidType
-		}
-	case token.Inc:
-		switch o := right.(type) {
-		case Int:
-			value = o + 1
-		case Uint:
-			value = o + 1
-		case Float:
-			value = o + 1
-		case Char:
-			value = o + 1
-		case Decimal:
-			value = Decimal(o.ToGo().Add(DecimalFromInt(1).ToGo()))
-		default:
-			goto invalidType
-		}
-	case token.Dec:
-		switch o := right.(type) {
-		case Int:
-			value = o - 1
-		case Uint:
-			value = o - 1
-		case Float:
-			value = o - 1
-		case Char:
-			value = o - 1
-		case Decimal:
-			value = Decimal(o.ToGo().Sub(DecimalFromInt(1).ToGo()))
-		default:
-			goto invalidType
-		}
-	case token.Null:
-		vm.stack[vm.sp-1] = Bool(right == Nil)
-		vm.ip++
-		return nil
-	case token.NotNull:
-		vm.stack[vm.sp-1] = Bool(right != Nil)
-		vm.ip++
-		return nil
-	default:
-		return ErrInvalidOperator.NewError(
-			fmt.Sprintf("invalid for '%s': '%s'",
-				tok.String(), right.Type().Name()))
+	value, err := vm.Builtins.Call(BuiltinUnaryOperator, Call{
+		VM: vm,
+		Args: Args{Array{
+			UnaryOperatorType(tok),
+			operand,
+		}},
+	})
+	if err != nil {
+		return err
 	}
 
 	vm.stack[vm.sp-1] = value
 	vm.ip++
 	return nil
-
-invalidType:
-	return ErrType.NewError(
-		fmt.Sprintf("invalid type for unary '%s': '%s'",
-			tok.String(), right.Type().Name()))
 }
 
 func (vm *VM) xOpSliceIndex() error {

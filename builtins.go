@@ -94,6 +94,7 @@ const (
 	BuiltinFunctionsBegin_
 	BuiltinBinaryOperator
 	BuiltinSelfAssignOperator
+	BuiltinUnaryOperator
 	BuiltinRepr
 	BuiltinCast
 	BuiltinAppend
@@ -237,6 +238,15 @@ const (
 	BuiltinSelfAssignOperatorAndNot
 	BuiltinSelfAssignOperatorLOr
 	GroupBuiltinSelfAssignOperatorsEnd
+
+	GroupBuiltinUnaryOperatorsBegin
+	BuiltinUnaryOperatorNot
+	BuiltinUnaryOperatorSub
+	BuiltinUnaryOperatorAdd
+	BuiltinUnaryOperatorXor
+	BuiltinUnaryOperatorInc
+	BuiltinUnaryOperatorDec
+	GroupBuiltinUnaryOperatorsEnd
 
 	// Builtin module namespaces (stdlib modules exposed without `import`).
 	GroupBuiltinModulesBegin
@@ -578,6 +588,10 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinSelfAssignOperator: &BuiltinFunction{
 		FuncName: "selfAssignOp",
 		Value:    BuiltinSelfAssignOperatorFunc,
+	},
+	BuiltinUnaryOperator: &BuiltinFunction{
+		FuncName: "unOp",
+		Value:    BuiltinUnaryOperatorFunc,
 	},
 	BuiltinCast: &BuiltinFunction{
 		FuncName: "cast",

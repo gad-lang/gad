@@ -10,8 +10,8 @@
 | `-`      | negation (`0 - x`)  | numeric / char / bool                  |
 | `^`      | bitwise complement  | integer / char / bool                  |
 | `!`      | logical NOT         | any value (truthy/falsy)               |
-| `++x`    | pre-increment       | variable of int/uint/float/decimal/char |
-| `--x`    | pre-decrement       | variable of int/uint/float/decimal/char |
+| `++x`    | pre-increment       | variable of int/uint/float/decimal/char, or a temporal value |
+| `--x`    | pre-decrement       | variable of int/uint/float/decimal/char, or a temporal value |
 
 The prefix `++x` / `--x` operators mutate the variable **and** evaluate to its
 new value, so they can be used inside expressions:
@@ -22,6 +22,23 @@ y := ++x        // x is 6, y is 6
 arr := [0, 0, 0]
 i := 0
 arr[++i] = 9    // assigns arr[1]
+```
+
+On the temporal types (`time`, `calendarDate`, `calendarTime`) `++` **increases**
+and `--` **decreases** by the *least-significant non-zero unit* of the value. A
+plain `calendarDate` has no time-of-day, so it always steps by a day; a value
+with a clock steps by the smallest non-zero component (minute when the seconds
+are zero, second otherwise, hour when only the hour is set, and a day at
+midnight):
+
+```go
+d := 2026-01-31D
+++d                                   // 2026-02-01  (one day)
+
+t := time.CalendarTime("2026-01-31 08:05:00")
+++t                                   // 08:06:00     (a minute; seconds are 0)
+t2 := time.CalendarTime("2026-01-31 08:05:30")
+++t2                                  // 08:05:31     (a second)
 ```
 
 Every value is either truthy or falsy. `0`, `0u`, `0.0`, `""`, empty
@@ -191,17 +208,21 @@ s ++ 1 ++ 2 ++ 3      // s.items == [1, 2, 3]
 
 ## Operator handlers and the `core` namespace
 
-Operator behaviour is dispatched through two functions in the global **`core`**
+Operator behaviour is dispatched through three functions in the global **`core`**
 namespace (available everywhere without `import`, like `strings`):
-`core.binOp(op, left, right)` for binary operators and
-`core.selfAssignOp(op, left, right)` for the self-assign forms. A type customises
-an operator by adding a typed method to one of them:
+`core.binOp(op, left, right)` for binary operators,
+`core.selfAssignOp(op, left, right)` for the self-assign forms, and
+`core.unOp(op, operand)` for the unary operators (`!`, `-`, `+`, `^`, `++`,
+`--`). A type customises an operator by adding a typed method to one of them:
 
 ```go
 met core.binOp(_ TBinaryOperatorAdd, a Vec, b Vec) { … }
+met core.unOp(_ TUnaryOperatorSub, v Vec) { return Vec(; x = -v.x) }
 ```
 
-You can also call them directly, e.g. `core.binOp(TBinaryOperatorAdd, 1, 2)`.
+You can also call them directly, e.g. `core.binOp(TBinaryOperatorAdd, 1, 2)` or
+`core.unOp(TUnaryOperatorInc, 41)`. Logical NOT (`!`) is universal: any value
+that does not define `TUnaryOperatorNot` falls back to its truthiness.
 
 ## User Operators
 

@@ -55,6 +55,13 @@ var (
 	TSelfAssignOperatorDoubleMod     = SelfAssignOperatorType(token.DoubleMod)     // %%
 	TSelfAssignOperatorAndNot        = SelfAssignOperatorType(token.AndNot)        // &^
 	TSelfAssignOperatorLOr           = SelfAssignOperatorType(token.LOr)           // ||
+
+	TUnaryOperatorNot = UnaryOperatorType(token.Not) // !
+	TUnaryOperatorSub = UnaryOperatorType(token.Sub) // -
+	TUnaryOperatorAdd = UnaryOperatorType(token.Add) // +
+	TUnaryOperatorXor = UnaryOperatorType(token.Xor) // ^
+	TUnaryOperatorInc = UnaryOperatorType(token.Inc) // ++
+	TUnaryOperatorDec = UnaryOperatorType(token.Dec) // --
 )
 
 func init() {
@@ -113,4 +120,11 @@ func init() {
 	add(BuiltinSelfAssignOperatorDoubleMod, TSelfAssignOperatorDoubleMod)
 	add(BuiltinSelfAssignOperatorAndNot, TSelfAssignOperatorAndNot)
 	add(BuiltinSelfAssignOperatorLOr, TSelfAssignOperatorLOr)
+
+	add(BuiltinUnaryOperatorNot, TUnaryOperatorNot)
+	add(BuiltinUnaryOperatorSub, TUnaryOperatorSub)
+	add(BuiltinUnaryOperatorAdd, TUnaryOperatorAdd)
+	add(BuiltinUnaryOperatorXor, TUnaryOperatorXor)
+	add(BuiltinUnaryOperatorInc, TUnaryOperatorInc)
+	add(BuiltinUnaryOperatorDec, TUnaryOperatorDec)
 }
