@@ -495,6 +495,27 @@ func TestDebugFramesCarryLocals(t *testing.T) {
 	}
 }
 
+func TestDebugSeparatesStdoutStderr(t *testing.T) {
+	_, h, _ := newTestServer(t)
+	// print -> stdout; an uncaught throw -> stderr at termination.
+	src := "print(\"hello\")\nthrow \"boom\"\n"
+	resp := decode[DebugResponse](t, do(t, h, "POST", "/api/ide/debug/start",
+		StartRequest{Source: src}))
+	// No breakpoints: runs straight to termination.
+	if resp.State != "terminated" {
+		t.Fatalf("expected terminated, got %+v", resp)
+	}
+	if resp.Stdout != "hello" {
+		t.Fatalf("stdout = %q, want hello", resp.Stdout)
+	}
+	if !strings.Contains(resp.Stderr, "boom") {
+		t.Fatalf("stderr = %q, want it to contain boom", resp.Stderr)
+	}
+	if strings.Contains(resp.Stdout, "boom") {
+		t.Fatalf("stdout must not contain the error: %q", resp.Stdout)
+	}
+}
+
 func TestDebugConditionalBreakpoint(t *testing.T) {
 	_, h, _ := newTestServer(t)
 	src := "a := 1\nb := 5\nc := a + b\nreturn c\n" // lines 1..4

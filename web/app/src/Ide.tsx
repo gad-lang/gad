@@ -128,7 +128,25 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [active, setActive] = useState(-1);
   const [pane, setPane] = useState<Pane>("output");
-  const [output, setOutput] = useState("");
+  // Output is a stream-tagged log so stderr can be colorized and split out.
+  const [outChunks, setOutChunks] = useState<{ stream: "out" | "err"; text: string }[]>([]);
+  const [outMode, setOutMode] = useState<"combined" | "split">("combined");
+  const pushOut = useCallback((stream: "out" | "err", text: string) => {
+    if (text) setOutChunks((c) => [...c, { stream, text }]);
+  }, []);
+  const clearOut = useCallback(() => setOutChunks([]), []);
+  // setOutput replaces the whole log with a single stdout block (diagnostics,
+  // single-shot messages); kept as a thin shim over the chunk model.
+  const setOutput = useCallback(
+    (v: string | ((prev: string) => string)) => {
+      if (typeof v === "function") {
+        setOutChunks((c) => [{ stream: "out", text: v(c.map((x) => x.text).join("")) }]);
+      } else {
+        setOutChunks(v ? [{ stream: "out", text: v }] : []);
+      }
+    },
+    [],
+  );
   const [stack, setStack] = useState<DebugResponse["frames"]>([]);
   const [locals, setLocals] = useState<DebugResponse["locals"]>([]);
   const [status, setStatus] = useState("");
@@ -563,15 +581,15 @@ export function Ide({ workspace }: { workspace: Workspace }) {
         safe: cfg.safe,
         saveOut: cfg.saveOut,
       });
-      let s = "";
-      if (res.stdout) s += res.stdout;
-      if (res.stderr) s += res.stderr;
-      if (res.ok && res.result) s += "\n⇦ " + res.result + "\n";
-      (res.diagnostics || []).forEach((d) => (s += `${d.line}:${d.column} ${d.message}\n`));
-      setOutput(s || "(no output)");
+      clearOut();
+      pushOut("out", res.stdout || "");
+      pushOut("err", res.stderr || "");
+      if (res.ok && res.result) pushOut("out", "\n⇦ " + res.result + "\n");
+      const diag = (res.diagnostics || []).map((d) => `${d.line}:${d.column} ${d.message}`).join("\n");
+      pushOut("err", diag);
       setStatus(res.ok ? "done" : "error");
     } catch (e) {
-      setOutput(String(e));
+      pushOut("err", String(e));
       setStatus("error");
     }
   }
@@ -612,7 +630,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   }
 
   function applyDebug(res: DebugResponse, path: string) {
-    if (res.output) setOutput((o) => o + res.output);
+    pushOut("out", res.stdout || "");
+    pushOut("err", res.stderr || "");
     if (res.state === "stopped") {
       // Follow the stop into its file: stepping into an imported module reports
       // that module's path, so open it and highlight the line there. The
@@ -629,13 +648,14 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       // The Evaluate panel refreshes via an effect on debugLoc (so it sees the
       // just-updated debug session).
     } else if (res.state === "terminated") {
-      if (res.result) setOutput((o) => o + "\n⇦ " + res.result + "\n");
-      if (res.error) setOutput((o) => o + "\n" + res.error + "\n");
+      // res.error is already on the stderr stream (pushed above); only add the
+      // return value.
+      if (res.result) pushOut("out", "\n⇦ " + res.result + "\n");
       setDebug(null);
       setDebugLoc(null);
       setStatus("program exited");
     } else {
-      setOutput(res.error || "debug error");
+      pushOut("err", res.error || "debug error");
       if (res.diagnostics) showDiagnostics(res.diagnostics);
       setDebug(null);
       setDebugLoc(null);
@@ -939,9 +959,53 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                 </button>
               ))}
               <span className="spacer" />
-              {pane === "output" && <button onClick={() => setOutput("")}>Clear</button>}
+              {pane === "output" && (
+                <>
+                  <button
+                    className={outMode === "combined" ? "on" : ""}
+                    title="Combined stdout+stderr"
+                    onClick={() => setOutMode("combined")}
+                  >
+                    Combined
+                  </button>
+                  <button
+                    className={outMode === "split" ? "on" : ""}
+                    title="Split stdout / stderr"
+                    onClick={() => setOutMode("split")}
+                  >
+                    Split
+                  </button>
+                  <button onClick={clearOut}>Clear</button>
+                </>
+              )}
             </div>
-            {pane === "output" && <pre className="pane-body">{output}</pre>}
+            {pane === "output" && outMode === "combined" && (
+              <pre className="pane-body out-log">
+                {outChunks.length === 0 ? (
+                  <span className="muted">(no output)</span>
+                ) : (
+                  outChunks.map((c, i) => (
+                    <span key={i} className={c.stream === "err" ? "out-err" : undefined}>
+                      {c.text}
+                    </span>
+                  ))
+                )}
+              </pre>
+            )}
+            {pane === "output" && outMode === "split" && (
+              <div className="pane-body out-split">
+                <div className="out-col">
+                  <div className="out-col-head">stdout</div>
+                  <pre>{outChunks.filter((c) => c.stream === "out").map((c) => c.text).join("")}</pre>
+                </div>
+                <div className="out-col">
+                  <div className="out-col-head out-err">stderr</div>
+                  <pre className="out-err">
+                    {outChunks.filter((c) => c.stream === "err").map((c) => c.text).join("")}
+                  </pre>
+                </div>
+              </div>
+            )}
             {pane === "stack" && (
               <div className="pane-body">
                 {(stack || []).map((f, i) => (
@@ -1882,6 +1946,14 @@ function IdeStyles() {
 .panes{height:200px;border-top:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column;resize:vertical;overflow:hidden}
 .pane-tabs{display:flex;gap:.3rem;align-items:center;padding:.25rem .6rem;border-bottom:1px solid var(--border)}
 .pane-tabs button.on{background:var(--accent);color:#fff}
+.out-log .out-err{color:#e5484d}
+.out-split{display:flex;gap:0;padding:0}
+.out-split .out-col{flex:1;min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--border)}
+.out-split .out-col:last-child{border-right:0}
+.out-split .out-col-head{padding:.2rem .6rem;font-size:.72rem;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+.out-split .out-col-head.out-err{color:#e5484d}
+.out-split pre{flex:1;overflow:auto;margin:0;padding:.4rem .6rem;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:.85rem}
+.out-split pre.out-err{color:#e5484d}
 .panes .pane-body{flex:1;overflow:auto;margin:0;padding:.5rem .8rem;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:.85rem}
 .frame{padding:.1rem .3rem;border-radius:4px}
 .frame:hover{background:var(--code-bg,rgba(125,125,125,.12))}

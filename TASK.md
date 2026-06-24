@@ -83,6 +83,11 @@ verification for full sign-off.
       comments. Now parses with ParseComments and re-emits via CodeWithComments
       (matching the CLI). Fixes the IDE, web server and WASM playground formatters.
       Regression test TestFormatPreservesComments.
+- [x] separate STDERR/STDOUT streaming output: debug sessions now capture stdout
+      and stderr into distinct buffers (DebugResponse.Stdout/Stderr deltas; run
+      already separated them). Output pane is a stream-tagged log with a
+      Combined/Split toggle; stderr is colorized red (combined inline, split as a
+      second column). Test TestDebugSeparatesStdoutStderr.
 
 ## Editor plugins (separate)
 (none — keyword/builtin sync commands shipped via cmd/update-*-plugin.)

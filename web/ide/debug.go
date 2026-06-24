@@ -52,8 +52,10 @@ func NewDebugManager() *DebugManager {
 type debugSession struct {
 	eng    *debug.Engine
 	done   chan debugRunResult
-	out    *syncBuffer
-	outLen int // bytes of output already reported
+	out    *syncBuffer // stdout
+	outLen int         // stdout bytes already reported
+	err    *syncBuffer // stderr
+	errLen int         // stderr bytes already reported
 	ended  bool
 	// normalize maps a debugger file name to a workspace-relative path; identity
 	// when the manager has no NormalizeFile hook.
@@ -143,7 +145,9 @@ type DebugResponse struct {
 	Column      int                    `json:"column,omitempty"`
 	Frames      []DebugFrame           `json:"frames,omitempty"`
 	Locals      []DebugVariable        `json:"locals,omitempty"`
-	Output      string                 `json:"output,omitempty"`
+	Output      string                 `json:"output,omitempty"` // combined stdout+stderr delta (compat)
+	Stdout      string                 `json:"stdout,omitempty"` // stdout delta since the last stop
+	Stderr      string                 `json:"stderr,omitempty"` // stderr delta since the last stop
 	Result      string                 `json:"result,omitempty"`
 	Error       string                 `json:"error,omitempty"`
 	Diagnostics []gadbridge.Diagnostic `json:"diagnostics,omitempty"`
@@ -187,6 +191,7 @@ func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
 		eng.SetBreakpoints(req.Breakpoints)
 	}
 	out := &syncBuffer{}
+	errBuf := &syncBuffer{}
 	vm := gad.NewVM(builtins.Build(), bc).SetRecover(true)
 	vm.SetDebugger(eng)
 
@@ -208,11 +213,11 @@ func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
 		relativize = m.RelativizeValue
 	}
 	sess := &debugSession{
-		eng: eng, done: make(chan debugRunResult, 1), out: out,
+		eng: eng, done: make(chan debugRunResult, 1), out: out, err: errBuf,
 		normalize: normalize, relativize: relativize,
 	}
 	go func() {
-		ret, rerr := vm.RunOpts(&gad.RunOpts{Args: args, StdOut: out, StdErr: out})
+		ret, rerr := vm.RunOpts(&gad.RunOpts{Args: args, StdOut: out, StdErr: errBuf})
 		res := ""
 		if ret != nil && ret != gad.Nil {
 			res = ret.ToString()
@@ -320,13 +325,19 @@ func (m *DebugManager) remove(id string) {
 	m.mu.Unlock()
 }
 
+// drainOutput returns the new stdout and stderr produced since the last report.
+func (s *debugSession) drainOutput() (stdout, stderr string) {
+	stdout, s.outLen = s.out.since(s.outLen)
+	stderr, s.errLen = s.err.since(s.errLen)
+	return stdout, stderr
+}
+
 // waitNext resumes the session until the next stop or program completion and
 // builds the response (including the call stack, locals and new output).
 func (s *debugSession) waitNext() DebugResponse {
 	select {
 	case ev := <-s.eng.Stops():
-		out, n := s.out.since(s.outLen)
-		s.outLen = n
+		stdout, stderr := s.drainOutput()
 		return DebugResponse{
 			State:  "stopped",
 			Reason: string(ev.Reason),
@@ -335,13 +346,22 @@ func (s *debugSession) waitNext() DebugResponse {
 			Column: ev.Column,
 			Frames: framesOf(s.eng, s.normalize, s.relativize),
 			Locals: localsOf(s.eng, s.relativize),
-			Output: out,
+			Output: stdout + stderr,
+			Stdout: stdout,
+			Stderr: stderr,
 		}
 	case r := <-s.done:
 		s.ended = true
-		out, n := s.out.since(s.outLen)
-		s.outLen = n
-		resp := DebugResponse{State: "terminated", Output: out, Result: r.result}
+		stdout, stderr := s.drainOutput()
+		// An uncaught error is returned (not written to the stderr buffer), so
+		// surface it on the stderr stream too — like the run path.
+		if r.err != nil && stderr == "" {
+			stderr = r.err.Error()
+		}
+		resp := DebugResponse{
+			State: "terminated", Output: stdout + stderr,
+			Stdout: stdout, Stderr: stderr, Result: r.result,
+		}
 		if r.err != nil {
 			resp.Error = r.err.Error()
 		}

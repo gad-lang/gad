@@ -94,6 +94,8 @@ export interface DebugResponse {
   frames?: DebugFrame[];
   locals?: DebugVariable[];
   output?: string;
+  stdout?: string;
+  stderr?: string;
   result?: string;
   error?: string;
   diagnostics?: GadDiagnostic[];
