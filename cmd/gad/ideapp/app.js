@@ -164,6 +164,13 @@ function buildGadLanguage(language, t) {
     }
     return "blockComment";
   };
+  const docBlock = (stream, st) => {
+    while (!stream.eol()) {
+      if (stream.match(st.docFence)) { st.docFence = ""; return "docComment"; }
+      stream.next();
+    }
+    return "docComment";
+  };
   const str = (stream, q) => {
     let esc = false;
     while (!stream.eol()) { const c = stream.next(); if (c === q && !esc) return; esc = !esc && c === "\\"; }
@@ -173,11 +180,16 @@ function buildGadLanguage(language, t) {
 
   const parser = {
     name: "gad",
-    startState: () => ({ block: 0 }),
+    startState: () => ({ block: 0, docFence: "" }),
     token(stream, st) {
+      if (st.docFence) return docBlock(stream, st);
       if (st.block > 0) return blockComment(stream, st);
       if (stream.eatSpace()) return null;
       const ch = stream.peek();
+      // Doc comments before // and /* so `/?` is not read as `/` + `?`.
+      if (stream.match("/???")) { st.docFence = "???"; return docBlock(stream, st); }
+      if (stream.match("/??")) { st.docFence = "??"; return docBlock(stream, st); }
+      if (stream.match("/?")) { stream.skipToEnd(); return "docComment"; }
       if (stream.match("//")) { stream.skipToEnd(); return "lineComment"; }
       if (stream.match("/*")) { st.block = 1; return blockComment(stream, st); }
       if (stream.match('"""') || stream.match("```")) return fenced(stream, ch === '"' ? '"""' : "```");
@@ -206,7 +218,7 @@ function buildGadLanguage(language, t) {
       return null;
     },
     tokenTable: {
-      lineComment: t.lineComment, blockComment: t.blockComment, string: t.string,
+      lineComment: t.lineComment, blockComment: t.blockComment, docComment: t.docComment, string: t.string,
       character: t.character, number: t.number, keyword: t.keyword, atom: t.atom,
       standard: t.standard(t.variableName), variable: t.variableName, operator: t.operator,
     },

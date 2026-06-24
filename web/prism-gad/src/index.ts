@@ -41,6 +41,13 @@ const word = (words: string[]) => new RegExp(`\\b(?:${words.join("|")})\\b`);
  * several string forms so they win over later token rules.
  */
 export const gadGrammar: Grammar = {
+  // Doc comments (`/?` single, `/??`…`??` and `/???`…`???` blocks) come before
+  // ordinary comments so the `/?` marker is not read as a `//`/`/*` comment.
+  "doc-comment": {
+    pattern: /\/\?\?\?[\s\S]*?(?:\?\?\?|$)|\/\?\?[\s\S]*?(?:\?\?|$)|\/\?.*/,
+    greedy: true,
+    alias: "comment",
+  },
   comment: {
     pattern: /\/\/.*|\/\*[\s\S]*?(?:\*\/|$)/,
     greedy: true,

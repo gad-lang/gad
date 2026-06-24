@@ -13,6 +13,9 @@ const isIdent = (ch: string) => /[A-Za-z0-9_$]/.test(ch);
 interface GadState {
   // depth of the current /* */ block comment, 0 when not in one.
   blockComment: number;
+  // closing fence of the current doc-comment block (`??` or `???`), or "" when
+  // not inside a `/??`…`??` / `/???`…`???` doc block.
+  docFence: string;
 }
 
 // A pragmatic stream tokenizer for Gad. It is intentionally lightweight (it
@@ -23,10 +26,13 @@ const gadStreamLanguage = StreamLanguage.define<GadState>({
   name: "gad",
 
   startState(): GadState {
-    return { blockComment: 0 };
+    return { blockComment: 0, docFence: "" };
   },
 
   token(stream: StringStream, state: GadState): string | null {
+    if (state.docFence) {
+      return tokenDocBlock(stream, state);
+    }
     if (state.blockComment > 0) {
       return tokenBlockComment(stream, state);
     }
@@ -34,6 +40,21 @@ const gadStreamLanguage = StreamLanguage.define<GadState>({
     if (stream.eatSpace()) return null;
 
     const ch = stream.peek() as string;
+
+    // Doc comments (`/?` single, `/??`…`??` and `/???`…`???` blocks) come before
+    // the ordinary // and /* checks so the `/?` marker is not read as `/` + `?`.
+    if (stream.match("/???")) {
+      state.docFence = "???";
+      return tokenDocBlock(stream, state);
+    }
+    if (stream.match("/??")) {
+      state.docFence = "??";
+      return tokenDocBlock(stream, state);
+    }
+    if (stream.match("/?")) {
+      stream.skipToEnd();
+      return "docComment";
+    }
 
     // Comments
     if (stream.match("//")) {
@@ -120,6 +141,7 @@ const gadStreamLanguage = StreamLanguage.define<GadState>({
   tokenTable: {
     lineComment: t.lineComment,
     blockComment: t.blockComment,
+    docComment: t.docComment,
     string: t.string,
     character: t.character,
     number: t.number,
@@ -131,6 +153,19 @@ const gadStreamLanguage = StreamLanguage.define<GadState>({
     operator: t.operator,
   },
 });
+
+// tokenDocBlock consumes a `/??`…`??` or `/???`…`???` doc-comment block, ending
+// when the closing fence (state.docFence) is reached.
+function tokenDocBlock(stream: StringStream, state: GadState): string {
+  while (!stream.eol()) {
+    if (stream.match(state.docFence)) {
+      state.docFence = "";
+      return "docComment";
+    }
+    stream.next();
+  }
+  return "docComment";
+}
 
 function tokenBlockComment(stream: StringStream, state: GadState): string {
   while (!stream.eol()) {

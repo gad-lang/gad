@@ -59,8 +59,17 @@ verification for full sign-off.
       ended in a top-level `return` which short-circuited the eval. Fixed with
       gadbridge.EvalSource (strips top-level returns, keeps definitions). repr's
       `‹int: 2›` is the correct repr form.
-- [ ] allow tree navigator of `IndexGetter` objects (dict/array/module...), in tooltip, locals panel and evaluate panel.
-  allow to open tree navigator in new dialog. 
+- [~] tree navigator of container values (dict/array/module/…): backend
+      gadbridge.InspectObject + /api/ide/inspect (frame-scoped or standalone);
+      lazy-drill TreeNavigator + InspectDialog wired into the locals and evaluate
+      panels. TODO: the tooltip surface (CodeMirror hover widget).
+      add per entry button to goto declaration source. 
+- [ ] the "doc" panel isn't rendering Markdown with gad code source highlits.
+- [~] colorize doc comments in the plugins: codemirror-gad (StreamLanguage),
+      prism-gad (grammar) and the build-free ideapp tokenizer now recognize `/?`
+      single + `/??`…`??` / `/???`…`???` block doc comments as a docComment token
+      (verified: prism tokenizes them distinctly). TODO: highlight embedded source
+      code and `>>>` result blocks inside doc comments (sub-language regions).
 
 ## Editor plugins (separate)
 (none — keyword/builtin sync commands shipped via cmd/update-*-plugin.)
