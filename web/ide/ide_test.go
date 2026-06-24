@@ -130,6 +130,43 @@ func TestRunSaveOutputs(t *testing.T) {
 	}
 }
 
+func TestTranspile(t *testing.T) {
+	_, h, dir := newTestServer(t)
+
+	// Mixed inferred from a .gadt path; default write/rawstr funcs.
+	w := do(t, h, "POST", "/api/ide/transpile", transpileRequest{
+		Path: "p.gadt", Source: "Hi {%= name %}!\n",
+	})
+	res := decode[map[string]any](t, w)
+	if res["ok"] != true {
+		t.Fatalf("transpile not ok: %v", res)
+	}
+	src, _ := res["source"].(string)
+	if !strings.Contains(src, "write(rawstr(") || !strings.Contains(src, "write(name)") {
+		t.Fatalf("transpiled source unexpected:\n%s", src)
+	}
+
+	// transpile config in .gad.yaml overrides the write function name.
+	os.WriteFile(filepath.Join(dir, configFile),
+		[]byte("transpile:\n  writeFunc: emit\n"), 0o644)
+	w = do(t, h, "POST", "/api/ide/transpile", transpileRequest{
+		Mixed: true, Source: "{%= x %}",
+	})
+	src, _ = decode[map[string]any](t, w)["source"].(string)
+	if !strings.Contains(src, "emit(x)") {
+		t.Fatalf("config writeFunc not applied:\n%s", src)
+	}
+
+	// A per-request override beats the config.
+	w = do(t, h, "POST", "/api/ide/transpile", transpileRequest{
+		Mixed: true, Source: "{%= x %}", WriteFunc: "put",
+	})
+	src, _ = decode[map[string]any](t, w)["source"].(string)
+	if !strings.Contains(src, "put(x)") {
+		t.Fatalf("request override not applied:\n%s", src)
+	}
+}
+
 func TestFetch(t *testing.T) {
 	_, h, dir := newTestServer(t)
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

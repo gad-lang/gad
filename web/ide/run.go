@@ -6,8 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"strings"
+
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/importers"
+	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/stdlib/helper"
 	"github.com/gad-lang/gad/web/gadbridge"
 )
@@ -71,6 +74,67 @@ func (s *Server) handleFormat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, gadbridge.Format(req.Source))
+}
+
+// transpileRequest carries source to transpile. Mixed selects template
+// (`.gadt`) parsing; the override fields fall back to the workspace `transpile`
+// config and then the built-in defaults.
+type transpileRequest struct {
+	Source          string `json:"source"`
+	Path            string `json:"path"` // used only to infer mixed mode from .gadt
+	Mixed           bool   `json:"mixed"`
+	RawStrFuncStart string `json:"rawStrFuncStart"`
+	RawStrFuncEnd   string `json:"rawStrFuncEnd"`
+	WriteFunc       string `json:"writeFunc"`
+}
+
+// transpileOptions builds the effective node.TranspileOptions from the request,
+// the workspace `transpile` config key and the built-in defaults (in that order
+// of precedence).
+func (s *Server) transpileOptions(req transpileRequest) *node.TranspileOptions {
+	opts := gad.TranspileOptions() // defaults
+
+	// Workspace config: transpile.{rawStrFuncStart,rawStrFuncEnd,writeFunc}.
+	if doc, err := readConfig(filepath.Join(s.Root, configFile)); err == nil {
+		if cfg, ok := doc["transpile"].(map[string]any); ok {
+			if v, ok := cfg["rawStrFuncStart"].(string); ok {
+				opts.RawStrFuncStart = v
+			}
+			if v, ok := cfg["rawStrFuncEnd"].(string); ok {
+				opts.RawStrFuncEnd = v
+			}
+			if v, ok := cfg["writeFunc"].(string); ok {
+				opts.WriteFunc = v
+			}
+		}
+	}
+
+	// Per-request overrides win.
+	if req.RawStrFuncStart != "" {
+		opts.RawStrFuncStart = req.RawStrFuncStart
+	}
+	if req.RawStrFuncEnd != "" {
+		opts.RawStrFuncEnd = req.RawStrFuncEnd
+	}
+	if req.WriteFunc != "" {
+		opts.WriteFunc = req.WriteFunc
+	}
+	return opts
+}
+
+// handleTranspile transpiles a Gad/template source to plain Gad write(...) calls.
+func (s *Server) handleTranspile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req transpileRequest
+	if err := decodeBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	mixed := req.Mixed || strings.HasSuffix(req.Path, ".gadt")
+	writeJSON(w, gadbridge.Transpile(req.Source, mixed, s.transpileOptions(req)))
 }
 
 func (s *Server) handleDiagnose(w http.ResponseWriter, r *http.Request) {

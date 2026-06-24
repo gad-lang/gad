@@ -262,6 +262,29 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     }
   }
 
+  // Transpile a file to a sibling .gad (a .gadt becomes name.gad; another .gad
+  // becomes name.transpiled.gad to avoid clobbering the source) and open it.
+  async function transpileFile(path: string) {
+    try {
+      const data = await ideApi.read(path);
+      const res = await ideApi.transpile(data.content, path);
+      if (!res.ok) {
+        showDiagnostics(res.diagnostics);
+        setStatus("transpile failed: " + path);
+        return;
+      }
+      const out = path.endsWith(".gadt")
+        ? path.slice(0, -1) // .gadt -> .gad
+        : path.replace(/\.gad$/, ".transpiled.gad");
+      await ideApi.write(out, res.source);
+      await refreshTree();
+      await openFile(out);
+      setStatus("transpiled to " + out);
+    } catch (e) {
+      setStatus("transpile failed: " + e);
+    }
+  }
+
   // Explorer context-menu / keyboard actions on a tree node.
   const treeAction = useCallback(
     async (action: TreeAction, node: TreeNode) => {
@@ -293,7 +316,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           setPendingRunPath(node.path);
           break;
         case "transpile":
-          setStatus("transpile is not available yet");
+          await transpileFile(node.path);
           break;
       }
     },
@@ -1183,11 +1206,17 @@ function SettingsDialog({
   onSave: (next: Record<string, unknown>) => void;
 }) {
   const fmt = (config.fmt as Record<string, unknown>) || {};
+  const transpile = (config.transpile as Record<string, unknown>) || {};
   // Checked = expanded layout (default, no key); unchecked writes no-…: true.
   const [expanded, setExpanded] = useState<Record<string, boolean>>(
     Object.fromEntries(NEWLINE_FLAGS.map(([k]) => [k, fmt[k] !== true])),
   );
   const [backup, setBackup] = useState(fmt.backup === true);
+  // Transpile options (.gad.yaml → transpile). Empty fields fall back to the
+  // built-in defaults on the backend, so we keep them as plain strings here.
+  const [writeFunc, setWriteFunc] = useState(String(transpile.writeFunc ?? ""));
+  const [rawStart, setRawStart] = useState(String(transpile.rawStrFuncStart ?? ""));
+  const [rawEnd, setRawEnd] = useState(String(transpile.rawStrFuncEnd ?? ""));
 
   function save() {
     const fmtObj: Record<string, unknown> = { ...fmt };
@@ -1197,7 +1226,20 @@ function SettingsDialog({
     }
     if (backup) fmtObj.backup = true;
     else delete fmtObj.backup;
-    onSave({ ...config, fmt: fmtObj });
+
+    const trObj: Record<string, unknown> = { ...transpile };
+    const setOrDel = (k: string, v: string) => {
+      if (v.trim() === "") delete trObj[k];
+      else trObj[k] = v;
+    };
+    setOrDel("writeFunc", writeFunc);
+    setOrDel("rawStrFuncStart", rawStart);
+    setOrDel("rawStrFuncEnd", rawEnd);
+
+    const next: Record<string, unknown> = { ...config, fmt: fmtObj };
+    if (Object.keys(trObj).length > 0) next.transpile = trObj;
+    else delete next.transpile;
+    onSave(next);
   }
 
   return (
@@ -1221,6 +1263,36 @@ function SettingsDialog({
           <FormControlLabel
             control={<Checkbox checked={backup} onChange={(e) => setBackup(e.target.checked)} />}
             label="Keep .backup on format"
+          />
+        </Box>
+
+        <Typography variant="subtitle2" sx={{ mt: 2 }}>
+          Transpile (.gad.yaml → transpile)
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Applied to <code>.gad</code>/<code>.gadt</code> transpile. Leave blank for defaults.
+        </Typography>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
+          <TextField
+            size="small"
+            label="Write function"
+            placeholder="write"
+            value={writeFunc}
+            onChange={(e) => setWriteFunc(e.target.value)}
+          />
+          <TextField
+            size="small"
+            label="Raw-string func start"
+            placeholder="rawstr("
+            value={rawStart}
+            onChange={(e) => setRawStart(e.target.value)}
+          />
+          <TextField
+            size="small"
+            label="Raw-string func end"
+            placeholder=";cast)"
+            value={rawEnd}
+            onChange={(e) => setRawEnd(e.target.value)}
           />
         </Box>
       </DialogContent>

@@ -73,6 +73,38 @@ func Format(src string) FormatResult {
 	return FormatResult{OK: true, Source: out}
 }
 
+// Transpile rewrites a Gad source into plain Gad with template text and
+// `{%= … %}` expressions turned into write(...) calls, using the default
+// gad.TranspileOptions unless overridden. When mixed is set the source is parsed
+// in mixed (template) mode — the form used for `.gadt` files. On a parse error
+// the source is returned unchanged with the diagnostics. Mirrors Format.
+func Transpile(src string, mixed bool, opts *node.TranspileOptions) FormatResult {
+	fileSet := source.NewFileSet()
+	srcFile := fileSet.AddFileData(sourceName, -1, []byte(src))
+	po := &parser.ParserOptions{Mode: parser.ParseComments}
+	var so *parser.ScannerOptions
+	if mixed {
+		po.Mode |= parser.ParseMixed
+		so = &parser.ScannerOptions{Mode: parser.ScanMixed | parser.ScanConfigDisabled}
+	}
+	file, err := parser.NewParserWithOptions(srcFile, po, so).ParseFile()
+	if err != nil {
+		return FormatResult{OK: false, Source: src, Diagnostics: errorDiagnostics(err)}
+	}
+	if opts == nil {
+		opts = gad.TranspileOptions()
+	}
+	out := node.Code(file.Stmts,
+		node.CodeWithFlags(node.CodeWriteContextFlagFormat),
+		node.CodeWithPrefix("\t"),
+		node.CodeTranspile(opts),
+	)
+	if len(out) == 0 || out[len(out)-1] != '\n' {
+		out += "\n"
+	}
+	return FormatResult{OK: true, Source: out}
+}
+
 // Diagnose returns the syntax and compile diagnostics for src (empty when the
 // source is valid).
 func Diagnose(src string) []Diagnostic {

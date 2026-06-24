@@ -90,10 +90,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/ide/config", s.handleConfig) // GET / PUT
 
 	// Language ops.
-	mux.HandleFunc("/api/ide/format", s.handleFormat)     // POST
-	mux.HandleFunc("/api/ide/diagnose", s.handleDiagnose) // POST
-	mux.HandleFunc("/api/ide/run", s.handleRun)           // POST
-	mux.HandleFunc("/api/ide/modules", s.handleModules)   // GET
+	mux.HandleFunc("/api/ide/format", s.handleFormat)       // POST
+	mux.HandleFunc("/api/ide/transpile", s.handleTranspile) // POST
+	mux.HandleFunc("/api/ide/diagnose", s.handleDiagnose)   // POST
+	mux.HandleFunc("/api/ide/run", s.handleRun)             // POST
+	mux.HandleFunc("/api/ide/modules", s.handleModules)     // GET
 
 	// Debug (shares the request/response protocol used by web/server).
 	mux.HandleFunc("/api/ide/debug/start", postOnly(s.dbg.HandleStart))

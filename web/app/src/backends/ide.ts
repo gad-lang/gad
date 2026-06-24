@@ -94,6 +94,8 @@ export const ideApi = {
     jsonFetch<Record<string, unknown>>("PUT", "api/ide/config", doc),
   modules: () => jsonFetch<ModuleInfo[]>("GET", "api/ide/modules"),
   format: (source: string) => jsonFetch<FormatResult>("POST", "api/ide/format", { source }),
+  transpile: (source: string, path?: string) =>
+    jsonFetch<FormatResult>("POST", "api/ide/transpile", { source, path }),
   diagnose: (source: string) =>
     jsonFetch<{ diagnostics: GadDiagnostic[] }>("POST", "api/ide/diagnose", { source }).then(
       (r) => r.diagnostics || [],
