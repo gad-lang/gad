@@ -26,6 +26,10 @@ export interface RunConfig {
   disabled: string[];
   safe: boolean;
   saveOut: string;
+  /** Per-stream output capture; when combine is set both go to saveStdout. */
+  saveStdout?: string;
+  saveStderr?: string;
+  combine?: boolean;
 }
 
 export interface DebugFrame {
@@ -80,6 +84,11 @@ export const ideApi = {
     jsonFetch<{ path: string }>("PUT", "api/ide/file", { path, content }),
   mkfile: (path: string) => jsonFetch<{ path: string }>("PUT", "api/ide/file", { path, content: "" }),
   del: (path: string) => jsonFetch<{ path: string }>("POST", "api/ide/delete", { path }),
+  rename: (path: string, to: string) =>
+    jsonFetch<{ path: string }>("POST", "api/ide/rename", { path, to }),
+  mkdir: (path: string) => jsonFetch<{ path: string }>("POST", "api/ide/mkdir", { path }),
+  fetchUrl: (url: string, path: string) =>
+    jsonFetch<{ path: string; size: number }>("POST", "api/ide/fetch", { url, path }),
   config: () => jsonFetch<Record<string, unknown>>("GET", "api/ide/config"),
   saveConfig: (doc: Record<string, unknown>) =>
     jsonFetch<Record<string, unknown>>("PUT", "api/ide/config", doc),
@@ -96,6 +105,9 @@ export const ideApi = {
     disabled?: string[];
     safe?: boolean;
     saveOut?: string;
+    saveStdout?: string;
+    saveStderr?: string;
+    combine?: boolean;
   }) => jsonFetch<RunResult>("POST", "api/ide/run", req),
   dbgStart: (req: {
     source: string;

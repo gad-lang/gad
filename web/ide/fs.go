@@ -2,7 +2,9 @@ package ide
 
 import (
 	"errors"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -219,6 +221,65 @@ func (s *Server) handleRename(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"path": s.rel(to)})
+}
+
+// fetchRequest downloads URL into the workspace file Path.
+type fetchRequest struct {
+	URL  string `json:"url"`
+	Path string `json:"path"`
+}
+
+// handleFetch downloads a remote http(s) URL and stores it at a workspace path,
+// so the explorer's "get from web" action can save a file into the project.
+func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req fetchRequest
+	if err := decodeBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	u, err := url.Parse(strings.TrimSpace(req.URL))
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		writeError(w, http.StatusBadRequest, "url must be http(s)")
+		return
+	}
+	abs, err := s.resolve(req.Path)
+	if err != nil || abs == s.Root {
+		writeError(w, http.StatusBadRequest, "invalid path")
+		return
+	}
+
+	client := s.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	resp, err := client.Get(u.String())
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		writeError(w, http.StatusBadGateway, "upstream status "+resp.Status)
+		return
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := os.WriteFile(abs, data, 0o644); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"path": s.rel(abs), "size": len(data)})
 }
 
 func statusForFS(err error) int {

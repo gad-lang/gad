@@ -30,6 +30,9 @@ type Server struct {
 	// Static, when non-empty, is a directory with the built React app served at
 	// the site root.
 	Static string
+	// HTTPClient fetches remote files for handleFetch. Defaults to
+	// http.DefaultClient; overridable in tests.
+	HTTPClient *http.Client
 
 	dbg *DebugManager
 }
@@ -81,6 +84,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/ide/mkdir", s.handleMkdir)   // POST
 	mux.HandleFunc("/api/ide/delete", s.handleDelete) // POST
 	mux.HandleFunc("/api/ide/rename", s.handleRename) // POST
+	mux.HandleFunc("/api/ide/fetch", s.handleFetch)   // POST (download URL -> file)
 
 	// Config (.gad.yaml).
 	mux.HandleFunc("/api/ide/config", s.handleConfig) // GET / PUT

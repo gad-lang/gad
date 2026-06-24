@@ -98,6 +98,60 @@ func TestTree(t *testing.T) {
 	}
 }
 
+func TestRunSaveOutputs(t *testing.T) {
+	_, h, dir := newTestServer(t)
+	// stdout via print, stderr via an uncaught error.
+	src := `print("hello"); throw "boom"`
+
+	// Separate stdout/stderr files.
+	do(t, h, "POST", "/api/ide/run", runRequest{
+		Source: src, SaveStdout: "o.txt", SaveStderr: "e.txt",
+	})
+	if b, _ := os.ReadFile(filepath.Join(dir, "o.txt")); string(b) != "hello" {
+		t.Fatalf("stdout file = %q, want hello", b)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "e.txt")); !strings.Contains(string(b), "boom") {
+		t.Fatalf("stderr file = %q, want boom", b)
+	}
+
+	// Combined into the stdout file only.
+	do(t, h, "POST", "/api/ide/run", runRequest{
+		Source: src, SaveStdout: "c.txt", Combine: true,
+	})
+	c, _ := os.ReadFile(filepath.Join(dir, "c.txt"))
+	if !strings.HasPrefix(string(c), "hello") || !strings.Contains(string(c), "boom") {
+		t.Fatalf("combined file = %q, want hello+boom", c)
+	}
+
+	// Legacy saveOut still works (combined).
+	do(t, h, "POST", "/api/ide/run", runRequest{Source: src, SaveOut: "legacy.txt"})
+	if b, _ := os.ReadFile(filepath.Join(dir, "legacy.txt")); !strings.Contains(string(b), "boom") {
+		t.Fatalf("legacy saveOut = %q", b)
+	}
+}
+
+func TestFetch(t *testing.T) {
+	_, h, dir := newTestServer(t)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("downloaded body"))
+	}))
+	defer upstream.Close()
+
+	w := do(t, h, "POST", "/api/ide/fetch", fetchRequest{URL: upstream.URL, Path: "sub/dl.txt"})
+	if w.Code != 200 {
+		t.Fatalf("fetch status %d: %s", w.Code, w.Body)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "sub", "dl.txt")); string(b) != "downloaded body" {
+		t.Fatalf("downloaded content = %q", b)
+	}
+
+	// Non-http schemes are rejected.
+	w = do(t, h, "POST", "/api/ide/fetch", fetchRequest{URL: "file:///etc/passwd", Path: "x.txt"})
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("file:// scheme should be rejected, got %d", w.Code)
+	}
+}
+
 func TestFileReadWrite(t *testing.T) {
 	_, h, dir := newTestServer(t)
 	// write

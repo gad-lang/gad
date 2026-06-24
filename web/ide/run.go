@@ -94,7 +94,37 @@ type runRequest struct {
 	Args     []string `json:"args"`     // CLI-style positional arguments
 	Disabled []string `json:"disabled"` // builtin modules to disable
 	Safe     bool     `json:"safe"`     // disable all unsafe modules
-	SaveOut  string   `json:"saveOut"`  // workspace-relative file for stdout+stderr
+	// Output capture. SaveStdout / SaveStderr name workspace-relative files for
+	// each stream; when Combine is set both streams are written (interleaved as
+	// stdout then stderr) to SaveStdout only. SaveOut is the legacy combined
+	// field, kept for compatibility (treated as SaveStdout + Combine).
+	SaveStdout string `json:"saveStdout"`
+	SaveStderr string `json:"saveStderr"`
+	Combine    bool   `json:"combine"`
+	SaveOut    string `json:"saveOut"`
+}
+
+// saveOutputs persists a run's stdout/stderr to the requested workspace files.
+func (s *Server) saveOutputs(req runRequest, res gadbridge.RunResult) {
+	stdoutFile, stderrFile, combine := req.SaveStdout, req.SaveStderr, req.Combine
+	if req.SaveOut != "" && stdoutFile == "" {
+		stdoutFile, combine = req.SaveOut, true // legacy combined field
+	}
+	write := func(rel, content string) {
+		if rel == "" {
+			return
+		}
+		if abs, err := s.resolve(rel); err == nil {
+			_ = os.MkdirAll(filepath.Dir(abs), 0o755)
+			_ = os.WriteFile(abs, []byte(content), 0o644)
+		}
+	}
+	if combine {
+		write(stdoutFile, res.Stdout+res.Stderr)
+		return
+	}
+	write(stdoutFile, res.Stdout)
+	write(stderrFile, res.Stderr)
 }
 
 // handleRun compiles and runs source with the requested module map and
@@ -130,13 +160,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := s.run(src, workdir, req)
-
-	if req.SaveOut != "" {
-		if abs, err := s.resolve(req.SaveOut); err == nil {
-			_ = os.MkdirAll(filepath.Dir(abs), 0o755)
-			_ = os.WriteFile(abs, []byte(res.Stdout+res.Stderr), 0o644)
-		}
-	}
+	s.saveOutputs(req, res)
 	writeJSON(w, res)
 }
 

@@ -11,6 +11,8 @@ import {
   DialogTitle,
   FormControlLabel,
   IconButton,
+  Menu,
+  MenuItem,
   TextField,
   ThemeProvider,
   Toolbar,
@@ -89,6 +91,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
 
   const [tree, setTree] = useState<TreeNode | null>(null);
   const [showHidden, setShowHidden] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<TreeNode | null>(null);
+  const [pendingRunPath, setPendingRunPath] = useState<string | null>(null);
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [tabs, setTabs] = useState<OpenTab[]>([]);
@@ -236,6 +240,92 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   function showDiagnostics(diags: { line: number; column: number; message: string }[]) {
     setOutput((diags || []).map((d) => `${d.line}:${d.column} ${d.message}`).join("\n"));
     setPane("output");
+  }
+
+  // Format a file on disk (used by the explorer context menu) without requiring
+  // it to be the active editor tab.
+  async function formatFile(path: string) {
+    try {
+      const data = await ideApi.read(path);
+      const res = await ideApi.format(data.content);
+      if (!res.ok) {
+        showDiagnostics(res.diagnostics);
+        setStatus("format failed: " + path);
+        return;
+      }
+      await ideApi.write(path, res.source);
+      setTabs((ts) => ts.map((t) => (t.path === path ? { ...t, content: res.source, saved: true } : t)));
+      if (activeTab?.path === path) editorRef.current?.setValue(res.source);
+      setStatus("formatted " + path);
+    } catch (e) {
+      setStatus("format failed: " + e);
+    }
+  }
+
+  // Explorer context-menu / keyboard actions on a tree node.
+  const treeAction = useCallback(
+    async (action: TreeAction, node: TreeNode) => {
+      switch (action) {
+        case "open":
+          void openFile(node.path);
+          break;
+        case "rename": {
+          const to = prompt("Rename to (path relative to workspace):", node.path);
+          if (!to || to === node.path) return;
+          try {
+            await ideApi.rename(node.path, to);
+            setTabs((ts) => ts.map((t) => (t.path === node.path ? { ...t, path: to } : t)));
+            await refreshTree();
+            setStatus("renamed to " + to);
+          } catch (e) {
+            setStatus("rename failed: " + e);
+          }
+          break;
+        }
+        case "remove":
+          setRemoveTarget(node);
+          break;
+        case "format":
+          await formatFile(node.path);
+          break;
+        case "run":
+          await openFile(node.path);
+          setPendingRunPath(node.path);
+          break;
+        case "transpile":
+          setStatus("transpile is not available yet");
+          break;
+      }
+    },
+    // openFile/formatFile/refreshTree are stable enough for this menu handler.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [refreshTree],
+  );
+
+  // Open the run dialog once a context-menu "run" target has finished opening.
+  useEffect(() => {
+    if (!pendingRunPath) return;
+    const tab = tabs.find((t) => t.path === pendingRunPath);
+    if (tab) {
+      setDialog({ kind: "run", tab });
+      setPendingRunPath(null);
+    }
+  }, [pendingRunPath, tabs]);
+
+  // Confirm and execute a tree-node removal.
+  async function confirmRemove(recursive: boolean) {
+    const node = removeTarget;
+    setRemoveTarget(null);
+    if (!node) return;
+    if (node.dir && (node.children?.length ?? 0) > 0 && !recursive) return;
+    try {
+      await ideApi.del(node.path);
+      setTabs((ts) => ts.filter((t) => t.path !== node.path && !t.path.startsWith(node.path + "/")));
+      await refreshTree();
+      setStatus("removed " + node.path);
+    } catch (e) {
+      setStatus("remove failed: " + e);
+    }
   }
 
   async function ensureSaved(tab: OpenTab): Promise<string> {
@@ -447,7 +537,13 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           </div>
           <div className="tree">
             {tree?.children?.map((n) => (
-              <TreeView key={n.path} node={n} activePath={activeTab?.path} onOpen={openFile} />
+              <TreeView
+                key={n.path}
+                node={n}
+                activePath={activeTab?.path}
+                onOpen={openFile}
+                onAction={treeAction}
+              />
             ))}
           </div>
         </aside>
@@ -711,6 +807,13 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           }}
         />
       )}
+      {removeTarget && (
+        <RemoveDialog
+          node={removeTarget}
+          onClose={() => setRemoveTarget(null)}
+          onConfirm={confirmRemove}
+        />
+      )}
       </Box>
     </ThemeProvider>
   );
@@ -785,26 +888,113 @@ function KeybindingsDialog({
   );
 }
 
+type TreeAction = "open" | "rename" | "remove" | "run" | "format" | "transpile";
+
+function RemoveDialog({
+  node,
+  onClose,
+  onConfirm,
+}: {
+  node: TreeNode;
+  onClose: () => void;
+  onConfirm: (recursive: boolean) => void;
+}) {
+  const nonEmptyDir = node.dir && (node.children?.length ?? 0) > 0;
+  const [recursive, setRecursive] = useState(false);
+  const blocked = nonEmptyDir && !recursive;
+  return (
+    <Dialog open onClose={onClose}>
+      <DialogTitle>Remove {node.dir ? "directory" : "file"}</DialogTitle>
+      <DialogContent>
+        <Typography>
+          Remove <code>{node.path}</code>?
+        </Typography>
+        {nonEmptyDir && (
+          <FormControlLabel
+            sx={{ mt: 1 }}
+            control={<Checkbox checked={recursive} onChange={(e) => setRecursive(e.target.checked)} />}
+            label="This directory is not empty — remove recursively"
+          />
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button color="error" variant="contained" disabled={blocked} onClick={() => onConfirm(recursive)}>
+          Remove
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 function TreeView({
   node,
   activePath,
   onOpen,
+  onAction,
 }: {
   node: TreeNode;
   activePath?: string;
   onOpen: (p: string) => void;
+  onAction: (action: TreeAction, node: TreeNode) => void;
 }) {
   const [open, setOpen] = useState(true);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const onContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenu({ x: e.clientX, y: e.clientY });
+  };
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "F2") {
+      e.preventDefault();
+      onAction("rename", node);
+    } else if (e.key === "Delete") {
+      e.preventDefault();
+      onAction("remove", node);
+    }
+  };
+  const close = () => setMenu(null);
+  const act = (a: TreeAction) => {
+    close();
+    onAction(a, node);
+  };
+
+  const isGad = /\.gadt?$/.test(node.name);
+  const contextMenu = (
+    <Menu
+      open={!!menu}
+      onClose={close}
+      anchorReference="anchorPosition"
+      anchorPosition={menu ? { top: menu.y, left: menu.x } : undefined}
+    >
+      {!node.dir && <MenuItem onClick={() => act("open")}>Open</MenuItem>}
+      {!node.dir && isGad && <MenuItem onClick={() => act("run")}>Run</MenuItem>}
+      {!node.dir && isGad && <MenuItem onClick={() => act("format")}>Format</MenuItem>}
+      {!node.dir && isGad && <MenuItem onClick={() => act("transpile")}>Transpile</MenuItem>}
+      <MenuItem onClick={() => act("rename")}>Rename… (F2)</MenuItem>
+      <MenuItem onClick={() => act("remove")}>Remove…</MenuItem>
+    </Menu>
+  );
+
   if (node.dir) {
     return (
       <div>
-        <div className="node" onClick={() => setOpen((o) => !o)}>
+        <div
+          className="node"
+          tabIndex={0}
+          onClick={() => setOpen((o) => !o)}
+          onContextMenu={onContextMenu}
+          onKeyDown={onKeyDown}
+        >
           {open ? "📂" : "📁"} {node.name}
         </div>
+        {contextMenu}
         {open && (
           <div className="children">
             {node.children?.map((c) => (
-              <TreeView key={c.path} node={c} activePath={activePath} onOpen={onOpen} />
+              <TreeView key={c.path} node={c} activePath={activePath} onOpen={onOpen} onAction={onAction} />
             ))}
           </div>
         )}
@@ -812,8 +1002,15 @@ function TreeView({
     );
   }
   return (
-    <div className={"node file" + (node.path === activePath ? " active" : "")} onClick={() => onOpen(node.path)}>
+    <div
+      className={"node file" + (node.path === activePath ? " active" : "")}
+      tabIndex={0}
+      onClick={() => onOpen(node.path)}
+      onContextMenu={onContextMenu}
+      onKeyDown={onKeyDown}
+    >
       📄 {node.name}
+      {contextMenu}
     </div>
   );
 }
