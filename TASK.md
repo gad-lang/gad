@@ -64,12 +64,25 @@ verification for full sign-off.
       lazy-drill TreeNavigator + InspectDialog wired into the locals and evaluate
       panels. TODO: the tooltip surface (CodeMirror hover widget).
       add per entry button to goto declaration source. 
-- [ ] the "doc" panel isn't rendering Markdown with gad code source highlits.
+- [x] doc panel renders Markdown with gad code highlighting: docMarkdown.ts
+      (dependency-free) renders headings/lists/blockquotes/inline code+bold and
+      fenced code blocks highlighted with the prism-gad grammar (Prism.highlight).
 - [~] colorize doc comments in the plugins: codemirror-gad (StreamLanguage),
       prism-gad (grammar) and the build-free ideapp tokenizer now recognize `/?`
       single + `/??`…`??` / `/???`…`???` block doc comments as a docComment token
       (verified: prism tokenizes them distinctly). TODO: highlight embedded source
       code and `>>>` result blocks inside doc comments (sub-language regions).
+- [ ] change module NAME and PATH render to render relative to current workspace insteadof absolute paths.
+- [ ] change input fields of evaluate and breakpoint condition to use codemirror plugin. 
+- [x] FORMAT not preserving comments/doc comments: gadbridge.Format parsed
+      without ParseComments and omitted CodeWithComments, so it dropped all
+      comments. Now parses with ParseComments and re-emits via CodeWithComments
+      (matching the CLI). Fixes the IDE, web server and WASM playground formatters.
+      Regression test TestFormatPreservesComments.
 
 ## Editor plugins (separate)
 (none — keyword/builtin sync commands shipped via cmd/update-*-plugin.)
+
+- [ ] create cmd/update-*-plugin to update vscode plugin. add config to set `gad` binary path and settings of `.gad.yaml`.
+  full debugger support, evaluation, etc (like IDE)
+- [ ] create plugin like vscode to JetBrains.

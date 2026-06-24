@@ -16,6 +16,20 @@ func TestFormat(t *testing.T) {
 	}
 }
 
+func TestFormatPreservesComments(t *testing.T) {
+	// Regression: formatting dropped // comments, trailing comments and doc
+	// comments because Format parsed without ParseComments / CodeWithComments.
+	r := Format("// header\nx := 1 // trailing\n/? doc for Y\nconst Y = 2\n")
+	if !r.OK {
+		t.Fatalf("not ok: %v", r.Diagnostics)
+	}
+	for _, want := range []string{"// header", "// trailing", "/? doc for Y"} {
+		if !strings.Contains(r.Source, want) {
+			t.Fatalf("format dropped %q:\n%s", want, r.Source)
+		}
+	}
+}
+
 func TestFormatParseError(t *testing.T) {
 	r := Format("x :=\n")
 	if r.OK {

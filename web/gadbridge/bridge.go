@@ -58,16 +58,23 @@ func parseSource(src string) (*parser.File, error) {
 	return parser.NewParserWithOptions(srcFile, nil, nil).ParseFile()
 }
 
-// Format formats src with the canonical formatter. On a parse error the source
-// is returned unchanged together with the diagnostics.
+// Format formats src with the canonical formatter, preserving comments and doc
+// comments. On a parse error the source is returned unchanged together with the
+// diagnostics.
 func Format(src string) FormatResult {
-	file, err := parseSource(src)
+	fileSet := source.NewFileSet()
+	srcFile := fileSet.AddFileData(sourceName, -1, []byte(src))
+	// ParseComments collects the comment groups so CodeWithComments can re-emit
+	// them with the nodes they are attached to (regression: comments were dropped).
+	po := &parser.ParserOptions{Mode: parser.ParseComments}
+	file, err := parser.NewParserWithOptions(srcFile, po, nil).ParseFile()
 	if err != nil {
 		return FormatResult{OK: false, Source: src, Diagnostics: errorDiagnostics(err)}
 	}
 	out := node.Code(file.Stmts,
 		node.CodeWithFlags(node.CodeWriteContextFlagFormat),
 		node.CodeWithPrefix("\t"),
+		node.CodeWithComments(srcFile, file.Comments),
 	)
 	if len(out) == 0 || out[len(out)-1] != '\n' {
 		out += "\n"
