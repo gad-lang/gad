@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -106,6 +107,8 @@ func (s *dapServer) handle(msg dap.Message) bool {
 		r.Body = dap.Capabilities{
 			SupportsConfigurationDoneRequest: true,
 			SupportsTerminateRequest:         true,
+			SupportsEvaluateForHovers:        true,
+			SupportsConditionalBreakpoints:   true,
 		}
 		s.send(r)
 		s.send(&dap.InitializedEvent{Event: s.event("initialized")})
@@ -134,6 +137,9 @@ func (s *dapServer) handle(msg dap.Message) bool {
 
 	case *dap.VariablesRequest:
 		s.send(s.handleVariables(m))
+
+	case *dap.EvaluateRequest:
+		s.send(s.handleEvaluate(m))
 
 	case *dap.ContinueRequest:
 		s.eng.Continue()
@@ -273,13 +279,14 @@ func (s *dapServer) handleSetBreakpoints(m *dap.SetBreakpointsRequest) *dap.SetB
 	if s.eng == nil {
 		s.eng = debug.New(false)
 	}
-	var lines []int
+	specs := make([]debug.Breakpoint, 0, len(m.Arguments.Breakpoints))
 	bps := make([]dap.Breakpoint, 0, len(m.Arguments.Breakpoints))
 	for _, b := range m.Arguments.Breakpoints {
-		lines = append(lines, b.Line)
+		// VS Code conditional breakpoints carry a Gad expression in Condition.
+		specs = append(specs, debug.Breakpoint{Line: b.Line, Condition: b.Condition})
 		bps = append(bps, dap.Breakpoint{Verified: true, Line: b.Line})
 	}
-	s.eng.SetBreakpoints(lines)
+	s.eng.SetConditionalBreakpoints(specs)
 	r := &dap.SetBreakpointsResponse{Response: s.resp(&m.Request)}
 	r.Body.Breakpoints = bps
 	return r
@@ -321,6 +328,30 @@ func (s *dapServer) handleVariables(m *dap.VariablesRequest) *dap.VariablesRespo
 			Type:  v.Type,
 		})
 	}
+	return r
+}
+
+// handleEvaluate evaluates an expression in the paused frame (DAP Watch, Debug
+// Console and hover requests). It uses the engine's frame-scoped evaluator; the
+// `repr` form is used for the watch/hover contexts so values are unambiguous.
+func (s *dapServer) handleEvaluate(m *dap.EvaluateRequest) dap.Message {
+	expr := strings.TrimSpace(m.Arguments.Expression)
+	if s.eng == nil || expr == "" {
+		er := &dap.ErrorResponse{Response: s.resp(&m.Request)}
+		er.Success = false
+		er.Message = "not paused"
+		return er
+	}
+	repr := m.Arguments.Context == "watch" || m.Arguments.Context == "hover"
+	val, err := s.eng.EvalInFrame(expr, repr)
+	if err != nil {
+		er := &dap.ErrorResponse{Response: s.resp(&m.Request)}
+		er.Success = false
+		er.Message = err.Error()
+		return er
+	}
+	r := &dap.EvaluateResponse{Response: s.resp(&m.Request)}
+	r.Body.Result = val
 	return r
 }
 

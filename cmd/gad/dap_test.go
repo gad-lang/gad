@@ -154,6 +154,27 @@ func TestDAPSession(t *testing.T) {
 		t.Fatalf("expected locals 1 and 2, got %+v", vars.Body.Variables)
 	}
 
+	// evaluate an expression in the paused frame (Watch/Console) -> a + b == 3
+	er := &dap.EvaluateRequest{Request: c.header("evaluate")}
+	er.Arguments = dap.EvaluateArguments{Expression: "a + b", Context: "repl"}
+	c.send(er)
+	ev := c.waitFor(func(m dap.Message) bool {
+		_, ok := m.(*dap.EvaluateResponse)
+		return ok
+	}).(*dap.EvaluateResponse)
+	if ev.Body.Result != "3" {
+		t.Fatalf("evaluate a+b = %q, want 3", ev.Body.Result)
+	}
+
+	// an unknown identifier yields an error response, not a crash
+	er2 := &dap.EvaluateRequest{Request: c.header("evaluate")}
+	er2.Arguments = dap.EvaluateArguments{Expression: "nope + 1", Context: "repl"}
+	c.send(er2)
+	c.waitFor(func(m dap.Message) bool {
+		r, ok := m.(*dap.ErrorResponse)
+		return ok && !r.Success
+	})
+
 	// continue -> program finishes -> terminated
 	c.send(&dap.ContinueRequest{Request: c.header("continue")})
 	c.waitFor(isEvent("terminated"))
