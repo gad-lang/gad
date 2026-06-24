@@ -66,6 +66,7 @@ export interface DebugResponse {
   session?: string;
   state: "stopped" | "terminated" | "error";
   reason?: string;
+  file?: string; // workspace-relative file of the current stop
   line?: number;
   column?: number;
   frames?: DebugFrame[];

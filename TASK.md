@@ -45,5 +45,16 @@ verification for full sign-off.
 - [ ] Right closable panel rendering the current file's doc comments; reloads 5s
       after an edit (and a manual reload button).
 
+- [x] STEP IN module import now opens the module file: the debugger reported
+      imported-module frames as absolute `file:<abs>` paths (and the main file as
+      `(main)`), and the UI never followed the stop into another file. Backend now
+      normalizes debug file names to workspace-relative paths (DebugResponse.File
+      + per-frame File via Server.normalizeDebugFile); the UI opens the stop's
+      file and highlights the line there (debug.path follows res.file).
+- [x] evaluate `1 + 1` showing the file's value instead of `2`: the file prelude
+      ended in a top-level `return` which short-circuited the eval. Fixed with
+      gadbridge.EvalSource (strips top-level returns, keeps definitions). repr's
+      `‹int: 2›` is the correct repr form.
+
 ## Editor plugins (separate)
 (none — keyword/builtin sync commands shipped via cmd/update-*-plugin.)

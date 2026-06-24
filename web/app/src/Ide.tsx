@@ -553,13 +553,18 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   function applyDebug(res: DebugResponse, path: string) {
     if (res.output) setOutput((o) => o + res.output);
     if (res.state === "stopped") {
-      setDebug({ session: res.session!, path });
+      // Follow the stop into its file: stepping into an imported module reports
+      // that module's path, so open it and highlight the line there. The
+      // "(main)" sentinel (inline source, no path) maps back to the debugged file.
+      const stopFile = res.file && res.file !== "(main)" ? res.file : path;
+      setDebug({ session: res.session!, path: stopFile });
       setStack(res.frames || []);
       setLocals(res.locals || []);
       setSelectedFrame(0);
       setDebugLoc({ line: res.line ?? 0, column: res.column ?? 1 });
-      setStatus(`stopped (${res.reason}) at line ${res.line}`);
+      setStatus(`stopped (${res.reason}) at ${stopFile}:${res.line}`);
       setPane("stack");
+      if (stopFile && stopFile !== activeTab?.path) void openFile(stopFile);
       // Refresh the Evaluate panel against the new program state.
       void evalAll();
     } else if (res.state === "terminated") {

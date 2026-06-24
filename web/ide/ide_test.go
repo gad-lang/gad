@@ -494,6 +494,41 @@ func TestDebugRelativeImportSamples(t *testing.T) {
 	}
 }
 
+func TestDebugStepIntoModuleReportsRelativeFile(t *testing.T) {
+	// Stepping into an imported module must report that module's workspace-
+	// relative path (so the UI can open it), not an absolute file:<abs> name.
+	root := filepath.Join("..", "..", "samples", "modules")
+	src, err := os.ReadFile(filepath.Join(root, "main.gad"))
+	if err != nil {
+		t.Skipf("samples not present: %v", err)
+	}
+	s, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := s.Handler()
+
+	resp := decode[DebugResponse](t, do(t, h, "POST", "/api/ide/debug/start",
+		StartRequest{Path: "main.gad", Source: string(src), StopOnEntry: true}))
+	if resp.State != "stopped" || resp.File != "main.gad" {
+		t.Fatalf("entry stop should be main.gad, got file=%q state=%q", resp.File, resp.State)
+	}
+
+	// Step into the import on line 4; the next stop should be inside mathx.gad.
+	sawModule := false
+	for i := 0; i < 10 && resp.State == "stopped"; i++ {
+		resp = decode[DebugResponse](t, do(t, h, "POST", "/api/ide/debug/command",
+			CommandRequest{Session: resp.Session, Command: "stepIn"}))
+		if resp.File == "mathx.gad" {
+			sawModule = true
+			break
+		}
+	}
+	if !sawModule {
+		t.Fatalf("step-into never reported mathx.gad (last file=%q)", resp.File)
+	}
+}
+
 func TestDebugSessionOverHTTP(t *testing.T) {
 	_, h, _ := newTestServer(t)
 	w := do(t, h, "POST", "/api/ide/debug/start", StartRequest{

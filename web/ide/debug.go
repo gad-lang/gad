@@ -30,6 +30,11 @@ type DebugManager struct {
 	// module toggles). When nil, a default stdlib module map is used so builtin
 	// imports such as `import("time")` still resolve.
 	BuildModuleMap func(req StartRequest) *gad.ModuleMap
+	// NormalizeFile, when set, maps a debugger source file name (the main file's
+	// "(main)" sentinel, or a "file:<abs>" imported-module path) to a
+	// workspace-relative path the UI can open. mainPath is the session's entry
+	// file. When nil, file names are passed through unchanged.
+	NormalizeFile func(mainPath, engineFile string) string
 }
 
 // NewDebugManager returns an empty DebugManager.
@@ -43,6 +48,9 @@ type debugSession struct {
 	out    *syncBuffer
 	outLen int // bytes of output already reported
 	ended  bool
+	// normalize maps a debugger file name to a workspace-relative path; identity
+	// when the manager has no NormalizeFile hook.
+	normalize func(engineFile string) string
 }
 
 type debugRunResult struct {
@@ -120,6 +128,7 @@ type DebugResponse struct {
 	Session     string                 `json:"session,omitempty"`
 	State       string                 `json:"state"` // "stopped" | "terminated" | "error"
 	Reason      string                 `json:"reason,omitempty"`
+	File        string                 `json:"file,omitempty"` // workspace-relative file of the stop
 	Line        int                    `json:"line,omitempty"`
 	Column      int                    `json:"column,omitempty"`
 	Frames      []DebugFrame           `json:"frames,omitempty"`
@@ -180,7 +189,11 @@ func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
 		args = append(args, arr)
 	}
 
-	sess := &debugSession{eng: eng, done: make(chan debugRunResult, 1), out: out}
+	normalize := func(f string) string { return f }
+	if m.NormalizeFile != nil {
+		normalize = func(f string) string { return m.NormalizeFile(req.Path, f) }
+	}
+	sess := &debugSession{eng: eng, done: make(chan debugRunResult, 1), out: out, normalize: normalize}
 	go func() {
 		ret, rerr := vm.RunOpts(&gad.RunOpts{Args: args, StdOut: out, StdErr: out})
 		res := ""
@@ -258,9 +271,10 @@ func (s *debugSession) waitNext() DebugResponse {
 		return DebugResponse{
 			State:  "stopped",
 			Reason: string(ev.Reason),
+			File:   s.normalize(ev.File),
 			Line:   ev.Line,
 			Column: ev.Column,
-			Frames: framesOf(s.eng),
+			Frames: framesOf(s.eng, s.normalize),
 			Locals: localsOf(s.eng),
 			Output: out,
 		}
@@ -276,7 +290,7 @@ func (s *debugSession) waitNext() DebugResponse {
 	}
 }
 
-func framesOf(eng *debug.Engine) []DebugFrame {
+func framesOf(eng *debug.Engine, normalize func(string) string) []DebugFrame {
 	src := eng.Frames()
 	out := make([]DebugFrame, 0, len(src))
 	// Innermost first.
@@ -286,7 +300,7 @@ func framesOf(eng *debug.Engine) []DebugFrame {
 		for j, v := range f.Locals {
 			locals[j] = DebugVariable{Name: v.Name, Type: v.Type, Value: v.Value}
 		}
-		out = append(out, DebugFrame{Name: f.FuncName, File: f.File, Line: f.Line, Column: f.Column, Locals: locals})
+		out = append(out, DebugFrame{Name: f.FuncName, File: normalize(f.File), Line: f.Line, Column: f.Column, Locals: locals})
 	}
 	return out
 }

@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gad-lang/gad"
 )
@@ -67,7 +68,32 @@ func New(path string) (*Server, error) {
 		}
 		return buildModuleMap(workdir, req.Disabled, req.Safe)
 	}
+	s.dbg.NormalizeFile = s.normalizeDebugFile
 	return s, nil
+}
+
+// normalizeDebugFile maps a debugger source file name to a workspace-relative
+// path the UI can open. The main script compiles under the "(main)" sentinel, so
+// it maps to mainPath; imported modules carry a "file:<abs>" name, which is made
+// relative to the workspace root when it lies inside it.
+func (s *Server) normalizeDebugFile(mainPath, engineFile string) string {
+	switch engineFile {
+	case "", "(main)":
+		if mainPath != "" {
+			return mainPath
+		}
+		// No entry path (inline source): keep the sentinel so the frame still
+		// has a non-empty file; the UI maps it back to the debugged buffer.
+		return "(main)"
+	}
+	abs := strings.TrimPrefix(engineFile, "file:")
+	if !filepath.IsAbs(abs) {
+		return engineFile
+	}
+	if abs == s.Root || strings.HasPrefix(abs, s.Root+string(os.PathSeparator)) {
+		return s.rel(abs)
+	}
+	return engineFile
 }
 
 // Handler returns the HTTP handler exposing the IDE API (and, if Static is set,
