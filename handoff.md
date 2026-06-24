@@ -1,5 +1,72 @@
 # Handoff: ia_todo.md language features
 
+## ACTIVE WORK (2026-06-24): operator op_api trilogy + `with` + plugin sync + IDE epic (in progress)
+
+Task source is now `TASK.md` (renamed from todo.md). This session worked the
+operator-API refactor, the `with` statement, the editor-plugin sync commands,
+and started the large IDE epic. All committed; `go test ./...` green.
+
+DONE this session (commits newest-last):
+- `f7fecf4` **unary op_api** — `mkoptypes` generates `ObjectWith{Op}UnaryOperator`
+  + `unOpObject` in `op_api.go`; `VM.xOpUnary` dispatches through a new
+  `core.unOp(op, operand)` builtin; per-type logic moved to `UnOp{Op}` methods
+  (`op_unary.go`). `!` is universal (truthiness fallback); `Flag.UnOpNot` keeps
+  it a Flag. Temporal `++`/`--` step the **least non-zero unit**: date→day,
+  `08:05:00`→minute, `08:05:30`→second, `08:00:00`→hour, midnight→day
+  (`op_unary_time.go`, `leastTimeStep`).
+- `e5b5ab4` **self-assign op_api** — `ObjectWith{Op}SelfAssignOperator` +
+  `selfAssignOpObject`; `core.selfAssignOp` dispatches through it, falls back to
+  the binary op. Removed the old `SelfAssignOperatorHandler` interface; `Array`
+  now has `SelfAssignOpAdd` (`+=`) / `SelfAssignOpInc` (`++=`).
+- `87ee3ab` **`ain`** array-membership operator (`A ain B` = every value of A in
+  B). New `ain` keyword (appended to keyword group, no token-value shift),
+  comparison precedence. Dispatched on the right operand like `in`; falls back to
+  testing each value via `in` (through `core.binOp`), so it works for any `in`
+  container (Go or Gad). `binAinFallback`. Excluded from optimizer folding.
+- `8756c17` **`with`** statement + expression. New interfaces `ObjectEnter` /
+  `ObjectExit`; `core.enter` / `core.exit` builtins dispatch to the Go interfaces
+  OR a Gad object's `enter()` / `exit(err)` methods. New `With` keyword + AST
+  `WithStmt` / `WithExpr`. Parser: `with R {}`, `with R as f {}`, `with x = R {}`,
+  `with x := R {}`, and the expression `with R [as f]: V`. `inHeader` guard stops
+  the resource's trailing `{` becoming a func-def. **Compiler desugars to**
+  `{ deferb { core.exit(h,$err) }; core.enter(h); body }` (stmt) or an IIFE
+  (expr) — no new opcode (`compiler_with.go`).
+- `96b7a1b` **plugin sync** — `cmd/update-codemirror-plugin` /
+  `cmd/update-prism-plugin` (shared `cmd/internal/pluginsync`). Extracts keywords
+  /atoms/constants from the token group + builtin func names from `BuiltinsMap`,
+  diffs against the plugin TS arrays (`-w` applies, builtins advisory-only),
+  prints language commits since the plugin's last update. Added the missing
+  `ain`/`with`/`met`/`meti`/`prop` keywords to both plugins.
+- `c4c4066` `gad.TranspileOptions()` default `RawStrFuncStart: "raw "` (operator
+  form, empty end) — matches the CLI; transpiled raw text is `write(raw "…")`.
+
+**IDE epic** (`web/ide` backend, unit-tested; `web/app` React, tsc-only) — split
+into sub-tasks in `TASK.md`. Done so far:
+- `b7b1949` hidden-files toggle (`/api/ide/tree?hidden=true` + eye button);
+  locals per-row copy button.
+- `412c704` explorer F2 / right-click context menu (open/run/format/transpile/
+  rename/remove) + recursive-remove confirm dialog; run output split into
+  stdout/stderr files + combine flag; `/api/ide/fetch` (URL→workspace file).
+- `07eea21` `gadbridge.Transpile(src, mixed, opts)` + `/api/ide/transpile`
+  (config-layered `TranspileOptions`); Settings dialog Transpile section.
+
+IN PROGRESS (uncommitted working tree): editor controls slice — added
+`undo()`/`redo()` to `EditorHandle` (`web/app/src/Editor.tsx`); next is wiring
+reload/undo/redo toolbar buttons + a backend-error dialog. `TASK.md` lists the
+remaining IDE sub-tasks (run/debug tabbed dialog, breakpoint condition dialog,
+evaluate panel + backend eval endpoint, multi-format editors, doc-comment side
+panel, builtin tooltips, template-string autocomplete, "plugin isn't working"
+diagnosis). Most are pure UI — typecheck only, need browser verification.
+
+Key files this session: `op_api.go` (generated), `op_unary*.go`,
+`builtins_operator_methods.go` (core.unOp/enter/exit registration),
+`compiler_with.go`, `cmd/internal/pluginsync/`, `web/ide/{fs,run,ide}.go`,
+`web/gadbridge/bridge.go`, `web/app/src/{Ide,Editor}.tsx`,
+`web/app/src/backends/ide.ts`. Verify: `go test ./...` + (in `web/app`,
+`nvm use v26.3.0`) `pnpm exec tsc --noEmit`.
+
+--- (older detail below) ---
+
 ## ACTIVE WORK (2026-06-16): builtin modules DONE; next = time literals (todo L78)
 
 DONE this batch — `time`/`strings`/`fmt`/`base64` are now **builtin module

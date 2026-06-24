@@ -24,6 +24,9 @@ import AddIcon from "@mui/icons-material/Add";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import UndoIcon from "@mui/icons-material/Undo";
+import RedoIcon from "@mui/icons-material/Redo";
 
 /** copyText writes text to the clipboard, ignoring failures (e.g. no permission). */
 function copyText(text: string): void {
@@ -93,6 +96,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [showHidden, setShowHidden] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<TreeNode | null>(null);
   const [pendingRunPath, setPendingRunPath] = useState<string | null>(null);
+  const [errorDialog, setErrorDialog] = useState<{ title: string; detail: string } | null>(null);
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [tabs, setTabs] = useState<OpenTab[]>([]);
@@ -102,6 +106,15 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [stack, setStack] = useState<DebugResponse["frames"]>([]);
   const [locals, setLocals] = useState<DebugResponse["locals"]>([]);
   const [status, setStatus] = useState("");
+
+  // reportError surfaces a backend/operation failure in both the status line and
+  // a modal dialog, and returns the short message for convenience.
+  const reportError = useCallback((title: string, e: unknown): string => {
+    const detail = e instanceof Error ? e.message : String(e);
+    setStatus(title + ": " + detail);
+    setErrorDialog({ title, detail });
+    return detail;
+  }, []);
   const [debug, setDebug] = useState<{ session: string; path: string } | null>(null);
   const [debugLoc, setDebugLoc] = useState<{ line: number; column: number } | null>(null);
   const [pendingGoto, setPendingGoto] = useState<{ path: string; line: number; column: number } | null>(null);
@@ -133,7 +146,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
         // The tree is loaded by the showHidden effect above.
         if (workspace.openFile) openFile(workspace.openFile);
       } catch (e) {
-        setStatus("failed to start: " + e);
+        reportError("Failed to start", e);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -216,12 +229,31 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     setTabs((ts) => ts.map((t, i) => (i === active ? { ...t, content: value, saved: false } : t)));
   }
 
+  // Reload the active file from disk, discarding unsaved edits (after a confirm
+  // when the buffer is dirty).
+  async function reloadFile() {
+    if (!activeTab) return;
+    if (!activeTab.saved && !confirm(`Discard unsaved changes to ${activeTab.path}?`)) return;
+    try {
+      const data = await ideApi.read(activeTab.path);
+      editorRef.current?.setValue(data.content);
+      setTabs((ts) => ts.map((t, i) => (i === active ? { ...t, content: data.content, saved: true } : t)));
+      setStatus("reloaded " + activeTab.path);
+    } catch (e) {
+      reportError("Reload failed", e);
+    }
+  }
+
   async function save() {
     if (!activeTab) return;
     const content = editorRef.current?.getValue() ?? activeTab.content;
-    await ideApi.write(activeTab.path, content);
-    setTabs((ts) => ts.map((t, i) => (i === active ? { ...t, content, saved: true } : t)));
-    setStatus("saved " + activeTab.path);
+    try {
+      await ideApi.write(activeTab.path, content);
+      setTabs((ts) => ts.map((t, i) => (i === active ? { ...t, content, saved: true } : t)));
+      setStatus("saved " + activeTab.path);
+    } catch (e) {
+      reportError("Save failed", e);
+    }
   }
 
   async function format() {
@@ -258,7 +290,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       if (activeTab?.path === path) editorRef.current?.setValue(res.source);
       setStatus("formatted " + path);
     } catch (e) {
-      setStatus("format failed: " + e);
+      reportError("Format failed", e);
     }
   }
 
@@ -281,7 +313,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       await openFile(out);
       setStatus("transpiled to " + out);
     } catch (e) {
-      setStatus("transpile failed: " + e);
+      reportError("Transpile failed", e);
     }
   }
 
@@ -301,7 +333,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
             await refreshTree();
             setStatus("renamed to " + to);
           } catch (e) {
-            setStatus("rename failed: " + e);
+            reportError("Rename failed", e);
           }
           break;
         }
@@ -347,7 +379,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       await refreshTree();
       setStatus("removed " + node.path);
     } catch (e) {
-      setStatus("remove failed: " + e);
+      reportError("Remove failed", e);
     }
   }
 
@@ -599,6 +631,35 @@ export function Ide({ workspace }: { workspace: Workspace }) {
             <Button size="small" variant="outlined" onClick={format} disabled={!activeTab}>
               Format
             </Button>
+            <Tooltip title="Reload from disk">
+              <span>
+                <IconButton size="small" onClick={reloadFile} disabled={!activeTab}>
+                  <RefreshIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Undo">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={() => editorRef.current?.undo()}
+                  disabled={!activeTab}
+                >
+                  <UndoIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Redo">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={() => editorRef.current?.redo()}
+                  disabled={!activeTab}
+                >
+                  <RedoIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
             <Button
               size="small"
               variant="contained"
@@ -836,6 +897,26 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           onClose={() => setRemoveTarget(null)}
           onConfirm={confirmRemove}
         />
+      )}
+      {errorDialog && (
+        <Dialog open onClose={() => setErrorDialog(null)} maxWidth="sm" fullWidth>
+          <DialogTitle>{errorDialog.title}</DialogTitle>
+          <DialogContent dividers>
+            <Typography
+              component="pre"
+              sx={{ whiteSpace: "pre-wrap", fontFamily: "ui-monospace, monospace", fontSize: ".85rem", m: 0 }}
+            >
+              {errorDialog.detail}
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => copyText(errorDialog.detail)}>Copy</Button>
+            <Box sx={{ flex: 1 }} />
+            <Button variant="contained" onClick={() => setErrorDialog(null)}>
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
       )}
       </Box>
     </ThemeProvider>

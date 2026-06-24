@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { EditorState, Extension, Compartment, StateEffect } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import { defaultKeymap, indentWithTab } from "@codemirror/commands";
+import { defaultKeymap, indentWithTab, undo, redo } from "@codemirror/commands";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { basicSetup } from "codemirror";
 import { gad, type DiagnoseFn } from "@gad-lang/codemirror-gad";
@@ -13,6 +13,10 @@ export interface EditorHandle {
   setValue(value: string): void;
   /** Move the cursor to a 1-based line/column, scroll to it and focus. */
   gotoLocation(line: number, column: number): void;
+  /** Undo the last edit (history). */
+  undo(): void;
+  /** Redo the last undone edit (history). */
+  redo(): void;
 }
 
 interface EditorProps {
@@ -87,6 +91,20 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       const pos = lineObj.from + Math.min(Math.max(column - 1, 0), lineObj.length);
       v.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
       v.focus();
+    },
+    undo: () => {
+      const v = view.current;
+      if (v) {
+        undo(v);
+        v.focus();
+      }
+    },
+    redo: () => {
+      const v = view.current;
+      if (v) {
+        redo(v);
+        v.focus();
+      }
     },
   }));
 
