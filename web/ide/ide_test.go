@@ -142,7 +142,7 @@ func TestTranspile(t *testing.T) {
 		t.Fatalf("transpile not ok: %v", res)
 	}
 	src, _ := res["source"].(string)
-	if !strings.Contains(src, "write(rawstr(") || !strings.Contains(src, "write(name)") {
+	if !strings.Contains(src, `write(raw "`) || !strings.Contains(src, "write(name)") {
 		t.Fatalf("transpiled source unexpected:\n%s", src)
 	}
 
