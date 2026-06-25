@@ -28,12 +28,12 @@
         {
           "name": "comment.block.documentation.gad",
           "begin": "/\\?\\?\\?",
-          "end": "\\?\\?\\?"
+          "end": "^\\s*\\?\\?\\?\\s*$"
         },
         {
           "name": "comment.block.documentation.gad",
           "begin": "/\\?\\?",
-          "end": "\\?\\?"
+          "end": "^\\s*\\?\\?\\s*$"
         },
         {
           "name": "comment.line.documentation.gad",

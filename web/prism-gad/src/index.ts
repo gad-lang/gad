@@ -42,9 +42,12 @@ const word = (words: string[]) => new RegExp(`\\b(?:${words.join("|")})\\b`);
  */
 export const gadGrammar: Grammar = {
   // Doc comments (`/?` single, `/??`…`??` and `/???`…`???` blocks) come before
-  // ordinary comments so the `/?` marker is not read as a `//`/`/*` comment.
+  // ordinary comments so the `/?` marker is not read as a `//`/`/*` comment. A
+  // block ends only at a line that is exactly the fence, so an inline `??`/`???`
+  // in the doc text (e.g. in a code span) does not close it early.
   "doc-comment": {
-    pattern: /\/\?\?\?[\s\S]*?(?:\?\?\?|$)|\/\?\?[\s\S]*?(?:\?\?|$)|\/\?.*/,
+    pattern:
+      /\/\?\?\?[\s\S]*?(?:^[ \t]*\?\?\?[ \t]*$|$(?![\s\S]))|\/\?\?[\s\S]*?(?:^[ \t]*\?\?[ \t]*$|$(?![\s\S]))|\/\?.*/m,
     greedy: true,
     alias: "comment",
   },

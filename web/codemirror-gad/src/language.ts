@@ -154,16 +154,14 @@ const gadStreamLanguage = StreamLanguage.define<GadState>({
   },
 });
 
-// tokenDocBlock consumes a `/??`…`??` or `/???`…`???` doc-comment block, ending
-// when the closing fence (state.docFence) is reached.
+// tokenDocBlock consumes a `/??`…`??` or `/???`…`???` doc-comment block one line
+// per call. It ends only at a line that is exactly the fence (state.docFence),
+// so an inline `??`/`???` in the doc text does not close the block early.
 function tokenDocBlock(stream: StringStream, state: GadState): string {
-  while (!stream.eol()) {
-    if (stream.match(state.docFence)) {
-      state.docFence = "";
-      return "docComment";
-    }
-    stream.next();
+  if (stream.sol() && stream.string.slice(stream.pos).trim() === state.docFence) {
+    state.docFence = "";
   }
+  stream.skipToEnd();
   return "docComment";
 }
 

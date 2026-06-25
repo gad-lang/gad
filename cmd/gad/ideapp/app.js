@@ -165,10 +165,10 @@ function buildGadLanguage(language, t) {
     return "blockComment";
   };
   const docBlock = (stream, st) => {
-    while (!stream.eol()) {
-      if (stream.match(st.docFence)) { st.docFence = ""; return "docComment"; }
-      stream.next();
-    }
+    // End only at a line that is exactly the fence; an inline `??`/`???` in the
+    // doc text does not close the block.
+    if (stream.sol() && stream.string.slice(stream.pos).trim() === st.docFence) { st.docFence = ""; }
+    stream.skipToEnd();
     return "docComment";
   };
   const str = (stream, q) => {
