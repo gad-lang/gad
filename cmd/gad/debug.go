@@ -75,9 +75,14 @@ func debugCommand() *cc.Command {
 		ParseArgs: func(ctx *cc.CommandContext) error {
 			o := ctx.Value(debugOptionsKey).(*debugOptions)
 			if o.dap {
-				// In DAP mode the program comes from the launch request; a file
-				// arg is optional.
-				return ctx.Args.Range(0, 1)
+				// In DAP mode the program comes from the launch request, so a file
+				// arg is optional (VS Code runs `gad debug --dap` with none). Accept
+				// 0 or 1 args directly — Args.Range/Max in the command-context
+				// library has an inverted check and wrongly rejects zero args.
+				if len(ctx.Args) > 1 {
+					return fmt.Errorf("expected up to 1 argument, got %d", len(ctx.Args))
+				}
+				return nil
 			}
 			return ctx.Args.Eq(1)
 		},

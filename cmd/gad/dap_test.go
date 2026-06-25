@@ -5,11 +5,14 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	cc "github.com/moisespsena-go/command-context"
 
 	"github.com/google/go-dap"
 )
@@ -87,6 +90,23 @@ func isEvent(name string) func(dap.Message) bool {
 	return func(m dap.Message) bool {
 		e, ok := m.(dap.EventMessage)
 		return ok && e.GetEvent().Event == name
+	}
+}
+
+// TestDebugDAPParsesWithoutProgram guards the startup regression: VS Code runs
+// `gad debug --dap` with no program (it arrives via the launch request), and the
+// command must parse without error. (The command-context Args.Range/Max check is
+// inverted and wrongly rejects zero args, so the command avoids it in DAP mode.)
+func TestDebugDAPParsesWithoutProgram(t *testing.T) {
+	ctx, err := buildRootCommand().Parse(&cc.CommandContext{
+		InputArgs: []string{"debug", "--dap"},
+		Context:   context.Background(),
+	})
+	if err != nil {
+		t.Fatalf("`gad debug --dap` must parse with no program arg, got: %v", err)
+	}
+	if ctx == nil {
+		t.Fatal("expected a parsed command context")
 	}
 }
 
