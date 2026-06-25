@@ -22,11 +22,22 @@ build-cli:
 build-min:
 	go build -tags 'noide nodebug' -o ./dist/gad-min ./cmd/gad
 
-# Production CLI: build the React web app, then compile gad with the embedded UI
-# (`gad ide` serves it without --static). Requires Node/pnpm for the web build.
-.PHONY: build-prod
-build-prod: web-build
+# Distribution build: the React web app + the gad binary with the embedded UI
+# (`gad ide` serves it without --static) and the packaged VS Code extension,
+# all under ./dist. Requires Node/pnpm.
+.PHONY: dist
+dist: web-build build-vscode-plugin
 	go build -tags prod -o ./dist/gad ./cmd/gad
+	@echo "dist artifacts:" && ls -1 dist
+
+# Build the VS Code extension: regenerate the TextMate grammar from the language
+# vocabulary, compile and package the .vsix, then move it into ./dist.
+.PHONY: build-vscode-plugin
+build-vscode-plugin:
+	go run ./cmd/update-vscode-plugin -w
+	cd editors/vscode-gad && $(NVM_USE) && pnpm install && pnpm run package
+	mkdir -p dist
+	mv editors/vscode-gad/vscode-gad.vsix dist/
 
 # Build the Gad WASM module (and copy Go's wasm_exec.js) into web/app/public.
 .PHONY: build-wasm

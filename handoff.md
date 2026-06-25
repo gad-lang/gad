@@ -651,7 +651,7 @@ Backend + CLI + bundled UI are done and tested; a React/CodeMirror frontend
 - **Production embed** (`web/app/embed_prod.go`, build tag `prod`;
   `embed_dev.go` for `!prod`): `//go:embed all:dist` packages the built React
   app. `gad ide` serves the embedded SPA (`spaFSServer`) when present, else the
-  bundled UI, else `--static`. `make build-prod` (web-build + `go build -tags
+  bundled UI, else `--static`. `make dist` (web-build + `go build -tags
   prod`). Verified: 36 MB binary serves the hashed React assets + API.
 - Tests: `web/ide` `TestDebugFramesCarryLocals` (2 frames, named inner locals).
   Full `go test ./...` green; `pnpm run build` clean.
