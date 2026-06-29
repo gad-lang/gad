@@ -362,6 +362,10 @@ func TestVMAinOperator(t *testing.T) {
 	testExpectRun(t, `return ["a", "b"] ain {a: 1, b: 2}`, nil, True)
 	testExpectRun(t, `return ["a", "z"] ain {a: 1, b: 2}`, nil, False)
 	testExpectRun(t, `return [104, 105] ain bytes("hi")`, nil, True)
+	// String: every left value must be a substring (chars match their rune).
+	testExpectRun(t, `return ["ell", "hel"] ain "hello"`, nil, True)
+	testExpectRun(t, `return ["ell", "xyz"] ain "hello"`, nil, False)
+	testExpectRun(t, `return ['h', 'o'] ain "hello"`, nil, True)
 
 	// Precedence: comparison level, like `in`.
 	testExpectRun(t, `return [1 + 1] ain [2, 3]`, nil, True)
