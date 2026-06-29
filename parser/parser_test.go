@@ -2028,6 +2028,9 @@ d=#dVal,e=#(e val)
 	test.ExpectParseString(t, `(;a int=1)`, `(;a int=1)`)
 	test.ExpectParseString(t, `(;a int|bool=1)`, `(;a int|bool=1)`)
 	test.ExpectParseString(t, `(;a int|bool|str=1)`, `(;a int|bool|str=1)`)
+
+	// with keyValue expr and keyValue with dynamic key expr
+	test.ExpectParseStringT(t, `(;[a=1],[("a"+"b")=4])`, `(;[a=1], [("a" + "b")=4])`, kva)
 }
 
 func TestTemplateStrLit(t *testing.T) {

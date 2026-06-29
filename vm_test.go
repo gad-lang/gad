@@ -812,6 +812,12 @@ func TestVMKeyValueArray(t *testing.T) {
 		&KeyValue{Str("x"), Int(1)},
 		&KeyValue{Str("x"), Int(2)},
 	})
+
+	// with keyValue expr and keyValue with dynamic key expr
+	testExpectRun(t, `return (;[y=3], [("a"+"b")=4])`, nil, KeyValueArray{
+		&KeyValue{Str("y"), Int(3)},
+		&KeyValue{Str("ab"), Int(4)},
+	})
 }
 
 func TestVMRegexp(t *testing.T) {
