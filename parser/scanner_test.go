@@ -214,14 +214,45 @@ func TestScanner_ScanMixed2(t *testing.T) {
 	})
 }
 
+// TestScanDocComments checks the doc-comment markers: `///` single (but not
+// `////`), `/**`…`**/` block and `/***`…`***/` root. Block fences are matched
+// per line, so inline `**`/`***` (Markdown) does not close them early.
+func TestScanDocComments(t *testing.T) {
+	scanOne := func(src string) (token.Token, string) {
+		fs := source.NewFileSet()
+		f := fs.AddFileData("t", -1, []byte(src))
+		sc := parser.NewScanner(f, &parser.ScannerOptions{Mode: parser.ScanComments})
+		tok := sc.Scan()
+		return tok.Token, tok.Literal
+	}
+	cases := []struct {
+		src     string
+		token   token.Token
+		literal string
+	}{
+		{"/// a doc\n", token.Comment, "/// a doc"},
+		{"//// not a doc\n", token.Comment, "//// not a doc"},
+		{"// normal\n", token.Comment, "// normal"},
+		{"/**\nblock with **bold** inline\n**/\n", token.Comment, "/**\nblock with **bold** inline\n**/"},
+		{"/***\nroot with ***hr*** inline\n***/\n", token.Comment, "/***\nroot with ***hr*** inline\n***/"},
+		{"/* plain */", token.Comment, "/* plain */"},
+	}
+	for _, c := range cases {
+		tok, lit := scanOne(c.src)
+		if tok != c.token || lit != c.literal {
+			t.Errorf("scan %q = (%s, %q), want (%s, %q)", c.src, tok, lit, c.token, c.literal)
+		}
+	}
+}
+
 func TestScanner_Scan(t *testing.T) {
 	tr := &scanTester{addLines: true}
 	tr.do(t, []testCase{
 		{token.Comment, "/* a comment */"},
 		{token.Comment, "// a comment \n"},
 		{token.Comment, "/*\n*/"},
-		{token.Comment, "/**\n/*/"},
-		{token.Comment, "/**\n\n/*/"},
+		{token.Comment, "/// a single doc comment\n"},
+		{token.Comment, "/* a\nb */"},
 		{token.Comment, "//\n"},
 		{token.Ident, "foobar"},
 		{token.Ident, "a۰۱۸"},

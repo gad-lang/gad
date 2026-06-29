@@ -187,9 +187,9 @@ function buildGadLanguage(language, t) {
       if (stream.eatSpace()) return null;
       const ch = stream.peek();
       // Doc comments before // and /* so `/?` is not read as `/` + `?`.
-      if (stream.match("/???")) { st.docFence = "???"; return docBlock(stream, st); }
-      if (stream.match("/??")) { st.docFence = "??"; return docBlock(stream, st); }
-      if (stream.match("/?")) { stream.skipToEnd(); return "docComment"; }
+      if (stream.match("/***")) { st.docFence = "***/"; return docBlock(stream, st); }
+      if (stream.match("/**")) { st.docFence = "**/"; return docBlock(stream, st); }
+      if (stream.match(/^\/\/\/(?!\/)/)) { stream.skipToEnd(); return "docComment"; }
       if (stream.match("//")) { stream.skipToEnd(); return "lineComment"; }
       if (stream.match("/*")) { st.block = 1; return blockComment(stream, st); }
       if (stream.match('"""') || stream.match("```")) return fenced(stream, ch === '"' ? '"""' : "```");

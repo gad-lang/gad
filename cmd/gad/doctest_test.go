@@ -41,8 +41,8 @@ func TestRunExampleRunError(t *testing.T) {
 }
 
 func TestCheckFileExamples(t *testing.T) {
-	src := "/??\n```gad\n1 + 1\n>>> 2\n```\n??\nconst A = 1\n" +
-		"/??\n```gad\n1 + 1\n>>> 99\n```\n??\nconst B = 2\n"
+	src := "/**\n```gad\n1 + 1\n>>> 2\n```\n**/\nconst A = 1\n" +
+		"/**\n```gad\n1 + 1\n>>> 99\n```\n**/\nconst B = 2\n"
 	results := checkFileExamples("m.gad", []byte(src))
 	require.Len(t, results, 2)
 	require.NoError(t, results[0].err)

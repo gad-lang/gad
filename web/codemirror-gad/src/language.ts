@@ -41,17 +41,18 @@ const gadStreamLanguage = StreamLanguage.define<GadState>({
 
     const ch = stream.peek() as string;
 
-    // Doc comments (`/?` single, `/??`…`??` and `/???`…`???` blocks) come before
-    // the ordinary // and /* checks so the `/?` marker is not read as `/` + `?`.
-    if (stream.match("/???")) {
-      state.docFence = "???";
+    // Doc comments (`///` single, `/**`…`**/` and `/***`…`***/` blocks) come
+    // before the ordinary // and /* checks so their markers are not read as
+    // plain `//`/`/*` comments.
+    if (stream.match("/***")) {
+      state.docFence = "***/";
       return tokenDocBlock(stream, state);
     }
-    if (stream.match("/??")) {
-      state.docFence = "??";
+    if (stream.match("/**")) {
+      state.docFence = "**/";
       return tokenDocBlock(stream, state);
     }
-    if (stream.match("/?")) {
+    if (stream.match(/^\/\/\/(?!\/)/)) {
       stream.skipToEnd();
       return "docComment";
     }

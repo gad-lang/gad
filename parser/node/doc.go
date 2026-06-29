@@ -14,9 +14,9 @@ import (
 type docKind int
 
 const (
-	docSingle docKind = iota // `/? text`
-	docBlock                 // `/??` … `??`
-	docRoot                  // `/???` … `???`
+	docSingle docKind = iota // `/// text`
+	docBlock                 // `/**` … `**/`
+	docRoot                  // `/***` … `***/`
 )
 
 // docComment is a parsed doc comment: its kind and Markdown content (markers
@@ -34,14 +34,14 @@ func parseDocComment(g *ast.CommentGroup) (d docComment, ok bool) {
 	}
 	first := g.List[0].Text
 	switch {
-	case strings.HasPrefix(first, "/???"):
-		return docComment{docRoot, blockDocContent(first, "???")}, true
-	case strings.HasPrefix(first, "/??"):
-		return docComment{docBlock, blockDocContent(first, "??")}, true
-	case strings.HasPrefix(first, "/?"):
+	case strings.HasPrefix(first, "/***"):
+		return docComment{docRoot, blockDocContent(first, "/***", "***/")}, true
+	case strings.HasPrefix(first, "/**"):
+		return docComment{docBlock, blockDocContent(first, "/**", "**/")}, true
+	case strings.HasPrefix(first, "///"):
 		lines := make([]string, len(g.List))
 		for i, c := range g.List {
-			lines[i] = strings.TrimPrefix(strings.TrimPrefix(c.Text, "/?"), " ")
+			lines[i] = strings.TrimPrefix(strings.TrimPrefix(c.Text, "///"), " ")
 		}
 		return docComment{docSingle, strings.Join(lines, "\n")}, true
 	}
@@ -49,41 +49,40 @@ func parseDocComment(g *ast.CommentGroup) (d docComment, ok bool) {
 }
 
 // blockDocContent returns the inner text of a fenced block doc, dropping the
-// opening `/<fence>` line and the closing `<fence>` line.
-func blockDocContent(text, fence string) string {
-	body := strings.TrimPrefix(text, "/")
-	body = strings.TrimPrefix(body, fence)
-	body = strings.TrimSuffix(body, fence)
+// opening fence line (`/**` / `/***`) and the closing fence line (`**/` / `***/`).
+func blockDocContent(text, open, close string) string {
+	body := strings.TrimPrefix(text, open)
+	body = strings.TrimSuffix(body, close)
 	return strings.Trim(body, "\n")
 }
 
 // renderDocLines renders d as the formatted doc lines (without the leading
 // prefix on the first line; callers indent continuation lines). width is the
 // available column budget at the doc's indentation. A SINGLE/BLOCK doc is
-// rendered as `/? …` when its content reflows to a single line that fits, else
-// as a `/??` … `??` block; a ROOT_BLOCK always stays a `/???` … `???` block.
+// rendered as `/// …` when its content reflows to a single line that fits, else
+// as a `/**` … `**/` block; a ROOT_BLOCK always stays a `/***` … `***/` block.
 func renderDocLines(d docComment, width int) []string {
 	if width < 8 {
 		width = 8
 	}
 	switch d.kind {
 	case docRoot:
-		return wrapDocBlock("???", reflowMarkdown(d.content, width))
+		return wrapDocBlock("/***", "***/", reflowMarkdown(d.content, width))
 	default: // docSingle, docBlock
-		body := reflowMarkdown(d.content, width-len("/? "))
-		if len(body) == 1 && len("/? ")+len(body[0]) <= width {
-			return []string{"/? " + body[0]}
+		body := reflowMarkdown(d.content, width-len("/// "))
+		if len(body) == 1 && len("/// ")+len(body[0]) <= width {
+			return []string{"/// " + body[0]}
 		}
-		return wrapDocBlock("??", reflowMarkdown(d.content, width))
+		return wrapDocBlock("/**", "**/", reflowMarkdown(d.content, width))
 	}
 }
 
-// wrapDocBlock wraps body lines in `/<fence>` … `<fence>` fence lines.
-func wrapDocBlock(fence string, body []string) []string {
+// wrapDocBlock wraps body lines between the open and close fence lines.
+func wrapDocBlock(open, close string, body []string) []string {
 	out := make([]string, 0, len(body)+2)
-	out = append(out, "/"+fence)
+	out = append(out, open)
 	out = append(out, body...)
-	out = append(out, fence)
+	out = append(out, close)
 	return out
 }
 

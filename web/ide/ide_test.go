@@ -290,7 +290,7 @@ func TestInspectInDebugFrame(t *testing.T) {
 
 func TestDoc(t *testing.T) {
 	_, h, _ := newTestServer(t)
-	src := "/? the answer\nconst Answer = 42\n\n/??\na block\n??\nx := 1\n"
+	src := "/// the answer\nconst Answer = 42\n\n/**\na block\n**/\nx := 1\n"
 	w := do(t, h, "POST", "/api/ide/doc", formatRequest{Source: src})
 	res := decode[map[string][]map[string]any](t, w)
 	docs := res["docs"]

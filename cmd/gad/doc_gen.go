@@ -46,7 +46,7 @@ type docEntry struct {
 }
 
 // generateDoc renders the godoc-style Markdown for a Gad source file: the module
-// heading, any ROOT_BLOCK (`/???`) prose, then Constants and Types sections for
+// heading, any ROOT_BLOCK (`/***`) prose, then Constants and Types sections for
 // the documented exported symbols. The file is parsed with comments so doc
 // comments are attached to their nodes.
 func generateDoc(path string, src []byte) (string, error) {
@@ -191,13 +191,13 @@ func identName(e node.Expr) string {
 	return e.String()
 }
 
-// rootBlocks returns the Markdown content of each ROOT_BLOCK (`/???`) comment, in
+// rootBlocks returns the Markdown content of each ROOT_BLOCK (`/***`) comment, in
 // source order.
 func rootBlocks(groups []*ast.CommentGroup) []string {
 	var out []string
 	for _, g := range groups {
-		if len(g.List) > 0 && strings.HasPrefix(g.List[0].Text, "/???") {
-			if c := blockContent(g.List[0].Text, "???"); c != "" {
+		if len(g.List) > 0 && strings.HasPrefix(g.List[0].Text, "/***") {
+			if c := blockContent(g.List[0].Text, "/***", "***/"); c != "" {
 				out = append(out, c)
 			}
 		}
@@ -213,25 +213,25 @@ func docContent(g *ast.CommentGroup) string {
 	}
 	first := g.List[0].Text
 	switch {
-	case strings.HasPrefix(first, "/???"):
-		return blockContent(first, "???")
-	case strings.HasPrefix(first, "/??"):
-		return blockContent(first, "??")
-	case strings.HasPrefix(first, "/?"):
+	case strings.HasPrefix(first, "/***"):
+		return blockContent(first, "/***", "***/")
+	case strings.HasPrefix(first, "/**"):
+		return blockContent(first, "/**", "**/")
+	case strings.HasPrefix(first, "///") && !strings.HasPrefix(first, "////"):
 		lines := make([]string, len(g.List))
 		for i, c := range g.List {
-			lines[i] = strings.TrimPrefix(strings.TrimPrefix(c.Text, "/?"), " ")
+			lines[i] = strings.TrimPrefix(strings.TrimPrefix(c.Text, "///"), " ")
 		}
 		return strings.Join(lines, "\n")
 	}
 	return ""
 }
 
-// blockContent returns the inner text of a fenced block doc.
-func blockContent(text, fence string) string {
-	body := strings.TrimPrefix(text, "/")
-	body = strings.TrimPrefix(body, fence)
-	body = strings.TrimSuffix(body, fence)
+// blockContent returns the inner text of a fenced block doc, dropping the
+// opening and closing fence.
+func blockContent(text, open, close string) string {
+	body := strings.TrimPrefix(text, open)
+	body = strings.TrimSuffix(body, close)
 	return strings.Trim(body, "\n")
 }
 

@@ -336,52 +336,46 @@ func (s *Scanner) scanConfig(pos source.Pos, skip int) (t PToken) {
 }
 
 func (s *Scanner) ScanComment() string {
-	// initial '/' already consumed; s.ch == '/' || s.ch == '*' || s.ch == '?'
+	// initial '/' already consumed; s.ch == '/' || s.ch == '*'
 	offs := s.Offset - 1 // position of initial '/'
+	rest := s.Src[offs:] // from the initial '/', for prefix lookahead
 
 	if s.Ch == '/' {
-		// //-style line comment
-		// (the final '\n' is not considered part of the comment)
-		s.Next()
+		// `///` is a single-line doc comment (exactly three slashes; `////…` is a
+		// normal comment). Either way it runs to end of line.
+		if hasPrefix(rest, "///") && !hasPrefix(rest, "////") {
+			s.NextC(2) // consume the 2nd and 3rd '/'
+		} else {
+			s.Next() // 2nd '/' of a //-style line comment
+		}
 		for s.Ch != '\n' && s.Ch >= 0 {
 			s.Next()
 		}
 		goto exit
 	}
 
-	if s.Ch == '?' {
-		s.Next() // consume the first '?' (past `/?`)
-		if s.Ch == '?' {
-			// block doc comment: `/??…\n??` or root `/???…\n???`. It is scanned
-			// atomically up to a line that is exactly the closing fence, so the
-			// fence never collides with the `??` (nullish) operator.
-			fence := "??"
-			s.Next() // second '?'
-			if s.Ch == '?' {
-				fence = "???"
-				s.Next() // third '?'
-			}
-			firstLine := true
-			var line []rune
-			for s.Ch >= 0 {
-				if s.Ch == '\n' {
-					if !firstLine && strings.TrimSpace(string(line)) == fence {
-						goto exit // leave the '\n' as the statement separator
-					}
-					firstLine = false
-					line = line[:0]
-				} else {
-					line = append(line, s.Ch)
+	// `/**`…`**/` block doc / `/***`…`***/` root doc: a fenced doc comment whose
+	// opener (`/**` / `/***`) is alone on its line and whose closer is a line
+	// that is exactly the matching `**/` / `***/`. Distinguished here from a
+	// regular `/* */` comment; the closer is matched per line so Markdown content
+	// (e.g. `**bold**`) never closes it early.
+	if closer := docBlockCloser(rest); closer != "" {
+		s.NextC(len(closer) - 1) // consume the opening stars (`**` or `***`)
+		firstLine := true
+		var line []rune
+		for s.Ch >= 0 {
+			if s.Ch == '\n' {
+				if !firstLine && strings.TrimSpace(string(line)) == closer {
+					goto exit // leave the '\n' as the statement separator
 				}
-				s.Next()
+				firstLine = false
+				line = line[:0]
+			} else {
+				line = append(line, s.Ch)
 			}
-			s.Error(offs, "doc comment not terminated")
-			goto exit
-		}
-		// single doc comment `/?…` (line-style, to end of line)
-		for s.Ch != '\n' && s.Ch >= 0 {
 			s.Next()
 		}
+		s.Error(offs, "doc comment not terminated")
 		goto exit
 	}
 
@@ -401,6 +395,47 @@ func (s *Scanner) ScanComment() string {
 exit:
 	lit := s.Src[offs:s.Offset]
 	return string(lit)
+}
+
+// hasPrefix reports whether b starts with the ASCII string p.
+func hasPrefix(b []byte, p string) bool {
+	if len(b) < len(p) {
+		return false
+	}
+	for i := 0; i < len(p); i++ {
+		if b[i] != p[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// docBlockCloser reports whether rest (starting at the comment's `/`) opens a
+// fenced doc comment and returns its closing fence: `***/` for a `/***` root
+// block, `**/` for a `/**` block, or "" for anything else (a regular `/* */`
+// comment). The opener must be alone on its line (only trailing whitespace
+// before the newline), matching the multi-line doc form.
+func docBlockCloser(rest []byte) string {
+	switch {
+	case docOpenerAloneOnLine(rest, "/***"):
+		return "***/"
+	case docOpenerAloneOnLine(rest, "/**"):
+		return "**/"
+	}
+	return ""
+}
+
+// docOpenerAloneOnLine reports whether rest starts with marker followed only by
+// whitespace up to a newline (or EOF).
+func docOpenerAloneOnLine(rest []byte, marker string) bool {
+	if !hasPrefix(rest, marker) {
+		return false
+	}
+	i := len(marker)
+	for i < len(rest) && (rest[i] == ' ' || rest[i] == '\t' || rest[i] == '\r') {
+		i++
+	}
+	return i >= len(rest) || rest[i] == '\n'
 }
 
 func (s *Scanner) ScanNumber(seenDecimalPoint bool) (tok token.Token, lit string) {

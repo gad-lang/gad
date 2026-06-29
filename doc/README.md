@@ -41,7 +41,7 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
     the `.gad.yaml` config file.
 15. [Templates](templates.md) — mixed/template mode (`{% … %}`, `{%= … %}`,
     `begin … end`, whitespace trim markers, `.gadt` files).
-16. [Doc Comments](doc-comments.md) — `/?`, `/??` and `/???` doc comments,
+16. [Doc Comments](doc-comments.md) — `///`, `/**` and `/***` doc comments,
     what they attach to, and how the formatter reflows them.
 17. [Conventions](conventions.md) — how primitive types, constants, modules and
     methods are cased, plus the code layout the formatter produces.

@@ -27,9 +27,9 @@ func TestGenerateDocModuleHeadingAndErrors(t *testing.T) {
 }
 
 func TestGenerateDocSections(t *testing.T) {
-	src := "/???\nmodule overview.\n???\n\n" +
-		"/? the pi value\nexport Pi = 3.14\n\n" +
-		"/? returns a + b\nexport func sum(a, b) { return a + b }\n"
+	src := "/***\nmodule overview.\n***/\n\n" +
+		"/// the pi value\nexport Pi = 3.14\n\n" +
+		"/// returns a + b\nexport func sum(a, b) { return a + b }\n"
 	md, err := generateDoc("m.gad", []byte(src))
 	require.NoError(t, err)
 
@@ -47,10 +47,10 @@ func TestGenerateDocSections(t *testing.T) {
 }
 
 func TestGenerateDocFuncWithMethods(t *testing.T) {
-	src := "/? a difference calculator\n" +
+	src := "/// a difference calculator\n" +
 		"export func diff {\n" +
-		"\t/? difference of two ints\n\t(a int, b int) => b - a\n\n" +
-		"\t/? difference of two floats\n\t(a float, b float) => b - a\n}\n"
+		"\t/// difference of two ints\n\t(a int, b int) => b - a\n\n" +
+		"\t/// difference of two floats\n\t(a float, b float) => b - a\n}\n"
 	md, err := generateDoc("m.gad", []byte(src))
 	require.NoError(t, err)
 
@@ -64,9 +64,9 @@ func TestGenerateDocFuncWithMethods(t *testing.T) {
 }
 
 func TestGenerateDocDictExport(t *testing.T) {
-	src := "/? public API\nexport {\n" +
-		"\t/? the max retries\n\tmaxRetries: 3,\n" +
-		"\t/? compute the area\n\tarea: func(r) { return r * r },\n}\n"
+	src := "/// public API\nexport {\n" +
+		"\t/// the max retries\n\tmaxRetries: 3,\n" +
+		"\t/// compute the area\n\tarea: func(r) { return r * r },\n}\n"
 	md, err := generateDoc("m.gad", []byte(src))
 	require.NoError(t, err)
 

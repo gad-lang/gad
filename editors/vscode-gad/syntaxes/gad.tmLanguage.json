@@ -27,17 +27,17 @@
       "patterns": [
         {
           "name": "comment.block.documentation.gad",
-          "begin": "/\\?\\?\\?",
-          "end": "^\\s*\\?\\?\\?\\s*$"
+          "begin": "/\\*\\*\\*",
+          "end": "^\\s*\\*\\*\\*/\\s*$"
         },
         {
           "name": "comment.block.documentation.gad",
-          "begin": "/\\?\\?",
-          "end": "^\\s*\\?\\?\\s*$"
+          "begin": "/\\*\\*",
+          "end": "^\\s*\\*\\*/\\s*$"
         },
         {
           "name": "comment.line.documentation.gad",
-          "match": "/\\?.*$"
+          "match": "///(?!/).*$"
         },
         {
           "name": "comment.line.double-slash.gad",

@@ -419,7 +419,7 @@ func (ctx *CodeWriteContext) WriteLeadDoc(g *ast.CommentGroup) bool {
 	return true
 }
 
-// WriteTrailingDoc emits g as a trailing inline doc (` /? …`) on the current
+// WriteTrailingDoc emits g as a trailing inline doc (` /// …`) on the current
 // line when g is a claimed doc. Inline docs are kept on one line regardless of
 // width. Returns true when it emitted the doc.
 func (ctx *CodeWriteContext) WriteTrailingDoc(g *ast.CommentGroup) bool {
@@ -428,7 +428,7 @@ func (ctx *CodeWriteContext) WriteTrailingDoc(g *ast.CommentGroup) bool {
 	}
 	if ctx.Flags.Has(CodeWriteContextFlagFormat) {
 		if d, ok := parseDocComment(g); ok {
-			ctx.WriteString(" ", "/? "+strings.Join(strings.Fields(d.content), " "))
+			ctx.WriteString(" ", "/// "+strings.Join(strings.Fields(d.content), " "))
 			return true
 		}
 	}

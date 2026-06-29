@@ -259,11 +259,11 @@ regular `//` and `/* */` comments: a doc comment is *attached* to an AST node's
 
 | Form         | Syntax                       | Example                                  |
 |--------------|------------------------------|------------------------------------------|
-| `SINGLE`     | `/? text` on its own line    | `/? the pi value`<br>`pi = 3.14`         |
-| `INLINE`     | `IDENT /? text` (no value)   | `var pi /? the pi value`                 |
-| `INLINE_VALUE` | `IDENT = EXPR /? text`     | `const pi = 3.14 /? the pi value`        |
-| `BLOCK`      | `/??` … `??` fenced block    | `/??`<br>`the pi value`<br>`??`          |
-| `ROOT_BLOCK` | `/???` … `???` fenced block  | `/???`<br>`module overview`<br>`???`     |
+| `SINGLE`     | `/// text` on its own line    | `/// the pi value`<br>`pi = 3.14`         |
+| `INLINE`     | `IDENT /// text` (no value)   | `var pi /// the pi value`                 |
+| `INLINE_VALUE` | `IDENT = EXPR /// text`     | `const pi = 3.14 /// the pi value`        |
+| `BLOCK`      | `/**` … `**/` fenced block    | `/**`<br>`the pi value`<br>`**/`          |
+| `ROOT_BLOCK` | `/***` … `***/` fenced block  | `/***`<br>`module overview`<br>`***/`     |
 
 ### Attachment rules
 
@@ -275,7 +275,7 @@ regular `//` and `/* */` comments: a doc comment is *attached* to an AST node's
   standalone `ROOT_BLOCK` documents the module/section, not the next statement).
 - `INLINE`/`INLINE_VALUE` docs trail the target on the **same line** and link to its
   ident; they apply only when there is no lead doc.
-- A doc trailing a multi-ident value-less spec (`f, g /? ...`) is invalid and is a
+- A doc trailing a multi-ident value-less spec (`f, g /// ...`) is invalid and is a
   parser error.
 
 ### Format rules (applied by `WriteCode`)

@@ -51,12 +51,13 @@ func TextMateGrammar() ([]byte, error) {
 
 	repo := map[string]tmRule{
 		"comments": {Patterns: []tmRule{
-			// Doc comments first so `/?` is not read as a line comment. A block doc
-			// ends only at a line that is exactly the fence (`??` / `???`), so an
-			// inline `` `??` `` in the doc text does not close it early.
-			{Name: "comment.block.documentation.gad", Begin: `/\?\?\?`, End: `^\s*\?\?\?\s*$`},
-			{Name: "comment.block.documentation.gad", Begin: `/\?\?`, End: `^\s*\?\?\s*$`},
-			{Name: "comment.line.documentation.gad", Match: `/\?.*$`},
+			// Doc comments first so `/**`/`/***`/`///` are not read as ordinary
+			// `/*`/`//` comments. A block doc ends only at a line that is exactly the
+			// fence (`**/` / `***/`), so inline `**bold**` / `***hr***` Markdown in
+			// the doc text does not close it early. `///` is a single-line doc.
+			{Name: "comment.block.documentation.gad", Begin: `/\*\*\*`, End: `^\s*\*\*\*/\s*$`},
+			{Name: "comment.block.documentation.gad", Begin: `/\*\*`, End: `^\s*\*\*/\s*$`},
+			{Name: "comment.line.documentation.gad", Match: `///(?!/).*$`},
 			{Name: "comment.line.double-slash.gad", Match: `//.*$`},
 			{Name: "comment.block.gad", Begin: `/\*`, End: `\*/`},
 		}},

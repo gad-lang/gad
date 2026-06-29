@@ -2830,11 +2830,11 @@ func (p *Parser) ParseValueSpec(keyword token.Token, multi bool, prev []node.Spe
 			p.ExpectSemi()
 		}
 		// INLINE / INLINE_VALUE: a doc trailing the spec on the same line
-		// (`a /? doc` or `a = 1 /? doc`) is linked to this ident when there is
+		// (`a /// doc` or `a = 1 /// doc`) is linked to this ident when there is
 		// no lead doc.
 		if doc == nil && p.lineComment != nil {
 			// A doc trailing a comma-separated valueless identifier
-			// (`f, g /? ...`) is ambiguous and not allowed.
+			// (`f, g /// ...`) is ambiguous and not allowed.
 			if expr == nil && len(prev) > 0 &&
 				source.MustFileLine(p.File, prev[len(prev)-1].End()) ==
 					source.MustFileLine(p.File, ident.Pos()) {
@@ -4309,19 +4309,28 @@ func (p *Parser) commentGroupEndLine(g *ast.CommentGroup) int {
 	return source.MustFileLine(p.File, g.End()-1)
 }
 
-// isDocCommentGroup reports whether every comment in g is a doc comment, i.e.
-// begins with the `/?` marker (covering SINGLE `/?`, BLOCK `/??`, and
-// ROOT_BLOCK `/???` forms). Regular `//` and `/* */` comments are not docs.
+// isDocCommentGroup reports whether every comment in g is a doc comment:
+// SINGLE `///`, BLOCK `/**` … `**/`, or ROOT_BLOCK `/***` … `***/`. Regular
+// `//` and `/* */` comments are not docs.
 func isDocCommentGroup(g *ast.CommentGroup) bool {
 	if g == nil || len(g.List) == 0 {
 		return false
 	}
 	for _, c := range g.List {
-		if !strings.HasPrefix(c.Text, "/?") {
+		if !isDocCommentText(c.Text) {
 			return false
 		}
 	}
 	return true
+}
+
+// isDocCommentText reports whether a comment's text is a doc comment marker.
+func isDocCommentText(text string) bool {
+	// `///` single (but not `////`, a normal comment), or a `/**`/`/***` block.
+	if strings.HasPrefix(text, "///") {
+		return !strings.HasPrefix(text, "////")
+	}
+	return strings.HasPrefix(text, "/**")
 }
 
 func (p *Parser) SkipSpace() {

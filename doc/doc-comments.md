@@ -14,31 +14,31 @@ Doc-comment contents are **Markdown** (safe inline HTML is allowed).
 
 | Form           | Syntax                       | Example                                   |
 |----------------|------------------------------|-------------------------------------------|
-| `SINGLE`       | `/? text` on its own line    | `/? the pi value`<br>`const Pi = 3.14`    |
-| `INLINE`       | `IDENT /? text` (no value)   | `var pi /? the pi value`                  |
-| `INLINE_VALUE` | `IDENT = EXPR /? text`       | `const Pi = 3.14 /? the pi value`         |
-| `BLOCK`        | `/??` … `??` fenced block    | `/??`<br>`the pi value`<br>`??`           |
-| `ROOT_BLOCK`   | `/???` … `???` fenced block  | `/???`<br>`module overview`<br>`???`      |
+| `SINGLE`       | `/// text` on its own line    | `/// the pi value`<br>`const Pi = 3.14`    |
+| `INLINE`       | `IDENT /// text` (no value)   | `var pi /// the pi value`                  |
+| `INLINE_VALUE` | `IDENT = EXPR /// text`       | `const Pi = 3.14 /// the pi value`         |
+| `BLOCK`        | `/**` … `**/` fenced block    | `/**`<br>`the pi value`<br>`**/`           |
+| `ROOT_BLOCK`   | `/***` … `***/` fenced block  | `/***`<br>`module overview`<br>`***/`      |
 
-The fence of a `BLOCK` / `ROOT_BLOCK` must be on its **own line**; `/?? text ??`
+The fence of a `BLOCK` / `ROOT_BLOCK` must be on its **own line**; `/** text **/`
 on a single line is not a block.
 
 ```gad
-/? the service listen address
+/// the service listen address
 const ServerAddr = ":8080"
 
 const (
-    /? the greeting prefix (linked to the spec ident)
+    /// the greeting prefix (linked to the spec ident)
     Greeting = "hello"
 
-    Retries = 3 /? how many times to retry (inline, trailing)
+    Retries = 3 /// how many times to retry (inline, trailing)
 )
 
-/??
+/**
 `sum` returns the sum of `a` and `b`.
 
 A block doc's lines are reflowed as Markdown.
-??
+**/
 func sum(a, b) {
     return a + b
 }
@@ -54,18 +54,18 @@ func sum(a, b) {
 - **Method interfaces** — `meti` statements and each header inside them.
 
 ```gad
-/? a tiny calculator dispatching on argument types
+/// a tiny calculator dispatching on argument types
 func calc {
-    /? add two ints
+    /// add two ints
     (a int, b int) => a + b
 
-    /? add two floats
+    /// add two floats
     (a float, b float) => a + b
 }
 
-/? a difference contract
+/// a difference contract
 meti differ {
-    /? difference of two ints
+    /// difference of two ints
     (a int, b int) <int>
 }
 ```
@@ -74,11 +74,11 @@ A `ROOT_BLOCK` separated from the next statement by a blank line documents the
 **module/section**, not that statement:
 
 ```gad
-/???
+/***
 This module provides arithmetic helpers.
-???
+***/
 
-/? add two values
+/// add two values
 func add(a, b) { return a + b }
 ```
 
@@ -89,7 +89,7 @@ func add(a, b) { return a + b }
   the next statement **detaches** it.
 - `INLINE` / `INLINE_VALUE` docs trail their target on the **same line** and link
   to its identifier; they apply only when there is no lead doc.
-- A doc trailing a comma-separated, value-less identifier (`f, g /? …`) is
+- A doc trailing a comma-separated, value-less identifier (`f, g /// …`) is
   ambiguous and is a **parse error**.
 
 ## Formatting
@@ -105,13 +105,13 @@ func add(a, b) { return a + b }
 
 ```gad
 // before
-/??
+/**
 the pi value
-??
+**/
 const Pi = 3.14
 
 // after `gad fmt`
-/? the pi value
+/// the pi value
 const Pi = 3.14
 ```
 
@@ -139,7 +139,7 @@ code fence. Examples are **self-contained** snippets. A line beginning with
 value of the expression after `>>>` (a trailing `// …` comment is ignored):
 
 ````gad
-/??
+/**
 `sum` returns the sum of `a` and `b`.
 
 ```gad
@@ -147,7 +147,7 @@ sum := func(a, b) { return a + b }
 sum(2, 3)
 >>> 5
 ```
-??
+**/
 export func sum(a, b) { return a + b }
 ````
 

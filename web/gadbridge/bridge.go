@@ -143,7 +143,7 @@ func EvalSource(prelude, expr, render string) string {
 	return body + "return " + render + "(" + expr + ")\n"
 }
 
-// DocComment is one rendered doc comment (`/?`, `/??` or `/???`) from a source
+// DocComment is one rendered doc comment (`///`, `/**` or `/***`) from a source
 // file: its 1-based start line, kind, the following code line as a title (when
 // any) and the Markdown content.
 type DocComment struct {
@@ -190,24 +190,25 @@ func docContent(g *ast.CommentGroup) (kind, content string, ok bool) {
 	}
 	first := g.List[0].Text
 	switch {
-	case strings.HasPrefix(first, "/???"):
-		return "root", trimFence(first, "???"), true
-	case strings.HasPrefix(first, "/??"):
-		return "block", trimFence(first, "??"), true
-	case strings.HasPrefix(first, "/?"):
+	case strings.HasPrefix(first, "/***"):
+		return "root", trimFence(first, "/***", "***/"), true
+	case strings.HasPrefix(first, "/**"):
+		return "block", trimFence(first, "/**", "**/"), true
+	case strings.HasPrefix(first, "///") && !strings.HasPrefix(first, "////"):
 		ls := make([]string, len(g.List))
 		for i, c := range g.List {
-			ls[i] = strings.TrimPrefix(strings.TrimPrefix(c.Text, "/?"), " ")
+			ls[i] = strings.TrimPrefix(strings.TrimPrefix(c.Text, "///"), " ")
 		}
 		return "single", strings.Join(ls, "\n"), true
 	}
 	return "", "", false
 }
 
-// trimFence returns the inner text of a fenced block doc `/<fence> … <fence>`.
-func trimFence(text, fence string) string {
-	body := strings.TrimPrefix(strings.TrimPrefix(text, "/"), fence)
-	body = strings.TrimSuffix(body, fence)
+// trimFence returns the inner text of a fenced block doc, dropping the opening
+// (`/**`/`/***`) and closing (`**/`/`***/`) fence.
+func trimFence(text, open, close string) string {
+	body := strings.TrimPrefix(text, open)
+	body = strings.TrimSuffix(body, close)
 	return strings.Trim(body, "\n")
 }
 
@@ -216,7 +217,7 @@ func trimFence(text, fence string) string {
 func nextCodeLine(lines []string, afterLine int) string {
 	for i := afterLine; i < len(lines); i++ {
 		s := strings.TrimSpace(lines[i])
-		if s == "" || strings.HasPrefix(s, "//") || strings.HasPrefix(s, "/?") || strings.HasPrefix(s, "/*") {
+		if s == "" || strings.HasPrefix(s, "//") || strings.HasPrefix(s, "/*") || strings.HasPrefix(s, "**/") || strings.HasPrefix(s, "***/") {
 			continue
 		}
 		if len(s) > 80 {

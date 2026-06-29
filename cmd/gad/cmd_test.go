@@ -156,11 +156,11 @@ func TestFormatPreservesComments(t *testing.T) {
 
 func TestFormatPreservesDocComments(t *testing.T) {
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
-	src := "/? the pi value\n" +
+	src := "/// the pi value\n" +
 		"pi := 3.14\n\n" +
-		"const x = 1 /? inline doc on x\n\n" +
+		"const x = 1 /// inline doc on x\n\n" +
 		"func f() {\n" +
-		"\t/? local doc\n" +
+		"\t/// local doc\n" +
 		"\treturn 1\n" +
 		"}\n"
 
@@ -168,9 +168,9 @@ func TestFormatPreservesDocComments(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, want := range []string{
-		"/? the pi value",
-		"const x = 1 /? inline doc on x",
-		"/? local doc",
+		"/// the pi value",
+		"const x = 1 /// inline doc on x",
+		"/// local doc",
 	} {
 		require.Contains(t, out, want)
 	}
@@ -182,22 +182,22 @@ func TestFormatPreservesDocComments(t *testing.T) {
 
 func TestFormatPreservesDocBlockComments(t *testing.T) {
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
-	src := "/??\n" +
+	src := "/**\n" +
 		"a block doc\n" +
 		"spanning lines\n" +
-		"??\n" +
+		"**/\n" +
 		"x := 1\n\n" +
-		"/???\n" +
+		"/***\n" +
 		"a root block doc\n" +
-		"???\n" +
+		"***/\n" +
 		"y := 2\n"
 
 	out, err := o.formatSource("d.gad", []byte(src), false)
 	require.NoError(t, err)
 
 	for _, want := range []string{
-		"/??\na block doc\nspanning lines\n??",
-		"/???\na root block doc\n???",
+		"/**\na block doc\nspanning lines\n**/",
+		"/***\na root block doc\n***/",
 	} {
 		require.Contains(t, out, want)
 	}
@@ -213,14 +213,14 @@ func TestFormatPreservesDocBlockComments(t *testing.T) {
 func TestFormatDocTravelsWithMergedDecl(t *testing.T) {
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
 	src := "const a = 1\n" +
-		"/? the b value\n" +
+		"/// the b value\n" +
 		"const b = 2\n"
 
 	out, err := o.formatSource("d.gad", []byte(src), false)
 	require.NoError(t, err)
 
 	// The two const decls merge; the doc stays attached to `b` inside the group.
-	require.Equal(t, "const (\n\ta = 1\n\t/? the b value\n\tb = 2\n)", strings.TrimSpace(out))
+	require.Equal(t, "const (\n\ta = 1\n\t/// the b value\n\tb = 2\n)", strings.TrimSpace(out))
 
 	out2, err := o.formatSource("d.gad", []byte(out), false)
 	require.NoError(t, err)
@@ -231,9 +231,9 @@ func TestFormatDocTravelsWithMergedDecl(t *testing.T) {
 // func statement are emitted by their node (preserved, idempotent).
 func TestFormatDocLeadOnGenDeclAndFunc(t *testing.T) {
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
-	src := "/? this is the server addr\n" +
+	src := "/// this is the server addr\n" +
 		"const ServerAddr = \":0\"\n\n" +
-		"/? sum values\n" +
+		"/// sum values\n" +
 		"func sum(a, b) {\n" +
 		"\treturn a + b\n" +
 		"}\n"
@@ -241,8 +241,8 @@ func TestFormatDocLeadOnGenDeclAndFunc(t *testing.T) {
 	out, err := o.formatSource("d.gad", []byte(src), false)
 	require.NoError(t, err)
 
-	require.Contains(t, out, "/? this is the server addr\nconst ServerAddr = \":0\"")
-	require.Contains(t, out, "/? sum values\nfunc sum")
+	require.Contains(t, out, "/// this is the server addr\nconst ServerAddr = \":0\"")
+	require.Contains(t, out, "/// sum values\nfunc sum")
 
 	out2, err := o.formatSource("d.gad", []byte(out), false)
 	require.NoError(t, err)
@@ -255,20 +255,20 @@ func TestFormatDocSingleBlockConversion(t *testing.T) {
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
 
 	// short block -> single
-	short := "/??\nthe pi value\n??\nconst pi = 3.14\n"
+	short := "/**\nthe pi value\n**/\nconst pi = 3.14\n"
 	out, err := o.formatSource("d.gad", []byte(short), false)
 	require.NoError(t, err)
-	require.Contains(t, out, "/? the pi value\nconst pi = 3.14")
+	require.Contains(t, out, "/// the pi value\nconst pi = 3.14")
 	out2, err := o.formatSource("d.gad", []byte(out), false)
 	require.NoError(t, err)
 	require.Equal(t, out, out2)
 
 	// long single -> block (content wrapped, fenced)
-	long := "/? " + strings.Repeat("word ", 30) + "\nconst x = 1\n"
+	long := "/// " + strings.Repeat("word ", 30) + "\nconst x = 1\n"
 	out, err = o.formatSource("d.gad", []byte(long), false)
 	require.NoError(t, err)
-	require.Contains(t, out, "/??\n")
-	require.Contains(t, out, "\n??\nconst x = 1")
+	require.Contains(t, out, "/**\n")
+	require.Contains(t, out, "\n**/\nconst x = 1")
 	out2, err = o.formatSource("d.gad", []byte(out), false)
 	require.NoError(t, err)
 	require.Equal(t, out, out2)
@@ -278,11 +278,11 @@ func TestFormatDocSingleBlockConversion(t *testing.T) {
 // group stays attached to its spec on the same line.
 func TestFormatDocInGroupTrailing(t *testing.T) {
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
-	src := "var (\n\tc = 1\n\td = 2 /? the value of d\n\te = 3\n)\n"
+	src := "var (\n\tc = 1\n\td = 2 /// the value of d\n\te = 3\n)\n"
 
 	out, err := o.formatSource("d.gad", []byte(src), false)
 	require.NoError(t, err)
-	require.Contains(t, out, "d = 2 /? the value of d")
+	require.Contains(t, out, "d = 2 /// the value of d")
 
 	out2, err := o.formatSource("d.gad", []byte(out), false)
 	require.NoError(t, err)
@@ -293,19 +293,19 @@ func TestFormatDocInGroupTrailing(t *testing.T) {
 // and per-method docs in place.
 func TestFormatDocPerMethod(t *testing.T) {
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
-	src := "/??\nthis is a difference calculator.\nsee all methods here.\n??\n" +
+	src := "/**\nthis is a difference calculator.\nsee all methods here.\n**/\n" +
 		"func diff {\n" +
-		"\t/? compute diff of b and a\n" +
+		"\t/// compute diff of b and a\n" +
 		"\t(a, b) => b - a\n\n" +
-		"\t/? compute diff with floats\n" +
+		"\t/// compute diff with floats\n" +
 		"\t(a, b) => b - a\n" +
 		"}\n"
 
 	out, err := o.formatSource("d.gad", []byte(src), false)
 	require.NoError(t, err)
-	require.Contains(t, out, "/? this is a difference calculator. see all methods here.\nfunc diff")
-	require.Contains(t, out, "/? compute diff of b and a")
-	require.Contains(t, out, "/? compute diff with floats")
+	require.Contains(t, out, "/// this is a difference calculator. see all methods here.\nfunc diff")
+	require.Contains(t, out, "/// compute diff of b and a")
+	require.Contains(t, out, "/// compute diff with floats")
 
 	out2, err := o.formatSource("d.gad", []byte(out), false)
 	require.NoError(t, err)
@@ -315,16 +315,16 @@ func TestFormatDocPerMethod(t *testing.T) {
 // TestFormatDocPropAndMeti verifies prop and meti statements keep their docs.
 func TestFormatDocPropAndMeti(t *testing.T) {
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
-	src := "/? the name property\n" +
-		"prop name {\n\t/? getter\n\t() => \"x\"\n}\n\n" +
-		"/? a stringer interface\n" +
+	src := "/// the name property\n" +
+		"prop name {\n\t/// getter\n\t() => \"x\"\n}\n\n" +
+		"/// a stringer interface\n" +
 		"meti stringer {\n\t() <str>\n}\n"
 
 	out, err := o.formatSource("d.gad", []byte(src), false)
 	require.NoError(t, err)
-	require.Contains(t, out, "/? the name property\nprop name")
-	require.Contains(t, out, "/? getter")
-	require.Contains(t, out, "/? a stringer interface\nmeti stringer")
+	require.Contains(t, out, "/// the name property\nprop name")
+	require.Contains(t, out, "/// getter")
+	require.Contains(t, out, "/// a stringer interface\nmeti stringer")
 
 	out2, err := o.formatSource("d.gad", []byte(out), false)
 	require.NoError(t, err)
@@ -335,19 +335,19 @@ func TestFormatDocPropAndMeti(t *testing.T) {
 // its own line above the header (forcing the one-per-line layout).
 func TestFormatDocMetiPerHeader(t *testing.T) {
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
-	src := "/? a calculator interface\n" +
+	src := "/// a calculator interface\n" +
 		"meti calc {\n" +
-		"\t/? add two ints\n" +
+		"\t/// add two ints\n" +
 		"\t(a int, b int) <int>\n\n" +
-		"\t/? subtract\n" +
+		"\t/// subtract\n" +
 		"\t(a int, b int) <int>\n" +
 		"}\n"
 
 	out, err := o.formatSource("d.gad", []byte(src), false)
 	require.NoError(t, err)
-	require.Contains(t, out, "/? a calculator interface\nmeti calc")
-	require.Contains(t, out, "/? add two ints")
-	require.Contains(t, out, "/? subtract")
+	require.Contains(t, out, "/// a calculator interface\nmeti calc")
+	require.Contains(t, out, "/// add two ints")
+	require.Contains(t, out, "/// subtract")
 
 	out2, err := o.formatSource("d.gad", []byte(out), false)
 	require.NoError(t, err)
@@ -358,7 +358,7 @@ func TestFormatDocMetiPerHeader(t *testing.T) {
 // valueless identifier is a parse error.
 func TestFormatDocCommaIdentError(t *testing.T) {
 	o := &fmtOptions{codeFlags: fmtFormatFlag()}
-	_, err := o.formatSource("d.gad", []byte("var (\n\tf, g /? f and g\n)\n"), false)
+	_, err := o.formatSource("d.gad", []byte("var (\n\tf, g /// f and g\n)\n"), false)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "comma-separated identifier")
 }

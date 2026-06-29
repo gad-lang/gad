@@ -22,10 +22,10 @@ func TestParseDocComment(t *testing.T) {
 		kind    docKind
 		content string
 	}{
-		{"single", docGroup("/? the pi value"), docSingle, "the pi value"},
-		{"single multi", docGroup("/? line one", "/? line two"), docSingle, "line one\nline two"},
-		{"block", docGroup("/??\nthe pi value\nmore\n??"), docBlock, "the pi value\nmore"},
-		{"root", docGroup("/???\nmodule overview\n???"), docRoot, "module overview"},
+		{"single", docGroup("/// the pi value"), docSingle, "the pi value"},
+		{"single multi", docGroup("/// line one", "/// line two"), docSingle, "line one\nline two"},
+		{"block", docGroup("/**\nthe pi value\nmore\n**/"), docBlock, "the pi value\nmore"},
+		{"root", docGroup("/***\nmodule overview\n***/"), docRoot, "module overview"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -47,14 +47,14 @@ func TestRenderDocLines(t *testing.T) {
 	// short single stays single
 	d := docComment{docSingle, "the pi value"}
 	got := strings.Join(renderDocLines(d, 80), "\n")
-	if got != "/? the pi value" {
+	if got != "/// the pi value" {
 		t.Errorf("short single = %q", got)
 	}
 
 	// short block collapses to single
 	d = docComment{docBlock, "the pi value"}
 	got = strings.Join(renderDocLines(d, 80), "\n")
-	if got != "/? the pi value" {
+	if got != "/// the pi value" {
 		t.Errorf("short block = %q", got)
 	}
 
@@ -62,7 +62,7 @@ func TestRenderDocLines(t *testing.T) {
 	long := "aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm"
 	d = docComment{docSingle, long}
 	lines := renderDocLines(d, 24)
-	if lines[0] != "/??" || lines[len(lines)-1] != "??" {
+	if lines[0] != "/**" || lines[len(lines)-1] != "**/" {
 		t.Errorf("long single not blocked: %v", lines)
 	}
 	for _, ln := range lines[1 : len(lines)-1] {
@@ -74,7 +74,7 @@ func TestRenderDocLines(t *testing.T) {
 	// root stays a root block
 	d = docComment{docRoot, "overview"}
 	lines = renderDocLines(d, 80)
-	if lines[0] != "/???" || lines[len(lines)-1] != "???" {
+	if lines[0] != "/***" || lines[len(lines)-1] != "***/" {
 		t.Errorf("root not blocked: %v", lines)
 	}
 }
