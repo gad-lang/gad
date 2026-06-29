@@ -426,6 +426,58 @@ func (t *Class) Module() *ModuleSpec {
 	return t.module
 }
 
+func (t *Class) Define(c Call) (err error) {
+	var (
+		kvaTA  = TypeAssertionFromTypes(TKeyValueArray)
+		dictTA = TypeAssertionFromTypes(TDict)
+
+		fields = &NamedArgVar{
+			Name:          "fields",
+			TypeAssertion: kvaTA,
+			Do: func(value Object) error {
+				return t.CallAddFields(Call{VM: c.VM, Args: Args{Array{value}}})
+			},
+		}
+
+		methods = &NamedArgVar{
+			Name:          "methods",
+			TypeAssertion: TypeAssertionFromTypes(TDict, TKeyValueArray, TArray),
+			Do: func(value Object) (err error) {
+				return t.CallAddMethods(Call{VM: c.VM, Args: Args{Array{value}}})
+			},
+		}
+
+		properties = &NamedArgVar{
+			Name:          "properties",
+			TypeAssertion: dictTA,
+			Do: func(value Object) (err error) {
+				return t.CallAddProperties(Call{VM: c.VM, Args: Args{Array{value}}})
+			},
+		}
+
+		constructor = &NamedArgVar{
+			Name:          "new",
+			TypeAssertion: NewTypeAssertion(TypeAssertions(WithCallable(), WithArray())),
+			Do: func(value Object) (err error) {
+				return t.CallAddNewHandlers(Call{VM: c.VM, Args: Args{Array{value}}})
+			},
+		}
+
+		extends = &NamedArgVar{
+			Name:          "extends",
+			TypeAssertion: TypeAssertionFromTypes(TArray),
+			// The extends array lists the parent classes; each element is a
+			// parent class or an [parentClass, alias] pair. Spread the elements
+			// so each is handled as its own parent spec.
+			Do: func(value Object) (err error) {
+				return t.CallExtends(Call{VM: c.VM, Args: Args{value.(Array)}})
+			},
+		}
+	)
+
+	return c.NamedArgs.GetDo(constructor, fields, methods, properties, extends)
+}
+
 func (t *Class) String() string {
 	return TypeToString("class " + t.name)
 }

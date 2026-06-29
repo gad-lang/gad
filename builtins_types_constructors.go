@@ -442,57 +442,30 @@ func NewClassFunc(c Call) (ret Object, err error) {
 
 	t := NewClass(string(nameArg.Value.(Str)), c.VM.CurrentModuleSpec())
 
-	var (
-		kvaTA  = TypeAssertionFromTypes(TKeyValueArray)
-		dictTA = TypeAssertionFromTypes(TDict)
-
-		fields = &NamedArgVar{
-			Name:          "fields",
-			TypeAssertion: kvaTA,
-			Do: func(value Object) error {
-				return t.CallAddFields(Call{VM: c.VM, Args: Args{Array{value}}})
-			},
-		}
-
-		methods = &NamedArgVar{
-			Name:          "methods",
-			TypeAssertion: TypeAssertionFromTypes(TDict, TKeyValueArray, TArray),
-			Do: func(value Object) (err error) {
-				return t.CallAddMethods(Call{VM: c.VM, Args: Args{Array{value}}})
-			},
-		}
-
-		properties = &NamedArgVar{
-			Name:          "properties",
-			TypeAssertion: dictTA,
-			Do: func(value Object) (err error) {
-				return t.CallAddProperties(Call{VM: c.VM, Args: Args{Array{value}}})
-			},
-		}
-
-		constructor = &NamedArgVar{
-			Name:          "new",
-			TypeAssertion: NewTypeAssertion(TypeAssertions(WithCallable(), WithArray())),
-			Do: func(value Object) (err error) {
-				return t.CallAddNewHandlers(Call{VM: c.VM, Args: Args{Array{value}}})
-			},
-		}
-
-		extends = &NamedArgVar{
-			Name:          "extends",
-			TypeAssertion: TypeAssertionFromTypes(TArray),
-			// The extends array lists the parent classes; each element is a
-			// parent class or an [parentClass, alias] pair. Spread the elements
-			// so each is handled as its own parent spec.
-			Do: func(value Object) (err error) {
-				return t.CallExtends(Call{VM: c.VM, Args: Args{value.(Array)}})
-			},
-		}
-	)
-
-	if err = c.NamedArgs.GetDo(constructor, fields, methods, properties, extends); err != nil {
+	if err = c.NamedArgs.GetDo(&NamedArgVar{
+		Name:          "define",
+		TypeAssertion: NewTypeAssertion(TypeAssertions(WithCallable())),
+		Do: func(value Object) (err error) {
+			_, err = value.(CallerObject).Call(Call{
+				Context: c.Context,
+				VM:      c.VM,
+				Args: Args{{
+					t,
+					NewFunction("define", func(c Call) (Object, error) {
+						return nil, t.Define(c)
+					}),
+				}},
+			})
+			return
+		},
+	}); err != nil {
 		return
 	}
+
+	if err = t.Define(c); err != nil {
+		return
+	}
+
 	return t, nil
 }
 
