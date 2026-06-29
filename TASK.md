@@ -100,3 +100,133 @@ verification for full sign-off.
       TestDAPSession (evaluate). TODO: format-on-save / .gad.yaml-driven format
       command, and richer IDE-like panels (inspect/doc) inside VS Code.
 - [ ] create plugin like vscode to JetBrains.
+
+# Language
+
+- [x] new doc-comment markers: SINGLE `/?`→`///` (`////` is a normal comment),
+      BLOCK `/??`…`??`→`/**`…`**/`, ROOT_BLOCK `/???`…`???`→`/***`…`***/`. Scanner,
+      parser attachment, formatter, gadbridge, doc generator, doctest, all four
+      tokenizers (codemirror/prism/vscode-grammar/ideapp, verified with the real
+      engines), docs, samples/16_doc_comments.gad and all doc tests updated.
+      (Pre-existing unrelated regression: Class(...; fields=...) rejects `fields`
+      → fails TestVMWith/TestVMBinaryIncDec/TestREPL on HEAD.)
+- [ ] create samples for `Heredoc` and`RawHeredoc`. `Template` of `Heredoc` and `RawHeredoc`. samples for singleline and multiline variations. update docs.
+  Examples:
+  - `s := """abc""de""" // abc""de`
+  - `s := """\n\tabc""\n\tde\n""" // abc""\nde`
+- [ ] create detailed samples and docs form keyValueArray with functions, closures, typed ... (see `TestParseKeyValueArray` and `TestVMKeyValueArray`)
+- [ ] create parser for `enum`.
+  - Expr syntaxe `enum { [bit] IDENT [= Expr] [, IDENT [= Expr ]...] }`, usage `x := enum { ... }`.
+  - Stmt syntaxe like Expr, but have Ident `enum IDENT { ... }`, it compiles to `const IDENT = enum { ... }`.
+    exports variant `export enum IDENT { ... }` compiles to `enum IDENT { ...}; export IDENT`.
+  - items sep is `,` (comma) or new lines `\n`.
+  - `enum` compiles to call `Enum(name;**fields)`.
+  - if value of field isn't set, default value is `SIG ((PREV_FIELD ?? 1u) + 1)` when `SIGN` is a prev field sign `+` (default) or `-`.
+  - bitwise mode activation with `bit` (`ident`). `enum { bit A }` (activates bitwise mode to current field and nexts).
+    if value of field isn't set, default value is `1 << ((PREV_FIELD ?? 1u) + 1)`.
+  - `enum` and your fields accept doc strings.
+  - field `_` isn't compilable, but must set prev value of next field. `enum` accept many `_` fields. 
+  - examples:
+    - `enum { ReadOnly, Write }` (`ReadOnly=1u, Write=2u`).
+    - `enum { +ReadOnly, Write }` (`ReadOnly=1, Write=2`), `+FIELD` or `-FIELD` take it as signed integer `int` with sign `+` or `-`.
+    - `enum { -ReadOnly, Write }` (`ReadOnly=-1, Write=-2`).
+    - `enum { ReadOnly, -Write, Delete }` (`ReadOnly=1, Write=-2, Delete=-3`), `-FIELD` take all values as signed integer `int` and set `FIELD` value to negative.
+    - `enum { -ReadOnly, Write, +List, Delete }` (`ReadOnly=-1, Write=-2, List=3, Delete=4`).
+    - `enum { -ReadOnly, Write, List=1, Delete }` (`ReadOnly=-1, Write=-2, List=1, Delete=2`).
+    - `enum { -ReadOnly, Write, List=1u, Delete }` (`ReadOnly=-1, Write=-2, List=1u, Delete=2u`).
+    - `enum { ReadOnly = 10, Write }` (`ReadOnly=10, Write=11`).
+    - `enum { ReadOnly, Write, All = ReadOnly + Write }` (`ReadOnly=1u, Write=2u, All=3u`).
+    - `enum { bit List, Detail, Create, Edit, Delete, Read=List|Detail, Write=Create|Eit }` (`List=1<<0, Detail=1<<1, Create=1<<2, Edit=1<<3, Delete=1<<4, Read=List|Detail, Write=Create|Eit`).
+    - `enum { _, ReadOnly, Write }` (`_=1u, ReadOnly=2u, Write=3u`).
+    - `enum { _ = 10u, ReadOnly, Write }` (`_=10u, ReadOnly=11, Write=12`).
+    - `enum { _ = -1, ReadOnly, Write }`, (`_=-1, ReadOnly=-2, Write=-3`).
+    - `enum { bit _, List, Detail }` (`_ = 1u << 1, List = `).
+    - `enum { bit _ = 10, List, Detail }`, first field is `_` ignore it, but List starts at  `1<<11` instead of `1<<12`.
+    - `enum { ReadOnly, _, Write }` (`ReadOnly=1u, Write=3u`).
+    - `enum { ReadOnly, _ = 6, Write }` (`ReadOnly=1u, Write=7`).
+    - `enum { ReadOnly, -_, Write }` (`ReadOnly=1u, Write=-2`).
+    - `enum { ReadOnly, -Write=1, Delete }` (`ReadOnly=1u, Write=-1, Delete=-1`).
+  - create format for here where putting all fields into new indented line without comma sep:
+    ```gad
+    enum { ReadOnly, Write, Execute = 10 }
+    ```
+    to
+    ```gad
+    enum { 
+        ReadOnly
+        Write
+        Execute = 10
+    }
+    ```
+  - the doc strings describes type and has a table of fields with values and your doc string. 
+  - create expansive samples with doc string, docs, parser/compiler/vm tests
+- [ ] create parser for `class`.
+  - items sep is `,` (comma) or new lines `\n`.
+    Expr syntaxe, auto insert `this` param as first param of properties, constructors and methods:
+    ```gad
+    /// this is my class example 
+    class [from A, B] {
+        withoutValueField
+        withValueField = 1
+        valueFieldWithComputedValue = (= 1)
+    
+        // properties, auto insert `this` param as first param
+        props {
+            a() => 1 /// a is must getter like `ClosureExpr` declaration
+      
+            b = this.a /// b is must getter (shortcut version of `a()`)
+      
+            b(v) { this._b = v } /// b is must single setter
+      
+            c(v) => this._c = v /// c is must single setter like `ClosureExpr` declaration
+      
+            /// like `prop` declaration without `prop` keyword       
+            d {
+                () => this._d /// is a getter
+                (v int) => this._d = v /// is a setter if int value
+                  
+                /// setter of str value
+                (v str) { this._d = v }
+            }
+        }
+    
+        /// single constructuor
+        new(;_b=0,_c,**fields) => this(;**fields)
+      
+        // or with methods declaration (bellow), not both
+      
+        /// constructor with methods, like `FuncWithMethodsExpr` declaration without `func` keyword
+        new {
+           (b int) => this(;_b=b)
+           (b int, c int) {
+                this(;_b=b, _c=c)
+           }
+        }
+    
+        // methods declarations
+        methods {
+          /// single method like `ClosureExpr` declaration
+          done() => this._done = true
+      
+          /// shortcut version of `done()`
+          done = this._done = true
+      
+          start() {
+              this._started = true
+          }
+      
+          /// method with methods, like `FuncWithMethodsExpr` declaration without `func` keyword
+          build {
+              () => this._builded = true
+              (v int) this._builded = v
+              (v int, x int) this._builded = [v, x]
+          }
+        }
+    }
+    ```
+  - Stmt syntaxe `class IDENT { ... }`, it compiles to `const IDENT = Class("IDENT"; define(Type, define) => define(; new=..., methods=..., fields=... ))`.
+    Stmt syntaxe, auto insert `this Type` param as first param of properties, constructors and methods.
+    exports variant `export class IDENT { ... }` compiles to `class IDENT {...}; export IDENT`.
+  - the bellow example is the code format model.
+  - the doc strings describes class with subsections "fields" (fields table with Name, type, value, description (doc string of field) columns),
+    "constructor" and "methods".
