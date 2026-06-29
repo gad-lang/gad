@@ -429,11 +429,17 @@ func (o *CompiledFunction) ParamTypes(vm *VM) (types ParamsTypes, err error) {
 			if len(p.TypesSymbols) > 0 {
 				ts = make(ObjectTypes, len(p.TypesSymbols))
 				for i2, symbol := range p.TypesSymbols {
-					if typ, err := vm.GetSymbolValue(symbol); err != nil {
+					typ, err := o.paramTypeSymbolValue(vm, symbol)
+					if err != nil {
 						return nil, err
-					} else {
-						ts[i2] = typ.(ObjectType)
 					}
+					ot, ok := typ.(ObjectType)
+					if !ok {
+						return nil, ErrType.NewErrorf(
+							"param %q type %q is %s, not a type",
+							p.Name, symbol.Name, typ.Type().Name())
+					}
+					ts[i2] = ot
 				}
 			} else {
 				ts = ObjectTypes{TAny}
@@ -451,6 +457,20 @@ func (o *CompiledFunction) ParamTypes(vm *VM) (types ParamsTypes, err error) {
 		types[len(types)-1] = VarParamTypes(types[len(types)-1].Items())
 	}
 	return
+}
+
+// paramTypeSymbolValue resolves the value of a parameter-type symbol. A free
+// (closure) symbol is read from this function's own captured free variables, not
+// from vm.curFrame: ParamTypes may be evaluated while another frame is current
+// (e.g. the constructor recursion check in ClassInstance.Call), and the current
+// frame's free variables are unrelated to this function's closure.
+func (o *CompiledFunction) paramTypeSymbolValue(vm *VM, symbol *SymbolInfo) (Object, error) {
+	if symbol.Scope == ScopeFree {
+		if symbol.Index < len(o.Free) {
+			return *o.Free[symbol.Index].Value, nil
+		}
+	}
+	return vm.GetSymbolValue(symbol)
 }
 
 func (o *CompiledFunction) GetReturnVars() ReturnVars {

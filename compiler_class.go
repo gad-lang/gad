@@ -46,10 +46,11 @@ func (c *Compiler) compileClassExpr(nd *node.ClassExpr) error {
 //	    properties=…, methods=…, new=…))
 //
 // The `define` callback binds `Type` to the in-construction class, so methods
-// take a typed `this Type` first parameter (enabling type-based overload
-// dispatch). Property accessors and constructors take an untyped `this`: the
-// property machinery and the still-being-built instance do not match the class
-// type at the point their arguments are validated.
+// take a typed `this Type` first parameter (enabling type/arity overload
+// dispatch). Property accessors and constructors take an untyped `this`: their
+// param types are resolved when the accessor/constructor frame is current (not
+// the define callback), where the local `Type` symbol would resolve to `this`
+// rather than the class. See classNewExpr.
 func (c *Compiler) classCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 	pos := nd.Pos()
 
@@ -178,8 +179,12 @@ func (c *Compiler) classPropertiesExpr(nd *node.ClassExpr, typeIdent node.Expr) 
 }
 
 // classNewExpr builds the `new=` value: an (anonymous) func-with-methods holding
-// the constructor overloads. Constructors take an untyped `this` (the instance
-// is still being built, so it cannot yet be typed as the class).
+// the constructor overloads, each taking an untyped `this`. A constructor's
+// ParamTypes are resolved at construction time (the recursion check in
+// ClassInstance.Call) when the constructor frame — not the define callback — is
+// current; a typed `this Type` would then resolve `Type` to the local `this`
+// instance instead of the class. Typing `this` here adds no dispatch value
+// since every constructor overload shares the same receiver type.
 func classNewExpr(nd *node.ClassExpr, _ node.Expr) node.Expr {
 	return &node.FuncWithMethodsExpr{Methods: classInjectThis(nd.New, nil)}
 }
