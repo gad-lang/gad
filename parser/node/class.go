@@ -111,7 +111,7 @@ func (e *ClassMemberExpr) WriteCode(ctx *CodeWriteContext) {
 	}
 	if e.Block {
 		ctx.WriteString(" {")
-		writeClassMethodBlock(ctx, e.Methods)
+		writeClassMethods(ctx, e.Methods)
 		ctx.WriteString("}")
 		return
 	}
@@ -180,69 +180,65 @@ func (e *ClassExpr) WriteCode(ctx *CodeWriteContext) {
 	}
 	ctx.WriteString(" {")
 
-	ctx.Depth++
+	// Body items in canonical order: fields, then the `props`, `new` and
+	// `methods` groups. Each group is itself a brace block.
+	var items []func()
 	for _, f := range e.Fields {
-		ctx.WriteSecondLine()
-		ctx.WritePrefix()
-		f.WriteCode(ctx)
+		f := f
+		items = append(items, func() { f.WriteCode(ctx) })
 	}
 	if len(e.Props) > 0 {
-		ctx.WriteSecondLine()
-		ctx.WritePrefix()
-		ctx.WriteLeadDoc(e.PropsDoc)
-		ctx.WriteString("props {")
-		writeClassMembers(ctx, e.Props)
-		ctx.WriteString("}")
+		items = append(items, func() {
+			ctx.WriteLeadDoc(e.PropsDoc)
+			ctx.WriteString("props {")
+			writeClassMembers(ctx, e.Props)
+			ctx.WriteString("}")
+		})
 	}
 	if len(e.New) > 0 {
-		ctx.WriteSecondLine()
-		ctx.WritePrefix()
-		ctx.WriteLeadDoc(e.NewDoc)
-		ctx.WriteString("new {")
-		writeClassMethodBlock(ctx, e.New)
-		ctx.WriteString("}")
+		items = append(items, func() {
+			ctx.WriteLeadDoc(e.NewDoc)
+			ctx.WriteString("new {")
+			writeClassMethods(ctx, e.New)
+			ctx.WriteString("}")
+		})
 	}
 	if len(e.Methods) > 0 {
-		ctx.WriteSecondLine()
-		ctx.WritePrefix()
-		ctx.WriteLeadDoc(e.MethodsDoc)
-		ctx.WriteString("methods {")
-		writeClassMembers(ctx, e.Methods)
-		ctx.WriteString("}")
+		items = append(items, func() {
+			ctx.WriteLeadDoc(e.MethodsDoc)
+			ctx.WriteString("methods {")
+			writeClassMembers(ctx, e.Methods)
+			ctx.WriteString("}")
+		})
 	}
-	ctx.Depth--
 
-	ctx.WriteSecondLine()
-	ctx.WritePrefix()
+	writeBraceItems(ctx, len(items), func(i int) { items[i]() })
 	ctx.WriteString("}")
 }
 
-// writeClassMembers emits the entries of a `props {}` / `methods {}` block, one
-// per indented line.
-func writeClassMembers(ctx *CodeWriteContext, members []*ClassMemberExpr) {
-	ctx.Depth++
-	for _, m := range members {
-		ctx.WriteSecondLine()
+// writeBraceItems emits count items of a brace block, one per indented line when
+// formatting with a prefix and `; `-separated inline otherwise, leaving the
+// cursor positioned for the closing brace. Mirrors FuncWithMethodsExpr.
+func writeBraceItems(ctx *CodeWriteContext, count int, do func(i int)) {
+	ctx.WriteItemsSep(ctx.HasPrefix(), count, "; ", "", do, func(newLine bool) {
+		if newLine {
+			ctx.WriteSecondLine()
+		}
+	})
+	if count > 0 && ctx.HasPrefix() {
 		ctx.WritePrefix()
-		m.WriteCode(ctx)
 	}
-	ctx.Depth--
-	ctx.WriteSecondLine()
-	ctx.WritePrefix()
 }
 
-// writeClassMethodBlock emits the overloads of a brace-block member (`name {
-// (…) … }`) or the `new {}` block, one per indented line.
-func writeClassMethodBlock(ctx *CodeWriteContext, methods []*FuncMethod) {
-	ctx.Depth++
-	for _, m := range methods {
-		ctx.WriteSecondLine()
-		ctx.WritePrefix()
-		m.WriteCode(ctx)
-	}
-	ctx.Depth--
-	ctx.WriteSecondLine()
-	ctx.WritePrefix()
+// writeClassMembers emits the entries of a `props {}` / `methods {}` block.
+func writeClassMembers(ctx *CodeWriteContext, members []*ClassMemberExpr) {
+	writeBraceItems(ctx, len(members), func(i int) { members[i].WriteCode(ctx) })
+}
+
+// writeClassMethods emits the overloads of a brace-block member (`name { (…) …
+// }`) or the `new {}` block.
+func writeClassMethods(ctx *CodeWriteContext, methods []*FuncMethod) {
+	writeBraceItems(ctx, len(methods), func(i int) { methods[i].WriteCode(ctx) })
 }
 
 // ClassStmt is the statement form `class Name [extends …] { … }`. It compiles

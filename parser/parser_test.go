@@ -3116,6 +3116,33 @@ func TestParseFunctionReturnType(t *testing.T) {
 	})
 }
 
+func TestParseClass(t *testing.T) {
+	// expression form: anonymous, fields with defaults and a method.
+	test.New(t, "x := class { a; b = 1; methods { f() => a } }").
+		Code("x := class {a; b = 1; methods {f() => a}}")
+
+	// statement form with extends, fields (typed + default), props (incl. the
+	// `name = expr` getter shortcut), a constructor and a method.
+	cls := `class Animal extends Base { name str = "?"; legs = 4; props { kind = "animal" }; new { (n) => this(; name=n) }; methods { speak() => this.name } }`
+	test.New(t, cls).
+		Code(`class Animal extends Base {name str = "?"; legs = 4; props {kind() => "animal"}; new {(n) => this(; name=n)}; methods {speak() => this.name}}`).
+		IndentedCode("class Animal extends Base {\n" +
+			"\tname str = \"?\"\n" +
+			"\tlegs = 4\n" +
+			"\tprops {\n\t\tkind() => \"animal\"\n\t}\n" +
+			"\tnew {\n\t\t(n) => this(; name=n)\n\t}\n" +
+			"\tmethods {\n\t\tspeak() => this.name\n\t}\n" +
+			"}")
+
+	// computed field default and multiple parents.
+	test.New(t, "class C extends A, B { id = (= 0) }").
+		Code("class C extends A, B {id = (= 0)}")
+
+	// property accessor block (getter + setters).
+	test.New(t, "x := class { props { val { () => v\n(n) { v = n } } } }").
+		Code("x := class {props {val {() => v; (n) {v = n}}}}")
+}
+
 func TestParseProperty(t *testing.T) {
 	// single-accessor form: prop name(params) {body} (no surrounding braces).
 	test.ExpectParseString(t, "prop x(n int) { v = n }", "prop x(n int) { v = n }")
