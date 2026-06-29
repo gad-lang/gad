@@ -8,11 +8,16 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
+// ClassParent is one entry in a class's inheritance list: a parent Class and the
+// Alias under which its members are reachable (defaults to the parent's name).
 type ClassParent struct {
 	Alias string
 	Type  *Class
 }
 
+// ClassField is a declared field of a Class: its Name, optional accepted Types,
+// positional index within the instance, and default Value (an initialiser or nil
+// when the field has no default).
 type ClassField struct {
 	class *Class
 	Name  string
@@ -91,12 +96,17 @@ var (
 	_ MethodAdder = (*ClassProperty)(nil)
 )
 
+// ClassProperty is a computed property of a Class (declared with `prop`): a
+// named getter/setter backed by a FuncSpec, whose overloads distinguish the
+// zero-arg getter `(this)` from the typed setters `(this, value)`.
 type ClassProperty struct {
 	class *Class
 	name  string
 	f     *FuncSpec
 }
 
+// NewClassProperty returns an empty property named name on class, ready for
+// getter/setter overloads to be added to its FuncSpec.
 func NewClassProperty(class *Class, name string) *ClassProperty {
 	p := &ClassProperty{class: class, name: name}
 	p.f = NewFuncSpec(p)
@@ -227,6 +237,9 @@ var (
 	_ CallerObject = (*ClassConstructor)(nil)
 )
 
+// ClassConstructor is a Class's constructor: a callable FuncSpec holding the
+// user `new` handler overloads plus the default handler (Class.Construct). It is
+// invoked when a Class is called to build an instance.
 type ClassConstructor struct {
 	class *Class
 	f     *FuncSpec
@@ -289,6 +302,9 @@ var (
 	_ CallerObject = (*ClassMethod)(nil)
 )
 
+// ClassMethod is a named method of a Class: a callable FuncSpec that may carry
+// several typed overloads. On an instance it is bound as a ClassInstanceMethod
+// (with `this` prepended).
 type ClassMethod struct {
 	class *Class
 	f     *FuncSpec
@@ -371,18 +387,29 @@ var (
 	_ MethodAdder      = (*Class)(nil)
 )
 
-// Class represents type objects and implements Object interface.
+// Class is a user-defined type created with the `Class(name; …)` builtin. It is
+// an ObjectType (so values can be type-checked against it) and is itself
+// callable: calling a Class constructs a ClassInstance via its constructor.
+//
+// A class owns its fields (with defaults), methods, getter/setter properties and
+// new-handlers, plus a list of parent classes for inheritance. It is assembled
+// by NewClass followed by Define (which reads the `fields`/`methods`/
+// `properties`/`new`/`extends` named args); members can also be added
+// incrementally via AddField/AddMethod/AddProperty and the `met`/`prop` syntax.
 type Class struct {
-	new           *ClassConstructor
-	name          string
-	module        *ModuleSpec
-	parents       []*ClassParent
-	fieldsMap     map[string]*ClassField
-	propertiesMap map[string]*ClassProperty
-	methodsMap    map[string]*ClassMethod
-	fieldDefaults []CallerObject
+	new           *ClassConstructor         // the constructor (new-handlers + default)
+	name          string                    // type name
+	module        *ModuleSpec               // defining module (qualifies FullName)
+	parents       []*ClassParent            // parent classes (with aliases) for inheritance
+	fieldsMap     map[string]*ClassField    // declared fields, by name
+	propertiesMap map[string]*ClassProperty // getter/setter properties, by name
+	methodsMap    map[string]*ClassMethod   // methods, by name
+	fieldDefaults []CallerObject            // field-default initialisers run on construction
 }
 
+// NewClass returns an empty Class with the given name and defining module, its
+// constructor wired to Construct. Members are added afterwards via Define or the
+// AddField/AddMethod/AddProperty helpers.
 func NewClass(name string, module *ModuleSpec) (t *Class) {
 	t = &Class{
 		module:        module,
@@ -426,6 +453,12 @@ func (t *Class) Module() *ModuleSpec {
 	return t.module
 }
 
+// Define populates the class from the call's named args: `new` (constructor
+// handler(s)), `fields` (a KeyValueArray of field specs), `methods`,
+// `properties` and `extends` (parent classes). Each recognised arg runs its
+// corresponding CallAdd* helper. Unrecognised named args are rejected
+// (ErrUnexpectedNamedArg), so callers that handle some args themselves must
+// consume those first (see NewClassFunc / NamedArgs.GetDoCheck).
 func (t *Class) Define(c Call) (err error) {
 	var (
 		kvaTA  = TypeAssertionFromTypes(TKeyValueArray)
@@ -580,19 +613,29 @@ func (t *Class) AddMethodByTypes(vm *VM, argTypes ParamsTypes, handler CallerObj
 	return t.new.AddMethodByTypes(vm, argTypes, handler, override, onAdd)
 }
 
+// New constructs an instance of t, initialising its fields from the given dict
+// (defaults fill the rest). It is the Go-side entry point for creating an
+// instance; from Gad, calling the class invokes Call/Construct.
 func (t *Class) New(vm *VM, fields Dict) (Object, error) {
 	return t.NewInstanceWithFields(vm, fields)
 }
 
+// NewInstanceWithFields allocates an instance of t and runs Init with the given
+// field values (applying defaults and inherited fields).
 func (t *Class) NewInstanceWithFields(vm *VM, fields Dict) (*ClassInstance, error) {
 	instance := t.NewInstance()
 	return instance, instance.Init(vm, fields)
 }
 
+// NewInstance allocates an uninitialised instance of t (its fields are not yet
+// populated; call Init or use NewInstanceWithFields).
 func (t *Class) NewInstance() (o *ClassInstance) {
 	return &ClassInstance{class: t}
 }
 
+// Construct is the class's default new-handler: it takes the freshly allocated
+// `this` instance as its first argument and initialises it from the call's named
+// args. It is the fallback when no user `new` handler matches.
 func (t *Class) Construct(c Call) (o Object, err error) {
 	arg := &Arg{
 		Name:          "this",
@@ -606,6 +649,8 @@ func (t *Class) Construct(c Call) (o Object, err error) {
 	return this, this.Init(c.VM, c.NamedArgs.Dict())
 }
 
+// Call constructs a new instance: calling a Class value (`MyClass(...)`)
+// allocates an instance and dispatches to its constructor.
 func (t *Class) Call(c Call) (_ Object, err error) {
 	return t.NewInstance().Call(c)
 }

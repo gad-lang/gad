@@ -24,7 +24,12 @@ var (
 	_ CallerObject     = (*ClassInstance)(nil)
 )
 
-// ClassInstance represents map of objects and implements Object interface.
+// ClassInstance is a live object of a Class. It holds the instance's field
+// values (fields), one ClassInstance per parent class (parents, keyed by the
+// parent alias) and a back-reference to its class. newCallStack tracks the
+// in-progress constructor chain so parent constructors can be invoked exactly
+// once during `new`. It implements the Object interface and dispatches method,
+// property and field access through its class.
 type ClassInstance struct {
 	fields       Dict
 	parents      map[string]*ClassInstance
@@ -532,6 +537,9 @@ func (o *ClassInstance) CallPrint(c Call) (err error) {
 	return o.ToDict().PrintObject(state.Value.(*PrinterState), o)
 }
 
+// ClassInstanceMethod is a ClassMethod bound to a receiver instance. Calling it
+// prepends `this` to the arguments and dispatches to the method's typed
+// overloads.
 type ClassInstanceMethod struct {
 	this   *ClassInstance
 	method *ClassMethod
@@ -587,6 +595,9 @@ var (
 	_ IndexGetter  = (*ClassInstancePropertyGetter)(nil)
 )
 
+// ClassInstancePropertyGetter is a ClassProperty's getter bound to a receiver
+// instance. h is the resolved zero-arg `(this)` getter overload; calling the
+// getter (or indexing into it) invokes h with `this`.
 type ClassInstancePropertyGetter struct {
 	this *ClassInstance
 	p    *ClassProperty
@@ -648,6 +659,9 @@ var (
 	_ IndexGetter = (*ClassInstancePropertySetter)(nil)
 )
 
+// ClassInstancePropertySetter is a ClassProperty's setter bound to a receiver
+// instance. Its Set method dispatches to the matching `(this, value)` setter
+// overload, using vm for the call.
 type ClassInstancePropertySetter struct {
 	p    *ClassProperty
 	this *ClassInstance
