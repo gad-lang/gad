@@ -1,0 +1,88 @@
+// 19_class_syntax.gad — the `class` keyword: a readable block syntax that
+// compiles to the Class(...) builtin (see 11_classes.gad for the builtin form).
+
+// --- statement form: `class Name { … }` defines a constant ---
+// `this` is auto-inserted as the first parameter of methods/props/new.
+class Point {
+    x = 0
+    y = 0
+
+    new {
+        (; **f)  => this(; x=0, y=0, **f)   // named fields (defaults + extra)
+        (x, y)   => this(; x=x, y=y)         // positional
+    }
+
+    props {
+        mag() => (this.x ** 2 + this.y ** 2) ** 0.5   // getter
+    }
+
+    methods {
+        dot(o) => this.x * o.x + this.y * o.y
+    }
+}
+
+p := Point(3, 4)
+println("Point(3, 4).mag =", p.mag)          // 5
+println("Point().x       =", Point().x)      // 0
+println("p.dot(p)        =", p.dot(p))       // 25
+
+// --- a typed field, a computed default and an overloaded method ---
+// A method takes a typed `this`, so overloads dispatch by argument type.
+class Tagger {
+    name str = "?"
+    seq = (= 0)                  // fresh value per instance (here always 0)
+
+    methods {
+        tag(n int) => this.name + ":int:" + str(n)
+        tag(s str) => this.name + ":str:" + s
+    }
+}
+t := Tagger(; name="t")
+println("tag(7)   =", t.tag(7))     // t:int:7
+println("tag(\"x\") =", t.tag("x"))   // t:str:x
+
+// --- a property with a getter and typed setters ---
+class Box {
+    v
+    props {
+        val {
+            ()        => this.v
+            (x)       { this.v = "any:" + str(x) }
+            (x int)   { this.v = "int:" + str(x) }
+        }
+        // `name = expr` is a getter shortcut for `() => expr`
+        empty = this.v == nil
+    }
+}
+b := Box()
+println("empty   =", b.empty)        // true
+b.val = "hi"
+println("box any =", b.val)          // any:hi
+b.val = 7
+println("box int =", b.val)          // int:7
+
+// --- inheritance with `extends` (override + inherited method) ---
+class Animal {
+    name str = "?"
+    methods {
+        speak()    => this.name + " makes a sound"
+        describe() => "I am " + this.name
+    }
+}
+class Dog extends Animal {
+    methods { speak() => this.name + " barks" }   // override
+}
+d := Dog(; name="Rex")
+println("dog speak:   ", d.speak())     // Rex barks (override)
+println("dog describe:", d.describe())  // I am Rex (inherited)
+
+// --- expression form: an anonymous class is a first-class value ---
+Counter := class {
+    n = 0
+    methods { next() { this.n++; return this.n } }
+}
+c := Counter()
+c.next(); c.next()
+println("counter:", c.next())           // 3
+
+return p.mag

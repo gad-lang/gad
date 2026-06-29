@@ -45,6 +45,7 @@ layout settings are stored in [`.gad.yaml`](.gad.yaml).
 | `16_doc_comments.gad`         | doc comments and `>>>` examples                    |
 | `17_unary_operators.gad`      | unary `!` `-` `+` `^` `++` `--` and `core.unOp`   |
 | `18_with.gad`                 | the `with` context manager (statement + expression) |
+| `19_class_syntax.gad`         | the `class` keyword (expression + statement forms) |
 
 ## Modules
 

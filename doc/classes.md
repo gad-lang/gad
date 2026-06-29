@@ -6,6 +6,67 @@ Gad has a class system built on the `Class(...)` builtin. A class describes
 **fields**, **methods**, **properties** and one or more **constructors**, and
 can **extend** other classes. Calling a class creates an instance.
 
+The `class` keyword is the high-level way to write one; it lowers to the
+`Class(...)` builtin documented in the rest of this page.
+
+## The `class` syntax
+
+A `class` block reads top to bottom: bare fields, then `props {}`, `new` and
+`methods {}` groups. Items are separated by newlines or commas. `this` is
+inserted automatically as the first parameter of every method, property accessor
+and constructor — you do not write it.
+
+```go
+// statement form: `class Name … { … }` defines a constant Name
+class Point extends Base {
+    x int = 0
+    y int = 0
+    weight = (= 0)            // computed default, evaluated per instance
+
+    props {
+        mag() => (this.x ** 2 + this.y ** 2) ** 0.5   // getter
+        label = "point"                               // getter shortcut
+    }
+
+    new {
+        (; **f)  => this(; x=0, y=0, **f)             // named fields
+        (x, y)   => this(; x=x, y=y)                  // positional
+    }
+
+    methods {
+        moved(dx, dy) => Point(this.x + dx, this.y + dy)
+    }
+}
+
+p := Point(3, 4)
+println(p.mag)            // 5
+
+// expression form: anonymous, a first-class value
+Counter := class {
+    n = 0
+    methods { next() => this.n++ }
+}
+
+// export form: `export class Name { … }`
+export class Box { v; methods { get() => this.v } }
+```
+
+A method takes a typed `this Type` (so overloads can dispatch on argument types,
+e.g. `tag(n int)` vs `tag(s str)`); property accessors and constructors take an
+untyped `this`. A `name = expr` entry in `props`/`methods` is shorthand for a
+zero-argument accessor `() => expr`. Everything else — field defaults, typed
+fields, inheritance, overloaded methods/constructors — works exactly as in the
+`Class(...)` forms below, which the `class` block compiles to:
+
+```go
+class Point { x = 0; methods { dist() => this.x } }
+// is sugar for:
+Point := Class("Point"; define=(Type, define) => define(;
+    fields  = (; x = 0),
+    methods = [ dist(this Type) => this.x ],
+))
+```
+
 ## Defining a class
 
 `Class(name; …)` takes the class name positionally and everything else as named
