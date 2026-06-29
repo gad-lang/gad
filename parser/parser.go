@@ -389,7 +389,7 @@ func tokenStartsOperand(tok token.Token) bool {
 		// loop body) stays postfix rather than `i ++ {dict}`.
 		token.LParen, token.LBrack,
 		token.Add, token.Sub, token.Not, token.Xor, token.And, token.Inc, token.Dec,
-		token.Func, token.Method, token.Prop, token.Import, token.Embed,
+		token.Func, token.Method, token.Prop, token.Class, token.Import, token.Embed,
 		token.Throw, token.Return, token.Match, token.Raw, token.Template,
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
@@ -1132,6 +1132,8 @@ func (p *Parser) ParseOperand() node.Expr {
 			return p.ParseFuncExpr()
 		case token.Prop: // property literal
 			return p.ParsePropExpr()
+		case token.Class: // class literal
+			return p.ParseClassExpr()
 		case token.Less: // func-header value: `<()>`, `<(v int) <x int>>`
 			return p.ParseFuncHeaderExpr()
 		case token.Meti: // method interface: `meti { () }`
@@ -2379,6 +2381,8 @@ do:
 		return p.ParseFuncStmt()
 	case token.Prop:
 		return p.ParsePropStmt()
+	case token.Class:
+		return p.ParseClassStmt()
 	case token.Meti:
 		return p.ParseMethodInterfaceStmt()
 	case // simple statements
@@ -3938,6 +3942,13 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 			return
 		}
 		stmt.ValueExpr = s
+	case token.Class:
+		classTok := p.ExpectToken(token.Class)
+		var name node.Expr
+		if p.Token.Token == token.Ident && p.Token.Literal != "extends" {
+			name = p.ParseIdent()
+		}
+		stmt.ValueExpr = p.parseClassBody(classTok, name)
 	default:
 		stmt.KeyExpr = p.ParseLiteral()
 		if ident, _ := stmt.KeyExpr.(*node.IdentExpr); ident != nil {

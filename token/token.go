@@ -170,6 +170,11 @@ const (
 	Ain
 	// With is the `with` context-manager statement/expression keyword.
 	With
+	// Class introduces a class expression/statement (`class [Name] [extends …]
+	// { … }`). Appended at the end of the keyword group so existing token values
+	// are not shifted. `extends`/`props`/`methods`/`new` are contextual idents in
+	// the body, not reserved keywords.
+	Class
 	GroupKeywordEnd
 )
 
@@ -346,6 +351,7 @@ var tokens = [...]string{
 	Export:              "export",
 	Ain:                 "ain",
 	With:                "with",
+	Class:               "class",
 }
 
 var tokenNames = [...]string{
@@ -505,6 +511,7 @@ var tokenNames = [...]string{
 	Meti:                         "Meti",
 	Ain:                          "Ain",
 	With:                         "With",
+	Class:                        "Class",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 

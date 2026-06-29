@@ -572,6 +572,110 @@ func TestVMClassFeatures(t *testing.T) {
 	return [str(a + b), a.len2()]`, nil, Array{Str("(11, 22)"), Int(5)})
 }
 
+// TestVMClassSyntax exercises the `class` expression/statement syntax, which
+// lowers to the Class(...) constructor (see TestVMClassFeatures for the
+// equivalent hand-written forms).
+func TestVMClassSyntax(t *testing.T) {
+	// expression form: fields (incl. typed + default) and a method.
+	testExpectRun(t, `
+	Point := class {
+		x = 0
+		y = 0
+		methods { dist() => (this.x**2 + this.y**2) ** 0.5 }
+	}
+	p := Point(; x=3, y=4)
+	return [p.x, p.y, p.dist()]`, nil, Array{Int(3), Int(4), Float(5)})
+
+	// statement form desugars to `const Name = class …`.
+	testExpectRun(t, `
+	class Box {
+		v = 1
+		methods { get() => this.v }
+	}
+	return Box(; v=9).get()`, nil, Int(9))
+
+	// fields: defaults and no-default (nil); a typed field is accepted.
+	testExpectRun(t, `
+	class P { a; b int; c = "x"; d str = "y" }
+	p := P()
+	return [p.a, p.b, p.c, p.d]`, nil, Array{Nil, Nil, Str("x"), Str("y")})
+
+	// computed field default, evaluated per instance.
+	testExpectRun(t, `
+	n := 0
+	class C { id = (= n++) }
+	return [C().id, C().id, C().id]`, nil, Array{Int(1), Int(2), Int(3)})
+
+	// methods: typed `this` enables type/arity overload dispatch.
+	testExpectRun(t, `
+	class Calc {
+		methods {
+			add(a, b) => a + b
+			add(a) => a + a
+			tag(n int) => "int:" + str(n)
+			tag(s str) => "str:" + s
+		}
+	}
+	c := Calc()
+	return [c.add(2, 3), c.add(5), c.tag(7), c.tag("x")]`,
+		nil, Array{Int(5), Int(10), Str("int:7"), Str("str:x")})
+
+	// constructor `new` with overloads; this(;..) sets fields.
+	testExpectRun(t, `
+	class Point {
+		x = 0
+		y = 0
+		new {
+			(; **f) => this(; x=0, y=0, **f)
+			(x, y) => this(; x=x, y=y)
+		}
+	}
+	a := Point()
+	b := Point(3, 4)
+	c := Point(; x=7)
+	return [a.x, a.y, b.x, b.y, c.x, c.y]`,
+		nil, Array{Int(0), Int(0), Int(3), Int(4), Int(7), Int(0)})
+
+	// properties: getter + (typed) setters.
+	testExpectRun(t, `
+	class Box {
+		v
+		props {
+			val {
+				() => this.v
+				(x) { this.v = "any:" + str(x) }
+				(x int) { this.v = "int:" + str(x) }
+			}
+		}
+	}
+	b := Box()
+	out := []
+	b.val = "a"; out = append(out, b.val)
+	b.val = 5;   out = append(out, b.val)
+	return out`, nil, Array{Str("any:a"), Str("int:5")})
+
+	// getter shortcut `name = expr` is a zero-arg accessor.
+	testExpectRun(t, `
+	class T { props { greeting = "hi" } }
+	return T().greeting`, nil, Str("hi"))
+
+	// inheritance: override + inherited method + promoted field.
+	testExpectRun(t, `
+	class Animal { name str = "?"; methods {
+		speak() => this.name + " makes a sound"
+		describe() => "I am " + this.name
+	} }
+	class Dog extends Animal { methods { speak() => this.name + " barks" } }
+	d := Dog(; name="Rex")
+	return [d.speak(), d.describe(), d.name]`,
+		nil, Array{Str("Rex barks"), Str("I am Rex"), Str("Rex")})
+
+	// expression-form class is a first-class value usable inline.
+	testExpectRun(t, `
+	return (class { v = 1; methods { go() => this.v + 1 } })(; v=4).go()`,
+		nil, Int(5))
+}
+
 func TestVMDeferStmt(t *testing.T) {
 	// runs after the body
 	testExpectRun(t, `

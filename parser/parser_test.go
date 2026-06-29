@@ -3004,11 +3004,11 @@ func TestParseFunction(t *testing.T) {
 						SReturn(p(1, 15), EIdent("d", p(1, 22)))))))
 	})
 
-	test.ExpectParse(t, "func class.fn (b) { return d }", func(p pfn) []Stmt {
+	test.ExpectParse(t, "func klass.fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(
 			SFunc(
 				EFunc(
-					funcType(p(1, 4), ESelector(EIdent("class", p(1, 6)), Str("fn", p(1, 12))), p(1, 15), p(1, 17),
+					funcType(p(1, 4), ESelector(EIdent("klass", p(1, 6)), Str("fn", p(1, 12))), p(1, 15), p(1, 17),
 						funcArgs(nil,
 							EIdent("b", p(1, 16))),
 					),
@@ -3016,13 +3016,13 @@ func TestParseFunction(t *testing.T) {
 						SReturn(p(1, 21), EIdent("d", p(1, 28)))))))
 	})
 
-	test.ExpectParse(t, `func class["fn"] (b) { return d }`, func(p pfn) []Stmt {
+	test.ExpectParse(t, `func klass["fn"] (b) { return d }`, func(p pfn) []Stmt {
 		return stmts(
 			SFunc(
 				EFunc(
 					funcType(p(1, 4),
 						EIndex(
-							EIdent("class", p(1, 6)),
+							EIdent("klass", p(1, 6)),
 							Str("fn", p(1, 12)),
 							p(1, 11),
 							p(1, 16),
@@ -3034,10 +3034,10 @@ func TestParseFunction(t *testing.T) {
 						SReturn(p(1, 24), EIdent("d", p(1, 31)))))))
 	})
 
-	test.New(t, `func class.fn["x"][y()].z (b) { return d }`).
-		String(`func class.fn["x"][y()].z(b) { return d }`).
-		Code(`func class.fn["x"][y()].z(b) {return d}`).
-		IndentedCode(`func class.fn["x"][y()].z(b) {
+	test.New(t, `func klass.fn["x"][y()].z (b) { return d }`).
+		String(`func klass.fn["x"][y()].z(b) { return d }`).
+		Code(`func klass.fn["x"][y()].z(b) {return d}`).
+		IndentedCode(`func klass.fn["x"][y()].z(b) {
 	return d
 }`).
 		Stmts(func(p pfn) []Stmt {
@@ -3049,7 +3049,7 @@ func TestParseFunction(t *testing.T) {
 								EIndex(
 									EIndex(
 										ESelector(
-											EIdent("class", p(1, 6)),
+											EIdent("klass", p(1, 6)),
 											Str("fn", p(1, 12)),
 										),
 										Str("x", p(1, 15)),
@@ -3233,11 +3233,11 @@ func TestParseMethod(t *testing.T) {
 						SReturn(p(1, 14), EIdent("d", p(1, 21))))))))
 	})
 
-	test.ExpectParse(t, "met class.fn (b) { return d }", func(p pfn) []Stmt {
+	test.ExpectParse(t, "met klass.fn (b) { return d }", func(p pfn) []Stmt {
 		return stmts(
 			SExpr(
 				EMethod(EFunc(
-					funcType(p(1, 4), ESelector(EIdent("class", p(1, 5)), Str("fn", p(1, 11))), p(1, 14), p(1, 16),
+					funcType(p(1, 4), ESelector(EIdent("klass", p(1, 5)), Str("fn", p(1, 11))), p(1, 14), p(1, 16),
 						funcArgs(nil,
 							EIdent("b", p(1, 15))),
 					),
@@ -3245,14 +3245,14 @@ func TestParseMethod(t *testing.T) {
 						SReturn(p(1, 20), EIdent("d", p(1, 27))))))))
 	})
 
-	test.ExpectParse(t, `met class["fn"] (b) { return d }`, func(p pfn) []Stmt {
+	test.ExpectParse(t, `met klass["fn"] (b) { return d }`, func(p pfn) []Stmt {
 		return stmts(
 			SExpr(
 				EMethod(
 					EFunc(
 						funcType(p(1, 4),
 							EIndex(
-								EIdent("class", p(1, 5)),
+								EIdent("klass", p(1, 5)),
 								Str("fn", p(1, 11)),
 								p(1, 10),
 								p(1, 15),
@@ -3264,10 +3264,10 @@ func TestParseMethod(t *testing.T) {
 							SReturn(p(1, 23), EIdent("d", p(1, 30))))))))
 	})
 
-	test.New(t, `met class.fn["x"][y()].z (b) { return d }`).
-		String(`met class.fn["x"][y()].z(b) { return d }`).
-		Code(`met class.fn["x"][y()].z(b) {return d}`).
-		IndentedCode(`met class.fn["x"][y()].z(b) {
+	test.New(t, `met klass.fn["x"][y()].z (b) { return d }`).
+		String(`met klass.fn["x"][y()].z(b) { return d }`).
+		Code(`met klass.fn["x"][y()].z(b) {return d}`).
+		IndentedCode(`met klass.fn["x"][y()].z(b) {
 	return d
 }`).
 		Stmts(func(p pfn) []Stmt {
@@ -3279,7 +3279,7 @@ func TestParseMethod(t *testing.T) {
 								EIndex(
 									EIndex(
 										ESelector(
-											EIdent("class", p(1, 5)),
+											EIdent("klass", p(1, 5)),
 											Str("fn", p(1, 11)),
 										),
 										Str("x", p(1, 14)),

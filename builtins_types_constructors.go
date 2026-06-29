@@ -442,13 +442,18 @@ func NewClassFunc(c Call) (ret Object, err error) {
 
 	t := NewClass(string(nameArg.Value.(Str)), c.VM.CurrentModuleSpec())
 
-	// check=false: only consume the `define` named arg here; the remaining named
-	// args (fields/methods/new/…) are handled by t.Define(c) below, so they must
-	// not be rejected as unexpected at this point.
+	// The `define` callback form `Class(name; define=(Type, define) => define(;
+	// …))` builds the class through the callback (which receives the class as
+	// Type and a define function), so the field/method/… args are consumed
+	// there. The direct form `Class(name; fields=…, methods=…)` instead carries
+	// those args on this call and is handled by t.Define(c) below. check=false
+	// keeps the `define` arg from being rejected as unexpected.
+	var hasDefine bool
 	if err = c.NamedArgs.GetDoCheck(false, &NamedArgVar{
 		Name:          "define",
 		TypeAssertion: NewTypeAssertion(TypeAssertions(WithCallable())),
 		Do: func(value Object) (err error) {
+			hasDefine = true
 			_, err = value.(CallerObject).Call(Call{
 				Context: c.Context,
 				VM:      c.VM,
@@ -465,8 +470,13 @@ func NewClassFunc(c Call) (ret Object, err error) {
 		return
 	}
 
-	if err = t.Define(c); err != nil {
-		return
+	// In the callback form the remaining named args were already consumed via
+	// the inner define() call; running t.Define on this call would reject the
+	// leftover `define` arg, so only run it for the direct form.
+	if !hasDefine {
+		if err = t.Define(c); err != nil {
+			return
+		}
 	}
 
 	return t, nil
