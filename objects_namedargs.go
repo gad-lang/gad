@@ -1337,10 +1337,15 @@ func (o *NamedArgs) unreadDict() Dict {
 	return args
 }
 
-// Get destructure.
-// Return errors:
-// - ArgumentTypeError if type check of arg is fail.
-// - UnexpectedNamedArg if have unexpected arg.
+// Get reads each named arg in dst (by Name, type-checked via TypeAssertion) and
+// is strict: it returns ErrUnexpectedNamedArg if any passed named arg is not
+// covered by dst. Use it when dst is the complete set of accepted named args.
+//
+// Errors:
+//   - ArgumentTypeError if a value fails its TypeAssertion.
+//   - ErrUnexpectedNamedArg if an unrecognised named arg was passed.
+//
+// It does not run the Do handlers; see GetDo.
 func (o *NamedArgs) Get(dst ...*NamedArgVar) (err error) {
 	args := o.unreadDict()
 
@@ -1354,20 +1359,44 @@ func (o *NamedArgs) Get(dst ...*NamedArgVar) (err error) {
 	return nil
 }
 
-// GetDo destructure and call dst.Do if is valid.
-// Return errors:
-// - ArgumentTypeError if type check of arg is fail.
-// - UnexpectedNamedArg if have unexpected arg.
-// - other error returned by dst.Do.
+// GetDo is the strict form of GetDoCheck (check=true): it reads each named arg in
+// dst, rejects any unrecognised named arg with ErrUnexpectedNamedArg, then runs
+// each dst.Do handler (in dst order) for the args that were present.
+//
+// Errors:
+//   - ArgumentTypeError if a value fails its TypeAssertion.
+//   - ErrUnexpectedNamedArg if an unrecognised named arg was passed.
+//   - any error returned by a dst.Do handler.
 func (o *NamedArgs) GetDo(dst ...*NamedArgVar) (err error) {
+	return o.GetDoCheck(true, dst...)
+}
+
+// GetDoCheck reads each named arg in dst (by Name, type-checked) and runs its Do
+// handler when the arg was present. When check is true it additionally rejects
+// any passed named arg not covered by dst with ErrUnexpectedNamedArg.
+//
+// Pass check=false when dst is only a partial view of the accepted named args —
+// i.e. the remaining ones are consumed by a later call on the same NamedArgs.
+// This is the two-phase pattern used by the Class constructor, where the outer
+// builtin handles `define` and Class.Define handles `fields`/`methods`/`new`/…;
+// the outer call must not reject those it leaves for the inner call.
+//
+// Errors:
+//   - ArgumentTypeError if a value fails its TypeAssertion.
+//   - ErrUnexpectedNamedArg only when check is true and an unrecognised named
+//     arg was passed.
+//   - any error returned by a dst.Do handler.
+func (o *NamedArgs) GetDoCheck(check bool, dst ...*NamedArgVar) (err error) {
 	args := o.unreadDict()
 
 	if err = o.getOneOf(args, dst...); err != nil {
 		return
 	}
 
-	for key := range args {
-		return ErrUnexpectedNamedArg.NewError(strconv.Quote(key))
+	if check {
+		for key := range args {
+			return ErrUnexpectedNamedArg.NewError(strconv.Quote(key))
+		}
 	}
 
 	for _, d := range dst {
@@ -1381,17 +1410,25 @@ func (o *NamedArgs) GetDo(dst ...*NamedArgVar) (err error) {
 	return nil
 }
 
-// GetOne get one value.
-// Return errors:
-// - ArgumentTypeError if type check of arg is fail.
+// GetOne reads each named arg in dst by Name (type-checked). Unlike Get it is
+// lenient: it ignores any other passed named args, so it never returns
+// ErrUnexpectedNamedArg. Use it when other args are consumed elsewhere.
+//
+// Errors:
+//   - ArgumentTypeError if a value fails its TypeAssertion.
+//
+// It does not run the Do handlers; see GetOneDo.
 func (o *NamedArgs) GetOne(dst ...*NamedArgVar) (err error) {
 	return o.getOneOf(o.unreadDict(), dst...)
 }
 
-// GetOneDo get one value and call dst.Do handler if is valid.
-// Return errors:
-// - ArgumentTypeError if type check of arg is fail.
-// - other error returned by dst.Do.
+// GetOneDo is the Do-running form of GetOne: it reads each named arg in dst and
+// runs its Do handler when present, without rejecting unrecognised named args.
+// It is equivalent to GetDoCheck(false, dst...).
+//
+// Errors:
+//   - ArgumentTypeError if a value fails its TypeAssertion.
+//   - any error returned by a dst.Do handler.
 func (o *NamedArgs) GetOneDo(dst ...*NamedArgVar) (err error) {
 	if err = o.getOneOf(o.unreadDict(), dst...); err != nil {
 		return
@@ -1406,6 +1443,9 @@ func (o *NamedArgs) GetOneDo(dst ...*NamedArgVar) (err error) {
 	return
 }
 
+// getOneOf assigns each dst.Value from args[dst.Name] (type-checked), removing
+// matched keys from the args working copy, and applies dst.ValueF defaults. It
+// does not validate leftover keys; callers decide whether to (see Get/GetDo).
 func (o *NamedArgs) getOneOf(args Dict, dst ...*NamedArgVar) (err error) {
 	for i, d := range dst {
 		if v, ok := args[d.Name]; ok && v != Nil {

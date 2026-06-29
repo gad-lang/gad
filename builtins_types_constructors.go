@@ -442,7 +442,10 @@ func NewClassFunc(c Call) (ret Object, err error) {
 
 	t := NewClass(string(nameArg.Value.(Str)), c.VM.CurrentModuleSpec())
 
-	if err = c.NamedArgs.GetDo(&NamedArgVar{
+	// check=false: only consume the `define` named arg here; the remaining named
+	// args (fields/methods/new/…) are handled by t.Define(c) below, so they must
+	// not be rejected as unexpected at this point.
+	if err = c.NamedArgs.GetDoCheck(false, &NamedArgVar{
 		Name:          "define",
 		TypeAssertion: NewTypeAssertion(TypeAssertions(WithCallable())),
 		Do: func(value Object) (err error) {
