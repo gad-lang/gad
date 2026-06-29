@@ -329,6 +329,11 @@ func TestVMInOperator(t *testing.T) {
 	testExpectRun(t, `return "b" in (;a=1, b=2)`, nil, True)
 	// Bytes: byte-value membership ('h' == 104).
 	testExpectRun(t, `return [104 in bytes("hi"), 65 in bytes("hi")]`, nil, Array{True, False})
+	// Str / RawStr: substring membership; a char needle matches its rune.
+	testExpectRun(t, `return 'e' in "hello"`, nil, True)
+	testExpectRun(t, `return 'z' in "hello"`, nil, False)
+	testExpectRun(t, `return [("ell" in "hello"), ("xyz" in "hello")]`, nil, Array{True, False})
+	testExpectRun(t, "return \"ll\" in `hello`", nil, True)
 
 	// Precedence and use as a condition.
 	testExpectRun(t, `return 1 + 1 in [2, 3]`, nil, True)

@@ -16,6 +16,11 @@ println("z" in {a: 1})         // false
 // Bytes — byte-value membership ('h' == 104).
 println(104 in bytes("hi"))    // true
 
+// String — substring membership; a char needle matches its rune.
+println('e' in "hello")        // true
+println("ell" in "hello")      // true
+println("xyz" in "hello")      // false
+
 // As a condition (comparison precedence: `1 + 1 in [2]` is `(1 + 1) in [2]`).
 nums := [1, 2, 3, 4, 5]
 evens := [n for n in nums if n % 2 in [0]]
@@ -28,13 +33,14 @@ for (i in [0, 1, 2]) {
     i++
 }
 
-// When the right operand is not a container, `in` falls back to the binary
-// operator machinery, so a type can define it.
-strings := import("strings")
-met core.binOp(_ TBinaryOperatorIn, needle str, haystack str) {
-    return strings.contains(haystack, needle)
+// When neither operand is a built-in container, `in` falls back to the
+// binary-operator machinery, so a type can define it. `int in int` has no
+// built-in meaning; here it is given bit-set membership (is bit N set in mask?).
+met core.binOp(_ TBinaryOperatorIn, bit int, mask int) {
+    return mask & (1 << bit) != 0
 }
-println("ell" in "hello")      // true
+println(1 in 6)                // true   (6 == 0b110, bit 1 set)
+println(0 in 6)                // false  (bit 0 clear)
 
 // `A ain B` ("all in") is true when every value of A is a member of B. The left
 // operand is an array of values (a scalar is treated as one element); an empty
@@ -44,6 +50,6 @@ println([1, 4] ain [1, 2, 3])      // false
 println([] ain [1, 2, 3])          // true
 println(["a", "b"] ain {a: 1, b: 2})  // true   (dict keys)
 
-// `ain` falls back through `in`, so the custom str `in` above also powers it.
+// `ain` falls back through `in`, so string substring membership powers it too.
 println(["ell", "hel"] ain "hello")   // true
 

@@ -390,6 +390,12 @@ func (o RawStr) IndexGet(_ *VM, index Object) (Object, error) {
 	return nil, ErrIndexOutOfBounds
 }
 
+// BinOpIn implements the `in` operator (ObjectWithInBinOperator): reports
+// whether v occurs as a substring of o, like Str.BinOpIn.
+func (o RawStr) BinOpIn(_ *VM, v Object) (Object, error) {
+	return Bool(strings.Contains(string(o), v.ToString())), nil
+}
+
 // BinOpAdd concatenates; a non-string/Bytes operand is stringified
 // (ObjectWithAddBinOperator).
 func (o RawStr) BinOpAdd(_ *VM, right Object) (Object, error) {
@@ -533,6 +539,15 @@ func (o Str) Equal(right Object) bool {
 
 // IsFalsy implements Object interface.
 func (o Str) IsFalsy() bool { return len(o) == 0 }
+
+// BinOpIn implements the `in` operator (ObjectWithInBinOperator): reports
+// whether v occurs as a substring of o. A char needle matches its rune (so
+// `'e' in "hello"`) and a str needle matches a substring (`"ell" in "hello"`);
+// any other needle is compared by its string form, mirroring the `contains`
+// builtin.
+func (o Str) BinOpIn(_ *VM, v Object) (Object, error) {
+	return Bool(strings.Contains(string(o), v.ToString())), nil
+}
 
 // BinOpAdd concatenates; a non-Str/Bytes operand is stringified
 // (ObjectWithAddBinOperator).

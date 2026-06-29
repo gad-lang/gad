@@ -248,14 +248,17 @@ it directly with `met core.selfAssignOp(_ TSelfAssignOperatorTripleLess, …)`.
 ## Membership (`in`)
 
 `A in B` tests membership and yields a bool — a **value** for arrays and bytes, a
-**key** for the dict kinds. Built-in containers: `array`, `dict`, `syncDict`,
-`keyValueArray`, `bytes`, and method-interface instances (membership of a
-function header). It has comparison precedence.
+**key** for the dict kinds, a **substring** for strings. Built-in containers:
+`array`, `dict`, `syncDict`, `keyValueArray`, `bytes`, `str`, `rawStr`, and
+method-interface instances (membership of a function header). It has comparison
+precedence.
 
 ```go
 2 in [1, 2, 3]        // true
 "a" in {a: 1}         // true (key)
 104 in bytes("hi")    // true ('h')
+'e' in "hello"        // true (char in string)
+"ell" in "hello"      // true (substring)
 ```
 
 `in` is also the **for-in loop** separator, so at the top of a for header
