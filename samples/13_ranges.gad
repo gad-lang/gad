@@ -1,4 +1,4 @@
-// 13_ranges.gad — the `..` range operator and the Range builtin.
+/*** 13_ranges.gad — the `..` range operator and the Range builtin. ***/
 
 // `from .. to` is an inclusive, iterable range. It runs ascending or
 // descending depending on its bounds.
@@ -25,8 +25,8 @@ for v in 1 .. 10 / 2 {
 }
 println()
 
-// The Range constructor with a named `step`, plus the `.step(n)` method.
-// `collect` gathers an iterable's values into an array.
+/// The Range constructor with a named `step`, plus the `.step(n)` method.
+/// `collect` gathers an iterable's values into an array.
 r := Range(0, 10; step=3)
 println(collect(r))                 // [0, 3, 6, 9]
 

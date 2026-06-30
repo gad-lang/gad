@@ -1,16 +1,18 @@
-// use_time.gad — the builtin `time` module (available without import).
-// Member names are lowerCamelCase (time.now, time.date, time.utc, …);
-// value methods are camelCase too (t.year(), t.add(), d.day()).
+/***
+use_time.gad — the builtin `time` module (available without import).
+Member names are lowerCamelCase (time.now, time.date, time.utc, …);
+value methods are camelCase too (t.year(), t.add(), d.day()).
+***/
 
-// Durations: arithmetic on time.Hour/Minute or the `dur …` literal.
+/// Durations: arithmetic on time.Hour/Minute or the `dur …` literal.
 span := 2 * time.Hour + 30 * time.Minute
 println("duration:   ", span, "==", dur 2h30m)
 
-// Calendar date literal: YYYY-MM-DD with a `D` suffix.
+/// Calendar date literal: YYYY-MM-DD with a `D` suffix.
 day := 2026-01-31D
 println("date:       ", day, "->", day.year(), day.month(), day.day())
 
-// Zone-less calendar time (`t` suffix) stores nanoseconds.
+/// Zone-less calendar time (`t` suffix) stores nanoseconds.
 cal := time.strToCalendarTime("2026-01-31 09:30:00.001")
 println("calendar:   ", cal, "ns:", cal.ns())
 

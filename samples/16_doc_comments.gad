@@ -1,10 +1,11 @@
-// 16_doc_comments.gad — doc comments (`///`, `/**` … `**/`, `/***` … `***/`).
-//
-// Doc comments document the identifier, declaration, func/met/meti/prop they
-// precede (or trail, inline). Their contents are Markdown. Unlike ordinary `//`
-// and `/* */` comments, a doc comment is attached to the node it documents, so
-// `gad fmt` keeps it with that node and `gad doc` can render it.
 /***
+16_doc_comments.gad — doc comments (`///`, `/**` … `**/`, `/***` … `***/`).
+
+Doc comments document the identifier, declaration, func/met/meti/prop they
+precede (or trail, inline). Their contents are Markdown. Unlike ordinary `//`
+and `/* */` comments, a doc comment is attached to the node it documents, so
+`gad fmt` keeps it with that node and `gad doc` can render it.
+
 This whole sample is a tour of doc comments. A `/***` … `***/` block is a
 ROOT_BLOCK: a module-level doc, not attached to the next statement.
 ***/

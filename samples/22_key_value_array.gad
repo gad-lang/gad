@@ -12,7 +12,7 @@ println("k/v/array:", pair.k, pair.v, pair.array)   // color red ["color", "red"
 kva := (; a = 1, b = 2)
 println("kva:", str(kva))                            // (;a=1, b=2)
 
-// keys may be identifiers, strings, numbers, booleans or a dynamic [(expr)=v].
+/// keys may be identifiers, strings, numbers, booleans or a dynamic [(expr)=v].
 keys := (; name = "x", "a b" = 1, 42 = 2, true = 3, [("k" + "1") = 9])
 println("keys:", str(keys))   // (;name="x", "a b"=1, 42=2, true=3, k1=9)
 

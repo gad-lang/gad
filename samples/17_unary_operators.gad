@@ -1,15 +1,17 @@
-// 17_unary_operators.gad — the unary operators `!`, `-`, `+`, `^`, `++`, `--`
-// and customising them with `met core.unOp`.
-//
-// Every unary operator is dispatched through core.unOp(op, operand); the VM
-// applies one to the top of the stack, and a type can override it.
+/***
+17_unary_operators.gad — the unary operators `!`, `-`, `+`, `^`, `++`, `--`
+and customising them with `met core.unOp`.
+
+Every unary operator is dispatched through core.unOp(op, operand); the VM
+applies one to the top of the stack, and a type can override it.
+***/
 
 // Numeric / char operators.
 println(-5, +5, ^5, !5)           // -5 5 -6 false
 println(-'A', ^'A')               // -65 -66  (char promotes to int)
 println(!0, !"", ![], !nil)       // true true true true
 
-// Prefix ++ / -- mutate the variable and yield the new value.
+/// Prefix ++ / -- mutate the variable and yield the new value.
 x := 5
 println(++x, x)                   // 6 6
 f := 2.5
@@ -22,9 +24,9 @@ println(++d)                      // 3.5  (decimal)
 // `!` on a flag stays a flag (yes/no); on anything else it is a bool.
 println(!yes, !no)                // off on
 
-// On the temporal types, ++ increases / -- decreases by the least-significant
-// non-zero unit: a plain date by a day, a clock value by its smallest non-zero
-// component.
+/// On the temporal types, ++ increases / -- decreases by the least-significant
+/// non-zero unit: a plain date by a day, a clock value by its smallest non-zero
+/// component.
 day := 2026-01-31D
 println(++day)                    // 2026-02-01           (one day)
 t := time.CalendarTime("2026-01-31 08:05:00")
@@ -32,7 +34,7 @@ println(++t)                      // 2026-01-31 08:06:00  (a minute; seconds 0)
 t2 := time.CalendarTime("2026-01-31 08:05:30")
 println(++t2)                     // 2026-01-31 08:05:31  (a second)
 
-// A type customises a unary operator with met core.unOp(_ TUnaryOperatorX, …).
+/// A type customises a unary operator with met core.unOp(_ TUnaryOperatorX, …).
 Vec := Class("Vec"; fields = (; x = (= 0), y = (= 0)))
 met core.unOp(_ TUnaryOperatorSub, v Vec) {
     return Vec(; x = -v.x, y = -v.y)

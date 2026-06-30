@@ -1,4 +1,4 @@
-// use_json.gad — the builtin `json` module: encode and decode.
+/*** use_json.gad — the builtin `json` module: encode and decode. ***/
 
 json := import("json")
 

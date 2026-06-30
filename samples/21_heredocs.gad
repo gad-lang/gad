@@ -17,8 +17,8 @@ println("""tab\tend""")     // tab<TAB>end
 println("""quote: \"x\"""") // quote: "x"
 
 // --- heredoc: multi line ---
-// The common leading indentation is stripped, so the body stays aligned with
-// the surrounding code; escapes are then processed.
+/// The common leading indentation is stripped, so the body stays aligned with
+/// the surrounding code; escapes are then processed.
 poem := """
     roses are red
     violets are blue
@@ -29,8 +29,8 @@ println(poem)               // roses are red\nviolets are blue
 // Braces are literal text here (this is not a template), so {x} need not exist.
 println(```a {x} b```)      // a {x} b
 
-// multi line raw heredoc strips the common indentation; backslashes are kept
-// verbatim (no escape processing).
+/// multi line raw heredoc strips the common indentation; backslashes are kept
+/// verbatim (no escape processing).
 verbatim := ```
     C:\tmp\file
     line two

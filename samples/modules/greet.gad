@@ -1,5 +1,7 @@
-// greet.gad — a parameterised module. Import-time params are passed as
-// import("./greet.gad"; lang="pt").
+/***
+greet.gad — a parameterised module. Import-time params are passed as
+import("./greet.gad"; lang="pt").
+***/
 
 param (;lang="en")
 

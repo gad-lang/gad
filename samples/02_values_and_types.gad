@@ -1,4 +1,4 @@
-// 02_values_and_types.gad — primitive values and the typeof builtin.
+/*** 02_values_and_types.gad — primitive values and the typeof builtin. ***/
 
 i := 42                 // int
 f := 3.14               // float
@@ -28,7 +28,7 @@ println("1 === 1u  ", 1 === 1u)   // false (int vs uint)
 println("1.0 === 1 ", 1.0 === 1)  // false (float vs int)
 println("1 !== 1u  ", 1 !== 1u)   // true
 
-// For arrays/dicts `===` is object identity; every literal is a fresh object.
+/// For arrays/dicts `===` is object identity; every literal is a fresh object.
 a := [1, 2]
 println("a === a       ", a === a)         // true
 println("a === [1, 2]  ", a === [1, 2])    // false

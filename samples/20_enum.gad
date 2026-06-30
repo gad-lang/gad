@@ -56,7 +56,7 @@ enum Signed {
 println("Signed       =",
     Signed.Low.value, Signed.Lower.value, Signed.High.value, Signed.Higher.value)  // -1 -2 3 4
 
-// The expression form yields an anonymous enum value.
+/// The expression form yields an anonymous enum value.
 Color := enum { Red, Green, Blue }
 println("Color.Green  =", Color.Green.value)   // 2
 

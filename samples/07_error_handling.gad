@@ -1,12 +1,12 @@
-// 07_error_handling.gad — errors, try/catch/finally and the `or` fallback.
+/*** 07_error_handling.gad — errors, try/catch/finally and the `or` fallback. ***/
 
-// An error value carries .name and .message and is falsy.
+/// An error value carries .name and .message and is falsy.
 err := error("oops")
 println("isError:", isError(err))
 println("name:   ", err.name)
 println("message:", err.message)
 
-// try / catch / finally.
+/// try / catch / finally.
 safeDiv := func(a, b) {
     try {
         if b == 0 {
@@ -24,7 +24,7 @@ safeDiv := func(a, b) {
 println("10 / 2 =", safeDiv(10, 2))
 println("10 / 0 =", safeDiv(10, 0))
 
-// `or` provides a fallback when the left side is an error/falsy.
+/// `or` provides a fallback when the left side is an error/falsy.
 parsePort := func(v) {
     return int(v) or 8080
 }

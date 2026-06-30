@@ -1,5 +1,7 @@
-// 11_classes.gad — the class system: fields, methods, properties,
-// constructors, inheritance and `met` extensions.
+/***
+11_classes.gad — the class system: fields, methods, properties,
+constructors, inheritance and `met` extensions.
+***/
 
 // --- a class with fields, a constructor and methods ---
 Point := Class("Point";

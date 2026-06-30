@@ -1,20 +1,20 @@
-// 03_functions.gad — functions, arrow closures, closures and variadics.
+/*** 03_functions.gad — functions, arrow closures, closures and variadics. ***/
 
-// Regular function.
+/// Regular function.
 sum := func(a, b) {
     return a + b
 }
 
-// Arrow closure: (params) => expr
+/// Arrow closure: (params) => expr
 double := (x) => x * 2
 
-// Closure capturing an enclosing variable.
+/// Closure capturing an enclosing variable.
 adder := func(base) {
     return (x) => base + x
 }
 add5 := adder(5)
 
-// Variadic: the last positional parameter (*rest) collects extra arguments.
+/// Variadic: the last positional parameter (*rest) collects extra arguments.
 total := func(*nums) {
     acc := 0
     for _, n in nums {
@@ -25,18 +25,18 @@ total := func(*nums) {
 
 // --- Deferred handlers ---
 
-// `defer` runs when the enclosing function returns, in last-in-first-out order.
-// Inside a handler `$ret` is the mutable return value (and `$err` the error
-// being propagated, if any).
+/// `defer` runs when the enclosing function returns, in last-in-first-out order.
+/// Inside a handler `$ret` is the mutable return value (and `$err` the error
+/// being propagated, if any).
 deferOrder := func() {
     defer { $ret = append($ret, "defer-A") } // runs last (LIFO)
     defer { $ret = append($ret, "defer-B") } // runs first
     return ["body"]
 }
 
-// Shortcut form: `defer Expr` defers a single call (no braces), passing `$ret`
-// and `$err` as arguments. The conditional variants run only on the matching
-// exit:  defer (always) · defer_ok (no error) · defer_err (error).
+/// Shortcut form: `defer Expr` defers a single call (no braces), passing `$ret`
+/// and `$err` as arguments. The conditional variants run only on the matching
+/// exit:  defer (always) · defer_ok (no error) · defer_err (error).
 trace := func(label, *a) { println("  " + label, a) }
 audited := func(fail) {
     defer trace("defer   ", $ret, $err) // always
@@ -48,7 +48,7 @@ audited := func(fail) {
     return 42
 }
 
-// `defer_err` can recover by clearing `$err` (and optionally setting `$ret`).
+/// `defer_err` can recover by clearing `$err` (and optionally setting `$ret`).
 safeCall := func(fail) {
     defer_err {
         $ret = "recovered: " + str($err)
@@ -60,10 +60,10 @@ safeCall := func(fail) {
     return "ok"
 }
 
-// `deferb` (and `deferb_ok` / `deferb_err`) run when the enclosing *block*
-// exits — not the whole function — also LIFO, and with no `$ret`. The shortcut
-// form also accepts an assignment (`deferb out += "x"`) or `i++`, not just a
-// call.
+/// `deferb` (and `deferb_ok` / `deferb_err`) run when the enclosing *block*
+/// exits — not the whole function — also LIFO, and with no `$ret`. The shortcut
+/// form also accepts an assignment (`deferb out += "x"`) or `i++`, not just a
+/// call.
 blockCleanup := func() {
     out := ""
     {

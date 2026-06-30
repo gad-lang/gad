@@ -1,8 +1,10 @@
-// 10_functions_with_methods.gad — typed parameters, functions with methods
-// (overloads), the `met` statement, and properties (`prop`).
+/***
+10_functions_with_methods.gad — typed parameters, functions with methods
+(overloads), the `met` statement, and properties (`prop`).
+***/
 
 // --- Typed parameters -------------------------------------------------------
-// A parameter may declare a type; the argument is checked against it.
+/// A parameter may declare a type; the argument is checked against it.
 repeat := func(s str, n int) {
     out := ""
     for i := 0; i < n; i++ {
@@ -13,8 +15,8 @@ repeat := func(s str, n int) {
 println("repeat:        ", repeat("ab", 3))    // ababab
 
 // --- Functions with methods (overloads) -------------------------------------
-// `func name { (params) { ... } ... }` declares several methods; the call
-// dispatches to the method whose parameter types match the arguments.
+/// `func name { (params) { ... } ... }` declares several methods; the call
+/// dispatches to the method whose parameter types match the arguments.
 func area {
     (r float)          => 3.14159 * r * r        // circle
     (w float, h float) => w * h                  // rectangle
@@ -22,13 +24,13 @@ func area {
 println("area(2.0):     ", area(2.0))           // circle
 println("area(2.0, 3.0):", area(2.0, 3.0))      // rectangle
 
-// `met` adds a method to an existing callable afterwards.
+/// `met` adds a method to an existing callable afterwards.
 met area(side int) => side * side                // square (int)
 println("area(4):       ", area(4))             // square
 
 // --- Properties (prop) ------------------------------------------------------
-// A property's getter takes no parameters; a setter takes one. Setters may be
-// typed and are dispatched by the argument type.
+/// A property's getter takes no parameters; a setter takes one. Setters may be
+/// typed and are dispatched by the argument type.
 var stored
 prop value {
     ()      => stored                            // getter
@@ -40,7 +42,7 @@ value(42);      b := value()
 println("value (str):   ", a)                   // hello
 println("value (int):   ", b)                   // int: 42
 
-// A read-only (getter-only) property.
+/// A read-only (getter-only) property.
 prop pi() => 3.14159
 println("pi():          ", pi())
 

@@ -603,7 +603,7 @@ func TestDebugRelativeImportSamples(t *testing.T) {
 	h := s.Handler()
 
 	w := do(t, h, "POST", "/api/ide/debug/start", StartRequest{
-		Path: "main.gad", Source: string(src), Breakpoints: []int{4},
+		Path: "main.gad", Source: string(src), Breakpoints: []int{7},
 	})
 	resp := decode[DebugResponse](t, w)
 	if resp.State == "error" {
@@ -639,9 +639,9 @@ func TestDebugModulePathsAreRelative(t *testing.T) {
 	}
 	h := s.Handler()
 
-	// Stop after the import (line 5) so mathx is bound.
+	// Stop after the import (line 8) so mathx is bound.
 	resp := decode[DebugResponse](t, do(t, h, "POST", "/api/ide/debug/start",
-		StartRequest{Path: "main.gad", Source: string(src), Breakpoints: []int{5}}))
+		StartRequest{Path: "main.gad", Source: string(src), Breakpoints: []int{8}}))
 	if resp.State != "stopped" {
 		t.Fatalf("expected stopped, got %+v", resp)
 	}
@@ -683,7 +683,7 @@ func TestDebugStepIntoModuleReportsRelativeFile(t *testing.T) {
 		t.Fatalf("entry stop should be main.gad, got file=%q state=%q", resp.File, resp.State)
 	}
 
-	// Step into the import on line 4; the next stop should be inside mathx.gad.
+	// Step into the import on line 7; the next stop should be inside mathx.gad.
 	sawModule := false
 	for i := 0; i < 10 && resp.State == "stopped"; i++ {
 		resp = decode[DebugResponse](t, do(t, h, "POST", "/api/ide/debug/command",

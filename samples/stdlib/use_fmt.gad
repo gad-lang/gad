@@ -1,4 +1,4 @@
-// use_fmt.gad — the builtin `fmt` module (available without import).
+/*** use_fmt.gad — the builtin `fmt` module (available without import). ***/
 
 name := "Gad"
 n := 42

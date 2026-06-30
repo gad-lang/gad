@@ -1,9 +1,11 @@
-// 15_in_operator.gad — the `in` membership operator (`A in B`) and the `ain`
-// array-membership operator (`A ain B`).
-//
-// `A in B` tests membership: a value for arrays/bytes, a key for the dict kinds.
-// It is distinct from the `for x in y` loop (where `in` is the loop separator) —
-// parenthesize to use it as the operator inside a for header: `for (x in y)`.
+/***
+15_in_operator.gad — the `in` membership operator (`A in B`) and the `ain`
+array-membership operator (`A ain B`).
+
+`A in B` tests membership: a value for arrays/bytes, a key for the dict kinds.
+It is distinct from the `for x in y` loop (where `in` is the loop separator) —
+parenthesize to use it as the operator inside a for header: `for (x in y)`.
+***/
 
 // Array — value membership.
 println(2 in [1, 2, 3])        // true
@@ -21,21 +23,21 @@ println('e' in "hello")        // true
 println("ell" in "hello")      // true
 println("xyz" in "hello")      // false
 
-// As a condition (comparison precedence: `1 + 1 in [2]` is `(1 + 1) in [2]`).
+/// As a condition (comparison precedence: `1 + 1 in [2]` is `(1 + 1) in [2]`).
 nums := [1, 2, 3, 4, 5]
 evens := [n for n in nums if n % 2 in [0]]
 println(evens)                 // [2, 4]
 
-// `for x in y` is the loop; `for (x in y)` is a for-cond using the operator.
+/// `for x in y` is the loop; `for (x in y)` is a for-cond using the operator.
 i := 0
 for (i in [0, 1, 2]) {
     println("found", i)        // found 0 / found 1 / found 2
     i++
 }
 
-// When neither operand is a built-in container, `in` falls back to the
-// binary-operator machinery, so a type can define it. `int in int` has no
-// built-in meaning; here it is given bit-set membership (is bit N set in mask?).
+/// When neither operand is a built-in container, `in` falls back to the
+/// binary-operator machinery, so a type can define it. `int in int` has no
+/// built-in meaning; here it is given bit-set membership (is bit N set in mask?).
 met core.binOp(_ TBinaryOperatorIn, bit int, mask int) {
     return mask & (1 << bit) != 0
 }
@@ -52,4 +54,3 @@ println(["a", "b"] ain {a: 1, b: 2})  // true   (dict keys)
 
 // `ain` falls back through `in`, so string substring membership powers it too.
 println(["ell", "hel"] ain "hello")   // true
-
