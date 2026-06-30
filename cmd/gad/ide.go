@@ -32,15 +32,20 @@ var ideApp embed.FS
 
 func init() { registerCommand("ide", ideCommand) }
 
+// ideOptionsKey stores the parsed `ide` flags in the command context.
+const ideOptionsKey ctxKey = "ideOptions"
+
+// ideOptions holds the parsed flags of the `ide` subcommand.
+type ideOptions struct {
+	addr   string
+	static string
+	noOpen bool
+}
+
 // ideCommand is `gad ide [flags] [PATH]`: it starts a local web IDE rooted at
 // PATH (a directory, or a single file to edit; defaults to the current
 // directory) and opens it in the browser.
 func ideCommand() *cc.Command {
-	var (
-		addr   *string
-		static *string
-		noOpen *bool
-	)
 	return &cc.Command{
 		Name:  "ide",
 		Usage: "[flags] [PATH]",
@@ -49,12 +54,16 @@ func ideCommand() *cc.Command {
 			"current directory. The IDE offers a file tree, multi-file tabs, formatting,\n" +
 			"running and debugging, with formatter and layout settings stored in .gad.yaml.",
 		New: func(ctx *cc.CommandContext) error {
-			addr = ctx.Flags().String("addr", "0.0.0.0:17000", "listen address (host:port); if the port is busy the next free port is used")
-			static = ctx.Flags().String("static", "", "serve a pre-built web app from this directory instead of the bundled UI")
-			noOpen = ctx.Flags().Bool("no-open", false, "do not open the browser automatically")
+			o := &ideOptions{}
+			flags := ctx.Flags()
+			flags.StringVar(&o.addr, "addr", "0.0.0.0:17000", "listen address (host:port); if the port is busy the next free port is used")
+			flags.StringVar(&o.static, "static", "", "serve a pre-built web app from this directory instead of the bundled UI")
+			flags.BoolVar(&o.noOpen, "no-open", false, "do not open the browser automatically")
+			ctx.WithValue(ideOptionsKey, o)
 			return nil
 		},
 		Run: func(ctx *cc.CommandContext) error {
+			o := ctx.Value(ideOptionsKey).(*ideOptions)
 			path := "."
 			if len(ctx.Args) > 0 {
 				path = ctx.Args[0]
@@ -67,11 +76,11 @@ func ideCommand() *cc.Command {
 			var handler http.Handler
 			ui := "bundled UI"
 			switch {
-			case *static != "":
+			case o.static != "":
 				// Serve a pre-built app directory at the site root.
-				srv.Static = *static
+				srv.Static = o.static
 				handler = srv.Handler()
-				ui = "static " + *static
+				ui = "static " + o.static
 			default:
 				if assets, ok := webapp.Assets(); ok {
 					// Production build: serve the embedded React app (SPA).
@@ -87,13 +96,13 @@ func ideCommand() *cc.Command {
 				}
 			}
 
-			ln, err := listenWithFallback(*addr)
+			ln, err := listenWithFallback(o.addr)
 			if err != nil {
-				return fmt.Errorf("ide: listen %s: %w", *addr, err)
+				return fmt.Errorf("ide: listen %s: %w", o.addr, err)
 			}
 			url := "http://" + browserHost(ln.Addr()) + "/"
 			fmt.Fprintf(ctx.Out, "Gad IDE for %s (%s)\nopen %s\n", srv.Root, ui, url)
-			if !*noOpen {
+			if !o.noOpen {
 				go openBrowser(url)
 			}
 			return http.Serve(ln, handler)

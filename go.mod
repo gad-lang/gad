@@ -5,8 +5,9 @@ go 1.25.0
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dustin/go-humanize v1.0.1
+	github.com/google/go-dap v0.12.0
 	github.com/igo9go/go-deepdump v0.0.0-20251127063219-48870f246837
-	github.com/moisespsena-go/command-context v0.0.0-20260527122358-f6bb5b7d4422
+	github.com/moisespsena-go/command-context v0.0.0-20260630150637-46d849278485
 	github.com/peterh/liner v1.2.2
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/shopspring/decimal v1.3.1
@@ -17,7 +18,6 @@ require (
 )
 
 require (
-	github.com/google/go-dap v0.12.0 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/moisespsena-go/path-helpers v0.0.3 // indirect
 	github.com/phayes/permbits v0.0.0-20190612203442-39d7c581d2ee // indirect

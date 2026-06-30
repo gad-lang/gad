@@ -66,9 +66,10 @@ func debugCommand() *cc.Command {
 		Description: "Debug a Gad script: breakpoints, stepping, stack and locals.",
 		New: func(ctx *cc.CommandContext) error {
 			o := &debugOptions{}
-			ctx.Flags().Var(&o.breaks, "break", "breakpoint line (repeatable, comma-separated)")
-			ctx.Flags().BoolVar(&o.stopOnEntry, "stop-on-entry", false, "pause before the first instruction")
-			ctx.Flags().BoolVar(&o.dap, "dap", false, "speak the Debug Adapter Protocol over stdio (for editors)")
+			flags := ctx.Flags()
+			flags.Var(&o.breaks, "break", "breakpoint line (repeatable, comma-separated)")
+			flags.BoolVar(&o.stopOnEntry, "stop-on-entry", false, "pause before the first instruction")
+			flags.BoolVar(&o.dap, "dap", false, "speak the Debug Adapter Protocol over stdio (for editors)")
 			ctx.WithValue(debugOptionsKey, o)
 			return nil
 		},
@@ -76,13 +77,8 @@ func debugCommand() *cc.Command {
 			o := ctx.Value(debugOptionsKey).(*debugOptions)
 			if o.dap {
 				// In DAP mode the program comes from the launch request, so a file
-				// arg is optional (VS Code runs `gad debug --dap` with none). Accept
-				// 0 or 1 args directly — Args.Range/Max in the command-context
-				// library has an inverted check and wrongly rejects zero args.
-				if len(ctx.Args) > 1 {
-					return fmt.Errorf("expected up to 1 argument, got %d", len(ctx.Args))
-				}
-				return nil
+				// arg is optional (VS Code runs `gad debug --dap` with none).
+				return ctx.Args.Max(1)
 			}
 			return ctx.Args.Eq(1)
 		},

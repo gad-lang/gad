@@ -8,7 +8,12 @@
 - [ ] replace all runner of `pnpm` to `bun`, update docs and scripts.
 
 # Language
-- [ ] update `github.com/moisespsena-go/command-context` dependency to `46d8492`. update usage for here applying Patterns.
+- [x] update `github.com/moisespsena-go/command-context` dependency to `46d8492`. update usage for here applying Patterns.
+      Done: go get @46d8492 (v0.0.0-20260630150637-46d849278485). Applied the
+      README Patterns: ide cmd now uses an ideOptions struct via WithValue/Value
+      (was closure pointers) + captures ctx.Flags() in a local var; debug cmd
+      captures ctx.Flags() locally. The fixed Args.Max lets debug --dap use
+      ctx.Args.Max(1) (removed the inverted-check workaround). go mod tidy.
 - [x] when generate doc of `07_error_handling.gad`, the `err` variable is generating into constants section. put variables into "Variables" section.
       Done: docVar entry kind; `:=` value bindings and `var` decls bucket into a
       "Variables" section (exports/`const` stay Constants). docBuckets/bucketize;
@@ -17,4 +22,6 @@
       Parent `alias` is optional, separated by `:`. `Parent` is `IdentExpr` or `SelectorExpr`, example: `class { extends { mod1.A, mod2.A: A2 } }` (`A2` is alias of `mod2.A`) ).
       format `WriteCode` extends section itens to new indented line.
 - [ ] rename module "core" to "gad". update samples, docs and tests.
-- [~] .. 
+- [ ] create builtin functions `gad.binOp{OP_NAME}` (for binary operators), `gad.unOp{OP_NAME}` (for unary operators),
+      `gad.selfAssigOp{OP_NAME}` (for self assign operators) removing first param `op Operator`. use call to `gad.binOp{OP_NAME}` insteadof `gad.binOp`,
+      apply this rule for `gad.unOp` and `gad.selfAssigOp{OP_NAME}`. update methods implementations in tests, samples, doc, README.
