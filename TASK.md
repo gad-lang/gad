@@ -91,11 +91,14 @@ verification for full sign-off.
 - [x] doc panel renders Markdown with gad code highlighting: docMarkdown.ts
       (dependency-free) renders headings/lists/blockquotes/inline code+bold and
       fenced code blocks highlighted with the prism-gad grammar (Prism.highlight).
-- [~] colorize doc comments in the plugins: codemirror-gad (StreamLanguage),
+- [x] colorize doc comments in the plugins: codemirror-gad (StreamLanguage),
       prism-gad (grammar) and the build-free ideapp tokenizer now recognize `/?`
-      single + `/??`…`??` / `/???`…`???` block doc comments as a docComment token
-      (verified: prism tokenizes them distinctly). TODO: highlight embedded source
-      code and `>>>` result blocks inside doc comments (sub-language regions).
+      single + `/??`…`??` / `/???`…`???` block doc comments as a docComment token.
+      Sub-language regions: codemirror-gad tracks docCodeFence state so ``` fenced
+      blocks inside doc comments get full Gad tokenization (keyword/string/…) and
+      `>>> ` result assertion lines return "docResult" token. prism-gad adds inside
+      patterns for doc-code-fence + doc-result. docMarkdown.ts wraps `>>> ` lines
+      in <span class="doc-result"> (italic/muted). `(b9e47a0)`
 - [x] module/function values rendered absolute file paths (baked into their
       ToString) in locals/eval/inspect. The IDE now rewrites workspace-absolute
       paths (and `file:` prefixes) to workspace-relative in debug locals/frames,
@@ -119,13 +122,14 @@ verification for full sign-off.
 ## Editor plugins (separate)
 (none — keyword/builtin sync commands shipped via cmd/update-*-plugin.)
 
-- [~] VS Code plugin: cmd/update-vscode-plugin generates a TextMate grammar
+- [x] VS Code plugin: cmd/update-vscode-plugin generates a TextMate grammar
       (was missing — no highlighting) from the shared vocabulary; package.json
       gains the grammars contribution, .gadt ext, and a gad.format.useConfig
       setting (gad.path existed). DAP gained EvaluateRequest (Watch/Console/hover
       via EvalInFrame) and conditional breakpoints. Tested: TestTextMateGrammar,
-      TestDAPSession (evaluate). TODO: format-on-save / .gad.yaml-driven format
-      command, and richer IDE-like panels (inspect/doc) inside VS Code.
+      TestDAPSession (evaluate). Format-on-save: registerDocumentFormattingEditProvider
+      calls `gad fmt -` (stdin/stdout), respects gad.format.useConfig (--no-config
+      flag) and gad.path; shows errors in a VS Code message. `(<COMMIT>)`
 - [ ] create plugin like vscode to JetBrains.
 
 # Language
