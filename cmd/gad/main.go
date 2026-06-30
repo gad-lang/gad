@@ -888,9 +888,11 @@ func main() {
 
 	// Subcommands are dispatched through command-context; a bare invocation
 	// (REPL, `gad FILE ...`, stdin) keeps the legacy behavior so existing usage
-	// and scripts are unaffected.
-	if len(args) > 0 && isSubcommand(args[0]) {
-		ctx, err := buildRootCommand().Parse(&cc.CommandContext{
+	// and scripts are unaffected. `help`/`--help` are handled by command-context
+	// during Parse, so they route through here too.
+	root := buildRootCommand()
+	if len(args) > 0 && (root.IsSub(args[0]) || args[0] == "help" || args[0] == "--help") {
+		ctx, err := root.Parse(&cc.CommandContext{
 			InputArgs: args,
 			Context:   context.Background(),
 		})

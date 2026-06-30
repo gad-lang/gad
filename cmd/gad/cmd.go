@@ -84,30 +84,15 @@ func loadTemplateConfig(dir string) {
 	}
 }
 
-// subcommandNames is the set of first-argument tokens routed through the
-// command-context framework instead of the legacy run/REPL entry point.
-var subcommandNames = map[string]bool{
-	"run":     true,
-	"fmt":     true,
-	"doc":     true,
-	"doctest": true,
-	"help":    true,
-	"--help":  true,
-}
-
 // optionalCommands holds subcommand factories registered by build-tagged files
 // (e.g. `debug` and `ide`), so they can be excluded with `-tags nodebug,noide`.
 var optionalCommands []func() *cc.Command
 
-// registerCommand adds an optional subcommand and routes its name through the
-// command-context dispatcher. Called from build-tagged init functions.
-func registerCommand(name string, factory func() *cc.Command) {
-	subcommandNames[name] = true
+// registerCommand registers an optional subcommand factory. Called from
+// build-tagged init functions; the name is carried by the factory's Command.
+func registerCommand(_ string, factory func() *cc.Command) {
 	optionalCommands = append(optionalCommands, factory)
 }
-
-// isSubcommand reports whether name selects a command-context subcommand.
-func isSubcommand(name string) bool { return subcommandNames[name] }
 
 // buildRootCommand assembles the `gad` command tree: a root that prints help
 // plus the `run` and `fmt` subcommands and any optional (build-tagged) ones.

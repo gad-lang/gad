@@ -18,11 +18,17 @@
       Done: docVar entry kind; `:=` value bindings and `var` decls bucket into a
       "Variables" section (exports/`const` stay Constants). docBuckets/bucketize;
       TOC + Exported/Internal writers updated. Test TestGenerateDocVariablesSection.
-- [ ] change `class` declaration (Expr and Stmt) from syntaxe `class [NAME] [extends ...] {` to `class [NAME] { extends { Parent [: Alias], ... } ... }` (extends itens separated by `,` or `\n`. 
+- [x] change `class` declaration (Expr and Stmt) from syntaxe `class [NAME] [extends ...] {` to `class [NAME] { extends { Parent [: Alias], ... } ... }` (extends itens separated by `,` or `\n`. 
       Parent `alias` is optional, separated by `:`. `Parent` is `IdentExpr` or `SelectorExpr`, example: `class { extends { mod1.A, mod2.A: A2 } }` (`A2` is alias of `mod2.A`) ).
       format `WriteCode` extends section itens to new indented line.
+      Done (commit c8e2f1e): extends-block syntax + alias via `:`; also reworked
+      Class(name, define) (positional handler) and construction (cls + `new`
+      ClassInitiator, Class.New(Call) Go API). Samples/tests/docs migrated.
 - [ ] rename module "core" to "gad". update samples, docs and tests.
 - [ ] create builtin functions `gad.binOp{OP_NAME}` (for binary operators), `gad.unOp{OP_NAME}` (for unary operators),
       `gad.selfAssigOp{OP_NAME}` (for self assign operators) removing first param `op Operator`. use call to `gad.binOp{OP_NAME}` insteadof `gad.binOp`,
       apply this rule for `gad.unOp` and `gad.selfAssigOp{OP_NAME}`. update methods implementations in tests, samples, doc, README.
-- [ ] remove `subcommandNames` from gad/cmd, it is unnecessary after dependency update.
+- [x] remove `subcommandNames` from gad/cmd, it is unnecessary after dependency update.
+      Done: dropped the subcommandNames map + isSubcommand; main() builds the root
+      command and dispatches via root.IsSub(args[0]) (plus help/--help), using the
+      new command-context Command.IsSub. registerCommand just appends factories.
