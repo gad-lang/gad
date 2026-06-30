@@ -39,12 +39,12 @@ func TestGenerateDocSections(t *testing.T) {
 	require.Contains(t, md, "## Table of Contents")
 	require.Contains(t, md, "## Constants")
 	require.Contains(t, md, "### const **Pi**")
-	require.Contains(t, md, "    const Pi = 3.14")
+	require.Contains(t, md, "```gad\nconst Pi = 3.14\n```")
 	require.Contains(t, md, "the pi value")
 	require.Contains(t, md, "## Types")
 	require.Contains(t, md, "### Functions")
 	require.Contains(t, md, "#### func **sum**")
-	require.Contains(t, md, "    sum(a, b)")
+	require.Contains(t, md, "```gad\nsum(a, b)\n```")
 	require.Contains(t, md, "returns a + b")
 }
 
@@ -58,10 +58,10 @@ func TestGenerateDocFuncWithMethods(t *testing.T) {
 
 	require.Contains(t, md, "#### func **diff**")
 	require.Contains(t, md, "a difference calculator")
-	require.Contains(t, md, "    (a int, b int)")
+	require.Contains(t, md, "```gad\n(a int, b int)\n```")
 	require.Contains(t, md, "difference of two ints")
 	require.Contains(t, md, "**other methods**")
-	require.Contains(t, md, "    (a float, b float)")
+	require.Contains(t, md, "```gad\n(a float, b float)\n```")
 	require.Contains(t, md, "difference of two floats")
 }
 
@@ -73,10 +73,10 @@ func TestGenerateDocDictExport(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Contains(t, md, "### const **maxRetries**")
-	require.Contains(t, md, "    const maxRetries = 3")
+	require.Contains(t, md, "```gad\nconst maxRetries = 3\n```")
 	require.Contains(t, md, "the max retries")
 	require.Contains(t, md, "#### func **area**")
-	require.Contains(t, md, "    area(r)")
+	require.Contains(t, md, "```gad\narea(r)\n```")
 	require.Contains(t, md, "compute the area")
 }
 

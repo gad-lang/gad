@@ -585,20 +585,30 @@ func writeEntry(b *strings.Builder, level int, e docEntry) {
 		writeMethods(b, e.methods)
 		return
 	}
-	b.WriteString("\n")
-	for _, line := range e.code {
-		b.WriteString("    " + line + "\n")
-	}
+	writeCode(b, e.code)
 	if e.doc != "" {
 		b.WriteString("\n" + e.doc + "\n")
 	}
+}
+
+// writeCode renders signature/value lines as a fenced ```gad code block (so they
+// are highlighted as Gad), or nothing when there are no lines.
+func writeCode(b *strings.Builder, lines []string) {
+	if len(lines) == 0 {
+		return
+	}
+	b.WriteString("\n```gad\n")
+	for _, line := range lines {
+		b.WriteString(line + "\n")
+	}
+	b.WriteString("```\n")
 }
 
 // writeMethods renders a func-with-methods body: the first method is the default
 // (signature + doc); any remaining methods follow under "other methods".
 func writeMethods(b *strings.Builder, methods []docMethod) {
 	writeMethod := func(m docMethod) {
-		b.WriteString("\n    " + m.sig + "\n")
+		writeCode(b, []string{m.sig})
 		if m.doc != "" {
 			b.WriteString("\n" + m.doc + "\n")
 		}
