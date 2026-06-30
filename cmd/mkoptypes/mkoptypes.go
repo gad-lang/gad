@@ -27,7 +27,7 @@ func main() {
 	// self-assign token group, so add them explicitly). `in` is the membership
 	// operator (a keyword, not in the operator token group); it is added so it
 	// gets a TBinaryOperatorIn type and an ObjectWithInBinOperator interface,
-	// and is user-overridable via `met core.binOp(_ TBinaryOperatorIn, …)`.
+	// and is user-overridable via `met gad.binOp(_ TBinaryOperatorIn, …)`.
 	// `ain` is the array-membership operator (`A ain B`): like `in`, it is a
 	// keyword dispatched on the right operand (the container), so it gets a
 	// TBinaryOperatorAin type and an ObjectWithAinBinOperator interface.
@@ -39,7 +39,7 @@ func main() {
 	// Unary operators are an explicit list: `!`, `-`, `+`, `^` are binary-group
 	// tokens reused as unary, while `++`/`--` live in the unary token group. Each
 	// gets a TUnaryOperator type and an ObjectWith{Op}UnaryOperator interface, and
-	// is user-overridable via `met core.unOp(_ TUnaryOperator{Op}, …)`.
+	// is user-overridable via `met gad.unOp(_ TUnaryOperator{Op}, …)`.
 	unaryOperators := []token.Token{
 		token.Not, token.Sub, token.Add, token.Xor, token.Inc, token.Dec,
 	}

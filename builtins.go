@@ -257,7 +257,7 @@ const (
 	BuiltinModuleStrings
 	BuiltinModuleTime
 	BuiltinModuleFmt
-	BuiltinModuleCore
+	BuiltinModuleGad
 	GroupBuiltinModulesEnd
 
 	BuiltinEnd_
@@ -278,8 +278,8 @@ func NewBuiltinType() (t BuiltinType) {
 
 // BuiltinsMap is list of builtin types, exported for REPL.
 var BuiltinsMap = map[string]BuiltinType{
-	// @binaryOperator / @selfAssignOperator are exposed as core.binOp /
-	// core.selfAssignOp (registered in registerCoreModule).
+	// @binaryOperator / @selfAssignOperator are exposed as gad.binOp /
+	// gad.selfAssignOp (registered in registerGadModule).
 	"cast":                BuiltinCast,
 	"append":              BuiltinAppend,
 	"delete":              BuiltinDelete,

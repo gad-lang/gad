@@ -749,7 +749,7 @@ const (
 )
 
 // WithStmt represents a `with` context-manager statement. The resource's
-// enter/exit hooks (core.enter / core.exit) run around Body. Resource is the
+// enter/exit hooks (gad.enter / gad.exit) run around Body. Resource is the
 // context value; Ident is the `as` block-local binding or the assign/define
 // target (nil for WithBindNone).
 type WithStmt struct {

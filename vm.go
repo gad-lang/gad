@@ -1192,9 +1192,9 @@ func (vm *VM) xOpCallObject(co_ Object, numArgs int, flags OpCallFlag) (err erro
 }
 
 // xOpUnary applies a unary operator (`!`, `-`, `+`, `^`, `++`, `--`) to the top
-// of the stack by dispatching through core.unOp (BuiltinUnaryOperator), which
+// of the stack by dispatching through gad.unOp (BuiltinUnaryOperator), which
 // routes to the operand's per-operator ObjectWith{Op}UnaryOperator method
-// (op_api.go) and lets a `met core.unOp(...)` override it.
+// (op_api.go) and lets a `met gad.unOp(...)` override it.
 func (vm *VM) xOpUnary() error {
 	tok := token.Token(vm.curInsts[vm.ip+1])
 	operand := vm.stack[vm.sp-1]

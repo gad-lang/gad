@@ -188,7 +188,7 @@ func (e *CondExpr) WriteCode(ctx *CodeWriteContext) {
 }
 
 // WithExpr is the expression form `with Resource [as IDENT]: Value`: it enters
-// the resource (core.enter), evaluates Value, exits (core.exit) and yields Value.
+// the resource (gad.enter), evaluates Value, exits (gad.exit) and yields Value.
 type WithExpr struct {
 	WithPos  source.Pos
 	Resource Expr

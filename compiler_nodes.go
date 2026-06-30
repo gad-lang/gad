@@ -1607,7 +1607,7 @@ func (c *Compiler) compileAddMethodsExpr(nd node.Node, nameExpr node.Expr, metho
 	defer c.pushSelector()()
 	expr, selectors := resolveSelectorExprs(nameExpr)
 
-	// `met module.NAME(...)` on a builtin namespace member (e.g. core.binOp)
+	// `met module.NAME(...)` on a builtin namespace member (e.g. gad.binOp)
 	// resolves to the single qualified builtin so the method is added to the
 	// same object the VM dispatches against, rather than to the namespace dict
 	// member (which build() does not keep identical to the enum object).

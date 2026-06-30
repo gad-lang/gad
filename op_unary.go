@@ -1,9 +1,9 @@
 package gad
 
 // Per-type unary operator implementations (op_api.go's
-// ObjectWith{Op}UnaryOperator interfaces). They are reached through core.unOp:
+// ObjectWith{Op}UnaryOperator interfaces). They are reached through gad.unOp:
 // the VM's OpUnary calls it and it dispatches here via unOpObject. Logical NOT
-// (`!`) is universal (truthiness) and handled by core.unOp's default, so only
+// (`!`) is universal (truthiness) and handled by gad.unOp's default, so only
 // Flag overrides it (to stay a Flag).
 
 // --- Int ---

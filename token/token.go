@@ -609,10 +609,10 @@ func (tok Token) IsBinaryOperator() bool {
 		Inc,
 		Dec,
 		// `in` is a keyword, but it is also the membership binary operator
-		// (`a in b`), dispatched through core.binOp like the others.
+		// (`a in b`), dispatched through gad.binOp like the others.
 		In,
 		// `ain` is the array-membership operator (`A ain B`): every value of A
-		// is a member of B. Like `in`, dispatched through core.binOp.
+		// is a member of B. Like `in`, dispatched through gad.binOp.
 		Ain:
 		return true
 	}
@@ -620,8 +620,8 @@ func (tok Token) IsBinaryOperator() bool {
 }
 
 // IsUserBinaryOperator reports whether tok is a binary operator that has no
-// built-in semantics and must be implemented via `met core.binOp` (and the
-// self-assign forms via `met core.selfAssignOp`): `<<<`, `>>>`, `%%`.
+// built-in semantics and must be implemented via `met gad.binOp` (and the
+// self-assign forms via `met gad.selfAssignOp`): `<<<`, `>>>`, `%%`.
 func (tok Token) IsUserBinaryOperator() bool {
 	switch tok {
 	case TripleLess, TripleGreater, DoubleMod:

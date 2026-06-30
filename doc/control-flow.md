@@ -186,7 +186,7 @@ data := "[" + (with open("g") as g: g.read()) + "]"
 ```
 
 `with` introduces no new opcode: it desugars to a block that registers
-`core.exit(resource, $err)` as a [`deferb`](functions.md#defer) and then calls
-`core.enter(resource)`. The hooks are dispatched through the `core.enter` /
-`core.exit` functions in the global [`core`](operators.md#operator-handlers-and-the-core-namespace)
+`gad.exit(resource, $err)` as a [`deferb`](functions.md#defer) and then calls
+`gad.enter(resource)`. The hooks are dispatched through the `gad.enter` /
+`gad.exit` functions in the global [`core`](operators.md#operator-handlers-and-the-core-namespace)
 namespace.

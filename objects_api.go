@@ -489,11 +489,11 @@ type UserDataStorage interface {
 
 // Self-assign operators (`x op= y`) are implemented via the per-operator
 // ObjectWith{Op}SelfAssignOperator interfaces (see the generated op_api.go);
-// dispatch goes through selfAssignOpObject (core.selfAssignOp), falling back to
+// dispatch goes through selfAssignOpObject (gad.selfAssignOp), falling back to
 // the binary operator when the left operand does not handle the operator.
 
 // ObjectEnter is implemented by values usable as a `with` resource. Enter runs
-// when the `with` block is entered, via core.enter(resource). The `with`
+// when the `with` block is entered, via gad.enter(resource). The `with`
 // statement/expression desugars to a deferb that pairs it with ObjectExit.
 type ObjectEnter interface {
 	Object
@@ -501,7 +501,7 @@ type ObjectEnter interface {
 }
 
 // ObjectExit is implemented by values usable as a `with` resource. Exit runs
-// when the `with` block is left, via core.exit(resource, err), receiving any
+// when the `with` block is left, via gad.exit(resource, err), receiving any
 // error raised in the block (nil on normal exit). A non-nil returned error
 // propagates from the block.
 type ObjectExit interface {

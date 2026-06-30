@@ -15,7 +15,7 @@ const withTempHandle = "__with__"
 // the exit hook as a `deferb` (so it runs at block exit, with the block's $err),
 // then enter the resource. handle is the resource's identifier.
 func withScaffold(handle string) ([]node.Stmt, error) {
-	src := fmt.Sprintf("deferb { core.exit(%[1]s, $err) }\ncore.enter(%[1]s)", handle)
+	src := fmt.Sprintf("deferb { gad.exit(%[1]s, $err) }\ngad.enter(%[1]s)", handle)
 	return parseGadSnippet(src)
 }
 
@@ -26,13 +26,13 @@ func withBinding(handle *node.IdentExpr, tok token.Token, resource node.Expr) no
 }
 
 // compileWithStmt desugars a `with` statement into a block that pairs
-// core.enter/core.exit around the body (the exit via `deferb`, so it runs on
+// gad.enter/gad.exit around the body (the exit via `deferb`, so it runs on
 // every exit including an error). See doc/operators.md.
 //
-//	with R { body }           ->  { deferb { core.exit(R, $err) }; core.enter(R); body }
-//	with R as f { body }      ->  { f := R; deferb { core.exit(f, $err) }; core.enter(f); body }
-//	with x = R { body }       ->  x = R; { deferb { core.exit(x, $err) }; core.enter(x); body }
-//	with x := R { body }      ->  x := R; { deferb { core.exit(x, $err) }; core.enter(x); body }
+//	with R { body }           ->  { deferb { gad.exit(R, $err) }; gad.enter(R); body }
+//	with R as f { body }      ->  { f := R; deferb { gad.exit(f, $err) }; gad.enter(f); body }
+//	with x = R { body }       ->  x = R; { deferb { gad.exit(x, $err) }; gad.enter(x); body }
+//	with x := R { body }      ->  x := R; { deferb { gad.exit(x, $err) }; gad.enter(x); body }
 func (c *Compiler) compileWithStmt(nd *node.WithStmt) error {
 	var (
 		handle string
@@ -81,7 +81,7 @@ func (c *Compiler) compileWithStmt(nd *node.WithStmt) error {
 // compileWithExpr desugars `with R [as f]: V` into an immediately-invoked
 // closure that enters R, returns V (with the exit hook deferred), and yields it:
 //
-//	(func() { [f := R]; deferb { core.exit(f, $err) }; core.enter(f); return V })()
+//	(func() { [f := R]; deferb { gad.exit(f, $err) }; gad.enter(f); return V })()
 func (c *Compiler) compileWithExpr(nd *node.WithExpr) error {
 	var (
 		handle string

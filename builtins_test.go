@@ -21,7 +21,7 @@ func TestBuiltinTypes(t *testing.T) {
 				t.Fatalf("builtin '%s' (%T) is not *BuiltinObjType type", k, v2)
 			}
 		} else if v < BuiltinFunctionsEnd_ {
-			// core.binOp / core.selfAssignOp carry typed operator methods
+			// gad.binOp / gad.selfAssignOp carry typed operator methods
 			// (registerOperatorMethods), so they are wrapped as
 			// *BuiltinFunctionWithMethods rather than a bare *BuiltinFunction.
 			switch BuiltinObjects[v].(type) {

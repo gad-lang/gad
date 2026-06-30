@@ -1539,7 +1539,7 @@ func BuiltinSelfAssignOperatorFunc(c Call) (ret Object, err error) {
 	return c.VM.Builtins.Call(BuiltinBinaryOperator, c)
 }
 
-// BuiltinUnaryOperatorFunc is the default handler of core.unOp: it dispatches to
+// BuiltinUnaryOperatorFunc is the default handler of gad.unOp: it dispatches to
 // the operand's per-operator ObjectWith{Op}UnaryOperator implementation
 // (unOpObject). The logical NOT operator (`!`) is universal — any value that
 // does not implement UnOpNot falls back to its truthiness.
@@ -1577,7 +1577,7 @@ func BuiltinUnaryOperatorFunc(c Call) (ret Object, err error) {
 }
 
 // resourceHookMethod returns a resource's `with`-protocol hook (a bound `enter`
-// or `exit` Gad method) when the resource defines one, so core.enter / core.exit
+// or `exit` Gad method) when the resource defines one, so gad.enter / gad.exit
 // can invoke it. Used for Gad objects (e.g. class instances) that provide the
 // hooks as methods rather than the Go ObjectEnter/ObjectExit interfaces.
 func resourceHookMethod(resource Object, name string) (CallerObject, bool) {
@@ -1591,7 +1591,7 @@ func resourceHookMethod(resource Object, name string) (CallerObject, bool) {
 	return nil, false
 }
 
-// BuiltinEnterFunc implements core.enter(resource), the entry half of a `with`
+// BuiltinEnterFunc implements gad.enter(resource), the entry half of a `with`
 // block: it runs the resource's Enter hook — the Go ObjectEnter interface or, for
 // Gad objects, an `enter()` method. A resource with neither is a no-op. Returns
 // the resource so it can be used directly.
@@ -1615,7 +1615,7 @@ func BuiltinEnterFunc(c Call) (ret Object, err error) {
 	return r, nil
 }
 
-// BuiltinExitFunc implements core.exit(resource, err), the exit half of a `with`
+// BuiltinExitFunc implements gad.exit(resource, err), the exit half of a `with`
 // block: it runs the resource's Exit hook — the Go ObjectExit interface or, for
 // Gad objects, an `exit(err)` method — passing any error raised in the block (nil
 // on normal exit). A resource with neither is a no-op.

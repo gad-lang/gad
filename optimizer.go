@@ -120,7 +120,7 @@ func NewOptimizer(
 // exprHasUserOperator reports whether expr (or a nested operand) uses a binary
 // operator the optimizer must not constant-fold: a user operator with no
 // built-in semantics (e.g. `<<<`), or `in` / `ain` / `===` / `!==` — all
-// dispatched at runtime through core.binOp and overridable via `met core.binOp`.
+// dispatched at runtime through gad.binOp and overridable via `met gad.binOp`.
 func exprHasUserOperator(expr node.Expr) bool {
 	switch e := expr.(type) {
 	case *node.BinaryExpr:

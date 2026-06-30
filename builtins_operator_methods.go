@@ -7,7 +7,7 @@ import (
 )
 
 // BinaryOp runs a binary operator on two objects through the per-operator
-// ObjectWith{Op}BinOperator dispatch (binOpObject), matching core.binOp.
+// ObjectWith{Op}BinOperator dispatch (binOpObject), matching gad.binOp.
 // Internal callers (sort, value comparisons) and embedders use it.
 func BinaryOp(vm *VM, tok token.Token, left, right Object) (Object, error) {
 	op := BinaryOperatorType(tok)
@@ -26,8 +26,8 @@ func BinaryOp(vm *VM, tok token.Token, left, right Object) (Object, error) {
 // binAinFallback computes `left ain right` (every value of the left operand is a
 // member of right) when right does not implement ObjectWithAinBinOperator: it
 // tests each value of left with the `in` membership operator, routed through
-// core.binOp so it resolves both Go containers (ObjectWithInBinOperator) and Gad
-// types that define `met core.binOp(_ TBinaryOperatorIn, …)`. A non-array left is
+// gad.binOp so it resolves both Go containers (ObjectWithInBinOperator) and Gad
+// types that define `met gad.binOp(_ TBinaryOperatorIn, …)`. A non-array left is
 // treated as a single value, so `x ain B` matches `x in B`; an empty left array
 // yields true.
 func binAinFallback(vm *VM, left, right Object) (Object, error) {
@@ -62,10 +62,10 @@ func binSameFallback(vm *VM, left, right Object) (Object, error) {
 	return Bool(AddressOf(left) == AddressOf(right)), nil
 }
 
-// operatorBinaryMethod is the default handler of core.binOp: it dispatches to
+// operatorBinaryMethod is the default handler of gad.binOp: it dispatches to
 // the left (or, for `in`, the right) operand's per-operator
 // ObjectWith{Op}BinOperator implementation via binOpObject. A user-defined
-// `met core.binOp(_ TBinaryOperatorX, left T, right U)` is more specific (its
+// `met gad.binOp(_ TBinaryOperatorX, left T, right U)` is more specific (its
 // operator and operand types are typed) and so takes precedence.
 func operatorBinaryMethod(c Call) (Object, error) {
 	op := c.Args.Get(0).(BinaryOperatorType)
@@ -82,10 +82,10 @@ func operatorBinaryMethod(c Call) (Object, error) {
 	return Nil, NewOperandTypeError(op.Token().String(), left.Type().Name(), right.Type().Name())
 }
 
-// operatorUnaryMethod is the default handler of core.unOp: it dispatches to the
+// operatorUnaryMethod is the default handler of gad.unOp: it dispatches to the
 // operand's per-operator ObjectWith{Op}UnaryOperator implementation via
 // unOpObject. The logical NOT (`!`) is universal and falls back to truthiness. A
-// user-defined `met core.unOp(_ TUnaryOperatorX, operand T)` is more specific and
+// user-defined `met gad.unOp(_ TUnaryOperatorX, operand T)` is more specific and
 // so takes precedence.
 func operatorUnaryMethod(c Call) (Object, error) {
 	op := c.Args.Get(0).(UnaryOperatorType)
@@ -101,7 +101,7 @@ func operatorUnaryMethod(c Call) (Object, error) {
 			operand.Type().Name() + "'")
 }
 
-// operatorSelfAssignMethod is the shared handler for core.selfAssignOp
+// operatorSelfAssignMethod is the shared handler for gad.selfAssignOp
 // overloads: it dispatches to the left operand's per-operator
 // ObjectWith{Op}SelfAssignOperator implementation (selfAssignOpObject) and, when
 // the operator is not handled, falls back to the binary operator (so `x op= y`
@@ -161,7 +161,7 @@ func registerOperatorMethods() {
 		operatorMethod("selfAssignOp", operatorSelfAssignMethod, TArray))
 
 	// Expose the primitive types' UnOp implementations as typed methods of
-	// core.unOp. The temporal types (time/duration/calendarDate/calendarTime)
+	// gad.unOp. The temporal types (time/duration/calendarDate/calendarTime)
 	// have no builtin-type key, so their UnOp implementations are reached through
 	// the default handler (unOpObject) instead.
 	unaryTypes := []ObjectType{
@@ -172,17 +172,17 @@ func registerOperatorMethods() {
 			unaryOperatorMethod("unOp", operatorUnaryMethod, t))
 	}
 
-	// Expose the operator functions under the global `core` namespace
-	// (core.binOp / core.selfAssignOp). Done here, after the methods are
+	// Expose the operator functions under the global `gad` namespace
+	// (gad.binOp / gad.selfAssignOp). Done here, after the methods are
 	// registered, so the namespace references the final method-bearing objects.
-	registerCoreModule()
+	registerGadModule()
 }
 
-// coreModuleSpec is the spec for the global `core` namespace.
-var coreModuleSpec = NewModuleSpecFromName("core")
+// gadModuleSpec is the spec for the global `gad` namespace.
+var gadModuleSpec = NewModuleSpecFromName("gad")
 
-// CoreModule returns the `core` builtin namespace (the operator functions).
-func CoreModule() Dict {
+// GadModule returns the `gad` builtin namespace (the operator functions).
+func GadModule() Dict {
 	return Dict{
 		"binOp":        BuiltinObjects[BuiltinBinaryOperator],
 		"selfAssignOp": BuiltinObjects[BuiltinSelfAssignOperator],
@@ -192,21 +192,21 @@ func CoreModule() Dict {
 	}
 }
 
-// registerCoreModule registers `core` as a global namespace whose members
+// registerGadModule registers `gad` as a global namespace whose members
 // `binOp` / `selfAssignOp` resolve to the existing operator builtins. The
 // qualified names map to the same builtin enums used by the VM's operator
-// dispatch, so `core.binOp(...)` and `met core.binOp(...)` share identity with
+// dispatch, so `gad.binOp(...)` and `met gad.binOp(...)` share identity with
 // it.
-func registerCoreModule() {
-	name := coreModuleSpec.Name
+func registerGadModule() {
+	name := gadModuleSpec.Name
 	setOperatorModule(BuiltinObjects[BuiltinBinaryOperator])
 	setOperatorModule(BuiltinObjects[BuiltinSelfAssignOperator])
 	setOperatorModule(BuiltinObjects[BuiltinUnaryOperator])
 	setOperatorModule(BuiltinObjects[BuiltinEnter])
 	setOperatorModule(BuiltinObjects[BuiltinExit])
 
-	BuiltinsMap[name] = BuiltinModuleCore
-	BuiltinObjects[BuiltinModuleCore] = CoreModule()
+	BuiltinsMap[name] = BuiltinModuleGad
+	BuiltinObjects[BuiltinModuleGad] = GadModule()
 	BuiltinsMap[name+".binOp"] = BuiltinBinaryOperator
 	BuiltinsMap[name+".selfAssignOp"] = BuiltinSelfAssignOperator
 	BuiltinsMap[name+".unOp"] = BuiltinUnaryOperator
@@ -218,8 +218,8 @@ func registerCoreModule() {
 func setOperatorModule(o Object) {
 	switch m := o.(type) {
 	case *BuiltinFunctionWithMethods:
-		m.Module = coreModuleSpec
+		m.Module = gadModuleSpec
 	case *BuiltinFunction:
-		m.Module = coreModuleSpec
+		m.Module = gadModuleSpec
 	}
 }
