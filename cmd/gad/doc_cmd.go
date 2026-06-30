@@ -68,8 +68,10 @@ func docCommand() *cc.Command {
 			if err := o.loadConfig(ctx.Flags()); err != nil {
 				return err
 			}
+			// Default to the current directory (recursive) so `gad doc` run
+			// inside any workspace dir generates docs without explicit PATH args.
 			if len(ctx.Args) == 0 && len(o.inputDirs) == 0 {
-				return fmt.Errorf("no input: provide PATH... or doc.input_dirs in the config")
+				ctx.Args = cc.Args{"..."}
 			}
 			return nil
 		},

@@ -54,7 +54,7 @@
       "patterns": [
         {
           "name": "keyword.control.gad",
-          "match": "\\b(?:deferb_err|defer_err|deferb_ok|continue|defer_ok|finally|export|deferb|global|import|return|const|break|defer|catch|match|param|embed|throw|func|prop|else|meti|with|raw|ain|for|try|var|met|in|if)\\b"
+          "match": "\\b(?:deferb_err|defer_err|deferb_ok|continue|defer_ok|finally|export|deferb|global|import|return|embed|catch|class|const|break|match|param|defer|throw|meti|else|prop|enum|func|with|raw|ain|for|try|var|met|in|if)\\b"
         },
         {
           "name": "constant.language.gad",

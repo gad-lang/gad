@@ -107,6 +107,30 @@ func TestDocNoSaveReportsOnly(t *testing.T) {
 	require.True(t, os.IsNotExist(err), "no output dir should be created")
 }
 
+func TestDocDefaultsToCurrentDirRecursive(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "sub"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.gad"), []byte("/// a value\nexport A = 1\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "sub", "b.gad"), []byte("/// b value\nexport B = 2\n"), 0o644))
+
+	orig, _ := os.Getwd()
+	require.NoError(t, os.Chdir(dir))
+	defer func() { _ = os.Chdir(orig) }()
+
+	var out, errBuf bytes.Buffer
+	// InputArgs is empty (no PATH) + --no-config so it won't look for .gad.yaml.
+	// ParseArgs should default to "..." and run() should produce doc/a.md + doc/sub/b.md.
+	inCtx := &cc.CommandContext{Out: &out, Err: &errBuf, InputArgs: cc.Args{"--no-config", "--no-doctest"}}
+	runCtx, err := docCommand().Parse(inCtx)
+	require.NoError(t, err)
+	require.NoError(t, runCtx.Run())
+
+	for _, rel := range []string{"doc/a.md", "doc/sub/b.md"} {
+		_, statErr := os.Stat(filepath.Join(dir, rel))
+		require.NoError(t, statErr, rel)
+	}
+}
+
 func TestDocResolveDirDst(t *testing.T) {
 	// per-dir dst is relative to the input dir path.
 	o := &docOptions{out: "/ws/doc", workspace: "/ws", dstSet: true}

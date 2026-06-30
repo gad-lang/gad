@@ -134,7 +134,7 @@ verification for full sign-off.
       TestDAPSession (evaluate). Format-on-save: registerDocumentFormattingEditProvider
       calls `gad fmt -` (stdin/stdout), respects gad.format.useConfig (--no-config
       flag) and gad.path; shows errors in a VS Code message. `(66725bb)`
-- [ ] create plugin like vscode to JetBrains.
+- [~] create plugin like vscode to JetBrains. (skipped by user)
 
 # Language
 
