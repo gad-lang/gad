@@ -45,11 +45,23 @@ export const gadGrammar: Grammar = {
   // before ordinary comments so their markers are not read as `//`/`/*`
   // comments. A block ends only at a line that is exactly the fence, so inline
   // `**bold**`/`***hr***` Markdown does not close it early.
+  // Inside blocks, ``` fence markers and `>>> ` result assertion lines are
+  // highlighted with distinct classes.
   "doc-comment": {
     pattern:
       /\/\*\*\*[\s\S]*?(?:^[ \t]*\*\*\*\/[ \t]*$|$(?![\s\S]))|\/\*\*[\s\S]*?(?:^[ \t]*\*\*\/[ \t]*$|$(?![\s\S]))|\/\/\/(?!\/).*/m,
     greedy: true,
     alias: "comment",
+    inside: {
+      "doc-code-fence": {
+        pattern: /^[ \t]*```[^\n]*/m,
+        alias: "punctuation",
+      },
+      "doc-result": {
+        pattern: /^>>> .*/m,
+        alias: "output",
+      },
+    },
   },
   comment: {
     pattern: /\/\/.*|\/\*[\s\S]*?(?:\*\/|$)/,

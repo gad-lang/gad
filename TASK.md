@@ -87,7 +87,7 @@ verification for full sign-off.
       → Ide setInspectTarget). Per-entry ↗ goto-source button: extractGadFile()
       parses workspace-relative .gad paths from repr values (module/compiledFunction);
       onGotoSource threaded through TreeNode→TreeNavigator→InspectDialog→Ide
-      (openFile). `(<COMMIT>)`
+      (openFile). `(78e942e)`
 - [x] doc panel renders Markdown with gad code highlighting: docMarkdown.ts
       (dependency-free) renders headings/lists/blockquotes/inline code+bold and
       fenced code blocks highlighted with the prism-gad grammar (Prism.highlight).

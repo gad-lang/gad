@@ -94,8 +94,29 @@ export function renderDocMarkdown(md: string): string {
       }
       code = code.replace(/\n$/, "");
       const grammar = Prism.languages[lang] || Prism.languages.gad;
-      const html = grammar ? Prism.highlight(code, grammar, lang) : escapeHtml(code);
-      out += `<pre class="doc-code language-${lang}"><code>${html}</code></pre>`;
+      // Highlight the block line-by-line so that `>>> ` result assertions
+      // are rendered with a distinct style rather than as code.
+      const codeLines = code.split("\n");
+      let codeHtml = "";
+      let pending: string[] = [];
+      const flushPending = () => {
+        if (!pending.length) return;
+        const src = pending.join("\n");
+        codeHtml += grammar ? Prism.highlight(src, grammar, lang) : escapeHtml(src);
+        if (codeHtml && !codeHtml.endsWith("\n")) codeHtml += "\n";
+        pending = [];
+      };
+      for (const ln of codeLines) {
+        if (ln.startsWith(">>> ")) {
+          flushPending();
+          codeHtml += `<span class="doc-result">${escapeHtml(ln)}</span>\n`;
+        } else {
+          pending.push(ln);
+        }
+      }
+      flushPending();
+      codeHtml = codeHtml.replace(/\n$/, "");
+      out += `<pre class="doc-code language-${lang}"><code>${codeHtml}</code></pre>`;
     } else {
       out += renderTextBlock(parts[i]);
     }

@@ -170,6 +170,12 @@ pre {
   white-space: pre-wrap;
   word-break: break-word;
 }
+/* `>>> result` assertion lines inside doc-comment code blocks. */
+.doc-result {
+  display: block;
+  color: var(--muted);
+  font-style: italic;
+}
 
 .formatted {
   color: var(--fg);
