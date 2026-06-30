@@ -1,0 +1,63 @@
+/***
+20_enum.gad — the `enum` keyword: an ordered set of named integer constants
+computed at compile time. Doc comments attach to the enum and its fields.
+***/
+
+/// Permissions, as auto-incrementing values. The first field is 1; each later
+/// field without a value is the previous + 1.
+enum Perm {
+    /// may read
+    Read
+    /// may write
+    Write
+    /// may execute (explicit; later fields resume from here)
+    Exec = 10
+    /// next after Exec
+    Delete
+}
+
+println("Perm.Read  =", Perm.Read.value)     // 1
+println("Perm.Exec  =", Perm.Exec.value)     // 10
+println("Perm.Delete=", Perm.Delete.value)   // 11
+
+// A member exposes name, value, index and its owning enum.
+println("name/index =", Perm.Exec.name, Perm.Exec.index)   // Exec 2
+
+// Index by name and iterate in declaration order.
+println("by name    =", Perm["Write"].value)  // 2
+out := []
+for name, v in Perm {
+    out = append(out, name + "=" + str(v.value))
+}
+println("iterate    =", out)   // [Read=1, Write=2, Exec=10, Delete=11]
+
+/// Flags uses `bit` for power-of-two values; a field may combine earlier ones.
+enum Flags {
+    /// 1 << 0
+    bit List
+    /// 1 << 1
+    Detail
+    /// 1 << 2
+    Create
+    /// List | Detail
+    Read = List | Detail
+}
+println("Flags.Create =", Flags.Create.value)  // 4
+println("Flags.Read   =", Flags.Read.value)    // 3 (List | Detail)
+
+/// Signed uses `+`/`-`: a sign makes a field a signed int and propagates to
+/// later defaulted fields; `+` flips the running sign back to positive.
+enum Signed {
+    -Low      // -1
+    Lower     // -2 (sign propagates)
+    +High     // 3  (sign flipped positive)
+    Higher    // 4
+}
+println("Signed       =",
+    Signed.Low.value, Signed.Lower.value, Signed.High.value, Signed.Higher.value)  // -1 -2 3 4
+
+// The expression form yields an anonymous enum value.
+Color := enum { Red, Green, Blue }
+println("Color.Green  =", Color.Green.value)   // 2
+
+return Perm.Delete.value

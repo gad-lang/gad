@@ -28,6 +28,8 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
    properties, constructors, inheritance and `met` extensions.
    - [Func Headers and Method Interfaces](method-interfaces.md) — `<…>` header
      values, `meti` interfaces and `implements`.
+   - [Enums](enums.md) — the `enum` keyword: ordered named integer constants,
+     signs, bit flags and computed values.
 9. [Strings, Bytes and Regex](strings-bytes-regex.md) — string forms, raw
    strings, heredocs, template strings, **bytes literals** (`b"…"`, `h"…"`) and
    `/regex/` literals.

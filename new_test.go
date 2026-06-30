@@ -721,6 +721,10 @@ func TestVMEnum(t *testing.T) {
 	out := []
 	for k, v in Perm { out = append(out, k + "=" + str(v.value)) }
 	return out`, nil, Array{Str("Read=1"), Str("Write=2")})
+
+	// indexGet of an unknown member errors.
+	expectErrIs(t, `enum Perm { Read }
+	return Perm["Nope"]`, nil, ErrInvalidIndex)
 }
 
 func TestVMDeferStmt(t *testing.T) {

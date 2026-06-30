@@ -14,12 +14,17 @@ var (
 	_ Iterabler       = (*Enum)(nil)
 )
 
+// Enum is an ordered, named set of integer constants produced by the `enum`
+// syntax. It is also an ObjectType: each member is an EnumValue whose Type() is
+// the owning Enum. An Enum is immutable after construction, indexable by member
+// name and iterable in declaration order.
 type Enum struct {
 	EnumName string
 	Values   map[string]*EnumValue
 	Module   *ModuleSpec
 }
 
+// NewEnum returns an empty Enum; members are added in order with AddValue.
 func NewEnum(enumName string, module *ModuleSpec) *Enum {
 	return &Enum{EnumName: enumName, Module: module, Values: make(map[string]*EnumValue, 0)}
 }
@@ -43,6 +48,9 @@ func (e *Enum) String() string {
 func (e *Enum) GadObjectType() {
 }
 
+// AddValue appends a member with the given name and underlying int/uint value.
+// Its Index is the current member count, so members added in source order keep
+// that order.
 func (e *Enum) AddValue(name string, value Object) {
 	e.Values[name] = &EnumValue{
 		Enum:  e,
@@ -161,6 +169,9 @@ var (
 	_ IndexGetter = (*EnumValue)(nil)
 )
 
+// EnumValue is a single member of an Enum: its declaration Index, owning Enum,
+// Name and the underlying Int/Uint Value. Its members are reachable from Gad as
+// `.name`, `.value`, `.index` and `.enum`.
 type EnumValue struct {
 	Index int
 	Enum  *Enum

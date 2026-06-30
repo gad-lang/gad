@@ -333,18 +333,27 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 			// by their own nodes (the position machinery does not reach inside).
 			ctx.claimLeadDoc(t.Doc, &t.ClassExpr)
 			ctx.claimClassBodyDocs(&t.ClassExpr)
+		case *EnumStmt:
+			ctx.claimLeadDoc(t.Doc, &t.EnumExpr)
+			ctx.claimEnumBodyDocs(&t.EnumExpr)
 		case *AssignStmt:
-			// expression-form class, e.g. `X := class { … }`: its lead doc stays
-			// with the statement (position machinery), but its body docs are
-			// claimed so they travel with the field/member nodes.
+			// expression-form class/enum, e.g. `X := class { … }`: its lead doc
+			// stays with the statement (position machinery), but its body docs
+			// are claimed so they travel with the field/member nodes.
 			for _, rhs := range t.RHS {
 				if ce, _ := rhs.(*ClassExpr); ce != nil {
 					ctx.claimClassBodyDocs(ce)
+				}
+				if ee, _ := rhs.(*EnumExpr); ee != nil {
+					ctx.claimEnumBodyDocs(ee)
 				}
 			}
 		case *ExprStmt:
 			if ce, _ := t.Expr.(*ClassExpr); ce != nil {
 				ctx.claimClassBodyDocs(ce)
+			}
+			if ee, _ := t.Expr.(*EnumExpr); ee != nil {
+				ctx.claimEnumBodyDocs(ee)
 			}
 		}
 	}
@@ -385,6 +394,14 @@ func (ctx *CodeWriteContext) claimClassBodyDocs(e *ClassExpr) {
 		for _, fm := range m.Methods {
 			ctx.claimDoc(fm.Doc)
 		}
+	}
+}
+
+// claimEnumBodyDocs claims the doc comments of an enum's fields so each is
+// emitted in place by its own field node instead of being flushed at the end.
+func (ctx *CodeWriteContext) claimEnumBodyDocs(e *EnumExpr) {
+	for _, f := range e.Fields {
+		ctx.claimDoc(f.Doc)
 	}
 }
 

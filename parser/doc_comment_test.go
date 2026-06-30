@@ -115,3 +115,41 @@ func TestDocCommentClassRoundTrip(t *testing.T) {
 		require.Equal(t, src, out, "class body docs should round-trip in place")
 	}
 }
+
+func TestDocCommentAttachEnum(t *testing.T) {
+	src := "/// permissions\n" +
+		"enum Perm {\n\t/// may read\n\tRead\n\tWrite\n}\n"
+	file := parseDoc(t, src)
+	es, ok := file.Stmts[0].(*EnumStmt)
+	require.True(t, ok, "want *EnumStmt, got %T", file.Stmts[0])
+	require.NotNil(t, es.Doc)
+	require.Equal(t, "/// permissions", es.Doc.List[0].Text)
+	require.Len(t, es.Fields, 2)
+	require.NotNil(t, es.Fields[0].Doc, "field doc should be attached")
+	require.Equal(t, "/// may read", es.Fields[0].Doc.List[0].Text)
+	require.Nil(t, es.Fields[1].Doc)
+}
+
+func TestDocCommentEnumRoundTrip(t *testing.T) {
+	for _, src := range []string{
+		"enum P {\n\t/// a doc\n\tA\n\tB\n}",
+		"P := enum {\n\t/// a doc\n\tA\n\tB\n}",
+	} {
+		fs := source.NewFileSet()
+		f := fs.AddFileData("doc", -1, []byte(src))
+		file, err := NewParserWithOptions(f, &ParserOptions{Mode: ParseComments}, nil).ParseFile()
+		require.NoError(t, err)
+		out := Code(file.Stmts, CodeWithComments(f, file.Comments), CodeWithPrefix("\t"))
+		require.Equal(t, src, out, "enum body docs should round-trip in place")
+	}
+}
+
+func TestDocCommentBlockDelimitsGroup(t *testing.T) {
+	// A fenced block doc must not absorb an immediately following `///` lead doc;
+	// the root block stays detached and the `///` documents the statement.
+	src := "/***\nmodule doc\n***/\n/// the addr\nconst Addr = \":0\"\n"
+	file := parseDoc(t, src)
+	gd := file.Stmts[0].(*DeclStmt).Decl.(*GenDecl)
+	require.NotNil(t, gd.Doc, "the `///` should attach, not be absorbed by the root block")
+	require.Equal(t, "/// the addr", gd.Doc.List[0].Text)
+}

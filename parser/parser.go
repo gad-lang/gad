@@ -4203,6 +4203,12 @@ func (p *Parser) consumeCommentGroup(n int) (comments *ast.CommentGroup) {
 		var comment *ast.Comment
 		comment, endline = p.consumeComment()
 		list = append(list, comment)
+		// A fenced block doc (`/**…**/`, `/***…***/`) is self-delimiting: end the
+		// group here so an immediately following comment (e.g. a `///` lead doc on
+		// the next line) is not absorbed into it.
+		if strings.HasPrefix(comment.Text, "/**") {
+			break
+		}
 	}
 
 	comments = &ast.CommentGroup{List: list}
