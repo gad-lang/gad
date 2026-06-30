@@ -288,40 +288,21 @@ func (o *docOptions) processArg(ctx *cc.CommandContext, arg, dst, base string) e
 }
 
 // processFile renders a single .gad file to Markdown and writes it under dst,
-// preserving its path relative to base.
+// preserving its path relative to base. The rendering itself (and the output
+// path) is done by DocGenerator.FromFile, which performs no file I/O; this method
+// owns the read and the write.
 func (o *docOptions) processFile(ctx *cc.CommandContext, path, dst, base string) error {
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	md, err := generateDoc(path, src, o.mustExported)
+
+	gen := &DocGenerator{Context: ctx, MustExported: o.mustExported, NoTest: o.noDoctest}
+	md, outPath, failed, err := gen.FromFile(src, path, dst, base)
 	if err != nil {
-		return fmt.Errorf("%s: %w", path, err)
+		return err
 	}
-
-	if !o.noDoctest {
-		for _, r := range checkFileExamples(path, src) {
-			if r.err != nil {
-				o.examplesFailed++
-				fmt.Fprintf(ctx.Err, "doc: %s:%d: example failed: %s\n", path, r.line, r.err)
-			}
-		}
-	}
-
-	// Mirror the source path under dst relative to base. base and path may not
-	// share the same abs/rel form (e.g. base is the config-derived absolute
-	// workspace while path is cwd-relative from a recursive "." scan), so
-	// normalize both to absolute before computing the relative path; otherwise
-	// filepath.Rel fails and the tree is flattened to base names.
-	absBase, baseErr := filepath.Abs(base)
-	absPath, pathErr := filepath.Abs(path)
-	rel := filepath.Base(path)
-	if baseErr == nil && pathErr == nil {
-		if r, err := filepath.Rel(absBase, absPath); err == nil && !strings.HasPrefix(r, "..") {
-			rel = r
-		}
-	}
-	outPath := filepath.Join(dst, strings.TrimSuffix(rel, filepath.Ext(rel))+".md")
+	o.examplesFailed += failed
 
 	if o.noSave {
 		fmt.Fprintln(ctx.Out, outPath)
