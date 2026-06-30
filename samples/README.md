@@ -48,6 +48,7 @@ layout settings are stored in [`.gad.yaml`](.gad.yaml).
 | `19_class_syntax.gad`         | the `class` keyword (expression + statement forms) |
 | `20_enum.gad`                 | the `enum` keyword: values, signs, bit flags, members |
 | `21_heredocs.gad`             | heredocs `"""…"""` / `` ```…``` `` and template heredocs |
+| `22_key_value_array.gad`      | `keyValue` / `keyValueArray` (`(;…)`): flags, funcs, typed keys |
 
 ## Modules
 

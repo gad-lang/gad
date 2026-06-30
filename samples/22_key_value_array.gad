@@ -1,0 +1,64 @@
+/***
+22_key_value_array.gad — keyValue (`[k=v]`) and keyValueArray (`(;…)`): an
+ordered list of key=value pairs (duplicate keys allowed) — the literal form
+behind named arguments.
+***/
+
+// --- keyValue: a single pair ---
+pair := [color = "red"]
+println("k/v/array:", pair.k, pair.v, pair.array)   // color red ["color", "red"]
+
+// --- keyValueArray: ordered pairs ---
+kva := (; a = 1, b = 2)
+println("kva:", str(kva))                            // (;a=1, b=2)
+
+// keys may be identifiers, strings, numbers, booleans or a dynamic [(expr)=v].
+keys := (; name = "x", "a b" = 1, 42 = 2, true = 3, [("k" + "1") = 9])
+println("keys:", str(keys))   // (;name="x", "a b"=1, 42=2, true=3, k1=9)
+
+// --- flags: a bare key is `yes`; `=no` drops the entry ---
+flags := (; debug, verbose = no, level = 3)
+println("flags:", str(flags))                // (;debug, level=3)
+println("flag debug:", flags.flag("debug"))  // true
+println("flag verbose:", flags.flag("verbose"))  // false
+
+// --- function and closure values ---
+fns := (; greet() => "hi", add(a, b) => a + b, twice(x) { return x * 2 })
+println("greet:", fns[0].v())          // hi
+println("add:", fns[1].v(2, 3))        // 5
+println("twice:", fns[2].v(4))         // 8
+
+// --- typed keys: `name Type` carries the declared type as metadata on the key ---
+// (the same form types a function's named parameters, e.g. `func(; n int = 0)`).
+typed := (; id int, label str = "none")
+println("typed name:", typed[0].k.name)      // id
+println("typed has type:", len(typed[0].k.types) == 1)  // true
+println("typed value:", typed[1].v)          // none
+
+// --- duplicate keys are preserved; values()/delete() act on names ---
+dup := (; tag = 1, tag = 2, name = 3)
+println("values(tag):", dup.values("tag"))       // [1, 2]
+println("values():", dup.values())               // [1, 2, 3]
+println("delete(tag):", str(dup.delete("tag")))  // (;name=3)
+
+// --- indexing yields the keyValue; entries are mutable ---
+m := (; x = 1)
+m[0].v = 99
+println("mutated:", str(m))     // (;x=99)
+
+// --- spread merges another keyValueArray ---
+base := (; a = 1, b = 2)
+merged := (; head = 0, **base)
+println("merged:", str(merged))  // (;head=0, a=1, b=2)
+
+// --- iterate (key, value), and convert to a dict ---
+for k, v in base {
+    println("  iter:", k, "=", v)   // a = 1 / b = 2
+}
+println("dict:", dict(base))        // {a: 1, b: 2}
+
+// --- it is exactly the named-argument form: spread it into a call ---
+show := func(; a = 0, b = 0, **rest) => [a, b, dict(rest)]
+println("as named args:", show(; **(; a = 1, b = 2, c = 3)))  // [1, 2, {c: 3}]
+
+return str(kva)

@@ -155,8 +155,9 @@ parentheses where a block would otherwise be parsed: `({})`.
 
 ## keyValue and keyValueArray
 
-A `key=value` pair is its own value, and a parenthesised `;`-prefixed list is a
-`keyValueArray` — the literal form behind named arguments.
+A `key=value` pair (`[k=v]`) is its own value, and a parenthesised `;`-prefixed
+list is a `keyValueArray` — an **ordered** list of pairs (duplicate keys allowed)
+and the literal form behind named arguments.
 
 ```go
 println([a=1])              // [a=1]            (keyValue)
@@ -164,6 +165,26 @@ println((;a=1, b=2))        // (;a=1, b=2)      (keyValueArray)
 println(typeName([a=1]))    // keyValue
 println(typeName((;a=1)))   // keyValueArray
 ```
+
+A keyValue exposes `.k`, `.v` and `.array` (`[k, v]`); within a keyValueArray the
+entries are mutable (`kva[i].v = …`).
+
+Keys may be identifiers, strings, numbers, booleans, or a dynamic `[(expr)=v]`.
+A bare key is a **flag** (`yes`); `=no` drops the entry. Values are any
+expression — including **functions and closures**. A key may also be **typed**
+(`name Type`), which records the type as metadata (the same form types named
+parameters, e.g. `func(; n int = 0)`):
+
+```go
+(; debug, verbose=no, level=3)          // (;debug, level=3)
+(; greet() => "hi", add(a, b) => a + b) // closure/func values
+(; id int, label str = "none")          // typed keys
+```
+
+Useful methods: `.flag(name)`, `.values(names…)` (all values, or only those
+named), `.delete(names…)`, and `**` spreads another keyValueArray. Iterate it as
+`for k, v in kva`, and `dict(kva)` converts it (last value per key wins). See
+[`samples/22_key_value_array.gad`](../samples/22_key_value_array.gad).
 
 ## Nil
 
