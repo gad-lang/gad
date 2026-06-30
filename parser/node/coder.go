@@ -328,6 +328,24 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 			for _, h := range t.Headers {
 				ctx.claimLeadDoc(h.Doc, h)
 			}
+		case *ClassStmt:
+			// The class lead doc precedes `class Name`; the body docs are emitted
+			// by their own nodes (the position machinery does not reach inside).
+			ctx.claimLeadDoc(t.Doc, &t.ClassExpr)
+			ctx.claimClassBodyDocs(&t.ClassExpr)
+		case *AssignStmt:
+			// expression-form class, e.g. `X := class { … }`: its lead doc stays
+			// with the statement (position machinery), but its body docs are
+			// claimed so they travel with the field/member nodes.
+			for _, rhs := range t.RHS {
+				if ce, _ := rhs.(*ClassExpr); ce != nil {
+					ctx.claimClassBodyDocs(ce)
+				}
+			}
+		case *ExprStmt:
+			if ce, _ := t.Expr.(*ClassExpr); ce != nil {
+				ctx.claimClassBodyDocs(ce)
+			}
 		}
 	}
 	if len(ctx.docClaim) == 0 {
@@ -340,6 +358,34 @@ func (ctx *CodeWriteContext) claimLeadDocs(stmts []Stmt) {
 		}
 	}
 	ctx.comments = filtered
+}
+
+// claimClassBodyDocs claims the doc comments of a class body — fields, the
+// `props`/`new`/`methods` group keywords, the property/method entries and their
+// accessor/overload methods — so each is emitted in place by its own node
+// instead of being flushed by position at the end of the file.
+func (ctx *CodeWriteContext) claimClassBodyDocs(e *ClassExpr) {
+	for _, f := range e.Fields {
+		ctx.claimDoc(f.Doc)
+	}
+	ctx.claimDoc(e.PropsDoc)
+	for _, m := range e.Props {
+		ctx.claimDoc(m.Doc)
+		for _, fm := range m.Methods {
+			ctx.claimDoc(fm.Doc)
+		}
+	}
+	ctx.claimDoc(e.NewDoc)
+	for _, fm := range e.New {
+		ctx.claimDoc(fm.Doc)
+	}
+	ctx.claimDoc(e.MethodsDoc)
+	for _, m := range e.Methods {
+		ctx.claimDoc(m.Doc)
+		for _, fm := range m.Methods {
+			ctx.claimDoc(fm.Doc)
+		}
+	}
 }
 
 // claimLeadDoc claims g as the lead doc of n when g precedes n; trailing/inline

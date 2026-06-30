@@ -80,3 +80,38 @@ func TestDocCommentAttachFuncStmt(t *testing.T) {
 	require.NotNil(t, fe.Doc, "FuncExpr.Doc should be attached")
 	require.Equal(t, "/// sum values", fe.Doc.List[0].Text)
 }
+
+func TestDocCommentAttachClass(t *testing.T) {
+	src := "/// a 2D point\n" +
+		"class Point {\n" +
+		"\t/// x coord\n\tx = 0\n" +
+		"\tmethods {\n\t\t/// distance\n\t\tdist() => x\n\t}\n" +
+		"}\n"
+	file := parseDoc(t, src)
+	cs, ok := file.Stmts[0].(*ClassStmt)
+	require.True(t, ok, "want *ClassStmt, got %T", file.Stmts[0])
+	require.NotNil(t, cs.Doc, "class doc should be attached")
+	require.Equal(t, "/// a 2D point", cs.Doc.List[0].Text)
+	require.Len(t, cs.Fields, 1)
+	require.NotNil(t, cs.Fields[0].Doc, "field doc should be attached")
+	require.Equal(t, "/// x coord", cs.Fields[0].Doc.List[0].Text)
+	require.Len(t, cs.Methods, 1)
+	require.NotNil(t, cs.Methods[0].Doc, "method doc should be attached")
+	require.Equal(t, "/// distance", cs.Methods[0].Doc.List[0].Text)
+}
+
+func TestDocCommentClassRoundTrip(t *testing.T) {
+	// Class body doc comments are emitted in place by the formatter (not flushed
+	// at the end of the file), for both the statement and expression forms.
+	for _, src := range []string{
+		"class P {\n\t/// x doc\n\tx = 0\n\tmethods {\n\t\t/// m doc\n\t\tf() => x\n\t}\n}",
+		"P := class {\n\t/// x doc\n\tx = 0\n\tmethods {\n\t\t/// m doc\n\t\tf() => x\n\t}\n}",
+	} {
+		fs := source.NewFileSet()
+		f := fs.AddFileData("doc", -1, []byte(src))
+		file, err := NewParserWithOptions(f, &ParserOptions{Mode: ParseComments}, nil).ParseFile()
+		require.NoError(t, err)
+		out := Code(file.Stmts, CodeWithComments(f, file.Comments), CodeWithPrefix("\t"))
+		require.Equal(t, src, out, "class body docs should round-trip in place")
+	}
+}
