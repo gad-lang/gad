@@ -1,0 +1,51 @@
+/***
+21_heredocs.gad — heredocs and template heredocs.
+
+  """ ... """     heredoc      -> str     (escapes interpreted, indent stripped)
+  ``` ... ```     raw heredoc  -> rawStr  (verbatim: no escapes, no interpolation)
+  #""" ... """    template heredoc      (str, with {expr} interpolation)
+  #``` ... ```    template raw heredoc  (rawStr, verbatim, with {expr})
+***/
+
+// --- heredoc: single line ---
+// The fence is three quotes, so a doubled quote inside is literal text.
+println("""abc""")          // abc
+println("""abc""de""")      // abc""de
+
+// escape sequences are interpreted, like a normal "..." string.
+println("""tab\tend""")     // tab<TAB>end
+println("""quote: \"x\"""") // quote: "x"
+
+// --- heredoc: multi line ---
+// The common leading indentation is stripped, so the body stays aligned with
+// the surrounding code; escapes are then processed.
+poem := """
+    roses are red
+    violets are blue
+    """
+println(poem)               // roses are red\nviolets are blue
+
+// --- raw heredoc: verbatim (no escapes, no interpolation) ---
+// Braces are literal text here (this is not a template), so {x} need not exist.
+println(```a {x} b```)      // a {x} b
+
+// multi line raw heredoc strips the common indentation; backslashes are kept
+// verbatim (no escape processing).
+verbatim := ```
+    C:\tmp\file
+    line two
+    ```
+println(verbatim)           // C:\tmp\file<newline>line two
+
+// --- template heredoc: #""" ... """ (interpolated, escapes interpreted) ---
+name := "Gad"
+n := 3
+println(#"""
+    hello {name}
+    {n} + 1 = {n + 1}
+    """)                    // hello Gad\n3 + 1 = 4
+
+// --- template raw heredoc: #``` ... ``` (interpolated, escapes verbatim) ---
+println(#```path: C:\tmp\{name}```)  // path: C:\tmp\Gad
+
+return poem

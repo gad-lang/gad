@@ -42,16 +42,38 @@ raw-string literal (`` raw `a\nb` ``) when you want to keep the backslashes.
 
 ## Heredocs
 
-A heredoc is delimited by a fence of three or more `"` (or `` ` `` for the raw
-form). Leading indentation is stripped to match the closing fence, so heredocs
-stay aligned with surrounding code.
+A heredoc is delimited by a fence of three or more `"` — the `"""…"""` form is a
+`str` (escape sequences interpreted), and the `` ```…``` `` form is a **raw**
+`rawStr` (verbatim: no escapes, no interpolation). Because the fence is three
+quotes, a single `"` (or `` ` ``) inside the body is just text.
+
+```go
+"""abc"""            // abc
+"""abc""de"""        // abc""de   (a doubled quote is literal)
+"""tab\tend"""       // tab<TAB>end   (escapes interpreted)
+```
+
+In the multi-line form the opening and closing fence lines are dropped and the
+**common leading indentation is stripped**, so a heredoc stays aligned with the
+surrounding code:
 
 ```go
 s := """
-  line1
-  line2
-  """
-println(s)   // line1\nline2
+    line1
+    line2
+    """
+println(s)           // line1\nline2
+```
+
+The raw `` ```…``` `` form keeps its body verbatim — backslashes and `{…}` braces
+are literal, and indentation is still stripped:
+
+```go
+raw := ```
+    C:\tmp\file
+    {not interpolated}
+    ```
+println(raw)         // C:\tmp\file\n{not interpolated}
 ```
 
 ## Code Strings (`code … end`)
@@ -99,6 +121,20 @@ name := "Gad"
 println(#"Hello {name}!")     // Hello Gad!
 println(#"sum = {2 + 3}")     // sum = 5
 println(#`raw {name}`)        // raw Gad
+```
+
+The `#` prefix works on the heredoc forms too — `#"""…"""` (interpreted, `str`)
+and `` #```…``` `` (verbatim, `rawStr`) — combining `{expr}` interpolation with
+indentation stripping:
+
+```go
+name := "Gad"
+s := #"""
+    hello {name}
+    {2 + 3} done
+    """
+println(s)                    // hello Gad\n5 done
+println(#```C:\tmp\{name}```) // C:\tmp\Gad   (verbatim backslashes)
 ```
 
 ## Bytes
