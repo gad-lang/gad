@@ -35,10 +35,13 @@ type docOptions struct {
 	noSkip    bool   // --no-skip forces skip=false
 	noSave    bool   // --no-save: do not write any file
 	noDoctest bool   // --no-doctest: skip running embedded examples
-	config    string
-	noConfig  bool
-	inputDirs []docInputDir
-	workspace string // WORKSPACE_DIR (config dir, else cwd)
+	// mustExported (--must-exported / doc.must_exported): document only exported
+	// symbols. When false (default) the output also has an "Internal" section.
+	mustExported bool
+	config       string
+	noConfig     bool
+	inputDirs    []docInputDir
+	workspace    string // WORKSPACE_DIR (config dir, else cwd)
 
 	examplesFailed int // count of failed embedded examples
 }
@@ -88,6 +91,7 @@ func (o *docOptions) registerFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&o.noSkip, "no-skip", false, "force doc.skip to false")
 	fs.BoolVar(&o.noSave, "no-save", false, "do not write any file (render and report only)")
 	fs.BoolVar(&o.noDoctest, "no-doctest", false, "do not run the ```gad examples embedded in doc comments")
+	fs.BoolVar(&o.mustExported, "must-exported", false, "document only exported symbols (omit the Internal section)")
 	fs.StringVar(&o.config, "config", "", "YAML config file with default flag values (default "+defaultCfgFile+")")
 	fs.BoolVar(&o.noConfig, "no-config", false, "do not read the config file")
 }
@@ -134,9 +138,10 @@ func (o *docOptions) loadConfig(fs *flag.FlagSet) error {
 		return nil
 	}
 	var cfg struct {
-		Dst       string        `yaml:"dst"`
-		Skip      bool          `yaml:"skip"`
-		InputDirs []docInputDir `yaml:"input_dirs"`
+		Dst          string        `yaml:"dst"`
+		Skip         bool          `yaml:"skip"`
+		MustExported bool          `yaml:"must_exported"`
+		InputDirs    []docInputDir `yaml:"input_dirs"`
 	}
 	b, _ := yaml.Marshal(section)
 	if err = yaml.Unmarshal(b, &cfg); err != nil {
@@ -148,6 +153,9 @@ func (o *docOptions) loadConfig(fs *flag.FlagSet) error {
 		o.dstSet = true
 	}
 	o.skip = cfg.Skip
+	if !setOnCLI["must-exported"] {
+		o.mustExported = cfg.MustExported
+	}
 	o.inputDirs = cfg.InputDirs
 	o.finalize()
 	return nil
@@ -286,7 +294,7 @@ func (o *docOptions) processFile(ctx *cc.CommandContext, path, dst, base string)
 	if err != nil {
 		return err
 	}
-	md, err := generateDoc(path, src)
+	md, err := generateDoc(path, src, o.mustExported)
 	if err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}

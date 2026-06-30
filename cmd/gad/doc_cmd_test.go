@@ -17,12 +17,12 @@ func newDocCtx(args ...string) (*cc.CommandContext, *bytes.Buffer, *bytes.Buffer
 }
 
 func TestGenerateDocModuleHeadingAndErrors(t *testing.T) {
-	// No exports: just the heading.
-	md, err := generateDoc("foo/bar.gad", []byte("x := 1\n"))
+	// No exports and no documented internals: just the heading.
+	md, err := generateDoc("foo/bar.gad", []byte("x := 1\n"), false)
 	require.NoError(t, err)
 	require.Equal(t, "# bar\n", md)
 
-	_, err = generateDoc("bad.gad", []byte("const = \n"))
+	_, err = generateDoc("bad.gad", []byte("const = \n"), false)
 	require.Error(t, err)
 }
 
@@ -30,7 +30,7 @@ func TestGenerateDocSections(t *testing.T) {
 	src := "/***\nmodule overview.\n***/\n\n" +
 		"/// the pi value\nexport Pi = 3.14\n\n" +
 		"/// returns a + b\nexport func sum(a, b) { return a + b }\n"
-	md, err := generateDoc("m.gad", []byte(src))
+	md, err := generateDoc("m.gad", []byte(src), true)
 	require.NoError(t, err)
 
 	require.Contains(t, md, "# m\n")
@@ -51,7 +51,7 @@ func TestGenerateDocFuncWithMethods(t *testing.T) {
 		"export func diff {\n" +
 		"\t/// difference of two ints\n\t(a int, b int) => b - a\n\n" +
 		"\t/// difference of two floats\n\t(a float, b float) => b - a\n}\n"
-	md, err := generateDoc("m.gad", []byte(src))
+	md, err := generateDoc("m.gad", []byte(src), true)
 	require.NoError(t, err)
 
 	require.Contains(t, md, "### func **diff**")
@@ -67,7 +67,7 @@ func TestGenerateDocDictExport(t *testing.T) {
 	src := "/// public API\nexport {\n" +
 		"\t/// the max retries\n\tmaxRetries: 3,\n" +
 		"\t/// compute the area\n\tarea: func(r) { return r * r },\n}\n"
-	md, err := generateDoc("m.gad", []byte(src))
+	md, err := generateDoc("m.gad", []byte(src), true)
 	require.NoError(t, err)
 
 	require.Contains(t, md, "### const **maxRetries**")
@@ -160,6 +160,72 @@ func TestDocPreservesTreeWithConfig(t *testing.T) {
 	// The flattened path must NOT exist.
 	_, err = os.Stat(filepath.Join(dir, "doc", "b.md"))
 	require.True(t, os.IsNotExist(err), "doc/b.md (flattened) must not exist")
+}
+
+func TestGenerateDocExportedAndInternal(t *testing.T) {
+	src := "/// the pi value\nexport Pi = 3.14\n\n" +
+		"/// double a number\ndbl := (x) => x * 2\n\n" +
+		"/// the retry budget\nmaxRetries := 5\n\n" +
+		"/// internal sum\nfunc isum(a, b) { return a + b }\n"
+
+	// Default (must-exported false): two root sections, both populated.
+	md, err := generateDoc("m.gad", []byte(src), false)
+	require.NoError(t, err)
+	require.Contains(t, md, "## Exported")
+	require.Contains(t, md, "## Internal")
+	// Exported entry stays under Exported; internals are documented too.
+	require.Contains(t, md, "### const **Pi**")
+	require.Contains(t, md, "### func **dbl**")       // closure -> Type
+	require.Contains(t, md, "### var **maxRetries**") // value -> Constant
+	require.Contains(t, md, "### func **isum**")      // func statement -> Type
+	require.Contains(t, md, "double a number")
+	require.Contains(t, md, "internal sum")
+
+	// must-exported true: no Internal section, flat layout.
+	md2, err := generateDoc("m.gad", []byte(src), true)
+	require.NoError(t, err)
+	require.NotContains(t, md2, "## Internal")
+	require.NotContains(t, md2, "## Exported")
+	require.Contains(t, md2, "## Constants")
+	require.Contains(t, md2, "### const **Pi**")
+	require.NotContains(t, md2, "maxRetries") // internal omitted
+	require.NotContains(t, md2, "isum")
+}
+
+func TestDocMustExportedFlagAndConfig(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "m.gad"),
+		[]byte("/// exported\nexport A = 1\n\n/// internal\nb := 2\n"), 0o644))
+
+	orig, _ := os.Getwd()
+	require.NoError(t, os.Chdir(dir))
+	defer func() { _ = os.Chdir(orig) }()
+
+	run := func(args ...string) {
+		var out, errBuf bytes.Buffer
+		in := append([]string{"--no-doctest"}, append(args, "m.gad")...)
+		inCtx := &cc.CommandContext{Out: &out, Err: &errBuf, InputArgs: cc.Args(in)}
+		runCtx, err := docCommand().Parse(inCtx)
+		require.NoError(t, err)
+		require.NoError(t, runCtx.Run())
+	}
+	read := func() string {
+		b, err := os.ReadFile(filepath.Join(dir, "doc", "m.md"))
+		require.NoError(t, err)
+		return string(b)
+	}
+
+	run("--no-config")
+	require.Contains(t, read(), "## Internal")
+
+	run("--no-config", "--must-exported")
+	require.NotContains(t, read(), "## Internal")
+
+	// Config key must_exported: true is honoured when the flag is absent.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".gad.yaml"),
+		[]byte("doc:\n  must_exported: true\n"), 0o644))
+	run()
+	require.NotContains(t, read(), "## Internal")
 }
 
 func TestDocResolveDirDst(t *testing.T) {
