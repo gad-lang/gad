@@ -3,10 +3,56 @@ import { EditorState, Extension, Compartment, StateEffect } from "@codemirror/st
 import { EditorView, keymap } from "@codemirror/view";
 import { defaultKeymap, indentWithTab, undo, redo } from "@codemirror/commands";
 import { oneDark } from "@codemirror/theme-one-dark";
+import { StreamLanguage } from "@codemirror/language";
 import { basicSetup } from "codemirror";
 import { gad, type DiagnoseFn } from "@gad-lang/codemirror-gad";
+import { json } from "@codemirror/lang-json";
+import { html } from "@codemirror/lang-html";
+import { css } from "@codemirror/lang-css";
+import { javascript } from "@codemirror/lang-javascript";
+import { yaml as yamlMode } from "@codemirror/legacy-modes/mode/yaml";
 import { breakpointGutter, getBreakpointLines, setEditorBreakpoints } from "./breakpointGutter";
 import { debugDecorations, setDebugLoc, type LocalVar } from "./debugDecorations";
+
+export type EditorLanguage =
+  | "gad"
+  | "json"
+  | "yaml"
+  | "html"
+  | "css"
+  | "scss"
+  | "javascript"
+  | "typescript"
+  | "jsx"
+  | "tsx"
+  | "text";
+
+/** Return the CodeMirror Extension for the given language. */
+function langExtension(lang: EditorLanguage, diagnose?: DiagnoseFn): Extension {
+  switch (lang) {
+    case "gad":
+      return gad({ diagnose });
+    case "json":
+      return json();
+    case "yaml":
+      return StreamLanguage.define(yamlMode);
+    case "html":
+      return html();
+    case "css":
+    case "scss":
+      return css();
+    case "javascript":
+      return javascript();
+    case "typescript":
+      return javascript({ typescript: true });
+    case "jsx":
+      return javascript({ jsx: true });
+    case "tsx":
+      return javascript({ jsx: true, typescript: true });
+    default:
+      return []; // plain text — no syntax
+  }
+}
 
 export interface EditorHandle {
   getValue(): string;
@@ -22,6 +68,8 @@ export interface EditorHandle {
 interface EditorProps {
   initialDoc: string;
   diagnose?: DiagnoseFn;
+  /** Syntax language — defaults to "gad". */
+  language?: EditorLanguage;
   dark?: boolean;
   onChange?: (value: string) => void;
   /** Initial breakpoint lines (1-based) and a callback when they change. */
@@ -50,6 +98,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   {
     initialDoc,
     diagnose,
+    language = "gad",
     dark = false,
     onChange,
     breakpoints,
@@ -63,9 +112,12 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
 ) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
-  const gadCompartment = useRef(new Compartment());
+  const langCompartment = useRef(new Compartment());
   const themeCompartment = useRef(new Compartment());
   const fontCompartment = useRef(new Compartment());
+  // Keep latest diagnose available for the lang reconfigure effect.
+  const diagnoseRef = useRef(diagnose);
+  diagnoseRef.current = diagnose;
   // Keep the latest breakpoint callback so the gutter (created once) can call it.
   const onBpRef = useRef(onBreakpointsChange);
   onBpRef.current = onBreakpointsChange;
@@ -118,7 +170,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       fontCompartment.current.of(fontTheme(fontSize)),
       keymap.of([...defaultKeymap, indentWithTab]),
       themeCompartment.current.of(themeExtension(dark)),
-      gadCompartment.current.of(gad({ diagnose })),
+      langCompartment.current.of(langExtension(language, diagnose)),
       EditorView.updateListener.of((u) => {
         if (u.docChanged && onChange) onChange(u.state.doc.toString());
       }),
@@ -131,16 +183,16 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     view.current = v;
     if (breakpoints && breakpoints.length) setEditorBreakpoints(v, breakpoints);
     return () => v.destroy();
-    // Intentionally run once; doc/diagnose updates are handled below.
+    // Intentionally run once; doc/language/diagnose updates are handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reconfigure the Gad extension when the diagnose backend changes.
+  // Reconfigure the language extension when language or diagnose backend changes.
   useEffect(() => {
     view.current?.dispatch({
-      effects: gadCompartment.current.reconfigure(gad({ diagnose })),
+      effects: langCompartment.current.reconfigure(langExtension(language, diagnoseRef.current)),
     });
-  }, [diagnose]);
+  }, [language, diagnose]);
 
   // Switch the editor theme when the light/dark mode changes.
   useEffect(() => {

@@ -40,7 +40,25 @@ import AccountTreeIcon from "@mui/icons-material/AccountTree";
 function copyText(text: string): void {
   void navigator.clipboard?.writeText(text).catch(() => {});
 }
-import { Editor, type EditorHandle } from "./Editor";
+import { Editor, type EditorHandle, type EditorLanguage } from "./Editor";
+
+/** Map a workspace file path to its CodeMirror language. */
+function langForPath(path: string): EditorLanguage {
+  const ext = (path.split(".").pop() ?? "").toLowerCase();
+  switch (ext) {
+    case "json": return "json";
+    case "yaml": case "yml": return "yaml";
+    case "html": case "htm": return "html";
+    case "css": return "css";
+    case "scss": return "scss";
+    case "js": case "mjs": case "cjs": return "javascript";
+    case "ts": case "mts": case "cts": return "typescript";
+    case "jsx": return "jsx";
+    case "tsx": return "tsx";
+    case "gad": case "gadt": return "gad";
+    default: return "text";
+  }
+}
 import { InspectDialog, type InspectFn } from "./TreeNavigator";
 import { renderDocMarkdown } from "./docMarkdown";
 import { useTheme } from "./useTheme";
@@ -934,7 +952,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                 key={activeTab.path}
                 ref={editorRef}
                 initialDoc={activeTab.content}
-                diagnose={diagnose}
+                language={langForPath(activeTab.path)}
+                diagnose={langForPath(activeTab.path) === "gad" ? diagnose : undefined}
                 dark={dark}
                 onChange={onEdit}
                 breakpoints={bpFor(activeTab.path)}
