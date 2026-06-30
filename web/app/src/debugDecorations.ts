@@ -76,7 +76,17 @@ export function debugDecorations(getLocals: () => Map<string, LocalVar>): Extens
         create() {
           const dom = document.createElement("div");
           dom.className = "cm-locals-tooltip";
-          dom.textContent = `${w.word}: ${v.type} = ${v.value}`;
+          const text = document.createElement("span");
+          text.textContent = `${w.word}: ${v.type} = ${v.value}`;
+          const btn = document.createElement("button");
+          btn.className = "cm-locals-tooltip-copy";
+          btn.title = "Copy value";
+          btn.textContent = "⎘";
+          btn.onclick = (e) => {
+            e.stopPropagation();
+            void navigator.clipboard?.writeText(v.value).catch(() => {});
+          };
+          dom.append(text, btn);
           return { dom };
         },
       };
@@ -89,9 +99,23 @@ export function debugDecorations(getLocals: () => Map<string, LocalVar>): Extens
         borderRadius: "2px",
       },
       ".cm-locals-tooltip": {
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
         padding: "2px 6px",
         fontFamily: "ui-monospace, monospace",
         fontSize: "0.85em",
+      },
+      ".cm-locals-tooltip-copy": {
+        background: "none",
+        border: "none",
+        cursor: "pointer",
+        padding: "0 2px",
+        fontSize: "1em",
+        lineHeight: 1,
+        opacity: "0.6",
+        color: "inherit",
+        "&:hover": { opacity: "1" },
       },
     }),
   ];
