@@ -51,6 +51,7 @@ var (
 	TZipIterator                 = NewType("ZipIterator", TIterator)
 	TPipedInvokeIterator         = NewType("PipedInvokeIterator", TIterator)
 	TEmbeddedNodeEntriesIterator = NewType("EmbeddedNodeEntries", TIterator)
+	TEnum                        = NewType("Enum", TIterator)
 )
 
 var (

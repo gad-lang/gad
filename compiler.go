@@ -687,6 +687,10 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileClassStmt(nt)
 	case *node.ClassExpr:
 		return c.compileClassExpr(nt)
+	case *node.EnumStmt:
+		return c.compileEnumStmt(nt)
+	case *node.EnumExpr:
+		return c.compileEnumExpr(nt)
 	case *node.FuncHeaderExpr:
 		return c.compileFuncHeaderExpr(nt)
 	case *node.MethodInterfaceStmt:

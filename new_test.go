@@ -676,6 +676,53 @@ func TestVMClassSyntax(t *testing.T) {
 		nil, Int(5))
 }
 
+// TestVMEnum exercises the `enum` syntax, which builds a compile-time Enum
+// constant. Values are read back via `.value`.
+func TestVMEnum(t *testing.T) {
+	// default increment (uint); first field is 1.
+	testExpectRun(t, `e := enum { Read, Write, Exec }
+	return [e.Read.value, e.Write.value, e.Exec.value]`,
+		nil, Array{Uint(1), Uint(2), Uint(3)})
+
+	// explicit value, then resume incrementing from it.
+	testExpectRun(t, `e := enum { Read = 10, Write }
+	return [e.Read.value, e.Write.value]`, nil, Array{Int(10), Int(11)})
+
+	// `+`/`-` signs: signed ints, sign propagates to defaulted fields.
+	testExpectRun(t, `e := enum { -Read, Write, +List, Delete }
+	return [e.Read.value, e.Write.value, e.List.value, e.Delete.value]`,
+		nil, Array{Int(-1), Int(-2), Int(3), Int(4)})
+
+	// bit mode: 1<<n; a later field may combine earlier ones.
+	testExpectRun(t, `e := enum { bit List, Detail, Create, Edit, Read = List | Detail }
+	return [e.List.value, e.Detail.value, e.Create.value, e.Edit.value, e.Read.value]`,
+		nil, Array{Uint(1), Uint(2), Uint(4), Uint(8), Uint(3)})
+
+	// a value expression may reference earlier fields.
+	testExpectRun(t, `e := enum { Read, Write, All = Read + Write }
+	return [e.Read.value, e.Write.value, e.All.value]`,
+		nil, Array{Uint(1), Uint(2), Uint(3)})
+
+	// `_` advances the running value but is not added.
+	testExpectRun(t, `e := enum { _, Read, Write }
+	return [e.Read.value, e.Write.value]`, nil, Array{Uint(2), Uint(3)})
+	testExpectRun(t, `e := enum { _ = 10u, Read, Write }
+	return [e.Read.value, e.Write.value]`, nil, Array{Uint(11), Uint(12)})
+	testExpectRun(t, `e := enum { Read, _ = 6, Write }
+	return [e.Read.value, e.Write.value]`, nil, Array{Uint(1), Int(7)})
+
+	// statement form binds a constant; members carry name/index/value.
+	testExpectRun(t, `enum Perm { Read, Write, Exec = 10 }
+	return [Perm.Exec.name, Perm.Exec.index, Perm.Exec.value]`,
+		nil, Array{Str("Exec"), Int(2), Int(10)})
+
+	// indexGet, len via iteration and str.
+	testExpectRun(t, `enum Perm { Read, Write }
+	out := []
+	for k, v in Perm { out = append(out, k + "=" + str(v.value)) }
+	return out`, nil, Array{Str("Read=1"), Str("Write=2")})
+}
+
 func TestVMDeferStmt(t *testing.T) {
 	// runs after the body
 	testExpectRun(t, `

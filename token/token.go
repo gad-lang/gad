@@ -175,6 +175,10 @@ const (
 	// are not shifted. `extends`/`props`/`methods`/`new` are contextual idents in
 	// the body, not reserved keywords.
 	Class
+	// Enum introduces an enum expression/statement (`enum [Name] { … }`).
+	// Appended at the end of the keyword group so existing token values are not
+	// shifted. `bit` inside the body is a contextual ident, not a keyword.
+	Enum
 	GroupKeywordEnd
 )
 
@@ -352,6 +356,7 @@ var tokens = [...]string{
 	Ain:                 "ain",
 	With:                "with",
 	Class:               "class",
+	Enum:                "enum",
 }
 
 var tokenNames = [...]string{
@@ -512,6 +517,7 @@ var tokenNames = [...]string{
 	Ain:                          "Ain",
 	With:                         "With",
 	Class:                        "Class",
+	Enum:                         "Enum",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 

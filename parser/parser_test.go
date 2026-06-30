@@ -5139,3 +5139,21 @@ func callExprNamedArgs(
 ) (ce CallExprNamedArgs) {
 	return CallExprNamedArgs{Names: names, Values: values}
 }
+
+func TestParseEnum(t *testing.T) {
+	// expression form
+	test.New(t, "x := enum { Read, Write, Exec = 10 }").
+		Code("x := enum {Read, Write, Exec = 10}").
+		IndentedCode("x := enum {\n\tRead\n\tWrite\n\tExec = 10\n}")
+	// statement form
+	test.New(t, "enum Perm { Read, Write }").
+		Code("enum Perm {Read, Write}")
+	// signs and bit prefix; values may reference earlier fields
+	test.New(t, "x := enum { -Read, Write, +List }").
+		Code("x := enum {-Read, Write, +List}")
+	test.New(t, "x := enum { bit List, Detail, Both = List | Detail }").
+		Code("x := enum {bit List, Detail, Both = (List | Detail)}")
+	// `_` placeholder
+	test.New(t, "x := enum { _, Read, Write }").
+		Code("x := enum {_, Read, Write}")
+}
