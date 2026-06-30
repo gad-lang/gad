@@ -1,5 +1,70 @@
 # Handoff: ia_todo.md language features
 
+## ACTIVE WORK (2026-06-30): doc-comment markers + `in`-string + `class` + `enum` + heredoc/keyValueArray samples
+
+Worked the `TASK.md` **Language** section to completion. All committed; `go build
+./...`, `go vet ./...`, `go test ./...` green; all 22 `samples/*.gad` run clean.
+Only `TASK.md` is uncommitted (user-maintained). The user maintains `TASK.md`
+live; do NOT clobber their edits — re-read before editing.
+
+DONE this session (commits newest-last):
+- **doc-comment markers** `6c9e1a1`, `e51562f` — SINGLE `/?`→`///` (`////` is a
+  normal comment), BLOCK `/??…??`→`/**…**/`, ROOT_BLOCK `/???…???`→`/***…***/`.
+  Scanner, parser attach, formatter, gadbridge, doc generator, doctest, all four
+  tokenizers, docs, samples.
+- **`Class(...; fields=...)` fix** `5b1f12e` — `GetDo` (strict) → `GetDoCheck(
+  false, …)` so the leftover `define`/`fields` args are not rejected. Class +
+  ClassInstance godoc `2c7eae1`.
+- **`in` string membership** `282ecef`, `475ca97` — `'e' in "hello"` /
+  `"ell" in "hello"` via `Str.BinOpIn` / `RawStr.BinOpIn`; `ain` string cases.
+- **`class` syntax** `c587c1e`, `7067dcb`, `267fd13`, `5f4aa85`, `7964f84` —
+  expr + stmt + export forms. New `Class` keyword (extends/props/methods/new are
+  contextual idents). `ClassExpr`/`ClassStmt` AST (`parser/node/class.go`),
+  parser (`parser/class.go`), compiler lowering (`compiler_class.go`) to
+  `Class(name; define=(Type,define) => define(; extends, fields, properties,
+  methods, new))`. Methods get typed `this Type` (overload dispatch); property
+  accessors + constructors get UNTYPED `this` (a typed `this` resolves `Type` to
+  the instance at invocation time — see `7964f84` ParamTypes guard). Formatter
+  (`ClassExpr.WriteCode`, expanded layout) + class-body doc-comment claiming
+  (`claimClassBodyDocs` in `parser/node/coder.go`). samples/19, doc/classes.md.
+- **`enum` syntax** `5683ec9`, `5789943`, `29fdc21` — expr + stmt + export.
+  Builds a compile-time `Enum` CONSTANT (not runtime calls): `compiler_enum.go`
+  `buildEnum` + `evalEnumExpr` (compile-time integer expr evaluator). Value
+  rules: default = prev magnitude +1 (or 1); `bit`→`1<<n`; `+`/`-` make a field
+  signed & set a running sign; type (int/uint) propagates left-to-right; `_`
+  advances value w/o being added; explicit values ref earlier fields. Runtime
+  `Enum`/`EnumValue` are the user's (`objects_enum.go`); I added
+  `EnumValue.IndexGet` (`.name/.value/.index/.enum`) + godoc. Encoder/decoder
+  (`encoder/encoder_v1_enum.go`, registered in `encoder_v1.go`). samples/20,
+  doc/enums.md.
+  - SPEC CONTRADICTIONS (documented in TASK.md enum note): 3 examples conflict;
+    `bit _` was incomplete in the spec — implemented a consistent model.
+- **block-doc grouping fix** (in `29fdc21`) — `consumeCommentGroup` now ends the
+  group after a fenced block doc (`/**…**/`, `/***…***/`) so a following `///`
+  lead doc is not absorbed; fixes root-block-then-doc round-tripping (affected
+  the class sample too).
+- **heredoc samples + scanner fix** `550745b`, `a01abce` — samples/21_heredocs
+  (str/raw/template heredocs, single+multi-line) + expanded
+  doc/strings-bytes-regex.md. FIX: backslash broke single-line raw heredocs;
+  `Reader.ReadAt` (`parser/source/reader.go`) no longer treats `\` as an escape
+  (raw = verbatim). Tests in TestScanner/TestVMRawHeredoc.
+- **keyValueArray samples + docs** `0c51b90` — samples/22_key_value_array +
+  doc/values-and-types.md (flags, func/closure values, typed keys, dup keys,
+  flag/values/delete, indexing+mutation, spread, dict()).
+
+REMAINING in `TASK.md`: the **IDE epic** (top section — React `web/app` + Go
+`web/ide` backend) and a new "doc generator: group consts/classes/enums/
+functions/methods/properties into sections + table of contents" item. The IDE
+items are mostly UI (typecheck only, need browser verification).
+
+NOTE on adding a keyword: append to the END of the `token` keyword group
+(`token/token.go`) so existing token values do not shift; add to both the
+`tokens` and `tokenNames` maps. Hook the operand dispatch (`ParseOperand`), the
+`exprStart` token set, the statement dispatch (`DefaultParseStmt`), and
+`ParseExportStmt`. Compiler dispatch is a type switch in `compiler.go`.
+
+---
+
 ## ACTIVE WORK (2026-06-24): operator op_api trilogy + `with` + plugin sync + IDE epic (in progress)
 
 Task source is now `TASK.md` (renamed from todo.md). This session worked the

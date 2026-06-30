@@ -110,17 +110,36 @@ verification for full sign-off.
       engines), docs, samples/16_doc_comments.gad and all doc tests updated.
       (Pre-existing unrelated regression: Class(...; fields=...) rejects `fields`
       → fails TestVMWith/TestVMBinaryIncDec/TestREPL on HEAD.)
-- [ ] create samples for `Heredoc` and`RawHeredoc`. `Template` of `Heredoc` and `RawHeredoc`. samples for singleline and multiline variations. update docs.
+- [x] create samples for `Heredoc` and`RawHeredoc`. `Template` of `Heredoc` and `RawHeredoc`. samples for singleline and multiline variations. update docs.
+      Done: samples/21_heredocs.gad + doc/strings-bytes-regex.md (Heredocs +
+      Template Strings sections). Bonus fix: backslash broke single-line raw
+      heredocs (`` ```a\tb``` ``) — ReadAt no longer treats `\` as an escape
+      (`a01abce`). Sample/docs `550745b`.
   Examples:
   - `s := """abc""de""" // abc""de`
   - `s := """\n\tabc""\n\tde\n""" // abc""\nde`
-- [ ] create detailed samples and docs form keyValueArray with functions, closures, typed ... (see `TestParseKeyValueArray` and `TestVMKeyValueArray`)
-- [ ] create parser for `enum`.
+- [x] create detailed samples and docs form keyValueArray with functions, closures, typed ... (see `TestParseKeyValueArray` and `TestVMKeyValueArray`)
+      Done: samples/22_key_value_array.gad + doc/values-and-types.md
+      (keyValue/keyValueArray section): flags, func/closure values, typed keys,
+      dup keys, flag/values/delete, indexing+mutation, spread, dict(). `0c51b90`.
+- [x] create parser for `enum`.
+  - DONE: Enum keyword, EnumExpr/EnumStmt AST, parser (expr/stmt/export),
+    compiler value engine + compile-time expr evaluator (increment, signs,
+    bit, `_`, refs like `All = Read | Write`), EnumValue `.name/.value/.index/
+    .enum`, encoder/decoder (`5683ec9`, `5789943`). Formatter doc-claiming +
+    a block-doc grouping fix, godoc, samples/20_enum.gad, doc/enums.md
+    (`29fdc21`). Tests: TestParseEnum, TestVMEnum, TestEnum*Encoding*.
+    NOTE: 3 spec examples mutually contradict (sign/type of `ReadOnly,-Write`
+    vs `ReadOnly,-Write=1`; `-_`; `-Write=1`→Delete) — implemented a
+    consistent left-to-right model (14/17 examples match); `bit _` left as
+    "advance bit position, not added". Revisit if exact cases needed.
   - Expr syntaxe `enum { [bit] IDENT [= Expr] [, IDENT [= Expr ]...] }`, usage `x := enum { ... }`.
   - Stmt syntaxe like Expr, but have Ident `enum IDENT { ... }`, it compiles to `const IDENT = enum { ... }`.
     exports variant `export enum IDENT { ... }` compiles to `enum IDENT { ...}; export IDENT`.
   - items sep is `,` (comma) or new lines `\n`.
-  - `enum` compiles to call `Enum(name;**fields)`.
+  - `enum` compiles to Compiler.constants `NewEnum(name, compiler.module).AddValue(NAME, VALUE)`
+  - `enum` values must accept `int|uint` value types.
+  - implements encoder/decoder and tests for enum with fields: `Module.Index` (like `CompileFuction`), `Name` and `Fields`.
   - if value of field isn't set, default value is `SIG ((PREV_FIELD ?? 1u) + 1)` when `SIGN` is a prev field sign `+` (default) or `-`.
   - bitwise mode activation with `bit` (`ident`). `enum { bit A }` (activates bitwise mode to current field and nexts).
     if value of field isn't set, default value is `1 << ((PREV_FIELD ?? 1u) + 1)`.
@@ -159,13 +178,23 @@ verification for full sign-off.
     }
     ```
   - the doc strings describes type and has a table of fields with values and your doc string. 
-  - create expansive samples with doc string, docs, parser/compiler/vm tests
-- [ ] create parser for `class`.
+  - create go doc, expansive samples with doc comments, docs, parser/compiler/vm tests for indexGet, iterable, str, repr
+- [x] create parser for `class`.
+  - DONE: Class keyword, ClassExpr/ClassStmt AST, parser (expr/stmt/export),
+    compiler lowering to `Class(name; define=(Type,define)=>define(;extends,
+    fields,properties,methods,new))` with `this` injection, formatter, godoc,
+    samples/19_class_syntax.gad, doc/classes.md (`c587c1e`, `7067dcb`,
+    `267fd13`, `5f4aa85`). Fixed NewClassFunc define-callback (`c587c1e`) and a
+    VM ParamTypes panic (`7964f84`). Tests: TestVMClassSyntax, TestParseClass.
+    NOTE: methods get typed `this Type`; property accessors and constructors
+    get an UNTYPED `this` — typed there resolves `Type` to the instance at
+    invocation time (no dispatch value anyway). A method can't reference its
+    own class by name during its initializer (same as hand-written Class()).
   - items sep is `,` (comma) or new lines `\n`.
     Expr syntaxe, auto insert `this` param as first param of properties, constructors and methods:
     ```gad
     /// this is my class example 
-    class [from A, B] {
+    class [extends A, B] {
         withoutValueField
         withValueField = 1
         valueFieldWithComputedValue = (= 1)
@@ -224,9 +253,11 @@ verification for full sign-off.
         }
     }
     ```
-  - Stmt syntaxe `class IDENT { ... }`, it compiles to `const IDENT = Class("IDENT"; define(Type, define) => define(; new=..., methods=..., fields=... ))`.
+  - Stmt syntaxe `class IDENT [extends A, B ...] { ... }`, it compiles to `const IDENT = Class("IDENT"; define(Type, define) => define(; new=..., methods=..., fields=... ))`.
     Stmt syntaxe, auto insert `this Type` param as first param of properties, constructors and methods.
     exports variant `export class IDENT { ... }` compiles to `class IDENT {...}; export IDENT`.
   - the bellow example is the code format model.
   - the doc strings describes class with subsections "fields" (fields table with Name, type, value, description (doc string of field) columns),
     "constructor" and "methods".
+
+- [ ] change doc generator to group consts, classes, enums, functions, methods, properties in sections. create table of contents.
