@@ -31,30 +31,40 @@ func (d *DocGenerator) FromContent(path string, src []byte) (string, error) {
 	return generateDoc(path, src, d.MustExported)
 }
 
+// FileDocResult is the outcome of rendering one source file's documentation.
+type FileDocResult struct {
+	// Markdown is the rendered documentation.
+	Markdown string
+	// OutPath is the .md output path: the source path mirrored under dst.
+	OutPath string
+	// ExamplesFailed counts the embedded examples that failed (always 0 when
+	// NoTest is set).
+	ExamplesFailed int
+}
+
 // FromFile renders the documentation Markdown for an already-read source file and
 // computes its output path, without touching the filesystem. data is the source
 // bytes; path is the source path; dst is the output root and base is the tree
 // root the source path is mirrored against. Unless NoTest is set, the embedded
-// examples are run and each failure is reported via OnError; the number of failed
-// examples is returned.
-func (d *DocGenerator) FromFile(
-	data []byte, path, dst, base string,
-) (md, outPath string, examplesFailed int, err error) {
-	md, err = d.FromContent(path, data)
+// examples are run and each failure is reported via OnError; the failure count is
+// returned in the result.
+func (d *DocGenerator) FromFile(data []byte, path, dst, base string) (*FileDocResult, error) {
+	md, err := d.FromContent(path, data)
 	if err != nil {
-		return "", "", 0, fmt.Errorf("%s: %w", path, err)
+		return nil, fmt.Errorf("%s: %w", path, err)
 	}
+	res := &FileDocResult{Markdown: md, OutPath: docOutPath(dst, base, path)}
 	if !d.NoTest {
 		for _, r := range checkFileExamples(path, data) {
 			if r.err != nil {
-				examplesFailed++
+				res.ExamplesFailed++
 				if d.OnError != nil {
 					d.OnError(fmt.Sprintf("doc: %s:%d: example failed: %s", path, r.line, r.err))
 				}
 			}
 		}
 	}
-	return md, docOutPath(dst, base, path), examplesFailed, nil
+	return res, nil
 }
 
 // docOutPath returns the .md output path for the source path mirrored under dst

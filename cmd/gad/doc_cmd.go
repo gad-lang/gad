@@ -302,23 +302,23 @@ func (o *docOptions) processFile(ctx *cc.CommandContext, path, dst, base string)
 		MustExported: o.mustExported,
 		NoTest:       o.noDoctest,
 	}
-	md, outPath, failed, err := gen.FromFile(src, path, dst, base)
+	res, err := gen.FromFile(src, path, dst, base)
 	if err != nil {
 		return err
 	}
-	o.examplesFailed += failed
+	o.examplesFailed += res.ExamplesFailed
 
 	if o.noSave {
-		fmt.Fprintln(ctx.Out, outPath)
+		fmt.Fprintln(ctx.Out, res.OutPath)
 		return nil
 	}
-	if err = os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+	if err = os.MkdirAll(filepath.Dir(res.OutPath), 0o755); err != nil {
 		return err
 	}
-	if err = os.WriteFile(outPath, []byte(md), 0o644); err != nil {
+	if err = os.WriteFile(res.OutPath, []byte(res.Markdown), 0o644); err != nil {
 		return err
 	}
-	fmt.Fprintln(ctx.Out, outPath)
+	fmt.Fprintln(ctx.Out, res.OutPath)
 	return nil
 }
 

@@ -20,11 +20,11 @@ func TestDocGeneratorFromContentAndFromFile(t *testing.T) {
 
 	// FromFile returns the same Markdown plus the mirrored output path, without
 	// touching the filesystem.
-	md2, outPath, failed, err := gen.FromFile(src, filepath.Join("src", "m.gad"), "doc", "src")
+	res, err := gen.FromFile(src, filepath.Join("src", "m.gad"), "doc", "src")
 	require.NoError(t, err)
-	require.Equal(t, md, md2)
-	require.Equal(t, filepath.Join("doc", "m.md"), outPath)
-	require.Equal(t, 0, failed)
+	require.Equal(t, md, res.Markdown)
+	require.Equal(t, filepath.Join("doc", "m.md"), res.OutPath)
+	require.Equal(t, 0, res.ExamplesFailed)
 }
 
 func TestDocGeneratorFromFileReportsFailingExample(t *testing.T) {
@@ -33,17 +33,17 @@ func TestDocGeneratorFromFileReportsFailingExample(t *testing.T) {
 
 	var errs []string
 	gen := &DocGenerator{OnError: func(msg string) { errs = append(errs, msg) }}
-	_, _, failed, err := gen.FromFile(bad, "b.gad", "doc", ".")
+	res, err := gen.FromFile(bad, "b.gad", "doc", ".")
 	require.NoError(t, err)
-	require.Equal(t, 1, failed)
+	require.Equal(t, 1, res.ExamplesFailed)
 	require.Len(t, errs, 1)
 	require.Contains(t, errs[0], "example failed")
 
 	// With NoTest, the failing example is neither run nor reported.
 	errs = nil
 	genNoTest := &DocGenerator{NoTest: true, OnError: func(msg string) { errs = append(errs, msg) }}
-	_, _, failed, err = genNoTest.FromFile(bad, "b.gad", "doc", ".")
+	res, err = genNoTest.FromFile(bad, "b.gad", "doc", ".")
 	require.NoError(t, err)
-	require.Equal(t, 0, failed)
+	require.Equal(t, 0, res.ExamplesFailed)
 	require.Empty(t, errs)
 }
