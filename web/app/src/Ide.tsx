@@ -21,6 +21,7 @@ import {
   createTheme,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import AddLinkIcon from "@mui/icons-material/AddLink";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -166,6 +167,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [settings, setSettings] = useState(false);
   const [keybinds, setKeybinds] = useState(false);
   const [bpScope, setBpScope] = useState<"current" | "all">("current");
+  const [fetchDialog, setFetchDialog] = useState(false);
   const [selectedFrame, setSelectedFrame] = useState(0);
   const frameClickTimer = useRef<number | null>(null);
 
@@ -763,6 +765,13 @@ export function Ide({ workspace }: { workspace: Workspace }) {
             </IconButton>
             <IconButton
               size="small"
+              title="Get file from web"
+              onClick={() => setFetchDialog(true)}
+            >
+              <AddLinkIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
               title="New file"
               onClick={async () => {
                 const name = prompt("New file path (relative to workspace):", "untitled.gad");
@@ -1236,8 +1245,86 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           </DialogActions>
         </Dialog>
       )}
+      {fetchDialog && (
+        <FetchFromWebDialog
+          defaultDir={activeTab ? activeTab.path.split("/").slice(0, -1).join("/") : ""}
+          onClose={() => setFetchDialog(false)}
+          onFetch={async (url, path) => {
+            try {
+              await ideApi.fetchUrl(url, path);
+              setFetchDialog(false);
+              await refreshTree();
+              await openFile(path);
+            } catch (e) {
+              reportError("Fetch failed", e);
+            }
+          }}
+        />
+      )}
       </Box>
     </ThemeProvider>
+  );
+}
+
+function FetchFromWebDialog({
+  defaultDir,
+  onClose,
+  onFetch,
+}: {
+  defaultDir: string;
+  onClose: () => void;
+  onFetch: (url: string, path: string) => void;
+}) {
+  const [url, setUrl] = useState("");
+  const [name, setName] = useState("");
+  const [dir, setDir] = useState(defaultDir);
+
+  const resolvedPath = () => {
+    const filename = name.trim() || (url.split("/").pop()?.split("?")[0] ?? "file");
+    const d = dir.trim();
+    return d ? `${d}/${filename}` : filename;
+  };
+
+  return (
+    <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Get file from web</DialogTitle>
+      <DialogContent dividers>
+        <TextField
+          fullWidth
+          autoFocus
+          size="small"
+          label="URL"
+          placeholder="https://example.com/file.gad"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          sx={{ mb: 2 }}
+        />
+        <TextField
+          fullWidth
+          size="small"
+          label="Output filename (leave blank to use URL filename)"
+          placeholder="file.gad"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          sx={{ mb: 2 }}
+        />
+        <TextField
+          fullWidth
+          size="small"
+          label="Target directory (relative to workspace)"
+          placeholder="e.g. samples"
+          value={dir}
+          onChange={(e) => setDir(e.target.value)}
+          helperText={`Saves to: ${resolvedPath()}`}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" disabled={!url.trim()} onClick={() => onFetch(url.trim(), resolvedPath())}>
+          Download
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
