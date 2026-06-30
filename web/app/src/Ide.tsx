@@ -13,6 +13,8 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  Tab,
+  Tabs,
   TextField,
   ThemeProvider,
   Toolbar,
@@ -73,7 +75,7 @@ interface EvalEntry {
   error: string;
 }
 
-const emptyRunCfg = (): RunConfig => ({ args: [], disabled: [], safe: false, saveOut: "" });
+const emptyRunCfg = (): RunConfig => ({ args: [], disabled: [], safe: false, saveOut: "", saveStdout: "", saveStderr: "", combine: false });
 
 // Debugger keybindings: action -> default key chord. Stored under ide.keys.
 const DEFAULT_KEYS: Record<string, string> = {
@@ -581,7 +583,10 @@ export function Ide({ workspace }: { workspace: Workspace }) {
         args: cfg.args,
         disabled: cfg.disabled,
         safe: cfg.safe,
-        saveOut: cfg.saveOut,
+        saveOut: cfg.saveOut || undefined,
+        saveStdout: cfg.saveStdout || undefined,
+        saveStderr: cfg.saveStderr || undefined,
+        combine: cfg.combine || undefined,
       });
       clearOut();
       pushOut("out", res.stdout || "");
@@ -1807,10 +1812,13 @@ function RunDialog({
   onRun: (cfg: RunConfig) => void;
   onDebug: (cfg: RunConfig, stopOnEntry: boolean) => void;
 }) {
+  const [tabIdx, setTabIdx] = useState(kind === "debug" ? 1 : 0);
   const [args, setArgs] = useState(tab.runCfg.args.join("\n"));
   const [disabled, setDisabled] = useState<string[]>(tab.runCfg.disabled);
   const [safe, setSafe] = useState(tab.runCfg.safe);
-  const [saveOut, setSaveOut] = useState(tab.runCfg.saveOut);
+  const [saveStdout, setSaveStdout] = useState(tab.runCfg.saveStdout ?? tab.runCfg.saveOut ?? "");
+  const [saveStderr, setSaveStderr] = useState(tab.runCfg.saveStderr ?? "");
+  const [combine, setCombine] = useState(tab.runCfg.combine ?? false);
   const [entry, setEntry] = useState(false);
 
   const toggle = (name: string) =>
@@ -1820,64 +1828,98 @@ function RunDialog({
     args: args.split("\n").map((s) => s.trim()).filter(Boolean),
     disabled,
     safe,
-    saveOut: saveOut.trim(),
+    saveOut: "",
+    saveStdout: saveStdout.trim(),
+    saveStderr: saveStderr.trim(),
+    combine,
   });
+
+  // Shared settings shown on both tabs (args + modules + safe mode).
+  const sharedFields = (
+    <>
+      <TextField
+        label="Arguments (one per line)"
+        multiline
+        minRows={3}
+        fullWidth
+        margin="dense"
+        value={args}
+        onChange={(e) => setArgs(e.target.value)}
+      />
+      <Typography variant="subtitle2" sx={{ mt: 1 }}>
+        Builtin modules (checked = enabled)
+      </Typography>
+      <Box className="mods">
+        {modules.map((m) => (
+          <FormControlLabel
+            key={m.name}
+            control={<Checkbox size="small" checked={!disabled.includes(m.name)} onChange={() => toggle(m.name)} />}
+            label={m.name + (m.unsafe ? " (unsafe)" : "")}
+          />
+        ))}
+      </Box>
+      <FormControlLabel
+        control={<Checkbox checked={safe} onChange={(e) => setSafe(e.target.checked)} />}
+        label="Safe mode (disable unsafe modules)"
+      />
+    </>
+  );
 
   return (
     <Dialog open onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        {kind === "debug" ? "Debug" : "Run"} {tab.path}
-      </DialogTitle>
+      <DialogTitle>{tab.path}</DialogTitle>
+      <Tabs value={tabIdx} onChange={(_, v: number) => setTabIdx(v)} sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}>
+        <Tab label="Run" />
+        <Tab label="Debug" />
+      </Tabs>
       <DialogContent dividers>
-        <TextField
-          label="Arguments (one per line)"
-          multiline
-          minRows={3}
-          fullWidth
-          margin="dense"
-          value={args}
-          onChange={(e) => setArgs(e.target.value)}
-        />
-        {kind === "debug" && (
-          <FormControlLabel
-            control={<Checkbox checked={entry} onChange={(e) => setEntry(e.target.checked)} />}
-            label="Stop on entry (set breakpoints by clicking the gutter)"
-          />
-        )}
-        <Typography variant="subtitle2" sx={{ mt: 1 }}>
-          Builtin modules (checked = enabled)
-        </Typography>
-        <Box className="mods">
-          {modules.map((m) => (
-            <FormControlLabel
-              key={m.name}
-              control={<Checkbox size="small" checked={!disabled.includes(m.name)} onChange={() => toggle(m.name)} />}
-              label={m.name + (m.unsafe ? " (unsafe)" : "")}
+        {tabIdx === 0 && (
+          <>
+            {sharedFields}
+            <TextField
+              label="Save stdout to file (optional)"
+              fullWidth
+              margin="dense"
+              value={saveStdout}
+              onChange={(e) => setSaveStdout(e.target.value)}
+              placeholder="stdout.log"
             />
-          ))}
-        </Box>
-        <FormControlLabel
-          control={<Checkbox checked={safe} onChange={(e) => setSafe(e.target.checked)} />}
-          label="Safe mode (disable unsafe modules)"
-        />
-        <TextField
-          label="Save stdout+stderr to file (optional)"
-          fullWidth
-          margin="dense"
-          value={saveOut}
-          onChange={(e) => setSaveOut(e.target.value)}
-          placeholder="output.log"
-        />
+            <TextField
+              label="Save stderr to file (optional)"
+              fullWidth
+              margin="dense"
+              value={saveStderr}
+              onChange={(e) => setSaveStderr(e.target.value)}
+              placeholder="stderr.log"
+              disabled={combine}
+              helperText={combine ? "Combined: both streams go to the stdout file" : ""}
+            />
+            <FormControlLabel
+              control={<Checkbox checked={combine} onChange={(e) => setCombine(e.target.checked)} />}
+              label="Combine stdout+stderr into the stdout file"
+            />
+          </>
+        )}
+        {tabIdx === 1 && (
+          <>
+            {sharedFields}
+            <FormControlLabel
+              sx={{ mt: 1 }}
+              control={<Checkbox checked={entry} onChange={(e) => setEntry(e.target.checked)} />}
+              label="Stop on entry (set breakpoints by clicking the gutter)"
+            />
+          </>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel}>Cancel</Button>
-        {kind === "debug" ? (
-          <Button variant="contained" onClick={() => onDebug(cfg(), entry)}>
-            Start Debug
-          </Button>
-        ) : (
+        {tabIdx === 0 ? (
           <Button variant="contained" onClick={() => onRun(cfg())}>
             Run
+          </Button>
+        ) : (
+          <Button variant="contained" onClick={() => onDebug(cfg(), entry)}>
+            Start Debug
           </Button>
         )}
       </DialogActions>
