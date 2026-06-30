@@ -14,7 +14,7 @@ build: build-cli build-wasm
 
 .PHONY: build-cli
 build-cli:
-	go build -o ./dist/gad ./cmd/gad
+	go build -tags prod -o ./dist/gad ./cmd/gad
 
 # Minimal CLI: exclude the `ide` and `debug` subcommands (and their web/DAP
 # dependencies) via build tags. Useful for small, embeddable binaries.
