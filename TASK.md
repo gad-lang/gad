@@ -24,24 +24,39 @@ verification for full sign-off.
       CodeMirror) — the plugin only loaded in the React `web/app` (prod/--static
       build). Fixed by loading CodeMirror 6 + the gad language into the build-free
       app from a pinned ESM CDN, with a textarea fallback when offline.
-- [ ] Run/Debug settings: one dialog with Run and Debug tabs; surface the split
+- [x] Run/Debug settings: one dialog with Run and Debug tabs; surface the split
       stdout/stderr file fields + combine flag in the Run tab.
-- [ ] Explorer header: "get file from web" dialog (URL, output name, target dir).
+      Done: RunDialog now uses MUI Tabs (opens on Run or Debug tab based on
+      the triggering action). Run tab: args, modules, safe, saveStdout,
+      saveStderr, combine checkbox. Debug tab: args, modules, safe,
+      stop-on-entry. emptyRunCfg+doRun updated. (`608968c`)
+- [x] Explorer header: "get file from web" dialog (URL, output name, target dir).
+      Done: AddLinkIcon button in sidebar header opens FetchFromWebDialog
+      (URL + filename + target dir fields). On confirm calls
+      ideApi.fetchUrl (POST /api/ide/fetch, backend pre-existing), refreshes
+      tree, opens downloaded file. (`52bb55a`)
 - [x] Breakpoint condition + disabled: debug.Engine honours per-breakpoint
       Disabled flag and a Gad `condition` (evaluated in the paused frame's scope,
       pauses only when truthy); wired through /api/ide/debug/start
       (BreakpointSpecs). Breakpoints panel entry opens a dialog to edit
       disabled/condition (stored in .gad.yaml ide.breakpointMeta).
-- [ ] Breakpoints panel: double-click an entry to navigate to its location
+- [x] Breakpoints panel: double-click an entry to navigate to its location
       (remove button + click-to-edit-condition done).
+      Done: BreakpointList gets onNavigate (calls editorRef.gotoLocation);
+      BreakpointGroups gets onNavigate (calls gotoFrame). onDoubleClick
+      wired on each `<span>`. (`e866839`)
 - [ ] Tooltip for builtin-value identifiers in the gad editor.
 - [x] Evaluate panel: debug-session-aware eval. debug.Engine.EvalInFrame
       evaluates against the paused frame's locals; /api/ide/debug/eval exposes
       it; the panel routes through it while a session is paused (and re-evaluates
       on each step via a debugLoc effect), falling back to standalone eval
       otherwise.
-- [ ] Multi-format editors: JSON, YAML, HTML, CSS, SCSS, JS (TS/JSX); plain-text
+- [x] Multi-format editors: JSON, YAML, HTML, CSS, SCSS, JS (TS/JSX); plain-text
       fallback for other types.
+      Done: @codemirror/lang-{json,html,css,javascript} + legacy-modes
+      (YAML) installed. Editor gains EditorLanguage prop + langCompartment.
+      langForPath() in Ide.tsx maps extension→language; diagnose suppressed
+      for non-gad files. pnpm build clean. (`cb84475`)
 - [ ] Tooltip: copy-to-clipboard button on the gad editor hover tooltip.
 - [ ] codemirror plugin: editor features (autocomplete, etc.) inside template strings.
 - [x] Right closable doc-comments panel: backend gadbridge.DocComments +
@@ -77,7 +92,10 @@ verification for full sign-off.
       paths (and `file:` prefixes) to workspace-relative in debug locals/frames,
       eval and inspect output (Server.relativizeValue via DebugManager hook).
       Test TestDebugModulePathsAreRelative.
-- [ ] change input fields of evaluate and breakpoint condition to use codemirror plugin. 
+- [x] change input fields of evaluate and breakpoint condition to use codemirror plugin.
+      Done: GadInput.tsx — single-line CM6 editor with gad language plugin.
+      EvaluatePanel + BreakpointDialog use it; dark prop threaded through.
+      (`3c85e8d`)
 - [x] FORMAT not preserving comments/doc comments: gadbridge.Format parsed
       without ParseComments and omitted CodeWithComments, so it dropped all
       comments. Now parses with ParseComments and re-emits via CodeWithComments

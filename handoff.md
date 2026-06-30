@@ -1,6 +1,46 @@
-# Handoff: ia_todo.md language features
+# Handoff: TASK.md IDE epic + Language tasks
 
-## ACTIVE WORK (2026-06-30): doc-comment markers + `in`-string + `class` + `enum` + heredoc/keyValueArray samples
+## ACTIVE WORK (2026-06-30): IDE epic + gaddoc + Language tasks
+
+Worked TASK.md from the top. All committed and go test ./... green (tsc
+--noEmit clean for web/app). TASK.md has been updated in-repo.
+
+DONE this session (commits newest-first):
+- **GadInput.tsx** `3c85e8d` — single-line CM6 gad-language editor replacing
+  TextField in EvaluatePanel (expressions) and BreakpointDialog (condition).
+  dark prop threaded through from Ide.
+- **Multi-format editors** `cb84475` — @codemirror/lang-{json,html,css,javascript}
+  + legacy-modes (YAML) installed. Editor gains EditorLanguage prop +
+  langCompartment. langForPath() in Ide.tsx maps extension→language; diagnose
+  suppressed for non-gad files.
+- **Run/Debug settings tabbed dialog** `608968c` — RunDialog now has Run and
+  Debug tabs (MUI Tabs). Run tab: args, modules, safe, saveStdout, saveStderr,
+  combine flag. Debug tab: args, modules, safe, stop-on-entry.
+- **Explorer "get file from web"** `52bb55a` — AddLinkIcon button in sidebar
+  header opens FetchFromWebDialog (URL+filename+dir); calls ideApi.fetchUrl
+  (POST /api/ide/fetch, backend pre-existing).
+- **Breakpoints panel double-click to navigate** `e866839` — BreakpointList
+  onDoubleClick → editorRef.gotoLocation; BreakpointGroups onDoubleClick →
+  gotoFrame. TASK.md language tasks also marked done.
+- **gaddoc TOC + Classes/Enums/Methods/Properties sections** `1ebbc6f` —
+  cmd/gaddoc/main.go: adds 4 new section recognizers, canonical output order,
+  TOC generator (headingSlug + generateTOC → ## Contents after title).
+  Regenerated all 4 stdlib docs.
+
+REMAINING in TASK.md (IDE epic only — Language section complete):
+- `[ ] Tooltip for builtin-value identifiers in the gad editor` — complex CM6 hover widget
+- `[ ] Tooltip: copy-to-clipboard button on the gad editor hover tooltip` — moderate
+- `[ ] codemirror plugin: editor features inside template strings` — complex
+- `[~] tree navigator: TODO tooltip surface (hover widget)` — moderate
+- `[~] colorize doc comments in plugins: TODO embedded source/result highlighting`
+- `[~] VS Code plugin: TODO format-on-save / .gad.yaml-driven format command`
+- `[ ] create plugin like vscode to JetBrains` — large scope
+
+Verify: `go test ./...` + `go build ./...` + (in web/app) `pnpm exec tsc --noEmit`.
+
+---
+
+## PRIOR SESSION (2026-06-30): doc-comment markers + `in`-string + `class` + `enum` + heredoc/keyValueArray samples
 
 Worked the `TASK.md` **Language** section to completion. All committed; `go build
 ./...`, `go vet ./...`, `go test ./...` green; all 22 `samples/*.gad` run clean.
