@@ -67,6 +67,24 @@ export const gadGrammar: Grammar = {
     pattern: /\/\/.*|\/\*[\s\S]*?(?:\*\/|$)/,
     greedy: true,
   },
+  // Template strings: #"…{expr}…" and #`…{expr}…` (heredoc forms too).
+  // Highlighted as strings with `{…}` interpolation delimiters distinguished.
+  "template-string": {
+    pattern: /#(?:"""[\s\S]*?"""|```[\s\S]*?```|"(?:\\.|[^"\\])*"|`[^`]*`)/,
+    greedy: true,
+    alias: "string",
+    inside: {
+      interpolation: {
+        pattern: /\{[^}]*\}/,
+        inside: {
+          "interpolation-punctuation": {
+            pattern: /^\{|\}$/,
+            alias: "punctuation",
+          },
+        },
+      },
+    },
+  },
   // Heredocs first (longer fences), then regular/raw strings and chars.
   string: {
     pattern:
