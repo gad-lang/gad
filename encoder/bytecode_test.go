@@ -169,3 +169,24 @@ func Compile(script []byte, opts gad.CompilerOptions) (bc *gad.Bytecode, err err
 func NewVM(bc *gad.Bytecode) *gad.VM {
 	return gad.NewVM(builtins, bc).Init()
 }
+
+func TestEnumBytecodeRoundtrip(t *testing.T) {
+	src := "enum Perm { Read, Write, Exec = 10, All = Read | Write }\n" +
+		"return [Perm.Read.value, Perm.Exec.value, Perm.All.value, Perm.Exec.name]"
+
+	bc, err := Compile([]byte(src), gad.CompilerOptions{})
+	require.NoError(t, err)
+	wantRet, err := NewVM(bc).Run(nil)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	ms, err := EncodeBytecodeTo(NewWriteContext(context.Background(), NewWriter(&buf)), bc)
+	require.NoError(t, err)
+
+	gotBc, err := DecodeBytecodeFrom(NewReadContext(NewReader(bytes.NewReader(buf.Bytes())), ReadContextWithModules(ms)))
+	require.NoError(t, err)
+
+	gotRet, err := NewVM(gotBc).Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, wantRet, gotRet)
+}

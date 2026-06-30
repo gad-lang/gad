@@ -181,3 +181,28 @@ func edecode[t any](b, eb []byte, opt ...ReadContextOption) (v t, err error) {
 	opt = append(opt, ReadContextWithEmbeddedReader(bytes.NewReader(eb)))
 	return DecodeT[t](NewReadContext(NewReader(bytes.NewReader(b)), opt...))
 }
+
+func TestEnumEncoding(t *testing.T) {
+	e := gad.NewEnum("Perm", nil)
+	e.AddValue("Read", gad.Uint(1))
+	e.AddValue("Write", gad.Uint(2))
+	e.AddValue("Exec", gad.Int(10))
+
+	b, err := encode(e)
+	require.NoError(t, err)
+
+	got, err := decode[*gad.Enum](b)
+	require.NoError(t, err)
+	require.Equal(t, "Perm", got.Name())
+
+	arr := got.ToArray()
+	require.Len(t, arr, 3)
+	wantNames := []string{"Read", "Write", "Exec"}
+	wantVals := []gad.Object{gad.Uint(1), gad.Uint(2), gad.Int(10)}
+	for i, v := range arr {
+		ev := v.(*gad.EnumValue)
+		require.Equal(t, wantNames[i], ev.Name)
+		require.Equal(t, i, ev.Index)
+		require.True(t, wantVals[i].Equal(ev.Value), "value %d: want %v got %v", i, wantVals[i], ev.Value)
+	}
+}
