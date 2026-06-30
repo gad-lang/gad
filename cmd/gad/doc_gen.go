@@ -45,60 +45,11 @@ type docEntry struct {
 	methods []docMethod // for func-with-methods: rendered as default + others
 }
 
-// generateDoc renders the godoc-style Markdown for a Gad source file: the module
-// heading, any ROOT_BLOCK (`/***`) prose, then the documented symbols. The file
-// is parsed with comments so doc comments are attached to their nodes.
-//
-// When mustExported is true only the exported symbols are documented, in
-// top-level Constants and Types sections. When it is false (the default) the
-// documented internal (non-exported) declarations are included too, and the
-// output is split into two root sections, "Exported" and "Internal", each with
-// its own Constants and Types subsections.
+// generateDoc renders the godoc-style Markdown for a Gad source file. It is a
+// thin wrapper over DocGenerator.FromContent kept for the existing call sites and
+// tests; FromContent holds the rendering pipeline.
 func generateDoc(path string, src []byte, mustExported bool) (string, error) {
-	fs := source.NewFileSet()
-	f := fs.AddFileData(path, -1, src)
-	file, err := parser.NewParserWithOptions(
-		f, &parser.ParserOptions{Mode: parser.ParseComments}, nil).ParseFile()
-	if err != nil {
-		return "", err
-	}
-
-	var expConsts, expTypes []docEntry
-	for _, stmt := range file.Stmts {
-		es, _ := stmt.(*node.ExportStmt)
-		if es == nil {
-			continue
-		}
-		for _, e := range exportEntries(es) {
-			if e.kind == docConst {
-				expConsts = append(expConsts, e)
-			} else {
-				expTypes = append(expTypes, e)
-			}
-		}
-	}
-
-	var b strings.Builder
-	b.WriteString("# " + moduleName(path) + "\n")
-
-	for _, root := range rootBlocks(file.Comments) {
-		b.WriteString("\n" + root + "\n")
-	}
-
-	if mustExported {
-		writeTOC(&b, expConsts, expTypes)
-		writeSection(&b, 2, "Constants", expConsts)
-		writeTypesSection(&b, 2, expTypes)
-		return b.String(), nil
-	}
-
-	// Two-root-section mode: gather the documented internal declarations and
-	// render Exported + Internal groups.
-	intConsts, intTypes := internalEntries(file, f)
-	writeGroupedTOC(&b, expConsts, expTypes, intConsts, intTypes)
-	writeRootGroup(&b, "Exported", expConsts, expTypes)
-	writeRootGroup(&b, "Internal", intConsts, intTypes)
-	return b.String(), nil
+	return (&DocGenerator{MustExported: mustExported}).FromContent(path, src)
 }
 
 // internalEntries gathers the documented non-exported top-level declarations of

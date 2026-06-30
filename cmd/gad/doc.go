@@ -8,6 +8,10 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/gad-lang/gad/parser"
+	"github.com/gad-lang/gad/parser/node"
+	"github.com/gad-lang/gad/parser/source"
 )
 
 // DocGenerator renders Gad source documentation to Markdown. It is the
@@ -25,10 +29,61 @@ type DocGenerator struct {
 	NoTest bool
 }
 
-// FromContent renders the documentation Markdown for source content. path is used
-// only for the module name and example diagnostics; no file is read or written.
+// FromContent renders the godoc-style Markdown for source content: the module
+// heading, any ROOT_BLOCK (`/***`) prose, then the documented symbols. The source
+// is parsed with comments so doc comments are attached to their nodes. path is
+// used only for the module name; no file is read or written.
+//
+// When MustExported is true only the exported symbols are documented, in
+// top-level Constants and Types sections. When it is false the documented
+// internal (non-exported) declarations are included too, and the output is split
+// into two root sections, "Exported" and "Internal", each with its own Constants
+// and Types subsections.
 func (d *DocGenerator) FromContent(path string, src []byte) (string, error) {
-	return generateDoc(path, src, d.MustExported)
+	fs := source.NewFileSet()
+	f := fs.AddFileData(path, -1, src)
+	file, err := parser.NewParserWithOptions(
+		f, &parser.ParserOptions{Mode: parser.ParseComments}, nil).ParseFile()
+	if err != nil {
+		return "", err
+	}
+
+	var expConsts, expTypes []docEntry
+	for _, stmt := range file.Stmts {
+		es, _ := stmt.(*node.ExportStmt)
+		if es == nil {
+			continue
+		}
+		for _, e := range exportEntries(es) {
+			if e.kind == docConst {
+				expConsts = append(expConsts, e)
+			} else {
+				expTypes = append(expTypes, e)
+			}
+		}
+	}
+
+	var b strings.Builder
+	b.WriteString("# " + moduleName(path) + "\n")
+
+	for _, root := range rootBlocks(file.Comments) {
+		b.WriteString("\n" + root + "\n")
+	}
+
+	if d.MustExported {
+		writeTOC(&b, expConsts, expTypes)
+		writeSection(&b, 2, "Constants", expConsts)
+		writeTypesSection(&b, 2, expTypes)
+		return b.String(), nil
+	}
+
+	// Two-root-section mode: gather the documented internal declarations and
+	// render Exported + Internal groups.
+	intConsts, intTypes := internalEntries(file, f)
+	writeGroupedTOC(&b, expConsts, expTypes, intConsts, intTypes)
+	writeRootGroup(&b, "Exported", expConsts, expTypes)
+	writeRootGroup(&b, "Internal", intConsts, intTypes)
+	return b.String(), nil
 }
 
 // FileDocResult is the outcome of rendering one source file's documentation.
