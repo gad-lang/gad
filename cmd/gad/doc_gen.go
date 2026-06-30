@@ -88,7 +88,7 @@ func generateDoc(path string, src []byte, mustExported bool) (string, error) {
 	if mustExported {
 		writeTOC(&b, expConsts, expTypes)
 		writeSection(&b, 2, "Constants", expConsts)
-		writeSection(&b, 2, "Types", expTypes)
+		writeTypesSection(&b, 2, expTypes)
 		return b.String(), nil
 	}
 
@@ -190,6 +190,12 @@ func internalStmtEntry(stmt node.Stmt, doc string) (docEntry, bool) {
 			return docEntry{}, false
 		}
 		return docEntry{name: name, kind: docType, keyword: "prop", code: []string{"prop " + name}, doc: doc}, true
+	case *node.MethodInterfaceStmt:
+		name := identName(s.NameExpr)
+		if name == "" {
+			return docEntry{}, false
+		}
+		return docEntry{name: name, kind: docType, keyword: "meti", code: []string{"meti " + name}, doc: doc}, true
 	case *node.FuncStmt:
 		name := funcName(s.Func)
 		if name == "" {
@@ -232,6 +238,9 @@ func assignEntry(name string, rhs node.Expr, doc string) docEntry {
 			code: []string{name + " = " + firstLine(v.String())}, doc: doc}
 	case *node.EnumExpr:
 		return docEntry{name: name, kind: docType, keyword: "enum",
+			code: []string{name + " = " + firstLine(v.String())}, doc: doc}
+	case *node.MethodInterfaceExpr:
+		return docEntry{name: name, kind: docType, keyword: "meti",
 			code: []string{name + " = " + firstLine(v.String())}, doc: doc}
 	default:
 		return docEntry{name: name, kind: docConst, keyword: "var",
@@ -466,7 +475,7 @@ func writeRootGroup(b *strings.Builder, group string, consts, types []docEntry) 
 	}
 	b.WriteString("\n## " + group + "\n")
 	writeSection(b, 3, "Constants", consts)
-	writeSection(b, 3, "Types", types)
+	writeTypesSection(b, 3, types)
 }
 
 // writeGroupedTOC writes a table of contents for the two-root-section layout,
@@ -494,32 +503,94 @@ func writeTOCGroup(b *strings.Builder, group string, consts, types []docEntry) {
 	}
 }
 
-// writeSection writes a Constants/Types section at the given heading level (its
-// entries one level deeper), with one subsection per entry.
+// writeSection writes a flat section (e.g. Constants) at the given heading
+// level, rendering each entry one level deeper.
 func writeSection(b *strings.Builder, level int, title string, entries []docEntry) {
 	if len(entries) == 0 {
 		return
 	}
-	h := strings.Repeat("#", level)
-	eh := h + "#"
-	b.WriteString("\n" + h + " " + title + "\n")
+	b.WriteString("\n" + strings.Repeat("#", level) + " " + title + "\n")
 	for _, e := range entries {
-		b.WriteString("\n" + eh + " " + e.keyword + " **" + e.name + "**\n")
-		if len(e.methods) > 0 {
-			// func-with-methods: the func-level doc introduces the methods.
-			if e.doc != "" {
-				b.WriteString("\n" + e.doc + "\n")
+		writeEntry(b, level+1, e)
+	}
+}
+
+// typeGroups orders the kind subsections of the Types section and maps each to
+// the entry keyword(s) it collects.
+var typeGroups = []struct {
+	title    string
+	keywords []string
+}{
+	{"Functions", []string{"func"}},
+	{"Classes", []string{"class"}},
+	{"Enums", []string{"enum"}},
+	{"Methods", []string{"met"}},
+	{"Properties", []string{"prop"}},
+	{"Interfaces", []string{"meti"}},
+}
+
+// writeTypesSection writes the Types section at the given heading level, grouping
+// its entries into kind subsections (Functions, Classes, Enums, Methods,
+// Properties, Interfaces) one level deeper, with entries another level deeper.
+// Entries whose keyword matches no known group are collected under "Other" so
+// nothing is dropped.
+func writeTypesSection(b *strings.Builder, level int, entries []docEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	sh := strings.Repeat("#", level+1) // subsection heading
+	b.WriteString("\n" + strings.Repeat("#", level) + " Types\n")
+
+	claimed := make([]bool, len(entries))
+	writeGroup := func(title string, match func(e docEntry) bool) {
+		var group []docEntry
+		for i, e := range entries {
+			if !claimed[i] && match(e) {
+				claimed[i] = true
+				group = append(group, e)
 			}
-			writeMethods(b, e.methods)
-			continue
 		}
-		b.WriteString("\n")
-		for _, line := range e.code {
-			b.WriteString("    " + line + "\n")
+		if len(group) == 0 {
+			return
 		}
+		b.WriteString("\n" + sh + " " + title + "\n")
+		for _, e := range group {
+			writeEntry(b, level+2, e)
+		}
+	}
+
+	for _, g := range typeGroups {
+		kws := g.keywords
+		writeGroup(g.title, func(e docEntry) bool {
+			for _, kw := range kws {
+				if e.keyword == kw {
+					return true
+				}
+			}
+			return false
+		})
+	}
+	writeGroup("Other", func(docEntry) bool { return true })
+}
+
+// writeEntry renders one documented entry: its `keyword **name**` heading at the
+// given level, then its signature/value code and doc (or its methods).
+func writeEntry(b *strings.Builder, level int, e docEntry) {
+	b.WriteString("\n" + strings.Repeat("#", level) + " " + e.keyword + " **" + e.name + "**\n")
+	if len(e.methods) > 0 {
+		// func-with-methods: the func-level doc introduces the methods.
 		if e.doc != "" {
 			b.WriteString("\n" + e.doc + "\n")
 		}
+		writeMethods(b, e.methods)
+		return
+	}
+	b.WriteString("\n")
+	for _, line := range e.code {
+		b.WriteString("    " + line + "\n")
+	}
+	if e.doc != "" {
+		b.WriteString("\n" + e.doc + "\n")
 	}
 }
 

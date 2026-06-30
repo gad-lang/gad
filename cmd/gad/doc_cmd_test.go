@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	cc "github.com/moisespsena-go/command-context"
@@ -41,7 +42,8 @@ func TestGenerateDocSections(t *testing.T) {
 	require.Contains(t, md, "    const Pi = 3.14")
 	require.Contains(t, md, "the pi value")
 	require.Contains(t, md, "## Types")
-	require.Contains(t, md, "### func **sum**")
+	require.Contains(t, md, "### Functions")
+	require.Contains(t, md, "#### func **sum**")
 	require.Contains(t, md, "    sum(a, b)")
 	require.Contains(t, md, "returns a + b")
 }
@@ -54,7 +56,7 @@ func TestGenerateDocFuncWithMethods(t *testing.T) {
 	md, err := generateDoc("m.gad", []byte(src), true)
 	require.NoError(t, err)
 
-	require.Contains(t, md, "### func **diff**")
+	require.Contains(t, md, "#### func **diff**")
 	require.Contains(t, md, "a difference calculator")
 	require.Contains(t, md, "    (a int, b int)")
 	require.Contains(t, md, "difference of two ints")
@@ -73,7 +75,7 @@ func TestGenerateDocDictExport(t *testing.T) {
 	require.Contains(t, md, "### const **maxRetries**")
 	require.Contains(t, md, "    const maxRetries = 3")
 	require.Contains(t, md, "the max retries")
-	require.Contains(t, md, "### func **area**")
+	require.Contains(t, md, "#### func **area**")
 	require.Contains(t, md, "    area(r)")
 	require.Contains(t, md, "compute the area")
 }
@@ -183,10 +185,11 @@ func TestGenerateDocExportedAndInternal(t *testing.T) {
 	require.Contains(t, md, "## Exported")
 	require.Contains(t, md, "## Internal")
 	// Exported entry stays under Exported; internals are documented too.
-	require.Contains(t, md, "### const **Pi**")
-	require.Contains(t, md, "### func **dbl**")       // closure -> Type
-	require.Contains(t, md, "### var **maxRetries**") // value -> Constant
-	require.Contains(t, md, "### func **isum**")      // func statement -> Type
+	require.Contains(t, md, "#### const **Pi**")
+	require.Contains(t, md, "func **dbl**")       // closure -> Type/Functions
+	require.Contains(t, md, "var **maxRetries**") // value -> Constant
+	require.Contains(t, md, "func **isum**")      // func statement -> Type/Functions
+	require.Contains(t, md, "#### Functions")     // Types kind subsection
 	require.Contains(t, md, "double a number")
 	require.Contains(t, md, "internal sum")
 
@@ -199,6 +202,28 @@ func TestGenerateDocExportedAndInternal(t *testing.T) {
 	require.Contains(t, md2, "### const **Pi**")
 	require.NotContains(t, md2, "maxRetries") // internal omitted
 	require.NotContains(t, md2, "isum")
+}
+
+func TestGenerateDocTypesGroupedByKind(t *testing.T) {
+	src := "/// a func\nfn := func() { return 1 }\n\n" +
+		"/// a class\nclass Cls { x = 0 }\n\n" +
+		"/// an enum\nenum En { A, B }\n\n" +
+		"/// an interface\nmeti Iface { () <str> }\n"
+	md, err := generateDoc("m.gad", []byte(src), false)
+	require.NoError(t, err)
+
+	require.Contains(t, md, "### Types")
+	require.Contains(t, md, "#### Functions")
+	require.Contains(t, md, "#### Classes")
+	require.Contains(t, md, "#### Enums")
+	require.Contains(t, md, "#### Interfaces")
+	// Each entry sits under its kind subsection (one level deeper).
+	require.Contains(t, md, "##### func **fn**")
+	require.Contains(t, md, "##### class **Cls**")
+	require.Contains(t, md, "##### enum **En**")
+	require.Contains(t, md, "##### meti **Iface**")
+	// Subsections render in declared order: Functions before Interfaces.
+	require.Less(t, strings.Index(md, "#### Functions"), strings.Index(md, "#### Interfaces"))
 }
 
 func TestDocMustExportedFlagAndConfig(t *testing.T) {
