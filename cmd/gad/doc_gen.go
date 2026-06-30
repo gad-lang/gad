@@ -425,11 +425,17 @@ func docContent(g *ast.CommentGroup) string {
 }
 
 // blockContent returns the inner text of a fenced block doc, dropping the
-// opening and closing fence.
+// opening and closing fence. A single-line block (`/** text **/`) is trimmed of
+// the spaces that padded the content from the fences so it renders flush; a
+// multi-line block is left as-is so embedded Markdown indentation is preserved.
 func blockContent(text, open, close string) string {
 	body := strings.TrimPrefix(text, open)
 	body = strings.TrimSuffix(body, close)
-	return strings.Trim(body, "\n")
+	body = strings.Trim(body, "\n")
+	if !strings.Contains(body, "\n") {
+		return strings.TrimSpace(body)
+	}
+	return body
 }
 
 // writeTOC writes a table of contents for the non-empty sections.

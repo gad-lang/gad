@@ -162,6 +162,15 @@ func TestDocPreservesTreeWithConfig(t *testing.T) {
 	require.True(t, os.IsNotExist(err), "doc/b.md (flattened) must not exist")
 }
 
+func TestGenerateDocSingleLineBlockTrimmed(t *testing.T) {
+	// A single-line /*** … ***/ root block renders flush-left (the padding
+	// spaces around the content are dropped); a multi-line block is untouched.
+	md, err := generateDoc("m.gad", []byte("/*** module overview. ***/\nexport A = 1\n"), true)
+	require.NoError(t, err)
+	require.Contains(t, md, "\nmodule overview.\n")
+	require.NotContains(t, md, " module overview. ")
+}
+
 func TestGenerateDocExportedAndInternal(t *testing.T) {
 	src := "/// the pi value\nexport Pi = 3.14\n\n" +
 		"/// double a number\ndbl := (x) => x * 2\n\n" +
