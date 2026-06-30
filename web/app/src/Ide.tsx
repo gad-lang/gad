@@ -61,6 +61,7 @@ function langForPath(path: string): EditorLanguage {
 }
 import { InspectDialog, type InspectFn } from "./TreeNavigator";
 import { renderDocMarkdown } from "./docMarkdown";
+import { GadInput } from "./GadInput";
 import { useTheme } from "./useTheme";
 import {
   ideApi,
@@ -1139,6 +1140,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
             {pane === "evaluate" && (
               <EvaluatePanel
                 entries={evals}
+                dark={dark}
                 onAdd={addEval}
                 onUpdate={async (id, expr, repr) => {
                   const updated = await evalOne({ id, expr, repr, value: "", error: "" });
@@ -1209,6 +1211,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       {bpDialog && (
         <BreakpointDialog
           line={bpDialog.line}
+          dark={dark}
           initial={bpMetaFor(bpDialog.path)[bpDialog.line] || {}}
           onClose={() => setBpDialog(null)}
           onSave={(meta) => {
@@ -1592,6 +1595,7 @@ function DocPanel({
 
 function EvaluatePanel({
   entries,
+  dark,
   onAdd,
   onUpdate,
   onRemove,
@@ -1600,6 +1604,7 @@ function EvaluatePanel({
   onInspect,
 }: {
   entries: EvalEntry[];
+  dark?: boolean;
   onAdd: (expr: string, repr: boolean) => void;
   onUpdate: (id: number, expr: string, repr: boolean) => void;
   onRemove: (id: number) => void;
@@ -1627,15 +1632,12 @@ function EvaluatePanel({
   return (
     <div className="pane-body eval">
       <div className="eval-form">
-        <TextField
-          size="small"
-          fullWidth
-          placeholder="expression"
+        <GadInput
           value={expr}
-          onChange={(ev) => setExpr(ev.target.value)}
-          onKeyDown={(ev) => {
-            if (ev.key === "Enter") submit();
-          }}
+          onChange={setExpr}
+          onSubmit={submit}
+          dark={dark}
+          placeholder="expression"
         />
         <FormControlLabel
           control={<Checkbox size="small" checked={repr} onChange={(ev) => setRepr(ev.target.checked)} />}
@@ -1734,11 +1736,13 @@ function BreakpointList({
 
 function BreakpointDialog({
   line,
+  dark,
   initial,
   onClose,
   onSave,
 }: {
   line: number;
+  dark?: boolean;
   initial: { disabled?: boolean; condition?: string };
   onClose: () => void;
   onSave: (meta: { disabled?: boolean; condition?: string }) => void;
@@ -1753,15 +1757,15 @@ function BreakpointDialog({
           control={<Checkbox checked={disabled} onChange={(e) => setDisabled(e.target.checked)} />}
           label="Disabled (ignore this breakpoint while debugging)"
         />
-        <TextField
-          fullWidth
-          size="small"
-          sx={{ mt: 1 }}
-          label="Condition (Gad expression)"
-          placeholder="e.g. i > 10"
-          helperText="Pauses only when the expression is truthy (!value.IsFalsy()). Locals are in scope."
+        <Typography variant="caption" sx={{ display: "block", mt: 1, mb: 0.5, color: "text.secondary" }}>
+          Condition (Gad expression) — pauses only when truthy. Locals are in scope.
+        </Typography>
+        <GadInput
           value={condition}
-          onChange={(e) => setCondition(e.target.value)}
+          onChange={setCondition}
+          onSubmit={() => onSave({ disabled, condition })}
+          dark={dark}
+          placeholder="e.g. i > 10"
         />
       </DialogContent>
       <DialogActions>
