@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-
-	cc "github.com/moisespsena-go/command-context"
 )
 
 // DocGenerator renders Gad source documentation to Markdown. It is the
@@ -17,9 +15,9 @@ import (
 // neither read nor write files — callers supply the source bytes and persist the
 // returned Markdown themselves (see (*docOptions).processFile).
 type DocGenerator struct {
-	// Context carries the command's I/O; example-failure diagnostics from
-	// FromFile are written to Context.Err when it is non-nil.
-	Context *cc.CommandContext
+	// OnError, when non-nil, receives a diagnostic message for each embedded
+	// example that fails during FromFile.
+	OnError func(message string)
 	// MustExported documents only exported symbols (omitting the Internal
 	// section).
 	MustExported bool
@@ -37,8 +35,8 @@ func (d *DocGenerator) FromContent(path string, src []byte) (string, error) {
 // computes its output path, without touching the filesystem. data is the source
 // bytes; path is the source path; dst is the output root and base is the tree
 // root the source path is mirrored against. Unless NoTest is set, the embedded
-// examples are run and each failure is reported to Context.Err; the number of
-// failed examples is returned.
+// examples are run and each failure is reported via OnError; the number of failed
+// examples is returned.
 func (d *DocGenerator) FromFile(
 	data []byte, path, dst, base string,
 ) (md, outPath string, examplesFailed int, err error) {
@@ -50,8 +48,8 @@ func (d *DocGenerator) FromFile(
 		for _, r := range checkFileExamples(path, data) {
 			if r.err != nil {
 				examplesFailed++
-				if d.Context != nil {
-					fmt.Fprintf(d.Context.Err, "doc: %s:%d: example failed: %s\n", path, r.line, r.err)
+				if d.OnError != nil {
+					d.OnError(fmt.Sprintf("doc: %s:%d: example failed: %s", path, r.line, r.err))
 				}
 			}
 		}

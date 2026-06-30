@@ -297,7 +297,11 @@ func (o *docOptions) processFile(ctx *cc.CommandContext, path, dst, base string)
 		return err
 	}
 
-	gen := &DocGenerator{Context: ctx, MustExported: o.mustExported, NoTest: o.noDoctest}
+	gen := &DocGenerator{
+		OnError:      func(msg string) { fmt.Fprintln(ctx.Err, msg) },
+		MustExported: o.mustExported,
+		NoTest:       o.noDoctest,
+	}
 	md, outPath, failed, err := gen.FromFile(src, path, dst, base)
 	if err != nil {
 		return err
