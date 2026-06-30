@@ -300,9 +300,18 @@ func (o *docOptions) processFile(ctx *cc.CommandContext, path, dst, base string)
 		}
 	}
 
-	rel, err := filepath.Rel(base, path)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		rel = filepath.Base(path)
+	// Mirror the source path under dst relative to base. base and path may not
+	// share the same abs/rel form (e.g. base is the config-derived absolute
+	// workspace while path is cwd-relative from a recursive "." scan), so
+	// normalize both to absolute before computing the relative path; otherwise
+	// filepath.Rel fails and the tree is flattened to base names.
+	absBase, baseErr := filepath.Abs(base)
+	absPath, pathErr := filepath.Abs(path)
+	rel := filepath.Base(path)
+	if baseErr == nil && pathErr == nil {
+		if r, err := filepath.Rel(absBase, absPath); err == nil && !strings.HasPrefix(r, "..") {
+			rel = r
+		}
 	}
 	outPath := filepath.Join(dst, strings.TrimSuffix(rel, filepath.Ext(rel))+".md")
 

@@ -85,6 +85,11 @@ DIR ?= samples
 ide:
 	go run ./cmd/gad ide $(DIR)
 
+# Generate Markdown docs for the samples workspace (writes $(DIR)/doc).
+.PHONY: samples-doc
+samples-doc:
+	cd $(DIR) && go run ../cmd/gad doc
+
 # Launch the IDE with the richer React + CodeMirror UI (builds web/app first).
 .PHONY: ide-react
 ide-react: web-build

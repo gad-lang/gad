@@ -23,3 +23,6 @@
 
 /TODO*
 /gaddoc
+
+# skip generated doc of samples
+/samples/doc

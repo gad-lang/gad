@@ -131,6 +131,37 @@ func TestDocDefaultsToCurrentDirRecursive(t *testing.T) {
 	}
 }
 
+// TestDocPreservesTreeWithConfig reproduces the flatten bug: a workspace
+// .gad.yaml makes o.workspace absolute, while a recursive "." scan yields
+// cwd-relative paths. processFile must still mirror subdirectories under doc/
+// instead of collapsing them to base names.
+func TestDocPreservesTreeWithConfig(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "sub"), 0o755))
+	// A config without a doc: section: enough to make the workspace absolute.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".gad.yaml"), []byte("fmt: {}\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.gad"), []byte("/// a value\nexport A = 1\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "sub", "b.gad"), []byte("/// b value\nexport B = 2\n"), 0o644))
+
+	orig, _ := os.Getwd()
+	require.NoError(t, os.Chdir(dir))
+	defer func() { _ = os.Chdir(orig) }()
+
+	var out, errBuf bytes.Buffer
+	inCtx := &cc.CommandContext{Out: &out, Err: &errBuf, InputArgs: cc.Args{"--no-doctest"}}
+	runCtx, err := docCommand().Parse(inCtx)
+	require.NoError(t, err)
+	require.NoError(t, runCtx.Run())
+
+	_, err = os.Stat(filepath.Join(dir, "doc", "a.md"))
+	require.NoError(t, err, "doc/a.md")
+	_, err = os.Stat(filepath.Join(dir, "doc", "sub", "b.md"))
+	require.NoError(t, err, "doc/sub/b.md should preserve the subdir, not flatten to doc/b.md")
+	// The flattened path must NOT exist.
+	_, err = os.Stat(filepath.Join(dir, "doc", "b.md"))
+	require.True(t, os.IsNotExist(err), "doc/b.md (flattened) must not exist")
+}
+
 func TestDocResolveDirDst(t *testing.T) {
 	// per-dir dst is relative to the input dir path.
 	o := &docOptions{out: "/ws/doc", workspace: "/ws", dstSet: true}
