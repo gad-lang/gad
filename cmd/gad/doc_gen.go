@@ -21,13 +21,42 @@ func moduleName(path string) string {
 	return strings.TrimSuffix(base, filepath.Ext(base))
 }
 
-// docEntryKind classifies an exported entry into the Constants or Types section.
+// docEntryKind classifies an entry into the Constants, Variables or Types
+// section.
 type docEntryKind int
 
 const (
 	docConst docEntryKind = iota
+	docVar
 	docType
 )
+
+// docBuckets groups documented entries into the Constants, Variables and Types
+// sections.
+type docBuckets struct {
+	consts, vars, types []docEntry
+}
+
+// bucketize splits entries by kind into the Constants, Variables and Types
+// sections.
+func bucketize(entries []docEntry) (b docBuckets) {
+	for _, e := range entries {
+		switch e.kind {
+		case docVar:
+			b.vars = append(b.vars, e)
+		case docType:
+			b.types = append(b.types, e)
+		default:
+			b.consts = append(b.consts, e)
+		}
+	}
+	return b
+}
+
+// empty reports whether all sections are empty.
+func (b docBuckets) empty() bool {
+	return len(b.consts) == 0 && len(b.vars) == 0 && len(b.types) == 0
+}
 
 // docMethod is one method of a func-with-methods/prop/meti entry.
 type docMethod struct {
@@ -57,7 +86,7 @@ func generateDoc(path string, src []byte, mustExported bool) (string, error) {
 // ends on the line immediately above it; const/var blocks use their per-spec doc
 // comments directly. `met`/`prop`-via-`met` extensions are not documented (their
 // names are ambiguous), so doc comments on them are skipped.
-func internalEntries(file *parser.File, f *source.File) (consts, types []docEntry) {
+func internalEntries(file *parser.File, f *source.File) (entries []docEntry) {
 	// Index doc comments by the line they END on, so a declaration on the next
 	// line can find the doc immediately above it.
 	docByEnd := map[int]*ast.CommentGroup{}
@@ -72,11 +101,7 @@ func internalEntries(file *parser.File, f *source.File) (consts, types []docEntr
 		if e.name == "" {
 			return
 		}
-		if e.kind == docConst {
-			consts = append(consts, e)
-		} else {
-			types = append(types, e)
-		}
+		entries = append(entries, e)
 	}
 
 	for _, stmt := range file.Stmts {
@@ -99,7 +124,7 @@ func internalEntries(file *parser.File, f *source.File) (consts, types []docEntr
 			add(e)
 		}
 	}
-	return consts, types
+	return entries
 }
 
 // internalStmtEntry builds a doc entry for a single documented internal
@@ -194,7 +219,8 @@ func assignEntry(name string, rhs node.Expr, doc string) docEntry {
 		return docEntry{name: name, kind: docType, keyword: "meti",
 			code: []string{name + " = " + firstLine(v.String())}, doc: doc}
 	default:
-		return docEntry{name: name, kind: docConst, keyword: "var",
+		// A `:=` binding to a plain value is a (mutable) variable.
+		return docEntry{name: name, kind: docVar, keyword: "var",
 			code: []string{name + " = " + firstLine(rhs.String())}, doc: doc}
 	}
 }
@@ -208,6 +234,10 @@ func declStmtEntries(ds *node.DeclStmt) []docEntry {
 		return nil
 	}
 	kw := gd.Tok.String()
+	kind := docConst
+	if kw != "const" { // `var` declarations are variables
+		kind = docVar
+	}
 	var out []docEntry
 	for i, sp := range gd.Specs {
 		vs, ok := sp.(*node.ValueSpec)
@@ -228,7 +258,7 @@ func declStmtEntries(ds *node.DeclStmt) []docEntry {
 			if j < len(vs.Values) && vs.Values[j] != nil {
 				code += " = " + vs.Values[j].String()
 			}
-			out = append(out, docEntry{name: name, kind: docConst, keyword: kw, code: []string{code}, doc: dc})
+			out = append(out, docEntry{name: name, kind: kind, keyword: kw, code: []string{code}, doc: dc})
 		}
 	}
 	return out
@@ -398,59 +428,63 @@ func blockContent(text, open, close string) string {
 	return body
 }
 
-// writeTOC writes a table of contents for the non-empty sections.
-func writeTOC(b *strings.Builder, consts, types []docEntry) {
-	if len(consts) == 0 && len(types) == 0 {
+// writeTOC writes a flat table of contents (Constants/Variables/Types) for the
+// must-exported layout.
+func writeTOC(b *strings.Builder, bk docBuckets) {
+	if bk.empty() {
 		return
 	}
 	b.WriteString("\n## Table of Contents\n\n")
-	if len(consts) > 0 {
-		b.WriteString("- [Constants](#constants)\n")
-		for _, e := range consts {
-			b.WriteString("  - [" + e.name + "](#" + anchor(e.name) + ")\n")
-		}
+	writeTOCSection(b, "Constants", bk.consts)
+	writeTOCSection(b, "Variables", bk.vars)
+	writeTOCSection(b, "Types", bk.types)
+}
+
+// writeTOCSection writes a top-level TOC bullet linking the section and its
+// entries, or nothing when empty.
+func writeTOCSection(b *strings.Builder, title string, entries []docEntry) {
+	if len(entries) == 0 {
+		return
 	}
-	if len(types) > 0 {
-		b.WriteString("- [Types](#types)\n")
-		for _, e := range types {
-			b.WriteString("  - [" + e.name + "](#" + anchor(e.name) + ")\n")
-		}
+	b.WriteString("- [" + title + "](#" + anchor(title) + ")\n")
+	for _, e := range entries {
+		b.WriteString("  - [" + e.name + "](#" + anchor(e.name) + ")\n")
 	}
 }
 
-// writeRootGroup writes a root section ("Exported"/"Internal") with Constants and
-// Types subsections, or nothing when both are empty.
-func writeRootGroup(b *strings.Builder, group string, consts, types []docEntry) {
-	if len(consts) == 0 && len(types) == 0 {
+// writeRootGroup writes a root section ("Exported"/"Internal") with Constants,
+// Variables and Types subsections, or nothing when all are empty.
+func writeRootGroup(b *strings.Builder, group string, bk docBuckets) {
+	if bk.empty() {
 		return
 	}
 	b.WriteString("\n## " + group + "\n")
-	writeSection(b, 3, "Constants", consts)
-	writeTypesSection(b, 3, types)
+	writeSection(b, 3, "Constants", bk.consts)
+	writeSection(b, 3, "Variables", bk.vars)
+	writeTypesSection(b, 3, bk.types)
 }
 
 // writeGroupedTOC writes a table of contents for the two-root-section layout,
 // listing each entry name nested under its Exported/Internal group.
-func writeGroupedTOC(b *strings.Builder, expConsts, expTypes, intConsts, intTypes []docEntry) {
-	if len(expConsts)+len(expTypes)+len(intConsts)+len(intTypes) == 0 {
+func writeGroupedTOC(b *strings.Builder, exp, internal docBuckets) {
+	if exp.empty() && internal.empty() {
 		return
 	}
 	b.WriteString("\n## Table of Contents\n\n")
-	writeTOCGroup(b, "Exported", expConsts, expTypes)
-	writeTOCGroup(b, "Internal", intConsts, intTypes)
+	writeTOCGroup(b, "Exported", exp)
+	writeTOCGroup(b, "Internal", internal)
 }
 
 // writeTOCGroup writes one Exported/Internal group of the grouped TOC.
-func writeTOCGroup(b *strings.Builder, group string, consts, types []docEntry) {
-	if len(consts) == 0 && len(types) == 0 {
+func writeTOCGroup(b *strings.Builder, group string, bk docBuckets) {
+	if bk.empty() {
 		return
 	}
 	b.WriteString("- [" + group + "](#" + anchor(group) + ")\n")
-	for _, e := range consts {
-		b.WriteString("  - [" + e.name + "](#" + anchor(e.name) + ")\n")
-	}
-	for _, e := range types {
-		b.WriteString("  - [" + e.name + "](#" + anchor(e.name) + ")\n")
+	for _, entries := range [][]docEntry{bk.consts, bk.vars, bk.types} {
+		for _, e := range entries {
+			b.WriteString("  - [" + e.name + "](#" + anchor(e.name) + ")\n")
+		}
 	}
 }
 

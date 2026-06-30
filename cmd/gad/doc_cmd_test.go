@@ -187,7 +187,8 @@ func TestGenerateDocExportedAndInternal(t *testing.T) {
 	// Exported entry stays under Exported; internals are documented too.
 	require.Contains(t, md, "#### const **Pi**")
 	require.Contains(t, md, "func **dbl**")       // closure -> Type/Functions
-	require.Contains(t, md, "var **maxRetries**") // value -> Constant
+	require.Contains(t, md, "var **maxRetries**") // value -> Variables
+	require.Contains(t, md, "### Variables")      // internal :=-value section
 	require.Contains(t, md, "func **isum**")      // func statement -> Type/Functions
 	require.Contains(t, md, "#### Functions")     // Types kind subsection
 	require.Contains(t, md, "double a number")
@@ -202,6 +203,25 @@ func TestGenerateDocExportedAndInternal(t *testing.T) {
 	require.Contains(t, md2, "### const **Pi**")
 	require.NotContains(t, md2, "maxRetries") // internal omitted
 	require.NotContains(t, md2, "isum")
+}
+
+func TestGenerateDocVariablesSection(t *testing.T) {
+	// const + export are Constants; `:=` values and `var` are Variables.
+	src := "/// the answer\nexport Answer = 42\n\n" +
+		"/// an error value\nerr := error(\"oops\")\n\n" +
+		"/// a counter\nvar count\n"
+	md, err := generateDoc("m.gad", []byte(src), false)
+	require.NoError(t, err)
+
+	require.Contains(t, md, "### Constants")
+	require.Contains(t, md, "#### const **Answer**")
+	require.Contains(t, md, "### Variables")
+	require.Contains(t, md, "#### var **err**")
+	require.Contains(t, md, "#### var **count**")
+	// A variable must not be rendered under Constants: Constants precedes
+	// Variables, and err/count appear after the Variables header.
+	require.Less(t, strings.Index(md, "### Variables"), strings.Index(md, "var **err**"))
+	require.Less(t, strings.Index(md, "### Variables"), strings.Index(md, "var **count**"))
 }
 
 func TestGenerateDocTypesGroupedByKind(t *testing.T) {

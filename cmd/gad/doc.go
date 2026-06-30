@@ -48,20 +48,13 @@ func (d *DocGenerator) FromContent(path string, src []byte) (string, error) {
 		return "", err
 	}
 
-	var expConsts, expTypes []docEntry
+	var exported []docEntry
 	for _, stmt := range file.Stmts {
-		es, _ := stmt.(*node.ExportStmt)
-		if es == nil {
-			continue
-		}
-		for _, e := range exportEntries(es) {
-			if e.kind == docConst {
-				expConsts = append(expConsts, e)
-			} else {
-				expTypes = append(expTypes, e)
-			}
+		if es, ok := stmt.(*node.ExportStmt); ok {
+			exported = append(exported, exportEntries(es)...)
 		}
 	}
+	exp := bucketize(exported)
 
 	var b strings.Builder
 	b.WriteString("# " + moduleName(path) + "\n")
@@ -71,18 +64,19 @@ func (d *DocGenerator) FromContent(path string, src []byte) (string, error) {
 	}
 
 	if d.MustExported {
-		writeTOC(&b, expConsts, expTypes)
-		writeSection(&b, 2, "Constants", expConsts)
-		writeTypesSection(&b, 2, expTypes)
+		writeTOC(&b, exp)
+		writeSection(&b, 2, "Constants", exp.consts)
+		writeSection(&b, 2, "Variables", exp.vars)
+		writeTypesSection(&b, 2, exp.types)
 		return b.String(), nil
 	}
 
 	// Two-root-section mode: gather the documented internal declarations and
 	// render Exported + Internal groups.
-	intConsts, intTypes := internalEntries(file, f)
-	writeGroupedTOC(&b, expConsts, expTypes, intConsts, intTypes)
-	writeRootGroup(&b, "Exported", expConsts, expTypes)
-	writeRootGroup(&b, "Internal", intConsts, intTypes)
+	internal := bucketize(internalEntries(file, f))
+	writeGroupedTOC(&b, exp, internal)
+	writeRootGroup(&b, "Exported", exp)
+	writeRootGroup(&b, "Internal", internal)
 	return b.String(), nil
 }
 
