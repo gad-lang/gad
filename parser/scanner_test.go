@@ -313,6 +313,9 @@ func TestScanner_Scan(t *testing.T) {
 		{token.RawHeredoc, "```abc```"},
 		{token.RawHeredoc, "```a``bc```"},
 		{token.RawHeredoc, "`````a``b```c`````"},
+		// a backslash is a verbatim character in a raw heredoc, not an escape
+		{token.RawHeredoc, "```a\\tb```"},
+		{token.RawHeredoc, "```C:\\tmp\\f```"},
 		{token.Heredoc, `"""` + "\n  a\n  bc\n" + `"""`},
 		{token.Heredoc, `"""` + "\nabc\n" + `"""`},
 		{token.Heredoc, `"""` + "\nabc\n        " + `"""`},

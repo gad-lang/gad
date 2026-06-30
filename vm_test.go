@@ -4644,6 +4644,9 @@ func TestVMRawHeredoc(t *testing.T) {
 	// the body is raw: interpolation braces are kept verbatim (this is not a
 	// template, so {x} is literal and x need not exist)
 	testExpectRun(t, "return ```a {x} b```", nil, RawStr("a {x} b"))
+	// a backslash is verbatim too (not an escape), even in the single-line form
+	testExpectRun(t, "return ```a\\tb```", nil, RawStr(`a\tb`))
+	testExpectRun(t, "return ```C:\\tmp\\f```", nil, RawStr(`C:\tmp\f`))
 	// concatenation: raw + raw and raw + str both stay raw (left operand type
 	// wins); str + raw coerces to str
 	testExpectRun(t, "return ```a``` + ```b```", nil, RawStr("ab"))

@@ -236,22 +236,20 @@ func (s *Reader) NextPosOf(b byte) (end int) {
 	return end
 }
 
+// ReadAt reads up to (but not including) the next occurrence of b, returning the
+// bytes read. It is used to scan raw heredoc bodies, which are verbatim — a
+// backslash is an ordinary character, not an escape — so b is matched literally.
 func (s *Reader) ReadAt(b rune) []byte {
 	var (
 		start = s.Offset
 		end   = s.Offset
 	)
 
-	var escape bool
 	for end < len(s.Src) {
 		if s.Ch == -1 {
 			return nil
 		}
-
-		if s.Ch == '\\' {
-			escape = !escape
-		}
-		if s.Ch == b && !escape {
+		if s.Ch == b {
 			break
 		}
 		s.Next()
