@@ -105,6 +105,28 @@ func TestScanner_ScanCharAsString(t *testing.T) {
 	)
 }
 
+func TestScanner_CommentBeforeConfig(t *testing.T) {
+	// Regression: a skipped comment (here a block doc comment) immediately
+	// before a `# gad:` config directive must not reorder the directive's
+	// tokens. The directive's ConfigStart rides in the scanned token's Prev
+	// list; the comment-skip path previously pooled+shifted those Prev tokens
+	// and then re-added the shifted token after them, emitting ConfigStart
+	// *after* ConfigEnd and breaking the parser.
+	fs := source.NewFileSet()
+	f := fs.AddFileData("test", -1, []byte("/** doc **/\n# gad: mixed\nx := 1\n"))
+	s := parser.NewScanner(f, &parser.ScannerOptions{Mode: parser.DontInsertSemis})
+	s.ErrorHandler(func(_ source.FilePos, msg string) { require.Fail(t, msg) })
+
+	var got []token.Token
+	for i := 0; i < 4; i++ {
+		got = append(got, s.Scan().Token)
+	}
+	require.Equal(t,
+		[]token.Token{token.ConfigStart, token.Ident, token.Semicolon, token.ConfigEnd},
+		got,
+		"a skipped comment must not reorder ConfigStart after ConfigEnd")
+}
+
 func TestScanner_ScanMixed(t *testing.T) {
 	tr := &scanTester{
 		opts: parser.ScannerOptions{

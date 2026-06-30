@@ -1,11 +1,14 @@
-// this program is a gad template to generate JSON output of users list:
-// {
-//   "users": [
-//     "joe",
-//     "mary",
-//     "george"
-//   ]
-// }
+/***
+this program is a gad template to generate JSON output of users list:
+
+    {
+      "users": [
+        "joe",
+        "mary",
+        "george"
+      ]
+    }
+***/
 
 # gad: mixed
 {%

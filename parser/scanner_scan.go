@@ -538,9 +538,15 @@ do:
 				}
 				comment := s.ScanComment()
 				if !s.mode.Has(ScanComments) {
-					// skip comment
+					// skip comment and re-scan the next token. Use ScanNow (not
+					// Scan) so a token carrying Prev tokens — e.g. a `# gad:` config
+					// directive, whose ConfigStart rides in Prev — is returned with
+					// Prev intact for the caller (Scan) to expand in order. Calling
+					// Scan here would pool+shift the Prev tokens and then have the
+					// outer Scan re-add the shifted token after them, mis-ordering
+					// ConfigStart after ConfigEnd.
 					s.InsertSemi = false // newline consumed
-					return s.Scan()
+					return s.ScanNow()
 				}
 				t.Token = token.Comment
 				t.Literal = comment
