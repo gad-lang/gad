@@ -197,7 +197,7 @@ class via `met core.binOp(_ TBinaryOperatorInc, …)` — for example to model
 a "push":
 
 ```go
-Stack := Class("Stack"; fields = (; items = (= [])))
+Stack := Class("Stack", (cls, define) => define(; fields = (; items = (= []))))
 met core.binOp(_ TBinaryOperatorInc, s Stack, v) {
     s.items = append(s.items, v)
     return s

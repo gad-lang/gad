@@ -18,8 +18,8 @@ class Point {
     y = 0
 
     new {
-        (; **f)  => this(; x=0, y=0, **f)   // named fields (defaults + extra)
-        (x, y)   => this(; x=x, y=y)         // positional
+        (; **f)  => new(; x=0, y=0, **f)   // named fields (defaults + extra)
+        (x, y)   => new(; x=x, y=y)         // positional
     }
 
     props {
@@ -93,7 +93,10 @@ class Animal {
 }
 
 /// Dog inherits Animal and overrides speak().
-class Dog extends Animal {
+class Dog {
+    extends {
+        Animal
+    }
     methods {
         /// dogs bark
         speak() => this.name + " barks"

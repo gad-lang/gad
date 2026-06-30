@@ -103,12 +103,22 @@ func Copy[T Object](o T) T {
 }
 
 func DoCall(co CallerObject, c Call) (ret Object, err error) {
-	var yc *yieldCall
+	var (
+		yc   *yieldCall
+		done func()
+	)
 
 	for {
-		if ret, err = co.Call(c); err == nil {
+		func() {
+			if done != nil {
+				defer done()
+				done = nil
+			}
+			ret, err = co.Call(c)
+		}()
+		if err == nil {
 			if yc, _ = ret.(*yieldCall); yc != nil {
-				co, c = yc.CallerObject, *yc.c
+				co, c, done = yc.CallerObject, *yc.c, yc.done
 				continue
 			}
 		} else {

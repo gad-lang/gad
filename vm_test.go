@@ -2157,18 +2157,18 @@ return [str(f), str(f;indent), repr(f), repr(f;indent)]`, nil, Array{
 func TestVMClass(t *testing.T) {
 	s0 := `
 Point := Class(
-	"Point";
+	"Point", (cls, define) => define(;
 	new {
-		// trace: new(this;**fields) -> default(;**fields)
-		(this;**fields) => this(;x=10, y=20,**fields)
+		// trace: new(new;**fields) -> default(;**fields)
+		(new;**fields) => new(;x=10, y=20,**fields)
 
-		// trace: new(this, x, y) -> new(this;**fields) -> default(;**fields)
-        (this, x, y) => this(;x=x, y=y)
-		
-		// trace: new(this, x) -> default(;**fields)
-		(this, x) => this.@new(;x=x)
+		// trace: new(new, x, y) -> new(new;**fields) -> default(;**fields)
+        (new, x, y) => new(;x=x, y=y)
+
+		// trace: new(new, x) -> new(new;**fields) -> default(;**fields)
+		(new, x) => new(;x=x)
 	}
-)
+))
 
 `
 	testExpectRun(t, s0+`
@@ -2191,7 +2191,8 @@ return str([
 		y: 20
 	}›,
 	‹class instance of ‹(main).Point›: {
-		x: 7
+		x: 7,
+		y: 20
 	}›,
 	‹class instance of ‹(main).Point›: {
 		x: 3,
@@ -2211,9 +2212,9 @@ return repr([
 		fields: ‹dict: {}›,
 		methods: ‹dict: {}›,
 		new: ‹ClassConstructor: ‹class constructor of ‹(main).Point› with 3 methods: [
-			0 🠆 ⨍(any) 🠆 ‹compiledFunction: (main).#1(this any; **fields)›,
-			1 🠆 ⨍(any, any) 🠆 ‹compiledFunction: (main).#3(this any, x any)›,
-			2 🠆 ⨍(any, any, any) 🠆 ‹compiledFunction: (main).#2(this any, x any, y any)›
+			0 🠆 ⨍(any) 🠆 ‹compiledFunction: (main).#1(new any; **fields)›,
+			1 🠆 ⨍(any, any) 🠆 ‹compiledFunction: (main).#3(new any, x any)›,
+			2 🠆 ⨍(any, any, any) 🠆 ‹compiledFunction: (main).#2(new any, x any, y any)›
 		]››,
 		properties: ‹dict: {}›
 	}›,
@@ -2222,7 +2223,8 @@ return repr([
 		y: ‹int: 20›
 	}›,
 	‹class instance of ‹(main).Point›: {
-		x: ‹int: 7›
+		x: ‹int: 7›,
+		y: ‹int: 20›
 	}›,
 	‹class instance of ‹(main).Point›: {
 		x: ‹int: 3›,

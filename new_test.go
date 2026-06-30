@@ -505,12 +505,12 @@ func TestVMClassFeatures(t *testing.T) {
 	c := Calc()
 	return [c.add(2, 3), c.add(5)]`, nil, Array{Int(5), Int(10)})
 
-	// --- constructor `new` with overloads; this(;..) sets fields ---
+	// --- constructor `new` with overloads; new(;..) sets fields ---
 	testExpectRun(t, `
-	Point := Class("Point"; new {
-		(this; **f) => this(; x=0, y=0, **f)
-		(this, x, y) => this(; x=x, y=y)
-	})
+	Point := Class("Point", (cls, define) => define(; new {
+		(new; **f) => new(; x=0, y=0, **f)
+		(new, x, y) => new(; x=x, y=y)
+	}))
 	a := Point()
 	b := Point(3, 4)
 	c := Point(; x=7)
@@ -519,13 +519,13 @@ func TestVMClassFeatures(t *testing.T) {
 
 	// --- properties: getter + (typed) setters ---
 	testExpectRun(t, `
-	Box := Class("Box"; fields=(; v), properties={
+	Box := Class("Box", (cls, define) => define(; fields=(; v), properties={
 		val: func {
 			(this) => this.v
 			(this, x) { this.v = "any:" + str(x) }
 			(this, x int) { this.v = "int:" + str(x) }
 		}
-	})
+	}))
 	b := Box()
 	out := []
 	b.val = "a"; out = append(out, b.val)
@@ -620,14 +620,14 @@ func TestVMClassSyntax(t *testing.T) {
 	return [c.add(2, 3), c.add(5), c.tag(7), c.tag("x")]`,
 		nil, Array{Int(5), Int(10), Str("int:7"), Str("str:x")})
 
-	// constructor `new` with overloads; this(;..) sets fields.
+	// constructor `new` with overloads; new(;..) sets fields.
 	testExpectRun(t, `
 	class Point {
 		x = 0
 		y = 0
 		new {
-			(; **f) => this(; x=0, y=0, **f)
-			(x, y) => this(; x=x, y=y)
+			(; **f) => new(; x=0, y=0, **f)
+			(x, y) => new(; x=x, y=y)
 		}
 	}
 	a := Point()
@@ -665,7 +665,7 @@ func TestVMClassSyntax(t *testing.T) {
 		speak() => this.name + " makes a sound"
 		describe() => "I am " + this.name
 	} }
-	class Dog extends Animal { methods { speak() => this.name + " barks" } }
+	class Dog { extends { Animal }; methods { speak() => this.name + " barks" } }
 	d := Dog(; name="Rex")
 	return [d.speak(), d.describe(), d.name]`,
 		nil, Array{Str("Rex barks"), Str("I am Rex"), Str("Rex")})

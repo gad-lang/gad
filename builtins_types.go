@@ -17,6 +17,7 @@ var (
 	TBase                        = NewType("Base", TAny)
 	TClass                       = NewType("Class", TBase)
 	TClassConstructor            = NewType("ClassConstructor", TBase)
+	TClassInitiator              = NewType("ClassInitiator", TBase)
 	TClassProperty               = NewType("ClassProperty", TBase)
 	TClassMethod                 = NewType("ClassMethod", TBase)
 	TClassField                  = NewType("ClassField", TBase)

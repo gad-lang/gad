@@ -429,56 +429,48 @@ func NewPrinterStateFunc(c Call) (ret Object, err error) {
 }
 
 func NewClassFunc(c Call) (ret Object, err error) {
-	var (
-		nameArg = &Arg{
-			Name:          "name",
-			TypeAssertion: TypeAssertionFromTypes(TStr),
-		}
-	)
+	nameArg := &Arg{
+		Name:          "name",
+		TypeAssertion: TypeAssertionFromTypes(TStr),
+	}
 
-	if err = c.Args.Destructure(nameArg); err != nil {
+	// `Class(name)` or `Class(name, define)`: name is required; the define
+	// handler is an optional second positional argument.
+	rest, err := c.Args.DestructureRangeVar(1, nameArg)
+	if err != nil {
 		return
 	}
 
 	t := NewClass(string(nameArg.Value.(Str)), c.VM.CurrentModuleSpec())
 
-	// The `define` callback form `Class(name; define=(Type, define) => define(;
-	// …))` builds the class through the callback (which receives the class as
-	// Type and a define function), so the field/method/… args are consumed
-	// there. The direct form `Class(name; fields=…, methods=…)` instead carries
-	// those args on this call and is handled by t.Define(c) below. check=false
-	// keeps the `define` arg from being rejected as unexpected.
-	var hasDefine bool
-	if err = c.NamedArgs.GetDoCheck(false, &NamedArgVar{
-		Name:          "define",
-		TypeAssertion: NewTypeAssertion(TypeAssertions(WithCallable())),
-		Do: func(value Object) (err error) {
-			hasDefine = true
-			_, err = value.(CallerObject).Call(Call{
-				Context: c.Context,
-				VM:      c.VM,
-				Args: Args{{
-					t,
-					NewFunction("define", func(c Call) (Object, error) {
-						return nil, t.Define(c)
-					}),
-				}},
-			})
-			return
-		},
-	}); err != nil {
+	// The define-handler form `Class(name, (Type, define) => define(; …))` builds
+	// the class through the handler, which receives the class as Type and a
+	// `define` function; the field/method/… args are consumed inside its
+	// define() call.
+	if len(rest) > 0 {
+		handler, ok := rest[0].(CallerObject)
+		if !ok {
+			return nil, NewArgumentTypeError(
+				"2nd (define)", "callable", rest[0].Type().Name())
+		}
+		_, err = handler.Call(Call{
+			Context: c.Context,
+			VM:      c.VM,
+			Args: Args{{
+				t,
+				NewFunction("define", func(c Call) (Object, error) {
+					return nil, t.Define(c)
+				}),
+			}},
+		})
+		return t, err
+	}
+
+	// No define handler: an empty class (`Class(name)`), or any named args
+	// carried directly on this call.
+	if err = t.Define(c); err != nil {
 		return
 	}
-
-	// In the callback form the remaining named args were already consumed via
-	// the inner define() call; running t.Define on this call would reject the
-	// leftover `define` arg, so only run it for the direct form.
-	if !hasDefine {
-		if err = t.Define(c); err != nil {
-			return
-		}
-	}
-
 	return t, nil
 }
 

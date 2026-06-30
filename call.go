@@ -645,11 +645,16 @@ func MustCallVargs(callee Object, args []Object, vargs ...Object) (Object, error
 
 type yieldCall struct {
 	CallerObject
-	c *Call
+	c    *Call
+	done func()
 }
 
 func YieldCall(callerObject CallerObject, c *Call) CallerObject {
-	return &yieldCall{CallerObject: callerObject, c: c}
+	return YieldCallDone(callerObject, c, nil)
+}
+
+func YieldCallDone(callerObject CallerObject, c *Call, done func()) CallerObject {
+	return &yieldCall{CallerObject: callerObject, c: c, done: done}
 }
 
 func (y *yieldCall) GetCaller() CallerObject {
@@ -663,5 +668,8 @@ func (y *yieldCall) GetCall() *Call {
 func (y *yieldCall) Call(c Call) (Object, error) {
 	c2 := *y.c
 	c2.VM = c.VM
+	if y.done != nil {
+		defer y.done()
+	}
 	return y.CallerObject.Call(c2)
 }

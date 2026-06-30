@@ -25,3 +25,4 @@
 - [ ] create builtin functions `gad.binOp{OP_NAME}` (for binary operators), `gad.unOp{OP_NAME}` (for unary operators),
       `gad.selfAssigOp{OP_NAME}` (for self assign operators) removing first param `op Operator`. use call to `gad.binOp{OP_NAME}` insteadof `gad.binOp`,
       apply this rule for `gad.unOp` and `gad.selfAssigOp{OP_NAME}`. update methods implementations in tests, samples, doc, README.
+- [ ] remove `subcommandNames` from gad/cmd, it is unnecessary after dependency update.

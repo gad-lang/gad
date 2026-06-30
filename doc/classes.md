@@ -11,14 +11,17 @@ The `class` keyword is the high-level way to write one; it lowers to the
 
 ## The `class` syntax
 
-A `class` block reads top to bottom: bare fields, then `props {}`, `new` and
-`methods {}` groups. Items are separated by newlines or commas. `this` is
-inserted automatically as the first parameter of every method, property accessor
-and constructor — you do not write it.
+A `class` block reads top to bottom: an optional `extends {}` block, bare
+fields, then `props {}`, `new` and `methods {}` groups. Items are separated by
+newlines or commas. The first parameter is inserted automatically — you do not
+write it: `this` for methods and property accessors, and `new` (the class
+initiator) for constructors.
 
 ```go
-// statement form: `class Name … { … }` defines a constant Name
-class Point extends Base {
+// statement form: `class Name { … }` defines a constant Name
+class Point {
+    extends { Base }         // parents go in an `extends { … }` block
+
     x int = 0
     y int = 0
     weight = (= 0)            // computed default, evaluated per instance
@@ -29,8 +32,8 @@ class Point extends Base {
     }
 
     new {
-        (; **f)  => this(; x=0, y=0, **f)             // named fields
-        (x, y)   => this(; x=x, y=y)                  // positional
+        (; **f)  => new(; x=0, y=0, **f)              // named fields
+        (x, y)   => new(; x=x, y=y)                   // positional
     }
 
     methods {
@@ -51,30 +54,34 @@ Counter := class {
 export class Box { v; methods { get() => this.v } }
 ```
 
-A method takes a typed `this Type` (so overloads can dispatch on argument types,
-e.g. `tag(n int)` vs `tag(s str)`); property accessors and constructors take an
-untyped `this`. A `name = expr` entry in `props`/`methods` is shorthand for a
-zero-argument accessor `() => expr`. Everything else — field defaults, typed
-fields, inheritance, overloaded methods/constructors — works exactly as in the
-`Class(...)` forms below, which the `class` block compiles to:
+A method takes a typed `this cls` (so overloads can dispatch on argument types,
+e.g. `tag(n int)` vs `tag(s str)`); property accessors take an untyped `this`,
+and constructors take a `new` initiator (not `this`). A `name = expr` entry in
+`props`/`methods` is shorthand for a zero-argument accessor `() => expr`.
+Everything else — field defaults, typed fields, inheritance, overloaded
+methods/constructors — works exactly as in the `Class(...)` forms below, which
+the `class` block compiles to:
 
 ```go
 class Point { x = 0; methods { dist() => this.x } }
 // is sugar for:
-Point := Class("Point"; define=(Type, define) => define(;
+Point := Class("Point", (cls, define) => define(;
     fields  = (; x = 0),
-    methods = [ dist(this Type) => this.x ],
+    methods = [ dist(this cls) => this.x ],
 ))
 ```
 
 ## Defining a class
 
-`Class(name; …)` takes the class name positionally and everything else as named
-arguments: `fields`, `methods`, `properties`, `new` (the constructor) and
-`extends`. All are optional.
+`Class(name, define)` takes the class name positionally and a **define handler**
+as the optional second positional argument. The handler `(cls, define) => …`
+receives the in-construction class (`cls`) and a `define` function; calling
+`define(; …)` registers the members as named arguments: `fields`, `methods`,
+`properties`, `new` (the constructor) and `extends`. All are optional, and
+`Class(name)` (no handler) is a valid empty class.
 
 ```go
-Point := Class("Point";
+Point := Class("Point", (cls, define) => define(;
     fields = (;
         x int = 0
         y int = 0
@@ -82,7 +89,7 @@ Point := Class("Point";
     methods = [
         dist(this) => (this.x ** 2 + this.y ** 2) ** 0.5
     ]
-)
+))
 
 p := Point(; x=3, y=4)
 println(p.dist())     // 5
@@ -94,12 +101,12 @@ Fields are declared in a `(; … )` group. Each field may have a type and a
 default value:
 
 ```go
-Class("P"; fields = (;
+Class("P", (cls, define) => define(; fields = (;
     a              // any, default nil
     b int          // type annotation (not enforced), default nil
     c = "x"        // default value
     d str = "y"    // type + default
-))
+)))
 ```
 
 A field's default may be a **computed value** `(= … )`, which is evaluated
@@ -107,7 +114,7 @@ A field's default may be a **computed value** `(= … )`, which is evaluated
 
 ```go
 n := 0
-C := Class("C"; fields = (; id = (= n++)))
+C := Class("C", (cls, define) => define(; fields = (; id = (= n++))))
 [C().id, C().id, C().id]    // [1, 2, 3]
 ```
 
@@ -118,22 +125,26 @@ Instances expose fields with `inst.field` (read) and `inst.field = v` (write).
 Without a `new`, a class is constructed by passing field values as named
 arguments: `Point(; x=3, y=4)`. To accept positional arguments, define `new`
 with one or more overloads (the func-with-methods syntax). The first parameter
-is always `this`; calling `this(; field=value, …)` initialises the instance:
+is always `new` — a *class initiator*; calling `new(; field=value, …)`
+initialises the instance and returns it:
 
 ```go
-Point := Class("Point"; new {
-    (this; **f)      => this(; x=0, y=0, **f)   // defaults + extra named fields
-    (this, x, y)     => this(; x=x, y=y)        // positional
-    (this, x)        => this.@new(; x=x)        // chain to another overload
-})
+Point := Class("Point", (cls, define) => define(; new {
+    (new; **f)      => new(; x=0, y=0, **f)   // defaults + extra named fields
+    (new, x, y)     => new(; x=x, y=y)        // positional
+    (new, x)        => new(; x=x)             // chain to the default initiator
+}))
 
 Point()         // x=0, y=0
 Point(3, 4)     // x=3, y=4
 Point(; x=7)    // x=7, y=0
 ```
 
-`this.@new(…)` chains to the default constructor (the one that just assigns the
-named fields).
+A `new(; field=value, …)` call with named-only fields invokes the default
+initiator (which just assigns the named fields); a recursive `new(…)` into the
+same overload also falls to the default, so construction terminates. The
+constructor's class keyword form injects `new` automatically:
+`class P { new { (x, y) => new(; x=x, y=y) } }`.
 
 ## Methods
 
@@ -142,11 +153,11 @@ Methods live in the `methods` list. Each is a function whose first parameter is
 func-with-methods block to overload it by arity/type:
 
 ```go
-Class("Calc"; methods = [
+Class("Calc", (cls, define) => define(; methods = [
     add(this, a, b) => a + b
     add(this, a)    => a + a       // overload
     label(this) => "calc",
-])
+]))
 ```
 
 ## Properties
@@ -156,13 +167,13 @@ more setters (one extra parameter, optionally typed). They are accessed like
 fields — reading runs the getter, assigning runs the matching setter:
 
 ```go
-Box := Class("Box"; fields = (; v), properties = {
+Box := Class("Box", (cls, define) => define(; fields = (; v), properties = {
     val: func {
         (this)        => this.v               // getter
         (this, x)     { this.v = "any:" + str(x) }   // setter
         (this, x int) { this.v = "int:" + str(x) }   // typed setter
     }
-})
+}))
 
 b := Box()
 b.val = "a"; b.val    // "any:a"
@@ -177,18 +188,18 @@ the child can use them directly, and a child method of the same name overrides
 the parent's.
 
 ```go
-Animal := Class("Animal";
+Animal := Class("Animal", (cls, define) => define(;
     fields  = (; name str = "?"),
     methods = [
         speak(this)    => this.name + " makes a sound"
         describe(this) => "I am " + this.name
     ]
-)
+))
 
-Dog := Class("Dog";
+Dog := Class("Dog", (cls, define) => define(;
     extends = [Animal],
     methods = [ speak(this) => this.name + " barks" ]   // override
-)
+))
 
 d := Dog(; name="Rex")
 d.speak()       // "Rex barks"   (override)
@@ -203,9 +214,9 @@ value.
 Multiple parents are embedded left to right:
 
 ```go
-A := Class("A"; methods = [ a(this) => "a" ])
-B := Class("B"; methods = [ b(this) => "b" ])
-C := Class("C"; extends = [A, B])
+A := Class("A", (cls, define) => define(; methods = [ a(this) => "a" ]))
+B := Class("B", (cls, define) => define(; methods = [ b(this) => "b" ]))
+C := Class("C", (cls, define) => define(; extends = [A, B]))
 o := C()
 [o.a(), o.b()]    // ["a", "b"]
 ```
@@ -216,7 +227,7 @@ The `met` statement attaches behaviour to an existing class from the outside —
 extra methods, operator overloads, type conversions and custom printing.
 
 ```go
-Vec := Class("Vec"; fields = (; x int = 0, y int = 0))
+Vec := Class("Vec", (cls, define) => define(; fields = (; x int = 0, y int = 0)))
 
 // add a method
 met Vec.len2(this) => this.x*this.x + this.y*this.y

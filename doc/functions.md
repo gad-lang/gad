@@ -178,7 +178,7 @@ freshly-evaluated value (see [Classes → Fields](classes.md#fields)):
 
 ```go
 n := 0
-C := Class("C"; fields = (; id = (= n++)))
+C := Class("C", (cls, define) => define(; fields = (; id = (= n++))))
 [C().id, C().id]   // [1, 2]
 ```
 

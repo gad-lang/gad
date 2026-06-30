@@ -35,7 +35,7 @@ t2 := time.CalendarTime("2026-01-31 08:05:30")
 println(++t2)                     // 2026-01-31 08:05:31  (a second)
 
 /// A type customises a unary operator with met core.unOp(_ TUnaryOperatorX, …).
-Vec := Class("Vec"; fields = (; x = (= 0), y = (= 0)))
+Vec := Class("Vec", (cls, define) => define(; fields = (; x = (= 0), y = (= 0))))
 met core.unOp(_ TUnaryOperatorSub, v Vec) {
     return Vec(; x = -v.x, y = -v.y)
 }

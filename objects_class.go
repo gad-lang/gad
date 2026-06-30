@@ -422,11 +422,13 @@ func NewClass(name string, module *ModuleSpec) (t *Class) {
 
 	t.new.class = t
 	t.new.f = NewFuncSpec(t.new)
+	// The default constructor takes the ClassInitiator (`new`) as its single
+	// positional param and initialises its instance from the call's named args.
 	t.new.f.defaul = &Function{
 		FuncName: ReprQuote("new"),
-		Value:    t.Construct,
+		Value:    t.constructDefault,
 		Header: NewFunctionHeader().WithParams(func(newParam func(name string) *ParamBuilder) {
-			newParam("this")
+			newParam("new")
 		}),
 	}
 	return
@@ -616,8 +618,16 @@ func (t *Class) AddMethodByTypes(vm *VM, argTypes ParamsTypes, handler CallerObj
 // New constructs an instance of t, initialising its fields from the given dict
 // (defaults fill the rest). It is the Go-side entry point for creating an
 // instance; from Gad, calling the class invokes Call/Construct.
-func (t *Class) New(vm *VM, fields Dict) (Object, error) {
-	return t.NewInstanceWithFields(vm, fields)
+// New constructs an instance of t, running any matching custom constructor. It
+// is a typed wrapper over Call usable from Go (inside or outside the VM loop):
+//
+//	inst, err := cls.New(Call{VM: vm, Args: Args{Array{a, b}}})
+func (t *Class) New(c Call) (*ClassInstance, error) {
+	o, err := t.Call(c)
+	if err != nil {
+		return nil, err
+	}
+	return o.(*ClassInstance), nil
 }
 
 // NewInstanceWithFields allocates an instance of t and runs Init with the given
@@ -633,9 +643,9 @@ func (t *Class) NewInstance() (o *ClassInstance) {
 	return &ClassInstance{class: t}
 }
 
-// Construct is the class's default new-handler: it takes the freshly allocated
-// `this` instance as its first argument and initialises it from the call's named
-// args. It is the fallback when no user `new` handler matches.
+// Construct re-initialises an already-allocated `this` instance (passed as the
+// first argument) from the call's named args. It backs `instance.@new` and
+// `MyClass.new(this; …)`.
 func (t *Class) Construct(c Call) (o Object, err error) {
 	arg := &Arg{
 		Name:          "this",
@@ -649,10 +659,26 @@ func (t *Class) Construct(c Call) (o Object, err error) {
 	return this, this.Init(c.VM, c.NamedArgs.Dict())
 }
 
-// Call constructs a new instance: calling a Class value (`MyClass(...)`)
-// allocates an instance and dispatches to its constructor.
+// constructDefault is the class's default new-handler: it initialises the
+// in-progress instance (carried by the ClassInitiator passed as the `new` first
+// argument) from the call's named args. It is the base case of every custom
+// constructor's `new(; fields)` super-call and the fallback when no user `new`
+// handler matches.
+func (t *Class) constructDefault(c Call) (Object, error) {
+	in, _ := c.Args.Shift().(*ClassInitiator)
+	if in == nil {
+		return nil, ErrNewClassInstance.NewError("default constructor called without an initiator")
+	}
+	return in.instance, in.instance.Init(c.VM, c.NamedArgs.Dict())
+}
+
+// Call constructs a new instance. Calling a Class value (`MyClass(…)`, in the VM
+// or from Go via Class.Call(Call{VM: vm, …})) allocates an uninitialised instance,
+// wraps it in a ClassInitiator and dispatches to the matching constructor, which
+// receives the initiator as its `new` first parameter. The constructor body
+// builds the instance with a `new(; fields)` super-call (see ClassInitiator.Call).
 func (t *Class) Call(c Call) (_ Object, err error) {
-	return t.NewInstance().Call(c)
+	return (&ClassInitiator{instance: t.NewInstance()}).Call(c)
 }
 
 func (t *Class) IsChildOf(p ObjectType) bool {

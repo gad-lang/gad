@@ -136,3 +136,6 @@ clean:
 ci:
 	./scripts/golangci.sh
 
+
+xx:
+	echo "param(*argv); println(repr(argv))" | go run ./cmd/gad -- x

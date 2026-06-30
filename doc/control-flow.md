@@ -151,11 +151,11 @@ type implementing the `ObjectEnter` / `ObjectExit` interfaces. A value with
 neither is a silent no-op.
 
 ```go
-File := Class("File"; fields = (; name = (= ""), open = (= false)),
+File := Class("File", (cls, define) => define(; fields = (; name = (= ""), open = (= false)),
     methods = [
         enter(this) { this.open = true;  println("open",  this.name); return this }
         exit(this, err) { this.open = false; println("close", this.name) }
-    ])
+    ]))
 
 with File(; name = "a.txt") as f {
     println("use", f.name)

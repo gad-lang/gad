@@ -26,53 +26,82 @@ var (
 
 // ClassInstance is a live object of a Class. It holds the instance's field
 // values (fields), one ClassInstance per parent class (parents, keyed by the
-// parent alias) and a back-reference to its class. newCallStack tracks the
-// in-progress constructor chain so parent constructors can be invoked exactly
-// once during `new`. It implements the Object interface and dispatches method,
-// property and field access through its class.
+// parent alias) and a back-reference to its class. It implements the Object
+// interface and dispatches method, property and field access through its class.
 type ClassInstance struct {
-	fields       Dict
-	parents      map[string]*ClassInstance
-	class        *Class
+	fields  Dict
+	parents map[string]*ClassInstance
+	class   *Class
+}
+
+// Call on an instance is not a constructor entry point: instances are built via
+// Class.Call / ClassInitiator. Calling a live instance is therefore an error.
+func (o *ClassInstance) Call(Call) (Object, error) {
+	return nil, ErrClassInstanceInitialized
+}
+
+var (
+	_ Object       = (*ClassInitiator)(nil)
+	_ CallerObject = (*ClassInitiator)(nil)
+)
+
+// ClassInitiator wraps the in-progress ClassInstance during construction. It is
+// passed to every constructor as the `new` first parameter and is itself
+// callable: a `new(; fields)` super-call dispatches to the matching constructor
+// (or, when it re-enters the running one, to the default) to build the instance.
+// newCallStack tracks the active constructor chain so that super-call recursion
+// terminates at the default constructor.
+type ClassInitiator struct {
+	instance     *ClassInstance
 	newCallStack []CallerObject
 }
 
-func (o *ClassInstance) Call(c Call) (_ Object, err error) {
-	if o.fields == nil {
-		c.Args = append(Args{Array{o}}, c.Args...)
-		caller, validate := o.class.new.f.CallerMethodWithValidationCheckOfArgs(c.Args)
+func (in *ClassInitiator) Type() ObjectType        { return TClassInitiator }
+func (in *ClassInitiator) IsFalsy() bool           { return false }
+func (in *ClassInitiator) Equal(right Object) bool { return Object(in) == right }
+func (in *ClassInitiator) Name() string            { return "new" }
 
-		if caller == nil {
-			return nil, ErrConstructorMethodFound.NewErrorf("no constructor found for params types %s", c.Args.Types())
-		}
+func (in *ClassInitiator) ToString() string {
+	return "classInitiator of " + in.instance.class.FullName()
+}
 
-		for i := len(o.newCallStack) - 1; i >= 0; i-- {
-			if o.newCallStack[i] == caller {
-				if types, _ := ParamTypesOfRawCaller(c.VM, caller); len(types) == 1 {
-					// if default is overrided
-					if caller != o.class.new.f.defaul {
-						caller = o.class.new.f.defaul
-						break
-					}
-				}
-				return nil, ErrConstructorRecursiveCall.NewError(caller.ToString())
-			}
-		}
+// Call dispatches to the matching constructor, passing the initiator as the
+// `new` first argument. A super-call back into the running constructor falls to
+// the default constructor (which initialises the instance), so construction
+// terminates. It returns the constructed instance.
+func (in *ClassInitiator) Call(c Call) (_ Object, err error) {
+	cls := in.instance.class
+	c.Args = append(Args{Array{in}}, c.Args...)
+	caller, validate := cls.new.f.CallerMethodWithValidationCheckOfArgs(c.Args)
 
-		c.SafeArgs = !validate
-
-		o.newCallStack = append(o.newCallStack, caller)
-		defer func() {
-			o.newCallStack = o.newCallStack[:len(o.newCallStack)-1]
-		}()
-
-		if _, err = DoCall(caller, c); err != nil {
-			return nil, err
-		}
-		return o, nil
-	} else {
-		return nil, ErrClassInstanceInitialized
+	if caller == nil {
+		return nil, ErrConstructorMethodFound.NewErrorf("no constructor found for params types %s", c.Args.Types())
 	}
+
+	for i := len(in.newCallStack) - 1; i >= 0; i-- {
+		if in.newCallStack[i] == caller {
+			if types, _ := ParamTypesOfRawCaller(c.VM, caller); len(types) == 1 {
+				// if default is overrided
+				if caller != cls.new.f.defaul {
+					caller = cls.new.f.defaul
+					break
+				}
+			}
+			return nil, ErrConstructorRecursiveCall.NewError(caller.ToString())
+		}
+	}
+
+	c.SafeArgs = !validate
+
+	in.newCallStack = append(in.newCallStack, caller)
+	defer func() {
+		in.newCallStack = in.newCallStack[:len(in.newCallStack)-1]
+	}()
+
+	if _, err = DoCall(caller, c); err != nil {
+		return nil, err
+	}
+	return in.instance, nil
 }
 
 func (o *ClassInstance) Name() string {

@@ -59,7 +59,7 @@ func (c *Compiler) classCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 		name = id.Name
 	}
 
-	typeIdent := node.EIdent("Type", pos)
+	clsIdent := node.EIdent("cls", pos)
 	defineIdent := node.EIdent("define", pos)
 
 	var inner node.CallExprNamedArgs
@@ -77,22 +77,22 @@ func (c *Compiler) classCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 		inner.AppendS("properties", props)
 	}
 	if len(nd.Methods) > 0 {
-		methods, err := c.classMethodsExpr(nd, typeIdent)
+		methods, err := c.classMethodsExpr(nd, clsIdent)
 		if err != nil {
 			return nil, err
 		}
 		inner.AppendS("methods", methods)
 	}
 	if len(nd.New) > 0 {
-		inner.AppendS("new", classNewExpr(nd, typeIdent))
+		inner.AppendS("new", classNewExpr(nd))
 	}
 
-	// (Type, define) => define(; …)
+	// (cls, define) => define(; …)
 	callback := &node.ClosureExpr{
 		Params: node.FuncParams{
 			Args: node.ArgsList{
 				Values: []*node.TypedIdentExpr{
-					{Ident: typeIdent},
+					{Ident: clsIdent},
 					{Ident: defineIdent},
 				},
 			},
@@ -104,14 +104,17 @@ func (c *Compiler) classCallExpr(nd *node.ClassExpr) (*node.CallExpr, error) {
 		},
 	}
 
-	var outer node.CallExprNamedArgs
-	outer.AppendS("define", callback)
+	// Class(name, (Type, define) => define(; …)) — the define handler is the
+	// second positional argument. An empty class body needs no handler.
+	args := []node.Expr{node.Str(name, pos)}
+	if len(inner.Values) > 0 {
+		args = append(args, callback)
+	}
 
 	return &node.CallExpr{
 		Func: node.EIdent(BuiltinNewClass.String(), pos),
 		CallArgs: node.CallArgs{
-			Args:      node.CallExprPositionalArgs{Values: []node.Expr{node.Str(name, pos)}},
-			NamedArgs: outer,
+			Args: node.CallExprPositionalArgs{Values: args},
 		},
 	}, nil
 }
@@ -179,18 +182,27 @@ func (c *Compiler) classPropertiesExpr(nd *node.ClassExpr, typeIdent node.Expr) 
 }
 
 // classNewExpr builds the `new=` value: an (anonymous) func-with-methods holding
-// the constructor overloads, each taking an untyped `this`. A constructor's
-// ParamTypes are resolved at construction time (the recursion check in
-// ClassInstance.Call) when the constructor frame — not the define callback — is
-// current; a typed `this Type` would then resolve `Type` to the local `this`
-// instance instead of the class. Typing `this` here adds no dispatch value
-// since every constructor overload shares the same receiver type.
-func classNewExpr(nd *node.ClassExpr, _ node.Expr) node.Expr {
-	return &node.FuncWithMethodsExpr{Methods: classInjectThis(nd.New, nil)}
+// the constructor overloads, each with a `new` first parameter prepended. `new`
+// is the ClassInitiator (see ClassInitiator.Call); a constructor body builds the
+// instance with a `new(; fields)` super-call.
+func classNewExpr(nd *node.ClassExpr) node.Expr {
+	return &node.FuncWithMethodsExpr{Methods: classInjectParam(nd.New, "new")}
+}
+
+// classInjectParam returns copies of the methods with an untyped parameter named
+// `name` prepended.
+func classInjectParam(methods []*node.FuncMethod, name string) []*node.FuncMethod {
+	out := make([]*node.FuncMethod, len(methods))
+	for i, m := range methods {
+		cp := *m
+		cp.Params.Args.PrependValue(&node.TypedIdentExpr{Ident: node.EIdent(name, source.NoPos)})
+		out[i] = &cp
+	}
+	return out
 }
 
 // classMemberFunc builds a named function literal for one method overload, with
-// a typed `this Type` parameter prepended.
+// a typed `this cls` parameter prepended.
 func classMemberFunc(name *node.IdentExpr, m *node.FuncMethod, typeIdent node.Expr) *node.FuncExpr {
 	params := m.Params
 	params.Args.PrependValue(thisParam(typeIdent))

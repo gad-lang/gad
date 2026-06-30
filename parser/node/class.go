@@ -5,11 +5,12 @@ import (
 	"github.com/gad-lang/gad/parser/source"
 )
 
-// ClassParentExpr is one parent in a class `extends` list: a parent type
-// expression with an optional alias (`extends Base as B`).
+// ClassParentExpr is one parent in a class `extends { … }` block: a parent type
+// expression (an IdentExpr or SelectorExpr) with an optional alias written after
+// a colon (`Base: B`).
 type ClassParentExpr struct {
 	Type  Expr
-	Alias *IdentExpr // optional; nil when written without `as alias`
+	Alias *IdentExpr // optional; nil when written without `: alias`
 }
 
 func (e *ClassParentExpr) Pos() source.Pos { return e.Type.Pos() }
@@ -23,7 +24,7 @@ func (e *ClassParentExpr) End() source.Pos {
 
 func (e *ClassParentExpr) String() string {
 	if e.Alias != nil {
-		return e.Type.String() + " as " + e.Alias.String()
+		return e.Type.String() + ": " + e.Alias.String()
 	}
 	return e.Type.String()
 }
@@ -31,7 +32,7 @@ func (e *ClassParentExpr) String() string {
 func (e *ClassParentExpr) WriteCode(ctx *CodeWriteContext) {
 	e.Type.WriteCode(ctx)
 	if e.Alias != nil {
-		ctx.WriteString(" as ")
+		ctx.WriteString(": ")
 		e.Alias.WriteCode(ctx)
 	}
 }
@@ -122,9 +123,10 @@ func (e *ClassMemberExpr) WriteCode(ctx *CodeWriteContext) {
 
 // ClassExpr is a class literal:
 //
-//	class [Name] [extends P, …] { fields, props {…}, new …, methods {…} }
+//	class [Name] { extends {P, …}, fields, props {…}, new …, methods {…} }
 //
-// It lowers (in the compiler) to a
+// The `extends { … }` block (parents, optionally aliased as `Parent: Alias`) is a
+// body item like `props`/`new`/`methods`. It lowers (in the compiler) to a
 //
 //	Class(name; define=(Type, define) => define(; extends=…, fields=…,
 //	    properties=…, methods=…, new=…))
@@ -137,6 +139,7 @@ type ClassExpr struct {
 	ClassToken TokenLit
 	NameExpr   Expr
 	Parents    []*ClassParentExpr
+	ExtendsDoc *ast.CommentGroup
 	Fields     []*ClassFieldExpr
 	Props      []*ClassMemberExpr
 	PropsDoc   *ast.CommentGroup
@@ -169,20 +172,19 @@ func (e *ClassExpr) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString(" ")
 		e.NameExpr.WriteCode(ctx)
 	}
-	if len(e.Parents) > 0 {
-		ctx.WriteString(" extends ")
-		for i, p := range e.Parents {
-			if i > 0 {
-				ctx.WriteString(", ")
-			}
-			p.WriteCode(ctx)
-		}
-	}
 	ctx.WriteString(" {")
 
-	// Body items in canonical order: fields, then the `props`, `new` and
-	// `methods` groups. Each group is itself a brace block.
+	// Body items in canonical order: the `extends` block, fields, then the
+	// `props`, `new` and `methods` groups. Each group is itself a brace block.
 	var items []func()
+	if len(e.Parents) > 0 {
+		items = append(items, func() {
+			ctx.WriteLeadDoc(e.ExtendsDoc)
+			ctx.WriteString("extends {")
+			writeClassParents(ctx, e.Parents)
+			ctx.WriteString("}")
+		})
+	}
 	for _, f := range e.Fields {
 		f := f
 		items = append(items, func() { f.WriteCode(ctx) })
@@ -230,6 +232,12 @@ func writeBraceItems(ctx *CodeWriteContext, count int, do func(i int)) {
 	}
 }
 
+// writeClassParents emits the entries of the `extends {}` block, one parent per
+// indented line when formatting with a prefix.
+func writeClassParents(ctx *CodeWriteContext, parents []*ClassParentExpr) {
+	writeBraceItems(ctx, len(parents), func(i int) { parents[i].WriteCode(ctx) })
+}
+
 // writeClassMembers emits the entries of a `props {}` / `methods {}` block.
 func writeClassMembers(ctx *CodeWriteContext, members []*ClassMemberExpr) {
 	writeBraceItems(ctx, len(members), func(i int) { members[i].WriteCode(ctx) })
@@ -241,8 +249,8 @@ func writeClassMethods(ctx *CodeWriteContext, methods []*FuncMethod) {
 	writeBraceItems(ctx, len(methods), func(i int) { methods[i].WriteCode(ctx) })
 }
 
-// ClassStmt is the statement form `class Name [extends …] { … }`. It compiles
-// to `const Name = <class expression>`.
+// ClassStmt is the statement form `class Name { … }`. It compiles to
+// `const Name = <class expression>`.
 type ClassStmt struct {
 	ClassExpr
 }

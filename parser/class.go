@@ -5,9 +5,8 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
-// ParseClassExpr parses an anonymous class expression `class [extends …] { … }`
-// (the expression form). The statement form with a name is parsed by
-// ParseClassStmt.
+// ParseClassExpr parses an anonymous class expression `class { … }` (the
+// expression form). The statement form with a name is parsed by ParseClassStmt.
 func (p *Parser) ParseClassExpr() node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "ClassExpr"))
@@ -21,9 +20,9 @@ func (p *Parser) ParseClassExpr() node.Expr {
 	return cls
 }
 
-// ParseClassStmt parses the statement form. `class Name [extends …] { … }`
-// becomes `const Name = <class expression>`; an anonymous `class { … }` used as
-// a statement is parsed as an expression statement.
+// ParseClassStmt parses the statement form. `class Name { … }` becomes
+// `const Name = <class expression>`; an anonymous `class { … }` used as a
+// statement is parsed as an expression statement.
 func (p *Parser) ParseClassStmt() node.Stmt {
 	if p.Trace {
 		defer untracep(tracep(p, "ClassStmt"))
@@ -32,7 +31,7 @@ func (p *Parser) ParseClassStmt() node.Stmt {
 	classTok := p.ExpectToken(token.Class)
 
 	var name node.Expr
-	if p.Token.Token == token.Ident && p.Token.Literal != "extends" {
+	if p.Token.Token == token.Ident {
 		name = p.ParseIdent()
 	}
 
@@ -48,32 +47,10 @@ func (p *Parser) ParseClassStmt() node.Stmt {
 	return &node.ClassStmt{ClassExpr: *cls}
 }
 
-// parseClassBody parses the optional `extends …` clause and the `{ … }` body of
-// a class, shared by the expression and statement forms.
+// parseClassBody parses the `{ … }` body of a class (including the `extends { … }`
+// block), shared by the expression and statement forms.
 func (p *Parser) parseClassBody(classTok PToken, name node.Expr) *node.ClassExpr {
 	cls := &node.ClassExpr{ClassToken: classTok.TokenLit, NameExpr: name}
-
-	p.SkipSpace()
-	if p.Token.Token == token.Ident && p.Token.Literal == "extends" {
-		p.Next()
-		for {
-			p.SkipSpace()
-			parent := &node.ClassParentExpr{Type: p.ParsePrimaryExpr()}
-			p.SkipSpace()
-			if p.Token.Token == token.Ident && p.Token.Literal == "as" {
-				p.Next()
-				p.SkipSpace()
-				parent.Alias = p.ParseIdent()
-			}
-			cls.Parents = append(cls.Parents, parent)
-			p.SkipSpace()
-			if p.Token.Token == token.Comma {
-				p.Next()
-				continue
-			}
-			break
-		}
-	}
 
 	p.SkipSpace()
 	cls.LBrace = p.Expect(token.LBrace)
@@ -95,13 +72,20 @@ func (p *Parser) parseClassBody(classTok PToken, name node.Expr) *node.ClassExpr
 	return cls
 }
 
-// parseClassBodyItem parses one top-level class body item: a `props {}` /
-// `methods {}` / `new` block, or a field.
+// parseClassBodyItem parses one top-level class body item: an `extends {}` /
+// `props {}` / `methods {}` / `new` block, or a field.
 func (p *Parser) parseClassBodyItem(cls *node.ClassExpr) {
 	doc := p.leadComment
 
 	if p.Token.Token == token.Ident {
 		switch p.Token.Literal {
+		case "extends":
+			if p.Peek().Token == token.LBrace {
+				p.Next()
+				cls.ExtendsDoc = doc
+				cls.Parents = append(cls.Parents, p.parseClassExtendsBlock()...)
+				return
+			}
 		case "props":
 			if p.Peek().Token == token.LBrace {
 				p.Next()
@@ -130,6 +114,44 @@ func (p *Parser) parseClassBodyItem(cls *node.ClassExpr) {
 		f.Doc = doc
 		cls.Fields = append(cls.Fields, f)
 	}
+}
+
+// parseClassExtendsBlock parses the `extends { Parent [: Alias], … }` block;
+// items are separated by commas or newlines (handled by skipClassSeps).
+func (p *Parser) parseClassExtendsBlock() (parents []*node.ClassParentExpr) {
+	p.Expect(token.LBrace)
+	p.ExprLevel++
+	for {
+		p.skipClassSeps()
+		if p.Token.Token == token.RBrace || p.Token.Token == token.EOF {
+			break
+		}
+		parent := p.parseClassParent()
+		if parent == nil || p.Failed() {
+			break
+		}
+		parents = append(parents, parent)
+	}
+	p.ExprLevel--
+	p.Expect(token.RBrace)
+	return
+}
+
+// parseClassParent parses one `extends` entry: a parent type (IdentExpr or
+// SelectorExpr) with an optional `: Alias`.
+func (p *Parser) parseClassParent() *node.ClassParentExpr {
+	typ := p.ParsePrimaryExpr()
+	if typ == nil {
+		return nil
+	}
+	parent := &node.ClassParentExpr{Type: typ}
+	p.SkipSpace()
+	if p.Token.Token == token.Colon {
+		p.Next()
+		p.SkipSpace()
+		parent.Alias = p.ParseIdent()
+	}
+	return parent
 }
 
 // parseClassField parses `name`, `name Type`, `name = value`, `name Type =
