@@ -58,9 +58,13 @@ const debugDecoField = StateField.define<DecorationSet>({
 /**
  * debugDecorations builds the extension. getLocals supplies the current locals
  * (by name) for the hover tooltip; it is read lazily so it always reflects the
- * latest paused frame.
+ * latest paused frame. onInspect, when provided, adds an inspect button that
+ * opens the tree navigator for the hovered variable.
  */
-export function debugDecorations(getLocals: () => Map<string, LocalVar>): Extension {
+export function debugDecorations(
+  getLocals: () => Map<string, LocalVar>,
+  getInspect?: () => ((name: string) => void) | undefined,
+): Extension {
   return [
     debugDecoField,
     hoverTooltip((view, pos) => {
@@ -78,15 +82,27 @@ export function debugDecorations(getLocals: () => Map<string, LocalVar>): Extens
           dom.className = "cm-locals-tooltip";
           const text = document.createElement("span");
           text.textContent = `${w.word}: ${v.type} = ${v.value}`;
-          const btn = document.createElement("button");
-          btn.className = "cm-locals-tooltip-copy";
-          btn.title = "Copy value";
-          btn.textContent = "⎘";
-          btn.onclick = (e) => {
+          const copy = document.createElement("button");
+          copy.className = "cm-locals-tooltip-copy";
+          copy.title = "Copy value";
+          copy.textContent = "⎘";
+          copy.onclick = (e) => {
             e.stopPropagation();
             void navigator.clipboard?.writeText(v.value).catch(() => {});
           };
-          dom.append(text, btn);
+          dom.append(text, copy);
+          const onInspect = getInspect?.();
+          if (onInspect) {
+            const insp = document.createElement("button");
+            insp.className = "cm-locals-tooltip-inspect";
+            insp.title = "Inspect (tree navigator)";
+            insp.textContent = "⊕";
+            insp.onclick = (e) => {
+              e.stopPropagation();
+              onInspect(w.word);
+            };
+            dom.append(insp);
+          }
           return { dom };
         },
       };
@@ -106,7 +122,7 @@ export function debugDecorations(getLocals: () => Map<string, LocalVar>): Extens
         fontFamily: "ui-monospace, monospace",
         fontSize: "0.85em",
       },
-      ".cm-locals-tooltip-copy": {
+      ".cm-locals-tooltip-copy, .cm-locals-tooltip-inspect": {
         background: "none",
         border: "none",
         cursor: "pointer",

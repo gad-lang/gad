@@ -963,6 +963,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                 debugLine={debug && debug.path === activeTab.path ? debugLoc?.line : undefined}
                 debugColumn={debug && debug.path === activeTab.path ? debugLoc?.column : undefined}
                 locals={debug && debug.path === activeTab.path ? locals : undefined}
+                onInspectVar={(name) => setInspectTarget({ title: name, expr: name })}
               />
             ) : (
               <div className="empty">Open a file from the explorer</div>
@@ -1226,6 +1227,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           rootExpr={inspectTarget.expr}
           inspect={inspectExpr}
           onClose={() => setInspectTarget(null)}
+          onGotoSource={(file) => { setInspectTarget(null); void openFile(file); }}
         />
       )}
       {outputDialog && (
@@ -2149,6 +2151,7 @@ table.eval-list td.eval-actions{width:9rem;text-align:right;white-space:nowrap;o
 .tn-key{color:var(--accent)}
 .tn-type{color:var(--muted);font-size:.78rem}
 .tn-val{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.tn-goto{background:none;border:none;cursor:pointer;padding:0 2px;font-size:.85em;opacity:.5;color:inherit;line-height:1}.tn-goto:hover{opacity:1}
 .tn-loading{color:var(--muted)}
 table.eval-list tr:hover td.eval-actions{opacity:.9}
 .bp-scope{display:flex;gap:.3rem;margin-bottom:.4rem}

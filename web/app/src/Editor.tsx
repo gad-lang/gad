@@ -81,6 +81,8 @@ interface EditorProps {
   debugLine?: number;
   debugColumn?: number;
   locals?: LocalVar[];
+  /** Called when the user clicks "inspect" on a locals hover tooltip. */
+  onInspectVar?: (name: string) => void;
 }
 
 /** Editor theme for the active light/dark mode. */
@@ -107,6 +109,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     debugLine,
     debugColumn,
     locals,
+    onInspectVar,
   },
   ref,
 ) {
@@ -124,6 +127,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   // Latest locals, read lazily by the hover tooltip.
   const localsRef = useRef<Map<string, LocalVar>>(new Map());
   localsRef.current = new Map((locals ?? []).map((v) => [v.name, v]));
+  // Latest inspect callback, read lazily so the extension stays stable.
+  const onInspectVarRef = useRef(onInspectVar);
+  onInspectVarRef.current = onInspectVar;
 
   const fontTheme = (px: number) =>
     EditorView.theme({ ".cm-scroller": { fontSize: `${px}px` }, ".cm-content": { fontSize: `${px}px` } });
@@ -166,7 +172,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     const extensions: Extension[] = [
       basicSetup,
       breakpointGutter((lines) => onBpRef.current?.(lines)),
-      debugDecorations(() => localsRef.current),
+      debugDecorations(() => localsRef.current, () => onInspectVarRef.current),
       fontCompartment.current.of(fontTheme(fontSize)),
       keymap.of([...defaultKeymap, indentWithTab]),
       themeCompartment.current.of(themeExtension(dark)),

@@ -45,7 +45,10 @@ verification for full sign-off.
       Done: BreakpointList gets onNavigate (calls editorRef.gotoLocation);
       BreakpointGroups gets onNavigate (calls gotoFrame). onDoubleClick
       wired on each `<span>`. (`e866839`)
-- [ ] Tooltip for builtin-value identifiers in the gad editor.
+- [x] Tooltip for builtin-value identifiers in the gad editor.
+      Done: codemirror-gad/src/hover.ts — gadHoverTooltip() shows
+      signature + description popup on builtins/atoms/constants. Wired
+      into gad() by default (hover:false disables). (`893a9ac`)
 - [x] Evaluate panel: debug-session-aware eval. debug.Engine.EvalInFrame
       evaluates against the paused frame's locals; /api/ide/debug/eval exposes
       it; the panel routes through it while a session is paused (and re-evaluates
@@ -57,7 +60,9 @@ verification for full sign-off.
       (YAML) installed. Editor gains EditorLanguage prop + langCompartment.
       langForPath() in Ide.tsx maps extension→language; diagnose suppressed
       for non-gad files. pnpm build clean. (`cb84475`)
-- [ ] Tooltip: copy-to-clipboard button on the gad editor hover tooltip.
+- [x] Tooltip: copy-to-clipboard button on the gad editor hover tooltip.
+      Done: debugDecorations.ts — cm-locals-tooltip is now a flex row
+      with text + ⎘ button that copies the variable value. (`893a9ac`)
 - [ ] codemirror plugin: editor features (autocomplete, etc.) inside template strings.
 - [x] Right closable doc-comments panel: backend gadbridge.DocComments +
       /api/ide/doc extract `/?`/`/??`/`/???` docs (kind, title=following code
@@ -74,11 +79,15 @@ verification for full sign-off.
       ended in a top-level `return` which short-circuited the eval. Fixed with
       gadbridge.EvalSource (strips top-level returns, keeps definitions). repr's
       `‹int: 2›` is the correct repr form.
-- [~] tree navigator of container values (dict/array/module/…): backend
+- [x] tree navigator of container values (dict/array/module/…): backend
       gadbridge.InspectObject + /api/ide/inspect (frame-scoped or standalone);
       lazy-drill TreeNavigator + InspectDialog wired into the locals and evaluate
-      panels. TODO: the tooltip surface (CodeMirror hover widget).
-      add per entry button to goto declaration source. 
+      panels. Tooltip: ⊕ inspect button on the locals hover tooltip opens the
+      InspectDialog (debugDecorations getInspect callback → Editor.onInspectVar
+      → Ide setInspectTarget). Per-entry ↗ goto-source button: extractGadFile()
+      parses workspace-relative .gad paths from repr values (module/compiledFunction);
+      onGotoSource threaded through TreeNode→TreeNavigator→InspectDialog→Ide
+      (openFile). `(<COMMIT>)`
 - [x] doc panel renders Markdown with gad code highlighting: docMarkdown.ts
       (dependency-free) renders headings/lists/blockquotes/inline code+bold and
       fenced code blocks highlighted with the prism-gad grammar (Prism.highlight).

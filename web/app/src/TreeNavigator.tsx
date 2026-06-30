@@ -5,6 +5,13 @@ import type { InspectEntry, InspectResult } from "./backends/ide";
 /** Fetches the inspection of a Gad expression, or null on error. */
 export type InspectFn = (expr: string) => Promise<InspectResult | null>;
 
+// Extract the first workspace-relative .gad file path from a repr value string.
+// Matches patterns like `‹module: mathx.gad›` or `‹compiledFunction: lib.gad.fn()›`.
+function extractGadFile(value: string): string | null {
+  const m = value.match(/([\w./\-]+\.gad)(?=[\W]|$)/i);
+  return m ? m[1] : null;
+}
+
 // One lazily-expanding node. Children are fetched on first expand by appending
 // the entry accessor to this node's expression.
 function TreeNode({
@@ -14,6 +21,7 @@ function TreeNode({
   value,
   expandable,
   inspect,
+  onGotoSource,
   depth,
 }: {
   label: string;
@@ -22,6 +30,7 @@ function TreeNode({
   value: string;
   expandable: boolean;
   inspect: InspectFn;
+  onGotoSource?: (file: string) => void;
   depth: number;
 }) {
   const [open, setOpen] = useState(false);
@@ -39,6 +48,8 @@ function TreeNode({
     setOpen((o) => !o);
   };
 
+  const gadFile = onGotoSource ? extractGadFile(value) : null;
+
   return (
     <div className="tn-node">
       <div className="tn-row" style={{ paddingLeft: depth * 14 }} onClick={toggle}>
@@ -46,6 +57,18 @@ function TreeNode({
         <span className="tn-key">{label}</span>
         <span className="tn-type">{type}</span>
         <span className="tn-val">{value}</span>
+        {gadFile && (
+          <button
+            className="tn-goto"
+            title={`Go to source: ${gadFile}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onGotoSource!(gadFile);
+            }}
+          >
+            ↗
+          </button>
+        )}
       </div>
       {open && loading && (
         <div className="tn-loading" style={{ paddingLeft: (depth + 1) * 14 }}>
@@ -63,6 +86,7 @@ function TreeNode({
             value={e.value}
             expandable={e.expandable && e.accessor !== ""}
             inspect={inspect}
+            onGotoSource={onGotoSource}
             depth={depth + 1}
           />
         ))}
@@ -75,10 +99,12 @@ export function TreeNavigator({
   rootExpr,
   rootLabel,
   inspect,
+  onGotoSource,
 }: {
   rootExpr: string;
   rootLabel: string;
   inspect: InspectFn;
+  onGotoSource?: (file: string) => void;
 }) {
   const [root, setRoot] = useState<InspectResult | null>(null);
   const [error, setError] = useState("");
@@ -108,6 +134,7 @@ export function TreeNavigator({
         value={root.value}
         expandable={root.expandable}
         inspect={inspect}
+        onGotoSource={onGotoSource}
         depth={0}
       />
     </div>
@@ -120,17 +147,24 @@ export function InspectDialog({
   rootExpr,
   inspect,
   onClose,
+  onGotoSource,
 }: {
   title: string;
   rootExpr: string;
   inspect: InspectFn;
   onClose: () => void;
+  onGotoSource?: (file: string) => void;
 }) {
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>Inspect — {title}</DialogTitle>
       <DialogContent dividers>
-        <TreeNavigator rootExpr={rootExpr} rootLabel={title} inspect={inspect} />
+        <TreeNavigator
+          rootExpr={rootExpr}
+          rootLabel={title}
+          inspect={inspect}
+          onGotoSource={onGotoSource}
+        />
       </DialogContent>
       <DialogActions>
         <Button variant="contained" onClick={onClose}>
