@@ -1091,11 +1091,13 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                     onRemove={(line) =>
                       activeTab && setBreakpoints(activeTab.path, bpFor(activeTab.path).filter((l) => l !== line))
                     }
+                    onNavigate={(line) => editorRef.current?.gotoLocation(line, 1)}
                   />
                 ) : (
                   <BreakpointGroups
                     all={allBreakpoints()}
                     onOpen={openFile}
+                    onNavigate={(file, line) => void gotoFrame(file, line, 1)}
                     onRemove={(file, line) => setBreakpoints(file, (allBreakpoints()[file] || []).filter((l) => l !== line))}
                   />
                 )}
@@ -1582,12 +1584,14 @@ function BreakpointList({
   meta,
   onEdit,
   onRemove,
+  onNavigate,
 }: {
   path?: string;
   lines: number[];
   meta: BreakpointMeta;
   onEdit: (line: number) => void;
   onRemove: (line: number) => void;
+  onNavigate: (line: number) => void;
 }) {
   if (!path) return <div className="muted">No file open.</div>;
   if (!lines.length) return <div className="muted">No breakpoints in {path.split("/").pop()}.</div>;
@@ -1597,7 +1601,12 @@ function BreakpointList({
         const m = meta[l] || {};
         return (
           <li key={l} className={m.disabled ? "bp-disabled" : ""}>
-            <span className="bp-entry" title="Click to edit condition" onClick={() => onEdit(l)}>
+            <span
+              className="bp-entry"
+              title="Click to edit condition · Double-click to go to line"
+              onClick={() => onEdit(l)}
+              onDoubleClick={() => onNavigate(l)}
+            >
               line {l}
               {m.disabled ? " (disabled)" : ""}
               {m.condition ? <em className="bp-cond"> if {m.condition}</em> : null}
@@ -1657,10 +1666,12 @@ function BreakpointDialog({
 function BreakpointGroups({
   all,
   onOpen,
+  onNavigate,
   onRemove,
 }: {
   all: Record<string, number[]>;
   onOpen: (path: string) => void;
+  onNavigate: (file: string, line: number) => void;
   onRemove: (file: string, line: number) => void;
 }) {
   const files = Object.keys(all).filter((f) => (all[f] || []).length);
@@ -1669,13 +1680,19 @@ function BreakpointGroups({
     <div>
       {files.sort().map((file) => (
         <div key={file} className="bp-group">
-          <div className="bp-file" onClick={() => onOpen(file)} title="Open file">
+          <div className="bp-file" onClick={() => onOpen(file)} title="Click to open file">
             {file}
           </div>
           <ul className="bp-list">
             {[...all[file]].sort((a, b) => a - b).map((l) => (
               <li key={l}>
-                <span>line {l}</span>
+                <span
+                  className="bp-entry"
+                  title="Double-click to go to line"
+                  onDoubleClick={() => onNavigate(file, l)}
+                >
+                  line {l}
+                </span>
                 <button className="x" title="Remove" onClick={() => onRemove(file, l)}>
                   ✕
                 </button>

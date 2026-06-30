@@ -260,4 +260,8 @@ verification for full sign-off.
   - the doc strings describes class with subsections "fields" (fields table with Name, type, value, description (doc string of field) columns),
     "constructor" and "methods".
 
-- [ ] change doc generator to group consts, classes, enums, functions, methods, properties in sections. create table of contents.
+- [x] change doc generator to group consts, classes, enums, functions, methods, properties in sections. create table of contents.
+      Done: `cmd/gaddoc/main.go` — added Classes/Enums/Methods/Properties block
+      recognizers + output slots, canonical section order, TOC generation
+      (headingSlug + generateTOC → ## Contents injected after title).
+      Regenerated all four stdlib docs. (`1ebbc6f`)
