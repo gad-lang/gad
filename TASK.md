@@ -63,7 +63,11 @@ verification for full sign-off.
 - [x] Tooltip: copy-to-clipboard button on the gad editor hover tooltip.
       Done: debugDecorations.ts — cm-locals-tooltip is now a flex row
       with text + ⎘ button that copies the variable value. (`893a9ac`)
-- [ ] codemirror plugin: editor features (autocomplete, etc.) inside template strings.
+- [x] codemirror plugin: editor features (autocomplete, etc.) inside template strings.
+      Done: GadState gains tmplClose/tmplDepth; tokenTmplCode/tokenTmplText handle
+      the two sub-regions. tokenTmplCode delegates to tokenCodeLine so autocomplete
+      and hover tooltips work inside {expr} interpolations. prism-gad: template-
+      string pattern with interpolation inside. `(fd79720)`
 - [x] Right closable doc-comments panel: backend gadbridge.DocComments +
       /api/ide/doc extract `/?`/`/??`/`/???` docs (kind, title=following code
       line, content, line). Toolbar "Docs" toggle; panel lists entries (click to
@@ -129,7 +133,7 @@ verification for full sign-off.
       via EvalInFrame) and conditional breakpoints. Tested: TestTextMateGrammar,
       TestDAPSession (evaluate). Format-on-save: registerDocumentFormattingEditProvider
       calls `gad fmt -` (stdin/stdout), respects gad.format.useConfig (--no-config
-      flag) and gad.path; shows errors in a VS Code message. `(<COMMIT>)`
+      flag) and gad.path; shows errors in a VS Code message. `(66725bb)`
 - [ ] create plugin like vscode to JetBrains.
 
 # Language

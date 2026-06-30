@@ -1,40 +1,38 @@
 # Handoff: TASK.md IDE epic + Language tasks
 
-## ACTIVE WORK (2026-06-30): IDE epic + gaddoc + Language tasks
+## ACTIVE WORK (2026-06-30): IDE epic wrap-up
 
-Worked TASK.md from the top. All committed and go test ./... green (tsc
---noEmit clean for web/app). TASK.md has been updated in-repo.
+Continued from previous session. All items below committed; tsc --noEmit
+clean for web/app, codemirror-gad, prism-gad and vscode-gad packages.
+TASK.md updated in-repo after each commit.
 
-DONE this session (commits newest-first):
-- **GadInput.tsx** `3c85e8d` — single-line CM6 gad-language editor replacing
-  TextField in EvaluatePanel (expressions) and BreakpointDialog (condition).
-  dark prop threaded through from Ide.
-- **Multi-format editors** `cb84475` — @codemirror/lang-{json,html,css,javascript}
-  + legacy-modes (YAML) installed. Editor gains EditorLanguage prop +
-  langCompartment. langForPath() in Ide.tsx maps extension→language; diagnose
-  suppressed for non-gad files.
-- **Run/Debug settings tabbed dialog** `608968c` — RunDialog now has Run and
-  Debug tabs (MUI Tabs). Run tab: args, modules, safe, saveStdout, saveStderr,
-  combine flag. Debug tab: args, modules, safe, stop-on-entry.
-- **Explorer "get file from web"** `52bb55a` — AddLinkIcon button in sidebar
-  header opens FetchFromWebDialog (URL+filename+dir); calls ideApi.fetchUrl
-  (POST /api/ide/fetch, backend pre-existing).
-- **Breakpoints panel double-click to navigate** `e866839` — BreakpointList
-  onDoubleClick → editorRef.gotoLocation; BreakpointGroups onDoubleClick →
-  gotoFrame. TASK.md language tasks also marked done.
-- **gaddoc TOC + Classes/Enums/Methods/Properties sections** `1ebbc6f` —
-  cmd/gaddoc/main.go: adds 4 new section recognizers, canonical output order,
-  TOC generator (headingSlug + generateTOC → ## Contents after title).
-  Regenerated all 4 stdlib docs.
+DONE this session (commits newest-last):
+- **Tree navigator hover inspect + goto-source** `78e942e` — debugDecorations.ts:
+  getInspect callback; hover tooltip gets ⊕ inspect button → onInspectVar →
+  Ide.setInspectTarget. TreeNavigator/InspectDialog: extractGadFile() parses
+  .gad paths from repr values; ↗ goto-source button; onGotoSource prop chain →
+  openFile.
+- **Doc-comment sub-language highlighting** `b9e47a0` — codemirror-gad: GadState
+  gains docCodeFence; ``` fenced blocks inside doc comments get full Gad
+  tokenization; `>>> ` result lines → "docResult" token (t.special(t.comment)).
+  prism-gad: inside patterns for doc-code-fence + doc-result. docMarkdown.ts:
+  `>>> ` lines wrapped in <span class="doc-result"> (italic/muted). styles.css.
+- **VS Code format-on-save** `66725bb` — extension.ts: registerDocumentFormatting
+  EditProvider → `gad fmt -` (stdin/stdout); gad.format.useConfig → --no-config.
+- **Template string interpolation highlighting** `fd79720` — codemirror-gad:
+  GadState gains tmplClose/tmplDepth; tokenTmplText + tokenTmplCode handle the
+  two sub-regions of #"…{expr}…". tokenTmplCode delegates to tokenCodeLine for
+  full Gad highlighting (autocomplete/hover inside {expr}). prism-gad: template-
+  string pattern with interpolation inside.
 
-REMAINING in TASK.md (IDE epic only — Language section complete):
-- `[ ] Tooltip for builtin-value identifiers in the gad editor` — complex CM6 hover widget
-- `[ ] Tooltip: copy-to-clipboard button on the gad editor hover tooltip` — moderate
-- `[ ] codemirror plugin: editor features inside template strings` — complex
-- `[~] tree navigator: TODO tooltip surface (hover widget)` — moderate
-- `[~] colorize doc comments in plugins: TODO embedded source/result highlighting`
-- `[~] VS Code plugin: TODO format-on-save / .gad.yaml-driven format command`
-- `[ ] create plugin like vscode to JetBrains` — large scope
+PRIOR SESSION (same day — IDE epic middle):
+- **GadInput.tsx** `3c85e8d`, **Multi-format editors** `cb84475`,
+  **Run/Debug tabs** `608968c`, **FetchFromWebDialog** `52bb55a`,
+  **Breakpoints double-click** `e866839`, **gaddoc TOC** `1ebbc6f`,
+  **Builtin hover tooltips** `893a9ac`.
+
+REMAINING in TASK.md:
+- `[ ] create plugin like vscode to JetBrains` — large scope, not started
 
 Verify: `go test ./...` + `go build ./...` + (in web/app) `pnpm exec tsc --noEmit`.
 
