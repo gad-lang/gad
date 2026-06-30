@@ -3,6 +3,11 @@
 
 # `fmt` module
 
+## Contents
+
+- [Functions](#functions)
+
+
 ## Scan Examples
 
 ```go

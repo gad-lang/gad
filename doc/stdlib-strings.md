@@ -3,6 +3,11 @@
 
 # `strings` module
 
+## Contents
+
+- [Functions](#functions)
+
+
 ## Functions
 
 `contains(s str, substr str) <bool>`

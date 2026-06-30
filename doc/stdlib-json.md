@@ -3,6 +3,12 @@
 
 # `json` module
 
+## Contents
+
+- [Types](#types)
+- [Functions](#functions)
+
+
 ## Important Note
 All numeric types is unmarshaled to `gad.Decimal` type.
 

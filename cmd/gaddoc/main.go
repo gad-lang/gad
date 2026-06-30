@@ -37,12 +37,16 @@ import (
 const gadDocPrefix = "gad:doc"
 
 var (
-	reModuleHeader = regexp.MustCompile(`^\s*#\s+(\w+)\s+module`)
-	reTypeHeader   = regexp.MustCompile(`^\s*##\s+Types`)
-	reConstHeader  = regexp.MustCompile(`^\s*##\s+Constants`)
-	reFuncHeader   = regexp.MustCompile(`^\s*##\s+Functions`)
-	reConvHeader   = regexp.MustCompile(`^\s*##\s+Converters`)
-	reMethHeader   = regexp.MustCompile(`^\s*##\s+Method Overrides`)
+	reModuleHeader  = regexp.MustCompile(`^\s*#\s+(\w+)\s+module`)
+	reTypeHeader    = regexp.MustCompile(`^\s*##\s+Types`)
+	reConstHeader   = regexp.MustCompile(`^\s*##\s+Constants`)
+	reFuncHeader    = regexp.MustCompile(`^\s*##\s+Functions`)
+	reConvHeader    = regexp.MustCompile(`^\s*##\s+Converters`)
+	reMethHeader    = regexp.MustCompile(`^\s*##\s+Method Overrides`)
+	reClassHeader   = regexp.MustCompile(`^\s*##\s+Classes`)
+	reEnumHeader    = regexp.MustCompile(`^\s*##\s+Enums`)
+	reGadMethHeader = regexp.MustCompile(`^\s*##\s+Methods`)
+	rePropHeader    = regexp.MustCompile(`^\s*##\s+Properties`)
 	// Function header annotation: `Name(params) <ret>` (new syntax) or the
 	// legacy `Name(params) -> ret`. The params may include named params (`;`).
 	reFuncAnnot    = regexp.MustCompile(`^\s*(\w+)\(.*\)\s*(?:<[^>]*>|->\s+\S.*)\s*$`)
@@ -57,7 +61,11 @@ type docgroup struct {
 	consts    []string
 	funcs     []string
 	convs     []string
-	methods   []string
+	methods   []string // Go-level method overrides
+	classes   []string
+	enums     []string
+	gadMeths  []string // gad-level methods
+	props     []string
 	errs      []string
 	funcHLine bool
 	// skipDesc skips the gad:doc comment description lines of the current
@@ -75,6 +83,10 @@ func (dg *docgroup) process(comments []string) {
 	dg.funcs = append(dg.funcs, "## Functions\n")
 	dg.convs = append(dg.convs, "## Converters\n")
 	dg.methods = append(dg.methods, "## Method Overrides\n")
+	dg.classes = append(dg.classes, "## Classes\n")
+	dg.enums = append(dg.enums, "## Enums\n")
+	dg.gadMeths = append(dg.gadMeths, "## Methods\n")
+	dg.props = append(dg.props, "## Properties\n")
 	var lines []string
 	for _, p := range comments {
 		lines = append(lines, strings.Split(p, "\n")...)
@@ -142,6 +154,10 @@ func (dg *docgroup) processBlocks(lines []string) {
 		funcBlock
 		convBlock
 		methBlock
+		classBlock
+		enumBlock
+		gadMethBlock
+		propBlock
 	)
 	block := unknown
 	for i := 0; i < len(lines); i++ {
@@ -160,6 +176,14 @@ func (dg *docgroup) processBlocks(lines []string) {
 				block = convBlock
 			} else if reMethHeader.MatchString(line) {
 				block = methBlock
+			} else if reClassHeader.MatchString(line) {
+				block = classBlock
+			} else if reEnumHeader.MatchString(line) {
+				block = enumBlock
+			} else if reGadMethHeader.MatchString(line) {
+				block = gadMethBlock
+			} else if rePropHeader.MatchString(line) {
+				block = propBlock
 			} else {
 				dg.docs = append(dg.docs, line)
 			}
@@ -167,7 +191,11 @@ func (dg *docgroup) processBlocks(lines []string) {
 			constBlock,
 			funcBlock,
 			convBlock,
-			methBlock:
+			methBlock,
+			classBlock,
+			enumBlock,
+			gadMethBlock,
+			propBlock:
 			if reLevel2header.MatchString(line) {
 				if i > 0 {
 					i--
@@ -186,6 +214,14 @@ func (dg *docgroup) processBlocks(lines []string) {
 				dg.convs = append(dg.convs, line)
 			case methBlock:
 				dg.methods = append(dg.methods, line)
+			case classBlock:
+				dg.classes = append(dg.classes, line)
+			case enumBlock:
+				dg.enums = append(dg.enums, line)
+			case gadMethBlock:
+				dg.gadMeths = append(dg.gadMeths, line)
+			case propBlock:
+				dg.props = append(dg.props, line)
 			}
 		}
 	}
@@ -319,6 +355,39 @@ func getModuleItem(module, key string) string {
 	return fmt.Sprintf(format, v.Type().Name(), v.ToString())
 }
 
+// headingSlug converts a markdown heading text to a GitHub-style anchor slug.
+func headingSlug(heading string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(heading) {
+		switch {
+		case r == ' ':
+			b.WriteByte('-')
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-':
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// generateTOC scans lines for ## headings and returns a TOC block.
+func generateTOC(lines []string) []string {
+	var entries []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "## ") {
+			heading := strings.TrimPrefix(trimmed, "## ")
+			entries = append(entries, fmt.Sprintf("- [%s](#%s)", heading, headingSlug(heading)))
+		}
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+	result := []string{"## Contents", ""}
+	result = append(result, entries...)
+	result = append(result, "")
+	return result
+}
+
 func formatComments(comments []string) ([]string, error) {
 	d := docgroup{}
 	d.process(comments)
@@ -335,23 +404,50 @@ func formatComments(comments []string) ([]string, error) {
 		}
 	}
 
-	var out []string
-	out = append(out, d.docs...)
+	// Build the section blocks in canonical order (classes+enums before consts;
+	// gad methods+props after consts; Go-level converters+overrides last).
+	var sections []string
+	if len(d.classes) > 1 {
+		sections = append(sections, d.classes...)
+	}
+	if len(d.enums) > 1 {
+		sections = append(sections, d.enums...)
+	}
 	if len(d.types) > 1 {
-		out = append(out, d.types...)
+		sections = append(sections, d.types...)
 	}
 	if len(d.consts) > 1 {
-		out = append(out, d.consts...)
+		sections = append(sections, d.consts...)
+	}
+	if len(d.props) > 1 {
+		sections = append(sections, d.props...)
+	}
+	if len(d.gadMeths) > 1 {
+		sections = append(sections, d.gadMeths...)
 	}
 	if len(d.funcs) > 1 {
-		out = append(out, d.funcs...)
+		sections = append(sections, d.funcs...)
 	}
 	if len(d.convs) > 1 {
-		out = append(out, d.convs...)
+		sections = append(sections, d.convs...)
 	}
 	if len(d.methods) > 1 {
-		out = append(out, d.methods...)
+		sections = append(sections, d.methods...)
 	}
+
+	toc := generateTOC(sections)
+
+	var out []string
+	// Title is the first element of d.docs; insert the TOC right after it.
+	if len(d.docs) > 0 {
+		out = append(out, d.docs[0])
+		if len(toc) > 0 {
+			out = append(out, "")
+			out = append(out, toc...)
+		}
+		out = append(out, d.docs[1:]...)
+	}
+	out = append(out, sections...)
 	return out, nil
 }
 
