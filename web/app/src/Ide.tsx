@@ -615,6 +615,46 @@ function MdPreviewPanel(_: IDockviewPanelProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Layout persistence helpers (module-level — no component state needed)
+// ---------------------------------------------------------------------------
+
+/** Tag the current window size into the serialised dockview layout. */
+function captureLayout(api: DockviewApi): unknown {
+  const raw = api.toJSON() as unknown as Record<string, unknown>;
+  const grid = raw.grid as Record<string, unknown>;
+  return { ...raw, grid: { ...grid, __savedW: window.innerWidth, __savedH: window.innerHeight } };
+}
+
+/** Scale all grid node sizes from saved-window coords to current-window coords. */
+function restoreLayout(saved: unknown): Parameters<DockviewApi["fromJSON"]>[0] {
+  const layout = saved as Record<string, unknown>;
+  const grid = layout.grid as Record<string, unknown>;
+  const savedW = (grid.__savedW as number) || (grid.width as number);
+  const savedH = (grid.__savedH as number) || (grid.height as number);
+  if (!savedW || !savedH) return saved as unknown as Parameters<DockviewApi["fromJSON"]>[0];
+  const sx = window.innerWidth / savedW;
+  const sy = window.innerHeight / savedH;
+  if (Math.abs(sx - 1) < 0.01 && Math.abs(sy - 1) < 0.01) return saved as unknown as Parameters<DockviewApi["fromJSON"]>[0];
+
+  function scaleNode(node: unknown, parentSplitsH: boolean): unknown {
+    const n = node as Record<string, unknown>;
+    const scaled = Math.round((n.size as number) * (parentSplitsH ? sx : sy));
+    if (n.type === "branch") {
+      return { ...n, size: scaled, data: (n.data as unknown[]).map((c) => scaleNode(c, !parentSplitsH)) };
+    }
+    return { ...n, size: scaled };
+  }
+
+  const rootIsH = grid.orientation === 0 || grid.orientation === "HORIZONTAL";
+  const root = grid.root as Record<string, unknown>;
+  const scaledRoot = root.type === "branch"
+    ? { ...root, size: Math.round((root.size as number) * (rootIsH ? sy : sx)), data: (root.data as unknown[]).map((c) => scaleNode(c, rootIsH)) }
+    : { ...root, size: Math.round((root.size as number) * (rootIsH ? sy : sx)) };
+
+  return { ...layout, grid: { ...grid, root: scaledRoot, width: window.innerWidth, height: window.innerHeight } } as unknown as Parameters<DockviewApi["fromJSON"]>[0];
+}
+
+// ---------------------------------------------------------------------------
 // Dockview panel registry
 // ---------------------------------------------------------------------------
 
@@ -665,6 +705,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [inspectTarget, setInspectTarget] = useState<{ title: string; expr: string } | null>(null);
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [config, setConfig] = useState<Record<string, unknown>>({});
+  const [configLoaded, setConfigLoaded] = useState(false);
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [active, setActive] = useState(-1);
   const [outChunks, setOutChunks] = useState<{ stream: "out" | "err"; text: string }[]>([]);
@@ -730,6 +771,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
         const cfg = await ideApi.config();
         configRef.current = cfg;
         setConfig(cfg);
+        setConfigLoaded(true);
         setModules(await ideApi.modules());
         if (workspace.openFile) openFile(workspace.openFile);
       } catch (e) {
@@ -1178,45 +1220,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   }
 
   // -------------------------------------------------------------------------
-  // Dockview: docs panel toggle and markdown panel management
+  // Dockview: layout persistence, docs panel toggle, markdown panel management
   // -------------------------------------------------------------------------
-
-  // Attach window dimensions to the layout so sizes can be restored proportionally.
-  function captureLayout(api: DockviewApi): unknown {
-    const raw = api.toJSON() as unknown as Record<string, unknown>;
-    const grid = raw.grid as Record<string, unknown>;
-    return { ...raw, grid: { ...grid, __savedW: window.innerWidth, __savedH: window.innerHeight } };
-  }
-
-  // Scale all grid node sizes proportionally to the current window dimensions.
-  function restoreLayout(saved: unknown): Parameters<DockviewApi["fromJSON"]>[0] {
-    const layout = saved as Record<string, unknown>;
-    const grid = layout.grid as Record<string, unknown>;
-    const savedW = (grid.__savedW as number) || (grid.width as number);
-    const savedH = (grid.__savedH as number) || (grid.height as number);
-    if (!savedW || !savedH) return saved as unknown as Parameters<DockviewApi["fromJSON"]>[0];
-    const sx = window.innerWidth / savedW;
-    const sy = window.innerHeight / savedH;
-    if (Math.abs(sx - 1) < 0.01 && Math.abs(sy - 1) < 0.01) return saved as unknown as Parameters<DockviewApi["fromJSON"]>[0];
-
-    // Recurse the grid tree; parentSplitsH=true means children have WIDTH sizes.
-    function scaleNode(node: unknown, parentSplitsH: boolean): unknown {
-      const n = node as Record<string, unknown>;
-      const scaled = Math.round((n.size as number) * (parentSplitsH ? sx : sy));
-      if (n.type === "branch") {
-        return { ...n, size: scaled, data: (n.data as unknown[]).map((c) => scaleNode(c, !parentSplitsH)) };
-      }
-      return { ...n, size: scaled };
-    }
-
-    const rootIsH = grid.orientation === 0 || grid.orientation === "HORIZONTAL";
-    const root = grid.root as Record<string, unknown>;
-    const scaledRoot = root.type === "branch"
-      ? { ...root, size: Math.round((root.size as number) * (rootIsH ? sy : sx)), data: (root.data as unknown[]).map((c) => scaleNode(c, rootIsH)) }
-      : { ...root, size: Math.round((root.size as number) * (rootIsH ? sy : sx)) };
-
-    return { ...layout, grid: { ...grid, root: scaledRoot, width: window.innerWidth, height: window.innerHeight } } as unknown as Parameters<DockviewApi["fromJSON"]>[0];
-  }
 
   const saveLayout = useCallback((api: DockviewApi) => {
     const layout = captureLayout(api);
@@ -1286,27 +1291,23 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     });
   }
 
+  // configLoaded gates <DockviewReact> so this callback fires only after config
+  // is in configRef.current — no timing race between fetch and layout restore.
   const onDockviewReady = useCallback((event: DockviewReadyEvent) => {
     const api = event.api;
     dockviewApiRef.current = api;
 
-    // Restore saved layout (scaling sizes to current window) or apply default.
     const saved = (configRef.current?.ide as Record<string, unknown>)?.panels;
-    let restored = false;
     if (saved) {
-      try {
-        api.fromJSON(restoreLayout(saved));
-        restored = true;
-      } catch {
-        /* fall through to default */
-      }
+      try { api.fromJSON(restoreLayout(saved)); }
+      catch { setupDefaultLayout(api); }
+    } else {
+      setupDefaultLayout(api);
     }
-    if (!restored) setupDefaultLayout(api);
 
-    // Persist on structural changes (panel add / remove / move / tab switch).
     api.onDidLayoutChange(() => saveLayout(api));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [saveLayout]);
 
   // Persist after resize-sash drags (pointerup fires when user releases the splitter)
   // and on page unload as a safety net.
@@ -1372,11 +1373,16 @@ export function Ide({ workspace }: { workspace: Workspace }) {
             </Toolbar>
           </AppBar>
 
-          <DockviewReact
-            className={`ide-dockview ${dark ? "dockview-theme-dark" : "dockview-theme-light"}`}
-            components={DOCKVIEW_COMPONENTS as never}
-            onReady={onDockviewReady}
-          />
+          {configLoaded
+            ? (
+              <DockviewReact
+                className={`ide-dockview ${dark ? "dockview-theme-dark" : "dockview-theme-light"}`}
+                components={DOCKVIEW_COMPONENTS as never}
+                onReady={onDockviewReady}
+              />
+            )
+            : <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "text.secondary" }}>Loading…</Box>
+          }
 
           {dialog && (
             <RunDebugSettingsDialog
