@@ -851,16 +851,31 @@ func FunctionWithModule(spec *ModuleSpec) FunctionOption {
 	}
 }
 
-// Function represents a function object and implements Object interface.
+// Function is a Go-implemented callable value: it wraps a Value handler behind
+// the Object/CallerObject interfaces so native Go code can be exposed to Gad
+// scripts. Build one with NewFunction and the fluent With* options rather than
+// populating the fields directly:
+//
+//	fn := NewFunction("greet", func(c Call) (Object, error) { … }).
+//		WithModule(mod).WithParamsPairs("name", TStr)
 type Function struct {
 	ObjectImpl
-	FuncName     string
-	Usage        string
-	Value        func(Call) (Object, error)
+	// FuncName is the function's (unqualified) name, used in repr and errors.
+	FuncName string
+	// Usage is optional Markdown documentation shown by Doc().
+	Usage string
+	// Value is the Go handler invoked on each call.
+	Value func(Call) (Object, error)
+	// ToStringFunc, when set, overrides the default ToString rendering.
 	ToStringFunc func() string
-	Header       *FunctionHeader
-	pt           ParamsTypes
-	Module       *ModuleSpec
+	// Header declares the parameter signature (names/types); it drives argument
+	// dispatch and appears in repr. Set it via WithParams/WithParamsPairs.
+	Header *FunctionHeader
+	// pt caches the Header's parameter types for dispatch.
+	pt ParamsTypes
+	// Module qualifies the function's name (e.g. mod.greet) and scopes it to a
+	// builtin namespace; set with WithModule.
+	Module *ModuleSpec
 }
 
 func (f *Function) SetModule(m *ModuleSpec) {
@@ -883,6 +898,29 @@ func (f *Function) WithHeader(do func(h *FunctionHeader)) *Function {
 	f.Header = &FunctionHeader{}
 	do(f.Header)
 	return f
+}
+
+func (f *Function) WithParams(builder func(newParam func(name string) *ParamBuilder)) *Function {
+	return f.WithHeader(func(h *FunctionHeader) {
+		h.WithParams(builder)
+	})
+}
+
+func (f *Function) WithParamsPairs(nameAndType ...any) *Function {
+	return f.WithParams(func(newParam func(name string) *ParamBuilder) {
+		for i := 0; i < len(nameAndType); i += 2 {
+			p := newParam(nameAndType[i].(string))
+
+			switch typ := nameAndType[i+1].(type) {
+			case ObjectTypes:
+				p.Type(typ...)
+			case ObjectType:
+				p.Type(typ)
+			default:
+				panic("unknown type")
+			}
+		}
+	})
 }
 
 func (f *Function) WithOption(opt ...FunctionOption) *Function {
@@ -961,19 +999,56 @@ var (
 	_ CallerObject = (*BuiltinFunction)(nil)
 )
 
-// BuiltinFunction represents a builtin function object and implements Object interface.
-type BuiltinFunction struct {
-	ObjectImpl
-	Module                *ModuleSpec
-	FuncName              string
-	Value                 func(Call) (Object, error)
-	Header                *FunctionHeader
-	AcceptMethodsDisabled bool
-	Usage                 string
+type BuiltinFunctionOption func(f *BuiltinFunction)
+
+func BuiltinFunctionWithModule(module *ModuleSpec) BuiltinFunctionOption {
+	return func(f *BuiltinFunction) {
+		f.Module = module
+	}
 }
 
-func NewBuiltinFunction(name string, value func(Call) (Object, error)) *BuiltinFunction {
-	return &BuiltinFunction{FuncName: name, Value: value}
+func BuiltinFunctionWithHeader(do func(h *FunctionHeader)) BuiltinFunctionOption {
+	return func(f *BuiltinFunction) {
+		f.Header = &FunctionHeader{}
+		do(f.Header)
+	}
+}
+
+// BuiltinFunction is a runtime-provided callable registered in the builtins
+// table (see BuiltinObjects / BuiltinsMap). It behaves like Function but is part
+// of the interpreter's standard environment rather than user code. Build one
+// with NewBuiltinFunction and the fluent With* options:
+//
+//	fn := NewBuiltinFunction("binOpAdd", func(c Call) (Object, error) { … }).
+//		WithModule(gadModuleSpec).WithParamsPairs("left", TAny, "right", TAny)
+//
+// A BuiltinFunction holds a single handler; to accept typed method overloads
+// (via `met`/AddMethod) it is promoted to a BuiltinFunctionWithMethods.
+type BuiltinFunction struct {
+	ObjectImpl
+	// Module qualifies the function's name (e.g. gad.binOpAdd) and scopes it to
+	// a builtin namespace; set with WithModule.
+	Module *ModuleSpec
+	// FuncName is the function's (unqualified) name, used in repr and errors.
+	FuncName string
+	// Value is the Go handler invoked on each call.
+	Value func(Call) (Object, error)
+	// Header declares the parameter signature (names/types); it drives argument
+	// dispatch and appears in repr. Set it via WithParams/WithParamsPairs.
+	Header *FunctionHeader
+	// AcceptMethodsDisabled prevents the function from being promoted to a
+	// method-bearing builtin (no `met`/AddMethod overloads allowed).
+	AcceptMethodsDisabled bool
+	// Usage is optional Markdown documentation shown by Doc().
+	Usage string
+}
+
+func NewBuiltinFunction(name string, value func(Call) (Object, error), opt ...BuiltinFunctionOption) *BuiltinFunction {
+	f := &BuiltinFunction{FuncName: name, Value: value}
+	for _, option := range opt {
+		option(f)
+	}
+	return f
 }
 
 func (f *BuiltinFunction) Doc() string {
@@ -996,6 +1071,40 @@ func (f *BuiltinFunction) Doc() string {
 		buf.WriteString(f.Usage)
 	}
 	return buf.String()
+}
+
+func (f *BuiltinFunction) WithModule(module *ModuleSpec) *BuiltinFunction {
+	f.Module = module
+	return f
+}
+
+func (f *BuiltinFunction) WithHeader(do func(h *FunctionHeader)) *BuiltinFunction {
+	f.Header = &FunctionHeader{}
+	do(f.Header)
+	return f
+}
+
+func (f *BuiltinFunction) WithParams(builder func(newParam func(name string) *ParamBuilder)) *BuiltinFunction {
+	return f.WithHeader(func(h *FunctionHeader) {
+		h.WithParams(builder)
+	})
+}
+
+func (f *BuiltinFunction) WithParamsPairs(nameAndType ...any) *BuiltinFunction {
+	return f.WithParams(func(newParam func(name string) *ParamBuilder) {
+		for i := 0; i < len(nameAndType); i += 2 {
+			p := newParam(nameAndType[i].(string))
+
+			switch typ := nameAndType[i+1].(type) {
+			case ObjectTypes:
+				p.Type(typ...)
+			case ObjectType:
+				p.Type(typ)
+			default:
+				panic("unknown type")
+			}
+		}
+	})
 }
 
 func (*BuiltinFunction) Type() ObjectType {
