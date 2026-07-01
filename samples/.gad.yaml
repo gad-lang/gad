@@ -8,11 +8,11 @@ ide:
             - 8
     hiddenPanels: []
     panels:
-        activeGroup: "1"
+        activeGroup: "4"
         grid:
             __savedH: 967
             __savedW: 2144
-            height: 902
+            height: 886
             orientation: HORIZONTAL
             root:
                 data:
@@ -29,7 +29,7 @@ ide:
                             id: "1"
                             views:
                                 - editor
-                          size: 646
+                          size: 635
                           type: leaf
                         - data:
                             activeView: output
@@ -40,7 +40,7 @@ ide:
                                 - breakpoints
                                 - evaluate
                                 - locals
-                          size: 256
+                          size: 251
                           type: leaf
                       size: 1340
                       type: branch
@@ -52,7 +52,7 @@ ide:
                             - docs
                       size: 531
                       type: leaf
-                size: 902
+                size: 886
                 type: branch
             width: 2144
         panels:

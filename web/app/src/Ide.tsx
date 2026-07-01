@@ -40,7 +40,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import SaveIcon from "@mui/icons-material/Save";
 import BugReportIcon from "@mui/icons-material/BugReport";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
-import MenuBookIcon from "@mui/icons-material/MenuBook";
+import KeyboardIcon from "@mui/icons-material/Keyboard";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
@@ -408,15 +408,6 @@ function EditorPanel(_: IDockviewPanelProps) {
           </>
         )}
         <Box sx={{ flex: 1 }} />
-        <Tooltip title="Toggle doc-comments panel">
-          <IconButton
-            size="small"
-            color={ide.docPanelOpen ? "primary" : "default"}
-            onClick={ide.toggleDocsPanel}
-          >
-            <MenuBookIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
         <Box className="font-control" title="Editor font size">
           <Button size="small" onClick={() => ide.setFontSize(ide.fontSize - 1)}>A−</Button>
           <span className="font-size">{ide.fontSize}px</span>
@@ -688,6 +679,29 @@ function restoreLayout(saved: unknown): Parameters<DockviewApi["fromJSON"]>[0] {
     : { ...root, size: Math.round((root.size as number) * (rootIsH ? sy : sx)) };
 
   return { ...layout, grid: { ...grid, root: scaledRoot, width: window.innerWidth, height: window.innerHeight } } as unknown as Parameters<DockviewApi["fromJSON"]>[0];
+}
+
+// Returns the other panel IDs that share a dockview group with `panelId`
+// in the given serialised layout, so we can re-add the panel to the same group.
+function findPanelSiblings(layout: unknown, panelId: string): string[] {
+  const grid = (layout as Record<string, unknown>)?.grid as Record<string, unknown> | undefined;
+  if (!grid?.root) return [];
+  function search(node: unknown): string[] | null {
+    const n = node as Record<string, unknown>;
+    if (n.type === "leaf") {
+      const views = ((n.data as Record<string, unknown>)?.views as string[]) ?? [];
+      if (views.includes(panelId)) return views.filter((v) => v !== panelId);
+      return null;
+    }
+    if (n.type === "branch") {
+      for (const child of (n.data as unknown[]) ?? []) {
+        const r = search(child);
+        if (r !== null) return r;
+      }
+    }
+    return null;
+  }
+  return search(grid.root) ?? [];
 }
 
 // ---------------------------------------------------------------------------
@@ -1317,75 +1331,127 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     if (!api) return;
     const existing = api.getPanel("docs");
     if (existing) {
+      // Snapshot the full layout (with docs still present) before removing it,
+      // so we know which group to restore it to on the next open.
+      const fullLayout = captureLayout(api);
+      const nextIde = { ...((configRef.current?.ide as Record<string, unknown>) || {}), panels: fullLayout };
+      const nextCfg = { ...configRef.current, ide: nextIde };
+      configRef.current = nextCfg;
+      setConfig(nextCfg);
+      ideApi.saveConfig(nextCfg).catch(() => {});
+      suppressSaveRef.current = true;
       existing.api.close();
+      suppressSaveRef.current = false;
       setDocPanelOpen(false);
     } else {
-      const ref = api.getPanel("explorer");
+      // Find the group docs was in last time (from the saved layout).
+      const savedLayout = (configRef.current?.ide as Record<string, unknown>)?.panels;
+      const siblings = savedLayout ? findPanelSiblings(savedLayout, "docs") : [];
+      const neighbor = siblings.find((id) => api.getPanel(id));
+      const fallback = api.getPanel("explorer") ? "explorer" : null;
+      const refId = neighbor ?? fallback;
       api.addPanel({
         id: "docs",
         component: "docs",
         title: "Docs",
-        position: ref
-          ? { direction: "within", referencePanel: "explorer" }
-          : undefined,
+        position: refId ? { direction: "within", referencePanel: refId } : undefined,
       });
       api.getPanel("docs")?.api.setActive();
       setDocPanelOpen(true);
     }
   }, []);
 
-  const hidePanel = useCallback((id: string) => {
-    const api = dockviewApiRef.current;
-    if (!api) return;
-    const panel = api.getPanel(id);
-    if (!panel) return;
-    // Snapshot full layout (includes this panel) before removing it.
-    const fullLayout = captureLayout(api);
-    const next = [...hiddenPanelsRef.current.filter((p) => p !== id), id];
-    hiddenPanelsRef.current = next;
-    setHiddenPanels(next);
-    suppressSaveRef.current = true;
-    [...panel.group.panels].forEach((p) => p.api.close());
-    suppressSaveRef.current = false;
+  // Persist hidden panel IDs + optionally a fresh full-layout snapshot.
+  const persistHidden = useCallback((next: string[], fullLayout?: unknown) => {
     setConfig((c) => {
-      const ide = { ...((c.ide as Record<string, unknown>) || {}), panels: fullLayout, hiddenPanels: next };
+      const ide: Record<string, unknown> = {
+        ...((c.ide as Record<string, unknown>) || {}),
+        hiddenPanels: next,
+        ...(fullLayout !== undefined ? { panels: fullLayout } : {}),
+      };
       const nextCfg = { ...c, ide };
       ideApi.saveConfig(nextCfg).catch(() => {});
       return nextCfg;
     });
   }, []);
 
-  const showPanel = useCallback((id: string) => {
-    const next = hiddenPanelsRef.current.filter((p) => p !== id);
+  // Re-close every currently-hidden panel after a fromJSON restore.
+  const reapplyHidden = useCallback((api: DockviewApi, hp: string[]) => {
+    if (!hp.length) return;
+    suppressSaveRef.current = true;
+    for (const id of hp) api.getPanel(id)?.api.close();
+    suppressSaveRef.current = false;
+  }, []);
+
+  const hidePanel = useCallback((groupId: string) => {
+    const api = dockviewApiRef.current;
+    if (!api) return;
+    const group = PANEL_TREE.find((g) => g.id === groupId);
+    if (!group) return;
+    const ids = groupPanelIds(group);
+    // Snapshot the full layout only on the very first hide so config.ide.panels
+    // always represents the complete layout (all panels visible).
+    const fullLayout = hiddenPanelsRef.current.length === 0 ? captureLayout(api) : undefined;
+    const next = [...hiddenPanelsRef.current.filter((p) => !ids.includes(p)), ...ids];
+    hiddenPanelsRef.current = next;
+    setHiddenPanels(next);
+    suppressSaveRef.current = true;
+    for (const id of ids) api.getPanel(id)?.api.close();
+    suppressSaveRef.current = false;
+    persistHidden(next, fullLayout);
+  }, [persistHidden]);
+
+  const showPanel = useCallback((groupId: string) => {
+    const group = PANEL_TREE.find((g) => g.id === groupId);
+    if (!group) return;
+    const ids = groupPanelIds(group);
+    const next = hiddenPanelsRef.current.filter((p) => !ids.includes(p));
     hiddenPanelsRef.current = next;
     setHiddenPanels(next);
     const api = dockviewApiRef.current;
     if (api) {
-      // Restore the full saved layout (which includes this panel at its last position).
       const saved = (configRef.current?.ide as Record<string, unknown>)?.panels;
-      if (saved) {
-        try { api.fromJSON(restoreLayout(saved)); }
-        catch { setupDefaultLayout(api); }
-      } else {
-        setupDefaultLayout(api);
-      }
-      // Re-close any panels that are still hidden.
-      if (next.length) {
-        suppressSaveRef.current = true;
-        for (const hiddenId of next) {
-          const p = api.getPanel(hiddenId);
-          if (p) [...p.group.panels].forEach((gp) => gp.api.close());
-        }
-        suppressSaveRef.current = false;
+      try { api.fromJSON(restoreLayout(saved ?? DEFAULT_PANELS)); }
+      catch { setupDefaultLayout(api); }
+      reapplyHidden(api, next);
+    }
+    persistHidden(next);
+  }, [persistHidden, reapplyHidden]);
+
+  const hideTab = useCallback((tabId: string) => {
+    const api = dockviewApiRef.current;
+    if (!api) return;
+    if (!api.getPanel(tabId)) return;
+    const fullLayout = hiddenPanelsRef.current.length === 0 ? captureLayout(api) : undefined;
+    const next = [...hiddenPanelsRef.current.filter((p) => p !== tabId), tabId];
+    hiddenPanelsRef.current = next;
+    setHiddenPanels(next);
+    suppressSaveRef.current = true;
+    api.getPanel(tabId)?.api.close();
+    suppressSaveRef.current = false;
+    persistHidden(next, fullLayout);
+  }, [persistHidden]);
+
+  const showTab = useCallback((tabId: string, tabLabel: string) => {
+    const next = hiddenPanelsRef.current.filter((p) => p !== tabId);
+    hiddenPanelsRef.current = next;
+    setHiddenPanels(next);
+    const api = dockviewApiRef.current;
+    if (api) {
+      const savedLayout = (configRef.current?.ide as Record<string, unknown>)?.panels;
+      const siblings = savedLayout ? findPanelSiblings(savedLayout, tabId) : [];
+      const neighbor = siblings.find((sid) => api.getPanel(sid));
+      if (neighbor) {
+        api.addPanel({ id: tabId, component: tabId, title: tabLabel,
+          position: { direction: "within", referencePanel: neighbor } });
+      } else if (savedLayout) {
+        // Whole group was hidden — restore full layout then re-close still-hidden panels.
+        try { api.fromJSON(restoreLayout(savedLayout)); } catch { /* ignore */ }
+        reapplyHidden(api, next);
       }
     }
-    setConfig((c) => {
-      const ide = { ...((c.ide as Record<string, unknown>) || {}), hiddenPanels: next };
-      const nextCfg = { ...c, ide };
-      ideApi.saveConfig(nextCfg).catch(() => {});
-      return nextCfg;
-    });
-  }, []);
+    persistHidden(next);
+  }, [persistHidden, reapplyHidden]);
 
   // Auto-open the markdown preview panel when a .md file becomes active.
   // Never auto-closes — let the user control its position and lifecycle.
@@ -1434,19 +1500,11 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     }
 
     // Re-apply any panels that were hidden when the layout was last saved.
-    const hp = hiddenPanelsRef.current;
-    if (hp.length) {
-      suppressSaveRef.current = true;
-      for (const id of hp) {
-        const panel = api.getPanel(id);
-        if (panel) [...panel.group.panels].forEach((p) => p.api.close());
-      }
-      suppressSaveRef.current = false;
-    }
+    reapplyHidden(api, hiddenPanelsRef.current);
 
     api.onDidLayoutChange(() => saveLayout(api));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saveLayout]);
+  }, [saveLayout, reapplyHidden]);
 
   // Persist after resize-sash drags (pointerup fires when user releases the splitter)
   // and on page unload as a safety net.
@@ -1491,20 +1549,26 @@ export function Ide({ workspace }: { workspace: Workspace }) {
         <Box className="ide" data-theme={theme}>
           <IdeStyles />
           <AppBar position="static" color="default" elevation={1}>
-            <Toolbar variant="dense" sx={{ gap: 1 }}>
-              <Typography variant="h6" sx={{ fontSize: "1.05rem", fontWeight: 700 }}>
-                Gad IDE
-              </Typography>
-              <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: "40vw" }} title={workspace.root}>
-                {workspace.root}
-              </Typography>
+            <Toolbar sx={{ gap: 1, alignItems: "center", minHeight: "unset", py: 0.5, width: "100%", maxWidth: "none" }}>
+              <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0 }}>
+                <Typography variant="h6" sx={{ fontSize: "1.05rem", fontWeight: 700, lineHeight: 1.3 }}>
+                  Gad IDE
+                </Typography>
+                <Typography variant="caption" color="text.secondary" noWrap title={workspace.root} sx={{ lineHeight: 1.2 }}>
+                  {workspace.root}
+                </Typography>
+              </Box>
               <Box sx={{ flex: 1 }} />
               <Tooltip title="Reset panels to default layout">
-                <Button size="small" startIcon={<ViewQuiltIcon />} onClick={resetPanels}>
-                  Reset Panels
-                </Button>
+                <IconButton size="small" onClick={resetPanels}>
+                  <ViewQuiltIcon fontSize="small" />
+                </IconButton>
               </Tooltip>
-              <Button size="small" onClick={() => setKeybinds(true)}>⌨ Keys</Button>
+              <Tooltip title="Keybindings">
+                <IconButton size="small" onClick={() => setKeybinds(true)}>
+                  <KeyboardIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
               <Tooltip title="Settings">
                 <IconButton size="small" onClick={() => setSettings(true)}>
                   <SettingsIcon fontSize="small" />
@@ -1544,7 +1608,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
             <SettingsDialog
               config={config}
               hiddenPanels={hiddenPanels}
-              onTogglePanel={(id, hidden) => hidden ? hidePanel(id) : showPanel(id)}
+              onToggleGroup={(groupId, hide) => hide ? hidePanel(groupId) : showPanel(groupId)}
+              onToggleTab={(tabId, tabLabel, hide) => hide ? hideTab(tabId) : showTab(tabId, tabLabel)}
               onClose={() => setSettings(false)}
               onSave={async (next) => { setConfig(next); await ideApi.saveConfig(next); setSettings(false); setStatus("settings saved"); }}
             />
@@ -2064,11 +2129,29 @@ function RunDebugSettingsDialog({
   );
 }
 
-const PANEL_DEFS = [
-  { id: "explorer", label: "Explorer" },
-  { id: "output",   label: "Output / Debug" },
-  { id: "markdown", label: "Preview / Docs" },
-] as const;
+type PanelTab   = { id: string; label: string };
+type PanelGroup = { id: string; label: string; tabs: PanelTab[] };
+
+const PANEL_TREE: PanelGroup[] = [
+  { id: "left",   label: "Left",   tabs: [
+    { id: "explorer", label: "Explorer" },
+  ]},
+  { id: "bottom", label: "Bottom", tabs: [
+    { id: "output",      label: "Output"      },
+    { id: "callstack",   label: "Call Stack"  },
+    { id: "locals",      label: "Locals"      },
+    { id: "breakpoints", label: "Breakpoints" },
+    { id: "evaluate",    label: "Evaluate"    },
+  ]},
+  { id: "right",  label: "Right",  tabs: [
+    { id: "markdown", label: "MD Preview" },
+    { id: "docs",     label: "Docs"       },
+  ]},
+];
+
+function groupPanelIds(group: PanelGroup): string[] {
+  return group.tabs.map((t) => t.id);
+}
 
 const NEWLINE_FLAGS: [string, string][] = [
   ["no-array-item-in-new-line", "Array items on new lines"],
@@ -2077,11 +2160,12 @@ const NEWLINE_FLAGS: [string, string][] = [
 ];
 
 function SettingsDialog({
-  config, hiddenPanels, onTogglePanel, onClose, onSave,
+  config, hiddenPanels, onToggleGroup, onToggleTab, onClose, onSave,
 }: {
   config: Record<string, unknown>;
   hiddenPanels: string[];
-  onTogglePanel: (id: string, hidden: boolean) => void;
+  onToggleGroup: (groupId: string, hide: boolean) => void;
+  onToggleTab: (tabId: string, tabLabel: string, hide: boolean) => void;
   onClose: () => void;
   onSave: (next: Record<string, unknown>) => void;
 }) {
@@ -2118,21 +2202,45 @@ function SettingsDialog({
       </Tabs>
       <DialogContent dividers>
         {tabIdx === 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column" }}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Visible panels</Typography>
-            {PANEL_DEFS.map(({ id, label }) => (
-              <FormControlLabel
-                key={id}
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={!hiddenPanels.includes(id)}
-                    onChange={(e) => onTogglePanel(id, !e.target.checked)}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+            {PANEL_TREE.map((group) => {
+              const ids = groupPanelIds(group);
+              const hiddenCount = ids.filter((id) => hiddenPanels.includes(id)).length;
+              const allHidden = hiddenCount === ids.length;
+              const someHidden = hiddenCount > 0 && !allHidden;
+              return (
+                <Box key={group.id}>
+                  <FormControlLabel
+                    sx={{ userSelect: "none" }}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={!allHidden}
+                        indeterminate={someHidden}
+                        onChange={() => allHidden ? onToggleGroup(group.id, false) : onToggleGroup(group.id, true)}
+                      />
+                    }
+                    label={<Typography variant="body2" sx={{ fontWeight: 600 }}>{group.label}</Typography>}
                   />
-                }
-                label={label}
-              />
-            ))}
+                  <Box sx={{ ml: 3.5, display: "flex", flexDirection: "column" }}>
+                    {group.tabs.map((tab) => (
+                      <FormControlLabel
+                        key={tab.id}
+                        sx={{ userSelect: "none" }}
+                        control={
+                          <Checkbox
+                            size="small"
+                            checked={!hiddenPanels.includes(tab.id)}
+                            onChange={(e) => onToggleTab(tab.id, tab.label, !e.target.checked)}
+                          />
+                        }
+                        label={<Typography variant="body2">{tab.label}</Typography>}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              );
+            })}
           </Box>
         )}
         {tabIdx === 1 && (

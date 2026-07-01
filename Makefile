@@ -79,21 +79,17 @@ web-server:
 web-build: web-install
 	cd web/app && $(NVM_USE) && bun run build
 
-# Launch the bundled web IDE for the samples workspace (override with DIR=path).
+# Launch the IDE with the React + CodeMirror UI (builds web/app first).
+# Override the workspace with DIR=path (defaults to samples).
 DIR ?= samples
 .PHONY: ide
-ide:
-	go run ./cmd/gad ide $(DIR)
+ide: web-build
+	go run ./cmd/gad ide --static web/app/dist $(DIR)
 
 # Generate Markdown docs for the samples workspace (writes $(DIR)/doc).
 .PHONY: samples-doc
 samples-doc:
 	cd $(DIR) && go run ../cmd/gad doc
-
-# Launch the IDE with the richer React + CodeMirror UI (builds web/app first).
-.PHONY: ide-react
-ide-react: web-build
-	go run ./cmd/gad ide --static web/app/dist $(DIR)
 
 .PHONY: test
 test: version generate lint
