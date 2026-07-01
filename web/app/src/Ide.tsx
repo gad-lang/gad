@@ -330,17 +330,14 @@ function EditorPanel(_: IDockviewPanelProps) {
         >
           Debug 🐞
         </Button>
-        <Tooltip title="Run / Debug settings">
-          <span>
-            <IconButton
-              size="small"
-              onClick={() => ide.activeTab && ide.setDialog({ kind: "run", tab: ide.activeTab })}
-              disabled={!ide.activeTab}
-            >
-              <TuneIcon fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
+        <Button
+          size="small" variant="outlined"
+          startIcon={<TuneIcon fontSize="small" />}
+          onClick={() => ide.activeTab && ide.setDialog({ kind: "run", tab: ide.activeTab })}
+          disabled={!ide.activeTab}
+        >
+          Settings
+        </Button>
         {debug && (
           <Box className="dbgbar">
             <Tooltip title={`Resume (${keys.continue})`}>
