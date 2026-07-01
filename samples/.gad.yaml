@@ -1,16 +1,105 @@
-# Workspace configuration for the Gad samples.
-# `gad fmt` reads the `fmt:` key (keys match `gad fmt` flags without `--`);
-# `gad ide` reads and writes both keys (it adds ide.breakpoints, ide.run, etc.
-# as you use it).
-
 fmt:
-  # Keep collections compact on one line where possible.
-  no-array-item-in-new-line: true
-  no-dict-item-in-new-line: true
-  no-call-params-in-new-line: true
-
+    no-array-item-in-new-line: true
+    no-call-params-in-new-line: true
+    no-dict-item-in-new-line: true
 ide:
-  # Layout (the IDE updates these as you resize panels / switch theme).
-  theme: dark
-  sidebarWidth: 240
-  outputHeight: 200
+    breakpoints:
+        01_hello.gad:
+            - 8
+    hiddenPanels: []
+    panels:
+        activeGroup: "1"
+        grid:
+            __savedH: 967
+            __savedW: 2144
+            height: 902
+            orientation: HORIZONTAL
+            root:
+                data:
+                    - data:
+                        activeView: explorer
+                        id: "2"
+                        views:
+                            - explorer
+                      size: 273
+                      type: leaf
+                    - data:
+                        - data:
+                            activeView: editor
+                            id: "1"
+                            views:
+                                - editor
+                          size: 646
+                          type: leaf
+                        - data:
+                            activeView: output
+                            id: "3"
+                            views:
+                                - output
+                                - callstack
+                                - breakpoints
+                                - evaluate
+                                - locals
+                          size: 256
+                          type: leaf
+                      size: 1340
+                      type: branch
+                    - data:
+                        activeView: docs
+                        id: "4"
+                        views:
+                            - markdown
+                            - docs
+                      size: 531
+                      type: leaf
+                size: 902
+                type: branch
+            width: 2144
+        panels:
+            breakpoints:
+                contentComponent: breakpoints
+                id: breakpoints
+                title: Breakpoints
+            callstack:
+                contentComponent: callstack
+                id: callstack
+                title: Call Stack
+            docs:
+                contentComponent: docs
+                id: docs
+                title: Docs
+            editor:
+                contentComponent: editor
+                id: editor
+                title: Editor
+            evaluate:
+                contentComponent: evaluate
+                id: evaluate
+                title: Evaluate
+            explorer:
+                contentComponent: explorer
+                id: explorer
+                title: Explorer
+            locals:
+                contentComponent: locals
+                id: locals
+                title: Locals
+            markdown:
+                contentComponent: markdown
+                id: markdown
+                title: MD Preview
+            output:
+                contentComponent: output
+                id: output
+                title: Output
+    run:
+        01_hello.gad:
+            args: []
+            combine: false
+            disabled: []
+            safe: false
+            saveOut: ""
+            saveStderr: ""
+            saveStdout: ""
+    sidebarWidth: 304
+    theme: dark

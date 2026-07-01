@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControlLabel,
   IconButton,
   Menu,
@@ -35,7 +36,11 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import OutputIcon from "@mui/icons-material/Notes";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import ViewQuiltIcon from "@mui/icons-material/ViewQuilt";
-import TuneIcon from "@mui/icons-material/Tune";
+import SettingsIcon from "@mui/icons-material/Settings";
+import SaveIcon from "@mui/icons-material/Save";
+import BugReportIcon from "@mui/icons-material/BugReport";
+import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
@@ -310,8 +315,20 @@ function EditorPanel(_: IDockviewPanelProps) {
       </div>
 
       <Toolbar variant="dense" className="toolbar" disableGutters sx={{ gap: 1, minHeight: 44 }}>
-        <Button size="small" variant="outlined" onClick={ide.save} disabled={!ide.activeTab}>Save</Button>
-        <Button size="small" variant="outlined" onClick={ide.format} disabled={!ide.activeTab}>Format</Button>
+        <Tooltip title="Save">
+          <span>
+            <IconButton size="small" onClick={ide.save} disabled={!ide.activeTab}>
+              <SaveIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Format">
+          <span>
+            <IconButton size="small" onClick={ide.format} disabled={!ide.activeTab}>
+              <AutoFixHighIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
         <Tooltip title="Reload from disk">
           <span>
             <IconButton size="small" onClick={ide.reloadFile} disabled={!ide.activeTab}>
@@ -333,32 +350,37 @@ function EditorPanel(_: IDockviewPanelProps) {
             </IconButton>
           </span>
         </Tooltip>
-        <Button
-          size="small" variant="contained" color="success"
-          onClick={() => ide.runActive()}
-          disabled={!ide.activeTab}
-        >
-          Run ▶
-        </Button>
-        <Button
-          size="small" variant="contained" color="warning"
-          onClick={() => ide.debugActive()}
-          disabled={!ide.activeTab}
-        >
-          Debug 🐞
-        </Button>
-        <Button
-          size="small" variant="outlined"
-          startIcon={<TuneIcon fontSize="small" />}
-          onClick={() => ide.activeTab && ide.setDialog({ kind: "run", tab: ide.activeTab })}
-          disabled={!ide.activeTab}
-        >
-          Settings
-        </Button>
+        <Tooltip title="Run">
+          <span>
+            <IconButton size="small" onClick={() => ide.runActive()} disabled={!ide.activeTab} color="success">
+              <PlayArrowIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Debug">
+          <span>
+            <IconButton size="small" onClick={() => ide.debugActive()} disabled={!ide.activeTab} color="warning">
+              <BugReportIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Run/Debug settings">
+          <span>
+            <IconButton
+              size="small"
+              onClick={() => ide.activeTab && ide.setDialog({ kind: "run", tab: ide.activeTab })}
+              disabled={!ide.activeTab}
+            >
+              <SettingsIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
         {debug && (
+          <>
+          <Divider orientation="vertical" flexItem />
           <Box className="dbgbar">
             <Tooltip title={`Resume (${keys.continue})`}>
-              <IconButton size="small" onClick={() => ide.dbgCommand("continue")} color="success">
+              <IconButton size="small" onClick={() => ide.dbgCommand("continue")}>
                 <PlayArrowIcon fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -383,16 +405,17 @@ function EditorPanel(_: IDockviewPanelProps) {
               </IconButton>
             </Tooltip>
           </Box>
+          </>
         )}
         <Box sx={{ flex: 1 }} />
         <Tooltip title="Toggle doc-comments panel">
-          <Button
+          <IconButton
             size="small"
-            variant={ide.docPanelOpen ? "contained" : "outlined"}
+            color={ide.docPanelOpen ? "primary" : "default"}
             onClick={ide.toggleDocsPanel}
           >
-            Docs
-          </Button>
+            <MenuBookIcon fontSize="small" />
+          </IconButton>
         </Tooltip>
         <Box className="font-control" title="Editor font size">
           <Button size="small" onClick={() => ide.setFontSize(ide.fontSize - 1)}>A−</Button>
@@ -439,6 +462,7 @@ function OutputTextPanel(_: IDockviewPanelProps) {
   return (
     <div className="panes-dockview">
       <div className="pane-toolbar">
+        <span style={{ flex: 1 }} />
         <button className={outMode === "combined" ? "on" : ""} title="Combined stdout+stderr" onClick={() => ide.setOutMode("combined")}>Combined</button>
         <button className={outMode === "split" ? "on" : ""} title="Split stdout / stderr" onClick={() => ide.setOutMode("split")}>Split</button>
         <button onClick={ide.clearOut}>Clear</button>
@@ -514,7 +538,7 @@ function LocalsPanel(_: IDockviewPanelProps) {
                 <td>{v.name}</td>
                 <td className="muted">{v.type}</td>
                 <td>{v.value}</td>
-                <td className="locals-copy">
+                <td className="locals-actions">
                   <IconButton size="small" title="Inspect (tree)" onClick={() => ide.setInspectTarget({ title: v.name, expr: v.name })}>
                     <AccountTreeIcon sx={{ fontSize: 14 }} />
                   </IconButton>
@@ -753,6 +777,9 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [hiddenPanels, setHiddenPanels] = useState<string[]>([]);
+  const hiddenPanelsRef = useRef<string[]>([]);
+  const suppressSaveRef = useRef(false);
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [active, setActive] = useState(-1);
   const [outChunks, setOutChunks] = useState<{ stream: "out" | "err"; text: string }[]>([]);
@@ -816,6 +843,9 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     (async () => {
       try {
         const cfg = await ideApi.config();
+        const hp = ((cfg.ide as Record<string, unknown>)?.hiddenPanels as string[]) ?? [];
+        hiddenPanelsRef.current = hp;
+        setHiddenPanels(hp);
         configRef.current = cfg;
         setConfig(cfg);
         setConfigLoaded(true);
@@ -1271,6 +1301,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   // -------------------------------------------------------------------------
 
   const saveLayout = useCallback((api: DockviewApi) => {
+    if (suppressSaveRef.current || hiddenPanelsRef.current.length > 0) return;
     const layout = captureLayout(api);
     setConfig((c) => {
       const ide = { ...((c.ide as Record<string, unknown>) || {}), panels: layout };
@@ -1303,6 +1334,59 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     }
   }, []);
 
+  const hidePanel = useCallback((id: string) => {
+    const api = dockviewApiRef.current;
+    if (!api) return;
+    const panel = api.getPanel(id);
+    if (!panel) return;
+    // Snapshot full layout (includes this panel) before removing it.
+    const fullLayout = captureLayout(api);
+    const next = [...hiddenPanelsRef.current.filter((p) => p !== id), id];
+    hiddenPanelsRef.current = next;
+    setHiddenPanels(next);
+    suppressSaveRef.current = true;
+    [...panel.group.panels].forEach((p) => p.api.close());
+    suppressSaveRef.current = false;
+    setConfig((c) => {
+      const ide = { ...((c.ide as Record<string, unknown>) || {}), panels: fullLayout, hiddenPanels: next };
+      const nextCfg = { ...c, ide };
+      ideApi.saveConfig(nextCfg).catch(() => {});
+      return nextCfg;
+    });
+  }, []);
+
+  const showPanel = useCallback((id: string) => {
+    const next = hiddenPanelsRef.current.filter((p) => p !== id);
+    hiddenPanelsRef.current = next;
+    setHiddenPanels(next);
+    const api = dockviewApiRef.current;
+    if (api) {
+      // Restore the full saved layout (which includes this panel at its last position).
+      const saved = (configRef.current?.ide as Record<string, unknown>)?.panels;
+      if (saved) {
+        try { api.fromJSON(restoreLayout(saved)); }
+        catch { setupDefaultLayout(api); }
+      } else {
+        setupDefaultLayout(api);
+      }
+      // Re-close any panels that are still hidden.
+      if (next.length) {
+        suppressSaveRef.current = true;
+        for (const hiddenId of next) {
+          const p = api.getPanel(hiddenId);
+          if (p) [...p.group.panels].forEach((gp) => gp.api.close());
+        }
+        suppressSaveRef.current = false;
+      }
+    }
+    setConfig((c) => {
+      const ide = { ...((c.ide as Record<string, unknown>) || {}), hiddenPanels: next };
+      const nextCfg = { ...c, ide };
+      ideApi.saveConfig(nextCfg).catch(() => {});
+      return nextCfg;
+    });
+  }, []);
+
   // Auto-open the markdown preview panel when a .md file becomes active.
   // Never auto-closes — let the user control its position and lifecycle.
   useEffect(() => {
@@ -1327,6 +1411,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   function resetPanels() {
     const api = dockviewApiRef.current;
     if (!api) return;
+    hiddenPanelsRef.current = [];
+    setHiddenPanels([]);
     setDocPanelOpen(false);
     api.clear();
     setupDefaultLayout(api);
@@ -1338,12 +1424,24 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     const api = event.api;
     dockviewApiRef.current = api;
 
-    const saved = (configRef.current?.ide as Record<string, unknown>)?.panels;
+    const ideConfig = configRef.current?.ide as Record<string, unknown> | undefined;
+    const saved = ideConfig?.panels;
     if (saved) {
       try { api.fromJSON(restoreLayout(saved)); }
       catch { setupDefaultLayout(api); }
     } else {
       setupDefaultLayout(api);
+    }
+
+    // Re-apply any panels that were hidden when the layout was last saved.
+    const hp = hiddenPanelsRef.current;
+    if (hp.length) {
+      suppressSaveRef.current = true;
+      for (const id of hp) {
+        const panel = api.getPanel(id);
+        if (panel) [...panel.group.panels].forEach((p) => p.api.close());
+      }
+      suppressSaveRef.current = false;
     }
 
     api.onDidLayoutChange(() => saveLayout(api));
@@ -1407,7 +1505,11 @@ export function Ide({ workspace }: { workspace: Workspace }) {
                 </Button>
               </Tooltip>
               <Button size="small" onClick={() => setKeybinds(true)}>⌨ Keys</Button>
-              <Button size="small" onClick={() => setSettings(true)}>⚙ Settings</Button>
+              <Tooltip title="Settings">
+                <IconButton size="small" onClick={() => setSettings(true)}>
+                  <SettingsIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
               <IconButton size="small" onClick={toggleTheme} title="Toggle theme">
                 {dark ? "☀" : "☾"}
               </IconButton>
@@ -1441,6 +1543,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           {settings && (
             <SettingsDialog
               config={config}
+              hiddenPanels={hiddenPanels}
+              onTogglePanel={(id, hidden) => hidden ? hidePanel(id) : showPanel(id)}
               onClose={() => setSettings(false)}
               onSave={async (next) => { setConfig(next); await ideApi.saveConfig(next); setSettings(false); setStatus("settings saved"); }}
             />
@@ -1960,6 +2064,12 @@ function RunDebugSettingsDialog({
   );
 }
 
+const PANEL_DEFS = [
+  { id: "explorer", label: "Explorer" },
+  { id: "output",   label: "Output / Debug" },
+  { id: "markdown", label: "Preview / Docs" },
+] as const;
+
 const NEWLINE_FLAGS: [string, string][] = [
   ["no-array-item-in-new-line", "Array items on new lines"],
   ["no-dict-item-in-new-line", "Dict items on new lines"],
@@ -1967,12 +2077,15 @@ const NEWLINE_FLAGS: [string, string][] = [
 ];
 
 function SettingsDialog({
-  config, onClose, onSave,
+  config, hiddenPanels, onTogglePanel, onClose, onSave,
 }: {
   config: Record<string, unknown>;
+  hiddenPanels: string[];
+  onTogglePanel: (id: string, hidden: boolean) => void;
   onClose: () => void;
   onSave: (next: Record<string, unknown>) => void;
 }) {
+  const [tabIdx, setTabIdx] = useState(0);
   const fmt = (config.fmt as Record<string, unknown>) || {};
   const transpile = (config.transpile as Record<string, unknown>) || {};
   const [expanded, setExpanded] = useState<Record<string, boolean>>(
@@ -1998,25 +2111,58 @@ function SettingsDialog({
   return (
     <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Settings</DialogTitle>
+      <Tabs value={tabIdx} onChange={(_, v: number) => setTabIdx(v)} sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}>
+        <Tab label="Panels" />
+        <Tab label="Formatter" />
+        <Tab label="Transpile" />
+      </Tabs>
       <DialogContent dividers>
-        <Typography variant="subtitle2">Formatter (.gad.yaml → fmt)</Typography>
-        <Box sx={{ display: "flex", flexDirection: "column" }}>
-          {NEWLINE_FLAGS.map(([k, label]) => (
-            <FormControlLabel key={k} control={<Checkbox checked={expanded[k]} onChange={(e) => setExpanded((s) => ({ ...s, [k]: e.target.checked }))} />} label={label} />
-          ))}
-          <FormControlLabel control={<Checkbox checked={backup} onChange={(e) => setBackup(e.target.checked)} />} label="Keep .backup on format" />
-        </Box>
-        <Typography variant="subtitle2" sx={{ mt: 2 }}>Transpile (.gad.yaml → transpile)</Typography>
-        <Typography variant="caption" color="text.secondary">Applied to <code>.gad</code>/<code>.gadt</code> transpile. Leave blank for defaults.</Typography>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
-          <TextField size="small" label="Write function" placeholder="write" value={writeFunc} onChange={(e) => setWriteFunc(e.target.value)} />
-          <TextField size="small" label="Raw-string func start" placeholder="rawstr(" value={rawStart} onChange={(e) => setRawStart(e.target.value)} />
-          <TextField size="small" label="Raw-string func end" placeholder=";cast)" value={rawEnd} onChange={(e) => setRawEnd(e.target.value)} />
-        </Box>
+        {tabIdx === 0 && (
+          <Box sx={{ display: "flex", flexDirection: "column" }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Visible panels</Typography>
+            {PANEL_DEFS.map(({ id, label }) => (
+              <FormControlLabel
+                key={id}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={!hiddenPanels.includes(id)}
+                    onChange={(e) => onTogglePanel(id, !e.target.checked)}
+                  />
+                }
+                label={label}
+              />
+            ))}
+          </Box>
+        )}
+        {tabIdx === 1 && (
+          <>
+            <Typography variant="subtitle2">Formatter (.gad.yaml → fmt)</Typography>
+            <Box sx={{ display: "flex", flexDirection: "column" }}>
+              {NEWLINE_FLAGS.map(([k, label]) => (
+                <FormControlLabel key={k} control={<Checkbox checked={expanded[k]} onChange={(e) => setExpanded((s) => ({ ...s, [k]: e.target.checked }))} />} label={label} />
+              ))}
+              <FormControlLabel control={<Checkbox checked={backup} onChange={(e) => setBackup(e.target.checked)} />} label="Keep .backup on format" />
+            </Box>
+          </>
+        )}
+        {tabIdx === 2 && (
+          <>
+            <Typography variant="subtitle2">Transpile (.gad.yaml → transpile)</Typography>
+            <Typography variant="caption" color="text.secondary">Applied to <code>.gad</code>/<code>.gadt</code> transpile. Leave blank for defaults.</Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
+              <TextField size="small" label="Write function" placeholder="write" value={writeFunc} onChange={(e) => setWriteFunc(e.target.value)} />
+              <TextField size="small" label="Raw-string func start" placeholder="rawstr(" value={rawStart} onChange={(e) => setRawStart(e.target.value)} />
+              <TextField size="small" label="Raw-string func end" placeholder=";cast)" value={rawEnd} onChange={(e) => setRawEnd(e.target.value)} />
+            </Box>
+          </>
+        )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={save}>Save</Button>
+        {tabIdx === 0
+          ? <Button onClick={onClose}>Close</Button>
+          : <><Button onClick={onClose}>Cancel</Button><Button variant="contained" onClick={save}>Save</Button></>
+        }
       </DialogActions>
     </Dialog>
   );
@@ -2078,8 +2224,8 @@ function IdeStyles() {
 .frame .fn{font-weight:600}
 .locals-head{margin-bottom:.3rem;font-size:.8rem}
 table.locals td{padding:.1rem .5rem;border-bottom:1px solid var(--border);font-family:ui-monospace,monospace}
-table.locals td.locals-copy{padding:0;width:1.6rem;text-align:right;opacity:0;transition:opacity .1s}
-table.locals tr:hover td.locals-copy{opacity:.8}
+table.locals td.locals-actions{padding:0;width:3.5rem;text-align:right;opacity:0;transition:opacity .1s}
+table.locals tr:hover td.locals-actions{opacity:.8}
 .eval{display:flex;flex-direction:column;gap:.4rem}
 .eval-form{display:flex;align-items:center;gap:.4rem;position:sticky;top:0;background:var(--panel);padding-bottom:.3rem}
 table.eval-list{width:100%;border-collapse:collapse}
