@@ -255,6 +255,26 @@ return v
 * [Error Handling](https://github.com/gad-lang/gad/blob/main/doc/error-handling.md)
 * [Standard Library](https://github.com/gad-lang/gad/blob/main/doc/modules.md)
 
+## Go Dev Conventions
+
+Conventions for contributing Go code to the runtime.
+
+### Registering a builtin function
+
+Build a builtin function with the fluent `NewBuiltinFunction` constructor,
+declaring its module and its parameter name/type pairs — do not hand-populate
+the struct fields:
+
+```go
+fn := NewBuiltinFunction("binOpAdd", func(c Call) (Object, error) {
+    // ...
+}).WithModule(gadModuleSpec).WithParamsPairs("left", TAny, "right", TAny)
+```
+
+`WithModule` qualifies the function's name (e.g. `gad.binOpAdd`) and
+`WithParamsPairs` declares the parameters as alternating `name, Type` values, so
+the signature appears in `repr(fn; indent)` and drives argument dispatch.
+
 ## LICENSE
 
 Gad is licensed under the **MIT License** — see [LICENSE](LICENSE) for the full
