@@ -36,6 +36,11 @@ import OutputIcon from "@mui/icons-material/Notes";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import ViewQuiltIcon from "@mui/icons-material/ViewQuilt";
 import TuneIcon from "@mui/icons-material/Tune";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import SkipNextIcon from "@mui/icons-material/SkipNext";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import StopIcon from "@mui/icons-material/Stop";
 import { DockviewReact, type DockviewApi, type DockviewReadyEvent, type IDockviewPanelProps } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
 
@@ -341,18 +346,30 @@ function EditorPanel(_: IDockviewPanelProps) {
         {debug && (
           <Box className="dbgbar">
             <Tooltip title={`Resume (${keys.continue})`}>
-              <Button size="small" onClick={() => ide.dbgCommand("continue")}>Continue ({keys.continue})</Button>
+              <IconButton size="small" onClick={() => ide.dbgCommand("continue")} color="success">
+                <PlayArrowIcon fontSize="small" />
+              </IconButton>
             </Tooltip>
             <Tooltip title={`Step over (${keys.stepOver})`}>
-              <Button size="small" onClick={() => ide.dbgCommand("next")}>Step Over ({keys.stepOver})</Button>
+              <IconButton size="small" onClick={() => ide.dbgCommand("next")}>
+                <SkipNextIcon fontSize="small" />
+              </IconButton>
             </Tooltip>
             <Tooltip title={`Step into (${keys.stepInto})`}>
-              <Button size="small" onClick={() => ide.dbgCommand("stepIn")}>Step In ({keys.stepInto})</Button>
+              <IconButton size="small" onClick={() => ide.dbgCommand("stepIn")}>
+                <ArrowDownwardIcon fontSize="small" />
+              </IconButton>
             </Tooltip>
             <Tooltip title={`Step out (${keys.stepOut})`}>
-              <Button size="small" onClick={() => ide.dbgCommand("stepOut")}>Step Out ({keys.stepOut})</Button>
+              <IconButton size="small" onClick={() => ide.dbgCommand("stepOut")}>
+                <ArrowUpwardIcon fontSize="small" />
+              </IconButton>
             </Tooltip>
-            <Button size="small" color="error" onClick={() => ide.dbgCommand("stop")}>Stop</Button>
+            <Tooltip title="Stop">
+              <IconButton size="small" onClick={() => ide.dbgCommand("stop")} color="error">
+                <StopIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Box>
         )}
         <Box sx={{ flex: 1 }} />
@@ -584,13 +601,15 @@ function DocsPanel(_: IDockviewPanelProps) {
 
 function MdPreviewPanel(_: IDockviewPanelProps) {
   const ide = useIde();
-  const content = ide.activeTab?.content ?? "";
-  const html = useMemo(() => renderDocMarkdown(content), [content]);
+  const isMd = /\.mdx?$/i.test(ide.activeTab?.path ?? "");
+  const content = isMd ? (ide.activeTab?.content ?? "") : "";
+  const html = useMemo(() => (content ? renderDocMarkdown(content) : ""), [content]);
   return (
     <div className="doc-panel dock-panel-fill">
-      <div className="doc-body">
-        <div className="doc-content language-gad" dangerouslySetInnerHTML={{ __html: html }} />
-      </div>
+      {content
+        ? <div className="doc-body"><div className="doc-content language-gad" dangerouslySetInnerHTML={{ __html: html }} /></div>
+        : <div className="doc-body"><span className="muted" style={{ padding: "1rem", display: "block" }}>No markdown file active.</span></div>
+      }
     </div>
   );
 }
@@ -1162,13 +1181,52 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   // Dockview: docs panel toggle and markdown panel management
   // -------------------------------------------------------------------------
 
-  const saveLayout = useCallback((layout: unknown) => {
+  // Attach window dimensions to the layout so sizes can be restored proportionally.
+  function captureLayout(api: DockviewApi): unknown {
+    const raw = api.toJSON() as unknown as Record<string, unknown>;
+    const grid = raw.grid as Record<string, unknown>;
+    return { ...raw, grid: { ...grid, __savedW: window.innerWidth, __savedH: window.innerHeight } };
+  }
+
+  // Scale all grid node sizes proportionally to the current window dimensions.
+  function restoreLayout(saved: unknown): Parameters<DockviewApi["fromJSON"]>[0] {
+    const layout = saved as Record<string, unknown>;
+    const grid = layout.grid as Record<string, unknown>;
+    const savedW = (grid.__savedW as number) || (grid.width as number);
+    const savedH = (grid.__savedH as number) || (grid.height as number);
+    if (!savedW || !savedH) return saved as unknown as Parameters<DockviewApi["fromJSON"]>[0];
+    const sx = window.innerWidth / savedW;
+    const sy = window.innerHeight / savedH;
+    if (Math.abs(sx - 1) < 0.01 && Math.abs(sy - 1) < 0.01) return saved as unknown as Parameters<DockviewApi["fromJSON"]>[0];
+
+    // Recurse the grid tree; parentSplitsH=true means children have WIDTH sizes.
+    function scaleNode(node: unknown, parentSplitsH: boolean): unknown {
+      const n = node as Record<string, unknown>;
+      const scaled = Math.round((n.size as number) * (parentSplitsH ? sx : sy));
+      if (n.type === "branch") {
+        return { ...n, size: scaled, data: (n.data as unknown[]).map((c) => scaleNode(c, !parentSplitsH)) };
+      }
+      return { ...n, size: scaled };
+    }
+
+    const rootIsH = grid.orientation === 0 || grid.orientation === "HORIZONTAL";
+    const root = grid.root as Record<string, unknown>;
+    const scaledRoot = root.type === "branch"
+      ? { ...root, size: Math.round((root.size as number) * (rootIsH ? sy : sx)), data: (root.data as unknown[]).map((c) => scaleNode(c, rootIsH)) }
+      : { ...root, size: Math.round((root.size as number) * (rootIsH ? sy : sx)) };
+
+    return { ...layout, grid: { ...grid, root: scaledRoot, width: window.innerWidth, height: window.innerHeight } } as unknown as Parameters<DockviewApi["fromJSON"]>[0];
+  }
+
+  const saveLayout = useCallback((api: DockviewApi) => {
+    const layout = captureLayout(api);
     setConfig((c) => {
       const ide = { ...((c.ide as Record<string, unknown>) || {}), panels: layout };
       const next = { ...c, ide };
       ideApi.saveConfig(next).catch(() => {});
       return next;
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleDocsPanel = useCallback(() => {
@@ -1193,27 +1251,23 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     }
   }, []);
 
-  // Show / hide markdown preview panel when active file type changes.
-  const prevIsMdRef = useRef(false);
+  // Auto-open the markdown preview panel when a .md file becomes active.
+  // Never auto-closes — let the user control its position and lifecycle.
   useEffect(() => {
-    const isMd = (activeTab?.path.endsWith(".md") || activeTab?.path.endsWith(".mdx")) ?? false;
+    const isMd = /\.mdx?$/i.test(activeTab?.path ?? "");
+    if (!isMd) return;
     const api = dockviewApiRef.current;
     if (!api) return;
-    if (isMd && !prevIsMdRef.current) {
-      if (!api.getPanel("markdown")) {
-        const ref = api.getPanel("explorer");
-        api.addPanel({
-          id: "markdown",
-          component: "markdown",
-          title: "MD Preview",
-          position: ref ? { direction: "within", referencePanel: "explorer" } : undefined,
-        });
-      }
-      api.getPanel("markdown")?.api.setActive();
-    } else if (!isMd && prevIsMdRef.current) {
-      api.getPanel("markdown")?.api.close();
+    if (!api.getPanel("markdown")) {
+      const ref = api.getPanel("explorer");
+      api.addPanel({
+        id: "markdown",
+        component: "markdown",
+        title: "MD Preview",
+        position: ref ? { direction: "within", referencePanel: "explorer" } : undefined,
+      });
     }
-    prevIsMdRef.current = isMd;
+    api.getPanel("markdown")?.api.setActive();
   }, [activeTab?.path]);
 
   // Reset all panels to the default layout.
@@ -1236,12 +1290,12 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     const api = event.api;
     dockviewApiRef.current = api;
 
-    // Restore saved layout or apply default.
+    // Restore saved layout (scaling sizes to current window) or apply default.
     const saved = (configRef.current?.ide as Record<string, unknown>)?.panels;
     let restored = false;
     if (saved) {
       try {
-        api.fromJSON(saved as Parameters<typeof api.fromJSON>[0]);
+        api.fromJSON(restoreLayout(saved));
         restored = true;
       } catch {
         /* fall through to default */
@@ -1249,8 +1303,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     }
     if (!restored) setupDefaultLayout(api);
 
-    // Persist layout on every structural change.
-    const disposable = api.onDidLayoutChange(() => saveLayout(api.toJSON()));
+    // Persist layout on every structural change, tagging saved window dimensions.
+    const disposable = api.onDidLayoutChange(() => saveLayout(api));
     return () => disposable.dispose();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
