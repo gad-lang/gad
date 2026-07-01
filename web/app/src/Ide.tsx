@@ -1550,6 +1550,12 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           <IdeStyles />
           <AppBar position="static" color="default" elevation={1}>
             <Toolbar sx={{ gap: 1, alignItems: "center", minHeight: "unset", py: 0.5, width: "100%", maxWidth: "none" }}>
+              <Box
+                component="img"
+                src="/gad.svg"
+                alt="Gad logo"
+                sx={{ width: 32, height: 32, flexShrink: 0, display: "block" }}
+              />
               <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0 }}>
                 <Typography variant="h6" sx={{ fontSize: "1.05rem", fontWeight: 700, lineHeight: 1.3 }}>
                   Gad IDE
@@ -1819,8 +1825,24 @@ const FILE_ICON_SX = { fontSize: 15, verticalAlign: "middle", mr: "3px" } as con
 function FileIcon({ name }: { name: string }) {
   const ext = (name.includes(".") ? name.split(".").pop()! : "").toLowerCase();
   switch (ext) {
-    case "gad": case "gadt":
-      return <CodeIcon sx={{ ...FILE_ICON_SX, color: "#a78bfa" }} />;
+    case "gad":
+      return (
+        <Box
+          component="img"
+          src="/gad-16.svg"
+          alt=""
+          sx={{ ...FILE_ICON_SX, width: 16, height: 16, display: "inline-block" }}
+        />
+      );
+    case "gadt":
+      return (
+        <Box
+          component="img"
+          src="/gadt-16.svg"
+          alt=""
+          sx={{ ...FILE_ICON_SX, width: 16, height: 16, display: "inline-block" }}
+        />
+      );
     case "json":
       return <DataObjectIcon sx={{ ...FILE_ICON_SX, color: "#fb923c" }} />;
     case "yaml": case "yml":

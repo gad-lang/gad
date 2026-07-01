@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges">
+    <defs>
+        <style>
+            .outline-dark { fill: #0D1B2A; }
+            .tmpl-cyan     { fill: #06B6D4; } /* Ciano de template */
+            .tmpl-shadow   { fill: #0891B2; } /* Sombra do ciano */
+            .tmpl-light    { fill: #E0F7FA; } /* Detalhes claros de blueprint */
+            .horn-gray    { fill: #BDC3C7; }
+        </style>
+    </defs>
+
+    <!-- CHIFRES -->
+    <rect x="8" y="0" width="2" height="6" class="outline-dark" />
+    <rect x="8" y="1" width="1" height="5" class="horn-gray" />
+    <rect x="8" y="3" width="1" height="1" class="outline-dark" />
+
+    <rect x="14" y="0" width="2" height="6" class="outline-dark" />
+    <rect x="15" y="1" width="1" height="5" class="horn-gray" />
+    <rect x="15" y="3" width="1" height="1" class="outline-dark" />
+
+    <!-- ORELHAS -->
+    <rect x="2" y="7" width="5" height="3" class="outline-dark" />
+    <rect x="3" y="8" width="4" height="1" class="tmpl-cyan" />
+    <rect x="17" y="7" width="5" height="3" class="outline-dark" />
+    <rect x="17" y="8" width="4" height="1" class="tmpl-cyan" />
+
+    <!-- CABEÇA BASE -->
+    <rect x="5" y="6" width="14" height="13" class="outline-dark" />
+    <rect x="6" y="7" width="12" height="11" class="tmpl-cyan" />
+
+    <!-- DETALHES BOCHECHAS -->
+    <rect x="6" y="12" width="2" height="5" class="tmpl-shadow" />
+    <rect x="16" y="12" width="2" height="5" class="tmpl-shadow" />
+
+    <!-- LISTRA FACIAL E FOCINHO -->
+    <rect x="10" y="7" width="4" height="13" class="tmpl-light" />
+    <rect x="9" y="15" width="6" height="6" class="outline-dark" />
+    <rect x="10" y="15" width="4" height="5" class="tmpl-light" />
+    <rect x="11" y="19" width="2" height="1" class="outline-dark" />
+
+    <!-- OLHOS VAZADOS / COMPONENTES (Estilo Blueprint) -->
+    <rect x="6" y="9" width="4" height="4" class="outline-dark" />
+    <rect x="7" y="10" width="2" height="2" class="tmpl-light" />
+
+    <rect x="14" y="9" width="4" height="4" class="outline-dark" />
+    <rect x="15" y="10" width="2" height="2" class="tmpl-light" />
+</svg>

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" shape-rendering="crispEdges">
+    <defs>
+        <style>
+            .base-dark   { fill: #0D1B2A; } /* Contornos e estrutura principal */
+            .tmpl-cyan   { fill: #06B6D4; } /* Cor do template (Ciano da marca Gad) */
+            .tmpl-light  { fill: #E0F7FA; } /* Faixa de destaque do template */
+            .horn-silver { fill: #BDC3C7; } /* Chifres identificadores da gazela */
+        </style>
+    </defs>
+
+    <!-- CHIFRES DA GAZELA (Mantidos para identidade da linguagem) -->
+    <rect x="5" y="0" width="2" height="4" class="base-dark" />
+    <rect x="5" y="1" width="1" height="3" class="horn-silver" />
+
+    <rect x="9" y="0" width="2" height="4" class="base-dark" />
+    <rect x="10" y="1" width="1" height="3" class="horn-silver" />
+
+    <!-- ORELHAS LATERAIS -->
+    <rect x="1" y="5" width="3" height="2" class="base-dark" />
+    <rect x="2" y="5" width="2" height="1" class="tmpl-cyan" />
+
+    <rect x="12" y="5" width="3" height="2" class="base-dark" />
+    <rect x="12" y="5" width="2" height="1" class="tmpl-cyan" />
+
+    <!-- CABEÇA BASE (Em tom ciano para indicar Template/Blueprint) -->
+    <rect x="3" y="4" width="10" height="9" class="base-dark" />
+    <rect x="4" y="5" width="8" height="7" class="tmpl-cyan" />
+
+    <!-- LISTRA FACIAL CENTRAL (Estilo Wireframe/Layout) -->
+    <rect x="7" y="5" width="2" height="8" class="tmpl-light" />
+    <rect x="7" y="12" width="2" height="1" class="base-dark" /> <!-- Nariz -->
+
+    <!-- OLHOS VAZADOS (Efeito blueprint/molde para diferenciar de arquivo executável) -->
+    <!-- Olho Esquerdo -->
+    <rect x="4" y="6" width="3" height="3" class="base-dark" />
+    <rect x="5" y="7" width="1" height="1" class="tmpl-light" />
+
+    <!-- Olho Direito -->
+    <rect x="9" y="6" width="3" height="3" class="base-dark" />
+    <rect x="10" y="7" width="1" height="1" class="tmpl-light" />
+</svg>

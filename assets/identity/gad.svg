@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+    <defs>
+        <style>
+            .bg-shield { fill: #1B263B; stroke: #0D1B2A; stroke-width: 6; stroke-linejoin: round; }
+            .shield-trim { fill: none; stroke: #415A77; stroke-width: 4; stroke-dasharray: 6,6; }
+            .gazelle-fur { fill: #D97706; stroke: #0D1B2A; stroke-width: 6; stroke-linejoin: round; }
+            .gazelle-dark-fur { fill: #B45309; }
+            .gazelle-light-fur { fill: #FEF3C7; stroke: #0D1B2A; stroke-width: 5; stroke-linejoin: round; }
+            .gazelle-horn { fill: #BDC3C7; stroke: #0D1B2A; stroke-width: 6; stroke-linejoin: round; }
+            .horn-ring { fill: none; stroke: #7F8C8D; stroke-width: 5; stroke-linecap: round; }
+            .warrior-armor { fill: #6B7280; stroke: #0D1B2A; stroke-width: 6; stroke-linejoin: round; }
+            .warrior-armor-dark { fill: #4B5563; stroke: #0D1B2A; stroke-width: 5; stroke-linejoin: round; }
+            .eye-bg { fill: #FFFFFF; stroke: #0D1B2A; stroke-width: 6; }
+            .eye-iris { fill: #0D1B2A; }
+            .eye-shine { fill: #FFFFFF; }
+            .gad-cyan { fill: none; stroke: #06B6D4; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+            .gad-cyan-dot { fill: #06B6D4; }
+        </style>
+    </defs>
+
+    <!-- Escudo de Fundo -->
+    <path d="M 250,15 L 430,90 C 430,310 250,475 250,475 C 250,475 70,310 70,90 Z" class="bg-shield" />
+    <path d="M 250,30 L 405,100 C 405,290 250,440 250,440 C 250,440 95,290 95,100 Z" class="shield-trim" />
+
+    <!-- Orelhas Longas de Gazela -->
+    <!-- Esquerda -->
+    <path d="M 170,180 C 100,160 70,220 120,250 Z" class="gazelle-fur" />
+    <path d="M 160,190 C 110,180 90,220 125,235 Z" class="gazelle-light-fur" />
+    <!-- Direita -->
+    <path d="M 330,180 C 400,160 430,220 380,250 Z" class="gazelle-fur" />
+    <path d="M 340,190 C 390,180 410,220 375,235 Z" class="gazelle-light-fur" />
+
+    <!-- Chifres Prateados Destacados -->
+    <!-- Chifre Esquerdo -->
+    <path d="M 210,160 C 190,90 220,40 190,20 C 235,50 215,100 230,160 Z" class="gazelle-horn" />
+    <path d="M 207,130 Q 220,135 224,125" class="horn-ring" />
+    <path d="M 202,100 Q 215,105 218,95" class="horn-ring" />
+    <path d="M 202,70 Q 212,75 214,68" class="horn-ring" />
+    <!-- Chifre Direito -->
+    <path d="M 290,160 C 310,90 280,40 310,20 C 265,50 285,100 270,160 Z" class="gazelle-horn" />
+    <path d="M 293,130 Q 280,135 276,125" class="horn-ring" />
+    <path d="M 298,100 Q 285,105 282,95" class="horn-ring" />
+    <path d="M 298,70 Q 288,75 286,68" class="horn-ring" />
+
+    <!-- Armadura Corporal (Base do Pescoço) -->
+    <path d="M 160,360 L 340,360 L 360,450 L 140,450 Z" class="warrior-armor" />
+
+    <!-- Cabeça Alongada de Gazela -->
+    <path d="M 170,170 Q 250,140 330,170 Q 360,250 310,310 L 280,390 L 220,390 L 190,310 Q 140,250 170,170 Z" class="gazelle-fur" />
+
+    <!-- Marcas Faciais -->
+    <path d="M 170,170 Q 200,240 190,310 L 220,390 L 205,390 Q 180,310 170,170 Z" class="gazelle-dark-fur" />
+    <path d="M 330,170 Q 300,240 310,310 L 280,390 L 295,390 Q 320,310 330,170 Z" class="gazelle-dark-fur" />
+    <path d="M 225,150 L 275,150 L 270,390 L 230,390 Z" class="gazelle-light-fur" />
+
+    <!-- Olhos -->
+    <ellipse cx="195" cy="220" rx="20" ry="16" class="eye-bg" />
+    <ellipse cx="198" cy="220" rx="11" ry="11" class="eye-iris" />
+    <circle cx="202" cy="215" r="4" class="eye-shine" />
+
+    <ellipse cx="305" cy="220" rx="20" ry="16" class="eye-bg" />
+    <ellipse cx="302" cy="220" rx="11" ry="11" class="eye-iris" />
+    <circle cx="298" cy="215" r="4" class="eye-shine" />
+
+    <!-- Nariz -->
+    <path d="M 235,375 L 265,375 L 250,390 Z" class="eye-iris" />
+
+    <!-- Placa Central da Armadura -->
+    <path d="M 195,370 L 305,370 L 315,445 L 185,445 Z" class="warrior-armor-dark" />
+
+    <!-- Emblema da Letra "G" Gad -->
+    <path d="M 275,395 L 240,395 C 230,395 230,425 240,425 L 270,425 L 270,410 L 255,410" class="gad-cyan" />
+    <circle cx="255" cy="410" r="3" class="gad-cyan-dot" />
+
+    <!-- Patas -->
+    <path d="M 140,420 Q 120,430 130,465 L 165,465 Z" class="warrior-armor" />
+    <path d="M 360,420 Q 380,430 370,465 L 335,465 Z" class="warrior-armor" />
+</svg>

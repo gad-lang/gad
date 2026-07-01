@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" shape-rendering="crispEdges">
+    <defs>
+        <style>
+            .outline-dark { fill: #0D1B2A; }
+            .tmpl-cyan     { fill: #06B6D4; }
+            .tmpl-shadow   { fill: #0891B2; }
+            .tmpl-light    { fill: #E0F7FA; }
+            .horn-gray    { fill: #BDC3C7; }
+            .horn-dark    { fill: #7F8C8D; }
+        </style>
+    </defs>
+
+    <!-- CHIFRES DETALHADOS -->
+    <rect x="23" y="0" width="4" height="18" class="outline-dark" />
+    <rect x="23" y="1" width="3" height="17" class="horn-gray" />
+    <rect x="23" y="1" width="1" height="17" class="horn-dark" />
+    <rect x="24" y="5" width="2" height="1" class="outline-dark" />
+    <rect x="24" y="10" width="2" height="1" class="outline-dark" />
+    <rect x="24" y="15" width="2" height="1" class="outline-dark" />
+
+    <rect x="37" y="0" width="4" height="18" class="outline-dark" />
+    <rect x="38" y="1" width="3" height="17" class="horn-gray" />
+    <rect x="38" y="1" width="1" height="17" class="horn-dark" />
+    <rect x="38" y="5" width="2" height="1" class="outline-dark" />
+    <rect x="38" y="10" width="2" height="1" class="outline-dark" />
+    <rect x="38" y="15" width="2" height="1" class="outline-dark" />
+
+    <!-- ORELHAS -->
+    <rect x="5" y="21" width="14" height="6" class="outline-dark" />
+    <rect x="7" y="22" width="12" height="4" class="tmpl-cyan" />
+    <rect x="9" y="23" width="9" height="2" class="tmpl-light" />
+
+    <rect x="45" y="21" width="14" height="6" class="outline-dark" />
+    <rect x="45" y="22" width="12" height="4" class="tmpl-cyan" />
+    <rect x="46" y="23" width="9" height="2" class="tmpl-light" />
+
+    <!-- CABEÇA -->
+    <rect x="15" y="16" width="34" height="34" class="outline-dark" />
+    <rect x="17" y="17" width="30" height="32" class="tmpl-cyan" />
+
+    <!-- BOCHECHAS -->
+    <rect x="17" y="32" width="4" height="13" class="tmpl-shadow" />
+    <rect x="43" y="32" width="4" height="13" class="tmpl-shadow" />
+
+    <!-- LISTRA FACIAL -->
+    <rect x="28" y="17" width="8" height="35" class="tmpl-light" />
+
+    <!-- FOCINHO -->
+    <rect x="24" y="44" width="16" height="16" class="outline-dark" />
+    <rect x="25" y="44" width="14" height="15" class="tmpl-light" />
+    <rect x="29" y="56" width="6" height="3" class="outline-dark" />
+
+    <!-- OLHOS VAZADOS ESTILO TEMPLATE DE ARQUITETURA -->
+    <rect x="18" y="23" width="10" height="10" class="outline-dark" />
+    <rect x="19" y="24" width="8" height="8" class="tmpl-light" />
+    <rect x="21" y="26" width="4" height="4" class="tmpl-cyan" />
+
+    <rect x="36" y="23" width="10" height="10" class="outline-dark" />
+    <rect x="37" y="24" width="8" height="8" class="tmpl-light" />
+    <rect x="39" y="26" width="4" height="4" class="tmpl-cyan" />
+</svg>

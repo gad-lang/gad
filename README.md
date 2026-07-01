@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/identity/gad.svg" alt="Gad logo" width="140" height="140" />
+</p>
+
 # The Gad Programming Language
 
 
