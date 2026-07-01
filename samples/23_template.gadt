@@ -1,0 +1,38 @@
+{%-- /*
+  A .gadt file runs as a template automatically — no `# gad: mixed`
+  directive and no --template flag needed; the extension is enough:
+
+      gad run samples/23_template.gadt
+
+  Text outside the tags is emitted literally. Two tag forms embed Gad:
+    {% ... %}     code block  — runs statements, emits nothing itself
+    {%= expr %}   value       — evaluates expr and writes it to the output
+
+  Trim markers strip adjacent whitespace:
+    {%-  / -%}   trim blanks but keep a single newline
+    {%-- / --%}  trim all whitespace, newlines included
+*/ --%}
+{%
+var (
+  title = "Gad users"
+  users = [
+    {name: "joe",    admin: true},
+    {name: "mary",   admin: false},
+    {name: "george", admin: false},
+  ]
+  lastIndex = len(users) - 1
+)
+--%}
+<!doctype html>
+<html>
+  <head><title>{%= title %}</title></head>
+  <body>
+    <h1>{%= title %} ({%= len(users) %})</h1>
+    <ul>
+{%-- for i, u in users begin %}
+      <li>{%= u.name %}{% if u.admin begin %} <strong>(admin)</strong>{% end %}</li>
+{%-- end %}
+    </ul>
+    <p>last index: {%= lastIndex %}, total: {%= len(users) %}</p>
+  </body>
+</html>
