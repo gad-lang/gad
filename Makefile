@@ -24,7 +24,7 @@ build-min:
 
 # Distribution build: the React web app + the gad binary with the embedded UI
 # (`gad ide` serves it without --static) and the packaged VS Code extension,
-# all under ./dist. Requires Node/pnpm.
+# all under ./dist. Requires Node/bun.
 .PHONY: dist
 dist: web-build build-vscode-plugin
 	go build -tags prod -o ./dist/gad ./cmd/gad
@@ -35,7 +35,7 @@ dist: web-build build-vscode-plugin
 .PHONY: build-vscode-plugin
 build-vscode-plugin:
 	go run ./cmd/update-vscode-plugin -w
-	cd editors/vscode-gad && $(NVM_USE) && pnpm install && pnpm run package
+	cd editors/vscode-gad && $(NVM_USE) && bun install && bun run package
 	mkdir -p dist
 	mv editors/vscode-gad/vscode-gad.vsix dist/
 
@@ -55,19 +55,19 @@ check-delve:
 	go run ./cmd/update-delve check
 
 # --- Web example (CodeMirror plugin + React app) ---------------------------
-# Use Node v26.3.0 via nvm when available; always use pnpm.
+# Use Node v26.3.0 via nvm when available; always use bun.
 NVM_USE := { [ -s "$$HOME/.nvm/nvm.sh" ] && . "$$HOME/.nvm/nvm.sh" && nvm use v26.3.0 >/dev/null; } || true
 
 .PHONY: web-install
 web-install:
-	cd web && $(NVM_USE) && pnpm install
+	cd web && $(NVM_USE) && bun install
 
 # Build and run the Vite dev server (right: editor, left: formatted/output).
 # The WASM example works standalone; for the "Go server" example also run
 # `make web-server` in another terminal.
 .PHONY: web
 web: web-install
-	cd web/app && $(NVM_USE) && pnpm run dev
+	cd web/app && $(NVM_USE) && bun run dev
 
 # Run the Go backend (API at /api/*, also serves web/app/dist when built).
 .PHONY: web-server
@@ -77,7 +77,7 @@ web-server:
 # Production build of the React app (outputs web/app/dist).
 .PHONY: web-build
 web-build: web-install
-	cd web/app && $(NVM_USE) && pnpm run build
+	cd web/app && $(NVM_USE) && bun run build
 
 # Launch the bundled web IDE for the samples workspace (override with DIR=path).
 DIR ?= samples

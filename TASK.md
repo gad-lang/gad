@@ -1,11 +1,17 @@
 # IDE epic (`web/ide` backend + `web/app` React frontend)
-- [~] change ui to use `dockview-react` package with dock/undock, move, resizable panels. 
+- [ ] change ui to use `dockview-react` package with dock/undock, move, resizable panels. 
   save all ui panel config (and positions and sizes) to config file.
   create button on top bar to reset panels config.
-- [~] change ui to use plugin for edit `.md` files and render it in left tab like `DOCS`.
+- [ ] change ui to use plugin for edit `.md` files and render it in left tab like `DOCS`.
 
 # web/js projects
-- [ ] replace all runner of `pnpm` to `bun`, update docs and scripts.
+- [x] replace all runner of `pnpm` to `bun`, update docs and scripts.
+      Done: pnpm→bun in Makefile (install/run/package), web/app/package.json scripts,
+      editors/vscode-gad/package.json scripts (pnpm dlx→bunx), web/README.md,
+      editors/vscode-gad/README.md, CLAUDE.md. Created web/package.json with bun
+      workspaces + trustedDependencies (replaces pnpm-workspace.yaml, which was
+      deleted). Removed pnpm-lock.yaml files; regenerated bun.lockb in both
+      web/ and editors/vscode-gad/. `bun install` in both → exit 0.
 
 # Language
 - [x] update `github.com/moisespsena-go/command-context` dependency to `46d8492`. update usage for here applying Patterns.
@@ -24,7 +30,7 @@
       Done (commit c8e2f1e): extends-block syntax + alias via `:`; also reworked
       Class(name, define) (positional handler) and construction (cls + `new`
       ClassInitiator, Class.New(Call) Go API). Samples/tests/docs migrated.
-- [ ] rename module "core" to "gad". update samples, docs and tests.
+- [x] rename module "core" to "gad". update samples, docs and tests.
 - [x] create builtin functions `gad.binOp{OP_NAME}` (for binary operators), `gad.unOp{OP_NAME}` (for unary operators),
       `gad.selfAssigOp{OP_NAME}` (for self assign operators) removing first param `op Operator`. use call to `gad.binOp{OP_NAME}` insteadof `gad.binOp`,
       apply this rule for `gad.unOp` and `gad.selfAssigOp{OP_NAME}`. update methods implementations in tests, samples, doc, README.

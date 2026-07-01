@@ -46,7 +46,7 @@ how Gad is executed (server or WASM).
 
 ## Running the example app
 
-Requires Go (for the bridge/server/WASM) and Node v26.3.0 with **pnpm**.
+Requires Go (for the bridge/server/WASM) and Node v26.3.0 with **bun**.
 
 From the repo root:
 

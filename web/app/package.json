@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "wasm": "bash scripts/build-wasm.sh",
-    "dev": "pnpm run wasm && vite",
-    "build": "pnpm run wasm && tsc -p tsconfig.json --noEmit && vite build",
+    "dev": "bun run wasm && vite",
+    "build": "bun run wasm && tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

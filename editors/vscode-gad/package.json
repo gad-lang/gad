@@ -100,8 +100,8 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "vscode:prepublish": "pnpm run compile",
-    "package": "pnpm run compile && pnpm dlx @vscode/vsce package --no-dependencies -o vscode-gad.vsix"
+    "vscode:prepublish": "bun run compile",
+    "package": "bun run compile && bunx @vscode/vsce package --no-dependencies -o vscode-gad.vsix"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

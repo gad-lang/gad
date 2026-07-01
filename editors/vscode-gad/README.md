@@ -36,8 +36,8 @@ Open a `.gad` file and press **F5**, or add a launch configuration:
 ## Build
 
 ```sh
-pnpm install
-pnpm run compile     # tsc -> out/extension.js
+bun install
+bun run compile     # tsc -> out/extension.js
 ```
 
 The extension registers a debug adapter that runs `gad debug --dap` over stdio;

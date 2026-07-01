@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "workspaces": ["codemirror-gad", "prism-gad", "app"],
+  "trustedDependencies": ["esbuild"]
+}

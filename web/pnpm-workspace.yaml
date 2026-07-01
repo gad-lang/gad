@@ -1,6 +1,0 @@
-packages:
-  - "codemirror-gad"
-  - "prism-gad"
-  - "app"
-allowBuilds:
-  esbuild: true
