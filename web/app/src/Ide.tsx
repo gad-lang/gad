@@ -85,6 +85,7 @@ function langForPath(path: string): EditorLanguage {
     default: return "text";
   }
 }
+import { marked } from "marked";
 import { InspectDialog, type InspectFn } from "./TreeNavigator";
 import { renderDocMarkdown } from "./docMarkdown";
 import { GadInput } from "./GadInput";
@@ -100,6 +101,11 @@ import {
   type TreeNode,
   type Workspace,
 } from "./backends/ide";
+
+// OutMode selects how the Output panel presents a run's streams: the text views
+// (combined / split stdout+stderr) or a rendering of stdout as JSON, HTML or
+// Markdown.
+type OutMode = "combined" | "split" | "json" | "html" | "markdown";
 
 interface OpenTab {
   path: string;
@@ -196,8 +202,8 @@ interface IdeShared {
   setBpDialog: (v: { path: string; line: number } | null) => void;
   // output pane
   outChunks: { stream: "out" | "err"; text: string }[];
-  outMode: "combined" | "split";
-  setOutMode: (m: "combined" | "split") => void;
+  outMode: OutMode;
+  setOutMode: (m: OutMode) => void;
   clearOut: () => void;
   // call stack / locals
   stack: DebugResponse["frames"];
@@ -447,15 +453,37 @@ function EditorPanel(_: IDockviewPanelProps) {
 // Tab order in default layout: [Call Stack | Locals | Breakpoints | Evaluate | Output]
 // ---------------------------------------------------------------------------
 
+// prettyJson pretty-prints a JSON string; on a parse error it returns the
+// original text and the error message so the panel can show a hint.
+function prettyJson(text: string): { text: string; error?: string } {
+  const trimmed = text.trim();
+  if (trimmed === "") return { text: "" };
+  try {
+    return { text: JSON.stringify(JSON.parse(trimmed), null, 2) };
+  } catch (e) {
+    return { text, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 function OutputTextPanel(_: IDockviewPanelProps) {
   const ide = useIde();
   const { outChunks, outMode } = ide;
+  const stdout = outChunks.filter((c) => c.stream === "out").map((c) => c.text).join("");
+  const stderr = outChunks.filter((c) => c.stream === "err").map((c) => c.text).join("");
+  const btn = (m: OutMode, label: string, title: string) => (
+    <button className={outMode === m ? "on" : ""} title={title} onClick={() => ide.setOutMode(m)}>{label}</button>
+  );
   return (
     <div className="panes-dockview">
       <div className="pane-toolbar">
         <span style={{ flex: 1 }} />
-        <button className={outMode === "combined" ? "on" : ""} title="Combined stdout+stderr" onClick={() => ide.setOutMode("combined")}>Combined</button>
-        <button className={outMode === "split" ? "on" : ""} title="Split stdout / stderr" onClick={() => ide.setOutMode("split")}>Split</button>
+        {btn("combined", "Combined", "Combined stdout+stderr")}
+        {btn("split", "Split", "Split stdout / stderr")}
+        <span className="out-sep" />
+        {btn("json", "JSON", "Render stdout as pretty-printed JSON")}
+        {btn("html", "HTML", "Render stdout as HTML")}
+        {btn("markdown", "MD", "Render stdout as Markdown")}
+        <span className="out-sep" />
         <button onClick={ide.clearOut}>Clear</button>
       </div>
       {outMode === "combined" && (
@@ -471,12 +499,40 @@ function OutputTextPanel(_: IDockviewPanelProps) {
         <div className="pane-body out-split">
           <div className="out-col">
             <div className="out-col-head">stdout</div>
-            <pre>{outChunks.filter((c) => c.stream === "out").map((c) => c.text).join("")}</pre>
+            <pre>{stdout}</pre>
           </div>
           <div className="out-col">
             <div className="out-col-head out-err">stderr</div>
-            <pre className="out-err">{outChunks.filter((c) => c.stream === "err").map((c) => c.text).join("")}</pre>
+            <pre className="out-err">{stderr}</pre>
           </div>
+        </div>
+      )}
+      {(outMode === "json" || outMode === "html" || outMode === "markdown") && (
+        <div className="pane-body out-render">
+          {stdout.trim() === "" && <div className="muted" style={{ padding: ".4rem .6rem" }}>(no stdout)</div>}
+          {outMode === "json" && stdout.trim() !== "" && (() => {
+            const { text, error } = prettyJson(stdout);
+            return (
+              <>
+                {error && <div className="out-err" style={{ padding: ".3rem .6rem", fontSize: ".75rem" }}>Invalid JSON: {error} — showing raw text</div>}
+                <pre className="out-log" style={{ margin: 0 }}>{text}</pre>
+              </>
+            );
+          })()}
+          {outMode === "html" && stdout.trim() !== "" && (
+            <iframe className="out-frame" title="stdout as HTML" sandbox="" srcDoc={stdout} />
+          )}
+          {outMode === "markdown" && stdout.trim() !== "" && (
+            <iframe
+              className="out-frame"
+              title="stdout as Markdown"
+              sandbox=""
+              srcDoc={`<!doctype html><meta charset="utf-8"><style>body{font:14px/1.5 system-ui,sans-serif;margin:.6rem;color:#1b263b}pre,code{font-family:ui-monospace,monospace}pre{background:#f2f3f5;padding:.6rem;border-radius:4px;overflow:auto}table{border-collapse:collapse}th,td{border:1px solid #ccc;padding:.2rem .5rem}img{max-width:100%}</style>${marked.parse(stdout, { async: false }) as string}`}
+            />
+          )}
+          {stderr.trim() !== "" && (
+            <pre className="out-err out-render-stderr">{stderr}</pre>
+          )}
         </div>
       )}
     </div>
@@ -797,7 +853,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [active, setActive] = useState(-1);
   const [outChunks, setOutChunks] = useState<{ stream: "out" | "err"; text: string }[]>([]);
-  const [outMode, setOutMode] = useState<"combined" | "split">("combined");
+  const [outMode, setOutMode] = useState<OutMode>("combined");
   const pushOut = useCallback((stream: "out" | "err", text: string) => {
     if (text) setOutChunks((c) => [...c, { stream, text }]);
   }, []);
@@ -2364,6 +2420,11 @@ function IdeStyles() {
 .out-split .out-col-head.out-err{color:#e5484d}
 .out-split pre{flex:1;overflow:auto;margin:0;padding:.4rem .6rem;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:.85rem}
 .out-split pre.out-err{color:#e5484d}
+.pane-toolbar .out-sep{width:1px;align-self:stretch;margin:.15rem .25rem;background:var(--border)}
+.out-render{display:flex;flex-direction:column;padding:0;white-space:normal}
+.out-render .out-frame{flex:1;width:100%;border:0;background:#fff}
+.out-render pre.out-log{flex:1;overflow:auto;white-space:pre-wrap;padding:.4rem .6rem}
+.out-render .out-render-stderr{flex:0 0 auto;max-height:8rem;overflow:auto;margin:0;padding:.4rem .6rem;border-top:1px solid var(--border);white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:.85rem}
 .panes-dockview .pane-body{flex:1;overflow:auto;margin:0;padding:.5rem .8rem;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:.85rem}
 .frame{padding:.1rem .3rem;border-radius:4px}
 .frame:hover{background:var(--code-bg,rgba(125,125,125,.12))}
