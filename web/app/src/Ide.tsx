@@ -41,6 +41,18 @@ import SkipNextIcon from "@mui/icons-material/SkipNext";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import StopIcon from "@mui/icons-material/Stop";
+import FolderIcon from "@mui/icons-material/Folder";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
+import CodeIcon from "@mui/icons-material/Code";
+import DataObjectIcon from "@mui/icons-material/DataObject";
+import ArticleIcon from "@mui/icons-material/Article";
+import HtmlIcon from "@mui/icons-material/Html";
+import CssIcon from "@mui/icons-material/Css";
+import JavascriptIcon from "@mui/icons-material/Javascript";
+import ImageIcon from "@mui/icons-material/Image";
+import TerminalIcon from "@mui/icons-material/Terminal";
+import TextSnippetIcon from "@mui/icons-material/TextSnippet";
 import { DockviewReact, type DockviewApi, type DockviewReadyEvent, type IDockviewPanelProps } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
 
@@ -1633,6 +1645,44 @@ function RemoveDialog({
   );
 }
 
+const FILE_ICON_SX = { fontSize: 15, verticalAlign: "middle", mr: "3px" } as const;
+
+function FileIcon({ name }: { name: string }) {
+  const ext = (name.includes(".") ? name.split(".").pop()! : "").toLowerCase();
+  switch (ext) {
+    case "gad": case "gadt":
+      return <CodeIcon sx={{ ...FILE_ICON_SX, color: "#a78bfa" }} />;
+    case "json":
+      return <DataObjectIcon sx={{ ...FILE_ICON_SX, color: "#fb923c" }} />;
+    case "yaml": case "yml":
+      return <TextSnippetIcon sx={{ ...FILE_ICON_SX, color: "#f87171" }} />;
+    case "md": case "mdx":
+      return <ArticleIcon sx={{ ...FILE_ICON_SX, color: "#818cf8" }} />;
+    case "html": case "htm":
+      return <HtmlIcon sx={{ ...FILE_ICON_SX, color: "#e34c26" }} />;
+    case "css": case "scss":
+      return <CssIcon sx={{ ...FILE_ICON_SX, color: "#264de4" }} />;
+    case "js": case "mjs": case "cjs":
+      return <JavascriptIcon sx={{ ...FILE_ICON_SX, color: "#f7df1e" }} />;
+    case "ts": case "mts": case "cts":
+      return <JavascriptIcon sx={{ ...FILE_ICON_SX, color: "#3178c6" }} />;
+    case "jsx":
+      return <JavascriptIcon sx={{ ...FILE_ICON_SX, color: "#61dafb" }} />;
+    case "tsx":
+      return <JavascriptIcon sx={{ ...FILE_ICON_SX, color: "#38bdf8" }} />;
+    case "go":
+      return <CodeIcon sx={{ ...FILE_ICON_SX, color: "#00add8" }} />;
+    case "sh": case "bash": case "zsh": case "fish":
+      return <TerminalIcon sx={{ ...FILE_ICON_SX, color: "#4ade80" }} />;
+    case "png": case "jpg": case "jpeg": case "gif": case "svg": case "webp": case "ico":
+      return <ImageIcon sx={{ ...FILE_ICON_SX, color: "#34d399" }} />;
+    case "txt": case "log":
+      return <TextSnippetIcon sx={{ ...FILE_ICON_SX, color: "#9ca3af" }} />;
+    default:
+      return <InsertDriveFileIcon sx={{ ...FILE_ICON_SX, color: "#9ca3af" }} />;
+  }
+}
+
 function TreeView({
   node, activePath, onOpen, onAction,
 }: {
@@ -1665,7 +1715,10 @@ function TreeView({
     return (
       <div>
         <div className="node" tabIndex={0} onClick={() => setOpen((o) => !o)} onContextMenu={onContextMenu} onKeyDown={onKeyDown}>
-          {open ? "📂" : "📁"} {node.name}
+          {open
+            ? <FolderOpenIcon sx={{ ...FILE_ICON_SX, color: "#fbbf24" }} />
+            : <FolderIcon sx={{ ...FILE_ICON_SX, color: "#fbbf24" }} />}
+          {node.name}
         </div>
         {contextMenu}
         {open && (
@@ -1680,7 +1733,7 @@ function TreeView({
   }
   return (
     <div className={"node file" + (node.path === activePath ? " active" : "")} tabIndex={0} onClick={() => onOpen(node.path)} onContextMenu={onContextMenu} onKeyDown={onKeyDown}>
-      📄 {node.name}
+      <FileIcon name={node.name} />{node.name}
       {contextMenu}
     </div>
   );
