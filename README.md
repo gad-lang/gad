@@ -1,4 +1,5 @@
-# The Gad Language
+# The Gad Programming Language
+
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/gad-lang/gad.svg)](https://pkg.go.dev/github.com/gad-lang/gad)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gad-lang/gad)](https://goreportcard.com/report/github.com/gad-lang/gad)
@@ -6,9 +7,15 @@
 [![Gad Dev Test](https://github.com/gad-lang/gadedev/workflows/gaddev-test/badge.svg)](https://github.com/gad-lang/gadedev/actions)
 [![Maintainability](https://api.codeclimate.com/v1/badges/a358e050217385db8002/maintainability)](https://codeclimate.com/github/gad-lang/gad/maintainability)
 
-Gad is a fast, dynamic scripting language to embed in Go applications.
-Gad is compiled and executed as bytecode on stack-based VM that's written
-in native Go.
+The name Gad honors the biblical patriarch known for his fierce warrior spirit, speed, and 
+frontline resilience. Mirroring the Hebrew meaning of Gad ("good fortune"), this project 
+aims to bring productivity, success, and high-performance capabilities to developers.
+Engineered as a fast, dynamic scripting language, Gad is designed to be deeply 
+embedded into native Go applications or run over the web via WebAssembly (WASM).
+It compiles down to efficient bytecode executed on a custom, stack-based VM. Just 
+like the Tribe of Gad—celebrated for being swift as gazelles and unyielding in 
+battle—this language is built to be lightweight, agile, and robust enough to handle 
+complex, real-time evaluation challenges in production environments.
 
 Gad is actively used in production to evaluate Sigma Rules' conditions, and to
 perform compromise assessment dynamically.
