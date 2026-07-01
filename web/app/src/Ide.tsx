@@ -1303,11 +1303,22 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     }
     if (!restored) setupDefaultLayout(api);
 
-    // Persist layout on every structural change, tagging saved window dimensions.
-    const disposable = api.onDidLayoutChange(() => saveLayout(api));
-    return () => disposable.dispose();
+    // Persist on structural changes (panel add / remove / move / tab switch).
+    api.onDidLayoutChange(() => saveLayout(api));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Persist after resize-sash drags (pointerup fires when user releases the splitter)
+  // and on page unload as a safety net.
+  useEffect(() => {
+    const flush = () => { if (dockviewApiRef.current) saveLayout(dockviewApiRef.current); };
+    window.addEventListener("pointerup", flush);
+    window.addEventListener("beforeunload", flush);
+    return () => {
+      window.removeEventListener("pointerup", flush);
+      window.removeEventListener("beforeunload", flush);
+    };
+  }, [saveLayout]);
 
   const muiTheme = useMemo(
     () => createTheme({ palette: { mode: dark ? "dark" : "light", primary: { main: dark ? "#8aa6ff" : "#3b5bdb" } } }),
