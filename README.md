@@ -13,11 +13,6 @@ in native Go.
 Gad is actively used in production to evaluate Sigma Rules' conditions, and to
 perform compromise assessment dynamically.
 
-To see how fast Gad is, please have a look at fibonacci
-[benchmarks](https://github.com/gad-lang/gadebenchfib) (not updated frequently).
-
-> Play with Gad via [Playground](https://play.verigraf.com) built for
-> WebAssembly.
 
 **Fibonacci Example**
 
