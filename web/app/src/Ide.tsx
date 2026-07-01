@@ -35,6 +35,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import OutputIcon from "@mui/icons-material/Notes";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import ViewQuiltIcon from "@mui/icons-material/ViewQuilt";
+import TuneIcon from "@mui/icons-material/Tune";
 import { DockviewReact, type DockviewApi, type DockviewReadyEvent, type IDockviewPanelProps } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
 
@@ -188,6 +189,9 @@ interface IdeShared {
   setEvals: React.Dispatch<React.SetStateAction<EvalEntry[]>>;
   evalOne: (entry: EvalEntry) => Promise<EvalEntry>;
   addEval: (expr: string, repr: boolean) => Promise<void>;
+  // run / debug
+  runActive: () => void;
+  debugActive: () => void;
   // dialogs
   setDialog: (d: null | { kind: "run" | "debug"; tab: OpenTab }) => void;
   setInspectTarget: (t: { title: string; expr: string } | null) => void;
@@ -314,18 +318,29 @@ function EditorPanel(_: IDockviewPanelProps) {
         </Tooltip>
         <Button
           size="small" variant="contained" color="success"
-          onClick={() => ide.activeTab && ide.setDialog({ kind: "run", tab: ide.activeTab })}
+          onClick={() => ide.runActive()}
           disabled={!ide.activeTab}
         >
           Run ▶
         </Button>
         <Button
           size="small" variant="contained" color="warning"
-          onClick={() => ide.activeTab && ide.setDialog({ kind: "debug", tab: ide.activeTab })}
+          onClick={() => ide.debugActive()}
           disabled={!ide.activeTab}
         >
           Debug 🐞
         </Button>
+        <Tooltip title="Run / Debug settings">
+          <span>
+            <IconButton
+              size="small"
+              onClick={() => ide.activeTab && ide.setDialog({ kind: "run", tab: ide.activeTab })}
+              disabled={!ide.activeTab}
+            >
+              <TuneIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
         {debug && (
           <Box className="dbgbar">
             <Tooltip title={`Resume (${keys.continue})`}>
@@ -989,7 +1004,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   useEffect(() => {
     if (!pendingRunPath) return;
     const tab = tabs.find((t) => t.path === pendingRunPath);
-    if (tab) { setDialog({ kind: "run", tab }); setPendingRunPath(null); }
+    if (tab) { void doRun(tab, tab.runCfg); setPendingRunPath(null); }
   }, [pendingRunPath, tabs]);
 
   async function confirmRemove(recursive: boolean) {
@@ -1087,6 +1102,16 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       if (res.diagnostics) showDiagnostics(res.diagnostics);
       setDebug(null); setDebugLoc(null);
     }
+  }
+
+  function runActive() {
+    if (!activeTab) return;
+    void doRun(activeTab, activeTab.runCfg);
+  }
+
+  function debugActive() {
+    if (!activeTab) return;
+    void startDebug(activeTab, false);
   }
 
   function persistRunCfg(path: string, cfg: RunConfig) {
@@ -1251,6 +1276,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     outChunks, outMode, setOutMode, clearOut,
     stack, locals, selectedFrame, setSelectedFrame, onFrameClick, gotoFrame,
     evals, setEvals, evalOne, addEval,
+    runActive, debugActive,
     setDialog, setInspectTarget, setOutputDialog,
     docs, reloadDocs, docPanelOpen, toggleDocsPanel,
     modules, status,
@@ -1291,16 +1317,15 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           />
 
           {dialog && (
-            <RunDialog
-              kind={dialog.kind}
+            <RunDebugSettingsDialog
               tab={dialog.tab}
               modules={modules}
               onCancel={() => setDialog(null)}
-              onRun={(cfg) => { setDialog(null); doRun(dialog.tab, cfg); }}
+              onRun={(cfg) => { setDialog(null); persistRunCfg(dialog.tab.path, cfg); void doRun(dialog.tab, cfg); }}
               onDebug={(cfg, entry) => {
                 setDialog(null);
                 persistRunCfg(dialog.tab.path, cfg);
-                startDebug(dialog.tab, entry);
+                void startDebug(dialog.tab, entry);
               }}
             />
           )}
@@ -1717,17 +1742,16 @@ function BreakpointGroups({
   );
 }
 
-function RunDialog({
-  kind, tab, modules, onCancel, onRun, onDebug,
+function RunDebugSettingsDialog({
+  tab, modules, onCancel, onRun, onDebug,
 }: {
-  kind: "run" | "debug";
   tab: OpenTab;
   modules: ModuleInfo[];
   onCancel: () => void;
   onRun: (cfg: RunConfig) => void;
   onDebug: (cfg: RunConfig, stopOnEntry: boolean) => void;
 }) {
-  const [tabIdx, setTabIdx] = useState(kind === "debug" ? 1 : 0);
+  const [tabIdx, setTabIdx] = useState(0);
   const [args, setArgs] = useState(tab.runCfg.args.join("\n"));
   const [disabled, setDisabled] = useState<string[]>(tab.runCfg.disabled);
   const [safe, setSafe] = useState(tab.runCfg.safe);
@@ -1754,7 +1778,10 @@ function RunDialog({
   );
   return (
     <Dialog open onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>{tab.path}</DialogTitle>
+      <DialogTitle>
+        Run / Debug Settings
+        <Typography variant="caption" sx={{ display: "block" }} color="text.secondary">{tab.path}</Typography>
+      </DialogTitle>
       <Tabs value={tabIdx} onChange={(_, v: number) => setTabIdx(v)} sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}>
         <Tab label="Run" /><Tab label="Debug" />
       </Tabs>
@@ -1776,9 +1803,8 @@ function RunDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel}>Cancel</Button>
-        {tabIdx === 0
-          ? <Button variant="contained" onClick={() => onRun(cfg())}>Run</Button>
-          : <Button variant="contained" onClick={() => onDebug(cfg(), entry)}>Start Debug</Button>}
+        <Button variant="outlined" color="success" onClick={() => onRun(cfg())}>Run ▶</Button>
+        <Button variant="contained" color="warning" onClick={() => onDebug(cfg(), entry)}>Debug 🐞</Button>
       </DialogActions>
     </Dialog>
   );
