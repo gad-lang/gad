@@ -546,7 +546,7 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 
 		symbols := make([]*SymbolInfo, len(spec.Ident.Type))
 		for i2, t := range spec.Ident.Type {
-			symbol, err := c.requireSymbol(nd, t.Ident().Name)
+			symbol, err := c.requireSymbol(t.Ident(), t.Ident().Name)
 			if err != nil {
 				return err
 			}
@@ -595,7 +595,7 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 			np.Value = spec.Value.String()
 			np.TypesSymbols = make([]*SymbolInfo, len(spec.Ident.Type))
 			for i2, t := range spec.Ident.Type {
-				symbol, err := c.requireSymbol(nd, t.Ident().Name)
+				symbol, err := c.requireSymbol(t.Ident(), t.Ident().Name)
 				if err != nil {
 					return err
 				}
@@ -3254,7 +3254,9 @@ func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdentExpr)
 
 	for i2, t := range ti.Type {
 		var symbol *Symbol
-		if symbol, err = c.requireSymbol(nd, t.Ident().Name); err != nil {
+		// Resolve against the type identifier so an unresolved-reference error
+		// points at the type, not at the enclosing declaration node.
+		if symbol, err = c.requireSymbol(t.Ident(), t.Ident().Name); err != nil {
 			return
 		}
 		symbols[i2] = &symbol.SymbolInfo

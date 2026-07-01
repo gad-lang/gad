@@ -314,6 +314,17 @@ func TestVMMethodOverride(t *testing.T) {
 	return 0`, nil, ErrNotIndexable)
 }
 
+func TestVMParamTypeErrorPosition(t *testing.T) {
+	// An unresolved param type points at the type identifier, not at the
+	// enclosing func/param declaration.
+	expectErrHas(t, `func x(l V) { }`,
+		newOpts().CompilerError(), `unresolved reference "V"`)
+	expectErrHas(t, `func x(l V) { }`, newOpts().CompilerError(), `:1:10`)
+	expectErrHas(t, `func x { (l V) { } }`, newOpts().CompilerError(), `:1:13`)
+	expectErrHas(t, `param (a V)`, newOpts().CompilerError(), `:1:10`)
+	expectErrHas(t, `param (;a V)`, newOpts().CompilerError(), `:1:11`)
+}
+
 func TestVMSameOperator(t *testing.T) {
 	// `===` is strict: no numeric coercion, unlike `==`.
 	testExpectRun(t, `return 1 == 1u`, nil, True)
