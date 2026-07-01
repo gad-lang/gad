@@ -70,6 +70,7 @@ func New(path string) (*Server, error) {
 	}
 	s.dbg.NormalizeFile = s.normalizeDebugFile
 	s.dbg.RelativizeValue = s.relativizeValue
+	s.dbg.TemplateDelimiter = s.templateDelimiter
 	return s, nil
 }
 

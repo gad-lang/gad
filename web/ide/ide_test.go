@@ -423,6 +423,55 @@ func TestRunWithArgs(t *testing.T) {
 	}
 }
 
+func TestRunTemplateFile(t *testing.T) {
+	_, h, _ := newTestServer(t)
+	// A .gadt file must run in mixed (template) mode: literal text is emitted
+	// and {%= %}/{% %} tags are evaluated, rather than compiled as Gad code.
+	src := "Hello, {%= 6*7 %}!\n{% for x in [1, 2] begin --%}\n- {%= x %}\n{% end %}"
+	w := do(t, h, "POST", "/api/ide/run", runRequest{Path: "page.gadt", Source: src})
+	res := decode[map[string]any](t, w)
+	if res["ok"] != true {
+		t.Fatalf("template run failed: %+v", res)
+	}
+	got := res["stdout"].(string)
+	if !strings.Contains(got, "Hello, 42!") || !strings.Contains(got, "- 1") || !strings.Contains(got, "- 2") {
+		t.Fatalf("template not rendered, stdout = %q", got)
+	}
+
+	// The same source without the .gadt path is plain Gad and must NOT render.
+	w = do(t, h, "POST", "/api/ide/run", runRequest{Path: "page.gad", Source: src})
+	if decode[map[string]any](t, w)["ok"] == true {
+		t.Fatalf("expected non-template run to fail compiling literal template text")
+	}
+}
+
+func TestRunTemplateCustomDelimiters(t *testing.T) {
+	_, h, dir := newTestServer(t)
+	// Custom delimiters from the workspace `.gad.yaml` template section.
+	os.WriteFile(filepath.Join(dir, configFile),
+		[]byte("template:\n  start_delimiter: \"<?\"\n  end_delimiter: \"?>\"\n"), 0o644)
+
+	src := "Hi <?= 6*7 ?>!"
+	w := do(t, h, "POST", "/api/ide/run", runRequest{Path: "page.gadt", Source: src})
+	res := decode[map[string]any](t, w)
+	if res["ok"] != true {
+		t.Fatalf("template run with custom delimiters failed: %+v", res)
+	}
+	if got := res["stdout"].(string); !strings.Contains(got, "Hi 42!") {
+		t.Fatalf("custom-delimiter template not rendered, stdout = %q", got)
+	}
+
+	// The default `{% %}` delimiters must no longer apply: this text is literal.
+	w = do(t, h, "POST", "/api/ide/run", runRequest{Path: "p2.gadt", Source: "x {%= 1 %}"})
+	res = decode[map[string]any](t, w)
+	if res["ok"] != true {
+		t.Fatalf("template run failed: %+v", res)
+	}
+	if got := res["stdout"].(string); !strings.Contains(got, "{%= 1 %}") {
+		t.Fatalf("default delimiters should be inactive, stdout = %q", got)
+	}
+}
+
 func TestRunSavesOutput(t *testing.T) {
 	_, h, dir := newTestServer(t)
 	w := do(t, h, "POST", "/api/ide/run", runRequest{

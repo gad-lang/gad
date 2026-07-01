@@ -2194,6 +2194,7 @@ function SettingsDialog({
   const [tabIdx, setTabIdx] = useState(0);
   const fmt = (config.fmt as Record<string, unknown>) || {};
   const transpile = (config.transpile as Record<string, unknown>) || {};
+  const template = (config.template as Record<string, unknown>) || {};
   const [expanded, setExpanded] = useState<Record<string, boolean>>(
     Object.fromEntries(NEWLINE_FLAGS.map(([k]) => [k, fmt[k] !== true])),
   );
@@ -2201,6 +2202,8 @@ function SettingsDialog({
   const [writeFunc, setWriteFunc] = useState(String(transpile.writeFunc ?? ""));
   const [rawStart, setRawStart] = useState(String(transpile.rawStrFuncStart ?? ""));
   const [rawEnd, setRawEnd] = useState(String(transpile.rawStrFuncEnd ?? ""));
+  const [startDelim, setStartDelim] = useState(String(template.start_delimiter ?? ""));
+  const [endDelim, setEndDelim] = useState(String(template.end_delimiter ?? ""));
   function save() {
     const fmtObj: Record<string, unknown> = { ...fmt };
     for (const [k] of NEWLINE_FLAGS) {
@@ -2210,8 +2213,12 @@ function SettingsDialog({
     const trObj: Record<string, unknown> = { ...transpile };
     const setOrDel = (k: string, v: string) => { if (v.trim() === "") delete trObj[k]; else trObj[k] = v; };
     setOrDel("writeFunc", writeFunc); setOrDel("rawStrFuncStart", rawStart); setOrDel("rawStrFuncEnd", rawEnd);
+    const tplObj: Record<string, unknown> = { ...template };
+    const setOrDelTpl = (k: string, v: string) => { if (v === "") delete tplObj[k]; else tplObj[k] = v; };
+    setOrDelTpl("start_delimiter", startDelim); setOrDelTpl("end_delimiter", endDelim);
     const next: Record<string, unknown> = { ...config, fmt: fmtObj };
     if (Object.keys(trObj).length > 0) next.transpile = trObj; else delete next.transpile;
+    if (Object.keys(tplObj).length > 0) next.template = tplObj; else delete next.template;
     onSave(next);
   }
   return (
@@ -2221,6 +2228,7 @@ function SettingsDialog({
         <Tab label="Panels" />
         <Tab label="Formatter" />
         <Tab label="Transpile" />
+        <Tab label="Template" />
       </Tabs>
       <DialogContent dividers>
         {tabIdx === 0 && (
@@ -2284,6 +2292,16 @@ function SettingsDialog({
               <TextField size="small" label="Write function" placeholder="write" value={writeFunc} onChange={(e) => setWriteFunc(e.target.value)} />
               <TextField size="small" label="Raw-string func start" placeholder="rawstr(" value={rawStart} onChange={(e) => setRawStart(e.target.value)} />
               <TextField size="small" label="Raw-string func end" placeholder=";cast)" value={rawEnd} onChange={(e) => setRawEnd(e.target.value)} />
+            </Box>
+          </>
+        )}
+        {tabIdx === 3 && (
+          <>
+            <Typography variant="subtitle2">Template (.gad.yaml → template)</Typography>
+            <Typography variant="caption" color="text.secondary">Mixed-mode delimiters for <code>.gadt</code> files (Run/Debug). Leave blank for defaults <code>{"{%"}</code> / <code>{"%}"}</code>.</Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
+              <TextField size="small" label="Start delimiter" placeholder="{%" value={startDelim} onChange={(e) => setStartDelim(e.target.value)} />
+              <TextField size="small" label="End delimiter" placeholder="%}" value={endDelim} onChange={(e) => setEndDelim(e.target.value)} />
             </Box>
           </>
         )}

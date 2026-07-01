@@ -10,6 +10,7 @@ import (
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/importers"
+	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/stdlib/helper"
 	"github.com/gad-lang/gad/web/gadbridge"
@@ -51,6 +52,42 @@ func buildModuleMap(workdir string, disabled []string, safe bool) *gad.ModuleMap
 		FileReader: importers.ShebangReadFile,
 	})
 	return mm
+}
+
+// templateDelimiter returns the mixed-mode start/end delimiter from the
+// `template:` section of the workspace `.gad.yaml` (`start_delimiter` /
+// `end_delimiter`), falling back to parser.DefaultMixedDelimiter for any side
+// not set. Mirrors the CLI's loadTemplateConfig (cmd/gad/cmd.go).
+func (s *Server) templateDelimiter() parser.MixedDelimiter {
+	delim := parser.DefaultMixedDelimiter
+	doc, err := readConfig(filepath.Join(s.Root, configFile))
+	if err != nil {
+		return delim
+	}
+	cfg, ok := doc["template"].(map[string]any)
+	if !ok {
+		return delim
+	}
+	if v, ok := cfg["start_delimiter"].(string); ok && v != "" {
+		delim.Start = []rune(v)
+	}
+	if v, ok := cfg["end_delimiter"].(string); ok && v != "" {
+		delim.End = []rune(v)
+	}
+	return delim
+}
+
+// applyTemplateMode enables mixed (template) parsing on opts for `.gadt` files,
+// using the workspace-configured delimiters (or defaults). Text outside the
+// delimiters is emitted literally and `{%= … %}` / `{% … %}` tags are evaluated,
+// mirroring `gad run` (cmd/gad/main.go). No-op for non-template paths.
+func (s *Server) applyTemplateMode(opts *gad.CompileOptions, path string) {
+	if !strings.HasSuffix(path, ".gadt") {
+		return
+	}
+	opts.ParserOptions.Mode |= parser.ParseMixed
+	opts.ScannerOptions.Mode |= parser.ScanMixed | parser.ScanConfigDisabled
+	opts.ScannerOptions.MixedDelimiter = s.templateDelimiter()
 }
 
 // handleModules lists the toggleable builtin modules.
@@ -395,9 +432,12 @@ func (s *Server) run(src, workdir string, req runRequest) gadbridge.RunResult {
 
 	mm := buildModuleMap(workdir, req.Disabled, req.Safe)
 
-	_, bc, err := gad.Compile(st, []byte(src), gad.CompileOptions{
+	opts := gad.CompileOptions{
 		CompilerOptions: gad.CompilerOptions{ModuleMap: mm},
-	})
+	}
+	s.applyTemplateMode(&opts, req.Path)
+
+	_, bc, err := gad.Compile(st, []byte(src), opts)
 	if err != nil {
 		return gadbridge.RunResult{OK: false, Diagnostics: gadbridge.ErrorDiagnostics(err)}
 	}

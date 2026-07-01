@@ -8,10 +8,12 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/debug"
+	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/stdlib/helper"
 	"github.com/gad-lang/gad/web/gadbridge"
 )
@@ -42,6 +44,10 @@ type DebugManager struct {
 	// RelativizeValue, when set, rewrites absolute workspace paths embedded in a
 	// rendered variable value (module / function ToString) to a relative form.
 	RelativizeValue func(value string) string
+	// TemplateDelimiter, when set, supplies the mixed-mode start/end delimiter
+	// used to compile `.gadt` template sessions (from the workspace config). When
+	// nil the parser default (`{%` / `%}`) is used.
+	TemplateDelimiter func() parser.MixedDelimiter
 }
 
 // NewDebugManager returns an empty DebugManager.
@@ -172,9 +178,23 @@ func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
 		// Default: builtin stdlib modules so imports like time/strings resolve.
 		mm = helper.NewModuleMapBuilder().Build()
 	}
-	_, bc, err := gad.Compile(st, []byte(req.Source), gad.CompileOptions{
+	opts := gad.CompileOptions{
 		CompilerOptions: gad.CompilerOptions{ModuleMap: mm},
-	})
+	}
+	// `.gadt` files are templates: compile in mixed (template) mode so debugging
+	// a template steps through its transpiled Gad rather than failing to compile
+	// the literal template text (mirrors run and cmd/gad). Delimiters come from
+	// the workspace config via TemplateDelimiter, defaulting to `{%` / `%}`.
+	if strings.HasSuffix(req.Path, ".gadt") {
+		opts.ParserOptions.Mode |= parser.ParseMixed
+		opts.ScannerOptions.Mode |= parser.ScanMixed | parser.ScanConfigDisabled
+		delim := parser.DefaultMixedDelimiter
+		if m.TemplateDelimiter != nil {
+			delim = m.TemplateDelimiter()
+		}
+		opts.ScannerOptions.MixedDelimiter = delim
+	}
+	_, bc, err := gad.Compile(st, []byte(req.Source), opts)
 	if err != nil {
 		writeJSON(w, DebugResponse{State: "error", Diagnostics: gadbridge.Diagnose(req.Source)})
 		return
