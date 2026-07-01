@@ -670,17 +670,52 @@ const DOCKVIEW_COMPONENTS = {
   markdown: MdPreviewPanel,
 } as const;
 
+// Default layout sourced from samples/.gad.yaml (ide.panels).
+// 4 groups: Explorer (left) | Editor + bottom-tabs (center) | Docs+MD (right).
+// __savedW/__savedH let restoreLayout() scale to the current window size.
+const DEFAULT_PANELS: unknown = {
+  activeGroup: "1",
+  grid: {
+    __savedW: 2144, __savedH: 967,
+    width: 2144, height: 902,
+    orientation: "HORIZONTAL",
+    root: {
+      type: "branch", size: 902,
+      data: [
+        { type: "leaf", size: 272.917, data: { id: "2", views: ["explorer"], activeView: "explorer" } },
+        {
+          type: "branch", size: 1340.45,
+          data: [
+            { type: "leaf", size: 646, data: { id: "1", views: ["editor"], activeView: "editor" } },
+            { type: "leaf", size: 256, data: { id: "3", views: ["output", "callstack", "breakpoints", "evaluate", "locals"], activeView: "output" } },
+          ],
+        },
+        { type: "leaf", size: 530.633, data: { id: "4", views: ["markdown", "docs"], activeView: "docs" } },
+      ],
+    },
+  },
+  panels: {
+    editor:      { id: "editor",      contentComponent: "editor",      title: "Editor"      },
+    explorer:    { id: "explorer",    contentComponent: "explorer",    title: "Explorer"    },
+    output:      { id: "output",      contentComponent: "output",      title: "Output"      },
+    callstack:   { id: "callstack",   contentComponent: "callstack",   title: "Call Stack"  },
+    breakpoints: { id: "breakpoints", contentComponent: "breakpoints", title: "Breakpoints" },
+    evaluate:    { id: "evaluate",    contentComponent: "evaluate",    title: "Evaluate"    },
+    locals:      { id: "locals",      contentComponent: "locals",      title: "Locals"      },
+    markdown:    { id: "markdown",    contentComponent: "markdown",    title: "MD Preview"  },
+    docs:        { id: "docs",        contentComponent: "docs",        title: "Docs"        },
+  },
+};
+
 function setupDefaultLayout(api: DockviewApi) {
-  api.addPanel({ id: "editor", component: "editor", title: "Editor" });
-  const explorerPanel = api.addPanel({ id: "explorer", component: "explorer", title: "Explorer", position: { direction: "left", referencePanel: "editor" } });
-  explorerPanel.api.group.api.setSize({ width: 200 });
-  // Bottom panels — callstack/locals/breakpoints/evaluate tab to the left of output
-  api.addPanel({ id: "callstack", component: "callstack", title: "Call Stack", position: { direction: "below", referencePanel: "editor" } });
-  api.addPanel({ id: "locals", component: "locals", title: "Locals", position: { direction: "within", referencePanel: "callstack" } });
-  api.addPanel({ id: "breakpoints", component: "breakpoints", title: "Breakpoints", position: { direction: "within", referencePanel: "callstack" } });
-  api.addPanel({ id: "evaluate", component: "evaluate", title: "Evaluate", position: { direction: "within", referencePanel: "callstack" } });
-  api.addPanel({ id: "output", component: "output", title: "Output", position: { direction: "within", referencePanel: "callstack" } });
-  api.getPanel("callstack")?.api.setActive();
+  try {
+    api.fromJSON(restoreLayout(DEFAULT_PANELS));
+  } catch {
+    // Minimal safe fallback if fromJSON fails.
+    api.addPanel({ id: "editor", component: "editor", title: "Editor" });
+    api.addPanel({ id: "explorer", component: "explorer", title: "Explorer", position: { direction: "left", referencePanel: "editor" } });
+    api.addPanel({ id: "output", component: "output", title: "Output", position: { direction: "below", referencePanel: "editor" } });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1275,20 +1310,14 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     api.getPanel("markdown")?.api.setActive();
   }, [activeTab?.path]);
 
-  // Reset all panels to the default layout.
+  // Reset all panels to the default layout (DEFAULT_PANELS).
+  // onDidLayoutChange fires after fromJSON and saves the restored layout to config.
   function resetPanels() {
     const api = dockviewApiRef.current;
     if (!api) return;
     setDocPanelOpen(false);
     api.clear();
     setupDefaultLayout(api);
-    setConfig((c) => {
-      const ide = { ...((c.ide as Record<string, unknown>) || {}) };
-      delete ide.panels;
-      const next = { ...c, ide };
-      ideApi.saveConfig(next).catch(() => {});
-      return next;
-    });
   }
 
   // configLoaded gates <DockviewReact> so this callback fires only after config
