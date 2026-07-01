@@ -17,6 +17,7 @@
     "@codemirror/lang-html": "^6.4.11",
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-markdown": "^6.5.0",
     "@codemirror/language": "^6.10.0",
     "@codemirror/legacy-modes": "^6.5.3",
     "@codemirror/lint": "^6.8.0",
@@ -31,6 +32,7 @@
     "@mui/icons-material": "^9.1.1",
     "@mui/material": "^9.1.1",
     "codemirror": "^6.0.1",
+    "dockview-react": "^7.0.2",
     "prismjs": "^1.29.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"

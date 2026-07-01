@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   AppBar,
   Box,
@@ -33,8 +33,10 @@ import RedoIcon from "@mui/icons-material/Redo";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import OutputIcon from "@mui/icons-material/Notes";
-import CloseIcon from "@mui/icons-material/Close";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import ViewQuiltIcon from "@mui/icons-material/ViewQuilt";
+import { DockviewReact, type DockviewApi, type DockviewReadyEvent, type IDockviewPanelProps } from "dockview-react";
+import "dockview-react/dist/styles/dockview.css";
 
 /** copyText writes text to the clipboard, ignoring failures (e.g. no permission). */
 function copyText(text: string): void {
@@ -56,6 +58,7 @@ function langForPath(path: string): EditorLanguage {
     case "jsx": return "jsx";
     case "tsx": return "tsx";
     case "gad": case "gadt": return "gad";
+    case "md": case "mdx": return "markdown";
     default: return "text";
   }
 }
@@ -74,7 +77,6 @@ import {
   type TreeNode,
   type Workspace,
 } from "./backends/ide";
-// EvalResult is referenced indirectly through ideApi.eval; no direct import needed.
 
 interface OpenTab {
   path: string;
@@ -85,7 +87,6 @@ interface OpenTab {
 
 type Pane = "output" | "stack" | "locals" | "breakpoints" | "evaluate";
 
-/** One entry in the Evaluate panel. */
 interface EvalEntry {
   id: number;
   expr: string;
@@ -96,7 +97,6 @@ interface EvalEntry {
 
 const emptyRunCfg = (): RunConfig => ({ args: [], disabled: [], safe: false, saveOut: "", saveStdout: "", saveStderr: "", combine: false });
 
-// Debugger keybindings: action -> default key chord. Stored under ide.keys.
 const DEFAULT_KEYS: Record<string, string> = {
   continue: "F9",
   stepOver: "F8",
@@ -104,7 +104,6 @@ const DEFAULT_KEYS: Record<string, string> = {
   stepOut: "Shift+F8",
 };
 
-// KEY_ACTIONS maps each bindable action to its debug command + label.
 const KEY_ACTIONS: { action: string; cmd: string; label: string }[] = [
   { action: "continue", cmd: "continue", label: "Resume (next breakpoint)" },
   { action: "stepOver", cmd: "next", label: "Step over" },
@@ -114,7 +113,6 @@ const KEY_ACTIONS: { action: string; cmd: string; label: string }[] = [
 
 const MODIFIER_KEYS = ["Shift", "Control", "Alt", "Meta"];
 
-/** eventToKey renders a keydown event as a chord string like "Shift+F8". */
 function eventToKey(e: KeyboardEvent): string {
   const parts: string[] = [];
   if (e.ctrlKey) parts.push("Ctrl");
@@ -129,6 +127,489 @@ function keysFromConfig(config: Record<string, unknown>): Record<string, string>
   return { ...DEFAULT_KEYS, ...((config.ide as Record<string, unknown>)?.keys as Record<string, string>) };
 }
 
+// ---------------------------------------------------------------------------
+// Shared IDE context — all panels consume this
+// ---------------------------------------------------------------------------
+
+type TreeAction = "open" | "rename" | "remove" | "run" | "format" | "transpile";
+
+interface IdeShared {
+  // theme
+  dark: boolean;
+  toggleTheme: () => void;
+  // workspace tree
+  tree: TreeNode | null;
+  showHidden: boolean;
+  setShowHidden: (v: boolean | ((p: boolean) => boolean)) => void;
+  setFetchDialog: (v: boolean) => void;
+  openFile: (path: string) => Promise<void>;
+  treeAction: (action: TreeAction, node: TreeNode) => Promise<void>;
+  refreshTree: () => Promise<void>;
+  // tabs
+  tabs: OpenTab[];
+  active: number;
+  setActive: (i: number) => void;
+  activeTab: OpenTab | null;
+  closeTab: (i: number) => void;
+  onEdit: (v: string) => void;
+  // editor actions
+  save: () => Promise<void>;
+  format: () => Promise<void>;
+  reloadFile: () => Promise<void>;
+  editorRef: React.RefObject<EditorHandle>;
+  diagnose: import("@gad-lang/codemirror-gad").DiagnoseFn;
+  fontSize: number;
+  setFontSize: (px: number) => void;
+  // debug
+  debug: { session: string; path: string } | null;
+  debugLoc: { line: number; column: number } | null;
+  dbgCommand: (cmd: string) => Promise<void>;
+  keys: Record<string, string>;
+  startDebugFromDialog: (tab: OpenTab, stopOnEntry: boolean) => Promise<void>;
+  // breakpoints
+  bpFor: (path?: string) => number[];
+  bpMetaFor: (path?: string) => BreakpointMeta;
+  allBreakpoints: () => Record<string, number[]>;
+  setBreakpoints: (path: string, lines: number[]) => void;
+  setBpDialog: (v: { path: string; line: number } | null) => void;
+  // output pane
+  pane: Pane;
+  setPane: (p: Pane) => void;
+  outChunks: { stream: "out" | "err"; text: string }[];
+  outMode: "combined" | "split";
+  setOutMode: (m: "combined" | "split") => void;
+  clearOut: () => void;
+  // call stack / locals
+  stack: DebugResponse["frames"];
+  locals: DebugResponse["locals"];
+  selectedFrame: number;
+  setSelectedFrame: (i: number) => void;
+  onFrameClick: (i: number, f: { file: string; line: number; column: number }) => void;
+  gotoFrame: (file: string, line: number, column: number) => Promise<void>;
+  // evaluate panel
+  evals: EvalEntry[];
+  setEvals: React.Dispatch<React.SetStateAction<EvalEntry[]>>;
+  evalOne: (entry: EvalEntry) => Promise<EvalEntry>;
+  addEval: (expr: string, repr: boolean) => Promise<void>;
+  // dialogs
+  setDialog: (d: null | { kind: "run" | "debug"; tab: OpenTab }) => void;
+  setInspectTarget: (t: { title: string; expr: string } | null) => void;
+  setOutputDialog: (d: { title: string; text: string } | null) => void;
+  // docs panel
+  docs: DocComment[];
+  reloadDocs: () => Promise<void>;
+  docPanelOpen: boolean;
+  toggleDocsPanel: () => void;
+  // modules / config
+  modules: ModuleInfo[];
+  // status
+  status: string;
+}
+
+const IdeCtx = createContext<IdeShared>({} as IdeShared);
+const useIde = () => useContext(IdeCtx);
+
+// ---------------------------------------------------------------------------
+// Panel: Explorer (left sidebar)
+// ---------------------------------------------------------------------------
+
+function ExplorerPanel(_: IDockviewPanelProps) {
+  const ide = useIde();
+  return (
+    <aside className="ide-sidebar">
+      <div className="side-head">
+        <span>Explorer</span>
+        <span style={{ flex: 1 }} />
+        <IconButton
+          size="small"
+          title={ide.showHidden ? "Hide hidden files" : "Show hidden files"}
+          onClick={() => ide.setShowHidden((v) => !v)}
+        >
+          {ide.showHidden ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
+        </IconButton>
+        <IconButton size="small" title="Get file from web" onClick={() => ide.setFetchDialog(true)}>
+          <AddLinkIcon fontSize="small" />
+        </IconButton>
+        <IconButton
+          size="small"
+          title="New file"
+          onClick={async () => {
+            const name = prompt("New file path (relative to workspace):", "untitled.gad");
+            if (!name) return;
+            await ideApi.mkfile(name);
+            await ide.refreshTree();
+            ide.openFile(name);
+          }}
+        >
+          <AddIcon fontSize="small" />
+        </IconButton>
+      </div>
+      <div className="tree">
+        {ide.tree?.children?.map((n) => (
+          <TreeView
+            key={n.path}
+            node={n}
+            activePath={ide.activeTab?.path}
+            onOpen={ide.openFile}
+            onAction={ide.treeAction}
+          />
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Panel: Editor (center — tabbar + toolbar + editor)
+// ---------------------------------------------------------------------------
+
+function EditorPanel(_: IDockviewPanelProps) {
+  const ide = useIde();
+  const { dark, debugLoc, keys } = ide;
+  const debug = ide.debug;
+
+  return (
+    <section className="ide-center">
+      <div className="tabbar">
+        {ide.tabs.map((t, i) => (
+          <div
+            key={t.path}
+            className={"tab" + (i === ide.active ? " active" : "")}
+            onClick={() => ide.setActive(i)}
+          >
+            <span>
+              {t.path.split("/").pop()}
+              {t.saved ? "" : " •"}
+            </span>
+            <span
+              className="x"
+              onClick={(e) => { e.stopPropagation(); ide.closeTab(i); }}
+            >
+              ✕
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <Toolbar variant="dense" className="toolbar" disableGutters sx={{ gap: 1, minHeight: 44 }}>
+        <Button size="small" variant="outlined" onClick={ide.save} disabled={!ide.activeTab}>Save</Button>
+        <Button size="small" variant="outlined" onClick={ide.format} disabled={!ide.activeTab}>Format</Button>
+        <Tooltip title="Reload from disk">
+          <span>
+            <IconButton size="small" onClick={ide.reloadFile} disabled={!ide.activeTab}>
+              <RefreshIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Undo">
+          <span>
+            <IconButton size="small" onClick={() => ide.editorRef.current?.undo()} disabled={!ide.activeTab}>
+              <UndoIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Redo">
+          <span>
+            <IconButton size="small" onClick={() => ide.editorRef.current?.redo()} disabled={!ide.activeTab}>
+              <RedoIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Button
+          size="small" variant="contained" color="success"
+          onClick={() => ide.activeTab && ide.setDialog({ kind: "run", tab: ide.activeTab })}
+          disabled={!ide.activeTab}
+        >
+          Run ▶
+        </Button>
+        <Button
+          size="small" variant="contained" color="warning"
+          onClick={() => ide.activeTab && ide.setDialog({ kind: "debug", tab: ide.activeTab })}
+          disabled={!ide.activeTab}
+        >
+          Debug 🐞
+        </Button>
+        {debug && (
+          <Box className="dbgbar">
+            <Tooltip title={`Resume (${keys.continue})`}>
+              <Button size="small" onClick={() => ide.dbgCommand("continue")}>Continue ({keys.continue})</Button>
+            </Tooltip>
+            <Tooltip title={`Step over (${keys.stepOver})`}>
+              <Button size="small" onClick={() => ide.dbgCommand("next")}>Step Over ({keys.stepOver})</Button>
+            </Tooltip>
+            <Tooltip title={`Step into (${keys.stepInto})`}>
+              <Button size="small" onClick={() => ide.dbgCommand("stepIn")}>Step In ({keys.stepInto})</Button>
+            </Tooltip>
+            <Tooltip title={`Step out (${keys.stepOut})`}>
+              <Button size="small" onClick={() => ide.dbgCommand("stepOut")}>Step Out ({keys.stepOut})</Button>
+            </Tooltip>
+            <Button size="small" color="error" onClick={() => ide.dbgCommand("stop")}>Stop</Button>
+          </Box>
+        )}
+        <Box sx={{ flex: 1 }} />
+        <Tooltip title="Toggle doc-comments panel">
+          <Button
+            size="small"
+            variant={ide.docPanelOpen ? "contained" : "outlined"}
+            onClick={ide.toggleDocsPanel}
+          >
+            Docs
+          </Button>
+        </Tooltip>
+        <Box className="font-control" title="Editor font size">
+          <Button size="small" onClick={() => ide.setFontSize(ide.fontSize - 1)}>A−</Button>
+          <span className="font-size">{ide.fontSize}px</span>
+          <Button size="small" onClick={() => ide.setFontSize(ide.fontSize + 1)}>A+</Button>
+        </Box>
+        <Typography variant="caption" color="text.secondary">{ide.status}</Typography>
+      </Toolbar>
+
+      <div className="editor-host">
+        {ide.activeTab ? (
+          <Editor
+            key={ide.activeTab.path}
+            ref={ide.editorRef}
+            initialDoc={ide.activeTab.content}
+            language={langForPath(ide.activeTab.path)}
+            diagnose={langForPath(ide.activeTab.path) === "gad" ? ide.diagnose : undefined}
+            dark={dark}
+            onChange={ide.onEdit}
+            breakpoints={ide.bpFor(ide.activeTab.path)}
+            onBreakpointsChange={(lines) => ide.setBreakpoints(ide.activeTab!.path, lines)}
+            fontSize={ide.fontSize}
+            debugLine={debug && debug.path === ide.activeTab.path ? debugLoc?.line : undefined}
+            debugColumn={debug && debug.path === ide.activeTab.path ? debugLoc?.column : undefined}
+            locals={debug && debug.path === ide.activeTab.path ? ide.locals : undefined}
+            onInspectVar={(name) => ide.setInspectTarget({ title: name, expr: name })}
+          />
+        ) : (
+          <div className="empty">Open a file from the explorer</div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Panel: Output (bottom — panes: output / stack / locals / breakpoints / evaluate)
+// ---------------------------------------------------------------------------
+
+function OutputPanel(_: IDockviewPanelProps) {
+  const ide = useIde();
+  const { pane, outChunks, outMode, stack, locals, selectedFrame, evals } = ide;
+
+  return (
+    <div className="panes panes-dockview">
+      <div className="pane-tabs">
+        {(["output", "stack", "locals", "breakpoints", "evaluate"] as Pane[]).map((p) => (
+          <button key={p} className={pane === p ? "on" : ""} onClick={() => ide.setPane(p)}>
+            {p === "output" ? "Output"
+              : p === "stack" ? "Call stack"
+              : p === "locals" ? "Locals"
+              : p === "breakpoints" ? "Breakpoints"
+              : "Evaluate"}
+          </button>
+        ))}
+        <span className="spacer" />
+        {pane === "output" && (
+          <>
+            <button className={outMode === "combined" ? "on" : ""} title="Combined stdout+stderr" onClick={() => ide.setOutMode("combined")}>Combined</button>
+            <button className={outMode === "split" ? "on" : ""} title="Split stdout / stderr" onClick={() => ide.setOutMode("split")}>Split</button>
+            <button onClick={ide.clearOut}>Clear</button>
+          </>
+        )}
+      </div>
+
+      {pane === "output" && outMode === "combined" && (
+        <pre className="pane-body out-log">
+          {outChunks.length === 0
+            ? <span className="muted">(no output)</span>
+            : outChunks.map((c, i) => (
+              <span key={i} className={c.stream === "err" ? "out-err" : undefined}>{c.text}</span>
+            ))}
+        </pre>
+      )}
+      {pane === "output" && outMode === "split" && (
+        <div className="pane-body out-split">
+          <div className="out-col">
+            <div className="out-col-head">stdout</div>
+            <pre>{outChunks.filter((c) => c.stream === "out").map((c) => c.text).join("")}</pre>
+          </div>
+          <div className="out-col">
+            <div className="out-col-head out-err">stderr</div>
+            <pre className="out-err">{outChunks.filter((c) => c.stream === "err").map((c) => c.text).join("")}</pre>
+          </div>
+        </div>
+      )}
+      {pane === "stack" && (
+        <div className="pane-body">
+          {(stack || []).map((f, i) => (
+            <div
+              key={i}
+              className={"frame" + (i === selectedFrame ? " selected" : "")}
+              title={`${f.file}:${f.line}:${f.column} — click to inspect, double-click to open`}
+              onClick={() => ide.onFrameClick(i, f)}
+              style={{ cursor: "pointer" }}
+            >
+              <span className="fn">{f.name || "main"}</span>{" "}
+              <span className="muted">
+                {f.file ? `${f.file.split("/").pop()}:` : ""}{f.line}:{f.column}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {pane === "locals" && (() => {
+        const frame = stack && stack[selectedFrame];
+        const frameLocals = frame ? frame.locals : locals;
+        return (
+          <div className="pane-body">
+            {frame && (
+              <div className="locals-head muted">
+                {frame.name || "main"} — {frame.file ? frame.file.split("/").pop() + ":" : ""}{frame.line}:{frame.column}
+              </div>
+            )}
+            <table className="locals">
+              <tbody>
+                {(frameLocals || []).map((v, i) => (
+                  <tr key={i}>
+                    <td>{v.name}</td>
+                    <td className="muted">{v.type}</td>
+                    <td>{v.value}</td>
+                    <td className="locals-copy">
+                      <IconButton size="small" title="Inspect (tree)" onClick={() => ide.setInspectTarget({ title: v.name, expr: v.name })}>
+                        <AccountTreeIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                      <IconButton size="small" title="Copy value" onClick={() => copyText(v.value)}>
+                        <ContentCopyIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </td>
+                  </tr>
+                ))}
+                {(frameLocals || []).length === 0 && (
+                  <tr><td className="muted">(no locals)</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
+      {pane === "breakpoints" && (
+        <div className="pane-body">
+          <BpScopePanel ide={ide} />
+        </div>
+      )}
+      {pane === "evaluate" && (
+        <EvaluatePanel
+          entries={evals}
+          dark={false}
+          onAdd={ide.addEval}
+          onUpdate={async (id, expr, repr) => {
+            const updated = await ide.evalOne({ id, expr, repr, value: "", error: "" });
+            ide.setEvals((cur) => cur.map((e) => (e.id === id ? updated : e)));
+          }}
+          onRemove={(id) => ide.setEvals((cur) => cur.filter((e) => e.id !== id))}
+          onShowOutput={(e) => ide.setOutputDialog({ title: e.expr, text: e.error || e.value })}
+          onCopy={copyText}
+          onInspect={(e) => ide.setInspectTarget({ title: e.expr, expr: e.expr })}
+        />
+      )}
+    </div>
+  );
+}
+
+function BpScopePanel({ ide }: { ide: IdeShared }) {
+  const [bpScope, setBpScope] = useState<"current" | "all">("current");
+  return (
+    <>
+      <div className="bp-scope">
+        <button className={bpScope === "current" ? "on" : ""} onClick={() => setBpScope("current")}>Current file</button>
+        <button className={bpScope === "all" ? "on" : ""} onClick={() => setBpScope("all")}>All</button>
+      </div>
+      {bpScope === "current" ? (
+        <BreakpointList
+          path={ide.activeTab?.path}
+          lines={ide.bpFor(ide.activeTab?.path)}
+          meta={ide.bpMetaFor(ide.activeTab?.path)}
+          onEdit={(line) => ide.activeTab && ide.setBpDialog({ path: ide.activeTab.path, line })}
+          onRemove={(line) => ide.activeTab && ide.setBreakpoints(ide.activeTab.path, ide.bpFor(ide.activeTab.path).filter((l) => l !== line))}
+          onNavigate={(line) => ide.editorRef.current?.gotoLocation(line, 1)}
+        />
+      ) : (
+        <BreakpointGroups
+          all={ide.allBreakpoints()}
+          onOpen={ide.openFile}
+          onNavigate={(file, line) => void ide.gotoFrame(file, line, 1)}
+          onRemove={(file, line) => ide.setBreakpoints(file, (ide.allBreakpoints()[file] || []).filter((l) => l !== line))}
+        />
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Panel: Docs (left group tab — doc comments for active file)
+// ---------------------------------------------------------------------------
+
+function DocsPanel(_: IDockviewPanelProps) {
+  const ide = useIde();
+  return (
+    <div className="doc-panel dock-panel-fill">
+      <div className="doc-body">
+        {ide.docs.length === 0 && <div className="muted" style={{ padding: ".4rem" }}>No doc comments in this file.</div>}
+        {ide.docs.map((d, i) => (
+          <div key={i} className="doc-entry">
+            <div className="doc-entry-head" onClick={() => ide.editorRef.current?.gotoLocation(d.line, 1)} title={`Go to line ${d.line}`}>
+              <span className={"doc-kind doc-kind-" + d.kind}>{d.kind}</span>
+              <span className="doc-title">{d.title || `line ${d.line}`}</span>
+            </div>
+            <div className="doc-content language-gad" dangerouslySetInnerHTML={{ __html: renderDocMarkdown(d.content) }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Panel: Markdown preview (left group tab — rendered .md preview)
+// ---------------------------------------------------------------------------
+
+function MdPreviewPanel(_: IDockviewPanelProps) {
+  const ide = useIde();
+  const content = ide.activeTab?.content ?? "";
+  const html = useMemo(() => renderDocMarkdown(content), [content]);
+  return (
+    <div className="doc-panel dock-panel-fill">
+      <div className="doc-body">
+        <div className="doc-content language-gad" dangerouslySetInnerHTML={{ __html: html }} />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Dockview panel registry
+// ---------------------------------------------------------------------------
+
+const DOCKVIEW_COMPONENTS = {
+  explorer: ExplorerPanel,
+  editor: EditorPanel,
+  output: OutputPanel,
+  docs: DocsPanel,
+  markdown: MdPreviewPanel,
+} as const;
+
+function setupDefaultLayout(api: DockviewApi) {
+  api.addPanel({ id: "editor", component: "editor", title: "Editor" });
+  api.addPanel({ id: "explorer", component: "explorer", title: "Explorer", position: { direction: "left", referencePanel: "editor" } });
+  api.addPanel({ id: "output", component: "output", title: "Output", position: { direction: "below", referencePanel: "editor" } });
+}
+
+// ---------------------------------------------------------------------------
+// Main Ide component
+// ---------------------------------------------------------------------------
+
 /** The multi-file React IDE served by `gad ide`. */
 export function Ide({ workspace }: { workspace: Workspace }) {
   const [theme, toggleTheme] = useTheme();
@@ -142,7 +623,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [evals, setEvals] = useState<EvalEntry[]>([]);
   const [outputDialog, setOutputDialog] = useState<{ title: string; text: string } | null>(null);
   const [bpDialog, setBpDialog] = useState<{ path: string; line: number } | null>(null);
-  const [docPanel, setDocPanel] = useState(false);
+  const [docPanelOpen, setDocPanelOpen] = useState(false);
   const [docs, setDocs] = useState<DocComment[]>([]);
   const [inspectTarget, setInspectTarget] = useState<{ title: string; expr: string } | null>(null);
   const [modules, setModules] = useState<ModuleInfo[]>([]);
@@ -150,15 +631,12 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [active, setActive] = useState(-1);
   const [pane, setPane] = useState<Pane>("output");
-  // Output is a stream-tagged log so stderr can be colorized and split out.
   const [outChunks, setOutChunks] = useState<{ stream: "out" | "err"; text: string }[]>([]);
   const [outMode, setOutMode] = useState<"combined" | "split">("combined");
   const pushOut = useCallback((stream: "out" | "err", text: string) => {
     if (text) setOutChunks((c) => [...c, { stream, text }]);
   }, []);
   const clearOut = useCallback(() => setOutChunks([]), []);
-  // setOutput replaces the whole log with a single stdout block (diagnostics,
-  // single-shot messages); kept as a thin shim over the chunk model.
   const setOutput = useCallback(
     (v: string | ((prev: string) => string)) => {
       if (typeof v === "function") {
@@ -173,21 +651,19 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [locals, setLocals] = useState<DebugResponse["locals"]>([]);
   const [status, setStatus] = useState("");
 
-  // reportError surfaces a backend/operation failure in both the status line and
-  // a modal dialog, and returns the short message for convenience.
   const reportError = useCallback((title: string, e: unknown): string => {
     const detail = e instanceof Error ? e.message : String(e);
     setStatus(title + ": " + detail);
     setErrorDialog({ title, detail });
     return detail;
   }, []);
+
   const [debug, setDebug] = useState<{ session: string; path: string } | null>(null);
   const [debugLoc, setDebugLoc] = useState<{ line: number; column: number } | null>(null);
   const [pendingGoto, setPendingGoto] = useState<{ path: string; line: number; column: number } | null>(null);
   const [dialog, setDialog] = useState<null | { kind: "run" | "debug"; tab: OpenTab }>(null);
   const [settings, setSettings] = useState(false);
   const [keybinds, setKeybinds] = useState(false);
-  const [bpScope, setBpScope] = useState<"current" | "all">("current");
   const [fetchDialog, setFetchDialog] = useState(false);
   const [selectedFrame, setSelectedFrame] = useState(0);
   const frameClickTimer = useRef<number | null>(null);
@@ -195,22 +671,26 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const editorRef = useRef<EditorHandle>(null);
   const activeTab = active >= 0 ? tabs[active] : null;
 
+  // Dockview API ref — available after onReady fires.
+  const dockviewApiRef = useRef<DockviewApi | null>(null);
+  // Keep config accessible in the onReady closure without re-running it.
+  const configRef = useRef(config);
+  configRef.current = config;
+
   const refreshTree = useCallback(
     async () => setTree(await ideApi.tree(showHidden)),
     [showHidden],
   );
 
-  // Reload the tree whenever the hidden-files toggle changes.
-  useEffect(() => {
-    void refreshTree();
-  }, [refreshTree]);
+  useEffect(() => { void refreshTree(); }, [refreshTree]);
 
   useEffect(() => {
     (async () => {
       try {
-        setConfig(await ideApi.config());
+        const cfg = await ideApi.config();
+        configRef.current = cfg;
+        setConfig(cfg);
         setModules(await ideApi.modules());
-        // The tree is loaded by the showHidden effect above.
         if (workspace.openFile) openFile(workspace.openFile);
       } catch (e) {
         reportError("Failed to start", e);
@@ -225,7 +705,6 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     return { ...emptyRunCfg(), ...(run[path] || {}) };
   };
 
-  // Breakpoints live in .gad.yaml under ide.breakpoints as { path: [lines] }.
   const allBreakpoints = (): Record<string, number[]> =>
     ((config.ide as Record<string, unknown>)?.breakpoints as Record<string, number[]>) || {};
   const bpFor = (path?: string): number[] => (path ? allBreakpoints()[path] || [] : []);
@@ -237,7 +716,6 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       if (lines.length) bps[path] = [...lines].sort((a, b) => a - b);
       else delete bps[path];
       ide.breakpoints = bps;
-      // Drop metadata for lines that no longer have a breakpoint.
       const allMeta = { ...((ide.breakpointMeta as Record<string, BreakpointMeta>) || {}) };
       if (allMeta[path]) {
         const kept: BreakpointMeta = {};
@@ -252,7 +730,6 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     });
   }
 
-  // Per-line breakpoint metadata (disabled / condition), keyed by path then line.
   const bpMetaFor = (path?: string): BreakpointMeta =>
     (path
       ? ((config.ide as Record<string, unknown>)?.breakpointMeta as Record<string, BreakpointMeta>)?.[path]
@@ -278,14 +755,11 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     });
   }
 
-  // Build the breakpointSpecs payload for a debug start from lines + metadata.
   const bpSpecsFor = (path: string): BreakpointSpec[] => {
     const meta = bpMetaFor(path);
     return bpFor(path).map((line) => ({ line, ...(meta[line] || {}) }));
   };
 
-  // onFrameClick distinguishes a single click (select the frame and show its
-  // locals) from a double click (navigate to the frame's source position).
   function onFrameClick(i: number, f: { file: string; line: number; column: number }) {
     if (frameClickTimer.current !== null) {
       window.clearTimeout(frameClickTimer.current);
@@ -300,7 +774,6 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     }, 250);
   }
 
-  // gotoFrame opens the frame's file (if needed) and queues a cursor move.
   async function gotoFrame(file: string, line: number, column: number) {
     if (!file) return;
     try {
@@ -313,10 +786,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
 
   async function openFile(path: string) {
     const existing = tabs.findIndex((t) => t.path === path);
-    if (existing >= 0) {
-      setActive(existing);
-      return;
-    }
+    if (existing >= 0) { setActive(existing); return; }
     const data = await ideApi.read(path);
     setTabs((ts) => {
       const next = [...ts, { path, content: data.content, saved: true, runCfg: runCfgFor(path) }];
@@ -337,11 +807,6 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     setTabs((ts) => ts.map((t, i) => (i === active ? { ...t, content: value, saved: false } : t)));
   }
 
-  // --- Evaluate panel -------------------------------------------------------
-
-  // evalOne evaluates a single expression entry and returns the updated entry.
-  // While a debug session is paused it evaluates in the live frame's scope;
-  // otherwise it runs standalone against the active file as context.
   const evalOne = useCallback(
     async (entry: EvalEntry): Promise<EvalEntry> => {
       try {
@@ -363,8 +828,6 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     [activeTab, debug],
   );
 
-  // Inspect an expression for the tree navigator: in the paused frame while
-  // debugging, else standalone against the active file.
   const inspectExpr: InspectFn = useCallback(
     async (expr: string) => {
       try {
@@ -381,7 +844,6 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     [debug, activeTab],
   );
 
-  // Re-evaluate every entry (used on add and whenever the debugger steps).
   const evalAll = useCallback(async () => {
     setEvals((cur) => {
       void Promise.all(cur.map(evalOne)).then(setEvals);
@@ -395,40 +857,29 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     setEvals((cur) => [...cur, evaluated]);
   }
 
-  // Refresh the Evaluate panel whenever the debugger stops at a new location
-  // (debugLoc changes per step). Runs after state settles, so evalOne sees the
-  // current debug session and evaluates in the live frame.
   useEffect(() => {
     if (debug) void evalAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debugLoc]);
 
-  // --- Doc-comment panel ----------------------------------------------------
-
   const reloadDocs = useCallback(async () => {
-    if (!docPanel) return;
+    if (!docPanelOpen) return;
     const src = editorRef.current?.getValue() ?? activeTab?.content ?? "";
     try {
       setDocs(await ideApi.doc(src));
     } catch {
       /* leave previous docs on a transient failure */
     }
-  }, [docPanel, activeTab]);
+  }, [docPanelOpen, activeTab]);
 
-  // Refresh docs when the panel opens or the active file changes.
-  useEffect(() => {
-    void reloadDocs();
-  }, [reloadDocs, active]);
+  useEffect(() => { void reloadDocs(); }, [reloadDocs, active]);
 
-  // Auto-reload docs 5s after the last edit while the panel is open.
   useEffect(() => {
-    if (!docPanel || !activeTab || activeTab.saved) return;
+    if (!docPanelOpen || !activeTab || activeTab.saved) return;
     const t = window.setTimeout(() => void reloadDocs(), 5000);
     return () => window.clearTimeout(t);
-  }, [docPanel, activeTab, reloadDocs]);
+  }, [docPanelOpen, activeTab, reloadDocs]);
 
-  // Reload the active file from disk, discarding unsaved edits (after a confirm
-  // when the buffer is dirty).
   async function reloadFile() {
     if (!activeTab) return;
     if (!activeTab.saved && !confirm(`Discard unsaved changes to ${activeTab.path}?`)) return;
@@ -472,17 +923,11 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     setPane("output");
   }
 
-  // Format a file on disk (used by the explorer context menu) without requiring
-  // it to be the active editor tab.
   async function formatFile(path: string) {
     try {
       const data = await ideApi.read(path);
       const res = await ideApi.format(data.content);
-      if (!res.ok) {
-        showDiagnostics(res.diagnostics);
-        setStatus("format failed: " + path);
-        return;
-      }
+      if (!res.ok) { showDiagnostics(res.diagnostics); setStatus("format failed: " + path); return; }
       await ideApi.write(path, res.source);
       setTabs((ts) => ts.map((t) => (t.path === path ? { ...t, content: res.source, saved: true } : t)));
       if (activeTab?.path === path) editorRef.current?.setValue(res.source);
@@ -492,20 +937,12 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     }
   }
 
-  // Transpile a file to a sibling .gad (a .gadt becomes name.gad; another .gad
-  // becomes name.transpiled.gad to avoid clobbering the source) and open it.
   async function transpileFile(path: string) {
     try {
       const data = await ideApi.read(path);
       const res = await ideApi.transpile(data.content, path);
-      if (!res.ok) {
-        showDiagnostics(res.diagnostics);
-        setStatus("transpile failed: " + path);
-        return;
-      }
-      const out = path.endsWith(".gadt")
-        ? path.slice(0, -1) // .gadt -> .gad
-        : path.replace(/\.gad$/, ".transpiled.gad");
+      if (!res.ok) { showDiagnostics(res.diagnostics); setStatus("transpile failed: " + path); return; }
+      const out = path.endsWith(".gadt") ? path.slice(0, -1) : path.replace(/\.gad$/, ".transpiled.gad");
       await ideApi.write(out, res.source);
       await refreshTree();
       await openFile(out);
@@ -515,13 +952,10 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     }
   }
 
-  // Explorer context-menu / keyboard actions on a tree node.
   const treeAction = useCallback(
     async (action: TreeAction, node: TreeNode) => {
       switch (action) {
-        case "open":
-          void openFile(node.path);
-          break;
+        case "open": void openFile(node.path); break;
         case "rename": {
           const to = prompt("Rename to (path relative to workspace):", node.path);
           if (!to || to === node.path) return;
@@ -530,42 +964,25 @@ export function Ide({ workspace }: { workspace: Workspace }) {
             setTabs((ts) => ts.map((t) => (t.path === node.path ? { ...t, path: to } : t)));
             await refreshTree();
             setStatus("renamed to " + to);
-          } catch (e) {
-            reportError("Rename failed", e);
-          }
+          } catch (e) { reportError("Rename failed", e); }
           break;
         }
-        case "remove":
-          setRemoveTarget(node);
-          break;
-        case "format":
-          await formatFile(node.path);
-          break;
-        case "run":
-          await openFile(node.path);
-          setPendingRunPath(node.path);
-          break;
-        case "transpile":
-          await transpileFile(node.path);
-          break;
+        case "remove": setRemoveTarget(node); break;
+        case "format": await formatFile(node.path); break;
+        case "run": await openFile(node.path); setPendingRunPath(node.path); break;
+        case "transpile": await transpileFile(node.path); break;
       }
     },
-    // openFile/formatFile/refreshTree are stable enough for this menu handler.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [refreshTree],
   );
 
-  // Open the run dialog once a context-menu "run" target has finished opening.
   useEffect(() => {
     if (!pendingRunPath) return;
     const tab = tabs.find((t) => t.path === pendingRunPath);
-    if (tab) {
-      setDialog({ kind: "run", tab });
-      setPendingRunPath(null);
-    }
+    if (tab) { setDialog({ kind: "run", tab }); setPendingRunPath(null); }
   }, [pendingRunPath, tabs]);
 
-  // Confirm and execute a tree-node removal.
   async function confirmRemove(recursive: boolean) {
     const node = removeTarget;
     setRemoveTarget(null);
@@ -597,14 +1014,9 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     setPane("output");
     try {
       const res = await ideApi.run({
-        path: tab.path,
-        source: content,
-        args: cfg.args,
-        disabled: cfg.disabled,
-        safe: cfg.safe,
-        saveOut: cfg.saveOut || undefined,
-        saveStdout: cfg.saveStdout || undefined,
-        saveStderr: cfg.saveStderr || undefined,
+        path: tab.path, source: content, args: cfg.args, disabled: cfg.disabled,
+        safe: cfg.safe, saveOut: cfg.saveOut || undefined,
+        saveStdout: cfg.saveStdout || undefined, saveStderr: cfg.saveStderr || undefined,
         combine: cfg.combine || undefined,
       });
       clearOut();
@@ -627,14 +1039,9 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     try {
       const cfg = tab.runCfg;
       const res = await ideApi.dbgStart({
-        source: content,
-        breakpoints: bpFor(tab.path),
-        breakpointSpecs: bpSpecsFor(tab.path),
-        stopOnEntry,
-        path: tab.path,
-        args: cfg.args,
-        disabled: cfg.disabled,
-        safe: cfg.safe,
+        source: content, breakpoints: bpFor(tab.path),
+        breakpointSpecs: bpSpecsFor(tab.path), stopOnEntry, path: tab.path,
+        args: cfg.args, disabled: cfg.disabled, safe: cfg.safe,
       });
       applyDebug(res, tab.path);
     } catch (e) {
@@ -645,12 +1052,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
 
   async function dbgCommand(command: string) {
     if (!debug) return;
-    if (command === "stop") {
-      setDebug(null);
-      setDebugLoc(null);
-      setStatus("stopped");
-      return;
-    }
+    if (command === "stop") { setDebug(null); setDebugLoc(null); setStatus("stopped"); return; }
     const res = await ideApi.dbgCmd(debug.session, command);
     applyDebug(res, debug.path);
   }
@@ -659,9 +1061,6 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     pushOut("out", res.stdout || "");
     pushOut("err", res.stderr || "");
     if (res.state === "stopped") {
-      // Follow the stop into its file: stepping into an imported module reports
-      // that module's path, so open it and highlight the line there. The
-      // "(main)" sentinel (inline source, no path) maps back to the debugged file.
       const stopFile = res.file && res.file !== "(main)" ? res.file : path;
       setDebug({ session: res.session!, path: stopFile });
       setStack(res.frames || []);
@@ -671,20 +1070,13 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       setStatus(`stopped (${res.reason}) at ${stopFile}:${res.line}`);
       setPane("stack");
       if (stopFile && stopFile !== activeTab?.path) void openFile(stopFile);
-      // The Evaluate panel refreshes via an effect on debugLoc (so it sees the
-      // just-updated debug session).
     } else if (res.state === "terminated") {
-      // res.error is already on the stderr stream (pushed above); only add the
-      // return value.
       if (res.result) pushOut("out", "\n⇦ " + res.result + "\n");
-      setDebug(null);
-      setDebugLoc(null);
-      setStatus("program exited");
+      setDebug(null); setDebugLoc(null); setStatus("program exited");
     } else {
       pushOut("err", res.error || "debug error");
       if (res.diagnostics) showDiagnostics(res.diagnostics);
-      setDebug(null);
-      setDebugLoc(null);
+      setDebug(null); setDebugLoc(null);
     }
   }
 
@@ -700,24 +1092,19 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     });
   }
 
-  // Debugger keyboard shortcuts (active only while a debug session is paused).
   useEffect(() => {
     if (!debug) return;
     const keys = keysFromConfig(config);
     const handler = (e: KeyboardEvent) => {
       const pressed = eventToKey(e);
       const hit = KEY_ACTIONS.find((a) => keys[a.action] === pressed);
-      if (hit) {
-        e.preventDefault();
-        dbgCommand(hit.cmd);
-      }
+      if (hit) { e.preventDefault(); dbgCommand(hit.cmd); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debug, config]);
 
-  // Apply a queued cursor move once its file's tab is active and mounted.
   useEffect(() => {
     if (pendingGoto && activeTab?.path === pendingGoto.path) {
       editorRef.current?.gotoLocation(pendingGoto.line, pendingGoto.column);
@@ -740,565 +1127,267 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     });
   }
 
+  // -------------------------------------------------------------------------
+  // Dockview: docs panel toggle and markdown panel management
+  // -------------------------------------------------------------------------
+
+  const saveLayout = useCallback((layout: unknown) => {
+    setConfig((c) => {
+      const ide = { ...((c.ide as Record<string, unknown>) || {}), panels: layout };
+      const next = { ...c, ide };
+      ideApi.saveConfig(next).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  const toggleDocsPanel = useCallback(() => {
+    const api = dockviewApiRef.current;
+    if (!api) return;
+    const existing = api.getPanel("docs");
+    if (existing) {
+      existing.api.close();
+      setDocPanelOpen(false);
+    } else {
+      const ref = api.getPanel("explorer");
+      api.addPanel({
+        id: "docs",
+        component: "docs",
+        title: "Docs",
+        position: ref
+          ? { direction: "within", referencePanel: "explorer" }
+          : undefined,
+      });
+      api.getPanel("docs")?.api.setActive();
+      setDocPanelOpen(true);
+    }
+  }, []);
+
+  // Show / hide markdown preview panel when active file type changes.
+  const prevIsMdRef = useRef(false);
+  useEffect(() => {
+    const isMd = (activeTab?.path.endsWith(".md") || activeTab?.path.endsWith(".mdx")) ?? false;
+    const api = dockviewApiRef.current;
+    if (!api) return;
+    if (isMd && !prevIsMdRef.current) {
+      if (!api.getPanel("markdown")) {
+        const ref = api.getPanel("explorer");
+        api.addPanel({
+          id: "markdown",
+          component: "markdown",
+          title: "MD Preview",
+          position: ref ? { direction: "within", referencePanel: "explorer" } : undefined,
+        });
+      }
+      api.getPanel("markdown")?.api.setActive();
+    } else if (!isMd && prevIsMdRef.current) {
+      api.getPanel("markdown")?.api.close();
+    }
+    prevIsMdRef.current = isMd;
+  }, [activeTab?.path]);
+
+  // Reset all panels to the default layout.
+  function resetPanels() {
+    const api = dockviewApiRef.current;
+    if (!api) return;
+    setDocPanelOpen(false);
+    api.clear();
+    setupDefaultLayout(api);
+    setConfig((c) => {
+      const ide = { ...((c.ide as Record<string, unknown>) || {}) };
+      delete ide.panels;
+      const next = { ...c, ide };
+      ideApi.saveConfig(next).catch(() => {});
+      return next;
+    });
+  }
+
+  const onDockviewReady = useCallback((event: DockviewReadyEvent) => {
+    const api = event.api;
+    dockviewApiRef.current = api;
+
+    // Restore saved layout or apply default.
+    const saved = (configRef.current?.ide as Record<string, unknown>)?.panels;
+    let restored = false;
+    if (saved) {
+      try {
+        api.fromJSON(saved as Parameters<typeof api.fromJSON>[0]);
+        restored = true;
+      } catch {
+        /* fall through to default */
+      }
+    }
+    if (!restored) setupDefaultLayout(api);
+
+    // Persist layout on every structural change.
+    const disposable = api.onDidLayoutChange(() => saveLayout(api.toJSON()));
+    return () => disposable.dispose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const muiTheme = useMemo(
     () => createTheme({ palette: { mode: dark ? "dark" : "light", primary: { main: dark ? "#8aa6ff" : "#3b5bdb" } } }),
     [dark],
   );
 
+  // Build the context value — recreated every render; panels re-render
+  // accordingly (acceptable for a tool of this complexity).
+  const ideShared: IdeShared = {
+    dark, toggleTheme,
+    tree, showHidden, setShowHidden, setFetchDialog, openFile, treeAction, refreshTree,
+    tabs, active, setActive, activeTab, closeTab, onEdit,
+    save, format, reloadFile, editorRef, diagnose, fontSize, setFontSize,
+    debug, debugLoc, dbgCommand, keys,
+    startDebugFromDialog: startDebug,
+    bpFor, bpMetaFor, allBreakpoints, setBreakpoints, setBpDialog,
+    pane, setPane, outChunks, outMode, setOutMode, clearOut,
+    stack, locals, selectedFrame, setSelectedFrame, onFrameClick, gotoFrame,
+    evals, setEvals, evalOne, addEval,
+    setDialog, setInspectTarget, setOutputDialog,
+    docs, reloadDocs, docPanelOpen, toggleDocsPanel,
+    modules, status,
+  };
+
   return (
-    <ThemeProvider theme={muiTheme}>
-      <CssBaseline />
-      <Box className="ide" data-theme={theme}>
-        <IdeStyles />
-        <AppBar position="static" color="default" elevation={1}>
-          <Toolbar variant="dense" sx={{ gap: 1 }}>
-            <Typography variant="h6" sx={{ fontSize: "1.05rem", fontWeight: 700 }}>
-              Gad IDE
-            </Typography>
-            <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: "40vw" }} title={workspace.root}>
-              {workspace.root}
-            </Typography>
-            <Box sx={{ flex: 1 }} />
-            <Button size="small" onClick={() => setKeybinds(true)}>
-              ⌨ Keys
-            </Button>
-            <Button size="small" onClick={() => setSettings(true)}>
-              ⚙ Settings
-            </Button>
-            <IconButton size="small" onClick={toggleTheme} title="Toggle theme">
-              {dark ? "☀" : "☾"}
-            </IconButton>
-          </Toolbar>
-        </AppBar>
-
-      <div className="ide-main">
-        <aside className="ide-sidebar">
-          <div className="side-head">
-            <span>Explorer</span>
-            <span style={{ flex: 1 }} />
-            <IconButton
-              size="small"
-              title={showHidden ? "Hide hidden files" : "Show hidden files"}
-              onClick={() => setShowHidden((v) => !v)}
-            >
-              {showHidden ? (
-                <VisibilityIcon fontSize="small" />
-              ) : (
-                <VisibilityOffIcon fontSize="small" />
-              )}
-            </IconButton>
-            <IconButton
-              size="small"
-              title="Get file from web"
-              onClick={() => setFetchDialog(true)}
-            >
-              <AddLinkIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              title="New file"
-              onClick={async () => {
-                const name = prompt("New file path (relative to workspace):", "untitled.gad");
-                if (!name) return;
-                await ideApi.mkfile(name);
-                await refreshTree();
-                openFile(name);
-              }}
-            >
-              <AddIcon fontSize="small" />
-            </IconButton>
-          </div>
-          <div className="tree">
-            {tree?.children?.map((n) => (
-              <TreeView
-                key={n.path}
-                node={n}
-                activePath={activeTab?.path}
-                onOpen={openFile}
-                onAction={treeAction}
-              />
-            ))}
-          </div>
-        </aside>
-
-        <section className="ide-center">
-          <div className="tabbar">
-            {tabs.map((t, i) => (
-              <div key={t.path} className={"tab" + (i === active ? " active" : "")} onClick={() => setActive(i)}>
-                <span>
-                  {t.path.split("/").pop()}
-                  {t.saved ? "" : " •"}
-                </span>
-                <span
-                  className="x"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeTab(i);
-                  }}
-                >
-                  ✕
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <Toolbar variant="dense" className="toolbar" disableGutters sx={{ gap: 1, minHeight: 44 }}>
-            <Button size="small" variant="outlined" onClick={save} disabled={!activeTab}>
-              Save
-            </Button>
-            <Button size="small" variant="outlined" onClick={format} disabled={!activeTab}>
-              Format
-            </Button>
-            <Tooltip title="Reload from disk">
-              <span>
-                <IconButton size="small" onClick={reloadFile} disabled={!activeTab}>
-                  <RefreshIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title="Undo">
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={() => editorRef.current?.undo()}
-                  disabled={!activeTab}
-                >
-                  <UndoIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title="Redo">
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={() => editorRef.current?.redo()}
-                  disabled={!activeTab}
-                >
-                  <RedoIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Button
-              size="small"
-              variant="contained"
-              color="success"
-              onClick={() => activeTab && setDialog({ kind: "run", tab: activeTab })}
-              disabled={!activeTab}
-            >
-              Run ▶
-            </Button>
-            <Button
-              size="small"
-              variant="contained"
-              color="warning"
-              onClick={() => activeTab && setDialog({ kind: "debug", tab: activeTab })}
-              disabled={!activeTab}
-            >
-              Debug 🐞
-            </Button>
-            {debug && (
-              <Box className="dbgbar">
-                <Tooltip title={`Resume (${keys.continue})`}>
-                  <Button size="small" onClick={() => dbgCommand("continue")}>
-                    Continue ({keys.continue})
-                  </Button>
-                </Tooltip>
-                <Tooltip title={`Step over (${keys.stepOver})`}>
-                  <Button size="small" onClick={() => dbgCommand("next")}>
-                    Step Over ({keys.stepOver})
-                  </Button>
-                </Tooltip>
-                <Tooltip title={`Step into (${keys.stepInto})`}>
-                  <Button size="small" onClick={() => dbgCommand("stepIn")}>
-                    Step In ({keys.stepInto})
-                  </Button>
-                </Tooltip>
-                <Tooltip title={`Step out (${keys.stepOut})`}>
-                  <Button size="small" onClick={() => dbgCommand("stepOut")}>
-                    Step Out ({keys.stepOut})
-                  </Button>
-                </Tooltip>
-                <Button size="small" color="error" onClick={() => dbgCommand("stop")}>
-                  Stop
+    <IdeCtx.Provider value={ideShared}>
+      <ThemeProvider theme={muiTheme}>
+        <CssBaseline />
+        <Box className="ide" data-theme={theme}>
+          <IdeStyles />
+          <AppBar position="static" color="default" elevation={1}>
+            <Toolbar variant="dense" sx={{ gap: 1 }}>
+              <Typography variant="h6" sx={{ fontSize: "1.05rem", fontWeight: 700 }}>
+                Gad IDE
+              </Typography>
+              <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: "40vw" }} title={workspace.root}>
+                {workspace.root}
+              </Typography>
+              <Box sx={{ flex: 1 }} />
+              <Tooltip title="Reset panels to default layout">
+                <Button size="small" startIcon={<ViewQuiltIcon />} onClick={resetPanels}>
+                  Reset Panels
                 </Button>
-              </Box>
-            )}
-            <Box sx={{ flex: 1 }} />
-            <Tooltip title="Toggle doc-comments panel">
-              <Button
-                size="small"
-                variant={docPanel ? "contained" : "outlined"}
-                onClick={() => setDocPanel((v) => !v)}
-              >
-                Docs
-              </Button>
-            </Tooltip>
-            <Box className="font-control" title="Editor font size">
-              <Button size="small" onClick={() => setFontSize(fontSize - 1)}>
-                A−
-              </Button>
-              <span className="font-size">{fontSize}px</span>
-              <Button size="small" onClick={() => setFontSize(fontSize + 1)}>
-                A+
-              </Button>
-            </Box>
-            <Typography variant="caption" color="text.secondary">
-              {status}
-            </Typography>
-          </Toolbar>
+              </Tooltip>
+              <Button size="small" onClick={() => setKeybinds(true)}>⌨ Keys</Button>
+              <Button size="small" onClick={() => setSettings(true)}>⚙ Settings</Button>
+              <IconButton size="small" onClick={toggleTheme} title="Toggle theme">
+                {dark ? "☀" : "☾"}
+              </IconButton>
+            </Toolbar>
+          </AppBar>
 
-          <div className="editor-host">
-            {activeTab ? (
-              <Editor
-                key={activeTab.path}
-                ref={editorRef}
-                initialDoc={activeTab.content}
-                language={langForPath(activeTab.path)}
-                diagnose={langForPath(activeTab.path) === "gad" ? diagnose : undefined}
-                dark={dark}
-                onChange={onEdit}
-                breakpoints={bpFor(activeTab.path)}
-                onBreakpointsChange={(lines) => setBreakpoints(activeTab.path, lines)}
-                fontSize={fontSize}
-                debugLine={debug && debug.path === activeTab.path ? debugLoc?.line : undefined}
-                debugColumn={debug && debug.path === activeTab.path ? debugLoc?.column : undefined}
-                locals={debug && debug.path === activeTab.path ? locals : undefined}
-                onInspectVar={(name) => setInspectTarget({ title: name, expr: name })}
-              />
-            ) : (
-              <div className="empty">Open a file from the explorer</div>
-            )}
-            {docPanel && (
-              <DocPanel
-                docs={docs}
-                onReload={reloadDocs}
-                onClose={() => setDocPanel(false)}
-                onGoto={(line) => editorRef.current?.gotoLocation(line, 1)}
-              />
-            )}
-          </div>
+          <DockviewReact
+            className={`ide-dockview ${dark ? "dockview-theme-dark" : "dockview-theme-light"}`}
+            components={DOCKVIEW_COMPONENTS as never}
+            onReady={onDockviewReady}
+          />
 
-          <div className="panes">
-            <div className="pane-tabs">
-              {(["output", "stack", "locals", "breakpoints", "evaluate"] as Pane[]).map((p) => (
-                <button key={p} className={pane === p ? "on" : ""} onClick={() => setPane(p)}>
-                  {p === "output"
-                    ? "Output"
-                    : p === "stack"
-                      ? "Call stack"
-                      : p === "locals"
-                        ? "Locals"
-                        : p === "breakpoints"
-                          ? "Breakpoints"
-                          : "Evaluate"}
-                </button>
-              ))}
-              <span className="spacer" />
-              {pane === "output" && (
-                <>
-                  <button
-                    className={outMode === "combined" ? "on" : ""}
-                    title="Combined stdout+stderr"
-                    onClick={() => setOutMode("combined")}
-                  >
-                    Combined
-                  </button>
-                  <button
-                    className={outMode === "split" ? "on" : ""}
-                    title="Split stdout / stderr"
-                    onClick={() => setOutMode("split")}
-                  >
-                    Split
-                  </button>
-                  <button onClick={clearOut}>Clear</button>
-                </>
-              )}
-            </div>
-            {pane === "output" && outMode === "combined" && (
-              <pre className="pane-body out-log">
-                {outChunks.length === 0 ? (
-                  <span className="muted">(no output)</span>
-                ) : (
-                  outChunks.map((c, i) => (
-                    <span key={i} className={c.stream === "err" ? "out-err" : undefined}>
-                      {c.text}
-                    </span>
-                  ))
-                )}
-              </pre>
-            )}
-            {pane === "output" && outMode === "split" && (
-              <div className="pane-body out-split">
-                <div className="out-col">
-                  <div className="out-col-head">stdout</div>
-                  <pre>{outChunks.filter((c) => c.stream === "out").map((c) => c.text).join("")}</pre>
-                </div>
-                <div className="out-col">
-                  <div className="out-col-head out-err">stderr</div>
-                  <pre className="out-err">
-                    {outChunks.filter((c) => c.stream === "err").map((c) => c.text).join("")}
-                  </pre>
-                </div>
-              </div>
-            )}
-            {pane === "stack" && (
-              <div className="pane-body">
-                {(stack || []).map((f, i) => (
-                  <div
-                    key={i}
-                    className={"frame" + (i === selectedFrame ? " selected" : "")}
-                    title={`${f.file}:${f.line}:${f.column} — click to inspect, double-click to open`}
-                    onClick={() => onFrameClick(i, f)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <span className="fn">{f.name || "main"}</span>{" "}
-                    <span className="muted">
-                      {f.file ? `${f.file.split("/").pop()}:` : ""}
-                      {f.line}:{f.column}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {pane === "locals" &&
-              (() => {
-                const frame = stack && stack[selectedFrame];
-                const frameLocals = frame ? frame.locals : locals;
-                return (
-                  <div className="pane-body">
-                    {frame && (
-                      <div className="locals-head muted">
-                        {frame.name || "main"} — {frame.file ? frame.file.split("/").pop() + ":" : ""}
-                        {frame.line}:{frame.column}
-                      </div>
-                    )}
-                    <table className="locals">
-                      <tbody>
-                        {(frameLocals || []).map((v, i) => (
-                          <tr key={i}>
-                            <td>{v.name}</td>
-                            <td className="muted">{v.type}</td>
-                            <td>{v.value}</td>
-                            <td className="locals-copy">
-                              <IconButton
-                                size="small"
-                                title="Inspect (tree)"
-                                onClick={() => setInspectTarget({ title: v.name, expr: v.name })}
-                              >
-                                <AccountTreeIcon sx={{ fontSize: 14 }} />
-                              </IconButton>
-                              <IconButton
-                                size="small"
-                                title="Copy value"
-                                onClick={() => copyText(v.value)}
-                              >
-                                <ContentCopyIcon sx={{ fontSize: 14 }} />
-                              </IconButton>
-                            </td>
-                          </tr>
-                        ))}
-                        {(frameLocals || []).length === 0 && (
-                          <tr>
-                            <td className="muted">(no locals)</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })()}
-            {pane === "breakpoints" && (
-              <div className="pane-body">
-                <div className="bp-scope">
-                  <button className={bpScope === "current" ? "on" : ""} onClick={() => setBpScope("current")}>
-                    Current file
-                  </button>
-                  <button className={bpScope === "all" ? "on" : ""} onClick={() => setBpScope("all")}>
-                    All
-                  </button>
-                </div>
-                {bpScope === "current" ? (
-                  <BreakpointList
-                    path={activeTab?.path}
-                    lines={bpFor(activeTab?.path)}
-                    meta={bpMetaFor(activeTab?.path)}
-                    onEdit={(line) => activeTab && setBpDialog({ path: activeTab.path, line })}
-                    onRemove={(line) =>
-                      activeTab && setBreakpoints(activeTab.path, bpFor(activeTab.path).filter((l) => l !== line))
-                    }
-                    onNavigate={(line) => editorRef.current?.gotoLocation(line, 1)}
-                  />
-                ) : (
-                  <BreakpointGroups
-                    all={allBreakpoints()}
-                    onOpen={openFile}
-                    onNavigate={(file, line) => void gotoFrame(file, line, 1)}
-                    onRemove={(file, line) => setBreakpoints(file, (allBreakpoints()[file] || []).filter((l) => l !== line))}
-                  />
-                )}
-              </div>
-            )}
-            {pane === "evaluate" && (
-              <EvaluatePanel
-                entries={evals}
-                dark={dark}
-                onAdd={addEval}
-                onUpdate={async (id, expr, repr) => {
-                  const updated = await evalOne({ id, expr, repr, value: "", error: "" });
-                  setEvals((cur) => cur.map((e) => (e.id === id ? updated : e)));
-                }}
-                onRemove={(id) => setEvals((cur) => cur.filter((e) => e.id !== id))}
-                onShowOutput={(e) =>
-                  setOutputDialog({ title: e.expr, text: e.error || e.value })
-                }
-                onCopy={copyText}
-                onInspect={(e) => setInspectTarget({ title: e.expr, expr: e.expr })}
-              />
-            )}
-          </div>
-        </section>
-      </div>
-
-      {dialog && (
-        <RunDialog
-          kind={dialog.kind}
-          tab={dialog.tab}
-          modules={modules}
-          onCancel={() => setDialog(null)}
-          onRun={(cfg) => {
-            setDialog(null);
-            doRun(dialog.tab, cfg);
-          }}
-          onDebug={(cfg, entry) => {
-            setDialog(null);
-            persistRunCfg(dialog.tab.path, cfg);
-            startDebug(dialog.tab, entry);
-          }}
-        />
-      )}
-
-      {settings && (
-        <SettingsDialog
-          config={config}
-          onClose={() => setSettings(false)}
-          onSave={async (next) => {
-            setConfig(next);
-            await ideApi.saveConfig(next);
-            setSettings(false);
-            setStatus("settings saved");
-          }}
-        />
-      )}
-
-      {keybinds && (
-        <KeybindingsDialog
-          config={config}
-          onClose={() => setKeybinds(false)}
-          onSave={async (next) => {
-            setConfig(next);
-            await ideApi.saveConfig(next);
-            setKeybinds(false);
-            setStatus("keybindings saved");
-          }}
-        />
-      )}
-      {removeTarget && (
-        <RemoveDialog
-          node={removeTarget}
-          onClose={() => setRemoveTarget(null)}
-          onConfirm={confirmRemove}
-        />
-      )}
-      {bpDialog && (
-        <BreakpointDialog
-          line={bpDialog.line}
-          dark={dark}
-          initial={bpMetaFor(bpDialog.path)[bpDialog.line] || {}}
-          onClose={() => setBpDialog(null)}
-          onSave={(meta) => {
-            setBpMeta(bpDialog.path, bpDialog.line, meta);
-            setBpDialog(null);
-          }}
-        />
-      )}
-      {inspectTarget && (
-        <InspectDialog
-          title={inspectTarget.title}
-          rootExpr={inspectTarget.expr}
-          inspect={inspectExpr}
-          onClose={() => setInspectTarget(null)}
-          onGotoSource={(file) => { setInspectTarget(null); void openFile(file); }}
-        />
-      )}
-      {outputDialog && (
-        <Dialog open onClose={() => setOutputDialog(null)} maxWidth="md" fullWidth>
-          <DialogTitle>{outputDialog.title}</DialogTitle>
-          <DialogContent dividers>
-            <TextField
-              multiline
-              fullWidth
-              minRows={6}
-              maxRows={20}
-              value={outputDialog.text}
-              slotProps={{
-                input: { readOnly: true, sx: { fontFamily: "ui-monospace, monospace", fontSize: ".85rem" } },
+          {dialog && (
+            <RunDialog
+              kind={dialog.kind}
+              tab={dialog.tab}
+              modules={modules}
+              onCancel={() => setDialog(null)}
+              onRun={(cfg) => { setDialog(null); doRun(dialog.tab, cfg); }}
+              onDebug={(cfg, entry) => {
+                setDialog(null);
+                persistRunCfg(dialog.tab.path, cfg);
+                startDebug(dialog.tab, entry);
               }}
             />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => copyText(outputDialog.text)}>Copy</Button>
-            <Box sx={{ flex: 1 }} />
-            <Button variant="contained" onClick={() => setOutputDialog(null)}>
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
-      )}
-      {errorDialog && (
-        <Dialog open onClose={() => setErrorDialog(null)} maxWidth="sm" fullWidth>
-          <DialogTitle>{errorDialog.title}</DialogTitle>
-          <DialogContent dividers>
-            <Typography
-              component="pre"
-              sx={{ whiteSpace: "pre-wrap", fontFamily: "ui-monospace, monospace", fontSize: ".85rem", m: 0 }}
-            >
-              {errorDialog.detail}
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => copyText(errorDialog.detail)}>Copy</Button>
-            <Box sx={{ flex: 1 }} />
-            <Button variant="contained" onClick={() => setErrorDialog(null)}>
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
-      )}
-      {fetchDialog && (
-        <FetchFromWebDialog
-          defaultDir={activeTab ? activeTab.path.split("/").slice(0, -1).join("/") : ""}
-          onClose={() => setFetchDialog(false)}
-          onFetch={async (url, path) => {
-            try {
-              await ideApi.fetchUrl(url, path);
-              setFetchDialog(false);
-              await refreshTree();
-              await openFile(path);
-            } catch (e) {
-              reportError("Fetch failed", e);
-            }
-          }}
-        />
-      )}
-      </Box>
-    </ThemeProvider>
+          )}
+          {settings && (
+            <SettingsDialog
+              config={config}
+              onClose={() => setSettings(false)}
+              onSave={async (next) => { setConfig(next); await ideApi.saveConfig(next); setSettings(false); setStatus("settings saved"); }}
+            />
+          )}
+          {keybinds && (
+            <KeybindingsDialog
+              config={config}
+              onClose={() => setKeybinds(false)}
+              onSave={async (next) => { setConfig(next); await ideApi.saveConfig(next); setKeybinds(false); setStatus("keybindings saved"); }}
+            />
+          )}
+          {removeTarget && (
+            <RemoveDialog node={removeTarget} onClose={() => setRemoveTarget(null)} onConfirm={confirmRemove} />
+          )}
+          {bpDialog && (
+            <BreakpointDialog
+              line={bpDialog.line}
+              dark={dark}
+              initial={bpMetaFor(bpDialog.path)[bpDialog.line] || {}}
+              onClose={() => setBpDialog(null)}
+              onSave={(meta) => { setBpMeta(bpDialog.path, bpDialog.line, meta); setBpDialog(null); }}
+            />
+          )}
+          {inspectTarget && (
+            <InspectDialog
+              title={inspectTarget.title}
+              rootExpr={inspectTarget.expr}
+              inspect={inspectExpr}
+              onClose={() => setInspectTarget(null)}
+              onGotoSource={(file) => { setInspectTarget(null); void openFile(file); }}
+            />
+          )}
+          {outputDialog && (
+            <Dialog open onClose={() => setOutputDialog(null)} maxWidth="md" fullWidth>
+              <DialogTitle>{outputDialog.title}</DialogTitle>
+              <DialogContent dividers>
+                <TextField
+                  multiline fullWidth minRows={6} maxRows={20}
+                  value={outputDialog.text}
+                  slotProps={{ input: { readOnly: true, sx: { fontFamily: "ui-monospace, monospace", fontSize: ".85rem" } } }}
+                />
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => copyText(outputDialog.text)}>Copy</Button>
+                <Box sx={{ flex: 1 }} />
+                <Button variant="contained" onClick={() => setOutputDialog(null)}>Close</Button>
+              </DialogActions>
+            </Dialog>
+          )}
+          {errorDialog && (
+            <Dialog open onClose={() => setErrorDialog(null)} maxWidth="sm" fullWidth>
+              <DialogTitle>{errorDialog.title}</DialogTitle>
+              <DialogContent dividers>
+                <Typography component="pre" sx={{ whiteSpace: "pre-wrap", fontFamily: "ui-monospace, monospace", fontSize: ".85rem", m: 0 }}>
+                  {errorDialog.detail}
+                </Typography>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => copyText(errorDialog.detail)}>Copy</Button>
+                <Box sx={{ flex: 1 }} />
+                <Button variant="contained" onClick={() => setErrorDialog(null)}>Close</Button>
+              </DialogActions>
+            </Dialog>
+          )}
+          {fetchDialog && (
+            <FetchFromWebDialog
+              defaultDir={activeTab ? activeTab.path.split("/").slice(0, -1).join("/") : ""}
+              onClose={() => setFetchDialog(false)}
+              onFetch={async (url, path) => {
+                try {
+                  await ideApi.fetchUrl(url, path);
+                  setFetchDialog(false);
+                  await refreshTree();
+                  await openFile(path);
+                } catch (e) { reportError("Fetch failed", e); }
+              }}
+            />
+          )}
+        </Box>
+      </ThemeProvider>
+    </IdeCtx.Provider>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Dialog & utility components (unchanged from original)
+// ---------------------------------------------------------------------------
+
 function FetchFromWebDialog({
-  defaultDir,
-  onClose,
-  onFetch,
+  defaultDir, onClose, onFetch,
 }: {
   defaultDir: string;
   onClose: () => void;
@@ -1307,60 +1396,29 @@ function FetchFromWebDialog({
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
   const [dir, setDir] = useState(defaultDir);
-
   const resolvedPath = () => {
     const filename = name.trim() || (url.split("/").pop()?.split("?")[0] ?? "file");
     const d = dir.trim();
     return d ? `${d}/${filename}` : filename;
   };
-
   return (
     <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Get file from web</DialogTitle>
       <DialogContent dividers>
-        <TextField
-          fullWidth
-          autoFocus
-          size="small"
-          label="URL"
-          placeholder="https://example.com/file.gad"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          sx={{ mb: 2 }}
-        />
-        <TextField
-          fullWidth
-          size="small"
-          label="Output filename (leave blank to use URL filename)"
-          placeholder="file.gad"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          sx={{ mb: 2 }}
-        />
-        <TextField
-          fullWidth
-          size="small"
-          label="Target directory (relative to workspace)"
-          placeholder="e.g. samples"
-          value={dir}
-          onChange={(e) => setDir(e.target.value)}
-          helperText={`Saves to: ${resolvedPath()}`}
-        />
+        <TextField fullWidth autoFocus size="small" label="URL" placeholder="https://example.com/file.gad" value={url} onChange={(e) => setUrl(e.target.value)} sx={{ mb: 2 }} />
+        <TextField fullWidth size="small" label="Output filename (leave blank to use URL filename)" placeholder="file.gad" value={name} onChange={(e) => setName(e.target.value)} sx={{ mb: 2 }} />
+        <TextField fullWidth size="small" label="Target directory (relative to workspace)" placeholder="e.g. samples" value={dir} onChange={(e) => setDir(e.target.value)} helperText={`Saves to: ${resolvedPath()}`} />
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" disabled={!url.trim()} onClick={() => onFetch(url.trim(), resolvedPath())}>
-          Download
-        </Button>
+        <Button variant="contained" disabled={!url.trim()} onClick={() => onFetch(url.trim(), resolvedPath())}>Download</Button>
       </DialogActions>
     </Dialog>
   );
 }
 
 function KeybindingsDialog({
-  config,
-  onClose,
-  onSave,
+  config, onClose, onSave,
 }: {
   config: Record<string, unknown>;
   onClose: () => void;
@@ -1368,30 +1426,23 @@ function KeybindingsDialog({
 }) {
   const [bindings, setBindings] = useState<Record<string, string>>(keysFromConfig(config));
   const [capturing, setCapturing] = useState<string | null>(null);
-
   useEffect(() => {
     if (!capturing) return;
     const h = (e: KeyboardEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.key === "Escape") {
-        setCapturing(null);
-        return;
-      }
-      if (MODIFIER_KEYS.includes(e.key)) return; // wait for the non-modifier key
+      e.preventDefault(); e.stopPropagation();
+      if (e.key === "Escape") { setCapturing(null); return; }
+      if (MODIFIER_KEYS.includes(e.key)) return;
       setBindings((b) => ({ ...b, [capturing]: eventToKey(e) }));
       setCapturing(null);
     };
     window.addEventListener("keydown", h, true);
     return () => window.removeEventListener("keydown", h, true);
   }, [capturing]);
-
   function save() {
     const ide = { ...((config.ide as Record<string, unknown>) || {}) };
     ide.keys = bindings;
     onSave({ ...config, ide });
   }
-
   return (
     <Dialog open onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle>Debugger keybindings</DialogTitle>
@@ -1403,11 +1454,7 @@ function KeybindingsDialog({
           {KEY_ACTIONS.map((a) => (
             <div key={a.action} className="kb-row">
               <span>{a.label}</span>
-              <Button
-                size="small"
-                variant={capturing === a.action ? "contained" : "outlined"}
-                onClick={() => setCapturing(a.action)}
-              >
+              <Button size="small" variant={capturing === a.action ? "contained" : "outlined"} onClick={() => setCapturing(a.action)}>
                 {capturing === a.action ? "press a key…" : bindings[a.action] || "—"}
               </Button>
             </div>
@@ -1418,20 +1465,14 @@ function KeybindingsDialog({
         <Button onClick={() => setBindings({ ...DEFAULT_KEYS })}>Reset to defaults</Button>
         <Box sx={{ flex: 1 }} />
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={save}>
-          Save
-        </Button>
+        <Button variant="contained" onClick={save}>Save</Button>
       </DialogActions>
     </Dialog>
   );
 }
 
-type TreeAction = "open" | "rename" | "remove" | "run" | "format" | "transpile";
-
 function RemoveDialog({
-  node,
-  onClose,
-  onConfirm,
+  node, onClose, onConfirm,
 }: {
   node: TreeNode;
   onClose: () => void;
@@ -1444,9 +1485,7 @@ function RemoveDialog({
     <Dialog open onClose={onClose}>
       <DialogTitle>Remove {node.dir ? "directory" : "file"}</DialogTitle>
       <DialogContent>
-        <Typography>
-          Remove <code>{node.path}</code>?
-        </Typography>
+        <Typography>Remove <code>{node.path}</code>?</Typography>
         {nonEmptyDir && (
           <FormControlLabel
             sx={{ mt: 1 }}
@@ -1457,19 +1496,14 @@ function RemoveDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button color="error" variant="contained" disabled={blocked} onClick={() => onConfirm(recursive)}>
-          Remove
-        </Button>
+        <Button color="error" variant="contained" disabled={blocked} onClick={() => onConfirm(recursive)}>Remove</Button>
       </DialogActions>
     </Dialog>
   );
 }
 
 function TreeView({
-  node,
-  activePath,
-  onOpen,
-  onAction,
+  node, activePath, onOpen, onAction,
 }: {
   node: TreeNode;
   activePath?: string;
@@ -1478,35 +1512,16 @@ function TreeView({
 }) {
   const [open, setOpen] = useState(true);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
-
-  const onContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setMenu({ x: e.clientX, y: e.clientY });
-  };
+  const onContextMenu = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY }); };
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "F2") {
-      e.preventDefault();
-      onAction("rename", node);
-    } else if (e.key === "Delete") {
-      e.preventDefault();
-      onAction("remove", node);
-    }
+    if (e.key === "F2") { e.preventDefault(); onAction("rename", node); }
+    else if (e.key === "Delete") { e.preventDefault(); onAction("remove", node); }
   };
   const close = () => setMenu(null);
-  const act = (a: TreeAction) => {
-    close();
-    onAction(a, node);
-  };
-
+  const act = (a: TreeAction) => { close(); onAction(a, node); };
   const isGad = /\.gadt?$/.test(node.name);
   const contextMenu = (
-    <Menu
-      open={!!menu}
-      onClose={close}
-      anchorReference="anchorPosition"
-      anchorPosition={menu ? { top: menu.y, left: menu.x } : undefined}
-    >
+    <Menu open={!!menu} onClose={close} anchorReference="anchorPosition" anchorPosition={menu ? { top: menu.y, left: menu.x } : undefined}>
       {!node.dir && <MenuItem onClick={() => act("open")}>Open</MenuItem>}
       {!node.dir && isGad && <MenuItem onClick={() => act("run")}>Run</MenuItem>}
       {!node.dir && isGad && <MenuItem onClick={() => act("format")}>Format</MenuItem>}
@@ -1515,17 +1530,10 @@ function TreeView({
       <MenuItem onClick={() => act("remove")}>Remove…</MenuItem>
     </Menu>
   );
-
   if (node.dir) {
     return (
       <div>
-        <div
-          className="node"
-          tabIndex={0}
-          onClick={() => setOpen((o) => !o)}
-          onContextMenu={onContextMenu}
-          onKeyDown={onKeyDown}
-        >
+        <div className="node" tabIndex={0} onClick={() => setOpen((o) => !o)} onContextMenu={onContextMenu} onKeyDown={onKeyDown}>
           {open ? "📂" : "📁"} {node.name}
         </div>
         {contextMenu}
@@ -1540,70 +1548,15 @@ function TreeView({
     );
   }
   return (
-    <div
-      className={"node file" + (node.path === activePath ? " active" : "")}
-      tabIndex={0}
-      onClick={() => onOpen(node.path)}
-      onContextMenu={onContextMenu}
-      onKeyDown={onKeyDown}
-    >
+    <div className={"node file" + (node.path === activePath ? " active" : "")} tabIndex={0} onClick={() => onOpen(node.path)} onContextMenu={onContextMenu} onKeyDown={onKeyDown}>
       📄 {node.name}
       {contextMenu}
     </div>
   );
 }
 
-function DocPanel({
-  docs,
-  onReload,
-  onClose,
-  onGoto,
-}: {
-  docs: DocComment[];
-  onReload: () => void;
-  onClose: () => void;
-  onGoto: (line: number) => void;
-}) {
-  return (
-    <div className="doc-panel">
-      <div className="doc-head">
-        <span>Doc comments</span>
-        <span style={{ flex: 1 }} />
-        <IconButton size="small" title="Reload" onClick={onReload}>
-          <RefreshIcon fontSize="small" />
-        </IconButton>
-        <IconButton size="small" title="Close" onClick={onClose}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </div>
-      <div className="doc-body">
-        {docs.length === 0 && <div className="muted">No doc comments in this file.</div>}
-        {docs.map((d, i) => (
-          <div key={i} className="doc-entry">
-            <div className="doc-entry-head" onClick={() => onGoto(d.line)} title={`Go to line ${d.line}`}>
-              <span className={"doc-kind doc-kind-" + d.kind}>{d.kind}</span>
-              <span className="doc-title">{d.title || `line ${d.line}`}</span>
-            </div>
-            <div
-              className="doc-content language-gad"
-              dangerouslySetInnerHTML={{ __html: renderDocMarkdown(d.content) }}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function EvaluatePanel({
-  entries,
-  dark,
-  onAdd,
-  onUpdate,
-  onRemove,
-  onShowOutput,
-  onCopy,
-  onInspect,
+  entries, dark, onAdd, onUpdate, onRemove, onShowOutput, onCopy, onInspect,
 }: {
   entries: EvalEntry[];
   dark?: boolean;
@@ -1617,34 +1570,18 @@ function EvaluatePanel({
   const [expr, setExpr] = useState("");
   const [repr, setRepr] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
-
   const submit = () => {
     const e = expr.trim();
     if (!e) return;
-    if (editing !== null) {
-      onUpdate(editing, e, repr);
-      setEditing(null);
-    } else {
-      onAdd(e, repr);
-    }
-    setExpr("");
-    setRepr(false);
+    if (editing !== null) { onUpdate(editing, e, repr); setEditing(null); }
+    else onAdd(e, repr);
+    setExpr(""); setRepr(false);
   };
-
   return (
     <div className="pane-body eval">
       <div className="eval-form">
-        <GadInput
-          value={expr}
-          onChange={setExpr}
-          onSubmit={submit}
-          dark={dark}
-          placeholder="expression"
-        />
-        <FormControlLabel
-          control={<Checkbox size="small" checked={repr} onChange={(ev) => setRepr(ev.target.checked)} />}
-          label="repr"
-        />
+        <GadInput value={expr} onChange={setExpr} onSubmit={submit} dark={dark} placeholder="expression" />
+        <FormControlLabel control={<Checkbox size="small" checked={repr} onChange={(ev) => setRepr(ev.target.checked)} />} label="repr" />
         <IconButton size="small" title={editing !== null ? "Save" : "Add"} onClick={submit}>
           {editing !== null ? <RefreshIcon fontSize="small" /> : <AddIcon fontSize="small" />}
         </IconButton>
@@ -1656,15 +1593,7 @@ function EvaluatePanel({
               <td className="eval-expr">{e.repr ? "repr " : ""}{e.expr}</td>
               <td className="eval-val">{e.error || e.value}</td>
               <td className="eval-actions">
-                <IconButton
-                  size="small"
-                  title="Edit"
-                  onClick={() => {
-                    setEditing(e.id);
-                    setExpr(e.expr);
-                    setRepr(e.repr);
-                  }}
-                >
+                <IconButton size="small" title="Edit" onClick={() => { setEditing(e.id); setExpr(e.expr); setRepr(e.repr); }}>
                   <EditIcon sx={{ fontSize: 14 }} />
                 </IconButton>
                 <IconButton size="small" title="Inspect (tree)" onClick={() => onInspect(e)}>
@@ -1683,9 +1612,7 @@ function EvaluatePanel({
             </tr>
           ))}
           {entries.length === 0 && (
-            <tr>
-              <td className="muted">(no expressions — add one above)</td>
-            </tr>
+            <tr><td className="muted">(no expressions — add one above)</td></tr>
           )}
         </tbody>
       </table>
@@ -1694,12 +1621,7 @@ function EvaluatePanel({
 }
 
 function BreakpointList({
-  path,
-  lines,
-  meta,
-  onEdit,
-  onRemove,
-  onNavigate,
+  path, lines, meta, onEdit, onRemove, onNavigate,
 }: {
   path?: string;
   lines: number[];
@@ -1716,19 +1638,11 @@ function BreakpointList({
         const m = meta[l] || {};
         return (
           <li key={l} className={m.disabled ? "bp-disabled" : ""}>
-            <span
-              className="bp-entry"
-              title="Click to edit condition · Double-click to go to line"
-              onClick={() => onEdit(l)}
-              onDoubleClick={() => onNavigate(l)}
-            >
-              line {l}
-              {m.disabled ? " (disabled)" : ""}
+            <span className="bp-entry" title="Click to edit condition · Double-click to go to line" onClick={() => onEdit(l)} onDoubleClick={() => onNavigate(l)}>
+              line {l}{m.disabled ? " (disabled)" : ""}
               {m.condition ? <em className="bp-cond"> if {m.condition}</em> : null}
             </span>
-            <button className="x" title="Remove" onClick={() => onRemove(l)}>
-              ✕
-            </button>
+            <button className="x" title="Remove" onClick={() => onRemove(l)}>✕</button>
           </li>
         );
       })}
@@ -1737,11 +1651,7 @@ function BreakpointList({
 }
 
 function BreakpointDialog({
-  line,
-  dark,
-  initial,
-  onClose,
-  onSave,
+  line, dark, initial, onClose, onSave,
 }: {
   line: number;
   dark?: boolean;
@@ -1755,36 +1665,22 @@ function BreakpointDialog({
     <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Breakpoint — line {line}</DialogTitle>
       <DialogContent dividers>
-        <FormControlLabel
-          control={<Checkbox checked={disabled} onChange={(e) => setDisabled(e.target.checked)} />}
-          label="Disabled (ignore this breakpoint while debugging)"
-        />
+        <FormControlLabel control={<Checkbox checked={disabled} onChange={(e) => setDisabled(e.target.checked)} />} label="Disabled (ignore this breakpoint while debugging)" />
         <Typography variant="caption" sx={{ display: "block", mt: 1, mb: 0.5, color: "text.secondary" }}>
           Condition (Gad expression) — pauses only when truthy. Locals are in scope.
         </Typography>
-        <GadInput
-          value={condition}
-          onChange={setCondition}
-          onSubmit={() => onSave({ disabled, condition })}
-          dark={dark}
-          placeholder="e.g. i > 10"
-        />
+        <GadInput value={condition} onChange={setCondition} onSubmit={() => onSave({ disabled, condition })} dark={dark} placeholder="e.g. i > 10" />
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={() => onSave({ disabled, condition })}>
-          Save
-        </Button>
+        <Button variant="contained" onClick={() => onSave({ disabled, condition })}>Save</Button>
       </DialogActions>
     </Dialog>
   );
 }
 
 function BreakpointGroups({
-  all,
-  onOpen,
-  onNavigate,
-  onRemove,
+  all, onOpen, onNavigate, onRemove,
 }: {
   all: Record<string, number[]>;
   onOpen: (path: string) => void;
@@ -1797,22 +1693,12 @@ function BreakpointGroups({
     <div>
       {files.sort().map((file) => (
         <div key={file} className="bp-group">
-          <div className="bp-file" onClick={() => onOpen(file)} title="Click to open file">
-            {file}
-          </div>
+          <div className="bp-file" onClick={() => onOpen(file)} title="Click to open file">{file}</div>
           <ul className="bp-list">
             {[...all[file]].sort((a, b) => a - b).map((l) => (
               <li key={l}>
-                <span
-                  className="bp-entry"
-                  title="Double-click to go to line"
-                  onDoubleClick={() => onNavigate(file, l)}
-                >
-                  line {l}
-                </span>
-                <button className="x" title="Remove" onClick={() => onRemove(file, l)}>
-                  ✕
-                </button>
+                <span className="bp-entry" title="Double-click to go to line" onDoubleClick={() => onNavigate(file, l)}>line {l}</span>
+                <button className="x" title="Remove" onClick={() => onRemove(file, l)}>✕</button>
               </li>
             ))}
           </ul>
@@ -1823,12 +1709,7 @@ function BreakpointGroups({
 }
 
 function RunDialog({
-  kind,
-  tab,
-  modules,
-  onCancel,
-  onRun,
-  onDebug,
+  kind, tab, modules, onCancel, onRun, onDebug,
 }: {
   kind: "run" | "debug";
   tab: OpenTab;
@@ -1845,108 +1726,50 @@ function RunDialog({
   const [saveStderr, setSaveStderr] = useState(tab.runCfg.saveStderr ?? "");
   const [combine, setCombine] = useState(tab.runCfg.combine ?? false);
   const [entry, setEntry] = useState(false);
-
-  const toggle = (name: string) =>
-    setDisabled((d) => (d.includes(name) ? d.filter((n) => n !== name) : [...d, name]));
-
+  const toggle = (name: string) => setDisabled((d) => (d.includes(name) ? d.filter((n) => n !== name) : [...d, name]));
   const cfg = (): RunConfig => ({
     args: args.split("\n").map((s) => s.trim()).filter(Boolean),
-    disabled,
-    safe,
-    saveOut: "",
-    saveStdout: saveStdout.trim(),
-    saveStderr: saveStderr.trim(),
-    combine,
+    disabled, safe, saveOut: "", saveStdout: saveStdout.trim(), saveStderr: saveStderr.trim(), combine,
   });
-
-  // Shared settings shown on both tabs (args + modules + safe mode).
   const sharedFields = (
     <>
-      <TextField
-        label="Arguments (one per line)"
-        multiline
-        minRows={3}
-        fullWidth
-        margin="dense"
-        value={args}
-        onChange={(e) => setArgs(e.target.value)}
-      />
-      <Typography variant="subtitle2" sx={{ mt: 1 }}>
-        Builtin modules (checked = enabled)
-      </Typography>
+      <TextField label="Arguments (one per line)" multiline minRows={3} fullWidth margin="dense" value={args} onChange={(e) => setArgs(e.target.value)} />
+      <Typography variant="subtitle2" sx={{ mt: 1 }}>Builtin modules (checked = enabled)</Typography>
       <Box className="mods">
         {modules.map((m) => (
-          <FormControlLabel
-            key={m.name}
-            control={<Checkbox size="small" checked={!disabled.includes(m.name)} onChange={() => toggle(m.name)} />}
-            label={m.name + (m.unsafe ? " (unsafe)" : "")}
-          />
+          <FormControlLabel key={m.name} control={<Checkbox size="small" checked={!disabled.includes(m.name)} onChange={() => toggle(m.name)} />} label={m.name + (m.unsafe ? " (unsafe)" : "")} />
         ))}
       </Box>
-      <FormControlLabel
-        control={<Checkbox checked={safe} onChange={(e) => setSafe(e.target.checked)} />}
-        label="Safe mode (disable unsafe modules)"
-      />
+      <FormControlLabel control={<Checkbox checked={safe} onChange={(e) => setSafe(e.target.checked)} />} label="Safe mode (disable unsafe modules)" />
     </>
   );
-
   return (
     <Dialog open onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>{tab.path}</DialogTitle>
       <Tabs value={tabIdx} onChange={(_, v: number) => setTabIdx(v)} sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}>
-        <Tab label="Run" />
-        <Tab label="Debug" />
+        <Tab label="Run" /><Tab label="Debug" />
       </Tabs>
       <DialogContent dividers>
         {tabIdx === 0 && (
           <>
             {sharedFields}
-            <TextField
-              label="Save stdout to file (optional)"
-              fullWidth
-              margin="dense"
-              value={saveStdout}
-              onChange={(e) => setSaveStdout(e.target.value)}
-              placeholder="stdout.log"
-            />
-            <TextField
-              label="Save stderr to file (optional)"
-              fullWidth
-              margin="dense"
-              value={saveStderr}
-              onChange={(e) => setSaveStderr(e.target.value)}
-              placeholder="stderr.log"
-              disabled={combine}
-              helperText={combine ? "Combined: both streams go to the stdout file" : ""}
-            />
-            <FormControlLabel
-              control={<Checkbox checked={combine} onChange={(e) => setCombine(e.target.checked)} />}
-              label="Combine stdout+stderr into the stdout file"
-            />
+            <TextField label="Save stdout to file (optional)" fullWidth margin="dense" value={saveStdout} onChange={(e) => setSaveStdout(e.target.value)} placeholder="stdout.log" />
+            <TextField label="Save stderr to file (optional)" fullWidth margin="dense" value={saveStderr} onChange={(e) => setSaveStderr(e.target.value)} placeholder="stderr.log" disabled={combine} helperText={combine ? "Combined: both streams go to the stdout file" : ""} />
+            <FormControlLabel control={<Checkbox checked={combine} onChange={(e) => setCombine(e.target.checked)} />} label="Combine stdout+stderr into the stdout file" />
           </>
         )}
         {tabIdx === 1 && (
           <>
             {sharedFields}
-            <FormControlLabel
-              sx={{ mt: 1 }}
-              control={<Checkbox checked={entry} onChange={(e) => setEntry(e.target.checked)} />}
-              label="Stop on entry (set breakpoints by clicking the gutter)"
-            />
+            <FormControlLabel sx={{ mt: 1 }} control={<Checkbox checked={entry} onChange={(e) => setEntry(e.target.checked)} />} label="Stop on entry (set breakpoints by clicking the gutter)" />
           </>
         )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel}>Cancel</Button>
-        {tabIdx === 0 ? (
-          <Button variant="contained" onClick={() => onRun(cfg())}>
-            Run
-          </Button>
-        ) : (
-          <Button variant="contained" onClick={() => onDebug(cfg(), entry)}>
-            Start Debug
-          </Button>
-        )}
+        {tabIdx === 0
+          ? <Button variant="contained" onClick={() => onRun(cfg())}>Run</Button>
+          : <Button variant="contained" onClick={() => onDebug(cfg(), entry)}>Start Debug</Button>}
       </DialogActions>
     </Dialog>
   );
@@ -1959,9 +1782,7 @@ const NEWLINE_FLAGS: [string, string][] = [
 ];
 
 function SettingsDialog({
-  config,
-  onClose,
-  onSave,
+  config, onClose, onSave,
 }: {
   config: Record<string, unknown>;
   onClose: () => void;
@@ -1969,41 +1790,26 @@ function SettingsDialog({
 }) {
   const fmt = (config.fmt as Record<string, unknown>) || {};
   const transpile = (config.transpile as Record<string, unknown>) || {};
-  // Checked = expanded layout (default, no key); unchecked writes no-…: true.
   const [expanded, setExpanded] = useState<Record<string, boolean>>(
     Object.fromEntries(NEWLINE_FLAGS.map(([k]) => [k, fmt[k] !== true])),
   );
   const [backup, setBackup] = useState(fmt.backup === true);
-  // Transpile options (.gad.yaml → transpile). Empty fields fall back to the
-  // built-in defaults on the backend, so we keep them as plain strings here.
   const [writeFunc, setWriteFunc] = useState(String(transpile.writeFunc ?? ""));
   const [rawStart, setRawStart] = useState(String(transpile.rawStrFuncStart ?? ""));
   const [rawEnd, setRawEnd] = useState(String(transpile.rawStrFuncEnd ?? ""));
-
   function save() {
     const fmtObj: Record<string, unknown> = { ...fmt };
     for (const [k] of NEWLINE_FLAGS) {
-      if (expanded[k]) delete fmtObj[k];
-      else fmtObj[k] = true;
+      if (expanded[k]) delete fmtObj[k]; else fmtObj[k] = true;
     }
-    if (backup) fmtObj.backup = true;
-    else delete fmtObj.backup;
-
+    if (backup) fmtObj.backup = true; else delete fmtObj.backup;
     const trObj: Record<string, unknown> = { ...transpile };
-    const setOrDel = (k: string, v: string) => {
-      if (v.trim() === "") delete trObj[k];
-      else trObj[k] = v;
-    };
-    setOrDel("writeFunc", writeFunc);
-    setOrDel("rawStrFuncStart", rawStart);
-    setOrDel("rawStrFuncEnd", rawEnd);
-
+    const setOrDel = (k: string, v: string) => { if (v.trim() === "") delete trObj[k]; else trObj[k] = v; };
+    setOrDel("writeFunc", writeFunc); setOrDel("rawStrFuncStart", rawStart); setOrDel("rawStrFuncEnd", rawEnd);
     const next: Record<string, unknown> = { ...config, fmt: fmtObj };
-    if (Object.keys(trObj).length > 0) next.transpile = trObj;
-    else delete next.transpile;
+    if (Object.keys(trObj).length > 0) next.transpile = trObj; else delete next.transpile;
     onSave(next);
   }
-
   return (
     <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Settings</DialogTitle>
@@ -2011,80 +1817,49 @@ function SettingsDialog({
         <Typography variant="subtitle2">Formatter (.gad.yaml → fmt)</Typography>
         <Box sx={{ display: "flex", flexDirection: "column" }}>
           {NEWLINE_FLAGS.map(([k, label]) => (
-            <FormControlLabel
-              key={k}
-              control={
-                <Checkbox
-                  checked={expanded[k]}
-                  onChange={(e) => setExpanded((s) => ({ ...s, [k]: e.target.checked }))}
-                />
-              }
-              label={label}
-            />
+            <FormControlLabel key={k} control={<Checkbox checked={expanded[k]} onChange={(e) => setExpanded((s) => ({ ...s, [k]: e.target.checked }))} />} label={label} />
           ))}
-          <FormControlLabel
-            control={<Checkbox checked={backup} onChange={(e) => setBackup(e.target.checked)} />}
-            label="Keep .backup on format"
-          />
+          <FormControlLabel control={<Checkbox checked={backup} onChange={(e) => setBackup(e.target.checked)} />} label="Keep .backup on format" />
         </Box>
-
-        <Typography variant="subtitle2" sx={{ mt: 2 }}>
-          Transpile (.gad.yaml → transpile)
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Applied to <code>.gad</code>/<code>.gadt</code> transpile. Leave blank for defaults.
-        </Typography>
+        <Typography variant="subtitle2" sx={{ mt: 2 }}>Transpile (.gad.yaml → transpile)</Typography>
+        <Typography variant="caption" color="text.secondary">Applied to <code>.gad</code>/<code>.gadt</code> transpile. Leave blank for defaults.</Typography>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
-          <TextField
-            size="small"
-            label="Write function"
-            placeholder="write"
-            value={writeFunc}
-            onChange={(e) => setWriteFunc(e.target.value)}
-          />
-          <TextField
-            size="small"
-            label="Raw-string func start"
-            placeholder="rawstr("
-            value={rawStart}
-            onChange={(e) => setRawStart(e.target.value)}
-          />
-          <TextField
-            size="small"
-            label="Raw-string func end"
-            placeholder=";cast)"
-            value={rawEnd}
-            onChange={(e) => setRawEnd(e.target.value)}
-          />
+          <TextField size="small" label="Write function" placeholder="write" value={writeFunc} onChange={(e) => setWriteFunc(e.target.value)} />
+          <TextField size="small" label="Raw-string func start" placeholder="rawstr(" value={rawStart} onChange={(e) => setRawStart(e.target.value)} />
+          <TextField size="small" label="Raw-string func end" placeholder=";cast)" value={rawEnd} onChange={(e) => setRawEnd(e.target.value)} />
         </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={save}>
-          Save
-        </Button>
+        <Button variant="contained" onClick={save}>Save</Button>
       </DialogActions>
     </Dialog>
   );
 }
 
-/** IdeStyles injects the IDE-only layout CSS (kept out of the playground styles). */
+/** IdeStyles injects the IDE-only layout CSS. */
 function IdeStyles() {
   return (
     <style>{`
+/* IDE shell */
 .ide{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font-size:14px}
-.ide-header{display:flex;align-items:center;gap:.5rem;padding:.4rem .7rem;border-bottom:1px solid var(--border);background:var(--panel)}
-.ide-header .brand{font-weight:700}
-.ide-header .ws{color:var(--muted);font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw}
-.ide .spacer{flex:1}
-.ide-main{flex:1;display:flex;min-height:0}
-.ide-sidebar{width:240px;border-right:1px solid var(--border);background:var(--panel);overflow:auto;padding:.4rem}
+.ide-dockview{flex:1;min-height:0}
+
+/* Dockview theme integration */
+.dockview-theme-light,.dockview-theme-dark{--dv-background-color:var(--bg);--dv-tabs-and-actions-container-background-color:var(--panel);--dv-activegroup-visiblepanel-tab-background-color:var(--bg);--dv-activegroup-hiddenpanel-tab-background-color:var(--panel);--dv-inactivegroup-visiblepanel-tab-background-color:var(--panel);--dv-inactivegroup-hiddenpanel-tab-background-color:var(--panel);--dv-tab-divider-color:var(--border);--dv-separator-border:var(--border);--dv-tabs-and-actions-container-font-size:12px;--dv-tab-color:var(--muted);--dv-activegroup-visiblepanel-tab-color:var(--fg);--dv-group-view-background-color:var(--bg)}
+.dv-tab{padding:0 .7rem !important;font-size:.82rem !important}
+.dv-void-container{background:var(--bg)}
+
+/* Explorer panel */
+.ide-sidebar{height:100%;overflow:auto;padding:.4rem;background:var(--panel)}
 .side-head{display:flex;justify-content:space-between;align-items:center;font-size:.72rem;text-transform:uppercase;color:var(--muted);letter-spacing:.05em;padding:.2rem .3rem}
 .tree .node{padding:.12rem .3rem;border-radius:4px;cursor:pointer;white-space:nowrap}
 .tree .node:hover{background:var(--code-bg,rgba(125,125,125,.12))}
 .tree .node.active{background:var(--accent);color:#fff}
 .tree .children{margin-left:.8rem}
-.ide-center{flex:1;display:flex;flex-direction:column;min-width:0}
+
+/* Editor panel */
+.ide-center{height:100%;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
 .tabbar{display:flex;overflow:auto;border-bottom:1px solid var(--border);background:var(--panel)}
 .tabbar .tab{display:flex;gap:.4rem;align-items:center;padding:.3rem .6rem;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap}
 .tabbar .tab.active{background:var(--bg)}
@@ -2095,26 +1870,11 @@ function IdeStyles() {
 .font-control .font-size{color:var(--muted);font-size:.8rem;min-width:2.6rem;text-align:center}
 .dbgbar{display:flex;gap:.3rem}
 .editor-host{flex:1;min-height:0;display:flex}
-.doc-panel{width:320px;min-width:200px;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column;overflow:hidden}
-.doc-head{display:flex;align-items:center;gap:.3rem;padding:.3rem .6rem;border-bottom:1px solid var(--border);font-size:.72rem;text-transform:uppercase;color:var(--muted);letter-spacing:.05em}
-.doc-body{flex:1;overflow:auto;padding:.4rem .6rem}
-.doc-entry{margin-bottom:.7rem}
-.doc-entry-head{display:flex;align-items:center;gap:.4rem;cursor:pointer}
-.doc-entry-head:hover .doc-title{color:var(--accent)}
-.doc-title{font-family:ui-monospace,monospace;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.doc-kind{font-size:.62rem;text-transform:uppercase;padding:0 .3rem;border-radius:3px;background:var(--code-bg,rgba(125,125,125,.18));color:var(--muted)}
-.doc-kind-root{background:var(--accent);color:#fff}
-.doc-content{margin:.2rem 0 0;font-size:.82rem;color:var(--fg);line-height:1.45}
-.doc-content p{margin:.3rem 0}
-.doc-content h1,.doc-content h2,.doc-content h3,.doc-content h4{margin:.5rem 0 .25rem;font-size:.92rem}
-.doc-content ul{margin:.3rem 0;padding-left:1.1rem}
-.doc-content code{font-family:ui-monospace,monospace;font-size:.92em;background:var(--code-bg,rgba(125,125,125,.15));padding:0 .2rem;border-radius:3px}
-.doc-content blockquote{margin:.3rem 0;padding-left:.6rem;border-left:3px solid var(--border);color:var(--muted)}
-.doc-content pre.doc-code{margin:.4rem 0;padding:.4rem .6rem;overflow:auto;background:var(--code-bg,rgba(125,125,125,.12));border-radius:5px}
-.doc-content pre.doc-code code{background:none;padding:0;white-space:pre}
 .editor-host>div{flex:1;min-width:0}
 .editor-host .empty{margin:auto;color:var(--muted)}
-.panes{height:200px;border-top:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column;resize:vertical;overflow:hidden}
+
+/* Output panel */
+.panes-dockview{height:100%;display:flex;flex-direction:column;background:var(--panel)}
 .pane-tabs{display:flex;gap:.3rem;align-items:center;padding:.25rem .6rem;border-bottom:1px solid var(--border)}
 .pane-tabs button.on{background:var(--accent);color:#fff}
 .out-log .out-err{color:#e5484d}
@@ -2125,14 +1885,13 @@ function IdeStyles() {
 .out-split .out-col-head.out-err{color:#e5484d}
 .out-split pre{flex:1;overflow:auto;margin:0;padding:.4rem .6rem;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:.85rem}
 .out-split pre.out-err{color:#e5484d}
-.panes .pane-body{flex:1;overflow:auto;margin:0;padding:.5rem .8rem;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:.85rem}
+.panes-dockview .pane-body{flex:1;overflow:auto;margin:0;padding:.5rem .8rem;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:.85rem}
 .frame{padding:.1rem .3rem;border-radius:4px}
 .frame:hover{background:var(--code-bg,rgba(125,125,125,.12))}
 .frame.selected{background:var(--accent);color:#fff}
 .frame.selected .muted{color:rgba(255,255,255,.8)}
 .frame .fn{font-weight:600}
 .locals-head{margin-bottom:.3rem;font-size:.8rem}
-.muted{color:var(--muted)}
 table.locals td{padding:.1rem .5rem;border-bottom:1px solid var(--border);font-family:ui-monospace,monospace}
 table.locals td.locals-copy{padding:0;width:1.6rem;text-align:right;opacity:0;transition:opacity .1s}
 table.locals tr:hover td.locals-copy{opacity:.8}
@@ -2144,15 +1903,6 @@ table.eval-list td.eval-expr{white-space:nowrap;color:var(--muted)}
 table.eval-list td.eval-val{white-space:pre-wrap;word-break:break-word}
 table.eval-list tr.err td.eval-val{color:#e5484d}
 table.eval-list td.eval-actions{width:9rem;text-align:right;white-space:nowrap;opacity:.3;transition:opacity .1s}
-.tree-nav{font-family:ui-monospace,monospace;font-size:.85rem}
-.tn-row{display:flex;align-items:center;gap:.5rem;padding:.1rem .2rem;cursor:default;border-radius:4px}
-.tn-row:hover{background:var(--code-bg,rgba(125,125,125,.12))}
-.tn-twist{width:1rem;color:var(--muted);text-align:center}
-.tn-key{color:var(--accent)}
-.tn-type{color:var(--muted);font-size:.78rem}
-.tn-val{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
-.tn-goto{background:none;border:none;cursor:pointer;padding:0 2px;font-size:.85em;opacity:.5;color:inherit;line-height:1}.tn-goto:hover{opacity:1}
-.tn-loading{color:var(--muted)}
 table.eval-list tr:hover td.eval-actions{opacity:.9}
 .bp-scope{display:flex;gap:.3rem;margin-bottom:.4rem}
 .bp-scope button.on{background:var(--accent);color:#fff}
@@ -2168,15 +1918,42 @@ table.eval-list tr:hover td.eval-actions{opacity:.9}
 .bp-list .bp-entry:hover{color:var(--accent)}
 .bp-list li.bp-disabled{opacity:.5}
 .bp-list .bp-cond{color:var(--muted);font-style:italic}
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:50}
-.modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:1rem 1.2rem;min-width:380px;max-width:90vw;max-height:85vh;overflow:auto}
-.modal h3{margin:.2rem 0 .8rem}
-.modal .row{display:flex;flex-direction:column;gap:.25rem;margin:.5rem 0}
+
+/* Docs / MD preview panel */
+.dock-panel-fill{height:100%;display:flex;flex-direction:column;background:var(--panel);overflow:hidden}
+.doc-body{flex:1;overflow:auto;padding:.4rem .6rem}
+.doc-entry{margin-bottom:.7rem}
+.doc-entry-head{display:flex;align-items:center;gap:.4rem;cursor:pointer}
+.doc-entry-head:hover .doc-title{color:var(--accent)}
+.doc-title{font-family:ui-monospace,monospace;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-kind{font-size:.62rem;text-transform:uppercase;padding:0 .3rem;border-radius:3px;background:var(--code-bg,rgba(125,125,125,.18));color:var(--muted)}
+.doc-kind-root{background:var(--accent);color:#fff}
+.doc-content{margin:.2rem 0 0;font-size:.82rem;color:var(--fg);line-height:1.45}
+.doc-content p{margin:.3rem 0}
+.doc-content h1,.doc-content h2,.doc-content h3,.doc-content h4{margin:.5rem 0 .25rem;font-size:.92rem}
+.doc-content ul{margin:.3rem 0;padding-left:1.1rem}
+.doc-content code{font-family:ui-monospace,monospace;font-size:.92em;background:var(--code-bg,rgba(125,125,125,.15));padding:0 .2rem;border-radius:3px}
+.doc-content blockquote{margin:.3rem 0;padding-left:.6rem;border-left:3px solid var(--border);color:var(--muted)}
+.doc-content pre.doc-code{margin:.4rem 0;padding:.4rem .6rem;overflow:auto;background:var(--code-bg,rgba(125,125,125,.12));border-radius:5px}
+.doc-content pre.doc-code code{background:none;padding:0;white-space:pre}
+
+/* Tree navigator */
+.tree-nav{font-family:ui-monospace,monospace;font-size:.85rem}
+.tn-row{display:flex;align-items:center;gap:.5rem;padding:.1rem .2rem;cursor:default;border-radius:4px}
+.tn-row:hover{background:var(--code-bg,rgba(125,125,125,.12))}
+.tn-twist{width:1rem;color:var(--muted);text-align:center}
+.tn-key{color:var(--accent)}
+.tn-type{color:var(--muted);font-size:.78rem}
+.tn-val{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.tn-goto{background:none;border:none;cursor:pointer;padding:0 2px;font-size:.85em;opacity:.5;color:inherit;line-height:1}.tn-goto:hover{opacity:1}
+.tn-loading{color:var(--muted)}
+
+/* Misc */
 .mods{display:grid;grid-template-columns:1fr 1fr;gap:0 .8rem;max-height:180px;overflow:auto}
 .keybinds{display:flex;flex-direction:column;gap:.4rem;margin:.5rem 0}
 .kb-row{display:flex;align-items:center;justify-content:space-between;gap:1rem}
 .kb-row button{min-width:7rem;font-family:ui-monospace,monospace}
-.kb-row button.capturing{outline:2px solid var(--accent)}
+.muted{color:var(--muted)}
     `}</style>
   );
 }

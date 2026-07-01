@@ -1,8 +1,20 @@
 # IDE epic (`web/ide` backend + `web/app` React frontend)
-- [ ] change ui to use `dockview-react` package with dock/undock, move, resizable panels. 
+- [x] change ui to use `dockview-react` package with dock/undock, move, resizable panels. 
   save all ui panel config (and positions and sizes) to config file.
   create button on top bar to reset panels config.
-- [ ] change ui to use plugin for edit `.md` files and render it in left tab like `DOCS`.
+  Done: Ide.tsx refactored — IDE shell replaced by DockviewReact with 5 panel
+  components (ExplorerPanel, EditorPanel, OutputPanel, DocsPanel, MdPreviewPanel)
+  shared via IdeCtx. Layout serialised to config.ide.panels on every change via
+  onDidLayoutChange→saveConfig. Restored via api.fromJSON on onReady. "Reset
+  Panels" button in AppBar clears config.ide.panels + rebuilds default layout.
+  dockview-react@7.0.2 installed; CSS theme vars mapped to existing --bg/--panel vars.
+  Typecheck + vite build → exit 0.
+- [x] change ui to use plugin for edit `.md` files and render it in left tab like `DOCS`.
+  Done: Editor.tsx gains @codemirror/lang-markdown + "markdown" language case;
+  langForPath maps .md/.mdx → "markdown". MdPreviewPanel renders renderDocMarkdown
+  of the active .md file's content as a dockview tab in the left (Explorer) panel
+  group. Panel auto-opens when a .md file becomes active; auto-closes when the
+  active tab is no longer .md.
 
 # web/js projects
 - [x] replace all runner of `pnpm` to `bun`, update docs and scripts.

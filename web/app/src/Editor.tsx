@@ -10,6 +10,7 @@ import { json } from "@codemirror/lang-json";
 import { html } from "@codemirror/lang-html";
 import { css } from "@codemirror/lang-css";
 import { javascript } from "@codemirror/lang-javascript";
+import { markdown } from "@codemirror/lang-markdown";
 import { yaml as yamlMode } from "@codemirror/legacy-modes/mode/yaml";
 import { breakpointGutter, getBreakpointLines, setEditorBreakpoints } from "./breakpointGutter";
 import { debugDecorations, setDebugLoc, type LocalVar } from "./debugDecorations";
@@ -25,6 +26,7 @@ export type EditorLanguage =
   | "typescript"
   | "jsx"
   | "tsx"
+  | "markdown"
   | "text";
 
 /** Return the CodeMirror Extension for the given language. */
@@ -49,6 +51,8 @@ function langExtension(lang: EditorLanguage, diagnose?: DiagnoseFn): Extension {
       return javascript({ jsx: true });
     case "tsx":
       return javascript({ jsx: true, typescript: true });
+    case "markdown":
+      return markdown();
     default:
       return []; // plain text — no syntax
   }
