@@ -86,6 +86,7 @@ function langForPath(path: string): EditorLanguage {
   }
 }
 import { marked } from "marked";
+import { ReadonlyCode } from "./ReadonlyCode";
 import { InspectDialog, type InspectFn } from "./TreeNavigator";
 import { renderDocMarkdown } from "./docMarkdown";
 import { GadInput } from "./GadInput";
@@ -103,9 +104,17 @@ import {
 } from "./backends/ide";
 
 // OutMode selects how the Output panel presents a run's streams: the text views
-// (combined / split stdout+stderr) or a rendering of stdout as JSON, HTML or
-// Markdown.
-type OutMode = "combined" | "split" | "json" | "html" | "markdown";
+// (combined / split stdout+stderr), a rendering of stdout as JSON / HTML /
+// Markdown, or the highlighted HTML / Markdown source (…-src) in a read-only
+// CodeMirror.
+type OutMode =
+  | "combined"
+  | "split"
+  | "json"
+  | "html"
+  | "markdown"
+  | "html-src"
+  | "markdown-src";
 
 interface OpenTab {
   path: string;
@@ -484,6 +493,9 @@ function OutputTextPanel(_: IDockviewPanelProps) {
         {btn("html", "HTML", "Render stdout as HTML")}
         {btn("markdown", "MD", "Render stdout as Markdown")}
         <span className="out-sep" />
+        {btn("html-src", "HTML{}", "Show stdout as highlighted HTML source")}
+        {btn("markdown-src", "MD{}", "Show stdout as highlighted Markdown source")}
+        <span className="out-sep" />
         <button onClick={ide.clearOut}>Clear</button>
       </div>
       {outMode === "combined" && (
@@ -507,7 +519,7 @@ function OutputTextPanel(_: IDockviewPanelProps) {
           </div>
         </div>
       )}
-      {(outMode === "json" || outMode === "html" || outMode === "markdown") && (
+      {outMode !== "combined" && outMode !== "split" && (
         <div className="pane-body out-render">
           {stdout.trim() === "" && <div className="muted" style={{ padding: ".4rem .6rem" }}>(no stdout)</div>}
           {outMode === "json" && stdout.trim() !== "" && (() => {
@@ -515,7 +527,7 @@ function OutputTextPanel(_: IDockviewPanelProps) {
             return (
               <>
                 {error && <div className="out-err" style={{ padding: ".3rem .6rem", fontSize: ".75rem" }}>Invalid JSON: {error} — showing raw text</div>}
-                <pre className="out-log" style={{ margin: 0 }}>{text}</pre>
+                <div className="out-code"><ReadonlyCode value={text} language="json" dark={ide.dark} /></div>
               </>
             );
           })()}
@@ -529,6 +541,12 @@ function OutputTextPanel(_: IDockviewPanelProps) {
               sandbox=""
               srcDoc={`<!doctype html><meta charset="utf-8"><style>body{font:14px/1.5 system-ui,sans-serif;margin:.6rem;color:#1b263b}pre,code{font-family:ui-monospace,monospace}pre{background:#f2f3f5;padding:.6rem;border-radius:4px;overflow:auto}table{border-collapse:collapse}th,td{border:1px solid #ccc;padding:.2rem .5rem}img{max-width:100%}</style>${marked.parse(stdout, { async: false }) as string}`}
             />
+          )}
+          {outMode === "html-src" && stdout.trim() !== "" && (
+            <div className="out-code"><ReadonlyCode value={stdout} language="html" dark={ide.dark} /></div>
+          )}
+          {outMode === "markdown-src" && stdout.trim() !== "" && (
+            <div className="out-code"><ReadonlyCode value={stdout} language="markdown" dark={ide.dark} /></div>
           )}
           {stderr.trim() !== "" && (
             <pre className="out-err out-render-stderr">{stderr}</pre>
@@ -2424,6 +2442,8 @@ function IdeStyles() {
 .out-render{display:flex;flex-direction:column;padding:0;white-space:normal}
 .out-render .out-frame{flex:1;width:100%;border:0;background:#fff}
 .out-render pre.out-log{flex:1;overflow:auto;white-space:pre-wrap;padding:.4rem .6rem}
+.out-render .out-code{flex:1;min-height:0;overflow:hidden}
+.out-render .out-code .cm-editor{height:100%}
 .out-render .out-render-stderr{flex:0 0 auto;max-height:8rem;overflow:auto;margin:0;padding:.4rem .6rem;border-top:1px solid var(--border);white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:.85rem}
 .panes-dockview .pane-body{flex:1;overflow:auto;margin:0;padding:.5rem .8rem;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:.85rem}
 .frame{padding:.1rem .3rem;border-radius:4px}
