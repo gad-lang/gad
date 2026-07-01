@@ -1,0 +1,1 @@
+(function(){var b=document.getElementById("theme");if(!b)return;function cur(){return document.documentElement.dataset.theme==="dark"?"dark":"light"}b.textContent=cur()==="dark"?"☀":"☾";b.onclick=function(){var t=cur()==="dark"?"light":"dark";document.documentElement.dataset.theme=t;localStorage.setItem("gad-theme",t);b.textContent=t==="dark"?"☀":"☾"}})();

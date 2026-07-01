@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embedding Gad in Go · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link active" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="embedding-gad-in-go">Embedding Gad in Go</h1>
+<p><a href="index.html">← Back to index</a></p>
+<p>Gad is built to be embedded. A script is compiled to a <code>Bytecode</code> object and then run on a <code>VM</code>. This chapter shows the minimal flow and the common extension points.</p>
+<h2 id="minimal-example">Minimal Example</h2>
+<pre><code class="language-go">package main
+
+import (
+	"fmt"
+
+	"github.com/gad-lang/gad"
+)
+
+func main() {
+	script := `
+param *args
+global multiplier
+return [x * multiplier for x in args]
+`
+	builtins := gad.NewBuiltins()
+	st := gad.NewSymbolTable(builtins.NameSet)
+
+	_, bc, err := gad.Compile(st, []byte(script), gad.CompileOptions{})
+	if err != nil {
+		panic(err)
+	}
+
+	ret, err := gad.NewVM(builtins.Build(), bc).RunOpts(&amp;gad.RunOpts{
+		Globals: gad.Dict{"multiplier": gad.Int(2)},
+		Args:    gad.Args{gad.Array{gad.Int(1), gad.Int(2), gad.Int(3), gad.Int(4)}},
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(ret) // [2, 4, 6, 8]
+}</code></pre>
+<p>The flow is:</p>
+<ol>
+<li><strong>Builtins</strong> — <code>gad.NewBuiltins()</code> creates the builtin set; <code>.NameSet</code> seeds</li>
+</ol>
+<p>   the symbol table and <code>.Build()</code> produces the runtime objects.</p>
+<ol>
+<li><strong>Symbol table</strong> — <code>gad.NewSymbolTable(builtins.NameSet)</code> tracks declared</li>
+</ol>
+<p>   names at compile time.</p>
+<ol>
+<li><strong>Compile</strong> — <code>gad.Compile(st, src, opts)</code> returns the bytecode (<code>bc</code>).</li>
+<li><strong>Run</strong> — <code>gad.NewVM(builtins.Build(), bc).RunOpts(&amp;gad.RunOpts{…})</code> executes</li>
+</ol>
+<p>   it and returns the script's <code>return</code> value as a <code>gad.Object</code>.</p>
+<h2 id="passing-globals-and-arguments">Passing Globals and Arguments</h2>
+<ul>
+<li><code>Globals</code> is any map-like <code>gad.Object</code> (e.g. <code>gad.Dict</code>). Script <code>global</code></li>
+</ul>
+<p>  declarations read and write through it, so it is also how the script returns   data back to Go by mutation.</p>
+<ul>
+<li><code>Args</code> provides the positional/variadic values consumed by the script's</li>
+</ul>
+<p>  <code>param</code> statement.</p>
+<pre><code class="language-go">RunOpts{
+    Globals: gad.Dict{"multiplier": gad.Int(2)},
+    Args:    gad.Args{gad.Array{gad.Int(1), gad.Int(2)}},
+}</code></pre>
+<h2 id="exposing-go-functions">Exposing Go Functions</h2>
+<p>A Go function exposed as a <code>*gad.Function</code> becomes callable from a script. Returning a <code>gad.Array</code> lets the script destructure multiple values:</p>
+<pre><code class="language-go">globals := gad.Dict{
+    "goAdd": &amp;gad.Function{
+        FuncName: "goAdd",
+        Value: func(c gad.Call) (gad.Object, error) {
+            a := c.Args.Get(0).(gad.Int)
+            b := c.Args.Get(1).(gad.Int)
+            return a + b, nil
+        },
+    },
+}
+// script: global goAdd; return goAdd(2, 3)</code></pre>
+<p>For wrapping existing Go functions with less boilerplate, the repository provides the <code>cmd/mkcallable</code> code generator.</p>
+<h2 id="typed-methods-with-addmethod">Typed Methods with <code>AddMethod</code></h2>
+<p>A plain <code>*gad.Function</code> has one body that must type-check its own arguments. To give a callable <strong>several typed overloads</strong> that the VM dispatches on by argument type — and to surface their signatures in <code>repr(f; indent)</code> and generated docs — build each overload with <code>gad.NewFunction(...)</code> plus <code>gad.FunctionWithParams</code> / <code>gad.FunctionWithNamedParams</code>, then attach them with <code>gad.AddMethod</code>.</p>
+<p><strong>Convention:</strong> prefer <code>AddMethod</code> (over a single hand-rolled type switch) whenever a builtin function or type accepts more than one argument shape. Each overload then carries a declared header, dispatch is handled by the VM, and the signatures show up in tooling.</p>
+<pre><code class="language-go">// A `clamp` builtin with two typed overloads. The VM picks the int or the
+// float method based on the argument types; an unmatched call falls through to
+// the function's default body (here, an error).
+clamp := gad.NewFunction("clamp",
+    func(c gad.Call) (gad.Object, error) {
+        return nil, gad.NewArgumentTypeError("0", "int|float", c.Args.Get(0).Type().Name())
+    })
+
+method := func(t gad.ObjectType, run func(c gad.Call) (gad.Object, error)) *gad.Function {
+    return gad.NewFunction("clamp", run,
+        gad.FunctionWithParams(func(p func(name string) *gad.ParamBuilder) {
+            p("v").Type(t)
+            p("lo").Type(t)
+            p("hi").Type(t)
+        }))
+}
+
+gad.AddMethod(clamp,
+    method(gad.TInt, func(c gad.Call) (gad.Object, error) {
+        v, lo, hi := c.Args.Get(0).(gad.Int), c.Args.Get(1).(gad.Int), c.Args.Get(2).(gad.Int)
+        return max(lo, min(v, hi)), nil
+    }),
+    method(gad.TFloat, func(c gad.Call) (gad.Object, error) {
+        v, lo, hi := c.Args.Get(0).(gad.Float), c.Args.Get(1).(gad.Float), c.Args.Get(2).(gad.Float)
+        return max(lo, min(v, hi)), nil
+    }),
+)
+// script: global clamp; return [clamp(5, 0, 3), clamp(0.2, 0.0, 1.0)] // [3, 0.2]</code></pre>
+<p><code>AddMethod</code> works on any method target: a <code>*gad.Function</code> (as above), a builtin object type (<code>*gad.BuiltinObjType</code>), or a registered global builtin. For a <strong>type</strong>, the overloads become typed constructors/methods:</p>
+<pre><code class="language-go">// Add typed single-argument constructors to a builtin type. Each delegates to
+// the type's own constructor; the typed `T(v &lt;kind&gt;)` headers then appear in
+// repr(T; indent). (`AddMethod` mutates the type in place.)
+gad.AddMethod(MyType,
+    gad.NewFunction("MyType", myTypeNew,
+        gad.FunctionWithParams(func(p func(name string) *gad.ParamBuilder) {
+            p("v").Type(gad.TStr)
+        })),
+    gad.NewFunction("MyType", myTypeNew,
+        gad.FunctionWithParams(func(p func(name string) *gad.ParamBuilder) {
+            p("v").Type(gad.TInt)
+        })),
+)</code></pre>
+<p>For a <strong>global builtin</strong> registered in <code>gad.BuiltinObjects</code>, use <code>gad.BuiltinObjects.AddMethod(BuiltinX, methods...)</code> instead of the package-level <code>AddMethod</code> — it reassigns the entry so the methods survive the static-builtins snapshot. (See <code>objects_range.go</code> for the <code>Range</code> type and <code>module_time_ctors.go</code> for the time-module constructors, both built this way.)</p>
+<p><code>gad.AddMethodOverride(true, target, methods...)</code> replaces an existing overload with the same parameter types instead of erroring on the duplicate.</p>
+<h2 id="operators-on-custom-types">Operators on custom types</h2>
+<p>A Go type opts into a binary operator by implementing the matching per-operator interface from the generated <code>op_api.go</code> — one interface per operator, named <code>ObjectWith{Op}BinOperator</code> with a method <code>BinOp{Op}(vm *VM, right Object)</code>:</p>
+<pre><code class="language-go">// Vec supports `vec + vec` and `vec &lt; vec`.
+type Vec struct{ X, Y int }
+
+func (v Vec) BinOpAdd(_ *gad.VM, right gad.Object) (gad.Object, error) {
+    o, ok := right.(Vec)
+    if !ok {
+        return nil, gad.NewOperandTypeError("+", "Vec", right.Type().Name())
+    }
+    return Vec{v.X + o.X, v.Y + o.Y}, nil
+}
+
+func (v Vec) BinOpLess(_ *gad.VM, right gad.Object) (gad.Object, error) {
+    o, ok := right.(Vec)
+    if !ok {
+        return nil, gad.NewOperandTypeError("&lt;", "Vec", right.Type().Name())
+    }
+    return gad.Bool(v.X*v.X+v.Y*v.Y &lt; o.X*o.X+o.Y*o.Y), nil
+}</code></pre>
+<p>A type implements only the operators it supports; unsupported ones fall back to an "unsupported operand types" error. The membership operator <code>a in b</code> is special: it is dispatched on the <strong>right</strong> operand via <code>ObjectWithInBinOperator.BinOpIn(vm, value)</code> (the container reports whether <code>value</code> is a member). The array-membership operator <code>A ain B</code> ("all in") is dispatched the same way via <code>ObjectWithAinBinOperator.BinOpAin(vm, values)</code>; without it, <code>ain</code> falls back to testing each value with <code>in</code>. To run an operator generically from Go, call <code>gad.BinaryOp(vm, tok, left, right)</code>.</p>
+<p>The same operators are also overridable from Gad with <code>met gad.binOp{Op}(left T, right U)</code> (see <a href="operators.html">Operators</a>).</p>
+<p>Unary and self-assign operators follow the same pattern with their own generated interfaces:</p>
+<ul>
+<li>Unary (<code>!</code>, <code>-</code>, <code>+</code>, <code>^</code>, <code>++</code>, <code>--</code>): <code>ObjectWith{Op}UnaryOperator</code> with</li>
+</ul>
+<p>  <code>UnOp{Op}(vm *gad.VM) (gad.Object, error)</code>. Logical NOT is universal (any value   falls back to its truthiness), so only override <code>UnOpNot</code> for a custom result.   Dispatch is per-operator <code>gad.unOp{Op}</code> / <code>met gad.unOp{Op}(operand T)</code>.</p>
+<ul>
+<li>Self-assign (<code>x op= y</code>): <code>ObjectWith{Op}SelfAssignOperator</code> with</li>
+</ul>
+<p>  <code>SelfAssignOp{Op}(vm *gad.VM, value gad.Object) (gad.Object, error)</code>. An   operator a type does not implement falls back to the binary operator (so   <code>x op= y</code> runs as <code>x = x op y</code>). Dispatch is per-operator   <code>gad.selfAssignOp{Op}</code> / <code>met gad.selfAssignOp{Op}(left T, right U)</code>.</p>
+<pre><code class="language-go">// Array += v appends one value; ++= v extends.
+func (o Array) SelfAssignOpAdd(_ *gad.VM, value gad.Object) (gad.Object, error) {
+    return append(o, value), nil
+}</code></pre>
+<h2 id="reusing-a-vm">Reusing a VM</h2>
+<p>A <code>VM</code> is reusable. After a run you can run again; <code>Clear</code> releases references and resets the stack and module cache between unrelated runs.</p>
+<h2 id="modules-from-go">Modules from Go</h2>
+<p>To make modules importable, build a module map and pass it through the compile options. Source modules are added as bytes; builtin modules are <code>map[string]Object</code>; any value implementing <code>Importable</code> can serve as a custom module. The CLI wires a file-system importer that resolves <code>.gad</code> files along <code>GADPATH</code> — see <a href="modules.html">Modules</a> for the script-side view.</p>
+<h2 id="safety">Safety</h2>
+<p>Gad does not impose allocation limits and relies on Go's garbage collector. To run untrusted scripts, disable risky builtins/modules before compilation (the CLI's <code>-safe</code> and <code>-disabled-modules</code> flags do this) and run inside whatever sandbox your application provides. Compilation is deterministic, and bytecode can be serialized for transport and executed later.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#minimal-example">Minimal Example</a><a href="#passing-globals-and-arguments">Passing Globals and Arguments</a><a href="#exposing-go-functions">Exposing Go Functions</a><a href="#typed-methods-with-addmethod">Typed Methods with AddMethod</a><a href="#operators-on-custom-types">Operators on custom types</a><a href="#reusing-a-vm">Reusing a VM</a><a href="#modules-from-go">Modules from Go</a><a href="#safety">Safety</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
