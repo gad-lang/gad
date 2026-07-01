@@ -148,7 +148,7 @@ type Param struct {
 	Index        int
 }
 
-func NewParam(name string, opt ...ParamOption) *Param {
+func newParam(name string, opt ...ParamOption) *Param {
 	p := &Param{Name: name}
 	for _, opt := range opt {
 		opt(p)

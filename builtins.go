@@ -185,6 +185,15 @@ const (
 	BuiltinDiscardWriter
 	BuiltinConstantsEnd_
 
+	// Builtin module namespaces (stdlib modules exposed without `import`).
+	GroupBuiltinModulesBegin
+	BuiltinModuleBase64
+	BuiltinModuleStrings
+	BuiltinModuleTime
+	BuiltinModuleFmt
+	BuiltinModuleGad
+	GroupBuiltinModulesEnd
+
 	GroupBuiltinBinaryOperatorsBegin
 	BuiltinBinaryOperatorAdd
 	BuiltinBinaryOperatorSub
@@ -251,20 +260,11 @@ const (
 	BuiltinUnaryOperatorDec
 	GroupBuiltinUnaryOperatorsEnd
 
-	// Builtin module namespaces (stdlib modules exposed without `import`).
-	GroupBuiltinModulesBegin
-	BuiltinModuleBase64
-	BuiltinModuleStrings
-	BuiltinModuleTime
-	BuiltinModuleFmt
-	BuiltinModuleGad
-	GroupBuiltinModulesEnd
-
 	BuiltinEnd_
 )
 
 var (
-	lastBuiltinType = GroupBuiltinModulesEnd
+	lastBuiltinType = GroupBuiltinUnaryOperatorsEnd
 	lastBuiltinMux  = sync.Mutex{}
 )
 

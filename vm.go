@@ -486,9 +486,16 @@ func (vm *VM) xIndexGet(numSel int, target Object, getPtr bool) (value Object, n
 	return
 }
 
-func (vm *VM) xAddMethod(numSel, numFuncs int, target Object) (value Object, null, abort bool) {
+func (vm *VM) xAddMethod(numSel, numFuncs int, override bool, target Object) (value Object, null, abort bool) {
 	value = Nil
 	var err error
+
+	// overrideArgs carries `override=true` so a duplicate method signature
+	// replaces the existing one instead of erroring (see `met override …`).
+	var overrideArgs NamedArgs
+	if override {
+		overrideArgs = *NewNamedArgs(KeyValueArray{{K: Str("override"), V: True}})
+	}
 
 	if numSel == 0 {
 		args := make(Array, numFuncs+1)
@@ -501,7 +508,7 @@ func (vm *VM) xAddMethod(numSel, numFuncs int, target Object) (value Object, nul
 			i++
 		}
 
-		value, err = BuiltinAddMethodFunc(Call{VM: vm, Args: Args{args}})
+		value, err = BuiltinAddMethodFunc(Call{VM: vm, Args: Args{args}, NamedArgs: overrideArgs})
 	} else {
 		var (
 			dot   Object
@@ -566,7 +573,7 @@ func (vm *VM) xAddMethod(numSel, numFuncs int, target Object) (value Object, nul
 		if mg, _ := value.(ModuleGetter); mg != nil {
 			module = mg.GetModule()
 		}
-		c := Call{VM: vm, Args: Args{args}}
+		c := Call{VM: vm, Args: Args{args}, NamedArgs: overrideArgs}
 		switch t := dot.(type) {
 		case IndexMethodAdder:
 			args[0] = index
@@ -575,7 +582,7 @@ func (vm *VM) xAddMethod(numSel, numFuncs int, target Object) (value Object, nul
 			if adder, _ := value.(MethodAdder); adder == nil {
 				f := NewFunc(index.ToString(), module)
 				args[0] = f
-				if value, err = BuiltinAddMethodFunc(Call{VM: vm, Args: Args{Array{f, value}}}); err != nil {
+				if value, err = BuiltinAddMethodFunc(Call{VM: vm, Args: Args{Array{f, value}}, NamedArgs: overrideArgs}); err != nil {
 					goto done
 				}
 			}
@@ -1199,13 +1206,7 @@ func (vm *VM) xOpUnary() error {
 	tok := token.Token(vm.curInsts[vm.ip+1])
 	operand := vm.stack[vm.sp-1]
 
-	value, err := vm.Builtins.Call(BuiltinUnaryOperator, Call{
-		VM: vm,
-		Args: Args{Array{
-			UnaryOperatorType(tok),
-			operand,
-		}},
-	})
+	value, err := vm.callUnaryOp(tok, operand)
 	if err != nil {
 		return err
 	}

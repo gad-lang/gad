@@ -199,8 +199,7 @@ without it, `ain` falls back to testing each value with `in`. To run an operator
 generically from Go, call `gad.BinaryOp(vm, tok, left, right)`.
 
 The same operators are also overridable from Gad with
-`met gad.binOp(_ TBinaryOperator{Op}, left T, right U)` (see
-[Operators](operators.md)).
+`met gad.binOp{Op}(left T, right U)` (see [Operators](operators.md)).
 
 Unary and self-assign operators follow the same pattern with their own generated
 interfaces:
@@ -208,12 +207,12 @@ interfaces:
 - Unary (`!`, `-`, `+`, `^`, `++`, `--`): `ObjectWith{Op}UnaryOperator` with
   `UnOp{Op}(vm *gad.VM) (gad.Object, error)`. Logical NOT is universal (any value
   falls back to its truthiness), so only override `UnOpNot` for a custom result.
-  Dispatch is `gad.unOp` / `met gad.unOp(_ TUnaryOperator{Op}, operand T)`.
+  Dispatch is per-operator `gad.unOp{Op}` / `met gad.unOp{Op}(operand T)`.
 - Self-assign (`x op= y`): `ObjectWith{Op}SelfAssignOperator` with
   `SelfAssignOp{Op}(vm *gad.VM, value gad.Object) (gad.Object, error)`. An
   operator a type does not implement falls back to the binary operator (so
-  `x op= y` runs as `x = x op y`). Dispatch is `gad.selfAssignOp` /
-  `met gad.selfAssignOp(_ TSelfAssignOperator{Op}, left T, right U)`.
+  `x op= y` runs as `x = x op y`). Dispatch is per-operator
+  `gad.selfAssignOp{Op}` / `met gad.selfAssignOp{Op}(left T, right U)`.
 
 ```go
 // Array += v appends one value; ++= v extends.

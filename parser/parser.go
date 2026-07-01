@@ -1736,6 +1736,9 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 		f = &node.FuncType{
 			FuncPos: tok.Pos,
 		}
+		// methodOverride marks `met ~name(…)` / `met ~name { … }`, applying to
+		// the single method or, in the block form, to every method.
+		methodOverride bool
 	)
 
 	defer func() {
@@ -1746,6 +1749,11 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 			}
 		}
 	}()
+
+	if tok.Is(token.Method) && p.Token.Token == token.Tilde {
+		methodOverride = true
+		p.Expect(token.Tilde)
+	}
 
 	if tok.Is(token.Method) || p.Token.Token == token.Ident {
 		f.Token = tok.TokenLit
@@ -1789,6 +1797,7 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 					Body:      body,
 					LambdaPos: lambdaPos,
 					BodyExpr:  closure,
+					Override:  methodOverride,
 				}
 			}
 		}
@@ -1806,7 +1815,12 @@ func (p *Parser) ParseFuncExprT(tok PToken) (e node.Expr) {
 		for p.Token.Token != token.RBrace {
 			p.SkipSpace()
 
-			f := &node.FuncMethod{Doc: p.leadComment}
+			f := &node.FuncMethod{Doc: p.leadComment, Override: methodOverride}
+
+			if p.Token.Token == token.Tilde {
+				f.Override = true
+				p.Expect(token.Tilde)
+			}
 
 			if paren := p.ParseParemExpr(token.LParen, token.RParen); paren != nil && p.Errors.Len() == 0 {
 				var err *node.NodeError

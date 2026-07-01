@@ -1645,6 +1645,9 @@ type FuncMethod struct {
 	LambdaPos source.Pos
 	BodyExpr  Expr
 	Doc       *ast.CommentGroup // doc comment preceding the method header; or nil
+	// Override reports whether the method header was prefixed with `~`, so
+	// re-adding an existing signature replaces it instead of erroring.
+	Override bool
 }
 
 func (m *FuncMethod) Pos() source.Pos {
@@ -1660,6 +1663,9 @@ func (m *FuncMethod) End() source.Pos {
 
 func (m *FuncMethod) String() string {
 	var b strings.Builder
+	if m.Override {
+		b.WriteString("~")
+	}
 	b.WriteString(m.Params.String())
 	b.WriteString(FormatFuncReturn(m.Return))
 	b.WriteString(" ")
@@ -1674,6 +1680,9 @@ func (m *FuncMethod) String() string {
 
 func (m *FuncMethod) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(m.Doc)
+	if m.Override {
+		ctx.WriteString("~")
+	}
 	m.Params.WriteCode(ctx)
 	WriteFuncReturn(ctx, m.Return)
 	ctx.WriteString(" ")
@@ -1694,6 +1703,7 @@ func (m *FuncMethod) Func() *FuncExpr {
 		Body:      m.Body,
 		BodyExpr:  m.BodyExpr,
 		LambdaPos: m.LambdaPos,
+		Override:  m.Override,
 	}
 }
 
@@ -1938,6 +1948,9 @@ type FuncExpr struct {
 	LambdaPos source.Pos
 	BodyExpr  Expr
 	Doc       *ast.CommentGroup // associated doc comment (`/?`, `/??`, `/???`); or nil
+	// Override reports whether a `met` declaration was written `met ~name(…)`,
+	// so re-adding an existing method signature replaces it instead of erroring.
+	Override bool
 }
 
 func (e *FuncExpr) ExprNode() {}
@@ -1974,6 +1987,9 @@ func (e *FuncExpr) prefix() (s string) {
 			if e.Type.NameExpr != nil && len(s) > 0 {
 				s += " "
 			}
+			if e.Override {
+				s += "~"
+			}
 			s += t + " "
 		}
 	} else {
@@ -2006,6 +2022,9 @@ func (e *FuncExpr) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteString(kw)
 		if e.Type.NameExpr != nil && len(kw) > 0 {
 			ctx.WriteString(" ")
+		}
+		if e.Override {
+			ctx.WriteString("~")
 		}
 		e.Type.WriteCode(ctx)
 		ctx.WriteString(" ")

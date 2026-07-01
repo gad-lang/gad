@@ -102,160 +102,163 @@ const (
 	OpAddMethod
 	OpExtendModule
 	OpToRawStr
+	OpAddMethodOverride
 )
 
 // OpcodeNames are string representation of opcodes.
 var OpcodeNames = [...]string{
-	OpNoOp:            "NOOP",
-	OpConstant:        "CONSTANT",
-	OpCall:            "CALL",
-	OpGetGlobal:       "GETGLOBAL",
-	OpSetGlobal:       "SETGLOBAL",
-	OpGetLocal:        "GETLOCAL",
-	OpSetLocal:        "SETLOCAL",
-	OpGetBuiltin:      "GETBUILTIN",
-	OpBinary:          "BINARY",
-	OpUnary:           "UNARY",
-	OpSelfAssign:      "SELFASSIGN",
-	OpEqual:           "EQUAL",
-	OpNotEqual:        "NOTEQUAL",
-	OpJump:            "JUMP",
-	OpJumpFalsy:       "JUMPFALSY",
-	OpAndJump:         "ANDJUMP",
-	OpOrJump:          "ORJUMP",
-	OpDict:            "DICT",
-	OpArray:           "ARRAY",
-	OpSliceIndex:      "SLICEINDEX",
-	OpGetIndex:        "GETINDEX",
-	OpSetIndex:        "SETINDEX",
-	OpNil:             "NIL",
-	OpStdIn:           "STDIN",
-	OpStdOut:          "STDOUT",
-	OpStdErr:          "STDERR",
-	OpDotName:         "DOTNAME",
-	OpDotFile:         "DOTFILE",
-	OpIsMain:          "ISMAIN",
-	OpNotIsMain:       "NOTISMAIN",
-	OpModule:          "MODULE",
-	OpPop:             "POP",
-	OpGetFree:         "GETFREE",
-	OpSetFree:         "SETFREE",
-	OpGetLocalPtr:     "GETLOCALPTR",
-	OpGetFreePtr:      "GETFREEPTR",
-	OpClosure:         "CLOSURE",
-	OpIterInit:        "ITERINIT",
-	OpIterNext:        "ITERNEXT",
-	OpIterNextElse:    "ITERNEXTELSE",
-	OpIterKey:         "ITERKEY",
-	OpIterValue:       "ITERVALUE",
-	OpLoadModule:      "LOADMODULE",
-	OpInitModule:      "INITMODULE",
-	OpReturn:          "RETURN",
-	OpSetReturn:       "SETRETURN",
-	OpSetReturnModule: "SETRETURNMODULE",
-	OpSetupTry:        "SETUPTRY",
-	OpSetupCatch:      "SETUPCATCH",
-	OpSetupFinally:    "SETUPFINALLY",
-	OpThrow:           "THROW",
-	OpFinalizer:       "FINALIZER",
-	OpDefineLocal:     "DEFINELOCAL",
-	OpTrue:            "TRUE",
-	OpFalse:           "FALSE",
-	OpYes:             "YES",
-	OpNo:              "NO",
-	OpCallName:        "CALLNAME",
-	OpJumpNil:         "JUMPNIL",
-	OpJumpNotNil:      "JUMPNOTNIL",
-	OpKeyValueArray:   "KVARRAY",
-	OpKeyValue:        "KV",
-	OpCallee:          "CALLEE",
-	OpArgs:            "ARGS",
-	OpNamedArgs:       "NAMEDARGS",
-	OpIsNil:           "ISNIL",
-	OpNotIsNil:        "NOTISNIL",
-	OpNamedParamsVar:  "NAMEDPARAMSVAR",
-	OpNamedParamValue: "NPARAMVALUE",
-	OpComputedValue:   "COMPUTEDVALUE",
-	OpAddMethod:       "ADDMETHOD",
-	OpExtendModule:    "EXTENDMODULE",
-	OpToRawStr:        "TORAWSTR",
+	OpNoOp:              "NOOP",
+	OpConstant:          "CONSTANT",
+	OpCall:              "CALL",
+	OpGetGlobal:         "GETGLOBAL",
+	OpSetGlobal:         "SETGLOBAL",
+	OpGetLocal:          "GETLOCAL",
+	OpSetLocal:          "SETLOCAL",
+	OpGetBuiltin:        "GETBUILTIN",
+	OpBinary:            "BINARY",
+	OpUnary:             "UNARY",
+	OpSelfAssign:        "SELFASSIGN",
+	OpEqual:             "EQUAL",
+	OpNotEqual:          "NOTEQUAL",
+	OpJump:              "JUMP",
+	OpJumpFalsy:         "JUMPFALSY",
+	OpAndJump:           "ANDJUMP",
+	OpOrJump:            "ORJUMP",
+	OpDict:              "DICT",
+	OpArray:             "ARRAY",
+	OpSliceIndex:        "SLICEINDEX",
+	OpGetIndex:          "GETINDEX",
+	OpSetIndex:          "SETINDEX",
+	OpNil:               "NIL",
+	OpStdIn:             "STDIN",
+	OpStdOut:            "STDOUT",
+	OpStdErr:            "STDERR",
+	OpDotName:           "DOTNAME",
+	OpDotFile:           "DOTFILE",
+	OpIsMain:            "ISMAIN",
+	OpNotIsMain:         "NOTISMAIN",
+	OpModule:            "MODULE",
+	OpPop:               "POP",
+	OpGetFree:           "GETFREE",
+	OpSetFree:           "SETFREE",
+	OpGetLocalPtr:       "GETLOCALPTR",
+	OpGetFreePtr:        "GETFREEPTR",
+	OpClosure:           "CLOSURE",
+	OpIterInit:          "ITERINIT",
+	OpIterNext:          "ITERNEXT",
+	OpIterNextElse:      "ITERNEXTELSE",
+	OpIterKey:           "ITERKEY",
+	OpIterValue:         "ITERVALUE",
+	OpLoadModule:        "LOADMODULE",
+	OpInitModule:        "INITMODULE",
+	OpReturn:            "RETURN",
+	OpSetReturn:         "SETRETURN",
+	OpSetReturnModule:   "SETRETURNMODULE",
+	OpSetupTry:          "SETUPTRY",
+	OpSetupCatch:        "SETUPCATCH",
+	OpSetupFinally:      "SETUPFINALLY",
+	OpThrow:             "THROW",
+	OpFinalizer:         "FINALIZER",
+	OpDefineLocal:       "DEFINELOCAL",
+	OpTrue:              "TRUE",
+	OpFalse:             "FALSE",
+	OpYes:               "YES",
+	OpNo:                "NO",
+	OpCallName:          "CALLNAME",
+	OpJumpNil:           "JUMPNIL",
+	OpJumpNotNil:        "JUMPNOTNIL",
+	OpKeyValueArray:     "KVARRAY",
+	OpKeyValue:          "KV",
+	OpCallee:            "CALLEE",
+	OpArgs:              "ARGS",
+	OpNamedArgs:         "NAMEDARGS",
+	OpIsNil:             "ISNIL",
+	OpNotIsNil:          "NOTISNIL",
+	OpNamedParamsVar:    "NAMEDPARAMSVAR",
+	OpNamedParamValue:   "NPARAMVALUE",
+	OpComputedValue:     "COMPUTEDVALUE",
+	OpAddMethod:         "ADDMETHOD",
+	OpExtendModule:      "EXTENDMODULE",
+	OpToRawStr:          "TORAWSTR",
+	OpAddMethodOverride: "ADDMETHODOVERRIDE",
 }
 
 // OpcodeOperands is the number of operands.
 var OpcodeOperands = [...][]int{
-	OpNoOp:            {},
-	OpConstant:        {2},    // constant index
-	OpCall:            {1, 1}, // number of arguments, named arguments
-	OpGetGlobal:       {2},    // constant index
-	OpSetGlobal:       {2},    // constant index
-	OpGetLocal:        {1},    // local variable index
-	OpSetLocal:        {1},    // local variable index
-	OpGetBuiltin:      {2},    // builtin index
-	OpBinary:          {1},    // operator
-	OpUnary:           {1},    // operator
-	OpSelfAssign:      {1},    // operator
-	OpEqual:           {},
-	OpNotEqual:        {},
-	OpIsNil:           {},
-	OpNotIsNil:        {},
-	OpJump:            {2}, // position
-	OpJumpFalsy:       {2}, // position
-	OpAndJump:         {2}, // position
-	OpOrJump:          {2}, // position
-	OpDict:            {2}, // number of keys and values
-	OpArray:           {2}, // number of items
-	OpSliceIndex:      {},
-	OpGetIndex:        {1}, // number of selectors
-	OpSetIndex:        {},
-	OpNil:             {},
-	OpStdIn:           {},
-	OpStdOut:          {},
-	OpStdErr:          {},
-	OpDotName:         {},
-	OpDotFile:         {},
-	OpIsMain:          {},
-	OpNotIsMain:       {},
-	OpModule:          {},
-	OpPop:             {},
-	OpGetFree:         {1},    // index
-	OpSetFree:         {1},    // index
-	OpGetLocalPtr:     {1},    // index
-	OpGetFreePtr:      {1},    // index
-	OpClosure:         {2, 1}, // constant index, item count
-	OpIterInit:        {},
-	OpIterNext:        {},
-	OpIterNextElse:    {2, 2}, // true pos, false pos
-	OpIterKey:         {},
-	OpIterValue:       {},
-	OpLoadModule:      {2},    // store index
-	OpInitModule:      {1, 1}, // number of arguments, named arguments
-	OpSetReturn:       {1},    // local variable index
-	OpSetReturnModule: {},
-	OpReturn:          {1}, // number of items (0 or 1)
-	OpSetupTry:        {2, 2},
-	OpSetupCatch:      {},
-	OpSetupFinally:    {},
-	OpThrow:           {1}, // 0:re-throw (system), 1:throw <expression>
-	OpFinalizer:       {1}, // up to error handler index
-	OpDefineLocal:     {1},
-	OpTrue:            {},
-	OpFalse:           {},
-	OpYes:             {},
-	OpNo:              {},
-	OpCallName:        {1, 1}, // number of arguments, flags
-	OpJumpNil:         {2},    // position
-	OpJumpNotNil:      {2},    // position
-	OpKeyValueArray:   {2},    // number of keys and values
-	OpCallee:          {},
-	OpArgs:            {},
-	OpNamedArgs:       {},
-	OpKeyValue:        {1}, // 0: whitout value, 1: with value
-	OpNamedParamsVar:  {},
-	OpNamedParamValue: {},
-	OpComputedValue:   {},
-	OpAddMethod:       {1, 1}, // 0: number of selectors, 1: number of funcs
-	OpExtendModule:    {},
-	OpToRawStr:        {},
+	OpNoOp:              {},
+	OpConstant:          {2},    // constant index
+	OpCall:              {1, 1}, // number of arguments, named arguments
+	OpGetGlobal:         {2},    // constant index
+	OpSetGlobal:         {2},    // constant index
+	OpGetLocal:          {1},    // local variable index
+	OpSetLocal:          {1},    // local variable index
+	OpGetBuiltin:        {2},    // builtin index
+	OpBinary:            {1},    // operator
+	OpUnary:             {1},    // operator
+	OpSelfAssign:        {1},    // operator
+	OpEqual:             {},
+	OpNotEqual:          {},
+	OpIsNil:             {},
+	OpNotIsNil:          {},
+	OpJump:              {2}, // position
+	OpJumpFalsy:         {2}, // position
+	OpAndJump:           {2}, // position
+	OpOrJump:            {2}, // position
+	OpDict:              {2}, // number of keys and values
+	OpArray:             {2}, // number of items
+	OpSliceIndex:        {},
+	OpGetIndex:          {1}, // number of selectors
+	OpSetIndex:          {},
+	OpNil:               {},
+	OpStdIn:             {},
+	OpStdOut:            {},
+	OpStdErr:            {},
+	OpDotName:           {},
+	OpDotFile:           {},
+	OpIsMain:            {},
+	OpNotIsMain:         {},
+	OpModule:            {},
+	OpPop:               {},
+	OpGetFree:           {1},    // index
+	OpSetFree:           {1},    // index
+	OpGetLocalPtr:       {1},    // index
+	OpGetFreePtr:        {1},    // index
+	OpClosure:           {2, 1}, // constant index, item count
+	OpIterInit:          {},
+	OpIterNext:          {},
+	OpIterNextElse:      {2, 2}, // true pos, false pos
+	OpIterKey:           {},
+	OpIterValue:         {},
+	OpLoadModule:        {2},    // store index
+	OpInitModule:        {1, 1}, // number of arguments, named arguments
+	OpSetReturn:         {1},    // local variable index
+	OpSetReturnModule:   {},
+	OpReturn:            {1}, // number of items (0 or 1)
+	OpSetupTry:          {2, 2},
+	OpSetupCatch:        {},
+	OpSetupFinally:      {},
+	OpThrow:             {1}, // 0:re-throw (system), 1:throw <expression>
+	OpFinalizer:         {1}, // up to error handler index
+	OpDefineLocal:       {1},
+	OpTrue:              {},
+	OpFalse:             {},
+	OpYes:               {},
+	OpNo:                {},
+	OpCallName:          {1, 1}, // number of arguments, flags
+	OpJumpNil:           {2},    // position
+	OpJumpNotNil:        {2},    // position
+	OpKeyValueArray:     {2},    // number of keys and values
+	OpCallee:            {},
+	OpArgs:              {},
+	OpNamedArgs:         {},
+	OpKeyValue:          {1}, // 0: whitout value, 1: with value
+	OpNamedParamsVar:    {},
+	OpNamedParamValue:   {},
+	OpComputedValue:     {},
+	OpAddMethod:         {1, 1}, // 0: number of selectors, 1: number of funcs
+	OpExtendModule:      {},
+	OpToRawStr:          {},
+	OpAddMethodOverride: {1, 1}, // 0: number of selectors, 1: number of funcs
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

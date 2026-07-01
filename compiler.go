@@ -1148,7 +1148,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		buf = append(buf, byte(args[0]))
 		buf = append(buf, byte(args[1]))
 		return buf, nil
-	case OpCall, OpCallName, OpInitModule, OpAddMethod:
+	case OpCall, OpCallName, OpInitModule, OpAddMethod, OpAddMethodOverride:
 		buf = append(buf, byte(args[0]))
 		buf = append(buf, byte(args[1]))
 		return buf, nil

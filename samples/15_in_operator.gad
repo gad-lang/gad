@@ -38,7 +38,7 @@ for (i in [0, 1, 2]) {
 /// When neither operand is a built-in container, `in` falls back to the
 /// binary-operator machinery, so a type can define it. `int in int` has no
 /// built-in meaning; here it is given bit-set membership (is bit N set in mask?).
-met gad.binOp(_ TBinaryOperatorIn, bit int, mask int) {
+met gad.binOpIn(bit int, mask int) {
     return mask & (1 << bit) != 0
 }
 println(1 in 6)                // true   (6 == 0b110, bit 1 set)

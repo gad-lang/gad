@@ -10,14 +10,13 @@ import (
 // ObjectWith{Op}BinOperator dispatch (binOpObject), matching gad.binOp.
 // Internal callers (sort, value comparisons) and embedders use it.
 func BinaryOp(vm *VM, tok token.Token, left, right Object) (Object, error) {
-	op := BinaryOperatorType(tok)
-	if ret, err, handled := binOpObject(vm, op, left, right); handled {
+	if ret, err, handled := binOpObject(vm, BinaryOperatorType(tok), left, right); handled {
 		return ret, err
 	}
-	if op == TBinaryOperatorSame {
+	switch tok {
+	case token.Same:
 		return binSameFallback(vm, left, right)
-	}
-	if op == TBinaryOperatorAin {
+	case token.Ain:
 		return binAinFallback(vm, left, right)
 	}
 	return nil, NewOperandTypeError(tok.String(), left.Type().Name(), right.Type().Name())
@@ -26,18 +25,16 @@ func BinaryOp(vm *VM, tok token.Token, left, right Object) (Object, error) {
 // binAinFallback computes `left ain right` (every value of the left operand is a
 // member of right) when right does not implement ObjectWithAinBinOperator: it
 // tests each value of left with the `in` membership operator, routed through
-// gad.binOp so it resolves both Go containers (ObjectWithInBinOperator) and Gad
-// types that define `met gad.binOp(_ TBinaryOperatorIn, …)`. A non-array left is
-// treated as a single value, so `x ain B` matches `x in B`; an empty left array
-// yields true.
+// gad.binOpIn so it resolves both Go containers (ObjectWithInBinOperator) and Gad
+// types that define `met gad.binOpIn(…)`. A non-array left is treated as a single
+// value, so `x ain B` matches `x in B`; an empty left array yields true.
 func binAinFallback(vm *VM, left, right Object) (Object, error) {
 	values, ok := left.(Array)
 	if !ok {
 		values = Array{left}
 	}
 	for _, v := range values {
-		r, err := vm.Builtins.Call(BuiltinBinaryOperator,
-			Call{VM: vm, Args: Args{{TBinaryOperatorIn, v, right}}})
+		r, err := vm.callBinaryOp(token.In, v, right)
 		if err != nil {
 			return nil, err
 		}
@@ -62,35 +59,43 @@ func binSameFallback(vm *VM, left, right Object) (Object, error) {
 	return Bool(AddressOf(left) == AddressOf(right)), nil
 }
 
-// operatorBinaryMethod is the default handler of gad.binOp: it dispatches to
-// the left (or, for `in`, the right) operand's per-operator
-// ObjectWith{Op}BinOperator implementation via binOpObject. A user-defined
-// `met gad.binOp(_ TBinaryOperatorX, left T, right U)` is more specific (its
-// operator and operand types are typed) and so takes precedence.
-func operatorBinaryMethod(c Call) (Object, error) {
-	op := c.Args.Get(0).(BinaryOperatorType)
-	left, right := c.Args.Get(1), c.Args.Get(2)
-	if ret, err, handled := binOpObject(c.VM, op, left, right); handled {
+// binaryOpDispatch runs a binary operator on two operands: it dispatches to the
+// left (or, for `in`, the right) operand's per-operator ObjectWith{Op}BinOperator
+// implementation via binOpObject, with the `===` (Same) and `ain` fallbacks. It
+// backs both the generic gad.binOp default and every per-operator gad.binOp{Op}
+// default. A user-defined `met gad.binOp{Op}(left T, right U)` is more specific
+// (its operand types are typed) and so takes precedence.
+func binaryOpDispatch(vm *VM, op BinaryOperatorType, left, right Object) (Object, error) {
+	if ret, err, handled := binOpObject(vm, op, left, right); handled {
 		return ret, err
 	}
-	if op == TBinaryOperatorSame {
-		return binSameFallback(c.VM, left, right)
-	}
-	if op == TBinaryOperatorAin {
-		return binAinFallback(c.VM, left, right)
+	switch op.Token() {
+	case token.Same:
+		return binSameFallback(vm, left, right)
+	case token.Ain:
+		return binAinFallback(vm, left, right)
 	}
 	return Nil, NewOperandTypeError(op.Token().String(), left.Type().Name(), right.Type().Name())
 }
 
-// operatorUnaryMethod is the default handler of gad.unOp: it dispatches to the
+// operatorBinaryMethod is the generic gad.binOp(op, left, right) default handler.
+func operatorBinaryMethod(c Call) (Object, error) {
+	return binaryOpDispatch(c.VM, c.Args.Get(0).(BinaryOperatorType), c.Args.Get(1), c.Args.Get(2))
+}
+
+// binaryOpHandler builds the op-bound default handler for a per-operator
+// gad.binOp{Op}(left, right) builtin.
+func binaryOpHandler(op BinaryOperatorType) func(Call) (Object, error) {
+	return func(c Call) (Object, error) {
+		return binaryOpDispatch(c.VM, op, c.Args.Get(0), c.Args.Get(1))
+	}
+}
+
+// unaryOpDispatch runs a unary operator on one operand: it dispatches to the
 // operand's per-operator ObjectWith{Op}UnaryOperator implementation via
-// unOpObject. The logical NOT (`!`) is universal and falls back to truthiness. A
-// user-defined `met gad.unOp(_ TUnaryOperatorX, operand T)` is more specific and
-// so takes precedence.
-func operatorUnaryMethod(c Call) (Object, error) {
-	op := c.Args.Get(0).(UnaryOperatorType)
-	operand := c.Args.Get(1)
-	if ret, err, handled := unOpObject(c.VM, op, operand); handled {
+// unOpObject; the logical NOT (`!`) is universal and falls back to truthiness.
+func unaryOpDispatch(vm *VM, op UnaryOperatorType, operand Object) (Object, error) {
+	if ret, err, handled := unOpObject(vm, op, operand); handled {
 		return ret, err
 	}
 	if op.Token() == token.Not {
@@ -101,19 +106,44 @@ func operatorUnaryMethod(c Call) (Object, error) {
 			operand.Type().Name() + "'")
 }
 
-// operatorSelfAssignMethod is the shared handler for gad.selfAssignOp
-// overloads: it dispatches to the left operand's per-operator
-// ObjectWith{Op}SelfAssignOperator implementation (selfAssignOpObject) and, when
-// the operator is not handled, falls back to the binary operator (so `x op= y`
-// runs as `x = x op y`).
-func operatorSelfAssignMethod(c Call) (Object, error) {
-	op := c.Args.Get(0).(SelfAssignOperatorType)
-	left, right := c.Args.Get(1), c.Args.Get(2)
-	if ret, err, handled := selfAssignOpObject(c.VM, op, left, right); handled {
+// operatorUnaryMethod is the generic gad.unOp(op, operand) default handler.
+func operatorUnaryMethod(c Call) (Object, error) {
+	return unaryOpDispatch(c.VM, c.Args.Get(0).(UnaryOperatorType), c.Args.Get(1))
+}
+
+// unaryOpHandler builds the op-bound default handler for a per-operator
+// gad.unOp{Op}(operand) builtin.
+func unaryOpHandler(op UnaryOperatorType) func(Call) (Object, error) {
+	return func(c Call) (Object, error) {
+		return unaryOpDispatch(c.VM, op, c.Args.Get(0))
+	}
+}
+
+// selfAssignOpDispatch runs a self-assign operator (`x op= y`): it dispatches to
+// the left operand's ObjectWith{Op}SelfAssignOperator implementation and, when
+// unhandled, falls back to the binary operator (so `x op= y` runs as `x = x op y`).
+func selfAssignOpDispatch(vm *VM, op SelfAssignOperatorType, left, right Object) (Object, error) {
+	if ret, err, handled := selfAssignOpObject(vm, op, left, right); handled {
 		return ret, err
 	}
-	return c.VM.Builtins.Call(BuiltinBinaryOperator,
-		Call{VM: c.VM, Args: Args{{BinaryOperatorType(op), left, right}}})
+	// Fall back to the binary operator through its gad.binOp{Op} builtin so a
+	// user-defined `met gad.binOp{Op}(…)` overload (which lives on that builtin's
+	// method table, not reachable by binOpObject) also backs `x op= y`.
+	return vm.callBinaryOp(op.Token(), left, right)
+}
+
+// operatorSelfAssignMethod is the generic gad.selfAssignOp(op, left, right)
+// default handler.
+func operatorSelfAssignMethod(c Call) (Object, error) {
+	return selfAssignOpDispatch(c.VM, c.Args.Get(0).(SelfAssignOperatorType), c.Args.Get(1), c.Args.Get(2))
+}
+
+// selfAssignOpHandler builds the op-bound default handler for a per-operator
+// gad.selfAssignOp{Op}(left, right) builtin.
+func selfAssignOpHandler(op SelfAssignOperatorType) func(Call) (Object, error) {
+	return func(c Call) (Object, error) {
+		return selfAssignOpDispatch(c.VM, op, c.Args.Get(0), c.Args.Get(1))
+	}
 }
 
 // operatorMethod builds one `(op, left T, right)` operator overload. `op` and
@@ -212,6 +242,9 @@ func registerGadModule() {
 	BuiltinsMap[name+".unOp"] = BuiltinUnaryOperator
 	BuiltinsMap[name+".enter"] = BuiltinEnter
 	BuiltinsMap[name+".exit"] = BuiltinExit
+
+	// Per-operator builtins: gad.binOp{Op} / gad.unOp{Op} / gad.selfAssignOp{Op}.
+	registerOperatorBuiltins()
 }
 
 // setOperatorModule ties an operator builtin to the core module spec.

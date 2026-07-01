@@ -1607,45 +1607,78 @@ func (c *Compiler) compileAddMethodsExpr(nd node.Node, nameExpr node.Expr, metho
 	defer c.pushSelector()()
 	expr, selectors := resolveSelectorExprs(nameExpr)
 
+	// overrideOf reports whether a method was declared `met ~…`, so re-adding an
+	// existing signature replaces it (OpAddMethodOverride) instead of erroring.
+	overrideOf := func(m node.Expr) bool {
+		fe, _ := m.(*node.FuncExpr)
+		return fe != nil && fe.Override
+	}
+	addMethodOp := func(override bool) Opcode {
+		if override {
+			return OpAddMethodOverride
+		}
+		return OpAddMethod
+	}
+
 	// `met module.NAME(...)` on a builtin namespace member (e.g. gad.binOp)
 	// resolves to the single qualified builtin so the method is added to the
 	// same object the VM dispatches against, rather than to the namespace dict
 	// member (which build() does not keep identical to the enum object).
+	builtinIdx := -1
 	if ident, ok := expr.(*node.IdentExpr); ok && len(selectors) == 1 {
 		if sel, _ := selectors[0].(*node.StrLit); sel != nil {
 			if base, ok := c.symbolTable.Resolve(ident.Name); ok && base.Scope == ScopeBuiltin {
 				if sym, ok := c.symbolTable.Resolve(ident.Name + "." + sel.Value()); ok &&
 					sym.Scope == ScopeBuiltin {
-					c.emit(nd, OpGetBuiltin, sym.Index)
-					for _, method := range methods {
-						if err = c.Compile(method); err != nil {
-							return err
-						}
-					}
-					c.emit(nd, OpAddMethod, 0, len(methods))
-					return nil
+					builtinIdx = sym.Index
 				}
 			}
 		}
 	}
 
-	if err = c.Compile(expr); err != nil {
-		return err
-	}
-
-	for _, selector := range selectors {
-		if err = c.Compile(selector); err != nil {
+	// emitGroup compiles the target, a run of methods sharing the same override
+	// flag, and the matching add-method opcode.
+	emitGroup := func(group []node.Expr, override bool) error {
+		if builtinIdx >= 0 {
+			c.emit(nd, OpGetBuiltin, builtinIdx)
+			for _, method := range group {
+				if err := c.Compile(method); err != nil {
+					return err
+				}
+			}
+			c.emit(nd, addMethodOp(override), 0, len(group))
+			return nil
+		}
+		if err := c.Compile(expr); err != nil {
 			return err
 		}
+		for _, selector := range selectors {
+			if err := c.Compile(selector); err != nil {
+				return err
+			}
+		}
+		for _, method := range group {
+			if err := c.Compile(method); err != nil {
+				return err
+			}
+		}
+		c.emit(nd, addMethodOp(override), len(selectors), len(group))
+		return nil
 	}
 
-	for _, method := range methods {
-		if err = c.Compile(method); err != nil {
+	// Group consecutive methods by override flag so a mixed block such as
+	// `met NAME { ~(a){} (b){} }` emits one opcode per run.
+	for i := 0; i < len(methods); {
+		override := overrideOf(methods[i])
+		j := i + 1
+		for j < len(methods) && overrideOf(methods[j]) == override {
+			j++
+		}
+		if err = emitGroup(methods[i:j], override); err != nil {
 			return err
 		}
+		i = j
 	}
-
-	c.emit(nd, OpAddMethod, len(selectors), len(methods))
 	return nil
 }
 

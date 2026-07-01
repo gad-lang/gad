@@ -725,7 +725,7 @@ func TestOptimizerShadowing(t *testing.T) {
 func TestOptimizerError(t *testing.T) {
 	expectEvalError(t, `
 	try { 1 / 0 } catch err { } finally { }
-	`, "Optimizer Error: ErrCall: ‹function binOp(op any, left int, right any)›; caused by: ‹ZeroDivisionError›\n\tat")
+	`, "Optimizer Error: ErrCall: ‹builtinFunction: binOpQuo(left any, right any)›; caused by: ‹ZeroDivisionError›\n\tat")
 
 	// two errors found by optimizer is reported as multipleErr but
 	// Error() method returns first error's message.
@@ -736,15 +736,15 @@ func TestOptimizerError(t *testing.T) {
 	require.Nil(t, bc)
 	require.Error(t, err)
 	require.Equal(t,
-		"Optimizer Error: ErrCall: ‹function binOp(op any, left int, right any)›; caused by: ‹ZeroDivisionError›\n\tat (main):2:2",
+		"Optimizer Error: ErrCall: ‹builtinFunction: binOpQuo(left any, right any)›; caused by: ‹ZeroDivisionError›\n\tat (main):2:2",
 		err.Error(),
 	)
 	// test + flag gets all
 	require.Equal(t,
 		`multiple errors:
- Optimizer Error: ErrCall: ‹function binOp(op any, left int, right any)›; caused by: ‹ZeroDivisionError›
+ Optimizer Error: ErrCall: ‹builtinFunction: binOpQuo(left any, right any)›; caused by: ‹ZeroDivisionError›
 	at (main):2:2
- Optimizer Error: ErrCall: ‹function binOp(op any, left int, right any)›; caused by: ‹ZeroDivisionError›
+ Optimizer Error: ErrCall: ‹builtinFunction: binOpQuo(left any, right any)›; caused by: ‹ZeroDivisionError›
 	at (main):3:2`,
 		fmt.Sprintf("%+v", err),
 	)

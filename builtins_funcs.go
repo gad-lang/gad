@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/gad-lang/gad/token"
 )
 
 func BuiltinMakeArrayFunc(n int, arg Object) (Object, error) {
@@ -1495,10 +1497,10 @@ func BuiltinBinaryOperatorFunc(c Call) (ret Object, err error) {
 	if r, e, handled := binOpObject(c.VM, opType, left.Value, right.Value); handled {
 		return r, e
 	}
-	if opType == TBinaryOperatorSame {
+	if opType.Token() == token.Same {
 		return binSameFallback(c.VM, left.Value, right.Value)
 	}
-	if opType == TBinaryOperatorAin {
+	if opType.Token() == token.Ain {
 		return binAinFallback(c.VM, left.Value, right.Value)
 	}
 	err = NewOperandTypeError(opType.Token().String(), left.Value.Type().Name(), right.Value.Type().Name())
@@ -1567,7 +1569,7 @@ func BuiltinUnaryOperatorFunc(c Call) (ret Object, err error) {
 	if r, e, handled := unOpObject(c.VM, opType, operand.Value); handled {
 		return r, e
 	}
-	if opType == TUnaryOperatorNot {
+	if opType.Token() == token.Not {
 		return Bool(operand.Value.IsFalsy()), nil
 	}
 	err = ErrType.NewError(

@@ -1,9 +1,10 @@
 /***
 17_unary_operators.gad — the unary operators `!`, `-`, `+`, `^`, `++`, `--`
-and customising them with `met gad.unOp`.
+and customising them with `met gad.unOp{Op}`.
 
-Every unary operator is dispatched through gad.unOp(op, operand); the VM
-applies one to the top of the stack, and a type can override it.
+Every unary operator is dispatched through its `gad.unOp{Op}(operand)` builtin
+(e.g. `gad.unOpSub`); the VM applies one to the top of the stack, and a type can
+override it.
 ***/
 
 // Numeric / char operators.
@@ -34,9 +35,9 @@ println(++t)                      // 2026-01-31 08:06:00  (a minute; seconds 0)
 t2 := time.CalendarTime("2026-01-31 08:05:30")
 println(++t2)                     // 2026-01-31 08:05:31  (a second)
 
-/// A type customises a unary operator with met gad.unOp(_ TUnaryOperatorX, …).
+/// A type customises a unary operator with met gad.unOpX(…).
 Vec := Class("Vec", (cls, define) => define(; fields = (; x = (= 0), y = (= 0))))
-met gad.unOp(_ TUnaryOperatorSub, v Vec) {
+met gad.unOpSub(v Vec) {
     return Vec(; x = -v.x, y = -v.y)
 }
 v := Vec(; x = 3, y = -4)
@@ -44,4 +45,4 @@ neg := -v
 println(neg.x, neg.y)             // -3 4
 
 // gad.unOp is also callable directly.
-println(gad.unOp(TUnaryOperatorInc, 41))   // 42
+println(gad.unOpInc(41))   // 42

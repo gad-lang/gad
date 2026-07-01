@@ -101,8 +101,8 @@ func TestVMBinaryIncDec(t *testing.T) {
 	// `a ++ b` / `a -- b` are binary operators an object can override
 	const stack = `
 	Stack := Class("Stack"; fields=(; items=(= [])))
-	met gad.binOp(_ TBinaryOperatorInc, s Stack, v) { s.items = append(s.items, v); return s }
-	met gad.binOp(_ TBinaryOperatorDec, s Stack, i) { return s.items[i] }
+	met gad.binOpInc(s Stack, v) { s.items = append(s.items, v); return s }
+	met gad.binOpDec(s Stack, i) { return s.items[i] }
 	`
 	// left-associative chaining: ((s ++ 1) ++ 2) ++ 3
 	testExpectRun(t, stack+`s := Stack(); s ++ 1; s ++ 2 ++ 3; return s.items`,
@@ -196,12 +196,12 @@ func TestVMTimeModuleTypesRepr(t *testing.T) {
 
 func TestCoreNamespace(t *testing.T) {
 	// `core` is a global namespace (no import needed).
-	testExpectRun(t, `return gad.binOp(TBinaryOperatorAdd, 2, 3)`, nil, Int(5))
-	testExpectRun(t, `return gad.binOp(TBinaryOperatorMul, 4, 5)`, nil, Int(20))
+	testExpectRun(t, `return gad.binOpAdd(2, 3)`, nil, Int(5))
+	testExpectRun(t, `return gad.binOpMul(4, 5)`, nil, Int(20))
 
 	// `met gad.binOp` adds a typed operator method that the VM dispatches.
 	testExpectRun(t, `
-	met gad.binOp(_ TBinaryOperatorMul, p str, n int) {
+	met gad.binOpMul(p str, n int) {
 		s := ""
 		for i in 1..n { s += p }
 		return s
@@ -211,14 +211,14 @@ func TestCoreNamespace(t *testing.T) {
 
 	// `met gad.selfAssignOp` extends the self-assign fallback.
 	testExpectRun(t, `
-	met gad.selfAssignOp(_ TSelfAssignOperatorAdd, a str, b str) { return a + "-" + b }
+	met gad.selfAssignOpAdd(a str, b str) { return a + "-" + b }
 	x := "a"; y := "b"; x += y
 	return x`, nil, Str("a-b"))
 
 	// the old global @binaryOperator / @selfAssignOperator names no longer resolve.
-	expectErrHas(t, `return @binaryOperator(TBinaryOperatorAdd, 1, 1)`,
+	expectErrHas(t, `return @binaryOperator(1, 1, 1)`,
 		newOpts().CompilerError(), `unresolved reference "@binaryOperator"`)
-	expectErrHas(t, `return @selfAssignOperator(TSelfAssignOperatorAdd, 1, 1)`,
+	expectErrHas(t, `return @selfAssignOperator(1, 1, 1)`,
 		newOpts().CompilerError(), `unresolved reference "@selfAssignOperator"`)
 }
 
@@ -235,8 +235,8 @@ func TestVMOperatorMethods(t *testing.T) {
 	testExpectRun(t, `return uint(6) - uint(2)`, nil, Uint(4))
 
 	// The operator can be invoked directly via the gad.binOp builtin.
-	testExpectRun(t, `return gad.binOp(TBinaryOperatorAdd, 1, 1)`, nil, Int(2))
-	testExpectRun(t, `return gad.binOp(TBinaryOperatorMul, 2, 10)`, nil, Int(20))
+	testExpectRun(t, `return gad.binOpAdd(1, 1)`, nil, Int(2))
+	testExpectRun(t, `return gad.binOpMul(2, 10)`, nil, Int(20))
 
 	// Self-assign operators dispatch through gad.selfAssignOp: `+=` appends
 	// the element, `++=` extends.
@@ -248,7 +248,7 @@ func TestVMOperatorMethods(t *testing.T) {
 
 	// A user-defined operator method takes precedence over the built-in one.
 	testExpectRun(t, `
-	met gad.binOp(_ TBinaryOperatorMul, p str, n int) {
+	met gad.binOpMul(p str, n int) {
 		out := ""
 		for i in 1 .. n { out += p }
 		return out
@@ -260,13 +260,13 @@ func TestVMUserOperators(t *testing.T) {
 	// `<<<`, `>>>` and `%%` have no built-in semantics; they are defined per
 	// type with `met gad.binOp`.
 	testExpectRun(t, `
-	met gad.binOp(_ TBinaryOperatorTripleLess, a int, b int) { return a + b * 100 }
+	met gad.binOpTripleLess(a int, b int) { return a + b * 100 }
 	return 1 <<< 2`, nil, Int(201))
 	testExpectRun(t, `
-	met gad.binOp(_ TBinaryOperatorTripleGreater, a int, b int) { return a - b }
+	met gad.binOpTripleGreater(a int, b int) { return a - b }
 	x := 9; y := 4; return x >>> y`, nil, Int(5))
 	testExpectRun(t, `
-	met gad.binOp(_ TBinaryOperatorDoubleMod, a int, b int) { return [a, b] }
+	met gad.binOpDoubleMod(a int, b int) { return [a, b] }
 	return 5 %% 3`, nil, Array{Int(5), Int(3)})
 
 	// Without a handler the operator is a runtime error (not constant-folded).
@@ -275,12 +275,43 @@ func TestVMUserOperators(t *testing.T) {
 	// The self-assign forms `<<<=` / `>>>=` / `%%=` reuse the binary handler via
 	// the gad.selfAssignOp fallback.
 	testExpectRun(t, `
-	met gad.binOp(_ TBinaryOperatorTripleGreater, a int, b int) { return a * b }
+	met gad.binOpTripleGreater(a int, b int) { return a * b }
 	x := 10; x >>>= 3; return x`, nil, Int(30))
 	// ...or a dedicated gad.selfAssignOp handler.
 	testExpectRun(t, `
-	met gad.selfAssignOp(_ TSelfAssignOperatorDoubleMod, a int, b int) { return a + b }
+	met gad.selfAssignOpDoubleMod(a int, b int) { return a + b }
 	x := 7; x %%= 5; return x`, nil, Int(12))
+}
+
+func TestVMMethodOverride(t *testing.T) {
+	// `met ~name(…)` re-adds an existing method signature by replacing it
+	// instead of erroring; the last definition wins. (Variables defeat the
+	// constant-folder so the operator builtin is actually dispatched.)
+	testExpectRun(t, `
+	a := 1; b := 2
+	met ~gad.binOpTripleLess(l int, r int) { return 100 }
+	met ~gad.binOpTripleLess(l int, r int) { return 200 }
+	return a <<< b`, nil, Int(200))
+
+	// The block form takes `~` per method.
+	testExpectRun(t, `
+	a := 1; b := 2
+	met gad.binOpTripleLess { ~(l int, r int) { return 1 } }
+	met gad.binOpTripleLess { ~(l int, r int) { return 2 } }
+	return a <<< b`, nil, Int(2))
+
+	// `met ~name { … }` applies the override to every method in the block.
+	testExpectRun(t, `
+	a := 1; b := 2
+	met gad.binOpTripleLess(l int, r int) { return 1 }
+	met ~gad.binOpTripleLess { (l int, r int) { return 9 } }
+	return a <<< b`, nil, Int(9))
+
+	// Without `~`, re-adding the same signature is a runtime error.
+	expectErrIs(t, `
+	met gad.binOpTripleLess(l int, r int) { return 1 }
+	met gad.binOpTripleLess(l int, r int) { return 2 }
+	return 0`, nil, ErrNotIndexable)
 }
 
 func TestVMSameOperator(t *testing.T) {
@@ -312,7 +343,7 @@ func TestVMSameOperator(t *testing.T) {
 
 	// a type can define `===` via met gad.binOp.
 	testExpectRun(t, `
-	met gad.binOp(_ TBinaryOperatorSame, a str, b int) { return true }
+	met gad.binOpSame(a str, b int) { return true }
 	p := "x"
 	return p === 1`, nil, True)
 }
@@ -343,7 +374,7 @@ func TestVMInOperator(t *testing.T) {
 	// Fallback: when the right operand is not a Container, `in` goes through the
 	// binary-operator handlers, so a type can define it.
 	testExpectRun(t, `
-	met gad.binOp(_ TBinaryOperatorIn, a int, b str) { return a > 0 }
+	met gad.binOpIn(a int, b str) { return a > 0 }
 	return 5 in "anything"`, nil, True)
 	// No Container and no handler -> error.
 	expectErrIs(t, `return 1 in 2`, nil, ErrType)
@@ -372,16 +403,16 @@ func TestVMAinOperator(t *testing.T) {
 
 	// Falls back through `in`, so a Gad type that defines only `in` works.
 	testExpectRun(t, `
-	met gad.binOp(_ TBinaryOperatorIn, v, b str) { return v > 0 }
+	met gad.binOpIn(v, b str) { return v > 0 }
 	return [1, 2, 3] ain "anything"`, nil, True)
 
 	// A type can intercept `ain` directly, taking precedence over the fallback.
 	testExpectRun(t, `
-	met gad.binOp(_ TBinaryOperatorAin, a array, b str) { return "custom" }
+	met gad.binOpAin(a array, b str) { return "custom" }
 	return [1, 2] ain "x"`, nil, Str("custom"))
 
 	// gad.binOp is callable directly with the ain operator type.
-	testExpectRun(t, `return gad.binOp(TBinaryOperatorAin, [1, 2], [1, 2, 3])`, nil, True)
+	testExpectRun(t, `return gad.binOpAin([1, 2], [1, 2, 3])`, nil, True)
 
 	// No `in` support on the right operand -> error.
 	expectErrIs(t, `return [1] ain 2`, nil, ErrType)
@@ -562,7 +593,7 @@ func TestVMClassFeatures(t *testing.T) {
 	// --- operator overload + conversion + external method via `met` ---
 	testExpectRun(t, `
 	Vec := Class("Vec"; fields=(; x int = 0, y int = 0))
-	met gad.binOp(_ TBinaryOperatorAdd, a Vec, b Vec) {
+	met gad.binOpAdd(a Vec, b Vec) {
 		return Vec(; x=a.x+b.x, y=a.y+b.y)
 	}
 	met str(v Vec) => "(" + v.x + ", " + v.y + ")"

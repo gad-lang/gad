@@ -7,10 +7,10 @@ These operators have no built-in meaning; each type gives them semantics with
 ***/
 
 /// Define `<<<` and `>>>` on ints as "push"/"pop"-ish helpers.
-met gad.binOp(_ TBinaryOperatorTripleLess, a int, b int) {
+met gad.binOpTripleLess(a int, b int) {
     return a * 1000 + b           // pack two small ints
 }
-met gad.binOp(_ TBinaryOperatorTripleGreater, a int, b int) {
+met gad.binOpTripleGreater(a int, b int) {
     return [a / 1000, a % 1000]   // unpack
 }
 
@@ -19,7 +19,7 @@ println(packed)                   // 12345
 println(packed >>> 0)             // [12, 345]
 
 /// `%%` as a "clamp into range" operator.
-met gad.binOp(_ TBinaryOperatorDoubleMod, v int, hi int) {
+met gad.binOpDoubleMod(v int, hi int) {
     return v < 0 ? 0 : (v > hi ? hi : v)
 }
 println(50 %% 10, -3 %% 10, 7 %% 10)   // 10 0 7
@@ -31,7 +31,7 @@ acc <<<= 2
 println(acc)                      // 1002
 
 /// A dedicated gad.selfAssignOp handler can differ from the binary one.
-met gad.selfAssignOp(_ TSelfAssignOperatorDoubleMod, a int, b int) {
+met gad.selfAssignOpDoubleMod(a int, b int) {
     return a + b
 }
 n := 7

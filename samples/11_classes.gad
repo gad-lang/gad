@@ -50,7 +50,7 @@ println("dog describe:", d.describe())    // inherited -> I am Rex
 
 // --- extend an existing class with `met` ---
 Vec := Class("Vec", (cls, define) => define(; fields = (; x int = 0, y int = 0)))
-met gad.binOp(_ TBinaryOperatorAdd, a Vec, b Vec) {
+met gad.binOpAdd(a Vec, b Vec) {
     return Vec(; x=a.x+b.x, y=a.y+b.y)
 }
 met str(v Vec) => "(" + v.x + ", " + v.y + ")"

@@ -28,15 +28,14 @@ func TestVMBinaryOperator(t *testing.T) {
 	// pow
 	testExpectRun(t, `return 2 ** 3`, nil, DecimalFromInt(8))
 	testExpectRun(t, `x := 2; x **= 3; return x`, nil, DecimalFromInt(8))
-	testExpectRun(t, `return gad.binOp(TBinaryOperatorPow, 2, 3)`, nil, DecimalFromInt(8))
+	testExpectRun(t, `return gad.binOpPow(2, 3)`, nil, DecimalFromInt(8))
 
-	testExpectRun(t, `return TBinaryOperatorAdd`, nil, TBinaryOperatorAdd)
-	testExpectRun(t, `return gad.binOp(TBinaryOperatorAdd, 1, 1)`, nil, Int(2))
+	testExpectRun(t, `return gad.binOpAdd(1, 1)`, nil, Int(2))
 
 	// custom OP
-	testExpectRun(t, `return gad.binOp(TBinaryOperatorMul, 2, 10)`, nil, Int(20))
+	testExpectRun(t, `return gad.binOpMul(2, 10)`, nil, Int(20))
 	testExpectRun(t, `
-met gad.binOp(_ TBinaryOperatorMul, p str, val int) {
+met gad.binOpMul(p str, val int) {
 	ret := p
 	for i := 0; i < val-1; i++ {
 		ret += "-" + p
@@ -46,13 +45,13 @@ met gad.binOp(_ TBinaryOperatorMul, p str, val int) {
 return "a" * 3`, nil, Str("a-a-a"))
 	testExpectRun(t, `
 // get original binary operator handler without methods
-bo := rawCaller(gad.binOp) 
+bo := rawCaller(gad.binOpAdd)
 
-met gad.binOp(_ TBinaryOperatorAdd, p str, val str) {
+met gad.binOpAdd(p str, val str) {
 	ret := p
 	for i := 0; i < int(val)-1; i++ {
-		// cant't uses ret += ... to prevents caller overflows on this method 
-		ret = bo(TBinaryOperatorAdd, ret, bo(TBinaryOperatorAdd, "-", p))
+		// cant't uses ret += ... to prevents caller overflows on this method
+		ret = bo(ret, bo("-", p))
 	}
 	return ret
 }
@@ -2472,12 +2471,12 @@ met Point3(this, r int) {
 	this(;r=r)
 }
 
-met gad.selfAssignOp(_ TSelfAssignOperatorMul, p Point3, val int) {
+met gad.selfAssignOpMul(p Point3, val int) {
 	p.r *= val
 	return p
 }
 
-met gad.binOp(_ TBinaryOperatorAdd, i int, p Point3) {
+met gad.binOpAdd(i int, p Point3) {
 	return i + p.r
 }
 
@@ -4214,17 +4213,17 @@ func TestVMUnaryTemporal(t *testing.T) {
 }
 
 func TestVMUnaryOverride(t *testing.T) {
-	// A Gad type customises a unary operator with met gad.unOp(_ TUnaryOperatorX, …).
+	// A Gad type customises a unary operator with met gad.unOpX(…).
 	testExpectRun(t, `
 		Vec := Class("Vec"; fields = (; x = (= 0)))
-		met gad.unOp(_ TUnaryOperatorSub, v Vec) { return Vec(; x = -v.x) }
+		met gad.unOpSub(v Vec) { return Vec(; x = -v.x) }
 		a := Vec(; x = 7)
 		return (-a).x
 	`, nil, Int(-7))
 
 	// gad.unOp is also callable directly.
-	testExpectRun(t, `return gad.unOp(TUnaryOperatorInc, 41)`, nil, Int(42))
-	testExpectRun(t, `return gad.unOp(TUnaryOperatorNot, 0)`, nil, True)
+	testExpectRun(t, `return gad.unOpInc(41)`, nil, Int(42))
+	testExpectRun(t, `return gad.unOpNot(0)`, nil, True)
 }
 
 func TestVMSelfAssignDispatch(t *testing.T) {
@@ -4238,12 +4237,12 @@ func TestVMSelfAssignDispatch(t *testing.T) {
 	testExpectRun(t, `n := 5; n *= 3; return n`, nil, Int(15))
 
 	// gad.selfAssignOp is callable directly.
-	testExpectRun(t, `return gad.selfAssignOp(TSelfAssignOperatorAdd, [1], 2)`, nil,
+	testExpectRun(t, `return gad.selfAssignOpAdd([1], 2)`, nil,
 		Array{Int(1), Int(2)})
 
 	// A met gad.selfAssignOp override intercepts directly (not via the fallback).
 	testExpectRun(t, `
-		met gad.selfAssignOp(_ TSelfAssignOperatorSub, a int, b int) { return a - b * 10 }
+		met gad.selfAssignOpSub(a int, b int) { return a - b * 10 }
 		x := 100; x -= 3; return x
 	`, nil, Int(70))
 }

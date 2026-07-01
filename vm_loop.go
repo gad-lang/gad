@@ -45,14 +45,7 @@ VMLoop:
 			tok := token.Token(vm.curInsts[vm.ip+1])
 			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
 
-			value, err := vm.Builtins.Call(BuiltinBinaryOperator, Call{
-				VM: vm,
-				Args: Args{Array{
-					BinaryOperatorType(tok),
-					left,
-					right,
-				}},
-			})
+			value, err := vm.callBinaryOp(tok, left, right)
 
 			if err == nil {
 				vm.stack[vm.sp-2] = value
@@ -86,14 +79,7 @@ VMLoop:
 			tok := token.Token(vm.curInsts[vm.ip+1])
 			left, right := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
 
-			value, err := vm.Builtins.Call(BuiltinSelfAssignOperator, Call{
-				VM: vm,
-				Args: Args{Array{
-					SelfAssignOperatorType(tok),
-					left,
-					right,
-				}},
-			})
+			value, err := vm.callSelfAssignOp(tok, left, right)
 
 			if err == nil {
 				vm.stack[vm.sp-2] = value
@@ -469,11 +455,12 @@ VMLoop:
 			vm.stack[tp] = value
 			vm.sp = tp + 1
 			vm.ip++
-		case OpAddMethod:
+		case OpAddMethod, OpAddMethodOverride:
 			numSel := int(vm.curInsts[vm.ip+1])
 			numFuncs := int(vm.curInsts[vm.ip+2])
 			tp := vm.sp - 1 - numSel - numFuncs
-			value, null, abort := vm.xAddMethod(numSel, numFuncs, vm.stack[tp])
+			value, null, abort := vm.xAddMethod(numSel, numFuncs,
+				op == OpAddMethodOverride, vm.stack[tp])
 			if abort {
 				return
 			}
