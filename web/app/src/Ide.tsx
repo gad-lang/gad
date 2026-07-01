@@ -1544,7 +1544,7 @@ function TreeView({
   onOpen: (p: string) => void;
   onAction: (action: TreeAction, node: TreeNode) => void;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const onContextMenu = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY }); };
   const onKeyDown = (e: React.KeyboardEvent) => {
