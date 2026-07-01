@@ -18,7 +18,7 @@
     <div class="nav-group"><div class="nav-title">Guide</div>
       <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
     </div><div class="nav-group"><div class="nav-title">Reference</div>
-      <a class="nav-link active" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+      <a class="nav-link active" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
     </div><div class="nav-group"><div class="nav-title">Playground</div>
       <a class="nav-link" href="playground.html">Playground</a>
     </div>
@@ -339,6 +339,11 @@ raw "foo" + "bar"       // rawStr value "foobar"
 raw 1                   // rawStr value "1"
 -9.22 + 1e10            // float values
 2d                      // decimal values
+dur 1h30m               // duration value (Go duration string)
+2026-01-31D             // calendarDate value (YYYY-MM-DD)
+2026-01-31T             // time value at 00:00:00 UTC
+2026-01-31t             // calendarTime value (zone-less, nanosecond)
+1781609136U             // time value from unix seconds
 true || false           // bool values
 yes || no               // flag values
 'ç' &gt; '9'               // char values
@@ -357,7 +362,54 @@ func() { /*...*/ }      // function value
 <tr><td>float</td><td>64-bit floating point value</td><td><code>float64</code></td></tr>
 </tbody>
 </table>
-<p>| decimal          | decimal value                      | https://github.com/shopspring/decimal  | bool             | boolean value                      | <code>bool</code>                | | char             | unicode character                  | <code>rune</code>                | | string           | unicode string                     | <code>string</code>              | | bytes            | byte array                         | <code>[]byte</code>              | | error            | <a href="#error-values">error</a> value       | -                     | | array            | value array                        | <code>[]Object</code>            | | dict             | value dict with string keys        | <code>map[string]Object</code>   | | nil              | <a href="#nil-values">nil</a> value           | -                     | | compiledFunction | <a href="#function-values">function</a> value | -                     |</p>
+<p>| decimal          | decimal value                      | https://github.com/shopspring/decimal  | bool             | boolean value                      | <code>bool</code>                | | char             | unicode character                  | <code>rune</code>                | | string           | unicode string                     | <code>string</code>              | | bytes            | byte array                         | <code>[]byte</code>              | | error            | <a href="#error-values">error</a> value       | -                     | | array            | value array                        | <code>[]Object</code>            | | dict             | value dict with string keys        | <code>map[string]Object</code>   | | nil              | <a href="#nil-values">nil</a> value           | -                     | | compiledFunction | <a href="#function-values">function</a> value | -                     | | duration         | time span                          | <code>time.Duration</code>       | | calendarDate     | calendar date (YYYYMMDD)           | <code>uint</code>                | | calendarTime     | zone-less wall clock (nanoseconds) | <code>uint64</code>              | | time             | instant with location              | <code>time.Time</code>           |</p>
+<h3 id="date-and-time-values">Date and Time Values</h3>
+<p>The <code>time</code> builtin module provides value types for dates and times, each with a literal form and a string constructor:</p>
+<table>
+<thead><tr><th>Literal</th><th>Type</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>dur 1h30m</code></td><td><code>duration</code></td><td>a Go duration string</td></tr>
+<tr><td><code>2026-01-31D</code></td><td><code>calendarDate</code></td><td>a calendar date (also <code>20260131D</code>)</td></tr>
+<tr><td><code>2026-01-31T</code></td><td><code>time</code></td><td>that date at <code>00:00:00</code> UTC</td></tr>
+<tr><td><code>2026-01-31t</code></td><td><code>calendarTime</code></td><td>zone-less wall clock (nanosecond)</td></tr>
+<tr><td><code>1781609136U</code></td><td><code>time</code></td><td>unix seconds (optional <code>.fraction</code>)</td></tr>
+</tbody>
+</table>
+<p>A digit-suffix literal must be glued to the number (a space breaks it), so <code>2026 - 1</code> is still subtraction and <code>0xABCD</code> is still a hex int. Date/time literals carry a calendar date only; time-of-day comes from the string parsers:</p>
+<pre><code class="language-go">time.strToTime("2026-01-31T23:59:55Z")      // RFC3339 -&gt; time
+time.strToTime("2026-01-31 23:59:55")       // UTC (no zone)
+time.strToCalendarTime("2026-01-31 23:59:55.001")  // zone-less calendarTime
+time.strToDate("2026-01-31")                // calendarDate
+time.strToDuration("1h30m")                 // duration
+time.strToLocation("-03:00")                // Location
+
+d := 2026-01-31D
+d.year(); d.month(); d.day()                // 2026, 1, 31
+
+t := 2026-01-31t
+t.hour(); t.minute(); t.second(); t.ns()    // accessors</code></pre>
+<h4 id="arithmetic">Arithmetic</h4>
+<p><code>duration</code> supports <code>+ - * / %</code> and unary <code>-</code>; dividing two durations yields a <code>float</code> ratio. A <code>time</code>, <code>calendarTime</code> or <code>calendarDate</code> plus/minus a <code>duration</code> shifts it, and subtracting two of the same kind yields a <code>duration</code>. A <code>calendarDate ± duration</code> stays a <code>calendarDate</code> when the result lands on midnight, otherwise it becomes a <code>calendarTime</code>:</p>
+<pre><code class="language-go">dur 1h + dur 30m            // 1h30m0s
+dur 1h / dur 30m            // 2.0   (ratio)
+-(dur 1h)                   // -1h0m0s
+
+2026-01-31T + dur 90m       // 2026-01-31 01:30:00 UTC
+2026-02-01t - 2026-01-31t   // 24h0m0s  (a duration)
+2025-01-01D + dur 24h       // 2025-01-02   (still a calendarDate)
+2025-01-01D + dur 1s        // 2025-01-01 00:00:01  (now a calendarTime)</code></pre>
+<h4 id="truncating-and-rounding">Truncating and rounding</h4>
+<p><code>.trunc(unit)</code> lower-truncates a value to the start of a unit and <code>.round(unit)</code> rounds it to the nearest boundary (a tie rounds up). The unit is a char/string: the calendar units <code>'y'</code>, <code>'M'</code>, <code>'w'</code> (week, Monday), <code>'d'</code>, or the Go duration units <code>'h'</code>, <code>'m'</code>, <code>'s'</code>, <code>"ms"</code>, <code>"us"</code>, <code>"ns"</code>:</p>
+<pre><code class="language-go">t := time.strToTime("2026-08-17T14:37:52.123Z")
+t.trunc('M')                // 2026-08-01 00:00:00 UTC
+t.trunc('h')                // 2026-08-17 14:00:00 UTC
+t.trunc("ms")               // 2026-08-17 14:37:52.123 UTC
+t.round('h')                // 2026-08-17 15:00:00 UTC  (52m rounds up)
+t.round('d')                // 2026-08-18 00:00:00 UTC
+
+(2026-08-17D).trunc('M')    // 2026-08-01 (calendarDate)
+(dur 1h37m52s).trunc('m')   // 1h37m0s   ('y'/'M' are rejected for durations)
+(dur 1h37m52s).round('m')   // 1h38m0s</code></pre>
 <h3 id="error-values">Error Values</h3>
 <p>In Gad, an error can be represented using "error" typed values. An error value is created using <code>error</code> builtin function, and, it has an underlying message. The underlying message of an error can be accessed using <code>.Message</code> selector. Error has also a name which is accessed using <code>.Name</code>. Errors created with <code>error</code> builtin have default name <code>error</code> but builtin errors have different names like <code>NotIterableError</code>, <code>ZeroDivisionError</code>.</p>
 <p>First argument passed to <code>error</code> builtin function is converted to string as message.</p>
@@ -837,10 +889,14 @@ type Object interface {
   // String should return a string of the type's value.
   String() string
 
-  // BinaryOp handles +,-,*,/,%,&lt;&lt;,&gt;&gt;,&lt;=,&gt;=,&lt;,&gt; operators.
-  // Returned error stops VM execution if not handled with an error handler
-  // and VM.Run returns the same error as wrapped.
-  BinaryOp(tok token.Token, right Object) (Object, error)
+  // Binary operators are NOT part of Object: a type opts into each operator it
+  // supports by implementing the matching per-operator interface from the
+  // generated op_api.go, e.g.
+  //   type ObjectWithAddBinOperator interface { BinOpAdd(vm *VM, right Object) (Object, error) }
+  //   type ObjectWithLessBinOperator interface { BinOpLess(vm *VM, right Object) (Object, error) }
+  // (membership `a in b` is ObjectWithInBinOperator.BinOpIn on the right
+  // operand). A returned error stops VM execution unless handled. Use
+  // gad.BinaryOp(vm, tok, left, right) to run an operator generically.
 
   // IsFalsy returns true if value is falsy otherwise false.
   IsFalsy() bool

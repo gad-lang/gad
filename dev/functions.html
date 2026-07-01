@@ -18,14 +18,14 @@
     <div class="nav-group"><div class="nav-title">Guide</div>
       <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link active" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
     </div><div class="nav-group"><div class="nav-title">Reference</div>
-      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
     </div><div class="nav-group"><div class="nav-title">Playground</div>
       <a class="nav-link" href="playground.html">Playground</a>
     </div>
   </nav>
   <main class="content"><h1 id="functions">Functions</h1>
 <p><a href="index.html">← Back to index</a></p>
-<p>Functions are first-class values. Gad has no named function declarations — every function is an anonymous value bound to a variable.</p>
+<p>Functions are first-class values. A function literal is <code>func(params) { … }</code>, usually bound to a variable:</p>
 <pre><code class="language-go">sum := func(a, b) {
     return a + b
 }
@@ -33,6 +33,12 @@
 var mul = func(a, b) {
     return a * b
 }</code></pre>
+<p>A <code>func</code> with a name is a declaration that binds that name (a <code>const</code>); there is also a shorthand <code>name(params) { … }</code> / <code>name(params) =&gt; expr</code>:</p>
+<pre><code class="language-go">func area(r) {
+    return 3.14159 * r * r
+}
+double(x) =&gt; x * 2          // shorthand
+println(area(2), double(21))</code></pre>
 <h2 id="arrow-closures">Arrow Closures</h2>
 <p><code>(params) =&gt; expr</code> is a shorthand closure whose body is a single expression.</p>
 <pre><code class="language-go">double := (x) =&gt; x * 2
@@ -100,6 +106,19 @@ x()      // "a"
 x(1)     // typed (int) setter
 x()      // "int= 1"</code></pre>
 <p>A single-accessor property may drop the braces: <code>prop pi() =&gt; 3.14</code>. Properties are also available through the [<code>Prop</code>](values-and-types.md#properties) constructor for building them programmatically.</p>
+<h2 id="computed-values">Computed values</h2>
+<p><code>(= expr)</code> — or <code>(= stmt; …; result)</code> for several statements — creates a <strong>computed value</strong>: a lazy callable that runs its body and yields the result each time it is called.</p>
+<pre><code class="language-go">v := 10
+c := (= v * 2)
+typeName(c)   // "ComputedValue"
+c()           // 20
+v = 100
+c()           // 200  — the body is re-evaluated on every call</code></pre>
+<p>Computed values shine as class field defaults, where each instance gets its own freshly-evaluated value (see <a href="classes.html#fields">Classes → Fields</a>):</p>
+<pre><code class="language-go">n := 0
+C := Class("C", (cls, define) =&gt; define(; fields = (; id = (= n++))))
+[C().id, C().id]   // [1, 2]</code></pre>
+<blockquote>See also <a href="method-interfaces.html">Func Headers and Method Interfaces</a> for describing and checking function signatures (<code>&lt;…&gt;</code>, <code>meti</code>, <code>implements</code>).</blockquote>
 <h2 id="return--assign-the-result">return = (assign the result)</h2>
 <p><code>return = expr</code> sets the function's result value without leaving the function; execution continues. The final result is whatever <code>return =</code> last set (any later bare expression value is ignored). This pairs naturally with <a href="#deferred-handlers">deferred handlers</a>, which can read and rewrite it via <code>$ret</code>.</p>
 <pre><code class="language-go">f := func(x) {
@@ -122,6 +141,15 @@ f()   // prints: body, then cleanup</code></pre>
 <li><code>defer_err { … }</code> — runs only when an error is propagating.</li>
 <li><code>defer</code> — always runs.</li>
 </ul>
+<h3 id="shortcut-form">Shortcut form</h3>
+<p>Besides the block form, a handler may be a single statement written <strong>without braces</strong> — <code>defer Stmt</code>. It accepts a call (with <code>$ret</code> / <code>$err</code> passed as arguments), an assignment, or an increment/decrement:</p>
+<pre><code class="language-go">f := func() {
+    defer cleanup($ret, $err)   // call, receives the result and error
+    defer_ok log($ret)          // call, only on success
+    defer $ret += 1             // assignment to the result
+    return 1
+}</code></pre>
+<p>The same shortcut applies to the <code>deferb*</code> variants (<code>deferb out += "x"</code>, <code>deferb i++</code>, <code>deferb_err report($err)</code>).</p>
 <p>A <code>defer_err</code> handler can <strong>recover</strong> by clearing <code>$err</code> (and optionally setting <code>$ret</code>):</p>
 <pre><code class="language-go">safe := func() {
     defer_err {
@@ -142,7 +170,7 @@ println(safe())   // recovered: error: boom</code></pre>
 out += "after"
 println(out)   // body d2 d1 after   (LIFO at block exit)</code></pre>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#arrow-closures">Arrow Closures</a><a href="#closures">Closures</a><a href="#variadic-parameters">Variadic Parameters</a><a href="#spreading-arguments">Spreading Arguments</a><a href="#named-arguments">Named Arguments</a><a href="#argument-count">Argument Count</a><a href="#functions-with-methods">Functions with methods</a><a href="#properties-prop">Properties (prop)</a><a href="#return--assign-the-result">return = (assign the result)</a><a href="#deferred-handlers">Deferred Handlers</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#arrow-closures">Arrow Closures</a><a href="#closures">Closures</a><a href="#variadic-parameters">Variadic Parameters</a><a href="#spreading-arguments">Spreading Arguments</a><a href="#named-arguments">Named Arguments</a><a href="#argument-count">Argument Count</a><a href="#functions-with-methods">Functions with methods</a><a href="#properties-prop">Properties (prop)</a><a href="#computed-values">Computed values</a><a href="#return--assign-the-result">return = (assign the result)</a><a href="#deferred-handlers">Deferred Handlers</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

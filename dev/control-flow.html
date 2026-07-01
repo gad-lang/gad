@@ -18,7 +18,7 @@
     <div class="nav-group"><div class="nav-title">Guide</div>
       <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link active" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
     </div><div class="nav-group"><div class="nav-title">Reference</div>
-      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
     </div><div class="nav-group"><div class="nav-title">Playground</div>
       <a class="nav-link" href="playground.html">Playground</a>
     </div>
@@ -69,24 +69,29 @@ for i, c in "ab" {
     println(i, c)              // 0 'a', 1 'b'
 }</code></pre>
 <h2 id="match">Match</h2>
-<p><code>match</code> (PHP 8-style) compares a subject against arms and yields the first matching result. It has an expression form (each arm is <code>cond: value</code>) and a statement form (each arm is <code>cond { … }</code>). The <code>else</code> arm is the default.</p>
-<p>Expression form — arms separated by commas or newlines:</p>
-<pre><code class="language-go">label := match (n) {
-    1: "one"
-    2: "two",
+<p><code>match</code> (PHP 8-style) compares a subject against arms and yields the first matching result. The subject needs no parentheses. Each arm lists one or more conditions (matched against the subject with OR), followed by either <code>: value</code> (expression form) or a <code>{ … }</code> block (statement form). An optional <code>else</code> arm is the default; when nothing matches and there is no <code>else</code>, the match yields nil.</p>
+<p>Expression form — arms are separated by commas or newlines, and an arm may carry several comma-separated conditions:</p>
+<pre><code class="language-go">label := match n {
+    1, 2: "one or two"
+    3:    "three",
     else: "other"
 }</code></pre>
 <p>Statement form — arms run a block:</p>
-<pre><code class="language-go">match (n) {
+<pre><code class="language-go">match n {
     1 { return "one" }
+    2, 3 { return "few" }
     else { return "other" }
 }</code></pre>
 <p>Arm conditions are arbitrary expressions, so <code>match</code> doubles as a clean multi-branch conditional:</p>
-<pre><code class="language-go">size := match (true) {
+<pre><code class="language-go">size := match true {
     n &lt; 10:   "small"
     n &lt; 100:  "medium"
     else:     "large"
 }</code></pre>
+<p>An empty match — or one with no matching arm and no <code>else</code> — yields nil. An <code>else</code> arm may not be the only arm.</p>
+<pre><code class="language-go">x := match n {}            // nil
+y := match 1 { 2: "ok" }   // nil (no match)</code></pre>
+<p>The formatter keeps a match inline while it fits the line budget and switches to a one-arm-per-line layout only when it overflows (column-aware <code>NEW_LINE_CALC</code>), or always when the corresponding force flag is set. When split, the newline separates the arms (no commas), each arm's conditions wrap greedily, and arms with primitive-literal conditions are sorted ascending (<code>else</code> stays last). See <a href="conventions.html#match-arms">Conventions</a> for details.</p>
 <h2 id="try--catch--finally">Try / Catch / Finally</h2>
 <p>Gad handles runtime errors (and Go panics surfaced as errors) with <code>try</code>/<code>catch</code>/<code>finally</code>, similar to ECMAScript. <code>catch</code> may bind the error; <code>finally</code> always runs.</p>
 <pre><code class="language-go">try {
@@ -97,8 +102,31 @@ for i, c in "ab" {
     println("cleanup")        // always runs
 }</code></pre>
 <p><code>catch</code> and <code>finally</code> are each optional, but at least one must be present. <code>throw</code> raises any value as an error. For error values, fallbacks and the <code>or</code> operator, see <a href="error-handling.html">Error Handling</a>.</p>
+<h2 id="with">With</h2>
+<p><code>with</code> runs a resource's enter/exit hooks around a block, so cleanup always happens — even on an early return or an error. A resource is any value that provides the hooks: a Gad object with <code>enter()</code> / <code>exit(err)</code> methods, or a Go type implementing the <code>ObjectEnter</code> / <code>ObjectExit</code> interfaces. A value with neither is a silent no-op.</p>
+<pre><code class="language-go">File := Class("File", (cls, define) =&gt; define(; fields = (; name = (= ""), open = (= false)),
+    methods = [
+        enter(this) { this.open = true;  println("open",  this.name); return this }
+        exit(this, err) { this.open = false; println("close", this.name) }
+    ]))
+
+with File(; name = "a.txt") as f {
+    println("use", f.name)
+}
+// open a.txt / use a.txt / close a.txt</code></pre>
+<p><code>exit</code> receives any error raised in the block (<code>nil</code> on normal exit) and the error still propagates after it runs. Resources nest; their <code>exit</code> hooks run in reverse order.</p>
+<p>The statement has four binding forms:</p>
+<pre><code class="language-go">with resource { … }            // use an existing value
+with mk() as f { … }           // bind the resource to a block-local `f`
+with x := mk() { … }           // define `x` (visible after the block)
+var x
+with x = mk() { … }            // assign to an existing variable</code></pre>
+<p>There is also an <strong>expression</strong> form, <code>with resource [as name]: value</code>, which enters the resource, evaluates <code>value</code>, runs <code>exit</code>, and yields <code>value</code>:</p>
+<pre><code class="language-go">contents := with open("f") as f: f.read()
+data := "[" + (with open("g") as g: g.read()) + "]"</code></pre>
+<p><code>with</code> introduces no new opcode: it desugars to a block that registers <code>gad.exit(resource, $err)</code> as a [<code>deferb</code>](functions.md#defer) and then calls <code>gad.enter(resource)</code>. The hooks are dispatched through the <code>gad.enter</code> / <code>gad.exit</code> functions in the global [<code>gad</code>](operators.md#operator-handlers-and-the-gad-namespace) namespace.</p>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#if">If</a><a href="#for">For</a><a href="#for-in">For-In</a><a href="#match">Match</a><a href="#try--catch--finally">Try / Catch / Finally</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#if">If</a><a href="#for">For</a><a href="#for-in">For-In</a><a href="#match">Match</a><a href="#try--catch--finally">Try / Catch / Finally</a><a href="#with">With</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

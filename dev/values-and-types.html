@@ -18,7 +18,7 @@
     <div class="nav-group"><div class="nav-title">Guide</div>
       <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link active" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
     </div><div class="nav-group"><div class="nav-title">Reference</div>
-      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
     </div><div class="nav-group"><div class="nav-title">Playground</div>
       <a class="nav-link" href="playground.html">Playground</a>
     </div>
@@ -53,6 +53,18 @@ println(typeName([1, 2]))  // array</code></pre>
 <tr><td><code>compiledFunction</code></td><td>a Gad function</td><td>—</td></tr>
 </tbody>
 </table>
+<h2 id="type-constructors-and-methods">Type Constructors and Methods</h2>
+<p>Every value type is <strong>callable as a constructor</strong> that converts a compatible value: <code>int("42")</code>, <code>float(3)</code>, <code>str(7)</code>, <code>char(65)</code>, <code>bool(0)</code>, <code>bytes("hi")</code>, … Each constructor is built from <strong>typed methods</strong> — one overload per accepted input kind — so the conversion that runs is chosen by the argument's type.</p>
+<p>You can list a type's constructor methods (and any methods added to it) with <code>repr(T; indent)</code>:</p>
+<pre><code class="language-go">repr(int; indent)
+// ‹builtin type ‹int› with N methods: [
+//   ⨍(bool)    🠆 ‹function int(v bool)›,
+//   ⨍(char)    🠆 ‹function int(v char)›,
+//   ⨍(float)   🠆 ‹function int(v float)›,
+//   ⨍(str)     🠆 ‹function int(v str)›,
+//   … ]</code></pre>
+<p>The value-type constructors (<code>bool</code>, <code>int</code>, <code>uint</code>, <code>float</code>, <code>decimal</code>, <code>char</code>, <code>str</code>, <code>rawStr</code>, <code>bytes</code>) accept the numeric kinds, <code>char</code>, <code>bool</code> and string forms; an input not matched by a typed method falls back to the constructor's default coercion. The <code>time</code> module types (<code>time</code>, <code>calendarDate</code>, <code>calendarTime</code>, <code>duration</code>, <code>Location</code>) and the <code>Range</code> type expose their typed constructors the same way.</p>
+<p>New typed methods can be added to a type from a script with <code>met</code>, or from Go with <code>AddMethod</code> — see <a href="embedding.html#typed-methods-with-addmethod">Embedding</a>.</p>
 <h2 id="numbers">Numbers</h2>
 <pre><code class="language-go">19 + 84        // int
 1u + 5u        // uint
@@ -100,11 +112,17 @@ println(m.x)      // nil  (missing key)
 m.x = 10          // add a key</code></pre>
 <p><code>{}</code> at statement position opens a block, <strong>not</strong> an empty dict. Wrap a dict in parentheses where a block would otherwise be parsed: <code>({})</code>.</p>
 <h2 id="keyvalue-and-keyvaluearray">keyValue and keyValueArray</h2>
-<p>A <code>key=value</code> pair is its own value, and a parenthesised <code>;</code>-prefixed list is a <code>keyValueArray</code> — the literal form behind named arguments.</p>
+<p>A <code>key=value</code> pair (<code>[k=v]</code>) is its own value, and a parenthesised <code>;</code>-prefixed list is a <code>keyValueArray</code> — an <strong>ordered</strong> list of pairs (duplicate keys allowed) and the literal form behind named arguments.</p>
 <pre><code class="language-go">println([a=1])              // [a=1]            (keyValue)
 println((;a=1, b=2))        // (;a=1, b=2)      (keyValueArray)
 println(typeName([a=1]))    // keyValue
 println(typeName((;a=1)))   // keyValueArray</code></pre>
+<p>A keyValue exposes <code>.k</code>, <code>.v</code> and <code>.array</code> (<code>[k, v]</code>); within a keyValueArray the entries are mutable (<code>kva[i].v = …</code>).</p>
+<p>Keys may be identifiers, strings, numbers, booleans, or a dynamic <code>[(expr)=v]</code>. A bare key is a <strong>flag</strong> (<code>yes</code>); <code>=no</code> drops the entry. Values are any expression — including <strong>functions and closures</strong>. A key may also be <strong>typed</strong> (<code>name Type</code>), which records the type as metadata (the same form types named parameters, e.g. <code>func(; n int = 0)</code>):</p>
+<pre><code class="language-go">(; debug, verbose=no, level=3)          // (;debug, level=3)
+(; greet() =&gt; "hi", add(a, b) =&gt; a + b) // closure/func values
+(; id int, label str = "none")          // typed keys</code></pre>
+<p>Useful methods: <code>.flag(name)</code>, <code>.values(names…)</code> (all values, or only those named), <code>.delete(names…)</code>, and <code>**</code> spreads another keyValueArray. Iterate it as <code>for k, v in kva</code>, and <code>dict(kva)</code> converts it (last value per key wins). See [<code>samples/22_key_value_array.gad</code>](../samples/22<em>key</em>value_array.gad).</p>
 <h2 id="nil">Nil</h2>
 <p><code>nil</code> represents a missing or undefined value. Functions with no explicit <code>return</code>, missing dict keys and some builtins yield <code>nil</code>.</p>
 <pre><code class="language-go">a := func() { b := 4 }()  // a == nil
@@ -153,7 +171,7 @@ c := copy(a)    // independent copy
 c[0] = 0
 println(a[0])   // 99</code></pre>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#type-overview">Type Overview</a><a href="#numbers">Numbers</a><a href="#booleans-and-flags">Booleans and Flags</a><a href="#characters">Characters</a><a href="#strings-bytes-and-regex">Strings, Bytes and Regex</a><a href="#arrays">Arrays</a><a href="#dicts">Dicts</a><a href="#keyvalue-and-keyvaluearray">keyValue and keyValueArray</a><a href="#nil">Nil</a><a href="#functions">Functions</a><a href="#properties">Properties</a><a href="#copy-semantics">Copy Semantics</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#type-overview">Type Overview</a><a href="#type-constructors-and-methods">Type Constructors and Methods</a><a href="#numbers">Numbers</a><a href="#booleans-and-flags">Booleans and Flags</a><a href="#characters">Characters</a><a href="#strings-bytes-and-regex">Strings, Bytes and Regex</a><a href="#arrays">Arrays</a><a href="#dicts">Dicts</a><a href="#keyvalue-and-keyvaluearray">keyValue and keyValueArray</a><a href="#nil">Nil</a><a href="#functions">Functions</a><a href="#properties">Properties</a><a href="#copy-semantics">Copy Semantics</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

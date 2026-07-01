@@ -18,7 +18,7 @@
     <div class="nav-group"><div class="nav-title">Guide</div>
       <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link active" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
     </div><div class="nav-group"><div class="nav-title">Reference</div>
-      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-runtime-types.html">Gad Runtime Types</a><a class="nav-link" href="ref-builtins.html">Builtin Objects</a><a class="nav-link" href="ref-operators.html">Operators</a><a class="nav-link" href="ref-error-handling.html">Error Handling</a><a class="nav-link" href="ref-destructuring.html">Destructuring</a><a class="nav-link" href="ref-classes.html">Classes</a><a class="nav-link" href="ref-optimizer.html">Optimizer</a><a class="nav-link" href="ref-stdlib.html">Standard Library</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
     </div><div class="nav-group"><div class="nav-title">Playground</div>
       <a class="nav-link" href="playground.html">Playground</a>
     </div>
@@ -32,6 +32,8 @@ gad fmt src/...           # recurse into ./src and its sub-directories
 gad fmt -                 # read stdin, write formatted source to stdout</code></pre>
 <p>A directory argument formats only the <code>.gad</code> files directly inside it; append <code>/...</code> to recurse. Hidden files are ignored and hidden directories are skipped. Files already formatted are left untouched; each file that changes is printed.</p>
 <p>A failing file (e.g. a syntax error) does not stop the others — every target is attempted, errors are reported to stderr, and the command exits with status <code>2</code> (gofmt-style) when anything failed, otherwise <code>0</code>.</p>
+<h2 id="comments">Comments</h2>
+<p><code>gad fmt</code> preserves <code>//</code> line comments and <code>/* … */</code> block comments. A comment on the same line as a statement stays attached to it as a trailing comment; comments on their own line are kept on their own line before the following statement. (A comment sitting between the last statement of a block and its closing <code>}</code> is currently re-emitted just after the <code>}</code>.)</p>
 <h2 id="selecting-files">Selecting Files</h2>
 <table>
 <thead><tr><th>Flag</th><th>Effect</th></tr></thead>
@@ -81,19 +83,23 @@ gad fmt --backup main.gad         # writes main.backup.gad, then formats main.ga
 <h2 id="transpile">Transpile</h2>
 <p>One <code>--transpile-NAME</code> flag is generated per field of the formatter's transpile options (currently <code>--transpile-raw-str-func-start</code>, <code>--transpile-raw-str-func-end</code>, <code>--transpile-write-func</code>). Setting any of them emits transpiled output instead of plain formatting.</p>
 <h2 id="reports">Reports</h2>
-<p><code>--report PATH</code> writes a per-file status report as <strong>NDJSON</strong> — one JSON object per line. Each line carries <code>file</code> (relative to its input directory when the file came from one), <code>input_dir</code> (only for files discovered through a directory job), and <code>error</code> (only on failure):</p>
+<p><code>--report PATH</code> writes a per-file status report as <strong>NDJSON</strong> — one JSON object per line. Use <code>--report -</code> to write the report to stdout. Each line carries <code>file</code> (relative to its input directory when the file came from one), <code>input_dir</code> (only for files discovered through a directory job), and <code>error</code> (only on failure):</p>
 <pre><code class="language-sh">gad fmt --report report.ndjson src/...</code></pre>
 <pre><code class="language-json">{"input_dir":"src","file":"a.gad"}
 {"input_dir":"src","file":"b.gad","error":"Parse Error: ..."}
 {"file":"oops.gad"}</code></pre>
-<h3 id="streaming-to-stdout">Streaming to stdout</h3>
-<p><code>--to-stdout</code> formats every file but writes nothing to disk: each result is streamed to stdout, framed by boundary markers, and (when <code>--report</code> is unset) the NDJSON report follows. The boundary token frames the stream so a caller can split the results reliably; pass <code>--boundary TOKEN</code> to choose it, otherwise a random UUID is generated and announced on the first line as <code>&gt;&gt; TOKEN</code>:</p>
-<pre><code class="language-text">&gt;&gt; 8f883eb4-a13a-491a-8209-72d89ccaeee1
--- 8f883eb4-a13a-491a-8209-72d89ccaeee1 #0 [src] a.gad
-x := 1
--- 8f883eb4-a13a-491a-8209-72d89ccaeee1 #0
-{"input_dir":"src","file":"a.gad"}</code></pre>
-<p>Each block is <code>-- TOKEN #INDEX [INPUT_DIR] FILE</code> (the <code>[INPUT_DIR]</code> bracket is present only for directory-job files, and <code>FILE</code> is then relative to it), followed by the formatted source, then a closing <code>-- TOKEN #INDEX</code> line.</p>
+<ul>
+<li><code>--report-stream</code> writes each record as soon as its file is done, rather than</li>
+</ul>
+<p>  buffering them all until the end. With no <code>--report</code>, the report streams to   stdout.</p>
+<ul>
+<li><code>--report-contents</code> adds a <code>result</code> key to each record holding the formatted</li>
+</ul>
+<p>  source — useful with <code>--no-save</code> to format without touching files:</p>
+<pre><code class="language-sh">gad fmt --no-save --report-contents --report - src/...</code></pre>
+<pre><code class="language-json">{"input_dir":"src","file":"a.gad","result":"x := 1\n"}</code></pre>
+<h3 id="read-only-formatting">Read-only formatting</h3>
+<p><code>--no-save</code> formats every file but writes, creates and backs up nothing. Combine it with <code>--report-contents</code> (and <code>--report -</code>) to obtain the formatted source as data without modifying the working tree.</p>
 <h2 id="config-file-gadyaml">Config File (<code>.gad.yaml</code>)</h2>
 <p>Flag defaults can live in a YAML config under a <code>fmt:</code> key. The default file is <code>.gad.yaml</code> in the working directory; override with <code>--config PATH</code> or disable with <code>--no-config</code>. Command-line flags override config values.</p>
 <p>Keys use the flag names (without the leading <code>--</code>). A special <code>input_dirs</code> list declares directories to format with their own include/exclude/backup/report settings (these merge with the global include/exclude globs; <code>backup</code> defaults to false per directory, and <code>backup_format</code> defaults to the global value). A per-directory <code>report</code> writes that directory's NDJSON lines on its own.</p>
@@ -109,7 +115,7 @@ x := 1
       report: src-report.ndjson</code></pre>
 <p>With such a file present, a bare <code>gad fmt</code> (no path arguments) formats the configured <code>input_dirs</code>.</p>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#selecting-files">Selecting Files</a><a href="#output-and-backups">Output and Backups</a><a href="#parallelism">Parallelism</a><a href="#layout-control">Layout Control</a><a href="#transpile">Transpile</a><a href="#reports">Reports</a><a href="#config-file-gadyaml">Config File (.gad.yaml)</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#comments">Comments</a><a href="#selecting-files">Selecting Files</a><a href="#output-and-backups">Output and Backups</a><a href="#parallelism">Parallelism</a><a href="#layout-control">Layout Control</a><a href="#transpile">Transpile</a><a href="#reports">Reports</a><a href="#config-file-gadyaml">Config File (.gad.yaml)</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>
