@@ -85,7 +85,6 @@ interface OpenTab {
   runCfg: RunConfig;
 }
 
-type Pane = "output" | "stack" | "locals" | "breakpoints" | "evaluate";
 
 interface EvalEntry {
   id: number;
@@ -173,8 +172,6 @@ interface IdeShared {
   setBreakpoints: (path: string, lines: number[]) => void;
   setBpDialog: (v: { path: string; line: number } | null) => void;
   // output pane
-  pane: Pane;
-  setPane: (p: Pane) => void;
   outChunks: { stream: "out" | "err"; text: string }[];
   outMode: "combined" | "split";
   setOutMode: (m: "combined" | "split") => void;
@@ -391,36 +388,21 @@ function EditorPanel(_: IDockviewPanelProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Panel: Output (bottom — panes: output / stack / locals / breakpoints / evaluate)
+// Bottom panels — each is its own dockview panel (tab)
+// Tab order in default layout: [Call Stack | Locals | Breakpoints | Evaluate | Output]
 // ---------------------------------------------------------------------------
 
-function OutputPanel(_: IDockviewPanelProps) {
+function OutputTextPanel(_: IDockviewPanelProps) {
   const ide = useIde();
-  const { pane, outChunks, outMode, stack, locals, selectedFrame, evals } = ide;
-
+  const { outChunks, outMode } = ide;
   return (
-    <div className="panes panes-dockview">
-      <div className="pane-tabs">
-        {(["output", "stack", "locals", "breakpoints", "evaluate"] as Pane[]).map((p) => (
-          <button key={p} className={pane === p ? "on" : ""} onClick={() => ide.setPane(p)}>
-            {p === "output" ? "Output"
-              : p === "stack" ? "Call stack"
-              : p === "locals" ? "Locals"
-              : p === "breakpoints" ? "Breakpoints"
-              : "Evaluate"}
-          </button>
-        ))}
-        <span className="spacer" />
-        {pane === "output" && (
-          <>
-            <button className={outMode === "combined" ? "on" : ""} title="Combined stdout+stderr" onClick={() => ide.setOutMode("combined")}>Combined</button>
-            <button className={outMode === "split" ? "on" : ""} title="Split stdout / stderr" onClick={() => ide.setOutMode("split")}>Split</button>
-            <button onClick={ide.clearOut}>Clear</button>
-          </>
-        )}
+    <div className="panes-dockview">
+      <div className="pane-toolbar">
+        <button className={outMode === "combined" ? "on" : ""} title="Combined stdout+stderr" onClick={() => ide.setOutMode("combined")}>Combined</button>
+        <button className={outMode === "split" ? "on" : ""} title="Split stdout / stderr" onClick={() => ide.setOutMode("split")}>Split</button>
+        <button onClick={ide.clearOut}>Clear</button>
       </div>
-
-      {pane === "output" && outMode === "combined" && (
+      {outMode === "combined" && (
         <pre className="pane-body out-log">
           {outChunks.length === 0
             ? <span className="muted">(no output)</span>
@@ -429,7 +411,7 @@ function OutputPanel(_: IDockviewPanelProps) {
             ))}
         </pre>
       )}
-      {pane === "output" && outMode === "split" && (
+      {outMode === "split" && (
         <div className="pane-body out-split">
           <div className="out-col">
             <div className="out-col-head">stdout</div>
@@ -441,109 +423,122 @@ function OutputPanel(_: IDockviewPanelProps) {
           </div>
         </div>
       )}
-      {pane === "stack" && (
-        <div className="pane-body">
-          {(stack || []).map((f, i) => (
-            <div
-              key={i}
-              className={"frame" + (i === selectedFrame ? " selected" : "")}
-              title={`${f.file}:${f.line}:${f.column} — click to inspect, double-click to open`}
-              onClick={() => ide.onFrameClick(i, f)}
-              style={{ cursor: "pointer" }}
-            >
-              <span className="fn">{f.name || "main"}</span>{" "}
-              <span className="muted">
-                {f.file ? `${f.file.split("/").pop()}:` : ""}{f.line}:{f.column}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      {pane === "locals" && (() => {
-        const frame = stack && stack[selectedFrame];
-        const frameLocals = frame ? frame.locals : locals;
-        return (
-          <div className="pane-body">
-            {frame && (
-              <div className="locals-head muted">
-                {frame.name || "main"} — {frame.file ? frame.file.split("/").pop() + ":" : ""}{frame.line}:{frame.column}
-              </div>
-            )}
-            <table className="locals">
-              <tbody>
-                {(frameLocals || []).map((v, i) => (
-                  <tr key={i}>
-                    <td>{v.name}</td>
-                    <td className="muted">{v.type}</td>
-                    <td>{v.value}</td>
-                    <td className="locals-copy">
-                      <IconButton size="small" title="Inspect (tree)" onClick={() => ide.setInspectTarget({ title: v.name, expr: v.name })}>
-                        <AccountTreeIcon sx={{ fontSize: 14 }} />
-                      </IconButton>
-                      <IconButton size="small" title="Copy value" onClick={() => copyText(v.value)}>
-                        <ContentCopyIcon sx={{ fontSize: 14 }} />
-                      </IconButton>
-                    </td>
-                  </tr>
-                ))}
-                {(frameLocals || []).length === 0 && (
-                  <tr><td className="muted">(no locals)</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        );
-      })()}
-      {pane === "breakpoints" && (
-        <div className="pane-body">
-          <BpScopePanel ide={ide} />
-        </div>
-      )}
-      {pane === "evaluate" && (
-        <EvaluatePanel
-          entries={evals}
-          dark={false}
-          onAdd={ide.addEval}
-          onUpdate={async (id, expr, repr) => {
-            const updated = await ide.evalOne({ id, expr, repr, value: "", error: "" });
-            ide.setEvals((cur) => cur.map((e) => (e.id === id ? updated : e)));
-          }}
-          onRemove={(id) => ide.setEvals((cur) => cur.filter((e) => e.id !== id))}
-          onShowOutput={(e) => ide.setOutputDialog({ title: e.expr, text: e.error || e.value })}
-          onCopy={copyText}
-          onInspect={(e) => ide.setInspectTarget({ title: e.expr, expr: e.expr })}
-        />
-      )}
     </div>
   );
 }
 
-function BpScopePanel({ ide }: { ide: IdeShared }) {
+function CallStackPanel(_: IDockviewPanelProps) {
+  const ide = useIde();
+  const { stack, selectedFrame } = ide;
+  return (
+    <div className="panes-dockview">
+      <div className="pane-body">
+        {(stack || []).map((f, i) => (
+          <div
+            key={i}
+            className={"frame" + (i === selectedFrame ? " selected" : "")}
+            title={`${f.file}:${f.line}:${f.column} — click to inspect, double-click to open`}
+            onClick={() => ide.onFrameClick(i, f)}
+            style={{ cursor: "pointer" }}
+          >
+            <span className="fn">{f.name || "main"}</span>{" "}
+            <span className="muted">
+              {f.file ? `${f.file.split("/").pop()}:` : ""}{f.line}:{f.column}
+            </span>
+          </div>
+        ))}
+        {!(stack || []).length && <span className="muted">(no frames)</span>}
+      </div>
+    </div>
+  );
+}
+
+function LocalsPanel(_: IDockviewPanelProps) {
+  const ide = useIde();
+  const { stack, locals, selectedFrame } = ide;
+  const frame = stack && stack[selectedFrame];
+  const frameLocals = frame ? frame.locals : locals;
+  return (
+    <div className="panes-dockview">
+      <div className="pane-body">
+        {frame && (
+          <div className="locals-head muted">
+            {frame.name || "main"} — {frame.file ? frame.file.split("/").pop() + ":" : ""}{frame.line}:{frame.column}
+          </div>
+        )}
+        <table className="locals">
+          <tbody>
+            {(frameLocals || []).map((v, i) => (
+              <tr key={i}>
+                <td>{v.name}</td>
+                <td className="muted">{v.type}</td>
+                <td>{v.value}</td>
+                <td className="locals-copy">
+                  <IconButton size="small" title="Inspect (tree)" onClick={() => ide.setInspectTarget({ title: v.name, expr: v.name })}>
+                    <AccountTreeIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                  <IconButton size="small" title="Copy value" onClick={() => copyText(v.value)}>
+                    <ContentCopyIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </td>
+              </tr>
+            ))}
+            {!(frameLocals || []).length && <tr><td className="muted">(no locals)</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function BreakpointsPanel(_: IDockviewPanelProps) {
+  const ide = useIde();
   const [bpScope, setBpScope] = useState<"current" | "all">("current");
   return (
-    <>
-      <div className="bp-scope">
-        <button className={bpScope === "current" ? "on" : ""} onClick={() => setBpScope("current")}>Current file</button>
-        <button className={bpScope === "all" ? "on" : ""} onClick={() => setBpScope("all")}>All</button>
+    <div className="panes-dockview">
+      <div className="pane-body">
+        <div className="bp-scope">
+          <button className={bpScope === "current" ? "on" : ""} onClick={() => setBpScope("current")}>Current file</button>
+          <button className={bpScope === "all" ? "on" : ""} onClick={() => setBpScope("all")}>All</button>
+        </div>
+        {bpScope === "current" ? (
+          <BreakpointList
+            path={ide.activeTab?.path}
+            lines={ide.bpFor(ide.activeTab?.path)}
+            meta={ide.bpMetaFor(ide.activeTab?.path)}
+            onEdit={(line) => ide.activeTab && ide.setBpDialog({ path: ide.activeTab.path, line })}
+            onRemove={(line) => ide.activeTab && ide.setBreakpoints(ide.activeTab.path, ide.bpFor(ide.activeTab.path).filter((l) => l !== line))}
+            onNavigate={(line) => ide.editorRef.current?.gotoLocation(line, 1)}
+          />
+        ) : (
+          <BreakpointGroups
+            all={ide.allBreakpoints()}
+            onOpen={ide.openFile}
+            onNavigate={(file, line) => void ide.gotoFrame(file, line, 1)}
+            onRemove={(file, line) => ide.setBreakpoints(file, (ide.allBreakpoints()[file] || []).filter((l) => l !== line))}
+          />
+        )}
       </div>
-      {bpScope === "current" ? (
-        <BreakpointList
-          path={ide.activeTab?.path}
-          lines={ide.bpFor(ide.activeTab?.path)}
-          meta={ide.bpMetaFor(ide.activeTab?.path)}
-          onEdit={(line) => ide.activeTab && ide.setBpDialog({ path: ide.activeTab.path, line })}
-          onRemove={(line) => ide.activeTab && ide.setBreakpoints(ide.activeTab.path, ide.bpFor(ide.activeTab.path).filter((l) => l !== line))}
-          onNavigate={(line) => ide.editorRef.current?.gotoLocation(line, 1)}
-        />
-      ) : (
-        <BreakpointGroups
-          all={ide.allBreakpoints()}
-          onOpen={ide.openFile}
-          onNavigate={(file, line) => void ide.gotoFrame(file, line, 1)}
-          onRemove={(file, line) => ide.setBreakpoints(file, (ide.allBreakpoints()[file] || []).filter((l) => l !== line))}
-        />
-      )}
-    </>
+    </div>
+  );
+}
+
+function EvaluateDockPanel(_: IDockviewPanelProps) {
+  const ide = useIde();
+  return (
+    <EvaluatePanel
+      entries={ide.evals}
+      dark={ide.dark}
+      onAdd={ide.addEval}
+      onUpdate={async (id, expr, repr) => {
+        const updated = await ide.evalOne({ id, expr, repr, value: "", error: "" });
+        ide.setEvals((cur) => cur.map((e) => (e.id === id ? updated : e)));
+      }}
+      onRemove={(id) => ide.setEvals((cur) => cur.filter((e) => e.id !== id))}
+      onShowOutput={(e) => ide.setOutputDialog({ title: e.expr, text: e.error || e.value })}
+      onCopy={copyText}
+      onInspect={(e) => ide.setInspectTarget({ title: e.expr, expr: e.expr })}
+    />
   );
 }
 
@@ -595,15 +590,26 @@ function MdPreviewPanel(_: IDockviewPanelProps) {
 const DOCKVIEW_COMPONENTS = {
   explorer: ExplorerPanel,
   editor: EditorPanel,
-  output: OutputPanel,
+  output: OutputTextPanel,
+  callstack: CallStackPanel,
+  locals: LocalsPanel,
+  breakpoints: BreakpointsPanel,
+  evaluate: EvaluateDockPanel,
   docs: DocsPanel,
   markdown: MdPreviewPanel,
 } as const;
 
 function setupDefaultLayout(api: DockviewApi) {
   api.addPanel({ id: "editor", component: "editor", title: "Editor" });
-  api.addPanel({ id: "explorer", component: "explorer", title: "Explorer", position: { direction: "left", referencePanel: "editor" } });
-  api.addPanel({ id: "output", component: "output", title: "Output", position: { direction: "below", referencePanel: "editor" } });
+  const explorerPanel = api.addPanel({ id: "explorer", component: "explorer", title: "Explorer", position: { direction: "left", referencePanel: "editor" } });
+  explorerPanel.api.group.api.setSize({ width: 200 });
+  // Bottom panels — callstack/locals/breakpoints/evaluate tab to the left of output
+  api.addPanel({ id: "callstack", component: "callstack", title: "Call Stack", position: { direction: "below", referencePanel: "editor" } });
+  api.addPanel({ id: "locals", component: "locals", title: "Locals", position: { direction: "within", referencePanel: "callstack" } });
+  api.addPanel({ id: "breakpoints", component: "breakpoints", title: "Breakpoints", position: { direction: "within", referencePanel: "callstack" } });
+  api.addPanel({ id: "evaluate", component: "evaluate", title: "Evaluate", position: { direction: "within", referencePanel: "callstack" } });
+  api.addPanel({ id: "output", component: "output", title: "Output", position: { direction: "within", referencePanel: "callstack" } });
+  api.getPanel("callstack")?.api.setActive();
 }
 
 // ---------------------------------------------------------------------------
@@ -630,7 +636,6 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [active, setActive] = useState(-1);
-  const [pane, setPane] = useState<Pane>("output");
   const [outChunks, setOutChunks] = useState<{ stream: "out" | "err"; text: string }[]>([]);
   const [outMode, setOutMode] = useState<"combined" | "split">("combined");
   const pushOut = useCallback((stream: "out" | "err", text: string) => {
@@ -676,6 +681,10 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   // Keep config accessible in the onReady closure without re-running it.
   const configRef = useRef(config);
   configRef.current = config;
+
+  const activateBottomPanel = useCallback((id: string) => {
+    dockviewApiRef.current?.getPanel(id)?.api.setActive();
+  }, []);
 
   const refreshTree = useCallback(
     async () => setTree(await ideApi.tree(showHidden)),
@@ -770,7 +779,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     frameClickTimer.current = window.setTimeout(() => {
       frameClickTimer.current = null;
       setSelectedFrame(i);
-      setPane("locals");
+      activateBottomPanel("locals");
     }, 250);
   }
 
@@ -920,7 +929,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
 
   function showDiagnostics(diags: { line: number; column: number; message: string }[]) {
     setOutput((diags || []).map((d) => `${d.line}:${d.column} ${d.message}`).join("\n"));
-    setPane("output");
+    activateBottomPanel("output");
   }
 
   async function formatFile(path: string) {
@@ -1011,7 +1020,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     persistRunCfg(tab.path, cfg);
     const content = await ensureSaved(tab);
     setStatus("running…");
-    setPane("output");
+    activateBottomPanel("output");
     try {
       const res = await ideApi.run({
         path: tab.path, source: content, args: cfg.args, disabled: cfg.disabled,
@@ -1068,7 +1077,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       setSelectedFrame(0);
       setDebugLoc({ line: res.line ?? 0, column: res.column ?? 1 });
       setStatus(`stopped (${res.reason}) at ${stopFile}:${res.line}`);
-      setPane("stack");
+      activateBottomPanel("callstack");
       if (stopFile && stopFile !== activeTab?.path) void openFile(stopFile);
     } else if (res.state === "terminated") {
       if (res.result) pushOut("out", "\n⇦ " + res.result + "\n");
@@ -1239,7 +1248,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     debug, debugLoc, dbgCommand, keys,
     startDebugFromDialog: startDebug,
     bpFor, bpMetaFor, allBreakpoints, setBreakpoints, setBpDialog,
-    pane, setPane, outChunks, outMode, setOutMode, clearOut,
+    outChunks, outMode, setOutMode, clearOut,
     stack, locals, selectedFrame, setSelectedFrame, onFrameClick, gotoFrame,
     evals, setEvals, evalOne, addEval,
     setDialog, setInspectTarget, setOutputDialog,
