@@ -203,6 +203,24 @@
       (TestVMMethodInterface) tests; gofmt/vet clean, `go test ./...` -> 0 failures.
 - [ ] change typed ident and param parser to parse param type of method interface. add exaplained tests and docs for it
   of funcs/closures/methods/funcHeaders/properties etc.... examples: `func x(cb meti{(int)<float>} ) {...}`, `met x(iOrCb int|meti{(int)<float>}) {...}`,
+      STAGE 1 (parser) done (commit a95881c): the type parser accepts `meti{…}` /
+      `interface{…}` / `met<…>` structural literals wherever a type is read (typed
+      idents, params, func-headers, unions); isTypeStart + parseType handle the
+      literal forms; parser tests (TestParseTypeMethodInterface). Compiling such a
+      type is NOT yet supported — nameSymbolsOfTypedIdent returns a clear error
+      (was a nil-deref panic). REMAINING: stage 2 (lower a literal type to a
+      constant type reference — needs a constant-scope symbol or a type-ref model
+      change), stage 3 (runtime structural `implements` type-checking in the
+      TypeAssertion/ParamsTypes machinery), stage 4 (docs/examples). Best done in a
+      fresh session — it is a type-system feature.
+- [x] change parser of `met<...>` to allow multiples headers `met<(int), (float)<str> [, ...]>`, when format,
+    if has muliples headers, put it int new indented line without comma. parses allow multiples itens separated by new line without `,` (its optional, no required in this case).
+      Done (commit 983d018): parseMetShortcut parses 1+ bracket-less headers
+      between `<…>`, separated by commas or newlines (either optional, ExprLevel
+      makes newlines skippable). WriteCode formats several headers one per indented
+      line without commas (idempotent); a single header stays inline `met<(_ v)>`;
+      String() keeps the compact comma form. Parser test extended; `go test ./...`
+      -> 0 failures.
 - [ ] check cmd/update-*-plugin to accept all language changes.
     update vscode plugin to allow single "run" and "debug".
     create example page for codemirror and prismjs plugins.
