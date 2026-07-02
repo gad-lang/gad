@@ -124,7 +124,24 @@
       (doc/method-interfaces.md) + tests (parser + VM + encoder round-trip) updated.
       Evidence: gofmt/vet clean, `go build ./...` and `go test ./...` → 0 failures;
       samples/12_method_interfaces.gad runs.
-- [ ] create parser for `interface` Expr and Stmt.
+- [x] create parser for `interface` Expr and Stmt.
+      Done (staged commits 763a5ee→3fbfc25): token.Interface keyword; AST
+      InterfaceExpr/Stmt/InterfaceMemberExpr/InterfaceMethodExpr with extends,
+      typed fields, get/set/prop accessors and methods (single `name(sig)` or
+      block `name { sig, … }` — the `parse` example is just a block-form method,
+      meti-style without the keyword); WriteCode + parser tests. Objects Interface
+      (TInterface in gad, no constructor) + InterfaceField/Prop/Method with
+      IndexGet + fluid WithField/WithGetter/WithSetter/WithMethod. Compiler lowers
+      to a *Interface constant (buildInterface; types as symbols via
+      nameSymbolsOfTypedIdent; getters/setters -> InterfaceProp, methods ->
+      InterfaceMethod; extends -> parent symbols; module from c.module), anonymous
+      -> ifaces#N; statement/export forms bind a const. Union types in header
+      params (`(int|uint)` -> `(_ int|uint)`). Encode/decode for all four
+      constants (member Iface back-refs restored on decode). doc/method-interfaces.md
+      section + samples/24_interfaces.gad. Evidence: gofmt/vet clean,
+      `go build ./...` and `go test ./...` -> 0 failures; sample runs.
+      NOTE: `<false>`/`<true>` boolean returns (used in the parse example) need a
+      small ParseFuncReturnTypes addition — deferred (see the meti follow-ups).
   - syntaxe:
 
       ```gad
@@ -151,8 +168,10 @@
         // methods, like `meti`
         authorName() // header must <authorName()>
         authorName2() <str> // with return type
+        update(int|uint) <str> // func header <(_ int|uint)<str>>
       
-        parse { // parse as `meti` declaration insteadof MetiToken field, preserve compile source positions
+        // method "parse" with `meti` declaration (without `meti`) insteadof MetiToken field, preserve compile source positions
+        parse {
           (str) // func header <(_ str)>
           (str,int) // func header <(_ str, _ int)>
           (v int|uint)<false> // func header <(v int|uint) <false>>
@@ -162,12 +181,22 @@
 
   - Stmt variation `interface X {...}`, compiles to `const X = interface X { ... }`
   - allow doc comments and export `export interface X { ... }`
-  - compiles to new constant `*gad.Interface{module *ModuleSpec, ...}` (type is new object type "Interface" in "gad" module, without constructor) (see `CompiledFunction` header for params, types and symbols, use `*Compiler.module` to get current `*ModuleSpec`).
+  - create new Object `&InterfaceProp{ Iface *Interface; Name string; Getter *FunctionHeader; Setters[]*FunctionHeader }`
+  - create new Object `&InterfaceField{ Iface *Interface; Name string; TypesSymbols ParamType; Types ObjectTypes }` (see `gad.Param`)
+  - create new Object `&InterfaceMethod{ Iface *Interface; Name string; Headers[]*FunctionHeader }`
+  - compiles to new constant `*gad.Interface{module *ModuleSpec; Fields []*InterfaceField; Props []*InterfaceProp; ...}` (type is new object type "Interface" in "gad" module, without constructor) (see `CompiledFunction` header for params, types and symbols, use `*Compiler.module` to get current `*ModuleSpec`).
+  - compile getters to const `&InterfaceProp{Name, Getter, ...}`
+  - compile setters to const `&InterfaceProp{Name, Setters, ... }`
+  - compile methods to const `&InterfaceMethod{Name, Headers, ... }`
   - if is anonymous, compile with name `ifaces#N` (see compiler of FuncHeader).
   - create methods for `*gad.Interface` for fluid construction appending fields/getters/setters/methods (methods is *MethodInterface)
   - format like this task example.
   - create encode/decode.
   - create expansive docs, tests and examples.
+- [ ] change `meti` parser allow shortcut form (one method): `meti<...>` when `<...>` is a func-header declaration. 
+      parses `meti<(v)>` as `meti<(_ v)>` (`_` param with type `v`, not untyped `v` param).
+- [ ] change typed ident and param parser to parse param type of method interface. add exaplained tests and docs for it
+  of funcs/closures/methods/funcHeaders/properties etc.... examples: `func x(cb meti{(int)<float>} ) {...}`, `met x(iOrCb int|meti{(int)<float>}) {...}`,
 - [ ] check cmd/update-*-plugin to accept all language changes.
     update vscode plugin to allow single "run" and "debug".
     create example page for codemirror and prismjs plugins.
