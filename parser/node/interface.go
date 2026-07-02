@@ -80,12 +80,58 @@ type InterfaceExpr struct {
 	Parents        []Expr // extends { … } — no alias
 	ExtendsDoc     *ast.CommentGroup
 	Members        []*InterfaceMemberExpr // fields, getters, setters, props (source order)
-	Methods        []*FuncHeaderExpr      // named method headers
-	Parse          []*FuncHeaderExpr      // the `parse { … }` anonymous headers
-	ParseDoc       *ast.CommentGroup
+	Methods        []*InterfaceMethodExpr // required methods (one or more signatures each)
 	LBrace         source.Pos
 	RBrace         source.Pos
 	Doc            *ast.CommentGroup // doc comment preceding the interface; or nil
+}
+
+// InterfaceMethodExpr is a required method of an interface: a name and one or
+// more signatures (func-header shape, without the `<…>` brackets). Written
+// either single `name(params) <return>` or block `name { (params) <return>, … }`
+// (the block form is how the `parse` example groups several signatures).
+type InterfaceMethodExpr struct {
+	NameExpr *IdentExpr
+	Headers  []*FuncHeaderExpr // the signature(s), anonymous (the name is on NameExpr)
+	Block    bool              // written in the brace-block form
+	LBrace   source.Pos
+	RBrace   source.Pos
+	Doc      *ast.CommentGroup
+}
+
+func (e *InterfaceMethodExpr) ExprNode() {}
+
+func (e *InterfaceMethodExpr) Pos() source.Pos { return e.NameExpr.Pos() }
+
+func (e *InterfaceMethodExpr) End() source.Pos {
+	if e.RBrace.IsValid() {
+		return e.RBrace + 1
+	}
+	if n := len(e.Headers); n > 0 {
+		return e.Headers[n-1].End()
+	}
+	return e.NameExpr.End()
+}
+
+func (e *InterfaceMethodExpr) String() string { return Code(e) }
+
+func (e *InterfaceMethodExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteLeadDoc(e.Doc)
+	e.NameExpr.WriteCode(ctx)
+	if e.Block {
+		ctx.WriteString(" {")
+		ctx.Depth++
+		for _, h := range e.Headers {
+			ctx.WriteString(h.FuncHeader.String())
+			ctx.WriteSemi()
+		}
+		ctx.Depth--
+		ctx.WriteString("}")
+		return
+	}
+	if len(e.Headers) == 1 {
+		ctx.WriteString(e.Headers[0].FuncHeader.String())
+	}
 }
 
 func (e *InterfaceExpr) ExprNode() {}
@@ -133,21 +179,7 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteSemi()
 	}
 	for _, m := range e.Methods {
-		ctx.WriteLeadDoc(m.Doc)
-		// Interface methods render without the `<…>` header brackets.
-		ctx.WriteString(m.FuncHeader.String())
-		ctx.WriteSemi()
-	}
-	if len(e.Parse) > 0 {
-		ctx.WriteLeadDoc(e.ParseDoc)
-		ctx.WriteString("parse {")
-		ctx.Depth++
-		for _, h := range e.Parse {
-			ctx.WriteString(h.FuncHeader.String())
-			ctx.WriteSemi()
-		}
-		ctx.Depth--
-		ctx.WriteString("}")
+		m.WriteCode(ctx)
 		ctx.WriteSemi()
 	}
 	ctx.Depth--

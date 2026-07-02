@@ -41,7 +41,6 @@ type Interface struct {
 	Fields  []*InterfaceField // typed fields
 	Props   []*InterfaceProp  // getter/setter properties
 	Methods []*InterfaceMethod
-	Parse   *MethodInterface // the `parse { … }` block, or nil
 }
 
 // InterfaceField is a typed field of an interface (see gad.Param for the type

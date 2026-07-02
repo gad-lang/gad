@@ -2822,3 +2822,22 @@ func TestInterfaceObject(t *testing.T) {
 		t.Fatalf("Equal: %s != %s", i, j)
 	}
 }
+
+func TestVMInterface(t *testing.T) {
+	// interface compiles to an Interface constant; members are readable
+	testExpectRun(t, `return typeName(interface {})`, nil, Str("Interface"))
+	testExpectRun(t, `I := interface Shape { id int; get area; draw() }
+	return [I.name, len(I.fields), len(I.props), len(I.methods)]`,
+		nil, Array{Str("Shape"), Int(1), Int(1), Int(1)})
+	// a bare field entry is typed; field type resolves
+	testExpectRun(t, `I := interface { n int|uint }
+	return [I.fields[0].name, I.fields[0].types[0] == int, I.fields[0].types[1] == uint]`,
+		nil, Array{Str("n"), True, True})
+	// a block method (`parse`-style) groups several signatures
+	testExpectRun(t, `I := interface { parse { (str), (v int) <bool> } }
+	return [I.methods[0].name, len(I.methods[0].headers)]`,
+		nil, Array{Str("parse"), Int(2)})
+	// statement form binds a const
+	testExpectRun(t, `interface S { m() }
+	return [typeName(S), S.name]`, nil, Array{Str("Interface"), Str("S")})
+}

@@ -2037,6 +2037,110 @@ func (c *Compiler) compileMethodInterfaceStmt(nd *node.MethodInterfaceStmt) erro
 	})
 }
 
+// buildInterface compiles an `interface { … }` AST node into a *Interface
+// constant. Field/accessor/method types are stored as compile-time symbols
+// (like func-header params, via nameSymbolsOfTypedIdent). A getter/setter/prop
+// lowers to an InterfaceProp whose Getter returns and Setter takes the declared
+// type. An anonymous interface gets an incremented `ifaces#N` name.
+func (c *Compiler) buildInterface(nd *node.InterfaceExpr) (*Interface, error) {
+	name := ""
+	if id := nd.NameIdent(); id != nil {
+		name = id.Name
+	}
+	if name == "" {
+		name = c.newInterfaceName()
+	}
+	iface := &Interface{IName: name, Module: c.module}
+
+	for _, parent := range nd.Parents {
+		id := node.EType(parent).Ident()
+		if id == nil {
+			return nil, c.errorf(parent, "interface extends: expected a type reference")
+		}
+		sym, err := c.requireSymbol(id, id.Name)
+		if err != nil {
+			return nil, err
+		}
+		iface.Extends = append(iface.Extends, &sym.SymbolInfo)
+	}
+
+	getter := func(mname string, syms ParamType) *FuncHeaderObject {
+		return &FuncHeaderObject{FuncName: mname, Module: c.module, Return: Array{&TypedIdent{Name: "_", TypesSymbols: syms}}}
+	}
+	setter := func(mname string, syms ParamType) *FuncHeaderObject {
+		return &FuncHeaderObject{FuncName: mname, Module: c.module, Params: Array{&TypedIdent{Name: "_", TypesSymbols: syms}}}
+	}
+
+	for _, m := range nd.Members {
+		mname, syms, err := c.nameSymbolsOfTypedIdent(nd, m.Name)
+		if err != nil {
+			return nil, err
+		}
+		switch m.Kind {
+		case node.IfaceField:
+			iface.Fields = append(iface.Fields, &InterfaceField{Iface: iface, Name: mname, TypesSymbols: syms})
+		case node.IfaceGet:
+			iface.Props = append(iface.Props, &InterfaceProp{Iface: iface, Name: mname, Getter: getter(mname, syms)})
+		case node.IfaceSet:
+			iface.Props = append(iface.Props, &InterfaceProp{Iface: iface, Name: mname, Setters: []*FuncHeaderObject{setter(mname, syms)}})
+		case node.IfaceProp:
+			iface.Props = append(iface.Props, &InterfaceProp{
+				Iface: iface, Name: mname,
+				Getter:  getter(mname, syms),
+				Setters: []*FuncHeaderObject{setter(mname, syms)},
+			})
+		}
+	}
+
+	for _, m := range nd.Methods {
+		im := &InterfaceMethod{Iface: iface, Name: m.NameExpr.Name}
+		for _, h := range m.Headers {
+			fh, err := c.buildFuncHeaderObject(h)
+			if err != nil {
+				return nil, err
+			}
+			im.Headers = append(im.Headers, fh)
+		}
+		iface.Methods = append(iface.Methods, im)
+	}
+
+	return iface, nil
+}
+
+// compileInterfaceExpr compiles `interface { … }` to a *Interface bytecode
+// constant.
+func (c *Compiler) compileInterfaceExpr(nd *node.InterfaceExpr) error {
+	iface, err := c.buildInterface(nd)
+	if err != nil {
+		return err
+	}
+	c.emit(nd, OpConstant, c.addConstant(iface))
+	return nil
+}
+
+func (c *Compiler) compileInterfaceStmt(nd *node.InterfaceStmt) error {
+	// an anonymous `interface { … }` statement is just an expression statement
+	if nd.NameExpr == nil {
+		return c.compileInterfaceExpr(&nd.InterfaceExpr)
+	}
+	name, _ := nd.NameExpr.(*node.IdentExpr)
+	if name == nil {
+		return c.errorf(nd, "require NameExpr as *Ident")
+	}
+	// `interface Name { … }` -> `const Name = <the interface constant>`
+	return c.Compile(&node.DeclStmt{
+		Decl: &node.GenDecl{
+			Tok: token.Const,
+			Specs: []node.Spec{
+				&node.ValueSpec{
+					Idents: []*node.IdentExpr{name},
+					Values: []node.Expr{&nd.InterfaceExpr},
+				},
+			},
+		},
+	})
+}
+
 // compileFuncHeaderExpr compiles a `<(params) <return>>` header value to a
 // *FuncHeaderObject bytecode constant. Each parameter/return type is stored as a
 // compile-time symbol (via nameSymbolsOfTypedIdent, the same mechanism used for

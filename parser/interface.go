@@ -102,13 +102,6 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 				iface.Parents = append(iface.Parents, p.parseInterfaceExtendsBlock()...)
 				return
 			}
-		case "parse":
-			if p.Peek().Token == token.LBrace {
-				p.Next()
-				iface.ParseDoc = doc
-				iface.Parse = append(iface.Parse, p.parseInterfaceParseBlock()...)
-				return
-			}
 		case "get", "set":
 			if p.Peek().Token == token.Ident {
 				kind := node.IfaceGet
@@ -126,23 +119,46 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 		}
 	}
 
-	// A method (`name(...)`) or a typed field (`name [Type]`).
+	// A method (single `name(...)` or block `name { (…), … }`) or a typed field
+	// (`name [Type]`).
 	name := p.ParseIdent()
 	if name == nil {
 		return
 	}
-	if p.Token.Token == token.LParen {
-		if h := p.parseInterfaceMethodHeader(name); h != nil {
-			h.Doc = doc
-			iface.Methods = append(iface.Methods, h)
+	switch p.Token.Token {
+	case token.LParen:
+		h := p.parseInterfaceMethodHeader()
+		if h == nil {
+			return
 		}
-		return
+		iface.Methods = append(iface.Methods, &node.InterfaceMethodExpr{
+			NameExpr: name, Headers: []*node.FuncHeaderExpr{h}, Doc: doc,
+		})
+	case token.LBrace:
+		m := &node.InterfaceMethodExpr{NameExpr: name, Block: true, Doc: doc}
+		m.LBrace = p.Expect(token.LBrace)
+		p.ExprLevel++
+		for {
+			p.skipClassSeps()
+			if p.Token.Token == token.RBrace || p.Token.Token == token.EOF {
+				break
+			}
+			h := p.parseInterfaceMethodHeader()
+			if h == nil || p.Failed() {
+				break
+			}
+			m.Headers = append(m.Headers, h)
+		}
+		p.ExprLevel--
+		m.RBrace = p.Expect(token.RBrace)
+		iface.Methods = append(iface.Methods, m)
+	default:
+		iface.Members = append(iface.Members, &node.InterfaceMemberExpr{
+			Kind: node.IfaceField,
+			Name: &node.TypedIdentExpr{Ident: name, Type: p.ParseTypes()},
+			Doc:  doc,
+		})
 	}
-	iface.Members = append(iface.Members, &node.InterfaceMemberExpr{
-		Kind: node.IfaceField,
-		Name: &node.TypedIdentExpr{Ident: name, Type: p.ParseTypes()},
-		Doc:  doc,
-	})
 }
 
 // parseInterfaceExtendsBlock parses `extends { Parent, … }` — parent interfaces
@@ -166,31 +182,10 @@ func (p *Parser) parseInterfaceExtendsBlock() (parents []node.Expr) {
 	return
 }
 
-// parseInterfaceParseBlock parses the `parse { … }` block: anonymous func-header
-// signatures (meti-style) written `(params) <return>`.
-func (p *Parser) parseInterfaceParseBlock() (headers []*node.FuncHeaderExpr) {
-	p.Expect(token.LBrace)
-	p.ExprLevel++
-	for {
-		p.skipClassSeps()
-		if p.Token.Token == token.RBrace || p.Token.Token == token.EOF {
-			break
-		}
-		h := p.parseInterfaceMethodHeader(nil)
-		if h == nil || p.Failed() {
-			break
-		}
-		headers = append(headers, h)
-	}
-	p.ExprLevel--
-	p.Expect(token.RBrace)
-	return
-}
-
-// parseInterfaceMethodHeader parses a header `[name](params) <return>` used by
-// interface methods (with a name) and `parse {}` entries (name nil). Bare
-// positional entries are types (`(int)` -> `(_ int)`), like `meti`.
-func (p *Parser) parseInterfaceMethodHeader(name *node.IdentExpr) *node.FuncHeaderExpr {
+// parseInterfaceMethodHeader parses one anonymous method signature `(params)
+// <return>`. Bare positional entries are types (`(int)` -> `(_ int)`), like
+// `meti`. The method name is carried by the enclosing InterfaceMethodExpr.
+func (p *Parser) parseInterfaceMethodHeader() *node.FuncHeaderExpr {
 	paren := p.ParseParemExpr(token.LParen, token.RParen)
 	if paren == nil || p.Errors.Len() != 0 {
 		return nil
@@ -200,11 +195,7 @@ func (p *Parser) parseInterfaceMethodHeader(name *node.IdentExpr) *node.FuncHead
 		p.Error(err.Pos(), err.Error())
 		return nil
 	}
-	h := &node.FuncHeaderExpr{
+	return &node.FuncHeaderExpr{
 		FuncHeader: node.FuncHeader{Params: params, Return: p.ParseFuncReturnTypes()},
 	}
-	if name != nil {
-		h.NameExpr = name
-	}
-	return h
 }

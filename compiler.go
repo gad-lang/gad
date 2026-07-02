@@ -86,6 +86,7 @@ type (
 		anonymousFuncIndex   uint
 		funcHeaderIndex      uint
 		methodInterfaceIndex uint
+		interfaceIndex       uint
 	}
 
 	// CompilerOptions represents customizable options for Compile().
@@ -361,6 +362,13 @@ func (c *Compiler) newFuncHeaderName() string {
 func (c *Compiler) newMethodInterfaceName() string {
 	c.methodInterfaceIndex++
 	return fmt.Sprintf("meti#%d", c.methodInterfaceIndex)
+}
+
+// newInterfaceName returns an incremented name for an anonymous `interface`
+// value, e.g. `ifaces#1`, mirroring newFuncHeaderName.
+func (c *Compiler) newInterfaceName() string {
+	c.interfaceIndex++
+	return fmt.Sprintf("ifaces#%d", c.interfaceIndex)
 }
 
 // Bytecode returns compiled Bytecode ready to run in VM.
@@ -713,6 +721,10 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileMethodInterfaceStmt(nt)
 	case *node.MethodInterfaceExpr:
 		return c.compileMethodInterfaceExpr(nt)
+	case *node.InterfaceStmt:
+		return c.compileInterfaceStmt(nt)
+	case *node.InterfaceExpr:
+		return c.compileInterfaceExpr(nt)
 	case *node.ClosureExpr:
 		return c.compileClosureLit(nt)
 	case *node.KeyValueLit:
