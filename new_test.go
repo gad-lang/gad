@@ -2784,3 +2784,41 @@ return [object.add1(10), object.sub1(10)]
 		}
 	})
 }
+
+func TestInterfaceObject(t *testing.T) {
+	fh := &FuncHeaderObject{FuncName: "g"}
+	i := (&Interface{IName: "Shape", Module: NewModuleSpecFromName("mymod")}).
+		WithField("id", TInt).
+		WithGetter("area", fh).
+		WithSetter("scale", fh).
+		WithMethod("draw", &FuncHeaderObject{FuncName: "draw#1"})
+
+	if got := i.FullName(); got != "mymod.Shape" {
+		t.Fatalf("FullName = %q", got)
+	}
+	if got := i.Type().Name(); got != "Interface" {
+		t.Fatalf("type name = %q", got)
+	}
+	if len(i.Fields) != 1 || len(i.Props) != 2 || len(i.Methods) != 1 {
+		t.Fatalf("members: fields=%d props=%d methods=%d", len(i.Fields), len(i.Props), len(i.Methods))
+	}
+	// field types resolve; member back-refs are set
+	if i.Fields[0].Iface != i {
+		t.Fatal("field Iface back-ref not set")
+	}
+	if got := i.Fields[0].ToString(); got != "id int" {
+		t.Fatalf("field str = %q", got)
+	}
+	// index access
+	fields, _ := i.IndexGet(nil, Str("fields"))
+	if arr, _ := fields.(Array); len(arr) != 1 {
+		t.Fatalf("i.fields = %v", fields)
+	}
+	// a copy is Equal
+	j := (&Interface{IName: "Shape"}).WithField("id", TInt).
+		WithGetter("area", fh).WithSetter("scale", fh).
+		WithMethod("draw", &FuncHeaderObject{FuncName: "draw#1"})
+	if !i.Equal(j) {
+		t.Fatalf("Equal: %s != %s", i, j)
+	}
+}

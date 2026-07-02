@@ -71,6 +71,8 @@ const (
 	BuiltinFunctionHeader
 	// BuiltinMethodInterface is the builtin object type for method interfaces.
 	BuiltinMethodInterface
+	// BuiltinInterface is the builtin object type for `interface { … }` values.
+	BuiltinInterface
 	BuiltinTypesEnd_
 
 	BuiltinStaticTypesStart_
