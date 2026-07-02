@@ -48,12 +48,12 @@ func TestVMFuncHeaderExpr(t *testing.T) {
 	// param type captured
 	testExpectRun(t, `h := <(v int)>
 	return h.params[0].types[0] == int`, nil, True)
-	// name (empty) and return list
+	// an anonymous header gets an incremented `fh#N` name at compile time
 	testExpectRun(t, `h := <(v int) <r bool>>
 	return [h.name, len(h.return), h.return[0].name]`,
-		nil, Array{Str(""), Int(1), Str("r")})
-	// round-trips through str
-	testExpectRun(t, `return str(<(a int) <r str>>)`, nil, Str("<(a int) <r str>>"))
+		nil, Array{Str("fh#1"), Int(1), Str("r")})
+	// str renders the module-qualified FullName (MODULE.Name + name)
+	testExpectRun(t, `return str(<(a int) <r str>>)`, nil, Str("<(main).fh#1(a int) <r str>>"))
 }
 
 func TestVMMethodInterface(t *testing.T) {

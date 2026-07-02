@@ -33,7 +33,9 @@ var (
 	DurationV1,
 	CalendarDateV1,
 	CalendarTimeV1,
-	EnumV1 EncDec
+	EnumV1,
+	TypedIdentV1,
+	FuncHeaderObjectV1 EncDec
 )
 
 const (
@@ -65,6 +67,8 @@ const (
 	typeCalendarDate
 	typeCalendarTime
 	typeEnum
+	typeTypedIdent
+	typeFuncHeaderObject
 )
 
 const versionV1 byte = 1
@@ -98,4 +102,6 @@ func init() {
 	Register[gad.CalendarDate](typeCalendarDate, versionV1, &CalendarDateV1)
 	Register[gad.CalendarTime](typeCalendarTime, versionV1, &CalendarTimeV1)
 	Register[gad.Enum](typeEnum, versionV1, &EnumV1)
+	Register[gad.TypedIdent](typeTypedIdent, versionV1, &TypedIdentV1)
+	Register[gad.FuncHeaderObject](typeFuncHeaderObject, versionV1, &FuncHeaderObjectV1)
 }

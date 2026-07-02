@@ -84,6 +84,7 @@ type (
 		stack              CompileStack
 		selectorStack      [][][]func()
 		anonymousFuncIndex uint
+		funcHeaderIndex    uint
 	}
 
 	// CompilerOptions represents customizable options for Compile().
@@ -345,6 +346,13 @@ func (c *Compiler) optimize(file *parser.File) error {
 func (c *Compiler) newAnonymousFuncName() string {
 	c.anonymousFuncIndex++
 	return fmt.Sprintf("#%d", c.anonymousFuncIndex)
+}
+
+// newFuncHeaderName returns an incremented name for an anonymous func-header
+// value, e.g. `fh#1`, mirroring newAnonymousFuncName.
+func (c *Compiler) newFuncHeaderName() string {
+	c.funcHeaderIndex++
+	return fmt.Sprintf("fh#%d", c.funcHeaderIndex)
 }
 
 // Bytecode returns compiled Bytecode ready to run in VM.

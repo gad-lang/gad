@@ -2026,41 +2026,63 @@ func (c *Compiler) compileMethodInterfaceStmt(nd *node.MethodInterfaceStmt) erro
 	})
 }
 
-// compileFuncHeaderExpr lowers a `<(params) <return>>` header value to a
-// FunctionHeader(name, params, namedParams, return) constructor call, where
-// each parameter/return is a typedIdent.
+// compileFuncHeaderExpr compiles a `<(params) <return>>` header value to a
+// *FuncHeaderObject bytecode constant. Each parameter/return type is stored as a
+// compile-time symbol (via nameSymbolsOfTypedIdent, the same mechanism used for
+// a CompiledFunction's param types) and resolved to its ObjectType per-VM at run
+// time, so the constant is immutable and thread-safe. The header is tagged with
+// the current module (c.module) for its module-qualified FullName.
 func (c *Compiler) compileFuncHeaderExpr(nd *node.FuncHeaderExpr) error {
-	typedIdents := func(idents ...*node.TypedIdentExpr) node.Exprs {
-		out := make(node.Exprs, 0, len(idents))
+	build := func(idents ...*node.TypedIdentExpr) (Array, error) {
+		out := make(Array, 0, len(idents))
 		for _, ti := range idents {
-			if ti != nil {
-				out = append(out, ti)
+			if ti == nil {
+				continue
 			}
+			name, symbols, err := c.nameSymbolsOfTypedIdent(nd, ti)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, &TypedIdent{Name: name, TypesSymbols: symbols})
 		}
-		return out
+		return out, nil
 	}
 
-	pos, end := nd.Pos(), nd.End()
-	params := typedIdents(nd.Params.Args.Values...)
+	params, err := build(nd.Params.Args.Values...)
+	if err != nil {
+		return err
+	}
 	if nd.Params.Args.Var != nil {
-		params = append(params, nd.Params.Args.Var)
+		v, err := build(nd.Params.Args.Var)
+		if err != nil {
+			return err
+		}
+		params = append(params, v...)
 	}
-	named := typedIdents(nd.Params.NamedArgs.Names...)
-	ret := typedIdents(nd.Return...)
+	named, err := build(nd.Params.NamedArgs.Names...)
+	if err != nil {
+		return err
+	}
+	ret, err := build(nd.Return...)
+	if err != nil {
+		return err
+	}
 
-	return c.Compile(&node.CallExpr{
-		Func: node.EIdent(BuiltinFunctionHeader.String(), pos),
-		CallArgs: node.CallArgs{
-			Args: node.CallExprPositionalArgs{
-				Values: []node.Expr{
-					node.Str(nd.Name(), pos),
-					node.Array(pos, end, params...),
-					node.Array(pos, end, named...),
-					node.Array(pos, end, ret...),
-				},
-			},
-		},
-	})
+	// An anonymous header gets an incremented `fh#N` name, like an anonymous
+	// function.
+	name := nd.Name()
+	if name == "" {
+		name = c.newFuncHeaderName()
+	}
+
+	c.emit(nd, OpConstant, c.addConstant(&FuncHeaderObject{
+		FuncName:    name,
+		Params:      params,
+		NamedParams: named,
+		Return:      ret,
+		Module:      c.module,
+	}))
+	return nil
 }
 
 func (c *Compiler) compileLogical(nd *node.BinaryExpr) error {

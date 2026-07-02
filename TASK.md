@@ -88,15 +88,30 @@
       Done: dropped the subcommandNames map + isSubcommand; main() builds the root
       command and dispatches via root.IsSub(args[0]) (plus help/--help), using the
       new command-context Command.IsSub. registerCommand just appends factories.
-- [ ] change func-header to compile to bytecode constant insteadof call builtin (see `CompiledFunction` header for params, types and symbols),
+- [x] change func-header to compile to bytecode constant insteadof call builtin (see `CompiledFunction` header for params, types and symbols),
       use `*Compiler.module` to get current `*ModuleSpec`.
-      create encode/decode. 
+      create encode/decode.
+      Done: compileFuncHeaderExpr now builds a *FuncHeaderObject constant
+      (OpConstant) instead of a FunctionHeader(...) builtin call. Param/return
+      types are stored as compile-time symbols (TypedIdent.TypesSymbols, via the
+      shared nameSymbolsOfTypedIdent) and resolved to ObjectType per-VM on
+      IndexGet("types") through vm.GetSymbolValue (mirrors ReturnVars.VMTypes), so
+      the shared constant stays immutable/thread-safe. Untyped params default to
+      TAny. The header carries c.module for a module-qualified FullName
+      (MODULE.Name + "." + name); FuncHeaderObject.ToString/String render the
+      parsed syntax with FullName. Anonymous headers get an incremented `fh#N`
+      name (Compiler.newFuncHeaderName, like newAnonymousFuncName). Added
+      encoder/decoder for TypedIdent + FuncHeaderObject (encoder_v1_func_header.go,
+      reusing the SymbolInfo array codec; module stored by name).
+      Evidence: gofmt/vet clean, `go build ./...` and `go test ./...` → 0 failures;
+      TestVMFuncHeaderExpr updated; TestFuncHeaderObjectEncoding round-trips.
 - [ ] change `meti` parser to parser function header without param name, parsing `(int)`
       as `(_ int)` insteadof untyped param `int`. apply this rule to parse `FuncHeader` (A func-header declaration value `<…>`).
       update godoc, doc, samples, and tests. update tests and docs.
       compiles to bytecode constant insteadof call builtin (see `CompiledFunction` header for params, types and symbols),
       use `*Compiler.module` to get current `*ModuleSpec`.
       create encode/decode. update tests and docs.
+      if is anonymous, compile with name `meti#N` (see compiler of FuncHeader).
 - [ ] create parser for `interface` Expr and Stmt.
   - syntaxe:
 
@@ -136,6 +151,7 @@
   - Stmt variation `interface X {...}`, compiles to `const X = interface X { ... }`
   - allow doc comments and export `export interface X { ... }`
   - compiles to new constant `*gad.Interface{module *ModuleSpec, ...}` (type is new object type "Interface" in "gad" module, without constructor) (see `CompiledFunction` header for params, types and symbols, use `*Compiler.module` to get current `*ModuleSpec`).
+  - if is anonymous, compile with name `ifaces#N` (see compiler of FuncHeader).
   - create methods for `*gad.Interface` for fluid construction appending fields/getters/setters/methods (methods is *MethodInterface)
   - format like this task example.
   - create encode/decode.

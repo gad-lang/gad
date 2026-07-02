@@ -206,3 +206,42 @@ func TestEnumEncoding(t *testing.T) {
 		require.True(t, wantVals[i].Equal(ev.Value), "value %d: want %v got %v", i, wantVals[i], ev.Value)
 	}
 }
+
+func TestFuncHeaderObjectEncoding(t *testing.T) {
+	// A func-header compiled to a constant: types are stored as symbols and the
+	// header carries its module for the module-qualified FullName.
+	h := &gad.FuncHeaderObject{
+		FuncName: "fh#1",
+		Module:   gad.NewModuleSpecFromName("mymod"),
+		Params: gad.Array{
+			&gad.TypedIdent{Name: "a", TypesSymbols: gad.ParamType{{Name: "int", Index: 3, Scope: gad.ScopeBuiltin}}},
+			&gad.TypedIdent{Name: "b", TypesSymbols: gad.ParamType{{Name: "any", Index: 0, Scope: gad.ScopeBuiltin}}},
+		},
+		Return: gad.Array{
+			&gad.TypedIdent{Name: "r", TypesSymbols: gad.ParamType{{Name: "str", Index: 11, Scope: gad.ScopeBuiltin}}},
+		},
+	}
+
+	b, err := encode(h)
+	require.NoError(t, err)
+
+	got, err := decode[*gad.FuncHeaderObject](b)
+	require.NoError(t, err)
+
+	require.Equal(t, "fh#1", got.FuncName)
+	require.NotNil(t, got.Module)
+	require.Equal(t, "mymod", got.Module.Name)
+	require.Equal(t, "mymod.fh#1", got.FullName())
+
+	require.Len(t, got.Params, 2)
+	p0 := got.Params[0].(*gad.TypedIdent)
+	require.Equal(t, "a", p0.Name)
+	require.Len(t, p0.TypesSymbols, 1)
+	require.Equal(t, "int", p0.TypesSymbols[0].Name)
+	require.Equal(t, gad.ScopeBuiltin, p0.TypesSymbols[0].Scope)
+
+	require.Len(t, got.Return, 1)
+	require.Equal(t, "r", got.Return[0].(*gad.TypedIdent).Name)
+	// the whole header round-trips equal
+	require.True(t, h.Equal(got), "want %v got %v", h, got)
+}

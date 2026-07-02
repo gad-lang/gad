@@ -32,11 +32,28 @@ type FuncHeaderObject struct {
 	Params      Array // of *TypedIdent
 	NamedParams Array // of *TypedIdent
 	Return      Array // of *TypedIdent
+	// Module is the module the header was compiled in, used to render a
+	// module-qualified FullName. Set from *Compiler.module when a func-header
+	// value is compiled to a constant; nil for values built at run time.
+	Module *ModuleSpec
 }
 
 func (h *FuncHeaderObject) Type() ObjectType { return TFunctionHeader }
 
 func (h *FuncHeaderObject) Name() string { return h.FuncName }
+
+// FullName is the header name qualified by its module, e.g. `mod.f`, or just the
+// name when there is no (or an unnamed) module. An anonymous header (no name)
+// has no FullName.
+func (h *FuncHeaderObject) FullName() string {
+	if h.FuncName == "" {
+		return ""
+	}
+	if h.Module != nil && h.Module.Name != "" {
+		return h.Module.Name + "." + h.FuncName
+	}
+	return h.FuncName
+}
 
 func (h *FuncHeaderObject) IsFalsy() bool { return false }
 
@@ -45,7 +62,7 @@ func (h *FuncHeaderObject) ToString() string { return h.String() }
 func (h *FuncHeaderObject) String() string {
 	var b strings.Builder
 	b.WriteString("<")
-	b.WriteString(h.FuncName)
+	b.WriteString(h.FullName())
 	b.WriteString("(")
 	writeTypedIdents(&b, h.Params)
 	if len(h.NamedParams) > 0 {
@@ -69,14 +86,9 @@ func writeTypedIdents(b *strings.Builder, arr Array) {
 		}
 		if ti, _ := o.(*TypedIdent); ti != nil {
 			b.WriteString(ti.Name)
-			if len(ti.Types) > 0 {
+			if names := ti.typeNames(); len(names) > 0 {
 				b.WriteString(" ")
-				for j, t := range ti.Types {
-					if j > 0 {
-						b.WriteString("|")
-					}
-					b.WriteString(t.(ObjectType).Name())
-				}
+				b.WriteString(strings.Join(names, "|"))
 			}
 		} else {
 			b.WriteString(o.ToString())

@@ -2519,6 +2519,52 @@ var (
 type TypedIdent struct {
 	Name  string
 	Types Array
+	// TypesSymbols holds the parameter's type references as compile-time symbols
+	// when a func-header value is compiled to a constant (see
+	// compileFuncHeaderExpr). When set, the resolved Types are produced per-VM on
+	// demand (resolveTypes) so the shared constant stays immutable and
+	// thread-safe. Empty for TypedIdent values built at run time (the
+	// `typedIdent`/`FunctionHeader` builtins), which carry resolved Types.
+	TypesSymbols ParamType
+}
+
+// resolveTypes returns the ident's types, resolving TypesSymbols against vm when
+// the ident was compiled to a constant. A fresh Array is returned so the shared
+// constant is never mutated (mirrors ReturnVars.VMTypes).
+func (t *TypedIdent) resolveTypes(vm *VM) (Array, error) {
+	if len(t.TypesSymbols) == 0 || vm == nil {
+		return t.Types, nil
+	}
+	out := make(Array, len(t.TypesSymbols))
+	for i, s := range t.TypesSymbols {
+		v, err := vm.GetSymbolValue(s)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = v
+	}
+	return out, nil
+}
+
+// typeNames renders the ident's type names for display, from resolved Types when
+// present, otherwise from the type symbols.
+func (t *TypedIdent) typeNames() []string {
+	if len(t.Types) > 0 {
+		names := make([]string, len(t.Types))
+		for i, o := range t.Types {
+			if ot, ok := o.(ObjectType); ok {
+				names[i] = ot.Name()
+			} else {
+				names[i] = o.ToString()
+			}
+		}
+		return names
+	}
+	names := make([]string, len(t.TypesSymbols))
+	for i, s := range t.TypesSymbols {
+		names[i] = s.Name
+	}
+	return names
 }
 
 func (t *TypedIdent) IndexSet(_ *VM, index, value Object) (err error) {
@@ -2548,13 +2594,13 @@ func (t *TypedIdent) IndexSet(_ *VM, index, value Object) (err error) {
 	return
 }
 
-func (t *TypedIdent) IndexGet(_ *VM, index Object) (value Object, err error) {
+func (t *TypedIdent) IndexGet(vm *VM, index Object) (value Object, err error) {
 	name := index.ToString()
 	switch name {
 	case "name":
 		value = Str(t.Name)
 	case "types":
-		value = t.Types
+		value, err = t.resolveTypes(vm)
 	default:
 		err = ErrInvalidIndex.NewError(name)
 	}
@@ -2570,19 +2616,40 @@ func (t *TypedIdent) Type() ObjectType {
 }
 
 func (t *TypedIdent) ToString() string {
-	return ReprQuote("typedIdent " + t.Name + " " + t.Types.ToString())
+	types := t.Types
+	if len(types) == 0 && len(t.TypesSymbols) > 0 {
+		names := t.typeNames()
+		types = make(Array, len(names))
+		for i, n := range names {
+			types[i] = Str(n)
+		}
+	}
+	return ReprQuote("typedIdent " + t.Name + " " + types.ToString())
 }
 
 func (t *TypedIdent) Equal(right Object) bool {
-	if r, _ := right.(*TypedIdent); r != nil {
-		if r == t {
-			return true
-		}
-		if t.Name == r.Name {
-			return t.Types.Equal(r.Types)
-		}
+	r, _ := right.(*TypedIdent)
+	if r == nil {
+		return false
 	}
-	return false
+	if r == t {
+		return true
+	}
+	if t.Name != r.Name {
+		return false
+	}
+	if len(t.TypesSymbols) > 0 || len(r.TypesSymbols) > 0 {
+		if len(t.TypesSymbols) != len(r.TypesSymbols) {
+			return false
+		}
+		for i := range t.TypesSymbols {
+			if t.TypesSymbols[i].Name != r.TypesSymbols[i].Name {
+				return false
+			}
+		}
+		return true
+	}
+	return t.Types.Equal(r.Types)
 }
 
 func (t *TypedIdent) Print(state *PrinterState) error {
