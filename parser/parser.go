@@ -1129,6 +1129,11 @@ func (p *Parser) ParseOperand() node.Expr {
 		case token.LBrace: // dict literal
 			return p.ParseDictLit()
 		case token.Func, token.Method: // function literal
+			// `met <header>` is the single-method MethodInterface shortcut, e.g.
+			// `met<(v)>` == `meti { (_ v) }` (but rendered as `met<…>`).
+			if p.Token.Token == token.Method && p.Peek().Token == token.Less {
+				return p.parseMetShortcut()
+			}
 			return p.ParseFuncExpr()
 		case token.Prop: // property literal
 			return p.ParsePropExpr()
@@ -2069,6 +2074,24 @@ func (p *Parser) ParseMethodInterfaceExprT(tok PToken) (e node.Expr) {
 	}
 	e = mi
 	return
+}
+
+// parseMetShortcut parses the single-method MethodInterface shortcut
+// `met <header>` (a func-header value), e.g. `met<(v)>` == `meti { (_ v) }`. It
+// yields a MethodInterfaceExpr flagged Shortcut (the `met` token is preserved by
+// the formatter).
+func (p *Parser) parseMetShortcut() node.Expr {
+	if p.Trace {
+		defer untracep(tracep(p, "MetShortcut"))
+	}
+	doc := p.leadComment
+	tok := p.ExpectToken(token.Method)
+	mi := &node.MethodInterfaceExpr{MetiToken: tok.TokenLit, Shortcut: true, Doc: doc}
+	if fh, _ := p.ParseFuncHeaderExpr().(*node.FuncHeaderExpr); fh != nil {
+		mi.Headers = append(mi.Headers, fh)
+		return mi
+	}
+	return &node.BadExpr{From: tok.Pos, To: p.Token.Pos}
 }
 
 // parseInterfaceHeader parses a bracket-less func header `(params) <return>`.

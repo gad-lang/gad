@@ -1890,7 +1890,10 @@ type MethodInterfaceExpr struct {
 	LBrace    source.Pos
 	RBrace    source.Pos
 	Headers   []*FuncHeaderExpr
-	Doc       *ast.CommentGroup // doc comment preceding the meti; or nil
+	// Shortcut reports the single-method `meti <header>` form (one header, no
+	// braces); it is preserved by WriteCode.
+	Shortcut bool
+	Doc      *ast.CommentGroup // doc comment preceding the meti; or nil
 }
 
 func (e *MethodInterfaceExpr) ExprNode() {}
@@ -1920,6 +1923,16 @@ func (e *MethodInterfaceExpr) NameIdent() *IdentExpr {
 
 func (e *MethodInterfaceExpr) String() string {
 	var b strings.Builder
+	// Preserve the single-method shortcut form `met <header>`.
+	if e.Shortcut && len(e.Headers) == 1 {
+		b.WriteString(e.MetiToken.Token.String())
+		if e.NameExpr != nil {
+			b.WriteString(" ")
+			b.WriteString(e.NameExpr.String())
+		}
+		b.WriteString(e.Headers[0].String())
+		return b.String()
+	}
 	if e.MetiToken.Valid() {
 		b.WriteString(e.MetiToken.Token.String())
 		b.WriteString(" ")
@@ -1953,6 +1966,16 @@ func (e *MethodInterfaceExpr) headersInNewLine(ctx *CodeWriteContext) bool {
 
 func (e *MethodInterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
+	// Preserve the single-method shortcut form `meti <header>`.
+	if e.Shortcut && len(e.Headers) == 1 {
+		ctx.WriteString(e.MetiToken.Token.String())
+		if e.NameExpr != nil {
+			ctx.WriteString(" ")
+			ctx.WriteString(e.NameExpr.String())
+		}
+		ctx.WriteString(e.Headers[0].String())
+		return
+	}
 	if e.MetiToken.Pos != source.NoPos {
 		ctx.WriteString(e.MetiToken.Token.String())
 		ctx.WriteString(" ")

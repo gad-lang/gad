@@ -59,6 +59,10 @@ func TestVMFuncHeaderExpr(t *testing.T) {
 func TestVMMethodInterface(t *testing.T) {
 	// a `meti { … }` value is a MethodInterface of required headers
 	testExpectRun(t, `return typeName(meti { () })`, nil, Str("MethodInterface"))
+	// `met <header>` is the single-method shortcut -> a MethodInterface
+	testExpectRun(t, `mi := met<(int) <str>>
+	return [typeName(mi), len(mi.headers), mi.headers[0].params[0].name, mi.headers[0].return[0].name]`,
+		nil, Array{Str("MethodInterface"), Int(1), Str("_"), Str("str")})
 	testExpectRun(t, `mi := meti { (), (v int) <int> }
 	return [len(mi.headers), mi.headers[1].params[0].name]`, nil, Array{Int(2), Str("v")})
 	// a bare positional entry is a type: `(int)` is the unnamed typed param `(_ int)`

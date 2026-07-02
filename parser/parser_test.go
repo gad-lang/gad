@@ -4191,6 +4191,10 @@ func TestParseMethodInterface(t *testing.T) {
 	test.ExpectParseString(t, `x := meti Z { (a int) <r bool> }`, `x := meti Z {(a int) <r bool>; }`)
 	// statement form binds a const
 	test.ExpectParseString(t, `meti S { () }`, `meti S {(); }`)
+	// shortcut single-method form `met <header>` -> a MethodInterface (preserved
+	// by the formatter; a bare entry is a type, so `(v)` -> `(_ v)`)
+	test.ExpectParseString(t, `x := met<(v)>`, `x := met<(_ v)>`)
+	test.ExpectParseString(t, `x := met<(a int) <str>>`, `x := met<(a int) <str>>`)
 }
 
 func TestParseInterface(t *testing.T) {
