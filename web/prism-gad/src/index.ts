@@ -120,3 +120,12 @@ export function registerGad(Prism: {
 }): void {
   Prism.languages.gad = gadGrammar;
 }
+
+export {
+  gadTemplateGrammar,
+  registerGadTemplate,
+  detectGadTemplate,
+  type GadTemplateDelimiters,
+  type GadTemplateOptions,
+  type GadTemplateDetection,
+} from "./template";

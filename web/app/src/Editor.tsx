@@ -17,6 +17,7 @@ import { debugDecorations, setDebugLoc, type LocalVar } from "./debugDecorations
 
 export type EditorLanguage =
   | "gad"
+  | "gadt"
   | "json"
   | "yaml"
   | "html"
@@ -29,11 +30,22 @@ export type EditorLanguage =
   | "markdown"
   | "text";
 
+/** Template configuration for the `.gadt` / mixed `.gad` language: custom tag
+ * delimiters, and `preamble` when the source is a `.gad` file that switches to
+ * template mode part-way in via a `# gad: mixed` directive. */
+export interface TemplateDelimiters {
+  start?: string;
+  end?: string;
+  preamble?: boolean;
+}
+
 /** Return the CodeMirror Extension for the given language. */
-function langExtension(lang: EditorLanguage, diagnose?: DiagnoseFn): Extension {
+function langExtension(lang: EditorLanguage, diagnose?: DiagnoseFn, tmpl?: TemplateDelimiters): Extension {
   switch (lang) {
     case "gad":
       return gad({ diagnose });
+    case "gadt":
+      return gad({ template: true, delimiters: { start: tmpl?.start, end: tmpl?.end }, preamble: tmpl?.preamble });
     case "json":
       return json();
     case "yaml":
@@ -74,6 +86,8 @@ interface EditorProps {
   diagnose?: DiagnoseFn;
   /** Syntax language — defaults to "gad". */
   language?: EditorLanguage;
+  /** Custom `.gadt` template delimiters (used when language is "gadt"). */
+  templateDelimiters?: TemplateDelimiters;
   dark?: boolean;
   onChange?: (value: string) => void;
   /** Initial breakpoint lines (1-based) and a callback when they change. */
@@ -89,7 +103,9 @@ interface EditorProps {
   onInspectVar?: (name: string) => void;
 }
 
-/** Editor theme for the active light/dark mode. */
+/** Editor theme for the active light/dark mode. Template delimiters are tagged
+ * `processingInstruction`, so the active theme's highlight style colours them —
+ * no editor-level override is needed. */
 function themeExtension(dark: boolean): Extension {
   return dark ? oneDark : [];
 }
@@ -105,6 +121,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     initialDoc,
     diagnose,
     language = "gad",
+    templateDelimiters,
     dark = false,
     onChange,
     breakpoints,
@@ -125,6 +142,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   // Keep latest diagnose available for the lang reconfigure effect.
   const diagnoseRef = useRef(diagnose);
   diagnoseRef.current = diagnose;
+  // Keep latest template delimiters for the lang reconfigure effect.
+  const tmplRef = useRef(templateDelimiters);
+  tmplRef.current = templateDelimiters;
   // Keep the latest breakpoint callback so the gutter (created once) can call it.
   const onBpRef = useRef(onBreakpointsChange);
   onBpRef.current = onBreakpointsChange;
@@ -180,7 +200,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       fontCompartment.current.of(fontTheme(fontSize)),
       keymap.of([...defaultKeymap, indentWithTab]),
       themeCompartment.current.of(themeExtension(dark)),
-      langCompartment.current.of(langExtension(language, diagnose)),
+      langCompartment.current.of(langExtension(language, diagnose, templateDelimiters)),
       EditorView.updateListener.of((u) => {
         if (u.docChanged && onChange) onChange(u.state.doc.toString());
       }),
@@ -197,12 +217,13 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reconfigure the language extension when language or diagnose backend changes.
+  // Reconfigure the language extension when the language, diagnose backend or
+  // template delimiters change.
   useEffect(() => {
     view.current?.dispatch({
-      effects: langCompartment.current.reconfigure(langExtension(language, diagnoseRef.current)),
+      effects: langCompartment.current.reconfigure(langExtension(language, diagnoseRef.current, tmplRef.current)),
     });
-  }, [language, diagnose]);
+  }, [language, diagnose, templateDelimiters?.start, templateDelimiters?.end, templateDelimiters?.preamble]);
 
   // Switch the editor theme when the light/dark mode changes.
   useEffect(() => {

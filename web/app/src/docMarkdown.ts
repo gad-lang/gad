@@ -3,9 +3,10 @@
 // code blocks (highlighted with the Gad Prism grammar), headings, bullet lists,
 // blockquotes, paragraphs and inline code/bold/italic.
 import Prism from "prismjs";
-import { registerGad } from "@gad-lang/prism-gad";
+import { registerGad, registerGadTemplate } from "@gad-lang/prism-gad";
 
 registerGad(Prism);
+registerGadTemplate(Prism);
 
 function escapeHtml(s: string): string {
   return s

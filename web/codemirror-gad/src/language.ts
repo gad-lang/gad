@@ -10,7 +10,7 @@ const builtinSet = new Set(builtins);
 const isIdentStart = (ch: string) => /[A-Za-z_$]/.test(ch);
 const isIdent = (ch: string) => /[A-Za-z0-9_$]/.test(ch);
 
-interface GadState {
+export interface GadState {
   // depth of the current /* */ block comment, 0 when not in one.
   blockComment: number;
   // closing fence of the current doc-comment block (`**/` or `***/`), or ""
@@ -25,6 +25,34 @@ interface GadState {
   tmplDepth: number;
 }
 
+/** gadTokenTable maps the tokenizer's token names to highlight tags. Shared by
+ * the Gad and Gad-template languages. */
+export const gadTokenTable = {
+  lineComment: t.lineComment,
+  blockComment: t.blockComment,
+  docComment: t.docComment,
+  docCodeFence: t.meta,
+  docResult: t.special(t.comment),
+  string: t.string,
+  character: t.character,
+  number: t.number,
+  keyword: t.keyword,
+  atom: t.atom,
+  standard: t.standard(t.variableName),
+  builtin: t.function(t.variableName),
+  variable: t.variableName,
+  operator: t.operator,
+  // Template (mixed) additions. The `{%` / `%}` (and `=` / `-` marker)
+  // delimiters use `tagName` — the conventional lezer tag for markup/template
+  // tag delimiters (as CodeMirror's Jinja2/Django/HTML modes do). Every theme
+  // colours `tagName` distinctly, so the delimiters stand out from the literal
+  // text and from the keywords inside the tag, with no hard-coded colour.
+  tagDelimiter: t.tagName,
+  tagContent: t.content,
+  // The `# gad: …` config directive that enables mixed mode in a `.gad` file.
+  templateDirective: t.meta,
+};
+
 // A pragmatic stream tokenizer for Gad. It is intentionally lightweight (it
 // does not build a full syntax tree) but covers comments, the several string
 // forms, char/number literals, keywords, builtins and operators well enough for
@@ -38,76 +66,73 @@ interface GadState {
 // tooltips inside interpolations.
 const gadStreamLanguage = StreamLanguage.define<GadState>({
   name: "gad",
-
-  startState(): GadState {
-    return { blockComment: 0, docFence: "", docCodeFence: "", tmplClose: "", tmplDepth: 0 };
-  },
-
-  token(stream: StringStream, state: GadState): string | null {
-    // Template string code interpolation (`{expr}`) — highest priority.
-    if (state.tmplClose && state.tmplDepth > 0) {
-      return tokenTmplCode(stream, state);
-    }
-    // Template string text region — second priority.
-    if (state.tmplClose) {
-      return tokenTmplText(stream, state);
-    }
-    // Inside a code fence within a doc-comment block: tokenize as Gad code.
-    if (state.docFence && state.docCodeFence) {
-      return tokenDocCodeBlock(stream, state);
-    }
-    // Inside a doc-comment block (not a code fence): consume as doc text.
-    if (state.docFence) {
-      return tokenDocBlock(stream, state);
-    }
-    // Inside a block comment.
-    if (state.blockComment > 0) {
-      return tokenBlockComment(stream, state);
-    }
-
-    if (stream.eatSpace()) return null;
-
-    const ch = stream.peek() as string;
-
-    // Doc comments (`///` single, `/**`…`**/` and `/***`…`***/` blocks) come
-    // before the ordinary // and /* checks so their markers are not read as
-    // plain `//`/`/*` comments.
-    if (stream.match("/***")) {
-      state.docFence = "***/";
-      return tokenDocBlock(stream, state);
-    }
-    if (stream.match("/**")) {
-      state.docFence = "**/";
-      return tokenDocBlock(stream, state);
-    }
-    if (stream.match(/^\/\/\/(?!\/)/)) {
-      stream.skipToEnd();
-      return "docComment";
-    }
-
-    // Delegate all non-comment, non-doc-comment tokens to the shared helper so
-    // the same logic is reused when highlighting code inside doc-code fences
-    // and template string interpolations.
-    return tokenCodeLine(stream, state, ch);
-  },
-
-  tokenTable: {
-    lineComment: t.lineComment,
-    blockComment: t.blockComment,
-    docComment: t.docComment,
-    docCodeFence: t.meta,
-    docResult: t.special(t.comment),
-    string: t.string,
-    character: t.character,
-    number: t.number,
-    keyword: t.keyword,
-    atom: t.atom,
-    standard: t.standard(t.variableName),
-    builtin: t.function(t.variableName),
-    variable: t.variableName,
-    operator: t.operator,
-  },
+  startState: newGadState,
+  token: gadToken,
+  tokenTable: gadTokenTable,
 });
+
+/** newGadState returns a fresh Gad tokenizer state (StreamLanguage startState). */
+export function newGadState(): GadState {
+  return { blockComment: 0, docFence: "", docCodeFence: "", tmplClose: "", tmplDepth: 0 };
+}
+
+/** gadInContinuation reports whether the tokenizer is mid-way through a
+ * multi-token construct (block comment, doc block or template string) that must
+ * be finished before any surrounding context (e.g. a template `%}` delimiter)
+ * can be considered. */
+export function gadInContinuation(state: GadState): boolean {
+  return state.blockComment > 0 || state.docFence !== "" || state.tmplClose !== "";
+}
+
+/** gadToken tokenizes one Gad token. Exported so the template (mixed) language
+ * can reuse the exact Gad highlighting inside `{% … %}` tags. */
+export function gadToken(stream: StringStream, state: GadState): string | null {
+  // Template string code interpolation (`{expr}`) — highest priority.
+  if (state.tmplClose && state.tmplDepth > 0) {
+    return tokenTmplCode(stream, state);
+  }
+  // Template string text region — second priority.
+  if (state.tmplClose) {
+    return tokenTmplText(stream, state);
+  }
+  // Inside a code fence within a doc-comment block: tokenize as Gad code.
+  if (state.docFence && state.docCodeFence) {
+    return tokenDocCodeBlock(stream, state);
+  }
+  // Inside a doc-comment block (not a code fence): consume as doc text.
+  if (state.docFence) {
+    return tokenDocBlock(stream, state);
+  }
+  // Inside a block comment.
+  if (state.blockComment > 0) {
+    return tokenBlockComment(stream, state);
+  }
+
+  if (stream.eatSpace()) return null;
+
+  const ch = stream.peek() as string;
+
+  // Doc comments (`///` single, `/**`…`**/` and `/***`…`***/` blocks) come
+  // before the ordinary // and /* checks so their markers are not read as
+  // plain `//`/`/*` comments.
+  if (stream.match("/***")) {
+    state.docFence = "***/";
+    return tokenDocBlock(stream, state);
+  }
+  if (stream.match("/**")) {
+    state.docFence = "**/";
+    return tokenDocBlock(stream, state);
+  }
+  if (stream.match(/^\/\/\/(?!\/)/)) {
+    stream.skipToEnd();
+    return "docComment";
+  }
+
+  // Delegate all non-comment, non-doc-comment tokens to the shared helper so
+  // the same logic is reused when highlighting code inside doc-code fences
+  // and template string interpolations.
+  return tokenCodeLine(stream, state, ch);
+}
 
 // tokenTmplText handles one token while inside a template string TEXT region
 // (outside any `{…}` interpolation). It:

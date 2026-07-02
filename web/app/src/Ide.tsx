@@ -80,10 +80,46 @@ function langForPath(path: string): EditorLanguage {
     case "ts": case "mts": case "cts": return "typescript";
     case "jsx": return "jsx";
     case "tsx": return "tsx";
-    case "gad": case "gadt": return "gad";
+    case "gad": return "gad";
+    case "gadt": return "gadt";
     case "md": case "mdx": return "markdown";
     default: return "text";
   }
+}
+
+// parseGadDirective reads the first `# gad: …` config directive of a `.gad`
+// source (mirroring the parser's ParseConfigStmt): whether it enables `mixed`
+// mode and any `delimiter=[START, END]` override. The directive may follow
+// leading comments.
+function parseGadDirective(content: string): { mixed: boolean; start?: string; end?: string } {
+  const m = content.match(/^[ \t]*#[ \t]*gad:[ \t]*([^\n]*)$/m);
+  if (!m) return { mixed: false };
+  const body = m[1];
+  const mixed = /\bmixed\b/.test(body) &&
+    !/\bmixed[ \t]*=[ \t]*(?:false|no)\b/.test(body) &&
+    !/\bno[_-]?mixed\b/.test(body);
+  const d = body.match(/delimiter[ \t]*=[ \t]*\[[ \t]*(['"])(.*?)\1[ \t]*,[ \t]*(['"])(.*?)\3[ \t]*\]/);
+  return { mixed, start: d?.[2], end: d?.[4] };
+}
+
+// detectTemplateMode decides whether the editor should highlight a file as a
+// Gad template, and how: a `.gadt` file is template from the first byte; a
+// `.gad` file is template only when a `# gad: mixed` directive is present (with
+// a leading Gad preamble). Delimiters come from the directive, else the
+// workspace config. Returns null for non-template files.
+function detectTemplateMode(
+  path: string,
+  content: string,
+  cfg: { start?: string; end?: string },
+): { start?: string; end?: string; preamble: boolean } | null {
+  if (path.toLowerCase().endsWith(".gadt")) {
+    return { start: cfg.start, end: cfg.end, preamble: false };
+  }
+  if (path.toLowerCase().endsWith(".gad")) {
+    const dir = parseGadDirective(content);
+    if (dir.mixed) return { start: dir.start ?? cfg.start, end: dir.end ?? cfg.end, preamble: true };
+  }
+  return null;
 }
 import { marked } from "marked";
 import { ReadonlyCode } from "./ReadonlyCode";
@@ -195,6 +231,8 @@ interface IdeShared {
   reloadFile: () => Promise<void>;
   editorRef: React.RefObject<EditorHandle>;
   diagnose: import("@gad-lang/codemirror-gad").DiagnoseFn;
+  /** Custom `.gadt` template delimiters from the workspace config. */
+  templateDelimiters: { start?: string; end?: string };
   fontSize: number;
   setFontSize: (px: number) => void;
   // debug
@@ -305,6 +343,17 @@ function EditorPanel(_: IDockviewPanelProps) {
   const ide = useIde();
   const { dark, debugLoc, keys } = ide;
   const debug = ide.debug;
+
+  // Template detection is content-aware: a `.gad` file with a `# gad: mixed`
+  // directive is highlighted as a template (with a Gad preamble), like `.gadt`.
+  const tmpl = ide.activeTab
+    ? detectTemplateMode(ide.activeTab.path, ide.activeTab.content, ide.templateDelimiters)
+    : null;
+  const editorLang: EditorLanguage = tmpl
+    ? "gadt"
+    : ide.activeTab
+      ? langForPath(ide.activeTab.path)
+      : "text";
 
   return (
     <section className="ide-center">
@@ -437,8 +486,9 @@ function EditorPanel(_: IDockviewPanelProps) {
             key={ide.activeTab.path}
             ref={ide.editorRef}
             initialDoc={ide.activeTab.content}
-            language={langForPath(ide.activeTab.path)}
-            diagnose={langForPath(ide.activeTab.path) === "gad" ? ide.diagnose : undefined}
+            language={editorLang}
+            diagnose={editorLang === "gad" ? ide.diagnose : undefined}
+            templateDelimiters={tmpl ?? undefined}
             dark={dark}
             onChange={ide.onEdit}
             breakpoints={ide.bpFor(ide.activeTab.path)}
@@ -1373,6 +1423,10 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const diagnose = useMemo(() => ideApi.diagnose, []);
   const keys = keysFromConfig(config);
   const fontSize = ((config.ide as Record<string, unknown>)?.fontSize as number) || 14;
+  const templateDelimiters = useMemo(() => {
+    const t = (config.template as Record<string, unknown>) || {};
+    return { start: t.start_delimiter as string | undefined, end: t.end_delimiter as string | undefined };
+  }, [config.template]);
 
   function setFontSize(px: number) {
     const clamped = Math.min(28, Math.max(9, px));
@@ -1603,7 +1657,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     dark, toggleTheme,
     tree, showHidden, setShowHidden, setFetchDialog, openFile, treeAction, refreshTree,
     tabs, active, setActive, activeTab, closeTab, onEdit,
-    save, format, reloadFile, editorRef, diagnose, fontSize, setFontSize,
+    save, format, reloadFile, editorRef, diagnose, templateDelimiters, fontSize, setFontSize,
     debug, debugLoc, dbgCommand, keys,
     startDebugFromDialog: startDebug,
     bpFor, bpMetaFor, allBreakpoints, setBreakpoints, setBpDialog,

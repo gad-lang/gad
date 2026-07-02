@@ -16,6 +16,42 @@ It covers comments, the string/heredoc/bytes forms, `/regex/` literals,
 keywords, atoms, builtins, `@`-prefixed specials, numbers and operators. Token
 colors are supplied by your Prism theme (or your own `.token.*` CSS).
 
+## Templates (`.gadt`)
+
+`registerGadTemplate(Prism, delims?)` installs a `gadt` grammar for Gad template
+(mixed) files — literal text plus `{% … %}` / `{%= … %}` tags whose bodies use
+the embedded Gad grammar. Delimiters default to `{%` / `%}` and are
+configurable. It reuses the Gad grammar, so `registerGad` must run first.
+
+```ts
+import { registerGad, registerGadTemplate } from "@gad-lang/prism-gad";
+
+registerGad(Prism);
+registerGadTemplate(Prism, { start: "{%", end: "%}" }); // delimiters optional
+const html = Prism.highlight(src, Prism.languages.gadt, "gadt");
+```
+
+### Mixed `.gad` files (`# gad: mixed`)
+
+A `.gad` file can enable template mode inline with a `# gad: mixed` directive
+(after an optional Gad preamble). Use `detectGadTemplate(source)` to read the
+directive — whether it enables `mixed` and any `delimiter=[START, END]` — and
+`preamble: true` to highlight the leading Gad (comments + the `# gad:` line) as
+Gad before the template text:
+
+```ts
+import { detectGadTemplate, registerGadTemplate } from "@gad-lang/prism-gad";
+
+const { mixed, start, end } = detectGadTemplate(source);
+if (mixed) {
+  registerGadTemplate(Prism, { start, end, preamble: true });
+  const html = Prism.highlight(source, Prism.languages.gadt, "gadt");
+}
+```
+
+Prism is stateless, so the preamble is an anchored approximation (it applies at
+the start of the source); for a full state machine use the CodeMirror plugin.
+
 For an interactive editor with autocompletion and live diagnostics, use
 [`@gad-lang/codemirror-gad`](../codemirror-gad) instead. See the example app in
 [`../README.md`](../README.md).
