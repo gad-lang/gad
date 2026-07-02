@@ -268,3 +268,41 @@ func TestMethodInterfaceEncoding(t *testing.T) {
 	require.Equal(t, "int", got.Headers[0].Params[0].(*gad.TypedIdent).TypesSymbols[0].Name)
 	require.True(t, mi.Equal(got))
 }
+
+func TestInterfaceEncoding(t *testing.T) {
+	getter := &gad.FuncHeaderObject{FuncName: "area", Return: gad.Array{
+		&gad.TypedIdent{Name: "_", TypesSymbols: gad.ParamType{{Name: "int", Index: 3, Scope: gad.ScopeBuiltin}}},
+	}}
+	i := &gad.Interface{
+		IName:   "Shape",
+		Module:  gad.NewModuleSpecFromName("mymod"),
+		Extends: gad.ParamType{{Name: "Base", Index: 5, Scope: gad.ScopeGlobal}},
+		Fields: []*gad.InterfaceField{
+			{Name: "id", TypesSymbols: gad.ParamType{{Name: "int", Index: 3, Scope: gad.ScopeBuiltin}}},
+		},
+		Props: []*gad.InterfaceProp{
+			{Name: "area", Getter: getter},
+		},
+		Methods: []*gad.InterfaceMethod{
+			{Name: "draw", Headers: []*gad.FuncHeaderObject{{FuncName: "draw#1"}}},
+		},
+	}
+	b, err := encode(i)
+	require.NoError(t, err)
+	got, err := decode[*gad.Interface](b)
+	require.NoError(t, err)
+
+	require.Equal(t, "mymod.Shape", got.FullName())
+	require.Len(t, got.Extends, 1)
+	require.Equal(t, "Base", got.Extends[0].Name)
+	require.Len(t, got.Fields, 1)
+	require.Equal(t, "id", got.Fields[0].Name)
+	require.Same(t, got, got.Fields[0].Iface) // back-ref restored
+	require.Len(t, got.Props, 1)
+	require.Equal(t, "area", got.Props[0].Getter.FuncName)
+	require.Same(t, got, got.Props[0].Iface)
+	require.Len(t, got.Methods, 1)
+	require.Equal(t, "draw", got.Methods[0].Name)
+	require.Same(t, got, got.Methods[0].Iface)
+	require.True(t, i.Equal(got))
+}
