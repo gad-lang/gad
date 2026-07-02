@@ -193,8 +193,14 @@
   - format like this task example.
   - create encode/decode.
   - create expansive docs, tests and examples.
-- [ ] change `meti` parser allow shortcut form (one method): `meti<...>` when `<...>` is a func-header declaration. 
+- [x] change `meti` parser allow shortcut form (one method): `meti<...>` when `<...>` is a func-header declaration. 
       parses `meti<(v)>` as `meti<(_ v)>` (`_` param with type `v`, not untyped `v` param).
+      Done (commit 1ce093b): implemented as `met<…>` (per follow-up: reuse the `met`
+      token, result is still a MethodInterface). `met <header>` -> a one-method
+      MethodInterface, e.g. `met<(v)>` == `meti { (_ v) }`; the `(v)` -> `(_ v)`
+      type rule applies. A Shortcut flag on MethodInterfaceExpr preserves the
+      `met<…>` form in String()/WriteCode. Parser (TestParseMethodInterface) + VM
+      (TestVMMethodInterface) tests; gofmt/vet clean, `go test ./...` -> 0 failures.
 - [ ] change typed ident and param parser to parse param type of method interface. add exaplained tests and docs for it
   of funcs/closures/methods/funcHeaders/properties etc.... examples: `func x(cb meti{(int)<float>} ) {...}`, `met x(iOrCb int|meti{(int)<float>}) {...}`,
 - [ ] check cmd/update-*-plugin to accept all language changes.
