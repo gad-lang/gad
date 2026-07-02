@@ -208,11 +208,20 @@
       idents, params, func-headers, unions); isTypeStart + parseType handle the
       literal forms; parser tests (TestParseTypeMethodInterface). Compiling such a
       type is NOT yet supported — nameSymbolsOfTypedIdent returns a clear error
-      (was a nil-deref panic). REMAINING: stage 2 (lower a literal type to a
-      constant type reference — needs a constant-scope symbol or a type-ref model
-      change), stage 3 (runtime structural `implements` type-checking in the
-      TypeAssertion/ParamsTypes machinery), stage 4 (docs/examples). Best done in a
-      fresh session — it is a type-system feature.
+      (was a nil-deref panic).
+      REMAINING (runtime, a central type-system refactor — agreed design):
+      introduce `gad.TypeAssigner { Object; AssignTo(*VM, obj Object, to
+      TypeAssigner) (Object, error) }` and `TypeAssigners []TypeAssigner`
+      (rename Cast->Assign / CastTo->AssignTo). All ObjectType impls (~9: Type,
+      *BuiltinObjType, BuiltinObjTypeKey, *Enum, Class, ReflectType, the operator
+      types), *Interface and *MethodInterface implement AssignTo (returns obj when
+      it assigns, else ErrIncompatibleCast). Add *ClassInstance.AssignTo checking
+      the instance + parents (do NOT change the existing CastTo). Change
+      MethodArgType.add param `types` and TypedCallerMethod.types from
+      ObjectTypeArray to TypeAssigners, and wire AssignTo into the dispatch match.
+      IsTypeAssignableTo uses AssignTo. Then compile a meti/interface literal type
+      to a constant (a ScopeConstant symbol) so a param can reference it. This
+      touches the method-dispatch core — do it carefully in one focused pass.
 - [x] change parser of `met<...>` to allow multiples headers `met<(int), (float)<str> [, ...]>`, when format,
     if has muliples headers, put it int new indented line without comma. parses allow multiples itens separated by new line without `,` (its optional, no required in this case).
       Done (commit 983d018): parseMetShortcut parses 1+ bracket-less headers
@@ -221,6 +230,7 @@
       line without commas (idempotent); a single header stays inline `met<(_ v)>`;
       String() keeps the compact comma form. Parser test extended; `go test ./...`
       -> 0 failures.
+- [~] parser binary operator castTo `obj :: Type`. compile to OpCast
 - [ ] check cmd/update-*-plugin to accept all language changes.
     update vscode plugin to allow single "run" and "debug".
     create example page for codemirror and prismjs plugins.

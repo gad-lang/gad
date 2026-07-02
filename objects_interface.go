@@ -79,6 +79,8 @@ func (i *Interface) ToString() string { return i.String() }
 
 // FullName is the interface name qualified by its module, or just the name when
 // there is no (or an unnamed) module or the interface is anonymous.
+// FullName returns the module-qualified name `MODULE_NAME.NAME` when the module
+// name is set; otherwise the bare name (or an empty string when unnamed).
 func (i *Interface) FullName() string {
 	if i.IName == "" {
 		return ""
