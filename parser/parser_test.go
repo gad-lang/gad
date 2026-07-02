@@ -4193,6 +4193,26 @@ func TestParseMethodInterface(t *testing.T) {
 	test.ExpectParseString(t, `meti S { () }`, `meti S {(); }`)
 }
 
+func TestParseInterface(t *testing.T) {
+	// anonymous, empty
+	test.ExpectParseString(t, `x := interface {}`, `x := interface {}`)
+	// named, with typed fields
+	test.ExpectParseString(t, `x := interface Foo { a; b str }`,
+		`x := interface Foo {a; b str; }`)
+	// getters, setters, props (get/set are contextual idents; prop is a keyword)
+	test.ExpectParseString(t, `x := interface P { get g; get n uint|int; set s; prop p }`,
+		`x := interface P {get g; get n uint | int; set s; prop p; }`)
+	// extends block (no alias) + methods (rendered without the <…> brackets;
+	// a bare positional entry is a type, so `(int|uint)` -> `(_ int|uint)`)
+	test.ExpectParseString(t, `x := interface { extends { A, mod.B }; run(); at(int|uint) <str> }`,
+		`x := interface {extends {A, mod.B}; run(); at(_ int|uint) <str>; }`)
+	// `parse { … }` block of meti-style headers
+	test.ExpectParseString(t, `x := interface { parse { (str), (v int) <bool> } }`,
+		`x := interface {parse {(_ str); (v int) <bool>; }; }`)
+	// statement form binds a const
+	test.ExpectParseString(t, `interface S { m() }`, `interface S {m(); }`)
+}
+
 func TestParseFuncHeaderExpr(t *testing.T) {
 	test.ExpectParseString(t, `x := <()>`, `x := <()>`)
 	test.ExpectParseString(t, `x := <(v int)>`, `x := <(v int)>`)

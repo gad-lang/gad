@@ -389,7 +389,7 @@ func tokenStartsOperand(tok token.Token) bool {
 		// loop body) stays postfix rather than `i ++ {dict}`.
 		token.LParen, token.LBrack,
 		token.Add, token.Sub, token.Not, token.Xor, token.And, token.Inc, token.Dec,
-		token.Func, token.Method, token.Prop, token.Class, token.Enum, token.Import, token.Embed,
+		token.Func, token.Method, token.Prop, token.Class, token.Enum, token.Interface, token.Import, token.Embed,
 		token.Throw, token.Return, token.Match, token.Raw, token.Template,
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
@@ -1136,6 +1136,8 @@ func (p *Parser) ParseOperand() node.Expr {
 			return p.ParseClassExpr()
 		case token.Enum: // enum literal
 			return p.ParseEnumExpr()
+		case token.Interface: // interface literal
+			return p.ParseInterfaceExpr()
 		case token.Less: // func-header value: `<()>`, `<(v int) <x int>>`
 			return p.ParseFuncHeaderExpr()
 		case token.Meti: // method interface: `meti { () }`
@@ -2401,6 +2403,8 @@ do:
 		return p.ParseClassStmt()
 	case token.Enum:
 		return p.ParseEnumStmt()
+	case token.Interface:
+		return p.ParseInterfaceStmt()
 	case token.Meti:
 		return p.ParseMethodInterfaceStmt()
 	case // simple statements
@@ -3974,6 +3978,13 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 			name = p.ParseIdent()
 		}
 		stmt.ValueExpr = p.parseEnumBody(enumTok, name)
+	case token.Interface:
+		ifaceTok := p.ExpectToken(token.Interface)
+		var name node.Expr
+		if p.Token.Token == token.Ident && p.Token.Literal != "extends" {
+			name = p.ParseIdent()
+		}
+		stmt.ValueExpr = p.parseInterfaceBody(ifaceTok, name)
 	default:
 		stmt.KeyExpr = p.ParseLiteral()
 		if ident, _ := stmt.KeyExpr.(*node.IdentExpr); ident != nil {

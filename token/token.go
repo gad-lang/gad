@@ -179,6 +179,11 @@ const (
 	// Appended at the end of the keyword group so existing token values are not
 	// shifted. `bit` inside the body is a contextual ident, not a keyword.
 	Enum
+	// Interface introduces an interface expression/statement (`interface [Name]
+	// { … }`). Appended at the end of the keyword group so existing token values
+	// are not shifted. `extends`/`get`/`set`/`parse` inside the body are
+	// contextual idents, not reserved keywords (`prop`/`meti` reuse their tokens).
+	Interface
 	GroupKeywordEnd
 )
 
@@ -357,6 +362,7 @@ var tokens = [...]string{
 	With:                "with",
 	Class:               "class",
 	Enum:                "enum",
+	Interface:           "interface",
 }
 
 var tokenNames = [...]string{
@@ -518,6 +524,7 @@ var tokenNames = [...]string{
 	With:                         "With",
 	Class:                        "Class",
 	Enum:                         "Enum",
+	Interface:                    "Interface",
 	GroupKeywordEnd:              "GroupKeywordEnd",
 }
 

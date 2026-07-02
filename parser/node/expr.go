@@ -896,29 +896,46 @@ nexps:
 // (and `(mod.T)` likewise). Entries already written as `name type`
 // (*TypedIdentExpr) are kept as-is. Otherwise it behaves like ToFuncParams.
 func (e *MultiParenExpr) ToFuncHeaderParams() (FuncParams, *NodeError) {
+	// asType makes an unnamed typed param `_ T` from a type expression, flattening
+	// a `T1|T2|…` union into the multi-type list.
 	asType := func(x Expr) *TypedIdentExpr {
-		return &TypedIdentExpr{Ident: EEmptyIdent(x.Pos()), Type: []*TypeExpr{EType(x)}}
+		parts := unionTypeExprs(x)
+		types := make([]*TypeExpr, len(parts))
+		for i, p := range parts {
+			types[i] = EType(p)
+		}
+		return &TypedIdentExpr{Ident: EEmptyIdent(x.Pos()), Type: types}
 	}
-	for i, n := range e.PositionalElements {
+	isType := func(n Expr) bool {
 		switch t := n.(type) {
 		case *IdentExpr:
-			if !t.Empty && t.Name != "_" {
-				e.PositionalElements[i] = asType(t)
-			}
+			return !t.Empty && t.Name != "_"
 		case *SelectorExpr:
-			e.PositionalElements[i] = asType(t)
-		case *ArgVarLit:
-			switch v := t.Value.(type) {
-			case *IdentExpr:
-				if !v.Empty && v.Name != "_" {
-					t.Value = asType(v)
-				}
-			case *SelectorExpr:
-				t.Value = asType(v)
-			}
+			return true
+		case *BinaryExpr:
+			return t.Token == token.Or
+		}
+		return false
+	}
+	for i, n := range e.PositionalElements {
+		if isType(n) {
+			e.PositionalElements[i] = asType(n)
+			continue
+		}
+		if v, ok := n.(*ArgVarLit); ok && isType(v.Value) {
+			v.Value = asType(v.Value)
 		}
 	}
 	return e.ToFuncParams()
+}
+
+// unionTypeExprs flattens a `T1 | T2 | …` type union (a left-nested `|`
+// BinaryExpr) into its individual type expressions; a non-union yields itself.
+func unionTypeExprs(e Expr) []Expr {
+	if b, _ := e.(*BinaryExpr); b != nil && b.Token == token.Or {
+		return append(unionTypeExprs(b.LHS), unionTypeExprs(b.RHS)...)
+	}
+	return []Expr{e}
 }
 
 // SelectorExpr represents a selector expression.
