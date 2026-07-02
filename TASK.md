@@ -15,6 +15,18 @@
   of the active .md file's content as a dockview tab in the left (Explorer) panel
   group. Panel auto-opens when a .md file becomes active; auto-closes when the
   active tab is no longer .md.
+- [x] Gad identity icons + `.gadt` template support across the IDE and editor plugins.
+      Done: assets/identity gad+gadt icon sets, wired into README/IDE header/explorer/
+      favicon; fixed malformed xmlns (commit bbe37ba). Runnable samples/23_template.gadt
+      (ec65fd3). Run/Debug honour `.gadt` mixed mode with delimiters from `.gad.yaml`
+      `template:` + a Settings "Template" tab (041a7d2). Output panel renders stdout as
+      JSON/HTML/Markdown, and JSON/HTML/MD source in a read-only CodeMirror with folding
+      (46fdb03, 8122040). `.gadt` editor highlighting: merged gad({template,delimiters,
+      preamble}) in @gad-lang/codemirror-gad + registerGadTemplate/detectGadTemplate in
+      @gad-lang/prism-gad; `.gad` files with `# gad: mixed` detected from content and
+      highlighted as templates; delimiters tagged `tagName` for theme-driven colour
+      (3b36968). Evidence: tsc + `bun run build` → exit 0; tokenizer/detection runtime-
+      tested on samples/09_template.gad.
 
 # web/js projects
 - [x] replace all runner of `pnpm` to `bun`, update docs and scripts.
@@ -76,3 +88,58 @@
       Done: dropped the subcommandNames map + isSubcommand; main() builds the root
       command and dispatches via root.IsSub(args[0]) (plus help/--help), using the
       new command-context Command.IsSub. registerCommand just appends factories.
+- [ ] change func-header to compile to bytecode constant insteadof call builtin (see `CompiledFunction` header for params, types and symbols),
+      use `*Compiler.module` to get current `*ModuleSpec`.
+      create encode/decode. 
+- [ ] change `meti` parser to parser function header without param name, parsing `(int)`
+      as `(_ int)` insteadof untyped param `int`. apply this rule to parse `FuncHeader` (A func-header declaration value `<…>`).
+      update godoc, doc, samples, and tests. update tests and docs.
+      compiles to bytecode constant insteadof call builtin (see `CompiledFunction` header for params, types and symbols),
+      use `*Compiler.module` to get current `*ModuleSpec`.
+      create encode/decode. update tests and docs.
+- [ ] create parser for `interface` Expr and Stmt.
+  - syntaxe:
+
+      ```gad
+      MyInterface := interface [NAME] {
+        extends { ... } // like class extends, but without alias
+        
+        // fields
+        fistName
+        lastName str // typed field, allow many types `int|uint`
+        birthday time.calendarTime
+      
+        // getters
+        get fullName
+        get yeadsOld uint|int // typed getter
+      
+        // setters
+        set fullName
+        set yeadsOld uint|int // typed setter
+        
+        // properties, is a shortcut form of getter and setter
+        prop pFullName
+        prop pYeadsOld uint|int
+        
+        // methods, like `meti`
+        authorName() // header must <authorName()>
+        authorName2() <str> // with return type
+      
+        parse { // parse as `meti` declaration insteadof MetiToken field, preserve compile source positions
+          (str) // func header <(_ str)>
+          (str,int) // func header <(_ str, _ int)>
+          (v int|uint)<false> // func header <(v int|uint) <false>>
+        }
+      }
+      ```    
+
+  - Stmt variation `interface X {...}`, compiles to `const X = interface X { ... }`
+  - allow doc comments and export `export interface X { ... }`
+  - compiles to new constant `*gad.Interface{module *ModuleSpec, ...}` (type is new object type "Interface" in "gad" module, without constructor) (see `CompiledFunction` header for params, types and symbols, use `*Compiler.module` to get current `*ModuleSpec`).
+  - create methods for `*gad.Interface` for fluid construction appending fields/getters/setters/methods (methods is *MethodInterface)
+  - format like this task example.
+  - create encode/decode.
+  - create expansive docs, tests and examples.
+- [ ] check cmd/update-*-plugin to accept all language changes.
+    update vscode plugin to allow single "run" and "debug".
+    create example page for codemirror and prismjs plugins.
