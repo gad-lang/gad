@@ -3400,10 +3400,17 @@ func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdentExpr)
 	symbols = make([]*SymbolInfo, len(ti.Type))
 
 	for i2, t := range ti.Type {
+		id := t.Ident()
+		if id == nil {
+			// A structural type literal (meti/interface/met<…>) — parsed, but not
+			// yet lowered to a constant type reference (a follow-up stage).
+			err = c.errorf(t, "structural types (meti/interface) as a param/field type are not yet supported")
+			return
+		}
 		var symbol *Symbol
 		// Resolve against the type identifier so an unresolved-reference error
 		// points at the type, not at the enclosing declaration node.
-		if symbol, err = c.requireSymbol(t.Ident(), t.Ident().Name); err != nil {
+		if symbol, err = c.requireSymbol(id, id.Name); err != nil {
 			return
 		}
 		symbols[i2] = &symbol.SymbolInfo

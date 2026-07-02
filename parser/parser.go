@@ -1480,7 +1480,7 @@ func (p *Parser) ParseParemExpr(lparenToken, rparenToken token.Token) node.ToMul
 		// and type on the same line (`a int`, never `a\nint`).
 
 		if ident, _ := expr.(*node.IdentExpr); ident != nil {
-			if p.Token.Token == token.Ident {
+			if p.isTypeStart() {
 				expr = &node.TypedIdentExpr{
 					Ident: ident,
 					Type:  p.ParseTypes(),
@@ -2334,12 +2334,34 @@ L:
 	return x
 }
 
+// isTypeStart reports whether the current token can begin a type in a type list:
+// an identifier (a named/selector type), a `meti { … }` / `interface { … }`
+// literal, or the `met <header>` shortcut — the latter three are structural
+// types (e.g. `cb meti{(int)<float>}`).
+func (p *Parser) isTypeStart() bool {
+	switch p.Token.Token {
+	case token.Ident, token.Meti, token.Interface:
+		return true
+	case token.Method:
+		return p.Peek().Token == token.Less
+	}
+	return false
+}
+
 func (p *Parser) parseType() (t *node.TypeExpr) {
+	switch p.Token.Token {
+	case token.Meti:
+		return &node.TypeExpr{Expr: p.ParseMethodInterfaceExpr()}
+	case token.Interface:
+		return &node.TypeExpr{Expr: p.ParseInterfaceExpr()}
+	case token.Method:
+		return &node.TypeExpr{Expr: p.parseMetShortcut()}
+	}
 	return &node.TypeExpr{Expr: p.ParseSimpleSelectorExpr(p.ParseIdent())}
 }
 
 func (p *Parser) ParseTypes() (types []*node.TypeExpr) {
-	if p.Token.Token == token.Ident {
+	if p.isTypeStart() {
 		var (
 			exists = map[string]any{}
 			add    = func(t *node.TypeExpr) {

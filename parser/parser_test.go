@@ -4197,6 +4197,19 @@ func TestParseMethodInterface(t *testing.T) {
 	test.ExpectParseString(t, `x := met<(a int) <str>>`, `x := met<(a int) <str>>`)
 }
 
+func TestParseTypeMethodInterface(t *testing.T) {
+	// meti/interface literals (and the met<…> shortcut) are valid param types;
+	// a bare positional entry inside them is a type, so `(int)` -> `(_ int)`
+	test.ExpectParseString(t, `func x(cb meti{(int) <float>}) => cb`,
+		`func x(cb meti {(_ int) <float>; }) => cb`)
+	test.ExpectParseString(t, `func x(cb met<(int)>) => cb`,
+		`func x(cb met<(_ int)>) => cb`)
+	test.ExpectParseString(t, `func x(a int|meti{(int)}) => a`,
+		`func x(a int|meti {(_ int); }) => a`)
+	test.ExpectParseString(t, `func x(cb interface{ run() }) => cb`,
+		`func x(cb interface {run(); }) => cb`)
+}
+
 func TestParseInterface(t *testing.T) {
 	// anonymous, empty
 	test.ExpectParseString(t, `x := interface {}`, `x := interface {}`)
