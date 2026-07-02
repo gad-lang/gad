@@ -94,3 +94,45 @@ headers:
 both := Stringer + HasAdd            // or: append(Stringer, HasAdd)
 implements(shape, both)              // true
 ```
+
+## Interfaces (`interface`)
+
+An `interface { … }` is a richer structural contract that groups typed fields,
+`get`/`set`/`prop` accessors and required methods. Like `meti`, it compiles to a
+constant value (`Interface`) whose members are read by indexing. The statement
+form binds a const; the expression form is a value.
+
+```go
+interface Shape {
+    extends { Base }        // parent interfaces (no alias), like a class
+
+    id int                  // typed field; a bare field defaults to `any`
+    label str
+
+    get area uint           // getter (returns the type)
+    set scale               // setter (takes the type)
+    prop title              // property = getter + setter
+
+    draw()                  // required method, func-header shape (no `<…>`)
+    resize(int|uint) <bool> // a bare positional entry is a type: `(_ int|uint)`
+
+    from {                  // a method with several overload signatures
+        (str)               //   (meti-style, without the `meti` keyword)
+        (w int, h int)
+    }
+}
+```
+
+Members are read by indexing:
+
+```go
+Shape.name              // "Shape"
+Shape.fields[0].name    // "id"
+Shape.fields[0].types   // [int]
+Shape.props[0].name     // "area"
+Shape.methods           // [draw, resize, from]
+Shape.methods[2].headers // the two `from` signatures
+```
+
+An anonymous interface (or one used as an expression) is compiled with an
+incremented `ifaces#N` name. See [`samples/24_interfaces.gad`](../samples/24_interfaces.gad).

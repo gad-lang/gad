@@ -50,6 +50,7 @@ layout settings are stored in [`.gad.yaml`](.gad.yaml).
 | `21_heredocs.gad`             | heredocs `"""…"""` / `` ```…``` `` and template heredocs |
 | `22_key_value_array.gad`      | `keyValue` / `keyValueArray` (`(;…)`): flags, funcs, typed keys |
 | `23_template.gadt`            | `.gadt` template mode: `{% %}`/`{%= %}` tags, trim markers |
+| `24_interfaces.gad`           | `interface { … }`: typed fields, get/set/prop, methods, `extends` |
 
 ## Modules
 
