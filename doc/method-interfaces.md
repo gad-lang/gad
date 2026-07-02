@@ -13,15 +13,21 @@ A signature written between angle brackets is a **func-header** value:
 ```go
 <()>                      // no params, no return
 <(v int)>                 // one int param
+<(int)>                   // one unnamed int param — same as <(_ int)>
 <(a int, b str) <r bool>> // two params and a bool return
 ```
 
+In a header, a **bare positional entry is a type**, not a parameter name: `(int)`
+is the unnamed typed param `(_ int)`. Write `name type` (e.g. `(v int)`) for a
+named parameter. An untyped parameter defaults to `any`.
+
 It evaluates to a `FunctionHeader` whose parts are read by indexing — `name`,
-`params`, `namedParams` and `return` (each parameter is a `typedIdent`):
+`params`, `namedParams` and `return` (each parameter is a `typedIdent`). An
+anonymous header is compiled with an incremented `fh#N` name:
 
 ```go
 h := <(a int, b str) <r bool>>
-h.name             // ""
+h.name             // "fh#1"
 len(h.params)      // 2
 h.params[0].name   // "a"
 h.params[0].types  // [int]
@@ -37,10 +43,13 @@ commas or newlines:
 ```go
 Stringer := meti { () <str> }
 Container := meti {
-    (v)            // accept one value
+    (any)          // accept one value (of any type)
     () <int>       // and report a length
 }
 ```
+
+An anonymous `meti { … }` is compiled with an incremented `meti#N` name; the
+statement form below names it explicitly.
 
 The statement form `meti Name { … }` binds a const:
 

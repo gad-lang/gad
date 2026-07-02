@@ -4186,7 +4186,8 @@ func TestFormatMatchArms(t *testing.T) {
 
 func TestParseMethodInterface(t *testing.T) {
 	test.ExpectParseString(t, `x := meti { () }`, `x := meti {(); }`)
-	test.ExpectParseString(t, `x := meti { (), (v) <int> }`, `x := meti {(); (v) <int>; }`)
+	// a bare positional entry is a type: `(v)` is the unnamed typed param `(_ v)`
+	test.ExpectParseString(t, `x := meti { (), (v) <int> }`, `x := meti {(); (_ v) <int>; }`)
 	test.ExpectParseString(t, `x := meti Z { (a int) <r bool> }`, `x := meti Z {(a int) <r bool>; }`)
 	// statement form binds a const
 	test.ExpectParseString(t, `meti S { () }`, `meti S {(); }`)
@@ -4195,10 +4196,11 @@ func TestParseMethodInterface(t *testing.T) {
 func TestParseFuncHeaderExpr(t *testing.T) {
 	test.ExpectParseString(t, `x := <()>`, `x := <()>`)
 	test.ExpectParseString(t, `x := <(v int)>`, `x := <(v int)>`)
-	test.ExpectParseString(t, `x := <(a, b str)>`, `x := <(a, b str)>`)
+	// bare positional entries are types: `(a, b str)` -> `(_ a, b str)`
+	test.ExpectParseString(t, `x := <(a, b str)>`, `x := <(_ a, b str)>`)
 	// nested return list closes with `>>` (the scanner's Shr is split)
 	test.ExpectParseString(t, `x := <(v int) <r uint|int>>`, `x := <(v int) <r uint|int>>`)
-	test.ExpectParseString(t, `x := <(a, b str) <int, str>>`, `x := <(a, b str) <int, str>>`)
+	test.ExpectParseString(t, `x := <(a, b str) <int, str>>`, `x := <(_ a, b str) <int, str>>`)
 }
 
 func TestParsePrefixIncDec(t *testing.T) {

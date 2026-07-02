@@ -75,14 +75,14 @@ func BuiltinAppendFunc(c Call) (Object, error) {
 			}
 		}
 		return obj, nil
-	case *MethodInterfaceInstance:
+	case *MethodInterface:
 		// append(mi, mi2, …) merges method interfaces into a new one
-		items := []*MethodInterfaceInstance{obj}
+		items := []*MethodInterface{obj}
 		n := 0
 		for _, args := range c.Args {
 			for _, v := range args {
 				n++
-				mi, ok := v.(*MethodInterfaceInstance)
+				mi, ok := v.(*MethodInterface)
 				if !ok {
 					return Nil, NewArgumentTypeError(
 						strconv.Itoa(n), "MethodInterface", v.Type().Name())

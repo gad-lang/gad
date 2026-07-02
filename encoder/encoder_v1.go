@@ -35,7 +35,8 @@ var (
 	CalendarTimeV1,
 	EnumV1,
 	TypedIdentV1,
-	FuncHeaderObjectV1 EncDec
+	FuncHeaderObjectV1,
+	MethodInterfaceV1 EncDec
 )
 
 const (
@@ -69,6 +70,7 @@ const (
 	typeEnum
 	typeTypedIdent
 	typeFuncHeaderObject
+	typeMethodInterface
 )
 
 const versionV1 byte = 1
@@ -104,4 +106,5 @@ func init() {
 	Register[gad.Enum](typeEnum, versionV1, &EnumV1)
 	Register[gad.TypedIdent](typeTypedIdent, versionV1, &TypedIdentV1)
 	Register[gad.FuncHeaderObject](typeFuncHeaderObject, versionV1, &FuncHeaderObjectV1)
+	Register[gad.MethodInterface](typeMethodInterface, versionV1, &MethodInterfaceV1)
 }

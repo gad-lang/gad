@@ -105,13 +105,25 @@
       reusing the SymbolInfo array codec; module stored by name).
       Evidence: gofmt/vet clean, `go build ./...` and `go test ./...` → 0 failures;
       TestVMFuncHeaderExpr updated; TestFuncHeaderObjectEncoding round-trips.
-- [ ] change `meti` parser to parser function header without param name, parsing `(int)`
+- [x] change `meti` parser to parser function header without param name, parsing `(int)`
       as `(_ int)` insteadof untyped param `int`. apply this rule to parse `FuncHeader` (A func-header declaration value `<…>`).
       update godoc, doc, samples, and tests. update tests and docs.
       compiles to bytecode constant insteadof call builtin (see `CompiledFunction` header for params, types and symbols),
       use `*Compiler.module` to get current `*ModuleSpec`.
       create encode/decode. update tests and docs.
       if is anonymous, compile with name `meti#N` (see compiler of FuncHeader).
+      Done: new MultiParenExpr.ToFuncHeaderParams rewrites a bare positional entry
+      to an unnamed typed param (`(int)` -> `(_ int)`, incl. selectors); applied by
+      parseInterfaceHeader + ParseFuncHeaderExpr only (regular `func(...)` params
+      unchanged). `meti { … }` now compiles to a *MethodInterface bytecode constant
+      (buildMethodInterfaceInstance, headers via the shared buildFuncHeaderObject)
+      instead of a MethodInterface(...) builtin call; anonymous → `meti#N`
+      (Compiler.newMethodInterfaceName). Renamed MethodInterfaceInstance ->
+      MethodInterface (no alias; Type() → TMethodInterface). Added encoder/decoder
+      for MethodInterface (reuses the FuncHeaderObject codec). Docs
+      (doc/method-interfaces.md) + tests (parser + VM + encoder round-trip) updated.
+      Evidence: gofmt/vet clean, `go build ./...` and `go test ./...` → 0 failures;
+      samples/12_method_interfaces.gad runs.
 - [ ] create parser for `interface` Expr and Stmt.
   - syntaxe:
 

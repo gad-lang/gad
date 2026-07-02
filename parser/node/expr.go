@@ -890,6 +890,37 @@ nexps:
 	return
 }
 
+// ToFuncHeaderParams parses the positional list as a *function header* signature
+// (a `meti` header or a `<…>` func-header value): a bare positional entry is a
+// *type*, not a param name, so `(int)` yields the unnamed typed param `(_ int)`
+// (and `(mod.T)` likewise). Entries already written as `name type`
+// (*TypedIdentExpr) are kept as-is. Otherwise it behaves like ToFuncParams.
+func (e *MultiParenExpr) ToFuncHeaderParams() (FuncParams, *NodeError) {
+	asType := func(x Expr) *TypedIdentExpr {
+		return &TypedIdentExpr{Ident: EEmptyIdent(x.Pos()), Type: []*TypeExpr{EType(x)}}
+	}
+	for i, n := range e.PositionalElements {
+		switch t := n.(type) {
+		case *IdentExpr:
+			if !t.Empty && t.Name != "_" {
+				e.PositionalElements[i] = asType(t)
+			}
+		case *SelectorExpr:
+			e.PositionalElements[i] = asType(t)
+		case *ArgVarLit:
+			switch v := t.Value.(type) {
+			case *IdentExpr:
+				if !v.Empty && v.Name != "_" {
+					t.Value = asType(v)
+				}
+			case *SelectorExpr:
+				t.Value = asType(v)
+			}
+		}
+	}
+	return e.ToFuncParams()
+}
+
 // SelectorExpr represents a selector expression.
 type SelectorExpr struct {
 	X   Expr

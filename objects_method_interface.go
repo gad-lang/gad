@@ -19,29 +19,29 @@ import (
 // ```
 
 // TMethodInterface is the builtin `MethodInterface` object type.
-var TMethodInterface = RegisterBuiltinType(BuiltinMethodInterface, "MethodInterface", MethodInterfaceInstance{}, NewMethodInterfaceFunc)
+var TMethodInterface = RegisterBuiltinType(BuiltinMethodInterface, "MethodInterface", MethodInterface{}, NewMethodInterfaceFunc)
 
 var (
-	_ IndexGetter              = (*MethodInterfaceInstance)(nil)
-	_ ObjectWithAddBinOperator = (*MethodInterfaceInstance)(nil)
+	_ IndexGetter              = (*MethodInterface)(nil)
+	_ ObjectWithAddBinOperator = (*MethodInterface)(nil)
 )
 
-// MethodInterfaceInstance is the value of a method interface (see
+// MethodInterface is the value of a method interface (see
 // TMethodInterface): a name and the required function headers.
-type MethodInterfaceInstance struct {
+type MethodInterface struct {
 	MIName  string
 	Headers []*FuncHeaderObject
 }
 
-func (m *MethodInterfaceInstance) Type() ObjectType { return TMethodInterface }
+func (m *MethodInterface) Type() ObjectType { return TMethodInterface }
 
-func (m *MethodInterfaceInstance) Name() string { return m.MIName }
+func (m *MethodInterface) Name() string { return m.MIName }
 
-func (m *MethodInterfaceInstance) IsFalsy() bool { return len(m.Headers) == 0 }
+func (m *MethodInterface) IsFalsy() bool { return len(m.Headers) == 0 }
 
-func (m *MethodInterfaceInstance) ToString() string { return m.String() }
+func (m *MethodInterface) ToString() string { return m.String() }
 
-func (m *MethodInterfaceInstance) String() string {
+func (m *MethodInterface) String() string {
 	var b strings.Builder
 	b.WriteString("meti ")
 	b.WriteString(m.MIName)
@@ -56,8 +56,8 @@ func (m *MethodInterfaceInstance) String() string {
 	return b.String()
 }
 
-func (m *MethodInterfaceInstance) Equal(right Object) bool {
-	o, ok := right.(*MethodInterfaceInstance)
+func (m *MethodInterface) Equal(right Object) bool {
+	o, ok := right.(*MethodInterface)
 	if !ok || m.MIName != o.MIName || len(m.Headers) != len(o.Headers) {
 		return false
 	}
@@ -71,7 +71,7 @@ func (m *MethodInterfaceInstance) Equal(right Object) bool {
 
 // BinOpIn implements the `in` operator (ObjectWithInBinOperator): reports
 // whether v is one of the interface's function headers (`header in meti`).
-func (m *MethodInterfaceInstance) BinOpIn(_ *VM, v Object) (Object, error) {
+func (m *MethodInterface) BinOpIn(_ *VM, v Object) (Object, error) {
 	for _, h := range m.Headers {
 		if h.Equal(v) {
 			return True, nil
@@ -81,7 +81,7 @@ func (m *MethodInterfaceInstance) BinOpIn(_ *VM, v Object) (Object, error) {
 }
 
 // HeadersArray returns the headers as an Array of FunctionHeader values.
-func (m *MethodInterfaceInstance) HeadersArray() Array {
+func (m *MethodInterface) HeadersArray() Array {
 	arr := make(Array, len(m.Headers))
 	for i, h := range m.Headers {
 		arr[i] = h
@@ -90,7 +90,7 @@ func (m *MethodInterfaceInstance) HeadersArray() Array {
 }
 
 // IndexGet exposes name and headers.
-func (m *MethodInterfaceInstance) IndexGet(_ *VM, index Object) (Object, error) {
+func (m *MethodInterface) IndexGet(_ *VM, index Object) (Object, error) {
 	switch index.ToString() {
 	case "name":
 		return Str(m.MIName), nil
@@ -102,15 +102,15 @@ func (m *MethodInterfaceInstance) IndexGet(_ *VM, index Object) (Object, error) 
 
 // BinOpAdd implements `mi + mi2` (ObjectWithAddBinOperator), merging two
 // interfaces.
-func (m *MethodInterfaceInstance) BinOpAdd(_ *VM, right Object) (Object, error) {
-	if o, ok := right.(*MethodInterfaceInstance); ok {
+func (m *MethodInterface) BinOpAdd(_ *VM, right Object) (Object, error) {
+	if o, ok := right.(*MethodInterface); ok {
 		return mergeMethodInterfaces(m, o), nil
 	}
 	return nil, NewOperandTypeError(token.Add.String(), m.Type().Name(), right.Type().Name())
 }
 
-func mergeMethodInterfaces(items ...*MethodInterfaceInstance) *MethodInterfaceInstance {
-	out := &MethodInterfaceInstance{}
+func mergeMethodInterfaces(items ...*MethodInterface) *MethodInterface {
+	out := &MethodInterface{}
 	for _, mi := range items {
 		if out.MIName == "" {
 			out.MIName = mi.MIName
@@ -145,13 +145,13 @@ func BuiltinImplementsFunc(c Call) (_ Object, err error) {
 		return
 	}
 
-	miv, ok := mi.Value.(*MethodInterfaceInstance)
+	miv, ok := mi.Value.(*MethodInterface)
 	if !ok {
 		return nil, NewArgumentTypeError("2nd (mi)", "MethodInterface", mi.Value.Type().Name())
 	}
-	ifaces := []*MethodInterfaceInstance{miv}
+	ifaces := []*MethodInterface{miv}
 	for i, o := range rest {
-		m, ok := o.(*MethodInterfaceInstance)
+		m, ok := o.(*MethodInterface)
 		if !ok {
 			return nil, NewArgumentTypeError(
 				strconv.Itoa(i+3)+"th (otherMi)", "MethodInterface", o.Type().Name())
@@ -223,7 +223,7 @@ func paramMatches(headerTypes Array, methodTypes ObjectTypes) bool {
 	return false
 }
 
-// NewMethodInterfaceFunc builds a MethodInterfaceInstance from
+// NewMethodInterfaceFunc builds a MethodInterface from
 // (name str, *headers FunctionHeader).
 func NewMethodInterfaceFunc(c Call) (_ Object, err error) {
 	name := &Arg{Name: "name", TypeAssertion: TypeAssertionFromTypes(TStr, TRawStr)}
@@ -231,7 +231,7 @@ func NewMethodInterfaceFunc(c Call) (_ Object, err error) {
 	if err != nil {
 		return
 	}
-	mi := &MethodInterfaceInstance{MIName: name.Value.ToString()}
+	mi := &MethodInterface{MIName: name.Value.ToString()}
 	for i, h := range rest {
 		fh, ok := h.(*FuncHeaderObject)
 		if !ok {

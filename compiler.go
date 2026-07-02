@@ -69,22 +69,23 @@ type (
 		sourceMap    map[int]int
 		embeddedMap  *EmbeddedMap
 		// embeddedStore embeddeds represents map of name and constant index
-		embeddedStore      map[string]int
-		moduleMap          *ModuleMap
-		moduleStore        *moduleStore
-		module             *ModuleSpec
-		variadic           bool
-		varNamedParams     bool
-		loops              []*loopStmts
-		loopIndex          int
-		tryCatchIndex      int
-		iotaVal            int
-		opts               CompileOptions
-		trace              io.Writer
-		stack              CompileStack
-		selectorStack      [][][]func()
-		anonymousFuncIndex uint
-		funcHeaderIndex    uint
+		embeddedStore        map[string]int
+		moduleMap            *ModuleMap
+		moduleStore          *moduleStore
+		module               *ModuleSpec
+		variadic             bool
+		varNamedParams       bool
+		loops                []*loopStmts
+		loopIndex            int
+		tryCatchIndex        int
+		iotaVal              int
+		opts                 CompileOptions
+		trace                io.Writer
+		stack                CompileStack
+		selectorStack        [][][]func()
+		anonymousFuncIndex   uint
+		funcHeaderIndex      uint
+		methodInterfaceIndex uint
 	}
 
 	// CompilerOptions represents customizable options for Compile().
@@ -353,6 +354,13 @@ func (c *Compiler) newAnonymousFuncName() string {
 func (c *Compiler) newFuncHeaderName() string {
 	c.funcHeaderIndex++
 	return fmt.Sprintf("fh#%d", c.funcHeaderIndex)
+}
+
+// newMethodInterfaceName returns an incremented name for an anonymous `meti`
+// value, e.g. `meti#1`, mirroring newFuncHeaderName.
+func (c *Compiler) newMethodInterfaceName() string {
+	c.methodInterfaceIndex++
+	return fmt.Sprintf("meti#%d", c.methodInterfaceIndex)
 }
 
 // Bytecode returns compiled Bytecode ready to run in VM.

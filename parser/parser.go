@@ -2076,7 +2076,7 @@ func (p *Parser) parseInterfaceHeader() *node.FuncHeaderExpr {
 	if paren == nil || p.Errors.Len() != 0 {
 		return nil
 	}
-	params, err := paren.ToMultiParenExpr().ToFuncParams()
+	params, err := paren.ToMultiParenExpr().ToFuncHeaderParams()
 	if err != nil {
 		p.Error(err.Pos(), err.Error())
 		return nil
@@ -2100,7 +2100,7 @@ func (p *Parser) ParseFuncHeaderExpr() node.Expr {
 		if paren == nil || p.Errors.Len() != 0 {
 			return &node.BadExpr{From: h.OpenPos, To: p.Token.Pos}
 		}
-		params, err := paren.ToMultiParenExpr().ToFuncParams()
+		params, err := paren.ToMultiParenExpr().ToFuncHeaderParams()
 		if err != nil {
 			p.Error(err.Pos(), err.Error())
 			return &node.BadExpr{From: h.OpenPos, To: p.Token.Pos}

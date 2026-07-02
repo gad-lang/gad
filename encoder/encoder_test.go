@@ -245,3 +245,26 @@ func TestFuncHeaderObjectEncoding(t *testing.T) {
 	// the whole header round-trips equal
 	require.True(t, h.Equal(got), "want %v got %v", h, got)
 }
+
+func TestMethodInterfaceEncoding(t *testing.T) {
+	mi := &gad.MethodInterface{
+		MIName: "meti#1",
+		Headers: []*gad.FuncHeaderObject{
+			{FuncName: "fh#1", Params: gad.Array{
+				&gad.TypedIdent{Name: "_", TypesSymbols: gad.ParamType{{Name: "int", Index: 3, Scope: gad.ScopeBuiltin}}},
+			}},
+			{FuncName: "fh#2", Return: gad.Array{
+				&gad.TypedIdent{Name: "r", TypesSymbols: gad.ParamType{{Name: "str", Index: 11, Scope: gad.ScopeBuiltin}}},
+			}},
+		},
+	}
+	b, err := encode(mi)
+	require.NoError(t, err)
+	got, err := decode[*gad.MethodInterface](b)
+	require.NoError(t, err)
+	require.Equal(t, "meti#1", got.MIName)
+	require.Len(t, got.Headers, 2)
+	require.Equal(t, "fh#1", got.Headers[0].FuncName)
+	require.Equal(t, "int", got.Headers[0].Params[0].(*gad.TypedIdent).TypesSymbols[0].Name)
+	require.True(t, mi.Equal(got))
+}

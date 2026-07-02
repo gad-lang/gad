@@ -72,4 +72,23 @@ func init() {
 		}
 		return h, nil
 	}
+
+	MethodInterfaceV1.Encode = func(ctx *WriteContext, o any) (err error) {
+		m := o.(*gad.MethodInterface)
+		if err = writeString(ctx, m.MIName); err != nil {
+			return
+		}
+		return EncodeArray(ctx, m.Headers)
+	}
+
+	MethodInterfaceV1.Decode = func(ctx *ReadContext) (_ any, err error) {
+		m := new(gad.MethodInterface)
+		if m.MIName, err = readString(ctx); err != nil {
+			return
+		}
+		if m.Headers, err = DecodeArray[*gad.FuncHeaderObject](ctx); err != nil {
+			return
+		}
+		return m, nil
+	}
 }

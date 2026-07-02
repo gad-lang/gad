@@ -1981,26 +1981,37 @@ func (c *Compiler) compilePropExpr(nd *node.PropExpr) error {
 	return c.Compile(call)
 }
 
-// methodInterfaceCallExpr builds the MethodInterface(name, headers...) call a
-// `meti` expression lowers to.
-func (c *Compiler) methodInterfaceCallExpr(nd *node.MethodInterfaceExpr) *node.CallExpr {
-	var name string
+// buildMethodInterface compiles a `meti { … }` AST node into a
+// *MethodInterface, whose required headers are FuncHeaderObject
+// constants. An anonymous interface gets an incremented `meti#N` name.
+func (c *Compiler) buildMethodInterface(nd *node.MethodInterfaceExpr) (*MethodInterface, error) {
+	name := ""
 	if id := nd.NameIdent(); id != nil {
 		name = id.Name
 	}
-	args := make(node.Exprs, 0, len(nd.Headers)+1)
-	args = append(args, node.Str(name, nd.Pos()))
+	if name == "" {
+		name = c.newMethodInterfaceName()
+	}
+	mi := &MethodInterface{MIName: name}
 	for _, h := range nd.Headers {
-		args = append(args, h)
+		fh, err := c.buildFuncHeaderObject(h)
+		if err != nil {
+			return nil, err
+		}
+		mi.Headers = append(mi.Headers, fh)
 	}
-	return &node.CallExpr{
-		Func:     node.EIdent(BuiltinMethodInterface.String(), nd.Pos()),
-		CallArgs: node.CallArgs{Args: node.CallExprPositionalArgs{Values: args}},
-	}
+	return mi, nil
 }
 
+// compileMethodInterfaceExpr compiles `meti { … }` to a *MethodInterface
+// bytecode constant (instead of a runtime MethodInterface(...) builtin call).
 func (c *Compiler) compileMethodInterfaceExpr(nd *node.MethodInterfaceExpr) error {
-	return c.Compile(c.methodInterfaceCallExpr(nd))
+	mi, err := c.buildMethodInterface(nd)
+	if err != nil {
+		return err
+	}
+	c.emit(nd, OpConstant, c.addConstant(mi))
+	return nil
 }
 
 func (c *Compiler) compileMethodInterfaceStmt(nd *node.MethodInterfaceStmt) error {
@@ -2012,14 +2023,14 @@ func (c *Compiler) compileMethodInterfaceStmt(nd *node.MethodInterfaceStmt) erro
 	if name == nil {
 		return c.errorf(nd, "require NameExpr as *Ident")
 	}
-	// `meti Name { … }` -> `const Name = MethodInterface("Name", …)`
+	// `meti Name { … }` -> `const Name = <the meti constant>`
 	return c.Compile(&node.DeclStmt{
 		Decl: &node.GenDecl{
 			Tok: token.Const,
 			Specs: []node.Spec{
 				&node.ValueSpec{
 					Idents: []*node.IdentExpr{name},
-					Values: []node.Expr{c.methodInterfaceCallExpr(&nd.MethodInterfaceExpr)},
+					Values: []node.Expr{&nd.MethodInterfaceExpr},
 				},
 			},
 		},
@@ -2033,6 +2044,19 @@ func (c *Compiler) compileMethodInterfaceStmt(nd *node.MethodInterfaceStmt) erro
 // time, so the constant is immutable and thread-safe. The header is tagged with
 // the current module (c.module) for its module-qualified FullName.
 func (c *Compiler) compileFuncHeaderExpr(nd *node.FuncHeaderExpr) error {
+	h, err := c.buildFuncHeaderObject(nd)
+	if err != nil {
+		return err
+	}
+	c.emit(nd, OpConstant, c.addConstant(h))
+	return nil
+}
+
+// buildFuncHeaderObject compiles a func-header AST node into a *FuncHeaderObject,
+// with param/return types stored as compile-time symbols. Shared by
+// compileFuncHeaderExpr and the `meti` compiler (whose headers are these
+// objects). Anonymous headers get an incremented `fh#N` name.
+func (c *Compiler) buildFuncHeaderObject(nd *node.FuncHeaderExpr) (*FuncHeaderObject, error) {
 	build := func(idents ...*node.TypedIdentExpr) (Array, error) {
 		out := make(Array, 0, len(idents))
 		for _, ti := range idents {
@@ -2050,39 +2074,36 @@ func (c *Compiler) compileFuncHeaderExpr(nd *node.FuncHeaderExpr) error {
 
 	params, err := build(nd.Params.Args.Values...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if nd.Params.Args.Var != nil {
 		v, err := build(nd.Params.Args.Var)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		params = append(params, v...)
 	}
 	named, err := build(nd.Params.NamedArgs.Names...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	ret, err := build(nd.Return...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// An anonymous header gets an incremented `fh#N` name, like an anonymous
-	// function.
 	name := nd.Name()
 	if name == "" {
 		name = c.newFuncHeaderName()
 	}
 
-	c.emit(nd, OpConstant, c.addConstant(&FuncHeaderObject{
+	return &FuncHeaderObject{
 		FuncName:    name,
 		Params:      params,
 		NamedParams: named,
 		Return:      ret,
 		Module:      c.module,
-	}))
-	return nil
+	}, nil
 }
 
 func (c *Compiler) compileLogical(nd *node.BinaryExpr) error {
