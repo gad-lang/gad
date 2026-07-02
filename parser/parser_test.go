@@ -4195,6 +4195,8 @@ func TestParseMethodInterface(t *testing.T) {
 	// by the formatter; a bare entry is a type, so `(v)` -> `(_ v)`)
 	test.ExpectParseString(t, `x := met<(v)>`, `x := met<(_ v)>`)
 	test.ExpectParseString(t, `x := met<(a int) <str>>`, `x := met<(a int) <str>>`)
+	// `met<…>` may list several headers, comma-separated
+	test.ExpectParseString(t, `x := met<(int), (float) <str>>`, `x := met<(_ int), (_ float) <str>>`)
 }
 
 func TestParseTypeMethodInterface(t *testing.T) {

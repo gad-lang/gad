@@ -1923,14 +1923,21 @@ func (e *MethodInterfaceExpr) NameIdent() *IdentExpr {
 
 func (e *MethodInterfaceExpr) String() string {
 	var b strings.Builder
-	// Preserve the single-method shortcut form `met <header>`.
-	if e.Shortcut && len(e.Headers) == 1 {
+	// Preserve the shortcut form `met<h1, …>` (bracket-less headers).
+	if e.Shortcut && len(e.Headers) > 0 {
 		b.WriteString(e.MetiToken.Token.String())
 		if e.NameExpr != nil {
 			b.WriteString(" ")
 			b.WriteString(e.NameExpr.String())
 		}
-		b.WriteString(e.Headers[0].String())
+		b.WriteString("<")
+		for i, h := range e.Headers {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(h.FuncHeader.String())
+		}
+		b.WriteString(">")
 		return b.String()
 	}
 	if e.MetiToken.Valid() {
@@ -1966,14 +1973,32 @@ func (e *MethodInterfaceExpr) headersInNewLine(ctx *CodeWriteContext) bool {
 
 func (e *MethodInterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
-	// Preserve the single-method shortcut form `meti <header>`.
-	if e.Shortcut && len(e.Headers) == 1 {
+	// Preserve the shortcut form `met<h1, …>`. When formatting several headers,
+	// put each on its own indented line, without commas.
+	if e.Shortcut && len(e.Headers) > 0 {
 		ctx.WriteString(e.MetiToken.Token.String())
 		if e.NameExpr != nil {
 			ctx.WriteString(" ")
 			ctx.WriteString(e.NameExpr.String())
 		}
-		ctx.WriteString(e.Headers[0].String())
+		ctx.WriteString("<")
+		if ctx.HasPrefix() && len(e.Headers) > 1 {
+			ctx.Depth++
+			for _, h := range e.Headers {
+				ctx.WritePrefixedLine()
+				ctx.WriteString(h.FuncHeader.String())
+			}
+			ctx.Depth--
+			ctx.WritePrefixedLine()
+		} else {
+			for i, h := range e.Headers {
+				if i > 0 {
+					ctx.WriteString(", ")
+				}
+				ctx.WriteString(h.FuncHeader.String())
+			}
+		}
+		ctx.WriteString(">")
 		return
 	}
 	if e.MetiToken.Pos != source.NoPos {

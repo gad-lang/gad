@@ -2076,10 +2076,11 @@ func (p *Parser) ParseMethodInterfaceExprT(tok PToken) (e node.Expr) {
 	return
 }
 
-// parseMetShortcut parses the single-method MethodInterface shortcut
-// `met <header>` (a func-header value), e.g. `met<(v)>` == `meti { (_ v) }`. It
-// yields a MethodInterfaceExpr flagged Shortcut (the `met` token is preserved by
-// the formatter).
+// parseMetShortcut parses the MethodInterface shortcut `met<header, …>`: one or
+// more bracket-less headers `(params) <return>` between the angle brackets, e.g.
+// `met<(v)>` == `meti { (_ v) }` and `met<(int), (float) <str>>` two headers. It
+// yields a MethodInterfaceExpr flagged Shortcut (the `met<…>` form is preserved
+// by the formatter).
 func (p *Parser) parseMetShortcut() node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "MetShortcut"))
@@ -2087,11 +2088,32 @@ func (p *Parser) parseMetShortcut() node.Expr {
 	doc := p.leadComment
 	tok := p.ExpectToken(token.Method)
 	mi := &node.MethodInterfaceExpr{MetiToken: tok.TokenLit, Shortcut: true, Doc: doc}
-	if fh, _ := p.ParseFuncHeaderExpr().(*node.FuncHeaderExpr); fh != nil {
-		mi.Headers = append(mi.Headers, fh)
-		return mi
+
+	p.Expect(token.Less)
+	// Inside the angle brackets, headers are separated by commas or newlines
+	// (either is optional); ExprLevel makes newlines skippable.
+	p.ExprLevel++
+	for {
+		for p.Token.Token == token.Comma || p.Token.Token == token.Semicolon {
+			p.Next()
+		}
+		p.SkipSpace()
+		if p.Token.Token == token.Greater || p.Token.Token == token.EOF {
+			break
+		}
+		h := p.parseInterfaceHeader()
+		if h == nil || p.Failed() {
+			break
+		}
+		mi.Headers = append(mi.Headers, h)
 	}
-	return &node.BadExpr{From: tok.Pos, To: p.Token.Pos}
+	p.ExprLevel--
+	p.expectGreater()
+
+	if len(mi.Headers) == 0 {
+		return &node.BadExpr{From: tok.Pos, To: p.Token.Pos}
+	}
+	return mi
 }
 
 // parseInterfaceHeader parses a bracket-less func header `(params) <return>`.
