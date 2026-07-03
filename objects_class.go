@@ -6,6 +6,7 @@ import (
 
 	"github.com/gad-lang/gad/repr"
 	"github.com/gad-lang/gad/token"
+	"github.com/gad-lang/gad/utils"
 )
 
 // ClassParent is one entry in a class's inheritance list: a parent Class and the
@@ -435,6 +436,45 @@ func NewClass(name string, module *ModuleSpec) (t *Class) {
 }
 
 func (Class) GadObjectType() {}
+
+func (t *Class) AssignTo(_ *VM, obj Object, to TypeAssigner) (_ Object, err error) {
+	if dst, _ := to.(*Class); dst != nil {
+		var ok bool
+		if ok, err = dst.CanAssign(obj); ok {
+			return obj, nil
+		}
+	}
+	return nil, ErrIncompatibleAssign
+}
+
+func (t *Class) CanAssign(obj Object) (ok bool, err error) {
+	if cls, _ := obj.Type().(*Class); cls != nil {
+		cls.Walk(func(parent *Class) (mode utils.WalkMode) {
+			if t == parent {
+				return utils.WalkModeBreak
+			}
+			return utils.WalkModeContinue
+		})
+	}
+	return
+}
+
+func (t *Class) Walk(cb func(parent *Class) (mode utils.WalkMode)) {
+	utils.SingleWalk(t,
+		func(e *Class, cb func(*Class) utils.WalkMode) bool {
+			var mode utils.WalkMode
+			for _, p := range e.parents {
+				mode = cb(p.Type)
+				switch mode {
+				case utils.WalkModeBreak:
+					return false
+				case utils.WalkModeSkipSiblings:
+					return true
+				}
+			}
+			return true
+		}, cb)
+}
 
 func (t *Class) Name() string {
 	return t.name

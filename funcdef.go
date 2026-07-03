@@ -20,28 +20,32 @@ func (t ParamType) String() string {
 	}
 }
 
-func (t ParamType) Accept(vm *VM, ot ObjectType) (ok bool, err error) {
+// Accept reports whether obj satisfies the parameter type list. An ObjectType
+// entry is matched by the (resolved) type of obj (assignability); a structural
+// entry (a meti/interface, i.e. a TypeAssigner that is not an ObjectType) is
+// matched by its CanAssign check. An empty list accepts anything.
+func (t ParamType) Accept(vm *VM, obj Object) (ok bool, err error) {
 	if len(t) == 0 {
 		ok = true
 		return
 	}
 
-	ot = vm.ResolveType(ot)
+	ot := vm.ResolveType(obj.Type())
 	var st Object
-
 	for _, symbol := range t {
 		if st, err = vm.GetSymbolValue(symbol); err != nil {
 			return
-		} else if st == TAny {
+		}
+		if st == TAny {
 			return true, nil
-		} else {
-			if ot == st {
-				ok = true
+		}
+		if stot, isOT := st.(ObjectType); isOT {
+			if ot == stot || IsTypeAssignableTo(stot, ot) {
+				return true, nil
+			}
+		} else if ta, isTA := st.(TypeAssigner); isTA {
+			if ok, err = ta.CanAssign(obj); err != nil || ok {
 				return
-			} else if stot, _ := st.(ObjectType); stot != nil {
-				if ok = IsTypeAssignableTo(stot, ot); ok {
-					return
-				}
 			}
 		}
 	}

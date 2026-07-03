@@ -24,6 +24,14 @@ func (b BinaryOperatorType) String() string {
 
 func (BinaryOperatorType) GadObjectType() {}
 
+func (t BinaryOperatorType) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
+	return assignByTypeChain(t, obj, to)
+}
+
+func (t BinaryOperatorType) CanAssign(obj Object) (bool, error) {
+	return canAssignByType(t, obj)
+}
+
 func (b BinaryOperatorType) IsFalsy() bool {
 	t := b.Token()
 	return t > token.GroupBinaryOperatorBegin && t < token.GroupBinaryOperatorEnd
@@ -81,6 +89,14 @@ type UnaryOperatorType token.Token
 
 func (b UnaryOperatorType) GadObjectType() {}
 
+func (b UnaryOperatorType) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
+	return assignByTypeChain(b, obj, to)
+}
+
+func (b UnaryOperatorType) CanAssign(obj Object) (bool, error) {
+	return canAssignByType(b, obj)
+}
+
 func (b UnaryOperatorType) Token() token.Token {
 	return token.Token(b)
 }
@@ -132,6 +148,14 @@ func (UnaryOperatorType) MethodsDisabled() bool { return true }
 type SelfAssignOperatorType token.Token
 
 func (b SelfAssignOperatorType) GadObjectType() {}
+
+func (b SelfAssignOperatorType) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
+	return assignByTypeChain(b, obj, to)
+}
+
+func (b SelfAssignOperatorType) CanAssign(obj Object) (bool, error) {
+	return canAssignByType(b, obj)
+}
 
 func (b SelfAssignOperatorType) Token() token.Token {
 	return token.Token(b)

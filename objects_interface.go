@@ -71,7 +71,16 @@ type InterfaceMethod struct {
 // --- Interface ---
 
 func (i *Interface) Type() ObjectType { return TInterface }
-func (i *Interface) Name() string     { return i.IName }
+
+// AssignTo makes *Interface a TypeAssigner. Structural satisfaction checking is
+// not yet enforced; it matches only an equal interface for now.
+func (i *Interface) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
+	if i.Equal(to) {
+		return obj, nil
+	}
+	return nil, ErrIncompatibleCast
+}
+func (i *Interface) Name() string { return i.IName }
 func (i *Interface) IsFalsy() bool {
 	return len(i.Fields) == 0 && len(i.Props) == 0 && len(i.Methods) == 0
 }

@@ -35,6 +35,26 @@ type MethodInterface struct {
 
 func (m *MethodInterface) Type() ObjectType { return TMethodInterface }
 
+// AssignTo makes *MethodInterface a TypeAssigner. As a target it accepts a value
+// that structurally implements it; as a source it matches only an equal
+// interface.
+func (m *MethodInterface) AssignTo(vm *VM, obj Object, to TypeAssigner) (Object, error) {
+	if ok, err := MethodInterfaceImplements(vm, obj, m); err != nil {
+		return nil, err
+	} else if ok {
+		return obj, nil
+	}
+	return nil, ErrIncompatibleAssign
+}
+
+func (m *MethodInterface) CanAssign(obj Object) (bool, error) {
+	switch t := obj.(type) {
+	case MethodCaller:
+		return MethodInterfaceImplements(nil, t, m)
+	}
+	return false, nil
+}
+
 func (m *MethodInterface) Name() string { return m.MIName }
 
 func (m *MethodInterface) IsFalsy() bool { return len(m.Headers) == 0 }
@@ -181,6 +201,30 @@ func BuiltinImplementsFunc(c Call) (_ Object, err error) {
 		}
 	}
 	return True, nil
+}
+
+// MethodInterfaceImplements reports whether value (a callable) structurally
+// satisfies every header of the given method interface(s) — the same match used
+// by the `implements` builtin. A non-callable value never implements.
+func MethodInterfaceImplements(vm *VM, value Object, ifaces ...*MethodInterface) (bool, error) {
+	if _, ok := value.(CallerObject); !ok {
+		return false, nil
+	}
+	var sigs []ParamsTypes
+	if err := SplitCaller(vm, value,
+		func(_ CallerObject, types ParamsTypes) error { sigs = append(sigs, types); return nil },
+		func(_ CallerObject) error { sigs = append(sigs, nil); return nil },
+	); err != nil {
+		return false, nil
+	}
+	for _, iface := range ifaces {
+		for _, h := range iface.Headers {
+			if !headerMatchesAny(h, sigs) {
+				return false, nil
+			}
+		}
+	}
+	return true, nil
 }
 
 func headerMatchesAny(h *FuncHeaderObject, sigs []ParamsTypes) bool {

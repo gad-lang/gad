@@ -273,6 +273,14 @@ func NewReflectType(t any) (rt *ReflectType) {
 
 func (ReflectType) GadObjectType() {}
 
+func (t *ReflectType) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
+	return assignByTypeChain(t, obj, to)
+}
+
+func (t *ReflectType) CanAssign(obj Object) (bool, error) {
+	return canAssignByType(t, obj)
+}
+
 func (t *ReflectType) FuncSpecName() string {
 	return "reflect type " + ReprQuote(t.Fqn())
 }

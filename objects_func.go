@@ -182,16 +182,12 @@ func (s *FuncSpec) CallerMethodWithValidationCheckOfArgs(args Args) (CallerObjec
 	return s.CallerMethodWithValidationCheckOfArgsTypes(args.Types())
 }
 
-func (s *FuncSpec) CallerMethodOfArgs(args Args) (co CallerObject) {
-	return s.CallerMethodOfArgsTypes(args.Types())
-}
-
 func (s *FuncSpec) CallerMethodOfArgsTypes(types ObjectTypeArray) (co CallerObject) {
-	if m := s.Methods.GetMethod(types); m != nil {
-		return m
-	}
-	if s.defaul != nil {
-		return s.defaul
+	var method *TypedCallerMethod
+	if method, co = s.MethodOrDefault(types); co == nil && method != nil {
+		// Return the TypedCallerMethod itself (callers such as isIterable assert
+		// it back to *TypedCallerMethod to inspect its param types).
+		co = method
 	}
 	return
 }
@@ -201,10 +197,20 @@ func (s *FuncSpec) CallerMethodDefault() CallerObject {
 }
 
 func (s *FuncSpec) CallerMethodWithValidationCheckOfArgsTypes(types ObjectTypeArray) (co CallerObject, validate bool) {
-	if method := s.Methods.GetMethod(types); method != nil {
-		return method.CallerObject, false
-	} else if s.defaul != nil {
-		return s.defaul, true
+	var method *TypedCallerMethod
+	if method, co = s.MethodOrDefault(types); co == nil {
+		if method != nil {
+			co = method.CallerObject
+		}
+	} else {
+		validate = true
+	}
+	return
+}
+
+func (s *FuncSpec) MethodOrDefault(types ObjectTypeArray) (method *TypedCallerMethod, defaul CallerObject) {
+	if method = s.Methods.GetMethod(types); method == nil && s.defaul != nil {
+		defaul = s.defaul
 	}
 	return
 }

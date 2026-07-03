@@ -48,6 +48,14 @@ func (e *Enum) String() string {
 func (e *Enum) GadObjectType() {
 }
 
+func (e *Enum) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
+	return assignByTypeChain(e, obj, to)
+}
+
+func (e *Enum) CanAssign(obj Object) (bool, error) {
+	return canAssignByType(e, obj)
+}
+
 // AddValue appends a member with the given name and underlying int/uint value.
 // Its Index is the current member count, so members added in source order keep
 // that order.

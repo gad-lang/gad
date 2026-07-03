@@ -72,6 +72,9 @@ var (
 	// ErrIncompatibleCast is an error where incompatible cast.
 	ErrIncompatibleCast = &Error{Name: "ErrIncompatibleCast"}
 
+	// ErrIncompatibleAssign is an error where incompatible assign.
+	ErrIncompatibleAssign = &Error{Name: "ErrIncompatibleAssign"}
+
 	// ErrIncompatibleReflectFuncType is an error where incompatible reflect func type.
 	ErrIncompatibleReflectFuncType = &Error{Name: "ErrIncompatibleReflectFuncType"}
 

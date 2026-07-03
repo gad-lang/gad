@@ -102,14 +102,18 @@ func IsIndexGetter(obj Object) (ok bool) {
 	return
 }
 
-func IsTypeAssignableTo(a, b ObjectType) bool {
-	for a != nil {
-		if a.Equal(b) {
-			return true
+func IsTypeAssignableTo(a ObjectType, b TypeAssigner) bool {
+	if bt, ok := b.(ObjectType); ok {
+		for a != nil {
+			if a.Equal(bt) {
+				return true
+			}
+			a = a.Type()
 		}
-		a = a.Type()
+		return false
 	}
-	return false
+	ok, _ := b.CanAssign(a)
+	return ok
 }
 
 func ToIterationDoner(obj any) IterationDoner {

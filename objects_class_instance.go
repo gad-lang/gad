@@ -531,6 +531,16 @@ func (o *ClassInstance) CastTo(_ *VM, t ObjectType) (Object, error) {
 	return nil, ErrIncompatibleCast
 }
 
+// AssignTo makes *ClassInstance a TypeAssigner: obj is assignable to `to` when
+// the instance's class (or one of its parents) is the target type. Returns obj
+// unchanged (unlike CastTo, which returns the up-cast instance).
+func (o *ClassInstance) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
+	if tot, ok := to.(ObjectType); ok && o.Cast(tot) != nil {
+		return obj, nil
+	}
+	return nil, ErrIncompatibleCast
+}
+
 func (o *ClassInstance) ToDict() (d Dict) {
 	d = Copy(o.fields)
 	o.WalkInstances(func(path []*ClassInstance, instance *ClassInstance) (mode utils.WalkMode) {

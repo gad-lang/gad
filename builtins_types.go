@@ -85,6 +85,14 @@ func NewType(typeName string, parent ...ObjectType) (t *Type) {
 
 func (Type) GadObjectType() {}
 
+func (t *Type) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
+	return assignByTypeChain(t, obj, to)
+}
+
+func (t *Type) CanAssign(obj Object) (bool, error) {
+	return canAssignByType(t, obj)
+}
+
 func (t Type) Copy() Object {
 	cp := &t
 	cp.Static = Copy(t.Static)

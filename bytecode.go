@@ -392,10 +392,11 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 		}
 
 		for i := 0; i < l; i++ {
-			argType = vm.ResolveType(args.GetOnly(i).Type())
+			arg := args.GetOnly(i)
+			argType = vm.ResolveType(arg.Type())
 			t = o.Params.Items[i].TypesSymbols
 			if t != nil {
-				if accept, err = t.Accept(vm, argType); err != nil {
+				if accept, err = t.Accept(vm, arg); err != nil {
 					return
 				} else if !accept {
 					return NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Items[i].Name+")", t.String(), argType.Name())
@@ -406,7 +407,7 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 		if last.Var {
 			t = last.TypesSymbols
 			args.WalkSkip(l, func(i int, arg Object) any {
-				if accept, err = t.Accept(vm, arg.Type()); err == nil && !accept {
+				if accept, err = t.Accept(vm, arg); err == nil && !accept {
 					err = NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Items[i].Name+")", t.String(), arg.Type().Name())
 				}
 				return err

@@ -4,6 +4,14 @@ type BuiltinObjTypeKey BuiltinType
 
 func (BuiltinObjTypeKey) GadObjectType() {}
 
+func (t BuiltinObjTypeKey) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
+	return assignByTypeChain(t, obj, to)
+}
+
+func (t BuiltinObjTypeKey) CanAssign(obj Object) (bool, error) {
+	return canAssignByType(t, obj)
+}
+
 func (b BuiltinObjTypeKey) BType() BuiltinType {
 	return BuiltinType(b)
 }
@@ -78,6 +86,14 @@ func (t *BuiltinObjType) GetModule() *ModuleSpec {
 }
 
 func (t *BuiltinObjType) GadObjectType() {}
+
+func (t *BuiltinObjType) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
+	return assignByTypeChain(t, obj, to)
+}
+
+func (t *BuiltinObjType) CanAssign(obj Object) (bool, error) {
+	return canAssignByType(t, obj)
+}
 
 func (t *BuiltinObjType) FuncSpecName() string {
 	return "builtin type " + ReprQuote(t.FullName())

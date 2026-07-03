@@ -31,6 +31,7 @@ type ObjectType interface {
 	Object
 	CallerObject
 	fmt.Stringer
+	TypeAssigner
 	Name() string
 	FullName() string
 	GadObjectType()
@@ -336,8 +337,6 @@ type MethodCaller interface {
 	CallerMethodWithValidationCheckOfArgs(args Args) (method CallerObject, validationCheck bool)
 	// CallerMethodWithValidationCheckOfArgsTypes return a method from knowed args types with validation check flag
 	CallerMethodWithValidationCheckOfArgsTypes(types ObjectTypeArray) (method CallerObject, validationCheck bool)
-	// CallerMethodOfArgs return a method from arguments types whitout validation check flag.
-	CallerMethodOfArgs(args Args) (method CallerObject)
 	// CallerMethodOfArgsTypes return a method from arguments types whitout validation check flag.
 	CallerMethodOfArgsTypes(types ObjectTypeArray) (method CallerObject)
 	HasCallerMethods() bool
