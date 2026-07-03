@@ -13,8 +13,8 @@ There are three ways to put a file in template mode:
 3. A `.gadt` file extension (run as a template automatically).
 
 ```sh
-gad run page.gadt              # .gadt is template by convention
-gad run --template page.gad    # force template mode
+gad page.gadt              # .gadt is template by convention
+gad --template page.gad    # force template mode
 ```
 
 ## Tags
@@ -118,7 +118,7 @@ Hi <?= 6*7 ?>!
 Per run, with flags:
 
 ```sh
-gad run --template-start-delimiter '<?' --template-end-delimiter '?>' page
+gad --template-start-delimiter '<?' --template-end-delimiter '?>' page
 ```
 
 Per workspace, in `.gad.yaml`:

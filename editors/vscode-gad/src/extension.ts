@@ -54,7 +54,7 @@ function activeGadDocument(): vscode.TextDocument | undefined {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
-  // `gad.run`: run the current file with `gad run <file>` in an integrated
+  // `gad.run`: run the current file with `gad <file>` in an integrated
   // terminal (reused across runs), saving it first.
   context.subscriptions.push(
     vscode.commands.registerCommand("gad.run", async () => {
@@ -76,7 +76,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       runTerminal.show(true);
       const quote = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
-      runTerminal.sendText(`${quote(gadPath)} run ${quote(doc.uri.fsPath)}`);
+      runTerminal.sendText(`${quote(gadPath)} ${quote(doc.uri.fsPath)}`);
     }),
   );
 

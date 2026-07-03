@@ -98,27 +98,7 @@ func registerCommand(_ string, factory func() *cc.Command) {
 // plus the `run` and `fmt` subcommands and any optional (build-tagged) ones.
 func buildRootCommand() *cc.Command {
 	root := &cc.Command{
-		Name:        "gad",
-		Description: "Gad scripting language CLI.",
-		Run: func(ctx *cc.CommandContext) error {
-			return ctx.Help()
-		},
-	}
-	root.Sub(runCommand())
-	root.Sub(fmtCommand())
-	root.Sub(docCommand())
-	root.Sub(doctestCommand())
-	for _, f := range optionalCommands {
-		root.Sub(f())
-	}
-	return root
-}
-
-// runCommand is the explicit `gad run [flags] [FILE [ARGS...]]` subcommand. It
-// shares all behavior with the legacy bare invocation.
-func runCommand() *cc.Command {
-	return &cc.Command{
-		Name:        "run",
+		Name:        filepath.Base(os.Args[0]),
 		Usage:       "[flags] [SCRIPT_FILE [ARGS...]]",
 		Description: "Run a Gad script file (or stdin with -), or start the REPL when no file is given.",
 		New: func(ctx *cc.CommandContext) error {
@@ -142,6 +122,13 @@ func runCommand() *cc.Command {
 			return nil
 		},
 	}
+	root.Sub(fmtCommand())
+	root.Sub(docCommand())
+	root.Sub(doctestCommand())
+	for _, f := range optionalCommands {
+		root.Sub(f())
+	}
+	return root
 }
 
 // globList is a repeatable flag whose values may also be comma-separated, e.g.

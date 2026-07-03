@@ -6,7 +6,7 @@ self-contained program you can run, format and debug.
 ## Running
 
 ```sh
-gad run samples/01_hello.gad        # run a single sample
+gad samples/01_hello.gad        # run a single sample
 ```
 
 > The canonical formatter (`gad fmt`, or **Format** in the IDE) rewrites code to
@@ -60,7 +60,7 @@ relative imports resolve against the importing file's directory, run the entry
 point from inside that directory (the IDE does this automatically):
 
 ```sh
-cd samples/modules && gad run main.gad
+cd samples/modules && gad main.gad
 ```
 
 | File                | Purpose                                              |
