@@ -426,6 +426,8 @@ func (vm *VM) GetSymbolValue(symbol *SymbolInfo) (value Object, err error) {
 		value = vm.Builtins.builtins.Objects[BuiltinType(symbol.Index)]
 	case ScopeFree:
 		value = *vm.curFrame.freeVars[symbol.Index].Value
+	case ScopeConstant:
+		value = vm.constants[symbol.Index]
 	}
 	return
 }

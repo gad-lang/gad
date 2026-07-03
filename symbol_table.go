@@ -21,6 +21,10 @@ const (
 	ScopeBuiltin
 	ScopeFree
 	ScopeModule
+	// ScopeConstant references a bytecode constant by Index. Used for a
+	// structural type reference (a `meti`/`interface` literal compiled to a
+	// constant and used as a parameter/field type).
+	ScopeConstant
 )
 
 func (s SymbolScope) String() string {
@@ -37,6 +41,8 @@ func (s SymbolScope) String() string {
 		return "FREE"
 	case ScopeModule:
 		return "MODULE"
+	case ScopeConstant:
+		return "CONSTANT"
 	default:
 		return "SCOPE:" + strconv.FormatUint(uint64(s), 10)
 	}

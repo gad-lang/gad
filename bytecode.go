@@ -436,9 +436,11 @@ func (o *CompiledFunction) ParamTypes(vm *VM) (types ParamsTypes, err error) {
 					}
 					ot, ok := typ.(ObjectType)
 					if !ok {
-						return nil, ErrType.NewErrorf(
-							"param %q type %q is %s, not a type",
-							p.Name, symbol.Name, typ.Type().Name())
+						// A structural type (meti/interface literal): permissive at
+						// the ParamsTypes/dispatch level — the real check is
+						// value-based in ValidateParamTypes (ParamType.Accept ->
+						// TypeAssigner.CanAssign).
+						ot = TAny
 					}
 					ts[i2] = ot
 				}

@@ -3402,10 +3402,13 @@ func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdentExpr)
 	for i2, t := range ti.Type {
 		id := t.Ident()
 		if id == nil {
-			// A structural type literal (meti/interface/met<…>) — parsed, but not
-			// yet lowered to a constant type reference (a follow-up stage).
-			err = c.errorf(t, "structural types (meti/interface) as a param/field type are not yet supported")
-			return
+			// A structural type literal (meti / interface / met<…>): compile it to
+			// a constant and reference it with a ScopeConstant symbol so the
+			// runtime can resolve the interface and check structurally.
+			if symbols[i2], err = c.structuralTypeSymbol(t.Expr); err != nil {
+				return
+			}
+			continue
 		}
 		var symbol *Symbol
 		// Resolve against the type identifier so an unresolved-reference error
@@ -3417,6 +3420,34 @@ func (c *Compiler) nameSymbolsOfTypedIdent(nd ast.Node, ti *node.TypedIdentExpr)
 	}
 
 	return
+}
+
+// structuralTypeSymbol compiles a structural type literal (a `meti`/`interface`
+// value used as a type) to a bytecode constant and returns a ScopeConstant
+// symbol referencing it, so runtime type-checking can resolve the interface and
+// check structurally (via TypeAssigner.CanAssign).
+func (c *Compiler) structuralTypeSymbol(e node.Expr) (*SymbolInfo, error) {
+	var (
+		obj  Object
+		name string
+	)
+	switch t := e.(type) {
+	case *node.MethodInterfaceExpr:
+		mi, err := c.buildMethodInterface(t)
+		if err != nil {
+			return nil, err
+		}
+		obj, name = mi, mi.MIName
+	case *node.InterfaceExpr:
+		iface, err := c.buildInterface(t)
+		if err != nil {
+			return nil, err
+		}
+		obj, name = iface, iface.IName
+	default:
+		return nil, c.errorf(e, "unsupported structural type %T", e)
+	}
+	return &SymbolInfo{Name: name, Index: c.addConstant(obj), Scope: ScopeConstant}, nil
 }
 
 func simplifyExpr(e node.Expr) node.Expr {
