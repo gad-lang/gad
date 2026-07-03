@@ -313,6 +313,15 @@ func TestFormatDoubleColon(t *testing.T) {
 	test.New(t, "(a::B)::C").Code("a::B::C").FormattedCode("a::B::C")
 	// but a lower-precedence left operand keeps its parens.
 	test.New(t, "(a + b)::C").Code("(a + b)::C").FormattedCode("(a + b)::C")
+
+	// a `::` used as the base of a postfix op (selector/index/call/slice) keeps
+	// its parens — `.`/`[]`/`()` bind tighter than `::`, so dropping them would
+	// change meaning (`(a::B).c` is not `a::B.c` == `a::(B.c)`).
+	test.New(t, "(a::B).c").Code("(a::B).c").FormattedCode("(a::B).c")
+	test.New(t, "(a::B)[0]").Code("(a::B)[0]").FormattedCode("(a::B)[0]")
+	test.New(t, "(a::B)(1)").Code("(a::B)(1)").FormattedCode("(a::B)(1)")
+	test.New(t, "(a::B)?.c").Code("(a::B)?.c").FormattedCode("(a::B)?.c")
+	test.New(t, "(a::B)[1:2]").Code("(a::B)[1:2]").FormattedCode("(a::B)[1:2]")
 }
 
 func TestFormatCalcParams(t *testing.T) {

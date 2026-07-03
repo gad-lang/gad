@@ -103,6 +103,41 @@ func (e *BinaryExpr) WriteCodeWithParen(ctx *CodeWriteContext, paren bool) {
 	}
 }
 
+// colonBaseNeedsParen reports whether x renders as a bare `::` expression (a
+// DoubleColon BinaryExpr, possibly inside redundant parens). Such an operand
+// must be parenthesised when it is the base of a tighter postfix operation
+// (selector, index, call, slice), since `.`/`[]`/`()` bind tighter than `::` —
+// otherwise `(x::T).m` would round-trip to `x::T.m` == `x::(T.m)`.
+func colonBaseNeedsParen(x Expr) bool {
+	switch t := x.(type) {
+	case *ParenExpr:
+		return colonBaseNeedsParen(t.Expr)
+	case *BinaryExpr:
+		return t.Token == token.DoubleColon
+	}
+	return false
+}
+
+// writeColonBase writes the base of a postfix expression, wrapping a bare `::`
+// operand in parens so the postfix operator does not bind into its right side.
+func writeColonBase(ctx *CodeWriteContext, x Expr) {
+	if colonBaseNeedsParen(x) {
+		ctx.WriteSingleByte('(')
+		x.WriteCode(ctx)
+		ctx.WriteSingleByte(')')
+	} else {
+		x.WriteCode(ctx)
+	}
+}
+
+// parenColonBase is the String() counterpart of writeColonBase.
+func parenColonBase(x Expr) string {
+	if colonBaseNeedsParen(x) {
+		return "(" + x.String() + ")"
+	}
+	return x.String()
+}
+
 type BoolExpr interface {
 	Expr
 	Bool() bool
@@ -143,7 +178,7 @@ func (e *CallExpr) String() string {
 	if f, _ := e.Func.(*FuncExpr); f != nil {
 		s = EParen(f, 0, 0).String()
 	} else {
-		s = e.Func.String()
+		s = parenColonBase(e.Func)
 	}
 	var buf = bytes.NewBufferString(s)
 	e.CallArgs.StringW(buf)
@@ -154,7 +189,7 @@ func (e *CallExpr) WriteCode(ctx *CodeWriteContext) {
 	if f, _ := e.Func.(*FuncExpr); f != nil {
 		(EParen(f, 0, 0)).WriteCode(ctx)
 	} else {
-		e.Func.WriteCode(ctx)
+		writeColonBase(ctx, e.Func)
 	}
 	e.CallArgs.WriteCode(ctx)
 }
@@ -574,11 +609,11 @@ func (e *IndexExpr) String() string {
 	if e.Index != nil {
 		index = e.Index.String()
 	}
-	return e.X.String() + "[" + index + "]"
+	return parenColonBase(e.X) + "[" + index + "]"
 }
 
 func (e *IndexExpr) WriteCode(ctx *CodeWriteContext) {
-	e.X.WriteCode(ctx)
+	writeColonBase(ctx, e.X)
 	ctx.WriteString("[")
 	e.Index.WriteCode(ctx)
 	ctx.WriteString("]")
@@ -970,7 +1005,7 @@ func (e *SelectorExpr) End() source.Pos {
 }
 
 func (e *SelectorExpr) String() string {
-	r := e.X.String() + "."
+	r := parenColonBase(e.X) + "."
 	if s, _ := e.Sel.(*StrLit); s != nil {
 		if s.CanIdent() {
 			return r + s.Value()
@@ -989,7 +1024,7 @@ func (e *SelectorExpr) GetY() Expr {
 }
 
 func (e *SelectorExpr) WriteCode(ctx *CodeWriteContext) {
-	e.X.WriteCode(ctx)
+	writeColonBase(ctx, e.X)
 	ctx.WriteSingleByte('.')
 	if s, _ := e.Sel.(*StrLit); s != nil {
 		if s.CanIdent() {
@@ -1021,7 +1056,7 @@ func (e *NullishSelectorExpr) End() source.Pos {
 }
 
 func (e *NullishSelectorExpr) String() string {
-	r := e.Expr.String() + "?."
+	r := parenColonBase(e.Expr) + "?."
 	if s, _ := e.Sel.(*StrLit); s != nil {
 		if s.CanIdent() {
 			return r + s.Value()
@@ -1040,7 +1075,7 @@ func (e *NullishSelectorExpr) GetY() Expr {
 }
 
 func (e *NullishSelectorExpr) WriteCode(ctx *CodeWriteContext) {
-	e.Expr.WriteCode(ctx)
+	writeColonBase(ctx, e.Expr)
 	ctx.WriteString("?.")
 	if s, _ := e.Sel.(*StrLit); s != nil {
 		if s.CanIdent() {
@@ -1082,11 +1117,11 @@ func (e *SliceExpr) String() string {
 	if e.High != nil {
 		high = e.High.String()
 	}
-	return e.Expr.String() + "[" + low + ":" + high + "]"
+	return parenColonBase(e.Expr) + "[" + low + ":" + high + "]"
 }
 
 func (e *SliceExpr) WriteCode(ctx *CodeWriteContext) {
-	e.Expr.WriteCode(ctx)
+	writeColonBase(ctx, e.Expr)
 	ctx.WriteSingleByte('[')
 	if e.Low != nil {
 		e.Low.WriteCode(ctx)
