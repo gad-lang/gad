@@ -70,21 +70,22 @@
           `$old`" section added.
 - [ ] parser operator AssignTo `obj :: Type`. compile to OpAssign. it calls assign like method resolution. return an error
       if not assignable.
-- [ ] update 11_classes.gad to add:
-      on line 48 (identify the best place to put the code below), 
-      ```gad
-      // add method to constructor
-      met Dog(name str) => Dog(;name=name)
-      println("new dog name:   ", Dog("hercules"))
-      // add call method to speek method from property/method resolver
-      met Dog.speak(this, v str) => this.name + ": from str: " + v
-      println("dog custom speak:   ", d.speak("auau"))
-      // add call method to speek method from methods register 
-      met Dog.@methods.speak(this, v int) => this.name + ": from int: " + v
-      println("dog custom speak:   ", d.speak(10))
-      ```
-      like this example, add examples from property setter resolution by `met Class.PROPERTY_NAME (...)` and direct `met Class.@properties.PROPERTY_NAME (...)`.
-      add more example like this.
+- [x] update 11_classes.gad to add `$old` examples rewriting methods, constructors
+      and property setters (the concrete goal behind the constructor/resolver
+      snippets). DONE:
+      - `*Class` and `*ClassProperty` now implement MethodCaller by delegating to
+        their FuncSpec (`Class.new.f` / `ClassProperty.f`); ClassMethod/
+        ClassProperty/ClassConstructor expose GetFuncSpec. So `$old`
+        (gad.methodFromArgs) resolves class methods, constructors and property
+        setters.
+      - Fixed Class.AddMethodIndex: `met Class.NAME(...)` now routes to an existing
+        property's getter/setter (was always adding a shadowing method, so setter
+        overrides silently did nothing).
+      - Renamed the class index selector `@properties` → `@props`.
+      - samples/11_classes.gad gains a "rewriting members with `met ~` and `$old`"
+        section (method → "Rex barks loudly", constructor → 30 40, setter →
+        "int:9 (checked)"). doc/classes.md documents it.
+      Evidence: `go test ./...` → ok; `go test -run TestVMClassOldOverride` → PASS.
 - [ ] check cmd/update-*-plugin to accept all language changes.
     update vscode plugin to allow single "run" and "debug".
     create example page for codemirror and prismjs plugins.

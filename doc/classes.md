@@ -248,3 +248,25 @@ b := Vec(; x=10, y=20)
 str(a + b)      // "(11, 22)"
 a.len2()        // 5
 ```
+
+### Rewriting members with `met ~` and `$old`
+
+`met ~Class.name(...)` **overrides** an existing member instead of adding a new
+overload. A `$old` first parameter captures the implementation being replaced, so
+the new one can wrap it (super / around advice). It works uniformly for methods,
+constructors and property setters — a class dispatches through its constructor,
+and `met Class.prop` targets the property's getter/setter, so all three are
+`MethodCaller`s that `$old` (via `gad.methodFromArgs`) can resolve:
+
+```go
+// method — wrap the previous speak()
+met ~Dog.speak($old, this) => $old(this) + " loudly"
+
+// constructor — delegate to the previous constructor (`new` is the initiator)
+met ~Point($old, new, x, y) => $old(new, x * 10, y * 10)
+
+// property setter — validate on top of the previous setter
+met ~Box.val($old, this, x int) { $old(this, x); this.v = this.v + " (checked)" }
+```
+
+See [functions](functions.md#overriding-and-old) for the general `$old` rules.

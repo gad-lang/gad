@@ -93,8 +93,9 @@ type ClassGoMethod struct {
 }
 
 var (
-	_ Object      = (*ClassProperty)(nil)
-	_ MethodAdder = (*ClassProperty)(nil)
+	_ Object       = (*ClassProperty)(nil)
+	_ MethodAdder  = (*ClassProperty)(nil)
+	_ MethodCaller = (*ClassProperty)(nil)
 )
 
 // ClassProperty is a computed property of a Class (declared with `prop`): a
@@ -151,6 +152,43 @@ func (p *ClassProperty) AddMethodByTypes(vm *VM, argTypes ParamsTypes, handler C
 		return ErrClassPropertyChange.NewErrorf("Getter or Setter of property %s requires 1 and 2 parameters", p.FullName())
 	}
 }
+
+// A ClassProperty dispatches through its getter/setter FuncSpec, so it is a
+// MethodCaller: the accessors below delegate to `p.f`. This lets
+// `met ~Class.prop($old, …)` and `gad.methodFromArgs(Class.prop, …)` resolve a
+// getter/setter overload the same way function methods are resolved.
+
+// GetFuncSpec exposes the property's getter/setter dispatcher so helpers such as
+// gad.methodFromArgs can resolve a registered accessor by argument types.
+func (p *ClassProperty) GetFuncSpec() *FuncSpec { return p.f }
+
+// Call dispatches to the matching getter or setter.
+func (p *ClassProperty) Call(c Call) (Object, error) { return p.f.Call(c) }
+
+// CallerMethods returns the getter/setter method tree.
+func (p *ClassProperty) CallerMethods() *MethodArgType { return p.f.CallerMethods() }
+
+// CallerMethodWithValidationCheckOfArgs resolves an accessor from args.
+func (p *ClassProperty) CallerMethodWithValidationCheckOfArgs(args Args) (CallerObject, bool) {
+	return p.f.CallerMethodWithValidationCheckOfArgs(args)
+}
+
+// CallerMethodWithValidationCheckOfArgsTypes resolves an accessor from argument
+// types.
+func (p *ClassProperty) CallerMethodWithValidationCheckOfArgsTypes(types ObjectTypeArray) (CallerObject, bool) {
+	return p.f.CallerMethodWithValidationCheckOfArgsTypes(types)
+}
+
+// CallerMethodOfArgsTypes resolves an accessor from argument types.
+func (p *ClassProperty) CallerMethodOfArgsTypes(types ObjectTypeArray) CallerObject {
+	return p.f.CallerMethodOfArgsTypes(types)
+}
+
+// HasCallerMethods reports whether any getter/setter is registered.
+func (p *ClassProperty) HasCallerMethods() bool { return p.f.HasCallerMethods() }
+
+// CallerMethodDefault returns the accessor default caller, if any.
+func (p *ClassProperty) CallerMethodDefault() CallerObject { return p.f.CallerMethodDefault() }
 
 func (p *ClassProperty) IsFalsy() bool {
 	return p.f.IsFalsy()
@@ -265,6 +303,10 @@ func (c *ClassConstructor) AddMethodByTypes(vm *VM, argTypes ParamsTypes, handle
 	return c.f.AddMethodByTypes(vm, argTypes, handler, override, onAdd)
 }
 
+// GetFuncSpec exposes the constructor's dispatcher so helpers such as
+// gad.methodFromArgs can resolve a registered constructor by argument types.
+func (c *ClassConstructor) GetFuncSpec() *FuncSpec { return c.f }
+
 func (c *ClassConstructor) IsFalsy() bool {
 	return c.f.IsFalsy()
 }
@@ -358,6 +400,10 @@ func (m *ClassMethod) AddMethodByTypes(vm *VM, argTypes ParamsTypes, handler Cal
 	}
 	return m.f.AddMethodByTypes(vm, argTypes, handler, override, onAdd)
 }
+
+// GetFuncSpec exposes the method's dispatcher so helpers such as
+// gad.methodFromArgs can resolve a registered method by argument types.
+func (m *ClassMethod) GetFuncSpec() *FuncSpec { return m.f }
 
 func (m *ClassMethod) Type() ObjectType {
 	return TClassMethod
@@ -479,6 +525,39 @@ func (t *Class) Walk(cb func(parent *Class) (mode utils.WalkMode)) {
 func (t *Class) Name() string {
 	return t.name
 }
+
+// A Class dispatches calls through its constructor, so it is a MethodCaller: the
+// method-resolution accessors delegate to the constructor's FuncSpec
+// (`Class.new.f`). This lets `met ~Name($old, …)` and `gad.methodFromArgs(Name,
+// …)` resolve constructor overloads the same way they resolve function methods.
+
+// GetFuncSpec exposes the constructor's dispatcher.
+func (t *Class) GetFuncSpec() *FuncSpec { return t.new.f }
+
+// CallerMethods returns the constructor's method tree.
+func (t *Class) CallerMethods() *MethodArgType { return t.new.f.CallerMethods() }
+
+// CallerMethodWithValidationCheckOfArgs resolves a constructor method from args.
+func (t *Class) CallerMethodWithValidationCheckOfArgs(args Args) (CallerObject, bool) {
+	return t.new.f.CallerMethodWithValidationCheckOfArgs(args)
+}
+
+// CallerMethodWithValidationCheckOfArgsTypes resolves a constructor method from
+// argument types.
+func (t *Class) CallerMethodWithValidationCheckOfArgsTypes(types ObjectTypeArray) (CallerObject, bool) {
+	return t.new.f.CallerMethodWithValidationCheckOfArgsTypes(types)
+}
+
+// CallerMethodOfArgsTypes resolves a constructor method from argument types.
+func (t *Class) CallerMethodOfArgsTypes(types ObjectTypeArray) CallerObject {
+	return t.new.f.CallerMethodOfArgsTypes(types)
+}
+
+// HasCallerMethods reports whether the constructor has registered methods.
+func (t *Class) HasCallerMethods() bool { return t.new.f.HasCallerMethods() }
+
+// CallerMethodDefault returns the constructor's default caller, if any.
+func (t *Class) CallerMethodDefault() CallerObject { return t.new.f.CallerMethodDefault() }
 
 func (t *Class) FullName() string {
 	if t.module == nil {
@@ -902,6 +981,21 @@ func (t *Class) AddMethodIndex(c Call) (ret Object, err error) {
 		return nil, ErrClassMethodRegister.NewError("no handlers")
 	}
 
+	// A `met Class.NAME(...)` that names an existing property adds/overrides its
+	// getter (1 param) or setter (2 params) rather than creating a shadowing
+	// method, so `met ~Class.prop($old, this, v)` can wrap a setter.
+	if p := t.propertiesMap[name]; p != nil {
+		for _, handler := range handlers {
+			h(handler.(CallerObject), func(co CallerObject, types ParamsTypes) error {
+				return p.AddMethodByTypes(c.VM, types, co, override, nil)
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+		return p, nil
+	}
+
 	if tm == nil {
 		tm = NewClassMethod(name, t)
 
@@ -1165,7 +1259,7 @@ func (t *Class) IndexGet(vm *VM, index Object) (value Object, err error) {
 	switch key {
 	case "@fields":
 		return t.Fields(), nil
-	case "@properties":
+	case "@props":
 		return t.Properties(), nil
 	case "@methods":
 		return t.Methods(), nil

@@ -48,6 +48,29 @@ d := Dog(; name="Rex")
 println("dog speak:   ", d.speak())       // override -> Rex barks
 println("dog describe:", d.describe())    // inherited -> I am Rex
 
+// --- rewriting members with `met ~` and `$old` ---
+/// `met ~` overrides an existing member; a `$old` first parameter captures the
+/// implementation being replaced so the new one can wrap it (super / around
+/// advice). It works for methods, constructors and property setters alike.
+
+// method: wrap the inherited/overridden speak()
+met ~Dog.speak($old, this) => $old(this) + " loudly!"
+println("dog speak $old:", d.speak())     // Rex barks loudly!
+
+// constructor: scale coordinates, delegating to the previous constructor
+Point3 := Class("Point3", (cls, define) => define(;
+    fields = (; x int = 0, y int = 0),
+    new { (new, x, y) => new(; x=x, y=y) }
+))
+met ~Point3($old, new, x, y) => $old(new, x * 10, y * 10)
+q := Point3(3, 4)
+println("point3 $old:  ", q.x, q.y)       // 30 40 (delegated + scaled)
+
+// property setter: validate on top of the previous setter
+met ~Box.val($old, this, x int) { $old(this, x); this.v = this.v + " (checked)" }
+b.val = 9
+println("box int $old: ", b.val)          // int:9 (checked)
+
 // --- extend an existing class with `met` ---
 Vec := Class("Vec", (cls, define) => define(; fields = (; x int = 0, y int = 0)))
 met gad.binOpAdd(a Vec, b Vec) {

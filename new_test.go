@@ -371,6 +371,38 @@ func TestVMOldOverrideParam(t *testing.T) {
 		nil, Array{Int(5), Str("z")})
 }
 
+func TestVMClassOldOverride(t *testing.T) {
+	// $old rewrites a class method, wrapping the previous implementation.
+	testExpectRun(t, `
+	Animal := Class("Animal", (cls, define) => define(;
+		fields  = (; name str = "?"),
+		methods = [ speak(this) => this.name + " barks" ]))
+	d := Animal(; name="Rex")
+	met ~Animal.speak($old, this) => $old(this) + " loudly"
+	return d.speak()`, nil, Str("Rex barks loudly"))
+
+	// $old rewrites a constructor, delegating to the previous one (a Class is a
+	// MethodCaller through its constructor).
+	testExpectRun(t, `
+	Point := Class("Point", (cls, define) => define(;
+		fields = (; x int = 0, y int = 0),
+		new { (new, x, y) => new(; x=x, y=y) }))
+	met ~Point($old, new, x, y) => $old(new, x * 10, y * 10)
+	p := Point(3, 4)
+	return [p.x, p.y]`, nil, Array{Int(30), Int(40)})
+
+	// $old rewrites a property setter (met Class.prop routes to the property's
+	// getter/setter, not to a shadowing method).
+	testExpectRun(t, `
+	Box := Class("Box", (cls, define) => define(; fields = (; v), properties = {
+		val: func { (this) => this.v; (this, x int) { this.v = "int:" + str(x) } }
+	}))
+	b := Box()
+	met ~Box.val($old, this, x int) { $old(this, x); this.v = this.v + " ok" }
+	b.val = 9
+	return b.v`, nil, Str("int:9 ok"))
+}
+
 func TestVMParamTypeErrorPosition(t *testing.T) {
 	// An unresolved param type points at the type identifier, not at the
 	// enclosing func/param declaration.

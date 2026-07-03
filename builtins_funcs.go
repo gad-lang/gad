@@ -1688,10 +1688,19 @@ func BuiltinMethodFromArgsFunc(c Call) (ret Object, err error) {
 		return Nil, err
 	}
 
-	target := c.Args.GetOnly(0)
-	mc, ok := target.(MethodCaller)
-	if !ok {
-		return Nil, ErrType.NewError("target " + ReprQuote(target.Type().Name()) + " has no methods")
+	// The target may be a MethodCaller (a func with methods) or a class member
+	// that carries its own dispatcher (ClassMethod / ClassProperty /
+	// ClassConstructor expose it via GetFuncSpec).
+	var mc interface {
+		CallerMethodOfArgsTypes(types ObjectTypeArray) CallerObject
+	}
+	switch t := c.Args.GetOnly(0).(type) {
+	case MethodCaller:
+		mc = t
+	case interface{ GetFuncSpec() *FuncSpec }:
+		mc = t.GetFuncSpec()
+	default:
+		return Nil, ErrType.NewError("target " + ReprQuote(t.Type().Name()) + " has no methods")
 	}
 
 	var (
