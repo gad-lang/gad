@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operators · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link active" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="operators">Operators</h1>
+<p><a href="index.html">← Back to index</a></p>
+<h2 id="unary-operators">Unary Operators</h2>
+<table>
+<thead><tr><th>Operator</th><th>Meaning</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>+</code></td><td>identity (<code>0 + x</code>)</td><td>numeric / char / bool</td></tr>
+<tr><td><code>-</code></td><td>negation (<code>0 - x</code>)</td><td>numeric / char / bool</td></tr>
+<tr><td><code>^</code></td><td>bitwise complement</td><td>integer / char / bool</td></tr>
+<tr><td><code>!</code></td><td>logical NOT</td><td>any value (truthy/falsy)</td></tr>
+<tr><td><code>++x</code></td><td>pre-increment</td><td>variable of int/uint/float/decimal/char, or a temporal value</td></tr>
+<tr><td><code>--x</code></td><td>pre-decrement</td><td>variable of int/uint/float/decimal/char, or a temporal value</td></tr>
+</tbody>
+</table>
+<p>The prefix <code>++x</code> / <code>--x</code> operators mutate the variable <strong>and</strong> evaluate to its new value, so they can be used inside expressions:</p>
+<pre><code class="language-go">x := 5
+y := ++x        // x is 6, y is 6
+arr := [0, 0, 0]
+i := 0
+arr[++i] = 9    // assigns arr[1]</code></pre>
+<p>On the temporal types (<code>time</code>, <code>calendarDate</code>, <code>calendarTime</code>) <code>++</code> <strong>increases</strong> and <code>--</code> <strong>decreases</strong> by the *least-significant non-zero unit* of the value. A plain <code>calendarDate</code> has no time-of-day, so it always steps by a day; a value with a clock steps by the smallest non-zero component (minute when the seconds are zero, second otherwise, hour when only the hour is set, and a day at midnight):</p>
+<pre><code class="language-go">d := 2026-01-31D
+++d                                   // 2026-02-01  (one day)
+
+t := time.CalendarTime("2026-01-31 08:05:00")
+++t                                   // 08:06:00     (a minute; seconds are 0)
+t2 := time.CalendarTime("2026-01-31 08:05:30")
+++t2                                  // 08:05:31     (a second)</code></pre>
+<p>Every value is either truthy or falsy. <code>0</code>, <code>0u</code>, <code>0.0</code>, <code>""</code>, empty collections, <code>nil</code>, <code>no</code> and <code>false</code> are falsy; everything else is truthy.</p>
+<pre><code class="language-go">println(!0, !"", ![], !nil)   // true true true true
+println(!1, !"x", ![1])       // false false false</code></pre>
+<h2 id="binary-operators">Binary Operators</h2>
+<table>
+<thead><tr><th>Op</th><th>Meaning</th><th>Op</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>+</code></td><td>add / concat</td><td><code>==</code></td><td>equal</td></tr>
+<tr><td><code>-</code></td><td>subtract</td><td><code>!=</code></td><td>not equal</td></tr>
+<tr><td><code>===</code></td><td>strict same</td><td><code>!==</code></td><td>not strict same</td></tr>
+<tr><td><code>*</code></td><td>multiply</td><td><code>&lt;</code></td><td>less than</td></tr>
+<tr><td><code>/</code></td><td>divide</td><td><code>&lt;=</code></td><td>less or equal</td></tr>
+<tr><td><code>%</code></td><td>modulo</td><td><code>&gt;</code></td><td>greater than</td></tr>
+<tr><td><code>**</code></td><td>power</td><td><code>&gt;=</code></td><td>greater or equal</td></tr>
+<tr><td><code>&amp;</code></td><td>bitwise AND</td><td>`\</td><td>`</td><td>bitwise OR</td></tr>
+<tr><td><code>^</code></td><td>bitwise XOR</td><td><code>&amp;^</code></td><td>bit clear (AND NOT)</td></tr>
+<tr><td><code>&lt;&lt;</code></td><td>shift left</td><td><code>&gt;&gt;</code></td><td>shift right</td></tr>
+<tr><td><code>&amp;&amp;</code></td><td>logical AND</td><td>`\</td><td>\</td><td>`</td><td>logical OR</td></tr>
+</tbody>
+</table>
+<pre><code class="language-go">println(7 / 2, 7 % 2, 2 ** 10)   // 3 1 1024
+println("foo" + "bar")           // foobar
+println([1, 2] + [3])            // [1, 2, 3]
+println(6 &amp; 3, 6 | 1, 6 ^ 3)     // 2 7 5</code></pre>
+<p><code>&amp;&amp;</code> and <code>||</code> short-circuit and return one of their operands (not necessarily a bool):</p>
+<pre><code class="language-go">println(0 || "fallback")   // fallback
+println("a" &amp;&amp; "b")        // b</code></pre>
+<h3 id="strict-same">Strict same (<code>===</code> / <code>!==</code>)</h3>
+<p><code>==</code> compares values and <strong>coerces</strong> across numeric kinds; <code>===</code> is <strong>strict</strong>: the operands must be the same concrete type (and equal value). <code>a !== b</code> is just <code>!(a === b)</code>.</p>
+<pre><code class="language-go">println(1 == 1u)    // true   (coerced)
+println(1 === 1u)   // false  (int vs uint)
+println(1 === 1)    // true
+println(1.0 === 1)  // false  (float vs int)
+println(1 !== 1u)   // true</code></pre>
+<p>For non-primitive values (arrays, dicts, class instances, …), <code>===</code> is <strong>object identity</strong>, not deep equality. Every array/dict literal evaluates to a *fresh* object, so two equal-looking literals are never the same:</p>
+<pre><code class="language-go">a := [1, 2]
+println(a === a)         // true   (same object)
+println(a === [1, 2])    // false  (a fresh array)
+println([1, 2] === [1, 2]) // false</code></pre>
+<p>A type can customise <code>===</code> from Gad with <code>met gad.binOpSame(…)</code>, or from Go via <code>ObjectWithSameBinOperator</code>. When the left operand defines neither, the right operand's is tried, then primitives fall back to a reflect type+value check and other objects to address identity.</p>
+<h2 id="range-operator">Range Operator</h2>
+<p><code>from .. to</code> builds an inclusive, iterable <code>Range</code> (sugar for the <code>Range(from, to)</code> builtin). It supports the numeric kinds (<code>int</code>, <code>uint</code>, <code>float</code>, <code>decimal</code>), <code>char</code>, and the temporal types (<code>time</code>, <code>calendarDate</code>, <code>calendarTime</code>). A range runs ascending or descending depending on its bounds.</p>
+<pre><code class="language-go">for v in 1 .. 5 { print(v) }        // 1 2 3 4 5
+for v in 5 .. 1 { print(v) }        // 5 4 3 2 1
+for c in 'a' .. 'e' { print(c) }    // a b c d e</code></pre>
+<p>The step is set with <code>/</code> (note <code>..</code> binds *tighter* than <code>/</code>, so <code>1 .. 10 / 2</code> is <code>(1 .. 10) / 2</code>), with the <code>Range</code> constructor's <code>step</code> named argument, or with the <code>r.step(n)</code> method. For numeric/char ranges the step is a number (default <code>1</code>); for temporal ranges it is a <code>duration</code> (default one day).</p>
+<pre><code class="language-go">for v in 1 .. 10 / 2 { print(v) }              // 1 3 5 7 9
+for v in Range(0, 10; step=3) { print(v) }     // 0 3 6 9
+r := (1 .. 100).step(25)                       // 1, 26, 51, 76
+for d in 2026-01-30D .. 2026-02-05D / (dur 48h) { } // every 2 days
+
+r.from   // 1
+r.to     // 100
+r.step() // 25</code></pre>
+<h2 id="ternary-operator">Ternary Operator</h2>
+<p><code>cond ? a : b</code> evaluates to <code>a</code> when <code>cond</code> is truthy, otherwise <code>b</code>.</p>
+<pre><code class="language-go">a := true ? 1 : -1            // 1
+min := (x, y) =&gt; x &lt; y ? x : y
+println(min(5, 10))           // 5</code></pre>
+<h2 id="nullish-operators">Nullish Operators</h2>
+<p><code>??</code> returns its right operand only when the left is <code>nil</code>. <code>??=</code> assigns only when the current value is <code>nil</code>.</p>
+<pre><code class="language-go">println(2 ?? 3)     // 2
+println(nil ?? 3)   // 3
+
+a := nil
+a ??= 5             // assigns, a == 5
+a ??= 9             // no-op,   a == 5</code></pre>
+<p><code>?.</code> is a nullish selector: it stops and yields <code>nil</code> as soon as the receiver is <code>nil</code>, instead of raising an error.</p>
+<pre><code class="language-go">m := {}
+println(m.x?.y.z)   // nil  (no error)
+m.x = {y: {z: 1}}
+println(m.x?.y.z)   // 1</code></pre>
+<h2 id="assignment-and-increment">Assignment and Increment</h2>
+<table>
+<thead><tr><th>Op</th><th>Equivalent</th><th>Op</th><th>Equivalent</th></tr></thead>
+<tbody>
+<tr><td><code>+=</code></td><td><code>lhs = lhs + rhs</code></td><td><code>&amp;=</code></td><td><code>lhs = lhs &amp; rhs</code></td></tr>
+<tr><td><code>-=</code></td><td><code>lhs = lhs - rhs</code></td><td>`\</td><td>=`</td><td>`lhs = lhs \</td><td>rhs`</td></tr>
+<tr><td><code>*=</code></td><td><code>lhs = lhs * rhs</code></td><td><code>^=</code></td><td><code>lhs = lhs ^ rhs</code></td></tr>
+<tr><td><code>/=</code></td><td><code>lhs = lhs / rhs</code></td><td><code>&amp;^=</code></td><td><code>lhs = lhs &amp;^ rhs</code></td></tr>
+<tr><td><code>%=</code></td><td><code>lhs = lhs % rhs</code></td><td><code>&lt;&lt;=</code></td><td><code>lhs = lhs &lt;&lt; rhs</code></td></tr>
+<tr><td><code>**=</code></td><td><code>lhs = lhs ** rhs</code></td><td><code>&gt;&gt;=</code></td><td><code>lhs = lhs &gt;&gt; rhs</code></td></tr>
+<tr><td><code>??=</code></td><td>assign if <code>nil</code></td><td><code>x++</code></td><td><code>x = x + 1</code></td></tr>
+<tr><td></td><td></td><td><code>x--</code></td><td><code>x = x - 1</code></td></tr>
+</tbody>
+</table>
+<p>The <strong>postfix</strong> <code>x++</code> / <code>x--</code> are statements. The <strong>prefix</strong> <code>++x</code> / <code>--x</code> are <a href="#unary-operators">unary expressions</a> that also yield the new value.</p>
+<p><code>++</code> and <code>--</code> are also <strong>binary operators</strong> when an operand follows them (<code>a ++ b</code>, <code>a -- b</code>); they have additive precedence and are left-associative. The built-in numeric types do not define them, but a type can — typically a class via <code>met gad.binOpInc(…)</code> — for example to model a "push":</p>
+<pre><code class="language-go">Stack := Class("Stack", (cls, define) =&gt; define(; fields = (; items = (= []))))
+met gad.binOpInc(s Stack, v) {
+    s.items = append(s.items, v)
+    return s
+}
+s := Stack()
+s ++ 1 ++ 2 ++ 3      // s.items == [1, 2, 3]</code></pre>
+<h2 id="operator-handlers-and-the-gad-namespace">Operator handlers and the <code>gad</code> namespace</h2>
+<p>Operator behaviour is dispatched through per-operator functions in the global **<code>gad</code>** namespace (available everywhere without <code>import</code>, like <code>strings</code>): <code>gad.binOp{Op}(left, right)</code> for binary operators, <code>gad.selfAssignOp{Op}(left, right)</code> for the self-assign forms, and <code>gad.unOp{Op}(operand)</code> for the unary operators (<code>!</code>, <code>-</code>, <code>+</code>, <code>^</code>, <code>++</code>, <code>--</code>) — e.g. <code>gad.binOpAdd</code>, <code>gad.unOpSub</code>, <code>gad.selfAssignOpAdd</code>. A type customises an operator by adding a typed method to the matching function:</p>
+<pre><code class="language-go">met gad.binOpAdd(a Vec, b Vec) { … }
+met gad.unOpSub(v Vec) { return Vec(; x = -v.x) }</code></pre>
+<p>You can also call them directly, e.g. <code>gad.binOpAdd(1, 2)</code> or <code>gad.unOpInc(41)</code>. Logical NOT (<code>!</code>) is universal: any value that does not define a <code>gad.unOpNot</code> overload falls back to its truthiness.</p>
+<p>Re-adding an existing method signature is an error unless the declaration uses the override marker <code>~</code> — <code>met ~gad.binOpAdd(a Vec, b Vec) { … }</code> (or, in the block form, <code>met gad.binOpAdd { ~(a Vec, b Vec) { … } }</code>) replaces the previous overload instead of failing.</p>
+<h2 id="user-operators">User Operators</h2>
+<p>Three binary operators have <strong>no built-in meaning</strong> and exist purely for types to define: <code>&lt;&lt;&lt;</code>, <code>&gt;&gt;&gt;</code> and <code>%%</code> (with self-assign forms <code>&lt;&lt;&lt;=</code>, <code>&gt;&gt;&gt;=</code>, <code>%%=</code>). They have multiplicative precedence (level 5). Give them semantics per type with the matching per-operator function (<code>gad.binOpTripleLess</code>, <code>gad.binOpTripleGreater</code>, <code>gad.binOpDoubleMod</code>):</p>
+<pre><code class="language-go">met gad.binOpTripleLess(a int, b int) {
+    return a * 1000 + b
+}
+println(12 &lt;&lt;&lt; 345)        // 12345</code></pre>
+<p>Using one without a handler is a runtime error (these operators are never constant-folded by the optimizer). The self-assign form <code>x &lt;&lt;&lt;= y</code> runs as <code>x = x &lt;&lt;&lt; y</code> via the <code>gad.selfAssignOp</code> fallback; a type can also intercept it directly with <code>met gad.selfAssignOpTripleLess(…)</code>.</p>
+<h2 id="membership-in">Membership (<code>in</code>)</h2>
+<p><code>A in B</code> tests membership and yields a bool — a <strong>value</strong> for arrays and bytes, a <strong>key</strong> for the dict kinds, a <strong>substring</strong> for strings. Built-in containers: <code>array</code>, <code>dict</code>, <code>syncDict</code>, <code>keyValueArray</code>, <code>bytes</code>, <code>str</code>, <code>rawStr</code>, and method-interface instances (membership of a function header). It has comparison precedence.</p>
+<pre><code class="language-go">2 in [1, 2, 3]        // true
+"a" in {a: 1}         // true (key)
+104 in bytes("hi")    // true ('h')
+'e' in "hello"        // true (char in string)
+"ell" in "hello"      // true (substring)</code></pre>
+<p><code>in</code> is also the <strong>for-in loop</strong> separator, so at the top of a for header <code>for x in y</code> is the loop. Parenthesize to use the operator there: <code>for (x in y) { … }</code> is a for-cond loop. Everywhere else (<code>if x in y</code>, the for condition clause, any expression) <code>in</code> is the operator.</p>
+<p>A Go type implements membership with the <code>ObjectWithInBinOperator</code> interface (<code>BinOpIn(vm *VM, value Object) (Object, error)</code>), implemented by the <strong>right</strong> operand (the container); it returns a <code>bool</code>-valued object for the membership of <code>value</code>. In Gad, a type can define <code>in</code> with <code>met gad.binOpIn(left T, right U)</code>.</p>
+<h2 id="array-membership-ain">Array membership (<code>ain</code>)</h2>
+<p><code>A ain B</code> ("all in") is true when <strong>every</strong> value of the left operand is a member of <code>B</code>. It has the same comparison precedence as <code>in</code>. The left operand is an array of values (a non-array value is treated as a single element, so <code>x ain B</code> matches <code>x in B</code>); an empty array is vacuously true.</p>
+<pre><code class="language-go">[1, 2] ain [1, 2, 3]        // true
+[1, 4] ain [1, 2, 3]        // false
+[] ain [1, 2, 3]            // true   (vacuous)
+2 ain [1, 2, 3]             // true   (scalar, like `in`)
+["a", "b"] ain {a: 1, b: 2} // true   (dict keys)</code></pre>
+<p><code>ain</code> is dispatched on the <strong>right</strong> operand. A type provides an optimized all-membership check by implementing <code>ObjectWithAinBinOperator</code> (<code>BinOpAin(vm *VM, values Object)</code>) in Go, or <code>met gad.binOpAin(left T, right U)</code> in Gad. When the right operand defines neither, <code>ain</code> falls back to testing each value with <code>in</code>, so it works for every container that supports <code>in</code>.</p>
+<h2 id="assign-to-type">Assign-to-type (<code>::</code>)</h2>
+<p><code>obj :: Type</code> is the <strong>assign-to-type</strong> operator: it checks that <code>obj</code> is assignable to <code>Type</code> and returns <code>obj</code> unchanged, otherwise it raises a catchable type error (<code>ErrIncompatibleAssign</code>). Assignability follows the same rules the method dispatcher uses:</p>
+<pre><code class="language-go">5 :: int               // 5
+d :: Animal            // a Dog instance is assignable to a parent class
+f :: met&lt;(int) &lt;int&gt;&gt;  // a callable that structurally satisfies a method interface
+"hi" :: int            // raises ErrIncompatibleAssign</code></pre>
+<p>The right operand is a type value — a built-in type, a class, or a structural <code>met&lt;…&gt;</code> / <code>meti{…}</code> / <code>interface{…}</code> literal. <code>::</code> is left-associative and chains, so a value can be narrowed through several types: <code>obj::T1::T2::T3</code>. It binds tighter than the arithmetic operators (<code>2 + 3 :: int</code> is <code>2 + (3 :: int)</code>); parenthesise to cast a whole expression (<code>(2 + 3) :: int</code>). The formatter writes it tightly, <code>a::B</code>, dropping redundant chain parens but keeping needed ones.</p>
+<h2 id="precedence">Precedence</h2>
+<p>Unary operators bind tightest; the ternary operator binds loosest. Binary operators have these levels (<code>::</code> binds tightest of the binary operators):</p>
+<table>
+<thead><tr><th>Level</th><th>Operators</th></tr></thead>
+<tbody>
+<tr><td>11</td><td><code>::</code></td></tr>
+<tr><td>5</td><td><code>*</code> <code>**</code> <code>/</code> <code>%</code> <code>&lt;&lt;</code> <code>&gt;&gt;</code> <code>&amp;</code> <code>&amp;^</code> <code>&lt;&lt;&lt;</code> <code>&gt;&gt;&gt;</code> <code>%%</code></td></tr>
+<tr><td>4</td><td><code>+</code> <code>-</code> `\</td><td><code> </code>^`</td></tr>
+<tr><td>3</td><td><code>==</code> <code>!=</code> <code>===</code> <code>!==</code> <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code> <code>in</code> <code>ain</code></td></tr>
+<tr><td>2</td><td><code>&amp;&amp;</code></td></tr>
+<tr><td>1</td><td>`\</td><td>\</td><td>`</td></tr>
+</tbody>
+</table>
+<h2 id="selectors-indexers-and-slicing">Selectors, Indexers and Slicing</h2>
+<p>Use <code>.</code> (selector) and <code>[]</code> (indexer) to read or write elements of arrays, dicts, strings and bytes. A computed selector uses <code>.(expr)</code>.</p>
+<pre><code class="language-go">["one", "two", "three"][1]   // "two"
+"foobarbaz"[4]               // 97  (a byte, as int)
+
+m := {a: 1, b: [2, 3, 4]}
+println(m.a, m["b"][1])      // 1 3
+
+key := "b"
+println(m.(key)[0])          // 2</code></pre>
+<p>Slices use <code>[start:end]</code> on arrays, strings and bytes. A negative index counts from the end.</p>
+<pre><code class="language-go">[1, 2, 3, 4, 5][1:3]   // [2, 3]
+[1, 2, 3, 4, 5][3:]    // [4, 5]
+[1, 2, 3, 4, 5][:3]    // [1, 2, 3]
+"hello world"[:5]      // "hello"
+[1, 2, 3][:-1]         // [1, 2]</code></pre>
+<p>Keywords cannot be used as bare selectors; index with a string instead:</p>
+<pre><code class="language-go">a := {}
+a["func"] = 1   // ok
+// a.func = 1   // parse error</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#unary-operators">Unary Operators</a><a href="#binary-operators">Binary Operators</a><a href="#range-operator">Range Operator</a><a href="#ternary-operator">Ternary Operator</a><a href="#nullish-operators">Nullish Operators</a><a href="#assignment-and-increment">Assignment and Increment</a><a href="#operator-handlers-and-the-gad-namespace">Operator handlers and the gad namespace</a><a href="#user-operators">User Operators</a><a href="#membership-in">Membership (in)</a><a href="#array-membership-ain">Array membership (ain)</a><a href="#assign-to-type">Assign-to-type (::)</a><a href="#precedence">Precedence</a><a href="#selectors-indexers-and-slicing">Selectors, Indexers and Slicing</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

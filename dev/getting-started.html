@@ -32,7 +32,7 @@
 <pre><code class="language-sh">gad                 # start the REPL
 gad script.gad      # run a script
 gad - &lt; script.gad  # read the script from stdin</code></pre>
-<p>The CLI also exposes subcommands (<code>run</code>, <code>fmt</code>); see <a href="#subcommands">Subcommands</a> below. A bare <code>gad FILE</code> is shorthand for <code>gad run FILE</code>.</p>
+<p>The CLI also exposes subcommands (<code>run</code>, <code>fmt</code>); see <a href="#subcommands">Subcommands</a> below. A bare <code>gad FILE</code> is shorthand for <code>gad FILE</code>.</p>
 <p>To build a smaller binary without the <code>ide</code> and <code>debug</code> subcommands (and their web/DAP dependencies), use the <code>noide</code> / <code>nodebug</code> build tags:</p>
 <pre><code class="language-sh">go build -tags 'noide nodebug' ./cmd/gad   # or: make build-min</code></pre>
 <h2 id="your-first-script">Your First Script</h2>

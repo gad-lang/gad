@@ -92,6 +92,16 @@ area(2.0, 3.0)   // 6.0       — the two-parameter method</code></pre>
 <p>New methods can be added to an existing callable later with the <code>met</code> statement:</p>
 <pre><code class="language-go">met area(s str) =&gt; "n/a"     // add a string overload
 area("x")                    // "n/a"</code></pre>
+<h3 id="overriding-and-old">Overriding and <code>$old</code></h3>
+<p><code>met ~name(...)</code> <strong>overrides</strong> an existing method signature instead of raising a duplicate-method error — the last definition wins. To wrap the previous implementation (super / around advice), give the override a special <code>$old</code> first parameter: it captures the method being replaced, is dropped from the real signature, and is callable inside the body:</p>
+<pre><code class="language-go">func step(n int) =&gt; n * 10
+met ~step($old, n int) =&gt; $old(n) + 1   // wrap the previous `step`
+step(3)                                 // 31  (30 + 1)</code></pre>
+<p><code>$old</code> is resolved from the remaining parameter types (here <code>(n int)</code>) at the moment of the override, so calling it runs the previous method rather than recursing into the new one. Overrides chain — each <code>$old</code> sees the layer beneath it. When no previous method matches the signature, <code>$old</code> is <code>nil</code>.</p>
+<p>Under the hood <code>$old</code> is <code>gad.methodFromArgs(step, int)</code>. That builtin is also usable directly: it returns the method a call would dispatch to, selected either by an example value or by a type name:</p>
+<pre><code class="language-go">gad.methodFromArgs(step, 4)      // the (int) method, chosen by value
+gad.methodFromArgs(step, int)    // the same method, chosen by type</code></pre>
+<p>It returns <code>nil</code> when no method matches.</p>
 <h2 id="properties-prop">Properties (prop)</h2>
 <p>A <strong>property</strong> is a named, callable value defined with the func-with-methods body syntax but introduced by the <code>prop</code> keyword. A method with no parameters is the *getter*; a method with one parameter is a *setter*, chosen by the argument type:</p>
 <pre><code class="language-go">var value

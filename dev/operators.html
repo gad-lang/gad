@@ -176,11 +176,19 @@ println(12 &lt;&lt;&lt; 345)        // 12345</code></pre>
 2 ain [1, 2, 3]             // true   (scalar, like `in`)
 ["a", "b"] ain {a: 1, b: 2} // true   (dict keys)</code></pre>
 <p><code>ain</code> is dispatched on the <strong>right</strong> operand. A type provides an optimized all-membership check by implementing <code>ObjectWithAinBinOperator</code> (<code>BinOpAin(vm *VM, values Object)</code>) in Go, or <code>met gad.binOpAin(left T, right U)</code> in Gad. When the right operand defines neither, <code>ain</code> falls back to testing each value with <code>in</code>, so it works for every container that supports <code>in</code>.</p>
+<h2 id="assign-to-type">Assign-to-type (<code>::</code>)</h2>
+<p><code>obj :: Type</code> is the <strong>assign-to-type</strong> operator: it checks that <code>obj</code> is assignable to <code>Type</code> and returns <code>obj</code> unchanged, otherwise it raises a catchable type error (<code>ErrIncompatibleAssign</code>). Assignability follows the same rules the method dispatcher uses:</p>
+<pre><code class="language-go">5 :: int               // 5
+d :: Animal            // a Dog instance is assignable to a parent class
+f :: met&lt;(int) &lt;int&gt;&gt;  // a callable that structurally satisfies a method interface
+"hi" :: int            // raises ErrIncompatibleAssign</code></pre>
+<p>The right operand is a type value — a built-in type, a class, or a structural <code>met&lt;…&gt;</code> / <code>meti{…}</code> / <code>interface{…}</code> literal. <code>::</code> is left-associative and chains, so a value can be narrowed through several types: <code>obj::T1::T2::T3</code>. It binds tighter than the arithmetic operators (<code>2 + 3 :: int</code> is <code>2 + (3 :: int)</code>); parenthesise to cast a whole expression (<code>(2 + 3) :: int</code>). The formatter writes it tightly, <code>a::B</code>, dropping redundant chain parens but keeping needed ones.</p>
 <h2 id="precedence">Precedence</h2>
-<p>Unary operators bind tightest; the ternary operator binds loosest. Binary operators have five levels:</p>
+<p>Unary operators bind tightest; the ternary operator binds loosest. Binary operators have these levels (<code>::</code> binds tightest of the binary operators):</p>
 <table>
 <thead><tr><th>Level</th><th>Operators</th></tr></thead>
 <tbody>
+<tr><td>11</td><td><code>::</code></td></tr>
 <tr><td>5</td><td><code>*</code> <code>**</code> <code>/</code> <code>%</code> <code>&lt;&lt;</code> <code>&gt;&gt;</code> <code>&amp;</code> <code>&amp;^</code> <code>&lt;&lt;&lt;</code> <code>&gt;&gt;&gt;</code> <code>%%</code></td></tr>
 <tr><td>4</td><td><code>+</code> <code>-</code> `\</td><td><code> </code>^`</td></tr>
 <tr><td>3</td><td><code>==</code> <code>!=</code> <code>===</code> <code>!==</code> <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code> <code>in</code> <code>ain</code></td></tr>
@@ -209,7 +217,7 @@ println(m.(key)[0])          // 2</code></pre>
 a["func"] = 1   // ok
 // a.func = 1   // parse error</code></pre>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#unary-operators">Unary Operators</a><a href="#binary-operators">Binary Operators</a><a href="#range-operator">Range Operator</a><a href="#ternary-operator">Ternary Operator</a><a href="#nullish-operators">Nullish Operators</a><a href="#assignment-and-increment">Assignment and Increment</a><a href="#operator-handlers-and-the-gad-namespace">Operator handlers and the gad namespace</a><a href="#user-operators">User Operators</a><a href="#membership-in">Membership (in)</a><a href="#array-membership-ain">Array membership (ain)</a><a href="#precedence">Precedence</a><a href="#selectors-indexers-and-slicing">Selectors, Indexers and Slicing</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#unary-operators">Unary Operators</a><a href="#binary-operators">Binary Operators</a><a href="#range-operator">Range Operator</a><a href="#ternary-operator">Ternary Operator</a><a href="#nullish-operators">Nullish Operators</a><a href="#assignment-and-increment">Assignment and Increment</a><a href="#operator-handlers-and-the-gad-namespace">Operator handlers and the gad namespace</a><a href="#user-operators">User Operators</a><a href="#membership-in">Membership (in)</a><a href="#array-membership-ain">Array membership (ain)</a><a href="#assign-to-type">Assign-to-type (::)</a><a href="#precedence">Precedence</a><a href="#selectors-indexers-and-slicing">Selectors, Indexers and Slicing</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>
