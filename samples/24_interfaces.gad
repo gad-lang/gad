@@ -41,3 +41,33 @@ println("from sigs: ", len(Shape.methods[2].headers))
 // The anonymous expression form is a value like any other.
 Point := interface { x int; y int; get norm float }
 println("anon:      ", typeName(Point), len(Point.fields), Point.fields[1].name)
+
+// --- Structural satisfaction -----------------------------------------------
+/// A value *satisfies* an interface when it has every required field (with an
+/// assignable type) and method (whose signatures match). Check it with the `::`
+/// assign-to-type operator: it returns the value when it satisfies the
+/// interface, otherwise it raises a type error.
+interface Greeter { name str; greet() <str> }
+
+class Person {
+    name = ""
+    methods { greet() => "hi " + this.name }
+}
+p := Person(; name = "Ada")
+println("p::Greeter:  ", (p :: Greeter).greet())     // hi Ada
+
+/// A value missing a required member is rejected.
+class Anon { label = "?" }
+ok := true
+try {
+    Anon() :: Greeter                                // no `name`, no greet()
+    ok = false
+} catch {
+    println("Anon reject: not a Greeter")
+}
+
+/// An interface also works as a parameter type — the argument must satisfy it.
+func welcome(g Greeter) => g.greet() + "!"
+println("welcome:     ", welcome(p))                 // hi Ada!
+
+return ok
