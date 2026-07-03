@@ -10,6 +10,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/gad-lang/gad/parser/source"
 )
@@ -100,6 +101,12 @@ type CompiledFunction struct {
 	// the debugger to label locals. It is populated by the compiler and may be
 	// nil (e.g. for hand-built functions); it round-trips through the encoder.
 	LocalNames []string
+
+	// structuralParams memoizes HasStructuralParamTypes: 0=unknown, 1=no, 2=yes.
+	// Params are immutable after compilation, so this is computed at most once
+	// per shared function instance and read via atomics (accessed concurrently
+	// when the same function constant is registered from multiple VMs).
+	structuralParams int32
 }
 
 func (o *CompiledFunction) SetModule(m *ModuleSpec) {
@@ -419,6 +426,48 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 
 func (o *CompiledFunction) CanValidateParamTypes() bool {
 	return o.Params.Typed()
+}
+
+// HasStructuralParamTypes reports whether any parameter is typed by a structural
+// type literal (meti/interface), i.e. a type symbol resolved from a bytecode
+// constant (ScopeConstant). Such params cannot be matched by identity in the
+// dispatch tree, so a match against them must always be validated by value.
+func (o *CompiledFunction) HasStructuralParamTypes() bool {
+	switch atomic.LoadInt32(&o.structuralParams) {
+	case 1:
+		return false
+	case 2:
+		return true
+	}
+	res := int32(1)
+	if o.computeStructuralParamTypes() {
+		res = 2
+	}
+	atomic.StoreInt32(&o.structuralParams, res)
+	return res == 2
+}
+
+func (o *CompiledFunction) computeStructuralParamTypes() bool {
+	if !o.Params.Typed() {
+		return false
+	}
+	for _, p := range o.Params.Items {
+		for _, sym := range p.TypesSymbols {
+			if sym != nil && sym.Scope == ScopeConstant {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// callerHasStructuralParamTypes reports whether a caller has a structural
+// parameter type that requires value-based validation on dispatch.
+func callerHasStructuralParamTypes(co CallerObject) bool {
+	if cf, ok := co.(*CompiledFunction); ok {
+		return cf.HasStructuralParamTypes()
+	}
+	return false
 }
 
 func (o *CompiledFunction) ParamTypes(vm *VM) (types ParamsTypes, err error) {

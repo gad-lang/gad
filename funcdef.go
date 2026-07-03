@@ -43,6 +43,12 @@ func (t ParamType) Accept(vm *VM, obj Object) (ok bool, err error) {
 			if ot == stot || IsTypeAssignableTo(stot, ot) {
 				return true, nil
 			}
+		} else if vta, isVTA := st.(vmCanAssigner); isVTA {
+			// Structural types (meti/interface) may need the VM to resolve
+			// candidate signatures (SplitCaller -> ParamTypes(vm)).
+			if ok, err = vta.CanAssignVM(vm, obj); err != nil || ok {
+				return
+			}
 		} else if ta, isTA := st.(TypeAssigner); isTA {
 			if ok, err = ta.CanAssign(obj); err != nil || ok {
 				return

@@ -312,6 +312,11 @@ type TypedCallerMethod struct {
 	*CallerMethod
 	types ObjectTypeArray
 	isVar bool
+	// forceValidate is set when the method carries a structural parameter type
+	// (meti/interface literal). Such params key as TAny in the dispatch tree, so
+	// an exact type-tree match does not actually prove the structural constraint;
+	// validation (value-based CanAssign) must run even on an "exact" match.
+	forceValidate bool
 }
 
 func (o *TypedCallerMethod) IndexGet(vm *VM, index Object) (value Object, err error) {
@@ -375,7 +380,7 @@ type MethodDefinition struct {
 
 type MethodArgType struct {
 	parent  *MethodArgType
-	Type    ObjectType
+	Type    TypeAssigner
 	Method  *TypedCallerMethod
 	Var     bool
 	Next    Methods
@@ -474,7 +479,7 @@ func (at *MethodArgType) add(types ObjectTypeArray, m *CallerMethod, override bo
 	var (
 		getOrAdd = func(dst *Methods, t ObjectType) (cur *MethodArgType, added bool) {
 			if *dst == nil {
-				*dst = make(map[ObjectType]*MethodArgType)
+				*dst = make(Methods)
 			}
 
 			if bt, _ := t.(*BuiltinObjType); bt != nil {
@@ -495,8 +500,9 @@ func (at *MethodArgType) add(types ObjectTypeArray, m *CallerMethod, override bo
 		set = func(cur *MethodArgType, added bool, types ObjectTypeArray, raise bool) {
 			if added || override || cur.Method == nil {
 				cur.Method = &TypedCallerMethod{
-					CallerMethod: m,
-					types:        types,
+					CallerMethod:  m,
+					types:         types,
+					forceValidate: callerHasStructuralParamTypes(m.CallerObject),
 				}
 
 				if onAdd != nil {
@@ -583,7 +589,7 @@ func (at *MethodArgType) GetMethod(types ObjectTypeArray) *TypedCallerMethod {
 				if tmp = atv.NextVar.get(types[i]); tmp != nil {
 					if tmp.Type != TAny {
 						for _, t := range types[i:] {
-							if !IsAssignableTo(t, tmp.Type) {
+							if !assignerAcceptsType(tmp.Type, t) {
 								goto up
 							}
 						}
@@ -625,7 +631,7 @@ func (at *MethodArgType) labelIndex(methodIndex string) string {
 	}
 
 	if at.Type != nil {
-		typ = at.Type.Name()
+		typ = TypeAssignerName(at.Type)
 	}
 
 	if at.Var {
@@ -744,7 +750,7 @@ func (at *MethodArgType) ToString() string {
 	return t.String()
 }
 
-type Methods map[ObjectType]*MethodArgType
+type Methods map[TypeAssigner]*MethodArgType
 
 func (m Methods) Copy() (cp Methods) {
 	cp = make(Methods, len(m))
@@ -779,7 +785,7 @@ func (m Methods) Walk(cb func(m *TypedCallerMethod) any) (v any) {
 func (m Methods) Sorted(cb func(m *MethodArgType) any) (err any) {
 	type kv struct {
 		k string
-		v ObjectType
+		v TypeAssigner
 	}
 	var (
 		l      = len(m)
@@ -791,7 +797,7 @@ func (m Methods) Sorted(cb func(m *MethodArgType) any) (err any) {
 		if key == nil {
 			values[i] = kv{"", nil}
 		} else {
-			values[i] = kv{key.Name(), key}
+			values[i] = kv{TypeAssignerName(key), key}
 		}
 		i++
 	}
@@ -811,7 +817,7 @@ func (m Methods) Sorted(cb func(m *MethodArgType) any) (err any) {
 func (m Methods) WalkSorted(cb func(m *TypedCallerMethod) any) (v any) {
 	type kv struct {
 		k string
-		v ObjectType
+		v TypeAssigner
 	}
 
 	var (
@@ -825,7 +831,7 @@ func (m Methods) WalkSorted(cb func(m *TypedCallerMethod) any) (v any) {
 		if key.Equal(TAny) {
 			hasAny = true
 		} else {
-			values[i] = kv{key.FullName(), key}
+			values[i] = kv{TypeAssignerFullName(key), key}
 			i++
 		}
 	}

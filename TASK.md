@@ -26,20 +26,30 @@
       IsTypeAssignableTo uses AssignTo. Then compile a meti/interface literal type
       to a constant (a ScopeConstant symbol) so a param can reference it. This
       touches the method-dispatch core — do it carefully in one focused pass.
+      STAGE 2 (runtime dispatch) done: structural (meti) param types now dispatch
+      by value. Design: the dispatch tree stays ObjectType-keyed (structural param
+      keys as TAny → zero overhead on the hot path), but a method carrying a
+      structural param sets TypedCallerMethod.forceValidate (computed once at
+      registration via CompiledFunction.HasStructuralParamTypes, memoized with an
+      atomic int32 on the shared function constant). On an exact tree match, if
+      forceValidate is set, value-based validation runs (ParamType.Accept →
+      vmCanAssigner.CanAssignVM → MethodInterfaceImplements). The tree key type is
+      now TypeAssigner (foundation for structural keys). Evidence:
+        `go test ./...` → all ok (exit 0)
+        `go test -run TestVMMethodInterface` → PASS (new cases #12 accept callable,
+          #13 reject `x(42)` with "invalid type for argument")
+        `go vet ./...` → clean; `go test -race` on VM/Eval → ok
+      REMAINING: *Interface (not meti) structural param CanAssign is still
+      equal-only (fields/props/methods check TODO); the TASK NOTES refactor of the
+      ParamTypes interface (Items/Get → TypeAssigner) is not done — dispatch works
+      without it via the forceValidate path.
   NOTES:
   - change ParamTypes interface methods `Items() ObjectTypes` to  `Items() TypeAssigners`, `Get(int) ObjectType` to `Get(int) TypeAssigner`
   - take all ObjectType to implements TypeAssigner method `CanAssign(obj Object) (bool, error) { return obj.Type() == this }` (default, if not implemented)
   - replace ParamType.Accept param `ot` to `obj Object`
   - replace MethodArgType.GetMethod param `types` to `types TypeAssignerArray`
-- [x] change parser of `met<...>` to allow multiples headers `met<(int), (float)<str> [, ...]>`, when format,
-    if has muliples headers, put it int new indented line without comma. parses allow multiples itens separated by new line without `,` (its optional, no required in this case).
-      Done (commit 983d018): parseMetShortcut parses 1+ bracket-less headers
-      between `<…>`, separated by commas or newlines (either optional, ExprLevel
-      makes newlines skippable). WriteCode formats several headers one per indented
-      line without commas (idempotent); a single header stays inline `met<(_ v)>`;
-      String() keeps the compact comma form. Parser test extended; `go test ./...`
-      -> 0 failures.
-- [~] parser binary operator castTo `obj :: Type`. compile to OpCast
+- [ ] parser operator AssignTo `obj :: Type`. compile to OpAssigh. it calls assign like method resolution. return an error
+      if not assignable.
 - [ ] check cmd/update-*-plugin to accept all language changes.
     update vscode plugin to allow single "run" and "debug".
     create example page for codemirror and prismjs plugins.

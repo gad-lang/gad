@@ -1,0 +1,110 @@
+/***
+25_method_resolution.gad — how a call chooses a method.
+
+A function may hold several methods (overloads). A call dispatches to the
+method whose parameter types match the arguments, Julia-style: every argument
+narrows the choice, and the most specific matching method wins. This file walks
+through arity, type specificity, subtype hierarchies, catch-all fallbacks,
+unions, variadics, `met` extension/override, and structural (`met<…>`) params
+that dispatch by value.
+***/
+
+// --- Overloads by arity -----------------------------------------------------
+/// The same name resolves by how many arguments are passed.
+func area {
+    (r float)          => 3.14159 * r * r        // circle
+    (w float, h float) => w * h                   // rectangle
+}
+println("area(2.0)       =", area(2.0))          // 12.56636  (1 arg -> circle)
+println("area(2.0, 3.0)  =", area(2.0, 3.0))     // 6         (2 args -> rectangle)
+
+// --- Multiple dispatch (all arguments participate) --------------------------
+/// Resolution considers every parameter's type, not just the first.
+func combine {
+    (a int, b int) => "int+int"
+    (a int, b str) => "int+str"
+    (a str, b str) => "str+str"
+}
+println("combine(1, 2)   =", combine(1, 2))      // int+int
+println("combine(1, \"x\") =", combine(1, "x"))  // int+str
+println("combine(\"a\",\"b\")=", combine("a", "b")) // str+str
+
+// --- Type specificity (most specific wins) ----------------------------------
+/// A subclass argument prefers the method typed for the subclass over the one
+/// typed for its parent.
+class Animal {}
+class Dog { extends { Animal } }
+
+func speak {
+    (a Animal) => "some animal"
+    (d Dog)    => "woof"
+}
+println("speak(Animal()) =", speak(Animal()))    // some animal
+println("speak(Dog())    =", speak(Dog()))       // woof (Dog is more specific)
+
+// --- Catch-all fallback -----------------------------------------------------
+/// An untyped parameter matches anything and acts as the fallback, chosen only
+/// when no typed method matches.
+func kind {
+    (x int) => "integer"
+    (x str) => "text"
+    (x)     => "other"
+}
+println("kind(5)         =", kind(5))            // integer
+println("kind(\"hi\")      =", kind("hi"))       // text
+println("kind(true)      =", kind(true))         // other (fallback)
+
+// --- Union parameter types --------------------------------------------------
+/// `int|str` accepts either type in a single method.
+func label(x int|str) => "label:" + str(x)
+println("label(7)        =", label(7))           // label:7
+println("label(\"q\")      =", label("q"))       // label:q
+
+// --- Variadic typed methods -------------------------------------------------
+/// `*xs int` collects any number of trailing int arguments; the no-arg method
+/// is a distinct, more specific overload.
+func sum {
+    ()        => 0
+    (*xs int) {
+        total := 0
+        for _, x in xs { total += x }
+        return total
+    }
+}
+println("sum()           =", sum())              // 0
+println("sum(1, 2, 3)    =", sum(1, 2, 3))       // 6
+
+// --- Extending with `met` ---------------------------------------------------
+/// `met` adds a method to an existing callable after the fact.
+met area(side int) => side * side                // square (int)
+println("area(4)         =", area(4))            // 16 (new int method)
+
+/// `met ~name` overrides an existing signature instead of erroring; the last
+/// definition wins.
+func greet(name str) => "hi " + name
+println("greet(\"a\") pre  =", greet("a"))       // hi a
+met ~greet(name str) => "HELLO " + name
+println("greet(\"a\") post =", greet("a"))       // HELLO a (overridden)
+
+// --- Structural parameter types (dispatch by value) -------------------------
+/// A `met<…>` (method-interface) parameter type is checked structurally, by
+/// value: the argument must be a callable whose signature satisfies the header.
+/// A non-callable — or a callable with the wrong shape — is rejected.
+func apply(cb met<(int) <int>>, v int) => cb(v)
+println("apply(sq, 6)    =", apply(func(n int) => n * n, 6))  // 36
+
+/// A function-with-methods is accepted when one of its methods fits the header.
+func poly() => "s"
+met poly(n int) => n + 1
+println("apply(poly, 10) =", apply(poly, 10))    // 11 (poly's (int) method fits)
+
+/// Passing a value that does not implement the header is rejected at the call.
+ok := true
+try {
+    apply(42, 1)                                  // 42 is not a (int)<int> callable
+    ok = false
+} catch e {
+    println("apply(42, 1)    = rejected (not a (int)<int> callable)")
+}
+
+return ok

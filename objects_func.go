@@ -201,6 +201,11 @@ func (s *FuncSpec) CallerMethodWithValidationCheckOfArgsTypes(types ObjectTypeAr
 	if method, co = s.MethodOrDefault(types); co == nil {
 		if method != nil {
 			co = method.CallerObject
+			// A structural param keys as TAny in the tree; the exact match does
+			// not prove the constraint, so force value-based validation.
+			if method.forceValidate {
+				validate = true
+			}
 		}
 	} else {
 		validate = true

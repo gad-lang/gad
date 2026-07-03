@@ -51,6 +51,7 @@ layout settings are stored in [`.gad.yaml`](.gad.yaml).
 | `22_key_value_array.gad`      | `keyValue` / `keyValueArray` (`(;…)`): flags, funcs, typed keys |
 | `23_template.gadt`            | `.gadt` template mode: `{% %}`/`{%= %}` tags, trim markers |
 | `24_interfaces.gad`           | `interface { … }`: typed fields, get/set/prop, methods, `extends` |
+| `25_method_resolution.gad`    | dispatch rules: arity, specificity, subtypes, fallback, unions, variadics, `met`/override, structural `met<…>` params |
 
 ## Modules
 

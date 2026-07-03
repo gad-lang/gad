@@ -97,6 +97,14 @@ func TestVMMethodInterface(t *testing.T) {
 	func m() => "x"
 	met m(a int) => a
 	return [implements(m, St, Ad), implements(m, St + Ad)]`, nil, Array{True, True})
+
+	// a structural (meti) parameter type dispatches by value: a callable that
+	// implements the interface is accepted, a non-callable is rejected even
+	// though the param keys as TAny in the dispatch tree.
+	testExpectRun(t, `func x(cb met<(int) <int>>) => 1; return x(func(a int) => a)`,
+		nil, Int(1))
+	expectErrHas(t, `func x(cb met<(int) <int>>) => 1; return x(42)`,
+		newOpts(), "invalid type for argument")
 }
 
 func TestVMBinaryIncDec(t *testing.T) {

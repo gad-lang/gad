@@ -48,11 +48,16 @@ func (m *MethodInterface) AssignTo(vm *VM, obj Object, to TypeAssigner) (Object,
 }
 
 func (m *MethodInterface) CanAssign(obj Object) (bool, error) {
-	switch t := obj.(type) {
-	case MethodCaller:
-		return MethodInterfaceImplements(nil, t, m)
+	return m.CanAssignVM(nil, obj)
+}
+
+// CanAssignVM reports whether obj (a callable) structurally implements the
+// interface, using vm to resolve the callable's signatures.
+func (m *MethodInterface) CanAssignVM(vm *VM, obj Object) (bool, error) {
+	if _, ok := obj.(CallerObject); !ok {
+		return false, nil
 	}
-	return false, nil
+	return MethodInterfaceImplements(vm, obj, m)
 }
 
 func (m *MethodInterface) Name() string { return m.MIName }
