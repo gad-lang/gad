@@ -72,14 +72,129 @@ type InterfaceMethod struct {
 
 func (i *Interface) Type() ObjectType { return TInterface }
 
-// AssignTo makes *Interface a TypeAssigner. Structural satisfaction checking is
-// not yet enforced; it matches only an equal interface for now.
-func (i *Interface) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
-	if i.Equal(to) {
-		return obj, nil
+// AssignTo makes *Interface a TypeAssigner: obj is assignable to the interface
+// `to` when it structurally satisfies it (see CanAssignVM).
+func (i *Interface) AssignTo(vm *VM, obj Object, to TypeAssigner) (Object, error) {
+	if ti, _ := to.(*Interface); ti != nil {
+		if ok, err := ti.CanAssignVM(vm, obj); err != nil {
+			return nil, err
+		} else if ok {
+			return obj, nil
+		}
 	}
 	return nil, ErrIncompatibleCast
 }
+
+// CanAssign reports whether obj structurally satisfies the interface. It has no
+// VM, so field-type symbols and parent interfaces that need one are skipped;
+// prefer CanAssignVM (used by parameter checking and the `::` operator).
+func (i *Interface) CanAssign(obj Object) (bool, error) {
+	return i.CanAssignVM(nil, obj)
+}
+
+// CanAssignVM reports whether obj structurally satisfies the interface: it has
+// every required field (with an assignable type), property and method (whose
+// signatures satisfy the required headers), and satisfies every extended
+// interface. vm resolves field-type symbols, property/method calls and the
+// parent-interface symbols; when nil those VM-dependent checks are relaxed.
+func (i *Interface) CanAssignVM(vm *VM, obj Object) (bool, error) {
+	if obj == nil || obj == Nil {
+		return false, nil
+	}
+
+	if vm != nil {
+		for _, sym := range i.Extends {
+			pv, err := vm.GetSymbolValue(sym)
+			if err != nil {
+				return false, err
+			}
+			if parent, _ := pv.(*Interface); parent != nil {
+				if ok, err := parent.CanAssignVM(vm, obj); err != nil || !ok {
+					return ok, err
+				}
+			}
+		}
+	}
+
+	for _, f := range i.Fields {
+		v, ok := ifaceMember(vm, obj, f.Name)
+		if !ok {
+			return false, nil
+		}
+		if ok, err := ifaceFieldTypeOK(vm, f, v); err != nil || !ok {
+			return ok, err
+		}
+	}
+
+	for _, p := range i.Props {
+		if _, ok := ifaceMember(vm, obj, p.Name); !ok {
+			return false, nil
+		}
+	}
+
+	for _, m := range i.Methods {
+		v, ok := ifaceMember(vm, obj, m.Name)
+		if !ok {
+			return false, nil
+		}
+		mi := &MethodInterface{MIName: m.Name, Headers: m.Headers}
+		if ok, err := MethodInterfaceImplements(vm, v, mi); err != nil || !ok {
+			return ok, err
+		}
+	}
+	return true, nil
+}
+
+// ifaceMember resolves a named member (field, property getter or method) of obj
+// for interface-satisfaction checking, returning ok=false when it is absent.
+func ifaceMember(vm *VM, obj Object, name string) (Object, bool) {
+	switch t := obj.(type) {
+	case *ClassInstance:
+		if v, err := t.GetFieldValue(vm, name); err == nil {
+			return v, true
+		}
+		if m := t.GetMethod(name); m != nil {
+			return m, true
+		}
+		return nil, false
+	case IndexGetter:
+		if v, err := t.IndexGet(vm, Str(name)); err == nil && v != nil && v != Nil {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
+// ifaceFieldTypeOK reports whether v is assignable to the interface field's
+// declared type(s). An untyped field only requires presence.
+func ifaceFieldTypeOK(vm *VM, f *InterfaceField, v Object) (bool, error) {
+	types := f.Types
+	if len(types) == 0 && vm != nil {
+		for _, sym := range f.TypesSymbols {
+			tv, err := vm.GetSymbolValue(sym)
+			if err != nil {
+				return false, err
+			}
+			if ot, _ := tv.(ObjectType); ot != nil {
+				types = append(types, ot)
+			}
+		}
+	}
+	if len(types) == 0 {
+		return true, nil
+	}
+	vt := v.Type()
+	if vm != nil {
+		vt = vm.ResolveType(vt)
+	}
+	for _, t := range types {
+		if t == TAny || IsTypeAssignableTo(vt, t) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (i *Interface) Name() string { return i.IName }
 func (i *Interface) IsFalsy() bool {
 	return len(i.Fields) == 0 && len(i.Props) == 0 && len(i.Methods) == 0

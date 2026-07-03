@@ -39,10 +39,24 @@
         `go test -run TestVMMethodInterface` → PASS (new cases #12 accept callable,
           #13 reject `x(42)` with "invalid type for argument")
         `go vet ./...` → clean; `go test -race` on VM/Eval → ok
-      REMAINING: *Interface (not meti) structural param CanAssign is still
-      equal-only (fields/props/methods check TODO); the TASK NOTES refactor of the
-      ParamTypes interface (Items/Get → TypeAssigner) is not done — dispatch works
-      without it via the forceValidate path.
+      STAGE 3 (interface structural check) done: *Interface now implements
+      TypeAssigner + vmCanAssigner via CanAssign/CanAssignVM — obj satisfies an
+      interface when it has every required field (assignable type), property and
+      method (signatures matched via MethodInterfaceImplements), plus any extended
+      interfaces (ifaceMember resolves members off a ClassInstance/IndexGetter;
+      ifaceFieldTypeOK resolves field-type symbols per-VM). AssignTo delegates to
+      the same check. Wired into both `obj :: Interface` and interface-typed
+      params. Evidence: `go test -run TestVMInterfaceSatisfaction` → PASS
+      (Person::Named/Greeter accept; Anon::Greeter and Person::HasAge reject with
+      ErrIncompatibleAssign; inline `interface{…}` param accepts a satisfier and
+      rejects 42 up front). `go test ./...` → ok; `go vet` → clean.
+      REMAINING (minor): a NAMED interface/meti const used as a param type is not
+      flagged structural by the static CompiledFunction.HasStructuralParamTypes
+      (which only sees ScopeConstant inline literals), so `func f(g Named)` with a
+      non-satisfier is rejected at the method body, not up front — inline literals
+      (`interface{…}`/`met<…>`) reject up front. The TASK NOTES ParamTypes
+      interface refactor (Items/Get → TypeAssigner) is likewise not needed —
+      dispatch works via the forceValidate path.
   NOTES:
   - change ParamTypes interface methods `Items() ObjectTypes` to  `Items() TypeAssigners`, `Get(int) ObjectType` to `Get(int) TypeAssigner`
   - take all ObjectType to implements TypeAssigner method `CanAssign(obj Object) (bool, error) { return obj.Type() == this }` (default, if not implemented)

@@ -136,3 +136,26 @@ Shape.methods[2].headers // the two `from` signatures
 
 An anonymous interface (or one used as an expression) is compiled with an
 incremented `ifaces#N` name. See [`samples/24_interfaces.gad`](../samples/24_interfaces.gad).
+
+### Structural satisfaction
+
+A value **satisfies** an interface when it has every required field (with an
+assignable type), property and method (whose signatures match), plus any
+extended interface. Use the [`::` operator](operators.md#assign-to-type) to check
+it, or an interface as a parameter type — a non-satisfier is rejected:
+
+```go
+interface Greeter { greet() <str> }
+class Person { name = ""; methods { greet() => "hi " + this.name } }
+
+Person(; name = "Ann") :: Greeter       // ok -> the person (has greet())
+42 :: Greeter                           // raises ErrIncompatibleAssign
+
+func welcome(g interface{ greet() <str> }) => g.greet()
+welcome(Person(; name = "Bo"))          // "hi Bo"
+welcome(42)                             // rejected: 42 does not satisfy the interface
+```
+
+An inline `interface{…}` (or `met<…>`) parameter type is checked up front at the
+call. A satisfying class instance, dict or other member-bearing value is
+accepted.

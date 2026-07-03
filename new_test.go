@@ -2955,3 +2955,37 @@ func TestVMInterface(t *testing.T) {
 	testExpectRun(t, `interface S { m() }
 	return [typeName(S), S.name]`, nil, Array{Str("Interface"), Str("S")})
 }
+
+func TestVMInterfaceSatisfaction(t *testing.T) {
+	// `obj :: Interface` checks structural satisfaction: the object must have the
+	// required fields (assignable type) and methods (matching signatures).
+	testExpectRun(t, `
+	interface Named { name str }
+	class Person { name = ""; methods { greet() => "hi " + this.name } }
+	return (Person(; name = "Ann") :: Named).name`, nil, Str("Ann"))
+
+	testExpectRun(t, `
+	interface Greeter { greet() <str> }
+	class Person { name = ""; methods { greet() => "hi " + this.name } }
+	return (Person(; name = "Bo") :: Greeter).greet()`, nil, Str("hi Bo"))
+
+	// a missing method / field is rejected.
+	expectErrIs(t, `
+	interface Greeter { greet() <str> }
+	class Anon { name = "x" }
+	return Anon() :: Greeter`, nil, ErrIncompatibleAssign)
+	expectErrIs(t, `
+	interface HasAge { age int }
+	class Person { name = "" }
+	return Person() :: HasAge`, nil, ErrIncompatibleAssign)
+
+	// an inline `interface{…}` parameter type dispatches by structural
+	// satisfaction: a satisfying value is accepted, others rejected up front.
+	testExpectRun(t, `
+	func welcome(g interface{ greet() <str> }) => g.greet()
+	class Person { name = ""; methods { greet() => "hi " + this.name } }
+	return welcome(Person(; name = "Bo"))`, nil, Str("hi Bo"))
+	expectErrHas(t, `
+	func welcome(g interface{ greet() <str> }) => g.greet()
+	return welcome(42)`, newOpts(), "invalid type for argument")
+}
