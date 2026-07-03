@@ -134,6 +134,36 @@ met area(s str) => "n/a"     // add a string overload
 area("x")                    // "n/a"
 ```
 
+### Overriding and `$old`
+
+`met ~name(...)` **overrides** an existing method signature instead of raising a
+duplicate-method error — the last definition wins. To wrap the previous
+implementation (super / around advice), give the override a special `$old` first
+parameter: it captures the method being replaced, is dropped from the real
+signature, and is callable inside the body:
+
+```go
+func step(n int) => n * 10
+met ~step($old, n int) => $old(n) + 1   // wrap the previous `step`
+step(3)                                 // 31  (30 + 1)
+```
+
+`$old` is resolved from the remaining parameter types (here `(n int)`) at the
+moment of the override, so calling it runs the previous method rather than
+recursing into the new one. Overrides chain — each `$old` sees the layer beneath
+it. When no previous method matches the signature, `$old` is `nil`.
+
+Under the hood `$old` is `gad.methodFromArgs(step, int)`. That builtin is also
+usable directly: it returns the method a call would dispatch to, selected either
+by an example value or by a type name:
+
+```go
+gad.methodFromArgs(step, 4)      // the (int) method, chosen by value
+gad.methodFromArgs(step, int)    // the same method, chosen by type
+```
+
+It returns `nil` when no method matches.
+
 ## Properties (prop)
 
 A **property** is a named, callable value defined with the func-with-methods body

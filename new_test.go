@@ -330,6 +330,47 @@ func TestVMMethodOverride(t *testing.T) {
 	return 0`, nil, ErrNotIndexable)
 }
 
+func TestVMOldOverrideParam(t *testing.T) {
+	// A `$old` first parameter captures the method being overridden, so the new
+	// method can call the previous implementation (around advice / super).
+	testExpectRun(t, `
+	func x(i int) => i * 10
+	met ~x($old, i int) => $old(i) + 1
+	return x(3)`, nil, Int(31))
+
+	// `$old` calls the previous method, not itself (no infinite recursion).
+	testExpectRun(t, `
+	func f(n int) => n
+	met ~f($old, n int) => $old(n) + 10
+	met ~f($old, n int) => $old(n) + 100
+	return f(1)`, nil, Int(111))
+
+	// Multi-parameter signature: `$old` is resolved by the remaining params.
+	testExpectRun(t, `
+	func g(a int, b int) => a + b
+	met ~g($old, a int, b int) => $old(a, b) * 2
+	return g(3, 4)`, nil, Int(14))
+
+	// An untyped `$old` method resolves the previous untyped method.
+	testExpectRun(t, `
+	func k(v) => "base"
+	met ~k($old, v) => $old(v) + "+wrap"
+	return k(0)`, nil, Str("base+wrap"))
+
+	// When no previous method exists for the signature, `$old` is nil.
+	testExpectRun(t, `
+	func h { (s str) => s }
+	met h { ~($old, n int) => $old == nil }
+	return h(9)`, nil, True)
+
+	// gad.methodFromArgs resolves a method by example value or by type name.
+	testExpectRun(t, `
+	func p(i int) => i
+	met p(s str) => s
+	return [gad.methodFromArgs(p, 1)(5), gad.methodFromArgs(p, str)("z")]`,
+		nil, Array{Int(5), Str("z")})
+}
+
 func TestVMParamTypeErrorPosition(t *testing.T) {
 	// An unresolved param type points at the type identifier, not at the
 	// enclosing func/param declaration.

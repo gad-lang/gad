@@ -48,8 +48,43 @@
   - take all ObjectType to implements TypeAssigner method `CanAssign(obj Object) (bool, error) { return obj.Type() == this }` (default, if not implemented)
   - replace ParamType.Accept param `ot` to `obj Object`
   - replace MethodArgType.GetMethod param `types` to `types TypeAssignerArray`
-- [ ] parser operator AssignTo `obj :: Type`. compile to OpAssigh. it calls assign like method resolution. return an error
+- [x] check if method has `$old` first param. in this case, create a scope variable `$old` to get current method before override it
+  and must compile method without this param. like `x(i int) => i*10; met ~x($old, i int) { return $old($i*2) }`, compiles to
+  `const $old = gad.methodFromArgs(x, *args); met ~x(i int) {return $old($i*2)}`. create tests, samples and docs.
+      DONE. New builtin `gad.methodFromArgs(target, ...args)` (BuiltinMethodFromArgs)
+      resolves the method a call would dispatch to (each arg is a value → its type,
+      or an ObjectType → used directly); returns nil if none. Compiler
+      (compileMethodExpr): a method whose first positional param is `$old` is
+      desugared in its own block scope to
+        `$old := gad.methodFromArgs(<target>, <one type per real param>)`
+      then the method is added with `$old` stripped; its body closes over `$old`
+      (captured before the override runs, so no self-recursion). Overrides chain;
+      `$old` is nil when no prior method matches. Works for plain funcs, operator
+      selector targets (`met ~gad.binOpMul($old,…)`), block form, and untyped
+      params (uses `any`). The formatter preserves `$old` (it is a normal param in
+      the AST; only stripped at compile, restored via defer). Evidence:
+        `go test ./...` → ok (exit 0); `go vet ./...` → clean
+        `go test -run TestVMOldOverrideParam` → PASS (wrap=31, chain=111,
+          multi=14, untyped, nil-when-absent, methodFromArgs by value+type)
+        samples/25_method_resolution.gad runs; doc/functions.md "Overriding and
+          `$old`" section added.
+- [ ] parser operator AssignTo `obj :: Type`. compile to OpAssign. it calls assign like method resolution. return an error
       if not assignable.
+- [ ] update 11_classes.gad to add:
+      on line 48 (identify the best place to put the code below), 
+      ```gad
+      // add method to constructor
+      met Dog(name str) => Dog(;name=name)
+      println("new dog name:   ", Dog("hercules"))
+      // add call method to speek method from property/method resolver
+      met Dog.speak(this, v str) => this.name + ": from str: " + v
+      println("dog custom speak:   ", d.speak("auau"))
+      // add call method to speek method from methods register 
+      met Dog.@methods.speak(this, v int) => this.name + ": from int: " + v
+      println("dog custom speak:   ", d.speak(10))
+      ```
+      like this example, add examples from property setter resolution by `met Class.PROPERTY_NAME (...)` and direct `met Class.@properties.PROPERTY_NAME (...)`.
+      add more example like this.
 - [ ] check cmd/update-*-plugin to accept all language changes.
     update vscode plugin to allow single "run" and "debug".
     create example page for codemirror and prismjs plugins.

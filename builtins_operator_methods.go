@@ -214,11 +214,12 @@ var gadModuleSpec = NewModuleSpecFromName("gad")
 // GadModule returns the `gad` builtin namespace (the operator functions).
 func GadModule() Dict {
 	return Dict{
-		"binOp":        BuiltinObjects[BuiltinBinaryOperator],
-		"selfAssignOp": BuiltinObjects[BuiltinSelfAssignOperator],
-		"unOp":         BuiltinObjects[BuiltinUnaryOperator],
-		"enter":        BuiltinObjects[BuiltinEnter],
-		"exit":         BuiltinObjects[BuiltinExit],
+		"binOp":          BuiltinObjects[BuiltinBinaryOperator],
+		"selfAssignOp":   BuiltinObjects[BuiltinSelfAssignOperator],
+		"unOp":           BuiltinObjects[BuiltinUnaryOperator],
+		"enter":          BuiltinObjects[BuiltinEnter],
+		"exit":           BuiltinObjects[BuiltinExit],
+		"methodFromArgs": BuiltinObjects[BuiltinMethodFromArgs],
 	}
 }
 
@@ -242,6 +243,7 @@ func registerGadModule() {
 	BuiltinsMap[name+".unOp"] = BuiltinUnaryOperator
 	BuiltinsMap[name+".enter"] = BuiltinEnter
 	BuiltinsMap[name+".exit"] = BuiltinExit
+	BuiltinsMap[name+".methodFromArgs"] = BuiltinMethodFromArgs
 
 	// Per-operator builtins: gad.binOp{Op} / gad.unOp{Op} / gad.selfAssignOp{Op}.
 	registerOperatorBuiltins()

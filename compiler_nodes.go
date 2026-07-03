@@ -1600,7 +1600,96 @@ func (c *Compiler) compileMethodExpr(nd *node.MethodExpr) error {
 		methods = t.Funcs()
 	}
 
-	return c.compileAddMethodsExpr(nd, nameExpr, methods...)
+	// Fast path: no method captures the previous implementation via a `$old`
+	// first parameter, so the whole run compiles through the grouped path.
+	if !anyOldParamMethod(methods) {
+		return c.compileAddMethodsExpr(nd, nameExpr, methods...)
+	}
+
+	// A `$old` method must bind the pre-override method in its own scope, so emit
+	// each method individually, discarding the intermediate target value and
+	// leaving a single result (the target) on the stack.
+	for i, m := range methods {
+		if fe, ok := oldParamMethod(m); ok {
+			if err := c.compileOldOverrideMethod(nd, nameExpr, fe); err != nil {
+				return err
+			}
+		} else if err := c.compileAddMethodsExpr(nd, nameExpr, m); err != nil {
+			return err
+		}
+		if i < len(methods)-1 {
+			c.emit(nd, OpPop)
+		}
+	}
+	return nil
+}
+
+// oldParamMethod reports whether m is a method whose first positional parameter
+// is the special `$old` marker (which captures the method being overridden).
+func oldParamMethod(m node.Expr) (*node.FuncExpr, bool) {
+	fe, _ := m.(*node.FuncExpr)
+	if fe == nil || fe.Type == nil {
+		return nil, false
+	}
+	vals := fe.Type.Params.Args.Values
+	if len(vals) > 0 && vals[0].Ident != nil && vals[0].Ident.Name == "$old" {
+		return fe, true
+	}
+	return fe, false
+}
+
+func anyOldParamMethod(methods []node.Expr) bool {
+	for _, m := range methods {
+		if _, ok := oldParamMethod(m); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// compileOldOverrideMethod compiles `met ~x($old, <params>) { body }` by
+// capturing the method x currently dispatches to for <params> into a scope-local
+// `$old`, then adding the new method (without the `$old` parameter) whose body
+// closes over `$old`. It desugars to:
+//
+//	$old := gad.methodFromArgs(x, <param types>)
+//	met ~x(<params>) { body }   // body references $old as a free variable
+func (c *Compiler) compileOldOverrideMethod(nd node.Node, nameExpr node.Expr, fe *node.FuncExpr) (err error) {
+	c.symbolTable = c.symbolTable.Fork(true)
+	defer func() {
+		c.symbolTable = c.symbolTable.Parent(false)
+	}()
+
+	values := fe.Type.Params.Args.Values
+	realParams := values[1:]
+
+	// gad.methodFromArgs(<target>, <one type per real param>)
+	c.emit(nd, OpGetBuiltin, int(BuiltinMethodFromArgs))
+	if err = c.Compile(nameExpr); err != nil {
+		return
+	}
+	for _, p := range realParams {
+		if len(p.Type) == 0 {
+			c.emit(nd, OpGetBuiltin, int(BuiltinAny))
+		} else if err = c.Compile(p.Type[0].Expr); err != nil {
+			return
+		}
+	}
+	c.emit(nd, OpCall, len(realParams)+1, 0)
+
+	sym, exists := c.symbolTable.DefineLocal("$old")
+	if exists {
+		c.emit(nd, OpSetLocal, sym.Index)
+	} else {
+		c.emit(nd, OpDefineLocal, sym.Index)
+	}
+
+	// Strip the `$old` marker so the compiled method has only the real params;
+	// restore afterwards to keep the AST reusable (e.g. optimizer re-compiles).
+	fe.Type.Params.Args.Values = realParams
+	defer func() { fe.Type.Params.Args.Values = values }()
+
+	return c.compileAddMethodsExpr(nd, nameExpr, fe)
 }
 
 func (c *Compiler) compileAddMethodsExpr(nd node.Node, nameExpr node.Expr, methods ...node.Expr) (err error) {

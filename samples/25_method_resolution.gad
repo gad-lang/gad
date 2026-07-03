@@ -86,6 +86,19 @@ println("greet(\"a\") pre  =", greet("a"))       // hi a
 met ~greet(name str) => "HELLO " + name
 println("greet(\"a\") post =", greet("a"))       // HELLO a (overridden)
 
+// --- Calling the overridden method (`$old`) ---------------------------------
+/// A `$old` first parameter on an override captures the method being replaced,
+/// so the new method can wrap the previous implementation (super / around
+/// advice). It is dropped from the real signature; `$old` is resolved from the
+/// remaining parameter types and is nil when there was no previous method.
+func step(n int) => n * 10
+met ~step($old, n int) => $old(n) + 1              // wraps the previous `step`
+println("step(3)         =", step(3))            // 31 (30 + 1)
+
+/// `gad.methodFromArgs(fn, …)` — what `$old` uses under the hood — returns the
+/// method a call would dispatch to, chosen by example value or by type name.
+println("methodFromArgs  =", gad.methodFromArgs(step, int)(4))  // 41
+
 // --- Structural parameter types (dispatch by value) -------------------------
 /// A `met<…>` (method-interface) parameter type is checked structurally, by
 /// value: the argument must be a callable whose signature satisfies the header.

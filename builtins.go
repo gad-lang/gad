@@ -167,6 +167,7 @@ const (
 	BuiltinIsIterable
 	BuiltinIsIterator
 	BuiltinImplements
+	BuiltinMethodFromArgs
 
 	BuiltinFunctionsEnd_
 	BuiltinErrorsBegin_
@@ -812,6 +813,11 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinAddMethod: &BuiltinFunction{
 		FuncName:              "addMethod",
 		Value:                 BuiltinAddMethodFunc,
+		AcceptMethodsDisabled: true,
+	},
+	BuiltinMethodFromArgs: &BuiltinFunction{
+		FuncName:              "methodFromArgs",
+		Value:                 BuiltinMethodFromArgsFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinRawCaller: &BuiltinFunction{

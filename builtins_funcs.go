@@ -1674,6 +1674,45 @@ func BuiltinCastFunc(c Call) (ret Object, err error) {
 	return
 }
 
+// BuiltinMethodFromArgsFunc implements `gad.methodFromArgs(target, ...args)`: it
+// resolves the method currently registered on target that a call with the given
+// arguments would dispatch to, returning that caller (or nil if none matches).
+//
+// Each argument after target may be a value — in which case its type is used —
+// or an ObjectType, used directly; so a signature can be described by example
+// values (`methodFromArgs(f, 1, "x")`) or by type names (`methodFromArgs(f, int,
+// str)`). It underpins the `$old` override parameter, which captures the method
+// being overridden before the override replaces it.
+func BuiltinMethodFromArgsFunc(c Call) (ret Object, err error) {
+	if err = c.Args.CheckMinLen(1); err != nil {
+		return Nil, err
+	}
+
+	target := c.Args.GetOnly(0)
+	mc, ok := target.(MethodCaller)
+	if !ok {
+		return Nil, ErrType.NewError("target " + ReprQuote(target.Type().Name()) + " has no methods")
+	}
+
+	var (
+		l     = c.Args.Length()
+		types = make(ObjectTypeArray, 0, l-1)
+	)
+	for i := 1; i < l; i++ {
+		arg := c.Args.GetOnly(i)
+		if t, isType := arg.(ObjectType); isType {
+			types = append(types, t)
+		} else {
+			types = append(types, c.VM.ResolveType(arg.Type()))
+		}
+	}
+
+	if co := mc.CallerMethodOfArgsTypes(types); co != nil {
+		return co, nil
+	}
+	return Nil, nil
+}
+
 func BuiltinAddMethodFunc(c Call) (ret Object, err error) {
 	if err := c.Args.CheckMinLen(2); err != nil {
 		return Nil, err
