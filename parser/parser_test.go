@@ -305,6 +305,16 @@ func TestFormatDecl(t *testing.T) {
 	test.New(t, "param (;x, **y)").Code("param (; x, **y)")
 }
 
+func TestFormatDoubleColon(t *testing.T) {
+	// the assign-to-type operator `::` formats tightly (no surrounding spaces)
+	// and without wrapping parens.
+	test.New(t, "a :: B").Code("a::B").FormattedCode("a::B")
+	// a chain drops the redundant grouping parens (`::` is left-associative).
+	test.New(t, "(a::B)::C").Code("a::B::C").FormattedCode("a::B::C")
+	// but a lower-precedence left operand keeps its parens.
+	test.New(t, "(a + b)::C").Code("(a + b)::C").FormattedCode("(a + b)::C")
+}
+
 func TestFormatCalcParams(t *testing.T) {
 	// Short param lists stay inline under the column budget.
 	test.New(t, "func(a int, b int) { return }").

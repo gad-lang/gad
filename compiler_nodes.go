@@ -2388,6 +2388,9 @@ func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
 	}
 
 	switch nd.Token {
+	case token.DoubleColon:
+		// `obj :: Type` yields obj when it is assignable to Type, else throws.
+		c.emit(nd, OpAssign)
 	case token.Equal:
 		c.emit(nd, OpEqual)
 	case token.NotEqual:

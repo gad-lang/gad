@@ -432,7 +432,12 @@ do:
 				t.Token = token.RawHeredoc
 			}
 		case ':':
-			t.Token = s.Switch2(token.Colon, token.Define)
+			if s.Ch == ':' {
+				s.Next()
+				t.Token = token.DoubleColon
+			} else {
+				t.Token = s.Switch2(token.Colon, token.Define)
+			}
 		case '.':
 			if s.Ch == '.' {
 				s.Next()

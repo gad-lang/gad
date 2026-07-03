@@ -48,44 +48,24 @@
   - take all ObjectType to implements TypeAssigner method `CanAssign(obj Object) (bool, error) { return obj.Type() == this }` (default, if not implemented)
   - replace ParamType.Accept param `ot` to `obj Object`
   - replace MethodArgType.GetMethod param `types` to `types TypeAssignerArray`
-- [x] check if method has `$old` first param. in this case, create a scope variable `$old` to get current method before override it
-  and must compile method without this param. like `x(i int) => i*10; met ~x($old, i int) { return $old($i*2) }`, compiles to
-  `const $old = gad.methodFromArgs(x, *args); met ~x(i int) {return $old($i*2)}`. create tests, samples and docs.
-      DONE. New builtin `gad.methodFromArgs(target, ...args)` (BuiltinMethodFromArgs)
-      resolves the method a call would dispatch to (each arg is a value → its type,
-      or an ObjectType → used directly); returns nil if none. Compiler
-      (compileMethodExpr): a method whose first positional param is `$old` is
-      desugared in its own block scope to
-        `$old := gad.methodFromArgs(<target>, <one type per real param>)`
-      then the method is added with `$old` stripped; its body closes over `$old`
-      (captured before the override runs, so no self-recursion). Overrides chain;
-      `$old` is nil when no prior method matches. Works for plain funcs, operator
-      selector targets (`met ~gad.binOpMul($old,…)`), block form, and untyped
-      params (uses `any`). The formatter preserves `$old` (it is a normal param in
-      the AST; only stripped at compile, restored via defer). Evidence:
-        `go test ./...` → ok (exit 0); `go vet ./...` → clean
-        `go test -run TestVMOldOverrideParam` → PASS (wrap=31, chain=111,
-          multi=14, untyped, nil-when-absent, methodFromArgs by value+type)
-        samples/25_method_resolution.gad runs; doc/functions.md "Overriding and
-          `$old`" section added.
-- [ ] parser operator AssignTo `obj :: Type`. compile to OpAssign. it calls assign like method resolution. return an error
-      if not assignable.
-- [x] update 11_classes.gad to add `$old` examples rewriting methods, constructors
-      and property setters (the concrete goal behind the constructor/resolver
-      snippets). DONE:
-      - `*Class` and `*ClassProperty` now implement MethodCaller by delegating to
-        their FuncSpec (`Class.new.f` / `ClassProperty.f`); ClassMethod/
-        ClassProperty/ClassConstructor expose GetFuncSpec. So `$old`
-        (gad.methodFromArgs) resolves class methods, constructors and property
-        setters.
-      - Fixed Class.AddMethodIndex: `met Class.NAME(...)` now routes to an existing
-        property's getter/setter (was always adding a shadowing method, so setter
-        overrides silently did nothing).
-      - Renamed the class index selector `@properties` → `@props`.
-      - samples/11_classes.gad gains a "rewriting members with `met ~` and `$old`"
-        section (method → "Rex barks loudly", constructor → 30 40, setter →
-        "int:9 (checked)"). doc/classes.md documents it.
-      Evidence: `go test ./...` → ok; `go test -run TestVMClassOldOverride` → PASS.
+- [x] parser operator AssignTo `obj :: Type`. compile to OpAssign. it calls assign like method resolution. return an error
+      if not assignable. allows `obj::Type1::Type2::Type3`. add samples, docs and tests.
+      DONE. New `DoubleColon` token (`::`, scanned; placed after GroupKeywordEnd so
+      no token value shifts; precedence 11 — tighter than arithmetic). Parses via
+      the normal binary-expr loop (Precedence-driven). New opcode OpAssign (0
+      operands; registered in MakeInstruction and both VM loops; excluded from the
+      optimizer's constant-folding so a failing cast throws at runtime instead of
+      becoming a compile error). Runtime: AssignToType(vm, obj, to) returns obj
+      when assignable (ObjectType incl. *Class parent-walk, or structural
+      TypeAssigner via CanAssign/CanAssignVM), else ErrIncompatibleAssign; a
+      non-type RHS gives ErrType. Fixed a latent *Class.CanAssign bug (walked
+      parents but never set ok). Formatter writes `a::B` tightly, dropping
+      redundant chain parens (`(a::B)::C`→`a::B::C`) but keeping needed ones
+      (`(2 + 3)::int`). Evidence: `go test ./...` → ok; `go vet` → clean;
+        `go test -run TestVMAssignOperator` → PASS (cast, chain, precedence,
+          subclass, structural, reject str::int and 42::met, non-type RHS)
+        `go test -run TestFormatDoubleColon ./parser` → PASS
+        samples/25_method_resolution.gad extended; doc/operators.md documents it.
 - [ ] check cmd/update-*-plugin to accept all language changes.
     update vscode plugin to allow single "run" and "debug".
     create example page for codemirror and prismjs plugins.

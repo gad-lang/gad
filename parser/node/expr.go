@@ -70,6 +70,11 @@ func (e *BinaryExpr) End() source.Pos {
 }
 
 func (e *BinaryExpr) String() string {
+	// the assign-to-type operator formats tightly and without wrapping parens:
+	// `a :: B` -> `a::B` (it binds tighter than the other binary operators).
+	if e.Token == token.DoubleColon {
+		return e.LHS.String() + e.Token.String() + e.RHS.String()
+	}
 	return "(" + e.LHS.String() + " " + e.Token.String() +
 		" " + e.RHS.String() + ")"
 }
@@ -79,6 +84,14 @@ func (e *BinaryExpr) WriteCode(ctx *CodeWriteContext) {
 }
 
 func (e *BinaryExpr) WriteCodeWithParen(ctx *CodeWriteContext, paren bool) {
+	// the assign-to-type operator formats tightly and without wrapping parens:
+	// `a :: B` -> `a::B` (it binds tighter than the other binary operators).
+	if e.Token == token.DoubleColon {
+		e.LHS.WriteCode(ctx)
+		ctx.WriteString(e.Token.String())
+		e.RHS.WriteCode(ctx)
+		return
+	}
 	if paren {
 		ctx.WriteSingleByte('(')
 	}

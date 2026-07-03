@@ -120,4 +120,24 @@ try {
     println("apply(42, 1)    = rejected (not a (int)<int> callable)")
 }
 
+// --- The assign-to-type operator `::` --------------------------------------
+/// `obj :: Type` checks assignability by the same rules the dispatcher uses and
+/// returns obj unchanged (else it raises a type error). It uses the type kinds
+/// above — plain types, subclasses and structural `met<…>` — and chains
+/// left-to-right (`obj::T1::T2`).
+println("5 :: int        =", 5 :: int)           // 5
+println("5 :: int :: any =", 5 :: int :: any)    // 5 (chained)
+println("2 + 3 :: int    =", 2 + 3 :: int)       // 5 (binds tighter than +)
+
+/// A callable checked against a method interface passes when it fits the shape.
+println("fn :: met<…>    =", (func(n int) => n) :: met<(int) <int>> != nil) // true
+
+/// A failing cast raises a catchable error.
+try {
+    x := "hi" :: int
+    ok = false
+} catch e {
+    println("\"hi\" :: int     = rejected")
+}
+
 return ok

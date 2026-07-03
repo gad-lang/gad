@@ -176,6 +176,10 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		OpDotName: true, OpDotFile: true, OpIsMain: true, OpNotIsMain: true,
 		OpModule: true, OpNamedParamsVar: true, OpComputedValue: true,
 		OpExtendModule: true, OpSetReturnModule: true, OpToRawStr: true,
+		// OpAssign (obj :: type) is not constant-folded: a failing cast must throw
+		// at runtime (catchable) rather than become a compile error via the
+		// optimizer's eval. The explicit false also sizes the array to include it.
+		OpAssign: false,
 	}
 
 	allowedBuiltins := [...]bool{

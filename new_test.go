@@ -403,6 +403,35 @@ func TestVMClassOldOverride(t *testing.T) {
 	return b.v`, nil, Str("int:9 ok"))
 }
 
+func TestVMAssignOperator(t *testing.T) {
+	// `obj :: Type` yields obj when assignable to Type.
+	testExpectRun(t, `return 5 :: int`, nil, Int(5))
+	testExpectRun(t, `return "hi" :: str`, nil, Str("hi"))
+	// chains left-to-right, each step returns the same value.
+	testExpectRun(t, `return 5 :: int :: any`, nil, Int(5))
+	// binds tighter than arithmetic: `2 + 3 :: int` is `2 + (3 :: int)`.
+	testExpectRun(t, `return 2 + 3 :: int`, nil, Int(5))
+
+	// a subclass instance is assignable to a parent class.
+	testExpectRun(t, `
+	Animal := Class("Animal", (cls, define) => define(; fields = (; name str = "")))
+	Dog := Class("Dog", (cls, define) => define(; extends = [Animal]))
+	d := Dog(; name = "rex")
+	return (d :: Animal).name`, nil, Str("rex"))
+
+	// a callable is assignable to a matching method interface (structural).
+	testExpectRun(t, `
+	f := func(a int) => a
+	return (f :: met<(int) <int>>)(6)`, nil, Int(6))
+
+	// not assignable -> ErrIncompatibleAssign (catchable at runtime).
+	expectErrIs(t, `return "hi" :: int`, nil, ErrIncompatibleAssign)
+	expectErrIs(t, `return 42 :: met<(int) <int>>`, nil, ErrIncompatibleAssign)
+
+	// the RHS must be a type.
+	expectErrIs(t, `return 1 :: 2`, nil, ErrType)
+}
+
 func TestVMParamTypeErrorPosition(t *testing.T) {
 	// An unresolved param type points at the type identifier, not at the
 	// enclosing func/param declaration.

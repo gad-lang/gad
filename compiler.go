@@ -1189,7 +1189,8 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
 		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsMain, OpNotIsMain, OpModule,
-		OpNamedParamsVar, OpNamedParamValue, OpComputedValue, OpExtendModule, OpSetReturnModule, OpToRawStr:
+		OpNamedParamsVar, OpNamedParamValue, OpComputedValue, OpExtendModule, OpSetReturnModule, OpToRawStr,
+		OpAssign:
 		return buf, nil
 	default:
 		return buf, &Error{

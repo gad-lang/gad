@@ -61,6 +61,20 @@ VMLoop:
 				vm.err = err
 				return
 			}
+		case OpAssign:
+			// `obj :: type` -> obj when assignable, else throw a type error.
+			obj, typ := vm.stack[vm.sp-2], vm.stack[vm.sp-1]
+			value, err := AssignToType(vm, obj, typ)
+			if err == nil {
+				vm.stack[vm.sp-2] = value
+				vm.sp--
+				vm.stack[vm.sp] = nil
+				continue
+			}
+			if err = vm.throwGenErr(err); err != nil {
+				vm.err = err
+				return
+			}
 		case OpExtendModule:
 			data := vm.stack[vm.sp-1]
 			if u, _ := data.(IndexSetterUpdater); u != nil {

@@ -103,6 +103,7 @@ const (
 	OpExtendModule
 	OpToRawStr
 	OpAddMethodOverride
+	OpAssign
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -181,6 +182,7 @@ var OpcodeNames = [...]string{
 	OpExtendModule:      "EXTENDMODULE",
 	OpToRawStr:          "TORAWSTR",
 	OpAddMethodOverride: "ADDMETHODOVERRIDE",
+	OpAssign:            "ASSIGN",
 }
 
 // OpcodeOperands is the number of operands.
@@ -259,6 +261,7 @@ var OpcodeOperands = [...][]int{
 	OpExtendModule:      {},
 	OpToRawStr:          {},
 	OpAddMethodOverride: {1, 1}, // 0: number of selectors, 1: number of funcs
+	OpAssign:            {},     // obj :: type -> obj (or throw if not assignable)
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

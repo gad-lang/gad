@@ -68,6 +68,40 @@ func TypeAssignerFullName(t TypeAssigner) string {
 	return TypeAssignerName(t)
 }
 
+// AssignToType implements the `obj :: to` assign-to-type operator: it returns
+// obj when obj is assignable to the type value `to`, otherwise a type error. The
+// target may be an ObjectType (plain type assignability) or a structural
+// TypeAssigner such as a meti/interface (checked by value, like a parameter
+// type). It is the runtime behind OpAssign and chains left-to-right for
+// `obj::T1::T2`.
+func AssignToType(vm *VM, obj, to Object) (Object, error) {
+	if to == TAny {
+		return obj, nil
+	}
+	switch t := to.(type) {
+	case vmCanAssigner:
+		// structural types (meti/interface) need the VM to resolve signatures.
+		if ok, err := t.CanAssignVM(vm, obj); err != nil || ok {
+			if err != nil {
+				return nil, err
+			}
+			return obj, nil
+		}
+	case TypeAssigner:
+		// ObjectType (incl. *Class parent-walk) and *Interface.
+		if ok, err := t.CanAssign(obj); err != nil || ok {
+			if err != nil {
+				return nil, err
+			}
+			return obj, nil
+		}
+	default:
+		return nil, ErrType.NewErrorf("%s is not a type", ReprQuote(to.Type().Name()))
+	}
+	return nil, ErrIncompatibleAssign.NewErrorf("%s is not assignable to %s",
+		ReprQuote(obj.Type().Name()), ReprQuote(TypeAssignerName(to.(TypeAssigner))))
+}
+
 // assignerAcceptsType reports whether an arg of type t is accepted by the type
 // assigner a. For an ObjectType assigner it is plain type assignability; a
 // structural assigner (meti/interface) cannot be decided from a type alone in

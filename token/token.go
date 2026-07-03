@@ -185,9 +185,15 @@ const (
 	// contextual idents, not reserved keywords (`prop`/`meti` reuse their tokens).
 	Interface
 	GroupKeywordEnd
+	// DoubleColon is the assign-to-type operator `obj :: Type` (a checked cast
+	// that returns obj when it is assignable to Type, else raises a type error;
+	// chainable as `obj::T1::T2`). Placed after the keyword group so it is neither
+	// a keyword nor shifts any existing token value; its operator behaviour comes
+	// from Precedence and an explicit compiler case, not group membership.
+	DoubleColon // ::
 )
 
-const NumTokens = int(GroupKeywordEnd)
+const NumTokens = int(DoubleColon) + 1
 
 var keywords map[string]Token
 
@@ -363,6 +369,7 @@ var tokens = [...]string{
 	Class:               "class",
 	Enum:                "enum",
 	Interface:           "interface",
+	DoubleColon:         "::",
 }
 
 var tokenNames = [...]string{
@@ -526,6 +533,7 @@ var tokenNames = [...]string{
 	Enum:                         "Enum",
 	Interface:                    "Interface",
 	GroupKeywordEnd:              "GroupKeywordEnd",
+	DoubleColon:                  "DoubleColon",
 }
 
 // FromName return a Token from name
@@ -566,6 +574,11 @@ func (tok Token) Precedence() int {
 		return 9
 	case Raw:
 		return 10
+	case DoubleColon:
+		// the assign-to-type operator binds tighter than arithmetic so that
+		// `x + y :: int` groups as `x + (y :: int)`; parenthesise to cast a whole
+		// expression (`(x + y) :: int`).
+		return 11
 	}
 	return LowestPrec
 }

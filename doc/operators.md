@@ -298,13 +298,35 @@ all-membership check by implementing `ObjectWithAinBinOperator`
 to testing each value with `in`, so it works for every container that supports
 `in`.
 
+## Assign-to-type (`::`)
+
+`obj :: Type` is the **assign-to-type** operator: it checks that `obj` is
+assignable to `Type` and returns `obj` unchanged, otherwise it raises a
+catchable type error (`ErrIncompatibleAssign`). Assignability follows the same
+rules the method dispatcher uses:
+
+```go
+5 :: int               // 5
+d :: Animal            // a Dog instance is assignable to a parent class
+f :: met<(int) <int>>  // a callable that structurally satisfies a method interface
+"hi" :: int            // raises ErrIncompatibleAssign
+```
+
+The right operand is a type value — a built-in type, a class, or a structural
+`met<…>` / `meti{…}` / `interface{…}` literal. `::` is left-associative and
+chains, so a value can be narrowed through several types: `obj::T1::T2::T3`. It
+binds tighter than the arithmetic operators (`2 + 3 :: int` is `2 + (3 :: int)`);
+parenthesise to cast a whole expression (`(2 + 3) :: int`). The formatter writes
+it tightly, `a::B`, dropping redundant chain parens but keeping needed ones.
+
 ## Precedence
 
 Unary operators bind tightest; the ternary operator binds loosest. Binary
-operators have five levels:
+operators have these levels (`::` binds tightest of the binary operators):
 
 | Level | Operators                                       |
 |:-----:|-------------------------------------------------|
+| 11    | `::`                                            |
 | 5     | `*` `**` `/` `%` `<<` `>>` `&` `&^` `<<<` `>>>` `%%` |
 | 4     | `+` `-` `\|` `^`                                 |
 | 3     | `==` `!=` `===` `!==` `<` `<=` `>` `>=` `in` `ain` |

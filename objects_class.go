@@ -495,8 +495,12 @@ func (t *Class) AssignTo(_ *VM, obj Object, to TypeAssigner) (_ Object, err erro
 
 func (t *Class) CanAssign(obj Object) (ok bool, err error) {
 	if cls, _ := obj.Type().(*Class); cls != nil {
+		if cls == t {
+			return true, nil
+		}
 		cls.Walk(func(parent *Class) (mode utils.WalkMode) {
 			if t == parent {
+				ok = true
 				return utils.WalkModeBreak
 			}
 			return utils.WalkModeContinue
