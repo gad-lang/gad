@@ -55,3 +55,15 @@ the start of the source); for a full state machine use the CodeMirror plugin.
 For an interactive editor with autocompletion and live diagnostics, use
 [`@gad-lang/codemirror-gad`](../codemirror-gad) instead. See the example app in
 [`../README.md`](../README.md).
+
+## Demo
+
+A standalone highlighting demo lives in [`example/`](example), with three tabs —
+a plain `.gad` script, a `.gadt` template, and a `# gad: mixed` `.gad` file
+(routed to the template grammar via `detectGadTemplate`):
+
+```sh
+bun install
+bun run demo        # serves example/index.html
+# or: bun run demo:build   # writes a static bundle to example/dist
+```

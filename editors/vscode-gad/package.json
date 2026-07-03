@@ -15,6 +15,41 @@
     "onLanguage:gad"
   ],
   "contributes": {
+    "commands": [
+      {
+        "command": "gad.run",
+        "title": "Run Gad File",
+        "category": "Gad",
+        "icon": "$(play)"
+      },
+      {
+        "command": "gad.debug",
+        "title": "Debug Gad File",
+        "category": "Gad",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "gad.openConfig",
+        "title": "Open Workspace Config (.gad.yaml)",
+        "category": "Gad",
+        "icon": "$(settings-gear)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "gad.run", "when": "editorLangId == gad" },
+        { "command": "gad.debug", "when": "editorLangId == gad" },
+        { "command": "gad.openConfig" }
+      ],
+      "editor/title/run": [
+        { "command": "gad.run", "when": "editorLangId == gad", "group": "navigation@1" },
+        { "command": "gad.debug", "when": "editorLangId == gad", "group": "navigation@2" }
+      ],
+      "editor/context": [
+        { "command": "gad.run", "when": "editorLangId == gad", "group": "gad@1" },
+        { "command": "gad.debug", "when": "editorLangId == gad", "group": "gad@2" }
+      ]
+    },
     "languages": [
       {
         "id": "gad",
@@ -43,6 +78,11 @@
           "type": "boolean",
           "default": true,
           "description": "Apply the workspace `.gad.yaml` `fmt`/`transpile` settings when formatting."
+        },
+        "gad.configFile": {
+          "type": "string",
+          "default": ".gad.yaml",
+          "description": "Workspace config file name opened/created by the \"Gad: Open Workspace Config\" command."
         }
       }
     },

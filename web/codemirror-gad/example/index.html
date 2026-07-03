@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>codemirror-gad — editor demo</title>
+    <style>
+      body {
+        font: 14px/1.5 system-ui, sans-serif;
+        margin: 2rem auto;
+        max-width: 60rem;
+        padding: 0 1rem;
+      }
+      h1 { font-size: 1.25rem; }
+      #tabs { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; }
+      #tabs button {
+        font: inherit;
+        padding: 0.3rem 0.8rem;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: #f6f6f6;
+        cursor: pointer;
+      }
+      #tabs button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+      #editor { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+      .cm-editor { height: 30rem; }
+    </style>
+  </head>
+  <body>
+    <h1>codemirror-gad — Gad editor</h1>
+    <p>
+      A CodeMirror 6 editor with <code>@gad-lang/codemirror-gad</code>:
+      highlighting, autocompletion and bracket matching. The tabs show a plain
+      <code>.gad</code> script, a <code>.gadt</code> template, and a
+      <code>.gad</code> file that switches to template mode with
+      <code># gad: mixed</code>. Serve with <code>bun run demo</code>.
+    </p>
+    <div id="tabs"></div>
+    <div id="editor"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

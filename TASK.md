@@ -66,6 +66,24 @@
           subclass, structural, reject str::int and 42::met, non-type RHS)
         `go test -run TestFormatDoubleColon ./parser` → PASS
         samples/25_method_resolution.gad extended; doc/operators.md documents it.
-- [ ] check cmd/update-*-plugin to accept all language changes.
+- [x] check cmd/update-*-plugin to accept all language changes.
     update vscode plugin to allow single "run" and "debug".
     create example page for codemirror and prismjs plugins.
+      DONE.
+      - Ran update-codemirror/prism/vscode plugins with -w: synced the new
+        keywords (class, enum, interface) into web/codemirror-gad/src/keywords.ts
+        and web/prism-gad/src/index.ts, and regenerated the vscode TextMate
+        grammar. Added the `::` operator to the operator patterns (textmate.go,
+        prism index.ts; codemirror already matches `:` char-by-char). Pluginsync
+        tests pass.
+      - vscode extension: new commands `gad.run` (runs `gad run <file>` in a
+        reused terminal) and `gad.debug` (starts a debug session), wired to the
+        editor title run menu, context menu and command palette. Added
+        `gad.openConfig` (opens/creates the workspace `.gad.yaml` from a starter
+        template) + a `gad.configFile` setting. `bun run compile` → clean.
+      - Example pages: web/codemirror-gad/example and web/prism-gad/example, each
+        with three tabs — plain `.gad`, `.gadt` template, and `# gad: mixed` `.gad`
+        — driven by gad()'s template/preamble options (codemirror) and
+        registerGadTemplate/detectGadTemplate (prism). `bun run demo` serves;
+        `demo:build` bundles (verified: both bundle; both plugins typecheck clean).
+        READMEs document the demos; example/dist is gitignored.

@@ -86,7 +86,7 @@ func TextMateGrammar() ([]byte, error) {
 			{Name: "variable.language.gad", Match: `@[A-Za-z_$][\w$]*`},
 		}},
 		"operators": {Patterns: []tmRule{
-			{Name: "keyword.operator.gad", Match: `\?\?=?|\.\.|=>|:=|\|\||&&|\*\*=?|<<<?=?|>>>?=?|&\^=?|%%=?|===?|!==?|[-+*/%&|^!<>=]=?|[~?:]`},
+			{Name: "keyword.operator.gad", Match: `::|\?\?=?|\.\.|=>|:=|\|\||&&|\*\*=?|<<<?=?|>>>?=?|&\^=?|%%=?|===?|!==?|[-+*/%&|^!<>=]=?|[~?:]`},
 		}},
 	}
 

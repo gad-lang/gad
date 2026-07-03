@@ -57,3 +57,15 @@ gad({ template: true, preamble: true, delimiters }); // for `.gad` + `# gad: mix
 The `diagnose` function is injected, so the plugin works against any backend
 (a Go HTTP server, the Gad WebAssembly module, etc.). See the example app in
 [`../app`](../) and the overview in [`../README.md`](../README.md).
+
+## Demo
+
+A standalone editor demo lives in [`example/`](example). It shows three tabs — a
+plain `.gad` script, a `.gadt` template, and a `.gad` file that switches to
+template mode with `# gad: mixed`:
+
+```sh
+bun install
+bun run demo        # serves example/index.html (bundles the TS on the fly)
+# or: bun run demo:build   # writes a static bundle to example/dist
+```

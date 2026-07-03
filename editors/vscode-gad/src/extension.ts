@@ -22,7 +22,122 @@ function runGadFmt(
   });
 }
 
+// Starter content written for a new workspace `.gad.yaml` (see `gad fmt --help`).
+const GAD_CONFIG_TEMPLATE = `# Gad workspace configuration (.gad.yaml)
+# Consumed by the \`gad\` CLI (fmt / run / template mode) and this extension.
+
+# Template delimiters for \`.gadt\` files and template mode.
+template:
+    start_delimiter: "{%"
+    end_delimiter: "%}"
+
+# Directories formatted by \`gad fmt\` when no PATH is given.
+# input_dirs:
+#   - path: .
+#     includes: ["*.gad", "*.gadt"]
+#     excludes: []
+#     transpile: false
+#     backup: false
+`;
+
+// A single terminal reused by the `gad.run` command.
+let runTerminal: vscode.Terminal | undefined;
+
+// The `.gad`/`.gadt` document to act on: the active editor if it is a Gad file,
+// otherwise the most recent visible Gad editor.
+function activeGadDocument(): vscode.TextDocument | undefined {
+  const active = vscode.window.activeTextEditor;
+  if (active && active.document.languageId === "gad") return active.document;
+  return vscode.window.visibleTextEditors.find(
+    (e) => e.document.languageId === "gad",
+  )?.document;
+}
+
 export function activate(context: vscode.ExtensionContext): void {
+  // `gad.run`: run the current file with `gad run <file>` in an integrated
+  // terminal (reused across runs), saving it first.
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gad.run", async () => {
+      const doc = activeGadDocument();
+      if (!doc) {
+        void vscode.window.showInformationMessage("No Gad file to run.");
+        return;
+      }
+      await doc.save();
+      const gadPath = vscode.workspace
+        .getConfiguration("gad")
+        .get<string>("path", "gad");
+      const cwd =
+        vscode.workspace.getWorkspaceFolder(doc.uri)?.uri.fsPath ??
+        path.dirname(doc.uri.fsPath);
+
+      if (!runTerminal || runTerminal.exitStatus !== undefined) {
+        runTerminal = vscode.window.createTerminal({ name: "Gad", cwd });
+      }
+      runTerminal.show(true);
+      const quote = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
+      runTerminal.sendText(`${quote(gadPath)} run ${quote(doc.uri.fsPath)}`);
+    }),
+  );
+
+  // `gad.debug`: start a debug session for the current file (no launch.json
+  // needed; the config provider below fills in the defaults).
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gad.debug", async () => {
+      const doc = activeGadDocument();
+      if (!doc) {
+        void vscode.window.showInformationMessage("No Gad file to debug.");
+        return;
+      }
+      await doc.save();
+      const folder = vscode.workspace.getWorkspaceFolder(doc.uri);
+      await vscode.debug.startDebugging(folder, {
+        type: "gad",
+        request: "launch",
+        name: "Debug Gad file",
+        program: doc.uri.fsPath,
+        stopOnEntry: false,
+      });
+    }),
+  );
+
+  context.subscriptions.push(
+    vscode.window.onDidCloseTerminal((t) => {
+      if (t === runTerminal) runTerminal = undefined;
+    }),
+  );
+
+  // `gad.openConfig`: open the workspace `.gad.yaml`, creating a starter one
+  // (fmt/template/transpile options) when it does not exist yet.
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gad.openConfig", async () => {
+      const doc = activeGadDocument();
+      const folder =
+        (doc && vscode.workspace.getWorkspaceFolder(doc.uri)) ??
+        vscode.workspace.workspaceFolders?.[0];
+      if (!folder) {
+        void vscode.window.showInformationMessage(
+          "Open a folder to create a Gad config (.gad.yaml).",
+        );
+        return;
+      }
+      const name = vscode.workspace
+        .getConfiguration("gad")
+        .get<string>("configFile", ".gad.yaml");
+      const uri = vscode.Uri.joinPath(folder.uri, name);
+      try {
+        await vscode.workspace.fs.stat(uri);
+      } catch {
+        await vscode.workspace.fs.writeFile(
+          uri,
+          Buffer.from(GAD_CONFIG_TEMPLATE, "utf8"),
+        );
+      }
+      const opened = await vscode.workspace.openTextDocument(uri);
+      await vscode.window.showTextDocument(opened);
+    }),
+  );
+
   // Fill in a default launch config (program = current file) when the user
   // starts debugging without a launch.json entry.
   const provider: vscode.DebugConfigurationProvider = {

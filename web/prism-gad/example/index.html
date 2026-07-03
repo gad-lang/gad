@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>prism-gad — highlighting demo</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css"
+    />
+    <style>
+      body {
+        font: 14px/1.5 system-ui, sans-serif;
+        margin: 2rem auto;
+        max-width: 60rem;
+        padding: 0 1rem;
+        background: #1d1f21;
+        color: #c5c8c6;
+      }
+      h1 { font-size: 1.25rem; }
+      a { color: #81a2be; }
+      #tabs { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; }
+      #tabs button {
+        font: inherit;
+        padding: 0.3rem 0.8rem;
+        border: 1px solid #444;
+        border-radius: 6px;
+        background: #282a2e;
+        color: #c5c8c6;
+        cursor: pointer;
+      }
+      #tabs button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+      pre { border-radius: 8px; padding: 1rem; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <h1>prism-gad — Gad syntax highlighting</h1>
+    <p>
+      Static highlighting with <a href="https://prismjs.com/">PrismJS</a> and the
+      <code>@gad-lang/prism-gad</code> grammar. The tabs show a plain
+      <code>.gad</code> script, a <code>.gadt</code> template, and a
+      <code>.gad</code> file routed to the template grammar by its
+      <code># gad: mixed</code> directive. Build with <code>bun run demo</code>.
+    </p>
+    <div id="tabs"></div>
+    <div id="out"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

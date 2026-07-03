@@ -10,7 +10,9 @@
     "src"
   ],
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "demo": "bun ./example/index.html",
+    "demo:build": "bun build ./example/index.html --outdir ./example/dist"
   },
   "peerDependencies": {
     "prismjs": "^1.29.0"

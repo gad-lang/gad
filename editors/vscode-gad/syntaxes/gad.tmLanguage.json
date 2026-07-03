@@ -54,7 +54,7 @@
       "patterns": [
         {
           "name": "keyword.control.gad",
-          "match": "\\b(?:deferb_err|defer_err|deferb_ok|continue|defer_ok|finally|export|deferb|global|import|return|embed|catch|class|const|break|match|param|defer|throw|meti|else|prop|enum|func|with|raw|ain|for|try|var|met|in|if)\\b"
+          "match": "\\b(?:deferb_err|defer_err|deferb_ok|interface|defer_ok|continue|finally|deferb|global|import|export|return|catch|class|const|break|defer|match|param|embed|throw|meti|enum|prop|func|else|with|raw|for|ain|try|var|met|if|in)\\b"
         },
         {
           "name": "constant.language.gad",
@@ -82,7 +82,7 @@
       "patterns": [
         {
           "name": "keyword.operator.gad",
-          "match": "\\?\\?=?|\\.\\.|=\u003e|:=|\\|\\||\u0026\u0026|\\*\\*=?|\u003c\u003c\u003c?=?|\u003e\u003e\u003e?=?|\u0026\\^=?|%%=?|===?|!==?|[-+*/%\u0026|^!\u003c\u003e=]=?|[~?:]"
+          "match": "::|\\?\\?=?|\\.\\.|=\u003e|:=|\\|\\||\u0026\u0026|\\*\\*=?|\u003c\u003c\u003c?=?|\u003e\u003e\u003e?=?|\u0026\\^=?|%%=?|===?|!==?|[-+*/%\u0026|^!\u003c\u003e=]=?|[~?:]"
         }
       ]
     },

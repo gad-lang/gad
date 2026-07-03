@@ -17,6 +17,8 @@ const keywords = [
   "begin", "end", "code", "or", "is",
   // added by update plugin
   "ain", "met", "meti", "prop", "with",
+  // added by update plugin
+  "class", "enum", "interface",
 ];
 
 const atoms = ["true", "false", "yes", "no", "nil"];
@@ -109,7 +111,7 @@ export const gadGrammar: Grammar = {
     pattern: /[A-Za-z_$][\w$]*(?=\s*\()/,
   },
   number: /\b0[xX][0-9a-fA-F]+\b|\b\d+(?:\.\d+)?(?:[eE][-+]?\d+)?[uUdD]?\b|\B\.\d+\b/,
-  operator: /\?\?=?|\.\.|=>|:=|\|\||&&|\*\*=?|<<=?|>>=?|&\^=?|[-+*/%&|^!<>=]=?|[~?:]/,
+  operator: /::|\?\?=?|\.\.|=>|:=|\|\||&&|\*\*=?|<<=?|>>=?|&\^=?|[-+*/%&|^!<>=]=?|[~?:]/,
   punctuation: /[{}[\];(),.]/,
 };
 

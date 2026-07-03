@@ -12,6 +12,8 @@ export const keywords: string[] = [
   "or", "is",
   // added by update plugin
   "ain", "met", "meti", "prop", "with",
+  // added by update plugin
+  "class", "enum", "interface",
 ];
 
 export const atoms: string[] = ["true", "false", "yes", "no", "nil"];
