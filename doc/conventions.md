@@ -248,6 +248,23 @@ match n { 1: "a", 2: "b", 3: "c", else: "z" }
 Arms with non-primitive conditions (identifiers, expressions) keep their source
 order.
 
+### Assign-to-type operator (`::`)
+
+Write `::` **tightly**, with no spaces around it, and **without** redundant
+grouping parentheses — it is left-associative, so a chain reads `v::A::B`, not
+`(v::A)::B`:
+
+```gad
+x := v::int              // not `v :: int`
+y := v::A::B             // not `(v::A)::B`
+```
+
+Keep parentheses only where they change meaning: around a lower-precedence left
+operand (`(a + b)::int`, since `::` binds tighter than `+`) and around a `::`
+expression used as the base of a `.`/`[]`/`()`/slice, which bind tighter still
+(`(v::T).method()`, not `v::T.method()`). The formatter applies these rules
+automatically.
+
 ## Doc comments
 
 Doc comments document an identifier, declaration, or `func`/`met`/`meti`/`prop`
