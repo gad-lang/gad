@@ -60,10 +60,35 @@ func (o Int) Equal(right Object) bool {
 // IsFalsy implements Object interface.
 func (o Int) IsFalsy() bool { return o == 0 }
 
+// Small integers are boxed into the Object interface once and shared, so common
+// arithmetic (loop counters, indices, flags) does not heap-allocate a fresh box
+// each time. Int is an immutable value type and Go compares interface values by
+// (type, value), so sharing a box is transparent.
+const (
+	smallIntMin Int = -256
+	smallIntMax Int = 1024
+)
+
+var smallInts [smallIntMax - smallIntMin + 1]Object
+
+func init() {
+	for i := range smallInts {
+		smallInts[i] = smallIntMin + Int(i)
+	}
+}
+
+// intObject returns v as an Object, reusing a shared box for small values.
+func intObject(v Int) Object {
+	if v >= smallIntMin && v <= smallIntMax {
+		return smallInts[v-smallIntMin]
+	}
+	return v
+}
+
 func (o Int) BinOpAdd(vm *VM, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Int:
-		return o + v, nil
+		return intObject(o + v), nil
 	case Uint:
 		return Uint(o).BinOpAdd(vm, right)
 	case Float:
@@ -81,7 +106,7 @@ func (o Int) BinOpAdd(vm *VM, right Object) (Object, error) {
 func (o Int) BinOpSub(vm *VM, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Int:
-		return o - v, nil
+		return intObject(o - v), nil
 	case Uint:
 		return Uint(o).BinOpSub(vm, right)
 	case Float:
@@ -99,7 +124,7 @@ func (o Int) BinOpSub(vm *VM, right Object) (Object, error) {
 func (o Int) BinOpMul(vm *VM, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Int:
-		return o * v, nil
+		return intObject(o * v), nil
 	case Uint:
 		return Uint(o).BinOpMul(vm, right)
 	case Float:
@@ -132,7 +157,7 @@ func (o Int) BinOpQuo(vm *VM, right Object) (Object, error) {
 		if v == 0 {
 			return nil, ErrZeroDivision
 		}
-		return o / v, nil
+		return intObject(o / v), nil
 	case Uint:
 		return Uint(o).BinOpQuo(vm, right)
 	case Float:
@@ -148,7 +173,7 @@ func (o Int) BinOpQuo(vm *VM, right Object) (Object, error) {
 func (o Int) BinOpRem(vm *VM, right Object) (Object, error) {
 	switch v := right.(type) {
 	case Int:
-		return o % v, nil
+		return intObject(o % v), nil
 	case Uint:
 		return Uint(o).BinOpRem(vm, right)
 	case Bool:

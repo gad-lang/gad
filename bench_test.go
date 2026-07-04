@@ -31,6 +31,23 @@ func BenchmarkVMFib(b *testing.B) {
 	}
 }
 
+// BenchmarkVMSmallInts measures a loop whose values stay small (the common case:
+// counters, indices, modulo), which the small-int box cache should keep alloc-free.
+func BenchmarkVMSmallInts(b *testing.B) {
+	bc := benchBytecode(b, `
+	acc := 0
+	for i := 0; i < 100000; i++ { acc = i % 100 - 50 }
+	return acc`)
+	builtins := NewBuiltins().Build()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := NewVM(builtins, bc).Run(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 // BenchmarkVMLoop measures a tight arithmetic loop (jumps, locals, binary ops).
 func BenchmarkVMLoop(b *testing.B) {
 	bc := benchBytecode(b, `
