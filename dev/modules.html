@@ -69,11 +69,44 @@ export greet(name) =&gt; hello + ", " + name</code></pre>
 <pre><code class="language-go">g := import("./greet.gad"; lang="br")
 println(g.hello)          // Olá
 println(g.greet("Gad"))   // Olá, Gad</code></pre>
+<h2 id="embedding-files-with-embed">Embedding files with <code>embed</code></h2>
+<p><code>embed("path")</code> pulls a file (or a whole directory) into the program <strong>at compile time</strong>. It evaluates to an <code>Embedded</code> value:</p>
+<pre><code class="language-go">f := embed("data/greeting.txt")
+f.name        // "data/greeting.txt" — the reference name
+f.path        // the resolved path
+f.size        // byte count
+f.data        // the file contents, as bytes
+str(f.data)   // "Hello!"
+f.isDir       // false</code></pre>
+<p>Paths resolve against the running script's directory (the CLI wires this up; a Go host configures it via an embed importer — see <a href="embedding.html">Embedding in Go</a>). <code>sources=[…]</code> lists directories to look the name up in, so the reference need not spell out the full path:</p>
+<pre><code class="language-go">embed("greeting.txt"; sources=["data"])   // finds data/greeting.txt</code></pre>
+<h3 id="directories-indexing-iteration-and-walking">Directories: indexing, iteration and walking</h3>
+<p>Embedding a directory yields an <code>Embedded</code> whose entries are indexed by name, and whose <code>.fs</code> is iterable (<code>for name, entry in dir.fs</code>, or <code>iterator(dir.fs; sorted)</code> to order by name). Each entry is itself an <code>Embedded</code>; <code>.isDir</code> tells a sub-directory from a file:</p>
+<pre><code class="language-go">dir := embed("data")
+str(dir["greeting.txt"].data)             // index an entry by name
+
+for name, e in iterator(dir.fs; sorted) {
+    println(e.isDir ? "dir " : "file", name)
+}</code></pre>
+<p>Recurse on <code>.isDir</code> to walk the whole tree (bind the function name first so it can call itself):</p>
+<pre><code class="language-go">var walk
+walk = func(node, indent) {
+    for name, e in iterator(node.fs; sorted) {
+        if e.isDir {
+            println(indent + name + "/")
+            walk(e, indent + "  ")
+        } else {
+            println(indent + name + " (" + str(e.size) + " bytes)")
+        }
+    }
+}
+walk(embed("data"), "")</code></pre>
+<p>See [<code>samples/26_embed.gad</code>](../samples/26_embed.gad).</p>
 <h2 id="shared-state-via-globals">Shared State via globals</h2>
 <p>Modules can use <code>global</code> to reach the same host-provided globals object as the main script — a simple way to share mutable state across modules. See <a href="variables-and-scopes.html#global">Variables → global</a>. For goroutine-safe shared maps, the host can provide a <code>syncDict</code>.</p>
 <p>To configure which modules are importable from Go, see <a href="embedding.html">Embedding in Go</a>.</p>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#importing">Importing</a><a href="#exporting">Exporting</a><a href="#module-parameters">Module Parameters</a><a href="#shared-state-via-globals">Shared State via globals</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#importing">Importing</a><a href="#exporting">Exporting</a><a href="#module-parameters">Module Parameters</a><a href="#embedding-files-with-embed">Embedding files with embed</a><a href="#shared-state-via-globals">Shared State via globals</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

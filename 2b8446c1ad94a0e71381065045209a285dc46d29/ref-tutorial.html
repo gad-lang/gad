@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gad Tutorial · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link active" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="gad-tutorial">Gad Tutorial</h1>
+<p>Gad is another script language for Go applications to make Go more dynamic with scripts. Gad is inspired by script language <a href="https://github.com/d5/tengo">Tengo</a> by Daniel Kang.</p>
+<p>Gad source code is compiled to bytecode and run in a Virtual Machine (VM). Compiled bytecode can be serialized/deserialized for wire to remove compilation step before execution for remote processes, and deserialization will solve version differences to a certain degree.</p>
+<p>Main script and Gad source modules in Gad are all functions which have <code>compiledFunction</code> type name. Parameters can be defined for main function with [<code>param</code>](#param) statement and main function returns a value with <code>return</code> statement as well. If return statement is missing, <code>nil</code> value is returned by default. All functions return single value but thanks to <a href="destructuring.html">destructuring</a> feature Gad allows to return multiple values as an array and set returning array elements to multiple variables.</p>
+<p>Gad relies on Go's garbage collector and there is no allocation limit for objects like Tengo. To run scripts which are not safe must be run in a sandboxed environment which is the only way for Go applications. Note: Builtin objects can be disabled before compilation.</p>
+<p>Gad can handle runtime errors and Go panic with <code>try-catch-finally</code> statements which is similar to Ecmascript implementation with a few minor differences. Although Go developers are not fan of <code>try-catch-finally</code>, they are well known statements to work with.</p>
+<p>Gad does not use reflect package during execution and avoids unsafe function calls. Gad objects most of the time escape to heap inevitably because they are of interface types but it is minimized.</p>
+<p>Gad is developed to be an embedded script language for Go applications, and importing source modules from files will not be added in near future but one can implement a custom module to return file content to the compiler.</p>
+<p>Gad currently has a simple optimizer for constant folding and evaluating expressions which do not have side effects. Optimizer greedily evaluates expressions having only literals (int, uint, char, float, bool, string). Optimizer can be disabled with compiler options.</p>
+<h2 id="run-scripts">Run Scripts</h2>
+<p>To run a script, it must be compiled to create a <code>Bytecode</code> object then it is provided to Virtual Machine (VM). Gad has a simple optimizer enabled by default in the compiler. Optimizer evaluates simple expressions not having side effects to replace expressions with constant values. Note that, optimizer can be disabled to speed up compilation process.</p>
+<pre><code class="language-go">package main
+
+import (
+  "fmt"
+
+  "github.com/gad-lang/gad"
+)
+
+func main() {
+  script := `
+  param num
+
+  var fib
+  fib = func(n, a, b) {
+    if n == 0 {
+      return a
+    } else if n == 1 {
+      return b
+    }
+    return fib(n-1, b, a+b)
+    }
+  return fib(num, 0, 1)
+  `
+  bytecode, err := gad.Compile([]byte(script), gad.DefaultCompilerOptions)
+
+  if err != nil {
+    panic(err)
+  }
+
+  retValue, err := gad.NewVM(bytecode).Run(nil,  gad.Int(35))
+
+  if err != nil {
+    panic(err)
+  }
+
+  fmt.Println(retValue) // 9227465
+}</code></pre>
+<p>Script above is pretty self explanatory, which calculates the fibonacci number of given number.</p>
+<p>Compiler options hold all customizable options for the compiler. <code>TraceCompilerOptions</code> is used to trace parse-optimize-compile steps for debugging and testing purposes like below;</p>
+<pre><code class="language-go">bytecode, err := gad.Compile([]byte(script), gad.TraceCompilerOptions)
+// or change output and disable tracing parser
+// opts := gad.TraceCompilerOptions
+// opts.Trace = os.Stderr
+// opts.TraceParser = false
+// bytecode, err := gad.Compile([]byte(script), opts)</code></pre>
+<p>VM execution can be aborted by using <code>Abort</code> method which cause <code>Run</code> method to return an error wrapping <code>ErrVMAborted</code> error. <code>Abort</code> must be called from a different goroutine and it is safe to call multiple times.</p>
+<p>Errors returned from <code>Run</code> method can be checked for specific error values with Go's <code>errors.Is</code> function in <code>errors</code> package.</p>
+<p><code>VM</code> instances are reusable. <code>Clear</code> method of <code>VM</code> clears all references held and ensures stack and module cache is cleaned.</p>
+<pre><code class="language-go">vm := gad.NewVM(bytecode)
+retValue, err := vm.Run(nil,  gad.Int(35))
+/* ... */
+// vm.Clear()
+retValue, err := vm.Run(nil,  gad.Int(34))
+/* ... */</code></pre>
+<p>Global variables can be provided to VM which are declared with [<code>global</code>](#global) keyword. Globals are accessible to source modules as well. Map like objects should be used to get/set global variables as below.</p>
+<pre><code class="language-go">script := `
+param num
+global upperBound
+return num &gt; upperBound ? "big" : "small"
+`
+bytecode, err := gad.Compile([]byte(script), gad.DefaultCompilerOptions)
+
+if err != nil {
+  panic(err)
+}
+
+g := gad.Map{"upperBound": gad.Int(1984)}
+retValue, err := gad.NewVM(bytecode).Run(g,  gad.Int(2018))
+// retValue == gad.String("big")</code></pre>
+<p>There is a special type <code>SyncMap</code> in Gad to make goroutine safe map object where scripts/Go might need to interact with each other concurrently, e.g. one can collect statistics or data within maps. Underlying map of <code>SyncMap</code> is guarded with a <code>sync.RWMutex</code>.</p>
+<pre><code class="language-go">module := `
+global stats
+
+exports = {
+  inc() {
+    stats.fn2++
+    /* ... */
+  }
+}
+`
+script := `
+global stats
+
+fn1 := func() {
+  stats.fn1++
+  /* ... */
+}
+
+fn1()
+
+m := import("module")
+m.inc()
+`
+mm := gad.NewModuleMap()
+mm.AddSourceModule("module", []byte(module))
+
+opts := gad.DefaultCompilerOptions
+opts.ModuleMap = mm
+
+bytecode, err := gad.Compile([]byte(script), opts)
+
+if err != nil {
+  panic(err)
+}
+
+g := &amp;gad.SyncMap{
+    Map: gad.Map{"stats": gad.Map{"fn1": gad.Int(0), "fn2": gad.Int(0)}},
+}
+_, err = gad.NewVM(bytecode).Run(g)
+/* ... */</code></pre>
+<p>As can be seen from examples above, VM's <code>Run</code> method takes arguments and its signature is as below. A map like <code>globals</code> argument or <code>nil</code> value can be provided for globals parameter. <code>args</code> variadic parameter enables providing arbitrary number of arguments to VM which are accessed via [<code>param</code>](#param) statement.</p>
+<pre><code class="language-go">func (vm *VM) Run(globals Object, args ...Object) (Object, error)</code></pre>
+<h2 id="variables-declaration-and-scopes">Variables Declaration and Scopes</h2>
+<p>Valid identifier examples:</p>
+<pre><code class="language-go">var (_, _a, $_a, a, A, $b, $, a1, $1, $b1, $$, ŝ, $ŝ)</code></pre>
+<h3 id="param">param</h3>
+<p><code>param</code> keyword is used to declare a parameter for main function (main script). Parenthesis is required for multiple declarations. Last argument can also be variadic. Unlike <code>var</code> keyword, initializing value is illegal. Variadic argument initialized as an empty array <code>[]</code>, and others are initialized as <code>nil</code> if not provided. <code>param</code> keyword can be used only once in main function.</p>
+<pre><code class="language-go">param (arg0, arg1, *vargs)
+
+// named args
+param (;x,y=1,z={}, **vnargs)
+
+// mixed
+param (arg0, arg1, *vargs; x, y=1, z={}, **vnargs)</code></pre>
+<pre><code class="language-go">param foo
+param bar    // illegal, multiple param keyword is not allowed</code></pre>
+<pre><code class="language-go">if condition  {
+  param arg    // illegal, not allowed in this scope
+}
+
+func(){
+    param (a, b)    // illegal, not allowed in this scope
+}</code></pre>
+<h3 id="global">global</h3>
+<p><code>global</code> keyword is to declare global variables. Note that <code>var</code> statements or short variable declaration <code>:=</code> always creates local variables not global. Parenthesis is required for multiple declarations. Unlike <code>var</code>, initializing value is illegal. <code>global</code> statements can appear multiple times in the scripts. <code>global</code> gives access to indexable <code>globals</code> argument with a variable name provided to Virtual Machine (VM).</p>
+<p>If <code>nil</code> is passed to VM as globals, a temporary <code>map</code> assigned to globals.</p>
+<p>Any assignment to a global variable creates or updates the globals element.</p>
+<p>Note that global variables can be accessed by imported source modules which enables to export objects to scripts like <code>extern</code> in C.</p>
+<pre><code class="language-go">global foo
+global (bar, baz)</code></pre>
+<pre><code class="language-go">// "globals" builtin function returns "globals" provided to VM.
+g := globals()
+v := g["foo"]    // same as `global foo; v := foo`</code></pre>
+<pre><code class="language-go">if condition {
+  global x     // illegal, not allowed in this scope
+}
+
+func() {
+  global y     // illegal, not allowed in this scope
+}</code></pre>
+<h3 id="var">var</h3>
+<p><code>var</code> keyword is used to declare a local variable. Parenthesis is required for multiple declaration. Note: Tuple assignment is not supported with var statements.</p>
+<pre><code class="language-go">var foo               // foo == nil
+var (bar, baz = 1)    // bar == nil, baz == 1
+var (bar,
+     baz = 1)         // valid
+var (
+    foo = 1
+    bar
+    baz = "baz"
+)                     // valid</code></pre>
+<p>A value can be assigned to a variable using short variable declaration <code>:=</code> and assignment <code>=</code> operators.</p>
+<ul>
+<li><code>:=</code> operator defines a new variable in the scope and assigns a value.</li>
+<li><code>=</code> operator assigns a new value to an existing variable in the scope.</li>
+</ul>
+<pre><code class="language-go">                 // function scope A
+a := "foo"       // define 'a' in local scope
+
+func() {         // function scope B
+  b := 52        // define 'b' in function scope B
+  
+  func() {       // function scope C
+    c := 19.84   // define 'c' in function scope C
+
+    a = "bee"    // ok: assign new value to 'a' from function scope A
+    b = 20       // ok: assign new value to 'b' from function scope B
+
+    b := true    // ok: define new 'b' in function scope C
+                 //     (shadowing 'b' from function scope B)
+  }
+  
+  a = "bar"      // ok: assign new value to 'a' from function scope A
+  b = 10         // ok: assign new value to 'b'
+  a := -100      // ok: define new 'a' in function scope B
+                 //     (shadowing 'a' from function scope A)
+  
+  c = -9.1       // illegal: 'c' is not defined
+  var b = [1, 2] // illegal: 'b' is already defined in the same scope
+}
+
+b = 25           // illegal: 'b' is not defined
+var a = {d: 2}   // illegal: 'a' is already defined in the same scope</code></pre>
+<p>Following is illegal because variable is not defined when function is created. In assignment statements right hand side is compiled before left hand side.</p>
+<pre><code class="language-go">f := func() {
+  f()    // illegal: unresolved symbol "f"
+}</code></pre>
+<pre><code class="language-go">var f
+f = func() {
+  f()    // ok: "f" is declared before assignment.
+}</code></pre>
+<p>Unlike Go, a variable can be assigned a value of different types.</p>
+<pre><code class="language-go">a := 123        // assigned    'int'
+a = "123"       // reassigned 'string'
+a = [1, 2, 3]   // reassigned 'array'</code></pre>
+<p>Capturing loop variables returns the last value of the variable set after last post statement of the for loop, like Go.</p>
+<pre><code class="language-go">var f
+
+for i := 0; i &lt; 3; i++ {
+  f = func(){
+    return i
+  }  
+}
+
+println(f())  // 3</code></pre>
+<p>Like Go, to capture the variable define a new variable using same name or different.</p>
+<pre><code class="language-go">var f
+
+for i := 0; i &lt; 3; i++ {
+  i := i
+  f = func(){
+    return i
+  }  
+}
+
+println(f())  // 2</code></pre>
+<h3 id="const">const</h3>
+<p><code>const</code> keyword is used to declare a local constant variable. Parenthesis is required for multiple declaration. Note: Tuple assignment is not supported. The value of a constant can't be changed through reassignment. Reassignment is checked during compilation and an error is thrown. An initializer for a constant is required while declaring. The const declaration creates a read-only reference to a value. It does not mean the value it holds is immutable.</p>
+<pre><code class="language-go">const (
+  a = 1
+  b = {foo: "bar"}
+)
+
+const c       // illegal, no initializer
+
+a = 2         // illegal, reassignment
+b.foo = "baz" // legal</code></pre>
+<p><code>iota</code> is supported as well.</p>
+<pre><code class="language-go">const (
+  x = iota
+  y
+  z
+)
+println(x, y, z) // 0 1 2</code></pre>
+<pre><code class="language-go">const (
+  x = 1&lt;&lt;iota
+  y
+  z
+)
+println(x, y, z) // 1 2 4</code></pre>
+<pre><code class="language-go">const (
+  _ = 1&lt;&lt;iota
+  x
+  y
+  z
+)
+println(x, y, z) // 2 4 8</code></pre>
+<pre><code class="language-go">const (
+  x = 1+iota
+  _
+  z
+)
+println(x, z) // 1 3</code></pre>
+<pre><code class="language-go">const (
+  x = func() { return iota }() // illegal, compile error
+)</code></pre>
+<pre><code class="language-go">const (
+  iota = 1 // illegal, compile error
+)</code></pre>
+<p>RHS of the assignment can be any expression so <code>iota</code> can be used with them as well.</p>
+<pre><code class="language-go">const (
+  x = [iota]
+  y
+)
+println(x) // [0]
+println(y) // [1]</code></pre>
+<pre><code class="language-go">const (
+  _ = iota
+  x = "string" + iota
+  y
+)
+println(x) // string1
+println(y) // string2</code></pre>
+<p><strong>Warning:</strong> if a variable named <code>iota</code> is created before <code>const</code> assignments, <code>iota</code> is not used for enumeration and it is treated as normal variable.</p>
+<pre><code class="language-go">iota := "foo"
+
+const (
+  x = iota
+  y
+)
+println(x) // foo
+println(y) // foo</code></pre>
+<h2 id="values-and-value-types">Values and Value Types</h2>
+<p>In Gad, everything is a value, and, all values are associated with a type.</p>
+<pre><code class="language-go">19 + 84                 // int values
+1u + 5u                 // uint values
+"a"                     // str value "a"
+"foo" + `bar`           // str values "foobar"
+`foo`                   // rawStr value "foo"
+`foo` + "bar"           // rawStr value "foobar"
+raw "foo"               // rawStr value "foo"
+raw "foo" + "bar"       // rawStr value "foobar"
+raw 1                   // rawStr value "1"
+-9.22 + 1e10            // float values
+2d                      // decimal values
+dur 1h30m               // duration value (Go duration string)
+2026-01-31D             // calendarDate value (YYYY-MM-DD)
+2026-01-31T             // time value at 00:00:00 UTC
+2026-01-31t             // calendarTime value (zone-less, nanosecond)
+1781609136U             // time value from unix seconds
+true || false           // bool values
+yes || no               // flag values
+'ç' &gt; '9'               // char values
+[1, false, "foo"]       // array value
+{a: 12.34, "b": "bar"}  // dict value
+(;a=1, b=2, a=2)        // keyValueArray value
+[a=1]                   // keyValue value
+func() { /*...*/ }      // function value
+() =&gt; 1                 // closure value</code></pre>
+<p>Here's a list of all available value types in Gad. See <a href="runtime-types.html">runtime types</a> for more information.</p>
+<table>
+<thead><tr><th>Gad Type</th><th>Description</th><th>Equivalent Type in Go</th></tr></thead>
+<tbody>
+<tr><td>int</td><td>signed 64-bit integer value</td><td><code>int64</code></td></tr>
+<tr><td>uint</td><td>unsigned 64-bit integer value</td><td><code>uint64</code></td></tr>
+<tr><td>float</td><td>64-bit floating point value</td><td><code>float64</code></td></tr>
+</tbody>
+</table>
+<p>| decimal          | decimal value                      | https://github.com/shopspring/decimal  | bool             | boolean value                      | <code>bool</code>                | | char             | unicode character                  | <code>rune</code>                | | string           | unicode string                     | <code>string</code>              | | bytes            | byte array                         | <code>[]byte</code>              | | error            | <a href="#error-values">error</a> value       | -                     | | array            | value array                        | <code>[]Object</code>            | | dict             | value dict with string keys        | <code>map[string]Object</code>   | | nil              | <a href="#nil-values">nil</a> value           | -                     | | compiledFunction | <a href="#function-values">function</a> value | -                     | | duration         | time span                          | <code>time.Duration</code>       | | calendarDate     | calendar date (YYYYMMDD)           | <code>uint</code>                | | calendarTime     | zone-less wall clock (nanoseconds) | <code>uint64</code>              | | time             | instant with location              | <code>time.Time</code>           |</p>
+<h3 id="date-and-time-values">Date and Time Values</h3>
+<p>The <code>time</code> builtin module provides value types for dates and times, each with a literal form and a string constructor:</p>
+<table>
+<thead><tr><th>Literal</th><th>Type</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>dur 1h30m</code></td><td><code>duration</code></td><td>a Go duration string</td></tr>
+<tr><td><code>2026-01-31D</code></td><td><code>calendarDate</code></td><td>a calendar date (also <code>20260131D</code>)</td></tr>
+<tr><td><code>2026-01-31T</code></td><td><code>time</code></td><td>that date at <code>00:00:00</code> UTC</td></tr>
+<tr><td><code>2026-01-31t</code></td><td><code>calendarTime</code></td><td>zone-less wall clock (nanosecond)</td></tr>
+<tr><td><code>1781609136U</code></td><td><code>time</code></td><td>unix seconds (optional <code>.fraction</code>)</td></tr>
+</tbody>
+</table>
+<p>A digit-suffix literal must be glued to the number (a space breaks it), so <code>2026 - 1</code> is still subtraction and <code>0xABCD</code> is still a hex int. Date/time literals carry a calendar date only; time-of-day comes from the string parsers:</p>
+<pre><code class="language-go">time.strToTime("2026-01-31T23:59:55Z")      // RFC3339 -&gt; time
+time.strToTime("2026-01-31 23:59:55")       // UTC (no zone)
+time.strToCalendarTime("2026-01-31 23:59:55.001")  // zone-less calendarTime
+time.strToDate("2026-01-31")                // calendarDate
+time.strToDuration("1h30m")                 // duration
+time.strToLocation("-03:00")                // Location
+
+d := 2026-01-31D
+d.year(); d.month(); d.day()                // 2026, 1, 31
+
+t := 2026-01-31t
+t.hour(); t.minute(); t.second(); t.ns()    // accessors</code></pre>
+<h4 id="arithmetic">Arithmetic</h4>
+<p><code>duration</code> supports <code>+ - * / %</code> and unary <code>-</code>; dividing two durations yields a <code>float</code> ratio. A <code>time</code>, <code>calendarTime</code> or <code>calendarDate</code> plus/minus a <code>duration</code> shifts it, and subtracting two of the same kind yields a <code>duration</code>. A <code>calendarDate ± duration</code> stays a <code>calendarDate</code> when the result lands on midnight, otherwise it becomes a <code>calendarTime</code>:</p>
+<pre><code class="language-go">dur 1h + dur 30m            // 1h30m0s
+dur 1h / dur 30m            // 2.0   (ratio)
+-(dur 1h)                   // -1h0m0s
+
+2026-01-31T + dur 90m       // 2026-01-31 01:30:00 UTC
+2026-02-01t - 2026-01-31t   // 24h0m0s  (a duration)
+2025-01-01D + dur 24h       // 2025-01-02   (still a calendarDate)
+2025-01-01D + dur 1s        // 2025-01-01 00:00:01  (now a calendarTime)</code></pre>
+<h4 id="truncating-and-rounding">Truncating and rounding</h4>
+<p><code>.trunc(unit)</code> lower-truncates a value to the start of a unit and <code>.round(unit)</code> rounds it to the nearest boundary (a tie rounds up). The unit is a char/string: the calendar units <code>'y'</code>, <code>'M'</code>, <code>'w'</code> (week, Monday), <code>'d'</code>, or the Go duration units <code>'h'</code>, <code>'m'</code>, <code>'s'</code>, <code>"ms"</code>, <code>"us"</code>, <code>"ns"</code>:</p>
+<pre><code class="language-go">t := time.strToTime("2026-08-17T14:37:52.123Z")
+t.trunc('M')                // 2026-08-01 00:00:00 UTC
+t.trunc('h')                // 2026-08-17 14:00:00 UTC
+t.trunc("ms")               // 2026-08-17 14:37:52.123 UTC
+t.round('h')                // 2026-08-17 15:00:00 UTC  (52m rounds up)
+t.round('d')                // 2026-08-18 00:00:00 UTC
+
+(2026-08-17D).trunc('M')    // 2026-08-01 (calendarDate)
+(dur 1h37m52s).trunc('m')   // 1h37m0s   ('y'/'M' are rejected for durations)
+(dur 1h37m52s).round('m')   // 1h38m0s</code></pre>
+<h3 id="error-values">Error Values</h3>
+<p>In Gad, an error can be represented using "error" typed values. An error value is created using <code>error</code> builtin function, and, it has an underlying message. The underlying message of an error can be accessed using <code>.Message</code> selector. Error has also a name which is accessed using <code>.Name</code>. Errors created with <code>error</code> builtin have default name <code>error</code> but builtin errors have different names like <code>NotIterableError</code>, <code>ZeroDivisionError</code>.</p>
+<p>First argument passed to <code>error</code> builtin function is converted to string as message.</p>
+<pre><code class="language-go">err1 := error("oops")
+err2 := error(1+2+3)         // equivalent to err2 := error("6")
+if isError(err1) {           // 'isError' is a builtin function
+  name := err1.Name          // get underlying name
+  message := err1.Message    // get underlying message
+}  </code></pre>
+<h4 id="builtin-errors">Builtin Errors</h4>
+<p>Builtin errors do not have message but have name. With <code>.New(message)</code> function call on an error value creates a new error by wrapping the error.</p>
+<p>Note: See <a href="error-handling.html">error handling</a> for more information about errors.</p>
+<ul>
+<li>WrongNumArgumentsError</li>
+<li>InvalidOperatorError</li>
+<li>IndexOutOfBoundsError</li>
+<li>NotIterableError</li>
+<li>NotIndexableError</li>
+<li>NotIndexAssignableError</li>
+<li>NotCallableError</li>
+<li>NotImplementedError</li>
+<li>ZeroDivisionError</li>
+<li>TypeError</li>
+</ul>
+<h3 id="nil-values">Nil Values</h3>
+<p>In Gad, an <code>nil</code> value can be used to represent an unexpected or non-existing value:</p>
+<ul>
+<li>A function that does not return a value explicitly considered to return</li>
+</ul>
+<p><code>nil</code> value.</p>
+<ul>
+<li>Indexer or selector on composite value types may return <code>nil</code> if the</li>
+</ul>
+<p>key or index does not exist.  </p>
+<ul>
+<li>Builtin functions may return <code>nil</code>.</li>
+</ul>
+<pre><code class="language-go">a := func() { b := 4 }()    // a == nil
+c := {a: "foo"}["b"]        // c == nil
+d := sort(nil)        // d == nil
+e := delete({}, "foo")      // "delete" always returns nil</code></pre>
+<p>Builtin function <code>isNil</code> or <code>==</code> operator can be used to check value is nil.</p>
+<h3 id="array-values">Array Values</h3>
+<p>In Gad, array is an ordered list of values of any types. Elements of an array can be accessed using indexer <code>[]</code>.</p>
+<pre><code class="language-go">[1, 2, 3][0]       // == 1
+[1, 2, 3][2]       // == 3
+[1, 2, 3][3]       // RuntimeError: IndexOutOfBoundsError
+
+i := 2
+[1, 2, 3][i]       // == 3
+[1, 2, 3][i-1]       // == 2
+
+["foo", 'x', [1, 2, 3], {bar: 2u}, true, nil, bytes()]   // ok</code></pre>
+<h3 id="dict-values">Dict Values</h3>
+<p>In Gad, dict is a set of key-value pairs where key is string and the value is of any value types. Value of a map can be accessed using indexer <code>[]</code> or selector '.' operators. Items sep is new line or comma.</p>
+<pre><code class="language-go">m := { a: 1, "b": false, c: "foo" }
+m["b"]                                // == false
+m.c                                   // == "foo"
+m.x                                   // == nil
+m?.x.y.z                              // == nil
+m.x?.y.z                              // == nil
+
+m.x = {y:{z: 1}}
+m.x?.y.z                              // == 1
+
+key := "x"
+m[key]?.y.z                          // == 1
+
+
+{} // new block scope, not dict
+
+({a: [1, 2, 3], b: {c: "foo", d: "bar"}}) // inset paren, ok
+
+({x})
+
+// nested dict
+({
+	x {
+        y {
+			z: 1
+        }		
+    }
+}) // is similar to: {x:{y:{z:1}}}
+
+({
+	a: 1
+	
+	// closure
+	b(): 2 // similar to c
+	c: () =&gt; 2
+	
+	// func
+	d() { i++ } // similar to e
+	e: func() { i++ }
+})</code></pre>
+<h3 id="function-values">Function Values</h3>
+<p>In Gad, function is a callable value with a number of function arguments and a return value. Just like any other values, functions can be passed into or returned from another function.</p>
+<pre><code class="language-go">sum := func(arg1, arg2) {
+  return arg1 + arg2
+}
+
+var mul = func(arg1, arg2) {
+  return arg1 * arg2
+}
+
+adder := func(base) {
+  return func(x) { return base + x }  // capturing 'base'
+}
+add5 := adder(5)
+nine := add5(4)    // == 9
+
+f1 := () =&gt; 1 // closure, similar to f2 func:
+func f2() { return 1 }</code></pre>
+<p>Unlike Go, Gad does not have function declarations. All functions are anonymous functions. So the following code is illegal:</p>
+<pre><code class="language-go">func foo(arg1, arg2) {  // illegal
+  return arg1 + arg2
+}</code></pre>
+<p>Gad also supports variadic functions:</p>
+<pre><code class="language-go">variadic := func (a, b, *c) {
+  return [a, b, c]
+}
+variadic(1, 2, 3, 4) // [1, 2, [3, 4]]
+
+variadicClosure := func(a) {
+  return func(b, *c) {
+    return [a, b, c]
+  }
+}
+variadicClosure(1)(2, 3, 4) // [1, 2, [3, 4]]</code></pre>
+<p>Only the last parameter can be variadic. The following code is illegal:</p>
+<pre><code class="language-go">// illegal, because "a" is variadic and is not the last parameter
+illegal := func(*a, b) {}</code></pre>
+<p>When calling a function, the number of passing arguments must match that of function definition.</p>
+<pre><code class="language-go">f := func(a, b) {}
+f(1, 2, 3)    // RuntimeError: WrongNumArgumentsError</code></pre>
+<p>You can use <code>*</code> to pass value of array type as its last parameter:</p>
+<pre><code class="language-go">f1 := func(a, b, c) { return a + b + c }
+f1(*[1, 2, 3])    // =&gt; 6
+f1(1, *[2, 3])    // =&gt; 6
+f1(1, 2, *[3])    // =&gt; 6
+f1(*[1, 2])       // RuntimeError: WrongNumArgumentsError
+
+f2 := func(a, *b) {}
+f2(1)               // valid; a == 1, b == []
+f2(1, 2)            // valid; a == 1, b == [2]
+f2(1, 2, 3)         // valid; a == 1, b == [2, 3]
+f2(*[1, 2, 3])    // valid; a == 1, b == [2, 3]</code></pre>
+<p>Return value note:</p>
+<pre><code class="language-go">f1 := func(x) {
+	return = x // only for var
+	1+2
+	return 2 // this result ignore
+}
+f1(1)    // =&gt; 1
+f1(10)    // =&gt; 10
+
+
+f2 := func(x) {
+  return = x // only for var
+  x++
+}
+f2(1)    // =&gt; 2
+f2(10)    // =&gt; 11</code></pre>
+<h2 id="type-conversions">Type Conversions</h2>
+<p>Although the type is not directly specified in Gad, one can use type conversion <a href="builtins.html">builtin functions</a> to convert between value types and see <a href="runtime-types.html">conversion/coersion table</a> for more information.</p>
+<pre><code class="language-go">s1 := string(1984)    // "1984"
+i2 := int("-999")     // -999
+f3 := float(-51)      // -51.0
+b4 := bool(1)         // true
+c5 := char("X")       // 'X'
+d6 := decimal(1)      // 1d
+f3 := flag("a")       // yes
+f4 := flag("")        // no</code></pre>
+<p>See <a href="operators.html">Operators</a> for more details on type conversions/coercions as well.</p>
+<h2 id="order-of-evaluation">Order of evaluation</h2>
+<p>Expressions are evaluated from left to right but in assignments, right hand side of the assignment is evaluated before left hand side.</p>
+<pre><code class="language-go">a := 1
+f := func() {
+  a*=10
+  return a
+}
+g := func() {
+  a++
+  return a
+}
+h := func() {
+  a+=2
+  return a
+}
+d := {}
+d[f()] = [g(), h()]
+return d    // d == {"40": [2, 4]}</code></pre>
+<h2 id="operators">Operators</h2>
+<h3 id="unary-operators">Unary Operators</h3>
+<table>
+<thead><tr><th>Operator</th><th>Operation</th><th>Types(Results)</th></tr></thead>
+<tbody>
+<tr><td><code>+</code></td><td><code>0 + x</code></td><td>int(int), uint(uint), char(char), float(float), bool(int)</td></tr>
+<tr><td><code>-</code></td><td><code>0 - x</code></td><td>int(int), uint(uint), char(int), float(float), bool(int)</td></tr>
+<tr><td><code>^</code></td><td>bitwise complement <code>^x</code></td><td>int(int), uint(uint), char(char), bool(int)</td></tr>
+<tr><td><code>!</code></td><td>logical NOT</td><td>all types*</td></tr>
+</tbody>
+</table>
+<p><em>* In Gad, all values can be either <a href="runtime-types.html#objectisfalsy">truthy or falsy</a>.</em></p>
+<h3 id="binary-operators">Binary Operators</h3>
+<table>
+<thead><tr><th>Operator</th><th>Usage</th></tr></thead>
+<tbody>
+<tr><td><code>==</code></td><td>equal</td></tr>
+<tr><td><code>!=</code></td><td>not equal</td></tr>
+<tr><td><code>&amp;&amp;</code></td><td>logical AND</td></tr>
+<tr><td>`\</td><td>\</td><td>`</td><td>logical OR</td></tr>
+<tr><td><code>+</code></td><td>add/concat</td></tr>
+<tr><td><code>-</code></td><td>subtract</td></tr>
+<tr><td><code>*</code></td><td>multiply</td></tr>
+<tr><td><code>**</code></td><td>pow</td></tr>
+<tr><td><code>/</code></td><td>divide</td></tr>
+<tr><td><code>&amp;</code></td><td>bitwise AND</td></tr>
+<tr><td>`\</td><td>`</td><td>bitwise OR</td></tr>
+<tr><td><code>^</code></td><td>bitwise XOR</td></tr>
+<tr><td><code>&amp;^</code></td><td>bitclear (AND NOT)</td></tr>
+<tr><td><code>&lt;&lt;</code></td><td>shift left</td></tr>
+<tr><td><code>&gt;&gt;</code></td><td>shift right</td></tr>
+<tr><td><code>&lt;</code></td><td>less than</td></tr>
+<tr><td><code>&lt;=</code></td><td>less than or equal to</td></tr>
+<tr><td><code>&gt;</code></td><td>greater than</td></tr>
+<tr><td><code>&gt;=</code></td><td>greater than or equal to</td></tr>
+</tbody>
+</table>
+<p><em>See <a href="operators.html">Operators</a> for more details.</em></p>
+<h3 id="ternary-operators">Ternary Operators</h3>
+<p>Gad has a ternary conditional operator <code>(condition expression) ? (true expression) : (false expression)</code>.</p>
+<pre><code class="language-go">a := true ? 1 : -1    // a == 1
+
+min := func(a, b) {
+  return a &lt; b ? a : b
+}
+b := min(5, 10)      // b == 5</code></pre>
+<h3 id="assignment-and-increment-operators">Assignment and Increment Operators</h3>
+<table>
+<thead><tr><th>Operator</th><th>Usage</th></tr></thead>
+<tbody>
+<tr><td><code>+=</code></td><td><code>(lhs) = (lhs) + (rhs)</code></td></tr>
+<tr><td><code>-=</code></td><td><code>(lhs) = (lhs) - (rhs)</code></td></tr>
+<tr><td><code>*=</code></td><td><code>(lhs) = (lhs) * (rhs)</code></td></tr>
+<tr><td><code>**=</code></td><td><code>(lhs) = (lhs) ** (rhs)</code></td></tr>
+<tr><td><code>/=</code></td><td><code>(lhs) = (lhs) / (rhs)</code></td></tr>
+<tr><td><code>%=</code></td><td><code>(lhs) = (lhs) % (rhs)</code></td></tr>
+<tr><td><code>&amp;=</code></td><td><code>(lhs) = (lhs) &amp; (rhs)</code></td></tr>
+<tr><td>`\</td><td>=`</td><td>`(lhs) = (lhs) \</td><td>(rhs)`</td></tr>
+<tr><td><code>&amp;^=</code></td><td><code>(lhs) = (lhs) &amp;^ (rhs)</code></td></tr>
+<tr><td><code>^=</code></td><td><code>(lhs) = (lhs) ^ (rhs)</code></td></tr>
+<tr><td><code>&lt;&lt;=</code></td><td><code>(lhs) = (lhs) &lt;&lt; (rhs)</code></td></tr>
+<tr><td><code>&gt;&gt;=</code></td><td><code>(lhs) = (lhs) &gt;&gt; (rhs)</code></td></tr>
+<tr><td><code>++</code></td><td><code>(lhs) = (lhs) + 1</code></td></tr>
+<tr><td><code>--</code></td><td><code>(lhs) = (lhs) - 1</code></td></tr>
+</tbody>
+</table>
+<h3 id="operator-precedences">Operator Precedences</h3>
+<p>Unary operators have the highest precedence, and, ternary operator has the lowest precedence. There are five precedence levels for binary operators. Multiplication operators bind strongest, followed by addition operators, comparison operators, <code>&amp;&amp;</code> (logical AND), and finally <code>||</code> (logical OR):</p>
+<table>
+<thead><tr><th>Precedence</th><th>Operator</th></tr></thead>
+<tbody>
+<tr><td>5</td><td><code>*</code> <code>**</code>  <code>/</code>  <code>%</code>  <code>&lt;&lt;</code>  <code>&gt;&gt;</code>  <code>&amp;</code>  <code>&amp;^</code></td></tr>
+<tr><td>4</td><td><code>+</code>  <code>-</code>  `\</td><td><code>  </code>^`</td></tr>
+<tr><td>3</td><td><code>==</code>  <code>!=</code>  <code>&lt;</code>  <code>&lt;=</code>  <code>&gt;</code>  <code>&gt;=</code></td></tr>
+<tr><td>2</td><td><code>&amp;&amp;</code></td></tr>
+<tr><td>1</td><td>`\</td><td>\</td><td>`</td></tr>
+</tbody>
+</table>
+<p>Like Go, <code>++</code> and <code>--</code> operators form statements, not expressions, they fall outside the operator hierarchy.</p>
+<h3 id="selector-and-indexer">Selector and Indexer</h3>
+<p>One can use selector (<code>.</code>) and indexer (<code>[]</code>) operators to read or write elements of composite types (array, map, string, bytes).</p>
+<pre><code class="language-go">["one", "two", "three"][1]  // == "two"
+
+bytes(0, 1, 2, 3)[1]    // == 1
+
+// Like Go, indexing string returns byte value of index as int value.
+"foobarbaz"[4]    // == 97
+
+m := {
+  a: 1,
+  b: [2, 3, 4],
+  c: func() { return 10 }
+}
+m.a              // == 1
+m["b"][1]        // == 3
+m.c()            // == 10
+m.x.y.z          // == nil
+m.x.y.z = 1      // RuntimeError: NotIndexAssignableError
+m.x = 5          // add 'x' to map 'm'</code></pre>
+<p>Like Go, one can use slice operator <code>[:]</code> for sequence value types such as array, string, bytes. Negative indexes are illegal.</p>
+<pre><code class="language-go">a := [1, 2, 3, 4, 5][1:3]    // == [2, 3]
+b := [1, 2, 3, 4, 5][3:]     // == [4, 5]
+c := [1, 2, 3, 4, 5][:3]     // == [1, 2, 3]
+d := "hello world"[2:10]     // == "llo worl"
+e := [1, 2, 3, 4, 5][:]      // == [1, 2, 3, 4, 5]
+f := [1, 2, 3, 4, 5][-1:]    // RuntimeError: InvalidIndexError
+g := [1, 2, 3, 4, 5][10:]    // RuntimeError: IndexOutOfBoundsError</code></pre>
+<p><strong>Note: Keywords cannot be used as selectors.</strong></p>
+<pre><code class="language-go">a := {}
+a.func = ""     // Parse Error: expected selector, found 'func'</code></pre>
+<p>Use double quotes and indexer to use keywords with maps.</p>
+<pre><code class="language-go">a := {}
+a["func"] = ""</code></pre>
+<h2 id="statements">Statements</h2>
+<h3 id="if-statement">If Statement</h3>
+<p>"If" statement is very similar to Go.</p>
+<pre><code class="language-go">if a &lt; 0 {
+  // execute if 'a' is negative
+} else if a == 0 {
+  // execute if 'a' is zero
+} else {
+  // execute if 'a' is positive
+}</code></pre>
+<p>Like Go, the condition expression may be preceded by a simple statement, which executes before the expression is evaluated.</p>
+<pre><code class="language-go">if a := foo(); a &lt; 0 {
+  // execute if 'a' is negative
+}</code></pre>
+<h3 id="for-statement">For Statement</h3>
+<p>"For" statement is very similar to Go.</p>
+<pre><code class="language-go">// for (init); (condition); (post) {}
+for a:=0; a&lt;10; a++ {
+  // ...
+}
+
+// for (condition) {}
+for a &lt; 10 {
+  // ...
+}
+
+// for {}
+for {
+  // ...
+}</code></pre>
+<h3 id="for-in-statement">For-In Statement</h3>
+<p>It's similar to Go's <code>for range</code> statement. "For-In" statement can iterate any iterable value types (array, map, bytes, string).  </p>
+<pre><code class="language-go">for v in [1, 2, 3] {          // array: element
+  // 'v' is array element value
+}
+for i, v in [1, 2, 3] {       // array: index and element
+  // 'i' is index
+  // 'v' is array element value
+}
+for k, v in {k1: 1, k2: 2} {  // map: key and value
+  // 'k' is key
+  // 'v' is map element value
+}
+for i, v in "foo" {           // array: index and element
+  // 'i' is index
+  // 'v' is char
+}</code></pre>
+<h2 id="modules">Modules</h2>
+<p>Module is the basic compilation unit in Gad. A module can import another module using <code>import</code> expression. There 3 types of modules. Source modules, builtin modules and custom modules. Source module is in the form Gad code. Builtin module type is <code>map[string]Object</code>. Lastly, any value implementing Go <code>Importable</code> interface can be a module. <code>Import</code> method must return a valid Gad Object or <code>[]byte</code>. Source module is called like a compiled function and returned dict is stored for future use. Other module values are copied while importing in VM if <code>Copier</code> interface is implemented.</p>
+<pre><code class="language-go">type Importable interface {
+  Import(moduleName string) (any, error)
+}</code></pre>
+<pre><code class="language-go">type Copier interface {
+  Copy() Object
+}</code></pre>
+<p>Main module:</p>
+<pre><code class="language-go">math := import("math")    // load a module
+println(math.sum(10))     // module function</code></pre>
+<p>Source module as <code>math</code>:</p>
+<pre><code class="language-go">base := 5
+
+exports.sum = func(x) {
+  return x + base
+}</code></pre>
+<p>exporting multiple values:</p>
+<pre><code class="language-go">base := 5
+
+exports = { // dict expression
+	a: 1
+	
+	sum(x) {
+        return x + base
+    }
+	
+	dec() {
+		// ...
+    }
+}</code></pre>
+<p>In Gad, modules are very similar to functions.</p>
+<ul>
+<li><code>import</code> expression loads the module code and execute it like a function.</li>
+<li>Module should return expose dict.</li>
+<ul>
+<li>Module can return a value of any types: int, map, function, etc.</li>
+</ul>
+<li>importing same module multiple times at different places or in different</li>
+</ul>
+<p>  modules returns the same object so it preserves the state of imported object.</p>
+<ul>
+<li>Arguments cannot be provided to source modules while importing although it is</li>
+</ul>
+<p>  allowed to use <code>param</code> statement in module.</p>
+<ul>
+<li>Modules can use <code>global</code> statements to access globally shared object.</li>
+</ul>
+<h3 id="modules-with-params">Modules with params:</h3>
+<p>The parameters are only interpreted on the first import. They have no effect on other imports.</p>
+<pre><code class="language-go">// file: translations.gad
+
+param (;lang="en")
+
+const byLang = {
+    en {
+        hello: "Hello!"		
+    }
+    
+    br {
+        hello: "Seja bem vindo!"
+    }
+}
+
+const messages = byLang[lang]
+
+exports.all = byLang
+exports.messages = messages
+exports.t = (key;default) = messages[key] ?? (default ?? ("&lt;"+key+"&gt;"))</code></pre>
+<h4 id="default">Default</h4>
+<p>Main program:</p>
+<pre><code class="language-go">const t = import("translations")
+print(t.messages.hello) // Hello!
+print(t.t("hello")) // Hello!
+print(t.t("xy")) // &lt;xy&gt;
+print(t.t("xy";default="XY!")) // XY!
+
+// After the first import, the module is loaded from memory, therefore the parameters 
+// do not generate changes, since they are interpreted in the first import.
+const t2 = import("translations")
+print(t2.messages.hello) // Hello! </code></pre>
+<h4 id="custom">Custom</h4>
+<p>Main program:</p>
+<pre><code class="language-go">const t1 = import("translations") 
+print(t1.messages.hello; lang="br") // Seja bem vindo!
+
+// loaded from memory 
+const t2 = import("translations")
+print(t2.messages.hello) // Seja bem vindo!
+
+// loaded from memory 
+const t3 = import("translations"; lang="en")
+print(t3.messages.hello) // Seja bem vindo!</code></pre>
+<h2 id="comments">Comments</h2>
+<p>Like Go, Gad supports line comments (<code>//...</code>) and block comments (<code>/* ... */</code>).</p>
+<pre><code class="language-go">/*
+  multi-line block comments
+*/
+
+a := 5    // line comments</code></pre>
+<h2 id="differences-from-go">Differences from Go</h2>
+<p>Unlike Go, Gad does not have the following:</p>
+<ul>
+<li>Imaginary values</li>
+<li>Structs</li>
+<li>Pointers</li>
+<li>Channels</li>
+<li>Goroutines</li>
+<li>Tuple assignment (Gad supports <a href="destructuring.html">destructuring</a> array)</li>
+<li>Switch statement</li>
+<li>Goto statement</li>
+<li>Defer statement</li>
+<li>Panic and recover</li>
+<li>Type assertion</li>
+</ul>
+<h2 id="interfaces">Interfaces</h2>
+<p>Gad types implement <code>Object</code> interface. Any Go type implementing <code>Object</code> interface can be provided to Gad VM.</p>
+<h3 id="object-interface">Object interface</h3>
+<pre><code class="language-go">
+// Object represents an object in the VM.
+type Object interface {
+  // TypeName should return the name of the type.
+  TypeName() string
+
+  // String should return a string of the type's value.
+  String() string
+
+  // Binary operators are NOT part of Object: a type opts into each operator it
+  // supports by implementing the matching per-operator interface from the
+  // generated op_api.go, e.g.
+  //   type ObjectWithAddBinOperator interface { BinOpAdd(vm *VM, right Object) (Object, error) }
+  //   type ObjectWithLessBinOperator interface { BinOpLess(vm *VM, right Object) (Object, error) }
+  // (membership `a in b` is ObjectWithInBinOperator.BinOpIn on the right
+  // operand). A returned error stops VM execution unless handled. Use
+  // gad.BinaryOp(vm, tok, left, right) to run an operator generically.
+
+  // IsFalsy returns true if value is falsy otherwise false.
+  IsFalsy() bool
+
+  // Equal checks equality of objects.
+  Equal(right Object) bool
+
+  // Iterate should return an Iterator for the type.
+  Iterate() Iterator
+
+  // CanIterate should return whether the Object can be Iterated.
+  CanIterate() bool
+
+  // IndexGet should take an index Object and return a result Object or an
+  // error for indexable objects. Indexable is an object that can take an
+  // index and return an object. Returned error stops VM execution if not
+  // handled with an error handler and VM.Run returns the same error as
+  // wrapped. If Object is not indexable, ErrNotIndexable should be returned
+  // as error.
+  IndexGet(index Object) (value Object, err error)
+
+  // IndexSet should take an index Object and a value Object for index
+  // assignable objects. Index assignable is an object that can take an index
+  // and a value on the left-hand side of the assignment statement. If Object
+  // is not index assignable, ErrNotIndexAssignable should be returned as
+  // error. Returned error stops VM execution if not handled with an error
+  // handler and VM.Run returns the same error as wrapped.
+  IndexSet(index, value Object) error
+}</code></pre>
+<h3 id="iterator-interface">Iterator interface</h3>
+<p>If an object's <code>CanIterate</code> method returns <code>true</code>, its <code>Iterate</code> method must return a value implementing <code>Iterator</code> interface to use in <code>for-in</code> loops.</p>
+<pre><code class="language-go">// Iterator wraps the methods required to iterate Objects in VM.
+type Iterator interface {
+  // Next returns true if there are more elements to iterate.
+  Next() bool
+
+  // Key returns the key or index value of the current element.
+  Key() Object
+
+  // Value returns the value of the current element.
+  Value() Object
+}</code></pre>
+<h3 id="copier-interface">Copier interface</h3>
+<p>Assignments to Gad values copy the values except array, map or bytes like Go. <code>copy</code> builtin function returns the copy of a value if Copier interface is implemented by object. If not implemented, same object is returned which copies the value under the hood by Go.</p>
+<pre><code class="language-go">// Copier wraps the Copy method to create a copy of an object.
+type Copier interface {
+  Copy() Object
+}</code></pre>
+<pre><code class="language-go">// DeepCopier wraps the Copy method to create a deep copy of an object.
+type DeepCopier interface {
+  DeepCopy() Object
+}</code></pre>
+<h3 id="indexdeleter-interface">IndexDeleter interface</h3>
+<p><code>delete</code> builtin checks if the given object implements <code>IndexDeleter</code> interface to delete an element from the object. <code>map</code> and <code>syncMap</code> implement this interface.</p>
+<pre><code class="language-go">// IndexDeleter wraps the IndexDelete method to delete an index of an object.
+type IndexDeleter interface {
+    IndexDelete(Object) error
+}</code></pre>
+<h3 id="lengthgetter-interface">LengthGetter interface</h3>
+<p><code>len</code> builtin checks if the given object implements <code>IndexDeleter</code> interface to get the length of an object. <code>array</code>, <code>bytes</code>, <code>string</code>, <code>map</code> and <code>syncMap</code> implement this interface.</p>
+<pre><code class="language-go">// LengthGetter wraps the Len method to get the number of elements of an object.
+type LengthGetter interface {
+    Len() int
+}</code></pre>
+<h3 id="object-interface-extensions">Object Interface Extensions</h3>
+<p>Note that <code>ExCallerObject</code> will replace the existing Object interface in the future.</p>
+<pre><code class="language-go">// ExCallerObject is an interface for objects that can be called with CallEx
+// method. It is an extended version of the Call method that can be used to
+// call an object with a Call struct. Objects implementing this interface is
+// called with CallEx method instead of Call method.
+// Note that CanCall() should return true for objects implementing this
+// interface.
+type ExCallerObject interface {
+    Object
+    CallEx(c Call) (Object, error)
+}
+
+// NameCallerObject is an interface for objects that can be called with CallName
+// method to call a method of an object. Objects implementing this interface can
+// reduce allocations by not creating a callable object for each method call.
+type NameCallerObject interface {
+    Object
+    CallName(name string, c Call) (Object, error)
+}</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#run-scripts">Run Scripts</a><a href="#variables-declaration-and-scopes">Variables Declaration and Scopes</a><a href="#values-and-value-types">Values and Value Types</a><a href="#type-conversions">Type Conversions</a><a href="#order-of-evaluation">Order of evaluation</a><a href="#operators">Operators</a><a href="#statements">Statements</a><a href="#modules">Modules</a><a href="#comments">Comments</a><a href="#differences-from-go">Differences from Go</a><a href="#interfaces">Interfaces</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
