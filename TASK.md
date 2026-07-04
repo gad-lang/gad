@@ -158,17 +158,23 @@
       Typed-param validation still correct (accept + reject with the right
       "expected int, found str" message). go build/test ./..., go vet, and full
       `-race ./...` (incl. stdlib which uses Set) all clean.
-      REMAINING (all high-risk / low-value; the safe scope is now exhausted):
-      - hasOpMethods + HasCallerMethods (~15% of operator-heavy loops):
-        HasCallerMethods walks the operator's method tree (MethodArgType.IsZero
-        -> Walk) live on every op. Caching the bool was investigated and rejected
-        as UNSAFE for an unsupervised change: methods are added through several
-        paths that would each have to invalidate the cache (FuncSpec.AddMethod/
-        AddMethodByTypes AND direct s.Methods.Add e.g. objects_prop.go:157, plus
-        the CallerMethods() *MethodArgType escape hatch), and the operator
-        builtins are shared across VMs (concurrency). A stale cache would
-        silently mis-dispatch an operator. Needs a design decision on invalidation
-        strategy before attempting.
+      Twelfth pass done (CPU): HasCallerMethods walked the operator's method tree
+      (MethodArgType.IsZero -> Walk) live on every op (~15% of operator-heavy
+      loops). Rather than cache a bool on FuncSpec (which the earlier note
+      rejected — too many mutation paths to invalidate), maintained a monotonic
+      `hasMethod` flag ON THE TREE: MethodArgType.Add sets it on success, and Add
+      is the single funnel every method-add path uses (FuncSpec.AddMethod/
+      AddMethodByTypes, direct s.Methods.Add incl. the prop path, class methods).
+      Add is always called on the FuncSpec.Methods root, and Copy is a
+      value-receiver so it preserves the flag; methods are never removed so the
+      flag never over-reports. FuncSpec.HasCallerMethods now returns the flag
+      (O(1), no walk). Fib ~26.5->24.9ms (~6%), Loop ~12.4->11.8ms (~5%). New
+      TestMethodArgTypeHasMethod locks in hasMethod == !IsZero() across adds /
+      deep types / Copy / duplicate-error / default-method; operator overloading
+      verified end-to-end (fast path 2+3=5; met gad.binOpMul -> p*3="ababab";
+      met gad.selfAssignOpAdd -> x+=y="a-b"). go build/test ./..., go vet, and
+      full -race ./... all clean.
+      REMAINING (all high-risk / low-value; safe scope exhausted):
       - pooling the last two per-loop iterator objects (concrete iterator +
         StateIteratorObject) — needs a loop-end release point and must not pool
         user-visible iterator(...) values.

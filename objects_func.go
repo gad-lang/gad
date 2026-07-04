@@ -114,7 +114,10 @@ func (s FuncSpec) CopyWithTarget(target FuncWrapper) *FuncSpec {
 }
 
 func (s *FuncSpec) HasCallerMethods() bool {
-	return !s.Methods.IsZero()
+	// hasMethod is maintained by MethodArgType.Add; it is equivalent to
+	// !s.Methods.IsZero() but O(1) (no tree walk) on the hot operator-dispatch
+	// path. Methods are never removed, so the flag never over-reports.
+	return s.Methods.hasMethod
 }
 
 func (s *FuncSpec) AddMethodByTypes(_ *VM, argTypes ParamsTypes, handler CallerObject, override bool, onAdd func(tcm *TypedCallerMethod) error) error {

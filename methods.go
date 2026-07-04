@@ -385,6 +385,12 @@ type MethodArgType struct {
 	Var     bool
 	Next    Methods
 	NextVar Methods
+	// hasMethod records that at least one method has been added to this tree
+	// (set only by Add, which is always called on the FuncSpec.Methods root, and
+	// preserved by the value-receiver Copy). It lets FuncSpec.HasCallerMethods
+	// answer in O(1) instead of walking the tree on every operator dispatch.
+	// Methods are never removed, so it is monotonic.
+	hasMethod bool
 }
 
 func (at *MethodArgType) Parents() (parents []*MethodArgType) {
@@ -460,6 +466,13 @@ func (at *MethodArgType) WalkSorted(cb func(m *TypedCallerMethod) any) (v any) {
 }
 
 func (at *MethodArgType) Add(types ParamsTypes, m *CallerMethod, override bool, onAdd func(tcm *TypedCallerMethod) error) (err error) {
+	// On success the tree contains a method; mark the root (Add is always called
+	// on the FuncSpec.Methods root) so HasCallerMethods is O(1).
+	defer func() {
+		if err == nil {
+			at.hasMethod = true
+		}
+	}()
 	if len(types) == 0 {
 		return at.add(nil, m, override, onAdd)
 	}

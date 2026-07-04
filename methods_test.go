@@ -20,6 +20,42 @@ func TestMethodArgs(t *testing.T) {
 	assert.Nil(t, args.GetMethod([]ObjectType{}))
 }
 
+// TestMethodArgTypeHasMethod locks in the invariant that the hasMethod flag
+// (maintained by Add and read by FuncSpec.HasCallerMethods) stays equivalent to
+// !IsZero() — a stale flag would silently mis-dispatch operators.
+func TestMethodArgTypeHasMethod(t *testing.T) {
+	co := &Function{FuncName: "op"}
+	var args MethodArgType
+
+	// empty tree
+	require.False(t, args.hasMethod)
+	require.Equal(t, !args.IsZero(), args.hasMethod)
+
+	// first add flips both
+	require.NoError(t, args.Add(ParamsTypes{ObjectTypes{TInt}}, NewCallerMethod(nil, co), false, nil))
+	require.True(t, args.hasMethod)
+	require.Equal(t, !args.IsZero(), args.hasMethod)
+
+	// a deeper typed add stays consistent
+	require.NoError(t, args.Add(ParamsTypes{ObjectTypes{TStr}, ObjectTypes{TInt}}, NewCallerMethod(nil, co), false, nil))
+	require.Equal(t, !args.IsZero(), args.hasMethod)
+
+	// the value-receiver Copy preserves the flag
+	cp := args.Copy()
+	require.True(t, cp.hasMethod)
+	require.Equal(t, !cp.IsZero(), cp.hasMethod)
+
+	// a failed (duplicate, no override) add must not clear it
+	require.Error(t, args.Add(ParamsTypes{ObjectTypes{TInt}}, NewCallerMethod(nil, co), false, nil))
+	require.True(t, args.hasMethod)
+
+	// no-types (default) method sets it too, on a fresh tree
+	var d MethodArgType
+	require.NoError(t, d.Add(nil, NewCallerMethod(nil, co), false, nil))
+	require.True(t, d.hasMethod)
+	require.Equal(t, !d.IsZero(), d.hasMethod)
+}
+
 func TestMethodArgsMixed(t *testing.T) {
 	f1 := NewFunction("f1", func(c Call) (_ Object, err error) { return }, FunctionWithParams(func(p func(name string) *ParamBuilder) {
 		p("args").Var()
