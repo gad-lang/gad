@@ -106,7 +106,7 @@ type callerMethoded interface{ HasCallerMethods() bool }
 // Without one, operators dispatch natively (binOpObject / selfAssignOpObject)
 // instead of allocating an Args + Call and walking the method-dispatch tree.
 func (vm *VM) hasOpMethods(bt BuiltinType) bool {
-	m, _ := vm.Builtins.Get(bt).(callerMethoded)
+	m := vm.Builtins.OpMethoded(bt)
 	return m != nil && m.HasCallerMethods()
 }
 

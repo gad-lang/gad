@@ -126,6 +126,21 @@
       iterators still use them). `go build/test ./...` and -race clean;
       KeyValueArray (a=1,b=2,c=3), reversed values ([3,2,1]) and Args (0->10…)
       iteration verified.
+      Tenth pass done (CPU, not allocs): a CPU profile of Fib/DictAccess showed
+      vm.hasOpMethods at ~35% of runtime — it called vm.Builtins.Get(bt) (a map
+      lookup, aeshashbody/mapaccess1) on EVERY binary/self-assign op to test for
+      user operator overloads. Precomputed the operator builtins as a
+      callerMethoded slice indexed by BuiltinType (StaticBuiltins.opMethoded,
+      built once in Build over GroupBuiltinBinaryOperatorsBegin..UnaryOperators-
+      End); hasOpMethods now does an array index instead of a map hash and still
+      calls HasCallerMethods() live. Safe: operator builtins are
+      *BuiltinFunctionWithMethods, which AddMethod mutates in place (MethodAdder
+      case), so the cached reference stays valid when a `met gad.…Op` overload is
+      added at runtime — verified by TestCoreNamespace / TestVMBinaryIncDec
+      (met gad.binOpMul / selfAssignOpAdd / binOpInc). Fib ~48->39ms (~19%),
+      DictAccess ~13.3->9.65ms (~27%); profile confirms hasOpMethods 35%->9% cum
+      and the map hash off the hot path. `go build/test ./...`, `go vet ./...`,
+      -race all clean.
       REMAINING (all high-risk / low-value): pooling the last two per-loop
       objects (the concrete iterator + StateIteratorObject — needs a loop-end
       release point and must not pool user-visible iterator(...) values), and

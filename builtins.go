@@ -377,6 +377,35 @@ var BuiltinsMap = map[string]BuiltinType{
 
 type StaticBuiltins struct {
 	builtins *Builtins
+	// opMethoded caches the operator builtins as callerMethoded, indexed by
+	// BuiltinType, so the binary/self-assign operator fast path avoids a map
+	// lookup on every operation. Built once (immutable after Build); operator
+	// builtins are *BuiltinFunctionWithMethods, which AddMethod mutates in place,
+	// so a cached reference stays valid while HasCallerMethods() reads live state.
+	opMethoded []callerMethoded
+}
+
+// buildOpMethoded precomputes the operator-builtin callerMethoded slice.
+func (b *StaticBuiltins) buildOpMethoded() {
+	b.opMethoded = make([]callerMethoded, int(GroupBuiltinUnaryOperatorsEnd)+1)
+	for bt := GroupBuiltinBinaryOperatorsBegin; bt <= GroupBuiltinUnaryOperatorsEnd; bt++ {
+		if m, ok := b.builtins.Get(bt).(callerMethoded); ok {
+			b.opMethoded[bt] = m
+		}
+	}
+}
+
+// OpMethoded returns operator builtin bt as a callerMethoded (or nil) via the
+// precomputed slice, falling back to a map lookup if the cache is absent.
+func (b *StaticBuiltins) OpMethoded(bt BuiltinType) callerMethoded {
+	if b.opMethoded != nil {
+		if int(bt) < len(b.opMethoded) {
+			return b.opMethoded[bt]
+		}
+		return nil
+	}
+	m, _ := b.builtins.Get(bt).(callerMethoded)
+	return m
 }
 
 func (b *StaticBuiltins) Builtins() *Builtins {
@@ -494,6 +523,7 @@ func (b *Builtins) Build() (s *StaticBuiltins) {
 		s.builtins.NameSet[k] = v
 	}
 	s.builtins.last = b.last
+	s.buildOpMethoded()
 	return s
 }
 
