@@ -111,4 +111,27 @@
       as keyValueArray keys are now the strings "true"/"false"/"nil" (updated
       TestParseKeyValueArray). Tests: TestParseKeywordKeys + cases in
       TestParseKeyValueArray. Docs: collections.md "Keyword keys". go test ./... ok.
-- [~] replace class/interface extends syntaxe from `extends { A, m.B }` to `class { *A, *m.B, ... x = 1 ... }` (using `*Expr`). update samples, tests and docs.
+- [x] replace class/interface extends syntaxe from `extends { A, m.B }` to `class { *A, *m.B, ... x = 1 ... }` (using `*Expr`). update samples, tests and docs.
+      DONE. The `extends {}` block is gone; parents are now `*Parent` spread body
+      items (classes keep the optional `: Alias`, so `*Base`, `*m.B`, `*A: Alias`;
+      interfaces have no alias). AST unchanged (ClassExpr.Parents /
+      InterfaceExpr.Parents still populated), so the compiler lowering to the
+      builder `define(; extends=[…])` is untouched — the `extends=` named arg is
+      the runtime API and stays.
+      Parser (parser/class.go, parser/interface.go): parseClassBodyItem /
+      parseInterfaceBodyItem recognise a leading token.Mul and parse one parent
+      (ParsePrimaryExpr, then optional `: Alias` for classes); dropped
+      parseClassExtendsBlock / parseInterfaceExtendsBlock and the four
+      `Literal != "extends"` name guards (extends is a plain ident again).
+      Formatter (parser/node/class.go, interface.go): parents render as one
+      `*Parent` item each, ExtendsDoc on the first; removed writeClassParents.
+      Evidence: `go build ./...`, `go vet ./parser/... .`, `go test ./...` all
+      clean (updated TestParseClass `*A, *B: B2` and TestParseInterface
+      `*A, *mod.B`); built binary runs samples 11/19/24/25, a scratch
+      `interface {*Base …}` + `class {*Animal: A …}` parses/runs/round-trips, fmt
+      idempotent on 24_interfaces.gad. Updated samples 19/24/25, tests
+      parser_test.go + new_test.go, docs classes.md/method-interfaces.md/
+      samples/README.md. (Builder-API `extends=[…]` in 11_classes.gad and
+      classes.md kept — that's the lowered form, not the sugar.)
+- [ ] create parser for test and bench stmts `test NAME { ... }` (`t` var is available). examples: `test xIs1 { x:=1; t.equal(x, 1) }`,  `test "x Is 2" { x:=2; t.equal(x, 1) }`. bech like test `bench fib { ... }`,  `bench "the fib" { ... }`.
+    the test and bench Stmts allow doc comment. create samples, docs and tests.

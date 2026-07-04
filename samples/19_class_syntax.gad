@@ -94,9 +94,7 @@ class Animal {
 
 /// Dog inherits Animal and overrides speak().
 class Dog {
-    extends {
-        Animal
-    }
+    *Animal
     methods {
         /// dogs bark
         speak() => this.name + " barks"

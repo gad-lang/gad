@@ -104,7 +104,7 @@ form binds a const; the expression form is a value.
 
 ```go
 interface Shape {
-    extends { Base }        // parent interfaces (no alias), like a class
+    *Base                   // parent interface (spread; no alias), like a class
 
     id int                  // typed field; a bare field defaults to `any`
     label str

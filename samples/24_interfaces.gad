@@ -4,7 +4,7 @@ typed fields, get/set/prop accessors and required methods. It compiles to an
 `Interface` value whose members are read by indexing.
 ***/
 
-// A parent interface used by `extends` below.
+// A parent interface, spread into `Shape` with `*Base` below.
 interface Base { get kind }
 
 // The statement form binds a const. A bare field entry is typed (`id int`); an
@@ -12,7 +12,7 @@ interface Base { get kind }
 // method is `name(params) <return>`, and its block form `name { (…), … }`
 // groups several overload signatures (like `meti`, without the keyword).
 interface Shape {
-	extends { Base }
+	*Base
 
 	id int
 	label str

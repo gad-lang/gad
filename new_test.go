@@ -825,7 +825,7 @@ func TestVMClassSyntax(t *testing.T) {
 		speak() => this.name + " makes a sound"
 		describe() => "I am " + this.name
 	} }
-	class Dog { extends { Animal }; methods { speak() => this.name + " barks" } }
+	class Dog { *Animal; methods { speak() => this.name + " barks" } }
 	d := Dog(; name="Rex")
 	return [d.speak(), d.describe(), d.name]`,
 		nil, Array{Str("Rex barks"), Str("I am Rex"), Str("Rex")})

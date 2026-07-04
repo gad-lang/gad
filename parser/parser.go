@@ -4056,7 +4056,7 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 	case token.Class:
 		classTok := p.ExpectToken(token.Class)
 		var name node.Expr
-		if p.Token.Token == token.Ident && p.Token.Literal != "extends" {
+		if p.Token.Token == token.Ident {
 			name = p.ParseIdent()
 		}
 		stmt.ValueExpr = p.parseClassBody(classTok, name)
@@ -4070,7 +4070,7 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 	case token.Interface:
 		ifaceTok := p.ExpectToken(token.Interface)
 		var name node.Expr
-		if p.Token.Token == token.Ident && p.Token.Literal != "extends" {
+		if p.Token.Token == token.Ident {
 			name = p.ParseIdent()
 		}
 		stmt.ValueExpr = p.parseInterfaceBody(ifaceTok, name)

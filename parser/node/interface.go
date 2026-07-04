@@ -68,7 +68,7 @@ func (e *InterfaceMemberExpr) WriteCode(ctx *CodeWriteContext) {
 // InterfaceExpr is an interface literal describing a structural contract:
 //
 //	interface [Name] {
-//	  extends { Parent, … }
+//	  *Parent, …                  // parent interfaces (spread)
 //	  field, field Type          // typed fields
 //	  get g, set s, prop p        // accessors
 //	  method(params) <return>     // required methods (func-header shape)
@@ -77,7 +77,7 @@ func (e *InterfaceMemberExpr) WriteCode(ctx *CodeWriteContext) {
 type InterfaceExpr struct {
 	InterfaceToken TokenLit
 	NameExpr       Expr   // *IdentExpr or nil (anonymous)
-	Parents        []Expr // extends { … } — no alias
+	Parents        []Expr // *Parent spreads — no alias
 	ExtendsDoc     *ast.CommentGroup
 	Members        []*InterfaceMemberExpr // fields, getters, setters, props (source order)
 	Methods        []*InterfaceMethodExpr // required methods (one or more signatures each)
@@ -162,16 +162,12 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 	}
 	ctx.WriteString(" {")
 	ctx.Depth++
-	if len(e.Parents) > 0 {
-		ctx.WriteLeadDoc(e.ExtendsDoc)
-		ctx.WriteString("extends {")
-		for i, p := range e.Parents {
-			if i > 0 {
-				ctx.WriteString(", ")
-			}
-			ctx.WriteString(p.String())
+	for i, p := range e.Parents {
+		if i == 0 {
+			ctx.WriteLeadDoc(e.ExtendsDoc)
 		}
-		ctx.WriteString("}")
+		ctx.WriteString("*")
+		ctx.WriteString(p.String())
 		ctx.WriteSemi()
 	}
 	for _, m := range e.Members {

@@ -5,9 +5,9 @@ import (
 	"github.com/gad-lang/gad/parser/source"
 )
 
-// ClassParentExpr is one parent in a class `extends { … }` block: a parent type
-// expression (an IdentExpr or SelectorExpr) with an optional alias written after
-// a colon (`Base: B`).
+// ClassParentExpr is one parent class, written as a `*Parent` spread body item:
+// a parent type expression (an IdentExpr or SelectorExpr) with an optional alias
+// written after a colon (`*Base: B`).
 type ClassParentExpr struct {
 	Type  Expr
 	Alias *IdentExpr // optional; nil when written without `: alias`
@@ -123,10 +123,11 @@ func (e *ClassMemberExpr) WriteCode(ctx *CodeWriteContext) {
 
 // ClassExpr is a class literal:
 //
-//	class [Name] { extends {P, …}, fields, props {…}, new …, methods {…} }
+//	class [Name] { *P, …, fields, props {…}, new …, methods {…} }
 //
-// The `extends { … }` block (parents, optionally aliased as `Parent: Alias`) is a
-// body item like `props`/`new`/`methods`. It lowers (in the compiler) to a
+// Parent classes are `*Parent` spread body items (optionally aliased as
+// `*Parent: Alias`), alongside fields and the `props`/`new`/`methods` groups.
+// It lowers (in the compiler) to a
 //
 //	Class(name; define=(Type, define) => define(; extends=…, fields=…,
 //	    properties=…, methods=…, new=…))
@@ -174,15 +175,17 @@ func (e *ClassExpr) WriteCode(ctx *CodeWriteContext) {
 	}
 	ctx.WriteString(" {")
 
-	// Body items in canonical order: the `extends` block, fields, then the
-	// `props`, `new` and `methods` groups. Each group is itself a brace block.
+	// Body items in canonical order: the parent spreads (`*Parent`), fields,
+	// then the `props`, `new` and `methods` groups. Each group is a brace block.
 	var items []func()
-	if len(e.Parents) > 0 {
+	for i, parent := range e.Parents {
+		i, parent := i, parent
 		items = append(items, func() {
-			ctx.WriteLeadDoc(e.ExtendsDoc)
-			ctx.WriteString("extends {")
-			writeClassParents(ctx, e.Parents)
-			ctx.WriteString("}")
+			if i == 0 {
+				ctx.WriteLeadDoc(e.ExtendsDoc)
+			}
+			ctx.WriteString("*")
+			parent.WriteCode(ctx)
 		})
 	}
 	for _, f := range e.Fields {
@@ -230,12 +233,6 @@ func writeBraceItems(ctx *CodeWriteContext, count int, do func(i int)) {
 	if count > 0 && ctx.HasPrefix() {
 		ctx.WritePrefix()
 	}
-}
-
-// writeClassParents emits the entries of the `extends {}` block, one parent per
-// indented line when formatting with a prefix.
-func writeClassParents(ctx *CodeWriteContext, parents []*ClassParentExpr) {
-	writeBraceItems(ctx, len(parents), func(i int) { parents[i].WriteCode(ctx) })
 }
 
 // writeClassMembers emits the entries of a `props {}` / `methods {}` block.

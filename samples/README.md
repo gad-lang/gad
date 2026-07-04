@@ -50,7 +50,7 @@ layout settings are stored in [`.gad.yaml`](.gad.yaml).
 | `21_heredocs.gad`             | heredocs `"""…"""` / `` ```…``` `` and template heredocs |
 | `22_key_value_array.gad`      | `keyValue` / `keyValueArray` (`(;…)`): flags, funcs, typed keys |
 | `23_template.gadt`            | `.gadt` template mode: `{% %}`/`{%= %}` tags, trim markers |
-| `24_interfaces.gad`           | `interface { … }`: typed fields, get/set/prop, methods, `extends`, structural satisfaction (`::`) |
+| `24_interfaces.gad`           | `interface { … }`: typed fields, get/set/prop, methods, `*Parent` spreads, structural satisfaction (`::`) |
 | `25_method_resolution.gad`    | dispatch rules: arity, specificity, subtypes, fallback, unions, variadics, `met`/override, structural `met<…>` params |
 | `26_embed.gad`                | `embed(...)`: embed a file/directory at compile time (`.name`, `.size`, `.data`, entries, `sources=`) |
 

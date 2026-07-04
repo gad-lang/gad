@@ -3155,13 +3155,13 @@ func TestParseClass(t *testing.T) {
 	test.New(t, "x := class { a; b = 1; methods { f() => a } }").
 		Code("x := class {a; b = 1; methods {f() => a}}")
 
-	// statement form with the `extends {}` block, fields (typed + default), props
+	// statement form with parent spreads (`*Base`), fields (typed + default), props
 	// (incl. the `name = expr` getter shortcut), a constructor and a method.
-	cls := `class Animal { extends { Base }; name str = "?"; legs = 4; props { kind = "animal" }; new { (n) => this(; name=n) }; methods { speak() => this.name } }`
+	cls := `class Animal { *Base; name str = "?"; legs = 4; props { kind = "animal" }; new { (n) => this(; name=n) }; methods { speak() => this.name } }`
 	test.New(t, cls).
-		Code(`class Animal {extends {Base}; name str = "?"; legs = 4; props {kind() => "animal"}; new {(n) => this(; name=n)}; methods {speak() => this.name}}`).
+		Code(`class Animal {*Base; name str = "?"; legs = 4; props {kind() => "animal"}; new {(n) => this(; name=n)}; methods {speak() => this.name}}`).
 		IndentedCode("class Animal {\n" +
-			"\textends {\n\t\tBase\n\t}\n" +
+			"\t*Base\n" +
 			"\tname str = \"?\"\n" +
 			"\tlegs = 4\n" +
 			"\tprops {\n\t\tkind() => \"animal\"\n\t}\n" +
@@ -3169,9 +3169,9 @@ func TestParseClass(t *testing.T) {
 			"\tmethods {\n\t\tspeak() => this.name\n\t}\n" +
 			"}")
 
-	// computed field default and multiple parents (comma-separated, with an alias).
-	test.New(t, "class C { extends { A, B: B2 }; id = (= 0) }").
-		Code("class C {extends {A; B: B2}; id = (= 0)}")
+	// computed field default and multiple parents (spread, with an alias).
+	test.New(t, "class C { *A, *B: B2; id = (= 0) }").
+		Code("class C {*A; *B: B2; id = (= 0)}")
 
 	// property accessor block (getter + setters).
 	test.New(t, "x := class { props { val { () => v\n(n) { v = n } } } }").
@@ -4255,10 +4255,10 @@ func TestParseInterface(t *testing.T) {
 	// getters, setters, props (get/set are contextual idents; prop is a keyword)
 	test.ExpectParseString(t, `x := interface P { get g; get n uint|int; set s; prop p }`,
 		`x := interface P {get g; get n uint | int; set s; prop p; }`)
-	// extends block (no alias) + methods (rendered without the <…> brackets;
+	// parent spreads (no alias) + methods (rendered without the <…> brackets;
 	// a bare positional entry is a type, so `(int|uint)` -> `(_ int|uint)`)
-	test.ExpectParseString(t, `x := interface { extends { A, mod.B }; run(); at(int|uint) <str> }`,
-		`x := interface {extends {A, mod.B}; run(); at(_ int|uint) <str>; }`)
+	test.ExpectParseString(t, `x := interface { *A, *mod.B; run(); at(int|uint) <str> }`,
+		`x := interface {*A; *mod.B; run(); at(_ int|uint) <str>; }`)
 	// `parse { … }` block of meti-style headers
 	test.ExpectParseString(t, `x := interface { parse { (str), (v int) <bool> } }`,
 		`x := interface {parse {(_ str); (v int) <bool>; }; }`)

@@ -11,7 +11,7 @@ The `class` keyword is the high-level way to write one; it lowers to the
 
 ## The `class` syntax
 
-A `class` block reads top to bottom: an optional `extends {}` block, bare
+A `class` block reads top to bottom: optional parent spreads (`*Parent`), bare
 fields, then `props {}`, `new` and `methods {}` groups. Items are separated by
 newlines or commas. The first parameter is inserted automatically — you do not
 write it: `this` for methods and property accessors, and `new` (the class
@@ -20,7 +20,7 @@ initiator) for constructors.
 ```go
 // statement form: `class Name { … }` defines a constant Name
 class Point {
-    extends { Base }         // parents go in an `extends { … }` block
+    *Base                    // a parent class, written as a `*Parent` spread
 
     x int = 0
     y int = 0

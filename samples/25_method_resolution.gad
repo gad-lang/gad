@@ -33,7 +33,7 @@ println("combine(\"a\",\"b\")=", combine("a", "b")) // str+str
 /// A subclass argument prefers the method typed for the subclass over the one
 /// typed for its parent.
 class Animal {}
-class Dog { extends { Animal } }
+class Dog { *Animal }
 
 func speak {
     (a Animal) => "some animal"

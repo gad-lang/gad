@@ -14,7 +14,7 @@ func (p *Parser) ParseInterfaceExpr() node.Expr {
 	doc := p.leadComment
 	tok := p.ExpectToken(token.Interface)
 	var name node.Expr
-	if p.Token.Token == token.Ident && p.Token.Literal != "extends" {
+	if p.Token.Token == token.Ident {
 		name = p.ParseIdent()
 	}
 	iface := p.parseInterfaceBody(tok, name)
@@ -35,7 +35,7 @@ func (p *Parser) ParseInterfaceStmt() node.Stmt {
 	tok := p.ExpectToken(token.Interface)
 
 	var name node.Expr
-	if p.Token.Token == token.Ident && p.Token.Literal != "extends" {
+	if p.Token.Token == token.Ident {
 		name = p.ParseIdent()
 	}
 
@@ -76,11 +76,24 @@ func (p *Parser) parseInterfaceBody(tok PToken, name node.Expr) *node.InterfaceE
 	return iface
 }
 
-// parseInterfaceBodyItem parses one interface body item: an `extends {}` /
-// `parse {}` block, a `get`/`set`/`prop` accessor, a method (`name(params)
+// parseInterfaceBodyItem parses one interface body item: a `*Parent` spread
+// (a parent interface), a `get`/`set`/`prop` accessor, a method (`name(params)
 // <return>`) or a typed field (`name [Type]`).
 func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 	doc := p.leadComment
+
+	// `*Parent` — a parent interface, written as a spread body item.
+	if p.Token.Token == token.Mul {
+		p.Next()
+		p.SkipSpace()
+		if typ := p.ParsePrimaryExpr(); typ != nil {
+			if iface.ExtendsDoc == nil {
+				iface.ExtendsDoc = doc
+			}
+			iface.Parents = append(iface.Parents, typ)
+		}
+		return
+	}
 
 	// `prop name [Type]` — prop is a reserved keyword.
 	if p.Token.Token == token.Prop {
@@ -95,13 +108,6 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 
 	if p.Token.Token == token.Ident {
 		switch p.Token.Literal {
-		case "extends":
-			if p.Peek().Token == token.LBrace {
-				p.Next()
-				iface.ExtendsDoc = doc
-				iface.Parents = append(iface.Parents, p.parseInterfaceExtendsBlock()...)
-				return
-			}
 		case "get", "set":
 			if p.Peek().Token == token.Ident {
 				kind := node.IfaceGet
@@ -159,27 +165,6 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 			Doc:  doc,
 		})
 	}
-}
-
-// parseInterfaceExtendsBlock parses `extends { Parent, … }` — parent interfaces
-// (IdentExpr or SelectorExpr) separated by commas or newlines, without alias.
-func (p *Parser) parseInterfaceExtendsBlock() (parents []node.Expr) {
-	p.Expect(token.LBrace)
-	p.ExprLevel++
-	for {
-		p.skipClassSeps()
-		if p.Token.Token == token.RBrace || p.Token.Token == token.EOF {
-			break
-		}
-		typ := p.ParsePrimaryExpr()
-		if typ == nil || p.Failed() {
-			break
-		}
-		parents = append(parents, typ)
-	}
-	p.ExprLevel--
-	p.Expect(token.RBrace)
-	return
 }
 
 // parseInterfaceMethodHeader parses one anonymous method signature `(params)

@@ -72,20 +72,27 @@ func (p *Parser) parseClassBody(classTok PToken, name node.Expr) *node.ClassExpr
 	return cls
 }
 
-// parseClassBodyItem parses one top-level class body item: an `extends {}` /
-// `props {}` / `methods {}` / `new` block, or a field.
+// parseClassBodyItem parses one top-level class body item: a `*Parent` spread
+// (a parent class, optionally aliased `*Parent: Alias`), a `props {}` /
+// `methods {}` / `new` block, or a field.
 func (p *Parser) parseClassBodyItem(cls *node.ClassExpr) {
 	doc := p.leadComment
 
+	// `*Parent [: Alias]` — a parent class, written as a spread body item.
+	if p.Token.Token == token.Mul {
+		p.Next()
+		p.SkipSpace()
+		if parent := p.parseClassParent(); parent != nil {
+			if cls.ExtendsDoc == nil {
+				cls.ExtendsDoc = doc
+			}
+			cls.Parents = append(cls.Parents, parent)
+		}
+		return
+	}
+
 	if p.Token.Token == token.Ident {
 		switch p.Token.Literal {
-		case "extends":
-			if p.Peek().Token == token.LBrace {
-				p.Next()
-				cls.ExtendsDoc = doc
-				cls.Parents = append(cls.Parents, p.parseClassExtendsBlock()...)
-				return
-			}
 		case "props":
 			if p.Peek().Token == token.LBrace {
 				p.Next()
@@ -116,29 +123,9 @@ func (p *Parser) parseClassBodyItem(cls *node.ClassExpr) {
 	}
 }
 
-// parseClassExtendsBlock parses the `extends { Parent [: Alias], … }` block;
-// items are separated by commas or newlines (handled by skipClassSeps).
-func (p *Parser) parseClassExtendsBlock() (parents []*node.ClassParentExpr) {
-	p.Expect(token.LBrace)
-	p.ExprLevel++
-	for {
-		p.skipClassSeps()
-		if p.Token.Token == token.RBrace || p.Token.Token == token.EOF {
-			break
-		}
-		parent := p.parseClassParent()
-		if parent == nil || p.Failed() {
-			break
-		}
-		parents = append(parents, parent)
-	}
-	p.ExprLevel--
-	p.Expect(token.RBrace)
-	return
-}
-
-// parseClassParent parses one `extends` entry: a parent type (IdentExpr or
-// SelectorExpr) with an optional `: Alias`.
+// parseClassParent parses one `*Parent` entry: a parent type (IdentExpr or
+// SelectorExpr) with an optional `: Alias`. The leading `*` is consumed by the
+// caller.
 func (p *Parser) parseClassParent() *node.ClassParentExpr {
 	typ := p.ParsePrimaryExpr()
 	if typ == nil {
