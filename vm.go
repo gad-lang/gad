@@ -939,15 +939,13 @@ do:
 	return vm.xOpCallObject(callee, numArgs, flags)
 }
 
-// storeArgs stores args into the frame's inline buffer in the common 2-slot
-// case, so the caller's args value can stay stack-allocated instead of escaping
-// to the heap; a longer (var-args) args is returned unchanged.
-func storeArgs(buf *[2]Array, args Args) Args {
-	if len(args) == 2 {
-		buf[0], buf[1] = args[0], args[1]
-		return buf[:]
-	}
-	return args
+// storeArgs copies args into the frame's inline buffer (frames are pooled, so
+// this does not heap-allocate) and returns the buffer slice. It always copies —
+// never returning the caller's args — so the caller's args value can stay
+// stack-allocated instead of escaping to the heap.
+func storeArgs(buf *[3]Array, args Args) Args {
+	n := copy(buf[:], args)
+	return buf[:n]
 }
 
 func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCallFlag) (err error) {
@@ -1456,8 +1454,10 @@ type frame struct {
 	namedArgs   *NamedArgs
 	defers      []func(ret *Object)
 	// Inline, reused-per-frame storage so a plain call does not heap-allocate the
-	// args slice or the NamedArgs each time (frames are pooled in vm.frames).
-	argsBuf  [2]Array
+	// args slice or the NamedArgs each time (frames are pooled in vm.frames). The
+	// args buffer holds up to 3 slots: the positional view, the var-args tail, and
+	// one spare for the `f(a, *b)` merge case (see xOpCallCompiled).
+	argsBuf  [3]Array
 	namedBuf NamedArgs
 }
 
