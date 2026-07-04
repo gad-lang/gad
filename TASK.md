@@ -95,11 +95,23 @@
       clean; Fib/Loop benches unchanged (108 / 198947 allocs). The 4 remaining
       allocs/loop are the three iterator objects (IteratorState, arrayIterator,
       StateIteratorObject) plus large-index int boxing.
+      Seventh pass done: applied the same closure-free treatment to Dict
+      iteration (`for k, v in m`), the most common non-array case. Dict.Iterate
+      built its keys slice then wrapped it in SliceEntryIteration (a
+      RangeIteration + valid/readTo/get closures) per loop; replaced with a
+      concrete closure-free dictIterator (iterator.go) that walks the keys slice
+      directly, honouring step/reversed exactly like arrayIterator (Dict.Iterate
+      still builds+sorts the keys). New BenchmarkVMDictIterate: 73994->53994
+      allocs/op (~27%), 2.87MB->2.23MB, 4.7ms->3.98ms (~15%). `go build/test
+      ./...` and `go test -race -run TestVMIterator$` clean; sorted/reversed dict
+      iteration verified (values sorted ->[1,2,3], reversed ->[3,2,1]). The keys
+      slice and per-key Str boxing remain (fundamental to a stable order / the
+      boxed-Object model).
       REMAINING: pooling the three per-loop iterator objects (needs a reliable
       release point at loop end and must not pool user-visible iterator(...)
       values — high-risk lifecycle change), the same closure-free treatment for
-      non-array iterators (KeyValueArray/Dict/etc.), and large-int boxing
-      (tagged-value representation — major refactor).
+      the rarer KeyValueArray/KeyValueArrays/Args iterators, and large-int/Str
+      boxing (tagged-value representation — major refactor).
 - [x] check if allow keywords in `x.KEYWORD`, `[KEYWORD=...]` (keyvalue), `{KEYWORD:...}` (dict key), `(;KEYWORD=...)` (keyvalue array key).
       examples `x.class`, `[class=1]`, `{class:1}`, `(;class=1,class,false,nil,met,meti,func,if,else)`, all is single key. add doc for describe this rule
       DONE. `.name` selector and `{class: 1}` dict keys already accepted keywords;

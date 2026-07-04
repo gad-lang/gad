@@ -755,6 +755,79 @@ func (o Array) Iterate(_ *VM, na *NamedArgs) Iterator {
 	return newArrayIterator(o, na)
 }
 
+// dictIterator is a closure-free iterator over a Dict's key/value pairs. The
+// keys slice (built and, when requested, sorted by Dict.Iterate) fixes the
+// order; like arrayIterator it avoids the RangeIteration plus the three closures
+// SliceEntryIteration would allocate per loop. The keys slice itself remains
+// (a stable order needs it), as does per-key Str boxing.
+type dictIterator struct {
+	dict  Dict
+	keys  []string
+	step  int
+	start int
+}
+
+var (
+	_ Iterator       = (*dictIterator)(nil)
+	_ LengthIterator = (*dictIterator)(nil)
+)
+
+func newDictIterator(dict Dict, keys []string, na *NamedArgs) *dictIterator {
+	it := &dictIterator{dict: dict, keys: keys, step: 1}
+	if na != nil {
+		if v := na.GetValue("step"); v.Type() == TInt {
+			it.step = int(v.(Int))
+		}
+		if !na.GetValue("reversed").IsFalsy() {
+			it.start = len(keys) - 1
+			it.step = -it.step
+		}
+	}
+	return it
+}
+
+func (it *dictIterator) Type() ObjectType { return TDictIterator }
+
+func (it *dictIterator) Input() Object { return it.dict }
+
+func (it *dictIterator) Length() int { return len(it.keys) }
+
+// at fills state with the i-th key/value pair.
+func (it *dictIterator) at(i int, state *IteratorState) {
+	k := it.keys[i]
+	state.Value = Int(i)
+	state.Entry.K = Str(k)
+	state.Entry.V = it.dict[k]
+}
+
+func (it *dictIterator) Start(*VM) (state *IteratorState, err error) {
+	state = &IteratorState{}
+	if len(it.keys) == 0 {
+		state.Mode = IteratorStateModeDone
+		return
+	}
+	it.at(it.start, state)
+	return
+}
+
+func (it *dictIterator) Next(_ *VM, state *IteratorState) (err error) {
+	state.Mode = IteratorStateModeEntry
+	if cur, ok := state.Value.(Int); ok {
+		i := int(cur) + it.step
+		if i >= 0 && i < len(it.keys) {
+			it.at(i, state)
+			return
+		}
+	}
+	state.Mode = IteratorStateModeDone
+	return
+}
+
+func (it *dictIterator) Print(state *PrinterState) error {
+	defer state.WrapReprString(TDictIterator.FullName())()
+	return state.Print(it.dict)
+}
+
 func (o KeyValueArray) Iterate(_ *VM, na *NamedArgs) Iterator {
 	return SliceIteration(TKeyValueArrayIterator, o, o, func(e *KeyValue, i Int, v *KeyValue) error {
 		*e = *v
@@ -778,9 +851,7 @@ func (o Dict) Iterate(_ *VM, na *NamedArgs) Iterator {
 	if !na.GetValue("sorted").IsFalsy() || !na.MustGetValue("reversed").IsFalsy() {
 		sort.Strings(keys)
 	}
-	return SliceEntryIteration(TDictIterator, o, keys, func(v string) (_, _ Object, _ error) {
-		return Str(v), o[v], nil
-	}).ParseNamedArgs(na)
+	return newDictIterator(o, keys, na)
 }
 
 func (o *SyncDict) Iterate(_ *VM, na *NamedArgs) Iterator {

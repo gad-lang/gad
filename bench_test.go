@@ -82,6 +82,23 @@ func BenchmarkVMIterate(b *testing.B) {
 	}
 }
 
+// BenchmarkVMDictIterate measures for-in iteration over a dict (`for k, v in m`).
+func BenchmarkVMDictIterate(b *testing.B) {
+	bc := benchBytecode(b, `
+	m := {a: 1, b: 2, c: 3, d: 4, e: 5}
+	s := 0
+	for k := 0; k < 5000; k++ { for _, v in m { s = v } }
+	return s`)
+	builtins := NewBuiltins().Build()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := NewVM(builtins, bc).Run(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 // BenchmarkVMLoop measures a tight arithmetic loop (jumps, locals, binary ops).
 func BenchmarkVMLoop(b *testing.B) {
 	bc := benchBytecode(b, `
