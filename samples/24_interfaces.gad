@@ -54,13 +54,13 @@ class Person {
     methods { greet() => "hi " + this.name }
 }
 p := Person(; name = "Ada")
-println("p::Greeter:  ", (p :: Greeter).greet())     // hi Ada
+println("p::Greeter:  ", (p::Greeter).greet())     // hi Ada
 
 /// A value missing a required member is rejected.
 class Anon { label = "?" }
 ok := true
 try {
-    Anon() :: Greeter                                // no `name`, no greet()
+    Anon()::Greeter                                // no `name`, no greet()
     ok = false
 } catch {
     println("Anon reject: not a Greeter")
@@ -73,21 +73,21 @@ println("welcome:     ", welcome(p))                 // hi Ada!
 /// Satisfaction is structural, so any member-bearing value qualifies — a `dict`
 /// too: a field matches a key, a method matches a callable key.
 d := {name: "Bo", greet: func() => "hi Bo"}
-println("dict::Greeter:", (d :: Greeter).greet())    // hi Bo
+println("dict::Greeter:", (d::Greeter).greet())    // hi Bo
 println("welcome(dict):", welcome(d))                // hi Bo!
 
 /// A dict without the required callable key is rejected.
 bad := {name: "x"}
 try {
-    bad :: Greeter                                   // no greet()
+    bad::Greeter                                   // no greet()
     ok = false
 } catch {
     println("dict reject: not a Greeter")
 }
 
 /// Because a failed `::` raises an error, the `or` fallback operator turns it
-/// into a value: `obj :: Type or fallback` yields the fallback when obj does not
+/// into a value: `obj::Type or fallback` yields the fallback when obj does not
 /// satisfy Type, without a `try`/`catch`.
-println("or fallback: ", bad :: Greeter or "is bad") // is bad
+println("or fallback: ", bad::Greeter or "is bad") // is bad
 
 return ok
