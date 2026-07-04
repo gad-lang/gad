@@ -51,6 +51,26 @@ println(config.server.port)   // 8080
 (The outer parentheses are required because a bare `{` at statement position
 starts a block, not a dict.)
 
+### Keyword keys
+
+A keyword (`class`, `if`, `else`, `func`, `met`, `meti`, `false`, `nil`, …) may
+be used as a **bare name** in any key position — it is taken as the string of its
+spelling, not as the keyword. This holds for the selector `.name`, a dict key, a
+key-value `[name=value]`, and a key-value-array key `(;name=value)` (including a
+bare-flag key with no value):
+
+```go
+m := {class: 1, else: 2, func: 3}   // dict keys
+m.class                             // 1   (selector)
+m["else"]                           // 2
+
+[class = 1]                         // key-value with key "class"
+(;class = 1, if, else, false, nil)  // key-value-array; all are string keys
+```
+
+Only the **key** position is affected; on the value side keywords keep their
+meaning, so in `(;x = false)` the value is the boolean `false`.
+
 ## Comprehensions
 
 Array comprehensions build an array from an iterable, with an optional filter:

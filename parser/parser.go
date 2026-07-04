@@ -1600,6 +1600,17 @@ func (p *Parser) ParseArrayLitOrKeyValue() node.Expr {
 		elements []node.Expr
 	)
 
+	// `[keyword = value]` — a keyword used as a keyvalue key (`[class = 1]`).
+	if p.Token.Token.IsKeyword() && p.PeekNoSpace().Token == token.Assign {
+		key := p.keywordStrLit()
+		p.SkipSpace()
+		p.Expect(token.Assign)
+		p.SkipSpace()
+		expr := &node.KeyValueLit{Key: key, Value: p.ParseExpr()}
+		p.Expect(token.RBrack)
+		return expr
+	}
+
 	// parseElem parses one array element, supporting `*expr` spread/merge.
 	parseElem := func() node.Expr {
 		if p.Token.Token == token.Mul {
@@ -3842,6 +3853,19 @@ func (p *Parser) ParseDictLit() node.Expr {
 	}
 }
 
+// keywordStrLit returns a Str key for the current token when it is a keyword
+// used as a bare name in a key position (`class`, `if`, `false`, `met`, …),
+// advancing past it; otherwise it returns nil so the caller parses the key
+// normally.
+func (p *Parser) keywordStrLit() node.Expr {
+	if p.Token.Token.IsKeyword() {
+		lit := &node.StrLit{ValuePos: p.Token.Pos, Literal: strconv.Quote(p.Token.Literal)}
+		p.Next()
+		return lit
+	}
+	return nil
+}
+
 func (p *Parser) ParseKeyValueLit() *node.KeyValueLit {
 	if p.Trace {
 		defer untracep(tracep(p, "ParseKeyValueLit"))
@@ -3851,10 +3875,11 @@ func (p *Parser) ParseKeyValueLit() *node.KeyValueLit {
 
 	p.Expect(token.LBrack)
 
-	var (
-		keyExpr   = p.ParsePrimaryExpr()
-		valueExpr node.Expr
-	)
+	keyExpr := p.keywordStrLit()
+	if keyExpr == nil {
+		keyExpr = p.ParsePrimaryExpr()
+	}
+	var valueExpr node.Expr
 
 	p.SkipSpace()
 
@@ -3892,8 +3917,11 @@ func (p *Parser) ParseKeyValuePairLit(endToken token.Token) *node.KeyValuePairLi
 
 	p.SkipSpace()
 
+	keyExpr := p.keywordStrLit()
+	if keyExpr == nil {
+		keyExpr = p.ParsePrimitiveOperand()
+	}
 	var (
-		keyExpr   = p.ParsePrimitiveOperand()
 		valueExpr node.Expr
 		colon     bool
 	)

@@ -1958,13 +1958,13 @@ z=
 	5 + 
 		7
 )`).
-		String(`(;a=1, b=2, "c"=3, 4=5, true=false, my_closure() => 1, my_func() { i++ }, myflag, d=#(dVal), e=#(e val), x A, x1 A1=10, y B|C=11, y1 B|C=12, z=(5 + 7))`).
+		String(`(;a=1, b=2, "c"=3, 4=5, "true"=false, my_closure() => 1, my_func() { i++ }, myflag, d=#(dVal), e=#(e val), x A, x1 A1=10, y B|C=11, y1 B|C=12, z=(5 + 7))`).
 		FormattedCode(`(;
 	a=1
 	b=2
 	"c"=3
 	4=5
-	true=false
+	"true"=false
 	my_closure() => 1
 	my_func() {
 		i++
@@ -2017,13 +2017,13 @@ my_func() {
 	i++
 }
 myflag)`).
-		String(`(;a=1, b=2, "c"=3, 4=5, true=false, my_closure() => 1, my_func() { i++ }, myflag)`).
+		String(`(;a=1, b=2, "c"=3, 4=5, "true"=false, my_closure() => 1, my_func() { i++ }, myflag)`).
 		IndentedCode(`(;
 	a=1
 	b=2
 	"c"=3
 	4=5
-	true=false
+	"true"=false
 	my_closure() => 1
 	my_func() {
 		i++
@@ -2034,7 +2034,7 @@ myflag)`).
 	test.ExpectParseString(t, `(;a=1,b=2,"c"=3,4=5,true=false
 myflag
 d=#dVal,e=#(e val)
-)`, `(;a=1, b=2, "c"=3, 4=5, true=false, myflag, d=#(dVal), e=#(e val))`)
+)`, `(;a=1, b=2, "c"=3, 4=5, "true"=false, myflag, d=#(dVal), e=#(e val))`)
 
 	kva := &KeyValueArrayLit{}
 	test.ExpectParseStringT(t, `(;**a)`, `(;**a)`, kva)
@@ -2050,6 +2050,21 @@ d=#dVal,e=#(e val)
 
 	// with keyValue expr and keyValue with dynamic key expr
 	test.ExpectParseStringT(t, `(;[a=1],[("a"+"b")=4])`, `(;[a=1], [("a" + "b")=4])`, kva)
+
+	// keywords are accepted as bare keys (a name) in key positions.
+	test.ExpectParseString(t, `(;class=1, class, false, nil, met, meti, func, if, else)`,
+		`(;"class"=1, "class", "false", "nil", "met", "meti", "func", "if", "else")`)
+	test.ExpectParseString(t, `(;[class=1])`, `(;["class"=1])`)
+}
+
+func TestParseKeywordKeys(t *testing.T) {
+	// `.` selector, dict key, keyValue key and keyValueArray key all accept a
+	// keyword as a bare name.
+	test.ExpectParseString(t, `x.class`, `x.class`)
+	test.ExpectParseString(t, `x.if.else`, `x.if.else`)
+	test.ExpectParseString(t, `d := {class: 1, else: 2, func: 3}`, `d := {class: 1, else: 2, func: 3}`)
+	test.ExpectParseString(t, `[class=1]`, `["class"=1]`)
+	test.ExpectParseString(t, `(;class=1, if, nil)`, `(;"class"=1, "if", "nil")`)
 }
 
 func TestTemplateStrLit(t *testing.T) {
