@@ -324,14 +324,17 @@ it tightly, `a::B`, dropping redundant chain parens but keeping needed ones.
 Unary operators bind tightest; the ternary operator binds loosest. Binary
 operators have these levels (`::` binds tightest of the binary operators):
 
-| Level | Operators                                       |
-|:-----:|-------------------------------------------------|
-| 11    | `::`                                            |
-| 5     | `*` `**` `/` `%` `<<` `>>` `&` `&^` `<<<` `>>>` `%%` |
-| 4     | `+` `-` `\|` `^`                                 |
-| 3     | `==` `!=` `===` `!==` `<` `<=` `>` `>=` `in` `ain` |
-| 2     | `&&`                                        |
-| 1     | `\|\|`                                      |
+| Level | Operators                                       | Example |
+|:-----:|-------------------------------------------------|---------|
+| 11    | `::`                                            | `v::int::any` |
+| 5     | `*` `**` `/` `%` `<<` `>>` `&` `&^` `<<<` `>>>` `%%` | `a * b` |
+| 4     | `+` `-` `\|` `^`                                 | `a + b` |
+| 3     | `==` `!=` `===` `!==` `<` `<=` `>` `>=` `in` `ain` | `a == b` |
+| 2     | `&&`                                        | `a && b` |
+| 1     | `\|\|`                                      | `a \|\| b` |
+
+Higher binds tighter, so `a + b :: int` groups as `a + (b::int)` and
+`x || y :: T` as `x || (y::T)`; parenthesise to override (`(a + b)::int`).
 
 ## Selectors, Indexers and Slicing
 
