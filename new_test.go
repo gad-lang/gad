@@ -3007,6 +3007,16 @@ func TestVMInterfaceSatisfaction(t *testing.T) {
 	testExpectRun(t, `
 	interface Titled { prop title }
 	return ({title: "T"} :: Titled).title`, nil, Str("T"))
+	// a class instance satisfies a `prop` requirement via a real property
+	// accessor (detected without invoking the getter) or a plain field.
+	testExpectRun(t, `
+	interface Titled { prop title }
+	class Doc { _t = "T"; props { title { () => this._t; (v) { this._t = v } } } }
+	return typeName(Doc() :: Titled)`, nil, Str("Doc"))
+	testExpectRun(t, `
+	interface Titled { prop title }
+	class Doc { title = "T" }
+	return (Doc() :: Titled).title`, nil, Str("T"))
 
 	// a NameCaller (which dispatches methods by name) optimistically satisfies a
 	// method-only interface, but a required field it lacks is still rejected.

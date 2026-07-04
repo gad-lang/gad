@@ -116,8 +116,59 @@ func (i *Interface) CanAssignVM(vm *VM, obj Object) (bool, error) {
 		}
 	}
 
+	// A class instance satisfies an interface through its class's declared members
+	// (fields, property accessors, methods). Other member-bearing values — a
+	// dict, a key-value array, a NameCaller — use generic member probing.
+	if inst, ok := obj.(*ClassInstance); ok {
+		return i.classInstanceSatisfies(vm, inst)
+	}
+	return i.genericSatisfies(vm, obj)
+}
+
+// classInstanceSatisfies is the ClassInstance-specific satisfaction check: each
+// interface field is a class field or getter (value type-checked), each property
+// is a property accessor or plain field (detected without invoking the getter),
+// and each method is a class method whose overloads satisfy the headers. A class
+// has a finite, discoverable member set, so a missing member is a genuine miss.
+func (i *Interface) classInstanceSatisfies(vm *VM, o *ClassInstance) (bool, error) {
 	for _, f := range i.Fields {
-		v, ok := ifaceGet(vm, obj, f.Name)
+		v, err := o.GetFieldValue(vm, f.Name)
+		if err != nil {
+			return false, nil
+		}
+		if ok, err := ifaceFieldTypeOK(vm, f, v); err != nil || !ok {
+			return ok, err
+		}
+	}
+	for _, p := range i.Props {
+		if _, valid := o.GetPropertyGetter(p.Name); valid {
+			continue
+		}
+		if o.ResolveField(p.Name) == nil {
+			return false, nil
+		}
+	}
+	for _, m := range i.Methods {
+		mm := o.GetMethod(m.Name)
+		if mm == nil {
+			return false, nil
+		}
+		mi := &MethodInterface{MIName: m.Name, Headers: m.Headers}
+		if ok, err := MethodInterfaceImplements(vm, mm, mi); err != nil || !ok {
+			return ok, err
+		}
+	}
+	return true, nil
+}
+
+// genericSatisfies is the satisfaction check for a non-class member-bearing
+// value: fields and properties match a key of any IndexGetter (a dict, key-value
+// array, …), methods match a callable key whose overloads satisfy the headers,
+// and a value that dispatches methods by name (a NameCallerObject with an open
+// method set) satisfies method requirements optimistically (duck typing).
+func (i *Interface) genericSatisfies(vm *VM, obj Object) (bool, error) {
+	for _, f := range i.Fields {
+		v, ok := indexMember(vm, obj, f.Name)
 		if !ok {
 			return false, nil
 		}
@@ -125,66 +176,38 @@ func (i *Interface) CanAssignVM(vm *VM, obj Object) (bool, error) {
 			return ok, err
 		}
 	}
-
 	for _, p := range i.Props {
-		if _, ok := ifaceGet(vm, obj, p.Name); !ok {
+		if _, ok := indexMember(vm, obj, p.Name); !ok {
 			return false, nil
 		}
 	}
-
 	for _, m := range i.Methods {
-		if ok, err := ifaceMethodOK(vm, obj, m); err != nil || !ok {
-			return ok, err
+		if v, ok := indexMember(vm, obj, m.Name); ok {
+			if _, isCaller := v.(CallerObject); !isCaller {
+				return false, nil // a member exists but is not callable
+			}
+			mi := &MethodInterface{MIName: m.Name, Headers: m.Headers}
+			if ok, err := MethodInterfaceImplements(vm, v, mi); err != nil || !ok {
+				return ok, err
+			}
+			continue
+		}
+		if _, ok := obj.(NameCallerObject); !ok {
+			return false, nil
 		}
 	}
 	return true, nil
 }
 
-// ifaceGet resolves a named member value of obj — a field, a property getter, an
-// index, or a class method — for interface field/property checks, returning
-// ok=false when it is absent. It covers a ClassInstance (fields/getters/methods)
-// and any IndexGetter (Dict, KeyValueArray, …). A property that maps to a plain
-// field or index therefore satisfies by presence; a field satisfies against
-// another field or an index entry.
-func ifaceGet(vm *VM, obj Object, name string) (Object, bool) {
-	switch t := obj.(type) {
-	case *ClassInstance:
-		if v, err := t.GetFieldValue(vm, name); err == nil {
-			return v, true
-		}
-		if m := t.GetMethod(name); m != nil {
-			return m, true
-		}
-		return nil, false
-	case IndexGetter:
-		if v, err := t.IndexGet(vm, Str(name)); err == nil && v != nil && v != Nil {
+// indexMember reads a named key from any IndexGetter (dict, key-value array, …),
+// returning ok=false when it is absent (missing keys read as Nil).
+func indexMember(vm *VM, obj Object, name string) (Object, bool) {
+	if ig, ok := obj.(IndexGetter); ok {
+		if v, err := ig.IndexGet(vm, Str(name)); err == nil && v != nil && v != Nil {
 			return v, true
 		}
 	}
 	return nil, false
-}
-
-// ifaceMethodOK reports whether obj provides the interface method m: a callable
-// member — a class method or a callable field/index value — whose signatures
-// satisfy the required headers, or, when obj has no such member but dispatches
-// methods by name (a NameCallerObject with an open method set), the presence of
-// that dynamic dispatch. A ClassInstance has a discoverable, finite method set,
-// so a missing method there is a genuine miss rather than deferred to CallName.
-func ifaceMethodOK(vm *VM, obj Object, m *InterfaceMethod) (bool, error) {
-	if v, ok := ifaceGet(vm, obj, m.Name); ok {
-		if _, isCaller := v.(CallerObject); isCaller {
-			mi := &MethodInterface{MIName: m.Name, Headers: m.Headers}
-			return MethodInterfaceImplements(vm, v, mi)
-		}
-		return false, nil // the member exists but is not callable
-	}
-	if _, isInst := obj.(*ClassInstance); isInst {
-		return false, nil
-	}
-	if _, ok := obj.(NameCallerObject); ok {
-		return true, nil
-	}
-	return false, nil
 }
 
 // ifaceFieldTypeOK reports whether v is assignable to the interface field's
