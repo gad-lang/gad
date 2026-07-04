@@ -107,11 +107,21 @@
       iteration verified (values sorted ->[1,2,3], reversed ->[3,2,1]). The keys
       slice and per-key Str boxing remain (fundamental to a stable order / the
       boxed-Object model).
-      REMAINING: pooling the three per-loop iterator objects (needs a reliable
-      release point at loop end and must not pool user-visible iterator(...)
-      values — high-risk lifecycle change), the same closure-free treatment for
-      the rarer KeyValueArray/KeyValueArrays/Args iterators, and large-int/Str
-      boxing (tagged-value representation — major refactor).
+      Eighth pass done: each for-in still allocated a fresh &IteratorState{} in
+      the iterator's Start(). Since the concrete array/dict iterators are already
+      one heap allocation per loop, embedded the IteratorState in the iterator
+      struct (arrayIterator.state / dictIterator.state) and Start now returns
+      &it.state (reset each Start) — folding two allocs into one, no lifecycle
+      risk (state lives exactly as long as the iterator). BenchmarkVMIterate
+      23994->18994 allocs/op, BenchmarkVMDictIterate 53994->48994 (−1 alloc/loop
+      each). `go build/test ./...` and -race clean; stateful iterator objects
+      (`it.next` then `for k,v in it`) and repeated dict iteration still correct.
+      REMAINING: pooling the remaining two per-loop objects (the concrete
+      iterator + StateIteratorObject — needs a release point at loop end and must
+      not pool user-visible iterator(...) values, high-risk), the same
+      closure-free treatment for the rarer KeyValueArray/KeyValueArrays/Args
+      iterators, and large-int/Str boxing (tagged-value representation — major
+      refactor).
 - [x] check if allow keywords in `x.KEYWORD`, `[KEYWORD=...]` (keyvalue), `{KEYWORD:...}` (dict key), `(;KEYWORD=...)` (keyvalue array key).
       examples `x.class`, `[class=1]`, `{class:1}`, `(;class=1,class,false,nil,met,meti,func,if,else)`, all is single key. add doc for describe this rule
       DONE. `.name` selector and `{class: 1}` dict keys already accepted keywords;

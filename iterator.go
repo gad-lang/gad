@@ -691,6 +691,7 @@ type arrayIterator struct {
 	arr   Array
 	step  int
 	start int
+	state IteratorState // embedded so Start does not allocate a separate state
 }
 
 var (
@@ -719,7 +720,8 @@ func (it *arrayIterator) Input() Object { return it.arr }
 func (it *arrayIterator) Length() int { return len(it.arr) }
 
 func (it *arrayIterator) Start(*VM) (state *IteratorState, err error) {
-	state = &IteratorState{}
+	it.state = IteratorState{}
+	state = &it.state
 	if len(it.arr) == 0 {
 		state.Mode = IteratorStateModeDone
 		return
@@ -765,6 +767,7 @@ type dictIterator struct {
 	keys  []string
 	step  int
 	start int
+	state IteratorState // embedded so Start does not allocate a separate state
 }
 
 var (
@@ -801,7 +804,8 @@ func (it *dictIterator) at(i int, state *IteratorState) {
 }
 
 func (it *dictIterator) Start(*VM) (state *IteratorState, err error) {
-	state = &IteratorState{}
+	it.state = IteratorState{}
+	state = &it.state
 	if len(it.keys) == 0 {
 		state.Mode = IteratorStateModeDone
 		return
