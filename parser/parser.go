@@ -467,7 +467,7 @@ L:
 			p.Next()
 
 			switch p.Token.Token {
-			case token.Ident, token.LParen, token.Else:
+			case token.Ident, token.Else:
 				x = p.ParseNullishSelector(x)
 			default:
 				pos := p.Token.Pos
@@ -479,7 +479,7 @@ L:
 			p.Next()
 
 			switch p.Token.Token {
-			case token.Ident, token.LParen, token.Else:
+			case token.Ident, token.Else:
 				x = p.ParseSelector(x)
 			default:
 				tk := p.Token.Token
@@ -749,12 +749,6 @@ func (p *Parser) ParseIndexOrSlice(x node.Expr) node.Expr {
 
 func (p *Parser) ParseSelectorNode(x node.Expr) (expr, sel node.Expr) {
 	switch p.Token.Token {
-	case token.LParen:
-		lparen := p.Token.Pos
-		p.Next()
-		sel = p.ParseExpr()
-		rparen := p.Expect(token.RParen)
-		sel = node.EParen(sel, lparen, rparen)
 	case token.Else:
 		name := p.Token.Token.String()
 		sel = node.Str(name, p.Token.Pos)

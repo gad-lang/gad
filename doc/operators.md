@@ -339,7 +339,8 @@ Higher binds tighter, so `a + b :: int` groups as `a + (b::int)` and
 ## Selectors, Indexers and Slicing
 
 Use `.` (selector) and `[]` (indexer) to read or write elements of arrays,
-dicts, strings and bytes. A computed selector uses `.(expr)`.
+dicts, strings and bytes. The selector `.name` takes a literal name; use the
+indexer `[expr]` for a computed key.
 
 ```go
 ["one", "two", "three"][1]   // "two"
@@ -349,7 +350,7 @@ m := {a: 1, b: [2, 3, 4]}
 println(m.a, m["b"][1])      // 1 3
 
 key := "b"
-println(m.(key)[0])          // 2
+println(m[key][0])          // 2
 ```
 
 Slices use `[start:end]` on arrays, strings and bytes. A negative index counts

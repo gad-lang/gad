@@ -46,4 +46,4 @@ time.Now() + 10 * time.Second
 c := counter ? v3 : nil
 c ||= 1
 d := c ?? 2 || 1
-x := d?.a.b.("c")?.e ?? 5
+x := d?.a.b["c"]?.e ?? 5

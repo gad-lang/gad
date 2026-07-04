@@ -4504,8 +4504,9 @@ func TestParsePrecedence(t *testing.T) {
 }
 
 func TestParseNullishSelector(t *testing.T) {
-	test.ExpectParseString(t, `a?.(k)`, `a?.(k)`)
-	test.ExpectParseString(t, `a?.(k+x)`, `a?.(k + x)`)
+	// the `.(expr)` / `?.(expr)` computed selector was removed — use index `[expr]`.
+	test.ExpectParseError(t, `a?.(k)`)
+	test.ExpectParseError(t, `a.(k)`)
 	test.ExpectParse(t, "a?.b.c?.d", func(p pfn) []Stmt {
 		return stmts(
 			SExpr(
@@ -4569,13 +4570,11 @@ func TestParseNullishSelector(t *testing.T) {
 	test.ExpectParseString(t, "a?.b.c?.d.e?.f.g", "a?.b.c?.d.e?.f.g")
 	test.ExpectParseString(t, `a["b"+"c"]?.d`, `a[("b" + "c")]?.d`)
 	test.ExpectParseString(t, `a.b["b"+"c"]?.d`, `a.b[("b" + "c")]?.d`)
-	test.ExpectParseString(t, `a?.("b"+"c")?.d`, `a?.("b" + "c")?.d`)
-	test.ExpectParseString(t, `d.("a").e`, `d.("a").e`)
-	test.ExpectParseString(t, `d.("a"+"b").e`, `d.("a" + "b").e`)
-	test.ExpectParseString(t, `d.("a").e ?? 1`, `(d.("a").e ?? 1)`)
-	test.ExpectParseString(t, `d.("a"+"b").e ?? 1`, `(d.("a" + "b").e ?? 1)`)
-	test.ExpectParseString(t, `a?.("" || "b")?.d.e?.(b ?? "f")`, `a?.("" || "b")?.d.e?.(b ?? "f")`)
-	test.ExpectParseString(t, `a?.(k)?.c`, `a?.(k)?.c`)
+	// the `.(expr)` / `?.(expr)` computed selector was removed — use index `[expr]`.
+	test.ExpectParseError(t, `d.("a").e`)
+	test.ExpectParseError(t, `d.("a"+"b").e ?? 1`)
+	test.ExpectParseError(t, `a?.("b"+"c")?.d`)
+	test.ExpectParseError(t, `a?.(k)?.c`)
 }
 
 func TestParseSelector(t *testing.T) {
@@ -4597,15 +4596,8 @@ func TestParseSelector(t *testing.T) {
 					stringLit("c", p(1, 5)))))
 	})
 
-	test.ExpectParse(t, "a.(b).c", func(p pfn) []Stmt {
-		return stmts(
-			SExpr(
-				ESelector(
-					ESelector(
-						EIdent("a", p(1, 1)),
-						EParen(EIdent("b", p(1, 4)), p(1, 3), p(1, 5))),
-					stringLit("c", p(1, 7)))))
-	})
+	// the `.(expr)` computed selector was removed — use index `a[b].c`.
+	test.ExpectParseError(t, "a.(b).c")
 
 	test.ExpectParse(t, "({k1:1}.k1)", func(p pfn) []Stmt {
 		return stmts(

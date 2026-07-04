@@ -145,14 +145,6 @@ func TestVMArray(t *testing.T) {
 			nil, arr[idx])
 		testExpectRun(t, fmt.Sprintf("idx := %d; return %s[idx]", idx, arrStr),
 			nil, arr[idx])
-		testExpectRun(t, fmt.Sprintf("return %s.(%d)", arrStr, idx),
-			nil, arr[idx])
-		testExpectRun(t, fmt.Sprintf("return %s.(0 + %d)", arrStr, idx),
-			nil, arr[idx])
-		testExpectRun(t, fmt.Sprintf("return %s.(1 + %d - 1)", arrStr, idx),
-			nil, arr[idx])
-		testExpectRun(t, fmt.Sprintf("idx := %d; return %s.(idx)", idx, arrStr),
-			nil, arr[idx])
 	}
 	expectErrIs(t, fmt.Sprintf("%s[%d]", arrStr, -10), nil, ErrIndexOutOfBounds)
 	expectErrIs(t, fmt.Sprintf("%s[%d]", arrStr, arrLen), nil, ErrIndexOutOfBounds)
@@ -4397,20 +4389,13 @@ func TestVMScopes(t *testing.T) {
 func TestVMNullishSelector(t *testing.T) {
 	testExpectRun(t, `a := {b: 1}; return a?.b`, nil, Int(1))
 	testExpectRun(t, `a := {b: {c:{d:1}}}; return a?.b.c.d`, nil, Int(1))
-	testExpectRun(t, `a := {b: {c:{d:1}}}; k := "c"; return a?.b.(k).d`, nil, Int(1))
-	testExpectRun(t, `a := {b: {c:{d:1}}}; k := "x"; return a?.b.(k)?.d`, nil, Nil)
+	// a runtime key uses index `[k]`, guarded by the nullish base.
+	testExpectRun(t, `a := {b: {c:{d:1}}}; k := "c"; return a?.b[k].d`, nil, Int(1))
+	testExpectRun(t, `a := {b: {c:{d:1}}}; k := "x"; return a?.b[k]?.d`, nil, Nil)
 	testExpectRun(t, `a := {b: {c:{d:{}}}}; return a?.b.c.d.e`, nil, Nil)
 	testExpectRun(t, `a := {b: {c:{d:{}}}}; return a?.b.c.d.e?.f.g`, nil, Nil)
 	testExpectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return a?.b?.c.d.e.f.g`, nil, Int(1))
-	testExpectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return a?.(""+"b")?.c.d?.e.f.g`, nil, Int(1))
 	testExpectRun(t, `a := {b: {c: {d: {e: {f: {g: 1} } } } } }; return (a[""+"b"])?.c.d?.e.f.g`, nil, Int(1))
-	testExpectRun(t, `var (a = {b: {c: {d: {e: {f: {g: 1} } } } } }, b); 
-		return a?.("b").c.d.e.f.g,
-               a?.("b"+"").c.d.e.f.g,
-               a?.("" || "b").c.d.e.f.g,
-               a?.("" || "b").c.d.(nil ?? "e").f.g,
-               a?.("b" || "x").c.d.("e" ?? "z").f.g`, nil,
-		Array{Int(1), Int(1), Int(1), Int(1), Int(1)})
 	testExpectRun(t, `a := {}; return (a[""+"b"])?.c.d?.e.f.g`, nil, Nil)
 	testExpectRun(t, `a := nil; return a?.b`, nil, Nil)
 	testExpectRun(t, `a := nil; return a?.b.c.d`, nil, Nil)

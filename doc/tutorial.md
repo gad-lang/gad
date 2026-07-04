@@ -695,8 +695,8 @@ can be accessed using indexer `[]`.
 [1, 2, 3][3]       // RuntimeError: IndexOutOfBoundsError
 
 i := 2
-[1, 2, 3].(i)       // == 3
-[1, 2, 3].(i-1)       // == 2
+[1, 2, 3][i]       // == 3
+[1, 2, 3][i-1]       // == 2
 
 ["foo", 'x', [1, 2, 3], {bar: 2u}, true, nil, bytes()]   // ok
 ```
@@ -719,7 +719,7 @@ m.x = {y:{z: 1}}
 m.x?.y.z                              // == 1
 
 key := "x"
-m.(key)?.y.z                          // == 1
+m[key]?.y.z                          // == 1
 
 
 {} // new block scope, not dict
