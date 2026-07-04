@@ -116,12 +116,22 @@
       23994->18994 allocs/op, BenchmarkVMDictIterate 53994->48994 (−1 alloc/loop
       each). `go build/test ./...` and -race clean; stateful iterator objects
       (`it.next` then `for k,v in it`) and repeated dict iteration still correct.
-      REMAINING: pooling the remaining two per-loop objects (the concrete
-      iterator + StateIteratorObject — needs a release point at loop end and must
-      not pool user-visible iterator(...) values, high-risk), the same
-      closure-free treatment for the rarer KeyValueArray/KeyValueArrays/Args
-      iterators, and large-int/Str boxing (tagged-value representation — major
-      refactor).
+      Ninth pass done: finished the closure-free treatment for the remaining
+      slice iterators — KeyValueArray, KeyValueArrays and Args now use concrete
+      kvArrayIterator/kvArraysIterator/argsIterator (embedded IteratorState, no
+      closures), mirroring arrayIterator. Extracted the shared step/reversed
+      setup into iterStepStart and routed array/dict through it too. New
+      BenchmarkVMKVArrayIterate (~19010 allocs/op on the concrete path).
+      SliceIteration/SliceEntryIteration stay (Str/RawStr/Bytes/enum/Reflect
+      iterators still use them). `go build/test ./...` and -race clean;
+      KeyValueArray (a=1,b=2,c=3), reversed values ([3,2,1]) and Args (0->10…)
+      iteration verified.
+      REMAINING (all high-risk / low-value): pooling the last two per-loop
+      objects (the concrete iterator + StateIteratorObject — needs a loop-end
+      release point and must not pool user-visible iterator(...) values), and
+      large-int/Str boxing (tagged-value representation — major refactor). The
+      safe closure/state-allocation wins are now captured across array, dict,
+      key-value-array, key-value-arrays and args iteration.
 - [x] check if allow keywords in `x.KEYWORD`, `[KEYWORD=...]` (keyvalue), `{KEYWORD:...}` (dict key), `(;KEYWORD=...)` (keyvalue array key).
       examples `x.class`, `[class=1]`, `{class:1}`, `(;class=1,class,false,nil,met,meti,func,if,else)`, all is single key. add doc for describe this rule
       DONE. `.name` selector and `{class: 1}` dict keys already accepted keywords;

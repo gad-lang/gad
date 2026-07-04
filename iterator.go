@@ -699,18 +699,27 @@ var (
 	_ LengthIterator = (*arrayIterator)(nil)
 )
 
-func newArrayIterator(arr Array, na *NamedArgs) *arrayIterator {
-	it := &arrayIterator{arr: arr, step: 1}
+// iterStepStart derives the (step, start) of a forward/reverse index walk over n
+// elements from the `step` and `reversed` named arguments, shared by the
+// concrete slice iterators. The valid index range is 0 <= i < n in either
+// direction.
+func iterStepStart(n int, na *NamedArgs) (step, start int) {
+	step = 1
 	if na != nil {
 		if v := na.GetValue("step"); v.Type() == TInt {
-			it.step = int(v.(Int))
+			step = int(v.(Int))
 		}
 		if !na.GetValue("reversed").IsFalsy() {
-			it.start = len(arr) - 1
-			it.step = -it.step
+			start = n - 1
+			step = -step
 		}
 	}
-	return it
+	return step, start
+}
+
+func newArrayIterator(arr Array, na *NamedArgs) *arrayIterator {
+	step, start := iterStepStart(len(arr), na)
+	return &arrayIterator{arr: arr, step: step, start: start}
 }
 
 func (it *arrayIterator) Type() ObjectType { return TArrayIterator }
@@ -776,17 +785,8 @@ var (
 )
 
 func newDictIterator(dict Dict, keys []string, na *NamedArgs) *dictIterator {
-	it := &dictIterator{dict: dict, keys: keys, step: 1}
-	if na != nil {
-		if v := na.GetValue("step"); v.Type() == TInt {
-			it.step = int(v.(Int))
-		}
-		if !na.GetValue("reversed").IsFalsy() {
-			it.start = len(keys) - 1
-			it.step = -it.step
-		}
-	}
-	return it
+	step, start := iterStepStart(len(keys), na)
+	return &dictIterator{dict: dict, keys: keys, step: step, start: start}
 }
 
 func (it *dictIterator) Type() ObjectType { return TDictIterator }
@@ -832,19 +832,105 @@ func (it *dictIterator) Print(state *PrinterState) error {
 	return state.Print(it.dict)
 }
 
+// kvArrayIterator is a closure-free iterator over a KeyValueArray (its entries
+// are the stored key/value pairs). Like arrayIterator it avoids the
+// RangeIteration + closures SliceIteration would allocate per loop.
+type kvArrayIterator struct {
+	arr   KeyValueArray
+	step  int
+	start int
+	state IteratorState
+}
+
+var _ Iterator = (*kvArrayIterator)(nil)
+
+func (it *kvArrayIterator) Type() ObjectType { return TKeyValueArrayIterator }
+func (it *kvArrayIterator) Input() Object    { return it.arr }
+func (it *kvArrayIterator) Length() int      { return len(it.arr) }
+
+func (it *kvArrayIterator) Start(*VM) (*IteratorState, error) {
+	it.state = IteratorState{}
+	if len(it.arr) == 0 {
+		it.state.Mode = IteratorStateModeDone
+		return &it.state, nil
+	}
+	it.state.Value = Int(it.start)
+	it.state.Entry = *it.arr[it.start]
+	return &it.state, nil
+}
+
+func (it *kvArrayIterator) Next(_ *VM, state *IteratorState) error {
+	state.Mode = IteratorStateModeEntry
+	if cur, ok := state.Value.(Int); ok {
+		i := int(cur) + it.step
+		if i >= 0 && i < len(it.arr) {
+			state.Value = Int(i)
+			state.Entry = *it.arr[i]
+			return nil
+		}
+	}
+	state.Mode = IteratorStateModeDone
+	return nil
+}
+
+func (it *kvArrayIterator) Print(state *PrinterState) error {
+	defer state.WrapReprString(TKeyValueArrayIterator.FullName())()
+	return state.Print(it.arr)
+}
+
 func (o KeyValueArray) Iterate(_ *VM, na *NamedArgs) Iterator {
-	return SliceIteration(TKeyValueArrayIterator, o, o, func(e *KeyValue, i Int, v *KeyValue) error {
-		*e = *v
-		return nil
-	}).ParseNamedArgs(na)
+	step, start := iterStepStart(len(o), na)
+	return &kvArrayIterator{arr: o, step: step, start: start}
+}
+
+// kvArraysIterator is a closure-free iterator over a KeyValueArrays: entries are
+// (index, element).
+type kvArraysIterator struct {
+	arr   KeyValueArrays
+	step  int
+	start int
+	state IteratorState
+}
+
+var _ Iterator = (*kvArraysIterator)(nil)
+
+func (it *kvArraysIterator) Type() ObjectType { return TKeyValueArraysIterator }
+func (it *kvArraysIterator) Input() Object    { return it.arr }
+func (it *kvArraysIterator) Length() int      { return len(it.arr) }
+
+func (it *kvArraysIterator) Start(*VM) (*IteratorState, error) {
+	it.state = IteratorState{}
+	if len(it.arr) == 0 {
+		it.state.Mode = IteratorStateModeDone
+		return &it.state, nil
+	}
+	it.state.Value = Int(it.start)
+	it.state.Entry.K, it.state.Entry.V = Int(it.start), it.arr[it.start]
+	return &it.state, nil
+}
+
+func (it *kvArraysIterator) Next(_ *VM, state *IteratorState) error {
+	state.Mode = IteratorStateModeEntry
+	if cur, ok := state.Value.(Int); ok {
+		i := int(cur) + it.step
+		if i >= 0 && i < len(it.arr) {
+			state.Value = Int(i)
+			state.Entry.K, state.Entry.V = Int(i), it.arr[i]
+			return nil
+		}
+	}
+	state.Mode = IteratorStateModeDone
+	return nil
+}
+
+func (it *kvArraysIterator) Print(state *PrinterState) error {
+	defer state.WrapReprString(TKeyValueArraysIterator.FullName())()
+	return state.Print(it.arr)
 }
 
 func (o KeyValueArrays) Iterate(_ *VM, na *NamedArgs) Iterator {
-	return SliceIteration(TKeyValueArraysIterator, o, o, func(e *KeyValue, i Int, v KeyValueArray) error {
-		e.K = i
-		e.V = v
-		return nil
-	}).ParseNamedArgs(na)
+	step, start := iterStepStart(len(o), na)
+	return &kvArraysIterator{arr: o, step: step, start: start}
 }
 
 func (o Dict) Iterate(_ *VM, na *NamedArgs) Iterator {
@@ -886,11 +972,56 @@ func (it *SyncIterator) NextIteration(vm *VM, state *IteratorState) (err error) 
 	return it.Iteration.Next(vm, state)
 }
 
+// argsIterator is a closure-free iterator over Args: entries are (index,
+// positional value).
+type argsIterator struct {
+	args  Args
+	n     int
+	step  int
+	start int
+	state IteratorState
+}
+
+var _ Iterator = (*argsIterator)(nil)
+
+func (it *argsIterator) Type() ObjectType { return TArgsIterator }
+func (it *argsIterator) Input() Object    { return it.args }
+func (it *argsIterator) Length() int      { return it.n }
+
+func (it *argsIterator) Start(*VM) (*IteratorState, error) {
+	it.state = IteratorState{}
+	if it.n == 0 {
+		it.state.Mode = IteratorStateModeDone
+		return &it.state, nil
+	}
+	it.state.Value = Int(it.start)
+	it.state.Entry.K, it.state.Entry.V = Int(it.start), it.args.GetOnly(it.start)
+	return &it.state, nil
+}
+
+func (it *argsIterator) Next(_ *VM, state *IteratorState) error {
+	state.Mode = IteratorStateModeEntry
+	if cur, ok := state.Value.(Int); ok {
+		i := int(cur) + it.step
+		if i >= 0 && i < it.n {
+			state.Value = Int(i)
+			state.Entry.K, state.Entry.V = Int(i), it.args.GetOnly(i)
+			return nil
+		}
+	}
+	state.Mode = IteratorStateModeDone
+	return nil
+}
+
+func (it *argsIterator) Print(state *PrinterState) error {
+	defer state.WrapReprString(TArgsIterator.FullName())()
+	return state.Print(it.args)
+}
+
 func (o Args) Iterate(_ *VM, na *NamedArgs) Iterator {
-	return NewRangeIteration(TArgsIterator, o, o.Length(), func(e *KeyValue, i int) error {
-		e.K, e.V = Int(i), o.GetOnly(i)
-		return nil
-	}).ParseNamedArgs(na)
+	n := o.Length()
+	step, start := iterStepStart(n, na)
+	return &argsIterator{args: o, n: n, step: step, start: start}
 }
 
 func (o *NamedArgs) Iterate(vm *VM, na *NamedArgs) Iterator {
