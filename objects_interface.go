@@ -117,7 +117,7 @@ func (i *Interface) CanAssignVM(vm *VM, obj Object) (bool, error) {
 	}
 
 	for _, f := range i.Fields {
-		v, ok := ifaceMember(vm, obj, f.Name)
+		v, ok := ifaceGet(vm, obj, f.Name)
 		if !ok {
 			return false, nil
 		}
@@ -127,27 +127,26 @@ func (i *Interface) CanAssignVM(vm *VM, obj Object) (bool, error) {
 	}
 
 	for _, p := range i.Props {
-		if _, ok := ifaceMember(vm, obj, p.Name); !ok {
+		if _, ok := ifaceGet(vm, obj, p.Name); !ok {
 			return false, nil
 		}
 	}
 
 	for _, m := range i.Methods {
-		v, ok := ifaceMember(vm, obj, m.Name)
-		if !ok {
-			return false, nil
-		}
-		mi := &MethodInterface{MIName: m.Name, Headers: m.Headers}
-		if ok, err := MethodInterfaceImplements(vm, v, mi); err != nil || !ok {
+		if ok, err := ifaceMethodOK(vm, obj, m); err != nil || !ok {
 			return ok, err
 		}
 	}
 	return true, nil
 }
 
-// ifaceMember resolves a named member (field, property getter or method) of obj
-// for interface-satisfaction checking, returning ok=false when it is absent.
-func ifaceMember(vm *VM, obj Object, name string) (Object, bool) {
+// ifaceGet resolves a named member value of obj — a field, a property getter, an
+// index, or a class method — for interface field/property checks, returning
+// ok=false when it is absent. It covers a ClassInstance (fields/getters/methods)
+// and any IndexGetter (Dict, KeyValueArray, …). A property that maps to a plain
+// field or index therefore satisfies by presence; a field satisfies against
+// another field or an index entry.
+func ifaceGet(vm *VM, obj Object, name string) (Object, bool) {
 	switch t := obj.(type) {
 	case *ClassInstance:
 		if v, err := t.GetFieldValue(vm, name); err == nil {
@@ -163,6 +162,29 @@ func ifaceMember(vm *VM, obj Object, name string) (Object, bool) {
 		}
 	}
 	return nil, false
+}
+
+// ifaceMethodOK reports whether obj provides the interface method m: a callable
+// member — a class method or a callable field/index value — whose signatures
+// satisfy the required headers, or, when obj has no such member but dispatches
+// methods by name (a NameCallerObject with an open method set), the presence of
+// that dynamic dispatch. A ClassInstance has a discoverable, finite method set,
+// so a missing method there is a genuine miss rather than deferred to CallName.
+func ifaceMethodOK(vm *VM, obj Object, m *InterfaceMethod) (bool, error) {
+	if v, ok := ifaceGet(vm, obj, m.Name); ok {
+		if _, isCaller := v.(CallerObject); isCaller {
+			mi := &MethodInterface{MIName: m.Name, Headers: m.Headers}
+			return MethodInterfaceImplements(vm, v, mi)
+		}
+		return false, nil // the member exists but is not callable
+	}
+	if _, isInst := obj.(*ClassInstance); isInst {
+		return false, nil
+	}
+	if _, ok := obj.(NameCallerObject); ok {
+		return true, nil
+	}
+	return false, nil
 }
 
 // ifaceFieldTypeOK reports whether v is assignable to the interface field's

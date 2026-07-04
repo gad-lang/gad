@@ -159,3 +159,18 @@ welcome(42)                             // rejected: 42 does not satisfy the int
 An inline `interface{…}` (or `met<…>`) parameter type is checked up front at the
 call. A satisfying class instance, dict or other member-bearing value is
 accepted.
+
+Satisfaction works against any member-bearing value, not just class instances:
+
+- **fields** and **properties** match a class field/getter or a key of any
+  indexable value (a `dict`, key-value array, …);
+- **methods** match a class method, a callable field/key (a `dict` whose value
+  is a function), or — for a value that dispatches methods by name
+  (`NameCallerObject`) — are accepted optimistically (duck typing), the call
+  resolving at runtime.
+
+```go
+interface Greeter { name str; greet() <str> }
+{ name: "Ann", greet: func() => "hi" } :: Greeter   // ok — dict satisfies it
+{ name: "Ann" } :: Greeter                           // rejected — no greet()
+```

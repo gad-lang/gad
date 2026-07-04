@@ -2988,4 +2988,30 @@ func TestVMInterfaceSatisfaction(t *testing.T) {
 	expectErrHas(t, `
 	func welcome(g interface{ greet() <str> }) => g.greet()
 	return welcome(42)`, newOpts(), "invalid type for argument")
+
+	// a dict satisfies an interface too: a field matches a key, a method matches
+	// a callable key.
+	testExpectRun(t, `
+	interface Greeter { name str; greet() <str> }
+	d := {name: "Ann", greet: func() => "hi"}
+	return (d :: Greeter).greet()`, nil, Str("hi"))
+	// a dict missing a required method (no callable key) is rejected.
+	expectErrIs(t, `
+	interface Greeter { greet() <str> }
+	return {name: "Ann"} :: Greeter`, nil, ErrIncompatibleAssign)
+	// a dict field of the wrong type is rejected.
+	expectErrIs(t, `
+	interface HasAge { age int }
+	return {age: "x"} :: HasAge`, nil, ErrIncompatibleAssign)
+	// a property maps to a plain key by presence.
+	testExpectRun(t, `
+	interface Titled { prop title }
+	return ({title: "T"} :: Titled).title`, nil, Str("T"))
+
+	// a NameCaller (which dispatches methods by name) optimistically satisfies a
+	// method-only interface, but a required field it lacks is still rejected.
+	testExpectRun(t, `interface HasFoo { foo() }
+	return typeName((1d) :: HasFoo)`, nil, Str("decimal"))
+	expectErrIs(t, `interface HasName { name str }
+	return (1d) :: HasName`, nil, ErrIncompatibleAssign)
 }
