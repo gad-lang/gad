@@ -41,9 +41,12 @@ PASS samples/testing/math_test.gad/testAdd
 PASS samples/testing/math_test.gad/testHelpers
 PASS samples/testing/math_test.gad/testFib
 SKIP samples/testing/math_test.gad/testNotReady: pending feature
-BENCH samples/testing/math_test.gad/benchFib	63715	17831.5 ns/op
+PASS samples/testing/math_test.gad/addCommutes
+PASS samples/testing/math_test.gad/fib of ten is 55
+BENCH samples/testing/math_test.gad/benchFib	60843	18084.0 ns/op
+BENCH samples/testing/math_test.gad/fib 15	99582	19924.6 ns/op
 
-test: 3 passed, 0 failed, 1 skipped
+test: 5 passed, 0 failed, 1 skipped
 ```
 
 ## Writing tests
@@ -67,6 +70,32 @@ func testSomething(t) {
 Assertions are **require-style**: the first failing assertion records a message
 and aborts that test (the rest of the function does not run). Other tests in the
 file still run. A test with no failure passes.
+
+### Statement form: `test NAME { … }` and `bench NAME { … }`
+
+The `test` / `bench` **statements** are shorthand for the functions above: `t` is
+available directly (no parameter to write), and NAME may be a string, so a test
+can carry a spaces-and-all description. A `///` doc comment is allowed.
+
+```gad
+/// add is commutative
+test addCommutes {
+	t.equal(add(2, 3), add(3, 2))
+}
+
+test "fib of ten is 55" {
+	t.equal(55, fib(10))
+}
+
+bench "fib 15" {
+	for i := 0; i < t.n; i++ { fib(15) }
+}
+```
+
+`test` and `bench` are **contextual keywords**: they introduce a statement only
+when followed by a NAME and `{`, so they stay ordinary identifiers everywhere
+else — `test := import("test")`, `test.equal(t, …)` and `bench()` all keep
+working. The two forms may be freely mixed in one file and run in source order.
 
 ## The test context `t`
 

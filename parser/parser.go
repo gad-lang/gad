@@ -2434,6 +2434,11 @@ func (p *Parser) ParseStmt() (stmt node.Stmt) {
 
 func (p *Parser) DefaultParseStmt() (stmt node.Stmt) {
 do:
+	// `test NAME { … }` / `bench NAME { … }` — contextual: `test`/`bench` are
+	// only these statements when followed by a NAME and `{` (see isTestStmtStart).
+	if p.Token.Token == token.Ident && p.isTestStmtStart() {
+		return p.ParseTestStmt()
+	}
 	switch p.Token.Token {
 	case token.ConfigStart:
 		return p.ParseConfigStmt()

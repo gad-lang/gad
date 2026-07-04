@@ -92,6 +92,32 @@ func TestRunFileBench(t *testing.T) {
 	require.Contains(t, out, "ns/op")
 }
 
+func TestRunFileStatementForm(t *testing.T) {
+	src := `test := import("test")
+test onePass { t.equal(1, 1) }
+test "two words" { t.true(true) }
+test threeFail { t.equal(1, 2) }
+test fourSkip { t.skip("later") }
+`
+	o := &testOptions{verbose: true}
+	pass, fail, skip, out := runFileOn(t, o, src)
+	require.Equal(t, 2, pass, out)        // onePass, "two words"
+	require.Equal(t, 1, fail, out)        // threeFail
+	require.Equal(t, 1, skip, out)        // fourSkip
+	require.Contains(t, out, "two words") // string name preserved
+	require.Contains(t, out, "FAIL")
+}
+
+func TestRunFileStatementBench(t *testing.T) {
+	src := `bench "the loop" { for i := 0; i < t.n; i++ {} }`
+	o := &testOptions{benchPat: ".", benchtime: time.Millisecond}
+	pass, fail, _, out := runFileOn(t, o, src)
+	require.Equal(t, 0, pass)
+	require.Equal(t, 0, fail)
+	require.Contains(t, out, "BENCH")
+	require.Contains(t, out, "the loop")
+}
+
 func TestRunFileCompileError(t *testing.T) {
 	o := &testOptions{}
 	_, fail, _, out := runFileOn(t, o, "func testX(t) { this is not valid")

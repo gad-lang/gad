@@ -59,3 +59,22 @@ func benchFib(t) {
 		fib(15)
 	}
 }
+
+// The statement forms `test NAME { … }` and `bench NAME { … }` are shorthand for
+// the functions above: `t` is available directly and NAME may be a string, so a
+// test can have a spaces-and-all description. A `///` doc comment is allowed.
+
+/// add is commutative
+test addCommutes {
+	t.equal(add(2, 3), add(3, 2))
+}
+
+test "fib of ten is 55" {
+	t.equal(55, fib(10))
+}
+
+bench "fib 15" {
+	for i := 0; i < t.n; i++ {
+		fib(15)
+	}
+}

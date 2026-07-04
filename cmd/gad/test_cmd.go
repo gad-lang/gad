@@ -176,10 +176,12 @@ func (o *testOptions) runFile(ctx *cc.CommandContext, path string) (pass, fail, 
 type discovered struct {
 	name string
 	fn   gad.CallerObject
+	doc  string // for statement-form tests (`test NAME { … }`)
 }
 
-// discover returns the file's top-level `test*`/`bench*` functions in source
-// (index) order.
+// discover returns the file's tests and benchmarks in source (index) order: both
+// top-level `test*`/`bench*` functions and the const bindings that `test NAME
+// { … }` / `bench NAME { … }` statements lower to (gad.TestRegistryPrefix).
 func discover(eval *gad.Eval) (tests, benches []discovered) {
 	names := eval.SymbolTable().LocalNames()
 	type entry struct {
@@ -200,18 +202,51 @@ func discover(eval *gad.Eval) (tests, benches []discovered) {
 		if e.idx < 0 || e.idx >= len(eval.Locals) {
 			continue
 		}
-		fn, ok := eval.Locals[e.idx].(gad.CallerObject)
+		val := eval.Locals[e.idx]
+
+		// Statement form: `const __gadTest_<pos> = [kind, name, fn, doc]`.
+		if strings.HasPrefix(e.name, gad.TestRegistryPrefix) {
+			if d, isBench, ok := statementTest(val); ok {
+				if isBench {
+					benches = append(benches, d)
+				} else {
+					tests = append(tests, d)
+				}
+			}
+			continue
+		}
+
+		// Function form: top-level `func test*(t)` / `func bench*(t)`.
+		fn, ok := val.(gad.CallerObject)
 		if !ok {
 			continue
 		}
 		switch {
 		case isPrefixFunc(e.name, "test"):
-			tests = append(tests, discovered{e.name, fn})
+			tests = append(tests, discovered{name: e.name, fn: fn})
 		case isPrefixFunc(e.name, "bench"):
-			benches = append(benches, discovered{e.name, fn})
+			benches = append(benches, discovered{name: e.name, fn: fn})
 		}
 	}
 	return tests, benches
+}
+
+// statementTest decodes a `[kind, name, fn, doc]` registry entry produced by a
+// `test`/`bench` statement, reporting whether it is a benchmark.
+func statementTest(val gad.Object) (d discovered, isBench, ok bool) {
+	arr, _ := val.(gad.Array)
+	if len(arr) < 3 {
+		return d, false, false
+	}
+	fn, _ := arr[2].(gad.CallerObject)
+	if fn == nil {
+		return d, false, false
+	}
+	d.name, d.fn = arr[1].ToString(), fn
+	if len(arr) >= 4 {
+		d.doc = strings.TrimSpace(arr[3].ToString())
+	}
+	return d, arr[0].ToString() == "bench", true
 }
 
 // isPrefixFunc reports whether name is a test/bench function name: it begins
@@ -256,6 +291,9 @@ func (o *testOptions) runTest(ctx *cc.CommandContext, path string, eval *gad.Eva
 
 	if o.verbose {
 		fmt.Fprintf(ctx.Out, "PASS %s/%s\n", path, d.name)
+		if d.doc != "" {
+			fmt.Fprintf(ctx.Out, "    %s\n", strings.ReplaceAll(d.doc, "\n", "\n    "))
+		}
 		for _, l := range t.Logs() {
 			fmt.Fprintf(ctx.Out, "    %s\n", l)
 		}

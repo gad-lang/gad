@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,6 +26,45 @@ func TestDocGeneratorFromContentAndFromFile(t *testing.T) {
 	require.Equal(t, md, res.Markdown)
 	require.Equal(t, filepath.Join("doc", "m.md"), res.OutPath)
 	require.Equal(t, 0, res.ExamplesFailed)
+}
+
+// TestDocGeneratorGroupsTestsAndBenchs verifies that `test`/`bench` statements
+// are documented in their own Tests and Benchs sections (not mixed into the API
+// sections), with their names and doc comments, in source order.
+func TestDocGeneratorGroupsTestsAndBenchs(t *testing.T) {
+	src := []byte("/// Add two numbers.\n" +
+		"func add(a, b) => a + b\n\n" +
+		"/// add is commutative\n" +
+		"test addCommutes { t.equal(add(1, 2), add(2, 1)) }\n\n" +
+		"test \"fib of ten\" { t.equal(55, fib(10)) }\n\n" +
+		"/// the fib benchmark\n" +
+		"bench \"fib 15\" { for i := 0; i < t.n; i++ {} }\n")
+
+	gen := &DocGenerator{NoTest: true}
+	md, err := gen.FromContent("m.gad", src)
+	require.NoError(t, err)
+
+	// the real declaration is still documented in the API section
+	require.Contains(t, md, "func **add**")
+
+	// dedicated Tests / Benchs sections (heading + TOC bullets)
+	require.Contains(t, md, "\n## Tests\n")
+	require.Contains(t, md, "\n## Benchs\n")
+	require.Contains(t, md, "[Tests](#tests)")
+	require.Contains(t, md, "[Benchs](#benchs)")
+
+	// test entries: name, code line and doc comment
+	require.Contains(t, md, "### test **addCommutes**")
+	require.Contains(t, md, "test addCommutes { … }")
+	require.Contains(t, md, "add is commutative")
+	require.Contains(t, md, "### test **fib of ten**") // string name
+	require.Contains(t, md, `test "fib of ten" { … }`) // rendered quoted
+	require.Contains(t, md, "### bench **fib 15**")
+	require.Contains(t, md, "the fib benchmark")
+
+	// a bench is not listed among the tests
+	tests := md[strings.Index(md, "## Tests"):strings.Index(md, "## Benchs")]
+	require.NotContains(t, tests, "fib 15")
 }
 
 func TestDocGeneratorFromFileReportsFailingExample(t *testing.T) {

@@ -6,6 +6,7 @@ package main
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gad-lang/gad/parser"
@@ -127,6 +128,40 @@ func internalEntries(file *parser.File, f *source.File) (entries []docEntry) {
 	return entries
 }
 
+// testEntries gathers the file's `test NAME { … }` and `bench NAME { … }`
+// statements into documentation entries (name + doc comment), split into tests
+// and benchmarks in source order. Unlike API declarations these are listed even
+// without a doc comment, since a test is itself documentation of behaviour.
+func testEntries(file *parser.File) (tests, benches []docEntry) {
+	for _, stmt := range file.Stmts {
+		ts, ok := stmt.(*node.TestStmt)
+		if !ok {
+			continue
+		}
+		e := docEntry{
+			name:    ts.Name,
+			keyword: ts.Kind.String(),
+			code:    []string{ts.Kind.String() + " " + testDisplayName(ts) + " { … }"},
+			doc:     docContent(ts.Doc),
+		}
+		if ts.Kind == node.TestKindBench {
+			benches = append(benches, e)
+		} else {
+			tests = append(tests, e)
+		}
+	}
+	return tests, benches
+}
+
+// testDisplayName renders a test/bench name as written in source: quoted when it
+// was a string literal (or is not a bare identifier), bare otherwise.
+func testDisplayName(ts *node.TestStmt) string {
+	if ts.Quoted {
+		return strconv.Quote(ts.Name)
+	}
+	return ts.Name
+}
+
 // internalStmtEntry builds a doc entry for a single documented internal
 // statement (everything except const/var blocks, handled separately). The
 // boolean is false for statement forms that do not introduce a named, documented
@@ -178,6 +213,11 @@ func internalStmtEntry(stmt node.Stmt, doc string) (docEntry, bool) {
 			return docEntry{}, false
 		}
 		return funcEntry(name, s.Func, doc), true
+	case *node.TestStmt:
+		// `test`/`bench` statements are not API declarations; they are collected
+		// separately (testEntries) into their own Tests/Benchs sections, so they
+		// must not appear in the Constants/Variables/Types buckets here.
+		return docEntry{}, false
 	case *node.ExprStmt:
 		if fe, ok := s.Expr.(*node.FuncExpr); ok {
 			name := funcName(fe)
@@ -430,14 +470,16 @@ func blockContent(text, open, close string) string {
 
 // writeTOC writes a flat table of contents (Constants/Variables/Types) for the
 // must-exported layout.
-func writeTOC(b *strings.Builder, bk docBuckets) {
-	if bk.empty() {
+func writeTOC(b *strings.Builder, bk docBuckets, tests, benches []docEntry) {
+	if bk.empty() && len(tests) == 0 && len(benches) == 0 {
 		return
 	}
 	b.WriteString("\n## Table of Contents\n\n")
 	writeTOCSection(b, "Constants", bk.consts)
 	writeTOCSection(b, "Variables", bk.vars)
 	writeTOCSection(b, "Types", bk.types)
+	writeTOCSection(b, "Tests", tests)
+	writeTOCSection(b, "Benchs", benches)
 }
 
 // writeTOCSection writes a top-level TOC bullet linking the section and its
@@ -466,13 +508,15 @@ func writeRootGroup(b *strings.Builder, group string, bk docBuckets) {
 
 // writeGroupedTOC writes a table of contents for the two-root-section layout,
 // listing each entry name nested under its Exported/Internal group.
-func writeGroupedTOC(b *strings.Builder, exp, internal docBuckets) {
-	if exp.empty() && internal.empty() {
+func writeGroupedTOC(b *strings.Builder, exp, internal docBuckets, tests, benches []docEntry) {
+	if exp.empty() && internal.empty() && len(tests) == 0 && len(benches) == 0 {
 		return
 	}
 	b.WriteString("\n## Table of Contents\n\n")
 	writeTOCGroup(b, "Exported", exp)
 	writeTOCGroup(b, "Internal", internal)
+	writeTOCSection(b, "Tests", tests)
+	writeTOCSection(b, "Benchs", benches)
 }
 
 // writeTOCGroup writes one Exported/Internal group of the grouped TOC.

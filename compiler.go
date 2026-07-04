@@ -723,6 +723,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileMethodInterfaceExpr(nt)
 	case *node.InterfaceStmt:
 		return c.compileInterfaceStmt(nt)
+	case *node.TestStmt:
+		return c.compileTestStmt(nt)
 	case *node.InterfaceExpr:
 		return c.compileInterfaceExpr(nt)
 	case *node.ClosureExpr:

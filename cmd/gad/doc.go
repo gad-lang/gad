@@ -63,20 +63,28 @@ func (d *DocGenerator) FromContent(path string, src []byte) (string, error) {
 		b.WriteString("\n" + root + "\n")
 	}
 
+	// `test`/`bench` statements are documented in their own sections, in both
+	// layouts, regardless of the exported/internal split.
+	tests, benches := testEntries(file)
+
 	if d.MustExported {
-		writeTOC(&b, exp)
+		writeTOC(&b, exp, tests, benches)
 		writeSection(&b, 2, "Constants", exp.consts)
 		writeSection(&b, 2, "Variables", exp.vars)
 		writeTypesSection(&b, 2, exp.types)
+		writeSection(&b, 2, "Tests", tests)
+		writeSection(&b, 2, "Benchs", benches)
 		return b.String(), nil
 	}
 
 	// Two-root-section mode: gather the documented internal declarations and
 	// render Exported + Internal groups.
 	internal := bucketize(internalEntries(file, f))
-	writeGroupedTOC(&b, exp, internal)
+	writeGroupedTOC(&b, exp, internal, tests, benches)
 	writeRootGroup(&b, "Exported", exp)
 	writeRootGroup(&b, "Internal", internal)
+	writeSection(&b, 2, "Tests", tests)
+	writeSection(&b, 2, "Benchs", benches)
 	return b.String(), nil
 }
 

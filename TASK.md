@@ -133,5 +133,42 @@
       parser_test.go + new_test.go, docs classes.md/method-interfaces.md/
       samples/README.md. (Builder-API `extends=[…]` in 11_classes.gad and
       classes.md kept — that's the lowered form, not the sugar.)
-- [ ] create parser for test and bench stmts `test NAME { ... }` (`t` var is available). examples: `test xIs1 { x:=1; t.equal(x, 1) }`,  `test "x Is 2" { x:=2; t.equal(x, 1) }`. bech like test `bench fib { ... }`,  `bench "the fib" { ... }`.
+- [x] create parser for test and bench stmts `test NAME { ... }` (`t` var is available). examples: `test xIs1 { x:=1; t.equal(x, 1) }`,  `test "x Is 2" { x:=2; t.equal(x, 1) }`. bech like test `bench fib { ... }`,  `bench "the fib" { ... }`.
     the test and bench Stmts allow doc comment. create samples, docs and tests.
+      DONE. `test NAME { … }` / `bench NAME { … }` where NAME is an identifier or a
+      string literal, `t` is injected, and a `///` doc comment is allowed.
+      `test`/`bench` are CONTEXTUAL (only a statement when followed by NAME + `{`,
+      via isTestStmtStart lookahead), so `test := import("test")`, `test.equal(…)`,
+      `bench()` still work.
+      AST: parser/node/test.go (TestStmt, TestKind) with WriteCode round-trip
+      (bare vs quoted name, doc). Parser: parser/test.go (ParseTestStmt +
+      isTestStmtStart) hooked into DefaultParseStmt. Compiler:
+      compiler_test_stmt.go lowers each to a top-level
+      `const __gadTest_<pos> = [kind, name, func(t){body}, doc]`
+      (gad.TestRegistryPrefix). Runner: cmd/gad/test_cmd.go discover() now also
+      reads those const bindings (statementTest) alongside func-form tests, so
+      both forms mix in source order; -v prints the doc when available.
+      Evidence: `go build ./...`, `go vet ./...`, `go test ./...` all clean.
+        - parser tests: TestParseTestStmt (ident/string/bench + contextual
+          `test :=`/`bench.run()`/`test(x)`), TestParseTestStmtNode.
+        - runner tests: TestRunFileStatementForm (pass/fail/skip + string name),
+          TestRunFileStatementBench.
+        - `gad test samples/testing` -> 5 passed, 0 failed, 1 skipped; fmt
+          round-trips the statements + doc comment and it still runs.
+      Docs: doc/stdlib-test.md (statement-form section + updated example).
+      Sample: samples/testing/math_test.gad (both forms).
+- [x] check doc generator for test/bench stmt
+      DONE. The `gad doc` generator (cmd/gad/doc_gen.go, doc.go) now groups
+      `test NAME { … }` into a **Tests** section and `bench NAME { … }` into a
+      **Benchs** section (per request), in both the must-exported and
+      exported/internal layouts, with a TOC entry each. New `testEntries(file)`
+      walks the `*node.TestStmt`s (in source order) into docEntry values (name +
+      `test/bench NAME { … }` code line + doc comment via docContent(ts.Doc));
+      names are shown quoted when written as a string literal. They are kept out
+      of the Constants/Variables/Types buckets (explicit `case *node.TestStmt` in
+      internalStmtEntry). Tests/benches are listed even without a doc comment.
+      Evidence: `go build ./...`, `go vet ./cmd/gad/`, `go test ./...` clean;
+      TestDocGeneratorGroupsTestsAndBenchs asserts the Tests/Benchs headings +
+      TOC bullets, per-entry `### test **name**`/code/doc, quoted string names,
+      and that a bench is not listed among the tests. Manually confirmed the
+      rendered Markdown on a scratch module.
