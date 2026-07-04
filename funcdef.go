@@ -30,8 +30,14 @@ func (t ParamType) Accept(vm *VM, obj Object) (ok bool, err error) {
 		return
 	}
 
-	ot := vm.ResolveType(obj.Type())
-	var st Object
+	// ot (the resolved type of obj) is only needed to compare against a concrete
+	// ObjectType entry; resolve it lazily so the common `TAny` / structural cases
+	// avoid the ResolveType map lookup on the hot per-call path.
+	var (
+		st     Object
+		ot     ObjectType
+		otDone bool
+	)
 	for _, symbol := range t {
 		if st, err = vm.GetSymbolValue(symbol); err != nil {
 			return
@@ -40,6 +46,9 @@ func (t ParamType) Accept(vm *VM, obj Object) (ok bool, err error) {
 			return true, nil
 		}
 		if stot, isOT := st.(ObjectType); isOT {
+			if !otDone {
+				ot, otDone = vm.ResolveType(obj.Type()), true
+			}
 			if ot == stot || IsTypeAssignableTo(stot, ot) {
 				return true, nil
 			}

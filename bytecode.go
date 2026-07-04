@@ -388,26 +388,26 @@ func (o *CompiledFunction) ValidateParamTypes(vm *VM, args Args) (err error) {
 
 	if o.Params.Typed() {
 		var (
-			l       = o.Params.len
-			argType ObjectType
-			t       ParamType
-			accept  bool
-			last    = o.Params.Items[l-1]
+			l      = o.Params.len
+			t      ParamType
+			accept bool
+			last   = o.Params.Items[l-1]
 		)
 		if last.Var {
 			l--
 		}
 
 		for i := 0; i < l; i++ {
-			arg := args.GetOnly(i)
-			argType = vm.ResolveType(arg.Type())
 			t = o.Params.Items[i].TypesSymbols
-			if t != nil {
-				if accept, err = t.Accept(vm, arg); err != nil {
-					return
-				} else if !accept {
-					return NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Items[i].Name+")", t.String(), argType.Name())
-				}
+			if t == nil {
+				continue
+			}
+			arg := args.GetOnly(i)
+			if accept, err = t.Accept(vm, arg); err != nil {
+				return
+			} else if !accept {
+				// argType is only needed for the error message; resolve it here.
+				return NewArgumentTypeError(strconv.Itoa(i+1)+"st ("+o.Params.Items[i].Name+")", t.String(), vm.ResolveType(arg.Type()).Name())
 			}
 		}
 

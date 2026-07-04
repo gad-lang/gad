@@ -421,6 +421,9 @@ func (b *StaticBuiltins) Set(name string, obj Object) BuiltinType {
 
 func (b *StaticBuiltins) Update(key BuiltinType, value Object) {
 	b.builtins.Objects[key] = value
+	if int(key) < len(b.builtins.objects) {
+		b.builtins.objects[key] = value // keep the read-slice in sync
+	}
 }
 
 func (b *StaticBuiltins) Call(t BuiltinType, c Call) (Object, error) {
@@ -449,6 +452,21 @@ type Builtins struct {
 	Objects BuiltinObjectsMap
 	NameSet BuiltinsNameSet
 	last    BuiltinType
+	// objects is a slice mirror of Objects indexed by BuiltinType, covering the
+	// core builtins registered by Build time. It is a read cache so hot lookups
+	// (Get / GetSymbolValue ScopeBuiltin / ResolveType) avoid map hashing; the
+	// map stays authoritative and user builtins added later fall back to it.
+	objects []Object
+}
+
+// buildObjectsSlice fills the objects read-slice from the Objects map.
+func (b *Builtins) buildObjectsSlice() {
+	b.objects = make([]Object, int(b.last)+1)
+	for k, v := range b.Objects {
+		if int(k) < len(b.objects) {
+			b.objects[k] = v
+		}
+	}
 }
 
 func NewBuiltins() *Builtins {
@@ -503,6 +521,9 @@ func (b *Builtins) ArgsInvoker(t BuiltinType, c Call) func(arg ...Object) (Objec
 }
 
 func (b *Builtins) Get(t BuiltinType) Object {
+	if int(t) < len(b.objects) {
+		return b.objects[t]
+	}
 	return b.Objects[t]
 }
 
@@ -523,6 +544,7 @@ func (b *Builtins) Build() (s *StaticBuiltins) {
 		s.builtins.NameSet[k] = v
 	}
 	s.builtins.last = b.last
+	s.builtins.buildObjectsSlice()
 	s.buildOpMethoded()
 	return s
 }

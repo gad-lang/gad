@@ -135,7 +135,7 @@ func (vm *VM) GetLocals(locals []Object) []Object {
 func (vm *VM) ResolveType(ot ObjectType) ObjectType {
 	switch t := ot.(type) {
 	case BuiltinObjTypeKey:
-		return vm.Builtins.builtins.Objects[BuiltinType(t)].(ObjectType)
+		return vm.Builtins.Get(BuiltinType(t)).(ObjectType)
 	default:
 		return ot
 	}
@@ -423,7 +423,7 @@ func (vm *VM) GetSymbolValue(symbol *SymbolInfo) (value Object, err error) {
 			value = *v.Value
 		}
 	case ScopeBuiltin:
-		value = vm.Builtins.builtins.Objects[BuiltinType(symbol.Index)]
+		value = vm.Builtins.Get(BuiltinType(symbol.Index))
 	case ScopeFree:
 		value = *vm.curFrame.freeVars[symbol.Index].Value
 	case ScopeConstant:

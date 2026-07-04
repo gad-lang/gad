@@ -141,6 +141,23 @@
       DictAccess ~13.3->9.65ms (~27%); profile confirms hasOpMethods 35%->9% cum
       and the map hash off the hot path. `go build/test ./...`, `go vet ./...`,
       -race all clean.
+      Eleventh pass done (CPU): after the op-methoded fix, the profile showed
+      per-call parameter-type validation at ~42% (ValidateParamTypes ->
+      ParamType.Accept -> ResolveType map lookup). Two fixes: (a) made the
+      resolved arg type lazy — ParamType.Accept only calls vm.ResolveType when it
+      actually compares against a concrete ObjectType (skipped for the common
+      TAny / structural cases), and ValidateParamTypes resolves it only for the
+      error message; also skip params with nil TypesSymbols up front. (b) The
+      remaining hot lookup was GetSymbolValue's ScopeBuiltin / ResolveType
+      indexing the builtins map — backed the builtins with a read-slice
+      (Builtins.objects, indexed by BuiltinType, built in Build, kept in sync on
+      Update; map stays authoritative, user builtins fall back to it) and routed
+      Get/GetSymbolValue/ResolveType through it. Fib ~39->26.5ms this pass
+      (~48->26.5ms across the op-methoded + these fixes, ~45%); profile now has
+      VM.loop itself dominant and the mapaccess/aeshashbody hotspots gone.
+      Typed-param validation still correct (accept + reject with the right
+      "expected int, found str" message). go build/test ./..., go vet, and full
+      `-race ./...` (incl. stdlib which uses Set) all clean.
       REMAINING (all high-risk / low-value): pooling the last two per-loop
       objects (the concrete iterator + StateIteratorObject — needs a loop-end
       release point and must not pool user-visible iterator(...) values), and
