@@ -85,4 +85,9 @@ try {
     println("dict reject: not a Greeter")
 }
 
+/// Because a failed `::` raises an error, the `or` fallback operator turns it
+/// into a value: `obj :: Type or fallback` yields the fallback when obj does not
+/// satisfy Type, without a `try`/`catch`.
+println("or fallback: ", bad :: Greeter or "is bad") // is bad
+
 return ok
