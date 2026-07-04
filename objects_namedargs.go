@@ -1263,6 +1263,13 @@ func (o *NamedArgs) IndexGet(vm *VM, index Object) (value Object, err error) {
 // in which case that Dict is used live.
 func (o *NamedArgs) check() {
 	if o.m == nil {
+		// No passed names: leave o.m/o.ready nil. Reads on a nil map return nil
+		// (keys are consumed only when found, so o.ready is never written), which
+		// avoids allocating two dicts for every empty NamedArgs — the common case
+		// for a plain `for x in it` with no iteration options.
+		if len(o.sources) == 0 {
+			return
+		}
 		o.m = Dict{}
 		o.ready = Dict{}
 
