@@ -1,0 +1,61 @@
+/***
+math_test.gad — a runnable example of the `test` module and the `gad test`
+command. Run it with:
+
+    gad test samples/testing
+    gad test -v samples/testing            # log every test
+    gad test -bench=. samples/testing      # also run benchmarks
+
+Every top-level `func test*(t)` is a test; `func bench*(t)` is a benchmark.
+***/
+
+test := import("test")
+
+func add(a, b) => a + b
+
+func fib(n) {
+	a := 0
+	b := 1
+	for i := 0; i < n; i++ {
+		next := a + b
+		a = b
+		b = next
+	}
+	return a
+}
+
+// A test receives the context `t`. Assertions on `t` are require-style: the
+// first failure records a message and aborts this test.
+func testAdd(t) {
+	t.equal(3, add(1, 2))
+	t.true(add(2, 2) == 4)
+	t.notEqual(add(1, 1), 3)
+}
+
+// The module also exposes testify/require-style helpers that take `t` first.
+func testHelpers(t) {
+	test.equal(t, 5, add(2, 3))
+	test.contains(t, "gad language", "language")
+	test.noError(t, () => add(1, 1))
+}
+
+// A named `msg` argument prefixes the failure message.
+func testFib(t) {
+	t.equal(0, fib(0))
+	t.equal(1, fib(1))
+	t.equal(55, fib(10); msg="fib(10) should be 55")
+}
+
+// t.skip stops the test and marks it skipped (not failed).
+func testNotReady(t) {
+	t.skip("pending feature")
+	t.fail("unreachable")
+}
+
+// A benchmark loops `t.n` times; the runner scales `t.n` to reach -benchtime
+// and reports ns/op.
+func benchFib(t) {
+	for i := 0; i < t.n; i++ {
+		fib(15)
+	}
+}

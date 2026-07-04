@@ -5,99 +5,94 @@
 
 # Language
 
-- [ ] change typed ident and param parser to parse param type of method interface. add exaplained tests and docs for it
-  of funcs/closures/methods/funcHeaders/properties etc.... examples: `func x(cb meti{(int)<float>} ) {...}`, `met x(iOrCb int|meti{(int)<float>}) {...}`,
-      STAGE 1 (parser) done (commit a95881c): the type parser accepts `meti{…}` /
-      `interface{…}` / `met<…>` structural literals wherever a type is read (typed
-      idents, params, func-headers, unions); isTypeStart + parseType handle the
-      literal forms; parser tests (TestParseTypeMethodInterface). Compiling such a
-      type is NOT yet supported — nameSymbolsOfTypedIdent returns a clear error
-      (was a nil-deref panic).
-      REMAINING (runtime, a central type-system refactor — agreed design):
-      introduce `gad.TypeAssigner { Object; AssignTo(*VM, obj Object, to
-      TypeAssigner) (Object, error) }` and `TypeAssigners []TypeAssigner`
-      (rename Cast->Assign / CastTo->AssignTo). All ObjectType impls (~9: Type,
-      *BuiltinObjType, BuiltinObjTypeKey, *Enum, Class, ReflectType, the operator
-      types), *Interface and *MethodInterface implement AssignTo (returns obj when
-      it assigns, else ErrIncompatibleCast). Add *Class.AssignTo checking
-      the instance (obj) + parents. Change
-      MethodArgType.add param `types` and TypedCallerMethod.types from
-      ObjectTypeArray to TypeAssigners, and wire AssignTo into the dispatch match.
-      IsTypeAssignableTo uses AssignTo. Then compile a meti/interface literal type
-      to a constant (a ScopeConstant symbol) so a param can reference it. This
-      touches the method-dispatch core — do it carefully in one focused pass.
-      STAGE 2 (runtime dispatch) done: structural (meti) param types now dispatch
-      by value. Design: the dispatch tree stays ObjectType-keyed (structural param
-      keys as TAny → zero overhead on the hot path), but a method carrying a
-      structural param sets TypedCallerMethod.forceValidate (computed once at
-      registration via CompiledFunction.HasStructuralParamTypes, memoized with an
-      atomic int32 on the shared function constant). On an exact tree match, if
-      forceValidate is set, value-based validation runs (ParamType.Accept →
-      vmCanAssigner.CanAssignVM → MethodInterfaceImplements). The tree key type is
-      now TypeAssigner (foundation for structural keys). Evidence:
-        `go test ./...` → all ok (exit 0)
-        `go test -run TestVMMethodInterface` → PASS (new cases #12 accept callable,
-          #13 reject `x(42)` with "invalid type for argument")
-        `go vet ./...` → clean; `go test -race` on VM/Eval → ok
-      STAGE 3 (interface structural check) done: *Interface now implements
-      TypeAssigner + vmCanAssigner via CanAssign/CanAssignVM — obj satisfies an
-      interface when it has every required field (assignable type), property and
-      method (signatures matched via MethodInterfaceImplements), plus any extended
-      interfaces (ifaceMember resolves members off a ClassInstance/IndexGetter;
-      ifaceFieldTypeOK resolves field-type symbols per-VM). AssignTo delegates to
-      the same check. Wired into both `obj :: Interface` and interface-typed
-      params. Evidence: `go test -run TestVMInterfaceSatisfaction` → PASS
-      (Person::Named/Greeter accept; Anon::Greeter and Person::HasAge reject with
-      ErrIncompatibleAssign; inline `interface{…}` param accepts a satisfier and
-      rejects 42 up front). `go test ./...` → ok; `go vet` → clean.
-      REMAINING (minor): a NAMED interface/meti const used as a param type is not
-      flagged structural by the static CompiledFunction.HasStructuralParamTypes
-      (which only sees ScopeConstant inline literals), so `func f(g Named)` with a
-      non-satisfier is rejected at the method body, not up front — inline literals
-      (`interface{…}`/`met<…>`) reject up front. The TASK NOTES ParamTypes
-      interface refactor (Items/Get → TypeAssigner) is likewise not needed —
-      dispatch works via the forceValidate path.
-  NOTES:
-  - change ParamTypes interface methods `Items() ObjectTypes` to  `Items() TypeAssigners`, `Get(int) ObjectType` to `Get(int) TypeAssigner`
-  - take all ObjectType to implements TypeAssigner method `CanAssign(obj Object) (bool, error) { return obj.Type() == this }` (default, if not implemented)
-  - replace ParamType.Accept param `ot` to `obj Object`
-  - replace MethodArgType.GetMethod param `types` to `types TypeAssignerArray`
-- [x] parser operator AssignTo `obj :: Type`. compile to OpAssign. it calls assign like method resolution. return an error
-      if not assignable. allows `obj::Type1::Type2::Type3`. add samples, docs and tests.
-      DONE. New `DoubleColon` token (`::`, scanned; placed after GroupKeywordEnd so
-      no token value shifts; precedence 11 — tighter than arithmetic). Parses via
-      the normal binary-expr loop (Precedence-driven). New opcode OpAssign (0
-      operands; registered in MakeInstruction and both VM loops; excluded from the
-      optimizer's constant-folding so a failing cast throws at runtime instead of
-      becoming a compile error). Runtime: AssignToType(vm, obj, to) returns obj
-      when assignable (ObjectType incl. *Class parent-walk, or structural
-      TypeAssigner via CanAssign/CanAssignVM), else ErrIncompatibleAssign; a
-      non-type RHS gives ErrType. Fixed a latent *Class.CanAssign bug (walked
-      parents but never set ok). Formatter writes `a::B` tightly, dropping
-      redundant chain parens (`(a::B)::C`→`a::B::C`) but keeping needed ones
-      (`(2 + 3)::int`). Evidence: `go test ./...` → ok; `go vet` → clean;
-        `go test -run TestVMAssignOperator` → PASS (cast, chain, precedence,
-          subclass, structural, reject str::int and 42::met, non-type RHS)
-        `go test -run TestFormatDoubleColon ./parser` → PASS
-        samples/25_method_resolution.gad extended; doc/operators.md documents it.
-- [x] check cmd/update-*-plugin to accept all language changes.
-    update vscode plugin to allow single "run" and "debug".
-    create example page for codemirror and prismjs plugins.
-      DONE.
-      - Ran update-codemirror/prism/vscode plugins with -w: synced the new
-        keywords (class, enum, interface) into web/codemirror-gad/src/keywords.ts
-        and web/prism-gad/src/index.ts, and regenerated the vscode TextMate
-        grammar. Added the `::` operator to the operator patterns (textmate.go,
-        prism index.ts; codemirror already matches `:` char-by-char). Pluginsync
-        tests pass.
-      - vscode extension: new commands `gad.run` (runs `gad run <file>` in a
-        reused terminal) and `gad.debug` (starts a debug session), wired to the
-        editor title run menu, context menu and command palette. Added
-        `gad.openConfig` (opens/creates the workspace `.gad.yaml` from a starter
-        template) + a `gad.configFile` setting. `bun run compile` → clean.
-      - Example pages: web/codemirror-gad/example and web/prism-gad/example, each
-        with three tabs — plain `.gad`, `.gadt` template, and `# gad: mixed` `.gad`
-        — driven by gad()'s template/preamble options (codemirror) and
-        registerGadTemplate/detectGadTemplate (prism). `bun run demo` serves;
-        `demo:build` bundles (verified: both bundle; both plugins typecheck clean).
-        READMEs document the demos; example/dist is gitignored.
+- [x] create builtin module `test` (like Go `testing` + testify/require) and a
+      `gad test` subcommand to run `*_test.gad` files with reports + benchmarks.
+      DONE. Modeled on the `time` module.
+      Module: `stdlib/test/module.go` — `ModuleName`/`ModuleInit`; `T` context
+      (`gad.Object` + `NameCallerObject` + `IndexGetter`) with require-style
+      assertions (equal, notEqual, true, false, nil, notNil, contains, error,
+      noError) that record a failure and abort via a `*FailError`; controls
+      log/fail/fatal/skip (`*SkipError`)/name/failed; fields `.name/.failed/.n`.
+      `Module` Dict exposes `T` + testify-style free helpers `test.equal(t,…)`
+      delegating to the t method. Registered in `stdlib/helper/helper.go`.
+      Command: `cmd/gad/test_cmd.go` — `testCommand()` discovers `*_test.gad`,
+      runs each file via `NewEval(...).RunScript`, then finds top-level
+      `test*`/`bench*` functions from `SymbolTable().LocalNames()` + `eval.Locals`
+      and invokes each with a fresh `T` via `gad.NewInvoker(eval.VM, fn)`. Flags
+      `-v -run -bench -benchtime -timeout`; benchmarks auto-scale `t.n` to reach
+      `-benchtime` and report ns/op. Registered in `buildRootCommand()`.
+      Convention learned (used in sample): named call args need `;` (`f(a; k=v)`);
+      no multi-value `:=`/`=` (`a, b := 0, 1` unsupported); arrow funcs can't
+      self-recurse by name.
+      Evidence:
+        - `go build ./...` -> exit 0.
+        - `go test ./stdlib/test/` -> `ok  github.com/gad-lang/gad/stdlib/test`.
+        - `go test ./cmd/gad/ -run 'TestIsPrefixFunc|TestTestFiles|TestRunFile'`
+          -> all PASS (7 tests: discovery, reports, -run filter, bench, compile
+          error, runtime error).
+        - `go test ./...` -> no failures (grep -v ok/no-test empty).
+        - `gad test -v -bench=. samples/testing` -> 3 passed, 0 failed, 1
+          skipped, `BENCH …/benchFib 63715 17831.5 ns/op`, exit 0.
+      Docs: `doc/stdlib-test.md` (guide) linked from `doc/README.md`.
+      Sample: `samples/testing/math_test.gad` (runnable).
+
+- [~] check if possible to improve bytecode performance after optimizer
+      First pass done: operator dispatch was the top hotspot. `callBinaryOp` /
+      `callSelfAssignOp` always allocated an Args+Call and walked the method tree
+      (Args.Types + GetMethod + Methods.get) even for `int+int`. Added a fast path
+      (vm.hasOpMethods): when the operator builtin has no user `met gad.…Op{Op}`
+      overload, dispatch natively (BinaryOp / selfAssignOpDispatch → binOpObject),
+      skipping the allocation and tree walk. New bench_test.go (BenchmarkVMFib,
+      BenchmarkVMLoop): Fib(25) 251ms→61ms (5.3M→486K allocs); loop(100k)
+      172ms→20ms (4.2M→200K allocs, 141MB→1.75MB). Side effect: a built-in
+      operator runtime error is now clean (e.g. `ZeroDivisionError`) instead of
+      `ErrCall: ‹binOpQuo…›; caused by …` (tests updated).
+      Second pass done: xOpCallCompiled allocated the args slice (Args{nil,nil})
+      and a *NamedArgs on every compiled-function call (both stored in the frame,
+      so they escaped). Added inline per-frame buffers (frame.argsBuf/namedBuf) —
+      frames are pooled, so &frame.buf does not allocate per call — and isolated
+      the two remaining `&namedParams` stores (named-variadic + tail-call) so the
+      locals stop escaping. Verified via `-gcflags=-m` (no escape) and behaviour
+      (positional / named / `**kwargs` / tail-call recursion all correct, race
+      clean). BenchmarkVMFib 486K→243K allocs (~half), 61ms→57ms; combined with
+      the operator pass Fib is 251ms→57ms and 5.3M→243K allocs vs the original.
+      Third pass done: the loop path's allocations were Int→Object boxing (each
+      arithmetic result heap-allocs an interface box). Added a shared small-int
+      box cache (smallInts, -256..1024) returned by intObject, applied to the
+      Int+Int Add/Sub/Mul/Quo/Rem results — safe since Int is immutable and Go
+      compares interface values by (type, value). BenchmarkVMSmallInts 149K→99K
+      allocs (~34%, 1.45MB→1.05MB). Large ints (running sums, fib values) stay
+      boxed — fundamental to the boxed-Object model; a bigger win would need a
+      tagged/union value representation (major refactor).
+      Fourth pass done: the remaining ~1 alloc/call was the frame's args slice —
+      storeArgs's `return args` fallback flowed to frame.args, so escape analysis
+      escaped the local always. args is at most 3 slots (positional, var-args tail,
+      one merge spare), so argsBuf is now [3]Array and storeArgs always copies into
+      it (never returns the caller's args). BenchmarkVMFib 243K→108 allocs (call
+      path is now essentially alloc-free), 11.9MB→280KB, 57ms→49ms. Verified via
+      -gcflags=-m (no args escape) and behaviour (positional / `f(*arr)` spread /
+      `func(a, *b)` rest+merge / tail-call / named args all correct; race clean).
+      Combined across all passes vs the original baseline: Fib 251ms→49ms (~5x),
+      5.3M→108 allocs, 193MB→280KB.
+      Fifth pass done: a plain `for x in it` (no options) still allocated two
+      dicts per loop in NamedArgs.check to materialise an empty option set.
+      check() now leaves o.m/o.ready nil when there are no passed names (reads on
+      a nil map return nil; keys are consumed only when found, so o.ready is never
+      written) — this also fixes a latent Add-after-check staleness. New
+      BenchmarkVMIterate/BenchmarkVMDictAccess; iterate 54K→44K allocs (~18%),
+      2.59MB→2.11MB. Verified: sorted/reversed iteration and named args still
+      correct; full suite + -race ok.
+      REMAINING: iterator wrapper objects (RangeIteration/SliceIteration/
+      StateIteratorObject per for-in) and large-int boxing — both need deeper,
+      higher-risk restructuring (iterator pooling / tagged-value representation).
+- [x] check if allow keywords in `x.KEYWORD`, `[KEYWORD=...]` (keyvalue), `{KEYWORD:...}` (dict key), `(;KEYWORD=...)` (keyvalue array key).
+      examples `x.class`, `[class=1]`, `{class:1}`, `(;class=1,class,false,nil,met,meti,func,if,else)`, all is single key. add doc for describe this rule
+      DONE. `.name` selector and `{class: 1}` dict keys already accepted keywords;
+      added it to `[keyword=value]` (ParseArrayLitOrKeyValue + ParseKeyValueLit)
+      and `(;keyword=value)` / bare `(;keyword)` (ParseKeyValuePairLit) via a
+      shared keywordStrLit helper (a keyword in a key position becomes a Str of
+      its spelling). Only the key position changes — values keep their meaning
+      (`(;x=false)` value is boolean false). Behaviour change: `true`/`false`/`nil`
+      as keyValueArray keys are now the strings "true"/"false"/"nil" (updated
+      TestParseKeyValueArray). Tests: TestParseKeywordKeys + cases in
+      TestParseKeyValueArray. Docs: collections.md "Keyword keys". go test ./... ok.

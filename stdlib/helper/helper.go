@@ -11,6 +11,7 @@ import (
 	gados "github.com/gad-lang/gad/stdlib/os"
 	gadpath "github.com/gad-lang/gad/stdlib/path"
 	gadstrings "github.com/gad-lang/gad/stdlib/strings"
+	gadtest "github.com/gad-lang/gad/stdlib/test"
 	gadtime "github.com/gad-lang/gad/stdlib/time"
 )
 
@@ -38,7 +39,8 @@ func (b *ModuleMapBuilder) BuildTo(mm *gad.ModuleMap) *gad.ModuleMap {
 		AddBuiltinModuleInit(gadjson.ModuleName, gadjson.ModuleInit).
 		AddBuiltinModule(gadpath.ModuleName, gadpath.Module).
 		AddBuiltinModuleInit(gadbase64.ModuleName, gadbase64.ModuleInit).
-		AddBuiltinModuleInit(gadflate.ModuleName, gadflate.ModuleInit)
+		AddBuiltinModuleInit(gadflate.ModuleName, gadflate.ModuleInit).
+		AddBuiltinModuleInit(gadtest.ModuleName, gadtest.ModuleInit)
 
 	if !b.Safe {
 		if !b.Disabled[gadhttp.ModuleName] {

@@ -54,6 +54,8 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
 - Generated standard-library references: [`time`](stdlib-time.md),
   [`fmt`](stdlib-fmt.md), [`strings`](stdlib-strings.md),
   [`json`](stdlib-json.md).
+- [Testing](stdlib-test.md) — the `test` module and the `gad test` command:
+  `*_test.gad` files, `test*`/`bench*` functions, assertions and benchmarks.
 
 ## A Taste of Gad
 
