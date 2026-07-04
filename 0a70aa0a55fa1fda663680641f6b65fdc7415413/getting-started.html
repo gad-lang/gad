@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Getting Started · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link active" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="getting-started">Getting Started</h1>
+<p><a href="index.html">← Back to index</a></p>
+<h2 id="installing-the-cli">Installing the CLI</h2>
+<p>Gad ships with a command-line tool that runs scripts and provides a REPL.</p>
+<pre><code class="language-sh">go install github.com/gad-lang/gad/cmd/gad@latest</code></pre>
+<p>Run <code>gad</code> with no arguments to start the interactive REPL, or pass a script file to execute it:</p>
+<pre><code class="language-sh">gad                 # start the REPL
+gad script.gad      # run a script
+gad - &lt; script.gad  # read the script from stdin</code></pre>
+<p>The CLI also exposes subcommands (<code>run</code>, <code>fmt</code>); see <a href="#subcommands">Subcommands</a> below. A bare <code>gad FILE</code> is shorthand for <code>gad FILE</code>.</p>
+<p>To build a smaller binary without the <code>ide</code> and <code>debug</code> subcommands (and their web/DAP dependencies), use the <code>noide</code> / <code>nodebug</code> build tags:</p>
+<pre><code class="language-sh">go build -tags 'noide nodebug' ./cmd/gad   # or: make build-min</code></pre>
+<h2 id="your-first-script">Your First Script</h2>
+<p>Create <code>hello.gad</code>:</p>
+<pre><code class="language-go">println("Hello, Gad!")</code></pre>
+<p>Run it:</p>
+<pre><code class="language-sh">$ gad hello.gad
+Hello, Gad!</code></pre>
+<h2 id="main-function-parameters-and-return">Main Function, Parameters and Return</h2>
+<p>A Gad script is itself a function. It can declare parameters with [<code>param</code>](variables-and-scopes.md#param) and produce a result with <code>return</code>. If no <code>return</code> is reached, the script returns <code>nil</code>.</p>
+<pre><code class="language-go">param (name, *rest)
+
+if !name {
+    return "no name given"
+}
+return "hello " + name</code></pre>
+<p>Positional arguments come after the file name; named arguments use <code>--NAME</code> or <code>--NAME=VALUE</code>:</p>
+<pre><code class="language-sh">$ gad greet.gad Gad world</code></pre>
+<h2 id="the-repl">The REPL</h2>
+<p>The REPL evaluates expressions as you type and prints their values, which makes it ideal for exploring the language:</p>
+<pre><code>» 1 + 2
+3
+» x := [1, 2, 3]
+[1, 2, 3]
+» [n * n for n in x]
+[1, 4, 9]</code></pre>
+<h2 id="passing-arguments">Passing Arguments</h2>
+<p>The script below joins its positional arguments and accepts named arguments <code>--sep</code> and <code>--ln</code>:</p>
+<pre><code class="language-go">param (*args, sep=",", ln=no)
+if !args { return }
+for _, arg in args[:-1] { print(arg, sep) }
+print(args[-1])
+if ln { println() }</code></pre>
+<pre><code class="language-sh">$ gad join.gad a b c            # a,b,c
+$ gad join.gad a b c --sep +    # a+b+c
+$ gad join.gad a b c --ln       # a,b,c\n</code></pre>
+<h2 id="subcommands">Subcommands</h2>
+<p>The CLI is organised as subcommands. Run <code>gad help</code> for the list, or <code>gad &lt;cmd&gt; --help</code> for a command's flags.</p>
+<table>
+<thead><tr><th>Command</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>gad run</code></td><td>Run a script file/stdin, or start the REPL (the default).</td></tr>
+<tr><td><code>gad fmt</code></td><td>Format Gad source files in place.</td></tr>
+<tr><td><code>gad debug</code></td><td>Debug a script (interactive REPL or <code>--dap</code> for editors).</td></tr>
+<tr><td><code>gad ide</code></td><td>Start a local web IDE for a workspace directory or file.</td></tr>
+<tr><td><code>gad help</code></td><td>Show help and list subcommands.</td></tr>
+</tbody>
+</table>
+<p><code>gad</code> with no subcommand behaves as <code>gad run</code>, so <code>gad script.gad</code>, <code>gad - &lt; script.gad</code> and a bare <code>gad</code> (REPL) all keep working.</p>
+<h3 id="run-flags-gad-run--bare-gad">Run flags (<code>gad run</code> / bare <code>gad</code>)</h3>
+<table>
+<thead><tr><th>Flag</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>-no-optimizer</code></td><td>Disable the constant-folding optimizer.</td></tr>
+<tr><td><code>-safe</code></td><td>Disable external-access modules (<code>http</code>, <code>os</code>, …).</td></tr>
+<tr><td><code>-disabled-modules a,b</code></td><td>Disable specific modules.</td></tr>
+<tr><td><code>-timeout 5s</code></td><td>Abort the script after a duration.</td></tr>
+<tr><td><code>-trace parser,compiler</code></td><td>Trace the parse/optimize/compile steps.</td></tr>
+<tr><td><code>-template</code></td><td>Run the input as a template (see <a href="templates.html">Templates</a>).</td></tr>
+<tr><td><code>-template-start-delimiter</code> / <code>-template-end-delimiter</code></td><td>Override the <code>{%</code>/<code>%}</code> code delimiters.</td></tr>
+</tbody>
+</table>
+<p>A <code>.gadt</code> file is run as a template automatically. See <strong><a href="templates.html">Templates</a></strong> for the full mixed-mode reference.</p>
+<h3 id="formatting-with-gad-fmt">Formatting with <code>gad fmt</code></h3>
+<p><code>gad fmt PATH...</code> rewrites Gad source files with the canonical formatter, in place by default:</p>
+<pre><code class="language-sh">gad fmt main.gad     # format a single file
+gad fmt src/...      # recurse into ./src
+gad fmt -            # format stdin to stdout</code></pre>
+<p>It supports include/exclude globs and regexes, <code>--out</code>, <code>--backup</code>, parallel <code>--jobs</code>, layout <code>--no-*</code> flags, transpile flags, NDJSON <code>--report</code> output, <code>--to-stdout</code> streaming and a <code>.gad.yaml</code> config file. See <strong><a href="formatting.html">Formatting</a></strong> for the full reference.</p>
+<h3 id="the-web-ide-gad-ide">The web IDE (<code>gad ide</code>)</h3>
+<p><code>gad ide [PATH]</code> starts a local web IDE in your browser for a workspace directory (or a single file to edit; PATH defaults to the current directory):</p>
+<pre><code class="language-sh">gad ide                # edit the current directory
+gad ide src/           # open a project directory
+gad ide main.gad       # open just one file</code></pre>
+<p>The IDE offers a file tree, multi-file tabs, formatting, running and debugging (breakpoints, stepping, call stack and locals). Per-file <strong>Run</strong>/<strong>Debug</strong> dialogs let you set arguments, enable or disable builtin modules, toggle safe mode and save the combined STDOUT/STDERR to a file. Formatter settings and the panel layout are stored in the workspace <code>.gad.yaml</code> (<code>fmt</code> and <code>ide</code> keys).</p>
+<p>Useful flags:</p>
+<table>
+<thead><tr><th>Flag</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>--addr host:port</code></td><td>Listen address (defaults to <code>0.0.0.0:17000</code>; the next free port is used if it is busy).</td></tr>
+<tr><td><code>--no-open</code></td><td>Do not open the browser automatically.</td></tr>
+<tr><td><code>--static DIR</code></td><td>Serve a pre-built web app from DIR instead of the bundled UI.</td></tr>
+</tbody>
+</table>
+<p>In the React UI, set breakpoints by clicking the editor's left gutter (next to the line numbers) and remove them with a double-click; the <strong>Breakpoints</strong> panel lists them grouped per file (with *Current file* and *All* tabs) and they are saved to <code>.gad.yaml</code> under <code>ide.breakpoints</code>. While a debug session is paused, <strong>F9</strong> resumes to the next breakpoint, <strong>F8</strong> steps over, <strong>F7</strong> steps into and <strong>Shift+F8</strong> steps out — all remappable in the <strong>⌨ Keys</strong> panel (stored under <code>ide.keys</code>).</p>
+<p>The command ships a build-free bundled UI. For the richer <strong>React + CodeMirror</strong> interface, build <code>web/app</code> and point <code>--static</code> at it (or use <code>make ide-react</code>):</p>
+<pre><code class="language-sh">make ide-react                                   # builds web/app and serves it
+gad ide --static web/app/dist samples            # equivalent, after a build</code></pre>
+<p>To embed Gad in a Go program instead of running it from the CLI, see <a href="embedding.html">Embedding in Go</a>.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#installing-the-cli">Installing the CLI</a><a href="#your-first-script">Your First Script</a><a href="#main-function-parameters-and-return">Main Function, Parameters and Return</a><a href="#the-repl">The REPL</a><a href="#passing-arguments">Passing Arguments</a><a href="#subcommands">Subcommands</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

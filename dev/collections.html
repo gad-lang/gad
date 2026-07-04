@@ -52,6 +52,15 @@ for k, v in m { println(k, v) }</code></pre>
 })
 println(config.server.port)   // 8080</code></pre>
 <p>(The outer parentheses are required because a bare <code>{</code> at statement position starts a block, not a dict.)</p>
+<h3 id="keyword-keys">Keyword keys</h3>
+<p>A keyword (<code>class</code>, <code>if</code>, <code>else</code>, <code>func</code>, <code>met</code>, <code>meti</code>, <code>false</code>, <code>nil</code>, …) may be used as a <strong>bare name</strong> in any key position — it is taken as the string of its spelling, not as the keyword. This holds for the selector <code>.name</code>, a dict key, a key-value <code>[name=value]</code>, and a key-value-array key <code>(;name=value)</code> (including a bare-flag key with no value):</p>
+<pre><code class="language-go">m := {class: 1, else: 2, func: 3}   // dict keys
+m.class                             // 1   (selector)
+m["else"]                           // 2
+
+[class = 1]                         // key-value with key "class"
+(;class = 1, if, else, false, nil)  // key-value-array; all are string keys</code></pre>
+<p>Only the <strong>key</strong> position is affected; on the value side keywords keep their meaning, so in <code>(;x = false)</code> the value is the boolean <code>false</code>.</p>
 <h2 id="comprehensions">Comprehensions</h2>
 <p>Array comprehensions build an array from an iterable, with an optional filter:</p>
 <pre><code class="language-go">[i * i for i in [1, 2, 3]]            // [1, 4, 9]
