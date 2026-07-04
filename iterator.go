@@ -680,12 +680,79 @@ func (o Bytes) Iterate(_ *VM, na *NamedArgs) Iterator {
 	}).ParseNamedArgs(na)
 }
 
+// arrayIterator is a closure-free iterator over an Array. It replaces the
+// generic RangeIteration/SliceIteration machinery for the common `for k, v in
+// arr` case: one struct allocation instead of a RangeIteration plus the several
+// closures those helpers capture (valid/readTo/get), which dominated the
+// per-loop allocations. Semantics match SliceIteration(...).ParseNamedArgs: it
+// honours the `step` and `reversed` named arguments, and the valid index range
+// is simply 0 <= i < len in either direction.
+type arrayIterator struct {
+	arr   Array
+	step  int
+	start int
+}
+
+var (
+	_ Iterator       = (*arrayIterator)(nil)
+	_ LengthIterator = (*arrayIterator)(nil)
+)
+
+func newArrayIterator(arr Array, na *NamedArgs) *arrayIterator {
+	it := &arrayIterator{arr: arr, step: 1}
+	if na != nil {
+		if v := na.GetValue("step"); v.Type() == TInt {
+			it.step = int(v.(Int))
+		}
+		if !na.GetValue("reversed").IsFalsy() {
+			it.start = len(arr) - 1
+			it.step = -it.step
+		}
+	}
+	return it
+}
+
+func (it *arrayIterator) Type() ObjectType { return TArrayIterator }
+
+func (it *arrayIterator) Input() Object { return it.arr }
+
+func (it *arrayIterator) Length() int { return len(it.arr) }
+
+func (it *arrayIterator) Start(*VM) (state *IteratorState, err error) {
+	state = &IteratorState{}
+	if len(it.arr) == 0 {
+		state.Mode = IteratorStateModeDone
+		return
+	}
+	i := it.start
+	state.Value = Int(i)
+	state.Entry.K = Int(i)
+	state.Entry.V = it.arr[i]
+	return
+}
+
+func (it *arrayIterator) Next(_ *VM, state *IteratorState) (err error) {
+	state.Mode = IteratorStateModeEntry
+	if cur, ok := state.Value.(Int); ok {
+		i := int(cur) + it.step
+		if i >= 0 && i < len(it.arr) {
+			state.Value = Int(i)
+			state.Entry.K = Int(i)
+			state.Entry.V = it.arr[i]
+			return
+		}
+	}
+	state.Mode = IteratorStateModeDone
+	return
+}
+
+func (it *arrayIterator) Print(state *PrinterState) error {
+	defer state.WrapReprString(TArrayIterator.FullName())()
+	return state.Print(it.arr)
+}
+
 func (o Array) Iterate(_ *VM, na *NamedArgs) Iterator {
-	return SliceIteration(TArrayIterator, o, o, func(e *KeyValue, i Int, v Object) error {
-		e.K = i
-		e.V = v
-		return nil
-	}).ParseNamedArgs(na)
+	return newArrayIterator(o, na)
 }
 
 func (o KeyValueArray) Iterate(_ *VM, na *NamedArgs) Iterator {

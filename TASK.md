@@ -82,9 +82,24 @@
       BenchmarkVMIterate/BenchmarkVMDictAccess; iterate 54K→44K allocs (~18%),
       2.59MB→2.11MB. Verified: sorted/reversed iteration and named args still
       correct; full suite + -race ok.
-      REMAINING: iterator wrapper objects (RangeIteration/SliceIteration/
-      StateIteratorObject per for-in) and large-int boxing — both need deeper,
-      higher-risk restructuring (iterator pooling / tagged-value representation).
+      Sixth pass done: the for-in-over-array path allocated a RangeIteration
+      plus the several closures SliceIteration/NewRangeIteration capture (valid,
+      readTo, get) on every loop. Replaced Array.Iterate's generic machinery
+      with a concrete closure-free `arrayIterator` (iterator.go): one struct
+      allocation, honouring `step`/`reversed` (the valid range is just
+      0<=i<len in either direction, so no per-call closure is needed). Semantics
+      verified against the existing forward/reversed/step/step+reversed cases in
+      TestVMIterator (vm_test.go:960-965). BenchmarkVMIterate 43994->23994
+      allocs/op (~45%), 2.11MB->1.43MB, 4.2ms->3.6ms (~14%); `go build ./...`,
+      `go test ./...`, and `go test -race -run TestVMIterator$|TestVMArray$` all
+      clean; Fib/Loop benches unchanged (108 / 198947 allocs). The 4 remaining
+      allocs/loop are the three iterator objects (IteratorState, arrayIterator,
+      StateIteratorObject) plus large-index int boxing.
+      REMAINING: pooling the three per-loop iterator objects (needs a reliable
+      release point at loop end and must not pool user-visible iterator(...)
+      values — high-risk lifecycle change), the same closure-free treatment for
+      non-array iterators (KeyValueArray/Dict/etc.), and large-int boxing
+      (tagged-value representation — major refactor).
 - [x] check if allow keywords in `x.KEYWORD`, `[KEYWORD=...]` (keyvalue), `{KEYWORD:...}` (dict key), `(;KEYWORD=...)` (keyvalue array key).
       examples `x.class`, `[class=1]`, `{class:1}`, `(;class=1,class,false,nil,met,meti,func,if,else)`, all is single key. add doc for describe this rule
       DONE. `.name` selector and `{class: 1}` dict keys already accepted keywords;
@@ -96,3 +111,4 @@
       as keyValueArray keys are now the strings "true"/"false"/"nil" (updated
       TestParseKeyValueArray). Tests: TestParseKeywordKeys + cases in
       TestParseKeyValueArray. Docs: collections.md "Keyword keys". go test ./... ok.
+- [~] replace class/interface extends syntaxe from `extends { A, m.B }` to `class { *A, *m.B, ... x = 1 ... }` (using `*Expr`). update samples, tests and docs.
