@@ -98,17 +98,35 @@ func registerOperatorBuiltins() {
 	}
 }
 
+// callerMethoded reports whether an operator builtin carries user-defined
+// `met gad.…Op{Op}(…)` overloads.
+type callerMethoded interface{ HasCallerMethods() bool }
+
+// hasOpMethods reports whether the operator builtin bt has a user overload.
+// Without one, operators dispatch natively (binOpObject / selfAssignOpObject)
+// instead of allocating an Args + Call and walking the method-dispatch tree.
+func (vm *VM) hasOpMethods(bt BuiltinType) bool {
+	m, _ := vm.Builtins.Get(bt).(callerMethoded)
+	return m != nil && m.HasCallerMethods()
+}
+
 // callBinaryOp dispatches a binary operator to its gad.binOp{Op} builtin.
 func (vm *VM) callBinaryOp(tok token.Token, left, right Object) (Object, error) {
-	return vm.Builtins.Call(binaryOpBuiltinByTok[byte(tok)],
-		Call{VM: vm, Args: Args{Array{left, right}}})
+	bt := binaryOpBuiltinByTok[byte(tok)]
+	if !vm.hasOpMethods(bt) {
+		return BinaryOp(vm, tok, left, right)
+	}
+	return vm.Builtins.Call(bt, Call{VM: vm, Args: Args{Array{left, right}}})
 }
 
 // callSelfAssignOp dispatches a self-assign operator to its
 // gad.selfAssignOp{Op} builtin.
 func (vm *VM) callSelfAssignOp(tok token.Token, left, right Object) (Object, error) {
-	return vm.Builtins.Call(selfAssignOpBuiltinByTok[byte(tok)],
-		Call{VM: vm, Args: Args{Array{left, right}}})
+	bt := selfAssignOpBuiltinByTok[byte(tok)]
+	if !vm.hasOpMethods(bt) {
+		return selfAssignOpDispatch(vm, SelfAssignOperatorType(tok), left, right)
+	}
+	return vm.Builtins.Call(bt, Call{VM: vm, Args: Args{Array{left, right}}})
 }
 
 // callUnaryOp dispatches a unary operator to its gad.unOp{Op} builtin.

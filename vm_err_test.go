@@ -136,8 +136,8 @@ func TestVMErrorHandlers(t *testing.T) {
 	errZeroDiv = nil
 	expectErrAs(t, `func(x) { return 1/x }(0)`, newOpts().Skip2Pass(), &errZeroDiv, nil)
 	require.NotNil(t, errZeroDiv.Err)
-	require.Equal(t, "ErrCall: ‹builtinFunction: binOpQuo(left any, right any)›; caused by: ‹ZeroDivisionError›", errZeroDiv.Err.ToString())
-	require.Equal(t, ErrZeroDivision, errZeroDiv.Err.Cause)
+	require.Equal(t, "ZeroDivisionError: ", errZeroDiv.Err.ToString())
+	require.Equal(t, ErrZeroDivision, errZeroDiv.Err)
 	require.Equal(t, 2, len(errZeroDiv.Trace))
 	require.Equal(t, source.Pos(18), errZeroDiv.Trace[0])
 	require.Equal(t, source.Pos(23), errZeroDiv.Trace[1])
@@ -145,8 +145,8 @@ func TestVMErrorHandlers(t *testing.T) {
 	errZeroDiv = nil
 	expectErrAs(t, `1/0`, newOpts().Skip2Pass(), &errZeroDiv, nil)
 	require.NotNil(t, invOpErr.Err)
-	require.Equal(t, "ErrCall: ‹builtinFunction: binOpQuo(left any, right any)›; caused by: ‹ZeroDivisionError›", errZeroDiv.Err.ToString())
-	require.Equal(t, ErrZeroDivision, errZeroDiv.Err.Cause)
+	require.Equal(t, "ZeroDivisionError: ", errZeroDiv.Err.ToString())
+	require.Equal(t, ErrZeroDivision, errZeroDiv.Err)
 	require.Equal(t, 1, len(errZeroDiv.Trace))
 	require.Equal(t, source.Pos(1), errZeroDiv.Trace[0])
 }
