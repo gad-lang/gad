@@ -82,6 +82,66 @@ println(g.hello)          // Olá
 println(g.greet("Gad"))   // Olá, Gad
 ```
 
+## Embedding files with `embed`
+
+`embed("path")` pulls a file (or a whole directory) into the program **at compile
+time**. It evaluates to an `Embedded` value:
+
+```go
+f := embed("data/greeting.txt")
+f.name        // "data/greeting.txt" — the reference name
+f.path        // the resolved path
+f.size        // byte count
+f.data        // the file contents, as bytes
+str(f.data)   // "Hello!"
+f.isDir       // false
+```
+
+Paths resolve against the running script's directory (the CLI wires this up; a Go
+host configures it via an embed importer — see
+[Embedding in Go](embedding.md)). `sources=[…]` lists directories to look the
+name up in, so the reference need not spell out the full path:
+
+```go
+embed("greeting.txt"; sources=["data"])   // finds data/greeting.txt
+```
+
+### Directories: indexing, iteration and walking
+
+Embedding a directory yields an `Embedded` whose entries are indexed by name, and
+whose `.fs` is iterable (`for name, entry in dir.fs`, or `iterator(dir.fs;
+sorted)` to order by name). Each entry is itself an `Embedded`; `.isDir` tells a
+sub-directory from a file:
+
+```go
+dir := embed("data")
+str(dir["greeting.txt"].data)             // index an entry by name
+
+for name, e in iterator(dir.fs; sorted) {
+    println(e.isDir ? "dir " : "file", name)
+}
+```
+
+Recurse on `.isDir` to walk the whole tree (bind the function name first so it can
+call itself):
+
+```go
+var walk
+walk = func(node, indent) {
+    for name, e in iterator(node.fs; sorted) {
+        if e.isDir {
+            println(indent + name + "/")
+            walk(e, indent + "  ")
+        } else {
+            println(indent + name + " (" + str(e.size) + " bytes)")
+        }
+    }
+}
+walk(embed("data"), "")
+```
+
+See [`samples/26_embed.gad`](../samples/26_embed.gad).
+
 ## Shared State via globals
 
 Modules can use `global` to reach the same host-provided globals object as the

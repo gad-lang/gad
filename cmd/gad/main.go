@@ -119,6 +119,7 @@ func newREPL(ctx context.Context, stdout io.Writer) *repl {
 
 	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
 		ModuleMap:         DefaultModuleMap(".", &sourcePath),
+		EmbededdMap:       DefaultEmbedMap("."),
 		OptimizerMaxCycle: gad.TraceCompilerOptions.OptimizerMaxCycle,
 		TraceParser:       traceParser,
 		TraceOptimizer:    traceOptimizer,
@@ -549,6 +550,18 @@ func DefaultModuleMap(workdir string, sourcePath *importers.PathList) *gad.Modul
 		})
 }
 
+// DefaultEmbedMap wires `embed("path")` to read files from disk, resolving
+// relative paths against workdir (the running script's directory).
+func DefaultEmbedMap(workdir string) *gad.EmbeddedMap {
+	if abs, err := filepath.Abs(workdir); err == nil {
+		workdir = abs
+	}
+	return gad.NewEmbedMap().
+		SetExtImporter(&importers.EmbeddedFileImporter{
+			WorkDirs: []string{workdir},
+		})
+}
+
 func humanFriendlySize(b uint64) string {
 	if b < 1024 {
 		return fmt.Sprint(strconv.FormatUint(b, 10), " bytes")
@@ -742,6 +755,7 @@ func (s *Script) execute() error {
 		CompilerOptions: gad.DefaultCompilerOptions,
 	}
 	opts.ModuleMap = DefaultModuleMap(s.workdir, s.sourcePath)
+	opts.EmbededdMap = DefaultEmbedMap(s.workdir)
 
 	// `.gadt` files are templates by convention.
 	if strings.HasSuffix(s.modulePath, ".gadt") {

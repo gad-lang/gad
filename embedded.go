@@ -281,6 +281,8 @@ func (n *Embedded) IndexGet(vm *VM, index Object) (value Object, err error) {
 			return Str(n.Name), nil
 		case "path":
 			return Str(n.Path()), nil
+		case "isDir":
+			return Bool(n.IsDir()), nil
 		case "data":
 			return n.ToBytes()
 		case "fs":

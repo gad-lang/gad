@@ -1,0 +1,53 @@
+/***
+26_embed.gad — `embed(...)` reads a file (or directory) into the program at
+compile time. The value is an `Embedded`: read `.name`, `.path`, `.size` and its
+`.data` (bytes); a directory is indexed by entry name. Paths resolve against the
+running script's directory.
+***/
+
+// --- embed a single file ---------------------------------------------------
+/// `embed("path")` yields an Embedded value for the file.
+greeting := embed("embed/greeting.txt")
+println("name:   ", greeting.name)              // embed/greeting.txt
+println("size:   ", greeting.size)              // byte count
+println("data:   ", str(greeting.data))         // the file contents (bytes -> str)
+
+// --- embed a directory -----------------------------------------------------
+/// Embedding a directory gives a node indexed by entry name; each entry is
+/// itself an Embedded (a file or a nested directory).
+dir := embed("embed")
+println("dir:    ", dir.name)                   // embed
+println("entry:  ", str(dir["config.json"].data))
+
+// --- the `sources` search path ---------------------------------------------
+/// `sources=[...]` lists directories to look the name up in, so the embed
+/// reference need not spell out the full path.
+cfg := embed("config.json"; sources = ["embed"])
+println("sources:", str(cfg.data))
+
+// --- iterating and walking a directory -------------------------------------
+/// A directory's `.fs` is iterable: `for name, entry in dir.fs` yields each
+/// child (`iterator(dir.fs; sorted)` orders them by name). Each entry is itself
+/// an Embedded — `.isDir` tells a sub-directory from a file.
+println("-- entries --")
+for name, e in iterator(dir.fs; sorted) {
+    println("  ", e.isDir ? "dir " : "file", name)
+}
+
+/// Recurse with `.isDir` to walk the whole tree (`var f; f = func …` binds the
+/// name for the recursive call).
+var walk
+walk = func(node, indent) {
+    for name, e in iterator(node.fs; sorted) {
+        if e.isDir {
+            println(indent + name + "/")
+            walk(e, indent + "  ")
+        } else {
+            println(indent + name + " (" + str(e.size) + " bytes)")
+        }
+    }
+}
+println("-- walk --")
+walk(dir, "  ")
+
+return greeting.name
