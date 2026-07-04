@@ -939,6 +939,17 @@ do:
 	return vm.xOpCallObject(callee, numArgs, flags)
 }
 
+// storeArgs stores args into the frame's inline buffer in the common 2-slot
+// case, so the caller's args value can stay stack-allocated instead of escaping
+// to the heap; a longer (var-args) args is returned unchanged.
+func storeArgs(buf *[2]Array, args Args) Args {
+	if len(args) == 2 {
+		buf[0], buf[1] = args[0], args[1]
+		return buf[:]
+	}
+	return args
+}
+
 func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCallFlag) (err error) {
 	var (
 		basePointer = vm.sp - numArgs
@@ -1076,7 +1087,8 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 		}
 		// define var namedArgs
 		if cfunc.NamedParams.variadic {
-			vm.stack[basePointer+numParams+i] = &namedParams
+			nv := namedParams
+			vm.stack[basePointer+numParams+i] = &nv
 			i++
 		}
 	} else {
@@ -1112,8 +1124,9 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 			vm.sp = newSp
 			vm.ip = -1                    // reset ip to beginning of the frame
 			vm.curFrame.errHandlers = nil // reset error handlers if any set
-			vm.curFrame.namedArgs = &namedParams
-			vm.curFrame.args = args
+			vm.curFrame.namedBuf = namedParams
+			vm.curFrame.namedArgs = &vm.curFrame.namedBuf
+			vm.curFrame.args = storeArgs(&vm.curFrame.argsBuf, args)
 			return nil
 		}
 	}
@@ -1123,8 +1136,9 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 		return ErrStackOverflow
 	}
 	frame.fn = cfunc
-	frame.namedArgs = &namedParams
-	frame.args = args
+	frame.namedBuf = namedParams
+	frame.namedArgs = &frame.namedBuf
+	frame.args = storeArgs(&frame.argsBuf, args)
 	frame.freeVars = cfunc.Free
 	frame.errHandlers = nil
 	frame.basePointer = basePointer
@@ -1441,6 +1455,10 @@ type frame struct {
 	args        Args
 	namedArgs   *NamedArgs
 	defers      []func(ret *Object)
+	// Inline, reused-per-frame storage so a plain call does not heap-allocate the
+	// args slice or the NamedArgs each time (frames are pooled in vm.frames).
+	argsBuf  [2]Array
+	namedBuf NamedArgs
 }
 
 func (f *frame) Defer(fn func(ret *Object)) {
