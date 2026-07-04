@@ -67,6 +67,33 @@ func TestDocGeneratorGroupsTestsAndBenchs(t *testing.T) {
 	require.NotContains(t, tests, "fib 15")
 }
 
+// TestDocGeneratorNestedTests verifies that nested `test` statements (subtests)
+// are documented with parent/child qualified names and their own doc comments.
+func TestDocGeneratorNestedTests(t *testing.T) {
+	src := []byte("/// top add tests\n" +
+		"test sum {\n" +
+		"    /// integer case\n" +
+		"    test ints { t.equal(3, add(1, 2)) }\n" +
+		"    /// float case\n" +
+		"    test floats {\n" +
+		"        /// deep case\n" +
+		"        test other { t.equal(5.0, 2.5 + 2.5) }\n" +
+		"    }\n" +
+		"}\n")
+
+	gen := &DocGenerator{NoTest: true}
+	md, err := gen.FromContent("m.gad", src)
+	require.NoError(t, err)
+
+	require.Contains(t, md, "### test **sum**")
+	require.Contains(t, md, "top add tests")
+	require.Contains(t, md, "### test **sum/ints**")
+	require.Contains(t, md, "integer case")
+	require.Contains(t, md, "### test **sum/floats**")
+	require.Contains(t, md, "### test **sum/floats/other**") // deep qualified name
+	require.Contains(t, md, "deep case")
+}
+
 func TestDocGeneratorFromFileReportsFailingExample(t *testing.T) {
 	// A doc-comment example whose result does not match its `>>>` assertion.
 	bad := []byte("/**\n```gad\n1\n>>> 2\n```\n**/\nexport A = 1\n")

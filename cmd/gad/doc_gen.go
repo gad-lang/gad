@@ -130,26 +130,38 @@ func internalEntries(file *parser.File, f *source.File) (entries []docEntry) {
 
 // testEntries gathers the file's `test NAME { … }` and `bench NAME { … }`
 // statements into documentation entries (name + doc comment), split into tests
-// and benchmarks in source order. Unlike API declarations these are listed even
+// and benchmarks in source order. Nested `test`s (subtests) are included with a
+// parent/child qualified name. Unlike API declarations these are listed even
 // without a doc comment, since a test is itself documentation of behaviour.
 func testEntries(file *parser.File) (tests, benches []docEntry) {
-	for _, stmt := range file.Stmts {
-		ts, ok := stmt.(*node.TestStmt)
-		if !ok {
-			continue
-		}
-		e := docEntry{
-			name:    ts.Name,
-			keyword: ts.Kind.String(),
-			code:    []string{ts.Kind.String() + " " + testDisplayName(ts) + " { … }"},
-			doc:     docContent(ts.Doc),
-		}
-		if ts.Kind == node.TestKindBench {
-			benches = append(benches, e)
-		} else {
-			tests = append(tests, e)
+	var walk func(stmts []node.Stmt, prefix string)
+	walk = func(stmts []node.Stmt, prefix string) {
+		for _, stmt := range stmts {
+			ts, ok := stmt.(*node.TestStmt)
+			if !ok {
+				continue
+			}
+			name := ts.Name
+			if prefix != "" {
+				name = prefix + "/" + name
+			}
+			e := docEntry{
+				name:    name,
+				keyword: ts.Kind.String(),
+				code:    []string{ts.Kind.String() + " " + testDisplayName(ts) + " { … }"},
+				doc:     docContent(ts.Doc),
+			}
+			if ts.Kind == node.TestKindBench {
+				benches = append(benches, e)
+			} else {
+				tests = append(tests, e)
+			}
+			if ts.Body != nil {
+				walk(ts.Body.Stmts, name) // nested subtests, depth-first
+			}
 		}
 	}
+	walk(file.Stmts, "")
 	return tests, benches
 }
 

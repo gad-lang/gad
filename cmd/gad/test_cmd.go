@@ -258,47 +258,61 @@ func isPrefixFunc(name, prefix string) bool {
 	return strings.EqualFold(name[:len(prefix)], prefix)
 }
 
-// runTest runs one test function with a fresh context and reports its result.
+// runTest runs one test function with a fresh context and reports its result,
+// including any subtests started with t.run (nested `test NAME { … }`).
 func (o *testOptions) runTest(ctx *cc.CommandContext, path string, eval *gad.Eval, d discovered) (pass, fail, skip int) {
 	t := gadtest.NewT(d.name)
 	_, err := invoke(eval, d.fn, t)
+	return o.reportNode(ctx, path, t, d.doc, err)
+}
 
-	// A skip (t.skip / SkipError) aborts without recording a failure.
+// reportNode reports one test node and, recursively, its subtests, returning the
+// pass/fail/skip counts for the whole subtree. err is the error returned by
+// invoking this node's body (nil for subtests, whose errors are already folded
+// into their state by t.run).
+func (o *testOptions) reportNode(ctx *cc.CommandContext, path string, t *gadtest.T, doc string, err error) (pass, fail, skip int) {
+	name := t.Name()
+
 	if skipped, msg := t.Skipped(); skipped {
 		if o.verbose {
-			fmt.Fprintf(ctx.Out, "SKIP %s/%s: %s\n", path, d.name, msg)
+			fmt.Fprintf(ctx.Out, "SKIP %s/%s: %s\n", path, name, msg)
 		}
-		return 0, 0, 1
-	}
-
-	failed := t.Failure()
-	// An error with no recorded failure is an unexpected runtime error (a require
-	// abort already recorded its failure via t, so we don't double-report it).
-	if err != nil && !failed {
-		failed = true
-		fmt.Fprintf(ctx.Err, "FAIL %s/%s: %s\n", path, d.name, err)
-	}
-
-	if failed {
-		fmt.Fprintf(ctx.Err, "FAIL %s/%s\n", path, d.name)
-		for _, m := range t.Failures() {
-			for _, line := range strings.Split(m, "\n") {
-				fmt.Fprintf(ctx.Err, "    %s\n", line)
+		skip = 1
+	} else {
+		// This node fails if it, or any subtest, recorded a failure; an invoke
+		// error with no recorded failure is an unexpected runtime error.
+		failed := t.Failure()
+		if err != nil && !failed {
+			failed = true
+			fmt.Fprintf(ctx.Err, "FAIL %s/%s: %s\n", path, name, err)
+		}
+		if failed {
+			fmt.Fprintf(ctx.Err, "FAIL %s/%s\n", path, name)
+			for _, m := range t.Failures() { // this node's own failures
+				for _, line := range strings.Split(m, "\n") {
+					fmt.Fprintf(ctx.Err, "    %s\n", line)
+				}
 			}
+			fail = 1
+		} else {
+			if o.verbose {
+				fmt.Fprintf(ctx.Out, "PASS %s/%s\n", path, name)
+				if doc != "" {
+					fmt.Fprintf(ctx.Out, "    %s\n", strings.ReplaceAll(doc, "\n", "\n    "))
+				}
+				for _, l := range t.Logs() {
+					fmt.Fprintf(ctx.Out, "    %s\n", l)
+				}
+			}
+			pass = 1
 		}
-		return 0, 1, 0
 	}
 
-	if o.verbose {
-		fmt.Fprintf(ctx.Out, "PASS %s/%s\n", path, d.name)
-		if d.doc != "" {
-			fmt.Fprintf(ctx.Out, "    %s\n", strings.ReplaceAll(d.doc, "\n", "\n    "))
-		}
-		for _, l := range t.Logs() {
-			fmt.Fprintf(ctx.Out, "    %s\n", l)
-		}
+	for _, sub := range t.Subs() {
+		p, f, s := o.reportNode(ctx, path, sub, "", nil)
+		pass, fail, skip = pass+p, fail+f, skip+s
 	}
-	return 1, 0, 0
+	return pass, fail, skip
 }
 
 // runBench runs one benchmark function, auto-scaling the iteration count until

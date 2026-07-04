@@ -138,6 +138,42 @@ func TestModuleHelperDelegates(t *testing.T) {
 	}
 }
 
+func TestHelperNoOp(t *testing.T) {
+	ctx := gadtest.NewT("ctx")
+	ret, err := call(ctx, "helper")
+	if err != nil || ret != gad.Nil {
+		t.Fatalf("helper: ret=%v err=%v", ret, err)
+	}
+	if ctx.Failure() {
+		t.Fatal("helper must not record a failure")
+	}
+}
+
+func TestFailurePropagatesFromSubs(t *testing.T) {
+	parent := gadtest.NewT("p")
+	if parent.Failure() || parent.SelfFailed() {
+		t.Fatal("fresh parent should not be failed")
+	}
+	// simulate a failing subtest by recording a failure on a child collected
+	// under the parent (mirrors what t.run does).
+	child := gadtest.NewT("p/child")
+	call(child, "fail", gad.Str("boom"))
+	parent.AddSub(child)
+
+	if !child.Failure() || !child.SelfFailed() {
+		t.Fatal("child should be failed")
+	}
+	if parent.SelfFailed() {
+		t.Fatal("parent has no own failure")
+	}
+	if !parent.Failure() {
+		t.Fatal("parent.Failure() must be true when a subtest failed")
+	}
+	if subs := parent.Subs(); len(subs) != 1 || subs[0] != child {
+		t.Fatalf("expected one sub == child, got %v", subs)
+	}
+}
+
 func TestBenchN(t *testing.T) {
 	ctx := gadtest.NewT("b")
 	ctx.SetBenchN(42)

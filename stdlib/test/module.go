@@ -28,14 +28,16 @@ type SkipError struct{ Msg string }
 func (e *SkipError) Error() string { return e.Msg }
 
 // T is the per-test context. Assertion methods record a failure and, being
-// require-style, abort by returning a FailError.
+// require-style, abort by returning a FailError. Subtests started with `t.run`
+// (or nested `test NAME { … }` statements) are recorded in subs.
 type T struct {
 	name     string
 	failures []string
 	logs     []string
 	skipMsg  string
 	skipped  bool
-	benchN   int // benchmark iteration count (0 for tests)
+	benchN   int  // benchmark iteration count (0 for tests)
+	subs     []*T // subtests started with t.run
 }
 
 // NewT returns a fresh test context named name.
@@ -44,11 +46,32 @@ func NewT(name string) *T { return &T{name: name} }
 // Name is the test's name.
 func (t *T) Name() string { return t.name }
 
-// Failed reports whether the test recorded any failure.
-func (t *T) Failure() bool { return len(t.failures) > 0 }
+// SelfFailed reports whether this test recorded a failure of its own (not
+// counting subtests).
+func (t *T) SelfFailed() bool { return len(t.failures) > 0 }
 
-// Failures are the recorded failure messages.
+// Failure reports whether this test or any of its subtests failed (like Go's
+// testing.T.Failed).
+func (t *T) Failure() bool {
+	if len(t.failures) > 0 {
+		return true
+	}
+	for _, s := range t.subs {
+		if s.Failure() {
+			return true
+		}
+	}
+	return false
+}
+
+// Failures are the failure messages recorded by this test itself.
 func (t *T) Failures() []string { return t.failures }
+
+// Subs are the subtests started with t.run, in run order.
+func (t *T) Subs() []*T { return t.subs }
+
+// AddSub records child as a subtest of t.
+func (t *T) AddSub(child *T) { t.subs = append(t.subs, child) }
 
 // Logs are the messages written with t.log.
 func (t *T) Logs() []string { return t.logs }
@@ -92,6 +115,37 @@ func (t *T) fail(msg string) (gad.Object, error) {
 	return nil, &FailError{Msg: msg}
 }
 
+// run runs a subtest `t.run(name, fn)` (also what nested `test NAME { … }`
+// statements lower to): it invokes fn with a fresh child context named
+// parent/name, records it under subs, and returns whether the subtest passed.
+// A subtest failure or skip does not abort the parent (like Go's t.Run).
+func (t *T) run(c gad.Call) (gad.Object, error) {
+	name := c.Args.Get(0).ToString()
+	fn, _ := c.Args.Get(1).(gad.CallerObject)
+	if fn == nil {
+		return nil, gad.ErrType.NewError("run: second argument must be a function")
+	}
+	child := &T{name: t.name + "/" + name}
+	_, err := runFn(c.VM, fn, child)
+	// A require-style abort already recorded the failure in child; a skip set its
+	// flag. Any other error is an unexpected runtime failure of the subtest.
+	if err != nil && !child.SelfFailed() {
+		if skipped, _ := child.Skipped(); !skipped {
+			child.failures = append(child.failures, err.Error())
+		}
+	}
+	t.AddSub(child)
+	return gad.Bool(!child.Failure()), nil
+}
+
+// runFn invokes fn(child) on a forked VM.
+func runFn(vm *gad.VM, fn gad.CallerObject, child *T) (gad.Object, error) {
+	inv := gad.NewInvoker(vm, fn)
+	inv.Acquire()
+	defer inv.Release()
+	return inv.Invoke(gad.Args{gad.Array{child}}, nil)
+}
+
 // CallName dispatches t's methods (assertions and controls).
 func (t *T) CallName(name string, c gad.Call) (gad.Object, error) {
 	switch name {
@@ -109,6 +163,13 @@ func (t *T) CallName(name string, c gad.Call) (gad.Object, error) {
 	case "skip":
 		t.skipped, t.skipMsg = true, argMsg(c.Args, "")
 		return nil, &SkipError{Msg: t.skipMsg}
+	case "helper":
+		// Marks the caller as a test helper. Gad does not track caller source
+		// positions for failure attribution, so this is a no-op accepted for
+		// parity with Go's t.Helper().
+		return gad.Nil, nil
+	case "run":
+		return t.run(c)
 	case "true":
 		if v := c.Args.Get(0); v.IsFalsy() {
 			return t.fail(withMsg(c, "expected true, got "+repr(v)))

@@ -78,3 +78,29 @@ bench "fib 15" {
 		fib(15)
 	}
 }
+
+sum(a int, b int) => a + b
+met sum(a float, b float) => a + b
+
+// A nested `test` is a subtest (shorthand for t.run), reported as parent/child;
+// each level may carry its own `///` doc comment. `t.helper()` is accepted for
+// parity with Go's t.Helper() (a no-op here).
+
+/// sum over several types
+test sum {
+    /// integer overload
+    test ints {
+        t.helper()
+        t.equal(3, sum(1, 2))
+    }
+
+    /// float overload
+    test floats {
+        t.equal(4.0, sum(1.5, 2.5))
+
+        /// still the float overload, one level deeper
+        test other {
+            t.equal(5.0, sum(2.5, 2.5))
+        }
+    }
+}

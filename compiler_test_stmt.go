@@ -29,6 +29,19 @@ func (c *Compiler) compileTestStmt(nd *node.TestStmt) error {
 	})
 	fn := node.EFunc(fnType, nd.Body)
 
+	// Nested form: when `t` is in scope (inside a test/bench body) a `test NAME
+	// { … }` is a subtest — lower it to `t.run("NAME", func(t){ … })`, which runs
+	// synchronously and reports as parent/NAME (like Go's t.Run). Benches nested
+	// in a test are subtests too.
+	if _, ok := c.symbolTable.Resolve("t"); ok {
+		call := node.ECall(
+			node.ESelector(node.EIdent("t", pos), node.Str("run", pos)),
+			pos, pos,
+			node.NewCallExprArgs(nil, node.Str(nd.Name, pos), fn),
+		)
+		return c.Compile(&node.ExprStmt{Expr: call})
+	}
+
 	var doc string
 	if nd.Doc != nil {
 		doc = nd.Doc.Text()

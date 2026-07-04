@@ -184,3 +184,23 @@
       TOC bullets, per-entry `### test **name**`/code/doc, quoted string names,
       and that a bench is not listed among the tests. Manually confirmed the
       rendered Markdown on a scratch module.
+- [x] nested subtests (`test NAME { test SUB { … } }`, like Go t.Run) + `t.helper()`.
+      DONE. A `test`/`bench` nested inside a test body is a subtest: the compiler
+      (compiler_test_stmt.go) detects `t` in scope (c.symbolTable.Resolve("t"))
+      and lowers it to `t.run("NAME", func(t){body})` instead of the top-level
+      const; the T context (stdlib/test/module.go) gains run(name, fn) — runs the
+      child synchronously on a forked VM (gad.NewInvoker), records it under subs
+      named parent/NAME, and returns whether it passed (a sub failure/skip does
+      not abort the parent). Failure() is now recursive (SelfFailed() is own-only)
+      so a parent fails when a subtest fails, like Go. Added `t.helper()` (no-op,
+      Go parity). Runner (cmd/gad/test_cmd.go) reportNode() walks the subtree,
+      reporting each node as path/parent/child. Doc generator (doc_gen.go)
+      testEntries() recurses into test bodies so subtests appear with
+      parent/child qualified names and their own `///` doc comments.
+      Evidence: `go build ./...`, `go vet ./...`, `go test ./...` clean; race
+      clean. New tests: TestRunFileNestedSubtests (3 pass / 2 fail incl. deep
+      nesting + parent-fails-on-subfail), TestHelperNoOp,
+      TestFailurePropagatesFromSubs, TestDocGeneratorNestedTests. Sample
+      samples/testing/math_test.gad has a nested `test sum { … }` with subtest
+      doc comments; `gad test samples/testing` -> 9 passed, 0 failed, 1 skipped;
+      fmt idempotent. Docs: doc/stdlib-test.md (Subtests section + t.helper/t.run).

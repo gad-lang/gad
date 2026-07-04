@@ -97,6 +97,40 @@ when followed by a NAME and `{`, so they stay ordinary identifiers everywhere
 else — `test := import("test")`, `test.equal(t, …)` and `bench()` all keep
 working. The two forms may be freely mixed in one file and run in source order.
 
+### Subtests (nesting)
+
+A `test` statement nested inside another is a **subtest** — the shorthand for
+`t.run("name", func(t) { … })` (like Go's `t.Run`). Each subtest gets its own
+child context and is reported under a `parent/child` path; a subtest failure
+fails its parent but does not abort it. Nesting may go arbitrarily deep, and each
+level may carry its own `///` doc comment.
+
+```gad
+/// arithmetic
+test sum {
+	/// integers
+	test ints {
+		t.equal(3, add(1, 2))
+	}
+	/// floats
+	test floats {
+		t.equal(4.0, add(1.5, 2.5))
+
+		test negatives {           // sum/floats/negatives
+			t.equal(-1.0, add(-2.0, 1.0))
+		}
+	}
+}
+```
+
+```
+$ gad test -v
+PASS …/sum
+PASS …/sum/ints
+PASS …/sum/floats
+PASS …/sum/floats/negatives
+```
+
 ## The test context `t`
 
 `t` carries the assertions and controls. Assertion methods fail-and-abort on
@@ -124,7 +158,9 @@ Controls:
 | `t.fatal(msg…)` | alias of `t.fail` |
 | `t.skip(msg…)` | stop the test and mark it skipped (not failed) |
 | `t.name()` | the test's name |
-| `t.failed()` | whether a failure was recorded so far |
+| `t.failed()` | whether this test or a subtest has failed so far |
+| `t.helper()` | no-op accepted for parity with Go's `t.Helper()` |
+| `t.run(name, fn)` | run `fn(t)` as a subtest named `parent/name` (see below) |
 
 Read-only fields via indexing: `t.name`, `t.failed`, and `t.n` (benchmark count).
 

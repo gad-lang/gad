@@ -108,6 +108,29 @@ test fourSkip { t.skip("later") }
 	require.Contains(t, out, "FAIL")
 }
 
+func TestRunFileNestedSubtests(t *testing.T) {
+	src := `test := import("test")
+test parent {
+	t.helper()
+	test childOk { t.equal(1, 1) }
+	test childBad { t.equal(1, 2) }
+	test group {
+		test deep { t.true(true) }
+	}
+}
+`
+	o := &testOptions{verbose: true}
+	pass, fail, skip, out := runFileOn(t, o, src)
+	require.Equal(t, 0, skip, out)
+	// pass: childOk, group, group/deep  (3); fail: parent, childBad (2)
+	require.Equal(t, 3, pass, out)
+	require.Equal(t, 2, fail, out)
+	require.Contains(t, out, "parent/childOk")
+	require.Contains(t, out, "parent/childBad")
+	require.Contains(t, out, "parent/group/deep") // deep nesting
+	require.Contains(t, out, "FAIL")              // parent fails because a subtest failed
+}
+
 func TestRunFileStatementBench(t *testing.T) {
 	src := `bench "the loop" { for i := 0; i < t.n; i++ {} }`
 	o := &testOptions{benchPat: ".", benchtime: time.Millisecond}
