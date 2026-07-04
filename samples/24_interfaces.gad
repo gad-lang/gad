@@ -70,4 +70,19 @@ try {
 func welcome(g Greeter) => g.greet() + "!"
 println("welcome:     ", welcome(p))                 // hi Ada!
 
+/// Satisfaction is structural, so any member-bearing value qualifies — a `dict`
+/// too: a field matches a key, a method matches a callable key.
+d := {name: "Bo", greet: func() => "hi Bo"}
+println("dict::Greeter:", (d :: Greeter).greet())    // hi Bo
+println("welcome(dict):", welcome(d))                // hi Bo!
+
+/// A dict without the required callable key is rejected.
+bad := {name: "x"}
+try {
+    bad :: Greeter                                   // no greet()
+    ok = false
+} catch {
+    println("dict reject: not a Greeter")
+}
+
 return ok
