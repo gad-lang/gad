@@ -4415,6 +4415,44 @@ func TestVMNullishSelector(t *testing.T) {
 	testExpectRun(t, `a := nil; return a?.b`, nil, Nil)
 	testExpectRun(t, `a := nil; return a?.b.c.d`, nil, Nil)
 	testExpectRun(t, `a := {}; return a?.b?.c.d`, nil, Nil)
+
+	// --- expansive coverage (JS-style optional chaining `?.`) ---------------
+
+	// `m.x?.y`: a regular selector then an optional one — nil middle short-circuits.
+	testExpectRun(t, `m := {x: {y: 7}}; return m.x?.y`, nil, Int(7))
+	testExpectRun(t, `m := {x: nil}; return m.x?.y`, nil, Nil)
+	testExpectRun(t, `m := {x: nil}; return m.x?.y.z.w`, nil, Nil) // whole tail skipped
+	// a plain selector on nil errors; `?.` turns it into nil.
+	expectErrHas(t, `m := {x: nil}; return m.x.y`, newOpts(), "NotIndexable")
+
+	// index-expression base of `?.` (regression: the `[i]` must be indexed
+	// before the nil guard, so `arr[i]?.sel` guards `arr[i]`, not the index).
+	testExpectRun(t, `arr := [{v: 1}, nil]; return arr[0]?.v`, nil, Int(1))
+	testExpectRun(t, `arr := [{v: 1}, nil]; return arr[1]?.v`, nil, Nil)
+	testExpectRun(t, `arr := [{v: 1}, nil]; return arr[1]?.v.w.z`, nil, Nil)
+	testExpectRun(t, `m := {a: [nil]}; return m.a[0]?.z`, nil, Nil)
+	testExpectRun(t, `m := {a: [{z: 5}]}; return m.a[0]?.z`, nil, Int(5))
+
+	// class instances: `?.` on a field, and on a nil receiver.
+	testExpectRun(t, `class P { name = "" }; p := P(; name = "A"); return p?.name`, nil, Str("A"))
+	testExpectRun(t, `class P { name = "" }; p := nil; return p?.name`, nil, Nil)
+	testExpectRun(t, `class P { name = "" }; return ({p: nil}).p?.name`, nil, Nil)
+
+	// method call through `?.` when the receiver is present.
+	testExpectRun(t, `d := {greet: func() => "hi"}; return d?.greet()`, nil, Str("hi"))
+	testExpectRun(t, `d := {inner: {greet: func() => "hi"}}; return d.inner?.greet()`, nil, Str("hi"))
+	// Gad's `?.` guards the selector but not a following call, so a nil
+	// receiver's call is a NotCallable error (unlike JS optional-call `a?.b()`).
+	expectErrHas(t, `a := nil; return a?.greet()`, newOpts(), "NotCallable")
+
+	// combined with the `??` nullish default and the `::` assign-to-type op.
+	testExpectRun(t, `m := {x: nil}; return m.x?.y ?? "def"`, nil, Str("def"))
+	testExpectRun(t, `m := {x: {y: 1}}; return m.x?.y ?? "def"`, nil, Int(1))
+	testExpectRun(t, `
+	interface Named { name str }
+	class P { name = "" }
+	p := P(; name = "Z")
+	return (p::Named)?.name`, nil, Str("Z"))
 }
 
 func TestVMSelector(t *testing.T) {

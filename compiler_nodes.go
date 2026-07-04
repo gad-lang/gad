@@ -2528,10 +2528,18 @@ func (c *Compiler) compileNullishSelectorExpr(nd *node.NullishSelectorExpr) erro
 		return err
 	}
 
-	for _, selector := range selectors[0 : len(selectors)-1] {
-		if err := c.Compile(selector); err != nil {
-			return err
+	// Index through the intermediate selectors first, so the value guarded by
+	// `?.` is the operand immediately to its left. This matters when the base is
+	// an index expression (e.g. `arr[0]?.v`): resolveSelectorExprs flattens the
+	// `[0]` into the selector list, and without indexing it here the OpJumpNil
+	// below would test the index key rather than the value of `arr[0]`.
+	if n := len(selectors) - 1; n > 0 {
+		for _, selector := range selectors[:n] {
+			if err := c.Compile(selector); err != nil {
+				return err
+			}
 		}
+		c.emit(nd, OpGetIndex, n)
 	}
 
 	jumpPos = c.emit(nd, OpJumpNil, 0)
@@ -2542,7 +2550,7 @@ func (c *Compiler) compileNullishSelectorExpr(nd *node.NullishSelectorExpr) erro
 	if err := c.Compile(selectors[len(selectors)-1]); err != nil {
 		return err
 	}
-	c.emit(nd, OpGetIndex, len(selectors))
+	c.emit(nd, OpGetIndex, 1)
 	return nil
 }
 
