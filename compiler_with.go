@@ -61,7 +61,7 @@ func (c *Compiler) compileWithStmt(nd *node.WithStmt) error {
 
 	blockStmts, err := withScaffold(handle)
 	if err != nil {
-		return c.errorf(nd, "with: %v", err)
+		return c.Errorf(nd, "with: %v", err)
 	}
 	if inBind != nil {
 		blockStmts = append([]node.Stmt{inBind}, blockStmts...)
@@ -102,7 +102,7 @@ func (c *Compiler) compileWithExpr(nd *node.WithExpr) error {
 
 	bodyStmts, err := withScaffold(handle)
 	if err != nil {
-		return c.errorf(nd, "with: %v", err)
+		return c.Errorf(nd, "with: %v", err)
 	}
 	if inBind != nil {
 		bodyStmts = append([]node.Stmt{inBind}, bodyStmts...)
@@ -112,11 +112,11 @@ func (c *Compiler) compileWithExpr(nd *node.WithExpr) error {
 	// Build the IIFE by parsing an empty closure and splicing the body in.
 	tmpl, err := parseGadSnippet("$__with_iife__ := func() {}")
 	if err != nil {
-		return c.errorf(nd, "with: %v", err)
+		return c.Errorf(nd, "with: %v", err)
 	}
 	fn, ok := withFuncOf(tmpl)
 	if !ok {
-		return c.errorf(nd, "with: closure slot not found")
+		return c.Errorf(nd, "with: closure slot not found")
 	}
 	fn.Body = &node.BlockStmt{Stmts: bodyStmts}
 

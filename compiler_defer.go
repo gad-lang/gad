@@ -22,7 +22,7 @@ func (c *Compiler) compileRegexLit(nd *node.RegexLit) error {
 		re, err = regexp.Compile(nd.Pattern())
 	}
 	if err != nil {
-		return c.errorf(nd, "invalid regex %s: %v", nd.Literal, err)
+		return c.Errorf(nd, "invalid regex %s: %v", nd.Literal, err)
 	}
 	c.emit(nd, OpConstant, c.addConstant((*Regexp)(re)))
 	return nil
@@ -221,21 +221,21 @@ func (c *Compiler) compileDeferStmt(nd *node.DeferStmt) error {
 	src := fmt.Sprintf(`%s = append(%s, [func() {}, %d])`, registry, registry, int(nd.Variant))
 	stmts, err := parseGadSnippet(src)
 	if err != nil {
-		return c.errorf(nd, "defer: %v", err)
+		return c.Errorf(nd, "defer: %v", err)
 	}
 
 	assign, ok := stmts[0].(*node.AssignStmt)
 	if !ok {
-		return c.errorf(nd, "defer: malformed registration")
+		return c.Errorf(nd, "defer: malformed registration")
 	}
 	fe, ok := deferHandlerFuncOf(assign)
 	if !ok {
-		return c.errorf(nd, "defer: handler slot not found")
+		return c.Errorf(nd, "defer: handler slot not found")
 	}
 	fe.Body = &node.BlockStmt{Stmts: bodyStmts}
 
 	if _, ok := c.symbolTable.Resolve(registry); !ok {
-		return c.errorf(nd, "%s is only allowed inside %s", nd.Keyword(), scope)
+		return c.Errorf(nd, "%s is only allowed inside %s", nd.Keyword(), scope)
 	}
 	return c.Compile(assign)
 }

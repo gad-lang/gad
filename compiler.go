@@ -87,6 +87,7 @@ type (
 		funcHeaderIndex      uint
 		methodInterfaceIndex uint
 		interfaceIndex       uint
+		FallbackFunc         func(nd ast.Node) error
 	}
 
 	// CompilerOptions represents customizable options for Compile().
@@ -606,19 +607,19 @@ func (c *Compiler) Compile(nd ast.Node) error {
 	case *node.BytesLit:
 		b, err := nt.Bytes()
 		if err != nil {
-			return c.errorf(nt, "invalid bytes literal: %v", err)
+			return c.Errorf(nt, "invalid bytes literal: %v", err)
 		}
 		c.emit(nt, OpConstant, c.addConstant(Bytes(b)))
 	case *node.DurationLit:
 		d, err := strToDuration(nt.StrValue())
 		if err != nil {
-			return c.errorf(nt, "invalid duration literal: %v", err)
+			return c.Errorf(nt, "invalid duration literal: %v", err)
 		}
 		c.emit(nt, OpConstant, c.addConstant(d))
 	case *node.DateTimeLit:
 		obj, err := dateTimeLitObject(nt.Kind, nt.Body)
 		if err != nil {
-			return c.errorf(nt, "invalid %s literal: %v", nt.Kind.Suffix(), err)
+			return c.Errorf(nt, "invalid %s literal: %v", nt.Kind.Suffix(), err)
 		}
 		c.emit(nt, OpConstant, c.addConstant(obj))
 	case *node.CharLit:
@@ -766,7 +767,10 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileToRawExpr(nt)
 	case nil:
 	default:
-		return c.errorf(nt, `%[1]T "%[1]v" not implemented`, nt)
+		if c.FallbackFunc != nil {
+			return c.FallbackFunc(nd)
+		}
+		return c.Errorf(nt, `%[1]T "%[1]v" not implemented`, nt)
 	}
 	return nil
 }
@@ -907,7 +911,7 @@ func (c *Compiler) checkCyclicImports(nd ast.Node, moduleName string) error {
 				p2 = p2.parent
 			}
 			slices.Reverse(names)
-			return c.errorf(nd, "cyclic module import: %s", strings.Join(names, " → "))
+			return c.Errorf(nd, "cyclic module import: %s", strings.Join(names, " → "))
 		}
 		p = p.parent
 	}
@@ -1101,7 +1105,7 @@ func (c *Compiler) error(nd ast.Node, err error) error {
 	}
 }
 
-func (c *Compiler) errorf(
+func (c *Compiler) Errorf(
 	nd ast.Node,
 	format string,
 	args ...any,

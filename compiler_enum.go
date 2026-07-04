@@ -10,7 +10,7 @@ import (
 func (c *Compiler) compileEnumStmt(nd *node.EnumStmt) error {
 	name, _ := nd.NameExpr.(*node.IdentExpr)
 	if name == nil {
-		return c.errorf(nd, "enum statement requires a name identifier")
+		return c.Errorf(nd, "enum statement requires a name identifier")
 	}
 	return c.Compile(&node.DeclStmt{
 		Decl: &node.GenDecl{
@@ -146,7 +146,7 @@ func (c *Compiler) evalEnumExpr(e node.Expr, vals map[string]enumNum) (enumNum, 
 		if n, ok := vals[t.Name]; ok {
 			return n, nil
 		}
-		return enumNum{}, c.errorf(e, "enum value references unknown field %q", t.Name)
+		return enumNum{}, c.Errorf(e, "enum value references unknown field %q", t.Name)
 	case *node.ParenExpr:
 		return c.evalEnumExpr(t.Expr, vals)
 	case *node.UnaryExpr:
@@ -162,7 +162,7 @@ func (c *Compiler) evalEnumExpr(e node.Expr, vals map[string]enumNum) (enumNum, 
 		case token.Xor:
 			return enumNum{val: ^v.val, unsigned: v.unsigned}, nil
 		}
-		return enumNum{}, c.errorf(e, "unsupported enum unary operator %s", t.Token)
+		return enumNum{}, c.Errorf(e, "unsupported enum unary operator %s", t.Token)
 	case *node.BinaryExpr:
 		l, err := c.evalEnumExpr(t.LHS, vals)
 		if err != nil {
@@ -182,12 +182,12 @@ func (c *Compiler) evalEnumExpr(e node.Expr, vals map[string]enumNum) (enumNum, 
 			return enumNum{l.val * r.val, u}, nil
 		case token.Quo:
 			if r.val == 0 {
-				return enumNum{}, c.errorf(e, "enum value division by zero")
+				return enumNum{}, c.Errorf(e, "enum value division by zero")
 			}
 			return enumNum{l.val / r.val, u}, nil
 		case token.Rem:
 			if r.val == 0 {
-				return enumNum{}, c.errorf(e, "enum value division by zero")
+				return enumNum{}, c.Errorf(e, "enum value division by zero")
 			}
 			return enumNum{l.val % r.val, u}, nil
 		case token.Or:
@@ -201,9 +201,9 @@ func (c *Compiler) evalEnumExpr(e node.Expr, vals map[string]enumNum) (enumNum, 
 		case token.Shr:
 			return enumNum{l.val >> uint(r.val), u}, nil
 		}
-		return enumNum{}, c.errorf(e, "unsupported enum binary operator %s", t.Token)
+		return enumNum{}, c.Errorf(e, "unsupported enum binary operator %s", t.Token)
 	}
-	return enumNum{}, c.errorf(e, "invalid enum value expression %T", e)
+	return enumNum{}, c.Errorf(e, "invalid enum value expression %T", e)
 }
 
 func absI(v int64) int64 {

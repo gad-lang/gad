@@ -197,15 +197,15 @@ func (c *Compiler) compileMatchExpr(nd *node.MatchExpr) error {
 	for _, arm := range nd.Arms {
 		if arm.IsElse() {
 			if elseArm != nil {
-				return c.errorf(nd, "multiple else arms in match")
+				return c.Errorf(nd, "multiple else arms in match")
 			}
 			elseArm = arm
 		}
 		if isStmt && arm.Result != nil {
-			return c.errorf(nd, "cannot mix `cond: result` and `cond { body }` match arms")
+			return c.Errorf(nd, "cannot mix `cond: result` and `cond { body }` match arms")
 		}
 		if !isStmt && arm.Body != nil {
-			return c.errorf(nd, "cannot mix `cond: result` and `cond { body }` match arms")
+			return c.Errorf(nd, "cannot mix `cond: result` and `cond { body }` match arms")
 		}
 	}
 
@@ -504,7 +504,7 @@ func (c *Compiler) compileThrowExpr(nd *node.ThrowExpr) error {
 func (c *Compiler) compileDeclStmt(nd *node.DeclStmt) error {
 	decl := nd.Decl.(*node.GenDecl)
 	if len(decl.Specs) == 0 {
-		return c.errorf(nd, "empty declaration not allowed")
+		return c.Errorf(nd, "empty declaration not allowed")
 	}
 
 	switch decl.Tok {
@@ -520,7 +520,7 @@ func (c *Compiler) compileDeclStmt(nd *node.DeclStmt) error {
 
 func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 	if c.symbolTable.parent != nil {
-		return c.errorf(nd, "param not allowed in this scope")
+		return c.Errorf(nd, "param not allowed in this scope")
 	}
 
 	var (
@@ -556,7 +556,7 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 
 		if spec.Var {
 			if i != len(positionalSpecs)-1 {
-				return c.errorf(nd,
+				return c.Errorf(nd,
 					"only last param accept variadic")
 			}
 			c.variadic = true
@@ -582,7 +582,7 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 
 		if spec.Var {
 			if i != len(namedSpecs)-1 {
-				return c.errorf(nd,
+				return c.Errorf(nd,
 					"only last named param accept variadic")
 			}
 
@@ -620,7 +620,7 @@ func (c *Compiler) compileDeclParam(nd *node.GenDecl) error {
 
 func (c *Compiler) compileDeclGlobal(nd *node.GenDecl) error {
 	if c.symbolTable.parent != nil {
-		return c.errorf(nd, "global not allowed in this scope")
+		return c.Errorf(nd, "global not allowed in this scope")
 	}
 
 	for _, sp := range nd.Specs {
@@ -653,7 +653,7 @@ func (c *Compiler) compileDeclValue(nd *node.GenDecl) error {
 				if v, ok := spec.Data.(int); ok {
 					c.iotaVal = v
 				} else {
-					return c.errorf(nd, "invalid iota value")
+					return c.Errorf(nd, "invalid iota value")
 				}
 			}
 		}
@@ -699,7 +699,7 @@ func (c *Compiler) checkAssignment(
 ) (bool, error) {
 	_, numRHS := len(lhs), len(rhs)
 	if numRHS > 1 {
-		return false, c.errorf(nd,
+		return false, c.Errorf(nd,
 			"multiple expressions on the right side not supported")
 	}
 
@@ -716,7 +716,7 @@ Loop:
 	if selector {
 		if op == token.Define {
 			// using selector on new variable does not make sense
-			return false, c.errorf(nd, "operator ':=' not allowed with selector")
+			return false, c.Errorf(nd, "operator ':=' not allowed with selector")
 		}
 	}
 
@@ -855,7 +855,7 @@ func (c *Compiler) compileDestructuring(
 				}
 			}
 			if found == numLHS {
-				return c.errorf(nd, "no new variable on left side")
+				return c.Errorf(nd, "no new variable on left side")
 			}
 		}
 
@@ -904,7 +904,7 @@ func (c *Compiler) compileDictDestructuring(
 	op token.Token,
 ) error {
 	if op != token.Assign && op != token.Define {
-		return c.errorf(nd, "operator %q not allowed with dict destructuring",
+		return c.Errorf(nd, "operator %q not allowed with dict destructuring",
 			op.String())
 	}
 
@@ -916,16 +916,16 @@ func (c *Compiler) compileDictDestructuring(
 		switch e := el.(type) {
 		case *node.KeyValuePairLit:
 			if restVar != nil {
-				return c.errorf(nd, "** rest target must be the last element")
+				return c.Errorf(nd, "** rest target must be the last element")
 			}
 			pairs = append(pairs, e)
 		case *node.NamedArgVarLit:
 			if restVar != nil {
-				return c.errorf(nd, "only one ** rest target is allowed")
+				return c.Errorf(nd, "only one ** rest target is allowed")
 			}
 			restVar = e.Value
 		default:
-			return c.errorf(nd, "invalid dict destructuring target %T", el)
+			return c.Errorf(nd, "invalid dict destructuring target %T", el)
 		}
 	}
 
@@ -952,13 +952,13 @@ func (c *Compiler) compileDictDestructuring(
 	for _, pair := range pairs {
 		dictKey, ok := destructureKeyName(pair.Key)
 		if !ok {
-			return c.errorf(nd, "invalid dict destructuring key %T", pair.Key)
+			return c.Errorf(nd, "invalid dict destructuring key %T", pair.Key)
 		}
 		if pair.Colon {
 			// rename: the value names the source key
 			dictKey, ok = destructureKeyName(pair.Value)
 			if !ok {
-				return c.errorf(nd, "invalid dict destructuring source key %T",
+				return c.Errorf(nd, "invalid dict destructuring source key %T",
 					pair.Value)
 			}
 		}
@@ -1017,7 +1017,7 @@ func (c *Compiler) compileMixedParamsDestructuring(
 	op token.Token,
 ) error {
 	if op != token.Assign && op != token.Define {
-		return c.errorf(nd, "operator %q not allowed with destructuring", op.String())
+		return c.Errorf(nd, "operator %q not allowed with destructuring", op.String())
 	}
 
 	// evaluate the source MixedParams once into a temp local
@@ -1037,7 +1037,7 @@ func (c *Compiler) compileMixedParamsDestructuring(
 	for i, el := range mp.PositionalElements {
 		if av, ok := el.(*node.NamedArgVarLit); ok {
 			if restSeen {
-				return c.errorf(nd, "only one ** rest target is allowed in the positional section")
+				return c.Errorf(nd, "only one ** rest target is allowed in the positional section")
 			}
 			restSeen = true
 			slice := node.ESlice(positional(), &node.IntLit{Value: int64(i)}, nil, 0, 0)
@@ -1047,7 +1047,7 @@ func (c *Compiler) compileMixedParamsDestructuring(
 			continue
 		}
 		if restSeen {
-			return c.errorf(nd, "** rest target must be the last positional element")
+			return c.Errorf(nd, "** rest target must be the last positional element")
 		}
 		idx := node.EIndex(positional(), &node.IntLit{Value: int64(i)}, 0, 0)
 		if err := c.compileDefineAssignValue(nd, el, idx, keyword, op, allowRedefine); err != nil {
@@ -1101,14 +1101,14 @@ func (c *Compiler) compileDefine(
 ) error {
 	symbol, exists := c.symbolTable.DefineLocal(ident)
 	if !allowRedefine && exists && ident != "_" {
-		return c.errorf(nd, "%q redeclared in this block", ident)
+		return c.Errorf(nd, "%q redeclared in this block", ident)
 	}
 
 	if symbol.Constant {
-		return c.errorf(nd, "assignment to constant variable %q", ident)
+		return c.Errorf(nd, "assignment to constant variable %q", ident)
 	}
 	if c.iotaVal > -1 && ident == "iota" && keyword == token.Const {
-		return c.errorf(nd, "assignment to iota")
+		return c.Errorf(nd, "assignment to iota")
 	}
 
 	c.emit(nd, OpDefineLocal, symbol.Index)
@@ -1123,7 +1123,7 @@ func (c *Compiler) compileAssign(
 	ident string,
 ) error {
 	if symbol.Constant {
-		return c.errorf(nd, "assignment to constant variable %q", ident)
+		return c.Errorf(nd, "assignment to constant variable %q", ident)
 	}
 
 	switch symbol.Scope {
@@ -1144,7 +1144,7 @@ func (c *Compiler) compileAssign(
 		c.emit(nd, OpSetGlobal, symbol.Index)
 		symbol.Assigned = true
 	default:
-		return c.errorf(nd, "unresolved reference %q", ident)
+		return c.Errorf(nd, "unresolved reference %q", ident)
 	}
 	return nil
 }
@@ -1182,7 +1182,7 @@ func (c *Compiler) compileDefineAssign(
 		case ScopeGlobal:
 			c.emit(nd, OpGetGlobal, symbol.Index)
 		default:
-			return c.errorf(nd, "unexpected scope %q for symbol %q",
+			return c.Errorf(nd, "unexpected scope %q for symbol %q",
 				symbol.Scope, ident)
 		}
 	}
@@ -1227,7 +1227,7 @@ func (c *Compiler) compileBranchStmt(nd *node.BranchStmt) error {
 	case token.Break:
 		curLoop := c.currentLoop()
 		if curLoop == nil {
-			return c.errorf(nd, "break not allowed outside loop")
+			return c.Errorf(nd, "break not allowed outside loop")
 		}
 
 		var pos int
@@ -1241,7 +1241,7 @@ func (c *Compiler) compileBranchStmt(nd *node.BranchStmt) error {
 	case token.Continue:
 		curLoop := c.currentLoop()
 		if curLoop == nil {
-			return c.errorf(nd, "continue not allowed outside loop")
+			return c.Errorf(nd, "continue not allowed outside loop")
 		}
 
 		var pos int
@@ -1253,7 +1253,7 @@ func (c *Compiler) compileBranchStmt(nd *node.BranchStmt) error {
 		}
 		curLoop.continues = append(curLoop.continues, pos)
 	default:
-		return c.errorf(nd, "invalid branch statement: %s", nd.Token.String())
+		return c.Errorf(nd, "invalid branch statement: %s", nd.Token.String())
 	}
 	return nil
 }
@@ -1301,7 +1301,7 @@ func (c *Compiler) compileReturn(nd *node.Return) error {
 		case *node.ModuleLit:
 			c.emit(nd, OpSetReturnModule)
 		default:
-			return c.errorf(nd, "return of assign require Ident|ModuleLit")
+			return c.Errorf(nd, "return of assign require Ident|ModuleLit")
 		}
 	} else {
 		if err := c.Compile(nd.Result); err != nil {
@@ -1414,7 +1414,7 @@ func (c *Compiler) compileForInStmt(stmt *node.ForInStmt) error {
 	//   :it = iterator(iterable)
 	itSymbol, exists := c.symbolTable.DefineLocal(":it")
 	if exists {
-		return c.errorf(stmt, ":it redeclared in this block")
+		return c.Errorf(stmt, ":it redeclared in this block")
 	}
 
 	if err := c.Compile(stmt.Iterable); err != nil {
@@ -1460,7 +1460,7 @@ func (c *Compiler) compileForInStmt(stmt *node.ForInStmt) error {
 	if stmt.Key.Name != "_" {
 		keySymbol, exists := c.symbolTable.DefineLocal(stmt.Key.Name)
 		if exists {
-			return c.errorf(stmt, "%q redeclared in this block", stmt.Key.Name)
+			return c.Errorf(stmt, "%q redeclared in this block", stmt.Key.Name)
 		}
 		c.emit(stmt, OpGetLocal, itSymbol.Index)
 		c.emit(stmt, OpIterKey)
@@ -1472,7 +1472,7 @@ func (c *Compiler) compileForInStmt(stmt *node.ForInStmt) error {
 	if stmt.Value.Name != "_" {
 		valueSymbol, exists := c.symbolTable.DefineLocal(stmt.Value.Name)
 		if exists {
-			return c.errorf(stmt, "%q redeclared in this block", stmt.Value.Name)
+			return c.Errorf(stmt, "%q redeclared in this block", stmt.Value.Name)
 		}
 		c.emit(stmt, OpGetLocal, itSymbol.Index)
 		c.emit(stmt, OpIterValue)
@@ -1519,7 +1519,7 @@ func (c *Compiler) compileForInStmt(stmt *node.ForInStmt) error {
 
 func (c *Compiler) compileFuncStmt(nd *node.FuncStmt) (err error) {
 	if nd.Func.Type.NameExpr == nil {
-		return c.errorf(nd, "func stmt require ident")
+		return c.Errorf(nd, "func stmt require ident")
 	}
 
 	if err = c.Compile(&node.CallExpr{
@@ -1540,7 +1540,7 @@ func (c *Compiler) compileFuncExpr(nd *node.FuncExpr) error {
 	body := nd.Body
 	if body == nil {
 		if nd.BodyExpr == nil {
-			return c.errorf(nd, "func does not have body or body expression")
+			return c.Errorf(nd, "func does not have body or body expression")
 		}
 		body = &node.BlockStmt{
 			Stmts: []node.Stmt{
@@ -1558,7 +1558,7 @@ func (c *Compiler) compileFuncExpr(nd *node.FuncExpr) error {
 }
 
 func (c *Compiler) compilePtr(nd *node.Ptr) (err error) {
-	return c.errorf(nd, "compile %T is not implemented", nd)
+	return c.Errorf(nd, "compile %T is not implemented", nd)
 }
 
 func (c *Compiler) compileComputedExpr(nd *node.ComputedExpr) (err error) {
@@ -1926,7 +1926,7 @@ func (c *Compiler) compileFuncWithMethodsStmt(nd *node.FuncWithMethodsStmt) erro
 	if nd.NameExpr != nil {
 		name, _ = nd.NameExpr.(*node.IdentExpr)
 		if name == nil {
-			return c.errorf(nd, "require NameExpr as *Ident")
+			return c.Errorf(nd, "require NameExpr as *Ident")
 		}
 		args[0] = node.Str(name.String(), name.NamePos)
 	} else {
@@ -1934,7 +1934,7 @@ func (c *Compiler) compileFuncWithMethodsStmt(nd *node.FuncWithMethodsStmt) erro
 	}
 
 	if len(nd.Methods) == 0 {
-		return c.errorf(nd, "funcWithMethods does not have methods")
+		return c.Errorf(nd, "funcWithMethods does not have methods")
 	}
 
 	for i, m := range nd.Methods {
@@ -1966,7 +1966,7 @@ func (c *Compiler) compileFuncWithMethodsStmt(nd *node.FuncWithMethodsStmt) erro
 
 func (c *Compiler) compileFuncWithMethodsExpr(nd *node.FuncWithMethodsExpr) error {
 	if len(nd.Methods) == 0 {
-		return c.errorf(nd, "funcWithMethods does not have methods")
+		return c.Errorf(nd, "funcWithMethods does not have methods")
 	}
 
 	args := make(node.Exprs, len(nd.Methods)+1)
@@ -1974,7 +1974,7 @@ func (c *Compiler) compileFuncWithMethodsExpr(nd *node.FuncWithMethodsExpr) erro
 	if nd.NameExpr != nil {
 		name, _ := nd.NameExpr.(*node.IdentExpr)
 		if name == nil {
-			return c.errorf(nd, "require NameExpr as *Ident")
+			return c.Errorf(nd, "require NameExpr as *Ident")
 		}
 		args[0] = node.Str(name.String(), name.NamePos)
 	} else {
@@ -2003,7 +2003,7 @@ func (c *Compiler) compileFuncWithMethodsExpr(nd *node.FuncWithMethodsExpr) erro
 // to function literals, exactly like func-with-methods.
 func (c *Compiler) propCallExpr(nd *node.PropExpr) (*node.CallExpr, error) {
 	if len(nd.Methods) == 0 {
-		return nil, c.errorf(nd, "prop does not have methods")
+		return nil, c.Errorf(nd, "prop does not have methods")
 	}
 
 	args := make(node.Exprs, len(nd.Methods)+1)
@@ -2011,7 +2011,7 @@ func (c *Compiler) propCallExpr(nd *node.PropExpr) (*node.CallExpr, error) {
 	if nd.NameExpr != nil {
 		name, _ := nd.NameExpr.(*node.IdentExpr)
 		if name == nil {
-			return nil, c.errorf(nd, "require NameExpr as *Ident")
+			return nil, c.Errorf(nd, "require NameExpr as *Ident")
 		}
 		args[0] = node.Str(name.String(), name.NamePos)
 	} else {
@@ -2041,7 +2041,7 @@ func (c *Compiler) compilePropStmt(nd *node.PropStmt) error {
 
 	name, _ := nd.NameExpr.(*node.IdentExpr)
 	if name == nil {
-		return c.errorf(nd, "require NameExpr as *Ident")
+		return c.Errorf(nd, "require NameExpr as *Ident")
 	}
 
 	call, err := c.propCallExpr(&nd.PropExpr)
@@ -2110,7 +2110,7 @@ func (c *Compiler) compileMethodInterfaceStmt(nd *node.MethodInterfaceStmt) erro
 	}
 	name, _ := nd.NameExpr.(*node.IdentExpr)
 	if name == nil {
-		return c.errorf(nd, "require NameExpr as *Ident")
+		return c.Errorf(nd, "require NameExpr as *Ident")
 	}
 	// `meti Name { … }` -> `const Name = <the meti constant>`
 	return c.Compile(&node.DeclStmt{
@@ -2144,7 +2144,7 @@ func (c *Compiler) buildInterface(nd *node.InterfaceExpr) (*Interface, error) {
 	for _, parent := range nd.Parents {
 		id := node.EType(parent).Ident()
 		if id == nil {
-			return nil, c.errorf(parent, "interface extends: expected a type reference")
+			return nil, c.Errorf(parent, "interface extends: expected a type reference")
 		}
 		sym, err := c.requireSymbol(id, id.Name)
 		if err != nil {
@@ -2214,7 +2214,7 @@ func (c *Compiler) compileInterfaceStmt(nd *node.InterfaceStmt) error {
 	}
 	name, _ := nd.NameExpr.(*node.IdentExpr)
 	if name == nil {
-		return c.errorf(nd, "require NameExpr as *Ident")
+		return c.Errorf(nd, "require NameExpr as *Ident")
 	}
 	// `interface Name { … }` -> `const Name = <the interface constant>`
 	return c.Compile(&node.DeclStmt{
@@ -2401,7 +2401,7 @@ func (c *Compiler) compileBinaryExpr(nd *node.BinaryExpr) error {
 		c.emit(nd, OpUnary, int(token.Not))
 	default:
 		if !nd.Token.IsBinaryOperator() {
-			return c.errorf(nd, "invalid binary operator: %s",
+			return c.Errorf(nd, "invalid binary operator: %s",
 				nd.Token.String())
 		}
 		c.emit(nd, OpBinary, int(nd.Token))
@@ -2427,7 +2427,7 @@ func (c *Compiler) compileUnaryExpr(nd *node.UnaryExpr) error {
 		case token.NotNull:
 			c.emit(nd, OpNotIsNil)
 		default:
-			return c.errorf(nd,
+			return c.Errorf(nd,
 				"invalid unary operator: %s", nd.Token.String())
 		}
 	}
@@ -2440,7 +2440,7 @@ func (c *Compiler) compileUnaryExpr(nd *node.UnaryExpr) error {
 func (c *Compiler) compilePrefixIncDec(nd *node.UnaryExpr) error {
 	ident, _ := nd.Expr.(*node.IdentExpr)
 	if ident == nil {
-		return c.errorf(nd, "operator %q requires a variable operand", nd.Token.String())
+		return c.Errorf(nd, "operator %q requires a variable operand", nd.Token.String())
 	}
 	// load current value, apply the operator
 	if err := c.Compile(ident); err != nil {
@@ -2743,7 +2743,7 @@ func (c *Compiler) CompileModule(nd *ModuleStmt) (err error) {
 func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 	moduleName, args := nd.Build()
 	if moduleName == "" {
-		return c.errorf(nd, "empty module name")
+		return c.Errorf(nd, "empty module name")
 	}
 
 	var (
@@ -2758,13 +2758,13 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 
 	importer := c.moduleMap.Get(moduleName)
 	if importer == nil {
-		return c.errorf(nd, "module '%s' not found", moduleName)
+		return c.Errorf(nd, "module '%s' not found", moduleName)
 	}
 
 	extImp, isExt := importer.(ExtImporter)
 	if isExt {
 		if name, err := extImp.Name(); err != nil {
-			return c.errorf(nd, "resolve name of module '%s': %v", moduleName, err.Error())
+			return c.Errorf(nd, "resolve name of module '%s': %v", moduleName, err.Error())
 		} else if len(name) > 0 {
 			moduleName = name
 		}
@@ -2834,7 +2834,7 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 			c.constants = bc.Constants
 			spec.InitCompiledFunc = bc.Main
 		default:
-			return c.errorf(nd, "invalid import value type: %T", v)
+			return c.Errorf(nd, "invalid import value type: %T", v)
 		}
 	}
 
@@ -2847,7 +2847,7 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 		jumpPos := c.emit(nd, OpJumpFalsy, 0)
 
 		if err := c.compileCallArgs(nd.CallPos(), OpInitModule, &args, nil); err != nil {
-			return c.errorf(nd, "invalid init module args: %v", err)
+			return c.Errorf(nd, "invalid init module args: %v", err)
 		}
 
 		c.changeOperand(jumpPos, len(c.instructions))
@@ -2859,7 +2859,7 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 		jumpPos := c.emit(nd, OpJumpFalsy, 0)
 		c.changeOperand(jumpPos, len(c.instructions))
 	default:
-		return c.errorf(nd, "invalid module type: %v", moduleStoreEntry.typ)
+		return c.Errorf(nd, "invalid module type: %v", moduleStoreEntry.typ)
 	}
 	return nil
 }
@@ -2867,12 +2867,12 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) (err error) {
 	pth := nd.Path()
 	if pth == "" {
-		return c.errorf(nd, "empty path")
+		return c.Errorf(nd, "empty path")
 	}
 
 	importer := c.embeddedMap.Get(pth)
 	if importer == nil {
-		return c.errorf(nd, "path '%s' not found", pth)
+		return c.Errorf(nd, "path '%s' not found", pth)
 	}
 
 	var (
@@ -2887,7 +2887,7 @@ func (c *Compiler) compileEmbedExpr(nd *node.EmbedExpr) (err error) {
 		} else {
 			// if not exists, try import using current name
 			if !os.IsNotExist(err) {
-				return c.errorf(nd, "resolve name of embed '%s': %v", pth, err.Error())
+				return c.Errorf(nd, "resolve name of embed '%s': %v", pth, err.Error())
 			}
 			err = nil
 			name = pth
@@ -3035,17 +3035,17 @@ func (c *Compiler) compileTemplateLit(nd *node.TemplateLit) error {
 	case *node.SymbolLit:
 		tmplValue = t.Value()
 	default:
-		return c.errorf(nd, "expected string for template literal")
+		return c.Errorf(nd, "expected string for template literal")
 	}
 
 	file, err := parser.ParseTemplateString(tmplValue, nd.StringValuePos())
 	if err != nil {
-		return c.errorf(nd, "template parse error: %w", err)
+		return c.Errorf(nd, "template parse error: %w", err)
 	}
 
 	expr, err := nd.Build(file.Stmts)
 	if err != nil {
-		return c.errorf(nd, "template build error: %w", err)
+		return c.Errorf(nd, "template build error: %w", err)
 	}
 
 	return c.Compile(expr)
@@ -3055,7 +3055,7 @@ func (c *Compiler) compileIdent(nd *node.IdentExpr) error {
 	symbol, ok := c.symbolTable.Resolve(nd.Name)
 	if !ok {
 		if c.iotaVal < 0 || nd.Name != "iota" {
-			return c.errorf(nd, "unresolved reference %q", nd.Name)
+			return c.Errorf(nd, "unresolved reference %q", nd.Name)
 		}
 		c.emit(nd, OpConstant, c.addConstant(Int(c.iotaVal)))
 		return nil
@@ -3371,22 +3371,22 @@ func (c *Compiler) compileExportStmt(nd *node.ExportStmt) (err error) {
 			return nil
 		case *node.FuncWithMethodsExpr:
 			if t.NameExpr == nil {
-				return c.errorf(t, "*ExportStmt of value as %T require NameExpr field", t)
+				return c.Errorf(t, "*ExportStmt of value as %T require NameExpr field", t)
 			}
 			var ok bool
 			if key, ok = t.NameExpr.(*node.IdentExpr); !ok {
-				return c.errorf(t, "*ExportStmt of value as %T require NameExpr field as *Ident", t)
+				return c.Errorf(t, "*ExportStmt of value as %T require NameExpr field as *Ident", t)
 			}
 		case *node.FuncExpr:
 			if t.Type.NameExpr == nil {
-				return c.errorf(t, "*ExportStmt of value as %T require NameExpr field", t)
+				return c.Errorf(t, "*ExportStmt of value as %T require NameExpr field", t)
 			}
 			var ok bool
 			if key, ok = t.Type.NameExpr.(*node.IdentExpr); !ok {
-				return c.errorf(t, "*ExportStmt of value as %T require NameExpr field as *Ident", t)
+				return c.Errorf(t, "*ExportStmt of value as %T require NameExpr field as *Ident", t)
 			}
 		default:
-			return c.errorf(t, "*ExportStmt of value must be *DictExpr | *ParenExpr | *FuncWithMethodsExpr | *FuncExpr")
+			return c.Errorf(t, "*ExportStmt of value must be *DictExpr | *ParenExpr | *FuncWithMethodsExpr | *FuncExpr")
 		}
 	}
 
@@ -3398,7 +3398,7 @@ func (c *Compiler) compileExportStmt(nd *node.ExportStmt) (err error) {
 	}
 
 	if value == nil {
-		return c.errorf(nd, "*ExportStmt require value")
+		return c.Errorf(nd, "*ExportStmt require value")
 	}
 
 	ass := &node.AssignStmt{
@@ -3545,7 +3545,7 @@ func (c *Compiler) structuralTypeSymbol(e node.Expr) (*SymbolInfo, error) {
 		}
 		obj, name = iface, iface.IName
 	default:
-		return nil, c.errorf(e, "unsupported structural type %T", e)
+		return nil, c.Errorf(e, "unsupported structural type %T", e)
 	}
 	return &SymbolInfo{Name: name, Index: c.addConstant(obj), Scope: ScopeConstant}, nil
 }

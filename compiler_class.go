@@ -11,7 +11,7 @@ import (
 func (c *Compiler) compileClassStmt(nd *node.ClassStmt) error {
 	name, _ := nd.NameExpr.(*node.IdentExpr)
 	if name == nil {
-		return c.errorf(nd, "class statement requires a name identifier")
+		return c.Errorf(nd, "class statement requires a name identifier")
 	}
 	call, err := c.classCallExpr(&nd.ClassExpr)
 	if err != nil {
@@ -156,7 +156,7 @@ func (c *Compiler) classMethodsExpr(nd *node.ClassExpr, typeIdent node.Expr) (no
 	for _, m := range nd.Methods {
 		name, _ := m.NameExpr.(*node.IdentExpr)
 		if name == nil {
-			return nil, c.errorf(m, "class method requires a name identifier")
+			return nil, c.Errorf(m, "class method requires a name identifier")
 		}
 		for _, fm := range m.Methods {
 			elems = append(elems, classMemberFunc(name, fm, typeIdent))
@@ -173,7 +173,7 @@ func (c *Compiler) classPropertiesExpr(nd *node.ClassExpr, typeIdent node.Expr) 
 	for _, p := range nd.Props {
 		name, _ := p.NameExpr.(*node.IdentExpr)
 		if name == nil {
-			return nil, c.errorf(p, "class property requires a name identifier")
+			return nil, c.Errorf(p, "class property requires a name identifier")
 		}
 		fwm := &node.FuncWithMethodsExpr{Methods: classInjectThis(p.Methods, typeIdent)}
 		elems = append(elems, node.EDictElementStr(name.Name, name.Pos(), name.Pos(), fwm))

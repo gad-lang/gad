@@ -7,7 +7,7 @@ import (
 func (c *Compiler) requireSymbol(nd ast.Node, name string) (s *Symbol, err error) {
 	var ok bool
 	if s, ok = c.symbolTable.Resolve(name); !ok {
-		err = c.errorf(nd, "unresolved reference %q", name)
+		err = c.Errorf(nd, "unresolved reference %q", name)
 	}
 	return
 }
