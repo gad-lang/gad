@@ -158,12 +158,27 @@
       Typed-param validation still correct (accept + reject with the right
       "expected int, found str" message). go build/test ./..., go vet, and full
       `-race ./...` (incl. stdlib which uses Set) all clean.
-      REMAINING (all high-risk / low-value): pooling the last two per-loop
-      objects (the concrete iterator + StateIteratorObject — needs a loop-end
-      release point and must not pool user-visible iterator(...) values), and
-      large-int/Str boxing (tagged-value representation — major refactor). The
-      safe closure/state-allocation wins are now captured across array, dict,
-      key-value-array, key-value-arrays and args iteration.
+      REMAINING (all high-risk / low-value; the safe scope is now exhausted):
+      - hasOpMethods + HasCallerMethods (~15% of operator-heavy loops):
+        HasCallerMethods walks the operator's method tree (MethodArgType.IsZero
+        -> Walk) live on every op. Caching the bool was investigated and rejected
+        as UNSAFE for an unsupervised change: methods are added through several
+        paths that would each have to invalidate the cache (FuncSpec.AddMethod/
+        AddMethodByTypes AND direct s.Methods.Add e.g. objects_prop.go:157, plus
+        the CallerMethods() *MethodArgType escape hatch), and the operator
+        builtins are shared across VMs (concurrency). A stale cache would
+        silently mis-dispatch an operator. Needs a design decision on invalidation
+        strategy before attempting.
+      - pooling the last two per-loop iterator objects (concrete iterator +
+        StateIteratorObject) — needs a loop-end release point and must not pool
+        user-visible iterator(...) values.
+      - large-int/Str boxing (mallocgc in arithmetic loops) — tagged-value
+        representation, a major Object-model refactor.
+      The safe closure/state-allocation wins are captured across array, dict,
+      key-value-array, key-value-arrays and args iteration; the CPU wins (op
+      dispatch map lookup, param-type validation, builtins map lookup) are
+      captured. Fib is ~48ms->26.5ms and DictAccess ~13.3->9.65ms vs the start of
+      the CPU-profiling work.
 - [x] check if allow keywords in `x.KEYWORD`, `[KEYWORD=...]` (keyvalue), `{KEYWORD:...}` (dict key), `(;KEYWORD=...)` (keyvalue array key).
       examples `x.class`, `[class=1]`, `{class:1}`, `(;class=1,class,false,nil,met,meti,func,if,else)`, all is single key. add doc for describe this rule
       DONE. `.name` selector and `{class: 1}` dict keys already accepted keywords;
