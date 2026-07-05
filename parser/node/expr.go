@@ -744,55 +744,29 @@ func (e *MultiParenExpr) ToMultiParenExpr() *MultiParenExpr {
 	return e
 }
 
+// WriteCode renders the canonical `(, positional; named )` form inline, mirroring
+// String. It is intentionally inline: the previous multiline path was broken —
+// it duplicated the positional items and wrote them again in place of the named
+// items (using PositionalElements for both loops), dropping the named side.
 func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
-	ctx.WriteString(e.LParen.Token.String() + ",")
-	var pl, nl = len(e.PositionalElements), len(e.NamedElements)
-	if pl+nl > 0 {
-		inNewLine := ctx.DecideNewLineFunc(
-			CodeWriteContextFlagFormatParemValuesInNewLine, pl+nl, 1, func() {
-				for i := 0; i < pl; i++ {
-					if i > 0 {
-						ctx.WriteString(", ")
-					}
-					e.PositionalElements[i].WriteCode(ctx)
-				}
-				if pl > 0 && nl > 0 {
-					ctx.WriteString("; ")
-				}
-				for i := 0; i < nl; i++ {
-					if i > 0 {
-						ctx.WriteString(", ")
-					}
-					e.NamedElements[i].WriteCode(ctx)
-				}
-			})
-		if pl > 0 {
-			ctx.WriteItemsSep(inNewLine,
-				len(e.PositionalElements),
-				", ",
-				"",
-				func(i int) {
-					e.PositionalElements[i].WriteCode(ctx)
-				},
-				func(newLine bool) {
-					if len(e.PositionalElements) > 0 {
-						ctx.WriteString("; ")
-					} else if newLine {
-						ctx.WriteSecondLine()
-					}
-				})
+	ctx.WriteString(e.LParen.Token.String())
+	ctx.WriteString(",")
+	if len(e.PositionalElements) > 0 {
+		ctx.WriteSingleByte(' ')
+	}
+	for i, expr := range e.PositionalElements {
+		if i > 0 {
+			ctx.WriteString(", ")
 		}
-		if nl > 0 {
-			ctx.WriteItems(inNewLine,
-				len(e.PositionalElements),
-				func(i int) {
-					e.PositionalElements[i].WriteCode(ctx)
-				},
-				func(newLine bool) {
-					if newLine {
-						ctx.WriteSecondLine()
-					}
-				})
+		expr.WriteCode(ctx)
+	}
+	if len(e.NamedElements) > 0 {
+		ctx.WriteString("; ")
+		for i, expr := range e.NamedElements {
+			if i > 0 {
+				ctx.WriteString(", ")
+			}
+			expr.WriteCode(ctx)
 		}
 	}
 	ctx.WriteString(e.RParen.Token.String())

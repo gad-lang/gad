@@ -19,3 +19,13 @@ func TestParseCurlyDestructure(t *testing.T) {
 	// a bare block is still a block, not a destructuring pattern.
 	test.ExpectParseString(t, `{ x := 1 }`, `{ x := 1 }`)
 }
+
+// TestFormatMixedParen is a regression for the MultiParenExpr formatter, which
+// used to duplicate the positional items and write them again in place of the
+// named side (dropping it) on its multiline path. It renders inline in the
+// canonical `(,` form.
+func TestFormatMixedParen(t *testing.T) {
+	test.New(t, `(a, b, **pos; c, d:p, r=2, **named) := mp`).
+		FormattedCode(`(, a, b, **pos; c, d:p, r=2, **named) := mp`)
+	test.New(t, `(1, 2; x=3) := mp`).FormattedCode(`(, 1, 2; x=3) := mp`)
+}

@@ -33,12 +33,17 @@
       **rest/`=`/KeyValueArray source/empty), updated TestCompilerDictDestructure
       bytecode. Sample samples/27_destructuring.gad (all forms + sources), runs
       and fmt-idempotent; doc/collections.md rewritten; samples/README updated.
-      NOTE (pre-existing, out of scope): MultiParenExpr.WriteCode (the
-      `( positional ; named )` mixed form and mixedparams literals) is broken —
-      it emits a stray leading `,`, writes content multiple times, and its named
-      loop iterates PositionalElements instead of NamedElements. Not touched;
-      flagged to the user. The sample documents the mixed form in a comment
-      rather than a live line so it stays fmt-idempotent.
+- [x] fix MultiParenExpr formatter (the `( positional ; named )` mixed form and
+      mixedparams literals) — a separate pre-existing bug found while doing the
+      destructuring work.
+      DONE (separate commit). MultiParenExpr.WriteCode's multiline path duplicated
+      the positional items and wrote them again in place of the named side
+      (both loops used PositionalElements), dropping the named part and producing
+      garbage. Replaced with an inline renderer mirroring the (correct) String();
+      the canonical `(,` leading form is intentional (per TestParseParenMultiValues)
+      and kept. Now the full mixed destructure and mixedparams literals round-trip
+      and are fmt-idempotent (e.g. `(, a, b, **pos; c, d:p, r=2, **named) := mp`).
+      Regression test: TestFormatMixedParen. go build/test ./..., vet clean.
 
 - [x] create builtin module `test` (like Go `testing` + testify/require) and a
       `gad test` subcommand to run `*_test.gad` files with reports + benchmarks.
