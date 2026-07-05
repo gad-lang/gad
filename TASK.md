@@ -243,11 +243,20 @@
       boxing). Fib/Loop unchanged; TestVMIteratorPooling extended (user dict
       iterator survives, consumers unaffected) passes with -race; full
       `go test -race ./...` clean.
-      REMAINING (major refactor / low-value):
-      - the rarer kvArray/kvArrays/args concrete iterators (same pattern, low
-        traffic).
-      - large-int/Str boxing (mallocgc in arithmetic loops) — tagged-value
-        representation, a major Object-model refactor.
+      Fifteenth pass done: extended concrete-iterator pooling to the remaining
+      types — kvArrayIterator, kvArraysIterator, argsIterator — with the same
+      acquire/release(vm)/iteratorReleaser pattern and per-VM free lists. Now
+      EVERY concrete for-in iterator (array, dict, key-value-array,
+      key-value-arrays, args) plus the StateIteratorObject is pooled, so the
+      for-in machinery is fully allocation-free. BenchmarkVMKVArrayIterate
+      14011->9012 allocs/op (bytes ~1.03MB->0.55MB). TestVMIteratorPooling
+      extended (kv-array + args + their user iterators); full `go test -race
+      ./...` clean.
+      REMAINING (major refactor): large-int/Str boxing (mallocgc in arithmetic
+      loops) — tagged-value representation, a major Object-model refactor. This
+      is the only iteration/loop allocation left, and it is fundamental to the
+      boxed-Object model. The safe iterator/allocation and CPU-hotspot perf work
+      is now complete.
       The safe closure/state-allocation wins are captured across array, dict,
       key-value-array, key-value-arrays and args iteration; the CPU wins (op
       dispatch map lookup, param-type validation, builtins map lookup) are

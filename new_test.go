@@ -1736,6 +1736,13 @@ func TestVMIteratorPooling(t *testing.T) {
 	// iterator consumers (collect/values) stay correct while loops churn the pool.
 	testExpectRun(t, `s := 0; for n := 0; n < 3; n++ { for v in [1,2,3] { s += v } }; return collect(values([s]))`,
 		nil, Array{Int(18)})
+
+	// the rarer pooled iterators: key-value array and args.
+	testExpectRun(t, `s := 0; for k, v in (;a=1, b=2, c=3) { s += v }; return s`, nil, Int(6))
+	testExpectRun(t, `it := iterator((;x=10, y=20, z=30)); it.next; r := []; for k, v in it { r += [v] }; return r`,
+		nil, Array{Array{Int(20)}, Array{Int(30)}})
+	testExpectRun(t, `f := func(*args) { t := 0; for i, v in args { t += v }; return t }; return f(5, 15, 25)`,
+		nil, Int(45))
 }
 
 func TestVMCurlyDestructure(t *testing.T) {

@@ -973,7 +973,29 @@ func (it *kvArrayIterator) Print(state *PrinterState) error {
 	return state.Print(it.arr)
 }
 
-func (o KeyValueArray) Iterate(_ *VM, na *NamedArgs) Iterator {
+func (vm *VM) acquireKvArrayIterator(arr KeyValueArray, na *NamedArgs) *kvArrayIterator {
+	var it *kvArrayIterator
+	if n := len(vm.kvArrIterPool); n > 0 {
+		it, vm.kvArrIterPool[n-1] = vm.kvArrIterPool[n-1], nil
+		vm.kvArrIterPool = vm.kvArrIterPool[:n-1]
+	} else {
+		it = &kvArrayIterator{}
+	}
+	it.arr = arr
+	it.step, it.start = iterStepStart(len(arr), na)
+	it.state = IteratorState{}
+	return it
+}
+
+func (it *kvArrayIterator) release(vm *VM) {
+	*it = kvArrayIterator{}
+	vm.kvArrIterPool = append(vm.kvArrIterPool, it)
+}
+
+func (o KeyValueArray) Iterate(vm *VM, na *NamedArgs) Iterator {
+	if vm != nil {
+		return vm.acquireKvArrayIterator(o, na)
+	}
 	step, start := iterStepStart(len(o), na)
 	return &kvArrayIterator{arr: o, step: step, start: start}
 }
@@ -1023,7 +1045,29 @@ func (it *kvArraysIterator) Print(state *PrinterState) error {
 	return state.Print(it.arr)
 }
 
-func (o KeyValueArrays) Iterate(_ *VM, na *NamedArgs) Iterator {
+func (vm *VM) acquireKvArraysIterator(arr KeyValueArrays, na *NamedArgs) *kvArraysIterator {
+	var it *kvArraysIterator
+	if n := len(vm.kvArrsIterPool); n > 0 {
+		it, vm.kvArrsIterPool[n-1] = vm.kvArrsIterPool[n-1], nil
+		vm.kvArrsIterPool = vm.kvArrsIterPool[:n-1]
+	} else {
+		it = &kvArraysIterator{}
+	}
+	it.arr = arr
+	it.step, it.start = iterStepStart(len(arr), na)
+	it.state = IteratorState{}
+	return it
+}
+
+func (it *kvArraysIterator) release(vm *VM) {
+	*it = kvArraysIterator{}
+	vm.kvArrsIterPool = append(vm.kvArrsIterPool, it)
+}
+
+func (o KeyValueArrays) Iterate(vm *VM, na *NamedArgs) Iterator {
+	if vm != nil {
+		return vm.acquireKvArraysIterator(o, na)
+	}
 	step, start := iterStepStart(len(o), na)
 	return &kvArraysIterator{arr: o, step: step, start: start}
 }
@@ -1116,7 +1160,30 @@ func (it *argsIterator) Print(state *PrinterState) error {
 	return state.Print(it.args)
 }
 
-func (o Args) Iterate(_ *VM, na *NamedArgs) Iterator {
+func (vm *VM) acquireArgsIterator(args Args, na *NamedArgs) *argsIterator {
+	var it *argsIterator
+	if p := len(vm.argsIterPool); p > 0 {
+		it, vm.argsIterPool[p-1] = vm.argsIterPool[p-1], nil
+		vm.argsIterPool = vm.argsIterPool[:p-1]
+	} else {
+		it = &argsIterator{}
+	}
+	it.args = args
+	it.n = args.Length()
+	it.step, it.start = iterStepStart(it.n, na)
+	it.state = IteratorState{}
+	return it
+}
+
+func (it *argsIterator) release(vm *VM) {
+	*it = argsIterator{}
+	vm.argsIterPool = append(vm.argsIterPool, it)
+}
+
+func (o Args) Iterate(vm *VM, na *NamedArgs) Iterator {
+	if vm != nil {
+		return vm.acquireArgsIterator(o, na)
+	}
 	n := o.Length()
 	step, start := iterStepStart(n, na)
 	return &argsIterator{args: o, n: n, step: step, start: start}
