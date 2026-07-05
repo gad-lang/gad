@@ -91,20 +91,33 @@ a, b, c := func() { return 1, 2, 3 }()   // multiple return values</code></pre>
 <pre><code class="language-go">m := {}
 var z
 m.y, z = [1, 2]   // m == {y: 1}, z == 2</code></pre>
-<h3 id="dicts-1">Dicts</h3>
-<p>A <code>(; …)</code> pattern destructures a dict by key. Each entry is <code>name</code>, or <code>target:key</code> to bind a key to a differently named variable, with optional defaults and a trailing <code>**rest</code> to capture everything else.</p>
-<pre><code class="language-go">(;a, x:b, r=2, **other) := {a: 2, x: 3, q: 4}
+<p>Named data is destructured by key, <strong>key on the left</strong> (like TypeScript object destructuring). Each entry is <code>key</code> (bind key <code>key</code> to variable <code>key</code>), <code>key: target</code> (bind key <code>key</code> to a differently named variable), <code>name = default</code> (fallback used when the key is absent), or a trailing <code>**rest</code> that collects the remaining keys into a dict.</p>
+<p>There are two interchangeable brackets — <code>(; … )</code> and <code>{ … }</code> — with identical semantics:</p>
+<pre><code class="language-go">(;a, x:b, r=2, **other) := {a: 2, x: 3, q: 4}   // parens form
+{ a, x: b, r = 2, **rest } := {a: 2, x: 3, q: 4} // curly form (TypeScript-like)
 // a == 2          (key "a")
-// b == 3          (target b ← key "x")
+// b == 3          (key "x" → variable b)
 // r == 2          (default; key "r" missing)
-// other == {q: 4} (the rest)</code></pre>
+// other / rest == {q: 4} (the rest, as a dict)</code></pre>
+<p>Use <code>:=</code> to declare new variables or <code>=</code> to assign existing ones. A statement that starts with <code>{ … } :=</code>/<code>=</code> is a destructuring; a bare <code>{ … }</code> is still a block.</p>
+<h3 id="any-named-source">Any named source</h3>
+<p>Both <code>(; … )</code> and <code>{ … }</code> run the source through the default <code>dict()</code> constructor first, so they work on <strong>any</strong> named data — a dict, a module, a key-value array (<code>(; … )</code> value), named args, or anything convertible to a dict:</p>
+<pre><code class="language-go">strings := import("strings")
+{ toUpper, hasPrefix } := strings          // a module
+
+kva := (; a = 1, b = 2)
+{ a, b } := kva                            // a key-value array
+
+serve := func(; **opts) {
+	{ host, port = 80 } := opts            // named args
+	return host + ":" + str(port)
+}</code></pre>
 <h3 id="mixed-positional--named">Mixed (positional + named)</h3>
-<p>A full <code>( positional ; named )</code> pattern destructures a <code>MixedParams</code>-shaped value — the kind produced by the <code>(values...; name=value...)</code> literal. Both sides accept a trailing <code>**rest</code>.</p>
+<p>A <code>MixedParams</code> value carries both positional and named parts (the kind produced by the <code>(values...; name=value...)</code> literal), so it uses the full <code>( positional ; named )</code> pattern. Both sides accept a trailing <code>**rest</code>, and the named side is key-on-the-left like the forms above.</p>
 <pre><code class="language-go">x := (1, 2, *[3, 4]; c=5, **{d: 6})
-(a, b, **pos; c, d2:d, r=2, **named) := x
+(a, b, **pos; c, d:d2, r=2, **named) := x
 // a == 1, b == 2, pos == [3, 4]
-// c == 5, d2 == 6 (target d2 ← key "d"), r == 2 (default), named == {}</code></pre>
-<p>The naming rule is the same everywhere: <code>target:key</code> binds the value under <code>key</code> to the variable <code>target</code>.</p>
+// c == 5, d2 == 6 (key "d" → variable d2), r == 2 (default), named == {}</code></pre>
 </main>
   <aside class="toc"><div class="nav-title">On this page</div><a href="#arrays">Arrays</a><a href="#dicts">Dicts</a><a href="#comprehensions">Comprehensions</a><a href="#spread-and-merge-literals">Spread and Merge Literals</a><a href="#destructuring">Destructuring</a></aside>
 </div>
