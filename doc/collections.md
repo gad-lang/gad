@@ -179,12 +179,13 @@ serve := func(; **opts) {
 
 A `MixedParams` value carries both positional and named parts (the kind produced
 by the `(values...; name=value...)` literal), so it uses the full
-`( positional ; named )` pattern. Both sides accept a trailing `**rest`, and the
-named side is key-on-the-left like the forms above.
+`( positional ; named )` pattern. The positional side takes a trailing `*rest`
+(a single star, like a variadic parameter `func(a, *rest)`) and the named side a
+trailing `**rest`; the named side is key-on-the-left like the forms above.
 
 ```go
 x := (1, 2, *[3, 4]; c=5, **{d: 6})
-(a, b, **pos; c, d:d2, r=2, **named) := x
+(a, b, *pos; c, d:d2, r=2, **named) := x
 // a == 1, b == 2, pos == [3, 4]
 // c == 5, d2 == 6 (key "d" → variable d2), r == 2 (default), named == {}
 ```

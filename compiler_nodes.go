@@ -1036,22 +1036,31 @@ func (c *Compiler) compileMixedParamsDestructuring(
 
 	allowRedefine := keyword != token.Const
 
-	// positional targets: a = mp.positional[i]; **rest = mp.positional[i:]
+	// positional targets: a = mp.positional[i]; *rest = mp.positional[i:]. The
+	// positional rest uses a single `*` (like a variadic parameter `func(a,
+	// *rest)`); `**rest` is accepted as a lenient alias.
 	var restSeen bool
 	for i, el := range mp.PositionalElements {
-		if av, ok := el.(*node.NamedArgVarLit); ok {
+		var restVar node.Expr
+		switch e := el.(type) {
+		case *node.ArgVarLit: // *rest
+			restVar = e.Value
+		case *node.NamedArgVarLit: // **rest (lenient alias)
+			restVar = e.Value
+		}
+		if restVar != nil {
 			if restSeen {
-				return c.Errorf(nd, "only one ** rest target is allowed in the positional section")
+				return c.Errorf(nd, "only one positional rest (*rest) target is allowed")
 			}
 			restSeen = true
 			slice := node.ESlice(positional(), &node.IntLit{Value: int64(i)}, nil, 0, 0)
-			if err := c.compileDefineAssignValue(nd, av.Value, slice, keyword, op, allowRedefine); err != nil {
+			if err := c.compileDefineAssignValue(nd, restVar, slice, keyword, op, allowRedefine); err != nil {
 				return err
 			}
 			continue
 		}
 		if restSeen {
-			return c.Errorf(nd, "** rest target must be the last positional element")
+			return c.Errorf(nd, "positional rest (*rest) target must be last")
 		}
 		idx := node.EIndex(positional(), &node.IntLit{Value: int64(i)}, 0, 0)
 		if err := c.compileDefineAssignValue(nd, el, idx, keyword, op, allowRedefine); err != nil {

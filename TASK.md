@@ -5,6 +5,14 @@
 
 # Language
 
+- [x] mixed-destructure positional rest should be `*rest` (single star, like a
+      variadic param `func(a, *rest)`), not `**rest`. fix sample 27, docs, tests.
+      DONE. compileMixedParamsDestructuring now recognises `*rest`
+      (node.ArgVarLit) as the positional rest target, keeping `**rest`
+      (NamedArgVarLit) as a lenient alias. Updated sample 27 (comment) and
+      doc/collections.md to the `*rest` form; TestVMMixedParamsDestructure now
+      uses `*pos_rest` (+ an alias case) and TestFormatMixedParen covers `*pos`
+      round-trip. go build/test ./..., vet, -race clean.
 - [x] add a TypeScript-style `{ key, key2: target, name=default, **rest }`
       destructuring variation for named data (dicts, modules, key-value arrays,
       named args, any ToDictConverter), alongside the existing `(; target:key )`

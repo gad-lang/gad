@@ -61,10 +61,11 @@ println("named args:", connect(; host = "example.com"))
 
 // ── Mixed positional + named ──────────────────────────────────────────────────
 // A MixedParams value (`(values… ; name=value…)`) carries BOTH positional and
-// named parts, so it uses the full `( positional ; named )` pattern — the two
-// sides accept a trailing `**rest` each, e.g.
+// named parts, so it uses the full `( positional ; named )` pattern — the
+// positional side takes a trailing `*rest` (a single star, like a variadic
+// parameter `func(a, *rest)`) and the named side a trailing `**rest`, e.g.
 //
 //     mp := (1, 2, *[3]; user = "ann", role = "admin")
-//     (a, b, **rest_pos; user, role:r, **rest_named) := mp
+//     (a, b, *rest_pos; user, role:r, **rest_named) := mp
 //
 // For just the named side of any value, use `(; … )` or `{ … }` on it.
