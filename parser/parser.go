@@ -2471,6 +2471,11 @@ do:
 	case token.Var, token.Const, token.Global, token.Param:
 		return &node.DeclStmt{Decl: p.ParseDecl()}
 	case token.LBrace:
+		// `{ key, key2: target, **rest } := / = source` is a destructuring
+		// statement, not a block (a block can never be an assignment LHS).
+		if p.looksLikeCurlyDestructure() {
+			return p.ParseCurlyDestructureStmt()
+		}
 		return p.ParseScopedBlockStmt()
 	case token.Func:
 		return p.ParseFuncStmt()

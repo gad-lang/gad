@@ -1667,9 +1667,9 @@ func TestVMMixedParamsDestructure(t *testing.T) {
 	const x = `x := (1, 2, *[3, 4]; c=5, **{d:6, e:7}); `
 
 	// full destructure: positional with rest + named with rename/default/rest
-	testExpectRun(t, x+`(a, b, **pos_rest; c, p:d, r=2, **named_rest) := x; return [a, b, pos_rest]`,
+	testExpectRun(t, x+`(a, b, **pos_rest; c, d:p, r=2, **named_rest) := x; return [a, b, pos_rest]`,
 		nil, Array{Int(1), Int(2), Array{Int(3), Int(4)}})
-	testExpectRun(t, x+`(a, b, **pos_rest; c, p:d, r=2, **named_rest) := x; return [c, p, r, named_rest]`,
+	testExpectRun(t, x+`(a, b, **pos_rest; c, d:p, r=2, **named_rest) := x; return [c, p, r, named_rest]`,
 		nil, Array{Int(5), Int(6), Int(2), Dict{"e": Int(7)}})
 
 	// positional only
@@ -1693,27 +1693,51 @@ func TestVMDictDestructure(t *testing.T) {
 
 	// `:=` defines new locals; plain name reads same-named key
 	testExpectRun(t, d+`(;a) := d; return a`, nil, Int(2))
-	// rename: variable `_b` from dict key `b`
-	testExpectRun(t, d+`(;_b:b) := d; return _b`, nil, Int(3))
+	// rename: variable `_b` from dict key `b` (key-on-the-left: `key: target`)
+	testExpectRun(t, d+`(;b:_b) := d; return _b`, nil, Int(3))
 	// fallback default used only when the key is absent
 	testExpectRun(t, d+`(;r=9) := d; return r`, nil, Int(9))
 	testExpectRun(t, d+`(;a=9) := d; return a`, nil, Int(2))
 	// **rest collects the keys not consumed
-	testExpectRun(t, d+`(;a, _b:b, **other) := d; return other`,
+	testExpectRun(t, d+`(;a, b:_b, **other) := d; return other`,
 		nil, Dict{"x": Int(4), "y": Int(5)})
-	testExpectRun(t, d+`(;a, _b:b, **other) := d; return [a, _b]`,
+	testExpectRun(t, d+`(;a, b:_b, **other) := d; return [a, _b]`,
 		nil, Array{Int(2), Int(3)})
 	// rest with all keys consumed -> empty dict; source dict is not mutated
-	testExpectRun(t, d+`(;a:a, b2:b, x2:x, y2:y, **other) := d; return [other, d]`,
+	testExpectRun(t, d+`(;a:a, b:b2, x:x2, y:y2, **other) := d; return [other, d]`,
 		nil, Array{Dict{}, Dict{"a": Int(2), "b": Int(3), "x": Int(4), "y": Int(5)}})
 
 	// `=` assigns to predefined variables (all must already exist)
-	testExpectRun(t, d+`var (p, q, rest); (;p:a, q:b, **rest) = d; return [p, q, rest]`,
+	testExpectRun(t, d+`var (p, q, rest); (;a:p, b:q, **rest) = d; return [p, q, rest]`,
 		nil, Array{Int(2), Int(3), Dict{"x": Int(4), "y": Int(5)}})
 
 	// errors
 	expectErrHas(t, `d := {a:1}; (;a) = d; return a`,
 		newOpts().CompilerError(), `Compile Error: unresolved reference "a"`)
+}
+
+func TestVMCurlyDestructure(t *testing.T) {
+	const d = `d := {a:2, b:3, x:4, y:5}; `
+
+	// TypeScript order: key-on-the-left. `a` reads key "a"; `b: v` binds key "b".
+	testExpectRun(t, d+`{ a } := d; return a`, nil, Int(2))
+	testExpectRun(t, d+`{ b: v } := d; return v`, nil, Int(3))
+	// fallback default via `=`
+	testExpectRun(t, d+`{ r = 9 } := d; return r`, nil, Int(9))
+	testExpectRun(t, d+`{ a = 9 } := d; return a`, nil, Int(2))
+	// **rest collects the remaining keys as a dict
+	testExpectRun(t, d+`{ a, b: v, **rest } := d; return rest`,
+		nil, Dict{"x": Int(4), "y": Int(5)})
+	testExpectRun(t, d+`{ a, b: v, **rest } := d; return [a, v]`,
+		nil, Array{Int(2), Int(3)})
+	// `=` assigns to predefined variables
+	testExpectRun(t, d+`var (p, q); { a: p, b: q } = d; return [p, q]`,
+		nil, Array{Int(2), Int(3)})
+	// any ToDictConverter source: a KeyValueArray works via the dict() constructor
+	testExpectRun(t, `{ a, b: v, **rest } := (;a=1, b=2, c=3); return [a, v, rest]`,
+		nil, Array{Int(1), Int(2), Dict{"c": Int(3)}})
+	// empty pattern is a no-op
+	testExpectRun(t, d+`{} := d; return d.a`, nil, Int(2))
 }
 
 func TestVMDestructuring(t *testing.T) {

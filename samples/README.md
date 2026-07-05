@@ -53,6 +53,7 @@ layout settings are stored in [`.gad.yaml`](.gad.yaml).
 | `24_interfaces.gad`           | `interface { … }`: typed fields, get/set/prop, methods, `*Parent` spreads, structural satisfaction (`::`) |
 | `25_method_resolution.gad`    | dispatch rules: arity, specificity, subtypes, fallback, unions, variadics, `met`/override, structural `met<…>` params |
 | `26_embed.gad`                | `embed(...)`: embed a file/directory at compile time (`.name`, `.size`, `.data`, entries, `sources=`) |
+| `27_destructuring.gad`        | destructuring: arrays, named `(; target:key )` and TypeScript `{ key: target, **rest }`, defaults, any named source |
 
 ## Modules
 

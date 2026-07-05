@@ -752,6 +752,11 @@ type KeyValueArrayLit struct {
 	LParen   source.Pos
 	Elements Exprs
 	RParen   source.Pos
+	// Curly marks the TypeScript-style `{ key, key2: target, **rest }`
+	// destructuring form (as opposed to the `(; … )` form). It only affects
+	// rendering; the elements are stored key-on-the-left (source key in Key,
+	// target in Value), which the dict-destructuring compiler reads directly.
+	Curly bool
 }
 
 func (e *KeyValueArrayLit) ExprNode() {}
@@ -771,10 +776,34 @@ func (e *KeyValueArrayLit) String() string {
 	for _, m := range e.Elements {
 		elements = append(elements, m.String())
 	}
+	if e.Curly {
+		if len(elements) == 0 {
+			return "{}"
+		}
+		return "{ " + strings.Join(elements, ", ") + " }"
+	}
 	return "(;" + strings.Join(elements, ", ") + ")"
 }
 
 func (e *KeyValueArrayLit) WriteCode(ctx *CodeWriteContext) {
+	// The `{ … }` destructuring form renders inline (patterns are short); the
+	// element WriteCode already emits key-on-the-left (`key`, `key: target`,
+	// `name = default`, `**rest`).
+	if e.Curly {
+		ctx.WriteString("{")
+		for i, el := range e.Elements {
+			if i > 0 {
+				ctx.WriteString(",")
+			}
+			ctx.WriteSingleByte(' ')
+			el.WriteCode(ctx)
+		}
+		if len(e.Elements) > 0 {
+			ctx.WriteSingleByte(' ')
+		}
+		ctx.WriteString("}")
+		return
+	}
 	ctx.WriteString("(;")
 	if l := len(e.Elements); l > 0 {
 		if l == 1 || !ctx.HasPrefix() {

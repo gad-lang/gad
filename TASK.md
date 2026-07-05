@@ -5,6 +5,41 @@
 
 # Language
 
+- [x] add a TypeScript-style `{ key, key2: target, name=default, **rest }`
+      destructuring variation for named data (dicts, modules, key-value arrays,
+      named args, any ToDictConverter), alongside the existing `(; target:key )`
+      form. create samples and docs for all destructure forms.
+      DONE. Direction: TS order — key-on-the-left (`{ x: b }` binds key x to
+      variable b). Per a follow-up, the EXISTING `(; … )` form was also inverted
+      to key-on-the-left (was target-on-left: `b:x` -> now `x:b`), so both forms
+      are identical except for the brackets. compileDictDestructuring uses one
+      unified key-on-left mapping (Curly is now render-only); all `(; … )` and
+      mixed-form rename examples in tests/docs/samples were flipped.
+      `**rest` collects a dict. Parser (parser/destructure.go): a statement-
+      leading `{` is a destructure only when a balanced-brace lookahead finds a
+      following `:=`/`=` (looksLikeCurlyDestructure), else it stays a block; the
+      pattern is parsed into the same KeyValueArrayLit the `(; … )` form uses,
+      with a new Curly flag and entries stored key-on-the-left. Compiler
+      (compileDictDestructuring): branches on Curly for the key/target mapping,
+      and now converts the source via the default dict() constructor (BuiltinDict)
+      so ANY ToDictConverter works (dict passes through; KeyValueArray/module/
+      namedArgs convert). Formatter: KeyValueArrayLit renders `{ … }` when Curly
+      (reuses element WriteCode), so the form round-trips and is idempotent.
+      Also fixed a wrong annotation in doc/collections.md (`x:b` example was
+      mislabeled; the rule is target:key).
+      Evidence: `go build/test ./...`, `go vet ./...`, `-race` (destructure +
+      parser) all clean. Tests: TestParseCurlyDestructure (parse + fmt round-trip
+      + block non-regression), TestVMCurlyDestructure (shorthand/alias/default/
+      **rest/`=`/KeyValueArray source/empty), updated TestCompilerDictDestructure
+      bytecode. Sample samples/27_destructuring.gad (all forms + sources), runs
+      and fmt-idempotent; doc/collections.md rewritten; samples/README updated.
+      NOTE (pre-existing, out of scope): MultiParenExpr.WriteCode (the
+      `( positional ; named )` mixed form and mixedparams literals) is broken —
+      it emits a stray leading `,`, writes content multiple times, and its named
+      loop iterates PositionalElements instead of NamedElements. Not touched;
+      flagged to the user. The sample documents the mixed form in a comment
+      rather than a live line so it stays fmt-idempotent.
+
 - [x] create builtin module `test` (like Go `testing` + testify/require) and a
       `gad test` subcommand to run `*_test.gad` files with reports + benchmarks.
       DONE. Modeled on the `time` module.

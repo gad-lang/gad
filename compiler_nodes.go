@@ -929,10 +929,15 @@ func (c *Compiler) compileDictDestructuring(
 		}
 	}
 
-	// evaluate the source dict once into a temp local
+	// evaluate the source once, converting it to a dict via the default dict()
+	// constructor so any ToDictConverter (dict, module, KeyValueArray, namedArgs,
+	// …) can be destructured by key. dict(aDict) is the same dict, so the common
+	// case is not copied here (the **rest path copies when it needs to).
+	c.emit(nd, OpGetBuiltin, int(BuiltinDict))
 	if err := c.Compile(rhs[0]); err != nil {
 		return err
 	}
+	c.emit(nd, OpCall, 1, 0)
 	dictSym, _ := c.symbolTable.DefineLocal(":dict")
 	c.emit(nd, OpDefineLocal, dictSym.Index)
 
@@ -950,17 +955,16 @@ func (c *Compiler) compileDictDestructuring(
 	// (which must already be defined).
 	allowRedefine := keyword != token.Const
 	for _, pair := range pairs {
+		// Both the `(; … )` and `{ … }` forms are key-on-the-left: Key names the
+		// source dict key, and `key: target` (Colon) binds it to the variable
+		// Value; a bare key binds to a same-named variable.
 		dictKey, ok := destructureKeyName(pair.Key)
 		if !ok {
 			return c.Errorf(nd, "invalid dict destructuring key %T", pair.Key)
 		}
+		target := pair.Key
 		if pair.Colon {
-			// rename: the value names the source key
-			dictKey, ok = destructureKeyName(pair.Value)
-			if !ok {
-				return c.Errorf(nd, "invalid dict destructuring source key %T",
-					pair.Value)
-			}
+			target = pair.Value // `key: target`
 		}
 
 		// push dict[dictKey]
@@ -977,7 +981,7 @@ func (c *Compiler) compileDictDestructuring(
 			c.changeOperand(jp, len(c.instructions))
 		}
 
-		if err := c.compileDefineAssign(nd, pair.Key, keyword, op, allowRedefine); err != nil {
+		if err := c.compileDefineAssign(nd, target, keyword, op, allowRedefine); err != nil {
 			return err
 		}
 

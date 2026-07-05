@@ -4312,14 +4312,15 @@ func TestParseMixedParamsDestructure(t *testing.T) {
 }
 
 func TestParseDictDestructure(t *testing.T) {
-	// the `(;...)` LHS parses to a KeyValueArrayLit; `:` is a rename mapping,
-	// `=` is a fallback default and `**` is the optional rest target.
-	test.ExpectParseString(t, `(;a, _b:b, r=2, **other) := d`,
-		`(;a, _b:b, r=2, **other) := d`)
-	test.ExpectParseString(t, `(;a, _b:b, r=2, **other) = d`,
-		`(;a, _b:b, r=2, **other) = d`)
+	// the `(;...)` LHS parses to a KeyValueArrayLit; `key:target` is a rename
+	// mapping (key on the left), `=` is a fallback default and `**` is the
+	// optional rest target.
+	test.ExpectParseString(t, `(;a, b:_b, r=2, **other) := d`,
+		`(;a, b:_b, r=2, **other) := d`)
+	test.ExpectParseString(t, `(;a, b:_b, r=2, **other) = d`,
+		`(;a, b:_b, r=2, **other) = d`)
 	test.ExpectParseString(t, `(;a) := d`, `(;a) := d`)
-	test.ExpectParseString(t, `(;x:k) := d`, `(;x:k) := d`)
+	test.ExpectParseString(t, `(;k:x) := d`, `(;k:x) := d`)
 	test.ExpectParseString(t, `(;a, **rest) := d`, `(;a, **rest) := d`)
 }
 

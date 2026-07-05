@@ -134,32 +134,57 @@ var z
 m.y, z = [1, 2]   // m == {y: 1}, z == 2
 ```
 
-### Dicts
+Named data is destructured by key, **key on the left** (like TypeScript object
+destructuring). Each entry is `key` (bind key `key` to variable `key`),
+`key: target` (bind key `key` to a differently named variable), `name = default`
+(fallback used when the key is absent), or a trailing `**rest` that collects the
+remaining keys into a dict.
 
-A `(; …)` pattern destructures a dict by key. Each entry is `name`, or
-`target:key` to bind a key to a differently named variable, with optional
-defaults and a trailing `**rest` to capture everything else.
+There are two interchangeable brackets — `(; … )` and `{ … }` — with identical
+semantics:
 
 ```go
-(;a, x:b, r=2, **other) := {a: 2, x: 3, q: 4}
+(;a, x:b, r=2, **other) := {a: 2, x: 3, q: 4}   // parens form
+{ a, x: b, r = 2, **rest } := {a: 2, x: 3, q: 4} // curly form (TypeScript-like)
 // a == 2          (key "a")
-// b == 3          (target b ← key "x")
+// b == 3          (key "x" → variable b)
 // r == 2          (default; key "r" missing)
-// other == {q: 4} (the rest)
+// other / rest == {q: 4} (the rest, as a dict)
+```
+
+Use `:=` to declare new variables or `=` to assign existing ones. A statement
+that starts with `{ … } :=`/`=` is a destructuring; a bare `{ … }` is still a
+block.
+
+### Any named source
+
+Both `(; … )` and `{ … }` run the source through the default `dict()`
+constructor first, so they work on **any** named data — a dict, a module, a
+key-value array (`(; … )` value), named args, or anything convertible to a dict:
+
+```go
+strings := import("strings")
+{ toUpper, hasPrefix } := strings          // a module
+
+kva := (; a = 1, b = 2)
+{ a, b } := kva                            // a key-value array
+
+serve := func(; **opts) {
+	{ host, port = 80 } := opts            // named args
+	return host + ":" + str(port)
+}
 ```
 
 ### Mixed (positional + named)
 
-A full `( positional ; named )` pattern destructures a `MixedParams`-shaped
-value — the kind produced by the `(values...; name=value...)` literal. Both
-sides accept a trailing `**rest`.
+A `MixedParams` value carries both positional and named parts (the kind produced
+by the `(values...; name=value...)` literal), so it uses the full
+`( positional ; named )` pattern. Both sides accept a trailing `**rest`, and the
+named side is key-on-the-left like the forms above.
 
 ```go
 x := (1, 2, *[3, 4]; c=5, **{d: 6})
-(a, b, **pos; c, d2:d, r=2, **named) := x
+(a, b, **pos; c, d:d2, r=2, **named) := x
 // a == 1, b == 2, pos == [3, 4]
-// c == 5, d2 == 6 (target d2 ← key "d"), r == 2 (default), named == {}
+// c == 5, d2 == 6 (key "d" → variable d2), r == 2 (default), named == {}
 ```
-
-The naming rule is the same everywhere: `target:key` binds the value under
-`key` to the variable `target`.
