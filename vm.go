@@ -25,25 +25,27 @@ const (
 
 // VM executes the instructions in Bytecode.
 type VM struct {
-	abort        int64
-	sp           int
-	ip           int
-	curInsts     []byte
-	constants    []Object
-	modules      []*ModuleSpec
-	stack        [stackSize]Object
-	frames       [frameSize]frame
-	curFrame     *frame
-	frameIndex   int
-	bytecode     *Bytecode
-	modulesCache Modules
-	globals      IndexGetSetter
-	iterPool     []*StateIteratorObject // free list of internal for-in iterators
-	pool         vmPool
-	mu           sync.Mutex
-	err          error
-	noPanic      bool
-	dbg          DebugStepper // non-nil only in debug mode; see vm_debug.go
+	abort         int64
+	sp            int
+	ip            int
+	curInsts      []byte
+	constants     []Object
+	modules       []*ModuleSpec
+	stack         [stackSize]Object
+	frames        [frameSize]frame
+	curFrame      *frame
+	frameIndex    int
+	bytecode      *Bytecode
+	modulesCache  Modules
+	globals       IndexGetSetter
+	iterPool      []*StateIteratorObject // free list of internal for-in iterators
+	arrayIterPool []*arrayIterator       // free list of array for-in iterators
+	dictIterPool  []*dictIterator        // free list of dict for-in iterators
+	pool          vmPool
+	mu            sync.Mutex
+	err           error
+	noPanic       bool
+	dbg           DebugStepper // non-nil only in debug mode; see vm_debug.go
 
 	StdOut, StdErr *StackWriter
 	StdIn          *StackReader

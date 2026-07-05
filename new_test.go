@@ -1729,6 +1729,13 @@ func TestVMIteratorPooling(t *testing.T) {
 	testExpectRun(t, `a := 0; for v in [1,2,3] {a+=v}; for v in [4,5,6] {a+=v}; return a`, nil, Int(21))
 	// empty iterable -> else, then a following loop still works
 	testExpectRun(t, `x := 0; for v in [] {x=1} else {x=2}; for v in [7] {x+=v}; return x`, nil, Int(9))
+
+	// the concrete iterator is pooled too: a user-held dict iterator survives.
+	testExpectRun(t, `it := iterator({x:1, y:2, z:3}; sorted); it.next; d := []; for k, v in it { d += [v] }; return d`,
+		nil, Array{Array{Int(2)}, Array{Int(3)}})
+	// iterator consumers (collect/values) stay correct while loops churn the pool.
+	testExpectRun(t, `s := 0; for n := 0; n < 3; n++ { for v in [1,2,3] { s += v } }; return collect(values([s]))`,
+		nil, Array{Int(18)})
 }
 
 func TestVMCurlyDestructure(t *testing.T) {

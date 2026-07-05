@@ -517,9 +517,21 @@ func (vm *VM) releaseIter(s *StateIteratorObject) {
 	if !s.pooled {
 		return
 	}
+	// The concrete iterator is owned solely by this SIO, so recycle it too. Its
+	// fields are cleared (in release) so a pooled iterator never retains the
+	// collection it walked.
+	if r, _ := s.Iterator.(iteratorReleaser); r != nil {
+		r.release(vm)
+	}
 	s.pooled = false
 	s.Iterator, s.State, s.VM = nil, nil, nil
 	vm.iterPool = append(vm.iterPool, s)
+}
+
+// iteratorReleaser is implemented by the concrete for-in iterators that can be
+// returned to a per-VM free list when their loop finishes.
+type iteratorReleaser interface {
+	release(vm *VM)
 }
 
 func (s *StateIteratorObject) AddStartHandler(f func(s *StateIteratorObject)) {
@@ -762,6 +774,26 @@ func newArrayIterator(arr Array, na *NamedArgs) *arrayIterator {
 	return &arrayIterator{arr: arr, step: step, start: start}
 }
 
+// acquireArrayIterator reuses a pooled arrayIterator when one is free.
+func (vm *VM) acquireArrayIterator(arr Array, na *NamedArgs) *arrayIterator {
+	var it *arrayIterator
+	if n := len(vm.arrayIterPool); n > 0 {
+		it, vm.arrayIterPool[n-1] = vm.arrayIterPool[n-1], nil
+		vm.arrayIterPool = vm.arrayIterPool[:n-1]
+	} else {
+		it = &arrayIterator{}
+	}
+	it.arr = arr
+	it.step, it.start = iterStepStart(len(arr), na)
+	it.state = IteratorState{}
+	return it
+}
+
+func (it *arrayIterator) release(vm *VM) {
+	*it = arrayIterator{} // drop the array reference and reset
+	vm.arrayIterPool = append(vm.arrayIterPool, it)
+}
+
 func (it *arrayIterator) Type() ObjectType { return TArrayIterator }
 
 func (it *arrayIterator) Input() Object { return it.arr }
@@ -802,7 +834,10 @@ func (it *arrayIterator) Print(state *PrinterState) error {
 	return state.Print(it.arr)
 }
 
-func (o Array) Iterate(_ *VM, na *NamedArgs) Iterator {
+func (o Array) Iterate(vm *VM, na *NamedArgs) Iterator {
+	if vm != nil {
+		return vm.acquireArrayIterator(o, na)
+	}
 	return newArrayIterator(o, na)
 }
 
@@ -827,6 +862,26 @@ var (
 func newDictIterator(dict Dict, keys []string, na *NamedArgs) *dictIterator {
 	step, start := iterStepStart(len(keys), na)
 	return &dictIterator{dict: dict, keys: keys, step: step, start: start}
+}
+
+// acquireDictIterator reuses a pooled dictIterator when one is free.
+func (vm *VM) acquireDictIterator(dict Dict, keys []string, na *NamedArgs) *dictIterator {
+	var it *dictIterator
+	if n := len(vm.dictIterPool); n > 0 {
+		it, vm.dictIterPool[n-1] = vm.dictIterPool[n-1], nil
+		vm.dictIterPool = vm.dictIterPool[:n-1]
+	} else {
+		it = &dictIterator{}
+	}
+	it.dict, it.keys = dict, keys
+	it.step, it.start = iterStepStart(len(keys), na)
+	it.state = IteratorState{}
+	return it
+}
+
+func (it *dictIterator) release(vm *VM) {
+	*it = dictIterator{} // drop dict/keys references and reset
+	vm.dictIterPool = append(vm.dictIterPool, it)
 }
 
 func (it *dictIterator) Type() ObjectType { return TDictIterator }
@@ -973,13 +1028,16 @@ func (o KeyValueArrays) Iterate(_ *VM, na *NamedArgs) Iterator {
 	return &kvArraysIterator{arr: o, step: step, start: start}
 }
 
-func (o Dict) Iterate(_ *VM, na *NamedArgs) Iterator {
+func (o Dict) Iterate(vm *VM, na *NamedArgs) Iterator {
 	keys := make([]string, 0, len(o))
 	for k := range o {
 		keys = append(keys, k)
 	}
 	if !na.GetValue("sorted").IsFalsy() || !na.MustGetValue("reversed").IsFalsy() {
 		sort.Strings(keys)
+	}
+	if vm != nil {
+		return vm.acquireDictIterator(o, keys, na)
 	}
 	return newDictIterator(o, keys, na)
 }

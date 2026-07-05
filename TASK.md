@@ -227,10 +227,25 @@
       19010->14011 (−1 SIO/loop each); Fib/Loop unchanged. New TestVMIteratorPooling
       (user-iterator not recycled, nested, break/continue, sequential reuse, else)
       passes with -race; full `go test -race ./...` clean.
-      REMAINING (high-risk / major refactor):
-      - pooling the concrete iterator (arrayIterator/dictIterator/… — per-type,
-        created in each collection's Iterate(); a bigger change than the uniform
-        SIO pool).
+      Fourteenth pass done: pooled the concrete for-in iterators too (array,
+      dict). Array.Iterate/Dict.Iterate acquire from per-VM free lists
+      (vm.acquireArrayIterator/acquireDictIterator) when a VM is present; the
+      iterator is released alongside its SIO in releaseIter via an
+      iteratorReleaser interface (release(vm) clears all fields — dropping the
+      array/dict/keys references so a pooled iterator never retains what it
+      walked — and pushes itself back). Safe for the same reason as the SIO pool:
+      release only happens for a pooled SIO, which sole-owns its concrete iterator
+      (user iterator() values pass through unpooled). nil-vm callers (SyncDict)
+      fall back to the non-pooled constructor. BenchmarkVMIterate 13996->8998
+      allocs/op (bytes ~1.03MB->0.55MB), DictIterate 43996->38998; combined with
+      the SIO pass, array for-in went 18994->8998 (>50%) and the iteration
+      machinery is now essentially alloc-free (the rest is loop-counter int
+      boxing). Fib/Loop unchanged; TestVMIteratorPooling extended (user dict
+      iterator survives, consumers unaffected) passes with -race; full
+      `go test -race ./...` clean.
+      REMAINING (major refactor / low-value):
+      - the rarer kvArray/kvArrays/args concrete iterators (same pattern, low
+        traffic).
       - large-int/Str boxing (mallocgc in arithmetic loops) — tagged-value
         representation, a major Object-model refactor.
       The safe closure/state-allocation wins are captured across array, dict,
