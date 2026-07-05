@@ -1716,6 +1716,21 @@ func TestVMDictDestructure(t *testing.T) {
 		newOpts().CompilerError(), `Compile Error: unresolved reference "a"`)
 }
 
+func TestVMIteratorPooling(t *testing.T) {
+	// A pooled for-in iterator must never recycle a user-held iterator() value:
+	// after it.next consumes 100, the loop continues from 200/300.
+	testExpectRun(t, `it := iterator([100, 200, 300]); it.next; u := []; for k, v in it { u += [v] }; return u`,
+		nil, Array{Array{Int(200)}, Array{Int(300)}})
+	// nested loops (LIFO release)
+	testExpectRun(t, `s := 0; for i in [1,2,3] { for j in [10,20] { s += i*j } }; return s`, nil, Int(180))
+	// break / continue do not corrupt the pool
+	testExpectRun(t, `t := 0; for v in [1,2,3,4,5] { if v==2 {continue}; if v==4 {break}; t += v }; return t`, nil, Int(4))
+	// sequential loops reuse the pooled iterator
+	testExpectRun(t, `a := 0; for v in [1,2,3] {a+=v}; for v in [4,5,6] {a+=v}; return a`, nil, Int(21))
+	// empty iterable -> else, then a following loop still works
+	testExpectRun(t, `x := 0; for v in [] {x=1} else {x=2}; for v in [7] {x+=v}; return x`, nil, Int(9))
+}
+
 func TestVMCurlyDestructure(t *testing.T) {
 	const d = `d := {a:2, b:3, x:4, y:5}; `
 

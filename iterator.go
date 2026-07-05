@@ -480,6 +480,46 @@ type StateIteratorObject struct {
 	State         *IteratorState
 	VM            *VM
 	StartHandlers []func(s *StateIteratorObject)
+	// pooled marks an internal for-in iterator (created by vm.acquireIter at
+	// OpIterInit) that may be returned to vm.iterPool when the loop finishes. It
+	// is never set on SIOs handed to user code (e.g. by the iterator() builtin),
+	// so those are never pooled or reused.
+	pooled bool
+}
+
+// acquireIter wraps it in a StateIteratorObject for a for-in loop, reusing one
+// from the per-VM free list when possible. If it is already a StateIteratorObject
+// (e.g. from the iterator() builtin) it is used as-is and NOT pooled, so a
+// user-held iterator is never recycled underneath the user.
+func (vm *VM) acquireIter(it Iterator) *StateIteratorObject {
+	if si, _ := it.(*StateIteratorObject); si != nil {
+		return si
+	}
+	var s *StateIteratorObject
+	if n := len(vm.iterPool); n > 0 {
+		s, vm.iterPool[n-1] = vm.iterPool[n-1], nil
+		vm.iterPool = vm.iterPool[:n-1]
+	} else {
+		s = &StateIteratorObject{}
+	}
+	s.Iterator, s.State, s.VM = it, nil, vm
+	s.StartHandlers = s.StartHandlers[:0]
+	s.pooled = true
+	return s
+}
+
+// releaseIter returns a pooled for-in iterator to the free list once its loop is
+// done. It is a no-op for non-pooled (user-visible) iterators. The SIO is only
+// released after its last use — OpIterNext has already replaced it on the stack
+// with the loop condition and the internal `:it` local is dead — so nothing
+// dereferences it after release.
+func (vm *VM) releaseIter(s *StateIteratorObject) {
+	if !s.pooled {
+		return
+	}
+	s.pooled = false
+	s.Iterator, s.State, s.VM = nil, nil, nil
+	vm.iterPool = append(vm.iterPool, s)
 }
 
 func (s *StateIteratorObject) AddStartHandler(f func(s *StateIteratorObject)) {

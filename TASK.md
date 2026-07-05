@@ -214,10 +214,23 @@
       verified end-to-end (fast path 2+3=5; met gad.binOpMul -> p*3="ababab";
       met gad.selfAssignOpAdd -> x+=y="a-b"). go build/test ./..., go vet, and
       full -race ./... all clean.
-      REMAINING (all high-risk / low-value; safe scope exhausted):
-      - pooling the last two per-loop iterator objects (concrete iterator +
-        StateIteratorObject) — needs a loop-end release point and must not pool
-        user-visible iterator(...) values.
+      Thirteenth pass done: pooled the per-loop StateIteratorObject. OpIterInit
+      now acquires the SIO from a per-VM free list (vm.acquireIter); when it is
+      already an SIO (from the iterator() builtin) it is passed through and NOT
+      pooled, so user-held iterators are never recycled. The SIO is released
+      (vm.releaseIter) when OpIterNext / OpIterNextElse sees the loop finish
+      (hasMore=false) — at that point the SIO has been consumed from the stack
+      and the internal :it local is dead, and nested loops release LIFO, so
+      nothing dereferences it after release. Only pooled (pooled=true) SIOs are
+      released; break/return/throw just skip pooling (GC), no leak. BenchmarkVMIterate
+      18994->13996 allocs/op (~26%), DictIterate 48994->43996, KVArrayIterate
+      19010->14011 (−1 SIO/loop each); Fib/Loop unchanged. New TestVMIteratorPooling
+      (user-iterator not recycled, nested, break/continue, sequential reuse, else)
+      passes with -race; full `go test -race ./...` clean.
+      REMAINING (high-risk / major refactor):
+      - pooling the concrete iterator (arrayIterator/dictIterator/… — per-type,
+        created in each collection's Iterate(); a bigger change than the uniform
+        SIO pool).
       - large-int/Str boxing (mallocgc in arithmetic loops) — tagged-value
         representation, a major Object-model refactor.
       The safe closure/state-allocation wins are captured across array, dict,

@@ -38,6 +38,7 @@ type VM struct {
 	bytecode     *Bytecode
 	modulesCache Modules
 	globals      IndexGetSetter
+	iterPool     []*StateIteratorObject // free list of internal for-in iterators
 	pool         vmPool
 	mu           sync.Mutex
 	err          error
