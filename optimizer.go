@@ -82,6 +82,7 @@ type SimpleOptimizer struct {
 	trace            io.Writer
 	exprLevel        byte
 	evalBits         uint64
+	fallbackFunc     func(c *Compiler, nd ast.Node) error
 }
 
 // NewOptimizer creates an Optimizer object.
@@ -114,6 +115,7 @@ func NewOptimizer(
 		moduleMap:        opts.ModuleMap,
 		embeddedMap:      opts.EmbededdMap,
 		module:           module,
+		fallbackFunc:     opts.FallbackFunc,
 	}
 }
 
@@ -278,6 +280,7 @@ func (so *SimpleOptimizer) slowEvalExpr(expr node.Expr) (node.Expr, bool) {
 				Trace:         so.trace,
 				ModuleMap:     so.moduleMap,
 				EmbededdMap:   so.embeddedMap,
+				FallbackFunc:  so.fallbackFunc,
 			},
 		},
 	)

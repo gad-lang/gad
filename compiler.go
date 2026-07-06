@@ -87,7 +87,6 @@ type (
 		funcHeaderIndex      uint
 		methodInterfaceIndex uint
 		interfaceIndex       uint
-		FallbackFunc         func(nd ast.Node) error
 	}
 
 	// CompilerOptions represents customizable options for Compile().
@@ -106,6 +105,7 @@ type (
 		OptimizeExpr        bool
 		MixedWriteFunction  node.Expr
 		MixedExprToTextFunc node.Expr
+		FallbackFunc        func(c *Compiler, nd ast.Node) error
 		embeddedStore       map[string]int
 		moduleStore         *moduleStore
 		constsCache         map[Object]int
@@ -767,8 +767,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileToRawExpr(nt)
 	case nil:
 	default:
-		if c.FallbackFunc != nil {
-			return c.FallbackFunc(nd)
+		if c.opts.FallbackFunc != nil {
+			return c.opts.FallbackFunc(c, nd)
 		}
 		return c.Errorf(nt, `%[1]T "%[1]v" not implemented`, nt)
 	}
@@ -1088,6 +1088,7 @@ func (c *Compiler) fork(
 			OptimizeExpr:      c.opts.OptimizeExpr,
 			moduleStore:       c.moduleStore,
 			constsCache:       c.constsCache,
+			FallbackFunc:      c.opts.FallbackFunc,
 		},
 	})
 
