@@ -1823,8 +1823,21 @@ func TestVMDestructuring(t *testing.T) {
 		newOpts().CompilerError(), `Compile Error: unresolved reference "x"`)
 	expectErrHas(t, `var (x, y); x, y := nil; return x`,
 		newOpts().CompilerError(), `Compile Error: no new variable on left side`)
-	expectErrHas(t, `x, y = 1, 2`, newOpts().CompilerError(),
+	// a single target with several right-side expressions is still meaningless.
+	expectErrHas(t, `x := 1, 2`, newOpts().CompilerError(),
 		`Compile Error: multiple expressions on the right side not supported`)
+
+	// parallel multi-value assignment: several targets, several values.
+	testExpectRun(t, `a, b := 1, 2; return [a, b]`, nil, Array{Int(1), Int(2)})
+	testExpectRun(t, `var (a, b); a, b = 1, 2; return [a, b]`, nil, Array{Int(1), Int(2)})
+	testExpectRun(t, `a, b, *rest := 1, 2, 3, 4; return [a, b, rest]`,
+		nil, Array{Int(1), Int(2), Array{Int(3), Int(4)}})
+	// leniency matches array destructuring: extra values drop, missing pad nil.
+	testExpectRun(t, `a, b := 1, 2, 3; return [a, b]`, nil, Array{Int(1), Int(2)})
+	testExpectRun(t, `a, b, c := 1, 2; return [a, b, c]`, nil, Array{Int(1), Int(2), Nil})
+	// spreads inside the right side flatten.
+	testExpectRun(t, `a, b, *rest := 1, *[2, 3, 4]; return [a, b, rest]`,
+		nil, Array{Int(1), Int(2), Array{Int(3), Int(4)}})
 
 	testExpectRun(t, `x, y := nil; return x`, nil, Nil)
 	testExpectRun(t, `x, y := nil; return y`, nil, Nil)

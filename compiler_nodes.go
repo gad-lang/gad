@@ -714,10 +714,16 @@ func (c *Compiler) checkAssignment(
 	rhs []node.Expr,
 	op token.Token,
 ) (bool, error) {
-	_, numRHS := len(lhs), len(rhs)
+	numLHS, numRHS := len(lhs), len(rhs)
 	if numRHS > 1 {
-		return false, c.Errorf(nd,
-			"multiple expressions on the right side not supported")
+		// Parallel multi-value assignment `a, b = 1, 2` needs several targets and
+		// a plain `=`/`:=`; the several right-side expressions are gathered into an
+		// array and destructured (see compileAssignStmt). Any other shape (a single
+		// target, or a compound operator like `+=`) has no meaning.
+		if numLHS <= 1 || (op != token.Assign && op != token.Define) {
+			return false, c.Errorf(nd,
+				"multiple expressions on the right side not supported")
+		}
 	}
 
 	var selector bool
@@ -750,6 +756,15 @@ func (c *Compiler) compileAssignStmt(
 	compile, err := c.checkAssignment(nd, lhs, rhs, op)
 	if err != nil || !compile {
 		return err
+	}
+
+	// Parallel multi-value assignment: `a, b = 1, 2` (and with a trailing
+	// `*rest`, `a, b, *rest = 1, 2, 3, 4`). Gather the several right-side
+	// expressions into a single array literal — spreads inside it still flatten —
+	// and reuse the array-destructuring machinery below. checkAssignment has
+	// already ensured there is more than one target and a plain `=`/`:=`.
+	if len(rhs) > 1 {
+		rhs = []node.Expr{&node.ArrayExpr{Elements: rhs}}
 	}
 
 	// A single destructuring pattern on the left: `{ … }` / `(; … )` (dict),

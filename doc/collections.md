@@ -135,6 +135,22 @@ a, b, *rest := [1, 2, 3, 4]     // a == 1, b == 2, rest == [3, 4]
 a, b, *rest := [1]              // a == 1, b == nil, rest == []
 ```
 
+The right side may also be **several comma-separated expressions** instead of a
+single array (parallel multi-value assignment) — they are gathered and
+destructured the same way, so spreads flatten and `*rest` still applies. Targets
+may be selectors or indexes:
+
+```go
+a, b := 1, 2                 // a == 1, b == 2
+a, b, *rest := 1, 2, 3, 4    // a == 1, b == 2, rest == [3, 4]
+a, b, *rest := 1, *[2, 3]    // a == 1, b == 2, rest == [3]
+m.x, y = 1, 2                // m.x == 1, y == 2
+```
+
+Leniency matches array destructuring: extra values are dropped and missing ones
+become `nil` (`a, b, c := 1, 2` gives `c == nil`). Only the multi-target forms
+qualify; a single target with several values (`x = 1, 2`) is an error.
+
 Because functions return a single value, "multiple return values" is really an
 array being destructured. With `=`, you can assign into dict/array elements too:
 
