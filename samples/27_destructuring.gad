@@ -17,6 +17,15 @@ println("array:", x, y)                 // 10 20
 a, b, c := [1, 2]                        // missing element -> nil
 println("array short:", a, b, c)        // 1 2 nil
 
+// `[a, b]` bracket form works too (even one element):
+[first, second] := [100, 200]
+println("bracket:", first, second)      // 100 200
+
+// `const` / `var` accept any pattern (immutable / mutable bindings):
+const {tls} = {host: "h", tls: true}
+const [lo, hi] = [1, 9]
+println("const:", tls, lo, hi)          // true 1 9
+
 // ── 2. Named, `(; … )` form — key on the LEFT ────────────────────────────────
 d := {host: "localhost", port: 8080, tls: true}
 (; host, port:p, timeout = 30, **extra) := d

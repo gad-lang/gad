@@ -2916,6 +2916,31 @@ func (p *Parser) ParseValueSpec(keyword token.Token, multi bool, prev []node.Spe
 	// lead doc comment precedes the spec; linked to the ident.
 	doc := p.leadComment
 	pos := p.Token.Pos
+
+	// Destructuring declaration: `const/var { … } = v` or `[ … ] = v`.
+	if p.Token.Token == token.LBrace || p.Token.Token == token.LBrack {
+		var pattern node.Expr
+		if p.Token.Token == token.LBrace {
+			pattern = p.ParseCurlyPattern()
+		} else {
+			pattern = p.ParsePrimaryExpr() // an array literal `[a, b]`
+		}
+		p.SkipSpace()
+		var value node.Expr
+		if p.Token.Token == token.Assign {
+			p.Next()
+			value = p.ParseExpr()
+		} else if keyword == token.Const {
+			p.Error(p.Token.Pos, "missing initializer in const declaration")
+		}
+		if multi && p.Token.Token == token.Comma {
+			p.Next()
+		} else if multi {
+			p.ExpectSemi()
+		}
+		return &node.ValueSpec{Pattern: pattern, Values: []node.Expr{value}, Data: i, Doc: doc}
+	}
+
 	var idents []*node.IdentExpr
 	var values []node.Expr
 	if p.Token.Token == token.Ident {

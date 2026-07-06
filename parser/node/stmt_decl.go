@@ -119,10 +119,13 @@ var _ Spec = (*ValueSpec)(nil)
 
 // A ValueSpec node represents a variable declaration
 type ValueSpec struct {
-	Idents []*IdentExpr      // TODO: slice is reserved for tuple assignment
-	Values []Expr            // initial values; or nil
-	Data   any               // iota
-	Doc    *ast.CommentGroup // doc comment preceding the spec (linked to ident); or nil
+	Idents []*IdentExpr // TODO: slice is reserved for tuple assignment
+	Values []Expr       // initial values; or nil
+	// Pattern is a destructuring left side (`const { … } = v` / `const [ … ] = v`).
+	// When set, Idents is empty and Values holds the single source expression.
+	Pattern Expr
+	Data    any               // iota
+	Doc     *ast.CommentGroup // doc comment preceding the spec (linked to ident); or nil
 }
 
 // specNode() ensures that only spec nodes can be assigned to a Spec.
@@ -133,10 +136,19 @@ func (s *ValueSpec) End() source.Pos {
 	if n := len(s.Values); n > 0 && s.Values[n-1] != nil {
 		return s.Values[n-1].End()
 	}
+	if s.Pattern != nil {
+		return s.Pattern.End()
+	}
 	return s.Idents[len(s.Idents)-1].End()
 }
 
 func (s *ValueSpec) String() string {
+	if s.Pattern != nil {
+		if len(s.Values) > 0 && s.Values[0] != nil {
+			return fmt.Sprintf("%s = %v", s.Pattern, s.Values[0])
+		}
+		return s.Pattern.String()
+	}
 	vals := make([]string, 0, len(s.Idents))
 	for i := range s.Idents {
 		if s.Values[i] != nil {
@@ -165,6 +177,19 @@ func (s *ValueSpec) WriteCode(ctx *CodeWriteContext) {
 	lead := isLeadDoc(s.Doc, s)
 	if lead {
 		ctx.WriteLeadDoc(s.Doc)
+	}
+
+	// A destructuring spec renders its pattern and source: `{ … } = v`.
+	if s.Pattern != nil {
+		s.Pattern.WriteCode(ctx)
+		if len(s.Values) > 0 && s.Values[0] != nil {
+			ctx.WriteString(" = ")
+			s.Values[0].WriteCode(ctx)
+		}
+		if !lead {
+			ctx.WriteTrailingDoc(s.Doc)
+		}
+		return
 	}
 
 	// A value-less spec wraps its identifiers greedily under NEW_LINE_CALC:

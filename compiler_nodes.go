@@ -657,6 +657,23 @@ func (c *Compiler) compileDeclValue(nd *node.GenDecl) error {
 				}
 			}
 		}
+
+		// Destructuring declaration: route the pattern through the assignment
+		// compiler with the const/var keyword (`const { … } = v`, `[ … ] = v`).
+		if spec.Pattern != nil {
+			var v node.Expr = &node.NilLit{}
+			if len(spec.Values) > 0 && spec.Values[0] != nil {
+				v = spec.Values[0]
+			}
+			assign := &node.AssignStmt{Token: token.Define, LHS: []node.Expr{spec.Pattern}, RHS: []node.Expr{v}}
+			if err := c.atDo(assign, func() error {
+				return c.compileAssignStmt(assign, assign.LHS, assign.RHS, nd.Tok, assign.Token)
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+
 		for i, ident := range spec.Idents {
 			leftExpr := []node.Expr{ident}
 			var v node.Expr
@@ -735,14 +752,22 @@ func (c *Compiler) compileAssignStmt(
 		return err
 	}
 
-	// dict destructuring: `(;a, _b:b, r=2, **other) = dict`
+	// A single destructuring pattern on the left: `{ … }` / `(; … )` (dict),
+	// `( pos ; named )` (mixed) or `[ … ]` (bracketed array).
+	var bracketDestruct bool
 	if len(lhs) == 1 {
-		if kva, ok := lhs[0].(*node.KeyValueArrayLit); ok {
-			return c.compileDictDestructuring(nd, kva, rhs, keyword, op)
-		}
-		// MixedParams destructuring: `(a, b, **pos_rest; c, p:d, **named_rest) = mp`
-		if mp, ok := lhs[0].(*node.MultiParenExpr); ok {
-			return c.compileMixedParamsDestructuring(nd, mp, rhs, keyword, op)
+		switch pat := lhs[0].(type) {
+		case *node.KeyValueArrayLit:
+			return c.compileDictDestructuring(nd, pat, rhs, keyword, op)
+		case *node.MultiParenExpr:
+			return c.compileMixedParamsDestructuring(nd, pat, rhs, keyword, op)
+		case *node.ArrayExpr:
+			// `[a, b] = arr` — unwrap to element targets. Unlike `a, b = arr` it
+			// destructures even with a single element.
+			if op == token.Assign || op == token.Define {
+				lhs = pat.Elements
+				bracketDestruct = true
+			}
 		}
 	}
 
@@ -753,7 +778,7 @@ func (c *Compiler) compileAssignStmt(
 		if err := c.Compile(lhs[0]); err != nil {
 			return err
 		}
-	} else if len(lhs) > 1 {
+	} else if len(lhs) > 1 || bracketDestruct {
 		isArrDestruct = true
 		// ignore redefinition of :array symbol, it can be used multiple times
 		// within a block.

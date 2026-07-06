@@ -1749,6 +1749,32 @@ func TestVMIteratorPooling(t *testing.T) {
 		nil, Int(45))
 }
 
+func TestVMConstDestructure(t *testing.T) {
+	// const/var with `{ … }` (dict) and `[ … ]` (bracket array) patterns.
+	testExpectRun(t, `const {x} = {a:1, x:2}; return x`, nil, Int(2))
+	testExpectRun(t, `const {k: v} = {k: 42}; return v`, nil, Int(42))
+	testExpectRun(t, `var {y, z, **rest} = {y:5, z:6, w:7}; return [y, z, rest]`,
+		nil, Array{Int(5), Int(6), Dict{"w": Int(7)}})
+	testExpectRun(t, `const [a, b] = [1, 2]; return [a, b]`, nil, Array{Int(1), Int(2)})
+	testExpectRun(t, `var [p, q, r] = [8, 9]; return [p, q, r]`, nil, Array{Int(8), Int(9), Nil})
+
+	// `[a, b]` bracket destructure at statement level (`:=` and `=`).
+	testExpectRun(t, `[a, b] := [3, 4]; return [a, b]`, nil, Array{Int(3), Int(4)})
+	testExpectRun(t, `[x] := [9]; return x`, nil, Int(9))
+	testExpectRun(t, `var m; var n; [m, n] = [5, 6]; return [m, n]`, nil, Array{Int(5), Int(6)})
+
+	// the comma forms (no brackets) remain valid alongside the bracket form.
+	testExpectRun(t, `a, b := [1, 2]; return [a, b]`, nil, Array{Int(1), Int(2)})
+	testExpectRun(t, `var a; var b; a, b = [1, 2]; return [a, b]`, nil, Array{Int(1), Int(2)})
+	testExpectRun(t, `a, b, c := [1, 2]; return [a, b, c]`, nil, Array{Int(1), Int(2), Nil})
+
+	// const produces immutable bindings.
+	expectErrHas(t, `const {x} = {x:1}; x = 2`, newOpts().CompilerError(),
+		`assignment to constant variable "x"`)
+	expectErrHas(t, `const [a] = [1]; a = 2`, newOpts().CompilerError(),
+		`assignment to constant variable "a"`)
+}
+
 func TestVMCurlyDestructure(t *testing.T) {
 	const d = `d := {a:2, b:3, x:4, y:5}; `
 

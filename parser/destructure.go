@@ -54,6 +54,27 @@ func (p *Parser) ParseCurlyDestructureStmt() node.Stmt {
 		defer untracep(tracep(p, "CurlyDestructureStmt"))
 	}
 
+	kva := p.ParseCurlyPattern()
+
+	p.SkipSpace()
+	pos, tok := p.Token.Pos, p.Token.Token
+	if tok != token.Assign && tok != token.Define {
+		p.ErrorExpected(pos, "':=' or '='")
+		return &node.BadStmt{From: kva.LParen, To: p.Token.Pos}
+	}
+	p.Next()
+	return &node.AssignStmt{
+		LHS:      []node.Expr{kva},
+		RHS:      p.ParseExprList(),
+		Token:    tok,
+		TokenPos: pos,
+	}
+}
+
+// ParseCurlyPattern parses a `{ key, key2: target, name = default, **rest }`
+// destructuring pattern into a KeyValueArrayLit (Curly). Shared by the statement
+// form and by `const`/`var` declarations.
+func (p *Parser) ParseCurlyPattern() *node.KeyValueArrayLit {
 	lbrace := p.Expect(token.LBrace)
 	var elements []node.Expr
 	for {
@@ -76,21 +97,7 @@ func (p *Parser) ParseCurlyDestructureStmt() node.Stmt {
 	}
 	p.SkipSpace()
 	rbrace := p.Expect(token.RBrace)
-	kva := &node.KeyValueArrayLit{LParen: lbrace, RParen: rbrace, Elements: elements, Curly: true}
-
-	p.SkipSpace()
-	pos, tok := p.Token.Pos, p.Token.Token
-	if tok != token.Assign && tok != token.Define {
-		p.ErrorExpected(pos, "':=' or '='")
-		return &node.BadStmt{From: lbrace, To: p.Token.Pos}
-	}
-	p.Next()
-	return &node.AssignStmt{
-		LHS:      []node.Expr{kva},
-		RHS:      p.ParseExprList(),
-		Token:    tok,
-		TokenPos: pos,
-	}
+	return &node.KeyValueArrayLit{LParen: lbrace, RParen: rbrace, Elements: elements, Curly: true}
 }
 
 // parseCurlyDestructureEntry parses one `key` / `key: target` / `name = default`

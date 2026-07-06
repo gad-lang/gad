@@ -20,6 +20,20 @@ func TestParseCurlyDestructure(t *testing.T) {
 	test.ExpectParseString(t, `{ x := 1 }`, `{ x := 1 }`)
 }
 
+func TestParseBracketDestructure(t *testing.T) {
+	// `[a, b]` bracket array destructuring, statement level.
+	test.ExpectParseString(t, `[a, b] := arr`, `[a, b] := arr`)
+	test.ExpectParseString(t, `[a, b] = arr`, `[a, b] = arr`)
+}
+
+func TestParseConstDestructure(t *testing.T) {
+	// const/var declarations with `{ … }` and `[ … ]` patterns.
+	test.ExpectParseString(t, `const {x} = d`, `const { x } = d`)
+	test.ExpectParseString(t, `const {k: v} = d`, `const { k:v } = d`)
+	test.ExpectParseString(t, `var [a, b] = arr`, `var [a, b] = arr`)
+	test.ExpectParseString(t, `const {a, **rest} = d`, `const { a, **rest } = d`)
+}
+
 // TestFormatMixedParen is a regression for the MultiParenExpr formatter, which
 // used to duplicate the positional items and write them again in place of the
 // named side (dropping it) on its multiline path. It renders inline in the

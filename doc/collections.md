@@ -122,7 +122,8 @@ Assign array elements to several variables at once. Missing elements become
 ```go
 x, y := [1, 2]        // x == 1, y == 2
 x, y, z := [1, 2]     // z == nil
-a, b, c := func() { return 1, 2, 3 }()   // multiple return values
+[a, b] := [1, 2]      // bracket form (also destructures a single [x])
+c, d, e := func() { return 1, 2, 3 }()   // multiple return values
 ```
 
 Because functions return a single value, "multiple return values" is really an
