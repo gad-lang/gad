@@ -21,10 +21,14 @@ println("array short:", a, b, c)        // 1 2 nil
 [first, second] := [100, 200]
 println("bracket:", first, second)      // 100 200
 
+// a trailing `*rest` (last target) collects the remaining elements:
+head, next, *rest := [1, 2, 3, 4, 5]
+println("rest:", head, next, str(rest)) // 1 2 [3, 4, 5]
+
 // `const` / `var` accept any pattern (immutable / mutable bindings):
 const {tls} = {host: "h", tls: true}
-const [lo, hi] = [1, 9]
-println("const:", tls, lo, hi)          // true 1 9
+const [lo, hi, *more] = [1, 9, 10, 11]
+println("const:", tls, lo, hi, str(more)) // true 1 9 [10, 11]
 
 // ── 2. Named, `(; … )` form — key on the LEFT ────────────────────────────────
 d := {host: "localhost", port: 8080, tls: true}

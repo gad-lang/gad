@@ -126,6 +126,15 @@ x, y, z := [1, 2]     // z == nil
 c, d, e := func() { return 1, 2, 3 }()   // multiple return values
 ```
 
+A trailing `*rest` (single star, last target only) collects the remaining
+elements into a fresh array; the fixed targets before it still pad with `nil`:
+
+```go
+a, b, *rest := [1, 2, 3, 4]     // a == 1, b == 2, rest == [3, 4]
+[a, b, *rest] := [1, 2, 3, 4]   // same, bracket form
+a, b, *rest := [1]              // a == 1, b == nil, rest == []
+```
+
 Because functions return a single value, "multiple return values" is really an
 array being destructured. With `=`, you can assign into dict/array elements too:
 
@@ -156,6 +165,16 @@ semantics:
 Use `:=` to declare new variables or `=` to assign existing ones. A statement
 that starts with `{ … } :=`/`=` is a destructuring; a bare `{ … }` is still a
 block.
+
+`const` and `var` also accept a destructuring pattern (both the `{ … }` and
+`[ … ]` forms), so the bound names — including a `**rest` dict or `*rest` array —
+follow the keyword's mutability:
+
+```go
+const { x, **rest } = {x: 1, y: 2, z: 3}   // x == 1, rest == {y: 2, z: 3}
+const [ a, b, *rest ] = [1, 2, 3, 4]       // a == 1, b == 2, rest == [3, 4]
+var { host, port = 80 } = cfg              // mutable bindings
+```
 
 ### Any named source
 

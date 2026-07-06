@@ -1768,11 +1768,30 @@ func TestVMConstDestructure(t *testing.T) {
 	testExpectRun(t, `var a; var b; a, b = [1, 2]; return [a, b]`, nil, Array{Int(1), Int(2)})
 	testExpectRun(t, `a, b, c := [1, 2]; return [a, b, c]`, nil, Array{Int(1), Int(2), Nil})
 
+	// trailing `*rest` collects the remaining elements as a fresh array.
+	testExpectRun(t, `a, b, *rest := [1, 2, 3, 4]; return [a, b, rest]`,
+		nil, Array{Int(1), Int(2), Array{Int(3), Int(4)}})
+	testExpectRun(t, `var a; var b; var rest; a, b, *rest = [1, 2, 3, 4]; return [a, b, rest]`,
+		nil, Array{Int(1), Int(2), Array{Int(3), Int(4)}})
+	// short source: fixed targets pad with nil, rest is empty.
+	testExpectRun(t, `a, b, *rest := [1]; return [a, b, rest]`,
+		nil, Array{Int(1), Nil, Array{}})
+	// bracket and const/var forms accept the rest too.
+	testExpectRun(t, `[a, b, *rest] := [1, 2, 3, 4]; return [a, b, rest]`,
+		nil, Array{Int(1), Int(2), Array{Int(3), Int(4)}})
+	testExpectRun(t, `const [a, b, *rest] = [1, 2, 3, 4]; return [a, b, rest]`,
+		nil, Array{Int(1), Int(2), Array{Int(3), Int(4)}})
+	// `*rest` is only valid as the last target.
+	expectErrHas(t, `a, *rest, b := [1, 2, 3, 4]; return a`, newOpts().CompilerError(),
+		`rest element must be last in destructuring`)
+
 	// const produces immutable bindings.
 	expectErrHas(t, `const {x} = {x:1}; x = 2`, newOpts().CompilerError(),
 		`assignment to constant variable "x"`)
 	expectErrHas(t, `const [a] = [1]; a = 2`, newOpts().CompilerError(),
 		`assignment to constant variable "a"`)
+	expectErrHas(t, `const [a, *rest] = [1, 2, 3]; rest = []`, newOpts().CompilerError(),
+		`assignment to constant variable "rest"`)
 }
 
 func TestVMCurlyDestructure(t *testing.T) {

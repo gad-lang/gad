@@ -41,6 +41,45 @@ func BuiltinMakeArrayFunc(n int, arg Object) (Object, error) {
 	return ret, nil
 }
 
+// BuiltinMakeArrayRestFunc backs the private :makeArrayRest builtin used by
+// array destructuring with a trailing `*rest` target. n is the number of fixed
+// targets before the rest. It returns an Array of n+1 elements: indices 0..n-1
+// are arg's elements (padded with Nil when arg is shorter) and index n is the
+// remaining elements (arg[n:]) as a fresh Array, empty when arg has n or fewer
+// elements.
+func BuiltinMakeArrayRestFunc(n int, arg Object) (Object, error) {
+	if n < 0 {
+		n = 0
+	}
+
+	arr, ok := arg.(Array)
+	if !ok {
+		if arg == Nil {
+			arr = nil
+		} else {
+			arr = Array{arg}
+		}
+	}
+
+	length := len(arr)
+	ret := make(Array, n+1)
+	for i := 0; i < n; i++ {
+		if i < length {
+			ret[i] = arr[i]
+		} else {
+			ret[i] = Nil
+		}
+	}
+	if length > n {
+		rest := make(Array, length-n)
+		copy(rest, arr[n:])
+		ret[n] = rest
+	} else {
+		ret[n] = Array{}
+	}
+	return ret, nil
+}
+
 func BuiltinAppendFunc(c Call) (Object, error) {
 	target, ok := c.Args.ShiftOk()
 	if !ok {

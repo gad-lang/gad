@@ -3747,12 +3747,26 @@ func (p *Parser) ParseExprList() (list []node.Expr) {
 		defer untracep(tracep(p, "ExpressionList"))
 	}
 
-	list = append(list, p.ParseExpr())
+	list = append(list, p.parseExprListElement())
 	for p.Token.Token == token.Comma {
 		p.Next()
-		list = append(list, p.ParseExpr())
+		list = append(list, p.parseExprListElement())
 	}
 	return
+}
+
+// parseExprListElement parses one element of an expression list, accepting a
+// leading `*expr` as an ArgVarLit. In an assignment left side this is a trailing
+// `*rest` array-destructuring target (`a, b, *rest = src`); elsewhere it is the
+// usual spread element.
+func (p *Parser) parseExprListElement() node.Expr {
+	if p.Token.Token == token.Mul {
+		pos := p.Token.Pos
+		p.Next()
+		p.SkipSpace()
+		return &node.ArgVarLit{TokenPos: pos, Value: p.ParseExpr()}
+	}
+	return p.ParseExpr()
 }
 
 func (p *Parser) ParseDictElementLit() *node.DictElementLit {

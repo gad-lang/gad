@@ -24,6 +24,9 @@ func TestParseBracketDestructure(t *testing.T) {
 	// `[a, b]` bracket array destructuring, statement level.
 	test.ExpectParseString(t, `[a, b] := arr`, `[a, b] := arr`)
 	test.ExpectParseString(t, `[a, b] = arr`, `[a, b] = arr`)
+	// trailing `*rest`, both comma and bracket forms.
+	test.ExpectParseString(t, `a, b, *rest := arr`, `a, b, *rest := arr`)
+	test.ExpectParseString(t, `[a, b, *rest] := arr`, `[a, b, *rest] := arr`)
 }
 
 func TestParseConstDestructure(t *testing.T) {

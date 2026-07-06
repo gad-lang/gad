@@ -780,13 +780,27 @@ func (c *Compiler) compileAssignStmt(
 		}
 	} else if len(lhs) > 1 || bracketDestruct {
 		isArrDestruct = true
+		// A `*rest` target is only valid as the last element.
+		for i, expr := range lhs {
+			if _, ok := expr.(*node.ArgVarLit); ok && i != len(lhs)-1 {
+				return c.Errorf(nd, "rest element must be last in destructuring")
+			}
+		}
 		// ignore redefinition of :array symbol, it can be used multiple times
 		// within a block.
 		tempArrSymbol, _ = c.symbolTable.DefineLocal(":array")
 		// ignore disabled builtins of symbol table for BuiltinMakeArray because
 		// it is required to handle destructuring assignment.
-		c.emit(nd, OpGetBuiltin, int(BuiltinMakeArray))
-		c.emit(nd, OpConstant, c.addConstant(Int(len(lhs))))
+		if _, ok := lhs[len(lhs)-1].(*node.ArgVarLit); ok {
+			// A trailing `*rest` collects the remaining elements: :makeArrayRest
+			// returns the leading fixed targets (padded) plus the rest as the last
+			// element, so the destructuring loop indexes both uniformly.
+			c.emit(nd, OpGetBuiltin, int(BuiltinMakeArrayRest))
+			c.emit(nd, OpConstant, c.addConstant(Int(len(lhs)-1)))
+		} else {
+			c.emit(nd, OpGetBuiltin, int(BuiltinMakeArray))
+			c.emit(nd, OpConstant, c.addConstant(Int(len(lhs))))
+		}
 	}
 
 	if op == token.AddAssign {
@@ -873,6 +887,11 @@ func (c *Compiler) compileDestructuring(
 	var found int
 
 	for lhsIndex, expr := range lhs {
+		// A trailing `*rest` target: :makeArrayRest already placed the remaining
+		// elements at this index, so assign the inner variable directly.
+		if av, ok := expr.(*node.ArgVarLit); ok {
+			expr = av.Value
+		}
 		if op == token.Define {
 			if term, ok := expr.(*node.IdentExpr); ok {
 				if _, ok = c.symbolTable.find(term.Name); ok {

@@ -131,6 +131,7 @@ const (
 	BuiltinAddMethod
 	BuiltinRawCaller
 	BuiltinMakeArray
+	BuiltinMakeArrayRest
 	BuiltinCap
 	BuiltinIterate
 	BuiltinKeys
@@ -349,8 +350,9 @@ var BuiltinsMap = map[string]BuiltinType{
 	"ZeroDivisionError":       BuiltinZeroDivisionError,
 	"TypeError":               BuiltinTypeError,
 
-	":makeArray": BuiltinMakeArray,
-	"cap":        BuiltinCap,
+	":makeArray":     BuiltinMakeArray,
+	":makeArrayRest": BuiltinMakeArrayRest,
+	"cap":            BuiltinCap,
 
 	"iterate":       BuiltinIterate,
 	"keys":          BuiltinKeys,
@@ -637,6 +639,16 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinMakeArray: &BuiltinFunction{
 		FuncName:              ":makeArray",
 		Value:                 funcPiOROe(BuiltinMakeArrayFunc),
+		AcceptMethodsDisabled: true,
+	},
+	// :makeArrayRest is a private builtin helping destructuring array
+	// assignments with a trailing `*rest` target: it returns an array of n+1
+	// elements — the first n are the source's elements (padded with nil) and the
+	// last is the remaining elements as a fresh array (empty when the source has
+	// n or fewer elements).
+	BuiltinMakeArrayRest: &BuiltinFunction{
+		FuncName:              ":makeArrayRest",
+		Value:                 funcPiOROe(BuiltinMakeArrayRestFunc),
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinBinaryOperator: &BuiltinFunction{
