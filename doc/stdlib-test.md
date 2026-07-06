@@ -139,7 +139,7 @@ failure text.
 
 | Method | Passes when |
 |--------|-------------|
-| `t.equal(a, b)` | `a == b` |
+| `t.equal(a, b)` | `a == b` (when both are strings, a failure shows a unified line diff) |
 | `t.notEqual(a, b)` | `a != b` |
 | `t.true(x)` | `x` is truthy |
 | `t.false(x)` | `x` is falsy |

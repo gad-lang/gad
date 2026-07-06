@@ -8,7 +8,38 @@ import (
 	"strings"
 
 	gad "github.com/gad-lang/gad"
+	"github.com/pmezard/go-difflib/difflib"
 )
+
+// strDiff returns a unified line diff of a and b when both are string objects
+// and they differ, or "" otherwise (so callers fall back to the plain repr).
+func strDiff(a, b gad.Object) string {
+	sa, oka := asString(a)
+	sb, okb := asString(b)
+	if !oka || !okb {
+		return ""
+	}
+	diff, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+		A:        difflib.SplitLines(sa),
+		B:        difflib.SplitLines(sb),
+		FromFile: "expected",
+		ToFile:   "actual",
+		Context:  2,
+	})
+	if err != nil {
+		return ""
+	}
+	return diff
+}
+
+// asString reports whether o is a string-typed object and returns its text.
+func asString(o gad.Object) (string, bool) {
+	switch o.(type) {
+	case gad.Str, gad.RawStr:
+		return o.ToString(), true
+	}
+	return "", false
+}
 
 // ModuleName is the import/builtin name of the module.
 const ModuleName = "test"
@@ -192,10 +223,15 @@ func (t *T) CallName(name string, c gad.Call) (gad.Object, error) {
 		return gad.Nil, nil
 	case "equal":
 		a, b := c.Args.Get(0), c.Args.Get(1)
-		if !a.Equal(b) {
-			return t.fail(withMsg(c, "not equal:\n  expected: "+repr(a)+"\n  actual:   "+repr(b)))
+		if a.Equal(b) {
+			return gad.Nil, nil
 		}
-		return gad.Nil, nil
+		// For two strings, a unified line diff is far more readable than the raw
+		// expected/actual repr (especially multi-line).
+		if d := strDiff(a, b); d != "" {
+			return t.fail(withMsg(c, "strings not equal:\n"+d))
+		}
+		return t.fail(withMsg(c, "not equal:\n  expected: "+repr(a)+"\n  actual:   "+repr(b)))
 	case "notEqual":
 		a, b := c.Args.Get(0), c.Args.Get(1)
 		if a.Equal(b) {

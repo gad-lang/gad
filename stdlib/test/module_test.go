@@ -1,6 +1,7 @@
 package test_test
 
 import (
+	"strings"
 	"testing"
 
 	gad "github.com/gad-lang/gad"
@@ -10,6 +11,35 @@ import (
 // call invokes method name on t with the given positional args.
 func call(t *gadtest.T, name string, args ...gad.Object) (gad.Object, error) {
 	return t.CallName(name, gad.Call{Args: gad.Args{gad.Array(args)}})
+}
+
+func TestEqualStringDiff(t *testing.T) {
+	// two differing strings -> a unified line diff in the failure message.
+	ctx := gadtest.NewT("ctx")
+	if _, err := call(ctx, "equal", gad.Str("a\nb\nc\n"), gad.Str("a\nX\nc\n")); err == nil {
+		t.Fatal("expected a failure")
+	}
+	if len(ctx.Failures()) != 1 {
+		t.Fatalf("expected one failure, got %v", ctx.Failures())
+	}
+	msg := ctx.Failures()[0]
+	for _, want := range []string{"strings not equal", "--- expected", "+++ actual", "-b", "+X"} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("string diff missing %q in:\n%s", want, msg)
+		}
+	}
+
+	// non-string operands keep the plain repr (no diff).
+	nctx := gadtest.NewT("ctx")
+	call(nctx, "equal", gad.Int(1), gad.Int(2))
+	m := nctx.Failures()[0]
+	if strings.Contains(m, "strings not equal") || !strings.Contains(m, "not equal") {
+		t.Fatalf("non-string equal should use plain repr, got:\n%s", m)
+	}
+
+	// equal strings still pass.
+	pctx := gadtest.NewT("ctx")
+	mustPass(t, pctx, "equal", gad.Str("same"), gad.Str("same"))
 }
 
 // mustPass asserts the method returned Nil with no error and recorded no failure.
