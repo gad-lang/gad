@@ -175,7 +175,7 @@ func(){
 <pre><code class="language-go">global foo
 global (bar, baz)</code></pre>
 <pre><code class="language-go">// "globals" builtin function returns "globals" provided to VM.
-g := globals()
+g := @g
 v := g["foo"]    // same as `global foo; v := foo`</code></pre>
 <pre><code class="language-go">if condition {
   global x     // illegal, not allowed in this scope

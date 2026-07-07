@@ -52,7 +52,7 @@ param (a, b, *rest; x, y=1, **nx)  // mixed</code></pre>
 global (bar, baz)
 
 foo = 10           // writes back to the globals object
-g := globals()     // the whole globals object
+g := @g            // the whole globals object
 println(g["foo"])  // 10</code></pre>
 <p>If the host passes <code>nil</code> for globals, a temporary object is used.</p>
 <h3 id="defaults">Defaults</h3>
@@ -64,7 +64,7 @@ println(g["foo"])  // 10</code></pre>
 <ul>
 <li><code>name !?= value</code> applies it only when the global is <strong>absent</strong>; a value the</li>
 </ul>
-<p>  host set to <code>nil</code> is kept (like <code>globals()["name"] !?= value</code>).</p>
+<p>  host set to <code>nil</code> is kept (like <code>@g["name"] !?= value</code>).</p>
 <pre><code class="language-go">global (page = 1, limit = 20)   // page/limit default unless the host set them
 global (user !?= "guest")       // only when "user" is not provided at all
 

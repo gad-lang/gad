@@ -73,8 +73,8 @@ printf("%d-%s\n", 7, "x")// 7-x
 s := sprintf("%v", {a: 1})
 repr("hi")               // a debug representation</code></pre>
 <h2 id="misc">Misc</h2>
-<p><code>globals</code>, <code>cast</code>, <code>wrap</code>, <code>addMethod</code>, <code>Class</code>, <code>userData</code>.</p>
-<p><code>globals()</code> returns the host-provided globals object (see <a href="variables-and-scopes.html#global">Variables → global</a>); <code>Class</code> and <code>addMethod</code> support the object/class system.</p>
+<p><code>cast</code>, <code>wrap</code>, <code>addMethod</code>, <code>Class</code>, <code>userData</code>.</p>
+<p>The host-provided globals object is reached with the <code>@g</code> keyword (see [Special <code>@</code> Keywords](special-keywords.md) and <a href="variables-and-scopes.html#global">Variables → global</a>); <code>Class</code> and <code>addMethod</code> support the object/class system.</p>
 <h2 id="builtin-modules">Builtin Modules</h2>
 <p><code>time</code>, <code>strings</code>, <code>fmt</code> and <code>base64</code> are exposed as <strong>builtin namespaces</strong>: they are always available, so you can use them **without an <code>import</code>**:</p>
 <pre><code class="language-go">println(strings.contains("abcd", "bc"))          // true
