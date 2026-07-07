@@ -123,7 +123,6 @@ const (
 	BuiltinPrintf
 	BuiltinPrintln
 	BuiltinSprintf
-	BuiltinGlobals
 	BuiltinStdIO
 	BuiltinWrap
 	BuiltinNewClass
@@ -307,7 +306,6 @@ var BuiltinsMap = map[string]BuiltinType{
 	"printf":              BuiltinPrintf,
 	"println":             BuiltinPrintln,
 	"sprintf":             BuiltinSprintf,
-	"globals":             BuiltinGlobals,
 	"stdio":               BuiltinStdIO,
 	"wrap":                BuiltinWrap,
 	"Class":               BuiltinNewClass,
@@ -748,11 +746,6 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinSprintf: &BuiltinFunction{
 		FuncName:              "sprintf",
 		Value:                 BuiltinSprintfFunc,
-		AcceptMethodsDisabled: true,
-	},
-	BuiltinGlobals: &BuiltinFunction{
-		FuncName:              "globals",
-		Value:                 BuiltinGlobalsFunc,
 		AcceptMethodsDisabled: true,
 	},
 	BuiltinRepr: &BuiltinFunction{

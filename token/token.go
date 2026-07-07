@@ -155,6 +155,7 @@ const (
 	DotFile
 	IsMain
 	Module
+	Globals
 	Export
 	Raw
 	Match
@@ -357,6 +358,7 @@ var tokens = [...]string{
 	DotFile:             "@file",
 	IsMain:              "@main",
 	Module:              "@module",
+	Globals:             "@g",
 	Raw:                 "raw",
 	Match:               "match",
 	Defer:               "defer",
@@ -522,6 +524,7 @@ var tokenNames = [...]string{
 	DotFile:                      "DotFile",
 	IsMain:                       "IsMain",
 	Module:                       "Module",
+	Globals:                      "Globals",
 	Export:                       "Export",
 	Raw:                          "Raw",
 	Match:                        "Match",

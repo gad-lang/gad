@@ -1078,6 +1078,32 @@ func (e *ModuleLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())
 }
 
+// GlobalsLit is the `@g` keyword: a short form of the `globals()` builtin call
+// that yields the host-provided globals object.
+type GlobalsLit struct {
+	TokenPos source.Pos
+}
+
+func (e *GlobalsLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *GlobalsLit) Pos() source.Pos {
+	return e.TokenPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *GlobalsLit) End() source.Pos {
+	return e.TokenPos + source.Pos(len(e.String()))
+}
+
+func (e *GlobalsLit) String() string {
+	return token.Globals.String()
+}
+
+func (e *GlobalsLit) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}
+
 type RawHeredocLit struct {
 	Literal    string
 	LiteralPos source.Pos

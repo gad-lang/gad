@@ -50,6 +50,8 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
 
 ## Reference
 
+- [Special `@` Keywords](special-keywords.md) — `@fn`, `@args`, `@nargs`,
+  `@name`, `@file`, `@main`, `@module`, `@g`.
 - [Tutorial](tutorial.md) — a guided walk-through of the language.
 - Generated standard-library references: [`time`](stdlib-time.md),
   [`fmt`](stdlib-fmt.md), [`strings`](stdlib-strings.md),

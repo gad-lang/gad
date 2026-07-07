@@ -1,0 +1,38 @@
+/***
+29_special_keywords.gad — the built-in `@` keywords.
+
+Each `@…` keyword is an expression that yields a value directly (no function
+call): function/call introspection, module info, and the host globals.
+
+Run with:  gad run samples/29_special_keywords.gad
+***/
+
+/// @fn — the running function; here used for anonymous recursion.
+fact := func(n) {
+    return n <= 1 ? 1 : n * @fn(n - 1)
+}
+println("5! =", fact(5))            // 120
+
+/// @args — the positional arguments as an array.
+sum := func(*_) {
+    total := 0
+    for v in @args { total += v }
+    return total
+}
+println("sum =", sum(1, 2, 3, 4))   // 10
+
+/// @nargs — the named-argument set of the current call (extra names beyond the
+/// declared parameters). Handy for forwarding named arguments generically.
+forward := func(; **extra) {
+    return @nargs   // the call's named-args object
+}
+println("nargs type =", typeName(forward(; a = 1)))
+
+/// Module info: @name, @file, @main, @module.
+println("name =", @name, "| main =", @main)
+
+/// @g — the host globals object (short form of the old `globals()`).
+@g["hits"] = (@g["hits"] !? 0) + 1
+@g["hits"] = (@g["hits"] !? 0) + 1
+println("hits =", @g["hits"])       // 2
+println("has hits:", "hits" in @g)  // true

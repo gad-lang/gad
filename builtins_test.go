@@ -35,8 +35,4 @@ func TestBuiltinTypes(t *testing.T) {
 			}
 		}
 	}
-
-	if _, ok := BuiltinObjects[BuiltinGlobals].(*BuiltinFunction); !ok {
-		t.Fatal("builtin 'global' is not *BuiltinFunction type")
-	}
 }

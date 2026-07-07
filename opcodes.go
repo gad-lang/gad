@@ -59,6 +59,7 @@ const (
 	OpIsMain
 	OpNotIsMain
 	OpModule
+	OpGlobals
 	OpPop
 	OpGetFree
 	OpSetFree
@@ -139,6 +140,7 @@ var OpcodeNames = [...]string{
 	OpIsMain:            "ISMAIN",
 	OpNotIsMain:         "NOTISMAIN",
 	OpModule:            "MODULE",
+	OpGlobals:           "GLOBALS",
 	OpPop:               "POP",
 	OpGetFree:           "GETFREE",
 	OpSetFree:           "SETFREE",
@@ -220,6 +222,7 @@ var OpcodeOperands = [...][]int{
 	OpIsMain:            {},
 	OpNotIsMain:         {},
 	OpModule:            {},
+	OpGlobals:           {},
 	OpPop:               {},
 	OpGetFree:           {1},    // index
 	OpSetFree:           {1},    // index

@@ -644,6 +644,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		c.emit(nt, OpIsMain)
 	case *node.ModuleLit:
 		c.emit(nt, OpModule)
+	case *node.GlobalsLit:
+		c.emit(nt, OpGlobals)
 	case *node.CalleeKeywordExpr:
 		c.emit(nt, OpCallee)
 	case *node.ArgsKeywordExpr:
@@ -1203,7 +1205,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	case OpEqual, OpNotEqual, OpNil, OpTrue, OpFalse, OpYes, OpNo, OpPop, OpSliceIndex,
 		OpSetIndex, OpIterInit, OpIterNext, OpIterKey, OpIterValue,
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
-		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsMain, OpNotIsMain, OpModule,
+		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsMain, OpNotIsMain, OpModule, OpGlobals,
 		OpNamedParamsVar, OpNamedParamValue, OpComputedValue, OpExtendModule, OpSetReturnModule, OpToRawStr,
 		OpAssign:
 		return buf, nil

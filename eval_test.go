@@ -64,7 +64,7 @@ func TestEval(t *testing.T) {
 			sr: []scriptResult{
 				{`global g`, Nil},
 				{`return g`, Str("test")},
-				{`globals()["g"]`, Str("test")},
+				{`@g["g"]`, Str("test")},
 			},
 		},
 		{

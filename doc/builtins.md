@@ -93,9 +93,10 @@ repr("hi")               // a debug representation
 
 ## Misc
 
-`globals`, `cast`, `wrap`, `addMethod`, `Class`, `userData`.
+`cast`, `wrap`, `addMethod`, `Class`, `userData`.
 
-`globals()` returns the host-provided globals object (see
+The host-provided globals object is reached with the `@g` keyword (see
+[Special `@` Keywords](special-keywords.md) and
 [Variables → global](variables-and-scopes.md#global)); `Class` and `addMethod`
 support the object/class system.
 

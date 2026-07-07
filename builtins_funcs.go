@@ -1020,10 +1020,6 @@ func BuiltinSprintfFunc(c Call) (ret Object, err error) {
 	return
 }
 
-func BuiltinGlobalsFunc(c Call) (Object, error) {
-	return c.VM.GetGlobals(), nil
-}
-
 func BuiltinIsFunc(c Call) (ok Object, err error) {
 	if err = c.Args.CheckMinLen(2); err != nil {
 		return

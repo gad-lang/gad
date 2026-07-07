@@ -653,12 +653,12 @@ func (c *Compiler) compileDeclGlobal(nd *node.GenDecl) error {
 		}
 		// Emit the default. `= v` applies when the global is nil or absent
 		// (`name ??= v`); `!?= v` applies only when it is absent, tested against
-		// the live globals object (`globals()[name] !?= v`).
+		// the live globals object (`@g[name] !?= v`).
 		pos := ident.Pos()
 		var stmt node.Stmt
 		if absent {
 			target := node.EIndex(
-				node.ECall(node.EIdent("globals", pos), pos, pos),
+				&node.GlobalsLit{TokenPos: pos},
 				node.Str(ident.Name, pos), pos, pos)
 			stmt = node.SAssign([]node.Expr{target}, []node.Expr{value}, token.AbsentAssign, pos)
 		} else {
@@ -1270,6 +1270,8 @@ func (c *Compiler) compileDefineAssign(
 		return c.compileDefine(nd, ident, allowRedefine, keyword)
 	} else if _, ok := identExpr.(*node.ModuleLit); ok {
 		c.emit(nd, OpModule)
+	} else if _, ok := identExpr.(*node.GlobalsLit); ok {
+		c.emit(nd, OpGlobals)
 	} else {
 		symbol, err := c.requireSymbol(nd, ident)
 		if err != nil {
@@ -1323,6 +1325,9 @@ func resolveAssignLHS(expr node.Expr) (name string, nameExpr node.Expr, selector
 		name = term.Name
 		nameExpr = term
 	case *node.ModuleLit:
+		name = term.String()
+		nameExpr = term
+	case *node.GlobalsLit:
 		name = term.String()
 		nameExpr = term
 	}

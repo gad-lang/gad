@@ -267,7 +267,7 @@ global (bar, baz)
 
 ```go
 // "globals" builtin function returns "globals" provided to VM.
-g := globals()
+g := @g
 v := g["foo"]    // same as `global foo; v := foo`
 ```
 

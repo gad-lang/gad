@@ -246,6 +246,13 @@ func TestVMDecl(t *testing.T) {
 	testExpectRun(t, `global (a, b, c = 2, d !?= 3); return [a, c, d]`,
 		newOpts().Globals(Dict{"a": Str("x")}), Array{Str("x"), Int(2), Int(3)})
 
+	// `@g` is the globals object (short form of the removed `globals()` builtin)
+	testExpectRun(t, `return @g`, newOpts().Globals(Dict{"a": Int(1)}), Dict{"a": Int(1)})
+	testExpectRun(t, `return @g["a"]`, newOpts().Globals(Dict{"a": Int(5)}), Int(5))
+	testExpectRun(t, `@g["x"] = 9; return @g["x"]`, nil, Int(9)) // index assign target
+	testExpectRun(t, `@g.y = 3; return @g.y`, nil, Int(3))       // selector assign target
+	testExpectRun(t, `return "a" in @g`, newOpts().Globals(Dict{"a": Int(1)}), True)
+
 	testExpectRun(t, `var a; return a`, nil, Nil)
 	testExpectRun(t, `var (a); return a`, nil, Nil)
 	testExpectRun(t, `var (a = 1); return a`, nil, Int(1))
@@ -1295,7 +1302,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	testExpectRun(t, `return contains(nil, "")`, nil, False)
 	testExpectRun(t, `return contains(nil, 1)`, nil, False)
 	g = &SyncDict{Value: Dict{"a": Int(1)}}
-	testExpectRun(t, `return contains(globals(), "a")`,
+	testExpectRun(t, `return contains(@g, "a")`,
 		newOpts().Globals(g).Skip2Pass(), True)
 	expectErrIs(t, `contains()`, nil, ErrWrongNumArguments)
 	expectErrIs(t, `contains("", "", "")`, nil, ErrWrongNumArguments)
@@ -1318,7 +1325,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	testExpectRun(t, `return len({a: 2})`, nil, Int(1))
 	testExpectRun(t, `return len(bytes(0, 1, 2))`, nil, Int(3))
 	g = &SyncDict{Value: Dict{"a": Int(5)}}
-	testExpectRun(t, `return len(globals())`,
+	testExpectRun(t, `return len(@g)`,
 		newOpts().Globals(g).Skip2Pass(), Int(1))
 	expectErrIs(t, `len()`, nil, ErrNoMethodFound)
 	expectErrIs(t, `len([], [])`, nil, ErrNoMethodFound)
@@ -3024,15 +3031,15 @@ func TestVMForIn(t *testing.T) {
 
 	// syncMap
 	g := Dict{"syncMap": &SyncDict{Value: Dict{"a": Int(2), "b": Int(3), "c": Int(4)}}}
-	testExpectRun(t, `out := 0; for v in globals().syncMap { out += v }; return out`,
+	testExpectRun(t, `out := 0; for v in @g.syncMap { out += v }; return out`,
 		newOpts().Globals(g).Skip2Pass(), Int(9)) // value
-	testExpectRun(t, `out := ""; for k, v in globals().syncMap { out = k; if v==3 { break } }; return out`,
+	testExpectRun(t, `out := ""; for k, v in @g.syncMap { out = k; if v==3 { break } }; return out`,
 		newOpts().Globals(g).Skip2Pass(), Str("b")) // key, value
-	testExpectRun(t, `out := ""; for k, _ in globals().syncMap { out += k }; return out`,
+	testExpectRun(t, `out := ""; for k, _ in @g.syncMap { out += k }; return out`,
 		newOpts().Globals(Dict{"syncMap": &SyncDict{Value: Dict{"a": Int(2)}}}).Skip2Pass(), Str("a")) // key, _
-	testExpectRun(t, `out := 0; for _, v in globals().syncMap { out += v }; return out`,
+	testExpectRun(t, `out := 0; for _, v in @g.syncMap { out += v }; return out`,
 		newOpts().Globals(g).Skip2Pass(), Int(9)) // _, value
-	testExpectRun(t, `out := ""; func() { for k, v in globals().syncMap { out = k; if v==3 { break } } }(); return out`,
+	testExpectRun(t, `out := ""; func() { for k, v in @g.syncMap { out = k; if v==3 { break } } }(); return out`,
 		newOpts().Globals(g).Skip2Pass(), Str("b")) // key, value
 
 	// string

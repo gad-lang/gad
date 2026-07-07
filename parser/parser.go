@@ -393,7 +393,7 @@ func tokenStartsOperand(tok token.Token) bool {
 		token.Throw, token.Return, token.Match, token.Raw, token.Template,
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
-		token.DotName, token.DotFile, token.IsMain, token.Module:
+		token.DotName, token.DotFile, token.IsMain, token.Module, token.Globals:
 		return true
 	}
 	return false
@@ -1055,6 +1055,10 @@ func (p *Parser) ParsePrimitiveOperand() node.Expr {
 			x := &node.ModuleLit{TokenPos: p.Token.Pos}
 			p.Next()
 			return x
+		case token.Globals:
+			x := &node.GlobalsLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
 		}
 	}
 
@@ -1099,6 +1103,10 @@ func (p *Parser) ParseOperand() node.Expr {
 			return x
 		case token.Module:
 			x := &node.ModuleLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		case token.Globals:
+			x := &node.GlobalsLit{TokenPos: p.Token.Pos}
 			p.Next()
 			return x
 		case token.Callee:
@@ -2502,7 +2510,7 @@ do:
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
 		token.Yes, token.No,
-		token.DotName, token.DotFile, token.IsMain, token.Module, token.Template, token.Raw,
+		token.DotName, token.DotFile, token.IsMain, token.Module, token.Globals, token.Template, token.Raw,
 		token.Match:
 		s := p.ParseSimpleStmt(false)
 		p.ExpectSemi()

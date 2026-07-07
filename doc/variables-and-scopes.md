@@ -59,7 +59,7 @@ global foo
 global (bar, baz)
 
 foo = 10           // writes back to the globals object
-g := globals()     // the whole globals object
+g := @g            // the whole globals object
 println(g["foo"])  // 10
 ```
 
@@ -74,7 +74,7 @@ coalescing operators:
 - `name = value` applies the default when the global is **nil or absent**
   (like `name ??= value`).
 - `name !?= value` applies it only when the global is **absent**; a value the
-  host set to `nil` is kept (like `globals()["name"] !?= value`).
+  host set to `nil` is kept (like `@g["name"] !?= value`).
 
 ```go
 global (page = 1, limit = 20)   // page/limit default unless the host set them

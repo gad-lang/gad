@@ -597,6 +597,9 @@ VMLoop:
 			}
 			vm.stack[vm.sp] = module
 			vm.sp++
+		case OpGlobals:
+			vm.stack[vm.sp] = vm.GetGlobals()
+			vm.sp++
 		case OpCallee:
 			vm.stack[vm.sp] = vm.curFrame.fn
 			vm.sp++
