@@ -180,6 +180,12 @@ f()   // prints: body, then cleanup</code></pre>
 }
 println(safe())   // recovered: error: boom</code></pre>
 <h3 id="block-scoped-deferb">Block-scoped: deferb</h3>
+<h2 id="see-also">See also</h2>
+<p>For runnable function examples, see:</p>
+<ul>
+<li><code>samples/03_functions.gad</code> — functions, closures, variadics</li>
+<li><code>samples/10_functions_with_methods.gad</code> — typed params, overloads, <code>met</code>, <code>prop</code></li>
+</ul>
 <p><code>deferb</code> (and <code>deferb_ok</code> / <code>deferb_err</code>) run when the <strong>enclosing block</strong> exits, rather than the whole function — useful for scoped cleanup. Block defers have no <code>$ret</code> (a block has no return value).</p>
 <pre><code class="language-go">out := ""
 {
@@ -190,7 +196,7 @@ println(safe())   // recovered: error: boom</code></pre>
 out += "after"
 println(out)   // body d2 d1 after   (LIFO at block exit)</code></pre>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#arrow-closures">Arrow Closures</a><a href="#closures">Closures</a><a href="#variadic-parameters">Variadic Parameters</a><a href="#spreading-arguments">Spreading Arguments</a><a href="#named-arguments">Named Arguments</a><a href="#argument-count">Argument Count</a><a href="#functions-with-methods">Functions with methods</a><a href="#properties-prop">Properties (prop)</a><a href="#computed-values">Computed values</a><a href="#return--assign-the-result">return = (assign the result)</a><a href="#deferred-handlers">Deferred Handlers</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#arrow-closures">Arrow Closures</a><a href="#closures">Closures</a><a href="#variadic-parameters">Variadic Parameters</a><a href="#spreading-arguments">Spreading Arguments</a><a href="#named-arguments">Named Arguments</a><a href="#argument-count">Argument Count</a><a href="#functions-with-methods">Functions with methods</a><a href="#properties-prop">Properties (prop)</a><a href="#computed-values">Computed values</a><a href="#return--assign-the-result">return = (assign the result)</a><a href="#deferred-handlers">Deferred Handlers</a><a href="#see-also">See also</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

@@ -128,13 +128,21 @@ serve := func(; **opts) {
 	return host + ":" + str(port)
 }</code></pre>
 <h3 id="mixed-positional--named">Mixed (positional + named)</h3>
+<h2 id="see-also">See also</h2>
+<p>For runnable collection examples, see:</p>
+<ul>
+<li><code>samples/04_collections.gad</code> — arrays, dicts, spread literals, iteration</li>
+<li><code>samples/05_comprehensions.gad</code> — array and dict comprehensions</li>
+<li><code>samples/22_key_value_array.gad</code> — keyValue and keyValueArray</li>
+<li><code>samples/27_destructuring.gad</code> — array and named destructuring</li>
+</ul>
 <p>A <code>MixedParams</code> value carries both positional and named parts (the kind produced by the <code>(values...; name=value...)</code> literal), so it uses the full <code>( positional ; named )</code> pattern. The positional side takes a trailing <code>*rest</code> (a single star, like a variadic parameter <code>func(a, *rest)</code>) and the named side a trailing <code>**rest</code>; the named side is key-on-the-left like the forms above.</p>
 <pre><code class="language-go">x := (1, 2, *[3, 4]; c=5, **{d: 6})
 (a, b, *pos; c, d:d2, r=2, **named) := x
 // a == 1, b == 2, pos == [3, 4]
 // c == 5, d2 == 6 (key "d" → variable d2), r == 2 (default), named == {}</code></pre>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#arrays">Arrays</a><a href="#dicts">Dicts</a><a href="#comprehensions">Comprehensions</a><a href="#spread-and-merge-literals">Spread and Merge Literals</a><a href="#destructuring">Destructuring</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#arrays">Arrays</a><a href="#dicts">Dicts</a><a href="#comprehensions">Comprehensions</a><a href="#spread-and-merge-literals">Spread and Merge Literals</a><a href="#destructuring">Destructuring</a><a href="#see-also">See also</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

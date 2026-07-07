@@ -125,8 +125,14 @@ with x = mk() { … }            // assign to an existing variable</code></pre>
 <pre><code class="language-go">contents := with open("f") as f: f.read()
 data := "[" + (with open("g") as g: g.read()) + "]"</code></pre>
 <p><code>with</code> introduces no new opcode: it desugars to a block that registers <code>gad.exit(resource, $err)</code> as a [<code>deferb</code>](functions.md#defer) and then calls <code>gad.enter(resource)</code>. The hooks are dispatched through the <code>gad.enter</code> / <code>gad.exit</code> functions in the global [<code>gad</code>](operators.md#operator-handlers-and-the-gad-namespace) namespace.</p>
+<h2 id="see-also">See also</h2>
+<p>For runnable control-flow examples, see:</p>
+<ul>
+<li><code>samples/06_control_flow.gad</code> — if/else, for loops and match</li>
+<li><code>samples/18_with.gad</code> — the <code>with</code> context manager</li>
+</ul>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#if">If</a><a href="#for">For</a><a href="#for-in">For-In</a><a href="#match">Match</a><a href="#try--catch--finally">Try / Catch / Finally</a><a href="#with">With</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#if">If</a><a href="#for">For</a><a href="#for-in">For-In</a><a href="#match">Match</a><a href="#try--catch--finally">Try / Catch / Finally</a><a href="#with">With</a><a href="#see-also">See also</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

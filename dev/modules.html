@@ -101,7 +101,7 @@ walk = func(node, indent) {
     }
 }
 walk(embed("data"), "")</code></pre>
-<p>See [<code>samples/26_embed.gad</code>](../samples/26_embed.gad).</p>
+<p>See [<code>samples/26_embed.gad</code>](../samples/26_embed.gad). A full multi-module example (importing a Greeter module and a math module with parameters) is available in [<code>samples/modules/</code>](../samples/modules/) — run with <code>gad run samples/modules/main.gad</code>.</p>
 <h2 id="shared-state-via-globals">Shared State via globals</h2>
 <p>Modules can use <code>global</code> to reach the same host-provided globals object as the main script — a simple way to share mutable state across modules. See <a href="variables-and-scopes.html#global">Variables → global</a>. For goroutine-safe shared maps, the host can provide a <code>syncDict</code>.</p>
 <p>To configure which modules are importable from Go, see <a href="embedding.html">Embedding in Go</a>.</p>

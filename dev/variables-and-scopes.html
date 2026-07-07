@@ -119,6 +119,8 @@ func() {
     a = "changed"   // assigns to the outer 'a'
     a := "inner"    // shadows: new local 'a'
 }()</code></pre>
+<h2 id="destructuring">Destructuring</h2>
+<p>See <a href="collections.html#destructuring">Collections → Destructuring</a> for the full destructuring reference. A runnable example covering array, named <code>(;…)</code> and TypeScript-style <code>{…}</code> destructuring is available in <code>samples/27_destructuring.gad</code>.</p>
 <p>Like Go, a loop variable captured by a closure holds its final value unless you bind a fresh copy inside the loop:</p>
 <pre><code class="language-go">var f
 for i := 0; i &lt; 3; i++ {
@@ -127,7 +129,7 @@ for i := 0; i &lt; 3; i++ {
 }
 println(f())         // 2</code></pre>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#vs">:= vs =</a><a href="#param">param</a><a href="#global">global</a><a href="#var">var</a><a href="#const">const</a><a href="#scopes-and-capturing">Scopes and Capturing</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#vs">:= vs =</a><a href="#param">param</a><a href="#global">global</a><a href="#var">var</a><a href="#const">const</a><a href="#scopes-and-capturing">Scopes and Capturing</a><a href="#destructuring">Destructuring</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

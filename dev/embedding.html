@@ -203,8 +203,10 @@ if errors.Is(err, context.DeadlineExceeded) {
 <h2 id="safety">Safety</h2>
 <p>Gad does not impose allocation limits and relies on Go's garbage collector. To run untrusted scripts, disable risky builtins/modules before compilation (the CLI's <code>-safe</code> and <code>-disabled-modules</code> flags do this) and run inside whatever sandbox your application provides. Compilation is deterministic, and bytecode can be serialized for transport and executed later.</p>
 <p>To bound execution time — the main defense against infinite loops and runaway scripts — run under a cancellable context: <code>Eval.RunScript(ctx, …)</code> for a whole script, or <code>Invoker.WithContext(ctx)</code> for a single call (see <a href="#calling-gad-functions-from-go">Calling gad functions from Go</a>). A cancelled context aborts the VM tree at the next instruction.</p>
+<h2 id="see-also">See also</h2>
+<p>For a runnable <code>embed()</code> example in Gad, see <code>samples/26_embed.gad</code>.</p>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#minimal-example">Minimal Example</a><a href="#passing-globals-and-arguments">Passing Globals and Arguments</a><a href="#exposing-go-functions">Exposing Go Functions</a><a href="#typed-methods-with-addmethod">Typed Methods with AddMethod</a><a href="#operators-on-custom-types">Operators on custom types</a><a href="#reusing-a-vm">Reusing a VM</a><a href="#calling-gad-functions-from-go">Calling gad functions from Go</a><a href="#modules-from-go">Modules from Go</a><a href="#safety">Safety</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#minimal-example">Minimal Example</a><a href="#passing-globals-and-arguments">Passing Globals and Arguments</a><a href="#exposing-go-functions">Exposing Go Functions</a><a href="#typed-methods-with-addmethod">Typed Methods with AddMethod</a><a href="#operators-on-custom-types">Operators on custom types</a><a href="#reusing-a-vm">Reusing a VM</a><a href="#calling-gad-functions-from-go">Calling gad functions from Go</a><a href="#modules-from-go">Modules from Go</a><a href="#safety">Safety</a><a href="#see-also">See also</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

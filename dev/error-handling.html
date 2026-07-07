@@ -88,6 +88,8 @@ n := compute() or ($err.name == "error" ? -1 : throw $err)</code></pre>
 <p><code>or</code> triggers only on a *thrown* error, not on a value that merely *is* an error. If the fallback is itself an error value, it is re-thrown.</p>
 <h2 id="recovering-with-defer-err">Recovering with <code>defer_err</code></h2>
 <p>A <code>defer_err</code> handler runs when a function exits with an error and can recover by clearing <code>$err</code>, optionally setting the result via <code>$ret</code>. See <a href="functions.html#deferred-handlers">Functions → Deferred Handlers</a>.</p>
+<h2 id="see-also">See also</h2>
+<p>For a runnable error-handling example, see <code>samples/07_error_handling.gad</code>.</p>
 <pre><code class="language-go">safe := func() {
     defer_err {
         $ret = "recovered: " + str($err)
@@ -97,7 +99,7 @@ n := compute() or ($err.name == "error" ? -1 : throw $err)</code></pre>
 }
 println(safe())   // recovered: error: boom</code></pre>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#error-values">Error Values</a><a href="#throw">throw</a><a href="#try--catch--finally">try / catch / finally</a><a href="#builtin-errors">Builtin Errors</a><a href="#the-or-fallback-operator">The or Fallback Operator</a><a href="#recovering-with-defer-err">Recovering with defer_err</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#error-values">Error Values</a><a href="#throw">throw</a><a href="#try--catch--finally">try / catch / finally</a><a href="#builtin-errors">Builtin Errors</a><a href="#the-or-fallback-operator">The or Fallback Operator</a><a href="#recovering-with-defer-err">Recovering with defer_err</a><a href="#see-also">See also</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>
