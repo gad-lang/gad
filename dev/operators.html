@@ -123,6 +123,58 @@ a ??= 9             // no-op,   a == 5</code></pre>
 println(m.x?.y.z)   // nil  (no error)
 m.x = {y: {z: 1}}
 println(m.x?.y.z)   // 1</code></pre>
+<p><code>?.(args)</code> is a nullish call: the callee is evaluated once and called only when it is not <code>nil</code>; otherwise the expression is <code>nil</code> and the arguments are not evaluated. It is the call counterpart of <code>?.</code>, shorthand for <code>callee != nil ? callee(args) : nil</code>.</p>
+<pre><code class="language-go">f := nil
+println(f?.())          // nil  (no call)
+f = (x) =&gt; x * 2
+println(f?.(21))        // 42
+
+m := {cb: nil}
+m.cb?.(1, 2)            // no-op while cb is nil
+
+// chain with ?. at each step to keep the whole chain optional
+handlers := {}
+handlers.onClick?.()    // nil</code></pre>
+<h2 id="absent-coalescing-operators">Absent-Coalescing Operators</h2>
+<p><code>!?</code> and <code>!?=</code> are the <strong>existence-based</strong> counterparts of the nullish operators. Where <code>??</code>/<code>??=</code> test whether a value *is nil*, <code>!?</code>/<code>!?=</code> test whether a key *is present* in its container (a key that exists with a <code>nil</code> value still counts as present, so <code>!?</code> returns that <code>nil</code>).</p>
+<p>The left operand must be a selector (<code>a.b</code>) or index (<code>a[k]</code>) so the container and key are known.</p>
+<p><code>a.b !? default</code> yields <code>a.b</code> when the key <code>b</code> exists in <code>a</code>, otherwise <code>default</code>. The default is evaluated lazily (only when the key is absent).</p>
+<pre><code class="language-go">a := {b: 5}
+println(a.b !? 9)   // 5
+a = {b: nil}
+println(a.b !? 9)   // nil   (key present — value is nil)
+println(a.b ?? 9)   // 9     (contrast: ?? is nil-based)
+a = {}
+println(a.b !? 9)   // 9     (key absent)
+
+k := "b"
+println(a[k] !? 9)  // 9     (index form; k is an expression)</code></pre>
+<p><code>a.b !?= default</code> assigns <code>default</code> only when the key is <strong>absent</strong> (the value is evaluated lazily):</p>
+<pre><code class="language-go">a := {b: nil}
+a.b !?= 9           // no-op — key present (even though nil)
+println(a.b)        // nil
+a = {}
+a.b !?= 9           // assigns — key absent
+println(a.b)        // 9</code></pre>
+<h3 id="deep-paths">Deep paths</h3>
+<p>Both operators walk multi-segment paths. <code>!?</code> reads the leaf only when the whole path is present (it never creates anything). <code>!?=</code> auto-creates missing intermediate containers as empty dicts, then sets the leaf only when it is absent:</p>
+<pre><code class="language-go">a := {}
+println(a.b.c.d !? 0)   // 0   (path absent — nothing created)
+println(a)              // {}
+
+a.b.c.d !?= 2           // creates a.b = {}, a.b.c = {}, sets a.b.c.d = 2
+println(a)              // {b: {c: {d: 2}}}</code></pre>
+<p>The root is evaluated once; key expressions are evaluated for both the membership test and the access, so keep them side-effect free.</p>
+<h3 id="container-contract">Container contract</h3>
+<p>Every parent along the path (root and intermediates) must implement [<code>ObjectAbsentCoalescer</code>](../op_api.go) — that is <code>IndexGetter</code>, <code>IndexSetter</code> and <code>ObjectWithInBinOperator</code> (the <code>in</code> membership operator). <code>Dict</code>, <code>*SyncDict</code> and <code>*ClassInstance</code> satisfy it. Descending through a value that is not such a container is a runtime error:</p>
+<pre><code class="language-go">a := {b: 2}
+a.b.c.d !?= 2       // error: 2 is not a container (no `in` operator)</code></pre>
+<pre><code class="language-go">// class instances work as containers (fields are the keys)
+class Point { x = 0 }
+p := Point()
+println("x" in p)   // true
+println(p.y !? -1)  // -1   (field y is absent)
+p.y !?= 5           // sets the y field</code></pre>
 <h2 id="assignment-and-increment">Assignment and Increment</h2>
 <table>
 <thead><tr><th>Op</th><th>Equivalent</th><th>Op</th><th>Equivalent</th></tr></thead>
@@ -218,7 +270,7 @@ println(m[key][0])          // 2</code></pre>
 a["func"] = 1   // ok
 // a.func = 1   // parse error</code></pre>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#unary-operators">Unary Operators</a><a href="#binary-operators">Binary Operators</a><a href="#range-operator">Range Operator</a><a href="#ternary-operator">Ternary Operator</a><a href="#nullish-operators">Nullish Operators</a><a href="#assignment-and-increment">Assignment and Increment</a><a href="#operator-handlers-and-the-gad-namespace">Operator handlers and the gad namespace</a><a href="#user-operators">User Operators</a><a href="#membership-in">Membership (in)</a><a href="#array-membership-ain">Array membership (ain)</a><a href="#assign-to-type">Assign-to-type (::)</a><a href="#precedence">Precedence</a><a href="#selectors-indexers-and-slicing">Selectors, Indexers and Slicing</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#unary-operators">Unary Operators</a><a href="#binary-operators">Binary Operators</a><a href="#range-operator">Range Operator</a><a href="#ternary-operator">Ternary Operator</a><a href="#nullish-operators">Nullish Operators</a><a href="#absent-coalescing-operators">Absent-Coalescing Operators</a><a href="#assignment-and-increment">Assignment and Increment</a><a href="#operator-handlers-and-the-gad-namespace">Operator handlers and the gad namespace</a><a href="#user-operators">User Operators</a><a href="#membership-in">Membership (in)</a><a href="#array-membership-ain">Array membership (ain)</a><a href="#assign-to-type">Assign-to-type (::)</a><a href="#precedence">Precedence</a><a href="#selectors-indexers-and-slicing">Selectors, Indexers and Slicing</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>
