@@ -73,6 +73,16 @@ f(*[1, 2, 3])   // 6
 f(1, *[2, 3])   // 6
 ```
 
+Unlike a parameter list (where only the last parameter may be variadic), a
+**call** may use several spreads, interleaved with plain arguments, in any
+position — they are concatenated left to right:
+
+```go
+f := func(*args) { return args }
+f(0, *[1, 2], 5, *[3, 4])   // [0, 1, 2, 5, 3, 4]
+f(*[1, 2], 9)               // [1, 2, 9]
+```
+
 ## Named Arguments
 
 Parameters after a `;` are **named**. They may have defaults, and a trailing
@@ -88,6 +98,22 @@ greet := func(name; greeting="Hello", **rest) {
 greet("Gad")                       // "Hello, Gad"
 greet("Gad"; greeting="Hi")        // "Hi, Gad"
 greet("Gad"; **{greeting: "Hey"})  // "Hey, Gad"
+```
+
+At a call site the named side may likewise mix several `**` spreads with plain
+`name=value` pairs, in any order; they merge left to right, so a later source
+overrides an earlier key:
+
+```go
+f := func(; **kw) { return dict(kw) }
+f(; b=1, **{x: 10}, c=2, **{y: 20})   // {b: 1, x: 10, c: 2, y: 20}
+f(; a=1, **{a: 9})                    // {a: 9}   (later wins)
+```
+
+Interleaved positional and named spreads combine in one call:
+
+```go
+x(1, *arr1, 2, *arr2; b=1, **d1, c=2, **d2)
 ```
 
 A function can declare both positional and named parameters, in that order:

@@ -2714,20 +2714,39 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 func (c *Compiler) compileCallArgs(pos source.Pos, op Opcode, nd *node.CallArgs, selExpr *node.SelectorExpr) error {
 	var (
 		flags   OpCallFlag
-		numArgs = len(nd.Args.Values)
+		numArgs int
 	)
 
+	// Interleaved / multiple positional spreads (`f(1, *a, 2, *b)`) are kept
+	// inline in Values by ToCallArgs. Merge them into a single array (reusing the
+	// array-literal spread lowering) and pass it as the sole var-arg.
+	var inlineSpread bool
 	for _, arg := range nd.Args.Values {
-		if err := c.Compile(arg); err != nil {
-			return err
+		if _, ok := arg.(*node.ArgVarLit); ok {
+			inlineSpread = true
+			break
 		}
 	}
 
-	if nd.Args.Var != nil {
-		numArgs++
-		flags |= OpCallFlagVarArgs
-		if err := c.Compile(nd.Args.Var.Value); err != nil {
+	if inlineSpread {
+		if err := c.compileArrayLit(&node.ArrayExpr{Elements: nd.Args.Values}); err != nil {
 			return err
+		}
+		numArgs = 1
+		flags |= OpCallFlagVarArgs
+	} else {
+		numArgs = len(nd.Args.Values)
+		for _, arg := range nd.Args.Values {
+			if err := c.Compile(arg); err != nil {
+				return err
+			}
+		}
+		if nd.Args.Var != nil {
+			numArgs++
+			flags |= OpCallFlagVarArgs
+			if err := c.Compile(nd.Args.Var.Value); err != nil {
+				return err
+			}
 		}
 	}
 

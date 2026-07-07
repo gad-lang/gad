@@ -29,6 +29,16 @@ func TestParseBracketDestructure(t *testing.T) {
 	test.ExpectParseString(t, `[a, b, *rest] := arr`, `[a, b, *rest] := arr`)
 }
 
+func TestParseCallManySpreads(t *testing.T) {
+	// interleaved positional spreads and multiple named spreads round-trip.
+	test.ExpectParseString(t, `f(1, *a, 2, *b)`, `f(1, *a, 2, *b)`)
+	test.ExpectParseString(t, `f(*a, 9)`, `f(*a, 9)`)
+	test.ExpectParseString(t, `f(; x=1, **d1, y=2, **d2)`, `f(; x=1, **d1, y=2, **d2)`)
+	test.ExpectParseString(t, `f(1, *a, 2, *b; x=1, **d1, y=2, **d2)`, `f(1, *a, 2, *b; x=1, **d1, y=2, **d2)`)
+	// a single trailing spread keeps the compact form.
+	test.ExpectParseString(t, `f(a, *rest)`, `f(a, *rest)`)
+}
+
 func TestParseConstDestructure(t *testing.T) {
 	// const/var declarations with `{ … }` and `[ … ]` patterns.
 	test.ExpectParseString(t, `const {x} = d`, `const { x } = d`)

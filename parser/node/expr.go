@@ -772,6 +772,17 @@ func (e *MultiParenExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.RParen.Token.String())
 }
 
+// lastArgVarLit reports whether the last element of exprs is an *ArgVarLit
+// (a trailing `*spread`), returning it when so.
+func lastArgVarLit(exprs []Expr) (*ArgVarLit, bool) {
+	if n := len(exprs); n > 0 {
+		if v, ok := exprs[n-1].(*ArgVarLit); ok {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
 func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError) {
 	args = new(CallArgs)
 	args.LParen = e.LParen.Pos
@@ -779,13 +790,31 @@ func (e *MultiParenExpr) ToCallArgs(strict bool) (args *CallArgs, err *NodeError
 
 	var n Expr
 
-	for _, n = range e.PositionalElements {
-		switch t := n.(type) {
-		case *ArgVarLit:
-			args.Args.Var = t
-		default:
-			args.Args.Values = append(args.Args.Values, t)
+	// Positional args may interleave several spreads (`f(1, *a, 2, *b)`). A single
+	// trailing spread keeps the compact `Var` form (unchanged bytecode); anything
+	// else (a spread that is not last, or more than one) is kept inline in Values
+	// in source order, and the compiler merges them into one array at the call
+	// site. The func-header conversion validates that only a trailing spread is
+	// used for parameter lists.
+	pe := e.PositionalElements
+	spreads := 0
+	for _, n = range pe {
+		if _, ok := n.(*ArgVarLit); ok {
+			spreads++
 		}
+	}
+	_, lastIsSpread := lastArgVarLit(pe)
+	if spreads <= 1 && (spreads == 0 || lastIsSpread) {
+		for _, n = range pe {
+			switch t := n.(type) {
+			case *ArgVarLit:
+				args.Args.Var = t
+			default:
+				args.Args.Values = append(args.Args.Values, t)
+			}
+		}
+	} else {
+		args.Args.Values = append(args.Args.Values, pe...)
 	}
 
 	for _, n = range e.NamedElements {

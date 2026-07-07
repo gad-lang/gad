@@ -1717,6 +1717,12 @@ func (c *CallArgs) ToFuncParams() (fp *FuncParams, err error) {
 			fp.Args.Values = append(fp.Args.Values, &TypedIdentExpr{Ident: t})
 		case *TypedIdentExpr:
 			fp.Args.Values = append(fp.Args.Values, t)
+		case *ArgVarLit:
+			// A call may interleave several `*spread`s, which ToCallArgs keeps
+			// inline in Values; a parameter list may not — it allows only a single
+			// trailing `*rest` (kept in Args.Var). Reaching one here means it was
+			// not the sole trailing spread.
+			return nil, fmt.Errorf("arg[%d]: a parameter list allows only one trailing *rest", i)
 		default:
 			return nil, fmt.Errorf("arg[%d] expected arg type as *Ident, but got %T", i, v)
 		}

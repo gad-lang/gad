@@ -4024,16 +4024,18 @@ func (p *Parser) ParseKeyValueArrayLitAt(lbrace source.Pos, rbraceToken token.To
 	p.ExprLevel++
 	var elements []node.Expr
 
-l:
 	for p.Token.Token != rbraceToken && p.Token.Token != token.EOF {
 		switch p.Token.Token {
 		case token.Pow:
+			// `**expr` merges another named source. It may appear anywhere and more
+			// than once (`(;a=1, **d1, b=2, **d2)`); the grammar stays permissive
+			// and the func-header conversion (ToFuncParams) rejects multiple/
+			// non-trailing spreads for parameter lists.
 			pos := p.Expect(token.Pow)
 			elements = append(elements, &node.NamedArgVarLit{
 				TokenPos: pos,
 				Value:    p.ParseExpr(),
 			})
-			break l
 		case token.LBrack:
 			elements = append(elements, p.ParseKeyValueLit())
 		default:

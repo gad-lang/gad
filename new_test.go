@@ -2891,6 +2891,35 @@ func TestConstIota(t *testing.T) {
 	return x,y,z`, nil, Array{Str("even"), Str("odd"), Str("even")})
 }
 
+func TestVMCallManySpreads(t *testing.T) {
+	const f = `f := func(*args; **kw) { return [args, dict(kw)] }; `
+
+	// single trailing positional spread (back-compat, unchanged bytecode path).
+	testExpectRun(t, f+`return f(1, *[2, 3])[0]`, nil, Array{Int(1), Int(2), Int(3)})
+	// interleaved positional spreads merge in source order.
+	testExpectRun(t, f+`return f(0, *[1, 2], 5, *[3, 4])[0]`, nil,
+		Array{Int(0), Int(1), Int(2), Int(5), Int(3), Int(4)})
+	// a leading spread (spread not last).
+	testExpectRun(t, f+`return f(*[1, 2], 9)[0]`, nil, Array{Int(1), Int(2), Int(9)})
+	// multiple named spreads interleaved with pairs (left-to-right merge).
+	testExpectRun(t, f+`return f(; b=1, **{x: 10}, c=2, **{y: 20})[1]`, nil,
+		Dict{"b": Int(1), "c": Int(2), "x": Int(10), "y": Int(20)})
+	// later named source overrides an earlier key.
+	testExpectRun(t, f+`return f(; a=1, **{a: 9})[1]`, nil, Dict{"a": Int(9)})
+	// the full form from the task: interleaved positional + multiple named.
+	testExpectRun(t, f+`x := f(1, *[2, 3], 4, *[5, 6]; b=1, **{x: 10}, c=2, **{y: 20}); return x`, nil,
+		Array{
+			Array{Int(1), Int(2), Int(3), Int(4), Int(5), Int(6)},
+			Dict{"b": Int(1), "c": Int(2), "x": Int(10), "y": Int(20)},
+		})
+
+	// a function header still allows only a single trailing rest.
+	expectErrHas(t, `func(*a, *b) {}`, newOpts().CompilerError(),
+		`unexpected node *a`)
+	expectErrHas(t, `(*a, b) => a`, newOpts().CompilerError(),
+		`unexpected node *a`)
+}
+
 func TestVM_Invoke(t *testing.T) {
 	applyPool := &Function{
 		FuncName: "applyPool",

@@ -23,6 +23,12 @@ total := func(*nums) {
     return acc
 }
 
+/// A call may interleave several spreads (positional `*` and named `**`) in any
+/// position; positionals concatenate and named keys merge left to right.
+collect := func(*args; **kw) {
+    return [args, dict(kw)]
+}
+
 // --- Deferred handlers ---
 
 /// `defer` runs when the enclosing function returns, in last-in-first-out order.
@@ -78,6 +84,8 @@ println("sum(2, 3)       =", sum(2, 3))
 println("double(21)      =", double(21))
 println("add5(4)         =", add5(4))
 println("total(1..4)     =", total(1, 2, 3, 4))
+println("interleaved     =", str(collect(1, *[2, 3], 4, *[5, 6]; b=1, **{x: 10}, c=2)))
+// -> [[1, 2, 3, 4, 5, 6], {b: 1, x: 10, c: 2}]
 println("deferOrder()    =", deferOrder())     // [body, defer-B, defer-A]
 println("safeCall(false) =", safeCall(false))
 println("safeCall(true)  =", safeCall(true))   // recovered: error: boom
