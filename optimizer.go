@@ -973,6 +973,28 @@ func (so *SimpleOptimizer) optimize(nd node.Node) (node.Expr, bool) {
 				}
 			}
 		}
+	case *node.NullishCallExpr:
+		if nd.Func != nil {
+			_, _ = so.optimize(nd.Func)
+		}
+		for i := range nd.Args.Values {
+			if expr, ok = so.optimize(nd.Args.Values[i]); ok {
+				nd.Args.Values[i] = expr
+			}
+			if expr, ok = so.evalExpr(nd.Args.Values[i]); ok {
+				nd.Args.Values[i] = expr
+			}
+		}
+		for i := range nd.NamedArgs.Values {
+			if expr, ok = so.optimize(nd.NamedArgs.Values[i]); ok {
+				nd.NamedArgs.Values[i] = expr
+			}
+			if nd.NamedArgs.Values[i] != nil {
+				if expr, ok = so.evalExpr(nd.NamedArgs.Values[i]); ok {
+					nd.NamedArgs.Values[i] = expr
+				}
+			}
+		}
 	case *node.CondExpr:
 		if expr, ok = so.optimize(nd.Cond); ok {
 			nd.Cond = expr

@@ -769,6 +769,32 @@ func TestVMNil(t *testing.T) {
 	}
 }
 
+func TestVMNullishCall(t *testing.T) {
+	// callee non-nil: call happens
+	testExpectRun(t, `f := () => 42; return f?.()`, nil, Int(42))
+	testExpectRun(t, `f := (x) => x * 2; return f?.(21)`, nil, Int(42))
+	// callee nil: expression is nil, no call
+	testExpectRun(t, `f := nil; return f?.()`, nil, Nil)
+	testExpectRun(t, `a := nil; return a?.()`, nil, Nil)
+	// selector callee
+	testExpectRun(t, `a := {b: (x) => x * 2}; return a.b?.(21)`, nil, Int(42))
+	testExpectRun(t, `a := {b: nil}; return a.b?.(21)`, nil, Nil)
+	// index callee
+	testExpectRun(t, `a := [nil, (x) => x + 1]; return a[1]?.(41)`, nil, Int(42))
+	testExpectRun(t, `a := [nil]; return a[0]?.(1)`, nil, Nil)
+	// evaluate callee once, called each time it is reached
+	testExpectRun(t, `n := 0; f := () => { n++; return n }; f?.(); f?.(); return n`, nil, Int(2))
+	// arguments are NOT evaluated when the callee is nil (short-circuit)
+	testExpectRun(t, `called := 0; side := () => { called++; return 1 }; g := nil; g?.(side()); return called`, nil, Int(0))
+	// arguments ARE evaluated when the callee is non-nil
+	testExpectRun(t, `called := 0; side := () => { called++; return 1 }; g := (x) => x; g?.(side()); return called`, nil, Int(1))
+	// chaining nullish calls; use ?. at each step to keep the chain optional
+	testExpectRun(t, `a := {b: () => ({c: () => 5})}; return a.b?.().c?.()`, nil, Int(5))
+	testExpectRun(t, `a := {b: nil}; return a.b?.()?.c?.()`, nil, Nil)
+	// named arguments
+	testExpectRun(t, `f := (; x=0) => x; return f?.(; x=7)`, nil, Int(7))
+}
+
 func TestVMKeyValue(t *testing.T) {
 	testExpectRun(t, `return [a=no]`, nil, &KeyValue{Str("a"), No})
 	testExpectRun(t, `return [a=yes]`, nil, &KeyValue{Str("a"), Yes})

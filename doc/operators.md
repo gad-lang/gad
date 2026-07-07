@@ -174,6 +174,25 @@ m.x = {y: {z: 1}}
 println(m.x?.y.z)   // 1
 ```
 
+`?.(args)` is a nullish call: the callee is evaluated once and called only when
+it is not `nil`; otherwise the expression is `nil` and the arguments are not
+evaluated. It is the call counterpart of `?.`, shorthand for
+`callee != nil ? callee(args) : nil`.
+
+```go
+f := nil
+println(f?.())          // nil  (no call)
+f = (x) => x * 2
+println(f?.(21))        // 42
+
+m := {cb: nil}
+m.cb?.(1, 2)            // no-op while cb is nil
+
+// chain with ?. at each step to keep the whole chain optional
+handlers := {}
+handlers.onClick?.()    // nil
+```
+
 ## Assignment and Increment
 
 | Op    | Equivalent           | Op     | Equivalent            |

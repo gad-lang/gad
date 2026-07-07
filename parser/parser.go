@@ -469,9 +469,13 @@ L:
 			switch p.Token.Token {
 			case token.Ident, token.Else:
 				x = p.ParseNullishSelector(x)
+			case token.LParen:
+				// Nullish call: x?.(args)
+				args := p.ParseCallArgs(token.LParen, token.RParen)
+				x = &node.NullishCallExpr{Func: x, CallArgs: *args}
 			default:
 				pos := p.Token.Pos
-				p.ErrorExpected(pos, "nullish selector")
+				p.ErrorExpected(pos, "nullish selector or call")
 				p.advance(stmtStart)
 				return &node.BadExpr{From: pos, To: p.Token.Pos}
 			}

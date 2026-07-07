@@ -199,6 +199,50 @@ func WithCallArgs[T interface{ GetCallArgs() *CallArgs }](e T, do func(args *Cal
 	return e
 }
 
+// NullishCallExpr represents an optional (nullish) call `x?.(args)`: x is
+// evaluated once and called only when it is not nil; otherwise the whole
+// expression evaluates to nil. It is the call counterpart of the `?.` nullish
+// selector and is shorthand for `x != nil ? x(args) : nil`.
+type NullishCallExpr struct {
+	Func Expr
+	CallArgs
+}
+
+func (e *NullishCallExpr) GetCallArgs() *CallArgs { return &e.CallArgs }
+
+func (e *NullishCallExpr) ExprNode() {}
+
+// CallPos returns the position of the first valid call pos.
+func (e *NullishCallExpr) CallPos() source.Pos {
+	if e.CallArgs.LParen.IsValid() {
+		return e.CallArgs.LParen
+	}
+	return e.Func.Pos()
+}
+
+// Pos returns the position of first character belonging to the node.
+func (e *NullishCallExpr) Pos() source.Pos {
+	return e.Func.Pos()
+}
+
+// End returns the position of first character immediately after the node.
+func (e *NullishCallExpr) End() source.Pos {
+	return e.RParen + 1
+}
+
+func (e *NullishCallExpr) String() string {
+	var buf = bytes.NewBufferString(parenColonBase(e.Func))
+	buf.WriteString("?.")
+	e.CallArgs.StringW(buf)
+	return buf.String()
+}
+
+func (e *NullishCallExpr) WriteCode(ctx *CodeWriteContext) {
+	writeColonBase(ctx, e.Func)
+	ctx.WriteString("?.")
+	e.CallArgs.WriteCode(ctx)
+}
+
 // CondExpr represents a ternary conditional expression.
 type CondExpr struct {
 	Cond        Expr

@@ -738,6 +738,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return c.compileReturn(&nt.Return)
 	case *node.CallExpr:
 		return c.compileCallExpr(nt)
+	case *node.NullishCallExpr:
+		return c.compileNullishCallExpr(nt)
 	case *node.ImportExpr:
 		return c.compileImportExpr(nt)
 	case *node.EmbedExpr:

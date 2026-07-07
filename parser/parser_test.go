@@ -4520,8 +4520,11 @@ func TestParsePrecedence(t *testing.T) {
 }
 
 func TestParseNullishSelector(t *testing.T) {
-	// the `.(expr)` / `?.(expr)` computed selector was removed — use index `[expr]`.
-	test.ExpectParseError(t, `a?.(k)`)
+	// `?.(args)` is the nullish call (optional call); `.(expr)` computed selector
+	// was removed — use index `[expr]`.
+	test.ExpectParseString(t, `a?.(k)`, `a?.(k)`)
+	test.ExpectParseString(t, `a?.()`, `a?.()`)
+	test.ExpectParseString(t, `a.b?.(1, 2)`, `a.b?.(1, 2)`)
 	test.ExpectParseError(t, `a.(k)`)
 	test.ExpectParse(t, "a?.b.c?.d", func(p pfn) []Stmt {
 		return stmts(
@@ -4586,11 +4589,12 @@ func TestParseNullishSelector(t *testing.T) {
 	test.ExpectParseString(t, "a?.b.c?.d.e?.f.g", "a?.b.c?.d.e?.f.g")
 	test.ExpectParseString(t, `a["b"+"c"]?.d`, `a[("b" + "c")]?.d`)
 	test.ExpectParseString(t, `a.b["b"+"c"]?.d`, `a.b[("b" + "c")]?.d`)
-	// the `.(expr)` / `?.(expr)` computed selector was removed — use index `[expr]`.
+	// the `.(expr)` computed selector was removed — use index `[expr]`.
 	test.ExpectParseError(t, `d.("a").e`)
 	test.ExpectParseError(t, `d.("a"+"b").e ?? 1`)
-	test.ExpectParseError(t, `a?.("b"+"c")?.d`)
-	test.ExpectParseError(t, `a?.(k)?.c`)
+	// `?.(args)` is a nullish call and may chain with a following nullish selector.
+	test.ExpectParseString(t, `a?.("b"+"c")?.d`, `a?.(("b" + "c"))?.d`)
+	test.ExpectParseString(t, `a?.(k)?.c`, `a?.(k)?.c`)
 }
 
 func TestParseSelector(t *testing.T) {

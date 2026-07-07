@@ -2711,6 +2711,22 @@ func (c *Compiler) compileCallExpr(nd *node.CallExpr) error {
 	return c.compileCallArgs(nd.CallPos(), op, &nd.CallArgs, selExpr)
 }
 
+// compileNullishCallExpr compiles `x?.(args)`: evaluate x once, and call it only
+// when it is not nil; otherwise the expression yields nil. OpJumpNil peeks the
+// callee (without popping) so both branches leave exactly one value on the
+// stack: the call result when non-nil, or nil when the guard short-circuits.
+func (c *Compiler) compileNullishCallExpr(nd *node.NullishCallExpr) error {
+	if err := c.Compile(nd.Func); err != nil {
+		return err
+	}
+	jumpPos := c.emit(nd, OpJumpNil, 0)
+	if err := c.compileCallArgs(nd.CallPos(), OpCall, &nd.CallArgs, nil); err != nil {
+		return err
+	}
+	c.changeOperand(jumpPos, len(c.instructions))
+	return nil
+}
+
 func (c *Compiler) compileCallArgs(pos source.Pos, op Opcode, nd *node.CallArgs, selExpr *node.SelectorExpr) error {
 	var (
 		flags   OpCallFlag
