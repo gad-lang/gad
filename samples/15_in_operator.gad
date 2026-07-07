@@ -5,6 +5,7 @@ array-membership operator (`A ain B`).
 `A in B` tests membership: a value for arrays/bytes, a key for the dict kinds.
 It is distinct from the `for x in y` loop (where `in` is the loop separator) —
 parenthesize to use it as the operator inside a for header: `for (x in y)`.
+See doc/operators.md for detailed documentation.
 ***/
 
 // Array — value membership.

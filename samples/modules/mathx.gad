@@ -2,6 +2,7 @@
 mathx.gad — a small source module. Import it with import("./mathx.gad").
 
 A module's body runs once; its exports are cached across imports.
+See doc/modules.md for detailed documentation.
 ***/
 
 pi := 3.141592653589793

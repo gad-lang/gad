@@ -166,6 +166,13 @@ func() {
 }()
 ```
 
+## Destructuring
+
+See [Collections → Destructuring](collections.md#destructuring) for the full
+destructuring reference. A runnable example covering array, named `(;…)` and
+TypeScript-style `{…}` destructuring is available in
+`samples/27_destructuring.gad`.
+
 Like Go, a loop variable captured by a closure holds its final value unless you
 bind a fresh copy inside the loop:
 

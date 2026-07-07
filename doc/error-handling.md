@@ -115,6 +115,10 @@ A `defer_err` handler runs when a function exits with an error and can recover
 by clearing `$err`, optionally setting the result via `$ret`. See
 [Functions → Deferred Handlers](functions.md#deferred-handlers).
 
+## See also
+
+For a runnable error-handling example, see `samples/07_error_handling.gad`.
+
 ```go
 safe := func() {
     defer_err {

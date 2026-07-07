@@ -8,9 +8,10 @@ this program is a gad template to generate JSON output of users list:
         "george"
       ]
     }
+See doc/templates.md for detailed documentation.
 ***/
-
-# gad: mixed
+ 
+ # gad: mixed
 {%
 var (
   users = [    "joe", "mary", "george"   ]

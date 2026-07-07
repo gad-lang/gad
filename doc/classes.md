@@ -270,3 +270,9 @@ met ~Box.val($old, this, x int) { $old(this, x); this.v = this.v + " (checked)" 
 ```
 
 See [functions](functions.md#overriding-and-old) for the general `$old` rules.
+
+## See also
+
+For runnable class examples, see:
+- `samples/11_classes.gad` — the `Class(...)` builtin: fields, methods, constructors, inheritance, `met`
+- `samples/19_class_syntax.gad` — the `class` keyword syntax

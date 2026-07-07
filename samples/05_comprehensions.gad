@@ -1,4 +1,6 @@
-/*** 05_comprehensions.gad — Python-like array and dict comprehensions. ***/
+/*** 05_comprehensions.gad — Python-like array and dict comprehensions.
+See doc/collections.md for detailed documentation.
+***/
 
 /// Array comprehension: [expr for x in iterable if cond]
 evens := [n for n in [1, 2, 3, 4, 5, 6] if n % 2 == 0]

@@ -2,6 +2,7 @@
 main.gad — imports the sibling source modules in this directory.
 
 Run from the repo root:  gad run samples/modules/main.gad
+See doc/modules.md for detailed documentation.
 ***/
 
 mathx := import("./mathx.gad")

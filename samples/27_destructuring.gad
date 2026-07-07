@@ -9,6 +9,7 @@ data. Gad has three destructuring shapes:
 Forms 2 and 3 are the same feature with different brackets — both key-on-the-
 left. They work on any named data — dicts, modules, key-value arrays, named
 args — because the source is run through the default `dict()` constructor first.
+See doc/collections.md and doc/variables-and-scopes.md for detailed documentation.
 ***/
 
 // ── 1. Arrays ────────────────────────────────────────────────────────────────

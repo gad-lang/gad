@@ -121,3 +121,7 @@ It throws a runtime error if type name is not supported.
 Alternatively, `str, int, uint, float, char, bool, bytes` builtin
 functions can be provided to get the type name from the BuiltinFunction's
 Literal field.
+
+## See also
+
+For a runnable example, see `samples/stdlib/use_fmt.gad`.

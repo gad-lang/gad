@@ -11,6 +11,7 @@
   Trim markers strip adjacent whitespace:
     {%-  / -%}   trim blanks but keep a single newline
     {%-- / --%}  trim all whitespace, newlines included
+See doc/templates.md for detailed documentation.
 */ --%}
 {%
 var (

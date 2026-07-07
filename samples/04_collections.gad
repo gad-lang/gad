@@ -1,4 +1,6 @@
-/*** 04_collections.gad — arrays, dicts, spreads and iteration. ***/
+/*** 04_collections.gad — arrays, dicts, spreads and iteration.
+See doc/collections.md for detailed documentation.
+***/
 
 nums := [1, 2, 3, 4, 5]
 println("nums       =", nums)

@@ -1,6 +1,7 @@
 /***
 20_enum.gad — the `enum` keyword: an ordered set of named integer constants
 computed at compile time. Doc comments attach to the enum and its fields.
+See doc/enums.md for detailed documentation.
 ***/
 
 /// Permissions, as auto-incrementing values. The first field is 1; each later

@@ -4,6 +4,7 @@ compiles to the Class(...) builtin (see 11_classes.gad for the builtin form).
 
 Doc comments attach to the class and to its members: `///` for a single line,
 `/** … **/` for a block, `/*** … ***/` for a module-level block like this one.
+See doc/classes.md for detailed documentation.
 ***/
 
 /**

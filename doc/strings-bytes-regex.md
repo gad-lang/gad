@@ -268,6 +268,12 @@ A `bytes` subject yields a `bytes` result.
 (/o/).replace(bytes("foo"), "0")                       // bytes("f00")
 ```
 
+## See also
+
+For runnable string/bytes/regex examples, see:
+- `samples/08_strings_bytes_regex.gad` — strings, bytes and regex literals
+- `samples/21_heredocs.gad` — heredocs and template heredocs
+
 ### The replace operator `|`
 
 `regexp | replacement` yields a unary replacer function. The replacement is the

@@ -7,6 +7,7 @@ narrows the choice, and the most specific matching method wins. This file walks
 through arity, type specificity, subtype hierarchies, catch-all fallbacks,
 unions, variadics, `met` extension/override, and structural (`met<…>`) params
 that dispatch by value.
+See doc/method-interfaces.md for detailed documentation.
 ***/
 
 // --- Overloads by arity -----------------------------------------------------

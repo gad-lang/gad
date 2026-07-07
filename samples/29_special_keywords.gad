@@ -5,6 +5,7 @@ Each `@…` keyword is an expression that yields a value directly (no function
 call): function/call introspection, module info, and the host globals.
 
 Run with:  gad run samples/29_special_keywords.gad
+See doc/special-keywords.md for detailed documentation.
 ***/
 
 /// @fn — the running function; here used for anonymous recursion.

@@ -2,6 +2,7 @@
 use_time.gad — the builtin `time` module (available without import).
 Member names are lowerCamelCase (time.now, time.date, time.utc, …);
 value methods are camelCase too (t.year(), t.add(), d.day()).
+See doc/stdlib-time.md for detailed documentation.
 ***/
 
 /// Durations: arithmetic on time.Hour/Minute or the `dur …` literal.

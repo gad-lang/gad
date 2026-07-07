@@ -75,6 +75,13 @@ header parameter matches anything):
 Stringer := meti { () <str> }
 HasAdd   := meti { (a int) }
 
+## See also
+
+For runnable examples, see:
+- `samples/12_method_interfaces.gad` — method interfaces with `meti` and `implements`
+- `samples/24_interfaces.gad` — structural `interface{…}` contracts
+- `samples/25_method_resolution.gad` — method resolution order with `met` overloads
+
 implements(func() => "x", Stringer)        // true
 implements(func(a) => a, Stringer)         // false  (wrong arity)
 implements(func(a int) => a, HasAdd)       // true

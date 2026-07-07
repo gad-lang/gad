@@ -3,6 +3,7 @@
 compile time. The value is an `Embedded`: read `.name`, `.path`, `.size` and its
 `.data` (bytes); a directory is indexed by entry name. Paths resolve against the
 running script's directory.
+See doc/embedding.md and doc/modules.md for detailed documentation.
 ***/
 
 // --- embed a single file ---------------------------------------------------

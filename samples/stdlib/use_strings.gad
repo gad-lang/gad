@@ -1,4 +1,6 @@
-/*** use_strings.gad — the builtin `strings` module (available without import). ***/
+/*** use_strings.gad — the builtin `strings` module (available without import).
+See doc/stdlib-strings.md for detailed documentation.
+***/
 
 s := "  Gad Lang  "
 println("upper:  ", strings.toUpper(s))

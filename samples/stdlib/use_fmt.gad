@@ -1,4 +1,6 @@
-/*** use_fmt.gad — the builtin `fmt` module (available without import). ***/
+/*** use_fmt.gad — the builtin `fmt` module (available without import).
+See doc/stdlib-fmt.md for detailed documentation.
+***/
 
 name := "Gad"
 n := 42

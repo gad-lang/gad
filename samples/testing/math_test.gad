@@ -7,6 +7,7 @@ command. Run it with:
     gad test -bench=. samples/testing      # also run benchmarks
 
 Every top-level `func test*(t)` is a test; `func bench*(t)` is a benchmark.
+See doc/stdlib-test.md for detailed documentation.
 ***/
 
 test := import("test")

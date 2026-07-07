@@ -1,6 +1,7 @@
 /***
 12_method_interfaces.gad — func-header values, `meti` interfaces and
 `implements` (a structural contract for callables).
+See doc/method-interfaces.md for detailed documentation.
 ***/
 
 /// A func-header value `<…>` describes a signature.

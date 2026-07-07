@@ -213,6 +213,14 @@ serve := func(; **opts) {
 
 ### Mixed (positional + named)
 
+## See also
+
+For runnable collection examples, see:
+- `samples/04_collections.gad` — arrays, dicts, spread literals, iteration
+- `samples/05_comprehensions.gad` — array and dict comprehensions
+- `samples/22_key_value_array.gad` — keyValue and keyValueArray
+- `samples/27_destructuring.gad` — array and named destructuring
+
 A `MixedParams` value carries both positional and named parts (the kind produced
 by the `(values...; name=value...)` literal), so it uses the full
 `( positional ; named )` pattern. The positional side takes a trailing `*rest`

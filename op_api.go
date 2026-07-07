@@ -196,24 +196,6 @@ type ObjectWithInBinOperator interface {
 	BinOpIn(vm *VM, right Object) (Object, error)
 }
 
-// ObjectAbsentCoalescer is the contract a container must satisfy to be used as a
-// parent (root or intermediate) by the absent-coalescing operators `!?` and
-// `!?=`. It must be readable (IndexGetter), writable (IndexSetter) and answer
-// key membership for the `in` operator (ObjectWithInBinOperator), so the
-// operators can test whether a key is present, descend into it, and — for
-// `!?=` — create or set it. Dict, *SyncDict and *ClassInstance implement it.
-type ObjectAbsentCoalescer interface {
-	IndexGetter
-	IndexSetter
-	ObjectWithInBinOperator
-}
-
-var (
-	_ ObjectAbsentCoalescer = Dict(nil)
-	_ ObjectAbsentCoalescer = (*SyncDict)(nil)
-	_ ObjectAbsentCoalescer = (*ClassInstance)(nil)
-)
-
 // ObjectWithAinBinOperator is implemented by an object that handles the `ain`
 // binary operator as the left operand.
 type ObjectWithAinBinOperator interface {

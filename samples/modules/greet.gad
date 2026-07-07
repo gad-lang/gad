@@ -1,6 +1,7 @@
 /***
 greet.gad — a parameterised module. Import-time params are passed as
 import("./greet.gad"; lang="pt").
+See doc/modules.md for detailed documentation.
 ***/
 
 param (;lang="en")

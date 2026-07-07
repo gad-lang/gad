@@ -2,6 +2,7 @@
 22_key_value_array.gad — keyValue (`[k=v]`) and keyValueArray (`(;…)`): an
 ordered list of key=value pairs (duplicate keys allowed) — the literal form
 behind named arguments.
+See doc/collections.md for detailed documentation.
 ***/
 
 // --- keyValue: a single pair ---

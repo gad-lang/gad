@@ -4,6 +4,7 @@ their self-assign forms `<<<=`, `>>>=`, `%%=`.
 
 These operators have no built-in meaning; each type gives them semantics with
 `met gad.binOp` (and, optionally, `met gad.selfAssignOp`).
+See doc/operators.md for detailed documentation.
 ***/
 
 /// Define `<<<` and `>>>` on ints as "push"/"pop"-ish helpers.

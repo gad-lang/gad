@@ -142,4 +142,4 @@ Further functionality is grouped into importable modules such as `json`, `os`,
 json := import("json")
 ```
 
-See the generated `stdlib-*.md` files for per-module references.
+See the generated `stdlib-*.md` files for per-module references. For runnable examples, see `samples/stdlib/` (`use_fmt.gad`, `use_strings.gad`, `use_time.gad`, `use_json.gad`, `use_base64.gad`).

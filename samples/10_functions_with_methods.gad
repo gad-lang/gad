@@ -1,6 +1,7 @@
 /***
 10_functions_with_methods.gad — typed parameters, functions with methods
 (overloads), the `met` statement, and properties (`prop`).
+See doc/functions.md and doc/method-interfaces.md for detailed documentation.
 ***/
 
 // --- Typed parameters -------------------------------------------------------

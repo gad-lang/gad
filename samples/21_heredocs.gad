@@ -5,6 +5,7 @@
   ``` ... ```     raw heredoc  -> rawStr  (verbatim: no escapes, no interpolation)
   #""" ... """    template heredoc      (str, with {expr} interpolation)
   #``` ... ```    template raw heredoc  (rawStr, verbatim, with {expr})
+See doc/strings-bytes-regex.md for detailed documentation.
 ***/
 
 // --- heredoc: single line ---

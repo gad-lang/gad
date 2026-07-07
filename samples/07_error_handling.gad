@@ -1,4 +1,6 @@
-/*** 07_error_handling.gad — errors, try/catch/finally and the `or` fallback. ***/
+/*** 07_error_handling.gad — errors, try/catch/finally and the `or` fallback.
+See doc/error-handling.md for detailed documentation.
+***/
 
 /// An error value carries .name and .message and is falsy.
 err := error("oops")

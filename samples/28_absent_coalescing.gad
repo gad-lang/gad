@@ -7,6 +7,7 @@ they test whether a KEY is present in its container, where `??` tests whether a
 VALUE is nil.
 
 Run with:  gad run samples/28_absent_coalescing.gad
+See doc/operators.md for detailed documentation.
 ***/
 
 /// Value form: member when the key exists (even if nil), otherwise the default.

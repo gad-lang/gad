@@ -66,7 +66,7 @@
         },
         {
           "name": "support.function.gad",
-          "match": "\\b(?:namedParamTypeCheck|iteratorInput|vmPushWriter|vmPopWriter|sortReverse|isSyncDict|implements|isCallable|isFunction|isIterable|isIterator|addMethod|enumerate|rawCaller|typeName|userData|isRawStr|contains|collect|obstart|println|isArray|isBytes|sprintf|toArray|globals|isError|iterate|isFloat|filter|reduce|repeat|isUint|isBool|delete|append|typeof|isChar|values|printf|isDict|dcopy|items|isInt|close|stdio|Class|obend|isNil|print|chars|isStr|flush|write|copy|repr|sort|each|cast|read|wrap|keys|cap|len|map|is)\\b"
+          "match": "\\b(?:namedParamTypeCheck|iteratorInput|vmPushWriter|vmPopWriter|sortReverse|isSyncDict|implements|isCallable|isFunction|isIterable|isIterator|addMethod|enumerate|rawCaller|typeName|userData|isRawStr|contains|obstart|println|collect|isError|sprintf|toArray|isFloat|iterate|isArray|isBytes|append|reduce|repeat|isUint|isBool|filter|delete|typeof|isChar|values|printf|isDict|flush|items|isInt|dcopy|stdio|close|obend|isNil|print|Class|isStr|chars|write|cast|repr|sort|copy|each|read|wrap|keys|cap|len|map|is)\\b"
         }
       ]
     },

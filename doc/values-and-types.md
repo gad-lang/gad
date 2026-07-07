@@ -272,3 +272,7 @@ c := copy(a)    // independent copy
 c[0] = 0
 println(a[0])   // 99
 ```
+
+## See also
+
+For a runnable tour of the built-in types, see `samples/02_values_and_types.gad`.

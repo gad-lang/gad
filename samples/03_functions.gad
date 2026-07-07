@@ -1,4 +1,6 @@
-/*** 03_functions.gad — functions, arrow closures, closures and variadics. ***/
+/*** 03_functions.gad — functions, arrow closures, closures and variadics.
+See doc/functions.md for detailed documentation.
+***/
 
 /// Regular function.
 sum := func(a, b) {

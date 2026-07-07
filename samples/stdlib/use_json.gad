@@ -1,4 +1,6 @@
-/*** use_json.gad — the builtin `json` module: encode and decode. ***/
+/*** use_json.gad — the builtin `json` module: encode and decode.
+See doc/stdlib-json.md for detailed documentation.
+***/
 
 json := import("json")
 

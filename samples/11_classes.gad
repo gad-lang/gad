@@ -1,6 +1,7 @@
 /***
 11_classes.gad — the class system: fields, methods, properties,
 constructors, inheritance and `met` extensions.
+See doc/classes.md for detailed documentation.
 ***/
 
 // --- a class with fields, a constructor and methods ---

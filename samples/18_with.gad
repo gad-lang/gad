@@ -4,6 +4,8 @@
 `with` runs a resource's enter/exit hooks around a block so cleanup always
 happens, even on an error. A resource provides `enter()` / `exit(err)`
 methods (or the Go ObjectEnter/ObjectExit interfaces).
+
+See doc/control-flow.md for detailed documentation.
 ***/
 
 Res := Class("Res", (cls, define) => define(; fields = (; name = (= ""), open = (= false)),

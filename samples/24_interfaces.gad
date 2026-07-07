@@ -2,6 +2,7 @@
 24_interfaces.gad — the `interface { … }` construct: a structural contract of
 typed fields, get/set/prop accessors and required methods. It compiles to an
 `Interface` value whose members are read by indexing.
+See doc/method-interfaces.md for detailed documentation.
 ***/
 
 // A parent interface, spread into `Shape` with `*Base` below.

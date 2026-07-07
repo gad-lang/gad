@@ -190,3 +190,9 @@ data := "[" + (with open("g") as g: g.read()) + "]"
 `gad.enter(resource)`. The hooks are dispatched through the `gad.enter` /
 `gad.exit` functions in the global [`gad`](operators.md#operator-handlers-and-the-gad-namespace)
 namespace.
+
+## See also
+
+For runnable control-flow examples, see:
+- `samples/06_control_flow.gad` — if/else, for loops and match
+- `samples/18_with.gad` — the `with` context manager

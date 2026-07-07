@@ -1,4 +1,6 @@
-/*** 06_control_flow.gad — if/else, for loops and match expressions. ***/
+/*** 06_control_flow.gad — if/else, for loops and match expressions.
+See doc/control-flow.md for detailed documentation.
+***/
 
 classify := func(n) {
     // match (PHP 8-style) yields the first matching arm; the subject needs no

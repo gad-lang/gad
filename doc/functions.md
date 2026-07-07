@@ -315,6 +315,12 @@ println(safe())   // recovered: error: boom
 
 ### Block-scoped: deferb
 
+## See also
+
+For runnable function examples, see:
+- `samples/03_functions.gad` — functions, closures, variadics
+- `samples/10_functions_with_methods.gad` — typed params, overloads, `met`, `prop`
+
 `deferb` (and `deferb_ok` / `deferb_err`) run when the **enclosing block**
 exits, rather than the whole function — useful for scoped cleanup. Block defers
 have no `$ret` (a block has no return value).

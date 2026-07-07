@@ -330,3 +330,7 @@ If s is rawstr, returns Array of Rawstr, otherwise, Array of Str.
 
 Truncate words in s to maxLen concatenated with emph. If atlimit is Falsy,
 limits at word count equals to max, otherwise at length of s equals to max.
+
+## See also
+
+For a runnable example, see `samples/stdlib/use_strings.gad`.

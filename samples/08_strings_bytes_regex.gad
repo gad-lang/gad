@@ -1,4 +1,6 @@
-/*** 08_strings_bytes_regex.gad — strings, bytes literals and regex. ***/
+/*** 08_strings_bytes_regex.gad — strings, bytes literals and regex.
+See doc/strings-bytes-regex.md for detailed documentation.
+***/
 
 s := "Hello, Gad"
 println("upper:", chars(s))           // characters

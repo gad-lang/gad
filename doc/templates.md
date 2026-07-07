@@ -137,3 +137,9 @@ CLI flags win over the `.gad.yaml` config. Either delimiter flag implies
 `gad fmt` formats templates: the literal text is preserved verbatim, the Gad
 code inside tags is formatted, and the tags are kept inline. The block
 terminator is normalized to `{% end %}` and trim markers are preserved.
+
+## See also
+
+For runnable template examples, see:
+- `samples/09_template.gad` — a template that generates JSON output
+- `samples/23_template.gadt` — a `.gadt` file (auto-template mode) with trim markers

@@ -140,7 +140,7 @@ walk = func(node, indent) {
 walk(embed("data"), "")
 ```
 
-See [`samples/26_embed.gad`](../samples/26_embed.gad).
+See [`samples/26_embed.gad`](../samples/26_embed.gad). A full multi-module example (importing a Greeter module and a math module with parameters) is available in [`samples/modules/`](../samples/modules/) — run with `gad run samples/modules/main.gad`.
 
 ## Shared State via globals
 

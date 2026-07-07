@@ -1,4 +1,6 @@
-/*** 13_ranges.gad — the `..` range operator and the Range builtin. ***/
+/*** 13_ranges.gad — the `..` range operator and the Range builtin.
+See doc/operators.md for detailed documentation.
+***/
 
 // `from .. to` is an inclusive, iterable range. It runs ascending or
 // descending depending on its bounds.

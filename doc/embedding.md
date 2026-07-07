@@ -285,3 +285,7 @@ scripts — run under a cancellable context: `Eval.RunScript(ctx, …)` for a wh
 script, or `Invoker.WithContext(ctx)` for a single call (see
 [Calling gad functions from Go](#calling-gad-functions-from-go)). A cancelled
 context aborts the VM tree at the next instruction.
+
+## See also
+
+For a runnable `embed()` example in Gad, see `samples/26_embed.gad`.

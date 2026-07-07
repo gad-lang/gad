@@ -190,3 +190,7 @@ gad ide --static web/app/dist samples            # equivalent, after a build
 
 To embed Gad in a Go program instead of running it from the CLI, see
 [Embedding in Go](embedding.md).
+
+## See also
+
+For a runnable tour of the basics, see `samples/01_hello.gad`.

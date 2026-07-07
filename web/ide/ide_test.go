@@ -688,9 +688,9 @@ func TestDebugModulePathsAreRelative(t *testing.T) {
 	}
 	h := s.Handler()
 
-	// Stop after the import (line 8) so mathx is bound.
+	// Stop after the import (line 9) so mathx is bound.
 	resp := decode[DebugResponse](t, do(t, h, "POST", "/api/ide/debug/start",
-		StartRequest{Path: "main.gad", Source: string(src), Breakpoints: []int{8}}))
+		StartRequest{Path: "main.gad", Source: string(src), Breakpoints: []int{9}}))
 	if resp.State != "stopped" {
 		t.Fatalf("expected stopped, got %+v", resp)
 	}

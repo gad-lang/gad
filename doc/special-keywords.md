@@ -76,3 +76,7 @@ for k, v in @g { println(k, v) }       // iterate
 absent-coalescing operators and with `global` declaration defaults (`global
 (user !?= "guest")` lowers to `@g["user"] !?= "guest"`). See
 [Variables and Scopes](variables-and-scopes.md) and [Operators](operators.md).
+
+## See also
+
+For a runnable tour of all `@` keywords, see `samples/29_special_keywords.gad`.

@@ -469,3 +469,12 @@ a := {}
 a["func"] = 1   // ok
 // a.func = 1   // parse error
 ```
+
+## See also
+
+For runnable operator examples, see:
+- `samples/13_ranges.gad` — the `..` range operator
+- `samples/14_user_operators.gad` — user-defined binary operators
+- `samples/15_in_operator.gad` — the `in` membership operator
+- `samples/17_unary_operators.gad` — unary operators
+- `samples/28_absent_coalescing.gad` — absent-coalescing `!?` / `!?=`

@@ -483,3 +483,7 @@ Truncate returns the result of rounding t down to a multiple of duration.
 `isTime(any) <bool>`
 
 Reports whether any value is of time type.
+
+## See also
+
+For a runnable example, see `samples/stdlib/use_time.gad`.

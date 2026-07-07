@@ -2,6 +2,7 @@
 01_hello.gad — the basics: printing, variables and string templates.
 
 Run with:  gad run samples/01_hello.gad   (or open it in `gad ide`).
+See doc/getting-started.md for detailed documentation.
 ***/
 
 name := "Gad"
