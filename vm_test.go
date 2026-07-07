@@ -234,6 +234,18 @@ func TestVMDecl(t *testing.T) {
 	expectErrHas(t, `func _ () { global a }`, newOpts().CompilerError(),
 		`Compile Error: global not allowed in this scope`)
 
+	// `= v` default: apply when the global is nil OR absent (like ??=)
+	testExpectRun(t, `global (c = 2); return c`, nil, Int(2))                                  // absent
+	testExpectRun(t, `global (c = 2); return c`, newOpts().Globals(Dict{"c": Int(9)}), Int(9)) // present
+	testExpectRun(t, `global (c = 2); return c`, newOpts().Globals(Dict{"c": Nil}), Int(2))    // present-nil -> filled
+	// `!?= v` default: apply only when the global is absent
+	testExpectRun(t, `global (c !?= 2); return c`, nil, Int(2))                                  // absent
+	testExpectRun(t, `global (c !?= 2); return c`, newOpts().Globals(Dict{"c": Int(9)}), Int(9)) // present
+	testExpectRun(t, `global (c !?= 2); return c`, newOpts().Globals(Dict{"c": Nil}), Nil)       // present-nil -> kept
+	// mixed forms in one declaration
+	testExpectRun(t, `global (a, b, c = 2, d !?= 3); return [a, c, d]`,
+		newOpts().Globals(Dict{"a": Str("x")}), Array{Str("x"), Int(2), Int(3)})
+
 	testExpectRun(t, `var a; return a`, nil, Nil)
 	testExpectRun(t, `var (a); return a`, nil, Nil)
 	testExpectRun(t, `var (a = 1); return a`, nil, Int(1))

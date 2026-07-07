@@ -624,14 +624,49 @@ func (c *Compiler) compileDeclGlobal(nd *node.GenDecl) error {
 	}
 
 	for _, sp := range nd.Specs {
-		spec := sp.(*node.ParamSpec)
-		symbol, err := c.symbolTable.DefineGlobal(spec.Ident.Ident.Name)
+		var (
+			ident   *node.IdentExpr
+			value   node.Expr
+			absent  bool
+			typedID *node.TypedIdentExpr
+		)
+		switch spec := sp.(type) {
+		case *node.ParamSpec:
+			typedID = spec.Ident
+		case *node.NamedParamSpec:
+			typedID = spec.Ident
+			value = spec.Value
+			absent = spec.AbsentDefault
+		default:
+			return c.Errorf(nd, "invalid global declaration spec %T", sp)
+		}
+		ident = typedID.Ident
+
+		symbol, err := c.symbolTable.DefineGlobal(ident.Name)
 		if err != nil {
 			return c.error(nd, err)
 		}
+		symbol.Index = c.addConstant(Str(ident.Name))
 
-		idx := c.addConstant(Str(spec.Ident.Ident.Name))
-		symbol.Index = idx
+		if value == nil {
+			continue
+		}
+		// Emit the default. `= v` applies when the global is nil or absent
+		// (`name ??= v`); `!?= v` applies only when it is absent, tested against
+		// the live globals object (`globals()[name] !?= v`).
+		pos := ident.Pos()
+		var stmt node.Stmt
+		if absent {
+			target := node.EIndex(
+				node.ECall(node.EIdent("globals", pos), pos, pos),
+				node.Str(ident.Name, pos), pos, pos)
+			stmt = node.SAssign([]node.Expr{target}, []node.Expr{value}, token.AbsentAssign, pos)
+		} else {
+			stmt = node.SAssign([]node.Expr{ident}, []node.Expr{value}, token.NullichAssign, pos)
+		}
+		if err := c.Compile(stmt); err != nil {
+			return err
+		}
 	}
 	return nil
 }

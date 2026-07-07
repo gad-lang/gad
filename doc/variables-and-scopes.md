@@ -51,8 +51,8 @@ Named arguments and defaults follow the same rules as
 
 `global` declares variables backed by the host-provided globals object. Reads
 and writes go through that object, so globals are how an embedding Go program
-exchanges data with a script (and how source modules share state). Initial
-values are illegal; the statement may appear multiple times.
+exchanges data with a script (and how source modules share state). The statement
+may appear multiple times.
 
 ```go
 global foo
@@ -64,6 +64,25 @@ println(g["foo"])  // 10
 ```
 
 If the host passes `nil` for globals, a temporary object is used.
+
+### Defaults
+
+A grouped `global (…)` may give a name a default that is applied only when the
+host did not already provide a value. There are two flavours, matching the
+coalescing operators:
+
+- `name = value` applies the default when the global is **nil or absent**
+  (like `name ??= value`).
+- `name !?= value` applies it only when the global is **absent**; a value the
+  host set to `nil` is kept (like `globals()["name"] !?= value`).
+
+```go
+global (page = 1, limit = 20)   // page/limit default unless the host set them
+global (user !?= "guest")       // only when "user" is not provided at all
+
+// mix plain names and both default forms
+global (db, verbose = no, trace !?= no)
+```
 
 ## var
 

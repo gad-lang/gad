@@ -75,6 +75,9 @@ type NamedParamSpec struct {
 	Ident *TypedIdentExpr
 	Value Expr
 	Var   bool
+	// AbsentDefault marks a `global` default written with `!?=` (apply only when
+	// the name is absent) instead of `=` (apply when nil or absent).
+	AbsentDefault bool
 }
 
 // specNode() ensures that only spec nodes can be assigned to a Spec.

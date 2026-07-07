@@ -1,0 +1,48 @@
+/***
+28_absent_coalescing.gad — the `!?` / `!?=` absent-coalescing operators and
+`global` defaults.
+
+`!?` / `!?=` are the existence-based counterparts of the nullish `??` / `??=`:
+they test whether a KEY is present in its container, where `??` tests whether a
+VALUE is nil.
+
+Run with:  gad run samples/28_absent_coalescing.gad
+***/
+
+/// Value form: member when the key exists (even if nil), otherwise the default.
+a := {b: 5}
+println(a.b !? 9)        // 5
+
+a = {b: nil}
+println(a.b !? 9)        // nil   — key present, value is nil
+println(a.b ?? 9)        // 9     — contrast: ?? is nil-based
+
+a = {}
+println(a.b !? 9)        // 9     — key absent
+
+/// Assignment form: assign only when the key is absent (value is lazy).
+a = {b: nil}
+a.b !?= 9                // no-op — key already present
+println(a.b)            // nil
+a = {}
+a.b !?= 9               // assigns — key absent
+println(a.b)           // 9
+
+/// Deep paths: `!?` reads safely; `!?=` auto-creates intermediate dicts.
+box := {}
+println(box.x.y.z !? "missing")   // missing (nothing created)
+box.x.y.z !?= 42
+println(box)                      // {x: {y: {z: 42}}}
+
+/// Class instances are containers too (their fields are the keys).
+class Point { x = 0 }
+p := Point()
+println("x" in p, "y" in p)   // true false
+println(p.y !? -1)            // -1 — field y is absent
+p.y !?= 7
+println(p.y)                  // 7
+
+/// `global` defaults: `= v` fills when nil-or-absent, `!?= v` only when absent.
+/// With no host globals here, every name is absent, so both apply.
+global (page = 1, user !?= "guest")
+println(#"page={page} user={user}")   // page=1 user=guest

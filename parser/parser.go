@@ -2875,12 +2875,17 @@ func (p *Parser) ParseParamSpec(keyword token.Token, multi bool, prev []node.Spe
 		}
 	}
 
+	absentDefault := false
 	if multi && p.Token.Token == token.Comma {
 		p.Next()
 		p.SkipSpace()
 	} else if multi {
-		if p.Token.Token == token.Assign {
+		// `= v` is a nil-or-absent default; for `global`, `!?= v` is an
+		// absent-only default.
+		if p.Token.Token == token.Assign ||
+			(keyword == token.Global && p.Token.Token == token.AbsentAssign) {
 			named = true
+			absentDefault = p.Token.Token == token.AbsentAssign
 			p.Next()
 			value = p.ParseExpr()
 			if p.Token.Token == token.Comma || (p.Token.Token == token.Semicolon && p.Token.Literal == "\n") {
@@ -2902,8 +2907,9 @@ func (p *Parser) ParseParamSpec(keyword token.Token, multi bool, prev []node.Spe
 			p.Error(pos, fmt.Sprintf("wrong %s declaration", keyword.String()))
 		}
 		return &node.NamedParamSpec{
-			Ident: ident,
-			Value: value,
+			Ident:         ident,
+			Value:         value,
+			AbsentDefault: absentDefault,
 		}
 	}
 
