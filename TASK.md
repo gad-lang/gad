@@ -362,3 +362,122 @@
       samples/testing/math_test.gad has a nested `test sum { … }` with subtest
       doc comments; `gad test samples/testing` -> 9 passed, 0 failed, 1 skipped;
       fmt idempotent. Docs: doc/stdlib-test.md (Subtests section + t.helper/t.run).
+- [x] allow const decl for deconstructing of arrays, named params and dict forms. example `const {x} = {a:1, x:2}`, `const [a, b] = [1, 2]`
+      DONE (3 commits). Grew beyond the original ask into the full destructuring
+      surface:
+      (1) 7d2fac5 — `const`/`var` accept destructuring patterns (`const {x} = d`,
+          `const [a, b] = arr`, `var {k: v, **rest} = d`); const bindings are
+          immutable. Also added the `[a, b]` bracket array form at statement level
+          (destructures even a single `[x]`). ValueSpec gained a Pattern field;
+          ParseValueSpec parses a `{`/`[` pattern and compileDeclValue routes it
+          through compileAssignStmt with the const/var keyword.
+      (2) 914b451 — array destructuring with a trailing `*rest` (single star):
+          `a, b, *rest = src` collects the remaining elements as a fresh array
+          (fixed targets still pad nil; rest empty when source is short). Works in
+          the comma, bracket and const/var forms; `*rest` must be last. New
+          private builtin `:makeArrayRest` (MakeArray truncates, so it can't slice
+          a rest); parser accepts a leading `*expr` (ArgVarLit) in expr lists.
+      (3) 4d94735 — parallel multi-value assignment `a, b = 1, 2` (and
+          `a, b, *rest = 1, 2, 3, 4`): several right-side expressions with several
+          targets desugar to a synthetic ArrayExpr and reuse the array
+          destructuring, so spreads flatten, `*rest` applies, selector/index
+          targets work, and leniency matches destructuring (extra drop, missing
+          pad nil). A single target with several values (`x = 1, 2`) still errors.
+      Evidence: `go build/test/vet ./...` and `-race .` `./parser/...` all clean.
+      Tests: TestVMConstDestructure (dict/bracket/const/array-rest/rest-not-last/
+      const-rest immutability + comma-form guards), TestVMDestructuring (parallel
+      forms, leniency, spread, single-target error), TestParseBracketDestructure /
+      TestParseConstDestructure (round-trips incl. `*rest`). Sample 27 and
+      doc/collections.md updated; sample runs (`bracket:`/`rest:`/`parallel:`/
+      `const:` lines) and is fmt-idempotent.
+- [x] the vm invoker is used to call compiledFunction from go functions. check it to preserve full call stack and root
+      abort root vm propagate invoked VM many nested leves. you know other logic to solve this problem? use context.WithCanceler() and test invokers over VM to cancel all
+      executions after time (this feature is must importanto to abort VM exec to prevent infinity loops and long time runner).
+      DONE (implemented + tested, not yet committed at time of writing).
+      Findings from reading the VM: the abort machinery was already most of the
+      way there — the run loop polls `atomic.LoadInt64(&vm.abort)` every opcode
+      and exits with ErrVMAborted; `VM.Abort()` calls `pool.abort` which aborts
+      every VM in the pool; and ALL forked descendants (child, grandchild, …)
+      register FLAT in the ROOT's pool.vms, so `root.Abort()` already cascades to
+      every nested invoked VM. `Eval.run(ctx)` already wires ctx→root.Abort for
+      whole scripts (this is what `gad test -timeout` uses). The gap was the
+      Invoker: calling a CompiledFunction from Go had no context wiring.
+      Change (vm_invoker.go): added `Invoker.WithContext(ctx)`. Invoke's compiled
+      path now runs the child under runWatched — a goroutine + select(ctx.Done,
+      finished); on cancel it aborts the tree from the root (abortTree ->
+      inv.vm.pool.root.Abort()), waits for the run goroutine to unwind, and
+      returns ctx.Err() (mapping ErrVMAborted via errors.Is). No context, or a
+      non-cancellable one (Background), runs inline with zero goroutine/overhead.
+      Semantics chosen: cancellation aborts the whole VM tree from the root
+      (matches the task's "cancel ALL executions" + "propagate many nested
+      levels"); reuses the existing proven pool cascade rather than adding
+      parent/child links. Trade-off: invoking with a deadline from *inside* a
+      running script would also stop the outer script — acceptable for a hard
+      watchdog; documented.
+      Evidence: `go build ./...`, `go vet ./...` clean.
+        - New TestInvokerContextCancel (new_test.go), 4 subtests, all PASS:
+          timeout aborts an infinite loop (`func(){ x:=0; for { x++ } }`) in
+          ~50ms returning context.DeadlineExceeded; pre-cancelled context returns
+          context.Canceled without running; timeout propagates to a nested
+          invoker (outer -> Go `spawn` builtin -> inner infinite loop on a
+          grandchild VM, aborts in ~50ms); a fast call under a live deadline
+          returns its result unaffected.
+        - `go test -race -count=3 -run TestInvokerContextCancel|TestVM_Invoke .`
+          -> ok (concurrency clean).
+        - `go test ./...` -> no failures.
+      Docs: doc/embedding.md — new "Calling gad functions from Go" section
+      (Invoker + WithContext cancellation/timeouts) and a Safety pointer.
+      Follow-ups DONE (second commit): (a) the watcher was extracted into a
+      shared runWithContext(ctx, root, fn) + rootOf(vm) helper, and the
+      Invoker.Caller() path (vmCompiledFuncCaller.Call, used by map/filter/sort
+      callbacks) now runs under it too — so a context-bound Invoker's VMCaller
+      also aborts on cancel (default nil ctx still runs inline). (b) `gad test`
+      now applies -timeout per test/bench, not only to the initial RunScript:
+      testOptions.invoke sets a fresh WithTimeout context (invokeCtx) on each
+      per-test invoker, so a test stuck in an infinite loop is aborted and
+      reported "context deadline exceeded" and the remaining tests still run.
+      Evidence: added TestInvokerContextCancel/caller_path_timeout (Caller()
+      aborts an infinite loop in ~50ms); `go build/test/vet ./...` and
+      -race -count=3 clean; manual `gad test -v -timeout 150ms` on a file with
+      alternating hang/ok tests -> hang1/hang2 FAIL (deadline), after1/after2
+      PASS (subsequent tests survive the root abort). Flag help + doc/stdlib-
+      test.md and doc/embedding.md updated.
+- [x] on "test" module, on equal of str objects, if failure raises Diff.
+      DONE (8dfafff). `T.equal` (stdlib/test/module.go) renders a unified line
+      diff (github.com/pmezard/go-difflib/difflib) when both operands are strings
+      (gad.Str/gad.RawStr via an asString helper) and they differ, instead of a
+      flat "not equal". Evidence: `go build/test ./...` clean.
+- [x] allow call with many variadic of args and named args. must on call, not in func header. example: `x(1, *arr1, 2, *arr2; b=1, **d1, c=2, **d2)`.
+      create tests docs and samples.
+      DONE. Call sites now accept several positional spreads interleaved with
+      plain args in any position (`f(1, *a, 2, *b)`, `f(*a, 9)`) and several named
+      `**` spreads interleaved with pairs (`f(; b=1, **d1, c=2, **d2)`); both
+      combine (`f(1, *a, 2, *b; b=1, **d1, c=2, **d2)`). Positionals concatenate
+      left→right; named keys merge left→right (later source wins).
+      Approach (desugar, no VM/ABI change): the named merge and interleaved-array
+      lowering already existed (KeyValueArray.Append handles **-> *NamedParamsVar
+      merge in any position; compileArrayLit lowers `[1, *a, 2, *b]`). So:
+      - Parser permissive (per the "validation on compiler not parser" note):
+        ParseKeyValueArrayLitAt no longer `break l`s on `**`, so multiple/non-
+        trailing `**` parse into the keyvaluearray elements (also enables
+        `(;a=1, **d, b=2)` literals).
+      - node.MultiParenExpr.ToCallArgs keeps a single TRAILING positional spread as
+        the compact Args.Var (unchanged bytecode) but keeps interleaved/multiple
+        spreads inline in Args.Values (source order); helper lastArgVarLit.
+      - compileCallArgs: when Values contains an inline *ArgVarLit it builds one
+        merged array via compileArrayLit and passes it as the sole var-arg; else
+        the old path. Named args already built one KeyValueArrayLit with all
+        pairs+**, so multiple `**` "just work" once parsed.
+      - Validation stays out of the grammar: func headers/params still allow only
+        a single trailing rest, enforced by the ToFuncParams conversions —
+        MultiParenExpr.ToFuncParams (already) and CallArgs.ToFuncParams (updated:
+        an *ArgVarLit inline in Values -> "a parameter list allows only one
+        trailing *rest"). FuncParams cannot represent multiple spreads, so this is
+        the earliest place it can be caught.
+      Evidence: `go build/test/vet ./...` clean; -race on the new + invoke tests
+      clean. Tests: TestVMCallManySpreads (interleaved pos, spread-first, multi
+      named, later-wins override, full form, + func-header single-rest still
+      rejected), TestParseCallManySpreads (round-trips incl. compact single
+      trailing). Docs: doc/functions.md (Spreading Arguments + Named Arguments).
+      Sample: samples/03_functions.gad `collect` + interleaved call, runs
+      (`[[1..6], {b,x,c}]`). Formatter round-trips (idempotent) the new forms.

@@ -6,9 +6,11 @@ ide:
     breakpoints:
         01_hello.gad:
             - 8
+        23_template.gadt:
+            - 33
     hiddenPanels: []
     panels:
-        activeGroup: "2"
+        activeGroup: "1"
         grid:
             __savedH: 967
             __savedW: 2144
@@ -94,6 +96,22 @@ ide:
                 title: Output
     run:
         01_hello.gad:
+            args: []
+            combine: false
+            disabled: []
+            safe: false
+            saveOut: ""
+            saveStderr: ""
+            saveStdout: ""
+        09_template.gad:
+            args: []
+            combine: false
+            disabled: []
+            safe: false
+            saveOut: ""
+            saveStderr: ""
+            saveStdout: ""
+        23_template.gadt:
             args: []
             combine: false
             disabled: []
