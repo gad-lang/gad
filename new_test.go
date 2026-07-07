@@ -3,13 +3,132 @@
 package gad_test
 
 import (
+	"context"
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/gad-lang/gad"
 	gadtime "github.com/gad-lang/gad/stdlib/time"
 )
+
+// compileFunc compiles src (which must `return func(){…}`) and returns the root
+// VM plus the produced CompiledFunction, ready to be driven by an Invoker.
+func compileFunc(t *testing.T, src string) (*VM, *CompiledFunction) {
+	t.Helper()
+	_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), DefaultCompileOptions)
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	vm := NewVM(NewBuiltins().Build(), bc)
+	ret, err := vm.Run()
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	fn, ok := ret.(*CompiledFunction)
+	if !ok {
+		t.Fatalf("want *CompiledFunction, got %T", ret)
+	}
+	return vm, fn
+}
+
+func TestInvokerContextCancel(t *testing.T) {
+	// A deadline aborts an infinite loop in the invoked function and Invoke
+	// returns the context's error promptly.
+	t.Run("timeout aborts infinite loop", func(t *testing.T) {
+		vm, fn := compileFunc(t, `return func() { x := 0; for { x++ } }`)
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+
+		type result struct {
+			err error
+			d   time.Duration
+		}
+		res := make(chan result, 1)
+		go func() {
+			start := time.Now()
+			_, err := NewInvoker(vm, fn).WithContext(ctx).Invoke(Args{}, nil)
+			res <- result{err, time.Since(start)}
+		}()
+
+		select {
+		case r := <-res:
+			if !errors.Is(r.err, context.DeadlineExceeded) {
+				t.Fatalf("want DeadlineExceeded, got %v", r.err)
+			}
+			if r.d > 2*time.Second {
+				t.Fatalf("abort took too long: %v", r.d)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("Invoke did not abort within 5s — context cancel not wired")
+		}
+	})
+
+	// An already-cancelled context returns immediately without running.
+	t.Run("pre-cancelled context", func(t *testing.T) {
+		vm, fn := compileFunc(t, `return func() { x := 0; for { x++ } }`)
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		if _, err := NewInvoker(vm, fn).WithContext(ctx).Invoke(Args{}, nil); !errors.Is(err, context.Canceled) {
+			t.Fatalf("want Canceled, got %v", err)
+		}
+	})
+
+	// The abort cascades through nested invokers: `outer` calls a Go builtin
+	// that invokes `inner` (an infinite loop) on a grandchild VM. A deadline on
+	// the top invoker aborts from the root, stopping the grandchild too.
+	t.Run("timeout propagates to nested invoker", func(t *testing.T) {
+		spawn := &Function{FuncName: "spawn", Value: func(c Call) (Object, error) {
+			return NewInvoker(c.VM, c.Args.Get(0)).Invoke(Args{}, nil)
+		}}
+		src := `
+global spawn
+inner := func() { x := 0; for { x++ } }
+return func() { return spawn(inner) }`
+		_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), DefaultCompileOptions)
+		if err != nil {
+			t.Fatalf("compile: %v", err)
+		}
+		vm := NewVM(NewBuiltins().Build(), bc)
+		ret, err := vm.RunOpts(&RunOpts{Globals: Dict{"spawn": spawn}})
+		if err != nil {
+			t.Fatalf("run: %v", err)
+		}
+		outer := ret.(*CompiledFunction)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+		res := make(chan error, 1)
+		go func() {
+			_, err := NewInvoker(vm, outer).WithContext(ctx).Invoke(Args{}, nil)
+			res <- err
+		}()
+		select {
+		case err := <-res:
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("want DeadlineExceeded, got %v", err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("nested invoke did not abort within 5s")
+		}
+	})
+
+	// A fast call with a live deadline returns its result, unaffected.
+	t.Run("fast call unaffected", func(t *testing.T) {
+		vm, fn := compileFunc(t, `return func() { return 1 + 2 }`)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		ret, err := NewInvoker(vm, fn).WithContext(ctx).Invoke(Args{}, nil)
+		if err != nil {
+			t.Fatalf("unexpected err: %v", err)
+		}
+		if !ret.Equal(Int(3)) {
+			t.Fatalf("want 3, got %v", ret)
+		}
+	})
+}
 
 func TestVMPrefixIncDec(t *testing.T) {
 	// prefix ++/-- mutate the variable and yield the new value

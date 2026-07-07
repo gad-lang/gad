@@ -226,6 +226,43 @@ func (o Array) SelfAssignOpAdd(_ *gad.VM, value gad.Object) (gad.Object, error) 
 A `VM` is reusable. After a run you can run again; `Clear` releases references
 and resets the stack and module cache between unrelated runs.
 
+## Calling gad functions from Go
+
+Use an `Invoker` to call a gad `CompiledFunction` (or any callable) from Go. It
+forks a child VM for a compiled function and reuses the caller's globals and I/O:
+
+```go
+inv := gad.NewInvoker(vm, fn)
+ret, err := inv.Invoke(gad.Args{args}, nil)
+```
+
+`Acquire`/`Release` reuse a pooled VM across several calls (about 3× faster than
+a fresh VM per call); call `Release` when done.
+
+### Cancellation and timeouts
+
+Bind a context with `WithContext` to abort a long-running or infinite invoked
+function. When the context is cancelled (a `context.WithTimeout` deadline or a
+`context.WithCancel` cancel) before the call returns, the whole VM tree is
+aborted from the root — so the invoked function **and every VM it spawned through
+nested invokers** stop — and `Invoke` returns the context's error
+(`context.DeadlineExceeded` / `context.Canceled`):
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+defer cancel()
+
+ret, err := gad.NewInvoker(vm, fn).WithContext(ctx).Invoke(gad.Args{args}, nil)
+if errors.Is(err, context.DeadlineExceeded) {
+    // the function ran past the deadline and was aborted
+}
+```
+
+Because the abort cascades from the root, a deadline stops nested invocations at
+every level. A nil or non-cancellable context (the default) adds no goroutine and
+no overhead. For running a whole *script* under a deadline, `Eval.RunScript(ctx,
+…)` wires the same context-to-abort guard.
+
 ## Modules from Go
 
 To make modules importable, build a module map and pass it through the compile
@@ -241,3 +278,9 @@ run untrusted scripts, disable risky builtins/modules before compilation (the
 CLI's `-safe` and `-disabled-modules` flags do this) and run inside whatever
 sandbox your application provides. Compilation is deterministic, and bytecode
 can be serialized for transport and executed later.
+
+To bound execution time — the main defense against infinite loops and runaway
+scripts — run under a cancellable context: `Eval.RunScript(ctx, …)` for a whole
+script, or `Invoker.WithContext(ctx)` for a single call (see
+[Calling gad functions from Go](#calling-gad-functions-from-go)). A cancelled
+context aborts the VM tree at the next instruction.

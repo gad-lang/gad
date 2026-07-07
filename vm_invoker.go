@@ -1,5 +1,10 @@
 package gad
 
+import (
+	"context"
+	"errors"
+)
+
 // Invoker invokes a given callee object (either a CompiledFunction or any other
 // callable object) with the given arguments.
 //
@@ -26,6 +31,7 @@ type Invoker struct {
 	isCompiled      bool
 	dorelease       bool
 	validArgs       bool
+	ctx             context.Context
 	prepareHandlers []func(vm *VM)
 }
 
@@ -33,6 +39,21 @@ type Invoker struct {
 func NewInvoker(vm *VM, callee Object) *Invoker {
 	inv := &Invoker{vm: vm, callee: callee}
 	_, inv.isCompiled = inv.callee.(*CompiledFunction)
+	return inv
+}
+
+// WithContext binds a context to the Invoker. When the context is cancelled (for
+// example a deadline from context.WithTimeout, or a context.WithCancel cancel)
+// before the invoked function returns, the whole VM tree is aborted from the
+// root, so the invoked CompiledFunction and every VM it spawned through nested
+// invokers — which all fork into the same root pool — stop, and Invoke returns
+// the context's error (context.DeadlineExceeded / context.Canceled). This is the
+// intended guard against infinite loops and long-running invoked code.
+//
+// A nil or non-cancellable context (the default, or context.Background) adds no
+// goroutine and no overhead: the callee runs inline as before.
+func (inv *Invoker) WithContext(ctx context.Context) *Invoker {
+	inv.ctx = ctx
 	return inv
 }
 
@@ -102,9 +123,64 @@ func (inv *Invoker) Invoke(args Args, namedArgs *NamedArgs) (Object, error) {
 				return nil, err
 			}
 		}
-		return inv.child.RunOpts(&RunOpts{Globals: inv.vm.globals, Args: args, NamedArgs: namedArgs})
+		child := inv.child
+		return inv.runWatched(func() (Object, error) {
+			return child.RunOpts(&RunOpts{Globals: inv.vm.globals, Args: args, NamedArgs: namedArgs})
+		})
 	}
 	return inv.invokeObject(inv.callee, args)
+}
+
+// runWatched runs fn, aborting the whole VM tree from the root if the Invoker's
+// context is cancelled before fn returns. It waits for fn's goroutine to unwind
+// after aborting (so nothing runs on the child VM once runWatched returns) and
+// reports the context's error in place of ErrVMAborted. With no context, or a
+// non-cancellable one, fn runs inline with no goroutine.
+func (inv *Invoker) runWatched(fn func() (Object, error)) (Object, error) {
+	ctx := inv.ctx
+	if ctx == nil {
+		return fn()
+	}
+	done := ctx.Done()
+	if done == nil {
+		return fn()
+	}
+	if err := ctx.Err(); err != nil {
+		return Nil, err
+	}
+
+	var (
+		ret      Object
+		err      error
+		finished = make(chan struct{})
+	)
+	go func() {
+		defer close(finished)
+		ret, err = fn()
+	}()
+
+	select {
+	case <-done:
+		inv.abortTree()
+		<-finished
+		if err == nil || errors.Is(err, ErrVMAborted) {
+			err = ctx.Err()
+		}
+		return ret, err
+	case <-finished:
+		return ret, err
+	}
+}
+
+// abortTree aborts the root VM, which cascades through the shared pool to every
+// forked descendant (child, grandchild, …), so a cancellation stops all nested
+// invoked executions.
+func (inv *Invoker) abortTree() {
+	root := inv.vm
+	if root.pool.root != nil {
+		root = root.pool.root
+	}
+	root.Abort()
 }
 
 func (inv *Invoker) invokeObject(co Object, args Args) (Object, error) {
