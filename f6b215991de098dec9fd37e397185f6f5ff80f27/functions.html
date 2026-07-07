@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Functions · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link active" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="functions">Functions</h1>
+<p><a href="index.html">← Back to index</a></p>
+<p>Functions are first-class values. A function literal is <code>func(params) { … }</code>, usually bound to a variable:</p>
+<pre><code class="language-go">sum := func(a, b) {
+    return a + b
+}
+
+var mul = func(a, b) {
+    return a * b
+}</code></pre>
+<p>A <code>func</code> with a name is a declaration that binds that name (a <code>const</code>); there is also a shorthand <code>name(params) { … }</code> / <code>name(params) =&gt; expr</code>:</p>
+<pre><code class="language-go">func area(r) {
+    return 3.14159 * r * r
+}
+double(x) =&gt; x * 2          // shorthand
+println(area(2), double(21))</code></pre>
+<h2 id="arrow-closures">Arrow Closures</h2>
+<p><code>(params) =&gt; expr</code> is a shorthand closure whose body is a single expression.</p>
+<pre><code class="language-go">double := (x) =&gt; x * 2
+add := (a, b) =&gt; a + b
+println(double(21), add(2, 3))   // 42 5</code></pre>
+<h2 id="closures">Closures</h2>
+<p>Inner functions capture variables from their enclosing scope.</p>
+<pre><code class="language-go">adder := func(base) {
+    return (x) =&gt; base + x   // captures 'base'
+}
+add5 := adder(5)
+println(add5(4))   // 9</code></pre>
+<h2 id="variadic-parameters">Variadic Parameters</h2>
+<p>The last positional parameter may be variadic (<code>*name</code>); it collects the remaining positional arguments into an array.</p>
+<pre><code class="language-go">variadic := func(a, b, *c) {
+    return [a, b, c]
+}
+variadic(1, 2, 3, 4)   // [1, 2, [3, 4]]
+variadic(1, 2)         // [1, 2, []]</code></pre>
+<p>Only the <strong>last</strong> positional parameter may be variadic.</p>
+<h2 id="spreading-arguments">Spreading Arguments</h2>
+<p>Use <code>*</code> to spread an array as positional arguments at the call site:</p>
+<pre><code class="language-go">f := func(a, b, c) { return a + b + c }
+f(*[1, 2, 3])   // 6
+f(1, *[2, 3])   // 6</code></pre>
+<p>Unlike a parameter list (where only the last parameter may be variadic), a <strong>call</strong> may use several spreads, interleaved with plain arguments, in any position — they are concatenated left to right:</p>
+<pre><code class="language-go">f := func(*args) { return args }
+f(0, *[1, 2], 5, *[3, 4])   // [0, 1, 2, 5, 3, 4]
+f(*[1, 2], 9)               // [1, 2, 9]</code></pre>
+<h2 id="named-arguments">Named Arguments</h2>
+<p>Parameters after a <code>;</code> are <strong>named</strong>. They may have defaults, and a trailing <code>**name</code> collects any extra named arguments into a <code>namedArgs</code> value. Callers pass named arguments after a <code>;</code> as <code>name=value</code>, and may spread a dict with <code>**</code>.</p>
+<pre><code class="language-go">greet := func(name; greeting="Hello", **rest) {
+    return greeting + ", " + name
+}
+
+greet("Gad")                       // "Hello, Gad"
+greet("Gad"; greeting="Hi")        // "Hi, Gad"
+greet("Gad"; **{greeting: "Hey"})  // "Hey, Gad"</code></pre>
+<p>At a call site the named side may likewise mix several <code>**</code> spreads with plain <code>name=value</code> pairs, in any order; they merge left to right, so a later source overrides an earlier key:</p>
+<pre><code class="language-go">f := func(; **kw) { return dict(kw) }
+f(; b=1, **{x: 10}, c=2, **{y: 20})   // {b: 1, x: 10, c: 2, y: 20}
+f(; a=1, **{a: 9})                    // {a: 9}   (later wins)</code></pre>
+<p>Interleaved positional and named spreads combine in one call:</p>
+<pre><code class="language-go">x(1, *arr1, 2, *arr2; b=1, **d1, c=2, **d2)</code></pre>
+<p>A function can declare both positional and named parameters, in that order:</p>
+<pre><code class="language-go">func(a, b, *pos; x, y=1, **named) { /* ... */ }</code></pre>
+<h2 id="argument-count">Argument Count</h2>
+<p>A call must supply the right number of positional arguments (variadics aside), or it raises <code>WrongNumArgumentsError</code>:</p>
+<pre><code class="language-go">f := func(a, b) {}
+f(1, 2, 3)   // RuntimeError: WrongNumArgumentsError</code></pre>
+<h2 id="functions-with-methods">Functions with methods</h2>
+<p>A function can hold several <strong>methods</strong> — overloads selected at call time by the argument types. Instead of a single parameter list and body, write a brace block whose entries are each <code>(params) &lt;ret&gt; {body}</code> (the return-type list and a <code>=&gt;</code> expression body are optional, exactly as for a plain function):</p>
+<pre><code class="language-go">func area {
+  (r float)          =&gt; 3.14159 * r * r        // circle
+  (w float, h float) =&gt; w * h                   // rectangle
+}
+
+area(2.0)        // 12.56636  — the one-parameter method
+area(2.0, 3.0)   // 6.0       — the two-parameter method</code></pre>
+<p>The dispatcher picks the method whose parameters match the call; if none match it raises <code>ErrNoMethodFound</code>. A named declaration (<code>func area { ... }</code>) binds the function to <code>area</code>; the same form is also valid as an expression value.</p>
+<p>New methods can be added to an existing callable later with the <code>met</code> statement:</p>
+<pre><code class="language-go">met area(s str) =&gt; "n/a"     // add a string overload
+area("x")                    // "n/a"</code></pre>
+<h3 id="overriding-and-old">Overriding and <code>$old</code></h3>
+<p><code>met ~name(...)</code> <strong>overrides</strong> an existing method signature instead of raising a duplicate-method error — the last definition wins. To wrap the previous implementation (super / around advice), give the override a special <code>$old</code> first parameter: it captures the method being replaced, is dropped from the real signature, and is callable inside the body:</p>
+<pre><code class="language-go">func step(n int) =&gt; n * 10
+met ~step($old, n int) =&gt; $old(n) + 1   // wrap the previous `step`
+step(3)                                 // 31  (30 + 1)</code></pre>
+<p><code>$old</code> is resolved from the remaining parameter types (here <code>(n int)</code>) at the moment of the override, so calling it runs the previous method rather than recursing into the new one. Overrides chain — each <code>$old</code> sees the layer beneath it. When no previous method matches the signature, <code>$old</code> is <code>nil</code>.</p>
+<p>Under the hood <code>$old</code> is <code>gad.methodFromArgs(step, int)</code>. That builtin is also usable directly: it returns the method a call would dispatch to, selected either by an example value or by a type name:</p>
+<pre><code class="language-go">gad.methodFromArgs(step, 4)      // the (int) method, chosen by value
+gad.methodFromArgs(step, int)    // the same method, chosen by type</code></pre>
+<p>It returns <code>nil</code> when no method matches.</p>
+<h2 id="properties-prop">Properties (prop)</h2>
+<p>A <strong>property</strong> is a named, callable value defined with the func-with-methods body syntax but introduced by the <code>prop</code> keyword. A method with no parameters is the *getter*; a method with one parameter is a *setter*, chosen by the argument type:</p>
+<pre><code class="language-go">var value
+prop x {
+  ()      =&gt; value          // getter:  x()
+  (v)     { value = v }     // setter:  x(v)
+  (v int) { value = "int= " + v }   // typed setter
+}
+
+x("a")   // setter runs
+x()      // "a"
+x(1)     // typed (int) setter
+x()      // "int= 1"</code></pre>
+<p>A single-accessor property may drop the braces: <code>prop pi() =&gt; 3.14</code>. Properties are also available through the [<code>Prop</code>](values-and-types.md#properties) constructor for building them programmatically.</p>
+<h2 id="computed-values">Computed values</h2>
+<p><code>(= expr)</code> — or <code>(= stmt; …; result)</code> for several statements — creates a <strong>computed value</strong>: a lazy callable that runs its body and yields the result each time it is called.</p>
+<pre><code class="language-go">v := 10
+c := (= v * 2)
+typeName(c)   // "ComputedValue"
+c()           // 20
+v = 100
+c()           // 200  — the body is re-evaluated on every call</code></pre>
+<p>Computed values shine as class field defaults, where each instance gets its own freshly-evaluated value (see <a href="classes.html#fields">Classes → Fields</a>):</p>
+<pre><code class="language-go">n := 0
+C := Class("C", (cls, define) =&gt; define(; fields = (; id = (= n++))))
+[C().id, C().id]   // [1, 2]</code></pre>
+<blockquote>See also <a href="method-interfaces.html">Func Headers and Method Interfaces</a> for describing and checking function signatures (<code>&lt;…&gt;</code>, <code>meti</code>, <code>implements</code>).</blockquote>
+<h2 id="return--assign-the-result">return = (assign the result)</h2>
+<p><code>return = expr</code> sets the function's result value without leaving the function; execution continues. The final result is whatever <code>return =</code> last set (any later bare expression value is ignored). This pairs naturally with <a href="#deferred-handlers">deferred handlers</a>, which can read and rewrite it via <code>$ret</code>.</p>
+<pre><code class="language-go">f := func(x) {
+    return = x   // bind the result slot to x
+    x++          // keep running; mutating x updates the result
+}
+println(f(10))   // 11</code></pre>
+<blockquote>Note: <code>return = x</code> captures a *reference* to the result slot; mutating <code>x</code> afterwards updates the result, which is why <code>f(10)</code> above yields <code>11</code>.</blockquote>
+<h2 id="deferred-handlers">Deferred Handlers</h2>
+<p><code>defer</code> registers a handler that runs when the enclosing <strong>function</strong> returns, in last-in-first-out order. Inside a handler, <code>$ret</code> is the (mutable) return value and <code>$err</code> is the error being propagated, if any.</p>
+<pre><code class="language-go">f := func() {
+    defer { println("cleanup") }
+    println("body")
+    return 1
+}
+f()   // prints: body, then cleanup</code></pre>
+<p>Three conditional variants run only on the matching exit:</p>
+<ul>
+<li><code>defer_ok { … }</code> — runs only on a normal return (no error).</li>
+<li><code>defer_err { … }</code> — runs only when an error is propagating.</li>
+<li><code>defer</code> — always runs.</li>
+</ul>
+<h3 id="shortcut-form">Shortcut form</h3>
+<p>Besides the block form, a handler may be a single statement written <strong>without braces</strong> — <code>defer Stmt</code>. It accepts a call (with <code>$ret</code> / <code>$err</code> passed as arguments), an assignment, or an increment/decrement:</p>
+<pre><code class="language-go">f := func() {
+    defer cleanup($ret, $err)   // call, receives the result and error
+    defer_ok log($ret)          // call, only on success
+    defer $ret += 1             // assignment to the result
+    return 1
+}</code></pre>
+<p>The same shortcut applies to the <code>deferb*</code> variants (<code>deferb out += "x"</code>, <code>deferb i++</code>, <code>deferb_err report($err)</code>).</p>
+<p>A <code>defer_err</code> handler can <strong>recover</strong> by clearing <code>$err</code> (and optionally setting <code>$ret</code>):</p>
+<pre><code class="language-go">safe := func() {
+    defer_err {
+        $ret = "recovered: " + str($err)
+        $err = nil          // swallow the error
+    }
+    throw "boom"
+}
+println(safe())   // recovered: error: boom</code></pre>
+<h3 id="block-scoped-deferb">Block-scoped: deferb</h3>
+<p><code>deferb</code> (and <code>deferb_ok</code> / <code>deferb_err</code>) run when the <strong>enclosing block</strong> exits, rather than the whole function — useful for scoped cleanup. Block defers have no <code>$ret</code> (a block has no return value).</p>
+<pre><code class="language-go">out := ""
+{
+    deferb { out += "d1 " }
+    deferb { out += "d2 " }
+    out += "body "
+}
+out += "after"
+println(out)   // body d2 d1 after   (LIFO at block exit)</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#arrow-closures">Arrow Closures</a><a href="#closures">Closures</a><a href="#variadic-parameters">Variadic Parameters</a><a href="#spreading-arguments">Spreading Arguments</a><a href="#named-arguments">Named Arguments</a><a href="#argument-count">Argument Count</a><a href="#functions-with-methods">Functions with methods</a><a href="#properties-prop">Properties (prop)</a><a href="#computed-values">Computed values</a><a href="#return--assign-the-result">return = (assign the result)</a><a href="#deferred-handlers">Deferred Handlers</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
