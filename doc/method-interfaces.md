@@ -174,3 +174,39 @@ interface Greeter { name str; greet() <str> }
 { name: "Ann", greet: func() => "hi" } :: Greeter   // ok — dict satisfies it
 { name: "Ann" } :: Greeter                           // rejected — no greet()
 ```
+
+### Reflected Go values
+
+A Go value handed to a script through reflection (`gad.NewReflectValue` /
+`gad.MustNewReflectValue`) satisfies interfaces by its **Go fields and methods**.
+This holds for every `ReflectValuer` kind — a struct, a named slice, a named
+array and a named map:
+
+```go
+// Go side:
+type Person struct{ Name string; Age int }
+func (p Person) Greet() string { return "hi " + p.Name }
+// … expose Person{…} to the script as the global `p` via NewReflectValue.
+```
+
+```go
+// Script side:
+interface Greeter { Name str; Greet() <str> }
+p :: Greeter        // ok — the reflected struct has the Name field and Greet()
+p.Greet()           // "hi Ann"
+```
+
+Two rules apply to the check:
+
+- **Fields** (and properties) are matched **structurally**: a required field the
+  Go value does not expose (an exported struct field, or a string key of a
+  reflected map) **rejects** it.
+- **Methods** are matched **optimistically** (duck typing): the reflected value
+  dispatches methods by name, so a required method is accepted at the interface
+  check and only resolved when actually called. Requiring a method the Go type
+  does not define therefore passes the `::` check but fails at call time.
+
+A `*gad.ReflectType` is itself a type assigner: `rt.CanAssign(obj)` reports
+whether `obj` is assignable to that Go type, and it can be used as a parameter
+type. See `ExampleNewReflectValue_structuralContract` and the
+`TestReflect*StructuralContract` tests in `objects_reflect_interface_test.go`.
