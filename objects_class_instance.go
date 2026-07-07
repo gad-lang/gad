@@ -12,16 +12,17 @@ import (
 const ObjectMethodsGetterFieldName = "__methods__"
 
 var (
-	_ Object           = (*ClassInstance)(nil)
-	_ Copier           = (*ClassInstance)(nil)
-	_ KeysGetter       = (*ClassInstance)(nil)
-	_ ValuesGetter     = (*ClassInstance)(nil)
-	_ ItemsGetter      = (*ClassInstance)(nil)
-	_ IndexGetter      = (*ClassInstance)(nil)
-	_ IndexSetter      = (*ClassInstance)(nil)
-	_ Printabler       = (*ClassInstance)(nil)
-	_ NameCallerObject = (*ClassInstance)(nil)
-	_ CallerObject     = (*ClassInstance)(nil)
+	_ Object                  = (*ClassInstance)(nil)
+	_ Copier                  = (*ClassInstance)(nil)
+	_ KeysGetter              = (*ClassInstance)(nil)
+	_ ValuesGetter            = (*ClassInstance)(nil)
+	_ ItemsGetter             = (*ClassInstance)(nil)
+	_ IndexGetter             = (*ClassInstance)(nil)
+	_ IndexSetter             = (*ClassInstance)(nil)
+	_ ObjectWithInBinOperator = (*ClassInstance)(nil)
+	_ Printabler              = (*ClassInstance)(nil)
+	_ NameCallerObject        = (*ClassInstance)(nil)
+	_ CallerObject            = (*ClassInstance)(nil)
 )
 
 // ClassInstance is a live object of a Class. It holds the instance's field
@@ -397,6 +398,18 @@ func (o *ClassInstance) IndexGet(vm *VM, index Object) (Object, error) {
 		return o.Parents(), nil
 	}
 	return o.GetFieldValue(vm, name)
+}
+
+// BinOpIn implements the `in` operator (ObjectWithInBinOperator): reports
+// whether v names a property or a field of the instance, including fields
+// inherited from parent instances. Membership is checked structurally, without
+// invoking any property getter.
+func (o *ClassInstance) BinOpIn(_ *VM, v Object) (Object, error) {
+	name := v.ToString()
+	if _, ok := o.GetPropertyGetter(name); ok {
+		return True, nil
+	}
+	return Bool(o.ResolveField(name) != nil), nil
 }
 
 // Equal implements Object interface.

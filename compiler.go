@@ -559,6 +559,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		switch nt.Token {
 		case token.LAnd, token.LOr, token.Nullich:
 			return c.compileLogical(nt)
+		case token.Absent:
+			return c.compileAbsent(nt)
 		default:
 			return c.compileBinaryExpr(nt)
 		}
@@ -677,6 +679,9 @@ func (c *Compiler) Compile(nd ast.Node) error {
 	case *node.DeclStmt:
 		return c.compileDeclStmt(nt)
 	case *node.AssignStmt:
+		if nt.Token == token.AbsentAssign {
+			return c.compileAbsentAssign(nt)
+		}
 		return c.compileAssignStmt(nt, nt.LHS, nt.RHS, token.Var, nt.Token)
 	case *node.IdentExpr:
 		return c.compileIdent(nt)

@@ -3720,6 +3720,7 @@ func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {
 		token.ShlAssign, token.ShrAssign, token.AndNotAssign,
 		token.TripleLessAssign, token.TripleGreaterAssign, token.DoubleModAssign,
 		token.NullichAssign, token.LOrAssign, token.PowAssign,
+		token.AbsentAssign,
 		token.IncAssign, token.DecAssign:
 		pos, tok := p.Token.Pos, p.Token.Token
 		p.Next()

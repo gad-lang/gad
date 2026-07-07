@@ -193,6 +193,85 @@ handlers := {}
 handlers.onClick?.()    // nil
 ```
 
+## Absent-Coalescing Operators
+
+`!?` and `!?=` are the **existence-based** counterparts of the nullish
+operators. Where `??`/`??=` test whether a value *is nil*, `!?`/`!?=` test
+whether a key *is present* in its container (a key that exists with a `nil`
+value still counts as present, so `!?` returns that `nil`).
+
+The left operand must be a selector (`a.b`) or index (`a[k]`) so the container
+and key are known.
+
+`a.b !? default` yields `a.b` when the key `b` exists in `a`, otherwise
+`default`. The default is evaluated lazily (only when the key is absent).
+
+```go
+a := {b: 5}
+println(a.b !? 9)   // 5
+a = {b: nil}
+println(a.b !? 9)   // nil   (key present — value is nil)
+println(a.b ?? 9)   // 9     (contrast: ?? is nil-based)
+a = {}
+println(a.b !? 9)   // 9     (key absent)
+
+k := "b"
+println(a[k] !? 9)  // 9     (index form; k is an expression)
+```
+
+`a.b !?= default` assigns `default` only when the key is **absent** (the value
+is evaluated lazily):
+
+```go
+a := {b: nil}
+a.b !?= 9           // no-op — key present (even though nil)
+println(a.b)        // nil
+a = {}
+a.b !?= 9           // assigns — key absent
+println(a.b)        // 9
+```
+
+### Deep paths
+
+Both operators walk multi-segment paths. `!?` reads the leaf only when the whole
+path is present (it never creates anything). `!?=` auto-creates missing
+intermediate containers as empty dicts, then sets the leaf only when it is
+absent:
+
+```go
+a := {}
+println(a.b.c.d !? 0)   // 0   (path absent — nothing created)
+println(a)              // {}
+
+a.b.c.d !?= 2           // creates a.b = {}, a.b.c = {}, sets a.b.c.d = 2
+println(a)              // {b: {c: {d: 2}}}
+```
+
+The root is evaluated once; key expressions are evaluated for both the
+membership test and the access, so keep them side-effect free.
+
+### Container contract
+
+Every parent along the path (root and intermediates) must implement
+[`ObjectAbsentCoalescer`](../op_api.go) — that is `IndexGetter`, `IndexSetter`
+and `ObjectWithInBinOperator` (the `in` membership operator). `Dict`, `*SyncDict`
+and `*ClassInstance` satisfy it. Descending through a value that is not such a
+container is a runtime error:
+
+```go
+a := {b: 2}
+a.b.c.d !?= 2       // error: 2 is not a container (no `in` operator)
+```
+
+```go
+// class instances work as containers (fields are the keys)
+class Point { x = 0 }
+p := Point()
+println("x" in p)   // true
+println(p.y !? -1)  // -1   (field y is absent)
+p.y !?= 5           // sets the y field
+```
+
 ## Assignment and Increment
 
 | Op    | Equivalent           | Op     | Equivalent            |

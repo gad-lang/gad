@@ -4519,6 +4519,21 @@ func TestParsePrecedence(t *testing.T) {
 	test.ExpectParseString(t, `for (x in y) { }`, `for (x in y) {}`)
 }
 
+func TestParseAbsentCoalescing(t *testing.T) {
+	// `!?` (absent) is a binary operator with the same precedence as `??`;
+	// `!?=` is its self-assignment.
+	test.ExpectParseString(t, `a.b !? 2`, `(a.b !? 2)`)
+	test.ExpectParseString(t, `a[k] !? 2`, `(a[k] !? 2)`)
+	test.ExpectParseString(t, `a.b !?= 2`, `a.b !?= 2`)
+	test.ExpectParseString(t, `a[k] !?= 2`, `a[k] !?= 2`)
+	// same precedence as `??`, left associative
+	test.ExpectParseString(t, `x !? y ?? z`, `((x !? y) ?? z)`)
+	// `!` (not) and `!=` are unaffected by the new `!?` token
+	test.ExpectParseString(t, `!x`, `(!x)`)
+	test.ExpectParseString(t, `!!x`, `(!(!x))`)
+	test.ExpectParseString(t, `a != b`, `(a != b)`)
+}
+
 func TestParseNullishSelector(t *testing.T) {
 	// `?.(args)` is the nullish call (optional call); `.(expr)` computed selector
 	// was removed — use index `[expr]`.

@@ -2371,6 +2371,134 @@ func (c *Compiler) buildFuncHeaderObject(nd *node.FuncHeaderExpr) (*FuncHeaderOb
 	}, nil
 }
 
+// absentPath flattens a selector/index chain (`a.b[c].d`) into its root
+// expression and the ordered list of keys. Only selector and index links are
+// accepted, since the absent-coalescing operators walk keys by membership.
+func absentPath(lhs node.Expr) (root node.Expr, keys []node.Expr, ok bool) {
+	var rev []node.Expr
+	cur := lhs
+	for {
+		switch e := cur.(type) {
+		case *node.SelectorExpr:
+			rev = append(rev, e.Sel)
+			cur = e.X
+		case *node.IndexExpr:
+			rev = append(rev, e.Index)
+			cur = e.X
+		default:
+			if len(rev) == 0 {
+				return nil, nil, false
+			}
+			keys = make([]node.Expr, len(rev))
+			for i := range rev {
+				keys[i] = rev[len(rev)-1-i]
+			}
+			return cur, keys, true
+		}
+	}
+}
+
+const absentTmp = "$absent$r"
+
+// compileAbsent compiles `root.k0.k1…kn !? default` (absent coalescing): the
+// value at the end of the path when every key along it is present (a key
+// present with a nil value still counts), otherwise the default. The root is
+// evaluated once and the default lazily. Lowered to a block expression:
+//
+//	{ $r := root; if k0 in $r { $r = $r[k0]; … if kn in $r { return $r[kn] } }; return default }
+func (c *Compiler) compileAbsent(nd *node.BinaryExpr) error {
+	root, keys, ok := absentPath(nd.LHS)
+	if !ok {
+		return c.Errorf(nd, "operator '!?' requires a selector or index on the left (e.g. a.b !? x or a[k] !? x)")
+	}
+	pos := nd.TokenPos
+	r := func() *node.IdentExpr { return node.EIdent(absentTmp, pos) }
+
+	// Innermost: if last key present, return $r[lastKey].
+	last := len(keys) - 1
+	inner := node.Stmt(&node.IfStmt{
+		IfPos: pos,
+		Cond:  node.EBinary(keys[last], r(), token.In, pos),
+		Body:  node.SBlock(pos, pos, node.SReturn(pos, node.EIndex(r(), keys[last], pos, pos))),
+	})
+	// Wrap intermediates from the inside out: if ki present, descend and continue.
+	for i := last - 1; i >= 0; i-- {
+		inner = &node.IfStmt{
+			IfPos: pos,
+			Cond:  node.EBinary(keys[i], r(), token.In, pos),
+			Body: node.SBlock(pos, pos,
+				node.SAssign([]node.Expr{r()}, []node.Expr{node.EIndex(r(), keys[i], pos, pos)}, token.Assign, pos),
+				inner,
+			),
+		}
+	}
+	stmts := node.Stmts{
+		node.SAssign([]node.Expr{r()}, []node.Expr{root}, token.Define, pos),
+		inner,
+		node.SReturn(pos, nd.RHS),
+	}
+	// Immediately-invoked function: evaluates the root once, walks the path and
+	// returns the leaf, or the default on the fall-through (default stays lazy).
+	fn := &node.FuncExpr{
+		Type: &node.FuncType{FuncPos: pos},
+		Body: node.SBlock(pos, pos, stmts...),
+	}
+	return c.Compile(&node.CallExpr{Func: fn, CallArgs: node.CallArgs{LParen: pos, RParen: pos}})
+}
+
+// compileAbsentAssign compiles `root.k0.k1…kn !?= value` (absent-coalescing
+// assignment). Missing intermediate containers are auto-created as empty dicts,
+// and the leaf is set only when absent; the value is evaluated lazily. Lowered
+// to a scoped block:
+//
+//	{ $r := root; if !(k0 in $r) { $r[k0] = {} }; $r = $r[k0]; … if !(kn in $r) { $r[kn] = value } }
+func (c *Compiler) compileAbsentAssign(nd *node.AssignStmt) error {
+	if len(nd.LHS) != 1 || len(nd.RHS) != 1 {
+		return c.Errorf(nd, "operator '!?=' requires a single target and value")
+	}
+	root, keys, ok := absentPath(nd.LHS[0])
+	if !ok {
+		return c.Errorf(nd, "operator '!?=' requires a selector or index on the left (e.g. a.b !?= x or a[k] !?= x)")
+	}
+	pos := nd.TokenPos
+	r := func() *node.IdentExpr { return node.EIdent(absentTmp, pos) }
+	notIn := func(key node.Expr) node.Expr {
+		return node.EUnary(node.EBinary(key, r(), token.In, pos), token.Not, pos)
+	}
+
+	stmts := node.Stmts{
+		node.SAssign([]node.Expr{r()}, []node.Expr{root}, token.Define, pos),
+	}
+	// Intermediate keys: vivify an empty dict when absent, then descend.
+	for i := 0; i < len(keys)-1; i++ {
+		stmts = append(stmts,
+			&node.IfStmt{
+				IfPos: pos,
+				Cond:  notIn(keys[i]),
+				Body: node.SBlock(pos, pos, node.SAssign(
+					[]node.Expr{node.EIndex(r(), keys[i], pos, pos)},
+					[]node.Expr{node.EDict(pos, pos)},
+					token.Assign, pos)),
+			},
+			node.SAssign([]node.Expr{r()}, []node.Expr{node.EIndex(r(), keys[i], pos, pos)}, token.Assign, pos),
+		)
+	}
+	// Leaf: assign only when absent.
+	last := len(keys) - 1
+	stmts = append(stmts, &node.IfStmt{
+		IfPos: pos,
+		Cond:  notIn(keys[last]),
+		Body: node.SBlock(pos, pos, node.SAssign(
+			[]node.Expr{node.EIndex(r(), keys[last], pos, pos)},
+			[]node.Expr{nd.RHS[0]},
+			token.Assign, pos)),
+	})
+
+	block := node.SBlock(pos, pos, stmts...)
+	block.Scoped = true
+	return c.Compile(block)
+}
+
 func (c *Compiler) compileLogical(nd *node.BinaryExpr) error {
 	// left side term
 	if err := c.Compile(nd.LHS); err != nil {

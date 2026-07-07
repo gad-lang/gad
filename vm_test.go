@@ -795,6 +795,62 @@ func TestVMNullishCall(t *testing.T) {
 	testExpectRun(t, `f := (; x=0) => x; return f?.(; x=7)`, nil, Int(7))
 }
 
+func TestVMAbsentCoalescing(t *testing.T) {
+	// value form `x.k !? d`: member value when the key is present (even nil),
+	// otherwise the default. Contrast with `??` which is nil-based.
+	testExpectRun(t, `a := {b: 5}; return a.b !? 9`, nil, Int(5))
+	testExpectRun(t, `a := {b: nil}; return a.b !? 9`, nil, Nil) // present-nil stays nil
+	testExpectRun(t, `a := {}; return a.b !? 9`, nil, Int(9))    // absent -> default
+	testExpectRun(t, `a := {b: nil}; return a.b ?? 9`, nil, Int(9))
+	// index form, literal and expression key
+	testExpectRun(t, `a := {b: 2}; return a["b"] !? 9`, nil, Int(2))
+	testExpectRun(t, `a := {}; return a["b"] !? 9`, nil, Int(9))
+	testExpectRun(t, `a := {b: 2}; k := "b"; return a[k] !? 9`, nil, Int(2))
+	testExpectRun(t, `a := {}; k := "b"; return a[k] !? 9`, nil, Int(9))
+	// assign form `x.k !?= d`: assign only when the key is absent
+	testExpectRun(t, `a := {b: 1}; a.b !?= 9; return a.b`, nil, Int(1))
+	testExpectRun(t, `a := {b: nil}; a.b !?= 9; return a.b`, nil, Nil) // present-nil untouched
+	testExpectRun(t, `a := {}; a.b !?= 9; return a.b`, nil, Int(9))
+	testExpectRun(t, `a := {}; k := "b"; a[k] !?= 9; return a[k]`, nil, Int(9))
+	testExpectRun(t, `a := {b: 1}; k := "b"; a[k] !?= 9; return a[k]`, nil, Int(1))
+	// chains with the nil-based operators
+	testExpectRun(t, `a := {b: 1}; return a.b !? 9 ?? 0`, nil, Int(1))
+
+	// deep read: value only when the whole path is present, no creation
+	testExpectRun(t, `a := {b: {c: {d: 7}}}; return a.b.c.d !? 0`, nil, Int(7))
+	testExpectRun(t, `a := {}; x := a.b.c.d !? 0; return [x, a]`, nil, Array{Int(0), Dict{}})
+	testExpectRun(t, `a := {b: {c: nil}}; return a.b.c !? 9`, nil, Nil)
+	// deep assign: intermediate dicts are auto-created; leaf set only when absent
+	testExpectRun(t, `a := {}; a.b.c.d !?= 2; return a`, nil,
+		Dict{"b": Dict{"c": Dict{"d": Int(2)}}})
+	testExpectRun(t, `a := {b: {x: 1}}; a.b.c !?= 9; return a.b.c`, nil, Int(9))
+	testExpectRun(t, `a := {b: {c: 5}}; a.b.c !?= 9; return a.b.c`, nil, Int(5))
+	testExpectRun(t, `a := {}; k := "b"; a[k].c !?= 4; return a`, nil,
+		Dict{"b": Dict{"c": Int(4)}})
+	// default/value are evaluated lazily (not touched when the key is present)
+	testExpectRun(t,
+		`n := 0; f := () => { n++; return 99 }; a := {b: 1}; x := a.b !? f(); return [x, n]`,
+		nil, Array{Int(1), Int(0)})
+	testExpectRun(t,
+		`n := 0; f := () => { n++; return 99 }; a := {b: 1}; a.b !?= f(); return n`,
+		nil, Int(0))
+}
+
+func TestVMAbsentCoalescingError(t *testing.T) {
+	// descending through a non-container intermediate is a runtime error
+	expectErrHas(t, `a := {b: 2}; a.b.c.d !?= 2`, newOpts().Skip2Pass(), `in`)
+}
+
+func TestVMAbsentCoalescingClassInstance(t *testing.T) {
+	// class instances implement ObjectAbsentCoalescer (fields are the keys)
+	testExpectRun(t, `class P { x = 0 }; p := P(); return "x" in p`, nil, True)
+	testExpectRun(t, `class P { x = 0 }; p := P(); return "y" in p`, nil, False)
+	testExpectRun(t, `class P { x = 1 }; p := P(); return p.x !? 9`, nil, Int(1))
+	testExpectRun(t, `class P { x = 1 }; p := P(); return p.y !? 9`, nil, Int(9))
+	testExpectRun(t, `class P { x = 0 }; p := P(); p.y !?= 5; return p.y`, nil, Int(5))
+	testExpectRun(t, `class P { x = 0 }; p := P(); p.x !?= 9; return p.x`, nil, Int(0))
+}
+
 func TestVMKeyValue(t *testing.T) {
 	testExpectRun(t, `return [a=no]`, nil, &KeyValue{Str("a"), No})
 	testExpectRun(t, `return [a=yes]`, nil, &KeyValue{Str("a"), Yes})

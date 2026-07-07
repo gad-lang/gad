@@ -613,8 +613,9 @@ do:
 				t.Token = token.Assign
 			}
 		case '!':
-			// `!` `!=` `!==` (NotSame)
-			if s.Ch == '=' {
+			// `!` `!=` `!==` (NotSame)  `!?` (Absent)  `!?=` (AbsentAssign)
+			switch s.Ch {
+			case '=':
 				s.Next()
 				if s.Ch == '=' {
 					s.Next()
@@ -622,7 +623,15 @@ do:
 				} else {
 					t.Token = token.NotEqual
 				}
-			} else {
+			case '?':
+				s.Next()
+				if s.Ch == '=' {
+					s.Next()
+					t.Token = token.AbsentAssign
+				} else {
+					t.Token = token.Absent
+				}
+			default:
 				t.Token = token.Not
 			}
 		case '&':

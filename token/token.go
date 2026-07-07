@@ -70,6 +70,7 @@ const (
 	GroupBinaryOperatorEnd
 	GroupDefaultOperatorBegin
 	Nullich // ??
+	Absent  // !?
 	LOr     // ||
 	GroupDefaultOperatorEnd
 	GroupAssignOperatorBegin
@@ -95,6 +96,7 @@ const (
 	AndNotAssign        // &^=
 	LOrAssign           // ||=
 	NullichAssign       // ??=
+	AbsentAssign        // !?=
 	GroupSelfAssignOperatorEnd
 	GroupAssignOperatorEnd
 	GroupUnaryOperatorBegin
@@ -285,9 +287,11 @@ var tokens = [...]string{
 	AndNotAssign:        "&^=",
 	LOrAssign:           "||=",
 	NullichAssign:       "??=",
+	AbsentAssign:        "!?=",
 	LAnd:                "&&",
 	LOr:                 "||",
 	Nullich:             "??",
+	Absent:              "!?",
 	Inc:                 "++",
 	Dec:                 "--",
 	Equal:               "==",
@@ -433,6 +437,7 @@ var tokenNames = [...]string{
 	GroupBinaryOperatorEnd:       "GroupBinaryOperatorEnd",
 	GroupDefaultOperatorBegin:    "GroupDefaultOperatorBegin",
 	Nullich:                      "Nullich",
+	Absent:                       "Absent",
 	LOr:                          "LOr",
 	GroupDefaultOperatorEnd:      "GroupDefaultOperatorEnd",
 	GroupAssignOperatorBegin:     "GroupAssignOperatorBegin",
@@ -458,6 +463,7 @@ var tokenNames = [...]string{
 	AndNotAssign:                 "AndNotAssign",
 	LOrAssign:                    "LOrAssign",
 	NullichAssign:                "NullichAssign",
+	AbsentAssign:                 "AbsentAssign",
 	GroupSelfAssignOperatorEnd:   "GroupSelfAssignOperatorEnd",
 	GroupAssignOperatorEnd:       "GroupAssignOperatorEnd",
 	GroupUnaryOperatorBegin:      "GroupUnaryOperatorBegin",
@@ -552,7 +558,7 @@ const LowestPrec = 0
 // Precedence returns the precedence for the operator token.
 func (tok Token) Precedence() int {
 	switch tok {
-	case LOr, Nullich:
+	case LOr, Nullich, Absent:
 		return 2
 	case LAnd:
 		return 3
@@ -730,6 +736,8 @@ func Unassign(tok Token) Token {
 		return LOr
 	case NullichAssign:
 		return Nullich
+	case AbsentAssign:
+		return Absent
 	default:
 		return -1
 	}
