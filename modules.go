@@ -244,6 +244,7 @@ func (m *BuiltinInitModule) Import(_ context.Context, module *ModuleSpec) (any, 
 }
 
 type BuiltinCompileModuleContext struct {
+	Node     ast.Node
 	Compiler *Compiler
 	FileSet  *source.FileSet
 	Spec     *ModuleSpec

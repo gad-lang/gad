@@ -1095,6 +1095,7 @@ func (c *Compiler) fork(
 	child.module = c.module
 	child.parent = c
 	child.cfuncCache = c.cfuncCache
+	child.stack = c.stack
 	return child
 }
 

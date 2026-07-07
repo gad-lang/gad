@@ -2915,6 +2915,7 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 			fork.file = nil
 
 			if bc, err = v(&BuiltinCompileModuleContext{
+				Node:     nd,
 				Compiler: fork,
 				FileSet:  c.file.Set(),
 				Spec:     spec,
