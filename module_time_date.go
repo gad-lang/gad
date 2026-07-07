@@ -167,9 +167,9 @@ func (o CalendarDate) BinOpGreaterEq(_ *VM, right Object) (Object, error) {
 // calendarDateRHS converts a comparable right operand (CalendarDate, Uint or
 // Int) into a CalendarDate.
 func calendarDateRHS(right Object) (CalendarDate, bool) {
-	switch right.(type) {
+	switch r := right.(type) {
 	case CalendarDate:
-		return right.(CalendarDate), true
+		return r, true
 	case Uint, Int:
 		return CalendarDate(toUint64(right)), true
 	}

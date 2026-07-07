@@ -155,10 +155,7 @@ func canOptimizeExpr(expr node.Expr) bool {
 		return false
 	}
 
-	if exprHasUserOperator(expr) {
-		return false
-	}
-	return true
+	return !exprHasUserOperator(expr)
 }
 
 func canOptimizeInsts(constants []Object, insts []byte) bool {

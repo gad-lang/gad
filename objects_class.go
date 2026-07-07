@@ -483,10 +483,9 @@ func NewClass(name string, module *ModuleSpec) (t *Class) {
 
 func (Class) GadObjectType() {}
 
-func (t *Class) AssignTo(_ *VM, obj Object, to TypeAssigner) (_ Object, err error) {
+func (t *Class) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
 	if dst, _ := to.(*Class); dst != nil {
-		var ok bool
-		if ok, err = dst.CanAssign(obj); ok {
+		if ok, _ := dst.CanAssign(obj); ok {
 			return obj, nil
 		}
 	}

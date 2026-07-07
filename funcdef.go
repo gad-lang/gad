@@ -167,14 +167,6 @@ type Param struct {
 	Index        int
 }
 
-func newParam(name string, opt ...ParamOption) *Param {
-	p := &Param{Name: name}
-	for _, opt := range opt {
-		opt(p)
-	}
-	return p
-}
-
 func (p *Param) String() string {
 	var b strings.Builder
 	if p.Var {

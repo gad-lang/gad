@@ -106,7 +106,10 @@ generate: version
 
 .PHONY: lint
 lint: version check-delve
-	staticcheck -checks all,-SA1019,-ST1000 ./...
+	# -ST1000/-ST1020: the codebase uses intentional descriptive/group doc
+	# comments (e.g. one comment heading a type's operator-method group) that do
+	# not start with the symbol name.
+	staticcheck -checks all,-SA1019,-ST1000,-ST1020 ./...
 	go vet ./...
 
 .PHONY: generate-docs

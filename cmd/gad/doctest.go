@@ -28,7 +28,7 @@ func doctestCommand() *cc.Command {
 			"if any example fails.",
 		Run: func(ctx *cc.CommandContext) error {
 			if len(ctx.Args) == 0 {
-				return fmt.Errorf("no input: provide PATH...")
+				return fmt.Errorf("no input: provide a PATH argument")
 			}
 			return runDoctest(ctx)
 		},

@@ -24,12 +24,12 @@ func (b BinaryOperatorType) String() string {
 
 func (BinaryOperatorType) GadObjectType() {}
 
-func (t BinaryOperatorType) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
-	return assignByTypeChain(t, obj, to)
+func (b BinaryOperatorType) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
+	return assignByTypeChain(b, obj, to)
 }
 
-func (t BinaryOperatorType) CanAssign(obj Object) (bool, error) {
-	return canAssignByType(t, obj)
+func (b BinaryOperatorType) CanAssign(obj Object) (bool, error) {
+	return canAssignByType(b, obj)
 }
 
 func (b BinaryOperatorType) IsFalsy() bool {

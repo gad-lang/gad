@@ -322,14 +322,6 @@ func testHasPrefix(t *testing.T, s, pref string) {
 	}
 }
 
-func testContains(t *testing.T, s, pref string) {
-	t.Helper()
-	v := strings.Contains(s, pref)
-	if !assert.True(t, v) {
-		t.Fatalf("input: %q\nprefix: %q", s, pref)
-	}
-}
-
 type console struct {
 	buf *bytes.Buffer
 }

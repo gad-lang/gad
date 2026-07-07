@@ -4,12 +4,12 @@ type BuiltinObjTypeKey BuiltinType
 
 func (BuiltinObjTypeKey) GadObjectType() {}
 
-func (t BuiltinObjTypeKey) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
-	return assignByTypeChain(t, obj, to)
+func (b BuiltinObjTypeKey) AssignTo(_ *VM, obj Object, to TypeAssigner) (Object, error) {
+	return assignByTypeChain(b, obj, to)
 }
 
-func (t BuiltinObjTypeKey) CanAssign(obj Object) (bool, error) {
-	return canAssignByType(t, obj)
+func (b BuiltinObjTypeKey) CanAssign(obj Object) (bool, error) {
+	return canAssignByType(b, obj)
 }
 
 func (b BuiltinObjTypeKey) BType() BuiltinType {
