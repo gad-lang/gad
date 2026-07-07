@@ -30,6 +30,14 @@ dist: web-build build-vscode-plugin
 	go build -tags prod -o ./dist/gad ./cmd/gad
 	@echo "dist artifacts:" && ls -1 dist
 
+# Prerequisites for goreleaser: web app and VS Code plugin only (no binary —
+# goreleaser builds the binary itself). Keeps output out of ./dist/ so
+# goreleaser's own dist/ directory stays empty before its build step.
+.PHONY: goreleaser-setup
+goreleaser-setup: web-build
+	go run ./cmd/update-vscode-plugin -w
+	cd editors/vscode-gad && $(NVM_USE) && bun install && bun run package
+
 # Build the VS Code extension: regenerate the TextMate grammar from the language
 # vocabulary, compile and package the .vsix, then move it into ./dist.
 .PHONY: build-vscode-plugin

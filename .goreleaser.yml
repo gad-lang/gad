@@ -4,7 +4,7 @@ project_name: gad
 
 before:
   hooks:
-    - make dist
+    - make goreleaser-setup
 
 builds:
   - id: gad
