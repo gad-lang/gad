@@ -183,12 +183,28 @@ func (o Array) SelfAssignOpAdd(_ *gad.VM, value gad.Object) (gad.Object, error) 
 }</code></pre>
 <h2 id="reusing-a-vm">Reusing a VM</h2>
 <p>A <code>VM</code> is reusable. After a run you can run again; <code>Clear</code> releases references and resets the stack and module cache between unrelated runs.</p>
+<h2 id="calling-gad-functions-from-go">Calling gad functions from Go</h2>
+<p>Use an <code>Invoker</code> to call a gad <code>CompiledFunction</code> (or any callable) from Go. It forks a child VM for a compiled function and reuses the caller's globals and I/O:</p>
+<pre><code class="language-go">inv := gad.NewInvoker(vm, fn)
+ret, err := inv.Invoke(gad.Args{args}, nil)</code></pre>
+<p><code>Acquire</code>/<code>Release</code> reuse a pooled VM across several calls (about 3× faster than a fresh VM per call); call <code>Release</code> when done.</p>
+<h3 id="cancellation-and-timeouts">Cancellation and timeouts</h3>
+<p>Bind a context with <code>WithContext</code> to abort a long-running or infinite invoked function. When the context is cancelled (a <code>context.WithTimeout</code> deadline or a <code>context.WithCancel</code> cancel) before the call returns, the whole VM tree is aborted from the root — so the invoked function <strong>and every VM it spawned through nested invokers</strong> stop — and <code>Invoke</code> returns the context's error (<code>context.DeadlineExceeded</code> / <code>context.Canceled</code>):</p>
+<pre><code class="language-go">ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+defer cancel()
+
+ret, err := gad.NewInvoker(vm, fn).WithContext(ctx).Invoke(gad.Args{args}, nil)
+if errors.Is(err, context.DeadlineExceeded) {
+    // the function ran past the deadline and was aborted
+}</code></pre>
+<p>Because the abort cascades from the root, a deadline stops nested invocations at every level. A nil or non-cancellable context (the default) adds no goroutine and no overhead. The <code>Caller</code> path (<code>inv.Caller(...)</code>, a reusable <code>VMCaller</code>) honours the context the same way. For running a whole *script* under a deadline, <code>Eval.RunScript(ctx, …)</code> wires the same context-to-abort guard.</p>
 <h2 id="modules-from-go">Modules from Go</h2>
 <p>To make modules importable, build a module map and pass it through the compile options. Source modules are added as bytes; builtin modules are <code>map[string]Object</code>; any value implementing <code>Importable</code> can serve as a custom module. The CLI wires a file-system importer that resolves <code>.gad</code> files along <code>GADPATH</code> — see <a href="modules.html">Modules</a> for the script-side view.</p>
 <h2 id="safety">Safety</h2>
 <p>Gad does not impose allocation limits and relies on Go's garbage collector. To run untrusted scripts, disable risky builtins/modules before compilation (the CLI's <code>-safe</code> and <code>-disabled-modules</code> flags do this) and run inside whatever sandbox your application provides. Compilation is deterministic, and bytecode can be serialized for transport and executed later.</p>
+<p>To bound execution time — the main defense against infinite loops and runaway scripts — run under a cancellable context: <code>Eval.RunScript(ctx, …)</code> for a whole script, or <code>Invoker.WithContext(ctx)</code> for a single call (see <a href="#calling-gad-functions-from-go">Calling gad functions from Go</a>). A cancelled context aborts the VM tree at the next instruction.</p>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#minimal-example">Minimal Example</a><a href="#passing-globals-and-arguments">Passing Globals and Arguments</a><a href="#exposing-go-functions">Exposing Go Functions</a><a href="#typed-methods-with-addmethod">Typed Methods with AddMethod</a><a href="#operators-on-custom-types">Operators on custom types</a><a href="#reusing-a-vm">Reusing a VM</a><a href="#modules-from-go">Modules from Go</a><a href="#safety">Safety</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#minimal-example">Minimal Example</a><a href="#passing-globals-and-arguments">Passing Globals and Arguments</a><a href="#exposing-go-functions">Exposing Go Functions</a><a href="#typed-methods-with-addmethod">Typed Methods with AddMethod</a><a href="#operators-on-custom-types">Operators on custom types</a><a href="#reusing-a-vm">Reusing a VM</a><a href="#calling-gad-functions-from-go">Calling gad functions from Go</a><a href="#modules-from-go">Modules from Go</a><a href="#safety">Safety</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>
