@@ -623,7 +623,7 @@ VMLoop:
 			dst := vm.stack[vm.sp-1]
 
 			if dst == Nil {
-				vm.stack[vm.sp-1] = NewStateIteratorObject(vm, &nilIteratorObject{})
+				vm.stack[vm.sp-1] = vm.acquireIter(&nilIteratorObject{})
 				continue
 			}
 
@@ -633,8 +633,7 @@ VMLoop:
 					return
 				}
 			} else if it != nil {
-				ito := NewStateIteratorObject(vm, it)
-				vm.stack[vm.sp-1] = ito
+				vm.stack[vm.sp-1] = vm.acquireIter(it)
 				continue
 			}
 
@@ -653,6 +652,11 @@ VMLoop:
 				}
 			}
 			vm.stack[vm.sp-1] = Bool(hasMore)
+			if !hasMore {
+				// loop finished: the SIO has been consumed from the stack and the
+				// internal :it local is dead, so a pooled one can be recycled.
+				vm.releaseIter(iterator)
+			}
 		case OpIterNextElse:
 			iterator := vm.stack[vm.sp-1].(*StateIteratorObject)
 			truePos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
@@ -672,6 +676,7 @@ VMLoop:
 			if hasMore {
 				vm.ip = truePos - 1
 			} else {
+				vm.releaseIter(iterator)
 				vm.ip = falsePos - 1
 			}
 		case OpIterKey:
