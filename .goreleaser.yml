@@ -1,0 +1,68 @@
+version: 2
+
+project_name: gad
+
+before:
+  hooks:
+    - make dist
+
+builds:
+  - id: gad
+    main: ./cmd/gad
+    binary: gad
+    env:
+      - CGO_ENABLED=0
+      - GOTOOLCHAIN=go1.26.0+auto
+    tags:
+      - prod
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - 386
+    ignore:
+      - goos: darwin
+        goarch: 386
+
+archives:
+  - id: gad
+    ids:
+      - gad
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - LICENSE
+      - README.md
+      - doc/**/*
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+release:
+  github:
+    owner: gad-lang
+    name: gad
+  draft: false
+  prerelease: auto

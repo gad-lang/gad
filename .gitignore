@@ -1,5 +1,9 @@
 #hidden files
 .*
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
+!.goreleaser.yml
 
 # repl binary
 /gad
