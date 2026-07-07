@@ -115,6 +115,31 @@ return func() { return spawn(inner) }`
 		}
 	})
 
+	// The Caller() path honours the context too: a VMCaller from a context-bound
+	// Invoker aborts its infinite loop on the deadline.
+	t.Run("caller path timeout", func(t *testing.T) {
+		vm, fn := compileFunc(t, `return func() { x := 0; for { x++ } }`)
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+		caller, err := NewInvoker(vm, fn).WithContext(ctx).Caller(Args{}, nil)
+		if err != nil {
+			t.Fatalf("Caller: %v", err)
+		}
+		res := make(chan error, 1)
+		go func() {
+			_, err := caller.Call()
+			res <- err
+		}()
+		select {
+		case err := <-res:
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("want DeadlineExceeded, got %v", err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("caller did not abort within 5s")
+		}
+	})
+
 	// A fast call with a live deadline returns its result, unaffected.
 	t.Run("fast call unaffected", func(t *testing.T) {
 		vm, fn := compileFunc(t, `return func() { return 1 + 2 }`)

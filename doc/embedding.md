@@ -260,8 +260,9 @@ if errors.Is(err, context.DeadlineExceeded) {
 
 Because the abort cascades from the root, a deadline stops nested invocations at
 every level. A nil or non-cancellable context (the default) adds no goroutine and
-no overhead. For running a whole *script* under a deadline, `Eval.RunScript(ctx,
-…)` wires the same context-to-abort guard.
+no overhead. The `Caller` path (`inv.Caller(...)`, a reusable `VMCaller`) honours
+the context the same way. For running a whole *script* under a deadline,
+`Eval.RunScript(ctx, …)` wires the same context-to-abort guard.
 
 ## Modules from Go
 

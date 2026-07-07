@@ -223,7 +223,12 @@ test fails.
 | `-run REGEX` | run only tests whose name matches `REGEX` |
 | `-bench REGEX` | run benchmarks whose name matches `REGEX` (e.g. `.` for all) |
 | `-benchtime DUR` | minimum run time per benchmark (default `1s`) |
-| `-timeout DUR` | per-file timeout (`0` = none) |
+| `-timeout DUR` | deadline for the file's script and each test/bench (`0` = none) |
+
+With `-timeout`, the file's top-level script and **each** test and benchmark run
+under their own deadline: a test stuck in an infinite loop is aborted and
+reported as a failure (`context deadline exceeded`) instead of hanging the run,
+and the remaining tests still execute.
 
 Examples:
 
@@ -232,4 +237,5 @@ gad test                       # every *_test.gad under the current dir
 gad test ./mypkg/...           # recurse into mypkg
 gad test -run Add math_test.gad
 gad test -bench=. -benchtime=200ms ./...
+gad test -timeout 2s ./...     # abort any test/bench that runs past 2s
 ```

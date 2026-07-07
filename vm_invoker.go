@@ -131,13 +131,27 @@ func (inv *Invoker) Invoke(args Args, namedArgs *NamedArgs) (Object, error) {
 	return inv.invokeObject(inv.callee, args)
 }
 
-// runWatched runs fn, aborting the whole VM tree from the root if the Invoker's
-// context is cancelled before fn returns. It waits for fn's goroutine to unwind
-// after aborting (so nothing runs on the child VM once runWatched returns) and
-// reports the context's error in place of ErrVMAborted. With no context, or a
-// non-cancellable one, fn runs inline with no goroutine.
+// runWatched runs fn under the Invoker's context (see runWithContext).
 func (inv *Invoker) runWatched(fn func() (Object, error)) (Object, error) {
-	ctx := inv.ctx
+	return runWithContext(inv.ctx, rootOf(inv.vm), fn)
+}
+
+// rootOf returns the root VM of vm's pool (vm itself if it is the root). The root
+// tracks every forked descendant, so aborting it cascades to the whole tree.
+func rootOf(vm *VM) *VM {
+	if vm.pool.root != nil {
+		return vm.pool.root
+	}
+	return vm
+}
+
+// runWithContext runs fn, aborting root — which cascades through the shared pool
+// to every forked descendant (child, grandchild, …) — if ctx is cancelled before
+// fn returns. It waits for fn's goroutine to unwind after aborting (so nothing
+// runs on the VM once it returns) and reports ctx.Err() in place of ErrVMAborted.
+// A nil or non-cancellable context runs fn inline with no goroutine and no
+// overhead.
+func runWithContext(ctx context.Context, root *VM, fn func() (Object, error)) (Object, error) {
 	if ctx == nil {
 		return fn()
 	}
@@ -161,7 +175,7 @@ func (inv *Invoker) runWatched(fn func() (Object, error)) (Object, error) {
 
 	select {
 	case <-done:
-		inv.abortTree()
+		root.Abort()
 		<-finished
 		if err == nil || errors.Is(err, ErrVMAborted) {
 			err = ctx.Err()
@@ -170,17 +184,6 @@ func (inv *Invoker) runWatched(fn func() (Object, error)) (Object, error) {
 	case <-finished:
 		return ret, err
 	}
-}
-
-// abortTree aborts the root VM, which cascades through the shared pool to every
-// forked descendant (child, grandchild, …), so a cancellation stops all nested
-// invoked executions.
-func (inv *Invoker) abortTree() {
-	root := inv.vm
-	if root.pool.root != nil {
-		root = root.pool.root
-	}
-	root.Abort()
 }
 
 func (inv *Invoker) invokeObject(co Object, args Args) (Object, error) {
@@ -231,6 +234,7 @@ do:
 			vm:        inv.child,
 			args:      args,
 			namedArgs: namedArgs,
+			ctx:       inv.ctx,
 		}, nil
 	}
 

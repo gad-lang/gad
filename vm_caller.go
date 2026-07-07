@@ -1,5 +1,7 @@
 package gad
 
+import "context"
+
 type VMCaller interface {
 	Call() (Object, error)
 	Close()
@@ -12,6 +14,7 @@ type vmCompiledFuncCaller struct {
 	namedArgs *NamedArgs
 	closed    bool
 	callee    CallerObject
+	ctx       context.Context
 }
 
 func (r *vmCompiledFuncCaller) Callee() CallerObject {
@@ -31,7 +34,9 @@ func (r *vmCompiledFuncCaller) Call() (ret Object, err error) {
 		}
 	}()
 
-	return r.vm.run()
+	// When the Invoker was given a context, cancellation aborts the VM tree from
+	// the root (same guard as Invoker.Invoke); otherwise this runs inline.
+	return runWithContext(r.ctx, rootOf(r.vm), r.vm.run)
 }
 
 func (r *vmCompiledFuncCaller) Close() {

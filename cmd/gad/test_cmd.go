@@ -69,7 +69,7 @@ func (o *testOptions) registerFlags(fs *flag.FlagSet) {
 	fs.StringVar(&o.runPat, "run", "", "run only tests whose name matches this regex")
 	fs.StringVar(&o.benchPat, "bench", "", "run benchmarks whose name matches this regex (e.g. . for all)")
 	fs.DurationVar(&o.benchtime, "benchtime", time.Second, "minimum run time per benchmark")
-	fs.DurationVar(&o.timeout, "timeout", 0, "per-file timeout (0 = none)")
+	fs.DurationVar(&o.timeout, "timeout", 0, "deadline for the file's script and each test/bench (0 = none)")
 }
 
 // compile pre-compiles the -run/-bench regexes.
@@ -262,7 +262,7 @@ func isPrefixFunc(name, prefix string) bool {
 // including any subtests started with t.run (nested `test NAME { … }`).
 func (o *testOptions) runTest(ctx *cc.CommandContext, path string, eval *gad.Eval, d discovered) (pass, fail, skip int) {
 	t := gadtest.NewT(d.name)
-	_, err := invoke(eval, d.fn, t)
+	_, err := o.invoke(eval, d.fn, t)
 	return o.reportNode(ctx, path, t, d.doc, err)
 }
 
@@ -324,7 +324,7 @@ func (o *testOptions) runBench(ctx *cc.CommandContext, path string, eval *gad.Ev
 		t := gadtest.NewT(d.name)
 		t.SetBenchN(n)
 		start := time.Now()
-		_, err := invoke(eval, d.fn, t)
+		_, err := o.invoke(eval, d.fn, t)
 		elapsed = time.Since(start)
 		if t.Failure() {
 			fmt.Fprintf(ctx.Err, "FAIL %s/%s\n", path, d.name)
@@ -355,12 +355,27 @@ func (o *testOptions) runBench(ctx *cc.CommandContext, path string, eval *gad.Ev
 	fmt.Fprintf(ctx.Out, "BENCH %s/%s\t%d\t%.1f ns/op\n", path, d.name, n, nsPerOp)
 }
 
-// invoke calls fn with the test context t using a forked VM.
-func invoke(eval *gad.Eval, fn gad.CallerObject, t *gadtest.T) (gad.Object, error) {
+// invoke calls fn with the test context t using a forked VM. When the -timeout
+// flag is set each invocation runs under its own deadline (invokeCtx), so a test
+// or benchmark stuck in an infinite loop is aborted instead of hanging the run.
+func (o *testOptions) invoke(eval *gad.Eval, fn gad.CallerObject, t *gadtest.T) (gad.Object, error) {
 	inv := gad.NewInvoker(eval.VM, fn)
 	inv.Acquire()
 	defer inv.Release()
+	if ctx, cancel := o.invokeCtx(); ctx != nil {
+		defer cancel()
+		inv.WithContext(ctx)
+	}
 	return inv.Invoke(gad.Args{gad.Array{t}}, nil)
+}
+
+// invokeCtx returns a fresh per-invocation timeout context (and its cancel) when
+// -timeout is set, or (nil, nil) when it is not.
+func (o *testOptions) invokeCtx() (context.Context, context.CancelFunc) {
+	if o.timeout <= 0 {
+		return nil, nil
+	}
+	return context.WithTimeout(context.Background(), o.timeout)
 }
 
 // testFiles resolves a path arg (file, directory or DIR/...) to *_test.gad files.
