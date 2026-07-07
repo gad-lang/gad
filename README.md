@@ -226,30 +226,6 @@ return v
 }
 ```
 
-## TODO
-
-- [x] Dollar as valid ident char
-- [x] Nullisch Coalescing
-- [x] Named arguments
-- [x] Array Expansion
-- [x] Array Comprehensions
-- [x] Map Expansion
-- [x] Map Comprehensions
-- [ ] Examples for best practices
-- [ ] Better Playground
-- [x] Configurable Stdin, Stdout and Stderr per Virtual Machine
-- [x] Deferring function calls
-- [ ] Concurrency support
-- [ ] `?` and `!` as valid post 2nd ident char
-  - `valid?() = true`
-  - `if valid? {}`
-  - `push!(values array) { arr += values }`
-- [x] Parse bytes from hex string (`const data = h"ffccf1c2" // typeof data == bytes`)
-- [x] Parse bytes from string (`const data = b"Hello" // typeof data == bytes`)
-- [ ] Parse string from unquoted form:
-  - `const data = :hello // data == str("hello")`)
-  - `const data = :(Hello World!) // data == str("Hello World!")`
-
 ## Documentation
 
 * **[User Guide](doc/README.md)** — hands-on, example-driven docs for every
