@@ -32,7 +32,7 @@ const (
 	RawHeredoc
 	Heredoc
 	CodeStr
-	Template
+	InterpolatedString
 	Symbol
 	Regex
 	GroupLiteralEnd
@@ -244,7 +244,7 @@ var tokens = [...]string{
 	RawHeredoc:          "RAWHEREDOC",
 	Heredoc:             "HEREDOC",
 	CodeStr:             "CODESTR",
-	Template:            "TMPL",
+	InterpolatedString:  "ISTR",
 	Symbol:              "SYMBOL",
 	Regex:               "REGEX",
 	Null:                "NULL",
@@ -401,7 +401,7 @@ var tokenNames = [...]string{
 	RawHeredoc:                   "RawHeredoc",
 	Heredoc:                      "Heredoc",
 	CodeStr:                      "CodeStr",
-	Template:                     "Template",
+	InterpolatedString:           "InterpolatedString",
 	Symbol:                       "Symbol",
 	Regex:                        "Regex",
 	GroupLiteralEnd:              "GroupLiteralEnd",

@@ -31,7 +31,7 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
    - [Enums](enums.md) — the `enum` keyword: ordered named integer constants,
      signs, bit flags and computed values.
 9. [Strings, Bytes and Regex](strings-bytes-regex.md) — string forms, raw
-   strings, heredocs, template strings, **bytes literals** (`b"…"`, `h"…"`) and
+   strings, heredocs, interpolated strings, **bytes literals** (`b"…"`, `h"…"`) and
    `/regex/` literals.
 10. [Error Handling](error-handling.md) — error values, builtin errors,
     `try/catch/finally`, and the `or` fallback operator.

@@ -3293,7 +3293,7 @@ func (c *Compiler) compileCondExpr(nd *node.CondExpr) error {
 	return nil
 }
 
-func (c *Compiler) compileTemplateLit(nd *node.TemplateLit) error {
+func (c *Compiler) compileInterpolatedStringLit(nd *node.InterpolatedStringLit) error {
 	var tmplValue string
 	switch t := nd.Value.(type) {
 	case *node.StrLit:
@@ -3311,17 +3311,17 @@ func (c *Compiler) compileTemplateLit(nd *node.TemplateLit) error {
 	case *node.SymbolLit:
 		tmplValue = t.Value()
 	default:
-		return c.Errorf(nd, "expected string for template literal")
+		return c.Errorf(nd, "expected string for interpolated string literal")
 	}
 
-	file, err := parser.ParseTemplateString(tmplValue, nd.StringValuePos())
+	file, err := parser.ParseInterpolatedString(tmplValue, nd.StringValuePos())
 	if err != nil {
-		return c.Errorf(nd, "template parse error: %w", err)
+		return c.Errorf(nd, "interpolated string parse error: %w", err)
 	}
 
 	expr, err := nd.Build(file.Stmts)
 	if err != nil {
-		return c.Errorf(nd, "template build error: %w", err)
+		return c.Errorf(nd, "interpolated string build error: %w", err)
 	}
 
 	return c.Compile(expr)

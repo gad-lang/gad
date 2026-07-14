@@ -1122,7 +1122,7 @@ func TestCompiler_CompileEmbed(t *testing.T) {
 	})
 }
 
-func TestCompiler_CompileTemplateLit(t *testing.T) {
+func TestCompiler_CompileInterpolatedStringLit(t *testing.T) {
 	t.Run("plain string", func(t *testing.T) {
 		st := NewSymbolTable(NewBuiltins().NameSet)
 		_, bc, err := Compile(st, []byte(`return #"hello"`), CompileOptions{})

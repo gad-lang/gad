@@ -28,7 +28,7 @@ layout settings are stored in [`.gad.yaml`](.gad.yaml).
 
 | File                          | Topics                                            |
 |-------------------------------|---------------------------------------------------|
-| `01_hello.gad`                | printing, variables, template strings `#"…{x}…"`  |
+| `01_hello.gad`                | printing, variables, interpolated strings `#"…{x}…"`  |
 | `02_values_and_types.gad`     | primitive types and `typeof(v)`                   |
 | `03_functions.gad`            | functions, arrow closures, closures, variadics    |
 | `04_collections.gad`          | arrays, dicts, spread literals, iteration         |

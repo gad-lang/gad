@@ -677,7 +677,7 @@ do:
 				t.Literal = "#" + s.ScanIdentifier()
 				t.Token = token.Symbol
 			} else {
-				t.Token = token.Template
+				t.Token = token.InterpolatedString
 			}
 		default:
 			// next reports unexpected BOMs - don't repeat

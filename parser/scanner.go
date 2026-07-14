@@ -126,7 +126,7 @@ var (
 		End:   []rune("%}"),
 	}
 
-	TemplateStrDelimiter = MixedDelimiter{
+	InterpolatedStringDelimiter = MixedDelimiter{
 		Start: []rune("{"),
 		End:   []rune("}"),
 	}

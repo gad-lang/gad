@@ -4779,12 +4779,12 @@ func TestVMRawHeredoc(t *testing.T) {
 	testExpectRun(t, "return \"x\" + ```a```", nil, Str("xa"))
 }
 
-// TestVMTemplateLit exercises the #-template literal across every supported
+// TestVMInterpolatedStringLit exercises the #-template literal across every supported
 // Value type: StrLit (#"..."), RawStrLit (#`...`), RawHeredocLit (#```...```),
 // HeredocLit (#"""..."""), and SymbolLit (##sym / ##(...)). Raw value types
 // produce a RawStr and keep escapes verbatim; the others produce a Str and
 // interpret escapes. All of them support {expr} interpolation.
-func TestVMTemplateLit(t *testing.T) {
+func TestVMInterpolatedStringLit(t *testing.T) {
 	// --- StrLit: #"..." (str, escapes interpreted) ---
 	testExpectRun(t, `return #"hello"`, nil, Str("hello"))
 	testExpectRun(t, `name := "world"; return #"hello {name}"`, nil, Str("hello world"))

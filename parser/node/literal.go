@@ -1452,30 +1452,31 @@ func unescapeHeredoc(s string) string {
 	return b.String()
 }
 
-// TemplateLit represents a template string literal prefixed with `#`, such as
-// `#"text"` or `#'symbol'`. It is parsed in ParseOperand when a token.Template
-// is followed by a string, raw string, heredoc, or symbol token.
+// InterpolatedStringLit represents an interpolated string literal prefixed with
+// `#`, such as `#"text"` or `#'symbol'`. It is parsed in ParseOperand when a
+// token.InterpolatedString is followed by a string, raw string, heredoc, or
+// symbol token.
 // The Value field holds the string/symbol expression that follows the `#` token.
-type TemplateLit struct {
+type InterpolatedStringLit struct {
 	TokenPos source.Pos
 	Value    Expr
 }
 
-func (e *TemplateLit) ExprNode() {}
+func (e *InterpolatedStringLit) ExprNode() {}
 
-func (e *TemplateLit) Pos() source.Pos {
+func (e *InterpolatedStringLit) Pos() source.Pos {
 	return e.TokenPos
 }
 
-func (e *TemplateLit) End() source.Pos {
+func (e *InterpolatedStringLit) End() source.Pos {
 	return e.Value.End() + 6
 }
 
-func (e *TemplateLit) String() string {
+func (e *InterpolatedStringLit) String() string {
 	return "#" + e.Value.String()
 }
 
-func (e *TemplateLit) StringValue() string {
+func (e *InterpolatedStringLit) StringValue() string {
 	switch vt := e.Value.(type) {
 	case *StrLit:
 		return vt.Value()
@@ -1499,12 +1500,12 @@ func (e *TemplateLit) StringValue() string {
 }
 
 // StringValuePos returns the source position to pass to
-// parser.ParseTemplateString: the position of the byte immediately before the
-// first content byte of StringValue (the template content begins one byte
+// parser.ParseInterpolatedString: the position of the byte immediately before the
+// first content byte of StringValue (the string content begins one byte
 // after it). For single-delimiter values that is the opening delimiter; for a
 // heredoc it is the newline that ends the opening backtick line, since the
 // surrounding backticks and the opening line are stripped from the content.
-func (e *TemplateLit) StringValuePos() source.Pos {
+func (e *InterpolatedStringLit) StringValuePos() source.Pos {
 	switch h := e.Value.(type) {
 	case *RawHeredocLit:
 		return h.ContentPos() - 1
@@ -1514,12 +1515,12 @@ func (e *TemplateLit) StringValuePos() source.Pos {
 	return e.Value.Pos()
 }
 
-func (e *TemplateLit) WriteCode(ctx *CodeWriteContext) {
+func (e *InterpolatedStringLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteSingleByte('#')
 	e.Value.WriteCode(ctx)
 }
 
-func (e *TemplateLit) Build(sourceStmts Stmts) (expr Expr, err error) {
+func (e *InterpolatedStringLit) Build(sourceStmts Stmts) (expr Expr, err error) {
 	var raw bool
 	// unescape marks a non-raw heredoc whose rendered text segments must have
 	// their escape sequences interpreted (like a double-quoted string), even
@@ -1541,7 +1542,7 @@ func (e *TemplateLit) Build(sourceStmts Stmts) (expr Expr, err error) {
 		raw = true
 	case *StrLit, *SymbolLit:
 	default:
-		return nil, errors.New("template literal must be a string, raw string, heredoc, or symbol")
+		return nil, errors.New("interpolated string must be a string, raw string, heredoc, or symbol")
 	}
 
 	// The first text segment begins a source line, so its leading indentation

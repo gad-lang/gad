@@ -9,7 +9,7 @@ name := "Gad"
 version := 1
 
 println("Hello,", name)
-println(#"Welcome to {name} v{version}!")   // template string interpolation
+println(#"Welcome to {name} v{version}!")   // interpolated string
 
 /// := declares; = reassigns an existing binding.
 greeting := #"{name} is a fast, embeddable scripting language."

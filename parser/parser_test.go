@@ -2067,15 +2067,15 @@ func TestParseKeywordKeys(t *testing.T) {
 	test.ExpectParseString(t, `(;class=1, if, nil)`, `(;"class"=1, "if", "nil")`)
 }
 
-func TestTemplateStrLit(t *testing.T) {
+func TestInterpolatedStringLit(t *testing.T) {
 	test.ExpectParseString(t, `#"A"`, `#"A"`)
 	test.ExpectParseString(t, "#`A`", "#`A`")
 	test.ExpectParseString(t, "#```A```", "#```A```")
 }
 
-func TestTemplateString(t *testing.T) {
+func TestInterpolatedString(t *testing.T) {
 	// build parses `src` (an `x := #<template>` assignment), extracts the
-	// TemplateLit, parses its template body and compiles it via Build. It
+	// InterpolatedStringLit, parses its template body and compiles it via Build. It
 	// returns the original file's position function and the positional
 	// arguments of the generated `str(...)` call, unwrapping the ToRaw
 	// wrapper produced for raw (backtick) templates.
@@ -2084,8 +2084,8 @@ func TestTemplateString(t *testing.T) {
 	build := func(t *testing.T, src string) (ofPos test.Pfn, tfPos test.Pfn, _ []Expr) {
 		t.Helper()
 		of := test.New(t, src).File().File()
-		tmpl := of.Stmts[0].(*AssignStmt).RHS[0].(*TemplateLit)
-		tf, err := ParseTemplateString(tmpl.StringValue(), tmpl.StringValuePos())
+		tmpl := of.Stmts[0].(*AssignStmt).RHS[0].(*InterpolatedStringLit)
+		tf, err := ParseInterpolatedString(tmpl.StringValue(), tmpl.StringValuePos())
 		require.NoError(t, err)
 		expr, err := tmpl.Build(tf.Stmts)
 		require.NoError(t, err)
@@ -2152,14 +2152,14 @@ func TestTemplateString(t *testing.T) {
 			return stmts(
 				SAssign(
 					exprs(EIdent("x", p(1, 1))),
-					exprs(&TemplateLit{
+					exprs(&InterpolatedStringLit{
 						TokenPos: p(1, 6),
 						Value:    Str("hello {user}!", p(1, 7)),
 					}), token.Define, p(1, 3)))
 		}).File()
 
-		tmpl := of.Stmts[0].(*AssignStmt).RHS[0].(*TemplateLit)
-		tf, err := ParseTemplateString(tmpl.StringValue(), tmpl.StringValuePos())
+		tmpl := of.Stmts[0].(*AssignStmt).RHS[0].(*InterpolatedStringLit)
+		tf, err := ParseInterpolatedString(tmpl.StringValue(), tmpl.StringValuePos())
 		require.NoError(t, err)
 		test.NewFile(t, tf).Expect(func(pos test.Pfn) []Stmt {
 			tfPos = pos

@@ -760,8 +760,8 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		return nil
 	case *node.MixedTextExpr:
 		c.emit(nt, OpConstant, c.addConstant(RawStr(nt.Stmt.Value())))
-	case *node.TemplateLit:
-		return c.compileTemplateLit(nt)
+	case *node.InterpolatedStringLit:
+		return c.compileInterpolatedStringLit(nt)
 	case *node.TypedIdentExpr:
 		return c.compileTypedIdentExpr(nt)
 	case *node.NamedArgVarLit:

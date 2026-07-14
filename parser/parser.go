@@ -390,7 +390,7 @@ func tokenStartsOperand(tok token.Token) bool {
 		token.LParen, token.LBrack,
 		token.Add, token.Sub, token.Not, token.Xor, token.And, token.Inc, token.Dec,
 		token.Func, token.Method, token.Prop, token.Class, token.Enum, token.Interface, token.Import, token.Embed,
-		token.Throw, token.Return, token.Match, token.Raw, token.Template,
+		token.Throw, token.Return, token.Match, token.Raw, token.InterpolatedString,
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
 		token.DotName, token.DotFile, token.IsMain, token.Module, token.Globals:
@@ -1168,12 +1168,12 @@ func (p *Parser) ParseOperand() node.Expr {
 				TokenPos: pos,
 				Expr:     p.ParsePrimaryExpr(),
 			}
-		case token.Template:
+		case token.InterpolatedString:
 			pos := p.Token.Pos
 			p.Next()
 			switch p.Token.Token {
 			case token.String, token.RawString, token.RawHeredoc, token.Heredoc, token.Symbol:
-				return &node.TemplateLit{
+				return &node.InterpolatedStringLit{
 					TokenPos: pos,
 					Value:    p.ParseOperand(),
 				}
@@ -2510,7 +2510,7 @@ do:
 		token.Callee, token.Args, token.NamedArgs,
 		token.StdIn, token.StdOut, token.StdErr,
 		token.Yes, token.No,
-		token.DotName, token.DotFile, token.IsMain, token.Module, token.Globals, token.Template, token.Raw,
+		token.DotName, token.DotFile, token.IsMain, token.Module, token.Globals, token.InterpolatedString, token.Raw,
 		token.Match:
 		s := p.ParseSimpleStmt(false)
 		p.ExpectSemi()

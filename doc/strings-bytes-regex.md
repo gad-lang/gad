@@ -13,7 +13,7 @@ Gad has several textual literal forms:
 | `raw` prefix        | `raw "x"`              | `rawStr` | n/a      |
 | heredoc             | `"""…"""`              | `str`    | yes      |
 | raw heredoc         | `` ```…``` ``          | `rawStr` | no       |
-| template string     | `#"hi {name}"`         | `str`    | yes      |
+| interpolated string | `#"hi {name}"`         | `str`    | yes      |
 
 ```go
 "tab\there"     // tab<TAB>here
@@ -111,10 +111,10 @@ println(s)   // a + b
 A bare `code` identifier (with no matching `end` fence) is unaffected, so
 `code := 1` still declares a variable.
 
-## Template Strings
+## Interpolated Strings
 
-A `#"…"` (or `` #`…` ``) literal is a template string: `{expr}` is interpolated
-and the whole thing evaluates to a normal string.
+A `#"…"` (or `` #`…` ``) literal is an interpolated string: `{expr}` is
+interpolated and the whole thing evaluates to a normal string.
 
 ```go
 name := "Gad"

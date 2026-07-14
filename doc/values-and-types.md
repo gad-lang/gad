@@ -113,7 +113,7 @@ println(int('A')) // 65
 
 ## Strings, Bytes and Regex
 
-Strings, raw strings, heredocs, template strings, **bytes literals**
+Strings, raw strings, heredocs, interpolated strings, **bytes literals**
 (`b"…"`, `h"…"`) and `/regex/` literals each have their own chapter:
 [Strings, Bytes and Regex](strings-bytes-regex.md). A quick taste:
 

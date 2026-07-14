@@ -465,8 +465,8 @@ func (f *File) EqualExpr(expected, actual node.Expr) {
 		f.Equal(expected.OrPos, act.OrPos)
 		f.EqualExpr(expected.Expr, act.Expr)
 		f.EqualExpr(expected.Fallback, act.Fallback)
-	case *node.TemplateLit:
-		act := actual.(*node.TemplateLit)
+	case *node.InterpolatedStringLit:
+		act := actual.(*node.InterpolatedStringLit)
 		f.Equal(expected.TokenPos, act.TokenPos)
 		f.EqualExpr(expected.Value, act.Value)
 	default:
