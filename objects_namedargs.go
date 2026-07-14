@@ -864,6 +864,12 @@ func (o KeyValueArray) Values() (arr Array) {
 	return
 }
 
+func (o KeyValueArray) ToDict() (d Dict) {
+	d = make(Dict, len(o))
+	o.UpdateIndexSetter(d)
+	return
+}
+
 type KeyValueArrays []KeyValueArray
 
 var (

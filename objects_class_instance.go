@@ -19,6 +19,8 @@ var (
 	_ ItemsGetter             = (*ClassInstance)(nil)
 	_ IndexGetter             = (*ClassInstance)(nil)
 	_ IndexSetter             = (*ClassInstance)(nil)
+	_ ToDictConverter         = (*ClassInstance)(nil)
+	_ IndexSetterUpdater      = (*ClassInstance)(nil)
 	_ ObjectWithInBinOperator = (*ClassInstance)(nil)
 	_ Printabler              = (*ClassInstance)(nil)
 	_ NameCallerObject        = (*ClassInstance)(nil)
@@ -565,6 +567,12 @@ func (o *ClassInstance) ToDict() (d Dict) {
 		return
 	})
 	return
+}
+
+func (o *ClassInstance) UpdateIndexSetter(out StringIndexSetter) {
+	for k, v := range o.ToDict() {
+		out.Set(k, v)
+	}
 }
 
 func (o *ClassInstance) Print(state *PrinterState) error {

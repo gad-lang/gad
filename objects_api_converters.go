@@ -4,10 +4,20 @@ type ToArrayConveter interface {
 	ToArray() Array
 }
 
+// ToDictConverter is implemented by objects that can materialise themselves as
+// a fresh Dict. Every ToDictConverter must also implement IndexSetterUpdater so
+// callers may merge the object's entries into an existing target without
+// allocating an intermediate Dict; the two methods must agree on the resulting
+// key/value set.
 type ToDictConverter interface {
 	ToDict() Dict
 }
 
+// IndexSetterUpdater is implemented by objects that can write their entries into
+// an existing StringIndexSetter (for example a Dict) instead of returning a new
+// one. It is the merge-in counterpart of ToDictConverter: an implementer's
+// ToDict is expected to be equivalent to calling UpdateIndexSetter on an empty
+// Dict.
 type IndexSetterUpdater interface {
 	UpdateIndexSetter(out StringIndexSetter)
 }

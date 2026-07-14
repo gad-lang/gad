@@ -3,15 +3,16 @@ package gad
 import "sort"
 
 var (
-	_ Object          = (*Enum)(nil)
-	_ ObjectType      = (*Enum)(nil)
-	_ ModuleGetter    = (*Enum)(nil)
-	_ ModuleSetter    = (*Enum)(nil)
-	_ ToDictConverter = (*Enum)(nil)
-	_ Printabler      = (*Enum)(nil)
-	_ ReprTypeNamer   = (*Enum)(nil)
-	_ IndexGetter     = (*Enum)(nil)
-	_ Iterabler       = (*Enum)(nil)
+	_ Object             = (*Enum)(nil)
+	_ ObjectType         = (*Enum)(nil)
+	_ ModuleGetter       = (*Enum)(nil)
+	_ ModuleSetter       = (*Enum)(nil)
+	_ ToDictConverter    = (*Enum)(nil)
+	_ IndexSetterUpdater = (*Enum)(nil)
+	_ Printabler         = (*Enum)(nil)
+	_ ReprTypeNamer      = (*Enum)(nil)
+	_ IndexGetter        = (*Enum)(nil)
+	_ Iterabler          = (*Enum)(nil)
 )
 
 // Enum is an ordered, named set of integer constants produced by the `enum`
@@ -130,11 +131,15 @@ func (e *Enum) ToArray() (arr Array) {
 	return
 }
 
+func (e *Enum) UpdateIndexSetter(out StringIndexSetter) {
+	for k, v := range e.Values {
+		out.Set(k, v)
+	}
+}
+
 func (e *Enum) ToDict() (d Dict) {
 	d = make(Dict, len(e.Values))
-	for k, v := range e.Values {
-		d[k] = v
-	}
+	e.UpdateIndexSetter(d)
 	return
 }
 

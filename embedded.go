@@ -26,11 +26,12 @@ type EmbeddedExtImporter interface {
 }
 
 var (
-	_ Object          = (*EmbeddedNodeFS)(nil)
-	_ IndexGetter     = (*EmbeddedNodeFS)(nil)
-	_ Iterabler       = (*EmbeddedNodeFS)(nil)
-	_ Printabler      = (*EmbeddedNodeFS)(nil)
-	_ ToDictConverter = (*EmbeddedNodeFS)(nil)
+	_ Object             = (*EmbeddedNodeFS)(nil)
+	_ IndexGetter        = (*EmbeddedNodeFS)(nil)
+	_ Iterabler          = (*EmbeddedNodeFS)(nil)
+	_ Printabler         = (*EmbeddedNodeFS)(nil)
+	_ ToDictConverter    = (*EmbeddedNodeFS)(nil)
+	_ IndexSetterUpdater = (*EmbeddedNodeFS)(nil)
 )
 
 type EmbeddedNodeFS struct {
@@ -63,11 +64,15 @@ func (e *EmbeddedNodeFS) IndexGet(_ *VM, index Object) (value Object, err error)
 	return
 }
 
+func (e *EmbeddedNodeFS) UpdateIndexSetter(out StringIndexSetter) {
+	for k, v := range e.node.Entries {
+		out.Set(k, v)
+	}
+}
+
 func (e *EmbeddedNodeFS) ToDict() (d Dict) {
 	d = make(Dict, len(e.node.Entries))
-	for k, v := range e.node.Entries {
-		d[k] = v
-	}
+	e.UpdateIndexSetter(d)
 	return
 }
 
