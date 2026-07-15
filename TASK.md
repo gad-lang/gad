@@ -555,3 +555,16 @@
       (backslashes, %q-escaped). Fixed: render strconv.Quote(filepath.ToSlash(absPath))
       in Embedded.Print, and slash-normalise the temp-dir in the two test
       expectations. Linux unaffected (ToSlash no-op). `go build/vet/test ./...` clean.
+      That push made all path tests green; the plain `go test` run passed for the
+      first time on windows-amd64, so `make test`'s SECOND run (`go test -race`)
+      executed for the first time ever on Windows and hit `fatal error: stack
+      overflow` in stdlib/os. Cause: TestRunNewFileMode hard-codes the Linux value
+      of syscall.O_SYNC (1052672); on Windows O_SYNC differs, the run fails, and the
+      failure-message rendering trips a latent infinite recursion in the generic
+      printer (PrintFromArgs->builtin->DoVisit->Print->PrintFromArgs). Fixed the
+      test to derive the numeric flags from the actual OSync/OWo constants via
+      fmt.Sprintf (platform-agnostic), so it passes on Windows and never reaches the
+      recursion. NOTE (latent, not fixed): the printer can infinite-recurse when
+      rendering some value; only reachable here via a failed assertion and not
+      reproducible on Linux, so left as a known follow-up. `go test -race
+      ./stdlib/os/` -> ok on Linux.

@@ -1,6 +1,7 @@
 package os
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -49,9 +50,11 @@ func TestRunNewFileMode(t *testing.T) {
 	expectRun(t, "return os.FileFlag.RO|os.FileFlag.WO", nil, ORo|OWo)
 	expectRun(t, "return os.FileFlag()", nil, ORo)
 	expectRun(t, "return os.FileFlag(0)", nil, ORo)
-	expectRun(t, "return os.FileFlag(1|1052672)", nil, ORo|OWo|OSync)
+	// Derive the numeric flags from the actual syscall constants: O_SYNC (and
+	// friends) differ per OS, so a hard-coded Linux value fails on Windows.
+	expectRun(t, fmt.Sprintf("return os.FileFlag(%d|%d)", uint64(OWo), uint64(OSync)), nil, ORo|OWo|OSync)
 	expectRun(t, "return os.FileFlag(0u)", nil, ORo)
-	expectRun(t, `return os.FileFlag(1u|1052672u)`, nil, ORo|OWo|OSync)
+	expectRun(t, fmt.Sprintf("return os.FileFlag(%du|%du)", uint64(OWo), uint64(OSync)), nil, ORo|OWo|OSync)
 	expectRun(t, `return os.FileFlag("")`, nil, ORo)
 	expectRun(t, `return os.FileFlag("ro|wo|sync")`, nil, ORo|OWo|OSync)
 }
