@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Collections · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link active" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="collections">Collections</h1>
+<p><a href="index.html">← Back to index</a></p>
+<p>Gad's composite types are <strong>arrays</strong> (ordered lists) and <strong>dicts</strong> (string-keyed maps). This chapter also covers comprehensions, spread/merge literals and destructuring.</p>
+<h2 id="arrays">Arrays</h2>
+<pre><code class="language-go">a := [1, 2, 3]
+println(a[0], a[2])   // 1 3
+a[1] = 20             // mutate in place
+println(len(a))       // 3
+a += [4, 5]           // concatenate
+println(a)            // [1, 20, 3, 4, 5]</code></pre>
+<p>Slicing returns a sub-array; negative indices count from the end:</p>
+<pre><code class="language-go">[1, 2, 3, 4, 5][1:3]   // [2, 3]
+[1, 2, 3, 4, 5][:-1]   // [1, 2, 3, 4]</code></pre>
+<h2 id="dicts">Dicts</h2>
+<p>A dict maps string keys to values. Items are separated by commas or newlines.</p>
+<pre><code class="language-go">m := {a: 1, "b": 2, c: 3}
+println(m.a, m["b"])   // 1 2
+m.d = 4                // add a key
+delete(m, "a")         // remove a key
+for k, v in m { println(k, v) }</code></pre>
+<p>Nested dicts can be written with block-style nesting:</p>
+<pre><code class="language-go">config := ({
+    server {
+        host: "localhost"
+        port: 8080
+    }
+})
+println(config.server.port)   // 8080</code></pre>
+<p>(The outer parentheses are required because a bare <code>{</code> at statement position starts a block, not a dict.)</p>
+<h3 id="keyword-keys">Keyword keys</h3>
+<p>A keyword (<code>class</code>, <code>if</code>, <code>else</code>, <code>func</code>, <code>met</code>, <code>meti</code>, <code>false</code>, <code>nil</code>, …) may be used as a <strong>bare name</strong> in any key position — it is taken as the string of its spelling, not as the keyword. This holds for the selector <code>.name</code>, a dict key, a key-value <code>[name=value]</code>, and a key-value-array key <code>(;name=value)</code> (including a bare-flag key with no value):</p>
+<pre><code class="language-go">m := {class: 1, else: 2, func: 3}   // dict keys
+m.class                             // 1   (selector)
+m["else"]                           // 2
+
+[class = 1]                         // key-value with key "class"
+(;class = 1, if, else, false, nil)  // key-value-array; all are string keys</code></pre>
+<p>Only the <strong>key</strong> position is affected; on the value side keywords keep their meaning, so in <code>(;x = false)</code> the value is the boolean <code>false</code>.</p>
+<h2 id="comprehensions">Comprehensions</h2>
+<p>Array comprehensions build an array from an iterable, with an optional filter:</p>
+<pre><code class="language-go">[i * i for i in [1, 2, 3]]            // [1, 4, 9]
+[i * i for i in [1, 2, 3] if i &gt; 1]   // [4, 9]
+[i + j for i in [1, 2] for j in [10, 20]]  // [11, 21, 12, 22]</code></pre>
+<p>Dict comprehensions build a dict. <strong>Keys are static (literal) by default</strong>; wrap the key in <code>[ ]</code> to compute it. The special name <code>_</code> refers to the dict being built, enabling accumulation.</p>
+<pre><code class="language-go">// computed key, computed value
+{[v]: k for k, v in {a: 1, b: 2}}     // {1: "a", 2: "b"}
+
+// static keys mixed with computed ones; `_` accumulates
+{x: 10, [i]: i * i, z: (_.z ?? 0) + i for i in [1, 2, 3]}
+// {1: 1, 2: 4, 3: 9, x: 10, z: 6}</code></pre>
+<h2 id="spread-and-merge-literals">Spread and Merge Literals</h2>
+<p><code>*expr</code> inside an array literal splices the elements of <code>expr</code> in place. A leading spread produces a fresh copy.</p>
+<pre><code class="language-go">a := [1, 2]
+b := [3, 4]
+[0, *a, *b, 5]   // [0, 1, 2, 3, 4, 5]</code></pre>
+<p><code>*expr</code> inside a dict literal merges another dict's entries; later entries win.</p>
+<pre><code class="language-go">{a: 1, *{b: 2, c: 3}, d: 4}     // {a: 1, b: 2, c: 3, d: 4}
+{a: 1, *{a: 9, b: 2}}           // {a: 9, b: 2}   (merge overrides)</code></pre>
+<h2 id="destructuring">Destructuring</h2>
+<h3 id="arrays-1">Arrays</h3>
+<p>Assign array elements to several variables at once. Missing elements become <code>nil</code>. Use <code>:=</code> to declare or <code>=</code> to assign existing variables.</p>
+<pre><code class="language-go">x, y := [1, 2]        // x == 1, y == 2
+x, y, z := [1, 2]     // z == nil
+[a, b] := [1, 2]      // bracket form (also destructures a single [x])
+c, d, e := func() { return 1, 2, 3 }()   // multiple return values</code></pre>
+<p>A trailing <code>*rest</code> (single star, last target only) collects the remaining elements into a fresh array; the fixed targets before it still pad with <code>nil</code>:</p>
+<pre><code class="language-go">a, b, *rest := [1, 2, 3, 4]     // a == 1, b == 2, rest == [3, 4]
+[a, b, *rest] := [1, 2, 3, 4]   // same, bracket form
+a, b, *rest := [1]              // a == 1, b == nil, rest == []</code></pre>
+<p>The right side may also be <strong>several comma-separated expressions</strong> instead of a single array (parallel multi-value assignment) — they are gathered and destructured the same way, so spreads flatten and <code>*rest</code> still applies. Targets may be selectors or indexes:</p>
+<pre><code class="language-go">a, b := 1, 2                 // a == 1, b == 2
+a, b, *rest := 1, 2, 3, 4    // a == 1, b == 2, rest == [3, 4]
+a, b, *rest := 1, *[2, 3]    // a == 1, b == 2, rest == [3]
+m.x, y = 1, 2                // m.x == 1, y == 2</code></pre>
+<p>Leniency matches array destructuring: extra values are dropped and missing ones become <code>nil</code> (<code>a, b, c := 1, 2</code> gives <code>c == nil</code>). Only the multi-target forms qualify; a single target with several values (<code>x = 1, 2</code>) is an error.</p>
+<p>Because functions return a single value, "multiple return values" is really an array being destructured. With <code>=</code>, you can assign into dict/array elements too:</p>
+<pre><code class="language-go">m := {}
+var z
+m.y, z = [1, 2]   // m == {y: 1}, z == 2</code></pre>
+<p>Named data is destructured by key, <strong>key on the left</strong> (like TypeScript object destructuring). Each entry is <code>key</code> (bind key <code>key</code> to variable <code>key</code>), <code>key: target</code> (bind key <code>key</code> to a differently named variable), <code>name = default</code> (fallback used when the key is absent), or a trailing <code>**rest</code> that collects the remaining keys into a dict.</p>
+<p>There are two interchangeable brackets — <code>(; … )</code> and <code>{ … }</code> — with identical semantics:</p>
+<pre><code class="language-go">(;a, x:b, r=2, **other) := {a: 2, x: 3, q: 4}   // parens form
+{ a, x: b, r = 2, **rest } := {a: 2, x: 3, q: 4} // curly form (TypeScript-like)
+// a == 2          (key "a")
+// b == 3          (key "x" → variable b)
+// r == 2          (default; key "r" missing)
+// other / rest == {q: 4} (the rest, as a dict)</code></pre>
+<p>Use <code>:=</code> to declare new variables or <code>=</code> to assign existing ones. A statement that starts with <code>{ … } :=</code>/<code>=</code> is a destructuring; a bare <code>{ … }</code> is still a block.</p>
+<p><code>const</code> and <code>var</code> also accept a destructuring pattern (both the <code>{ … }</code> and <code>[ … ]</code> forms), so the bound names — including a <code>**rest</code> dict or <code>*rest</code> array — follow the keyword's mutability:</p>
+<pre><code class="language-go">const { x, **rest } = {x: 1, y: 2, z: 3}   // x == 1, rest == {y: 2, z: 3}
+const [ a, b, *rest ] = [1, 2, 3, 4]       // a == 1, b == 2, rest == [3, 4]
+var { host, port = 80 } = cfg              // mutable bindings</code></pre>
+<h3 id="any-named-source">Any named source</h3>
+<p>Both <code>(; … )</code> and <code>{ … }</code> run the source through the default <code>dict()</code> constructor first, so they work on <strong>any</strong> named data — a dict, a module, a key-value array (<code>(; … )</code> value), named args, or anything convertible to a dict:</p>
+<pre><code class="language-go">strings := import("strings")
+{ toUpper, hasPrefix } := strings          // a module
+
+kva := (; a = 1, b = 2)
+{ a, b } := kva                            // a key-value array
+
+serve := func(; **opts) {
+	{ host, port = 80 } := opts            // named args
+	return host + ":" + str(port)
+}</code></pre>
+<h3 id="mixed-positional--named">Mixed (positional + named)</h3>
+<h2 id="see-also">See also</h2>
+<p>For runnable collection examples, see:</p>
+<ul>
+<li><code>samples/04_collections.gad</code> — arrays, dicts, spread literals, iteration</li>
+<li><code>samples/05_comprehensions.gad</code> — array and dict comprehensions</li>
+<li><code>samples/22_key_value_array.gad</code> — keyValue and keyValueArray</li>
+<li><code>samples/27_destructuring.gad</code> — array and named destructuring</li>
+</ul>
+<p>A <code>MixedParams</code> value carries both positional and named parts (the kind produced by the <code>(values...; name=value...)</code> literal), so it uses the full <code>( positional ; named )</code> pattern. The positional side takes a trailing <code>*rest</code> (a single star, like a variadic parameter <code>func(a, *rest)</code>) and the named side a trailing <code>**rest</code>; the named side is key-on-the-left like the forms above.</p>
+<pre><code class="language-go">x := (1, 2, *[3, 4]; c=5, **{d: 6})
+(a, b, *pos; c, d:d2, r=2, **named) := x
+// a == 1, b == 2, pos == [3, 4]
+// c == 5, d2 == 6 (key "d" → variable d2), r == 2 (default), named == {}</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#arrays">Arrays</a><a href="#dicts">Dicts</a><a href="#comprehensions">Comprehensions</a><a href="#spread-and-merge-literals">Spread and Merge Literals</a><a href="#destructuring">Destructuring</a><a href="#see-also">See also</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
