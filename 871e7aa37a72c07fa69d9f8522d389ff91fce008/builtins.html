@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builtin Functions · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link active" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="builtin-functions">Builtin Functions</h1>
+<p><a href="index.html">← Back to index</a></p>
+<p>Gad ships with a library of builtin functions available without an <code>import</code>. This page is a categorised overview of the builtins.</p>
+<p>The host can disable any builtin before compilation, so a sandboxed script may see a reduced set.</p>
+<h2 id="type-constructors--conversions">Type Constructors / Conversions</h2>
+<p><code>int</code>, <code>uint</code>, <code>float</code>, <code>decimal</code>, <code>bool</code>, <code>flag</code>, <code>char</code>, <code>string</code> (alias <code>str</code>), <code>bytes</code>, <code>array</code>, <code>chars</code>, <code>error</code>, <code>keyValue</code>, <code>keyValueArray</code>.</p>
+<pre><code class="language-go">int("42")        // 42
+str(42)          // "42"
+float(3)         // 3.0
+bool(1)          // true
+char("X")        // 'X'
+decimal(2)       // 2
+bytes("hi")      // bytes of "hi"
+array(1, 2, 3)   // [1, 2, 3]</code></pre>
+<h2 id="type-inspection">Type Inspection</h2>
+<p><code>typeName</code>, <code>typeof</code>, <code>is</code>, <code>isArray</code>, <code>isBool</code>, <code>isBytes</code>, <code>isCallable</code>, <code>isChar</code>, <code>isDict</code>, <code>isError</code>, <code>isFloat</code>, <code>isFunction</code>, <code>isInt</code>, <code>isIterable</code>, <code>isIterator</code>, <code>isNil</code>, <code>isRawStr</code>, <code>isStr</code>, <code>isUint</code>, <code>isSyncDict</code>.</p>
+<pre><code class="language-go">typeName([1, 2])   // "array"
+isInt(5)           // true
+isNil(nil)         // true
+isCallable(println)// true</code></pre>
+<h2 id="sequences-and-collections">Sequences and Collections</h2>
+<p><code>len</code>, <code>append</code>, <code>delete</code>, <code>copy</code>, <code>dcopy</code>, <code>repeat</code>, <code>contains</code>, <code>sort</code>, <code>sortReverse</code>, <code>keys</code>, <code>values</code>, <code>items</code>, <code>zip</code>, <code>enumerate</code>.</p>
+<pre><code class="language-go">len([1, 2, 3])             // 3
+append([1, 2], 3, 4)       // [1, 2, 3, 4]
+contains([1, 2, 3], 2)     // true
+repeat([0], 3)             // [0, 0, 0]
+sort([3, 1, 2])            // [1, 2, 3]
+delete({a: 1, b: 2}, "a")  // mutates → {b: 2}</code></pre>
+<h2 id="iteration">Iteration</h2>
+<p><code>map</code>, <code>filter</code>, <code>reduce</code>, <code>each</code>, <code>iterate</code>, <code>iterator</code>, <code>collect</code>, <code>toArray</code>, <code>zip</code>, <code>enumerate</code>.</p>
+<p>Several of these (<code>map</code>, <code>filter</code>, <code>keys</code>, <code>values</code>, …) return <strong>lazy iterators</strong>. Consume them in a <code>for in</code> loop or a comprehension, or materialise them with <code>collect</code> / <code>array</code>:</p>
+<pre><code class="language-go">// for-in over a lazy map (callback gets value first)
+for k, v in map([10, 20, 30], func(v, k) { return v * 2 }) {
+    println(k, v)        // 0 20, 1 40, 2 60
+}
+
+// reduce eagerly folds
+reduce([1, 2, 3, 4], func(acc, v, k) { return acc + v }, 0)   // 10
+
+// collect an iterator into an array
+collect(keys({a: 1, b: 2}))   // ["a", "b"]
+collect(filter([10, 11, 12, 13], func(v, k, it) { return v % 2 == 0 }))  // [10, 12]</code></pre>
+<p>Mind the callback argument order: <code>each</code> receives <code>(key, value)</code>, while <code>map</code> receives <code>(value, key)</code>, <code>filter</code> receives <code>(value, key, iterable)</code> and <code>reduce</code> receives <code>(accumulator, value, key)</code>. Comprehensions are often clearer than <code>map</code>/<code>filter</code> — see <a href="collections.html#comprehensions">Collections</a>.</p>
+<h2 id="io-and-formatting">I/O and Formatting</h2>
+<p><code>print</code>, <code>println</code>, <code>printf</code>, <code>sprintf</code>, <code>repr</code>, <code>read</code>, <code>write</code>, <code>flush</code>, <code>stdio</code>.</p>
+<pre><code class="language-go">println("a", 1, [2])     // a 1 [2]
+printf("%d-%s\n", 7, "x")// 7-x
+s := sprintf("%v", {a: 1})
+repr("hi")               // a debug representation</code></pre>
+<h2 id="misc">Misc</h2>
+<p><code>cast</code>, <code>wrap</code>, <code>addMethod</code>, <code>Class</code>, <code>userData</code>.</p>
+<p>The host-provided globals object is reached with the <code>@g</code> keyword (see [Special <code>@</code> Keywords](special-keywords.md) and <a href="variables-and-scopes.html#global">Variables → global</a>); <code>Class</code> and <code>addMethod</code> support the object/class system.</p>
+<h2 id="builtin-modules">Builtin Modules</h2>
+<p><code>time</code>, <code>strings</code>, <code>fmt</code> and <code>base64</code> are exposed as <strong>builtin namespaces</strong>: they are always available, so you can use them **without an <code>import</code>**:</p>
+<pre><code class="language-go">println(strings.contains("abcd", "bc"))          // true
+println(fmt.sprintf("%d-%s", 7, "x"))            // 7-x
+println(base64.StdEncoding.EncodeToString(bytes("hi")))  // aGk=
+
+d := time.date(2026, 6, 13, 9, 0, 0, 0, time.utc())
+println(d.Year())                                // 2026</code></pre>
+<p><code>import(...)</code> still works for these (and is required for other stdlib modules), returning the same members:</p>
+<pre><code class="language-go">strings := import("strings")
+println(strings.toUpper("hi"))   // HI</code></pre>
+<h3 id="member-naming">Member naming</h3>
+<p>The **<code>strings</code><strong>, </strong><code>fmt</code><strong> and </strong><code>time</code><strong> modules expose their functions with </strong>lowerCamelCase** member names, following Gad's <a href="conventions.html">naming conventions</a> (<code>strings.toUpper</code>, <code>strings.contains</code>, <code>fmt.sprintf</code>, <code>time.now</code>, <code>time.date</code>, <code>time.durationString</code>, …). The **<code>base64</code>** module keeps Go-style PascalCase names (<code>base64.StdEncoding</code>, <code>base64.RawURLEncoding</code>), because those members are package-level <strong>constants</strong>. For <code>time</code>, the value types are <code>time</code> and <code>Location</code>, and methods on a time value stay PascalCase (<code>t.Add(…)</code>, <code>t.Format(…)</code>).</p>
+<h2 id="other-standard-library-modules">Other Standard Library Modules</h2>
+<p>Further functionality is grouped into importable modules such as <code>json</code>, <code>os</code>, <code>filepath</code> and <code>path</code>:</p>
+<pre><code class="language-go">json := import("json")</code></pre>
+<p>See the generated <code>stdlib-*.md</code> files for per-module references. For runnable examples, see <code>samples/stdlib/</code> (<code>use_fmt.gad</code>, <code>use_strings.gad</code>, <code>use_time.gad</code>, <code>use_json.gad</code>, <code>use_base64.gad</code>).</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#type-constructors--conversions">Type Constructors / Conversions</a><a href="#type-inspection">Type Inspection</a><a href="#sequences-and-collections">Sequences and Collections</a><a href="#iteration">Iteration</a><a href="#io-and-formatting">I/O and Formatting</a><a href="#misc">Misc</a><a href="#builtin-modules">Builtin Modules</a><a href="#other-standard-library-modules">Other Standard Library Modules</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
