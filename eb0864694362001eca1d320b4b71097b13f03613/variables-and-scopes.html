@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variables and Scopes · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link active" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="variables-and-scopes">Variables and Scopes</h1>
+<p><a href="index.html">← Back to index</a></p>
+<p>Gad has four declaration keywords — <code>param</code>, <code>global</code>, <code>var</code> and <code>const</code> — plus the short declaration operator <code>:=</code>.</p>
+<p>Valid identifiers may contain letters, digits, <code>_</code> and <code>$</code> (not as the first character if it would form a number):</p>
+<pre><code class="language-go">var (_, _a, $_a, a, A, $b, $, a1, $1, $b1, $$)</code></pre>
+<h2 id="vs"><code>:=</code> vs <code>=</code></h2>
+<ul>
+<li><code>:=</code> declares a <strong>new</strong> local variable and assigns to it.</li>
+<li><code>=</code> assigns to an <strong>existing</strong> variable (or a dict/array element).</li>
+</ul>
+<pre><code class="language-go">a := "foo"   // declare 'a'
+a = "bar"    // reassign 'a'
+b = 1        // illegal: 'b' is not declared</code></pre>
+<p>A variable may be reassigned a value of a different type:</p>
+<pre><code class="language-go">a := 123       // int
+a = "123"      // str
+a = [1, 2, 3]  // array</code></pre>
+<h2 id="param">param</h2>
+<p><code>param</code> declares the parameters of the main script function. It may appear only once, at the top level, and initial values are illegal (a variadic <code>*x</code> defaults to <code>[]</code>, everything else to <code>nil</code>). Use parentheses for multiple parameters; the positional list and the named list are separated by <code>;</code>.</p>
+<pre><code class="language-go">param (arg0, arg1, *rest)          // positional + variadic
+param (;x, y=1, z={}, **named)     // named only (with defaults)
+param (a, b, *rest; x, y=1, **nx)  // mixed</code></pre>
+<p>Named arguments and defaults follow the same rules as <a href="functions.html#named-arguments">function parameters</a>.</p>
+<h2 id="global">global</h2>
+<p><code>global</code> declares variables backed by the host-provided globals object. Reads and writes go through that object, so globals are how an embedding Go program exchanges data with a script (and how source modules share state). The statement may appear multiple times.</p>
+<pre><code class="language-go">global foo
+global (bar, baz)
+
+foo = 10           // writes back to the globals object
+g := @g            // the whole globals object
+println(g["foo"])  // 10</code></pre>
+<p>If the host passes <code>nil</code> for globals, a temporary object is used.</p>
+<h3 id="defaults">Defaults</h3>
+<p>A grouped <code>global (…)</code> may give a name a default that is applied only when the host did not already provide a value. There are two flavours, matching the coalescing operators:</p>
+<ul>
+<li><code>name = value</code> applies the default when the global is <strong>nil or absent</strong></li>
+</ul>
+<p>  (like <code>name ??= value</code>).</p>
+<ul>
+<li><code>name !?= value</code> applies it only when the global is <strong>absent</strong>; a value the</li>
+</ul>
+<p>  host set to <code>nil</code> is kept (like <code>@g["name"] !?= value</code>).</p>
+<pre><code class="language-go">global (page = 1, limit = 20)   // page/limit default unless the host set them
+global (user !?= "guest")       // only when "user" is not provided at all
+
+// mix plain names and both default forms
+global (db, verbose = no, trace !?= no)</code></pre>
+<h2 id="var">var</h2>
+<p><code>var</code> declares one or more local variables, optionally with initializers. Uninitialized variables are <code>nil</code>. Tuple assignment is not allowed in a <code>var</code> statement (use <a href="collections.html#destructuring">destructuring</a> with <code>:=</code>).</p>
+<pre><code class="language-go">var foo                  // nil
+var (bar, baz = 1)       // bar == nil, baz == 1
+var (
+    x = 1
+    y
+    z = "z"
+)</code></pre>
+<p>A function value that refers to itself must be declared before it is assigned, because the right-hand side is compiled before the left:</p>
+<pre><code class="language-go">var f
+f = func() {
+    return f   // ok: 'f' already declared
+}</code></pre>
+<h2 id="const">const</h2>
+<p><code>const</code> declares read-only local bindings; an initializer is required and reassignment is a compile error. The binding is read-only, but the value it refers to may still be mutable.</p>
+<pre><code class="language-go">const (
+    a = 1
+    b = {foo: "bar"}
+)
+a = 2          // compile error
+b.foo = "baz"  // allowed: the dict itself is mutable</code></pre>
+<h3 id="iota">iota</h3>
+<p>Inside a <code>const</code> block, <code>iota</code> counts declarations from 0 and may appear in any expression on the right-hand side.</p>
+<pre><code class="language-go">const (
+    x = iota   // 0
+    y          // 1
+    z          // 2
+)
+
+const (
+    a = 1 &lt;&lt; iota  // 1
+    b              // 2
+    c              // 4
+)
+
+const (
+    _ = iota
+    kb = "size" + iota  // "size1"
+    mb                  // "size2"
+)</code></pre>
+<p>If a variable named <code>iota</code> exists before the <code>const</code> block, it shadows the enumerator and no counting happens.</p>
+<h2 id="scopes-and-capturing">Scopes and Capturing</h2>
+<p>Inner functions capture variables from enclosing scopes. Re-declaring a name with <code>:=</code> shadows the outer one.</p>
+<pre><code class="language-go">a := "outer"
+func() {
+    a = "changed"   // assigns to the outer 'a'
+    a := "inner"    // shadows: new local 'a'
+}()</code></pre>
+<h2 id="destructuring">Destructuring</h2>
+<p>See <a href="collections.html#destructuring">Collections → Destructuring</a> for the full destructuring reference. A runnable example covering array, named <code>(;…)</code> and TypeScript-style <code>{…}</code> destructuring is available in <code>samples/27_destructuring.gad</code>.</p>
+<p>Like Go, a loop variable captured by a closure holds its final value unless you bind a fresh copy inside the loop:</p>
+<pre><code class="language-go">var f
+for i := 0; i &lt; 3; i++ {
+    i := i           // fresh binding per iteration
+    f = func() { return i }
+}
+println(f())         // 2</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#vs">:= vs =</a><a href="#param">param</a><a href="#global">global</a><a href="#var">var</a><a href="#const">const</a><a href="#scopes-and-capturing">Scopes and Capturing</a><a href="#destructuring">Destructuring</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
