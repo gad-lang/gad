@@ -481,3 +481,18 @@
       trailing). Docs: doc/functions.md (Spreading Arguments + Named Arguments).
       Sample: samples/03_functions.gad `collect` + interleaved call, runs
       (`[[1..6], {b,x,c}]`). Formatter round-trips (idempotent) the new forms.
+
+- [ ] setup config to publish plugins (codemirror-gad and prism-gad) using bun to npm organization @gad-lang
+- [x] check github actions failure
+      DONE. The `test` workflow failed at the `Security - govulncheck` job on the
+      push of 58950a9. Root cause: govulncheck flagged **GO-2026-5856**, a
+      `crypto/tls` standard-library vuln — Found in `crypto/tls@go1.26.4`, Fixed in
+      `crypto/tls@go1.26.5`. The project pins Go 1.26.4 everywhere, so the reachable
+      TLS call stacks (http.Get, tls.Conn.Read/Write, http.ListenAndServe) tripped
+      it. Fix: bumped `1.26.4` -> `1.26.5` in go.mod, Makefile (GOTOOLCHAIN), and
+      all three workflows (workflow.yml, release.yml, website.yml).
+      Evidence:
+        - CI log: `Vulnerability #1: GO-2026-5856 ... Fixed in: crypto/tls@go1.26.5`.
+        - `GOTOOLCHAIN=go1.26.5+auto go build ./...` -> exit 0 (downloaded 1.26.5).
+        - govulncheck rebuilt on 1.26.5: `GOTOOLCHAIN=go1.26.5+auto govulncheck
+          ./...` -> `No vulnerabilities found.` exit 0.

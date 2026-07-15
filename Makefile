@@ -1,7 +1,7 @@
 SHELL       := bash
 .SHELLFLAGS := -e -o pipefail -c
 MAKEFLAGS   += --warn-nil-variables
-GOTOOLCHAIN=go1.26.4+auto
+GOTOOLCHAIN=go1.26.5+auto
 
 all: version depcheck generate lint test
 
