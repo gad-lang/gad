@@ -79,9 +79,14 @@ func New(path string) (*Server, error) {
 // workspace-relative form, so the UI shows `mathx.gad` instead of a long
 // `/abs/…/mathx.gad`.
 func (s *Server) relativizeValue(v string) string {
-	sep := string(os.PathSeparator)
-	v = strings.ReplaceAll(v, "file:"+s.Root+sep, "")
-	v = strings.ReplaceAll(v, s.Root+sep, "")
+	// Paths embedded in rendered values and s.Root may use different separators
+	// on Windows (e.g. a value built with forward slashes vs a backslash root),
+	// so strip in slash-normalised form. The remaining relative path is shown
+	// with forward slashes, which is also the friendlier form for the UI.
+	root := filepath.ToSlash(s.Root)
+	v = filepath.ToSlash(v)
+	v = strings.ReplaceAll(v, "file:"+root+"/", "")
+	v = strings.ReplaceAll(v, root+"/", "")
 	return v
 }
 

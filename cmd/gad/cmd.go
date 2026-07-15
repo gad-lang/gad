@@ -182,11 +182,14 @@ type fileFilter struct {
 }
 
 func (f *fileFilter) match(path string) bool {
+	// Match against a slash-normalised path so full-path globs/regexes (e.g.
+	// `/sub/`) behave identically on Windows, where the path uses backslashes.
+	slashPath := filepath.ToSlash(path)
 	base := filepath.Base(path)
-	if matchAnyGlob(f.includeGlobs, path, base) || matchAnyRe(f.includeRe, path, base) {
+	if matchAnyGlob(f.includeGlobs, slashPath, base) || matchAnyRe(f.includeRe, slashPath, base) {
 		return true
 	}
-	if matchAnyGlob(f.excludeGlobs, path, base) || matchAnyRe(f.excludeRe, path, base) {
+	if matchAnyGlob(f.excludeGlobs, slashPath, base) || matchAnyRe(f.excludeRe, slashPath, base) {
 		return false
 	}
 	return true
@@ -840,8 +843,10 @@ func splitRecursive(arg string) (recursive bool, path string) {
 	switch {
 	case arg == "...":
 		return true, "."
-	case strings.HasSuffix(arg, "/..."):
-		return true, strings.TrimSuffix(arg, "/...")
+	// Accept both "/..." and the OS separator ("\..." on Windows); ToSlash keeps
+	// the length, so trimming by the fixed suffix width stays correct.
+	case strings.HasSuffix(filepath.ToSlash(arg), "/..."):
+		return true, arg[:len(arg)-len("/...")]
 	default:
 		if arg == "" {
 			return false, "."

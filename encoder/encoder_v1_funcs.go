@@ -464,6 +464,11 @@ func init() {
 				if r, err = e.Reader(); err != nil {
 					return
 				}
+				// Close the reader if it owns a handle (e.g. *os.File) so it does
+				// not leak; on Windows an open handle blocks file removal.
+				if c, ok := r.(io.Closer); ok {
+					defer c.Close()
+				}
 
 				// the bytes written + start value size (uint32 = 4 bytes)
 				if err = writeInt64(ctx, int64(ew.BytesWritten())); err != nil {

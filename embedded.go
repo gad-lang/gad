@@ -328,6 +328,12 @@ func (n *Embedded) Size() (_ int64, err error) {
 	if r, err = n.Reader(); err != nil {
 		return
 	}
+	// The factory may hand back an *os.File (EmbeddedOsFileReaderFactory);
+	// close it so it does not leak a handle. On Windows an open handle blocks
+	// removal of the underlying file/dir.
+	if c, ok := r.(io.Closer); ok {
+		defer c.Close()
+	}
 
 	switch t := r.(type) {
 	case interface{ Size() int }:
@@ -343,6 +349,11 @@ func (n *Embedded) Read() (b []byte, err error) {
 	var r io.Reader
 	if r, err = n.Reader(); err != nil {
 		return
+	}
+	// Close the reader if it owns a handle (e.g. *os.File); otherwise it leaks
+	// and, on Windows, blocks removal of the underlying file.
+	if c, ok := r.(io.Closer); ok {
+		defer c.Close()
 	}
 	return io.ReadAll(r)
 }

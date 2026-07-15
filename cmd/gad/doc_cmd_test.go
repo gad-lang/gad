@@ -288,7 +288,10 @@ func TestDocResolveDirDst(t *testing.T) {
 	d := docInputDir{Path: "src/...", Dst: "api"}
 	o.resolveDir(&d)
 	require.True(t, d.dstSet)
-	require.Equal(t, filepath.Clean("/ws/src/api"), filepath.Clean(d.dst))
+	// resolveDir absolutizes via filepath.Abs; on Windows "/ws" is not absolute
+	// and gains a drive letter, so absolutize the expected value the same way.
+	wantDst, _ := filepath.Abs(filepath.Join("/ws", "src", "api"))
+	require.Equal(t, wantDst, filepath.Clean(d.dst))
 
 	// no per-dir dst, root dst is relative -> inherits root dst.
 	o2 := &docOptions{out: "/ws/doc", workspace: "/ws", dstSet: true}

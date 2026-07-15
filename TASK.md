@@ -509,3 +509,29 @@
           (errored `found 0` before the fix).
         - New tests TestGenerateInjectsHook + TestGenerateHandlesCRLF ->
           `ok github.com/gad-lang/gad/cmd/update-delve` (both PASS).
+      Follow-up 2: unblocking the matrix exposed 18 pre-existing Windows-only test
+      failures (only windows-amd64 runs `make test`; 386/arm64 skip it). Two root
+      causes, fixed:
+      (A) File-handle leaks blocking `t.TempDir()` RemoveAll on Windows (14 tests:
+          TestEmbeddedFileImporter_*, TestCompiler_CompileEmbed, TestVMEmbed).
+          `Embedded.Read()` and `Embedded.Size()` opened files via
+          EmbeddedOsFileReaderFactory (`os.OpenFile`) and never closed them; the
+          encoder's embed writer (encoder_v1_funcs.go) likewise. `str(embedded)`
+          calls Size() per file, Read() reads content — both leaked a handle each,
+          and Windows refuses to unlink an open file. Fix: close the reader when it
+          is an io.Closer in Read/Size/encoder.
+      (B) Path-separator assumptions (5 tests):
+          - collectFmtTargets: `fileFilter.match` now matches globs/regexes against
+            a `filepath.ToSlash` path so `/sub/` works on Windows (`\sub\`).
+          - splitRecursive: recognise the OS separator ("\..." on Windows), not
+            only "/..." (fixes TestDocWritesTree recursion detection).
+          - TestDocResolveDirDst: absolutize the expected value (Unix `/ws` gains a
+            drive on Windows) — test-only assumption.
+          - TestParserTrace: normalise the input source CRLF->LF so the trace's
+            column/offset numbers match the LF golden.
+          - relativizeValue (web/ide): strip the workspace root in slash-normalised
+            form so mixed/backslash module paths are made relative on Windows.
+      Evidence (Linux): `go build ./...`, `go vet ./...`, `go test ./...` all clean;
+      affected packages (cmd/gad, parser, web/ide, ., importers, encoder) `ok`.
+      The leak fixes are correctness-verified (Linux permits unlinking open files,
+      so the failure only reproduces on Windows CI); pushed for Windows validation.

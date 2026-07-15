@@ -40,7 +40,10 @@ func TestParserTrace(t *testing.T) {
 	}
 	sampleB, err := os.ReadFile("testdata/sample.gad")
 	require.NoError(t, err)
-	sample := string(sampleB)
+	// Normalise line endings: a Windows/autocrlf checkout yields CRLF, which
+	// would shift the column/offset numbers embedded in the trace away from the
+	// LF-based golden.
+	sample := strings.ReplaceAll(string(sampleB), "\r\n", "\n")
 
 	goldenFile := "testdata/trace.golden"
 	f, err := os.Open(goldenFile)
