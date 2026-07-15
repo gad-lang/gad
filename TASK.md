@@ -568,3 +568,7 @@
       rendering some value; only reachable here via a failed assertion and not
       reproducible on Linux, so left as a known follow-up. `go test -race
       ./stdlib/os/` -> ok on Linux.
+      RESOLVED: after this push the full `test` workflow is GREEN — govulncheck +
+      all 6 matrix jobs pass, including windows-amd64 running the complete `go test
+      -race ./...` for the first time (6m16s). `website` workflow also green on the
+      same commit (2ddb758). CI failure fully fixed.
