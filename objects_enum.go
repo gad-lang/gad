@@ -85,10 +85,54 @@ func (e *Enum) Iterate(_ *VM, na *NamedArgs) Iterator {
 	}).ParseNamedArgs(na)
 }
 
-func (e *Enum) IndexGet(vm *VM, index Object) (value Object, err error) {
+// Names returns the member names in declaration (Index) order, matching the
+// order of iteration, ToArray and the `@values`/`@pairs` accessors.
+func (e *Enum) Names() (ret []string) {
+	ret = make([]string, len(e.Values))
+	for _, v := range e.Values {
+		ret[v.Index] = v.Name
+	}
+	return
+}
+
+// IndexGet resolves a member by name (e.g. `Perm["Read"]`, returning the
+// EnumValue) and the following virtual accessors, all in declaration order:
+//
+//	@names    Array of member names (Str)
+//	@values   Array of the underlying int/uint values
+//	@dict     Dict of name -> value
+//	@pairs    KeyValueArray of {name, value} in declaration order
+func (e *Enum) IndexGet(_ *VM, index Object) (value Object, err error) {
 	key := index.ToString()
 	if value, ok := e.Values[key]; ok {
 		return value, nil
+	}
+	names := e.Names()
+	switch key {
+	case "@names":
+		ret := make(Array, len(names))
+		for i, name := range names {
+			ret[i] = Str(name)
+		}
+		return ret, nil
+	case "@values":
+		ret := make(Array, len(names))
+		for i, name := range names {
+			ret[i] = e.Values[name].Value
+		}
+		return ret, nil
+	case "@dict":
+		ret := make(Dict, len(e.Values))
+		for name, value := range e.Values {
+			ret[name] = value.Value
+		}
+		return ret, nil
+	case "@pairs":
+		ret := make(KeyValueArray, len(names))
+		for i, name := range names {
+			ret[i] = &KeyValue{K: Str(name), V: e.Values[name].Value}
+		}
+		return ret, nil
 	}
 	return nil, ErrInvalidIndex.NewError(key)
 }
@@ -118,6 +162,8 @@ func (e *Enum) Print(state *PrinterState) error {
 		})
 }
 
+// ToArray returns the members as *EnumValue wrappers in declaration order (use
+// the `@values` accessor for the underlying int/uint values).
 func (e *Enum) ToArray() (arr Array) {
 	arr = make(Array, len(e.Values))
 	var i int
@@ -131,9 +177,11 @@ func (e *Enum) ToArray() (arr Array) {
 	return
 }
 
+// UpdateIndexSetter fills out with name -> underlying value entries (not the
+// EnumValue wrappers), so ToDict / dict(enum) expose the plain int/uint values.
 func (e *Enum) UpdateIndexSetter(out StringIndexSetter) {
 	for k, v := range e.Values {
-		out.Set(k, v)
+		out.Set(k, v.Value)
 	}
 }
 

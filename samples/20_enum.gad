@@ -32,6 +32,14 @@ for name, v in Perm {
 }
 println("iterate    =", out)   // [Read=1, Write=2, Exec=10, Delete=11]
 
+// Bulk accessors expose the whole enum at once, in declaration order, as the
+// underlying values (not the member wrappers).
+println("@names     =", Perm["@names"])    // ["Read", "Write", "Exec", "Delete"]
+println("@values    =", Perm["@values"])   // [1, 2, 10, 11]
+println("@dict      =", Perm["@dict"])     // {Delete: 11, Exec: 10, Read: 1, Write: 2} (dict prints keys sorted)
+println("@pairs     =", Perm["@pairs"])    // (;Read=1, Write=2, Exec=10, Delete=11)
+println("dict(Perm) =", dict(Perm))        // {Delete: 11, Exec: 10, Read: 1, Write: 2} (name -> value)
+
 /// Flags uses `bit` for power-of-two values; a field may combine earlier ones.
 enum Flags {
     /// 1 << 0

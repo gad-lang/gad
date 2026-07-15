@@ -1026,6 +1026,20 @@ func TestVMEnum(t *testing.T) {
 	for k, v in Perm { out = append(out, k + "=" + str(v.value)) }
 	return out`, nil, Array{Str("Read=1"), Str("Write=2")})
 
+	// virtual accessors expose names/values/dict/pairs in declaration order.
+	testExpectRun(t, `enum Perm { Read, Write, Exec = 10 }
+	return Perm["@names"]`, nil, Array{Str("Read"), Str("Write"), Str("Exec")})
+	testExpectRun(t, `enum Perm { Read, Write, Exec = 10 }
+	return Perm["@values"]`, nil, Array{Uint(1), Uint(2), Int(10)})
+	testExpectRun(t, `enum Perm { Read, Write, Exec = 10 }
+	return Perm["@dict"]`, nil, Dict{"Read": Uint(1), "Write": Uint(2), "Exec": Int(10)})
+	testExpectRun(t, `enum Perm { Read, Write, Exec = 10 }
+	return Perm["@pairs"]`, nil, KeyValueArray{
+		&KeyValue{K: Str("Read"), V: Uint(1)},
+		&KeyValue{K: Str("Write"), V: Uint(2)},
+		&KeyValue{K: Str("Exec"), V: Int(10)},
+	})
+
 	// indexGet of an unknown member errors.
 	expectErrIs(t, `enum Perm { Read }
 	return Perm["Nope"]`, nil, ErrInvalidIndex)

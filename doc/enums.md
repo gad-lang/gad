@@ -99,4 +99,28 @@ for name, member in Perm {     // iterate in declaration order
 }
 ```
 
+### Bulk accessors
+
+Four virtual keys expose the whole enum at once. Every one is in **declaration
+order** (the same order as iteration), and each yields the underlying
+`int`/`uint` values — not the `EnumValue` wrappers:
+
+```go
+enum Perm { Read, Write, Exec = 10 }
+
+Perm["@names"]      // ["Read", "Write", "Exec"]        — array of names
+Perm["@values"]     // [1, 2, 10]                       — array of values
+Perm["@dict"]       // { Read: 1, Write: 2, Exec: 10 }  — name -> value
+Perm["@pairs"]      // (; Read=1, Write=2, Exec=10 )     — keyValueArray
+```
+
+Converting an enum to a dict yields the same name → value mapping:
+
+```go
+dict(Perm)          // { Read: 1, Write: 2, Exec: 10 }
+```
+
+(`@names[i]`, `@values[i]` and `@pairs[i]` line up by index, so they can be
+zipped together.)
+
 See [`samples/20_enum.gad`](../samples/20_enum.gad) for a runnable tour.
