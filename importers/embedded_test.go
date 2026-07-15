@@ -79,7 +79,9 @@ func TestEmbeddedFileImporter_Import(t *testing.T) {
 
 		for _, file := range files {
 			rel, _ := filepath.Rel(filepath.Dir(tempDir0), file.AbsPath)
-			rel = filepath.Join(strings.Split(rel, string(filepath.Separator))[1:]...)
+			// Drop the leading temp-dir component; keep forward slashes so the
+			// lookup matches the "/"-keyed expectation maps on Windows too.
+			rel = strings.Join(strings.Split(filepath.ToSlash(rel), "/")[1:], "/")
 			data, err := file.Read()
 			require.NoError(t, err)
 

@@ -535,3 +535,18 @@
       affected packages (cmd/gad, parser, web/ide, ., importers, encoder) `ok`.
       The leak fixes are correctness-verified (Linux permits unlinking open files,
       so the failure only reproduces on Windows CI); pushed for Windows validation.
+      CI result of that push: file-handle leaks all fixed (no more "being used by
+      another process"); windows-arm64 + windows-386 + all ubuntu green. Left 3
+      windows-amd64 failures with one shared root cause — gad rendered filesystem
+      paths with OS separators (`\`) on Windows instead of its forward-slash
+      convention, and Module.ToString %q-escapes them (`\` -> `\\`):
+      - TestEmbeddedFileImporter_SingleFile: importer set the embedded node name
+        via filepath.Clean (backslashes). Now filepath.ToSlash(filepath.Clean(name)).
+      - TestDebugModulePathsAreRelative: module uri was "file:"+OS-path. Now
+        "file:"+filepath.ToSlash(path) in FileImporter.Import + ShebangReadFile, so
+        module values are forward-slash and relativizeValue strips the root.
+        normalizeDebugFile now compares in slash form to match.
+      - TestEmbeddedFileImporter_Import/dir: test-only — map keys are "/"-based but
+        rel was rebuilt with filepath.Separator; now filepath.ToSlash.
+      Evidence (Linux): `go build ./...`, `go vet ./...`, `go test ./...` all clean;
+      importers/web/ide/cmd/gad/encoder/. all `ok`. Pushed for Windows validation.

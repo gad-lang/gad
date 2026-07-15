@@ -103,7 +103,10 @@ func (i *EmbeddedFileImporter) Import(ctx context.Context, name string, absPath 
 		return
 	}
 
-	name = filepath.Clean(name)
+	// Gad's embedded FS is addressed with forward slashes (Get/Path use "/"), so
+	// keep node names slash-based; filepath.Clean would emit backslashes on
+	// Windows and corrupt the rendered path (e.g. "src/a.go" -> "src\a.go").
+	name = filepath.ToSlash(filepath.Clean(name))
 
 	if strings.HasPrefix(name, ".") {
 		err = errors.New("invalid import path")

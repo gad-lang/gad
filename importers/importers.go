@@ -62,7 +62,9 @@ func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data
 		if data, err = os.ReadFile(module.Name); err != nil {
 			return
 		}
-		uri = "file:" + module.Name
+		// Gad addresses modules with forward slashes; normalise so uris are
+		// consistent across OSes (Windows filepath.Join yields backslashes).
+		uri = "file:" + filepath.ToSlash(module.Name)
 		return
 	}
 	return m.FileReader(module.Name)
@@ -136,7 +138,8 @@ func ShebangReadFile(path string) ([]byte, string, error) {
 	if err == nil {
 		Shebang2Slashes(data)
 	}
-	return data, "file:" + path, err
+	// Forward-slash uri for cross-OS consistency (see FileImporter.Import).
+	return data, "file:" + filepath.ToSlash(path), err
 }
 
 // Shebang2Slashes replaces first two bytes of given p with two slashes if they

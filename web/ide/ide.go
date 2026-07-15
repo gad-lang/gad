@@ -108,7 +108,11 @@ func (s *Server) normalizeDebugFile(mainPath, engineFile string) string {
 	if !filepath.IsAbs(abs) {
 		return engineFile
 	}
-	if abs == s.Root || strings.HasPrefix(abs, s.Root+string(os.PathSeparator)) {
+	// Compare in slash form: module uris are forward-slash while s.Root uses the
+	// OS separator (backslash on Windows).
+	root := filepath.ToSlash(s.Root)
+	slashAbs := filepath.ToSlash(abs)
+	if slashAbs == root || strings.HasPrefix(slashAbs, root+"/") {
 		return s.rel(abs)
 	}
 	return engineFile
