@@ -496,3 +496,16 @@
         - `GOTOOLCHAIN=go1.26.5+auto go build ./...` -> exit 0 (downloaded 1.26.5).
         - govulncheck rebuilt on 1.26.5: `GOTOOLCHAIN=go1.26.5+auto govulncheck
           ./...` -> `No vulnerabilities found.` exit 0.
+      Follow-up: fixing govulncheck unblocked the build matrix (it is gated by
+      `needs: govulncheck`), exposing a latent Windows-only failure. `make test`
+      runs `go generate`, whose `cmd/update-delve gen` step failed on Windows with
+      `expected exactly one instruction-fetch anchor, found 0`. Root cause: a
+      Windows/autocrlf checkout gives `vm_loop.go` CRLF line endings, so the
+      LF-terminated `anchor` string matched 0 times. Fix: `generate()` now
+      normalises CRLF->LF before matching (output stays byte-identical LF).
+      Evidence:
+        - `go run ./cmd/update-delve gen` (real LF file) -> `already up to date`.
+        - CRLF repro (`sed 's/$/\r/' vm_loop.go`) generated cleanly, exit 0
+          (errored `found 0` before the fix).
+        - New tests TestGenerateInjectsHook + TestGenerateHandlesCRLF ->
+          `ok github.com/gad-lang/gad/cmd/update-delve` (both PASS).

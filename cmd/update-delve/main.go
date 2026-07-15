@@ -130,7 +130,11 @@ func generateFrom(srcPath string) ([]byte, error) {
 // generate transforms the production loop source into the debug loop: it renames
 // VM.loop to VM.loopDebug and injects the per-instruction debugger hook.
 func generate(src []byte) ([]byte, error) {
-	s := string(src)
+	// Normalise line endings: a Windows/autocrlf checkout yields CRLF, which
+	// would make the LF-terminated anchor match zero times. The committed output
+	// uses LF, so normalising here keeps generation platform-independent and
+	// byte-identical across OSes.
+	s := strings.ReplaceAll(string(src), "\r\n", "\n")
 	if !strings.Contains(s, srcMarker) {
 		return nil, fmt.Errorf("could not find %q in source", srcMarker)
 	}
