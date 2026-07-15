@@ -95,7 +95,7 @@ func TestEmbeddedFileImporter_Import(t *testing.T) {
 
 	ret, err = run(&buf, []byte(`return str(embed("df1.txt"; sources=["d0/f"]))`), opts)
 	require.NoError(t, err)
-	require.Equal(t, gad.Str(fmt.Sprintf("‹Embedded: file ‹df1.txt› 2 B \"%s/d0/f/df1.txt\"›", tempDir0)), ret)
+	require.Equal(t, gad.Str(fmt.Sprintf("‹Embedded: file ‹df1.txt› 2 B \"%s/d0/f/df1.txt\"›", filepath.ToSlash(tempDir0))), ret)
 
 	ret, err = run(&buf, []byte(`return str(embed("d1"))`), opts)
 	require.NoError(t, err)
@@ -103,7 +103,7 @@ func TestEmbeddedFileImporter_Import(t *testing.T) {
 
 	ret, err = run(&buf, []byte(`return str(embed("df1.txt"; sources=["d1/f"]))`), opts)
 	require.NoError(t, err)
-	require.Equal(t, gad.Str(fmt.Sprintf("‹Embedded: file ‹df1.txt› 4 B \"%s/d1/f/df1.txt\"›", tempDir1)), ret)
+	require.Equal(t, gad.Str(fmt.Sprintf("‹Embedded: file ‹df1.txt› 4 B \"%s/d1/f/df1.txt\"›", filepath.ToSlash(tempDir1))), ret)
 
 	ret, err = run(&buf, []byte(`f := embed("f1"); return str([f, f.size, int(f.modTime)])`), opts)
 	require.NoError(t, err)

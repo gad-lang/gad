@@ -550,3 +550,8 @@
         rel was rebuilt with filepath.Separator; now filepath.ToSlash.
       Evidence (Linux): `go build ./...`, `go vet ./...`, `go test ./...` all clean;
       importers/web/ide/cmd/gad/encoder/. all `ok`. Pushed for Windows validation.
+      That push left 1 windows-amd64 failure: TestEmbeddedFileImporter_Import — the
+      embedded repr rendered the node's AbsPath via strconv.Quote of the raw OS path
+      (backslashes, %q-escaped). Fixed: render strconv.Quote(filepath.ToSlash(absPath))
+      in Embedded.Print, and slash-normalise the temp-dir in the two test
+      expectations. Linux unaffected (ToSlash no-op). `go build/vet/test ./...` clean.

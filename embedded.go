@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -183,7 +184,9 @@ func (n *Embedded) Print(state *PrinterState) (err error) {
 				}
 			}
 		}
-		s = append(s, strconv.Quote(absPath))
+		// Render with forward slashes (gad's path convention) so the repr is
+		// stable across OSes and avoids backslash escaping on Windows.
+		s = append(s, strconv.Quote(filepath.ToSlash(absPath)))
 	}
 
 	if state.SkipNexDepth() && len(n.Entries) > 0 {
