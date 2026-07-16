@@ -754,6 +754,25 @@ func TestVMWith(t *testing.T) {
 	// A non-resource value is a no-op (enter/exit do nothing; the body still runs).
 	testExpectRun(t, str(`a := [1]; with a { a = append(a, 2) }; return a`),
 		nil, Array{Int(1), Int(2)})
+
+	// Block expression form yields the resource itself; exit runs around it.
+	testExpectRun(t, str(`
+		r := Res()
+		v := with r as h { h.log = append(h.log, "body") }
+		return [r.log, v.log]`),
+		nil, Array{
+			Array{Str("enter"), Str("body"), Str("exit")},
+			Array{Str("enter"), Str("body"), Str("exit")},
+		})
+
+	// Block expression form on a non-resource yields the entered value.
+	testExpectRun(t, `return with [1, 2] as x { }`, nil, Array{Int(1), Int(2)})
+
+	// Block expression form usable as a return value inside a function.
+	testExpectRun(t, str(`
+		f := func() { return with Res() as h { h.log = append(h.log, "b") } }
+		return f().log`),
+		nil, Array{Str("enter"), Str("b"), Str("exit")})
 }
 
 func TestVMToArray(t *testing.T) {
