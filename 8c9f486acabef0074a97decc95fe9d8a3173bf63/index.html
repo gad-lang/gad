@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gad Language · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link active" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="gad-language-documentation">Gad Language Documentation</h1>
+<p>Gad is a fast, dynamic scripting language designed to be embedded into Go applications. Source code is compiled to bytecode and run on a stack-based virtual machine written in native Go.</p>
+<p>This documentation is a hands-on, example-driven reference. Every example is written as runnable Gad code; most can be pasted directly into the REPL or a <code>.gad</code> file.</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="getting-started.html">Getting Started</a> — install, run scripts, the REPL.</li>
+<li><a href="values-and-types.html">Values and Types</a> — every value type and its literals</li>
+</ol>
+<p>   (int, uint, float, decimal, bool, flag, char, str, rawStr, bytes, array,    dict, nil, function, …).</p>
+<ol>
+<li><a href="variables-and-scopes.html">Variables and Scopes</a> — <code>param</code>, <code>global</code>, <code>var</code>,</li>
+</ol>
+<p>   <code>const</code>, <code>iota</code>, <code>:=</code> vs <code>=</code>, scoping rules.</p>
+<ol>
+<li><a href="operators.html">Operators</a> — unary, binary, ternary, assignment, nullish</li>
+</ol>
+<p>   (<code>??</code>, <code>?.</code>), precedence, selectors, indexers and slicing.</p>
+<ol>
+<li><a href="control-flow.html">Control Flow</a> — <code>if</code>, <code>for</code>, <code>for in</code>, <code>try/catch/finally</code>,</li>
+</ol>
+<p>   and the <code>match</code> expression/statement.</p>
+<ol>
+<li><a href="functions.html">Functions</a> — closures, variadics, named arguments, spreading,</li>
+</ol>
+<p>   <code>return =</code>, and <code>defer</code> / <code>deferb</code> handlers.</p>
+<ol>
+<li><a href="collections.html">Collections</a> — arrays, dicts, comprehensions, spread/merge</li>
+</ol>
+<p>   literals, and destructuring.</p>
+<ol>
+<li><a href="classes.html">Classes and Objects</a> — <code>Class(...)</code>, fields, methods,</li>
+</ol>
+<p>   properties, constructors, inheritance and <code>met</code> extensions.</p>
+<ul>
+<li><a href="method-interfaces.html">Func Headers and Method Interfaces</a> — <code>&lt;…&gt;</code> header</li>
+</ul>
+<p>     values, <code>meti</code> interfaces and <code>implements</code>.</p>
+<ul>
+<li><a href="enums.html">Enums</a> — the <code>enum</code> keyword: ordered named integer constants,</li>
+</ul>
+<p>     signs, bit flags and computed values.</p>
+<ol>
+<li><a href="strings-bytes-regex.html">Strings, Bytes and Regex</a> — string forms, raw</li>
+</ol>
+<p>   strings, heredocs, interpolated strings, <strong>bytes literals</strong> (<code>b"…"</code>, <code>h"…"</code>) and    <code>/regex/</code> literals.</p>
+<ol>
+<li><a href="error-handling.html">Error Handling</a> — error values, builtin errors,</li>
+</ol>
+<p>    <code>try/catch/finally</code>, and the <code>or</code> fallback operator.</p>
+<ol>
+<li><a href="modules.html">Modules</a> — <code>import</code>, <code>exports</code>, module parameters.</li>
+<li><a href="builtins.html">Builtin Functions</a> — overview of the builtin library.</li>
+<li><a href="embedding.html">Embedding in Go</a> — compile and run Gad from Go, pass</li>
+</ol>
+<p>    globals and arguments, expose Go functions.</p>
+<ol>
+<li><a href="formatting.html">Formatting</a> — the <code>gad fmt</code> source formatter, its flags and</li>
+</ol>
+<p>    the <code>.gad.yaml</code> config file.</p>
+<ol>
+<li><a href="templates.html">Templates</a> — mixed/template mode (<code>{% … %}</code>, <code>{%= … %}</code>,</li>
+</ol>
+<p>    <code>begin … end</code>, whitespace trim markers, <code>.gadt</code> files).</p>
+<ol>
+<li><a href="doc-comments.html">Doc Comments</a> — <code>///</code>, <code>/**</code> and <code>/***</code> doc comments,</li>
+</ol>
+<p>    what they attach to, and how the formatter reflows them.</p>
+<ol>
+<li><a href="conventions.html">Conventions</a> — how primitive types, constants, modules and</li>
+</ol>
+<p>    methods are cased, plus the code layout the formatter produces.</p>
+<h2 id="reference">Reference</h2>
+<ul>
+<li>[Special <code>@</code> Keywords](special-keywords.md) — <code>@fn</code>, <code>@args</code>, <code>@nargs</code>,</li>
+</ul>
+<p>  <code>@name</code>, <code>@file</code>, <code>@main</code>, <code>@module</code>, <code>@g</code>.</p>
+<ul>
+<li><a href="tutorial.html">Tutorial</a> — a guided walk-through of the language.</li>
+<li>Generated standard-library references: [<code>time</code>](stdlib-time.md),</li>
+</ul>
+<p>  [<code>fmt</code>](stdlib-fmt.md), [<code>strings</code>](stdlib-strings.md),   [<code>json</code>](stdlib-json.md).</p>
+<ul>
+<li><a href="stdlib-test.html">Testing</a> — the <code>test</code> module and the <code>gad test</code> command:</li>
+</ul>
+<p>  <code>*_test.gad</code> files, <code>test*</code>/<code>bench*</code> functions, assertions and benchmarks.</p>
+<h2 id="a-taste-of-gad">A Taste of Gad</h2>
+<pre><code class="language-go">param *args
+
+// closures, named args and the `or` fallback operator
+greet := func(name; greeting="Hello") {
+    return greeting + ", " + name + "!"
+}
+
+// comprehensions and spread literals
+nums := [1, 2, 3, 4]
+doubled := [n * 2 for n in nums if n &gt; 1]   // [4, 6, 8]
+all := [0, *doubled, 99]                    // [0, 4, 6, 8, 99]
+
+// match expression
+kind := match (len(args)) {
+    0: "empty"
+    1: "single"
+    else: "many"
+}
+
+println(greet("Gad"))            // Hello, Gad!
+println(greet("Gad"; greeting="Hi"))
+println(doubled, all, kind)</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#table-of-contents">Table of Contents</a><a href="#reference">Reference</a><a href="#a-taste-of-gad">A Taste of Gad</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
