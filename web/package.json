@@ -1,5 +1,10 @@
 {
   "private": true,
   "workspaces": ["codemirror-gad", "prism-gad", "app"],
-  "trustedDependencies": ["esbuild"]
+  "trustedDependencies": ["esbuild"],
+  "scripts": {
+    "plugins:build": "bun run --cwd codemirror-gad build && bun run --cwd prism-gad build",
+    "plugins:publish:dry": "cd codemirror-gad && bun publish --dry-run && cd ../prism-gad && bun publish --dry-run",
+    "plugins:publish": "cd codemirror-gad && bun publish && cd ../prism-gad && bun publish"
+  }
 }

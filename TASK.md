@@ -4,6 +4,31 @@
 # web/js projects
 
 # Language
+- [x] add docs and samples of `with` expr `x := with Expr as name { ... }`
+      DONE. The block-expression form (`x := with R [as name] { body }`) was
+      already implemented (compiler_with.go compileWithExpr yields the resource
+      after running the body + exit) and VM-tested (new_test.go TestVMWith:
+      yields-resource / non-resource / return-from-func cases), but it was
+      undocumented and had no parser round-trip test. Added:
+      (1) doc/control-flow.md — new "block variant" paragraph under the With
+          expression section: enters R, runs body (name bound), exits, yields the
+          RESOURCE itself; `as name` optional; on body error exit still runs and
+          the error propagates instead of the value. Framed as a build-and-return
+          primitive with a build()-returns-resource example.
+      (2) samples/18_with.gad — added "expr-block:" (build into `it`, receive it
+          back) and a build-and-return-from-a-func example (`make()`), plus the
+          `items`/`add` field+method on Res to demonstrate building.
+      (3) parser/parser_test.go TestParseWith — two block-expr round-trips:
+          `v := with mk() as it { it.add(1) }` and `v := with mk() { use() }`
+          (parenthesised as `v := (with … { … })`).
+      Evidence:
+        - `go test ./parser/ -run TestParseWith` -> ok (round-trips pass).
+        - `go test . -run TestVMWith` -> ok (block-expr yield cases pass).
+        - `go build ./...` -> exit 0; `go vet . ./parser/` -> exit 0.
+        - `gad samples/18_with.gad` runs: `expr-block:` prints
+          `built: e open = false items = [1, 2]` and `make(): [9]`.
+        - formatter round-trips the block-expr form (`gad fmt` of
+          `b := with F() as it { it.add(1) }` is idempotent).
 
 - [x] mixed-destructure positional rest should be `*rest` (single star, like a
       variadic param `func(a, *rest)`), not `**rest`. fix sample 27, docs, tests.
@@ -482,7 +507,39 @@
       Sample: samples/03_functions.gad `collect` + interleaved call, runs
       (`[[1..6], {b,x,c}]`). Formatter round-trips (idempotent) the new forms.
 
-- [ ] setup config to publish plugins (codemirror-gad and prism-gad) using bun to npm organization @gad-lang
+- [x] setup config to publish plugins (codemirror-gad and prism-gad) using bun to npm organization @gad-lang
+      DONE (config only, no publish — per user). Both web/codemirror-gad and
+      web/prism-gad are now npm-publish-ready as public `@gad-lang` scoped
+      packages shipping COMPILED output (tsc dist/*.js + *.d.ts), not raw TS.
+      package.json changes (both): main/module/types -> dist/index.js|.d.ts;
+      `exports` map (types/import/default -> ./dist); `sideEffects: false` (both
+      are side-effect-free — prism needs an explicit registerGad(Prism), CM
+      exports functions); `files: ["dist"]`; `publishConfig: { access: public,
+      registry: https://registry.npmjs.org/ }`; repository(+directory)/homepage/
+      bugs/keywords metadata; scripts `build` (prism gained it), `clean`,
+      `prepublishOnly` (clean+build so a stale dist is never shipped). Root
+      web/package.json got `plugins:build` / `plugins:publish:dry` /
+      `plugins:publish` convenience scripts across the two packages. Publishing +
+      the `.npmrc` auth-token template are documented in each package README
+      (the repo `.gitignore` ignores all dotfiles `.*`, so registry+access live
+      in publishConfig and the token is env/global-npmrc, never committed).
+      Also updated the VS Code extension (per user "update vscode plugin"):
+      `go run ./cmd/update-vscode-plugin -w` -> "grammar up to date" (the
+      generated TextMate grammar already matches the current token vocabulary;
+      verified it covers with/enum/interface/match/met/prop). No committed change
+      there — it was already in sync (test/bench are contextual, not tokens, so
+      correctly absent).
+      Evidence:
+        - `cd web/codemirror-gad && bun run build` -> exit 0, emits dist/*.js+.d.ts.
+        - `cd web/prism-gad && bun run build` -> exit 0, emits dist/*.js+.d.ts.
+        - `npm pack --dry-run` (both): tarball = dist/ + README.md + package.json
+          only (no src/node_modules/example).
+        - `bun run plugins:publish:dry` (from web/): both ->
+          `Access: public`, `Registry: https://registry.npmjs.org/`,
+          `+ @gad-lang/codemirror-gad@0.1.0 (dry-run)` (16 files) /
+          `+ @gad-lang/prism-gad@0.1.0 (dry-run)` (6 files).
+        - `go run ./cmd/update-vscode-plugin -w` -> `grammar up to date`
+          (git status of editors/vscode-gad clean).
 - [x] check github actions failure
       DONE. The `test` workflow failed at the `Security - govulncheck` job on the
       push of 58950a9. Root cause: govulncheck flagged **GO-2026-5856**, a
