@@ -3947,9 +3947,12 @@ func TestParseWith(t *testing.T) {
 	test.ExpectParseString(t, "with x := mk() { y() }", "with x := mk() { y() }")
 	// The resource may be a call (its body `{` is not consumed as a func def).
 	test.ExpectParseString(t, "with open(p) { use() }", "with open(p) { use() }")
-	// Expression form (yields a value).
+	// Expression form, colon variant (yields the evaluated value).
 	test.ExpectParseString(t, "v := with r: r.read()", "v := (with r: r.read())")
 	test.ExpectParseString(t, "v := with mk() as f: f.read()", "v := (with mk() as f: f.read())")
+	// Expression form, block variant (yields the resource itself).
+	test.ExpectParseString(t, "v := with mk() as it { it.add(1) }", "v := (with mk() as it { it.add(1) })")
+	test.ExpectParseString(t, "v := with mk() { use() }", "v := (with mk() { use() })")
 }
 
 func TestParseAin(t *testing.T) {
