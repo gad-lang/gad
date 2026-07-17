@@ -5,7 +5,7 @@ import { defaultKeymap, indentWithTab, undo, redo } from "@codemirror/commands";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { StreamLanguage } from "@codemirror/language";
 import { basicSetup } from "codemirror";
-import { gad, type DiagnoseFn } from "@gad-lang/codemirror-gad";
+import { gad, giom, type DiagnoseFn } from "@gad-lang/codemirror-gad";
 import { json } from "@codemirror/lang-json";
 import { html } from "@codemirror/lang-html";
 import { css } from "@codemirror/lang-css";
@@ -18,6 +18,7 @@ import { debugDecorations, setDebugLoc, type LocalVar } from "./debugDecorations
 export type EditorLanguage =
   | "gad"
   | "gadt"
+  | "giom"
   | "json"
   | "yaml"
   | "html"
@@ -46,6 +47,8 @@ function langExtension(lang: EditorLanguage, diagnose?: DiagnoseFn, tmpl?: Templ
       return gad({ diagnose });
     case "gadt":
       return gad({ template: true, delimiters: { start: tmpl?.start, end: tmpl?.end }, preamble: tmpl?.preamble });
+    case "giom":
+      return giom({ diagnose });
     case "json":
       return json();
     case "yaml":

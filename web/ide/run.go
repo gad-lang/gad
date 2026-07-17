@@ -427,7 +427,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
 // run compiles and executes src, mirroring gadbridge.RunResult but honouring the
 // IDE's module map, arguments and safe-mode toggles.
 func (s *Server) run(src, workdir string, req runRequest) gadbridge.RunResult {
-	builtins := gad.NewBuiltins()
+	builtins := newBuiltins(req.Path)
 	st := gad.NewSymbolTable(builtins.NameSet)
 
 	mm := buildModuleMap(workdir, req.Disabled, req.Safe)
@@ -435,9 +435,13 @@ func (s *Server) run(src, workdir string, req runRequest) gadbridge.RunResult {
 	opts := gad.CompileOptions{
 		CompilerOptions: gad.CompilerOptions{ModuleMap: mm},
 	}
-	s.applyTemplateMode(&opts, req.Path)
+	if isGiom(req.Path) {
+		useGiomImporter(mm, workdir)
+	} else {
+		s.applyTemplateMode(&opts, req.Path)
+	}
 
-	_, bc, err := gad.Compile(st, []byte(src), opts)
+	bc, err := compileFor(st, []byte(src), req.Path, opts)
 	if err != nil {
 		return gadbridge.RunResult{OK: false, Diagnostics: gadbridge.ErrorDiagnostics(err)}
 	}

@@ -168,7 +168,7 @@ func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	builtins := gad.NewBuiltins()
+	builtins := newBuiltins(req.Path)
 	st := gad.NewSymbolTable(builtins.NameSet)
 
 	var mm *gad.ModuleMap
@@ -194,7 +194,7 @@ func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
 		}
 		opts.ScannerOptions.MixedDelimiter = delim
 	}
-	_, bc, err := gad.Compile(st, []byte(req.Source), opts)
+	bc, err := compileFor(st, []byte(req.Source), req.Path, opts)
 	if err != nil {
 		writeJSON(w, DebugResponse{State: "error", Diagnostics: gadbridge.Diagnose(req.Source)})
 		return

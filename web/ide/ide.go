@@ -66,7 +66,13 @@ func New(path string) (*Server, error) {
 				workdir = filepath.Dir(abs)
 			}
 		}
-		return buildModuleMap(workdir, req.Disabled, req.Safe)
+		mm := buildModuleMap(workdir, req.Disabled, req.Safe)
+		// Debugging a .giom entrypoint resolves imported templates through the
+		// giom importer so nested .giom files compile as templates too.
+		if isGiom(req.Path) {
+			useGiomImporter(mm, workdir)
+		}
+		return mm
 	}
 	s.dbg.NormalizeFile = s.normalizeDebugFile
 	s.dbg.RelativizeValue = s.relativizeValue

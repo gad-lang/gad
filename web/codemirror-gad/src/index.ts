@@ -7,11 +7,14 @@ import { LanguageSupport } from "@codemirror/language";
 import { Extension } from "@codemirror/state";
 import { gadCompletion } from "./complete";
 import { gadLanguageSupport } from "./language";
+import { giomLanguageSupport } from "./giom";
 import { GadTemplateDelimiters, gadTemplateLanguage } from "./template";
 import { DiagnoseFn, gadLinter } from "./lint";
 import { gadHoverTooltip } from "./hover";
 
 export { gadLanguage, gadLanguageSupport } from "./language";
+export { giomLanguage, giomLanguageSupport, giomToken } from "./giom";
+export type { GiomState } from "./giom";
 export { gadCompletion, gadCompletionSource } from "./complete";
 export { gadLinter } from "./lint";
 export type { GadDiagnostic, DiagnoseFn } from "./lint";
@@ -62,5 +65,33 @@ export function gad(options: GadOptions = {}): Extension {
   if (options.completion !== false) ext.push(gadCompletion());
   if (options.hover !== false) ext.push(gadHoverTooltip());
   if (options.diagnose && !options.template) ext.push(gadLinter(options.diagnose, { delay: options.lintDelay }));
+  return ext;
+}
+
+export interface GiomOptions {
+  /** Enable Gad autocompletion inside `{= … }` interpolations and `~~` code
+   * blocks (default true). */
+  completion?: boolean;
+  /** Enable hover tooltips for Gad builtins inside embedded code (default true). */
+  hover?: boolean;
+  /** Async diagnostics source. When provided, a linter is installed that calls
+   * it (e.g. the HTTP server or the WASM module). */
+  diagnose?: DiagnoseFn;
+  /** Lint debounce in ms (default 300). */
+  lintDelay?: number;
+}
+
+/**
+ * giom returns a bundled extension for `.giom` templates: the Giom language
+ * (indentation-based tags, `.class`/`#id`, `[attr]` groups, `@`-control
+ * keywords, `+`component calls and `{= … }` interpolations), with optional Gad
+ * autocompletion, hover tooltips and async diagnostics that apply to the
+ * embedded Gad code inside interpolations and `~~` blocks.
+ */
+export function giom(options: GiomOptions = {}): Extension {
+  const ext: Extension[] = [giomLanguageSupport()];
+  if (options.completion !== false) ext.push(gadCompletion());
+  if (options.hover !== false) ext.push(gadHoverTooltip());
+  if (options.diagnose) ext.push(gadLinter(options.diagnose, { delay: options.lintDelay }));
   return ext;
 }

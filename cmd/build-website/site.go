@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -40,6 +41,15 @@ var refOrder = []string{
 	"tutorial", "stdlib-strings", "stdlib-fmt", "stdlib-json", "stdlib-time",
 }
 
+// giomOrder is the curated nav ordering for the Giom template docs, sourced from
+// the ./giom submodule's docs directory. Pages are emitted with a `giom-` prefix
+// so they never collide with the Gad guide/reference pages.
+var giomOrder = []string{
+	"getting-started", "syntax", "components-and-slots", "examples",
+	"embedding", "api", "conventions", "source-positions",
+	"project-structure", "benchmarks", "cms-example",
+}
+
 // buildSite renders the whole website into outDir.
 func buildSite(repoRoot, outDir string, buildWASM bool) error {
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
@@ -55,15 +65,33 @@ func buildSite(repoRoot, outDir string, buildWASM bool) error {
 		return err
 	}
 
+	// Giom template docs live in the ./giom submodule. When it is checked out,
+	// publish them as their own "Giom" nav section (prefixed pages + copied
+	// image assets); when it is absent the section is simply omitted.
+	giomDir := filepath.Join(repoRoot, "giom", "docs")
+	giomPages, err := collectGiomPages(giomDir, giomOrder)
+	if err != nil {
+		return err
+	}
+	if len(giomPages) > 0 {
+		if err := copyGiomAssets(giomDir, outDir); err != nil {
+			return err
+		}
+	}
+
 	play := &page{Slug: "playground", Title: "Playground", OutFile: "playground.html", Section: "Playground"}
 
 	groups := []navGroup{
 		{Name: "Guide", Pages: guide},
 		{Name: "Reference", Pages: ref},
-		{Name: "Playground", Pages: []*page{play}},
 	}
+	if len(giomPages) > 0 {
+		groups = append(groups, navGroup{Name: "Giom", Pages: giomPages})
+	}
+	groups = append(groups, navGroup{Name: "Playground", Pages: []*page{play}})
 
 	all := append(append([]*page{}, guide...), ref...)
+	all = append(all, giomPages...)
 
 	tmpl := template.Must(template.New("layout").Parse(layoutTemplate))
 
@@ -128,6 +156,68 @@ func collectPages(dir string, order []string, section string, isGuide bool) ([]*
 		})
 	}
 	return pages, nil
+}
+
+// giomLinkRe matches Markdown links to a sibling `.md` doc (no scheme, no path
+// separator), so intra-giom links can be rewritten to the prefixed output names.
+var giomLinkRe = regexp.MustCompile(`\]\(([A-Za-z0-9_-]+)\.md(#[A-Za-z0-9_-]+)?\)`)
+
+// collectGiomPages renders the Giom docs found in dir (in order) into pages named
+// `giom-<name>.html`. Intra-doc `.md` links are rewritten to the same prefixed
+// names so cross-references resolve within the generated site; missing pages are
+// tolerated (the submodule may not be checked out).
+func collectGiomPages(dir string, order []string) ([]*page, error) {
+	var pages []*page
+	for _, name := range order {
+		path := filepath.Join(dir, name+".md")
+		src, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
+		// Rewrite `](other.md)` / `](other.md#anchor)` to `](giom-other.html…)`.
+		rewritten := giomLinkRe.ReplaceAllString(string(src), "](giom-$1.html$2)")
+		body, headings := renderMarkdown(rewritten)
+		title := firstHeading(headings)
+		if title == "" {
+			title = name
+		}
+		pages = append(pages, &page{
+			Slug:     "giom-" + name,
+			Title:    title,
+			OutFile:  "giom-" + name + ".html",
+			Section:  "Giom",
+			BodyHTML: template.HTML(body),
+			Headings: headings,
+			plain:    plainText(rewritten),
+		})
+	}
+	return pages, nil
+}
+
+// copyGiomAssets copies non-Markdown files (images such as the benchmark SVGs)
+// from the Giom docs directory into the site root, where the prefixed Giom pages
+// reference them by their original relative names.
+func copyGiomAssets(dir, outDir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() || strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(outDir, e.Name()), data, 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // layoutData is passed to the page template.

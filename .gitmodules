@@ -1,0 +1,3 @@
+[submodule "giom"]
+	path = giom
+	url = git@github.com:gad-lang/giom.git

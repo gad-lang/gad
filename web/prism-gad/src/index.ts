@@ -131,3 +131,5 @@ export {
   type GadTemplateOptions,
   type GadTemplateDetection,
 } from "./template";
+
+export { giomGrammar, registerGiom } from "./giom";

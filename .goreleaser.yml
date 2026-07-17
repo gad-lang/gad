@@ -44,6 +44,10 @@ archives:
       - LICENSE
       - README.md
       - doc/**/*
+      # Giom template engine docs (from the ./giom submodule).
+      - src: giom/docs/**/*
+        dst: doc/giom
+        strip_parent: true
 
 checksum:
   name_template: checksums.txt

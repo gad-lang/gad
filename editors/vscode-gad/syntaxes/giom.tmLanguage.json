@@ -1,0 +1,101 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Giom",
+  "scopeName": "source.giom",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#doctype" },
+    { "include": "#codeblock" },
+    { "include": "#keyword" },
+    { "include": "#component" },
+    { "include": "#pipe" },
+    { "include": "#html" },
+    { "include": "#interpolation" },
+    { "include": "#tag" }
+  ],
+  "repository": {
+    "comment": {
+      "match": "^\\s*//.*$",
+      "name": "comment.line.double-slash.giom"
+    },
+    "doctype": {
+      "match": "^\\s*(!!!).*$",
+      "name": "keyword.other.doctype.giom"
+    },
+    "codeblock": {
+      "begin": "^\\s*(~~)\\s*$",
+      "beginCaptures": { "1": { "name": "punctuation.definition.codeblock.giom" } },
+      "end": "^\\s*(~~)\\s*$",
+      "endCaptures": { "1": { "name": "punctuation.definition.codeblock.giom" } },
+      "name": "meta.embedded.block.gad",
+      "patterns": [{ "include": "source.gad" }]
+    },
+    "interpolation": {
+      "begin": "\\{=?",
+      "beginCaptures": { "0": { "name": "punctuation.section.interpolation.begin.giom" } },
+      "end": "\\}",
+      "endCaptures": { "0": { "name": "punctuation.section.interpolation.end.giom" } },
+      "name": "meta.interpolation.giom",
+      "patterns": [{ "include": "source.gad" }]
+    },
+    "keyword": {
+      "begin": "^(\\s*)(@[A-Za-z_]\\w*)",
+      "beginCaptures": { "2": { "name": "keyword.control.giom" } },
+      "end": "$",
+      "patterns": [
+        { "include": "#interpolation" },
+        { "include": "source.gad" }
+      ]
+    },
+    "component": {
+      "begin": "^(\\s*)(\\+[A-Za-z_][\\w.]*)",
+      "beginCaptures": { "2": { "name": "entity.name.function.giom" } },
+      "end": "$",
+      "patterns": [
+        { "include": "#interpolation" },
+        { "include": "source.gad" }
+      ]
+    },
+    "pipe": {
+      "begin": "^(\\s*)(\\|)",
+      "beginCaptures": { "2": { "name": "punctuation.definition.text.giom" } },
+      "end": "$",
+      "name": "string.unquoted.text.giom",
+      "patterns": [{ "include": "#interpolation" }]
+    },
+    "html": {
+      "begin": "^\\s*(?=<)",
+      "end": "$",
+      "name": "meta.tag.html.giom",
+      "patterns": [
+        { "include": "#interpolation" },
+        { "match": "</?", "name": "punctuation.definition.tag.giom" },
+        { "match": ">", "name": "punctuation.definition.tag.giom" },
+        { "match": "\\b([A-Za-z][\\w-]*)\\s*=", "captures": { "1": { "name": "entity.other.attribute-name.giom" } } },
+        { "begin": "\"", "end": "\"", "name": "string.quoted.double.giom" },
+        { "begin": "'", "end": "'", "name": "string.quoted.single.giom" },
+        { "match": "\\b[A-Za-z][\\w-]*", "name": "entity.name.tag.giom" }
+      ]
+    },
+    "tag": {
+      "begin": "^(\\s*)([A-Za-z][\\w-]*)?",
+      "beginCaptures": { "2": { "name": "entity.name.tag.giom" } },
+      "end": "$",
+      "name": "meta.tag.giom",
+      "patterns": [
+        { "include": "#interpolation" },
+        { "include": "#attributes" },
+        { "match": "\\.[A-Za-z0-9_-]+", "name": "entity.other.attribute-name.class.giom" },
+        { "match": "#[A-Za-z0-9_-]+", "name": "entity.other.attribute-name.id.giom" }
+      ]
+    },
+    "attributes": {
+      "begin": "\\[",
+      "beginCaptures": { "0": { "name": "punctuation.definition.attributes.begin.giom" } },
+      "end": "\\]",
+      "endCaptures": { "0": { "name": "punctuation.definition.attributes.end.giom" } },
+      "name": "meta.attributes.giom",
+      "patterns": [{ "include": "source.gad" }]
+    }
+  }
+}

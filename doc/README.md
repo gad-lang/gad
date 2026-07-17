@@ -59,6 +59,20 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
 - [Testing](stdlib-test.md) — the `test` module and the `gad test` command:
   `*_test.gad` files, `test*`/`bench*` functions, assertions and benchmarks.
 
+## Giom Templates
+
+Giom is an indentation-based HTML template language that embeds Gad, shipped in
+this repository as the [`giom`](../giom) submodule. `.giom` files can be run and
+debugged with the `gad` CLI and the `gad ide`/VS Code tooling. Its full
+documentation lives in [`giom/docs`](../giom/docs):
+
+- [Getting Started](../giom/docs/getting-started.md) — install and render a first template.
+- [Syntax](../giom/docs/syntax.md) — tags, `.class`/`#id`, `[attr]` groups,
+  `@`-control keywords, `{= … }` interpolation and `~~` code blocks.
+- [Components and Slots](../giom/docs/components-and-slots.md) — `@comp`, `@slot`
+  and component calls.
+- [Embedding in Go](../giom/docs/embedding.md) and the [API](../giom/docs/api.md).
+
 ## A Taste of Gad
 
 ```go
