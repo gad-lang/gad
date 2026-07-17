@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strings, Bytes and Regex · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link active" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="strings-bytes-and-regex">Strings, Bytes and Regex</h1>
+<p><a href="index.html">← Back to index</a></p>
+<h2 id="string-forms">String Forms</h2>
+<p>Gad has several textual literal forms:</p>
+<table>
+<thead><tr><th>Form</th><th>Example</th><th>Type</th><th>Escapes?</th></tr></thead>
+<tbody>
+<tr><td>string</td><td><code>"a\tb"</code></td><td><code>str</code></td><td>yes</td></tr>
+<tr><td>raw string</td><td><code></code> <code>a\tb</code> <code></code></td><td><code>rawStr</code></td><td>no</td></tr>
+<tr><td><code>raw</code> prefix</td><td><code>raw "x"</code></td><td><code>rawStr</code></td><td>n/a</td></tr>
+<tr><td>heredoc</td><td><code>"""…"""</code></td><td><code>str</code></td><td>yes</td></tr>
+<tr><td>raw heredoc</td><td><code></code> <code></code><code>…</code><code></code> <code></code></td><td><code>rawStr</code></td><td>no</td></tr>
+<tr><td>interpolated string</td><td><code>#"hi {name}"</code></td><td><code>str</code></td><td>yes</td></tr>
+</tbody>
+</table>
+<pre><code class="language-go">"tab\there"     // tab&lt;TAB&gt;here
+`no\tescape`    // literally  no\tescape
+raw "x" + "y"   // "xy"  (rawStr concatenates with str)</code></pre>
+<p><code>str</code> and <code>rawStr</code> interoperate; mixing them in <code>+</code> yields a string.</p>
+<h3 id="the-raw-prefix">The <code>raw</code> prefix</h3>
+<p><code>raw EXPR</code> produces a <code>rawStr</code> from any expression. When <code>EXPR</code> is a string literal the conversion happens at <strong>compile time</strong> (it folds to a constant); otherwise it converts the evaluated value at <strong>run time</strong>:</p>
+<pre><code class="language-go">raw `a\nb`         // rawStr with a literal backslash-n — folded at compile time
+raw "x" + str(1)   // rawStr "x1"
+raw str(100)       // rawStr "100" — converted at run time
+typeName(raw "x")  // "rawstr"</code></pre>
+<p><code>raw</code> does not skip a string literal's own escapes: <code>raw "a\nb"</code> first turns the double-quoted <code>"a\nb"</code> into a two-line string and then converts it, so use a raw-string literal (<code></code> raw <code>a\nb</code> <code></code>) when you want to keep the backslashes.</p>
+<h2 id="heredocs">Heredocs</h2>
+<p>A heredoc is delimited by a fence of three or more <code>"</code> — the <code>"""…"""</code> form is a <code>str</code> (escape sequences interpreted), and the <code></code> <code></code><code>…</code><code></code> <code></code> form is a <strong>raw</strong> <code>rawStr</code> (verbatim: no escapes, no interpolation). Because the fence is three quotes, a single <code>"</code> (or <code></code> <code> </code>`) inside the body is just text.</p>
+<pre><code class="language-go">"""abc"""            // abc
+"""abc""de"""        // abc""de   (a doubled quote is literal)
+"""tab\tend"""       // tab&lt;TAB&gt;end   (escapes interpreted)</code></pre>
+<p>In the multi-line form the opening and closing fence lines are dropped and the <strong>common leading indentation is stripped</strong>, so a heredoc stays aligned with the surrounding code:</p>
+<pre><code class="language-go">s := """
+    line1
+    line2
+    """
+println(s)           // line1\nline2</code></pre>
+<p>The raw <code></code> <code></code><code>…</code><code></code> <code></code> form keeps its body verbatim — backslashes and <code>{…}</code> braces are literal, and indentation is still stripped:</p>
+<pre><code class="language-go">raw := ```
+    C:\tmp\file
+    {not interpolated}
+    ```
+println(raw)         // C:\tmp\file\n{not interpolated}</code></pre>
+<h2 id="code-strings-code--end">Code Strings (<code>code … end</code>)</h2>
+<p>A <code>code … end</code> literal is a heredoc-like string whose body is captured <strong>verbatim</strong> — it is not parsed, evaluated or template-interpolated, it just becomes a plain <code>str</code>. The <code>code</code>/<code>end</code> fences signal that the body is Gad source (editors highlight it accordingly), which makes it handy for embedding snippets, templates or generated code.</p>
+<p>The block form spans multiple lines; the closing <code>end</code> is the line at the opening statement's indentation whose only word is <code>end</code>. A deeper-indented <code>end</code> (e.g. from an embedded <code>begin … end</code>) belongs to the body, and the body is dedented to its own least-indented line:</p>
+<pre><code class="language-go">src := code
+    for x in [1, 2] {
+        println(x)
+    }
+end
+println(src)
+// for x in [1, 2] {
+//     println(x)
+// }</code></pre>
+<p>There is also a single-line form <code>code &lt;body&gt; end</code>:</p>
+<pre><code class="language-go">s := code a + b end
+println(s)   // a + b</code></pre>
+<p>A bare <code>code</code> identifier (with no matching <code>end</code> fence) is unaffected, so <code>code := 1</code> still declares a variable.</p>
+<h2 id="interpolated-strings">Interpolated Strings</h2>
+<p>A <code>#"…"</code> (or <code></code> #<code>…</code> <code></code>) literal is an interpolated string: <code>{expr}</code> is interpolated and the whole thing evaluates to a normal string.</p>
+<pre><code class="language-go">name := "Gad"
+println(#"Hello {name}!")     // Hello Gad!
+println(#"sum = {2 + 3}")     // sum = 5
+println(#`raw {name}`)        // raw Gad</code></pre>
+<p>The <code>#</code> prefix works on the heredoc forms too — <code>#"""…"""</code> (interpreted, <code>str</code>) and <code></code> #<code></code><code>…</code><code></code> <code></code> (verbatim, <code>rawStr</code>) — combining <code>{expr}</code> interpolation with indentation stripping:</p>
+<pre><code class="language-go">name := "Gad"
+s := #"""
+    hello {name}
+    {2 + 3} done
+    """
+println(s)                    // hello Gad\n5 done
+println(#```C:\tmp\{name}```) // C:\tmp\Gad   (verbatim backslashes)</code></pre>
+<h2 id="bytes">Bytes</h2>
+<p><code>bytes</code> is a mutable byte slice. Build one with the <code>bytes</code> constructor, or with a <strong>bytes literal</strong>.</p>
+<h3 id="bytes-literals">Bytes literals</h3>
+<p>A single-letter prefix glued directly to a string literal produces a <code>bytes</code> value:</p>
+<ul>
+<li><code>b"…"</code> — the UTF-8 bytes of the string content.</li>
+<li><code>h"…"</code> — the bytes decoded from a hexadecimal sequence.</li>
+</ul>
+<pre><code class="language-go">b"Hello"        // bytes: H e l l o
+h"ffccf1c2"     // bytes: 0xff 0xcc 0xf1 0xc2
+typeName(b"x")  // "bytes"
+str(h"4869")    // "Hi"</code></pre>
+<p>Any string form may be used as the body — regular string, raw string, heredoc or raw heredoc — so escapes follow the body's rules:</p>
+<pre><code class="language-go">b"a\nb"     // 3 bytes: 'a', newline, 'b'  (escape processed)
+b`a\nb`     // 4 bytes: 'a', '\', 'n', 'b' (raw, no escape)
+b"""
+hello
+"""         // bytes of the heredoc body</code></pre>
+<p>For <code>h"…"</code>, whitespace inside the literal is ignored, so you can group digits:</p>
+<pre><code class="language-go">h"ff cc f1 c2"   // same as h"ffccf1c2"</code></pre>
+<p>Invalid hex (odd length or non-hex characters) is reported as a <strong>compile error</strong>.</p>
+<blockquote>The prefix must touch the opening quote. <code>b "x"</code> (with a space) is a plain identifier <code>b</code> followed by a string, not a bytes literal — so existing variables named <code>b</code> or <code>h</code> keep working.</blockquote>
+<h3 id="indexing-and-slicing-bytes">Indexing and slicing bytes</h3>
+<pre><code class="language-go">data := b"Hello"
+println(data[0])     // 72  (the byte value, as int)
+println(data[1:3])   // bytes "el"
+println(len(data))   // 5</code></pre>
+<h2 id="regular-expressions">Regular Expressions</h2>
+<p>A <code>/pattern/</code> literal compiles to a <code>regexp</code> value at compile time (an invalid pattern is a compile error). Append <code>p</code> for POSIX semantics, and use Go's inline flags such as <code>(?i)</code> (case-insensitive) inside the pattern. The same object can be created at runtime with the <code>regexp(...)</code> constructor.</p>
+<pre><code class="language-go">re := /ab+/
+re.match("abbb")          // true
+re.match("xyz")           // false
+
+/a+/p.match("aaa")        // true  — POSIX
+(/(?i)hello/).match("HELLO")   // true  — inline flag</code></pre>
+<p>Because <code>/</code> is also division, a <code>/regex/</code> literal is only recognised in operand position (where a value is expected); after a value, <code>/</code> is the division operator. Use parentheses after value-position keywords, e.g. <code>return (/re/)</code>.</p>
+<h3 id="matching-and-finding">Matching and finding</h3>
+<p>There are operators and equivalent methods for testing and extracting matches:</p>
+<table>
+<thead><tr><th>Operator</th><th>Method</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>re ~ s</code></td><td><code>re.match(s)</code></td><td><code>bool</code> — does the pattern match?</td></tr>
+<tr><td><code>re ~~ s</code></td><td><code>re.find(s)</code></td><td>the first match (full match + groups)</td></tr>
+<tr><td><code>re ~~~ s</code></td><td><code>re.findAll(s)</code></td><td>all matches</td></tr>
+</tbody>
+</table>
+<p>The result of <code>~~</code> is a *submatch* value: index <code>0</code> is the whole match and <code>1, 2, …</code> are the capture groups. It is indexable (including negative indices), has a <code>len</code>, and is iterable. <code>~~~</code> yields a list of such submatch values.</p>
+<pre><code class="language-go">m := /(\w+)@(\w+)/ ~~ "user@host"
+m[0]                       // "user@host"  (whole match)
+m[1]                       // "user"       (group 1)
+m[2]                       // "host"        (group 2)
+len(m)                     // 3
+for i, g in m { ... }      // 0:user@host, 1:user, 2:host
+
+all := /\d+/ ~~~ "a1 b22 c333"
+len(all)                   // 3
+all[0][0]                  // "1"
+all[2][0]                  // "333"</code></pre>
+<h3 id="replacing">Replacing</h3>
+<p><code>re.replace(subject, replacement)</code> returns <code>subject</code> with every match replaced. The replacement is either a <strong>template string</strong> or a <strong>callable</strong>:</p>
+<ul>
+<li>In a template, <code>$1</code>, <code>$2</code>, … expand numbered capture groups, <code>${name}</code> expands</li>
+</ul>
+<p>  a named group <code>(?P&lt;name&gt;…)</code>, and <code>$$</code> is a literal <code>$</code>.</p>
+<ul>
+<li>A callable is invoked once per match. It receives the matched text as the</li>
+</ul>
+<p>  positional argument, plus two named arguments: <code>m</code> — the full submatch   (<code>m[0]</code> is the whole match, <code>m[1]</code>, <code>m[2]</code>, … are the capture groups) — and   <code>re</code>, the regexp itself. It returns the replacement string.</p>
+<p>A <code>bytes</code> subject yields a <code>bytes</code> result.</p>
+<pre><code class="language-go">// numbered groups
+(/(\d+)-(\d+)/).replace("12-34", "$2/$1")              // "34/12"
+// named groups
+(/(?P&lt;y&gt;\d+)-(?P&lt;m&gt;\d+)/).replace("2024-06", "${m}/${y}")  // "06/2024"
+// literal dollar
+(/x/).replace("ax", "$$")                              // "a$"
+// callable on the whole match
+(/[a-z]+/).replace("hi bye", func(m) { return "&lt;" + m + "&gt;" })  // "&lt;hi&gt; &lt;bye&gt;"
+(/[a-z]+/).replace("hi bye", strings.toUpper)          // "HI BYE"
+// callable using capture groups via the named arg `m`
+(/(\w+)@(\w+)/).replace("user@host", func(whole; m) { return m[2] + "@" + m[1] })  // "host@user"
+// bytes subject -&gt; bytes result
+(/o/).replace(bytes("foo"), "0")                       // bytes("f00")</code></pre>
+<h2 id="see-also">See also</h2>
+<p>For runnable string/bytes/regex examples, see:</p>
+<ul>
+<li><code>samples/08_strings_bytes_regex.gad</code> — strings, bytes and regex literals</li>
+<li><code>samples/21_heredocs.gad</code> — heredocs and template heredocs</li>
+</ul>
+<h3 id="the-replace-operator">The replace operator <code>|</code></h3>
+<p><code>regexp | replacement</code> yields a unary replacer function. The replacement is the same string or callable accepted by <code>replace</code> (a callable still receives the <code>m</code> and <code>re</code> named arguments). It composes with the pipe operator <code>.|</code>:</p>
+<pre><code class="language-go">f := /o/ | "0"
+f("hello world")              // "hell0 w0rld"
+"hello world".|(/o/ | "0")    // "hell0 w0rld"
+
+/[a-z]+/ | func(m) { return "&lt;" + m + "&gt;" }   // wrap each match
+
+// a group-using replacer: keep the first 2 digits, mask the rest
+redact := /(\d{2})(\d+)/ | func(whole; m) { return m[1] + strings.repeat("*", len(m[2])) }
+"card 1234567890".|redact     // "card 12********"</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#string-forms">String Forms</a><a href="#heredocs">Heredocs</a><a href="#code-strings-code--end">Code Strings (code … end)</a><a href="#interpolated-strings">Interpolated Strings</a><a href="#bytes">Bytes</a><a href="#regular-expressions">Regular Expressions</a><a href="#see-also">See also</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
