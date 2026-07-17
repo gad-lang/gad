@@ -1,3 +1,26 @@
+# Current State
+> Updated: 2026-07-16
+
+All Language backlog items are done and on `main` (merge `67bf442`); the only
+remaining marker is the bytecode-performance investigation (`[~]`), whose safe
+allocation/CPU wins are all landed and whose sole open follow-up is a
+tagged-value Object-model refactor (large-int/Str boxing) — a major change left
+as a known follow-up, not a regression.
+
+Most recently completed (branch `feat/with-block-expr`, now merged to `main` and
+the branch deleted from origin):
+- `with` block-expression form (`x := with R [as name] { body }`) documented +
+  sampled + parser round-trip test (VM behaviour was already covered).
+- codemirror-gad / prism-gad made npm-publish-ready for the public `@gad-lang`
+  scope (compiled `dist`, `publishConfig`, `exports`, workspace scripts); config
+  only, no publish. VS Code grammar verified in sync (`update-vscode-plugin`).
+
+Downstream: `giom` `main` builds against gad `7752b8f` (reachable from gad
+`main`); both repos pushed and consistent.
+
+Open epics not yet broken into tasks: the IDE epic (`web/ide` + `web/app`) and
+web/js projects headers below have no scheduled items.
+
 # IDE epic (`web/ide` backend + `web/app` React frontend)
 
 
