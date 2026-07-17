@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Source Positions · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Giom</div>
+      <a class="nav-link" href="giom-getting-started.html">Getting Started</a><a class="nav-link" href="giom-syntax.html">Template Syntax</a><a class="nav-link" href="giom-components-and-slots.html">Components And Slots</a><a class="nav-link" href="giom-examples.html">Examples Cookbook</a><a class="nav-link" href="giom-embedding.html">Embedding In Go</a><a class="nav-link" href="giom-api.html">API Reference</a><a class="nav-link" href="giom-conventions.html">Conventions</a><a class="nav-link active" href="giom-source-positions.html">Source Positions</a><a class="nav-link" href="giom-project-structure.html">Project Structure</a><a class="nav-link" href="giom-benchmarks.html">Benchmarks</a><a class="nav-link" href="giom-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="source-positions">Source Positions</h1>
+<p>Giom preserves the position (file, line, column) of the original <code>.giom</code> source through parsing and compilation, so runtime error stack traces, compile errors, and AST node positions point at the real template location.</p>
+<h2 id="why-it-matters">Why it matters</h2>
+<p>A giom template is transpiled to Gad and then compiled and executed. When a template hits a runtime error — for example calling a value that is <code>nil</code> — the Gad <code>RuntimeError</code> carries a stack trace resolved against the source file:</p>
+<pre><code>NotCallableError: nil
+    at layouts/index.giom:10:5
+       layouts/default.giom:50:32</code></pre>
+<p>Without correct positions every frame collapses to <code>line 1</code>, making template errors nearly impossible to locate.</p>
+<h2 id="how-it-works">How it works</h2>
+<p>Two things are required for a position to resolve correctly:</p>
+<ol>
+<li><strong>The source file's line table must be populated.</strong> Gad resolves a byte</li>
+</ol>
+<p>   offset to a line/column using <code>source.File.Lines</code>. The giom scanner reads the    source through its own buffered reader and never advances Gad's    <code>source.Reader</code> (which is what normally records line starts), so the scanner    registers every line start up front when it is created.</p>
+<ol>
+<li><strong>Embedded Gad fragments must be parsed in the source coordinate space.</strong></li>
+</ol>
+<p>   Giom extracts Gad code from directives and parses it with Gad's parser:</p>
+<ul>
+<li>single-line code — <code>~ expr</code></li>
+<li>multi-line code — <code>~~ … ~~</code></li>
+<li>interpolations — <code>{= expr }</code> / <code>{ expr }</code></li>
+<li>directive expressions — <code>@if</code>, <code>@for</code>, <code>@match</code>, attribute values, comp</li>
+</ul>
+<p>     call arguments</p>
+<p>   Each fragment is a verbatim slice of the original source, so it is parsed    with the fragment file's base offset set to the fragment's absolute position.    Gad then assigns every node a position of <code>base + localOffset</code>, i.e. directly    in the original file's coordinate space. A constant wrapper prefix such as the    <code>return </code> used to coerce expression parsing only shifts the base uniformly and    is compensated automatically.</p>
+<p>Multi-line <code>~~</code> blocks keep their original indentation when parsed. Leading whitespace is insignificant to Gad, so preserving it keeps byte offsets — and therefore line and column numbers — faithful to the source.</p>
+<h2 id="guarantees-and-limits">Guarantees and limits</h2>
+<ul>
+<li>Line numbers are accurate for all executable constructs listed above.</li>
+<li>Column numbers are accurate for verbatim fragments (code, interpolation).</li>
+</ul>
+<p>  For directive expressions whose extracted value strips a leading keyword   (e.g. <code>@if </code>), the line is exact and the column may be offset by the directive   prefix length.</p>
+<ul>
+<li>Fragments whose absolute position is unknown fall back to fragment-local</li>
+</ul>
+<p>  positions rather than producing a wrong location.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#why-it-matters">Why it matters</a><a href="#how-it-works">How it works</a><a href="#guarantees-and-limits">Guarantees and limits</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

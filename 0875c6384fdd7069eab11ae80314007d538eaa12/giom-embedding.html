@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embedding In Go · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Giom</div>
+      <a class="nav-link" href="giom-getting-started.html">Getting Started</a><a class="nav-link" href="giom-syntax.html">Template Syntax</a><a class="nav-link" href="giom-components-and-slots.html">Components And Slots</a><a class="nav-link" href="giom-examples.html">Examples Cookbook</a><a class="nav-link active" href="giom-embedding.html">Embedding In Go</a><a class="nav-link" href="giom-api.html">API Reference</a><a class="nav-link" href="giom-conventions.html">Conventions</a><a class="nav-link" href="giom-source-positions.html">Source Positions</a><a class="nav-link" href="giom-project-structure.html">Project Structure</a><a class="nav-link" href="giom-benchmarks.html">Benchmarks</a><a class="nav-link" href="giom-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="embedding-in-go">Embedding In Go</h1>
+<p>Giom is embedded through Gad bytecode compilation and VM execution.</p>
+<h2 id="minimal-renderer">Minimal Renderer</h2>
+<pre><code class="language-go">package render
+
+import (
+    "bytes"
+
+    "github.com/gad-lang/gad"
+    "github.com/gad-lang/giom"
+)
+
+func Render(src []byte, globals gad.Dict) (string, error) {
+    builtins := giom.AppendBuiltins(gad.NewBuiltins())
+    st := gad.NewSymbolTable(builtins.NameSet)
+
+    names := make([]string, 0, len(globals))
+    for name := range globals {
+        names = append(names, name)
+    }
+    if _, err := st.DefineGlobals(names); err != nil {
+        return "", err
+    }
+
+    _, bc, err := giom.Compile(st, src, gad.CompileOptions{})
+    if err != nil {
+        return "", err
+    }
+
+    var out bytes.Buffer
+    vm := gad.NewVM(builtins.Build(), bc)
+    ret, err := vm.RunOpts(&amp;gad.RunOpts{StdOut: &amp;out, Globals: globals})
+    if err != nil {
+        return "", err
+    }
+    // A compiled template builds a render tree and returns its root element;
+    // walk it to write the HTML output.
+    if el, ok := ret.(giom.Element); ok {
+        if _, err := el.WriteTo(vm, &amp;out); err != nil {
+            return "", err
+        }
+    }
+    return out.String(), nil
+}</code></pre>
+<p>The template does not stream HTML to <code>StdOut</code>; it returns the root of a render tree (a <code>giom.Element</code>) that you write with <code>WriteTo</code>. The <code>Render</code> struct below does this for you.</p>
+<h2 id="compiling-several-templates">Compiling Several Templates</h2>
+<p><code>giom.Compile</code> is shorthand for <code>giom.NewCompiler(st, opts).Compile(input)</code>. Give each template its own symbol table: a compiled template binds a root <code>tag</code> at the module top level, so a symbol table is not shared across independent compiles.</p>
+<pre><code class="language-go">for _, src := range sources {
+    st := gad.NewSymbolTable(builtins.NameSet)
+    _, bc, err := giom.Compile(st, src, gad.CompileOptions{})
+    if err != nil {
+        return err
+    }
+    // run bc on a Gad VM and write the returned root element…
+}</code></pre>
+<p>Each <code>Compile</code> call returns the parsed Giom AST and executable Gad bytecode. For automatic bytecode caching and file-change detection, prefer the <code>Render</code> struct below.</p>
+<h2 id="render-struct-cached-compilation">Render Struct (Cached Compilation)</h2>
+<p><code>giom.Render</code> provides a ready-to-use template engine with bytecode caching and automatic recompilation on file changes. It is safe for concurrent use.</p>
+<h3 id="construction">Construction</h3>
+<p>Use the <code>NewRender</code> constructor to set the work directory (resolved to an absolute path automatically):</p>
+<pre><code class="language-go">import "github.com/gad-lang/giom"
+
+r := giom.NewRender("./templates")
+r.TemplateDelay = 5 * time.Second
+r.TranspilePath = func(src string) string {
+    return strings.TrimSuffix(src, ".giom") + ".gad"
+}</code></pre>
+<h3 id="rendering">Rendering</h3>
+<pre><code class="language-go">var out bytes.Buffer
+err := r.Render(&amp;out, "template.giom", gad.Dict{
+    "Model": gad.Dict{"Title": gad.Str("Home")},
+})</code></pre>
+<p>The <code>TemplateDelay</code> (default 15s) prevents recompilation on rapid file saves. <code>WorkDir</code> is the base for resolving <code>@import</code> lines via <code>FileImporter</code>. <code>TranspilePath</code> is optional — when set, transpiled <code>.gad</code> files are written for inspection.</p>
+<h3 id="file-change-detection">File Change Detection</h3>
+<p><code>Render</code> tracks all files accessed during compilation (the template and its imports). If any change is detected, compilation is deferred until <code>TemplateDelay</code> elapses, then the bytecode is rebuilt.</p>
+<p>If compilation fails, the old bytecode remains in the cache and continues to be served. This ensures that broken edits never cause a blank page.</p>
+<h3 id="callbacks">Callbacks</h3>
+<p>Use <code>OnRender</code> to hook into the compilation lifecycle:</p>
+<pre><code class="language-go">r.OnRender(func(first bool, mainFile string, files []string, lastTime time.Time, err error) {
+    if err != nil {
+        log.Printf("compile error for %s: %v", mainFile, err)
+        return
+    }
+    if first {
+        log.Printf("first render: %s", mainFile)
+    } else {
+        log.Printf("recompile: %s (changed: %v)", mainFile, files)
+    }
+})</code></pre>
+<p>Multiple callbacks can be added:</p>
+<pre><code class="language-go">r.OnRender(loggingCallback).OnRender(metricsCallback)</code></pre>
+<h2 id="builtins-rule">Builtins Rule</h2>
+<p>Use the same <code>*gad.Builtins</code> value for symbol-table creation and VM creation:</p>
+<pre><code class="language-go">builtins := giom.AppendBuiltins(gad.NewBuiltins())
+st := gad.NewSymbolTable(builtins.NameSet)
+vm := gad.NewVM(builtins.Build(), bc)</code></pre>
+<p>Do not call <code>giom.AppendBuiltins(gad.NewBuiltins())</code> separately for compile and run steps.</p>
+<h2 id="globals">Globals</h2>
+<p>Global variables are defined from the keys of the <code>gad.Dict</code> passed to <code>Render</code>. Both the compile-time symbol table and runtime globals use the same names:</p>
+<pre><code class="language-go">globals := gad.Dict{
+    "Model": gad.Dict{
+        "Title": gad.Str("Home"),
+    },
+    "User": gad.Dict{
+        "Name": gad.Str("Alice"),
+    },
+}
+
+names := make([]string, 0, len(globals))
+for name := range globals {
+    names = append(names, name)
+}
+st.DefineGlobals(names)</code></pre>
+<p>The cache entry records the global names at compile time so that symbol indices are consistent across cache hits.</p>
+<p>Template:</p>
+<pre><code class="language-giom">@main
+    h1 {= Model.Title}</code></pre>
+<h2 id="trusted-html">Trusted HTML</h2>
+<pre><code class="language-go">model := gad.Dict{
+    "Body": gad.RawStr("&lt;p&gt;Already sanitized HTML.&lt;/p&gt;"),
+}</code></pre>
+<p>Template:</p>
+<pre><code class="language-giom">article {= Model.Body}</code></pre>
+<p>Only use <code>gad.RawStr</code> for trusted content.</p>
+<h2 id="import-resolution">Import Resolution</h2>
+<p>Giom uses <code>giom.FileImporter</code> to resolve <code>@import</code> lines during compilation. The importer is set via <code>gad.ModuleMap.SetExtImporter</code>:</p>
+<pre><code class="language-go">imports := gad.NewModuleMap().SetExtImporter(&amp;giom.FileImporter{
+    WorkDir:       "./templates",
+    FileReader:    os.ReadFile,
+    TranspilePath: nil, // optional: write .gad files for inspection
+})</code></pre>
+<p><code>FileImporter</code> also handles named imports (<code>@import "file.giom" as name</code>) and compiles imported Giom files to Gad bytecode transparently.</p>
+<p>The CMS example in <code>examples/cms</code> demonstrates this in production.</p>
+<h2 id="transpiling-for-inspection">Transpiling For Inspection</h2>
+<p>You can parse and convert a Giom file to Gad statements:</p>
+<pre><code class="language-go">fs := source.NewFileSet()
+f := fs.AddFileData("template.giom", -1, src)
+p := parser.NewParser(f)
+file, err := p.ParseFile()
+if err != nil {
+    return err
+}
+
+stmts := node.Convert(file.Stmts)
+var buf bytes.Buffer
+gnode.CodeW(&amp;buf, stmts, gnode.CodeWithPrefix("\t"), gnode.CodeFormat())</code></pre>
+<p>This is useful for debugging, teaching, and generated-template review.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#minimal-renderer">Minimal Renderer</a><a href="#compiling-several-templates">Compiling Several Templates</a><a href="#render-struct-cached-compilation">Render Struct (Cached Compilation)</a><a href="#builtins-rule">Builtins Rule</a><a href="#globals">Globals</a><a href="#trusted-html">Trusted HTML</a><a href="#import-resolution">Import Resolution</a><a href="#transpiling-for-inspection">Transpiling For Inspection</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

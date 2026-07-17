@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMS Example · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Giom</div>
+      <a class="nav-link" href="giom-getting-started.html">Getting Started</a><a class="nav-link" href="giom-syntax.html">Template Syntax</a><a class="nav-link" href="giom-components-and-slots.html">Components And Slots</a><a class="nav-link" href="giom-examples.html">Examples Cookbook</a><a class="nav-link" href="giom-embedding.html">Embedding In Go</a><a class="nav-link" href="giom-api.html">API Reference</a><a class="nav-link" href="giom-conventions.html">Conventions</a><a class="nav-link" href="giom-source-positions.html">Source Positions</a><a class="nav-link" href="giom-project-structure.html">Project Structure</a><a class="nav-link" href="giom-benchmarks.html">Benchmarks</a><a class="nav-link active" href="giom-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="cms-example">CMS Example</h1>
+<p>The CMS example lives in <code>examples/cms</code>. It demonstrates a complete Go web app using Giom templates for the public site and a React admin dashboard.</p>
+<h2 id="run">Run</h2>
+<pre><code class="language-sh">cd examples/cms
+go run .</code></pre>
+<p>Open:</p>
+<pre><code class="language-text">http://localhost:8080/
+http://localhost:8080/admin</code></pre>
+<h2 id="what-it-includes">What It Includes</h2>
+<ul>
+<li><code>net/http</code> server</li>
+<li>GORM models for pages, posts, tags, and menu items</li>
+<li>SQLite database at <code>cms.db</code></li>
+<li>Seed data in <code>seed.yaml</code></li>
+<li>Public Giom templates in <code>public/*.giom</code></li>
+<li>Shared components in <code>public/components.giom</code></li>
+<li>Transpiled Gad output in <code>public/.transpiled/*.gad</code></li>
+<li>Static seed images in <code>seed-data/images</code></li>
+<li>React admin dashboard in <code>admin/</code></li>
+</ul>
+<h2 id="seeding-behavior">Seeding Behavior</h2>
+<p>The app checks whether <code>cms.db</code> exists before opening SQLite.</p>
+<ul>
+<li>If <code>cms.db</code> does not exist, the app migrates tables and seeds data from <code>seed.yaml</code>.</li>
+<li>If <code>cms.db</code> exists, the app migrates tables but does not re-seed.</li>
+<li>Delete <code>cms.db</code> to reset to the seed dataset.</li>
+</ul>
+<h2 id="template-flow">Template Flow</h2>
+<p>Routes load templates by name:</p>
+<pre><code class="language-text">/                 -&gt; public/index.giom
+/pages/{slug}     -&gt; public/page.giom
+/posts/{slug}     -&gt; public/post.giom
+/tags/{slug}      -&gt; public/tag.giom</code></pre>
+<p>Each page imports components:</p>
+<pre><code class="language-giom">@import "components.giom"</code></pre>
+<p>The app resolves imports before compilation and writes a <code>.gad</code> file for inspection.</p>
+<h2 id="public-components">Public Components</h2>
+<p><code>components.giom</code> includes:</p>
+<ul>
+<li><code>topbar()</code></li>
+<li><code>breadcrumbs()</code></li>
+<li><code>hero(title, summary; cover="")</code></li>
+<li><code>post_card(post)</code></li>
+<li><code>gallery(images)</code></li>
+<li><code>pager(pager)</code></li>
+<li><code>page_footer()</code></li>
+<li><code>page_wrapper(title)</code></li>
+</ul>
+<h2 id="adding-a-page-template">Adding A Page Template</h2>
+<p>Create <code>public/landing.giom</code>:</p>
+<pre><code class="language-giom">@import "components.giom"
+
+@main
+    +page_wrapper("Landing")
+        +hero("Landing", "A focused marketing page." ; cover="/seed-data/images/about-hero.jpg")
+        div.container
+            section.page-body
+                h2 Build faster
+                p Compose layouts with Giom components.</code></pre>
+<p>Add a handler that calls:</p>
+<pre><code class="language-go">a.render(w, "landing.giom", a.model("Landing", []crumb{{"Home", "/"}}, gad.Dict{}))</code></pre>
+<h2 id="adding-seed-data">Adding Seed Data</h2>
+<p>Edit <code>seed.yaml</code>:</p>
+<pre><code class="language-yaml">pages:
+  - title: "Landing"
+    slug: landing
+    summary: "A focused marketing page."
+    body: "&lt;p&gt;Compose layouts with Giom components.&lt;/p&gt;"
+    coverImage: "/seed-data/images/about-hero.jpg"
+    images: []
+    published: true</code></pre>
+<p>Delete <code>cms.db</code> and restart to apply seed changes.</p>
+<h2 id="image-paths">Image Paths</h2>
+<p>Use absolute paths for browser-safe URLs:</p>
+<pre><code class="language-yaml">coverImage: "/seed-data/images/about-hero.jpg"</code></pre>
+<p>Relative paths such as <code>seed-data/images/about-hero.jpg</code> break on nested routes because browsers resolve them relative to the current URL.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#run">Run</a><a href="#what-it-includes">What It Includes</a><a href="#seeding-behavior">Seeding Behavior</a><a href="#template-flow">Template Flow</a><a href="#public-components">Public Components</a><a href="#adding-a-page-template">Adding A Page Template</a><a href="#adding-seed-data">Adding Seed Data</a><a href="#image-paths">Image Paths</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

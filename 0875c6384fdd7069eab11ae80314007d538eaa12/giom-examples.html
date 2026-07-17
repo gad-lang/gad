@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Examples Cookbook · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Giom</div>
+      <a class="nav-link" href="giom-getting-started.html">Getting Started</a><a class="nav-link" href="giom-syntax.html">Template Syntax</a><a class="nav-link" href="giom-components-and-slots.html">Components And Slots</a><a class="nav-link active" href="giom-examples.html">Examples Cookbook</a><a class="nav-link" href="giom-embedding.html">Embedding In Go</a><a class="nav-link" href="giom-api.html">API Reference</a><a class="nav-link" href="giom-conventions.html">Conventions</a><a class="nav-link" href="giom-source-positions.html">Source Positions</a><a class="nav-link" href="giom-project-structure.html">Project Structure</a><a class="nav-link" href="giom-benchmarks.html">Benchmarks</a><a class="nav-link" href="giom-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="examples-cookbook">Examples Cookbook</h1>
+<p>These examples are intentionally small and composable. Copy a pattern, then extend it for your application.</p>
+<h2 id="static-page">Static Page</h2>
+<pre><code class="language-giom">@main
+    !!! 5
+    html
+        head
+            title Static page
+        body
+            h1 Static page
+            p Rendered by Giom.</code></pre>
+<h2 id="page-with-model">Page With Model</h2>
+<pre><code class="language-giom">~~
+global (Model)
+~~
+
+@main
+    h1 {= Model.Title}
+    p {= Model.Summary}</code></pre>
+<p>Model shape:</p>
+<pre><code class="language-go">gad.Dict{
+    "Title": gad.Str("Fast pages"),
+    "Summary": gad.Str("A compact introduction."),
+}</code></pre>
+<h2 id="blog-index">Blog Index</h2>
+<pre><code class="language-giom">@main
+    section.hero
+        h1 {= Model.Title}
+    div.grid
+        @for post in Model.Posts
+            article.card
+                h2
+                    a[href=post.URL] {= post.Title}
+                p {= post.Summary}</code></pre>
+<h2 id="blog-post">Blog Post</h2>
+<pre><code class="language-giom">@main
+    article.post
+        h1 {= Post.Title}
+        p.meta {= Post.PublishedAt}
+        div.body {= Post.Body}</code></pre>
+<h2 id="navigation-menu">Navigation Menu</h2>
+<pre><code class="language-giom">@export comp menu(items)
+    nav.menu
+        @for item in items
+            a[href=item.URL] {= item.Label}
+
+@main
+    +menu(Model.Menu)</code></pre>
+<h2 id="breadcrumbs">Breadcrumbs</h2>
+<pre><code class="language-giom">@export comp breadcrumbs(items)
+    nav.breadcrumbs[aria-label="Breadcrumb"]
+        @for item in items
+            a[href=item.URL] {= item.Label}
+            span / </code></pre>
+<h2 id="empty-state">Empty State</h2>
+<pre><code class="language-giom">@if Model.Posts
+    div.grid
+        @for post in Model.Posts
+            article.card {= post.Title}
+@else
+    section.empty
+        h2 No posts yet
+        p Create the first post in the admin dashboard.</code></pre>
+<h2 id="reusable-button">Reusable Button</h2>
+<pre><code class="language-giom">@export comp button(label; href="#", variant="primary")
+    a.button[href=href][class="button--" + variant] {= label}</code></pre>
+<h2 id="form-field">Form Field</h2>
+<pre><code class="language-giom">@export comp field(label, name; type="text", value="", required=false)
+    label.field
+        span {= label}
+        input[type=type][name=name][value=value][required=required]</code></pre>
+<h2 id="attribute-groups">Attribute Groups</h2>
+<p>Group related attributes in one <code>[ … ]</code> and let long tags wrap across lines.</p>
+<pre><code class="language-giom">@export comp card(post)
+    article[
+        class="card"
+        class=post.Featured ? "card--featured" : ""
+        data-id=post.ID
+        aria-label=post.Title
+    ]
+        h3 {= post.Title }
+        a[href=post.URL, rel="bookmark"] Read more</code></pre>
+<p>Usage:</p>
+<pre><code class="language-giom">form[action="/signup"][method="post"]
+    +field("Email", "email" ; type="email", required=true)
+    button[type="submit"] Join</code></pre>
+<h2 id="dashboard-shell">Dashboard Shell</h2>
+<pre><code class="language-giom">@export comp dashboard(title)
+    div.dashboard
+        aside.sidebar
+            @slot sidebar
+                a[href="/"] Home
+        main.panel
+            h1 {= title}
+            @slot main
+
+@main
+    +dashboard("Reports")
+        @slot #sidebar
+            a[href="/reports"] Reports
+            a[href="/settings"] Settings
+        p Report content.</code></pre>
+<h2 id="table">Table</h2>
+<pre><code class="language-giom">table.table
+    thead
+        tr
+            th Title
+            th Status
+    tbody
+        @for row in Rows
+            tr
+                td {= row.Title}
+                td {= row.Status}</code></pre>
+<h2 id="gallery">Gallery</h2>
+<pre><code class="language-giom">@export comp gallery(images)
+    @if images
+        div.gallery
+            @for image in images
+                img[src=image.URL][alt=image.Alt]</code></pre>
+<h2 id="pagination">Pagination</h2>
+<pre><code class="language-giom">@export comp pager(pager)
+    @if pager.HasPrev || pager.HasNext
+        nav.pager
+            @if pager.HasPrev
+                a[href=pager.PrevURL] Previous
+            span Page {= pager.Page} of {= pager.TotalPages}
+            @if pager.HasNext
+                a[href=pager.NextURL] Next</code></pre>
+<h2 id="layout-with-css">Layout With CSS</h2>
+<pre><code class="language-giom">~~
+const css = `body{font-family:system-ui;margin:0}.container{max-width:960px;margin:auto}`
+~~
+
+@export comp page(title)
+    !!! 5
+    html
+        head
+            title {= title}
+            style {= css}
+        body
+            main.container
+                @slot main</code></pre>
+<h2 id="extending-examples">Extending Examples</h2>
+<ul>
+<li>Move repeated markup into <code>@export comp</code> components.</li>
+<li>Use a layout component with a <code>main</code> slot for pages.</li>
+<li>Add named slots for sidebars, toolbars, and metadata areas.</li>
+<li>Keep database querying and pagination calculation in Go.</li>
+<li>Pass pre-shaped model data to templates.</li>
+</ul>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#static-page">Static Page</a><a href="#page-with-model">Page With Model</a><a href="#blog-index">Blog Index</a><a href="#blog-post">Blog Post</a><a href="#navigation-menu">Navigation Menu</a><a href="#breadcrumbs">Breadcrumbs</a><a href="#empty-state">Empty State</a><a href="#reusable-button">Reusable Button</a><a href="#form-field">Form Field</a><a href="#attribute-groups">Attribute Groups</a><a href="#dashboard-shell">Dashboard Shell</a><a href="#table">Table</a><a href="#gallery">Gallery</a><a href="#pagination">Pagination</a><a href="#layout-with-css">Layout With CSS</a><a href="#extending-examples">Extending Examples</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
