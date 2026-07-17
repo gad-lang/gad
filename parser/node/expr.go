@@ -281,19 +281,29 @@ func (e *CondExpr) WriteCode(ctx *CodeWriteContext) {
 
 // WithExpr is the expression form `with Resource [as IDENT]: Value`: it enters
 // the resource (gad.enter), evaluates Value, exits (gad.exit) and yields Value.
+//
+// The block form `with Resource [as IDENT] { Body }` is also an expression: it
+// enters the resource, runs Body (with IDENT bound to the resource), exits, and
+// yields the resource itself. In that form Body is non-nil and Value is nil.
 type WithExpr struct {
 	WithPos  source.Pos
 	Resource Expr
 	Ident    *IdentExpr // `as IDENT`, or nil
 	ColonPos source.Pos
-	Value    Expr
+	Value    Expr       // colon form; nil for the block form
+	Body     *BlockStmt // block form; nil for the colon form
 }
 
 func (e *WithExpr) ExprNode() {}
 
 func (e *WithExpr) Pos() source.Pos { return e.WithPos }
 
-func (e *WithExpr) End() source.Pos { return e.Value.End() }
+func (e *WithExpr) End() source.Pos {
+	if e.Body != nil {
+		return e.Body.End()
+	}
+	return e.Value.End()
+}
 
 func (e *WithExpr) head() string {
 	if e.Ident != nil {
@@ -303,10 +313,18 @@ func (e *WithExpr) head() string {
 }
 
 func (e *WithExpr) String() string {
+	if e.Body != nil {
+		return "(with " + e.head() + " " + e.Body.String() + ")"
+	}
 	return "(with " + e.head() + ": " + e.Value.String() + ")"
 }
 
 func (e *WithExpr) WriteCode(ctx *CodeWriteContext) {
+	if e.Body != nil {
+		ctx.WriteString("with " + e.head() + " ")
+		e.Body.WriteCode(ctx)
+		return
+	}
 	ctx.WriteString("with " + e.head() + ": ")
 	e.Value.WriteCode(ctx)
 }

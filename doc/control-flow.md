@@ -177,13 +177,36 @@ var x
 with x = mk() { … }            // assign to an existing variable
 ```
 
-There is also an **expression** form, `with resource [as name]: value`, which
-enters the resource, evaluates `value`, runs `exit`, and yields `value`:
+There is also an **expression** form. The colon variant, `with resource
+[as name]: value`, enters the resource, evaluates `value`, runs `exit`, and
+yields `value`:
 
 ```go
 contents := with open("f") as f: f.read()
 data := "[" + (with open("g") as g: g.read()) + "]"
 ```
+
+The **block** variant, `with resource [as name] { body }`, is an expression too:
+it enters the resource, runs `body` (with `name` bound to it), runs `exit`, and
+yields **the resource itself**. This makes `with` a build-and-return primitive —
+you construct a value, populate it inside the guarded block, and receive it back
+error-safely:
+
+```go
+box := with Box(; name = "b") as it {
+    it.add(1)
+    it.add(2)
+}                                   // yields the entered `box`, already exited
+
+// Common in a function that builds and returns a resource:
+build := func() {
+    return with Box() as t { t.bump() }   // enter, build, exit, return `t`
+}
+```
+
+`as name` is optional in the block form; without it the resource is still
+yielded (bind a name only when the body needs to reference it). If the body
+raises, `exit` still runs and the error propagates instead of the value.
 
 `with` introduces no new opcode: it desugars to a block that registers
 `gad.exit(resource, $err)` as a [`deferb`](functions.md#defer) and then calls

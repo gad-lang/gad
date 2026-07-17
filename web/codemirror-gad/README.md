@@ -69,3 +69,26 @@ bun install
 bun run demo        # serves example/index.html (bundles the TS on the fly)
 # or: bun run demo:build   # writes a static bundle to example/dist
 ```
+
+## Publishing
+
+The package is published to npm under the public `@gad-lang` scope. It ships the
+compiled output in `dist/` (built from `src/` by `tsc`); `prepublishOnly` rebuilds
+it, and `files`/`exports` point npm consumers at `dist/index.js` + `dist/index.d.ts`.
+
+```sh
+bun install
+bun run build            # emit dist/ (tsc: .js + .d.ts)
+npm version <patch|minor|major>
+bun publish --dry-run    # inspect the tarball first
+bun publish              # publishConfig sets the public registry + access
+```
+
+`publishConfig` (in `package.json`) pins the public npm registry and
+`access: public`, so no per-package `.npmrc` is required. The auth token is read
+from the environment or your global `~/.npmrc`; **never commit a token** (this
+repo's `.gitignore` ignores dotfiles). For CI, drop in a local `.npmrc`:
+
+```ini
+//registry.npmjs.org/:_authToken=${NPM_TOKEN}
+```

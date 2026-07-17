@@ -3412,13 +3412,21 @@ func (p *Parser) ParseWithStmt() node.Stmt {
 	return &node.WithStmt{WithPos: pos, Bind: bind, Ident: ident, Resource: expr, Body: body}
 }
 
-// ParseWithExpr parses the `with Resource [as IDENT]: Value` expression form.
+// ParseWithExpr parses the `with` expression forms:
+//
+//	with Resource [as IDENT]: Value   // enters, yields Value
+//	with Resource [as IDENT] { Body }  // enters, runs Body, yields Resource
 func (p *Parser) ParseWithExpr() node.Expr {
 	if p.Trace {
 		defer untracep(tracep(p, "WithExpr"))
 	}
 	pos := p.Expect(token.With)
 	p.SkipSpace()
+
+	// inHeader stops `Resource(...)` immediately before a body `{` from being
+	// parsed as a `name(params) { body }` function definition.
+	outerHeader := p.inHeader
+	p.inHeader = true
 	resource := p.ParseExpr()
 	p.SkipSpace()
 
@@ -3430,6 +3438,14 @@ func (p *Parser) ParseWithExpr() node.Expr {
 		p.SkipSpace()
 	}
 
+	// Block form: `with Resource [as IDENT] { Body }` yields the resource.
+	if p.Token.Token == token.LBrace {
+		p.inHeader = outerHeader
+		body := p.ParseBlockStmt()
+		return &node.WithExpr{WithPos: pos, Resource: resource, Ident: ident, Body: body}
+	}
+
+	p.inHeader = outerHeader
 	colon := p.Expect(token.Colon)
 	p.SkipSpace()
 	value := p.ParseExpr()

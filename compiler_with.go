@@ -78,10 +78,14 @@ func (c *Compiler) compileWithStmt(nd *node.WithStmt) error {
 	return nil
 }
 
-// compileWithExpr desugars `with R [as f]: V` into an immediately-invoked
-// closure that enters R, returns V (with the exit hook deferred), and yields it:
+// compileWithExpr desugars the `with` expression forms into an immediately-invoked
+// closure that enters R (with the exit hook deferred) and yields a value:
 //
-//	(func() { [f := R]; deferb { gad.exit(f, $err) }; gad.enter(f); return V })()
+//	with R [as f]: V     ->  (func() { [f := R]; deferb { gad.exit(f, $err) }; gad.enter(f); return V })()
+//	with R [as f] { B }  ->  (func() { [f := R]; deferb { gad.exit(f, $err) }; gad.enter(f); B; return f })()
+//
+// The block form yields the resource itself, so a caller can build into it and
+// receive it (e.g. `return with Tag(parent, …) as tag { … }`).
 func (c *Compiler) compileWithExpr(nd *node.WithExpr) error {
 	var (
 		handle string
@@ -107,7 +111,13 @@ func (c *Compiler) compileWithExpr(nd *node.WithExpr) error {
 	if inBind != nil {
 		bodyStmts = append([]node.Stmt{inBind}, bodyStmts...)
 	}
-	bodyStmts = append(bodyStmts, node.SReturn(nd.ColonPos, nd.Value))
+	if nd.Body != nil {
+		// Block form: run the body, then yield the resource handle.
+		bodyStmts = append(bodyStmts, nd.Body.Stmts...)
+		bodyStmts = append(bodyStmts, node.SReturn(nd.WithPos, node.EIdent(handle, nd.WithPos)))
+	} else {
+		bodyStmts = append(bodyStmts, node.SReturn(nd.ColonPos, nd.Value))
+	}
 
 	// Build the IIFE by parsing an empty closure and splicing the body in.
 	tmpl, err := parseGadSnippet("$__with_iife__ := func() {}")
