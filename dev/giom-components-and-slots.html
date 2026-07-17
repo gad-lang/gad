@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Components And Slots · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Giom</div>
+      <a class="nav-link" href="giom-getting-started.html">Getting Started</a><a class="nav-link" href="giom-syntax.html">Template Syntax</a><a class="nav-link active" href="giom-components-and-slots.html">Components And Slots</a><a class="nav-link" href="giom-examples.html">Examples Cookbook</a><a class="nav-link" href="giom-embedding.html">Embedding In Go</a><a class="nav-link" href="giom-api.html">API Reference</a><a class="nav-link" href="giom-conventions.html">Conventions</a><a class="nav-link" href="giom-source-positions.html">Source Positions</a><a class="nav-link" href="giom-project-structure.html">Project Structure</a><a class="nav-link" href="giom-benchmarks.html">Benchmarks</a><a class="nav-link" href="giom-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="components-and-slots">Components And Slots</h1>
+<p>Components are reusable template functions. They can receive positional arguments, named arguments, and slot content.</p>
+<h2 id="define-a-component">Define A Component</h2>
+<pre><code class="language-giom">@export comp button(label; href="#", kind="primary")
+    a.btn[href=href][class="btn--" + kind]
+        {= label}</code></pre>
+<p>Call it:</p>
+<pre><code class="language-giom">@main
+    +button("Read more" ; href="/docs", kind="secondary")</code></pre>
+<h2 id="layout-component">Layout Component</h2>
+<pre><code class="language-giom">@export comp page(title)
+    !!! 5
+    html[lang="en"]
+        head
+            title {= title}
+        body
+            header.site-header
+                a[href="/"] Home
+            main
+                @slot main
+            footer Site footer</code></pre>
+<p>Use it:</p>
+<pre><code class="language-giom">@main
+    +page("About")
+        h1 About
+        p This content is passed into the main slot.</code></pre>
+<h2 id="named-slots">Named Slots</h2>
+<p>Component:</p>
+<pre><code class="language-giom">@export comp shell(title)
+    section.shell
+        aside
+            @slot sidebar
+                p Default sidebar
+        main
+            h1 {= title}
+            @slot main</code></pre>
+<p>Caller:</p>
+<pre><code class="language-giom">@main
+    +shell("Dashboard")
+        @slot #sidebar
+            nav
+                a[href="/reports"] Reports
+                a[href="/settings"] Settings
+        p Main dashboard content.</code></pre>
+<h2 id="slot-defaults">Slot Defaults</h2>
+<pre><code class="language-giom">@export comp empty_state(title)
+    section.empty
+        h2 {= title}
+        @slot main
+            p Nothing to show yet.</code></pre>
+<p>If the caller does not pass content, the default slot body is rendered.</p>
+<h2 id="optional-slots">Optional Slots</h2>
+<p>A slot with no default body is optional: it renders only when the caller provides content, and nothing otherwise (it compiles to a nullish call <code>slots.name?.(super)</code>). Even an optional slot's override receives a usable <code>super</code> — an empty function — so calling <code>super</code> there is always safe and simply renders nothing.</p>
+<pre><code class="language-giom">@export comp panel
+    section.panel
+        @slot header      // optional — omitted when not provided
+        @slot main
+            p Body</code></pre>
+<h2 id="rendering-the-default-with-super">Rendering The Default With <code>super</code></h2>
+<p>When a caller overrides a slot, its content can render the component's default by calling <code>super</code>. **<code>super</code> is auto-injected as the override's first parameter** — you do not declare or bind it. Just call <code>super(…)</code>:</p>
+<pre><code class="language-giom">@export comp button(label)
+    button.btn
+        @slot main
+            span {= label}
+
+@main
+    +button("Save")
+        @slot #main
+            em ★
+            +super          // renders the default &lt;span&gt;Save&lt;/span&gt;</code></pre>
+<p>You may name the first parameter <code>super</code> explicitly (for example when you also declare scope parameters) — it will not be injected twice:</p>
+<pre><code class="language-giom">        @slot #main(super)
+            em ★
+            +super</code></pre>
+<p>For a slot <strong>with</strong> default content, <code>super</code> renders that content; for an <strong>optional</strong> slot (no default), <code>super</code> is an empty function, so <code>super</code> renders nothing. Because a scoped slot's default expects its scope arguments, forward them when rendering the default via <code>super</code>, e.g. <code>+super(item)</code>.</p>
+<blockquote><strong>Convention:</strong> call <code>super</code> (and any argument-less component) without empty parentheses — <code>+super</code>, not <code>+super()</code>. See <a href="giom-conventions.html#componentfunction-calls--omit-empty-parentheses">conventions.md</a>.</blockquote>
+<h2 id="slot-parameters">Slot Parameters</h2>
+<p>A slot may declare parameters (a *scoped slot*): the component supplies the values when it renders the slot, and the override receives them.</p>
+<pre><code class="language-giom">@export comp list(items)
+    ul
+        @for item in items
+            li
+                @slot item(item)
+                    {= item}
+
+@main
+    +list(Posts)
+        @slot #item(post)
+            a[href=post.URL] {= post.Title}</code></pre>
+<p>An override of a scoped slot still receives <code>super</code> as its auto-injected first parameter. To render the component's default for that item, forward the scope to <code>super</code>:</p>
+<pre><code class="language-giom">@main
+    +list(Posts)
+        @slot #item(super, post)
+            span.star ★
+            +super(post)      // renders the component's default for this item</code></pre>
+<p>A runnable version of scoped slots and <code>super</code> forwarding is in <code>samples/slot_params.giom</code>.</p>
+<h2 id="passing-slots-programmatically">Passing Slots Programmatically</h2>
+<p><code>@slot #name</code> and <code>+super</code> are sugar. A component compiles to a gad function that takes a <code>slots</code> dict, so you can build that dict yourself in a <code>~~ … ~~</code> code block and call the component directly — useful when the set of slots is dynamic.</p>
+<p>Each <code>slots</code> entry is a slot function whose **first parameter is <code>super</code><strong> (the component's default for that slot), followed by the slot's scope parameters. A slot function builds and </strong>returns a fragment tag** (like a component): create it with <code>giom.Tag(nil)</code>, append content, and <code>return</code> it. Unlike <code>+super</code>, a raw <code>super(…)</code> call is not rewritten, so it must pass super's own super (an empty function) as its first argument; its returned fragment is appended with <code>tag += super(…)</code>. The component call's own result is appended with <code>tag += …</code>.</p>
+<pre><code class="language-giom">@export comp list(items;slots={})
+    ul
+        @for i, it in items
+            li
+                @slot row(i, it)
+                    {=i}: {=it}
+
+@main
+    //- render every row bold, ignoring the default
+    ~~
+    tag += list(["a", "b"]; slots={
+        row: func(super, i, it) {
+            tag := giom.Tag(nil)
+            giom.Text(tag, raw "&lt;b&gt;" + it + "&lt;/b&gt;")
+            return tag
+        },
+    })
+    ~~
+
+    //- prefix each row, then render the default via super (scope forwarded)
+    ~~
+    tag += list(["a", "b"]; slots={
+        row: func(super, i, it) {
+            tag := giom.Tag(nil)
+            giom.Text(tag, raw "* ")
+            tag += super(func(*_){}, i, it)   // +super(i, it) sugars to this
+            return tag
+        },
+    })
+    ~~</code></pre>
+<p>See <code>samples/slots_programmatic.giom</code> for a runnable version.</p>
+<h2 id="dynamic-slot-names">Dynamic Slot Names</h2>
+<p>A slot name may be written in parentheses as a Gad template string, so a <code>{expr}</code> interpolation is evaluated at render time and used as the <code>slots[…]</code> key. This works for both the declaration and the pass (override):</p>
+<pre><code class="language-giom">@slot (item[{i}])        // declaration — one slot per value of i
+@slot #(item[{index}])   // pass — override the slot named item[&lt;index&gt;]</code></pre>
+<p>Source positions inside <code>{ … }</code> are preserved, so a runtime error in an interpolated name reports the correct line.</p>
+<p>A component can therefore give each item its own overridable slot:</p>
+<pre><code class="language-giom">@comp list(items)
+    @for i, it in items
+        @slot (item[{i}])(it)
+            li {= it }
+
+@main
+    +list(Posts)
+        @slot #(item[{1}])(super, it)   // override just the second row
+            li.featured {= it }
+            +super(it)                  // then render its default</code></pre>
+<h3 id="call-block-code-and-slot-names">Call-block code and slot names</h3>
+<p>The <code>~</code> / <code>~~ … ~~</code> code statements written directly in a component-call block are <strong>hoisted to the call scope, before the slot-pass declarations</strong>. An interpolated slot name (and any slot body) can therefore reference the values they declare:</p>
+<pre><code class="language-giom">+list(Posts)
+    ~ const index = 3
+    @slot #(item[{index}])(super, it)
+        li.featured {= it }
+    ~ var mark = "★"
+    @slot #(item[{4}])(super, it)
+        li {= mark }{= it }</code></pre>
+<p>A runnable version is in <code>samples/slot_dynamic_name.giom</code>.</p>
+<h2 id="card-component">Card Component</h2>
+<pre><code class="language-giom">@export comp card(title; href="")
+    article.card
+        h2
+            @if href
+                a[href=href] {= title}
+            @else
+                {= title}
+        div.card-body
+            @slot main</code></pre>
+<p>Usage:</p>
+<pre><code class="language-giom">+card(Post.Title ; href=Post.URL)
+    p {= Post.Summary}</code></pre>
+<h2 id="component-libraries">Component Libraries</h2>
+<p>Put reusable components in one file:</p>
+<pre><code class="language-text">templates/
+├── components.giom
+├── forms.giom
+└── pages/home.giom</code></pre>
+<p>Then import what your application resolver supports:</p>
+<pre><code class="language-giom">@import "components.giom"
+@import "forms.giom"
+
+@main
+    +page("Contact")
+        +contact_form</code></pre>
+<h2 id="composition-guidelines">Composition Guidelines</h2>
+<ul>
+<li>Use components for repeated markup, not one-off tags.</li>
+<li>Use slots for page layout, cards, panels, and custom item rendering.</li>
+<li>Keep data shaping in Go when possible.</li>
+<li>Pass trusted rich HTML as <code>gad.RawStr</code>; pass regular strings as <code>gad.Str</code>.</li>
+</ul>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#define-a-component">Define A Component</a><a href="#layout-component">Layout Component</a><a href="#named-slots">Named Slots</a><a href="#slot-defaults">Slot Defaults</a><a href="#optional-slots">Optional Slots</a><a href="#rendering-the-default-with-super">Rendering The Default With super</a><a href="#slot-parameters">Slot Parameters</a><a href="#passing-slots-programmatically">Passing Slots Programmatically</a><a href="#dynamic-slot-names">Dynamic Slot Names</a><a href="#card-component">Card Component</a><a href="#component-libraries">Component Libraries</a><a href="#composition-guidelines">Composition Guidelines</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

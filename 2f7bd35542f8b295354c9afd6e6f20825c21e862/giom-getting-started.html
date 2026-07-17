@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Getting Started · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Giom</div>
+      <a class="nav-link active" href="giom-getting-started.html">Getting Started</a><a class="nav-link" href="giom-syntax.html">Template Syntax</a><a class="nav-link" href="giom-components-and-slots.html">Components And Slots</a><a class="nav-link" href="giom-examples.html">Examples Cookbook</a><a class="nav-link" href="giom-embedding.html">Embedding In Go</a><a class="nav-link" href="giom-api.html">API Reference</a><a class="nav-link" href="giom-conventions.html">Conventions</a><a class="nav-link" href="giom-source-positions.html">Source Positions</a><a class="nav-link" href="giom-project-structure.html">Project Structure</a><a class="nav-link" href="giom-benchmarks.html">Benchmarks</a><a class="nav-link" href="giom-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="getting-started">Getting Started</h1>
+<p>This guide shows the shortest path from a Giom template to rendered HTML.</p>
+<h2 id="install">Install</h2>
+<p>Use Giom as a Go module dependency:</p>
+<pre><code class="language-sh">go get github.com/gad-lang/giom</code></pre>
+<p>Giom builds on Gad, so applications usually import both packages:</p>
+<pre><code class="language-go">import (
+    "github.com/gad-lang/gad"
+    "github.com/gad-lang/giom"
+)</code></pre>
+<h2 id="a-minimal-template">A Minimal Template</h2>
+<pre><code class="language-giom">@main
+    p Hello {= Name}</code></pre>
+<p>The template renders one paragraph. <code>{= Name}</code> writes the value of the <code>Name</code> global.</p>
+<p>Expected output:</p>
+<pre><code class="language-html">&lt;p&gt;Hello Giom&lt;/p&gt;</code></pre>
+<h2 id="render-from-go">Render From Go</h2>
+<pre><code class="language-go">src := []byte(`@main
+    p Hello {= Name}
+`)
+
+builtins := giom.AppendBuiltins(gad.NewBuiltins())
+st := gad.NewSymbolTable(builtins.NameSet)
+_, _ = st.DefineGlobals([]string{"Name"})
+
+_, bc, err := giom.Compile(st, src, gad.CompileOptions{})
+if err != nil {
+    return err
+}
+
+var out bytes.Buffer
+vm := gad.NewVM(builtins.Build(), bc)
+ret, err := vm.RunOpts(&amp;gad.RunOpts{
+    StdOut:  &amp;out,
+    Globals: gad.Dict{"Name": gad.Str("Giom")},
+})
+if err != nil {
+    return err
+}
+// The template returns the root of a render tree; write it to produce HTML.
+if el, ok := ret.(giom.Element); ok {
+    _, err = el.WriteTo(vm, &amp;out)
+}</code></pre>
+<p>Use the same <code>builtins</code> instance for the symbol table and VM. This keeps Gad builtin indexes consistent.</p>
+<h2 id="file-based-rendering-pattern">File-Based Rendering Pattern</h2>
+<p>A common application layout is:</p>
+<pre><code class="language-text">templates/
+├── components.giom
+├── layout.giom
+└── index.giom</code></pre>
+<p><code>index.giom</code>:</p>
+<pre><code class="language-giom">@import "components.giom"
+
+@main
+    +page("Home")
+        h1 {= Model.Title}</code></pre>
+<p>Your application can resolve <code>@import</code> lines before compilation, then call <code>giom.Compile</code> with the combined source.</p>
+<h2 id="first-concepts">First Concepts</h2>
+<ul>
+<li>A line like <code>div.card</code> emits an HTML tag.</li>
+<li>Indentation defines tag bodies and control-flow bodies.</li>
+<li><code>{= expr}</code> writes a Gad expression.</li>
+<li><code>@main</code> marks the executable template body.</li>
+<li><code>@export comp name(...)</code> defines a reusable component.</li>
+<li><code>+name(...)</code> calls a component.</li>
+<li><code>@slot main</code> declares where child content is rendered.</li>
+</ul>
+<p>Continue with <a href="giom-syntax.html">Template Syntax</a>.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#install">Install</a><a href="#a-minimal-template">A Minimal Template</a><a href="#render-from-go">Render From Go</a><a href="#file-based-rendering-pattern">File-Based Rendering Pattern</a><a href="#first-concepts">First Concepts</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

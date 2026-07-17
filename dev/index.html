@@ -19,6 +19,8 @@
       <a class="nav-link active" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
     </div><div class="nav-group"><div class="nav-title">Reference</div>
       <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Giom</div>
+      <a class="nav-link" href="giom-getting-started.html">Getting Started</a><a class="nav-link" href="giom-syntax.html">Template Syntax</a><a class="nav-link" href="giom-components-and-slots.html">Components And Slots</a><a class="nav-link" href="giom-examples.html">Examples Cookbook</a><a class="nav-link" href="giom-embedding.html">Embedding In Go</a><a class="nav-link" href="giom-api.html">API Reference</a><a class="nav-link" href="giom-conventions.html">Conventions</a><a class="nav-link" href="giom-source-positions.html">Source Positions</a><a class="nav-link" href="giom-project-structure.html">Project Structure</a><a class="nav-link" href="giom-benchmarks.html">Benchmarks</a><a class="nav-link" href="giom-cms-example.html">CMS Example</a>
     </div><div class="nav-group"><div class="nav-title">Playground</div>
       <a class="nav-link" href="playground.html">Playground</a>
     </div>
@@ -108,6 +110,20 @@
 <li><a href="stdlib-test.html">Testing</a> — the <code>test</code> module and the <code>gad test</code> command:</li>
 </ul>
 <p>  <code>*_test.gad</code> files, <code>test*</code>/<code>bench*</code> functions, assertions and benchmarks.</p>
+<h2 id="giom-templates">Giom Templates</h2>
+<p>Giom is an indentation-based HTML template language that embeds Gad, shipped in this repository as the [<code>giom</code>](../giom) submodule. <code>.giom</code> files can be run and debugged with the <code>gad</code> CLI and the <code>gad ide</code>/VS Code tooling. Its full documentation lives in [<code>giom/docs</code>](../giom/docs):</p>
+<ul>
+<li><a href="../giom/docs/getting-started.html">Getting Started</a> — install and render a first template.</li>
+<li><a href="../giom/docs/syntax.html">Syntax</a> — tags, <code>.class</code>/<code>#id</code>, <code>[attr]</code> groups,</li>
+</ul>
+<p>  <code>@</code>-control keywords, <code>{= … }</code> interpolation and <code>~~</code> code blocks.</p>
+<ul>
+<li><a href="../giom/docs/components-and-slots.html">Components and Slots</a> — <code>@comp</code>, <code>@slot</code></li>
+</ul>
+<p>  and component calls.</p>
+<ul>
+<li><a href="../giom/docs/embedding.html">Embedding in Go</a> and the <a href="../giom/docs/api.html">API</a>.</li>
+</ul>
 <h2 id="a-taste-of-gad">A Taste of Gad</h2>
 <pre><code class="language-go">param *args
 
@@ -132,7 +148,7 @@ println(greet("Gad"))            // Hello, Gad!
 println(greet("Gad"; greeting="Hi"))
 println(doubled, all, kind)</code></pre>
 </main>
-  <aside class="toc"><div class="nav-title">On this page</div><a href="#table-of-contents">Table of Contents</a><a href="#reference">Reference</a><a href="#a-taste-of-gad">A Taste of Gad</a></aside>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#table-of-contents">Table of Contents</a><a href="#reference">Reference</a><a href="#giom-templates">Giom Templates</a><a href="#a-taste-of-gad">A Taste of Gad</a></aside>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>

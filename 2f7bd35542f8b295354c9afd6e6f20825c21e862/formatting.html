@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Formatting with gad fmt · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link active" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Giom</div>
+      <a class="nav-link" href="giom-getting-started.html">Getting Started</a><a class="nav-link" href="giom-syntax.html">Template Syntax</a><a class="nav-link" href="giom-components-and-slots.html">Components And Slots</a><a class="nav-link" href="giom-examples.html">Examples Cookbook</a><a class="nav-link" href="giom-embedding.html">Embedding In Go</a><a class="nav-link" href="giom-api.html">API Reference</a><a class="nav-link" href="giom-conventions.html">Conventions</a><a class="nav-link" href="giom-source-positions.html">Source Positions</a><a class="nav-link" href="giom-project-structure.html">Project Structure</a><a class="nav-link" href="giom-benchmarks.html">Benchmarks</a><a class="nav-link" href="giom-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="formatting-with-gad-fmt">Formatting with <code>gad fmt</code></h1>
+<p><a href="index.html">← Back to index</a></p>
+<p><code>gad fmt</code> rewrites Gad source files with the canonical formatter. By default it formats <strong>in place</strong>; with <code>--out</code> it writes elsewhere and leaves inputs untouched; stdin is always written to stdout.</p>
+<pre><code class="language-sh">gad fmt main.gad          # format a single file in place
+gad fmt src               # format the .gad files directly in ./src
+gad fmt src/...           # recurse into ./src and its sub-directories
+gad fmt -                 # read stdin, write formatted source to stdout</code></pre>
+<p>A directory argument formats only the <code>.gad</code> files directly inside it; append <code>/...</code> to recurse. Hidden files are ignored and hidden directories are skipped. Files already formatted are left untouched; each file that changes is printed.</p>
+<p>A failing file (e.g. a syntax error) does not stop the others — every target is attempted, errors are reported to stderr, and the command exits with status <code>2</code> (gofmt-style) when anything failed, otherwise <code>0</code>.</p>
+<h2 id="comments">Comments</h2>
+<p><code>gad fmt</code> preserves <code>//</code> line comments and <code>/* … */</code> block comments. A comment on the same line as a statement stays attached to it as a trailing comment; comments on their own line are kept on their own line before the following statement. (A comment sitting between the last statement of a block and its closing <code>}</code> is currently re-emitted just after the <code>}</code>.)</p>
+<h2 id="selecting-files">Selecting Files</h2>
+<table>
+<thead><tr><th>Flag</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>--exclude GLOB</code></td><td>Skip files matching GLOB (repeatable; comma-separated allowed).</td></tr>
+<tr><td><code>--include GLOB</code></td><td>Format matching files even if excluded (repeatable/comma).</td></tr>
+<tr><td><code>--exclude-re RE</code></td><td>Skip files matching the regex RE (repeatable; not comma-split).</td></tr>
+<tr><td><code>--include-re RE</code></td><td>Re-include matching files even if excluded (repeatable).</td></tr>
+</tbody>
+</table>
+<p>Globs and regexes are tested against <strong>both the full path and the base name</strong>, so either form works. An <code>include</code> match always wins over an <code>exclude</code>.</p>
+<pre><code class="language-sh">gad fmt --exclude '*_gen.gad' src/...
+gad fmt --exclude-re '_(gen|test)\.gad$' src/...</code></pre>
+<h2 id="output-and-backups">Output and Backups</h2>
+<table>
+<thead><tr><th>Flag</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>--out PATH</code></td><td>Single input → output file <code>PATH</code>; otherwise <code>PATH</code> is an output directory mirroring the input tree. Inputs are not modified.</td></tr>
+<tr><td><code>--backup</code></td><td>Write a backup of each file before rewriting it in place.</td></tr>
+<tr><td><code>--backup-format PATTERN</code></td><td>Backup name pattern; <code>BASE_NAME</code> → file name without extension (default <code>BASE_NAME.backup.gad</code>).</td></tr>
+</tbody>
+</table>
+<pre><code class="language-sh">gad fmt --out dist src/...        # formatted copies under ./dist, src/ untouched
+gad fmt --backup main.gad         # writes main.backup.gad, then formats main.gad</code></pre>
+<h2 id="parallelism">Parallelism</h2>
+<table>
+<thead><tr><th>Flag</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>--jobs N</code></td><td>Max concurrent jobs (default: number of CPUs).</td></tr>
+</tbody>
+</table>
+<p>Each explicit file (and stdin) is one job; each directory is one job that formats all of its files. Jobs run in parallel up to <code>--jobs</code>.</p>
+<h2 id="layout-control">Layout Control</h2>
+<p>The multi-line layout is on by default. <code>--no-format</code> disables it entirely; each <code>--no-*-in-new-line</code> flag keeps one construct on a single line:</p>
+<table>
+<thead><tr><th>Flag</th><th>Keeps on one line</th></tr></thead>
+<tbody>
+<tr><td><code>--no-format</code></td><td>everything (no multi-line layout)</td></tr>
+<tr><td><code>--no-array-item-in-new-line</code></td><td>array items</td></tr>
+<tr><td><code>--no-dict-item-in-new-line</code></td><td>dict items</td></tr>
+<tr><td><code>--no-key-value-array-item-in-new-line</code></td><td>keyValueArray items</td></tr>
+<tr><td><code>--no-call-params-in-new-line</code></td><td>call arguments</td></tr>
+<tr><td><code>--no-parem-values-in-new-line</code></td><td>parameter values</td></tr>
+<tr><td><code>--no-decl-item-in-new-line</code></td><td>declaration items</td></tr>
+</tbody>
+</table>
+<h2 id="transpile">Transpile</h2>
+<p>One <code>--transpile-NAME</code> flag is generated per field of the formatter's transpile options (currently <code>--transpile-raw-str-func-start</code>, <code>--transpile-raw-str-func-end</code>, <code>--transpile-write-func</code>). Setting any of them emits transpiled output instead of plain formatting.</p>
+<h2 id="reports">Reports</h2>
+<p><code>--report PATH</code> writes a per-file status report as <strong>NDJSON</strong> — one JSON object per line. Use <code>--report -</code> to write the report to stdout. Each line carries <code>file</code> (relative to its input directory when the file came from one), <code>input_dir</code> (only for files discovered through a directory job), and <code>error</code> (only on failure):</p>
+<pre><code class="language-sh">gad fmt --report report.ndjson src/...</code></pre>
+<pre><code class="language-json">{"input_dir":"src","file":"a.gad"}
+{"input_dir":"src","file":"b.gad","error":"Parse Error: ..."}
+{"file":"oops.gad"}</code></pre>
+<ul>
+<li><code>--report-stream</code> writes each record as soon as its file is done, rather than</li>
+</ul>
+<p>  buffering them all until the end. With no <code>--report</code>, the report streams to   stdout.</p>
+<ul>
+<li><code>--report-contents</code> adds a <code>result</code> key to each record holding the formatted</li>
+</ul>
+<p>  source — useful with <code>--no-save</code> to format without touching files:</p>
+<pre><code class="language-sh">gad fmt --no-save --report-contents --report - src/...</code></pre>
+<pre><code class="language-json">{"input_dir":"src","file":"a.gad","result":"x := 1\n"}</code></pre>
+<h3 id="read-only-formatting">Read-only formatting</h3>
+<p><code>--no-save</code> formats every file but writes, creates and backs up nothing. Combine it with <code>--report-contents</code> (and <code>--report -</code>) to obtain the formatted source as data without modifying the working tree.</p>
+<h2 id="config-file-gadyaml">Config File (<code>.gad.yaml</code>)</h2>
+<p>Flag defaults can live in a YAML config under a <code>fmt:</code> key. The default file is <code>.gad.yaml</code> in the working directory; override with <code>--config PATH</code> or disable with <code>--no-config</code>. Command-line flags override config values.</p>
+<p>Keys use the flag names (without the leading <code>--</code>). A special <code>input_dirs</code> list declares directories to format with their own include/exclude/backup/report settings (these merge with the global include/exclude globs; <code>backup</code> defaults to false per directory, and <code>backup_format</code> defaults to the global value). A per-directory <code>report</code> writes that directory's NDJSON lines on its own.</p>
+<pre><code class="language-yaml">fmt:
+  exclude:
+    - "*_gen.gad"
+  backup-format: "BASE_NAME.bak.gad"
+  report: report.ndjson
+  input_dirs:
+    - path: src
+      backup: true
+      excludes: ["*_test.gad"]
+      report: src-report.ndjson</code></pre>
+<p>With such a file present, a bare <code>gad fmt</code> (no path arguments) formats the configured <code>input_dirs</code>.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#comments">Comments</a><a href="#selecting-files">Selecting Files</a><a href="#output-and-backups">Output and Backups</a><a href="#parallelism">Parallelism</a><a href="#layout-control">Layout Control</a><a href="#transpile">Transpile</a><a href="#reports">Reports</a><a href="#config-file-gadyaml">Config File (.gad.yaml)</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conventions · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Giom</div>
+      <a class="nav-link" href="giom-getting-started.html">Getting Started</a><a class="nav-link" href="giom-syntax.html">Template Syntax</a><a class="nav-link" href="giom-components-and-slots.html">Components And Slots</a><a class="nav-link" href="giom-examples.html">Examples Cookbook</a><a class="nav-link" href="giom-embedding.html">Embedding In Go</a><a class="nav-link" href="giom-api.html">API Reference</a><a class="nav-link active" href="giom-conventions.html">Conventions</a><a class="nav-link" href="giom-source-positions.html">Source Positions</a><a class="nav-link" href="giom-project-structure.html">Project Structure</a><a class="nav-link" href="giom-benchmarks.html">Benchmarks</a><a class="nav-link" href="giom-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="conventions">Conventions</h1>
+<h2 id="go--gad-value-conversion">Go ↔ Gad value conversion</h2>
+<p>**Use <code>gad.MustNewReflectValue</code> instead of manually constructing <code>gad.Dict</code>.**</p>
+<p>Pass Go structs directly through <code>gad.MustNewReflectValue</code> — the function uses reflection to convert exported struct fields into Gad values automatically. This eliminates the boilerplate of mapping each field by hand.</p>
+<pre><code class="language-go">// good — reflection-based
+gad.MustNewReflectValue(page)
+
+// bad — manual dict construction
+gad.Dict{"ID": gad.Uint(p.ID), "Title": gad.Str(p.Title), …}</code></pre>
+<p>For computed fields (e.g., <code>URL</code> derived from <code>Slug</code>), pre-populate the struct before reflection rather than building a separate dict.</p>
+<pre><code class="language-go">p.URL = "/posts/" + p.Slug
+gad.MustNewReflectValue(p)</code></pre>
+<p>Use <code>gorm:"-"</code> tags on model fields that should not be persisted but are needed during reflection (e.g., computed <code>URL</code> fields).</p>
+<h2 id="template-output--raw-html">Template output — raw HTML</h2>
+<p>**Use <code>{=raw expr}</code> for template expressions that contain HTML markup.**</p>
+<p>The <code>raw</code> directive outputs the value without HTML escaping. Use it for <code>Body</code>, <code>RightBody</code>, or any field that contains pre-rendered HTML.</p>
+<table>
+<thead><tr><th>Expression</th><th>Escaping</th><th>Use case</th></tr></thead>
+<tbody>
+<tr><td><code>{= expr}</code></td><td>Escaped</td><td>Plain text, user-controlled strings</td></tr>
+<tr><td><code>{=raw expr}</code></td><td>Unescaped</td><td>HTML content (Body, RightBody)</td></tr>
+</tbody>
+</table>
+<pre><code class="language-giom">section.page-body
+    {=raw Model.Page.Body}</code></pre>
+<h2 id="template-imports">Template imports</h2>
+<p>**Use named imports when accessing exports from another <code>.giom</code> file.**</p>
+<p>Import exported values with <code>as</code> and reference them through the module alias. This avoids relying on side-effect imports and makes component ownership explicit.</p>
+<pre><code class="language-giom">@import "components.giom" as comps
+
+@main
+    +comps.page_wrapper("Home")
+        +comps.hero("Title", "Summary")</code></pre>
+<p>Do not call exported symbols from another file as unqualified local names.</p>
+<pre><code class="language-giom">// bad
+@import "components.giom"
++page_wrapper("Home")</code></pre>
+<h2 id="componentfunction-calls--omit-empty-parentheses">Component/function calls — omit empty parentheses</h2>
+<p>**For any component or function call without arguments, write <code>+name</code>, not <code>+name()</code>.** Add parentheses only when passing arguments.</p>
+<pre><code class="language-giom">// good
++super
++the_tags
++default_layout
+
+// bad
++super()
++the_tags()
++default_layout()</code></pre>
+<pre><code class="language-giom">// with arguments — parentheses required
++super(item)
++card("Fancy")
++default_layout(; config=config)</code></pre>
+<h2 id="slot-super">Slot <code>super</code></h2>
+<p>**<code>super</code> is auto-injected as the first parameter of an overriding <code>@slot</code>.** Do not declare it and do not bind it to a local — just call <code>super</code>.</p>
+<pre><code class="language-giom">// good — super is available automatically
++card("Fancy")
+    @slot #header
+        em ★
+        +super</code></pre>
+<ul>
+<li>A slot <strong>with</strong> default content passes that default as <code>super</code>; an</li>
+</ul>
+<p>  <strong>optional</strong> slot (no default body) passes an empty function, so <code>+super</code> is   always safe and renders nothing.</p>
+<ul>
+<li>For a <strong>scoped</strong> slot, forward the scope arguments when rendering the default:</li>
+</ul>
+<p>  <code>+super(item)</code>.</p>
+<ul>
+<li>You may name the first parameter <code>super</code> explicitly (e.g. alongside scope</li>
+</ul>
+<p>  parameters) — it is not injected twice: <code>@slot #item_image(super, item)</code>.</p>
+<ul>
+<li>When invoking a slot function directly at gad level (bypassing <code>@slot</code>), pass</li>
+</ul>
+<p>  an empty super: <code>slots["main"](func(*_){})</code>.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#go--gad-value-conversion">Go ↔ Gad value conversion</a><a href="#template-output--raw-html">Template output — raw HTML</a><a href="#template-imports">Template imports</a><a href="#componentfunction-calls--omit-empty-parentheses">Component/function calls — omit empty parentheses</a><a href="#slot-super">Slot super</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

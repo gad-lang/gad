@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Benchmarks · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Giom</div>
+      <a class="nav-link" href="giom-getting-started.html">Getting Started</a><a class="nav-link" href="giom-syntax.html">Template Syntax</a><a class="nav-link" href="giom-components-and-slots.html">Components And Slots</a><a class="nav-link" href="giom-examples.html">Examples Cookbook</a><a class="nav-link" href="giom-embedding.html">Embedding In Go</a><a class="nav-link" href="giom-api.html">API Reference</a><a class="nav-link" href="giom-conventions.html">Conventions</a><a class="nav-link" href="giom-source-positions.html">Source Positions</a><a class="nav-link" href="giom-project-structure.html">Project Structure</a><a class="nav-link active" href="giom-benchmarks.html">Benchmarks</a><a class="nav-link" href="giom-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="benchmarks">Benchmarks</h1>
+<p>This report covers two comparisons:</p>
+<ol>
+<li><strong>Old vs new implementation</strong> — the previous *streaming* render model (<code>main</code>,</li>
+</ol>
+<p>   where every tag/text lowers to <code>write()</code> calls) against the new *tree* model    (tags build <code>Tag</code>/<code>Text</code> nodes returned as a tree), running <strong>identical</strong>    benchmarks on both branches: at the engine level    ([<code>bench_test.go</code>](../bench_test.go)) and per CMS request path    ([<code>examples/cms/bench_test.go</code>](../examples/cms/bench_test.go)).</p>
+<ol>
+<li><strong>Engine vs full app</strong> — the giom render engine against the CMS's full HTTP</li>
+</ol>
+<p>   routes, including a cold-vs-cached breakdown.</p>
+<p>Environment: <code>go1.26.5 linux/amd64</code>, AMD Ryzen 7 5700G. <code>benchstat</code>, n=10. Reproduce with the commands in <a href="#running">Running</a>.</p>
+<h2 id="old-vs-new-streaming--tree-render-model">Old vs new: streaming → tree render model</h2>
+<p>Same benchmarks on <code>main</code> (streaming) and <code>feat/tag-render-tree</code> (tree):</p>
+<p>!<a href="bench-old-vs-new.svg">Old streaming vs new tree render</a></p>
+<p>The new tree model is <strong>faster and allocates less</strong>, and the gain grows with the number of rendered nodes:</p>
+<h3 id="render-benchstat-old--streaming-new--tree">Render (<code>benchstat</code>, old = streaming, new = tree)</h3>
+<table>
+<thead><tr><th>Template</th><th>old µs</th><th>new µs</th><th>Δ time</th><th>old allocs</th><th>new allocs</th><th>Δ allocs</th></tr></thead>
+<tbody>
+<tr><td><code>page</code></td><td>154.6</td><td>150.9</td><td>−2.4%</td><td>1,219</td><td>1,098</td><td>−9.9%</td></tr>
+<tr><td><code>attrs</code></td><td>162.3</td><td>163.0</td><td>~</td><td>1,298</td><td>1,224</td><td>−5.7%</td></tr>
+<tr><td><code>components</code> (×20)</td><td>432.2</td><td>372.6</td><td><strong>−13.8%</strong></td><td>5,631</td><td>4,711</td><td><strong>−16.3%</strong></td></tr>
+<tr><td><code>loop</code> (×50)</td><td>575.8</td><td>417.3</td><td><strong>−27.5%</strong></td><td>8,358</td><td>6,059</td><td><strong>−27.5%</strong></td></tr>
+<tr><td><strong>geomean</strong></td><td>144.5</td><td>132.2</td><td><strong>−8.5%</strong></td><td>1,500</td><td>1,357</td><td><strong>−9.5%</strong></td></tr>
+</tbody>
+</table>
+<p>Memory per op tracks the alloc counts (render geomean −6.4% B/op; <code>loop</code> −17% B/op).</p>
+<h3 id="compile-benchstat">Compile (<code>benchstat</code>)</h3>
+<table>
+<thead><tr><th>Template</th><th>old µs</th><th>new µs</th><th>Δ time</th></tr></thead>
+<tbody>
+<tr><td><code>page</code></td><td>84.9</td><td>77.6</td><td>−8.6%</td></tr>
+<tr><td><code>attrs</code></td><td>51.2</td><td>48.3</td><td>−5.7%</td></tr>
+<tr><td><code>loop</code></td><td>50.7</td><td>46.2</td><td>−8.9%</td></tr>
+<tr><td><code>components</code></td><td>138.2</td><td>140.8</td><td>+1.9%</td></tr>
+</tbody>
+</table>
+<p><strong>Why the tree model wins:</strong> the streaming model emitted a separate <code>write(...)</code> VM call for every tag open, attribute group, close and text fragment; the tree model instead builds compact <code>Tag</code>/<code>Text</code> objects and walks them once in Go at the end. That means fewer VM operations and allocations per node, so node-heavy templates (<code>loop</code>, <code>components</code>) improve the most while tiny ones (<code>page</code>, <code>attrs</code>) are roughly flat. Compilation is also slightly leaner because the per-node <code>write()</code> lowering is replaced by a single file-level tree wrapper (<code>components</code> is the one case that adds a little, since every component body gets its own fragment wrapper).</p>
+<h2 id="old-vs-new-cms-request-paths">Old vs new: CMS request paths</h2>
+<p>The same <code>BenchmarkRoutes</code> run against the whole example app on both branches — the only variable is the giom dependency (streaming vs tree); the app code, gad version, SQLite data and HTTP path are identical. Each figure is one full request (router → SQLite → model → render → response), warm.</p>
+<p>!<a href="bench-cms-old-vs-new.svg">CMS per-path: old streaming vs new tree</a></p>
+<p>Every route gets <strong>faster and much leaner</strong> — even end-to-end, where the render engine is only part of the work:</p>
+<table>
+<thead><tr><th>Request path</th><th>old µs</th><th>new µs</th><th>Δ time</th><th>Δ allocs</th></tr></thead>
+<tbody>
+<tr><td><code>GET /</code> (index)</td><td>1,001</td><td>915</td><td>−8.6%</td><td>−22.4%</td></tr>
+<tr><td><code>GET /pages/about</code></td><td>661</td><td>601</td><td>−9.2%</td><td>−22.2%</td></tr>
+<tr><td><code>GET /pages/guides</code></td><td>650</td><td>594</td><td>−8.6%</td><td>−21.5%</td></tr>
+<tr><td><code>GET /pages/contact</code></td><td>661</td><td>605</td><td>−8.6%</td><td>−22.2%</td></tr>
+<tr><td><code>GET /posts/designing-fast-editorial-pages</code></td><td>805</td><td>738</td><td>−8.3%</td><td>−21.3%</td></tr>
+<tr><td><code>GET /posts/sqlite-compact-cms</code></td><td>780</td><td>712</td><td>−8.7%</td><td>−21.8%</td></tr>
+<tr><td><code>GET /posts/modern-admin-interfaces</code></td><td>790</td><td>735</td><td>~</td><td>−20.8%</td></tr>
+<tr><td><code>GET /posts/reusable-gion-components</code></td><td>793</td><td>732</td><td>−7.6%</td><td>−21.0%</td></tr>
+<tr><td><code>GET /posts/shipping-friendly-first-page</code></td><td>784</td><td>718</td><td>−8.4%</td><td>−22.0%</td></tr>
+<tr><td><code>GET /posts/building-gallery-component</code></td><td>808</td><td>757</td><td>−6.2%</td><td>−21.5%</td></tr>
+<tr><td><code>GET /tags/design</code></td><td>1,003</td><td>946</td><td>−5.7%</td><td>−20.7%</td></tr>
+<tr><td><code>GET /tags/engineering</code></td><td>983</td><td>932</td><td>−5.2%</td><td>−21.3%</td></tr>
+<tr><td><code>GET /tags/news</code></td><td>942</td><td>880</td><td>−6.6%</td><td>−21.3%</td></tr>
+<tr><td><code>GET /tags/tutorials</code></td><td>957</td><td>896</td><td>−6.4%</td><td>−20.5%</td></tr>
+<tr><td><strong>geomean</strong></td><td>821</td><td>759</td><td><strong>−7.5%</strong></td><td><strong>−21.5%</strong></td></tr>
+</tbody>
+</table>
+<p>Memory drops too (B/op geomean −10.1%). The allocation win (<strong>−21%</strong>) is larger than the time win because the streaming model made a <code>write()</code> VM call — each allocating — for every tag open, attribute group, close and text run; the tree model builds a handful of compact <code>Tag</code>/<code>Text</code> objects per node instead. That allocation cut survives all the way through the DB query and HTTP layer, which is why it shows up per request path.</p>
+<h2 id="engine-micro-benchmarks--absolute-tree-branch">Engine micro-benchmarks — absolute (tree branch)</h2>
+<h3 id="render--steady-state-bytecode-cache-warm">Render — steady state (bytecode cache warm)</h3>
+<table>
+<thead><tr><th>Template</th><th>µs/op</th><th>B/op</th><th>allocs/op</th></tr></thead>
+<tbody>
+<tr><td><code>page</code> (small document, 7 tags)</td><td>151</td><td>386,149</td><td>1,098</td></tr>
+<tr><td><code>attrs</code> (attribute-heavy tags)</td><td>163</td><td>390,861</td><td>1,224</td></tr>
+<tr><td><code>components</code> (20× component + slot)</td><td>373</td><td>539,800</td><td>4,711</td></tr>
+<tr><td><code>loop</code> (50-row <code>@for</code>)</td><td>417</td><td>579,504</td><td>6,059</td></tr>
+</tbody>
+</table>
+<h3 id="compile--one-time-parse--convert--compile-to-bytecode">Compile — one-time (parse + convert + compile to bytecode)</h3>
+<table>
+<thead><tr><th>Template</th><th>µs/op</th><th>B/op</th><th>allocs/op</th></tr></thead>
+<tbody>
+<tr><td><code>page</code></td><td>78</td><td>57,710</td><td>799</td></tr>
+<tr><td><code>attrs</code></td><td>48</td><td>37,733</td><td>483</td></tr>
+<tr><td><code>loop</code></td><td>46</td><td>38,905</td><td>526</td></tr>
+<tr><td><code>components</code></td><td>141</td><td>104,153</td><td>1,480</td></tr>
+</tbody>
+</table>
+<p>Compilation is one-time and cached by <code>Render</code>, so the warm render figures are what matter in steady state.</p>
+<blockquote>Each <code>Render</code> call also re-reads the template file, builds a fresh symbol table and rebuilds the static builtins table — fixed overhead common to both branches and to the CMS suite, so treat these as end-to-end figures, not pure tree-walk cost.</blockquote>
+<h2 id="cms-app-benchmarks-examplescmsbench-testgo">CMS app benchmarks (<code>examples/cms/bench_test.go</code>)</h2>
+<p><code>BenchmarkRoutes</code>, warm (each route's bytecode cached; every iteration still runs the router, the SQLite query and the render):</p>
+<table>
+<thead><tr><th>Route</th><th>µs/op</th><th>B/op</th><th>allocs/op</th></tr></thead>
+<tbody>
+<tr><td><code>GET /</code> (index)</td><td>901</td><td>646,415</td><td>6,209</td></tr>
+<tr><td><code>GET /pages/about</code></td><td>610</td><td>508,358</td><td>3,525</td></tr>
+<tr><td><code>GET /pages/guides</code></td><td>594</td><td>504,658</td><td>3,427</td></tr>
+<tr><td><code>GET /pages/contact</code></td><td>610</td><td>508,249</td><td>3,525</td></tr>
+<tr><td><code>GET /posts/designing-fast-editorial-pages</code></td><td>737</td><td>553,562</td><td>4,391</td></tr>
+<tr><td><code>GET /posts/sqlite-compact-cms</code></td><td>712</td><td>542,046</td><td>4,106</td></tr>
+<tr><td><code>GET /posts/modern-admin-interfaces</code></td><td>723</td><td>545,766</td><td>4,183</td></tr>
+<tr><td><code>GET /posts/reusable-gion-components</code></td><td>731</td><td>548,525</td><td>4,253</td></tr>
+<tr><td><code>GET /posts/shipping-friendly-first-page</code></td><td>709</td><td>544,766</td><td>4,176</td></tr>
+<tr><td><code>GET /posts/building-gallery-component</code></td><td>757</td><td>560,866</td><td>4,462</td></tr>
+<tr><td><code>GET /tags/design</code></td><td>959</td><td>621,452</td><td>5,581</td></tr>
+<tr><td><code>GET /tags/engineering</code></td><td>943</td><td>614,584</td><td>5,428</td></tr>
+<tr><td><code>GET /tags/news</code></td><td>885</td><td>583,596</td><td>4,816</td></tr>
+<tr><td><code>GET /tags/tutorials</code></td><td>922</td><td>590,358</td><td>4,965</td></tr>
+</tbody>
+</table>
+<h3 id="first-render-cold-vs-cached-warm">First render (cold) vs cached (warm)</h3>
+<p><code>BenchmarkColdVsWarmChart</code> measures a route's <strong>first</strong> request — which parses, converts and compiles the template before rendering — against a subsequent request served from cached bytecode. Each figure is the mean of 5 single requests (<code>time.Now()</code> around one <code>ServeHTTP</code>), so it captures the first-hit latency a user actually sees rather than an amortized <code>b.N</code> average.</p>
+<p>!<a href="bench-cms-cold-warm.svg">CMS cold vs cached</a></p>
+<table>
+<thead><tr><th>Route</th><th>Cold (first) µs</th><th>Warm (cached) µs</th><th>Speedup</th></tr></thead>
+<tbody>
+<tr><td><code>page</code> (<code>/pages/about</code>)</td><td>1,567</td><td>790</td><td>2.0×</td></tr>
+<tr><td><code>post</code> (<code>/posts/…</code>)</td><td>2,096</td><td>838</td><td>2.5×</td></tr>
+<tr><td><code>index</code> (<code>/</code>)</td><td>2,238</td><td>1,057</td><td>2.1×</td></tr>
+<tr><td><code>tag</code> (<code>/tags/design</code>)</td><td>2,156</td><td>1,091</td><td>2.0×</td></tr>
+</tbody>
+</table>
+<p>Compilation roughly <strong>doubles</strong> first-request latency; the <code>Render</code> cache pays for itself on the very next request. (These single-shot means run higher than the amortized <code>BenchmarkRoutes</code> warm figures above — e.g. index 1,057 µs here vs 901 µs — because the amortized loop reuses more warmed state per iteration.) A column-chart variant is at [<code>bench-cold-vs-warm.svg</code>](bench-cold-vs-warm.svg) (generated by the example's own <code>chart.go</code>).</p>
+<h2 id="engine-vs-full-request">Engine vs full request</h2>
+<p>Engine micro-benchmarks (<strong>root</strong>, teal) next to full CMS route latency (<strong>cms</strong>, orange), each ranked lightest→heaviest:</p>
+<p>!<a href="bench-suites.svg">Warm latency: engine vs CMS route</a></p>
+<p>The vertical gap is the per-request overhead outside the render engine — routing, the SQLite query and model assembly. The engine line stays in the ~150–420 µs band while the app line runs ~610–960 µs, so the render engine is a *fraction* of end-to-end route latency.</p>
+<h2 id="takeaways">Takeaways</h2>
+<ul>
+<li><strong>The tree model is a net win over streaming</strong> on the same benchmarks. At the</li>
+</ul>
+<p>  engine level: −8.5% render time and −9.5% allocations at geomean, up to −27% on   node-heavy templates. Per CMS request path (end-to-end, incl. DB + HTTP): −7.5%   time and <strong>−21.5% allocations</strong> on every route — while also enabling the   returned render tree.</p>
+<ul>
+<li><strong>Warm render is the steady state.</strong> Compilation is a one-time cost the <code>Render</code></li>
+</ul>
+<p>  cache absorbs: it roughly doubles the *first* request (2.0–2.5×), then every   subsequent request runs only the render path.</p>
+<ul>
+<li><strong>The engine is a minor share of a real request.</strong> A CMS page route (~610 µs)</li>
+</ul>
+<p>  spends only part of its time in giom; routing + SQLite + model assembly dominate.</p>
+<ul>
+<li><strong>Cost tracks tree size</strong> in every measurement: loops, multi-component pages and</li>
+</ul>
+<p>  large tag listings are the heaviest.</p>
+<h2 id="running">Running</h2>
+<pre><code class="language-sh"># Engine micro-benchmarks (repo root)
+go test -run '^$' -bench 'BenchmarkRender|BenchmarkCompile' -benchmem -count=10 ./
+
+# Old vs new: run the same on a `main` worktree and compare with benchstat
+git worktree add ../giom-main main
+cp bench_test.go ../giom-main/
+( cd ../giom-main &amp;&amp; go test -run '^$' -bench 'BenchmarkRender|BenchmarkCompile' \
+    -benchmem -count=10 ./ &gt; old.txt )
+go test -run '^$' -bench 'BenchmarkRender|BenchmarkCompile' -benchmem -count=10 ./ &gt; new.txt
+benchstat ../giom-main/old.txt new.txt
+git worktree remove ../giom-main
+
+# CMS app benchmarks
+cd examples/cms
+go test -run '^$' -bench 'BenchmarkRoutes' -benchmem -count=4 .
+# Cold vs cached numbers (-v prints per-route cold/warm/speedup)
+go test -run '^$' -bench 'BenchmarkColdVsWarmChart' -benchtime=1x -v .
+
+# Old vs new, per request path: run the CMS benchmarks in the `main` worktree
+# too, after aligning its gad pin and applying the same test fix (copy this
+# branch's examples/cms go.mod, go.sum, helpers_test.go, handlers_test.go into
+# ../giom-main/examples/cms), then:
+( cd ../giom-main/examples/cms &amp;&amp; go test -run '^$' -bench 'BenchmarkRoutes' \
+    -benchmem -count=6 . &gt; old_cms.txt )
+go test -run '^$' -bench 'BenchmarkRoutes' -benchmem -count=6 . &gt; new_cms.txt
+benchstat ../giom-main/examples/cms/old_cms.txt new_cms.txt</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#old-vs-new-streaming--tree-render-model">Old vs new: streaming → tree render model</a><a href="#old-vs-new-cms-request-paths">Old vs new: CMS request paths</a><a href="#engine-micro-benchmarks--absolute-tree-branch">Engine micro-benchmarks — absolute (tree branch)</a><a href="#cms-app-benchmarks-examplescmsbench-testgo">CMS app benchmarks (examples/cms/bench_test.go)</a><a href="#engine-vs-full-request">Engine vs full request</a><a href="#takeaways">Takeaways</a><a href="#running">Running</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

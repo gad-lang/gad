@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Template Syntax · Gad</title>
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">Gad</a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <button class="theme-toggle" id="theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Giom</div>
+      <a class="nav-link" href="giom-getting-started.html">Getting Started</a><a class="nav-link active" href="giom-syntax.html">Template Syntax</a><a class="nav-link" href="giom-components-and-slots.html">Components And Slots</a><a class="nav-link" href="giom-examples.html">Examples Cookbook</a><a class="nav-link" href="giom-embedding.html">Embedding In Go</a><a class="nav-link" href="giom-api.html">API Reference</a><a class="nav-link" href="giom-conventions.html">Conventions</a><a class="nav-link" href="giom-source-positions.html">Source Positions</a><a class="nav-link" href="giom-project-structure.html">Project Structure</a><a class="nav-link" href="giom-benchmarks.html">Benchmarks</a><a class="nav-link" href="giom-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="template-syntax">Template Syntax</h1>
+<p>Giom uses indentation to describe HTML, components, and Gad control flow.</p>
+<h2 id="document-type">Document Type</h2>
+<pre><code class="language-giom">!!! 5</code></pre>
+<p>Output:</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;</code></pre>
+<h2 id="tags">Tags</h2>
+<pre><code class="language-giom">section.hero
+    h1 Welcome
+    p Ship templates with less noise.</code></pre>
+<p>Output:</p>
+<pre><code class="language-html">&lt;section class="hero"&gt;&lt;h1&gt;Welcome&lt;/h1&gt;&lt;p&gt;Ship templates with less noise.&lt;/p&gt;&lt;/section&gt;</code></pre>
+<h2 id="ids-and-classes">Ids And Classes</h2>
+<pre><code class="language-giom">main#content.page.shell
+    h1.title Hello</code></pre>
+<p>Output:</p>
+<pre><code class="language-html">&lt;main id="content" class="page shell"&gt;&lt;h1 class="title"&gt;Hello&lt;/h1&gt;&lt;/main&gt;</code></pre>
+<h2 id="attributes">Attributes</h2>
+<pre><code class="language-giom">a.button[href="/docs"][target="_blank"] Read docs
+img.cover[src=Post.CoverImage][alt=Post.Title]
+input[type="email"][name="email"][required]</code></pre>
+<p>Attributes can use string literals, variables, or expressions.</p>
+<h3 id="attribute-groups">Attribute groups</h3>
+<p>A single <code>[ … ]</code> group may hold multiple attributes, separated by commas or newlines — like a GAD <code>KeyValueArray (; … )</code>. A group may span several lines up to its closing <code>]</code>; indentation inside is ignored. Repeated attributes (such as <code>class</code>) are merged.</p>
+<pre><code class="language-giom">// one attribute per group (still valid)
+div[class="a"][title="hello"]
+
+// many attributes in one group, comma-separated
+div[class="a", title="hello"]
+
+// mix group forms
+div[class="a"][class="b", title="hello"]
+
+// span multiple lines up to the closing ]
+div[
+    class="a"
+    class="b"
+    title="hello"
+]</code></pre>
+<p>Commas and newlines inside strings, parentheses, brackets or braces do not split a group, so call arguments and array/dict literals work as attribute values:</p>
+<pre><code class="language-giom">div[title=join(items, ", "), data-ids=[1, 2, 3]]</code></pre>
+<p>A trailing <code>? condition</code> applies to every attribute in the group.</p>
+<h2 id="raw-html">Raw HTML</h2>
+<p>A line starting with <code>&lt;</code> is parsed as a raw HTML region. It runs from the opening tag to its matching close tag (spanning multiple lines if needed); giom indentation inside is ignored and runs of whitespace collapse to a single space. <code>&lt;&gt; … &lt;/&gt;</code> is a fragment: it renders its children with no wrapping element.</p>
+<pre><code class="language-giom">@main
+    &lt;a href="/" class="link"&gt;Home&lt;/a&gt;
+
+    &lt;ul&gt;
+        &lt;li&gt;one&lt;/li&gt;
+        &lt;li&gt;two&lt;/li&gt;
+    &lt;/ul&gt;</code></pre>
+<p>Attributes may be interpolated with <code>{expr}</code> — both the value and the name. An interpolated value is auto-quoted and HTML-escaped (a falsy value drops the attribute); an interpolated name builds the attribute name from the expression. <code>{expr}</code> also interpolates text content. Interpolation source positions are preserved.</p>
+<pre><code class="language-giom">@main
+    &lt;a href={post.URL} data-{key}={value}&gt;
+        {post.Title}
+    &lt;/a&gt;</code></pre>
+<p>A runnable example is in <code>samples/html.giom</code>. Use the pug-style <code>tag[attr=…]</code> syntax (below) when you prefer giom's indentation-based nesting.</p>
+<h2 id="text">Text</h2>
+<p>Inline text:</p>
+<pre><code class="language-giom">p Hello world</code></pre>
+<p>Text block:</p>
+<pre><code class="language-giom">p
+    | This is plain text.
+    | It can span multiple lines.</code></pre>
+<h2 id="expressions">Expressions</h2>
+<pre><code class="language-giom">h1 {= Model.Title}
+p {= "Hello " + User.Name}</code></pre>
+<p>Use Gad expressions inside <code>{= ...}</code>.</p>
+<h2 id="raw-html-values">Raw HTML Values</h2>
+<p>If the application passes a <code>gad.RawStr</code>, Giom writes it without escaping.</p>
+<pre><code class="language-giom">article {= Post.Body}</code></pre>
+<p>Use raw values only for trusted HTML.</p>
+<h2 id="main-block">Main Block</h2>
+<pre><code class="language-giom">@main
+    h1 Home
+    p This template body is executed.</code></pre>
+<h2 id="code-block">Code Block</h2>
+<p>Use <code>~~</code> for Gad source sections.</p>
+<pre><code class="language-giom">~~
+const title = "Hello"
+~~
+
+@main
+    h1 {= title}</code></pre>
+<h2 id="variables-and-assignment">Variables And Assignment</h2>
+<pre><code class="language-giom">@main
+    @assign total = len(Items)
+    p {= total + " items"}</code></pre>
+<p>Depending on parser form, assignment can also be represented by Gad code inside <code>~~</code> blocks.</p>
+<h2 id="conditions">Conditions</h2>
+<pre><code class="language-giom">@if User
+    p Welcome {= User.Name}
+@else
+    p Welcome guest</code></pre>
+<h2 id="loops">Loops</h2>
+<pre><code class="language-giom">ul
+    @for item in Items
+        li {= item.Title}</code></pre>
+<h2 id="empty-states">Empty States</h2>
+<pre><code class="language-giom">@if Posts
+    div.grid
+        @for post in Posts
+            article.card {= post.Title}
+@else
+    p No posts yet.</code></pre>
+<h2 id="match">Match</h2>
+<p>Match a value against <code>@case</code> clauses; the default clause is written <code>@else</code>.</p>
+<pre><code class="language-giom">@match Status
+    @case "draft"
+        span.badge Draft
+    @case "published"
+        span.badge Published
+    @else
+        span.badge Unknown</code></pre>
+<h2 id="imports">Imports</h2>
+<h3 id="bare-import">Bare Import</h3>
+<pre><code class="language-giom">@import "components.giom"</code></pre>
+<p>Imports the module for its side effects.</p>
+<h3 id="named-import">Named Import</h3>
+<pre><code class="language-giom">@import "components.giom" as comps</code></pre>
+<p>Makes the module available as the variable <code>comps</code>. Components or values from the module are accessed via <code>+comps.name(...)</code>.</p>
+<h3 id="destructured-import">Destructured Import</h3>
+<pre><code class="language-giom">@import { page_wrapper, hero } from "components.giom"</code></pre>
+<p>Extracts specific named exports directly into scope. Components are then available as <code>+page_wrapper(...)</code> and <code>+hero(...)</code> without a module prefix.</p>
+<p>Supports Gad destructuring syntax including:</p>
+<ul>
+<li>Rename: <code>@import { page_wrapper: pw } from "components.giom"</code></li>
+<li>Default value: <code>@import { page_wrapper = fallback } from "components.giom"</code></li>
+<li>Rest pattern: <code>@import { page_wrapper, **rest } from "components.giom"</code></li>
+<li>Mixed: <code>@import { a, b: bb, c = nil, **rest } from "modules.giom"</code></li>
+</ul>
+<p>All forms compile to Gad <code>import()</code> calls. Destructured imports generate a curly-destructure assignment (<code>{...} := import("...")</code>), which is handled by Gad's built-in destructuring compiler.</p>
+<h2 id="variable-declarations">Variable Declarations</h2>
+<p>Declare mutable variables with <code>@var</code>. A single name, a comma-separated list (with optional initializers), or a parenthesized group that may span multiple lines are all accepted. Indentation inside the parentheses is ignored.</p>
+<pre><code class="language-giom">@var a                          // single
+@var a, b                       // multiple, no initializers
+@var a, b = {name: "test"}, x   // with an initializer
+
+@var (
+    width = 320
+    height, depth = 0
+)</code></pre>
+<p>Each form compiles to a Gad grouped declaration, e.g. <code>var (a, b={name: "test"}, x)</code>.</p>
+<h2 id="constant-declarations">Constant Declarations</h2>
+<p>Declare immutable constants with <code>@const</code>. It accepts the same single, comma-separated and multi-line parenthesized forms as <code>@var</code>, but <strong>every constant must have an initializer</strong> (a value-less <code>@const x</code> is a compile error).</p>
+<pre><code class="language-giom">@const pi = 3.14
+@const a = 1, b = 2
+
+@const (
+    min = 0
+    max = 100
+)</code></pre>
+<p>Each form compiles to a Gad grouped declaration, e.g. <code>const (a=1, b=2)</code>.</p>
+<h2 id="enums">Enums</h2>
+<p>Declare an enum with <code>@enum IDENT ( … )</code>. The parenthesized body holds the fields; its syntax mirrors a <code>@var</code> declaration — fields are separated by commas or newlines, each an optional value (<code>Name</code> or <code>Name = value</code>) — and it also accepts Gad's enum extras <code>bit</code> (power-of-two values) and a leading <code>+</code>/<code>-</code> sign. Defaulted fields auto-increment from the previous one.</p>
+<pre><code class="language-giom">@enum Perm (Read, Write, Exec = 10, Delete)   // 1, 2, 10, 11
+
+@enum Color (
+    Red
+    Green
+    Blue
+)
+
+@enum Flags (bit List, Detail, Create, Read = List | Detail)   // 1, 2, 4, 3
+@enum Signed (-Low, Lower, +High, Higher)                      // -1, -2, 3, 4</code></pre>
+<p>Each form compiles to a Gad <code>enum IDENT { … }</code> statement, so a member exposes <code>.value</code>, <code>.name</code>, <code>.index</code> and its owning enum, the enum is indexable by member name (<code>Perm["Write"]</code>) and iterable in declaration order. See the Gad <a href="../../gad/doc/enums.html">enum documentation</a> for the value-computation rules.</p>
+<h2 id="globals">Globals</h2>
+<p>Declare globals with <code>@global</code>. Names may be space-separated (legacy) or comma-separated, may carry a default, and may be grouped in parentheses spanning multiple lines (indentation inside is ignored).</p>
+<pre><code class="language-giom">@global Model User            // space-separated
+@global t, Req, Context       // comma-separated
+@global page = 1, limit = 20  // `= v` default: applied when nil OR absent
+@global user !?= "guest"      // `!?= v` default: applied only when absent
+
+@global (
+    a
+    b, c = 2
+)</code></pre>
+<p>Each form compiles to a Gad grouped declaration, e.g. <code>global (t, Req, Context)</code>. The <code>= v</code> / <code>!?= v</code> defaults lower onto Gad's [<code>global</code> defaults](../../gad/doc/variables-and-scopes.md#defaults): <code>= v</code> fills a nil-or-absent global, <code>!?= v</code> fills only an absent one. Globals can also be provided through the Go symbol table — the CMS example passes one global named <code>Model</code>.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#document-type">Document Type</a><a href="#tags">Tags</a><a href="#ids-and-classes">Ids And Classes</a><a href="#attributes">Attributes</a><a href="#raw-html">Raw HTML</a><a href="#text">Text</a><a href="#expressions">Expressions</a><a href="#raw-html-values">Raw HTML Values</a><a href="#main-block">Main Block</a><a href="#code-block">Code Block</a><a href="#variables-and-assignment">Variables And Assignment</a><a href="#conditions">Conditions</a><a href="#loops">Loops</a><a href="#empty-states">Empty States</a><a href="#match">Match</a><a href="#imports">Imports</a><a href="#variable-declarations">Variable Declarations</a><a href="#constant-declarations">Constant Declarations</a><a href="#enums">Enums</a><a href="#globals">Globals</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
