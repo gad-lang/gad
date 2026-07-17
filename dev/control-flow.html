@@ -121,9 +121,20 @@ with mk() as f { … }           // bind the resource to a block-local `f`
 with x := mk() { … }           // define `x` (visible after the block)
 var x
 with x = mk() { … }            // assign to an existing variable</code></pre>
-<p>There is also an <strong>expression</strong> form, <code>with resource [as name]: value</code>, which enters the resource, evaluates <code>value</code>, runs <code>exit</code>, and yields <code>value</code>:</p>
+<p>There is also an <strong>expression</strong> form. The colon variant, <code>with resource [as name]: value</code>, enters the resource, evaluates <code>value</code>, runs <code>exit</code>, and yields <code>value</code>:</p>
 <pre><code class="language-go">contents := with open("f") as f: f.read()
 data := "[" + (with open("g") as g: g.read()) + "]"</code></pre>
+<p>The <strong>block</strong> variant, <code>with resource [as name] { body }</code>, is an expression too: it enters the resource, runs <code>body</code> (with <code>name</code> bound to it), runs <code>exit</code>, and yields <strong>the resource itself</strong>. This makes <code>with</code> a build-and-return primitive — you construct a value, populate it inside the guarded block, and receive it back error-safely:</p>
+<pre><code class="language-go">box := with Box(; name = "b") as it {
+    it.add(1)
+    it.add(2)
+}                                   // yields the entered `box`, already exited
+
+// Common in a function that builds and returns a resource:
+build := func() {
+    return with Box() as t { t.bump() }   // enter, build, exit, return `t`
+}</code></pre>
+<p><code>as name</code> is optional in the block form; without it the resource is still yielded (bind a name only when the body needs to reference it). If the body raises, <code>exit</code> still runs and the error propagates instead of the value.</p>
 <p><code>with</code> introduces no new opcode: it desugars to a block that registers <code>gad.exit(resource, $err)</code> as a [<code>deferb</code>](functions.md#defer) and then calls <code>gad.enter(resource)</code>. The hooks are dispatched through the <code>gad.enter</code> / <code>gad.exit</code> functions in the global [<code>gad</code>](operators.md#operator-handlers-and-the-gad-namespace) namespace.</p>
 <h2 id="see-also">See also</h2>
 <p>For runnable control-flow examples, see:</p>
