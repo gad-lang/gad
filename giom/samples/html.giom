@@ -1,0 +1,26 @@
+//- Raw HTML regions.
+//-
+//- A line starting with `<` is parsed as raw HTML: it runs from the opening tag
+//- to its matching close tag (spanning multiple lines), giom indentation inside
+//- is ignored and runs of whitespace collapse to a single space.
+//-
+//- Attributes may be interpolated with `{expr}` — both the value (`href={uri}`)
+//- and the name (`data-{key}={value}`). An interpolated value is auto-quoted and
+//- escaped. `{expr}` also interpolates text content. `<> … </>` is a fragment
+//- (renders its children with no wrapping element).
+
+@global (title, url, active)
+
+@main
+    <nav class="menu">
+        <a href={url} class="link" data-{active}="1">
+            {title}
+        </a>
+
+        <img src="/logo.png" alt="logo"/>
+
+        <>
+            <span>one</span>
+            <span>two</span>
+        </>
+    </nav>

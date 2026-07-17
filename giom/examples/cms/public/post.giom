@@ -1,0 +1,15 @@
+@import { page_wrapper, hero, gallery } from "components.giom"
+
+@main
+    +page_wrapper(Model.Post.Title)
+        +hero(Model.Post.Title, Model.Post.Summary ; cover=Model.Post.CoverImage)
+        div.container.article
+            article.article-main
+                {=raw Model.Post.Body}
+                +gallery(Model.Post.Images)
+            aside.aside
+                {=raw Model.Post.RightBody}
+                div.tags
+                    @for tag in Model.Post.Tags
+                        a.tag[href=tag.URL]
+                            {= tag.Name}

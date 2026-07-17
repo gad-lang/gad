@@ -1,0 +1,34 @@
+//- Enums — `@enum IDENT ( … )`. The field body mirrors a `@var` declaration
+//- (comma- or newline-separated `Name` / `Name = value`) and also accepts the
+//- Gad enum extras `bit` (power-of-two) and a leading `+`/`-` sign. Defaulted
+//- fields auto-increment from the previous one. Render @main to see the values.
+
+//- auto-incrementing, with one explicit value (later fields resume from it)
+@enum Perm (Read, Write, Exec = 10, Delete)
+
+//- multi-line body, one field per line (like a grouped @var)
+@enum Color (
+    Red
+    Green
+    Blue
+)
+
+//- power-of-two flags; a field may combine earlier ones
+@enum Flags (bit List, Detail, Create, Read = List | Detail)
+
+@main
+    ul
+        //- a member exposes .value, .name and .index
+        li Perm.Exec = {= Perm.Exec.value } (index {= Perm.Exec.index })
+        li Perm.Delete = {= Perm.Delete.value }
+
+        //- index by member name
+        li Color["Green"] = {= Color["Green"].value }
+
+        //- bit flags
+        li Flags.Read = {= Flags.Read.value }
+
+        //- iterate in declaration order
+        li
+            @for name, v in Perm
+                span {= name }={= v.value };

@@ -1,0 +1,77 @@
+@global Model
+
+@export comp topbar()
+    header.topbar
+        div.container.nav
+            a.brand[href="/"]
+                {= Model.SiteTitle}
+            nav.menu
+                @for item in Model.Menu
+                    a[href=item.URL]
+                        {= item.Label}
+                a[href="/admin"] Admin
+
+@export comp breadcrumbs()
+    div.container.breadcrumbs
+        @for c in Model.Breadcrumbs
+            a[href=c.URL]
+                {= c.Label}
+            span / 
+
+@export comp hero(title, summary; cover="")
+    section.hero
+        div.container.hero-card
+            div
+                h1 {= title}
+                p {= summary}
+            @if cover
+                img.cover[src=cover][alt=title]
+
+@export comp post_card(post)
+    article.post-card
+        @if post.CoverImage
+            img[src=post.CoverImage][alt=post.Title]
+        div.body
+            h2
+                a[href=post.URL]
+                    {= post.Title}
+            p {= post.Summary}
+            div.tags
+                @for tag in post.Tags
+                    a.tag[href=tag.URL]
+                        {= tag.Name}
+
+@export comp gallery(images)
+    @if images
+        div.gallery
+            @for image in images
+                img[src=image][alt="Gallery image"]
+
+@export comp pager(pager)
+    @if pager.HasPrev || pager.HasNext
+        nav.pager
+            @if pager.HasPrev
+                a[href=pager.PrevURL] Previous
+            @if pager.HasNext
+                a[href=pager.NextURL] Next
+
+@export comp page_footer()
+    footer.footer
+        div.container
+            | {="Powered by Go, GORM, SQLite, React, and GION/v2 · "}
+            {= Model.Year}
+
+@export comp page_wrapper(title)
+    !!! 5
+    html[lang="en"]
+        head
+            meta[charset="utf-8"]
+            meta[name="viewport"][content="width=device-width,initial-scale=1"]
+            title
+                | {= title + " · " + Model.SiteTitle}
+            link[rel="stylesheet"][type="text/css"][href="/static/assets/page.css"]
+        body
+            +topbar()
+            +breadcrumbs()
+            @slot main
+            +page_footer()

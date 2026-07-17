@@ -1,0 +1,144 @@
+pages:
+  - title: "About"
+    slug: about
+    summary: "Who we are and how we publish."
+    body: "<p>GION CMS is a friendly demo site powered by Go, SQLite, React, and GION/v2 templates.</p>"
+    coverImage: "/seed-data/images/about-hero.jpg"
+    images:
+      - "/seed-data/images/about-gallery.jpg"
+    published: true
+  - title: "Guides"
+    slug: guides
+    summary: "Editorial notes for teams."
+    body: "<p>Use the admin dashboard to create pages, posts, tags, and top navigation entries.</p>"
+    coverImage: "/seed-data/images/guides-hero.jpg"
+    images: []
+    published: true
+  - title: "Contact"
+    slug: contact
+    summary: "Get in touch with the editorial team."
+    body: "<p>Reach out via the admin dashboard or open an issue on GitHub.</p>"
+    coverImage: "/seed-data/images/contact-hero.jpg"
+    images:
+      - "/seed-data/images/about-gallery.jpg"
+    published: true
+
+tags:
+  - name: "Design"
+    slug: design
+  - name: "Engineering"
+    slug: engineering
+  - name: "News"
+    slug: news
+  - name: "Tutorials"
+    slug: tutorials
+
+posts:
+  - title: "Designing fast editorial pages"
+    slug: designing-fast-editorial-pages
+    summary: "A short guide to responsive content layouts."
+    body: "<p>Public pages use shared GION components for navigation, cards, galleries, and breadcrumbs.</p><p>Every component lives in <code>public/components.giom</code> and is imported via <code>@import</code>.</p>"
+    rightBody: "<p>Keep summaries crisp and covers expressive.</p><p>Use the <code>hero</code> component to feature your best content above the fold.</p>"
+    coverImage: "/seed-data/images/designing-hero.jpg"
+    images:
+      - "/seed-data/images/about-hero.jpg"
+      - "/seed-data/images/designing-gallery-1.jpg"
+      - "/seed-data/images/designing-gallery-2.jpg"
+      - "/seed-data/images/designing-gallery-3.jpg"
+    published: true
+    tags: ["Design", "News"]
+  - title: "SQLite is enough for a compact CMS"
+    slug: sqlite-compact-cms
+    summary: "A practical storage layer for local-first publishing."
+    body: "<p>GORM keeps the example small while still modeling pages, posts, tags, and menus.</p><p>SQLite requires zero configuration — the database file is created automatically on first run.</p>"
+    rightBody: "<p>Backups are as simple as copying one file.</p><p>No separate database server needed.</p>"
+    coverImage: "/seed-data/images/sqlite-hero.jpg"
+    images:
+      - "/seed-data/images/sqlite-gallery-1.jpg"
+      - "/seed-data/images/sqlite-gallery-2.jpg"
+    published: true
+    tags: ["Engineering"]
+  - title: "Modern admin interfaces without ceremony"
+    slug: modern-admin-interfaces
+    summary: "React can be light, focused, and ergonomic."
+    body: "<p>The admin dashboard uses simple API calls and local form state to manage content.</p><p>All CRUD operations flow through REST endpoints under <code>/api/</code>.</p>"
+    rightBody: "<p>Use the menu editor to expose pages and tag lists.</p><p>Change a menu item from the dashboard and the public site updates immediately.</p>"
+    coverImage: "/seed-data/images/admin-hero.jpg"
+    images:
+      - "/seed-data/images/admin-gallery.jpg"
+    published: true
+    tags: ["Design", "Engineering"]
+  - title: "Reusable GION components"
+    slug: reusable-gion-components
+    summary: "Templates import shared functions to avoid duplication."
+    body: "<p>The renderer resolves <code>@import</code> lines before compiling a public template.</p><p>Components use <code>@export comp</code> and <code>@func</code> with GION template syntax.</p>"
+    rightBody: "<p>Components live in <code>public/components.giom</code>.</p><p>Browse <code>page.giom</code>, <code>post.giom</code>, and <code>tag.giom</code> to see how they compose layouts.</p>"
+    coverImage: "/seed-data/images/reusable-hero.jpg"
+    images:
+      - "/seed-data/images/reusable-gallery-1.jpg"
+      - "/seed-data/images/reusable-gallery-2.jpg"
+    published: true
+    tags: ["Engineering", "Tutorials"]
+  - title: "Shipping a friendly first page"
+    slug: shipping-friendly-first-page
+    summary: "Home pages should orient visitors immediately."
+    body: "<p>The index route renders the latest five posts and a top menu generated from menu rows.</p><p>Breadcrumbs appear on every public render to provide clear navigation context.</p>"
+    rightBody: "<p>Breadcrumbs appear on every public render.</p><p>The hero section on the home page uses the hero component with background image support.</p>"
+    coverImage: "/seed-data/images/friendly-hero.jpg"
+    images:
+      - "/seed-data/images/friendly-gallery-1.jpg"
+      - "/seed-data/images/friendly-gallery-2.jpg"
+      - "/seed-data/images/friendly-gallery-3.jpg"
+    published: true
+    tags: ["News"]
+  - title: "Building a gallery component"
+    slug: building-gallery-component
+    summary: "Learn how to create a reusable image gallery with GION."
+    body: "<p>The <code>gallery</code> component iterates over images and renders them in a responsive grid.</p><p>Use the <code>@for</code> directive to loop over image URLs and render cards with captions.</p>"
+    rightBody: "<p>Galleries degrade gracefully on mobile via Bootstrap grid classes.</p><p>Each image card shows an overlay caption when hovered.</p>"
+    coverImage: "/seed-data/images/gallery-hero.jpg"
+    images:
+      - "/seed-data/images/designing-gallery-1.jpg"
+      - "/seed-data/images/admin-gallery.jpg"
+      - "/seed-data/images/designing-hero.jpg"
+      - "/seed-data/images/gallery-gallery-1.jpg"
+      - "/seed-data/images/gallery-gallery-2.jpg"
+    published: true
+    tags: ["Design", "Tutorials"]
+
+menu:
+  - label: "Home"
+    kind: url
+    url: "/"
+    position: 1
+    visible: true
+  - label: "About"
+    kind: page
+    page: about
+    position: 2
+    visible: true
+  - label: "Guides"
+    kind: page
+    page: guides
+    position: 3
+    visible: true
+  - label: "Contact"
+    kind: page
+    page: contact
+    position: 4
+    visible: false
+  - label: "Design"
+    kind: tag
+    tag: design
+    position: 5
+    visible: true
+  - label: "Engineering"
+    kind: tag
+    tag: engineering
+    position: 6
+    visible: true
+  - label: "Tutorials"
+    kind: tag
+    tag: tutorials
+    position: 7
+    visible: true

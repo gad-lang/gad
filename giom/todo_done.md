@@ -1,0 +1,1 @@
+- [x] tag as builder — Tag/Text/AnonymousTag constructors + tree-building render model

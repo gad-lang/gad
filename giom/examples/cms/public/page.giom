@@ -1,0 +1,9 @@
+@import { page_wrapper, hero, gallery } from "components.giom"
+
+@main
+    +page_wrapper(Model.Page.Title)
+        +hero(Model.Page.Title, Model.Page.Summary ; cover=Model.Page.CoverImage)
+        div.container
+            section.page-body
+                {=raw Model.Page.Body}
+            +gallery(Model.Page.Images)

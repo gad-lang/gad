@@ -1,0 +1,9 @@
+@import { page_wrapper, hero, post_card } from "components.giom"
+
+@main
+    +page_wrapper("Home")
+        +hero("A modern GION CMS", "Publish pages, post lists, and editorial stories from a compact Go application." ; cover="/seed-data/images/about-hero.jpg")
+        div.container
+            div.grid
+                @for post in Model.Posts
+                    +post_card(post)

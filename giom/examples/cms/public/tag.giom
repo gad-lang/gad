@@ -1,0 +1,10 @@
+@import { page_wrapper, hero, post_card, pager } from "components.giom"
+
+@main
+    +page_wrapper("Posts tagged " + Model.Tag.Name)
+        +hero(("Posts tagged " + Model.Tag.Name), "Browse the latest published articles for this topic." ; cover="/seed-data/images/sqlite-hero.jpg")
+        div.container
+            div.grid
+                @for post in Model.Posts
+                    +post_card(post)
+            +pager(Model.Pager)
