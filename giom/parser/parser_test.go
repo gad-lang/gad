@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	giomnode "github.com/gad-lang/gad/giom/node"
 	gnode "github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
-	giomnode "github.com/gad-lang/gad/giom/node"
 )
 
 func parseLine(t *testing.T, src string) *giomnode.File {

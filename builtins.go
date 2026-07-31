@@ -263,11 +263,21 @@ const (
 	BuiltinUnaryOperatorDec
 	GroupBuiltinUnaryOperatorsEnd
 
+	// Meta builtins exposed in the `gad` namespace: gad.parse / gad.parseFile /
+	// gad.eval and the StmtsObject / StmtObject AST value types.
+	BuiltinParse
+	BuiltinParseFile
+	BuiltinEval
+	BuiltinStmts
+	BuiltinStmt
+	BuiltinSourceType
+	BuiltinSourceFile
+
 	BuiltinEnd_
 )
 
 var (
-	lastBuiltinType = GroupBuiltinUnaryOperatorsEnd
+	lastBuiltinType = BuiltinSourceFile
 	lastBuiltinMux  = sync.Mutex{}
 )
 

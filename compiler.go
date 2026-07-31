@@ -106,9 +106,13 @@ type (
 		MixedWriteFunction  node.Expr
 		MixedExprToTextFunc node.Expr
 		FallbackFunc        func(c *Compiler, nd ast.Node) error
-		embeddedStore       map[string]int
-		moduleStore         *moduleStore
-		constsCache         map[Object]int
+		// GiomOptions, when non-nil, compiles the source as a Giom (.giom)
+		// template: it is parsed with the Giom front-end and lowered to Gad
+		// before compilation (see compiler_giom.go). Nil means plain Gad.
+		GiomOptions   *GiomOptions
+		embeddedStore map[string]int
+		moduleStore   *moduleStore
+		constsCache   map[Object]int
 	}
 
 	// CompilerError represents a compiler error.
@@ -244,9 +248,30 @@ func Compile(st *SymbolTable, script []byte, opts CompileOptions) (pf *parser.Fi
 func CompileModule(st *SymbolTable, module *ModuleSpec, script []byte, opts CompileOptions) (pf *parser.File, bc *Bytecode, err error) {
 	fileSet := source.NewFileSet()
 
-	srcFile := fileSet.AppendFileData(module.Name, script)
+	// Giom source positions read best when the file carries the template's own
+	// path; use ModuleFile as the source name when set (the module itself keeps
+	// its spec name, e.g. the main module).
+	srcName := module.Name
+	if opts.GiomOptions != nil && opts.ModuleFile != "" {
+		srcName = opts.ModuleFile
+	}
+	srcFile := fileSet.AppendFileData(srcName, script)
 	if opts.TraceParser && opts.ParserOptions.Trace == nil {
 		opts.ParserOptions.Trace = opts.Trace
+	}
+
+	// Giom (.giom) templates are parsed with the Giom front-end and lowered to
+	// Gad statements, then compiled through the Giom fallback (compiler_giom.go).
+	if opts.GiomOptions != nil {
+		pf, err = parseGiomFile(srcFile)
+		if err != nil {
+			return nil, nil, err
+		}
+		if opts.FallbackFunc == nil {
+			opts.FallbackFunc = giomCompileFallback
+		}
+		bc, err = CompileFile(st, module, pf, opts)
+		return
 	}
 
 	p := parser.NewParserWithOptions(srcFile, &opts.ParserOptions, &opts.ScannerOptions)

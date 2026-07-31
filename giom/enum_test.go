@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/gad-lang/gad"
-	gnode "github.com/gad-lang/gad/parser/node"
-	"github.com/gad-lang/gad/parser/source"
 	giomnode "github.com/gad-lang/gad/giom/node"
 	giomparser "github.com/gad-lang/gad/giom/parser"
+	gnode "github.com/gad-lang/gad/parser/node"
+	"github.com/gad-lang/gad/parser/source"
 )
 
 // TestEnumDeclarations covers the `@enum IDENT ( … )` directive: its field body

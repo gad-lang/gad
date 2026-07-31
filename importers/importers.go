@@ -12,11 +12,19 @@ import (
 
 // FileImporter is an implemention of gad.ExtImporter to import files from file
 // system. It uses absolute paths of module as import names.
+//
+// Files ending in ".giom" are compiled natively with the Giom front-end: Import
+// returns a gad.BuiltinCompileModuleFunc so they are parsed and lowered to Gad
+// during import compilation. Other files are returned as source bytes.
 type FileImporter struct {
 	NameResolver func(cwd, name string) (string, error)
 	WorkDir      string
 	FileReader   func(string) (data []byte, uri string, err error)
-	name         string
+	// TranspilePath, when set and non-empty for a ".giom" module, is the output
+	// path its transpiled Gad source is written to on import (see
+	// gad.TranspileGiom).
+	TranspilePath func(srcPath string) string
+	name          string
 }
 
 var _ gad.ExtImporter = (*FileImporter)(nil)
@@ -51,13 +59,15 @@ func (m *FileImporter) Name() (string, error) {
 }
 
 // Import returns the content of the path determined by Name call. Empty name
-// will return an error.
+// will return an error. A ".giom" module is returned as a
+// gad.BuiltinCompileModuleFunc that compiles the file with the Giom front-end.
 func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data any, uri string, err error) {
 	// Note that; moduleName == Literal()
 	if m.name == "" || module.Name == "" {
 		err = errors.New("invalid import call")
 		return
 	}
+
 	if m.FileReader == nil {
 		if data, err = os.ReadFile(module.Name); err != nil {
 			return
@@ -65,9 +75,33 @@ func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data
 		// Gad addresses modules with forward slashes; normalise so uris are
 		// consistent across OSes (Windows filepath.Join yields backslashes).
 		uri = "file:" + filepath.ToSlash(module.Name)
+	} else if data, uri, err = m.FileReader(module.Name); err != nil {
 		return
 	}
-	return m.FileReader(module.Name)
+
+	// Giom templates are compiled natively during import compilation.
+	if filepath.Ext(module.Name) == ".giom" {
+		src, _ := data.([]byte)
+		name := module.Name
+		if rel, rerr := filepath.Rel(m.WorkDir, module.Name); rerr == nil {
+			name = rel
+		}
+		if m.TranspilePath != nil {
+			if outPath := m.TranspilePath(module.Name); outPath != "" {
+				if terr := gad.TranspileGiom(module.Name, src, outPath); terr != nil {
+					return nil, "", terr
+				}
+			}
+		}
+		data = gad.BuiltinCompileModuleFunc(func(cc *gad.BuiltinCompileModuleContext) (*gad.Bytecode, error) {
+			cc.Spec.URL = name
+			if err := gad.CompileGiomModule(cc, src); err != nil {
+				return nil, err
+			}
+			return cc.Compiler.Bytecode(), nil
+		})
+	}
+	return
 }
 
 // Fork returns a new instance of FileImporter as gad.ExtImporter by capturing
@@ -76,9 +110,10 @@ func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data
 func (m *FileImporter) Fork(moduleName string) gad.ExtImporter {
 	// Note that; moduleName == Literal()
 	return &FileImporter{
-		WorkDir:      filepath.Dir(moduleName),
-		FileReader:   m.FileReader,
-		NameResolver: m.NameResolver,
+		WorkDir:       filepath.Dir(moduleName),
+		FileReader:    m.FileReader,
+		NameResolver:  m.NameResolver,
+		TranspilePath: m.TranspilePath,
 	}
 }
 

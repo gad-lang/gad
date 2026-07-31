@@ -172,7 +172,7 @@ func (r *Render) Render(out io.Writer, filePath string, globals gad.Dict) error 
 	}
 
 	if r.TranspilePath != nil {
-		_ = Transpile(filePath, src, r.TranspilePath(filePath))
+		_ = gad.TranspileGiom(filePath, src, r.TranspilePath(filePath))
 	}
 
 	st := gad.NewSymbolTable(entry.builtins.NameSet)
@@ -212,7 +212,7 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 		workDir = filepath.Dir(filePath)
 	}
 
-	mm := gad.NewModuleMap().SetExtImporter(&FileImporter{
+	mm := gad.NewModuleMap().SetExtImporter(&importers.FileImporter{
 		WorkDir:       workDir,
 		FileReader:    tr.Read,
 		TranspilePath: r.TranspilePath,
@@ -223,11 +223,15 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 	}
 
 	opts := gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
-		ModuleFile:   filePath,
-		ModuleMap:    mm,
-		EmbededdMap:  gad.NewEmbedMap().SetExtImporter(&importers.EmbeddedFileImporter{WorkDirs: []string{workDir}}),
-		FallbackFunc: CompileFallback,
+		ModuleFile:  filePath,
+		ModuleMap:   mm,
+		EmbededdMap: gad.NewEmbedMap().SetExtImporter(&importers.EmbeddedFileImporter{WorkDirs: []string{workDir}}),
 	}}
+	// A .giom entry compiles through gad's native Giom front-end; a plain .gad
+	// entry compiles as ordinary Gad.
+	if filepath.Ext(filePath) == ".giom" {
+		opts.GiomOptions = &gad.GiomOptions{}
+	}
 
 	st := gad.NewSymbolTable(r.cachedBuiltins.NameSet)
 	if _, err := st.DefineGlobals(globalNames); err != nil {
@@ -239,11 +243,7 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 		err error
 	)
 
-	if filepath.Ext(filePath) != ".giom" {
-		_, bc, err = gad.Compile(st, src, opts)
-	} else {
-		_, bc, err = Compile(st, src, opts)
-	}
+	_, bc, err = gad.Compile(st, src, opts)
 	if err != nil {
 		return nil, fmt.Errorf("compile %s: %+v", filePath, err)
 	}

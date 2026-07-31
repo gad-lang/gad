@@ -19,7 +19,6 @@ import (
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/debug"
-	"github.com/gad-lang/gad/giom"
 	cc "github.com/moisespsena-go/command-context"
 )
 
@@ -104,16 +103,13 @@ func loadProgram(file string) (*gad.Bytecode, *gad.Builtins, []string, error) {
 	st := defaultSymbolTable(builtins.NameSet)
 	opts := gad.CompileOptions{CompilerOptions: gad.DefaultCompilerOptions}
 	opts.ModuleMap = DefaultModuleMap(filepath.Dir(file), &sourcePath)
-	var bc *gad.Bytecode
+	// .giom entrypoints compile through gad's native Giom front-end; nested
+	// .giom imports resolve natively via the default file importer.
 	if isGiomFile(file) {
-		// .giom entrypoints compile through the Giom front-end; nested .giom
-		// imports resolve via the giom importer.
-		giomModuleImporter(opts.ModuleMap, filepath.Dir(file), &sourcePath)
+		opts.GiomOptions = &gad.GiomOptions{}
 		opts.CompilerOptions.ModuleFile = file
-		_, bc, err = giom.Compile(st, src, opts)
-	} else {
-		_, bc, err = gad.Compile(st, src, opts)
 	}
+	_, bc, err := gad.Compile(st, src, opts)
 	if err != nil {
 		return nil, nil, nil, err
 	}

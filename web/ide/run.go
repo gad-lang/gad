@@ -435,9 +435,9 @@ func (s *Server) run(src, workdir string, req runRequest) gadbridge.RunResult {
 	opts := gad.CompileOptions{
 		CompilerOptions: gad.CompilerOptions{ModuleMap: mm},
 	}
-	if isGiom(req.Path) {
-		useGiomImporter(mm, workdir)
-	} else {
+	// The default file importer (buildModuleMap) already compiles imported .giom
+	// modules natively; only apply .gadt template mode for non-giom entrypoints.
+	if !isGiom(req.Path) {
 		s.applyTemplateMode(&opts, req.Path)
 	}
 

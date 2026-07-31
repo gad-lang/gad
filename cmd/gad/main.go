@@ -30,7 +30,6 @@ import (
 	cc "github.com/moisespsena-go/command-context"
 	"github.com/peterh/liner"
 
-	"github.com/gad-lang/gad/giom"
 	"github.com/gad-lang/gad/importers"
 	"github.com/gad-lang/gad/token"
 )
@@ -791,21 +790,13 @@ func (s *Script) execute() error {
 		opts.TraceOptimizer = traceOptimizer
 	}
 
-	var (
-		bc  *gad.Bytecode
-		err error
-	)
+	// .giom entrypoints compile through gad's native Giom front-end; nested
+	// .giom imports resolve natively via the default file importer.
 	if isGiomFile(s.modulePath) {
-		// .giom entrypoints compile through the Giom front-end; nested .giom
-		// imports resolve as templates via the giom importer.
-		if opts.ModuleMap != nil {
-			giomModuleImporter(opts.ModuleMap, s.workdir, s.sourcePath)
-		}
+		opts.GiomOptions = &gad.GiomOptions{}
 		opts.CompilerOptions.ModuleFile = s.modulePath
-		_, bc, err = giom.Compile(defaultSymbolTable(s.builtins.Builtins().NameSet), s.script, opts)
-	} else {
-		_, bc, err = gad.CompileModule(defaultSymbolTable(s.builtins.Builtins().NameSet), module, s.script, opts)
 	}
+	_, bc, err := gad.CompileModule(defaultSymbolTable(s.builtins.Builtins().NameSet), module, s.script, opts)
 	if err != nil {
 		return err
 	}

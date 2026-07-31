@@ -3,9 +3,9 @@ package parser
 import (
 	"testing"
 
+	giomnode "github.com/gad-lang/gad/giom/node"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
-	giomnode "github.com/gad-lang/gad/giom/node"
 )
 
 // parseFileWith parses src into a fresh FileSet/File and returns both so tests

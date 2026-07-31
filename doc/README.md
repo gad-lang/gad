@@ -58,6 +58,9 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
   [`json`](stdlib-json.md).
 - [Testing](stdlib-test.md) — the `test` module and the `gad test` command:
   `*_test.gad` files, `test*`/`bench*` functions, assertions and benchmarks.
+- [Metaprogramming](metaprogramming.md) — the `gad` namespace: `gad.parse` /
+  `gad.parseFile` / `gad.eval`, the `SourceType` enum, `SourceFileObject` /
+  `StmtsObject`, and native Giom (`.giom`) compilation.
 
 ## Giom Templates
 
