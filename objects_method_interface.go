@@ -127,11 +127,30 @@ func (m *MethodInterface) IndexGet(_ *VM, index Object) (Object, error) {
 
 // BinOpAdd implements `mi + mi2` (ObjectWithAddBinOperator), merging two
 // interfaces.
+// BinOpAdd handles `mi + mi2`: merge two method interfaces into a new one.
 func (m *MethodInterface) BinOpAdd(_ *VM, right Object) (Object, error) {
 	if o, ok := right.(*MethodInterface); ok {
 		return mergeMethodInterfaces(m, o), nil
 	}
 	return nil, NewOperandTypeError(token.Add.String(), m.Type().Name(), right.Type().Name())
+}
+
+// BinOpInc handles `mi ++ it`: merge with each method interface of an iterable.
+func (m *MethodInterface) BinOpInc(vm *VM, right Object) (Object, error) {
+	vals, err := ValuesOf(vm, right, &NamedArgs{})
+	if err != nil {
+		return nil, err
+	}
+	items := make([]*MethodInterface, 0, len(vals)+1)
+	items = append(items, m)
+	for i, v := range vals {
+		o, ok := v.(*MethodInterface)
+		if !ok {
+			return nil, NewArgumentTypeError(strconv.Itoa(i+1), "MethodInterface", v.Type().Name())
+		}
+		items = append(items, o)
+	}
+	return mergeMethodInterfaces(items...), nil
 }
 
 func mergeMethodInterfaces(items ...*MethodInterface) *MethodInterface {

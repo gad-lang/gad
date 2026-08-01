@@ -288,6 +288,48 @@ p.y !?= 5           // sets the y field
 The **postfix** `x++` / `x--` are statements. The **prefix** `++x` / `--x` are
 [unary expressions](#unary-operators) that also yield the new value.
 
+### Multiple right-hand values
+
+For a **single** assignment target and **any** operator, a comma-separated
+right-hand side is shorthand for an array literal — spreads (`*x`) flatten:
+
+```go
+x := 1, 2, 3          // x := [1, 2, 3]
+o := [3, 4]
+x = 1, 2, *o          // x = [1, 2, 3, 4]
+a ++= 2, 3, *o        // a ++= [2, 3, 3, 4]
+```
+
+Several targets still **destructure** as usual, and a `*rest` target collects
+the remainder (whose right side may itself use a spread):
+
+```go
+a, b := 1, 2                 // a == 1, b == 2
+a, *rest := 1, 2, *[3, 4]    // a == 1, rest == [2, 3, 4]
+```
+
+### Array append (`+`, `++`, `+=`, `++=`)
+
+Arrays support four append forms — two expressions and two assignments:
+
+| Form        | Result                                             |
+|-------------|----------------------------------------------------|
+| `arr + x`   | a new array with `x` appended (an iterable `x` is concatenated) |
+| `arr ++ it` | a new array extended with the elements of iterable `it` |
+| `arr += x`  | append `x` as a **single** element (in place)      |
+| `arr ++= it`| extend with the elements of iterable `it` (in place)|
+
+```go
+[1] + 2         // [1, 2]        (append one)
+[1] + [2, 3]    // [1, 2, 3]     (+ concatenates an iterable)
+[1] ++ [2, 3]   // [1, 2, 3]     (++ extends with an iterable)
+
+a := []
+a += 1          // [1]
+a += [2, 3]     // [1, [2, 3]]   (+= appends the array as one element)
+a ++= [4, 5]    // [1, [2, 3], 4, 5]
+```
+
 `++` and `--` are also **binary operators** when an operand follows them
 (`a ++ b`, `a -- b`); they have additive precedence and are left-associative.
 The built-in numeric types do not define them, but a type can — typically a

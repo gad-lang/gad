@@ -730,14 +730,54 @@ func (o Bytes) BinOpIn(_ *VM, v Object) (Object, error) {
 }
 
 // BinOpAdd appends Bytes or a Str to the bytes (ObjectWithAddBinOperator).
+// BinOpAdd handles `bytes + v`: append a single byte value (int/uint/char) or
+// concatenate the bytes of a bytes/str. A fresh backing array is always
+// allocated so the operand is not mutated.
 func (o Bytes) BinOpAdd(_ *VM, right Object) (Object, error) {
+	base := o[:len(o):len(o)]
 	switch v := right.(type) {
 	case Bytes:
-		return append(o, v...), nil
+		return append(base, v...), nil
 	case Str:
-		return append(o, v...), nil
+		return append(base, v...), nil
+	case Int:
+		return append(base, byte(v)), nil
+	case Uint:
+		return append(base, byte(v)), nil
+	case Char:
+		return append(base, byte(v)), nil
 	}
 	return nil, NewOperandTypeError(token.Add.String(), o.Type().Name(), right.Type().Name())
+}
+
+// BinOpInc handles `bytes ++ it`: extend with the bytes of a bytes/str or with
+// the int/uint/char elements of an iterable.
+func (o Bytes) BinOpInc(vm *VM, right Object) (Object, error) {
+	base := o[:len(o):len(o)]
+	switch v := right.(type) {
+	case Bytes:
+		return append(base, v...), nil
+	case Str:
+		return append(base, v...), nil
+	}
+	vals, err := ValuesOf(vm, right, &NamedArgs{})
+	if err != nil {
+		return nil, err
+	}
+	out := base
+	for i, v := range vals {
+		switch b := v.(type) {
+		case Int:
+			out = append(out, byte(b))
+		case Uint:
+			out = append(out, byte(b))
+		case Char:
+			out = append(out, byte(b))
+		default:
+			return nil, NewArgumentTypeError(strconv.Itoa(i+1), "int|uint|char", v.Type().Name())
+		}
+	}
+	return out, nil
 }
 
 func (o Bytes) BinOpLess(_ *VM, right Object) (Object, error) {
@@ -1530,6 +1570,20 @@ func (o Array) SelfAssignOpInc(vm *VM, value Object) (Object, error) {
 		return nil, err
 	}
 	return append(o, other...), nil
+}
+
+// BinOpInc handles `arr ++ v`: return a new array with the elements of v
+// appended (spread). Unlike `arr + v`, which appends a non-iterable v as a
+// single element, `++` requires v to be iterable and flattens it.
+func (o Array) BinOpInc(vm *VM, right Object) (Object, error) {
+	other, err := ValuesOf(vm, right, &NamedArgs{})
+	if err != nil {
+		return nil, err
+	}
+	arr := make(Array, 0, len(o)+len(other))
+	arr = append(arr, o...)
+	arr = append(arr, other...)
+	return arr, nil
 }
 
 // ObjectPtr represents a pointer variable.

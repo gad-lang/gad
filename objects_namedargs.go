@@ -625,8 +625,19 @@ func (o KeyValueArray) AddItems(arg ...*KeyValue) KeyValueArray {
 
 // BinOpAdd appends right's entries (ObjectWithAddBinOperator); the comparison
 // operators order the array after nil and are otherwise unsupported.
+// BinOpAdd handles `kva + v`: merge a single key-value/dict/kva.
 func (o KeyValueArray) BinOpAdd(vm *VM, right Object) (Object, error) {
 	return o.AppendObjects(vm, right)
+}
+
+// BinOpInc handles `kva ++ it`: merge each element of an iterable (each a
+// key-value, dict or key-value-array).
+func (o KeyValueArray) BinOpInc(vm *VM, right Object) (Object, error) {
+	vals, err := ValuesOf(vm, right, &NamedArgs{})
+	if err != nil {
+		return nil, err
+	}
+	return o.AppendObjects(vm, vals...)
 }
 
 func (o KeyValueArray) BinOpLess(_ *VM, right Object) (Object, error) {
