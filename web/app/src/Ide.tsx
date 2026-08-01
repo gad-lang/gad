@@ -845,7 +845,7 @@ const DOCKVIEW_COMPONENTS = {
   markdown: MdPreviewPanel,
 } as const;
 
-// Default layout sourced from samples/.gad.yaml (ide.panels).
+// Default layout sourced from the workspace IDE config (.gadide.yaml, panels).
 // 4 groups: Explorer (left) | Editor + bottom-tabs (center) | Docs+MD (right).
 // __savedW/__savedH let restoreLayout() scale to the current window size.
 const DEFAULT_PANELS: unknown = {

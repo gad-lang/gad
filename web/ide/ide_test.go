@@ -394,6 +394,34 @@ func TestConfigRoundTrip(t *testing.T) {
 	if ide == nil || ide["theme"] != "dark" {
 		t.Fatalf("config ide not preserved: %+v", got)
 	}
+
+	// The IDE state is split into .gadide.yaml; .gad.yaml holds no `ide` key.
+	if _, err := os.Stat(filepath.Join(dir, ideConfigFile)); err != nil {
+		t.Fatalf(".gadide.yaml not written: %v", err)
+	}
+	gadDoc, _ := readConfig(filepath.Join(dir, configFile))
+	if _, has := gadDoc["ide"]; has {
+		t.Fatalf(".gad.yaml should not contain the ide key: %+v", gadDoc)
+	}
+	if gadDoc["fmt"] == nil {
+		t.Fatalf(".gad.yaml lost the fmt key: %+v", gadDoc)
+	}
+}
+
+// TestConfigLegacyIdeFallback: an `ide` key inline in .gad.yaml (old layout) is
+// still returned when no .gadide.yaml exists.
+func TestConfigLegacyIdeFallback(t *testing.T) {
+	_, h, dir := newTestServer(t)
+	legacy := "fmt:\n  backup: true\nide:\n  theme: light\n"
+	if err := os.WriteFile(filepath.Join(dir, configFile), []byte(legacy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	w := do(t, h, "GET", "/api/ide/config", nil)
+	got := decode[map[string]any](t, w)
+	ide, _ := got["ide"].(map[string]any)
+	if ide == nil || ide["theme"] != "light" {
+		t.Fatalf("legacy inline ide not read: %+v", got)
+	}
 }
 
 func TestFormatAndDiagnose(t *testing.T) {
