@@ -174,11 +174,7 @@ func main() {
     script := `
 param *args
 
-mapEach := func(seq, fn) {
-
-    if !isArray(seq) {
-        return error("want array, got " + typeName(seq))
-    }
+mapEach := func(seq array, fn) {
 
     var out = []
 
