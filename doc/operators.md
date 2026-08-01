@@ -328,7 +328,19 @@ a := []
 a += 1          // [1]
 a += [2, 3]     // [1, [2, 3]]   (+= appends the array as one element)
 a ++= [4, 5]    // [1, [2, 3], 4, 5]
+a ++= 6, 7      // [1, [2, 3], 4, 5, 6, 7]   (comma list == [6, 7])
 ```
+
+> **Performance / implementation note.** A spread self-assign with several values
+> (`a ++= x, y, z`, or `a ++= [x, y, z]`) is compiled to a fused instruction
+> (`OpSelfAssignN`) that hands the values to the `++=` handler as an array that
+> **borrows the VM stack**, avoiding an intermediate array allocation. This is
+> safe because the spread handlers copy the elements out and never retain the
+> operand. If you implement `gad.selfAssignOpInc` / `gad.binOpInc` (`++=` / `++`)
+> for a custom type, keep that contract — read the operand, do not retain it. The
+> retaining forms (`+`, `+=`, `=`) are not fused; they allocate a real array,
+> which is the copy a retained value needs. See
+> [Embedding → aliasing hazards](embedding.md#memory-and-the-vm-stack-aliasing-hazards).
 
 `++` and `--` are also **binary operators** when an operand follows them
 (`a ++ b`, `a -- b`); they have additive precedence and are left-associative.
@@ -339,7 +351,7 @@ a "push":
 ```go
 Stack := Class("Stack", (cls, define) => define(; fields = (; items = (= []))))
 met gad.binOpInc(s Stack, v) {
-    s.items = append(s.items, v)
+    s.items += v
     return s
 }
 s := Stack()

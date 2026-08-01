@@ -109,6 +109,36 @@ VMLoop:
 				vm.err = err
 				return
 			}
+		case OpSelfAssignN:
+			// Fused spread self-assign: `target ++= e1, …, en`. The target is at
+			// stack[sp-1-n] and the n right-hand values sit above it. Instead of
+			// materializing an intermediate Array (OpArray) the n values are handed
+			// to the operator as a BORROWED view over the VM stack. This aliases
+			// live stack memory, so the compiler only emits OpSelfAssignN for the
+			// spread operators (`++=`), whose handlers copy the elements out and do
+			// not retain the slice. Any handler reached here must keep that
+			// contract (see doc/operators.md and doc/embedding.md).
+			tok := token.Token(vm.curInsts[vm.ip+1])
+			n := int(vm.curInsts[vm.ip+2])
+			tp := vm.sp - 1 - n
+			rhs := Array(vm.stack[tp+1 : vm.sp])
+			value, err := vm.callSelfAssignOp(tok, vm.stack[tp], rhs)
+			if err == nil {
+				for i := tp + 1; i < vm.sp; i++ {
+					vm.stack[i] = nil
+				}
+				vm.stack[tp] = value
+				vm.sp = tp + 1
+				vm.ip += 2
+				continue
+			}
+			if err == ErrInvalidOperator {
+				err = ErrInvalidOperator.NewError(tok.String())
+			}
+			if err = vm.throwGenErr(err); err != nil {
+				vm.err = err
+				return
+			}
 		case OpAndJump:
 			if vm.stack[vm.sp-1].IsFalsy() {
 				pos := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8

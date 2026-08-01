@@ -109,6 +109,7 @@ const (
 	OpEnvGet
 	OpEnvSet
 	OpDelete
+	OpSelfAssignN
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -193,6 +194,7 @@ var OpcodeNames = [...]string{
 	OpEnvGet:            "ENVGET",
 	OpEnvSet:            "ENVSET",
 	OpDelete:            "DELETE",
+	OpSelfAssignN:       "SELFASSIGNN",
 }
 
 // OpcodeOperands is the number of operands.
@@ -277,6 +279,7 @@ var OpcodeOperands = [...][]int{
 	OpEnvGet:            {},     // pop key (str), push env[key]
 	OpEnvSet:            {2},    // constant index of key; pop value, env[key]=value
 	OpDelete:            {},     // pop keys array and `this`; delete this[k] for each k
+	OpSelfAssignN:       {1, 1}, // operator, n; fused spread self-assign over n stack items
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

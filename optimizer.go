@@ -183,6 +183,9 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		// an object's keys) and must never be constant-folded. The explicit false
 		// on the highest one also sizes the array to include them all.
 		OpEnv: false, OpEnvGet: false, OpEnvSet: false, OpDelete: false,
+		// OpSelfAssignN mutates a target in place; not constant-foldable. Also
+		// sizes the array to include it.
+		OpSelfAssignN: false,
 	}
 
 	allowedBuiltins := [...]bool{

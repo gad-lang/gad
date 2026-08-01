@@ -1564,6 +1564,12 @@ func (o Array) SelfAssignOpAdd(_ *VM, value Object) (Object, error) {
 }
 
 // SelfAssignOpInc handles `arr ++= v`: append the elements of v (spread).
+//
+// Performance note: for `arr ++= a, b, c` the VM may pass v as an Array that
+// BORROWS the evaluation stack (the fused OpSelfAssignN opcode), to avoid
+// building an intermediate array. This handler must therefore only READ v and
+// must not retain it — ValuesOf + append copy the elements out, which is safe.
+// Keep that contract if you change this method (see doc/embedding.md).
 func (o Array) SelfAssignOpInc(vm *VM, value Object) (Object, error) {
 	other, err := ValuesOf(vm, value, &NamedArgs{})
 	if err != nil {

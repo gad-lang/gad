@@ -901,6 +901,25 @@ func (c *Compiler) compileAssignStmt(
 		return nil
 	}
 
+	// Fast path for the spread self-assign `target ++= a, b, c` (or the array
+	// literal `target ++= [a, b, c]`): the target is already on the stack. Emit
+	// the elements and hand them to OpSelfAssignN as a borrowed stack view rather
+	// than building an intermediate Array (OpArray) that the `++=` handler would
+	// only copy out anyway. Restricted to a spread-free array so the element
+	// count is static (a `*rest` element uses concatenation, not a plain
+	// OpArray). See doc/operators.md.
+	if !isArrDestruct && op == token.IncAssign && len(rhs) == 1 {
+		if arr, ok := rhs[0].(*node.ArrayExpr); ok && !arrayHasSpread(arr) {
+			for _, el := range arr.Elements {
+				if err := c.Compile(el); err != nil {
+					return err
+				}
+			}
+			c.emit(nd, OpSelfAssignN, int(token.Inc), len(arr.Elements))
+			return c.compileDefineAssign(nd, lhs[0], keyword, op, false)
+		}
+	}
+
 	// compile RHSs
 	for _, expr := range rhs {
 		if err := c.Compile(expr); err != nil {
@@ -917,6 +936,16 @@ func (c *Compiler) compileAssignStmt(
 	}
 
 	return c.compileDefineAssign(nd, lhs[0], keyword, op, false)
+}
+
+// arrayHasSpread reports whether an array literal has a `*x` spread element.
+func arrayHasSpread(nd *node.ArrayExpr) bool {
+	for _, el := range nd.Elements {
+		if _, ok := el.(*node.ArgVarLit); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Compiler) compileDestructuring(
