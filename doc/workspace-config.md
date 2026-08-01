@@ -11,10 +11,14 @@ A Gad workspace is configured by two files at its root:
 
 ## Variable expansion
 
-**Every value in the configuration — at any nesting depth — is expanded using
+**Every value in `.gad.yaml` — at any nesting depth — is expanded using
 bash-style parameter expansion.** A value is read, its `$VAR` / `${…}` references
 are expanded, and the result is converted back to a number or boolean when it
 holds one (so `port: "${PORT:-8080}"` yields the integer `8080`).
+
+`.gadide.yaml` is **not** expanded: it holds IDE layout/editor state written by
+the `gad ide` app, not user-authored templates, so its `$`/`{}` characters are
+kept verbatim.
 
 References come from two sources:
 
