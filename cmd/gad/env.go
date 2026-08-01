@@ -73,6 +73,34 @@ func envSectionEntries(section any) []envEntry {
 	return nil
 }
 
+// splitTopLevelColon splits s on `:` characters that are outside a `${…}`
+// expansion, so a list-separator `:` splits while an operator `:` (as in
+// `${var:-default}`) does not. It is used to unpack path segments authored in
+// canonical Unix form inside an array element.
+func splitTopLevelColon(s string) []string {
+	var (
+		parts []string
+		depth int
+		start int
+	)
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '{':
+			depth++
+		case '}':
+			if depth > 0 {
+				depth--
+			}
+		case ':':
+			if depth == 0 {
+				parts = append(parts, s[start:i])
+				start = i + 1
+			}
+		}
+	}
+	return append(parts, s[start:])
+}
+
 // makeEnvEntry builds an entry from a mapping value: a scalar, or an array of
 // scalars (a per-OS-joined path list).
 func makeEnvEntry(name string, v any) (envEntry, bool) {
@@ -135,12 +163,21 @@ func loadWorkspaceEnv(dir string) *gad.Env {
 	sep := string(os.PathListSeparator)
 	for _, e := range envSectionEntries(doc["env"]) {
 		if e.list != nil {
-			parts := make([]string, len(e.list))
-			for i, p := range e.list {
-				parts[i] = shellexpand.Expand(p, exp)
+			// The array form is the portable path-list form: it is authored in
+			// canonical Unix form (`/` directory separator, `:` list separator)
+			// and converted to the OS form here. An element may itself pack
+			// several entries with `:`; each entry's `/` becomes the OS separator
+			// and all are joined with the OS path-list separator.
+			var parts []string
+			for _, raw := range e.list {
+				for _, piece := range splitTopLevelColon(raw) {
+					parts = append(parts, filepath.FromSlash(shellexpand.Expand(piece, exp)))
+				}
 			}
 			base[e.name] = strings.Join(parts, sep)
 		} else {
+			// The string form is taken literally (only expanded), so values that
+			// are not paths (URLs, messages, …) keep their `:` and `/`.
 			base[e.name] = shellexpand.Expand(e.value, exp)
 		}
 	}

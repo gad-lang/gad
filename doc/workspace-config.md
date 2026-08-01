@@ -75,17 +75,31 @@ env:
 
 ### Portable path lists
 
-A value may be an **array of segments** instead of a string. The segments are
-each expanded and then joined with the operating system's path-list separator
-(`:` on Unix, `;` on Windows). This keeps `PATH`-like variables portable — you
-never hard-code the separator:
+A value may be an **array of segments** instead of a string — this is the
+portable path-list form. It is authored in canonical Unix form and converted to
+the host OS on load:
+
+- each `/` becomes the OS directory separator (`\` on Windows);
+- the segments are joined with the OS path-list separator (`:` on Unix, `;` on
+  Windows);
+- a segment may itself pack several entries with `:` (an operator `:` inside a
+  `${var:-…}` is not a separator).
+
+You never hard-code the OS separators:
 
 ```yaml
 env:
     GADPATH: ["${HOME}/gadlib", "${.project.shared}", "vendor"]
-    # → on Unix:    /home/u/gadlib:/srv/shared:vendor
-    # → on Windows: C:\Users\u\gadlib;\srv\shared;vendor
+    # → Unix:    /home/u/gadlib:/srv/shared:vendor
+    # → Windows: C:\Users\u\gadlib;C:\srv\shared;vendor
+
+    PATH: ["x", "a/b/c:d/e"]
+    # → Unix:    x:a/b/c:d/e
+    # → Windows: x;a\b\c;d\e
 ```
+
+The **string** form is taken literally (only expanded), so non-path values such
+as URLs or messages keep their `:` and `/`. Use the array form for path lists.
 
 ## `GADPATH`
 

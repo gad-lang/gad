@@ -7,6 +7,17 @@ import (
 	"testing"
 )
 
+// fromSlashJoin converts each entry's '/' to the OS separator and joins them
+// with sep, mirroring how the array path-list form is materialized. On Unix this
+// is a plain join; on Windows the slashes become backslashes.
+func fromSlashJoin(sep string, entries ...string) string {
+	out := make([]string, len(entries))
+	for i, e := range entries {
+		out[i] = filepath.FromSlash(e)
+	}
+	return strings.Join(out, sep)
+}
+
 // writeGadYAML writes a .gad.yaml with the given body into dir.
 func writeGadYAML(t *testing.T, dir, body string) {
 	t.Helper()
@@ -26,8 +37,10 @@ func TestLoadWorkspaceEnv(t *testing.T) {
 		`    APP_HOME: "${HOME}/app"`,
 		`    GREETING: "hi ${WS_USER:-nobody}"`,
 		`    FALLBACK: "${WS_MISSING:-default}"`,
-		`    KIND: "${.fmt.style:-plain}"`,   // config self-reference
-		`    PATHS: ["${HOME}/a", "b", "c"]`, // array → OS-joined
+		`    KIND: "${.fmt.style:-plain}"`,              // config self-reference
+		`    PATHS: ["${HOME}/a", "b", "c"]`,            // array → OS-joined
+		`    PACKED: ["x", "u/v:w/z"]`,                  // an element may pack ':'-separated entries
+		`    OPCOLON: ["${WS_MISSING:-def}", "y"]` + "", // ':' in ${:-} is an operator, not a split
 		"fmt:",
 		"    style: fancy",
 	}, "\n"))
@@ -40,8 +53,10 @@ func TestLoadWorkspaceEnv(t *testing.T) {
 		"GREETING": "hi alice",
 		"FALLBACK": "default",
 		"KIND":     "fancy",
-		"PATHS":    "/home/u/a" + sep + "b" + sep + "c",
-		"HOME":     "/home/u", // process env is inherited
+		"PATHS":    fromSlashJoin(sep, "/home/u/a", "b", "c"),
+		"PACKED":   fromSlashJoin(sep, "x", "u/v", "w/z"), // element split on ':'
+		"OPCOLON":  fromSlashJoin(sep, "def", "y"),        // ${:-def} kept whole
+		"HOME":     "/home/u",                             // process env is inherited
 	}
 	for k, want := range cases {
 		got, _ := env.Get(k)
