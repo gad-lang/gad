@@ -89,6 +89,63 @@ globals := gad.Dict{
 For wrapping existing Go functions with less boilerplate, the repository
 provides the `cmd/mkcallable` code generator.
 
+## Memory and the VM stack: aliasing hazards
+
+> **Critical.** A function/method receives its arguments in `Call.Args`, and the
+> argument groups can be **backed by the VM's evaluation stack** — the same
+> memory the VM reuses for later operations once your call returns. The same is
+> true for the array a compound operator (`arr ++= a, b, c`) hands to a
+> `SelfAssignOp…` / `BinOp…` handler. Getting this wrong does not merely produce
+> a wrong value: it can **silently corrupt unrelated data** as the VM overwrites
+> those stack slots, and the corruption surfaces far from its cause.
+
+Treat everything you receive from the VM as **borrowed and read-only** unless the
+API explicitly hands you ownership. Concretely:
+
+- **Never mutate arguments in place.** Do not assign to `call.Args[i][j]`, do not
+  `sort`/reverse an argument group, and do not do
+  `args := call.Args[i]; args[j] = …`. Reading (`call.Args.Get(i)`,
+  `GetOnly(i)`, ranging over the values) is always safe.
+- **Never retain a borrowed slice.** If you keep an argument (or a sub-slice of
+  one) beyond the call — storing it in a field, a global, a closure, or
+  returning it as your result — **copy it first**. A retained stack-backed slice
+  becomes garbage the moment the VM reuses those slots.
+- **`Args.Values()` may alias.** As an allocation optimization it returns the
+  single argument group *directly* (no copy) when there is exactly one; the
+  result aliases the caller's data (possibly the stack). Use it only to read.
+  When you must mutate or retain the flattened values, use
+  **`Args.CopyValues()`** (or `Args.Copy()` for the groups), which always
+  allocate.
+
+```go
+// WRONG — mutates a borrowed (possibly stack-backed) argument, corrupting the VM.
+Value: func(c gad.Call) (gad.Object, error) {
+    a := c.Args.Get(0).(gad.Array)
+    a[0] = gad.Int(0)         // ← in-place mutation of borrowed memory
+    return a, nil             // ← and returns/retains the borrowed slice
+},
+
+// RIGHT — read borrowed data; allocate anything you keep or change.
+Value: func(c gad.Call) (gad.Object, error) {
+    src := c.Args.Get(0).(gad.Array)
+    out := make(gad.Array, len(src))
+    copy(out, src)            // own copy
+    out[0] = gad.Int(0)       // safe: mutate the copy
+    return out, nil
+},
+
+// RIGHT — retaining the flattened values: copy, don't alias.
+Value: func(c gad.Call) (gad.Object, error) {
+    return c.Args.CopyValues(), nil   // not c.Args.Values() (may alias)
+},
+```
+
+The built-in object types follow this rule: for example the binary/append
+operators (`arr + x`, `arr ++ it`) always build a **fresh** array (they slice
+with a capped length so `append` reallocates) rather than growing a borrowed
+backing array, and the `array(…)` constructor returns `Args.CopyValues()`. When
+you add your own types or Go functions, do the same.
+
 ## Typed Methods with `AddMethod`
 
 A plain `*gad.Function` has one body that must type-check its own arguments. To
@@ -273,6 +330,11 @@ module. The CLI wires a file-system importer that resolves `.gad` files along
 `GADPATH` — see [Modules](modules.md) for the script-side view.
 
 ## Safety
+
+When writing Go functions, methods or object types, mind the
+[aliasing hazards](#memory-and-the-vm-stack-aliasing-hazards): arguments and
+operator operands may be backed by the VM stack, so mutating or retaining them
+without copying can corrupt unrelated data.
 
 Gad does not impose allocation limits and relies on Go's garbage collector. To
 run untrusted scripts, disable risky builtins/modules before compilation (the

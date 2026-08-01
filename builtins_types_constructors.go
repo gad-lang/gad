@@ -275,7 +275,9 @@ func NewBufferFunc(c Call) (ret Object, err error) {
 }
 
 func NewArrayFunc(c Call) (ret Object, err error) {
-	return c.Args.Values(), nil
+	// The returned array is retained by the caller, so copy the values instead of
+	// aliasing the (possibly stack-backed) argument group. See Args.Values.
+	return c.Args.CopyValues(), nil
 }
 
 func NewDictFunc(c Call) (ret Object, err error) {

@@ -10,6 +10,16 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
+// Args holds the positional arguments of a call as one or more groups (each
+// group is an [Array]); spread arguments (`f(a, *rest)`) add further groups.
+//
+// The argument groups may be backed by the VM's evaluation stack — that is, an
+// element's underlying array can alias live stack memory that the VM reuses once
+// the call returns. Builtin implementations must therefore treat Args as
+// READ-ONLY: do not assign to `call.Args[i][j]`, do not sort or otherwise mutate
+// a group in place, and do not retain a group (or a sub-slice of it) beyond the
+// call without copying it first (e.g. via [Args.Copy] / [Args.CopyValues], or
+// append into a freshly allocated Array). Reading is always safe.
 type Args []Array
 
 var (
@@ -366,6 +376,16 @@ func (o Args) CheckRangeLen(min, max int) error {
 	return nil
 }
 
+// Values flattens all argument groups into a single [Array] of positional
+// values.
+//
+// As an allocation optimization, when there is exactly one group Values returns
+// that group's underlying array DIRECTLY, without copying — so the result may
+// alias the caller's data and, when the group is backed by the VM stack, live
+// stack memory that is reused after the call returns (see [Args]). The result is
+// therefore safe to read and to iterate, but callers that MUTATE it or RETAIN it
+// beyond the call must copy it first (or use [Args.CopyValues]). With zero or
+// several groups a fresh array is always allocated.
 func (o Args) Values() (ret Array) {
 	switch len(o) {
 	case 0:
@@ -383,6 +403,16 @@ func (o Args) Values() (ret Array) {
 		}
 		return
 	}
+}
+
+// CopyValues is like [Args.Values] but always returns a freshly allocated
+// [Array] that never aliases the caller's data or the VM stack. Use it when the
+// flattened values must be mutated or retained beyond the call.
+func (o Args) CopyValues() Array {
+	vals := o.Values()
+	ret := make(Array, len(vals))
+	copy(ret, vals)
+	return ret
 }
 
 // ShiftArg shifts argument and set value to dst.
