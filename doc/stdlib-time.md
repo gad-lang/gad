@@ -29,7 +29,7 @@ h.params[0].name // "a"
 ## Type MethodInterface
 MethodInterface is a set of required function headers, produced by a `meti`
 expression: `meti { (), (v) <int> }`. Use `implements(fn, mi)` to test whether
-a callable provides every header, `append(mi, mi2, …)` or `mi + mi2` to merge.
+a callable provides every header, `mi + mi2` (or `mi ++ [mi2, …]`) to merge.
 
 ```gad
 Stringer := meti { () <str> }
