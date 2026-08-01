@@ -959,7 +959,7 @@ func TestVMIterator(t *testing.T) {
 	testExpectRun(t, rgc+`
 		ret := []
 		for k, v in Range() {
-			ret = append(ret, [k, v])
+			ret += [k, v]
 		}
 		return str(ret)
 	`, nil, Str(`[[0, "a"], [1, "b"], [2, "c"]]`))
@@ -970,7 +970,7 @@ func TestVMIterator(t *testing.T) {
 
 		ret := []
 		for k, v in Range() {
-			ret = append(ret, [k, v])
+			ret += [k, v]
 		}
 
 		return str(ret)
@@ -1139,42 +1139,36 @@ func TestVMIterator(t *testing.T) {
 }
 
 func TestVMBuiltinFunction(t *testing.T) {
-	testExpectRun(t, `return append(nil)`,
-		nil, Array{})
-	testExpectRun(t, `return append(nil, 1)`,
-		nil, Array{Int(1)})
-	testExpectRun(t, `return append([], 1)`,
-		nil, Array{Int(1)})
-	testExpectRun(t, `return append([], 1, 2)`,
-		nil, Array{Int(1), Int(2)})
-	testExpectRun(t, `return append([0], 1, 2)`,
-		nil, Array{Int(0), Int(1), Int(2)})
-	testExpectRun(t, `return append(bytes())`,
-		nil, Bytes{})
-	testExpectRun(t, `return append(bytes(), 1, 2)`,
-		nil, Bytes{1, 2})
-	expectErrIs(t, `append()`, nil, ErrWrongNumArguments)
-	expectErrIs(t, `append({})`, nil, ErrType)
+	// The `append` builtin was removed; appending is done with the `+` (append
+	// one) and `++` (extend with an iterable) operators, per element type.
+	testExpectRun(t, `return [] + 1`, nil, Array{Int(1)})
+	testExpectRun(t, `return [] ++ [1, 2]`, nil, Array{Int(1), Int(2)})
+	testExpectRun(t, `return [0] ++ [1, 2]`, nil, Array{Int(0), Int(1), Int(2)})
+	testExpectRun(t, `return bytes()`, nil, Bytes{})
+	testExpectRun(t, `return bytes() ++ [1, 2]`, nil, Bytes{1, 2})
+	// nil implements no append operator.
+	expectErrIs(t, `return nil + 1`, nil, ErrType)
+	expectErrIs(t, `return nil ++ [1]`, nil, ErrType)
 	testExpectRun(t, `return (;)`, nil, KeyValueArray{})
-	testExpectRun(t, `return append((;))`, nil, KeyValueArray{})
-	testExpectRun(t, `return append((;),(;a=1))`, nil, KeyValueArray{&KeyValue{Str("a"), Int(1)}})
-	testExpectRun(t, `return append((;a=1),(;b=2),{c:3},[d=4])`, nil, KeyValueArray{
+	testExpectRun(t, `return (;) + (;a=1)`, nil, KeyValueArray{&KeyValue{Str("a"), Int(1)}})
+	testExpectRun(t, `return (;a=1) ++ [(;b=2), {c:3}, [d=4]]`, nil, KeyValueArray{
 		&KeyValue{Str("a"), Int(1)}, &KeyValue{Str("b"), Int(2)}, &KeyValue{Str("c"), Int(3)},
 		&KeyValue{Str("d"), Int(4)}})
 
-	testExpectRun(t, `out := {}; delete(out, "a"); return out`,
+	// `delete` is a statement: `delete Target.key` / `delete Target [keys]`.
+	testExpectRun(t, `out := {}; delete out.a; return out`,
 		nil, Dict{})
-	testExpectRun(t, `out := {a: 1}; delete(out, "a"); return out`,
+	testExpectRun(t, `out := {a: 1}; delete out.a; return out`,
 		nil, Dict{})
-	testExpectRun(t, `out := {a: 1}; delete(out, "b"); return out`,
+	testExpectRun(t, `out := {a: 1}; delete out.b; return out`,
 		nil, Dict{"a": Int(1)})
-	expectErrIs(t, `delete({})`, nil, ErrWrongNumArguments)
-	expectErrIs(t, `delete({}, "", "")`, nil, ErrWrongNumArguments)
-	expectErrIs(t, `delete([], "")`, nil, ErrType)
-	testExpectRun(t, `delete({}, 1)`, nil, Nil)
+	testExpectRun(t, `out := {a: 1, b: 2, c: 3}; delete out ["a", "b"]; return out`,
+		nil, Dict{"c": Int(3)})
+	expectErrIs(t, `out := []; delete out ["x"]`, nil, ErrNotIndexDeletable)
+	testExpectRun(t, `out := {}; delete out [1]; return out`, nil, Dict{})
 
 	g := &SyncDict{Value: Dict{"out": &SyncDict{Value: Dict{"a": Int(1)}}}}
-	testExpectRun(t, `global out; delete(out, "a"); return out`,
+	testExpectRun(t, `global out; delete out.a; return out`,
 		newOpts().Globals(g).Skip2Pass(), &SyncDict{Value: Dict{}})
 
 	testExpectRun(t, `return copy(nil)`, nil, Nil)
@@ -1397,7 +1391,7 @@ func TestVMBuiltinFunction(t *testing.T) {
 	testExpectRun(t, `return typeName(error(""))`, nil, Str("error"))
 	testExpectRun(t, `return typeName(bytes())`, nil, Str("bytes"))
 	testExpectRun(t, `return typeName(func(){})`, nil, Str("compiledFunction"))
-	testExpectRun(t, `return typeName(append)`, nil, Str("builtinFunction"))
+	testExpectRun(t, `return typeName(len)`, nil, Str("builtinFunction"))
 	testExpectRun(t, `return typeName((;))`, nil, Str("keyValueArray"))
 	testExpectRun(t, `return typeName((;a,b=2))`, nil, Str("keyValueArray"))
 	testExpectRun(t, `return typeName(func(;**na){return na}(;a,b=2))`, nil, Str("namedArgs"))
@@ -1857,7 +1851,7 @@ return [
 		{
 			`isFunction`,
 			trueValues{
-				`len`, `append`, `func(){}`,
+				`len`, `func(){}`,
 			},
 			falseValues{
 				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "nil",
@@ -1867,7 +1861,7 @@ return [
 		{
 			`isCallable`,
 			trueValues{
-				`len`, `append`,
+				`len`,
 			},
 			falseValues{
 				"1", "-1", "1u", "1.1", "'\x01'", `""`, `bytes()`, "nil",
@@ -3064,19 +3058,19 @@ func TestVMForIn(t *testing.T) {
 	testExpectRun(t, `var r = ""; for x in [1,2] { r += str(x) } else { r += "@"}; r+="#"; return r`, nil, Str("12#"))
 	testExpectRun(t, `var r = (;); 
 		for k, v in bytes("abc") { 
-			r = append(r, keyValue(k, char(v))) 
+			r += keyValue(k, char(v)) 
 		} else { 
-			r = append(r, keyValue("else", true)) 
+			r += keyValue("else", true) 
 		}; 
-		r = append(r, keyValue("done", yes))
+		r += keyValue("done", yes)
 		return str(r)`, nil, Str("(;0=a, 1=b, 2=c, done)"))
 	testExpectRun(t, `var r = (;); 
 		for k, v in bytes("") { 
-			r = append(r, keyValue(k, char(v))) 
+			r += keyValue(k, char(v)) 
 		} else { 
-			r = append(r, keyValue("else", yes)) 
+			r += keyValue("else", yes) 
 		}; 
-		r = append(r, keyValue("done", yes))
+		r += keyValue("done", yes)
 		return str(r)`, nil, Str("(;else, done)"))
 }
 
@@ -5359,14 +5353,14 @@ func TestVMClosure(t *testing.T) {
 	fns :=  []
 	for i:=0; i<3; i++ {
 		i := i
-		fns = append(fns, func(){
+		fns += func(){
 			return i
-		})
+		}
 	}
 
 	ret := []
 	for f in fns {
-		ret = append(ret, f())
+		ret += f()
 	}
 	return ret
 	`, nil, Array{Int(0), Int(1), Int(2)})
@@ -5545,15 +5539,15 @@ b
 }
 
 func TestVMReflectSlice(t *testing.T) {
-	testExpectRun(t, `param s;return func(z, *x) { return append([], *x) }(100, *s)`,
+	testExpectRun(t, `param s;return func(z, *x) { return [] ++ x }(100, *s)`,
 		newOpts().Args(MustToObject([]int{4, 7})),
 		Array{Int(4), Int(7)},
 	)
-	testExpectRun(t, `param s;return func(*x) { return append([], *x) }(*s)`,
+	testExpectRun(t, `param s;return func(*x) { return [] ++ x }(*s)`,
 		newOpts().Args(MustToObject([]int{4, 7})),
 		Array{Int(4), Int(7)},
 	)
-	testExpectRun(t, "param s;return append([], *s)",
+	testExpectRun(t, "param s;return [] ++ s",
 		newOpts().Args(MustToObject([]int{4, 7})),
 		Array{Int(4), Int(7)},
 	)

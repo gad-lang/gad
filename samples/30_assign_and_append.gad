@@ -1,0 +1,30 @@
+// Assignment lists and array append operators.
+
+// --- A comma-separated right-hand side is an array (single target) ---
+x := 1, 2, 3
+println("x := 1, 2, 3        ->", x)               // [1, 2, 3]
+
+rest := [3, 4]
+y := 1, 2, *rest
+println("y := 1, 2, *rest    ->", y)               // [1, 2, 3, 4]
+
+// --- Several targets still destructure ---
+a, b := 10, 20
+println("a, b := 10, 20      ->", [a, b])          // [10, 20]
+
+head, *tail := 1, 2, 3, 4
+println("head, *tail         ->", head, tail)      // 1 [2, 3, 4]
+
+// --- Array append: expressions ---
+println("[1] + 2             ->", [1] + 2)          // [1, 2]   (append one)
+println("[1] + [2, 3]        ->", [1] + [2, 3])     // [1, 2, 3] (+ concatenates)
+println("[1] ++ [2, 3]       ->", [1] ++ [2, 3])    // [1, 2, 3] (++ extends)
+
+// --- Array append: in-place assignments ---
+acc := []
+acc += 1            // append one element
+acc ++= [2, 3]      // extend with an iterable
+acc ++= 4, 5        // ++= a, b  ==  ++= [a, b]
+println("acc                 ->", acc)              // [1, 2, 3, 4, 5]
+
+return acc == [1, 2, 3, 4, 5]

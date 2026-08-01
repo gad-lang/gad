@@ -231,7 +231,7 @@ func TestVMMethodInterface(t *testing.T) {
 	// merge with `+` and append
 	testExpectRun(t, `a := meti { () }; b := meti { (x int) }; return len((a + b).headers)`,
 		nil, Int(2))
-	testExpectRun(t, `a := meti { () }; b := meti { (x int) }; return len(append(a, b).headers)`,
+	testExpectRun(t, `a := meti { () }; b := meti { (x int) }; return len((a + b).headers)`,
 		nil, Int(2))
 
 	// a func with methods can satisfy several interfaces at once
@@ -261,7 +261,7 @@ func TestVMBinaryIncDec(t *testing.T) {
 	// `a ++ b` / `a -- b` are binary operators an object can override
 	const stack = `
 	Stack := Class("Stack"; fields=(; items=(= [])))
-	met gad.binOpInc(s Stack, v) { s.items = append(s.items, v); return s }
+	met gad.binOpInc(s Stack, v) { s.items += v; return s }
 	met gad.binOpDec(s Stack, i) { return s.items[i] }
 	`
 	// left-associative chaining: ((s ++ 1) ++ 2) ++ 3
@@ -641,7 +641,7 @@ func TestVMInOperator(t *testing.T) {
 
 	// Precedence and use as a condition.
 	testExpectRun(t, `return 1 + 1 in [2, 3]`, nil, True)
-	testExpectRun(t, `out := []; for x in [1, 2, 3] { if x in [2] { out = append(out, x) } }; return out`,
+	testExpectRun(t, `out := []; for x in [1, 2, 3] { if x in [2] { out += x } }; return out`,
 		nil, Array{Int(2)})
 
 	// Fallback: when the right operand is not a Container, `in` goes through the
@@ -696,37 +696,37 @@ func TestVMWith(t *testing.T) {
 	// with-protocol: a Gad object provides `enter()` / `exit(err)` methods).
 	prelude := `
 	Res := Class("Res"; fields = (; log = (= [])), methods = [
-		enter(this) { this.log = append(this.log, "enter"); return this }
-		exit(this, err) { this.log = append(this.log, "exit") }
+		enter(this) { this.log += "enter"; return this }
+		exit(this, err) { this.log += "exit" }
 		read(this) { return "data" }
 	])
 	`
 	str := func(s string) string { return prelude + s }
 
 	// Bare identifier resource.
-	testExpectRun(t, str(`r := Res(); with r { r.log = append(r.log, "body") }; return r.log`),
+	testExpectRun(t, str(`r := Res(); with r { r.log += "body" }; return r.log`),
 		nil, Array{Str("enter"), Str("body"), Str("exit")})
 
 	// `as` binding (f aliases the resource).
-	testExpectRun(t, str(`r := Res(); with r as f { f.log = append(f.log, "body") }; return r.log`),
+	testExpectRun(t, str(`r := Res(); with r as f { f.log += "body" }; return r.log`),
 		nil, Array{Str("enter"), Str("body"), Str("exit")})
 
 	// `:=` define: the variable is visible after the block.
-	testExpectRun(t, str(`with r := Res() { r.log = append(r.log, "body") }; return r.log`),
+	testExpectRun(t, str(`with r := Res() { r.log += "body" }; return r.log`),
 		nil, Array{Str("enter"), Str("body"), Str("exit")})
 
 	// `=` assign onto a pre-declared variable.
-	testExpectRun(t, str(`var r; with r = Res() { r.log = append(r.log, "body") }; return r.log`),
+	testExpectRun(t, str(`var r; with r = Res() { r.log += "body" }; return r.log`),
 		nil, Array{Str("enter"), Str("body"), Str("exit")})
 
 	// Bare non-identifier resource (bound to an internal temp).
-	testExpectRun(t, str(`a := [Res()]; with a[0] { a[0].log = append(a[0].log, "body") }; return a[0].log`),
+	testExpectRun(t, str(`a := [Res()]; with a[0] { a[0].log += "body" }; return a[0].log`),
 		nil, Array{Str("enter"), Str("body"), Str("exit")})
 
 	// Nesting: exits run in LIFO order.
 	testExpectRun(t, str(`
 		o := Res(); i := Res()
-		with o { with i { i.log = append(i.log, "body") } }
+		with o { with i { i.log += "body" } }
 		return [o.log, i.log]`),
 		nil, Array{Array{Str("enter"), Str("exit")}, Array{Str("enter"), Str("body"), Str("exit")}})
 
@@ -752,13 +752,13 @@ func TestVMWith(t *testing.T) {
 		nil, Array{Array{Str("enter"), Str("exit")}, Str("data")})
 
 	// A non-resource value is a no-op (enter/exit do nothing; the body still runs).
-	testExpectRun(t, str(`a := [1]; with a { a = append(a, 2) }; return a`),
+	testExpectRun(t, str(`a := [1]; with a { a += 2 }; return a`),
 		nil, Array{Int(1), Int(2)})
 
 	// Block expression form yields the resource itself; exit runs around it.
 	testExpectRun(t, str(`
 		r := Res()
-		v := with r as h { h.log = append(h.log, "body") }
+		v := with r as h { h.log += "body" }
 		return [r.log, v.log]`),
 		nil, Array{
 			Array{Str("enter"), Str("body"), Str("exit")},
@@ -770,7 +770,7 @@ func TestVMWith(t *testing.T) {
 
 	// Block expression form usable as a return value inside a function.
 	testExpectRun(t, str(`
-		f := func() { return with Res() as h { h.log = append(h.log, "b") } }
+		f := func() { return with Res() as h { h.log += "b" } }
 		return f().log`),
 		nil, Array{Str("enter"), Str("b"), Str("exit")})
 }
@@ -851,8 +851,8 @@ func TestVMClassFeatures(t *testing.T) {
 	}))
 	b := Box()
 	out := []
-	b.val = "a"; out = append(out, b.val)
-	b.val = 5;   out = append(out, b.val)
+	b.val = "a"; out += b.val
+	b.val = 5;   out += b.val
 	return out`, nil, Array{Str("any:a"), Str("int:5")})
 
 	// --- inheritance: override, inherited method, promoted (anonymous) field ---
@@ -973,8 +973,8 @@ func TestVMClassSyntax(t *testing.T) {
 	}
 	b := Box()
 	out := []
-	b.val = "a"; out = append(out, b.val)
-	b.val = 5;   out = append(out, b.val)
+	b.val = "a"; out += b.val
+	b.val = 5;   out += b.val
 	return out`, nil, Array{Str("any:a"), Str("int:5")})
 
 	// getter shortcut `name = expr` is a zero-arg accessor.
@@ -1042,7 +1042,7 @@ func TestVMEnum(t *testing.T) {
 	// indexGet, len via iteration and str.
 	testExpectRun(t, `enum Perm { Read, Write }
 	out := []
-	for k, v in Perm { out = append(out, k + "=" + str(v.value)) }
+	for k, v in Perm { out += k + "=" + str(v.value) }
 	return out`, nil, Array{Str("Read=1"), Str("Write=2")})
 
 	// virtual accessors expose names/values/dict/pairs in declaration order.
@@ -1184,7 +1184,7 @@ func TestVMProperty(t *testing.T) {
 	p := Prop("x", () => v, (n) => {v = n})
 	out := [p()]          // nil (unset)
 	p("a")
-	out = append(out, p())
+	out += p()
 	return out`, nil, Array{Nil, Str("a")})
 
 	// a typed setter added with `met` is dispatched by the argument type
@@ -1553,7 +1553,7 @@ func TestVMRegexpOperators(t *testing.T) {
 	testExpectRun(t, `
 	re := /(\w+)@(\w+)/
 	out := []
-	for i, g in re ~~ "user@host" { out = append(out, [i, g]) }
+	for i, g in re ~~ "user@host" { out += [i, g] }
 	return out`, nil, Array{
 		Array{Int(0), Str("user@host")},
 		Array{Int(1), Str("user")},
@@ -1680,8 +1680,8 @@ func TestVMDeferbStmt(t *testing.T) {
 	out := []
 	h := func() {
 		{
-			deferb { out = append(out, "D") }
-			out = append(out, "B")
+			deferb { out += "D" }
+			out += "B"
 			return "RET"
 		}
 	}

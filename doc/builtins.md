@@ -39,16 +39,20 @@ isCallable(println)// true
 
 ## Sequences and Collections
 
-`len`, `append`, `delete`, `copy`, `dcopy`, `repeat`, `contains`, `sort`,
+`len`, `copy`, `dcopy`, `repeat`, `contains`, `sort`,
 `sortReverse`, `keys`, `values`, `items`, `zip`, `enumerate`.
+
+Appending and deleting are **operators / statements**, not builtins:
+the `+` / `++` / `+=` / `++=` operators (see [operators](operators.md)) append, and the
+`delete` statement removes keys.
 
 ```go
 len([1, 2, 3])             // 3
-append([1, 2], 3, 4)       // [1, 2, 3, 4]
+[1, 2] ++ [3, 4]           // [1, 2, 3, 4]  (append/extend operators)
 contains([1, 2, 3], 2)     // true
 repeat([0], 3)             // [0, 0, 0]
 sort([3, 1, 2])            // [1, 2, 3]
-delete({a: 1, b: 2}, "a")  // mutates → {b: 2}
+d := {a: 1, b: 2}; delete d.a  // → {b: 2}
 ```
 
 ## Iteration

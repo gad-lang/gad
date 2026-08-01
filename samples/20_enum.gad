@@ -28,7 +28,7 @@ println("name/index =", Perm.Exec.name, Perm.Exec.index)   // Exec 2
 println("by name    =", Perm["Write"].value)  // 2
 out := []
 for name, v in Perm {
-    out = append(out, name + "=" + str(v.value))
+    out += name + "=" + str(v.value)
 }
 println("iterate    =", out)   // [Read=1, Write=2, Exec=10, Delete=11]
 

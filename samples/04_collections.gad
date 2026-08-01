@@ -19,7 +19,7 @@ println("dict spread=", extended)
 /// Iterate arrays (index, value) and dicts (key, value).
 squares := []
 for _, n in nums {
-    squares = append(squares, n * n)
+    squares += n * n
 }
 println("squares    =", squares)
 

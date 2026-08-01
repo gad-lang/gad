@@ -94,11 +94,12 @@ implements(shape, Stringer, HasAdd)        // true
 
 ## Composing interfaces
 
-Interfaces merge with `+` or `append`, producing a new interface with all the
-headers:
+Interfaces merge with `+` (two interfaces) or `++` (with a list of interfaces),
+producing a new interface with all the headers:
 
 ```go
-both := Stringer + HasAdd            // or: append(Stringer, HasAdd)
+both := Stringer + HasAdd            // merge two
+all  := Stringer ++ [HasAdd, Sized]  // merge with a list
 implements(shape, both)              // true
 ```
 

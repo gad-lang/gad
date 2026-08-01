@@ -295,8 +295,6 @@ var BuiltinsMap = map[string]BuiltinType{
 	// @binaryOperator / @selfAssignOperator are exposed as gad.binOp /
 	// gad.selfAssignOp (registered in registerGadModule).
 	"cast":                BuiltinCast,
-	"append":              BuiltinAppend,
-	"delete":              BuiltinDelete,
 	"copy":                BuiltinCopy,
 	"dcopy":               BuiltinDeepCopy,
 	"repeat":              BuiltinRepeat,
@@ -687,14 +685,6 @@ var BuiltinObjects = BuiltinObjectsMap{
 	BuiltinChars: &BuiltinFunction{
 		FuncName: "chars",
 		Value:    funcPOROe(BuiltinCharsFunc),
-	},
-	BuiltinAppend: &BuiltinFunction{
-		FuncName: "append",
-		Value:    BuiltinAppendFunc,
-	},
-	BuiltinDelete: &BuiltinFunction{
-		FuncName: "delete",
-		Value:    BuiltinDeleteFunc,
 	},
 	BuiltinCopy: &BuiltinFunction{
 		FuncName: "copy",

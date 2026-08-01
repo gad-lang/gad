@@ -13,7 +13,7 @@ Res := Class("Res", (cls, define) => define(; fields = (; name = (= ""), open = 
         enter(this) { this.open = true;  this.items = []; println("  open ", this.name); return this }
         exit(this, err) { this.open = false; println("  close", this.name, "err =", err) }
         read(this) => this.name + "-data"
-        add(this, v) { this.items = append(this.items, v) }
+        add(this, v) { this.items += v }
     ]))
 
 // `as` binds the resource to a block-local name.

@@ -194,7 +194,7 @@ func (c *Compiler) wrapDeferBody(body *node.BlockStmt) (*node.BlockStmt, error) 
 // compileDeferStmt compiles a `defer`/`defer_ok`/`defer_err` statement to a
 // registration on the enclosing function's $__defers list:
 //
-//	$__defers = append($__defers, [func() { <handler> }, <variant>])
+//	$__defers += [func() { <handler> }, <variant>]
 //
 // The handler closure captures the enclosing $ret/$err (and any other locals)
 // so it can read and modify them when it runs at function exit.
@@ -218,7 +218,7 @@ func (c *Compiler) compileDeferStmt(nd *node.DeferStmt) error {
 		scope = "a block"
 	}
 
-	src := fmt.Sprintf(`%s = append(%s, [func() {}, %d])`, registry, registry, int(nd.Variant))
+	src := fmt.Sprintf(`%s += [func() {}, %d]`, registry, int(nd.Variant))
 	stmts, err := parseGadSnippet(src)
 	if err != nil {
 		return c.Errorf(nd, "defer: %v", err)
@@ -241,16 +241,12 @@ func (c *Compiler) compileDeferStmt(nd *node.DeferStmt) error {
 }
 
 // deferHandlerFuncOf extracts the `func() {}` literal from the parsed
-// registration `$__defers = append($__defers, [func() {}, N])`.
+// registration `$__defers += [func() {}, N]`.
 func deferHandlerFuncOf(assign *node.AssignStmt) (*node.FuncExpr, bool) {
 	if len(assign.RHS) != 1 {
 		return nil, false
 	}
-	call, ok := assign.RHS[0].(*node.CallExpr)
-	if !ok || len(call.Args.Values) != 2 {
-		return nil, false
-	}
-	arr, ok := call.Args.Values[1].(*node.ArrayExpr)
+	arr, ok := assign.RHS[0].(*node.ArrayExpr)
 	if !ok || len(arr.Elements) != 2 {
 		return nil, false
 	}

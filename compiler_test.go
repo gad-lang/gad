@@ -3328,27 +3328,26 @@ func TestCompilerArrayComprehension(t *testing.T) {
 	expectCompile(t, `return [i for i in [9]]`, bytecode(
 		Array{Int(9)},
 		compFunc(concatInsts(
-			makeInst(OpArray, 0),                       // 0000 :compr = []
-			makeInst(OpDefineLocal, 0),                 // 0003
-			makeInst(OpConstant, 0),                    // 0005 9
-			makeInst(OpArray, 1),                       // 0008 [9]
-			makeInst(OpIterInit),                       // 0011
-			makeInst(OpDefineLocal, 1),                 // 0012 iterator
-			makeInst(OpGetLocal, 1),                    // 0014 loop head
-			makeInst(OpIterNext),                       // 0016
-			makeInst(OpJumpFalsy, 40),                  // 0017 -> end
-			makeInst(OpGetLocal, 1),                    // 0020
-			makeInst(OpIterValue),                      // 0022
-			makeInst(OpDefineLocal, 2),                 // 0023 i
-			makeInst(OpGetBuiltin, int(BuiltinAppend)), // 0025
-			makeInst(OpGetLocal, 0),                    // 0028 :compr
-			makeInst(OpGetLocal, 2),                    // 0030 i
-			makeInst(OpCall, 2, 0),                     // 0032 append(:compr, i)
-			makeInst(OpSetLocal, 0),                    // 0035 :compr = ...
-			makeInst(OpJump, 14),                       // 0037 loop
-			makeInst(OpGetLocal, 0),                    // 0040 push :compr
-			makeInst(OpReturn, 1),                      // 0042
-			makeInst(OpReturn, 0),                      // 0044 implicit trailing return
+			makeInst(OpArray, 0),                   // 0000 :compr = []
+			makeInst(OpDefineLocal, 0),             // 0003
+			makeInst(OpConstant, 0),                // 0005 9
+			makeInst(OpArray, 1),                   // 0008 [9]
+			makeInst(OpIterInit),                   // 0011
+			makeInst(OpDefineLocal, 1),             // 0012 iterator
+			makeInst(OpGetLocal, 1),                // 0014 loop head
+			makeInst(OpIterNext),                   // 0016
+			makeInst(OpJumpFalsy, 36),              // 0017 -> end
+			makeInst(OpGetLocal, 1),                // 0020
+			makeInst(OpIterValue),                  // 0022
+			makeInst(OpDefineLocal, 2),             // 0023 i
+			makeInst(OpGetLocal, 0),                // 0025 :compr
+			makeInst(OpGetLocal, 2),                // 0027 i
+			makeInst(OpSelfAssign, int(token.Add)), // 0029 :compr += i
+			makeInst(OpSetLocal, 0),                // 0031 :compr = ...
+			makeInst(OpJump, 14),                   // 0033 loop
+			makeInst(OpGetLocal, 0),                // 0036 push :compr
+			makeInst(OpReturn, 1),                  // 0038
+			makeInst(OpReturn, 0),                  // 0040 implicit trailing return
 		),
 			funcLocals(3),
 		),
@@ -3586,41 +3585,37 @@ func TestCompilerDictDestructure(t *testing.T) {
 	expectCompile(t, `d := {a:1}; (;a, b:_b, **o) := d`, bytecode(
 		Array{Str("a"), Int(1), Str("b")},
 		compFunc(concatInsts(
-			makeInst(OpConstant, 0),                    // 0000 "a"
-			makeInst(OpConstant, 1),                    // 0003 1
-			makeInst(OpDict, 2),                        // 0006 {a:1}
-			makeInst(OpDefineLocal, 0),                 // 0009 d
-			makeInst(OpGetBuiltin, int(BuiltinDict)),   // 0011 dict()
-			makeInst(OpGetLocal, 0),                    // 0014 d
-			makeInst(OpCall, 1, 0),                     // 0016 dict(d)
-			makeInst(OpDefineLocal, 1),                 // 0019 :dict = dict(d)
-			makeInst(OpGetBuiltin, int(BuiltinCopy)),   // 0021
-			makeInst(OpGetLocal, 1),                    // 0024
-			makeInst(OpCall, 1, 0),                     // 0026 copy(:dict)
-			makeInst(OpSetLocal, 1),                    // 0029 :dict = copy
-			makeInst(OpGetLocal, 1),                    // 0031
-			makeInst(OpConstant, 0),                    // 0033 "a"
-			makeInst(OpGetIndex, 1),                    // 0036 :dict["a"]
-			makeInst(OpDefineLocal, 2),                 // 0038 a
-			makeInst(OpGetBuiltin, int(BuiltinDelete)), // 0040
-			makeInst(OpGetLocal, 1),                    // 0043
-			makeInst(OpConstant, 0),                    // 0045 "a"
-			makeInst(OpCall, 2, 0),                     // 0048 delete(:dict,"a")
-			makeInst(OpPop),                            // 0051
-			makeInst(OpGetLocal, 1),                    // 0052
-			makeInst(OpConstant, 2),                    // 0054 "b"
-			makeInst(OpGetIndex, 1),                    // 0057 :dict["b"]
-			makeInst(OpDefineLocal, 3),                 // 0059 _b
-			makeInst(OpGetBuiltin, int(BuiltinDelete)), // 0061
-			makeInst(OpGetLocal, 1),                    // 0064
-			makeInst(OpConstant, 2),                    // 0066 "b"
-			makeInst(OpCall, 2, 0),                     // 0069 delete(:dict,"b")
-			makeInst(OpPop),                            // 0072
-			makeInst(OpGetLocal, 1),                    // 0073
-			makeInst(OpDefineLocal, 4),                 // 0075 o = :dict
-			makeInst(OpNil),                            // 0077
-			makeInst(OpSetLocal, 1),                    // 0078 cleanup :dict
-			makeInst(OpReturn, 0),                      // 0080
+			makeInst(OpConstant, 0),                  // 0000 "a"
+			makeInst(OpConstant, 1),                  // 0003 1
+			makeInst(OpDict, 2),                      // 0006 {a:1}
+			makeInst(OpDefineLocal, 0),               // 0009 d
+			makeInst(OpGetBuiltin, int(BuiltinDict)), // 0011 dict()
+			makeInst(OpGetLocal, 0),                  // 0014 d
+			makeInst(OpCall, 1, 0),                   // 0016 dict(d)
+			makeInst(OpDefineLocal, 1),               // 0019 :dict = dict(d)
+			makeInst(OpGetBuiltin, int(BuiltinCopy)), // 0021
+			makeInst(OpGetLocal, 1),                  // 0024
+			makeInst(OpCall, 1, 0),                   // 0026 copy(:dict)
+			makeInst(OpSetLocal, 1),                  // 0029 :dict = copy
+			makeInst(OpGetLocal, 1),                  // 0031
+			makeInst(OpConstant, 0),                  // 0033 "a"
+			makeInst(OpGetIndex, 1),                  // 0036 :dict["a"]
+			makeInst(OpDefineLocal, 2),               // 0038 a
+			makeInst(OpGetLocal, 1),                  // 0040
+			makeInst(OpConstant, 0),                  // 0042 "a"
+			makeInst(OpDelete),                       // 0045 delete :dict["a"]
+			makeInst(OpGetLocal, 1),                  // 0046
+			makeInst(OpConstant, 2),                  // 0048 "b"
+			makeInst(OpGetIndex, 1),                  // 0051 :dict["b"]
+			makeInst(OpDefineLocal, 3),               // 0053 _b
+			makeInst(OpGetLocal, 1),                  // 0055
+			makeInst(OpConstant, 2),                  // 0057 "b"
+			makeInst(OpDelete),                       // 0060 delete :dict["b"]
+			makeInst(OpGetLocal, 1),                  // 0061
+			makeInst(OpDefineLocal, 4),               // 0075 o = :dict
+			makeInst(OpNil),                          // 0077
+			makeInst(OpSetLocal, 1),                  // 0078 cleanup :dict
+			makeInst(OpReturn, 0),                    // 0080
 		),
 			funcLocals(5),
 		),

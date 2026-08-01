@@ -77,7 +77,7 @@ func TestVMEmbed(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "assets", "b.txt"), []byte("BBB"), 0o644))
 	ret, err = drun(`
 	names := []
-	for name, e in iterator(embed("assets").fs; sorted) { names = append(names, name) }
+	for name, e in iterator(embed("assets").fs; sorted) { names += name }
 	return str(names)`)
 	require.NoError(t, err)
 	require.Equal(t, Str(`["a.txt", "b.txt"]`), ret)

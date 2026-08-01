@@ -321,16 +321,11 @@ func (c *Compiler) compileArrayComprehension(nd *node.ArrayComprehension) error 
 	c.emit(nd, OpDefineLocal, resultSym.Index)
 
 	result := &node.IdentExpr{Name: ":compr"}
-	// :compr = append(:compr, elem)
+	// :compr += elem  (the `+=` operator appends a single element to the array)
 	inner := &node.AssignStmt{
-		LHS: []node.Expr{result},
-		RHS: []node.Expr{&node.CallExpr{
-			Func: &node.IdentExpr{Name: BuiltinAppend.String()},
-			CallArgs: node.CallArgs{Args: node.CallExprPositionalArgs{
-				Values: []node.Expr{result, nd.Element},
-			}},
-		}},
-		Token: token.Assign,
+		LHS:   []node.Expr{result},
+		RHS:   []node.Expr{nd.Element},
+		Token: token.AddAssign,
 	}
 
 	if err := c.Compile(wrapComprehensionClauses(nd.Clauses, inner)); err != nil {

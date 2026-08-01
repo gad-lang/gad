@@ -276,7 +276,7 @@ func TestVMCatchAll(t *testing.T) {
 	strArray := func(arr) {
 		var out = []
 		for v in arr {
-			out = append(out, str(v))
+			out += str(v)
 		}
 		return out
 	}
@@ -366,6 +366,7 @@ func TestVMAssert(t *testing.T) {
 	}
 
 	assertTrue(errs == nil, "errs must be nil")
+	errs = []   // nil has no append operator; start an array to collect into
 	assertTrue(isCallable(sprintf), "sprintf is not a callable")
 	assertTrue(isFunction(sprintf), "sprintf is not a function")
 	assertTrue(isCallable(assertTrue), "assertTrue is not a callable")
@@ -382,7 +383,7 @@ func TestVMAssert(t *testing.T) {
 			assertTrue(bool(v), sprintf("#%d is not true", i))
 		} catch err {
 			numFails++
-			errs = append(errs, str(err))
+			errs += str(err)
 		} finally {
 			numRun++
 		}

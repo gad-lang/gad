@@ -43,14 +43,14 @@ func TestEncDecBytecode(t *testing.T) {
 		return [nil, true, false, "", -1, 0, 1, 2u, 3.0, 123.456d, 'a', bytes(0, 1, 2)]
 	}
 	f()
-	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}`, nil, gad.Nil)
+	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [copy, len]}`, nil, gad.Nil)
 
 	testEncDecBytecode(t, `
 	f := func(arg0, arg1, *varg; na0=3, **na) {
 		return [arg0, arg1, varg, na0, na.dict, nil, true, false, "", -1, 0, 1, 2u, 3.0, 123.456d, 'a', bytes(0, 1, 2)]
 	}
 	f(1,2;na0=4,na1=5)
-	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [append, len]}`, nil, gad.Nil)
+	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [copy, len]}`, nil, gad.Nil)
 }
 
 func TestEncDecBytecode_modules(t *testing.T) {

@@ -24,6 +24,6 @@ met shape(a int) => a * a
 
 println("shape is both:        ", implements(shape, Stringer, HasAdd))    // true
 println("shape is merged:      ", implements(shape, Stringer + HasAdd))   // true (`+` merges)
-println("shape is appended:    ", implements(shape, append(Stringer, HasAdd)))
+println("shape is appended:    ", implements(shape, Stringer + HasAdd))
 
 return implements(shape, Stringer, HasAdd)

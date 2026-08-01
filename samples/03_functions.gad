@@ -37,8 +37,8 @@ collect := func(*args; **kw) {
 /// Inside a handler `$ret` is the mutable return value (and `$err` the error
 /// being propagated, if any).
 deferOrder := func() {
-    defer { $ret = append($ret, "defer-A") } // runs last (LIFO)
-    defer { $ret = append($ret, "defer-B") } // runs first
+    defer { $ret += "defer-A" } // runs last (LIFO)
+    defer { $ret += "defer-B" } // runs first
     return ["body"]
 }
 
