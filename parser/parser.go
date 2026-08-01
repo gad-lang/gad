@@ -3708,6 +3708,12 @@ func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {
 		pos, tok := p.Token.Pos, p.Token.Token
 		p.Next()
 		y := p.ParseExprList()
+		// `Target = a, b, *rest` (a single target) is shorthand for
+		// `Target = [a, b, *rest]`. Multiple targets (`a, b = 1, 2`) still
+		// destructure and are left untouched.
+		if len(x) == 1 && len(y) > 1 {
+			y = []node.Expr{&node.ArrayExpr{Elements: y}}
+		}
 		return &node.AssignStmt{
 			LHS:      x,
 			RHS:      y,
@@ -3767,10 +3773,18 @@ func (p *Parser) ParseSimpleStmt(forIn bool) node.Stmt {
 		token.IncAssign, token.DecAssign:
 		pos, tok := p.Token.Pos, p.Token.Token
 		p.Next()
-		y := p.ParseExpr()
+		// `Target OP a, b, *rest` (a single target, any compound operator) is
+		// shorthand for `Target OP [a, b, *rest]`: gather the comma-separated
+		// right-hand values into a single array (spreads inside still flatten).
+		// This is what makes `a ++= 2, 3` equivalent to `a ++= [2, 3]`.
+		list := p.ParseExprList()
+		rhs := list
+		if len(list) > 1 {
+			rhs = []node.Expr{&node.ArrayExpr{Elements: list}}
+		}
 		return &node.AssignStmt{
 			LHS:      []node.Expr{x[0]},
-			RHS:      []node.Expr{y},
+			RHS:      rhs,
 			Token:    tok,
 			TokenPos: pos,
 		}
