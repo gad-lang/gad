@@ -671,6 +671,10 @@ func (c *Compiler) Compile(nd ast.Node) error {
 		c.emit(nt, OpModule)
 	case *node.GlobalsLit:
 		c.emit(nt, OpGlobals)
+	case *node.EnvLit:
+		c.emit(nt, OpEnv)
+	case *node.DeleteStmt:
+		return c.compileDeleteStmt(nt)
 	case *node.CalleeKeywordExpr:
 		c.emit(nt, OpCallee)
 	case *node.ArgsKeywordExpr:
@@ -1203,7 +1207,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	switch op {
 	case OpGetBuiltin, OpConstant, OpDict, OpArray, OpGetGlobal, OpSetGlobal, OpJump,
 		OpJumpFalsy, OpAndJump, OpOrJump, OpKeyValueArray, OpJumpNil, OpJumpNotNil,
-		OpLoadModule:
+		OpLoadModule, OpEnvSet:
 		buf = append(buf, byte(args[0]>>8))
 		buf = append(buf, byte(args[0]))
 		return buf, nil
@@ -1232,7 +1236,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 		OpSetupCatch, OpSetupFinally, OpNoOp, OpCallee, OpArgs, OpNamedArgs,
 		OpStdIn, OpStdOut, OpStdErr, OpIsNil, OpNotIsNil, OpDotName, OpDotFile, OpIsMain, OpNotIsMain, OpModule, OpGlobals,
 		OpNamedParamsVar, OpNamedParamValue, OpComputedValue, OpExtendModule, OpSetReturnModule, OpToRawStr,
-		OpAssign:
+		OpAssign, OpEnv, OpEnvGet, OpDelete:
 		return buf, nil
 	default:
 		return buf, &Error{

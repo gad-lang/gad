@@ -822,6 +822,56 @@ func (s *ThrowStmt) WriteCode(ctx *CodeWriteContext) {
 	}
 }
 
+// DeleteStmt is the `delete` statement: it removes one or more keys from a
+// target object.
+//
+//	delete Target.field        // Keys == nil: delete the single key "field"
+//	delete Target [k1, k2, …]   // Keys is an array/expr: delete each key
+//
+// In the selector form (Keys == nil) Target is a *SelectorExpr whose base is the
+// object and whose selector name is the (string) key. Otherwise Target is the
+// object and Keys evaluates to the key or an array of keys.
+type DeleteStmt struct {
+	DeletePos source.Pos
+	Target    Expr
+	Keys      Expr
+}
+
+func (s *DeleteStmt) StmtNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (s *DeleteStmt) Pos() source.Pos {
+	return s.DeletePos
+}
+
+// End returns the position of first character immediately after the node.
+func (s *DeleteStmt) End() source.Pos {
+	if s.Keys != nil {
+		return s.Keys.End()
+	}
+	if s.Target != nil {
+		return s.Target.End()
+	}
+	return s.DeletePos + source.Pos(len("delete"))
+}
+
+func (s *DeleteStmt) String() string {
+	out := "delete " + s.Target.String()
+	if s.Keys != nil {
+		out += " " + s.Keys.String()
+	}
+	return out
+}
+
+func (s *DeleteStmt) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString("delete ")
+	s.Target.WriteCode(ctx)
+	if s.Keys != nil {
+		ctx.WriteString(" ")
+		s.Keys.WriteCode(ctx)
+	}
+}
+
 type MixedTextStmtFlag uint
 
 const (

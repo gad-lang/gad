@@ -105,6 +105,10 @@ const (
 	OpToRawStr
 	OpAddMethodOverride
 	OpAssign
+	OpEnv
+	OpEnvGet
+	OpEnvSet
+	OpDelete
 )
 
 // OpcodeNames are string representation of opcodes.
@@ -185,6 +189,10 @@ var OpcodeNames = [...]string{
 	OpToRawStr:          "TORAWSTR",
 	OpAddMethodOverride: "ADDMETHODOVERRIDE",
 	OpAssign:            "ASSIGN",
+	OpEnv:               "ENV",
+	OpEnvGet:            "ENVGET",
+	OpEnvSet:            "ENVSET",
+	OpDelete:            "DELETE",
 }
 
 // OpcodeOperands is the number of operands.
@@ -265,6 +273,10 @@ var OpcodeOperands = [...][]int{
 	OpToRawStr:          {},
 	OpAddMethodOverride: {1, 1}, // 0: number of selectors, 1: number of funcs
 	OpAssign:            {},     // obj :: type -> obj (or throw if not assignable)
+	OpEnv:               {},     // push the VM env object
+	OpEnvGet:            {},     // pop key (str), push env[key]
+	OpEnvSet:            {2},    // constant index of key; pop value, env[key]=value
+	OpDelete:            {},     // pop keys array and `this`; delete this[k] for each k
 }
 
 // ReadOperands reads operands from the bytecode. Given operands slice is used to

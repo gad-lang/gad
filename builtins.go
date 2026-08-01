@@ -272,12 +272,13 @@ const (
 	BuiltinStmt
 	BuiltinSourceType
 	BuiltinSourceFile
+	BuiltinEnvType
 
 	BuiltinEnd_
 )
 
 var (
-	lastBuiltinType = BuiltinSourceFile
+	lastBuiltinType = BuiltinEnvType
 	lastBuiltinMux  = sync.Mutex{}
 )
 

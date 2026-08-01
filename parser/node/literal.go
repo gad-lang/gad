@@ -1104,6 +1104,33 @@ func (e *GlobalsLit) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteString(e.String())
 }
 
+// EnvLit is the `env` contextual keyword: it yields the VM's environment
+// variable table (a gad.Env). It is a keyword only as a standalone operand; as a
+// member name (`x.env`) `env` is an ordinary identifier.
+type EnvLit struct {
+	TokenPos source.Pos
+}
+
+func (e *EnvLit) ExprNode() {}
+
+// Pos returns the position of first character belonging to the node.
+func (e *EnvLit) Pos() source.Pos {
+	return e.TokenPos
+}
+
+// End returns the position of first character immediately after the node.
+func (e *EnvLit) End() source.Pos {
+	return e.TokenPos + source.Pos(len("env"))
+}
+
+func (e *EnvLit) String() string {
+	return "env"
+}
+
+func (e *EnvLit) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteString(e.String())
+}
+
 type RawHeredocLit struct {
 	Literal    string
 	LiteralPos source.Pos

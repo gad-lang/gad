@@ -20,6 +20,7 @@ func GadModule() Dict {
 		"StmtObject":       StmtType,
 		"SourceType":       SourceTypeEnum,
 		"SourceFileObject": SourceFileType,
+		"Env":              EnvType,
 	}
 }
 
@@ -60,6 +61,7 @@ func registerGadModule() {
 	BuiltinsMap[name+".StmtObject"] = BuiltinStmt
 	BuiltinsMap[name+".SourceType"] = BuiltinSourceType
 	BuiltinsMap[name+".SourceFileObject"] = BuiltinSourceFile
+	BuiltinsMap[name+".Env"] = BuiltinEnvType
 
 	// Per-operator builtins: gad.binOp{Op} / gad.unOp{Op} / gad.selfAssignOp{Op}.
 	registerOperatorBuiltins()

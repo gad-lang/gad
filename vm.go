@@ -54,6 +54,7 @@ type VM struct {
 	StdIn          *StackReader
 	ObjectToWriter ObjectToWriter
 	Builtins       *StaticBuiltins
+	env            *Env
 
 	*SetupOpts
 }
@@ -111,6 +112,7 @@ func (vm *VM) Clear() *VM {
 	vm.pool.clear()
 	vm.modulesCache = nil
 	vm.globals = nil
+	vm.env = nil
 	return vm
 }
 
@@ -251,10 +253,31 @@ func (vm *VM) init(opts *RunOpts) error {
 	}
 
 	vm.initGlobals(opts.Globals)
+	vm.initEnv(opts.Env)
 	vm.resetState(opts.Args, opts.NamedArgs)
 
 	return nil
 }
+
+func (vm *VM) initEnv(env *Env) {
+	if env == nil {
+		env = NewEnv(nil)
+	}
+	vm.env = env
+}
+
+// Env returns the VM's current environment variable table (the `env` keyword),
+// creating an empty one on demand.
+func (vm *VM) Env() *Env {
+	if vm.env == nil {
+		vm.env = NewEnv(nil)
+	}
+	return vm.env
+}
+
+// SetEnv replaces the VM's current environment table. Used by Env.Enter / .Exit
+// to fork and restore the env around a `with env { … }` block.
+func (vm *VM) SetEnv(env *Env) { vm.env = env }
 
 func (vm *VM) initAndRun(opts *RunOpts) (_ Object, err error) {
 	if err = vm.init(opts); err != nil {

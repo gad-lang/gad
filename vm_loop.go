@@ -600,6 +600,65 @@ VMLoop:
 		case OpGlobals:
 			vm.stack[vm.sp] = vm.GetGlobals()
 			vm.sp++
+		case OpEnv:
+			vm.stack[vm.sp] = vm.Env()
+			vm.sp++
+		case OpEnvGet:
+			key := vm.stack[vm.sp-1]
+			value, err := vm.Env().IndexGet(vm, key)
+			if err != nil {
+				if err = vm.throwGenErr(err); err != nil {
+					vm.err = err
+					return
+				}
+				continue
+			}
+			vm.stack[vm.sp-1] = value
+		case OpEnvSet:
+			cidx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+			vm.ip += 2
+			key := vm.constants[cidx]
+			value := vm.stack[vm.sp-1]
+			vm.sp--
+			vm.stack[vm.sp] = nil
+			if err := vm.Env().IndexSet(vm, key, value); err != nil {
+				if err = vm.throwGenErr(err); err != nil {
+					vm.err = err
+					return
+				}
+				continue
+			}
+		case OpDelete:
+			keys := vm.stack[vm.sp-1]
+			this := vm.stack[vm.sp-2]
+			vm.stack[vm.sp-1] = nil
+			vm.stack[vm.sp-2] = nil
+			vm.sp -= 2
+			id, _ := this.(IndexDeleter)
+			if id == nil {
+				if err := vm.throwGenErr(ErrNotIndexDeletable.NewError(this.Type().Name())); err != nil {
+					vm.err = err
+					return
+				}
+				continue
+			}
+			var delErr error
+			if arr, ok := keys.(Array); ok {
+				for _, k := range arr {
+					if delErr = id.IndexDelete(vm, k); delErr != nil {
+						break
+					}
+				}
+			} else {
+				delErr = id.IndexDelete(vm, keys)
+			}
+			if delErr != nil {
+				if delErr = vm.throwGenErr(delErr); delErr != nil {
+					vm.err = delErr
+					return
+				}
+				continue
+			}
 		case OpCallee:
 			vm.stack[vm.sp] = vm.curFrame.fn
 			vm.sp++

@@ -967,6 +967,14 @@ func (p *Parser) ParseLiteral() node.Expr {
 		p.Next()
 		return x
 	case token.Ident:
+		// `env` is a contextual keyword: as a standalone operand it yields the
+		// VM environment table. As a member name (`x.env`) it is parsed by the
+		// selector path, not here, so `x.env` stays an ordinary field.
+		if p.Token.Literal == "env" {
+			x := &node.EnvLit{TokenPos: p.Token.Pos}
+			p.Next()
+			return x
+		}
 		return p.ParseIdent()
 	case token.Int:
 		return p.ParseIntLit()
@@ -2450,6 +2458,11 @@ do:
 	// only these statements when followed by a NAME and `{` (see isTestStmtStart).
 	if p.Token.Token == token.Ident && p.isTestStmtStart() {
 		return p.ParseTestStmt()
+	}
+	// `delete Target[.field] [keys]` — `delete` is a contextual keyword only at
+	// statement start; as a member (`obj.delete(…)`) it stays an ordinary name.
+	if p.Token.Token == token.Ident && p.Token.Literal == "delete" && p.isDeleteStmtStart() {
+		return p.ParseDeleteStmt()
 	}
 	switch p.Token.Token {
 	case token.ConfigStart:

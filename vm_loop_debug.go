@@ -608,6 +608,56 @@ VMLoop:
 		case OpGlobals:
 			vm.stack[vm.sp] = vm.GetGlobals()
 			vm.sp++
+		case OpEnv:
+			vm.stack[vm.sp] = vm.Env()
+			vm.sp++
+		case OpEnvGet:
+			key := vm.stack[vm.sp-1]
+			value, err := vm.Env().IndexGet(vm, key)
+			if err != nil {
+				if err = vm.throwGenErr(err); err != nil {
+					vm.err = err
+					return
+				}
+				continue
+			}
+			vm.stack[vm.sp-1] = value
+		case OpEnvSet:
+			cidx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+			vm.ip += 2
+			key := vm.constants[cidx]
+			value := vm.stack[vm.sp-1]
+			vm.sp--
+			vm.stack[vm.sp] = nil
+			if err := vm.Env().IndexSet(vm, key, value); err != nil {
+				if err = vm.throwGenErr(err); err != nil {
+					vm.err = err
+					return
+				}
+				continue
+			}
+		case OpDelete:
+			cidx := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+			vm.ip += 2
+			key := vm.constants[cidx]
+			this := vm.stack[vm.sp-1]
+			vm.sp--
+			vm.stack[vm.sp] = nil
+			id, _ := this.(IndexDeleter)
+			if id == nil {
+				if err := vm.throwGenErr(ErrNotIndexDeletable.NewError(this.Type().Name())); err != nil {
+					vm.err = err
+					return
+				}
+				continue
+			}
+			if err := id.IndexDelete(vm, key); err != nil {
+				if err = vm.throwGenErr(err); err != nil {
+					vm.err = err
+					return
+				}
+				continue
+			}
 		case OpCallee:
 			vm.stack[vm.sp] = vm.curFrame.fn
 			vm.sp++

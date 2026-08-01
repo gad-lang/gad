@@ -1080,12 +1080,10 @@ func (c *Compiler) compileDictDestructuring(
 		}
 
 		if hasRest {
-			// remove the consumed key from the copy
-			c.emit(nd, OpGetBuiltin, int(BuiltinDelete))
+			// remove the consumed key from the copy (dict + key -> OpDelete)
 			c.emit(nd, OpGetLocal, dictSym.Index)
 			c.emit(nd, OpConstant, c.addConstant(Str(dictKey)))
-			c.emit(nd, OpCall, 2, 0)
-			c.emit(nd, OpPop)
+			c.emit(nd, OpDelete)
 		}
 	}
 
@@ -1272,6 +1270,17 @@ func (c *Compiler) compileDefineAssign(
 		c.emit(nd, OpModule)
 	} else if _, ok := identExpr.(*node.GlobalsLit); ok {
 		c.emit(nd, OpGlobals)
+	} else if _, ok := identExpr.(*node.EnvLit); ok {
+		// `env.X = v` : the value is already on the stack. A single static key
+		// (`env.NAME`) uses the dedicated OpEnvSet; other shapes (`env[expr] = v`,
+		// `env.a.b = v`) fall back to the generic OpEnv + OpSetIndex path.
+		if numSel == 1 {
+			if s, ok := selectors[0].(*node.StrLit); ok {
+				c.emit(nd, OpEnvSet, c.addConstant(Str(s.Value())))
+				return nil
+			}
+		}
+		c.emit(nd, OpEnv)
 	} else {
 		symbol, err := c.requireSymbol(nd, ident)
 		if err != nil {
@@ -1328,6 +1337,9 @@ func resolveAssignLHS(expr node.Expr) (name string, nameExpr node.Expr, selector
 		name = term.String()
 		nameExpr = term
 	case *node.GlobalsLit:
+		name = term.String()
+		nameExpr = term
+	case *node.EnvLit:
 		name = term.String()
 		nameExpr = term
 	}
@@ -2698,6 +2710,17 @@ func (c *Compiler) compilePrefixIncDec(nd *node.UnaryExpr) error {
 func (c *Compiler) compileSelectorExpr(nd *node.SelectorExpr) error {
 	defer c.pushSelector()()
 	expr, selectors := resolveSelectorExprs(nd)
+
+	// `env.NAME` reads the environment variable via the dedicated OpEnvGet
+	// (push the key, then OpEnvGet). Deeper access (`env.parent.X`) falls back to
+	// the generic OpEnv + OpGetIndex path below.
+	if _, ok := expr.(*node.EnvLit); ok && len(selectors) == 1 {
+		if err := c.Compile(selectors[0]); err != nil {
+			return err
+		}
+		c.emit(nd, OpEnvGet)
+		return nil
+	}
 
 	// Builtin module member access: `module.NAME`, where `module` is a builtin
 	// module namespace and `module.NAME` is a registered qualified builtin,

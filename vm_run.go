@@ -20,6 +20,9 @@ type RunOpts struct {
 	StdOut         io.Writer
 	StdErr         io.Writer
 	ObjectToWriter ObjectToWriter
+	// Env is the VM-scoped environment variable table reachable via the `env`
+	// keyword. When nil an empty env is used.
+	Env *Env
 }
 
 // Run runs VM and executes the instructions until the OpReturn Opcode or Abort call.
