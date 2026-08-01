@@ -64,12 +64,27 @@ port: "${PORT:-8080}"                # becomes the integer 8080
 The `env` section defines environment variables that seed the [`env`
 keyword](operators.md) available to scripts run in the workspace. It may be a
 mapping or a list of `NAME=value` entries, and its values are expanded as above
-(later entries can reference earlier ones):
+(later entries can reference earlier ones). The `env` table **extends** the
+process environment: a script sees the host's variables plus these.
 
 ```yaml
 env:
     APP_HOME: "${HOME}/app"
     PATH: "${APP_HOME}/bin:$PATH"
+```
+
+### Portable path lists
+
+A value may be an **array of segments** instead of a string. The segments are
+each expanded and then joined with the operating system's path-list separator
+(`:` on Unix, `;` on Windows). This keeps `PATH`-like variables portable — you
+never hard-code the separator:
+
+```yaml
+env:
+    GADPATH: ["${HOME}/gadlib", "${.project.shared}", "vendor"]
+    # → on Unix:    /home/u/gadlib:/srv/shared:vendor
+    # → on Windows: C:\Users\u\gadlib;\srv\shared;vendor
 ```
 
 ## `GADPATH`

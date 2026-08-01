@@ -744,6 +744,9 @@ type Script struct {
 	args       []string
 	sourcePath *importers.PathList
 	builtins   *gad.StaticBuiltins
+	// env is the workspace environment table (process env extended by the
+	// `.gad.yaml` `env` section) exposed to the script via the `env` keyword.
+	env *gad.Env
 }
 
 func newScript(builtins *gad.StaticBuiltins, ctx context.Context, modulePath string, workdir string, script []byte, traceOut io.Writer) *Script {
@@ -858,6 +861,7 @@ func (s *Script) execute() error {
 			Globals:   scriptGlobals,
 			Args:      gad.Args{args},
 			NamedArgs: gad.NewNamedArgs(gad.MustConvertToKeyValueArray(nil, namedArgs)),
+			Env:       s.env,
 		})
 	}()
 
@@ -969,8 +973,16 @@ func runScriptOrREPL(parent context.Context, filePath string, timeout time.Durat
 		importers.Shebang2Slashes(script)
 
 		checkErr(err, cancel)
+		// Workspace environment: process env extended by the `.gad.yaml` `env`
+		// section. A GADPATH entry there (fully expanded) becomes the module
+		// search path.
+		wsEnv := loadWorkspaceEnv(workdir)
+		if gp := gadPathFromEnv(wsEnv); gp != nil {
+			sourcePath = importers.PathList(gp)
+		}
 		s := newScript(giomBuiltins(modulePath).Build(), ctx, modulePath, workdir, script, os.Stdout)
 		s.args = args
+		s.env = wsEnv
 		err = s.execute()
 		checkErr(err, cancel)
 		return
