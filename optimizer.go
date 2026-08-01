@@ -179,6 +179,10 @@ func canOptimizeInsts(constants []Object, insts []byte) bool {
 		// at runtime (catchable) rather than become a compile error via the
 		// optimizer's eval. The explicit false also sizes the array to include it.
 		OpAssign: false,
+		// The env / delete opcodes read or mutate VM state (the environment table,
+		// an object's keys) and must never be constant-folded. The explicit false
+		// on the highest one also sizes the array to include them all.
+		OpEnv: false, OpEnvGet: false, OpEnvSet: false, OpDelete: false,
 	}
 
 	allowedBuiltins := [...]bool{

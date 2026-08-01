@@ -7,12 +7,16 @@ import (
 	gad "github.com/gad-lang/gad"
 )
 
-// runEnv compiles and runs src with the given env seeded into the VM.
+// runEnv compiles and runs src with the given env seeded into the VM. It
+// compiles with the constant/expression optimizer enabled (the CLI's default),
+// which must not choke on the env/delete opcodes.
 func runEnv(t *testing.T, src string, env *gad.Env) gad.Object {
 	t.Helper()
 	b := gad.NewBuiltins()
 	st := gad.NewSymbolTable(b.NameSet)
-	_, bc, err := gad.Compile(st, []byte(src), gad.CompileOptions{})
+	_, bc, err := gad.Compile(st, []byte(src), gad.CompileOptions{
+		CompilerOptions: gad.DefaultCompilerOptions,
+	})
 	if err != nil {
 		t.Fatalf("compile %q: %v", src, err)
 	}
