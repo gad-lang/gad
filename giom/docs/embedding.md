@@ -11,7 +11,7 @@ import (
     "bytes"
 
     "github.com/gad-lang/gad"
-    "github.com/gad-lang/giom"
+    "github.com/gad-lang/gad/giom"
 )
 
 func Render(src []byte, globals gad.Dict) (string, error) {
@@ -26,7 +26,10 @@ func Render(src []byte, globals gad.Dict) (string, error) {
         return "", err
     }
 
-    _, bc, err := giom.Compile(st, src, gad.CompileOptions{})
+    // GiomOptions selects Gad's native Giom front-end.
+    opts := gad.CompileOptions{}
+    opts.GiomOptions = &gad.GiomOptions{}
+    _, bc, err := gad.Compile(st, src, opts)
     if err != nil {
         return "", err
     }
@@ -54,14 +57,16 @@ does this for you.
 
 ## Compiling Several Templates
 
-`giom.Compile` is shorthand for `giom.NewCompiler(st, opts).Compile(input)`. Give
-each template its own symbol table: a compiled template binds a root `tag` at the
-module top level, so a symbol table is not shared across independent compiles.
+Give each template its own symbol table: a compiled template binds a root `tag`
+at the module top level, so a symbol table is not shared across independent
+compiles.
 
 ```go
 for _, src := range sources {
     st := gad.NewSymbolTable(builtins.NameSet)
-    _, bc, err := giom.Compile(st, src, gad.CompileOptions{})
+    opts := gad.CompileOptions{}
+    opts.GiomOptions = &gad.GiomOptions{}
+    _, bc, err := gad.Compile(st, src, opts)
     if err != nil {
         return err
     }
@@ -69,7 +74,7 @@ for _, src := range sources {
 }
 ```
 
-Each `Compile` call returns the parsed Giom AST and executable Gad bytecode. For
+Each `gad.Compile` call returns the parsed file and executable Gad bytecode. For
 automatic bytecode caching and file-change detection, prefer the `Render` struct
 below.
 
@@ -84,7 +89,7 @@ Use the `NewRender` constructor to set the work directory (resolved to an
 absolute path automatically):
 
 ```go
-import "github.com/gad-lang/giom"
+import "github.com/gad-lang/gad/giom"
 
 r := giom.NewRender("./templates")
 r.TemplateDelay = 5 * time.Second
@@ -103,7 +108,7 @@ err := r.Render(&out, "template.giom", gad.Dict{
 ```
 
 The `TemplateDelay` (default 15s) prevents recompilation on rapid file saves.
-`WorkDir` is the base for resolving `@import` lines via `FileImporter`.
+`WorkDir` is the base for resolving `@import` lines via the file importer.
 `TranspilePath` is optional — when set, transpiled `.gad` files are written
 for inspection.
 
@@ -204,38 +209,40 @@ Only use `gad.RawStr` for trusted content.
 
 ## Import Resolution
 
-Giom uses `giom.FileImporter` to resolve `@import` lines during compilation.
-The importer is set via `gad.ModuleMap.SetExtImporter`:
+`@import` lines are resolved by Gad's file importer,
+`github.com/gad-lang/gad/importers.FileImporter`, which compiles imported
+`.giom` files natively. The importer is set via `gad.ModuleMap.SetExtImporter`:
 
 ```go
-imports := gad.NewModuleMap().SetExtImporter(&giom.FileImporter{
+import "github.com/gad-lang/gad/importers"
+
+mm := gad.NewModuleMap().SetExtImporter(&importers.FileImporter{
     WorkDir:       "./templates",
-    FileReader:    os.ReadFile,
+    FileReader:    importers.ShebangReadFile,
     TranspilePath: nil, // optional: write .gad files for inspection
 })
+
+opts := gad.CompileOptions{}
+opts.GiomOptions = &gad.GiomOptions{}
+opts.ModuleMap = mm
 ```
 
-`FileImporter` also handles named imports (`@import "file.giom" as name`)
-and compiles imported Giom files to Gad bytecode transparently.
+`FileImporter` also handles named imports (`@import "file.giom" as name`) and
+compiles imported `.giom` files to Gad bytecode transparently. (`giom.Render`
+wires this importer for you.)
 
 The CMS example in `examples/cms` demonstrates this in production.
 
 ## Transpiling For Inspection
 
-You can parse and convert a Giom file to Gad statements:
+`gad.TranspileGiom` parses a Giom source and writes the equivalent Gad source to
+a file (a `.gad` suffix is appended when missing):
 
 ```go
-fs := source.NewFileSet()
-f := fs.AddFileData("template.giom", -1, src)
-p := parser.NewParser(f)
-file, err := p.ParseFile()
-if err != nil {
-    return err
-}
+import "github.com/gad-lang/gad"
 
-stmts := node.Convert(file.Stmts)
-var buf bytes.Buffer
-gnode.CodeW(&buf, stmts, gnode.CodeWithPrefix("\t"), gnode.CodeFormat())
+err := gad.TranspileGiom("template.giom", src, "out/template.gad")
 ```
 
-This is useful for debugging, teaching, and generated-template review.
+This is useful for debugging, teaching, and generated-template review. The
+`Render` struct's `TranspilePath` field does the same for each compiled file.

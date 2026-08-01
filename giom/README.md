@@ -59,7 +59,7 @@ import (
     "log"
 
     "github.com/gad-lang/gad"
-    "github.com/gad-lang/giom"
+    "github.com/gad-lang/gad/giom"
 )
 
 func main() {
@@ -73,7 +73,10 @@ func main() {
         log.Fatal(err)
     }
 
-    _, bc, err := giom.Compile(st, src, gad.CompileOptions{})
+    // GiomOptions selects Gad's native Giom front-end.
+    opts := gad.CompileOptions{}
+    opts.GiomOptions = &gad.GiomOptions{}
+    _, bc, err := gad.Compile(st, src, opts)
     if err != nil {
         log.Fatal(err)
     }
@@ -100,7 +103,7 @@ func main() {
 }
 ```
 
-`giom.Compile` is shorthand for `giom.NewCompiler(st, opts).Compile(src)`. Give
+Giom source compiles through Gad's native front-end (`opts.GiomOptions`). Give
 each independent template its own symbol table (a compiled template binds a root
 tag at the module top level), or use the caching [`Render`](docs/embedding.md)
 struct, which handles this for you.
@@ -119,17 +122,20 @@ struct, which handles this for you.
 ## Repository Layout
 
 ```text
-.
-├── compiler.go          # Giom compiler entry points
-├── builtins.go          # HTML and write builtins
+giom/
+├── builtins.go          # HTML and write builtins (giom.Tag/Text/attr/write)
+├── element.go           # Render tree types (Element, Tag, Text)
 ├── render.go            # High-level Render struct with caching
-├── importer.go          # FileImporter for @import resolution
 ├── node/                # Giom AST nodes and Gad conversion
 ├── parser/              # Indentation parser and scanner
 ├── token/               # Giom token definitions
 ├── examples/cms/        # Full CMS example
 └── docs/                # User documentation
 ```
+
+Compilation lives in the parent Gad module (`gad.CompileOptions.GiomOptions`,
+`importers.FileImporter`); runnable examples are in the repository's
+[`samples/giom/`](../samples/giom).
 
 ## CMS Example
 

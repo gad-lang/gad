@@ -1,12 +1,13 @@
 # Project Structure
 
-The current repository root is the Giom implementation.
+Giom lives in the `giom/` directory of the Gad repository as the `giom`
+sub-package.
 
 ```text
-.
+giom/
 ├── builtins.go
 ├── element.go
-├── compiler.go
+├── render.go
 ├── go.mod
 ├── node/
 ├── parser/
@@ -20,16 +21,18 @@ The current repository root is the Giom implementation.
 
 ## Root Package
 
-The root package is `github.com/gad-lang/giom`.
+The package path is `github.com/gad-lang/gad/giom`.
 
-Important exported functions:
+This package holds the Giom **runtime** — the render tree and the `giom`
+builtins. Giom **compilation** is part of Gad itself
+(`gad.CompileOptions.GiomOptions`), not this package.
 
-- `Compile`
-- `CompileFile`
-- `AppendBuiltins`
+Important exported names:
 
-`element.go` defines the render tree types (`Element`, `Tag`, `Text`) that a
-compiled template builds and returns; see [API Reference](api.md) for details.
+- `AppendBuiltins` — register the `giom` builtins.
+- `Render` / `NewRender` — the cached template engine.
+- `Element`, `Tag`, `Text` — the render tree types (defined in `element.go`)
+  that a compiled template builds and returns; see [API Reference](api.md).
 
 ## `node/`
 
@@ -48,13 +51,13 @@ Token definitions for Giom syntax.
 ## `examples/cms/`
 
 A nested Go module containing a full web application example. It depends on the
-root module through:
+`giom` package through:
 
 ```go
-replace github.com/gad-lang/giom => ../..
+replace github.com/gad-lang/gad/giom => ../..
 ```
 
-## Removed Legacy Areas
+## Samples
 
-The old root implementation, old command examples, old samples, and test data
-were removed as part of the root migration.
+Runnable `.giom` examples live under the repository's top-level
+[`samples/giom/`](../../samples/giom) directory.

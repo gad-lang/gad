@@ -4,18 +4,18 @@ This guide shows the shortest path from a Giom template to rendered HTML.
 
 ## Install
 
-Use Giom as a Go module dependency:
+Giom ships inside the Gad module, so add Gad as a dependency:
 
 ```sh
-go get github.com/gad-lang/giom
+go get github.com/gad-lang/gad
 ```
 
-Giom builds on Gad, so applications usually import both packages:
+Applications usually import both the `gad` package and the `giom` sub-package:
 
 ```go
 import (
     "github.com/gad-lang/gad"
-    "github.com/gad-lang/giom"
+    "github.com/gad-lang/gad/giom"
 )
 ```
 
@@ -46,7 +46,10 @@ builtins := giom.AppendBuiltins(gad.NewBuiltins())
 st := gad.NewSymbolTable(builtins.NameSet)
 _, _ = st.DefineGlobals([]string{"Name"})
 
-_, bc, err := giom.Compile(st, src, gad.CompileOptions{})
+// GiomOptions selects Gad's native Giom front-end.
+opts := gad.CompileOptions{}
+opts.GiomOptions = &gad.GiomOptions{}
+_, bc, err := gad.Compile(st, src, opts)
 if err != nil {
     return err
 }
@@ -90,8 +93,9 @@ templates/
         h1 {= Model.Title}
 ```
 
-Your application can resolve `@import` lines before compilation, then call
-`giom.Compile` with the combined source.
+`@import` lines are resolved automatically during compilation by the file
+importer (`github.com/gad-lang/gad/importers.FileImporter`), which compiles
+imported `.giom` modules natively — see [Embedding in Go](embedding.md).
 
 ## First Concepts
 

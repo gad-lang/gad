@@ -115,7 +115,7 @@ preserved.
     </a>
 ```
 
-A runnable example is in `samples/html.giom`. Use the pug-style `tag[attr=…]`
+A runnable example is in `samples/giom/html.giom`. Use the pug-style `tag[attr=…]`
 syntax (below) when you prefer giom's indentation-based nesting.
 
 ## Text

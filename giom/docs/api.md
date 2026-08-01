@@ -5,8 +5,12 @@ This is a practical user-level API reference. For exact signatures, use `go doc`
 ## Package
 
 ```go
-import "github.com/gad-lang/giom"
+import "github.com/gad-lang/gad/giom"
 ```
+
+Giom ships inside the Gad module. Its runtime (the render tree and the `giom`
+builtins) lives in this package; Giom **compilation** is built into Gad itself
+(`gad.CompileOptions.GiomOptions`), so there is no separate Giom compiler.
 
 ## `AppendBuiltins`
 
@@ -59,56 +63,34 @@ otherwise it is the first content argument. The tag-building operators are
 `tag[name] = value` (set one attribute) and `tag.attrs += kva` (merge
 attributes).
 
-## `Compile`
+## Compilation (`gad.Compile` with `GiomOptions`)
+
+Giom source is compiled with Gad's own compiler by setting `GiomOptions` on the
+compile options — the Giom front-end parses the indentation-based syntax and
+lowers it to Gad before compilation:
 
 ```go
-func Compile(st *gad.SymbolTable, input []byte, opts gad.CompileOptions) (*node.File, *gad.Bytecode, error)
+opts := gad.CompileOptions{}
+opts.GiomOptions = &gad.GiomOptions{}
+_, bc, err := gad.Compile(st, src, opts)
 ```
 
-Parses Giom source and compiles it to Gad bytecode. It is shorthand for
-`NewCompiler(st, opts).Compile(input)`.
+`bc` is executable Gad bytecode. Give each independent template its own symbol
+table: a compiled template binds a root `tag` at the module top level, so a
+symbol table cannot be reused across separate compiles.
 
-```go
-file, bc, err := giom.Compile(st, src, gad.CompileOptions{})
-```
+Register the Giom builtins on the symbol table's builtins first
+(`giom.AppendBuiltins`), since the lowered code references `giom.Tag`,
+`giom.write`, and friends.
 
-`file` is the parsed Giom AST. `bc` is executable Gad bytecode.
+Related Gad helpers:
 
-## `Compiler`
-
-```go
-type Compiler struct { /* unexported */ }
-
-func NewCompiler(st *gad.SymbolTable, opts gad.CompileOptions) *Compiler
-func (c *Compiler) Compile(input []byte) (*node.File, *gad.Bytecode, error)
-```
-
-A `Compiler` binds a symbol table and compile options. Construct one with
-`NewCompiler` and call `Compile` for each source; each call returns the parsed
-Giom AST and executable Gad bytecode, exactly like the package-level
-[`Compile`](#compile).
-
-```go
-_, bcHome, err := giom.NewCompiler(stHome, gad.CompileOptions{}).
-    Compile([]byte("@main\n    p Home\n"))
-// ...
-_, bcAbout, err := giom.NewCompiler(stAbout, gad.CompileOptions{}).
-    Compile([]byte("@main\n    p About\n"))
-```
-
-Give each independent template its own symbol table: a compiled template binds a
-root `tag` at the module top level, so a symbol table cannot be reused across
-separate compiles. A nil symbol table is created on demand at compile time. The
-package-level `Compile` is simply `NewCompiler(st, opts).Compile(input)`.
-
-## `CompileFile`
-
-```go
-func CompileFile(st *gad.SymbolTable, module *gad.ModuleSpec, file *node.File, opts gad.CompileOptions) (*gad.Bytecode, error)
-```
-
-Compiles an already parsed Giom file. Use this when you need parser access before
-compilation.
+- `gad.TranspileGiom(name, src, outPath)` — write the lowered Gad source to a
+  file (see [Transpile](#transpile)).
+- `gad.CompileGiomModule(ctx, src)` — compile Giom as an imported module from a
+  custom `gad.ExtImporter`.
+- `importers.FileImporter` — resolves `@import` of `.giom` files natively (see
+  [FileImporter](#fileimporter)).
 
 ## `Render` Struct
 
@@ -219,47 +201,52 @@ r.OnRender(func(first bool, mainFile string, files []string, lastTime time.Time,
 - If recompilation fails, the old bytecode remains in the cache and continues
   to be served. Callbacks still fire with the error.
 
-## `Transpile`
+## Transpile
 
 ```go
-func Transpile(name string, src []byte, outPath string) error
+func gad.TranspileGiom(name string, src []byte, outPath string) error
 ```
 
-Parses Giom source, converts it to Gad statements, and writes the result
-to `outPath`. Useful for inspection and debugging.
+Parses Giom source, converts it to Gad statements, and writes the result to
+`outPath` (a `.gad` suffix is appended when missing). Useful for inspection and
+debugging.
 
 ```go
-giom.Transpile("template.giom", src, "template.gad")
+gad.TranspileGiom("template.giom", src, "template.gad")
 ```
 
 ## `FileImporter`
 
 ```go
-type FileImporter struct {
+import "github.com/gad-lang/gad/importers"
+
+type importers.FileImporter struct {
     WorkDir       string
     FileReader    func(path string) ([]byte, string, error)
+    NameResolver  func(cwd, name string) (string, error)
     TranspilePath func(srcPath string) string
 }
 ```
 
-Implements `gad.ExtImporter` for resolving `@import` lines in Giom
-templates. It reads imported files via `FileReader`, compiles them to
-Gad bytecode, and optionally writes transpiled `.gad` output.
+Gad's file importer implements `gad.ExtImporter`. It resolves `@import` lines,
+reading imported files via `FileReader`; a `.giom` module is compiled natively
+with the Giom front-end (and, when `TranspilePath` is set, its transpiled `.gad`
+output is written).
 
 Used automatically by `Render` when `WorkDir` is set. Can also be wired
 manually:
 
 ```go
-mm := gad.NewModuleMap().SetExtImporter(&giom.FileImporter{
+mm := gad.NewModuleMap().SetExtImporter(&importers.FileImporter{
     WorkDir:    "./templates",
-    FileReader: os.ReadFile,
+    FileReader: importers.ShebangReadFile,
 })
 ```
 
 ## Parser Package
 
 ```go
-import "github.com/gad-lang/giom/parser"
+import "github.com/gad-lang/gad/giom/parser"
 ```
 
 ```go
@@ -272,7 +259,7 @@ file, err := p.ParseFile()
 ## Node Package
 
 ```go
-import giomnode "github.com/gad-lang/giom/node"
+import giomnode "github.com/gad-lang/gad/giom/node"
 ```
 
 Convert Giom nodes to Gad nodes:
@@ -284,7 +271,7 @@ stmts := giomnode.Convert(file.Stmts)
 ## Token Package
 
 ```go
-import "github.com/gad-lang/giom/token"
+import "github.com/gad-lang/gad/giom/token"
 ```
 
 Contains Giom token definitions used by the parser and scanner.

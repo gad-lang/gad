@@ -167,7 +167,7 @@ parameter. To render the component's default for that item, forward the scope to
 ```
 
 A runnable version of scoped slots and `super` forwarding is in
-`samples/slot_params.giom`.
+`samples/giom/slot_params.giom`.
 
 ## Passing Slots Programmatically
 
@@ -216,7 +216,7 @@ empty function) as its first argument; its returned fragment is appended with
     ~~
 ```
 
-See `samples/slots_programmatic.giom` for a runnable version.
+See `samples/giom/slots_programmatic.giom` for a runnable version.
 
 ## Dynamic Slot Names
 
@@ -264,7 +264,7 @@ they declare:
         li {= mark }{= it }
 ```
 
-A runnable version is in `samples/slot_dynamic_name.giom`.
+A runnable version is in `samples/giom/slot_dynamic_name.giom`.
 
 ## Card Component
 
