@@ -38,7 +38,7 @@ var guideOrder = []string{
 }
 
 var refOrder = []string{
-	"tutorial", "metaprogramming", "stdlib-strings", "stdlib-fmt", "stdlib-json", "stdlib-time",
+	"tutorial", "metaprogramming", "workspace-config", "stdlib-strings", "stdlib-fmt", "stdlib-json", "stdlib-time",
 }
 
 // giomOrder is the curated nav ordering for the Giom template docs, sourced from

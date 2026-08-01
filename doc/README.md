@@ -61,6 +61,9 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
 - [Metaprogramming](metaprogramming.md) — the `gad` namespace: `gad.parse` /
   `gad.parseFile` / `gad.eval`, the `SourceType` enum, `SourceFileObject` /
   `StmtsObject`, and native Giom (`.giom`) compilation.
+- [Workspace Configuration](workspace-config.md) — `.gad.yaml` / `.gadide.yaml`,
+  the `env` section, `GADPATH`, and bash-style variable expansion of config
+  values.
 
 ## Giom Templates
 
