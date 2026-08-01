@@ -19,6 +19,8 @@ const keywords = [
   "ain", "met", "meti", "prop", "with",
   // added by update plugin
   "class", "enum", "interface",
+  // `env` environment-table keyword; `delete` statement.
+  "env", "delete",
 ];
 
 const atoms = ["true", "false", "yes", "no", "nil"];
@@ -29,7 +31,7 @@ const builtins = [
   "typeName", "typeof", "isArray", "isBool", "isBytes", "isCallable", "isChar",
   "isDict", "isError", "isFloat", "isFunction", "isInt", "isIterable",
   "isIterator", "isNil", "isRawStr", "isStr", "isUint", "isSyncDict",
-  "len", "append", "delete", "copy", "dcopy", "repeat", "contains", "sort",
+  "len", "copy", "dcopy", "repeat", "contains", "sort",
   "sortReverse", "keys", "values", "items", "zip", "enumerate",
   "map", "filter", "reduce", "each", "iterate", "iterator", "collect", "toArray",
   "print", "println", "printf", "sprintf", "repr", "read", "write", "flush",

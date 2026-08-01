@@ -54,6 +54,12 @@ func Extract() Lang {
 		l.Constants = append(l.Constants, c.String())
 	}
 
+	// Contextual keywords that are recognised by the parser rather than the
+	// scanner (so they are not in the token keyword group), but should still be
+	// highlighted as keywords: `env` (the environment-table keyword) and `delete`
+	// (the delete statement).
+	l.Keywords = append(l.Keywords, "env", "delete")
+
 	// Global builtin functions are the unqualified BuiltinsMap entries (a `.`
 	// marks a namespaced member such as `time.now`) that resolve to a function.
 	for name, bt := range gad.BuiltinsMap {

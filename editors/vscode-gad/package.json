@@ -78,6 +78,26 @@
       }
     ],
     "breakpoints": [{ "language": "gad" }, { "language": "giom" }],
+    "yamlValidation": [
+      {
+        "fileMatch": ".gad.yaml",
+        "url": "./schemas/gad-config.schema.json"
+      },
+      {
+        "fileMatch": ".gadide.yaml",
+        "url": "./schemas/gadide-config.schema.json"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": ".gad.yaml",
+        "url": "./schemas/gad-config.schema.json"
+      },
+      {
+        "fileMatch": ".gadide.yaml",
+        "url": "./schemas/gadide-config.schema.json"
+      }
+    ],
     "configuration": {
       "title": "Gad",
       "properties": {

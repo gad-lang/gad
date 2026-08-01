@@ -14,6 +14,8 @@ export const keywords: string[] = [
   "ain", "met", "meti", "prop", "with",
   // added by update plugin
   "class", "enum", "interface",
+  // `env` is the environment-table keyword; `delete` is the delete statement.
+  "delete", "env",
 ];
 
 export const atoms: string[] = ["true", "false", "yes", "no", "nil"];
@@ -31,8 +33,8 @@ export const builtins: string[] = [
   "typeName", "typeof", "is", "isArray", "isBool", "isBytes", "isCallable",
   "isChar", "isDict", "isError", "isFloat", "isFunction", "isInt", "isIterable",
   "isIterator", "isNil", "isRawStr", "isStr", "isUint", "isSyncDict",
-  // sequences / collections
-  "len", "append", "delete", "copy", "dcopy", "repeat", "contains", "sort",
+  // sequences / collections (append/delete are now operators/statements, not builtins)
+  "len", "copy", "dcopy", "repeat", "contains", "sort",
   "sortReverse", "keys", "values", "items", "zip", "enumerate",
   // iteration
   "map", "filter", "reduce", "each", "iterate", "iterator", "collect", "toArray",
