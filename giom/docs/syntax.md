@@ -85,12 +85,12 @@ div[title=join(items, ", "), data-ids=[1, 2, 3]]
 
 A trailing `? condition` applies to every attribute in the group.
 
-## Raw HTML
+## Inline HTML
 
-A line starting with `<` is parsed as a raw HTML region. It runs from the
-opening tag to its matching close tag (spanning multiple lines if needed); giom
-indentation inside is ignored and runs of whitespace collapse to a single space.
-`<> … </>` is a fragment: it renders its children with no wrapping element.
+A line starting with `<` is parsed as an inline HTML region. It runs from the
+opening tag to its matching close tag (spanning multiple lines if needed), and
+runs of whitespace collapse to a single space. `<> … </>` is a fragment: it
+renders its children with no wrapping element.
 
 ```giom
 @main
@@ -102,11 +102,20 @@ indentation inside is ignored and runs of whitespace collapse to a single space.
     </ul>
 ```
 
+The region is **compiled to the same `giom.Tag` / `giom.Text` elements as the
+pug-style tag syntax** — it is not emitted as a raw string. So it shares the
+tag rendering rules: void elements self-close (`<br>` → `<br />`), boolean
+attributes expand (`<input disabled>` → `<input disabled="disabled" />`), and
+attributes are classified (regular attributes first, then the class list).
+Because the AST carries real giom tag nodes, an inline HTML region also
+transpiles back to pug-style giom (`gofmt`-style, via `WriteGiom`):
+`<a href="/x">Home</a>` becomes `a[href="/x"]` with an indented `| Home`.
+
 Attributes may be interpolated with `{expr}` — both the value and the name. An
 interpolated value is auto-quoted and HTML-escaped (a falsy value drops the
-attribute); an interpolated name builds the attribute name from the expression.
-`{expr}` also interpolates text content. Interpolation source positions are
-preserved.
+attribute); an interpolated name builds the attribute name from the expression
+(lowered to a computed `**{[name]: value}` spread). `{expr}` also interpolates
+text content. Interpolation source positions are preserved.
 
 ```giom
 @main
@@ -115,8 +124,33 @@ preserved.
     </a>
 ```
 
-A runnable example is in `samples/giom/html.giom`. Use the pug-style `tag[attr=…]`
-syntax (below) when you prefer giom's indentation-based nesting.
+### Interleaving giom statements
+
+Block-level giom statements (`@if`, `@for`, `@match`, `+comp`, `~code`) may be
+interleaved inside an HTML region by indentation. The directive line and every
+line indented deeper than it form the block — which may itself contain HTML —
+and it renders as a child of the enclosing element, in source order alongside
+sibling HTML. `@else` / `@else if` clauses continue the block at the same
+indentation.
+
+```giom
+@main
+    <ul class="menu">
+        <li>Home</li>
+        @if user
+            <li>{user.name}</li>
+        @else
+            <li>Sign in</li>
+        @for item in items
+            <li>{item}</li>
+    </ul>
+```
+
+The interleaved block is parsed by the full giom parser, so any giom construct
+is available; source lines resolve back to the original `.giom` file (line
+accurate). Runnable examples are in `samples/giom/html.giom` and
+`samples/giom/html_control_flow.giom`. Use the pug-style `tag[attr=…]` syntax
+(below) when you prefer giom's indentation-based nesting throughout.
 
 ## Text
 

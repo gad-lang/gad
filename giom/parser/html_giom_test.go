@@ -39,6 +39,17 @@ func TestHtmlWriteGiom(t *testing.T) {
 	}
 }
 
+// TestHtmlWriteGiomInterleave checks that a giom statement interleaved inside an
+// HTML region transpiles back as a giom directive (not raw HTML).
+func TestHtmlWriteGiomInterleave(t *testing.T) {
+	out := transpileGiom(t, "@main\n    <ul>\n        @for x in [1, 2]\n            <li>{x}</li>\n    </ul>\n")
+	for _, want := range []string{"ul", "@for (x in [1, 2])", "li", "{x}"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("transpiled giom missing %q:\n%s", want, out)
+		}
+	}
+}
+
 // TestHtmlWriteGiomNested checks nested elements and an interpolated attribute.
 func TestHtmlWriteGiomNested(t *testing.T) {
 	out := transpileGiom(t, "@global u\n@main\n    <ul><li><a href={u}>x</a></li></ul>\n")

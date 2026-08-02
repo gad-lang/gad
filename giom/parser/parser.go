@@ -279,10 +279,14 @@ func (p *Parser) parseHtml() *giomnode.HtmlStmt {
 	if base == noBase {
 		base = tok.Pos
 	}
+	children, subErrs := buildHtmlNodes(raw, base)
+	for _, e := range subErrs {
+		p.Error(e.pos, e.msg)
+	}
 	return &giomnode.HtmlStmt{
-		NodePos: tok.Pos,
-		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
-		Children: buildHtmlNodes(raw, base),
+		NodePos:  tok.Pos,
+		NodeEnd:  tok.Pos + source.Pos(len(tok.Literal)),
+		Children: children,
 	}
 }
 

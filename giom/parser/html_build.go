@@ -14,15 +14,18 @@ import (
 // pug-style tag syntax — instead of being written as raw HTML markup, and
 // transpiles back to pug-style giom. Source positions of interpolation
 // expressions (`{expr}`) are preserved.
-func buildHtmlNodes(raw string, base source.Pos) gnode.Stmts {
-	b := &htmlBuilder{src: raw, base: base}
+func buildHtmlNodes(raw string, base source.Pos) (gnode.Stmts, []htmlSubError) {
+	rewritten, blocks, errs := rewriteGiomBlocks(raw, base)
+	b := &htmlBuilder{src: rewritten, base: base, blocks: blocks}
 	nodes, _ := b.parseNodes(0)
-	return nodes
+	return nodes, errs
 }
 
 type htmlBuilder struct {
-	src  string
-	base source.Pos
+	src      string
+	base     source.Pos
+	blocks   []gnode.Stmts // inline giom blocks, in source order (see rewriteGiomBlocks)
+	blockCur int           // next block to splice at a sentinel
 }
 
 func (b *htmlBuilder) pos(i int) source.Pos { return b.base + source.Pos(i) }
@@ -59,9 +62,7 @@ func (b *htmlBuilder) parseNodes(i int) (gnode.Stmts, int) {
 		if j := strings.IndexByte(s[i:], '<'); j >= 0 {
 			end = i + j
 		}
-		if txt := b.textNode(i, end); txt != nil {
-			out = append(out, txt)
-		}
+		b.emitTextRun(i, end, &out)
 		i = end
 	}
 	return out, i
@@ -77,6 +78,43 @@ func (b *htmlBuilder) skipCloseTag(i int) int {
 		return i + gt + 1
 	}
 	return len(s)
+}
+
+// emitTextRun appends the nodes for the text run src[start:end]. The run may
+// contain sentinels marking interleaved giom blocks; each is spliced in as
+// sibling statements (see rewriteGiomBlocks). The literal spans between
+// sentinels become TextStmts, except whitespace-only spans (the padding a
+// collapsed block leaves behind), which are dropped.
+func (b *htmlBuilder) emitTextRun(start, end int, out *gnode.Stmts) {
+	s := b.src
+	if strings.IndexByte(s[start:end], sentinel) < 0 {
+		// No interleaved block: preserve the normal text/whitespace behavior.
+		if txt := b.textNode(start, end); txt != nil {
+			*out = append(*out, txt)
+		}
+		return
+	}
+	seg := start
+	for i := start; i < end; i++ {
+		if s[i] != sentinel {
+			continue
+		}
+		if strings.TrimSpace(s[seg:i]) != "" {
+			if txt := b.textNode(seg, i); txt != nil {
+				*out = append(*out, txt)
+			}
+		}
+		if b.blockCur < len(b.blocks) {
+			*out = append(*out, b.blocks[b.blockCur]...)
+			b.blockCur++
+		}
+		seg = i + 1
+	}
+	if strings.TrimSpace(s[seg:end]) != "" {
+		if txt := b.textNode(seg, end); txt != nil {
+			*out = append(*out, txt)
+		}
+	}
 }
 
 // parseElement parses `<name attrs>children</name>` or a self-closing element,

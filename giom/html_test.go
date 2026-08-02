@@ -90,6 +90,52 @@ func TestHtmlRegions(t *testing.T) {
 	}
 }
 
+// TestHtmlInterleave covers block-level giom statements (@if/@for/@else)
+// interleaved inside an HTML region by indentation: the directive line and its
+// more-indented body (which may itself contain HTML) render as children of the
+// enclosing element, in source order alongside sibling HTML.
+func TestHtmlInterleave(t *testing.T) {
+	g := gad.Dict{
+		"items": gad.Array{gad.Str("a"), gad.Str("b")},
+		"on":    gad.True,
+	}
+	tests := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "if inside element",
+			src:  "@main\n    <div>\n        @if 1\n            <hr>\n    </div>\n",
+			want: `<div><hr /></div>`,
+		},
+		{
+			name: "for inside element",
+			src:  "@global items\n@main\n    <ul>\n        @for x in items\n            <li>{x}</li>\n    </ul>\n",
+			want: `<ul><li>a</li><li>b</li></ul>`,
+		},
+		{
+			name: "if/else inside element",
+			src:  "@global on\n@main\n    <div>\n        @if on\n            <b>Y</b>\n        @else\n            <i>N</i>\n    </div>\n",
+			want: `<div><b>Y</b></div>`,
+		},
+		{
+			// The @for block renders between sibling HTML in source order.
+			name: "interleaved with sibling HTML",
+			src:  "@global items\n@main\n    <ul><li>head</li>\n        @for x in items\n            <li>{x}</li>\n    </ul>\n",
+			want: `<ul><li>head</li><li>a</li><li>b</li></ul>`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := strings.TrimSpace(renderGiom(t, tc.src, g))
+			if got != tc.want {
+				t.Fatalf("render mismatch\n got: %q\nwant: %q", got, tc.want)
+			}
+		})
+	}
+}
+
 // TestHtmlInterpolationPosition verifies a nil-call inside an HTML interpolation
 // reports the correct source line and column.
 func TestHtmlInterpolationPosition(t *testing.T) {
