@@ -3049,7 +3049,29 @@ func (c *Compiler) compileFileStmts(stmts node.Stmts) (err error) {
 		}
 	}
 
-	return c.compileStmts(stmts...)
+	// A non-main module's exports are collected (compileExportStmt accumulates)
+	// and lowered together as a single dict + OpExtendModule, emitted right after
+	// the last export statement so it precedes any trailing statement (e.g. an
+	// explicit `return`) instead of becoming dead code at the end. The main module
+	// ignores exports entirely, so no split is needed there.
+	lastExport := -1
+	if c.module == nil || !c.module.Main {
+		for i, stmt := range stmts {
+			if _, ok := stmt.(*node.ExportStmt); ok {
+				lastExport = i
+			}
+		}
+	}
+	if lastExport < 0 {
+		return c.compileStmts(stmts...)
+	}
+	if err = c.compileStmts(stmts[:lastExport+1]...); err != nil {
+		return
+	}
+	if err = c.flushExports(stmts[lastExport]); err != nil {
+		return
+	}
+	return c.compileStmts(stmts[lastExport+1:]...)
 }
 
 func (c *Compiler) defineModule(module *ModuleSpec) *storeItem {
@@ -3686,59 +3708,91 @@ func (c *Compiler) compileExportStmt(nd *node.ExportStmt) (err error) {
 		return nil
 	}
 
-	var (
-		key   = nd.KeyExpr
-		value = nd.ValueExpr
-	)
+	// Non-main modules accumulate their exports; they are lowered together as a
+	// single dict + one OpExtendModule after the last export (see flushExports).
+	elems, err := c.exportElements(nd)
+	if err != nil {
+		return err
+	}
+	c.pendingExports = append(c.pendingExports, elems...)
+	return nil
+}
+
+// exportElements converts one `export` statement into the dict element(s) it
+// contributes to the module's combined export dict. It mirrors the accepted
+// export forms: `export {…}` (merge), `export (expr)` (spread-merge),
+// `export name`/`export name = v`/`export func f(){…}` (named entry), and
+// `export [expr] = v` (computed-key entry).
+func (c *Compiler) exportElements(nd *node.ExportStmt) ([]*node.DictElementLit, error) {
+	key := nd.KeyExpr
+	value := nd.ValueExpr
 	if key == nil {
 		switch t := nd.ValueExpr.(type) {
-		case *node.DictExpr, *node.ParenExpr:
-			if err = c.Compile(t); err != nil {
-				return
-			}
-
-			c.emit(nd, OpExtendModule)
-			c.emit(nd, OpPop)
-			return nil
+		case *node.DictExpr:
+			// export {f:5, g:6} -> inline its entries into the combined dict.
+			return t.Elements, nil
+		case *node.ParenExpr:
+			// export (expr) -> merge the dict the expression yields (`*expr`).
+			return []*node.DictElementLit{{Spread: t}}, nil
 		case *node.FuncWithMethodsExpr:
 			if t.NameExpr == nil {
-				return c.Errorf(t, "*ExportStmt of value as %T require NameExpr field", t)
+				return nil, c.Errorf(t, "*ExportStmt of value as %T require NameExpr field", t)
 			}
-			var ok bool
-			if key, ok = t.NameExpr.(*node.IdentExpr); !ok {
-				return c.Errorf(t, "*ExportStmt of value as %T require NameExpr field as *Ident", t)
+			id, ok := t.NameExpr.(*node.IdentExpr)
+			if !ok {
+				return nil, c.Errorf(t, "*ExportStmt of value as %T require NameExpr field as *Ident", t)
 			}
+			key = id
 		case *node.FuncExpr:
 			if t.Type.NameExpr == nil {
-				return c.Errorf(t, "*ExportStmt of value as %T require NameExpr field", t)
+				return nil, c.Errorf(t, "*ExportStmt of value as %T require NameExpr field", t)
 			}
-			var ok bool
-			if key, ok = t.Type.NameExpr.(*node.IdentExpr); !ok {
-				return c.Errorf(t, "*ExportStmt of value as %T require NameExpr field as *Ident", t)
+			id, ok := t.Type.NameExpr.(*node.IdentExpr)
+			if !ok {
+				return nil, c.Errorf(t, "*ExportStmt of value as %T require NameExpr field as *Ident", t)
 			}
+			key = id
 		default:
-			return c.Errorf(t, "*ExportStmt of value must be *DictExpr | *ParenExpr | *FuncWithMethodsExpr | *FuncExpr")
+			return nil, c.Errorf(t, "*ExportStmt of value must be *DictExpr | *ParenExpr | *FuncWithMethodsExpr | *FuncExpr")
 		}
 	}
 
 	if ident, _ := key.(*node.IdentExpr); ident != nil {
-		key = node.Str(ident.Name, ident.NamePos)
-		if value == nil {
-			value = ident
+		// Named export: static string key; a bare `export a` exports the value of
+		// the local `a`.
+		v := value
+		if v == nil {
+			v = ident
 		}
+		return []*node.DictElementLit{{Key: node.Str(ident.Name, ident.NamePos), Value: v}}, nil
 	}
 
 	if value == nil {
-		return c.Errorf(nd, "*ExportStmt require value")
+		return nil, c.Errorf(nd, "*ExportStmt require value")
 	}
+	// Computed key (`export [expr] = v`): wrap the key in parentheses so it is
+	// evaluated (a bare ident key would otherwise be a static name).
+	return []*node.DictElementLit{{
+		Key:   node.EParen(key, key.Pos(), key.End()),
+		Value: value,
+	}}, nil
+}
 
-	ass := &node.AssignStmt{
-		TokenPos: nd.Pos(),
-		Token:    token.Assign,
-		LHS:      []node.Expr{node.EIndex(node.LModule(nd.Pos()), key, nd.TokenPos, key.End())},
-		RHS:      []node.Expr{value},
+// flushExports emits the module's accumulated exports as a single dict literal
+// followed by one OpExtendModule (merging every entry into the module object).
+// It is a no-op when there are no pending exports.
+func (c *Compiler) flushExports(nd ast.Node) error {
+	if len(c.pendingExports) == 0 {
+		return nil
 	}
-	return c.Compile(ass)
+	dict := &node.DictExpr{Elements: c.pendingExports}
+	c.pendingExports = nil
+	if err := c.Compile(dict); err != nil {
+		return err
+	}
+	c.emit(nd, OpExtendModule)
+	c.emit(nd, OpPop)
+	return nil
 }
 
 func (c *Compiler) compileToRawExpr(nd *node.ToRaw) (err error) {

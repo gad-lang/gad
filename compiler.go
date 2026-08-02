@@ -90,6 +90,10 @@ type (
 		// warnings collects non-fatal compiler diagnostics. Forks funnel into the
 		// root compiler (see warnf), so the root holds every module's warnings.
 		warnings []*CompilerWarning
+		// pendingExports accumulates a (non-main) module's `export` entries; they
+		// are emitted once as a single dict + OpExtendModule after the last export
+		// statement (see compileFileStmts / flushExports).
+		pendingExports []*node.DictElementLit
 	}
 
 	// CompilerOptions represents customizable options for Compile().

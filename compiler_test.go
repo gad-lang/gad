@@ -693,11 +693,13 @@ func TestCompiler_CompileImportCompilableModule(t *testing.T) {
 			ModuleMap: moduleMap,
 		}},
 		bytecode(
+			// Exports collected into one dict + OpExtendModule per module reorders
+			// the shared constants (dict keys are added before their values).
 			Array{
-				Int(1),
 				Str("a"),
-				Int(2),
+				Int(1),
 				Str("b"),
+				Int(2),
 			},
 			compFunc(concatInsts(
 				makeInst(OpLoadModule, 1),
@@ -710,27 +712,27 @@ func TestCompiler_CompileImportCompilableModule(t *testing.T) {
 				b.Compiled("cmod", compFunc(concatInsts(
 					makeInst(OpLoadModule, 2),
 					makeInst(OpJumpFalsy, 12),
-					makeInst(OpConstant, 0),
+					makeInst(OpConstant, 1), // import arg 1
 					makeInst(OpInitModule, 1, 0),
 					makeInst(OpDefineLocal, 0),
-					makeInst(OpGetLocal, 0),
-					makeInst(OpConstant, 1),
+					makeInst(OpConstant, 0), // "a" key
+					makeInst(OpGetLocal, 0), // mod
+					makeInst(OpConstant, 0), // "a" (mod.a)
 					makeInst(OpGetIndex, 1),
-					makeInst(OpModule),
-					makeInst(OpConstant, 1),
-					makeInst(OpSetIndex),
-					makeInst(OpConstant, 2),
-					makeInst(OpModule),
-					makeInst(OpConstant, 3),
-					makeInst(OpSetIndex),
+					makeInst(OpConstant, 2), // "b" key
+					makeInst(OpConstant, 3), // 2
+					makeInst(OpDict, 4),
+					makeInst(OpExtendModule),
+					makeInst(OpPop),
 					makeInst(OpReturn, 0),
 				), funcLocals(1)))
 
 				b.Compiled("mod", compFunc(concatInsts(
-					makeInst(OpConstant, 0),
-					makeInst(OpModule),
-					makeInst(OpConstant, 1),
-					makeInst(OpSetIndex),
+					makeInst(OpConstant, 0), // "a" key
+					makeInst(OpConstant, 1), // 1
+					makeInst(OpDict, 2),
+					makeInst(OpExtendModule),
+					makeInst(OpPop),
 					makeInst(OpReturn, 0),
 				), funcName("#main")))
 			}),
@@ -849,6 +851,32 @@ func TestCompiler_ExportMainIgnored(t *testing.T) {
 	}
 }
 
+// TestCompiler_ExportSingleExtend verifies that a non-main module's exports are
+// lowered to a single OpExtendModule (one merged dict), emitted after the last
+// export statement.
+func TestCompiler_ExportSingleExtend(t *testing.T) {
+	st := NewSymbolTable(NewBuiltins().NameSet)
+	res, err := CompileModule(st,
+		&ModuleSpec{ModuleInfo: ModuleInfo{Name: MainName, URL: MainName}},
+		[]byte("a := 1\nexport a\nexport b = 2\nexport c = 3\n"), CompileOptions{})
+	require.NoError(t, err)
+
+	extends := 0
+	insts := res.Bytecode.Main.Instructions
+	for i := 0; i < len(insts); {
+		op := Opcode(insts[i])
+		if op == OpExtendModule {
+			extends++
+		}
+		width := 1
+		for _, w := range OpcodeOperands[op] {
+			width += w
+		}
+		i += width
+	}
+	require.Equal(t, 1, extends, "exports must lower to a single OpExtendModule")
+}
+
 func TestCompiler_Export(t *testing.T) {
 	// Exports are compiled for importable (non-main) modules; the main module
 	// ignores them (see TestCompiler_ExportMainIgnored).
@@ -864,28 +892,30 @@ export e() => 4
 export {f:5, g:6}
 export [2**3] = 7
 `, bytecode(
+		// All exports are collected into a single dict, merged into the module
+		// with one OpExtendModule (emitted after the last export statement).
 		Array{
 			Int(1),
 			Str("a"),
-			Int(2),
 			Str("b"),
+			Int(2),
+			Str("c"),
 			Int(3),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 4),
+				makeInst(OpConstant, 5),
 				makeInst(OpReturn, 1),
 			), funcName("c")),
-			Str("c"),
+			Str("d"),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 4),
+				makeInst(OpConstant, 5),
 				makeInst(OpReturn, 1),
 			), funcName("d")),
-			Str("d"),
+			Str("e"),
 			Int(4),
 			compFunc(concatInsts(
-				makeInst(OpConstant, 9),
+				makeInst(OpConstant, 10),
 				makeInst(OpReturn, 1),
 			), funcName("e")),
-			Str("e"),
 			Str("f"),
 			Int(5),
 			Str("g"),
@@ -897,39 +927,27 @@ export [2**3] = 7
 			makeInst(OpDefineLocal, 0),
 			makeInst(OpConstant, 0),
 			makeInst(OpDefineLocal, 1),
-			makeInst(OpGetLocal, 1),
-			makeInst(OpModule),
-			makeInst(OpConstant, 1),
-			makeInst(OpSetIndex),
-			makeInst(OpConstant, 2),
-			makeInst(OpModule),
-			makeInst(OpConstant, 3),
-			makeInst(OpSetIndex),
-			makeInst(OpConstant, 5),
-			makeInst(OpModule),
-			makeInst(OpConstant, 6),
-			makeInst(OpSetIndex),
-			makeInst(OpConstant, 7),
-			makeInst(OpModule),
-			makeInst(OpConstant, 8),
-			makeInst(OpSetIndex),
-			makeInst(OpConstant, 10),
-			makeInst(OpModule),
-			makeInst(OpConstant, 11),
-			makeInst(OpSetIndex),
-			makeInst(OpConstant, 12),
-			makeInst(OpConstant, 13),
-			makeInst(OpConstant, 14),
-			makeInst(OpConstant, 15),
-			makeInst(OpDict, 4),
+			makeInst(OpConstant, 1),  // "a"
+			makeInst(OpGetLocal, 1),  // a
+			makeInst(OpConstant, 2),  // "b"
+			makeInst(OpConstant, 3),  // 2
+			makeInst(OpConstant, 4),  // "c"
+			makeInst(OpConstant, 6),  // func c
+			makeInst(OpConstant, 7),  // "d"
+			makeInst(OpConstant, 8),  // func d
+			makeInst(OpConstant, 9),  // "e"
+			makeInst(OpConstant, 11), // func e
+			makeInst(OpConstant, 12), // "f"
+			makeInst(OpConstant, 13), // 5
+			makeInst(OpConstant, 14), // "g"
+			makeInst(OpConstant, 15), // 6
+			makeInst(OpConstant, 3),  // 2 (key 2**3)
+			makeInst(OpConstant, 5),  // 3
+			makeInst(OpBinary, int(token.Pow)),
+			makeInst(OpConstant, 16), // 7
+			makeInst(OpDict, 16),
 			makeInst(OpExtendModule),
 			makeInst(OpPop),
-			makeInst(OpConstant, 16),
-			makeInst(OpModule),
-			makeInst(OpConstant, 2),
-			makeInst(OpConstant, 4),
-			makeInst(OpBinary, int(token.Pow)),
-			makeInst(OpSetIndex),
 			makeInst(OpReturn, 0),
 		),
 			funcLocals(2),
