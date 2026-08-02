@@ -25,30 +25,32 @@ const (
 
 // VM executes the instructions in Bytecode.
 type VM struct {
-	abort          int64
-	sp             int
-	ip             int
-	curInsts       []byte
-	constants      []Object
-	modules        []*ModuleSpec
-	stack          [stackSize]Object
-	frames         [frameSize]frame
-	curFrame       *frame
-	frameIndex     int
-	bytecode       *Bytecode
-	modulesCache   Modules
-	globals        IndexGetSetter
-	iterPool       []*StateIteratorObject // free list of internal for-in iterators
-	arrayIterPool  []*arrayIterator       // free list of array for-in iterators
-	dictIterPool   []*dictIterator        // free list of dict for-in iterators
-	kvArrIterPool  []*kvArrayIterator     // free list of key-value-array iterators
-	kvArrsIterPool []*kvArraysIterator    // free list of key-value-arrays iterators
-	argsIterPool   []*argsIterator        // free list of args iterators
-	pool           vmPool
-	mu             sync.Mutex
-	err            error
-	noPanic        bool
-	dbg            DebugStepper // non-nil only in debug mode; see vm_debug.go
+	abort            int64
+	sp               int
+	ip               int
+	curInsts         []byte
+	constants        []Object
+	modules          []*ModuleSpec
+	stack            [stackSize]Object
+	frames           [frameSize]frame
+	curFrame         *frame
+	frameIndex       int
+	bytecode         *Bytecode
+	modulesCache     Modules
+	globals          IndexGetSetter
+	iterPool         []*StateIteratorObject // free list of internal for-in iterators
+	arrayIterPool    []*arrayIterator       // free list of array for-in iterators
+	dictIterPool     []*dictIterator        // free list of dict for-in iterators
+	kvArrIterPool    []*kvArrayIterator     // free list of key-value-array iterators
+	kvArrsIterPool   []*kvArraysIterator    // free list of key-value-arrays iterators
+	argsIterPool     []*argsIterator        // free list of args iterators
+	pool             vmPool
+	mu               sync.Mutex
+	err              error
+	noPanic          bool
+	running          bool         // true while the instruction loop is on the Go call stack
+	noValidateParams bool         // set by callCompiledInline to skip param-type validation for a pre-validated (safe-args) call
+	dbg              DebugStepper // non-nil only in debug mode; see vm_debug.go
 
 	StdOut, StdErr *StackWriter
 	StdIn          *StackReader
@@ -284,6 +286,12 @@ func (vm *VM) initAndRun(opts *RunOpts) (_ Object, err error) {
 		return
 	}
 
+	// Mark the loop as running so VM.Call routes in-VM calls through a same-VM
+	// sub-run (no fork). Restore the previous value so nested runs stay marked.
+	prevRunning := vm.running
+	vm.running = true
+	defer func() { vm.running = prevRunning }()
+
 	for run := true; run; {
 		run = vm.safeRun()
 	}
@@ -409,6 +417,7 @@ func (vm *VM) clearCurrentFrame() {
 	vm.curFrame.errHandlers = nil
 	vm.curFrame.args = nil
 	vm.curFrame.namedArgs = nil
+	vm.curFrame.boundary = false
 }
 
 func (vm *VM) finalizeFrame(result *Object) {
@@ -1124,7 +1133,11 @@ func (vm *VM) xOpCallCompiled(cfunc *CompiledFunction, numArgs int, flags OpCall
 		}
 	}
 
-	if err = cfunc.ValidateParamTypes(vm, args); err != nil {
+	if vm.noValidateParams {
+		// A safe-args inline call (VM.Call from an already-validated dispatch, e.g.
+		// a bound method) skips re-validation; consume the one-shot flag.
+		vm.noValidateParams = false
+	} else if err = cfunc.ValidateParamTypes(vm, args); err != nil {
 		return
 	}
 
@@ -1482,6 +1495,10 @@ type frame struct {
 	args        Args
 	namedArgs   *NamedArgs
 	defers      []func(ret *Object)
+	// boundary marks a frame pushed by VM.Call for a synchronous in-VM (same-VM,
+	// no fork) call. When such a frame returns, the loop stops and hands control
+	// back to VM.Call (see the OpReturn handlers) instead of popping to a parent.
+	boundary bool
 	// Inline, reused-per-frame storage so a plain call does not heap-allocate the
 	// args slice or the NamedArgs each time (frames are pooled in vm.frames). The
 	// args buffer holds up to 3 slots: the positional view, the var-args tail, and

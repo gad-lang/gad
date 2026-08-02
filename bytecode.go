@@ -370,6 +370,12 @@ func (o *CompiledFunction) hash32() uint32 {
 }
 
 func (o *CompiledFunction) Call(c Call) (Object, error) {
+	// Prefer the VM's standard call path: when the VM is running its loop this
+	// runs o as a same-VM sub-run (no fork); otherwise it forks as before. Callers
+	// with a VM should prefer vm.Call(o, ...) directly over o.Call(Call{VM: vm}).
+	if c.VM != nil && c.VM.running {
+		return c.VM.callCompiledInline(o, c.Args, &c.NamedArgs, !c.SafeArgs)
+	}
 	return NewInvoker(c.VM, o).ValidArgs(c.SafeArgs).Invoke(c.Args, &c.NamedArgs)
 }
 

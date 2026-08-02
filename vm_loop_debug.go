@@ -289,7 +289,14 @@ VMLoop:
 			if vm.frameIndex == 1 {
 				return
 			}
+			// A boundary frame was pushed by VM.Call for a same-VM sub-run: run
+			// its defers, then stop the loop so VM.Call resumes (it restores the
+			// saved loop state and reads the result at bp-1).
+			boundary := vm.curFrame.boundary
 			vm.finalizeFrame(&vm.stack[bp-1])
+			if boundary {
+				return
+			}
 			parent := &(vm.frames[vm.frameIndex-2])
 			vm.frameIndex--
 			switch Opcode(parent.fn.Instructions[parent.ip]) {
