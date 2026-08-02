@@ -119,6 +119,9 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 		if tok := s.scanGlobal(); tok.Valid() {
 			return tok
 		}
+		if tok := s.scanParam(); tok.Valid() {
+			return tok
+		}
 		if tok := s.scanVar(); tok.Valid() {
 			return tok
 		}
@@ -762,6 +765,10 @@ func (s *scanner) scanExport() gadparser.PToken {
 
 func (s *scanner) scanGlobal() gadparser.PToken {
 	return s.scanDeclDirective("@global", giomtoken.Global)
+}
+
+func (s *scanner) scanParam() gadparser.PToken {
+	return s.scanDeclDirective("@param", giomtoken.Param)
 }
 
 func (s *scanner) scanVar() gadparser.PToken {

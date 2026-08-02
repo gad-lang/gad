@@ -149,6 +149,8 @@ func (p *Parser) parseStmt() gnode.Stmt {
 		return p.parseImportModule()
 	case giomtoken.Global:
 		return p.parseGlobal()
+	case giomtoken.Param:
+		return p.parseParam()
 	case giomtoken.Var:
 		return p.parseVar()
 	case giomtoken.Const:
@@ -816,6 +818,64 @@ func (p *Parser) parseGlobal() *giomnode.GlobalStmt {
 	}
 	if declStmt, ok := stmt.(*gnode.DeclStmt); ok {
 		if decl, ok := declStmt.Decl.(*gnode.GenDecl); ok && decl.Tok == token.Global {
+			s.Decl = decl
+		}
+	}
+	return s
+}
+
+// parseParam parses `@param`, the giom analog of Gad's top-level `param`
+// declaration (the parameters the compiled template receives). It accepts the
+// same forms as `@global`:
+//
+//	@param a                       // single
+//	@param a, b, c = 1             // comma-separated, with a default
+//	@param (a, b, *rest)           // positional + variadic
+//	@param (a; b = 1, **named)     // named section (after `;`) + named-variadic
+//	@param (a                      // parenthesized, may span lines
+//	    b, *rest)
+//
+// The body is wrapped in a Gad grouped `param (…)` declaration so every form is
+// handled by Gad natively; the resulting GenDecl (Tok == token.Param) is stored.
+func (p *Parser) parseParam() *giomnode.ParamStmt {
+	tok := p.Token
+	p.expect(giomtoken.Param)
+
+	s := &giomnode.ParamStmt{
+		NodePos: tok.Pos,
+		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
+	}
+
+	inner := strings.TrimSpace(stringData(tok, "value", ""))
+	if inner == "" {
+		return s
+	}
+
+	base := noBase
+	if v, ok := tok.GetOk("innerPos"); ok {
+		if pos, ok := v.(source.Pos); ok {
+			if b := pos - source.Pos(len("param (")); b >= 1 {
+				base = b
+			}
+		}
+	}
+
+	stmt, err := parseGadFirstStmtAt("param ("+inner+")", base, false)
+	if err != nil {
+		p.Error(tok.Pos, err.Error())
+		return s
+	}
+	if declStmt, ok := stmt.(*gnode.DeclStmt); ok {
+		if decl, ok := declStmt.Decl.(*gnode.GenDecl); ok && decl.Tok == token.Param {
+			// A single positional param needs no parentheses (`param a`); drop the
+			// wrapping parens so it round-trips as `@param a`. A lone named spec
+			// (`param (; x)`) keeps them.
+			if len(decl.Specs) == 1 {
+				if _, ok := decl.Specs[0].(*gnode.ParamSpec); ok {
+					decl.Lparen = source.NoPos
+					decl.Rparen = source.NoPos
+				}
+			}
 			s.Decl = decl
 		}
 	}

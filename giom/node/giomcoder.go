@@ -299,6 +299,15 @@ func (s *GlobalStmt) WriteGiom(ctx *GiomCodeWriteContext) {
 	ctx.WriteLine("@global " + strings.Join(s.Names, " "))
 }
 
+func (s *ParamStmt) WriteGiom(ctx *GiomCodeWriteContext) {
+	if s.Decl == nil {
+		ctx.WriteLine("@param")
+		return
+	}
+	// s.Decl.String() renders `param …`; re-emit it as the `@param` directive.
+	ctx.WriteLine("@param " + strings.TrimSpace(strings.TrimPrefix(s.Decl.String(), "param")))
+}
+
 func (e *ExportStmt) WriteGiom(ctx *GiomCodeWriteContext) {
 	line := "@export " + e.Name
 	if e.Value != nil {
@@ -330,6 +339,7 @@ var (
 	_ GiomCoder = (*VarStmt)(nil)
 	_ GiomCoder = (*ConstStmt)(nil)
 	_ GiomCoder = (*GlobalStmt)(nil)
+	_ GiomCoder = (*ParamStmt)(nil)
 	_ GiomCoder = (*ExportStmt)(nil)
 )
 

@@ -757,6 +757,31 @@ func (s *GlobalStmt) WriteCode(ctx *gnode.CodeWriteContext) {
 	ctx.WriteString("global (" + strings.Join(s.Names, ", ") + ")")
 }
 
+// ParamStmt — @param declaration (compiles to Gad `param (...)` statement),
+// declaring the parameters the compiled template receives.
+// =============================================================================
+
+type ParamStmt struct {
+	ast.NodeData
+	NodePos source.Pos
+	NodeEnd source.Pos
+	// Decl is the fully-formed Gad `param (…)` declaration (positional, variadic
+	// `*rest`, named after `;`, and named-variadic `**named`), parsed from the
+	// directive body.
+	Decl *gnode.GenDecl
+}
+
+func (s *ParamStmt) Pos() source.Pos { return s.NodePos }
+func (s *ParamStmt) End() source.Pos { return s.NodeEnd }
+func (s *ParamStmt) StmtNode()       {}
+func (s *ParamStmt) String() string  { return "giom.Param" }
+
+func (s *ParamStmt) WriteCode(ctx *gnode.CodeWriteContext) {
+	if s.Decl != nil {
+		s.Decl.WriteCode(ctx)
+	}
+}
+
 // EnumStmt — @enum declaration (compiles to Gad `enum IDENT { ... }` statement)
 // =============================================================================
 

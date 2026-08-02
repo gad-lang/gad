@@ -33,6 +33,7 @@ const (
 	Case
 	Export
 	Global
+	Param
 	Var
 	Const
 	Enum
@@ -69,6 +70,7 @@ var tokNames = [...]string{
 	Case:         "CASE",
 	Export:       "EXPORT",
 	Global:       "GLOBAL",
+	Param:        "PARAM",
 	Var:          "VAR",
 	Const:        "CONST",
 	Enum:         "ENUM",

@@ -153,6 +153,8 @@ func convertStmt(s gnode.Stmt) gnode.Stmts {
 		return convertConst(st)
 	case *GlobalStmt:
 		return convertGlobal(st)
+	case *ParamStmt:
+		return convertParam(st)
 	case *EnumStmt:
 		return convertEnum(st)
 	case *ExportStmt:
@@ -534,6 +536,14 @@ func convertGlobal(s *GlobalStmt) gnode.Stmts {
 			Specs:  specs,
 		}),
 	}
+}
+
+// convertParam lowers @param to its Gad `param (…)` declaration.
+func convertParam(s *ParamStmt) gnode.Stmts {
+	if s.Decl == nil {
+		return nil
+	}
+	return gnode.Stmts{gnode.SDecl(s.Decl)}
 }
 
 func slotVarName(id string) string     { return "$slot$" + id }

@@ -386,3 +386,28 @@ The `= v` / `!?= v` defaults lower onto Gad's [`global` defaults](../../gad/doc/
 `= v` fills a nil-or-absent global, `!?= v` fills only an absent one. Globals can
 also be provided through the Go symbol table — the CMS example passes one global
 named `Model`.
+
+## Params
+
+Declare the parameters the compiled template receives with `@param`, the giom
+analog of Gad's top-level [`param`](../../gad/doc/variables-and-scopes.md#parameters)
+declaration. It accepts the same forms as Gad's `param`: positional names, a
+trailing variadic `*rest`, and — after a `;` — named parameters (which may carry
+defaults) and a named-variadic `**named`.
+
+```giom
+@param a                        // single positional
+@param (a, b, *rest)            // positional + variadic
+@param (a; b = 1, **named)      // positional; named (with default) + named-variadic
+
+@param (
+    title
+    items, *rest
+)
+```
+
+Each form compiles to a Gad grouped `param (…)` declaration at the template's top
+scope. Positional parameters have no defaults (a default requires the named
+section after `;`); a named parameter's default applies when its argument is
+absent. Unlike `@global` (which reads ambient values), `@param` values are the
+arguments supplied when the template is invoked. See `samples/giom/param.giom`.

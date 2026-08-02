@@ -47,7 +47,8 @@ export const giomGrammar: Grammar = {
   },
   keyword: {
     // Control keywords at line start: `@main`, `@if`, `@else`, `@for`, `@match`,
-    // `@case`, `@var`, `@const`, `@enum`, `@global`, `@func`, `@comp`, `@slot`,
+    // `@case`, `@var`, `@const`, `@enum`, `@global`, `@param`, `@func`, `@comp`,
+    // `@slot`,
     // `@export`, `@assign`, `@import`, …
     pattern: /(^[ \t]*)@[A-Za-z_]\w*/m,
     lookbehind: true,
