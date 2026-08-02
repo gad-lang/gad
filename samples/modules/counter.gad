@@ -1,0 +1,20 @@
+/***
+counter.gad — a module exporting a property (computed/managed field).
+
+`export prop name { … }` exposes a getter/setter behind a plain module field:
+member access on the imported module delegates to the prop. The backing `value`
+stays private to the module; readers/writers go through the getter/setter.
+
+Imported by main.gad. See doc/modules.md (Exporting properties).
+***/
+
+var value = 0
+
+/// A managed counter: reads return the current value; writes clamp at 0.
+export prop count {
+    () => value                              // getter
+    (n) { value = n < 0 ? 0 : n }            // setter (never goes negative)
+}
+
+/// A plain exported function that bumps the backing value.
+export inc() { value = value + 1 }

@@ -1,0 +1,49 @@
+/***
+31_properties.gad — computed properties in containers, and raw access.
+
+A `prop` value has a getter (`() => …`) and optional setters (`(v) { … }`). When
+a prop is stored at a container key, indexing that key delegates to it: reading
+runs the getter, assigning runs the setter — like a JavaScript getter/setter.
+The `reflect` module bypasses delegation for raw access.
+
+Run with:  gad run samples/31_properties.gad
+See doc/functions.md (Properties) and doc/reflect.md for detailed docs.
+***/
+
+/// A dict key holding a prop: `celsius` is stored, `fahrenheit` is computed from
+/// it through a getter/setter pair.
+var (
+    celsius = 20,
+    temp = {
+        c: prop {
+            () => celsius            // getter
+            (v) { celsius = v }      // setter
+        },
+        f: prop {
+            () => celsius * 9 / 5 + 32
+            (v) { celsius = (v - 32) * 5 / 9 }
+        },
+    },
+)
+
+println("c =", temp.c)          // 20  — getter runs
+temp.c = 30                     // setter runs
+println("c =", temp.c)          // 30
+println("f =", temp.f)          // 86  — computed from celsius
+temp.f = 212                    // setter converts back
+println("c =", temp.c)          // 100
+
+/// Nested containers delegate at the leaf.
+var (n = 1, box = { inner: { val: prop { () => n; (v) { n = v } } } })
+box.inner.val = 7
+println("nested =", box.inner.val)   // 7
+
+/// Arrays never delegate: a stored prop is the value itself.
+p := prop { () => 99 }
+arr := [p]
+println("array holds prop:", typeName(arr[0]))   // Prop
+
+/// reflect.get / reflect.set: raw, delegation-free access.
+println("raw get:", typeName(reflect.get(temp, "c")))  // Prop (getter not run)
+reflect.set(temp, "c", 5)                              // replaces the prop
+println("after raw set:", temp.c)                      // 5 (plain value now)

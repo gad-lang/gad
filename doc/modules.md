@@ -60,6 +60,32 @@ println(g.greet("Gad"))  // Hello, Gad
 println(g.pi, g.e)       // 3.14 2.71
 ```
 
+### Exporting properties
+
+`export prop name { … }` exports a [property](functions.md#properties-prop) under
+its name. Member access on the imported module then **delegates** to the prop —
+reading runs its getter, assigning runs its setter — so a module can expose a
+computed/managed value behind a plain field:
+
+```go
+// counter.gad
+var value = 0
+export prop v {
+  () => value          // getter
+  (n) { value = n }    // setter
+}
+```
+
+```go
+c := import("./counter.gad")
+c.v         // 0  — runs the getter
+c.v = 5     // runs the setter
+c.v         // 5
+```
+
+Use [`reflect.get`](reflect.md) to read the exported `Prop` object itself without
+running its getter: `reflect.get(c, "v")`.
+
 ## Module Parameters
 
 A module may declare `param` just like the main script. Parameters are supplied

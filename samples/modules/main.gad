@@ -18,4 +18,15 @@ pt := import("./greet.gad"; lang="pt")
 println("language:", pt.language)   // pt
 println(pt.greet("Gad"))            // Olá, Gad!
 
+/// A module exporting a property: member access delegates to its getter/setter.
+counter := import("./counter.gad")
+println("count       =", counter.count)          // 0  (getter)
+counter.count = 5                                 // setter
+counter.inc()                                     // 6
+println("count       =", counter.count)          // 6
+counter.count = -3                                // setter clamps at 0
+println("count       =", counter.count)          // 0
+/// reflect.get reads the exported Prop object itself (getter not run).
+println("raw member  =", typeName(reflect.get(counter, "count")))  // Prop
+
 return mathx.square(7)

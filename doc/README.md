@@ -56,6 +56,9 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
 - Generated standard-library references: [`time`](stdlib-time.md),
   [`fmt`](stdlib-fmt.md), [`strings`](stdlib-strings.md),
   [`json`](stdlib-json.md).
+- [`reflect`](reflect.md) — raw, delegation-free index access (the `Reflect.get`
+  / `Reflect.set` analog); pairs with computed
+  [properties](functions.md#properties-prop).
 - [Testing](stdlib-test.md) — the `test` module and the `gad test` command:
   `*_test.gad` files, `test*`/`bench*` functions, assertions and benchmarks.
 - [Metaprogramming](metaprogramming.md) — the `gad` namespace: `gad.parse` /

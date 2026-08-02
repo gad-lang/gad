@@ -214,6 +214,41 @@ A single-accessor property may drop the braces: `prop pi() => 3.14`. Properties
 are also available through the [`Prop`](values-and-types.md#properties)
 constructor for building them programmatically.
 
+### Properties as container members (computed properties)
+
+When a `Prop` is stored at a container key, indexing that key **delegates** to
+the prop — reading runs its getter, assigning runs its matching setter. This is
+the computed-property (accessor) pattern, like a JavaScript getter/setter:
+
+```go
+var (
+  v = 1,
+  d = { x: prop { () => v; (val) { v = val } } }
+)
+
+d.x        // 1   — runs the getter
+d.x = 2    // v = 2 — runs the setter
+d.x        // 2
+```
+
+Delegation works on any container (dict, module, custom index getters) **except
+`array` and class instances**, whose element/field access always returns the
+stored value verbatim (a class instance already resolves its own class
+properties). Chained access delegates at the leaf: `d.a.x`.
+
+Modules can export a property so member access on the imported module delegates
+to it — see [Exporting properties](modules.md#exporting-properties).
+
+### Raw access with `reflect`
+
+The [`reflect`](reflect.md) module reads and writes a key **without** delegating
+to a stored prop — the functional analog of JavaScript `Reflect.get`/`Reflect.set`:
+
+```go
+reflect.get(d, "x")    // the Prop itself (getter not run)
+reflect.set(d, "x", 3) // overwrites the key with 3, removing the prop
+```
+
 ## Computed values
 
 `(= expr)` — or `(= stmt; …; result)` for several statements — creates a
