@@ -15,10 +15,14 @@ Latest: **compiler warnings + main-module export handling** (`b7c307e`).
 - Proof: `go build ./...`, `go vet ./...` clean; main module `go test ./...`
   EXIT 0; giom module `go test ./...` EXIT 0. New: TestCompiler_ExportMainIgnored;
   TestCompiler_Export now non-main; TestVMExport/TestVMMainModule updated.
-- OPEN (`#35`): the export-lowering optimization (collect exports into one dict +
-  a single `OpExtendModule`) is NOT done — it changes bytecode AND export
-  evaluation order, so it needs a semantics decision before landing. Current
-  per-statement lowering is unchanged and correct.
+- Export lowering (`#35`, `d35c6c1`): a non-main module's exports are now
+  lowered to ONE dict + a single `OpExtendModule`, emitted right after the last
+  export statement (so it precedes any trailing `return`, not the absolute end —
+  avoids dead code and preserves original per-statement value semantics for the
+  common case). compileExportStmt accumulates via exportElements; compileFileStmts
+  flushes via flushExports. Golden bytecode updated (TestCompiler_Export,
+  TestCompiler_CompileImportCompilableModule); added TestCompiler_ExportSingleExtend.
+  Runtime export behavior unchanged. Both modules green.
 
 
 Most recent work — the **giom inline-HTML compiler rewrite**, committed on `main`
