@@ -789,6 +789,11 @@ func applyTagAttrs(call *gnode.CallExpr, attrs []*TagAttribute) {
 		if attr == nil {
 			continue
 		}
+		if attr.Spread != nil {
+			// `**expr` attribute spread (a computed/interpolated-name attribute).
+			call.NamedArgs.Append(&gnode.NamedArgExpr{Var: true, Exp: attr.Spread}, nil)
+			continue
+		}
 		if attr.Elements != nil {
 			for _, el := range attr.Elements.Elements {
 				if kv, ok := el.(*gnode.KeyValuePairLit); ok {
@@ -809,48 +814,15 @@ func applyTagAttrs(call *gnode.CallExpr, attrs []*TagAttribute) {
 	}
 }
 
-// convertHtml lowers a raw HTML region to a giom.Text append of its literal and
-// interpolated parts. The region's pre-lowered write statements are unwrapped
-// into the values of a single giom.Text(tag, …) call.
+// convertHtml lowers an HTML region by converting its parsed giom child nodes
+// (TagStmt / TextStmt / …) the same way as any other giom body, so the HTML
+// builds giom.Tag / giom.Text elements linked to the enclosing tag rather than
+// writing raw markup.
 func convertHtml(h *HtmlStmt) gnode.Stmts {
-	if len(h.Stmts) == 0 {
+	if len(h.Children) == 0 {
 		return nil
 	}
-	var (
-		out    gnode.Stmts
-		values []gnode.Expr
-	)
-	flush := func() {
-		if len(values) == 0 {
-			return
-		}
-		out.Append(gnode.SExpr(textCall(h.Pos(), h.End(), values...)))
-		values = nil
-	}
-	for _, stmt := range h.Stmts {
-		if arg := htmlWriteArg(stmt); arg != nil {
-			values = append(values, arg)
-			continue
-		}
-		flush()
-		out.Append(stmt)
-	}
-	flush()
-	return gnode.Stmts{gnode.SBlock(h.Pos(), h.End(), out...)}
-}
-
-// htmlWriteArg returns the written value of a pre-lowered html write statement
-// (`write(x)` / `giom.write(x)`), or nil when stmt is not such a call.
-func htmlWriteArg(stmt gnode.Stmt) gnode.Expr {
-	es, ok := stmt.(*gnode.ExprStmt)
-	if !ok {
-		return nil
-	}
-	call, ok := es.Expr.(*gnode.CallExpr)
-	if !ok || len(call.Args.Values) == 0 {
-		return nil
-	}
-	return call.Args.Values[0]
+	return convertBody(h.Children)
 }
 
 // textCall builds `giom.Text(tag, values…)`.

@@ -88,6 +88,10 @@ func (a *TagAttribute) writeGiom(ctx *GiomCodeWriteContext) {
 	if a.Condition != nil {
 		cond = " ? " + a.Condition.String()
 	}
+	if a.Spread != nil {
+		ctx.WriteLine("[**" + a.Spread.String() + cond + "]")
+		return
+	}
 	switch a.Name {
 	case "id":
 		ctx.WriteLine("#" + exprStr(a.Value) + cond)
@@ -108,6 +112,13 @@ func (a *TagAttribute) writeGiom(ctx *GiomCodeWriteContext) {
 		s += "]"
 		ctx.WriteLine(s)
 	}
+}
+
+// WriteGiom emits the HTML region as pug-style giom: its parsed children
+// (TagStmt / TextStmt / …) are written with their own WriteGiom, so
+// `<a href="/">Home</a>` transpiles to `a[href="/"]` with an indented `| Home`.
+func (h *HtmlStmt) WriteGiom(ctx *GiomCodeWriteContext) {
+	ctx.WriteStmts(h.Children)
 }
 
 func (d *DoctypeStmt) WriteGiom(ctx *GiomCodeWriteContext) {

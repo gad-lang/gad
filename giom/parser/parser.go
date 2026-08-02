@@ -282,7 +282,7 @@ func (p *Parser) parseHtml() *giomnode.HtmlStmt {
 	return &giomnode.HtmlStmt{
 		NodePos: tok.Pos,
 		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
-		Stmts:   buildHtmlStmts(raw, base),
+		Children: buildHtmlNodes(raw, base),
 	}
 }
 

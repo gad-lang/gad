@@ -3,166 +3,173 @@ package parser
 import (
 	"strings"
 
+	giomnode "github.com/gad-lang/gad/giom/node"
 	gnode "github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 	"github.com/gad-lang/gad/token"
 )
 
-// buildHtmlStmts turns a raw HTML region into the Gad statements that render it:
-// literal markup becomes `write(raw "…")`, a `{expr}` text interpolation becomes
-// `giom.write(expr)` (HTML-escaped), and an interpolated attribute becomes
-// `write(giom.attr(name, value))` (auto-quoted and escaped). Runs of whitespace
-// in text content are collapsed to a single space. base is the absolute source
-// position of raw[0], so interpolation expressions keep their source positions.
-func buildHtmlStmts(raw string, base source.Pos) gnode.Stmts {
+// buildHtmlNodes parses a (balanced) raw HTML region into giom Tag/Text AST
+// nodes, so the region compiles to giom.Tag/giom.Text elements — like the
+// pug-style tag syntax — instead of being written as raw HTML markup, and
+// transpiles back to pug-style giom. Source positions of interpolation
+// expressions (`{expr}`) are preserved.
+func buildHtmlNodes(raw string, base source.Pos) gnode.Stmts {
 	b := &htmlBuilder{src: raw, base: base}
-	b.run()
-	b.flush()
-	return b.out
+	nodes, _ := b.parseNodes(0)
+	return nodes
 }
 
 type htmlBuilder struct {
-	src      string
-	base     source.Pos
-	out      gnode.Stmts
-	lit      strings.Builder
-	litPos   source.Pos
-	litValid bool
+	src  string
+	base source.Pos
 }
 
 func (b *htmlBuilder) pos(i int) source.Pos { return b.base + source.Pos(i) }
 
-// emitLit appends verbatim literal markup to the pending `write(raw …)` buffer.
-func (b *htmlBuilder) emitLit(text string, i int) {
-	if text == "" {
-		return
-	}
-	if !b.litValid {
-		b.litPos = b.pos(i)
-		b.litValid = true
-	}
-	b.lit.WriteString(text)
-}
+func isSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
 
-func (b *htmlBuilder) flush() {
-	if b.lit.Len() == 0 {
-		b.litValid = false
-		return
-	}
-	b.out = append(b.out, writeRawStmt(b.lit.String(), b.litPos))
-	b.lit.Reset()
-	b.litValid = false
-}
-
-func (b *htmlBuilder) run() {
+// parseNodes parses sibling HTML nodes from i until a close tag (`</…>`) or the
+// end of the region. It returns the giom child nodes and the index at the close
+// tag's `<` (or len(src)); the caller consumes the close tag.
+func (b *htmlBuilder) parseNodes(i int) (gnode.Stmts, int) {
 	s := b.src
-	i := 0
+	var out gnode.Stmts
 	for i < len(s) {
 		if s[i] == '<' {
-			i = b.tag(i)
+			if i+1 < len(s) && s[i+1] == '/' {
+				return out, i // close tag — stop here
+			}
+			if i+1 < len(s) && s[i+1] == '>' {
+				// `<>…</>` fragment: inline its children with no wrapper element.
+				children, ci := b.parseNodes(i + 2)
+				out = append(out, children...)
+				i = b.skipCloseTag(ci)
+				continue
+			}
+			elem, ni := b.parseElement(i)
+			if elem != nil {
+				out = append(out, elem)
+			}
+			i = ni
 			continue
 		}
-		i = b.text(i)
+		// Text run up to the next `<`.
+		end := len(s)
+		if j := strings.IndexByte(s[i:], '<'); j >= 0 {
+			end = i + j
+		}
+		if txt := b.textNode(i, end); txt != nil {
+			out = append(out, txt)
+		}
+		i = end
 	}
+	return out, i
 }
 
-// text emits a text run (until the next `<`), collapsing whitespace and lowering
-// `{expr}` interpolations to escaped writes.
-func (b *htmlBuilder) text(start int) int {
+// skipCloseTag skips a close tag (`</name>` or `</>`) at i (which points at `<`).
+func (b *htmlBuilder) skipCloseTag(i int) int {
 	s := b.src
-	i := start
-	var run strings.Builder
-	runStart := i
-	flushRun := func() {
-		if run.Len() > 0 {
-			b.emitLit(collapseWS(run.String()), runStart)
-			run.Reset()
-		}
+	if i >= len(s) || s[i] != '<' {
+		return i
 	}
-	for i < len(s) && s[i] != '<' {
-		if s[i] == '{' {
-			end := skipBraces(s, i)
-			flushRun()
-			b.flush()
-			expr := parseExprStr(s[i+1:end-1], b.pos(i+1))
-			b.out = append(b.out, writeEscStmt(expr))
-			i = end
-			runStart = i
-			continue
-		}
-		if run.Len() == 0 {
-			runStart = i
-		}
-		run.WriteByte(s[i])
-		i++
+	if gt := strings.IndexByte(s[i:], '>'); gt >= 0 {
+		return i + gt + 1
 	}
-	flushRun()
-	return i
+	return len(s)
 }
 
-// tag emits a single tag beginning at s[i] (`<`): an open/self-closing tag, a
-// close tag, or a `<>` / `</>` fragment (which produce no markup).
-func (b *htmlBuilder) tag(start int) int {
+// parseElement parses `<name attrs>children</name>` or a self-closing element,
+// returning the giom TagStmt and the index just past its close.
+func (b *htmlBuilder) parseElement(i int) (gnode.Stmt, int) {
 	s := b.src
-	i := start
-	if i+1 < len(s) && s[i+1] == '/' {
-		gt := strings.IndexByte(s[i:], '>')
-		if gt < 0 {
-			return len(s)
-		}
-		gt += i
-		name := strings.TrimSpace(s[i+2 : gt])
-		if name != "" {
-			b.emitLit("</"+name+">", i)
-		}
-		return gt + 1
-	}
-	if i+1 < len(s) && s[i+1] == '>' {
-		return i + 2 // fragment open: no markup
-	}
-
 	tagEnd, selfClose, name := scanOpenTagEnd(s, i)
 	if tagEnd < 0 {
-		return len(s)
+		return nil, len(s)
 	}
-	b.emitLit("<"+name, i)
 
-	// Attribute region: after the tag name, up to the closing `/` (self-close)
-	// or `>`.
+	attrStart := i + 1 + len(name)
 	attrEnd := tagEnd - 1 // the '>'
 	if selfClose {
 		k := attrEnd - 1
-		for k > i && (s[k] == ' ' || s[k] == '\t' || s[k] == '\n' || s[k] == '\r') {
+		for k > attrStart && isSpace(s[k]) {
 			k--
 		}
 		attrEnd = k // the '/'
 	}
-	b.attributes(i+1+len(name), attrEnd)
+	attrs := b.parseAttrs(attrStart, attrEnd)
 
-	if selfClose {
-		b.emitLit(" />", attrEnd)
-	} else {
-		b.emitLit(">", attrEnd)
+	tag := &giomnode.TagStmt{
+		NodePos:     b.pos(i),
+		NodeEnd:     b.pos(tagEnd),
+		Name:        name,
+		Attributes:  attrs,
+		SelfClosing: selfClose,
 	}
-	return tagEnd
+	if selfClose {
+		return tag, tagEnd
+	}
+	children, ci := b.parseNodes(tagEnd)
+	tag.Body = children
+	tag.NodeEnd = b.pos(ci)
+	return tag, b.skipCloseTag(ci)
 }
 
-// attributes parses the attribute list in s[start:end] and emits each one:
-// fully-literal attributes stay in the `write(raw …)` buffer, while any
-// attribute with an interpolated name or value becomes `write(giom$attr(name,
-// value))`.
-func (b *htmlBuilder) attributes(start, end int) {
+// textNode builds a giom TextStmt from the text run src[start:end]: literal
+// parts are whitespace-collapsed MixedText segments, and each `{expr}` becomes a
+// MixedValue segment (its expression keeps its source position). Returns nil for
+// an empty run.
+func (b *htmlBuilder) textNode(start, end int) gnode.Stmt {
 	s := b.src
+	var stmts gnode.Stmts
+	var lit strings.Builder
+	litStart := start
+	flushLit := func() {
+		if lit.Len() == 0 {
+			return
+		}
+		if collapsed := collapseWS(lit.String()); collapsed != "" {
+			stmts = append(stmts, gnode.SMixedText(b.pos(litStart), collapsed))
+		}
+		lit.Reset()
+	}
 	i := start
 	for i < end {
-		if s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r' {
+		if s[i] == '{' {
+			e := skipBraces(s, i)
+			flushLit()
+			expr := parseExprStr(s[i+1:e-1], b.pos(i+1))
+			stmts = append(stmts, gnode.SMixedValue(
+				gnode.Lit("{", b.pos(i)), gnode.Lit("}", b.pos(e-1)), expr))
+			i = e
+			litStart = i
+			continue
+		}
+		if lit.Len() == 0 {
+			litStart = i
+		}
+		lit.WriteByte(s[i])
+		i++
+	}
+	flushLit()
+	if len(stmts) == 0 {
+		return nil
+	}
+	return &giomnode.TextStmt{NodePos: b.pos(start), NodeEnd: b.pos(end), Stmts: stmts}
+}
+
+// parseAttrs parses the attribute list in src[start:end] into giom TagAttributes.
+func (b *htmlBuilder) parseAttrs(start, end int) []*giomnode.TagAttribute {
+	s := b.src
+	var attrs []*giomnode.TagAttribute
+	i := start
+	for i < end {
+		if isSpace(s[i]) {
 			i++
 			continue
 		}
-		// Attribute name: literal characters and `{expr}` interpolations.
 		nameParts, nameLit, ni := b.attrName(i, end)
 		i = ni
-		// Optional `= value`.
 		var (
 			valExpr  gnode.Expr
 			valLit   string
@@ -174,38 +181,59 @@ func (b *htmlBuilder) attributes(start, end int) {
 			valExpr, valLit, valIsLit, i = b.attrValue(i, end)
 			hasVal = true
 		}
+		attrs = append(attrs, b.makeAttr(nameParts, nameLit, valExpr, valLit, hasVal, valIsLit))
+	}
+	return attrs
+}
 
-		nameInterp := len(nameParts) > 0
-		if !nameInterp && (!hasVal || valIsLit) {
-			// Fully literal attribute: keep it verbatim.
-			b.emitLit(" "+nameLit, start)
-			if hasVal {
-				b.emitLit("="+valLit, start)
-			}
-			continue
+// makeAttr builds one TagAttribute. A fully-literal name yields a normal
+// attribute (flag, literal value, or interpolated value); an interpolated name
+// (`data-{key}`) yields a computed attribute group (`**{[name]: value}`) so it
+// still lowers onto the giom.Tag call.
+func (b *htmlBuilder) makeAttr(nameParts []gnode.Expr, nameLit string, valExpr gnode.Expr, valLit string, hasVal, valIsLit bool) *giomnode.TagAttribute {
+	if len(nameParts) > 0 { // interpolated name -> `**{[name]: value}` spread
+		nameExpr := concatExprs(nameParts)
+		v := valExpr
+		switch {
+		case !hasVal:
+			v = gnode.EIdent("true", nameExpr.Pos())
+		case valIsLit:
+			v = gnode.Str(unquoteAttr(valLit), nameExpr.Pos())
 		}
-		// Interpolated name and/or value -> giom$attr(name, value).
-		var nameExpr gnode.Expr
-		if nameInterp {
-			nameExpr = concatExprs(nameParts)
-		} else {
-			nameExpr = gnode.Str(nameLit, b.pos(start))
-		}
-		if !hasVal {
-			valExpr = gnode.EIdent("true", b.pos(start))
-		} else if valIsLit {
-			valExpr = gnode.Str(unquoteAttr(valLit), b.pos(start))
-		}
-		b.emitLit(" ", start)
-		b.flush()
-		b.out = append(b.out, writeAttrStmt(nameExpr, valExpr))
+		return &giomnode.TagAttribute{Spread: computedAttrDict(nameExpr, v)}
+	}
+
+	attr := &giomnode.TagAttribute{Name: nameLit}
+	if !hasVal {
+		attr.IsFlag = true
+		return attr
+	}
+	if valIsLit {
+		// A plain string value: stored as a StrLit whose giom-source form is
+		// already quoted (`[href="/x"]`), so IsRaw (which would re-quote) is left
+		// unset.
+		attr.Value = gnode.Str(unquoteAttr(valLit), b.pos(0))
+		return attr
+	}
+	attr.Value = valExpr // interpolated value expression
+	return attr
+}
+
+// computedAttrDict builds a `{[name]: value}` dict literal for a computed
+// (interpolated-name) attribute. The key is wrapped in parentheses so it is
+// evaluated at runtime (a bare identifier key would otherwise be a static name).
+func computedAttrDict(nameExpr, valExpr gnode.Expr) gnode.Expr {
+	key := gnode.EParen(nameExpr, nameExpr.Pos(), nameExpr.End())
+	return &gnode.DictExpr{
+		Elements: []*gnode.DictElementLit{{Key: key, Value: valExpr}},
 	}
 }
 
+// --- attribute-part parsing (position-preserving) ---
+
 // attrName parses an attribute name of literal characters and `{expr}`
-// interpolations. It returns the interpolation parts (nil when fully literal,
-// otherwise the ordered literal/expression fragments), the literal name (when
-// there is no interpolation) and the new index.
+// interpolations. It returns the interpolation parts (nil when fully literal),
+// the literal name (when there is no interpolation) and the new index.
 func (b *htmlBuilder) attrName(start, end int) (parts []gnode.Expr, lit string, next int) {
 	s := b.src
 	i := start
@@ -230,7 +258,7 @@ func (b *htmlBuilder) attrName(start, end int) (parts []gnode.Expr, lit string, 
 			i = e
 			continue
 		}
-		if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '=' || c == '>' || c == '/' {
+		if isSpace(c) || c == '=' || c == '>' || c == '/' {
 			break
 		}
 		buf.WriteByte(c)
@@ -245,8 +273,8 @@ func (b *htmlBuilder) attrName(start, end int) (parts []gnode.Expr, lit string, 
 }
 
 // attrValue parses an attribute value: `"…"`, `'…'`, `{expr}`, or a bareword. It
-// returns the value expression (for `{expr}`), the raw literal text (for quoted
-// or bareword values), whether it is literal, and the new index.
+// returns the value expression (for `{expr}`), the raw literal text (quoted or
+// bareword), whether it is literal, and the new index.
 func (b *htmlBuilder) attrValue(start, end int) (expr gnode.Expr, lit string, isLit bool, next int) {
 	s := b.src
 	i := start
@@ -262,7 +290,7 @@ func (b *htmlBuilder) attrValue(start, end int) (expr gnode.Expr, lit string, is
 		return parseExprStr(s[i+1:e-1], b.pos(i+1)), "", false, e
 	default:
 		j := i
-		for j < end && s[j] != ' ' && s[j] != '\t' && s[j] != '\n' && s[j] != '\r' && s[j] != '>' && s[j] != '/' {
+		for j < end && !isSpace(s[j]) && s[j] != '>' && s[j] != '/' {
 			j++
 		}
 		return nil, s[i:j], true, j
@@ -276,8 +304,7 @@ func collapseWS(s string) string {
 	var b strings.Builder
 	space := false
 	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+		if isSpace(s[i]) {
 			space = true
 			continue
 		}
@@ -285,7 +312,7 @@ func collapseWS(s string) string {
 			b.WriteByte(' ')
 		}
 		space = false
-		b.WriteByte(c)
+		b.WriteByte(s[i])
 	}
 	if space {
 		b.WriteByte(' ')
@@ -312,24 +339,4 @@ func concatExprs(parts []gnode.Expr) gnode.Expr {
 		expr = gnode.EBinary(expr, p, token.Add, expr.Pos())
 	}
 	return expr
-}
-
-func writeRawStmt(lit string, pos source.Pos) gnode.Stmt {
-	call := gnode.ECall(gnode.EIdent("write", pos), pos, pos)
-	call.Args.Values = append(call.Args.Values, gnode.EToRaw(pos, gnode.Str(lit, pos)))
-	return gnode.SExpr(call)
-}
-
-func writeEscStmt(expr gnode.Expr) gnode.Stmt {
-	call := gnode.ECall(gnode.ESelector(gnode.EIdent("giom", expr.Pos()), gnode.Str("write", 0)), expr.Pos(), expr.End())
-	call.Args.Values = append(call.Args.Values, expr)
-	return gnode.SExpr(call)
-}
-
-func writeAttrStmt(nameExpr, valExpr gnode.Expr) gnode.Stmt {
-	attr := gnode.ECall(gnode.ESelector(gnode.EIdent("giom", nameExpr.Pos()), gnode.Str("attr", 0)), nameExpr.Pos(), valExpr.End())
-	attr.Args.Values = append(attr.Args.Values, nameExpr, valExpr)
-	call := gnode.ECall(gnode.EIdent("write", nameExpr.Pos()), nameExpr.Pos(), valExpr.End())
-	call.Args.Values = append(call.Args.Values, attr)
-	return gnode.SExpr(call)
 }

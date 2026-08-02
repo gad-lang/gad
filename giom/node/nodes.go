@@ -70,6 +70,11 @@ type TagAttribute struct {
 	IsFlag    bool
 	Condition gnode.Expr
 	Elements  *gnode.KeyValueArrayLit
+	// Spread, when set, is a `**expr` attribute spread (a dict/keyValueArray of
+	// name→value). It carries an interpolated-name attribute from an HTML region
+	// (`data-{key}=v` → `**{[ "data-"+key ]: v}`), which cannot be a static named
+	// argument.
+	Spread gnode.Expr
 }
 
 type TagStmt struct {
@@ -134,6 +139,10 @@ func buildAttrsCall(attrs []*TagAttribute, pos ...source.Pos) gnode.Expr {
 		if attr == nil {
 			continue
 		}
+		if attr.Spread != nil {
+			call.NamedArgs.Append(&gnode.NamedArgExpr{Var: true, Exp: attr.Spread}, nil)
+			continue
+		}
 		if attr.Elements != nil {
 			for _, el := range attr.Elements.Elements {
 				if kv, ok := el.(*gnode.KeyValuePairLit); ok {
@@ -180,9 +189,11 @@ type HtmlStmt struct {
 	ast.NodeData
 	NodePos source.Pos
 	NodeEnd source.Pos
-	// Stmts are the lowered Gad statements (write/giom.write/giom.attr calls)
-	// produced from the HTML region.
-	Stmts gnode.Stmts
+	// Children are the giom nodes the HTML region parsed into (TagStmt / TextStmt
+	// / fragments), so the region compiles to giom.Tag / giom.Text elements — like
+	// pug-style tags — rather than raw HTML markup, and transpiles back to
+	// pug-style giom via WriteGiom.
+	Children gnode.Stmts
 }
 
 func (h *HtmlStmt) Pos() source.Pos { return h.NodePos }
