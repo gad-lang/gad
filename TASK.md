@@ -16,6 +16,12 @@ Most recent work — the **giom inline-HTML compiler rewrite**, committed on `ma
   interleaved inside an HTML region by indentation (with `@else` continuations);
   a length-preserving sentinel rewrite keeps HTML positions exact while the
   extracted block is parsed by the full giom parser.
+- **`@param` directive** (`f20c741`): the giom analog of Gad's top-level `param`
+  (positional / `*rest` / named-after-`;` with defaults / `**named`). Wired end
+  to end like `@global` (token → scan → parse → ParamStmt node → convertParam →
+  WriteGiom), compiles to `param (…)` at the template top scope. Tests:
+  TestParamRender/Parse/WriteGiom; sample `samples/giom/param.giom`; docs
+  "Params" section.
 - Proof: `giom` `go test ./...` → EXIT 0 (`ok giom`, `ok giom/parser`), `go vet`
   clean; parent `gad` `go test .` → `ok` (2.9s). Tests: TestHtmlRegions,
   TestHtmlInterleave, TestHtmlInterpolationPosition, TestHtmlWriteGiom{,Nested,
