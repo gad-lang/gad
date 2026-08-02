@@ -4187,6 +4187,21 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 			name = p.ParseIdent()
 		}
 		stmt.ValueExpr = p.parseInterfaceBody(ifaceTok, name)
+	case token.Prop:
+		// export prop v { … } exports a Prop under its name, so member access on
+		// the module (m.v / m.v = x) delegates to the prop's getter/setter.
+		propExpr := p.ParsePropExprT(p.ExpectToken(token.Prop))
+		if p.Failed() {
+			return
+		}
+		if pe, _ := propExpr.(*node.PropExpr); pe != nil {
+			if pe.NameExpr == nil {
+				p.Error(pe.Pos(), "export prop requires a name")
+				return
+			}
+			stmt.KeyExpr = pe.NameExpr
+		}
+		stmt.ValueExpr = propExpr
 	default:
 		stmt.KeyExpr = p.ParseLiteral()
 		if ident, _ := stmt.KeyExpr.(*node.IdentExpr); ident != nil {
