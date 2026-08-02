@@ -1,5 +1,26 @@
 # Current State
-> Updated: 2026-07-16
+> Updated: 2026-08-02
+
+Most recent work — the **giom inline-HTML compiler rewrite**, committed on `main`
+(`598bd0d`, `6c43239`):
+
+- Inline HTML regions (`<a href="/x">Home</a>`) now compile to the same
+  `giom.Tag` / `giom.Text` render-tree elements as the pug-style tag syntax,
+  instead of being emitted as a raw HTML string. Consequence: void elements
+  self-close (`<br />`), boolean attrs expand (`disabled="disabled"`), attrs are
+  classified, and interpolated attribute names lower to a computed
+  `**{[name]: value}` spread. Interpolation source positions are preserved.
+- `HtmlStmt` carries parsed giom children; `HtmlStmt.WriteGiom` transpiles a
+  region back to pug-style giom (`a[href="/x"]` + `| Home`).
+- Block-level giom statements (`@if`/`@for`/`@match`/`+comp`/`~code`) can be
+  interleaved inside an HTML region by indentation (with `@else` continuations);
+  a length-preserving sentinel rewrite keeps HTML positions exact while the
+  extracted block is parsed by the full giom parser.
+- Proof: `giom` `go test ./...` → EXIT 0 (`ok giom`, `ok giom/parser`), `go vet`
+  clean; parent `gad` `go test .` → `ok` (2.9s). Tests: TestHtmlRegions,
+  TestHtmlInterleave, TestHtmlInterpolationPosition, TestHtmlWriteGiom{,Nested,
+  Interleave}. Samples: `samples/giom/html.giom`, `html_control_flow.giom`
+  (both render-verified). Docs: `giom/docs/syntax.md` "Inline HTML" section.
 
 All Language backlog items are done and on `main` (merge `67bf442`); the only
 remaining marker is the bytecode-performance investigation (`[~]`), whose safe
