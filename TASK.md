@@ -1,6 +1,26 @@
 # Current State
 > Updated: 2026-08-02
 
+Latest: **compiler warnings + main-module export handling** (`b7c307e`).
+- `Compile`/`CompileModule`/`CompileFile` now return a single `*CompileResult`
+  (`File`, `Bytecode`, `Warnings`) + error (was multi-value). `BC()` is a
+  nil-safe bytecode accessor. All ~50 call sites updated.
+- New `CompilerWarning` (position + detail, mirrors `CompilerError`, non-fatal),
+  funneled to the root compiler; on `CompileResult.Warnings` and
+  `Compiler.Warnings()`.
+- Main module ignores `export` (no export opcodes) and emits a positioned
+  warning instead — the entry point has no import consumer.
+- Warnings surfaced on STDERR: cmd/gad (run/repl/debug), IDE run+debug handlers,
+  gadbridge playground.
+- Proof: `go build ./...`, `go vet ./...` clean; main module `go test ./...`
+  EXIT 0; giom module `go test ./...` EXIT 0. New: TestCompiler_ExportMainIgnored;
+  TestCompiler_Export now non-main; TestVMExport/TestVMMainModule updated.
+- OPEN (`#35`): the export-lowering optimization (collect exports into one dict +
+  a single `OpExtendModule`) is NOT done — it changes bytecode AND export
+  evaluation order, so it needs a semantics decision before landing. Current
+  per-statement lowering is unchanged and correct.
+
+
 Most recent work — the **giom inline-HTML compiler rewrite**, committed on `main`
 (`598bd0d`, `6c43239`):
 
