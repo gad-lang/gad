@@ -59,10 +59,11 @@ func NewEval(builtins *StaticBuiltins, st *SymbolTable, opts CompileOptions, run
 
 // RunScript compiles, runs given script and returns last value on stack.
 func (r *Eval) RunScript(ctx context.Context, script []byte) (ret Object, bytecode *Bytecode, err error) {
-	_, bytecode, err = Compile(r.st, script, r.Opts)
+	res, err := Compile(r.st, script, r.Opts)
 	if err != nil {
 		return nil, nil, err
 	}
+	bytecode = res.Bytecode
 	ret, err = r.Run(ctx, bytecode)
 	return
 }

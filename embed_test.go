@@ -36,8 +36,9 @@ func TestVMEmbed(t *testing.T) {
 	require.Equal(t, Str("Embedded"), ret)
 
 	// the same file embedded twice shares a single constant.
-	_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
+	__cr1, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
 		[]byte(`embed("greeting.txt"); embed("greeting.txt")`), opts)
+	bc := __cr1.BC()
 	require.NoError(t, err)
 	require.Len(t, bc.Constants, 1)
 

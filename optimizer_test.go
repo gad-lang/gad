@@ -730,9 +730,10 @@ func TestOptimizerError(t *testing.T) {
 	// two errors found by optimizer is reported as multipleErr but
 	// Error() method returns first error's message.
 	// Errors on the same line are discarded by optimizer.
-	_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(`
+	__cr1, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(`
 	1/0;2/0
 	1/0;`), DefaultCompileOptions)
+	bc := __cr1.BC()
 	require.Nil(t, bc)
 	require.Error(t, err)
 	require.Equal(t,

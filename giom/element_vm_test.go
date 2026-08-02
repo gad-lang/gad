@@ -14,10 +14,11 @@ func runGadReturningTag(t *testing.T, src string) string {
 	t.Helper()
 	builtins := AppendBuiltins(gad.NewBuiltins())
 	st := gad.NewSymbolTable(builtins.NameSet)
-	_, bc, err := gad.Compile(st, []byte(src), gad.CompileOptions{})
+	res, err := gad.Compile(st, []byte(src), gad.CompileOptions{})
 	if err != nil {
 		t.Fatalf("compile: %v\nsrc:\n%s", err, src)
 	}
+	bc := res.Bytecode
 	e := gad.NewEval(builtins.Build(), st, gad.CompileOptions{})
 	ret, err := e.Run(context.Background(), bc)
 	if err != nil {

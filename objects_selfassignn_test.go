@@ -9,7 +9,8 @@ func TestSelfAssignN(t *testing.T) {
 	b := gad.NewBuiltins()
 	run := func(src string) gad.Object {
 		st := gad.NewSymbolTable(b.NameSet)
-		_, bc, err := gad.Compile(st, []byte(src), gad.CompileOptions{CompilerOptions: gad.DefaultCompilerOptions})
+		__cr1, err := gad.Compile(st, []byte(src), gad.CompileOptions{CompilerOptions: gad.DefaultCompilerOptions})
+		bc := __cr1.BC()
 		if err != nil {
 			t.Fatalf("compile %q: %v", src, err)
 		}

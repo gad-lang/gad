@@ -166,7 +166,8 @@ func TestVMNoPanic(t *testing.T) {
 		}()
 		builtins := NewBuiltins()
 		// expectRun() is not used because panic somehow cannot be recovered in testing.
-		_, c, err := Compile(NewSymbolTable(builtins.NameSet), []byte(`param panic; panic();`), CompileOptions{})
+		__cr1, err := Compile(NewSymbolTable(builtins.NameSet), []byte(`param panic; panic();`), CompileOptions{})
+		c := __cr1.BC()
 		require.NoError(t, err)
 		vm := NewVM(builtins.Build(), c)
 		v, err := vm.Run(nil, panicFunc)

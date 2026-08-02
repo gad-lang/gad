@@ -25,10 +25,23 @@ func newBuiltins(path string) *gad.Builtins {
 // compileFor compiles src for path: Giom source (.giom) through gad's native
 // Giom front-end, everything else (plain Gad and .gadt templates) through the
 // plain Gad path. The caller is responsible for template (.gadt) mode on opts.
-func compileFor(st *gad.SymbolTable, src []byte, path string, opts gad.CompileOptions) (*gad.Bytecode, error) {
+func compileFor(st *gad.SymbolTable, src []byte, path string, opts gad.CompileOptions) (*gad.CompileResult, error) {
 	if isGiom(path) {
 		opts.GiomOptions = &gad.GiomOptions{}
 	}
-	_, bc, err := gad.Compile(st, src, opts)
-	return bc, err
+	return gad.Compile(st, src, opts)
+}
+
+// warningsText renders compiler warnings as STDERR panel text (one per line,
+// with source position + detail), or "" when there are none.
+func warningsText(warnings []*gad.CompilerWarning) string {
+	if len(warnings) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for _, w := range warnings {
+		b.WriteString(w.Error())
+		b.WriteByte('\n')
+	}
+	return b.String()
 }

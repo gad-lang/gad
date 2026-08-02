@@ -354,7 +354,7 @@ func Diagnose(src string) []Diagnostic {
 	if _, err := parseSource(src); err != nil {
 		return errorDiagnostics(err)
 	}
-	if _, _, err := compile(src); err != nil {
+	if _, err := compile(src); err != nil {
 		return errorDiagnostics(err)
 	}
 	return nil
@@ -362,13 +362,18 @@ func Diagnose(src string) []Diagnostic {
 
 // Run compiles and executes src, capturing stdout/stderr and the return value.
 func Run(src string) RunResult {
-	_, bc, err := compile(src)
+	cr, err := compile(src)
 	if err != nil {
 		return RunResult{OK: false, Diagnostics: errorDiagnostics(err)}
 	}
 
+	// Surface compiler warnings in the STDERR panel, before program output.
 	var stdout, stderr bytes.Buffer
-	ret, runErr := gad.NewVM(gad.NewBuiltins().Build(), bc).SetRecover(true).RunOpts(&gad.RunOpts{
+	for _, w := range cr.Warnings {
+		stderr.WriteString(w.Error())
+		stderr.WriteByte('\n')
+	}
+	ret, runErr := gad.NewVM(gad.NewBuiltins().Build(), cr.Bytecode).SetRecover(true).RunOpts(&gad.RunOpts{
 		StdOut: &stdout,
 		StdErr: &stderr,
 	})
@@ -391,7 +396,7 @@ func Run(src string) RunResult {
 }
 
 // compile builds the bytecode for src with a fresh builtins/symbol table.
-func compile(src string) (*parser.File, *gad.Bytecode, error) {
+func compile(src string) (*gad.CompileResult, error) {
 	builtins := gad.NewBuiltins()
 	st := gad.NewSymbolTable(builtins.NameSet)
 	return gad.Compile(st, []byte(src), gad.CompileOptions{})

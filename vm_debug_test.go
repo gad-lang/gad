@@ -29,7 +29,8 @@ func compileForDebug(t *testing.T, src string) *gad.Bytecode {
 	t.Helper()
 	b := gad.NewBuiltins()
 	st := gad.NewSymbolTable(b.NameSet)
-	_, bc, err := gad.Compile(st, []byte(src), gad.CompileOptions{})
+	__cr1, err := gad.Compile(st, []byte(src), gad.CompileOptions{})
+	bc := __cr1.BC()
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}

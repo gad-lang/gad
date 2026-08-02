@@ -174,7 +174,8 @@ func createFiles(t *testing.T, baseDir string, files map[string]string) {
 
 func run(w io.Writer, script []byte, opts gad.CompilerOptions) (ret gad.Object, err error) {
 	builtins := gad.NewBuiltins().Build()
-	_, bc, err := gad.Compile(gad.NewSymbolTable(builtins.Builtins().NameSet), script, gad.CompileOptions{CompilerOptions: opts})
+	__cr1, err := gad.Compile(gad.NewSymbolTable(builtins.Builtins().NameSet), script, gad.CompileOptions{CompilerOptions: opts})
+	bc := __cr1.BC()
 	if err != nil {
 		return
 	}

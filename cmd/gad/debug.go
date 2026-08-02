@@ -109,11 +109,12 @@ func loadProgram(file string) (*gad.Bytecode, *gad.Builtins, []string, error) {
 		opts.GiomOptions = &gad.GiomOptions{}
 		opts.CompilerOptions.ModuleFile = file
 	}
-	_, bc, err := gad.Compile(st, src, opts)
+	res, err := gad.Compile(st, src, opts)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return bc, builtins, strings.Split(string(src), "\n"), nil
+	printCompileWarnings(os.Stderr, res.Warnings)
+	return res.Bytecode, builtins, strings.Split(string(src), "\n"), nil
 }
 
 // runDebug compiles the script, attaches a debug engine, runs the VM in a

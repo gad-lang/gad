@@ -3678,6 +3678,14 @@ func (c *Compiler) compileNamedParamValue(nd *namedParamValue) (err error) {
 	return nil
 }
 func (c *Compiler) compileExportStmt(nd *node.ExportStmt) (err error) {
+	// The main module is the program entry point, not an importable module, so
+	// its exports have no consumer. Skip compiling them (emit no export ops) but
+	// do not fail: report a warning the caller can surface (CLI/IDE STDERR).
+	if c.module != nil && c.module.Main {
+		c.warnf(nd, "export ignored in main module %q", c.module.Name)
+		return nil
+	}
+
 	var (
 		key   = nd.KeyExpr
 		value = nd.ValueExpr

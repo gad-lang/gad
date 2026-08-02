@@ -243,10 +243,11 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 		err error
 	)
 
-	_, bc, err = gad.Compile(st, src, opts)
+	res, err := gad.Compile(st, src, opts)
 	if err != nil {
 		return nil, fmt.Errorf("compile %s: %+v", filePath, err)
 	}
+	bc = res.Bytecode
 
 	files := make(map[string]time.Time)
 

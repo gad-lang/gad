@@ -137,11 +137,15 @@ func VMExpectErrorGen(
 				opts.compileOptions(&co)
 			}
 
-			_, compiled, err := gad.Compile(st, []byte(script), co)
+			cr, err := gad.Compile(st, []byte(script), co)
 			if opts.IsCompilerErr {
 				require.Error(t, err)
 				callback(t, err)
 				return
+			}
+			var compiled *gad.Bytecode
+			if cr != nil {
+				compiled = cr.Bytecode
 			}
 			require.NoError(t, err)
 			_, err = gad.NewVM(builtins.Build(), compiled).SetRecover(opts.IsNoPanic()).RunOpts(&gad.RunOpts{
@@ -378,8 +382,9 @@ func VMTestExpectRun(t *testing.T, script string, opts *VMTestOpts, expect gad.O
 				opts.compileOptions(&tC.opts)
 			}
 
-			pf, gotBc, err := gad.Compile(st, []byte(script), tC.opts)
+			cr, err := gad.Compile(st, []byte(script), tC.opts)
 			require.NoError(t, err)
+			pf, gotBc := cr.File, cr.Bytecode
 			// create a copy of the bytecode before execution to test bytecode
 			// change after execution
 			expectBc := *gotBc

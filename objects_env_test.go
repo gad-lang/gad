@@ -14,9 +14,10 @@ func runEnv(t *testing.T, src string, env *gad.Env) gad.Object {
 	t.Helper()
 	b := gad.NewBuiltins()
 	st := gad.NewSymbolTable(b.NameSet)
-	_, bc, err := gad.Compile(st, []byte(src), gad.CompileOptions{
+	__cr1, err := gad.Compile(st, []byte(src), gad.CompileOptions{
 		CompilerOptions: gad.DefaultCompilerOptions,
 	})
+	bc := __cr1.BC()
 	if err != nil {
 		t.Fatalf("compile %q: %v", src, err)
 	}
@@ -91,7 +92,8 @@ func TestDeleteStmt(t *testing.T) {
 	// Deleting from a non-deletable target is an error.
 	b := gad.NewBuiltins()
 	st := gad.NewSymbolTable(b.NameSet)
-	_, bc, _ := gad.Compile(st, []byte(`a := [1]; delete a ["x"]`), gad.CompileOptions{})
+	__cr2, _ := gad.Compile(st, []byte(`a := [1]; delete a ["x"]`), gad.CompileOptions{})
+	bc := __cr2.BC()
 	if _, err := gad.NewVM(b.Build(), bc).SetRecover(true).RunOpts(&gad.RunOpts{}); err == nil {
 		t.Fatalf("delete on array: expected error, got nil")
 	}

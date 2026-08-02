@@ -817,9 +817,43 @@ func TestCompiler_CompileImport(t *testing.T) {
 	)
 }
 
+// TestCompiler_ExportMainIgnored verifies that `export` in the main module is
+// not compiled (no export opcodes) and instead produces a compiler warning that
+// carries the export statement's source position and detail.
+func TestCompiler_ExportMainIgnored(t *testing.T) {
+	st := NewSymbolTable(NewBuiltins().NameSet)
+	res, err := Compile(st, []byte("a := 1\nexport a\nexport b = 2\n"), CompileOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	// Two export statements -> two warnings.
+	require.Len(t, res.Warnings, 2)
+	for _, w := range res.Warnings {
+		require.Contains(t, w.Error(), "export ignored in main module")
+		require.Contains(t, w.Error(), "\tat ") // includes source position
+	}
+	// First export is on line 2 (its source position is preserved).
+	require.Equal(t, 2, res.Warnings[0].FileSet.Position(res.Warnings[0].Pos()).Line)
+
+	// No export opcodes were emitted for the main module.
+	insts := res.Bytecode.Main.Instructions
+	for i := 0; i < len(insts); {
+		op := Opcode(insts[i])
+		require.NotEqual(t, OpExtendModule, op)
+		require.NotEqual(t, OpSetReturnModule, op)
+		width := 1
+		for _, w := range OpcodeOperands[op] {
+			width += w
+		}
+		i += width
+	}
+}
+
 func TestCompiler_Export(t *testing.T) {
+	// Exports are compiled for importable (non-main) modules; the main module
+	// ignores them (see TestCompiler_ExportMainIgnored).
 	// all local variables are initialized as nil
-	expectCompile(t, `
+	expectCompileModule(t, `
 var @exports
 const a = 1
 export a
@@ -1060,8 +1094,9 @@ func TestCompiler_CompileEmbed(t *testing.T) {
 		impMap.SetExtImporter(&importers.EmbeddedFileImporter{
 			WorkDirs: []string{tmpDir},
 		})
-		_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(`embed("test.txt")`),
+		__cr1, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(`embed("test.txt")`),
 			CompileOptions{CompilerOptions: CompilerOptions{EmbededdMap: impMap}})
+		bc := __cr1.BC()
 		require.NoError(t, err)
 		require.Len(t, bc.Constants, 1)
 		emb, ok := bc.Constants[0].(*Embedded)
@@ -1082,9 +1117,10 @@ func TestCompiler_CompileEmbed(t *testing.T) {
 		impMap.SetExtImporter(&importers.EmbeddedFileImporter{
 			WorkDirs: []string{tmpDir},
 		})
-		_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
+		__cr2, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
 			[]byte(`embed("f.txt"; sources=["mydir"])`),
 			CompileOptions{CompilerOptions: CompilerOptions{EmbededdMap: impMap}})
+		bc := __cr2.BC()
 		require.NoError(t, err)
 		require.Len(t, bc.Constants, 1)
 		emb, ok := bc.Constants[0].(*Embedded)
@@ -1108,9 +1144,10 @@ func TestCompiler_CompileEmbed(t *testing.T) {
 		impMap.SetExtImporter(&importers.EmbeddedFileImporter{
 			WorkDirs: []string{tmpDir},
 		})
-		_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
+		__cr3, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
 			[]byte(`embed("dat"; config_file="embed.yaml")`),
 			CompileOptions{CompilerOptions: CompilerOptions{EmbededdMap: impMap}})
+		bc := __cr3.BC()
 		require.NoError(t, err)
 		require.Len(t, bc.Constants, 1)
 		emb, ok := bc.Constants[0].(*Embedded)
@@ -1125,7 +1162,8 @@ func TestCompiler_CompileEmbed(t *testing.T) {
 func TestCompiler_CompileInterpolatedStringLit(t *testing.T) {
 	t.Run("plain string", func(t *testing.T) {
 		st := NewSymbolTable(NewBuiltins().NameSet)
-		_, bc, err := Compile(st, []byte(`return #"hello"`), CompileOptions{})
+		__cr4, err := Compile(st, []byte(`return #"hello"`), CompileOptions{})
+		bc := __cr4.BC()
 		require.NoError(t, err)
 		require.NotNil(t, bc)
 
@@ -1138,7 +1176,8 @@ func TestCompiler_CompileInterpolatedStringLit(t *testing.T) {
 
 	t.Run("with interpolation", func(t *testing.T) {
 		st := NewSymbolTable(NewBuiltins().NameSet)
-		_, bc, err := Compile(st, []byte(`name := "world"; return #"hello {name}"`), CompileOptions{})
+		__cr5, err := Compile(st, []byte(`name := "world"; return #"hello {name}"`), CompileOptions{})
+		bc := __cr5.BC()
 		require.NoError(t, err)
 		require.NotNil(t, bc)
 
@@ -1150,7 +1189,8 @@ func TestCompiler_CompileInterpolatedStringLit(t *testing.T) {
 
 	t.Run("multiple interpolations", func(t *testing.T) {
 		st := NewSymbolTable(NewBuiltins().NameSet)
-		_, bc, err := Compile(st, []byte(`a := 1; b := 2; return #"{a} + {b} = {a+b}"`), CompileOptions{})
+		__cr6, err := Compile(st, []byte(`a := 1; b := 2; return #"{a} + {b} = {a+b}"`), CompileOptions{})
+		bc := __cr6.BC()
 		require.NoError(t, err)
 		require.NotNil(t, bc)
 
@@ -1163,7 +1203,8 @@ func TestCompiler_CompileInterpolatedStringLit(t *testing.T) {
 	runTmpl := func(t *testing.T, src string) Object {
 		t.Helper()
 		st := NewSymbolTable(NewBuiltins().NameSet)
-		_, bc, err := Compile(st, []byte(src), CompileOptions{})
+		__cr7, err := Compile(st, []byte(src), CompileOptions{})
+		bc := __cr7.BC()
 		require.NoError(t, err)
 		require.NotNil(t, bc)
 		vm := NewVM(NewBuiltins().Build(), bc)
@@ -3295,8 +3336,9 @@ func TestCompilerDeferStmt(t *testing.T) {
 	// a defer-using function desugars into a wrapper that creates extra
 	// compiled functions (the $__body thunk and one handler closure per defer)
 	st := NewSymbolTable(NewBuiltins().NameSet)
-	_, bc, err := Compile(st, []byte(`f := func() { defer { x := 1 } }`),
+	__cr8, err := Compile(st, []byte(`f := func() { defer { x := 1 } }`),
 		CompileOptions{})
+	bc := __cr8.BC()
 	require.NoError(t, err)
 
 	var fnCount int
@@ -3317,7 +3359,7 @@ func TestCompilerDeferStmt(t *testing.T) {
 		`f := func() { out := ""; { deferb out += "x" } }`,
 		`f := func() { n := 0; { deferb n++ } }`,
 	} {
-		_, _, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), CompileOptions{})
+		_, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), CompileOptions{})
 		require.NoError(t, err, src)
 	}
 }
@@ -3558,12 +3600,12 @@ func TestCompilerSpreadLiterals(t *testing.T) {
 func TestCompilerRegexLit(t *testing.T) {
 	// `/re/` and `/re/p` compile to the regexp() constructor (POSIX via named arg)
 	st := NewSymbolTable(NewBuiltins().NameSet)
-	_, _, err := Compile(st, []byte(`a := /ab+/; b := /a+/p`), CompileOptions{})
+	_, err := Compile(st, []byte(`a := /ab+/; b := /a+/p`), CompileOptions{})
 	require.NoError(t, err)
 
 	// the pattern is compiled at compile time, so an invalid one errors then
 	st = NewSymbolTable(NewBuiltins().NameSet)
-	_, _, err = Compile(st, []byte(`a := /(/`), CompileOptions{})
+	_, err = Compile(st, []byte(`a := /(/`), CompileOptions{})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid regex")
 }
@@ -3572,7 +3614,7 @@ func TestCompilerMixedParamsDestructure(t *testing.T) {
 	// the MultiParenExpr LHS compiles (positional index/slice + dict destructure
 	// of the named side); just assert it compiles cleanly.
 	st := NewSymbolTable(NewBuiltins().NameSet)
-	_, _, err := Compile(st,
+	_, err := Compile(st,
 		[]byte(`x := (1, 2; c=3); (a, b, **pr; c, p:d, r=2, **nr) := x`),
 		CompileOptions{})
 	require.NoError(t, err)
@@ -4330,7 +4372,8 @@ func TestCompilerFuncReturnType(t *testing.T) {
 	// rendered by HeaderString, without affecting the generated instructions.
 	compileFn := func(t *testing.T, script string) *CompiledFunction {
 		t.Helper()
-		_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(script), CompileOptions{})
+		__cr13, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(script), CompileOptions{})
+		bc := __cr13.BC()
 		require.NoError(t, err)
 		for _, c := range bc.Constants {
 			if cf, ok := c.(*CompiledFunction); ok {
@@ -4415,7 +4458,7 @@ func TestCompilerFuncReturnType(t *testing.T) {
 	}
 
 	// Unresolved return types are reported, mirroring parameter type resolution.
-	_, _, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
+	_, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
 		[]byte(`return func(a) <NopeType> { return a }`), CompileOptions{})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), `unresolved reference "NopeType"`)
@@ -4430,7 +4473,7 @@ func expectCompileErrorWithOpts(t *testing.T,
 	script string, opts CompileOptions, errStr string) {
 
 	t.Helper()
-	_, _, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(script), opts)
+	_, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(script), opts)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), errStr)
 }
@@ -4438,6 +4481,20 @@ func expectCompileErrorWithOpts(t *testing.T,
 func expectCompile(t *testing.T, script string, expected *Bytecode) {
 	t.Helper()
 	expectCompileWithOpts(t, script, CompileOptions{}, expected)
+}
+
+// expectCompileModule compiles script as a NON-main module (so `export`
+// statements are compiled, unlike the main module where they are ignored) named
+// MainName, keeping compiled-function module rendering as "(main)".
+func expectCompileModule(t *testing.T, script string, expected *Bytecode) {
+	t.Helper()
+	builtins := NewBuiltins()
+	st := NewSymbolTable(builtins.NameSet)
+	res, err := CompileModule(st,
+		&ModuleSpec{ModuleInfo: ModuleInfo{Name: MainName, URL: MainName}},
+		[]byte(script), CompileOptions{})
+	require.NoError(t, err)
+	TestBytecodesEqual(t, expected, res.Bytecode, expected.Main.SourceMap != nil, nil)
 }
 
 func expectCompileMixed(t *testing.T, script string, expected *Bytecode) {
@@ -4476,7 +4533,8 @@ func expectCompileWithOpts(t *testing.T,
 	}
 
 	t.Helper()
-	_, got, err := Compile(eopts.st, []byte(script), opts)
+	__cr16, err := Compile(eopts.st, []byte(script), opts)
+	got := __cr16.BC()
 	require.NoError(t, err)
 	TestBytecodesEqual(t, expected, got, expected.Main.SourceMap != nil, eopts.opts)
 }

@@ -8,7 +8,8 @@ import (
 
 func benchBytecode(b *testing.B, src string) *Bytecode {
 	b.Helper()
-	_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), DefaultCompileOptions)
+	__cr1, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), DefaultCompileOptions)
+	bc := __cr1.BC()
 	if err != nil {
 		b.Fatal(err)
 	}

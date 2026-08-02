@@ -308,14 +308,14 @@ func (s *Server) evalObject(source, expr, workdir string, req runRequest) (gad.O
 	builtins := gad.NewBuiltins()
 	st := gad.NewSymbolTable(builtins.NameSet)
 	mm := buildModuleMap(workdir, req.Disabled, req.Safe)
-	_, bc, err := gad.Compile(st, []byte(script), gad.CompileOptions{
+	res, err := gad.Compile(st, []byte(script), gad.CompileOptions{
 		CompilerOptions: gad.CompilerOptions{ModuleMap: mm},
 	})
 	if err != nil {
 		return nil, err
 	}
 	var stdout, stderr bytes.Buffer
-	return gad.NewVM(builtins.Build(), bc).SetRecover(true).RunOpts(&gad.RunOpts{
+	return gad.NewVM(builtins.Build(), res.Bytecode).SetRecover(true).RunOpts(&gad.RunOpts{
 		StdOut: &stdout, StdErr: &stderr,
 	})
 }
@@ -441,7 +441,7 @@ func (s *Server) run(src, workdir string, req runRequest) gadbridge.RunResult {
 		s.applyTemplateMode(&opts, req.Path)
 	}
 
-	bc, err := compileFor(st, []byte(src), req.Path, opts)
+	cr, err := compileFor(st, []byte(src), req.Path, opts)
 	if err != nil {
 		return gadbridge.RunResult{OK: false, Diagnostics: gadbridge.ErrorDiagnostics(err)}
 	}
@@ -455,8 +455,12 @@ func (s *Server) run(src, workdir string, req runRequest) gadbridge.RunResult {
 		args = append(args, arr)
 	}
 
-	var stdout, stderr bytes.Buffer
-	ret, runErr := gad.NewVM(builtins.Build(), bc).SetRecover(true).RunOpts(&gad.RunOpts{
+	// Surface compiler warnings in the STDERR panel, before the program's own
+	// stderr output.
+	stderr := bytes.Buffer{}
+	stderr.WriteString(warningsText(cr.Warnings))
+	var stdout bytes.Buffer
+	ret, runErr := gad.NewVM(builtins.Build(), cr.Bytecode).SetRecover(true).RunOpts(&gad.RunOpts{
 		Args:   args,
 		StdOut: &stdout,
 		StdErr: &stderr,

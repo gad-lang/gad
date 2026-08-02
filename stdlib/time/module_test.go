@@ -876,7 +876,8 @@ func runV(script string, opts *gad.RunOpts) (vm *gad.VM, ret gad.Object, err err
 	c.ModuleMap = mm
 
 	builtins := gad.NewBuiltins().Build()
-	_, bc, err := gad.Compile(gad.NewSymbolTable(builtins.Builtins().NameSet), []byte(script), c)
+	__cr1, err := gad.Compile(gad.NewSymbolTable(builtins.Builtins().NameSet), []byte(script), c)
+	bc := __cr1.BC()
 	if err != nil {
 		return
 	}

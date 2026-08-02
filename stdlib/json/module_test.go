@@ -180,7 +180,8 @@ func expectRun(t *testing.T, script string, opts *Opts, expected Object) {
 
 func run(script string, opts CompileOptions, runOpts *RunOpts) (ret Object, err error) {
 	builtins := NewBuiltins().Build()
-	_, bc, err := Compile(NewSymbolTable(builtins.Builtins().NameSet), []byte(script), opts)
+	__cr1, err := Compile(NewSymbolTable(builtins.Builtins().NameSet), []byte(script), opts)
+	bc := __cr1.BC()
 	if err != nil {
 		return
 	}

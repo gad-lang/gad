@@ -21,7 +21,8 @@ func runScript(t *testing.T, src string, giomMode bool) (gad.Object, string) {
 	if giomMode {
 		opts.GiomOptions = &gad.GiomOptions{}
 	}
-	_, bc, err := gad.Compile(st, []byte(src), opts)
+	__cr1, err := gad.Compile(st, []byte(src), opts)
+	bc := __cr1.BC()
 	if err != nil {
 		t.Fatalf("compile error: %v", err)
 	}

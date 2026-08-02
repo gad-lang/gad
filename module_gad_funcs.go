@@ -194,7 +194,7 @@ func evalStmts(vm *VM, stmts node.Stmts) (Object, error) {
 	pf := &parser.File{InputFile: fileSet.AppendFileData(MainName, nil), Stmts: stmts}
 	st := NewSymbolTable(vm.Builtins.builtins.NameSet)
 	module := &ModuleSpec{ModuleInfo: ModuleInfo{Name: MainName}, Main: true}
-	bc, err := CompileFile(st, module, pf, CompileOptions{})
+	res, err := CompileFile(st, module, pf, CompileOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func evalStmts(vm *VM, stmts node.Stmts) (Object, error) {
 		VM:      NewVM(vm.Builtins, nil).SetRecover(true),
 		RunOpts: &RunOpts{StdOut: vm.StdOut, StdErr: vm.StdErr},
 	}
-	return ev.Run(context.Background(), bc)
+	return ev.Run(context.Background(), res.Bytecode)
 }
 
 // gadEvalStr implements gad.eval(source str; type gad.SourceType=GAD): it parses

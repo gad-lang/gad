@@ -4001,8 +4001,11 @@ func TestVMMap(t *testing.T) {
 }
 
 func TestVMMainModule(t *testing.T) {
+	// The main module ignores `export` (it is the entry point, not an importable
+	// module), so @module carries no exported data — only a compiler warning is
+	// produced (see TestCompiler_ExportMainIgnored).
 	testExpectRun(t, `export a = 1; return [str(@module), @module.@main, @main]`, nil, Array{
-		Str(`‹module "(main)" {@data: {a: 1}}›`),
+		Str(`‹module "(main)"›`),
 		True,
 		True,
 	})
@@ -5164,7 +5167,8 @@ func TestVMCallCompiledFunction(t *testing.T) {
 		},
 	}
 	`
-	_, c, err := Compile(NewSymbolTable(builtins.NameSet), []byte(script), CompileOptions{})
+	__cr1, err := Compile(NewSymbolTable(builtins.NameSet), []byte(script), CompileOptions{})
+	c := __cr1.BC()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -5575,6 +5579,8 @@ func TestVMReturn(t *testing.T) {
 }
 
 func TestVMExport(t *testing.T) {
+	// The main module ignores `export`, so @module stays empty here (the export
+	// lowering is covered by the imported-module case below and TestCompiler_Export).
 	testExpectRun(t, `
 const a = 1
 export a
@@ -5587,18 +5593,7 @@ export [2**3] = 7
 return str(@module;indent,sortedKeys)
 `,
 		nil,
-		Str(`‹module "(main)" {
-	@data: {
-		8: 7,
-		a: 1,
-		b: 2,
-		c: ‹compiledFunction: (main).c()›,
-		d: ‹compiledFunction: (main).d()›,
-		e: ‹compiledFunction: (main).e(v bool|int)›,
-		f: 5,
-		g: 6
-	}
-}›`))
+		Str(`‹module "(main)"›`))
 
 	testExpectRun(t, `mod := import("mod"); return str(dict(mod);indent,sortedKeys)`,
 		newOpts().

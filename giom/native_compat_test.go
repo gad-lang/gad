@@ -22,8 +22,8 @@ var CompileFallback func(*gad.Compiler, ast.Node) error
 func Compile(st *gad.SymbolTable, src []byte, opts gad.CompileOptions) (*giomnode.File, *gad.Bytecode, error) {
 	opts.GiomOptions = &gad.GiomOptions{}
 	opts.FallbackFunc = nil
-	_, bc, err := gad.Compile(st, src, opts)
-	return nil, bc, err
+	res, err := gad.Compile(st, src, opts)
+	return nil, res.BC(), err
 }
 
 // compilerShim mirrors the former giom.Compiler: it binds a symbol table and

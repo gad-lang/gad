@@ -18,7 +18,8 @@ import (
 // VM plus the produced CompiledFunction, ready to be driven by an Invoker.
 func compileFunc(t *testing.T, src string) (*VM, *CompiledFunction) {
 	t.Helper()
-	_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), DefaultCompileOptions)
+	__cr1, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), DefaultCompileOptions)
+	bc := __cr1.BC()
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}
@@ -87,7 +88,8 @@ func TestInvokerContextCancel(t *testing.T) {
 global spawn
 inner := func() { x := 0; for { x++ } }
 return func() { return spawn(inner) }`
-		_, bc, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), DefaultCompileOptions)
+		__cr2, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(src), DefaultCompileOptions)
+		bc := __cr2.BC()
 		if err != nil {
 			t.Fatalf("compile: %v", err)
 		}

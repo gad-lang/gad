@@ -93,9 +93,9 @@ func evalInFrame(vm *gad.VM, src string) (gad.Object, error) {
 		}
 	}
 
-	_, bc, err := gad.Compile(st, []byte(src), gad.CompileOptions{})
+	res, err := gad.Compile(st, []byte(src), gad.CompileOptions{})
 	if err != nil {
 		return nil, err
 	}
-	return gad.NewVM(builtins.Build(), bc).RunOpts(&gad.RunOpts{Globals: globals})
+	return gad.NewVM(builtins.Build(), res.Bytecode).RunOpts(&gad.RunOpts{Globals: globals})
 }

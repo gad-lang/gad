@@ -194,11 +194,12 @@ func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
 		}
 		opts.ScannerOptions.MixedDelimiter = delim
 	}
-	bc, err := compileFor(st, []byte(req.Source), req.Path, opts)
+	cr, err := compileFor(st, []byte(req.Source), req.Path, opts)
 	if err != nil {
 		writeJSON(w, DebugResponse{State: "error", Diagnostics: gadbridge.Diagnose(req.Source)})
 		return
 	}
+	bc := cr.Bytecode
 
 	eng := debug.New(req.StopOnEntry)
 	if len(req.BreakpointSpecs) > 0 {
@@ -212,6 +213,10 @@ func (m *DebugManager) HandleStart(w http.ResponseWriter, r *http.Request) {
 	}
 	out := &syncBuffer{}
 	errBuf := &syncBuffer{}
+	// Surface compiler warnings in the STDERR panel before the program runs.
+	if wt := warningsText(cr.Warnings); wt != "" {
+		errBuf.Write([]byte(wt))
+	}
 	vm := gad.NewVM(builtins.Build(), bc).SetRecover(true)
 	vm.SetDebugger(eng)
 

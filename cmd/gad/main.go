@@ -346,7 +346,11 @@ func (r *repl) execute(line string) error {
 }
 
 func (r *repl) compileExecuteFile(pf *parser.File) (bc *gad.Bytecode, ret gad.Object, ok bool, err error) {
-	bc, err = gad.CompileFile(r.eval.SymbolTable(), moduleSpec, pf, r.eval.Opts)
+	var res *gad.CompileResult
+	if res, err = gad.CompileFile(r.eval.SymbolTable(), moduleSpec, pf, r.eval.Opts); err == nil {
+		printCompileWarnings(os.Stderr, res.Warnings)
+		bc = res.Bytecode
+	}
 
 	defer func() {
 		if err != nil {
@@ -369,7 +373,11 @@ func (r *repl) compileExecuteFile(pf *parser.File) (bc *gad.Bytecode, ret gad.Ob
 }
 
 func (r *repl) compileExecuteScript(script []byte) (f *parser.File, bc *gad.Bytecode, ret gad.Object, ok bool, err error) {
-	f, bc, err = gad.CompileModule(r.eval.SymbolTable(), moduleSpec, script, r.eval.Opts)
+	var res *gad.CompileResult
+	if res, err = gad.CompileModule(r.eval.SymbolTable(), moduleSpec, script, r.eval.Opts); err == nil {
+		printCompileWarnings(os.Stderr, res.Warnings)
+		f, bc = res.File, res.Bytecode
+	}
 
 	defer func() {
 		if err != nil {
@@ -799,10 +807,12 @@ func (s *Script) execute() error {
 		opts.GiomOptions = &gad.GiomOptions{}
 		opts.CompilerOptions.ModuleFile = s.modulePath
 	}
-	_, bc, err := gad.CompileModule(defaultSymbolTable(s.builtins.Builtins().NameSet), module, s.script, opts)
+	res, err := gad.CompileModule(defaultSymbolTable(s.builtins.Builtins().NameSet), module, s.script, opts)
 	if err != nil {
 		return err
 	}
+	printCompileWarnings(os.Stderr, res.Warnings)
+	bc := res.Bytecode
 
 	namedArgs := make(gad.Dict)
 	args := make(gad.Array, 0)

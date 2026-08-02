@@ -87,6 +87,9 @@ type (
 		funcHeaderIndex      uint
 		methodInterfaceIndex uint
 		interfaceIndex       uint
+		// warnings collects non-fatal compiler diagnostics. Forks funnel into the
+		// root compiler (see warnf), so the root holds every module's warnings.
+		warnings []*CompilerWarning
 	}
 
 	// CompilerOptions represents customizable options for Compile().
@@ -182,6 +185,68 @@ func (e *CompilerError) Unwrap() error {
 	return e.Err
 }
 
+// CompilerWarning is a non-fatal diagnostic emitted by the Compiler. It mirrors
+// CompilerError (source position via Node + a wrapped detail error) but never
+// aborts compilation: warnings are collected and surfaced to the caller (via
+// CompileResult.Warnings and Compiler.Warnings), e.g. so the CLI/IDE can print
+// them to STDERR.
+type CompilerWarning struct {
+	FileSet *source.FileSet
+	Node    ast.Node
+	Err     error
+}
+
+// Pos returns the source position the warning anchors to.
+func (w *CompilerWarning) Pos() source.Pos { return w.Node.Pos() }
+
+func (w *CompilerWarning) Error() string {
+	filePos := w.FileSet.Position(w.Node.Pos())
+	return fmt.Sprintf("Compile Warning: %s\n\tat %s", w.Err.Error(), filePos)
+}
+
+func (w *CompilerWarning) Format(f fmt.State, verb rune) {
+	switch verb {
+	case 's':
+		fmt.Fprint(f, w.Error())
+	case 'v':
+		pos := w.FileSet.Position(w.Node.Pos())
+		if f.Flag('+') && pos.File != nil {
+			var (
+				up, _   = f.Width()
+				down, _ = f.Precision()
+			)
+
+			fmt.Fprintln(f, w.Error())
+			pos.File.Data.TraceLines(f, pos.Line, pos.Column, up, down)
+		} else {
+			f.Write([]byte(w.Error()))
+		}
+	}
+}
+
+func (w *CompilerWarning) Unwrap() error {
+	return w.Err
+}
+
+// CompileResult bundles the outputs of a compilation: the parsed File, the
+// compiled Bytecode, and any non-fatal compiler Warnings. It is returned by
+// Compile, CompileModule and CompileFile so callers receive warnings alongside
+// the bytecode without a separate channel.
+type CompileResult struct {
+	File     *parser.File
+	Bytecode *Bytecode
+	Warnings []*CompilerWarning
+}
+
+// BC returns r.Bytecode, or nil when r is nil, so callers can read the bytecode
+// right after a compile that may have failed without a separate nil check.
+func (r *CompileResult) BC() *Bytecode {
+	if r == nil {
+		return nil
+	}
+	return r.Bytecode
+}
+
 // NewCompiler creates a new Compiler object.
 func NewCompiler(st *SymbolTable, module *ModuleSpec, file *source.File, opts CompileOptions) *Compiler {
 	if opts.constsCache == nil {
@@ -239,13 +304,15 @@ type CompileOptions struct {
 	ScannerOptions parser.ScannerOptions
 }
 
-// Compile compiles given script to Bytecode.
-func Compile(st *SymbolTable, script []byte, opts CompileOptions) (pf *parser.File, bc *Bytecode, err error) {
+// Compile compiles given script as the main module, returning a CompileResult
+// (parsed File, Bytecode and any compiler Warnings) and an error.
+func Compile(st *SymbolTable, script []byte, opts CompileOptions) (*CompileResult, error) {
 	return CompileModule(st, &ModuleSpec{ModuleInfo: ModuleInfo{Name: MainName}, Main: true}, script, opts)
 }
 
-// CompileModule compiles given module script to Bytecode.
-func CompileModule(st *SymbolTable, module *ModuleSpec, script []byte, opts CompileOptions) (pf *parser.File, bc *Bytecode, err error) {
+// CompileModule compiles given module script, returning a CompileResult (parsed
+// File, Bytecode and any compiler Warnings) and an error.
+func CompileModule(st *SymbolTable, module *ModuleSpec, script []byte, opts CompileOptions) (*CompileResult, error) {
 	fileSet := source.NewFileSet()
 
 	// Giom source positions read best when the file carries the template's own
@@ -260,32 +327,36 @@ func CompileModule(st *SymbolTable, module *ModuleSpec, script []byte, opts Comp
 		opts.ParserOptions.Trace = opts.Trace
 	}
 
+	var (
+		pf  *parser.File
+		err error
+	)
+
 	// Giom (.giom) templates are parsed with the Giom front-end and lowered to
 	// Gad statements, then compiled through the Giom fallback (compiler_giom.go).
 	if opts.GiomOptions != nil {
 		pf, err = parseGiomFile(srcFile)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if opts.FallbackFunc == nil {
 			opts.FallbackFunc = giomCompileFallback
 		}
-		bc, err = CompileFile(st, module, pf, opts)
-		return
+		return CompileFile(st, module, pf, opts)
 	}
 
 	p := parser.NewParserWithOptions(srcFile, &opts.ParserOptions, &opts.ScannerOptions)
 	pf, err = p.ParseFile()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	bc, err = CompileFile(st, module, pf, opts)
-	return
+	return CompileFile(st, module, pf, opts)
 }
 
-// CompileFile compiles given module file to Bytecode.
-func CompileFile(st *SymbolTable, module *ModuleSpec, pf *parser.File, opts CompileOptions) (bc *Bytecode, err error) {
+// CompileFile compiles given module file, returning a CompileResult (the input
+// File, the Bytecode and any compiler Warnings) and an error.
+func CompileFile(st *SymbolTable, module *ModuleSpec, pf *parser.File, opts CompileOptions) (*CompileResult, error) {
 	compiler := NewCompiler(st, module, pf.InputFile, opts)
 	compiler.SetGlobalSymbolsIndex()
 
@@ -300,12 +371,12 @@ func CompileFile(st *SymbolTable, module *ModuleSpec, pf *parser.File, opts Comp
 		return nil, err
 	}
 
-	bc = compiler.Bytecode()
+	bc := compiler.Bytecode()
 	bc.Main.FuncName = "#main"
 	if bc.Main.NumLocals > 256 {
 		return nil, ErrSymbolLimit
 	}
-	return bc, nil
+	return &CompileResult{File: pf, Bytecode: bc, Warnings: compiler.Warnings()}, nil
 }
 
 func (c *Compiler) Options() *CompileOptions {
@@ -1155,6 +1226,24 @@ func (c *Compiler) Errorf(
 		Node:    nd,
 		Err:     fmt.Errorf(format, args...),
 	}
+}
+
+// warnf records a non-fatal compiler warning anchored at nd. It funnels into the
+// root compiler so warnings from imported modules (compiled in forks) reach the
+// top-level CompileResult.Warnings.
+func (c *Compiler) warnf(nd ast.Node, format string, args ...any) {
+	root := c.top()
+	root.warnings = append(root.warnings, &CompilerWarning{
+		FileSet: c.file.Set(),
+		Node:    nd,
+		Err:     fmt.Errorf(format, args...),
+	})
+}
+
+// Warnings returns the non-fatal diagnostics collected during compilation
+// (funneled from every module fork into the root compiler).
+func (c *Compiler) Warnings() []*CompilerWarning {
+	return c.top().warnings
 }
 
 func printTrace(indent int, trace io.Writer, a ...any) {

@@ -112,7 +112,8 @@ func TestEncDecBytecodeReturnTypes(t *testing.T) {
 
 		builtins := gad.NewBuiltins().Build()
 		st := gad.NewSymbolTable(builtins.Builtins().NameSet)
-		_, bc, err := gad.Compile(st, []byte(c.script), gad.CompileOptions{})
+		__cr1, err := gad.Compile(st, []byte(c.script), gad.CompileOptions{})
+		bc := __cr1.BC()
 		require.NoError(t, err, msg)
 
 		data, err := encode(bc)
