@@ -178,7 +178,7 @@ block and call the component directly — useful when the set of slots is dynami
 Each `slots` entry is a slot function whose **first parameter is `super`** (the
 component's default for that slot), followed by the slot's scope parameters. A
 slot function builds and **returns a fragment tag** (like a component): create it
-with `giom.Tag(nil)`, append content, and `return` it. Unlike `+super`,
+with `giom.Tag()`, append content, and `return` it. Unlike `+super`,
 a raw `super(…)` call is not rewritten, so it must pass super's own super (an
 empty function) as its first argument; its returned fragment is appended with
 `tag += super(…)`. The component call's own result is appended with `tag += …`.
@@ -196,7 +196,7 @@ empty function) as its first argument; its returned fragment is appended with
     ~~
     tag += list(["a", "b"]; slots={
         row: func(super, i, it) {
-            tag := giom.Tag(nil)
+            tag := giom.Tag()
             giom.Text(tag, raw "<b>" + it + "</b>")
             return tag
         },
@@ -207,7 +207,7 @@ empty function) as its first argument; its returned fragment is appended with
     ~~
     tag += list(["a", "b"]; slots={
         row: func(super, i, it) {
-            tag := giom.Tag(nil)
+            tag := giom.Tag()
             giom.Text(tag, raw "* ")
             tag += super(func(*_){}, i, it)   // +super(i, it) sugars to this
             return tag

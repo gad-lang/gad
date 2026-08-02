@@ -6,7 +6,7 @@
 //-
 //- A slot function's first parameter is `super` (the component's default for
 //- that slot); the slot's scope parameters follow. Like a component, a slot
-//- function builds a fragment tag and returns it: create it with `giom.Tag(nil)`,
+//- function builds a fragment tag and returns it: create it with `giom.Tag()`,
 //- append content, and `return` it. The template sugar forwards super for you —
 //- a raw call passes it by hand, so `super(…)` must supply super's own super (an
 //- empty function) as its first argument. Append the component's own result with
@@ -29,7 +29,7 @@
     ~~
     tag += box(; slots={
         main: func(super) {
-            tag := giom.Tag(nil)
+            tag := giom.Tag()
             giom.Text(tag, raw "<b>hi</b>")
             tag += super(func(*_){})     // render the default (super's super = empty)
             return tag
@@ -41,7 +41,7 @@
     ~~
     tag += list(["a", "b"]; slots={
         row: func(super, i, it) {
-            tag := giom.Tag(nil)
+            tag := giom.Tag()
             giom.Text(tag, raw "<b>" + it + "</b>")
             return tag
         },
@@ -52,7 +52,7 @@
     ~~
     tag += list(["a", "b"]; slots={
         row: func(super, i, it) {
-            tag := giom.Tag(nil)
+            tag := giom.Tag()
             giom.Text(tag, raw "* ")
             tag += super(func(*_){}, i, it)
             return tag
