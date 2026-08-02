@@ -1,7 +1,30 @@
 # Current State
 > Updated: 2026-08-02
 
-Latest: **compiler warnings + main-module export handling** (`b7c307e`).
+Latest: **Prop index delegation + VM.Call + reflect module** (6 phases,
+`647c574`..`da25cbb`).
+- `VM.Call(co, args, namedArgs)`: invokes a callable on the SAME VM (pushes a
+  boundary frame + nested sub-run, no fork) when the loop is running; forks only
+  on external Go entry. `CompiledFunction.Call` routes through it. No material
+  Fibonacci regression.
+- `OpIndexGet`/`OpIndexSet` delegate to a stored `Prop`'s getter/setter (`d.x` /
+  `d.x = v`), except in `array` and `*ClassInstance` (opt-out via
+  `RawPropContainer`). Get resolves per level (chains); set pre-reads the current
+  value.
+- `reflect` builtin core module: `reflect.get`/`reflect.set` raw, delegation-free
+  (Prop returned/overwritten verbatim). Usable directly and via import("reflect")
+  (stdlib/reflect wired into stdlib/helper).
+- `export prop v { … }`: parser support; module member access delegates.
+- Tests: prop_delegation_test.go (delegation, raw containers, reflect, export
+  prop) + vm_call_internal_test.go (no-fork assertion via pool). Docs:
+  functions.md, modules.md, new reflect.md, README. Samples: 31_properties.gad,
+  modules/counter.gad. Both modules green; `go vet`/`gofmt` clean.
+- Known limitation: `export prop count` does NOT also bind `count` as a module
+  local (unlike a plain `prop` statement); reference the backing var internally.
+- Aside: the parser infinite-loops on some invalid prop syntax (e.g. `,` accessor
+  separator, `=> {block}` body) — pre-existing robustness gap, not addressed here.
+
+Earlier: **compiler warnings + main-module export handling** (`b7c307e`).
 - `Compile`/`CompileModule`/`CompileFile` now return a single `*CompileResult`
   (`File`, `Bytecode`, `Warnings`) + error (was multi-value). `BC()` is a
   nil-safe bytecode accessor. All ~50 call sites updated.
