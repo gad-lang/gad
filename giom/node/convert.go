@@ -126,12 +126,17 @@ func appendToTag(expr gnode.Expr, pos source.Pos) gnode.Stmt {
 }
 
 // fragmentStmts wraps body so it builds into a fresh anonymous root tag and
-// returns it: `tag := giom.Tag(<parent>); <body>; return tag`. A name-less
-// giom.Tag call yields an anonymous fragment (renders only its children). Used
-// for @comp / @func / @slot / slot-pass bodies and the top-level @main.
+// returns it: `tag := giom.Tag(); <body>; return tag`. A name-less giom.Tag call
+// yields an anonymous fragment (renders only its children). A nil parent is
+// omitted (`giom.Tag()` rather than `giom.Tag(nil)`, equivalent forms). Used for
+// @comp / @func / @slot / slot-pass bodies and the top-level @main.
 func fragmentStmts(parent gnode.Expr, body gnode.Stmts, pos, end source.Pos) gnode.Stmts {
+	var args []gnode.Expr
+	if _, isNil := parent.(*gnode.NilLit); parent != nil && !isNil {
+		args = []gnode.Expr{parent}
+	}
 	var out gnode.Stmts
-	out.Append(defineTag(giomNew("Tag", pos, end, parent), pos))
+	out.Append(defineTag(giomNew("Tag", pos, end, args...), pos))
 	out.Append(body...)
 	out.Append(gnode.SReturn(end, tagIdent(end)))
 	return out
