@@ -527,7 +527,12 @@ VMLoop:
 			if is, _ := target.(IndexSetter); is != nil {
 				index := vm.stack[vm.sp-1]
 
-				err := is.IndexSet(vm, index, value)
+				// Delegate to a stored property's setter when present; otherwise
+				// (or for opt-out containers) perform a plain index set.
+				done, err := vm.indexSetProp(is, index, value)
+				if err == nil && !done {
+					err = is.IndexSet(vm, index, value)
+				}
 
 				if err != nil {
 					switch err {

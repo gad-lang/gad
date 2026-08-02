@@ -1273,8 +1273,13 @@ func (f *BuiltinFunctionWithMethods) Print(state *PrinterState) (err error) {
 // Array represents array of objects and implements Object interface.
 type Array []Object
 
+// rawPropContainer marks Array as a RawPropContainer: element access returns
+// stored values verbatim (a *Prop element is the value, not an accessor).
+func (Array) rawPropContainer() {}
+
 var (
 	_ Object                          = (Array)(nil)
+	_ RawPropContainer                = (Array)(nil)
 	_ LengthGetter                    = (Array)(nil)
 	_ ToArrayAppenderObject           = (Array)(nil)
 	_ DeepCopier                      = (Array)(nil)

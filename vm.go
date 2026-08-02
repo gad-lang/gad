@@ -510,6 +510,21 @@ func (vm *VM) xIndexGet(numSel int, target Object, getPtr bool) (value Object, n
 				null = true
 				return
 			}
+			// Delegate to a stored property's getter (unless a raw pointer was
+			// requested or the container opts out — Array / ClassInstance).
+			if !getPtr {
+				if p, ok := v.(*Prop); ok && delegatesProps(ig) {
+					if v, err = vm.Call(p, Args{}, nil); err != nil {
+						if err = vm.throwGenErr(err); err != nil {
+							vm.err = err
+							abort = true
+							return
+						}
+						null = true
+						return
+					}
+				}
+			}
 			target = v
 			value = v
 		} else {

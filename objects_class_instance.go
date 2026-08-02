@@ -37,6 +37,12 @@ type ClassInstance struct {
 	class   *Class
 }
 
+// rawPropContainer marks *ClassInstance as a RawPropContainer: it already
+// resolves its own properties (getters/setters declared in the class), so a
+// *Prop returned by a field access is the final value, not an accessor to
+// delegate to again.
+func (*ClassInstance) rawPropContainer() {}
+
 // Call on an instance is not a constructor entry point: instances are built via
 // Class.Call / ClassInitiator. Calling a live instance is therefore an error.
 func (o *ClassInstance) Call(Call) (Object, error) {
