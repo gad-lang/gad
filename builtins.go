@@ -195,6 +195,7 @@ const (
 	BuiltinModuleTime
 	BuiltinModuleFmt
 	BuiltinModuleGad
+	BuiltinModuleReflect
 	GroupBuiltinModulesEnd
 
 	GroupBuiltinBinaryOperatorsBegin
@@ -974,6 +975,7 @@ func init() {
 	registerBuiltinModule(BuiltinModuleStrings, stringsModuleSpec, newStringsModule())
 	registerBuiltinModule(BuiltinModuleTime, TimeModuleSpec, newTimeModule())
 	registerBuiltinModule(BuiltinModuleFmt, fmtModuleSpec, newFmtModule())
+	registerBuiltinModule(BuiltinModuleReflect, reflectModuleSpec, newReflectModule())
 
 	BuiltinObjects[BuiltinRead] = &BuiltinFunction{
 		FuncName: "read",

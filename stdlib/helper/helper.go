@@ -10,6 +10,7 @@ import (
 	gadjson "github.com/gad-lang/gad/stdlib/json"
 	gados "github.com/gad-lang/gad/stdlib/os"
 	gadpath "github.com/gad-lang/gad/stdlib/path"
+	gadreflect "github.com/gad-lang/gad/stdlib/reflect"
 	gadstrings "github.com/gad-lang/gad/stdlib/strings"
 	gadtest "github.com/gad-lang/gad/stdlib/test"
 	gadtime "github.com/gad-lang/gad/stdlib/time"
@@ -40,6 +41,7 @@ func (b *ModuleMapBuilder) BuildTo(mm *gad.ModuleMap) *gad.ModuleMap {
 		AddBuiltinModule(gadpath.ModuleName, gadpath.Module).
 		AddBuiltinModuleInit(gadbase64.ModuleName, gadbase64.ModuleInit).
 		AddBuiltinModuleInit(gadflate.ModuleName, gadflate.ModuleInit).
+		AddBuiltinModuleInit(gadreflect.ModuleName, gadreflect.ModuleInit).
 		AddBuiltinModuleInit(gadtest.ModuleName, gadtest.ModuleInit)
 
 	if !b.Safe {
