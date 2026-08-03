@@ -1,8 +1,8 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
-import { Ide } from "./Ide";
-import { probeIde, type Workspace } from "./backends/ide";
+import { Ide } from "@gad-lang/ide-react";
+import { probeIde, type Workspace } from "@gad-lang/ide-react";
 import "./styles.css";
 
 /**

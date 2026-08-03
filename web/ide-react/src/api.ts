@@ -178,6 +178,18 @@ export const ideApi = {
     }),
 };
 
+/**
+ * IdeApi is the full backend contract the reusable <Ide> component drives. Any
+ * implementation works: the default HTTP client (httpIdeApi, talking to a
+ * `gad ide` server) or a fully in-browser one (WASM + a LocalStorage
+ * filesystem). Every method operates on workspace file paths, so the same UI
+ * edits and documents any text file in the tree regardless of backend.
+ */
+export type IdeApi = typeof ideApi;
+
+/** httpIdeApi is the HTTP implementation of IdeApi (the `gad ide` server). */
+export const httpIdeApi: IdeApi = ideApi;
+
 /** probeIde resolves true when the IDE backend is reachable (served by gad ide). */
 export async function probeIde(): Promise<Workspace | null> {
   try {

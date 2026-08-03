@@ -4,7 +4,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { WebIde } from "./webide/WebIde";
-import { useTheme } from "./useTheme";
+import { useTheme } from "@gad-lang/ide-react";
 import "./styles.css";
 
 function Root() {

@@ -29,6 +29,9 @@ export default defineConfig({
       "@gad-lang/prism-gad": fileURLToPath(
         new URL("../prism-gad/src/index.ts", import.meta.url),
       ),
+      "@gad-lang/ide-react": fileURLToPath(
+        new URL("../ide-react/src/index.ts", import.meta.url),
+      ),
     },
     // The codemirror-gad source (resolved above) has its own copy of these
     // packages under codemirror-gad/node_modules. CodeMirror requires a SINGLE
@@ -37,6 +40,16 @@ export default defineConfig({
     // not apply to the editor. Dedupe them (and their @lezer bases) to the app's
     // copy. The production build already collapses these; this fixes dev only.
     dedupe: [
+      // React/MUI/dockview must be single instances too: @gad-lang/ide-react is
+      // aliased to its src, which pulls these from its own node_modules unless
+      // deduped — duplicate React breaks hooks/context across the boundary.
+      "react",
+      "react-dom",
+      "@mui/material",
+      "@mui/icons-material",
+      "@emotion/react",
+      "@emotion/styled",
+      "dockview-react",
       "@codemirror/state",
       "@codemirror/view",
       "@codemirror/language",

@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from "react";
-import { Editor, type EditorHandle } from "./Editor";
+import { Editor, type EditorHandle } from "@gad-lang/ide-react";
 import { Notebook } from "./Notebook";
 import { Highlight } from "./Highlight";
 import { Debug } from "./Debug";
-import { useTheme } from "./useTheme";
+import { useTheme } from "@gad-lang/ide-react";
 import { serverBackend } from "./backends/server";
 import { wasmWorkerBackend, wasmDebugBackend } from "./backends/wasmWorker";
 import { serverDebugBackend, type DebugBackend } from "./backends/debug";

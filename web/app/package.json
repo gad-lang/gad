@@ -27,6 +27,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@gad-lang/codemirror-gad": "workspace:*",
+    "@gad-lang/ide-react": "workspace:*",
     "@gad-lang/prism-gad": "workspace:*",
     "@lezer/common": "^1.5.0",
     "@lezer/highlight": "^1.2.0",

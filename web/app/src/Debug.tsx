@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { Editor, type EditorHandle } from "./Editor";
+import { Editor, type EditorHandle } from "@gad-lang/ide-react";
 import { serverDebugBackend, type DebugBackend, type DebugResponse } from "./backends/debug";
 
 const SAMPLE = `f := func(x) {

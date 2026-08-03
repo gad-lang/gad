@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { Editor, type EditorHandle } from "./Editor";
+import { Editor, type EditorHandle } from "@gad-lang/ide-react";
 import type { GadBackend, RunResult } from "./backends/types";
 
 interface Cell {

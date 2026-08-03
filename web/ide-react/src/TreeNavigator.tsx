@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogActions, DialogContent, DialogTitle, Button } from "@mui/material";
-import type { InspectEntry, InspectResult } from "./backends/ide";
+import type { InspectEntry, InspectResult } from "./api";
 
 /** Fetches the inspection of a Gad expression, or null on error. */
 export type InspectFn = (expr: string) => Promise<InspectResult | null>;

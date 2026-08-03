@@ -1,18 +1,7 @@
 import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
+import type { FormatResult, RunResult } from "@gad-lang/ide-react";
 
-export interface FormatResult {
-  ok: boolean;
-  source: string;
-  diagnostics: GadDiagnostic[];
-}
-
-export interface RunResult {
-  ok: boolean;
-  stdout: string;
-  stderr: string;
-  result: string;
-  diagnostics: GadDiagnostic[];
-}
+export type { FormatResult, RunResult } from "@gad-lang/ide-react";
 
 /**
  * GadBackend abstracts the source of Gad operations so the same UI works

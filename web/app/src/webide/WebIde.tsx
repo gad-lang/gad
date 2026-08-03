@@ -4,13 +4,13 @@
 // reset. Running, documenting and debugging all go through the Gad WebAssembly
 // module hosted in a Web Worker (no Go server involved).
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Editor, type EditorHandle, type EditorLanguage } from "../Editor";
+import { Editor, type EditorHandle, type EditorLanguage } from "@gad-lang/ide-react";
 import { WebFS } from "../webfs";
 import { wasmDebugBackend, sharedClient } from "../backends/wasmWorker";
 import type { RunResult } from "../backends/types";
 import type { DebugResponse } from "../backends/debug";
 import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
-import { renderDocMarkdown } from "../docMarkdown";
+import { renderDocMarkdown } from "@gad-lang/ide-react";
 import { buildTree, langFor, type FileNode } from "./tree";
 
 type Tab = "run" | "doc" | "debug";

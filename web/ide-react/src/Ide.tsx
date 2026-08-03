@@ -129,7 +129,8 @@ import { renderDocMarkdown } from "./docMarkdown";
 import { GadInput } from "./GadInput";
 import { useTheme } from "./useTheme";
 import {
-  ideApi,
+  httpIdeApi,
+  type IdeApi,
   type BreakpointMeta,
   type BreakpointSpec,
   type DebugResponse,
@@ -138,7 +139,7 @@ import {
   type RunConfig,
   type TreeNode,
   type Workspace,
-} from "./backends/ide";
+} from "./api";
 
 // OutMode selects how the Output panel presents a run's streams: the text views
 // (combined / split stdout+stderr), a rendering of stdout as JSON / HTML /
@@ -208,6 +209,8 @@ function keysFromConfig(config: Record<string, unknown>): Record<string, string>
 type TreeAction = "open" | "rename" | "remove" | "run" | "format" | "transpile";
 
 interface IdeShared {
+  // backend
+  api: IdeApi;
   // theme
   dark: boolean;
   toggleTheme: () => void;
@@ -313,7 +316,7 @@ function ExplorerPanel(_: IDockviewPanelProps) {
           onClick={async () => {
             const name = prompt("New file path (relative to workspace):", "untitled.gad");
             if (!name) return;
-            await ideApi.mkfile(name);
+            await ide.api.mkfile(name);
             await ide.refreshTree();
             ide.openFile(name);
           }}
@@ -898,7 +901,7 @@ function setupDefaultLayout(api: DockviewApi) {
 // ---------------------------------------------------------------------------
 
 /** The multi-file React IDE served by `gad ide`. */
-export function Ide({ workspace }: { workspace: Workspace }) {
+export function Ide({ workspace, api = httpIdeApi }: { workspace: Workspace; api?: IdeApi }) {
   const [theme, toggleTheme] = useTheme();
   const dark = theme === "dark";
 
@@ -972,7 +975,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   }, []);
 
   const refreshTree = useCallback(
-    async () => setTree(await ideApi.tree(showHidden)),
+    async () => setTree(await api.tree(showHidden)),
     [showHidden],
   );
 
@@ -981,14 +984,14 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   useEffect(() => {
     (async () => {
       try {
-        const cfg = await ideApi.config();
+        const cfg = await api.config();
         const hp = ((cfg.ide as Record<string, unknown>)?.hiddenPanels as string[]) ?? [];
         hiddenPanelsRef.current = hp;
         setHiddenPanels(hp);
         configRef.current = cfg;
         setConfig(cfg);
         setConfigLoaded(true);
-        setModules(await ideApi.modules());
+        setModules(await api.modules());
         if (workspace.openFile) openFile(workspace.openFile);
       } catch (e) {
         reportError("Failed to start", e);
@@ -1023,7 +1026,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
         ide.breakpointMeta = allMeta;
       }
       const next = { ...c, ide };
-      ideApi.saveConfig(next).catch(() => {});
+      api.saveConfig(next).catch(() => {});
       return next;
     });
   }
@@ -1048,7 +1051,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       else delete allMeta[path];
       ide.breakpointMeta = allMeta;
       const next = { ...c, ide };
-      ideApi.saveConfig(next).catch(() => {});
+      api.saveConfig(next).catch(() => {});
       return next;
     });
   }
@@ -1085,7 +1088,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   async function openFile(path: string) {
     const existing = tabs.findIndex((t) => t.path === path);
     if (existing >= 0) { setActive(existing); return; }
-    const data = await ideApi.read(path);
+    const data = await api.read(path);
     setTabs((ts) => {
       const next = [...ts, { path, content: data.content, saved: true, runCfg: runCfgFor(path) }];
       setActive(next.length - 1);
@@ -1109,8 +1112,8 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     async (entry: EvalEntry): Promise<EvalEntry> => {
       try {
         const res = debug
-          ? await ideApi.dbgEval(debug.session, entry.expr, entry.repr)
-          : await ideApi.eval({
+          ? await api.dbgEval(debug.session, entry.expr, entry.repr)
+          : await api.eval({
               expr: entry.expr,
               repr: entry.repr,
               source: editorRef.current?.getValue() ?? activeTab?.content ?? "",
@@ -1129,7 +1132,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   const inspectExpr: InspectFn = useCallback(
     async (expr: string) => {
       try {
-        const res = await ideApi.inspect(
+        const res = await api.inspect(
           debug
             ? { expr, session: debug.session }
             : { expr, source: editorRef.current?.getValue() ?? activeTab?.content ?? "", path: activeTab?.path },
@@ -1164,7 +1167,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     if (!docPanelOpen) return;
     const src = editorRef.current?.getValue() ?? activeTab?.content ?? "";
     try {
-      setDocs(await ideApi.doc(src));
+      setDocs(await api.doc(src));
     } catch {
       /* leave previous docs on a transient failure */
     }
@@ -1182,7 +1185,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     if (!activeTab) return;
     if (!activeTab.saved && !confirm(`Discard unsaved changes to ${activeTab.path}?`)) return;
     try {
-      const data = await ideApi.read(activeTab.path);
+      const data = await api.read(activeTab.path);
       editorRef.current?.setValue(data.content);
       setTabs((ts) => ts.map((t, i) => (i === active ? { ...t, content: data.content, saved: true } : t)));
       setStatus("reloaded " + activeTab.path);
@@ -1195,7 +1198,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     if (!activeTab) return;
     const content = editorRef.current?.getValue() ?? activeTab.content;
     try {
-      await ideApi.write(activeTab.path, content);
+      await api.write(activeTab.path, content);
       setTabs((ts) => ts.map((t, i) => (i === active ? { ...t, content, saved: true } : t)));
       setStatus("saved " + activeTab.path);
     } catch (e) {
@@ -1206,7 +1209,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   async function format() {
     if (!activeTab) return;
     const content = editorRef.current?.getValue() ?? activeTab.content;
-    const res = await ideApi.format(content);
+    const res = await api.format(content);
     if (res.ok) {
       editorRef.current?.setValue(res.source);
       setTabs((ts) => ts.map((t, i) => (i === active ? { ...t, content: res.source, saved: false } : t)));
@@ -1223,10 +1226,10 @@ export function Ide({ workspace }: { workspace: Workspace }) {
 
   async function formatFile(path: string) {
     try {
-      const data = await ideApi.read(path);
-      const res = await ideApi.format(data.content);
+      const data = await api.read(path);
+      const res = await api.format(data.content);
       if (!res.ok) { showDiagnostics(res.diagnostics); setStatus("format failed: " + path); return; }
-      await ideApi.write(path, res.source);
+      await api.write(path, res.source);
       setTabs((ts) => ts.map((t) => (t.path === path ? { ...t, content: res.source, saved: true } : t)));
       if (activeTab?.path === path) editorRef.current?.setValue(res.source);
       setStatus("formatted " + path);
@@ -1237,11 +1240,11 @@ export function Ide({ workspace }: { workspace: Workspace }) {
 
   async function transpileFile(path: string) {
     try {
-      const data = await ideApi.read(path);
-      const res = await ideApi.transpile(data.content, path);
+      const data = await api.read(path);
+      const res = await api.transpile(data.content, path);
       if (!res.ok) { showDiagnostics(res.diagnostics); setStatus("transpile failed: " + path); return; }
       const out = path.endsWith(".gadt") ? path.slice(0, -1) : path.replace(/\.gad$/, ".transpiled.gad");
-      await ideApi.write(out, res.source);
+      await api.write(out, res.source);
       await refreshTree();
       await openFile(out);
       setStatus("transpiled to " + out);
@@ -1258,7 +1261,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
           const to = prompt("Rename to (path relative to workspace):", node.path);
           if (!to || to === node.path) return;
           try {
-            await ideApi.rename(node.path, to);
+            await api.rename(node.path, to);
             setTabs((ts) => ts.map((t) => (t.path === node.path ? { ...t, path: to } : t)));
             await refreshTree();
             setStatus("renamed to " + to);
@@ -1287,7 +1290,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     if (!node) return;
     if (node.dir && (node.children?.length ?? 0) > 0 && !recursive) return;
     try {
-      await ideApi.del(node.path);
+      await api.del(node.path);
       setTabs((ts) => ts.filter((t) => t.path !== node.path && !t.path.startsWith(node.path + "/")));
       await refreshTree();
       setStatus("removed " + node.path);
@@ -1299,7 +1302,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   async function ensureSaved(tab: OpenTab): Promise<string> {
     const content = editorRef.current?.getValue() ?? tab.content;
     if (!tab.saved) {
-      await ideApi.write(tab.path, content);
+      await api.write(tab.path, content);
       setTabs((ts) => ts.map((t) => (t.path === tab.path ? { ...t, content, saved: true } : t)));
     }
     return content;
@@ -1311,7 +1314,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     setStatus("running…");
     activateBottomPanel("output");
     try {
-      const res = await ideApi.run({
+      const res = await api.run({
         path: tab.path, source: content, args: cfg.args, disabled: cfg.disabled,
         safe: cfg.safe, saveOut: cfg.saveOut || undefined,
         saveStdout: cfg.saveStdout || undefined, saveStderr: cfg.saveStderr || undefined,
@@ -1336,7 +1339,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     setOutput("");
     try {
       const cfg = tab.runCfg;
-      const res = await ideApi.dbgStart({
+      const res = await api.dbgStart({
         source: content, breakpoints: bpFor(tab.path),
         breakpointSpecs: bpSpecsFor(tab.path), stopOnEntry, path: tab.path,
         args: cfg.args, disabled: cfg.disabled, safe: cfg.safe,
@@ -1351,7 +1354,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   async function dbgCommand(command: string) {
     if (!debug) return;
     if (command === "stop") { setDebug(null); setDebugLoc(null); setStatus("stopped"); return; }
-    const res = await ideApi.dbgCmd(debug.session, command);
+    const res = await api.dbgCmd(debug.session, command);
     applyDebug(res, debug.path);
   }
 
@@ -1395,7 +1398,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       run[path] = cfg;
       ide.run = run;
       const next = { ...c, ide };
-      ideApi.saveConfig(next).catch(() => {});
+      api.saveConfig(next).catch(() => {});
       return next;
     });
   }
@@ -1421,7 +1424,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingGoto, active]);
 
-  const diagnose = useMemo(() => ideApi.diagnose, []);
+  const diagnose = useMemo(() => api.diagnose, []);
   const keys = keysFromConfig(config);
   const fontSize = ((config.ide as Record<string, unknown>)?.fontSize as number) || 14;
   const templateDelimiters = useMemo(() => {
@@ -1434,7 +1437,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
     setConfig((c) => {
       const ide = { ...((c.ide as Record<string, unknown>) || {}), fontSize: clamped };
       const next = { ...c, ide };
-      ideApi.saveConfig(next).catch(() => {});
+      api.saveConfig(next).catch(() => {});
       return next;
     });
   }
@@ -1443,31 +1446,31 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   // Dockview: layout persistence, docs panel toggle, markdown panel management
   // -------------------------------------------------------------------------
 
-  const saveLayout = useCallback((api: DockviewApi) => {
+  const saveLayout = useCallback((dv: DockviewApi) => {
     if (suppressSaveRef.current || hiddenPanelsRef.current.length > 0) return;
-    const layout = captureLayout(api);
+    const layout = captureLayout(dv);
     setConfig((c) => {
       const ide = { ...((c.ide as Record<string, unknown>) || {}), panels: layout };
       const next = { ...c, ide };
-      ideApi.saveConfig(next).catch(() => {});
+      api.saveConfig(next).catch(() => {});
       return next;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleDocsPanel = useCallback(() => {
-    const api = dockviewApiRef.current;
-    if (!api) return;
-    const existing = api.getPanel("docs");
+    const dv = dockviewApiRef.current;
+    if (!dv) return;
+    const existing = dv.getPanel("docs");
     if (existing) {
       // Snapshot the full layout (with docs still present) before removing it,
       // so we know which group to restore it to on the next open.
-      const fullLayout = captureLayout(api);
+      const fullLayout = captureLayout(dv);
       const nextIde = { ...((configRef.current?.ide as Record<string, unknown>) || {}), panels: fullLayout };
       const nextCfg = { ...configRef.current, ide: nextIde };
       configRef.current = nextCfg;
       setConfig(nextCfg);
-      ideApi.saveConfig(nextCfg).catch(() => {});
+      api.saveConfig(nextCfg).catch(() => {});
       suppressSaveRef.current = true;
       existing.api.close();
       suppressSaveRef.current = false;
@@ -1476,16 +1479,16 @@ export function Ide({ workspace }: { workspace: Workspace }) {
       // Find the group docs was in last time (from the saved layout).
       const savedLayout = (configRef.current?.ide as Record<string, unknown>)?.panels;
       const siblings = savedLayout ? findPanelSiblings(savedLayout, "docs") : [];
-      const neighbor = siblings.find((id) => api.getPanel(id));
-      const fallback = api.getPanel("explorer") ? "explorer" : null;
+      const neighbor = siblings.find((id) => dv.getPanel(id));
+      const fallback = dv.getPanel("explorer") ? "explorer" : null;
       const refId = neighbor ?? fallback;
-      api.addPanel({
+      dv.addPanel({
         id: "docs",
         component: "docs",
         title: "Docs",
         position: refId ? { direction: "within", referencePanel: refId } : undefined,
       });
-      api.getPanel("docs")?.api.setActive();
+      dv.getPanel("docs")?.api.setActive();
       setDocPanelOpen(true);
     }
   }, []);
@@ -1499,7 +1502,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
         ...(fullLayout !== undefined ? { panels: fullLayout } : {}),
       };
       const nextCfg = { ...c, ide };
-      ideApi.saveConfig(nextCfg).catch(() => {});
+      api.saveConfig(nextCfg).catch(() => {});
       return nextCfg;
     });
   }, []);
@@ -1655,6 +1658,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
   // Build the context value — recreated every render; panels re-render
   // accordingly (acceptable for a tool of this complexity).
   const ideShared: IdeShared = {
+    api,
     dark, toggleTheme,
     tree, showHidden, setShowHidden, setFetchDialog, openFile, treeAction, refreshTree,
     tabs, active, setActive, activeTab, closeTab, onEdit,
@@ -1746,14 +1750,14 @@ export function Ide({ workspace }: { workspace: Workspace }) {
               onToggleGroup={(groupId, hide) => hide ? hidePanel(groupId) : showPanel(groupId)}
               onToggleTab={(tabId, tabLabel, hide) => hide ? hideTab(tabId) : showTab(tabId, tabLabel)}
               onClose={() => setSettings(false)}
-              onSave={async (next) => { setConfig(next); await ideApi.saveConfig(next); setSettings(false); setStatus("settings saved"); }}
+              onSave={async (next) => { setConfig(next); await api.saveConfig(next); setSettings(false); setStatus("settings saved"); }}
             />
           )}
           {keybinds && (
             <KeybindingsDialog
               config={config}
               onClose={() => setKeybinds(false)}
-              onSave={async (next) => { setConfig(next); await ideApi.saveConfig(next); setKeybinds(false); setStatus("keybindings saved"); }}
+              onSave={async (next) => { setConfig(next); await api.saveConfig(next); setKeybinds(false); setStatus("keybindings saved"); }}
             />
           )}
           {removeTarget && (
@@ -1815,7 +1819,7 @@ export function Ide({ workspace }: { workspace: Workspace }) {
               onClose={() => setFetchDialog(false)}
               onFetch={async (url, path) => {
                 try {
-                  await ideApi.fetchUrl(url, path);
+                  await api.fetchUrl(url, path);
                   setFetchDialog(false);
                   await refreshTree();
                   await openFile(path);
