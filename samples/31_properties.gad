@@ -35,6 +35,13 @@ println("pi():      ", pi())             // 3.14159
 value.v = 3                              // setter via .v
 println("value.v:   ", value.v)          // int: 3  (getter via .v)
 
+/// `prop => expr` is a getter-only property (a prop as a closure). It reads live
+/// and has no setter. Works anonymously or named.
+var _live = 1
+ro := prop => _live                      // anonymous, read-only
+_live = 42
+println("ro.v:      ", ro.v)             // 42  (live)
+
 // --- Properties as container members (computed properties) ------------------
 /// A prop stored at a dict key: `celsius` is the backing value; `c`/`f` are
 /// computed accessors. Reading/assigning the key delegates to the prop.

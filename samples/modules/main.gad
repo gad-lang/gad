@@ -26,6 +26,11 @@ counter.inc()                                     // 6
 println("count       =", counter.count)          // 6
 counter.count = -3                                // setter clamps at 0
 println("count       =", counter.count)          // 0
+/// A live binding (export prop total = 0): external and internal writes share
+/// the same module variable.
+counter.total = 10                                // external write
+counter.inc()                                     // internal write (+1)
+println("total       =", counter.total)          // 11  (shared live binding)
 /// reflect.get reads the exported Prop object itself (getter not run).
 println("raw member  =", typeName(reflect.get(counter, "count")))  // Prop
 

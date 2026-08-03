@@ -4,8 +4,8 @@ Raw, delegation-free index access — the functional analog of JavaScript
 `Reflect.get` / `Reflect.set`.
 
 Unlike the `target[key]` / `target[key] = value` operators, which
-[delegate](functions.md#properties-as-container-members-computed-properties) to a
-stored [property](functions.md#properties-prop)'s getter/setter, the `reflect`
+[delegate](properties.md#properties-as-container-members-computed-properties) to a
+stored [property](properties.md)'s getter/setter, the `reflect`
 functions operate on the **stored value verbatim**.
 
 `reflect` is available directly (like `strings`/`fmt`), and also via

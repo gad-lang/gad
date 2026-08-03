@@ -62,29 +62,33 @@ println(g.pi, g.e)       // 3.14 2.71
 
 ### Exporting properties
 
-`export prop name { … }` exports a [property](functions.md#properties-prop) under
-its name. Member access on the imported module then **delegates** to the prop —
-reading runs its getter, assigning runs its setter — so a module can expose a
-computed/managed value behind a plain field:
+`export prop name { … }` exports a [property](properties.md) under its name.
+Member access on the imported module then **delegates** to the prop — reading
+runs its getter, assigning runs its setter — so a module can expose a
+computed/managed value behind a plain field.
+
+**Live bindings.** `export prop name = init` is the concise form: it declares a
+module-local `var name = init` and exports a read/write property over it, so the
+field is a live binding — external writes change the module's variable, and
+module functions closing over it observe the change (and vice versa):
 
 ```go
 // counter.gad
-var value = 0
-export prop v {
-  () => value          // getter
-  (n) { value = n }    // setter
-}
+export prop count = 0
+export inc() { count = count + 1 }
 ```
 
 ```go
 c := import("./counter.gad")
-c.v         // 0  — runs the getter
-c.v = 5     // runs the setter
-c.v         // 5
+c.count      // 0  — runs the getter
+c.count = 5  // setter mutates the module's count
+c.inc()      // internal mutation
+c.count      // 6  — observed through the live binding
 ```
 
+`export prop name => expr` exports a **read-only** live binding (getter only).
 Use [`reflect.get`](reflect.md) to read the exported `Prop` object itself without
-running its getter: `reflect.get(c, "v")`.
+running its getter: `reflect.get(c, "count")`. See [Properties](properties.md).
 
 ## Module Parameters
 

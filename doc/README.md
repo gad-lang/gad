@@ -22,6 +22,8 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
    and the `match` expression/statement.
 6. [Functions](functions.md) — closures, variadics, named arguments, spreading,
    `return =`, and `defer` / `deferb` handlers.
+   - [Properties](properties.md) — `prop` getters/setters, the virtual `.v`
+     field, computed container members, and module live bindings.
 7. [Collections](collections.md) — arrays, dicts, comprehensions, spread/merge
    literals, and destructuring.
 8. [Classes and Objects](classes.md) — `Class(...)`, fields, methods,
@@ -58,7 +60,7 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
   [`json`](stdlib-json.md).
 - [`reflect`](reflect.md) — raw, delegation-free index access (the `Reflect.get`
   / `Reflect.set` analog); pairs with computed
-  [properties](functions.md#properties-prop).
+  [properties](properties.md).
 - [Testing](stdlib-test.md) — the `test` module and the `gad test` command:
   `*_test.gad` files, `test*`/`bench*` functions, assertions and benchmarks.
 - [Metaprogramming](metaprogramming.md) — the `gad` namespace: `gad.parse` /

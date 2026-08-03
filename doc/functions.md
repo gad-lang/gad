@@ -192,76 +192,23 @@ It returns `nil` when no method matches.
 
 ## Properties (prop)
 
-A **property** is a named, callable value defined with the func-with-methods body
-syntax but introduced by the `prop` keyword. A method with no parameters is the
-*getter*; a method with one parameter is a *setter*, chosen by the argument type:
+A **property** (`prop`) is a named, callable value with a getter and optional
+setters — like a closure with an assignable value. It can be called, read/written
+through its virtual `.v` field, stored in a container where indexing delegates to
+it (computed properties), and exported as a module live binding.
 
 ```go
 var value
 prop x {
-  ()      => value          // getter:  x()
-  (v)     { value = v }     // setter:  x(v)
-  (v int) { value = "int= " + v }   // typed setter
+  ()      => value          // getter:  x()  or  x.v
+  (v)     { value = v }     // setter:  x(v)  or  x.v = v
 }
-
-x("a")   // setter runs
-x()      // "a"
-x(1)     // typed (int) setter
-x()      // "int= 1"
 ```
 
-A single-accessor property may drop the braces: `prop pi() => 3.14`. Properties
-are also available through the [`Prop`](values-and-types.md#properties)
-constructor for building them programmatically.
-
-### The virtual `.v` field
-
-A property exposes a virtual `v` field for value access without an explicit
-call: `x.v` runs the getter (like `x()`) and `x.v = value` runs the matching
-setter (like `x(value)`). Calling the property directly still works.
-
-```go
-var stored
-prop x { () => stored; (n) { stored = n } }
-
-x.v = 10   // setter — same as x(10)
-x.v        // 10   — getter, same as x()
-```
-
-### Properties as container members (computed properties)
-
-When a `Prop` is stored at a container key, indexing that key **delegates** to
-the prop — reading runs its getter, assigning runs its matching setter. This is
-the computed-property (accessor) pattern, like a JavaScript getter/setter:
-
-```go
-var (
-  v = 1,
-  d = { x: prop { () => v; (val) { v = val } } }
-)
-
-d.x        // 1   — runs the getter
-d.x = 2    // v = 2 — runs the setter
-d.x        // 2
-```
-
-Delegation works on any container (dict, module, custom index getters) **except
-`array` and class instances**, whose element/field access always returns the
-stored value verbatim (a class instance already resolves its own class
-properties). Chained access delegates at the leaf: `d.a.x`.
-
-Modules can export a property so member access on the imported module delegates
-to it — see [Exporting properties](modules.md#exporting-properties).
-
-### Raw access with `reflect`
-
-The [`reflect`](reflect.md) module reads and writes a key **without** delegating
-to a stored prop — the functional analog of JavaScript `Reflect.get`/`Reflect.set`:
-
-```go
-reflect.get(d, "x")    // the Prop itself (getter not run)
-reflect.set(d, "x", 3) // overwrites the key with 3, removing the prop
-```
+See **[Properties](properties.md)** for the full reference: the `prop => expr`
+getter-only form, the virtual `.v` field, computed container members,
+`export prop name = init` live bindings, and raw access with
+[`reflect`](reflect.md).
 
 ## Computed values
 
