@@ -50,7 +50,22 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api": "http://localhost:8080",
+      // The /api backend (web/server or `gad ide`) is optional in dev: the
+      // playground probes it and falls back to the in-browser WASM backend, and
+      // the standalone webide.html never calls it at all. When :8080 is down,
+      // answer with a quiet 503 instead of spamming ECONNREFUSED stack traces.
+      "/api": {
+        target: "http://localhost:8080",
+        configure: (proxy) => {
+          proxy.on("error", (_err, _req, res) => {
+            const r = res as { writeHead?: (code: number) => void; end?: (body: string) => void };
+            if (r.writeHead && r.end && !("headersSent" in res && (res as { headersSent: boolean }).headersSent)) {
+              r.writeHead(503);
+              r.end("api backend not running");
+            }
+          });
+        },
+      },
     },
   },
 });
