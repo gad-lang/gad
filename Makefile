@@ -82,10 +82,20 @@ web: web-install
 web-server:
 	go run ./web/server -addr :8080 -static web/app/dist
 
-# Production build of the React app (outputs web/app/dist).
+# Production build of the React app (outputs web/app/dist). Emits two pages:
+# index.html (the playground) and webide.html (the standalone embeddable IDE).
 .PHONY: web-build
 web-build: web-install
 	cd web/app && $(NVM_USE) && bun run build
+
+# Preview the standalone, server-less embeddable IDE page (webide.html). It needs
+# no Go backend — the tree is read-only samples + a LocalStorage overlay, and
+# run/doc/debug all run in-browser via the Gad WASM module in a Web Worker.
+# Build once, then serve web/app/dist; open the printed /webide.html URL.
+.PHONY: webide
+webide: web-build
+	@echo "Open http://localhost:4173/webide.html"
+	cd web/app && $(NVM_USE) && bun run preview
 
 # Launch the IDE with the React + CodeMirror UI (builds web/app first).
 # Override the workspace with DIR=path (defaults to samples).
