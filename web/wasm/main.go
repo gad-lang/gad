@@ -51,6 +51,23 @@ func main() {
 		return map[string]any{"doc": d}
 	}))
 
+	// gadDocComments(source) -> { docs } : the doc-comment list for the Docs panel.
+	js.Global().Set("gadDocComments", jsonFuncN(func(args []js.Value) any {
+		return map[string]any{"docs": gadbridge.DocComments(argStr(args, 0))}
+	}))
+
+	// gadEval(source, expr, repr) -> { ok, value, error, stdout } : evaluate expr
+	// in a fresh VM seeded with source's top-level definitions.
+	js.Global().Set("gadEval", jsonFuncN(func(args []js.Value) any {
+		return gadbridge.EvalExpr(argStr(args, 0), argStr(args, 1), argBool(args, 2))
+	}))
+
+	// gadTranspile(source, mixed) -> FormatResult : rewrite template/mixed source
+	// into plain Gad (write(...) calls). mixed=true for `.gadt`.
+	js.Global().Set("gadTranspile", jsonFuncN(func(args []js.Value) any {
+		return gadbridge.Transpile(argStr(args, 0), argBool(args, 1), nil)
+	}))
+
 	// Debug stepping protocol (mirrors /api/debug/*).
 	// gadDebugStart(source, path, breakpointsJSON, stopOnEntry, argsJSON)
 	js.Global().Set("gadDebugStart", jsonFuncN(func(args []js.Value) any {

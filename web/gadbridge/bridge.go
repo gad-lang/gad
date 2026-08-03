@@ -7,6 +7,7 @@ package gadbridge
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/gad-lang/gad"
@@ -362,6 +363,37 @@ func DiagnoseSource(src, sourceType string) []Diagnostic {
 		return errorDiagnostics(err)
 	}
 	return nil
+}
+
+// EvalResult is the outcome of evaluating a single expression (the IDE's
+// Evaluate panel): the rendered value, or an error, plus any prelude output.
+type EvalResult struct {
+	OK     bool   `json:"ok"`
+	Value  string `json:"value"`
+	Error  string `json:"error"`
+	Stdout string `json:"stdout"`
+}
+
+// EvalExpr evaluates expr in the context of an optional source prelude (the
+// file's top-level definitions), rendering the result with repr() or str(). It
+// runs in a fresh VM — not a paused debug frame.
+func EvalExpr(source, expr string, repr bool) EvalResult {
+	render := "str"
+	if repr {
+		render = "repr"
+	}
+	res := RunSource(EvalSource(source, expr, render), "gad")
+	out := EvalResult{OK: res.OK, Stdout: res.Stdout}
+	if res.OK {
+		out.Value = res.Result
+		return out
+	}
+	out.Error = res.Stderr
+	if out.Error == "" && len(res.Diagnostics) > 0 {
+		d := res.Diagnostics[0]
+		out.Error = fmt.Sprintf("%d:%d %s", d.Line, d.Column, d.Message)
+	}
+	return out
 }
 
 // Run compiles and executes src as plain Gad. See RunSource for `.gadt`/`.giom`.

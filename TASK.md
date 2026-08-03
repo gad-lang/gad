@@ -1,56 +1,53 @@
-# TASK: WASM worker backend + embeddable web-only IDE (#50/#51)
+# TASK: Server-less embeddable IDE via @gad-lang/ide-react + localIdeApi
 
-> Created: 2026-08-03 | Updated: 2026-08-03 16:20
+> Created: 2026-08-03 | Updated: 2026-08-03 19:10
 
 ## Goal
-Move the app's in-browser Gad execution off the UI thread into a Web Worker
-(run/format/diagnose + a stepping debugger) and ship a fully server-less,
-embeddable IDE page: a read-only sample tree with a LocalStorage overlay for
-user edits/new files/deletions (resettable), reusing the CodeMirror editor and
-driving Run/Doc/Debug entirely through the WASM module in the worker.
+Ship the standalone, server-less IDE page (webide.html) by reusing the extracted
+`@gad-lang/ide-react` <Ide> component, driven by an in-browser `localIdeApi`
+(WebFS sample tree + LocalStorage overlay, Gad WASM in a Web Worker). No Go
+server. Supersedes the earlier custom WebIde.tsx/tree.ts (now removed).
 
 ## Plan
-- [x] client.ts: align run/format/diagnose types to backend types; add docData()
-- [x] backends/debug.ts: DebugBackend interface + serverDebugBackend (+debugBackend alias)
-- [x] backends/wasmWorker.ts: sharedClient + wasmWorkerBackend (GadBackend) + wasmDebugBackend
-- [x] App.tsx: switch "wasm" backend to the worker; Debug tab picks debug backend by selector
-- [x] Debug.tsx: accept a DebugBackend prop; hint conditional on needsServer
-- [x] webide/tree.ts: pure buildTree + langFor helpers
-- [x] webide/WebIde.tsx: tree sidebar (create/delete/reset) + Editor + Run/Doc/Debug panels
-- [x] webide.tsx + webide.html entries; vite multi-page input
-- [x] styles.css: WebIde layout (responsive)
-- [x] Remove orphaned backends/wasm.ts (UI-thread backend, superseded)
-- [x] Add @lezer/common + @lezer/lr direct deps so the production build resolves
+- [x] webide.tsx renders <Ide api={localIdeApi}> from @gad-lang/ide-react (user)
+- [x] backends/localIde.ts: full IdeApi impl over WebFS + WASM worker (user)
+- [x] client.ts: run(sourceType)/diagnose(sourceType)/docComments/evalExpr/transpile (user)
+- [x] bridge.go: EvalExpr (+ Transpile/DocComments) for the IDE panels (user)
+- [x] wasm main.go: gadEval/gadTranspile/gadDocComments/gadDocData exports (user)
+- [x] backends/debug.ts: re-export debug wire types from @gad-lang/ide-react (user)
+- [x] vite: alias + dedupe for @gad-lang/ide-react; two-page build (user)
+- [x] Remove custom WebIde.tsx + webide/tree.ts (superseded)
+- [x] worker.ts: complete GadGlobals with the 4 new fn declarations (me)
+- [x] gadbridge: add TestEvalExpr (was untested) (me)
 
 ## Log
 ### 2026-08-03
-- App typecheck clean after wiring — `bun run typecheck` → exit 0
-- buildTree sanity — bun script printed correct folders-first nesting/sort
-- Production build (both entries) — `bunx vite build` → built in 3.17s, emitted
-  dist/index.html + dist/webide.html + separate webide chunk (91.65 kB) + worker chunk
-- Rebuilt current wasm (adds gadDocData) — `bun run wasm` → wrote public/gad.wasm
-- Doc-template Go tests still green after user's pug-style html.giom rewrite +
-  brace fix — `go test ./cmd/gad/ -run 'TestRenderDocTemplate|TestDocCommandUsesTemplates'`
-  → PASS (MD, HTML, e2e md+html)
+- App typecheck clean — `bun run typecheck` → exit 0
+- Go build/test clean — `go build ./...` exit 0; `go test ./web/... ./cmd/gad/` all ok
+- WASM builds with new exports — `GOOS=js GOARCH=wasm go build ./web/wasm` → 20591567 bytes
+- Production build both entries — `bunx vite build` → built in 3.18s; dist/index.html +
+  dist/webide.html + separate webide chunk (85.92 kB) + worker chunk
+- All WASM exports the client calls exist in main.go (gadEval/gadTranspile/
+  gadDocComments/gadDocData/gadDoc/gadDocData/gadRun/gadDiagnose/gadFormat/gadDebug*)
+- Added EvalExpr coverage — `go test ./web/gadbridge/ -run TestEvalExpr` → PASS
+- gofmt clean on touched Go files
 
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
 |-------|-------|-----|----------|
-| TS2724 wasmDebugBackend not in ./backends/debug | imported from wrong module | import from ./backends/wasmWorker | typecheck exit 0 |
-| Rollup can't resolve @lezer/common from @codemirror/commands | bun isolated node_modules; not a direct dep | add @lezer/common + @lezer/lr as direct deps; bun install | `bunx vite build` built in 3.17s |
-| html.giom `unresolved reference "{s.line}"` | pug `[attr=expr]` value is an expression, not a `{…}` interpolation | `data-line=s.line` (no braces) | doc-template tests PASS |
+| TestEvalExpr repr expected `"hi"` | Gad repr renders the type-annotated `‹str: "hi"›` | assert Contains(`"hi"`) for repr, exact `hi` for str | TestEvalExpr PASS |
 
 ## Current State
-The app's in-browser backend now runs in a Web Worker: backends/wasmWorker.ts hosts
-one shared WasmClient and exposes wasmWorkerBackend (run/format/diagnose) and
-wasmDebugBackend (start/command/evaluate/stop) implementing a new DebugBackend
-interface (serverDebugBackend is the HTTP twin). App.tsx's backend selector now
-picks the matching run and debug backends; the Debug tab works without a Go server
-when "WebAssembly" is selected. A new standalone entry (webide.html → webide.tsx →
-WebIde) is a server-less embeddable IDE: WebFS gives a read-only sample tree with a
-LocalStorage overlay (edit samples, create/delete files & folders, reset), the
-CodeMirror editor is reused, and Run/Doc/Debug all go through the worker. vite builds
-both pages (index + webide) as separate bundles. Typecheck clean; production build
-succeeds; the doc-template Go tests pass against the user's pug-style html.giom.
-Not yet committed. Not verified in a live browser (WASM execution needs a browser);
-all other checks (typecheck, production build, Go tests) pass.
+The server-less IDE is delivered by reusing `@gad-lang/ide-react`'s <Ide>
+component (the same UI `gad ide` serves), injected with `localIdeApi` — a full
+in-browser IdeApi over WebFS (read-only samples + LocalStorage overlay) and the
+Gad WASM module in a Web Worker (wasm/client.ts + worker.ts). client.ts and the
+WASM bridge (bridge.go EvalExpr/Transpile/DocComments + main.go gadEval/
+gadTranspile/gadDocComments/gadDocData exports) supply run/diagnose/doc/eval/
+transpile/debug; debug wire types are re-exported from ide-react so both sides
+share one definition. My earlier custom WebIde.tsx/tree.ts are removed. This
+turn I completed the worker's GadGlobals type (the 4 new fns) and added
+TestEvalExpr. Verified: Go build/test/vet/gofmt clean, WASM builds, app
+typecheck clean, production build of both entries (index + webide) succeeds. Not
+committed yet. Live-browser WASM execution not verified (needs a browser); every
+other check passes.

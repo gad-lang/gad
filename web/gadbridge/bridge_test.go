@@ -129,3 +129,27 @@ func TestRunSourceTemplate(t *testing.T) {
 		t.Fatal("expected plain-Gad diagnostics for template source")
 	}
 }
+
+// TestEvalExpr evaluates an expression against a source prelude (the file's
+// top-level definitions), the path the IDE's Evaluate panel takes. It covers the
+// prelude context, str vs repr rendering, and an error case.
+func TestEvalExpr(t *testing.T) {
+	// The prelude defines `x`; the expression sees it. str() renders plainly.
+	r := EvalExpr("x := 20\n", "x + 22", false)
+	if !r.OK || r.Value != "42" {
+		t.Fatalf("eval with prelude = %+v, want ok value 42", r)
+	}
+
+	// repr() renders the quoted, type-annotated form; str() renders plainly.
+	if r := EvalExpr("", `"hi"`, true); !r.OK || !strings.Contains(r.Value, `"hi"`) {
+		t.Fatalf("repr eval = %+v, want ok value containing \"hi\"", r)
+	}
+	if r := EvalExpr("", `"hi"`, false); !r.OK || r.Value != "hi" {
+		t.Fatalf("str eval = %+v, want ok value hi", r)
+	}
+
+	// A reference to an undefined symbol is an error, not a crash.
+	if r := EvalExpr("", "nope", false); r.OK || r.Error == "" {
+		t.Fatalf("eval of undefined symbol = %+v, want an error", r)
+	}
+}

@@ -1,32 +1,15 @@
-import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
-
-export interface DebugFrame {
-  name: string;
-  line: number;
-  column: number;
-}
-
-export interface DebugVar {
-  name: string;
-  type: string;
-  value: string;
-}
+// The debug wire types are the canonical ones from the reusable IDE package, so
+// the playground Debug page and the WASM worker client share one definition
+// (avoids two structurally-different DebugResponse types across the boundary).
+import type { DebugResponse } from "@gad-lang/ide-react";
+export type {
+  DebugFrame,
+  DebugVariable,
+  DebugVariable as DebugVar,
+  DebugResponse,
+} from "@gad-lang/ide-react";
 
 export type DebugState = "stopped" | "terminated" | "error";
-
-export interface DebugResponse {
-  session?: string;
-  state: DebugState;
-  reason?: string;
-  line?: number;
-  column?: number;
-  frames?: DebugFrame[];
-  locals?: DebugVar[];
-  output?: string;
-  result?: string;
-  error?: string;
-  diagnostics?: GadDiagnostic[];
-}
 
 export type DebugCommand = "continue" | "next" | "stepIn" | "stepOut" | "pause";
 

@@ -5,6 +5,7 @@
 import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import type { DebugResponse } from "../backends/debug";
 import type { FormatResult, RunResult } from "../backends/types";
+import type { DocComment, EvalResult } from "@gad-lang/ide-react";
 
 type Pending = { resolve: (v: string) => void; reject: (e: Error) => void };
 
@@ -79,6 +80,18 @@ export class WasmClient {
   /** docData extracts the structured documentation (prose + typed sections). */
   docData(source: string, sourceType: "gad" | "gadTemplate" | "giom") {
     return this.json<{ doc?: unknown; error?: string }>("gadDocData", [source, sourceType]);
+  }
+  /** docComments extracts the doc-comment list (for the IDE Docs panel). */
+  docComments(source: string) {
+    return this.json<{ docs: DocComment[] }>("gadDocComments", [source]);
+  }
+  /** evalExpr evaluates expr with source's definitions in scope. */
+  evalExpr(source: string, expr: string, repr = false) {
+    return this.json<EvalResult>("gadEval", [source, expr, repr]);
+  }
+  /** transpile rewrites template/mixed source into plain Gad (mixed for .gadt). */
+  transpile(source: string, mixed: boolean) {
+    return this.json<FormatResult>("gadTranspile", [source, mixed]);
   }
 
   // --- Debugger (mirrors backends/debug.ts) ---

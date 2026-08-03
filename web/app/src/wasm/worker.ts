@@ -19,6 +19,10 @@ interface GadGlobals {
   gadFormat?: (src: string) => string;
   gadDiagnose?: (src: string) => string;
   gadDoc?: (src: string, sourceType: string) => string;
+  gadDocData?: (src: string, sourceType: string) => string;
+  gadDocComments?: (src: string) => string;
+  gadEval?: (...a: unknown[]) => string;
+  gadTranspile?: (...a: unknown[]) => string;
   gadDebugStart?: (...a: unknown[]) => string;
   gadDebugCommand?: (...a: unknown[]) => string;
   gadDebugEval?: (...a: unknown[]) => string;
