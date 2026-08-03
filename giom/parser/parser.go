@@ -26,6 +26,10 @@ type Parser struct {
 	filename  string
 	comps     []*giomnode.CompDecl
 	compStack []*giomnode.CompDecl
+	// pendingDoc holds a `/** … */` doc comment awaiting the next statement: it
+	// attaches to an immediately following @comp/@func, otherwise it is flushed
+	// as a file-level comment (a blank line or any other statement breaks it).
+	pendingDoc *giomnode.CommentStmt
 }
 
 // NewParser creates a new Parser for the given source file.
@@ -120,11 +124,28 @@ func (p *Parser) ParseFile() (_ *giomnode.File, err error) {
 
 // parseStmt dispatches to the appropriate parse function based on the current token.
 func (p *Parser) parseStmt() gnode.Stmt {
+	// A held doc comment (see pendingDoc) attaches only to an immediately
+	// following @comp/@func. Anything else — a blank line, another statement, EOF
+	// — breaks the attachment, so flush it as a file-level comment.
+	if p.pendingDoc != nil &&
+		p.Token.Token != giomtoken.Comp && p.Token.Token != giomtoken.Func {
+		c := p.pendingDoc
+		p.pendingDoc = nil
+		return c
+	}
+
 	switch p.Token.Token {
 	case giomtoken.Doctype:
 		return p.parseDoctype()
 	case giomtoken.Comment:
-		return p.parseComment()
+		c := p.parseComment()
+		// Hold a doc comment for the next statement; it attaches to a following
+		// @comp/@func or is flushed above. Non-doc comments pass through.
+		if c.Doc {
+			p.pendingDoc = c
+			return nil
+		}
+		return c
 	case giomtoken.Text:
 		return p.parseText()
 	case giomtoken.Html:
@@ -158,9 +179,21 @@ func (p *Parser) parseStmt() gnode.Stmt {
 	case giomtoken.Enum:
 		return p.parseEnum()
 	case giomtoken.Func:
-		return p.parseFunc()
+		// Take the held doc before parsing the body so nested body statements do
+		// not see (and flush) it.
+		doc := p.takeDoc()
+		d := p.parseFunc()
+		if d != nil {
+			d.Doc = doc
+		}
+		return d
 	case giomtoken.Comp:
-		return p.parseComp()
+		doc := p.takeDoc()
+		d := p.parseComp()
+		if d != nil {
+			d.Doc = doc
+		}
+		return d
 	case giomtoken.Slot:
 		return p.parseSlot()
 	case giomtoken.SlotPass:
@@ -223,6 +256,17 @@ func (p *Parser) parseDoctype() *giomnode.DoctypeStmt {
 	return d
 }
 
+// takeDoc returns the text of the pending doc comment (see pendingDoc) and
+// clears it, or "" when none is pending.
+func (p *Parser) takeDoc() string {
+	if p.pendingDoc == nil {
+		return ""
+	}
+	text := p.pendingDoc.Text
+	p.pendingDoc = nil
+	return text
+}
+
 func (p *Parser) parseComment() *giomnode.CommentStmt {
 	tok := p.Token
 	p.expect(giomtoken.Comment)
@@ -235,6 +279,8 @@ func (p *Parser) parseComment() *giomnode.CommentStmt {
 		NodeEnd: tok.Pos + source.Pos(len(tok.Literal)),
 		Text:    text,
 		Silent:  mode == "silent",
+		Block:   stringData(tok, "block", "") == "true",
+		Doc:     stringData(tok, "doc", "") == "true",
 	}
 
 	if p.Token.Token == giomtoken.Indent {

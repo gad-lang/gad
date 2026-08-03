@@ -188,6 +188,9 @@ func (s *scanner) Scan() (t gadparser.PToken) {
 		if tok := s.scanAttribute(); tok.Valid() {
 			return tok
 		}
+		if tok := s.scanBlockComment(); tok.Valid() {
+			return tok
+		}
 		if tok := s.scanComment(); tok.Valid() {
 			return tok
 		}
@@ -389,6 +392,65 @@ func (s *scanner) scanMCode() gadparser.PToken {
 		return pt
 	}
 	return gadparser.PToken{}
+}
+
+// scanBlockComment scans a `/* … */` block comment at the start of a line. The
+// comment is silent (renders nothing) and may span multiple lines: additional
+// source lines are pulled into the buffer until the closing `*/`. A `/** … */`
+// form is a doc comment (marked "doc"), which the parser attaches to an
+// immediately following `@comp`/`@func`. Only recognized at line start; a `/*`
+// mid-line stays literal text.
+func (s *scanner) scanBlockComment() gadparser.PToken {
+	if !strings.HasPrefix(s.buffer, "/*") {
+		return gadparser.PToken{}
+	}
+	// Pull lines until the closing `*/` is in the buffer (search past the opening
+	// `/*` so `/*/` / `/**/` are handled correctly).
+	for !strings.Contains(s.buffer[2:], "*/") {
+		buf, err := s.reader.ReadString('\n')
+		if len(buf) == 0 {
+			break
+		}
+		s.offset += len(buf)
+		if buf[len(buf)-1] == '\n' {
+			buf = buf[:len(buf)-1]
+		}
+		s.buffer += "\n" + buf
+		if err != nil {
+			break
+		}
+	}
+	close := strings.Index(s.buffer[2:], "*/")
+	if close < 0 {
+		// Unterminated block comment: leave it for the text scanner.
+		return gadparser.PToken{}
+	}
+	closeIdx := close + 2
+	end := closeIdx + 2
+
+	doc := strings.HasPrefix(s.buffer, "/**") && closeIdx >= 3
+	openLen := 2
+	if doc {
+		openLen = 3
+	}
+	inner := s.buffer[openLen:closeIdx]
+	lit := s.buffer[:end]
+
+	// Consume the comment; also consume trailing whitespace so the closing line
+	// is fully processed when nothing follows `*/`.
+	consumeLen := end
+	if strings.TrimSpace(s.buffer[end:]) == "" {
+		consumeLen = len(s.buffer)
+	}
+	s.consume(consumeLen)
+
+	pt := s.newToken(giomtoken.Comment, lit, strings.TrimSpace(inner))
+	pt.Set("mode", "silent")
+	pt.Set("block", "true")
+	if doc {
+		pt.Set("doc", "true")
+	}
+	return pt
 }
 
 var rgxComment = regexp.MustCompile(`^\/\/(-)?\s*(.*)$`)

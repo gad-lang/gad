@@ -126,6 +126,15 @@ func (d *DoctypeStmt) WriteGiom(ctx *GiomCodeWriteContext) {
 }
 
 func (c *CommentStmt) WriteGiom(ctx *GiomCodeWriteContext) {
+	if c.Block {
+		// A `/* … */` block comment (silent); `/** … */` when it carries doc.
+		open := "/*"
+		if c.Doc {
+			open = "/**"
+		}
+		ctx.WriteLine(open + " " + c.Text + " */")
+		return
+	}
 	prefix := "//"
 	if c.Silent {
 		prefix = "//-"
@@ -135,6 +144,13 @@ func (c *CommentStmt) WriteGiom(ctx *GiomCodeWriteContext) {
 		ctx.Depth++
 		ctx.WriteStmts(c.Body)
 		ctx.Depth--
+	}
+}
+
+// writeDoc emits a decl's `/** … */` doc comment line, if any.
+func writeDoc(ctx *GiomCodeWriteContext, doc string) {
+	if doc != "" {
+		ctx.WriteLine("/** " + doc + " */")
 	}
 }
 
@@ -187,6 +203,7 @@ func (c *CodeStmt) WriteGiom(ctx *GiomCodeWriteContext) {
 }
 
 func (f *FuncDecl) WriteGiom(ctx *GiomCodeWriteContext) {
+	writeDoc(ctx, f.Doc)
 	line := "@func " + f.Name
 	if f.Params != nil {
 		line += f.Params.String()
@@ -198,6 +215,7 @@ func (f *FuncDecl) WriteGiom(ctx *GiomCodeWriteContext) {
 }
 
 func (c *CompDecl) WriteGiom(ctx *GiomCodeWriteContext) {
+	writeDoc(ctx, c.Doc)
 	line := "@comp " + c.Name
 	if c.Params != nil {
 		line += c.Params.String()

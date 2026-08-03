@@ -254,7 +254,14 @@ type CommentStmt struct {
 	NodeEnd source.Pos
 	Text    string
 	Silent  bool
-	Body    gnode.Stmts
+	// Block is true for a `/* … */` block comment (always silent, may be
+	// multi-line), as opposed to a `//` / `//-` line comment.
+	Block bool
+	// Doc is true for a `/** … */` doc block comment. When it immediately
+	// precedes a @comp/@func the parser moves its text to the decl's Doc and
+	// drops the CommentStmt; otherwise it stays as a file-level comment.
+	Doc  bool
+	Body gnode.Stmts
 }
 
 func (c *CommentStmt) Pos() source.Pos { return c.NodePos }
@@ -435,6 +442,9 @@ type FuncDecl struct {
 	ParamsRaw string
 	Body      gnode.Stmts
 	Exported  bool
+	// Doc is the text of a `/** … */` doc comment immediately preceding the
+	// declaration, or "".
+	Doc string
 }
 
 func (f *FuncDecl) Pos() source.Pos { return f.NodePos }
@@ -471,6 +481,9 @@ type CompDecl struct {
 	Comps     []*CompDecl
 	Exported  bool
 	Main      bool
+	// Doc is the text of a `/** … */` doc comment immediately preceding the
+	// declaration, or "".
+	Doc string
 }
 
 func (c *CompDecl) Pos() source.Pos { return c.NodePos }
