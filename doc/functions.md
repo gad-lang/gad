@@ -354,7 +354,9 @@ println(safe())   // recovered: error: boom
 
 For runnable function examples, see:
 - `samples/03_functions.gad` — functions, closures, variadics
-- `samples/10_functions_with_methods.gad` — typed params, overloads, `met`, `prop`
+- `samples/10_functions_with_methods.gad` — typed params, overloads, `met`
+- `samples/31_properties.gad` — properties (`prop`): accessors, computed
+  container members, by-reference sharing, and raw access via `reflect`
 
 `deferb` (and `deferb_ok` / `deferb_err`) run when the **enclosing block**
 exits, rather than the whole function — useful for scoped cleanup. Block defers

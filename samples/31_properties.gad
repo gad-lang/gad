@@ -1,49 +1,76 @@
 /***
-31_properties.gad — computed properties in containers, and raw access.
+31_properties.gad — properties (`prop`): standalone accessors and computed
+container members.
 
-A `prop` value has a getter (`() => …`) and optional setters (`(v) { … }`). When
-a prop is stored at a container key, indexing that key delegates to it: reading
-runs the getter, assigning runs the setter — like a JavaScript getter/setter.
-The `reflect` module bypasses delegation for raw access.
+A `prop` is a named, callable value: a getter (`() => …`) with no parameters and
+optional setters (`(v) { … }`) with one, dispatched by argument type. When a prop
+is stored at a container key, indexing that key DELEGATES to it — reading runs
+the getter, assigning runs the setter — like a JavaScript getter/setter. The
+`reflect` module bypasses delegation for raw access.
 
 Run with:  gad run samples/31_properties.gad
 See doc/functions.md (Properties) and doc/reflect.md for detailed docs.
 ***/
 
-/// A dict key holding a prop: `celsius` is stored, `fahrenheit` is computed from
-/// it through a getter/setter pair.
+// --- Standalone properties --------------------------------------------------
+/// The `prop` statement declares a named property. The getter takes no params;
+/// setters take one and may be typed (dispatched by the argument type).
+var stored
+prop value {
+    ()      => stored                    // getter
+    (v)     { stored = v }               // setter (any value)
+    (v int) { stored = "int: " + v }     // typed setter
+}
+value("hello"); a := value()             // setter, then getter
+value(42);      b := value()             // typed (int) setter
+println("value (str):", a)               // hello
+println("value (int):", b)               // int: 42
+
+/// A read-only (getter-only) property. Single-accessor form may drop the braces.
+prop pi() => 3.14159
+println("pi():      ", pi())             // 3.14159
+
+// --- Properties as container members (computed properties) ------------------
+/// A prop stored at a dict key: `celsius` is the backing value; `c`/`f` are
+/// computed accessors. Reading/assigning the key delegates to the prop.
 var (
     celsius = 20,
     temp = {
-        c: prop {
-            () => celsius            // getter
-            (v) { celsius = v }      // setter
-        },
-        f: prop {
-            () => celsius * 9 / 5 + 32
-            (v) { celsius = (v - 32) * 5 / 9 }
-        },
+        c: prop { () => celsius; (v) { celsius = v } },
+        f: prop { () => celsius * 9 / 5 + 32; (v) { celsius = (v - 32) * 5 / 9 } },
     },
 )
+println("c =", temp.c)                   // 20  — getter runs
+temp.c = 30                              // setter runs
+println("c =", temp.c)                   // 30
+println("f =", temp.f)                   // 86  — computed from celsius
+temp.f = 212                            // setter converts back
+println("c =", temp.c)                   // 100
 
-println("c =", temp.c)          // 20  — getter runs
-temp.c = 30                     // setter runs
-println("c =", temp.c)          // 30
-println("f =", temp.f)          // 86  — computed from celsius
-temp.f = 212                    // setter converts back
-println("c =", temp.c)          // 100
+// --- Properties by reference ------------------------------------------------
+/// A property declared with `prop` is a plain value: storing it at a dict key
+/// shares the SAME prop, so the key delegates to it and both see one backing var.
+var n = 1
+prop counter { () => n; (v) { n = v } }
+d := {x: counter}                        // store the prop by reference
+d.x = 8                                   // delegates -> runs counter's setter
+println("d.x =", d.x)                    // 8   (getter)
+println("counter() =", counter())        // 8   (same backing var, shared)
 
+// --- Nested delegation and raw containers -----------------------------------
 /// Nested containers delegate at the leaf.
-var (n = 1, box = { inner: { val: prop { () => n; (v) { n = v } } } })
+var (m = 1, box = { inner: { val: prop { () => m; (v) { m = v } } } })
 box.inner.val = 7
-println("nested =", box.inner.val)   // 7
+println("nested =", box.inner.val)       // 7
 
 /// Arrays never delegate: a stored prop is the value itself.
 p := prop { () => 99 }
-arr := [p]
-println("array holds prop:", typeName(arr[0]))   // Prop
+println("array holds prop:", typeName([p][0]))   // Prop
 
-/// reflect.get / reflect.set: raw, delegation-free access.
+// --- Raw access with reflect ------------------------------------------------
+/// reflect.get / reflect.set bypass delegation (the Reflect.get/set analog).
 println("raw get:", typeName(reflect.get(temp, "c")))  // Prop (getter not run)
 reflect.set(temp, "c", 5)                              // replaces the prop
 println("after raw set:", temp.c)                      // 5 (plain value now)
+
+return value()
