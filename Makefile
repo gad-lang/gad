@@ -36,14 +36,14 @@ dist: web-build build-vscode-plugin
 .PHONY: goreleaser-setup
 goreleaser-setup: web-build
 	go run ./cmd/update-vscode-plugin -w
-	cd editors/vscode-gad && $(NVM_USE) && bun install && bun run package
+	cd editors/vscode-gad && bun install && bun run package
 
 # Build the VS Code extension: regenerate the TextMate grammar from the language
 # vocabulary, compile and package the .vsix, then move it into ./dist.
 .PHONY: build-vscode-plugin
 build-vscode-plugin:
 	go run ./cmd/update-vscode-plugin -w
-	cd editors/vscode-gad && $(NVM_USE) && bun install && bun run package
+	cd editors/vscode-gad && bun install && bun run package
 	mkdir -p dist
 	mv editors/vscode-gad/vscode-gad.vsix dist/
 
@@ -63,19 +63,18 @@ check-delve:
 	go run ./cmd/update-delve check
 
 # --- Web example (CodeMirror plugin + React app) ---------------------------
-# Use Node v26.3.0 via nvm when available; always use bun.
-NVM_USE := { [ -s "$$HOME/.nvm/nvm.sh" ] && . "$$HOME/.nvm/nvm.sh" && nvm use v26.3.0 >/dev/null; } || true
+# Uses bun (which does not need nvm).
 
 .PHONY: web-install
 web-install:
-	cd web && $(NVM_USE) && bun install
+	cd web && bun install
 
 # Build and run the Vite dev server (right: editor, left: formatted/output).
 # The WASM example works standalone; for the "Go server" example also run
 # `make web-server` in another terminal.
 .PHONY: web
 web: web-install
-	cd web/app && $(NVM_USE) && bun run dev
+	cd web/app && bun run dev
 
 # Run the Go backend (API at /api/*, also serves web/app/dist when built).
 .PHONY: web-server
@@ -86,7 +85,7 @@ web-server:
 # index.html (the playground) and webide.html (the standalone embeddable IDE).
 .PHONY: web-build
 web-build: web-install
-	cd web/app && $(NVM_USE) && bun run build
+	cd web/app && bun run build
 
 # Preview the standalone, server-less embeddable IDE page (webide.html). It needs
 # no Go backend — the tree is read-only samples + a LocalStorage overlay, and
@@ -95,7 +94,7 @@ web-build: web-install
 .PHONY: webide
 webide: web-build
 	@echo "Open http://localhost:4173/webide.html"
-	cd web/app && $(NVM_USE) && bun run preview
+	cd web/app && bun run preview
 
 # Launch the IDE with the React + CodeMirror UI (builds web/app first).
 # Override the workspace with DIR=path (defaults to samples).
