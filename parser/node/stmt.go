@@ -1355,6 +1355,11 @@ type ExportStmt struct {
 	KeyExpr   Expr
 	ValueExpr Expr
 	Doc       *ast.CommentGroup // doc comment preceding the export; or nil
+	// Prelude is compiled before the export itself. It carries the `var name =
+	// init` declaration synthesized for `export prop name = init` (the live
+	// read/write binding), so the module gets a real local the exported prop's
+	// getter/setter close over.
+	Prelude Stmt
 }
 
 func (s *ExportStmt) End() source.Pos {
@@ -1377,7 +1382,28 @@ func (s *ExportStmt) Pos() source.Pos {
 	return s.TokenPos
 }
 
+// preludeInit returns the initializer of the `var name = init` Prelude
+// synthesized for `export prop name = init`, or nil when there is no Prelude.
+func (s *ExportStmt) preludeInit() Expr {
+	ds, _ := s.Prelude.(*DeclStmt)
+	if ds == nil {
+		return nil
+	}
+	gd, _ := ds.Decl.(*GenDecl)
+	if gd == nil || len(gd.Specs) == 0 {
+		return nil
+	}
+	vs, _ := gd.Specs[0].(*ValueSpec)
+	if vs == nil || len(vs.Values) == 0 {
+		return nil
+	}
+	return vs.Values[0]
+}
+
 func (s *ExportStmt) String() string {
+	if init := s.preludeInit(); init != nil {
+		return "export prop " + s.KeyExpr.String() + " = " + init.String()
+	}
 	str := "export "
 	if s.KeyExpr != nil {
 		str += s.KeyExpr.String()
@@ -1392,6 +1418,15 @@ func (s *ExportStmt) String() string {
 }
 
 func (s *ExportStmt) WriteCode(ctx *CodeWriteContext) {
+	// `export prop name = init` renders in its concise source form (the Prelude
+	// var + synthesized getter/setter are an internal desugaring).
+	if init := s.preludeInit(); init != nil {
+		ctx.WriteString("export prop ")
+		s.KeyExpr.WriteCode(ctx)
+		ctx.WriteString(" = ")
+		init.WriteCode(ctx)
+		return
+	}
 	ctx.WriteString("export ")
 	if s.KeyExpr != nil {
 		s.KeyExpr.WriteCode(ctx)

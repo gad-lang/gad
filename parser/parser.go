@@ -1947,7 +1947,32 @@ func (p *Parser) ParsePropExprT(tok PToken) (e node.Expr) {
 		}
 	}
 
+	return p.parsePropBody(prop)
+}
+
+// parsePropBody parses a prop's accessor body into prop (whose name, if any, has
+// already been parsed) and returns the completed PropExpr. It accepts:
+//   - `=> expr`  — a read-only getter (prop as a closure);
+//   - `(params) <ret> body` — a single accessor;
+//   - `{ (params) body … }` — several accessors.
+func (p *Parser) parsePropBody(prop *node.PropExpr) (e node.Expr) {
 	switch p.Token.Token {
+	case token.Lambda:
+		// getter-only prop: `prop [name] => expr` (like a closure).
+		lp := p.Token.Pos
+		p.Next()
+		var body node.Expr
+		if p.Token.Token.IsBlockStart() {
+			body = &node.BlockExpr{BlockStmt: p.ParseBlockStmt()}
+		} else {
+			body = p.ParseExpr()
+		}
+		if p.Failed() {
+			return
+		}
+		prop.Methods = append(prop.Methods, &node.FuncMethod{LambdaPos: lp, BodyExpr: body})
+		prop.RBrace = body.End()
+		e = prop
 	case token.LParen:
 		// single accessor: prop name(params) <ret> {body}
 		m := p.parsePropMethod()
@@ -1980,7 +2005,7 @@ func (p *Parser) ParsePropExprT(tok PToken) (e node.Expr) {
 		prop.RBrace = p.Expect(token.RBrace)
 		e = prop
 	default:
-		p.ErrorExpectToken(p.Token, token.LParen, token.LBrace)
+		p.ErrorExpectToken(p.Token, token.Lambda, token.LParen, token.LBrace)
 	}
 
 	return
@@ -4188,20 +4213,54 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 		}
 		stmt.ValueExpr = p.parseInterfaceBody(ifaceTok, name)
 	case token.Prop:
-		// export prop v { … } exports a Prop under its name, so member access on
-		// the module (m.v / m.v = x) delegates to the prop's getter/setter.
-		propExpr := p.ParsePropExprT(p.ExpectToken(token.Prop))
-		if p.Failed() {
+		// export prop name { … } / => … exports a Prop under its name; member
+		// access on the module (m.name / m.name = x) then delegates to its
+		// getter/setter. The `export prop name = init` assign form additionally
+		// declares `var name = init` and synthesizes a read/write getter/setter
+		// over it, so the export is a live binding: mutating m.name from outside
+		// changes the module's `name`, and functions closing over it observe it.
+		propTok := p.ExpectToken(token.Prop)
+		prop := &node.PropExpr{PropToken: propTok.TokenLit}
+		if p.Token.Token == token.Ident {
+			prop.NameExpr = p.ParseIdent()
+			switch p.Token.Token {
+			case token.Period, token.LBrack:
+				prop.NameExpr = p.ParseSimpleSelectorExpr(prop.NameExpr)
+			}
+		}
+		if prop.NameExpr == nil {
+			p.Error(propTok.Pos, "export prop requires a name")
 			return
 		}
-		if pe, _ := propExpr.(*node.PropExpr); pe != nil {
-			if pe.NameExpr == nil {
-				p.Error(pe.Pos(), "export prop requires a name")
+		if p.Token.Token == token.Assign {
+			// export prop name = init  (live read/write binding)
+			name, _ := prop.NameExpr.(*node.IdentExpr)
+			if name == nil {
+				p.Error(prop.NameExpr.Pos(), "export prop = requires a simple name")
 				return
 			}
-			stmt.KeyExpr = pe.NameExpr
+			eq := p.Expect(token.Assign)
+			rhs := p.ParseExpr()
+			if p.Failed() {
+				return
+			}
+			stmt.Prelude = p.newVarDecl(name, rhs)
+			prop.Methods = append(prop.Methods,
+				p.newPropGetter(name),     // () => name
+				p.newPropSetter(name, eq), // (val) { name = val }
+			)
+			prop.RBrace = rhs.End()
+			stmt.KeyExpr = name
+			stmt.ValueExpr = prop
+		} else {
+			// body / arrow form (read-only for `=>`), exported under its name
+			e := p.parsePropBody(prop)
+			if p.Failed() {
+				return
+			}
+			stmt.KeyExpr = prop.NameExpr
+			stmt.ValueExpr = e
 		}
-		stmt.ValueExpr = propExpr
 	default:
 		stmt.KeyExpr = p.ParseLiteral()
 		if ident, _ := stmt.KeyExpr.(*node.IdentExpr); ident != nil {
@@ -4252,6 +4311,39 @@ func (p *Parser) ParseExportStmt() (stmt *node.ExportStmt) {
 	}
 
 	return
+}
+
+// propSetterParam is the synthetic setter parameter name for `export prop x =
+// init`. It is `$`-prefixed so it can never collide with a user variable named
+// like the prop (which would otherwise shadow the assignment target).
+const propSetterParam = "$value"
+
+// newVarDecl builds a `var name = init` declaration statement.
+func (p *Parser) newVarDecl(name *node.IdentExpr, init node.Expr) node.Stmt {
+	spec := node.NewValueSpec([]*node.IdentExpr{name}, []node.Expr{init})
+	return node.SDecl(node.NewGenDecl(token.Var, name.Pos(), source.NoPos, source.NoPos, spec))
+}
+
+// newPropGetter builds a getter method `() => name` reading the variable.
+func (p *Parser) newPropGetter(name *node.IdentExpr) *node.FuncMethod {
+	return &node.FuncMethod{
+		LambdaPos: name.Pos(),
+		BodyExpr:  node.EIdent(name.Name, name.Pos()),
+	}
+}
+
+// newPropSetter builds a setter method `($value) { name = $value }` writing the
+// variable.
+func (p *Parser) newPropSetter(name *node.IdentExpr, pos source.Pos) *node.FuncMethod {
+	param := node.ETypedIdent(node.EIdent(propSetterParam, pos))
+	assign := node.SAssign(
+		[]node.Expr{node.EIdent(name.Name, pos)},
+		[]node.Expr{node.EIdent(propSetterParam, pos)},
+		token.Assign, pos)
+	return &node.FuncMethod{
+		Params: node.FuncParams{Args: node.ArgsList{Values: []*node.TypedIdentExpr{param}}},
+		Body:   node.SBlock(pos, pos, assign),
+	}
 }
 
 func (p *Parser) Expect(token token.Token) source.Pos {

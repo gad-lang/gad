@@ -58,6 +58,50 @@ func TestVMPropValueField(t *testing.T) {
 	expectErrHas(t, `prop y { () => 1 }; return y.w`, newOpts(), "InvalidIndexError")
 }
 
+// TestVMPropReadonly covers the getter-only `prop => expr` form (prop as a
+// closure): anonymous, named, live reads, and the read-only error on write.
+func TestVMPropReadonly(t *testing.T) {
+	// Anonymous read-only prop assigned to a variable, read via .v; live.
+	testExpectRun(t, `var (_x = 5, x = prop => _x); return x.v`, nil, Int(5))
+	testExpectRun(t, `var (_x = 5, x = prop => _x); _x = 9; return x.v`, nil, Int(9))
+	// Named read-only prop statement; read via call and via .v.
+	testExpectRun(t, `var _x = 3; prop y => _x; return y()`, nil, Int(3))
+	testExpectRun(t, `var _x = 3; prop y => _x; return y.v`, nil, Int(3))
+	// Writing a read-only prop errors (no setter).
+	expectErrHas(t, `var _x = 1; prop y => _x; y.v = 2`, newOpts(), "no have method")
+
+	// An anonymous read-only prop stored at a dict key: reading delegates to its
+	// getter (live), and writing errors (no setter).
+	testExpectRun(t, `var (_x = 10, d = {x: prop => _x}); return d.x`, nil, Int(10))
+	testExpectRun(t, `var (_x = 10, d = {x: prop => _x}); _x = 20; return d.x`, nil, Int(20))
+	expectErrHas(t, `var (_x = 10, d = {x: prop => _x}); d.x = 5`, newOpts(), "no have method")
+}
+
+// TestVMExportPropLiveBinding covers `export prop x = init`: a module exports a
+// live read/write binding — reading/writing m.x delegates to a getter/setter
+// over the module's own `var x`, so external writes are observed by functions
+// closing over x, and vice versa.
+func TestVMExportPropLiveBinding(t *testing.T) {
+	const mod = "export prop x = 10\nexport getX() => x\nexport bump() { x = x + 1 }\n"
+	opt := func() *VMTestOpts { return newOpts().Module("mod", mod) }
+
+	testExpectRun(t, `m := import("mod"); return m.x`, opt(), Int(10))
+	testExpectRun(t, `m := import("mod"); return m.getX()`, opt(), Int(10))
+	// An external write to m.x is observed by the module's own getX (live).
+	testExpectRun(t, `m := import("mod"); m.x = 12; return m.getX()`, opt(), Int(12))
+	testExpectRun(t, `m := import("mod"); m.x = 12; return m.x`, opt(), Int(12))
+	// An internal mutation (bump) is observed through m.x.
+	testExpectRun(t, `m := import("mod"); m.bump(); return m.x`, opt(), Int(11))
+	// reflect.get returns the backing Prop verbatim.
+	testExpectRun(t, `m := import("mod"); return typeName(reflect.get(m, "x"))`, opt(), Str("Prop"))
+
+	// export prop x => expr exports a read-only binding (writing errors).
+	const ro = "var _v = 7\nexport prop x => _v\nexport bump() { _v = _v + 1 }\n"
+	testExpectRun(t, `m := import("mod"); return m.x`, newOpts().Module("mod", ro), Int(7))
+	testExpectRun(t, `m := import("mod"); m.bump(); return m.x`, newOpts().Module("mod", ro), Int(8))
+	expectErrHas(t, `m := import("mod"); m.x = 3`, newOpts().Module("mod", ro), "no have method")
+}
+
 // TestVMPropRawContainers verifies Array and ClassInstance never delegate: a
 // stored Prop is returned/stored verbatim.
 func TestVMPropRawContainers(t *testing.T) {

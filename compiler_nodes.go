@@ -3700,6 +3700,17 @@ func (c *Compiler) compileNamedParamValue(nd *namedParamValue) (err error) {
 	return nil
 }
 func (c *Compiler) compileExportStmt(nd *node.ExportStmt) (err error) {
+	// `export prop name = init` declares a real module local `var name = init`
+	// (the Prelude) that the exported prop's getter/setter close over, making it
+	// a live binding. Compile the declaration inline at the export's position —
+	// even in the main module, where the export itself is ignored — so the local
+	// still exists for the rest of the module.
+	if nd.Prelude != nil {
+		if err = c.Compile(nd.Prelude); err != nil {
+			return
+		}
+	}
+
 	// The main module is the program entry point, not an importable module, so
 	// its exports have no consumer. Skip compiling them (emit no export ops) but
 	// do not fail: report a warning the caller can surface (CLI/IDE STDERR).
