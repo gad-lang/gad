@@ -20,6 +20,23 @@ export default defineConfig({
         new URL("../prism-gad/src/index.ts", import.meta.url),
       ),
     },
+    // The codemirror-gad source (resolved above) has its own copy of these
+    // packages under codemirror-gad/node_modules. CodeMirror requires a SINGLE
+    // instance of @codemirror/state and @codemirror/view — otherwise the app's
+    // decorations/StateFields (e.g. the debug current-line highlight) silently do
+    // not apply to the editor. Dedupe them (and their @lezer bases) to the app's
+    // copy. The production build already collapses these; this fixes dev only.
+    dedupe: [
+      "@codemirror/state",
+      "@codemirror/view",
+      "@codemirror/language",
+      "@codemirror/autocomplete",
+      "@codemirror/lint",
+      "@codemirror/commands",
+      "@lezer/common",
+      "@lezer/highlight",
+      "@lezer/lr",
+    ],
   },
   server: {
     proxy: {
