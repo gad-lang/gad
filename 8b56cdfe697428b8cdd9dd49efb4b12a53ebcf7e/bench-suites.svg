@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="480" viewBox="0 0 960 480" font-family="monospace">
+<rect width="960" height="480" fill="#ffffff"/>
+<text x="480" y="32" text-anchor="middle" font-size="17" font-weight="bold" fill="#222">Warm render latency: engine micro-bench vs CMS app route</text>
+<text x="480" y="52" text-anchor="middle" font-size="12" fill="#777">lower is better — microseconds per render (mean), workloads ranked lightest→heaviest per suite</text>
+<line x1="80" y1="390" x2="880" y2="390" stroke="#eee"/>
+<text x="72" y="394" text-anchor="end" font-size="11" fill="#999">0</text>
+<line x1="80" y1="326" x2="880" y2="326" stroke="#eee"/>
+<text x="72" y="330" text-anchor="end" font-size="11" fill="#999">200</text>
+<line x1="80" y1="262" x2="880" y2="262" stroke="#eee"/>
+<text x="72" y="266" text-anchor="end" font-size="11" fill="#999">400</text>
+<line x1="80" y1="198" x2="880" y2="198" stroke="#eee"/>
+<text x="72" y="202" text-anchor="end" font-size="11" fill="#999">600</text>
+<line x1="80" y1="134" x2="880" y2="134" stroke="#eee"/>
+<text x="72" y="138" text-anchor="end" font-size="11" fill="#999">800</text>
+<line x1="80" y1="70" x2="880" y2="70" stroke="#eee"/>
+<text x="72" y="74" text-anchor="end" font-size="11" fill="#999">1000</text>
+<line x1="80" y1="390" x2="880" y2="390" stroke="#ccc"/>
+<polyline points="150,195 370,154 590,102 810,83 " fill="none" stroke="#E8734A" stroke-width="2.5"/>
+<polyline points="150,343 370,336 590,273 810,259 " fill="none" stroke="#2A9D8F" stroke-width="2.5"/>
+<circle cx="150" cy="343" r="4" fill="#2A9D8F"/>
+<circle cx="150" cy="195" r="4" fill="#E8734A"/>
+<text x="150" y="334" text-anchor="middle" font-size="10" fill="#2A9D8F">148</text>
+<text x="150" y="186" text-anchor="middle" font-size="10" fill="#E8734A">610</text>
+<text x="150" y="408" text-anchor="middle" font-size="10" fill="#2A9D8F">page</text>
+<text x="150" y="423" text-anchor="middle" font-size="10" fill="#E8734A">pages</text>
+<circle cx="370" cy="336" r="4" fill="#2A9D8F"/>
+<circle cx="370" cy="154" r="4" fill="#E8734A"/>
+<text x="370" y="327" text-anchor="middle" font-size="10" fill="#2A9D8F">168</text>
+<text x="370" y="145" text-anchor="middle" font-size="10" fill="#E8734A">737</text>
+<text x="370" y="408" text-anchor="middle" font-size="10" fill="#2A9D8F">attrs</text>
+<text x="370" y="423" text-anchor="middle" font-size="10" fill="#E8734A">posts</text>
+<circle cx="590" cy="273" r="4" fill="#2A9D8F"/>
+<circle cx="590" cy="102" r="4" fill="#E8734A"/>
+<text x="590" y="264" text-anchor="middle" font-size="10" fill="#2A9D8F">366</text>
+<text x="590" y="93" text-anchor="middle" font-size="10" fill="#E8734A">901</text>
+<text x="590" y="408" text-anchor="middle" font-size="10" fill="#2A9D8F">comps</text>
+<text x="590" y="423" text-anchor="middle" font-size="10" fill="#E8734A">index</text>
+<circle cx="810" cy="259" r="4" fill="#2A9D8F"/>
+<circle cx="810" cy="83" r="4" fill="#E8734A"/>
+<text x="810" y="250" text-anchor="middle" font-size="10" fill="#2A9D8F">410</text>
+<text x="810" y="74" text-anchor="middle" font-size="10" fill="#E8734A">959</text>
+<text x="810" y="408" text-anchor="middle" font-size="10" fill="#2A9D8F">loop</text>
+<text x="810" y="423" text-anchor="middle" font-size="10" fill="#E8734A">tags</text>
+<circle cx="126" cy="72" r="4" fill="#2A9D8F"/><text x="138" y="76" font-size="11" fill="#333">root: giom render engine</text>
+<circle cx="126" cy="90" r="4" fill="#E8734A"/><text x="138" y="94" font-size="11" fill="#333">cms: full HTTP route (+DB)</text>
+</svg>
