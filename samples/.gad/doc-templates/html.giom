@@ -1,0 +1,30 @@
+//- html.giom — HTML documentation template for `gad doc`.
+//-
+//- It receives the extracted documentation as `param (doc dict)` and renders a
+//- self-contained HTML fragment. `doc` is:
+//-   { prose: str, sections: [ { title: str,
+//-       symbols: [ { name, signature, doc: str, line, column: int } ] } ] }
+//-
+//- Each symbol carries data-line / data-column attributes so an editor can jump
+//- to the source position.
+
+@param (doc dict)
+
+@main
+    <article class="gad-doc">
+        @if doc.prose
+            <p class="prose">{doc.prose}</p>
+
+        @for sec in doc.sections
+            <section class="doc-section">
+                <h2>{sec.title}</h2>
+
+                @for s in sec.symbols
+                    <div class="symbol" data-line={s.line} data-column={s.column}>
+                        <h3><code>{s.name}{s.signature}</code></h3>
+
+                        @if s.doc
+                            <p class="doc">{s.doc}</p>
+                    </div>
+            </section>
+    </article>

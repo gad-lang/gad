@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/gadconfig"
 	"github.com/gad-lang/gad/shellexpand"
 	"gopkg.in/yaml.v3"
 )
@@ -137,16 +138,17 @@ func shellScalar(v any) (string, bool) {
 	return "", false
 }
 
-// loadWorkspaceEnv reads the `env` section of <dir>/.gad.yaml and returns a
-// gad.Env that extends the process environment with the (expanded) config
-// entries. Later map entries — processed in sorted-key order, or list order for
-// the list form — may reference earlier ones and the process environment via
-// bash-style expansion; a dot-prefixed reference (`${.a.b}`) reads the config
-// document. A missing file or section yields the plain process environment.
+// loadWorkspaceEnv reads the `env` section of the workspace config
+// (gadconfig.File(dir)) and returns a gad.Env that extends the process
+// environment with the (expanded) config entries. Later map entries — processed
+// in sorted-key order, or list order for the list form — may reference earlier
+// ones and the process environment via bash-style expansion; a dot-prefixed
+// reference (`${.a.b}`) reads the config document. A missing file or section
+// yields the plain process environment.
 func loadWorkspaceEnv(dir string) *gad.Env {
 	base := processEnvMap()
 
-	data, err := os.ReadFile(filepath.Join(dir, defaultCfgFile))
+	data, err := os.ReadFile(gadconfig.File(dir))
 	if err != nil {
 		return gad.NewEnvFromMap(base)
 	}

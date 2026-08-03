@@ -5,21 +5,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gad-lang/gad/gadconfig"
 	"gopkg.in/yaml.v3"
 )
 
-// configFile is the project configuration file name, shared with `gad fmt`.
-const configFile = ".gad.yaml"
-
-// ideConfigFile holds the IDE layout/editor state, split out from .gad.yaml so
-// project settings and IDE state live in separate files. Its whole document is
-// the content of the config's `ide` key.
-const ideConfigFile = ".gadide.yaml"
-
 // handleConfig reads (GET) or writes (PUT) the workspace configuration. The API
-// contract is a single merged document: `.gad.yaml` provides everything except
-// the `ide` key, which comes from (and is written to) `.gadide.yaml`. On read,
-// a legacy `ide` key inside `.gad.yaml` is used when `.gadide.yaml` is absent.
+// contract is a single merged document: the project config (.gad/gad.yaml)
+// provides everything except the `ide` key, which comes from (and is written to)
+// .gad/ide.yaml. On read, a legacy `ide` key inside gad.yaml is used when
+// ide.yaml is absent.
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -45,26 +39,26 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// readMergedConfig returns the workspace config as one document: the `.gad.yaml`
-// keys plus an `ide` key sourced from `.gadide.yaml` (falling back to a legacy
-// `ide` key already present in `.gad.yaml`).
+// readMergedConfig returns the workspace config as one document: the gad.yaml
+// keys plus an `ide` key sourced from ide.yaml (falling back to a legacy `ide`
+// key already present in gad.yaml).
 func (s *Server) readMergedConfig() (map[string]any, error) {
-	doc, err := readConfig(filepath.Join(s.Root, configFile))
+	doc, err := readConfig(gadconfig.File(s.Root))
 	if err != nil {
 		return nil, err
 	}
-	ide, err := readConfig(filepath.Join(s.Root, ideConfigFile))
+	ide, err := readConfig(gadconfig.IDEFile(s.Root))
 	if err != nil {
 		return nil, err
 	}
 	if len(ide) > 0 {
-		doc["ide"] = ide // .gadide.yaml wins over any legacy inline `ide`
+		doc["ide"] = ide // ide.yaml wins over any legacy inline `ide`
 	}
 	return doc, nil
 }
 
-// writeSplitConfig writes the `ide` key to `.gadide.yaml` and the remaining keys
-// to `.gad.yaml`, keeping the two files separate.
+// writeSplitConfig writes the `ide` key to ide.yaml and the remaining keys to
+// gad.yaml, keeping the two files separate (creating the config dir as needed).
 func (s *Server) writeSplitConfig(doc map[string]any) error {
 	ide, _ := doc["ide"].(map[string]any)
 
@@ -75,15 +69,18 @@ func (s *Server) writeSplitConfig(doc map[string]any) error {
 		}
 		rest[k] = v
 	}
-	if err := writeYAMLFile(filepath.Join(s.Root, configFile), rest); err != nil {
+	if err := writeYAMLFile(gadconfig.File(s.Root), rest); err != nil {
 		return err
 	}
-	return writeYAMLFile(filepath.Join(s.Root, ideConfigFile), ide)
+	return writeYAMLFile(gadconfig.IDEFile(s.Root), ide)
 }
 
 // writeYAMLFile marshals doc and writes it to path (a nil/empty doc writes an
-// empty file rather than "null").
+// empty file rather than "null"), creating the parent directory if needed.
 func writeYAMLFile(path string, doc map[string]any) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
 	if len(doc) == 0 {
 		return os.WriteFile(path, nil, 0o644)
 	}
@@ -94,7 +91,7 @@ func writeYAMLFile(path string, doc map[string]any) error {
 	return os.WriteFile(path, out, 0o644)
 }
 
-// readConfig loads .gad.yaml as a generic document. A missing file yields an
+// readConfig loads a YAML config file as a generic document. A missing file yields an
 // empty document so the UI starts with defaults.
 func readConfig(path string) (map[string]any, error) {
 	data, err := os.ReadFile(path)

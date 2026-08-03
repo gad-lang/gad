@@ -5,7 +5,7 @@
 //   {%= … %}   a value expression
 // Text outside the delimiters is emitted literally. The delimiters default to
 // `{%` / `%}` but are configurable (matching the `template:` section of a
-// project `.gad.yaml` and the `--template*` CLI flags).
+// project `.gad/gad.yaml` and the `--template*` CLI flags).
 import { StreamLanguage, StringStream } from "@codemirror/language";
 import {
   GadState,

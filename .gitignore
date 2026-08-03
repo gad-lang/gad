@@ -4,6 +4,9 @@
 !.github/workflows/
 !.github/workflows/*.yml
 !.goreleaser.yml
+# sample workspace config (.gad/) is part of the docs/examples
+!/samples/.gad/
+!/samples/.gad/**
 
 # repl binary
 /gad

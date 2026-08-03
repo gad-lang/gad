@@ -128,10 +128,10 @@ gad fmt --no-save --report-contents --report - src/...
 it with `--report-contents` (and `--report -`) to obtain the formatted source as
 data without modifying the working tree.
 
-## Config File (`.gad.yaml`)
+## Config File (`.gad/gad.yaml`)
 
 Flag defaults can live in a YAML config under a `fmt:` key. The default file is
-`.gad.yaml` in the working directory; override with `--config PATH` or disable
+`.gad/gad.yaml` in the working directory; override with `--config PATH` or disable
 with `--no-config`. Command-line flags override config values.
 
 Keys use the flag names (without the leading `--`). A special `input_dirs` list

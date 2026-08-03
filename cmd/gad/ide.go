@@ -52,7 +52,7 @@ func ideCommand() *cc.Command {
 		Description: "Start a local web IDE for Gad.\n" +
 			"\nPATH is a workspace directory, or a single file to edit; it defaults to the\n" +
 			"current directory. The IDE offers a file tree, multi-file tabs, formatting,\n" +
-			"running and debugging, with formatter and layout settings stored in .gad.yaml.",
+			"running and debugging, with formatter and layout settings stored in .gad/gad.yaml.",
 		New: func(ctx *cc.CommandContext) error {
 			o := &ideOptions{}
 			flags := ctx.Flags()

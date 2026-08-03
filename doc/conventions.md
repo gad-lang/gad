@@ -5,7 +5,7 @@
 This document covers two things: how identifiers are **named** in Gad's builtins
 and standard library, and the **code layout** the formatter (`gad fmt` / the
 `node.Code` writer) applies. See [Formatting](formatting.md) for the `gad fmt`
-command, its flags and the `.gad.yaml` config.
+command, its flags and the `.gad/gad.yaml` config.
 
 ## Naming
 

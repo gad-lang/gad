@@ -22,7 +22,7 @@ gad ide samples        # or, from the repo: make ide
 In the IDE you can open files in tabs, **Format**, **Run** and **Debug** them
 (set breakpoints, step, inspect the call stack and locals), and configure
 per-file run arguments, builtin-module toggles and output capture. Formatter and
-layout settings are stored in [`.gad.yaml`](.gad.yaml).
+layout settings are stored in [`.gad/gad.yaml`](.gad/gad.yaml).
 
 ## Language tour
 

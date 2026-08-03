@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/gadconfig"
 	"github.com/gad-lang/gad/importers"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
@@ -55,12 +56,12 @@ func buildModuleMap(workdir string, disabled []string, safe bool) *gad.ModuleMap
 }
 
 // templateDelimiter returns the mixed-mode start/end delimiter from the
-// `template:` section of the workspace `.gad.yaml` (`start_delimiter` /
-// `end_delimiter`), falling back to parser.DefaultMixedDelimiter for any side
+// `template:` section of the workspace config (.gad/gad.yaml) (`start_delimiter`
+// / `end_delimiter`), falling back to parser.DefaultMixedDelimiter for any side
 // not set. Mirrors the CLI's loadTemplateConfig (cmd/gad/cmd.go).
 func (s *Server) templateDelimiter() parser.MixedDelimiter {
 	delim := parser.DefaultMixedDelimiter
-	doc, err := readConfig(filepath.Join(s.Root, configFile))
+	doc, err := readConfig(gadconfig.File(s.Root))
 	if err != nil {
 		return delim
 	}
@@ -200,7 +201,7 @@ func (s *Server) transpileOptions(req transpileRequest) *node.TranspileOptions {
 	opts := gad.TranspileOptions() // defaults
 
 	// Workspace config: transpile.{rawStrFuncStart,rawStrFuncEnd,writeFunc}.
-	if doc, err := readConfig(filepath.Join(s.Root, configFile)); err == nil {
+	if doc, err := readConfig(gadconfig.File(s.Root)); err == nil {
 		if cfg, ok := doc["transpile"].(map[string]any); ok {
 			if v, ok := cfg["rawStrFuncStart"].(string); ok {
 				opts.RawStrFuncStart = v

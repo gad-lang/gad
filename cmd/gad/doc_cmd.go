@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gad-lang/gad/gadconfig"
 	cc "github.com/moisespsena-go/command-context"
 	"gopkg.in/yaml.v3"
 )
@@ -44,6 +45,8 @@ type docOptions struct {
 	workspace    string // WORKSPACE_DIR (config dir, else cwd)
 
 	examplesFailed int // count of failed embedded examples
+
+	templates *docTemplateSet // lazily-resolved .gaddoc*.giom templates
 }
 
 const defaultDocOut = "doc"
@@ -92,7 +95,7 @@ func (o *docOptions) registerFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&o.noSave, "no-save", false, "do not write any file (render and report only)")
 	fs.BoolVar(&o.noDoctest, "no-doctest", false, "do not run the ```gad examples embedded in doc comments")
 	fs.BoolVar(&o.mustExported, "must-exported", false, "document only exported symbols (omit the Internal section)")
-	fs.StringVar(&o.config, "config", "", "YAML config file with default flag values (default "+defaultCfgFile+")")
+	fs.StringVar(&o.config, "config", "", "YAML config file with default flag values (default WORKDIR/.gad/gad.yaml)")
 	fs.BoolVar(&o.noConfig, "no-config", false, "do not read the config file")
 }
 
@@ -103,7 +106,9 @@ func (o *docOptions) loadConfig(fs *flag.FlagSet) error {
 	fs.Visit(func(f *flag.Flag) { setOnCLI[f.Name] = true })
 	o.dstSet = setOnCLI["out"]
 
-	o.workspace = "."
+	// The workspace root (WORK_DIR) drives config, templates and output
+	// locations; config lives at WORK_DIR/.gad/gad.yaml (or $GAD_CONFIG_DIR).
+	o.workspace = gadconfig.WorkDir("")
 
 	if o.noConfig {
 		o.finalize()
@@ -113,7 +118,7 @@ func (o *docOptions) loadConfig(fs *flag.FlagSet) error {
 	explicit := setOnCLI["config"]
 	path := o.config
 	if path == "" {
-		path = defaultCfgFile
+		path = gadconfig.File(o.workspace)
 	}
 
 	data, err := os.ReadFile(path)
@@ -123,9 +128,6 @@ func (o *docOptions) loadConfig(fs *flag.FlagSet) error {
 			return nil
 		}
 		return err
-	}
-	if abs, aerr := filepath.Abs(path); aerr == nil {
-		o.workspace = filepath.Dir(abs)
 	}
 
 	var top map[string]any
@@ -308,17 +310,31 @@ func (o *docOptions) processFile(ctx *cc.CommandContext, path, dst, base string)
 	}
 	o.examplesFailed += res.ExamplesFailed
 
+	// Optional giom templates in the workspace customize the rendered output:
+	// .gaddoc-md.giom overrides the built-in Markdown; .gaddoc.giom emits HTML
+	// alongside it. Both receive the extracted docs as `param (doc dict)`.
+	outputs := []docOutput{{res.OutPath, res.Markdown}}
+	if tset := o.resolveDocTemplates(); tset.any() {
+		if outputs, err = o.renderTemplateOutputs(path, src, res, tset); err != nil {
+			return err
+		}
+	}
+
 	if o.noSave {
-		fmt.Fprintln(ctx.Out, res.OutPath)
+		for _, out := range outputs {
+			fmt.Fprintln(ctx.Out, out.path)
+		}
 		return nil
 	}
-	if err = os.MkdirAll(filepath.Dir(res.OutPath), 0o755); err != nil {
-		return err
+	for _, out := range outputs {
+		if err = os.MkdirAll(filepath.Dir(out.path), 0o755); err != nil {
+			return err
+		}
+		if err = os.WriteFile(out.path, []byte(out.body), 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintln(ctx.Out, out.path)
 	}
-	if err = os.WriteFile(res.OutPath, []byte(res.Markdown), 0o644); err != nil {
-		return err
-	}
-	fmt.Fprintln(ctx.Out, res.OutPath)
 	return nil
 }
 

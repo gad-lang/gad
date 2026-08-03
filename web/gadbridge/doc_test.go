@@ -17,8 +17,8 @@ func TestDocGad(t *testing.T) {
 	}
 	for _, w := range []string{
 		"greetings module.", "## Exports",
-		"hello = \"hi\"", "The greeting prefix.",
-		"add", "Adds two numbers.",
+		"hello", "= \"hi\"", "The greeting prefix.",
+		"add", "Adds two numbers.", `data-source-pos="4,1"`,
 	} {
 		if !strings.Contains(md, w) {
 			t.Fatalf("gad doc missing %q:\n%s", w, md)

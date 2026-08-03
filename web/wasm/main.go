@@ -26,14 +26,24 @@ func main() {
 	js.Global().Set("gadDiagnose", jsonFunc(func(src string) any {
 		return map[string]any{"diagnostics": gadbridge.Diagnose(src)}
 	}))
-	// gadDoc(source, sourceType) -> { markdown } : documentation extracted from the
-	// content. sourceType is "gad" | "gadTemplate" | "giom".
+	// gadDoc(source, sourceType) -> { markdown } : documentation rendered as
+	// Markdown. sourceType is "gad" | "gadTemplate" | "giom".
 	js.Global().Set("gadDoc", jsonFuncN(func(args []js.Value) any {
 		md, err := gadbridge.Doc(argStr(args, 0), argStr(args, 1))
 		if err != nil {
 			return map[string]any{"error": err.Error()}
 		}
 		return map[string]any{"markdown": md}
+	}))
+
+	// gadDocData(source, sourceType) -> { doc } : the structured documentation
+	// (JSON: prose + sections[] of symbols) for custom client-side rendering.
+	js.Global().Set("gadDocData", jsonFuncN(func(args []js.Value) any {
+		d, err := gadbridge.ExtractDoc(argStr(args, 0), argStr(args, 1))
+		if err != nil {
+			return map[string]any{"error": err.Error()}
+		}
+		return map[string]any{"doc": d}
 	}))
 
 	// Debug stepping protocol (mirrors /api/debug/*).

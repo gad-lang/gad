@@ -520,11 +520,11 @@ async function openConfigDialog() {
   const flag = ([k, label]) => `<label class="ck"><input type="checkbox" data-noflag="${k}" ${fmt[k] === true ? "" : "checked"}> ${label}</label>`;
   bg.innerHTML = `<div class="modal">
     <h3>Settings</h3>
-    <div class="row"><label>Formatter (.gad.yaml → fmt)</label>
+    <div class="row"><label>Formatter (.gad/gad.yaml → fmt)</label>
       ${newlineFlags.map(flag).join("")}
       <label class="ck"><input type="checkbox" data-fmt="backup" ${fmt.backup ? "checked" : ""}> Keep .backup on format</label>
     </div>
-    <div class="row"><label>Raw .gad.yaml</label><textarea id="cfgRaw" rows="8" style="font-family:ui-monospace,monospace">${escapeHtml(toYamlish(state.config))}</textarea></div>
+    <div class="row"><label>Raw .gad/gad.yaml</label><textarea id="cfgRaw" rows="8" style="font-family:ui-monospace,monospace">${escapeHtml(toYamlish(state.config))}</textarea></div>
     <div class="actions"><button id="c_cancel">Cancel</button><button id="c_save">Save</button></div>
   </div>`;
   document.body.appendChild(bg);
@@ -550,7 +550,7 @@ async function openConfigDialog() {
 // toYamlish renders a shallow object as readable YAML-ish text (display only).
 function toYamlish(obj) { try { return JSON.stringify(obj, null, 2); } catch (e) { return "{}"; } }
 
-// --- layout persistence (.gad.yaml ide key) ---------------------------------
+// --- layout persistence (.gad/gad.yaml ide key) ---------------------------------
 let layoutTimer = null;
 function saveLayout() {
   clearTimeout(layoutTimer);

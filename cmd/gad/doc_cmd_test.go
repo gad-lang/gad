@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gad-lang/gad/gadconfig"
 	cc "github.com/moisespsena-go/command-context"
 	"github.com/stretchr/testify/require"
 )
@@ -141,7 +142,8 @@ func TestDocPreservesTreeWithConfig(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "sub"), 0o755))
 	// A config without a doc: section: enough to make the workspace absolute.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, ".gad.yaml"), []byte("fmt: {}\n"), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Dir(gadconfig.File(dir)), 0o755))
+	require.NoError(t, os.WriteFile(gadconfig.File(dir), []byte("fmt: {}\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.gad"), []byte("/// a value\nexport A = 1\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "sub", "b.gad"), []byte("/// b value\nexport B = 2\n"), 0o644))
 
@@ -276,7 +278,8 @@ func TestDocMustExportedFlagAndConfig(t *testing.T) {
 	require.NotContains(t, read(), "## Internal")
 
 	// Config key must_exported: true is honoured when the flag is absent.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, ".gad.yaml"),
+	require.NoError(t, os.MkdirAll(filepath.Dir(gadconfig.File(dir)), 0o755))
+	require.NoError(t, os.WriteFile(gadconfig.File(dir),
 		[]byte("doc:\n  must_exported: true\n"), 0o644))
 	run()
 	require.NotContains(t, read(), "## Internal")

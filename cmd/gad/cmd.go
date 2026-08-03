@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gad-lang/gad/gadconfig"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
@@ -34,10 +35,9 @@ import (
 type ctxKey string
 
 const (
-	runFlagsKey    ctxKey = "runFlags"
-	fmtOptionsKey  ctxKey = "fmtOptions"
-	docOptionsKey  ctxKey = "docOptions"
-	defaultCfgFile        = ".gad.yaml"
+	runFlagsKey   ctxKey = "runFlags"
+	fmtOptionsKey ctxKey = "fmtOptions"
+	docOptionsKey ctxKey = "docOptions"
 	// docConfigKey is the root mapping key in the config file holding the `doc`
 	// subcommand settings.
 	docConfigKey = "doc"
@@ -49,17 +49,18 @@ const (
 	templateConfigKey = "template"
 )
 
-// templateConfig is the `.gad.yaml` `template:` section.
+// templateConfig is the workspace config `template:` section (.gad/gad.yaml).
 type templateConfig struct {
 	StartDelimiter string `yaml:"start_delimiter"`
 	EndDelimiter   string `yaml:"end_delimiter"`
 }
 
-// loadTemplateConfig reads the `template:` section of `<dir>/.gad.yaml` and
-// fills the template delimiter globals that were not already set on the command
-// line (CLI flags win). Missing file/section is not an error.
+// loadTemplateConfig reads the `template:` section of the workspace config
+// (gadconfig.File(dir)) and fills the template delimiter globals that were not
+// already set on the command line (CLI flags win). Missing file/section is not
+// an error.
 func loadTemplateConfig(dir string) {
-	data, err := os.ReadFile(filepath.Join(dir, defaultCfgFile))
+	data, err := os.ReadFile(gadconfig.File(dir))
 	if err != nil {
 		return
 	}
@@ -307,7 +308,7 @@ func (o *fmtOptions) registerFlags(fs *flag.FlagSet) {
 		"include the formatted source in each report record under the \"result\" key")
 	fs.BoolVar(&o.noSave, "no-save", false,
 		"do not write, create or back up any file (read-only); format and report only")
-	fs.StringVar(&o.config, "config", defaultCfgFile, "YAML config file with default flag values")
+	fs.StringVar(&o.config, "config", "", "YAML config file with default flag values (default WORKDIR/.gad/gad.yaml)")
 	fs.BoolVar(&o.noConfig, "no-config", false, "do not read the config file")
 
 	fs.BoolFunc("no-format", "disable all multi-line formatting", func(string) error {
@@ -419,7 +420,7 @@ func (o *fmtOptions) loadConfig(fs *flag.FlagSet) error {
 
 	path := o.config
 	if path == "" {
-		path = defaultCfgFile
+		path = gadconfig.File(gadconfig.WorkDir(""))
 	}
 
 	data, err := os.ReadFile(path)

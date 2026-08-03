@@ -2,21 +2,35 @@
 
 [← Back to index](README.md)
 
-A Gad workspace is configured by two files at its root:
+A Gad workspace is configured under a `.gad/` directory at the workspace root
+(**WORK_DIR**, default the current directory or `$GAD_WORK_DIR`; the config
+directory itself is `$GAD_CONFIG_DIR`, default `WORK_DIR/.gad`):
 
-- **`.gad.yaml`** — the project configuration read by the `gad` CLI (formatting,
-  template mode, transpilation, the `env` section, …).
-- **`.gadide.yaml`** — the `gad ide` layout and editor state, kept beside
-  `.gad.yaml`. It is split out so IDE state does not clutter the project config.
+```
+WORK_DIR/
+  .gad/                 (GAD_CONFIG_DIR)
+    gad.yaml            project config (fmt/doc/template/transpile/env sections)
+    ide.yaml            gad ide layout and editor state
+    doc-templates/
+      html.giom         gad doc HTML template   (param (doc dict))
+      md.giom           gad doc Markdown template (param (doc dict))
+```
+
+- **`.gad/gad.yaml`** — the project configuration read by the `gad` CLI
+  (formatting, template mode, transpilation, the `env` section, …).
+- **`.gad/ide.yaml`** — the `gad ide` layout and editor state. It is split out so
+  IDE state does not clutter the project config.
+- **`.gad/doc-templates/`** — optional giom templates for `gad doc` (see
+  [Documentation](#documentation-templates) below).
 
 ## Variable expansion
 
-**Every value in `.gad.yaml` — at any nesting depth — is expanded using
+**Every value in `gad.yaml` — at any nesting depth — is expanded using
 bash-style parameter expansion.** A value is read, its `$VAR` / `${…}` references
 are expanded, and the result is converted back to a number or boolean when it
 holds one (so `port: "${PORT:-8080}"` yields the integer `8080`).
 
-`.gadide.yaml` is **not** expanded: it holds IDE layout/editor state written by
+`ide.yaml` is **not** expanded: it holds IDE layout/editor state written by
 the `gad ide` app, not user-authored templates, so its `$`/`{}` characters are
 kept verbatim.
 
@@ -128,3 +142,57 @@ GADPATH="$HOME/gadlib:/usr/local/share/gad" gad run app.gad
 
 For the embedding and Go-side API of expansion, see the
 [`shellexpand`](https://pkg.go.dev/github.com/gad-lang/gad/shellexpand) package.
+
+## Documentation templates
+
+`gad doc` renders Markdown by default. To customize the output, drop giom
+templates under `.gad/doc-templates/`:
+
+- **`md.giom`** — when present, replaces the built-in Markdown (written as
+  `NAME.md`).
+- **`html.giom`** — when present, additionally renders HTML (written as
+  `NAME.html`).
+
+Each template receives the extracted documentation as a positional parameter:
+
+```gad
+param (doc dict)
+```
+
+where `doc` has the shape:
+
+```
+{
+  prose: str,                      # module-level description (/*** … ***/ block)
+  sections: [                      # one per kind: Exports, Components, …
+    { title: str,
+      symbols: [
+        { name: str, signature: str, doc: str, line: int, column: int }
+      ] }
+  ]
+}
+```
+
+`md.giom` is typically a plain Gad script that writes Markdown with `write()`:
+
+```giom
+~~
+param (doc dict)
+for sec in doc.sections {
+    write("\n## " + sec.title + "\n")
+    for s in sec.symbols {
+        write("\n### " + s.name + s.signature + "\n")
+        if s.doc { write("\n" + s.doc + "\n") }
+    }
+}
+~~
+```
+
+`html.giom` uses giom's tag syntax and returns a rendered tree; `s.line` /
+`s.column` are handy as `data-*` attributes for editor navigation. See
+`samples/.gad/doc-templates/` for complete examples.
+
+The same structured data is available programmatically:
+`gadbridge.ExtractDoc(src, sourceType)` returns the `DocData` struct (and the
+WASM build exposes it as `gadDocData(source, sourceType)`), so callers can render
+documentation however they like instead of using the built-in Markdown.

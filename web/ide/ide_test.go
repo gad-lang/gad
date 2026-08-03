@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gad-lang/gad/gadconfig"
 )
 
 func newTestServer(t *testing.T) (*Server, http.Handler, string) {
@@ -18,6 +20,11 @@ func newTestServer(t *testing.T) (*Server, http.Handler, string) {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(dir, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The config directory (.gad) holds gad.yaml / ide.yaml; tests that
+	// pre-seed a config write directly into it.
+	if err := os.MkdirAll(gadconfig.Dir(dir), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	s, err := New(dir)
@@ -147,7 +154,7 @@ func TestTranspile(t *testing.T) {
 	}
 
 	// transpile config in .gad.yaml overrides the write function name.
-	os.WriteFile(filepath.Join(dir, configFile),
+	os.WriteFile(gadconfig.File(dir),
 		[]byte("transpile:\n  writeFunc: emit\n"), 0o644)
 	w = do(t, h, "POST", "/api/ide/transpile", transpileRequest{
 		Mixed: true, Source: "{%= x %}",
@@ -385,7 +392,7 @@ func TestConfigRoundTrip(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatalf("config put status %d: %s", w.Code, w.Body)
 	}
-	if _, err := os.Stat(filepath.Join(dir, configFile)); err != nil {
+	if _, err := os.Stat(gadconfig.File(dir)); err != nil {
 		t.Fatalf(".gad.yaml not written: %v", err)
 	}
 	w = do(t, h, "GET", "/api/ide/config", nil)
@@ -396,10 +403,10 @@ func TestConfigRoundTrip(t *testing.T) {
 	}
 
 	// The IDE state is split into .gadide.yaml; .gad.yaml holds no `ide` key.
-	if _, err := os.Stat(filepath.Join(dir, ideConfigFile)); err != nil {
+	if _, err := os.Stat(gadconfig.IDEFile(dir)); err != nil {
 		t.Fatalf(".gadide.yaml not written: %v", err)
 	}
-	gadDoc, _ := readConfig(filepath.Join(dir, configFile))
+	gadDoc, _ := readConfig(gadconfig.File(dir))
 	if _, has := gadDoc["ide"]; has {
 		t.Fatalf(".gad.yaml should not contain the ide key: %+v", gadDoc)
 	}
@@ -413,7 +420,7 @@ func TestConfigRoundTrip(t *testing.T) {
 func TestConfigLegacyIdeFallback(t *testing.T) {
 	_, h, dir := newTestServer(t)
 	legacy := "fmt:\n  backup: true\nide:\n  theme: light\n"
-	if err := os.WriteFile(filepath.Join(dir, configFile), []byte(legacy), 0o644); err != nil {
+	if err := os.WriteFile(gadconfig.File(dir), []byte(legacy), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	w := do(t, h, "GET", "/api/ide/config", nil)
@@ -476,7 +483,7 @@ func TestRunTemplateFile(t *testing.T) {
 func TestRunTemplateCustomDelimiters(t *testing.T) {
 	_, h, dir := newTestServer(t)
 	// Custom delimiters from the workspace `.gad.yaml` template section.
-	os.WriteFile(filepath.Join(dir, configFile),
+	os.WriteFile(gadconfig.File(dir),
 		[]byte("template:\n  start_delimiter: \"<?\"\n  end_delimiter: \"?>\"\n"), 0o644)
 
 	src := "Hi <?= 6*7 ?>!"

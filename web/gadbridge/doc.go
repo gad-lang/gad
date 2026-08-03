@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gad-lang/gad"
 	giomnode "github.com/gad-lang/gad/giom/node"
 	giomparser "github.com/gad-lang/gad/giom/parser"
 	"github.com/gad-lang/gad/parser"
@@ -12,27 +13,110 @@ import (
 	"github.com/gad-lang/gad/parser/source"
 )
 
-// Doc extracts Markdown documentation from a source buffer. sourceType selects
-// how the content is parsed and documented:
-//   - "giom": the giom front-end — components, functions and the other top-level
-//     declarations, each with a data-source-pos anchor.
-//   - "gadTemplate" (or "template"): a `.gadt` mixed template, documented as the
-//     embedded Gad.
-//   - "gad" (or anything else / empty): a plain Gad script — a leading `/***`
-//     block plus the exported symbols.
-//
-// It is filesystem-free (name-less), so the WASM bridge can document the editor's
-// current buffer from its content and type alone.
-func Doc(src, sourceType string) (string, error) {
+// DocData is the structured documentation extracted from a source buffer — a
+// JSON-serializable tree that a caller can render however it likes (the default
+// Markdown renderer is RenderMarkdown; the CLI can render HTML via a giom
+// template). This is the shape the WASM bridge and the gad doc API return.
+type DocData struct {
+	// Prose is the module-level description (a leading `/***` block or a giom
+	// leading comment), or "".
+	Prose string `json:"prose,omitempty"`
+	// Sections group the documented symbols by kind ("Exports", "Components",
+	// "Functions", "Parameters", "Constants", "Variables", "Enums").
+	Sections []DocSection `json:"sections,omitempty"`
+}
+
+// DocSection is a named group of symbols.
+type DocSection struct {
+	Title   string      `json:"title"`
+	Symbols []DocSymbol `json:"symbols"`
+}
+
+// DocSymbol is one documented declaration.
+type DocSymbol struct {
+	Name string `json:"name"`
+	// Signature is the parenthesized parameter list / value suffix, or "".
+	Signature string `json:"signature,omitempty"`
+	// Doc is the attached doc comment text, or "".
+	Doc string `json:"doc,omitempty"`
+	// Line/Column locate the declaration in the source (1-based; 0 when unknown),
+	// for editor navigation (e.g. data-source-pos).
+	Line   int `json:"line,omitempty"`
+	Column int `json:"column,omitempty"`
+}
+
+// ExtractDoc extracts the structured documentation from a source buffer.
+// sourceType selects the dialect: "giom", "gadTemplate" (or "template"), or
+// "gad" (default).
+func ExtractDoc(src, sourceType string) (*DocData, error) {
 	if sourceType == "giom" {
-		return giomDocMarkdown([]byte(src))
+		return giomDocData([]byte(src))
 	}
-	return gadDocMarkdown([]byte(src), sourceType)
+	return gadDocData([]byte(src), sourceType)
+}
+
+// Doc extracts documentation and renders it as Markdown (the default renderer).
+// For custom rendering, use ExtractDoc and render the structure yourself.
+func Doc(src, sourceType string) (string, error) {
+	d, err := ExtractDoc(src, sourceType)
+	if err != nil {
+		return "", err
+	}
+	return RenderMarkdown(d), nil
+}
+
+// GadDict converts the structured documentation into a Gad dict, the shape a
+// `.gaddoc.giom` / `.gaddoc-md.giom` template consumes via `param (doc dict)`.
+// Layout: { prose: str, sections: [ { title: str, symbols: [ { name, signature,
+// doc: str, line, column: int } ] } ] }.
+func (d *DocData) GadDict() gad.Dict {
+	secs := make(gad.Array, 0, len(d.Sections))
+	for _, sec := range d.Sections {
+		syms := make(gad.Array, 0, len(sec.Symbols))
+		for _, s := range sec.Symbols {
+			syms = append(syms, gad.Dict{
+				"name":      gad.Str(s.Name),
+				"signature": gad.Str(s.Signature),
+				"doc":       gad.Str(s.Doc),
+				"line":      gad.Int(s.Line),
+				"column":    gad.Int(s.Column),
+			})
+		}
+		secs = append(secs, gad.Dict{"title": gad.Str(sec.Title), "symbols": syms})
+	}
+	return gad.Dict{"prose": gad.Str(d.Prose), "sections": secs}
+}
+
+// RenderMarkdown renders a DocData as Markdown (prose, then a `## Title` section
+// per group with a `### name` entry — the giom entries carry a data-source-pos
+// anchor for navigation).
+func RenderMarkdown(d *DocData) string {
+	var b strings.Builder
+	if d.Prose != "" {
+		b.WriteString(d.Prose + "\n")
+	}
+	for _, sec := range d.Sections {
+		if len(sec.Symbols) == 0 {
+			continue
+		}
+		fmt.Fprintf(&b, "\n## %s\n", sec.Title)
+		for _, s := range sec.Symbols {
+			if s.Line > 0 {
+				fmt.Fprintf(&b, "\n### <span data-source-pos=\"%d,%d\">%s</span>%s\n", s.Line, s.Column, s.Name, s.Signature)
+			} else {
+				fmt.Fprintf(&b, "\n### %s%s\n", s.Name, s.Signature)
+			}
+			if s.Doc != "" {
+				b.WriteString("\n" + s.Doc + "\n")
+			}
+		}
+	}
+	return b.String()
 }
 
 // --- Gad ---
 
-func gadDocMarkdown(src []byte, sourceType string) (string, error) {
+func gadDocData(src []byte, sourceType string) (*DocData, error) {
 	fs := source.NewFileSet()
 	f := fs.AddFileData("buffer", -1, src)
 	po := &parser.ParserOptions{Mode: parser.ParseComments}
@@ -44,23 +128,20 @@ func gadDocMarkdown(src []byte, sourceType string) (string, error) {
 	}
 	file, err := parser.NewParserWithOptions(f, po, so).ParseFile()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	var b strings.Builder
+	d := &DocData{}
 
 	// Leading /*** … ***/ root block as module prose.
 	for _, g := range file.Comments {
 		if len(g.List) > 0 && strings.HasPrefix(g.List[0].Text, "/***") {
-			if c := cleanDoc(g.List[0].Text); c != "" {
-				b.WriteString("\n" + c + "\n")
-			}
+			d.Prose = cleanDoc(g.List[0].Text)
 			break
 		}
 	}
 
-	// Exported symbols.
-	var exports []string
+	var exports []DocSymbol
 	for _, stmt := range file.Stmts {
 		es, ok := stmt.(*gnode.ExportStmt)
 		if !ok {
@@ -70,27 +151,22 @@ func gadDocMarkdown(src []byte, sourceType string) (string, error) {
 		if name == "" {
 			continue
 		}
-		entry := "### " + name
+		sym := DocSymbol{Name: name, Doc: gadDocText(es.Doc)}
 		if es.ValueExpr != nil {
 			if _, isFunc := es.ValueExpr.(*gnode.FuncExpr); !isFunc {
-				entry += " = " + es.ValueExpr.String()
+				sym.Signature = " = " + es.ValueExpr.String()
 			}
 		}
-		if doc := gadDocText(es.Doc); doc != "" {
-			entry += "\n\n" + doc
-		}
-		exports = append(exports, entry)
+		fp := source.MustFilePosition(f, es.Pos())
+		sym.Line, sym.Column = fp.Line, fp.Column
+		exports = append(exports, sym)
 	}
 	if len(exports) > 0 {
-		b.WriteString("\n## Exports\n")
-		for _, e := range exports {
-			b.WriteString("\n" + e + "\n")
-		}
+		d.Sections = append(d.Sections, DocSection{Title: "Exports", Symbols: exports})
 	}
-	return b.String(), nil
+	return d, nil
 }
 
-// gadDocText returns the cleaned text of an export's doc comment group.
 func gadDocText(g *ast.CommentGroup) string {
 	if g == nil || len(g.List) == 0 {
 		return ""
@@ -104,8 +180,8 @@ func gadDocText(g *ast.CommentGroup) string {
 	return strings.TrimSpace(strings.Join(parts, "\n"))
 }
 
-// cleanDoc strips comment markers from a raw doc comment, handling Gad's
-// `/*** ***/` and `/** **/` block forms and `///` / `//` line forms.
+// cleanDoc strips comment markers, handling Gad's `/*** ***/` and `/** **/`
+// block forms and `///` / `//` line forms.
 func cleanDoc(raw string) string {
 	s := strings.TrimSpace(raw)
 	for _, p := range [][2]string{{"/***", "***/"}, {"/**", "**/"}, {"/*", "*/"}} {
@@ -139,58 +215,53 @@ func gadExportName(es *gnode.ExportStmt) string {
 
 // --- Giom ---
 
-func giomDocMarkdown(src []byte) (string, error) {
+func giomDocData(src []byte) (*DocData, error) {
 	fs := source.NewFileSet()
 	f := fs.AddFileData("buffer", -1, src)
 	file, err := giomparser.NewParser(f).ParseFile()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	var b strings.Builder
+	d := &DocData{Prose: giomLeadProse(file)}
 
-	if prose := giomLeadProse(file); prose != "" {
-		b.WriteString("\n" + prose + "\n")
-	}
-
-	var exports, comps, funcs, params, consts, vars, enums []giomDocEntry
-	for _, stmt := range file.Stmts {
-		switch d := stmt.(type) {
-		case *giomnode.ExportStmt:
-			exports = append(exports, giomEntry(f, d.Name, giomExportValue(d.Value), d.Doc, d.Pos()))
-		case *giomnode.CompDecl:
-			comps = append(comps, giomEntry(f, "+"+d.Name, giomParams(d.ParamsRaw), d.Doc, d.Pos()))
-		case *giomnode.FuncDecl:
-			funcs = append(funcs, giomEntry(f, d.Name, giomParams(d.ParamsRaw), d.Doc, d.Pos()))
-		case *giomnode.ParamStmt:
-			params = append(params, giomEntry(f, "@param", giomDeclSig(d.Decl, "param"), d.Doc, d.Pos()))
-		case *giomnode.ConstStmt:
-			consts = append(consts, giomEntry(f, "@const", giomVarSig(d.Decls), d.Doc, d.Pos()))
-		case *giomnode.VarStmt:
-			vars = append(vars, giomEntry(f, "@var", giomVarSig(d.Decls), d.Doc, d.Pos()))
-		case *giomnode.EnumStmt:
-			enums = append(enums, giomEntry(f, d.Name, "", d.Doc, d.Pos()))
+	add := func(title string, syms []DocSymbol) {
+		if len(syms) > 0 {
+			d.Sections = append(d.Sections, DocSection{Title: title, Symbols: syms})
 		}
 	}
-
-	giomSection(&b, "Exports", exports)
-	giomSection(&b, "Components", comps)
-	giomSection(&b, "Functions", funcs)
-	giomSection(&b, "Parameters", params)
-	giomSection(&b, "Constants", consts)
-	giomSection(&b, "Variables", vars)
-	giomSection(&b, "Enums", enums)
-	return b.String(), nil
+	var exports, comps, funcs, params, consts, vars, enums []DocSymbol
+	for _, stmt := range file.Stmts {
+		switch t := stmt.(type) {
+		case *giomnode.ExportStmt:
+			exports = append(exports, giomSym(f, t.Name, giomExportValue(t.Value), t.Doc, t.Pos()))
+		case *giomnode.CompDecl:
+			comps = append(comps, giomSym(f, "+"+t.Name, giomParams(t.ParamsRaw), t.Doc, t.Pos()))
+		case *giomnode.FuncDecl:
+			funcs = append(funcs, giomSym(f, t.Name, giomParams(t.ParamsRaw), t.Doc, t.Pos()))
+		case *giomnode.ParamStmt:
+			params = append(params, giomSym(f, "@param", giomDeclSig(t.Decl, "param"), t.Doc, t.Pos()))
+		case *giomnode.ConstStmt:
+			consts = append(consts, giomSym(f, "@const", giomVarSig(t.Decls), t.Doc, t.Pos()))
+		case *giomnode.VarStmt:
+			vars = append(vars, giomSym(f, "@var", giomVarSig(t.Decls), t.Doc, t.Pos()))
+		case *giomnode.EnumStmt:
+			enums = append(enums, giomSym(f, t.Name, "", t.Doc, t.Pos()))
+		}
+	}
+	add("Exports", exports)
+	add("Components", comps)
+	add("Functions", funcs)
+	add("Parameters", params)
+	add("Constants", consts)
+	add("Variables", vars)
+	add("Enums", enums)
+	return d, nil
 }
 
-type giomDocEntry struct {
-	name, params, doc string
-	line, column      int
-}
-
-func giomEntry(f *source.File, name, params, doc string, pos source.Pos) giomDocEntry {
+func giomSym(f *source.File, name, sig, doc string, pos source.Pos) DocSymbol {
 	fp := source.MustFilePosition(f, pos)
-	return giomDocEntry{name: name, params: params, doc: doc, line: fp.Line, column: fp.Column}
+	return DocSymbol{Name: name, Signature: sig, Doc: strings.TrimSpace(doc), Line: fp.Line, Column: fp.Column}
 }
 
 func giomExportValue(v gnode.Expr) string {
@@ -228,19 +299,6 @@ func giomParams(raw string) string {
 		return ""
 	}
 	return "(" + raw + ")"
-}
-
-func giomSection(b *strings.Builder, title string, entries []giomDocEntry) {
-	if len(entries) == 0 {
-		return
-	}
-	fmt.Fprintf(b, "\n## %s\n", title)
-	for _, e := range entries {
-		fmt.Fprintf(b, "\n### <span data-source-pos=\"%d,%d\">%s</span>%s\n", e.line, e.column, e.name, e.params)
-		if doc := strings.TrimSpace(e.doc); doc != "" {
-			b.WriteString("\n" + doc + "\n")
-		}
-	}
 }
 
 func giomLeadProse(file *giomnode.File) string {

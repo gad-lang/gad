@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gad-lang/gad/gadconfig"
 )
 
 // fromSlashJoin converts each entry's '/' to the OS separator and joins them
@@ -18,10 +20,15 @@ func fromSlashJoin(sep string, entries ...string) string {
 	return strings.Join(out, sep)
 }
 
-// writeGadYAML writes a .gad.yaml with the given body into dir.
+// writeGadYAML writes the workspace config (dir/.gad/gad.yaml) with the given
+// body, creating the config directory as needed.
 func writeGadYAML(t *testing.T, dir, body string) {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(dir, defaultCfgFile), []byte(body), 0o644); err != nil {
+	cfg := gadconfig.File(dir)
+	if err := os.MkdirAll(filepath.Dir(cfg), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfg, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

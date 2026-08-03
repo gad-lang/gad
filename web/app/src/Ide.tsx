@@ -845,7 +845,7 @@ const DOCKVIEW_COMPONENTS = {
   markdown: MdPreviewPanel,
 } as const;
 
-// Default layout sourced from the workspace IDE config (.gadide.yaml, panels).
+// Default layout sourced from the workspace IDE config (.gad/ide.yaml, panels).
 // 4 groups: Explorer (left) | Editor + bottom-tabs (center) | Docs+MD (right).
 // __savedW/__savedH let restoreLayout() scale to the current window size.
 const DEFAULT_PANELS: unknown = {
@@ -2404,7 +2404,7 @@ function SettingsDialog({
         )}
         {tabIdx === 1 && (
           <>
-            <Typography variant="subtitle2">Formatter (.gad.yaml → fmt)</Typography>
+            <Typography variant="subtitle2">Formatter (.gad/gad.yaml → fmt)</Typography>
             <Box sx={{ display: "flex", flexDirection: "column" }}>
               {NEWLINE_FLAGS.map(([k, label]) => (
                 <FormControlLabel key={k} control={<Checkbox checked={expanded[k]} onChange={(e) => setExpanded((s) => ({ ...s, [k]: e.target.checked }))} />} label={label} />
@@ -2415,7 +2415,7 @@ function SettingsDialog({
         )}
         {tabIdx === 2 && (
           <>
-            <Typography variant="subtitle2">Transpile (.gad.yaml → transpile)</Typography>
+            <Typography variant="subtitle2">Transpile (.gad/gad.yaml → transpile)</Typography>
             <Typography variant="caption" color="text.secondary">Applied to <code>.gad</code>/<code>.gadt</code> transpile. Leave blank for defaults.</Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
               <TextField size="small" label="Write function" placeholder="write" value={writeFunc} onChange={(e) => setWriteFunc(e.target.value)} />
@@ -2426,7 +2426,7 @@ function SettingsDialog({
         )}
         {tabIdx === 3 && (
           <>
-            <Typography variant="subtitle2">Template (.gad.yaml → template)</Typography>
+            <Typography variant="subtitle2">Template (.gad/gad.yaml → template)</Typography>
             <Typography variant="caption" color="text.secondary">Mixed-mode delimiters for <code>.gadt</code> files (Run/Debug). Leave blank for defaults <code>{"{%"}</code> / <code>{"%}"}</code>.</Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
               <TextField size="small" label="Start delimiter" placeholder="{%" value={startDelim} onChange={(e) => setStartDelim(e.target.value)} />

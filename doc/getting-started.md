@@ -144,7 +144,7 @@ gad fmt -            # format stdin to stdout
 
 It supports include/exclude globs and regexes, `--out`, `--backup`, parallel
 `--jobs`, layout `--no-*` flags, transpile flags, NDJSON `--report` output,
-`--to-stdout` streaming and a `.gad.yaml` config file. See **[Formatting](formatting.md)** for
+`--to-stdout` streaming and a `.gad/gad.yaml` config file. See **[Formatting](formatting.md)** for
 the full reference.
 
 ### The web IDE (`gad ide`)
@@ -162,7 +162,7 @@ The IDE offers a file tree, multi-file tabs, formatting, running and debugging
 (breakpoints, stepping, call stack and locals). Per-file **Run**/**Debug**
 dialogs let you set arguments, enable or disable builtin modules, toggle safe
 mode and save the combined STDOUT/STDERR to a file. Formatter settings and the
-panel layout are stored in the workspace `.gad.yaml` (`fmt` and `ide` keys).
+panel layout are stored in the workspace `.gad/gad.yaml` (`fmt` and `ide` keys).
 
 Useful flags:
 
@@ -175,7 +175,7 @@ Useful flags:
 In the React UI, set breakpoints by clicking the editor's left gutter (next to
 the line numbers) and remove them with a double-click; the **Breakpoints** panel
 lists them grouped per file (with *Current file* and *All* tabs) and they are
-saved to `.gad.yaml` under `ide.breakpoints`. While a debug session is paused,
+saved to `.gad/gad.yaml` under `ide.breakpoints`. While a debug session is paused,
 **F9** resumes to the next breakpoint, **F8** steps over, **F7** steps into and
 **Shift+F8** steps out — all remappable in the **⌨ Keys** panel (stored under
 `ide.keys`).

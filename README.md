@@ -155,7 +155,7 @@ make ide                 # serves the samples workspace in your browser
 The IDE offers multi-file tabs, formatting, running and full debugging
 (breakpoints, stepping, call stack and locals), with per-file run/debug dialogs
 (arguments, builtin-module toggles, output capture) and settings stored in the
-workspace `.gad.yaml`. See [samples/README.md](samples/README.md).
+workspace `.gad/gad.yaml`. See [samples/README.md](samples/README.md).
 
 This example is to show some features of Gad.
 
