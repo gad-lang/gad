@@ -87,12 +87,19 @@ web-server:
 web-build: web-install
 	cd web/app && bun run build
 
-# Preview the standalone, server-less embeddable IDE page (webide.html). It needs
-# no Go backend — the tree is read-only samples + a LocalStorage overlay, and
-# run/doc/debug all run in-browser via the Gad WASM module in a Web Worker.
-# Build once, then serve web/app/dist; open the printed /webide.html URL.
+# Dev server (hot reload) for the standalone, server-less IDE page. No Go backend
+# is needed: the tree is read-only samples + a LocalStorage overlay, and
+# run/doc/debug all run in-browser via the Gad WASM module in a Web Worker
+# (webide.html never calls /api). Open the printed /webide.html URL.
 .PHONY: webide
-webide: web-build
+webide: web-install
+	@echo "Open http://localhost:5173/webide.html"
+	cd web/app && bun run dev
+
+# Preview the production build of the standalone IDE page (also no Go backend).
+# Builds web/app/dist once, then serves it; open the printed /webide.html URL.
+.PHONY: webide-preview
+webide-preview: web-build
 	@echo "Open http://localhost:4173/webide.html"
 	cd web/app && bun run preview
 
