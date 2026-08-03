@@ -25,7 +25,7 @@ func TestBlockComment(t *testing.T) {
 		},
 		{
 			name: "doc form is also silent",
-			src:  "/** doc */\n@main\n    p hi\n",
+			src:  "/** doc **/\n@main\n    p hi\n",
 			want: `<p>hi</p>`,
 		},
 		{

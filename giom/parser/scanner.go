@@ -428,12 +428,18 @@ func (s *scanner) scanBlockComment() gadparser.PToken {
 	closeIdx := close + 2
 	end := closeIdx + 2
 
+	// A doc comment uses the gad convention `/** … **/`: opened with `/**` and
+	// closed with `**/`. It is distinguished by the `/**` opening; the extra `*`
+	// of the `**/` close is trimmed from the text below.
 	doc := strings.HasPrefix(s.buffer, "/**") && closeIdx >= 3
 	openLen := 2
 	if doc {
 		openLen = 3
 	}
-	inner := s.buffer[openLen:closeIdx]
+	inner := strings.TrimSpace(s.buffer[openLen:closeIdx])
+	if doc {
+		inner = strings.TrimSpace(strings.TrimRight(inner, "*"))
+	}
 	lit := s.buffer[:end]
 
 	// Consume the comment; also consume trailing whitespace so the closing line

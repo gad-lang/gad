@@ -840,6 +840,9 @@ type ExportStmt struct {
 	NodeEnd source.Pos
 	Name    string
 	Value   gnode.Expr
+	// Doc is the text of a `/** … */` doc comment immediately preceding the
+	// export, or "".
+	Doc string
 }
 
 func (e *ExportStmt) Pos() source.Pos { return e.NodePos }

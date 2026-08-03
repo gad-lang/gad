@@ -33,11 +33,13 @@ func giomDoc(path string, src []byte) (string, error) {
 		b.WriteString("\n" + prose + "\n")
 	}
 
-	// Document the top-level API: components, functions, parameters, constants,
-	// variables and enums.
-	var comps, funcs, params, consts, vars, enums []giomDocEntry
+	// Document the top-level API: exports, components, functions, parameters,
+	// constants, variables and enums.
+	var exports, comps, funcs, params, consts, vars, enums []giomDocEntry
 	for _, stmt := range file.Stmts {
 		switch d := stmt.(type) {
+		case *giomnode.ExportStmt:
+			exports = append(exports, giomEntry(f, d.Name, giomExportValue(d.Value), d.Doc, d.Pos()))
 		case *giomnode.CompDecl:
 			comps = append(comps, giomEntry(f, "+"+d.Name, giomParams(d.ParamsRaw), d.Doc, d.Pos()))
 		case *giomnode.FuncDecl:
@@ -53,6 +55,7 @@ func giomDoc(path string, src []byte) (string, error) {
 		}
 	}
 
+	giomSection(&b, "Exports", exports)
 	giomSection(&b, "Components", comps)
 	giomSection(&b, "Functions", funcs)
 	giomSection(&b, "Parameters", params)
@@ -60,6 +63,15 @@ func giomDoc(path string, src []byte) (string, error) {
 	giomSection(&b, "Variables", vars)
 	giomSection(&b, "Enums", enums)
 	return b.String(), nil
+}
+
+// giomExportValue renders the ` = value` suffix for a documented @export, or ""
+// when the export has no value expression (`@export name`).
+func giomExportValue(v gnode.Expr) string {
+	if v == nil {
+		return ""
+	}
+	return " = " + v.String()
 }
 
 // giomDeclSig renders a gad GenDecl's signature (e.g. `param (a, b; c=1)`),

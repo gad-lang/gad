@@ -228,7 +228,12 @@ func (p *Parser) parseStmt() gnode.Stmt {
 		p.Next()
 		return nil
 	case giomtoken.Export:
-		return p.parseExport()
+		doc := p.takeDoc()
+		d := p.parseExport()
+		if d != nil {
+			d.Doc = doc
+		}
+		return d
 	case giomtoken.Blank:
 		p.Next()
 		return nil
@@ -281,7 +286,7 @@ func (p *Parser) parseDoctype() *giomnode.DoctypeStmt {
 func isDocTarget(tok token.Token) bool {
 	switch tok {
 	case giomtoken.Comp, giomtoken.Func, giomtoken.Param,
-		giomtoken.Var, giomtoken.Const, giomtoken.Enum:
+		giomtoken.Var, giomtoken.Const, giomtoken.Enum, giomtoken.Export:
 		return true
 	}
 	return false
@@ -1409,7 +1414,14 @@ func (p *Parser) parseExport() *giomnode.ExportStmt {
 		Name:    name,
 	}
 	if valueStr != "" {
-		e.Value = gnode.EIdent(valueStr, tok.Pos)
+		// Parse the value as a full Gad expression (like `export name = expr` in
+		// gad), preserving its source position. Anchor it at the value's offset
+		// within the directive literal so error traces resolve correctly.
+		base := tok.Pos
+		if i := strings.LastIndex(tok.Literal, valueStr); i >= 0 {
+			base = tok.Pos + source.Pos(i)
+		}
+		e.Value = parseExprStr(valueStr, base)
 	}
 	return e
 }

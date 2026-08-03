@@ -127,12 +127,13 @@ func (d *DoctypeStmt) WriteGiom(ctx *GiomCodeWriteContext) {
 
 func (c *CommentStmt) WriteGiom(ctx *GiomCodeWriteContext) {
 	if c.Block {
-		// A `/* … */` block comment (silent); `/** … */` when it carries doc.
-		open := "/*"
+		// A `/* … */` block comment (silent); a `/** … **/` doc comment (gad
+		// convention) when it carries doc.
 		if c.Doc {
-			open = "/**"
+			ctx.WriteLine("/** " + c.Text + " **/")
+		} else {
+			ctx.WriteLine("/* " + c.Text + " */")
 		}
-		ctx.WriteLine(open + " " + c.Text + " */")
 		return
 	}
 	prefix := "//"
@@ -147,10 +148,10 @@ func (c *CommentStmt) WriteGiom(ctx *GiomCodeWriteContext) {
 	}
 }
 
-// writeDoc emits a decl's `/** … */` doc comment line, if any.
+// writeDoc emits a decl's `/** … **/` doc comment line (gad convention), if any.
 func writeDoc(ctx *GiomCodeWriteContext, doc string) {
 	if doc != "" {
-		ctx.WriteLine("/** " + doc + " */")
+		ctx.WriteLine("/** " + doc + " **/")
 	}
 }
 

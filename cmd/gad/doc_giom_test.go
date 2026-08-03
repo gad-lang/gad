@@ -9,11 +9,11 @@ import (
 // heading, file-level prose, components/functions with their doc text, and a
 // data-source-pos anchor pointing at each declaration.
 func TestGiomDoc(t *testing.T) {
-	src := []byte("/** Reusable UI widgets. */\n\n" +
-		"/** Renders a greeting. */\n" +
+	src := []byte("/** Reusable UI widgets. **/\n\n" +
+		"/** Renders a greeting. **/\n" +
 		"@comp greeting(name; greeting=\"Hello\")\n" +
 		"    p {= greeting }\n\n" +
-		"/** Formats a label. */\n" +
+		"/** Formats a label. **/\n" +
 		"@func label(text)\n" +
 		"    span {= text }\n")
 
@@ -48,12 +48,33 @@ func TestGiomDoc(t *testing.T) {
 	}
 }
 
+// TestGiomDocExport verifies @export (with a full expression value) is
+// documented, with its doc comment.
+func TestGiomDocExport(t *testing.T) {
+	src := []byte("/** The sum. **/\n@export total = 1 + 2\n\n/** A name. **/\n@export label = \"hi\"\n")
+	md, err := (&DocGenerator{NoTest: true}).FromContent("m.giom", src)
+	if err != nil {
+		t.Fatalf("FromContent: %v", err)
+	}
+	for _, want := range []string{
+		"## Exports",
+		"total</span> = (1 + 2)", // value parsed as a real expression
+		"The sum.",
+		"label</span> = \"hi\"",
+		"A name.",
+	} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("doc missing %q:\n%s", want, md)
+		}
+	}
+}
+
 // TestGiomDocDeclarations verifies @param/@const/@var/@enum are documented too.
 func TestGiomDocDeclarations(t *testing.T) {
-	src := []byte("/** Config. */\n@param (title; theme=\"light\")\n\n" +
-		"/** Version string. */\n@const Version = \"1.0\"\n\n" +
-		"/** Counter. */\n@var (count = 0)\n\n" +
-		"/** Permissions. */\n@enum Perm (Read, Write)\n")
+	src := []byte("/** Config. **/\n@param (title; theme=\"light\")\n\n" +
+		"/** Version string. **/\n@const Version = \"1.0\"\n\n" +
+		"/** Counter. **/\n@var (count = 0)\n\n" +
+		"/** Permissions. **/\n@enum Perm (Read, Write)\n")
 
 	md, err := (&DocGenerator{NoTest: true}).FromContent("cfg.giom", src)
 	if err != nil {
