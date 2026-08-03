@@ -1,8 +1,24 @@
 # Current State
 > Updated: 2026-08-02
 
-Latest: **Prop index delegation + VM.Call + reflect module** (6 phases,
-`647c574`..`da25cbb`).
+Latest: **Prop virtual `.v`, read-only `prop =>`, and module live bindings**
+(`b9c9ea3`, `a0f6e66`, `05f61f8`).
+- `Prop` implements IndexGetter/IndexSetter for a virtual `v` field: `x.v` runs
+  the getter, `x.v = n` the setter (call `x()`/`x(n)` still works).
+- `prop [name] => expr`: getter-only property (prop as a closure) — anonymous,
+  named, or exported; read-only, live. Delegates as a dict value (`d = {x: prop
+  => _x}; d.x`).
+- `export prop name = init`: live read/write module binding. Desugars to a real
+  `var name = init` (ExportStmt.Prelude, compiled inline) + an exported prop over
+  it, so external writes and the module's own closures share one variable.
+  `export prop name => expr` is the read-only variant. Formatter round-trips the
+  concise form.
+- Tests in prop_delegation_test.go (TestVMPropValueField/Readonly/
+  ExportPropLiveBinding). Docs: split all `prop` content into new
+  doc/properties.md (functions.md links to it); samples 31 + modules/counter.
+- Earlier phases (`647c574`..`da25cbb`): VM.Call same-VM sub-run (no fork), Prop
+  index delegation in OpIndexGet/Set (opt-out Array/ClassInstance), reflect
+  builtin module (raw get/set), export prop parsing.
 - `VM.Call(co, args, namedArgs)`: invokes a callable on the SAME VM (pushes a
   boundary frame + nested sub-run, no fork) when the loop is running; forks only
   on external Go entry. `CompiledFunction.Call` routes through it. No material
