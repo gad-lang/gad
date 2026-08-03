@@ -40,6 +40,11 @@ type DocGenerator struct {
 // into two root sections, "Exported" and "Internal", each with its own Constants
 // and Types subsections.
 func (d *DocGenerator) FromContent(path string, src []byte) (string, error) {
+	// .giom templates document their components/functions via the giom front-end.
+	if isGiomFile(path) {
+		return giomDoc(path, src)
+	}
+
 	fs := source.NewFileSet()
 	f := fs.AddFileData(path, -1, src)
 	file, err := parser.NewParserWithOptions(
@@ -111,7 +116,8 @@ func (d *DocGenerator) FromFile(data []byte, path, dst, base string) (*FileDocRe
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	res := &FileDocResult{Markdown: md, OutPath: docOutPath(dst, base, path)}
-	if !d.NoTest {
+	// Giom docs have no embedded ```gad examples to run.
+	if !d.NoTest && !isGiomFile(path) {
 		for _, r := range checkFileExamples(path, data) {
 			if r.err != nil {
 				res.ExamplesFailed++
