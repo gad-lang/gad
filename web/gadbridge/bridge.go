@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/giom"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
@@ -350,19 +351,28 @@ func intToString(i int) string {
 
 // Diagnose returns the syntax and compile diagnostics for src (empty when the
 // source is valid).
-func Diagnose(src string) []Diagnostic {
-	if _, err := parseSource(src); err != nil {
-		return errorDiagnostics(err)
-	}
-	if _, err := compile(src); err != nil {
+func Diagnose(src string) []Diagnostic { return DiagnoseSource(src, "gad") }
+
+// DiagnoseSource compiles src in the given dialect and returns any positioned
+// diagnostics. sourceType is "giom", "gadTemplate" (or "template"), or "gad"
+// (default) — the latter two matter for `.gadt`/`.giom` files, whose template
+// syntax (`{% … %}`, tags) is a parse error under plain Gad.
+func DiagnoseSource(src, sourceType string) []Diagnostic {
+	if _, _, err := compileSource(src, sourceType); err != nil {
 		return errorDiagnostics(err)
 	}
 	return nil
 }
 
-// Run compiles and executes src, capturing stdout/stderr and the return value.
-func Run(src string) RunResult {
-	cr, err := compile(src)
+// Run compiles and executes src as plain Gad. See RunSource for `.gadt`/`.giom`.
+func Run(src string) RunResult { return RunSource(src, "gad") }
+
+// RunSource compiles and executes src in the given dialect ("giom",
+// "gadTemplate"/"template", or "gad"), capturing stdout/stderr and the return
+// value. A giom `@main` template returns its rendered tree as a giom.Element,
+// which is written to stdout so the output panel shows the HTML.
+func RunSource(src, sourceType string) RunResult {
+	cr, builtins, err := compileSource(src, sourceType)
 	if err != nil {
 		return RunResult{OK: false, Diagnostics: errorDiagnostics(err)}
 	}
@@ -373,10 +383,8 @@ func Run(src string) RunResult {
 		stderr.WriteString(w.Error())
 		stderr.WriteByte('\n')
 	}
-	ret, runErr := gad.NewVM(gad.NewBuiltins().Build(), cr.Bytecode).SetRecover(true).RunOpts(&gad.RunOpts{
-		StdOut: &stdout,
-		StdErr: &stderr,
-	})
+	vm := gad.NewVM(builtins.Build(), cr.Bytecode).SetRecover(true)
+	ret, runErr := vm.RunOpts(&gad.RunOpts{StdOut: &stdout, StdErr: &stderr})
 	res := RunResult{
 		OK:     runErr == nil,
 		Stdout: stdout.String(),
@@ -389,17 +397,34 @@ func Run(src string) RunResult {
 		}
 		return res
 	}
-	if ret != nil && ret != gad.Nil {
+	if el, ok := ret.(giom.Element); ok {
+		if _, werr := el.WriteTo(vm, &stdout); werr == nil {
+			res.Stdout = stdout.String()
+		}
+	} else if ret != nil && ret != gad.Nil {
 		res.Result = ret.ToString()
 	}
 	return res
 }
 
-// compile builds the bytecode for src with a fresh builtins/symbol table.
-func compile(src string) (*gad.CompileResult, error) {
+// compileSource builds the bytecode for src in the given dialect, returning the
+// result and the builtins the VM must run with (giom adds its namespace).
+func compileSource(src, sourceType string) (*gad.CompileResult, *gad.Builtins, error) {
 	builtins := gad.NewBuiltins()
+	opts := gad.CompileOptions{}
+	switch sourceType {
+	case "giom":
+		builtins = giom.AppendBuiltins(builtins)
+		opts.GiomOptions = &gad.GiomOptions{}
+		opts.ModuleFile = sourceName + ".giom"
+	case "gadTemplate", "template":
+		opts.ParserOptions.Mode |= parser.ParseMixed
+		opts.ScannerOptions.Mode |= parser.ScanMixed | parser.ScanConfigDisabled
+		opts.ScannerOptions.MixedDelimiter = parser.DefaultMixedDelimiter
+	}
 	st := gad.NewSymbolTable(builtins.NameSet)
-	return gad.Compile(st, []byte(src), gad.CompileOptions{})
+	cr, err := gad.Compile(st, []byte(src), opts)
+	return cr, builtins, err
 }
 
 // ErrorDiagnostics converts a Gad parse/compile/runtime error into positioned

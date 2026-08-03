@@ -22,9 +22,14 @@ var dbg = gadbridge.NewDebugManager()
 
 func main() {
 	js.Global().Set("gadFormat", jsonFunc(func(src string) any { return gadbridge.Format(src) }))
-	js.Global().Set("gadRun", jsonFunc(func(src string) any { return gadbridge.Run(src) }))
-	js.Global().Set("gadDiagnose", jsonFunc(func(src string) any {
-		return map[string]any{"diagnostics": gadbridge.Diagnose(src)}
+	// gadRun(source[, sourceType]) — sourceType "gadTemplate"/"giom" compiles the
+	// respective dialect; empty/"gad" runs plain Gad (the default).
+	js.Global().Set("gadRun", jsonFuncN(func(args []js.Value) any {
+		return gadbridge.RunSource(argStr(args, 0), argStr(args, 1))
+	}))
+	// gadDiagnose(source[, sourceType]) — same dialect selection as gadRun.
+	js.Global().Set("gadDiagnose", jsonFuncN(func(args []js.Value) any {
+		return map[string]any{"diagnostics": gadbridge.DiagnoseSource(argStr(args, 0), argStr(args, 1))}
 	}))
 	// gadDoc(source, sourceType) -> { markdown } : documentation rendered as
 	// Markdown. sourceType is "gad" | "gadTemplate" | "giom".

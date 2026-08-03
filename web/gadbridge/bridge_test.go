@@ -104,3 +104,28 @@ func TestInspectObject(t *testing.T) {
 		t.Fatalf("scalar inspect = %+v", r)
 	}
 }
+
+// TestRunSourceTemplate verifies that `.gadt` template source (mixed `{% … %}`
+// tags, including `/* … */` comments) runs in template mode, while the same
+// source is (correctly) a parse error under plain Gad. Regression: the web IDE
+// ran every file as plain Gad, so templates failed on their first `{%`.
+func TestRunSourceTemplate(t *testing.T) {
+	src := "{% /* a comment */ %}" +
+		"{%-- var (n = 2) --%}" +
+		"count={%= n %}\n"
+
+	if d := DiagnoseSource(src, "gadTemplate"); len(d) > 0 {
+		t.Fatalf("template diagnose flagged valid source: %+v", d)
+	}
+	res := RunSource(src, "gadTemplate")
+	if !res.OK {
+		t.Fatalf("template run failed: stderr=%q diags=%+v", res.Stderr, res.Diagnostics)
+	}
+	if !strings.Contains(res.Stdout, "count=2") {
+		t.Fatalf("unexpected template output: %q", res.Stdout)
+	}
+	// Plain Gad must still reject the template syntax (the bug being fixed).
+	if d := DiagnoseSource(src, "gad"); len(d) == 0 {
+		t.Fatal("expected plain-Gad diagnostics for template source")
+	}
+}

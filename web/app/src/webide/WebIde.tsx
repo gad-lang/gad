@@ -6,9 +6,10 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Editor, type EditorHandle, type EditorLanguage } from "../Editor";
 import { WebFS } from "../webfs";
-import { wasmWorkerBackend, wasmDebugBackend, sharedClient } from "../backends/wasmWorker";
+import { wasmDebugBackend, sharedClient } from "../backends/wasmWorker";
 import type { RunResult } from "../backends/types";
 import type { DebugResponse } from "../backends/debug";
+import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import { renderDocMarkdown } from "../docMarkdown";
 import { buildTree, langFor, type FileNode } from "./tree";
 
@@ -45,6 +46,14 @@ export function WebIde({ dark = false }: { dark?: boolean }) {
       if (openPath) fs.write(openPath, value);
     },
     [fs, openPath],
+  );
+
+  // Lint the open file in its own dialect ("gad"/"gadTemplate"/"giom"), so
+  // template (`{% … %}`) and giom syntax are not flagged as plain-Gad errors.
+  const diagnose = useCallback(
+    async (value: string): Promise<GadDiagnostic[]> =>
+      (await sharedClient().diagnose(value, langFor(openPath))).diagnostics,
+    [openPath],
   );
 
   const openFile = (path: string) => {
@@ -121,6 +130,7 @@ export function WebIde({ dark = false }: { dark?: boolean }) {
               ref={editorRef}
               initialDoc={fs.read(openPath) ?? ""}
               language={editorLangFor(openPath)}
+              diagnose={diagnose}
               dark={dark}
               onChange={onChange}
             />
@@ -137,9 +147,9 @@ export function WebIde({ dark = false }: { dark?: boolean }) {
           <button className={tab === "debug" ? "on" : ""} onClick={() => setTab("debug")}>Debug</button>
         </nav>
         <div className="webide-panel-body">
-          {tab === "run" && <RunPanel source={source} />}
+          {tab === "run" && <RunPanel source={source} path={openPath} />}
           {tab === "doc" && <DocPanel source={source} path={openPath} />}
-          {tab === "debug" && <DebugPanel source={source} />}
+          {tab === "debug" && <DebugPanel source={source} path={openPath} />}
         </div>
       </section>
     </div>
@@ -214,13 +224,13 @@ function TreeDir(props: {
   );
 }
 
-function RunPanel({ source }: { source: () => string }) {
+function RunPanel({ source, path }: { source: () => string; path: string }) {
   const [res, setRes] = useState<RunResult | null>(null);
   const [busy, setBusy] = useState(false);
   const run = async () => {
     setBusy(true);
     try {
-      setRes(await wasmWorkerBackend.run(source()));
+      setRes(await sharedClient().run(source(), langFor(path)));
     } finally {
       setBusy(false);
     }
@@ -270,7 +280,7 @@ function DocPanel({ source, path }: { source: () => string; path: string }) {
   );
 }
 
-function DebugPanel({ source }: { source: () => string }) {
+function DebugPanel({ source, path }: { source: () => string; path: string }) {
   const [bpText, setBpText] = useState("");
   const [session, setSession] = useState<string | null>(null);
   const [snap, setSnap] = useState<DebugResponse | null>(null);
@@ -295,7 +305,9 @@ function DebugPanel({ source }: { source: () => string }) {
     setOutput("");
     setSnap(null);
     try {
-      apply(await wasmDebugBackend.start(source(), bps(), false));
+      // Pass the file path so the debugger compiles in the file's dialect
+      // (.gadt → template, .giom → giom, else plain Gad).
+      apply(await sharedClient().debugStart(source(), path, bps(), false, []));
     } finally {
       setBusy(false);
     }

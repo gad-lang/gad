@@ -61,14 +61,16 @@ export class WasmClient {
     this.pending.clear();
   }
 
-  run(source: string) {
-    return this.json<RunResult>("gadRun", [source]);
+  /** run executes source; sourceType "gadTemplate"/"giom" selects the dialect. */
+  run(source: string, sourceType = "") {
+    return this.json<RunResult>("gadRun", [source, sourceType]);
   }
   format(source: string) {
     return this.json<FormatResult>("gadFormat", [source]);
   }
-  diagnose(source: string) {
-    return this.json<{ diagnostics: GadDiagnostic[] }>("gadDiagnose", [source]);
+  /** diagnose reports errors; sourceType selects the dialect (see run). */
+  diagnose(source: string, sourceType = "") {
+    return this.json<{ diagnostics: GadDiagnostic[] }>("gadDiagnose", [source, sourceType]);
   }
   /** doc extracts Markdown documentation from content and its sourceType. */
   doc(source: string, sourceType: "gad" | "gadTemplate" | "giom") {
