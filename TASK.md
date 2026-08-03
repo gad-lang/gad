@@ -1,7 +1,36 @@
 # Current State
 > Updated: 2026-08-02
 
-Latest: **Prop virtual `.v`, read-only `prop =>`, and module live bindings**
+Latest: **giom comments, doc comments, `gad doc` for .giom, and `@export`**
+(`8a2df65`, `59fdfad`, `db2a458`, `4ff82c4`, `9635476`).
+- `/* … */` block comments: silent, line-start only, multi-line. Doc comments use
+  the **gad convention `/** … **/`** and attach to a following @comp/@func/@param/
+  @var/@const/@enum/@export (else stay file-level). WriteGiom round-trips both.
+- `gad doc` documents .giom: module heading, file-level prose, and Exports /
+  Components / Functions / Parameters / Constants / Variables / Enums sections
+  with signatures, doc text, and a `data-source-pos="LINE,COLUMN"` anchor on each
+  heading for source navigation (cmd/gad/doc_giom.go; FromContent dispatches .giom).
+- `@export name = value` now parses value as a full Gad expression (was a bogus
+  IdentExpr) with preserved position; supports doc. gad `export` doc already
+  worked (its convention is `/** … **/`).
+- Tests: giom TestBlockComment/DocCommentAttach/BlockCommentWriteGiom; cmd/gad
+  TestGiomDoc/Declarations/Export. Docs: giom syntax.md Comments section.
+
+Earlier: **block comments + doc comments + `gad doc` for .giom** (initial).
+- `/* … */` block comments in giom: silent, recognized only at line start
+  (mid-line `/*` stays literal), multi-line (scanner pulls lines to the closing
+  `*/`). Scanner scanBlockComment; CommentStmt gains Block/Doc flags.
+- `/** … */` doc comment immediately before @comp/@func attaches to its new Doc
+  field (pendingDoc hold in parser); a blank line / other statement breaks it,
+  leaving a file-level comment (like gad). WriteGiom round-trips both.
+- `gad doc` now documents .giom: module heading, file-level block comment as
+  prose, Components (@comp) / Functions (@func) with their doc text, and a
+  `data-source-pos="LINE,COLUMN"` anchor on each heading for source navigation.
+  New cmd/gad/doc_giom.go; FromContent dispatches .giom.
+- Tests: giom TestBlockComment/DocCommentAttach/BlockCommentWriteGiom;
+  cmd/gad TestGiomDoc. Both modules green.
+
+Earlier: **Prop virtual `.v`, read-only `prop =>`, and module live bindings**
 (`b9c9ea3`, `a0f6e66`, `05f61f8`).
 - `Prop` implements IndexGetter/IndexSetter for a virtual `v` field: `x.v` runs
   the getter, `x.v = n` the setter (call `x()`/`x(n)` still works).
