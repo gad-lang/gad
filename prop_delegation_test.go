@@ -56,6 +56,14 @@ func TestVMPropValueField(t *testing.T) {
 	// A getter-only prop errors on x.v = … (no setter); an unknown field errors.
 	expectErrHas(t, `prop y { () => 1 }; y.v = 3`, newOpts(), "no have method")
 	expectErrHas(t, `prop y { () => 1 }; return y.w`, newOpts(), "InvalidIndexError")
+
+	// `x.v = n` must NOT run the getter (no wasteful pre-read on the Prop): the
+	// getter counter stays 0.
+	testExpectRun(t, `
+	var (val = 0, gets = 0)
+	prop x { () { gets = gets + 1; return val }; (n) { val = n } }
+	x.v = 5
+	return gets`, nil, Int(0))
 }
 
 // TestVMPropReadonly covers the getter-only `prop => expr` form (prop as a

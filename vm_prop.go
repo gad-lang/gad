@@ -39,6 +39,12 @@ func (vm *VM) indexSetProp(container IndexSetter, index, value Object) (done boo
 	if !delegatesProps(container) {
 		return false, nil
 	}
+	// A *Prop is itself a delegating accessor, not a value store: its own
+	// IndexSet routes the virtual `.v` field straight to the setter. Skip the
+	// pre-read here so `x.v = n` does not needlessly run the getter first.
+	if _, ok := container.(*Prop); ok {
+		return false, nil
+	}
 	ig, ok := container.(IndexGetter)
 	if !ok {
 		return false, nil
