@@ -7,6 +7,16 @@ import { fileURLToPath } from "node:url";
 // CORS friction.
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // Two entry pages: the playground (index.html) and the standalone,
+    // server-less embeddable IDE (webide.html).
+    rollupOptions: {
+      input: {
+        index: fileURLToPath(new URL("./index.html", import.meta.url)),
+        webide: fileURLToPath(new URL("./webide.html", import.meta.url)),
+      },
+    },
+  },
   resolve: {
     // Resolve the sibling workspace plugins from their TypeScript source, so the
     // app runs (and hot-reloads) against `src/` without a prior `plugins:build`.

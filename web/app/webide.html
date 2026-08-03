@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/gad-24.svg" />
+    <link rel="alternate icon" href="/gad.ico" />
+    <title>Gad IDE</title>
+    <script>
+      // Apply the saved/preferred theme before first paint to avoid a flash.
+      (function () {
+        var s = localStorage.getItem("gad-theme");
+        var t = s === "light" || s === "dark"
+          ? s
+          : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/webide.tsx"></script>
+  </body>
+</html>

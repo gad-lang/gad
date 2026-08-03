@@ -5,12 +5,18 @@ import { Highlight } from "./Highlight";
 import { Debug } from "./Debug";
 import { useTheme } from "./useTheme";
 import { serverBackend } from "./backends/server";
-import { wasmBackend } from "./backends/wasm";
+import { wasmWorkerBackend, wasmDebugBackend } from "./backends/wasmWorker";
+import { serverDebugBackend, type DebugBackend } from "./backends/debug";
 import type { GadBackend, FormatResult, RunResult } from "./backends/types";
 
 const BACKENDS: Record<string, GadBackend> = {
-  wasm: wasmBackend,
+  wasm: wasmWorkerBackend,
   server: serverBackend,
+};
+
+const DEBUG_BACKENDS: Record<string, DebugBackend> = {
+  wasm: wasmDebugBackend,
+  server: serverDebugBackend,
 };
 
 const SAMPLE = `// edit me — errors are underlined as you type
@@ -32,6 +38,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>("format");
   const [theme, toggleTheme] = useTheme();
   const backend = BACKENDS[backendKey];
+  const debugBackend = DEBUG_BACKENDS[backendKey];
   const dark = theme === "dark";
 
   return (
@@ -68,7 +75,7 @@ export function App() {
 
       {tab === "format" && <Formatter backend={backend} dark={dark} />}
       {tab === "notebook" && <Notebook backend={backend} dark={dark} />}
-      {tab === "debug" && <Debug dark={dark} />}
+      {tab === "debug" && <Debug dark={dark} backend={debugBackend} />}
       {tab === "highlight" && <Highlight />}
 
       <footer>

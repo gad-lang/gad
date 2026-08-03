@@ -11,20 +11,19 @@
 @param (doc dict)
 
 @main
-    <article class="gad-doc">
+    article.gad-doc
         @if doc.prose
-            <p class="prose">{doc.prose}</p>
+            p.prose {doc.prose}
 
         @for sec in doc.sections
-            <section class="doc-section">
-                <h2>{sec.title}</h2>
+            section.doc-section
+                h2 {sec.title}
 
                 @for s in sec.symbols
-                    <div class="symbol" data-line={s.line} data-column={s.column}>
-                        <h3><code>{s.name}{s.signature}</code></h3>
+                    div.symbol[data-line=s.line, data-column=s.column]
+                        h3
+                            code {s.name}
+                            | {s.signature}
 
                         @if s.doc
-                            <p class="doc">{s.doc}</p>
-                    </div>
-            </section>
-    </article>
+                            p.doc {s.doc}

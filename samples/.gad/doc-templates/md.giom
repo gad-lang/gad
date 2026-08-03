@@ -1,4 +1,4 @@
-//- .gaddoc-md.giom — Markdown documentation template for `gad doc`.
+//- md.giom — Markdown documentation template for `gad doc`.
 //-
 //- It receives the extracted documentation as `param (doc dict)` and emits
 //- Markdown to the output. `doc` is:

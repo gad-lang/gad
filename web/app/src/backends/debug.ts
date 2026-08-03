@@ -30,6 +30,24 @@ export interface DebugResponse {
 
 export type DebugCommand = "continue" | "next" | "stepIn" | "stepOut" | "pause";
 
+/**
+ * DebugBackend abstracts the stepping debugger so the same UI works against the
+ * Go HTTP server (/api/debug/*) or the in-browser WebAssembly module running in
+ * a Web Worker. The protocol is request/response: start launches a session and
+ * runs to the first stop (or end); command resumes to the next stop (or end).
+ */
+export interface DebugBackend {
+  readonly name: string;
+  /** Whether this backend needs a running Go server (used for hints/UI). */
+  readonly needsServer: boolean;
+  start(source: string, breakpoints: number[], stopOnEntry: boolean): Promise<DebugResponse>;
+  command(session: string, command: DebugCommand): Promise<DebugResponse>;
+  /** Evaluate an expression in the paused session's top frame, when supported. */
+  evaluate?(session: string, expr: string, repr?: boolean): Promise<{ ok: boolean; value?: string; error?: string }>;
+  /** Best-effort abort of a running/paused session. */
+  stop?(session: string): void | Promise<void>;
+}
+
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(path, {
     method: "POST",
@@ -41,15 +59,19 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 }
 
 /**
- * The debugger is request/response: start launches a session and runs to the
- * first stop (or end); command resumes to the next stop (or end). It is served
- * by the Go server only (/api/debug/*), so this page requires `make web-server`.
+ * serverDebugBackend is served by the Go server only (/api/debug/*), so it
+ * requires `make web-server`.
  */
-export const debugBackend = {
-  start(source: string, breakpoints: number[], stopOnEntry: boolean): Promise<DebugResponse> {
+export const serverDebugBackend: DebugBackend = {
+  name: "Go server",
+  needsServer: true,
+  start(source, breakpoints, stopOnEntry) {
     return post<DebugResponse>("/api/debug/start", { source, breakpoints, stopOnEntry });
   },
-  command(session: string, command: DebugCommand): Promise<DebugResponse> {
+  command(session, command) {
     return post<DebugResponse>("/api/debug/command", { session, command });
   },
 };
+
+/** @deprecated use serverDebugBackend. */
+export const debugBackend = serverDebugBackend;

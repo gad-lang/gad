@@ -2,7 +2,9 @@
 // request with a unique id and resolves when the matching reply arrives. The
 // worker can be terminated (abort) — e.g. to stop a runaway debug session — and
 // is recreated lazily on the next call.
+import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import type { DebugResponse } from "../backends/debug";
+import type { FormatResult, RunResult } from "../backends/types";
 
 type Pending = { resolve: (v: string) => void; reject: (e: Error) => void };
 
@@ -60,17 +62,21 @@ export class WasmClient {
   }
 
   run(source: string) {
-    return this.json<{ ok: boolean; stdout?: string; stderr?: string; result?: string }>("gadRun", [source]);
+    return this.json<RunResult>("gadRun", [source]);
   }
   format(source: string) {
-    return this.json<{ ok: boolean; source?: string; error?: string }>("gadFormat", [source]);
+    return this.json<FormatResult>("gadFormat", [source]);
   }
   diagnose(source: string) {
-    return this.json<{ diagnostics: unknown[] }>("gadDiagnose", [source]);
+    return this.json<{ diagnostics: GadDiagnostic[] }>("gadDiagnose", [source]);
   }
   /** doc extracts Markdown documentation from content and its sourceType. */
   doc(source: string, sourceType: "gad" | "gadTemplate" | "giom") {
     return this.json<{ markdown?: string; error?: string }>("gadDoc", [source, sourceType]);
+  }
+  /** docData extracts the structured documentation (prose + typed sections). */
+  docData(source: string, sourceType: "gad" | "gadTemplate" | "giom") {
+    return this.json<{ doc?: unknown; error?: string }>("gadDocData", [source, sourceType]);
   }
 
   // --- Debugger (mirrors backends/debug.ts) ---

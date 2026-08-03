@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { Editor, type EditorHandle } from "./Editor";
-import { debugBackend, type DebugResponse } from "./backends/debug";
+import { serverDebugBackend, type DebugBackend, type DebugResponse } from "./backends/debug";
 
 const SAMPLE = `f := func(x) {
   y := x * 2
@@ -20,11 +20,12 @@ function parseBreakpoints(s: string): number[] {
 }
 
 /**
- * Debug is the "Run & Debug" page. It drives the server-side debugger
- * (/api/debug/*): set breakpoints, start, and step while inspecting the call
- * stack, locals and output. Requires the Go server (make web-server).
+ * Debug is the "Run & Debug" page. It drives a stepping debugger (backend prop):
+ * set breakpoints, start, and step while inspecting the call stack, locals and
+ * output. The WebAssembly backend runs entirely in-browser (a Web Worker); the
+ * Go-server backend requires `make web-server`.
  */
-export function Debug({ dark }: { dark: boolean }) {
+export function Debug({ dark, backend = serverDebugBackend }: { dark: boolean; backend?: DebugBackend }) {
   const editorRef = useRef<EditorHandle>(null);
   const [bpText, setBpText] = useState("2, 7");
   const [stopOnEntry, setStopOnEntry] = useState(false);
@@ -50,25 +51,27 @@ export function Debug({ dark }: { dark: boolean }) {
     setOutput("");
     setSnap(null);
     try {
-      const r = await debugBackend.start(
+      const r = await backend.start(
         editorRef.current?.getValue() ?? "",
         parseBreakpoints(bpText),
         stopOnEntry,
       );
       apply(r);
     } catch (e) {
-      setError(String(e) + " — is the Go server running? (make web-server)");
+      setError(
+        String(e) + (backend.needsServer ? " — is the Go server running? (make web-server)" : ""),
+      );
     } finally {
       setBusy(false);
     }
-  }, [apply, bpText, stopOnEntry]);
+  }, [apply, backend, bpText, stopOnEntry]);
 
   const cmd = useCallback(
     async (command: "continue" | "next" | "stepIn" | "stepOut") => {
       if (!session) return;
       setBusy(true);
       try {
-        apply(await debugBackend.command(session, command));
+        apply(await backend.command(session, command));
       } catch (e) {
         setError(String(e));
         setSession(null);
@@ -76,7 +79,7 @@ export function Debug({ dark }: { dark: boolean }) {
         setBusy(false);
       }
     },
-    [apply, session],
+    [apply, backend, session],
   );
 
   const stopped = snap?.state === "stopped";
