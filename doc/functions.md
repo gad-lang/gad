@@ -214,6 +214,20 @@ A single-accessor property may drop the braces: `prop pi() => 3.14`. Properties
 are also available through the [`Prop`](values-and-types.md#properties)
 constructor for building them programmatically.
 
+### The virtual `.v` field
+
+A property exposes a virtual `v` field for value access without an explicit
+call: `x.v` runs the getter (like `x()`) and `x.v = value` runs the matching
+setter (like `x(value)`). Calling the property directly still works.
+
+```go
+var stored
+prop x { () => stored; (n) { stored = n } }
+
+x.v = 10   // setter — same as x(10)
+x.v        // 10   — getter, same as x()
+```
+
 ### Properties as container members (computed properties)
 
 When a `Prop` is stored at a container key, indexing that key **delegates** to

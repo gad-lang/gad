@@ -37,6 +37,27 @@ func TestVMPropIndexDelegation(t *testing.T) {
 		"no have method")
 }
 
+// TestVMPropValueField covers a Prop's virtual `v` field: x.v reads via the
+// getter and x.v = value writes via the setter, without an explicit call.
+func TestVMPropValueField(t *testing.T) {
+	const p = "var v = 1; prop x { () => v; (val) { v = val } }"
+
+	// x.v reads through the getter; x.v = n writes through the setter.
+	testExpectRun(t, p+"; return x.v", nil, Int(1))
+	testExpectRun(t, p+"; x.v = 10; return v", nil, Int(10))
+	testExpectRun(t, p+"; x.v = 10; return x.v", nil, Int(10))
+	// Bracket indexing works too.
+	testExpectRun(t, p+`; return x["v"]`, nil, Int(1))
+
+	// Calling the prop directly still works and shares the same backing value.
+	testExpectRun(t, p+"; x(8); return x.v", nil, Int(8))
+	testExpectRun(t, p+"; x.v = 5; return x()", nil, Int(5))
+
+	// A getter-only prop errors on x.v = … (no setter); an unknown field errors.
+	expectErrHas(t, `prop y { () => 1 }; y.v = 3`, newOpts(), "no have method")
+	expectErrHas(t, `prop y { () => 1 }; return y.w`, newOpts(), "InvalidIndexError")
+}
+
 // TestVMPropRawContainers verifies Array and ClassInstance never delegate: a
 // stored Prop is returned/stored verbatim.
 func TestVMPropRawContainers(t *testing.T) {

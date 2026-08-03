@@ -49,7 +49,11 @@ import (
 // TProp is the builtin `Prop` object type.
 var TProp = RegisterBuiltinType(BuiltinProp, "Prop", Prop{}, NewPropFunc)
 
-var _ CallerObject = (*Prop)(nil)
+var (
+	_ CallerObject = (*Prop)(nil)
+	_ IndexGetter  = (*Prop)(nil)
+	_ IndexSetter  = (*Prop)(nil)
+)
 
 // Prop is a named, callable Object whose invocations are dispatched to
 // getter and setter methods held in its FuncSpec. Calling it with no arguments
@@ -146,6 +150,31 @@ func (p *Prop) Name() string {
 // *Func): no args invokes the getter, one arg the matching setter.
 func (p *Prop) Call(c Call) (Object, error) {
 	return p.f.Call(c)
+}
+
+// PropValueField is the virtual field a Prop exposes for value access: `x.v`
+// runs the getter (like `x()`) and `x.v = value` runs the matching setter (like
+// `x(value)`), so a property can be read/written without an explicit call.
+const PropValueField = "v"
+
+// IndexGet implements the virtual value field: `x.v` runs the getter. Any other
+// index is an error. Calling the prop directly (`x()`) still works.
+func (p *Prop) IndexGet(vm *VM, index Object) (Object, error) {
+	if index.ToString() == PropValueField {
+		return vm.Call(p, Args{}, nil)
+	}
+	return nil, ErrInvalidIndex.NewError(index.ToString())
+}
+
+// IndexSet implements the virtual value field: `x.v = value` runs the matching
+// setter. Any other index is an error. Calling the prop directly (`x(value)`)
+// still works.
+func (p *Prop) IndexSet(vm *VM, index, value Object) error {
+	if index.ToString() == PropValueField {
+		_, err := vm.Call(p, Args{Array{value}}, nil)
+		return err
+	}
+	return ErrNotIndexAssignable.NewError(index.ToString())
 }
 
 func (p *Prop) Add(handler CallerObject, argTypes ParamsTypes) (err error) {
