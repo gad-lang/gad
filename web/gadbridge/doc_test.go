@@ -11,12 +11,12 @@ func TestDocGad(t *testing.T) {
 	src := "/*** greetings module. ***/\n\n" +
 		"/** The greeting prefix. **/\nexport hello = \"hi\"\n\n" +
 		"/** Adds two numbers. **/\nexport func add(a, b) { return a + b }\n"
-	md, err := Doc("greet.gad", src)
+	md, err := Doc(src, "gad")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, w := range []string{
-		"# greet", "greetings module.", "## Exports",
+		"greetings module.", "## Exports",
 		"hello = \"hi\"", "The greeting prefix.",
 		"add", "Adds two numbers.",
 	} {
@@ -33,12 +33,12 @@ func TestDocGad(t *testing.T) {
 // data-source-pos anchor.
 func TestDocGiom(t *testing.T) {
 	src := "/** Reusable widgets. **/\n@comp greeting(name)\n    p hi\n"
-	md, err := Doc("widgets.giom", src)
+	md, err := Doc(src, "giom")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, w := range []string{
-		"# widgets", "## Components", "+greeting",
+		"## Components", "+greeting",
 		"Reusable widgets.", `data-source-pos="2,1"`,
 	} {
 		if !strings.Contains(md, w) {

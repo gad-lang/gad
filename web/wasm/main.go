@@ -26,10 +26,10 @@ func main() {
 	js.Global().Set("gadDiagnose", jsonFunc(func(src string) any {
 		return map[string]any{"diagnostics": gadbridge.Diagnose(src)}
 	}))
-	// gadDoc(source, path) -> { markdown } : the documentation for the input.
+	// gadDoc(source, sourceType) -> { markdown } : documentation extracted from the
+	// content. sourceType is "gad" | "gadTemplate" | "giom".
 	js.Global().Set("gadDoc", jsonFuncN(func(args []js.Value) any {
-		src, path := argStr(args, 0), argStr(args, 1)
-		md, err := gadbridge.Doc(path, src)
+		md, err := gadbridge.Doc(argStr(args, 0), argStr(args, 1))
 		if err != nil {
 			return map[string]any{"error": err.Error()}
 		}

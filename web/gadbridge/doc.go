@@ -12,44 +12,42 @@ import (
 	"github.com/gad-lang/gad/parser/source"
 )
 
-// Doc renders Markdown documentation for the input source. `.giom` templates are
-// documented via the giom front-end (components, functions and the other
-// top-level declarations, each with a data-source-pos anchor); everything else
-// is documented as Gad (the module heading, a leading `/***` block and the
-// exported symbols). It is filesystem-free, so the WASM bridge can produce docs
-// for the editor's current buffer.
-func Doc(path, src string) (string, error) {
-	if strings.HasSuffix(path, ".giom") {
-		return giomDocMarkdown(path, []byte(src))
+// Doc extracts Markdown documentation from a source buffer. sourceType selects
+// how the content is parsed and documented:
+//   - "giom": the giom front-end — components, functions and the other top-level
+//     declarations, each with a data-source-pos anchor.
+//   - "gadTemplate" (or "template"): a `.gadt` mixed template, documented as the
+//     embedded Gad.
+//   - "gad" (or anything else / empty): a plain Gad script — a leading `/***`
+//     block plus the exported symbols.
+//
+// It is filesystem-free (name-less), so the WASM bridge can document the editor's
+// current buffer from its content and type alone.
+func Doc(src, sourceType string) (string, error) {
+	if sourceType == "giom" {
+		return giomDocMarkdown([]byte(src))
 	}
-	return gadDocMarkdown(path, []byte(src))
-}
-
-// docModuleName is the file's base name without extension.
-func docModuleName(path string) string {
-	base := path
-	if i := strings.LastIndexAny(base, "/\\"); i >= 0 {
-		base = base[i+1:]
-	}
-	if i := strings.LastIndex(base, "."); i > 0 {
-		base = base[:i]
-	}
-	return base
+	return gadDocMarkdown([]byte(src), sourceType)
 }
 
 // --- Gad ---
 
-func gadDocMarkdown(path string, src []byte) (string, error) {
+func gadDocMarkdown(src []byte, sourceType string) (string, error) {
 	fs := source.NewFileSet()
-	f := fs.AddFileData(path, -1, src)
-	file, err := parser.NewParserWithOptions(
-		f, &parser.ParserOptions{Mode: parser.ParseComments}, nil).ParseFile()
+	f := fs.AddFileData("buffer", -1, src)
+	po := &parser.ParserOptions{Mode: parser.ParseComments}
+	so := &parser.ScannerOptions{}
+	if sourceType == "gadTemplate" || sourceType == "template" {
+		po.Mode |= parser.ParseMixed
+		so.Mode |= parser.ScanMixed | parser.ScanConfigDisabled
+		so.MixedDelimiter = parser.DefaultMixedDelimiter
+	}
+	file, err := parser.NewParserWithOptions(f, po, so).ParseFile()
 	if err != nil {
 		return "", err
 	}
 
 	var b strings.Builder
-	b.WriteString("# " + docModuleName(path) + "\n")
 
 	// Leading /*** … ***/ root block as module prose.
 	for _, g := range file.Comments {
@@ -141,16 +139,15 @@ func gadExportName(es *gnode.ExportStmt) string {
 
 // --- Giom ---
 
-func giomDocMarkdown(path string, src []byte) (string, error) {
+func giomDocMarkdown(src []byte) (string, error) {
 	fs := source.NewFileSet()
-	f := fs.AddFileData(path, -1, src)
+	f := fs.AddFileData("buffer", -1, src)
 	file, err := giomparser.NewParser(f).ParseFile()
 	if err != nil {
 		return "", err
 	}
 
 	var b strings.Builder
-	b.WriteString("# " + docModuleName(path) + "\n")
 
 	if prose := giomLeadProse(file); prose != "" {
 		b.WriteString("\n" + prose + "\n")
