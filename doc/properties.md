@@ -61,6 +61,27 @@ x.v        // 10   — getter, same as x()
 
 Reading `.v` on a getter-only property works; writing it errors (no setter).
 
+**Prefer `.v` over an explicit call.** `.v` invokes the same accessor as `x()` /
+`x(n)`, so it adds no function-call overhead — and a read through `.v` is even a
+touch cheaper than a call, because the VM's index-get dispatch is lighter than
+its call dispatch. Reads via `.v` win slightly; writes are on par. Combined with
+being clearer to read, `.v` is the recommended default.
+
+Benchmark — 50 000 get/set operations on a `prop` (lower is better; see
+`BenchmarkProp*`):
+
+```
+get   x()   █████████████████████████████████████  17.5 ms
+      x.v   ████████████████████████████████████    17.0 ms   (~3% faster)
+
+set   x(n)  █████████████████████████████████████   25.5 ms
+      x.v=  ██████████████████████████████████████  26.6 ms   (~4% more, 1 alloc/op)
+```
+
+The difference is within a few percent either way — `.v` and a direct call are
+effectively equal in cost, so choose `.v` for readability. (Note: `x.v = n` runs
+only the setter — it does not read the getter first.)
+
 ## Properties as container members (computed properties)
 
 When a `Prop` is stored at a container key, indexing that key **delegates** to

@@ -32,8 +32,10 @@ println("pi():      ", pi())             // 3.14159
 
 /// The virtual `.v` field reads/writes a property without an explicit call:
 /// `x.v` runs the getter (like `x()`), `x.v = n` runs the setter (like `x(n)`).
-value.v = 3                              // setter via .v
-println("value.v:   ", value.v)          // int: 3  (getter via .v)
+/// Prefer `.v`: it costs the same as a call (reads are even a touch cheaper) and
+/// reads clearer. See doc/properties.md for the benchmark.
+value.v = 3                              // setter via .v  (preferred over value(3))
+println("value.v:   ", value.v)          // int: 3  (getter via .v, over value())
 
 /// `prop => expr` is a getter-only property (a prop as a closure). It reads live
 /// and has no setter. Works anonymously or named.
