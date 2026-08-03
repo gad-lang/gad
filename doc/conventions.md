@@ -33,6 +33,27 @@ casing, following the Go convention.
 * **Acronyms** keep their conventional casing as a unit: `URL`, not `Url`;
   `RFC3339`, not `Rfc3339`.
 
+## Idioms
+
+Style recommendations for writing idiomatic Gad (beyond what the formatter
+enforces).
+
+* **Access a property through its `.v` field, not an explicit call.** For a
+  [property](properties.md) `x`, prefer `x.v` / `x.v = n` over `x()` / `x(n)`.
+  It reads as a value rather than a call and costs the same — `.v` invokes the
+  same accessor with no extra call overhead (reads are even marginally cheaper;
+  see the benchmark in [Properties](properties.md#the-virtual-v-field)). Reserve
+  the call form for props with typed/overloaded setters that you dispatch by
+  argument type.
+
+  ```go
+  prop x { () => v; (n) { v = n } }
+
+  x.v = 10   // preferred
+  x.v        // preferred
+  // x(10) / x()  — equivalent, but call-style; avoid for plain value access
+  ```
+
 ## Code Layout
 
 These rules describe the source layout the formatter produces.
