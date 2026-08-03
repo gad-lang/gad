@@ -2,6 +2,39 @@
 
 Giom uses indentation to describe HTML, components, and Gad control flow.
 
+## Comments
+
+Line comments start a line:
+
+```giom
+// rendered as an HTML comment: <!-- … -->
+//- silent: not emitted
+```
+
+Block comments `/* … */` are silent and may span multiple lines. They are only
+recognized at the start of a line (a `/*` mid-line stays literal text):
+
+```giom
+/* a silent note */
+
+/*
+  a multi-line
+  block comment
+*/
+```
+
+A doc comment uses the gad convention `/** … **/` (opened with `/**`, closed with
+`**/`). When it immediately precedes a `@comp`, `@func`, `@param`, `@var`,
+`@const`, `@enum` or `@export`, it documents that declaration (surfaced by
+`gad doc`); a blank line or any other statement in between leaves it as a plain
+silent comment.
+
+```giom
+/** Renders a greeting for the given name. **/
+@comp greeting(name)
+    p {= "Hello, " + name }
+```
+
 ## Document Type
 
 ```giom
