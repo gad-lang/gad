@@ -8,7 +8,7 @@
 //   const html = Prism.highlight(code, Prism.languages.giom, "giom");
 
 import type { Grammar, GrammarValue } from "prismjs";
-import { gadGrammar } from "./index";
+import { gadGrammar } from "./gad-grammar";
 
 /**
  * The Giom PrismJS grammar. Giom is indentation-based: a line may be a comment,

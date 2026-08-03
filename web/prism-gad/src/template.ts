@@ -12,7 +12,7 @@
 // Text outside the tags is left untouched. Delimiters default to `{%` / `%}`
 // and can be overridden to match a project's `template:` config.
 import type { Grammar } from "prismjs";
-import { gadGrammar } from "./index";
+import { gadGrammar } from "./gad-grammar";
 
 /** Delimiters for the code/value tags. Defaults to `{%` / `%}`. */
 export interface GadTemplateDelimiters {
