@@ -38,6 +38,8 @@ export interface GiomState {
   gad: GadState;
   // true while inside a `~~ … ~~` Gad code block.
   code: boolean;
+  // true while inside an unterminated `/* … */` block comment (may span lines).
+  blockComment: boolean;
   // Brace depth inside a `{ … }` / `{= … }` interpolation (0 = not interpolating).
   interp: number;
   // Bracket depth inside a `[ … ]` attribute group (may span multiple lines).
@@ -52,6 +54,7 @@ function newGiomState(): GiomState {
   return {
     gad: newGadState(),
     code: false,
+    blockComment: false,
     interp: 0,
     attrDepth: 0,
     line: "start",
@@ -186,6 +189,14 @@ function tokenStart(stream: StringStream, state: GiomState): string | null {
   if (stream.eatSpace()) return null;
   if (stream.eol()) return null;
 
+  // Block comment `/* … */` (silent) / `/** … **/` (doc), only at line start;
+  // may span multiple lines.
+  if (stream.match("/*")) {
+    if (stream.match(/^.*?\*\//)) return "giomComment"; // closed on this line
+    stream.skipToEnd();
+    state.blockComment = true;
+    return "giomComment";
+  }
   // Comments: `//` and silent `//-`.
   if (stream.match("//")) {
     stream.skipToEnd();
@@ -240,6 +251,13 @@ function tokenStart(stream: StringStream, state: GiomState): string | null {
 export function giomToken(stream: StringStream, state: GiomState): string | null {
   // Interpolation has top priority (it may span lines).
   if (state.interp > 0) return tokenInterp(stream, state);
+
+  // Open `/* … */` block comment body (may span lines): consume up to `*/`.
+  if (state.blockComment) {
+    if (stream.match(/^.*?\*\//)) state.blockComment = false;
+    else stream.skipToEnd();
+    return "giomComment";
+  }
 
   // `~~ … ~~` Gad code block body.
   if (state.code) {

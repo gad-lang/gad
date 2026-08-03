@@ -18,11 +18,20 @@ import { gadGrammar } from "./index";
  * highlighted as embedded Gad by reusing the Gad grammar.
  */
 export const giomGrammar: Grammar = {
-  comment: {
-    // `//` and silent `//-` line comments.
-    pattern: /\/\/.*/,
-    greedy: true,
-  },
+  comment: [
+    {
+      // `/* … */` block comments and `/** … **/` doc comments (gad convention),
+      // recognized only at line start; may span multiple lines.
+      pattern: /(^[ \t]*)\/\*[\s\S]*?\*\//m,
+      lookbehind: true,
+      greedy: true,
+    },
+    {
+      // `//` and silent `//-` line comments.
+      pattern: /\/\/.*/,
+      greedy: true,
+    },
+  ],
   "code-block": {
     // `~~` … `~~` Gad source sections; the body is highlighted as Gad.
     pattern: /^[ \t]*~~[ \t]*$[\s\S]*?^[ \t]*~~[ \t]*$/m,
