@@ -19,20 +19,25 @@ new EditorView({
 });
 ```
 
-## Templates (`.gadt`)
+## Source type (`gad` / `template` / `giom`)
 
-Set `template: true` to highlight Gad **template** (mixed) files: literal text
-plus `{% … %}` code blocks and `{%= … %}` value tags, with the tag bodies
-tokenized as Gad (completion and hover work inside tags too). The delimiters
-default to `{%` / `%}` and are configurable via `delimiters`.
+The `sourceType` option selects the dialect to highlight:
+
+- `"gad"` (default) — a plain `.gad` script.
+- `"template"` — a `.gadt` **mixed** template: literal text plus `{% … %}` code
+  blocks and `{%= … %}` value tags, with the tag bodies tokenized as Gad
+  (completion and hover work inside tags too). The delimiters default to
+  `{%` / `%}` and are configurable via `delimiters`.
+- `"giom"` — a `.giom` indentation-based template (tags, `@`-control keywords,
+  `+`component calls, `{= … }` interpolations and `~~` code blocks), with the
+  embedded Gad highlighted, completed and linted.
 
 ```ts
 import { gad } from "@gad-lang/codemirror-gad";
 
-new EditorView({
-  extensions: [basicSetup, gad({ template: true, delimiters: { start: "{%", end: "%}" } })],
-  parent: document.body,
-});
+gad();                                              // .gad (default)
+gad({ sourceType: "template", delimiters: { start: "{%", end: "%}" } }); // .gadt
+gad({ sourceType: "giom" });                        // .giom
 ```
 
 A `.gad` file can also enable template mode part-way in with a `# gad: mixed`
@@ -41,14 +46,20 @@ so the leading Gad — comments and the `# gad:` directive — is highlighted as
 before template text begins:
 
 ```ts
-gad({ template: true, preamble: true, delimiters }); // for `.gad` + `# gad: mixed`
+gad({ sourceType: "template", preamble: true, delimiters }); // `.gad` + `# gad: mixed`
 ```
+
+> **Migration:** the former boolean `template: true` is replaced by
+> `sourceType: "template"`. `giom(options)` remains as a convenience for
+> `gad({ ...options, sourceType: "giom" })`.
 
 ## Exports
 
 - `gad(options)` — bundled extension (language + completion + optional linter).
-  Set `template: true` (plus optional `delimiters: { start, end }`) for `.gadt`
-  mixed files; the linter is skipped in template mode.
+  Set `sourceType: "template"` (plus optional `delimiters: { start, end }`) for
+  `.gadt` mixed files or `sourceType: "giom"` for `.giom`; the linter is skipped
+  for `"template"`.
+- `giom(options)` — convenience for `gad({ ...options, sourceType: "giom" })`.
 - `gadLanguageSupport()` / `gadLanguage` — highlighting only.
 - `gadCompletion()` / `gadCompletionSource` — autocompletion.
 - `gadLinter(diagnose, { delay })` — async diagnostics → CodeMirror lint.
@@ -60,14 +71,15 @@ The `diagnose` function is injected, so the plugin works against any backend
 
 ## Demo
 
-A standalone editor demo lives in [`example/`](example). It shows three tabs — a
-plain `.gad` script, a `.gadt` template, and a `.gad` file that switches to
-template mode with `# gad: mixed`:
+A standalone editor demo lives in [`example/`](example). Its sidebar is a tree
+of the repository `samples/` directory built from the filesystem at startup;
+clicking a `.gad` / `.gadt` / `.giom` file opens it with the matching
+`sourceType`. The dev server (`example/serve.ts`) reads the manifest and each
+file's contents from disk on demand — nothing is bundled in.
 
 ```sh
 bun install
-bun run demo        # serves example/index.html (bundles the TS on the fly)
-# or: bun run demo:build   # writes a static bundle to example/dist
+bun run demo        # bun ./example/serve.ts — bundles the app and serves samples/
 ```
 
 ## Publishing

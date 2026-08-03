@@ -5,7 +5,7 @@ import { defaultKeymap, indentWithTab, undo, redo } from "@codemirror/commands";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { StreamLanguage } from "@codemirror/language";
 import { basicSetup } from "codemirror";
-import { gad, giom, type DiagnoseFn } from "@gad-lang/codemirror-gad";
+import { gad, type DiagnoseFn } from "@gad-lang/codemirror-gad";
 import { json } from "@codemirror/lang-json";
 import { html } from "@codemirror/lang-html";
 import { css } from "@codemirror/lang-css";
@@ -44,11 +44,11 @@ export interface TemplateDelimiters {
 function langExtension(lang: EditorLanguage, diagnose?: DiagnoseFn, tmpl?: TemplateDelimiters): Extension {
   switch (lang) {
     case "gad":
-      return gad({ diagnose });
+      return gad({ sourceType: "gad", diagnose });
     case "gadt":
-      return gad({ template: true, delimiters: { start: tmpl?.start, end: tmpl?.end }, preamble: tmpl?.preamble });
+      return gad({ sourceType: "template", delimiters: { start: tmpl?.start, end: tmpl?.end }, preamble: tmpl?.preamble });
     case "giom":
-      return giom({ diagnose });
+      return gad({ sourceType: "giom", diagnose });
     case "json":
       return json();
     case "yaml":

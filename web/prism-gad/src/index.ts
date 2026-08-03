@@ -6,6 +6,8 @@
 //   const html = Prism.highlight(code, Prism.languages.gad, "gad");
 
 import type { Grammar, Environment } from "prismjs";
+import { gadTemplateGrammar, type GadTemplateOptions } from "./template";
+import { giomGrammar } from "./giom";
 
 const keywords = [
   "if", "else", "for", "in", "func", "method", "return", "break", "continue",
@@ -123,6 +125,39 @@ export function registerGad(Prism: {
   hooks?: { add(name: string, cb: (env: Environment) => void): void };
 }): void {
   Prism.languages.gad = gadGrammar;
+}
+
+/**
+ * Which Gad dialect a grammar highlights:
+ * - `"gad"` (default): a plain `.gad` script.
+ * - `"template"`: a `.gadt` mixed template (`{% … %}` / `{%= … %}` tags).
+ * - `"giom"`: a `.giom` indentation-based template.
+ */
+export type GadSourceType = "gad" | "template" | "giom";
+
+/**
+ * gadGrammarFor returns the Prism grammar for the given source dialect, so a
+ * consumer can pick the right handler from a single `sourceType` (the analog of
+ * codemirror-gad's `gad({ sourceType })`). `options` (delimiters / `preamble`)
+ * apply only to `"template"`.
+ *
+ * ```ts
+ * const grammar = gadGrammarFor(sourceType);
+ * const html = Prism.highlight(code, grammar, sourceType);
+ * ```
+ */
+export function gadGrammarFor(
+  sourceType: GadSourceType = "gad",
+  options: GadTemplateOptions = {},
+): Grammar {
+  switch (sourceType) {
+    case "template":
+      return gadTemplateGrammar(options);
+    case "giom":
+      return giomGrammar;
+    default:
+      return gadGrammar;
+  }
 }
 
 export {

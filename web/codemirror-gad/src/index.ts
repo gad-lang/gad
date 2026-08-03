@@ -22,6 +22,16 @@ export type { GadTemplateDelimiters } from "./template";
 export { keywords, builtins, atoms, constants } from "./keywords";
 export { gadHoverTooltip } from "./hover";
 
+/**
+ * Which Gad dialect to highlight:
+ * - `"gad"` (default): a plain `.gad` script.
+ * - `"template"`: a `.gadt` mixed template — literal text plus `{% … %}` /
+ *   `{%= … %}` tags whose bodies are tokenized as Gad.
+ * - `"giom"`: a `.giom` template — indentation-based tags, `@`-control keywords,
+ *   `+`component calls and `{= … }` interpolations, with embedded Gad.
+ */
+export type GadSourceType = "gad" | "template" | "giom";
+
 export interface GadOptions {
   /** Enable autocompletion (default true). */
   completion?: boolean;
@@ -30,68 +40,70 @@ export interface GadOptions {
   /**
    * Async diagnostics source. When provided, a linter is installed that calls
    * it (e.g. the HTTP server or the WASM module). When omitted, no linting is
-   * configured. Ignored in template mode (template text is not valid Gad).
+   * configured. Ignored for `sourceType: "template"` (template text is not valid
+   * Gad); in `"giom"` mode it applies to the embedded Gad code.
    */
   diagnose?: DiagnoseFn;
   /** Lint debounce in ms (default 300). */
   lintDelay?: number;
   /**
-   * Template (mixed) mode: highlight the source as a `.gadt` template — literal
-   * text plus `{% … %}` / `{%= … %}` tags whose bodies are tokenized as Gad.
+   * Source dialect, selecting the highlighter/handler: `"gad"` (default),
+   * `"template"` or `"giom"`. Replaces the former boolean `template` option.
    */
-  template?: boolean;
+  sourceType?: GadSourceType;
   /** Custom template tag delimiters (default `{%` / `%}`); only used when
-   * `template` is set. */
+   * `sourceType` is `"template"`. */
   delimiters?: GadTemplateDelimiters;
   /** Start in a Gad preamble (for a `.gad` file whose `# gad: mixed` directive
    * enables template mode part-way in) rather than as template text from the
-   * first byte (a `.gadt` file). Only used when `template` is set. */
+   * first byte (a `.gadt` file). Only used when `sourceType` is `"template"`. */
   preamble?: boolean;
 }
 
 /**
- * gad returns a bundled extension: the language (highlighting), optional
- * autocompletion, optional hover tooltips for builtins, and an optional async
- * linter. Set `template` for `.gadt` (mixed) files, with `delimiters` to change
- * the `{%` / `%}` tags. Autocompletion and hover work inside tags too; the
- * linter is skipped in template mode.
+ * gad returns a bundled extension: the language (highlighting) for the requested
+ * `sourceType`, optional autocompletion, optional hover tooltips for builtins,
+ * and an optional async linter. Set `sourceType: "template"` for `.gadt` (mixed)
+ * files — with `delimiters` to change the `{%` / `%}` tags — or `"giom"` for
+ * `.giom` templates. Autocompletion and hover work inside tags/interpolations
+ * too; the linter is skipped for `"template"`.
  */
 export function gad(options: GadOptions = {}): Extension {
-  const ext: Extension[] = [
-    options.template
-      ? new LanguageSupport(gadTemplateLanguage(options.delimiters, options.preamble))
-      : gadLanguageSupport(),
-  ];
+  const sourceType: GadSourceType = options.sourceType ?? "gad";
+
+  let language: Extension;
+  switch (sourceType) {
+    case "template":
+      language = new LanguageSupport(gadTemplateLanguage(options.delimiters, options.preamble));
+      break;
+    case "giom":
+      language = giomLanguageSupport();
+      break;
+    default:
+      language = gadLanguageSupport();
+  }
+
+  const ext: Extension[] = [language];
   if (options.completion !== false) ext.push(gadCompletion());
   if (options.hover !== false) ext.push(gadHoverTooltip());
-  if (options.diagnose && !options.template) ext.push(gadLinter(options.diagnose, { delay: options.lintDelay }));
+  if (options.diagnose && sourceType !== "template") {
+    ext.push(gadLinter(options.diagnose, { delay: options.lintDelay }));
+  }
   return ext;
 }
 
-export interface GiomOptions {
-  /** Enable Gad autocompletion inside `{= … }` interpolations and `~~` code
-   * blocks (default true). */
-  completion?: boolean;
-  /** Enable hover tooltips for Gad builtins inside embedded code (default true). */
-  hover?: boolean;
-  /** Async diagnostics source. When provided, a linter is installed that calls
-   * it (e.g. the HTTP server or the WASM module). */
-  diagnose?: DiagnoseFn;
-  /** Lint debounce in ms (default 300). */
-  lintDelay?: number;
-}
+/** Options for {@link giom}; a subset of {@link GadOptions} (no template-only
+ * `delimiters`/`preamble`). Equivalent to `gad({ ...options, sourceType: "giom" })`. */
+export type GiomOptions = Omit<GadOptions, "sourceType" | "delimiters" | "preamble">;
 
 /**
- * giom returns a bundled extension for `.giom` templates: the Giom language
+ * giom returns a bundled extension for `.giom` templates. It is a convenience
+ * wrapper for `gad({ ...options, sourceType: "giom" })`: the Giom language
  * (indentation-based tags, `.class`/`#id`, `[attr]` groups, `@`-control
  * keywords, `+`component calls and `{= … }` interpolations), with optional Gad
  * autocompletion, hover tooltips and async diagnostics that apply to the
  * embedded Gad code inside interpolations and `~~` blocks.
  */
 export function giom(options: GiomOptions = {}): Extension {
-  const ext: Extension[] = [giomLanguageSupport()];
-  if (options.completion !== false) ext.push(gadCompletion());
-  if (options.hover !== false) ext.push(gadHoverTooltip());
-  if (options.diagnose) ext.push(gadLinter(options.diagnose, { delay: options.lintDelay }));
-  return ext;
+  return gad({ ...options, sourceType: "giom" });
 }

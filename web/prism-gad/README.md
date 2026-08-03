@@ -16,6 +16,26 @@ It covers comments, the string/heredoc/bytes forms, `/regex/` literals,
 keywords, atoms, builtins, `@`-prefixed specials, numbers and operators. Token
 colors are supplied by your Prism theme (or your own `.token.*` CSS).
 
+## Source type (`gad` / `template` / `giom`)
+
+`gadGrammarFor(sourceType, options?)` returns the grammar for a dialect from a
+single value — `"gad"` (default), `"template"` (`.gadt`) or `"giom"` (`.giom`) —
+the analog of codemirror-gad's `gad({ sourceType })`. `options` (delimiters /
+`preamble`) apply only to `"template"`. `registerGad(Prism)` must run first (the
+template and giom grammars embed the Gad grammar).
+
+```ts
+import { registerGad, gadGrammarFor } from "@gad-lang/prism-gad";
+
+registerGad(Prism);
+const grammar = gadGrammarFor(sourceType);        // "gad" | "template" | "giom"
+const html = Prism.highlight(code, grammar, sourceType);
+```
+
+The dedicated `registerGiom(Prism)` / `registerGadTemplate(Prism, delims?)`
+still install `Prism.languages.giom` / `Prism.languages.gadt` for consumers that
+prefer named languages.
+
 ## Templates (`.gadt`)
 
 `registerGadTemplate(Prism, delims?)` installs a `gadt` grammar for Gad template
@@ -58,14 +78,15 @@ For an interactive editor with autocompletion and live diagnostics, use
 
 ## Demo
 
-A standalone highlighting demo lives in [`example/`](example), with three tabs —
-a plain `.gad` script, a `.gadt` template, and a `# gad: mixed` `.gad` file
-(routed to the template grammar via `detectGadTemplate`):
+A standalone highlighting demo lives in [`example/`](example). Its sidebar is a
+tree of the repository `samples/` directory built from the filesystem at startup;
+clicking a `.gad` / `.gadt` / `.giom` file highlights it with the grammar chosen
+by `gadGrammarFor(sourceType)`. The dev server (`example/serve.ts`) reads the
+manifest and each file's contents from disk on demand — nothing is bundled in.
 
 ```sh
 bun install
-bun run demo        # serves example/index.html
-# or: bun run demo:build   # writes a static bundle to example/dist
+bun run demo        # bun ./example/serve.ts — bundles the app and serves samples/
 ```
 
 ## Publishing
