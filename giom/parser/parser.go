@@ -125,10 +125,9 @@ func (p *Parser) ParseFile() (_ *giomnode.File, err error) {
 // parseStmt dispatches to the appropriate parse function based on the current token.
 func (p *Parser) parseStmt() gnode.Stmt {
 	// A held doc comment (see pendingDoc) attaches only to an immediately
-	// following @comp/@func. Anything else — a blank line, another statement, EOF
-	// — breaks the attachment, so flush it as a file-level comment.
-	if p.pendingDoc != nil &&
-		p.Token.Token != giomtoken.Comp && p.Token.Token != giomtoken.Func {
+	// following documentable declaration. Anything else — a blank line, another
+	// statement, EOF — breaks the attachment, so flush it as a file-level comment.
+	if p.pendingDoc != nil && !isDocTarget(p.Token.Token) {
 		c := p.pendingDoc
 		p.pendingDoc = nil
 		return c
@@ -171,13 +170,33 @@ func (p *Parser) parseStmt() gnode.Stmt {
 	case giomtoken.Global:
 		return p.parseGlobal()
 	case giomtoken.Param:
-		return p.parseParam()
+		doc := p.takeDoc()
+		d := p.parseParam()
+		if d != nil {
+			d.Doc = doc
+		}
+		return d
 	case giomtoken.Var:
-		return p.parseVar()
+		doc := p.takeDoc()
+		d := p.parseVar()
+		if d != nil {
+			d.Doc = doc
+		}
+		return d
 	case giomtoken.Const:
-		return p.parseConst()
+		doc := p.takeDoc()
+		d := p.parseConst()
+		if d != nil {
+			d.Doc = doc
+		}
+		return d
 	case giomtoken.Enum:
-		return p.parseEnum()
+		doc := p.takeDoc()
+		d := p.parseEnum()
+		if d != nil {
+			d.Doc = doc
+		}
+		return d
 	case giomtoken.Func:
 		// Take the held doc before parsing the body so nested body statements do
 		// not see (and flush) it.
@@ -254,6 +273,18 @@ func (p *Parser) parseDoctype() *giomnode.DoctypeStmt {
 		Value:   value,
 	}
 	return d
+}
+
+// isDocTarget reports whether a doc comment may attach to a statement starting
+// with tok: the documentable declarations (@comp, @func, @param, @var, @const,
+// @enum).
+func isDocTarget(tok token.Token) bool {
+	switch tok {
+	case giomtoken.Comp, giomtoken.Func, giomtoken.Param,
+		giomtoken.Var, giomtoken.Const, giomtoken.Enum:
+		return true
+	}
+	return false
 }
 
 // takeDoc returns the text of the pending doc comment (see pendingDoc) and

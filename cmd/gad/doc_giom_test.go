@@ -47,3 +47,26 @@ func TestGiomDoc(t *testing.T) {
 		t.Fatalf("missing data-source-pos for label:\n%s", md)
 	}
 }
+
+// TestGiomDocDeclarations verifies @param/@const/@var/@enum are documented too.
+func TestGiomDocDeclarations(t *testing.T) {
+	src := []byte("/** Config. */\n@param (title; theme=\"light\")\n\n" +
+		"/** Version string. */\n@const Version = \"1.0\"\n\n" +
+		"/** Counter. */\n@var (count = 0)\n\n" +
+		"/** Permissions. */\n@enum Perm (Read, Write)\n")
+
+	md, err := (&DocGenerator{NoTest: true}).FromContent("cfg.giom", src)
+	if err != nil {
+		t.Fatalf("FromContent: %v", err)
+	}
+	for _, want := range []string{
+		"## Parameters", "Config.", `(title; theme="light")`,
+		"## Constants", "Version string.", "Version",
+		"## Variables", "Counter.", "count",
+		"## Enums", "Permissions.", "Perm",
+	} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("doc missing %q:\n%s", want, md)
+		}
+	}
+}

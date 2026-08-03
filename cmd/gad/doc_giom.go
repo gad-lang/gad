@@ -6,6 +6,7 @@ import (
 
 	giomnode "github.com/gad-lang/gad/giom/node"
 	giomparser "github.com/gad-lang/gad/giom/parser"
+	gnode "github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
 )
 
@@ -32,20 +33,60 @@ func giomDoc(path string, src []byte) (string, error) {
 		b.WriteString("\n" + prose + "\n")
 	}
 
-	// Document the top-level API in source order: components and functions.
-	var comps, funcs []giomDocEntry
+	// Document the top-level API: components, functions, parameters, constants,
+	// variables and enums.
+	var comps, funcs, params, consts, vars, enums []giomDocEntry
 	for _, stmt := range file.Stmts {
 		switch d := stmt.(type) {
 		case *giomnode.CompDecl:
 			comps = append(comps, giomEntry(f, "+"+d.Name, giomParams(d.ParamsRaw), d.Doc, d.Pos()))
 		case *giomnode.FuncDecl:
 			funcs = append(funcs, giomEntry(f, d.Name, giomParams(d.ParamsRaw), d.Doc, d.Pos()))
+		case *giomnode.ParamStmt:
+			params = append(params, giomEntry(f, "@param", giomDeclSig(d.Decl, "param"), d.Doc, d.Pos()))
+		case *giomnode.ConstStmt:
+			consts = append(consts, giomEntry(f, "@const", giomVarSig(d.Decls), d.Doc, d.Pos()))
+		case *giomnode.VarStmt:
+			vars = append(vars, giomEntry(f, "@var", giomVarSig(d.Decls), d.Doc, d.Pos()))
+		case *giomnode.EnumStmt:
+			enums = append(enums, giomEntry(f, d.Name, "", d.Doc, d.Pos()))
 		}
 	}
 
 	giomSection(&b, "Components", comps)
 	giomSection(&b, "Functions", funcs)
+	giomSection(&b, "Parameters", params)
+	giomSection(&b, "Constants", consts)
+	giomSection(&b, "Variables", vars)
+	giomSection(&b, "Enums", enums)
 	return b.String(), nil
+}
+
+// giomDeclSig renders a gad GenDecl's signature (e.g. `param (a, b; c=1)`),
+// stripping the leading keyword so it reads as a parenthesized parameter list.
+func giomDeclSig(decl *gnode.GenDecl, keyword string) string {
+	if decl == nil {
+		return ""
+	}
+	s := strings.TrimSpace(decl.String())
+	s = strings.TrimSpace(strings.TrimPrefix(s, keyword))
+	return s
+}
+
+// giomVarSig renders a `name = init` list for @var/@const declarations.
+func giomVarSig(decls []giomnode.VarDecl) string {
+	var parts []string
+	for _, d := range decls {
+		if d.Init != nil {
+			parts = append(parts, d.Name+" = "+d.Init.String())
+		} else {
+			parts = append(parts, d.Name)
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "(" + strings.Join(parts, ", ") + ")"
 }
 
 // giomDocEntry is one documented giom symbol.

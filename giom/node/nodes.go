@@ -687,6 +687,9 @@ type VarStmt struct {
 	NodeEnd source.Pos
 	Decl    *gnode.GenDecl
 	Decls   []VarDecl
+	// Doc is the text of a `/** … */` doc comment immediately preceding the
+	// declaration, or "".
+	Doc string
 }
 
 func (s *VarStmt) Pos() source.Pos { return s.NodePos }
@@ -722,6 +725,9 @@ type ConstStmt struct {
 	NodeEnd source.Pos
 	Decl    *gnode.GenDecl
 	Decls   []VarDecl
+	// Doc is the text of a `/** … */` doc comment immediately preceding the
+	// declaration, or "".
+	Doc string
 }
 
 func (s *ConstStmt) Pos() source.Pos { return s.NodePos }
@@ -782,6 +788,9 @@ type ParamStmt struct {
 	// `*rest`, named after `;`, and named-variadic `**named`), parsed from the
 	// directive body.
 	Decl *gnode.GenDecl
+	// Doc is the text of a `/** … */` doc comment immediately preceding the
+	// declaration, or "".
+	Doc string
 }
 
 func (s *ParamStmt) Pos() source.Pos { return s.NodePos }
@@ -806,6 +815,9 @@ type EnumStmt struct {
 	// Decl is the fully-formed Gad enum statement (`enum Name { … }`), parsed
 	// from the directive body.
 	Decl *gnode.EnumStmt
+	// Doc is the text of a `/** … */` doc comment immediately preceding the
+	// declaration, or "".
+	Doc string
 }
 
 func (s *EnumStmt) Pos() source.Pos { return s.NodePos }
