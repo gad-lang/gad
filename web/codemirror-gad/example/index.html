@@ -12,31 +12,39 @@
         padding: 0 1rem;
       }
       h1 { font-size: 1.25rem; }
-      #tabs { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; }
-      #tabs button {
-        font: inherit;
-        padding: 0.3rem 0.8rem;
-        border: 1px solid #ccc;
-        border-radius: 6px;
-        background: #f6f6f6;
-        cursor: pointer;
+      #layout { display: grid; grid-template-columns: 16rem 1fr; gap: 1rem; align-items: start; }
+      #tree {
+        border: 1px solid #ddd; border-radius: 8px; padding: 0.5rem;
+        max-height: 34rem; overflow: auto; font-size: 13px;
       }
-      #tabs button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+      #tree details { margin-left: 0.25rem; }
+      #tree summary { cursor: pointer; color: #555; padding: 0.1rem 0; user-select: none; }
+      #tree .tree-children { margin-left: 0.75rem; border-left: 1px solid #eee; padding-left: 0.4rem; }
+      #tree button.file {
+        display: block; width: 100%; text-align: left; font: inherit;
+        padding: 0.15rem 0.4rem; border: 0; border-radius: 5px;
+        background: transparent; cursor: pointer; color: #222;
+      }
+      #tree button.file:hover { background: #f0f0f0; }
+      #tree button.file.active { background: #2563eb; color: #fff; }
       #editor { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
-      .cm-editor { height: 30rem; }
+      .cm-editor { height: 34rem; }
     </style>
   </head>
   <body>
     <h1>codemirror-gad — Gad editor</h1>
     <p>
       A CodeMirror 6 editor with <code>@gad-lang/codemirror-gad</code>:
-      highlighting, autocompletion and bracket matching. The tabs show a plain
-      <code>.gad</code> script, a <code>.gadt</code> template, and a
-      <code>.gad</code> file that switches to template mode with
-      <code># gad: mixed</code>. Serve with <code>bun run demo</code>.
+      highlighting, autocompletion and bracket matching. The sidebar is a tree of
+      the repository <code>samples/</code> directory; click a
+      <code>.gad</code>&nbsp;/&nbsp;<code>.gadt</code>&nbsp;/&nbsp;<code>.giom</code>
+      file to open it with the matching <code>sourceType</code>. Serve with
+      <code>bun run demo</code>.
     </p>
-    <div id="tabs"></div>
-    <div id="editor"></div>
+    <div id="layout">
+      <aside id="tree"></aside>
+      <div id="editor"></div>
+    </div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

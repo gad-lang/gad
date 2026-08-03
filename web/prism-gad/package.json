@@ -41,8 +41,7 @@
     "clean": "rm -rf dist",
     "prepublishOnly": "bun run clean && bun run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "demo": "bun ./example/index.html",
-    "demo:build": "bun build ./example/index.html --outdir ./example/dist"
+    "demo": "bun ./example/serve.ts"
   },
   "peerDependencies": {
     "prismjs": "^1.29.0"

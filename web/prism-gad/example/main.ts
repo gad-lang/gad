@@ -1,84 +1,101 @@
-// Demo: static highlighting with PrismJS and @gad-lang/prism-gad, switchable
-// between a plain `.gad` script, a `.gadt` template, and a `.gad` file that
-// turns on template mode with a `# gad: mixed` directive (routed via
-// detectGadTemplate). Bundle/serve with `bun run demo`.
+// Demo: static highlighting with PrismJS and @gad-lang/prism-gad. The sidebar is
+// a tree of the repository `samples/` directory (.gad / .gadt / .giom); clicking
+// a file highlights it with the grammar chosen by `gadGrammarFor(sourceType)`.
+// The tree and file contents are read from the filesystem by the dev server
+// (see serve.ts). Serve with `bun run demo`.
 import Prism from "prismjs";
-import { registerGad, registerGadTemplate, detectGadTemplate } from "../src/index";
+import { registerGad, registerGiom, gadGrammarFor, type GadSourceType } from "../src/index";
 
-registerGad(Prism); // Prism.languages.gad
-registerGadTemplate(Prism); // Prism.languages.gadt
+registerGad(Prism); // the embedded Gad grammar (required by template & giom)
+registerGiom(Prism); // Prism.languages.giom
 
-// --- the three example sources ---------------------------------------------
-const GAD = `# A plain .gad script.
-const Pi = 3.14159
-name := "gad"
-
-func area {
-    (r float)          => Pi * r * r
-    (w float, h float) => w * h
-}
-met area(side int) => side * side
-
-Stringer := meti { () <str> }
-met ~area($old, side int) => $old(side) + 1
-func apply(cb met<(int) <int>>, v int) => cb(v)
-x := 5 :: int :: any
-
-for i in 0..10 {
-    if i % 2 == 0 { println("even", i) }
-}
-`;
-
-const GADT = `<!-- A .gadt template: literal text with {% %} / {%= %} tags. -->
-<ul>
-{% for i, name in ["ann", "bob", "cy"] %}
-  <li>{%= i + 1 %}. {%= name.upper() %}</li>
-{% end %}
-</ul>
-`;
-
-const MIXED = `# gad: mixed
-title := "Report"
-items := ["cpu", "mem", "disk"]
-<h1>{%= title %}</h1>
-<ul>
-{% for it in items %}  <li>{%= it %}</li>
-{% end %}
-</ul>
-`;
-
-// A `.gadt` file is always a template; a `.gad` file uses detectGadTemplate to
-// choose (a `# gad: mixed` directive routes it to the template grammar).
-const examples: { name: string; source: string; lang: string }[] = [
-  { name: ".gad", source: GAD, lang: langFor(GAD, false) },
-  { name: ".gadt", source: GADT, lang: "gadt" },
-  { name: ".gad (mixed)", source: MIXED, lang: langFor(MIXED, false) },
-];
-
-function langFor(source: string, isGadtFile: boolean): string {
-  if (isGadtFile) return "gadt";
-  return detectGadTemplate(source).mixed ? "gadt" : "gad";
+// Sample files are read from the filesystem by the dev server (see serve.ts):
+// the manifest lists them, and each file's contents are fetched on demand.
+async function fetchManifest(): Promise<string[]> {
+  const res = await fetch("./samples/manifest.json");
+  return res.ok ? ((await res.json()) as string[]) : [];
 }
 
-// --- render tabs + a highlighted <pre> -------------------------------------
-const tabs = document.getElementById("tabs")!;
+async function fetchSample(path: string): Promise<string> {
+  const res = await fetch("./samples/" + path);
+  return res.ok ? await res.text() : `// failed to load ${path}`;
+}
+
+// sourceTypeFor picks the grammar dialect from a sample's extension.
+function sourceTypeFor(path: string): GadSourceType {
+  if (path.endsWith(".giom")) return "giom";
+  if (path.endsWith(".gadt")) return "template";
+  return "gad";
+}
+
+// --- output ----------------------------------------------------------------
 const out = document.getElementById("out")!;
 
-function render(ex: { source: string; lang: string }): void {
-  const grammar = Prism.languages[ex.lang];
-  const html = Prism.highlight(ex.source, grammar, ex.lang);
-  out.innerHTML = `<pre class="language-${ex.lang}"><code>${html}</code></pre>`;
+async function render(path: string): Promise<void> {
+  const source = await fetchSample(path);
+  const sourceType = sourceTypeFor(path);
+  const grammar = gadGrammarFor(sourceType);
+  const lang = sourceType === "template" ? "gadt" : sourceType; // language- class for the theme
+  const code = Prism.highlight(source, grammar, sourceType);
+  out.innerHTML = `<pre class="language-${lang}"><code class="language-${lang}">${code}</code></pre>`;
 }
 
-for (const ex of examples) {
-  const btn = document.createElement("button");
-  btn.textContent = ex.name;
-  btn.onclick = () => {
-    for (const b of tabs.children) b.classList.remove("active");
-    btn.classList.add("active");
-    render(ex);
-  };
-  tabs.appendChild(btn);
+// --- sample tree -----------------------------------------------------------
+interface TreeNode {
+  dirs: Map<string, TreeNode>;
+  files: string[];
 }
-(tabs.firstElementChild as HTMLButtonElement).classList.add("active");
-render(examples[0]);
+
+function buildTree(paths: string[]): TreeNode {
+  const root: TreeNode = { dirs: new Map(), files: [] };
+  for (const path of paths) {
+    const parts = path.split("/");
+    let node = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const dir = parts[i];
+      if (!node.dirs.has(dir)) node.dirs.set(dir, { dirs: new Map(), files: [] });
+      node = node.dirs.get(dir)!;
+    }
+    node.files.push(path);
+  }
+  return root;
+}
+
+let activeButton: HTMLButtonElement | undefined;
+
+function renderTree(node: TreeNode, container: HTMLElement): void {
+  for (const [dir, child] of [...node.dirs.entries()].sort()) {
+    const details = document.createElement("details");
+    details.open = true;
+    const summary = document.createElement("summary");
+    summary.textContent = dir + "/";
+    details.appendChild(summary);
+    const sub = document.createElement("div");
+    sub.className = "tree-children";
+    renderTree(child, sub);
+    details.appendChild(sub);
+    container.appendChild(details);
+  }
+  for (const path of node.files.sort()) {
+    const btn = document.createElement("button");
+    btn.className = "file";
+    btn.textContent = path.split("/").pop()!;
+    btn.onclick = () => {
+      activeButton?.classList.remove("active");
+      btn.classList.add("active");
+      activeButton = btn;
+      render(path);
+    };
+    container.appendChild(btn);
+  }
+}
+
+const treeEl = document.getElementById("tree")!;
+
+// Build the tree from the filesystem manifest at startup, then highlight the
+// first file by default.
+fetchManifest().then((paths) => {
+  paths.sort();
+  renderTree(buildTree(paths), treeEl);
+  treeEl.querySelector<HTMLButtonElement>("button.file")?.click();
+});
