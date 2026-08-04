@@ -421,7 +421,11 @@ func Run(src string) RunResult { return RunSource(src, "gad") }
 // "gadTemplate"/"template", or "gad"), capturing stdout/stderr and the return
 // value. A giom `@main` template returns its rendered tree as a giom.Element,
 // which is written to stdout so the output panel shows the HTML.
-func RunSource(src, sourceType string) RunResult {
+func RunSource(src, sourceType string) RunResult { return RunSourceArgs(src, sourceType, nil) }
+
+// RunSourceArgs is RunSource with command-line arguments passed to the script
+// (reachable via its top-level `param` — the same convention `gad run` uses).
+func RunSourceArgs(src, sourceType string, cmdArgs []string) RunResult {
 	cr, builtins, err := compileSource(src, sourceType)
 	if err != nil {
 		return RunResult{OK: false, Diagnostics: errorDiagnostics(err)}
@@ -434,7 +438,11 @@ func RunSource(src, sourceType string) RunResult {
 		stderr.WriteByte('\n')
 	}
 	vm := gad.NewVM(builtins.Build(), cr.Bytecode).SetRecover(true)
-	ret, runErr := vm.RunOpts(&gad.RunOpts{StdOut: &stdout, StdErr: &stderr})
+	runOpts := &gad.RunOpts{StdOut: &stdout, StdErr: &stderr}
+	if len(cmdArgs) > 0 {
+		runOpts.Args, runOpts.NamedArgs = gad.ParseArgsToRunOpts(cmdArgs)
+	}
+	ret, runErr := vm.RunOpts(runOpts)
 	res := RunResult{
 		OK:     runErr == nil,
 		Stdout: stdout.String(),

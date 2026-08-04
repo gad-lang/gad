@@ -5,6 +5,7 @@
     "moduleResolution": "Bundler",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "jsx": "preserve",
+    "jsxImportSource": "vue",
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,

@@ -901,9 +901,27 @@ function setupDefaultLayout(api: DockviewApi) {
 // ---------------------------------------------------------------------------
 
 /** The multi-file React IDE served by `gad ide`. */
-export function Ide({ workspace, api = httpIdeApi }: { workspace: Workspace; api?: IdeApi }) {
+export function Ide({
+  workspace,
+  api = httpIdeApi,
+  layoutConfig,
+  onLayoutConfigChange,
+}: {
+  workspace: Workspace;
+  api?: IdeApi;
+  /** Initial dockview layout to restore (overrides the config's saved panels). */
+  layoutConfig?: unknown;
+  /** Called with the serialized dockview layout whenever it changes, so the host
+   * can persist it (the React analogue of the Vue `layoutConfig` v-model). */
+  onLayoutConfigChange?: (layout: unknown) => void;
+}) {
   const [theme, toggleTheme] = useTheme();
   const dark = theme === "dark";
+  // Refs so the once-fired dockview callbacks read the latest prop values.
+  const layoutConfigRef = useRef(layoutConfig);
+  layoutConfigRef.current = layoutConfig;
+  const onLayoutConfigChangeRef = useRef(onLayoutConfigChange);
+  onLayoutConfigChangeRef.current = onLayoutConfigChange;
 
   const [tree, setTree] = useState<TreeNode | null>(null);
   const [showHidden, setShowHidden] = useState(false);
@@ -1449,6 +1467,8 @@ export function Ide({ workspace, api = httpIdeApi }: { workspace: Workspace; api
   const saveLayout = useCallback((dv: DockviewApi) => {
     if (suppressSaveRef.current || hiddenPanelsRef.current.length > 0) return;
     const layout = captureLayout(dv);
+    // Notify the host (the layoutConfig callback) so it can persist the layout.
+    onLayoutConfigChangeRef.current?.(layout);
     setConfig((c) => {
       const ide = { ...((c.ide as Record<string, unknown>) || {}), panels: layout };
       const next = { ...c, ide };
@@ -1623,7 +1643,8 @@ export function Ide({ workspace, api = httpIdeApi }: { workspace: Workspace; api
     dockviewApiRef.current = api;
 
     const ideConfig = configRef.current?.ide as Record<string, unknown> | undefined;
-    const saved = ideConfig?.panels;
+    // The explicit layoutConfig prop wins over the config's saved panels.
+    const saved = layoutConfigRef.current ?? ideConfig?.panels;
     if (saved) {
       try { api.fromJSON(restoreLayout(saved)); }
       catch { setupDefaultLayout(api); }

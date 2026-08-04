@@ -156,18 +156,16 @@ func (m *DebugManager) Start(req DebugStartRequest) DebugResponse {
 	vm := gad.NewVM(builtins.Build(), cr.Bytecode).SetRecover(true)
 	vm.SetDebugger(eng)
 
-	args := gad.Args{}
+	// Parse args into positional + named values for the script's `param (…)`
+	// (typed coercion included), the same as a plain run.
+	runOpts := &gad.RunOpts{StdOut: out, StdErr: errBuf}
 	if len(req.Args) > 0 {
-		arr := make(gad.Array, len(req.Args))
-		for i, a := range req.Args {
-			arr[i] = gad.Str(a)
-		}
-		args = append(args, arr)
+		runOpts.Args, runOpts.NamedArgs = gad.ParseArgsToRunOpts(req.Args)
 	}
 
 	sess := &debugSession{eng: eng, done: make(chan debugRunResult, 1), out: out, err: errBuf}
 	go func() {
-		ret, rerr := vm.RunOpts(&gad.RunOpts{Args: args, StdOut: out, StdErr: errBuf})
+		ret, rerr := vm.RunOpts(runOpts)
 		res := ""
 		if ret != nil && ret != gad.Nil {
 			res = ret.ToString()

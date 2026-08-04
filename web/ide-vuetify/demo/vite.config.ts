@@ -1,12 +1,13 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import vueJsx from "@vitejs/plugin-vue-jsx";
 import { fileURLToPath } from "node:url";
 
 // Server-less demo for @gad-lang/ide-vuetify. The sibling workspace packages are
 // resolved from their TypeScript source (no prior build needed for dev), and the
 // single-instance-sensitive libraries are deduped to this app's copy.
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), vueJsx()],
   resolve: {
     alias: {
       "@gad-lang/ide-vuetify": fileURLToPath(new URL("../src/index.ts", import.meta.url)),

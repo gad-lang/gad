@@ -25,7 +25,6 @@ import (
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
-	"github.com/gad-lang/gad/runehelper"
 	"github.com/gad-lang/gad/stdlib/helper"
 	cc "github.com/moisespsena-go/command-context"
 	"github.com/peterh/liner"
@@ -814,37 +813,9 @@ func (s *Script) execute() error {
 	printCompileWarnings(os.Stderr, res.Warnings)
 	bc := res.Bytecode
 
-	namedArgs := make(gad.Dict)
-	args := make(gad.Array, 0)
-
-	if numArgs := len(s.args); numArgs > 0 {
-		var newArgs []gad.Object
-	args:
-		for i := 0; i < numArgs; i++ {
-			arg := s.args[i]
-			if strings.HasPrefix(arg, "--") && len(arg) > 2 {
-				arg := []rune(arg[2:])
-				lastIndex := len(arg) - 1
-				for i := 0; i <= lastIndex; i++ {
-					if arg[i] == '=' {
-						namedArgs[string(arg[:i])] = gad.Str(arg[i+1:])
-						continue args
-					} else if runehelper.IsIdentifier(arg[i]) {
-						if i == lastIndex {
-							namedArgs[string(arg)] = gad.Yes
-						}
-					} else {
-						continue args
-					}
-				}
-				if i+1 < numArgs {
-					continue
-				}
-			}
-			newArgs = append(newArgs, gad.Str(arg))
-		}
-		args = newArgs
-	}
+	// Parse the trailing CLI args into positional + named values for the
+	// script's `param (…)`, with typed coercion (see gad.ParseArgs).
+	args, namedArgs := gad.ParseArgs(s.args)
 
 	if requiredParams := bc.Main.Params.RequiredCount(); requiredParams > 0 {
 		if len(args) < requiredParams {

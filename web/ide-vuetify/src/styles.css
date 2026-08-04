@@ -1,0 +1,153 @@
+/* Styles for @gad-lang/ide-vuetify (TSX components have no scoped <style>). */
+.gad-editor {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.gad-editor .cm-editor {
+  height: 100%;
+}
+
+/* Dockview panels ------------------------------------------------------- */
+.pnl {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  font-size: 13px;
+}
+.pnl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(var(--v-border-color), 0.3);
+}
+.pnl-body {
+  flex: 1;
+  overflow: auto;
+  padding: 6px 8px;
+}
+.pnl-editor {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.pnl-row {
+  display: flex;
+  align-items: center;
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pnl-row:hover {
+  background: rgba(var(--v-theme-primary), 0.08);
+}
+.pnl-row--active {
+  background: rgba(var(--v-theme-primary), 0.16);
+}
+.pnl-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pnl-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 2px 0;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+.pnl-local {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.pnl-out {
+  white-space: pre-wrap;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  margin: 4px 0;
+}
+.pnl-out--err {
+  color: rgb(var(--v-theme-error));
+}
+.pnl-return {
+  color: rgb(var(--v-theme-success, 46, 125, 50));
+  font-family: ui-monospace, monospace;
+}
+.pnl-diag {
+  color: rgb(var(--v-theme-error));
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+/* Toolbar --------------------------------------------------------------- */
+.gad-ide {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.gad-ide__toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(var(--v-border-color), 0.3);
+  flex-wrap: wrap;
+}
+.gad-ide__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+.gad-ide__actions-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.gad-ide__dock {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/* Value inspector ------------------------------------------------------- */
+.ins-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 1px 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: default;
+}
+.ins-row:hover {
+  background: rgba(var(--v-theme-primary), 0.08);
+}
+.ins-twist {
+  width: 10px;
+  color: rgb(var(--v-theme-primary));
+}
+.ins-key {
+  color: rgb(var(--v-theme-primary));
+}
+.ins-type {
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+.ins-val {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ins-load {
+  opacity: 0.6;
+}
+.gad-ide__doc pre {
+  overflow-x: auto;
+}

@@ -1,0 +1,22 @@
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+.gad-main {
+  height: calc(100vh - 48px);
+}
+.gad-main > .v-main__wrap {
+  height: 100%;
+}
+.gad-theme-toggle {
+  margin-right: 12px;
+  background: transparent;
+  border: 1px solid rgba(var(--v-border-color), 0.4);
+  border-radius: 4px;
+  padding: 2px 10px;
+  cursor: pointer;
+  color: inherit;
+  font-size: 14px;
+}

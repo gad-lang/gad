@@ -153,3 +153,19 @@ func TestEvalExpr(t *testing.T) {
 		t.Fatalf("eval of undefined symbol = %+v, want an error", r)
 	}
 }
+
+// TestRunSourceArgs passes command-line arguments to a script's `param *args`.
+func TestRunSourceArgs(t *testing.T) {
+	src := "param *args\nreturn args\n"
+	r := RunSourceArgs(src, "gad", []string{"a", "b", "c"})
+	if !r.OK {
+		t.Fatalf("run failed: stderr=%q diags=%+v", r.Stderr, r.Diagnostics)
+	}
+	if !strings.Contains(r.Result, "a") || !strings.Contains(r.Result, "c") {
+		t.Fatalf("result = %q, want it to contain the args", r.Result)
+	}
+	// No args → the param list is empty.
+	if r := RunSourceArgs(src, "gad", nil); !r.OK || r.Result != "[]" {
+		t.Fatalf("no-args result = %q (ok=%v), want []", r.Result, r.OK)
+	}
+}

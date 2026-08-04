@@ -16,31 +16,59 @@ bun add @gad-lang/ide-vuetify vue vuetify @gad-lang/codemirror-gad @gad-lang/pri
 `vue`, `vuetify`, `@gad-lang/codemirror-gad` and `@gad-lang/prism-gad` are peer
 dependencies.
 
+The views are authored in **TSX** (`defineComponent` + JSX), not `.vue` SFCs, so
+the whole package — panels, controller and the `IdeApi` contract — is fully
+typed. The panels are laid out with **dockview-vue** (resizable, movable,
+dockable, tabbable).
+
 ## Usage
 
-```vue
-<script setup lang="ts">
-import { GadIde, httpIdeApi, type Workspace } from "@gad-lang/ide-vuetify";
+```tsx
+import { defineComponent, ref, onMounted } from "vue";
+import { GadIde, httpIdeApi, type SerializedDockview, type Workspace } from "@gad-lang/ide-vuetify";
+
+// Import the stylesheets once in the host app:
 import "@gad-lang/ide-vuetify/style.css";
+import "dockview-core/dist/styles/dockview.css";
+import "vuetify/styles";
 
-const workspace: Workspace = await httpIdeApi.workspace();
-</script>
+export default defineComponent(() => {
+  const workspace = ref<Workspace>();
+  const layout = ref<SerializedDockview | null>(null);   // v-model:layoutConfig
+  const config = ref<Record<string, unknown>>({});       // v-model:config
+  onMounted(async () => (workspace.value = await httpIdeApi.workspace()));
 
-<template>
-  <GadIde :api="httpIdeApi" :workspace="workspace" :dark="true" />
-</template>
+  return () =>
+    workspace.value && (
+      <GadIde
+        api={httpIdeApi}
+        workspace={workspace.value}
+        dark
+        layoutConfig={layout.value}
+        {...{ "onUpdate:layoutConfig": (v: SerializedDockview) => (layout.value = v) }}
+        config={config.value}
+        {...{ "onUpdate:config": (v: Record<string, unknown>) => (config.value = v) }}
+      />
+    );
+});
 ```
 
 - **`api`** — any `IdeApi` implementation. `httpIdeApi` talks to a `gad ide`
   server; pass a fully in-browser one (WASM + LocalStorage) for a server-less IDE
   (see [`demo/`](./demo)).
 - **`workspace`** — the initial `{ root, name, openFile }`.
-- **`dark`** — light/dark editor theme.
+- **`dark`** — light/dark editor + dockview theme.
 - **`onReset`** — optional callback; when given, a **Reset** button appears
   (restore a backend's pristine state).
+- **`v-model:layoutConfig`** — the dockview layout (its `toJSON()` shape). Bind it
+  to persist and restore the panel arrangement (the demo stores it in
+  LocalStorage).
+- **`v-model:config`** — the project settings document edited by the **Settings**
+  dialog (Panels / Formatter / Transpile / Template).
 
-The scoped component styles are extracted to `dist/style.css`; import it once as
-shown above.
+Import the component styles (`@gad-lang/ide-vuetify/style.css`), the dockview
+theme (`dockview-core/dist/styles/dockview.css`) and Vuetify's styles once in the
+host app.
 
 ## Demo
 

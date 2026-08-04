@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import vueJsx from "@vitejs/plugin-vue-jsx";
 import { fileURLToPath } from "node:url";
 
 // Library build for @gad-lang/ide-vuetify. Vue, Vuetify, the CodeMirror packages
@@ -7,9 +8,10 @@ import { fileURLToPath } from "node:url";
 // app), so the bundle ships only this package's own code.
 const external = [
   "vue",
-  "vuetify",
+  /^vuetify/,
   "@gad-lang/codemirror-gad",
   "@gad-lang/prism-gad",
+  /^dockview/,
   /^@codemirror\//,
   /^@lezer\//,
   "codemirror",
@@ -18,7 +20,7 @@ const external = [
 ];
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), vueJsx()],
   build: {
     lib: {
       entry: fileURLToPath(new URL("./src/index.ts", import.meta.url)),
