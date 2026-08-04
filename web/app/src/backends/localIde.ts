@@ -149,7 +149,7 @@ export const localIdeApi: IdeApi = {
     saveStdout?: string;
     saveStderr?: string;
     combine?: boolean;
-  }) => sharedClient().run(req.source ?? fs.read(req.path ?? "") ?? "", dialectOf(req.path)),
+  }) => sharedClient().run(req.source ?? fs.read(req.path ?? "") ?? "", dialectOf(req.path), req.args ?? []),
   dbgStart: (req: {
     source: string;
     breakpoints: number[];

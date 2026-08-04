@@ -159,7 +159,7 @@ function FormatView({ fmt }: { fmt: FormatResult }) {
   if (!fmt.ok) {
     return (
       <div className="diags">
-        {fmt.diagnostics.map((d, i) => (
+        {(fmt.diagnostics ?? []).map((d, i) => (
           <div className="diag" key={i}>
             {d.line}:{d.column} {d.message}
           </div>
@@ -176,7 +176,7 @@ function RunView({ run }: { run: RunResult }) {
       {run.stdout && <pre className="stdout">{run.stdout}</pre>}
       {run.stderr && <pre className="stderr">{run.stderr}</pre>}
       {run.ok && run.result && <div className="return">⇦ {run.result}</div>}
-      {run.diagnostics.map((d, i) => (
+      {(run.diagnostics ?? []).map((d, i) => (
         <div className="diag" key={i}>
           {d.line}:{d.column} {d.message}
         </div>
