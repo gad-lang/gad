@@ -46,6 +46,9 @@ export function App() {
       <header>
         <h1>Gad Playground</h1>
         <div className="controls">
+          <a className="ide-link" href="webide.html" title="Open the server-less in-browser IDE">
+            Open IDE →
+          </a>
           <button className="theme-toggle" onClick={toggleTheme} title="Toggle light/dark">
             {dark ? "☀ Light" : "☾ Dark"}
           </button>
