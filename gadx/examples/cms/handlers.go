@@ -19,7 +19,7 @@ func (a *App) index(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, err)
 		return
 	}
-	a.render(w, "index.giom", a.model("Home", []crumb{{"Home", "/"}}, gad.Dict{
+	a.render(w, "index.gadx", a.model("Home", []crumb{{"Home", "/"}}, gad.Dict{
 		"Posts": postsValue(posts),
 	}))
 }
@@ -31,7 +31,7 @@ func (a *App) page(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	a.render(w, "page.giom", a.model(p.Title, []crumb{{"Home", "/"}, {p.Title, "/pages/" + p.Slug}}, gad.Dict{
+	a.render(w, "page.gadx", a.model(p.Title, []crumb{{"Home", "/"}, {p.Title, "/pages/" + p.Slug}}, gad.Dict{
 		"Page": pageValue(p),
 	}))
 }
@@ -43,7 +43,7 @@ func (a *App) post(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	a.render(w, "post.giom", a.model(p.Title, []crumb{{"Home", "/"}, {"Posts", "/"}, {p.Title, "/posts/" + p.Slug}}, gad.Dict{
+	a.render(w, "post.gadx", a.model(p.Title, []crumb{{"Home", "/"}, {"Posts", "/"}, {p.Title, "/posts/" + p.Slug}}, gad.Dict{
 		"Post": postValue(p),
 	}))
 }
@@ -65,7 +65,7 @@ func (a *App) tagPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	totalPages := int((total + 4) / 5)
-	a.render(w, "tag.giom", a.model(tag.Name, []crumb{{"Home", "/"}, {tag.Name, "/tags/" + tag.Slug}}, gad.Dict{
+	a.render(w, "tag.gadx", a.model(tag.Name, []crumb{{"Home", "/"}, {tag.Name, "/tags/" + tag.Slug}}, gad.Dict{
 		"Tag":   tagValue(tag),
 		"Posts": postsValue(posts),
 		"Pager": gad.Dict{

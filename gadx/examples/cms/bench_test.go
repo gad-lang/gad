@@ -18,7 +18,7 @@ func BenchmarkRoutes(b *testing.B) {
 		"/posts/designing-fast-editorial-pages",
 		"/posts/sqlite-compact-cms",
 		"/posts/modern-admin-interfaces",
-		"/posts/reusable-gion-components",
+		"/posts/reusable-gadx-components",
 		"/posts/shipping-friendly-first-page",
 		"/posts/building-gallery-component",
 		"/tags/design",
@@ -49,7 +49,7 @@ func BenchmarkSequentialNavigation(b *testing.B) {
 		"/posts/designing-fast-editorial-pages",
 		"/posts/sqlite-compact-cms",
 		"/posts/modern-admin-interfaces",
-		"/posts/reusable-gion-components",
+		"/posts/reusable-gadx-components",
 		"/posts/shipping-friendly-first-page",
 		"/posts/building-gallery-component",
 		"/tags/design",
@@ -109,7 +109,7 @@ func BenchmarkPostWithRelatedContent(b *testing.B) {
 		"/posts/designing-fast-editorial-pages",
 		"/posts/sqlite-compact-cms",
 		"/posts/modern-admin-interfaces",
-		"/posts/reusable-gion-components",
+		"/posts/reusable-gadx-components",
 	}
 	b.ReportAllocs()
 	b.ResetTimer()

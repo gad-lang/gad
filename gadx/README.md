@@ -170,7 +170,7 @@ cached bytecode. Run with `go test -bench=BenchmarkColdVsWarmChart ./examples/cm
 | `/posts/designing-fast-editorial-pages` | 819,535 | 629,675 | 5,488 |
 | `/posts/sqlite-compact-cms` | 792,234 | 615,586 | 5,157 |
 | `/posts/modern-admin-interfaces` | 806,615 | 617,288 | 5,190 |
-| `/posts/reusable-gion-components` | 809,749 | 621,317 | 5,288 |
+| `/posts/reusable-gadx-components` | 809,749 | 621,317 | 5,288 |
 | `/posts/shipping-friendly-first-page` | 795,117 | 619,889 | 5,257 |
 | `/posts/building-gallery-component` | 827,598 | 633,974 | 5,588 |
 | `/tags/design` | 1,053,072 | 706,459 | 6,943 |

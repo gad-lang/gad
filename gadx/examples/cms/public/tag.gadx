@@ -1,4 +1,4 @@
-@import { page_wrapper, hero, post_card, pager } from "components.giom"
+@import { page_wrapper, hero, post_card, pager } from "components.gadx"
 
 @main
     +page_wrapper("Posts tagged " + Model.Tag.Name)

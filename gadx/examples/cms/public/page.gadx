@@ -1,4 +1,4 @@
-@import { page_wrapper, hero, gallery } from "components.giom"
+@import { page_wrapper, hero, gallery } from "components.gadx"
 
 @main
     +page_wrapper(Model.Page.Title)

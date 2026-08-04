@@ -18,7 +18,7 @@ func (a *App) transpilePath(srcPath string) string {
 
 func (a *App) model(title string, crumbs []crumb, values gad.Dict) gad.Dict {
 	model := gad.Dict{
-		"SiteTitle":   gad.Str("GION CMS"),
+		"SiteTitle":   gad.Str("Gadx CMS"),
 		"Title":       gad.Str(title),
 		"Menu":        gad.MustNewReflectValue(a.menuItems()),
 		"Breadcrumbs": crumbsValue(crumbs),

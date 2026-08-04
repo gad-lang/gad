@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/gad-lang/gad"
-	giom "github.com/gad-lang/gad/giom"
+	gadx "github.com/gad-lang/gad/gadx"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -30,9 +30,9 @@ func newTestApp(t testing.TB) *App {
 		PublicDir:    filepath.Join(root, "public"),
 		TranspileDir: filepath.Join(root, "public", ".transpiled"),
 	}
-	app.renderer = giom.NewRender(app.PublicDir)
+	app.renderer = gadx.NewRender(app.PublicDir)
 	app.renderer.BuiltinsFunc = func() *gad.Builtins {
-		return giom.AppendBuiltins(gad.NewBuiltins())
+		return gadx.AppendBuiltins(gad.NewBuiltins())
 	}
 	if err := db.AutoMigrate(&Page{}, &Tag{}, &Post{}, &MenuItem{}); err != nil {
 		t.Fatalf("migrate: %v", err)

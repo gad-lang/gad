@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/gad-lang/gad"
-	giom "github.com/gad-lang/gad/giom"
+	gadx "github.com/gad-lang/gad/gadx"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -25,7 +25,7 @@ func TestIndexRoute(t *testing.T) {
 	if !strings.Contains(body, "<!DOCTYPE html>") {
 		t.Error("expected DOCTYPE html")
 	}
-	if !strings.Contains(body, "GION CMS") {
+	if !strings.Contains(body, "Gadx CMS") {
 		t.Error("expected site title in response")
 	}
 }
@@ -51,7 +51,7 @@ func TestPostRoutes(t *testing.T) {
 		{"Designing fast editorial pages", "designing-fast-editorial-pages"},
 		{"SQLite is enough for a compact CMS", "sqlite-compact-cms"},
 		{"Modern admin interfaces without ceremony", "modern-admin-interfaces"},
-		{"Reusable GION components", "reusable-gion-components"},
+		{"Reusable Gadx components", "reusable-gadx-components"},
 		{"Shipping a friendly first page", "shipping-friendly-first-page"},
 		{"Building a gallery component", "building-gallery-component"},
 	}
@@ -111,7 +111,7 @@ func TestConsecutiveNavigationDoesNotError(t *testing.T) {
 		"/posts/designing-fast-editorial-pages",
 		"/posts/sqlite-compact-cms",
 		"/posts/modern-admin-interfaces",
-		"/posts/reusable-gion-components",
+		"/posts/reusable-gadx-components",
 		"/posts/shipping-friendly-first-page",
 		"/posts/building-gallery-component",
 		"/tags/design",
@@ -210,9 +210,9 @@ func TestEmptyDBDoesNotPanic(t *testing.T) {
 		PublicDir:    filepath.Join(root, "public"),
 		TranspileDir: filepath.Join(root, "public", ".transpiled"),
 	}
-	emptyApp.renderer = giom.NewRender(emptyApp.PublicDir)
+	emptyApp.renderer = gadx.NewRender(emptyApp.PublicDir)
 	emptyApp.renderer.BuiltinsFunc = func() *gad.Builtins {
-		return giom.AppendBuiltins(gad.NewBuiltins())
+		return gadx.AppendBuiltins(gad.NewBuiltins())
 	}
 	db.AutoMigrate(&Page{}, &Tag{}, &Post{}, &MenuItem{})
 	emptyApp.cleanTranspiled()

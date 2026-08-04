@@ -76,7 +76,7 @@ engine is only part of the work:
 | `GET /posts/designing-fast-editorial-pages` | 805 | 738 | −8.3% | −21.3% |
 | `GET /posts/sqlite-compact-cms` | 780 | 712 | −8.7% | −21.8% |
 | `GET /posts/modern-admin-interfaces` | 790 | 735 | ~ | −20.8% |
-| `GET /posts/reusable-gion-components` | 793 | 732 | −7.6% | −21.0% |
+| `GET /posts/reusable-gadx-components` | 793 | 732 | −7.6% | −21.0% |
 | `GET /posts/shipping-friendly-first-page` | 784 | 718 | −8.4% | −22.0% |
 | `GET /posts/building-gallery-component` | 808 | 757 | −6.2% | −21.5% |
 | `GET /tags/design` | 1,003 | 946 | −5.7% | −20.7% |
@@ -134,7 +134,7 @@ the router, the SQLite query and the render):
 | `GET /posts/designing-fast-editorial-pages` | 737 | 553,562 | 4,391 |
 | `GET /posts/sqlite-compact-cms` | 712 | 542,046 | 4,106 |
 | `GET /posts/modern-admin-interfaces` | 723 | 545,766 | 4,183 |
-| `GET /posts/reusable-gion-components` | 731 | 548,525 | 4,253 |
+| `GET /posts/reusable-gadx-components` | 731 | 548,525 | 4,253 |
 | `GET /posts/shipping-friendly-first-page` | 709 | 544,766 | 4,176 |
 | `GET /posts/building-gallery-component` | 757 | 560,866 | 4,462 |
 | `GET /tags/design` | 959 | 621,452 | 5,581 |

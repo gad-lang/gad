@@ -58,7 +58,7 @@
 @export comp page_footer()
     footer.footer
         div.container
-            | {="Powered by Go, GORM, SQLite, React, and GION/v2 · "}
+            | {="Powered by Go, GORM, SQLite, React, and Gadx/v2 · "}
             {= Model.Year}
 
 @export comp page_wrapper(title)

@@ -1,10 +1,10 @@
-# GION v2 CMS Example
+# Gadx v2 CMS Example
 
 This is a small CMS application using:
 
 - Go `net/http` backend
 - GORM with SQLite
-- GION/v2 public templates from `public/*.giom`
+- Gadx/v2 public templates from `public/*.gadx`
 - React admin dashboard at `/admin`
 
 The renderer resolves `@import` directives at load time and writes the

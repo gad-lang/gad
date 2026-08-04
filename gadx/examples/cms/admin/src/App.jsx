@@ -27,11 +27,11 @@ function App(){
   useEffect(()=>{load();},[]);
   return <div className="shell">
     <aside className="side">
-      <div className="brand">GION CMS</div>
+      <div className="brand">Gadx CMS</div>
       <div className="nav">{["overview","pages","posts","tags","menus"].map(name=><button key={name} className={tab===name?"active":""} onClick={()=>setTab(name)}>{name[0].toUpperCase()+name.slice(1)}</button>)}</div>
     </aside>
     <main className="main">
-      <section className="hero"><div><h1>Editorial control room</h1><p>Create pages, publish posts, assign tags, and wire navigation entries for the public GION/v2 site.</p></div><a className="button" href="/" target="_blank">View site</a></section>
+      <section className="hero"><div><h1>Editorial control room</h1><p>Create pages, publish posts, assign tags, and wire navigation entries for the public Gadx/v2 site.</p></div><a className="button" href="/" target="_blank">View site</a></section>
       {error && <div className="panel" style={{borderColor:"#ef4444"}}>{error}</div>}
       {tab==="overview" && <Overview dashboard={data.dashboard}/>} 
       {tab==="pages" && <Resource title="Pages" rows={data.pages} empty={emptyPage} endpoint="/api/pages" onLoad={load} renderForm={PageForm}/>} 

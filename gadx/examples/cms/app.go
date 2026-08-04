@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	giom "github.com/gad-lang/gad/giom"
+	gadx "github.com/gad-lang/gad/gadx"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -19,7 +19,7 @@ type App struct {
 	PublicDir    string
 	TranspileDir string
 
-	renderer *giom.Render
+	renderer *gadx.Render
 }
 
 func NewApp(root string) (*App, error) {
@@ -38,7 +38,7 @@ func NewApp(root string) (*App, error) {
 		Root:         root,
 		PublicDir:    filepath.Join(root, "public"),
 		TranspileDir: filepath.Join(root, "public", ".transpiled"),
-		renderer:     giom.NewRender(filepath.Join(root, "public")),
+		renderer:     gadx.NewRender(filepath.Join(root, "public")),
 	}
 	app.renderer.TemplateDelay = 1 * time.Second
 	app.renderer.TranspilePath = app.transpilePath
@@ -46,16 +46,16 @@ func NewApp(root string) (*App, error) {
 	app.renderer.OnRender(func(first bool, mainFile string, files []string, lastTime time.Time, err error) {
 		if err != nil {
 			if stderrIsTTY {
-				fmt.Fprintf(os.Stderr, "\033[31m[giom] error compiling %s: %v\033[0m\n", mainFile, err)
+				fmt.Fprintf(os.Stderr, "\033[31m[gadx] error compiling %s: %v\033[0m\n", mainFile, err)
 			} else {
-				log.Printf("[giom] error compiling %s: %v", mainFile, err)
+				log.Printf("[gadx] error compiling %s: %v", mainFile, err)
 			}
 			return
 		}
 		if first {
-			log.Printf("[giom] first render: %s", mainFile)
+			log.Printf("[gadx] first render: %s", mainFile)
 		} else {
-			log.Printf("[giom] recompile: %s (changed: %v)", mainFile, files)
+			log.Printf("[gadx] recompile: %s (changed: %v)", mainFile, files)
 		}
 	})
 	app.cleanTranspiled()

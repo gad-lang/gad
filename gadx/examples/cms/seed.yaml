@@ -2,7 +2,7 @@ pages:
   - title: "About"
     slug: about
     summary: "Who we are and how we publish."
-    body: "<p>GION CMS is a friendly demo site powered by Go, SQLite, React, and GION/v2 templates.</p>"
+    body: "<p>Gadx CMS is a friendly demo site powered by Go, SQLite, React, and Gadx/v2 templates.</p>"
     coverImage: "/seed-data/images/about-hero.jpg"
     images:
       - "/seed-data/images/about-gallery.jpg"
@@ -37,7 +37,7 @@ posts:
   - title: "Designing fast editorial pages"
     slug: designing-fast-editorial-pages
     summary: "A short guide to responsive content layouts."
-    body: "<p>Public pages use shared GION components for navigation, cards, galleries, and breadcrumbs.</p><p>Every component lives in <code>public/components.giom</code> and is imported via <code>@import</code>.</p>"
+    body: "<p>Public pages use shared Gadx components for navigation, cards, galleries, and breadcrumbs.</p><p>Every component lives in <code>public/components.gadx</code> and is imported via <code>@import</code>.</p>"
     rightBody: "<p>Keep summaries crisp and covers expressive.</p><p>Use the <code>hero</code> component to feature your best content above the fold.</p>"
     coverImage: "/seed-data/images/designing-hero.jpg"
     images:
@@ -68,11 +68,11 @@ posts:
       - "/seed-data/images/admin-gallery.jpg"
     published: true
     tags: ["Design", "Engineering"]
-  - title: "Reusable GION components"
-    slug: reusable-gion-components
+  - title: "Reusable Gadx components"
+    slug: reusable-gadx-components
     summary: "Templates import shared functions to avoid duplication."
-    body: "<p>The renderer resolves <code>@import</code> lines before compiling a public template.</p><p>Components use <code>@export comp</code> and <code>@func</code> with GION template syntax.</p>"
-    rightBody: "<p>Components live in <code>public/components.giom</code>.</p><p>Browse <code>page.giom</code>, <code>post.giom</code>, and <code>tag.giom</code> to see how they compose layouts.</p>"
+    body: "<p>The renderer resolves <code>@import</code> lines before compiling a public template.</p><p>Components use <code>@export comp</code> and <code>@func</code> with Gadx template syntax.</p>"
+    rightBody: "<p>Components live in <code>public/components.gadx</code>.</p><p>Browse <code>page.gadx</code>, <code>post.gadx</code>, and <code>tag.gadx</code> to see how they compose layouts.</p>"
     coverImage: "/seed-data/images/reusable-hero.jpg"
     images:
       - "/seed-data/images/reusable-gallery-1.jpg"
@@ -93,7 +93,7 @@ posts:
     tags: ["News"]
   - title: "Building a gallery component"
     slug: building-gallery-component
-    summary: "Learn how to create a reusable image gallery with GION."
+    summary: "Learn how to create a reusable image gallery with Gadx."
     body: "<p>The <code>gallery</code> component iterates over images and renders them in a responsive grid.</p><p>Use the <code>@for</code> directive to loop over image URLs and render cards with captions.</p>"
     rightBody: "<p>Galleries degrade gracefully on mobile via Bootstrap grid classes.</p><p>Each image card shows an overlay caption when hovered.</p>"
     coverImage: "/seed-data/images/gallery-hero.jpg"
