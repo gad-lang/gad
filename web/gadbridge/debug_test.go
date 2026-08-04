@@ -42,6 +42,62 @@ func TestDebugManager(t *testing.T) {
 	}
 }
 
+// TestDebugManagerInspect starts a session, pauses, and inspects a container
+// local — the tree-navigator flow the WASM bridge exposes as gadInspect.
+func TestDebugManagerInspect(t *testing.T) {
+	m := NewDebugManager()
+	src := "d := {a: 1, b: [10, 20]}\nreturn d\n"
+
+	r := m.Start(DebugStartRequest{Source: src, Path: "t.gad", Breakpoints: []int{2}})
+	if r.State != "stopped" {
+		t.Fatalf("start: got state=%q, want stopped", r.State)
+	}
+
+	insp, err := m.Inspect(r.Session, "d")
+	if err != nil {
+		t.Fatalf("inspect: %v", err)
+	}
+	if insp.Type != "dict" || !insp.Expandable || len(insp.Entries) != 2 {
+		t.Fatalf("inspect d = %+v, want expandable dict with 2 entries", insp)
+	}
+	// The nested array child is itself expandable, reached via ["b"].
+	var b *InspectEntry
+	for i := range insp.Entries {
+		if insp.Entries[i].Key == "b" {
+			b = &insp.Entries[i]
+		}
+	}
+	if b == nil || b.Accessor != `["b"]` || !b.Expandable {
+		t.Fatalf("dict entry b = %+v, want expandable with accessor [\"b\"]", b)
+	}
+
+	// A missing session is an error, not a panic.
+	if _, err := m.Inspect("nope", "d"); err == nil {
+		t.Fatal("inspect on unknown session: want error")
+	}
+	m.Command(r.Session, "continue")
+}
+
+// TestInspectSource inspects a value evaluated fresh (no debug session) against a
+// source prelude — the session-less path of gadInspect.
+func TestInspectSource(t *testing.T) {
+	insp, err := InspectSource("d := {a: 1, b: [10, 20]}", "d")
+	if err != nil {
+		t.Fatalf("InspectSource: %v", err)
+	}
+	if insp.Type != "dict" || !insp.Expandable || len(insp.Entries) != 2 {
+		t.Fatalf("InspectSource d = %+v, want expandable dict with 2 entries", insp)
+	}
+	// Drill into b: [10, 20] is an array with two indexed entries.
+	sub, err := InspectSource("d := {a: 1, b: [10, 20]}", `d["b"]`)
+	if err != nil {
+		t.Fatalf("InspectSource sub: %v", err)
+	}
+	if sub.Type != "array" || len(sub.Entries) != 2 || sub.Entries[0].Accessor != "[0]" {
+		t.Fatalf("InspectSource d[\"b\"] = %+v, want array of 2", sub)
+	}
+}
+
 // TestDebugManagerStopOnEntry stops before the first instruction.
 func TestDebugManagerStopOnEntry(t *testing.T) {
 	m := NewDebugManager()

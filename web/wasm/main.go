@@ -97,6 +97,26 @@ func main() {
 		return map[string]any{"ok": true}
 	}))
 
+	// gadInspect(session, expr, source) -> { ok, inspect } | { ok:false, error }
+	// tree-navigator description of expr's value: in the paused frame when session
+	// is set, else evaluated fresh with source's top-level definitions in scope.
+	js.Global().Set("gadInspect", jsonFuncN(func(args []js.Value) any {
+		session, expr := argStr(args, 0), argStr(args, 1)
+		var (
+			insp gadbridge.InspectResult
+			err  error
+		)
+		if session != "" {
+			insp, err = dbg.Inspect(session, expr)
+		} else {
+			insp, err = gadbridge.InspectSource(argStr(args, 2), expr)
+		}
+		if err != nil {
+			return map[string]any{"ok": false, "error": err.Error()}
+		}
+		return map[string]any{"ok": true, "inspect": insp}
+	}))
+
 	// Signal readiness, then block forever so the exported functions stay live.
 	js.Global().Set("gadReady", js.ValueOf(true))
 	if cb := js.Global().Get("onGadReady"); cb.Type() == js.TypeFunction {

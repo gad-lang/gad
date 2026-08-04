@@ -1,15 +1,19 @@
-<!-- GadIde — a reusable Vuetify 3 IDE for the Gad language. It renders a file
-     explorer, a CodeMirror editor and Run / Doc / Debug panels, and is
-     backend-agnostic: pass any IdeApi implementation via the `api` prop (the
-     HTTP `gad ide` client, or a fully in-browser WASM + LocalStorage backend).
-     An optional `onReset` restores a backend's pristine state (e.g. the demo). -->
+<!-- GadIde — a reusable Vuetify 3 IDE for the Gad language. Layout: a full-height
+     file explorer on the left; the editor on the right with its Run / Debug (and
+     Format / Doc) actions in the header, and the debugger step controls directly
+     below them; and three bottom panels — CALL STACK, LOCALS and STDOUT/STDERR.
+     Hovering an identifier while paused shows its live value (like `gad ide`).
+     Backend-agnostic: pass any IdeApi via the `api` prop; an optional `onReset`
+     restores a backend's pristine state. -->
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, shallowRef, watch } from "vue";
 import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import GadEditor from "./GadEditor.vue";
+import InspectorNode, { type InspectFn } from "./InspectorNode.vue";
 import { langOf } from "./codemirror";
+import type { LocalVar } from "./codemirror";
 import { renderDocMarkdown } from "./docMarkdown";
-import type { DebugResponse, DocComment, IdeApi, TreeNode, Workspace } from "./api";
+import type { DebugResponse, DocComment, IdeApi, InspectResult, TreeNode, Workspace } from "./api";
 import type { RunResult } from "./types";
 
 const props = defineProps<{
@@ -25,10 +29,6 @@ const tree = shallowRef<TreeNode | null>(null);
 const expanded = reactive(new Set<string>());
 const openPath = ref<string>(props.workspace.openFile || "");
 const source = ref<string>("");
-const dialect = computed(() => {
-  const l = langOf(openPath.value);
-  return l === "giom" ? "giom" : l === "gadt" ? "gadTemplate" : "gad";
-});
 
 interface Row {
   node: TreeNode;
@@ -50,7 +50,6 @@ const rows = computed<Row[]>(() => {
 
 async function loadTree() {
   tree.value = await props.api.tree();
-  // Auto-expand ancestors of the open file so it is visible.
   const parts = openPath.value.split("/");
   for (let i = 1; i < parts.length; i++) expanded.add(parts.slice(0, i).join("/"));
 }
@@ -59,7 +58,6 @@ async function openFile(path: string) {
   openPath.value = path;
   const { content } = await props.api.read(path);
   source.value = content;
-  panelTab.value = "run";
 }
 
 function toggleDir(path: string) {
@@ -67,7 +65,7 @@ function toggleDir(path: string) {
   else expanded.add(path);
 }
 
-// Persist edits back to the backend (debounced-ish: on every change).
+// Persist edits back to the backend on every change.
 watch(source, (v) => {
   if (openPath.value) void props.api.write(openPath.value, v);
 });
@@ -118,12 +116,10 @@ function firstFile(node: TreeNode | null): string | null {
 // --- diagnose (linter) ----------------------------------------------------
 const diagnose = (src: string): Promise<GadDiagnostic[]> => props.api.diagnose(src);
 
-// --- panels ---------------------------------------------------------------
-const panelTab = ref<"run" | "doc" | "debug">("run");
+// --- run / format / doc ---------------------------------------------------
 const busy = ref(false);
-
-// Run
 const runRes = ref<RunResult | null>(null);
+
 async function doRun() {
   busy.value = true;
   try {
@@ -143,7 +139,7 @@ async function doFormat() {
   }
 }
 
-// Doc
+const docDialog = ref(false);
 const docHtml = ref("");
 async function doDoc() {
   busy.value = true;
@@ -152,13 +148,13 @@ async function doDoc() {
     docHtml.value = docs.length
       ? docs.map((d) => `<h4>${escapeHtml(d.title || d.kind)}</h4>` + renderDocMarkdown(d.content)).join("\n")
       : `<p class="text-medium-emphasis">No documentation comments in this file.</p>`;
+    docDialog.value = true;
   } finally {
     busy.value = false;
   }
 }
 
-// Debug
-const bpText = ref("");
+// --- debugger -------------------------------------------------------------
 const session = ref<string | null>(null);
 const snap = ref<DebugResponse | null>(null);
 const dbgOutput = ref("");
@@ -167,13 +163,14 @@ const debugLine = computed(() => (snap.value?.state === "stopped" ? snap.value.l
 const debugColumn = computed(() => snap.value?.column ?? 1);
 const stopped = computed(() => snap.value?.state === "stopped");
 
-function bpLines(): number[] {
-  const fromText = bpText.value
-    .split(",")
-    .map((p) => parseInt(p.trim(), 10))
-    .filter((n) => !Number.isNaN(n));
-  return [...new Set([...breakpoints.value, ...fromText])].sort((a, b) => a - b);
-}
+// Locals of the current paused frame, keyed by name — read live by the editor's
+// hover tooltip so hovering an identifier shows its type and value.
+const localsMap = computed<Map<string, LocalVar>>(() => {
+  const m = new Map<string, LocalVar>();
+  for (const v of snap.value?.locals ?? []) m.set(v.name, v);
+  return m;
+});
+const getLocals = () => localsMap.value;
 
 function applySnap(r: DebugResponse) {
   snap.value = r;
@@ -186,12 +183,13 @@ async function dbgStart() {
   busy.value = true;
   dbgOutput.value = "";
   snap.value = null;
+  runRes.value = null;
   try {
     applySnap(
       await props.api.dbgStart({
         source: source.value,
         path: openPath.value,
-        breakpoints: bpLines(),
+        breakpoints: [...breakpoints.value].sort((a, b) => a - b),
         stopOnEntry: false,
       }),
     );
@@ -209,13 +207,37 @@ async function dbgCmd(command: "continue" | "next" | "stepIn" | "stepOut") {
   }
 }
 
-// Evaluate (debug)
+// Evaluate in the paused frame.
 const evalExpr = ref("");
 const evalOut = ref("");
 async function doEval() {
   if (!session.value || !evalExpr.value.trim()) return;
   const r = await props.api.dbgEval(session.value, evalExpr.value, true);
   evalOut.value = r.ok ? r.value ?? "" : "error: " + (r.error ?? "");
+}
+
+// --- value inspector (tree navigator) ------------------------------------
+const inspectOpen = ref(false);
+const inspectExpr = ref("");
+const inspectLabel = ref("");
+
+// inspectFn drives the InspectorNode: it evaluates expr in the paused frame when
+// a session is active, otherwise fresh against the file's top-level definitions.
+const inspectFn: InspectFn = async (expr: string): Promise<InspectResult | null> => {
+  const r = await props.api.inspect({
+    expr,
+    session: session.value ?? undefined,
+    source: source.value,
+    path: openPath.value,
+  });
+  return r.ok ? r.inspect ?? null : null;
+};
+
+function openInspect(expr: string, label: string) {
+  if (!expr.trim()) return;
+  inspectExpr.value = expr;
+  inspectLabel.value = label;
+  inspectOpen.value = true;
 }
 
 function escapeHtml(s: string): string {
@@ -233,10 +255,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="gad-ide" :class="{ 'gad-ide--dark': dark }">
-    <!-- Explorer -->
+  <div class="gad-ide">
+    <!-- Explorer (full height, left) -->
     <aside class="gad-ide__explorer">
-      <div class="gad-ide__explorer-head">
+      <div class="gad-ide__head">
         <span class="text-caption font-weight-medium">EXPLORER</span>
         <div>
           <v-btn size="x-small" variant="text" icon="mdi-file-plus-outline" title="New file" @click="newFile" />
@@ -264,10 +286,36 @@ onMounted(async () => {
       </div>
     </aside>
 
-    <!-- Editor -->
+    <!-- Editor with actions in the header right, debug controls below them -->
     <main class="gad-ide__editor-wrap">
       <div class="gad-ide__editor-head">
-        <span class="text-caption">{{ openPath || "(no file)" }}</span>
+        <span class="text-caption gad-ide__path">{{ openPath || "(no file)" }}</span>
+        <div class="gad-ide__actions">
+          <div class="gad-ide__actions-row">
+            <v-btn size="small" variant="tonal" :loading="busy" @click="doFormat">Format</v-btn>
+            <v-btn size="small" variant="tonal" :loading="busy" @click="doDoc">Doc</v-btn>
+            <v-btn size="small" color="primary" prepend-icon="mdi-play" :loading="busy" @click="doRun">Run</v-btn>
+            <v-btn size="small" color="secondary" prepend-icon="mdi-bug" :loading="busy" @click="dbgStart">
+              {{ session ? "Restart" : "Debug" }}
+            </v-btn>
+          </div>
+          <div class="gad-ide__actions-row">
+            <v-btn size="x-small" variant="text" prepend-icon="mdi-play-outline"
+                   :disabled="!stopped || busy" @click="dbgCmd('continue')">Continue</v-btn>
+            <v-btn size="x-small" variant="text" prepend-icon="mdi-debug-step-over"
+                   :disabled="!stopped || busy" @click="dbgCmd('next')">Step Over</v-btn>
+            <v-btn size="x-small" variant="text" prepend-icon="mdi-debug-step-into"
+                   :disabled="!stopped || busy" @click="dbgCmd('stepIn')">Step In</v-btn>
+            <v-btn size="x-small" variant="text" prepend-icon="mdi-debug-step-out"
+                   :disabled="!stopped || busy" @click="dbgCmd('stepOut')">Step Out</v-btn>
+            <span v-if="snap?.state === 'stopped'" class="text-caption ml-2 align-self-center">
+              stopped ({{ snap.reason }}) @ {{ snap.line }}:{{ snap.column }}
+            </span>
+            <span v-else-if="snap?.state === 'terminated'" class="text-caption ml-2 align-self-center gad-ide__return">
+              terminated — {{ snap.result || "nil" }}
+            </span>
+          </div>
+        </div>
       </div>
       <div class="gad-ide__editor">
         <GadEditor
@@ -279,132 +327,191 @@ onMounted(async () => {
           :diagnose="diagnose"
           :debug-line="debugLine"
           :debug-column="debugColumn"
+          :get-locals="getLocals"
         />
         <div v-else class="pa-4 text-medium-emphasis">Select or create a file to begin.</div>
       </div>
     </main>
 
-    <!-- Panels -->
-    <section class="gad-ide__panel">
-      <v-tabs v-model="panelTab" density="compact">
-        <v-tab value="run">Run</v-tab>
-        <v-tab value="doc">Doc</v-tab>
-        <v-tab value="debug">Debug</v-tab>
-      </v-tabs>
-      <div class="gad-ide__panel-body">
-        <!-- Run -->
-        <div v-show="panelTab === 'run'">
-          <div class="mb-2">
-            <v-btn size="small" color="primary" :loading="busy" prepend-icon="mdi-play" @click="doRun">Run</v-btn>
-            <v-btn size="small" variant="tonal" class="ml-2" :loading="busy" @click="doFormat">Format</v-btn>
+    <!-- Bottom panels: CALL STACK | LOCALS | STDOUT/STDERR -->
+    <section class="gad-ide__panels">
+      <div class="gad-ide__panel">
+        <div class="gad-ide__head"><span class="text-caption font-weight-medium">CALL STACK</span></div>
+        <div class="gad-ide__panel-body">
+          <ul class="gad-ide__list">
+            <li v-for="(f, i) in snap?.frames ?? []" :key="i">
+              {{ f.name }} <span class="text-medium-emphasis">@ {{ f.line }}:{{ f.column }}</span>
+            </li>
+            <li v-if="!snap?.frames?.length" class="text-medium-emphasis">(not paused)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="gad-ide__panel">
+        <div class="gad-ide__head"><span class="text-caption font-weight-medium">EVALUATE &amp; LOCALS</span></div>
+        <div class="gad-ide__panel-body">
+          <!-- EVALUATE — always above LOCALS -->
+          <div class="d-flex align-center" style="gap: 4px">
+            <v-text-field v-model="evalExpr" label="Evaluate" density="compact" variant="outlined" hide-details
+                          @keyup.enter="doEval" />
+            <v-btn size="small" variant="tonal" :disabled="!stopped" @click="doEval">Eval</v-btn>
+            <v-btn size="x-small" variant="text" icon="mdi-file-tree-outline" title="Inspect value"
+                   :disabled="!evalExpr.trim()" @click="openInspect(evalExpr, evalExpr)" />
           </div>
+          <pre v-if="evalOut" class="gad-ide__out">{{ evalOut }}</pre>
+
+          <!-- LOCALS -->
+          <div class="text-caption text-medium-emphasis mt-2 mb-1">LOCALS</div>
+          <ul class="gad-ide__list">
+            <li v-for="(v, i) in snap?.locals ?? []" :key="i" class="gad-ide__local">
+              <span class="gad-ide__local-text">
+                {{ v.name }} = {{ v.value }} <span class="text-medium-emphasis">({{ v.type }})</span>
+              </span>
+              <v-btn size="x-small" variant="text" icon="mdi-file-tree-outline" title="Inspect value"
+                     @click="openInspect(v.name, v.name)" />
+            </li>
+            <li v-if="!snap?.locals?.length" class="text-medium-emphasis">(none)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="gad-ide__panel">
+        <div class="gad-ide__head"><span class="text-caption font-weight-medium">STDOUT / STDERR</span></div>
+        <div class="gad-ide__panel-body">
           <template v-if="runRes">
             <pre v-if="runRes.stdout" class="gad-ide__out">{{ runRes.stdout }}</pre>
             <pre v-if="runRes.stderr" class="gad-ide__out gad-ide__out--err">{{ runRes.stderr }}</pre>
             <div v-if="runRes.ok && runRes.result" class="gad-ide__return">⇦ {{ runRes.result }}</div>
-            <div v-for="(d, i) in runRes.diagnostics" :key="i" class="gad-ide__diag">
-              {{ d.line }}:{{ d.column }} {{ d.message }}
-            </div>
+            <div v-for="(d, i) in runRes.diagnostics" :key="i" class="gad-ide__diag">{{ d.line }}:{{ d.column }} {{ d.message }}</div>
           </template>
-        </div>
-
-        <!-- Doc -->
-        <div v-show="panelTab === 'doc'">
-          <v-btn size="small" color="primary" class="mb-2" :loading="busy" @click="doDoc">Generate docs</v-btn>
-          <div class="gad-ide__doc" v-html="docHtml" />
-        </div>
-
-        <!-- Debug -->
-        <div v-show="panelTab === 'debug'">
-          <v-text-field
-            v-model="bpText"
-            label="Breakpoints (lines, e.g. 2, 5)"
-            density="compact"
-            variant="outlined"
-            hide-details
-            :disabled="!!session"
-            class="mb-2"
-          />
-          <div class="mb-2">
-            <v-btn size="small" color="primary" :loading="busy" @click="dbgStart">{{ session ? "Restart" : "Start" }}</v-btn>
-            <v-btn size="small" variant="tonal" class="ml-1" :disabled="!stopped || busy" @click="dbgCmd('continue')">Continue</v-btn>
-            <v-btn size="small" variant="tonal" class="ml-1" :disabled="!stopped || busy" @click="dbgCmd('next')">Step Over</v-btn>
-            <v-btn size="small" variant="tonal" class="ml-1" :disabled="!stopped || busy" @click="dbgCmd('stepIn')">Step In</v-btn>
-            <v-btn size="small" variant="tonal" class="ml-1" :disabled="!stopped || busy" @click="dbgCmd('stepOut')">Step Out</v-btn>
-          </div>
-
-          <template v-if="snap">
-            <div v-if="snap.state === 'stopped'" class="text-caption mb-1">
-              stopped ({{ snap.reason }}) at {{ snap.line }}:{{ snap.column }}
-            </div>
-            <div v-else-if="snap.state === 'terminated'" class="gad-ide__return mb-1">
-              terminated — returned {{ snap.result || "nil" }}
-            </div>
-            <div v-else class="gad-ide__out--err mb-1">compile error</div>
-
-            <div v-for="(d, i) in snap.diagnostics" :key="i" class="gad-ide__diag">
-              {{ d.line }}:{{ d.column }} {{ d.message }}
-            </div>
-
-            <template v-if="stopped">
-              <div class="text-caption font-weight-medium mt-2">Call stack</div>
-              <ul class="gad-ide__list">
-                <li v-for="(f, i) in snap.frames" :key="i">{{ f.name }} <span class="text-medium-emphasis">@ {{ f.line }}:{{ f.column }}</span></li>
-              </ul>
-              <div class="text-caption font-weight-medium mt-2">Locals</div>
-              <ul class="gad-ide__list">
-                <li v-for="(v, i) in snap.locals" :key="i">{{ v.name }} = {{ v.value }} <span class="text-medium-emphasis">({{ v.type }})</span></li>
-                <li v-if="!snap.locals?.length" class="text-medium-emphasis">(none)</li>
-              </ul>
-              <div class="d-flex mt-2" style="gap: 4px">
-                <v-text-field v-model="evalExpr" label="Evaluate" density="compact" variant="outlined" hide-details
-                              @keyup.enter="doEval" />
-                <v-btn size="small" variant="tonal" @click="doEval">Eval</v-btn>
-              </div>
-              <pre v-if="evalOut" class="gad-ide__out">{{ evalOut }}</pre>
-            </template>
-          </template>
-
-          <pre v-if="dbgOutput" class="gad-ide__out mt-2">{{ dbgOutput }}</pre>
+          <pre v-if="dbgOutput" class="gad-ide__out">{{ dbgOutput }}</pre>
+          <div v-for="(d, i) in snap?.diagnostics ?? []" :key="'s' + i" class="gad-ide__diag">{{ d.line }}:{{ d.column }} {{ d.message }}</div>
+          <div v-if="!runRes && !dbgOutput" class="text-medium-emphasis">Run or debug to see output.</div>
         </div>
       </div>
     </section>
+
+    <!-- Value inspector dialog (tree navigator) -->
+    <v-dialog v-model="inspectOpen" max-width="720" scrollable>
+      <v-card>
+        <v-card-title class="text-subtitle-1">Inspect — {{ inspectLabel }}</v-card-title>
+        <v-card-text class="gad-ide__inspect">
+          <InspectorNode
+            v-if="inspectOpen"
+            :key="inspectExpr"
+            :inspect="inspectFn"
+            :label="inspectLabel"
+            :expr="inspectExpr"
+            root
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="inspectOpen = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Doc dialog -->
+    <v-dialog v-model="docDialog" max-width="720" scrollable>
+      <v-card>
+        <v-card-title class="text-subtitle-1">Documentation — {{ openPath }}</v-card-title>
+        <v-card-text>
+          <div class="gad-ide__doc" v-html="docHtml" />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="docDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <style scoped>
 .gad-ide {
   display: grid;
-  grid-template-columns: 220px 1fr 340px;
+  grid-template-columns: 220px 1fr;
+  grid-template-rows: minmax(0, 1fr) 220px;
+  grid-template-areas:
+    "explorer editor"
+    "explorer panels";
   height: 100%;
   min-height: 0;
   font-size: 13px;
 }
+.gad-ide__explorer {
+  grid-area: explorer;
+  border-right: 1px solid rgba(var(--v-border-color), 0.3);
+}
+.gad-ide__editor-wrap {
+  grid-area: editor;
+}
+.gad-ide__panels {
+  grid-area: panels;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  border-top: 1px solid rgba(var(--v-border-color), 0.3);
+}
 .gad-ide__explorer,
-.gad-ide__editor-wrap,
-.gad-ide__panel {
+.gad-ide__editor-wrap {
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(var(--v-border-color), 0.3);
 }
 .gad-ide__panel {
-  border-right: none;
-  border-left: 1px solid rgba(var(--v-border-color), 0.3);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(var(--v-border-color), 0.3);
 }
-.gad-ide__explorer-head,
-.gad-ide__editor-head {
+.gad-ide__panel:last-child {
+  border-right: none;
+}
+.gad-ide__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 4px 8px;
   border-bottom: 1px solid rgba(var(--v-border-color), 0.3);
 }
-.gad-ide__tree {
+.gad-ide__editor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(var(--v-border-color), 0.3);
+}
+.gad-ide__path {
+  align-self: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gad-ide__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+.gad-ide__actions-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.gad-ide__tree,
+.gad-ide__panel-body {
   flex: 1;
   overflow: auto;
+}
+.gad-ide__tree {
   padding: 4px 0;
+}
+.gad-ide__panel-body {
+  padding: 6px 8px;
 }
 .gad-ide__row {
   display: flex;
@@ -427,11 +534,6 @@ onMounted(async () => {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-}
-.gad-ide__panel-body {
-  flex: 1;
-  overflow: auto;
-  padding: 8px;
 }
 .gad-ide__out {
   white-space: pre-wrap;
@@ -457,6 +559,21 @@ onMounted(async () => {
   margin: 2px 0;
   font-family: ui-monospace, monospace;
   font-size: 12px;
+}
+.gad-ide__local {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.gad-ide__local-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gad-ide__inspect {
+  max-height: 60vh;
+  overflow: auto;
 }
 .gad-ide__doc :deep(pre) {
   overflow-x: auto;

@@ -396,6 +396,24 @@ func EvalExpr(source, expr string, repr bool) EvalResult {
 	return out
 }
 
+// InspectSource evaluates expr with source's top-level definitions in scope (a
+// fresh VM, no debug session) and returns its tree-navigator description. It is
+// the session-less counterpart of DebugManager.Inspect, for inspecting a value
+// outside a paused frame.
+func InspectSource(source, expr string) (InspectResult, error) {
+	cr, builtins, err := compileSource(EvalSource(source, expr, ""), "gad")
+	if err != nil {
+		return InspectResult{}, err
+	}
+	var stdout, stderr bytes.Buffer
+	obj, err := gad.NewVM(builtins.Build(), cr.Bytecode).SetRecover(true).
+		RunOpts(&gad.RunOpts{StdOut: &stdout, StdErr: &stderr})
+	if err != nil {
+		return InspectResult{}, err
+	}
+	return InspectObject(nil, obj), nil
+}
+
 // Run compiles and executes src as plain Gad. See RunSource for `.gadt`/`.giom`.
 func Run(src string) RunResult { return RunSource(src, "gad") }
 

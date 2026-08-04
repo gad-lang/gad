@@ -230,6 +230,23 @@ func (m *DebugManager) Eval(session, expr string, repr bool) (value string, err 
 	return sess.eng.EvalInFrame(expr, repr)
 }
 
+// Inspect evaluates expr against a paused session's current frame and returns
+// its tree-navigator description (type, value and, for containers, its immediate
+// children with Gad accessors). Valid only while the session is parked at a stop.
+func (m *DebugManager) Inspect(session, expr string) (InspectResult, error) {
+	m.mu.Lock()
+	sess := m.sessions[session]
+	m.mu.Unlock()
+	if sess == nil {
+		return InspectResult{}, errDebugSessionNotFound
+	}
+	obj, err := sess.eng.EvalObject(expr)
+	if err != nil {
+		return InspectResult{}, err
+	}
+	return InspectObject(nil, obj), nil
+}
+
 // Stop discards a session (the VM goroutine is left to unwind on the next
 // resume; callers that abort a runaway program should terminate the host, e.g.
 // a Web Worker).

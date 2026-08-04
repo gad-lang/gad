@@ -7,6 +7,7 @@
 // supplied instead. Requires Vue 3 and Vuetify 3 as peer dependencies.
 export { default as GadIde } from "./GadIde.vue";
 export { default as GadEditor } from "./GadEditor.vue";
+export { default as InspectorNode, type InspectFn } from "./InspectorNode.vue";
 
 // Backend contract + the built-in HTTP implementation.
 export { httpIdeApi, ideApi, probeIde } from "./api";

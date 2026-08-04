@@ -132,10 +132,11 @@ export const localIdeApi: IdeApi = {
   doc: async (source: string): Promise<DocComment[]> => (await sharedClient().docComments(source)).docs || [],
   eval: (req: { expr: string; repr?: boolean; source?: string; path?: string }): Promise<EvalResult> =>
     sharedClient().evalExpr(req.source ?? "", req.expr, req.repr ?? false),
-  inspect: async (): Promise<{ ok: boolean; inspect?: InspectResult; error?: string }> => ({
-    ok: false,
-    error: "inspect is not available in the in-browser backend",
-  }),
+  inspect: (req: { expr: string; session?: string; source?: string; path?: string }): Promise<{
+    ok: boolean;
+    inspect?: InspectResult;
+    error?: string;
+  }> => sharedClient().inspect(req.session ?? "", req.expr, req.source ?? ""),
   diagnose: async (source: string): Promise<GadDiagnostic[]> =>
     (await sharedClient().diagnose(source)).diagnostics,
   run: (req: {

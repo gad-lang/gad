@@ -5,7 +5,7 @@
 import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import type { DebugResponse } from "../backends/debug";
 import type { FormatResult, RunResult } from "../backends/types";
-import type { DocComment, EvalResult } from "@gad-lang/ide-react";
+import type { DocComment, EvalResult, InspectResult } from "@gad-lang/ide-react";
 
 type Pending = { resolve: (v: string) => void; reject: (e: Error) => void };
 
@@ -92,6 +92,13 @@ export class WasmClient {
   /** transpile rewrites template/mixed source into plain Gad (mixed for .gadt). */
   transpile(source: string, mixed: boolean) {
     return this.json<FormatResult>("gadTranspile", [source, mixed]);
+  }
+  /** inspect describes expr's value for the tree navigator: in the paused frame
+   * when session is set, else evaluated fresh with source's definitions. */
+  inspect(session: string, expr: string, source = "") {
+    return this.json<{ ok: boolean; inspect?: InspectResult; error?: string }>("gadInspect", [
+      session, expr, source,
+    ]);
   }
 
   // --- Debugger (mirrors backends/debug.ts) ---

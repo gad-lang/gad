@@ -8,6 +8,7 @@ import type {
   DocComment,
   EvalResult,
   FormatResult,
+  InspectResult,
   RunResult,
 } from "@gad-lang/ide-vuetify";
 
@@ -96,6 +97,13 @@ export class WasmClient {
   /** transpile rewrites template/mixed source into plain Gad (mixed for .gadt). */
   transpile(source: string, mixed: boolean) {
     return this.json<FormatResult>("gadTranspile", [source, mixed]);
+  }
+  /** inspect describes expr's value for the tree navigator: in the paused frame
+   * when session is set, else evaluated fresh with source's definitions. */
+  inspect(session: string, expr: string, source = "") {
+    return this.json<{ ok: boolean; inspect?: InspectResult; error?: string }>("gadInspect", [
+      session, expr, source,
+    ]);
   }
 
   // --- Debugger (mirrors backends/debug.ts) ---

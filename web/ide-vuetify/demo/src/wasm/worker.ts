@@ -23,6 +23,7 @@ interface GadGlobals {
   gadDocComments?: (src: string) => string;
   gadEval?: (...a: unknown[]) => string;
   gadTranspile?: (...a: unknown[]) => string;
+  gadInspect?: (...a: unknown[]) => string;
   gadDebugStart?: (...a: unknown[]) => string;
   gadDebugCommand?: (...a: unknown[]) => string;
   gadDebugEval?: (...a: unknown[]) => string;
