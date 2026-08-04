@@ -103,6 +103,23 @@ webide-preview: web-build
 	@echo "Open http://localhost:4173/webide.html"
 	cd web/app && bun run preview
 
+# Dev server for the server-less Vuetify IDE demo (@gad-lang/ide-vuetify/demo).
+# Same server-less model as `webide`, with the reusable Vuetify <GadIde>. Builds
+# the Gad WASM module into the demo's public/ first (it is git-ignored), then
+# runs Vite (which regenerates the bundled samples via predev).
+.PHONY: ide-vuetify-demo
+ide-vuetify-demo: web-install
+	cd web/ide-vuetify/demo && bun run wasm
+	@echo "Open http://localhost:5173/"
+	cd web/ide-vuetify/demo && bun run dev
+
+# Preview the production build of the Vuetify IDE demo (also no Go backend).
+.PHONY: ide-vuetify-demo-preview
+ide-vuetify-demo-preview: web-install
+	cd web/ide-vuetify/demo && bun run wasm && bun run build
+	@echo "Open http://localhost:4173/"
+	cd web/ide-vuetify/demo && bun run preview
+
 # Launch the IDE with the React + CodeMirror UI (builds web/app first).
 # Override the workspace with DIR=path (defaults to samples).
 DIR ?= samples
