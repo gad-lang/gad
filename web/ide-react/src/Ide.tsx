@@ -37,6 +37,10 @@ import OutputIcon from "@mui/icons-material/Notes";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import ViewQuiltIcon from "@mui/icons-material/ViewQuilt";
 import SettingsIcon from "@mui/icons-material/Settings";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
 import SaveIcon from "@mui/icons-material/Save";
 import BugReportIcon from "@mui/icons-material/BugReport";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
@@ -137,6 +141,8 @@ import {
   type DocComment,
   type ModuleInfo,
   type RunConfig,
+  type RunProfile,
+  type RunMode,
   type TreeNode,
   type Workspace,
 } from "./api";
@@ -271,6 +277,16 @@ interface IdeShared {
   // run / debug
   runActive: () => void;
   debugActive: () => void;
+  // run profiles (JetBrains-style named configurations)
+  runProfiles: RunProfile[];
+  activeProfile: string | null;
+  setActiveProfile: (name: string | null) => void;
+  addRunProfile: (p: RunProfile) => void;
+  deleteRunProfile: (name: string) => void;
+  setProfileDialog: (v: boolean) => void;
+  // gating: which of Run/Debug/profile-selector are enabled
+  canRun: boolean;
+  canDebug: boolean;
   // dialogs
   setDialog: (d: null | { kind: "run" | "debug"; tab: OpenTab }) => void;
   setInspectTarget: (t: { title: string; expr: string } | null) => void;
@@ -347,6 +363,8 @@ function EditorPanel(_: IDockviewPanelProps) {
   const ide = useIde();
   const { dark, debugLoc, keys } = ide;
   const debug = ide.debug;
+  const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null);
+  const activeProfileLabel = ide.activeProfile ?? "Current file";
 
   // Template detection is content-aware: a `.gad` file with a `# gad: mixed`
   // directive is highlighted as a template (with a Gad preamble), like `.gadt`.
@@ -420,14 +438,14 @@ function EditorPanel(_: IDockviewPanelProps) {
         </Tooltip>
         <Tooltip title="Run">
           <span>
-            <IconButton size="small" onClick={() => ide.runActive()} disabled={!ide.activeTab} color="success">
+            <IconButton size="small" onClick={() => ide.runActive()} disabled={!ide.activeTab || !ide.canRun} color="success">
               <PlayArrowIcon fontSize="small" />
             </IconButton>
           </span>
         </Tooltip>
         <Tooltip title="Debug">
           <span>
-            <IconButton size="small" onClick={() => ide.debugActive()} disabled={!ide.activeTab} color="warning">
+            <IconButton size="small" onClick={() => ide.debugActive()} disabled={!ide.activeTab || !ide.canDebug} color="warning">
               <BugReportIcon fontSize="small" />
             </IconButton>
           </span>
@@ -443,6 +461,44 @@ function EditorPanel(_: IDockviewPanelProps) {
             </IconButton>
           </span>
         </Tooltip>
+        {/* Run/debug profile selector (JetBrains-style "…" menu). */}
+        <Button
+          size="small"
+          variant="text"
+          disabled={!ide.canRun}
+          endIcon={<ExpandMoreIcon fontSize="small" />}
+          onClick={(e) => setProfileAnchor(e.currentTarget)}
+          sx={{ textTransform: "none", maxWidth: 180 }}
+        >
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeProfileLabel}</span>
+        </Button>
+        <Menu anchorEl={profileAnchor} open={!!profileAnchor} onClose={() => setProfileAnchor(null)}>
+          <MenuItem
+            selected={ide.activeProfile === null}
+            onClick={() => { ide.setActiveProfile(null); setProfileAnchor(null); }}
+          >
+            Current file
+          </MenuItem>
+          {ide.runProfiles.length > 0 && <Divider />}
+          {ide.runProfiles.map((p) => (
+            <MenuItem
+              key={p.name}
+              selected={ide.activeProfile === p.name}
+              onClick={() => { ide.setActiveProfile(p.name); setProfileAnchor(null); }}
+            >
+              <span style={{ flex: 1 }}>{p.name}</span>
+              <IconButton
+                size="small"
+                edge="end"
+                onClick={(e) => { e.stopPropagation(); ide.deleteRunProfile(p.name); }}
+              >
+                <DeleteOutlineIcon fontSize="small" />
+              </IconButton>
+            </MenuItem>
+          ))}
+          <Divider />
+          <MenuItem onClick={() => { setProfileAnchor(null); ide.setProfileDialog(true); }}>New profile…</MenuItem>
+        </Menu>
         {debug && (
           <>
           <Divider orientation="vertical" flexItem />
@@ -906,6 +962,9 @@ export function Ide({
   api = httpIdeApi,
   layoutConfig,
   onLayoutConfigChange,
+  runProfiles = [],
+  onRunProfilesChange,
+  runMode = "debug",
 }: {
   workspace: Workspace;
   api?: IdeApi;
@@ -914,6 +973,12 @@ export function Ide({
   /** Called with the serialized dockview layout whenever it changes, so the host
    * can persist it (the React analogue of the Vue `layoutConfig` v-model). */
   onLayoutConfigChange?: (layout: unknown) => void;
+  /** Named run/debug profiles (JetBrains-style). */
+  runProfiles?: RunProfile[];
+  /** Called with the next profile list whenever profiles are added/removed. */
+  onRunProfilesChange?: (profiles: RunProfile[]) => void;
+  /** Gates the run/debug actions (defaults to "debug" — all enabled). */
+  runMode?: RunMode;
 }) {
   const [theme, toggleTheme] = useTheme();
   const dark = theme === "dark";
@@ -922,6 +987,23 @@ export function Ide({
   layoutConfigRef.current = layoutConfig;
   const onLayoutConfigChangeRef = useRef(onLayoutConfigChange);
   onLayoutConfigChangeRef.current = onLayoutConfigChange;
+  const onRunProfilesChangeRef = useRef(onRunProfilesChange);
+  onRunProfilesChangeRef.current = onRunProfilesChange;
+
+  // Run-profile UI state.
+  const [activeProfile, setActiveProfile] = useState<string | null>(null);
+  const [profileDialog, setProfileDialog] = useState(false);
+  const addRunProfile = useCallback((p: RunProfile) => {
+    onRunProfilesChangeRef.current?.([...runProfiles.filter((x) => x.name !== p.name), p]);
+    setActiveProfile(p.name);
+  }, [runProfiles]);
+  const deleteRunProfile = useCallback((name: string) => {
+    onRunProfilesChangeRef.current?.(runProfiles.filter((p) => p.name !== name));
+    setActiveProfile((cur) => (cur === name ? null : cur));
+  }, [runProfiles]);
+  // runMode gates the run/debug actions (see RunMode).
+  const canRun = runMode === "run" || runMode === "debug";
+  const canDebug = runMode === "debug";
 
   const [tree, setTree] = useState<TreeNode | null>(null);
   const [showHidden, setShowHidden] = useState(false);
@@ -1399,12 +1481,57 @@ export function Ide({
     }
   }
 
+  // Resolve the file content of the active run profile (read fresh unless the
+  // profile's file is the open tab, whose unsaved edits are used).
+  async function profileSource(p: RunProfile): Promise<string> {
+    if (activeTab && activeTab.path === p.path) return ensureSaved(activeTab);
+    return (await api.read(p.path)).content;
+  }
+
+  async function runProfile(p: RunProfile) {
+    const source = await profileSource(p);
+    setStatus("running…");
+    activateBottomPanel("output");
+    try {
+      const res = await api.run({ path: p.path, source, args: p.args });
+      clearOut();
+      pushOut("out", res.stdout || "");
+      pushOut("err", res.stderr || "");
+      if (res.ok && res.result) pushOut("out", "\n⇦ " + res.result + "\n");
+      pushOut("err", (res.diagnostics || []).map((d) => `${d.line}:${d.column} ${d.message}`).join("\n"));
+      setStatus(res.ok ? "done" : "error");
+    } catch (e) {
+      pushOut("err", String(e));
+      setStatus("error");
+    }
+  }
+
+  async function debugProfile(p: RunProfile) {
+    const source = await profileSource(p);
+    setStatus("debugging…");
+    setOutput("");
+    try {
+      const res = await api.dbgStart({
+        source, breakpoints: bpFor(p.path), breakpointSpecs: bpSpecsFor(p.path),
+        stopOnEntry: false, path: p.path, args: p.args,
+      });
+      applyDebug(res, p.path);
+    } catch (e) {
+      setOutput(String(e));
+      setStatus("error");
+    }
+  }
+
   function runActive() {
+    const p = runProfiles.find((x) => x.name === activeProfile);
+    if (p) { void runProfile(p); return; }
     if (!activeTab) return;
     void doRun(activeTab, activeTab.runCfg);
   }
 
   function debugActive() {
+    const p = runProfiles.find((x) => x.name === activeProfile);
+    if (p) { void debugProfile(p); return; }
     if (!activeTab) return;
     void startDebug(activeTab, false);
   }
@@ -1691,6 +1818,8 @@ export function Ide({
     stack, locals, selectedFrame, setSelectedFrame, onFrameClick, gotoFrame,
     evals, setEvals, evalOne, addEval,
     runActive, debugActive,
+    runProfiles, activeProfile, setActiveProfile, addRunProfile, deleteRunProfile, setProfileDialog,
+    canRun, canDebug,
     setDialog, setInspectTarget, setOutputDialog,
     docs, reloadDocs, docPanelOpen, toggleDocsPanel,
     modules, status,
@@ -1734,9 +1863,11 @@ export function Ide({
                   <SettingsIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-              <IconButton size="small" onClick={toggleTheme} title="Toggle theme">
-                {dark ? "☀" : "☾"}
-              </IconButton>
+              <Tooltip title="Toggle light/dark">
+                <IconButton size="small" onClick={toggleTheme}>
+                  {dark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+                </IconButton>
+              </Tooltip>
             </Toolbar>
           </AppBar>
 
@@ -1762,6 +1893,13 @@ export function Ide({
                 persistRunCfg(dialog.tab.path, cfg);
                 void startDebug(dialog.tab, entry);
               }}
+            />
+          )}
+          {profileDialog && (
+            <RunProfileDialog
+              defaultPath={activeTab?.path ?? ""}
+              onCancel={() => setProfileDialog(false)}
+              onCreate={(p) => { setProfileDialog(false); addRunProfile(p); }}
             />
           )}
           {settings && (
@@ -2234,6 +2372,43 @@ function BreakpointGroups({
         </div>
       ))}
     </div>
+  );
+}
+
+// RunProfileDialog creates a named run/debug profile (JetBrains-style): a name,
+// the file to execute (prefilled with the open file) and command-line arguments
+// (one per line, parsed into the script's `param (…)`).
+function RunProfileDialog({
+  defaultPath, onCancel, onCreate,
+}: {
+  defaultPath: string;
+  onCancel: () => void;
+  onCreate: (p: RunProfile) => void;
+}) {
+  const [name, setName] = useState(defaultPath.split("/").pop() ?? "profile");
+  const [path, setPath] = useState(defaultPath);
+  const [args, setArgs] = useState("");
+  const create = () => {
+    const argList = args.split("\n").map((s) => s.trim()).filter(Boolean);
+    onCreate({ name: name.trim() || (path.split("/").pop() ?? "profile"), path, args: argList });
+  };
+  return (
+    <Dialog open onClose={onCancel} maxWidth="sm" fullWidth>
+      <DialogTitle>New run profile</DialogTitle>
+      <DialogContent dividers>
+        <TextField fullWidth size="small" label="Name" value={name} onChange={(e) => setName(e.target.value)} sx={{ mb: 2 }} />
+        <TextField fullWidth size="small" label="File" value={path} onChange={(e) => setPath(e.target.value)} sx={{ mb: 2 }} />
+        <TextField
+          fullWidth size="small" label="Arguments (one per line)" value={args}
+          onChange={(e) => setArgs(e.target.value)} multiline minRows={3}
+          helperText="e.g. --count=5, a value, --flag — parsed into the script's param (…)"
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button variant="contained" disabled={!path.trim()} onClick={create}>Create</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

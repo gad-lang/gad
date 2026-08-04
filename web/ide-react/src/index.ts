@@ -18,6 +18,8 @@ export type {
   RunConfig,
   DocComment,
   BreakpointSpec,
+  RunProfile,
+  RunMode,
   BreakpointMeta,
   EvalResult,
   InspectEntry,
