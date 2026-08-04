@@ -16,7 +16,7 @@ export default defineComponent({
                 {run.stdout && <pre class="pnl-out">{run.stdout}</pre>}
                 {run.stderr && <pre class="pnl-out pnl-out--err">{run.stderr}</pre>}
                 {run.ok && run.result && <div class="pnl-return">⇦ {run.result}</div>}
-                {run.diagnostics.map((d, i) => (
+                {(run.diagnostics ?? []).map((d, i) => (
                   <div key={i} class="pnl-diag">{d.line}:{d.column} {d.message}</div>
                 ))}
               </>

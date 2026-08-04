@@ -13,8 +13,14 @@ import {
   VCardText as _VCardText,
   VCardTitle as _VCardTitle,
   VCheckbox as _VCheckbox,
+  VChip as _VChip,
+  VCombobox as _VCombobox,
   VDialog as _VDialog,
   VIcon as _VIcon,
+  VList as _VList,
+  VListItem as _VListItem,
+  VListSubheader as _VListSubheader,
+  VMenu as _VMenu,
   VSpacer as _VSpacer,
   VTab as _VTab,
   VTabs as _VTabs,
@@ -32,8 +38,14 @@ export const VCardActions = _VCardActions as unknown as AnyComponent;
 export const VCardText = _VCardText as unknown as AnyComponent;
 export const VCardTitle = _VCardTitle as unknown as AnyComponent;
 export const VCheckbox = _VCheckbox as unknown as AnyComponent;
+export const VChip = _VChip as unknown as AnyComponent;
+export const VCombobox = _VCombobox as unknown as AnyComponent;
 export const VDialog = _VDialog as unknown as AnyComponent;
 export const VIcon = _VIcon as unknown as AnyComponent;
+export const VList = _VList as unknown as AnyComponent;
+export const VListItem = _VListItem as unknown as AnyComponent;
+export const VListSubheader = _VListSubheader as unknown as AnyComponent;
+export const VMenu = _VMenu as unknown as AnyComponent;
 export const VSpacer = _VSpacer as unknown as AnyComponent;
 export const VTab = _VTab as unknown as AnyComponent;
 export const VTabs = _VTabs as unknown as AnyComponent;

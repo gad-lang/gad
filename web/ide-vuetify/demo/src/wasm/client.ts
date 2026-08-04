@@ -68,8 +68,8 @@ export class WasmClient {
   }
 
   /** run executes source; sourceType "gadTemplate"/"giom" selects the dialect. */
-  run(source: string, sourceType = "") {
-    return this.json<RunResult>("gadRun", [source, sourceType]);
+  run(source: string, sourceType = "", args: string[] = []) {
+    return this.json<RunResult>("gadRun", [source, sourceType, JSON.stringify(args)]);
   }
   format(source: string) {
     return this.json<FormatResult>("gadFormat", [source]);

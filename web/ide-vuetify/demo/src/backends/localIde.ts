@@ -147,8 +147,8 @@ export const localIdeApi: IdeApi = {
   }> => sharedClient().inspect(req.session ?? "", req.expr, req.source ?? ""),
   diagnose: async (source: string): Promise<GadDiagnostic[]> =>
     (await sharedClient().diagnose(source)).diagnostics,
-  run: (req: { path?: string; source?: string }) =>
-    sharedClient().run(req.source ?? fs.read(req.path ?? "") ?? "", dialectOf(req.path)),
+  run: (req: { path?: string; source?: string; args?: string[] }) =>
+    sharedClient().run(req.source ?? fs.read(req.path ?? "") ?? "", dialectOf(req.path), req.args ?? []),
   dbgStart: (req: { source: string; breakpoints: number[]; stopOnEntry: boolean; path?: string; args?: string[] }) =>
     sharedClient().debugStart(req.source, req.path ?? "", req.breakpoints, req.stopOnEntry, req.args ?? []),
   dbgCmd: (session: string, command: string) => sharedClient().debugCommand(session, command),

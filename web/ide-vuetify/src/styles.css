@@ -109,6 +109,7 @@
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
 }
 .gad-ide__dock {

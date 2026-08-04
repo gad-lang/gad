@@ -38,6 +38,19 @@ export interface BreakpointSpec {
   condition?: string;
 }
 
+/** RunProfile is a named run/debug configuration (JetBrains-style): a display
+ * name, the file to execute, and command-line arguments passed to its `param`. */
+export interface RunProfile {
+  name: string;
+  path: string;
+  args: string[];
+}
+
+/** RunMode gates the run/debug actions: "none" (or "") disables Run, Debug and
+ * the profile selector; "run" enables Run (and the profile selector); "debug"
+ * additionally enables Debug. */
+export type RunMode = "none" | "run" | "debug" | "";
+
 export interface EvalResult {
   ok: boolean;
   value: string;

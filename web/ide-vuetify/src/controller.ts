@@ -6,13 +6,21 @@ import { computed, reactive, ref, shallowRef, watch, type InjectionKey, type Ref
 import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import { langOf } from "./codemirror";
 import type { LocalVar } from "./codemirror";
-import type { DebugResponse, DocComment, IdeApi, InspectResult, TreeNode, Workspace } from "./api";
+import { renderDocMarkdown } from "./docMarkdown";
+import type { DebugResponse, IdeApi, InspectResult, TreeNode, Workspace } from "./api";
 import type { RunResult } from "./types";
 import type { InspectFn } from "./InspectorNode";
 
 export interface TreeRow {
   node: TreeNode;
   depth: number;
+}
+
+/** RunTarget is what run()/debugStart() execute: a file, its content and args. */
+export interface RunTarget {
+  source: string;
+  path: string;
+  args: string[];
 }
 
 export type IdeController = ReturnType<typeof createController>;
@@ -113,10 +121,13 @@ export function createController(
   // --- run / format / doc -------------------------------------------------
   const busy = ref(false);
   const runRes = ref<RunResult | null>(null);
-  async function run() {
+  // The current file as a run target (used when no profile is active).
+  const currentTarget = (): RunTarget => ({ source: source.value, path: openPath.value, args: [] });
+  async function run(target?: RunTarget) {
+    const t = target ?? currentTarget();
     busy.value = true;
     try {
-      runRes.value = await api.run({ source: source.value, path: openPath.value });
+      runRes.value = await api.run({ source: t.source, path: t.path, args: t.args });
     } finally {
       busy.value = false;
     }
@@ -131,10 +142,13 @@ export function createController(
       busy.value = false;
     }
   }
-  const docHtmlDocs = ref<DocComment[]>([]);
-  async function loadDoc(): Promise<DocComment[]> {
-    docHtmlDocs.value = await api.doc(source.value);
-    return docHtmlDocs.value;
+  // Rendered documentation of the open file, shown by the Docs panel.
+  const docHtml = ref("");
+  async function refreshDoc() {
+    const docs = await api.doc(source.value);
+    docHtml.value = docs.length
+      ? docs.map((d) => `<h4>${escapeHtml(d.title || d.kind)}</h4>` + renderDocMarkdown(d.content)).join("\n")
+      : `<p class="text-medium-emphasis">No documentation comments in this file.</p>`;
   }
 
   // --- debugger -----------------------------------------------------------
@@ -158,7 +172,8 @@ export function createController(
     if (r.state === "terminated" || r.state === "error") session.value = null;
     else if (r.session) session.value = r.session;
   }
-  async function debugStart() {
+  async function debugStart(target?: RunTarget) {
+    const t = target ?? currentTarget();
     busy.value = true;
     dbgOutput.value = "";
     snap.value = null;
@@ -166,8 +181,9 @@ export function createController(
     try {
       applySnap(
         await api.dbgStart({
-          source: source.value,
-          path: openPath.value,
+          source: t.source,
+          path: t.path,
+          args: t.args,
           breakpoints: [...breakpoints.value].sort((a, b) => a - b),
           stopOnEntry: false,
         }),
@@ -227,11 +243,15 @@ export function createController(
     newFile, newDir, removeOpen, reset, canReset,
     diagnose,
     // run/format/doc
-    busy, runRes, run, format, loadDoc,
+    busy, runRes, run, format, docHtml, refreshDoc,
     // debug
     session, snap, dbgOutput, breakpoints, debugLine, debugColumn, stopped,
     getLocals, debugStart, debugCmd, evalExpr, evalOut, doEval,
     inspectFn, dialect,
     init,
   };
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] as string);
 }

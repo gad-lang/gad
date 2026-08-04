@@ -23,10 +23,12 @@
     "@mdi/font": "^7.4.47",
     "dockview-core": "^7.0.4",
     "dockview-vue": "^7.0.4",
+    "js-yaml": "^4.1.0",
     "vue": "^3.4.0",
     "vuetify": "^3.8.0"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@vitejs/plugin-vue": "^5.1.0",
     "@vitejs/plugin-vue-jsx": "^4.0.0",
     "typescript": "^5.6.0",

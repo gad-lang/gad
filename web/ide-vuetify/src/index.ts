@@ -18,6 +18,8 @@ export type {
   ModuleInfo,
   DocComment,
   BreakpointSpec,
+  RunProfile,
+  RunMode,
   EvalResult,
   InspectEntry,
   InspectResult,
