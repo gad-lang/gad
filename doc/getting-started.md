@@ -128,8 +128,10 @@ The CLI is organised as subcommands. Run `gad help` for the list, or
 | `-template`                | Run the input as a template (see [Templates](templates.md)). |
 | `-template-start-delimiter` / `-template-end-delimiter` | Override the `{%`/`%}` code delimiters. |
 
-A `.gadt` file is run as a template automatically. See
-**[Templates](templates.md)** for the full mixed-mode reference.
+A `.gadt` file is run as a template automatically (mixed mode). A `.gadx` file is
+compiled with the [Gadx](../gadx) engine — the indentation/pug-style HTML
+template language. See **[Templates](templates.md)** for the full mixed-mode
+reference and the [`gadx`](../gadx) submodule for the template engine.
 
 ### Formatting with `gad fmt`
 

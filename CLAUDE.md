@@ -7,6 +7,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Primary Use Cases**: Production evaluation of Sigma Rules' conditions and dynamic compromise assessment.
 - **Stack**: Go (Golang) standard tooling, WebAssembly (for the playground ecosystem).
 
+## File Extensions
+The Gad family uses three source extensions (all compile to the same bytecode/VM):
+- **`.gad`** — plain Gad source: scripts and modules.
+- **`.gadt`** — Gad **template** (mixed mode): literal text interleaved with code
+  islands (`{% … %}` statements, `{%= … %}` output), parsed with `ParseMixed`.
+- **`.gadx`** — **Gadx** template: the indentation/pug-style HTML template engine
+  (the `gadx` submodule, `github.com/gad-lang/gad/gadx`), lowered to Gad via
+  `GadxOptions`. Compiled through `gadx.AppendBuiltins` (the `gadx.*` namespace:
+  `gadx.Tag`, `gadx.attr`, `gadx.write`, …). *Renamed from the former `giom` /
+  `.giom` — the tsx/jsx analog for Gad; do not reintroduce the `giom` name.*
+
+Tooling selects the dialect by extension: the CLI (`gad run`/`gad doc`/`gad ide`),
+the web bridge (`web/gadbridge`, sourceType `"gad"` | `"gadTemplate"` | `"gadx"`)
+and the editor plugins all key off these suffixes.
+
 ## Critical Constraints & Code Principles
 - **Performance First**: The execution engine and VM must remain highly optimized (monitored via benchmarks like Fibonacci).
 - **Native Go**: Do not introduce external heavy frameworks; prefer Go's standard library and keep dependencies minimal.

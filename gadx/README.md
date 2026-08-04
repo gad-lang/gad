@@ -1,8 +1,8 @@
 # Gadx
 
 Gadx is an indentation-based template language for Go applications. It compiles
-GION templates to Gad bytecode and is designed for server-side rendering with a
-small API, reusable components, slots, imports, and HTML-oriented syntax.
+`.gadx` templates to Gad bytecode and is designed for server-side rendering with
+a small API, reusable components, slots, imports, and HTML-oriented syntax.
 
 The current project root contains the new implementation. The old implementation
 and old samples were removed.
