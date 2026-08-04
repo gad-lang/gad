@@ -800,10 +800,10 @@ func (s *Script) execute() error {
 		opts.TraceOptimizer = traceOptimizer
 	}
 
-	// .giom entrypoints compile through gad's native Giom front-end; nested
-	// .giom imports resolve natively via the default file importer.
-	if isGiomFile(s.modulePath) {
-		opts.GiomOptions = &gad.GiomOptions{}
+	// .gadx entrypoints compile through gad's native Gadx front-end; nested
+	// .gadx imports resolve natively via the default file importer.
+	if isGadxFile(s.modulePath) {
+		opts.GadxOptions = &gad.GadxOptions{}
 		opts.CompilerOptions.ModuleFile = s.modulePath
 	}
 	res, err := gad.CompileModule(defaultSymbolTable(s.builtins.Builtins().NameSet), module, s.script, opts)
@@ -961,7 +961,7 @@ func runScriptOrREPL(parent context.Context, filePath string, timeout time.Durat
 		if gp := gadPathFromEnv(wsEnv); gp != nil {
 			sourcePath = importers.PathList(gp)
 		}
-		s := newScript(giomBuiltins(modulePath).Build(), ctx, modulePath, workdir, script, os.Stdout)
+		s := newScript(gadxBuiltins(modulePath).Build(), ctx, modulePath, workdir, script, os.Stdout)
 		s.args = args
 		s.env = wsEnv
 		err = s.execute()

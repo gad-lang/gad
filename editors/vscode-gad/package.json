@@ -1,7 +1,7 @@
 {
   "name": "vscode-gad",
   "displayName": "Gad",
-  "description": "Gad and Giom (.giom) language support and debugging for VS Code (runs `gad debug --dap`).",
+  "description": "Gad and Gadx (.gadx) language support and debugging for VS Code (runs `gad debug --dap`).",
   "version": "0.1.0",
   "publisher": "gad-lang",
   "license": "MIT",
@@ -13,7 +13,7 @@
   "activationEvents": [
     "onDebugResolve:gad",
     "onLanguage:gad",
-    "onLanguage:giom"
+    "onLanguage:gadx"
   ],
   "contributes": {
     "commands": [
@@ -38,17 +38,17 @@
     ],
     "menus": {
       "commandPalette": [
-        { "command": "gad.run", "when": "editorLangId == gad || editorLangId == giom" },
-        { "command": "gad.debug", "when": "editorLangId == gad || editorLangId == giom" },
+        { "command": "gad.run", "when": "editorLangId == gad || editorLangId == gadx" },
+        { "command": "gad.debug", "when": "editorLangId == gad || editorLangId == gadx" },
         { "command": "gad.openConfig" }
       ],
       "editor/title/run": [
-        { "command": "gad.run", "when": "editorLangId == gad || editorLangId == giom", "group": "navigation@1" },
-        { "command": "gad.debug", "when": "editorLangId == gad || editorLangId == giom", "group": "navigation@2" }
+        { "command": "gad.run", "when": "editorLangId == gad || editorLangId == gadx", "group": "navigation@1" },
+        { "command": "gad.debug", "when": "editorLangId == gad || editorLangId == gadx", "group": "navigation@2" }
       ],
       "editor/context": [
-        { "command": "gad.run", "when": "editorLangId == gad || editorLangId == giom", "group": "gad@1" },
-        { "command": "gad.debug", "when": "editorLangId == gad || editorLangId == giom", "group": "gad@2" }
+        { "command": "gad.run", "when": "editorLangId == gad || editorLangId == gadx", "group": "gad@1" },
+        { "command": "gad.debug", "when": "editorLangId == gad || editorLangId == gadx", "group": "gad@2" }
       ]
     },
     "languages": [
@@ -59,10 +59,10 @@
         "configuration": "./language-configuration.json"
       },
       {
-        "id": "giom",
-        "aliases": ["Giom", "giom"],
-        "extensions": [".giom"],
-        "configuration": "./giom-language-configuration.json"
+        "id": "gadx",
+        "aliases": ["Gadx", "gadx"],
+        "extensions": [".gadx"],
+        "configuration": "./gadx-language-configuration.json"
       }
     ],
     "grammars": [
@@ -72,12 +72,12 @@
         "path": "./syntaxes/gad.tmLanguage.json"
       },
       {
-        "language": "giom",
-        "scopeName": "source.giom",
-        "path": "./syntaxes/giom.tmLanguage.json"
+        "language": "gadx",
+        "scopeName": "source.gadx",
+        "path": "./syntaxes/gadx.tmLanguage.json"
       }
     ],
-    "breakpoints": [{ "language": "gad" }, { "language": "giom" }],
+    "breakpoints": [{ "language": "gad" }, { "language": "gadx" }],
     "yamlValidation": [
       {
         "fileMatch": ".gad.yaml",
@@ -122,7 +122,7 @@
       {
         "type": "gad",
         "label": "Gad Debug",
-        "languages": ["gad", "giom"],
+        "languages": ["gad", "gadx"],
         "configurationAttributes": {
           "launch": {
             "required": ["program"],

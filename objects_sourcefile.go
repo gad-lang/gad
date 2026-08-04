@@ -89,8 +89,8 @@ func sourceKindEnumValue(k SourceKind) Object {
 	switch k {
 	case SourceTemplate:
 		name = "TEMPLATE"
-	case SourceGiom:
-		name = "GIOM"
+	case SourceGadx:
+		name = "GADX"
 	}
 	if v, ok := SourceTypeEnum.Values[name]; ok {
 		return v

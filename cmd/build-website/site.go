@@ -41,10 +41,10 @@ var refOrder = []string{
 	"tutorial", "metaprogramming", "workspace-config", "stdlib-strings", "stdlib-fmt", "stdlib-json", "stdlib-time",
 }
 
-// giomOrder is the curated nav ordering for the Giom template docs, sourced from
-// the ./giom submodule's docs directory. Pages are emitted with a `giom-` prefix
+// gadxOrder is the curated nav ordering for the Gadx template docs, sourced from
+// the ./gadx submodule's docs directory. Pages are emitted with a `gadx-` prefix
 // so they never collide with the Gad guide/reference pages.
-var giomOrder = []string{
+var gadxOrder = []string{
 	"getting-started", "syntax", "components-and-slots", "examples",
 	"embedding", "api", "conventions", "source-positions",
 	"project-structure", "benchmarks", "cms-example",
@@ -65,16 +65,16 @@ func buildSite(repoRoot, outDir string, buildWASM bool) error {
 		return err
 	}
 
-	// Giom template docs live in the ./giom submodule. When it is checked out,
-	// publish them as their own "Giom" nav section (prefixed pages + copied
+	// Gadx template docs live in the ./gadx submodule. When it is checked out,
+	// publish them as their own "Gadx" nav section (prefixed pages + copied
 	// image assets); when it is absent the section is simply omitted.
-	giomDir := filepath.Join(repoRoot, "giom", "docs")
-	giomPages, err := collectGiomPages(giomDir, giomOrder)
+	gadxDir := filepath.Join(repoRoot, "gadx", "docs")
+	gadxPages, err := collectGadxPages(gadxDir, gadxOrder)
 	if err != nil {
 		return err
 	}
-	if len(giomPages) > 0 {
-		if err := copyGiomAssets(giomDir, outDir); err != nil {
+	if len(gadxPages) > 0 {
+		if err := copyGadxAssets(gadxDir, outDir); err != nil {
 			return err
 		}
 	}
@@ -85,13 +85,13 @@ func buildSite(repoRoot, outDir string, buildWASM bool) error {
 		{Name: "Guide", Pages: guide},
 		{Name: "Reference", Pages: ref},
 	}
-	if len(giomPages) > 0 {
-		groups = append(groups, navGroup{Name: "Giom", Pages: giomPages})
+	if len(gadxPages) > 0 {
+		groups = append(groups, navGroup{Name: "Gadx", Pages: gadxPages})
 	}
 	groups = append(groups, navGroup{Name: "Playground", Pages: []*page{play}})
 
 	all := append(append([]*page{}, guide...), ref...)
-	all = append(all, giomPages...)
+	all = append(all, gadxPages...)
 
 	tmpl := template.Must(template.New("layout").Parse(layoutTemplate))
 
@@ -158,15 +158,15 @@ func collectPages(dir string, order []string, section string, isGuide bool) ([]*
 	return pages, nil
 }
 
-// giomLinkRe matches Markdown links to a sibling `.md` doc (no scheme, no path
-// separator), so intra-giom links can be rewritten to the prefixed output names.
-var giomLinkRe = regexp.MustCompile(`\]\(([A-Za-z0-9_-]+)\.md(#[A-Za-z0-9_-]+)?\)`)
+// gadxLinkRe matches Markdown links to a sibling `.md` doc (no scheme, no path
+// separator), so intra-gadx links can be rewritten to the prefixed output names.
+var gadxLinkRe = regexp.MustCompile(`\]\(([A-Za-z0-9_-]+)\.md(#[A-Za-z0-9_-]+)?\)`)
 
-// collectGiomPages renders the Giom docs found in dir (in order) into pages named
-// `giom-<name>.html`. Intra-doc `.md` links are rewritten to the same prefixed
+// collectGadxPages renders the Gadx docs found in dir (in order) into pages named
+// `gadx-<name>.html`. Intra-doc `.md` links are rewritten to the same prefixed
 // names so cross-references resolve within the generated site; missing pages are
 // tolerated (the submodule may not be checked out).
-func collectGiomPages(dir string, order []string) ([]*page, error) {
+func collectGadxPages(dir string, order []string) ([]*page, error) {
 	var pages []*page
 	for _, name := range order {
 		path := filepath.Join(dir, name+".md")
@@ -177,18 +177,18 @@ func collectGiomPages(dir string, order []string) ([]*page, error) {
 			}
 			return nil, err
 		}
-		// Rewrite `](other.md)` / `](other.md#anchor)` to `](giom-other.html…)`.
-		rewritten := giomLinkRe.ReplaceAllString(string(src), "](giom-$1.html$2)")
+		// Rewrite `](other.md)` / `](other.md#anchor)` to `](gadx-other.html…)`.
+		rewritten := gadxLinkRe.ReplaceAllString(string(src), "](gadx-$1.html$2)")
 		body, headings := renderMarkdown(rewritten)
 		title := firstHeading(headings)
 		if title == "" {
 			title = name
 		}
 		pages = append(pages, &page{
-			Slug:     "giom-" + name,
+			Slug:     "gadx-" + name,
 			Title:    title,
-			OutFile:  "giom-" + name + ".html",
-			Section:  "Giom",
+			OutFile:  "gadx-" + name + ".html",
+			Section:  "Gadx",
 			BodyHTML: template.HTML(body),
 			Headings: headings,
 			plain:    plainText(rewritten),
@@ -197,10 +197,10 @@ func collectGiomPages(dir string, order []string) ([]*page, error) {
 	return pages, nil
 }
 
-// copyGiomAssets copies non-Markdown files (images such as the benchmark SVGs)
-// from the Giom docs directory into the site root, where the prefixed Giom pages
+// copyGadxAssets copies non-Markdown files (images such as the benchmark SVGs)
+// from the Gadx docs directory into the site root, where the prefixed Gadx pages
 // reference them by their original relative names.
-func copyGiomAssets(dir, outDir string) error {
+func copyGadxAssets(dir, outDir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err

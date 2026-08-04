@@ -43,16 +43,16 @@ template:
 // A single terminal reused by the `gad.run` command.
 let runTerminal: vscode.Terminal | undefined;
 
-// Language ids this extension runs/debugs: plain Gad (.gad/.gadt) and Giom
-// templates (.giom), both compiled and debugged by the same `gad` CLI.
-const GAD_LANGUAGES = ["gad", "giom"];
+// Language ids this extension runs/debugs: plain Gad (.gad/.gadt) and Gadx
+// templates (.gadx), both compiled and debugged by the same `gad` CLI.
+const GAD_LANGUAGES = ["gad", "gadx"];
 
 function isGadLanguage(languageId: string): boolean {
   return GAD_LANGUAGES.includes(languageId);
 }
 
-// The Gad/Giom document to act on: the active editor if it is a Gad or Giom
-// file, otherwise the most recent visible Gad/Giom editor.
+// The Gad/Gadx document to act on: the active editor if it is a Gad or Gadx
+// file, otherwise the most recent visible Gad/Gadx editor.
 function activeGadDocument(): vscode.TextDocument | undefined {
   const active = vscode.window.activeTextEditor;
   if (active && isGadLanguage(active.document.languageId)) return active.document;

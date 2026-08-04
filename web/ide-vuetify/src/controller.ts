@@ -223,7 +223,7 @@ export function createController(
 
   const dialect = computed(() => {
     const l = langOf(openPath.value);
-    return l === "giom" ? "giom" : l === "gadt" ? "gadTemplate" : "gad";
+    return l === "gadx" ? "gadx" : l === "gadt" ? "gadTemplate" : "gad";
   });
 
   async function init() {

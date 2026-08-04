@@ -1,5 +1,5 @@
 // Demo: a CodeMirror 6 editor with Gad language support. The sidebar is a tree
-// of the repository `samples/` directory (.gad / .gadt / .giom); clicking a file
+// of the repository `samples/` directory (.gad / .gadt / .gadx); clicking a file
 // opens it in the editor with the matching sourceType. The tree and file
 // contents are read from the filesystem by the dev server (see serve.ts). Serve
 // with `bun run demo`.
@@ -33,7 +33,7 @@ async function fetchSample(path: string): Promise<string> {
 
 // sourceTypeFor picks the highlighter dialect from a sample's extension.
 function sourceTypeFor(path: string): GadOptions {
-  if (path.endsWith(".giom")) return { sourceType: "giom" };
+  if (path.endsWith(".gadx")) return { sourceType: "gadx" };
   if (path.endsWith(".gadt")) return { sourceType: "template" };
   return { sourceType: "gad" };
 }

@@ -10,7 +10,7 @@ import (
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/debug"
-	"github.com/gad-lang/gad/giom"
+	"github.com/gad-lang/gad/gadx"
 	"github.com/gad-lang/gad/parser"
 )
 
@@ -39,7 +39,7 @@ func NewDebugManager() *DebugManager {
 }
 
 // DebugStartRequest launches a debug session. Path selects the dialect by
-// extension (.giom → giom, .gadt → template, else plain Gad).
+// extension (.gadx → gadx, .gadt → template, else plain Gad).
 type DebugStartRequest struct {
 	Source      string   `json:"source"`
 	Path        string   `json:"path"`
@@ -122,7 +122,7 @@ func (b *syncBuffer) since(n int) (string, int) {
 // Start compiles the source, starts a VM under the debugger and runs to the
 // first stop (breakpoint / stop-on-entry) or to completion.
 func (m *DebugManager) Start(req DebugStartRequest) DebugResponse {
-	builtins := giom.AppendBuiltins(gad.NewBuiltins())
+	builtins := gadx.AppendBuiltins(gad.NewBuiltins())
 	st := gad.NewSymbolTable(builtins.NameSet)
 
 	opts := gad.CompileOptions{}
@@ -130,8 +130,8 @@ func (m *DebugManager) Start(req DebugStartRequest) DebugResponse {
 		opts.CompilerOptions.ModuleMap = m.ModuleMap
 	}
 	switch {
-	case strings.HasSuffix(req.Path, ".giom"):
-		opts.GiomOptions = &gad.GiomOptions{}
+	case strings.HasSuffix(req.Path, ".gadx"):
+		opts.GadxOptions = &gad.GadxOptions{}
 		opts.ModuleFile = req.Path
 	case strings.HasSuffix(req.Path, ".gadt"):
 		opts.ParserOptions.Mode |= parser.ParseMixed

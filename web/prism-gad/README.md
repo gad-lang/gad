@@ -16,24 +16,24 @@ It covers comments, the string/heredoc/bytes forms, `/regex/` literals,
 keywords, atoms, builtins, `@`-prefixed specials, numbers and operators. Token
 colors are supplied by your Prism theme (or your own `.token.*` CSS).
 
-## Source type (`gad` / `template` / `giom`)
+## Source type (`gad` / `template` / `gadx`)
 
 `gadGrammarFor(sourceType, options?)` returns the grammar for a dialect from a
-single value — `"gad"` (default), `"template"` (`.gadt`) or `"giom"` (`.giom`) —
+single value — `"gad"` (default), `"template"` (`.gadt`) or `"gadx"` (`.gadx`) —
 the analog of codemirror-gad's `gad({ sourceType })`. `options` (delimiters /
 `preamble`) apply only to `"template"`. `registerGad(Prism)` must run first (the
-template and giom grammars embed the Gad grammar).
+template and gadx grammars embed the Gad grammar).
 
 ```ts
 import { registerGad, gadGrammarFor } from "@gad-lang/prism-gad";
 
 registerGad(Prism);
-const grammar = gadGrammarFor(sourceType);        // "gad" | "template" | "giom"
+const grammar = gadGrammarFor(sourceType);        // "gad" | "template" | "gadx"
 const html = Prism.highlight(code, grammar, sourceType);
 ```
 
-The dedicated `registerGiom(Prism)` / `registerGadTemplate(Prism, delims?)`
-still install `Prism.languages.giom` / `Prism.languages.gadt` for consumers that
+The dedicated `registerGadx(Prism)` / `registerGadTemplate(Prism, delims?)`
+still install `Prism.languages.gadx` / `Prism.languages.gadt` for consumers that
 prefer named languages.
 
 ## Templates (`.gadt`)
@@ -80,7 +80,7 @@ For an interactive editor with autocompletion and live diagnostics, use
 
 A standalone highlighting demo lives in [`example/`](example). Its sidebar is a
 tree of the repository `samples/` directory built from the filesystem at startup;
-clicking a `.gad` / `.gadt` / `.giom` file highlights it with the grammar chosen
+clicking a `.gad` / `.gadt` / `.gadx` file highlights it with the grammar chosen
 by `gadGrammarFor(sourceType)`. The dev server (`example/serve.ts`) reads the
 manifest and each file's contents from disk on demand — nothing is bundled in.
 

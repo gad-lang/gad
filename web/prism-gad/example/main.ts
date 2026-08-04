@@ -1,13 +1,13 @@
 // Demo: static highlighting with PrismJS and @gad-lang/prism-gad. The sidebar is
-// a tree of the repository `samples/` directory (.gad / .gadt / .giom); clicking
+// a tree of the repository `samples/` directory (.gad / .gadt / .gadx); clicking
 // a file highlights it with the grammar chosen by `gadGrammarFor(sourceType)`.
 // The tree and file contents are read from the filesystem by the dev server
 // (see serve.ts). Serve with `bun run demo`.
 import Prism from "prismjs";
-import { registerGad, registerGiom, gadGrammarFor, type GadSourceType } from "../src/index";
+import { registerGad, registerGadx, gadGrammarFor, type GadSourceType } from "../src/index";
 
-registerGad(Prism); // the embedded Gad grammar (required by template & giom)
-registerGiom(Prism); // Prism.languages.giom
+registerGad(Prism); // the embedded Gad grammar (required by template & gadx)
+registerGadx(Prism); // Prism.languages.gadx
 
 // Sample files are read from the filesystem by the dev server (see serve.ts):
 // the manifest lists them, and each file's contents are fetched on demand.
@@ -23,7 +23,7 @@ async function fetchSample(path: string): Promise<string> {
 
 // sourceTypeFor picks the grammar dialect from a sample's extension.
 function sourceTypeFor(path: string): GadSourceType {
-  if (path.endsWith(".giom")) return "giom";
+  if (path.endsWith(".gadx")) return "gadx";
   if (path.endsWith(".gadt")) return "template";
   return "gad";
 }

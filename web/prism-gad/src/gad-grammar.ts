@@ -1,7 +1,7 @@
 // gad-grammar.ts — the core Gad PrismJS grammar and its word lists.
 //
-// This is a leaf module (no imports from ./index, ./template or ./giom) so the
-// template and giom grammars — which embed the Gad grammar — can import it
+// This is a leaf module (no imports from ./index, ./template or ./gadx) so the
+// template and gadx grammars — which embed the Gad grammar — can import it
 // without a circular dependency through the package entry point.
 import type { Grammar } from "prismjs";
 

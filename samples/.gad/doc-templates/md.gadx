@@ -1,0 +1,26 @@
+//- md.gadx — Markdown documentation template for `gad doc`.
+//-
+//- It receives the extracted documentation as `param (doc dict)` and emits
+//- Markdown to the output. `doc` is:
+//-   { prose: str, sections: [ { title: str,
+//-       symbols: [ { name, signature, doc: str, line, column: int } ] } ] }
+//-
+//- This template is intentionally a plain Gad script inside a `~~ … ~~` block:
+//- it writes Markdown directly with `write()`, no HTML involved.
+~~
+param (doc dict)
+
+if doc.prose {
+    write(doc.prose + "\n")
+}
+
+for sec in doc.sections {
+    write("\n## " + sec.title + "\n")
+    for s in sec.symbols {
+        write("\n### " + s.name + s.signature + "\n")
+        if s.doc {
+            write("\n" + s.doc + "\n")
+        }
+    }
+}
+~~

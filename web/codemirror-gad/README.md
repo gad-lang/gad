@@ -19,7 +19,7 @@ new EditorView({
 });
 ```
 
-## Source type (`gad` / `template` / `giom`)
+## Source type (`gad` / `template` / `gadx`)
 
 The `sourceType` option selects the dialect to highlight:
 
@@ -28,7 +28,7 @@ The `sourceType` option selects the dialect to highlight:
   blocks and `{%= … %}` value tags, with the tag bodies tokenized as Gad
   (completion and hover work inside tags too). The delimiters default to
   `{%` / `%}` and are configurable via `delimiters`.
-- `"giom"` — a `.giom` indentation-based template (tags, `@`-control keywords,
+- `"gadx"` — a `.gadx` indentation-based template (tags, `@`-control keywords,
   `+`component calls, `{= … }` interpolations and `~~` code blocks), with the
   embedded Gad highlighted, completed and linted.
 
@@ -37,7 +37,7 @@ import { gad } from "@gad-lang/codemirror-gad";
 
 gad();                                              // .gad (default)
 gad({ sourceType: "template", delimiters: { start: "{%", end: "%}" } }); // .gadt
-gad({ sourceType: "giom" });                        // .giom
+gad({ sourceType: "gadx" });                        // .gadx
 ```
 
 A `.gad` file can also enable template mode part-way in with a `# gad: mixed`
@@ -50,16 +50,16 @@ gad({ sourceType: "template", preamble: true, delimiters }); // `.gad` + `# gad:
 ```
 
 > **Migration:** the former boolean `template: true` is replaced by
-> `sourceType: "template"`. `giom(options)` remains as a convenience for
-> `gad({ ...options, sourceType: "giom" })`.
+> `sourceType: "template"`. `gadx(options)` remains as a convenience for
+> `gad({ ...options, sourceType: "gadx" })`.
 
 ## Exports
 
 - `gad(options)` — bundled extension (language + completion + optional linter).
   Set `sourceType: "template"` (plus optional `delimiters: { start, end }`) for
-  `.gadt` mixed files or `sourceType: "giom"` for `.giom`; the linter is skipped
+  `.gadt` mixed files or `sourceType: "gadx"` for `.gadx`; the linter is skipped
   for `"template"`.
-- `giom(options)` — convenience for `gad({ ...options, sourceType: "giom" })`.
+- `gadx(options)` — convenience for `gad({ ...options, sourceType: "gadx" })`.
 - `gadLanguageSupport()` / `gadLanguage` — highlighting only.
 - `gadCompletion()` / `gadCompletionSource` — autocompletion.
 - `gadLinter(diagnose, { delay })` — async diagnostics → CodeMirror lint.
@@ -73,7 +73,7 @@ The `diagnose` function is injected, so the plugin works against any backend
 
 A standalone editor demo lives in [`example/`](example). Its sidebar is a tree
 of the repository `samples/` directory built from the filesystem at startup;
-clicking a `.gad` / `.gadt` / `.giom` file opens it with the matching
+clicking a `.gad` / `.gadt` / `.gadx` file opens it with the matching
 `sourceType`. The dev server (`example/serve.ts`) reads the manifest and each
 file's contents from disk on demand — nothing is bundled in.
 

@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad"
-	"github.com/gad-lang/gad/giom"
+	"github.com/gad-lang/gad/gadx"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
@@ -355,8 +355,8 @@ func intToString(i int) string {
 func Diagnose(src string) []Diagnostic { return DiagnoseSource(src, "gad") }
 
 // DiagnoseSource compiles src in the given dialect and returns any positioned
-// diagnostics. sourceType is "giom", "gadTemplate" (or "template"), or "gad"
-// (default) — the latter two matter for `.gadt`/`.giom` files, whose template
+// diagnostics. sourceType is "gadx", "gadTemplate" (or "template"), or "gad"
+// (default) — the latter two matter for `.gadt`/`.gadx` files, whose template
 // syntax (`{% … %}`, tags) is a parse error under plain Gad.
 func DiagnoseSource(src, sourceType string) []Diagnostic {
 	if _, _, err := compileSource(src, sourceType); err != nil {
@@ -414,12 +414,12 @@ func InspectSource(source, expr string) (InspectResult, error) {
 	return InspectObject(nil, obj), nil
 }
 
-// Run compiles and executes src as plain Gad. See RunSource for `.gadt`/`.giom`.
+// Run compiles and executes src as plain Gad. See RunSource for `.gadt`/`.gadx`.
 func Run(src string) RunResult { return RunSource(src, "gad") }
 
-// RunSource compiles and executes src in the given dialect ("giom",
+// RunSource compiles and executes src in the given dialect ("gadx",
 // "gadTemplate"/"template", or "gad"), capturing stdout/stderr and the return
-// value. A giom `@main` template returns its rendered tree as a giom.Element,
+// value. A gadx `@main` template returns its rendered tree as a gadx.Element,
 // which is written to stdout so the output panel shows the HTML.
 func RunSource(src, sourceType string) RunResult { return RunSourceArgs(src, sourceType, nil) }
 
@@ -455,7 +455,7 @@ func RunSourceArgs(src, sourceType string, cmdArgs []string) RunResult {
 		}
 		return res
 	}
-	if el, ok := ret.(giom.Element); ok {
+	if el, ok := ret.(gadx.Element); ok {
 		if _, werr := el.WriteTo(vm, &stdout); werr == nil {
 			res.Stdout = stdout.String()
 		}
@@ -466,15 +466,15 @@ func RunSourceArgs(src, sourceType string, cmdArgs []string) RunResult {
 }
 
 // compileSource builds the bytecode for src in the given dialect, returning the
-// result and the builtins the VM must run with (giom adds its namespace).
+// result and the builtins the VM must run with (gadx adds its namespace).
 func compileSource(src, sourceType string) (*gad.CompileResult, *gad.Builtins, error) {
 	builtins := gad.NewBuiltins()
 	opts := gad.CompileOptions{}
 	switch sourceType {
-	case "giom":
-		builtins = giom.AppendBuiltins(builtins)
-		opts.GiomOptions = &gad.GiomOptions{}
-		opts.ModuleFile = sourceName + ".giom"
+	case "gadx":
+		builtins = gadx.AppendBuiltins(builtins)
+		opts.GadxOptions = &gad.GadxOptions{}
+		opts.ModuleFile = sourceName + ".gadx"
 	case "gadTemplate", "template":
 		opts.ParserOptions.Mode |= parser.ParseMixed
 		opts.ScannerOptions.Mode |= parser.ScanMixed | parser.ScanConfigDisabled

@@ -46,7 +46,7 @@ type docOptions struct {
 
 	examplesFailed int // count of failed embedded examples
 
-	templates *docTemplateSet // lazily-resolved .gaddoc*.giom templates
+	templates *docTemplateSet // lazily-resolved .gaddoc*.gadx templates
 }
 
 const defaultDocOut = "doc"
@@ -310,8 +310,8 @@ func (o *docOptions) processFile(ctx *cc.CommandContext, path, dst, base string)
 	}
 	o.examplesFailed += res.ExamplesFailed
 
-	// Optional giom templates in the workspace customize the rendered output:
-	// .gaddoc-md.giom overrides the built-in Markdown; .gaddoc.giom emits HTML
+	// Optional gadx templates in the workspace customize the rendered output:
+	// .gaddoc-md.gadx overrides the built-in Markdown; .gaddoc.gadx emits HTML
 	// alongside it. Both receive the extracted docs as `param (doc dict)`.
 	outputs := []docOutput{{res.OutPath, res.Markdown}}
 	if tset := o.resolveDocTemplates(); tset.any() {

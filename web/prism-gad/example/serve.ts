@@ -7,10 +7,10 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
 const SAMPLES = join(import.meta.dir, "../../../samples");
-const EXTS = [".gad", ".gadt", ".giom"];
+const EXTS = [".gad", ".gadt", ".gadx"];
 
 // listSamples walks SAMPLES and returns the relative paths (with "/" separators)
-// of every .gad/.gadt/.giom file, read fresh from the filesystem.
+// of every .gad/.gadt/.gadx file, read fresh from the filesystem.
 function listSamples(dir = SAMPLES, acc: string[] = []): string[] {
   for (const name of readdirSync(dir).sort()) {
     const p = join(dir, name);

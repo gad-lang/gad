@@ -12,15 +12,15 @@ WORK_DIR/
     gad.yaml            project config (fmt/doc/template/transpile/env sections)
     ide.yaml            gad ide layout and editor state
     doc-templates/
-      html.giom         gad doc HTML template   (param (doc dict))
-      md.giom           gad doc Markdown template (param (doc dict))
+      html.gadx         gad doc HTML template   (param (doc dict))
+      md.gadx           gad doc Markdown template (param (doc dict))
 ```
 
 - **`.gad/gad.yaml`** — the project configuration read by the `gad` CLI
   (formatting, template mode, transpilation, the `env` section, …).
 - **`.gad/ide.yaml`** — the `gad ide` layout and editor state. It is split out so
   IDE state does not clutter the project config.
-- **`.gad/doc-templates/`** — optional giom templates for `gad doc` (see
+- **`.gad/doc-templates/`** — optional gadx templates for `gad doc` (see
   [Documentation](#documentation-templates) below).
 
 ## Variable expansion
@@ -145,12 +145,12 @@ For the embedding and Go-side API of expansion, see the
 
 ## Documentation templates
 
-`gad doc` renders Markdown by default. To customize the output, drop giom
+`gad doc` renders Markdown by default. To customize the output, drop gadx
 templates under `.gad/doc-templates/`:
 
-- **`md.giom`** — when present, replaces the built-in Markdown (written as
+- **`md.gadx`** — when present, replaces the built-in Markdown (written as
   `NAME.md`).
-- **`html.giom`** — when present, additionally renders HTML (written as
+- **`html.gadx`** — when present, additionally renders HTML (written as
   `NAME.html`).
 
 Each template receives the extracted documentation as a positional parameter:
@@ -173,9 +173,9 @@ where `doc` has the shape:
 }
 ```
 
-`md.giom` is typically a plain Gad script that writes Markdown with `write()`:
+`md.gadx` is typically a plain Gad script that writes Markdown with `write()`:
 
-```giom
+```gadx
 ~~
 param (doc dict)
 for sec in doc.sections {
@@ -188,7 +188,7 @@ for sec in doc.sections {
 ~~
 ```
 
-`html.giom` uses giom's tag syntax and returns a rendered tree; `s.line` /
+`html.gadx` uses gadx's tag syntax and returns a rendered tree; `s.line` /
 `s.column` are handy as `data-*` attributes for editor navigation. See
 `samples/.gad/doc-templates/` for complete examples.
 

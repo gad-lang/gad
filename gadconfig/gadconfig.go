@@ -8,8 +8,8 @@
 //	    gad.yaml            project config (fmt/doc/template/env sections)
 //	    ide.yaml            IDE layout/editor state
 //	    doc-templates/
-//	      html.giom         `gad doc` HTML template
-//	      md.giom           `gad doc` Markdown template
+//	      html.gadx         `gad doc` HTML template
+//	      md.gadx           `gad doc` Markdown template
 package gadconfig
 
 import (
@@ -33,9 +33,9 @@ const (
 	// DocTemplatesDirName holds the `gad doc` output templates.
 	DocTemplatesDirName = "doc-templates"
 	// DocHTMLTemplateName renders `gad doc` output as HTML.
-	DocHTMLTemplateName = "html.giom"
+	DocHTMLTemplateName = "html.gadx"
 	// DocMDTemplateName renders `gad doc` output as Markdown.
-	DocMDTemplateName = "md.giom"
+	DocMDTemplateName = "md.gadx"
 )
 
 // WorkDir resolves the workspace root. An explicit non-empty dir wins; otherwise
@@ -73,12 +73,12 @@ func DocTemplatesDir(workDir string) string {
 	return filepath.Join(Dir(workDir), DocTemplatesDirName)
 }
 
-// DocHTMLTemplate returns the HTML doc-template path (doc-templates/html.giom).
+// DocHTMLTemplate returns the HTML doc-template path (doc-templates/html.gadx).
 func DocHTMLTemplate(workDir string) string {
 	return filepath.Join(DocTemplatesDir(workDir), DocHTMLTemplateName)
 }
 
-// DocMDTemplate returns the Markdown doc-template path (doc-templates/md.giom).
+// DocMDTemplate returns the Markdown doc-template path (doc-templates/md.gadx).
 func DocMDTemplate(workDir string) string {
 	return filepath.Join(DocTemplatesDir(workDir), DocMDTemplateName)
 }

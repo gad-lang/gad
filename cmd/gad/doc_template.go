@@ -12,13 +12,13 @@ import (
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/gadconfig"
-	"github.com/gad-lang/gad/giom"
+	"github.com/gad-lang/gad/gadx"
 	"github.com/gad-lang/gad/web/gadbridge"
 )
 
 // docTemplateSet holds the (lazily-read) documentation templates found in the
 // workspace. A nil entry means the corresponding template is absent. The
-// templates live under WORK_DIR/.gad/doc-templates (html.giom, md.giom); when
+// templates live under WORK_DIR/.gad/doc-templates (html.gadx, md.gadx); when
 // present they override / augment the built-in Markdown rendering: each receives
 // the extracted documentation as `param (doc dict)` and renders the output body
 // itself (see DocData.GadDict for the dict shape).
@@ -30,7 +30,7 @@ type docTemplateSet struct {
 // any reports whether at least one documentation template is present.
 func (s *docTemplateSet) any() bool { return s.htmlSrc != nil || s.mdSrc != nil }
 
-// resolveDocTemplates reads the optional doc-templates/html.giom and md.giom
+// resolveDocTemplates reads the optional doc-templates/html.gadx and md.gadx
 // files from the workspace config directory once. Missing templates are left nil.
 func (o *docOptions) resolveDocTemplates() *docTemplateSet {
 	if o.templates != nil {
@@ -53,8 +53,8 @@ func (o *docOptions) resolveDocTemplates() *docTemplateSet {
 // sourceTypeFor maps a file extension to a gadbridge doc dialect.
 func sourceTypeFor(path string) string {
 	switch filepath.Ext(path) {
-	case ".giom":
-		return "giom"
+	case ".gadx":
+		return "gadx"
 	case ".gadt":
 		return "gadTemplate"
 	default:
@@ -70,8 +70,8 @@ type docOutput struct {
 
 // renderTemplateOutputs builds the structured documentation for a source file and
 // renders it through whichever workspace templates are present. doc-templates/
-// md.giom replaces the built-in Markdown (same .md destination as res.OutPath);
-// doc-templates/html.giom is written next to it as a .html file. When only one
+// md.gadx replaces the built-in Markdown (same .md destination as res.OutPath);
+// doc-templates/html.gadx is written next to it as a .html file. When only one
 // template exists, only that output is produced.
 func (o *docOptions) renderTemplateOutputs(path string, src []byte, res *FileDocResult, tset *docTemplateSet) ([]docOutput, error) {
 	doc, err := gadbridge.ExtractDoc(string(src), sourceTypeFor(path))
@@ -98,16 +98,16 @@ func (o *docOptions) renderTemplateOutputs(path string, src []byte, res *FileDoc
 	return outputs, nil
 }
 
-// renderDocTemplate compiles a giom documentation template and runs it with the
+// renderDocTemplate compiles a gadx documentation template and runs it with the
 // extracted documentation bound to `param (doc dict)`, returning the rendered
 // body (HTML or Markdown, depending on the template). No files are read or
 // written here — callers supply the template bytes and persist the result.
 func renderDocTemplate(tmplSrc []byte, tmplPath string, doc *gadbridge.DocData) (string, error) {
-	builtins := giom.AppendBuiltins(gad.NewBuiltins())
+	builtins := gadx.AppendBuiltins(gad.NewBuiltins())
 	st := gad.NewSymbolTable(builtins.NameSet)
 
 	opts := gad.CompileOptions{}
-	opts.GiomOptions = &gad.GiomOptions{}
+	opts.GadxOptions = &gad.GadxOptions{}
 	opts.ModuleFile = tmplPath
 	cr, err := gad.Compile(st, tmplSrc, opts)
 	if err != nil {
@@ -122,9 +122,9 @@ func renderDocTemplate(tmplSrc []byte, tmplPath string, doc *gadbridge.DocData) 
 	if err != nil {
 		return "", fmt.Errorf("render %s: %w", filepath.Base(tmplPath), err)
 	}
-	// A giom `@main` template returns its rendered tree as a giom.Element; a
+	// A gadx `@main` template returns its rendered tree as a gadx.Element; a
 	// plain `~~ … ~~` script writes to StdOut directly and returns nil.
-	if el, ok := ret.(giom.Element); ok {
+	if el, ok := ret.(gadx.Element); ok {
 		if _, err = el.WriteTo(vm, &out); err != nil {
 			return "", fmt.Errorf("render %s: %w", filepath.Base(tmplPath), err)
 		}

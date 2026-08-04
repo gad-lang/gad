@@ -65,24 +65,24 @@ written as runnable Gad code; most can be pasted directly into the REPL or a
   `*_test.gad` files, `test*`/`bench*` functions, assertions and benchmarks.
 - [Metaprogramming](metaprogramming.md) — the `gad` namespace: `gad.parse` /
   `gad.parseFile` / `gad.eval`, the `SourceType` enum, `SourceFileObject` /
-  `StmtsObject`, and native Giom (`.giom`) compilation.
+  `StmtsObject`, and native Gadx (`.gadx`) compilation.
 - [Workspace Configuration](workspace-config.md) — `.gad.yaml` / `.gadide.yaml`,
   the `env` section, `GADPATH`, and bash-style variable expansion of config
   values.
 
-## Giom Templates
+## Gadx Templates
 
-Giom is an indentation-based HTML template language that embeds Gad, shipped in
-this repository as the [`giom`](../giom) submodule. `.giom` files can be run and
+Gadx is an indentation-based HTML template language that embeds Gad, shipped in
+this repository as the [`gadx`](../gadx) submodule. `.gadx` files can be run and
 debugged with the `gad` CLI and the `gad ide`/VS Code tooling. Its full
-documentation lives in [`giom/docs`](../giom/docs):
+documentation lives in [`gadx/docs`](../gadx/docs):
 
-- [Getting Started](../giom/docs/getting-started.md) — install and render a first template.
-- [Syntax](../giom/docs/syntax.md) — tags, `.class`/`#id`, `[attr]` groups,
+- [Getting Started](../gadx/docs/getting-started.md) — install and render a first template.
+- [Syntax](../gadx/docs/syntax.md) — tags, `.class`/`#id`, `[attr]` groups,
   `@`-control keywords, `{= … }` interpolation and `~~` code blocks.
-- [Components and Slots](../giom/docs/components-and-slots.md) — `@comp`, `@slot`
+- [Components and Slots](../gadx/docs/components-and-slots.md) — `@comp`, `@slot`
   and component calls.
-- [Embedding in Go](../giom/docs/embedding.md) and the [API](../giom/docs/api.md).
+- [Embedding in Go](../gadx/docs/embedding.md) and the [API](../gadx/docs/api.md).
 
 ## A Taste of Gad
 

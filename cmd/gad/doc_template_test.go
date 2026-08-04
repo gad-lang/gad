@@ -17,7 +17,7 @@ const docSampleSrc = "/*** greetings module. ***/\n\n" +
 	"/** The greeting prefix. **/\nexport hello = \"hi\"\n\n" +
 	"/** Adds two numbers. **/\nexport func add(a, b) { return a + b }\n"
 
-// TestRenderDocTemplateMD renders the Markdown template (.gad/doc-templates/md.giom)
+// TestRenderDocTemplateMD renders the Markdown template (.gad/doc-templates/md.gadx)
 // against the extracted structure and checks the emitted Markdown.
 func TestRenderDocTemplateMD(t *testing.T) {
 	tmpl := readSampleTemplate(t, gadconfig.DocMDTemplateName)
@@ -25,7 +25,7 @@ func TestRenderDocTemplateMD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := renderDocTemplate(tmpl, "md.giom", doc)
+	out, err := renderDocTemplate(tmpl, "md.gadx", doc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestRenderDocTemplateMD(t *testing.T) {
 	}
 }
 
-// TestRenderDocTemplateHTML renders the HTML template (.gad/doc-templates/html.giom)
+// TestRenderDocTemplateHTML renders the HTML template (.gad/doc-templates/html.gadx)
 // and checks the emitted HTML (structure + data-* source positions).
 func TestRenderDocTemplateHTML(t *testing.T) {
 	tmpl := readSampleTemplate(t, gadconfig.DocHTMLTemplateName)
@@ -44,7 +44,7 @@ func TestRenderDocTemplateHTML(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := renderDocTemplate(tmpl, "html.giom", doc)
+	out, err := renderDocTemplate(tmpl, "html.gadx", doc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,8 +60,8 @@ func TestRenderDocTemplateHTML(t *testing.T) {
 }
 
 // TestDocCommandUsesTemplates runs `gad doc` end-to-end in a workspace whose
-// .gad/doc-templates holds both templates, and checks that md.giom drives the
-// .md output while html.giom additionally emits a .html file.
+// .gad/doc-templates holds both templates, and checks that md.gadx drives the
+// .md output while html.gadx additionally emits a .html file.
 func TestDocCommandUsesTemplates(t *testing.T) {
 	dir := t.TempDir()
 	tdir := gadconfig.DocTemplatesDir(dir)

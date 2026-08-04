@@ -1,9 +1,9 @@
-# Metaprogramming: parse, eval and Giom
+# Metaprogramming: parse, eval and Gadx
 
-Gad can parse Gad (and Giom) source into an AST value at run time, inspect or
+Gad can parse Gad (and Gadx) source into an AST value at run time, inspect or
 transform it, and compile-and-run it — all from within a script, through the
-`gad` builtin namespace. It can also compile Giom (`.giom`) templates natively:
-Giom's front-end is built into the Gad compiler, so `.giom` files run, debug and
+`gad` builtin namespace. It can also compile Gadx (`.gadx`) templates natively:
+Gadx's front-end is built into the Gad compiler, so `.gadx` files run, debug and
 import like any other module.
 
 ## The `gad` namespace
@@ -13,7 +13,7 @@ import like any other module.
 | `gad.parse`             | function | Parse a source string into a `SourceFileObject`.    |
 | `gad.parseFile`         | function | Read and parse a file into a `SourceFileObject`.    |
 | `gad.eval`              | function | Compile and run a source / `SourceFileObject` / `StmtsObject` / `StmtObject`. |
-| `gad.SourceType`        | enum     | `GAD`, `TEMPLATE`, `GIOM` — selects the parse mode. |
+| `gad.SourceType`        | enum     | `GAD`, `TEMPLATE`, `GADX` — selects the parse mode. |
 | `gad.SourceFileObject`  | type     | A parsed source file (raw bytes + `path`/`type`).   |
 | `gad.StmtsObject`       | type     | A sequence of parsed statements (an AST fragment).  |
 | `gad.StmtObject`        | type     | A single statement (element of `StmtsObject`).      |
@@ -32,11 +32,11 @@ The parse mode is chosen as follows:
 
 1. If `type` is given, it wins.
 2. Otherwise, if `name` is given, the mode is inferred from its extension
-   (`.giom` → Giom, `.gadt` → template, else Gad).
+   (`.gadx` → Gadx, `.gadt` → template, else Gad).
 3. Otherwise the mode is `GAD`.
 
 The returned source file's `path` is `name` when given, otherwise a generated
-name carrying the selected mode's extension (`.gad` / `.gadt` / `.giom`).
+name carrying the selected mode's extension (`.gad` / `.gadt` / `.gadx`).
 
 ```gad
 src := gad.parse("return 6 * 7")
@@ -46,8 +46,8 @@ gad.eval(src)                       // 42 (eval accepts the source file directly
 src := gad.parse("Hi {%= name %}"; name = "greeting.gadt")
 src.type                            // gad.SourceType.TEMPLATE
 
-// Giom mode, selected explicitly:
-src := gad.parse("span Hi"; type = gad.SourceType.GIOM)
+// Gadx mode, selected explicitly:
+src := gad.parse("span Hi"; type = gad.SourceType.GADX)
 ```
 
 ## `gad.parseFile`
@@ -60,8 +60,8 @@ Reads the file at `pth` and parses it, selecting the mode from the file
 extension. It errors when the file cannot be read or parsed.
 
 ```gad
-src := gad.parseFile("page.giom")   // Giom, from the extension
-src.path                            // "page.giom"
+src := gad.parseFile("page.gadx")   // Gadx, from the extension
+src.path                            // "page.gadx"
 src.stmts                           // the parsed statements
 ```
 
@@ -80,10 +80,10 @@ Each compiles the given source / statements against the running VM's builtins
 and runs them like [`Eval.Run`](embedding.md), returning the last value produced.
 The `source` overload parses first, in the selected mode.
 
-> Statements parsed in Giom mode reference the `giom` builtins (`giom.Tag`,
-> `giom.write`, …). `gad.eval` uses the running VM's builtins, so those must be
+> Statements parsed in Gadx mode reference the `gadx` builtins (`gadx.Tag`,
+> `gadx.write`, …). `gad.eval` uses the running VM's builtins, so those must be
 > registered in the VM (the `gad` CLI and `gad ide` register them
-> automatically). A returned Giom element is not rendered — write it (`write(el)`)
+> automatically). A returned Gadx element is not rendered — write it (`write(el)`)
 > to emit HTML.
 
 ```gad
@@ -139,32 +139,32 @@ one := gad.parse("a := 99").stmts
 stmts[0] = one[0]
 ```
 
-## Native Giom compilation
+## Native Gadx compilation
 
-The `.giom` template engine is compiled by Gad itself — no separate compiler is
+The `.gadx` template engine is compiled by Gad itself — no separate compiler is
 involved:
 
-- `gad page.giom` runs a Giom template; `gad debug page.giom` debugs it.
-- A plain `.gad` script may `import("./partial.giom")`; the imported template is
-  compiled with the Giom front-end automatically.
-- Embedding: set `GiomOptions` on `gad.CompileOptions` to compile a `.giom`
-  source, and register the Giom builtins in the VM.
+- `gad page.gadx` runs a Gadx template; `gad debug page.gadx` debugs it.
+- A plain `.gad` script may `import("./partial.gadx")`; the imported template is
+  compiled with the Gadx front-end automatically.
+- Embedding: set `GadxOptions` on `gad.CompileOptions` to compile a `.gadx`
+  source, and register the Gadx builtins in the VM.
 
 ```go
 import (
     gad "github.com/gad-lang/gad"
-    "github.com/gad-lang/gad/giom"
+    "github.com/gad-lang/gad/gadx"
 )
 
-builtins := giom.AppendBuiltins(gad.NewBuiltins())
+builtins := gadx.AppendBuiltins(gad.NewBuiltins())
 st := gad.NewSymbolTable(builtins.NameSet)
 
 opts := gad.CompileOptions{}
-opts.GiomOptions = &gad.GiomOptions{} // parse & lower as Giom
+opts.GadxOptions = &gad.GadxOptions{} // parse & lower as Gadx
 _, bc, err := gad.Compile(st, []byte("p Hello {= name }"), opts)
 ```
 
 The file importer (`github.com/gad-lang/gad/importers.FileImporter`) recognises
-`.giom` modules and compiles them natively, so `import("...")` of a `.giom` file
-works with no extra wiring. See the [Giom documentation](../giom/docs) for the
+`.gadx` modules and compiles them natively, so `import("...")` of a `.gadx` file
+works with no extra wiring. See the [Gadx documentation](../gadx/docs) for the
 template syntax.

@@ -8,7 +8,7 @@ import { join, relative, sep } from "node:path";
 
 const SAMPLES = join(import.meta.dir, "../../../samples");
 const OUT = join(import.meta.dir, "../src/samples.gen.ts");
-const EXTS = [".gad", ".gadt", ".giom"];
+const EXTS = [".gad", ".gadt", ".gadx"];
 
 function walk(dir: string, acc: string[]): string[] {
   for (const name of readdirSync(dir).sort()) {

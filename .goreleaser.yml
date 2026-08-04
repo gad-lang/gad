@@ -44,9 +44,9 @@ archives:
       - LICENSE
       - README.md
       - doc/**/*
-      # Giom template engine docs (from the ./giom submodule).
-      - src: giom/docs/**/*
-        dst: doc/giom
+      # Gadx template engine docs (from the ./gadx submodule).
+      - src: gadx/docs/**/*
+        dst: doc/gadx
         strip_parent: true
 
 checksum:

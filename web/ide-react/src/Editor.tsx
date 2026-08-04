@@ -18,7 +18,7 @@ import { debugDecorations, setDebugLoc, type LocalVar } from "./debugDecorations
 export type EditorLanguage =
   | "gad"
   | "gadt"
-  | "giom"
+  | "gadx"
   | "json"
   | "yaml"
   | "html"
@@ -47,8 +47,8 @@ function langExtension(lang: EditorLanguage, diagnose?: DiagnoseFn, tmpl?: Templ
       return gad({ sourceType: "gad", diagnose });
     case "gadt":
       return gad({ sourceType: "template", delimiters: { start: tmpl?.start, end: tmpl?.end }, preamble: tmpl?.preamble });
-    case "giom":
-      return gad({ sourceType: "giom", diagnose });
+    case "gadx":
+      return gad({ sourceType: "gadx", diagnose });
     case "json":
       return json();
     case "yaml":

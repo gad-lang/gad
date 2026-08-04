@@ -8,7 +8,7 @@
 import type { Grammar, Environment } from "prismjs";
 import { gadGrammar } from "./gad-grammar";
 import { gadTemplateGrammar, type GadTemplateOptions } from "./template";
-import { giomGrammar } from "./giom";
+import { gadxGrammar } from "./gadx";
 
 
 /** registerGad installs the grammar under Prism.languages.gad. */
@@ -23,9 +23,9 @@ export function registerGad(Prism: {
  * Which Gad dialect a grammar highlights:
  * - `"gad"` (default): a plain `.gad` script.
  * - `"template"`: a `.gadt` mixed template (`{% … %}` / `{%= … %}` tags).
- * - `"giom"`: a `.giom` indentation-based template.
+ * - `"gadx"`: a `.gadx` indentation-based template.
  */
-export type GadSourceType = "gad" | "template" | "giom";
+export type GadSourceType = "gad" | "template" | "gadx";
 
 /**
  * gadGrammarFor returns the Prism grammar for the given source dialect, so a
@@ -45,15 +45,15 @@ export function gadGrammarFor(
   switch (sourceType) {
     case "template":
       return gadTemplateGrammar(options);
-    case "giom":
-      return giomGrammar;
+    case "gadx":
+      return gadxGrammar;
     default:
       return gadGrammar;
   }
 }
 
 // Re-export the core Gad grammar (its definition moved to ./gad-grammar to break
-// the template/giom ↔ index import cycle).
+// the template/gadx ↔ index import cycle).
 export { gadGrammar } from "./gad-grammar";
 
 export {
@@ -65,4 +65,4 @@ export {
   type GadTemplateDetection,
 } from "./template";
 
-export { giomGrammar, registerGiom } from "./giom";
+export { gadxGrammar, registerGadx } from "./gadx";

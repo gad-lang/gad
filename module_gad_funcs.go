@@ -13,7 +13,7 @@ import (
 )
 
 // SourceKind selects how gad.parse / gad.parseFile interpret their source: plain
-// Gad, a Gad template (mixed / `.gadt`) or a Giom (`.giom`) template.
+// Gad, a Gad template (mixed / `.gadt`) or a Gadx (`.gadx`) template.
 type SourceKind int
 
 const (
@@ -21,8 +21,8 @@ const (
 	SourceGad SourceKind = iota
 	// SourceTemplate parses the input as a Gad template (mixed mode).
 	SourceTemplate
-	// SourceGiom parses the input with the Giom front-end.
-	SourceGiom
+	// SourceGadx parses the input with the Gadx front-end.
+	SourceGadx
 )
 
 // Ext returns the file extension conventionally associated with the source kind.
@@ -30,14 +30,14 @@ func (k SourceKind) Ext() string {
 	switch k {
 	case SourceTemplate:
 		return ".gadt"
-	case SourceGiom:
-		return ".giom"
+	case SourceGadx:
+		return ".gadx"
 	default:
 		return ".gad"
 	}
 }
 
-// SourceTypeEnum is the builtin `enum SourceType (GAD, TEMPLATE, GIOM)` exposed
+// SourceTypeEnum is the builtin `enum SourceType (GAD, TEMPLATE, GADX)` exposed
 // as gad.SourceType. Its members select the parse mode of gad.parse.
 var SourceTypeEnum = newSourceTypeEnum()
 
@@ -45,7 +45,7 @@ func newSourceTypeEnum() *Enum {
 	e := NewEnum("SourceType", gadModuleSpec)
 	e.AddValue("GAD", Int(SourceGad))
 	e.AddValue("TEMPLATE", Int(SourceTemplate))
-	e.AddValue("GIOM", Int(SourceGiom))
+	e.AddValue("GADX", Int(SourceGadx))
 	return e
 }
 
@@ -67,12 +67,12 @@ func sourceKindFromArg(o Object) (SourceKind, error) {
 	return SourceGad, NewArgumentTypeError("type", "SourceType", o.Type().Name())
 }
 
-// sourceKindForExt maps a file extension to a SourceKind: `.giom` -> Giom,
+// sourceKindForExt maps a file extension to a SourceKind: `.gadx` -> Gadx,
 // `.gadt` -> template, anything else -> Gad.
 func sourceKindForExt(pth string) SourceKind {
 	switch {
-	case strings.HasSuffix(pth, ".giom"):
-		return SourceGiom
+	case strings.HasSuffix(pth, ".gadx"):
+		return SourceGadx
 	case strings.HasSuffix(pth, ".gadt"):
 		return SourceTemplate
 	default:
@@ -86,8 +86,8 @@ func parseToStmts(src []byte, name string, kind SourceKind) (StmtsObject, error)
 	fileSet := source.NewFileSet()
 	srcFile := fileSet.AppendFileData(name, src)
 
-	if kind == SourceGiom {
-		pf, err := parseGiomFile(srcFile)
+	if kind == SourceGadx {
+		pf, err := parseGadxFile(srcFile)
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +170,7 @@ func gadParse(call Call) (Object, error) {
 
 // gadParseFile implements gad.parseFile(pth str) -> SourceFileObject: it reads
 // the file at pth and parses it, selecting the source mode from the extension
-// (`.giom` -> Giom, `.gadt` -> template, otherwise Gad). Its statements are
+// (`.gadx` -> Gadx, `.gadt` -> template, otherwise Gad). Its statements are
 // available as `.stmts`. It returns an error when the file cannot be read or
 // parsed.
 func gadParseFile(call Call) (Object, error) {
@@ -187,8 +187,8 @@ func gadParseFile(call Call) (Object, error) {
 
 // evalStmts compiles the given statements against the running VM's builtins and
 // executes them like Eval.Run, returning the last value produced. Statements
-// parsed from Giom reference the `giom` builtins, which must be registered in
-// the running VM. The result is returned as-is (a Giom element is not rendered).
+// parsed from Gadx reference the `gadx` builtins, which must be registered in
+// the running VM. The result is returned as-is (a Gadx element is not rendered).
 func evalStmts(vm *VM, stmts node.Stmts) (Object, error) {
 	fileSet := source.NewFileSet()
 	pf := &parser.File{InputFile: fileSet.AppendFileData(MainName, nil), Stmts: stmts}

@@ -13,16 +13,16 @@ import (
 // FileImporter is an implemention of gad.ExtImporter to import files from file
 // system. It uses absolute paths of module as import names.
 //
-// Files ending in ".giom" are compiled natively with the Giom front-end: Import
+// Files ending in ".gadx" are compiled natively with the Gadx front-end: Import
 // returns a gad.BuiltinCompileModuleFunc so they are parsed and lowered to Gad
 // during import compilation. Other files are returned as source bytes.
 type FileImporter struct {
 	NameResolver func(cwd, name string) (string, error)
 	WorkDir      string
 	FileReader   func(string) (data []byte, uri string, err error)
-	// TranspilePath, when set and non-empty for a ".giom" module, is the output
+	// TranspilePath, when set and non-empty for a ".gadx" module, is the output
 	// path its transpiled Gad source is written to on import (see
-	// gad.TranspileGiom).
+	// gad.TranspileGadx).
 	TranspilePath func(srcPath string) string
 	name          string
 }
@@ -59,8 +59,8 @@ func (m *FileImporter) Name() (string, error) {
 }
 
 // Import returns the content of the path determined by Name call. Empty name
-// will return an error. A ".giom" module is returned as a
-// gad.BuiltinCompileModuleFunc that compiles the file with the Giom front-end.
+// will return an error. A ".gadx" module is returned as a
+// gad.BuiltinCompileModuleFunc that compiles the file with the Gadx front-end.
 func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data any, uri string, err error) {
 	// Note that; moduleName == Literal()
 	if m.name == "" || module.Name == "" {
@@ -79,8 +79,8 @@ func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data
 		return
 	}
 
-	// Giom templates are compiled natively during import compilation.
-	if filepath.Ext(module.Name) == ".giom" {
+	// Gadx templates are compiled natively during import compilation.
+	if filepath.Ext(module.Name) == ".gadx" {
 		src, _ := data.([]byte)
 		name := module.Name
 		if rel, rerr := filepath.Rel(m.WorkDir, module.Name); rerr == nil {
@@ -88,14 +88,14 @@ func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data
 		}
 		if m.TranspilePath != nil {
 			if outPath := m.TranspilePath(module.Name); outPath != "" {
-				if terr := gad.TranspileGiom(module.Name, src, outPath); terr != nil {
+				if terr := gad.TranspileGadx(module.Name, src, outPath); terr != nil {
 					return nil, "", terr
 				}
 			}
 		}
 		data = gad.BuiltinCompileModuleFunc(func(cc *gad.BuiltinCompileModuleContext) (*gad.Bytecode, error) {
 			cc.Spec.URL = name
-			if err := gad.CompileGiomModule(cc, src); err != nil {
+			if err := gad.CompileGadxModule(cc, src); err != nil {
 				return nil, err
 			}
 			return cc.Compiler.Bytecode(), nil

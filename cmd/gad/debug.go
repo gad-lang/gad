@@ -99,14 +99,14 @@ func loadProgram(file string) (*gad.Bytecode, *gad.Builtins, []string, error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	builtins := giomBuiltins(file)
+	builtins := gadxBuiltins(file)
 	st := defaultSymbolTable(builtins.NameSet)
 	opts := gad.CompileOptions{CompilerOptions: gad.DefaultCompilerOptions}
 	opts.ModuleMap = DefaultModuleMap(filepath.Dir(file), &sourcePath)
-	// .giom entrypoints compile through gad's native Giom front-end; nested
-	// .giom imports resolve natively via the default file importer.
-	if isGiomFile(file) {
-		opts.GiomOptions = &gad.GiomOptions{}
+	// .gadx entrypoints compile through gad's native Gadx front-end; nested
+	// .gadx imports resolve natively via the default file importer.
+	if isGadxFile(file) {
+		opts.GadxOptions = &gad.GadxOptions{}
 		opts.CompilerOptions.ModuleFile = file
 	}
 	res, err := gad.Compile(st, src, opts)

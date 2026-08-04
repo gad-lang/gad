@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/gad-lang/gad"
-	giomnode "github.com/gad-lang/gad/giom/node"
-	giomparser "github.com/gad-lang/gad/giom/parser"
+	gadxnode "github.com/gad-lang/gad/gadx/node"
+	gadxparser "github.com/gad-lang/gad/gadx/parser"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/ast"
 	gnode "github.com/gad-lang/gad/parser/node"
@@ -15,10 +15,10 @@ import (
 
 // DocData is the structured documentation extracted from a source buffer — a
 // JSON-serializable tree that a caller can render however it likes (the default
-// Markdown renderer is RenderMarkdown; the CLI can render HTML via a giom
+// Markdown renderer is RenderMarkdown; the CLI can render HTML via a gadx
 // template). This is the shape the WASM bridge and the gad doc API return.
 type DocData struct {
-	// Prose is the module-level description (a leading `/***` block or a giom
+	// Prose is the module-level description (a leading `/***` block or a gadx
 	// leading comment), or "".
 	Prose string `json:"prose,omitempty"`
 	// Sections group the documented symbols by kind ("Exports", "Components",
@@ -46,11 +46,11 @@ type DocSymbol struct {
 }
 
 // ExtractDoc extracts the structured documentation from a source buffer.
-// sourceType selects the dialect: "giom", "gadTemplate" (or "template"), or
+// sourceType selects the dialect: "gadx", "gadTemplate" (or "template"), or
 // "gad" (default).
 func ExtractDoc(src, sourceType string) (*DocData, error) {
-	if sourceType == "giom" {
-		return giomDocData([]byte(src))
+	if sourceType == "gadx" {
+		return gadxDocData([]byte(src))
 	}
 	return gadDocData([]byte(src), sourceType)
 }
@@ -66,7 +66,7 @@ func Doc(src, sourceType string) (string, error) {
 }
 
 // GadDict converts the structured documentation into a Gad dict, the shape a
-// `.gaddoc.giom` / `.gaddoc-md.giom` template consumes via `param (doc dict)`.
+// `.gaddoc.gadx` / `.gaddoc-md.gadx` template consumes via `param (doc dict)`.
 // Layout: { prose: str, sections: [ { title: str, symbols: [ { name, signature,
 // doc: str, line, column: int } ] } ] }.
 func (d *DocData) GadDict() gad.Dict {
@@ -88,7 +88,7 @@ func (d *DocData) GadDict() gad.Dict {
 }
 
 // RenderMarkdown renders a DocData as Markdown (prose, then a `## Title` section
-// per group with a `### name` entry — the giom entries carry a data-source-pos
+// per group with a `### name` entry — the gadx entries carry a data-source-pos
 // anchor for navigation).
 func RenderMarkdown(d *DocData) string {
 	var b strings.Builder
@@ -213,17 +213,17 @@ func gadExportName(es *gnode.ExportStmt) string {
 	return ""
 }
 
-// --- Giom ---
+// --- Gadx ---
 
-func giomDocData(src []byte) (*DocData, error) {
+func gadxDocData(src []byte) (*DocData, error) {
 	fs := source.NewFileSet()
 	f := fs.AddFileData("buffer", -1, src)
-	file, err := giomparser.NewParser(f).ParseFile()
+	file, err := gadxparser.NewParser(f).ParseFile()
 	if err != nil {
 		return nil, err
 	}
 
-	d := &DocData{Prose: giomLeadProse(file)}
+	d := &DocData{Prose: gadxLeadProse(file)}
 
 	add := func(title string, syms []DocSymbol) {
 		if len(syms) > 0 {
@@ -233,20 +233,20 @@ func giomDocData(src []byte) (*DocData, error) {
 	var exports, comps, funcs, params, consts, vars, enums []DocSymbol
 	for _, stmt := range file.Stmts {
 		switch t := stmt.(type) {
-		case *giomnode.ExportStmt:
-			exports = append(exports, giomSym(f, t.Name, giomExportValue(t.Value), t.Doc, t.Pos()))
-		case *giomnode.CompDecl:
-			comps = append(comps, giomSym(f, "+"+t.Name, giomParams(t.ParamsRaw), t.Doc, t.Pos()))
-		case *giomnode.FuncDecl:
-			funcs = append(funcs, giomSym(f, t.Name, giomParams(t.ParamsRaw), t.Doc, t.Pos()))
-		case *giomnode.ParamStmt:
-			params = append(params, giomSym(f, "@param", giomDeclSig(t.Decl, "param"), t.Doc, t.Pos()))
-		case *giomnode.ConstStmt:
-			consts = append(consts, giomSym(f, "@const", giomVarSig(t.Decls), t.Doc, t.Pos()))
-		case *giomnode.VarStmt:
-			vars = append(vars, giomSym(f, "@var", giomVarSig(t.Decls), t.Doc, t.Pos()))
-		case *giomnode.EnumStmt:
-			enums = append(enums, giomSym(f, t.Name, "", t.Doc, t.Pos()))
+		case *gadxnode.ExportStmt:
+			exports = append(exports, gadxSym(f, t.Name, gadxExportValue(t.Value), t.Doc, t.Pos()))
+		case *gadxnode.CompDecl:
+			comps = append(comps, gadxSym(f, "+"+t.Name, gadxParams(t.ParamsRaw), t.Doc, t.Pos()))
+		case *gadxnode.FuncDecl:
+			funcs = append(funcs, gadxSym(f, t.Name, gadxParams(t.ParamsRaw), t.Doc, t.Pos()))
+		case *gadxnode.ParamStmt:
+			params = append(params, gadxSym(f, "@param", gadxDeclSig(t.Decl, "param"), t.Doc, t.Pos()))
+		case *gadxnode.ConstStmt:
+			consts = append(consts, gadxSym(f, "@const", gadxVarSig(t.Decls), t.Doc, t.Pos()))
+		case *gadxnode.VarStmt:
+			vars = append(vars, gadxSym(f, "@var", gadxVarSig(t.Decls), t.Doc, t.Pos()))
+		case *gadxnode.EnumStmt:
+			enums = append(enums, gadxSym(f, t.Name, "", t.Doc, t.Pos()))
 		}
 	}
 	add("Exports", exports)
@@ -259,26 +259,26 @@ func giomDocData(src []byte) (*DocData, error) {
 	return d, nil
 }
 
-func giomSym(f *source.File, name, sig, doc string, pos source.Pos) DocSymbol {
+func gadxSym(f *source.File, name, sig, doc string, pos source.Pos) DocSymbol {
 	fp := source.MustFilePosition(f, pos)
 	return DocSymbol{Name: name, Signature: sig, Doc: strings.TrimSpace(doc), Line: fp.Line, Column: fp.Column}
 }
 
-func giomExportValue(v gnode.Expr) string {
+func gadxExportValue(v gnode.Expr) string {
 	if v == nil {
 		return ""
 	}
 	return " = " + v.String()
 }
 
-func giomDeclSig(decl *gnode.GenDecl, keyword string) string {
+func gadxDeclSig(decl *gnode.GenDecl, keyword string) string {
 	if decl == nil {
 		return ""
 	}
 	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(decl.String()), keyword))
 }
 
-func giomVarSig(decls []giomnode.VarDecl) string {
+func gadxVarSig(decls []gadxnode.VarDecl) string {
 	var parts []string
 	for _, d := range decls {
 		if d.Init != nil {
@@ -293,7 +293,7 @@ func giomVarSig(decls []giomnode.VarDecl) string {
 	return "(" + strings.Join(parts, ", ") + ")"
 }
 
-func giomParams(raw string) string {
+func gadxParams(raw string) string {
 	raw = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(raw), "("), ")"))
 	if raw == "" {
 		return ""
@@ -301,9 +301,9 @@ func giomParams(raw string) string {
 	return "(" + raw + ")"
 }
 
-func giomLeadProse(file *giomnode.File) string {
+func gadxLeadProse(file *gadxnode.File) string {
 	for _, stmt := range file.Stmts {
-		c, ok := stmt.(*giomnode.CommentStmt)
+		c, ok := stmt.(*gadxnode.CommentStmt)
 		if !ok {
 			return ""
 		}

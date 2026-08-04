@@ -67,7 +67,7 @@ export class WasmClient {
     this.pending.clear();
   }
 
-  /** run executes source; sourceType "gadTemplate"/"giom" selects the dialect. */
+  /** run executes source; sourceType "gadTemplate"/"gadx" selects the dialect. */
   run(source: string, sourceType = "", args: string[] = []) {
     return this.json<RunResult>("gadRun", [source, sourceType, JSON.stringify(args)]);
   }
@@ -79,11 +79,11 @@ export class WasmClient {
     return this.json<{ diagnostics: GadDiagnostic[] }>("gadDiagnose", [source, sourceType]);
   }
   /** doc extracts Markdown documentation from content and its sourceType. */
-  doc(source: string, sourceType: "gad" | "gadTemplate" | "giom") {
+  doc(source: string, sourceType: "gad" | "gadTemplate" | "gadx") {
     return this.json<{ markdown?: string; error?: string }>("gadDoc", [source, sourceType]);
   }
   /** docData extracts the structured documentation (prose + typed sections). */
-  docData(source: string, sourceType: "gad" | "gadTemplate" | "giom") {
+  docData(source: string, sourceType: "gad" | "gadTemplate" | "gadx") {
     return this.json<{ doc?: unknown; error?: string }>("gadDocData", [source, sourceType]);
   }
   /** docComments extracts the doc-comment list (for the IDE Docs panel). */

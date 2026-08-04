@@ -29,11 +29,11 @@ func TestDocGad(t *testing.T) {
 	}
 }
 
-// TestDocGiom documents a .giom template: components with doc text and a
+// TestDocGadx documents a .gadx template: components with doc text and a
 // data-source-pos anchor.
-func TestDocGiom(t *testing.T) {
+func TestDocGadx(t *testing.T) {
 	src := "/** Reusable widgets. **/\n@comp greeting(name)\n    p hi\n"
-	md, err := Doc(src, "giom")
+	md, err := Doc(src, "gadx")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestDocGiom(t *testing.T) {
 		"Reusable widgets.", `data-source-pos="2,1"`,
 	} {
 		if !strings.Contains(md, w) {
-			t.Fatalf("giom doc missing %q:\n%s", w, md)
+			t.Fatalf("gadx doc missing %q:\n%s", w, md)
 		}
 	}
 }

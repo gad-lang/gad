@@ -21,7 +21,7 @@ const CONFIG_KEY = "gad-vuetify-ide-config-v1";
 
 /** dialectOf maps a file extension to the WASM run/diagnose sourceType. */
 function dialectOf(path = ""): string {
-  if (path.endsWith(".giom")) return "giom";
+  if (path.endsWith(".gadx")) return "gadx";
   if (path.endsWith(".gadt")) return "gadTemplate";
   return "gad";
 }

@@ -86,7 +86,7 @@ function langForPath(path: string): EditorLanguage {
     case "tsx": return "tsx";
     case "gad": return "gad";
     case "gadt": return "gadt";
-    case "giom": return "giom";
+    case "gadx": return "gadx";
     case "md": case "mdx": return "markdown";
     default: return "text";
   }

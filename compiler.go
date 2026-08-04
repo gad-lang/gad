@@ -113,10 +113,10 @@ type (
 		MixedWriteFunction  node.Expr
 		MixedExprToTextFunc node.Expr
 		FallbackFunc        func(c *Compiler, nd ast.Node) error
-		// GiomOptions, when non-nil, compiles the source as a Giom (.giom)
-		// template: it is parsed with the Giom front-end and lowered to Gad
-		// before compilation (see compiler_giom.go). Nil means plain Gad.
-		GiomOptions   *GiomOptions
+		// GadxOptions, when non-nil, compiles the source as a Gadx (.gadx)
+		// template: it is parsed with the Gadx front-end and lowered to Gad
+		// before compilation (see compiler_gadx.go). Nil means plain Gad.
+		GadxOptions   *GadxOptions
 		embeddedStore map[string]int
 		moduleStore   *moduleStore
 		constsCache   map[Object]int
@@ -319,11 +319,11 @@ func Compile(st *SymbolTable, script []byte, opts CompileOptions) (*CompileResul
 func CompileModule(st *SymbolTable, module *ModuleSpec, script []byte, opts CompileOptions) (*CompileResult, error) {
 	fileSet := source.NewFileSet()
 
-	// Giom source positions read best when the file carries the template's own
+	// Gadx source positions read best when the file carries the template's own
 	// path; use ModuleFile as the source name when set (the module itself keeps
 	// its spec name, e.g. the main module).
 	srcName := module.Name
-	if opts.GiomOptions != nil && opts.ModuleFile != "" {
+	if opts.GadxOptions != nil && opts.ModuleFile != "" {
 		srcName = opts.ModuleFile
 	}
 	srcFile := fileSet.AppendFileData(srcName, script)
@@ -336,15 +336,15 @@ func CompileModule(st *SymbolTable, module *ModuleSpec, script []byte, opts Comp
 		err error
 	)
 
-	// Giom (.giom) templates are parsed with the Giom front-end and lowered to
-	// Gad statements, then compiled through the Giom fallback (compiler_giom.go).
-	if opts.GiomOptions != nil {
-		pf, err = parseGiomFile(srcFile)
+	// Gadx (.gadx) templates are parsed with the Gadx front-end and lowered to
+	// Gad statements, then compiled through the Gadx fallback (compiler_gadx.go).
+	if opts.GadxOptions != nil {
+		pf, err = parseGadxFile(srcFile)
 		if err != nil {
 			return nil, err
 		}
 		if opts.FallbackFunc == nil {
-			opts.FallbackFunc = giomCompileFallback
+			opts.FallbackFunc = gadxCompileFallback
 		}
 		return CompileFile(st, module, pf, opts)
 	}

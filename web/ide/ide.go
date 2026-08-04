@@ -66,8 +66,8 @@ func New(path string) (*Server, error) {
 				workdir = filepath.Dir(abs)
 			}
 		}
-		// The file importer compiles imported .giom modules natively, so nested
-		// .giom imports work for both plain Gad and Giom entrypoints.
+		// The file importer compiles imported .gadx modules natively, so nested
+		// .gadx imports work for both plain Gad and Gadx entrypoints.
 		return buildModuleMap(workdir, req.Disabled, req.Safe)
 	}
 	s.dbg.NormalizeFile = s.normalizeDebugFile
