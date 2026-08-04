@@ -1,53 +1,54 @@
-# TASK: Server-less embeddable IDE via @gad-lang/ide-react + localIdeApi
+# TASK: @gad-lang/ide-vuetify component + server-less Vuetify demo
 
-> Created: 2026-08-03 | Updated: 2026-08-03 19:10
+> Created: 2026-08-03 | Updated: 2026-08-03 22:10
 
 ## Goal
-Ship the standalone, server-less IDE page (webide.html) by reusing the extracted
-`@gad-lang/ide-react` <Ide> component, driven by an in-browser `localIdeApi`
-(WebFS sample tree + LocalStorage overlay, Gad WASM in a Web Worker). No Go
-server. Supersedes the earlier custom WebIde.tsx/tree.ts (now removed).
+Create a reusable Vuetify 3.8 IDE component (`web/ide-vuetify`, the Vuetify
+counterpart of `@gad-lang/ide-react`, same injectable IdeApi contract) and a
+server-less demo app (`web/ide-vuetify/demo`) like the React `webide.html`:
+in-browser only (WebFS samples + LocalStorage overlay, Gad WASM in a Web Worker).
 
 ## Plan
-- [x] webide.tsx renders <Ide api={localIdeApi}> from @gad-lang/ide-react (user)
-- [x] backends/localIde.ts: full IdeApi impl over WebFS + WASM worker (user)
-- [x] client.ts: run(sourceType)/diagnose(sourceType)/docComments/evalExpr/transpile (user)
-- [x] bridge.go: EvalExpr (+ Transpile/DocComments) for the IDE panels (user)
-- [x] wasm main.go: gadEval/gadTranspile/gadDocComments/gadDocData exports (user)
-- [x] backends/debug.ts: re-export debug wire types from @gad-lang/ide-react (user)
-- [x] vite: alias + dedupe for @gad-lang/ide-react; two-page build (user)
-- [x] Remove custom WebIde.tsx + webide/tree.ts (superseded)
-- [x] worker.ts: complete GadGlobals with the 4 new fn declarations (me)
-- [x] gadbridge: add TestEvalExpr (was untested) (me)
+- [x] Package: api.ts (IdeApi contract + httpIdeApi + probeIde), types.ts
+- [x] Package: codemirror.ts (langOf/langExtension + GadEditorView) + CM6 helpers
+      (breakpointGutter, debugDecorations, docMarkdown copied from ide-react)
+- [x] Package: GadEditor.vue (CodeMirror wrapper) + GadIde.vue (explorer + editor
+      + Run/Doc/Debug panels, injectable `api`, optional `onReset`)
+- [x] Package: index.ts, package.json, tsconfig(+build), vite lib config, env.d.ts, README
+- [x] Demo: localIde.ts (in-browser IdeApi over WebFS + WASM worker), App.vue,
+      main.ts (Vuetify bootstrap), index.html, vite config, tsconfig
+- [x] Demo: copy wasm client/worker + webfs + gen-samples (+ build-wasm.sh); wasm/shared.ts
+- [x] Add both to web/ bun workspaces; add @lezer/* direct deps for the build
 
 ## Log
 ### 2026-08-03
-- App typecheck clean — `bun run typecheck` → exit 0
-- Go build/test clean — `go build ./...` exit 0; `go test ./web/... ./cmd/gad/` all ok
-- WASM builds with new exports — `GOOS=js GOARCH=wasm go build ./web/wasm` → 20591567 bytes
-- Production build both entries — `bunx vite build` → built in 3.18s; dist/index.html +
-  dist/webide.html + separate webide chunk (85.92 kB) + worker chunk
-- All WASM exports the client calls exist in main.go (gadEval/gadTranspile/
-  gadDocComments/gadDocData/gadDoc/gadDocData/gadRun/gadDiagnose/gadFormat/gadDebug*)
-- Added EvalExpr coverage — `go test ./web/gadbridge/ -run TestEvalExpr` → PASS
-- gofmt clean on touched Go files
+- Package typecheck clean — `bun run typecheck` (vue-tsc) → exit 0
+- Package builds — `bun run build` (vite lib + vue-tsc d.ts) → dist/ide-vuetify.js
+  32.65 kB + dist/index.d.ts + dist/style.css
+- Demo samples generated — `bun run scripts/gen-samples.ts` → 51 files
+- Demo typecheck clean — `bun run typecheck` → exit 0
+- Demo production build — `bunx vite build` → built in 3.27s (index.html + worker
+  chunk + mdi fonts + bundle)
+- `git add -n` confirms only source staged (no dist/node_modules/wasm/samples.gen)
 
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
 |-------|-------|-----|----------|
-| TestEvalExpr repr expected `"hi"` | Gad repr renders the type-annotated `‹str: "hi"›` | assert Contains(`"hi"`) for repr, exact `hi` for str | TestEvalExpr PASS |
+| TS2459 RunResult not exported from ./api | it lives in types.ts | import RunResult from ./types | pkg typecheck exit 0 |
+| demo: Cannot find module @gad-lang/ide-vuetify | package dist not built; vue-tsc ignores vite alias | build the package first (dist/index.d.ts) | demo typecheck exit 0 |
+| Rollup can't resolve @lezer/highlight from @codemirror/theme-one-dark | bun isolated node_modules hides transitive @lezer | add @lezer/common+highlight+lr as demo direct deps | demo `vite build` succeeds |
 
 ## Current State
-The server-less IDE is delivered by reusing `@gad-lang/ide-react`'s <Ide>
-component (the same UI `gad ide` serves), injected with `localIdeApi` — a full
-in-browser IdeApi over WebFS (read-only samples + LocalStorage overlay) and the
-Gad WASM module in a Web Worker (wasm/client.ts + worker.ts). client.ts and the
-WASM bridge (bridge.go EvalExpr/Transpile/DocComments + main.go gadEval/
-gadTranspile/gadDocComments/gadDocData exports) supply run/diagnose/doc/eval/
-transpile/debug; debug wire types are re-exported from ide-react so both sides
-share one definition. My earlier custom WebIde.tsx/tree.ts are removed. This
-turn I completed the worker's GadGlobals type (the 4 new fns) and added
-TestEvalExpr. Verified: Go build/test/vet/gofmt clean, WASM builds, app
-typecheck clean, production build of both entries (index + webide) succeeds. Not
-committed yet. Live-browser WASM execution not verified (needs a browser); every
-other check passes.
+`web/ide-vuetify` is a reusable Vuetify 3.8 IDE: <GadIde> (explorer with
+create/delete + optional reset, CodeMirror editor with breakpoint gutter + debug
+line highlight, Run/Format/Doc/Debug panels with call stack, locals, output and
+evaluate) driven by an injectable `IdeApi` (same contract as ide-react; httpIdeApi
+for a `gad ide` server). CodeMirror 6 is mounted framework-agnostically via
+GadEditorView and wrapped in GadEditor.vue. The package builds to dist (ES lib +
+d.ts + extracted style.css, exported as ./style.css). `web/ide-vuetify/demo` is a
+server-less app (like React's webide.html): localIdeApi implements IdeApi over
+WebFS (read-only bundled samples + LocalStorage overlay, reset via onReset) and
+the Gad WASM module in a Web Worker; main.ts bootstraps Vuetify (mdi font
+iconset). Both added to the bun workspace. Verified: package + demo typecheck
+clean, package build, demo production build all succeed. Not committed yet.
+Live-browser run not verified (needs a browser); every other check passes.

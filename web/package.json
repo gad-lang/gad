@@ -1,6 +1,6 @@
 {
   "private": true,
-  "workspaces": ["codemirror-gad", "prism-gad", "ide-react", "app"],
+  "workspaces": ["codemirror-gad", "prism-gad", "ide-react", "ide-vuetify", "ide-vuetify/demo", "app"],
   "trustedDependencies": ["esbuild"],
   "scripts": {
     "plugins:build": "bun run --cwd codemirror-gad build && bun run --cwd prism-gad build && bun run --cwd ide-react build",

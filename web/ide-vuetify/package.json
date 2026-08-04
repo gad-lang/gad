@@ -1,0 +1,84 @@
+{
+  "name": "@gad-lang/ide-vuetify",
+  "version": "0.1.0",
+  "description": "Reusable Vuetify 3 IDE component for the Gad language: file explorer, CodeMirror editor, run/format/doc and a stepping debugger. Backend-agnostic — drive it with any IdeApi implementation (HTTP `gad ide` server, or a fully in-browser WASM + LocalStorage backend).",
+  "type": "module",
+  "main": "dist/ide-vuetify.js",
+  "module": "dist/ide-vuetify.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/ide-vuetify.js",
+      "default": "./dist/ide-vuetify.js"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "sideEffects": [
+    "*.css",
+    "*.vue"
+  ],
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gad-lang/gad.git",
+    "directory": "web/ide-vuetify"
+  },
+  "homepage": "https://github.com/gad-lang/gad/tree/main/web/ide-vuetify#readme",
+  "bugs": "https://github.com/gad-lang/gad/issues",
+  "keywords": [
+    "gad",
+    "ide",
+    "vue",
+    "vuetify",
+    "codemirror",
+    "editor",
+    "debugger"
+  ],
+  "scripts": {
+    "build": "vite build && vue-tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "bun run clean && bun run build",
+    "typecheck": "vue-tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@gad-lang/codemirror-gad": "^0.1.0",
+    "@gad-lang/prism-gad": "^0.1.0",
+    "vue": "^3.4.0",
+    "vuetify": "^3.8.0"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.18.0",
+    "@codemirror/commands": "^6.6.0",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.11",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/language": "^6.10.0",
+    "@codemirror/legacy-modes": "^6.5.3",
+    "@codemirror/lint": "^6.8.0",
+    "@codemirror/state": "^6.4.0",
+    "@codemirror/theme-one-dark": "^6.1.0",
+    "@codemirror/view": "^6.34.0",
+    "codemirror": "^6.0.1",
+    "marked": "^18.0.5",
+    "prismjs": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/prismjs": "^1.26.0",
+    "@vitejs/plugin-vue": "^5.1.0",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0",
+    "vue": "^3.4.0",
+    "vue-tsc": "^2.1.0",
+    "vuetify": "^3.8.0"
+  },
+  "license": "MIT"
+}
