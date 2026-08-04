@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -81,6 +83,24 @@ func buildSite(repoRoot, outDir string, buildWASM bool) error {
 
 	play := &page{Slug: "playground", Title: "Playground", OutFile: "playground.html", Section: "Playground"}
 
+	// JS module docs (web/*/README.md) become the "JS modules" nav section, one
+	// page per package at /js-modules/<name>.
+	jsPages, err := collectJSModulePages(repoRoot)
+	if err != nil {
+		return err
+	}
+
+	// The embedded server-less IDE (the Vuetify demo) is built into /ide/ when a
+	// WASM build is requested and bun is available; it is tolerated if absent.
+	ideBuilt := false
+	if buildWASM {
+		if err := buildEmbeddedIDE(repoRoot, outDir); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: skipping embedded IDE (/ide): %v\n", err)
+		} else {
+			ideBuilt = true
+		}
+	}
+
 	groups := []navGroup{
 		{Name: "Guide", Pages: guide},
 		{Name: "Reference", Pages: ref},
@@ -88,10 +108,19 @@ func buildSite(repoRoot, outDir string, buildWASM bool) error {
 	if len(gadxPages) > 0 {
 		groups = append(groups, navGroup{Name: "Gadx", Pages: gadxPages})
 	}
+	if len(jsPages) > 0 {
+		groups = append(groups, navGroup{Name: "JS modules", Pages: jsPages})
+	}
+	if ideBuilt {
+		groups = append(groups, navGroup{Name: "IDE", Pages: []*page{
+			{Slug: "ide", Title: "IDE (server-less)", OutFile: "ide/index.html", Section: "IDE"},
+		}})
+	}
 	groups = append(groups, navGroup{Name: "Playground", Pages: []*page{play}})
 
 	all := append(append([]*page{}, guide...), ref...)
 	all = append(all, gadxPages...)
+	all = append(all, jsPages...)
 
 	tmpl := template.Must(template.New("layout").Parse(layoutTemplate))
 
@@ -220,6 +249,115 @@ func copyGadxAssets(dir, outDir string) error {
 	return nil
 }
 
+// jsModules are the publishable web packages documented under "JS modules".
+var jsModules = []struct{ Name, Title string }{
+	{"codemirror-gad", "@gad-lang/codemirror-gad"},
+	{"prism-gad", "@gad-lang/prism-gad"},
+	{"ide-react", "@gad-lang/ide-react"},
+	{"ide-vuetify", "@gad-lang/ide-vuetify"},
+}
+
+// mdLinkRe matches Markdown link targets `](target)`.
+var mdLinkRe = regexp.MustCompile(`\]\(([^)]+)\)`)
+
+// rewriteModuleLinks rewrites a module README's relative links to absolute GitHub
+// URLs (rooted at web/<name>/), so its `./docs/*.md`, `../<pkg>` and example
+// links resolve on the docs site. External, anchor and absolute links are left
+// as-is.
+func rewriteModuleLinks(md, name string) string {
+	return mdLinkRe.ReplaceAllStringFunc(md, func(m string) string {
+		target := m[2 : len(m)-1]
+		if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") ||
+			strings.HasPrefix(target, "#") || strings.HasPrefix(target, "mailto:") || strings.HasPrefix(target, "/") {
+			return m
+		}
+		anchor := ""
+		if i := strings.IndexByte(target, '#'); i >= 0 {
+			anchor, target = target[i:], target[:i]
+		}
+		resolved := path.Join("web", name, target)
+		return "](https://github.com/gad-lang/gad/blob/main/" + resolved + anchor + ")"
+	})
+}
+
+// collectJSModulePages renders each web module's README into a page at
+// js-modules/<name>.html (the "JS modules" nav section). A missing package is
+// tolerated.
+func collectJSModulePages(repoRoot string) ([]*page, error) {
+	var pages []*page
+	for _, m := range jsModules {
+		fp := filepath.Join(repoRoot, "web", m.Name, "README.md")
+		src, err := os.ReadFile(fp)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
+		md := rewriteModuleLinks(string(src), m.Name)
+		body, headings := renderMarkdown(md)
+		pages = append(pages, &page{
+			Slug:     "js-modules-" + m.Name,
+			Title:    m.Title,
+			OutFile:  "js-modules/" + m.Name + ".html",
+			Section:  "JS modules",
+			BodyHTML: template.HTML(body),
+			Headings: headings,
+			plain:    plainText(md),
+		})
+	}
+	return pages, nil
+}
+
+// buildEmbeddedIDE builds the server-less Vuetify IDE demo with a relative base
+// and copies its output into <outDir>/ide, so the docs site serves a full,
+// in-browser IDE (debug, inspect, run profiles) at /ide/. Requires bun and the
+// workspace to be installed; the caller tolerates failure.
+func buildEmbeddedIDE(repoRoot, outDir string) error {
+	demo := filepath.Join(repoRoot, "web", "ide-vuetify", "demo")
+	if _, err := os.Stat(demo); err != nil {
+		return fmt.Errorf("demo not found: %w", err)
+	}
+	cmd := exec.Command("bash", "-c", "bun run wasm && bunx vite build --base=./")
+	cmd.Dir = demo
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("%v: %s", err, out)
+	}
+	return copyTree(filepath.Join(demo, "dist"), filepath.Join(outDir, "ide"))
+}
+
+// copyTree recursively copies the directory src into dst.
+func copyTree(src, dst string) error {
+	return filepath.Walk(src, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, p)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		in, err := os.Open(p)
+		if err != nil {
+			return err
+		}
+		defer in.Close()
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		out, err := os.Create(target)
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+		_, err = io.Copy(out, in)
+		return err
+	})
+}
+
 // layoutData is passed to the page template.
 type layoutData struct {
 	Title   string
@@ -227,6 +365,10 @@ type layoutData struct {
 	Active  string
 	Content template.HTML
 	TOC     []Heading
+	// Base is the relative prefix from this page's directory back to the site
+	// root ("" for root pages, "../" for pages one level deep like js-modules/*),
+	// so assets and nav links resolve at any base path and any page depth.
+	Base string
 }
 
 func writePage(outDir string, tmpl *template.Template, groups []navGroup, p *page, body template.HTML) error {
@@ -236,13 +378,25 @@ func writePage(outDir string, tmpl *template.Template, groups []navGroup, p *pag
 		Active:  p.OutFile,
 		Content: body,
 		TOC:     tocOf(p.Headings),
+		Base:    baseFor(p.OutFile),
 	}
-	f, err := os.Create(filepath.Join(outDir, p.OutFile))
+	outPath := filepath.Join(outDir, filepath.FromSlash(p.OutFile))
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+		return err
+	}
+	f, err := os.Create(outPath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 	return tmpl.Execute(f, data)
+}
+
+// baseFor returns the relative path from a page's directory back to the site
+// root: "" for a root-level OutFile, "../" per directory of depth otherwise.
+func baseFor(outFile string) string {
+	depth := strings.Count(outFile, "/")
+	return strings.Repeat("../", depth)
 }
 
 // tocOf returns the H2 headings of a page for the right-hand table of contents.

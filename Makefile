@@ -120,6 +120,20 @@ ide-vuetify-demo-preview: web-install
 	@echo "Open http://localhost:4173/"
 	cd web/ide-vuetify/demo && bun run preview
 
+# Dev server for the server-less React IDE demo (the reusable @gad-lang/ide-react
+# <Ide> driven by the in-browser backend). It is the webide.html entry of the
+# web/app project; `bun run dev` builds the Gad WASM module first.
+.PHONY: ide-react-demo
+ide-react-demo: web-install
+	@echo "Open http://localhost:5173/webide.html"
+	cd web/app && bun run dev
+
+# Preview the production build of the React IDE demo (also no Go backend).
+.PHONY: ide-react-demo-preview
+ide-react-demo-preview: web-build
+	@echo "Open http://localhost:4173/webide.html"
+	cd web/app && bun run preview
+
 # Launch the IDE with the React + CodeMirror UI (builds web/app first).
 # Override the workspace with DIR=path (defaults to samples).
 DIR ?= samples

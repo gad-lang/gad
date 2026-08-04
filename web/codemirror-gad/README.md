@@ -3,6 +3,20 @@
 CodeMirror 6 language support for the [Gad](https://github.com/gad-lang/gad)
 scripting language: syntax highlighting, autocompletion and async diagnostics.
 
+> **Status:** not yet published to npm. The install command below is the intended
+> usage once the `@gad-lang` packages are released.
+
+## Install
+
+```sh
+npm install @gad-lang/codemirror-gad codemirror
+# or: bun add @gad-lang/codemirror-gad codemirror
+```
+
+`codemirror` (and its `@codemirror/*` modules) is a peer dependency.
+
+## Usage
+
 ```ts
 import { basicSetup } from "codemirror";
 import { gad } from "@gad-lang/codemirror-gad";
@@ -104,3 +118,7 @@ repo's `.gitignore` ignores dotfiles). For CI, drop in a local `.npmrc`:
 ```ini
 //registry.npmjs.org/:_authToken=${NPM_TOKEN}
 ```
+
+## Documentation
+
+- [API reference](./docs/api.md) — the `gad()` options, source types and exports.

@@ -7,14 +7,18 @@ stepping debugger. It is the Vuetify counterpart of
 `IdeApi` contract, so the same in-browser backend (Gad WASM + a LocalStorage
 filesystem) can drive either UI.
 
+> **Status:** not yet published to npm. The install command below is the intended
+> usage once the `@gad-lang` packages are released.
+
 ## Install
 
 ```sh
-bun add @gad-lang/ide-vuetify vue vuetify @gad-lang/codemirror-gad @gad-lang/prism-gad
+npm install @gad-lang/ide-vuetify vue vuetify dockview-vue @gad-lang/codemirror-gad @gad-lang/prism-gad
+# or: bun add @gad-lang/ide-vuetify vue vuetify dockview-vue @gad-lang/codemirror-gad @gad-lang/prism-gad
 ```
 
-`vue`, `vuetify`, `@gad-lang/codemirror-gad` and `@gad-lang/prism-gad` are peer
-dependencies.
+`vue`, `vuetify`, `dockview-vue`, `@gad-lang/codemirror-gad` and
+`@gad-lang/prism-gad` are peer dependencies.
 
 The views are authored in **TSX** (`defineComponent` + JSX), not `.vue` SFCs, so
 the whole package — panels, controller and the `IdeApi` contract — is fully

@@ -4,6 +4,20 @@ A [PrismJS](https://prismjs.com/) grammar for the
 [Gad](https://github.com/gad-lang/gad) scripting language — for static,
 read-only syntax highlighting (docs, blogs, code blocks).
 
+> **Status:** not yet published to npm. The install command below is the intended
+> usage once the `@gad-lang` packages are released.
+
+## Install
+
+```sh
+npm install @gad-lang/prism-gad prismjs
+# or: bun add @gad-lang/prism-gad prismjs
+```
+
+`prismjs` is a peer dependency.
+
+## Usage
+
 ```ts
 import Prism from "prismjs";
 import { registerGad } from "@gad-lang/prism-gad";
@@ -111,3 +125,7 @@ repo's `.gitignore` ignores dotfiles). For CI, drop in a local `.npmrc`:
 ```ini
 //registry.npmjs.org/:_authToken=${NPM_TOKEN}
 ```
+
+## Documentation
+
+- [API reference](./docs/api.md) — the registration functions and source types.

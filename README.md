@@ -233,6 +233,25 @@ return v
 * [Error Handling](https://github.com/gad-lang/gad/blob/main/doc/error-handling.md)
 * [Standard Library](https://github.com/gad-lang/gad/blob/main/doc/modules.md)
 
+## JS Modules
+
+Reusable JavaScript/TypeScript packages for embedding Gad in the browser —
+editors, syntax highlighting and full IDE components. They will be published to
+npm under the public **`@gad-lang`** scope (not yet released). Each has its own
+`README.md` + `docs/`, and is rendered on the docs site under **JS modules**
+(`/js-modules/<name>`).
+
+| Package | What it is |
+| --- | --- |
+| [`@gad-lang/codemirror-gad`](web/codemirror-gad) | CodeMirror 6 language support (highlighting, autocompletion, async diagnostics) for `.gad` / `.gadt` / `.gadx`. |
+| [`@gad-lang/prism-gad`](web/prism-gad) | PrismJS grammar for static, read-only Gad highlighting. |
+| [`@gad-lang/ide-react`](web/ide-react) | Reusable **React** IDE component (explorer, editor, run/doc, stepping debugger, inspector, run profiles); backend-agnostic. |
+| [`@gad-lang/ide-vuetify`](web/ide-vuetify) | The **Vuetify 3** counterpart, same `IdeApi` contract. |
+
+Both IDE components run **server-less** (Gad WASM in a Web Worker + a LocalStorage
+filesystem) — try the live one on the docs site (**IDE**), or locally with
+`make ide-react-demo` / `make ide-vuetify-demo`.
+
 ## Go Dev Conventions
 
 Conventions for contributing Go code to the runtime.

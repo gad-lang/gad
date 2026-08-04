@@ -9,26 +9,27 @@ const layoutTemplate = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{.Title}} · Gad</title>
 <script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
-<link rel="stylesheet" href="styles.css">
+<script>window.SITE_BASE="{{.Base}}";</script>
+<link rel="stylesheet" href="{{.Base}}styles.css">
 </head>
 <body>
 <header class="site-header">
-  <a class="brand" href="index.html">Gad</a>
+  <a class="brand" href="{{.Base}}index.html">Gad</a>
   <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
   <button class="theme-toggle" id="theme">◐</button>
 </header>
 <div class="layout">
   <nav class="sidebar">
     {{range .Groups}}<div class="nav-group"><div class="nav-title">{{.Name}}</div>
-      {{range .Pages}}<a class="nav-link{{if eq .OutFile $.Active}} active{{end}}" href="{{.OutFile}}">{{.Title}}</a>{{end}}
+      {{range .Pages}}<a class="nav-link{{if eq .OutFile $.Active}} active{{end}}" href="{{$.Base}}{{.OutFile}}">{{.Title}}</a>{{end}}
     </div>{{end}}
   </nav>
   <main class="content">{{.Content}}</main>
   {{if .TOC}}<aside class="toc"><div class="nav-title">On this page</div>{{range .TOC}}<a href="#{{.ID}}">{{.Text}}</a>{{end}}</aside>{{end}}
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
-<script src="theme.js"></script>
-<script src="search.js"></script>
+<script src="{{.Base}}theme.js"></script>
+<script src="{{.Base}}search.js"></script>
 </body>
 </html>`
 
@@ -95,9 +96,9 @@ const themeJS = `(function(){var b=document.getElementById("theme");if(!b)return
 
 const searchJS = `(function(){
 var q=document.getElementById("q"),res=document.getElementById("results"),idx=null,sel=-1;
-fetch("search.json").then(function(r){return r.json()}).then(function(d){idx=d});
+fetch((window.SITE_BASE||"")+"search.json").then(function(r){return r.json()}).then(function(d){idx=d});
 function snippet(text,term){var i=text.toLowerCase().indexOf(term);if(i<0)return text.slice(0,120);var s=Math.max(0,i-40);return (s>0?"…":"")+text.slice(s,s+120)+"…"}
-function render(items,term){if(!items.length){res.style.display="none";return}res.innerHTML=items.map(function(it){return '<a href="'+it.url+'"><div class="r-title">'+it.title+'</div><div class="r-snip">'+snippet(it.text,term).replace(/[<>]/g,"")+'</div></a>'}).join("");res.style.display="block";sel=-1}
+function render(items,term){if(!items.length){res.style.display="none";return}res.innerHTML=items.map(function(it){return '<a href="'+(window.SITE_BASE||"")+it.url+'"><div class="r-title">'+it.title+'</div><div class="r-snip">'+snippet(it.text,term).replace(/[<>]/g,"")+'</div></a>'}).join("");res.style.display="block";sel=-1}
 q.addEventListener("input",function(){var term=q.value.trim().toLowerCase();if(!term||!idx){res.style.display="none";return}var items=idx.filter(function(it){return it.title.toLowerCase().indexOf(term)>=0||it.text.toLowerCase().indexOf(term)>=0}).slice(0,12);render(items,term)});
 q.addEventListener("keydown",function(e){var links=res.querySelectorAll("a");if(!links.length)return;if(e.key==="ArrowDown"){sel=(sel+1)%links.length}else if(e.key==="ArrowUp"){sel=(sel-1+links.length)%links.length}else if(e.key==="Enter"){if(sel>=0){location.href=links[sel].href}return}else{return}e.preventDefault();links.forEach(function(l){l.classList.remove("sel")});links[sel].classList.add("sel")});
 document.addEventListener("click",function(e){if(!res.contains(e.target)&&e.target!==q)res.style.display="none"});
