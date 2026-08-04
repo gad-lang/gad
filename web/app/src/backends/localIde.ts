@@ -85,7 +85,9 @@ const MODULES: ModuleInfo[] = [
 export const localIdeApi: IdeApi = {
   workspace: async (): Promise<Workspace> => {
     const files = fs.listFiles();
-    return { root: "gad (in-browser)", name: "gad", openFile: files[0] ?? "" };
+    // Open the "01_hello.gad" sample by default when present.
+    const openFile = files.find((p) => p === "01_hello.gad" || p.endsWith("/01_hello.gad")) ?? files[0] ?? "";
+    return { root: "gad (in-browser)", name: "gad", openFile };
   },
   tree: async () => buildTree(),
   read: async (path: string) => ({ path, content: fs.read(path) ?? "" }),

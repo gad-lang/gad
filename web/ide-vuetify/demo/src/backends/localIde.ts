@@ -85,9 +85,11 @@ export function resetWorkspace(): void {
   fs.reset();
 }
 
-/** firstFile returns the first bundled sample path, for the initial open file. */
+/** firstFile returns the initial file to open — the "01_hello.gad" sample when
+ * present, otherwise the first bundled sample. */
 export function firstFile(): string {
-  return fs.listFiles()[0] ?? "";
+  const files = fs.listFiles();
+  return files.find((p) => p === "01_hello.gad" || p.endsWith("/01_hello.gad")) ?? files[0] ?? "";
 }
 
 export const localIdeApi: IdeApi = {
