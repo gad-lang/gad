@@ -112,8 +112,12 @@ web-server:
 
 # Production build of the React app (outputs web/app/dist). Emits two pages:
 # index.html (the playground) and webide.html (the standalone embeddable IDE).
+# The app imports the workspace packages (@gad-lang/codemirror-gad, prism-gad,
+# ide-react) as `workspace:*`, so build those first (their dist/ .d.ts are needed
+# by the app's tsc); the app's own `prebuild` regenerates src/samples.gen.ts.
 .PHONY: web-build
 web-build: web-install
+	cd web && bun run plugins:build
 	cd web/app && bun run build
 
 # Dev server (hot reload) for the standalone, server-less IDE page. No Go backend
