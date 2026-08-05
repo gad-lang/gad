@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Reference · Gad</title>
+<link rel="icon" type="image/svg+xml" href="gad.svg">
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<script>window.SITE_BASE="";</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html"><img class="brand-logo" src="gad.svg" alt="" width="30" height="30"><span class="brand-name">Gad</span></a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <nav class="header-links">
+    
+    <a href="playground.html">Playground</a>
+    <a href="download.html">Download</a>
+    <a href="https://github.com/gad-lang/gad/issues" target="_blank" rel="noopener">Tasks</a>
+    <a href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">Repo</a>
+  </nav>
+  <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="templates.html">Templates (mixed mode)</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-metaprogramming.html">Metaprogramming: parse, eval and Gadx</a><a class="nav-link" href="ref-workspace-config.html">Workspace Configuration</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Gadx</div>
+      <a class="nav-link" href="gadx-getting-started.html">Getting Started</a><a class="nav-link" href="gadx-syntax.html">Template Syntax</a><a class="nav-link" href="gadx-components-and-slots.html">Components And Slots</a><a class="nav-link" href="gadx-examples.html">Examples Cookbook</a><a class="nav-link" href="gadx-embedding.html">Embedding In Go</a><a class="nav-link active" href="gadx-api.html">API Reference</a><a class="nav-link" href="gadx-conventions.html">Conventions</a><a class="nav-link" href="gadx-source-positions.html">Source Positions</a><a class="nav-link" href="gadx-project-structure.html">Project Structure</a><a class="nav-link" href="gadx-benchmarks.html">Benchmarks</a><a class="nav-link" href="gadx-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">JS modules</div>
+      <a class="nav-link" href="js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a><a class="nav-link" href="js-modules/prism-gad.html">@gad-lang/prism-gad</a><a class="nav-link" href="js-modules/ide-react.html">@gad-lang/ide-react</a><a class="nav-link" href="js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a>
+    </div><div class="nav-group"><div class="nav-title">Integrate</div>
+      <a class="nav-link" href="wasm-embed.html">Embed the WASM</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div><div class="nav-group"><div class="nav-title">Download</div>
+      <a class="nav-link" href="download.html">Download</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="api-reference">API Reference</h1>
+<p>This is a practical user-level API reference. For exact signatures, use <code>go doc</code>.</p>
+<h2 id="package">Package</h2>
+<pre><code class="language-go">import "github.com/gad-lang/gad/gadx"</code></pre>
+<p>Gadx ships inside the Gad module. Its runtime (the render tree and the <code>gadx</code> builtins) lives in this package; Gadx <strong>compilation</strong> is built into Gad itself (<code>gad.CompileOptions.GadxOptions</code>), so there is no separate Gadx compiler.</p>
+<h2 id="appendbuiltins"><code>AppendBuiltins</code></h2>
+<pre><code class="language-go">func AppendBuiltins(b *gad.Builtins) *gad.Builtins</code></pre>
+<p>Registers the <code>gadx</code> module as a non-loadable builtin namespace. After this call the following names are available globally in every compiled template without any <code>@import</code>:</p>
+<table>
+<thead><tr><th>Name</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>gadx.Tag</code></td><td>Construct a tag element: <code>gadx.Tag([parent,] name, *children; **attrs)</code>. Omit the name (<code>gadx.Tag()</code> / <code>gadx.Tag(parent)</code>) for a nameless fragment.</td></tr>
+<tr><td><code>gadx.Text</code></td><td>Construct a text node: <code>gadx.Text([parent,] v1, v2, …)</code></td></tr>
+<tr><td><code>gadx.escape</code></td><td>Return its argument as a raw (unescaped) string</td></tr>
+<tr><td><code>gadx.attr</code></td><td>Render a single <code>name="value"</code> attribute fragment</td></tr>
+<tr><td><code>gadx.attrs</code></td><td>Render multiple attributes from named arguments</td></tr>
+<tr><td><code>gadx.write</code></td><td>Write a value with the tree's text semantics (raw for <code>RawStr</code>)</td></tr>
+</tbody>
+</table>
+<p>Use it before compiling and before constructing the VM.</p>
+<pre><code class="language-go">builtins := gadx.AppendBuiltins(gad.NewBuiltins())</code></pre>
+<h3 id="render-tree">Render tree</h3>
+<p>A compiled template does not stream HTML directly. Instead it builds a <strong>render tree</strong> of <code>Element</code> values and returns its root; the caller (or <code>Render</code>) walks the tree, writing HTML via <code>Element.WriteTo</code>. The tree types are:</p>
+<ul>
+<li><code>gadx.Tag</code> — a tag element with a name, ordered attributes (regular</li>
+</ul>
+<p>  attributes, a class list and styles) and child elements. Constructed without a   name (<code>gadx.Tag()</code> / <code>gadx.Tag(parent)</code>) it is an *anonymous fragment* that   renders only its children.</p>
+<ul>
+<li><code>gadx.Text</code> — a leaf node holding a sequence of values written in order.</li>
+</ul>
+<p>Each constructor optionally takes the <strong>parent tag as its first argument</strong> and links the new element into it. Both forms are accepted:</p>
+<pre><code>gadx.Tag(parent, "div"; class="a")   // linked to parent
+gadx.Tag("div"; class="a")           // standalone (append it yourself)</code></pre>
+<p>The first argument is treated as the parent only when it is a tag or <code>nil</code>; otherwise it is the first content argument. The tag-building operators are <code>tag += child</code> (append one), <code>tag ++= children</code> (append many), <code>tag[name] = value</code> (set one attribute) and <code>tag.attrs += kva</code> (merge attributes).</p>
+<h2 id="compilation-gadcompile-with-gadxoptions">Compilation (<code>gad.Compile</code> with <code>GadxOptions</code>)</h2>
+<p>Gadx source is compiled with Gad's own compiler by setting <code>GadxOptions</code> on the compile options — the Gadx front-end parses the indentation-based syntax and lowers it to Gad before compilation:</p>
+<pre><code class="language-go">opts := gad.CompileOptions{}
+opts.GadxOptions = &amp;gad.GadxOptions{}
+_, bc, err := gad.Compile(st, src, opts)</code></pre>
+<p><code>bc</code> is executable Gad bytecode. Give each independent template its own symbol table: a compiled template binds a root <code>tag</code> at the module top level, so a symbol table cannot be reused across separate compiles.</p>
+<p>Register the Gadx builtins on the symbol table's builtins first (<code>gadx.AppendBuiltins</code>), since the lowered code references <code>gadx.Tag</code>, <code>gadx.write</code>, and friends.</p>
+<p>Related Gad helpers:</p>
+<ul>
+<li><code>gad.TranspileGadx(name, src, outPath)</code> — write the lowered Gad source to a</li>
+</ul>
+<p>  file (see <a href="#transpile">Transpile</a>).</p>
+<ul>
+<li><code>gad.CompileGadxModule(ctx, src)</code> — compile Gadx as an imported module from a</li>
+</ul>
+<p>  custom <code>gad.ExtImporter</code>.</p>
+<ul>
+<li><code>importers.FileImporter</code> — resolves <code>@import</code> of <code>.gadx</code> files natively (see</li>
+</ul>
+<p>  <a href="#fileimporter">FileImporter</a>).</p>
+<h2 id="render-struct"><code>Render</code> Struct</h2>
+<p><code>gadx.Render</code> is a ready-to-use template engine with bytecode caching and automatic recompilation on file changes. Safe for concurrent use.</p>
+<h3 id="newrender"><code>NewRender</code></h3>
+<pre><code class="language-go">func NewRender(workDir string) *Render</code></pre>
+<p>Creates a <code>Render</code> with the given work directory. Non-empty paths are resolved to an absolute path. Default <code>TemplateDelay</code> is 15 seconds.</p>
+<pre><code class="language-go">r := gadx.NewRender("./templates")
+r.TemplateDelay = 5 * time.Second</code></pre>
+<h3 id="workdir"><code>WorkDir</code></h3>
+<pre><code class="language-go">func (r *Render) WorkDir() string</code></pre>
+<p>Returns the work directory used for import resolution.</p>
+<h3 id="exported-fields">Exported Fields</h3>
+<pre><code class="language-go">type Render struct {
+    TemplateDelay time.Duration        // debounce before recompiling (default 15s)
+    TranspilePath func(srcPath string) string  // optional .gad output path
+    BuiltinsFunc  func() *gad.Builtins        // optional builtins factory
+}</code></pre>
+<ul>
+<li><code>TemplateDelay</code> — debounce duration before recompiling after a file change.</li>
+</ul>
+<p>  Defaults to 15s when zero. Set before the first call to <code>Render</code>.</p>
+<ul>
+<li><code>TranspilePath</code> — if set, transpiled <code>.gad</code> files are written after each</li>
+</ul>
+<p>  successful compile. Receives the source <code>.gadx</code> path, returns output path.</p>
+<ul>
+<li><code>BuiltinsFunc</code> — factory for Gad builtins. Called once (and cached) on the</li>
+</ul>
+<p>  first compile. If nil, defaults to <code>gad.NewBuiltins()</code> with Gadx builtins.</p>
+<h3 id="render-render"><code>(*Render) Render</code></h3>
+<pre><code class="language-go">func (r *Render) Render(out io.Writer, filePath string, globals gad.Dict) error</code></pre>
+<p>Reads <code>filePath</code>, compiles (or retrieves cached bytecode), and executes the template with the keys of <code>globals</code> available as global variables. The output is written to <code>out</code>.</p>
+<pre><code class="language-go">err := r.Render(&amp;out, "post.gadx", gad.Dict{
+    "Model": gad.Dict{"Title": gad.Str("Hello")},
+})</code></pre>
+<p>Caching tracks all files accessed during compilation (template + imports). When a file change is detected, recompilation is deferred by <code>TemplateDelay</code>.</p>
+<h3 id="onrender"><code>OnRender</code></h3>
+<pre><code class="language-go">func (r *Render) OnRender(f ...func(first bool, mainFile string, files []string, lastTime time.Time, err error)) *Render</code></pre>
+<p>Appends callback functions invoked after compilation. Returns the <code>Render</code> for chaining. Multiple callbacks may be added.</p>
+<p>Parameters:</p>
+<ul>
+<li><code>first</code> — true on initial compile, false on recompile after file changes.</li>
+<li><code>mainFile</code> — path relative to <code>WorkDir</code> of the rendered template.</li>
+<li><code>files</code> — changed file paths (relative to <code>WorkDir</code>) that triggered</li>
+</ul>
+<p>  recompilation. Empty on first render.</p>
+<ul>
+<li><code>lastTime</code> — timestamp of the previous successful render. Zero on first</li>
+</ul>
+<p>  render, non-zero on recompile.</p>
+<ul>
+<li><code>err</code> — non-nil if compilation failed. The cached entry is <strong>not</strong> updated</li>
+</ul>
+<p>  on failure, so the previous bytecode continues to be served.</p>
+<pre><code class="language-go">r.OnRender(func(first bool, mainFile string, files []string, lastTime time.Time, err error) {
+    if err != nil {
+        log.Printf("compile error for %s: %v", mainFile, err)
+        return
+    }
+    if first {
+        log.Printf("first render: %s", mainFile)
+    } else {
+        log.Printf("recompile: %s (changed: %v, last render: %s)",
+            mainFile, files, lastTime.Format(time.Stamp))
+    }
+})</code></pre>
+<h3 id="caching-behavior">Caching Behavior</h3>
+<ul>
+<li>The first call to <code>Render</code> for a given file compiles it and caches the</li>
+</ul>
+<p>  bytecode along with file modification times for the template and all its   imports.</p>
+<ul>
+<li>Subsequent calls check all tracked files. If any have changed, the change</li>
+</ul>
+<p>  is noted and recompilation is deferred until <code>TemplateDelay</code> elapses since   the first detected change.</p>
+<ul>
+<li>This debounce prevents recompilation during rapid file-save sequences.</li>
+<li>If recompilation fails, the old bytecode remains in the cache and continues</li>
+</ul>
+<p>  to be served. Callbacks still fire with the error.</p>
+<h2 id="transpile">Transpile</h2>
+<pre><code class="language-go">func gad.TranspileGadx(name string, src []byte, outPath string) error</code></pre>
+<p>Parses Gadx source, converts it to Gad statements, and writes the result to <code>outPath</code> (a <code>.gad</code> suffix is appended when missing). Useful for inspection and debugging.</p>
+<pre><code class="language-go">gad.TranspileGadx("template.gadx", src, "template.gad")</code></pre>
+<h2 id="fileimporter"><code>FileImporter</code></h2>
+<pre><code class="language-go">import "github.com/gad-lang/gad/importers"
+
+type importers.FileImporter struct {
+    WorkDir       string
+    FileReader    func(path string) ([]byte, string, error)
+    NameResolver  func(cwd, name string) (string, error)
+    TranspilePath func(srcPath string) string
+}</code></pre>
+<p>Gad's file importer implements <code>gad.ExtImporter</code>. It resolves <code>@import</code> lines, reading imported files via <code>FileReader</code>; a <code>.gadx</code> module is compiled natively with the Gadx front-end (and, when <code>TranspilePath</code> is set, its transpiled <code>.gad</code> output is written).</p>
+<p>Used automatically by <code>Render</code> when <code>WorkDir</code> is set. Can also be wired manually:</p>
+<pre><code class="language-go">mm := gad.NewModuleMap().SetExtImporter(&amp;importers.FileImporter{
+    WorkDir:    "./templates",
+    FileReader: importers.ShebangReadFile,
+})</code></pre>
+<h2 id="parser-package">Parser Package</h2>
+<pre><code class="language-go">import "github.com/gad-lang/gad/gadx/parser"</code></pre>
+<pre><code class="language-go">fs := source.NewFileSet()
+f := fs.AddFileData("template.gadx", -1, src)
+p := parser.NewParser(f)
+file, err := p.ParseFile()</code></pre>
+<h2 id="node-package">Node Package</h2>
+<pre><code class="language-go">import gadxnode "github.com/gad-lang/gad/gadx/node"</code></pre>
+<p>Convert Gadx nodes to Gad nodes:</p>
+<pre><code class="language-go">stmts := gadxnode.Convert(file.Stmts)</code></pre>
+<h2 id="token-package">Token Package</h2>
+<pre><code class="language-go">import "github.com/gad-lang/gad/gadx/token"</code></pre>
+<p>Contains Gadx token definitions used by the parser and scanner.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#package">Package</a><a href="#appendbuiltins">AppendBuiltins</a><a href="#compilation-gadcompile-with-gadxoptions">Compilation (gad.Compile with GadxOptions)</a><a href="#render-struct">Render Struct</a><a href="#transpile">Transpile</a><a href="#fileimporter">FileImporter</a><a href="#parser-package">Parser Package</a><a href="#node-package">Node Package</a><a href="#token-package">Token Package</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+
+</body>
+</html>

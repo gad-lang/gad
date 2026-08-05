@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>@gad-lang/ide-react · Gad</title>
+<link rel="icon" type="image/svg+xml" href="../gad.svg">
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<script>window.SITE_BASE="..\/";</script>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="../index.html"><img class="brand-logo" src="../gad.svg" alt="" width="30" height="30"><span class="brand-name">Gad</span></a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <nav class="header-links">
+    
+    <a href="../playground.html">Playground</a>
+    <a href="../download.html">Download</a>
+    <a href="https://github.com/gad-lang/gad/issues" target="_blank" rel="noopener">Tasks</a>
+    <a href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">Repo</a>
+  </nav>
+  <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="../index.html">Gad Language</a><a class="nav-link" href="../getting-started.html">Getting Started</a><a class="nav-link" href="../values-and-types.html">Values and Types</a><a class="nav-link" href="../variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="../operators.html">Operators</a><a class="nav-link" href="../control-flow.html">Control Flow</a><a class="nav-link" href="../functions.html">Functions</a><a class="nav-link" href="../collections.html">Collections</a><a class="nav-link" href="../strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="../error-handling.html">Error Handling</a><a class="nav-link" href="../modules.html">Modules</a><a class="nav-link" href="../builtins.html">Builtin Functions</a><a class="nav-link" href="../templates.html">Templates (mixed mode)</a><a class="nav-link" href="../formatting.html">Formatting with gad fmt</a><a class="nav-link" href="../embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="../ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="../ref-metaprogramming.html">Metaprogramming: parse, eval and Gadx</a><a class="nav-link" href="../ref-workspace-config.html">Workspace Configuration</a><a class="nav-link" href="../ref-stdlib-strings.html">strings module</a><a class="nav-link" href="../ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="../ref-stdlib-json.html">json module</a><a class="nav-link" href="../ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Gadx</div>
+      <a class="nav-link" href="../gadx-getting-started.html">Getting Started</a><a class="nav-link" href="../gadx-syntax.html">Template Syntax</a><a class="nav-link" href="../gadx-components-and-slots.html">Components And Slots</a><a class="nav-link" href="../gadx-examples.html">Examples Cookbook</a><a class="nav-link" href="../gadx-embedding.html">Embedding In Go</a><a class="nav-link" href="../gadx-api.html">API Reference</a><a class="nav-link" href="../gadx-conventions.html">Conventions</a><a class="nav-link" href="../gadx-source-positions.html">Source Positions</a><a class="nav-link" href="../gadx-project-structure.html">Project Structure</a><a class="nav-link" href="../gadx-benchmarks.html">Benchmarks</a><a class="nav-link" href="../gadx-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">JS modules</div>
+      <a class="nav-link" href="../js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a><a class="nav-link" href="../js-modules/prism-gad.html">@gad-lang/prism-gad</a><a class="nav-link active" href="../js-modules/ide-react.html">@gad-lang/ide-react</a><a class="nav-link" href="../js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a>
+    </div><div class="nav-group"><div class="nav-title">Integrate</div>
+      <a class="nav-link" href="../wasm-embed.html">Embed the WASM</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="../playground.html">Playground</a>
+    </div><div class="nav-group"><div class="nav-title">Download</div>
+      <a class="nav-link" href="../download.html">Download</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="gad-langide-react">@gad-lang/ide-react</h1>
+<p>A reusable <strong>React</strong> IDE component for the <a href="https://github.com/gad-lang/gad">Gad</a> language: a dockview workspace (file explorer, multi-language CodeMirror editor, run / format / doc panels) and a full <strong>stepping debugger</strong> with call stack, locals, watches, a value <strong>inspector</strong> (tree navigator) and JetBrains-style named <strong>run profiles</strong>. It is <strong>backend-agnostic</strong>: drive it with any <code>IdeApi</code> implementation — the built-in HTTP client that talks to a <code>gad ide</code> server, or a fully in-browser one (Gad WASM + a LocalStorage filesystem) for a <strong>server-less</strong> IDE. <code>@gad-lang/ide-vuetify</code> is the Vuetify counterpart and shares the same contract.</p>
+<blockquote><strong>Status:</strong> not yet published to npm. The install commands below are the intended usage once the <code>@gad-lang</code> packages are released.</blockquote>
+<h2 id="install">Install</h2>
+<pre><code class="language-sh">npm install @gad-lang/ide-react react react-dom @mui/material @mui/icons-material dockview-react \
+  @gad-lang/codemirror-gad @gad-lang/prism-gad
+# or: bun add @gad-lang/ide-react react react-dom @mui/material @mui/icons-material dockview-react \
+#   @gad-lang/codemirror-gad @gad-lang/prism-gad</code></pre>
+<p><code>react</code>, <code>react-dom</code>, <code>@mui/material</code>, <code>@mui/icons-material</code>, <code>dockview-react</code>, <code>@gad-lang/codemirror-gad</code> and <code>@gad-lang/prism-gad</code> are <strong>peer dependencies</strong>.</p>
+<h2 id="usage">Usage</h2>
+<pre><code class="language-tsx">import { useEffect, useState } from "react";
+import { Ide, httpIdeApi, type Workspace } from "@gad-lang/ide-react";
+import "dockview-react/dist/styles/dockview.css";
+
+export function App() {
+  const [workspace, setWorkspace] = useState&lt;Workspace | null&gt;(null);
+  useEffect(() =&gt; { httpIdeApi.workspace().then(setWorkspace); }, []);
+  return workspace ? &lt;Ide api={httpIdeApi} workspace={workspace} /&gt; : null;
+}</code></pre>
+<p>That drives the IDE against a running <code>gad ide</code> server (which serves the <code>/api/ide/*</code> endpoints <code>httpIdeApi</code> calls). For a <strong>server-less</strong> IDE, pass an in-browser <code>IdeApi</code> instead — see <a href="#server-less-backend">Server-less backend</a>.</p>
+<h2 id="ide-props"><code>&lt;Ide&gt;</code> props</h2>
+<table>
+<thead><tr><th>Prop</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>api</code></td><td><code>IdeApi</code></td><td>Backend implementation. Defaults to <code>httpIdeApi</code>.</td></tr>
+<tr><td><code>workspace</code></td><td><code>Workspace</code></td><td>Initial <code>{ root, name, openFile }</code>.</td></tr>
+<tr><td><code>layoutConfig</code></td><td><code>unknown</code></td><td>Initial dockview layout to restore (overrides the config's saved panels).</td></tr>
+<tr><td><code>onLayoutConfigChange</code></td><td><code>(layout) =&gt; void</code></td><td>Called whenever the layout changes, so the host can persist it.</td></tr>
+<tr><td><code>runProfiles</code></td><td><code>RunProfile[]</code></td><td>Named run/debug configurations (<code>{ name, path, args }</code>).</td></tr>
+<tr><td><code>onRunProfilesChange</code></td><td><code>(profiles) =&gt; void</code></td><td>Called when a profile is added/removed.</td></tr>
+<tr><td><code>runMode</code></td><td>`"none" \</td><td>"run" \</td><td>"debug"`</td><td>Gates the Run / Debug / profile actions. <code>"run"</code> enables Run (and the profile selector); <code>"debug"</code> also enables Debug; <code>"none"</code>/<code>""</code> disables all three. Defaults to <code>"debug"</code>.</td></tr>
+</tbody>
+</table>
+<p><code>RunProfile</code> and <code>RunMode</code> and the layout callback are the React analogue of the Vuetify component's <code>v-model</code>s (<code>layoutConfig</code>, <code>runProfiles</code>, <code>runMode</code>).</p>
+<h2 id="the-ideapi-contract">The <code>IdeApi</code> contract</h2>
+<p><code>&lt;Ide&gt;</code> never talks to a server directly — it calls methods on the injected <code>api</code>. That is the whole extension point: implement <code>IdeApi</code> and the same UI edits, runs, documents and debugs any workspace. The contract (see [<code>docs/api.md</code>](https://github.com/gad-lang/gad/blob/main/web/ide-react/docs/api.md) for the full signatures) covers:</p>
+<ul>
+<li><strong>Workspace &amp; files</strong> — <code>workspace</code>, <code>tree</code>, <code>read</code>, <code>write</code>, <code>mkfile</code>,</li>
+</ul>
+<p>  <code>mkdir</code>, <code>del</code>, <code>rename</code>, <code>fetchUrl</code>.</p>
+<ul>
+<li><strong>Config</strong> — <code>config</code>, <code>saveConfig</code>, <code>modules</code>.</li>
+<li><strong>Language</strong> — <code>format</code>, <code>transpile</code>, <code>diagnose</code>, <code>doc</code>, <code>eval</code>, <code>inspect</code>.</li>
+<li><strong>Run</strong> — <code>run</code> (with typed <code>param (…)</code> args).</li>
+<li><strong>Debug</strong> — <code>dbgStart</code>, <code>dbgCmd</code>, <code>dbgEval</code>.</li>
+</ul>
+<p><code>httpIdeApi</code> is the built-in implementation over a <code>gad ide</code> server; <code>probeIde()</code> resolves the workspace when such a server is reachable, else <code>null</code>.</p>
+<pre><code class="language-tsx">import { probeIde, Ide, type Workspace } from "@gad-lang/ide-react";
+
+const ws: Workspace | null = await probeIde(); // null when no gad ide server</code></pre>
+<h2 id="server-less-backend">Server-less backend</h2>
+<p>For an in-browser IDE with no Go server, supply an <code>IdeApi</code> backed by the Gad <strong>WebAssembly</strong> module (running in a Web Worker) and a LocalStorage filesystem. The gad repository ships a complete reference implementation (<code>localIdeApi</code>) used by the standalone <code>webide.html</code>; it wires the same WASM bridge as <code>gad ide</code> (<code>web/gadbridge</code>) into every <code>IdeApi</code> method — run/debug with typed args, <code>inspect</code>, doc extraction, etc. Persist <code>runProfiles</code> and the layout via the callbacks (the reference stores them in the workspace, e.g. <code>.gad/run-profiles.yaml</code>).</p>
+<h2 id="building-blocks">Building blocks</h2>
+<p>For composing a custom shell, the package also exports the editor and helpers: <code>Editor</code> (+ <code>EditorHandle</code>, <code>EditorLanguage</code>), <code>ReadonlyCode</code>, <code>GadInput</code>, <code>useTheme</code>, <code>renderDocMarkdown</code>, and <code>InspectDialog</code> (the value tree navigator).</p>
+<h2 id="documentation">Documentation</h2>
+<ul>
+<li><a href="https://github.com/gad-lang/gad/blob/main/web/ide-react/docs/api.md">API reference</a> — the full <code>IdeApi</code> contract and component props.</li>
+</ul>
+<h2 id="publishing">Publishing</h2>
+<p>Published to npm under the public <code>@gad-lang</code> scope. The package ships <code>dist/</code> (built from <code>src/</code> by <code>tsc</code>); <code>prepublishOnly</code> rebuilds it.</p>
+<pre><code class="language-sh">bun run build            # emit dist/ (tsc: .js + .d.ts)
+npm version &lt;patch|minor|major&gt;
+bun publish --dry-run
+bun publish              # publishConfig sets the public registry + access</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#install">Install</a><a href="#usage">Usage</a><a href="#ide-props">&lt;Ide&gt; props</a><a href="#the-ideapi-contract">The IdeApi contract</a><a href="#server-less-backend">Server-less backend</a><a href="#building-blocks">Building blocks</a><a href="#documentation">Documentation</a><a href="#publishing">Publishing</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="../theme.js"></script>
+<script src="../search.js"></script>
+
+</body>
+</html>
