@@ -213,10 +213,17 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   URL import + in-app prompt into <Ide> (readonly + onUpload props; upload/
   uploadUrl/archiveKind/pathExists) (commit e43091b); editor read-only via
   readonly prop (commit 9069077). All typecheck+build green
-- REMAINING (#56): autosave (opt+interval); tabNameMax; dirty-tab indicators;
-  active-file explorer highlight; font-size in statusbar; gate delete/rename tree
-  actions on readonly (minor). (#57) cmd/gad ide --serverless (composite IdeApi:
-  files→Go, compute→WASM) + web/app wiring — the headline hybrid capability
+- DONE (#57 hybrid): `gad ide --serverless` — Go Server.Compute field + flag;
+  /api/ide/workspace reports compute "server"|"wasm"; web/app main.tsx builds a
+  hybrid IdeApi (files→httpIdeApi, compute→localIdeApi/WASM) when wasm. Verified
+  end to end: workspace endpoint = wasm under --serverless, server by default; go
+  build+vet ok; ide-react + web/app typecheck. Run/debug/format/diagnose already
+  pass `source` (editor content, saved to the real file first), so WASM compute
+  needs no local FS. Known limit: cross-file imports need server mode (WASM can't
+  read real files for imports) — same as the pure webide. commit 1c88ae9
+- REMAINING (#56 polish, optional): autosave (opt+interval); tabNameMax; dirty-tab
+  indicators; active-file explorer highlight; font-size in statusbar; gate
+  delete/rename tree actions on readonly
 - Note: ide-react is MUI-based (not Vuetify); icons via @mui/icons-material, so
   fileTypes mdi-* icon strings aren't used for React icons (language part is)
 
