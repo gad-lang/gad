@@ -37,9 +37,10 @@ const ideOptionsKey ctxKey = "ideOptions"
 
 // ideOptions holds the parsed flags of the `ide` subcommand.
 type ideOptions struct {
-	addr   string
-	static string
-	noOpen bool
+	addr       string
+	static     string
+	noOpen     bool
+	serverless bool
 }
 
 // ideCommand is `gad ide [flags] [PATH]`: it starts a local web IDE rooted at
@@ -59,6 +60,7 @@ func ideCommand() *cc.Command {
 			flags.StringVar(&o.addr, "addr", "0.0.0.0:17000", "listen address (host:port); if the port is busy the next free port is used")
 			flags.StringVar(&o.static, "static", "", "serve a pre-built web app from this directory instead of the bundled UI")
 			flags.BoolVar(&o.noOpen, "no-open", false, "do not open the browser automatically")
+			flags.BoolVar(&o.serverless, "serverless", false, "run compute (run/format/diagnose/debug) in the browser via WebAssembly; the file explorer still uses this server's real files")
 			ctx.WithValue(ideOptionsKey, o)
 			return nil
 		},
@@ -71,6 +73,9 @@ func ideCommand() *cc.Command {
 			srv, err := ide.New(path)
 			if err != nil {
 				return fmt.Errorf("ide: %w", err)
+			}
+			if o.serverless {
+				srv.Compute = "wasm"
 			}
 
 			var handler http.Handler

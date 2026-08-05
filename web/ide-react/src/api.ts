@@ -7,6 +7,9 @@ export interface Workspace {
   root: string;
   name: string;
   openFile: string;
+  /** Where the frontend should run compute: "server" (this backend, default) or
+   * "wasm" (in-browser). File I/O always uses the server regardless. */
+  compute?: "server" | "wasm";
 }
 
 export interface TreeNode {

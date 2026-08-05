@@ -31,6 +31,12 @@ type Server struct {
 	// Static, when non-empty, is a directory with the built React app served at
 	// the site root.
 	Static string
+	// Compute selects where the frontend runs compute (run/format/diagnose/debug/
+	// eval/inspect/doc): "server" (default — this Go backend) or "wasm" (in the
+	// browser via the Gad WASM module). File I/O always uses this server, so the
+	// explorer stays real files in both modes. Reported to the UI in /api/ide/
+	// workspace so it can build the right (composite) api.
+	Compute string
 	// HTTPClient fetches remote files for handleFetch. Defaults to
 	// http.DefaultClient; overridable in tests.
 	HTTPClient *http.Client
@@ -163,10 +169,15 @@ func (s *Server) Handler() http.Handler {
 // --- HTTP helpers -----------------------------------------------------------
 
 func (s *Server) handleWorkspace(w http.ResponseWriter, r *http.Request) {
+	compute := s.Compute
+	if compute == "" {
+		compute = "server"
+	}
 	writeJSON(w, map[string]any{
 		"root":     s.Root,
 		"name":     filepath.Base(s.Root),
 		"openFile": s.OpenFile,
+		"compute":  compute,
 	})
 }
 
