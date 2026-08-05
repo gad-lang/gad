@@ -87,10 +87,36 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   archives `files: doc/**/*` and `gadx/docs/**/*` match zero files (goreleaser
   fileglob needs `doc/**`, not `doc/**/*`, to include files directly in doc/ —
   all 31 doc files are top-level, no subdirs), so release archives ship without
-  the docs (only LICENSE, README.md, gad). Fix = `doc/**` + `gadx/docs/**`.
-  NOT applied — out of this task's scope; awaiting user confirmation
+  the docs (only LICENSE, README.md, gad). RESOLVED by user direction: docs are
+  not shipped in the CLI archives at all (Pages only), so the doc globs were
+  removed from archives.files rather than fixed (commit e1f4e60)
 
-## Errors & Fixes
+### 2026-08-05 (afternoon — website/wasm overhaul)
+- Collapsed WASM to a single debugger-enabled gad.wasm (the two builds were the
+  same size). Removed the gadwasmdebug split (debug_off.go deleted; debug.go
+  always compiled). scripts/build-wasm.sh, app/demo scripts, Makefile,
+  build-website, goreleaser all build/ship one gad.wasm → commit e1f4e60
+- goreleaser extra_files = gad.wasm + wasm_exec.js (docs out of archives)
+- Website "Playground" menu now hosts the full ide-vuetify demo (built into
+  /playground; simple playground is the bun-missing fallback); redundant "IDE"
+  menu removed. website.yml gained bun setup
+- Modern layout keyed to the logo palette (navy/cyan #06B6D4/amber #D97706): logo
+  in header + favicon (from assets/identity/gad.svg), gradient accents, cards,
+  restyled nav/code/tables/hero
+- Home hero + 3-path quickstart (CLI run/fmt/doc, WASM embed, Go module) +
+  GAD_CONFIG_DIR link; new "Embed the WASM" page (JS API table). GAD_CONFIG_DIR
+  is already the "Workspace Configuration" reference page, now linked from home
+- Docs API refresh (commit 526fc66): embedding examples used a pre-refactor API
+  (Compile→3 returns, NewVM 1-arg, Run(globals,args), gad.Map/SyncMap,
+  gad.String, `exports = {}`). Fixed embedding.md/metaprogramming.md/README.md +
+  rewrote doc/tutorial.md snippets to Compile→*CompileResult/.Bytecode,
+  NewVM(builtins.Build(), bc), Run/RunOpts, gad.Dict/SyncDict, gad.Str, `export`
+- Verified: `go build ./...` ok; single wasm compiles; build-website renders home
+  hero+cards, /playground demo (full build), wasm-embed page, logo, one gad.wasm;
+  every rewritten embedding example compiled+run: [2,4,6,8], fib(35)=9227465,
+  "big", {fn1:1,fn2:1}. gofmt clean; YAML parses
+  Unverified: live GitHub Pages deploy + a real goreleaser release; site not
+  opened in a real browser
 
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
