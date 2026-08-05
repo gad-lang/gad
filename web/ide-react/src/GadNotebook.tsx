@@ -33,9 +33,12 @@ const newCell = (source = "", dialect: Dialect = "gad"): Cell => ({
   running: false,
 });
 
-const SAMPLE = [
-  `total := 0\nfor i in [1, 2, 3, 4] {\n  total += i\n}\nprintln("sum =", total)\nreturn total`,
-  `squares := [n * n for n in [1, 2, 3, 4, 5]]\nprintln(squares)\nreturn squares`,
+// One sample cell per source type (GAD / GAD Template / GADx), so the notebook
+// opens with a runnable example of each dialect.
+const SAMPLES: { dialect: Dialect; source: string }[] = [
+  { dialect: "gad", source: `// GAD — plain script\nsquares := [n * n for n in [1, 2, 3, 4, 5]]\nprintln(squares)\nreturn squares` },
+  { dialect: "gadt", source: `{% /* GAD Template: literal text plus code islands and value output */ %}\n{% var (name = "Gad", items = [1, 2, 3]) %}\n<h1>Hello, {%= name %}!</h1>\n<ul>\n{% for i in items %}  <li>item {%= i %}</li>\n{% end %}</ul>\n` },
+  { dialect: "gadx", source: `//- GADx — indentation-based HTML template\n@main\n    h1 Hello Gadx\n    ul\n        @for i in [1, 2, 3]\n            li item {= i }\n` },
 ];
 
 export interface GadNotebookProps {
@@ -45,7 +48,7 @@ export interface GadNotebookProps {
 
 /** GadNotebook renders the runnable-cells notebook. */
 export function GadNotebook({ runner, dark = false }: GadNotebookProps) {
-  const [cells, setCells] = useState<Cell[]>(() => SAMPLE.map((s) => newCell(s)));
+  const [cells, setCells] = useState<Cell[]>(() => SAMPLES.map((s) => newCell(s.source, s.dialect)));
   // Live editor contents per cell (editors are uncontrolled; read on run).
   const contents = useRef<Record<number, string>>({});
 
