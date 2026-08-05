@@ -1,15 +1,11 @@
 //go:build js && wasm
 
 // Command wasm compiles the Gad bridge to WebAssembly. It installs functions on
-// the JS global object — gadFormat, gadRun, gadDiagnose, gadDoc, … — each
-// returning a JSON string with the same shape as the HTTP server's responses,
-// so the React app can drive run, format, diagnostics and documentation
-// entirely in the browser, with no Go web server.
-//
-// The module builds in two flavours selected by the `gadwasmdebug` build tag:
-// the normal build (no tag) omits the debugger to stay small, while the
-// `_debug` build (`-tags gadwasmdebug`) also installs the gadDebug* stepping
-// protocol and a session-aware gadInspect (see debug.go / debug_off.go).
+// the JS global object — gadFormat, gadRun, gadDiagnose, gadDoc, the gadDebug*
+// stepping protocol and gadInspect — each returning a JSON string with the same
+// shape as the HTTP server's responses, so the React app can drive run, format,
+// diagnostics, documentation and a full debugger entirely in the browser, with
+// no Go web server. The debugger wiring lives in debug.go (registerDebug).
 package main
 
 import (
@@ -72,20 +68,8 @@ func main() {
 		return gadbridge.Transpile(argStr(args, 0), argBool(args, 1), nil)
 	}))
 
-	// gadInspect(session, expr, source) -> { ok, inspect } | { ok:false, error }
-	// tree-navigator description of expr's value, evaluated fresh with source's
-	// top-level definitions in scope. The `_debug` build overrides this with a
-	// session-aware version that inspects the paused frame (see debug.go).
-	js.Global().Set("gadInspect", jsonFuncN(func(args []js.Value) any {
-		insp, err := gadbridge.InspectSource(argStr(args, 2), argStr(args, 1))
-		if err != nil {
-			return map[string]any{"ok": false, "error": err.Error()}
-		}
-		return map[string]any{"ok": true, "inspect": insp}
-	}))
-
-	// Install the debugger stepping protocol only in the `_debug` build (build
-	// tag gadwasmdebug); a no-op in the normal build (debug_off.go).
+	// Install the debugger stepping protocol (gadDebug*) and the session-aware
+	// gadInspect (see debug.go).
 	registerDebug()
 
 	// Signal readiness, then block forever so the exported functions stay live.

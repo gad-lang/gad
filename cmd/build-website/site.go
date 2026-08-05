@@ -131,8 +131,8 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 		}
 	}
 
-	play := &page{Slug: "playground", Title: "Playground", OutFile: "playground.html", Section: "Playground"}
 	download := &page{Slug: "download", Title: "Download", OutFile: "download.html", Section: "Download"}
+	wasmEmbed := &page{Slug: "wasm-embed", Title: "Embed the WASM", OutFile: "wasm-embed.html", Section: "Integrate"}
 
 	// JS module docs (web/*/README.md) become the "JS modules" nav section, one
 	// page per package at /js-modules/<name>.
@@ -141,15 +141,24 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 		return err
 	}
 
-	// The embedded server-less IDE (the Vuetify demo) is built into /ide/ when a
-	// WASM build is requested and bun is available; it is tolerated if absent.
-	ideBuilt := false
+	// The "Playground" menu hosts the full ide-vuetify demo app (Playground /
+	// Notebook / IDE tabs) built into /playground when a WASM build is requested
+	// and bun is available. When that build is unavailable (e.g. bun missing), we
+	// fall back to the simple in-page WASM playground so the menu still works.
+	demoBuilt := false
 	if buildWASM {
-		if err := buildEmbeddedIDE(repoRoot, outDir); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: skipping embedded IDE (/ide): %v\n", err)
+		if err := buildEmbeddedIDE(repoRoot, outDir, "playground"); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: full ide-vuetify demo unavailable, using the simple playground: %v\n", err)
 		} else {
-			ideBuilt = true
+			demoBuilt = true
 		}
+	}
+	var play *page
+	if demoBuilt {
+		// The demo is a standalone Vite app with its own index.html; link to it.
+		play = &page{Slug: "playground", Title: "Playground", OutFile: "playground/index.html", Section: "Playground"}
+	} else {
+		play = &page{Slug: "playground", Title: "Playground", OutFile: "playground.html", Section: "Playground"}
 	}
 
 	groups := []navGroup{
@@ -162,13 +171,18 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 	if len(jsPages) > 0 {
 		groups = append(groups, navGroup{Name: "JS modules", Pages: jsPages})
 	}
-	if ideBuilt {
-		groups = append(groups, navGroup{Name: "IDE", Pages: []*page{
-			{Slug: "ide", Title: "IDE (server-less)", OutFile: "ide/index.html", Section: "IDE"},
-		}})
-	}
+	groups = append(groups, navGroup{Name: "Integrate", Pages: []*page{wasmEmbed}})
 	groups = append(groups, navGroup{Name: "Playground", Pages: []*page{play}})
 	groups = append(groups, navGroup{Name: "Download", Pages: []*page{download}})
+
+	// The home page (index) opens with a hero + a three-path quickstart (CLI,
+	// WASM, Go module) prepended to the rendered README.
+	for _, p := range guide {
+		if p.Slug == "index" {
+			p.BodyHTML = homeIntroHTML(cfg, play.OutFile) + p.BodyHTML
+			break
+		}
+	}
 
 	all := append(append([]*page{}, guide...), ref...)
 	all = append(all, gadxPages...)
@@ -181,12 +195,18 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 			return err
 		}
 	}
-	// Playground page (custom body).
-	if err := writePage(outDir, tmpl, groups, play, template.HTML(playgroundBody), cfg); err != nil {
-		return err
+	// Simple in-page playground — only when the full demo is not embedded.
+	if !demoBuilt {
+		if err := writePage(outDir, tmpl, groups, play, template.HTML(playgroundBody), cfg); err != nil {
+			return err
+		}
 	}
 	// Download page (custom body: release banner, notes and asset table).
 	if err := writePage(outDir, tmpl, groups, download, downloadBody(cfg), cfg); err != nil {
+		return err
+	}
+	// WASM-embedding guide (custom body).
+	if err := writePage(outDir, tmpl, groups, wasmEmbed, wasmEmbedBody(play.OutFile), cfg); err != nil {
 		return err
 	}
 
@@ -194,6 +214,9 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 		return err
 	}
 	if err := writeAssets(outDir); err != nil {
+		return err
+	}
+	if err := copyLogo(repoRoot, outDir); err != nil {
 		return err
 	}
 	if buildWASM {
@@ -365,11 +388,11 @@ func collectJSModulePages(repoRoot string) ([]*page, error) {
 	return pages, nil
 }
 
-// buildEmbeddedIDE builds the server-less Vuetify IDE demo with a relative base
-// and copies its output into <outDir>/ide, so the docs site serves a full,
-// in-browser IDE (debug, inspect, run profiles) at /ide/. Requires bun and the
-// workspace to be installed; the caller tolerates failure.
-func buildEmbeddedIDE(repoRoot, outDir string) error {
+// buildEmbeddedIDE builds the server-less Vuetify IDE demo (the full app:
+// Playground / Notebook / IDE tabs) with a relative base and copies its output
+// into <outDir>/<subDir>, so the docs site serves it in-browser. Requires bun
+// and the workspace to be installed; the caller tolerates failure.
+func buildEmbeddedIDE(repoRoot, outDir, subDir string) error {
 	demo := filepath.Join(repoRoot, "web", "ide-vuetify", "demo")
 	if _, err := os.Stat(demo); err != nil {
 		return fmt.Errorf("demo not found: %w", err)
@@ -379,7 +402,7 @@ func buildEmbeddedIDE(repoRoot, outDir string) error {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%v: %s", err, out)
 	}
-	return copyTree(filepath.Join(demo, "dist"), filepath.Join(outDir, "ide"))
+	return copyTree(filepath.Join(demo, "dist"), filepath.Join(outDir, subDir))
 }
 
 // copyTree recursively copies the directory src into dst.
@@ -597,11 +620,10 @@ func downloadBody(cfg siteConfig) template.HTML {
 		name := archiveName(bn.goos, bn.arch)
 		assets = append(assets, downloadAsset{label: bn.label, name: name, url: cfg.assetURL(name), desc: bn.desc})
 	}
-	// WebAssembly modules — served directly from the site (they are built into
-	// the output dir), so they download even without a published release.
+	// WebAssembly module — served directly from the site (it is built into the
+	// output dir), so it downloads even without a published release.
 	assets = append(assets,
-		downloadAsset{label: "WebAssembly", name: "gad.wasm", url: "gad.wasm", desc: "Browser/WASM module — no debugger (smaller)", local: true},
-		downloadAsset{label: "WebAssembly + debugger", name: "gad_debug.wasm", url: "gad_debug.wasm", desc: "Browser/WASM module with the gadDebug* stepping protocol", local: true},
+		downloadAsset{label: "WebAssembly", name: "gad.wasm", url: "gad.wasm", desc: "Browser/WASM module (run, format, diagnostics and the gadDebug* debugger)", local: true},
 	)
 	if cfg.hasRelease() {
 		assets = append(assets, downloadAsset{label: "Checksums", name: "checksums.txt", url: cfg.assetURL("checksums.txt"), desc: "SHA-256 checksums of the release assets"})
@@ -625,6 +647,114 @@ func downloadBody(cfg siteConfig) template.HTML {
 	return template.HTML(b.String())
 }
 
+// codeBlock renders code as an HTML-escaped <pre><code> block.
+func codeBlock(code string) string {
+	return "<pre><code>" + template.HTMLEscapeString(code) + "</code></pre>"
+}
+
+// homeIntroHTML builds the home page hero + the three-path quickstart (CLI,
+// WASM, Go module) prepended to the rendered README. playHref is the site path
+// of the Playground/demo.
+func homeIntroHTML(cfg siteConfig, playHref string) template.HTML {
+	var b strings.Builder
+	b.WriteString(`<div class="home-hero">`)
+	b.WriteString(`<img class="home-hero-logo" src="gad.svg" alt="Gad logo" width="96" height="96">`)
+	b.WriteString(`<div class="home-hero-text"><h1>Gad</h1>`)
+	b.WriteString(`<p class="tagline">A fast, dynamic scripting language embedded in Go — run it from the CLI, in the browser via WebAssembly, or embedded in your Go application.</p>`)
+	b.WriteString(`<div class="home-cta">`)
+	b.WriteString(`<a class="btn btn-primary" href="getting-started.html">Get started</a>`)
+	fmt.Fprintf(&b, `<a class="btn btn-ghost" href="%s">Playground</a>`, template.HTMLEscapeString(playHref))
+	b.WriteString(`<a class="btn btn-ghost" href="download.html">Download</a>`)
+	fmt.Fprintf(&b, `<a class="btn btn-ghost" href="%s" target="_blank" rel="noopener">GitHub</a>`, template.HTMLEscapeString(cfg.RepoURL))
+	b.WriteString(`</div></div></div>`)
+
+	b.WriteString(`<h2 class="qs-title">Quickstart</h2>`)
+	b.WriteString(`<p class="qs-sub">Three ways to run Gad — pick the one that fits your project.</p>`)
+	b.WriteString(`<div class="cards">`)
+
+	// Card 1 — CLI.
+	b.WriteString(`<div class="card"><h3><span class="card-badge">⌘</span> Command line</h3>`)
+	b.WriteString(`<p>Download the <code>gad</code> binary from the releases, or install it with Go:</p>`)
+	b.WriteString(codeBlock("go install github.com/gad-lang/gad/cmd/gad@latest"))
+	b.WriteString(`<p>Run, format and document:</p>`)
+	b.WriteString(codeBlock("gad script.gad        # run a script\ngad fmt script.gad    # format in place\ngad doc               # generate workspace docs"))
+	b.WriteString(`<a class="card-link" href="download.html">Download &amp; run →</a>`)
+	b.WriteString(`</div>`)
+
+	// Card 2 — WebAssembly.
+	b.WriteString(`<div class="card"><h3><span class="card-badge">◈</span> WebAssembly</h3>`)
+	b.WriteString(`<p>Grab <code>gad.wasm</code> + <code>wasm_exec.js</code> and run Gad in any browser:</p>`)
+	b.WriteString(codeBlock("<script src=\"wasm_exec.js\"></script>\n<script>\n  const go = new Go();\n  WebAssembly.instantiateStreaming(\n    fetch(\"gad.wasm\"), go.importObject\n  ).then(r => {\n    go.run(r.instance);\n    const res = JSON.parse(gadRun(\"return 6 * 7\"));\n    console.log(res.result); // \"42\"\n  });\n</script>"))
+	b.WriteString(`<a class="card-link" href="wasm-embed.html">Embed the WASM →</a>`)
+	b.WriteString(`</div>`)
+
+	// Card 3 — Go module.
+	b.WriteString(`<div class="card"><h3><span class="card-badge">Go</span> Go module</h3>`)
+	b.WriteString(`<p>Embed the compiler and VM in your Go program:</p>`)
+	b.WriteString(codeBlock("go get github.com/gad-lang/gad"))
+	b.WriteString(codeBlock("builtins := gad.NewBuiltins()\nst := gad.NewSymbolTable(builtins.NameSet)\ncr, _ := gad.Compile(st, []byte(`return 6 * 7`), gad.CompileOptions{})\nret, _ := gad.NewVM(builtins.Build(), cr.Bytecode).Run()\nfmt.Println(ret) // 42"))
+	b.WriteString(`<a class="card-link" href="embedding.html">Embedding guide →</a>`)
+	b.WriteString(`</div>`)
+
+	b.WriteString(`</div>`) // .cards
+
+	b.WriteString(`<p class="muted">Configure a workspace via the <a href="ref-workspace-config.html"><code>GAD_CONFIG_DIR</code> (<code>.gad/</code>)</a> directory.</p>`)
+	return template.HTML(b.String())
+}
+
+// wasmEmbedBody renders the "Embed the WASM" page: how to load the module and
+// the JS API it exposes. playHref is the Playground/demo path (Web Worker note).
+func wasmEmbedBody(playHref string) template.HTML {
+	var b strings.Builder
+	b.WriteString(`<h1>Embed the Gad WASM in your site</h1>`)
+	b.WriteString(`<p>The Gad WebAssembly module runs the compiler, VM, formatter, doc extractor and debugger entirely in the browser — no server. It installs a small set of functions on the JS global object, each taking strings and returning a JSON string.</p>`)
+
+	b.WriteString(`<h2>1. Get the files</h2>`)
+	b.WriteString(`<p>Download <code>gad.wasm</code> and <code>wasm_exec.js</code> from the <a href="download.html">Download</a> page (both are attached to every release). <code>wasm_exec.js</code> is Go's WASM loader and must match the Go toolchain the module was built with — always ship the one from the same release.</p>`)
+
+	b.WriteString(`<h2>2. Load it</h2>`)
+	b.WriteString(codeBlock("<script src=\"wasm_exec.js\"></script>\n<script>\n  const go = new Go();\n  WebAssembly.instantiateStreaming(fetch(\"gad.wasm\"), go.importObject)\n    .then(r => { go.run(r.instance); onReady(); });\n\n  function onReady() {\n    // window.gadRun / gadFormat / gadDiagnose / gadDoc / … are ready.\n    const r = JSON.parse(gadRun('println(\"hi\"); return 6 * 7'));\n    console.log(r.stdout, r.result); // \"hi\\n\" \"42\"\n  }\n</script>"))
+	fmt.Fprintf(&b, `<blockquote>A long-running script blocks the thread. For a responsive UI, load the module inside a <strong>Web Worker</strong> — exactly what the <a href="%s">Playground</a> does.</blockquote>`, template.HTMLEscapeString(playHref))
+
+	b.WriteString(`<h2>3. The API</h2>`)
+	b.WriteString(`<p>Each function returns a JSON string. <code>sourceType</code> selects the dialect: <code>""</code>/<code>"gad"</code> (plain Gad), <code>"gadTemplate"</code> (mixed <code>.gadt</code>) or <code>"gadx"</code>.</p>`)
+	b.WriteString(`<div class="dl-table"><table><thead><tr><th>Function</th><th>Returns (JSON)</th></tr></thead><tbody>`)
+	rows := [][2]string{
+		{`gadRun(src[, sourceType[, argsJSON]])`, `{ ok, stdout, stderr, result, diagnostics }`},
+		{`gadFormat(src[, sourceType])`, `{ ok, source, diagnostics }`},
+		{`gadDiagnose(src[, sourceType])`, `{ diagnostics: [{line, column, message, severity}] }`},
+		{`gadDoc(src, sourceType)`, `{ markdown } | { error }`},
+		{`gadDocData(src, sourceType)`, `{ doc } | { error }`},
+		{`gadEval(src, expr, repr)`, `{ ok, value, error, stdout }`},
+		{`gadTranspile(src, mixed)`, `{ ok, source, diagnostics }`},
+		{`gadInspect(session, expr, src)`, `{ ok, inspect } | { ok:false, error }`},
+		{`gadDebugStart / gadDebugCommand / gadDebugEval / gadDebugStop`, `debugger stepping protocol`},
+	}
+	for _, r := range rows {
+		fmt.Fprintf(&b, `<tr><td><code>%s</code></td><td><code>%s</code></td></tr>`,
+			template.HTMLEscapeString(r[0]), template.HTMLEscapeString(r[1]))
+	}
+	b.WriteString(`</tbody></table></div>`)
+
+	b.WriteString(`<h2>Prefer a ready-made editor?</h2>`)
+	b.WriteString(`<p>The <a href="js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a> and <a href="js-modules/ide-react.html">@gad-lang/ide-react</a> packages wrap this module into a full IDE component (editor, run profiles, debugger, inspector), and <a href="js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a> / <a href="js-modules/prism-gad.html">@gad-lang/prism-gad</a> provide syntax highlighting.</p>`)
+	return template.HTML(b.String())
+}
+
+// copyLogo copies the Gad logo (assets/identity/gad.svg) into the site root as
+// gad.svg (header brand, favicon, home hero). A missing logo is tolerated.
+func copyLogo(repoRoot, outDir string) error {
+	src := filepath.Join(repoRoot, "assets", "identity", "gad.svg")
+	data, err := os.ReadFile(src)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return os.WriteFile(filepath.Join(outDir, "gad.svg"), data, 0o644)
+}
+
 func writeAssets(outDir string) error {
 	files := map[string]string{
 		"styles.css": siteCSS,
@@ -640,31 +770,15 @@ func writeAssets(outDir string) error {
 	return nil
 }
 
-// buildWASMAssets compiles both Gad WASM modules and copies wasm_exec.js into
-// the output directory so the Playground works offline / on GitHub Pages and the
-// Download page can offer both flavours:
-//   - gad.wasm       : normal build, no debugger (the Playground loads this)
-//   - gad_debug.wasm : includes the gadDebug* stepping protocol
+// buildWASMAssets compiles the Gad WASM module (gad.wasm, debugger-enabled) and
+// copies wasm_exec.js into the output directory so the Playground works offline /
+// on GitHub Pages and the Download page can offer it.
 func buildWASMAssets(repoRoot, outDir string) error {
-	builds := []struct {
-		out  string
-		tags []string
-	}{
-		{"gad.wasm", nil},
-		{"gad_debug.wasm", []string{"gadwasmdebug"}},
-	}
-	for _, b := range builds {
-		args := []string{"build"}
-		if len(b.tags) > 0 {
-			args = append(args, "-tags", strings.Join(b.tags, ","))
-		}
-		args = append(args, "-o", filepath.Join(outDir, b.out), "./web/wasm")
-		cmd := exec.Command("go", args...)
-		cmd.Dir = repoRoot
-		cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("%s: %v: %s", b.out, err, out)
-		}
+	cmd := exec.Command("go", "build", "-o", filepath.Join(outDir, "gad.wasm"), "./web/wasm")
+	cmd.Dir = repoRoot
+	cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("gad.wasm: %v: %s", err, out)
 	}
 
 	goroot, err := exec.Command("go", "env", "GOROOT").Output()

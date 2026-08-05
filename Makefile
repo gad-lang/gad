@@ -47,25 +47,13 @@ build-vscode-plugin:
 	mkdir -p dist
 	mv editors/vscode-gad/vscode-gad.vsix dist/
 
-# Build both distributable Gad WASM modules into ./dist (and copy wasm_exec.js):
-#   gad.wasm       — normal build, no debugger (smaller)
-#   gad_debug.wasm — includes the gadDebug* stepping protocol
+# Build the distributable Gad WASM module (gad.wasm, debugger-enabled) and
+# wasm_exec.js into ./dist.
 .PHONY: build-wasm
 build-wasm:
-	bash scripts/build-wasm.sh ./dist both
+	bash scripts/build-wasm.sh ./dist
 
-# Only the normal (no-debugger) WASM module into ./dist.
-.PHONY: build-wasm-normal
-build-wasm-normal:
-	bash scripts/build-wasm.sh ./dist normal
-
-# Only the debugger-enabled WASM module (gad_debug.wasm) into ./dist.
-.PHONY: build-wasm-debug
-build-wasm-debug:
-	bash scripts/build-wasm.sh ./dist debug
-
-# Build the Gad WASM module into the React app's public/ (debugger-enabled, so
-# the in-browser IDE keeps working), under the plain gad.wasm name it loads.
+# Build the Gad WASM module into the React app's public/ (the in-browser IDE).
 .PHONY: build-wasm-app
 build-wasm-app:
 	bash web/app/scripts/build-wasm.sh

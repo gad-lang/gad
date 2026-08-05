@@ -5,9 +5,9 @@ project_name: gad
 before:
   hooks:
     - make goreleaser-setup
-    # Build both WebAssembly modules (gad.wasm + gad_debug.wasm) and wasm_exec.js
+    # Build the WebAssembly module (gad.wasm, debugger-enabled) and wasm_exec.js
     # into ./wasm-assets; they are attached to the release via extra_files below.
-    - bash scripts/build-wasm.sh ./wasm-assets both
+    - bash scripts/build-wasm.sh ./wasm-assets
 
 builds:
   - id: gad
@@ -39,14 +39,10 @@ archives:
       - goos: windows
         formats:
           - zip
+    # Docs are published on GitHub Pages, not shipped in the CLI archives.
     files:
       - LICENSE
       - README.md
-      - doc/**/*
-      # Gadx template engine docs (from the ./gadx submodule).
-      - src: gadx/docs/**/*
-        dst: doc/gadx
-        strip_parent: true
 
 checksum:
   name_template: checksums.txt
@@ -69,9 +65,8 @@ release:
     name: gad
   draft: false
   prerelease: auto
-  # Attach the standalone WebAssembly modules (built by the before hook) as
-  # release assets alongside the CLI archives.
+  # Attach the standalone WebAssembly module (built by the before hook) as a
+  # release asset alongside the CLI archives.
   extra_files:
     - glob: ./wasm-assets/gad.wasm
-    - glob: ./wasm-assets/gad_debug.wasm
     - glob: ./wasm-assets/wasm_exec.js

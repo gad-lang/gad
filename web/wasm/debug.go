@@ -1,4 +1,4 @@
-//go:build js && wasm && gadwasmdebug
+//go:build js && wasm
 
 package main
 
@@ -11,13 +11,12 @@ import (
 
 // dbg is the single debug-session manager for this WASM instance. Running one
 // session at a time in a Web Worker keeps the model simple: a blocking VM run
-// stays off the UI thread. Compiled only into the `_debug` WASM.
+// stays off the UI thread.
 var dbg = gadbridge.NewDebugManager()
 
 // registerDebug installs the debugger stepping protocol (gadDebug*, mirroring
 // /api/debug/*) and replaces gadInspect with a session-aware version that can
-// inspect the paused frame. It is compiled only into the `_debug` WASM build
-// (build tag gadwasmdebug); the normal build ships a no-op (debug_off.go).
+// inspect the paused frame.
 func registerDebug() {
 	// gadDebugStart(source, path, breakpointsJSON, stopOnEntry, argsJSON[, specsJSON])
 	// specsJSON is a JSON array of { line, disabled, condition } — conditional
