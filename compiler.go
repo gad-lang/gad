@@ -447,6 +447,9 @@ func (c *Compiler) optimize(file *parser.File) error {
 
 	spec := NewModuleSpecFromName(c.module.Name)
 	spec.URL = c.module.URL
+	// Carry the flags so compile-time folding of @main (OpIsMain) sees the real
+	// module attributes (e.g. ModuleMain); otherwise @main would fold to false.
+	spec.Flags = c.module.Flags
 
 	optim := NewOptimizer(file, spec, c.symbolTable, c.opts.CompilerOptions)
 

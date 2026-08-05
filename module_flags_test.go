@@ -61,6 +61,36 @@ func TestModuleRawArgvDetection(t *testing.T) {
 	}
 }
 
+// TestIsMainConsistentWithOptimizer checks that `@main` (OpIsMain) folds to the
+// module's real ModuleMain flag even with the optimizer on (regression: the
+// optimizer built its module spec without copying the flags, so @main folded to
+// false for a main module).
+func TestIsMainConsistentWithOptimizer(t *testing.T) {
+	run := func(flags ModuleFlags) Object {
+		builtins := NewBuiltins()
+		st := NewSymbolTable(builtins.NameSet)
+		spec := &ModuleSpec{ModuleInfo: ModuleInfo{Name: MainName}, Flags: flags}
+		opts := CompileOptions{CompilerOptions: CompilerOptions{
+			OptimizeConst: true, OptimizeExpr: true, OptimizerMaxCycle: 100,
+		}}
+		cr, err := CompileModule(st, spec, []byte("return @main"), opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ret, err := NewVM(builtins.Build(), cr.Bytecode).Run()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ret
+	}
+	if run(ModuleMain) != True {
+		t.Fatal("@main should be true for a main module (optimizer on)")
+	}
+	if run(0) != False {
+		t.Fatal("@main should be false for a non-main module")
+	}
+}
+
 // TestModuleRawArgvIndependentOfMain checks a non-main module can carry
 // ModuleRawArgv (the flag is derived from the params, not from ModuleMain).
 func TestModuleRawArgvIndependentOfMain(t *testing.T) {
