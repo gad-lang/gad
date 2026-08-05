@@ -43,8 +43,14 @@
 .pnl-row:hover {
   background: rgba(var(--v-theme-primary), 0.08);
 }
+/* The file currently open in the editor is highlighted in the Explorer. */
 .pnl-row--active {
-  background: rgba(var(--v-theme-primary), 0.16);
+  background: rgba(var(--v-theme-primary), 0.18);
+  box-shadow: inset 2px 0 0 rgb(var(--v-theme-primary));
+  font-weight: 600;
+}
+.pnl-row--active .v-icon {
+  color: rgb(var(--v-theme-primary));
 }
 .pnl-ellipsis {
   overflow: hidden;
@@ -248,9 +254,33 @@
   opacity: 0.5;
   font-size: 14px;
   line-height: 1;
+  min-width: 12px;
+  text-align: center;
+}
+.editor-tab-close::before {
+  content: "×";
 }
 .editor-tab-close:hover {
   opacity: 1;
+}
+/* A modified (unsaved) tab is emphasised in dark blue, with a dot that becomes ×
+   on hover. In dark mode a lighter blue keeps the contrast readable. */
+.editor-tab--dirty .editor-tab-name,
+.editor-tab-close--dirty {
+  color: #1e40af;
+}
+.v-theme--dark .editor-tab--dirty .editor-tab-name,
+.v-theme--dark .editor-tab-close--dirty {
+  color: #93c5fd;
+}
+.editor-tab-close--dirty {
+  opacity: 0.9;
+}
+.editor-tab-close--dirty::before {
+  content: "●";
+}
+.editor-tab:hover .editor-tab-close--dirty::before {
+  content: "×";
 }
 .editor-statusbar {
   padding: 1px 8px;

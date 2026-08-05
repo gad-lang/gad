@@ -26,18 +26,25 @@ export default defineComponent({
         {/* Open-file tabs — basename truncated to 15 chars; full name on hover. */}
         {ctx.tabs.value.length > 0 && (
           <div class="editor-tabs">
-            {ctx.tabs.value.map((t, i) => (
-              <div
-                key={t.path}
-                class={["editor-tab", { "editor-tab--active": i === ctx.active.value }]}
-                title={baseName(t.path)}
-                onClick={() => ctx.activateTab(i)}
-                onMousedown={(e: MouseEvent) => { if (e.button === 1) { e.preventDefault(); ctx.closeTab(i); } }}
-              >
-                <span class="editor-tab-name">{truncate(baseName(t.path))}</span>
-                <span class="editor-tab-close" title="Close" onClick={(e: MouseEvent) => { e.stopPropagation(); ctx.closeTab(i); }}>×</span>
-              </div>
-            ))}
+            {ctx.tabs.value.map((t, i) => {
+              const dirty = ctx.isDirty(t.path);
+              return (
+                <div
+                  key={t.path}
+                  class={["editor-tab", { "editor-tab--active": i === ctx.active.value, "editor-tab--dirty": dirty }]}
+                  title={baseName(t.path) + (dirty ? " • modified" : "")}
+                  onClick={() => ctx.activateTab(i)}
+                  onMousedown={(e: MouseEvent) => { if (e.button === 1) { e.preventDefault(); ctx.closeTab(i); } }}
+                >
+                  <span class="editor-tab-name">{truncate(baseName(t.path))}</span>
+                  <span
+                    class={["editor-tab-close", { "editor-tab-close--dirty": dirty }]}
+                    title="Close"
+                    onClick={(e: MouseEvent) => { e.stopPropagation(); ctx.closeTab(i); }}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
         <div class="pnl-toolbar">

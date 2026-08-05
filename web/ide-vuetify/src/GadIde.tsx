@@ -71,6 +71,9 @@ export default defineComponent({
     runMode: { type: String as PropType<RunMode>, default: "debug" },
     /** Read-only workspace (v-model): disables create/delete/upload/import. */
     readonly: { type: Boolean, default: false },
+    /** Auto-save: false = manual (dirty tabs are marked); true = save on every
+     * edit; a positive number = save all dirty tabs every N milliseconds. */
+    autosave: { type: [Boolean, Number] as PropType<boolean | number>, default: false },
     /** Extra file-type handlers (icon + editor language/plugin) for the Explorer
      * icons and editor highlighting — merged over the built-ins. */
     fileTypes: { type: Array as PropType<FileTypeHandler[]>, default: () => [] },
@@ -91,6 +94,7 @@ export default defineComponent({
       getRunMode: () => props.runMode,
       emitRunProfiles: (p) => emit("update:runProfiles", p),
       getReadonly: () => props.readonly,
+      getAutosave: () => props.autosave,
       fileTypes: props.fileTypes,
     });
     provide(IdeControllerKey, ctx);

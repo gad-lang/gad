@@ -142,6 +142,7 @@ export default defineComponent({
               }}
               runProfiles={runProfiles.value}
               {...{ "onUpdate:runProfiles": (v: RunProfile[]) => saveRunProfiles(v) }}
+              autosave={600000}
               runMode={runMode.value}
               {...{
                 "onUpdate:runMode": (v: RunMode) => {

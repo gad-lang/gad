@@ -2,7 +2,7 @@
 // the dockview panels (Explorer, Editor, Call Stack, Locals, Output) can share
 // one instance via provide/inject. dockview-vue teleports panels into the host's
 // Vue tree, so inject() resolves the provided controller natively.
-import { computed, reactive, ref, shallowRef, watch, type InjectionKey, type Ref } from "vue";
+import { computed, onScopeDispose, reactive, ref, shallowRef, watch, type InjectionKey, type Ref } from "vue";
 import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import { langOf } from "./codemirror";
 import type { LocalVar } from "./codemirror";
@@ -46,6 +46,9 @@ export interface ControllerHooks {
   emitRunProfiles?: (profiles: RunProfile[]) => void;
   /** When true, disables create/delete/upload/import (read-only workspace). */
   getReadonly?: () => boolean;
+  /** Auto-save: false = manual; true = on every edit; a positive number = save
+   * dirty tabs every N milliseconds. */
+  getAutosave?: () => boolean | number;
   /** Extra file-type handlers (icon + editor language/plugin) merged over the
    * built-ins, so hosts can support new extensions. */
   fileTypes?: FileTypeHandler[];
@@ -104,7 +107,9 @@ export function createController(
   const expanded = reactive(new Set<string>());
   // Open editor tabs and the active index. openPath/source below are derived
   // views over the active tab, so existing consumers keep working.
-  const tabs = ref<{ path: string; content: string }[]>([]);
+  // Each tab holds the editor buffer (content) and the last-persisted text
+  // (saved); a tab is "dirty" (unsaved) when they differ.
+  const tabs = ref<{ path: string; content: string; saved: string }[]>([]);
   const active = ref(-1);
   const openPath = computed(() => tabs.value[active.value]?.path ?? "");
   const source = computed<string>({
@@ -144,9 +149,13 @@ export function createController(
       return;
     }
     const content = (await api.read(path)).content;
-    tabs.value.push({ path, content });
+    tabs.value.push({ path, content, saved: content });
     active.value = tabs.value.length - 1;
   }
+  const isDirty = (path: string) => {
+    const t = tabs.value.find((x) => x.path === path);
+    return !!t && t.content !== t.saved;
+  };
   function activateTab(i: number) {
     if (i >= 0 && i < tabs.value.length) active.value = i;
   }
@@ -164,8 +173,41 @@ export function createController(
     return expanded.has(path);
   }
 
+  // Auto-save (optional): false = manual (tabs show a modified indicator until an
+  // explicit Save); true = persist on every edit; a positive number = persist all
+  // dirty tabs every that-many milliseconds (e.g. 600000 for 10 min).
+  const autosave = computed<boolean | number>(() => hooks.getAutosave?.() ?? false);
+  async function saveTab(t: { path: string; content: string; saved: string }) {
+    if (readonly.value || t.content === t.saved) return;
+    await api.write(t.path, t.content);
+    t.saved = t.content;
+  }
+  const saveAllDirty = () => Promise.all(tabs.value.map(saveTab));
+  // Persist on every edit when autosave === true (the source setter has already
+  // written v into the active tab's content).
   watch(source, (v) => {
-    if (openPath.value && !readonly.value) void api.write(openPath.value, v);
+    if (autosave.value !== true || readonly.value) return;
+    const t = tabs.value[active.value];
+    if (t) {
+      void api.write(t.path, v);
+      t.saved = v;
+    }
+  });
+  // Interval autosave when autosave is a positive number of milliseconds.
+  let autosaveTimer: ReturnType<typeof setInterval> | null = null;
+  watch(
+    autosave,
+    (cfg) => {
+      if (autosaveTimer) {
+        clearInterval(autosaveTimer);
+        autosaveTimer = null;
+      }
+      if (typeof cfg === "number" && cfg > 0) autosaveTimer = setInterval(() => void saveAllDirty(), cfg);
+    },
+    { immediate: true },
+  );
+  onScopeDispose(() => {
+    if (autosaveTimer) clearInterval(autosaveTimer);
   });
 
   function currentDir(): string {
@@ -310,10 +352,17 @@ export function createController(
     editor.value = v;
   }
   async function save() {
-    if (openPath.value) await api.write(openPath.value, source.value);
+    const t = tabs.value[active.value];
+    if (!t) return;
+    await api.write(t.path, t.content);
+    t.saved = t.content;
   }
   async function reload() {
-    if (openPath.value) source.value = (await api.read(openPath.value)).content;
+    const t = tabs.value[active.value];
+    if (!t) return;
+    const content = (await api.read(t.path)).content;
+    t.content = content;
+    t.saved = content;
   }
   function undo() {
     editor.value?.undo();
@@ -515,7 +564,7 @@ export function createController(
     dark,
     // tree
     tree, rows, openPath, source, isExpanded, toggleDir, openFile,
-    tabs, active, activateTab, closeTab,
+    tabs, active, activateTab, closeTab, isDirty, autosave,
     showHidden, toggleHidden,
     newFile, newDir, removeOpen, reset, canReset, upload, uploadUrl, urlDialog, uploadProgress,
     pathExists, archiveKind,
