@@ -75,8 +75,10 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   Download page has highlighted release name + local wasm download links + header
   Repo/Tasks/Download; no-release build falls back to "Latest" (no chip); YAML of
   .goreleaser.yml + website.yml parse; gofmt clean → commit 2940bba
-  Unverified: goreleaser itself (binary not installed) — config validated by
-  YAML parse + manual review only; not run live in a browser
+- Installed goreleaser v2 (`go install github.com/goreleaser/goreleaser/v2@latest`)
+  and ran `goreleaser check` → "1 configuration file(s) validated" (exit 0)
+  Unverified: a full `goreleaser release --snapshot` (would build all archives +
+  run the WASM before-hook + extra_files) not run; not exercised live in a browser
 
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
