@@ -20,6 +20,7 @@ export type {
   BreakpointSpec,
   RunProfile,
   RunMode,
+  UploadedFile,
   EvalResult,
   InspectEntry,
   InspectResult,

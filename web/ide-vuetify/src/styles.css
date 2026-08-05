@@ -174,3 +174,19 @@
 .bp-actions {
   flex-shrink: 0;
 }
+
+/* Explorer upload drop target */
+.pnl-body--drop {
+  outline: 2px dashed rgb(var(--v-theme-primary));
+  outline-offset: -4px;
+  position: relative;
+}
+.pnl-drop-hint {
+  position: sticky;
+  bottom: 0;
+  text-align: center;
+  font-size: 11px;
+  padding: 4px;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-surface), 0.9);
+}

@@ -22,7 +22,9 @@ import {
   VListItem as _VListItem,
   VListSubheader as _VListSubheader,
   VMenu as _VMenu,
+  VProgressLinear as _VProgressLinear,
   VSpacer as _VSpacer,
+  VSwitch as _VSwitch,
   VTab as _VTab,
   VTabs as _VTabs,
   VTextField as _VTextField,
@@ -48,7 +50,9 @@ export const VList = _VList as unknown as AnyComponent;
 export const VListItem = _VListItem as unknown as AnyComponent;
 export const VListSubheader = _VListSubheader as unknown as AnyComponent;
 export const VMenu = _VMenu as unknown as AnyComponent;
+export const VProgressLinear = _VProgressLinear as unknown as AnyComponent;
 export const VSpacer = _VSpacer as unknown as AnyComponent;
+export const VSwitch = _VSwitch as unknown as AnyComponent;
 export const VTab = _VTab as unknown as AnyComponent;
 export const VTabs = _VTabs as unknown as AnyComponent;
 export const VTextField = _VTextField as unknown as AnyComponent;

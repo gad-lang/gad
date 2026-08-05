@@ -7,10 +7,11 @@ import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import { langOf } from "./codemirror";
 import type { LocalVar } from "./codemirror";
 import { renderDocMarkdown } from "./docMarkdown";
-import type { BreakpointSpec, DebugResponse, IdeApi, InspectResult, RunMode, RunProfile, TreeNode, Workspace } from "./api";
+import type { BreakpointSpec, DebugResponse, IdeApi, InspectResult, RunMode, RunProfile, TreeNode, UploadedFile, Workspace } from "./api";
 import type { RunResult } from "./types";
 import type { InspectFn } from "./InspectorNode";
 import type { GadEditorView } from "./codemirror";
+import { readWithProgress } from "./upload";
 
 export interface TreeRow {
   node: TreeNode;
@@ -42,6 +43,23 @@ export interface ControllerHooks {
   getRunProfiles?: () => RunProfile[];
   getRunMode?: () => RunMode;
   emitRunProfiles?: (profiles: RunProfile[]) => void;
+  /** Handle files uploaded (button or drag-drop) into the Explorer. When absent,
+   * the controller writes them to the workspace via `api.write`. */
+  onUpload?: (files: UploadedFile[]) => Promise<void> | void;
+}
+
+/** PromptRequest / ConfirmRequest back the in-app dialogs that replace the native
+ * window.prompt / window.confirm (rendered by GadIde, driven from the controller). */
+export interface PromptRequest {
+  title: string;
+  label: string;
+  initial: string;
+  resolve: (value: string | null) => void;
+}
+export interface ConfirmRequest {
+  title: string;
+  message: string;
+  resolve: (ok: boolean) => void;
 }
 
 export function createController(
@@ -107,8 +125,19 @@ export function createController(
     }
     return null;
   }
+  // In-app dialog service (replaces window.prompt / window.confirm). GadIde
+  // renders the dialogs and calls the pending resolver.
+  const promptReq = ref<PromptRequest | null>(null);
+  const confirmReq = ref<ConfirmRequest | null>(null);
+  function uiPrompt(title: string, label: string, initial = ""): Promise<string | null> {
+    return new Promise((resolve) => (promptReq.value = { title, label, initial, resolve }));
+  }
+  function uiConfirm(title: string, message: string): Promise<boolean> {
+    return new Promise((resolve) => (confirmReq.value = { title, message, resolve }));
+  }
+
   async function newFile() {
-    const name = prompt("New file name (e.g. hello.gad):", "untitled.gad");
+    const name = await uiPrompt("New file", "File name (e.g. hello.gad)", "untitled.gad");
     if (!name) return;
     const path = currentDir() + name;
     await api.mkfile(path);
@@ -116,26 +145,74 @@ export function createController(
     await openFile(path);
   }
   async function newDir() {
-    const name = prompt("New folder name:", "folder");
+    const name = await uiPrompt("New folder", "Folder name", "folder");
     if (!name) return;
     await api.mkdir(currentDir() + name);
     await loadTree();
   }
   async function removeOpen() {
-    if (!openPath.value || !confirm("Delete " + openPath.value + "?")) return;
+    if (!openPath.value || !(await uiConfirm("Delete file", "Delete " + openPath.value + "?"))) return;
     await api.del(openPath.value);
     openPath.value = "";
     source.value = "";
     await loadTree();
   }
   async function reset() {
-    if (!onReset || !confirm("Discard all your changes and restore the samples?")) return;
+    if (!onReset || !(await uiConfirm("Reset workspace", "Discard all your changes and restore the samples?"))) return;
     await onReset();
     await loadTree();
     const first = firstFile(tree.value);
     if (first) await openFile(first);
   }
   const canReset = computed(() => !!onReset);
+
+  // Upload files (Explorer button or drag-drop) into the current directory. The
+  // host's onUpload hook handles persistence when given; otherwise the files are
+  // written to the workspace via api.write.
+  async function upload(files: UploadedFile[]) {
+    if (!files.length) return;
+    const base = currentDir();
+    const placed = files.map((f) => ({ ...f, path: base + f.path }));
+    if (hooks.onUpload) await hooks.onUpload(placed);
+    else for (const f of placed) if (!f.archive) await api.write(f.path, f.content);
+    await loadTree();
+    const firstFile = placed.find((f) => !f.archive);
+    if (firstFile) await openFile(firstFile.path);
+  }
+
+  // "Import from URL" dialog state + action. Downloads the URL in the browser and
+  // hands it to upload(); for an archive (when `extract`), it is passed through as
+  // an `archive` UploadedFile with base64 bytes so the host can extract it.
+  const urlDialog = ref(false);
+  // Download progress percent (0–100) while importing from a URL, or -1 when the
+  // total size is unknown (indeterminate).
+  const uploadProgress = ref(0);
+  function archiveKind(name: string): UploadedFile["archive"] | undefined {
+    const n = name.toLowerCase();
+    if (n.endsWith(".zip")) return "zip";
+    if (n.endsWith(".tar.gz") || n.endsWith(".tgz")) return "tar.gz";
+    if (n.endsWith(".tar")) return "tar";
+    return undefined;
+  }
+  async function uploadUrl(url: string, extract: boolean) {
+    uploadProgress.value = 0;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+      const buf = await readWithProgress(res, (pct) => (uploadProgress.value = pct));
+      const name = decodeURIComponent(new URL(url, location.href).pathname.split("/").pop() || "download");
+      const kind = archiveKind(name);
+      if (extract && kind) {
+        let bin = "";
+        for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+        await upload([{ path: name, content: "", archive: kind, bytes: btoa(bin) }]);
+      } else {
+        await upload([{ path: name, content: new TextDecoder().decode(buf) }]);
+      }
+    } finally {
+      uploadProgress.value = 0;
+    }
+  }
 
   // --- diagnose -----------------------------------------------------------
   const diagnose = (src: string): Promise<GadDiagnostic[]> => api.diagnose(src);
@@ -381,7 +458,8 @@ export function createController(
     // tree
     tree, rows, openPath, source, isExpanded, toggleDir, openFile,
     showHidden, toggleHidden,
-    newFile, newDir, removeOpen, reset, canReset,
+    newFile, newDir, removeOpen, reset, canReset, upload, uploadUrl, urlDialog, uploadProgress,
+    promptReq, confirmReq,
     diagnose,
     // run/format/doc
     busy, runRes, run, format, docHtml, refreshDoc,

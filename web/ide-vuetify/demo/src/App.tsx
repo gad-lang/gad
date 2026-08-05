@@ -7,8 +7,25 @@ import { useTheme } from "vuetify";
 import { VApp, VAppBar, VAppBarTitle, VMain } from "vuetify/components";
 import yaml from "js-yaml";
 import { GadIde } from "@gad-lang/ide-vuetify";
-import type { RunMode, RunProfile, SerializedDockview, Workspace } from "@gad-lang/ide-vuetify";
+import type { RunMode, RunProfile, SerializedDockview, UploadedFile, Workspace } from "@gad-lang/ide-vuetify";
 import { localIdeApi, resetWorkspace } from "./backends/localIde";
+import { base64ToBytes, extractArchive } from "./extract";
+
+// onUpload persists uploaded files to the in-browser workspace. A plain file is
+// written as-is; an archive (when the component asks to extract) is expanded
+// under a folder named after it, next to where it was dropped.
+async function onUpload(files: UploadedFile[]) {
+  for (const f of files) {
+    if (f.archive && f.bytes) {
+      const dir = f.path.replace(/\.(zip|tar\.gz|tgz|tar)$/i, "") + "/";
+      for (const e of extractArchive(f.archive, base64ToBytes(f.bytes))) {
+        await localIdeApi.write(dir + e.path, e.content);
+      }
+    } else {
+      await localIdeApi.write(f.path, f.content);
+    }
+  }
+}
 
 // Run profiles are persisted to the workspace config dir as YAML, the way a real
 // gad workspace would keep them (here the file lives in the LocalStorage-backed
@@ -89,6 +106,7 @@ export default defineComponent({
               workspace={workspace.value}
               dark={dark.value}
               onReset={resetWorkspace}
+              onUpload={onUpload}
               layoutConfig={layoutConfig.value}
               {...{
                 "onUpdate:layoutConfig": (v: SerializedDockview) => {

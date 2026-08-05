@@ -63,9 +63,6 @@ export default defineComponent({
               ),
             }}
           </VMenu>
-          <VDivider vertical class="mx-1" />
-          {iconBtn("mdi-file-document-outline", "Doc", () => ctx.requestDocs(), { disabled: !has() })}
-
           {/* Debugger step controls (shown while paused). */}
           {ctx.stopped.value && (
             <>
@@ -82,8 +79,9 @@ export default defineComponent({
             <span class="text-caption ml-2">stopped ({ctx.snap.value.reason}) @ {ctx.snap.value.line}:{ctx.snap.value.column}</span>
           )}
 
-          {/* Right-aligned Settings. */}
+          {/* Right-aligned: Doc then Settings. */}
           <span class="pnl-toolbar-spacer" />
+          {iconBtn("mdi-file-document-outline", "Doc", () => ctx.requestDocs(), { disabled: !has() })}
           {iconBtn("mdi-cog-outline", "Settings", () => (ctx.settingsOpen.value = true))}
         </div>
         <div class="pnl-editor">

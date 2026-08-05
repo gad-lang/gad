@@ -9,7 +9,7 @@ import { computed, defineComponent, onBeforeUnmount, onMounted, provide, reactiv
 import { DockviewVue, themeDark, themeLight } from "dockview-vue";
 import type { DockviewApi, DockviewReadyEvent, SerializedDockview, VueComponent } from "dockview-vue";
 import { createController, IdeControllerKey } from "./controller";
-import type { IdeApi, RunMode, RunProfile, Workspace } from "./api";
+import type { IdeApi, RunMode, RunProfile, UploadedFile, Workspace } from "./api";
 import PanelExplorer from "./panels/PanelExplorer";
 import PanelEditor from "./panels/PanelEditor";
 import PanelCallStack from "./panels/PanelCallStack";
@@ -20,6 +20,8 @@ import PanelBreakpoints from "./panels/PanelBreakpoints";
 import BreakpointConditionDialog from "./BreakpointConditionDialog";
 import SettingsDialog, { type PanelToggle } from "./SettingsDialog";
 import RunProfileDialog from "./RunProfileDialog";
+import { ConfirmDialog, PromptDialog } from "./PromptDialog";
+import UrlImportDialog from "./UrlImportDialog";
 
 // The dockview theme CSS is the consumer's responsibility (like Vuetify's
 // styles): import "dockview-core/dist/styles/dockview.css" once in the host app.
@@ -58,6 +60,9 @@ export default defineComponent({
     workspace: { type: Object as PropType<Workspace>, required: true },
     dark: { type: Boolean, default: false },
     onReset: { type: Function as PropType<() => Promise<void> | void>, default: undefined },
+    /** Handle files uploaded (Explorer button or drag-drop). When absent, files
+     * are written to the workspace via the api. */
+    onUpload: { type: Function as PropType<(files: UploadedFile[]) => Promise<void> | void>, default: undefined },
     layoutConfig: { type: Object as PropType<SerializedDockview | null>, default: null },
     config: { type: Object as PropType<Record<string, unknown>>, default: () => ({}) },
     runProfiles: { type: Array as PropType<RunProfile[]>, default: () => [] },
@@ -74,6 +79,7 @@ export default defineComponent({
     const dark = computed(() => props.dark);
     const ctx = createController(props.api, props.workspace, dark, {
       onReset: props.onReset,
+      onUpload: props.onUpload,
       getRunProfiles: () => props.runProfiles,
       getRunMode: () => props.runMode,
       emitRunProfiles: (p) => emit("update:runProfiles", p),
@@ -204,6 +210,15 @@ export default defineComponent({
           onSave={(m: { disabled?: boolean; condition?: string }) => {
             if (ctx.bpDialog.value) ctx.setBpMeta(ctx.bpDialog.value.path, ctx.bpDialog.value.line, m);
           }}
+        />
+
+        <PromptDialog request={ctx.promptReq.value} onDone={() => (ctx.promptReq.value = null)} />
+        <ConfirmDialog request={ctx.confirmReq.value} onDone={() => (ctx.confirmReq.value = null)} />
+        <UrlImportDialog
+          modelValue={ctx.urlDialog.value}
+          {...{ "onUpdate:modelValue": (v: boolean) => (ctx.urlDialog.value = v) }}
+          progress={ctx.uploadProgress.value}
+          onImport={(url: string, extract: boolean) => ctx.uploadUrl(url, extract)}
         />
       </div>
     );

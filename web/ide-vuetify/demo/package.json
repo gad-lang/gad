@@ -23,6 +23,7 @@
     "@mdi/font": "^7.4.47",
     "dockview-core": "^7.0.4",
     "dockview-vue": "^7.0.4",
+    "fflate": "^0.8.2",
     "js-yaml": "^4.1.0",
     "vue": "^3.4.0",
     "vuetify": "^3.8.0"
