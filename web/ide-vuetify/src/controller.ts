@@ -51,6 +51,10 @@ export interface ControllerHooks {
   getAutosave?: () => boolean | number;
   /** Max characters of a tab's file name before truncation (default 25). */
   getTabNameMax?: () => number;
+  /** Initial editor font size in pixels (default 13). */
+  initialFontSize?: number;
+  /** Called when the editor font size changes (e.g. to persist it). */
+  onFontSize?: (px: number) => void;
   /** Extra file-type handlers (icon + editor language/plugin) merged over the
    * built-ins, so hosts can support new extensions. */
   fileTypes?: FileTypeHandler[];
@@ -366,6 +370,15 @@ export function createController(
     t.content = content;
     t.saved = content;
   }
+  // Editor font size (px), clamped to a sane range; changes persist via onFontSize.
+  const fontSize = ref(hooks.initialFontSize ?? 13);
+  function setFontSize(px: number) {
+    fontSize.value = Math.max(8, Math.min(32, Math.round(px)));
+    hooks.onFontSize?.(fontSize.value);
+  }
+  const incFont = () => setFontSize(fontSize.value + 1);
+  const decFont = () => setFontSize(fontSize.value - 1);
+
   function undo() {
     editor.value?.undo();
   }
@@ -581,6 +594,7 @@ export function createController(
     busy, runRes, run, format, docHtml, refreshDoc,
     // editor actions
     registerEditor, save, reload, undo, redo,
+    fontSize, incFont, decFont, setFontSize,
     // run/debug profiles + gating
     runProfiles, runMode, activeProfile, profileDialog, activeProfileObj, runLabel,
     canRun, canDebug, runActive, debugActive, addProfile, deleteProfile,

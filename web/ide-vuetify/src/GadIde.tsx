@@ -76,6 +76,8 @@ export default defineComponent({
     autosave: { type: [Boolean, Number] as PropType<boolean | number>, default: false },
     /** Max characters of a tab's file name before it is truncated (default 25). */
     tabNameMax: { type: Number, default: 25 },
+    /** Editor font size in pixels (v-model; default 13). */
+    fontSize: { type: Number, default: 13 },
     /** Extra file-type handlers (icon + editor language/plugin) for the Explorer
      * icons and editor highlighting — merged over the built-ins. */
     fileTypes: { type: Array as PropType<FileTypeHandler[]>, default: () => [] },
@@ -86,6 +88,7 @@ export default defineComponent({
     "update:runProfiles": (_v: RunProfile[]) => true,
     "update:runMode": (_v: RunMode) => true,
     "update:readonly": (_v: boolean) => true,
+    "update:fontSize": (_v: number) => true,
   },
   setup(props, { emit }) {
     const dark = computed(() => props.dark);
@@ -98,9 +101,17 @@ export default defineComponent({
       getReadonly: () => props.readonly,
       getAutosave: () => props.autosave,
       getTabNameMax: () => props.tabNameMax,
+      initialFontSize: props.fontSize,
+      onFontSize: (px) => emit("update:fontSize", px),
       fileTypes: props.fileTypes,
     });
     provide(IdeControllerKey, ctx);
+
+    // External fontSize changes (e.g. a restore) reflect into the controller.
+    watch(
+      () => props.fontSize,
+      (px) => { if (px !== ctx.fontSize.value) ctx.setFontSize(px); },
+    );
 
     let dv: DockviewApi | null = null;
     let disposer: { dispose(): void } | null = null;

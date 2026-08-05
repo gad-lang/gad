@@ -129,6 +129,7 @@ export default defineComponent({
               path={ctx.openPath.value}
               dark={ctx.dark.value}
               readonly={ctx.readonly.value}
+              fontSize={ctx.fontSize.value}
               customExtension={ctx.fileTypes.extensionFor(ctx.openPath.value)}
               diagnose={ctx.diagnose}
               debugLine={ctx.debugLine.value}
@@ -143,8 +144,15 @@ export default defineComponent({
             <div class="pa-4 text-medium-emphasis">Select or create a file to begin.</div>
           )}
         </div>
-        {/* Thin status bar: the full path of the open file. */}
-        <div class="editor-statusbar" title={ctx.openPath.value}>{ctx.openPath.value || "(no file)"}</div>
+        {/* Thin status bar: the open file's full path, and font-size controls. */}
+        <div class="editor-statusbar">
+          <span class="editor-statusbar-path" title={ctx.openPath.value}>{ctx.openPath.value || "(no file)"}</span>
+          <span class="editor-statusbar-font">
+            <button class="fs-btn" title="Decrease font size" onClick={() => ctx.decFont()}>A−</button>
+            <span class="fs-val">{ctx.fontSize.value}px</span>
+            <button class="fs-btn" title="Increase font size" onClick={() => ctx.incFont()}>A+</button>
+          </span>
+        </div>
       </div>
     );
   },

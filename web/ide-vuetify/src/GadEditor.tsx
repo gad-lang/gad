@@ -14,6 +14,7 @@ export default defineComponent({
     language: { type: String as PropType<EditorLanguage>, default: undefined },
     dark: { type: Boolean, default: false },
     readonly: { type: Boolean, default: false },
+    fontSize: { type: Number, default: 13 },
     /** Custom CodeMirror language extension (host-registered file type); replaces
      * the built-in language derived from `path`/`language`. */
     customExtension: { type: Function as PropType<() => Extension>, default: undefined },
@@ -48,6 +49,7 @@ export default defineComponent({
         language: currentLang(),
         dark: props.dark,
         readonly: props.readonly,
+        fontSize: props.fontSize,
         diagnose: props.diagnose,
         getLocals: props.getLocals,
         customExtension: props.customExtension,
@@ -77,6 +79,7 @@ export default defineComponent({
     );
     watch(() => props.dark, (d) => editor?.setDark(d));
     watch(() => props.readonly, (r) => editor?.setReadonly(r));
+    watch(() => props.fontSize, (px) => editor?.setFontSize(px));
     watch(() => props.breakpoints, (b) => editor?.setBreakpoints(b ?? []));
     watch([() => props.debugLine, () => props.debugColumn], ([l, c]) => editor?.setDebugLine(l ?? 0, c ?? 1));
     // Navigate on each new goto request (seq bumps even to the same line).

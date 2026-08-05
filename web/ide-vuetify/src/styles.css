@@ -283,14 +283,45 @@
   content: "×";
 }
 .editor-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 1px 8px;
   font-size: 11px;
   font-family: ui-monospace, monospace;
   color: rgba(var(--v-theme-on-surface), 0.6);
   border-top: 1px solid rgba(var(--v-border-color), 0.3);
   overflow: hidden;
+}
+.editor-statusbar-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.editor-statusbar-font {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.fs-btn {
+  background: transparent;
+  border: 1px solid rgba(var(--v-border-color), 0.4);
+  border-radius: 3px;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 5px;
+  line-height: 1.4;
+  font-size: 11px;
+}
+.fs-btn:hover {
+  background: rgba(var(--v-theme-primary), 0.12);
+}
+.fs-val {
+  min-width: 28px;
+  text-align: center;
 }
 
 /* Playground + Notebook */

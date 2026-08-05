@@ -106,9 +106,16 @@ export interface EditorOptions {
   onBreakpointContext?: (line: number) => void;
   getLocals?: () => Map<string, LocalVar>;
   readonly?: boolean;
+  /** Editor font size in pixels (default 13). */
+  fontSize?: number;
   /** Custom CodeMirror language extension (from a host-registered file type). When
    * set it replaces the built-in `langExtension(language)`. */
   customExtension?: () => Extension;
+}
+
+/** fontTheme returns a CodeMirror theme setting the editor font size. */
+function fontTheme(px: number): Extension {
+  return EditorView.theme({ "&": { fontSize: px + "px" } });
 }
 
 /** GadEditorView wraps an EditorView with compartment-based reconfiguration. */
@@ -117,6 +124,7 @@ export class GadEditorView {
   private langComp = new Compartment();
   private themeComp = new Compartment();
   private roComp = new Compartment();
+  private fontComp = new Compartment();
   private opts: EditorOptions;
 
   constructor(opts: EditorOptions) {
@@ -129,6 +137,7 @@ export class GadEditorView {
         this.langComp.of(opts.customExtension ? opts.customExtension() : langExtension(opts.language, opts.diagnose)),
         this.themeComp.of(opts.dark ? oneDark : []),
         this.roComp.of(EditorState.readOnly.of(!!opts.readonly)),
+        this.fontComp.of(fontTheme(opts.fontSize ?? 13)),
         breakpointGutter(
           (lines) => opts.onBreakpointsChange?.(lines),
           (line) => opts.onBreakpointContext?.(line),
@@ -160,6 +169,10 @@ export class GadEditorView {
 
   setDark(dark: boolean): void {
     this.view.dispatch({ effects: this.themeComp.reconfigure(dark ? oneDark : []) });
+  }
+
+  setFontSize(px: number): void {
+    this.view.dispatch({ effects: this.fontComp.reconfigure(fontTheme(px)) });
   }
 
   setReadonly(readonly: boolean): void {

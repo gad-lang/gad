@@ -73,6 +73,7 @@ export default defineComponent({
     const config = ref<Record<string, unknown>>(loadJSON<Record<string, unknown>>(CONFIG_KEY, {}));
     const runProfiles = ref<RunProfile[]>([]);
     const runMode = ref<RunMode>((localStorage.getItem("gad-vuetify-runmode") as RunMode) || "debug");
+    const fontSize = ref<number>(Number(localStorage.getItem("gad-vuetify-fontsize")) || 13);
 
     async function loadRunProfiles() {
       try {
@@ -104,7 +105,12 @@ export default defineComponent({
     return () => (
       <VApp>
         <VAppBar density="compact" flat>
-          <VAppBarTitle style={{ flex: "none", marginRight: "16px" }}>Gad</VAppBarTitle>
+          <VAppBarTitle style={{ flex: "none", marginRight: "16px" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <img src="gad-24.svg" width="24" height="24" alt="Gad" />
+              <span>GAD</span>
+            </span>
+          </VAppBarTitle>
           <VTabs modelValue={tab.value} {...{ "onUpdate:modelValue": (v: unknown) => (tab.value = v as typeof tab.value) }} density="compact">
             <VTab value="playground">Playground</VTab>
             <VTab value="notebook">Notebook</VTab>
@@ -143,6 +149,17 @@ export default defineComponent({
               runProfiles={runProfiles.value}
               {...{ "onUpdate:runProfiles": (v: RunProfile[]) => saveRunProfiles(v) }}
               autosave={600000}
+              fontSize={fontSize.value}
+              {...{
+                "onUpdate:fontSize": (v: number) => {
+                  fontSize.value = v;
+                  try {
+                    localStorage.setItem("gad-vuetify-fontsize", String(v));
+                  } catch {
+                    /* ignore */
+                  }
+                },
+              }}
               runMode={runMode.value}
               {...{
                 "onUpdate:runMode": (v: RunMode) => {
