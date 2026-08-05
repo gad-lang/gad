@@ -208,11 +208,15 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
 - DONE: GadPlayground + GadNotebook as reusable React components (commit 70cce4f);
   upload.ts + fileTypes.ts (FileTypeRegistry) + UploadedFile type foundations
   (commit 82aa931). Both typecheck+build green
-- REMAINING (large): wire upload UI (Explorer button + drag-drop) +
-  UploadReviewDialog + UrlImportDialog + DirTree + Prompt/Confirm (MUI) into
-  Ide.tsx; readonly gating; autosave (opt+interval); tabNameMax; dirty-tabs;
-  active-file highlight; font-size statusbar. Then cmd/gad ide --serverless
-  (composite IdeApi: files→Go, compute→WASM) + web/app wiring
+- DONE (more): reusable MUI dialogs DirTree/UrlImportDialog/UploadReviewDialog/
+  PromptDialog+ConfirmDialog (commit 9772d45); wired upload button + drag-drop +
+  URL import + in-app prompt into <Ide> (readonly + onUpload props; upload/
+  uploadUrl/archiveKind/pathExists) (commit e43091b); editor read-only via
+  readonly prop (commit 9069077). All typecheck+build green
+- REMAINING (#56): autosave (opt+interval); tabNameMax; dirty-tab indicators;
+  active-file explorer highlight; font-size in statusbar; gate delete/rename tree
+  actions on readonly (minor). (#57) cmd/gad ide --serverless (composite IdeApi:
+  files→Go, compute→WASM) + web/app wiring — the headline hybrid capability
 - Note: ide-react is MUI-based (not Vuetify); icons via @mui/icons-material, so
   fileTypes mdi-* icon strings aren't used for React icons (language part is)
 
