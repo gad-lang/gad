@@ -32,11 +32,15 @@ jobs:
         with:
           go-version: '1.26.5'
 
-      # bun builds the embedded ide-vuetify demo that backs the Playground page.
+      # bun builds the embedded ide-vuetify demo (Playground) and the PrismJS
+      # syntax-highlighting bundle; install the web workspace deps for both.
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.3.14'
+
+      - name: Install web dependencies
+        run: cd web && bun install --frozen-lockfile
 
       # Resolve the release to feature on the site. On a release event use its
       # fields; on a main push (releases created by GITHUB_TOKEN don't trigger the
