@@ -193,8 +193,10 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
 - Verified: website run exit 0; gad-lang.github.io/main got index.html(redirect)
   + latest/ (51 files incl prism.js/gad.wasm/playground) + <sha>/; live root
   https://gad-lang.github.io/ → 200 (redirects to ./latest/), /latest/ → 200
-- PENDING (user decision): gad repo Pages still serves the stale /gad/ snapshot;
-  offered to disable it. commit a37d0e2
+- gad repo Pages still serves the stale /gad/ snapshot. API disable is blocked
+  (422 "not allowed" — legacy branch source). User will disable it manually via
+  Settings → Pages (Source: None); if org policy blocks that, fall back to a
+  gh-pages redirect to the root site. Left gh-pages untouched. commit a37d0e2
 
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
