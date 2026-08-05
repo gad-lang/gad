@@ -221,9 +221,16 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   pass `source` (editor content, saved to the real file first), so WASM compute
   needs no local FS. Known limit: cross-file imports need server mode (WASM can't
   read real files for imports) — same as the pure webide. commit 1c88ae9
-- REMAINING (#56 polish, optional): autosave (opt+interval); tabNameMax; dirty-tab
-  indicators; active-file explorer highlight; font-size in statusbar; gate
-  delete/rename tree actions on readonly
+- DONE (#56 polish, commit 5733ab6): autosave prop (false|true debounced|number
+  interval ms); tabNameMax prop (truncate + full-name tooltip); font-size moved to
+  a thin editor status bar (path ellipsis, no h-scroll, A−/A+ right); dirty tabs
+  colored name + ●/✕ close; active-file explorer highlight already present;
+  rename/remove tree actions (menu + F2/Delete) hidden when readonly. ide-react
+  build + web/app typecheck green
+- ALL THREE PHASES DONE: #55 Playground/Notebook, #56 upload/dialogs/readonly/
+  polish parity, #57 hybrid gad ide --serverless. ide-react is now a
+  feature-parity replica of ide-vuetify (MUI), runs with backend or server-less,
+  and cmd/gad ide offers both modes with a real-file explorer
 - Note: ide-react is MUI-based (not Vuetify); icons via @mui/icons-material, so
   fileTypes mdi-* icon strings aren't used for React icons (language part is)
 
