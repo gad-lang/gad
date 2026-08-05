@@ -9,7 +9,7 @@ import type { GadEditorView } from "../codemirror";
 import type { RunProfile } from "../api";
 
 const baseName = (path: string) => path.slice(path.lastIndexOf("/") + 1);
-const truncate = (s: string, n = 15) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+const truncate = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 
 export default defineComponent({
   name: "PanelEditor",
@@ -36,7 +36,7 @@ export default defineComponent({
                   onClick={() => ctx.activateTab(i)}
                   onMousedown={(e: MouseEvent) => { if (e.button === 1) { e.preventDefault(); ctx.closeTab(i); } }}
                 >
-                  <span class="editor-tab-name">{truncate(baseName(t.path))}</span>
+                  <span class="editor-tab-name">{truncate(baseName(t.path), ctx.tabNameMax.value)}</span>
                   <span
                     class={["editor-tab-close", { "editor-tab-close--dirty": dirty }]}
                     title="Close"

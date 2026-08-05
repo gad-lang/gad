@@ -74,6 +74,8 @@ export default defineComponent({
     /** Auto-save: false = manual (dirty tabs are marked); true = save on every
      * edit; a positive number = save all dirty tabs every N milliseconds. */
     autosave: { type: [Boolean, Number] as PropType<boolean | number>, default: false },
+    /** Max characters of a tab's file name before it is truncated (default 25). */
+    tabNameMax: { type: Number, default: 25 },
     /** Extra file-type handlers (icon + editor language/plugin) for the Explorer
      * icons and editor highlighting — merged over the built-ins. */
     fileTypes: { type: Array as PropType<FileTypeHandler[]>, default: () => [] },
@@ -95,6 +97,7 @@ export default defineComponent({
       emitRunProfiles: (p) => emit("update:runProfiles", p),
       getReadonly: () => props.readonly,
       getAutosave: () => props.autosave,
+      getTabNameMax: () => props.tabNameMax,
       fileTypes: props.fileTypes,
     });
     provide(IdeControllerKey, ctx);

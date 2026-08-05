@@ -49,6 +49,8 @@ export interface ControllerHooks {
   /** Auto-save: false = manual; true = on every edit; a positive number = save
    * dirty tabs every N milliseconds. */
   getAutosave?: () => boolean | number;
+  /** Max characters of a tab's file name before truncation (default 25). */
+  getTabNameMax?: () => number;
   /** Extra file-type handlers (icon + editor language/plugin) merged over the
    * built-ins, so hosts can support new extensions. */
   fileTypes?: FileTypeHandler[];
@@ -565,6 +567,7 @@ export function createController(
     // tree
     tree, rows, openPath, source, isExpanded, toggleDir, openFile,
     tabs, active, activateTab, closeTab, isDirty, autosave,
+    tabNameMax: computed(() => hooks.getTabNameMax?.() ?? 25),
     showHidden, toggleHidden,
     newFile, newDir, removeOpen, reset, canReset, upload, uploadUrl, urlDialog, uploadProgress,
     pathExists, archiveKind,
