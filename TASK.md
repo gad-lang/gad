@@ -278,6 +278,26 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   ide-vuetify + both demos typecheck+build; demo gad.wasm rebuilt. Tests:
   bridge (html/json/yaml), cmd/gad (render+encode)
 
+### 2026-08-05 (interface context-function members `:Expr <header>`)
+- New interface member `:Expr <(params)>` / `:Expr { … }` validating a free
+  function in scope handles the interface's object. `@self` = interface type
+  (a type placeholder in a positional param); >=1 `@self` per header (compile
+  error otherwise); block headers all required; each `:Expr` checked
+  independently. Expr captured BY VALUE where declared (supports locals +
+  selectors) via new opcode OpInterfaceBind
+- Phase 1 (parser/AST/coder) commit 9a08c13; Phase 2 (runtime Interface.
+  ContextFuncs + InterfaceContextFunc + TypedIdent.Self, compiler build+bind,
+  CanAssignVM check via SplitCaller, OpInterfaceBind + delve regen, encoder,
+  tests) commit 5daabb8. Docs doc/method-interfaces.md + sample
+  samples/24_interfaces.gad
+- Interface can be built directly in Go (no symbols): set ContextFuncs Fn +
+  resolved Types + Self; tested (TestInterfaceContextFuncGoBuilt)
+- FOLLOW-UP (user-requested, verify later): cache interface×ObjectType
+  satisfaction at runtime so repeated checks (e.g. in a loop) don't re-validate.
+  Not yet implemented
+- Verified: go test ./... (root) + gadx submodule + encoder + parser green; vet
+  + gofmt clean; check-delve up to date; sample runs
+
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
 |-------|-------|-----|----------|

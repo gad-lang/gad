@@ -183,6 +183,44 @@ interface Greeter { name str; greet() <str> }
 { name: "Ann" } :: Greeter                           // rejected — no greet()
 ```
 
+### Context-function members (`:Expr <header>`)
+
+A member written `:Expr <(params)>` (or the block form `:Expr { (params); … }`)
+requires a **free function in scope** — not a method on the object — to *handle*
+the interface's object. `Expr` is the function (an identifier or a selector such
+as `mod.render`), captured **by value where the interface is declared** (so a
+local, a module function or a selector all work). The special positional type
+**`@self`** stands for the interface itself: it marks where the interface's
+object is passed.
+
+```gad
+render := func(indent int, obj) => "…"   // a free function that takes an object
+
+interface Renderable {
+    :render<(indent int, @self)>          // require: render(int, <object>)
+}
+
+{ tag: "h1" } :: Renderable               // ok — render handles the object
+```
+
+Rules:
+
+- Every header **must contain at least one `@self`** param (otherwise it does not
+  reference the object — a compile error).
+- The captured function satisfies a header when one of its signatures matches:
+  the `@self` slot accepts the object (the function's parameter there is untyped),
+  the other params match by type, and only the parameter list is compared.
+- With the block form, **every** header must be matched (like `meti`). A missing
+  or non-callable `Expr`, or any unmatched header, means the object does not
+  satisfy the interface. Several `:Expr` members may be listed; each is checked
+  independently.
+
+Because the function is captured at the declaration site, an interface with
+context-function members is a runtime value (not a plain constant). Such an
+interface can also be **built directly in Go** — set `Interface.ContextFuncs`
+with a bound `Fn` and a `@self`-marked header (`TypedIdent{Self: true}`), with no
+symbols — and exposed as a global or builtin.
+
 ### Reflected Go values
 
 A Go value handed to a script through reflection (`gad.NewReflectValue` /

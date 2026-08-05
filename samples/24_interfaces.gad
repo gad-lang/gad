@@ -91,4 +91,22 @@ try {
 /// satisfy Type, without a `try`/`catch`.
 println("or fallback: ", bad::Greeter or "is bad") // is bad
 
+/// Context-function members: `:Expr <header>` requires a free function in scope
+/// (not a method on the object) to handle the interface's object. `@self` is the
+/// interface's object; it is captured by value where the interface is declared.
+render := func(indent int, obj) => "<" + str(indent) + ":" + str(obj.name) + ">"
+
+Renderable := interface {
+    name str
+    :render<(indent int, @self)>          // require render(int, <object>) in scope
+}
+
+r := {name: "Ada"}
+println("renderable:  ", (r :: Renderable).name)   // Ada — render handles it
+
+/// A function that does not take the object (no matching @self arity) fails.
+noObj := func(indent int) => indent
+NotRenderable := interface { :noObj<(indent int, @self)> }
+println("ctx reject:  ", r :: NotRenderable or "no renderer")  // no renderer
+
 return ok
