@@ -237,6 +237,8 @@ interface IdeShared {
   refreshTree: () => Promise<void>;
   // read-only workspace (hide create/delete/upload/import + read-only editor)
   readonly: boolean;
+  // max characters of a tab's file name before truncation
+  tabNameMax: number;
   // upload / import (the upload UI is shown only when a host onUpload is given)
   onUploadEnabled: boolean;
   startUploadReview: (raw: RawFile[]) => void;
@@ -396,6 +398,7 @@ function ExplorerPanel(_: IDockviewPanelProps) {
             activePath={ide.activeTab?.path}
             onOpen={ide.openFile}
             onAction={ide.treeAction}
+            readonly={ide.readonly}
           />
         ))}
       </div>
@@ -428,24 +431,26 @@ function EditorPanel(_: IDockviewPanelProps) {
   return (
     <section className="ide-center">
       <div className="tabbar">
-        {ide.tabs.map((t, i) => (
-          <div
-            key={t.path}
-            className={"tab" + (i === ide.active ? " active" : "")}
-            onClick={() => ide.setActive(i)}
-          >
-            <span>
-              {t.path.split("/").pop()}
-              {t.saved ? "" : " •"}
-            </span>
-            <span
-              className="x"
-              onClick={(e) => { e.stopPropagation(); ide.closeTab(i); }}
+        {ide.tabs.map((t, i) => {
+          const base = t.path.split("/").pop() ?? t.path;
+          const label = base.length > ide.tabNameMax ? base.slice(0, ide.tabNameMax - 1) + "…" : base;
+          return (
+            <div
+              key={t.path}
+              className={"tab" + (i === ide.active ? " active" : "") + (t.saved ? "" : " dirty")}
+              title={base + (t.saved ? "" : " • modified")}
+              onClick={() => ide.setActive(i)}
+              onMouseDown={(e) => { if (e.button === 1) { e.preventDefault(); ide.closeTab(i); } }}
             >
-              ✕
-            </span>
-          </div>
-        ))}
+              <span className="tab-name">{label}</span>
+              <span
+                className={"x" + (t.saved ? "" : " x--dirty")}
+                title="Close"
+                onClick={(e) => { e.stopPropagation(); ide.closeTab(i); }}
+              />
+            </div>
+          );
+        })}
       </div>
 
       <Toolbar variant="dense" className="toolbar" disableGutters sx={{ gap: 1, minHeight: 44 }}>
@@ -580,11 +585,6 @@ function EditorPanel(_: IDockviewPanelProps) {
           </>
         )}
         <Box sx={{ flex: 1 }} />
-        <Box className="font-control" title="Editor font size">
-          <Button size="small" onClick={() => ide.setFontSize(ide.fontSize - 1)}>A−</Button>
-          <span className="font-size">{ide.fontSize}px</span>
-          <Button size="small" onClick={() => ide.setFontSize(ide.fontSize + 1)}>A+</Button>
-        </Box>
         <Typography variant="caption" color="text.secondary">{ide.status}</Typography>
       </Toolbar>
 
@@ -611,6 +611,16 @@ function EditorPanel(_: IDockviewPanelProps) {
         ) : (
           <div className="empty">Open a file from the explorer</div>
         )}
+      </div>
+
+      {/* Thin status bar: the open file's full path + font-size controls. */}
+      <div className="editor-statusbar">
+        <span className="sb-path" title={ide.activeTab?.path}>{ide.activeTab?.path || "(no file)"}</span>
+        <span className="sb-font">
+          <Button size="small" title="Decrease font size" onClick={() => ide.setFontSize(ide.fontSize - 1)}>A−</Button>
+          <span>{ide.fontSize}px</span>
+          <Button size="small" title="Increase font size" onClick={() => ide.setFontSize(ide.fontSize + 1)}>A+</Button>
+        </span>
       </div>
     </section>
   );
@@ -1016,6 +1026,8 @@ export function Ide({
   runMode = "debug",
   readonly = false,
   onUpload,
+  autosave = false,
+  tabNameMax = 25,
 }: {
   workspace: Workspace;
   api?: IdeApi;
@@ -1037,6 +1049,11 @@ export function Ide({
    * absent, files are written to the workspace via the api. `targetDir` is the
    * directory chosen in the review dialog ("" = workspace root). */
   onUpload?: (files: UploadedFile[], targetDir: string) => Promise<void> | void;
+  /** Auto-save: false = manual (dirty tabs are marked); true = save on every
+   * edit (debounced); a positive number = save all dirty tabs every N ms. */
+  autosave?: boolean | number;
+  /** Max characters of a tab's file name before it is truncated (default 25). */
+  tabNameMax?: number;
 }) {
   const [theme, toggleTheme] = useTheme();
   const dark = theme === "dark";
@@ -1134,6 +1151,10 @@ export function Ide({
   // Ref so upload callbacks read the current active tab without re-creating.
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
+  // Refs for autosave (read latest tabs/active without re-creating callbacks).
+  const tabsRef = useRef(tabs);
+  tabsRef.current = tabs;
+  const autosaveTimer = useRef<number | null>(null);
 
   // Dockview API ref — available after onReady fires.
   const dockviewApiRef = useRef<DockviewApi | null>(null);
@@ -1350,6 +1371,11 @@ export function Ide({
 
   function onEdit(value: string) {
     setTabs((ts) => ts.map((t, i) => (i === active ? { ...t, content: value, saved: false } : t)));
+    // autosave === true: debounce-save the active tab after edits settle.
+    if (autosave === true) {
+      if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = window.setTimeout(() => void save(), 800);
+    }
   }
 
   const evalOne = useCallback(
@@ -1449,6 +1475,29 @@ export function Ide({
       reportError("Save failed", e);
     }
   }
+
+  // --- Autosave ------------------------------------------------------------
+  // saveAll writes every dirty tab (used by interval autosave). The active tab
+  // reads its live content from the editor; others use their stored content.
+  const saveAll = useCallback(async () => {
+    const cur = tabsRef.current;
+    const activeIdx = cur.findIndex((t) => t === activeTabRef.current);
+    for (let i = 0; i < cur.length; i++) {
+      const t = cur[i];
+      if (t.saved) continue;
+      const content = i === activeIdx ? (editorRef.current?.getValue() ?? t.content) : t.content;
+      try {
+        await api.write(t.path, content);
+        setTabs((ts) => ts.map((x) => (x.path === t.path ? { ...x, content, saved: true } : x)));
+      } catch { /* keep dirty; surfaced on manual save */ }
+    }
+  }, [api]);
+  // Interval autosave when `autosave` is a positive number (ms).
+  useEffect(() => {
+    if (typeof autosave !== "number" || autosave <= 0) return;
+    const id = window.setInterval(() => void saveAll(), autosave);
+    return () => window.clearInterval(id);
+  }, [autosave, saveAll]);
 
   async function format() {
     if (!activeTab) return;
@@ -1953,7 +2002,7 @@ export function Ide({
     api,
     dark, toggleTheme,
     tree, showHidden, setShowHidden, setFetchDialog, openFile, treeAction, refreshTree,
-    readonly, onUploadEnabled: !!onUpload, startUploadReview, setUrlImport: setUrlImportOpen, prompt: promptFn, confirm: confirmFn,
+    readonly, tabNameMax, onUploadEnabled: !!onUpload, startUploadReview, setUrlImport: setUrlImportOpen, prompt: promptFn, confirm: confirmFn,
     tabs, active, setActive, activeTab, closeTab, onEdit,
     save, format, reloadFile, editorRef, diagnose, templateDelimiters, fontSize, setFontSize,
     debug, debugLoc, dbgCommand, keys,
@@ -2332,17 +2381,19 @@ function FileIcon({ name }: { name: string }) {
 }
 
 function TreeView({
-  node, activePath, onOpen, onAction,
+  node, activePath, onOpen, onAction, readonly = false,
 }: {
   node: TreeNode;
   activePath?: string;
   onOpen: (p: string) => void;
   onAction: (action: TreeAction, node: TreeNode) => void;
+  readonly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const onContextMenu = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY }); };
   const onKeyDown = (e: React.KeyboardEvent) => {
+    if (readonly) return;
     if (e.key === "F2") { e.preventDefault(); onAction("rename", node); }
     else if (e.key === "Delete") { e.preventDefault(); onAction("remove", node); }
   };
@@ -2355,8 +2406,8 @@ function TreeView({
       {!node.dir && isGad && <MenuItem onClick={() => act("run")}>Run</MenuItem>}
       {!node.dir && isGad && <MenuItem onClick={() => act("format")}>Format</MenuItem>}
       {!node.dir && isGad && <MenuItem onClick={() => act("transpile")}>Transpile</MenuItem>}
-      <MenuItem onClick={() => act("rename")}>Rename… (F2)</MenuItem>
-      <MenuItem onClick={() => act("remove")}>Remove…</MenuItem>
+      {!readonly && <MenuItem onClick={() => act("rename")}>Rename… (F2)</MenuItem>}
+      {!readonly && <MenuItem onClick={() => act("remove")}>Remove…</MenuItem>}
     </Menu>
   );
   if (node.dir) {
@@ -2372,7 +2423,7 @@ function TreeView({
         {open && (
           <div className="children">
             {node.children?.map((c) => (
-              <TreeView key={c.path} node={c} activePath={activePath} onOpen={onOpen} onAction={onAction} />
+              <TreeView key={c.path} node={c} activePath={activePath} onOpen={onOpen} onAction={onAction} readonly={readonly} />
             ))}
           </div>
         )}
@@ -2837,7 +2888,17 @@ function IdeStyles() {
 .tabbar{display:flex;overflow:auto;border-bottom:1px solid var(--border);background:var(--panel)}
 .tabbar .tab{display:flex;gap:.4rem;align-items:center;padding:.3rem .6rem;border-right:1px solid var(--border);cursor:pointer;white-space:nowrap}
 .tabbar .tab.active{background:var(--bg)}
-.tabbar .tab .x{opacity:.6}.tabbar .tab .x:hover{opacity:1}
+.tabbar .tab.dirty .tab-name{color:#1e40af}
+.v-theme--dark .tabbar .tab.dirty .tab-name,:root[data-theme=dark] .tabbar .tab.dirty .tab-name{color:#93c5fd}
+.tabbar .tab .x{width:1em;text-align:center;opacity:.6;cursor:pointer}
+.tabbar .tab .x::before{content:"✕"}
+.tabbar .tab .x:hover{opacity:1}
+.tabbar .tab .x--dirty::before{content:"●";color:#1e40af}
+:root[data-theme=dark] .tabbar .tab .x--dirty::before{color:#93c5fd}
+.tabbar .tab .x--dirty:hover::before{content:"✕";color:inherit}
+.editor-statusbar{display:flex;align-items:center;gap:.5rem;padding:.1rem .6rem;font-size:.72rem;font-family:ui-monospace,monospace;color:var(--muted);border-top:1px solid var(--border);overflow:hidden}
+.editor-statusbar .sb-path{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.editor-statusbar .sb-font{display:flex;align-items:center;gap:.25rem;flex:none}
 .toolbar{display:flex;gap:.4rem;align-items:center;padding:.35rem .6rem;border-bottom:1px solid var(--border)}
 .toolbar .status{color:var(--muted);font-size:.85rem}
 .font-control{display:flex;align-items:center;gap:.25rem}
