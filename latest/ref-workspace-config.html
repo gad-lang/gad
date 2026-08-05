@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workspace Configuration · Gad</title>
+<link rel="icon" type="image/svg+xml" href="gad.svg">
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<script>window.SITE_BASE="";</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html"><img class="brand-logo" src="gad.svg" alt="" width="30" height="30"><span class="brand-name">Gad</span></a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <nav class="header-links">
+    <a class="rel-chip" href="download.html" title="Current release">v0.0.4-test1</a>
+    <a href="playground.html">Playground</a>
+    <a href="download.html">Download</a>
+    <a href="https://github.com/gad-lang/gad/issues" target="_blank" rel="noopener">Tasks</a>
+    <a href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">Repo</a>
+  </nav>
+  <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="templates.html">Templates (mixed mode)</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-metaprogramming.html">Metaprogramming: parse, eval and Gadx</a><a class="nav-link active" href="ref-workspace-config.html">Workspace Configuration</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Gadx</div>
+      <a class="nav-link" href="gadx-getting-started.html">Getting Started</a><a class="nav-link" href="gadx-syntax.html">Template Syntax</a><a class="nav-link" href="gadx-components-and-slots.html">Components And Slots</a><a class="nav-link" href="gadx-examples.html">Examples Cookbook</a><a class="nav-link" href="gadx-embedding.html">Embedding In Go</a><a class="nav-link" href="gadx-api.html">API Reference</a><a class="nav-link" href="gadx-conventions.html">Conventions</a><a class="nav-link" href="gadx-source-positions.html">Source Positions</a><a class="nav-link" href="gadx-project-structure.html">Project Structure</a><a class="nav-link" href="gadx-benchmarks.html">Benchmarks</a><a class="nav-link" href="gadx-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">JS modules</div>
+      <a class="nav-link" href="js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a><a class="nav-link" href="js-modules/prism-gad.html">@gad-lang/prism-gad</a><a class="nav-link" href="js-modules/ide-react.html">@gad-lang/ide-react</a><a class="nav-link" href="js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a>
+    </div><div class="nav-group"><div class="nav-title">Integrate</div>
+      <a class="nav-link" href="wasm-embed.html">Embed the WASM</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div><div class="nav-group"><div class="nav-title">Download</div>
+      <a class="nav-link" href="download.html">Download</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="workspace-configuration">Workspace Configuration</h1>
+<p><a href="index.html">← Back to index</a></p>
+<p>A Gad workspace is configured under a <code>.gad/</code> directory at the workspace root (<strong>WORK_DIR</strong>, default the current directory or <code>$GAD_WORK_DIR</code>; the config directory itself is <code>$GAD_CONFIG_DIR</code>, default <code>WORK_DIR/.gad</code>):</p>
+<pre><code>WORK_DIR/
+  .gad/                 (GAD_CONFIG_DIR)
+    gad.yaml            project config (fmt/doc/template/transpile/env sections)
+    ide.yaml            gad ide layout and editor state
+    doc-templates/
+      html.gadx         gad doc HTML template   (param (doc dict))
+      md.gadx           gad doc Markdown template (param (doc dict))</code></pre>
+<ul>
+<li>**<code>.gad/gad.yaml</code>** — the project configuration read by the <code>gad</code> CLI</li>
+</ul>
+<p>  (formatting, template mode, transpilation, the <code>env</code> section, …).</p>
+<ul>
+<li>**<code>.gad/ide.yaml</code>** — the <code>gad ide</code> layout and editor state. It is split out so</li>
+</ul>
+<p>  IDE state does not clutter the project config.</p>
+<ul>
+<li>**<code>.gad/doc-templates/</code>** — optional gadx templates for <code>gad doc</code> (see</li>
+</ul>
+<p>  <a href="#documentation-templates">Documentation</a> below).</p>
+<h2 id="variable-expansion">Variable expansion</h2>
+<p>**Every value in <code>gad.yaml</code> — at any nesting depth — is expanded using bash-style parameter expansion.** A value is read, its <code>$VAR</code> / <code>${…}</code> references are expanded, and the result is converted back to a number or boolean when it holds one (so <code>port: "${PORT:-8080}"</code> yields the integer <code>8080</code>).</p>
+<p><code>ide.yaml</code> is <strong>not</strong> expanded: it holds IDE layout/editor state written by the <code>gad ide</code> app, not user-authored templates, so its <code>$</code>/<code>{}</code> characters are kept verbatim.</p>
+<p>References come from two sources:</p>
+<ul>
+<li><strong>Environment variables</strong> — <code>$NAME</code> or <code>${NAME}</code> reads the process environment.</li>
+<li><strong>The config itself</strong> — a name that begins with a dot is a path into the</li>
+</ul>
+<p>  configuration document, with <code>.field</code> and <code>[index]</code> navigation:   <code>${.ide.panels[0].id}</code>. Scalar leaves (int, bool, …) are converted to text.</p>
+<h3 id="supported-operators">Supported operators</h3>
+<p>The full set of bash parameter-expansion operators is supported (semantics match GNU bash):</p>
+<table>
+<thead><tr><th>Form</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>$VAR</code>, <code>${VAR}</code></td><td>the value of <code>VAR</code></td></tr>
+<tr><td><code>${var:-default}</code></td><td>use <code>default</code> if <code>var</code> is unset or empty (no assignment)</td></tr>
+<tr><td><code>${var:=default}</code></td><td>assign <code>default</code> to <code>var</code> if it is unset or empty</td></tr>
+<tr><td><code>${var:+alternate}</code></td><td>use <code>alternate</code> only if <code>var</code> is set and non-empty, else empty</td></tr>
+<tr><td><code>${var:offset:length}</code></td><td>substring starting at <code>offset</code> (<code>length</code> optional; negatives count from the end)</td></tr>
+<tr><td><code>${var#pattern}</code></td><td>remove the shortest matching prefix</td></tr>
+<tr><td><code>${var##pattern}</code></td><td>remove the longest matching prefix</td></tr>
+<tr><td><code>${var%pattern}</code></td><td>remove the shortest matching suffix</td></tr>
+<tr><td><code>${var%%pattern}</code></td><td>remove the longest matching suffix</td></tr>
+<tr><td><code>${var/pattern/string}</code></td><td>replace the first match of <code>pattern</code></td></tr>
+<tr><td><code>${var//pattern/string}</code></td><td>replace all matches of <code>pattern</code></td></tr>
+<tr><td><code>${var/#pattern/string}</code></td><td>replace <code>pattern</code> only at the front</td></tr>
+<tr><td><code>${var/%pattern/string}</code></td><td>replace <code>pattern</code> only at the end</td></tr>
+</tbody>
+</table>
+<p><code>pattern</code> is a shell glob (<code>*</code>, <code>?</code>, <code>[…]</code>); unlike filename globbing, <code>/</code> is an ordinary character. Booleans accept <code>yes</code>/<code>no</code> as well as <code>true</code>/<code>false</code> (matching YAML). A backslash escapes the next character (<code>\$</code> is a literal <code>$</code>).</p>
+<pre><code class="language-yaml">env:
+    PATH: "${HOME}/bin:$PATH"        # environment references
+    BASE: "${.ide.root:-/srv/app}"   # config self-reference with a default
+    KIND: "${FILE##*.}"              # longest-prefix strip → the extension
+
+# Every value is expanded, not just the env section:
+title: "${APP_NAME:-Gad} console"
+port: "${PORT:-8080}"                # becomes the integer 8080</code></pre>
+<h2 id="the-env-section">The <code>env</code> section</h2>
+<p>The <code>env</code> section defines environment variables that seed the [<code>env</code> keyword](operators.md) available to scripts run in the workspace. It may be a mapping or a list of <code>NAME=value</code> entries, and its values are expanded as above (later entries can reference earlier ones). The <code>env</code> table <strong>extends</strong> the process environment: a script sees the host's variables plus these.</p>
+<pre><code class="language-yaml">env:
+    APP_HOME: "${HOME}/app"
+    PATH: "${APP_HOME}/bin:$PATH"</code></pre>
+<h3 id="portable-path-lists">Portable path lists</h3>
+<p>A value may be an <strong>array of segments</strong> instead of a string — this is the portable path-list form. It is authored in canonical Unix form and converted to the host OS on load:</p>
+<ul>
+<li>each <code>/</code> becomes the OS directory separator (<code>\</code> on Windows);</li>
+<li>the segments are joined with the OS path-list separator (<code>:</code> on Unix, <code>;</code> on</li>
+</ul>
+<p>  Windows);</p>
+<ul>
+<li>a segment may itself pack several entries with <code>:</code> (an operator <code>:</code> inside a</li>
+</ul>
+<p>  <code>${var:-…}</code> is not a separator).</p>
+<p>You never hard-code the OS separators:</p>
+<pre><code class="language-yaml">env:
+    GADPATH: ["${HOME}/gadlib", "${.project.shared}", "vendor"]
+    # → Unix:    /home/u/gadlib:/srv/shared:vendor
+    # → Windows: C:\Users\u\gadlib;C:\srv\shared;vendor
+
+    PATH: ["x", "a/b/c:d/e"]
+    # → Unix:    x:a/b/c:d/e
+    # → Windows: x;a\b\c;d\e</code></pre>
+<p>The <strong>string</strong> form is taken literally (only expanded), so non-path values such as URLs or messages keep their <code>:</code> and <code>/</code>. Use the array form for path lists.</p>
+<h2 id="gadpath"><code>GADPATH</code></h2>
+<p><code>GADPATH</code> is the module search path, used like Python's <code>PYTHONPATH</code>. It is an OS-list-separated list of directories (<code>:</code> on Unix, <code>;</code> on Windows), read from the process environment.</p>
+<p>When a script does <code>import("name")</code>, the file importer resolves the module in this order and the <strong>first existing file wins</strong>:</p>
+<ol>
+<li>relative to the importing file's own directory;</li>
+<li>then each directory in <code>GADPATH</code>, in order.</li>
+</ol>
+<p>So <code>GADPATH</code> supplies shared libraries that any script can import by a bare name without a relative path. The active list is also exposed to scripts as the <code>SOURCE_PATH</code> global.</p>
+<pre><code class="language-sh">GADPATH="$HOME/gadlib:/usr/local/share/gad" gad run app.gad
+# in app.gad:  lib := import("mylib.gad")   # found in $HOME/gadlib/mylib.gad</code></pre>
+<p>For the embedding and Go-side API of expansion, see the [<code>shellexpand</code>](https://pkg.go.dev/github.com/gad-lang/gad/shellexpand) package.</p>
+<h2 id="documentation-templates">Documentation templates</h2>
+<p><code>gad doc</code> renders Markdown by default. To customize the output, drop gadx templates under <code>.gad/doc-templates/</code>:</p>
+<ul>
+<li>**<code>md.gadx</code>** — when present, replaces the built-in Markdown (written as</li>
+</ul>
+<p>  <code>NAME.md</code>).</p>
+<ul>
+<li>**<code>html.gadx</code>** — when present, additionally renders HTML (written as</li>
+</ul>
+<p>  <code>NAME.html</code>).</p>
+<p>Each template receives the extracted documentation as a positional parameter:</p>
+<pre><code class="language-gad">param (doc dict)</code></pre>
+<p>where <code>doc</code> has the shape:</p>
+<pre><code>{
+  prose: str,                      # module-level description (/*** … ***/ block)
+  sections: [                      # one per kind: Exports, Components, …
+    { title: str,
+      symbols: [
+        { name: str, signature: str, doc: str, line: int, column: int }
+      ] }
+  ]
+}</code></pre>
+<p><code>md.gadx</code> is typically a plain Gad script that writes Markdown with <code>write()</code>:</p>
+<pre><code class="language-gadx">~~
+param (doc dict)
+for sec in doc.sections {
+    write("\n## " + sec.title + "\n")
+    for s in sec.symbols {
+        write("\n### " + s.name + s.signature + "\n")
+        if s.doc { write("\n" + s.doc + "\n") }
+    }
+}
+~~</code></pre>
+<p><code>html.gadx</code> uses gadx's tag syntax and returns a rendered tree; <code>s.line</code> / <code>s.column</code> are handy as <code>data-*</code> attributes for editor navigation. See <code>samples/.gad/doc-templates/</code> for complete examples.</p>
+<p>The same structured data is available programmatically: <code>gadbridge.ExtractDoc(src, sourceType)</code> returns the <code>DocData</code> struct (and the WASM build exposes it as <code>gadDocData(source, sourceType)</code>), so callers can render documentation however they like instead of using the built-in Markdown.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#variable-expansion">Variable expansion</a><a href="#the-env-section">The env section</a><a href="#gadpath">GADPATH</a><a href="#documentation-templates">Documentation templates</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+
+</body>
+</html>

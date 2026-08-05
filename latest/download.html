@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Download · Gad</title>
+<link rel="icon" type="image/svg+xml" href="gad.svg">
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<script>window.SITE_BASE="";</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html"><img class="brand-logo" src="gad.svg" alt="" width="30" height="30"><span class="brand-name">Gad</span></a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <nav class="header-links">
+    <a class="rel-chip" href="download.html" title="Current release">v0.0.4-test1</a>
+    <a href="playground.html">Playground</a>
+    <a href="download.html">Download</a>
+    <a href="https://github.com/gad-lang/gad/issues" target="_blank" rel="noopener">Tasks</a>
+    <a href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">Repo</a>
+  </nav>
+  <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="templates.html">Templates (mixed mode)</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-metaprogramming.html">Metaprogramming: parse, eval and Gadx</a><a class="nav-link" href="ref-workspace-config.html">Workspace Configuration</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Gadx</div>
+      <a class="nav-link" href="gadx-getting-started.html">Getting Started</a><a class="nav-link" href="gadx-syntax.html">Template Syntax</a><a class="nav-link" href="gadx-components-and-slots.html">Components And Slots</a><a class="nav-link" href="gadx-examples.html">Examples Cookbook</a><a class="nav-link" href="gadx-embedding.html">Embedding In Go</a><a class="nav-link" href="gadx-api.html">API Reference</a><a class="nav-link" href="gadx-conventions.html">Conventions</a><a class="nav-link" href="gadx-source-positions.html">Source Positions</a><a class="nav-link" href="gadx-project-structure.html">Project Structure</a><a class="nav-link" href="gadx-benchmarks.html">Benchmarks</a><a class="nav-link" href="gadx-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">JS modules</div>
+      <a class="nav-link" href="js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a><a class="nav-link" href="js-modules/prism-gad.html">@gad-lang/prism-gad</a><a class="nav-link" href="js-modules/ide-react.html">@gad-lang/ide-react</a><a class="nav-link" href="js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a>
+    </div><div class="nav-group"><div class="nav-title">Integrate</div>
+      <a class="nav-link" href="wasm-embed.html">Embed the WASM</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div><div class="nav-group"><div class="nav-title">Download</div>
+      <a class="nav-link active" href="download.html">Download</a>
+    </div>
+  </nav>
+  <main class="content"><div class="rel-hero"><div class="rel-badge">Release</div><h1 class="rel-name"><a href="https://github.com/gad-lang/gad/releases/tag/v0.0.4-test1">v0.0.4-test1</a></h1><div class="rel-date">2026-08-05T10:19:21Z</div></div><section class="rel-notes"><h2>Release notes</h2><h2 id="changelog">Changelog</h2>
+<ul>
+<li>67bf442073e3b2c04f6dcf1863b80153a271ee37 Merge branch 'feat/with-block-expr'</li>
+<li>0875c6384fdd7069eab11ae80314007d538eaa12 build(giom): vendor giom as real files instead of git submodule</li>
+<li>7752b8fbcf85220f016221dc49d9e6c07ca7eb5c build(plugins): make codemirror-gad and prism-gad npm-publish-ready</li>
+<li>2ad52092183b2e76993099305fd4a49751c0247c build: <code>make webide</code> runs the server-less IDE dev server (no Go backend)</li>
+<li>79f4dc5f815fa0c20cbfb8ee68e3ff844ba4fe47 build: add <code>make ide-vuetify-demo</code> for the Vuetify IDE demo</li>
+<li>8653f86381c46dbade31182f6561665003bd1f0a build: add <code>make webide</code> to preview the embeddable server-less IDE page</li>
+<li>57a7fcf2e4555bf2f860d6a74305829b0a333ac0 build: add <code>make website</code> and <code>make website-fast</code> targets</li>
+<li>00ab422d38e369fc5c22b474b15776d1a64a0afc build: drop NVM_USE from the Makefile</li>
+<li>4acc6521a781ccdf9ada7a541e17da952b77073a chore(samples): drop the ide section from .gad/gad.yaml</li>
+<li>0dbe405a674604f3119e285a486121b6036cad66 chore(samples): move giom/samples to samples/giom</li>
+<li>440f70da9d4355dc3ecfe405588d9f6c3b03880f docs(config): clarify .gadide.yaml is not variable-expanded</li>
+<li>78e6b39c1b2e6fa5cbaab5620ea5a318f2bab470 docs(config): document bash-style variable expansion in workspace config</li>
+<li>28717f72e011738dd962e157f3692c0547422df7 docs(conventions): add Idioms section recommending property <code>.v</code> access</li>
+<li>0158f3fd9a83fa5b1c6ebdbfb99dcdedf61e6ca6 docs(embedding): document VM-stack aliasing hazards for args</li>
+<li>9635476d004d1454eda10f7fcb402d148304caea docs(giom): document comments (//, //-, /* */, /<strong> </strong>/)</li>
+<li>db30844717ac0cb6178f0d15c9f6c4e249ac9ba1 docs(giom): simplify giom.Tag(nil) to giom.Tag() in examples and docs</li>
+<li>c6a4e93db7ab09a0f51036cbd54e63abac6eba7b docs(giom): update for native compilation and samples move</li>
+<li>828d4c8855e40ef6d5877aa4985cafd723c78b70 docs(properties): recommend .v with a measured cost comparison</li>
+<li>66d8a89e1b05213424e7f91f551e0ea011e814c2 docs(readme): type the mapEach seq param as array</li>
+<li>61fbc35e606afe637388ed40b6770e6d86712fdd docs(samples): consolidate property examples into 31_properties.gad</li>
+<li>2e2375e73431364aaccb78953a2e95126ba27702 docs(task): add current-state summary to TASK.md</li>
+<li>b17193f6959b93f9ab4c55c08090fcf0b9879403 docs(task): log Prism highlighting + fence sourceType pass</li>
+<li>e81fd60985f3e59b6c5dc79adf14edda5c627a34 docs(task): log WASM split + Download page work</li>
+<li>31ffd4216738fbeffdd2244bc7ccd93a82b93ab9 docs(task): log website/wasm overhaul + docs API refresh</li>
+<li>eb3afa0b8a71e18a304609739622ea082710dde5 docs(task): record @param directive</li>
+<li>4585a3c8379c3f51d8ad9acc4442c90e2dda90d0 docs(task): record CI fully green after Windows fixes</li>
+<li>fce85f1fc08fa3f69963bf9f3c0d661811a2838c docs(task): record compiler warnings + export handling; note open export-lowering</li>
+<li>962eef39da826006b7082b407827ad5abeb8467c docs(task): record export lowering to single dict + OpExtendModule</li>
+<li>fc03e635e627c335422c959a16b527d48de92ad7 docs(task): record giom comments, gad doc, @export</li>
+<li>679a50862044259e8f513b9d752fe040a1731cc8 docs(task): record giom inline-HTML compiler rewrite in TASK.md</li>
+<li>55503157a032f0cddb49522299ea9cc4b1a75307 docs(task): record goreleaser check pass</li>
+<li>b986e6c56739f793a6d7a0656ca337d6d7c5730a docs(task): record goreleaser snapshot success + doc-glob finding</li>
+<li>50da0b96cf5b0120ccd957233241c4c8b6981b1c docs(task): record prop .v, read-only prop, and module live bindings</li>
+<li>8d19dd0ee7776e825c0663be5f39d2a646e9b211 docs(task): record prop delegation, VM.Call and reflect module</li>
+<li>307b3e10cd01c5636be34c8bf786978f90b8fb9a docs(website): use gad/gadt/gadx fence names + add Templates to the nav</li>
+<li>2ce7f04f2c6c78ff46f496056cbc7558437d085a docs(with): document and sample the block-expression form</li>
+<li>238fd9818f0e54d30f9d1dd9b98a470abe1581bf feat(app): WASM Web Worker backends + embeddable server-less IDE page</li>
+<li>9e5deca2c0cd7a9871d9514e5d5b6be54f6832b4 feat(app): WASM Web Worker client + LocalStorage filesystem (web IDE infra)</li>
+<li>19d3a7a463c7156c1388e5eeca3b4388ba3c4625 feat(app): link the playground header to the server-less IDE (/webide)</li>
+<li>a676f692705a8209d71da7427f4ccfc0fc62ea65 feat(app): run args + webide run profiles/runMode; guard null diagnostics</li>
+<li>aa926a93314c48ce6ebff6ca86bb3b9f9d70ba54 feat(cmd/gad): portable OS path-list join for env array values</li>
+<li>74ec7bf8e955800d953255bf4e7aebe11b85a9eb feat(cmd/gad): seed the <code>env</code> keyword from the workspace <code>.gad.yaml</code></li>
+<li>b7c307efb452df1b3242a30307a8a3bd5efe9e3d feat(compiler): compiler warnings + main-module export handling; return CompileResult</li>
+<li>8cf228bdf113795c54aaeac7d1e3db5b9ce8d74d feat(compiler,bridge): always lower Gadx nodes + dialect-aware format/run</li>
+<li>59fdfadafdf749be27b37ffcdb7f6222229c46d4 feat(doc): gad doc documents .giom templates with source positions</li>
+<li>f44b6f0e91ea732c878fbdaadd7eb6eaa29b4ff4 feat(doc): structured JSON docs + giom doc templates; relocate config to .gad/</li>
+<li>eb0864694362001eca1d320b4b71097b13f03613 feat(enum): add @names/@values/@dict/@pairs accessors; dict yields values</li>
+<li>6fc92c0801d13f609a69c3141ec4bf5cd7893cdd feat(gad): public ParseArgs — typed run/debug argument parsing</li>
+<li>4ff82c475535a8103be98cbefa5c3c9eb374bdfd feat(giom): @export like gad (expression value + doc); gad /<strong> </strong>/ convention</li>
+<li>f20c7417326a7f3d3f8aeed1f2564f15db2cbed8 feat(giom): add @param directive (compiles to Gad <code>param</code>)</li>
+<li>8a2df65afff3883eef77c1ab4035083a33f49a86 feat(giom): block comments /* */ and /** */ doc comments</li>
+<li>598bd0d26d5bb30963e55dd1afd37decd5304758 feat(giom): compile inline HTML to giom Tag/Text instead of raw string</li>
+<li>db2a4588cb98f3b8500d7e6f70c997f0ef1b9062 feat(giom): doc comments + gad doc for @param/@var/@const/@enum</li>
+<li>6c43239864b83c251a40ad430b00a594c0ff9416 feat(giom): interleave giom statements inside inline HTML by indentation</li>
+<li>dc5681dd2e8176960334a8a2e945fbef2537d222 feat(giom): native Giom compilation + gad.parse/parseFile/eval</li>
+<li>2f7bd35542f8b295354c9afd6e6f20825c21e862 feat(giom): vendor giom as ./giom submodule with full tooling support</li>
+<li>c6a780662a1613d151d1ea10993adb3a249ac418 feat(ide): single-click gutter toggles the breakpoint (React + Vuetify)</li>
+<li>dcc50b9bb384be1f58f0b44c01339af9b0408dae feat(ide): value inspector + hover locals + reworked Vuetify layout</li>
+<li>0f242c8358000fd7b66eae5c99908f8ea36777c3 feat(ide-react): extract the IDE into @gad-lang/ide-react with an injectable API</li>
+<li>9703d9594c2e44cdddd1e75cd81ba52ea7b5b3de feat(ide-react): layoutConfig + inspect + run profiles + runMode</li>
+<li>3666c2743fd4d5dd9b074d36ace50838689a8f7b feat(ide-vuetify): Breakpoints panel with conditions (parity with React)</li>
+<li>f4d74740047cff9b0b6ccf7ad3f26e95719a0da7 feat(ide-vuetify): Playground and Notebook components + demo tabs</li>
+<li>4ab6a67b74e0e73facb802027cd2321ad838bbd0 feat(ide-vuetify): Playground dialect selector (GAD / GAD Template / GADx)</li>
+<li>49492b8ca15a3e24e7a347dc8ec9af785d0b0dc7 feat(ide-vuetify): TSX rewrite — dockview panels, profiles, settings, docs</li>
+<li>3962102e1bb412a7fa3ab6363bd86a26e5f42399 feat(ide-vuetify): configurable tab-name truncation (default 25)</li>
+<li>019b524009afc3755771b364ecbc8f15e829193a feat(ide-vuetify): dirty tabs + optional/interval autosave + active-file highlight</li>
+<li>de87d28831aa8ea02f516a0e478da06baf318f44 feat(ide-vuetify): editor font-size controls + gad icon in demo app bar</li>
+<li>eda9c8a087818545d4cda8779936bfc467c27b31 feat(ide-vuetify): editor-panel control toolbar (parity with React)</li>
+<li>e240befc0f83ad7e9039f47f9ab7c326487c4d27 feat(ide-vuetify): hide (not just disable) editing buttons in read-only mode</li>
+<li>b52f421c68903c884002c20977cf0f382ace4ef0 feat(ide-vuetify): in-app dialogs, file upload (button + drag-drop), URL import</li>
+<li>36367531b92b0c52d2b82d58aa508422d3598dfe feat(ide-vuetify): multi-file editor tabs + a path status bar</li>
+<li>3c1ba1ffadd152dc3b1d918ccf39877295c27096 feat(ide-vuetify): per-cell dialect selector in the Notebook</li>
+<li>f68b9822f48aa869e4855a783140cf78567f7c90 feat(ide-vuetify): per-extension file icons + editor language extensibility</li>
+<li>593b2166eef7a39ab5710ac53fd9c73ed20f56ad feat(ide-vuetify): put the Playground Output pane on the right</li>
+<li>de26d1eb5223da58b0ef5fbad9274fee6c95483f feat(ide-vuetify): reusable Vuetify 3 IDE component + server-less demo</li>
+<li>fa61a5628f7cde03d79a9646117a07adce363efa feat(ide-vuetify): upload review dialog before onUpload runs</li>
+<li>fc4357171733910822f7caa9f2f888c17053bf29 feat(ide-vuetify): upload target dir, dir picker, onUpload gating, v-model:readonly</li>
+<li>4e406d468d04cee00216215c115e64c888a660c6 feat(lang): add <code>env</code> keyword, <code>gad.Env</code> type and <code>delete</code> statement</li>
+<li>1a514f0d3cc6adb350eb38b593f64b8d187c9156 feat(lang): comma-separated right-hand side becomes an array</li>
+<li>c15017e675cbe0098596db2c9cc943d9e622007c feat(objects): array/bytes/meti/keyValueArray append operators</li>
+<li>c40da942be3f088b70eb23db032d9316d63313e2 feat(objects): make all ToDictConverter implement IndexSetterUpdater</li>
+<li>50f352ee14c2b52792643a12a3f329dd45b42767 feat(parser): support export prop in modules</li>
+<li>7921b4c44623aa77bc9f4a77d11fb686cdcf9609 feat(plugins): demo browses the samples/ tree from the filesystem</li>
+<li>f75bd79250f2729f7baf643d1f45c7da6ec5b5eb feat(plugins): highlight <code>env</code>/<code>delete</code>, drop <code>append</code>, add config schemas</li>
+<li>5a470708ea4f9e3a461acaf0f5c0d99e2aa24ec7 feat(plugins): highlight giom block/doc comments</li>
+<li>b9b8f50e9ebf8ca45da9abdadddb9e88cfb4016d feat(plugins): select dialect via sourceType (gad|template|giom)</li>
+<li>b9c9ea361c4a862e3c628ae412c93bcf94e12cb8 feat(prop): add virtual .v field for call-less get/set</li>
+<li>a0f6e66d1310b604db5bc0b1303f4e62ebe9471a feat(prop): read-only <code>prop =&gt; expr</code> and live-binding <code>export prop x = init</code></li>
+<li>88c47abaa1e7f8d936621a65c4f413c5d840ac7e feat(reflect): add reflect builtin module (raw get/set, no Prop delegation)</li>
+<li>d1f7ea6c28b214bd04569bb75fac3d0720c7ee7c feat(shellexpand): bash-style parameter expansion for config values</li>
+<li>647c574c9ec87fb0c6b3ee9c57b92ea1860c65a6 feat(vm): VM.Call runs compiled functions on the same VM (no fork)</li>
+<li>83fcb059273cc2a51c32c4c2ed4518bbd46a75d7 feat(vm): delegate index get/set to a stored Prop's getter/setter</li>
+<li>70361e83e6c2840a29ff49815119073d026be0de feat(wasm): in-browser debugger + doc, no Go web server</li>
+<li>2940bba24c09c8b509e0048f7a5b06d4acbaaca8 feat(wasm,release): two WASM builds + Download page, release assets &amp; banner</li>
+<li>e1f4e60c1edcbc74137c281ab125b3e361e45a3c feat(wasm,website): single WASM, modern logo-based site, home quickstart</li>
+<li>bb55845f6200b35593020fd5fa0bd48dbfab53c0 feat(web/ide): store IDE layout in .gadide.yaml, split from .gad.yaml</li>
+<li>9aac99d2359fcc4cec49f9743eace58d31e7a242 feat(webide): open 01_hello.gad by default (React + Vuetify demos)</li>
+<li>67ebd7527231c9ce63875c11641eb9696aefa15f feat(webide): server-less IDE via @gad-lang/ide-react + in-browser localIdeApi</li>
+<li>6771dac2110418292912a5a76255c62262ae9fa8 feat(website): PrismJS syntax highlighting (gad/gad-gadt/gad-gadx + common)</li>
+<li>644e58f9e30b92fb3bddb976fb2eba609fb2f47f feat(website): add Playground to the header nav (before Download)</li>
+<li>0072096ffc687ef9802bd3bcd4e75b135d631195 feat(website): add typescript/tsx/jsx/ini to the Prism bundle</li>
+<li>aac456df338d91c4919121fc5ab068563c89b3f1 feat(with): add block-body with expression <code>with R as f { body }</code></li>
+<li>c2cc410ae3e30ef98f4cbded84f18aafb8fc38a3 fix(app): dedupe @codemirror in dev so debug line highlight works</li>
+<li>bd736bcb60a37d82ac4d7d876234f2212823aafb fix(app): quiet the dev proxy when the /api backend is down</li>
+<li>12a657a03ef4673d474d9d9481a27c4ecd3c134e fix(app): resolve workspace plugins from source in vite dev</li>
+<li>79d90347b2c6aeb98dda43806f360f66f5b9ad56 fix(build): build web workspace packages + samples before the app</li>
+<li>b80946d5d2f8e4c574af80777f4a4731fb9924fd fix(ci): bump Go 1.26.4 -&gt; 1.26.5 to resolve GO-2026-5856</li>
+<li>641759731bee476b5e405e81603bbb61cc169f24 fix(ide-vuetify): use the Gad language in Playground/Notebook editors</li>
+<li>7fadef9b3ff200de8132e7deb64e5e0ab0306638 fix(optimizer): exclude env/delete opcodes from constant folding</li>
+<li>8b56cdfe697428b8cdd9dd49efb4b12a53ebcf7e fix(prism-gad): break template/giom ↔ index import cycle</li>
+<li>bd9a53bb833feff8d2b4e5d89dc662b16343b9e6 fix(prop): do not run the getter when assigning a Prop's .v field</li>
+<li>b78fedd06fc66dee53efeb86214c97986922755c fix(update-delve): normalise CRLF so gen works on Windows checkouts</li>
+<li>ac692f69cfdf4fff9592e80c9d5b2dbc067fcb5b fix(webide): honor the show-hidden-files toggle in the in-browser backend</li>
+<li>a3b9cbb1343bf976fcf14a2e91bd3b5d56a59bd0 fix(webide): run/diagnose/debug .gadt and .giom in their own dialect</li>
+<li>57f37404d5ea7e829d701b28a7271b62c4b17dca fix(website): point the header "Tasks" link at the repo issues page</li>
+<li>0bad5be91967912b12f58a654f4fafda85c10710 fix: render embedded AbsPath with forward slashes in repr</li>
+<li>871e7aa37a72c07fa69d9f8522d389ff91fce008 fix: render gad filesystem paths with forward slashes on Windows</li>
+<li>bee654bd5c9460605c98f4ca96aac8450141fece fix: resolve Windows-only test failures (handle leaks + path separators)</li>
+<li>5ae63954f343c18c2080e92e405dd724084773d4 perf(vm): fused OpSelfAssignN borrows the stack for <code>a ++= x, y, z</code></li>
+<li>d35c6c1f077f5832bfb6e47a0ecb856f7dca60f4 refactor(compiler): lower module exports to a single dict + one OpExtendModule</li>
+<li>d8ad38f3aeac97d747dd4d64e4028ce01d97cd60 refactor(gadx): finish giom→gadx in examples/cms + normalize benchmark slugs</li>
+<li>9ee31e29817a6a567a9f52d638735c06948265b8 refactor(giom): emit giom.Tag() instead of giom.Tag(nil) for anonymous roots</li>
+<li>c8d442a8404d659d77ce9ee336560e728ac9289b refactor(wasm): Doc takes (content, sourceType) instead of a path</li>
+<li>8c9f486acabef0074a97decc95fe9d8a3173bf63 refactor: move GadModule/registerGadModule into module_gad.go</li>
+<li>3014ac206bd3d76e566c7bd41db4d45e30c942cd refactor: remove the <code>append</code> builtin in favour of operators</li>
+<li>58950a9fed5c9c170acee44ecd54932f56fc8810 refactor: rename TemplateString/TemplateLit to InterpolatedString</li>
+<li>33a78ebe42b6bf5bf9c42f2b7b80dd6261a1fe59 refactor: rename giom → gadx (module, package, .gadx extension, docs)</li>
+<li>2ddb758f28a6bd0e7852a4cdfb7bcc988fcf40f4 test(stdlib/os): derive file-flag values from constants (Windows)</li>
+</ul>
+</section><h2>Assets</h2><div class="dl-table"><table><thead><tr><th>Platform</th><th>File</th><th>Description</th></tr></thead><tbody><tr><td>Linux (amd64)</td><td><a href="https://github.com/gad-lang/gad/releases/download/v0.0.4-test1/gad_0.0.4-test1_linux_amd64.tar.gz"><code>gad_0.0.4-test1_linux_amd64.tar.gz</code></a></td><td>64-bit Intel/AMD Linux</td></tr><tr><td>Linux (arm64)</td><td><a href="https://github.com/gad-lang/gad/releases/download/v0.0.4-test1/gad_0.0.4-test1_linux_arm64.tar.gz"><code>gad_0.0.4-test1_linux_arm64.tar.gz</code></a></td><td>64-bit ARM Linux</td></tr><tr><td>Windows (amd64)</td><td><a href="https://github.com/gad-lang/gad/releases/download/v0.0.4-test1/gad_0.0.4-test1_windows_amd64.zip"><code>gad_0.0.4-test1_windows_amd64.zip</code></a></td><td>64-bit Intel/AMD Windows</td></tr><tr><td>Windows (arm64)</td><td><a href="https://github.com/gad-lang/gad/releases/download/v0.0.4-test1/gad_0.0.4-test1_windows_arm64.zip"><code>gad_0.0.4-test1_windows_arm64.zip</code></a></td><td>64-bit ARM Windows</td></tr><tr><td>WebAssembly</td><td><a href="gad.wasm" download><code>gad.wasm</code></a></td><td>Browser/WASM module (run, format, diagnostics and the gadDebug* debugger)</td></tr><tr><td>Checksums</td><td><a href="https://github.com/gad-lang/gad/releases/download/v0.0.4-test1/checksums.txt"><code>checksums.txt</code></a></td><td>SHA-256 checksums of the release assets</td></tr></tbody></table></div><p class="muted">All release assets are on the <a href="https://github.com/gad-lang/gad/releases/tag/v0.0.4-test1">GitHub releases page</a>.</p></main>
+  
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+
+</body>
+</html>
