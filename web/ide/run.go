@@ -10,6 +10,7 @@ import (
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/gadconfig"
+	"github.com/gad-lang/gad/gadx"
 	"github.com/gad-lang/gad/importers"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
@@ -363,6 +364,9 @@ type runRequest struct {
 	SaveStderr string `json:"saveStderr"`
 	Combine    bool   `json:"combine"`
 	SaveOut    string `json:"saveOut"`
+	// TagEncode, for a gadx entrypoint, encodes the returned tag as "json"/"yaml"
+	// instead of rendering it as HTML ("" renders).
+	TagEncode string `json:"tagEncode"`
 }
 
 // saveOutputs persists a run's stdout/stderr to the requested workspace files.
@@ -461,7 +465,8 @@ func (s *Server) run(src, workdir string, req runRequest) gadbridge.RunResult {
 	stderr := bytes.Buffer{}
 	stderr.WriteString(warningsText(cr.Warnings))
 	var stdout bytes.Buffer
-	ret, runErr := gad.NewVM(builtins.Build(), cr.Bytecode).SetRecover(true).RunOpts(&gad.RunOpts{
+	vm := gad.NewVM(builtins.Build(), cr.Bytecode).SetRecover(true)
+	ret, runErr := vm.RunOpts(&gad.RunOpts{
 		Args:   args,
 		StdOut: &stdout,
 		StdErr: &stderr,
@@ -474,7 +479,21 @@ func (s *Server) run(src, workdir string, req runRequest) gadbridge.RunResult {
 		}
 		return res
 	}
-	if ret != nil && ret != gad.Nil {
+	// A gadx entrypoint returns its rendered tree as a gadx.Element: render it to
+	// stdout as HTML (default), or encode it as JSON/YAML when TagEncode is set —
+	// rather than echoing the tag as the run's "result".
+	if el, ok := ret.(gadx.Element); ok {
+		if req.TagEncode != "" {
+			if enc, eerr := gadx.EncodeElement(el, req.TagEncode); eerr == nil {
+				stdout.Write(enc)
+			} else {
+				res.Stderr += eerr.Error()
+			}
+		} else {
+			_, _ = el.WriteTo(vm, &stdout)
+		}
+		res.Stdout = stdout.String()
+	} else if ret != nil && ret != gad.Nil {
 		res.Result = ret.ToString()
 	}
 	return res
