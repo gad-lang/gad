@@ -60,7 +60,7 @@ func buildCommand() *cc.Command {
 			repo = ctx.Flags().String("repo", ".", "repository root (contains doc/)")
 			noWASM = ctx.Flags().Bool("no-wasm", false, "skip building the WebAssembly playground module")
 			repoURL = ctx.Flags().String("repo-url", "https://github.com/gad-lang/gad", "repository URL (header + download links)")
-			tasksURL = ctx.Flags().String("tasks-url", "", "URL of the TASK.md living doc (defaults to <repo-url>/blob/main/TASK.md)")
+			tasksURL = ctx.Flags().String("tasks-url", "", "URL for the header \"Tasks\" link (defaults to <repo-url>/issues)")
 			relTag = ctx.Flags().String("release-tag", "", "release tag (e.g. v1.2.3) for the Download page and release banner")
 			relName = ctx.Flags().String("release-name", "", "release display name (defaults to the tag)")
 			relNotes = ctx.Flags().String("release-notes", "", "release notes as Markdown (inline)")

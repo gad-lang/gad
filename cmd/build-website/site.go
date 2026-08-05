@@ -26,12 +26,12 @@ type siteConfig struct {
 	BuildWASM    bool
 }
 
-// tasksURL returns the effective TASK.md link.
+// tasksURL returns the effective Tasks link (the repository issues by default).
 func (c siteConfig) tasksURL() string {
 	if c.TasksURL != "" {
 		return c.TasksURL
 	}
-	return c.RepoURL + "/blob/main/TASK.md"
+	return c.RepoURL + "/issues"
 }
 
 // releaseName returns the display name for the release banner (name, else tag).
