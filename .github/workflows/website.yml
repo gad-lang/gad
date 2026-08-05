@@ -99,9 +99,16 @@ jobs:
           # Keep a permanent copy under the tag/commit dir …
           mkdir -p "public/$dir"
           cp -r dist/website/. "public/$dir/"
+          # … also publish under the release tag so the release notes' docs link
+          # (/<tag>/) resolves even for token-created releases (whose `release`
+          # event never triggers this workflow) …
+          rel_tag="$(cat /tmp/rel_tag)"
+          if [ -n "$rel_tag" ] && [ "$rel_tag" != "$dir" ]; then
+            rm -rf "public/$rel_tag" && mkdir -p "public/$rel_tag"
+            cp -r dist/website/. "public/$rel_tag/"
+          fi
           # … and refresh /latest, which the site root redirects to, so both a
-          # release event and a main push update the live site (the release
-          # workflow isn't triggered for token-created releases).
+          # release event and a main push update the live site.
           rm -rf public/latest && mkdir -p public/latest
           cp -r dist/website/. public/latest/
           # Root index redirects to the latest published build.

@@ -69,7 +69,7 @@ release:
   # end of the generated release notes.
   footer: |
     ---
-    📖 **Documentation:** https://gad-lang.github.io/gad/latest/ · [this release](https://gad-lang.github.io/gad/{{ .Tag }}/)
+    📖 **Documentation:** https://gad-lang.github.io/gad/{{ .Tag }}/ · [latest](https://gad-lang.github.io/gad/latest/)
   # Attach the standalone WebAssembly module (built by the before hook) as a
   # release asset alongside the CLI archives.
   extra_files:
