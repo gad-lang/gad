@@ -419,6 +419,22 @@ VMLoop:
 
 			vm.sp++
 			vm.ip += 2
+		case OpInterfaceBind:
+			// Stack: [iface, fn0, …, fn(n-1)]. Pop the n captured context-function
+			// values and the interface below them; push the interface with those
+			// values bound into its ContextFuncs.
+			numItems := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
+			fns := make([]Object, numItems)
+			copy(fns, vm.stack[vm.sp-numItems:vm.sp])
+			for i := vm.sp - numItems; i < vm.sp; i++ {
+				vm.stack[i] = nil
+			}
+			vm.sp -= numItems
+			ifaceIdx := vm.sp - 1
+			if iface, _ := vm.stack[ifaceIdx].(*Interface); iface != nil {
+				vm.stack[ifaceIdx] = iface.BindContextFuncs(fns)
+			}
+			vm.ip += 2
 		case OpDict:
 			numItems := int(vm.curInsts[vm.ip+2]) | int(vm.curInsts[vm.ip+1])<<8
 			kv := make(Dict)

@@ -2341,7 +2341,91 @@ func (c *Compiler) buildInterface(nd *node.InterfaceExpr) (*Interface, error) {
 		iface.Methods = append(iface.Methods, im)
 	}
 
+	for _, m := range nd.ContextFuncs {
+		cf := &InterfaceContextFunc{FnName: m.FnExpr.String()}
+		for _, h := range m.Headers {
+			fh, hasSelf, err := c.buildCtxFuncHeaderObject(h)
+			if err != nil {
+				return nil, err
+			}
+			if !hasSelf {
+				return nil, c.Errorf(h, "interface context function %q: header %q must have at least one `@self` param", cf.FnName, h.FuncHeader.String())
+			}
+			cf.Headers = append(cf.Headers, fh)
+		}
+		iface.ContextFuncs = append(iface.ContextFuncs, cf)
+	}
+
 	return iface, nil
+}
+
+// isSelfType reports whether a typed-ident's declared type is the `@self`
+// placeholder (a single type ident named "@self").
+func isSelfType(ti *node.TypedIdentExpr) bool {
+	if len(ti.Type) != 1 {
+		return false
+	}
+	id := ti.Type[0].Ident()
+	return id != nil && id.Name == "@self"
+}
+
+// buildCtxFuncHeaderObject builds a FuncHeaderObject for an interface
+// context-function header. A positional param whose type is `@self` becomes a
+// TypedIdent with Self=true (no symbol resolution); other params resolve types
+// normally. hasSelf reports whether the header has at least one `@self` param.
+func (c *Compiler) buildCtxFuncHeaderObject(nd *node.FuncHeaderExpr) (_ *FuncHeaderObject, hasSelf bool, err error) {
+	build := func(allowSelf bool, idents ...*node.TypedIdentExpr) (Array, error) {
+		out := make(Array, 0, len(idents))
+		for _, ti := range idents {
+			if ti == nil {
+				continue
+			}
+			if allowSelf && isSelfType(ti) {
+				hasSelf = true
+				out = append(out, &TypedIdent{Name: ti.Ident.Name, Self: true})
+				continue
+			}
+			name, symbols, err := c.nameSymbolsOfTypedIdent(nd, ti)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, &TypedIdent{Name: name, TypesSymbols: symbols})
+		}
+		return out, nil
+	}
+
+	params, err := build(true, nd.Params.Args.Values...)
+	if err != nil {
+		return nil, false, err
+	}
+	if nd.Params.Args.Var != nil {
+		v, err := build(true, nd.Params.Args.Var)
+		if err != nil {
+			return nil, false, err
+		}
+		params = append(params, v...)
+	}
+	// Named params and return types do not participate in `@self` matching.
+	named, err := build(false, nd.Params.NamedArgs.Names...)
+	if err != nil {
+		return nil, false, err
+	}
+	ret, err := build(false, nd.Return...)
+	if err != nil {
+		return nil, false, err
+	}
+
+	name := nd.Name()
+	if name == "" {
+		name = c.newFuncHeaderName()
+	}
+	return &FuncHeaderObject{
+		FuncName:    name,
+		Params:      params,
+		NamedParams: named,
+		Return:      ret,
+		Module:      c.module,
+	}, hasSelf, nil
 }
 
 // compileInterfaceExpr compiles `interface { … }` to a *Interface bytecode
@@ -2352,6 +2436,18 @@ func (c *Compiler) compileInterfaceExpr(nd *node.InterfaceExpr) error {
 		return err
 	}
 	c.emit(nd, OpConstant, c.addConstant(iface))
+	// Context-function members capture their function value where the interface
+	// is declared: push the constant template, then each Expr's value, and bind
+	// them into a runtime copy (OpInterfaceBind). This makes such an interface a
+	// runtime value (not a pure constant) so locals/selectors resolve correctly.
+	if n := len(nd.ContextFuncs); n > 0 {
+		for _, m := range nd.ContextFuncs {
+			if err := c.Compile(m.FnExpr); err != nil {
+				return err
+			}
+		}
+		c.emit(nd, OpInterfaceBind, n)
+	}
 	return nil
 }
 

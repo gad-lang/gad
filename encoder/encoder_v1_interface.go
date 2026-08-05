@@ -83,6 +83,26 @@ func init() {
 		return m, nil
 	}
 
+	InterfaceContextFuncV1.Encode = func(ctx *WriteContext, o any) (err error) {
+		cf := o.(*gad.InterfaceContextFunc)
+		if err = writeString(ctx, cf.FnName); err != nil {
+			return
+		}
+		// cf.Fn (the captured callable) is runtime-bound (OpInterfaceBind) and is
+		// never part of the constant template, so it is not encoded.
+		return EncodeArray(ctx, cf.Headers)
+	}
+	InterfaceContextFuncV1.Decode = func(ctx *ReadContext) (_ any, err error) {
+		cf := new(gad.InterfaceContextFunc)
+		if cf.FnName, err = readString(ctx); err != nil {
+			return
+		}
+		if cf.Headers, err = DecodeArray[*gad.FuncHeaderObject](ctx); err != nil {
+			return
+		}
+		return cf, nil
+	}
+
 	InterfaceV1.Encode = func(ctx *WriteContext, o any) (err error) {
 		i := o.(*gad.Interface)
 		if err = writeString(ctx, i.IName); err != nil {
@@ -104,7 +124,10 @@ func init() {
 		if err = EncodeArray(ctx, i.Props); err != nil {
 			return
 		}
-		return EncodeArray(ctx, i.Methods)
+		if err = EncodeArray(ctx, i.Methods); err != nil {
+			return
+		}
+		return EncodeArray(ctx, i.ContextFuncs)
 	}
 	InterfaceV1.Decode = func(ctx *ReadContext) (_ any, err error) {
 		i := new(gad.Interface)
@@ -128,6 +151,9 @@ func init() {
 			return
 		}
 		if i.Methods, err = DecodeArray[*gad.InterfaceMethod](ctx); err != nil {
+			return
+		}
+		if i.ContextFuncs, err = DecodeArray[*gad.InterfaceContextFunc](ctx); err != nil {
 			return
 		}
 		// Restore member back-references.

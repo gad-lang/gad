@@ -14,12 +14,18 @@ func init() {
 		if err = writeString(ctx, t.Name); err != nil {
 			return
 		}
+		if err = writeBool(ctx, t.Self); err != nil {
+			return
+		}
 		return EncodeArray(ctx, t.TypesSymbols)
 	}
 
 	TypedIdentV1.Decode = func(ctx *ReadContext) (_ any, err error) {
 		t := new(gad.TypedIdent)
 		if t.Name, err = readString(ctx); err != nil {
+			return
+		}
+		if t.Self, err = readBool(ctx); err != nil {
 			return
 		}
 		if t.TypesSymbols, err = DecodeArray[*gad.SymbolInfo](ctx); err != nil {

@@ -578,6 +578,124 @@ func TestVMAssignOperator(t *testing.T) {
 	expectErrIs(t, `return 1 :: 2`, nil, ErrType)
 }
 
+func TestVMInterfaceContextFunc(t *testing.T) {
+	// A context function that handles the interface object (`@self` = the
+	// interface): the object satisfies the interface, so `::` yields it.
+	testExpectRun(t, `
+	handle := func(a int, obj) => obj
+	I := interface { :handle<(a int, @self)> }
+	return ({name: "n"} :: I).name`, nil, Str("n"))
+
+	// `@self` may sit in any positional slot.
+	testExpectRun(t, `
+	first := func(obj, n int) => obj
+	I := interface { :first<(@self, n int)> }
+	return "ok" :: I`, nil, Str("ok"))
+
+	// Wrong arity — the context function does not handle the object -> not
+	// assignable (catchable).
+	expectErrIs(t, `
+	bad := func(a int) => a
+	I := interface { :bad<(a int, @self)> }
+	return {} :: I`, nil, ErrIncompatibleAssign)
+
+	// A concretely-typed `@self` slot (the function only accepts int there) does
+	// not accept the interface's objects -> not assignable.
+	expectErrIs(t, `
+	typed := func(a int, x int) => x
+	I := interface { :typed<(a int, @self)> }
+	return {} :: I`, nil, ErrIncompatibleAssign)
+
+	// The context function is captured by value where the interface is declared,
+	// so a local function works.
+	testExpectRun(t, `
+	r := func() {
+		fn := func(a int, obj) => obj
+		I := interface { :fn<(a int, @self)> }
+		return {} :: I
+	}()
+	return typeName(r)`, nil, Str("dict"))
+
+	// A selector context function (a func held in a dict).
+	testExpectRun(t, `
+	mod := {render: func(obj) => obj}
+	I := interface { :mod.render<(@self)> }
+	return "x" :: I`, nil, Str("x"))
+
+	// Several context-func members; all must be satisfied.
+	testExpectRun(t, `
+	a := func(x) => x
+	b := func(x, n int) => x
+	I := interface { :a<(@self)>; :b<(@self, n int)> }
+	return "ok" :: I`, nil, Str("ok"))
+	expectErrIs(t, `
+	a := func(x) => x
+	b := func(x) => x
+	I := interface { :a<(@self)>; :b<(@self, n int)> }
+	return "ok" :: I`, nil, ErrIncompatibleAssign)
+
+	// Block form with several headers — the function must implement every one.
+	testExpectRun(t, `
+	multi := func { (obj) => obj; (obj, n int) => obj }
+	I := interface { :multi { (@self); (@self, n int) } }
+	return "ok" :: I`, nil, Str("ok"))
+
+	// Structural members combine with context-func members.
+	testExpectRun(t, `
+	handle := func(obj) => obj
+	I := interface { name str; :handle<(@self)> }
+	return ({name: "n"} :: I).name`, nil, Str("n"))
+	expectErrIs(t, `
+	handle := func(obj) => obj
+	I := interface { name str; :handle<(@self)> }
+	return {} :: I`, nil, ErrIncompatibleAssign) // missing the `name` field
+
+	// A header without any `@self` is a compile error (it would not reference the
+	// interface's object).
+	expectErrHas(t, `
+	f := func(a int) => a
+	I := interface { :f<(a int)> }
+	return I`, newOpts().CompilerError(), "must have at least one `@self`")
+}
+
+// TestInterfaceContextFuncGoBuilt builds an interface with a context-function
+// member directly in Go (no compilation, no symbols): the captured Fn and the
+// `@self` header are set on the struct. It exercises the satisfaction check the
+// way a host that exposes such an interface as a global/builtin would.
+func TestInterfaceContextFuncGoBuilt(t *testing.T) {
+	builtins := NewBuiltins()
+	vm := NewVM(builtins.Build(), &Bytecode{Main: &CompiledFunction{}})
+
+	// handle(a, obj) — an untyped `obj` slot accepts the interface (`@self`).
+	handle := NewFunction("handle", func(Call) (Object, error) { return Nil, nil },
+		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("a"); p("obj") }))
+
+	iface := &Interface{
+		IName: "Renderable",
+		ContextFuncs: []*InterfaceContextFunc{{
+			FnName: "handle",
+			Fn:     handle,
+			Headers: []*FuncHeaderObject{{
+				FuncName: "handle#1",
+				Params:   Array{&TypedIdent{Name: "a"}, &TypedIdent{Name: "_", Self: true}},
+			}},
+		}},
+	}
+
+	ok, err := iface.CanAssignVM(vm, Dict{"x": Int(1)})
+	if err != nil || !ok {
+		t.Fatalf("Go-built interface should be satisfied: ok=%v err=%v", ok, err)
+	}
+
+	// A function whose `@self` slot is arity-mismatched is not satisfied.
+	bad := NewFunction("bad", func(Call) (Object, error) { return Nil, nil },
+		FunctionWithParams(func(p func(name string) *ParamBuilder) { p("a") }))
+	iface.ContextFuncs[0].Fn = bad
+	if ok, _ := iface.CanAssignVM(vm, Dict{"x": Int(1)}); ok {
+		t.Fatal("arity-mismatched context function must not satisfy")
+	}
+}
+
 func TestVMParamTypeErrorPosition(t *testing.T) {
 	// An unresolved param type points at the type identifier, not at the
 	// enclosing func/param declaration.

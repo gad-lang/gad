@@ -2591,6 +2591,9 @@ type TypedIdent struct {
 	// thread-safe. Empty for TypedIdent values built at run time (the
 	// `typedIdent`/`FunctionHeader` builtins), which carry resolved Types.
 	TypesSymbols ParamType
+	// Self marks the `@self` type placeholder in an interface context-function
+	// header: this param's type is the interface itself (see InterfaceContextFunc).
+	Self bool
 }
 
 // resolveTypes returns the ident's types, resolving TypesSymbols against vm when

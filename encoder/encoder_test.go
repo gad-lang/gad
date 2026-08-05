@@ -286,11 +286,24 @@ func TestInterfaceEncoding(t *testing.T) {
 		Methods: []*gad.InterfaceMethod{
 			{Name: "draw", Headers: []*gad.FuncHeaderObject{{FuncName: "draw#1"}}},
 		},
+		// A context-function member with a `@self` param (Self flag) — built in Go,
+		// no symbols. The captured Fn is runtime-bound and not encoded.
+		ContextFuncs: []*gad.InterfaceContextFunc{
+			{FnName: "render", Headers: []*gad.FuncHeaderObject{{
+				FuncName: "render#1",
+				Params:   gad.Array{&gad.TypedIdent{Name: "_", Self: true}},
+			}}},
+		},
 	}
 	b, err := encode(i)
 	require.NoError(t, err)
 	got, err := decode[*gad.Interface](b)
 	require.NoError(t, err)
+
+	require.Len(t, got.ContextFuncs, 1)
+	require.Equal(t, "render", got.ContextFuncs[0].FnName)
+	require.Len(t, got.ContextFuncs[0].Headers[0].Params, 1)
+	require.True(t, got.ContextFuncs[0].Headers[0].Params[0].(*gad.TypedIdent).Self)
 
 	require.Equal(t, "mymod.Shape", got.FullName())
 	require.Len(t, got.Extends, 1)

@@ -41,6 +41,20 @@ type Interface struct {
 	Fields  []*InterfaceField // typed fields
 	Props   []*InterfaceProp  // getter/setter properties
 	Methods []*InterfaceMethod
+	// ContextFuncs are `:Expr <header>` members: required context functions whose
+	// captured value (bound at run time, see OpInterfaceBind) must have a
+	// signature matching each header, with `@self` standing for this interface.
+	ContextFuncs []*InterfaceContextFunc
+}
+
+// InterfaceContextFunc is a context-function member of an interface: the source
+// text of the function expression (for messages), the required signature
+// headers, and the callable value captured where the interface was declared
+// (nil in the un-bound constant template; bound at run time by OpInterfaceBind).
+type InterfaceContextFunc struct {
+	FnName  string
+	Headers []*FuncHeaderObject
+	Fn      CallerObject
 }
 
 // InterfaceField is a typed field of an interface (see gad.Param for the type
@@ -71,6 +85,23 @@ type InterfaceMethod struct {
 // --- Interface ---
 
 func (i *Interface) Type() ObjectType { return TInterface }
+
+// BindContextFuncs returns a shallow copy of the interface with each
+// ContextFuncs entry's Fn set from fns (in order): the runtime binding of the
+// captured context-function values (see OpInterfaceBind). len(fns) must equal
+// len(i.ContextFuncs).
+func (i *Interface) BindContextFuncs(fns []Object) *Interface {
+	cp := *i
+	cp.ContextFuncs = make([]*InterfaceContextFunc, len(i.ContextFuncs))
+	for idx, cf := range i.ContextFuncs {
+		bound := *cf
+		if idx < len(fns) {
+			bound.Fn, _ = fns[idx].(CallerObject)
+		}
+		cp.ContextFuncs[idx] = &bound
+	}
+	return &cp
+}
 
 // AssignTo makes *Interface a TypeAssigner: obj is assignable to the interface
 // `to` when it structurally satisfies it (see CanAssignVM).
@@ -116,6 +147,18 @@ func (i *Interface) CanAssignVM(vm *VM, obj Object) (bool, error) {
 		}
 	}
 
+	// Context-function members validate captured free functions (independent of
+	// obj): each must have a signature matching every header, with `@self`
+	// standing for this interface. Needs a VM to read the resolved header types;
+	// without one the check is relaxed (like Extends).
+	if vm != nil {
+		for _, cf := range i.ContextFuncs {
+			if ok, err := i.contextFuncOK(vm, cf); err != nil || !ok {
+				return ok, err
+			}
+		}
+	}
+
 	// A class instance satisfies an interface through its class's declared members
 	// (fields, property accessors, methods). Other member-bearing values — a
 	// dict, a key-value array, a NameCaller — use generic member probing.
@@ -123,6 +166,80 @@ func (i *Interface) CanAssignVM(vm *VM, obj Object) (bool, error) {
 		return i.classInstanceSatisfies(vm, inst)
 	}
 	return i.genericSatisfies(vm, obj)
+}
+
+// contextFuncOK reports whether the context function cf.Fn (captured at the
+// interface's declaration) has a signature matching every one of cf.Headers. The
+// `@self`-typed param stands for this interface: it matches a signature slot that
+// is untyped (accepts anything) or typed with this interface. A nil/absent Fn or
+// a non-callable value fails.
+func (i *Interface) contextFuncOK(vm *VM, cf *InterfaceContextFunc) (bool, error) {
+	if cf.Fn == nil {
+		return false, nil
+	}
+	var sigs []ParamsTypes
+	if err := SplitCaller(vm, cf.Fn,
+		func(_ CallerObject, types ParamsTypes) error { sigs = append(sigs, types); return nil },
+		func(_ CallerObject) error { sigs = append(sigs, nil); return nil },
+	); err != nil {
+		return false, nil
+	}
+	for _, h := range cf.Headers {
+		matched := false
+		for _, sig := range sigs {
+			if sig == nil || i.headerMatchesCtxSig(vm, h, sig) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// headerMatchesCtxSig reports whether a context-func header matches a signature,
+// like headerMatchesSig but a `@self` param matches when the signature slot
+// accepts this interface (untyped, or typed with the interface).
+func (i *Interface) headerMatchesCtxSig(vm *VM, h *FuncHeaderObject, sig ParamsTypes) bool {
+	if len(h.Params) != len(sig) {
+		return false
+	}
+	for idx, p := range h.Params {
+		ti, _ := p.(*TypedIdent)
+		if ti == nil {
+			return false
+		}
+		if ti.Self {
+			if !selfParamMatches(sig[idx].Items()) {
+				return false
+			}
+			continue
+		}
+		hts, _ := ti.resolveTypes(vm)
+		if !paramMatches(hts, sig[idx].Items()) {
+			return false
+		}
+	}
+	return true
+}
+
+// selfParamMatches reports whether a signature param slot accepts the interface
+// (the `@self` type). Since a structural interface is not a concrete ObjectType,
+// it is representable in a signature only as an untyped (Any) slot; so `@self`
+// matches an untyped slot — the function must accept the interface's objects
+// there.
+func selfParamMatches(sigTypes ObjectTypes) bool {
+	if len(sigTypes) == 0 {
+		return true
+	}
+	for _, t := range sigTypes {
+		if t == nil || t == TAny {
+			return true
+		}
+	}
+	return false
 }
 
 // classInstanceSatisfies is the ClassInstance-specific satisfaction check: each
@@ -299,8 +416,20 @@ func (i *Interface) Equal(right Object) bool {
 	if !ok || i.IName != o.IName ||
 		len(i.Fields) != len(o.Fields) ||
 		len(i.Props) != len(o.Props) ||
-		len(i.Methods) != len(o.Methods) {
+		len(i.Methods) != len(o.Methods) ||
+		len(i.ContextFuncs) != len(o.ContextFuncs) {
 		return false
+	}
+	for k := range i.ContextFuncs {
+		if i.ContextFuncs[k].FnName != o.ContextFuncs[k].FnName ||
+			len(i.ContextFuncs[k].Headers) != len(o.ContextFuncs[k].Headers) {
+			return false
+		}
+		for h := range i.ContextFuncs[k].Headers {
+			if !i.ContextFuncs[k].Headers[h].Equal(o.ContextFuncs[k].Headers[h]) {
+				return false
+			}
+		}
 	}
 	for k := range i.Fields {
 		if !i.Fields[k].Equal(o.Fields[k]) {

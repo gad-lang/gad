@@ -1315,7 +1315,7 @@ func MakeInstruction(buf []byte, op Opcode, args ...int) ([]byte, error) {
 	switch op {
 	case OpGetBuiltin, OpConstant, OpDict, OpArray, OpGetGlobal, OpSetGlobal, OpJump,
 		OpJumpFalsy, OpAndJump, OpOrJump, OpKeyValueArray, OpJumpNil, OpJumpNotNil,
-		OpLoadModule, OpEnvSet:
+		OpLoadModule, OpEnvSet, OpInterfaceBind:
 		buf = append(buf, byte(args[0]>>8))
 		buf = append(buf, byte(args[0]))
 		return buf, nil
