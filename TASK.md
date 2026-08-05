@@ -292,9 +292,19 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   samples/24_interfaces.gad
 - Interface can be built directly in Go (no symbols): set ContextFuncs Fn +
   resolved Types + Self; tested (TestInterfaceContextFuncGoBuilt)
-- FOLLOW-UP (user-requested, verify later): cache interface×ObjectType
-  satisfaction at runtime so repeated checks (e.g. in a loop) don't re-validate.
-  Not yet implemented
+- DONE: runtime interface-satisfaction cache (commit 87bfa9c). Memoized on the
+  root VM keyed by (interface, value's ObjectType); shared by sub-VMs via
+  pool.root; GC'd with the VM. Only class instances + reflected Go values cached
+  (dict keys vary → never cached). Exported InterfaceSatCache +
+  NewInterfaceSatCache + (*VM).SetInterfaceSatCache (build/inject/pre-warm
+  outside the VM). Tests: cacheability, short-circuit, dict exclusion, sub-VM
+  sharing, injection
+- DONE: gadx.Render reuses the cache per compiled template + resets on recompile
+  (commit b344b67); docs gadx/docs/api.md + doc/method-interfaces.md; test
+  TestRenderInterfaceCacheReused
+- Plugins (web/): no change needed — prism/codemirror already highlight the new
+  syntax (verified by tokenizing: interface=keyword, :=operator, @self=class-name
+  type). The updated samples/24_interfaces.gad is served by both plugin demos
 - Verified: go test ./... (root) + gadx submodule + encoder + parser green; vet
   + gofmt clean; check-delve up to date; sample runs
 
