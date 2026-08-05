@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Structure · Gad</title>
+<link rel="icon" type="image/svg+xml" href="gad.svg">
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<script>window.SITE_BASE="";</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html"><img class="brand-logo" src="gad.svg" alt="" width="30" height="30"><span class="brand-name">Gad</span></a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <nav class="header-links">
+    
+    <a href="playground.html">Playground</a>
+    <a href="download.html">Download</a>
+    <a href="https://github.com/gad-lang/gad/issues" target="_blank" rel="noopener">Tasks</a>
+    <a href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">Repo</a>
+  </nav>
+  <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="templates.html">Templates (mixed mode)</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-metaprogramming.html">Metaprogramming: parse, eval and Gadx</a><a class="nav-link" href="ref-workspace-config.html">Workspace Configuration</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Gadx</div>
+      <a class="nav-link" href="gadx-getting-started.html">Getting Started</a><a class="nav-link" href="gadx-syntax.html">Template Syntax</a><a class="nav-link" href="gadx-components-and-slots.html">Components And Slots</a><a class="nav-link" href="gadx-examples.html">Examples Cookbook</a><a class="nav-link" href="gadx-embedding.html">Embedding In Go</a><a class="nav-link" href="gadx-api.html">API Reference</a><a class="nav-link" href="gadx-conventions.html">Conventions</a><a class="nav-link" href="gadx-source-positions.html">Source Positions</a><a class="nav-link active" href="gadx-project-structure.html">Project Structure</a><a class="nav-link" href="gadx-benchmarks.html">Benchmarks</a><a class="nav-link" href="gadx-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">JS modules</div>
+      <a class="nav-link" href="js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a><a class="nav-link" href="js-modules/prism-gad.html">@gad-lang/prism-gad</a><a class="nav-link" href="js-modules/ide-react.html">@gad-lang/ide-react</a><a class="nav-link" href="js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a>
+    </div><div class="nav-group"><div class="nav-title">Integrate</div>
+      <a class="nav-link" href="wasm-embed.html">Embed the WASM</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div><div class="nav-group"><div class="nav-title">Download</div>
+      <a class="nav-link" href="download.html">Download</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="project-structure">Project Structure</h1>
+<p>Gadx lives in the <code>gadx/</code> directory of the Gad repository as the <code>gadx</code> sub-package.</p>
+<pre><code class="language-text">gadx/
+├── builtins.go
+├── element.go
+├── render.go
+├── go.mod
+├── node/
+├── parser/
+├── token/
+├── examples/
+│   └── cms/
+├── docs/
+├── LICENSE
+└── CLAUDE.md</code></pre>
+<h2 id="root-package">Root Package</h2>
+<p>The package path is <code>github.com/gad-lang/gad/gadx</code>.</p>
+<p>This package holds the Gadx <strong>runtime</strong> — the render tree and the <code>gadx</code> builtins. Gadx <strong>compilation</strong> is part of Gad itself (<code>gad.CompileOptions.GadxOptions</code>), not this package.</p>
+<p>Important exported names:</p>
+<ul>
+<li><code>AppendBuiltins</code> — register the <code>gadx</code> builtins.</li>
+<li><code>Render</code> / <code>NewRender</code> — the cached template engine.</li>
+<li><code>Element</code>, <code>Tag</code>, <code>Text</code> — the render tree types (defined in <code>element.go</code>)</li>
+</ul>
+<p>  that a compiled template builds and returns; see <a href="gadx-api.html">API Reference</a>.</p>
+<h2 id="node"><code>node/</code></h2>
+<p>AST node definitions and conversion helpers. The converter turns Gadx-specific nodes into Gad AST nodes when possible.</p>
+<h2 id="parser"><code>parser/</code></h2>
+<p>Indentation-aware parser and scanner. It parses Gadx template source into Gadx AST nodes.</p>
+<h2 id="token"><code>token/</code></h2>
+<p>Token definitions for Gadx syntax.</p>
+<h2 id="examplescms"><code>examples/cms/</code></h2>
+<p>A nested Go module containing a full web application example. It depends on the <code>gadx</code> package through:</p>
+<pre><code class="language-go">replace github.com/gad-lang/gad/gadx =&gt; ../..</code></pre>
+<h2 id="samples">Samples</h2>
+<p>Runnable <code>.gadx</code> examples live under the repository's top-level [<code>samples/gadx/</code>](../../samples/gadx) directory.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#root-package">Root Package</a><a href="#node">node/</a><a href="#parser">parser/</a><a href="#token">token/</a><a href="#examplescms">examples/cms/</a><a href="#samples">Samples</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+
+</body>
+</html>

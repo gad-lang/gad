@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>@gad-lang/codemirror-gad · Gad</title>
+<link rel="icon" type="image/svg+xml" href="../gad.svg">
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<script>window.SITE_BASE="..\/";</script>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="../index.html"><img class="brand-logo" src="../gad.svg" alt="" width="30" height="30"><span class="brand-name">Gad</span></a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <nav class="header-links">
+    
+    <a href="../playground.html">Playground</a>
+    <a href="../download.html">Download</a>
+    <a href="https://github.com/gad-lang/gad/issues" target="_blank" rel="noopener">Tasks</a>
+    <a href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">Repo</a>
+  </nav>
+  <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="../index.html">Gad Language</a><a class="nav-link" href="../getting-started.html">Getting Started</a><a class="nav-link" href="../values-and-types.html">Values and Types</a><a class="nav-link" href="../variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="../operators.html">Operators</a><a class="nav-link" href="../control-flow.html">Control Flow</a><a class="nav-link" href="../functions.html">Functions</a><a class="nav-link" href="../collections.html">Collections</a><a class="nav-link" href="../strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="../error-handling.html">Error Handling</a><a class="nav-link" href="../modules.html">Modules</a><a class="nav-link" href="../builtins.html">Builtin Functions</a><a class="nav-link" href="../templates.html">Templates (mixed mode)</a><a class="nav-link" href="../formatting.html">Formatting with gad fmt</a><a class="nav-link" href="../embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="../ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="../ref-metaprogramming.html">Metaprogramming: parse, eval and Gadx</a><a class="nav-link" href="../ref-workspace-config.html">Workspace Configuration</a><a class="nav-link" href="../ref-stdlib-strings.html">strings module</a><a class="nav-link" href="../ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="../ref-stdlib-json.html">json module</a><a class="nav-link" href="../ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Gadx</div>
+      <a class="nav-link" href="../gadx-getting-started.html">Getting Started</a><a class="nav-link" href="../gadx-syntax.html">Template Syntax</a><a class="nav-link" href="../gadx-components-and-slots.html">Components And Slots</a><a class="nav-link" href="../gadx-examples.html">Examples Cookbook</a><a class="nav-link" href="../gadx-embedding.html">Embedding In Go</a><a class="nav-link" href="../gadx-api.html">API Reference</a><a class="nav-link" href="../gadx-conventions.html">Conventions</a><a class="nav-link" href="../gadx-source-positions.html">Source Positions</a><a class="nav-link" href="../gadx-project-structure.html">Project Structure</a><a class="nav-link" href="../gadx-benchmarks.html">Benchmarks</a><a class="nav-link" href="../gadx-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">JS modules</div>
+      <a class="nav-link active" href="../js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a><a class="nav-link" href="../js-modules/prism-gad.html">@gad-lang/prism-gad</a><a class="nav-link" href="../js-modules/ide-react.html">@gad-lang/ide-react</a><a class="nav-link" href="../js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a>
+    </div><div class="nav-group"><div class="nav-title">Integrate</div>
+      <a class="nav-link" href="../wasm-embed.html">Embed the WASM</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="../playground.html">Playground</a>
+    </div><div class="nav-group"><div class="nav-title">Download</div>
+      <a class="nav-link" href="../download.html">Download</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="gad-langcodemirror-gad">@gad-lang/codemirror-gad</h1>
+<p>CodeMirror 6 language support for the <a href="https://github.com/gad-lang/gad">Gad</a> scripting language: syntax highlighting, autocompletion and async diagnostics.</p>
+<blockquote><strong>Status:</strong> not yet published to npm. The install command below is the intended usage once the <code>@gad-lang</code> packages are released.</blockquote>
+<h2 id="install">Install</h2>
+<pre><code class="language-sh">npm install @gad-lang/codemirror-gad codemirror
+# or: bun add @gad-lang/codemirror-gad codemirror</code></pre>
+<p><code>codemirror</code> (and its <code>@codemirror/*</code> modules) is a peer dependency.</p>
+<h2 id="usage">Usage</h2>
+<pre><code class="language-ts">import { basicSetup } from "codemirror";
+import { gad } from "@gad-lang/codemirror-gad";
+
+new EditorView({
+  extensions: [
+    basicSetup,
+    gad({
+      // optional: async source of { line, column, message, severity }
+      diagnose: async (source) =&gt; fetchDiagnostics(source),
+    }),
+  ],
+  parent: document.body,
+});</code></pre>
+<h2 id="source-type-gad--template--gadx">Source type (<code>gad</code> / <code>template</code> / <code>gadx</code>)</h2>
+<p>The <code>sourceType</code> option selects the dialect to highlight:</p>
+<ul>
+<li><code>"gad"</code> (default) — a plain <code>.gad</code> script.</li>
+<li><code>"template"</code> — a <code>.gadt</code> <strong>mixed</strong> template: literal text plus <code>{% … %}</code> code</li>
+</ul>
+<p>  blocks and <code>{%= … %}</code> value tags, with the tag bodies tokenized as Gad   (completion and hover work inside tags too). The delimiters default to   <code>{%</code> / <code>%}</code> and are configurable via <code>delimiters</code>.</p>
+<ul>
+<li><code>"gadx"</code> — a <code>.gadx</code> indentation-based template (tags, <code>@</code>-control keywords,</li>
+</ul>
+<p>  <code>+</code>component calls, <code>{= … }</code> interpolations and <code>~~</code> code blocks), with the   embedded Gad highlighted, completed and linted.</p>
+<pre><code class="language-ts">import { gad } from "@gad-lang/codemirror-gad";
+
+gad();                                              // .gad (default)
+gad({ sourceType: "template", delimiters: { start: "{%", end: "%}" } }); // .gadt
+gad({ sourceType: "gadx" });                        // .gadx</code></pre>
+<p>A <code>.gad</code> file can also enable template mode part-way in with a <code># gad: mixed</code> directive (after an optional Gad preamble). For that case add <code>preamble: true</code>, so the leading Gad — comments and the <code># gad:</code> directive — is highlighted as Gad before template text begins:</p>
+<pre><code class="language-ts">gad({ sourceType: "template", preamble: true, delimiters }); // `.gad` + `# gad: mixed`</code></pre>
+<blockquote><strong>Migration:</strong> the former boolean <code>template: true</code> is replaced by <code>sourceType: "template"</code>. <code>gadx(options)</code> remains as a convenience for <code>gad({ ...options, sourceType: "gadx" })</code>.</blockquote>
+<h2 id="exports">Exports</h2>
+<ul>
+<li><code>gad(options)</code> — bundled extension (language + completion + optional linter).</li>
+</ul>
+<p>  Set <code>sourceType: "template"</code> (plus optional <code>delimiters: { start, end }</code>) for   <code>.gadt</code> mixed files or <code>sourceType: "gadx"</code> for <code>.gadx</code>; the linter is skipped   for <code>"template"</code>.</p>
+<ul>
+<li><code>gadx(options)</code> — convenience for <code>gad({ ...options, sourceType: "gadx" })</code>.</li>
+<li><code>gadLanguageSupport()</code> / <code>gadLanguage</code> — highlighting only.</li>
+<li><code>gadCompletion()</code> / <code>gadCompletionSource</code> — autocompletion.</li>
+<li><code>gadLinter(diagnose, { delay })</code> — async diagnostics → CodeMirror lint.</li>
+<li><code>keywords</code>, <code>builtins</code>, <code>atoms</code>, <code>constants</code> — the word lists.</li>
+</ul>
+<p>The <code>diagnose</code> function is injected, so the plugin works against any backend (a Go HTTP server, the Gad WebAssembly module, etc.). See the example app in [<code>../app</code>](https://github.com/gad-lang/gad/blob/main/web) and the overview in [<code>../README.md</code>](https://github.com/gad-lang/gad/blob/main/web/README.md).</p>
+<h2 id="demo">Demo</h2>
+<p>A standalone editor demo lives in [<code>example/</code>](https://github.com/gad-lang/gad/blob/main/web/codemirror-gad/example). Its sidebar is a tree of the repository <code>samples/</code> directory built from the filesystem at startup; clicking a <code>.gad</code> / <code>.gadt</code> / <code>.gadx</code> file opens it with the matching <code>sourceType</code>. The dev server (<code>example/serve.ts</code>) reads the manifest and each file's contents from disk on demand — nothing is bundled in.</p>
+<pre><code class="language-sh">bun install
+bun run demo        # bun ./example/serve.ts — bundles the app and serves samples/</code></pre>
+<h2 id="publishing">Publishing</h2>
+<p>The package is published to npm under the public <code>@gad-lang</code> scope. It ships the compiled output in <code>dist/</code> (built from <code>src/</code> by <code>tsc</code>); <code>prepublishOnly</code> rebuilds it, and <code>files</code>/<code>exports</code> point npm consumers at <code>dist/index.js</code> + <code>dist/index.d.ts</code>.</p>
+<pre><code class="language-sh">bun install
+bun run build            # emit dist/ (tsc: .js + .d.ts)
+npm version &lt;patch|minor|major&gt;
+bun publish --dry-run    # inspect the tarball first
+bun publish              # publishConfig sets the public registry + access</code></pre>
+<p><code>publishConfig</code> (in <code>package.json</code>) pins the public npm registry and <code>access: public</code>, so no per-package <code>.npmrc</code> is required. The auth token is read from the environment or your global <code>~/.npmrc</code>; <strong>never commit a token</strong> (this repo's <code>.gitignore</code> ignores dotfiles). For CI, drop in a local <code>.npmrc</code>:</p>
+<pre><code class="language-ini">//registry.npmjs.org/:_authToken=${NPM_TOKEN}</code></pre>
+<h2 id="documentation">Documentation</h2>
+<ul>
+<li><a href="https://github.com/gad-lang/gad/blob/main/web/codemirror-gad/docs/api.md">API reference</a> — the <code>gad()</code> options, source types and exports.</li>
+</ul>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#install">Install</a><a href="#usage">Usage</a><a href="#source-type-gad--template--gadx">Source type (gad / template / gadx)</a><a href="#exports">Exports</a><a href="#demo">Demo</a><a href="#publishing">Publishing</a><a href="#documentation">Documentation</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="../theme.js"></script>
+<script src="../search.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metaprogramming: parse, eval and Gadx · Gad</title>
+<link rel="icon" type="image/svg+xml" href="gad.svg">
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<script>window.SITE_BASE="";</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html"><img class="brand-logo" src="gad.svg" alt="" width="30" height="30"><span class="brand-name">Gad</span></a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <nav class="header-links">
+    
+    <a href="playground.html">Playground</a>
+    <a href="download.html">Download</a>
+    <a href="https://github.com/gad-lang/gad/issues" target="_blank" rel="noopener">Tasks</a>
+    <a href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">Repo</a>
+  </nav>
+  <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="templates.html">Templates (mixed mode)</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link active" href="ref-metaprogramming.html">Metaprogramming: parse, eval and Gadx</a><a class="nav-link" href="ref-workspace-config.html">Workspace Configuration</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Gadx</div>
+      <a class="nav-link" href="gadx-getting-started.html">Getting Started</a><a class="nav-link" href="gadx-syntax.html">Template Syntax</a><a class="nav-link" href="gadx-components-and-slots.html">Components And Slots</a><a class="nav-link" href="gadx-examples.html">Examples Cookbook</a><a class="nav-link" href="gadx-embedding.html">Embedding In Go</a><a class="nav-link" href="gadx-api.html">API Reference</a><a class="nav-link" href="gadx-conventions.html">Conventions</a><a class="nav-link" href="gadx-source-positions.html">Source Positions</a><a class="nav-link" href="gadx-project-structure.html">Project Structure</a><a class="nav-link" href="gadx-benchmarks.html">Benchmarks</a><a class="nav-link" href="gadx-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">JS modules</div>
+      <a class="nav-link" href="js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a><a class="nav-link" href="js-modules/prism-gad.html">@gad-lang/prism-gad</a><a class="nav-link" href="js-modules/ide-react.html">@gad-lang/ide-react</a><a class="nav-link" href="js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a>
+    </div><div class="nav-group"><div class="nav-title">Integrate</div>
+      <a class="nav-link" href="wasm-embed.html">Embed the WASM</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div><div class="nav-group"><div class="nav-title">Download</div>
+      <a class="nav-link" href="download.html">Download</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="metaprogramming-parse-eval-and-gadx">Metaprogramming: parse, eval and Gadx</h1>
+<p>Gad can parse Gad (and Gadx) source into an AST value at run time, inspect or transform it, and compile-and-run it — all from within a script, through the <code>gad</code> builtin namespace. It can also compile Gadx (<code>.gadx</code>) templates natively: Gadx's front-end is built into the Gad compiler, so <code>.gadx</code> files run, debug and import like any other module.</p>
+<h2 id="the-gad-namespace">The <code>gad</code> namespace</h2>
+<table>
+<thead><tr><th>Member</th><th>Kind</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>gad.parse</code></td><td>function</td><td>Parse a source string into a <code>SourceFileObject</code>.</td></tr>
+<tr><td><code>gad.parseFile</code></td><td>function</td><td>Read and parse a file into a <code>SourceFileObject</code>.</td></tr>
+<tr><td><code>gad.eval</code></td><td>function</td><td>Compile and run a source / <code>SourceFileObject</code> / <code>StmtsObject</code> / <code>StmtObject</code>.</td></tr>
+<tr><td><code>gad.SourceType</code></td><td>enum</td><td><code>GAD</code>, <code>TEMPLATE</code>, <code>GADX</code> — selects the parse mode.</td></tr>
+<tr><td><code>gad.SourceFileObject</code></td><td>type</td><td>A parsed source file (raw bytes + <code>path</code>/<code>type</code>).</td></tr>
+<tr><td><code>gad.StmtsObject</code></td><td>type</td><td>A sequence of parsed statements (an AST fragment).</td></tr>
+<tr><td><code>gad.StmtObject</code></td><td>type</td><td>A single statement (element of <code>StmtsObject</code>).</td></tr>
+</tbody>
+</table>
+<h2 id="gadparse"><code>gad.parse</code></h2>
+<pre><code>gad.parse(script str; type gad.SourceType = gad.SourceType.GAD, name str = "")
+    -&gt; sourceFile gad.SourceFileObject</code></pre>
+<p>Parses <code>script</code> and returns the parsed source file; its statements are available as <code>sourceFile.stmts</code>.</p>
+<p>The parse mode is chosen as follows:</p>
+<ol>
+<li>If <code>type</code> is given, it wins.</li>
+<li>Otherwise, if <code>name</code> is given, the mode is inferred from its extension</li>
+</ol>
+<p>   (<code>.gadx</code> → Gadx, <code>.gadt</code> → template, else Gad).</p>
+<ol>
+<li>Otherwise the mode is <code>GAD</code>.</li>
+</ol>
+<p>The returned source file's <code>path</code> is <code>name</code> when given, otherwise a generated name carrying the selected mode's extension (<code>.gad</code> / <code>.gadt</code> / <code>.gadx</code>).</p>
+<pre><code class="language-gad">src := gad.parse("return 6 * 7")
+gad.eval(src)                       // 42 (eval accepts the source file directly)
+
+// Template mode, inferred from the name extension:
+src := gad.parse("Hi {%= name %}"; name = "greeting.gadt")
+src.type                            // gad.SourceType.TEMPLATE
+
+// Gadx mode, selected explicitly:
+src := gad.parse("span Hi"; type = gad.SourceType.GADX)</code></pre>
+<h2 id="gadparsefile"><code>gad.parseFile</code></h2>
+<pre><code>gad.parseFile(pth str) -&gt; sourceFile gad.SourceFileObject</code></pre>
+<p>Reads the file at <code>pth</code> and parses it, selecting the mode from the file extension. It errors when the file cannot be read or parsed.</p>
+<pre><code class="language-gad">src := gad.parseFile("page.gadx")   // Gadx, from the extension
+src.path                            // "page.gadx"
+src.stmts                           // the parsed statements</code></pre>
+<h2 id="gadeval"><code>gad.eval</code></h2>
+<p><code>gad.eval</code> is a type-dispatched function with four overloads:</p>
+<pre><code>gad.eval(source str; type gad.SourceType = gad.SourceType.GAD) -&gt; res
+gad.eval(sourceFile gad.SourceFileObject)                      -&gt; res
+gad.eval(stmts gad.StmtsObject)                                -&gt; res
+gad.eval(stmt gad.StmtObject)                                  -&gt; res</code></pre>
+<p>Each compiles the given source / statements against the running VM's builtins and runs them like [<code>Eval.Run</code>](embedding.md), returning the last value produced. The <code>source</code> overload parses first, in the selected mode.</p>
+<blockquote>Statements parsed in Gadx mode reference the <code>gadx</code> builtins (<code>gadx.Tag</code>, <code>gadx.write</code>, …). <code>gad.eval</code> uses the running VM's builtins, so those must be registered in the VM (the <code>gad</code> CLI and <code>gad ide</code> register them automatically). A returned Gadx element is not rendered — write it (<code>write(el)</code>) to emit HTML.</blockquote>
+<pre><code class="language-gad">gad.eval("return 6 * 7")            // 42 (parse + eval a source string)
+
+src := gad.parse("a := 2\nreturn a * a")
+gad.eval(src)                       // 4  (a SourceFileObject)
+gad.eval(src.stmts)                 // 4  (its StmtsObject)
+gad.eval(src.stmts[0])              // nil (a single StmtObject)</code></pre>
+<h2 id="gadsourcefileobject"><code>gad.SourceFileObject</code></h2>
+<p>A parsed source file. It behaves like its raw source bytes and carries two attributes:</p>
+<table>
+<thead><tr><th>Access</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>src[i]</code></td><td>the byte at offset <code>i</code> as a <code>char</code></td></tr>
+<tr><td><code>src[a:b]</code></td><td>the byte range as <code>bytes</code></td></tr>
+<tr><td><code>bytes(src)</code></td><td>the whole source as <code>bytes</code></td></tr>
+<tr><td><code>len(src)</code></td><td>the source length in bytes</td></tr>
+<tr><td><code>src.path</code></td><td>the file path / generated name (<code>str</code>)</td></tr>
+<tr><td><code>src.type</code></td><td>the <code>gad.SourceType</code> member for the parse mode</td></tr>
+<tr><td><code>src.stmts</code></td><td>the parsed statements (<code>gad.StmtsObject</code>)</td></tr>
+</tbody>
+</table>
+<pre><code class="language-gad">src := gad.parse("abc"; name = "x.gad")
+src.path        // "x.gad"
+src.type        // gad.SourceType.GAD
+src[0]          // 'a'
+src[0:2]        // bytes "ab"
+bytes(src)      // bytes "abc"
+src.stmts       // its StmtsObject</code></pre>
+<h2 id="gadstmtsobject-and-gadstmtobject"><code>gad.StmtsObject</code> and <code>gad.StmtObject</code></h2>
+<p><code>gad.StmtsObject</code> is an ordered, indexable, iterable collection of statements. Each element is a <code>gad.StmtObject</code>.</p>
+<pre><code class="language-gad">stmts := gad.parse("a := 1\nb := 2\nc := 3").stmts
+len(stmts)                          // 3
+str(stmts[0])                       // "a := 1"
+
+for s in stmts {
+    println(str(s))
+}
+
+// Replace a statement in place:
+one := gad.parse("a := 99").stmts
+stmts[0] = one[0]</code></pre>
+<h2 id="native-gadx-compilation">Native Gadx compilation</h2>
+<p>The <code>.gadx</code> template engine is compiled by Gad itself — no separate compiler is involved:</p>
+<ul>
+<li><code>gad page.gadx</code> runs a Gadx template; <code>gad debug page.gadx</code> debugs it.</li>
+<li>A plain <code>.gad</code> script may <code>import("./partial.gadx")</code>; the imported template is</li>
+</ul>
+<p>  compiled with the Gadx front-end automatically.</p>
+<ul>
+<li>Embedding: set <code>GadxOptions</code> on <code>gad.CompileOptions</code> to compile a <code>.gadx</code></li>
+</ul>
+<p>  source, and register the Gadx builtins in the VM.</p>
+<pre><code class="language-go">import (
+    gad "github.com/gad-lang/gad"
+    "github.com/gad-lang/gad/gadx"
+)
+
+builtins := gadx.AppendBuiltins(gad.NewBuiltins())
+st := gad.NewSymbolTable(builtins.NameSet)
+
+opts := gad.CompileOptions{}
+opts.GadxOptions = &amp;gad.GadxOptions{} // parse &amp; lower as Gadx
+cr, err := gad.Compile(st, []byte("p Hello {= name }"), opts)
+// cr.Bytecode holds the compiled program</code></pre>
+<p>The file importer (<code>github.com/gad-lang/gad/importers.FileImporter</code>) recognises <code>.gadx</code> modules and compiles them natively, so <code>import("...")</code> of a <code>.gadx</code> file works with no extra wiring. See the <a href="../gadx/docs">Gadx documentation</a> for the template syntax.</p>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#the-gad-namespace">The gad namespace</a><a href="#gadparse">gad.parse</a><a href="#gadparsefile">gad.parseFile</a><a href="#gadeval">gad.eval</a><a href="#gadsourcefileobject">gad.SourceFileObject</a><a href="#gadstmtsobject-and-gadstmtobject">gad.StmtsObject and gad.StmtObject</a><a href="#native-gadx-compilation">Native Gadx compilation</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+
+</body>
+</html>
