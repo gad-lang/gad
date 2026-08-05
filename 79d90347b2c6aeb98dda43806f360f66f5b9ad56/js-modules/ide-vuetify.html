@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>@gad-lang/ide-vuetify · Gad</title>
+<link rel="icon" type="image/svg+xml" href="../gad.svg">
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<script>window.SITE_BASE="..\/";</script>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="../index.html"><img class="brand-logo" src="../gad.svg" alt="" width="30" height="30"><span class="brand-name">Gad</span></a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <nav class="header-links">
+    
+    <a href="../playground.html">Playground</a>
+    <a href="../download.html">Download</a>
+    <a href="https://github.com/gad-lang/gad/issues" target="_blank" rel="noopener">Tasks</a>
+    <a href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">Repo</a>
+  </nav>
+  <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="../index.html">Gad Language</a><a class="nav-link" href="../getting-started.html">Getting Started</a><a class="nav-link" href="../values-and-types.html">Values and Types</a><a class="nav-link" href="../variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="../operators.html">Operators</a><a class="nav-link" href="../control-flow.html">Control Flow</a><a class="nav-link" href="../functions.html">Functions</a><a class="nav-link" href="../collections.html">Collections</a><a class="nav-link" href="../strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="../error-handling.html">Error Handling</a><a class="nav-link" href="../modules.html">Modules</a><a class="nav-link" href="../builtins.html">Builtin Functions</a><a class="nav-link" href="../templates.html">Templates (mixed mode)</a><a class="nav-link" href="../formatting.html">Formatting with gad fmt</a><a class="nav-link" href="../embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="../ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="../ref-metaprogramming.html">Metaprogramming: parse, eval and Gadx</a><a class="nav-link" href="../ref-workspace-config.html">Workspace Configuration</a><a class="nav-link" href="../ref-stdlib-strings.html">strings module</a><a class="nav-link" href="../ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="../ref-stdlib-json.html">json module</a><a class="nav-link" href="../ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Gadx</div>
+      <a class="nav-link" href="../gadx-getting-started.html">Getting Started</a><a class="nav-link" href="../gadx-syntax.html">Template Syntax</a><a class="nav-link" href="../gadx-components-and-slots.html">Components And Slots</a><a class="nav-link" href="../gadx-examples.html">Examples Cookbook</a><a class="nav-link" href="../gadx-embedding.html">Embedding In Go</a><a class="nav-link" href="../gadx-api.html">API Reference</a><a class="nav-link" href="../gadx-conventions.html">Conventions</a><a class="nav-link" href="../gadx-source-positions.html">Source Positions</a><a class="nav-link" href="../gadx-project-structure.html">Project Structure</a><a class="nav-link" href="../gadx-benchmarks.html">Benchmarks</a><a class="nav-link" href="../gadx-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">JS modules</div>
+      <a class="nav-link" href="../js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a><a class="nav-link" href="../js-modules/prism-gad.html">@gad-lang/prism-gad</a><a class="nav-link" href="../js-modules/ide-react.html">@gad-lang/ide-react</a><a class="nav-link active" href="../js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a>
+    </div><div class="nav-group"><div class="nav-title">Integrate</div>
+      <a class="nav-link" href="../wasm-embed.html">Embed the WASM</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="../playground.html">Playground</a>
+    </div><div class="nav-group"><div class="nav-title">Download</div>
+      <a class="nav-link" href="../download.html">Download</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="gad-langide-vuetify">@gad-lang/ide-vuetify</h1>
+<p>A reusable <strong>Vuetify 3</strong> IDE component for the <a href="https://github.com/gad-lang/gad">Gad</a> language: file explorer, CodeMirror editor, and Run / Doc / Debug panels with a stepping debugger. It is the Vuetify counterpart of [<code>@gad-lang/ide-react</code>](https://github.com/gad-lang/gad/blob/main/web/ide-react) and shares the same <strong>backend-agnostic</strong> <code>IdeApi</code> contract, so the same in-browser backend (Gad WASM + a LocalStorage filesystem) can drive either UI.</p>
+<blockquote><strong>Status:</strong> not yet published to npm. The install command below is the intended usage once the <code>@gad-lang</code> packages are released.</blockquote>
+<h2 id="install">Install</h2>
+<pre><code class="language-sh">npm install @gad-lang/ide-vuetify vue vuetify dockview-vue @gad-lang/codemirror-gad @gad-lang/prism-gad
+# or: bun add @gad-lang/ide-vuetify vue vuetify dockview-vue @gad-lang/codemirror-gad @gad-lang/prism-gad</code></pre>
+<p><code>vue</code>, <code>vuetify</code>, <code>dockview-vue</code>, <code>@gad-lang/codemirror-gad</code> and <code>@gad-lang/prism-gad</code> are peer dependencies.</p>
+<p>The views are authored in <strong>TSX</strong> (<code>defineComponent</code> + JSX), not <code>.vue</code> SFCs, so the whole package — panels, controller and the <code>IdeApi</code> contract — is fully typed. The panels are laid out with <strong>dockview-vue</strong> (resizable, movable, dockable, tabbable).</p>
+<h2 id="usage">Usage</h2>
+<pre><code class="language-tsx">import { defineComponent, ref, onMounted } from "vue";
+import { GadIde, httpIdeApi, type SerializedDockview, type Workspace } from "@gad-lang/ide-vuetify";
+
+// Import the stylesheets once in the host app:
+import "@gad-lang/ide-vuetify/style.css";
+import "dockview-core/dist/styles/dockview.css";
+import "vuetify/styles";
+
+export default defineComponent(() =&gt; {
+  const workspace = ref&lt;Workspace&gt;();
+  const layout = ref&lt;SerializedDockview | null&gt;(null);   // v-model:layoutConfig
+  const config = ref&lt;Record&lt;string, unknown&gt;&gt;({});       // v-model:config
+  onMounted(async () =&gt; (workspace.value = await httpIdeApi.workspace()));
+
+  return () =&gt;
+    workspace.value &amp;&amp; (
+      &lt;GadIde
+        api={httpIdeApi}
+        workspace={workspace.value}
+        dark
+        layoutConfig={layout.value}
+        {...{ "onUpdate:layoutConfig": (v: SerializedDockview) =&gt; (layout.value = v) }}
+        config={config.value}
+        {...{ "onUpdate:config": (v: Record&lt;string, unknown&gt;) =&gt; (config.value = v) }}
+      /&gt;
+    );
+});</code></pre>
+<ul>
+<li>**<code>api</code>** — any <code>IdeApi</code> implementation. <code>httpIdeApi</code> talks to a <code>gad ide</code></li>
+</ul>
+<p>  server; pass a fully in-browser one (WASM + LocalStorage) for a server-less IDE   (see [<code>demo/</code>](https://github.com/gad-lang/gad/blob/main/web/ide-vuetify/demo)).</p>
+<ul>
+<li>**<code>workspace</code>** — the initial <code>{ root, name, openFile }</code>.</li>
+<li>**<code>dark</code>** — light/dark editor + dockview theme.</li>
+<li>**<code>onReset</code><strong> — optional callback; when given, a </strong>Reset** button appears</li>
+</ul>
+<p>  (restore a backend's pristine state).</p>
+<ul>
+<li>**<code>v-model:layoutConfig</code>** — the dockview layout (its <code>toJSON()</code> shape). Bind it</li>
+</ul>
+<p>  to persist and restore the panel arrangement (the demo stores it in   LocalStorage).</p>
+<ul>
+<li>**<code>v-model:config</code><strong> — the project settings document edited by the </strong>Settings**</li>
+</ul>
+<p>  dialog (Panels / Formatter / Transpile / Template).</p>
+<p>Import the component styles (<code>@gad-lang/ide-vuetify/style.css</code>), the dockview theme (<code>dockview-core/dist/styles/dockview.css</code>) and Vuetify's styles once in the host app.</p>
+<h2 id="demo">Demo</h2>
+<p>[<code>demo/</code>](https://github.com/gad-lang/gad/blob/main/web/ide-vuetify/demo) is a standalone, <strong>server-less</strong> app (like the React <code>webide.html</code>): the sample tree is read-only, user edits/creates/deletes live in LocalStorage, and the Gad VM runs in a Web Worker.</p>
+<pre><code class="language-sh">cd demo
+bun install
+bun run wasm    # build gad.wasm + copy wasm_exec.js into public/
+bun run dev</code></pre>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#install">Install</a><a href="#usage">Usage</a><a href="#demo">Demo</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="../theme.js"></script>
+<script src="../search.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="470" viewBox="0 0 960 470" font-family="monospace">
+<rect width="960" height="470" fill="#ffffff"/>
+<text x="480" y="32" text-anchor="middle" font-size="17" font-weight="bold" fill="#222">Render latency: old streaming vs new tree model</text>
+<text x="480" y="52" text-anchor="middle" font-size="12" fill="#777">lower is better — microseconds per render (mean, n=10), same benchmarks on both branches</text>
+<line x1="80" y1="390" x2="880" y2="390" stroke="#eee"/>
+<text x="72" y="394" text-anchor="end" font-size="11" fill="#999">0</text>
+<line x1="80" y1="337" x2="880" y2="337" stroke="#eee"/>
+<text x="72" y="341" text-anchor="end" font-size="11" fill="#999">100</text>
+<line x1="80" y1="283" x2="880" y2="283" stroke="#eee"/>
+<text x="72" y="287" text-anchor="end" font-size="11" fill="#999">200</text>
+<line x1="80" y1="230" x2="880" y2="230" stroke="#eee"/>
+<text x="72" y="234" text-anchor="end" font-size="11" fill="#999">300</text>
+<line x1="80" y1="177" x2="880" y2="177" stroke="#eee"/>
+<text x="72" y="181" text-anchor="end" font-size="11" fill="#999">400</text>
+<line x1="80" y1="123" x2="880" y2="123" stroke="#eee"/>
+<text x="72" y="127" text-anchor="end" font-size="11" fill="#999">500</text>
+<line x1="80" y1="70" x2="880" y2="70" stroke="#eee"/>
+<text x="72" y="74" text-anchor="end" font-size="11" fill="#999">600</text>
+<line x1="80" y1="390" x2="880" y2="390" stroke="#ccc"/>
+<polyline points="150,307 370,304 590,160 810,83 " fill="none" stroke="#888888" stroke-width="2.5"/>
+<polyline points="150,309 370,303 590,191 810,168 " fill="none" stroke="#2A9D8F" stroke-width="2.5"/>
+<circle cx="150" cy="307" r="4" fill="#888888"/><text x="150" y="298" text-anchor="middle" font-size="10" fill="#888888">155</text>
+<circle cx="150" cy="309" r="4" fill="#2A9D8F"/><text x="150" y="300" text-anchor="middle" font-size="10" fill="#2A9D8F">151</text>
+<text x="150" y="410" text-anchor="middle" font-size="11" fill="#333">page</text>
+<circle cx="370" cy="304" r="4" fill="#888888"/><text x="370" y="295" text-anchor="middle" font-size="10" fill="#888888">162</text>
+<circle cx="370" cy="303" r="4" fill="#2A9D8F"/><text x="370" y="294" text-anchor="middle" font-size="10" fill="#2A9D8F">163</text>
+<text x="370" y="410" text-anchor="middle" font-size="11" fill="#333">attrs</text>
+<circle cx="590" cy="160" r="4" fill="#888888"/><text x="590" y="151" text-anchor="middle" font-size="10" fill="#888888">432</text>
+<circle cx="590" cy="191" r="4" fill="#2A9D8F"/><text x="590" y="182" text-anchor="middle" font-size="10" fill="#2A9D8F">373</text>
+<text x="590" y="410" text-anchor="middle" font-size="11" fill="#333">components</text>
+<circle cx="810" cy="83" r="4" fill="#888888"/><text x="810" y="74" text-anchor="middle" font-size="10" fill="#888888">576</text>
+<circle cx="810" cy="168" r="4" fill="#2A9D8F"/><text x="810" y="159" text-anchor="middle" font-size="10" fill="#2A9D8F">417</text>
+<text x="810" y="410" text-anchor="middle" font-size="11" fill="#333">loop</text>
+<circle cx="126" cy="72" r="4" fill="#888888"/><text x="138" y="76" font-size="11" fill="#333">old: streaming (write() per node) — main</text>
+<circle cx="126" cy="90" r="4" fill="#2A9D8F"/><text x="138" y="94" font-size="11" fill="#333">new: tree (Tag/Text nodes) — feat/tag-render-tree</text>
+</svg>
