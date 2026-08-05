@@ -13,7 +13,6 @@ export default defineComponent({
   setup() {
     const ctx = inject(IdeControllerKey)!;
     const has = () => !!ctx.openPath.value;
-    const editable = () => has() && ctx.canEdit.value;
 
     const iconBtn = (icon: string, title: string, onClick: () => void, opts: { disabled?: boolean; color?: string } = {}) => (
       <VBtn size="small" variant="text" icon={icon} title={title} disabled={opts.disabled} color={opts.color} onClick={onClick} />
@@ -22,11 +21,19 @@ export default defineComponent({
     return () => (
       <div class="pnl">
         <div class="pnl-toolbar">
-          {iconBtn("mdi-content-save-outline", "Save", () => ctx.save(), { disabled: !editable() })}
-          {iconBtn("mdi-auto-fix", "Format", () => ctx.format(), { disabled: !editable() })}
+          {ctx.canEdit.value && (
+            <>
+              {iconBtn("mdi-content-save-outline", "Save", () => ctx.save(), { disabled: !has() })}
+              {iconBtn("mdi-auto-fix", "Format", () => ctx.format(), { disabled: !has() })}
+            </>
+          )}
           {iconBtn("mdi-refresh", "Reload from disk", () => ctx.reload(), { disabled: !has() })}
-          {iconBtn("mdi-undo", "Undo", () => ctx.undo(), { disabled: !editable() })}
-          {iconBtn("mdi-redo", "Redo", () => ctx.redo(), { disabled: !editable() })}
+          {ctx.canEdit.value && (
+            <>
+              {iconBtn("mdi-undo", "Undo", () => ctx.undo(), { disabled: !has() })}
+              {iconBtn("mdi-redo", "Redo", () => ctx.redo(), { disabled: !has() })}
+            </>
+          )}
           <VDivider vertical class="mx-1" />
           {iconBtn("mdi-play", "Run", () => ctx.runActive(), { disabled: !has() || !ctx.canRun.value, color: "success" })}
           {iconBtn(ctx.session.value ? "mdi-restart" : "mdi-bug", ctx.session.value ? "Restart" : "Debug",
