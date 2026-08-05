@@ -21,7 +21,11 @@ import (
 var dbg = gadbridge.NewDebugManager()
 
 func main() {
-	js.Global().Set("gadFormat", jsonFunc(func(src string) any { return gadbridge.Format(src) }))
+	// gadFormat(source[, sourceType]) — formats keeping the dialect: "gadx",
+	// "gadTemplate"/"template", or "gad"/"" (the default, plain Gad).
+	js.Global().Set("gadFormat", jsonFuncN(func(args []js.Value) any {
+		return gadbridge.FormatSource(argStr(args, 0), argStr(args, 1))
+	}))
 	// gadRun(source[, sourceType[, argsJSON]]) — sourceType "gadTemplate"/"gadx"
 	// compiles the respective dialect; empty/"gad" runs plain Gad (the default).
 	// argsJSON is a JSON array of strings passed to the script's `param`.

@@ -16,7 +16,7 @@ interface GadGlobals {
   gadReady?: boolean;
   onGadReady?: () => void;
   gadRun?: (src: string) => string;
-  gadFormat?: (src: string) => string;
+  gadFormat?: (src: string, sourceType: string) => string;
   gadDiagnose?: (src: string) => string;
   gadDoc?: (src: string, sourceType: string) => string;
   gadDocData?: (src: string, sourceType: string) => string;

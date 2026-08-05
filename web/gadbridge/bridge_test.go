@@ -30,6 +30,46 @@ func TestFormatPreservesComments(t *testing.T) {
 	}
 }
 
+func TestFormatSourceTemplate(t *testing.T) {
+	// A mixed template must format as a template, keeping the {% %}/{%= %} islands.
+	r := FormatSource("{%    var name=\"Gad\" %}\n<h1>Hello, {%=name%}!</h1>\n", "gadTemplate")
+	if !r.OK {
+		t.Fatalf("not ok: %v", r.Diagnostics)
+	}
+	for _, want := range []string{`{% var name = "Gad" %}`, `{%= name %}`, "<h1>Hello,"} {
+		if !strings.Contains(r.Source, want) {
+			t.Fatalf("template format missing %q:\n%s", want, r.Source)
+		}
+	}
+}
+
+func TestFormatSourceGadx(t *testing.T) {
+	// Gadx must format back to Gadx syntax (tags/components), not lowered Gad.
+	r := FormatSource("@main\n    h1 Hello Gadx\n    ul\n        @for i in [1, 2, 3]\n            li item {= i }\n", "gadx")
+	if !r.OK {
+		t.Fatalf("not ok: %v", r.Diagnostics)
+	}
+	for _, want := range []string{"@comp main()", "h1", "@for (i in [1, 2, 3])"} {
+		if !strings.Contains(r.Source, want) {
+			t.Fatalf("gadx format missing %q:\n%s", want, r.Source)
+		}
+	}
+}
+
+func TestFormatSourceGadxParseError(t *testing.T) {
+	// Inconsistent indentation (spaces then tabs) is rejected by the Gadx parser.
+	r := FormatSource("    \tbad\n\t\tmix\n", "gadx")
+	if r.OK {
+		t.Fatal("expected not ok for invalid gadx")
+	}
+	if len(r.Diagnostics) == 0 {
+		t.Fatal("expected diagnostics")
+	}
+	if r.Diagnostics[0].Line < 1 || r.Diagnostics[0].Column < 1 {
+		t.Fatalf("expected positioned diagnostic, got %+v", r.Diagnostics[0])
+	}
+}
+
 func TestFormatParseError(t *testing.T) {
 	r := Format("x :=\n")
 	if r.OK {

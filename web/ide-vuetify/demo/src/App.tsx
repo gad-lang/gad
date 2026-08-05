@@ -15,9 +15,9 @@ import { base64ToBytes, extractArchive } from "./extract";
 // The Playground/Notebook backend: format/run/diagnose through the WASM worker.
 const runner: GadRunner = {
   name: "WebAssembly",
-  format: (s) => sharedClient().format(s),
-  run: (s) => sharedClient().run(s),
-  diagnose: async (s) => (await sharedClient().diagnose(s)).diagnostics,
+  format: (s, st) => sharedClient().format(s, st),
+  run: (s, st) => sharedClient().run(s, st),
+  diagnose: async (s, st) => (await sharedClient().diagnose(s, st)).diagnostics,
 };
 
 // onUpload persists uploaded files to the in-browser workspace. A plain file is

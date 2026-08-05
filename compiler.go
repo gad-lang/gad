@@ -343,9 +343,7 @@ func CompileModule(st *SymbolTable, module *ModuleSpec, script []byte, opts Comp
 		if err != nil {
 			return nil, err
 		}
-		if opts.FallbackFunc == nil {
-			opts.FallbackFunc = gadxCompileFallback
-		}
+		// CompileFile installs gadxCompileFallback by default when FallbackFunc is nil.
 		return CompileFile(st, module, pf, opts)
 	}
 
@@ -361,6 +359,14 @@ func CompileModule(st *SymbolTable, module *ModuleSpec, script []byte, opts Comp
 // CompileFile compiles given module file, returning a CompileResult (the input
 // File, the Bytecode and any compiler Warnings) and an error.
 func CompileFile(st *SymbolTable, module *ModuleSpec, pf *parser.File, opts CompileOptions) (*CompileResult, error) {
+	// Always enable Gadx node lowering: even when GadxOptions is nil the AST may
+	// carry Gadx nodes (e.g. an imported .gadx module lowered into a plain-Gad
+	// compilation), so the Gadx fallback is installed by default when the caller
+	// has not supplied one. It only fires for nodes the Gad compiler does not
+	// handle natively, so plain Gad sources are unaffected.
+	if opts.FallbackFunc == nil {
+		opts.FallbackFunc = gadxCompileFallback
+	}
 	compiler := NewCompiler(st, module, pf.InputFile, opts)
 	compiler.SetGlobalSymbolsIndex()
 

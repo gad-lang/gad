@@ -72,8 +72,9 @@ export class WasmClient {
   run(source: string, sourceType = "", args: string[] = []) {
     return this.json<RunResult>("gadRun", [source, sourceType, JSON.stringify(args)]);
   }
-  format(source: string) {
-    return this.json<FormatResult>("gadFormat", [source]);
+  /** format formats source keeping its dialect; sourceType selects it (see run). */
+  format(source: string, sourceType = "") {
+    return this.json<FormatResult>("gadFormat", [source, sourceType]);
   }
   /** diagnose reports errors; sourceType selects the dialect (see run). */
   diagnose(source: string, sourceType = "") {

@@ -12,6 +12,8 @@ import (
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/gadx"
+	gadxnode "github.com/gad-lang/gad/gadx/node"
+	gadxparser "github.com/gad-lang/gad/gadx/parser"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/ast"
 	"github.com/gad-lang/gad/parser/node"
@@ -60,16 +62,39 @@ func parseSource(src string) (*parser.File, error) {
 	return parser.NewParserWithOptions(srcFile, nil, nil).ParseFile()
 }
 
-// Format formats src with the canonical formatter, preserving comments and doc
-// comments. On a parse error the source is returned unchanged together with the
-// diagnostics.
-func Format(src string) FormatResult {
+// Format formats src as plain Gad with the canonical formatter, preserving
+// comments and doc comments. On a parse error the source is returned unchanged
+// together with the diagnostics. For dialect-aware formatting use FormatSource.
+func Format(src string) FormatResult { return FormatSource(src, "") }
+
+// FormatSource formats src according to sourceType, keeping the same dialect:
+// "gadx" formats Gadx (indentation) source, "gadTemplate"/"template" formats a
+// mixed template, and "gad"/"" formats plain Gad. On a parse error the source is
+// returned unchanged with the diagnostics.
+func FormatSource(src, sourceType string) FormatResult {
+	switch sourceType {
+	case "gadx":
+		return formatGadx(src)
+	case "gadTemplate", "template":
+		return formatGad(src, true)
+	default:
+		return formatGad(src, false)
+	}
+}
+
+// formatGad formats plain Gad (or a mixed template when mixed is set), preserving
+// comments. ParseComments collects the comment groups so CodeWithComments can
+// re-emit them with the nodes they are attached to.
+func formatGad(src string, mixed bool) FormatResult {
 	fileSet := source.NewFileSet()
 	srcFile := fileSet.AddFileData(sourceName, -1, []byte(src))
-	// ParseComments collects the comment groups so CodeWithComments can re-emit
-	// them with the nodes they are attached to (regression: comments were dropped).
 	po := &parser.ParserOptions{Mode: parser.ParseComments}
-	file, err := parser.NewParserWithOptions(srcFile, po, nil).ParseFile()
+	var so *parser.ScannerOptions
+	if mixed {
+		po.Mode |= parser.ParseMixed
+		so = &parser.ScannerOptions{Mode: parser.ScanMixed | parser.ScanConfigDisabled}
+	}
+	file, err := parser.NewParserWithOptions(srcFile, po, so).ParseFile()
 	if err != nil {
 		return FormatResult{OK: false, Source: src, Diagnostics: errorDiagnostics(err)}
 	}
@@ -78,6 +103,24 @@ func Format(src string) FormatResult {
 		node.CodeWithPrefix("\t"),
 		node.CodeWithComments(srcFile, file.Comments),
 	)
+	if len(out) == 0 || out[len(out)-1] != '\n' {
+		out += "\n"
+	}
+	return FormatResult{OK: true, Source: out}
+}
+
+// formatGadx formats Gadx (.gadx) source, re-emitting it in Gadx syntax (tags,
+// components, indentation) via the Gadx code writer rather than lowering to Gad.
+func formatGadx(src string) FormatResult {
+	fileSet := source.NewFileSet()
+	srcFile := fileSet.AddFileData(sourceName+".gadx", -1, []byte(src))
+	f, err := gadxparser.NewParser(srcFile).ParseFile()
+	if err != nil {
+		return FormatResult{OK: false, Source: src, Diagnostics: errorDiagnostics(err)}
+	}
+	var buf bytes.Buffer
+	f.WriteGadx(gadxnode.NewGadxCodeContext(&buf))
+	out := buf.String()
 	if len(out) == 0 || out[len(out)-1] != '\n' {
 		out += "\n"
 	}
