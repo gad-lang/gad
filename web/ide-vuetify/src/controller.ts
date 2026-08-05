@@ -82,6 +82,23 @@ export function createController(
   // File-type registry: tree icons + editor language/plugin per extension.
   const fileTypes = new FileTypeRegistry(hooks.fileTypes);
   const iconFor = (path: string) => fileTypes.iconFor(path);
+
+  // A flat set of every file path in the (visible) tree, for upload collision
+  // checks. Recomputed whenever the tree reloads.
+  const existingPaths = computed(() => {
+    const set = new Set<string>();
+    const walk = (node: TreeNode | null) => {
+      for (const c of node?.children ?? []) {
+        if (c.dir) walk(c);
+        else set.add(c.path);
+      }
+    };
+    walk(tree.value);
+    return set;
+  });
+  function pathExists(path: string): boolean {
+    return existingPaths.value.has(path);
+  }
   // --- file tree + open tabs ----------------------------------------------
   const tree = shallowRef<TreeNode | null>(null);
   const expanded = reactive(new Set<string>());
@@ -501,6 +518,7 @@ export function createController(
     tabs, active, activateTab, closeTab,
     showHidden, toggleHidden,
     newFile, newDir, removeOpen, reset, canReset, upload, uploadUrl, urlDialog, uploadProgress,
+    pathExists, archiveKind,
     readonly,
     fileTypes, iconFor,
     canUpload: computed(() => !!hooks.onUpload && !readonly.value),

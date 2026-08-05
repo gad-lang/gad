@@ -4,10 +4,10 @@
 // onto a folder row (or the panel background = root). Without onUpload, the
 // upload button, URL import and drag-drop are all omitted.
 import { defineComponent, inject, ref } from "vue";
-import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VIcon, VSpacer } from "../vuetify";
+import { VBtn, VIcon } from "../vuetify";
 import { IdeControllerKey } from "../controller";
-import DirTree from "../DirTree";
-import { filesFromDataTransfer, filesFromInput } from "../upload";
+import UploadReviewDialog from "../UploadReviewDialog";
+import { rawFromDataTransfer, rawFromInput, type RawFile } from "../upload";
 import type { UploadedFile } from "../api";
 
 export default defineComponent({
@@ -17,34 +17,33 @@ export default defineComponent({
     const fileInput = ref<HTMLInputElement>();
     // The path of the directory row currently under a drag (null = none).
     const dropDir = ref<string | null>(null);
-    // Upload dialog: the picked files awaiting a chosen target folder.
-    const uploadDlg = ref(false);
-    const pending = ref<UploadedFile[]>([]);
-    const uploadDir = ref("");
+    // Review dialog: the picked/dropped raw files awaiting confirmation. onUpload
+    // runs only after the user confirms (target dir / rename / extract / replace).
+    const reviewOpen = ref(false);
+    const rawFiles = ref<RawFile[]>([]);
+    const reviewDir = ref("");
 
     const parentDir = (path: string) => {
       const s = path.lastIndexOf("/");
       return s === -1 ? "" : path.slice(0, s);
     };
 
+    function openReview(raw: RawFile[], targetDir: string) {
+      if (!raw.length) return;
+      rawFiles.value = raw;
+      reviewDir.value = targetDir;
+      reviewOpen.value = true;
+    }
     async function onDrop(e: DragEvent, targetDir: string) {
       dropDir.value = null;
       if (!ctx.canUpload.value || !e.dataTransfer) return;
-      await ctx.upload(await filesFromDataTransfer(e.dataTransfer), targetDir);
+      openReview(await rawFromDataTransfer(e.dataTransfer), targetDir);
     }
     async function onPick(e: Event) {
       const input = e.target as HTMLInputElement;
-      pending.value = await filesFromInput(input.files);
+      const raw = rawFromInput(input.files);
       input.value = "";
-      if (pending.value.length) {
-        uploadDir.value = "";
-        uploadDlg.value = true;
-      }
-    }
-    async function confirmUpload() {
-      uploadDlg.value = false;
-      await ctx.upload(pending.value, uploadDir.value);
-      pending.value = [];
+      openReview(raw, "");
     }
 
     return () => (
@@ -117,23 +116,13 @@ export default defineComponent({
         </div>
         <input ref={fileInput} type="file" multiple style={{ display: "none" }} onChange={onPick} />
 
-        {/* Upload dialog: pick the target folder for the selected files. */}
-        <VDialog modelValue={uploadDlg.value} {...{ "onUpdate:modelValue": (v: boolean) => (uploadDlg.value = v) }} maxWidth="480">
-          <VCard>
-            <VCardTitle>Upload {pending.value.length} file{pending.value.length === 1 ? "" : "s"}</VCardTitle>
-            <VCardText>
-              <div class="text-caption mb-1">Target folder</div>
-              <div class="dirtree-box">
-                <DirTree root={ctx.tree.value} selected={uploadDir.value} onSelect={(p: string) => (uploadDir.value = p)} />
-              </div>
-            </VCardText>
-            <VCardActions>
-              <VSpacer />
-              <VBtn onClick={() => (uploadDlg.value = false)}>Cancel</VBtn>
-              <VBtn color="primary" onClick={confirmUpload}>Upload</VBtn>
-            </VCardActions>
-          </VCard>
-        </VDialog>
+        <UploadReviewDialog
+          modelValue={reviewOpen.value}
+          {...{ "onUpdate:modelValue": (v: boolean) => (reviewOpen.value = v) }}
+          raw={rawFiles.value}
+          initialDir={reviewDir.value}
+          onConfirm={(files: UploadedFile[], targetDir: string) => ctx.upload(files, targetDir)}
+        />
       </div>
     );
   },

@@ -3,6 +3,52 @@
 // directory is traversed recursively so its subtree layout is preserved.
 import type { UploadedFile } from "./api";
 
+/** RawFile is a picked/dropped file with its relative path and the File object,
+ * read lazily (as text, or base64 bytes for an archive) when the upload is
+ * confirmed. */
+export interface RawFile {
+  path: string;
+  file: File;
+}
+
+/** rawFromInput collects RawFiles from an <input type="file"> FileList. */
+export function rawFromInput(list: FileList | null): RawFile[] {
+  return Array.from(list ?? []).map((file) => ({
+    path: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name,
+    file,
+  }));
+}
+
+/** rawFromDataTransfer collects RawFiles from a drop, recursing into directories. */
+export async function rawFromDataTransfer(dt: DataTransfer): Promise<RawFile[]> {
+  const entries: FileSystemEntry[] = [];
+  for (const item of Array.from(dt.items)) {
+    const entry = (item as DataTransferItem & { webkitGetAsEntry?: () => FileSystemEntry | null }).webkitGetAsEntry?.();
+    if (entry) entries.push(entry);
+  }
+  if (!entries.length) return rawFromInput(dt.files);
+  const out: RawFile[] = [];
+  await Promise.all(entries.map((e) => walkRaw(e, "", out)));
+  return out;
+}
+
+async function walkRaw(entry: FileSystemEntry, prefix: string, out: RawFile[]): Promise<void> {
+  if (entry.isFile) {
+    out.push({ path: prefix + entry.name, file: await fileOf(entry as FileSystemFileEntry) });
+    return;
+  }
+  const children = await readDir(entry as FileSystemDirectoryEntry);
+  await Promise.all(children.map((c) => walkRaw(c, prefix + entry.name + "/", out)));
+}
+
+/** readBase64 reads a File's bytes as a base64 string (for archive uploads). */
+export async function readBase64(file: File): Promise<string> {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+  return btoa(bin);
+}
+
 /** filesFromInput reads a FileList (from <input type="file" [webkitdirectory]>).
  * A directory input sets webkitRelativePath, keeping the subtree; a plain file
  * input yields bare names. */
