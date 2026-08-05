@@ -1112,9 +1112,9 @@ func TestCompiler_CompileEmbed(t *testing.T) {
 		impMap.SetExtImporter(&importers.EmbeddedFileImporter{
 			WorkDirs: []string{tmpDir},
 		})
-		__cr1, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(`embed("test.txt")`),
+		cr1, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(`embed("test.txt")`),
 			CompileOptions{CompilerOptions: CompilerOptions{EmbededdMap: impMap}})
-		bc := __cr1.BC()
+		bc := cr1.BC()
 		require.NoError(t, err)
 		require.Len(t, bc.Constants, 1)
 		emb, ok := bc.Constants[0].(*Embedded)
@@ -1135,10 +1135,10 @@ func TestCompiler_CompileEmbed(t *testing.T) {
 		impMap.SetExtImporter(&importers.EmbeddedFileImporter{
 			WorkDirs: []string{tmpDir},
 		})
-		__cr2, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
+		cr2, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
 			[]byte(`embed("f.txt"; sources=["mydir"])`),
 			CompileOptions{CompilerOptions: CompilerOptions{EmbededdMap: impMap}})
-		bc := __cr2.BC()
+		bc := cr2.BC()
 		require.NoError(t, err)
 		require.Len(t, bc.Constants, 1)
 		emb, ok := bc.Constants[0].(*Embedded)
@@ -1162,10 +1162,10 @@ func TestCompiler_CompileEmbed(t *testing.T) {
 		impMap.SetExtImporter(&importers.EmbeddedFileImporter{
 			WorkDirs: []string{tmpDir},
 		})
-		__cr3, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
+		cr3, err := Compile(NewSymbolTable(NewBuiltins().NameSet),
 			[]byte(`embed("dat"; config_file="embed.yaml")`),
 			CompileOptions{CompilerOptions: CompilerOptions{EmbededdMap: impMap}})
-		bc := __cr3.BC()
+		bc := cr3.BC()
 		require.NoError(t, err)
 		require.Len(t, bc.Constants, 1)
 		emb, ok := bc.Constants[0].(*Embedded)
@@ -1180,8 +1180,8 @@ func TestCompiler_CompileEmbed(t *testing.T) {
 func TestCompiler_CompileInterpolatedStringLit(t *testing.T) {
 	t.Run("plain string", func(t *testing.T) {
 		st := NewSymbolTable(NewBuiltins().NameSet)
-		__cr4, err := Compile(st, []byte(`return #"hello"`), CompileOptions{})
-		bc := __cr4.BC()
+		cr4, err := Compile(st, []byte(`return #"hello"`), CompileOptions{})
+		bc := cr4.BC()
 		require.NoError(t, err)
 		require.NotNil(t, bc)
 
@@ -1194,8 +1194,8 @@ func TestCompiler_CompileInterpolatedStringLit(t *testing.T) {
 
 	t.Run("with interpolation", func(t *testing.T) {
 		st := NewSymbolTable(NewBuiltins().NameSet)
-		__cr5, err := Compile(st, []byte(`name := "world"; return #"hello {name}"`), CompileOptions{})
-		bc := __cr5.BC()
+		cr5, err := Compile(st, []byte(`name := "world"; return #"hello {name}"`), CompileOptions{})
+		bc := cr5.BC()
 		require.NoError(t, err)
 		require.NotNil(t, bc)
 
@@ -1207,8 +1207,8 @@ func TestCompiler_CompileInterpolatedStringLit(t *testing.T) {
 
 	t.Run("multiple interpolations", func(t *testing.T) {
 		st := NewSymbolTable(NewBuiltins().NameSet)
-		__cr6, err := Compile(st, []byte(`a := 1; b := 2; return #"{a} + {b} = {a+b}"`), CompileOptions{})
-		bc := __cr6.BC()
+		cr6, err := Compile(st, []byte(`a := 1; b := 2; return #"{a} + {b} = {a+b}"`), CompileOptions{})
+		bc := cr6.BC()
 		require.NoError(t, err)
 		require.NotNil(t, bc)
 
@@ -1221,8 +1221,8 @@ func TestCompiler_CompileInterpolatedStringLit(t *testing.T) {
 	runTmpl := func(t *testing.T, src string) Object {
 		t.Helper()
 		st := NewSymbolTable(NewBuiltins().NameSet)
-		__cr7, err := Compile(st, []byte(src), CompileOptions{})
-		bc := __cr7.BC()
+		cr7, err := Compile(st, []byte(src), CompileOptions{})
+		bc := cr7.BC()
 		require.NoError(t, err)
 		require.NotNil(t, bc)
 		vm := NewVM(NewBuiltins().Build(), bc)
@@ -3354,9 +3354,9 @@ func TestCompilerDeferStmt(t *testing.T) {
 	// a defer-using function desugars into a wrapper that creates extra
 	// compiled functions (the $__body thunk and one handler closure per defer)
 	st := NewSymbolTable(NewBuiltins().NameSet)
-	__cr8, err := Compile(st, []byte(`f := func() { defer { x := 1 } }`),
+	cr8, err := Compile(st, []byte(`f := func() { defer { x := 1 } }`),
 		CompileOptions{})
-	bc := __cr8.BC()
+	bc := cr8.BC()
 	require.NoError(t, err)
 
 	var fnCount int
@@ -4390,8 +4390,8 @@ func TestCompilerFuncReturnType(t *testing.T) {
 	// rendered by HeaderString, without affecting the generated instructions.
 	compileFn := func(t *testing.T, script string) *CompiledFunction {
 		t.Helper()
-		__cr13, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(script), CompileOptions{})
-		bc := __cr13.BC()
+		cr13, err := Compile(NewSymbolTable(NewBuiltins().NameSet), []byte(script), CompileOptions{})
+		bc := cr13.BC()
 		require.NoError(t, err)
 		for _, c := range bc.Constants {
 			if cf, ok := c.(*CompiledFunction); ok {
@@ -4551,8 +4551,8 @@ func expectCompileWithOpts(t *testing.T,
 	}
 
 	t.Helper()
-	__cr16, err := Compile(eopts.st, []byte(script), opts)
-	got := __cr16.BC()
+	cr16, err := Compile(eopts.st, []byte(script), opts)
+	got := cr16.BC()
 	require.NoError(t, err)
 	TestBytecodesEqual(t, expected, got, expected.Main.SourceMap != nil, eopts.opts)
 }

@@ -21,8 +21,8 @@ func runScript(t *testing.T, src string, gadxMode bool) (gad.Object, string) {
 	if gadxMode {
 		opts.GadxOptions = &gad.GadxOptions{}
 	}
-	__cr1, err := gad.Compile(st, []byte(src), opts)
-	bc := __cr1.BC()
+	cr1, err := gad.Compile(st, []byte(src), opts)
+	bc := cr1.BC()
 	if err != nil {
 		t.Fatalf("compile error: %v", err)
 	}

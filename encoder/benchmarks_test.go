@@ -18,8 +18,8 @@ func BenchmarkBytecodeDecode(b *testing.B) {
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [copy, len]}
 	`
 	var err error
-	__cr1, err := gad.Compile(newSt(), []byte(script), gad.CompileOptions{})
-	bc := __cr1.BC()
+	cr1, err := gad.Compile(newSt(), []byte(script), gad.CompileOptions{})
+	bc := cr1.BC()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -51,8 +51,8 @@ func BenchmarkBytecodeEncDec(b *testing.B) {
 	m := {a: 1, b: ["abc"], c: {x: bytes()}, builtins: [copy, len]}
 	`
 	var err error
-	__cr2, err := gad.Compile(newSt(), []byte(script), gad.CompileOptions{})
-	bc := __cr2.BC()
+	cr2, err := gad.Compile(newSt(), []byte(script), gad.CompileOptions{})
+	bc := cr2.BC()
 	if err != nil {
 		b.Fatal(err)
 	}

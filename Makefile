@@ -216,13 +216,9 @@ version:
 .PHONY: clean
 clean:
 	find . -type f \( -name "cpu.out" -o -name "*.test" -o -name "mem.out" \) -delete
-	rm -f cmd/gad/gad cmd/gad/gad.exe
+	rm -f cmd/gad/gad cmd/gad/gad.exe dist/*
 
 
 .PHONY: ci
 ci:
 	./scripts/golangci.sh
-
-
-xx:
-	echo "param(*argv); println(repr(argv))" | go run ./cmd/gad -- x

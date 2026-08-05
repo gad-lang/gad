@@ -5167,8 +5167,8 @@ func TestVMCallCompiledFunction(t *testing.T) {
 		},
 	}
 	`
-	__cr1, err := Compile(NewSymbolTable(builtins.NameSet), []byte(script), CompileOptions{})
-	c := __cr1.BC()
+	cr1, err := Compile(NewSymbolTable(builtins.NameSet), []byte(script), CompileOptions{})
+	c := cr1.BC()
 	if err != nil {
 		t.Fatal(err)
 	}

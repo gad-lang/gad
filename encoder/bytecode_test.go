@@ -162,8 +162,8 @@ func NewSymbolTable() *gad.SymbolTable {
 }
 
 func Compile(script []byte, opts gad.CompilerOptions) (bc *gad.Bytecode, err error) {
-	__cr1, err := gad.Compile(NewSymbolTable(), []byte(script), gad.CompileOptions{CompilerOptions: opts})
-	bc = __cr1.BC()
+	cr1, err := gad.Compile(NewSymbolTable(), []byte(script), gad.CompileOptions{CompilerOptions: opts})
+	bc = cr1.BC()
 	return
 }
 

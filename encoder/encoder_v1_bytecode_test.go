@@ -88,13 +88,13 @@ func testEncDecBytecode(t *testing.T, script string, opts *testopts, expected ga
 	builtins := gad.NewBuiltins().Build()
 	st := gad.NewSymbolTable(builtins.Builtins().NameSet)
 
-	__cr1, err := gad.Compile(st, []byte(script),
+	cr1, err := gad.Compile(st, []byte(script),
 		gad.CompileOptions{CompilerOptions: gad.CompilerOptions{
 			ModuleMap: opts.moduleMap,
 		}},
 	)
 
-	bc := __cr1.BC()
+	bc := cr1.BC()
 
 	var goModules GoModules
 	if initialModuleMap != nil {

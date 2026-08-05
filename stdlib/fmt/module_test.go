@@ -336,8 +336,8 @@ func run(script string) (ret Object, err error) {
 	c.ModuleMap = mm
 
 	builtins := NewBuiltins().Build()
-	__cr1, err := Compile(NewSymbolTable(builtins.Builtins().NameSet), []byte(script), c)
-	bc := __cr1.BC()
+	cr1, err := Compile(NewSymbolTable(builtins.Builtins().NameSet), []byte(script), c)
+	bc := cr1.BC()
 	if err != nil {
 		return
 	}

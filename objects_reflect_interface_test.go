@@ -42,9 +42,9 @@ func runReflect(t *testing.T, v any, src string) Object {
 	_, err = st.DefineGlobals([]string{"v"})
 	require.NoError(t, err)
 
-	__cr1, err := Compile(st, []byte(src), CompileOptions{})
+	cr1, err := Compile(st, []byte(src), CompileOptions{})
 
-	bc := __cr1.BC()
+	bc := cr1.BC()
 	require.NoErrorf(t, err, "compile: %s", src)
 
 	vm := NewVM(builtins.Build(), bc)
@@ -149,8 +149,8 @@ func ExampleNewReflectValue_structuralContract() {
 		p :: Greeter          // rejected unless p has the Name field and Greet()
 		println(p.Greet())
 	`
-	__cr2, err := Compile(st, []byte(src), CompileOptions{})
-	bc := __cr2.BC()
+	cr2, err := Compile(st, []byte(src), CompileOptions{})
+	bc := cr2.BC()
 	if err != nil {
 		panic(err)
 	}
