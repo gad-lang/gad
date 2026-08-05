@@ -257,6 +257,27 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   cmd/gad flagging CLI scripts ModuleMain, `@main` is now true in the entry module
   (incl. `param (*argv)`) and false in imports. Regression test added
 
+### 2026-08-05 (gadx tag-encode JSON/YAML)
+- Bug: running a .gadx echoed `⇦ gadx.Tag()` instead of rendering. Root cause was
+  the return (a gadx.Element) not being rendered: cmd/gad execute() discarded it
+  (printed nothing) and web/ide server run set res.Result=ret.ToString(). Both
+  fixed to render the Element to stdout
+- Feature: tag-encode mode. gadx.ElementData(el)→gad.Object tree {tag,attrs,
+  children}; gadx.EncodeElement(el,"json"|"yaml") marshals it (shared). Instead of
+  HTML render, encode the returned tag as JSON/YAML
+- Backend: gadbridge.RunSourceArgs + wasm gadRun gain a tagEncode arg; web/ide
+  runRequest gains tagEncode; cmd/gad `--tag-encode json|yaml` flag. commit 32487ed
+  (+ server fix 2abdf58)
+- Frontend selector (Render|JSON|YAML), gadx-only: ide-react (RunConfig/RunProfile
+  + Run/Debug dialog + GadPlayground/GadNotebook) commit 0500e4b; ide-vuetify
+  (RunProfile/RunTarget + RunProfileDialog + GadPlayground/GadNotebook, VSelect
+  added) commit bf1937c. GadRunner.run + all wasm clients (app + both demos) take
+  tagEncode
+- Verified: go build ./... + wasm build; go test (root/cmd/gad/gadbridge/ide/gadx)
+  green; CLI E2E: gad p.gadx → HTML, -tag-encode json/yaml → encoded; ide-react +
+  ide-vuetify + both demos typecheck+build; demo gad.wasm rebuilt. Tests:
+  bridge (html/json/yaml), cmd/gad (render+encode)
+
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
 |-------|-------|-----|----------|
