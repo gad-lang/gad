@@ -228,6 +228,7 @@ func (e *Enum) Equal(right Object) bool {
 var (
 	_ Object      = (*EnumValue)(nil)
 	_ IndexGetter = (*EnumValue)(nil)
+	_ Printabler  = (*EnumValue)(nil)
 )
 
 // EnumValue is a single member of an Enum: its declaration Index, owning Enum,
@@ -253,12 +254,26 @@ func (e *EnumValue) IsInt() (ok bool) {
 	return
 }
 
+// ToString returns the string of the member's underlying Value, so an enum
+// member stringifies (str(), printing, interpolation) as its value.
 func (e *EnumValue) ToString() string {
-	var typName = "uint"
+	return e.Value.ToString()
+}
+
+// Print writes the member as its plain value (str/print) or, in repr mode, as
+// the detailed form `‹enum ‹FullName›: Name = ‹int|uint: value››`.
+func (e *EnumValue) Print(s *PrinterState) error {
+	if !s.IsRepr {
+		return s.Print(e.Value)
+	}
+	typName := "uint"
 	if e.IsInt() {
 		typName = "int"
 	}
-	return ReprQuoteTyped("enum "+ReprQuote(e.Enum.FullName()), e.Name+" = "+ReprQuoteTyped(typName, e.Value.ToString()))
+	return s.WriteString(ReprQuoteTyped(
+		"enum "+ReprQuote(e.Enum.FullName()),
+		e.Name+" = "+ReprQuoteTyped(typName, e.Value.ToString()),
+	))
 }
 
 func (e *EnumValue) Equal(right Object) bool {

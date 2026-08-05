@@ -72,7 +72,7 @@ func TestGadParseSourceFile(t *testing.T) {
 	// (bytes) and bytes() conversion.
 	ret, _ := runScript(t, `
 		src := gad.parse("abc"; name="x.gadt")
-		return [src.path, str(src.type), int(src[0]), str(src[0:2]), str(bytes(src)), len(src)]
+		return [src.path, src.type.name, int(src[0]), str(src[0:2]), str(bytes(src)), len(src)]
 	`, false)
 	arr, ok := ret.(gad.Array)
 	if !ok || len(arr) != 6 {

@@ -99,6 +99,23 @@ for name, member in Perm {     // iterate in declaration order
 }
 ```
 
+A member **stringifies as its underlying value** — `str()`, `println` and string
+interpolation all use `member.value`:
+
+```gad
+str(Perm.Exec)          // "10"   (the value, not the name)
+"perm=" + str(Perm.Exec) // "perm=10"
+println(Perm.Exec)      // 10
+```
+
+`repr()` keeps the detailed form for debugging:
+
+```gad
+repr(Perm.Exec)   // ‹enum ‹Perm›: Exec = ‹int: 10››
+```
+
+Use `.name` when you want the member's name (`Perm.Exec.name` → `"Exec"`).
+
 ### Bulk accessors
 
 Four virtual keys expose the whole enum at once. Every one is in **declaration

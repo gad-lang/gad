@@ -69,4 +69,10 @@ println("Signed       =",
 Color := enum { Red, Green, Blue }
 println("Color.Green  =", Color.Green.value)   // 2
 
+// A member stringifies as its underlying value (str / print / interpolation),
+// while repr() keeps the detailed form for debugging.
+println("str          =", str(Perm.Exec))      // 10
+println("interp       =", "exec=" + str(Perm.Exec))  // exec=10
+println("repr         =", repr(Perm.Exec))     // ‹enum ‹…Perm›: Exec = ‹int: 10››
+
 return Perm.Delete.value

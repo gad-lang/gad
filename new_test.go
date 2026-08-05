@@ -1064,6 +1064,15 @@ func TestVMEnum(t *testing.T) {
 	// indexGet of an unknown member errors.
 	expectErrIs(t, `enum Perm { Read }
 	return Perm["Nope"]`, nil, ErrInvalidIndex)
+
+	// str()/interpolation of a member yields its underlying value; repr() keeps
+	// the detailed `‹enum ‹FullName›: Name = ‹int: value››` form.
+	testExpectRun(t, `enum Perm { Read, Write, Exec = 10 }
+	return [str(Perm.Exec), "e=" + str(Perm.Exec), str(Perm.Read)]`,
+		nil, Array{Str("10"), Str("e=10"), Str("1")})
+	testExpectRun(t, `enum Perm { Read, Write, Exec = 10 }
+	return repr(Perm.Exec)`,
+		nil, Str("‹enum ‹(main).Perm›: Exec = ‹int: 10››"))
 }
 
 func TestVMDeferStmt(t *testing.T) {
