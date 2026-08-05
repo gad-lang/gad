@@ -217,3 +217,48 @@
   outline: 1px dashed rgb(var(--v-theme-primary));
   outline-offset: -1px;
 }
+
+/* Editor tabs + status bar */
+.editor-tabs {
+  display: flex;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(var(--v-border-color), 0.3);
+  background: rgba(var(--v-theme-surface), 0.6);
+}
+.editor-tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  border-right: 1px solid rgba(var(--v-border-color), 0.3);
+  white-space: nowrap;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+.editor-tab:hover {
+  background: rgba(var(--v-theme-primary), 0.08);
+}
+.editor-tab--active {
+  color: rgb(var(--v-theme-on-surface));
+  border-bottom: 2px solid rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.06);
+}
+.editor-tab-close {
+  opacity: 0.5;
+  font-size: 14px;
+  line-height: 1;
+}
+.editor-tab-close:hover {
+  opacity: 1;
+}
+.editor-statusbar {
+  padding: 1px 8px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  border-top: 1px solid rgba(var(--v-border-color), 0.3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

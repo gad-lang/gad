@@ -82,11 +82,21 @@ export function createController(
   // File-type registry: tree icons + editor language/plugin per extension.
   const fileTypes = new FileTypeRegistry(hooks.fileTypes);
   const iconFor = (path: string) => fileTypes.iconFor(path);
-  // --- file tree ----------------------------------------------------------
+  // --- file tree + open tabs ----------------------------------------------
   const tree = shallowRef<TreeNode | null>(null);
   const expanded = reactive(new Set<string>());
-  const openPath = ref<string>(workspace.openFile || "");
-  const source = ref<string>("");
+  // Open editor tabs and the active index. openPath/source below are derived
+  // views over the active tab, so existing consumers keep working.
+  const tabs = ref<{ path: string; content: string }[]>([]);
+  const active = ref(-1);
+  const openPath = computed(() => tabs.value[active.value]?.path ?? "");
+  const source = computed<string>({
+    get: () => tabs.value[active.value]?.content ?? "",
+    set: (v) => {
+      const t = tabs.value[active.value];
+      if (t) t.content = v;
+    },
+  });
 
   const rows = computed<TreeRow[]>(() => {
     const out: TreeRow[] = [];
@@ -111,8 +121,23 @@ export function createController(
     await loadTree();
   }
   async function openFile(path: string) {
-    openPath.value = path;
-    source.value = (await api.read(path)).content;
+    const i = tabs.value.findIndex((t) => t.path === path);
+    if (i >= 0) {
+      active.value = i;
+      return;
+    }
+    const content = (await api.read(path)).content;
+    tabs.value.push({ path, content });
+    active.value = tabs.value.length - 1;
+  }
+  function activateTab(i: number) {
+    if (i >= 0 && i < tabs.value.length) active.value = i;
+  }
+  function closeTab(i: number) {
+    if (i < 0 || i >= tabs.value.length) return;
+    tabs.value.splice(i, 1);
+    if (active.value >= tabs.value.length) active.value = tabs.value.length - 1;
+    else if (active.value > i) active.value--;
   }
   function toggleDir(path: string) {
     if (expanded.has(path)) expanded.delete(path);
@@ -164,15 +189,18 @@ export function createController(
     await loadTree();
   }
   async function removeOpen() {
-    if (!openPath.value || !(await uiConfirm("Delete file", "Delete " + openPath.value + "?"))) return;
-    await api.del(openPath.value);
-    openPath.value = "";
-    source.value = "";
+    const path = openPath.value;
+    if (!path || !(await uiConfirm("Delete file", "Delete " + path + "?"))) return;
+    await api.del(path);
+    const i = tabs.value.findIndex((t) => t.path === path);
+    if (i >= 0) closeTab(i);
     await loadTree();
   }
   async function reset() {
     if (!onReset || !(await uiConfirm("Reset workspace", "Discard all your changes and restore the samples?"))) return;
     await onReset();
+    tabs.value = [];
+    active.value = -1;
     await loadTree();
     const first = firstFile(tree.value);
     if (first) await openFile(first);
@@ -461,11 +489,8 @@ export function createController(
 
   async function init() {
     await loadTree();
-    if (openPath.value) await openFile(openPath.value);
-    else {
-      const first = firstFile(tree.value);
-      if (first) await openFile(first);
-    }
+    const initial = workspace.openFile || firstFile(tree.value);
+    if (initial) await openFile(initial);
   }
 
   return {
@@ -473,6 +498,7 @@ export function createController(
     dark,
     // tree
     tree, rows, openPath, source, isExpanded, toggleDir, openFile,
+    tabs, active, activateTab, closeTab,
     showHidden, toggleHidden,
     newFile, newDir, removeOpen, reset, canReset, upload, uploadUrl, urlDialog, uploadProgress,
     readonly,

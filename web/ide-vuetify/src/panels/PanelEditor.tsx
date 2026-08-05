@@ -8,6 +8,9 @@ import { IdeControllerKey } from "../controller";
 import type { GadEditorView } from "../codemirror";
 import type { RunProfile } from "../api";
 
+const baseName = (path: string) => path.slice(path.lastIndexOf("/") + 1);
+const truncate = (s: string, n = 15) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+
 export default defineComponent({
   name: "PanelEditor",
   setup() {
@@ -20,6 +23,23 @@ export default defineComponent({
 
     return () => (
       <div class="pnl">
+        {/* Open-file tabs — basename truncated to 15 chars; full name on hover. */}
+        {ctx.tabs.value.length > 0 && (
+          <div class="editor-tabs">
+            {ctx.tabs.value.map((t, i) => (
+              <div
+                key={t.path}
+                class={["editor-tab", { "editor-tab--active": i === ctx.active.value }]}
+                title={baseName(t.path)}
+                onClick={() => ctx.activateTab(i)}
+                onMousedown={(e: MouseEvent) => { if (e.button === 1) { e.preventDefault(); ctx.closeTab(i); } }}
+              >
+                <span class="editor-tab-name">{truncate(baseName(t.path))}</span>
+                <span class="editor-tab-close" title="Close" onClick={(e: MouseEvent) => { e.stopPropagation(); ctx.closeTab(i); }}>×</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div class="pnl-toolbar">
           {ctx.canEdit.value && (
             <>
@@ -82,7 +102,6 @@ export default defineComponent({
             </>
           )}
 
-          <span class="text-caption pnl-ellipsis ml-2">{ctx.openPath.value || "(no file)"}</span>
           {ctx.snap.value?.state === "stopped" && (
             <span class="text-caption ml-2">stopped ({ctx.snap.value.reason}) @ {ctx.snap.value.line}:{ctx.snap.value.column}</span>
           )}
@@ -95,6 +114,7 @@ export default defineComponent({
         <div class="pnl-editor">
           {has() ? (
             <GadEditor
+              key={ctx.openPath.value}
               modelValue={ctx.source.value}
               {...{ "onUpdate:modelValue": (v: string) => (ctx.source.value = v) }}
               breakpoints={ctx.breakpoints.value}
@@ -116,6 +136,8 @@ export default defineComponent({
             <div class="pa-4 text-medium-emphasis">Select or create a file to begin.</div>
           )}
         </div>
+        {/* Thin status bar: the full path of the open file. */}
+        <div class="editor-statusbar" title={ctx.openPath.value}>{ctx.openPath.value || "(no file)"}</div>
       </div>
     );
   },
