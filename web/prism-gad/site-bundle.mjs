@@ -15,14 +15,11 @@ import { registerGad, registerGadx, registerGadTemplate } from "./src/index";
 
 // The Gad family: gad, gadx and gadt (template). registerGad must run first —
 // the template and gadx grammars embed the Gad grammar.
+// The docs label fences gad / gadt / gadx, which these install as
+// Prism.languages.gad / .gadt / .gadx.
 registerGad(Prism);
 registerGadx(Prism);
 registerGadTemplate(Prism);
-
-// The docs label fences gad / gad-gadt / gad-gadx (Prism reads the language name
-// from the language-<name> class), so alias the dialects under those names.
-Prism.languages["gad-gadx"] = Prism.languages.gadx;
-Prism.languages["gad-gadt"] = Prism.languages.gadt;
 
 globalThis.Prism = Prism;
 

@@ -92,7 +92,7 @@ var guideOrder = []string{
 	"README", "getting-started", "values-and-types", "variables-and-scopes",
 	"operators", "control-flow", "functions", "collections",
 	"strings-bytes-regex", "error-handling", "modules", "builtins",
-	"formatting", "embedding",
+	"templates", "formatting", "embedding",
 }
 
 var refOrder = []string{
@@ -766,7 +766,7 @@ func wasmEmbedBody(playHref string) template.HTML {
 }
 
 // buildPrismBundle bundles PrismJS core + common languages + the Gad-family
-// grammars (gad / gad-gadt / gad-gadx) into <outDir>/prism.js for static syntax
+// grammars (gad / gadt / gadx) into <outDir>/prism.js for static syntax
 // highlighting. Requires bun; the caller tolerates failure (code blocks then
 // render unstyled).
 func buildPrismBundle(repoRoot, outDir string) error {
