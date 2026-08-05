@@ -26,12 +26,12 @@ return [x * multiplier for x in args]
 	builtins := gad.NewBuiltins()
 	st := gad.NewSymbolTable(builtins.NameSet)
 
-	_, bc, err := gad.Compile(st, []byte(script), gad.CompileOptions{})
+	cr, err := gad.Compile(st, []byte(script), gad.CompileOptions{})
 	if err != nil {
 		panic(err)
 	}
 
-	ret, err := gad.NewVM(builtins.Build(), bc).RunOpts(&gad.RunOpts{
+	ret, err := gad.NewVM(builtins.Build(), cr.Bytecode).RunOpts(&gad.RunOpts{
 		Globals: gad.Dict{"multiplier": gad.Int(2)},
 		Args:    gad.Args{gad.Array{gad.Int(1), gad.Int(2), gad.Int(3), gad.Int(4)}},
 	})
@@ -48,8 +48,9 @@ The flow is:
    the symbol table and `.Build()` produces the runtime objects.
 2. **Symbol table** — `gad.NewSymbolTable(builtins.NameSet)` tracks declared
    names at compile time.
-3. **Compile** — `gad.Compile(st, src, opts)` returns the bytecode (`bc`).
-4. **Run** — `gad.NewVM(builtins.Build(), bc).RunOpts(&gad.RunOpts{…})` executes
+3. **Compile** — `gad.Compile(st, src, opts)` returns a `*gad.CompileResult`;
+   its `.Bytecode` field holds the compiled bytecode.
+4. **Run** — `gad.NewVM(builtins.Build(), cr.Bytecode).RunOpts(&gad.RunOpts{…})` executes
    it and returns the script's `return` value as a `gad.Object`.
 
 ## Passing Globals and Arguments

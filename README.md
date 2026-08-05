@@ -206,12 +206,12 @@ return v
 
     builtins := gad.NewBuiltins()
     st := gad.NewSymbolTable(builtins.NameSet)
-    _, bc, err := gad.Compile(st, []byte(script), gad.CompileOptions{})
+    cr, err := gad.Compile(st, []byte(script), gad.CompileOptions{})
     if err != nil {
         panic(err)
     }
 
-    ret, err := gad.NewVM(builtins.Build(), bc).RunOpts(&gad.RunOpts{
+    ret, err := gad.NewVM(builtins.Build(), cr.Bytecode).RunOpts(&gad.RunOpts{
         Globals: gad.Dict{"multiplier": gad.Int(2)},
         Args:    gad.Args{gad.Array{gad.Int(1), gad.Int(2), gad.Int(3), gad.Int(4)}},
     })

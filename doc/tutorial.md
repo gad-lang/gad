@@ -72,13 +72,15 @@ func main() {
     }
   return fib(num, 0, 1)
   `
-  bytecode, err := gad.Compile([]byte(script), gad.DefaultCompilerOptions)
+  builtins := gad.NewBuiltins()
+  st := gad.NewSymbolTable(builtins.NameSet)
+  cr, err := gad.Compile(st, []byte(script), gad.CompileOptions{})
 
   if err != nil {
     panic(err)
   }
 
-  retValue, err := gad.NewVM(bytecode).Run(nil,  gad.Int(35))
+  retValue, err := gad.NewVM(builtins.Build(), cr.Bytecode).Run(gad.Int(35))
 
   if err != nil {
     panic(err)
@@ -96,12 +98,12 @@ Compiler options hold all customizable options for the compiler.
 debugging and testing purposes like below;
 
 ```go
-bytecode, err := gad.Compile([]byte(script), gad.TraceCompilerOptions)
+opts := gad.CompileOptions{CompilerOptions: gad.TraceCompilerOptions}
+cr, err := gad.Compile(st, []byte(script), opts)
 // or change output and disable tracing parser
-// opts := gad.TraceCompilerOptions
 // opts.Trace = os.Stderr
 // opts.TraceParser = false
-// bytecode, err := gad.Compile([]byte(script), opts)
+// cr, err := gad.Compile(st, []byte(script), opts)
 ```
 
 VM execution can be aborted by using `Abort` method which cause `Run` method to
@@ -115,11 +117,11 @@ Go's `errors.Is` function in `errors` package.
 and ensures stack and module cache is cleaned.
 
 ```go
-vm := gad.NewVM(bytecode)
-retValue, err := vm.Run(nil,  gad.Int(35))
+vm := gad.NewVM(builtins.Build(), cr.Bytecode)
+retValue, err := vm.Run(gad.Int(35))
 /* ... */
 // vm.Clear()
-retValue, err := vm.Run(nil,  gad.Int(34))
+retValue, err = vm.Run(gad.Int(34))
 /* ... */
 ```
 
@@ -133,31 +135,32 @@ param num
 global upperBound
 return num > upperBound ? "big" : "small"
 `
-bytecode, err := gad.Compile([]byte(script), gad.DefaultCompilerOptions)
+cr, err := gad.Compile(st, []byte(script), gad.CompileOptions{})
 
 if err != nil {
   panic(err)
 }
 
-g := gad.Map{"upperBound": gad.Int(1984)}
-retValue, err := gad.NewVM(bytecode).Run(g,  gad.Int(2018))
-// retValue == gad.String("big")
+g := gad.Dict{"upperBound": gad.Int(1984)}
+retValue, err := gad.NewVM(builtins.Build(), cr.Bytecode).RunOpts(&gad.RunOpts{
+  Globals: g,
+  Args:    gad.Args{gad.Array{gad.Int(2018)}},
+})
+// retValue == gad.Str("big")
 ```
 
-There is a special type `SyncMap` in Gad to make goroutine safe map object where
+There is a special type `SyncDict` in Gad to make goroutine safe map object where
 scripts/Go might need to interact with each other concurrently, e.g. one can
-collect statistics or data within maps. Underlying map of `SyncMap` is guarded
+collect statistics or data within maps. Underlying map of `SyncDict` is guarded
 with a `sync.RWMutex`.
 
 ```go
 module := `
 global stats
 
-exports = {
-  inc() {
-    stats.fn2++
-    /* ... */
-  }
+export inc() {
+  stats.fn2++
+  /* ... */
 }
 `
 script := `
@@ -176,30 +179,30 @@ m.inc()
 mm := gad.NewModuleMap()
 mm.AddSourceModule("module", []byte(module))
 
-opts := gad.DefaultCompilerOptions
+opts := gad.CompileOptions{}
 opts.ModuleMap = mm
 
-bytecode, err := gad.Compile([]byte(script), opts)
+cr, err := gad.Compile(st, []byte(script), opts)
 
 if err != nil {
   panic(err)
 }
 
-g := &gad.SyncMap{
-    Map: gad.Map{"stats": gad.Map{"fn1": gad.Int(0), "fn2": gad.Int(0)}},
+g := &gad.SyncDict{
+    Value: gad.Dict{"stats": gad.Dict{"fn1": gad.Int(0), "fn2": gad.Int(0)}},
 }
-_, err = gad.NewVM(bytecode).Run(g)
+_, err = gad.NewVM(builtins.Build(), cr.Bytecode).RunOpts(&gad.RunOpts{Globals: g})
 /* ... */
 ```
 
-As can be seen from examples above, VM's `Run` method takes arguments and its
-signature is as below. A map like `globals` argument or `nil` value can be
-provided for globals parameter. `args` variadic parameter enables providing
-arbitrary number of arguments to VM which are accessed via [`param`](#param)
-statement.
+As can be seen from examples above, VM's `Run` method takes a variadic list of
+arguments (accessed via the [`param`](#param) statement); use `RunOpts` when you
+also need to pass globals (any `IndexGetSetter` such as `gad.Dict` / `*gad.SyncDict`),
+named arguments or a custom stdout. Their signatures are:
 
 ```go
-func (vm *VM) Run(globals Object, args ...Object) (Object, error)
+func (vm *VM) Run(args ...Object) (Object, error)
+func (vm *VM) RunOpts(opts *RunOpts) (Object, error)
 ```
 
 ## Variables Declaration and Scopes

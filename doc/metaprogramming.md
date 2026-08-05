@@ -161,7 +161,8 @@ st := gad.NewSymbolTable(builtins.NameSet)
 
 opts := gad.CompileOptions{}
 opts.GadxOptions = &gad.GadxOptions{} // parse & lower as Gadx
-_, bc, err := gad.Compile(st, []byte("p Hello {= name }"), opts)
+cr, err := gad.Compile(st, []byte("p Hello {= name }"), opts)
+// cr.Bytecode holds the compiled program
 ```
 
 The file importer (`github.com/gad-lang/gad/importers.FileImporter`) recognises
