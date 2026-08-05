@@ -28,6 +28,9 @@ type siteConfig struct {
 	// playHref is the site-root-relative path of the Playground/demo, set during
 	// the build (not a flag) for the header link.
 	playHref string
+	// prism is set when the PrismJS bundle was built (loads prism.js + enables
+	// syntax highlighting).
+	prism bool
 }
 
 // tasksURL returns the effective Tasks link (the repository issues by default).
@@ -165,6 +168,13 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 		play = &page{Slug: "playground", Title: "Playground", OutFile: "playground.html", Section: "Playground"}
 	}
 	cfg.playHref = play.OutFile
+
+	// PrismJS bundle for static syntax highlighting (best-effort; needs bun).
+	if err := buildPrismBundle(repoRoot, outDir); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: syntax highlighting disabled (prism bundle): %v\n", err)
+	} else {
+		cfg.prism = true
+	}
 
 	groups := []navGroup{
 		{Name: "Guide", Pages: guide},
@@ -460,6 +470,7 @@ type layoutData struct {
 	ReleaseName string
 	ReleaseURL  string
 	HasRelease  bool
+	Prism       bool
 }
 
 func writePage(outDir string, tmpl *template.Template, groups []navGroup, p *page, body template.HTML, cfg siteConfig) error {
@@ -476,6 +487,7 @@ func writePage(outDir string, tmpl *template.Template, groups []navGroup, p *pag
 		ReleaseName: cfg.releaseName(),
 		ReleaseURL:  cfg.releaseURL(),
 		HasRelease:  cfg.hasRelease(),
+		Prism:       cfg.prism,
 	}
 	outPath := filepath.Join(outDir, filepath.FromSlash(p.OutFile))
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
@@ -654,9 +666,14 @@ func downloadBody(cfg siteConfig) template.HTML {
 	return template.HTML(b.String())
 }
 
-// codeBlock renders code as an HTML-escaped <pre><code> block.
-func codeBlock(code string) string {
-	return "<pre><code>" + template.HTMLEscapeString(code) + "</code></pre>"
+// codeBlock renders code as an HTML-escaped <pre><code> block, tagging both with
+// a language-<lang> class so PrismJS highlights it.
+func codeBlock(code, lang string) string {
+	cls := ""
+	if lang != "" {
+		cls = ` class="language-` + lang + `"`
+	}
+	return "<pre" + cls + "><code" + cls + ">" + template.HTMLEscapeString(code) + "</code></pre>"
 }
 
 // homeIntroHTML builds the home page hero + the three-path quickstart (CLI,
@@ -682,24 +699,24 @@ func homeIntroHTML(cfg siteConfig, playHref string) template.HTML {
 	// Card 1 — CLI.
 	b.WriteString(`<div class="card"><h3><span class="card-badge">⌘</span> Command line</h3>`)
 	b.WriteString(`<p>Download the <code>gad</code> binary from the releases, or install it with Go:</p>`)
-	b.WriteString(codeBlock("go install github.com/gad-lang/gad/cmd/gad@latest"))
+	b.WriteString(codeBlock("go install github.com/gad-lang/gad/cmd/gad@latest", "bash"))
 	b.WriteString(`<p>Run, format and document:</p>`)
-	b.WriteString(codeBlock("gad script.gad        # run a script\ngad fmt script.gad    # format in place\ngad doc               # generate workspace docs"))
+	b.WriteString(codeBlock("gad script.gad        # run a script\ngad fmt script.gad    # format in place\ngad doc               # generate workspace docs", "bash"))
 	b.WriteString(`<a class="card-link" href="download.html">Download &amp; run →</a>`)
 	b.WriteString(`</div>`)
 
 	// Card 2 — WebAssembly.
 	b.WriteString(`<div class="card"><h3><span class="card-badge">◈</span> WebAssembly</h3>`)
 	b.WriteString(`<p>Grab <code>gad.wasm</code> + <code>wasm_exec.js</code> and run Gad in any browser:</p>`)
-	b.WriteString(codeBlock("<script src=\"wasm_exec.js\"></script>\n<script>\n  const go = new Go();\n  WebAssembly.instantiateStreaming(\n    fetch(\"gad.wasm\"), go.importObject\n  ).then(r => {\n    go.run(r.instance);\n    const res = JSON.parse(gadRun(\"return 6 * 7\"));\n    console.log(res.result); // \"42\"\n  });\n</script>"))
+	b.WriteString(codeBlock("<script src=\"wasm_exec.js\"></script>\n<script>\n  const go = new Go();\n  WebAssembly.instantiateStreaming(\n    fetch(\"gad.wasm\"), go.importObject\n  ).then(r => {\n    go.run(r.instance);\n    const res = JSON.parse(gadRun(\"return 6 * 7\"));\n    console.log(res.result); // \"42\"\n  });\n</script>", "markup"))
 	b.WriteString(`<a class="card-link" href="wasm-embed.html">Embed the WASM →</a>`)
 	b.WriteString(`</div>`)
 
 	// Card 3 — Go module.
 	b.WriteString(`<div class="card"><h3><span class="card-badge">Go</span> Go module</h3>`)
 	b.WriteString(`<p>Embed the compiler and VM in your Go program:</p>`)
-	b.WriteString(codeBlock("go get github.com/gad-lang/gad"))
-	b.WriteString(codeBlock("builtins := gad.NewBuiltins()\nst := gad.NewSymbolTable(builtins.NameSet)\ncr, _ := gad.Compile(st, []byte(`return 6 * 7`), gad.CompileOptions{})\nret, _ := gad.NewVM(builtins.Build(), cr.Bytecode).Run()\nfmt.Println(ret) // 42"))
+	b.WriteString(codeBlock("go get github.com/gad-lang/gad", "bash"))
+	b.WriteString(codeBlock("builtins := gad.NewBuiltins()\nst := gad.NewSymbolTable(builtins.NameSet)\ncr, _ := gad.Compile(st, []byte(`return 6 * 7`), gad.CompileOptions{})\nret, _ := gad.NewVM(builtins.Build(), cr.Bytecode).Run()\nfmt.Println(ret) // 42", "go"))
 	b.WriteString(`<a class="card-link" href="embedding.html">Embedding guide →</a>`)
 	b.WriteString(`</div>`)
 
@@ -720,7 +737,7 @@ func wasmEmbedBody(playHref string) template.HTML {
 	b.WriteString(`<p>Download <code>gad.wasm</code> and <code>wasm_exec.js</code> from the <a href="download.html">Download</a> page (both are attached to every release). <code>wasm_exec.js</code> is Go's WASM loader and must match the Go toolchain the module was built with — always ship the one from the same release.</p>`)
 
 	b.WriteString(`<h2>2. Load it</h2>`)
-	b.WriteString(codeBlock("<script src=\"wasm_exec.js\"></script>\n<script>\n  const go = new Go();\n  WebAssembly.instantiateStreaming(fetch(\"gad.wasm\"), go.importObject)\n    .then(r => { go.run(r.instance); onReady(); });\n\n  function onReady() {\n    // window.gadRun / gadFormat / gadDiagnose / gadDoc / … are ready.\n    const r = JSON.parse(gadRun('println(\"hi\"); return 6 * 7'));\n    console.log(r.stdout, r.result); // \"hi\\n\" \"42\"\n  }\n</script>"))
+	b.WriteString(codeBlock("<script src=\"wasm_exec.js\"></script>\n<script>\n  const go = new Go();\n  WebAssembly.instantiateStreaming(fetch(\"gad.wasm\"), go.importObject)\n    .then(r => { go.run(r.instance); onReady(); });\n\n  function onReady() {\n    // window.gadRun / gadFormat / gadDiagnose / gadDoc / … are ready.\n    const r = JSON.parse(gadRun('println(\"hi\"); return 6 * 7'));\n    console.log(r.stdout, r.result); // \"hi\\n\" \"42\"\n  }\n</script>", "markup"))
 	fmt.Fprintf(&b, `<blockquote>A long-running script blocks the thread. For a responsive UI, load the module inside a <strong>Web Worker</strong> — exactly what the <a href="%s">Playground</a> does.</blockquote>`, template.HTMLEscapeString(playHref))
 
 	b.WriteString(`<h2>3. The API</h2>`)
@@ -746,6 +763,29 @@ func wasmEmbedBody(playHref string) template.HTML {
 	b.WriteString(`<h2>Prefer a ready-made editor?</h2>`)
 	b.WriteString(`<p>The <a href="js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a> and <a href="js-modules/ide-react.html">@gad-lang/ide-react</a> packages wrap this module into a full IDE component (editor, run profiles, debugger, inspector), and <a href="js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a> / <a href="js-modules/prism-gad.html">@gad-lang/prism-gad</a> provide syntax highlighting.</p>`)
 	return template.HTML(b.String())
+}
+
+// buildPrismBundle bundles PrismJS core + common languages + the Gad-family
+// grammars (gad / gad-gadt / gad-gadx) into <outDir>/prism.js for static syntax
+// highlighting. Requires bun; the caller tolerates failure (code blocks then
+// render unstyled).
+func buildPrismBundle(repoRoot, outDir string) error {
+	pkg := filepath.Join(repoRoot, "web", "prism-gad")
+	if _, err := os.Stat(filepath.Join(pkg, "site-bundle.mjs")); err != nil {
+		return err
+	}
+	// bun runs from the package dir (to resolve prismjs + ./src); the outfile must
+	// be absolute so it lands in the site output, not under the package.
+	out, err := filepath.Abs(filepath.Join(outDir, "prism.js"))
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("bun", "build", "./site-bundle.mjs", "--outfile", out, "--minify", "--format=iife")
+	cmd.Dir = pkg
+	if o, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("%v: %s", err, o)
+	}
+	return nil
 }
 
 // copyLogo copies the Gad logo (assets/identity/gad.svg) into the site root as

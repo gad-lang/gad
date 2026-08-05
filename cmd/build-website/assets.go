@@ -38,6 +38,7 @@ const layoutTemplate = `<!DOCTYPE html>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="{{.Base}}theme.js"></script>
 <script src="{{.Base}}search.js"></script>
+{{if .Prism}}<script src="{{.Base}}prism.js" defer></script>{{end}}
 </body>
 </html>`
 
@@ -72,12 +73,14 @@ color-scheme:light;
 --bg:#f4f7fb;--panel:#ffffff;--panel-2:#eef3f9;--border:#dbe4ef;
 --fg:#0d1b2a;--muted:#5a6b80;--accent:#0891b2;--accent-2:#d97706;
 --accent-soft:rgba(8,145,178,.12);--code-bg:#eef3f9;--shadow:0 1px 3px rgba(13,27,42,.08);
---hero-glow:radial-gradient(60% 120% at 15% 0%,rgba(6,182,212,.14),transparent),radial-gradient(50% 120% at 100% 0%,rgba(217,119,6,.10),transparent);}
+--hero-glow:radial-gradient(60% 120% at 15% 0%,rgba(6,182,212,.14),transparent),radial-gradient(50% 120% at 100% 0%,rgba(217,119,6,.10),transparent);
+--tok-comment:#6b7b8f;--tok-kw:#c2410c;--tok-fn:#0e7490;--tok-str:#2e8b57;--tok-num:#b45309;--tok-punc:#5a6b80;--tok-op:#0f766e;--tok-regex:#9333ea;}
 :root[data-theme=dark]{color-scheme:dark;
 --bg:#0d1b2a;--panel:#14243a;--panel-2:#0f2033;--border:#26364f;
 --fg:#e7eef7;--muted:#93a4bb;--accent:#22d3ee;--accent-2:#f59e0b;
 --accent-soft:rgba(34,211,238,.14);--code-bg:#0f2033;--shadow:0 1px 3px rgba(0,0,0,.4);
---hero-glow:radial-gradient(60% 120% at 15% 0%,rgba(6,182,212,.18),transparent),radial-gradient(50% 120% at 100% 0%,rgba(245,158,11,.12),transparent);}
+--hero-glow:radial-gradient(60% 120% at 15% 0%,rgba(6,182,212,.18),transparent),radial-gradient(50% 120% at 100% 0%,rgba(245,158,11,.12),transparent);
+--tok-comment:#7d8fa8;--tok-kw:#f59e0b;--tok-fn:#22d3ee;--tok-str:#7ee0a8;--tok-num:#fbbf24;--tok-punc:#93a4bb;--tok-op:#5eead4;--tok-regex:#c4b5fd;}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--fg);line-height:1.6;font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
@@ -122,6 +125,18 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .content pre{background:var(--code-bg);padding:1rem 1.1rem;border-radius:11px;overflow:auto;border:1px solid var(--border);position:relative;box-shadow:var(--shadow)}
 .content pre::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:11px 0 0 11px;background:linear-gradient(180deg,var(--accent),var(--accent-2))}
 .content pre code{background:none;padding:0;border:none;font-size:.86rem;line-height:1.55}
+/* PrismJS token colors (palette-matched; @gad-lang/prism-gad + common langs) */
+.token.comment,.token.prolog,.token.doctype,.token.cdata{color:var(--tok-comment);font-style:italic}
+.token.punctuation{color:var(--tok-punc)}
+.token.keyword,.token.atrule,.token.important,.token.tag,.token.selector{color:var(--tok-kw)}
+.token.function,.token.class-name,.token.builtin,.token.function-name{color:var(--tok-fn)}
+.token.string,.token.char,.token.attr-value,.token.inserted{color:var(--tok-str)}
+.token.number,.token.boolean,.token.constant,.token.symbol{color:var(--tok-num)}
+.token.operator,.token.entity,.token.url{color:var(--tok-op)}
+.token.regex{color:var(--tok-regex)}
+.token.property,.token.attr-name,.token.variable{color:var(--fg)}
+.token.deleted{color:#e5534b}.token.namespace{opacity:.7}
+.token.bold{font-weight:700}.token.italic{font-style:italic}
 .content table{border-collapse:collapse;width:100%;margin:1.2rem 0;display:block;overflow:auto;border-radius:10px}
 .content th,.content td{border:1px solid var(--border);padding:.5rem .75rem;text-align:left}
 .content th{background:var(--panel-2);font-weight:600}

@@ -1,0 +1,36 @@
+// Browser bundle entry for static syntax highlighting on the Gad docs website
+// (cmd/build-website). It bundles PrismJS core + a few common languages and the
+// Gad-family grammars (gad / gadt / gadx), then highlights every code block on
+// load. Built with `bun build` into the site's prism.js. Not published — this is
+// the docs site's own bundle source.
+import Prism from "prismjs";
+// Common languages used across the docs (Prism core already ships markup/css/
+// clike/javascript). These augment the global Prism the core sets up.
+import "prismjs/components/prism-go.js";
+import "prismjs/components/prism-json.js";
+import "prismjs/components/prism-bash.js";
+import "prismjs/components/prism-yaml.js";
+import "prismjs/components/prism-markdown.js";
+import { registerGad, registerGadx, registerGadTemplate } from "./src/index";
+
+// The Gad family: gad, gadx and gadt (template). registerGad must run first —
+// the template and gadx grammars embed the Gad grammar.
+registerGad(Prism);
+registerGadx(Prism);
+registerGadTemplate(Prism);
+
+// The docs label fences gad / gad-gadt / gad-gadx (Prism reads the language name
+// from the language-<name> class), so alias the dialects under those names.
+Prism.languages["gad-gadx"] = Prism.languages.gadx;
+Prism.languages["gad-gadt"] = Prism.languages.gadt;
+
+globalThis.Prism = Prism;
+
+function highlight() {
+  Prism.highlightAll();
+}
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", highlight);
+} else {
+  highlight();
+}
