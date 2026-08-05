@@ -77,8 +77,20 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   .goreleaser.yml + website.yml parse; gofmt clean → commit 2940bba
 - Installed goreleaser v2 (`go install github.com/goreleaser/goreleaser/v2@latest`)
   and ran `goreleaser check` → "1 configuration file(s) validated" (exit 0)
-  Unverified: a full `goreleaser release --snapshot` (would build all archives +
-  run the WASM before-hook + extra_files) not run; not exercised live in a browser
+- `goreleaser release --snapshot --clean` → "release succeeded after 29s" (exit 0):
+  built 4 binaries (linux/windows × amd64/arm64), 4 archives
+  (dist/gad_0.0.4-next_{linux_amd64.tar.gz,linux_arm64.tar.gz,windows_amd64.zip,
+  windows_arm64.zip}) + checksums.txt; the WASM before-hook produced
+  ./wasm-assets/{gad.wasm 20.5MB, gad_debug.wasm 20.6MB, wasm_exec.js} — the
+  extra_files that attach on a real release (upload skipped in snapshot mode)
+- DISCOVERED pre-existing goreleaser bug (present at HEAD~3, NOT from this task):
+  archives `files: doc/**/*` and `gadx/docs/**/*` match zero files (goreleaser
+  fileglob needs `doc/**`, not `doc/**/*`, to include files directly in doc/ —
+  all 31 doc files are top-level, no subdirs), so release archives ship without
+  the docs (only LICENSE, README.md, gad). Fix = `doc/**` + `gadx/docs/**`.
+  NOT applied — out of this task's scope; awaiting user confirmation
+
+## Errors & Fixes
 
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
