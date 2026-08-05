@@ -118,6 +118,33 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   Unverified: live GitHub Pages deploy + a real goreleaser release; site not
   opened in a real browser
 
+### 2026-08-05 (evening — Prism highlighting + fence sourceTypes)
+- Header: Tasks link → repo /issues (57f3740); Playground added to header nav
+  before Download, theme toggle stays right-most (644e58f)
+- `make website` / `make website-fast` targets (57a7fcf); tested by serving +
+  curl (/ 200, download/gad.svg/styles.css 200)
+- PrismJS highlighting: web/prism-gad/site-bundle.mjs bundles Prism core +
+  go/json/bash/yaml + gad/gadt/gadx grammars; build-website builds it best-effort
+  with bun into prism.js (buildPrismBundle; abs outfile path), loads it, and adds
+  palette-matched token colors. Verified the bundle registers gad/gadt/gadx/go
+  and highlights (runtime eval test)
+- Fence sourceTypes: reclassified doc/*.md — 282 `go`→`gad` (real Go embedding
+  kept `go` via markers: package/import/func main/gad.<Sym>/interface/[]byte);
+  embedding.md/metaprogramming.md Go untouched. gadx/docs `gadx`→(temporarily
+  gad-gadx then) `gadx`; templates.md mixed-template blocks → `gadt`. Final
+  decision: fences use plain gad/gadt/gadx (Prism registers those natively; no
+  gad-gadt/gad-gadx aliases)
+- Caught + fixed misfires: gadx docs `go`→`gad` (11 blocks were real Go using
+  `gadx.`/aliased imports/go.mod — reverted, only gadx→gadx normalized);
+  metaprogramming block with `{%` inside a string literal (kept `gad`, not gadt)
+- Added templates.md to the Guide nav ("coloque templates no site")
+- Verified: build-website renders functions.html=24×language-gad,
+  embedding.html=10×language-go, templates.html=6×language-gadt,
+  gadx-syntax=31×language-gadx, ref-workspace-config gad/gadx/sh/yaml; no gad-gad
+  left; `go build ./cmd/build-website` ok; gofmt clean. NOTE: gadx is NOT a
+  submodule (no gadx/.git) — its files are tracked directly in this repo; all
+  commits landed here
+
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
 |-------|-------|-----|----------|
