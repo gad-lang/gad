@@ -1,29 +1,15 @@
 #!/usr/bin/env bash
-# Build the Gad WASM module and copy Go's wasm_exec.js into the demo's public/.
+# Build the Gad WASM module for the Vuetify IDE demo and copy Go's wasm_exec.js
+# into the demo's public/. The demo is a full in-browser IDE (debug/inspect), so
+# it uses the debugger-enabled build under the plain gad.wasm name the demo
+# loads. Delegates to the repo-level scripts/build-wasm.sh.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # ide-vuetify/demo
 repo="$(cd "$here/../../.." && pwd)"                       # repo root
 out="$here/public"
 
-mkdir -p "$out"
-
-echo "building gad.wasm ..."
-( cd "$repo" && GOOS=js GOARCH=wasm go build -o "$out/gad.wasm" ./web/wasm )
-
-goroot="$(go env GOROOT)"
-exec_js=""
-for cand in "$goroot/lib/wasm/wasm_exec.js" "$goroot/misc/wasm/wasm_exec.js"; do
-  if [ -f "$cand" ]; then exec_js="$cand"; break; fi
-done
-if [ -z "$exec_js" ]; then
-  echo "could not find wasm_exec.js under $goroot" >&2
-  exit 1
-fi
-# The source under the Go module cache is read-only; remove any prior copy and
-# restore write permission so re-runs don't fail.
-rm -f "$out/wasm_exec.js"
-cp "$exec_js" "$out/wasm_exec.js"
-chmod u+w "$out/wasm_exec.js"
-
-echo "wrote $out/gad.wasm and $out/wasm_exec.js"
+bash "$repo/scripts/build-wasm.sh" "$out" debug
+# The demo loads "gad.wasm"; use the debugger build under that name.
+mv -f "$out/gad_debug.wasm" "$out/gad.wasm"
+echo "wrote $out/gad.wasm (debugger) and $out/wasm_exec.js"

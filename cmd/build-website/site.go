@@ -13,6 +13,55 @@ import (
 	"strings"
 )
 
+// siteConfig carries build-time site metadata: repository/tasks links and the
+// release info (tag, name, notes) surfaced in the header banner and the Download
+// page.
+type siteConfig struct {
+	RepoURL      string // e.g. https://github.com/gad-lang/gad
+	TasksURL     string // link to TASK.md (defaults to <RepoURL>/blob/main/TASK.md)
+	ReleaseTag   string // e.g. v1.2.3 (empty for a plain commit build)
+	ReleaseName  string // display name (defaults to the tag)
+	ReleaseNotes string // release notes as Markdown
+	ReleaseDate  string // display date next to the name
+	BuildWASM    bool
+}
+
+// tasksURL returns the effective TASK.md link.
+func (c siteConfig) tasksURL() string {
+	if c.TasksURL != "" {
+		return c.TasksURL
+	}
+	return c.RepoURL + "/blob/main/TASK.md"
+}
+
+// releaseName returns the display name for the release banner (name, else tag).
+func (c siteConfig) releaseName() string {
+	if c.ReleaseName != "" {
+		return c.ReleaseName
+	}
+	return c.ReleaseTag
+}
+
+// hasRelease reports whether a tagged release is known (banner + asset links).
+func (c siteConfig) hasRelease() bool { return c.ReleaseTag != "" }
+
+// releaseURL is the GitHub release page (specific tag, or /latest).
+func (c siteConfig) releaseURL() string {
+	if c.hasRelease() {
+		return c.RepoURL + "/releases/tag/" + c.ReleaseTag
+	}
+	return c.RepoURL + "/releases/latest"
+}
+
+// assetURL returns the download URL of a release asset for the known tag; when
+// no tag is known it points at the latest release's asset by name.
+func (c siteConfig) assetURL(name string) string {
+	if c.hasRelease() {
+		return c.RepoURL + "/releases/download/" + c.ReleaseTag + "/" + name
+	}
+	return c.RepoURL + "/releases/latest/download/" + name
+}
+
 // page is one rendered documentation page.
 type page struct {
 	Slug     string
@@ -53,7 +102,8 @@ var gadxOrder = []string{
 }
 
 // buildSite renders the whole website into outDir.
-func buildSite(repoRoot, outDir string, buildWASM bool) error {
+func buildSite(repoRoot, outDir string, cfg siteConfig) error {
+	buildWASM := cfg.BuildWASM
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return err
 	}
@@ -82,6 +132,7 @@ func buildSite(repoRoot, outDir string, buildWASM bool) error {
 	}
 
 	play := &page{Slug: "playground", Title: "Playground", OutFile: "playground.html", Section: "Playground"}
+	download := &page{Slug: "download", Title: "Download", OutFile: "download.html", Section: "Download"}
 
 	// JS module docs (web/*/README.md) become the "JS modules" nav section, one
 	// page per package at /js-modules/<name>.
@@ -117,6 +168,7 @@ func buildSite(repoRoot, outDir string, buildWASM bool) error {
 		}})
 	}
 	groups = append(groups, navGroup{Name: "Playground", Pages: []*page{play}})
+	groups = append(groups, navGroup{Name: "Download", Pages: []*page{download}})
 
 	all := append(append([]*page{}, guide...), ref...)
 	all = append(all, gadxPages...)
@@ -125,12 +177,16 @@ func buildSite(repoRoot, outDir string, buildWASM bool) error {
 	tmpl := template.Must(template.New("layout").Parse(layoutTemplate))
 
 	for _, p := range all {
-		if err := writePage(outDir, tmpl, groups, p, p.BodyHTML); err != nil {
+		if err := writePage(outDir, tmpl, groups, p, p.BodyHTML, cfg); err != nil {
 			return err
 		}
 	}
 	// Playground page (custom body).
-	if err := writePage(outDir, tmpl, groups, play, template.HTML(playgroundBody)); err != nil {
+	if err := writePage(outDir, tmpl, groups, play, template.HTML(playgroundBody), cfg); err != nil {
+		return err
+	}
+	// Download page (custom body: release banner, notes and asset table).
+	if err := writePage(outDir, tmpl, groups, download, downloadBody(cfg), cfg); err != nil {
 		return err
 	}
 
@@ -369,16 +425,27 @@ type layoutData struct {
 	// root ("" for root pages, "../" for pages one level deep like js-modules/*),
 	// so assets and nav links resolve at any base path and any page depth.
 	Base string
+	// Header links / release banner.
+	RepoURL     string
+	TasksURL    string
+	ReleaseName string
+	ReleaseURL  string
+	HasRelease  bool
 }
 
-func writePage(outDir string, tmpl *template.Template, groups []navGroup, p *page, body template.HTML) error {
+func writePage(outDir string, tmpl *template.Template, groups []navGroup, p *page, body template.HTML, cfg siteConfig) error {
 	data := layoutData{
-		Title:   p.Title,
-		Groups:  groups,
-		Active:  p.OutFile,
-		Content: body,
-		TOC:     tocOf(p.Headings),
-		Base:    baseFor(p.OutFile),
+		Title:       p.Title,
+		Groups:      groups,
+		Active:      p.OutFile,
+		Content:     body,
+		TOC:         tocOf(p.Headings),
+		Base:        baseFor(p.OutFile),
+		RepoURL:     cfg.RepoURL,
+		TasksURL:    cfg.tasksURL(),
+		ReleaseName: cfg.releaseName(),
+		ReleaseURL:  cfg.releaseURL(),
+		HasRelease:  cfg.hasRelease(),
 	}
 	outPath := filepath.Join(outDir, filepath.FromSlash(p.OutFile))
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
@@ -467,6 +534,97 @@ func plainText(src string) string {
 	return strings.Join(strings.Fields(b.String()), " ")
 }
 
+// downloadAsset is one row of the Download page's asset table.
+type downloadAsset struct {
+	label string // human label, e.g. "Linux (amd64)"
+	name  string // file name, e.g. gad_1.2.3_linux_amd64.tar.gz
+	url   string // download URL
+	desc  string // short description
+	local bool   // served directly from the site (download attribute)
+}
+
+// downloadBody renders the Download page: a highlighted release banner, the
+// release notes, and a table of downloadable assets (CLI binaries for
+// linux/windows on amd64/arm64, both WASM modules, and checksums).
+func downloadBody(cfg siteConfig) template.HTML {
+	var b strings.Builder
+
+	// Release banner — the release name is shown prominently.
+	b.WriteString(`<div class="rel-hero">`)
+	if cfg.hasRelease() {
+		b.WriteString(`<div class="rel-badge">Release</div>`)
+		fmt.Fprintf(&b, `<h1 class="rel-name"><a href="%s">%s</a></h1>`,
+			template.HTMLEscapeString(cfg.releaseURL()), template.HTMLEscapeString(cfg.releaseName()))
+		if cfg.ReleaseDate != "" {
+			fmt.Fprintf(&b, `<div class="rel-date">%s</div>`, template.HTMLEscapeString(cfg.ReleaseDate))
+		}
+	} else {
+		b.WriteString(`<div class="rel-badge">Latest</div>`)
+		fmt.Fprintf(&b, `<h1 class="rel-name"><a href="%s">Latest release</a></h1>`,
+			template.HTMLEscapeString(cfg.releaseURL()))
+		b.WriteString(`<div class="rel-date">This is a development build; download links point at the latest published release.</div>`)
+	}
+	b.WriteString(`</div>`)
+
+	// Release notes (rendered Markdown).
+	if strings.TrimSpace(cfg.ReleaseNotes) != "" {
+		notes, _ := renderMarkdown(cfg.ReleaseNotes)
+		b.WriteString(`<section class="rel-notes"><h2>Release notes</h2>`)
+		b.WriteString(notes)
+		b.WriteString(`</section>`)
+	}
+
+	ver := strings.TrimPrefix(cfg.ReleaseTag, "v")
+	archiveName := func(goos, arch string) string {
+		ext := "tar.gz"
+		if goos == "windows" {
+			ext = "zip"
+		}
+		return fmt.Sprintf("gad_%s_%s_%s.%s", ver, goos, arch, ext)
+	}
+
+	// CLI binaries (goreleaser archives). Names include the version only when a
+	// release tag is known; otherwise the "latest/download/<name>" URL resolves
+	// server-side, so we still show a stable label.
+	bins := []struct{ label, goos, arch, desc string }{
+		{"Linux (amd64)", "linux", "amd64", "64-bit Intel/AMD Linux"},
+		{"Linux (arm64)", "linux", "arm64", "64-bit ARM Linux"},
+		{"Windows (amd64)", "windows", "amd64", "64-bit Intel/AMD Windows"},
+		{"Windows (arm64)", "windows", "arm64", "64-bit ARM Windows"},
+	}
+	var assets []downloadAsset
+	for _, bn := range bins {
+		name := archiveName(bn.goos, bn.arch)
+		assets = append(assets, downloadAsset{label: bn.label, name: name, url: cfg.assetURL(name), desc: bn.desc})
+	}
+	// WebAssembly modules — served directly from the site (they are built into
+	// the output dir), so they download even without a published release.
+	assets = append(assets,
+		downloadAsset{label: "WebAssembly", name: "gad.wasm", url: "gad.wasm", desc: "Browser/WASM module — no debugger (smaller)", local: true},
+		downloadAsset{label: "WebAssembly + debugger", name: "gad_debug.wasm", url: "gad_debug.wasm", desc: "Browser/WASM module with the gadDebug* stepping protocol", local: true},
+	)
+	if cfg.hasRelease() {
+		assets = append(assets, downloadAsset{label: "Checksums", name: "checksums.txt", url: cfg.assetURL("checksums.txt"), desc: "SHA-256 checksums of the release assets"})
+	}
+
+	b.WriteString(`<h2>Assets</h2><div class="dl-table"><table><thead><tr><th>Platform</th><th>File</th><th>Description</th></tr></thead><tbody>`)
+	for _, a := range assets {
+		dl := ""
+		if a.local {
+			dl = ` download`
+		}
+		fmt.Fprintf(&b, `<tr><td>%s</td><td><a href="%s"%s><code>%s</code></a></td><td>%s</td></tr>`,
+			template.HTMLEscapeString(a.label), template.HTMLEscapeString(a.url), dl,
+			template.HTMLEscapeString(a.name), template.HTMLEscapeString(a.desc))
+	}
+	b.WriteString(`</tbody></table></div>`)
+
+	fmt.Fprintf(&b, `<p class="muted">All release assets are on the <a href="%s">GitHub releases page</a>.</p>`,
+		template.HTMLEscapeString(cfg.releaseURL()))
+
+	return template.HTML(b.String())
+}
+
 func writeAssets(outDir string) error {
 	files := map[string]string{
 		"styles.css": siteCSS,
@@ -482,14 +640,31 @@ func writeAssets(outDir string) error {
 	return nil
 }
 
-// buildWASMAssets compiles the Gad WASM module and copies wasm_exec.js into the
-// output directory so the Playground page works offline / on GitHub Pages.
+// buildWASMAssets compiles both Gad WASM modules and copies wasm_exec.js into
+// the output directory so the Playground works offline / on GitHub Pages and the
+// Download page can offer both flavours:
+//   - gad.wasm       : normal build, no debugger (the Playground loads this)
+//   - gad_debug.wasm : includes the gadDebug* stepping protocol
 func buildWASMAssets(repoRoot, outDir string) error {
-	cmd := exec.Command("go", "build", "-o", filepath.Join(outDir, "gad.wasm"), "./web/wasm")
-	cmd.Dir = repoRoot
-	cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("%v: %s", err, out)
+	builds := []struct {
+		out  string
+		tags []string
+	}{
+		{"gad.wasm", nil},
+		{"gad_debug.wasm", []string{"gadwasmdebug"}},
+	}
+	for _, b := range builds {
+		args := []string{"build"}
+		if len(b.tags) > 0 {
+			args = append(args, "-tags", strings.Join(b.tags, ","))
+		}
+		args = append(args, "-o", filepath.Join(outDir, b.out), "./web/wasm")
+		cmd := exec.Command("go", args...)
+		cmd.Dir = repoRoot
+		cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("%s: %v: %s", b.out, err, out)
+		}
 	}
 
 	goroot, err := exec.Command("go", "env", "GOROOT").Output()

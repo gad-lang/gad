@@ -26,7 +26,7 @@ build-min:
 # (`gad ide` serves it without --static) and the packaged VS Code extension,
 # all under ./dist. Requires Node/bun.
 .PHONY: dist
-dist: web-build build-vscode-plugin
+dist: web-build build-vscode-plugin build-wasm
 	go build -tags prod -o ./dist/gad ./cmd/gad
 	@echo "dist artifacts:" && ls -1 dist
 
@@ -47,9 +47,27 @@ build-vscode-plugin:
 	mkdir -p dist
 	mv editors/vscode-gad/vscode-gad.vsix dist/
 
-# Build the Gad WASM module (and copy Go's wasm_exec.js) into web/app/public.
+# Build both distributable Gad WASM modules into ./dist (and copy wasm_exec.js):
+#   gad.wasm       — normal build, no debugger (smaller)
+#   gad_debug.wasm — includes the gadDebug* stepping protocol
 .PHONY: build-wasm
 build-wasm:
+	bash scripts/build-wasm.sh ./dist both
+
+# Only the normal (no-debugger) WASM module into ./dist.
+.PHONY: build-wasm-normal
+build-wasm-normal:
+	bash scripts/build-wasm.sh ./dist normal
+
+# Only the debugger-enabled WASM module (gad_debug.wasm) into ./dist.
+.PHONY: build-wasm-debug
+build-wasm-debug:
+	bash scripts/build-wasm.sh ./dist debug
+
+# Build the Gad WASM module into the React app's public/ (debugger-enabled, so
+# the in-browser IDE keeps working), under the plain gad.wasm name it loads.
+.PHONY: build-wasm-app
+build-wasm-app:
 	bash web/app/scripts/build-wasm.sh
 
 # Regenerate the VM debug loop (vm_loop_debug.go) from the production loop.

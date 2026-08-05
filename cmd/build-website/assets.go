@@ -16,6 +16,12 @@ const layoutTemplate = `<!DOCTYPE html>
 <header class="site-header">
   <a class="brand" href="{{.Base}}index.html">Gad</a>
   <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <nav class="header-links">
+    {{if .HasRelease}}<a class="rel-chip" href="{{.Base}}download.html" title="Current release">{{.ReleaseName}}</a>{{end}}
+    <a href="{{.Base}}download.html">Download</a>
+    <a href="{{.TasksURL}}" target="_blank" rel="noopener">Tasks</a>
+    <a href="{{.RepoURL}}" target="_blank" rel="noopener">Repo</a>
+  </nav>
   <button class="theme-toggle" id="theme">◐</button>
 </header>
 <div class="layout">
@@ -68,6 +74,17 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 #results a:hover,#results a.sel{background:var(--code-bg);text-decoration:none}
 #results .r-title{font-weight:600}#results .r-snip{color:var(--muted);font-size:.85rem}
 .theme-toggle{background:transparent;border:1px solid var(--border);color:var(--fg);border-radius:6px;padding:.3rem .6rem;cursor:pointer}
+.header-links{display:flex;align-items:center;gap:.9rem;font-size:.9rem}
+.header-links a{color:var(--fg)}.header-links a:hover{color:var(--accent)}
+.rel-chip{background:var(--accent);color:#fff!important;border-radius:999px;padding:.15rem .6rem;font-weight:600;font-size:.82rem;white-space:nowrap}
+.rel-chip:hover{text-decoration:none;filter:brightness(1.08)}
+.rel-hero{margin:0 0 1.5rem;padding:1.2rem 1.4rem;border:1px solid var(--border);border-radius:12px;background:linear-gradient(135deg,var(--code-bg),var(--panel))}
+.rel-badge{display:inline-block;background:var(--accent);color:#fff;border-radius:999px;padding:.1rem .6rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.rel-name{margin:.5rem 0 .2rem;font-size:2rem;line-height:1.15}.rel-name a{color:var(--fg)}.rel-name a:hover{color:var(--accent);text-decoration:none}
+.rel-date{color:var(--muted);font-size:.9rem}
+.rel-notes{margin:1.2rem 0}
+.dl-table{overflow:auto}.dl-table table{margin:.5rem 0}
+@media(max-width:700px){.header-links{display:none}}
 .layout{display:grid;grid-template-columns:240px minmax(0,1fr) 200px;gap:1.5rem;max-width:1200px;margin:0 auto;padding:1.5rem 1rem}
 .sidebar{position:sticky;top:64px;align-self:start;max-height:calc(100vh - 80px);overflow:auto}
 .nav-group{margin-bottom:1rem}.nav-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.3rem}

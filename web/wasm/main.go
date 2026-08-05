@@ -1,11 +1,15 @@
 //go:build js && wasm
 
 // Command wasm compiles the Gad bridge to WebAssembly. It installs functions on
-// the JS global object — gadFormat, gadRun, gadDiagnose, gadDoc, and the
-// gadDebug* stepping protocol — each returning a JSON string with the same shape
-// as the HTTP server's responses, so the React app can drive run, format,
-// diagnostics, documentation and a full debugger entirely in the browser, with
-// no Go web server.
+// the JS global object — gadFormat, gadRun, gadDiagnose, gadDoc, … — each
+// returning a JSON string with the same shape as the HTTP server's responses,
+// so the React app can drive run, format, diagnostics and documentation
+// entirely in the browser, with no Go web server.
+//
+// The module builds in two flavours selected by the `gadwasmdebug` build tag:
+// the normal build (no tag) omits the debugger to stay small, while the
+// `_debug` build (`-tags gadwasmdebug`) also installs the gadDebug* stepping
+// protocol and a session-aware gadInspect (see debug.go / debug_off.go).
 package main
 
 import (
@@ -14,11 +18,6 @@ import (
 
 	"github.com/gad-lang/gad/web/gadbridge"
 )
-
-// dbg is the single debug-session manager for this WASM instance. Running one
-// session at a time in a Web Worker keeps the model simple: a blocking VM run
-// stays off the UI thread.
-var dbg = gadbridge.NewDebugManager()
 
 func main() {
 	// gadFormat(source[, sourceType]) — formats keeping the dialect: "gadx",
@@ -73,61 +72,21 @@ func main() {
 		return gadbridge.Transpile(argStr(args, 0), argBool(args, 1), nil)
 	}))
 
-	// Debug stepping protocol (mirrors /api/debug/*).
-	// gadDebugStart(source, path, breakpointsJSON, stopOnEntry, argsJSON[, specsJSON])
-	// specsJSON is a JSON array of { line, disabled, condition } — conditional
-	// breakpoints that take precedence over breakpointsJSON when present.
-	js.Global().Set("gadDebugStart", jsonFuncN(func(args []js.Value) any {
-		var specs []gadbridge.BreakpointSpec
-		if s := argStr(args, 5); s != "" {
-			_ = json.Unmarshal([]byte(s), &specs)
-		}
-		return dbg.Start(gadbridge.DebugStartRequest{
-			Source:          argStr(args, 0),
-			Path:            argStr(args, 1),
-			Breakpoints:     argInts(args, 2),
-			StopOnEntry:     argBool(args, 3),
-			Args:            argStrs(args, 4),
-			BreakpointSpecs: specs,
-		})
-	}))
-	// gadDebugCommand(session, command)
-	js.Global().Set("gadDebugCommand", jsonFuncN(func(args []js.Value) any {
-		return dbg.Command(argStr(args, 0), argStr(args, 1))
-	}))
-	// gadDebugEval(session, expr, repr) -> { ok, value } | { ok:false, error }
-	js.Global().Set("gadDebugEval", jsonFuncN(func(args []js.Value) any {
-		value, err := dbg.Eval(argStr(args, 0), argStr(args, 1), argBool(args, 2))
-		if err != nil {
-			return map[string]any{"ok": false, "error": err.Error()}
-		}
-		return map[string]any{"ok": true, "value": value}
-	}))
-	// gadDebugStop(session)
-	js.Global().Set("gadDebugStop", jsonFuncN(func(args []js.Value) any {
-		dbg.Stop(argStr(args, 0))
-		return map[string]any{"ok": true}
-	}))
-
 	// gadInspect(session, expr, source) -> { ok, inspect } | { ok:false, error }
-	// tree-navigator description of expr's value: in the paused frame when session
-	// is set, else evaluated fresh with source's top-level definitions in scope.
+	// tree-navigator description of expr's value, evaluated fresh with source's
+	// top-level definitions in scope. The `_debug` build overrides this with a
+	// session-aware version that inspects the paused frame (see debug.go).
 	js.Global().Set("gadInspect", jsonFuncN(func(args []js.Value) any {
-		session, expr := argStr(args, 0), argStr(args, 1)
-		var (
-			insp gadbridge.InspectResult
-			err  error
-		)
-		if session != "" {
-			insp, err = dbg.Inspect(session, expr)
-		} else {
-			insp, err = gadbridge.InspectSource(argStr(args, 2), expr)
-		}
+		insp, err := gadbridge.InspectSource(argStr(args, 2), argStr(args, 1))
 		if err != nil {
 			return map[string]any{"ok": false, "error": err.Error()}
 		}
 		return map[string]any{"ok": true, "inspect": insp}
 	}))
+
+	// Install the debugger stepping protocol only in the `_debug` build (build
+	// tag gadwasmdebug); a no-op in the normal build (debug_off.go).
+	registerDebug()
 
 	// Signal readiness, then block forever so the exported functions stay live.
 	js.Global().Set("gadReady", js.ValueOf(true))

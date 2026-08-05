@@ -12,6 +12,8 @@
 /gad
 /cmd/gad/gad
 /dist/
+# goreleaser WASM release assets (built by scripts/build-wasm.sh)
+/wasm-assets/
 
 # Binaries for programs and plugins
 *.exe

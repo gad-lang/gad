@@ -5,6 +5,9 @@ project_name: gad
 before:
   hooks:
     - make goreleaser-setup
+    # Build both WebAssembly modules (gad.wasm + gad_debug.wasm) and wasm_exec.js
+    # into ./wasm-assets; they are attached to the release via extra_files below.
+    - bash scripts/build-wasm.sh ./wasm-assets both
 
 builds:
   - id: gad
@@ -15,17 +18,13 @@ builds:
       - GOTOOLCHAIN=go1.26.0+auto
     tags:
       - prod
+    # CLI binaries: Linux and Windows on amd64 and arm64.
     goos:
       - linux
-      - darwin
       - windows
     goarch:
       - amd64
       - arm64
-      - 386
-    ignore:
-      - goos: darwin
-        goarch: 386
 
 archives:
   - id: gad
@@ -70,3 +69,9 @@ release:
     name: gad
   draft: false
   prerelease: auto
+  # Attach the standalone WebAssembly modules (built by the before hook) as
+  # release assets alongside the CLI archives.
+  extra_files:
+    - glob: ./wasm-assets/gad.wasm
+    - glob: ./wasm-assets/gad_debug.wasm
+    - glob: ./wasm-assets/wasm_exec.js

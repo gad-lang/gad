@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	cc "github.com/moisespsena-go/command-context"
 )
@@ -39,9 +40,16 @@ func main() {
 
 func buildCommand() *cc.Command {
 	var (
-		out    *string
-		repo   *string
-		noWASM *bool
+		out          *string
+		repo         *string
+		noWASM       *bool
+		repoURL      *string
+		tasksURL     *string
+		relTag       *string
+		relName      *string
+		relNotes     *string
+		relNotesFile *string
+		relDate      *string
 	)
 	return &cc.Command{
 		Name:        "build",
@@ -51,10 +59,34 @@ func buildCommand() *cc.Command {
 			out = ctx.Flags().String("out", "dist/website", "output directory")
 			repo = ctx.Flags().String("repo", ".", "repository root (contains doc/)")
 			noWASM = ctx.Flags().Bool("no-wasm", false, "skip building the WebAssembly playground module")
+			repoURL = ctx.Flags().String("repo-url", "https://github.com/gad-lang/gad", "repository URL (header + download links)")
+			tasksURL = ctx.Flags().String("tasks-url", "", "URL of the TASK.md living doc (defaults to <repo-url>/blob/main/TASK.md)")
+			relTag = ctx.Flags().String("release-tag", "", "release tag (e.g. v1.2.3) for the Download page and release banner")
+			relName = ctx.Flags().String("release-name", "", "release display name (defaults to the tag)")
+			relNotes = ctx.Flags().String("release-notes", "", "release notes as Markdown (inline)")
+			relNotesFile = ctx.Flags().String("release-notes-file", "", "path to a file with the release notes (Markdown)")
+			relDate = ctx.Flags().String("release-date", "", "release date shown next to the name")
 			return nil
 		},
 		Run: func(ctx *cc.CommandContext) error {
-			if err := buildSite(*repo, *out, !*noWASM); err != nil {
+			notes := *relNotes
+			if notes == "" && *relNotesFile != "" {
+				data, err := os.ReadFile(*relNotesFile)
+				if err != nil {
+					return fmt.Errorf("read release notes file: %w", err)
+				}
+				notes = string(data)
+			}
+			cfg := siteConfig{
+				RepoURL:      strings.TrimRight(*repoURL, "/"),
+				TasksURL:     *tasksURL,
+				ReleaseTag:   *relTag,
+				ReleaseName:  *relName,
+				ReleaseNotes: notes,
+				ReleaseDate:  *relDate,
+				BuildWASM:    !*noWASM,
+			}
+			if err := buildSite(*repo, *out, cfg); err != nil {
 				return err
 			}
 			fmt.Fprintf(ctx.Out, "website written to %s\n", *out)
