@@ -412,7 +412,10 @@ func buildEmbeddedIDE(repoRoot, outDir, subDir string) error {
 	if _, err := os.Stat(demo); err != nil {
 		return fmt.Errorf("demo not found: %w", err)
 	}
-	cmd := exec.Command("bash", "-c", "bun run wasm && bunx vite build --base=./")
+	// `bun run samples` regenerates src/samples.gen.ts (git-ignored, baked from
+	// the repo samples/ tree) — the demo's own build runs it via predev/build, but
+	// we invoke vite directly here, so run it explicitly first.
+	cmd := exec.Command("bash", "-c", "bun run samples && bun run wasm && bunx vite build --base=./")
 	cmd.Dir = demo
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%v: %s", err, out)
