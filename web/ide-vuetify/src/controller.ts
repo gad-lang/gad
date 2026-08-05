@@ -43,9 +43,13 @@ export interface ControllerHooks {
   getRunProfiles?: () => RunProfile[];
   getRunMode?: () => RunMode;
   emitRunProfiles?: (profiles: RunProfile[]) => void;
-  /** Handle files uploaded (button or drag-drop) into the Explorer. When absent,
-   * the controller writes them to the workspace via `api.write`. */
-  onUpload?: (files: UploadedFile[]) => Promise<void> | void;
+  /** When true, disables create/delete/upload/import (read-only workspace). */
+  getReadonly?: () => boolean;
+  /** Handle files uploaded (button or drag-drop) into the Explorer. `files` carry
+   * paths already prefixed with `targetDir` (the directory they were dropped on,
+   * or chosen in the dialog); `targetDir` is also passed for convenience. When
+   * absent, the controller writes them to the workspace via `api.write`. */
+  onUpload?: (files: UploadedFile[], targetDir: string) => Promise<void> | void;
 }
 
 /** PromptRequest / ConfirmRequest back the in-app dialogs that replace the native
@@ -69,6 +73,8 @@ export function createController(
   hooks: ControllerHooks = {},
 ) {
   const onReset = hooks.onReset;
+  // Read-only workspace: create/delete/upload/import are disabled.
+  const readonly = computed(() => hooks.getReadonly?.() ?? false);
   // --- file tree ----------------------------------------------------------
   const tree = shallowRef<TreeNode | null>(null);
   const expanded = reactive(new Set<string>());
@@ -110,7 +116,7 @@ export function createController(
   }
 
   watch(source, (v) => {
-    if (openPath.value) void api.write(openPath.value, v);
+    if (openPath.value && !readonly.value) void api.write(openPath.value, v);
   });
 
   function currentDir(): string {
@@ -169,11 +175,14 @@ export function createController(
   // Upload files (Explorer button or drag-drop) into the current directory. The
   // host's onUpload hook handles persistence when given; otherwise the files are
   // written to the workspace via api.write.
-  async function upload(files: UploadedFile[]) {
+  // upload places files under targetDir (a clean directory path, "" = root, no
+  // trailing slash). Defaults to the open file's directory.
+  async function upload(files: UploadedFile[], targetDir?: string) {
     if (!files.length) return;
-    const base = currentDir();
+    const dir = (targetDir ?? currentDir().replace(/\/$/, "")).replace(/\/$/, "");
+    const base = dir ? dir + "/" : "";
     const placed = files.map((f) => ({ ...f, path: base + f.path }));
-    if (hooks.onUpload) await hooks.onUpload(placed);
+    if (hooks.onUpload) await hooks.onUpload(placed, dir);
     else for (const f of placed) if (!f.archive) await api.write(f.path, f.content);
     await loadTree();
     const firstFile = placed.find((f) => !f.archive);
@@ -194,7 +203,7 @@ export function createController(
     if (n.endsWith(".tar")) return "tar";
     return undefined;
   }
-  async function uploadUrl(url: string, extract: boolean) {
+  async function uploadUrl(url: string, extract: boolean, targetDir = "") {
     uploadProgress.value = 0;
     try {
       const res = await fetch(url);
@@ -205,9 +214,9 @@ export function createController(
       if (extract && kind) {
         let bin = "";
         for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
-        await upload([{ path: name, content: "", archive: kind, bytes: btoa(bin) }]);
+        await upload([{ path: name, content: "", archive: kind, bytes: btoa(bin) }], targetDir);
       } else {
-        await upload([{ path: name, content: new TextDecoder().decode(buf) }]);
+        await upload([{ path: name, content: new TextDecoder().decode(buf) }], targetDir);
       }
     } finally {
       uploadProgress.value = 0;
@@ -459,6 +468,9 @@ export function createController(
     tree, rows, openPath, source, isExpanded, toggleDir, openFile,
     showHidden, toggleHidden,
     newFile, newDir, removeOpen, reset, canReset, upload, uploadUrl, urlDialog, uploadProgress,
+    readonly,
+    canUpload: computed(() => !!hooks.onUpload && !readonly.value),
+    canEdit: computed(() => !readonly.value),
     promptReq, confirmReq,
     diagnose,
     // run/format/doc

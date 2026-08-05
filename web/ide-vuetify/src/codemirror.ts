@@ -105,6 +105,7 @@ export interface EditorOptions {
   onBreakpointsChange?: (lines: number[]) => void;
   onBreakpointContext?: (line: number) => void;
   getLocals?: () => Map<string, LocalVar>;
+  readonly?: boolean;
 }
 
 /** GadEditorView wraps an EditorView with compartment-based reconfiguration. */
@@ -112,6 +113,7 @@ export class GadEditorView {
   readonly view: EditorView;
   private langComp = new Compartment();
   private themeComp = new Compartment();
+  private roComp = new Compartment();
   private opts: EditorOptions;
 
   constructor(opts: EditorOptions) {
@@ -123,6 +125,7 @@ export class GadEditorView {
         keymap.of([indentWithTab, ...defaultKeymap]),
         this.langComp.of(langExtension(opts.language, opts.diagnose)),
         this.themeComp.of(opts.dark ? oneDark : []),
+        this.roComp.of(EditorState.readOnly.of(!!opts.readonly)),
         breakpointGutter(
           (lines) => opts.onBreakpointsChange?.(lines),
           (line) => opts.onBreakpointContext?.(line),
@@ -151,6 +154,10 @@ export class GadEditorView {
 
   setDark(dark: boolean): void {
     this.view.dispatch({ effects: this.themeComp.reconfigure(dark ? oneDark : []) });
+  }
+
+  setReadonly(readonly: boolean): void {
+    this.view.dispatch({ effects: this.roComp.reconfigure(EditorState.readOnly.of(readonly)) });
   }
 
   setBreakpoints(lines: number[]): void {

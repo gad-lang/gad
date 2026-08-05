@@ -1,8 +1,10 @@
 // UrlImportDialog — import a file from a URL. When the URL points to a
 // ZIP/TAR/TAR.GZ, an "Extract archive" switch appears; if on, the download is
 // passed to onUpload as an archive for the host to extract.
-import { computed, defineComponent, ref } from "vue";
+import { computed, defineComponent, inject, ref } from "vue";
 import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VProgressLinear, VSpacer, VSwitch, VTextField } from "./vuetify";
+import DirTree from "./DirTree";
+import { IdeControllerKey } from "./controller";
 
 export default defineComponent({
   name: "UrlImportDialog",
@@ -13,13 +15,16 @@ export default defineComponent({
   },
   emits: {
     "update:modelValue": (_v: boolean) => true,
-    import: (_url: string, _extract: boolean) => true,
+    import: (_url: string, _extract: boolean, _targetDir: string) => true,
   },
   setup(props, { emit }) {
+    const ctx = inject(IdeControllerKey)!;
     const url = ref("");
     const extract = ref(true);
     const busy = ref(false);
     const error = ref("");
+    const targetDir = ref("");
+    const pickDir = ref(false);
     const isArchive = computed(() => /\.(zip|tar|tar\.gz|tgz)(\?|#|$)/i.test(url.value));
 
     async function doImport() {
@@ -27,7 +32,7 @@ export default defineComponent({
       busy.value = true;
       error.value = "";
       try {
-        await emit("import", url.value.trim(), isArchive.value && extract.value);
+        await emit("import", url.value.trim(), isArchive.value && extract.value, targetDir.value);
         emit("update:modelValue", false);
         url.value = "";
       } catch (e) {
@@ -67,6 +72,29 @@ export default defineComponent({
                 class="mt-2"
                 color="primary"
               />
+            )}
+            {/* Target directory picker. */}
+            <div class="d-flex align-center mt-2" style={{ gap: "4px" }}>
+              <VTextField
+                modelValue={targetDir.value || "/ (root)"}
+                label="Target folder"
+                density="compact"
+                variant="outlined"
+                readonly
+                hideDetails
+                onClick={() => (pickDir.value = !pickDir.value)}
+              />
+              <VBtn size="small" variant="text" icon="mdi-folder-search-outline" title="Choose folder"
+                onClick={() => (pickDir.value = !pickDir.value)} />
+            </div>
+            {pickDir.value && (
+              <div class="dirtree-box mt-1">
+                <DirTree
+                  root={ctx.tree.value}
+                  selected={targetDir.value}
+                  onSelect={(p: string) => { targetDir.value = p; pickDir.value = false; }}
+                />
+              </div>
             )}
             {busy.value && (
               <div class="mt-3">

@@ -68,12 +68,15 @@ export default defineComponent({
     runProfiles: { type: Array as PropType<RunProfile[]>, default: () => [] },
     /** Gates the run/debug actions (v-model). Defaults to "debug" (all enabled). */
     runMode: { type: String as PropType<RunMode>, default: "debug" },
+    /** Read-only workspace (v-model): disables create/delete/upload/import. */
+    readonly: { type: Boolean, default: false },
   },
   emits: {
     "update:layoutConfig": (_v: SerializedDockview) => true,
     "update:config": (_v: Record<string, unknown>) => true,
     "update:runProfiles": (_v: RunProfile[]) => true,
     "update:runMode": (_v: RunMode) => true,
+    "update:readonly": (_v: boolean) => true,
   },
   setup(props, { emit }) {
     const dark = computed(() => props.dark);
@@ -83,6 +86,7 @@ export default defineComponent({
       getRunProfiles: () => props.runProfiles,
       getRunMode: () => props.runMode,
       emitRunProfiles: (p) => emit("update:runProfiles", p),
+      getReadonly: () => props.readonly,
     });
     provide(IdeControllerKey, ctx);
 
@@ -218,7 +222,7 @@ export default defineComponent({
           modelValue={ctx.urlDialog.value}
           {...{ "onUpdate:modelValue": (v: boolean) => (ctx.urlDialog.value = v) }}
           progress={ctx.uploadProgress.value}
-          onImport={(url: string, extract: boolean) => ctx.uploadUrl(url, extract)}
+          onImport={(url: string, extract: boolean, targetDir: string) => ctx.uploadUrl(url, extract, targetDir)}
         />
       </div>
     );

@@ -12,6 +12,7 @@ export default defineComponent({
     modelValue: { type: String, required: true },
     language: { type: String as PropType<EditorLanguage>, default: undefined },
     dark: { type: Boolean, default: false },
+    readonly: { type: Boolean, default: false },
     diagnose: { type: Function as PropType<DiagnoseFn>, default: undefined },
     breakpoints: { type: Array as PropType<number[]>, default: () => [] },
     debugLine: { type: Number, default: 0 },
@@ -42,6 +43,7 @@ export default defineComponent({
         doc: props.modelValue,
         language: currentLang(),
         dark: props.dark,
+        readonly: props.readonly,
         diagnose: props.diagnose,
         getLocals: props.getLocals,
         onChange: (value) => {
@@ -67,6 +69,7 @@ export default defineComponent({
     );
     watch([() => props.path, () => props.language], () => editor?.setLanguage(currentLang(), props.diagnose));
     watch(() => props.dark, (d) => editor?.setDark(d));
+    watch(() => props.readonly, (r) => editor?.setReadonly(r));
     watch(() => props.breakpoints, (b) => editor?.setBreakpoints(b ?? []));
     watch([() => props.debugLine, () => props.debugColumn], ([l, c]) => editor?.setDebugLine(l ?? 0, c ?? 1));
     // Navigate on each new goto request (seq bumps even to the same line).
