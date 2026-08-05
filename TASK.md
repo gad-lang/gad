@@ -251,9 +251,11 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   ["a/b/s.gad","x","--y=1","z"]; normal `param (name; count=0)` still parses
   --count=5→int. Tests: module_flags_test.go, cmd/gad/argv_test.go. Docs:
   getting-started.md; sample 32_raw_argv.gad. commit cfbf6f8
-- Note: runtime `@main` opcode reads bc.Main.module (a separate spec) — unchanged
-  (still false for CLI scripts, pre-existing); only cmd/gad's own spec is flagged
-  main for the argv/`--` logic
+- `@main` now consistent (commit 172de86): was folding to false in main modules
+  because the optimizer built its OpIsMain-folding spec from name+URL only,
+  dropping Flags. Fixed by copying c.module.Flags in compiler.optimize(). With
+  cmd/gad flagging CLI scripts ModuleMain, `@main` is now true in the entry module
+  (incl. `param (*argv)`) and false in imports. Regression test added
 
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
