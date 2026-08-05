@@ -1,4 +1,4 @@
-// GadPlayground — a two-pane playground (output | source): format, format &
+// GadPlayground — a two-pane playground (source | output): format, format &
 // apply, or run the source, executed through the injected GadRunner. A dialect
 // selector switches the example between plain Gad, a Gad template (.gadt) and
 // Gadx (.gadx); each keeps its own buffer. The Vuetify/TSX counterpart of the
@@ -85,14 +85,6 @@ export default defineComponent({
     return () => (
       <div class="gp-split">
         <section class="gp-pane">
-          <div class="gp-pane-head">Output</div>
-          <div class="gp-pane-body">
-            {!left.value && <p class="text-medium-emphasis">Format or run the source on the right.</p>}
-            {left.value?.kind === "format" && <FormatView fmt={left.value.fmt} />}
-            {left.value?.kind === "run" && <RunView run={left.value.run} />}
-          </div>
-        </section>
-        <section class="gp-pane">
           <div class="gp-pane-head">
             <VBtnToggle
               modelValue={dialect.value}
@@ -120,6 +112,14 @@ export default defineComponent({
               dark={props.dark}
               diagnose={diagnose}
             />
+          </div>
+        </section>
+        <section class="gp-pane">
+          <div class="gp-pane-head">Output</div>
+          <div class="gp-pane-body">
+            {!left.value && <p class="text-medium-emphasis">Format or run the source on the left.</p>}
+            {left.value?.kind === "format" && <FormatView fmt={left.value.fmt} />}
+            {left.value?.kind === "run" && <RunView run={left.value.run} />}
           </div>
         </section>
       </div>
