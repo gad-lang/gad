@@ -234,6 +234,27 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
 - Note: ide-react is MUI-based (not Vuetify); icons via @mui/icons-material, so
   fileTypes mdi-* icon strings aren't used for React icons (language part is)
 
+### 2026-08-05 (ModuleSpec.Flags + raw argv)
+- Replaced ModuleSpec `Main bool` → `Flags ModuleFlags` bitmask
+  (ModuleMain/ModuleRawArgv) + IsMain()/IsRawArgv()/Has(). Name chosen by user:
+  ModuleFlags/ModuleMain/ModuleRawArgv
+- Compiler sets ModuleRawArgv when params are a lone variadic `param (*argv)`
+  (Params.Len()==1 && Variadic() && NamedParams.Len()==0); independent of
+  ModuleMain (user: "não precisa ser main")
+- cmd/gad: for a ModuleRawArgv module, pass args straight through, argv[0]=module
+  path (s.modulePath), no ParseArgs; when main, drop the first bare `--` options
+  terminator (dropFirstOptionsTerminator). A CLI-run script is now flagged
+  ModuleMain
+- Encoder: Flags serialized as int (no bytecode compat, per user)
+- Verified: go build ./... + go test ./... (root) + gadx submodule all green; vet
+  + gofmt clean; manual E2E: `gad a/b/s.gad x --y=1 -- z` → argv
+  ["a/b/s.gad","x","--y=1","z"]; normal `param (name; count=0)` still parses
+  --count=5→int. Tests: module_flags_test.go, cmd/gad/argv_test.go. Docs:
+  getting-started.md; sample 32_raw_argv.gad. commit cfbf6f8
+- Note: runtime `@main` opcode reads bc.Main.module (a separate spec) — unchanged
+  (still false for CLI scripts, pre-existing); only cmd/gad's own spec is flagged
+  main for the argv/`--` logic
+
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
 |-------|-------|-----|----------|
