@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embed the WASM · Gad</title>
+<link rel="icon" type="image/svg+xml" href="gad.svg">
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<script>window.SITE_BASE="";</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html"><img class="brand-logo" src="gad.svg" alt="" width="30" height="30"><span class="brand-name">Gad</span></a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <nav class="header-links">
+    <a class="rel-chip" href="download.html" title="Current release">v0.0.4-test1</a>
+    <a href="playground.html">Playground</a>
+    <a href="download.html">Download</a>
+    <a href="https://github.com/gad-lang/gad/issues" target="_blank" rel="noopener">Tasks</a>
+    <a href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">Repo</a>
+  </nav>
+  <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link" href="templates.html">Templates (mixed mode)</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-metaprogramming.html">Metaprogramming: parse, eval and Gadx</a><a class="nav-link" href="ref-workspace-config.html">Workspace Configuration</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Gadx</div>
+      <a class="nav-link" href="gadx-getting-started.html">Getting Started</a><a class="nav-link" href="gadx-syntax.html">Template Syntax</a><a class="nav-link" href="gadx-components-and-slots.html">Components And Slots</a><a class="nav-link" href="gadx-examples.html">Examples Cookbook</a><a class="nav-link" href="gadx-embedding.html">Embedding In Go</a><a class="nav-link" href="gadx-api.html">API Reference</a><a class="nav-link" href="gadx-conventions.html">Conventions</a><a class="nav-link" href="gadx-source-positions.html">Source Positions</a><a class="nav-link" href="gadx-project-structure.html">Project Structure</a><a class="nav-link" href="gadx-benchmarks.html">Benchmarks</a><a class="nav-link" href="gadx-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">JS modules</div>
+      <a class="nav-link" href="js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a><a class="nav-link" href="js-modules/prism-gad.html">@gad-lang/prism-gad</a><a class="nav-link" href="js-modules/ide-react.html">@gad-lang/ide-react</a><a class="nav-link" href="js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a>
+    </div><div class="nav-group"><div class="nav-title">Integrate</div>
+      <a class="nav-link active" href="wasm-embed.html">Embed the WASM</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground.html">Playground</a>
+    </div><div class="nav-group"><div class="nav-title">Download</div>
+      <a class="nav-link" href="download.html">Download</a>
+    </div>
+  </nav>
+  <main class="content"><h1>Embed the Gad WASM in your site</h1><p>The Gad WebAssembly module runs the compiler, VM, formatter, doc extractor and debugger entirely in the browser — no server. It installs a small set of functions on the JS global object, each taking strings and returning a JSON string.</p><h2>1. Get the files</h2><p>Download <code>gad.wasm</code> and <code>wasm_exec.js</code> from the <a href="download.html">Download</a> page (both are attached to every release). <code>wasm_exec.js</code> is Go's WASM loader and must match the Go toolchain the module was built with — always ship the one from the same release.</p><h2>2. Load it</h2><pre class="language-markup"><code class="language-markup">&lt;script src=&#34;wasm_exec.js&#34;&gt;&lt;/script&gt;
+&lt;script&gt;
+  const go = new Go();
+  WebAssembly.instantiateStreaming(fetch(&#34;gad.wasm&#34;), go.importObject)
+    .then(r =&gt; { go.run(r.instance); onReady(); });
+
+  function onReady() {
+    // window.gadRun / gadFormat / gadDiagnose / gadDoc / … are ready.
+    const r = JSON.parse(gadRun(&#39;println(&#34;hi&#34;); return 6 * 7&#39;));
+    console.log(r.stdout, r.result); // &#34;hi\n&#34; &#34;42&#34;
+  }
+&lt;/script&gt;</code></pre><blockquote>A long-running script blocks the thread. For a responsive UI, load the module inside a <strong>Web Worker</strong> — exactly what the <a href="playground.html">Playground</a> does.</blockquote><h2>3. The API</h2><p>Each function returns a JSON string. <code>sourceType</code> selects the dialect: <code>""</code>/<code>"gad"</code> (plain Gad), <code>"gadTemplate"</code> (mixed <code>.gadt</code>) or <code>"gadx"</code>.</p><div class="dl-table"><table><thead><tr><th>Function</th><th>Returns (JSON)</th></tr></thead><tbody><tr><td><code>gadRun(src[, sourceType[, argsJSON]])</code></td><td><code>{ ok, stdout, stderr, result, diagnostics }</code></td></tr><tr><td><code>gadFormat(src[, sourceType])</code></td><td><code>{ ok, source, diagnostics }</code></td></tr><tr><td><code>gadDiagnose(src[, sourceType])</code></td><td><code>{ diagnostics: [{line, column, message, severity}] }</code></td></tr><tr><td><code>gadDoc(src, sourceType)</code></td><td><code>{ markdown } | { error }</code></td></tr><tr><td><code>gadDocData(src, sourceType)</code></td><td><code>{ doc } | { error }</code></td></tr><tr><td><code>gadEval(src, expr, repr)</code></td><td><code>{ ok, value, error, stdout }</code></td></tr><tr><td><code>gadTranspile(src, mixed)</code></td><td><code>{ ok, source, diagnostics }</code></td></tr><tr><td><code>gadInspect(session, expr, src)</code></td><td><code>{ ok, inspect } | { ok:false, error }</code></td></tr><tr><td><code>gadDebugStart / gadDebugCommand / gadDebugEval / gadDebugStop</code></td><td><code>debugger stepping protocol</code></td></tr></tbody></table></div><h2>Prefer a ready-made editor?</h2><p>The <a href="js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a> and <a href="js-modules/ide-react.html">@gad-lang/ide-react</a> packages wrap this module into a full IDE component (editor, run profiles, debugger, inspector), and <a href="js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a> / <a href="js-modules/prism-gad.html">@gad-lang/prism-gad</a> provide syntax highlighting.</p></main>
+  
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+
+</body>
+</html>
