@@ -182,6 +182,20 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   (nav → playground/index.html); templates/download/wasm-embed/gad.svg all
   published; final website run has zero warnings
 
+### 2026-08-05 (migrate Pages to the org root site)
+- Moved docs publishing from gad repo gh-pages (/gad/) to the org site repo
+  gad-lang/gad-lang.github.io, served at root https://gad-lang.github.io/
+- Deploy key: generated ed25519 keypair; public → write deploy key on
+  gad-lang.github.io (id 159365775); private → secret ACTIONS_DEPLOY_KEY on gad;
+  local private key shredded. website.yml deploys via peaceiris deploy_key +
+  external_repository=gad-lang/gad-lang.github.io, publish_branch=main
+- goreleaser footer URL dropped /gad → https://gad-lang.github.io/<tag>/
+- Verified: website run exit 0; gad-lang.github.io/main got index.html(redirect)
+  + latest/ (51 files incl prism.js/gad.wasm/playground) + <sha>/; live root
+  https://gad-lang.github.io/ → 200 (redirects to ./latest/), /latest/ → 200
+- PENDING (user decision): gad repo Pages still serves the stale /gad/ snapshot;
+  offered to disable it. commit a37d0e2
+
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
 |-------|-------|-----|----------|
