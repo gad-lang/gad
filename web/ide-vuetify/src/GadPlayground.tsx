@@ -73,6 +73,7 @@ export default defineComponent({
             <GadEditor
               modelValue={source.value}
               {...{ "onUpdate:modelValue": (v: string) => (source.value = v) }}
+              language="gad"
               dark={props.dark}
               diagnose={diagnose}
             />
