@@ -82,6 +82,51 @@ func (p *Parser) parseInterfaceBody(tok PToken, name node.Expr) *node.InterfaceE
 func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 	doc := p.leadComment
 
+	// `:Expr <header>` / `:Expr { … }` — a context-function check: the function
+	// `Expr` (captured by value where the interface is declared) must have a
+	// signature matching each header, with `@self` standing for the interface.
+	if p.Token.Token == token.Colon {
+		colon := p.Token.Pos
+		p.Next()
+		p.SkipSpace()
+		fn := p.ParsePrimaryExpr()
+		if fn == nil {
+			return
+		}
+		cf := &node.InterfaceContextFuncExpr{ColonPos: colon, FnExpr: fn, Doc: doc}
+		switch p.Token.Token {
+		case token.Less:
+			// Shortcut form `:Expr<(params)>`.
+			h, _ := p.ParseFuncHeaderExpr().(*node.FuncHeaderExpr)
+			if h == nil || p.Failed() {
+				return
+			}
+			cf.Headers = []*node.FuncHeaderExpr{h}
+		case token.LBrace:
+			cf.Block = true
+			cf.LBrace = p.Expect(token.LBrace)
+			p.ExprLevel++
+			for {
+				p.skipClassSeps()
+				if p.Token.Token == token.RBrace || p.Token.Token == token.EOF {
+					break
+				}
+				h := p.parseInterfaceMethodHeader()
+				if h == nil || p.Failed() {
+					break
+				}
+				cf.Headers = append(cf.Headers, h)
+			}
+			p.ExprLevel--
+			cf.RBrace = p.Expect(token.RBrace)
+		default:
+			p.Error(p.Token.Pos, "expected a function header `<(...)>` or `{ (...) }` after `:"+fn.String()+"`")
+			return
+		}
+		iface.ContextFuncs = append(iface.ContextFuncs, cf)
+		return
+	}
+
 	// `*Parent` — a parent interface, written as a spread body item.
 	if p.Token.Token == token.Mul {
 		p.Next()

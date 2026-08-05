@@ -79,11 +79,64 @@ type InterfaceExpr struct {
 	NameExpr       Expr   // *IdentExpr or nil (anonymous)
 	Parents        []Expr // *Parent spreads — no alias
 	ExtendsDoc     *ast.CommentGroup
-	Members        []*InterfaceMemberExpr // fields, getters, setters, props (source order)
-	Methods        []*InterfaceMethodExpr // required methods (one or more signatures each)
+	Members        []*InterfaceMemberExpr      // fields, getters, setters, props (source order)
+	Methods        []*InterfaceMethodExpr      // required methods (one or more signatures each)
+	ContextFuncs   []*InterfaceContextFuncExpr // context-function checks (`:Expr <header>`)
 	LBrace         source.Pos
 	RBrace         source.Pos
 	Doc            *ast.CommentGroup // doc comment preceding the interface; or nil
+}
+
+// InterfaceContextFuncExpr is a context-function member of an interface:
+// `:Expr <(params)>` or `:Expr { (params); … }`. It requires that the function
+// value `Expr` (an ident, selector or any expression, captured by value where
+// the interface is declared) has, for each header, a signature matching it —
+// with the special `@self` positional param standing for the interface's own
+// type. Every header must contain at least one `@self`.
+type InterfaceContextFuncExpr struct {
+	ColonPos source.Pos        // the `:` prefix
+	FnExpr   Expr              // the context function (ident or selector, …)
+	Headers  []*FuncHeaderExpr // required signature(s), anonymous
+	Block    bool              // written in the brace-block form `{ … }`
+	LBrace   source.Pos
+	RBrace   source.Pos
+	Doc      *ast.CommentGroup
+}
+
+func (e *InterfaceContextFuncExpr) ExprNode() {}
+
+func (e *InterfaceContextFuncExpr) Pos() source.Pos { return e.ColonPos }
+
+func (e *InterfaceContextFuncExpr) End() source.Pos {
+	if e.RBrace.IsValid() {
+		return e.RBrace + 1
+	}
+	if n := len(e.Headers); n > 0 {
+		return e.Headers[n-1].End()
+	}
+	return e.FnExpr.End()
+}
+
+func (e *InterfaceContextFuncExpr) String() string { return Code(e) }
+
+func (e *InterfaceContextFuncExpr) WriteCode(ctx *CodeWriteContext) {
+	ctx.WriteLeadDoc(e.Doc)
+	ctx.WriteString(":")
+	e.FnExpr.WriteCode(ctx)
+	if e.Block {
+		ctx.WriteString(" {")
+		ctx.Depth++
+		for _, h := range e.Headers {
+			ctx.WriteString(h.FuncHeader.String())
+			ctx.WriteSemi()
+		}
+		ctx.Depth--
+		ctx.WriteString("}")
+		return
+	}
+	if len(e.Headers) == 1 {
+		ctx.WriteString(e.Headers[0].String())
+	}
 }
 
 // InterfaceMethodExpr is a required method of an interface: a name and one or
@@ -175,6 +228,10 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 		ctx.WriteSemi()
 	}
 	for _, m := range e.Methods {
+		m.WriteCode(ctx)
+		ctx.WriteSemi()
+	}
+	for _, m := range e.ContextFuncs {
 		m.WriteCode(ctx)
 		ctx.WriteSemi()
 	}

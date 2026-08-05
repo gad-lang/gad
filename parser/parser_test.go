@@ -4270,6 +4270,11 @@ func TestParseInterface(t *testing.T) {
 		`x := interface {parse {(_ str); (v int) <bool>; }; }`)
 	// statement form binds a const
 	test.ExpectParseString(t, `interface S { m() }`, `interface S {m(); }`)
+	// context-function members: `:Expr <header>` (shortcut) and `:Expr { … }`.
+	test.ExpectParseString(t, `x := interface { :fmt<(a int, @self)> }`,
+		`x := interface {:fmt<(a int, _ @self)>; }`)
+	test.ExpectParseString(t, `x := interface { :strings.upper<(@self)>; :render { (@self), (@self, int) } }`,
+		`x := interface {:strings.upper<(_ @self)>; :render {(_ @self); (_ @self, _ int); }; }`)
 }
 
 func TestParseFuncHeaderExpr(t *testing.T) {
