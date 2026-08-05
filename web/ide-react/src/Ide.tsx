@@ -1612,6 +1612,7 @@ export function Ide({
         safe: cfg.safe, saveOut: cfg.saveOut || undefined,
         saveStdout: cfg.saveStdout || undefined, saveStderr: cfg.saveStderr || undefined,
         combine: cfg.combine || undefined,
+        tagEncode: cfg.tagEncode || undefined,
       });
       clearOut();
       pushOut("out", res.stdout || "");
@@ -1686,7 +1687,7 @@ export function Ide({
     setStatus("running…");
     activateBottomPanel("output");
     try {
-      const res = await api.run({ path: p.path, source, args: p.args });
+      const res = await api.run({ path: p.path, source, args: p.args, tagEncode: p.tagEncode || undefined });
       clearOut();
       pushOut("out", res.stdout || "");
       pushOut("err", res.stderr || "");
@@ -2644,11 +2645,14 @@ function RunDebugSettingsDialog({
   const [saveStdout, setSaveStdout] = useState(tab.runCfg.saveStdout ?? tab.runCfg.saveOut ?? "");
   const [saveStderr, setSaveStderr] = useState(tab.runCfg.saveStderr ?? "");
   const [combine, setCombine] = useState(tab.runCfg.combine ?? false);
+  const [tagEncode, setTagEncode] = useState(tab.runCfg.tagEncode ?? "");
   const [entry, setEntry] = useState(false);
+  const isGadx = /\.gadx$/i.test(tab.path);
   const toggle = (name: string) => setDisabled((d) => (d.includes(name) ? d.filter((n) => n !== name) : [...d, name]));
   const cfg = (): RunConfig => ({
     args: args.split("\n").map((s) => s.trim()).filter(Boolean),
     disabled, safe, saveOut: "", saveStdout: saveStdout.trim(), saveStderr: saveStderr.trim(), combine,
+    tagEncode: isGadx ? tagEncode : undefined,
   });
   const sharedFields = (
     <>
@@ -2675,6 +2679,17 @@ function RunDebugSettingsDialog({
         {tabIdx === 0 && (
           <>
             {sharedFields}
+            {isGadx && (
+              <TextField
+                select label="GADX tag output" fullWidth margin="dense" value={tagEncode}
+                onChange={(e) => setTagEncode(e.target.value)}
+                helperText="Render the returned tag as HTML, or encode it as JSON/YAML"
+              >
+                <MenuItem value="">Render (HTML)</MenuItem>
+                <MenuItem value="json">JSON</MenuItem>
+                <MenuItem value="yaml">YAML</MenuItem>
+              </TextField>
+            )}
             <TextField label="Save stdout to file (optional)" fullWidth margin="dense" value={saveStdout} onChange={(e) => setSaveStdout(e.target.value)} placeholder="stdout.log" />
             <TextField label="Save stderr to file (optional)" fullWidth margin="dense" value={saveStderr} onChange={(e) => setSaveStderr(e.target.value)} placeholder="stderr.log" disabled={combine} helperText={combine ? "Combined: both streams go to the stdout file" : ""} />
             <FormControlLabel control={<Checkbox checked={combine} onChange={(e) => setCombine(e.target.checked)} />} label="Combine stdout+stderr into the stdout file" />

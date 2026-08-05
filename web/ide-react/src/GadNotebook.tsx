@@ -12,10 +12,13 @@ type Dialect = "gad" | "gadt" | "gadx";
 const LANG: Record<Dialect, EditorLanguage> = { gad: "gad", gadt: "gadt", gadx: "gadx" };
 const SOURCE_TYPE: Record<Dialect, string> = { gad: "", gadt: "gadTemplate", gadx: "gadx" };
 
+type TagEncode = "" | "json" | "yaml";
+
 interface Cell {
   id: number;
   source: string;
   dialect: Dialect;
+  tagEncode: TagEncode;
   result: RunResult | null;
   running: boolean;
 }
@@ -25,6 +28,7 @@ const newCell = (source = "", dialect: Dialect = "gad"): Cell => ({
   id: nextId++,
   source,
   dialect,
+  tagEncode: "",
   result: null,
   running: false,
 });
@@ -53,7 +57,8 @@ export function GadNotebook({ runner, dark = false }: GadNotebookProps) {
     const src = contents.current[cell.id] ?? cell.source;
     let result: RunResult;
     try {
-      result = await runner.run(src, SOURCE_TYPE[cell.dialect]);
+      const te = cell.dialect === "gadx" ? cell.tagEncode : "";
+      result = await runner.run(src, SOURCE_TYPE[cell.dialect], te);
     } catch (e) {
       result = { ok: false, stdout: "", stderr: String(e), result: "", diagnostics: [] };
     }
@@ -93,6 +98,16 @@ export function GadNotebook({ runner, dark = false }: GadNotebookProps) {
                 </button>
               ))}
             </span>
+            {cell.dialect === "gadx" && (
+              <label className="gp-tagenc" title="GADX output: render HTML, or encode the tag as JSON/YAML">
+                Tag:
+                <select value={cell.tagEncode} onChange={(e) => update(cell.id, { tagEncode: e.target.value as TagEncode })}>
+                  <option value="">Render</option>
+                  <option value="json">JSON</option>
+                  <option value="yaml">YAML</option>
+                </select>
+              </label>
+            )}
             <button type="button" className="gp-btn gp-btn--primary" disabled={cell.running} onClick={() => runCell(cell)}>▶ Run</button>
             <button type="button" className="gp-btn" onClick={() => removeCell(cell.id)}>Remove</button>
           </div>

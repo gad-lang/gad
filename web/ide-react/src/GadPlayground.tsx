@@ -49,6 +49,8 @@ export interface GadPlaygroundProps {
 type Output = { kind: "format"; fmt: FormatResult } | { kind: "run"; run: RunResult } | null;
 
 /** GadPlayground renders the two-pane playground. */
+type TagEncode = "" | "json" | "yaml";
+
 export function GadPlayground({ runner, dark = false }: GadPlaygroundProps) {
   const [dialect, setDialect] = useState<Dialect>("gad");
   // Each dialect keeps its own buffer so switching examples preserves edits.
@@ -56,6 +58,8 @@ export function GadPlayground({ runner, dark = false }: GadPlaygroundProps) {
   const editorRef = useRef<EditorHandle>(null);
   const [busy, setBusy] = useState(false);
   const [out, setOut] = useState<Output>(null);
+  // GADX only: encode the returned tag as JSON/YAML instead of rendering HTML.
+  const [tagEncode, setTagEncode] = useState<TagEncode>("");
 
   const sourceType = SOURCE_TYPE[dialect];
   const diagnose: DiagnoseFn | undefined = useMemo(
@@ -88,7 +92,8 @@ export function GadPlayground({ runner, dark = false }: GadPlaygroundProps) {
   async function doRun() {
     setBusy(true);
     try {
-      setOut({ kind: "run", run: await runner.run(source(), sourceType) });
+      const te = dialect === "gadx" ? tagEncode : "";
+      setOut({ kind: "run", run: await runner.run(source(), sourceType, te) });
     } finally {
       setBusy(false);
     }
@@ -112,6 +117,16 @@ export function GadPlayground({ runner, dark = false }: GadPlaygroundProps) {
             ))}
           </span>
           <span className="gp-actions">
+            {dialect === "gadx" && (
+              <label className="gp-tagenc" title="GADX output: render HTML, or encode the tag as JSON/YAML">
+                Tag:
+                <select value={tagEncode} onChange={(e) => setTagEncode(e.target.value as TagEncode)}>
+                  <option value="">Render</option>
+                  <option value="json">JSON</option>
+                  <option value="yaml">YAML</option>
+                </select>
+              </label>
+            )}
             <button type="button" className="gp-btn" disabled={busy} onClick={() => doFormat(false)}>Format</button>
             <button type="button" className="gp-btn" disabled={busy} onClick={() => doFormat(true)}>Format &amp; apply</button>
             <button type="button" className="gp-btn gp-btn--primary" disabled={busy} onClick={doRun}>▶ Run</button>

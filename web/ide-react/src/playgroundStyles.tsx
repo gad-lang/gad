@@ -20,7 +20,9 @@ const CSS = `
   color:var(--fg,#1d1d28);cursor:pointer;padding:.25rem .6rem;font-size:.82rem}
 .gp-tab:last-child{border-right:none}
 .gp-tab--active{background:var(--accent,#3b5bdb);color:#fff}
-.gp-actions{display:flex;gap:6px}
+.gp-actions{display:flex;gap:6px;align-items:center}
+.gp-tagenc{display:flex;align-items:center;gap:4px;font-size:.8rem;color:var(--muted,#6b6b80)}
+.gp-tagenc select{font-size:.8rem;padding:.15rem .3rem;border:1px solid var(--border,#e2e2ea);border-radius:5px;background:var(--panel,#fff);color:var(--fg,#1d1d28)}
 .gp-btn{background:var(--panel,#fff);border:1px solid var(--border,#e2e2ea);color:var(--fg,#1d1d28);
   border-radius:6px;padding:.3rem .7rem;cursor:pointer;font-size:.85rem}
 .gp-btn:hover:not(:disabled){background:var(--code-bg,rgba(125,125,125,.12))}
