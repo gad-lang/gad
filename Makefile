@@ -58,6 +58,29 @@ build-wasm:
 build-wasm-app:
 	bash web/app/scripts/build-wasm.sh
 
+# --- Documentation website (cmd/build-website) -----------------------------
+# Output directory and serve address (override on the command line if needed,
+# e.g. `make website WEBSITE_ADDR=:9000`).
+WEBSITE_OUT  ?= dist/website
+WEBSITE_ADDR ?= :8090
+
+# Build the docs website (with the WASM playground + the embedded ide-vuetify
+# demo, which needs bun) and serve it locally. Open http://localhost:8090.
+.PHONY: website
+website:
+	go run ./cmd/build-website build --out $(WEBSITE_OUT)
+	@echo "Serving on http://localhost$(WEBSITE_ADDR) (Ctrl-C to stop)"
+	go run ./cmd/build-website serve --out $(WEBSITE_OUT) --addr $(WEBSITE_ADDR)
+
+# Fast iteration: build the docs website WITHOUT the WASM module / embedded demo
+# (the Playground menu falls back to the simple in-page playground), then serve
+# it. Much faster for content/layout tweaks; re-run to pick up changes.
+.PHONY: website-fast
+website-fast:
+	go run ./cmd/build-website build --out $(WEBSITE_OUT) --no-wasm
+	@echo "Serving on http://localhost$(WEBSITE_ADDR) (Ctrl-C to stop)"
+	go run ./cmd/build-website serve --out $(WEBSITE_OUT) --addr $(WEBSITE_ADDR)
+
 # Regenerate the VM debug loop (vm_loop_debug.go) from the production loop.
 .PHONY: gen-delve
 gen-delve:
