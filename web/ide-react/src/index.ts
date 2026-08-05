@@ -7,6 +7,8 @@
 // backend (WASM + LocalStorage) can be supplied instead. See the README.
 
 export { Ide } from "./Ide";
+export { GadPlayground, type GadPlaygroundProps } from "./GadPlayground";
+export { GadNotebook, type GadNotebookProps } from "./GadNotebook";
 
 // Backend contract + the built-in HTTP implementation.
 export { httpIdeApi, ideApi, probeIde } from "./api";
@@ -28,7 +30,7 @@ export type {
   DebugVariable,
   DebugResponse,
 } from "./api";
-export type { FormatResult, RunResult } from "./types";
+export type { FormatResult, RunResult, GadRunner } from "./types";
 
 // Editor and supporting building blocks (useful when composing a custom shell).
 export { Editor } from "./Editor";
