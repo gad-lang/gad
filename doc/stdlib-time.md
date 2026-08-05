@@ -120,7 +120,7 @@ Hour
 
 ToInterface Type
 
-```go
+```gad
 // Location represents location values and implements Object interface.
 type Location struct {
    ObjectImpl
@@ -132,7 +132,7 @@ type Location struct {
 
 ToInterface Type
 
-```go
+```gad
 // Time represents time values and implements Object interface.
 type Time struct {
   Value time.Time

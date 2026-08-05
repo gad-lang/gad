@@ -200,7 +200,7 @@ arguments (accessed via the [`param`](#param) statement); use `RunOpts` when you
 also need to pass globals (any `IndexGetSetter` such as `gad.Dict` / `*gad.SyncDict`),
 named arguments or a custom stdout. Their signatures are:
 
-```go
+```gad
 func (vm *VM) Run(args ...Object) (Object, error)
 func (vm *VM) RunOpts(opts *RunOpts) (Object, error)
 ```
@@ -209,7 +209,7 @@ func (vm *VM) RunOpts(opts *RunOpts) (Object, error)
 
 Valid identifier examples:
 
-```go
+```gad
 var (_, _a, $_a, a, A, $b, $, a1, $1, $b1, $$, ŝ, $ŝ)
 ```
 
@@ -222,7 +222,7 @@ argument initialized as an empty array `[]`, and others are initialized as
 `nil` if not provided. `param` keyword can be used only once in main
 function.
 
-```go
+```gad
 param (arg0, arg1, *vargs)
 
 // named args
@@ -232,12 +232,12 @@ param (;x,y=1,z={}, **vnargs)
 param (arg0, arg1, *vargs; x, y=1, z={}, **vnargs)
 ```
 
-```go
+```gad
 param foo
 param bar    // illegal, multiple param keyword is not allowed
 ```
 
-```go
+```gad
 if condition  {
   param arg    // illegal, not allowed in this scope
 }
@@ -263,18 +263,18 @@ Any assignment to a global variable creates or updates the globals element.
 Note that global variables can be accessed by imported source modules which
 enables to export objects to scripts like `extern` in C.
 
-```go
+```gad
 global foo
 global (bar, baz)
 ```
 
-```go
+```gad
 // "globals" builtin function returns "globals" provided to VM.
 g := @g
 v := g["foo"]    // same as `global foo; v := foo`
 ```
 
-```go
+```gad
 if condition {
   global x     // illegal, not allowed in this scope
 }
@@ -290,7 +290,7 @@ func() {
 multiple declaration. Note: Tuple assignment is not supported with var
 statements.
 
-```go
+```gad
 var foo               // foo == nil
 var (bar, baz = 1)    // bar == nil, baz == 1
 var (bar,
@@ -308,7 +308,7 @@ assignment `=` operators.
 * `:=` operator defines a new variable in the scope and assigns a value.
 * `=` operator assigns a new value to an existing variable in the scope.
 
-```go
+```gad
                  // function scope A
 a := "foo"       // define 'a' in local scope
 
@@ -341,13 +341,13 @@ var a = {d: 2}   // illegal: 'a' is already defined in the same scope
 Following is illegal because variable is not defined when function is created.
 In assignment statements right hand side is compiled before left hand side.
 
-```go
+```gad
 f := func() {
   f()    // illegal: unresolved symbol "f"
 }
 ```
 
-```go
+```gad
 var f
 f = func() {
   f()    // ok: "f" is declared before assignment.
@@ -356,7 +356,7 @@ f = func() {
 
 Unlike Go, a variable can be assigned a value of different types.
 
-```go
+```gad
 a := 123        // assigned    'int'
 a = "123"       // reassigned 'string'
 a = [1, 2, 3]   // reassigned 'array'
@@ -365,7 +365,7 @@ a = [1, 2, 3]   // reassigned 'array'
 Capturing loop variables returns the last value of the variable set after last
 post statement of the for loop, like Go.
 
-```go
+```gad
 var f
 
 for i := 0; i < 3; i++ {
@@ -380,7 +380,7 @@ println(f())  // 3
 Like Go, to capture the variable define a new variable using same name or
 different.
 
-```go
+```gad
 var f
 
 for i := 0; i < 3; i++ {
@@ -403,7 +403,7 @@ An initializer for a constant is required while declaring. The const declaration
 creates a read-only reference to a value. It does not mean the value it holds is
 immutable.
 
-```go
+```gad
 const (
   a = 1
   b = {foo: "bar"}
@@ -417,7 +417,7 @@ b.foo = "baz" // legal
 
 `iota` is supported as well.
 
-```go
+```gad
 const (
   x = iota
   y
@@ -426,7 +426,7 @@ const (
 println(x, y, z) // 0 1 2
 ```
 
-```go
+```gad
 const (
   x = 1<<iota
   y
@@ -435,7 +435,7 @@ const (
 println(x, y, z) // 1 2 4
 ```
 
-```go
+```gad
 const (
   _ = 1<<iota
   x
@@ -445,7 +445,7 @@ const (
 println(x, y, z) // 2 4 8
 ```
 
-```go
+```gad
 const (
   x = 1+iota
   _
@@ -454,13 +454,13 @@ const (
 println(x, z) // 1 3
 ```
 
-```go
+```gad
 const (
   x = func() { return iota }() // illegal, compile error
 )
 ```
 
-```go
+```gad
 const (
   iota = 1 // illegal, compile error
 )
@@ -468,7 +468,7 @@ const (
 
 RHS of the assignment can be any expression so `iota` can be used with them as well.
 
-```go
+```gad
 const (
   x = [iota]
   y
@@ -477,7 +477,7 @@ println(x) // [0]
 println(y) // [1]
 ```
 
-```go
+```gad
 const (
   _ = iota
   x = "string" + iota
@@ -490,7 +490,7 @@ println(y) // string2
 **Warning:** if a variable named `iota` is created before `const` assignments,
 `iota` is not used for enumeration and it is treated as normal variable.
 
-```go
+```gad
 iota := "foo"
 
 const (
@@ -505,7 +505,7 @@ println(y) // foo
 
 In Gad, everything is a value, and, all values are associated with a type.
 
-```go
+```gad
 19 + 84                 // int values
 1u + 5u                 // uint values
 "a"                     // str value "a"
@@ -573,7 +573,7 @@ A digit-suffix literal must be glued to the number (a space breaks it), so
 `2026 - 1` is still subtraction and `0xABCD` is still a hex int. Date/time
 literals carry a calendar date only; time-of-day comes from the string parsers:
 
-```go
+```gad
 time.strToTime("2026-01-31T23:59:55Z")      // RFC3339 -> time
 time.strToTime("2026-01-31 23:59:55")       // UTC (no zone)
 time.strToCalendarTime("2026-01-31 23:59:55.001")  // zone-less calendarTime
@@ -596,7 +596,7 @@ t.hour(); t.minute(); t.second(); t.ns()    // accessors
 A `calendarDate ± duration` stays a `calendarDate` when the result lands on
 midnight, otherwise it becomes a `calendarTime`:
 
-```go
+```gad
 dur 1h + dur 30m            // 1h30m0s
 dur 1h / dur 30m            // 2.0   (ratio)
 -(dur 1h)                   // -1h0m0s
@@ -614,7 +614,7 @@ rounds it to the nearest boundary (a tie rounds up). The unit is a char/string:
 the calendar units `'y'`, `'M'`, `'w'` (week, Monday), `'d'`, or the Go duration
 units `'h'`, `'m'`, `'s'`, `"ms"`, `"us"`, `"ns"`:
 
-```go
+```gad
 t := time.strToTime("2026-08-17T14:37:52.123Z")
 t.trunc('M')                // 2026-08-01 00:00:00 UTC
 t.trunc('h')                // 2026-08-17 14:00:00 UTC
@@ -639,7 +639,7 @@ names like `NotIterableError`, `ZeroDivisionError`.
 First argument passed to `error` builtin function is converted to string as
 message.
 
-```go
+```gad
 err1 := error("oops")
 err2 := error(1+2+3)         // equivalent to err2 := error("6")
 if isError(err1) {           // 'isError' is a builtin function
@@ -677,7 +677,7 @@ non-existing value:
 key or index does not exist.  
 * Builtin functions may return `nil`.
 
-```go
+```gad
 a := func() { b := 4 }()    // a == nil
 c := {a: "foo"}["b"]        // c == nil
 d := sort(nil)        // d == nil
@@ -692,7 +692,7 @@ nil.
 In Gad, array is an ordered list of values of any types. Elements of an array
 can be accessed using indexer `[]`.
 
-```go
+```gad
 [1, 2, 3][0]       // == 1
 [1, 2, 3][2]       // == 3
 [1, 2, 3][3]       // RuntimeError: IndexOutOfBoundsError
@@ -710,7 +710,7 @@ In Gad, dict is a set of key-value pairs where key is string and the value is
 of any value types. Value of a map can be accessed using indexer `[]` or
 selector '.' operators. Items sep is new line or comma.
 
-```go
+```gad
 m := { a: 1, "b": false, c: "foo" }
 m["b"]                                // == false
 m.c                                   // == "foo"
@@ -759,7 +759,7 @@ In Gad, function is a callable value with a number of function arguments and
 a return value. Just like any other values, functions can be passed into or
 returned from another function.
 
-```go
+```gad
 sum := func(arg1, arg2) {
   return arg1 + arg2
 }
@@ -781,7 +781,7 @@ func f2() { return 1 }
 Unlike Go, Gad does not have function declarations. All functions are anonymous
 functions. So the following code is illegal:
 
-```go
+```gad
 func foo(arg1, arg2) {  // illegal
   return arg1 + arg2
 }
@@ -789,7 +789,7 @@ func foo(arg1, arg2) {  // illegal
 
 Gad also supports variadic functions:
 
-```go
+```gad
 variadic := func (a, b, *c) {
   return [a, b, c]
 }
@@ -805,7 +805,7 @@ variadicClosure(1)(2, 3, 4) // [1, 2, [3, 4]]
 
 Only the last parameter can be variadic. The following code is illegal:
 
-```go
+```gad
 // illegal, because "a" is variadic and is not the last parameter
 illegal := func(*a, b) {}
 ```
@@ -813,7 +813,7 @@ illegal := func(*a, b) {}
 When calling a function, the number of passing arguments must match that of
 function definition.
 
-```go
+```gad
 f := func(a, b) {}
 f(1, 2, 3)    // RuntimeError: WrongNumArgumentsError
 ```
@@ -821,7 +821,7 @@ f(1, 2, 3)    // RuntimeError: WrongNumArgumentsError
 You can use `*` to pass value of array type as its last
 parameter:
 
-```go
+```gad
 f1 := func(a, b, c) { return a + b + c }
 f1(*[1, 2, 3])    // => 6
 f1(1, *[2, 3])    // => 6
@@ -837,7 +837,7 @@ f2(*[1, 2, 3])    // valid; a == 1, b == [2, 3]
 
 Return value note:
 
-```go
+```gad
 f1 := func(x) {
 	return = x // only for var
 	1+2
@@ -862,7 +862,7 @@ Although the type is not directly specified in Gad, one can use type conversion
 [builtin functions](builtins.md) to convert between value types and see
 [conversion/coersion table](runtime-types.md) for more information.
 
-```go
+```gad
 s1 := string(1984)    // "1984"
 i2 := int("-999")     // -999
 f3 := float(-51)      // -51.0
@@ -881,7 +881,7 @@ well.
 Expressions are evaluated from left to right but in assignments, right hand side
 of the assignment is evaluated before left hand side.
 
-```go
+```gad
 a := 1
 f := func() {
   a*=10
@@ -945,7 +945,7 @@ _See [Operators](operators.md) for more details._
 Gad has a ternary conditional operator
 `(condition expression) ? (true expression) : (false expression)`.
 
-```go
+```gad
 a := true ? 1 : -1    // a == 1
 
 min := func(a, b) {
@@ -996,7 +996,7 @@ outside the operator hierarchy.
 One can use selector (`.`) and indexer (`[]`) operators to read or write
 elements of composite types (array, map, string, bytes).
 
-```go
+```gad
 ["one", "two", "three"][1]  // == "two"
 
 bytes(0, 1, 2, 3)[1]    // == 1
@@ -1020,7 +1020,7 @@ m.x = 5          // add 'x' to map 'm'
 Like Go, one can use slice operator `[:]` for sequence value types such as
 array, string, bytes. Negative indexes are illegal.
 
-```go
+```gad
 a := [1, 2, 3, 4, 5][1:3]    // == [2, 3]
 b := [1, 2, 3, 4, 5][3:]     // == [4, 5]
 c := [1, 2, 3, 4, 5][:3]     // == [1, 2, 3]
@@ -1032,14 +1032,14 @@ g := [1, 2, 3, 4, 5][10:]    // RuntimeError: IndexOutOfBoundsError
 
 **Note: Keywords cannot be used as selectors.**
 
-```go
+```gad
 a := {}
 a.func = ""     // Parse Error: expected selector, found 'func'
 ```
 
 Use double quotes and indexer to use keywords with maps.
 
-```go
+```gad
 a := {}
 a["func"] = ""
 ```
@@ -1050,7 +1050,7 @@ a["func"] = ""
 
 "If" statement is very similar to Go.
 
-```go
+```gad
 if a < 0 {
   // execute if 'a' is negative
 } else if a == 0 {
@@ -1063,7 +1063,7 @@ if a < 0 {
 Like Go, the condition expression may be preceded by a simple statement,
 which executes before the expression is evaluated.
 
-```go
+```gad
 if a := foo(); a < 0 {
   // execute if 'a' is negative
 }
@@ -1073,7 +1073,7 @@ if a := foo(); a < 0 {
 
 "For" statement is very similar to Go.
 
-```go
+```gad
 // for (init); (condition); (post) {}
 for a:=0; a<10; a++ {
   // ...
@@ -1096,7 +1096,7 @@ It's similar to Go's `for range` statement.
 "For-In" statement can iterate any iterable value types (array, map, bytes,
 string).  
 
-```go
+```gad
 for v in [1, 2, 3] {          // array: element
   // 'v' is array element value
 }
@@ -1125,13 +1125,13 @@ Object or `[]byte`. Source module is called like a compiled function and
 returned dict is stored for future use. Other module values are copied while
 importing in VM if `Copier` interface is implemented.
 
-```go
+```gad
 type Importable interface {
   Import(moduleName string) (any, error)
 }
 ```
 
-```go
+```gad
 type Copier interface {
   Copy() Object
 }
@@ -1139,14 +1139,14 @@ type Copier interface {
 
 Main module:
 
-```go
+```gad
 math := import("math")    // load a module
 println(math.sum(10))     // module function
 ```
 
 Source module as `math`:
 
-```go
+```gad
 base := 5
 
 exports.sum = func(x) {
@@ -1156,7 +1156,7 @@ exports.sum = func(x) {
 
 exporting multiple values:
 
-```go
+```gad
 base := 5
 
 exports = { // dict expression
@@ -1187,7 +1187,7 @@ In Gad, modules are very similar to functions.
 
 The parameters are only interpreted on the first import. They have no effect on other imports.
 
-```go
+```gad
 // file: translations.gad
 
 param (;lang="en")
@@ -1213,7 +1213,7 @@ exports.t = (key;default) = messages[key] ?? (default ?? ("<"+key+">"))
 
 Main program:
 
-```go
+```gad
 const t = import("translations")
 print(t.messages.hello) // Hello!
 print(t.t("hello")) // Hello!
@@ -1230,7 +1230,7 @@ print(t2.messages.hello) // Hello!
 
 Main program:
 
-```go
+```gad
 const t1 = import("translations") 
 print(t1.messages.hello; lang="br") // Seja bem vindo!
 
@@ -1248,7 +1248,7 @@ print(t3.messages.hello) // Seja bem vindo!
 Like Go, Gad supports line comments (`//...`) and block comments
 (`/* ... */`).
 
-```go
+```gad
 /*
   multi-line block comments
 */
@@ -1333,7 +1333,7 @@ type Object interface {
 If an object's `CanIterate` method returns `true`, its `Iterate` method must
 return a value implementing `Iterator` interface to use in `for-in` loops.
 
-```go
+```gad
 // Iterator wraps the methods required to iterate Objects in VM.
 type Iterator interface {
   // Next returns true if there are more elements to iterate.
@@ -1354,14 +1354,14 @@ Assignments to Gad values copy the values except array, map or bytes like Go.
 implemented by object. If not implemented, same object is returned which copies
 the value under the hood by Go.
 
-```go
+```gad
 // Copier wraps the Copy method to create a copy of an object.
 type Copier interface {
   Copy() Object
 }
 ```
 
-```go
+```gad
 // DeepCopier wraps the Copy method to create a deep copy of an object.
 type DeepCopier interface {
   DeepCopy() Object
@@ -1374,7 +1374,7 @@ type DeepCopier interface {
 to delete an element from the object. `map` and `syncMap` implement this
 interface.
 
-```go
+```gad
 // IndexDeleter wraps the IndexDelete method to delete an index of an object.
 type IndexDeleter interface {
     IndexDelete(Object) error
@@ -1387,7 +1387,7 @@ type IndexDeleter interface {
 to get the length of an object. `array`, `bytes`, `string`, `map` and `syncMap`
 implement this interface.
 
-```go
+```gad
 // LengthGetter wraps the Len method to get the number of elements of an object.
 type LengthGetter interface {
     Len() int
@@ -1399,7 +1399,7 @@ type LengthGetter interface {
 Note that `ExCallerObject` will replace the existing Object interface in the
 future.
 
-```go
+```gad
 // ExCallerObject is an interface for objects that can be called with CallEx
 // method. It is an extended version of the Call method that can be used to
 // call an object with a Call struct. Objects implementing this interface is

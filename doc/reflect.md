@@ -18,7 +18,7 @@ functions operate on the **stored value verbatim**.
 Returns the value stored at `key` verbatim. If a `Prop` is stored there, the
 `Prop` itself is returned — its getter is **not** run.
 
-```go
+```gad
 var (v = 1, d = { x: prop { () => v; (val) { v = val } } })
 
 d.x                   // 1        — the operator runs the getter
@@ -32,7 +32,7 @@ reflect.get(d, "x")   // prop {…}  — the Prop object itself
 Writes `value` at `key` verbatim, overwriting (and thus removing) any `Prop`
 stored there **without** running its setter.
 
-```go
+```gad
 reflect.set(d, "x", 3)   // d becomes { x: 3 } — the prop is replaced
 d.x                      // 3
 ```

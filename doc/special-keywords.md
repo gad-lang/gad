@@ -23,7 +23,7 @@ expression is allowed.
 
 Inside a function, `@fn`, `@args` and `@nargs` describe the active call.
 
-```go
+```gad
 // @fn is the running function — use it for anonymous recursion.
 fact := func(n) {
     return n <= 1 ? 1 : n * @fn(n - 1)
@@ -46,7 +46,7 @@ named arguments generically.
 
 `@name`, `@file`, `@main` and `@module` describe the module the code runs in.
 
-```go
+```gad
 if @main {                 // only when run as the entry module
     println("running", @name, "from", @file)
 }
@@ -66,7 +66,7 @@ m := @module               // the module object itself
 uses to exchange data with a script. It is a short form for the whole globals
 container and can be read, indexed and assigned:
 
-```go
+```gad
 @g["count"] = (@g["count"] !? 0) + 1   // read/write host state
 println("user" in @g)                  // membership test
 for k, v in @g { println(k, v) }       // iterate

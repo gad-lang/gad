@@ -20,7 +20,7 @@ There are three kinds of modules:
 
 ## Importing
 
-```go
+```gad
 strings := import("strings")    // a builtin module
 println(strings.toUpper("hi"))  // HI
 ```
@@ -28,7 +28,7 @@ println(strings.toUpper("hi"))  // HI
 A source module is referenced by path; the file importer resolves `.gad`
 files relative to the importing file (and along `GADPATH`):
 
-```go
+```gad
 m := import("./greet.gad")
 ```
 
@@ -39,7 +39,7 @@ exports object, so module state is preserved across imports.
 
 Use `export` to expose values from a module. Several forms are supported:
 
-```go
+```gad
 // greet.gad
 hello := "Hello"
 
@@ -52,7 +52,7 @@ export {e: 2.71, phi: 1.61}        // export several keys at once
 
 Importing it:
 
-```go
+```gad
 g := import("./greet.gad")
 println(g.hello)         // Hello
 println(g.add(2, 3))     // 5
@@ -72,13 +72,13 @@ module-local `var name = init` and exports a read/write property over it, so the
 field is a live binding — external writes change the module's variable, and
 module functions closing over it observe the change (and vice versa):
 
-```go
+```gad
 // counter.gad
 export prop count = 0
 export inc() { count = count + 1 }
 ```
 
-```go
+```gad
 c := import("./counter.gad")
 c.count      // 0  — runs the getter
 c.count = 5  // setter mutates the module's count
@@ -97,7 +97,7 @@ as **named arguments** to `import` and are interpreted **only on the first
 import** — later imports reuse the already-loaded module and ignore any
 arguments.
 
-```go
+```gad
 // greet.gad
 param (;lang="en")
 const msgs = {en: "Hello", br: "Olá"}
@@ -106,7 +106,7 @@ export hello
 export greet(name) => hello + ", " + name
 ```
 
-```go
+```gad
 g := import("./greet.gad"; lang="br")
 println(g.hello)          // Olá
 println(g.greet("Gad"))   // Olá, Gad
@@ -117,7 +117,7 @@ println(g.greet("Gad"))   // Olá, Gad
 `embed("path")` pulls a file (or a whole directory) into the program **at compile
 time**. It evaluates to an `Embedded` value:
 
-```go
+```gad
 f := embed("data/greeting.txt")
 f.name        // "data/greeting.txt" — the reference name
 f.path        // the resolved path
@@ -132,7 +132,7 @@ host configures it via an embed importer — see
 [Embedding in Go](embedding.md)). `sources=[…]` lists directories to look the
 name up in, so the reference need not spell out the full path:
 
-```go
+```gad
 embed("greeting.txt"; sources=["data"])   // finds data/greeting.txt
 ```
 
@@ -143,7 +143,7 @@ whose `.fs` is iterable (`for name, entry in dir.fs`, or `iterator(dir.fs;
 sorted)` to order by name). Each entry is itself an `Embedded`; `.isDir` tells a
 sub-directory from a file:
 
-```go
+```gad
 dir := embed("data")
 str(dir["greeting.txt"].data)             // index an entry by name
 
@@ -155,7 +155,7 @@ for name, e in iterator(dir.fs; sorted) {
 Recurse on `.isDir` to walk the whole tree (bind the function name first so it can
 call itself):
 
-```go
+```gad
 var walk
 walk = func(node, indent) {
     for name, e in iterator(node.fs; sorted) {

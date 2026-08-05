@@ -34,7 +34,7 @@ go build -tags 'noide nodebug' ./cmd/gad   # or: make build-min
 
 Create `hello.gad`:
 
-```go
+```gad
 println("Hello, Gad!")
 ```
 
@@ -51,7 +51,7 @@ A Gad script is itself a function. It can declare parameters with
 [`param`](variables-and-scopes.md#param) and produce a result with `return`. If
 no `return` is reached, the script returns `nil`.
 
-```go
+```gad
 param (name, *rest)
 
 if !name {
@@ -86,7 +86,7 @@ it ideal for exploring the language:
 The script below joins its positional arguments and accepts named arguments
 `--sep` and `--ln`:
 
-```go
+```gad
 param (*args, sep=",", ln=no)
 if !args { return }
 for _, arg in args[:-1] { print(arg, sep) }

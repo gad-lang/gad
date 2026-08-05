@@ -17,7 +17,7 @@ newlines or commas. The first parameter is inserted automatically — you do not
 write it: `this` for methods and property accessors, and `new` (the class
 initiator) for constructors.
 
-```go
+```gad
 // statement form: `class Name { … }` defines a constant Name
 class Point {
     *Base                    // a parent class, written as a `*Parent` spread
@@ -62,7 +62,7 @@ Everything else — field defaults, typed fields, inheritance, overloaded
 methods/constructors — works exactly as in the `Class(...)` forms below, which
 the `class` block compiles to:
 
-```go
+```gad
 class Point { x = 0; methods { dist() => this.x } }
 // is sugar for:
 Point := Class("Point", (cls, define) => define(;
@@ -80,7 +80,7 @@ receives the in-construction class (`cls`) and a `define` function; calling
 `properties`, `new` (the constructor) and `extends`. All are optional, and
 `Class(name)` (no handler) is a valid empty class.
 
-```go
+```gad
 Point := Class("Point", (cls, define) => define(;
     fields = (;
         x int = 0
@@ -100,7 +100,7 @@ println(p.dist())     // 5
 Fields are declared in a `(; … )` group. Each field may have a type and a
 default value:
 
-```go
+```gad
 Class("P", (cls, define) => define(; fields = (;
     a              // any, default nil
     b int          // type annotation (not enforced), default nil
@@ -112,7 +112,7 @@ Class("P", (cls, define) => define(; fields = (;
 A field's default may be a **computed value** `(= … )`, which is evaluated
 *fresh for each instance* — handy for per-instance mutable defaults:
 
-```go
+```gad
 n := 0
 C := Class("C", (cls, define) => define(; fields = (; id = (= n++))))
 [C().id, C().id, C().id]    // [1, 2, 3]
@@ -128,7 +128,7 @@ with one or more overloads (the func-with-methods syntax). The first parameter
 is always `new` — a *class initiator*; calling `new(; field=value, …)`
 initialises the instance and returns it:
 
-```go
+```gad
 Point := Class("Point", (cls, define) => define(; new {
     (new; **f)      => new(; x=0, y=0, **f)   // defaults + extra named fields
     (new, x, y)     => new(; x=x, y=y)        // positional
@@ -152,7 +152,7 @@ Methods live in the `methods` list. Each is a function whose first parameter is
 `this`. A method may be written in shorthand (`name(this, …) => expr`) or as a
 func-with-methods block to overload it by arity/type:
 
-```go
+```gad
 Class("Calc", (cls, define) => define(; methods = [
     add(this, a, b) => a + b
     add(this, a)    => a + a       // overload
@@ -166,7 +166,7 @@ Properties are computed members with a getter (no extra parameters) and one or
 more setters (one extra parameter, optionally typed). They are accessed like
 fields — reading runs the getter, assigning runs the matching setter:
 
-```go
+```gad
 Box := Class("Box", (cls, define) => define(; fields = (; v), properties = {
     val: func {
         (this)        => this.v               // getter
@@ -187,7 +187,7 @@ fields. Parent fields, methods and properties are **promoted**: an instance of
 the child can use them directly, and a child method of the same name overrides
 the parent's.
 
-```go
+```gad
 Animal := Class("Animal", (cls, define) => define(;
     fields  = (; name str = "?"),
     methods = [
@@ -213,7 +213,7 @@ value.
 
 Multiple parents are embedded left to right:
 
-```go
+```gad
 A := Class("A", (cls, define) => define(; methods = [ a(this) => "a" ]))
 B := Class("B", (cls, define) => define(; methods = [ b(this) => "b" ]))
 C := Class("C", (cls, define) => define(; extends = [A, B]))
@@ -226,7 +226,7 @@ o := C()
 The `met` statement attaches behaviour to an existing class from the outside —
 extra methods, operator overloads, type conversions and custom printing.
 
-```go
+```gad
 Vec := Class("Vec", (cls, define) => define(; fields = (; x int = 0, y int = 0)))
 
 // add a method
@@ -258,7 +258,7 @@ constructors and property setters — a class dispatches through its constructor
 and `met Class.prop` targets the property's getter/setter, so all three are
 `MethodCaller`s that `$old` (via `gad.methodFromArgs`) can resolve:
 
-```go
+```gad
 // method — wrap the previous speak()
 met ~Dog.speak($old, this) => $old(this) + " loudly"
 

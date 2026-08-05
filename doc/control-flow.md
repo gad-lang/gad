@@ -6,7 +6,7 @@
 
 `if` works like Go's, including an optional init statement before the condition.
 
-```go
+```gad
 if a < 0 {
     println("negative")
 } else if a == 0 {
@@ -22,7 +22,7 @@ if v := compute(); v > 10 {
 
 The body braces can also be written with `begin` … `end`:
 
-```go
+```gad
 if a > 0 begin println("yes") end
 ```
 
@@ -30,7 +30,7 @@ if a > 0 begin println("yes") end
 
 The three-clause, condition-only and infinite forms all exist.
 
-```go
+```gad
 for i := 0; i < 3; i++ {   // classic
     println(i)
 }
@@ -52,7 +52,7 @@ for {                      // infinite; use break to stop
 iterators (such as the result of `map`/`filter`). Bind one variable for the
 value, or two for key/index and value.
 
-```go
+```gad
 for v in [10, 20, 30] {
     println(v)                 // 10, 20, 30
 }
@@ -78,7 +78,7 @@ the default; when nothing matches and there is no `else`, the match yields nil.
 Expression form — arms are separated by commas or newlines, and an arm may carry
 several comma-separated conditions:
 
-```go
+```gad
 label := match n {
     1, 2: "one or two"
     3:    "three",
@@ -88,7 +88,7 @@ label := match n {
 
 Statement form — arms run a block:
 
-```go
+```gad
 match n {
     1 { return "one" }
     2, 3 { return "few" }
@@ -99,7 +99,7 @@ match n {
 Arm conditions are arbitrary expressions, so `match` doubles as a clean
 multi-branch conditional:
 
-```go
+```gad
 size := match true {
     n < 10:   "small"
     n < 100:  "medium"
@@ -110,7 +110,7 @@ size := match true {
 An empty match — or one with no matching arm and no `else` — yields nil. An
 `else` arm may not be the only arm.
 
-```go
+```gad
 x := match n {}            // nil
 y := match 1 { 2: "ok" }   // nil (no match)
 ```
@@ -128,7 +128,7 @@ Gad handles runtime errors (and Go panics surfaced as errors) with
 `try`/`catch`/`finally`, similar to ECMAScript. `catch` may bind the error;
 `finally` always runs.
 
-```go
+```gad
 try {
     throw "boom"
 } catch err {
@@ -150,7 +150,7 @@ provides the hooks: a Gad object with `enter()` / `exit(err)` methods, or a Go
 type implementing the `ObjectEnter` / `ObjectExit` interfaces. A value with
 neither is a silent no-op.
 
-```go
+```gad
 File := Class("File", (cls, define) => define(; fields = (; name = (= ""), open = (= false)),
     methods = [
         enter(this) { this.open = true;  println("open",  this.name); return this }
@@ -169,7 +169,7 @@ reverse order.
 
 The statement has four binding forms:
 
-```go
+```gad
 with resource { … }            // use an existing value
 with mk() as f { … }           // bind the resource to a block-local `f`
 with x := mk() { … }           // define `x` (visible after the block)
@@ -181,7 +181,7 @@ There is also an **expression** form. The colon variant, `with resource
 [as name]: value`, enters the resource, evaluates `value`, runs `exit`, and
 yields `value`:
 
-```go
+```gad
 contents := with open("f") as f: f.read()
 data := "[" + (with open("g") as g: g.read()) + "]"
 ```
@@ -192,7 +192,7 @@ yields **the resource itself**. This makes `with` a build-and-return primitive �
 you construct a value, populate it inside the guarded block, and receive it back
 error-safely:
 
-```go
+```gad
 box := with Box(; name = "b") as it {
     it.add(1)
     it.add(2)

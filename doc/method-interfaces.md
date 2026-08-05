@@ -10,7 +10,7 @@ lightweight, structural (duck-typed) contract for functions.
 
 A signature written between angle brackets is a **func-header** value:
 
-```go
+```gad
 <()>                      // no params, no return
 <(v int)>                 // one int param
 <(int)>                   // one unnamed int param — same as <(_ int)>
@@ -25,7 +25,7 @@ It evaluates to a `FunctionHeader` whose parts are read by indexing — `name`,
 `params`, `namedParams` and `return` (each parameter is a `typedIdent`). An
 anonymous header is compiled with an incremented `fh#N` name:
 
-```go
+```gad
 h := <(a int, b str) <r bool>>
 h.name             // "fh#1"
 len(h.params)      // 2
@@ -40,7 +40,7 @@ h.return[0].name   // "r"
 brackets) and evaluates to a `MethodInterface`. The headers are separated by
 commas or newlines:
 
-```go
+```gad
 Stringer := meti { () <str> }
 Container := meti {
     (any)          // accept one value (of any type)
@@ -53,13 +53,13 @@ statement form below names it explicitly.
 
 The statement form `meti Name { … }` binds a const:
 
-```go
+```gad
 meti Adder { (a int, b int) <int> }
 ```
 
 A `MethodInterface` exposes `name` and `headers`:
 
-```go
+```gad
 Adder.name           // "Adder"
 len(Adder.headers)   // 1
 ```
@@ -71,7 +71,7 @@ all the given interfaces. A header matches one of `fn`'s methods when the
 parameter counts are equal and each parameter type is assignable (an untyped
 header parameter matches anything):
 
-```go
+```gad
 Stringer := meti { () <str> }
 HasAdd   := meti { (a int) }
 
@@ -97,7 +97,7 @@ implements(shape, Stringer, HasAdd)        // true
 Interfaces merge with `+` (two interfaces) or `++` (with a list of interfaces),
 producing a new interface with all the headers:
 
-```go
+```gad
 both := Stringer + HasAdd            // merge two
 all  := Stringer ++ [HasAdd, Sized]  // merge with a list
 implements(shape, both)              // true
@@ -110,7 +110,7 @@ An `interface { … }` is a richer structural contract that groups typed fields,
 constant value (`Interface`) whose members are read by indexing. The statement
 form binds a const; the expression form is a value.
 
-```go
+```gad
 interface Shape {
     *Base                   // parent interface (spread; no alias), like a class
 
@@ -133,7 +133,7 @@ interface Shape {
 
 Members are read by indexing:
 
-```go
+```gad
 Shape.name              // "Shape"
 Shape.fields[0].name    // "id"
 Shape.fields[0].types   // [int]
@@ -152,7 +152,7 @@ assignable type), property and method (whose signatures match), plus any
 extended interface. Use the [`::` operator](operators.md#assign-to-type) to check
 it, or an interface as a parameter type — a non-satisfier is rejected:
 
-```go
+```gad
 interface Greeter { greet() <str> }
 class Person { name = ""; methods { greet() => "hi " + this.name } }
 
@@ -177,7 +177,7 @@ Satisfaction works against any member-bearing value, not just class instances:
   (`NameCallerObject`) — are accepted optimistically (duck typing), the call
   resolving at runtime.
 
-```go
+```gad
 interface Greeter { name str; greet() <str> }
 { name: "Ann", greet: func() => "hi" } :: Greeter   // ok — dict satisfies it
 { name: "Ann" } :: Greeter                           // rejected — no greet()
@@ -190,14 +190,14 @@ A Go value handed to a script through reflection (`gad.NewReflectValue` /
 This holds for every `ReflectValuer` kind — a struct, a named slice, a named
 array and a named map:
 
-```go
+```gad
 // Go side:
 type Person struct{ Name string; Age int }
 func (p Person) Greet() string { return "hi " + p.Name }
 // … expose Person{…} to the script as the global `p` via NewReflectValue.
 ```
 
-```go
+```gad
 // Script side:
 interface Greeter { Name str; Greet() <str> }
 p :: Greeter        // ok — the reflected struct has the Name field and Greet()

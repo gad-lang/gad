@@ -175,7 +175,7 @@ where `doc` has the shape:
 
 `md.gadx` is typically a plain Gad script that writes Markdown with `write()`:
 
-```gadx
+```gad-gadx
 ~~
 param (doc dict)
 for sec in doc.sections {

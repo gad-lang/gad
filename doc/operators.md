@@ -16,7 +16,7 @@
 The prefix `++x` / `--x` operators mutate the variable **and** evaluate to its
 new value, so they can be used inside expressions:
 
-```go
+```gad
 x := 5
 y := ++x        // x is 6, y is 6
 arr := [0, 0, 0]
@@ -31,7 +31,7 @@ with a clock steps by the smallest non-zero component (minute when the seconds
 are zero, second otherwise, hour when only the hour is set, and a day at
 midnight):
 
-```go
+```gad
 d := 2026-01-31D
 ++d                                   // 2026-02-01  (one day)
 
@@ -44,7 +44,7 @@ t2 := time.CalendarTime("2026-01-31 08:05:30")
 Every value is either truthy or falsy. `0`, `0u`, `0.0`, `""`, empty
 collections, `nil`, `no` and `false` are falsy; everything else is truthy.
 
-```go
+```gad
 println(!0, !"", ![], !nil)   // true true true true
 println(!1, !"x", ![1])       // false false false
 ```
@@ -65,7 +65,7 @@ println(!1, !"x", ![1])       // false false false
 | `<<`| shift left         | `>>` | shift right              |
 | `&&`| logical AND        | `\|\|`| logical OR              |
 
-```go
+```gad
 println(7 / 2, 7 % 2, 2 ** 10)   // 3 1 1024
 println("foo" + "bar")           // foobar
 println([1, 2] + [3])            // [1, 2, 3]
@@ -75,7 +75,7 @@ println(6 & 3, 6 | 1, 6 ^ 3)     // 2 7 5
 `&&` and `||` short-circuit and return one of their operands (not necessarily a
 bool):
 
-```go
+```gad
 println(0 || "fallback")   // fallback
 println("a" && "b")        // b
 ```
@@ -86,7 +86,7 @@ println("a" && "b")        // b
 the operands must be the same concrete type (and equal value). `a !== b` is just
 `!(a === b)`.
 
-```go
+```gad
 println(1 == 1u)    // true   (coerced)
 println(1 === 1u)   // false  (int vs uint)
 println(1 === 1)    // true
@@ -98,7 +98,7 @@ For non-primitive values (arrays, dicts, class instances, …), `===` is **objec
 identity**, not deep equality. Every array/dict literal evaluates to a *fresh*
 object, so two equal-looking literals are never the same:
 
-```go
+```gad
 a := [1, 2]
 println(a === a)         // true   (same object)
 println(a === [1, 2])    // false  (a fresh array)
@@ -118,7 +118,7 @@ to)` builtin). It supports the numeric kinds (`int`, `uint`, `float`,
 `decimal`), `char`, and the temporal types (`time`, `calendarDate`,
 `calendarTime`). A range runs ascending or descending depending on its bounds.
 
-```go
+```gad
 for v in 1 .. 5 { print(v) }        // 1 2 3 4 5
 for v in 5 .. 1 { print(v) }        // 5 4 3 2 1
 for c in 'a' .. 'e' { print(c) }    // a b c d e
@@ -129,7 +129,7 @@ is `(1 .. 10) / 2`), with the `Range` constructor's `step` named argument, or
 with the `r.step(n)` method. For numeric/char ranges the step is a number
 (default `1`); for temporal ranges it is a `duration` (default one day).
 
-```go
+```gad
 for v in 1 .. 10 / 2 { print(v) }              // 1 3 5 7 9
 for v in Range(0, 10; step=3) { print(v) }     // 0 3 6 9
 r := (1 .. 100).step(25)                       // 1, 26, 51, 76
@@ -144,7 +144,7 @@ r.step() // 25
 
 `cond ? a : b` evaluates to `a` when `cond` is truthy, otherwise `b`.
 
-```go
+```gad
 a := true ? 1 : -1            // 1
 min := (x, y) => x < y ? x : y
 println(min(5, 10))           // 5
@@ -155,7 +155,7 @@ println(min(5, 10))           // 5
 `??` returns its right operand only when the left is `nil`. `??=` assigns only
 when the current value is `nil`.
 
-```go
+```gad
 println(2 ?? 3)     // 2
 println(nil ?? 3)   // 3
 
@@ -167,7 +167,7 @@ a ??= 9             // no-op,   a == 5
 `?.` is a nullish selector: it stops and yields `nil` as soon as the receiver is
 `nil`, instead of raising an error.
 
-```go
+```gad
 m := {}
 println(m.x?.y.z)   // nil  (no error)
 m.x = {y: {z: 1}}
@@ -179,7 +179,7 @@ it is not `nil`; otherwise the expression is `nil` and the arguments are not
 evaluated. It is the call counterpart of `?.`, shorthand for
 `callee != nil ? callee(args) : nil`.
 
-```go
+```gad
 f := nil
 println(f?.())          // nil  (no call)
 f = (x) => x * 2
@@ -206,7 +206,7 @@ and key are known.
 `a.b !? default` yields `a.b` when the key `b` exists in `a`, otherwise
 `default`. The default is evaluated lazily (only when the key is absent).
 
-```go
+```gad
 a := {b: 5}
 println(a.b !? 9)   // 5
 a = {b: nil}
@@ -222,7 +222,7 @@ println(a[k] !? 9)  // 9     (index form; k is an expression)
 `a.b !?= default` assigns `default` only when the key is **absent** (the value
 is evaluated lazily):
 
-```go
+```gad
 a := {b: nil}
 a.b !?= 9           // no-op — key present (even though nil)
 println(a.b)        // nil
@@ -238,7 +238,7 @@ path is present (it never creates anything). `!?=` auto-creates missing
 intermediate containers as empty dicts, then sets the leaf only when it is
 absent:
 
-```go
+```gad
 a := {}
 println(a.b.c.d !? 0)   // 0   (path absent — nothing created)
 println(a)              // {}
@@ -258,12 +258,12 @@ and `ObjectWithInBinOperator` (the `in` membership operator). `Dict`, `*SyncDict
 and `*ClassInstance` satisfy it. Descending through a value that is not such a
 container is a runtime error:
 
-```go
+```gad
 a := {b: 2}
 a.b.c.d !?= 2       // error: 2 is not a container (no `in` operator)
 ```
 
-```go
+```gad
 // class instances work as containers (fields are the keys)
 class Point { x = 0 }
 p := Point()
@@ -293,7 +293,7 @@ The **postfix** `x++` / `x--` are statements. The **prefix** `++x` / `--x` are
 For a **single** assignment target and **any** operator, a comma-separated
 right-hand side is shorthand for an array literal — spreads (`*x`) flatten:
 
-```go
+```gad
 x := 1, 2, 3          // x := [1, 2, 3]
 o := [3, 4]
 x = 1, 2, *o          // x = [1, 2, 3, 4]
@@ -303,7 +303,7 @@ a ++= 2, 3, *o        // a ++= [2, 3, 3, 4]
 Several targets still **destructure** as usual, and a `*rest` target collects
 the remainder (whose right side may itself use a spread):
 
-```go
+```gad
 a, b := 1, 2                 // a == 1, b == 2
 a, *rest := 1, 2, *[3, 4]    // a == 1, rest == [2, 3, 4]
 ```
@@ -319,7 +319,7 @@ Arrays support four append forms — two expressions and two assignments:
 | `arr += x`  | append `x` as a **single** element (in place)      |
 | `arr ++= it`| extend with the elements of iterable `it` (in place)|
 
-```go
+```gad
 [1] + 2         // [1, 2]        (append one)
 [1] + [2, 3]    // [1, 2, 3]     (+ concatenates an iterable)
 [1] ++ [2, 3]   // [1, 2, 3]     (++ extends with an iterable)
@@ -348,7 +348,7 @@ The built-in numeric types do not define them, but a type can — typically a
 class via `met gad.binOpInc(…)` — for example to model
 a "push":
 
-```go
+```gad
 Stack := Class("Stack", (cls, define) => define(; fields = (; items = (= []))))
 met gad.binOpInc(s Stack, v) {
     s.items += v
@@ -368,7 +368,7 @@ Operator behaviour is dispatched through per-operator functions in the global
 `--`) — e.g. `gad.binOpAdd`, `gad.unOpSub`, `gad.selfAssignOpAdd`. A type
 customises an operator by adding a typed method to the matching function:
 
-```go
+```gad
 met gad.binOpAdd(a Vec, b Vec) { … }
 met gad.unOpSub(v Vec) { return Vec(; x = -v.x) }
 ```
@@ -390,7 +390,7 @@ They have multiplicative precedence (level 5). Give them semantics per type with
 the matching per-operator function (`gad.binOpTripleLess`,
 `gad.binOpTripleGreater`, `gad.binOpDoubleMod`):
 
-```go
+```gad
 met gad.binOpTripleLess(a int, b int) {
     return a * 1000 + b
 }
@@ -410,7 +410,7 @@ it directly with `met gad.selfAssignOpTripleLess(…)`.
 method-interface instances (membership of a function header). It has comparison
 precedence.
 
-```go
+```gad
 2 in [1, 2, 3]        // true
 "a" in {a: 1}         // true (key)
 104 in bytes("hi")    // true ('h')
@@ -436,7 +436,7 @@ of `B`. It has the same comparison precedence as `in`. The left operand is an
 array of values (a non-array value is treated as a single element, so `x ain B`
 matches `x in B`); an empty array is vacuously true.
 
-```go
+```gad
 [1, 2] ain [1, 2, 3]        // true
 [1, 4] ain [1, 2, 3]        // false
 [] ain [1, 2, 3]            // true   (vacuous)
@@ -457,7 +457,7 @@ assignable to `Type` and returns `obj` unchanged, otherwise it raises a
 catchable type error (`ErrIncompatibleAssign`). Assignability follows the same
 rules the method dispatcher uses:
 
-```go
+```gad
 5 :: int               // 5
 d :: Animal            // a Dog instance is assignable to a parent class
 f :: met<(int) <int>>  // a callable that structurally satisfies a method interface
@@ -494,7 +494,7 @@ Use `.` (selector) and `[]` (indexer) to read or write elements of arrays,
 dicts, strings and bytes. The selector `.name` takes a literal name; use the
 indexer `[expr]` for a computed key.
 
-```go
+```gad
 ["one", "two", "three"][1]   // "two"
 "foobarbaz"[4]               // 97  (a byte, as int)
 
@@ -508,7 +508,7 @@ println(m[key][0])          // 2
 Slices use `[start:end]` on arrays, strings and bytes. A negative index counts
 from the end.
 
-```go
+```gad
 [1, 2, 3, 4, 5][1:3]   // [2, 3]
 [1, 2, 3, 4, 5][3:]    // [4, 5]
 [1, 2, 3, 4, 5][:3]    // [1, 2, 3]
@@ -518,7 +518,7 @@ from the end.
 
 Keywords cannot be used as bare selectors; index with a string instead:
 
-```go
+```gad
 a := {}
 a["func"] = 1   // ok
 // a.func = 1   // parse error

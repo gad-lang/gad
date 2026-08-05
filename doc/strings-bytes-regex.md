@@ -15,7 +15,7 @@ Gad has several textual literal forms:
 | raw heredoc         | `` ```…``` ``          | `rawStr` | no       |
 | interpolated string | `#"hi {name}"`         | `str`    | yes      |
 
-```go
+```gad
 "tab\there"     // tab<TAB>here
 `no\tescape`    // literally  no\tescape
 raw "x" + "y"   // "xy"  (rawStr concatenates with str)
@@ -29,7 +29,7 @@ raw "x" + "y"   // "xy"  (rawStr concatenates with str)
 literal the conversion happens at **compile time** (it folds to a constant);
 otherwise it converts the evaluated value at **run time**:
 
-```go
+```gad
 raw `a\nb`         // rawStr with a literal backslash-n — folded at compile time
 raw "x" + str(1)   // rawStr "x1"
 raw str(100)       // rawStr "100" — converted at run time
@@ -47,7 +47,7 @@ A heredoc is delimited by a fence of three or more `"` — the `"""…"""` form 
 `rawStr` (verbatim: no escapes, no interpolation). Because the fence is three
 quotes, a single `"` (or `` ` ``) inside the body is just text.
 
-```go
+```gad
 """abc"""            // abc
 """abc""de"""        // abc""de   (a doubled quote is literal)
 """tab\tend"""       // tab<TAB>end   (escapes interpreted)
@@ -57,7 +57,7 @@ In the multi-line form the opening and closing fence lines are dropped and the
 **common leading indentation is stripped**, so a heredoc stays aligned with the
 surrounding code:
 
-```go
+```gad
 s := """
     line1
     line2
@@ -68,7 +68,7 @@ println(s)           // line1\nline2
 The raw `` ```…``` `` form keeps its body verbatim — backslashes and `{…}` braces
 are literal, and indentation is still stripped:
 
-```go
+```gad
 raw := ```
     C:\tmp\file
     {not interpolated}
@@ -89,7 +89,7 @@ opening statement's indentation whose only word is `end`. A deeper-indented
 `end` (e.g. from an embedded `begin … end`) belongs to the body, and the body is
 dedented to its own least-indented line:
 
-```go
+```gad
 src := code
     for x in [1, 2] {
         println(x)
@@ -103,7 +103,7 @@ println(src)
 
 There is also a single-line form `code <body> end`:
 
-```go
+```gad
 s := code a + b end
 println(s)   // a + b
 ```
@@ -116,7 +116,7 @@ A bare `code` identifier (with no matching `end` fence) is unaffected, so
 A `#"…"` (or `` #`…` ``) literal is an interpolated string: `{expr}` is
 interpolated and the whole thing evaluates to a normal string.
 
-```go
+```gad
 name := "Gad"
 println(#"Hello {name}!")     // Hello Gad!
 println(#"sum = {2 + 3}")     // sum = 5
@@ -127,7 +127,7 @@ The `#` prefix works on the heredoc forms too — `#"""…"""` (interpreted, `st
 and `` #```…``` `` (verbatim, `rawStr`) — combining `{expr}` interpolation with
 indentation stripping:
 
-```go
+```gad
 name := "Gad"
 s := #"""
     hello {name}
@@ -150,7 +150,7 @@ value:
 * `b"…"` — the UTF-8 bytes of the string content.
 * `h"…"` — the bytes decoded from a hexadecimal sequence.
 
-```go
+```gad
 b"Hello"        // bytes: H e l l o
 h"ffccf1c2"     // bytes: 0xff 0xcc 0xf1 0xc2
 typeName(b"x")  // "bytes"
@@ -160,7 +160,7 @@ str(h"4869")    // "Hi"
 Any string form may be used as the body — regular string, raw string, heredoc
 or raw heredoc — so escapes follow the body's rules:
 
-```go
+```gad
 b"a\nb"     // 3 bytes: 'a', newline, 'b'  (escape processed)
 b`a\nb`     // 4 bytes: 'a', '\', 'n', 'b' (raw, no escape)
 b"""
@@ -170,7 +170,7 @@ hello
 
 For `h"…"`, whitespace inside the literal is ignored, so you can group digits:
 
-```go
+```gad
 h"ff cc f1 c2"   // same as h"ffccf1c2"
 ```
 
@@ -183,7 +183,7 @@ error**.
 
 ### Indexing and slicing bytes
 
-```go
+```gad
 data := b"Hello"
 println(data[0])     // 72  (the byte value, as int)
 println(data[1:3])   // bytes "el"
@@ -197,7 +197,7 @@ pattern is a compile error). Append `p` for POSIX semantics, and use Go's inline
 flags such as `(?i)` (case-insensitive) inside the pattern. The same object can
 be created at runtime with the `regexp(...)` constructor.
 
-```go
+```gad
 re := /ab+/
 re.match("abbb")          // true
 re.match("xyz")           // false
@@ -224,7 +224,7 @@ The result of `~~` is a *submatch* value: index `0` is the whole match and
 `1, 2, …` are the capture groups. It is indexable (including negative indices),
 has a `len`, and is iterable. `~~~` yields a list of such submatch values.
 
-```go
+```gad
 m := /(\w+)@(\w+)/ ~~ "user@host"
 m[0]                       // "user@host"  (whole match)
 m[1]                       // "user"       (group 1)
@@ -252,7 +252,7 @@ The replacement is either a **template string** or a **callable**:
 
 A `bytes` subject yields a `bytes` result.
 
-```go
+```gad
 // numbered groups
 (/(\d+)-(\d+)/).replace("12-34", "$2/$1")              // "34/12"
 // named groups
@@ -280,7 +280,7 @@ For runnable string/bytes/regex examples, see:
 same string or callable accepted by `replace` (a callable still receives the
 `m` and `re` named arguments). It composes with the pipe operator `.|`:
 
-```go
+```gad
 f := /o/ | "0"
 f("hello world")              // "hell0 w0rld"
 "hello world".|(/o/ | "0")    // "hell0 w0rld"

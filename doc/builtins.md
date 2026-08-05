@@ -13,7 +13,7 @@ see a reduced set.
 `int`, `uint`, `float`, `decimal`, `bool`, `flag`, `char`, `string` (alias
 `str`), `bytes`, `array`, `chars`, `error`, `keyValue`, `keyValueArray`.
 
-```go
+```gad
 int("42")        // 42
 str(42)          // "42"
 float(3)         // 3.0
@@ -30,7 +30,7 @@ array(1, 2, 3)   // [1, 2, 3]
 `isChar`, `isDict`, `isError`, `isFloat`, `isFunction`, `isInt`, `isIterable`,
 `isIterator`, `isNil`, `isRawStr`, `isStr`, `isUint`, `isSyncDict`.
 
-```go
+```gad
 typeName([1, 2])   // "array"
 isInt(5)           // true
 isNil(nil)         // true
@@ -46,7 +46,7 @@ Appending and deleting are **operators / statements**, not builtins:
 the `+` / `++` / `+=` / `++=` operators (see [operators](operators.md)) append, and the
 `delete` statement removes keys.
 
-```go
+```gad
 len([1, 2, 3])             // 3
 [1, 2] ++ [3, 4]           // [1, 2, 3, 4]  (append/extend operators)
 contains([1, 2, 3], 2)     // true
@@ -64,7 +64,7 @@ Several of these (`map`, `filter`, `keys`, `values`, …) return **lazy
 iterators**. Consume them in a `for in` loop or a comprehension, or materialise
 them with `collect` / `array`:
 
-```go
+```gad
 // for-in over a lazy map (callback gets value first)
 for k, v in map([10, 20, 30], func(v, k) { return v * 2 }) {
     println(k, v)        // 0 20, 1 40, 2 60
@@ -88,7 +88,7 @@ than `map`/`filter` — see [Collections](collections.md#comprehensions).
 `print`, `println`, `printf`, `sprintf`, `repr`, `read`, `write`, `flush`,
 `stdio`.
 
-```go
+```gad
 println("a", 1, [2])     // a 1 [2]
 printf("%d-%s\n", 7, "x")// 7-x
 s := sprintf("%v", {a: 1})
@@ -109,7 +109,7 @@ support the object/class system.
 `time`, `strings`, `fmt` and `base64` are exposed as **builtin namespaces**:
 they are always available, so you can use them **without an `import`**:
 
-```go
+```gad
 println(strings.contains("abcd", "bc"))          // true
 println(fmt.sprintf("%d-%s", 7, "x"))            // 7-x
 println(base64.StdEncoding.EncodeToString(bytes("hi")))  // aGk=
@@ -121,7 +121,7 @@ println(d.Year())                                // 2026
 `import(...)` still works for these (and is required for other stdlib modules),
 returning the same members:
 
-```go
+```gad
 strings := import("strings")
 println(strings.toUpper("hi"))   // HI
 ```
@@ -142,7 +142,7 @@ value stay PascalCase (`t.Add(…)`, `t.Format(…)`).
 Further functionality is grouped into importable modules such as `json`, `os`,
 `filepath` and `path`:
 
-```go
+```gad
 json := import("json")
 ```
 

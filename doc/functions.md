@@ -5,7 +5,7 @@
 Functions are first-class values. A function literal is `func(params) { … }`,
 usually bound to a variable:
 
-```go
+```gad
 sum := func(a, b) {
     return a + b
 }
@@ -18,7 +18,7 @@ var mul = func(a, b) {
 A `func` with a name is a declaration that binds that name (a `const`); there is
 also a shorthand `name(params) { … }` / `name(params) => expr`:
 
-```go
+```gad
 func area(r) {
     return 3.14159 * r * r
 }
@@ -30,7 +30,7 @@ println(area(2), double(21))
 
 `(params) => expr` is a shorthand closure whose body is a single expression.
 
-```go
+```gad
 double := (x) => x * 2
 add := (a, b) => a + b
 println(double(21), add(2, 3))   // 42 5
@@ -40,7 +40,7 @@ println(double(21), add(2, 3))   // 42 5
 
 Inner functions capture variables from their enclosing scope.
 
-```go
+```gad
 adder := func(base) {
     return (x) => base + x   // captures 'base'
 }
@@ -53,7 +53,7 @@ println(add5(4))   // 9
 The last positional parameter may be variadic (`*name`); it collects the
 remaining positional arguments into an array.
 
-```go
+```gad
 variadic := func(a, b, *c) {
     return [a, b, c]
 }
@@ -67,7 +67,7 @@ Only the **last** positional parameter may be variadic.
 
 Use `*` to spread an array as positional arguments at the call site:
 
-```go
+```gad
 f := func(a, b, c) { return a + b + c }
 f(*[1, 2, 3])   // 6
 f(1, *[2, 3])   // 6
@@ -77,7 +77,7 @@ Unlike a parameter list (where only the last parameter may be variadic), a
 **call** may use several spreads, interleaved with plain arguments, in any
 position — they are concatenated left to right:
 
-```go
+```gad
 f := func(*args) { return args }
 f(0, *[1, 2], 5, *[3, 4])   // [0, 1, 2, 5, 3, 4]
 f(*[1, 2], 9)               // [1, 2, 9]
@@ -90,7 +90,7 @@ Parameters after a `;` are **named**. They may have defaults, and a trailing
 pass named arguments after a `;` as `name=value`, and may spread a dict with
 `**`.
 
-```go
+```gad
 greet := func(name; greeting="Hello", **rest) {
     return greeting + ", " + name
 }
@@ -104,7 +104,7 @@ At a call site the named side may likewise mix several `**` spreads with plain
 `name=value` pairs, in any order; they merge left to right, so a later source
 overrides an earlier key:
 
-```go
+```gad
 f := func(; **kw) { return dict(kw) }
 f(; b=1, **{x: 10}, c=2, **{y: 20})   // {b: 1, x: 10, c: 2, y: 20}
 f(; a=1, **{a: 9})                    // {a: 9}   (later wins)
@@ -112,13 +112,13 @@ f(; a=1, **{a: 9})                    // {a: 9}   (later wins)
 
 Interleaved positional and named spreads combine in one call:
 
-```go
+```gad
 x(1, *arr1, 2, *arr2; b=1, **d1, c=2, **d2)
 ```
 
 A function can declare both positional and named parameters, in that order:
 
-```go
+```gad
 func(a, b, *pos; x, y=1, **named) { /* ... */ }
 ```
 
@@ -127,7 +127,7 @@ func(a, b, *pos; x, y=1, **named) { /* ... */ }
 A call must supply the right number of positional arguments (variadics aside),
 or it raises `WrongNumArgumentsError`:
 
-```go
+```gad
 f := func(a, b) {}
 f(1, 2, 3)   // RuntimeError: WrongNumArgumentsError
 ```
@@ -139,7 +139,7 @@ argument types. Instead of a single parameter list and body, write a brace block
 whose entries are each `(params) <ret> {body}` (the return-type list and a `=>`
 expression body are optional, exactly as for a plain function):
 
-```go
+```gad
 func area {
   (r float)          => 3.14159 * r * r        // circle
   (w float, h float) => w * h                   // rectangle
@@ -155,7 +155,7 @@ function to `area`; the same form is also valid as an expression value.
 
 New methods can be added to an existing callable later with the `met` statement:
 
-```go
+```gad
 met area(s str) => "n/a"     // add a string overload
 area("x")                    // "n/a"
 ```
@@ -168,7 +168,7 @@ implementation (super / around advice), give the override a special `$old` first
 parameter: it captures the method being replaced, is dropped from the real
 signature, and is callable inside the body:
 
-```go
+```gad
 func step(n int) => n * 10
 met ~step($old, n int) => $old(n) + 1   // wrap the previous `step`
 step(3)                                 // 31  (30 + 1)
@@ -183,7 +183,7 @@ Under the hood `$old` is `gad.methodFromArgs(step, int)`. That builtin is also
 usable directly: it returns the method a call would dispatch to, selected either
 by an example value or by a type name:
 
-```go
+```gad
 gad.methodFromArgs(step, 4)      // the (int) method, chosen by value
 gad.methodFromArgs(step, int)    // the same method, chosen by type
 ```
@@ -197,7 +197,7 @@ setters — like a closure with an assignable value. It can be called, read/writ
 through its virtual `.v` field, stored in a container where indexing delegates to
 it (computed properties), and exported as a module live binding.
 
-```go
+```gad
 var value
 prop x {
   ()      => value          // getter:  x()  or  x.v
@@ -216,7 +216,7 @@ getter-only form, the virtual `.v` field, computed container members,
 **computed value**: a lazy callable that runs its body and yields the result
 each time it is called.
 
-```go
+```gad
 v := 10
 c := (= v * 2)
 typeName(c)   // "ComputedValue"
@@ -228,7 +228,7 @@ c()           // 200  — the body is re-evaluated on every call
 Computed values shine as class field defaults, where each instance gets its own
 freshly-evaluated value (see [Classes → Fields](classes.md#fields)):
 
-```go
+```gad
 n := 0
 C := Class("C", (cls, define) => define(; fields = (; id = (= n++))))
 [C().id, C().id]   // [1, 2]
@@ -245,7 +245,7 @@ bare expression value is ignored). This pairs naturally with
 [deferred handlers](#deferred-handlers), which can read and rewrite it via
 `$ret`.
 
-```go
+```gad
 f := func(x) {
     return = x   // bind the result slot to x
     x++          // keep running; mutating x updates the result
@@ -262,7 +262,7 @@ println(f(10))   // 11
 in last-in-first-out order. Inside a handler, `$ret` is the (mutable) return
 value and `$err` is the error being propagated, if any.
 
-```go
+```gad
 f := func() {
     defer { println("cleanup") }
     println("body")
@@ -283,7 +283,7 @@ Besides the block form, a handler may be a single statement written **without
 braces** — `defer Stmt`. It accepts a call (with `$ret` / `$err` passed as
 arguments), an assignment, or an increment/decrement:
 
-```go
+```gad
 f := func() {
     defer cleanup($ret, $err)   // call, receives the result and error
     defer_ok log($ret)          // call, only on success
@@ -298,7 +298,7 @@ The same shortcut applies to the `deferb*` variants (`deferb out += "x"`,
 A `defer_err` handler can **recover** by clearing `$err` (and optionally setting
 `$ret`):
 
-```go
+```gad
 safe := func() {
     defer_err {
         $ret = "recovered: " + str($err)
@@ -323,7 +323,7 @@ For runnable function examples, see:
 exits, rather than the whole function — useful for scoped cleanup. Block defers
 have no `$ret` (a block has no return value).
 
-```go
+```gad
 out := ""
 {
     deferb { out += "d1 " }

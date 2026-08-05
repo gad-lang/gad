@@ -12,7 +12,7 @@ programmatically.
 
 ## Declaring properties
 
-```go
+```gad
 var value
 prop x {
   ()      => value                  // getter:  x()
@@ -34,7 +34,7 @@ A single-accessor property may drop the braces: `prop pi() => 3.14`.
 (the expression is evaluated on each access) and has no setter, so writing it is
 an error. It works anonymously or named:
 
-```go
+```gad
 var _x = 5
 x := prop => _x        // anonymous, assigned to a variable
 prop y => _x           // named statement
@@ -51,7 +51,7 @@ A property exposes a virtual `v` field for value access without an explicit
 call: `x.v` runs the getter (like `x()`) and `x.v = value` runs the matching
 setter (like `x(value)`). Calling the property directly still works.
 
-```go
+```gad
 var stored
 prop x { () => stored; (n) { stored = n } }
 
@@ -88,7 +88,7 @@ When a `Prop` is stored at a container key, indexing that key **delegates** to
 the prop — reading runs its getter, assigning runs its matching setter. This is
 the computed-property (accessor) pattern, like a JavaScript getter/setter:
 
-```go
+```gad
 var (
   v = 1,
   d = { x: prop { () => v; (val) { v = val } } }
@@ -101,7 +101,7 @@ d.x        // 2
 
 A getter-only prop stored at a key is read-only through it:
 
-```go
+```gad
 var (_x = 10, d = { x: prop => _x })
 d.x        // 10  — getter (live)
 _x = 20
@@ -124,13 +124,13 @@ exports a read/write property over it, giving a **live binding**: writing
 `mod.name` from outside changes the module's `name`, and module functions
 closing over `name` observe the change (and vice versa).
 
-```go
+```gad
 // counter.gad
 export prop x = 10
 export getX() => x
 ```
 
-```go
+```gad
 c := import("./counter.gad")
 c.x         // 10  — getter
 c.getX()    // 10
@@ -140,7 +140,7 @@ c.getX()    // 12  — the change is observed
 
 `export prop name => expr` exports a **read-only** live binding (getter only):
 
-```go
+```gad
 var _v = 7
 export prop x => _v      // read-only view of _v
 export bump() { _v = _v + 1 }
@@ -152,7 +152,7 @@ The [`reflect`](reflect.md) module reads and writes a key **without** delegating
 to a stored prop — the functional analog of JavaScript `Reflect.get` /
 `Reflect.set`:
 
-```go
+```gad
 reflect.get(d, "x")    // the Prop itself (getter not run)
 reflect.set(d, "x", 3) // overwrites the key with 3, removing the prop
 ```

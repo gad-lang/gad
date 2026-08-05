@@ -8,7 +8,7 @@ member carries its name, value and index.
 
 ## Defining an enum
 
-```go
+```gad
 // statement form: `enum Name { … }` defines a constant Name
 enum Perm {
     Read        // 1
@@ -33,7 +33,7 @@ A field without an explicit `= value` takes the previous magnitude **+ 1** (or
 **1** for the first field). An explicit value may be an `int` or `uint` literal,
 and it may reference earlier fields with integer operators:
 
-```go
+```gad
 enum Perm {
     Read
     Write
@@ -49,7 +49,7 @@ Whether a member is `int` or `uint` propagates left to right: the default is
 A `+` or `-` prefix makes a field a signed `int` and sets a **running sign** that
 propagates to later defaulted fields; `+` flips it back to positive:
 
-```go
+```gad
 enum Signed {
     -Low      // -1
     Lower     // -2  (sign propagates)
@@ -63,7 +63,7 @@ enum Signed {
 `bit` activates bitwise mode for that field and the ones after it: each defaulted
 field is `1 << n`.
 
-```go
+```gad
 enum Flags {
     bit List    // 1 << 0 = 1
     Detail      // 1 << 1 = 2
@@ -77,14 +77,14 @@ enum Flags {
 A field named `_` advances the running value but is **not** added to the enum.
 Use it to skip values:
 
-```go
+```gad
 enum E { _, Read, Write }        // Read = 2, Write = 3
 enum E { Read, _ = 6, Write }    // Read = 1, Write = 7
 ```
 
 ## Using an enum
 
-```go
+```gad
 enum Perm { Read, Write, Exec = 10 }
 
 Perm.Exec.value     // 10   — the underlying int/uint
@@ -105,7 +105,7 @@ Four virtual keys expose the whole enum at once. Every one is in **declaration
 order** (the same order as iteration), and each yields the underlying
 `int`/`uint` values — not the `EnumValue` wrappers:
 
-```go
+```gad
 enum Perm { Read, Write, Exec = 10 }
 
 Perm["@names"]      // ["Read", "Write", "Exec"]        — array of names
@@ -116,7 +116,7 @@ Perm["@pairs"]      // (; Read=1, Write=2, Exec=10 )     — keyValueArray
 
 Converting an enum to a dict yields the same name → value mapping:
 
-```go
+```gad
 dict(Perm)          // { Read: 1, Write: 2, Exec: 10 }
 ```
 

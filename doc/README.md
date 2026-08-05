@@ -86,7 +86,7 @@ documentation lives in [`gadx/docs`](../gadx/docs):
 
 ## A Taste of Gad
 
-```go
+```gad
 param *args
 
 // closures, named args and the `or` fallback operator

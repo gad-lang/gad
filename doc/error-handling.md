@@ -8,7 +8,7 @@ An `error` value carries a `name` and a `message`. Create one with the `error`
 builtin (its first argument is converted to a string message) and inspect it
 with the `.name` and `.message` selectors.
 
-```go
+```gad
 err := error("oops")
 println(isError(err))   // true
 println(err.name)       // error
@@ -23,7 +23,7 @@ operation) does.
 
 `throw` raises any value as an error, unwinding until a `catch` handles it.
 
-```go
+```gad
 func() {
     throw "something went wrong"
 }()
@@ -35,7 +35,7 @@ func() {
 `finally` always runs. `catch` and `finally` are each optional, but at least one
 must be present.
 
-```go
+```gad
 try {
     throw "boom"
 } catch err {
@@ -47,7 +47,7 @@ try {
 
 A `catch` without a binding ignores the error value:
 
-```go
+```gad
 try {
     risky()
 } catch {
@@ -60,7 +60,7 @@ try {
 Builtin errors have a `name` but no message. Call `.New(message)` to create a
 wrapped instance with a message.
 
-```go
+```gad
 e := NotImplementedError.New("todo: parse v2")
 println(e.name)      // NotImplementedError
 println(e.message)   // todo: parse v2
@@ -89,7 +89,7 @@ You can `catch` these like any other error, or compare an error's `.name`.
 error is swallowed and `fallback` is used instead. It is a concise alternative
 to a `try/catch` for expression-level recovery.
 
-```go
+```gad
 mayThrow := func() { throw "fail" }
 
 z := mayThrow() or 99            // 99
@@ -100,7 +100,7 @@ ok := (2 * 3) or 0               // 6  (no throw → left value)
 Inside the fallback, the caught error is bound to `$err`, so the fallback can
 inspect or reuse it:
 
-```go
+```gad
 v := mayThrow() or ("recovered: " + str($err))   // "recovered: error: fail"
 // reuse $err to re-throw selectively
 n := compute() or ($err.name == "error" ? -1 : throw $err)
@@ -119,7 +119,7 @@ by clearing `$err`, optionally setting the result via `$ret`. See
 
 For a runnable error-handling example, see `samples/07_error_handling.gad`.
 
-```go
+```gad
 safe := func() {
     defer_err {
         $ret = "recovered: " + str($err)
