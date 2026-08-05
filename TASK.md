@@ -198,6 +198,24 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   Settings → Pages (Source: None); if org policy blocks that, fall back to a
   gh-pages redirect to the root site. Left gh-pages untouched. commit a37d0e2
 
+### 2026-08-05 (ide-react parity with ide-vuetify — IN PROGRESS)
+- Goal: make @gad-lang/ide-react an identical replica of ide-vuetify, running
+  with OR without a backend; cmd/gad ide lets the user pick server/server-less but
+  its explorer stays real files. Decisions: add features to existing (already
+  dockview-based, MUI) Ide.tsx; gad ide = hybrid (Go serves real files always,
+  flag chooses compute Go-vs-WASM); port Playground+Notebook too; reusable
+  components like vuetify; similar layout
+- DONE: GadPlayground + GadNotebook as reusable React components (commit 70cce4f);
+  upload.ts + fileTypes.ts (FileTypeRegistry) + UploadedFile type foundations
+  (commit 82aa931). Both typecheck+build green
+- REMAINING (large): wire upload UI (Explorer button + drag-drop) +
+  UploadReviewDialog + UrlImportDialog + DirTree + Prompt/Confirm (MUI) into
+  Ide.tsx; readonly gating; autosave (opt+interval); tabNameMax; dirty-tabs;
+  active-file highlight; font-size statusbar. Then cmd/gad ide --serverless
+  (composite IdeApi: files→Go, compute→WASM) + web/app wiring
+- Note: ide-react is MUI-based (not Vuetify); icons via @mui/icons-material, so
+  fileTypes mdi-* icon strings aren't used for React icons (language part is)
+
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
 |-------|-------|-----|----------|
