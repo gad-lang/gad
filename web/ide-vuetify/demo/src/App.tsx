@@ -4,12 +4,21 @@
 // and the settings (config) are v-models persisted to LocalStorage and reloaded.
 import { computed, defineComponent, onMounted, ref } from "vue";
 import { useTheme } from "vuetify";
-import { VApp, VAppBar, VAppBarTitle, VMain } from "vuetify/components";
+import { VApp, VAppBar, VAppBarTitle, VMain, VSpacer, VTab, VTabs } from "vuetify/components";
 import yaml from "js-yaml";
-import { GadIde } from "@gad-lang/ide-vuetify";
-import type { RunMode, RunProfile, SerializedDockview, UploadedFile, Workspace } from "@gad-lang/ide-vuetify";
+import { GadIde, GadNotebook, GadPlayground } from "@gad-lang/ide-vuetify";
+import type { GadRunner, RunMode, RunProfile, SerializedDockview, UploadedFile, Workspace } from "@gad-lang/ide-vuetify";
 import { localIdeApi, resetWorkspace } from "./backends/localIde";
+import { sharedClient } from "./wasm/shared";
 import { base64ToBytes, extractArchive } from "./extract";
+
+// The Playground/Notebook backend: format/run/diagnose through the WASM worker.
+const runner: GadRunner = {
+  name: "WebAssembly",
+  format: (s) => sharedClient().format(s),
+  run: (s) => sharedClient().run(s),
+  diagnose: async (s) => (await sharedClient().diagnose(s)).diagnostics,
+};
 
 // onUpload persists uploaded files to the in-browser workspace. A plain file is
 // written as-is; an archive (when the component asks to extract) is expanded
@@ -58,6 +67,7 @@ export default defineComponent({
     // Derive `dark` from Vuetify's active theme so the toolbar, the dockview
     // theme and the editor stay in sync (no manual ref that can drift).
     const dark = computed(() => theme.global.current.value.dark);
+    const tab = ref<"ide" | "playground" | "notebook">("playground");
     const workspace = ref<Workspace | null>(null);
     const layoutConfig = ref<SerializedDockview | null>(loadJSON<SerializedDockview | null>(LAYOUT_KEY, null));
     const config = ref<Record<string, unknown>>(loadJSON<Record<string, unknown>>(CONFIG_KEY, {}));
@@ -94,13 +104,21 @@ export default defineComponent({
     return () => (
       <VApp>
         <VAppBar density="compact" flat>
-          <VAppBarTitle>Gad IDE</VAppBarTitle>
+          <VAppBarTitle style={{ flex: "none", marginRight: "16px" }}>Gad</VAppBarTitle>
+          <VTabs modelValue={tab.value} {...{ "onUpdate:modelValue": (v: unknown) => (tab.value = v as typeof tab.value) }} density="compact">
+            <VTab value="ide">IDE</VTab>
+            <VTab value="playground">Playground</VTab>
+            <VTab value="notebook">Notebook</VTab>
+          </VTabs>
+          <VSpacer />
           <button class="gad-theme-toggle" title="Toggle light/dark" onClick={toggleTheme}>
             {dark.value ? "☀" : "☾"}
           </button>
         </VAppBar>
         <VMain class="gad-main">
-          {workspace.value && (
+          {tab.value === "playground" && <GadPlayground runner={runner} dark={dark.value} />}
+          {tab.value === "notebook" && <GadNotebook runner={runner} dark={dark.value} />}
+          {tab.value === "ide" && workspace.value && (
             <GadIde
               api={localIdeApi}
               workspace={workspace.value}

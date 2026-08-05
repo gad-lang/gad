@@ -7,6 +7,8 @@
 // settings). Requires Vue 3, Vuetify 3 and dockview-vue as peer dependencies.
 export { default as GadIde } from "./GadIde";
 export { default as GadEditor } from "./GadEditor";
+export { default as GadPlayground } from "./GadPlayground";
+export { default as GadNotebook } from "./GadNotebook";
 export { default as InspectorNode, type InspectFn } from "./InspectorNode";
 
 // Backend contract + the built-in HTTP implementation.
@@ -28,7 +30,7 @@ export type {
   DebugVariable,
   DebugResponse,
 } from "./api";
-export type { FormatResult, RunResult } from "./types";
+export type { FormatResult, RunResult, GadRunner } from "./types";
 
 // CodeMirror building blocks (for composing a custom shell).
 export {

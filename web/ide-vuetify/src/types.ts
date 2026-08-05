@@ -15,3 +15,13 @@ export interface RunResult {
   result: string;
   diagnostics: GadDiagnostic[];
 }
+
+/** GadRunner is the minimal backend the Playground and Notebook drive: format,
+ * run and (optionally) diagnose. Any implementation works — a Go server, the Gad
+ * WASM module, etc. */
+export interface GadRunner {
+  name?: string;
+  format(source: string): Promise<FormatResult>;
+  run(source: string): Promise<RunResult>;
+  diagnose?: (source: string) => Promise<GadDiagnostic[]> | GadDiagnostic[];
+}
