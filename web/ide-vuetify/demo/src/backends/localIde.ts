@@ -5,6 +5,7 @@
 // (see ../wasm). Config (layout, breakpoints, …) persists to LocalStorage.
 import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import type {
+  BreakpointSpec,
   DocComment,
   EvalResult,
   IdeApi,
@@ -155,8 +156,8 @@ export const localIdeApi: IdeApi = {
     (await sharedClient().diagnose(source)).diagnostics,
   run: (req: { path?: string; source?: string; args?: string[] }) =>
     sharedClient().run(req.source ?? fs.read(req.path ?? "") ?? "", dialectOf(req.path), req.args ?? []),
-  dbgStart: (req: { source: string; breakpoints: number[]; stopOnEntry: boolean; path?: string; args?: string[] }) =>
-    sharedClient().debugStart(req.source, req.path ?? "", req.breakpoints, req.stopOnEntry, req.args ?? []),
+  dbgStart: (req: { source: string; breakpoints: number[]; breakpointSpecs?: BreakpointSpec[]; stopOnEntry: boolean; path?: string; args?: string[] }) =>
+    sharedClient().debugStart(req.source, req.path ?? "", req.breakpoints, req.stopOnEntry, req.args ?? [], req.breakpointSpecs ?? []),
   dbgCmd: (session: string, command: string) => sharedClient().debugCommand(session, command),
   dbgEval: (session: string, expr: string, repr: boolean) => sharedClient().debugEval(session, expr, repr),
 };

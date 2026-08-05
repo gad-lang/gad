@@ -39,7 +39,7 @@ export {
   type LocalVar,
 } from "./codemirror";
 export { renderDocMarkdown } from "./docMarkdown";
-export { createController, IdeControllerKey, type IdeController } from "./controller";
+export { createController, IdeControllerKey, type IdeController, type BpMeta } from "./controller";
 
 // Dockview layout serialization type, for typing the `layoutConfig` v-model.
 export type { SerializedDockview } from "dockview-vue";

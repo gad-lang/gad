@@ -5,7 +5,7 @@
 import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import type { DebugResponse } from "../backends/debug";
 import type { FormatResult, RunResult } from "../backends/types";
-import type { DocComment, EvalResult, InspectResult } from "@gad-lang/ide-react";
+import type { BreakpointSpec, DocComment, EvalResult, InspectResult } from "@gad-lang/ide-react";
 
 type Pending = { resolve: (v: string) => void; reject: (e: Error) => void };
 
@@ -102,9 +102,13 @@ export class WasmClient {
   }
 
   // --- Debugger (mirrors backends/debug.ts) ---
-  debugStart(source: string, path: string, breakpoints: number[], stopOnEntry: boolean, args: string[] = []) {
+  debugStart(
+    source: string, path: string, breakpoints: number[], stopOnEntry: boolean,
+    args: string[] = [], breakpointSpecs: BreakpointSpec[] = [],
+  ) {
     return this.json<DebugResponse>("gadDebugStart", [
       source, path, JSON.stringify(breakpoints), stopOnEntry, JSON.stringify(args),
+      JSON.stringify(breakpointSpecs),
     ]);
   }
   debugCommand(session: string, command: string) {

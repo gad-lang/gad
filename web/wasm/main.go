@@ -70,14 +70,21 @@ func main() {
 	}))
 
 	// Debug stepping protocol (mirrors /api/debug/*).
-	// gadDebugStart(source, path, breakpointsJSON, stopOnEntry, argsJSON)
+	// gadDebugStart(source, path, breakpointsJSON, stopOnEntry, argsJSON[, specsJSON])
+	// specsJSON is a JSON array of { line, disabled, condition } — conditional
+	// breakpoints that take precedence over breakpointsJSON when present.
 	js.Global().Set("gadDebugStart", jsonFuncN(func(args []js.Value) any {
+		var specs []gadbridge.BreakpointSpec
+		if s := argStr(args, 5); s != "" {
+			_ = json.Unmarshal([]byte(s), &specs)
+		}
 		return dbg.Start(gadbridge.DebugStartRequest{
-			Source:      argStr(args, 0),
-			Path:        argStr(args, 1),
-			Breakpoints: argInts(args, 2),
-			StopOnEntry: argBool(args, 3),
-			Args:        argStrs(args, 4),
+			Source:          argStr(args, 0),
+			Path:            argStr(args, 1),
+			Breakpoints:     argInts(args, 2),
+			StopOnEntry:     argBool(args, 3),
+			Args:            argStrs(args, 4),
+			BreakpointSpecs: specs,
 		})
 	}))
 	// gadDebugCommand(session, command)

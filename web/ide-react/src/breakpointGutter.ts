@@ -71,9 +71,14 @@ function hasBreakpoint(view: EditorView, pos: number): boolean {
 
 /**
  * breakpointGutter builds the gutter extension. onChange is called with the new
- * line set whenever the user adds or removes a breakpoint.
+ * line set whenever the user adds or removes a breakpoint. onContext, when given,
+ * is called with the 1-based line on a right-click on the gutter (e.g. to edit a
+ * breakpoint condition) — the browser context menu is suppressed for that line.
  */
-export function breakpointGutter(onChange: (lines: number[]) => void): Extension {
+export function breakpointGutter(
+  onChange: (lines: number[]) => void,
+  onContext?: (line: number) => void,
+): Extension {
   const fire = (view: EditorView) => onChange(getBreakpointLines(view));
   return [
     breakpointState,
@@ -87,6 +92,12 @@ export function breakpointGutter(onChange: (lines: number[]) => void): Extension
         mousedown(view, line) {
           view.dispatch({ effects: toggleEffect.of({ pos: line.from, on: !hasBreakpoint(view, line.from) }) });
           fire(view);
+          return true;
+        },
+        contextmenu(view, line, event) {
+          if (!onContext) return false;
+          event.preventDefault();
+          onContext(view.state.doc.lineAt(line.from).number);
           return true;
         },
       },

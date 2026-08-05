@@ -4,6 +4,7 @@
 // is recreated lazily on the next call.
 import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import type {
+  BreakpointSpec,
   DebugResponse,
   DocComment,
   EvalResult,
@@ -107,9 +108,13 @@ export class WasmClient {
   }
 
   // --- Debugger (mirrors backends/debug.ts) ---
-  debugStart(source: string, path: string, breakpoints: number[], stopOnEntry: boolean, args: string[] = []) {
+  debugStart(
+    source: string, path: string, breakpoints: number[], stopOnEntry: boolean,
+    args: string[] = [], breakpointSpecs: BreakpointSpec[] = [],
+  ) {
     return this.json<DebugResponse>("gadDebugStart", [
       source, path, JSON.stringify(breakpoints), stopOnEntry, JSON.stringify(args),
+      JSON.stringify(breakpointSpecs),
     ]);
   }
   debugCommand(session: string, command: string) {

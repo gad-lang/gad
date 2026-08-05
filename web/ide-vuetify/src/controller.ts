@@ -7,7 +7,7 @@ import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import { langOf } from "./codemirror";
 import type { LocalVar } from "./codemirror";
 import { renderDocMarkdown } from "./docMarkdown";
-import type { DebugResponse, IdeApi, InspectResult, TreeNode, Workspace } from "./api";
+import type { BreakpointSpec, DebugResponse, IdeApi, InspectResult, TreeNode, Workspace } from "./api";
 import type { RunResult } from "./types";
 import type { InspectFn } from "./InspectorNode";
 
@@ -21,6 +21,12 @@ export interface RunTarget {
   source: string;
   path: string;
   args: string[];
+}
+
+/** BpMeta is a breakpoint's per-line metadata: disabled flag and condition. */
+export interface BpMeta {
+  disabled?: boolean;
+  condition?: string;
 }
 
 export type IdeController = ReturnType<typeof createController>;
@@ -160,7 +166,60 @@ export function createController(
   const session = ref<string | null>(null);
   const snap = ref<DebugResponse | null>(null);
   const dbgOutput = ref("");
-  const breakpoints = ref<number[]>([]);
+
+  // Per-file breakpoints and their metadata (disabled flag + condition), keyed
+  // by workspace path — surfaced by the Breakpoints panel and the gutter.
+  const bpLinesByFile = reactive<Record<string, number[]>>({});
+  const bpMetaByFile = reactive<Record<string, Record<number, BpMeta>>>({});
+  function bpFor(path?: string): number[] {
+    return (path && bpLinesByFile[path]) || [];
+  }
+  function bpMetaFor(path?: string): Record<number, BpMeta> {
+    return (path && bpMetaByFile[path]) || {};
+  }
+  function allBreakpoints(): Record<string, number[]> {
+    const out: Record<string, number[]> = {};
+    for (const [p, ls] of Object.entries(bpLinesByFile)) if (ls.length) out[p] = ls;
+    return out;
+  }
+  function setFileBreakpoints(path: string, lines: number[]) {
+    const sorted = [...new Set(lines)].sort((a, b) => a - b);
+    bpLinesByFile[path] = sorted;
+    const m = bpMetaByFile[path];
+    if (m) for (const k of Object.keys(m)) if (!sorted.includes(Number(k))) delete m[Number(k)];
+  }
+  function setBpMeta(path: string, line: number, meta: BpMeta) {
+    if (!bpMetaByFile[path]) bpMetaByFile[path] = {};
+    bpMetaByFile[path][line] = { ...(bpMetaByFile[path][line] || {}), ...meta };
+    if (!bpFor(path).includes(line)) setFileBreakpoints(path, [...bpFor(path), line]);
+  }
+  function removeBreakpoint(path: string, line: number) {
+    setFileBreakpoints(path, bpFor(path).filter((l) => l !== line));
+  }
+  function bpSpecsFor(path: string): BreakpointSpec[] {
+    const m = bpMetaFor(path);
+    return bpFor(path).map((line) => ({ line, disabled: m[line]?.disabled, condition: m[line]?.condition }));
+  }
+  // v-model binding for the editor gutter (the current file's breakpoints).
+  const breakpoints = computed<number[]>({
+    get: () => bpFor(openPath.value),
+    set: (v) => setFileBreakpoints(openPath.value, v),
+  });
+  // A navigation target (seq bumped on each request) the editor scrolls to.
+  const gotoTarget = ref<{ line: number; seq: number }>({ line: 0, seq: 0 });
+  function goto(line: number) {
+    gotoTarget.value = { line, seq: gotoTarget.value.seq + 1 };
+  }
+  async function gotoFileLine(path: string, line: number) {
+    if (path && path !== openPath.value) await openFile(path);
+    goto(line);
+  }
+  // Breakpoint-condition dialog target ({ path, line } | null), shared so the
+  // editor gutter's right-click and the Breakpoints panel open the same dialog.
+  const bpDialog = ref<{ path: string; line: number } | null>(null);
+  function openBpCondition(path: string, line: number) {
+    bpDialog.value = { path, line };
+  }
   const debugLine = computed(() => (snap.value?.state === "stopped" ? snap.value.line ?? 0 : 0));
   const debugColumn = computed(() => snap.value?.column ?? 1);
   const stopped = computed(() => snap.value?.state === "stopped");
@@ -189,7 +248,8 @@ export function createController(
           source: t.source,
           path: t.path,
           args: t.args,
-          breakpoints: [...breakpoints.value].sort((a, b) => a - b),
+          breakpoints: bpFor(t.path),
+          breakpointSpecs: bpSpecsFor(t.path),
           stopOnEntry: false,
         }),
       );
@@ -254,6 +314,9 @@ export function createController(
     session, snap, dbgOutput, breakpoints, debugLine, debugColumn, stopped,
     getLocals, debugStart, debugCmd, evalExpr, evalOut, doEval,
     inspectFn, dialect,
+    // breakpoints
+    bpFor, bpMetaFor, allBreakpoints, setFileBreakpoints, setBpMeta, removeBreakpoint,
+    gotoTarget, goto, gotoFileLine, bpDialog, openBpCondition,
     init,
   };
 }

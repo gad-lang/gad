@@ -16,6 +16,8 @@ import PanelCallStack from "./panels/PanelCallStack";
 import PanelLocals from "./panels/PanelLocals";
 import PanelOutput from "./panels/PanelOutput";
 import PanelDocs from "./panels/PanelDocs";
+import PanelBreakpoints from "./panels/PanelBreakpoints";
+import BreakpointConditionDialog from "./BreakpointConditionDialog";
 import SettingsDialog, { type PanelToggle } from "./SettingsDialog";
 import RunProfileDialog from "./RunProfileDialog";
 
@@ -36,6 +38,7 @@ const PANELS: PanelDef[] = [
   { id: "output", label: "Output", add: (a) => a.addPanel({ id: "output", component: "output", title: "Output", position: { referencePanel: "editor", direction: "below" } }) },
   { id: "callstack", label: "Call Stack", add: (a) => a.addPanel({ id: "callstack", component: "callstack", title: "Call Stack", position: { referencePanel: "output", direction: "within" } }) },
   { id: "locals", label: "Locals", add: (a) => a.addPanel({ id: "locals", component: "locals", title: "Locals", position: { referencePanel: "output", direction: "within" } }) },
+  { id: "breakpoints", label: "Breakpoints", add: (a) => a.addPanel({ id: "breakpoints", component: "breakpoints", title: "Breakpoints", position: { referencePanel: "output", direction: "within" } }) },
 ];
 
 const components = {
@@ -44,6 +47,7 @@ const components = {
   docs: PanelDocs,
   callstack: PanelCallStack,
   locals: PanelLocals,
+  breakpoints: PanelBreakpoints,
   output: PanelOutput,
 } as unknown as Record<string, VueComponent>;
 
@@ -311,6 +315,16 @@ export default defineComponent({
           {...{ "onUpdate:modelValue": (v: boolean) => (profileDialog.value = v) }}
           defaultPath={ctx.openPath.value}
           onCreate={addProfile}
+        />
+
+        <BreakpointConditionDialog
+          modelValue={!!ctx.bpDialog.value}
+          {...{ "onUpdate:modelValue": (v: boolean) => { if (!v) ctx.bpDialog.value = null; } }}
+          line={ctx.bpDialog.value?.line ?? 0}
+          initial={ctx.bpDialog.value ? ctx.bpMetaFor(ctx.bpDialog.value.path)[ctx.bpDialog.value.line] ?? {} : {}}
+          onSave={(m: { disabled?: boolean; condition?: string }) => {
+            if (ctx.bpDialog.value) ctx.setBpMeta(ctx.bpDialog.value.path, ctx.bpDialog.value.line, m);
+          }}
         />
       </div>
     );

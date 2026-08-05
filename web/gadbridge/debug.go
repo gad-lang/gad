@@ -46,6 +46,17 @@ type DebugStartRequest struct {
 	Breakpoints []int    `json:"breakpoints"`
 	StopOnEntry bool     `json:"stopOnEntry"`
 	Args        []string `json:"args"`
+	// BreakpointSpecs, when present, take precedence over Breakpoints and carry
+	// each breakpoint's disabled flag and optional condition expression.
+	BreakpointSpecs []BreakpointSpec `json:"breakpointSpecs"`
+}
+
+// BreakpointSpec is a breakpoint with an optional disabled flag and a condition
+// expression (evaluated in the paused frame; the breakpoint pauses when truthy).
+type BreakpointSpec struct {
+	Line      int    `json:"line"`
+	Disabled  bool   `json:"disabled"`
+	Condition string `json:"condition"`
 }
 
 // DebugVariable is a local variable observed at a stop.
@@ -145,7 +156,15 @@ func (m *DebugManager) Start(req DebugStartRequest) DebugResponse {
 	}
 
 	eng := debug.New(req.StopOnEntry)
-	eng.SetBreakpoints(req.Breakpoints)
+	if len(req.BreakpointSpecs) > 0 {
+		bps := make([]debug.Breakpoint, len(req.BreakpointSpecs))
+		for i, s := range req.BreakpointSpecs {
+			bps[i] = debug.Breakpoint{Line: s.Line, Disabled: s.Disabled, Condition: s.Condition}
+		}
+		eng.SetConditionalBreakpoints(bps)
+	} else {
+		eng.SetBreakpoints(req.Breakpoints)
+	}
 
 	out := &syncBuffer{}
 	errBuf := &syncBuffer{}

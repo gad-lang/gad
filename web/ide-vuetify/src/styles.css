@@ -152,3 +152,33 @@
 .gad-ide__doc pre {
   overflow-x: auto;
 }
+
+/* Breakpoints panel */
+.bp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  padding: 1px 2px;
+}
+.bp-row--off {
+  opacity: 0.5;
+}
+.bp-entry {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  flex: 1;
+}
+.bp-cond {
+  color: rgb(var(--v-theme-primary));
+  margin-left: 4px;
+}
+.bp-actions {
+  flex-shrink: 0;
+}

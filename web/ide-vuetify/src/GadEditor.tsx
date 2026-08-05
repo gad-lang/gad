@@ -17,6 +17,11 @@ export default defineComponent({
     debugLine: { type: Number, default: 0 },
     debugColumn: { type: Number, default: 1 },
     getLocals: { type: Function as PropType<() => Map<string, LocalVar>>, default: undefined },
+    /** Navigation request: scroll to `gotoLine`; bump `gotoSeq` to re-trigger. */
+    gotoLine: { type: Number, default: 0 },
+    gotoSeq: { type: Number, default: 0 },
+    /** Right-click on a breakpoint line: (line) => void (e.g. edit condition). */
+    onBreakpointContext: { type: Function as PropType<(line: number) => void>, default: undefined },
   },
   emits: {
     "update:modelValue": (_v: string) => true,
@@ -44,6 +49,7 @@ export default defineComponent({
           selfEdit = false;
         },
         onBreakpointsChange: (lines) => emit("update:breakpoints", lines),
+        onBreakpointContext: (line) => props.onBreakpointContext?.(line),
       });
       if (props.breakpoints.length) editor.setBreakpoints(props.breakpoints);
       if (props.debugLine) editor.setDebugLine(props.debugLine, props.debugColumn);
@@ -61,6 +67,8 @@ export default defineComponent({
     watch(() => props.dark, (d) => editor?.setDark(d));
     watch(() => props.breakpoints, (b) => editor?.setBreakpoints(b ?? []));
     watch([() => props.debugLine, () => props.debugColumn], ([l, c]) => editor?.setDebugLine(l ?? 0, c ?? 1));
+    // Navigate on each new goto request (seq bumps even to the same line).
+    watch(() => props.gotoSeq, () => { if (props.gotoLine) editor?.gotoLine(props.gotoLine); });
 
     return () => <div ref={host} class="gad-editor" />;
   },

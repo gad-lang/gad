@@ -13,6 +13,7 @@ import type {
   DocComment,
   EvalResult,
   InspectResult,
+  BreakpointSpec,
   DebugResponse,
 } from "@gad-lang/ide-react";
 import { WebFS } from "../webfs";
@@ -160,11 +161,14 @@ export const localIdeApi: IdeApi = {
   dbgStart: (req: {
     source: string;
     breakpoints: number[];
+    breakpointSpecs?: BreakpointSpec[];
     stopOnEntry: boolean;
     path?: string;
     args?: string[];
   }): Promise<DebugResponse> =>
-    sharedClient().debugStart(req.source, req.path ?? "", req.breakpoints, req.stopOnEntry, req.args ?? []),
+    sharedClient().debugStart(
+      req.source, req.path ?? "", req.breakpoints, req.stopOnEntry, req.args ?? [], req.breakpointSpecs ?? [],
+    ),
   dbgCmd: (session: string, command: string): Promise<DebugResponse> =>
     sharedClient().debugCommand(session, command),
   dbgEval: (session: string, expr: string, repr: boolean) =>

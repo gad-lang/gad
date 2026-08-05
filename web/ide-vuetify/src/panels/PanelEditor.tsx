@@ -25,6 +25,9 @@ export default defineComponent({
               debugLine={ctx.debugLine.value}
               debugColumn={ctx.debugColumn.value}
               getLocals={ctx.getLocals}
+              gotoLine={ctx.gotoTarget.value.line}
+              gotoSeq={ctx.gotoTarget.value.seq}
+              onBreakpointContext={(line: number) => ctx.openBpCondition(ctx.openPath.value, line)}
             />
           ) : (
             <div class="pa-4 text-medium-emphasis">Select or create a file to begin.</div>

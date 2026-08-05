@@ -103,6 +103,7 @@ export interface EditorOptions {
   diagnose?: DiagnoseFn;
   onChange?: (value: string) => void;
   onBreakpointsChange?: (lines: number[]) => void;
+  onBreakpointContext?: (line: number) => void;
   getLocals?: () => Map<string, LocalVar>;
 }
 
@@ -122,7 +123,10 @@ export class GadEditorView {
         keymap.of([indentWithTab, ...defaultKeymap]),
         this.langComp.of(langExtension(opts.language, opts.diagnose)),
         this.themeComp.of(opts.dark ? oneDark : []),
-        breakpointGutter((lines) => opts.onBreakpointsChange?.(lines)),
+        breakpointGutter(
+          (lines) => opts.onBreakpointsChange?.(lines),
+          (line) => opts.onBreakpointContext?.(line),
+        ),
         debugDecorations(() => opts.getLocals?.() ?? new Map()),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) opts.onChange?.(u.state.doc.toString());
@@ -156,6 +160,16 @@ export class GadEditorView {
   /** setDebugLine highlights the paused line (1-based), or clears it with 0. */
   setDebugLine(line: number, column = 1): void {
     this.view.dispatch({ effects: setDebugLoc.of(line >= 1 ? { line, col: column } : null) });
+  }
+
+  /** gotoLine moves the cursor to a 1-based line and scrolls it into view. */
+  gotoLine(line: number, column = 1): void {
+    const doc = this.view.state.doc;
+    if (line < 1 || line > doc.lines) return;
+    const l = doc.line(line);
+    const pos = Math.min(l.from + Math.max(0, column - 1), l.to);
+    this.view.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
+    this.view.focus();
   }
 
   destroy(): void {
