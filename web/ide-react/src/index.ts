@@ -9,6 +9,7 @@
 export { Ide } from "./Ide";
 export { GadPlayground, type GadPlaygroundProps } from "./GadPlayground";
 export { GadNotebook, type GadNotebookProps } from "./GadNotebook";
+export { FileTypeRegistry, DEFAULT_FILE_TYPES, type FileTypeHandler } from "./fileTypes";
 
 // Backend contract + the built-in HTTP implementation.
 export { httpIdeApi, ideApi, probeIde } from "./api";

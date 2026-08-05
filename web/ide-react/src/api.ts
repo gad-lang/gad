@@ -61,6 +61,19 @@ export type RunMode = "none" | "run" | "debug" | "";
 /** Per-line breakpoint metadata, keyed by line number. */
 export type BreakpointMeta = Record<number, { disabled?: boolean; condition?: string }>;
 
+/** UploadedFile is one file uploaded into the Explorer: its path (relative to the
+ * target — a directory drop keeps its subtree layout) and its text content. When
+ * `archive` is set it is a downloaded archive the host is asked to extract:
+ * `content` may be empty and `bytes` carries the raw archive (base64) instead. */
+export interface UploadedFile {
+  path: string;
+  content: string;
+  /** "zip" | "tar" | "tar.gz" when this is an archive to extract; else omitted. */
+  archive?: "zip" | "tar" | "tar.gz";
+  /** Base64 of the raw archive bytes (only for `archive` entries). */
+  bytes?: string;
+}
+
 export interface EvalResult {
   ok: boolean;
   value: string;
