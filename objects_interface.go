@@ -128,11 +128,44 @@ func (i *Interface) CanAssign(obj Object) (bool, error) {
 // signatures satisfy the required headers), and satisfies every extended
 // interface. vm resolves field-type symbols, property/method calls and the
 // parent-interface symbols; when nil those VM-dependent checks are relaxed.
+// CanAssignVM reports whether obj structurally satisfies the interface, memoizing
+// the result on the root VM keyed by (interface, obj's ObjectType) when that type
+// fully determines the object's members (a class instance or a reflected Go
+// value). Dicts and other keys-vary-per-value objects are checked every time.
 func (i *Interface) CanAssignVM(vm *VM, obj Object) (bool, error) {
 	if obj == nil || obj == Nil {
 		return false, nil
 	}
+	if vm != nil {
+		if typ, ok := ifaceCacheableType(obj); ok {
+			key := ifaceSatKey{iface: i, typ: typ}
+			if v, hit := vm.ifaceSatGet(key); hit {
+				return v, nil
+			}
+			res, err := i.canAssignVMUncached(vm, obj)
+			if err == nil {
+				vm.ifaceSatPut(key, res)
+			}
+			return res, err
+		}
+	}
+	return i.canAssignVMUncached(vm, obj)
+}
 
+// ifaceCacheableType returns obj's ObjectType and true when that type fully
+// determines obj's interface-relevant members, so a satisfaction result is safe
+// to cache: a class instance (its class declares the members) or a reflected Go
+// value (its Go type does). Other values vary per instance (a dict's keys) and
+// are not cacheable.
+func ifaceCacheableType(obj Object) (ObjectType, bool) {
+	switch obj.(type) {
+	case *ClassInstance, ReflectValuer:
+		return obj.Type(), true
+	}
+	return nil, false
+}
+
+func (i *Interface) canAssignVMUncached(vm *VM, obj Object) (bool, error) {
 	if vm != nil {
 		for _, sym := range i.Extends {
 			pv, err := vm.GetSymbolValue(sym)

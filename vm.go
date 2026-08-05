@@ -57,8 +57,97 @@ type VM struct {
 	ObjectToWriter ObjectToWriter
 	Builtins       *StaticBuiltins
 	env            *Env
+	// ifaceSat memoizes interface-satisfaction results keyed by (interface, the
+	// value's ObjectType), so repeated checks (e.g. a loop over class instances)
+	// don't re-validate. It lives on the root VM and is shared by sub-VMs via
+	// pool.root; it is dropped (GC'd) with the root VM unless a host-provided
+	// cache is injected (SetInterfaceSatCache), which then outlives the VM. Only
+	// cached for values whose ObjectType fully determines their members (class
+	// instances, reflected Go values) — never dicts, whose keys vary per value.
+	ifaceSat *InterfaceSatCache
 
 	*SetupOpts
+}
+
+// ifaceSatKey keys the interface-satisfaction cache: the interface value and the
+// checked value's ObjectType.
+type ifaceSatKey struct {
+	iface *Interface
+	typ   ObjectType
+}
+
+// InterfaceSatCache memoizes interface-satisfaction results. It can be created
+// outside a VM with NewInterfaceSatCache and shared/pre-warmed across VMs via
+// (*VM).SetInterfaceSatCache; otherwise a root VM lazily creates its own. It is
+// safe for concurrent use.
+type InterfaceSatCache struct {
+	mu sync.Mutex
+	m  map[ifaceSatKey]bool
+}
+
+// NewInterfaceSatCache returns an empty interface-satisfaction cache, for hosts
+// that want to build one outside a VM and inject it via SetInterfaceSatCache.
+func NewInterfaceSatCache() *InterfaceSatCache {
+	return &InterfaceSatCache{m: make(map[ifaceSatKey]bool)}
+}
+
+// Len returns the number of memoized entries.
+func (c *InterfaceSatCache) Len() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.m)
+}
+
+func (c *InterfaceSatCache) get(k ifaceSatKey) (bool, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	v, ok := c.m[k]
+	return v, ok
+}
+
+func (c *InterfaceSatCache) put(k ifaceSatKey, v bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.m == nil {
+		c.m = make(map[ifaceSatKey]bool)
+	}
+	c.m[k] = v
+}
+
+// rootVM returns the root VM that owns shared state (the interface cache); a
+// sub-VM points at it via pool.root, a root VM at itself.
+func (vm *VM) rootVM() *VM {
+	if vm.pool.root != nil {
+		return vm.pool.root
+	}
+	return vm
+}
+
+// SetInterfaceSatCache installs a host-provided interface-satisfaction cache on
+// the root VM (shared by sub-VMs). Pass a cache from NewInterfaceSatCache to
+// pre-warm or share it across VMs; it then outlives the VM.
+func (vm *VM) SetInterfaceSatCache(c *InterfaceSatCache) {
+	vm.rootVM().ifaceSat = c
+}
+
+// interfaceSatCache returns the root VM's cache, creating a default one on first
+// use when none was injected.
+func (vm *VM) interfaceSatCache() *InterfaceSatCache {
+	root := vm.rootVM()
+	if root.ifaceSat == nil {
+		root.ifaceSat = NewInterfaceSatCache()
+	}
+	return root.ifaceSat
+}
+
+// ifaceSatGet reads a memoized interface-satisfaction result from the root VM.
+func (vm *VM) ifaceSatGet(k ifaceSatKey) (bool, bool) {
+	return vm.interfaceSatCache().get(k)
+}
+
+// ifaceSatPut stores a memoized interface-satisfaction result on the root VM.
+func (vm *VM) ifaceSatPut(k ifaceSatKey, v bool) {
+	vm.interfaceSatCache().put(k, v)
 }
 
 // NewVM creates a VM object.
