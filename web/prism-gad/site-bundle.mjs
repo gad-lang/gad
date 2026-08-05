@@ -8,9 +8,15 @@ import Prism from "prismjs";
 // clike/javascript). These augment the global Prism the core sets up.
 import "prismjs/components/prism-go.js";
 import "prismjs/components/prism-json.js";
-import "prismjs/components/prism-bash.js";
+import "prismjs/components/prism-bash.js"; // also provides the `sh`/`shell` aliases
 import "prismjs/components/prism-yaml.js";
 import "prismjs/components/prism-markdown.js";
+import "prismjs/components/prism-ini.js";
+// TypeScript / JSX / TSX for the @gad-lang JS module docs (jsx & typescript must
+// load before tsx, which extends both).
+import "prismjs/components/prism-typescript.js";
+import "prismjs/components/prism-jsx.js";
+import "prismjs/components/prism-tsx.js";
 import { registerGad, registerGadx, registerGadTemplate } from "./src/index";
 
 // The Gad family: gad, gadx and gadt (template). registerGad must run first —
