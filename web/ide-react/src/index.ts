@@ -10,6 +10,13 @@ export { Ide } from "./Ide";
 export { GadPlayground, type GadPlaygroundProps } from "./GadPlayground";
 export { GadNotebook, type GadNotebookProps } from "./GadNotebook";
 export { FileTypeRegistry, DEFAULT_FILE_TYPES, type FileTypeHandler } from "./fileTypes";
+// Reusable IDE dialogs (also used internally by <Ide>).
+export { DirTree, type DirTreeProps } from "./DirTree";
+export { UrlImportDialog, type UrlImportDialogProps } from "./UrlImportDialog";
+export { UploadReviewDialog, type UploadReviewDialogProps } from "./UploadReviewDialog";
+export { PromptDialog, ConfirmDialog, type PromptRequest, type ConfirmRequest } from "./PromptDialog";
+export type { UploadedFile } from "./api";
+export type { RawFile } from "./upload";
 
 // Backend contract + the built-in HTTP implementation.
 export { httpIdeApi, ideApi, probeIde } from "./api";
