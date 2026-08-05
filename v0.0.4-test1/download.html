@@ -40,7 +40,7 @@
       <a class="nav-link active" href="download.html">Download</a>
     </div>
   </nav>
-  <main class="content"><div class="rel-hero"><div class="rel-badge">Release</div><h1 class="rel-name"><a href="https://github.com/gad-lang/gad/releases/tag/v0.0.4-test1">v0.0.4-test1</a></h1><div class="rel-date">2026-08-05T10:19:21Z</div></div><section class="rel-notes"><h2>Release notes</h2><h2 id="changelog">Changelog</h2>
+  <main class="content"><div class="rel-hero"><div class="rel-badge">Release</div><h1 class="rel-name"><a href="https://github.com/gad-lang/gad/releases/tag/v0.0.4-test1">v0.0.4-test1</a></h1><div class="rel-date">2026-08-05T12:48:31Z</div></div><section class="rel-notes"><h2>Release notes</h2><h2 id="changelog">Changelog</h2>
 <ul>
 <li>67bf442073e3b2c04f6dcf1863b80153a271ee37 Merge branch 'feat/with-block-expr'</li>
 <li>0875c6384fdd7069eab11ae80314007d538eaa12 build(giom): vendor giom as real files instead of git submodule</li>
@@ -76,6 +76,7 @@
 <li>b986e6c56739f793a6d7a0656ca337d6d7c5730a docs(task): record goreleaser snapshot success + doc-glob finding</li>
 <li>50da0b96cf5b0120ccd957233241c4c8b6981b1c docs(task): record prop .v, read-only prop, and module live bindings</li>
 <li>8d19dd0ee7776e825c0663be5f39d2a646e9b211 docs(task): record prop delegation, VM.Call and reflect module</li>
+<li>23f6948768543954fddd7388f3e6e9164c563bc3 docs(task): record successful test release v0.0.4-test1</li>
 <li>307b3e10cd01c5636be34c8bf786978f90b8fb9a docs(website): use gad/gadt/gadx fence names + add Templates to the nav</li>
 <li>2ce7f04f2c6c78ff46f496056cbc7558437d085a docs(with): document and sample the block-expression form</li>
 <li>238fd9818f0e54d30f9d1dd9b98a470abe1581bf feat(app): WASM Web Worker backends + embeddable server-less IDE page</li>
@@ -157,6 +158,8 @@
 <li>ac692f69cfdf4fff9592e80c9d5b2dbc067fcb5b fix(webide): honor the show-hidden-files toggle in the in-browser backend</li>
 <li>a3b9cbb1343bf976fcf14a2e91bd3b5d56a59bd0 fix(webide): run/diagnose/debug .gadt and .giom in their own dialect</li>
 <li>57f37404d5ea7e829d701b28a7271b62c4b17dca fix(website): point the header "Tasks" link at the repo issues page</li>
+<li>b0f289a67aa4517bd9e5306a8761780f250dc7ed fix(website,release): docs link uses the tag path (published on push too)</li>
+<li>7758acceb64b9cddf1e449448a838e0464982a20 fix(website,release): keep /latest current + link docs in release notes</li>
 <li>0bad5be91967912b12f58a654f4fafda85c10710 fix: render embedded AbsPath with forward slashes in repr</li>
 <li>871e7aa37a72c07fa69d9f8522d389ff91fce008 fix: render gad filesystem paths with forward slashes on Windows</li>
 <li>bee654bd5c9460605c98f4ca96aac8450141fece fix: resolve Windows-only test failures (handle leaks + path separators)</li>
@@ -171,12 +174,14 @@
 <li>33a78ebe42b6bf5bf9c42f2b7b80dd6261a1fe59 refactor: rename giom → gadx (module, package, .gadx extension, docs)</li>
 <li>2ddb758f28a6bd0e7852a4cdfb7bcc988fcf40f4 test(stdlib/os): derive file-flag values from constants (Windows)</li>
 </ul>
+<hr>
+<p>📖 <strong>Documentation:</strong> https://gad-lang.github.io/gad/v0.0.4-test1/ · <a href="https://gad-lang.github.io/gad/latest/">latest</a></p>
 </section><h2>Assets</h2><div class="dl-table"><table><thead><tr><th>Platform</th><th>File</th><th>Description</th></tr></thead><tbody><tr><td>Linux (amd64)</td><td><a href="https://github.com/gad-lang/gad/releases/download/v0.0.4-test1/gad_0.0.4-test1_linux_amd64.tar.gz"><code>gad_0.0.4-test1_linux_amd64.tar.gz</code></a></td><td>64-bit Intel/AMD Linux</td></tr><tr><td>Linux (arm64)</td><td><a href="https://github.com/gad-lang/gad/releases/download/v0.0.4-test1/gad_0.0.4-test1_linux_arm64.tar.gz"><code>gad_0.0.4-test1_linux_arm64.tar.gz</code></a></td><td>64-bit ARM Linux</td></tr><tr><td>Windows (amd64)</td><td><a href="https://github.com/gad-lang/gad/releases/download/v0.0.4-test1/gad_0.0.4-test1_windows_amd64.zip"><code>gad_0.0.4-test1_windows_amd64.zip</code></a></td><td>64-bit Intel/AMD Windows</td></tr><tr><td>Windows (arm64)</td><td><a href="https://github.com/gad-lang/gad/releases/download/v0.0.4-test1/gad_0.0.4-test1_windows_arm64.zip"><code>gad_0.0.4-test1_windows_arm64.zip</code></a></td><td>64-bit ARM Windows</td></tr><tr><td>WebAssembly</td><td><a href="gad.wasm" download><code>gad.wasm</code></a></td><td>Browser/WASM module (run, format, diagnostics and the gadDebug* debugger)</td></tr><tr><td>Checksums</td><td><a href="https://github.com/gad-lang/gad/releases/download/v0.0.4-test1/checksums.txt"><code>checksums.txt</code></a></td><td>SHA-256 checksums of the release assets</td></tr></tbody></table></div><p class="muted">All release assets are on the <a href="https://github.com/gad-lang/gad/releases/tag/v0.0.4-test1">GitHub releases page</a>.</p></main>
   
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="theme.js"></script>
 <script src="search.js"></script>
-
+<script src="prism.js" defer></script>
 </body>
 </html>
