@@ -52,10 +52,15 @@ export function createController(
     return out;
   });
 
+  const showHidden = ref(false);
   async function loadTree() {
-    tree.value = await api.tree();
+    tree.value = await api.tree(showHidden.value);
     const parts = openPath.value.split("/");
     for (let i = 1; i < parts.length; i++) expanded.add(parts.slice(0, i).join("/"));
+  }
+  async function toggleHidden() {
+    showHidden.value = !showHidden.value;
+    await loadTree();
   }
   async function openFile(path: string) {
     openPath.value = path;
@@ -240,6 +245,7 @@ export function createController(
     dark,
     // tree
     tree, rows, openPath, source, isExpanded, toggleDir, openFile,
+    showHidden, toggleHidden,
     newFile, newDir, removeOpen, reset, canReset,
     diagnose,
     // run/format/doc

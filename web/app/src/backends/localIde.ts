@@ -29,7 +29,11 @@ function dialectOf(path = ""): string {
 }
 
 /** buildTree assembles a nested TreeNode from the flat WebFS listings. */
-function buildTree(): TreeNode {
+/** buildTree assembles the nested TreeNode from the flat WebFS listings. When
+ * `hidden` is false, paths with a dot-prefixed segment (e.g. `.gad/…`) are
+ * omitted — the show/hidden toggle. */
+function buildTree(hidden: boolean): TreeNode {
+  const visible = (p: string) => hidden || !p.split("/").some((s) => s.startsWith("."));
   const root: TreeNode = { name: "", path: "", dir: true, children: [] };
   const dirs = new Map<string, TreeNode>([["", root]]);
   const ensureDir = (dirPath: string): TreeNode => {
@@ -49,9 +53,10 @@ function buildTree(): TreeNode {
   };
   for (const d of fs.listDirs()) {
     const clean = d.replace(/\/+$/, "");
-    if (clean) ensureDir(clean);
+    if (clean && visible(clean)) ensureDir(clean);
   }
   for (const f of fs.listFiles()) {
+    if (!visible(f)) continue;
     const slash = f.lastIndexOf("/");
     const parent = slash === -1 ? root : ensureDir(f.slice(0, slash));
     parent.children!.push({ name: slash === -1 ? f : f.slice(slash + 1), path: f, dir: false });
@@ -89,7 +94,7 @@ export const localIdeApi: IdeApi = {
     const openFile = files.find((p) => p === "01_hello.gad" || p.endsWith("/01_hello.gad")) ?? files[0] ?? "";
     return { root: "gad (in-browser)", name: "gad", openFile };
   },
-  tree: async () => buildTree(),
+  tree: async (hidden = false) => buildTree(hidden),
   read: async (path: string) => ({ path, content: fs.read(path) ?? "" }),
   write: async (path: string, content: string) => {
     fs.write(path, content);

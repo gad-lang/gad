@@ -16,6 +16,13 @@ export default defineComponent({
             <VBtn size="x-small" variant="text" icon="mdi-folder-plus-outline" title="New folder" onClick={() => ctx.newDir()} />
             <VBtn size="x-small" variant="text" icon="mdi-delete-outline" title="Delete open file"
               disabled={!ctx.openPath.value} onClick={() => ctx.removeOpen()} />
+            <VBtn
+              size="x-small"
+              variant="text"
+              icon={ctx.showHidden.value ? "mdi-eye-off-outline" : "mdi-eye-outline"}
+              title={ctx.showHidden.value ? "Hide hidden files" : "Show hidden files"}
+              onClick={() => ctx.toggleHidden()}
+            />
             {ctx.canReset.value && (
               <VBtn size="x-small" variant="text" icon="mdi-backup-restore" title="Reset changes" onClick={() => ctx.reset()} />
             )}
