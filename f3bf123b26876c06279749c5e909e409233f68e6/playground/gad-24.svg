@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" shape-rendering="crispEdges">
+    <defs>
+        <style>
+            .outline-dark { fill: #0D1B2A; } /* Contornos fortes para contraste em telas escuras/claras */
+            .fur-main     { fill: #D97706; } /* Tom de pele principal da gazela */
+            .fur-shadow   { fill: #B45309; } /* Sombra e detalhes das bochechas */
+            .fur-white    { fill: #FEF3C7; } /* Listra central do focinho */
+            .horn-gray    { fill: #BDC3C7; } /* Chifres metálicos */
+            .eye-white    { fill: #FFFFFF; } /* Olhos grandes estilo Go */
+        </style>
+    </defs>
+
+    <!-- CHIFRES DA GAZELA (Alinhados e com ranhuras visíveis em 24px) -->
+    <!-- Chifre Esquerdo -->
+    <rect x="8" y="0" width="2" height="6" class="outline-dark" />
+    <rect x="8" y="1" width="1" height="5" class="horn-gray" />
+    <rect x="8" y="3" width="1" height="1" class="outline-dark" /> <!-- Ranhura do chifre -->
+
+    <!-- Chifre Direito -->
+    <rect x="14" y="0" width="2" height="6" class="outline-dark" />
+    <rect x="15" y="1" width="1" height="5" class="horn-gray" />
+    <rect x="15" y="3" width="1" height="1" class="outline-dark" /> <!-- Ranhura do chifre -->
+
+    <!-- ORELHAS LONGAS -->
+    <!-- Esquerda -->
+    <rect x="2" y="7" width="5" height="3" class="outline-dark" />
+    <rect x="3" y="8" width="4" height="1" class="fur-main" />
+    <!-- Direita -->
+    <rect x="17" y="7" width="5" height="3" class="outline-dark" />
+    <rect x="17" y="8" width="4" height="1" class="fur-main" />
+
+    <!-- BASE DA CABEÇA / PESCOÇO -->
+    <rect x="5" y="6" width="14" height="13" class="outline-dark" />
+    <rect x="6" y="7" width="12" height="11" class="fur-main" />
+
+    <!-- DETALHES DAS BOCHECHAS (Marcas escuras nas laterais) -->
+    <rect x="6" y="12" width="2" height="5" class="fur-shadow" />
+    <rect x="16" y="12" width="2" height="5" class="fur-shadow" />
+
+    <!-- LISTRA FACIAL CENTRAL E FOCINHO AFUNILADO -->
+    <rect x="10" y="7" width="4" height="13" class="fur-white" />
+    <!-- Contorno do Focinho Alongado -->
+    <rect x="9" y="15" width="6" height="6" class="outline-dark" />
+    <rect x="10" y="15" width="4" height="5" class="fur-white" />
+    <rect x="11" y="19" width="2" height="1" class="outline-dark" /> <!-- Nariz na ponta -->
+
+    <!-- OLHOS GIGANTES ESTILO GOPHER (Foco total na expressividade) -->
+    <!-- Olho Esquerdo -->
+    <rect x="6" y="9" width="4" height="4" class="outline-dark" />
+    <rect x="6" y="9" width="3" height="3" class="eye-white" />
+    <rect x="7" y="10" width="1" height="1" class="outline-dark" /> <!-- Pupila -->
+
+    <!-- Olho Direito -->
+    <rect x="14" y="09" width="4" height="4" class="outline-dark" />
+    <rect x="15" y="9" width="3" height="3" class="eye-white" />
+    <rect x="16" y="10" width="1" height="1" class="outline-dark" /> <!-- Pupila -->
+</svg>

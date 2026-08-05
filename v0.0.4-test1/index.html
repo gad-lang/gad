@@ -15,7 +15,7 @@
   <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
   <nav class="header-links">
     <a class="rel-chip" href="download.html" title="Current release">v0.0.4-test1</a>
-    <a href="playground.html">Playground</a>
+    <a href="playground/index.html">Playground</a>
     <a href="download.html">Download</a>
     <a href="https://github.com/gad-lang/gad/issues" target="_blank" rel="noopener">Tasks</a>
     <a href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">Repo</a>
@@ -35,12 +35,12 @@
     </div><div class="nav-group"><div class="nav-title">Integrate</div>
       <a class="nav-link" href="wasm-embed.html">Embed the WASM</a>
     </div><div class="nav-group"><div class="nav-title">Playground</div>
-      <a class="nav-link" href="playground.html">Playground</a>
+      <a class="nav-link" href="playground/index.html">Playground</a>
     </div><div class="nav-group"><div class="nav-title">Download</div>
       <a class="nav-link" href="download.html">Download</a>
     </div>
   </nav>
-  <main class="content"><div class="home-hero"><img class="home-hero-logo" src="gad.svg" alt="Gad logo" width="96" height="96"><div class="home-hero-text"><h1>Gad</h1><p class="tagline">A fast, dynamic scripting language embedded in Go — run it from the CLI, in the browser via WebAssembly, or embedded in your Go application.</p><div class="home-cta"><a class="btn btn-primary" href="getting-started.html">Get started</a><a class="btn btn-ghost" href="playground.html">Playground</a><a class="btn btn-ghost" href="download.html">Download</a><a class="btn btn-ghost" href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">GitHub</a></div></div></div><h2 class="qs-title">Quickstart</h2><p class="qs-sub">Three ways to run Gad — pick the one that fits your project.</p><div class="cards"><div class="card"><h3><span class="card-badge">⌘</span> Command line</h3><p>Download the <code>gad</code> binary from the releases, or install it with Go:</p><pre class="language-bash"><code class="language-bash">go install github.com/gad-lang/gad/cmd/gad@latest</code></pre><p>Run, format and document:</p><pre class="language-bash"><code class="language-bash">gad script.gad        # run a script
+  <main class="content"><div class="home-hero"><img class="home-hero-logo" src="gad.svg" alt="Gad logo" width="96" height="96"><div class="home-hero-text"><h1>Gad</h1><p class="tagline">A fast, dynamic scripting language embedded in Go — run it from the CLI, in the browser via WebAssembly, or embedded in your Go application.</p><div class="home-cta"><a class="btn btn-primary" href="getting-started.html">Get started</a><a class="btn btn-ghost" href="playground/index.html">Playground</a><a class="btn btn-ghost" href="download.html">Download</a><a class="btn btn-ghost" href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">GitHub</a></div></div></div><h2 class="qs-title">Quickstart</h2><p class="qs-sub">Three ways to run Gad — pick the one that fits your project.</p><div class="cards"><div class="card"><h3><span class="card-badge">⌘</span> Command line</h3><p>Download the <code>gad</code> binary from the releases, or install it with Go:</p><pre class="language-bash"><code class="language-bash">go install github.com/gad-lang/gad/cmd/gad@latest</code></pre><p>Run, format and document:</p><pre class="language-bash"><code class="language-bash">gad script.gad        # run a script
 gad fmt script.gad    # format in place
 gad doc               # generate workspace docs</code></pre><a class="card-link" href="download.html">Download &amp; run →</a></div><div class="card"><h3><span class="card-badge">◈</span> WebAssembly</h3><p>Grab <code>gad.wasm</code> + <code>wasm_exec.js</code> and run Gad in any browser:</p><pre class="language-markup"><code class="language-markup">&lt;script src=&#34;wasm_exec.js&#34;&gt;&lt;/script&gt;
 &lt;script&gt;
