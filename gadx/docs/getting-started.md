@@ -21,7 +21,7 @@ import (
 
 ## A Minimal Template
 
-```gad-gadx
+```gadx
 @main
     p Hello {= Name}
 ```
@@ -85,7 +85,7 @@ templates/
 
 `index.gadx`:
 
-```gad-gadx
+```gadx
 @import "components.gadx"
 
 @main

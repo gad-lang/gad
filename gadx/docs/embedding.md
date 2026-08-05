@@ -186,7 +186,7 @@ indices are consistent across cache hits.
 
 Template:
 
-```gad-gadx
+```gadx
 @main
     h1 {= Model.Title}
 ```
@@ -201,7 +201,7 @@ model := gad.Dict{
 
 Template:
 
-```gad-gadx
+```gadx
 article {= Model.Body}
 ```
 

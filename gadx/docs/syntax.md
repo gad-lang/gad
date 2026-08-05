@@ -6,7 +6,7 @@ Gadx uses indentation to describe HTML, components, and Gad control flow.
 
 Line comments start a line:
 
-```gad-gadx
+```gadx
 // rendered as an HTML comment: <!-- … -->
 //- silent: not emitted
 ```
@@ -14,7 +14,7 @@ Line comments start a line:
 Block comments `/* … */` are silent and may span multiple lines. They are only
 recognized at the start of a line (a `/*` mid-line stays literal text):
 
-```gad-gadx
+```gadx
 /* a silent note */
 
 /*
@@ -29,7 +29,7 @@ A doc comment uses the gad convention `/** … **/` (opened with `/**`, closed w
 `gad doc`); a blank line or any other statement in between leaves it as a plain
 silent comment.
 
-```gad-gadx
+```gadx
 /** Renders a greeting for the given name. **/
 @comp greeting(name)
     p {= "Hello, " + name }
@@ -37,7 +37,7 @@ silent comment.
 
 ## Document Type
 
-```gad-gadx
+```gadx
 !!! 5
 ```
 
@@ -49,7 +49,7 @@ Output:
 
 ## Tags
 
-```gad-gadx
+```gadx
 section.hero
     h1 Welcome
     p Ship templates with less noise.
@@ -63,7 +63,7 @@ Output:
 
 ## Ids And Classes
 
-```gad-gadx
+```gadx
 main#content.page.shell
     h1.title Hello
 ```
@@ -76,7 +76,7 @@ Output:
 
 ## Attributes
 
-```gad-gadx
+```gadx
 a.button[href="/docs"][target="_blank"] Read docs
 img.cover[src=Post.CoverImage][alt=Post.Title]
 input[type="email"][name="email"][required]
@@ -91,7 +91,7 @@ newlines — like a GAD `KeyValueArray (; … )`. A group may span several lines
 to its closing `]`; indentation inside is ignored. Repeated attributes (such as
 `class`) are merged.
 
-```gad-gadx
+```gadx
 // one attribute per group (still valid)
 div[class="a"][title="hello"]
 
@@ -112,7 +112,7 @@ div[
 Commas and newlines inside strings, parentheses, brackets or braces do not split
 a group, so call arguments and array/dict literals work as attribute values:
 
-```gad-gadx
+```gadx
 div[title=join(items, ", "), data-ids=[1, 2, 3]]
 ```
 
@@ -125,7 +125,7 @@ opening tag to its matching close tag (spanning multiple lines if needed), and
 runs of whitespace collapse to a single space. `<> … </>` is a fragment: it
 renders its children with no wrapping element.
 
-```gad-gadx
+```gadx
 @main
     <a href="/" class="link">Home</a>
 
@@ -150,7 +150,7 @@ attribute); an interpolated name builds the attribute name from the expression
 (lowered to a computed `**{[name]: value}` spread). `{expr}` also interpolates
 text content. Interpolation source positions are preserved.
 
-```gad-gadx
+```gadx
 @main
     <a href={post.URL} data-{key}={value}>
         {post.Title}
@@ -166,7 +166,7 @@ and it renders as a child of the enclosing element, in source order alongside
 sibling HTML. `@else` / `@else if` clauses continue the block at the same
 indentation.
 
-```gad-gadx
+```gadx
 @main
     <ul class="menu">
         <li>Home</li>
@@ -189,13 +189,13 @@ accurate). Runnable examples are in `samples/gadx/html.gadx` and
 
 Inline text:
 
-```gad-gadx
+```gadx
 p Hello world
 ```
 
 Text block:
 
-```gad-gadx
+```gadx
 p
     | This is plain text.
     | It can span multiple lines.
@@ -203,7 +203,7 @@ p
 
 ## Expressions
 
-```gad-gadx
+```gadx
 h1 {= Model.Title}
 p {= "Hello " + User.Name}
 ```
@@ -214,7 +214,7 @@ Use Gad expressions inside `{= ...}`.
 
 If the application passes a `gad.RawStr`, Gadx writes it without escaping.
 
-```gad-gadx
+```gadx
 article {= Post.Body}
 ```
 
@@ -222,7 +222,7 @@ Use raw values only for trusted HTML.
 
 ## Main Block
 
-```gad-gadx
+```gadx
 @main
     h1 Home
     p This template body is executed.
@@ -232,7 +232,7 @@ Use raw values only for trusted HTML.
 
 Use `~~` for Gad source sections.
 
-```gad-gadx
+```gadx
 ~~
 const title = "Hello"
 ~~
@@ -243,7 +243,7 @@ const title = "Hello"
 
 ## Variables And Assignment
 
-```gad-gadx
+```gadx
 @main
     @assign total = len(Items)
     p {= total + " items"}
@@ -254,7 +254,7 @@ Depending on parser form, assignment can also be represented by Gad code inside
 
 ## Conditions
 
-```gad-gadx
+```gadx
 @if User
     p Welcome {= User.Name}
 @else
@@ -263,7 +263,7 @@ Depending on parser form, assignment can also be represented by Gad code inside
 
 ## Loops
 
-```gad-gadx
+```gadx
 ul
     @for item in Items
         li {= item.Title}
@@ -271,7 +271,7 @@ ul
 
 ## Empty States
 
-```gad-gadx
+```gadx
 @if Posts
     div.grid
         @for post in Posts
@@ -284,7 +284,7 @@ ul
 
 Match a value against `@case` clauses; the default clause is written `@else`.
 
-```gad-gadx
+```gadx
 @match Status
     @case "draft"
         span.badge Draft
@@ -298,7 +298,7 @@ Match a value against `@case` clauses; the default clause is written `@else`.
 
 ### Bare Import
 
-```gad-gadx
+```gadx
 @import "components.gadx"
 ```
 
@@ -306,7 +306,7 @@ Imports the module for its side effects.
 
 ### Named Import
 
-```gad-gadx
+```gadx
 @import "components.gadx" as comps
 ```
 
@@ -315,7 +315,7 @@ the module are accessed via `+comps.name(...)`.
 
 ### Destructured Import
 
-```gad-gadx
+```gadx
 @import { page_wrapper, hero } from "components.gadx"
 ```
 
@@ -339,7 +339,7 @@ Declare mutable variables with `@var`. A single name, a comma-separated list
 (with optional initializers), or a parenthesized group that may span multiple
 lines are all accepted. Indentation inside the parentheses is ignored.
 
-```gad-gadx
+```gadx
 @var a                          // single
 @var a, b                       // multiple, no initializers
 @var a, b = {name: "test"}, x   // with an initializer
@@ -358,7 +358,7 @@ Declare immutable constants with `@const`. It accepts the same single,
 comma-separated and multi-line parenthesized forms as `@var`, but **every
 constant must have an initializer** (a value-less `@const x` is a compile error).
 
-```gad-gadx
+```gadx
 @const pi = 3.14
 @const a = 1, b = 2
 
@@ -378,7 +378,7 @@ or newlines, each an optional value (`Name` or `Name = value`) — and it also
 accepts Gad's enum extras `bit` (power-of-two values) and a leading `+`/`-`
 sign. Defaulted fields auto-increment from the previous one.
 
-```gad-gadx
+```gadx
 @enum Perm (Read, Write, Exec = 10, Delete)   // 1, 2, 10, 11
 
 @enum Color (
@@ -402,7 +402,7 @@ Declare globals with `@global`. Names may be space-separated (legacy) or
 comma-separated, may carry a default, and may be grouped in parentheses spanning
 multiple lines (indentation inside is ignored).
 
-```gad-gadx
+```gadx
 @global Model User            // space-separated
 @global t, Req, Context       // comma-separated
 @global page = 1, limit = 20  // `= v` default: applied when nil OR absent
@@ -428,7 +428,7 @@ declaration. It accepts the same forms as Gad's `param`: positional names, a
 trailing variadic `*rest`, and — after a `;` — named parameters (which may carry
 defaults) and a named-variadic `**named`.
 
-```gad-gadx
+```gadx
 @param a                        // single positional
 @param (a, b, *rest)            // positional + variadic
 @param (a; b = 1, **named)      // positional; named (with default) + named-variadic
