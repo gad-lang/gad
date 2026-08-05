@@ -5,7 +5,7 @@ extend it for your application.
 
 ## Static Page
 
-```gadx
+```gad-gadx
 @main
     !!! 5
     html
@@ -18,7 +18,7 @@ extend it for your application.
 
 ## Page With Model
 
-```gadx
+```gad-gadx
 ~~
 global (Model)
 ~~
@@ -39,7 +39,7 @@ gad.Dict{
 
 ## Blog Index
 
-```gadx
+```gad-gadx
 @main
     section.hero
         h1 {= Model.Title}
@@ -53,7 +53,7 @@ gad.Dict{
 
 ## Blog Post
 
-```gadx
+```gad-gadx
 @main
     article.post
         h1 {= Post.Title}
@@ -63,7 +63,7 @@ gad.Dict{
 
 ## Navigation Menu
 
-```gadx
+```gad-gadx
 @export comp menu(items)
     nav.menu
         @for item in items
@@ -75,7 +75,7 @@ gad.Dict{
 
 ## Breadcrumbs
 
-```gadx
+```gad-gadx
 @export comp breadcrumbs(items)
     nav.breadcrumbs[aria-label="Breadcrumb"]
         @for item in items
@@ -85,7 +85,7 @@ gad.Dict{
 
 ## Empty State
 
-```gadx
+```gad-gadx
 @if Model.Posts
     div.grid
         @for post in Model.Posts
@@ -98,14 +98,14 @@ gad.Dict{
 
 ## Reusable Button
 
-```gadx
+```gad-gadx
 @export comp button(label; href="#", variant="primary")
     a.button[href=href][class="button--" + variant] {= label}
 ```
 
 ## Form Field
 
-```gadx
+```gad-gadx
 @export comp field(label, name; type="text", value="", required=false)
     label.field
         span {= label}
@@ -116,7 +116,7 @@ gad.Dict{
 
 Group related attributes in one `[ … ]` and let long tags wrap across lines.
 
-```gadx
+```gad-gadx
 @export comp card(post)
     article[
         class="card"
@@ -130,7 +130,7 @@ Group related attributes in one `[ … ]` and let long tags wrap across lines.
 
 Usage:
 
-```gadx
+```gad-gadx
 form[action="/signup"][method="post"]
     +field("Email", "email" ; type="email", required=true)
     button[type="submit"] Join
@@ -138,7 +138,7 @@ form[action="/signup"][method="post"]
 
 ## Dashboard Shell
 
-```gadx
+```gad-gadx
 @export comp dashboard(title)
     div.dashboard
         aside.sidebar
@@ -158,7 +158,7 @@ form[action="/signup"][method="post"]
 
 ## Table
 
-```gadx
+```gad-gadx
 table.table
     thead
         tr
@@ -173,7 +173,7 @@ table.table
 
 ## Gallery
 
-```gadx
+```gad-gadx
 @export comp gallery(images)
     @if images
         div.gallery
@@ -183,7 +183,7 @@ table.table
 
 ## Pagination
 
-```gadx
+```gad-gadx
 @export comp pager(pager)
     @if pager.HasPrev || pager.HasNext
         nav.pager
@@ -196,7 +196,7 @@ table.table
 
 ## Layout With CSS
 
-```gadx
+```gad-gadx
 ~~
 const css = `body{font-family:system-ui;margin:0}.container{max-width:960px;margin:auto}`
 ~~

@@ -34,7 +34,7 @@ The `raw` directive outputs the value without HTML escaping. Use it for `Body`, 
 | `{= expr}` | Escaped | Plain text, user-controlled strings |
 | `{=raw expr}` | Unescaped | HTML content (Body, RightBody) |
 
-```gadx
+```gad-gadx
 section.page-body
     {=raw Model.Page.Body}
 ```
@@ -45,7 +45,7 @@ section.page-body
 
 Import exported values with `as` and reference them through the module alias. This avoids relying on side-effect imports and makes component ownership explicit.
 
-```gadx
+```gad-gadx
 @import "components.gadx" as comps
 
 @main
@@ -55,7 +55,7 @@ Import exported values with `as` and reference them through the module alias. Th
 
 Do not call exported symbols from another file as unqualified local names.
 
-```gadx
+```gad-gadx
 // bad
 @import "components.gadx"
 +page_wrapper("Home")
@@ -66,7 +66,7 @@ Do not call exported symbols from another file as unqualified local names.
 **For any component or function call without arguments, write `+name`, not
 `+name()`.** Add parentheses only when passing arguments.
 
-```gadx
+```gad-gadx
 // good
 +super
 +the_tags
@@ -78,7 +78,7 @@ Do not call exported symbols from another file as unqualified local names.
 +default_layout()
 ```
 
-```gadx
+```gad-gadx
 // with arguments — parentheses required
 +super(item)
 +card("Fancy")
@@ -90,7 +90,7 @@ Do not call exported symbols from another file as unqualified local names.
 **`super` is auto-injected as the first parameter of an overriding `@slot`.** Do
 not declare it and do not bind it to a local — just call `super`.
 
-```gadx
+```gad-gadx
 // good — super is available automatically
 +card("Fancy")
     @slot #header

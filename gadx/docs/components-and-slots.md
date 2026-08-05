@@ -5,7 +5,7 @@ arguments, named arguments, and slot content.
 
 ## Define A Component
 
-```gadx
+```gad-gadx
 @export comp button(label; href="#", kind="primary")
     a.btn[href=href][class="btn--" + kind]
         {= label}
@@ -13,14 +13,14 @@ arguments, named arguments, and slot content.
 
 Call it:
 
-```gadx
+```gad-gadx
 @main
     +button("Read more" ; href="/docs", kind="secondary")
 ```
 
 ## Layout Component
 
-```gadx
+```gad-gadx
 @export comp page(title)
     !!! 5
     html[lang="en"]
@@ -36,7 +36,7 @@ Call it:
 
 Use it:
 
-```gadx
+```gad-gadx
 @main
     +page("About")
         h1 About
@@ -47,7 +47,7 @@ Use it:
 
 Component:
 
-```gadx
+```gad-gadx
 @export comp shell(title)
     section.shell
         aside
@@ -60,7 +60,7 @@ Component:
 
 Caller:
 
-```gadx
+```gad-gadx
 @main
     +shell("Dashboard")
         @slot #sidebar
@@ -72,7 +72,7 @@ Caller:
 
 ## Slot Defaults
 
-```gadx
+```gad-gadx
 @export comp empty_state(title)
     section.empty
         h2 {= title}
@@ -90,7 +90,7 @@ provides content, and nothing otherwise (it compiles to a nullish call
 `super` — an empty function — so calling `super` there is always safe and
 simply renders nothing.
 
-```gadx
+```gad-gadx
 @export comp panel
     section.panel
         @slot header      // optional — omitted when not provided
@@ -104,7 +104,7 @@ When a caller overrides a slot, its content can render the component's default
 by calling `super`. **`super` is auto-injected as the override's first
 parameter** — you do not declare or bind it. Just call `super(…)`:
 
-```gadx
+```gad-gadx
 @export comp button(label)
     button.btn
         @slot main
@@ -120,7 +120,7 @@ parameter** — you do not declare or bind it. Just call `super(…)`:
 You may name the first parameter `super` explicitly (for example when you also
 declare scope parameters) — it will not be injected twice:
 
-```gadx
+```gad-gadx
         @slot #main(super)
             em ★
             +super
@@ -140,7 +140,7 @@ forward them when rendering the default via `super`, e.g. `+super(item)`.
 A slot may declare parameters (a *scoped slot*): the component supplies the
 values when it renders the slot, and the override receives them.
 
-```gadx
+```gad-gadx
 @export comp list(items)
     ul
         @for item in items
@@ -158,7 +158,7 @@ An override of a scoped slot still receives `super` as its auto-injected first
 parameter. To render the component's default for that item, forward the scope to
 `super`:
 
-```gadx
+```gad-gadx
 @main
     +list(Posts)
         @slot #item(super, post)
@@ -183,7 +183,7 @@ a raw `super(…)` call is not rewritten, so it must pass super's own super (an
 empty function) as its first argument; its returned fragment is appended with
 `tag += super(…)`. The component call's own result is appended with `tag += …`.
 
-```gadx
+```gad-gadx
 @export comp list(items;slots={})
     ul
         @for i, it in items
@@ -224,7 +224,7 @@ A slot name may be written in parentheses as a Gad template string, so a `{expr}
 interpolation is evaluated at render time and used as the `slots[…]` key. This
 works for both the declaration and the pass (override):
 
-```gadx
+```gad-gadx
 @slot (item[{i}])        // declaration — one slot per value of i
 @slot #(item[{index}])   // pass — override the slot named item[<index>]
 ```
@@ -234,7 +234,7 @@ interpolated name reports the correct line.
 
 A component can therefore give each item its own overridable slot:
 
-```gadx
+```gad-gadx
 @comp list(items)
     @for i, it in items
         @slot (item[{i}])(it)
@@ -254,7 +254,7 @@ are **hoisted to the call scope, before the slot-pass declarations**. An
 interpolated slot name (and any slot body) can therefore reference the values
 they declare:
 
-```gadx
+```gad-gadx
 +list(Posts)
     ~ const index = 3
     @slot #(item[{index}])(super, it)
@@ -268,7 +268,7 @@ A runnable version is in `samples/gadx/slot_dynamic_name.gadx`.
 
 ## Card Component
 
-```gadx
+```gad-gadx
 @export comp card(title; href="")
     article.card
         h2
@@ -282,7 +282,7 @@ A runnable version is in `samples/gadx/slot_dynamic_name.gadx`.
 
 Usage:
 
-```gadx
+```gad-gadx
 +card(Post.Title ; href=Post.URL)
     p {= Post.Summary}
 ```
@@ -300,7 +300,7 @@ templates/
 
 Then import what your application resolver supports:
 
-```gadx
+```gad-gadx
 @import "components.gadx"
 @import "forms.gadx"
 
