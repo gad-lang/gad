@@ -145,6 +145,21 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   submodule (no gadx/.git) — its files are tracked directly in this repo; all
   commits landed here
 
+### 2026-08-05 (test release v0.0.4-test1)
+- Pushed main (65 commits) to origin, tagged v0.0.4-test1 (prerelease)
+- 1st release run FAILED: before-hook `make goreleaser-setup`→web-build errored
+  on a clean checkout — web/app imports @gad-lang/* as workspace:* (need their
+  dist/.d.ts) and src/samples.gen.ts is git-ignored (generated). My earlier local
+  `--snapshot` passed only because those artifacts were already on disk
+- Fix (commit 79d9034): web-build runs `bun run plugins:build` first; app gained
+  gen-samples + pre(dev|build) hooks. Verified from a simulated-clean state
+  (removed dists + samples.gen): `make web-build` AND full `make goreleaser-setup`
+  (incl. VS Code vsix) → exit 0
+- Deleted+recreated the tag at the fixed HEAD; 2nd release run SUCCEEDED:
+  https://github.com/gad-lang/gad/releases/tag/v0.0.4-test1 (prerelease) with
+  assets: checksums.txt, gad.wasm, wasm_exec.js, and gad_0.0.4-test1_{linux_amd64,
+  linux_arm64,windows_amd64,windows_arm64}.{tar.gz,zip}
+
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
 |-------|-------|-----|----------|
