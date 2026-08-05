@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>@gad-lang/prism-gad · Gad</title>
+<link rel="icon" type="image/svg+xml" href="../gad.svg">
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<script>window.SITE_BASE="..\/";</script>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="../index.html"><img class="brand-logo" src="../gad.svg" alt="" width="30" height="30"><span class="brand-name">Gad</span></a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <nav class="header-links">
+    <a class="rel-chip" href="../download.html" title="Current release">v0.0.4-test1</a>
+    <a href="../playground/index.html">Playground</a>
+    <a href="../download.html">Download</a>
+    <a href="https://github.com/gad-lang/gad/issues" target="_blank" rel="noopener">Tasks</a>
+    <a href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">Repo</a>
+  </nav>
+  <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="../index.html">Gad Language</a><a class="nav-link" href="../getting-started.html">Getting Started</a><a class="nav-link" href="../values-and-types.html">Values and Types</a><a class="nav-link" href="../variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="../operators.html">Operators</a><a class="nav-link" href="../control-flow.html">Control Flow</a><a class="nav-link" href="../functions.html">Functions</a><a class="nav-link" href="../collections.html">Collections</a><a class="nav-link" href="../strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="../error-handling.html">Error Handling</a><a class="nav-link" href="../modules.html">Modules</a><a class="nav-link" href="../builtins.html">Builtin Functions</a><a class="nav-link" href="../templates.html">Templates (mixed mode)</a><a class="nav-link" href="../formatting.html">Formatting with gad fmt</a><a class="nav-link" href="../embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="../ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="../ref-metaprogramming.html">Metaprogramming: parse, eval and Gadx</a><a class="nav-link" href="../ref-workspace-config.html">Workspace Configuration</a><a class="nav-link" href="../ref-stdlib-strings.html">strings module</a><a class="nav-link" href="../ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="../ref-stdlib-json.html">json module</a><a class="nav-link" href="../ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Gadx</div>
+      <a class="nav-link" href="../gadx-getting-started.html">Getting Started</a><a class="nav-link" href="../gadx-syntax.html">Template Syntax</a><a class="nav-link" href="../gadx-components-and-slots.html">Components And Slots</a><a class="nav-link" href="../gadx-examples.html">Examples Cookbook</a><a class="nav-link" href="../gadx-embedding.html">Embedding In Go</a><a class="nav-link" href="../gadx-api.html">API Reference</a><a class="nav-link" href="../gadx-conventions.html">Conventions</a><a class="nav-link" href="../gadx-source-positions.html">Source Positions</a><a class="nav-link" href="../gadx-project-structure.html">Project Structure</a><a class="nav-link" href="../gadx-benchmarks.html">Benchmarks</a><a class="nav-link" href="../gadx-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">JS modules</div>
+      <a class="nav-link" href="../js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a><a class="nav-link active" href="../js-modules/prism-gad.html">@gad-lang/prism-gad</a><a class="nav-link" href="../js-modules/ide-react.html">@gad-lang/ide-react</a><a class="nav-link" href="../js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a>
+    </div><div class="nav-group"><div class="nav-title">Integrate</div>
+      <a class="nav-link" href="../wasm-embed.html">Embed the WASM</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="../playground/index.html">Playground</a>
+    </div><div class="nav-group"><div class="nav-title">Download</div>
+      <a class="nav-link" href="../download.html">Download</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="gad-langprism-gad">@gad-lang/prism-gad</h1>
+<p>A <a href="https://prismjs.com/">PrismJS</a> grammar for the <a href="https://github.com/gad-lang/gad">Gad</a> scripting language — for static, read-only syntax highlighting (docs, blogs, code blocks).</p>
+<blockquote><strong>Status:</strong> not yet published to npm. The install command below is the intended usage once the <code>@gad-lang</code> packages are released.</blockquote>
+<h2 id="install">Install</h2>
+<pre><code class="language-sh">npm install @gad-lang/prism-gad prismjs
+# or: bun add @gad-lang/prism-gad prismjs</code></pre>
+<p><code>prismjs</code> is a peer dependency.</p>
+<h2 id="usage">Usage</h2>
+<pre><code class="language-ts">import Prism from "prismjs";
+import { registerGad } from "@gad-lang/prism-gad";
+
+registerGad(Prism);
+const html = Prism.highlight(code, Prism.languages.gad, "gad");</code></pre>
+<p>It covers comments, the string/heredoc/bytes forms, <code>/regex/</code> literals, keywords, atoms, builtins, <code>@</code>-prefixed specials, numbers and operators. Token colors are supplied by your Prism theme (or your own <code>.token.*</code> CSS).</p>
+<h2 id="source-type-gad--template--gadx">Source type (<code>gad</code> / <code>template</code> / <code>gadx</code>)</h2>
+<p><code>gadGrammarFor(sourceType, options?)</code> returns the grammar for a dialect from a single value — <code>"gad"</code> (default), <code>"template"</code> (<code>.gadt</code>) or <code>"gadx"</code> (<code>.gadx</code>) — the analog of codemirror-gad's <code>gad({ sourceType })</code>. <code>options</code> (delimiters / <code>preamble</code>) apply only to <code>"template"</code>. <code>registerGad(Prism)</code> must run first (the template and gadx grammars embed the Gad grammar).</p>
+<pre><code class="language-ts">import { registerGad, gadGrammarFor } from "@gad-lang/prism-gad";
+
+registerGad(Prism);
+const grammar = gadGrammarFor(sourceType);        // "gad" | "template" | "gadx"
+const html = Prism.highlight(code, grammar, sourceType);</code></pre>
+<p>The dedicated <code>registerGadx(Prism)</code> / <code>registerGadTemplate(Prism, delims?)</code> still install <code>Prism.languages.gadx</code> / <code>Prism.languages.gadt</code> for consumers that prefer named languages.</p>
+<h2 id="templates-gadt">Templates (<code>.gadt</code>)</h2>
+<p><code>registerGadTemplate(Prism, delims?)</code> installs a <code>gadt</code> grammar for Gad template (mixed) files — literal text plus <code>{% … %}</code> / <code>{%= … %}</code> tags whose bodies use the embedded Gad grammar. Delimiters default to <code>{%</code> / <code>%}</code> and are configurable. It reuses the Gad grammar, so <code>registerGad</code> must run first.</p>
+<pre><code class="language-ts">import { registerGad, registerGadTemplate } from "@gad-lang/prism-gad";
+
+registerGad(Prism);
+registerGadTemplate(Prism, { start: "{%", end: "%}" }); // delimiters optional
+const html = Prism.highlight(src, Prism.languages.gadt, "gadt");</code></pre>
+<h3 id="mixed-gad-files--gad-mixed">Mixed <code>.gad</code> files (<code># gad: mixed</code>)</h3>
+<p>A <code>.gad</code> file can enable template mode inline with a <code># gad: mixed</code> directive (after an optional Gad preamble). Use <code>detectGadTemplate(source)</code> to read the directive — whether it enables <code>mixed</code> and any <code>delimiter=[START, END]</code> — and <code>preamble: true</code> to highlight the leading Gad (comments + the <code># gad:</code> line) as Gad before the template text:</p>
+<pre><code class="language-ts">import { detectGadTemplate, registerGadTemplate } from "@gad-lang/prism-gad";
+
+const { mixed, start, end } = detectGadTemplate(source);
+if (mixed) {
+  registerGadTemplate(Prism, { start, end, preamble: true });
+  const html = Prism.highlight(source, Prism.languages.gadt, "gadt");
+}</code></pre>
+<p>Prism is stateless, so the preamble is an anchored approximation (it applies at the start of the source); for a full state machine use the CodeMirror plugin.</p>
+<p>For an interactive editor with autocompletion and live diagnostics, use [<code>@gad-lang/codemirror-gad</code>](https://github.com/gad-lang/gad/blob/main/web/codemirror-gad) instead. See the example app in [<code>../README.md</code>](https://github.com/gad-lang/gad/blob/main/web/README.md).</p>
+<h2 id="demo">Demo</h2>
+<p>A standalone highlighting demo lives in [<code>example/</code>](https://github.com/gad-lang/gad/blob/main/web/prism-gad/example). Its sidebar is a tree of the repository <code>samples/</code> directory built from the filesystem at startup; clicking a <code>.gad</code> / <code>.gadt</code> / <code>.gadx</code> file highlights it with the grammar chosen by <code>gadGrammarFor(sourceType)</code>. The dev server (<code>example/serve.ts</code>) reads the manifest and each file's contents from disk on demand — nothing is bundled in.</p>
+<pre><code class="language-sh">bun install
+bun run demo        # bun ./example/serve.ts — bundles the app and serves samples/</code></pre>
+<h2 id="publishing">Publishing</h2>
+<p>The package is published to npm under the public <code>@gad-lang</code> scope. It ships the compiled output in <code>dist/</code> (built from <code>src/</code> by <code>tsc</code>); <code>prepublishOnly</code> rebuilds it, and <code>files</code>/<code>exports</code> point npm consumers at <code>dist/index.js</code> + <code>dist/index.d.ts</code>.</p>
+<pre><code class="language-sh">bun install
+bun run build            # emit dist/ (tsc: .js + .d.ts)
+npm version &lt;patch|minor|major&gt;
+bun publish --dry-run    # inspect the tarball first
+bun publish              # publishConfig sets the public registry + access</code></pre>
+<p><code>publishConfig</code> (in <code>package.json</code>) pins the public npm registry and <code>access: public</code>, so no per-package <code>.npmrc</code> is required. The auth token is read from the environment or your global <code>~/.npmrc</code>; <strong>never commit a token</strong> (this repo's <code>.gitignore</code> ignores dotfiles). For CI, drop in a local <code>.npmrc</code>:</p>
+<pre><code class="language-ini">//registry.npmjs.org/:_authToken=${NPM_TOKEN}</code></pre>
+<h2 id="documentation">Documentation</h2>
+<ul>
+<li><a href="https://github.com/gad-lang/gad/blob/main/web/prism-gad/docs/api.md">API reference</a> — the registration functions and source types.</li>
+</ul>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#install">Install</a><a href="#usage">Usage</a><a href="#source-type-gad--template--gadx">Source type (gad / template / gadx)</a><a href="#templates-gadt">Templates (.gadt)</a><a href="#demo">Demo</a><a href="#publishing">Publishing</a><a href="#documentation">Documentation</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="../theme.js"></script>
+<script src="../search.js"></script>
+<script src="../prism.js" defer></script>
+</body>
+</html>

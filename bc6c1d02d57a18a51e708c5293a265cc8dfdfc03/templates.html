@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Templates (mixed mode) · Gad</title>
+<link rel="icon" type="image/svg+xml" href="gad.svg">
+<script>(function(){var s=localStorage.getItem("gad-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=t;})();</script>
+<script>window.SITE_BASE="";</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html"><img class="brand-logo" src="gad.svg" alt="" width="30" height="30"><span class="brand-name">Gad</span></a>
+  <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
+  <nav class="header-links">
+    <a class="rel-chip" href="download.html" title="Current release">v0.0.4-test1</a>
+    <a href="playground/index.html">Playground</a>
+    <a href="download.html">Download</a>
+    <a href="https://github.com/gad-lang/gad/issues" target="_blank" rel="noopener">Tasks</a>
+    <a href="https://github.com/gad-lang/gad" target="_blank" rel="noopener">Repo</a>
+  </nav>
+  <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group"><div class="nav-title">Guide</div>
+      <a class="nav-link" href="index.html">Gad Language</a><a class="nav-link" href="getting-started.html">Getting Started</a><a class="nav-link" href="values-and-types.html">Values and Types</a><a class="nav-link" href="variables-and-scopes.html">Variables and Scopes</a><a class="nav-link" href="operators.html">Operators</a><a class="nav-link" href="control-flow.html">Control Flow</a><a class="nav-link" href="functions.html">Functions</a><a class="nav-link" href="collections.html">Collections</a><a class="nav-link" href="strings-bytes-regex.html">Strings, Bytes and Regex</a><a class="nav-link" href="error-handling.html">Error Handling</a><a class="nav-link" href="modules.html">Modules</a><a class="nav-link" href="builtins.html">Builtin Functions</a><a class="nav-link active" href="templates.html">Templates (mixed mode)</a><a class="nav-link" href="formatting.html">Formatting with gad fmt</a><a class="nav-link" href="embedding.html">Embedding Gad in Go</a>
+    </div><div class="nav-group"><div class="nav-title">Reference</div>
+      <a class="nav-link" href="ref-tutorial.html">Gad Tutorial</a><a class="nav-link" href="ref-metaprogramming.html">Metaprogramming: parse, eval and Gadx</a><a class="nav-link" href="ref-workspace-config.html">Workspace Configuration</a><a class="nav-link" href="ref-stdlib-strings.html">strings module</a><a class="nav-link" href="ref-stdlib-fmt.html">fmt module</a><a class="nav-link" href="ref-stdlib-json.html">json module</a><a class="nav-link" href="ref-stdlib-time.html">time module</a>
+    </div><div class="nav-group"><div class="nav-title">Gadx</div>
+      <a class="nav-link" href="gadx-getting-started.html">Getting Started</a><a class="nav-link" href="gadx-syntax.html">Template Syntax</a><a class="nav-link" href="gadx-components-and-slots.html">Components And Slots</a><a class="nav-link" href="gadx-examples.html">Examples Cookbook</a><a class="nav-link" href="gadx-embedding.html">Embedding In Go</a><a class="nav-link" href="gadx-api.html">API Reference</a><a class="nav-link" href="gadx-conventions.html">Conventions</a><a class="nav-link" href="gadx-source-positions.html">Source Positions</a><a class="nav-link" href="gadx-project-structure.html">Project Structure</a><a class="nav-link" href="gadx-benchmarks.html">Benchmarks</a><a class="nav-link" href="gadx-cms-example.html">CMS Example</a>
+    </div><div class="nav-group"><div class="nav-title">JS modules</div>
+      <a class="nav-link" href="js-modules/codemirror-gad.html">@gad-lang/codemirror-gad</a><a class="nav-link" href="js-modules/prism-gad.html">@gad-lang/prism-gad</a><a class="nav-link" href="js-modules/ide-react.html">@gad-lang/ide-react</a><a class="nav-link" href="js-modules/ide-vuetify.html">@gad-lang/ide-vuetify</a>
+    </div><div class="nav-group"><div class="nav-title">Integrate</div>
+      <a class="nav-link" href="wasm-embed.html">Embed the WASM</a>
+    </div><div class="nav-group"><div class="nav-title">Playground</div>
+      <a class="nav-link" href="playground/index.html">Playground</a>
+    </div><div class="nav-group"><div class="nav-title">Download</div>
+      <a class="nav-link" href="download.html">Download</a>
+    </div>
+  </nav>
+  <main class="content"><h1 id="templates-mixed-mode">Templates (mixed mode)</h1>
+<p>Gad can run in <strong>mixed / template mode</strong>, where a file is plain text with embedded Gad code. This is useful for generating configuration, JSON, HTML or any other text output.</p>
+<h2 id="enabling-template-mode">Enabling template mode</h2>
+<p>There are three ways to put a file in template mode:</p>
+<ol>
+<li>A <code># gad: mixed</code> directive on the first line of a normal <code>.gad</code> file.</li>
+<li>The <code>--template</code> flag of <code>gad run</code> (no directive needed).</li>
+<li>A <code>.gadt</code> file extension (run as a template automatically).</li>
+</ol>
+<pre><code class="language-sh">gad page.gadt              # .gadt is template by convention
+gad --template page.gad    # force template mode</code></pre>
+<h2 id="tags">Tags</h2>
+<p>Inside a template, two tag forms embed Gad:</p>
+<table>
+<thead><tr><th>Tag</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>{% … %}</code></td><td>A <strong>code block</strong> — runs Gad statements, emits nothing itself.</td></tr>
+<tr><td><code>{%= expr %}</code></td><td>A <strong>value</strong> — evaluates <code>expr</code> and writes it into the output.</td></tr>
+</tbody>
+</table>
+<pre><code class="language-gadt"># gad: mixed
+{% name := "Gad" --%}
+Hello, {%= name %}!</code></pre>
+<pre><code>Hello, Gad!</code></pre>
+<p>(<code>--%}</code> strips the newline after the code block; see <a href="#whitespace-trim-markers">Whitespace trim markers</a> below.)</p>
+<p>Everything outside the tags is literal text and is preserved exactly.</p>
+<h2 id="control-flow">Control flow</h2>
+<p>Control-flow statements use the <code>begin … end</code> block form (the template equivalent of <code>{ … }</code>), with the body being the template text between the tags:</p>
+<pre><code class="language-gadt"># gad: mixed
+{% for i, name in ["joe", "mary"] begin --%}
+{%= i+1 %}. {%= name %}
+{% end %}</code></pre>
+<pre><code>1. joe
+2. mary</code></pre>
+<p><code>if</code> works the same way:</p>
+<pre><code class="language-gadt">{% if ok begin %}yes{% end %}</code></pre>
+<h2 id="whitespace-trim-markers">Whitespace trim markers</h2>
+<p>A <code>-</code> or <code>--</code> next to a delimiter trims the whitespace of the adjacent text:</p>
+<table>
+<thead><tr><th>Marker</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>{%-</code> / <code>-%}</code></td><td>Trim the adjacent blanks but <strong>keep a single newline</strong>.</td></tr>
+<tr><td><code>{%--</code> / <code>--%}</code></td><td>Trim <strong>all</strong> adjacent whitespace (newlines included).</td></tr>
+</tbody>
+</table>
+<ul>
+<li><code>{%-</code> / <code>{%--</code> trim the <strong>trailing</strong> whitespace of the <strong>preceding</strong> text.</li>
+<li><code>-%}</code> / <code>--%}</code> trim the <strong>leading</strong> whitespace of the <strong>following</strong> text.</li>
+</ul>
+<pre><code class="language-gadt"># gad: mixed
+A
+{%-- = 1 --%}
+B</code></pre>
+<pre><code>A1B</code></pre>
+<p>With single dashes the boundary newline is kept:</p>
+<pre><code class="language-gadt"># gad: mixed
+A
+{%- = 1 -%}
+B</code></pre>
+<pre><code>A
+1
+B</code></pre>
+<h2 id="custom-delimiters">Custom delimiters</h2>
+<p>The code-block delimiters default to <code>{%</code> / <code>%}</code>. There are three ways to change them.</p>
+<p>Per file, in the <code># gad: mixed</code> directive, with a <code>delimiter = [START, END]</code> array (string or raw-string values):</p>
+<pre><code class="language-gadt"># gad: mixed, delimiter=["&lt;?", "?&gt;"]
+Hi &lt;?= 6*7 ?&gt;!</code></pre>
+<p>Per run, with flags:</p>
+<pre><code class="language-sh">gad --template-start-delimiter '&lt;?' --template-end-delimiter '?&gt;' page</code></pre>
+<p>Per workspace, in <code>.gad.yaml</code>:</p>
+<pre><code class="language-yaml">template:
+  start_delimiter: "&lt;?"
+  end_delimiter: "?&gt;"</code></pre>
+<p>CLI flags win over the <code>.gad.yaml</code> config. Either delimiter flag implies <code>--template</code>.</p>
+<h2 id="formatting">Formatting</h2>
+<p><code>gad fmt</code> formats templates: the literal text is preserved verbatim, the Gad code inside tags is formatted, and the tags are kept inline. The block terminator is normalized to <code>{% end %}</code> and trim markers are preserved.</p>
+<h2 id="see-also">See also</h2>
+<p>For runnable template examples, see:</p>
+<ul>
+<li><code>samples/09_template.gad</code> — a template that generates JSON output</li>
+<li><code>samples/23_template.gadt</code> — a <code>.gadt</code> file (auto-template mode) with trim markers</li>
+</ul>
+</main>
+  <aside class="toc"><div class="nav-title">On this page</div><a href="#enabling-template-mode">Enabling template mode</a><a href="#tags">Tags</a><a href="#control-flow">Control flow</a><a href="#whitespace-trim-markers">Whitespace trim markers</a><a href="#custom-delimiters">Custom delimiters</a><a href="#formatting">Formatting</a><a href="#see-also">See also</a></aside>
+</div>
+<footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
+<script src="theme.js"></script>
+<script src="search.js"></script>
+<script src="prism.js" defer></script>
+</body>
+</html>
