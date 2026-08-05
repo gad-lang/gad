@@ -160,6 +160,28 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
   assets: checksums.txt, gad.wasm, wasm_exec.js, and gad_0.0.4-test1_{linux_amd64,
   linux_arm64,windows_amd64,windows_arm64}.{tar.gz,zip}
 
+### 2026-08-05 (release notes docs link + live-site fixes)
+- Release footer: goreleaser `release.footer` links the docs — leads with
+  /<tag>/ (· latest). Republished v0.0.4-test1 (deleted release+tag, recreated at
+  HEAD) so its notes carry the footer. Verified via `gh release view`:
+  "📖 Documentation: https://gad-lang.github.io/gad/v0.0.4-test1/ · latest"
+- website.yml: token-created releases don't fire the `release` event, so /latest
+  (root redirect target) went stale & had no banner. Now every main push refreshes
+  /latest AND publishes under the resolved release tag dir (/<tag>/), and resolves
+  the newest release via `gh release list` to fill the banner. Verified on
+  gh-pages: /latest + /v0.0.4-test1 have home-hero + rel-chip "v0.0.4-test1"
+- Two CI-only best-effort failures found + fixed (worked locally only because
+  artifacts were on disk):
+  1. website.yml set up bun but never `bun install` → prism bundle (no prismjs)
+     and demo (no vite) both failed. Added `cd web && bun install --frozen-lockfile`
+  2. buildEmbeddedIDE ran `bunx vite build` skipping the demo's samples.gen.ts
+     regen (git-ignored) → "Could not resolve ./samples.gen". Prepended
+     `bun run samples`
+- Verified live (gh-pages/latest, bypassing CDN cache): prism.js present +
+  functions.html loads it with 24×language-gad; playground/ is the full demo dir
+  (nav → playground/index.html); templates/download/wasm-embed/gad.svg all
+  published; final website run has zero warnings
+
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
 |-------|-------|-----|----------|
