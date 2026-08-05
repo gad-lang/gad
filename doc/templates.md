@@ -26,7 +26,7 @@ Inside a template, two tag forms embed Gad:
 | `{% … %}`       | A **code block** — runs Gad statements, emits nothing itself. |
 | `{%= expr %}`   | A **value** — evaluates `expr` and writes it into the output. |
 
-```
+```gad-gadt
 # gad: mixed
 {% name := "Gad" --%}
 Hello, {%= name %}!
@@ -46,7 +46,7 @@ Everything outside the tags is literal text and is preserved exactly.
 Control-flow statements use the `begin … end` block form (the template
 equivalent of `{ … }`), with the body being the template text between the tags:
 
-```
+```gad-gadt
 # gad: mixed
 {% for i, name in ["joe", "mary"] begin --%}
 {%= i+1 %}. {%= name %}
@@ -60,7 +60,7 @@ equivalent of `{ … }`), with the body being the template text between the tags
 
 `if` works the same way:
 
-```
+```gad-gadt
 {% if ok begin %}yes{% end %}
 ```
 
@@ -76,7 +76,7 @@ A `-` or `--` next to a delimiter trims the whitespace of the adjacent text:
 - `{%-` / `{%--` trim the **trailing** whitespace of the **preceding** text.
 - `-%}` / `--%}` trim the **leading** whitespace of the **following** text.
 
-```
+```gad-gadt
 # gad: mixed
 A
 {%-- = 1 --%}
@@ -89,7 +89,7 @@ A1B
 
 With single dashes the boundary newline is kept:
 
-```
+```gad-gadt
 # gad: mixed
 A
 {%- = 1 -%}
@@ -110,7 +110,7 @@ change them.
 Per file, in the `# gad: mixed` directive, with a `delimiter = [START, END]`
 array (string or raw-string values):
 
-```
+```gad-gadt
 # gad: mixed, delimiter=["<?", "?>"]
 Hi <?= 6*7 ?>!
 ```
