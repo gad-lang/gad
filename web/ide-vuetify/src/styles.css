@@ -309,7 +309,9 @@
 .gnb-editor .cm-editor { height: 100%; }
 .gnb-bar {
   display: flex;
+  align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   padding: 4px 8px;
   border-top: 1px solid rgba(var(--v-border-color), 0.3);
 }
