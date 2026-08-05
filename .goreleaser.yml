@@ -65,6 +65,11 @@ release:
     name: gad
   draft: false
   prerelease: auto
+  # Link the documentation website (this tag's build + the latest docs) at the
+  # end of the generated release notes.
+  footer: |
+    ---
+    📖 **Documentation:** https://gad-lang.github.io/gad/latest/ · [this release](https://gad-lang.github.io/gad/{{ .Tag }}/)
   # Attach the standalone WebAssembly module (built by the before hook) as a
   # release asset alongside the CLI archives.
   extra_files:

@@ -38,23 +38,48 @@ jobs:
         with:
           bun-version: '1.3.14'
 
+      # Resolve the release to feature on the site. On a release event use its
+      # fields; on a main push (releases created by GITHUB_TOKEN don't trigger the
+      # release event) fall back to the latest published release via the API, so
+      # the banner stays current. Values go to files to avoid injection / quoting.
+      - name: Resolve release info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          E_TAG: ${{ github.event.release.tag_name }}
+          E_NAME: ${{ github.event.release.name }}
+          E_DATE: ${{ github.event.release.published_at }}
+          E_BODY: ${{ github.event.release.body }}
+        run: |
+          set -eu
+          : > /tmp/rel_tag; : > /tmp/rel_name; : > /tmp/rel_date; : > /tmp/relnotes.md
+          if [ "$EVENT_NAME" = "release" ]; then
+            printf '%s' "$E_TAG"  > /tmp/rel_tag
+            printf '%s' "$E_NAME" > /tmp/rel_name
+            printf '%s' "$E_DATE" > /tmp/rel_date
+            printf '%s' "$E_BODY" > /tmp/relnotes.md
+          else
+            tag="$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // ""' || true)"
+            if [ -n "$tag" ]; then
+              printf '%s' "$tag" > /tmp/rel_tag
+              gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json name --jq '.name // ""' > /tmp/rel_name || true
+              gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json publishedAt --jq '.publishedAt // ""' > /tmp/rel_date || true
+              gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json body --jq '.body // ""' > /tmp/relnotes.md || true
+            fi
+          fi
+
       - name: Build website
         env:
-          EVENT_NAME: ${{ github.event_name }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
-          # Release fields are passed via env (not interpolated into the script)
-          # to avoid script injection from the release body/name.
-          REL_TAG: ${{ github.event.release.tag_name }}
-          REL_NAME: ${{ github.event.release.name }}
-          REL_DATE: ${{ github.event.release.published_at }}
-          REL_BODY: ${{ github.event.release.body }}
         run: |
           set -eu
           args=(build --out dist/website --repo-url "$REPO_URL")
-          if [ "$EVENT_NAME" = "release" ]; then
-            printf '%s' "$REL_BODY" > /tmp/relnotes.md
-            args+=(--release-tag "$REL_TAG" --release-name "$REL_NAME" \
-                   --release-date "$REL_DATE" --release-notes-file /tmp/relnotes.md)
+          tag="$(cat /tmp/rel_tag)"
+          if [ -n "$tag" ]; then
+            args+=(--release-tag "$tag" \
+                   --release-name "$(cat /tmp/rel_name)" \
+                   --release-date "$(cat /tmp/rel_date)" \
+                   --release-notes-file /tmp/relnotes.md)
           fi
           go run ./cmd/build-website "${args[@]}"
 
@@ -63,22 +88,22 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
             echo "dir=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
-            echo "alias=latest" >> "$GITHUB_OUTPUT"
           else
             echo "dir=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-            echo "alias=dev" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Stage publish directory
         run: |
           set -eu
           dir='${{ steps.paths.outputs.dir }}'
-          alias='${{ steps.paths.outputs.alias }}'
+          # Keep a permanent copy under the tag/commit dir …
           mkdir -p "public/$dir"
           cp -r dist/website/. "public/$dir/"
-          rm -rf "public/$alias"
-          mkdir -p "public/$alias"
-          cp -r dist/website/. "public/$alias/"
+          # … and refresh /latest, which the site root redirects to, so both a
+          # release event and a main push update the live site (the release
+          # workflow isn't triggered for token-created releases).
+          rm -rf public/latest && mkdir -p public/latest
+          cp -r dist/website/. public/latest/
           # Root index redirects to the latest published build.
           printf '<!DOCTYPE html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./latest/index.html"><title>Gad</title><a href="./latest/index.html">Gad documentation</a>\n' > public/index.html
 
