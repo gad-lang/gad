@@ -23,6 +23,8 @@ export interface RunResult {
 export interface GadRunner {
   name?: string;
   format(source: string, sourceType?: string): Promise<FormatResult>;
-  run(source: string, sourceType?: string): Promise<RunResult>;
+  /** Run source. For a gadx `sourceType`, `tagEncode` ("json"/"yaml") encodes the
+   * returned tag as JSON/YAML instead of rendering it as HTML. */
+  run(source: string, sourceType?: string, tagEncode?: string): Promise<RunResult>;
   diagnose?: (source: string, sourceType?: string) => Promise<GadDiagnostic[]> | GadDiagnostic[];
 }

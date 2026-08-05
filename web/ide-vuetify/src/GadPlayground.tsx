@@ -5,7 +5,7 @@
 // React playground.
 import { computed, defineComponent, reactive, ref, type PropType } from "vue";
 import GadEditor from "./GadEditor";
-import { VBtn, VBtnToggle } from "./vuetify";
+import { VBtn, VBtnToggle, VSelect } from "./vuetify";
 import type { EditorLanguage } from "./codemirror";
 import type { FormatResult, GadRunner, RunResult } from "./types";
 
@@ -58,6 +58,8 @@ export default defineComponent({
     const sourceType = computed(() => SOURCE_TYPE[dialect.value]);
 
     const busy = ref(false);
+    // GADX only: encode the returned tag as JSON/YAML instead of rendering HTML.
+    const tagEncode = ref<"" | "json" | "yaml">("");
     const left = ref<{ kind: "format"; fmt: FormatResult } | { kind: "run"; run: RunResult } | null>(null);
     const diagnose = props.runner.diagnose
       ? (src: string) => props.runner.diagnose!(src, sourceType.value)
@@ -76,7 +78,8 @@ export default defineComponent({
     async function doRun() {
       busy.value = true;
       try {
-        left.value = { kind: "run", run: await props.runner.run(source.value, sourceType.value) };
+        const te = dialect.value === "gadx" ? tagEncode.value : "";
+        left.value = { kind: "run", run: await props.runner.run(source.value, sourceType.value, te) };
       } finally {
         busy.value = false;
       }
@@ -98,6 +101,18 @@ export default defineComponent({
               <VBtn size="small" value="gadx">GADx</VBtn>
             </VBtnToggle>
             <span class="gp-actions">
+              {dialect.value === "gadx" && (
+                <VSelect
+                  modelValue={tagEncode.value}
+                  {...{ "onUpdate:modelValue": (v: unknown) => (tagEncode.value = (v as "" | "json" | "yaml") ?? "") }}
+                  items={[{ title: "Render", value: "" }, { title: "JSON", value: "json" }, { title: "YAML", value: "yaml" }]}
+                  label="Tag"
+                  density="compact"
+                  variant="outlined"
+                  hideDetails
+                  style={{ maxWidth: "120px" }}
+                />
+              )}
               <VBtn size="small" variant="tonal" loading={busy.value} onClick={() => doFormat(false)}>Format</VBtn>
               <VBtn size="small" variant="tonal" loading={busy.value} onClick={() => doFormat(true)}>Format &amp; apply</VBtn>
               <VBtn size="small" color="primary" prependIcon="mdi-play" loading={busy.value} onClick={doRun}>Run</VBtn>

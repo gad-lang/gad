@@ -24,6 +24,8 @@ export interface RunTarget {
   source: string;
   path: string;
   args: string[];
+  /** GADX only: encode the returned tag as "json"/"yaml" instead of rendering. */
+  tagEncode?: string;
 }
 
 /** BpMeta is a breakpoint's per-line metadata: disabled flag and condition. */
@@ -335,7 +337,7 @@ export function createController(
     const t = target ?? currentTarget();
     busy.value = true;
     try {
-      runRes.value = await api.run({ source: t.source, path: t.path, args: t.args });
+      runRes.value = await api.run({ source: t.source, path: t.path, args: t.args, tagEncode: t.tagEncode || undefined });
     } finally {
       busy.value = false;
     }
@@ -539,7 +541,7 @@ export function createController(
     const p = activeProfileObj.value;
     if (!p) return { source: source.value, path: openPath.value, args: [] };
     const src = p.path === openPath.value ? source.value : (await api.read(p.path)).content;
-    return { source: src, path: p.path, args: p.args };
+    return { source: src, path: p.path, args: p.args, tagEncode: p.tagEncode };
   }
   async function runActive() {
     await run(await effectiveTarget());

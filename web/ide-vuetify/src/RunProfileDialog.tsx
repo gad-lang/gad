@@ -2,7 +2,7 @@
 // the file to execute (prefilled with the open file) and command-line arguments
 // (chips). On save it emits the new profile.
 import { defineComponent, ref, watch, type PropType } from "vue";
-import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VCombobox, VDialog, VSpacer, VTextField } from "./vuetify";
+import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VCombobox, VDialog, VSelect, VSpacer, VTextField } from "./vuetify";
 import type { RunProfile } from "./api";
 
 export default defineComponent({
@@ -20,6 +20,8 @@ export default defineComponent({
     const name = ref("");
     const path = ref(props.defaultPath);
     const args = ref<string[]>([]);
+    const tagEncode = ref<"" | "json" | "yaml">("");
+    const isGadx = () => /\.gadx$/i.test(path.value);
 
     // Re-seed when the dialog opens (the open file may have changed).
     watch(
@@ -34,10 +36,12 @@ export default defineComponent({
 
     function save() {
       const p: RunProfile = { name: name.value.trim() || (path.value.split("/").pop() ?? "profile"), path: path.value, args: [...args.value] };
+      if (isGadx() && tagEncode.value) p.tagEncode = tagEncode.value;
       emit("create", p);
       emit("update:modelValue", false);
       name.value = "";
       args.value = [];
+      tagEncode.value = "";
     }
 
     return () => (
@@ -79,6 +83,18 @@ export default defineComponent({
               density="compact"
               variant="outlined"
             />
+            {isGadx() && (
+              <VSelect
+                modelValue={tagEncode.value}
+                {...{ "onUpdate:modelValue": (v: unknown) => (tagEncode.value = (v as "" | "json" | "yaml") ?? "") }}
+                items={[{ title: "Render (HTML)", value: "" }, { title: "JSON", value: "json" }, { title: "YAML", value: "yaml" }]}
+                label="GADX tag output"
+                density="compact"
+                variant="outlined"
+                hideDetails
+                class="mt-2"
+              />
+            )}
           </VCardText>
           <VCardActions>
             <VSpacer />

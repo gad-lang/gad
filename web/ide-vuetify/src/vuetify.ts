@@ -25,6 +25,7 @@ import {
   VMenu as _VMenu,
   VProgressLinear as _VProgressLinear,
   VSpacer as _VSpacer,
+  VSelect as _VSelect,
   VSwitch as _VSwitch,
   VTab as _VTab,
   VTabs as _VTabs,
@@ -37,6 +38,7 @@ import {
 type AnyComponent = DefineComponent<Record<string, any>, Record<string, any>, any>;
 
 export const VBtn = _VBtn as unknown as AnyComponent;
+export const VSelect = _VSelect as unknown as AnyComponent;
 export const VBtnToggle = _VBtnToggle as unknown as AnyComponent;
 export const VCard = _VCard as unknown as AnyComponent;
 export const VCardActions = _VCardActions as unknown as AnyComponent;

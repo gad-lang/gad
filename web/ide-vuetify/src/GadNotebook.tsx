@@ -4,7 +4,7 @@
 // the React notebook.
 import { defineComponent, ref, type PropType } from "vue";
 import GadEditor from "./GadEditor";
-import { VBtn, VBtnToggle } from "./vuetify";
+import { VBtn, VBtnToggle, VSelect } from "./vuetify";
 import type { EditorLanguage } from "./codemirror";
 import type { GadRunner, RunResult } from "./types";
 
@@ -16,6 +16,7 @@ interface Cell {
   id: number;
   source: string;
   dialect: Dialect;
+  tagEncode: "" | "json" | "yaml";
   result: RunResult | null;
   running: boolean;
 }
@@ -25,6 +26,7 @@ const newCell = (source = "", dialect: Dialect = "gad"): Cell => ({
   id: nextId++,
   source,
   dialect,
+  tagEncode: "",
   result: null,
   running: false,
 });
@@ -46,7 +48,8 @@ export default defineComponent({
     async function runCell(cell: Cell) {
       cell.running = true;
       try {
-        cell.result = await props.runner.run(cell.source, SOURCE_TYPE[cell.dialect]);
+        const te = cell.dialect === "gadx" ? cell.tagEncode : "";
+        cell.result = await props.runner.run(cell.source, SOURCE_TYPE[cell.dialect], te);
       } catch (e) {
         cell.result = { ok: false, stdout: "", stderr: String(e), result: "", diagnostics: [] };
       } finally {
@@ -87,6 +90,18 @@ export default defineComponent({
                 <VBtn size="small" value="gadt">GAD Template</VBtn>
                 <VBtn size="small" value="gadx">GADx</VBtn>
               </VBtnToggle>
+              {cell.dialect === "gadx" && (
+                <VSelect
+                  modelValue={cell.tagEncode}
+                  {...{ "onUpdate:modelValue": (v: unknown) => (cell.tagEncode = (v as "" | "json" | "yaml") ?? "") }}
+                  items={[{ title: "Render", value: "" }, { title: "JSON", value: "json" }, { title: "YAML", value: "yaml" }]}
+                  label="Tag"
+                  density="compact"
+                  variant="outlined"
+                  hideDetails
+                  style={{ maxWidth: "120px" }}
+                />
+              )}
               <VBtn size="small" color="primary" prependIcon="mdi-play" loading={cell.running} onClick={() => runCell(cell)}>Run</VBtn>
               <VBtn size="small" variant="text" onClick={() => removeCell(cell.id)}>Remove</VBtn>
             </div>

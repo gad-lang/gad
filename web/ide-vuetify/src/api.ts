@@ -44,6 +44,8 @@ export interface RunProfile {
   name: string;
   path: string;
   args: string[];
+  /** GADX only: encode the returned tag as "json"/"yaml" instead of rendering. */
+  tagEncode?: string;
 }
 
 /** RunMode gates the run/debug actions: "none" (or "") disables Run, Debug and
@@ -173,6 +175,7 @@ export const ideApi = {
     saveStdout?: string;
     saveStderr?: string;
     combine?: boolean;
+    tagEncode?: string;
   }) => jsonFetch<RunResult>("POST", "api/ide/run", req),
   dbgStart: (req: {
     source: string;
