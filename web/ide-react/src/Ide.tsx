@@ -25,6 +25,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AddLinkIcon from "@mui/icons-material/AddLink";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -132,6 +133,11 @@ import { InspectDialog, type InspectFn } from "./TreeNavigator";
 import { renderDocMarkdown } from "./docMarkdown";
 import { GadInput } from "./GadInput";
 import { useTheme } from "./useTheme";
+import { DirTree } from "./DirTree";
+import { UrlImportDialog } from "./UrlImportDialog";
+import { UploadReviewDialog } from "./UploadReviewDialog";
+import { PromptDialog, ConfirmDialog, type PromptRequest, type ConfirmRequest } from "./PromptDialog";
+import { rawFromInput, rawFromDataTransfer, readWithProgress, type RawFile } from "./upload";
 import {
   httpIdeApi,
   type IdeApi,
@@ -144,6 +150,7 @@ import {
   type RunProfile,
   type RunMode,
   type TreeNode,
+  type UploadedFile,
   type Workspace,
 } from "./api";
 
@@ -228,6 +235,15 @@ interface IdeShared {
   openFile: (path: string) => Promise<void>;
   treeAction: (action: TreeAction, node: TreeNode) => Promise<void>;
   refreshTree: () => Promise<void>;
+  // read-only workspace (hide create/delete/upload/import + read-only editor)
+  readonly: boolean;
+  // upload / import (the upload UI is shown only when a host onUpload is given)
+  onUploadEnabled: boolean;
+  startUploadReview: (raw: RawFile[]) => void;
+  setUrlImport: (v: boolean) => void;
+  // in-app prompt/confirm (replace window.prompt/confirm)
+  prompt: (title: string, initial?: string, label?: string) => Promise<string | null>;
+  confirm: (title: string, message: string) => Promise<boolean>;
   // tabs
   tabs: OpenTab[];
   active: number;
@@ -311,8 +327,24 @@ const useIde = () => useContext(IdeCtx);
 
 function ExplorerPanel(_: IDockviewPanelProps) {
   const ide = useIde();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const canUpload = !ide.readonly && ide.onUploadEnabled;
+  const onDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (!canUpload) return;
+    ide.startUploadReview(await rawFromDataTransfer(e.dataTransfer));
+  };
+
   return (
-    <aside className="ide-sidebar">
+    <aside
+      className={"ide-sidebar" + (dragOver ? " ide-sidebar--drop" : "")}
+      onDragOver={canUpload ? (e) => { e.preventDefault(); setDragOver(true); } : undefined}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={canUpload ? onDrop : undefined}
+    >
       <div className="side-head">
         <span>Explorer</span>
         <span style={{ flex: 1 }} />
@@ -323,22 +355,38 @@ function ExplorerPanel(_: IDockviewPanelProps) {
         >
           {ide.showHidden ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
         </IconButton>
-        <IconButton size="small" title="Get file from web" onClick={() => ide.setFetchDialog(true)}>
-          <AddLinkIcon fontSize="small" />
-        </IconButton>
-        <IconButton
-          size="small"
-          title="New file"
-          onClick={async () => {
-            const name = prompt("New file path (relative to workspace):", "untitled.gad");
-            if (!name) return;
-            await ide.api.mkfile(name);
-            await ide.refreshTree();
-            ide.openFile(name);
-          }}
-        >
-          <AddIcon fontSize="small" />
-        </IconButton>
+        {canUpload && (
+          <>
+            <IconButton size="small" title="Import from URL" onClick={() => ide.setUrlImport(true)}>
+              <AddLinkIcon fontSize="small" />
+            </IconButton>
+            <IconButton size="small" title="Upload files" onClick={() => fileInput.current?.click()}>
+              <UploadFileIcon fontSize="small" />
+            </IconButton>
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              hidden
+              onChange={(e) => { ide.startUploadReview(rawFromInput(e.target.files)); e.target.value = ""; }}
+            />
+          </>
+        )}
+        {!ide.readonly && (
+          <IconButton
+            size="small"
+            title="New file"
+            onClick={async () => {
+              const name = await ide.prompt("New file", "untitled.gad", "Path (relative to workspace)");
+              if (!name) return;
+              await ide.api.mkfile(name);
+              await ide.refreshTree();
+              ide.openFile(name);
+            }}
+          >
+            <AddIcon fontSize="small" />
+          </IconButton>
+        )}
       </div>
       <div className="tree">
         {ide.tree?.children?.map((n) => (
@@ -965,6 +1013,8 @@ export function Ide({
   runProfiles = [],
   onRunProfilesChange,
   runMode = "debug",
+  readonly = false,
+  onUpload,
 }: {
   workspace: Workspace;
   api?: IdeApi;
@@ -979,6 +1029,13 @@ export function Ide({
   onRunProfilesChange?: (profiles: RunProfile[]) => void;
   /** Gates the run/debug actions (defaults to "debug" — all enabled). */
   runMode?: RunMode;
+  /** Read-only workspace: hides create/delete/upload/import and makes the editor
+   * read-only. */
+  readonly?: boolean;
+  /** Handle files uploaded (Explorer button, drag-drop or URL import). When
+   * absent, files are written to the workspace via the api. `targetDir` is the
+   * directory chosen in the review dialog ("" = workspace root). */
+  onUpload?: (files: UploadedFile[], targetDir: string) => Promise<void> | void;
 }) {
   const [theme, toggleTheme] = useTheme();
   const dark = theme === "dark";
@@ -1061,8 +1118,21 @@ export function Ide({
   const [selectedFrame, setSelectedFrame] = useState(0);
   const frameClickTimer = useRef<number | null>(null);
 
+  // --- Upload / import state + helpers -------------------------------------
+  const [uploadRaw, setUploadRaw] = useState<RawFile[] | null>(null);
+  const [uploadDir, setUploadDir] = useState("");
+  const [urlImportOpen, setUrlImportOpen] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [promptReq, setPromptReq] = useState<PromptRequest | null>(null);
+  const [confirmReq, setConfirmReq] = useState<ConfirmRequest | null>(null);
+  const onUploadRef = useRef(onUpload);
+  onUploadRef.current = onUpload;
+
   const editorRef = useRef<EditorHandle>(null);
   const activeTab = active >= 0 ? tabs[active] : null;
+  // Ref so upload callbacks read the current active tab without re-creating.
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
 
   // Dockview API ref — available after onReady fires.
   const dockviewApiRef = useRef<DockviewApi | null>(null);
@@ -1080,6 +1150,79 @@ export function Ide({
   );
 
   useEffect(() => { void refreshTree(); }, [refreshTree]);
+
+  // --- Upload / import actions ---------------------------------------------
+  // pathExists walks the current tree for an exact path match (dir or file).
+  const pathExists = useCallback((path: string): boolean => {
+    const want = path.replace(/^\/+|\/+$/g, "");
+    const walk = (n: TreeNode | null): boolean => {
+      if (!n) return false;
+      for (const c of n.children ?? []) {
+        if (c.path.replace(/^\/+|\/+$/g, "") === want) return true;
+        if (c.dir && walk(c)) return true;
+      }
+      return false;
+    };
+    return walk(tree);
+  }, [tree]);
+  const archiveKind = useCallback((name: string): UploadedFile["archive"] | undefined => {
+    const n = name.toLowerCase();
+    if (n.endsWith(".zip")) return "zip";
+    if (n.endsWith(".tar.gz") || n.endsWith(".tgz")) return "tar.gz";
+    if (n.endsWith(".tar")) return "tar";
+    return undefined;
+  }, []);
+  // The directory of the active file ("" = workspace root), the default target.
+  const currentDir = useCallback((): string => {
+    const p = activeTabRef.current?.path ?? "";
+    const slash = p.lastIndexOf("/");
+    return slash === -1 ? "" : p.slice(0, slash);
+  }, []);
+  // upload places files under targetDir; the host's onUpload handles persistence
+  // when given, otherwise files are written via api.write.
+  const upload = useCallback(async (files: UploadedFile[], targetDir?: string) => {
+    if (!files.length) return;
+    const dir = (targetDir ?? currentDir()).replace(/\/$/, "");
+    const base = dir ? dir + "/" : "";
+    const placed = files.map((f) => ({ ...f, path: base + f.path }));
+    if (onUploadRef.current) await onUploadRef.current(placed, dir);
+    else for (const f of placed) if (!f.archive) await api.write(f.path, f.content);
+    await refreshTree();
+    const firstFile = placed.find((f) => !f.archive);
+    if (firstFile) await openFile(firstFile.path);
+  }, [api, currentDir, refreshTree]);
+  // uploadUrl downloads the URL in the browser (with progress) and hands it to
+  // upload(); an archive (when extract) is passed through as base64 bytes.
+  const uploadUrl = useCallback(async (url: string, extract: boolean, targetDir = "") => {
+    setUploadProgress(0);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+      const buf = await readWithProgress(res, setUploadProgress);
+      const name = decodeURIComponent(new URL(url, location.href).pathname.split("/").pop() || "download");
+      const kind = archiveKind(name);
+      if (extract && kind) {
+        let bin = "";
+        for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+        await upload([{ path: name, content: "", archive: kind, bytes: btoa(bin) }], targetDir);
+      } else {
+        await upload([{ path: name, content: new TextDecoder().decode(buf) }], targetDir);
+      }
+    } finally {
+      setUploadProgress(0);
+    }
+  }, [archiveKind, upload]);
+  // startUploadReview opens the review dialog for picked/dropped raw files.
+  const startUploadReview = useCallback((raw: RawFile[]) => {
+    if (!raw.length) return;
+    setUploadRaw(raw);
+    setUploadDir(currentDir());
+  }, [currentDir]);
+  // In-app prompt/confirm returning a promise (replace window.prompt/confirm).
+  const promptFn = useCallback((title: string, initial = "", label?: string): Promise<string | null> =>
+    new Promise((resolve) => setPromptReq({ title, initial, label, resolve })), []);
+  const confirmFn = useCallback((title: string, message: string): Promise<boolean> =>
+    new Promise((resolve) => setConfirmReq({ title, message, resolve })), []);
 
   useEffect(() => {
     (async () => {
@@ -1809,6 +1952,7 @@ export function Ide({
     api,
     dark, toggleTheme,
     tree, showHidden, setShowHidden, setFetchDialog, openFile, treeAction, refreshTree,
+    readonly, onUploadEnabled: !!onUpload, startUploadReview, setUrlImport: setUrlImportOpen, prompt: promptFn, confirm: confirmFn,
     tabs, active, setActive, activeTab, closeTab, onEdit,
     save, format, reloadFile, editorRef, diagnose, templateDelimiters, fontSize, setFontSize,
     debug, debugLoc, dbgCommand, keys,
@@ -1986,6 +2130,26 @@ export function Ide({
               }}
             />
           )}
+          {/* Upload: review dialog (from picked/dropped files) + URL import. */}
+          <UploadReviewDialog
+            open={!!uploadRaw}
+            onClose={() => setUploadRaw(null)}
+            raw={uploadRaw ?? []}
+            initialDir={uploadDir}
+            tree={tree}
+            archiveKind={archiveKind}
+            pathExists={pathExists}
+            onConfirm={(files, dir) => { void upload(files, dir); }}
+          />
+          <UrlImportDialog
+            open={urlImportOpen}
+            onClose={() => setUrlImportOpen(false)}
+            progress={uploadProgress}
+            tree={tree}
+            onImport={(url, extract, dir) => uploadUrl(url, extract, dir)}
+          />
+          <PromptDialog request={promptReq} onDone={() => setPromptReq(null)} />
+          <ConfirmDialog request={confirmReq} onDone={() => setConfirmReq(null)} />
         </Box>
       </ThemeProvider>
     </IdeCtx.Provider>
@@ -2660,6 +2824,7 @@ function IdeStyles() {
 
 /* Explorer panel */
 .ide-sidebar{height:100%;overflow:auto;padding:.4rem;background:var(--panel)}
+.ide-sidebar--drop{outline:2px dashed var(--accent);outline-offset:-4px}
 .side-head{display:flex;justify-content:space-between;align-items:center;font-size:.72rem;text-transform:uppercase;color:var(--muted);letter-spacing:.05em;padding:.2rem .3rem}
 .tree .node{padding:.12rem .3rem;border-radius:4px;cursor:pointer;white-space:nowrap}
 .tree .node:hover{background:var(--code-bg,rgba(125,125,125,.12))}
