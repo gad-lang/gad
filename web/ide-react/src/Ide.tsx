@@ -599,6 +599,7 @@ function EditorPanel(_: IDockviewPanelProps) {
             templateDelimiters={tmpl ?? undefined}
             dark={dark}
             onChange={ide.onEdit}
+            readonly={ide.readonly}
             breakpoints={ide.bpFor(ide.activeTab.path)}
             onBreakpointsChange={(lines) => ide.setBreakpoints(ide.activeTab!.path, lines)}
             fontSize={ide.fontSize}

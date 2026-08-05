@@ -98,6 +98,8 @@ interface EditorProps {
   onBreakpointsChange?: (lines: number[]) => void;
   /** Editor font size in pixels. */
   fontSize?: number;
+  /** Make the editor read-only (no edits; selection still allowed). */
+  readonly?: boolean;
   /** Current paused debug location (1-based line/column) and locals for tooltips. */
   debugLine?: number;
   debugColumn?: number;
@@ -130,6 +132,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     breakpoints,
     onBreakpointsChange,
     fontSize = 14,
+    readonly = false,
     debugLine,
     debugColumn,
     locals,
@@ -142,6 +145,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const langCompartment = useRef(new Compartment());
   const themeCompartment = useRef(new Compartment());
   const fontCompartment = useRef(new Compartment());
+  const roCompartment = useRef(new Compartment());
   // Keep latest diagnose available for the lang reconfigure effect.
   const diagnoseRef = useRef(diagnose);
   diagnoseRef.current = diagnose;
@@ -201,6 +205,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       breakpointGutter((lines) => onBpRef.current?.(lines)),
       debugDecorations(() => localsRef.current, () => onInspectVarRef.current),
       fontCompartment.current.of(fontTheme(fontSize)),
+      roCompartment.current.of(EditorState.readOnly.of(readonly)),
       keymap.of([...defaultKeymap, indentWithTab]),
       themeCompartment.current.of(themeExtension(dark)),
       langCompartment.current.of(langExtension(language, diagnose, templateDelimiters)),
@@ -248,6 +253,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     view.current?.dispatch({ effects: fontCompartment.current.reconfigure(fontTheme(fontSize)) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fontSize]);
+
+  // Toggle read-only.
+  useEffect(() => {
+    view.current?.dispatch({ effects: roCompartment.current.reconfigure(EditorState.readOnly.of(readonly)) });
+  }, [readonly]);
 
   // Highlight (and scroll to) the current paused debug location.
   useEffect(() => {
