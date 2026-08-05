@@ -4,7 +4,7 @@
 // debug decorations), plus small helpers to reconfigure it reactively.
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import { defaultKeymap, indentWithTab } from "@codemirror/commands";
+import { defaultKeymap, indentWithTab, redo as cmRedo, undo as cmUndo } from "@codemirror/commands";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { StreamLanguage } from "@codemirror/language";
 import { basicSetup } from "codemirror";
@@ -160,6 +160,16 @@ export class GadEditorView {
   /** setDebugLine highlights the paused line (1-based), or clears it with 0. */
   setDebugLine(line: number, column = 1): void {
     this.view.dispatch({ effects: setDebugLoc.of(line >= 1 ? { line, col: column } : null) });
+  }
+
+  undo(): void {
+    cmUndo(this.view);
+    this.view.focus();
+  }
+
+  redo(): void {
+    cmRedo(this.view);
+    this.view.focus();
   }
 
   /** gotoLine moves the cursor to a 1-based line and scrolls it into view. */

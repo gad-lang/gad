@@ -26,6 +26,7 @@ export default defineComponent({
   emits: {
     "update:modelValue": (_v: string) => true,
     "update:breakpoints": (_lines: number[]) => true,
+    ready: (_view: GadEditorView) => true,
   },
   setup(props, { emit }) {
     const host = ref<HTMLDivElement>();
@@ -53,6 +54,7 @@ export default defineComponent({
       });
       if (props.breakpoints.length) editor.setBreakpoints(props.breakpoints);
       if (props.debugLine) editor.setDebugLine(props.debugLine, props.debugColumn);
+      emit("ready", editor);
     });
 
     onBeforeUnmount(() => editor?.destroy());

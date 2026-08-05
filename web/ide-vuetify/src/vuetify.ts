@@ -16,6 +16,7 @@ import {
   VChip as _VChip,
   VCombobox as _VCombobox,
   VDialog as _VDialog,
+  VDivider as _VDivider,
   VIcon as _VIcon,
   VList as _VList,
   VListItem as _VListItem,
@@ -41,6 +42,7 @@ export const VCheckbox = _VCheckbox as unknown as AnyComponent;
 export const VChip = _VChip as unknown as AnyComponent;
 export const VCombobox = _VCombobox as unknown as AnyComponent;
 export const VDialog = _VDialog as unknown as AnyComponent;
+export const VDivider = _VDivider as unknown as AnyComponent;
 export const VIcon = _VIcon as unknown as AnyComponent;
 export const VList = _VList as unknown as AnyComponent;
 export const VListItem = _VListItem as unknown as AnyComponent;

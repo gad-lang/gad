@@ -7,9 +7,10 @@ import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
 import { langOf } from "./codemirror";
 import type { LocalVar } from "./codemirror";
 import { renderDocMarkdown } from "./docMarkdown";
-import type { BreakpointSpec, DebugResponse, IdeApi, InspectResult, TreeNode, Workspace } from "./api";
+import type { BreakpointSpec, DebugResponse, IdeApi, InspectResult, RunMode, RunProfile, TreeNode, Workspace } from "./api";
 import type { RunResult } from "./types";
 import type { InspectFn } from "./InspectorNode";
+import type { GadEditorView } from "./codemirror";
 
 export interface TreeRow {
   node: TreeNode;
@@ -34,12 +35,22 @@ export type IdeController = ReturnType<typeof createController>;
 /** Injection key for the shared controller. */
 export const IdeControllerKey: InjectionKey<IdeController> = Symbol("gad-ide-controller");
 
+/** ControllerHooks feed the reactive props/emits GadIde owns into the controller
+ * so the editor-panel toolbar (run profiles, run/debug gating) can live here. */
+export interface ControllerHooks {
+  onReset?: () => Promise<void> | void;
+  getRunProfiles?: () => RunProfile[];
+  getRunMode?: () => RunMode;
+  emitRunProfiles?: (profiles: RunProfile[]) => void;
+}
+
 export function createController(
   api: IdeApi,
   workspace: Workspace,
   dark: Ref<boolean>,
-  onReset?: () => Promise<void> | void,
+  hooks: ControllerHooks = {},
 ) {
+  const onReset = hooks.onReset;
   // --- file tree ----------------------------------------------------------
   const tree = shallowRef<TreeNode | null>(null);
   const expanded = reactive(new Set<string>());
@@ -152,6 +163,25 @@ export function createController(
     } finally {
       busy.value = false;
     }
+  }
+
+  // --- editor actions (save / reload / undo / redo) -----------------------
+  // The open editor registers itself so undo/redo can reach the CodeMirror view.
+  const editor = shallowRef<GadEditorView | null>(null);
+  function registerEditor(v: GadEditorView | null) {
+    editor.value = v;
+  }
+  async function save() {
+    if (openPath.value) await api.write(openPath.value, source.value);
+  }
+  async function reload() {
+    if (openPath.value) source.value = (await api.read(openPath.value)).content;
+  }
+  function undo() {
+    editor.value?.undo();
+  }
+  function redo() {
+    editor.value?.redo();
   }
   // Rendered documentation of the open file, shown by the Docs panel.
   const docHtml = ref("");
@@ -291,6 +321,51 @@ export function createController(
     return l === "gadx" ? "gadx" : l === "gadt" ? "gadTemplate" : "gad";
   });
 
+  // --- run/debug profiles (JetBrains-style) -------------------------------
+  const runProfiles = computed(() => hooks.getRunProfiles?.() ?? []);
+  const runMode = computed<RunMode>(() => hooks.getRunMode?.() ?? "debug");
+  const activeProfile = ref<string | null>(null);
+  const profileDialog = ref(false);
+  const activeProfileObj = computed(() => runProfiles.value.find((p) => p.name === activeProfile.value) ?? null);
+  const runLabel = computed(() => activeProfileObj.value?.name ?? "Current file");
+  const canRun = computed(() => runMode.value === "run" || runMode.value === "debug");
+  const canDebug = computed(() => runMode.value === "debug");
+
+  // effectiveTarget resolves what Run/Debug execute: the active profile's file +
+  // args (read fresh unless it is the open file), else the open file.
+  async function effectiveTarget(): Promise<RunTarget> {
+    const p = activeProfileObj.value;
+    if (!p) return { source: source.value, path: openPath.value, args: [] };
+    const src = p.path === openPath.value ? source.value : (await api.read(p.path)).content;
+    return { source: src, path: p.path, args: p.args };
+  }
+  async function runActive() {
+    await run(await effectiveTarget());
+  }
+  async function debugActive() {
+    await debugStart(await effectiveTarget());
+  }
+  function addProfile(p: RunProfile) {
+    hooks.emitRunProfiles?.([...runProfiles.value.filter((x) => x.name !== p.name), p]);
+    activeProfile.value = p.name;
+  }
+  function deleteProfile(name: string) {
+    hooks.emitRunProfiles?.(runProfiles.value.filter((p) => p.name !== name));
+    if (activeProfile.value === name) activeProfile.value = null;
+  }
+
+  // Docs-reveal request signal: the toolbar Doc button bumps it; GadIde watches
+  // it to reveal/focus the Docs panel (which owns the dockview api).
+  const docRequest = ref(0);
+  function requestDocs() {
+    void refreshDoc();
+    docRequest.value++;
+  }
+
+  // Settings dialog open state — set by the editor toolbar's Settings button,
+  // consumed by the dialog GadIde renders (its panel tab needs the dockview api).
+  const settingsOpen = ref(false);
+
   async function init() {
     await loadTree();
     if (openPath.value) await openFile(openPath.value);
@@ -310,6 +385,12 @@ export function createController(
     diagnose,
     // run/format/doc
     busy, runRes, run, format, docHtml, refreshDoc,
+    // editor actions
+    registerEditor, save, reload, undo, redo,
+    // run/debug profiles + gating
+    runProfiles, runMode, activeProfile, profileDialog, activeProfileObj, runLabel,
+    canRun, canDebug, runActive, debugActive, addProfile, deleteProfile,
+    docRequest, requestDocs, settingsOpen,
     // debug
     session, snap, dbgOutput, breakpoints, debugLine, debugColumn, stopped,
     getLocals, debugStart, debugCmd, evalExpr, evalOut, doEval,

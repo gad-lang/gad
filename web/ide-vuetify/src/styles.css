@@ -90,32 +90,24 @@
   height: 100%;
   min-height: 0;
 }
-.gad-ide__toolbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 8px;
-  border-bottom: 1px solid rgba(var(--v-border-color), 0.3);
-  flex-wrap: wrap;
-}
-.gad-ide__actions {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-end;
-}
-.gad-ide__actions-row {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-}
 .gad-ide__dock {
   flex: 1;
   min-height: 0;
   position: relative;
+}
+
+/* Editor panel toolbar (Save/Format/Run/Debug/… + right-aligned Settings). */
+.pnl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 4px;
+  border-bottom: 1px solid rgba(var(--v-border-color), 0.3);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.pnl-toolbar-spacer {
+  flex: 1 1 auto;
 }
 
 /* Value inspector ------------------------------------------------------- */

@@ -78,6 +78,9 @@ export default defineComponent({
       <VApp>
         <VAppBar density="compact" flat>
           <VAppBarTitle>Gad IDE</VAppBarTitle>
+          <button class="gad-theme-toggle" title="Toggle light/dark" onClick={toggleTheme}>
+            {dark.value ? "☀" : "☾"}
+          </button>
         </VAppBar>
         <VMain class="gad-main">
           {workspace.value && (
@@ -86,7 +89,6 @@ export default defineComponent({
               workspace={workspace.value}
               dark={dark.value}
               onReset={resetWorkspace}
-              onToggleTheme={toggleTheme}
               layoutConfig={layoutConfig.value}
               {...{
                 "onUpdate:layoutConfig": (v: SerializedDockview) => {
