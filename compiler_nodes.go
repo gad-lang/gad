@@ -3055,7 +3055,7 @@ func (c *Compiler) compileFileStmts(stmts node.Stmts) (err error) {
 	// explicit `return`) instead of becoming dead code at the end. The main module
 	// ignores exports entirely, so no split is needed there.
 	lastExport := -1
-	if c.module == nil || !c.module.Main {
+	if c.module == nil || !c.module.IsMain() {
 		for i, stmt := range stmts {
 			if _, ok := stmt.(*node.ExportStmt); ok {
 				lastExport = i
@@ -3714,7 +3714,7 @@ func (c *Compiler) compileExportStmt(nd *node.ExportStmt) (err error) {
 	// The main module is the program entry point, not an importable module, so
 	// its exports have no consumer. Skip compiling them (emit no export ops) but
 	// do not fail: report a warning the caller can surface (CLI/IDE STDERR).
-	if c.module != nil && c.module.Main {
+	if c.module != nil && c.module.IsMain() {
 		c.warnf(nd, "export ignored in main module %q", c.module.Name)
 		return nil
 	}

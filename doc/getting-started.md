@@ -100,6 +100,32 @@ $ gad join.gad a b c --sep +    # a+b+c
 $ gad join.gad a b c --ln       # a,b,c\n
 ```
 
+### Raw argument passthrough — `param (*argv)`
+
+When a script declares **exactly one variadic positional parameter and no named
+parameters** — `param (*argv)` — it opts into *raw* argument handling: every CLI
+argument is passed straight through as a string, with **no** `--name` parsing,
+and `argv[0]` is the module path used to invoke the script (like a C program's
+`argv`).
+
+```gad
+param (*argv)          // the name is up to you; the *shape* is what matters
+println(argv)
+```
+
+```sh
+$ gad a/b/script.gad x --y=1 -- z
+["a/b/script.gad", "x", "--y=1", "z"]
+```
+
+Compare with the parsed form above, where `--y=1` would become a named argument.
+Everything is forwarded verbatim except a single bare `--` options terminator,
+which the **main** module drops (it just separates `gad`'s own flags from your
+`argv`). Use `param (*argv)` for scripts that forward arguments to another tool
+or do their own parsing. Internally this sets the `ModuleRawArgv` flag on the
+module (see [Embedding](embedding.md)); the flag itself is independent of whether
+the module is the main one — only the `--` drop is main-only.
+
 ## Subcommands
 
 The CLI is organised as subcommands. Run `gad help` for the list, or

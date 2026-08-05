@@ -311,7 +311,7 @@ type CompileOptions struct {
 // Compile compiles given script as the main module, returning a CompileResult
 // (parsed File, Bytecode and any compiler Warnings) and an error.
 func Compile(st *SymbolTable, script []byte, opts CompileOptions) (*CompileResult, error) {
-	return CompileModule(st, &ModuleSpec{ModuleInfo: ModuleInfo{Name: MainName}, Main: true}, script, opts)
+	return CompileModule(st, &ModuleSpec{ModuleInfo: ModuleInfo{Name: MainName}, Flags: ModuleMain}, script, opts)
 }
 
 // CompileModule compiles given module script, returning a CompileResult (parsed
@@ -385,6 +385,12 @@ func CompileFile(st *SymbolTable, module *ModuleSpec, pf *parser.File, opts Comp
 	bc.Main.FuncName = "#main"
 	if bc.Main.NumLocals > 256 {
 		return nil, ErrSymbolLimit
+	}
+	// A module whose params are a lone variadic `param (*argv)` (one variadic
+	// positional param, no named params) gets the ModuleRawArgv flag: its args
+	// are passed straight through (see ModuleRawArgv). Independent of ModuleMain.
+	if bc.Main.Params.Len() == 1 && bc.Main.Params.Variadic() && bc.Main.NamedParams.Len() == 0 {
+		module.Flags |= ModuleRawArgv
 	}
 	return &CompileResult{File: pf, Bytecode: bc, Warnings: compiler.Warnings()}, nil
 }

@@ -110,7 +110,7 @@ type repl struct {
 }
 
 var moduleSpec = gad.NewModuleSpecFromName("(repl)", func(s *gad.ModuleSpec) {
-	s.Main = true
+	s.Flags |= gad.ModuleMain
 })
 
 func newREPL(ctx context.Context, stdout io.Writer) *repl {
@@ -760,6 +760,22 @@ func newScript(builtins *gad.StaticBuiltins, ctx context.Context, modulePath str
 	return &Script{ctx: ctx, modulePath: modulePath, workdir: workdir, script: script, traceOut: traceOut, sourcePath: &sourcePath, builtins: builtins}
 }
 
+// dropFirstOptionsTerminator removes the first bare "--" (the options
+// terminator that separates gad's own flags from the script argv) from args,
+// leaving the rest verbatim. Used for a main module's raw argv (see
+// gad.ModuleRawArgv).
+func dropFirstOptionsTerminator(args []string) []string {
+	for i, a := range args {
+		if a == "--" {
+			out := make([]string, 0, len(args)-1)
+			out = append(out, args[:i]...)
+			out = append(out, args[i+1:]...)
+			return out
+		}
+	}
+	return args
+}
+
 func (s *Script) execute() error {
 	opts := gad.CompileOptions{
 		CompilerOptions: gad.DefaultCompilerOptions,
@@ -791,6 +807,7 @@ func (s *Script) execute() error {
 
 	module := gad.NewModuleSpecFromName(s.modulePath, func(ms *gad.ModuleSpec) {
 		ms.ModuleInfo.URL = s.modulePath
+		ms.Flags |= gad.ModuleMain // a CLI-run script is the entry (main) module
 	})
 
 	if traceEnabled {
@@ -813,21 +830,43 @@ func (s *Script) execute() error {
 	printCompileWarnings(os.Stderr, res.Warnings)
 	bc := res.Bytecode
 
-	// Parse the trailing CLI args into positional + named values for the
-	// script's `param (…)`, with typed coercion (see gad.ParseArgs).
-	args, namedArgs := gad.ParseArgs(s.args)
-
-	if requiredParams := bc.Main.Params.RequiredCount(); requiredParams > 0 {
-		if len(args) < requiredParams {
-			return gad.ErrWrongNumArguments.NewError(fmt.Sprintf("want=%d got=%d", requiredParams, len(s.args)))
+	var (
+		args      gad.Array
+		namedArgs gad.Dict
+	)
+	if module.IsRawArgv() {
+		// `param (*argv)`: pass every CLI argument straight through, unparsed,
+		// with argv[0] = the module path used to invoke it (e.g. the "a/b/script.gad"
+		// of `gad a/b/script.gad`). No `--name=value` parsing, no named args.
+		raw := s.args
+		if module.IsMain() {
+			// A main module drops the first bare `--` options terminator (it just
+			// separates gad's own flags from the script argv); everything else is
+			// passed through verbatim.
+			raw = dropFirstOptionsTerminator(raw)
 		}
-	}
+		args = make(gad.Array, 0, len(raw)+1)
+		args = append(args, gad.Str(s.modulePath))
+		for _, a := range raw {
+			args = append(args, gad.Str(a))
+		}
+	} else {
+		// Parse the trailing CLI args into positional + named values for the
+		// script's `param (…)`, with typed coercion (see gad.ParseArgs).
+		args, namedArgs = gad.ParseArgs(s.args)
 
-	if len(namedArgs) > 0 && !bc.Main.NamedParams.Variadic() {
-		np := bc.Main.NamedParams.ToMap()
-		for name := range namedArgs {
-			if np[name] == nil {
-				return gad.ErrUnexpectedNamedArg.NewError(name)
+		if requiredParams := bc.Main.Params.RequiredCount(); requiredParams > 0 {
+			if len(args) < requiredParams {
+				return gad.ErrWrongNumArguments.NewError(fmt.Sprintf("want=%d got=%d", requiredParams, len(s.args)))
+			}
+		}
+
+		if len(namedArgs) > 0 && !bc.Main.NamedParams.Variadic() {
+			np := bc.Main.NamedParams.ToMap()
+			for name := range namedArgs {
+				if np[name] == nil {
+					return gad.ErrUnexpectedNamedArg.NewError(name)
+				}
 			}
 		}
 	}

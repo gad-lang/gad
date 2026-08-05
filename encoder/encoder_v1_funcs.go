@@ -23,7 +23,7 @@ func init() {
 		if err = writeString(ctx, s.URL); err != nil {
 			return
 		}
-		if err = writeBool(ctx, s.Main); err != nil {
+		if err = writeInt(ctx, int(s.Flags)); err != nil {
 			return
 		}
 

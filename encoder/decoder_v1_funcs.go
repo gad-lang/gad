@@ -21,9 +21,11 @@ func init() {
 		if s.URL, err = readString(ctx); err != nil {
 			return
 		}
-		if s.Main, err = readBool(ctx); err != nil {
+		var flags int
+		if flags, err = readInt(ctx); err != nil {
 			return
 		}
+		s.Flags = gad.ModuleFlags(flags)
 
 		var hasPath byte
 		if hasPath, err = ctx.ReadByte(); err != nil {

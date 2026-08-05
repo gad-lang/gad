@@ -625,10 +625,10 @@ VMLoop:
 			vm.stack[vm.sp] = Str(vm.CurrentModuleSpec().URL)
 			vm.sp++
 		case OpIsMain:
-			vm.stack[vm.sp] = Bool(vm.CurrentModuleSpec().Main)
+			vm.stack[vm.sp] = Bool(vm.CurrentModuleSpec().IsMain())
 			vm.sp++
 		case OpNotIsMain:
-			vm.stack[vm.sp] = Bool(!vm.CurrentModuleSpec().Main)
+			vm.stack[vm.sp] = Bool(!vm.CurrentModuleSpec().IsMain())
 			vm.sp++
 		case OpModule:
 			static := vm.CurrentModuleSpec()

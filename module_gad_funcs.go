@@ -193,7 +193,7 @@ func evalStmts(vm *VM, stmts node.Stmts) (Object, error) {
 	fileSet := source.NewFileSet()
 	pf := &parser.File{InputFile: fileSet.AppendFileData(MainName, nil), Stmts: stmts}
 	st := NewSymbolTable(vm.Builtins.builtins.NameSet)
-	module := &ModuleSpec{ModuleInfo: ModuleInfo{Name: MainName}, Main: true}
+	module := &ModuleSpec{ModuleInfo: ModuleInfo{Name: MainName}, Flags: ModuleMain}
 	res, err := CompileFile(st, module, pf, CompileOptions{})
 	if err != nil {
 		return nil, err

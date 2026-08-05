@@ -161,7 +161,7 @@ func (m *Module) IndexGet(vm *VM, index Object) (value Object, err error) {
 	case AttrParams:
 		return &m.Params, nil
 	case "@main":
-		return Bool(m.Spec.Main), nil
+		return Bool(m.Spec.IsMain()), nil
 	case "@data":
 		return m.Data, nil
 	}
@@ -229,14 +229,38 @@ type ModuleInfo struct {
 	URL  string
 }
 
+// ModuleFlags is a bitmask of module attributes on a ModuleSpec.
+type ModuleFlags uint
+
+const (
+	// ModuleMain marks the entrypoint (main) module.
+	ModuleMain ModuleFlags = 1 << iota
+	// ModuleRawArgv marks a module declared with a lone variadic `param (*argv)`
+	// (a single variadic positional param, no named params). Its arguments are
+	// passed straight through (no `--name` parsing) and argv[0] is the module
+	// path used to invoke it (e.g. "a/b/script.gad" for `gad a/b/script.gad`).
+	// Independent of ModuleMain.
+	ModuleRawArgv
+)
+
+// Has reports whether all bits of x are set in f.
+func (f ModuleFlags) Has(x ModuleFlags) bool { return f&x == x }
+
 type ModuleSpec struct {
 	ModuleInfo
 	Index            int
 	Path             []int
-	Main             bool
+	Flags            ModuleFlags
 	InitCompiledFunc *CompiledFunction
 	InitGoFunc       func(module *Module) CallerObject
 }
+
+// IsMain reports whether this is the entrypoint (main) module.
+func (i *ModuleSpec) IsMain() bool { return i.Flags.Has(ModuleMain) }
+
+// IsRawArgv reports whether this main module was declared with a lone variadic
+// `param (*argv)` (raw argument passthrough; see ModuleRawArgv).
+func (i *ModuleSpec) IsRawArgv() bool { return i.Flags.Has(ModuleRawArgv) }
 
 func NewModuleSpecFromName(name string, opt ...func(s *ModuleSpec)) *ModuleSpec {
 	s := &ModuleSpec{ModuleInfo: ModuleInfo{Name: name}}
@@ -256,8 +280,11 @@ func (i *ModuleSpec) InitFunc(module *Module) CallerObject {
 func (i *ModuleSpec) String() string {
 	var entries []string
 
-	if i.Main {
+	if i.IsMain() {
 		entries = append(entries, "main")
+	}
+	if i.IsRawArgv() {
+		entries = append(entries, "rawArgv")
 	}
 
 	if len(i.URL) > 0 {

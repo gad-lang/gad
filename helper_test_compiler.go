@@ -74,7 +74,7 @@ func TestBytecodesEqual(t *testing.T,
 			expected.NumModules++
 		} else {
 			m := expected.Modules[0]
-			if !m.Main {
+			if !m.IsMain() {
 				expected.Modules = append([]*ModuleSpec{{ModuleInfo: ModuleInfo{Name: MainName}}}, expected.Modules...)
 				expected.NumModules++
 			}
