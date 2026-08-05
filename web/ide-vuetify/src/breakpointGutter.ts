@@ -82,19 +82,11 @@ export function breakpointGutter(onChange: (lines: number[]) => void): Extension
       markers: (v) => v.state.field(breakpointState),
       initialSpacer: () => marker,
       domEventHandlers: {
-        // Single click adds a breakpoint; double click removes it.
+        // A single click toggles the breakpoint: it adds one on an empty line and
+        // removes it when the line already has one.
         mousedown(view, line) {
-          if (!hasBreakpoint(view, line.from)) {
-            view.dispatch({ effects: toggleEffect.of({ pos: line.from, on: true }) });
-            fire(view);
-          }
-          return true;
-        },
-        dblclick(view, line) {
-          if (hasBreakpoint(view, line.from)) {
-            view.dispatch({ effects: toggleEffect.of({ pos: line.from, on: false }) });
-            fire(view);
-          }
+          view.dispatch({ effects: toggleEffect.of({ pos: line.from, on: !hasBreakpoint(view, line.from) }) });
+          fire(view);
           return true;
         },
       },
