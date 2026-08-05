@@ -118,10 +118,15 @@ jobs:
           # Root index redirects to the latest published build.
           printf '<!DOCTYPE html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./latest/index.html"><title>Gad</title><a href="./latest/index.html">Gad documentation</a>\n' > public/index.html
 
-      - name: Deploy to GitHub Pages
+      # Publish to the org site repo (gad-lang.github.io), served at the root
+      # https://gad-lang.github.io/. Cross-repo push uses the ACTIONS_DEPLOY_KEY
+      # secret (an SSH deploy key with write access to that repo).
+      - name: Deploy to gad-lang.github.io
         uses: peaceiris/actions-gh-pages@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+          external_repository: gad-lang/gad-lang.github.io
+          publish_branch: main
           publish_dir: ./public
           # keep_files preserves previously published commit/version directories
           # so each build accumulates under its own /<commit-id> or /<tag> path.
