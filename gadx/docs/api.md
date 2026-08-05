@@ -155,6 +155,23 @@ err := r.Render(&out, "post.gadx", gad.Dict{
 Caching tracks all files accessed during compilation (template + imports).
 When a file change is detected, recompilation is deferred by `TemplateDelay`.
 
+#### Interface-satisfaction cache
+
+Each compiled template carries a `gad.InterfaceSatCache` that `Render` reuses
+across renders and injects into the VM. So an `obj :: SomeInterface` check (or an
+interface used as a parameter type) inside a template is validated **once per
+value type** — a big win when rendering the same interface check in a loop or
+across many requests — instead of re-validating every render. The cache is
+**reset automatically when the template recompiles** (a source change): the fresh
+bytecode gets a fresh cache, so a changed interface never returns a stale result.
+
+Only values whose type fully determines their members are cached (Gad class
+instances and reflected Go values); dicts, whose keys vary per value, are always
+re-checked. To share or pre-warm a cache across engines yourself, build one with
+`gad.NewInterfaceSatCache()` and inject it into a VM via
+`(*gad.VM).SetInterfaceSatCache` — the same cache the VM uses on its own (it
+otherwise lives on the root VM and is dropped with it).
+
 ### `OnRender`
 
 ```go

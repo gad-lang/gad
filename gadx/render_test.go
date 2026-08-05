@@ -622,3 +622,57 @@ func TestRenderOnRenderReturnsRender(t *testing.T) {
 		t.Fatal("OnRender should return the Render for chaining")
 	}
 }
+
+// TestRenderInterfaceCacheReused checks that a compiled template's
+// interface-satisfaction cache persists across renders and is replaced (reset)
+// when the template recompiles after a source change.
+func TestRenderInterfaceCacheReused(t *testing.T) {
+	dir := t.TempDir()
+	srcPath := filepath.Join(dir, "c.gadx")
+	if err := os.WriteFile(srcPath, []byte("@main\n    p A"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	r := newTestRender(t, dir)
+
+	if _, err := renderString(r, srcPath, gad.Dict{}); err != nil {
+		t.Fatal(err)
+	}
+	entry1 := r.templateCache[srcPath]
+	if entry1 == nil || entry1.ifaceCache == nil {
+		t.Fatal("compiled entry should carry an interface cache")
+	}
+
+	// A second render reuses the same entry (and its cache).
+	if _, err := renderString(r, srcPath, gad.Dict{}); err != nil {
+		t.Fatal(err)
+	}
+	if r.templateCache[srcPath] != entry1 {
+		t.Fatal("unchanged template should reuse the same cache entry")
+	}
+
+	// Change the source (sleep first so the mtime is strictly newer); the first
+	// render after the change detects it and arms the debounce, a render after
+	// the delay recompiles → a fresh cache.
+	time.Sleep(20 * time.Millisecond)
+	if err := os.WriteFile(srcPath, []byte("@main\n    p B"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := renderString(r, srcPath, gad.Dict{}); err != nil { // detect
+		t.Fatal(err)
+	}
+	time.Sleep(r.TemplateDelay + 20*time.Millisecond)
+	out, err := renderString(r, srcPath, gad.Dict{}) // recompile
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "<p>B</p>" {
+		t.Fatalf("recompile should render the new source, got %q", out)
+	}
+	entry2 := r.templateCache[srcPath]
+	if entry2 == entry1 {
+		t.Fatal("recompile should produce a fresh entry")
+	}
+	if entry2.ifaceCache == entry1.ifaceCache {
+		t.Fatal("recompile should reset the interface cache")
+	}
+}

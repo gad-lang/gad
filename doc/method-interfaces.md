@@ -221,6 +221,16 @@ interface can also be **built directly in Go** — set `Interface.ContextFuncs`
 with a bound `Fn` and a `@self`-marked header (`TypedIdent{Self: true}`), with no
 symbols — and exposed as a global or builtin.
 
+### Caching satisfaction (embedding)
+
+Interface-satisfaction results are memoized on the **root VM**, keyed by the
+interface and the value's type, so a repeated check — e.g. `obj :: I` in a loop —
+is validated only once per type (class instances and reflected Go values;
+per-instance values like dicts are always re-checked). The cache is dropped with
+the VM. Hosts can share or pre-warm it: build one with `gad.NewInterfaceSatCache()`
+and install it with `(*gad.VM).SetInterfaceSatCache`. The Gadx `Render` engine
+does this per compiled template (see the Gadx API docs).
+
 ### Reflected Go values
 
 A Go value handed to a script through reflection (`gad.NewReflectValue` /

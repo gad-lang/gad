@@ -14,8 +14,12 @@ import (
 )
 
 type templateCacheEntry struct {
-	bc         *gad.Bytecode
-	builtins   *gad.Builtins
+	bc       *gad.Bytecode
+	builtins *gad.Builtins
+	// ifaceCache memoizes interface-satisfaction checks across renders of this
+	// compiled template. It is created fresh per compile, so it is automatically
+	// reset when the template recompiles (its bytecode changes).
+	ifaceCache *gad.InterfaceSatCache
 	files      map[string]time.Time
 	changedAt  time.Time
 	compiledAt time.Time
@@ -180,6 +184,12 @@ func (r *Render) Render(out io.Writer, filePath string, globals gad.Dict) error 
 		return err
 	}
 	e := gad.NewEval(entry.builtins.Build(), st, gad.CompileOptions{}, &gad.RunOpts{StdOut: out, Globals: gad.Dict(globals)})
+	// Reuse the compiled template's interface-satisfaction cache across renders;
+	// it is reset only when the template recompiles (a fresh entry, above), so
+	// `obj :: Interface` checks in the template are validated once per type.
+	if entry.ifaceCache != nil {
+		e.VM.SetInterfaceSatCache(entry.ifaceCache)
+	}
 	ret, err := e.Run(context.Background(), entry.bc)
 	if err != nil {
 		return fmt.Errorf("render %s: %w", filePath, err)
@@ -263,9 +273,10 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 	}
 
 	return &templateCacheEntry{
-		bc:       bc,
-		builtins: r.cachedBuiltins,
-		files:    files,
+		bc:         bc,
+		builtins:   r.cachedBuiltins,
+		ifaceCache: gad.NewInterfaceSatCache(),
+		files:      files,
 	}, nil
 }
 
