@@ -194,10 +194,41 @@ func TestEvalExpr(t *testing.T) {
 	}
 }
 
+// TestRunSourceGadxTagEncode covers the gadx tag output modes: default renders
+// HTML, "json"/"yaml" encode the returned tag's structured data instead.
+func TestRunSourceGadxTagEncode(t *testing.T) {
+	src := "@main\n    h1 Hello\n    ul\n        @for i in [1, 2]\n            li item {= i }"
+
+	// Default: HTML render.
+	if r := RunSourceArgs(src, "gadx", nil, ""); !r.OK || !strings.Contains(r.Stdout, "<h1>Hello</h1>") {
+		t.Fatalf("html render: ok=%v stdout=%q", r.OK, r.Stdout)
+	}
+
+	// JSON: structured data, no HTML tags.
+	rj := RunSourceArgs(src, "gadx", nil, "json")
+	if !rj.OK {
+		t.Fatalf("json run failed: %q", rj.Stderr)
+	}
+	for _, want := range []string{`"tag"`, `"h1"`, `"children"`} {
+		if !strings.Contains(rj.Stdout, want) {
+			t.Fatalf("json output missing %q:\n%s", want, rj.Stdout)
+		}
+	}
+	if strings.Contains(rj.Stdout, "<h1>") {
+		t.Fatalf("json output should not contain HTML tags:\n%s", rj.Stdout)
+	}
+
+	// YAML: structured data, YAML syntax.
+	ry := RunSourceArgs(src, "gadx", nil, "yaml")
+	if !ry.OK || !strings.Contains(ry.Stdout, "tag: h1") {
+		t.Fatalf("yaml output = %q", ry.Stdout)
+	}
+}
+
 // TestRunSourceArgs passes command-line arguments to a script's `param *args`.
 func TestRunSourceArgs(t *testing.T) {
 	src := "param *args\nreturn args\n"
-	r := RunSourceArgs(src, "gad", []string{"a", "b", "c"})
+	r := RunSourceArgs(src, "gad", []string{"a", "b", "c"}, "")
 	if !r.OK {
 		t.Fatalf("run failed: stderr=%q diags=%+v", r.Stderr, r.Diagnostics)
 	}
@@ -205,7 +236,7 @@ func TestRunSourceArgs(t *testing.T) {
 		t.Fatalf("result = %q, want it to contain the args", r.Result)
 	}
 	// No args → the param list is empty.
-	if r := RunSourceArgs(src, "gad", nil); !r.OK || r.Result != "[]" {
+	if r := RunSourceArgs(src, "gad", nil, ""); !r.OK || r.Result != "[]" {
 		t.Fatalf("no-args result = %q (ok=%v), want []", r.Result, r.OK)
 	}
 }

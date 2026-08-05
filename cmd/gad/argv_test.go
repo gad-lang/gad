@@ -65,6 +65,36 @@ func TestDropFirstOptionsTerminator(t *testing.T) {
 	}
 }
 
+// TestGadxTagEncode checks a .gadx entrypoint renders HTML by default and
+// encodes as JSON/YAML when tagEncode is set.
+func TestGadxTagEncode(t *testing.T) {
+	src := "h1 Hello Gadx"
+	run := func(mode string) string {
+		orig := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+		s := newScript(gadxBuiltins("p.gadx").Build(), context.Background(), "p.gadx", ".", []byte(src), io.Discard)
+		s.tagEncode = mode
+		err := s.execute()
+		_ = w.Close()
+		os.Stdout = orig
+		out, _ := io.ReadAll(r)
+		if err != nil {
+			t.Fatalf("execute(%q): %v", mode, err)
+		}
+		return string(out)
+	}
+	if got := run(""); !strings.Contains(got, "<h1>Hello Gadx</h1>") {
+		t.Fatalf("html render: %q", got)
+	}
+	if got := run("json"); !strings.Contains(got, `"tag": "h1"`) || strings.Contains(got, "<h1>") {
+		t.Fatalf("json encode: %q", got)
+	}
+	if got := run("yaml"); !strings.Contains(got, "tag: h1") {
+		t.Fatalf("yaml encode: %q", got)
+	}
+}
+
 // TestNonRawArgvStillParses checks that a normal `param (...)` keeps the typed
 // `--name=value` parsing (no passthrough): --count=5 becomes the int 5.
 func TestNonRawArgvStillParses(t *testing.T) {

@@ -464,11 +464,14 @@ func Run(src string) RunResult { return RunSource(src, "gad") }
 // "gadTemplate"/"template", or "gad"), capturing stdout/stderr and the return
 // value. A gadx `@main` template returns its rendered tree as a gadx.Element,
 // which is written to stdout so the output panel shows the HTML.
-func RunSource(src, sourceType string) RunResult { return RunSourceArgs(src, sourceType, nil) }
+func RunSource(src, sourceType string) RunResult { return RunSourceArgs(src, sourceType, nil, "") }
 
 // RunSourceArgs is RunSource with command-line arguments passed to the script
-// (reachable via its top-level `param` — the same convention `gad run` uses).
-func RunSourceArgs(src, sourceType string, cmdArgs []string) RunResult {
+// (reachable via its top-level `param` — the same convention `gad run` uses) and
+// a tagEncode mode for gadx output: "" (or "html"/"render") renders the returned
+// gadx.Element as HTML to stdout (the default), while "json" / "yaml" encode the
+// element's structured data ({tag, attrs, children}) to stdout instead.
+func RunSourceArgs(src, sourceType string, cmdArgs []string, tagEncode string) RunResult {
 	cr, builtins, err := compileSource(src, sourceType)
 	if err != nil {
 		return RunResult{OK: false, Diagnostics: errorDiagnostics(err)}
@@ -499,13 +502,32 @@ func RunSourceArgs(src, sourceType string, cmdArgs []string) RunResult {
 		return res
 	}
 	if el, ok := ret.(gadx.Element); ok {
-		if _, werr := el.WriteTo(vm, &stdout); werr == nil {
+		switch strings.ToLower(tagEncode) {
+		case "json", "yaml":
+			enc, eerr := encodeElement(el, tagEncode)
+			if eerr != nil {
+				res.Stderr += eerr.Error()
+			} else {
+				stdout.WriteString(enc)
+			}
 			res.Stdout = stdout.String()
+		default:
+			// Default: render the returned tree as HTML into stdout.
+			if _, werr := el.WriteTo(vm, &stdout); werr == nil {
+				res.Stdout = stdout.String()
+			}
 		}
 	} else if ret != nil && ret != gad.Nil {
 		res.Result = ret.ToString()
 	}
 	return res
+}
+
+// encodeElement serializes a gadx.Element's structured data ({tag, attrs,
+// children}) to JSON or YAML (see gadx.EncodeElement).
+func encodeElement(el gadx.Element, format string) (string, error) {
+	out, err := gadx.EncodeElement(el, format)
+	return string(out), err
 }
 
 // compileSource builds the bytecode for src in the given dialect, returning the

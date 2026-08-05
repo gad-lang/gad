@@ -1,9 +1,13 @@
 package gadx
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/gad-lang/gad"
 	gadxnode "github.com/gad-lang/gad/gadx/node"
@@ -559,6 +563,61 @@ func (t *Tag) writeAttrs(vm *gad.VM, w io.Writer, wc *writeCounter) error {
 		wc.writeString(w, " style="+strconv.Quote(strings.Join(t.Styles, "; ")))
 	}
 	return wc.err
+}
+
+// ElementData returns a gad.Object tree describing el for structured encoding
+// (e.g. JSON/YAML) instead of HTML rendering: a *Tag becomes a Dict
+// {tag, attrs, children} (children is an Array of each child's data), and a Text
+// node becomes the Str of its concatenated values. An anonymous tag keeps an
+// empty "tag". Attribute order follows the tag's attrsKeyValueArray.
+func ElementData(el Element) gad.Object {
+	switch e := el.(type) {
+	case *Tag:
+		children := make(gad.Array, 0, len(e.Children))
+		for _, c := range e.Children {
+			children = append(children, ElementData(c))
+		}
+		attrs := gad.Dict{}
+		for _, kv := range e.attrsKeyValueArray() {
+			attrs[kv.K.ToString()] = kv.V
+		}
+		return gad.Dict{"tag": gad.Str(e.Name), "attrs": attrs, "children": children}
+	case Text:
+		var b strings.Builder
+		for _, v := range e {
+			b.WriteString(v.ToString())
+		}
+		return gad.Str(b.String())
+	default:
+		if o, ok := el.(gad.Object); ok {
+			return gad.Str(o.ToString())
+		}
+		return gad.Nil
+	}
+}
+
+// EncodeElement serializes el's structured data (see ElementData) to JSON or
+// YAML (format is case-insensitive "json"/"yaml"/"yml"), for the tag-encode
+// output mode that replaces HTML rendering. JSON is indented and newline-
+// terminated.
+func EncodeElement(el Element, format string) ([]byte, error) {
+	data := gad.ToInterface(ElementData(el))
+	switch strings.ToLower(format) {
+	case "yaml", "yml":
+		out, err := yaml.Marshal(data)
+		if err != nil {
+			return nil, fmt.Errorf("encode tag as YAML: %w", err)
+		}
+		return out, nil
+	case "json":
+		out, err := json.MarshalIndent(data, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("encode tag as JSON: %w", err)
+		}
+		return append(out, '\n'), nil
+	default:
+		return nil, fmt.Errorf("unknown tag encode format %q (want json or yaml)", format)
+	}
 }
 
 // asArray returns o as an Array, wrapping a non-array value as a single element.

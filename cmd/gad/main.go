@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/gad-lang/gad"
+	"github.com/gad-lang/gad/gadx"
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/stdlib/helper"
@@ -54,6 +55,9 @@ var (
 	templateMode       bool
 	templateStartDelim string
 	templateEndDelim   string
+	// tagEncode ("json"/"yaml") encodes a .gadx entrypoint's returned tag instead
+	// of rendering it as HTML (set by --tag-encode).
+	tagEncode string
 )
 
 var suggestions []suggest
@@ -712,6 +716,9 @@ func registerRunFlags(flagset *flag.FlagSet) *runFlags {
 		"Template code-block start delimiter (default \"{%\"); implies --template")
 	flagset.StringVar(&templateEndDelim, "template-end-delimiter", "",
 		"Template code-block end delimiter (default \"%}\"); implies --template")
+	flagset.StringVar(&tagEncode, "tag-encode", "",
+		"For a .gadx entrypoint, encode the returned tag as json|yaml instead of "+
+			"rendering it as HTML")
 	return rf
 }
 
@@ -754,6 +761,9 @@ type Script struct {
 	// env is the workspace environment table (process env extended by the
 	// `.gad.yaml` `env` section) exposed to the script via the `env` keyword.
 	env *gad.Env
+	// tagEncode, when set ("json"/"yaml"), encodes a gadx entrypoint's returned
+	// tag as JSON/YAML instead of rendering it as HTML.
+	tagEncode string
 }
 
 func newScript(builtins *gad.StaticBuiltins, ctx context.Context, modulePath string, workdir string, script []byte, traceOut io.Writer) *Script {
@@ -875,9 +885,10 @@ func (s *Script) execute() error {
 
 	done := make(chan struct{})
 
+	var ret gad.Object
 	go func() {
 		defer close(done)
-		_, err = vm.RunOpts(&gad.RunOpts{
+		ret, err = vm.RunOpts(&gad.RunOpts{
 			Globals:   scriptGlobals,
 			Args:      gad.Args{args},
 			NamedArgs: gad.NewNamedArgs(gad.MustConvertToKeyValueArray(nil, namedArgs)),
@@ -892,6 +903,23 @@ func (s *Script) execute() error {
 		<-done
 		if err == nil {
 			err = s.ctx.Err()
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	// A gadx entrypoint returns its rendered tree as a gadx.Element. Render it to
+	// stdout as HTML (default), or encode it as JSON/YAML when --tag-encode is set.
+	if el, ok := ret.(gadx.Element); ok {
+		if s.tagEncode != "" {
+			out, eerr := gadx.EncodeElement(el, s.tagEncode)
+			if eerr != nil {
+				return eerr
+			}
+			_, err = os.Stdout.Write(out)
+		} else {
+			_, err = el.WriteTo(vm, os.Stdout)
 		}
 	}
 	return err
@@ -1003,6 +1031,7 @@ func runScriptOrREPL(parent context.Context, filePath string, timeout time.Durat
 		s := newScript(gadxBuiltins(modulePath).Build(), ctx, modulePath, workdir, script, os.Stdout)
 		s.args = args
 		s.env = wsEnv
+		s.tagEncode = tagEncode
 		err = s.execute()
 		checkErr(err, cancel)
 		return

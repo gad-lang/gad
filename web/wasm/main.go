@@ -21,11 +21,13 @@ func main() {
 	js.Global().Set("gadFormat", jsonFuncN(func(args []js.Value) any {
 		return gadbridge.FormatSource(argStr(args, 0), argStr(args, 1))
 	}))
-	// gadRun(source[, sourceType[, argsJSON]]) — sourceType "gadTemplate"/"gadx"
-	// compiles the respective dialect; empty/"gad" runs plain Gad (the default).
-	// argsJSON is a JSON array of strings passed to the script's `param`.
+	// gadRun(source[, sourceType[, argsJSON[, tagEncode]]]) — sourceType
+	// "gadTemplate"/"gadx" compiles the respective dialect; empty/"gad" runs plain
+	// Gad (the default). argsJSON is a JSON array of strings passed to the script's
+	// `param`. tagEncode ("json"/"yaml") encodes a returned gadx tag as JSON/YAML
+	// instead of rendering it as HTML (gadx only; "" renders).
 	js.Global().Set("gadRun", jsonFuncN(func(args []js.Value) any {
-		return gadbridge.RunSourceArgs(argStr(args, 0), argStr(args, 1), argStrs(args, 2))
+		return gadbridge.RunSourceArgs(argStr(args, 0), argStr(args, 1), argStrs(args, 2), argStr(args, 3))
 	}))
 	// gadDiagnose(source[, sourceType]) — same dialect selection as gadRun.
 	js.Global().Set("gadDiagnose", jsonFuncN(func(args []js.Value) any {
