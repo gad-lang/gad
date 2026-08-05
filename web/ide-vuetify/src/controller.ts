@@ -12,6 +12,7 @@ import type { RunResult } from "./types";
 import type { InspectFn } from "./InspectorNode";
 import type { GadEditorView } from "./codemirror";
 import { readWithProgress } from "./upload";
+import { FileTypeRegistry, type FileTypeHandler } from "./fileTypes";
 
 export interface TreeRow {
   node: TreeNode;
@@ -45,6 +46,9 @@ export interface ControllerHooks {
   emitRunProfiles?: (profiles: RunProfile[]) => void;
   /** When true, disables create/delete/upload/import (read-only workspace). */
   getReadonly?: () => boolean;
+  /** Extra file-type handlers (icon + editor language/plugin) merged over the
+   * built-ins, so hosts can support new extensions. */
+  fileTypes?: FileTypeHandler[];
   /** Handle files uploaded (button or drag-drop) into the Explorer. `files` carry
    * paths already prefixed with `targetDir` (the directory they were dropped on,
    * or chosen in the dialog); `targetDir` is also passed for convenience. When
@@ -75,6 +79,9 @@ export function createController(
   const onReset = hooks.onReset;
   // Read-only workspace: create/delete/upload/import are disabled.
   const readonly = computed(() => hooks.getReadonly?.() ?? false);
+  // File-type registry: tree icons + editor language/plugin per extension.
+  const fileTypes = new FileTypeRegistry(hooks.fileTypes);
+  const iconFor = (path: string) => fileTypes.iconFor(path);
   // --- file tree ----------------------------------------------------------
   const tree = shallowRef<TreeNode | null>(null);
   const expanded = reactive(new Set<string>());
@@ -469,6 +476,7 @@ export function createController(
     showHidden, toggleHidden,
     newFile, newDir, removeOpen, reset, canReset, upload, uploadUrl, urlDialog, uploadProgress,
     readonly,
+    fileTypes, iconFor,
     canUpload: computed(() => !!hooks.onUpload && !readonly.value),
     canEdit: computed(() => !readonly.value),
     promptReq, confirmReq,

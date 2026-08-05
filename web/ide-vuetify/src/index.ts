@@ -40,6 +40,7 @@ export {
   type LocalVar,
 } from "./codemirror";
 export { renderDocMarkdown } from "./docMarkdown";
+export { FileTypeRegistry, DEFAULT_FILE_TYPES, type FileTypeHandler } from "./fileTypes";
 export { createController, IdeControllerKey, type IdeController, type BpMeta } from "./controller";
 
 // Dockview layout serialization type, for typing the `layoutConfig` v-model.

@@ -102,6 +102,7 @@ export default defineComponent({
               path={ctx.openPath.value}
               dark={ctx.dark.value}
               readonly={ctx.readonly.value}
+              customExtension={ctx.fileTypes.extensionFor(ctx.openPath.value)}
               diagnose={ctx.diagnose}
               debugLine={ctx.debugLine.value}
               debugColumn={ctx.debugColumn.value}

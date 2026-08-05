@@ -10,6 +10,7 @@ import { DockviewVue, themeDark, themeLight } from "dockview-vue";
 import type { DockviewApi, DockviewReadyEvent, SerializedDockview, VueComponent } from "dockview-vue";
 import { createController, IdeControllerKey } from "./controller";
 import type { IdeApi, RunMode, RunProfile, UploadedFile, Workspace } from "./api";
+import type { FileTypeHandler } from "./fileTypes";
 import PanelExplorer from "./panels/PanelExplorer";
 import PanelEditor from "./panels/PanelEditor";
 import PanelCallStack from "./panels/PanelCallStack";
@@ -70,6 +71,9 @@ export default defineComponent({
     runMode: { type: String as PropType<RunMode>, default: "debug" },
     /** Read-only workspace (v-model): disables create/delete/upload/import. */
     readonly: { type: Boolean, default: false },
+    /** Extra file-type handlers (icon + editor language/plugin) for the Explorer
+     * icons and editor highlighting — merged over the built-ins. */
+    fileTypes: { type: Array as PropType<FileTypeHandler[]>, default: () => [] },
   },
   emits: {
     "update:layoutConfig": (_v: SerializedDockview) => true,
@@ -87,6 +91,7 @@ export default defineComponent({
       getRunMode: () => props.runMode,
       emitRunProfiles: (p) => emit("update:runProfiles", p),
       getReadonly: () => props.readonly,
+      fileTypes: props.fileTypes,
     });
     provide(IdeControllerKey, ctx);
 

@@ -3,6 +3,7 @@
 // EditorView imperatively and reacts to prop changes via compartments.
 import { defineComponent, onBeforeUnmount, onMounted, ref, watch, type PropType } from "vue";
 import type { DiagnoseFn } from "@gad-lang/codemirror-gad";
+import type { Extension } from "@codemirror/state";
 import { GadEditorView, langOf, type EditorLanguage, type LocalVar } from "./codemirror";
 
 export default defineComponent({
@@ -13,6 +14,9 @@ export default defineComponent({
     language: { type: String as PropType<EditorLanguage>, default: undefined },
     dark: { type: Boolean, default: false },
     readonly: { type: Boolean, default: false },
+    /** Custom CodeMirror language extension (host-registered file type); replaces
+     * the built-in language derived from `path`/`language`. */
+    customExtension: { type: Function as PropType<() => Extension>, default: undefined },
     diagnose: { type: Function as PropType<DiagnoseFn>, default: undefined },
     breakpoints: { type: Array as PropType<number[]>, default: () => [] },
     debugLine: { type: Number, default: 0 },
@@ -46,6 +50,7 @@ export default defineComponent({
         readonly: props.readonly,
         diagnose: props.diagnose,
         getLocals: props.getLocals,
+        customExtension: props.customExtension,
         onChange: (value) => {
           selfEdit = true;
           emit("update:modelValue", value);
@@ -67,7 +72,9 @@ export default defineComponent({
         if (editor && !selfEdit && v !== editor.getValue()) editor.setValue(v);
       },
     );
-    watch([() => props.path, () => props.language], () => editor?.setLanguage(currentLang(), props.diagnose));
+    watch([() => props.path, () => props.language, () => props.customExtension], () =>
+      editor?.setLanguage(currentLang(), props.diagnose, props.customExtension),
+    );
     watch(() => props.dark, (d) => editor?.setDark(d));
     watch(() => props.readonly, (r) => editor?.setReadonly(r));
     watch(() => props.breakpoints, (b) => editor?.setBreakpoints(b ?? []));

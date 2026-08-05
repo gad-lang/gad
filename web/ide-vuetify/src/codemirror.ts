@@ -106,6 +106,9 @@ export interface EditorOptions {
   onBreakpointContext?: (line: number) => void;
   getLocals?: () => Map<string, LocalVar>;
   readonly?: boolean;
+  /** Custom CodeMirror language extension (from a host-registered file type). When
+   * set it replaces the built-in `langExtension(language)`. */
+  customExtension?: () => Extension;
 }
 
 /** GadEditorView wraps an EditorView with compartment-based reconfiguration. */
@@ -123,7 +126,7 @@ export class GadEditorView {
       extensions: [
         basicSetup,
         keymap.of([indentWithTab, ...defaultKeymap]),
-        this.langComp.of(langExtension(opts.language, opts.diagnose)),
+        this.langComp.of(opts.customExtension ? opts.customExtension() : langExtension(opts.language, opts.diagnose)),
         this.themeComp.of(opts.dark ? oneDark : []),
         this.roComp.of(EditorState.readOnly.of(!!opts.readonly)),
         breakpointGutter(
@@ -147,9 +150,12 @@ export class GadEditorView {
     this.view.dispatch({ changes: { from: 0, to: this.view.state.doc.length, insert: value } });
   }
 
-  setLanguage(language: EditorLanguage, diagnose?: DiagnoseFn): void {
+  setLanguage(language: EditorLanguage, diagnose?: DiagnoseFn, customExtension?: () => Extension): void {
     this.opts.language = language;
-    this.view.dispatch({ effects: this.langComp.reconfigure(langExtension(language, diagnose)) });
+    this.opts.customExtension = customExtension;
+    this.view.dispatch({
+      effects: this.langComp.reconfigure(customExtension ? customExtension() : langExtension(language, diagnose)),
+    });
   }
 
   setDark(dark: boolean): void {

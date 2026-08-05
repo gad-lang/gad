@@ -103,9 +103,9 @@ export default defineComponent({
                 <VIcon size="16" class="mr-1">
                   {row.node.dir
                     ? ctx.isExpanded(row.node.path)
-                      ? "mdi-chevron-down"
-                      : "mdi-chevron-right"
-                    : "mdi-file-outline"}
+                      ? "mdi-folder-open-outline"
+                      : "mdi-folder-outline"
+                    : ctx.iconFor(row.node.path)}
                 </VIcon>
                 <span class="pnl-ellipsis">{row.node.name}</span>
               </div>
