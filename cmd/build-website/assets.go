@@ -19,11 +19,12 @@ const layoutTemplate = `<!DOCTYPE html>
   <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
   <nav class="header-links">
     {{if .HasRelease}}<a class="rel-chip" href="{{.Base}}download.html" title="Current release">{{.ReleaseName}}</a>{{end}}
+    {{if .PlayHref}}<a href="{{.Base}}{{.PlayHref}}">Playground</a>{{end}}
     <a href="{{.Base}}download.html">Download</a>
     <a href="{{.TasksURL}}" target="_blank" rel="noopener">Tasks</a>
     <a href="{{.RepoURL}}" target="_blank" rel="noopener">Repo</a>
   </nav>
-  <button class="theme-toggle" id="theme">◐</button>
+  <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
 </header>
 <div class="layout">
   <nav class="sidebar">

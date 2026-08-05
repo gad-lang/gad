@@ -24,6 +24,10 @@ type siteConfig struct {
 	ReleaseNotes string // release notes as Markdown
 	ReleaseDate  string // display date next to the name
 	BuildWASM    bool
+
+	// playHref is the site-root-relative path of the Playground/demo, set during
+	// the build (not a flag) for the header link.
+	playHref string
 }
 
 // tasksURL returns the effective Tasks link (the repository issues by default).
@@ -160,6 +164,7 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 	} else {
 		play = &page{Slug: "playground", Title: "Playground", OutFile: "playground.html", Section: "Playground"}
 	}
+	cfg.playHref = play.OutFile
 
 	groups := []navGroup{
 		{Name: "Guide", Pages: guide},
@@ -451,6 +456,7 @@ type layoutData struct {
 	// Header links / release banner.
 	RepoURL     string
 	TasksURL    string
+	PlayHref    string
 	ReleaseName string
 	ReleaseURL  string
 	HasRelease  bool
@@ -466,6 +472,7 @@ func writePage(outDir string, tmpl *template.Template, groups []navGroup, p *pag
 		Base:        baseFor(p.OutFile),
 		RepoURL:     cfg.RepoURL,
 		TasksURL:    cfg.tasksURL(),
+		PlayHref:    cfg.playHref,
 		ReleaseName: cfg.releaseName(),
 		ReleaseURL:  cfg.releaseURL(),
 		HasRelease:  cfg.hasRelease(),
