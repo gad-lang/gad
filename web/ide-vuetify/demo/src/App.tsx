@@ -106,9 +106,9 @@ export default defineComponent({
         <VAppBar density="compact" flat>
           <VAppBarTitle style={{ flex: "none", marginRight: "16px" }}>Gad</VAppBarTitle>
           <VTabs modelValue={tab.value} {...{ "onUpdate:modelValue": (v: unknown) => (tab.value = v as typeof tab.value) }} density="compact">
-            <VTab value="ide">IDE</VTab>
             <VTab value="playground">Playground</VTab>
             <VTab value="notebook">Notebook</VTab>
+            <VTab value="ide">IDE</VTab>
           </VTabs>
           <VSpacer />
           <button class="gad-theme-toggle" title="Toggle light/dark" onClick={toggleTheme}>

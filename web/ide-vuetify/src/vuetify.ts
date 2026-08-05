@@ -8,6 +8,7 @@
 import type { DefineComponent } from "vue";
 import {
   VBtn as _VBtn,
+  VBtnToggle as _VBtnToggle,
   VCard as _VCard,
   VCardActions as _VCardActions,
   VCardText as _VCardText,
@@ -36,6 +37,7 @@ import {
 type AnyComponent = DefineComponent<Record<string, any>, Record<string, any>, any>;
 
 export const VBtn = _VBtn as unknown as AnyComponent;
+export const VBtnToggle = _VBtnToggle as unknown as AnyComponent;
 export const VCard = _VCard as unknown as AnyComponent;
 export const VCardActions = _VCardActions as unknown as AnyComponent;
 export const VCardText = _VCardText as unknown as AnyComponent;

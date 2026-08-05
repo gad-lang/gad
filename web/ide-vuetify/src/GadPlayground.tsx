@@ -1,12 +1,18 @@
 // GadPlayground — a two-pane playground (output | source): format, format &
-// apply, or run the Gad source, executed through the injected GadRunner. The
-// Vuetify/TSX counterpart of the React playground.
-import { defineComponent, ref, type PropType } from "vue";
+// apply, or run the source, executed through the injected GadRunner. A dialect
+// selector switches the example between plain Gad, a Gad template (.gadt) and
+// Gadx (.gadx); each keeps its own buffer. The Vuetify/TSX counterpart of the
+// React playground.
+import { computed, defineComponent, reactive, ref, type PropType } from "vue";
 import GadEditor from "./GadEditor";
-import { VBtn } from "./vuetify";
+import { VBtn, VBtnToggle } from "./vuetify";
+import type { EditorLanguage } from "./codemirror";
 import type { FormatResult, GadRunner, RunResult } from "./types";
 
-const SAMPLE = `// edit me — errors are underlined as you type
+type Dialect = "gad" | "gadt" | "gadx";
+
+const SAMPLES: Record<Dialect, string> = {
+  gad: `// edit me — errors are underlined as you type
 param *args
 
 greet := func(name; greeting="Hello") {
@@ -16,25 +22,51 @@ greet := func(name; greeting="Hello") {
 squares := [n*n for n in [1,2,3,4] if n>1]
 println(greet("Gad"), squares)
 return squares
-`;
+`,
+  gadt: `{% var (name = "Gad", items = [1, 2, 3]) %}
+<h1>Hello, {%= name %}!</h1>
+<ul>
+{% for i in items %}  <li>item {%= i %}</li>
+{% end %}</ul>
+`,
+  gadx: `@main
+    h1 Hello Gadx
+    ul
+        @for i in [1, 2, 3]
+            li item {= i }
+`,
+};
+
+// Editor language + backend sourceType per dialect.
+const LANG: Record<Dialect, EditorLanguage> = { gad: "gad", gadt: "gadt", gadx: "gadx" };
+const SOURCE_TYPE: Record<Dialect, string> = { gad: "", gadt: "gadTemplate", gadx: "gadx" };
 
 export default defineComponent({
   name: "GadPlayground",
   props: {
     runner: { type: Object as PropType<GadRunner>, required: true },
     dark: { type: Boolean, default: false },
-    initialDoc: { type: String, default: SAMPLE },
   },
   setup(props) {
-    const source = ref(props.initialDoc);
+    const dialect = ref<Dialect>("gad");
+    // Each dialect keeps its own buffer so switching examples preserves edits.
+    const buffers = reactive<Record<Dialect, string>>({ ...SAMPLES });
+    const source = computed<string>({
+      get: () => buffers[dialect.value],
+      set: (v) => (buffers[dialect.value] = v),
+    });
+    const sourceType = computed(() => SOURCE_TYPE[dialect.value]);
+
     const busy = ref(false);
     const left = ref<{ kind: "format"; fmt: FormatResult } | { kind: "run"; run: RunResult } | null>(null);
-    const diagnose = props.runner.diagnose;
+    const diagnose = props.runner.diagnose
+      ? (src: string) => props.runner.diagnose!(src, sourceType.value)
+      : undefined;
 
     async function doFormat(apply: boolean) {
       busy.value = true;
       try {
-        const fmt = await props.runner.format(source.value);
+        const fmt = await props.runner.format(source.value, sourceType.value);
         left.value = { kind: "format", fmt };
         if (apply && fmt.ok) source.value = fmt.source;
       } finally {
@@ -44,7 +76,7 @@ export default defineComponent({
     async function doRun() {
       busy.value = true;
       try {
-        left.value = { kind: "run", run: await props.runner.run(source.value) };
+        left.value = { kind: "run", run: await props.runner.run(source.value, sourceType.value) };
       } finally {
         busy.value = false;
       }
@@ -62,7 +94,17 @@ export default defineComponent({
         </section>
         <section class="gp-pane">
           <div class="gp-pane-head">
-            <span>Source</span>
+            <VBtnToggle
+              modelValue={dialect.value}
+              {...{ "onUpdate:modelValue": (v: unknown) => { if (v) dialect.value = v as Dialect; } }}
+              density="compact"
+              variant="outlined"
+              mandatory
+            >
+              <VBtn size="small" value="gad">GAD</VBtn>
+              <VBtn size="small" value="gadt">GAD Template</VBtn>
+              <VBtn size="small" value="gadx">GADx</VBtn>
+            </VBtnToggle>
             <span class="gp-actions">
               <VBtn size="small" variant="tonal" loading={busy.value} onClick={() => doFormat(false)}>Format</VBtn>
               <VBtn size="small" variant="tonal" loading={busy.value} onClick={() => doFormat(true)}>Format &amp; apply</VBtn>
@@ -71,9 +113,10 @@ export default defineComponent({
           </div>
           <div class="gp-editor">
             <GadEditor
+              key={dialect.value}
               modelValue={source.value}
               {...{ "onUpdate:modelValue": (v: string) => (source.value = v) }}
-              language="gad"
+              language={LANG[dialect.value]}
               dark={props.dark}
               diagnose={diagnose}
             />
