@@ -1,42 +1,42 @@
-# 16_doc_comments
 
-16_doc_comments.gad — doc comments (`///`, `/**` … `**/`, `/***` … `***/`).
+# Doc Comments
 
-Doc comments document the identifier, declaration, func/met/meti/prop they
-precede (or trail, inline). Their contents are Markdown. Unlike ordinary `//`
-and `/* */` comments, a doc comment is attached to the node it documents, so
-`gad fmt` keeps it with that node and `gad doc` can render it.
+A **doc comment** documents the identifier, declaration, or
+`func` / `met` / `meti` / `prop` statement it is attached to. Unlike ordinary
+`//` and `/* … */` comments — which the formatter only preserves as-is — a doc
+comment is *linked to the node it documents*, so `gad fmt` keeps it with that
+node (even across declaration merges) and reflows its contents. Doc-comment
+contents are **Markdown** (safe inline HTML is allowed).
 
-This whole sample is a tour of doc comments. A `/***` … `***/` block is a
-ROOT_BLOCK: a module-level doc, not attached to the next statement.
+## Forms
 
-## Example — `16_doc_comments.gad`
+| Form           | Syntax                       | Example                              |
+|----------------|------------------------------|--------------------------------------|
+| `SINGLE`       | `/// text` on its own line   | `/// the pi value` above a decl       |
+| `INLINE`       | `IDENT /// text` (no value)  | `var pi /// the pi value`            |
+| `INLINE_VALUE` | `IDENT = EXPR /// text`      | `const Pi = 3.14 /// the pi value`   |
+| `BLOCK`        | `/**` … `**/` fenced block   | a `/**`-fenced block on its own lines |
+| `ROOT_BLOCK`   | `/***` … `***/` fenced block | a module/section overview            |
+
+The fence of a `BLOCK` / `ROOT_BLOCK` must be on its **own line**; `/** text **/`
+on a single line is not a block. A `ROOT_BLOCK` separated from the next statement
+by a blank line documents the **module/section**, not that statement — like this
+header.
 
 ```gad
-`).
-
-Doc comments document the identifier, declaration, func/met/meti/prop they
-precede (or trail, inline). Their contents are Markdown. Unlike ordinary `//`
-and `/* */` comments, a doc comment is attached to the node it documents, so
-`gad fmt` keeps it with that node and `gad doc` can render it.
-
-This whole sample is a tour of doc comments. A `/***` … `***/` block is a
-ROOT_BLOCK: a module-level doc, not attached to the next statement.
-***/
 /// the service listen address (SINGLE form, on its own line)
 const (
-	ServerAddr = ":8080"
-	/// the greeting prefix (SINGLE, linked to the spec ident)
-	Greeting = "hello"
-	Retries = 3 /// how many times to retry (INLINE_VALUE, trailing)
+    ServerAddr = ":8080"
+    /// the greeting prefix (SINGLE, linked to the spec ident)
+    Greeting = "hello"
+    Retries = 3 /// how many times to retry (INLINE_VALUE, trailing)
 )
 
 /**
 `sum` returns the sum of `a` and `b`.
 
-A `/**` … `**/` block is the BLOCK form; its lines are reflowed as Markdown.
-It can embed a runnable example; `gad doctest` runs it and a `>>>` line checks
-the previous result:
+A `/**` … `**/` block is the BLOCK form; its lines are reflowed as Markdown. It
+can embed a runnable example that `gad doctest` checks against the `>>>` line:
 
 ```gad
 sum := func(a, b) { return a + b }
@@ -44,59 +44,148 @@ sum(2, 3)
 >>> 5
 ```
 **/
-func sum(
-	a
-	b
-) {
-	return (a + b)
+func sum(a, b) {
+    return a + b
 }
+```
 
+## What can be documented
+
+Declarations (`var` / `const`, and each spec inside a `( … )` group), functions
+(`func` / `met`, including the func-with-methods form and each method), `prop`
+statements and their accessors, and `meti` headers.
+
+```gad
 /// a tiny calculator dispatching on argument types
 func calc {
-	/// add two ints
-	(
-		a int
-		b int
-	) => (a + b)
+    /// add two ints
+    (a int, b int) => a + b
 
-	/// add two floats
-	(
-		a float
-		b float
-	) => (a + b)
+    /// add two floats
+    (a float, b float) => a + b
 }
 
 /// a difference contract
 meti differ {
-	/// difference of two ints
-	(a int, b int) <int>
+    /// difference of two ints
+    (a int, b int) <int>
+}
+```
+
+## Attachment rules
+
+- A `SINGLE` / `BLOCK` / `ROOT_BLOCK` on the line **directly above** a target is a
+  *lead* doc and links to it. A **blank line** in between **detaches** it.
+- `INLINE` / `INLINE_VALUE` docs trail their target on the **same line** and link
+  to its identifier; they apply only when there is no lead doc.
+- A doc trailing a comma-separated, value-less identifier (`f, g /// …`) is
+  ambiguous and is a **parse error**.
+
+## Formatting
+
+`gad fmt` reflows attached doc comments: a `SINGLE` that grows past the width
+budget becomes a `BLOCK`, and a `BLOCK` that fits on one line collapses back to
+`SINGLE` (a `ROOT_BLOCK` always stays a block). Paragraphs are re-wrapped while
+fenced code, list items, headings, blockquotes and table rows are preserved
+line-for-line.
+
+## Runnable examples (doctest)
+
+A `BLOCK` / `ROOT_BLOCK` may embed a runnable example in a ```` ```gad ````
+fence. Examples are self-contained; a line beginning with `>>> ` asserts that the
+value produced so far equals the expression after it. `gad doctest PATH…` runs
+every embedded example, and `gad doc` runs them while generating (unless
+`--no-doctest`). See also [Conventions](conventions.md).
+
+## Example — `16_doc_comments.gad`
+
+```gad
+` fenced block | a module/section overview            |
+
+The fence of a `BLOCK` / `ROOT_BLOCK` must be on its **own line**; `/** text **/`
+on a single line is not a block. A `ROOT_BLOCK` separated from the next statement
+by a blank line documents the **module/section**, not that statement — like this
+header.
+
+@snippet forms
+
+## What can be documented
+
+Declarations (`var` / `const`, and each spec inside a `( … )` group), functions
+(`func` / `met`, including the func-with-methods form and each method), `prop`
+statements and their accessors, and `meti` headers.
+
+@snippet documentable
+
+## Attachment rules
+
+- A `SINGLE` / `BLOCK` / `ROOT_BLOCK` on the line **directly above** a target is a
+  *lead* doc and links to it. A **blank line** in between **detaches** it.
+- `INLINE` / `INLINE_VALUE` docs trail their target on the **same line** and link
+  to its identifier; they apply only when there is no lead doc.
+- A doc trailing a comma-separated, value-less identifier (`f, g /// …`) is
+  ambiguous and is a **parse error**.
+
+## Formatting
+
+`gad fmt` reflows attached doc comments: a `SINGLE` that grows past the width
+budget becomes a `BLOCK`, and a `BLOCK` that fits on one line collapses back to
+`SINGLE` (a `ROOT_BLOCK` always stays a block). Paragraphs are re-wrapped while
+fenced code, list items, headings, blockquotes and table rows are preserved
+line-for-line.
+
+## Runnable examples (doctest)
+
+A `BLOCK` / `ROOT_BLOCK` may embed a runnable example in a ```` ```gad ````
+fence. Examples are self-contained; a line beginning with `>>> ` asserts that the
+value produced so far equals the expression after it. `gad doctest PATH…` runs
+every embedded example, and `gad doc` runs them while generating (unless
+`--no-doctest`). See also [Conventions](conventions.md).
+***/
+
+/// the service listen address (SINGLE form, on its own line)
+const (
+    ServerAddr = ":8080"
+    /// the greeting prefix (SINGLE, linked to the spec ident)
+    Greeting = "hello"
+    Retries = 3 /// how many times to retry (INLINE_VALUE, trailing)
+)
+
+/**
+`sum` returns the sum of `a` and `b`.
+
+A `/**` … `**/` block is the BLOCK form; its lines are reflowed as Markdown. It
+can embed a runnable example that `gad doctest` checks against the `>>>` line:
+
+```gad
+sum := func(a, b) { return a + b }
+sum(2, 3)
+>>> 5
+```
+**/
+func sum(a, b) {
+    return a + b
 }
 
-println(
-	Greeting
-	ServerAddr
-	"retries:"
-	Retries
-)
-println(
-	"sum:"
-	sum(
-		2
-		3
-	)
-) // sum: 5
-println(
-	"calc ints:"
-	calc(
-		2
-		3
-	)
-) // calc ints: 5
-println(
-	"calc floats:"
-	calc(
-		2.5
-		0.5
-	)
-) // calc floats: 3
+/// a tiny calculator dispatching on argument types
+func calc {
+    /// add two ints
+    (a int, b int) => a + b
+
+    /// add two floats
+    (a float, b float) => a + b
+}
+
+/// a difference contract
+meti differ {
+    /// difference of two ints
+    (a int, b int) <int>
+}
+
+println(Greeting, ServerAddr, "retries:", Retries)
+println("sum:", sum(2, 3))            // sum: 5
+println("calc ints:", calc(2, 3))     // calc ints: 5
+println("calc floats:", calc(2.5, 0.5)) // calc floats: 3
+
+return sum(2, 3)
 ```
