@@ -8,6 +8,10 @@ on:
 
 permissions:
   contents: write
+  # actions: write lets this workflow dispatch the website workflow after the
+  # release is published (workflow_dispatch is an exception to the rule that the
+  # GITHUB_TOKEN doesn't trigger further workflow runs).
+  actions: write
 
 jobs:
   goreleaser:
@@ -37,3 +41,11 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # goreleaser creates the release with the GITHUB_TOKEN, which does not
+      # trigger the website workflow's `release` event. Dispatch it explicitly so
+      # the docs site publishes /latest and /<tag> for the new release.
+      - name: Trigger website rebuild
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run website.yml --repo "${{ github.repository }}" --ref main
