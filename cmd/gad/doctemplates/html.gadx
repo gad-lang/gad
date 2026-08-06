@@ -14,7 +14,8 @@
 
 @main
     article.gad-doc
-        h1 {doc.name}
+        @if !doc.proseHasTitle
+            h1 {doc.name}
 
         @if doc.prose
             p.prose {doc.prose}

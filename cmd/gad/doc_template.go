@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/gadconfig"
@@ -179,6 +180,9 @@ func buildDocDict(doc *gadbridge.DocData, path string, src []byte, sourceType st
 	d["file"] = gad.Str(filepath.Base(path))
 	d["lang"] = gad.Str(lang)
 	d["source"] = gad.Str(exampleSource(src))
+	// A template emits its own `# name` title only when the prose does not
+	// already start with a Markdown heading (migrated samples lead with `# Title`).
+	d["proseHasTitle"] = gad.Bool(strings.HasPrefix(strings.TrimSpace(doc.Prose), "#"))
 	return d, nil
 }
 

@@ -18,7 +18,11 @@
 ~~
 param (doc dict)
 
-write("# " + doc.name + "\n")
+// The prose of a migrated sample leads with its own `# Title`; only synthesize a
+// `# name` heading when it does not.
+if !doc.proseHasTitle {
+    write("# " + doc.name + "\n")
+}
 
 if doc.prose {
     write("\n" + doc.prose + "\n")
