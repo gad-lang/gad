@@ -1,0 +1,30 @@
+//- html-index.gadx — default HTML index template for `gad doc`.
+//-
+//- One is generated per output directory as index.html. It receives:
+//-   param (index dict) = { name: str, path: str,
+//-     items: [ { name: str, file: str } ],   // documented files in this dir
+//-     dirs:  [ { name: str, file: str } ] }   // subdirectory indexes
+//- where item.file / dir.file are the hrefs to write (dir hrefs point at the
+//- subdirectory's index.html).
+
+@param (index dict)
+
+@main
+    article.gad-index
+        h1 {index.name}
+
+        @if index.items
+            section.files
+                h2 Files
+                ul
+                    @for it in index.items
+                        li
+                            a[href=it.file] {it.name}
+
+        @if index.dirs
+            section.dirs
+                h2 Subdirectories
+                ul
+                    @for d in index.dirs
+                        li
+                            a[href=d.file] {d.name}

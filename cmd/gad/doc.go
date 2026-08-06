@@ -47,8 +47,17 @@ func (d *DocGenerator) FromContent(path string, src []byte) (string, error) {
 
 	fs := source.NewFileSet()
 	f := fs.AddFileData(path, -1, src)
-	file, err := parser.NewParserWithOptions(
-		f, &parser.ParserOptions{Mode: parser.ParseComments}, nil).ParseFile()
+	po := &parser.ParserOptions{Mode: parser.ParseComments}
+	var so *parser.ScannerOptions
+	if sourceTypeFor(path) == "gadTemplate" {
+		// A .gadt file is mixed/template source; parse its `{% … %}` islands.
+		po.Mode |= parser.ParseMixed
+		so = &parser.ScannerOptions{
+			Mode:           parser.ScanMixed | parser.ScanConfigDisabled,
+			MixedDelimiter: parser.DefaultMixedDelimiter,
+		}
+	}
+	file, err := parser.NewParserWithOptions(f, po, so).ParseFile()
 	if err != nil {
 		return "", err
 	}
@@ -116,8 +125,8 @@ func (d *DocGenerator) FromFile(data []byte, path, dst, base string) (*FileDocRe
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	res := &FileDocResult{Markdown: md, OutPath: docOutPath(dst, base, path)}
-	// Gadx docs have no embedded ```gad examples to run.
-	if !d.NoTest && !isGadxFile(path) {
+	// Gadx and mixed/template docs have no plain embedded ```gad examples to run.
+	if !d.NoTest && !isGadxFile(path) && sourceTypeFor(path) != "gadTemplate" {
 		for _, r := range checkFileExamples(path, data) {
 			if r.err != nil {
 				res.ExamplesFailed++

@@ -1,0 +1,116 @@
+# 24_interfaces
+
+24_interfaces.gad — the `interface { … }` construct: a structural contract of
+typed fields, get/set/prop accessors and required methods. It compiles to an
+`Interface` value whose members are read by indexing.
+See doc/method-interfaces.md for detailed documentation.
+
+## Example — `24_interfaces.gad`
+
+```gad
+// A parent interface, spread into `Shape` with `*Base` below.
+interface Base { get kind }
+
+// The statement form binds a const. A bare field entry is typed (`id int`); an
+// untyped field defaults to `any`. `get`/`set`/`prop` declare accessors; a
+// method is `name(params) <return>`, and its block form `name { (…), … }`
+// groups several overload signatures (like `meti`, without the keyword).
+interface Shape {
+	*Base
+
+	id int
+	label str
+
+	get area uint
+	set scale
+	prop title
+
+	draw()
+	resize(int|uint) <bool>
+
+	// a method with several overload signatures
+	from {
+		(str)
+		(w int, h int)
+	}
+}
+
+println("name:      ", Shape.name)
+println("fields:    ", [f.name for f in Shape.fields])
+println("field type:", Shape.fields[0].name, "=>", Shape.fields[0].types[0])
+println("props:     ", [p.name for p in Shape.props])
+println("methods:   ", [m.name for m in Shape.methods])
+println("from sigs: ", len(Shape.methods[2].headers))
+
+// The anonymous expression form is a value like any other.
+Point := interface { x int; y int; get norm float }
+println("anon:      ", typeName(Point), len(Point.fields), Point.fields[1].name)
+
+// --- Structural satisfaction -----------------------------------------------
+/// A value *satisfies* an interface when it has every required field (with an
+/// assignable type) and method (whose signatures match). Check it with the `::`
+/// assign-to-type operator: it returns the value when it satisfies the
+/// interface, otherwise it raises a type error.
+interface Greeter { name str; greet() <str> }
+
+class Person {
+    name = ""
+    methods { greet() => "hi " + this.name }
+}
+p := Person(; name = "Ada")
+println("p::Greeter:  ", (p::Greeter).greet())     // hi Ada
+
+/// A value missing a required member is rejected.
+class Anon { label = "?" }
+ok := true
+try {
+    Anon()::Greeter                                // no `name`, no greet()
+    ok = false
+} catch {
+    println("Anon reject: not a Greeter")
+}
+
+/// An interface also works as a parameter type — the argument must satisfy it.
+func welcome(g Greeter) => g.greet() + "!"
+println("welcome:     ", welcome(p))                 // hi Ada!
+
+/// Satisfaction is structural, so any member-bearing value qualifies — a `dict`
+/// too: a field matches a key, a method matches a callable key.
+d := {name: "Bo", greet: func() => "hi Bo"}
+println("dict::Greeter:", (d::Greeter).greet())    // hi Bo
+println("welcome(dict):", welcome(d))                // hi Bo!
+
+/// A dict without the required callable key is rejected.
+bad := {name: "x"}
+try {
+    bad::Greeter                                   // no greet()
+    ok = false
+} catch {
+    println("dict reject: not a Greeter")
+}
+
+/// Because a failed `::` raises an error, the `or` fallback operator turns it
+/// into a value: `obj::Type or fallback` yields the fallback when obj does not
+/// satisfy Type, without a `try`/`catch`.
+println("or fallback: ", bad::Greeter or "is bad") // is bad
+
+/// Context-function members: `:Expr <header>` requires a free function in scope
+/// (not a method on the object) to handle the interface's object. `@self` is the
+/// interface's object; it is captured by value where the interface is declared.
+render := func(indent int, obj) => "<" + str(indent) + ":" + str(obj.name) + ">"
+
+Renderable := interface {
+    name str
+    :render<(indent int, @self)>          // require render(int, <object>) in scope
+}
+
+r := {name: "Ada"}
+println("renderable:  ", (r :: Renderable).name)   // Ada — render handles it
+
+/// A function that does not take the object (no matching @self arity) fails.
+noObj := func(indent int) => indent
+NotRenderable := interface { :noObj<(indent int, @self)> }
+println("ctx reject:  ", r :: NotRenderable or "no renderer")  // no renderer
+
+return ok
+```

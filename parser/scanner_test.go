@@ -687,3 +687,30 @@ func (tr *scanTester) scanExpect(
 	require.Equal(t, token.EOF, tok.Token, "more tokens left")
 	require.Equal(t, 0, s.ErrorCount())
 }
+
+// TestScanner_Shebang verifies a first-line `#!…` is scanned as a comment (so it
+// round-trips through the formatter) and only at file start.
+func TestScanner_Shebang(t *testing.T) {
+	fs := source.NewFileSet()
+	f := fs.AddFileData("test", -1, []byte("#!/usr/bin/env gad\nx := 1\n"))
+	s := parser.NewScanner(f, &parser.ScannerOptions{Mode: parser.ScanComments})
+	tok := s.Scan()
+	require.Equal(t, token.Comment, tok.Token)
+	require.Equal(t, "#!/usr/bin/env gad", tok.Literal)
+	require.Equal(t, 0, s.ErrorCount())
+
+	// A `#!` not on the first line is not a shebang (interpolated-string path).
+	f2 := fs.AddFileData("test2", -1, []byte("x := 1\n#!nope\n"))
+	s2 := parser.NewScanner(f2, &parser.ScannerOptions{Mode: parser.ScanComments})
+	var sawShebang bool
+	for {
+		tk := s2.Scan()
+		if tk.Token == token.EOF {
+			break
+		}
+		if tk.Token == token.Comment && tk.Literal == "#!nope" {
+			sawShebang = true
+		}
+	}
+	require.False(t, sawShebang, "a mid-file #! must not be scanned as a shebang comment")
+}

@@ -1,0 +1,22 @@
+# 01_hello
+
+01_hello.gad — the basics: printing, variables and string templates.
+
+Run with:  gad run samples/01_hello.gad   (or open it in `gad ide`).
+See doc/getting-started.md for detailed documentation.
+
+## Example — `01_hello.gad`
+
+```gad
+name := "Gad"
+version := 1
+
+println("Hello,", name)
+println(#"Welcome to {name} v{version}!")   // interpolated string
+
+/// := declares; = reassigns an existing binding.
+greeting := #"{name} is a fast, embeddable scripting language."
+println(greeting)
+
+return greeting
+```

@@ -1,0 +1,92 @@
+# 11_classes
+
+11_classes.gad — the class system: fields, methods, properties,
+constructors, inheritance and `met` extensions.
+See doc/classes.md for detailed documentation.
+
+## Example — `11_classes.gad`
+
+```gad
+// --- a class with fields, a constructor and methods ---
+Point := Class("Point", (cls, define) => define(;
+    new {
+        (new; **f)  => new(; x=0, y=0, **f)   // defaults + extra named fields
+        (new, x, y) => new(; x=x, y=y)        // positional
+    },
+    methods = [
+        dist(this) => (this.x ** 2 + this.y ** 2) ** 0.5
+    ]
+))
+
+p := Point(3, 4)
+println("Point(3, 4).dist() =", p.dist())   // 5
+println("Point().x =", Point().x)           // 0
+
+// --- a property (getter + typed setters) ---
+Box := Class("Box", (cls, define) => define(; fields = (; v), properties = {
+    val: func {
+        (this)        => this.v
+        (this, x)     { this.v = "any:" + str(x) }
+        (this, x int) { this.v = "int:" + str(x) }
+    }
+}))
+b := Box()
+b.val = "hi"
+println("box any:", b.val)        // any:hi
+b.val = 7
+println("box int:", b.val)        // int:7
+
+// --- inheritance (Go-style anonymous fields) ---
+Animal := Class("Animal", (cls, define) => define(;
+    fields  = (; name str = "?"),
+    methods = [
+        speak(this)    => this.name + " makes a sound"
+        describe(this) => "I am " + this.name
+    ]
+))
+Dog := Class("Dog", (cls, define) => define(;
+    extends = [Animal],
+    methods = [ speak(this) => this.name + " barks" ]   // override
+))
+d := Dog(; name="Rex")
+println("dog speak:   ", d.speak())       // override -> Rex barks
+println("dog describe:", d.describe())    // inherited -> I am Rex
+
+// --- rewriting members with `met ~` and `$old` ---
+/// `met ~` overrides an existing member; a `$old` first parameter captures the
+/// implementation being replaced so the new one can wrap it (super / around
+/// advice). It works for methods, constructors and property setters alike.
+
+// method: wrap the inherited/overridden speak()
+met ~Dog.speak($old, this) => $old(this) + " loudly!"
+println("dog speak $old:", d.speak())     // Rex barks loudly!
+
+// constructor: scale coordinates, delegating to the previous constructor
+Point3 := Class("Point3", (cls, define) => define(;
+    fields = (; x int = 0, y int = 0),
+    new { (new, x, y) => new(; x=x, y=y) }
+))
+met ~Point3($old, new, x, y) => $old(new, x * 10, y * 10)
+q := Point3(3, 4)
+println("point3 $old:  ", q.x, q.y)       // 30 40 (delegated + scaled)
+
+// property setter: validate on top of the previous setter
+met ~Box.val($old, this, x int) { $old(this, x); this.v = this.v + " (checked)" }
+b.val = 9
+println("box int $old: ", b.val)          // int:9 (checked)
+
+// --- extend an existing class with `met` ---
+Vec := Class("Vec", (cls, define) => define(; fields = (; x int = 0, y int = 0)))
+met gad.binOpAdd(a Vec, b Vec) {
+    return Vec(; x=a.x+b.x, y=a.y+b.y)
+}
+met str(v Vec) => "(" + v.x + ", " + v.y + ")"
+met Vec.len2(this) => this.x*this.x + this.y*this.y
+
+a := Vec(; x=1, y=2)
+sum := a + Vec(; x=10, y=20)
+println("vec add: ", str(sum))    // (11, 22)
+println("vec len2:", a.len2())    // 5
+
+return p.dist()
+```

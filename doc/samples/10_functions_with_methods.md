@@ -1,0 +1,37 @@
+# 10_functions_with_methods
+
+10_functions_with_methods.gad — typed parameters, functions with methods
+(overloads), and the `met` statement.
+Properties (`prop`) have their own sample: 31_properties.gad.
+See doc/functions.md and doc/method-interfaces.md for detailed documentation.
+
+## Example — `10_functions_with_methods.gad`
+
+```gad
+// --- Typed parameters -------------------------------------------------------
+/// A parameter may declare a type; the argument is checked against it.
+repeat := func(s str, n int) {
+    out := ""
+    for i := 0; i < n; i++ {
+        out += s
+    }
+    return out
+}
+println("repeat:        ", repeat("ab", 3))    // ababab
+
+// --- Functions with methods (overloads) -------------------------------------
+/// `func name { (params) { ... } ... }` declares several methods; the call
+/// dispatches to the method whose parameter types match the arguments.
+func area {
+    (r float)          => 3.14159 * r * r        // circle
+    (w float, h float) => w * h                  // rectangle
+}
+println("area(2.0):     ", area(2.0))           // circle
+println("area(2.0, 3.0):", area(2.0, 3.0))      // rectangle
+
+/// `met` adds a method to an existing callable afterwards.
+met area(side int) => side * side                // square (int)
+println("area(4):       ", area(4))             // square
+
+return area(4)
+```

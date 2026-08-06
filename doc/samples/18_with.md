@@ -1,0 +1,67 @@
+# 18_with
+
+18_with.gad — the `with` context-manager statement and expression.
+
+`with` runs a resource's enter/exit hooks around a block so cleanup always
+happens, even on an error. A resource provides `enter()` / `exit(err)`
+methods (or the Go ObjectEnter/ObjectExit interfaces).
+
+See doc/control-flow.md for detailed documentation.
+
+## Example — `18_with.gad`
+
+```gad
+Res := Class("Res", (cls, define) => define(; fields = (; name = (= ""), open = (= false), items = (= nil)),
+    methods = [
+        enter(this) { this.open = true;  this.items = []; println("  open ", this.name); return this }
+        exit(this, err) { this.open = false; println("  close", this.name, "err =", err) }
+        read(this) => this.name + "-data"
+        add(this, v) { this.items += v }
+    ]))
+
+// `as` binds the resource to a block-local name.
+println("as:")
+with Res(; name = "a") as f {
+    println("  use  ", f.name, "open =", f.open)
+}
+
+// `:=` defines a variable visible after the block.
+println("define:")
+with r := Res(; name = "b") { println("  use  ", r.name) }
+println("  after, open =", r.open)   // false (exit ran)
+
+// An error still runs exit, then propagates.
+println("error:")
+try {
+    with Res(; name = "c") { throw "boom" }
+} catch e {
+    println("  caught:", e)
+}
+
+// Resources nest; exits run in reverse order.
+println("nested:")
+with Res(; name = "outer") {
+    with Res(; name = "inner") { println("  body") }
+}
+
+// Expression form (colon): enter, evaluate, exit, yield the value.
+println("expr:")
+contents := with Res(; name = "d") as g: g.read()
+println("  contents:", contents)
+
+// Expression form (block): enter, run the body, exit, yield the RESOURCE.
+// Handy to build a value inside the guarded block and receive it back.
+println("expr-block:")
+built := with Res(; name = "e") as it {
+    it.add(1)
+    it.add(2)
+}
+println("  built:", built.name, "open =", built.open, "items =", built.items)
+
+// The block form is an expression, so a function can build-and-return with it.
+make := func() { return with Res(; name = "f") as it { it.add(9) } }
+println("  make():", make().items)
+
+// A non-resource value is a silent no-op (the body still runs).
+with 42 as n { println("noop:", n) }
+```

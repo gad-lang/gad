@@ -1,0 +1,51 @@
+# 06_control_flow
+
+06_control_flow.gad — if/else, for loops and match expressions.
+See doc/control-flow.md for detailed documentation.
+
+## Example — `06_control_flow.gad`
+
+```gad
+classify := func(n) {
+    // match (PHP 8-style) yields the first matching arm; the subject needs no
+    // parentheses and an arm may list several conditions (matched with OR).
+    return match true {
+        n < 0:        "negative"
+        n == 0:       "zero"
+        n == 1, n == 2: "one or two"
+        n < 10:       "small"
+        else:         "large"
+    }
+}
+
+for _, n in [-3, 0, 1, 4, 42] {
+    println(#"{n} is {classify(n)}")
+}
+
+/// Classic if/else.
+grade := func(score) {
+    if score >= 90 {
+        return "A"
+    } else if score >= 80 {
+        return "B"
+    } else {
+        return "C"
+    }
+}
+println("grade(95) =", grade(95))
+println("grade(83) =", grade(83))
+
+/// for with a counter (postfix `i++` is a statement).
+fact := 1
+for i := 1; i <= 5; i++ {
+    fact *= i
+}
+println("5! =", fact)
+
+/// prefix `++x` / `--x` mutate and yield the new value, so they work in
+/// expressions (postfix forms are statements only).
+n := 0
+println("prefix:", ++n, ++n, --n)   // 1 2 1
+
+return fact
+```

@@ -1,8 +1,71 @@
-# TASK: Vuetify IDE — dockview panels, two v-models, Settings (TSX)
+# TASK: Docs-from-samples — template-driven `gad doc` generation
 
-> Created: 2026-08-03 | Updated: 2026-08-05 06:00
+> Created: 2026-08-06 | Updated: 2026-08-06
 
 ## Goal
+Make the samples the single source of truth for language documentation. Move
+language-feature docs into `samples/*.{gad,gadt,gadx}` as doc comments, and
+generate the site docs from them via `gad doc` with customizable templates. No
+more doc/sample drift.
+
+## Plan
+- [x] Dialect-aware doc templates: `--doc-template-md/html PATH` (.gad/.gadt/.gadx;
+      .gad/.gadt write STDOUT, .gadx renders a tag tree); `--html` opt-in HTML;
+      `--no-template` escapes to the built-in Go Markdown renderer
+- [x] `go:embed` default templates (cmd/gad/doctemplates) + repo `./doc-templates`
+      copies, guarded by a drift test; embedded md is the default so `gad doc`
+      is template-driven out of the box
+- [x] `@snippet NAME` incorporation from `//snippet NAME … //endsnippet` regions,
+      fenced with the source dialect; `/**= EXPR **/` (value) and `/**< TEXT **/`
+      (stdout) results verified at generation (fail on mismatch), then rendered
+- [x] Per-directory index generation: README.md (+ index.html with --html) via
+      md-index.gadx / html-index.gadx, listing files and linking subdir indexes
+- [x] Fixed a real compiler panic: selector in a `{%= … %}` mixed island
+- [x] Made the Go doc renderer mixed-aware (.gadt) and fixed samples/09_template.gad
+- [x] Shebang `#!…` on line 1 of .gad (round-trips through `gad fmt`) and .gadt
+      (ignored at run time)
+- [x] Makefile `samples-doc` → `doc/samples/`; `generate-docs` depends on it
+- [ ] JSON/YAML doc output (encode the DOC dict that feeds the templates)
+- [ ] Migrate the 17 language docs + metaprogramming into the samples, remove from
+      doc/, repoint doc/README.md (index → sample + generated doc)
+- [ ] Incorporate doc/samples into the website (cmd/build-website)
+- [ ] Follow-up: gadt/gadx shebang round-trip on format; .gadt module prose
+
+## Log
+### 2026-08-06 (docs-from-samples infrastructure)
+- Flags/renderer: `--doc-template-md/html`, `--html`, `--no-template` added
+  (cmd/gad/doc_cmd.go); renderDocTemplate is now dialect-aware by template
+  extension (cmd/gad/doc_template.go). `go test ./cmd/gad -run TestRenderDocTemplateDialects`
+  → PASS (t.gad/t.gadt/t.gadx all render)
+- Embedded defaults cmd/gad/doctemplates/{md,html,md-index,html-index}.gadx via
+  go:embed + repo ./doc-templates copies; TestDocTemplatesInSyncWithEmbedded PASS
+- Snippets + results: cmd/gad/doc_snippet.go; TestExtractSnippets,
+  TestExpandSnippetsRunsAndVerifies, TestExpandSnippetsResultMismatchFails,
+  TestExampleSourceStripsMarkersAndModuleDoc, TestDocCommandExpandsAndVerifiesSnippets
+  all PASS
+- Per-dir indexes: cmd/gad/doc_index.go; TestBuildIndexTree +
+  TestDocCommandGeneratesIndexes PASS (root→sub links, nested)
+- Compiler panic fix: mixed `{%= x.y %}` compiled the synthetic write() off the
+  stack → pushSelector read c.stack[-1]. Fixed by pushing the call via atDo +
+  guarding pushSelector (compiler.go, compiler_nodes.go). Regression test
+  TestCompilerMixedSelectorInValueStmt PASS; `go test .` PASS
+- Shebang: parser/scanner_scan.go scans a first-line `#!…` as a comment (normal
+  mode, round-trips) and skips/keeps it in mixed mode. TestScanner_Shebang PASS.
+  Verified via bridge: `#!/usr/bin/env gad\nx:=1\nprintln(x)` runs → "1\n"; fmt
+  preserves the shebang on line 1; a mid-file `#!` stays an error
+- samples/09_template.gad: removed the leading space before `# gad: mixed` so the
+  config directive is honoured (prose captured, parses); Go renderer FromContent
+  made mixed-aware for .gadt (doc.go)
+- Makefile: `samples-doc` now `cd samples && gad doc --out ../doc/samples
+  --doc-template-md ../doc-templates/md.gadx .` (flags BEFORE the positional, or
+  Go's flag pkg ignores them); `generate-docs: … samples-doc`. Removed legacy
+  samples/.gad/doc-templates and stale samples/doc
+- EVIDENCE (full suite): `go build ./...` exit 0; `go test ./...` (root) exit 0;
+  `go test ./...` in gadx exit 0; `go vet` clean; `gofmt -l` clean. `make
+  samples-doc` → 33 files in doc/samples (32 samples + README.md index);
+  doc/samples/09_template.md has prose, README.md lists all files
+
+## Previous task — Vuetify/React IDE + release/site ops (history)
 Rework @gad-lang/ide-vuetify: resizable/movable dockview panels; a Settings
 dialog (Panels/Formatter/Transpile/Template); two independent v-models —
 `layoutConfig` (dockview layout) and `config` (settings) — persisted to
@@ -332,6 +395,30 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
 | demo can't resolve dockview-core css | not a direct demo dep (bun isolation) | add dockview-core to demo deps | demo build ok |
 
 ## Current State
+The docs-from-samples INFRASTRUCTURE is complete and fully tested; the content
+MIGRATION and website wiring are not yet done.
+
+`gad doc` is now template-driven by default: it renders each source through an
+embedded (or workspace/flag-overridden) template that may be written in any Gad
+dialect. Templates receive `param (doc dict)` = `{name, file, lang, source,
+prose, sections}` and can incorporate real code via `@snippet NAME` placeholders
+resolved from `//snippet … //endsnippet` regions; a region may assert a value
+(`/**= EXPR **/`) or STDOUT (`/**< TEXT **/`) that is executed and verified at
+generation time. Each output directory also gets an index (README.md, plus
+index.html under --html). The official templates live in ./doc-templates and are
+byte-identical to the go:embed defaults (drift-tested). `make samples-doc`
+generates doc/samples/*.md (+ README.md) from samples/*, and `generate-docs`
+depends on it. All of root+parser+gadx+cmd/gad tests pass, vet/gofmt clean, and a
+pre-existing mixed-mode compiler panic (selector inside `{%= … %}`) was fixed
+with a regression test. Shebang `#!` lines are ignored at run time and preserved
+by `gad fmt` for .gad.
+
+NOT done yet: (1) JSON/YAML doc output; (2) moving the language-feature prose out
+of doc/*.md into the sample doc comments and removing those doc/*.md (repointing
+doc/README.md); (3) incorporating doc/samples into cmd/build-website; (4) gadt/
+gadx shebang round-trip on format. These are the next steps.
+
+## Previous Current State — IDE work (history)
 @gad-lang/ide-vuetify is now a TSX package: a `controller.ts` holds all reactive
 state/actions and is provided via inject to five dockview-vue panels (Explorer,
 Editor, Call Stack, Locals, Output) that are resizable, movable, dockable and

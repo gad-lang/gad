@@ -1,0 +1,44 @@
+# 14_user_operators
+
+14_user_operators.gad — the user binary operators `<<<`, `>>>`, `%%` and
+their self-assign forms `<<<=`, `>>>=`, `%%=`.
+
+These operators have no built-in meaning; each type gives them semantics with
+`met gad.binOp` (and, optionally, `met gad.selfAssignOp`).
+See doc/operators.md for detailed documentation.
+
+## Example — `14_user_operators.gad`
+
+```gad
+/// Define `<<<` and `>>>` on ints as "push"/"pop"-ish helpers.
+met gad.binOpTripleLess(a int, b int) {
+    return a * 1000 + b           // pack two small ints
+}
+met gad.binOpTripleGreater(a int, b int) {
+    return [a / 1000, a % 1000]   // unpack
+}
+
+packed := 12 <<< 345
+println(packed)                   // 12345
+println(packed >>> 0)             // [12, 345]
+
+/// `%%` as a "clamp into range" operator.
+met gad.binOpDoubleMod(v int, hi int) {
+    return v < 0 ? 0 : (v > hi ? hi : v)
+}
+println(50 %% 10, -3 %% 10, 7 %% 10)   // 10 0 7
+
+/// The self-assign forms reuse the binary handler via gad.selfAssignOp's
+/// fallback: `x <<<= y` is `x = x <<< y`.
+acc := 1
+acc <<<= 2
+println(acc)                      // 1002
+
+/// A dedicated gad.selfAssignOp handler can differ from the binary one.
+met gad.selfAssignOpDoubleMod(a int, b int) {
+    return a + b
+}
+n := 7
+n %%= 5
+println(n)                        // 12
+```

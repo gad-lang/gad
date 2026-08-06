@@ -593,13 +593,17 @@ stmts:
 			if c.opts.MixedExprToTextFunc != nil {
 				na = *new(node.CallExprNamedArgs).AppendS("convert", c.opts.MixedExprToTextFunc)
 			}
-			err = c.compileCallExpr(&node.CallExpr{
+			// Push the synthetic write() call onto the compile stack (via atDo) so
+			// nested nodes see it as their parent. Without it, compiling a selector
+			// argument (`{%= x.y %}`) leaves pushSelector reading c.stack[-1].
+			callExpr := &node.CallExpr{
 				Func: wf,
 				CallArgs: node.CallArgs{
 					Args:      node.CallExprPositionalArgs{Values: exprs},
 					NamedArgs: na,
 				},
-			})
+			}
+			err = c.atDo(callExpr, func() error { return c.compileCallExpr(callExpr) })
 			if err != nil {
 				return
 			}

@@ -1,0 +1,82 @@
+# 20_enum
+
+20_enum.gad — the `enum` keyword: an ordered set of named integer constants
+computed at compile time. Doc comments attach to the enum and its fields.
+See doc/enums.md for detailed documentation.
+
+## Example — `20_enum.gad`
+
+```gad
+/// Permissions, as auto-incrementing values. The first field is 1; each later
+/// field without a value is the previous + 1.
+enum Perm {
+    /// may read
+    Read
+    /// may write
+    Write
+    /// may execute (explicit; later fields resume from here)
+    Exec = 10
+    /// next after Exec
+    Delete
+}
+
+println("Perm.Read  =", Perm.Read.value)     // 1
+println("Perm.Exec  =", Perm.Exec.value)     // 10
+println("Perm.Delete=", Perm.Delete.value)   // 11
+
+// A member exposes name, value, index and its owning enum.
+println("name/index =", Perm.Exec.name, Perm.Exec.index)   // Exec 2
+
+// Index by name and iterate in declaration order.
+println("by name    =", Perm["Write"].value)  // 2
+out := []
+for name, v in Perm {
+    out += name + "=" + str(v.value)
+}
+println("iterate    =", out)   // [Read=1, Write=2, Exec=10, Delete=11]
+
+// Bulk accessors expose the whole enum at once, in declaration order, as the
+// underlying values (not the member wrappers).
+println("@names     =", Perm["@names"])    // ["Read", "Write", "Exec", "Delete"]
+println("@values    =", Perm["@values"])   // [1, 2, 10, 11]
+println("@dict      =", Perm["@dict"])     // {Delete: 11, Exec: 10, Read: 1, Write: 2} (dict prints keys sorted)
+println("@pairs     =", Perm["@pairs"])    // (;Read=1, Write=2, Exec=10, Delete=11)
+println("dict(Perm) =", dict(Perm))        // {Delete: 11, Exec: 10, Read: 1, Write: 2} (name -> value)
+
+/// Flags uses `bit` for power-of-two values; a field may combine earlier ones.
+enum Flags {
+    /// 1 << 0
+    bit List
+    /// 1 << 1
+    Detail
+    /// 1 << 2
+    Create
+    /// List | Detail
+    Read = List | Detail
+}
+println("Flags.Create =", Flags.Create.value)  // 4
+println("Flags.Read   =", Flags.Read.value)    // 3 (List | Detail)
+
+/// Signed uses `+`/`-`: a sign makes a field a signed int and propagates to
+/// later defaulted fields; `+` flips the running sign back to positive.
+enum Signed {
+    -Low      // -1
+    Lower     // -2 (sign propagates)
+    +High     // 3  (sign flipped positive)
+    Higher    // 4
+}
+println("Signed       =",
+    Signed.Low.value, Signed.Lower.value, Signed.High.value, Signed.Higher.value)  // -1 -2 3 4
+
+/// The expression form yields an anonymous enum value.
+Color := enum { Red, Green, Blue }
+println("Color.Green  =", Color.Green.value)   // 2
+
+// A member stringifies as its underlying value (str / print / interpolation),
+// while repr() keeps the detailed form for debugging.
+println("str          =", str(Perm.Exec))      // 10
+println("interp       =", "exec=" + str(Perm.Exec))  // exec=10
+println("repr         =", repr(Perm.Exec))     // ‹enum ‹…Perm›: Exec = ‹int: 10››
+
+return Perm.Delete.value
+```

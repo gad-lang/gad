@@ -259,7 +259,9 @@ func TestDocMustExportedFlagAndConfig(t *testing.T) {
 
 	run := func(args ...string) {
 		var out, errBuf bytes.Buffer
-		in := append([]string{"--no-doctest"}, append(args, "m.gad")...)
+		// --no-template exercises the built-in Go Markdown renderer (the one that
+		// emits the Exported/Internal split honoured by --must-exported).
+		in := append([]string{"--no-doctest", "--no-template"}, append(args, "m.gad")...)
 		inCtx := &cc.CommandContext{Out: &out, Err: &errBuf, InputArgs: cc.Args(in)}
 		runCtx, err := docCommand().Parse(inCtx)
 		require.NoError(t, err)

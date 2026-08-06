@@ -44,9 +44,27 @@ type docOptions struct {
 	inputDirs    []docInputDir
 	workspace    string // WORKSPACE_DIR (config dir, else cwd)
 
+	// docTemplateMD / docTemplateHTML override the workspace doc templates
+	// (.gad/doc-templates/{md,html}.gadx). Each PATH may be a .gad, .gadt or
+	// .gadx file; the dialect is chosen by extension (.gad/.gadt write to
+	// STDOUT, .gadx renders a tag tree).
+	docTemplateMD   string
+	docTemplateHTML string
+	// html enables the extra .html output using the workspace/embedded HTML
+	// template. noTemplate disables template rendering entirely (built-in Go
+	// Markdown renderer).
+	html       bool
+	noTemplate bool
+
 	examplesFailed int // count of failed embedded examples
 
-	templates *docTemplateSet // lazily-resolved .gaddoc*.gadx templates
+	templates *docTemplateSet // lazily-resolved doc templates
+
+	// written accumulates the Markdown output paths produced in template mode,
+	// and indexRoots the dst roots they live under; together they drive the
+	// per-directory index generation (README.md / index.html).
+	written    []string
+	indexRoots map[string]bool
 }
 
 const defaultDocOut = "doc"
@@ -97,6 +115,10 @@ func (o *docOptions) registerFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&o.mustExported, "must-exported", false, "document only exported symbols (omit the Internal section)")
 	fs.StringVar(&o.config, "config", "", "YAML config file with default flag values (default WORKDIR/.gad/gad.yaml)")
 	fs.BoolVar(&o.noConfig, "no-config", false, "do not read the config file")
+	fs.StringVar(&o.docTemplateMD, "doc-template-md", "", "Markdown doc template (.gad/.gadt/.gadx); overrides .gad/doc-templates/md.gadx")
+	fs.StringVar(&o.docTemplateHTML, "doc-template-html", "", "HTML doc template (.gad/.gadt/.gadx); overrides .gad/doc-templates/html.gadx")
+	fs.BoolVar(&o.html, "html", false, "also emit an .html file per source using the HTML doc template")
+	fs.BoolVar(&o.noTemplate, "no-template", false, "disable doc templates; use the built-in Markdown renderer")
 }
 
 // loadConfig reads the `doc:` section of the YAML config (unless --no-config) and
@@ -230,9 +252,12 @@ func (o *docOptions) rawOut() string {
 // run renders the documentation for the positional args and the config input
 // dirs.
 func (o *docOptions) run(ctx *cc.CommandContext) error {
+	o.indexRoots = map[string]bool{}
+
 	// Positional (non-INPUT_DIR) sources honour the root skip.
 	if !o.skip {
 		for _, arg := range ctx.Args {
+			o.indexRoots[o.out] = true
 			if err := o.processArg(ctx, arg, o.out, o.workspace); err != nil {
 				return err
 			}
@@ -256,10 +281,20 @@ func (o *docOptions) run(ctx *cc.CommandContext) error {
 		if d.dst == o.out {
 			return fmt.Errorf("doc: input_dir %q dst resolves to the root doc.dst %q", d.Path, o.out)
 		}
+		o.indexRoots[d.dst] = true
 		if err := o.processArg(ctx, d.Path, d.dst, dirPath); err != nil {
 			return err
 		}
 	}
+
+	// Per-directory indexes (README.md / index.html) are generated once all the
+	// per-file docs are written, in template mode only.
+	if tset := o.resolveDocTemplates(); tset.any() && !o.noSave {
+		if err := o.generateIndexes(ctx, tset); err != nil {
+			return err
+		}
+	}
+
 	if o.examplesFailed > 0 {
 		return fmt.Errorf("doc: %d embedded example(s) failed", o.examplesFailed)
 	}
@@ -318,6 +353,9 @@ func (o *docOptions) processFile(ctx *cc.CommandContext, path, dst, base string)
 		if outputs, err = o.renderTemplateOutputs(path, src, res, tset); err != nil {
 			return err
 		}
+		// Record the Markdown output path so run() can build the directory
+		// indexes once every file is written.
+		o.written = append(o.written, res.OutPath)
 	}
 
 	if o.noSave {

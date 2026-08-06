@@ -1,4 +1,5 @@
-/***
+# 09_template
+
 this program is a gad template to generate JSON output of users list:
 
     {
@@ -9,8 +10,10 @@ this program is a gad template to generate JSON output of users list:
       ]
     }
 See doc/templates.md for detailed documentation.
-***/
 
+## Example — `09_template.gad`
+
+```gad
 # gad: mixed
 {%
 var (
@@ -25,3 +28,4 @@ var (
 {%-- end %}
   ]
 }
+```

@@ -203,6 +203,24 @@ func (s *Scanner) ScanNow() (t PToken) {
 
 	if s.mode.Has(ScanMixed) && s.Ch != -1 {
 		start := s.Offset
+		// Shebang `#!…` on the very first line of a mixed/template file: skipped
+		// at run time (so it is not emitted as template text) and preserved as a
+		// leading comment when comments are collected (formatter round-trip).
+		if s.Offset == 0 && s.Ch == '#' && s.ReadOffset < len(s.Src) && s.Src[s.ReadOffset] == '!' {
+			for s.Ch != '\n' && s.Ch >= 0 {
+				s.Next()
+			}
+			if !s.mode.Has(ScanComments) {
+				if s.Ch == '\n' {
+					s.Next()
+				}
+				return s.ScanNow()
+			}
+			t.Token = token.Comment
+			t.Literal = string(s.Src[start:s.Offset])
+			t.Pos = source.MustFileSetPos(s.File, start)
+			return t
+		}
 		if s.InCode {
 			var removeLeftSpace, removeAllSpace bool
 			s.SkipWhitespace()
@@ -658,6 +676,22 @@ do:
 				t.Token = token.Or
 			}
 		case '#':
+			// A shebang `#!…` on the very first line of the file (executable
+			// scripts with +x) is scanned as a comment: it carries no program
+			// meaning but is preserved so `gad fmt` round-trips it verbatim.
+			if s.Offset == 1 && s.Ch == '!' {
+				offs := s.Offset - 1 // the '#'
+				for s.Ch != '\n' && s.Ch >= 0 {
+					s.Next()
+				}
+				if !s.mode.Has(ScanComments) {
+					s.InsertSemi = false
+					return s.ScanNow()
+				}
+				t.Token = token.Comment
+				t.Literal = string(s.Src[offs:s.Offset])
+				break
+			}
 			if !s.mode.Has(ScanConfigDisabled) {
 				// at line start
 				if s.Offset == 1 || s.Src[s.Offset-2] == '\n' {

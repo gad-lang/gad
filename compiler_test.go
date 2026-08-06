@@ -4556,3 +4556,24 @@ func expectCompileWithOpts(t *testing.T,
 	require.NoError(t, err)
 	TestBytecodesEqual(t, expected, got, expected.Main.SourceMap != nil, eopts.opts)
 }
+
+// TestCompilerMixedSelectorInValueStmt is a regression test: a selector
+// expression inside a `{%= … %}` output island (mixed/template mode) once
+// panicked with "index out of range [-1]" because the synthetic write() call
+// was compiled off the stack, leaving pushSelector reading c.stack[-1]. Every
+// selector form must now compile cleanly.
+func TestCompilerMixedSelectorInValueStmt(t *testing.T) {
+	opts := CompileOptions{ParserOptions: parser.ParserOptions{Mode: parser.ParseMixed}}
+	for _, src := range []string{
+		`{% d := {name: 1} %}{%= d.name %}`,
+		`{% d := {a: {b: 2}} %}{%= d.a.b %}`,
+		`{% param (doc dict) %}{%= doc.name %}`,
+		`text {% d := {x: 1} %}before {%= d.x %} after`,
+	} {
+		st := NewSymbolTable(NewBuiltins().NameSet)
+		require.NotPanics(t, func() {
+			_, err := Compile(st, []byte(src), opts)
+			require.NoError(t, err, src)
+		}, src)
+	}
+}

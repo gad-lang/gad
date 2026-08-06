@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	gad "github.com/gad-lang/gad"
 	"github.com/gad-lang/gad/gadconfig"
 	"github.com/gad-lang/gad/web/gadbridge"
 	cc "github.com/moisespsena-go/command-context"
@@ -25,11 +26,11 @@ func TestRenderDocTemplateMD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := renderDocTemplate(tmpl, "md.gadx", doc)
+	out, err := renderDocTemplate(tmpl, "md.gadx", mustDocDict(t, doc, "greetings.gad", docSampleSrc))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, w := range []string{"greetings module.", "## Exports", "### hello = \"hi\"", "The greeting prefix.", "### add", "Adds two numbers."} {
+	for _, w := range []string{"# greetings", "greetings module.", "## Exports", "### hello = \"hi\"", "The greeting prefix.", "### add", "Adds two numbers.", "## Example — `greetings.gad`", "```gad"} {
 		if !strings.Contains(out, w) {
 			t.Fatalf("md template missing %q:\n%s", w, out)
 		}
@@ -44,7 +45,7 @@ func TestRenderDocTemplateHTML(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := renderDocTemplate(tmpl, "html.gadx", doc)
+	out, err := renderDocTemplate(tmpl, "html.gadx", mustDocDict(t, doc, "greetings.gad", docSampleSrc))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,13 +110,27 @@ func TestDocCommandUsesTemplates(t *testing.T) {
 	}
 }
 
-// readSampleTemplate loads a doc-template shipped under samples/.gad/doc-templates.
+// mustDocDict builds the template input dict for doc, failing the test on error.
+// Snippet results are not run here (run=false).
+func mustDocDict(t *testing.T, doc *gadbridge.DocData, path, src string) gad.Dict {
+	t.Helper()
+	d, err := buildDocDict(doc, path, []byte(src), sourceTypeFor(path), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+// readSampleTemplate returns the embedded default doc-template bytes for name
+// (md.gadx or html.gadx) — the same templates baked into the binary.
 func readSampleTemplate(t *testing.T, name string) []byte {
 	t.Helper()
-	path := filepath.Join("..", "..", "samples", gadconfig.DirName, gadconfig.DocTemplatesDirName, name)
-	b, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read template %s: %v", name, err)
+	switch name {
+	case gadconfig.DocMDTemplateName:
+		return defaultDocTemplateMD
+	case gadconfig.DocHTMLTemplateName:
+		return defaultDocTemplateHTML
 	}
-	return b
+	t.Fatalf("unknown template %s", name)
+	return nil
 }

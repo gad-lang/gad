@@ -2870,13 +2870,27 @@ func (c *Compiler) compileSelectorExpr(nd *node.SelectorExpr) error {
 	return nil
 }
 
+// isSelectorNode reports whether n is a selector expression (plain or nullish).
+func isSelectorNode(n ast.Node) bool {
+	switch n.(type) {
+	case *node.SelectorExpr, *node.NullishSelectorExpr:
+		return true
+	default:
+		return false
+	}
+}
+
 func (c *Compiler) pushSelector() func() {
 	var (
 		increases bool
 		stackLen  = len(c.stack)
 	)
-	switch c.stack[stackLen-2].(type) {
-	case *node.SelectorExpr, *node.NullishSelectorExpr:
+	// A selector whose parent (c.stack[stackLen-2]) is itself a selector belongs
+	// to the same selector group; otherwise it starts a new one. When the parent
+	// is absent (a selector compiled at stack depth < 2, e.g. as a directly
+	// compiled call argument), start a new group rather than underflowing.
+	switch {
+	case stackLen >= 2 && isSelectorNode(c.stack[stackLen-2]):
 	default:
 		increases = true
 		c.selectorStack = append(c.selectorStack, nil)

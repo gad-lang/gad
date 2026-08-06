@@ -1,0 +1,48 @@
+# 08_strings_bytes_regex
+
+08_strings_bytes_regex.gad — strings, bytes literals and regex.
+See doc/strings-bytes-regex.md for detailed documentation.
+
+## Example — `08_strings_bytes_regex.gad`
+
+```gad
+s := "Hello, Gad"
+println("upper:", chars(s))           // characters
+println("len:  ", len(s))
+
+/// Bytes literals: b"..." from string content, h"..." from hex.
+fromText := b"Hello"
+fromHex := h"48656c6c6f"              // "Hello" in hex
+println("b\"Hello\"        =", fromText, typeof(fromText))
+println("h\"48656c6c6f\"   =", fromHex)
+println("equal bytes:", str(fromText) == str(fromHex))
+
+/// Regex literal /pattern/ and the match method.
+re := /(\w+)@(\w+)/
+println("regex match:", re.match("user@example"))
+
+/// ~~ extracts the first match; index 0 is the whole match, 1.. are groups.
+groups := re ~~ "user@example"
+println("whole:", groups[0], "user:", groups[1], "host:", groups[2])
+
+/// ~~~ finds every match.
+nums := /\d+/ ~~~ "a1 b22 c333"
+println("all numbers:", len(nums), "->", nums[0][0], nums[1][0], nums[2][0])
+
+// replace with group references ($1/$2) and named groups (${name}).
+println("swap:  ", (/(\d+)-(\d+)/).replace("12-34", "$2/$1"))
+println("named: ", (/(?P<y>\d+)-(?P<m>\d+)/).replace("2024-06", "${m}/${y}"))
+
+// replace with a callable invoked per match (gets the whole match).
+println("upper: ", (/[a-z]+/).replace("hi bye", strings.toUpper))
+
+/// the callable also receives capture groups via the named arg `m`.
+swap := (/(\w+)@(\w+)/).replace("user@host", func(whole; m) { return m[2] + "@" + m[1] })
+println("cb-swap:", swap)
+
+/// the | operator builds a reusable replacer that composes with .|
+redact := /(\d{2})(\d+)/ | func(whole; m) { return m[1] + strings.repeat("*", len(m[2])) }
+println("redact:", "card 1234567890".|redact)
+
+return str(fromText)
+```

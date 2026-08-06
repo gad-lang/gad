@@ -1,0 +1,27 @@
+//- md-index.gadx — default Markdown index template for `gad doc`.
+//-
+//- One is generated per output directory as README.md. It receives:
+//-   param (index dict) = { name: str, path: str,
+//-     items: [ { name: str, file: str } ],   // documented files in this dir
+//-     dirs:  [ { name: str, file: str } ] }   // subdirectory indexes
+//- where item.file / dir.file are the links to write (already .md-suffixed and,
+//- for dirs, pointing at the subdirectory's README.md).
+~~
+param (index dict)
+
+write("# " + index.name + "\n")
+
+if index.items {
+    write("\n## Files\n\n")
+    for it in index.items {
+        write("- [" + it.name + "](" + it.file + ")\n")
+    }
+}
+
+if index.dirs {
+    write("\n## Subdirectories\n\n")
+    for d in index.dirs {
+        write("- [" + d.name + "](" + d.file + ")\n")
+    }
+}
+~~

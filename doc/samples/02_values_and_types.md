@@ -1,0 +1,43 @@
+# 02_values_and_types
+
+02_values_and_types.gad — primitive values and the typeof builtin.
+See doc/values-and-types.md for detailed documentation.
+
+## Example — `02_values_and_types.gad`
+
+```gad
+i := 42                 // int
+f := 3.14               // float
+b := true               // bool
+s := "text"             // str
+r := `raw\ttext`        // rawStr (no escapes)
+c := 'A'                // char
+n := nil                // nil
+arr := [1, 2, 3]        // array
+d := {a: 1, b: 2}       // dict
+
+// typeof(v) returns the runtime type of a value.
+println("int    ", i, typeof(i))
+println("float  ", f, typeof(f))
+println("bool   ", b, typeof(b))
+println("str    ", s, typeof(s))
+println("rawStr ", r, typeof(r))
+println("char   ", c, typeof(c))
+println("nil    ", n, typeof(n))
+println("array  ", arr, typeof(arr))
+println("dict   ", d, typeof(d))
+
+// `==` compares values and coerces between numeric kinds; `===` is strict (same
+// type and value), and `!==` is its negation.
+println("1 == 1u   ", 1 == 1u)    // true  (coerced)
+println("1 === 1u  ", 1 === 1u)   // false (int vs uint)
+println("1.0 === 1 ", 1.0 === 1)  // false (float vs int)
+println("1 !== 1u  ", 1 !== 1u)   // true
+
+/// For arrays/dicts `===` is object identity; every literal is a fresh object.
+a := [1, 2]
+println("a === a       ", a === a)         // true
+println("a === [1, 2]  ", a === [1, 2])    // false
+
+return [typeof(i), typeof(s), typeof(arr), typeof(d)]
+```

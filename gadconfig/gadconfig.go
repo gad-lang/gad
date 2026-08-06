@@ -36,6 +36,10 @@ const (
 	DocHTMLTemplateName = "html.gadx"
 	// DocMDTemplateName renders `gad doc` output as Markdown.
 	DocMDTemplateName = "md.gadx"
+	// DocMDIndexTemplateName renders a per-directory Markdown index (README.md).
+	DocMDIndexTemplateName = "md-index.gadx"
+	// DocHTMLIndexTemplateName renders a per-directory HTML index (index.html).
+	DocHTMLIndexTemplateName = "html-index.gadx"
 )
 
 // WorkDir resolves the workspace root. An explicit non-empty dir wins; otherwise
@@ -81,4 +85,16 @@ func DocHTMLTemplate(workDir string) string {
 // DocMDTemplate returns the Markdown doc-template path (doc-templates/md.gadx).
 func DocMDTemplate(workDir string) string {
 	return filepath.Join(DocTemplatesDir(workDir), DocMDTemplateName)
+}
+
+// DocMDIndexTemplate returns the Markdown index template path
+// (doc-templates/md-index.gadx).
+func DocMDIndexTemplate(workDir string) string {
+	return filepath.Join(DocTemplatesDir(workDir), DocMDIndexTemplateName)
+}
+
+// DocHTMLIndexTemplate returns the HTML index template path
+// (doc-templates/html-index.gadx).
+func DocHTMLIndexTemplate(workDir string) string {
+	return filepath.Join(DocTemplatesDir(workDir), DocHTMLIndexTemplateName)
 }

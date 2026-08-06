@@ -174,10 +174,15 @@ DIR ?= samples
 ide: web-build
 	go run ./cmd/gad ide --static web/app/dist $(DIR)
 
-# Generate Markdown docs for the samples workspace (writes $(DIR)/doc).
+# Generate the official sample docs from samples/*.{gad,gadt,gadx} into
+# doc/samples, using the repo's official Markdown template (doc-templates/md.gadx,
+# identical to the embedded default). Snippets and their /**= … **/ / /**< … **/
+# results are executed and verified during generation. `.` (non-recursive) keeps
+# it to the top-level numbered samples, not the sub-workspaces.
 .PHONY: samples-doc
 samples-doc:
-	cd $(DIR) && go run ../cmd/gad doc
+	cd samples && go run ../cmd/gad doc --out ../doc/samples \
+		--doc-template-md ../doc-templates/md.gadx .
 
 .PHONY: test
 test: version generate lint
@@ -201,7 +206,7 @@ lint: version check-delve
 	go vet ./...
 
 .PHONY: generate-docs
-generate-docs: version
+generate-docs: version samples-doc
 	# time, fmt and strings are builtin module namespaces in the root package;
 	# the 3rd arg selects which module's gad:doc to emit.
 	go run ./cmd/gaddoc . ./doc/stdlib-time.md time
