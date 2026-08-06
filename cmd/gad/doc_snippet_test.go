@@ -48,17 +48,18 @@ func TestExtractSnippets(t *testing.T) {
 func TestExpandSnippetsRunsAndVerifies(t *testing.T) {
 	snips := extractSnippets([]byte(snippetSrc))
 
-	// Value snippet: run + verify, result in a `gad` fence below the code.
+	// Value snippet: run + verify, result inline as `// => value`.
 	got, err := expandSnippets("@snippet greet", snips, "gad", true)
 	require.NoError(t, err)
 	require.Contains(t, got, "```gad")
 	require.Contains(t, got, `greet := "hi " + "Gad"`)
-	require.Contains(t, got, "```gad\nhi Gad\n```")
+	require.Contains(t, got, "// => hi Gad")
 
-	// Output snippet: run + verify, stdout in a plain-text fence below the code.
+	// Output snippet: run + verify, stdout in an Output text block.
 	got, err = expandSnippets("@snippet shout", snips, "gad", true)
 	require.NoError(t, err)
 	require.Contains(t, got, `println("HELLO")`)
+	require.Contains(t, got, "Output:")
 	require.Contains(t, got, "```text\nHELLO\n```")
 }
 
@@ -81,7 +82,7 @@ func TestExpandSnippetsNoRunShowsExpected(t *testing.T) {
 	got, err := expandSnippets("@snippet greet", snips, "gad", false)
 	require.NoError(t, err)
 	// Without running, the marker's raw expected text is shown in a gad fence.
-	require.Contains(t, got, "```gad\n\"hi Gad\"\n```")
+	require.Contains(t, got, `// => "hi Gad"`)
 }
 
 func TestExampleSourceStripsMarkersAndModuleDoc(t *testing.T) {
@@ -116,6 +117,6 @@ func TestDocCommandExpandsAndVerifiesSnippets(t *testing.T) {
 	require.NoError(t, err)
 	s := string(md)
 	require.Contains(t, s, "# m")
-	require.Contains(t, s, "```gad\nhi Gad\n```")
-	require.Contains(t, s, "```text\nHELLO\n```")
+	require.Contains(t, s, "// => hi Gad")
+	require.Contains(t, s, "Output:")
 }
