@@ -1,28 +1,18 @@
-# 06_control_flow
 
-06_control_flow.gad — if/else, for loops and match expressions.
-See doc/control-flow.md for detailed documentation.
+# Control Flow
 
-## Example — `06_control_flow.gad`
+`if`, `for`, `for … in` and the `match` expression. (Error handling —
+`try`/`catch`/`finally`, `throw` — lives in [Error Handling](07_error_handling.md);
+the `with` resource guard in [With](18_with.gad).)
+
+## If
+
+`if` works like Go's, including an optional init statement before the condition
+(`if v := compute(); v > 10 { … }`). The body braces may also be written as
+`begin … end` (`if a > 0 begin println("yes") end`).
 
 ```gad
-classify := func(n) {
-    // match (PHP 8-style) yields the first matching arm; the subject needs no
-    // parentheses and an arm may list several conditions (matched with OR).
-    return match true {
-        n < 0:        "negative"
-        n == 0:       "zero"
-        n == 1, n == 2: "one or two"
-        n < 10:       "small"
-        else:         "large"
-    }
-}
-
-for _, n in [-3, 0, 1, 4, 42] {
-    println(#"{n} is {classify(n)}")
-}
-
-/// Classic if/else.
+/// Classic if / else if / else.
 grade := func(score) {
     if score >= 90 {
         return "A"
@@ -32,20 +22,129 @@ grade := func(score) {
         return "C"
     }
 }
-println("grade(95) =", grade(95))
-println("grade(83) =", grade(83))
+println("grade(95) =", grade(95)) // A
+println("grade(83) =", grade(83)) // B
+```
 
-/// for with a counter (postfix `i++` is a statement).
+## For
+
+The three-clause (`for i := 0; i < 3; i++`), condition-only (`for x < 10`) and
+infinite (`for { … }`) forms all exist; `break` and `continue` behave as in Go.
+Postfix `i++`/`i--` are statements; prefix `++x`/`--x` mutate and yield the new
+value, so they work in expressions.
+
+```gad
+/// Three-clause for; postfix `i++` is a statement.
 fact := 1
 for i := 1; i <= 5; i++ {
     fact *= i
 }
-println("5! =", fact)
+println("5! =", fact) // 120
 
-/// prefix `++x` / `--x` mutate and yield the new value, so they work in
-/// expressions (postfix forms are statements only).
+/// prefix `++x` / `--x` yield the new value (usable in expressions).
 n := 0
-println("prefix:", ++n, ++n, --n)   // 1 2 1
+println("prefix:", ++n, ++n, --n) // 1 2 1
+```
+
+## For-In
+
+`for … in` iterates any iterable — arrays, dicts, strings, bytes and lazy
+iterators (e.g. the result of `map`/`filter`). Bind one variable for the value,
+or two for the key/index and value.
+
+```gad
+for i, v in [10, 20, 30] {
+    println(i, v) // 0 10, 1 20, 2 30
+}
+for k, v in {a: 1, b: 2} {
+    println(k, v) // a 1, b 2
+}
+for i, c in "ab" {
+    println(i, c) // 0 'a', 1 'b'
+}
+```
+
+## Match
+
+`match` (PHP 8-style) compares a subject against arms and yields the first
+matching result. The subject needs no parentheses. Each arm lists one or more
+conditions (matched against the subject with OR), followed by either `: value`
+(expression form) or a `{ … }` block (statement form). An optional `else` arm is
+the default; an empty match — or one with no matching arm and no `else` — yields
+`nil`. Because arm conditions are arbitrary expressions, `match true { … }`
+doubles as a clean multi-branch conditional.
+
+```gad
+classify := func(n) {
+    // match true { … } as a multi-branch conditional: first matching arm wins,
+    // an arm may list several OR-conditions.
+    return match true {
+        n < 0:          "negative"
+        n == 0:         "zero"
+        n == 1, n == 2: "one or two"
+        n < 10:         "small"
+        else:           "large"
+    }
+}
+for _, n in [-3, 0, 1, 4, 42] {
+    println(#"{n} is {classify(n)}")
+}
+```
+
+The formatter keeps a match inline while it fits and switches to one arm per line
+only when it overflows; see [Conventions](conventions.md).
+
+## Example — `06_control_flow.gad`
+
+```gad
+classify := func(n) {
+    // match true { … } as a multi-branch conditional: first matching arm wins,
+    // an arm may list several OR-conditions.
+    return match true {
+        n < 0:          "negative"
+        n == 0:         "zero"
+        n == 1, n == 2: "one or two"
+        n < 10:         "small"
+        else:           "large"
+    }
+}
+for _, n in [-3, 0, 1, 4, 42] {
+    println(#"{n} is {classify(n)}")
+}
+
+/// Classic if / else if / else.
+grade := func(score) {
+    if score >= 90 {
+        return "A"
+    } else if score >= 80 {
+        return "B"
+    } else {
+        return "C"
+    }
+}
+println("grade(95) =", grade(95)) // A
+println("grade(83) =", grade(83)) // B
+
+/// Three-clause for; postfix `i++` is a statement.
+fact := 1
+for i := 1; i <= 5; i++ {
+    fact *= i
+}
+println("5! =", fact) // 120
+
+/// prefix `++x` / `--x` yield the new value (usable in expressions).
+n := 0
+println("prefix:", ++n, ++n, --n) // 1 2 1
+
+for i, v in [10, 20, 30] {
+    println(i, v) // 0 10, 1 20, 2 30
+}
+for k, v in {a: 1, b: 2} {
+    println(k, v) // a 1, b 2
+}
+for i, c in "ab" {
+    println(i, c) // 0 'a', 1 'b'
+}
 
 return fact
 ```

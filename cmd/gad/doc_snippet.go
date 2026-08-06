@@ -192,10 +192,11 @@ func expandSnippets(text string, snippets map[string]*snippet, lang string, run 
 }
 
 // renderSnippet renders a snippet as Markdown lines: a fenced code block and,
-// when the snippet declares a result, its verified value/output.
+// when the snippet declares a result, the verified result in a fence BELOW the
+// code — a plain-text fence for STDOUT (`/**< … **/`) or a `gad` fence for a
+// value (`/**= … **/`).
 func renderSnippet(snip *snippet, lang string, run bool) ([]string, error) {
-	lines := []string{"```" + lang}
-	lines = append(lines, snip.code)
+	lines := []string{"```" + lang, snip.code, "```"}
 
 	switch snip.kind {
 	case snippetValue:
@@ -215,7 +216,7 @@ func renderSnippet(snip *snippet, lang string, run bool) ([]string, error) {
 			}
 			shown = objectStr(got)
 		}
-		lines = append(lines, "// => "+shown, "```")
+		lines = append(lines, "", "```gad", shown, "```")
 		return lines, nil
 
 	case snippetOutput:
@@ -231,11 +232,10 @@ func renderSnippet(snip *snippet, lang string, run bool) ([]string, error) {
 			}
 			shown = strings.TrimRight(stdout, "\n")
 		}
-		lines = append(lines, "```", "", "Output:", "", "```text", shown, "```")
+		lines = append(lines, "", "```text", shown, "```")
 		return lines, nil
 
 	default:
-		lines = append(lines, "```")
 		return lines, nil
 	}
 }

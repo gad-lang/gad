@@ -36,7 +36,10 @@ to later defaulted fields):
 ```gad
 Values := enum { Read, Write, Exec = 10, Delete }
 [Values.Read.value, Values.Exec.value, Values.Delete.value]
-// => [1, 10, 11]
+```
+
+```gad
+[1, 10, 11]
 ```
 
 ## Signs
@@ -54,7 +57,10 @@ enum Signed {
     Higher    // 4
 }
 [Signed.Low.value, Signed.Lower.value, Signed.High.value, Signed.Higher.value]
-// => [-1, -2, 3, 4]
+```
+
+```gad
+[-1, -2, 3, 4]
 ```
 
 ## Bit flags
@@ -75,7 +81,10 @@ enum Flags {
     Read = List | Detail
 }
 [Flags.Create.value, Flags.Read.value]
-// => [4, 3]
+```
+
+```gad
+[4, 3]
 ```
 
 ## The `_` placeholder
@@ -87,7 +96,10 @@ it can be used to skip values:
 Skip1 := enum { _, Read, Write }        // Read = 2, Write = 3
 Skip2 := enum { Read, _ = 6, Write }    // Read = 1, Write = 7
 [Skip1.Read.value, Skip1.Write.value, Skip2.Read.value, Skip2.Write.value]
-// => [2, 3, 1, 7]
+```
+
+```gad
+[2, 3, 1, 7]
 ```
 
 ## Using an enum
@@ -106,8 +118,6 @@ for name, member in Access { // iterate in declaration order
     println(name, member.value)
 }
 ```
-
-Output:
 
 ```text
 10
@@ -130,8 +140,6 @@ println("perm=" + str(Kind.Exec)) // perm=10
 println(Kind.Exec.name)          // Exec
 ```
 
-Output:
-
 ```text
 10
 perm=10
@@ -151,8 +159,6 @@ println(Bulk["@values"])  // [1, 2, 10]
 println(Bulk["@dict"])    // {Exec: 10, Read: 1, Write: 2} (dict prints keys sorted)
 println(dict(Bulk))       // same name -> value mapping
 ```
-
-Output:
 
 ```text
 ["Read", "Write", "Exec"]

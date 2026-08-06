@@ -15,7 +15,10 @@ directly — but merely *holding* an error does not stop execution; only `throw`
 ```gad
 err := error("oops")
 [isError(err), err.name, err.message]
-// => [true, "error", "oops"]
+```
+
+```gad
+[true, "error", "oops"]
 ```
 
 ## throw
@@ -42,7 +45,10 @@ safeDiv := func(a, b) {
     }
 }
 [safeDiv(10, 2), safeDiv(10, 0)]
-// => [5, "caught: error: division by zero"]
+```
+
+```gad
+[5, "caught: error: division by zero"]
 ```
 
 ## Builtin errors
@@ -54,7 +60,10 @@ an error's `.name`.
 ```gad
 e := NotImplementedError.New("todo: parse v2")
 [e.name, e.message]
-// => ["NotImplementedError", "todo: parse v2"]
+```
+
+```gad
+["NotImplementedError", "todo: parse v2"]
 ```
 
 Available builtin errors:
@@ -86,7 +95,10 @@ z := mayThrow() or 99             // swallow the throw, use the fallback
 ok := (2 * 3) or 0                // no throw -> the left value
 recovered := mayThrow() or ("recovered: " + str($err)) // $err is the caught error
 [z, ok, recovered]
-// => [99, 6, "recovered: error: fail"]
+```
+
+```gad
+[99, 6, "recovered: error: fail"]
 ```
 
 ## Recovering with `defer_err`
@@ -104,7 +116,10 @@ safe := func() {
     throw "boom"
 }
 safe()
-// => recovered: error: boom
+```
+
+```gad
+recovered: error: boom
 ```
 
 ## Example — `07_error_handling.gad`
