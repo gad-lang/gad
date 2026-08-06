@@ -308,6 +308,21 @@ save/restore to the React `<Ide>` too. Components authored in TSX (chosen over
 - Verified: go test ./... (root) + gadx submodule + encoder + parser green; vet
   + gofmt clean; check-delve up to date; sample runs
 
+### 2026-08-06 (release/site ops)
+- CI `test` was failing on staticcheck ST1003 (pre-existing __crN vars from the
+  b7c307e refactor). Renamed __crN→crN across 23 test files (commit 1cdd87a); test
+  workflow green
+- Notebook (react+vuetify) opens with one example per source type GAD/GADt/GADx
+  (commit b56b4ac); Playground already had per-dialect samples. Samples verified
+  to compile+run via the bridge
+- Released v0.1.0-rc.1 (prerelease). Site: cleaned gad-lang.github.io (orphan
+  commit, ~380MB of accumulated per-SHA/latest dirs dropped, kept README+.nojekyll)
+  then republished; /latest + /v0.1.0-rc.1 live (HTTP 200), banner shows the tag
+- release.yml now dispatches website.yml after publishing (commit 53a12f1):
+  actions: write + `gh workflow run website.yml` — workflow_dispatch is the
+  exception where GITHUB_TOKEN may trigger a run, so /<tag> auto-publishes on each
+  release (previously needed a manual dispatch)
+
 ## Errors & Fixes
 | Error | Cause | Fix | Evidence |
 |-------|-------|-----|----------|
