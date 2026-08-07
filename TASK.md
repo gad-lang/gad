@@ -38,7 +38,10 @@ more doc/sample drift.
       split off a leading `#!…` line, format the rest and prepend it, so `.gad`,
       `.gadt` and `.gadx` all preserve the shebang (runtime already ignores it).
       Test TestFormatSourceShebang.
-- [ ] Follow-up: .gadt module prose (leading `/*** */` is literal text in mixed)
+- [x] `.gadt` module prose: the doc lives inside the leading code island
+      (`{%-- /*** … ***/ --%}`, also `/** **/` or a normal `/* */`), captured as
+      prose by leadingRootBlock without leaking into template output.
+      23_template.gadt updated; test TestExtractDocGadtModuleProse.
 
 ## Log
 ### 2026-08-07 (migration COMPLETE + website + link repointing)

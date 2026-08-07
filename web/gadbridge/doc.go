@@ -140,6 +140,11 @@ func gadDocData(src []byte, sourceType string) (*DocData, error) {
 			break
 		}
 	}
+	// In mixed/template mode the leading /*** … ***/ block is literal text (not a
+	// comment), so recover the module prose directly from the source.
+	if d.Prose == "" && (sourceType == "gadTemplate" || sourceType == "template") {
+		d.Prose = leadingRootBlock(src)
+	}
 
 	var exports []DocSymbol
 	for _, stmt := range file.Stmts {
@@ -165,6 +170,40 @@ func gadDocData(src []byte, sourceType string) (*DocData, error) {
 		d.Sections = append(d.Sections, DocSection{Title: "Exports", Symbols: exports})
 	}
 	return d, nil
+}
+
+// leadingRootBlock returns the cleaned prose of a leading `/*** … ***/` root
+// block for a mixed/template file, or "". Because template text outside the code
+// delimiters is emitted verbatim, the module doc of a `.gadt` lives inside the
+// leading code island — `{% /*** … ***/ %}` (any `-`/`--` trim markers allowed) —
+// so the block is skipped past the opening delimiter here. A bare leading
+// `/*** … ***/` (before any code) is also accepted. An optional `#!…` shebang
+// line is skipped first.
+func leadingRootBlock(src []byte) string {
+	s := string(src)
+	if strings.HasPrefix(s, "#!") {
+		if i := strings.IndexByte(s, '\n'); i >= 0 {
+			s = s[i+1:]
+		}
+	}
+	s = strings.TrimLeft(s, " \t\r\n")
+	// Step past a leading `{%` (and its `-`/`--` trim markers) so the module doc
+	// may live inside the first code island, where it is not emitted as text.
+	if start := string(parser.DefaultMixedDelimiter.Start); strings.HasPrefix(s, start) {
+		s = strings.TrimLeft(s[len(start):], "-")
+		s = strings.TrimLeft(s, " \t\r\n")
+	}
+	// Accept a `/*** … ***/` root block, a `/** … **/` block, or a normal
+	// `/* … */` comment (longest opener first); cleanDoc strips the markers.
+	for _, m := range [][2]string{{"/***", "***/"}, {"/**", "**/"}, {"/*", "*/"}} {
+		if strings.HasPrefix(s, m[0]) {
+			if end := strings.Index(s, m[1]); end >= 0 {
+				return cleanDoc(s[:end+len(m[1])])
+			}
+			return ""
+		}
+	}
+	return ""
 }
 
 func gadDocText(g *ast.CommentGroup) string {

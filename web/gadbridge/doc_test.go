@@ -46,3 +46,36 @@ func TestDocGadx(t *testing.T) {
 		}
 	}
 }
+
+// TestExtractDocGadtModuleProse verifies that a `.gadt` module doc placed inside
+// the leading code island — a `{%-- … --%}` block wrapping a `/*** … ***/` root
+// comment, a `/** … **/` block or a normal `/* … */` comment — is captured as
+// prose and never leaks into the rendered template output.
+func TestExtractDocGadtModuleProse(t *testing.T) {
+	cases := []struct{ name, src, wantProse string }{
+		{"root", "{%--\n/***\nRoot doc.\n***/\n--%}\n<h1>hi</h1>\n", "Root doc."},
+		{"block", "{%--\n/**\nBlock doc.\n**/\n--%}\n<h1>hi</h1>\n", "Block doc."},
+		{"normal", "{%-- /* Normal doc. */ --%}\n<h1>hi</h1>\n", "Normal doc."},
+		{"shebang+root", "#!/usr/bin/env gad\n{%--\n/*** After shebang. ***/\n--%}\n<h1>hi</h1>\n", "After shebang."},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			d, err := ExtractDoc(c.src, "gadTemplate")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if d.Prose != c.wantProse {
+				t.Fatalf("prose = %q, want %q", d.Prose, c.wantProse)
+			}
+			// The doc comment must not be emitted as template text.
+			if r := RunSource(c.src, "gadTemplate"); r.Stdout != "<h1>hi</h1>\n" {
+				t.Fatalf("run leaked the doc: %q", r.Stdout)
+			}
+		})
+	}
+
+	// A plain .gad file's `/***` prose is still read from the comment, unchanged.
+	if d, _ := ExtractDoc("/*** Plain gad. ***/\nexport a = 1\n", "gad"); d.Prose != "Plain gad." {
+		t.Fatalf("gad prose regressed: %q", d.Prose)
+	}
+}

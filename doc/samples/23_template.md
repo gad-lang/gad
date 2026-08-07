@@ -1,23 +1,36 @@
-# 23_template
+
+# Templates — a `.gadt` example
+
+A `.gadt` file runs as a template automatically — no `# gad: mixed` directive and
+no `--template` flag needed; the extension is enough (`gad run
+samples/23_template.gadt`). Text outside the tags is emitted literally; `{% … %}`
+runs statements (emitting nothing), `{%= expr %}` writes a value, and the `-` /
+`--` trim markers strip adjacent whitespace (`{%-`/`-%}` keep a single newline,
+`{%--`/`--%}` remove it too).
+
+In a `.gadt` the **module doc lives inside the leading code island** — a
+`{%-- … --%}` block wrapping a `/*** …
 
 ## Example — `23_template.gadt`
 
 ```gadt
-{%-- /*
-  A .gadt file runs as a template automatically — no `# gad: mixed`
-  directive and no --template flag needed; the extension is enough:
+{%--
+/***
+# Templates — a `.gadt` example
 
-      gad run samples/23_template.gadt
+A `.gadt` file runs as a template automatically — no `# gad: mixed` directive and
+no `--template` flag needed; the extension is enough (`gad run
+samples/23_template.gadt`). Text outside the tags is emitted literally; `{% … %}`
+runs statements (emitting nothing), `{%= expr %}` writes a value, and the `-` /
+`--` trim markers strip adjacent whitespace (`{%-`/`-%}` keep a single newline,
+`{%--`/`--%}` remove it too).
 
-  Text outside the tags is emitted literally. Two tag forms embed Gad:
-    {% ... %}     code block  — runs statements, emits nothing itself
-    {%= expr %}   value       — evaluates expr and writes it to the output
-
-  Trim markers strip adjacent whitespace:
-    {%-  / -%}   trim blanks but keep a single newline
-    {%-- / --%}  trim all whitespace, newlines included
-See doc/templates.md for detailed documentation.
-*/ --%}
+In a `.gadt` the **module doc lives inside the leading code island** — a
+`{%-- … --%}` block wrapping a `/*** … ***/` root comment, like this one — so it
+is captured as prose without being emitted as template text. Part of
+[Templates](09_template.gad).
+***/
+--%}
 {%
 var (
   title = "Gad users"
