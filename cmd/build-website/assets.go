@@ -185,12 +185,12 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .btn-ghost:hover{background:var(--panel-2);color:var(--accent)}
 .qs-title{font-size:1.5rem;margin:2.4rem 0 .3rem;letter-spacing:-.01em}
 .qs-sub{color:var(--muted);margin:0 0 1.2rem}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.1rem;margin:1rem 0 .5rem}
-.card{border:1px solid var(--border);border-radius:14px;background:var(--panel);padding:1.2rem 1.3rem;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:1.1rem;margin:1rem 0 .5rem}
+.card{border:1px solid var(--border);border-radius:14px;background:var(--panel);padding:1.2rem 1.3rem;box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0}
 .card h3{margin:.1rem 0 .5rem;font-size:1.15rem;display:flex;align-items:center;gap:.5rem}
 .card .card-badge{width:1.7rem;height:1.7rem;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:.9rem}
 .card p{color:var(--muted);margin:0 0 .8rem;font-size:.93rem}
-.card pre{margin:.2rem 0 .9rem;font-size:.82rem}
+.card pre{margin:.2rem 0 .9rem;font-size:.82rem;max-width:100%;overflow-x:auto}
 .card .card-link{margin-top:auto;font-weight:600}
 @media(max-width:980px){
   .layout{grid-template-columns:1fr}
