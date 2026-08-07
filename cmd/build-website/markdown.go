@@ -254,43 +254,47 @@ func splitRow(line string) []string {
 	return parts
 }
 
-// renderInline renders inline markup, treating backtick code spans literally.
+// renderInline renders inline markup. Links are resolved at the OUTERMOST level,
+// walking the string in segments, so a link whose text is itself a code span or
+// emphasis (e.g. the "Sample source" column's [`samples/NN.gad`](…) links) is
+// parsed as one link — its text and the surrounding prose are then rendered for
+// code spans + emphasis. Resolving links first also protects link destinations
+// (which routinely contain intra-word underscores, lang-01_hello.html) from the
+// emphasis pass.
 func renderInline(s string) string {
+	var b strings.Builder
+	last := 0
+	for _, loc := range linkRe.FindAllStringSubmatchIndex(s, -1) {
+		b.WriteString(inlineSpans(s[last:loc[0]]))
+		text, url := s[loc[2]:loc[3]], s[loc[4]:loc[5]]
+		b.WriteString(`<a href="` + rewriteLink(url) + `">` + inlineSpans(text) + "</a>")
+		last = loc[1]
+	}
+	b.WriteString(inlineSpans(s[last:]))
+	return b.String()
+}
+
+// inlineSpans renders code spans and emphasis on a run of text that contains no
+// links. Backtick code spans are literal (escaped, no emphasis); the text
+// between/around them is HTML-escaped and processed for bold/italic.
+func inlineSpans(s string) string {
 	var b strings.Builder
 	for len(s) > 0 {
 		if i := strings.IndexByte(s, '`'); i >= 0 {
 			if j := strings.IndexByte(s[i+1:], '`'); j >= 0 {
-				b.WriteString(renderInlineNoCode(s[:i]))
+				b.WriteString(emphasize(htmlEscape(s[:i])))
 				b.WriteString("<code>" + htmlEscape(s[i+1:i+1+j]) + "</code>")
 				s = s[i+1+j+1:]
 				continue
 			}
 		}
-		b.WriteString(renderInlineNoCode(s))
+		b.WriteString(emphasize(htmlEscape(s)))
 		break
 	}
 	return b.String()
 }
 
-func renderInlineNoCode(s string) string {
-	s = htmlEscape(s)
-	// Links are resolved first, walking the string in segments, so emphasis is
-	// only ever applied to prose and link text — never to a link destination.
-	// URLs routinely contain intra-word underscores (lang-01_hello.html) that the
-	// emphasis pass would otherwise rewrite into a stray </em>, breaking the href.
-	var b strings.Builder
-	last := 0
-	for _, loc := range linkRe.FindAllStringSubmatchIndex(s, -1) {
-		b.WriteString(emphasize(s[last:loc[0]]))
-		text, url := s[loc[2]:loc[3]], s[loc[4]:loc[5]]
-		b.WriteString(`<a href="` + rewriteLink(url) + `">` + emphasize(text) + "</a>")
-		last = loc[1]
-	}
-	b.WriteString(emphasize(s[last:]))
-	return b.String()
-}
-
-// emphasize applies bold/italic markup to a run of text that contains no links.
+// emphasize applies bold/italic markup to an already-escaped run of text.
 func emphasize(s string) string {
 	s = boldRe.ReplaceAllString(s, "<strong>$1</strong>")
 	s = italicRe.ReplaceAllString(s, "${1}<em>${2}</em>${3}")
@@ -308,13 +312,22 @@ func rewriteLink(url string) string {
 		frag = url[i:]
 		url = url[:i]
 	}
+	// Any link into the samples tree — a rendered `samples/NN.md`, or a raw
+	// source `../samples/NN.{gad,gadt,gadx}` from doc/README's "Sample source"
+	// column — resolves to the published chapter page lang-<name>.html (whose
+	// Example section carries the full runnable source). Raw .gad/.gadt/.gadx
+	// files are not published, so without this those links would 404.
+	if p := strings.TrimPrefix(url, "../"); strings.HasPrefix(p, "samples/") {
+		name := strings.TrimPrefix(p, "samples/")
+		for _, ext := range []string{".gadt", ".gadx", ".gad", ".md"} {
+			if strings.HasSuffix(name, ext) {
+				return "lang-" + strings.TrimSuffix(name, ext) + ".html" + frag
+			}
+		}
+	}
 	switch {
 	case strings.EqualFold(url, "README.md"):
 		url = "index.html"
-	case strings.HasPrefix(url, "samples/") && strings.HasSuffix(url, ".md"):
-		// The language chapters are published from doc/samples as lang-<name>.html
-		// (see collectLangPages), so a `samples/NN_name.md` link points there.
-		url = "lang-" + strings.TrimSuffix(strings.TrimPrefix(url, "samples/"), ".md") + ".html"
 	case strings.HasSuffix(url, ".md"):
 		url = strings.TrimSuffix(url, ".md") + ".html"
 	}

@@ -106,6 +106,30 @@ func TestRenderLinkUnderscores(t *testing.T) {
 	}
 }
 
+// TestRenderCodeSpanLink guards the "Sample source" column of doc/README's
+// Language-chapters table: a link whose text is a code span
+// [`samples/NN.gad`](../samples/NN.gad) must render as one anchor with a <code>
+// label, not a broken `[` + code + `](url)` literal. The raw-source destination
+// resolves to the published chapter page.
+func TestRenderCodeSpanLink(t *testing.T) {
+	out, _ := renderMarkdown("[`samples/02_values_and_types.gad`](../samples/02_values_and_types.gad)\n")
+	want := `<a href="lang-02_values_and_types.html"><code>samples/02_values_and_types.gad</code></a>`
+	if !strings.Contains(out, want) {
+		t.Fatalf("code-span link mangled:\n want %s\n got  %s", want, out)
+	}
+	if strings.Contains(out, "](") || strings.Contains(out, "../samples/") {
+		t.Fatalf("raw link syntax / unpublished source leaked:\n%s", out)
+	}
+	// Rendered-doc column: samples/NN.md -> lang-NN.html.
+	if o, _ := renderMarkdown("[02](samples/02_values_and_types.md)\n"); !strings.Contains(o, `href="lang-02_values_and_types.html"`) {
+		t.Fatalf("rendered-doc link not mapped:\n%s", o)
+	}
+	// A code span outside any link still renders.
+	if o, _ := renderMarkdown("use `gad fmt` here\n"); !strings.Contains(o, "<code>gad fmt</code>") {
+		t.Fatalf("plain code span lost:\n%s", o)
+	}
+}
+
 // TestRenderTerminates ensures the renderer never loops forever on assorted
 // block combinations (each rendered under the test's own timeout).
 func TestRenderTerminates(t *testing.T) {
