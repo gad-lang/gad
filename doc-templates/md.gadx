@@ -39,11 +39,13 @@ for sec in doc.sections {
 }
 
 if doc.source {
+    // `doc.fence` is wide enough to wrap any backticks inside the source (e.g. a
+    // doctest ``` fence embedded in a doc comment).
     write("\n## Example — `" + doc.file + "`\n")
-    write("\n```" + doc.lang + "\n" + doc.source)
+    write("\n" + doc.fence + doc.lang + "\n" + doc.source)
     if doc.source[len(doc.source)-1] != '\n' {
         write("\n")
     }
-    write("```\n")
+    write(doc.fence + "\n")
 }
 ~~

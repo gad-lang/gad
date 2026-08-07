@@ -31,7 +31,7 @@ The Example below is a runnable tour of every form.
 
 ## Example — `21_heredocs.gad`
 
-```gad
+````gad
 // --- heredoc: single line ---
 // The fence is three quotes, so a doubled quote inside is literal text.
 println("""abc""")          // abc
@@ -79,4 +79,4 @@ println(src)                // the two-line for-loop, verbatim
 println(code a + b end)     // single-line form -> "a + b"
 
 return poem
-```
+````

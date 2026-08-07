@@ -120,3 +120,21 @@ func TestDocCommandExpandsAndVerifiesSnippets(t *testing.T) {
 	require.Contains(t, s, "// => hi Gad")
 	require.Contains(t, s, "Output:")
 }
+
+// TestSnippetEmbeddedFence is a regression test: a snippet whose code embeds a
+// ```` ``` ```` fence (e.g. a doctest inside a doc comment) must be wrapped in a
+// WIDER outer fence so the inner ``` does not close it early.
+func TestSnippetEmbeddedFence(t *testing.T) {
+	require.Equal(t, "```", fenceFor("no backticks"))
+	require.Equal(t, "```", fenceFor("a `b` c"))         // single backticks
+	require.Equal(t, "````", fenceFor("x\n```gad\n```")) // 3-run -> 4
+	require.Equal(t, "`````", fenceFor("````"))          // 4-run -> 5
+
+	src := "//snippet demo\nx := 1\n/**\n```gad\nx\n>>> 1\n```\n**/\nfunc f() {}\n//endsnippet\n"
+	snips := extractSnippets([]byte(src))
+	out, err := expandSnippets("@snippet demo", snips, "gad", false)
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(out, "````gad\n"), "outer fence must be 4 backticks: %q", out)
+	require.True(t, strings.HasSuffix(strings.TrimRight(out, "\n"), "\n````"), "closing fence must be 4 backticks: %q", out)
+	require.Contains(t, out, "```gad\nx\n>>> 1\n```") // inner 3-backtick fence intact
+}

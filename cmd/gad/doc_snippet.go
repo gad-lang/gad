@@ -191,13 +191,38 @@ func expandSnippets(text string, snippets map[string]*snippet, lang string, run 
 	return strings.Join(out, "\n"), nil
 }
 
+// fenceFor returns the Markdown code-fence (a run of backticks) that safely wraps
+// content: at least three backticks, and always one more than the longest run of
+// backticks inside content, so an embedded ```` ``` ```` (e.g. a doctest fence in
+// a doc comment) never closes the outer fence early.
+func fenceFor(content ...string) string {
+	longest := 0
+	for _, s := range content {
+		run := 0
+		for _, r := range s {
+			if r == '`' {
+				run++
+				if run > longest {
+					longest = run
+				}
+			} else {
+				run = 0
+			}
+		}
+	}
+	n := longest + 1
+	if n < 3 {
+		n = 3
+	}
+	return strings.Repeat("`", n)
+}
+
 // renderSnippet renders a snippet as Markdown lines: a fenced code block and,
 // when the snippet declares a result, its verified value/output shown
 // Python-docs style — the value inline as a `// => …` line inside the same code
-// block, and STDOUT in an `Output:` text block below it.
+// block, and STDOUT in an `Output:` text block below it. Fence widths adapt to
+// any backticks inside the code/result so an embedded ``` never closes them.
 func renderSnippet(snip *snippet, lang string, run bool) ([]string, error) {
-	lines := []string{"```" + lang, snip.code}
-
 	switch snip.kind {
 	case snippetValue:
 		shown := snip.expected
@@ -216,8 +241,8 @@ func renderSnippet(snip *snippet, lang string, run bool) ([]string, error) {
 			}
 			shown = objectStr(got)
 		}
-		lines = append(lines, "// => "+shown, "```")
-		return lines, nil
+		fence := fenceFor(snip.code, shown)
+		return []string{fence + lang, snip.code, "// => " + shown, fence}, nil
 
 	case snippetOutput:
 		shown := snip.expected
@@ -232,12 +257,13 @@ func renderSnippet(snip *snippet, lang string, run bool) ([]string, error) {
 			}
 			shown = strings.TrimRight(stdout, "\n")
 		}
-		lines = append(lines, "```", "", "Output:", "", "```text", shown, "```")
-		return lines, nil
+		codeFence := fenceFor(snip.code)
+		textFence := fenceFor(shown)
+		return []string{codeFence + lang, snip.code, codeFence, "", "Output:", "", textFence + "text", shown, textFence}, nil
 
 	default:
-		lines = append(lines, "```")
-		return lines, nil
+		fence := fenceFor(snip.code)
+		return []string{fence + lang, snip.code, fence}, nil
 	}
 }
 

@@ -169,7 +169,11 @@ func buildDocDict(doc *gadbridge.DocData, path string, src []byte, sourceType st
 	d["name"] = gad.Str(moduleName(path))
 	d["file"] = gad.Str(filepath.Base(path))
 	d["lang"] = gad.Str(lang)
-	d["source"] = gad.Str(exampleSource(src))
+	example := exampleSource(src)
+	d["source"] = gad.Str(example)
+	// The Markdown fence for the example must be wider than any backticks inside
+	// the source (e.g. a doctest ``` fence in a doc comment).
+	d["fence"] = gad.Str(fenceFor(example))
 	// A template emits its own `# name` title only when the prose does not
 	// already start with a Markdown heading (migrated samples lead with `# Title`).
 	d["proseHasTitle"] = gad.Bool(strings.HasPrefix(strings.TrimSpace(doc.Prose), "#"))

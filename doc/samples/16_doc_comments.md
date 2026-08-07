@@ -26,7 +26,7 @@ while a block **followed by a blank line (or at the end of the file)** documents
 the **module/section** — like this header. (The older three-star `/*** … ***/`
 root block is still accepted but deprecated; `gad fmt` rewrites it to `/** … **/`.)
 
-```gad
+````gad
 /// the service listen address (SINGLE form, on its own line)
 const (
     ServerAddr = ":8080"
@@ -50,7 +50,7 @@ sum(2, 3)
 func sum(a, b) {
     return a + b
 }
-```
+````
 
 ## What can be documented
 
@@ -104,7 +104,7 @@ every embedded example, and `gad doc` runs them while generating (unless
 
 ## Example — `16_doc_comments.gad`
 
-```gad
+````gad
 /// the service listen address (SINGLE form, on its own line)
 const (
     ServerAddr = ":8080"
@@ -150,4 +150,4 @@ println("calc ints:", calc(2, 3))     // calc ints: 5
 println("calc floats:", calc(2.5, 0.5)) // calc floats: 3
 
 return sum(2, 3)
-```
+````
