@@ -18,8 +18,13 @@ type Heading struct {
 }
 
 var (
-	boldRe   = regexp.MustCompile(`\*\*(.+?)\*\*`)
-	italicRe = regexp.MustCompile(`_([^_]+)_`)
+	boldRe = regexp.MustCompile(`\*\*(.+?)\*\*`)
+	// italicRe matches `_emphasis_` only when the underscores are flanked by a
+	// non-word character (or line boundary), per CommonMark's intra-word rule:
+	// underscores inside an identifier or filename (01_hello, lang-02_values.html)
+	// are literal, never emphasis. The flanking chars are captured ($1,$3) and
+	// re-emitted. Without this, sample links were mangled into <em> spans.
+	italicRe = regexp.MustCompile(`(^|[^0-9A-Za-z_])_([^_]+?)_([^0-9A-Za-z_]|$)`)
 	linkRe   = regexp.MustCompile(`\[(.+?)\]\(([^)]+)\)`)
 )
 
@@ -269,12 +274,26 @@ func renderInline(s string) string {
 
 func renderInlineNoCode(s string) string {
 	s = htmlEscape(s)
+	// Links are resolved first, walking the string in segments, so emphasis is
+	// only ever applied to prose and link text — never to a link destination.
+	// URLs routinely contain intra-word underscores (lang-01_hello.html) that the
+	// emphasis pass would otherwise rewrite into a stray </em>, breaking the href.
+	var b strings.Builder
+	last := 0
+	for _, loc := range linkRe.FindAllStringSubmatchIndex(s, -1) {
+		b.WriteString(emphasize(s[last:loc[0]]))
+		text, url := s[loc[2]:loc[3]], s[loc[4]:loc[5]]
+		b.WriteString(`<a href="` + rewriteLink(url) + `">` + emphasize(text) + "</a>")
+		last = loc[1]
+	}
+	b.WriteString(emphasize(s[last:]))
+	return b.String()
+}
+
+// emphasize applies bold/italic markup to a run of text that contains no links.
+func emphasize(s string) string {
 	s = boldRe.ReplaceAllString(s, "<strong>$1</strong>")
-	s = italicRe.ReplaceAllString(s, "<em>$1</em>")
-	s = linkRe.ReplaceAllStringFunc(s, func(m string) string {
-		sub := linkRe.FindStringSubmatch(m)
-		return `<a href="` + rewriteLink(sub[2]) + `">` + sub[1] + "</a>"
-	})
+	s = italicRe.ReplaceAllString(s, "${1}<em>${2}</em>${3}")
 	return s
 }
 
@@ -306,7 +325,7 @@ func rewriteLink(url string) string {
 func stripInline(s string) string {
 	s = strings.ReplaceAll(s, "`", "")
 	s = boldRe.ReplaceAllString(s, "$1")
-	s = italicRe.ReplaceAllString(s, "$1")
+	s = italicRe.ReplaceAllString(s, "${1}${2}${3}")
 	s = linkRe.ReplaceAllString(s, "$1")
 	return s
 }

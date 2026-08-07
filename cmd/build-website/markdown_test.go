@@ -81,6 +81,31 @@ func TestRenderNestedFence(t *testing.T) {
 	}
 }
 
+// TestRenderLinkUnderscores guards the "Language chapters" table: links whose
+// text and destination contain intra-word underscores (01_hello,
+// lang-02_values_and_types.html) must render as clean anchors, never mangled
+// into <em> spans. Regression for the corrupted sample links on the site.
+func TestRenderLinkUnderscores(t *testing.T) {
+	cases := map[string]string{
+		"- [01_hello](lang-01_hello.html)\n":                       `<a href="lang-01_hello.html">01_hello</a>`,
+		"- [02_values_and_types](lang-02_values_and_types.html)\n": `<a href="lang-02_values_and_types.html">02_values_and_types</a>`,
+		"[24_interfaces](24_interfaces.md)\n":                      `<a href="24_interfaces.html">24_interfaces</a>`,
+	}
+	for src, want := range cases {
+		out, _ := renderMarkdown(src)
+		if !strings.Contains(out, want) {
+			t.Errorf("render(%q)\n  missing %q\n  got:     %s", src, want, out)
+		}
+		if strings.Contains(out, "<em>") {
+			t.Errorf("render(%q) wrongly emphasized underscores:\n%s", src, out)
+		}
+	}
+	// A genuine _emphasis_ flanked by non-word chars still renders.
+	if out, _ := renderMarkdown("a real _word_ here\n"); !strings.Contains(out, "<em>word</em>") {
+		t.Errorf("real underscore emphasis lost:\n%s", out)
+	}
+}
+
 // TestRenderTerminates ensures the renderer never loops forever on assorted
 // block combinations (each rendered under the test's own timeout).
 func TestRenderTerminates(t *testing.T) {
