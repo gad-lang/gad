@@ -60,3 +60,37 @@ func TestDocCommandJSONYAML(t *testing.T) {
 	require.Equal(t, "gad", gy.Lang)
 	require.Contains(t, gy.Prose, "# Demo")
 }
+
+// TestDocCommandStdoutTree runs `gad doc --out - --json` on a nested source tree
+// and checks the whole document tree is encoded to stdout (no files written).
+func TestDocCommandStdoutTree(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "sub"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.gad"), []byte("/*** # A ***/\nreturn 1\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "sub", "b.gad"), []byte("/*** # B ***/\nreturn 2\n"), 0o644))
+
+	orig, _ := os.Getwd()
+	require.NoError(t, os.Chdir(dir))
+	defer func() { _ = os.Chdir(orig) }()
+
+	var out, errBuf bytes.Buffer
+	inCtx := &cc.CommandContext{Out: &out, Err: &errBuf, InputArgs: cc.Args{
+		"--no-config", "--no-doctest", "--out", "-", "--json", ".", "sub/...",
+	}}
+	runCtx, err := docCommand().Parse(inCtx)
+	require.NoError(t, err)
+	runCtx.Out, runCtx.Err = &out, &errBuf // capture the encoded tree
+	require.NoError(t, runCtx.Run())
+
+	// No doc/ directory is created in stdout mode.
+	_, statErr := os.Stat(filepath.Join(dir, "doc"))
+	require.True(t, os.IsNotExist(statErr))
+
+	var tree docTreeNode
+	require.NoError(t, json.Unmarshal(out.Bytes(), &tree))
+	require.Len(t, tree.Docs, 1)
+	require.Equal(t, "a", tree.Docs[0].Name)
+	require.Contains(t, tree.Dirs, "sub")
+	require.Len(t, tree.Dirs["sub"].Docs, 1)
+	require.Equal(t, "b", tree.Dirs["sub"].Docs[0].Name)
+}

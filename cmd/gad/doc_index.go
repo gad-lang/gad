@@ -48,16 +48,34 @@ func (o *docOptions) generateIndexes(ctx *cc.CommandContext, tset *docTemplateSe
 				return err
 			}
 		}
+		// JSON/YAML indexes follow the same per-directory rule, encoding the
+		// index structure instead of rendering a template.
+		if o.json {
+			if err := o.writeEncodedIndex(ctx, dir, node, "json"); err != nil {
+				return err
+			}
+		}
+		if o.yaml {
+			if err := o.writeEncodedIndex(ctx, dir, node, "yaml"); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
 
 // indexFileName maps an output extension to its directory index file name.
 func indexFileName(ext string) string {
-	if ext == "html" {
+	switch ext {
+	case "html":
 		return "index.html"
+	case "json":
+		return "README.json"
+	case "yaml":
+		return "README.yaml"
+	default:
+		return "README.md"
 	}
-	return "README.md"
 }
 
 // writeIndex renders and writes one directory index (ext "md" or "html").
@@ -152,6 +170,34 @@ func buildIndexDict(dir string, node *indexNode, ext, indexFile string) gad.Dict
 
 	name := filepath.Base(dir)
 	return gad.Dict{"name": gad.Str(name), "path": gad.Str(dir), "items": items, "dirs": dirs}
+}
+
+// buildIndexData is the Go-struct counterpart of buildIndexDict, for the encoded
+// (JSON/YAML) directory indexes: the same directory name, file entries and
+// subdirectory links (ext-suffixed; subdir links point at the subdirectory's
+// index file).
+func buildIndexData(dir string, node *indexNode, ext, indexFile string) indexEncoded {
+	names := make([]string, 0, len(node.files))
+	for _, f := range node.files {
+		names = append(names, strings.TrimSuffix(filepath.Base(f), filepath.Ext(f)))
+	}
+	sort.Strings(names)
+	items := make([]indexEntry, 0, len(names))
+	for _, n := range names {
+		items = append(items, indexEntry{Name: n, File: n + "." + ext})
+	}
+
+	subs := make([]string, 0, len(node.dirs))
+	for d := range node.dirs {
+		subs = append(subs, filepath.Base(d))
+	}
+	sort.Strings(subs)
+	dirs := make([]indexEntry, 0, len(subs))
+	for _, d := range subs {
+		dirs = append(dirs, indexEntry{Name: d, File: d + "/" + indexFile})
+	}
+
+	return indexEncoded{Name: filepath.Base(dir), Path: dir, Items: items, Dirs: dirs}
 }
 
 // renderIndexTemplate compiles and runs an index template with `param (index

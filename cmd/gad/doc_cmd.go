@@ -68,6 +68,11 @@ type docOptions struct {
 	// per-directory index generation (README.md / index.html).
 	written    []string
 	indexRoots map[string]bool
+
+	// stdout is set by `--out -`: instead of writing files, every doc is
+	// collected into docTree and the whole tree is encoded (JSON/YAML) to stdout.
+	stdout  bool
+	docTree *docTreeNode
 }
 
 const defaultDocOut = "doc"
@@ -195,6 +200,13 @@ func (o *docOptions) finalize() {
 	if o.noSkip {
 		o.skip = false
 	}
+	// `--out -` streams the whole doc tree, encoded, to stdout instead of writing
+	// files; leave o.out as the "-" sentinel rather than absolutizing it.
+	if o.out == "-" {
+		o.stdout = true
+		o.dstSet = true
+		return
+	}
 	if o.out != "" {
 		o.out = o.absFrom(o.workspace, o.out)
 		o.dstSet = true
@@ -292,9 +304,18 @@ func (o *docOptions) run(ctx *cc.CommandContext) error {
 		}
 	}
 
-	// Per-directory indexes (README.md / index.html) are generated once all the
-	// per-file docs are written, in template mode only.
-	if tset := o.resolveDocTemplates(); tset.any() && !o.noSave {
+	// `--out -`: encode the whole collected tree to stdout (no files, no indexes).
+	if o.stdout {
+		if o.examplesFailed > 0 {
+			return fmt.Errorf("doc: %d embedded example(s) failed", o.examplesFailed)
+		}
+		return o.encodeTreeToStdout(ctx)
+	}
+
+	// Per-directory indexes (README.md / index.html / README.json / README.yaml)
+	// are generated once all the per-file docs are written — whenever a template
+	// or an encoded output is active.
+	if tset := o.resolveDocTemplates(); !o.noSave && (tset.any() || o.json || o.yaml) {
 		if err := o.generateIndexes(ctx, tset); err != nil {
 			return err
 		}
@@ -337,6 +358,12 @@ func (o *docOptions) processFile(ctx *cc.CommandContext, path, dst, base string)
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return err
+	}
+
+	// `--out -`: collect the encoded doc into the tree; nothing is written per
+	// file (the whole tree is encoded to stdout once every file is processed).
+	if o.stdout {
+		return o.collectEncoded(path, base, src)
 	}
 
 	gen := &DocGenerator{
