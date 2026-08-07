@@ -1,15 +1,18 @@
 /***
-27_destructuring.gad — binding several variables at once from arrays and named
-data. Gad has three destructuring shapes:
+# Destructuring
 
-  1. arrays        x, y := [1, 2]
-  2. named `(; …)` (; key:target, r=2, **rest ) := source   (key on the left)
-  3. named `{ … }` { key: target, r=2, **rest } := source   (TypeScript order)
+Bind several variables at once from arrays and named data. Gad has three
+destructuring shapes:
+
+  1. arrays        `x, y := [1, 2]`
+  2. named `(; …)` `(; key: target, r = 2, **rest) := source`  (key on the left)
+  3. named `{ … }` `{ key: target, r = 2, **rest } := source`  (TypeScript order)
 
 Forms 2 and 3 are the same feature with different brackets — both key-on-the-
 left. They work on any named data — dicts, modules, key-value arrays, named
 args — because the source is run through the default `dict()` constructor first.
-See doc/collections.md and doc/variables-and-scopes.md for detailed documentation.
+Part of the [Collections](04_collections.gad) chapter. This whole sample is a
+runnable tour; the full listing is in the Example below.
 ***/
 
 // ── 1. Arrays ────────────────────────────────────────────────────────────────

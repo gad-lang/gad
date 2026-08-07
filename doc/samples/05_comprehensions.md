@@ -1,21 +1,48 @@
-# 05_comprehensions
 
-05_comprehensions.gad — Python-like array and dict comprehensions.
-See doc/collections.md for detailed documentation.
+# Comprehensions
+
+Python-like comprehensions build a collection from an iterable. Part of the
+[Collections](04_collections.gad) chapter.
+
+## Array comprehensions
+
+`[expr for x in iterable]` with an optional `if` filter; several `for` clauses
+nest (the last varies fastest).
+
+```gad
+evens := [n for n in [1, 2, 3, 4, 5, 6] if n % 2 == 0]
+squares := [n * n for n in [1, 2, 3, 4] if n > 1]
+pairs := [i + j for i in [1, 2] for j in [10, 20]] // nested; last varies fastest
+[evens, squares, pairs]
+// => [[2, 4, 6], [4, 9, 16], [11, 21, 12, 22]]
+```
+
+## Dict comprehensions
+
+`{key: value for x in iterable}` builds a dict. **Keys are static (literal) by
+default**; wrap the key in `[ ]` to compute it. The special name `_` refers to
+the dict being built, so it can accumulate across iterations.
+
+```gad
+lengths := {[w]: len(w) for w in ["a", "bb", "ccc"]} // [w] computes the key
+// `_` accumulates into the dict being built
+counts := {[v]: (_[v] ?? 0) + 1 for v in ["a", "b", "a", "a"]}
+[lengths, counts]
+// => [{a: 1, bb: 2, ccc: 3}, {a: 3, b: 1}]
+```
 
 ## Example — `05_comprehensions.gad`
 
 ```gad
-/// Array comprehension: [expr for x in iterable if cond]
 evens := [n for n in [1, 2, 3, 4, 5, 6] if n % 2 == 0]
-println("evens   =", evens)
-
 squares := [n * n for n in [1, 2, 3, 4] if n > 1]
-println("squares =", squares)
+pairs := [i + j for i in [1, 2] for j in [10, 20]] // nested; last varies fastest
+[evens, squares, pairs]
 
-/// Dict comprehension: {key: value for x in iterable}
-lengths := {w: len(w) for w in ["a", "bb", "ccc"]}
-println("lengths =", lengths)
+lengths := {[w]: len(w) for w in ["a", "bb", "ccc"]} // [w] computes the key
+// `_` accumulates into the dict being built
+counts := {[v]: (_[v] ?? 0) + 1 for v in ["a", "b", "a", "a"]}
+[lengths, counts]
 
-return squares
+return [4, 9, 16]
 ```

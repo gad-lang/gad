@@ -1,9 +1,10 @@
-# 22_key_value_array
 
-22_key_value_array.gad — keyValue (`[k=v]`) and keyValueArray (`(;…)`): an
-ordered list of key=value pairs (duplicate keys allowed) — the literal form
-behind named arguments.
-See doc/collections.md for detailed documentation.
+# KeyValue Arrays
+
+`keyValue` (`[k = v]`) and `keyValueArray` (`(; … )`) are an ordered list of
+`key = value` pairs (duplicate keys allowed) — the literal form behind named
+arguments. Part of the [Collections](04_collections.gad) chapter. This whole
+sample is a runnable tour; the full listing is in the Example below.
 
 ## Example — `22_key_value_array.gad`
 

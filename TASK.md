@@ -32,6 +32,31 @@ more doc/sample drift.
 - [ ] Follow-up: gadt/gadx shebang round-trip on format; .gadt module prose
 
 ## Log
+### 2026-08-07 (content migration + 2 compiler bug fixes)
+- MIGRATED into sample `/*** … ***/` headers (prose + @snippet regions with
+  verified `/**= **/` / `/**< **/` results), doc/*.md removed, doc/samples
+  regenerated. Commits: 1245013 (enums 20, error-handling 07), 19b09cb
+  (doc-comments 16, special-keywords 29), 56ea81e (control-flow → 06+18),
+  b2ae3c7 (properties 31), c1cbea4 (functions → 03+10), 515c81a (collections
+  core → 04). b70f770 reverted snippet result rendering to Python-docs inline
+  `// =>` / `Output:` (per user).
+- COMPILER FIX (in c1cbea4): a call with a non-trailing positional spread
+  (`f(*a, b)`, `f(1,*a,2,*b)`, incl. the arrow `func(*a;**k)=> …` form) recursed
+  forever in the Gadx compile fallback and overflowed the stack — but only with
+  the fallback installed, which CompileFile does by default for every .gad file
+  run by the CLI (pure-compiler tests never hit it). Bounded the fallback
+  recursion (compiler_gadx.go fallbackDepth cap). Regression
+  TestCallManySpreadsWithGadxFallback. `go test ./...` exit 0.
+- Verified API facts the result-markers surfaced (documented correctly now):
+  `delete` is a STATEMENT (`delete m.a`), `arr += x` APPENDS x as one element
+  (concat is `arr + x`), a keyValue array indexes by int (not key selector).
+- REMAINING to migrate: collections comprehensions→05, keyValue→22,
+  destructuring→27 (then rm collections.md); values-and-types→02,
+  variables-and-scopes, operators (→14/15/17), classes→11/19,
+  method-interfaces→12, interfaces→24, strings-bytes-regex→08, modules,
+  templates→09/23, metaprogramming. Then repoint doc/README.md and wire
+  doc/samples into cmd/build-website. Plus JSON/YAML doc output.
+
 ### 2026-08-06 (docs-from-samples infrastructure)
 - Flags/renderer: `--doc-template-md/html`, `--html`, `--no-template` added
   (cmd/gad/doc_cmd.go); renderDocTemplate is now dialect-aware by template
