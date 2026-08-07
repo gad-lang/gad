@@ -1,7 +1,54 @@
 /***
-11_classes.gad — the class system: fields, methods, properties,
-constructors, inheritance and `met` extensions.
-See doc/classes.md for detailed documentation.
+# Classes (the `Class(...)` builtin)
+
+Gad's class system is built on the `Class(name, define)` builtin. A class
+describes **fields**, **methods**, **properties** and one or more
+**constructors**, and can **extend** other classes; calling a class creates an
+instance. The high-level [`class` keyword](19_class_syntax.gad) lowers to this
+builtin.
+
+## Defining
+
+`Class(name, define)` takes the name positionally and an optional **define
+handler** `(cls, define) => …` that receives the in-construction class and a
+`define` function; `define(; …)` registers members as named args: `fields`,
+`methods`, `properties`, `new` (the constructor) and `extends`. All are optional.
+
+## Fields
+
+Fields are a `(; … )` group; each may have a type (annotation, not enforced) and
+a default. A default may be a **computed value** `(= … )`, evaluated fresh per
+instance — handy for per-instance mutable defaults.
+
+## Constructors
+
+Without a `new`, a class is constructed by passing fields as named args
+(`Point(; x=3)`). Define `new` (func-with-methods) for positional overloads; the
+first parameter is the `new` **initiator** — `new(; field=value, …)` initialises
+and returns the instance, and a recursive `new` falls to the default initiator so
+construction terminates.
+
+## Methods & properties
+
+Methods take a first `this` param and may overload by arity/type. Properties are
+computed members with a getter (no extra param) and typed setters (one extra
+param), accessed like fields.
+
+## Inheritance
+
+`extends = [Parent, …]` embeds parents (Go-style anonymous fields): their fields,
+methods and properties are **promoted** and a same-named child method overrides.
+A promoted field is **shared** with the embedded parent instance.
+
+## Extending with `met` / `met ~` / `$old`
+
+`met` attaches behaviour to an existing class from outside — extra methods,
+operator overloads (`met gad.binOpAdd`), type conversions (`met str(v Vec)`),
+custom printing. `met ~Class.name(...)` **overrides** an existing member (method,
+constructor or property setter); a `$old` first parameter captures the previous
+implementation for super/around wrapping.
+
+The Example below is a runnable tour.
 ***/
 
 // --- a class with fields, a constructor and methods ---

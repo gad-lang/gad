@@ -1,17 +1,27 @@
-# 19_class_syntax
 
-19_class_syntax.gad — the `class` keyword: a readable block syntax that
-compiles to the Class(...) builtin (see 11_classes.gad for the builtin form).
+# The `class` keyword
 
-Doc comments attach to the class and to its members: `///` for a single line,
-`/** … **/` for a block, `/*** … ***/` for a module-level block like this one.
-See doc/classes.md for detailed documentation.
+The `class` keyword is a readable block syntax that lowers to the
+[`Class(...)` builtin](11_classes.gad). A `class` block reads top to bottom:
+optional parent spreads (`*Parent`), bare fields, then `props {}`, `new` and
+`methods {}` groups (items separated by newlines or commas).
+
+The first parameter is inserted automatically — you do not write it: `this` for
+methods and property accessors, and `new` (the class initiator) for
+constructors. A method takes a typed `this cls` (so overloads dispatch on
+argument types); a `name = expr` entry in `props`/`methods` is shorthand for a
+zero-argument accessor `() => expr`. The statement form `class Name { … }`
+defines a const; there are also anonymous expression and `export class` forms.
+Everything else — field defaults, typed fields, inheritance, overloaded
+methods/constructors — works exactly as in the `Class(...)` builtin.
+
+Doc comments attach to the class and its members (`///`, `/** … **/`,
+`/*** … ***/`). The Example below is a runnable tour.
 
 ## Example — `19_class_syntax.gad`
 
 ```gad
-` for a module-level block like this one.
-See doc/classes.md for detailed documentation.
+`). The Example below is a runnable tour.
 ***/
 
 /**
