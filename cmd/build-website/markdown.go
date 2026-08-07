@@ -23,6 +23,26 @@ var (
 	linkRe   = regexp.MustCompile(`\[(.+?)\]\(([^)]+)\)`)
 )
 
+// backtickRun returns the number of leading backticks in s (0 if it does not
+// start with one).
+func backtickRun(s string) int {
+	n := 0
+	for n < len(s) && s[n] == '`' {
+		n++
+	}
+	return n
+}
+
+// isClosingFence reports whether line closes a fenced code block opened with
+// `open` backticks: per CommonMark the closer is a run of at least `open`
+// backticks followed only by whitespace (no info string). A shorter run, or a
+// run trailed by other text (e.g. an inner ```gad opener), is content.
+func isClosingFence(line string, open int) bool {
+	t := strings.TrimRight(line, " \t")
+	n := backtickRun(t)
+	return n >= open && n == len(t)
+}
+
 // renderMarkdown converts src to an HTML body and returns the headings found.
 func renderMarkdown(src string) (string, []Heading) {
 	lines := strings.Split(src, "\n")
@@ -35,12 +55,17 @@ func renderMarkdown(src string) (string, []Heading) {
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
 
-		// Fenced code block.
-		if fence := strings.TrimRight(line, " "); strings.HasPrefix(fence, "```") {
-			lang := strings.TrimSpace(strings.TrimPrefix(fence, "```"))
+		// Fenced code block. CommonMark: the opening fence is a run of >= 3
+		// backticks and closes only on a line that is a run of AT LEAST as many
+		// backticks (with nothing but whitespace after). Shorter runs inside — a
+		// ```gad doctest embedded in the fenced source — are literal content, not
+		// a close. Tracking the opening width is what keeps a wider outer fence
+		// from being closed early by an inner ``` (see cmd/gad fenceFor).
+		if open := backtickRun(strings.TrimRight(line, " ")); open >= 3 {
+			lang := strings.TrimSpace(line[open:])
 			var code []string
 			i++
-			for i < len(lines) && !strings.HasPrefix(strings.TrimRight(lines[i], " "), "```") {
+			for i < len(lines) && !isClosingFence(lines[i], open) {
 				code = append(code, lines[i])
 				i++
 			}
