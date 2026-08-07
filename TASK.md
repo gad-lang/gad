@@ -25,13 +25,32 @@ more doc/sample drift.
 - [x] Shebang `#!…` on line 1 of .gad (round-trips through `gad fmt`) and .gadt
       (ignored at run time)
 - [x] Makefile `samples-doc` → `doc/samples/`; `generate-docs` depends on it
+- [x] Migrate all 18 language docs into the samples, remove from doc/, repoint
+      doc/README.md (index → sample + generated doc)
+- [x] Incorporate doc/samples into the website (cmd/build-website "Language"
+      section: lang-<name>.html, link rewriting)
 - [ ] JSON/YAML doc output (encode the DOC dict that feeds the templates)
-- [ ] Migrate the 17 language docs + metaprogramming into the samples, remove from
-      doc/, repoint doc/README.md (index → sample + generated doc)
-- [ ] Incorporate doc/samples into the website (cmd/build-website)
 - [ ] Follow-up: gadt/gadx shebang round-trip on format; .gadt module prose
 
 ## Log
+### 2026-08-07 (migration COMPLETE + website + link repointing)
+- ALL 18 language docs now live in the samples; every doc/*.md language chapter
+  removed. Final chapters: strings-bytes-regex→08/21 (ff15c00), values-and-types
+  →02 + new variables-and-scopes→33 (e7306e4), method-interfaces→12 +
+  interfaces→24 (4351864), classes→11/19 (2392bea), operators→13/14/15/17/28
+  (5d684e3), modules→26 + templates→09/23 + metaprogramming→new 34 (31d9691).
+- doc/README.md repointed to the sample chapters (source + doc/samples/*.md).
+- WEBSITE (8a47e48): cmd/build-website gained a "Language" nav section rendering
+  doc/samples/*.md as lang-<name>.html with intra-sample link rewriting; verified
+  `build --no-wasm` emits 35 lang-*.html pages, cross-links resolve, no stale
+  `.gad` hrefs.
+- LINKS (683ac77): repointed the tooling/stdlib docs' cross-links to
+  samples/NN_name.md; site rewriteLink maps `samples/NN.md`→`lang-NN.html`.
+  Verified embedding.html → lang-14_user_operators.html.
+- EVIDENCE: `go build ./...` + `go test ./...` (root/parser/cmd/gad/
+  build-website) exit 0; `make samples-doc` regenerates doc/samples cleanly.
+- STILL OPEN: JSON/YAML doc output; gadt/gadx shebang format round-trip.
+
 ### 2026-08-07 (content migration + 2 compiler bug fixes)
 - MIGRATED into sample `/*** … ***/` headers (prose + @snippet regions with
   verified `/**= **/` / `/**< **/` results), doc/*.md removed, doc/samples
