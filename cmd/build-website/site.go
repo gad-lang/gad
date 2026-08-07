@@ -909,6 +909,7 @@ func writeAssets(outDir string) error {
 		"styles.css": siteCSS,
 		"search.js":  searchJS,
 		"theme.js":   themeJS,
+		"nav.js":     navJS,
 		"play.js":    playJS,
 	}
 	for name, content := range files {

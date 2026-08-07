@@ -15,19 +15,22 @@ const layoutTemplate = `<!DOCTYPE html>
 </head>
 <body>
 <header class="site-header">
+  <button class="nav-toggle" id="sidebarToggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">☰</button>
   <a class="brand" href="{{.Base}}index.html"><img class="brand-logo" src="{{.Base}}gad.svg" alt="" width="30" height="30"><span class="brand-name">Gad</span></a>
   <div class="search"><input id="q" type="search" placeholder="Search docs…" autocomplete="off"><div id="results"></div></div>
-  <nav class="header-links">
+  <nav class="header-links" id="headerLinks">
     {{if .HasRelease}}<a class="rel-chip" href="{{.Base}}download.html" title="Current release">{{.ReleaseName}}</a>{{end}}
     {{if .PlayHref}}<a href="{{.Base}}{{.PlayHref}}">Playground</a>{{end}}
     <a href="{{.Base}}download.html">Download</a>
     <a href="{{.TasksURL}}" target="_blank" rel="noopener">Tasks</a>
     <a href="{{.RepoURL}}" target="_blank" rel="noopener">Repo</a>
   </nav>
+  <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu" aria-controls="headerLinks" aria-expanded="false">⋯</button>
   <button class="theme-toggle" id="theme" title="Toggle theme">◐</button>
 </header>
+<div class="nav-backdrop" id="navBackdrop"></div>
 <div class="layout">
-  <nav class="sidebar">
+  <nav class="sidebar" id="sidebar">
     {{range .Groups}}<div class="nav-group"><div class="nav-title">{{.Name}}</div>
       {{range .Pages}}<a class="nav-link{{if eq .OutFile $.Active}} active{{end}}" href="{{$.Base}}{{.OutFile}}">{{.Title}}</a>{{end}}
     </div>{{end}}
@@ -37,6 +40,7 @@ const layoutTemplate = `<!DOCTYPE html>
 </div>
 <footer class="site-footer">Gad — a fast, dynamic scripting language embedded in Go. Built with <code>cmd/build-website</code>.</footer>
 <script src="{{.Base}}theme.js"></script>
+<script src="{{.Base}}nav.js"></script>
 <script src="{{.Base}}search.js"></script>
 {{if .Prism}}<script src="{{.Base}}prism.js" defer></script>{{end}}
 </body>
@@ -106,7 +110,10 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .header-links a:hover{color:var(--accent);background:var(--accent-soft);text-decoration:none}
 .rel-chip{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#04121b!important;border-radius:999px;padding:.2rem .7rem;font-weight:700;font-size:.8rem;white-space:nowrap}
 .rel-chip:hover{text-decoration:none;filter:brightness(1.06)}
-.layout{display:grid;grid-template-columns:250px minmax(0,1fr) 200px;gap:2rem;max-width:1240px;margin:0 auto;padding:2rem 1.2rem}
+.nav-toggle,.menu-toggle{display:none;background:transparent;border:1px solid var(--border);color:var(--fg);border-radius:9px;padding:.35rem .55rem;cursor:pointer;font-size:1.05rem;line-height:1;transition:background .15s,border-color .15s}
+.nav-toggle:hover,.menu-toggle:hover{background:var(--accent-soft);border-color:var(--accent)}
+.nav-backdrop{display:none;position:fixed;inset:0;background:rgba(13,27,42,.45);z-index:25}
+.layout{display:grid;grid-template-columns:230px minmax(0,1fr) 190px;gap:1.8rem;max-width:1480px;margin:0 auto;padding:2rem 1.4rem}
 .sidebar{position:sticky;top:72px;align-self:start;max-height:calc(100vh - 90px);overflow:auto;padding-right:.3rem}
 .nav-group{margin-bottom:1.3rem}
 .nav-title{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.45rem;font-weight:700}
@@ -185,10 +192,43 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .card p{color:var(--muted);margin:0 0 .8rem;font-size:.93rem}
 .card pre{margin:.2rem 0 .9rem;font-size:.82rem}
 .card .card-link{margin-top:auto;font-weight:600}
-@media(max-width:980px){.layout{grid-template-columns:1fr}.sidebar,.toc{position:static;max-height:none}.toc{border-left:none;padding-left:0;border-top:1px solid var(--border);padding-top:1rem}}
-@media(max-width:700px){.header-links{display:none}.home-hero h1{font-size:2rem}}`
+@media(max-width:980px){
+  .layout{grid-template-columns:1fr}
+  .toc{position:static;max-height:none;border-left:none;padding-left:0;border-top:1px solid var(--border);padding-top:1rem}
+  .nav-toggle{display:inline-flex}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:82%;max-width:300px;max-height:none;transform:translateX(-100%);transition:transform .22s ease;background:var(--panel);border-right:1px solid var(--border);box-shadow:0 14px 40px rgba(13,27,42,.35);z-index:35;padding:4.4rem 1.1rem 1.4rem;overflow:auto}
+  body.sidebar-open .sidebar{transform:none}
+  body.sidebar-open .nav-backdrop{display:block}
+}
+@media(max-width:700px){
+  .home-hero h1{font-size:2rem}
+  .menu-toggle{display:inline-flex}
+  .header-links{position:absolute;top:calc(100% + .35rem);right:.6rem;display:none;flex-direction:column;align-items:stretch;gap:.1rem;min-width:190px;padding:.5rem;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 30px rgba(13,27,42,.2);z-index:36}
+  body.menu-open .header-links{display:flex}
+  .header-links a{padding:.55rem .7rem}
+  .rel-chip{align-self:flex-start;margin-bottom:.15rem}
+}`
 
 const themeJS = `(function(){var b=document.getElementById("theme");if(!b)return;function cur(){return document.documentElement.dataset.theme==="dark"?"dark":"light"}b.textContent=cur()==="dark"?"☀":"☾";b.onclick=function(){var t=cur()==="dark"?"light":"dark";document.documentElement.dataset.theme=t;localStorage.setItem("gad-theme",t);b.textContent=t==="dark"?"☀":"☾"}})();`
+
+// navJS drives the mobile-collapsible navigation: the ☰ button toggles the
+// sidebar drawer (<=980px) and the ⋯ button toggles the header-links dropdown
+// (<=700px). Opening one closes the other; a backdrop click, an inner link, the
+// Escape key, or resizing back to desktop all close them.
+const navJS = `(function(){
+var body=document.body;
+function set(id,on){var b=document.getElementById(id);if(b)b.setAttribute("aria-expanded",on?"true":"false")}
+function closeAll(){body.classList.remove("sidebar-open","menu-open");set("sidebarToggle",false);set("menuToggle",false)}
+function bind(btnId,cls,otherBtn,otherCls){var b=document.getElementById(btnId);if(!b)return;b.addEventListener("click",function(e){e.stopPropagation();body.classList.remove(otherCls);set(otherBtn,false);var on=body.classList.toggle(cls);set(btnId,on)})}
+bind("sidebarToggle","sidebar-open","menuToggle","menu-open");
+bind("menuToggle","menu-open","sidebarToggle","sidebar-open");
+var bd=document.getElementById("navBackdrop");if(bd)bd.addEventListener("click",closeAll);
+function closeOnLink(id){var el=document.getElementById(id);if(el)el.addEventListener("click",function(e){if(e.target.closest("a"))closeAll()})}
+closeOnLink("sidebar");closeOnLink("headerLinks");
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closeAll()});
+document.addEventListener("click",function(e){if(!body.classList.contains("menu-open"))return;var h=document.getElementById("headerLinks"),m=document.getElementById("menuToggle");if(h&&!h.contains(e.target)&&m&&!m.contains(e.target))closeAll()});
+window.addEventListener("resize",function(){if(window.innerWidth>980)closeAll()});
+})();`
 
 const searchJS = `(function(){
 var q=document.getElementById("q"),res=document.getElementById("results"),idx=null,sel=-1;
