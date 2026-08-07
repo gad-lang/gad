@@ -44,6 +44,16 @@ more doc/sample drift.
       23_template.gadt updated; test TestExtractDocGadtModuleProse.
 
 ## Log
+### 2026-08-07 (interface funcs { … } section)
+- Interface context-function checks moved from the `:FnExpr <header>` prefix to a
+  `funcs { FnExpr <header>; … }` section (2ee234b). The `:` prefix no longer
+  parses (no back-compat, per user). Parser: parseContextFuncHeaders helper;
+  AST InterfaceContextFuncExpr dropped ColonPos, WriteCode emits without a colon,
+  the interface groups entries into `funcs { … }`. samples/24_interfaces.gad +
+  prose updated; parser (`funcs {…}` round-trip) + VM (single/several/block/mixed)
+  tests. `go test ./...` + gadx + make samples-doc exit 0. Plugins unchanged
+  (`funcs` is a contextual keyword like get/set, not in the global keyword list).
+
 ### 2026-08-07 (unified doc-comment grammar: /** **/ everywhere)
 - File/section-level docs now use the same two-star `/** … **/` form as statement
   docs, distinguished only by context: a block glued directly above a statement
