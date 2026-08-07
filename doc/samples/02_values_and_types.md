@@ -1,43 +1,124 @@
-# 02_values_and_types
 
-02_values_and_types.gad — primitive values and the typeof builtin.
-See doc/values-and-types.md for detailed documentation.
+# Values and Types
+
+In Gad, everything is a value and every value has a type. Use `typeof` (or
+`typeName`) to inspect a value's type at runtime.
+
+## Type overview
+
+| Type            | Description                        | Go equivalent       |
+|-----------------|-----------------------------------|---------------------|
+| `int` / `uint`  | signed / unsigned 64-bit integer  | `int64` / `uint64`  |
+| `float`         | 64-bit floating point             | `float64`           |
+| `decimal`       | arbitrary-precision decimal (`2d`)| shopspring/decimal  |
+| `bool`          | `true` / `false`                  | `bool`              |
+| `flag`          | `yes` / `no` (prints `on`/`off`)  | `bool`              |
+| `char`          | a single unicode code point (`'A'`)| `rune`             |
+| `str` / `rawStr`| unicode / raw (un-escaped) string | `string`            |
+| `bytes`         | byte slice (`b"…"`, `h"…"`)        | `[]byte`            |
+| `array` / `dict`| ordered list / string-keyed map   | `[]Object` / map    |
+| `keyValue` / `keyValueArray` | `k=v` pair / ordered pairs | —              |
+| `error` / `nil` | error value / absence of a value  | —                   |
+
+Related chapters: [Collections](04_collections.gad),
+[KeyValue arrays](22_key_value_array.gad),
+[Strings, bytes & regex](08_strings_bytes_regex.gad),
+[Functions](03_functions.gad), [Properties](31_properties.gad).
+
+## Type constructors
+
+Every value type is **callable as a constructor** that converts a compatible
+value (`int("42")`, `float(3)`, `str(7)`, `char(65)`, `bool(0)`, …). Each is
+built from typed methods — one overload per input kind — so the conversion is
+chosen by the argument's type. List them with `repr(T; indent)`. New typed
+methods can be added with `met` (or from Go with `AddMethod`).
+
+```gad
+[int("42"), int("0x1F"), float(-51), str(1984), char(88), int('A')]
+// => [42, 31, -51, "1984", 'X', 65]
+```
+
+## Numbers, booleans & flags
+
+Numeric literals: `int` (`19`, `0x1F`=31, `017`=15), `uint` (`5u`), `float`
+(`1e10`), `decimal` (`2d`). `bool` is `true`/`false`; `flag` is a distinct on/off
+type written `yes`/`no` and printed `on`/`off`.
+
+```gad
+[typeName(19), typeName(5u), typeName(1e10), typeName(2d), 0x1F, 017]
+// => ["int", "uint", "float", "decimal", 31, 15]
+```
+
+## Characters
+
+A `char` is a single unicode code point in single quotes. Adding an int shifts
+the code point and keeps the `char` type.
+
+```gad
+['A' + 1, char(88), int('A'), 'ç' > '9']
+// => ['B', 'X', 65, true]
+```
+
+## Equality
+
+`==` compares values and coerces between numeric kinds; `===` is strict (same
+type and value) and `!==` its negation. For `array`/`dict`, `===` is object
+identity — every literal is a fresh object.
+
+```gad
+a := [1, 2]
+[1 == 1u, 1 === 1u, 1.0 === 1, a === a, a === [1, 2]]
+// => [true, false, false, true, false]
+```
+
+## Nil
+
+`nil` represents a missing or undefined value: a function with no explicit
+`return`, a missing dict key, and some builtins yield `nil`.
+
+```gad
+x := func() { y := 4 }() // no explicit return -> nil
+[isNil(x), {a: "foo"}["b"] == nil]
+// => [true, true]
+```
+
+## Copy semantics
+
+Assignment copies values, except the reference types `array`, `dict` and `bytes`,
+which share their backing storage (as in Go). Use `copy` for a shallow copy and
+`dcopy` for a deep copy.
+
+```gad
+orig := [1, 2, 3]
+alias := orig  // shares storage
+alias[0] = 99
+indep := copy(orig) // independent shallow copy
+indep[1] = 0
+[orig[0], orig[1]]
+// => [99, 2]
+```
 
 ## Example — `02_values_and_types.gad`
 
 ```gad
-i := 42                 // int
-f := 3.14               // float
-b := true               // bool
-s := "text"             // str
-r := `raw\ttext`        // rawStr (no escapes)
-c := 'A'                // char
-n := nil                // nil
-arr := [1, 2, 3]        // array
-d := {a: 1, b: 2}       // dict
+[int("42"), int("0x1F"), float(-51), str(1984), char(88), int('A')]
 
-// typeof(v) returns the runtime type of a value.
-println("int    ", i, typeof(i))
-println("float  ", f, typeof(f))
-println("bool   ", b, typeof(b))
-println("str    ", s, typeof(s))
-println("rawStr ", r, typeof(r))
-println("char   ", c, typeof(c))
-println("nil    ", n, typeof(n))
-println("array  ", arr, typeof(arr))
-println("dict   ", d, typeof(d))
+[typeName(19), typeName(5u), typeName(1e10), typeName(2d), 0x1F, 017]
 
-// `==` compares values and coerces between numeric kinds; `===` is strict (same
-// type and value), and `!==` is its negation.
-println("1 == 1u   ", 1 == 1u)    // true  (coerced)
-println("1 === 1u  ", 1 === 1u)   // false (int vs uint)
-println("1.0 === 1 ", 1.0 === 1)  // false (float vs int)
-println("1 !== 1u  ", 1 !== 1u)   // true
+['A' + 1, char(88), int('A'), 'ç' > '9']
 
-/// For arrays/dicts `===` is object identity; every literal is a fresh object.
 a := [1, 2]
-println("a === a       ", a === a)         // true
-println("a === [1, 2]  ", a === [1, 2])    // false
+[1 == 1u, 1 === 1u, 1.0 === 1, a === a, a === [1, 2]]
 
-return [typeof(i), typeof(s), typeof(arr), typeof(d)]
+x := func() { y := 4 }() // no explicit return -> nil
+[isNil(x), {a: "foo"}["b"] == nil]
+
+orig := [1, 2, 3]
+alias := orig  // shares storage
+alias[0] = 99
+indep := copy(orig) // independent shallow copy
+indep[1] = 0
+[orig[0], orig[1]]
+
+return [typeof(42), typeof("s"), typeof([1]), typeof({a: 1})]
 ```

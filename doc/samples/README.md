@@ -34,3 +34,4 @@
 - [30_assign_and_append](30_assign_and_append.md)
 - [31_properties](31_properties.md)
 - [32_raw_argv](32_raw_argv.md)
+- [33_variables_and_scopes](33_variables_and_scopes.md)
