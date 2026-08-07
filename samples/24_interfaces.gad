@@ -1,8 +1,39 @@
 /***
-24_interfaces.gad — the `interface { … }` construct: a structural contract of
-typed fields, get/set/prop accessors and required methods. It compiles to an
-`Interface` value whose members are read by indexing.
-See doc/method-interfaces.md for detailed documentation.
+# Interfaces (`interface`)
+
+An `interface { … }` is a structural contract grouping typed fields,
+`get`/`set`/`prop` accessors, required methods and context-function checks. Like
+[`meti`](12_method_interfaces.gad) it compiles to a value (`Interface`) whose
+members are read by indexing; the statement form binds a const, the expression
+form is a value (compiled with an `ifaces#N` name).
+
+## Structural satisfaction
+
+A value **satisfies** an interface when it has every required field (with an
+assignable type), property and method (whose signatures match), plus any extended
+interface. Check it with the [`::` operator](14_user_operators.gad) or use an
+interface as a parameter type — a non-satisfier is rejected. Satisfaction works
+against any member-bearing value: class instances, dicts/key-value arrays (fields
+match keys, methods match callable keys) and reflected Go values (fields matched
+structurally, methods optimistically / duck-typed).
+
+## Context-function members (`:Expr <header>`)
+
+A member written `:Expr <(params)>` (or the block form) requires a **free
+function in scope** — not a method on the object — to *handle* the interface's
+object. `Expr` is captured by value where the interface is declared; the special
+positional type **`@self`** marks where the object is passed (every header must
+contain at least one `@self`). Such an interface is a runtime value and can also
+be built directly in Go (set `Interface.ContextFuncs`).
+
+## Caching (embedding)
+
+Interface-satisfaction results are memoized on the **root VM**, keyed by the
+interface and the value's type. Hosts can pre-warm/share the cache with
+`gad.NewInterfaceSatCache()` + `(*gad.VM).SetInterfaceSatCache`; the Gadx `Render`
+engine does this per compiled template.
+
+This whole sample is a runnable tour (see the Example below).
 ***/
 
 // A parent interface, spread into `Shape` with `*Base` below.
