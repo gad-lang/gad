@@ -1,12 +1,13 @@
-# 15_in_operator
 
-15_in_operator.gad — the `in` membership operator (`A in B`) and the `ain`
-array-membership operator (`A ain B`).
+# Membership (`in` / `ain`)
 
-`A in B` tests membership: a value for arrays/bytes, a key for the dict kinds.
-It is distinct from the `for x in y` loop (where `in` is the loop separator) —
-parenthesize to use it as the operator inside a for header: `for (x in y)`.
-See doc/operators.md for detailed documentation.
+`A in B` tests membership and yields a bool — a **value** for arrays/bytes, a
+**key** for the dict kinds, a **substring** for strings. `A ain B` ("all in") is
+true when **every** value of the left operand is a member of `B`. Both have
+comparison precedence and dispatch on the **right** operand (`met gad.binOpIn` /
+`gad.binOpAin` in Gad). `in` is also the `for x in y` loop separator —
+parenthesize to use it as the operator inside a for header: `for (x in y)`. Part
+of the [Operators](14_user_operators.gad) chapter.
 
 ## Example — `15_in_operator.gad`
 

@@ -1,10 +1,10 @@
 /***
-28_absent_coalescing.gad — the `!?` / `!?=` absent-coalescing operators and
-`global` defaults.
+# Absent-Coalescing (`!?` / `!?=`)
 
 `!?` / `!?=` are the existence-based counterparts of the nullish `??` / `??=`:
 they test whether a KEY is present in its container, where `??` tests whether a
-VALUE is nil.
+VALUE is nil (a key present with a `nil` value still counts as present). Part of
+the [Operators](14_user_operators.gad) chapter.
 
 Run with:  gad run samples/28_absent_coalescing.gad
 See doc/operators.md for detailed documentation.

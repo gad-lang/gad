@@ -1,10 +1,11 @@
 /***
-17_unary_operators.gad — the unary operators `!`, `-`, `+`, `^`, `++`, `--`
-and customising them with `met gad.unOp{Op}`.
+# Unary Operators
 
-Every unary operator is dispatched through its `gad.unOp{Op}(operand)` builtin
-(e.g. `gad.unOpSub`); the VM applies one to the top of the stack, and a type can
-override it.
+`!` (logical NOT on any value's truthiness), `-` (negation), `+` (identity), `^`
+(bitwise complement), and the prefix `++x` / `--x` (mutate a variable and yield
+its new value). Every unary operator is dispatched through its
+`gad.unOp{Op}(operand)` builtin (e.g. `gad.unOpSub`); a type can override it with
+`met gad.unOp{Op}(v T)`. Part of the [Operators](14_user_operators.gad) chapter.
 ***/
 
 // Numeric / char operators.

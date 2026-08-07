@@ -1,7 +1,11 @@
-# 13_ranges
 
-13_ranges.gad — the `..` range operator and the Range builtin.
-See doc/operators.md for detailed documentation.
+# Ranges (`..`)
+
+`from .. to` builds an inclusive, iterable `Range` (sugar for the `Range(from,
+to)` builtin) over the numeric kinds, `char` and the temporal types; it runs
+ascending or descending depending on its bounds. The step is set with `/` (note
+`..` binds tighter, so `1 .. 10 / 2` is `(1 .. 10) / 2`), the `step` named arg,
+or `r.step(n)`. Part of the [Operators](14_user_operators.gad) chapter.
 
 ## Example — `13_ranges.gad`
 
