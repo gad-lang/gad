@@ -112,14 +112,18 @@ export function gadToken(stream: StringStream, state: GadState): string | null {
 
   const ch = stream.peek() as string;
 
-  // Doc comments (`///` single, `/**`…`**/` and `/***`…`***/` blocks) come
-  // before the ordinary // and /* checks so their markers are not read as
-  // plain `//`/`/*` comments.
-  if (stream.match("/***")) {
+  // Doc comments come before the ordinary // and /* checks so their markers are
+  // not read as plain `//`/`/*` comments: `///` single-line, and the unified
+  // `/** … **/` block (three-star `/*** … ***/` is deprecated but recognized).
+  // A block's OPENING fence must be ALONE on its line — only whitespace before
+  // and after it — so an inline `/** text **/` (and the `/**= … **/` / `/**< … **/`
+  // doc-generation markers) is an ordinary comment, not a doc block.
+  const openAlone = /^[ \t]*$/.test(stream.string.slice(0, stream.pos));
+  if (openAlone && stream.match(/^\/\*\*\*(?=[ \t]*$)/)) {
     state.docFence = "***/";
     return tokenDocBlock(stream, state);
   }
-  if (stream.match("/**")) {
+  if (openAlone && stream.match(/^\/\*\*(?=[ \t]*$)/)) {
     state.docFence = "**/";
     return tokenDocBlock(stream, state);
   }

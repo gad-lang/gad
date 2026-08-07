@@ -43,15 +43,19 @@ const word = (words: string[]) => new RegExp(`\\b(?:${words.join("|")})\\b`);
  * several string forms so they win over later token rules.
  */
 export const gadGrammar: Grammar = {
-  // Doc comments (`///` single, `/**`…`**/` and `/***`…`***/` blocks) come
-  // before ordinary comments so their markers are not read as `//`/`/*`
-  // comments. A block ends only at a line that is exactly the fence, so inline
-  // `**bold**`/`***hr***` Markdown does not close it early.
-  // Inside blocks, ``` fence markers and `>>> ` result assertion lines are
-  // highlighted with distinct classes.
+  // Doc comments: `///` single-line, and `/** … **/` block (the three-star
+  // `/*** … ***/` form is deprecated but still recognized). The unified block
+  // documents the statement it sits directly above, or the module/section when a
+  // blank line follows it. Its OPENING fence must be alone on its line, so an
+  // inline `/** text **/` (and the `/**= … **/` / `/**< … **/` doc-generation
+  // markers) is an ordinary comment, not a doc block. A block ends only at a line
+  // that is exactly the closing fence, so inline `**bold**`/`***hr***` Markdown
+  // does not close it early. Doc comments come before ordinary comments so their
+  // markers are not read as `//`/`/*`. Inside blocks, ``` fence markers and
+  // `>>> ` result assertion lines are highlighted with distinct classes.
   "doc-comment": {
     pattern:
-      /\/\*\*\*[\s\S]*?(?:^[ \t]*\*\*\*\/[ \t]*$|$(?![\s\S]))|\/\*\*[\s\S]*?(?:^[ \t]*\*\*\/[ \t]*$|$(?![\s\S]))|\/\/\/(?!\/).*/m,
+      /\/\*\*\*[ \t]*$[\s\S]*?(?:^[ \t]*\*\*\*\/[ \t]*$|$(?![\s\S]))|\/\*\*[ \t]*$[\s\S]*?(?:^[ \t]*\*\*\/[ \t]*$|$(?![\s\S]))|\/\/\/(?!\/).*/m,
     greedy: true,
     alias: "comment",
     inside: {

@@ -27,12 +27,12 @@
       "patterns": [
         {
           "name": "comment.block.documentation.gad",
-          "begin": "/\\*\\*\\*",
+          "begin": "^[ \\t]*/\\*\\*\\*[ \\t]*$",
           "end": "^\\s*\\*\\*\\*/\\s*$"
         },
         {
           "name": "comment.block.documentation.gad",
-          "begin": "/\\*\\*",
+          "begin": "^[ \\t]*/\\*\\*[ \\t]*$",
           "end": "^\\s*\\*\\*/\\s*$"
         },
         {
