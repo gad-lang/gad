@@ -1,12 +1,33 @@
-# 21_heredocs
 
-21_heredocs.gad — heredocs and template heredocs.
+# Heredocs and Code Strings
 
-  """ ... """     heredoc      -> str     (escapes interpreted, indent stripped)
-  ``` ... ```     raw heredoc  -> rawStr  (verbatim: no escapes, no interpolation)
-  #""" ... """    template heredoc      (str, with {expr} interpolation)
-  #``` ... ```    template raw heredoc  (rawStr, verbatim, with {expr})
-See doc/strings-bytes-regex.md for detailed documentation.
+Part of [Strings, bytes & regex](08_strings_bytes_regex.gad).
+
+## Heredocs
+
+A heredoc is delimited by a fence of three or more `"` (or `` ` ``):
+
+- `"""…"""` — a `str`: escapes interpreted.
+- `` ```…``` `` — a **raw** `rawStr`: verbatim (no escapes, no interpolation).
+- `#"""…"""` / `` #```…``` `` — the template forms, adding `{expr}` interpolation.
+
+Because the fence is three quotes, a single `"` inside the body is just text. In
+the multi-line form the opening/closing fence lines are dropped and the **common
+leading indentation is stripped**, so a heredoc stays aligned with the
+surrounding code.
+
+## Code strings (`code … end`)
+
+A `code … end` literal captures its body **verbatim** as a plain `str` — it is
+not parsed, evaluated or interpolated. The `code`/`end` fences signal that the
+body is Gad source (editors highlight it), handy for embedding snippets or
+generated code. The block form's closing `end` is the line at the opening
+statement's indentation whose only word is `end`; the body is dedented to its own
+least-indented line. There is also a single-line form `code <body> end`. A bare
+`code` identifier (no matching `end`) is unaffected, so `code := 1` still
+declares a variable.
+
+The Example below is a runnable tour of every form.
 
 ## Example — `21_heredocs.gad`
 
@@ -20,9 +41,7 @@ println("""abc""de""")      // abc""de
 println("""tab\tend""")     // tab<TAB>end
 println("""quote: \"x\"""") // quote: "x"
 
-// --- heredoc: multi line ---
-/// The common leading indentation is stripped, so the body stays aligned with
-/// the surrounding code; escapes are then processed.
+// --- heredoc: multi line (common indentation stripped) ---
 poem := """
     roses are red
     violets are blue
@@ -33,8 +52,6 @@ println(poem)               // roses are red\nviolets are blue
 // Braces are literal text here (this is not a template), so {x} need not exist.
 println(```a {x} b```)      // a {x} b
 
-/// multi line raw heredoc strips the common indentation; backslashes are kept
-/// verbatim (no escape processing).
 verbatim := ```
     C:\tmp\file
     line two
@@ -51,6 +68,15 @@ println(#"""
 
 // --- template raw heredoc: #``` ... ``` (interpolated, escapes verbatim) ---
 println(#```path: C:\tmp\{name}```)  // path: C:\tmp\Gad
+
+// --- code string: verbatim Gad source captured as a str ---
+src := code
+    for x in [1, 2] {
+        println(x)
+    }
+end
+println(src)                // the two-line for-loop, verbatim
+println(code a + b end)     // single-line form -> "a + b"
 
 return poem
 ```
