@@ -262,15 +262,36 @@ func exampleSource(src []byte) string {
 // dropLeadingModuleDoc removes a leading `/*** … ***/` block (and the blank lines
 // after it) from s. Other comments are left untouched.
 func dropLeadingModuleDoc(s string) string {
-	trimmed := strings.TrimLeft(s, " \t\r\n")
-	if !strings.HasPrefix(trimmed, "/***") {
+	lines := strings.Split(s, "\n")
+	i := 0
+	for i < len(lines) && strings.TrimSpace(lines[i]) == "" {
+		i++
+	}
+	if i >= len(lines) {
 		return s
 	}
-	end := strings.Index(trimmed, "***/")
-	if end < 0 {
+	// The module doc is a leading `/** … **/` block (three-star `/*** … ***/`
+	// still accepted), with the opening and closing fences alone on their line —
+	// so a `**/` appearing mid-line inside the prose never closes it early.
+	var closer string
+	switch strings.TrimSpace(lines[i]) {
+	case "/***":
+		closer = "***/"
+	case "/**":
+		closer = "**/"
+	default:
 		return s
 	}
-	return strings.TrimLeft(trimmed[end+len("***/"):], " \t\r\n")
+	for j := i + 1; j < len(lines); j++ {
+		if strings.TrimSpace(lines[j]) == closer {
+			rest := lines[j+1:]
+			for len(rest) > 0 && strings.TrimSpace(rest[0]) == "" {
+				rest = rest[1:]
+			}
+			return strings.Join(rest, "\n")
+		}
+	}
+	return s
 }
 
 // stripSnippetMarkers removes the `//snippet …` / `//endsnippet` region markers

@@ -1,4 +1,4 @@
-/***
+/**
 # Func Headers and Method Interfaces
 
 Gad can describe function signatures as values and group them into **method
@@ -33,7 +33,7 @@ header parameter matches anything), so a multi-method function can satisfy sever
 interfaces at once.
 
 @snippet implements
-***/
+**/
 
 //snippet header
 h := <(a int, b str) <r bool>>

@@ -1,11 +1,11 @@
-/***
+/**
 # KeyValue Arrays
 
 `keyValue` (`[k = v]`) and `keyValueArray` (`(; … )`) are an ordered list of
 `key = value` pairs (duplicate keys allowed) — the literal form behind named
 arguments. Part of the [Collections](04_collections.gad) chapter. This whole
 sample is a runnable tour; the full listing is in the Example below.
-***/
+**/
 
 // --- keyValue: a single pair ---
 pair := [color = "red"]

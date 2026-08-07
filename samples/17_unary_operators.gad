@@ -1,4 +1,4 @@
-/***
+/**
 # Unary Operators
 
 `!` (logical NOT on any value's truthiness), `-` (negation), `+` (identity), `^`
@@ -6,7 +6,7 @@
 its new value). Every unary operator is dispatched through its
 `gad.unOp{Op}(operand)` builtin (e.g. `gad.unOpSub`); a type can override it with
 `met gad.unOp{Op}(v T)`. Part of the [Operators](14_user_operators.gad) chapter.
-***/
+**/
 
 // Numeric / char operators.
 println(-5, +5, ^5, !5)           // -5 5 -6 false

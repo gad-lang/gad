@@ -1,4 +1,4 @@
-/***
+/**
 # Heredocs and Code Strings
 
 Part of [Strings, bytes & regex](08_strings_bytes_regex.gad).
@@ -28,7 +28,7 @@ least-indented line. There is also a single-line form `code <body> end`. A bare
 declares a variable.
 
 The Example below is a runnable tour of every form.
-***/
+**/
 
 // --- heredoc: single line ---
 // The fence is three quotes, so a doubled quote inside is literal text.

@@ -9,13 +9,13 @@ runs statements (emitting nothing), `{%= expr %}` writes a value, and the `-` /
 `{%--`/`--%}` remove it too).
 
 In a `.gadt` the **module doc lives inside the leading code island** — a
-`{%-- … --%}` block wrapping a `/*** …
+`{%-- … --%}` block wrapping a `/*** … *
 
 ## Example — `23_template.gadt`
 
 ```gadt
 {%--
-/***
+/**
 # Templates — a `.gadt` example
 
 A `.gadt` file runs as a template automatically — no `# gad: mixed` directive and
@@ -29,7 +29,7 @@ In a `.gadt` the **module doc lives inside the leading code island** — a
 `{%-- … --%}` block wrapping a `/*** … ***/` root comment, like this one — so it
 is captured as prose without being emitted as template text. Part of
 [Templates](09_template.gad).
-***/
+**/
 --%}
 {%
 var (

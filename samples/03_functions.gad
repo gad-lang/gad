@@ -1,4 +1,4 @@
-/***
+/**
 # Functions
 
 Functions are first-class values. A function literal is `func(params) { … }`,
@@ -75,7 +75,7 @@ by clearing `$err`.
 rather than the whole function — LIFO, with no `$ret`.
 
 @snippet deferb
-***/
+**/
 
 //snippet basics
 sum := func(a, b) {

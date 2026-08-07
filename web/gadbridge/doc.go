@@ -133,15 +133,26 @@ func gadDocData(src []byte, sourceType string) (*DocData, error) {
 
 	d := &DocData{}
 
-	// Leading /*** … ***/ root block as module prose.
-	for _, g := range file.Comments {
-		if len(g.List) > 0 && strings.HasPrefix(g.List[0].Text, "/***") {
-			d.Prose = cleanDoc(g.List[0].Text)
-			break
-		}
+	// Module prose is a leading `/** … **/` block comment (three-star `/*** … ***/`
+	// is still accepted) that is DETACHED from the code — followed by a blank line,
+	// or with no statement immediately below it (end of file). A block comment
+	// glued directly to a statement documents that statement, not the module.
+	firstStmtLine := -1
+	if len(file.Stmts) > 0 {
+		firstStmtLine = source.MustFilePosition(f, file.Stmts[0].Pos()).Line
 	}
-	// In mixed/template mode the leading /*** … ***/ block is literal text (not a
-	// comment), so recover the module prose directly from the source.
+	for _, g := range file.Comments {
+		if len(g.List) == 0 || !strings.HasPrefix(g.List[0].Text, "/**") {
+			continue
+		}
+		endLine := source.MustFilePosition(f, g.End()-1).Line
+		if firstStmtLine < 0 || firstStmtLine > endLine+1 { // blank line / no stmt after
+			d.Prose = cleanDoc(g.List[0].Text)
+		}
+		break // only the leading block is considered for the module doc
+	}
+	// In mixed/template mode the leading doc block is literal text (not a comment),
+	// so recover the module prose directly from the source.
 	if d.Prose == "" && (sourceType == "gadTemplate" || sourceType == "template") {
 		d.Prose = leadingRootBlock(src)
 	}

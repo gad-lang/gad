@@ -1,4 +1,4 @@
-/***
+/**
 # Classes (the `Class(...)` builtin)
 
 Gad's class system is built on the `Class(name, define)` builtin. A class
@@ -49,7 +49,7 @@ constructor or property setter); a `$old` first parameter captures the previous
 implementation for super/around wrapping.
 
 The Example below is a runnable tour.
-***/
+**/
 
 // --- a class with fields, a constructor and methods ---
 Point := Class("Point", (cls, define) => define(;

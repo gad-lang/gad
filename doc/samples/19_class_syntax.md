@@ -21,9 +21,6 @@ Doc comments attach to the class and its members (`///`, `/** … **/`,
 ## Example — `19_class_syntax.gad`
 
 ```gad
-`). The Example below is a runnable tour.
-***/
-
 /**
 A 2D point. Shows the statement form `class Name { … }`, which defines a
 constant. `this` is auto-inserted as the first parameter of methods, property

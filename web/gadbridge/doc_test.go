@@ -74,8 +74,33 @@ func TestExtractDocGadtModuleProse(t *testing.T) {
 		})
 	}
 
-	// A plain .gad file's `/***` prose is still read from the comment, unchanged.
-	if d, _ := ExtractDoc("/*** Plain gad. ***/\nexport a = 1\n", "gad"); d.Prose != "Plain gad." {
+	// A plain .gad file's module prose is a DETACHED leading block (blank line
+	// after); a block glued to a statement documents the statement instead.
+	if d, _ := ExtractDoc("/** Plain gad. **/\n\nexport a = 1\n", "gad"); d.Prose != "Plain gad." {
 		t.Fatalf("gad prose regressed: %q", d.Prose)
+	}
+}
+
+// TestExtractDocModuleProseBlank verifies the module prose is a leading `/** … **/`
+// block DETACHED from the code — followed by a blank line or at end of file — and
+// that a block glued to a statement documents the statement, not the module.
+func TestExtractDocModuleProseBlank(t *testing.T) {
+	cases := []struct{ name, src, want string }{
+		{"detached", "/**\n# Mod\nDoc.\n**/\n\nconst x = 1\n", "# Mod\nDoc."},
+		{"eof", "/**\n# Mod\n**/\n", "# Mod"},
+		{"three-star still works", "/***\n# Mod\n***/\n\nconst x = 1\n", "# Mod"},
+		{"attached is not module", "/**\nDoc of x.\n**/\nconst x = 1\n", ""},
+		{"none", "const x = 1\n", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			d, err := ExtractDoc(c.src, "gad")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if d.Prose != c.want {
+				t.Fatalf("prose = %q, want %q", d.Prose, c.want)
+			}
+		})
 	}
 }

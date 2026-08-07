@@ -1,4 +1,4 @@
-/***
+/**
 # Destructuring
 
 Bind several variables at once from arrays and named data. Gad has three
@@ -13,7 +13,7 @@ left. They work on any named data — dicts, modules, key-value arrays, named
 args — because the source is run through the default `dict()` constructor first.
 Part of the [Collections](04_collections.gad) chapter. This whole sample is a
 runnable tour; the full listing is in the Example below.
-***/
+**/
 
 // ── 1. Arrays ────────────────────────────────────────────────────────────────
 x, y := [10, 20]

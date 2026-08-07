@@ -1,4 +1,4 @@
-/***
+/**
 # Modules and Embedding
 
 A module exposes values via `export` and is imported with `import(...)`, which
@@ -41,7 +41,7 @@ compile time**, evaluating to an `Embedded` value: `.name`, `.path`, `.size`,
 iterable `.fs`. Paths resolve against the running script's directory;
 `sources=[…]` lists directories to look the name up in. The Example below is a
 runnable tour.
-***/
+**/
 
 // --- embed a single file ---------------------------------------------------
 /// `embed("path")` yields an Embedded value for the file.

@@ -1,4 +1,4 @@
-/***
+/**
 # Membership (`in` / `ain`)
 
 `A in B` tests membership and yields a bool — a **value** for arrays/bytes, a
@@ -8,7 +8,7 @@ comparison precedence and dispatch on the **right** operand (`met gad.binOpIn` /
 `gad.binOpAin` in Gad). `in` is also the `for x in y` loop separator —
 parenthesize to use it as the operator inside a for header: `for (x in y)`. Part
 of the [Operators](14_user_operators.gad) chapter.
-***/
+**/
 
 // Array — value membership.
 println(2 in [1, 2, 3])        // true

@@ -1,4 +1,4 @@
-/***
+/**
 # Strings, Bytes and Regex
 
 ## String forms
@@ -52,7 +52,7 @@ The `regexp | replacement` operator builds a reusable replacer that composes wit
 the pipe `.|`.
 
 @snippet replace
-***/
+**/
 
 //snippet forms
 a := "tab\there"   // str with escapes

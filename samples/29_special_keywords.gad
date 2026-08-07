@@ -1,4 +1,4 @@
-/***
+/**
 # Special `@` Keywords
 
 Gad has a small set of built-in keywords, all written with a leading `@`, that
@@ -47,7 +47,7 @@ with `global` declaration defaults (`global (user !?= "guest")` lowers to
 and [Operators](17_unary_operators.md).
 
 @snippet globals
-***/
+**/
 
 //snippet fn_introspection
 /// @fn — the running function; here used for anonymous recursion.

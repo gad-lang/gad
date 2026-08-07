@@ -1,4 +1,4 @@
-/***
+/**
 # Values and Types
 
 In Gad, everything is a value and every value has a type. Use `typeof` (or
@@ -72,7 +72,7 @@ which share their backing storage (as in Go). Use `copy` for a shallow copy and
 `dcopy` for a deep copy.
 
 @snippet copy
-***/
+**/
 
 //snippet constructors
 [int("42"), int("0x1F"), float(-51), str(1984), char(88), int('A')]

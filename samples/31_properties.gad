@@ -1,4 +1,4 @@
-/***
+/**
 # Properties (`prop`)
 
 A **property** is a named, callable value introduced by the `prop` keyword. It
@@ -71,7 +71,7 @@ export prop x = 10
 export getX() => x
 // caller:  c := import("./counter.gad"); c.x = 12; c.getX()  // 12
 ```
-***/
+**/
 
 //snippet declare
 var stored

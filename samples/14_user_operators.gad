@@ -1,4 +1,4 @@
-/***
+/**
 # Operators
 
 This is the operators chapter. Focused runnable tours live in nearby samples:
@@ -73,7 +73,7 @@ assignability and returns `obj` (else raises `ErrIncompatibleAssign`), chaining
 <<< >>> %%` (5); `+ - | ^` (4); comparisons + `in`/`ain` (3); `&&` (2); `||` (1);
 unary tightest, ternary loosest. Read/write with `.name` (literal) and `[expr]`
 (computed); slice with `[start:end]` (negative indices count from the end).
-***/
+**/
 
 //snippet user_ops
 /// Define `<<<` and `>>>` on ints as "push"/"pop"-ish helpers.

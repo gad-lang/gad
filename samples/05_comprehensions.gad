@@ -1,4 +1,4 @@
-/***
+/**
 # Comprehensions
 
 Python-like comprehensions build a collection from an iterable. Part of the
@@ -18,7 +18,7 @@ default**; wrap the key in `[ ]` to compute it. The special name `_` refers to
 the dict being built, so it can accumulate across iterations.
 
 @snippet dict
-***/
+**/
 
 //snippet array
 evens := [n for n in [1, 2, 3, 4, 5, 6] if n % 2 == 0]

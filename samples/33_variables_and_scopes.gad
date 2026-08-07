@@ -1,4 +1,4 @@
-/***
+/**
 # Variables and Scopes
 
 Gad has four declaration keywords — `param`, `global`, `var` and `const` — plus
@@ -59,7 +59,7 @@ Inner functions capture variables from enclosing scopes; re-declaring a name wit
 its final value unless you bind a fresh copy inside the loop.
 
 @snippet scopes
-***/
+**/
 
 //snippet assign
 a := 123      // declare 'a' (int)

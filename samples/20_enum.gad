@@ -1,4 +1,4 @@
-/***
+/**
 # Enums
 
 An `enum` is an ordered set of named integer constants, computed at compile
@@ -64,7 +64,7 @@ yielding the underlying `int`/`uint` values (not the member wrappers).
 Converting an enum to a dict yields the same name → value mapping:
 
 @snippet bulk
-***/
+**/
 
 //snippet define
 /// Permissions, as auto-incrementing values. The first field is 1; each later

@@ -1,4 +1,4 @@
-/***
+/**
 # Ranges (`..`)
 
 `from .. to` builds an inclusive, iterable `Range` (sugar for the `Range(from,
@@ -6,7 +6,7 @@ to)` builtin) over the numeric kinds, `char` and the temporal types; it runs
 ascending or descending depending on its bounds. The step is set with `/` (note
 `..` binds tighter, so `1 .. 10 / 2` is `(1 .. 10) / 2`), the `step` named arg,
 or `r.step(n)`. Part of the [Operators](14_user_operators.gad) chapter.
-***/
+**/
 
 // `from .. to` is an inclusive, iterable range. It runs ascending or
 // descending depending on its bounds.

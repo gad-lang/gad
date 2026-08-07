@@ -1,4 +1,4 @@
-/***
+/**
 # Collections
 
 Gad's composite types are **arrays** (ordered lists) and **dicts** (string-keyed
@@ -44,7 +44,7 @@ later entries winning.
 `for … in` yields (index, value) for arrays and (key, value) for dicts.
 
 @snippet iterate
-***/
+**/
 
 //snippet arrays
 a := [1, 2, 3]

@@ -1,4 +1,4 @@
-/***
+/**
 # Templates (mixed mode)
 
 Gad can run in **mixed / template mode**, where a file is plain text with
@@ -41,7 +41,7 @@ The `{%` / `%}` delimiters can be changed per file
 
 `gad fmt` formats templates: literal text verbatim, the Gad code inside tags
 formatted, tags kept inline, the terminator normalized to `{% end %}`.
-***/
+**/
 
 # gad: mixed
 {%

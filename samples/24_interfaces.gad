@@ -1,4 +1,4 @@
-/***
+/**
 # Interfaces (`interface`)
 
 An `interface { … }` is a structural contract grouping typed fields,
@@ -34,7 +34,7 @@ interface and the value's type. Hosts can pre-warm/share the cache with
 engine does this per compiled template.
 
 This whole sample is a runnable tour (see the Example below).
-***/
+**/
 
 // A parent interface, spread into `Shape` with `*Base` below.
 interface Base { get kind }

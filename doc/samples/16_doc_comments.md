@@ -16,12 +16,15 @@ contents are **Markdown** (safe inline HTML is allowed).
 | `INLINE`       | `IDENT /// text` (no value)  | `var pi /// the pi value`            |
 | `INLINE_VALUE` | `IDENT = EXPR /// text`      | `const Pi = 3.14 /// the pi value`   |
 | `BLOCK`        | `/**` … `**/` fenced block   | a `/**`-fenced block on its own lines |
-| `ROOT_BLOCK`   | `/***` … `***/` fenced block | a module/section overview            |
 
-The fence of a `BLOCK` / `ROOT_BLOCK` must be on its **own line**; `/** text **/`
-on a single line is not a block. A `ROOT_BLOCK` separated from the next statement
-by a blank line documents the **module/section**, not that statement — like this
-header.
+The fence of a `BLOCK` must be on its **own line**; `/** text **/` on a single
+line is not a block.
+
+**File- and section-level docs use the same `/** … **/` form**, distinguished
+only by context: a block **directly above** a statement documents that statement,
+while a block **followed by a blank line (or at the end of the file)** documents
+the **module/section** — like this header. (The older three-star `/*** … ***/`
+root block is still accepted but deprecated; `gad fmt` rewrites it to `/** … **/`.)
 
 ```gad
 /// the service listen address (SINGLE form, on its own line)
@@ -74,8 +77,9 @@ meti differ {
 
 ## Attachment rules
 
-- A `SINGLE` / `BLOCK` / `ROOT_BLOCK` on the line **directly above** a target is a
-  *lead* doc and links to it. A **blank line** in between **detaches** it.
+- A `SINGLE` / `BLOCK` on the line **directly above** a target is a *lead* doc and
+  links to it. A **blank line** in between **detaches** it — a detached block (or
+  a block at end of file) is a module/section doc.
 - `INLINE` / `INLINE_VALUE` docs trail their target on the **same line** and link
   to its identifier; they apply only when there is no lead doc.
 - A doc trailing a comma-separated, value-less identifier (`f, g /// …`) is
@@ -84,14 +88,15 @@ meti differ {
 ## Formatting
 
 `gad fmt` reflows attached doc comments: a `SINGLE` that grows past the width
-budget becomes a `BLOCK`, and a `BLOCK` that fits on one line collapses back to
-`SINGLE` (a `ROOT_BLOCK` always stays a block). Paragraphs are re-wrapped while
-fenced code, list items, headings, blockquotes and table rows are preserved
-line-for-line.
+budget becomes a `BLOCK`, and an **attached** `BLOCK` that fits on one line
+collapses back to `SINGLE`. A **detached** (module/section) block always stays a
+`/** … **/` block, and its blank-line separation is preserved so it keeps
+documenting the module. Paragraphs are re-wrapped while fenced code, list items,
+headings, blockquotes and table rows are preserved line-for-line.
 
 ## Runnable examples (doctest)
 
-A `BLOCK` / `ROOT_BLOCK` may embed a runnable example in a ```` ```gad ````
+A `BLOCK` may embed a runnable example in a ```` ```gad ````
 fence. Examples are self-contained; a line beginning with `>>> ` asserts that the
 value produced so far equals the expression after it. `gad doctest PATH…` runs
 every embedded example, and `gad doc` runs them while generating (unless
@@ -100,49 +105,6 @@ every embedded example, and `gad doc` runs them while generating (unless
 ## Example — `16_doc_comments.gad`
 
 ```gad
-` fenced block | a module/section overview            |
-
-The fence of a `BLOCK` / `ROOT_BLOCK` must be on its **own line**; `/** text **/`
-on a single line is not a block. A `ROOT_BLOCK` separated from the next statement
-by a blank line documents the **module/section**, not that statement — like this
-header.
-
-@snippet forms
-
-## What can be documented
-
-Declarations (`var` / `const`, and each spec inside a `( … )` group), functions
-(`func` / `met`, including the func-with-methods form and each method), `prop`
-statements and their accessors, and `meti` headers.
-
-@snippet documentable
-
-## Attachment rules
-
-- A `SINGLE` / `BLOCK` / `ROOT_BLOCK` on the line **directly above** a target is a
-  *lead* doc and links to it. A **blank line** in between **detaches** it.
-- `INLINE` / `INLINE_VALUE` docs trail their target on the **same line** and link
-  to its identifier; they apply only when there is no lead doc.
-- A doc trailing a comma-separated, value-less identifier (`f, g /// …`) is
-  ambiguous and is a **parse error**.
-
-## Formatting
-
-`gad fmt` reflows attached doc comments: a `SINGLE` that grows past the width
-budget becomes a `BLOCK`, and a `BLOCK` that fits on one line collapses back to
-`SINGLE` (a `ROOT_BLOCK` always stays a block). Paragraphs are re-wrapped while
-fenced code, list items, headings, blockquotes and table rows are preserved
-line-for-line.
-
-## Runnable examples (doctest)
-
-A `BLOCK` / `ROOT_BLOCK` may embed a runnable example in a ```` ```gad ````
-fence. Examples are self-contained; a line beginning with `>>> ` asserts that the
-value produced so far equals the expression after it. `gad doctest PATH…` runs
-every embedded example, and `gad doc` runs them while generating (unless
-`--no-doctest`). See also [Conventions](conventions.md).
-***/
-
 /// the service listen address (SINGLE form, on its own line)
 const (
     ServerAddr = ":8080"

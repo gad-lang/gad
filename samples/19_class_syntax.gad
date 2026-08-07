@@ -1,4 +1,4 @@
-/***
+/**
 # The `class` keyword
 
 The `class` keyword is a readable block syntax that lowers to the
@@ -17,7 +17,7 @@ methods/constructors — works exactly as in the `Class(...)` builtin.
 
 Doc comments attach to the class and its members (`///`, `/** … **/`,
 `/*** … ***/`). The Example below is a runnable tour.
-***/
+**/
 
 /**
 A 2D point. Shows the statement form `class Name { … }`, which defines a

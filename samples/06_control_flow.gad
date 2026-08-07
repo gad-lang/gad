@@ -1,4 +1,4 @@
-/***
+/**
 # Control Flow
 
 `if`, `for`, `for … in` and the `match` expression. (Error handling —
@@ -44,7 +44,7 @@ doubles as a clean multi-branch conditional.
 
 The formatter keeps a match inline while it fits and switches to one arm per line
 only when it overflows; see [Conventions](conventions.md).
-***/
+**/
 
 //snippet match
 classify := func(n) {

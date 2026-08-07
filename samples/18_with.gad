@@ -1,4 +1,4 @@
-/***
+/**
 # With
 
 `with` runs a resource's enter/exit hooks around a block, so cleanup always
@@ -39,7 +39,7 @@ when the body needs to reference the resource.
 `gad.exit(resource, $err)` as a [`deferb`](03_functions.md) and then calls
 `gad.enter(resource)`, dispatched through the `gad.enter` / `gad.exit` functions
 in the global `gad` namespace.
-***/
+**/
 
 /// A resource: a class with enter()/exit(err) hooks (plus a little state).
 Res := Class("Res", (cls, define) => define(; fields = (; name = (= ""), open = (= false), items = (= nil)),

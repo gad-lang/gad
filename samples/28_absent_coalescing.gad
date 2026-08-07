@@ -1,4 +1,4 @@
-/***
+/**
 # Absent-Coalescing (`!?` / `!?=`)
 
 `!?` / `!?=` are the existence-based counterparts of the nullish `??` / `??=`:
@@ -8,7 +8,7 @@ the [Operators](14_user_operators.gad) chapter.
 
 Run with:  gad run samples/28_absent_coalescing.gad
 See doc/operators.md for detailed documentation.
-***/
+**/
 
 /// Value form: member when the key exists (even if nil), otherwise the default.
 a := {b: 5}
