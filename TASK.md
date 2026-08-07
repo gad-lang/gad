@@ -44,6 +44,25 @@ more doc/sample drift.
       23_template.gadt updated; test TestExtractDocGadtModuleProse.
 
 ## Log
+### 2026-08-07 (unified doc-comment grammar: /** **/ everywhere)
+- File/section-level docs now use the same two-star `/** … **/` form as statement
+  docs, distinguished only by context: a block glued directly above a statement
+  documents it; a block followed by a blank line (or at EOF) documents the
+  module/section. Three-star `/*** … ***/` deprecated (still parsed).
+- Extraction (4e2fbcb): gadbridge.ExtractDoc derives module prose from a DETACHED
+  leading block; all 33 sample headers converted `/*** ***/`→`/** **/`;
+  dropLeadingModuleDoc matches either fence on its own line; 16_doc_comments.gad
+  documents the new rule. Tests TestExtractDocModuleProseBlank.
+- Formatter (84011f6): the comment emitter preserves the blank line separating a
+  detached doc from the next statement (else fmt would re-attach the module doc);
+  `/***`→`/**` normalized (normalizeDocFence for floating comments, renderDocLines
+  unified). Test TestFormatDetachedModuleDoc.
+- Editors (cab78be): prism/codemirror/vscode require a doc block's opening fence
+  ALONE on its line, so `/** inline **/` and the `/**= … **/` / `/**< … **/`
+  markers are ordinary comments; runtime-verified, typechecks clean.
+- EVIDENCE: `go build ./...`, `go test ./...` (root), gadx, every sample runs,
+  `make samples-doc` — all exit 0; plugin typechecks clean; VSCode JSON valid.
+
 ### 2026-08-07 (migration COMPLETE + website + link repointing)
 - ALL 18 language docs now live in the samples; every doc/*.md language chapter
   removed. Final chapters: strings-bytes-regex→08/21 (ff15c00), values-and-types
