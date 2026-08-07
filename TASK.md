@@ -29,7 +29,11 @@ more doc/sample drift.
       doc/README.md (index → sample + generated doc)
 - [x] Incorporate doc/samples into the website (cmd/build-website "Language"
       section: lang-<name>.html, link rewriting)
-- [x] JSON/YAML doc output (`--json` / `--yaml` encode the doc structure)
+- [x] JSON/YAML doc output: `--json` / `--yaml` encode the doc structure per file
+      (name/file/lang/prose/sections/source, snippets expanded) following all the
+      generator rules — mirrored tree, per-dir README.json/.yaml indexes; `--out -`
+      streams the whole nested tree to stdout. Tests TestDocCommandJSONYAML,
+      TestDocCommandStdoutTree. Commits c0d8a80, fd0f204.
 - [ ] Follow-up: gadt/gadx shebang round-trip on format; .gadt module prose
 
 ## Log
