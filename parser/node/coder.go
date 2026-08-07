@@ -673,16 +673,29 @@ func (ctx *CodeWriteContext) WriteStmts(stmt ...Stmt) {
 		transpiling := ctx.Transpile != nil
 
 		// Own-line comments that precede this statement: each on its own line,
-		// then the statement follows on a fresh line.
+		// then the statement follows on a fresh line. A blank line in the source
+		// between a doc comment and the next comment/statement is preserved, so a
+		// DETACHED (module/section) doc stays detached after formatting.
 		if ctx.hasComments() {
+			var lastEnd source.Pos
 			for c := ctx.peekComment(); c != nil && c.Pos() < s.Pos(); c = ctx.peekComment() {
 				if i > 0 {
 					emitLeadingSep()
+					if lastEnd != 0 && ctx.lineOf(c.Pos()) > ctx.lineOf(lastEnd-1)+1 {
+						ctx.WriteString("\n") // preserve the blank line between groups
+					}
 				}
-				ctx.WriteString(c.Text)
+				ctx.WriteString(normalizeDocFence(c.Text))
 				ctx.commentIdx++
+				lastEnd = c.End()
 				sep = sepNewline
 				i++
+			}
+			// Preserve the blank line separating the last floating comment from the
+			// statement it detaches from (the leading separator below writes the
+			// statement's own newline).
+			if lastEnd != 0 && ctx.lineOf(s.Pos()) > ctx.lineOf(lastEnd-1)+1 {
+				ctx.WriteString("\n")
 			}
 		}
 

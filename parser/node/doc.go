@@ -48,6 +48,26 @@ func parseDocComment(g *ast.CommentGroup) (d docComment, ok bool) {
 	return docComment{}, false
 }
 
+// normalizeDocFence rewrites a three-star `/*** … ***/` root doc block to the
+// unified two-star `/** … **/` form (fences only, content untouched); any other
+// comment text (including a `/**` block or a `///` line) is returned unchanged.
+// The opener/closer are matched alone on their line, so a `***/` inside the prose
+// never triggers.
+func normalizeDocFence(text string) string {
+	lines := strings.Split(text, "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "/***" {
+		return text
+	}
+	lines[0] = strings.Replace(lines[0], "/***", "/**", 1)
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "***/" {
+			lines[i] = strings.Replace(lines[i], "***/", "**/", 1)
+			break
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
 // blockDocContent returns the inner text of a fenced block doc, dropping the
 // opening fence line (`/**` / `/***`) and the closing fence line (`**/` / `***/`).
 func blockDocContent(text, open, close string) string {
@@ -58,23 +78,20 @@ func blockDocContent(text, open, close string) string {
 
 // renderDocLines renders d as the formatted doc lines (without the leading
 // prefix on the first line; callers indent continuation lines). width is the
-// available column budget at the doc's indentation. A SINGLE/BLOCK doc is
-// rendered as `/// …` when its content reflows to a single line that fits, else
-// as a `/**` … `**/` block; a ROOT_BLOCK always stays a `/***` … `***/` block.
+// available column budget at the doc's indentation. Every kind renders the same:
+// `/// …` when the content reflows to a single line that fits, otherwise a
+// `/** … **/` block. (The unified convention has no separate three-star form;
+// file/section-level docs are just detached `/** … **/` blocks — the detachment
+// is preserved by the comment emitter, not by the marker.)
 func renderDocLines(d docComment, width int) []string {
 	if width < 8 {
 		width = 8
 	}
-	switch d.kind {
-	case docRoot:
-		return wrapDocBlock("/***", "***/", reflowMarkdown(d.content, width))
-	default: // docSingle, docBlock
-		body := reflowMarkdown(d.content, width-len("/// "))
-		if len(body) == 1 && len("/// ")+len(body[0]) <= width {
-			return []string{"/// " + body[0]}
-		}
-		return wrapDocBlock("/**", "**/", reflowMarkdown(d.content, width))
+	body := reflowMarkdown(d.content, width-len("/// "))
+	if len(body) == 1 && len("/// ")+len(body[0]) <= width {
+		return []string{"/// " + body[0]}
 	}
+	return wrapDocBlock("/**", "**/", reflowMarkdown(d.content, width))
 }
 
 // wrapDocBlock wraps body lines between the open and close fence lines.

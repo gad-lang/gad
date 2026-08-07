@@ -71,11 +71,12 @@ func TestRenderDocLines(t *testing.T) {
 		}
 	}
 
-	// root stays a root block
+	// a root block renders like any other doc: short content collapses to a
+	// single `///` line (the three-star form is unified into `/** … **/`).
 	d = docComment{docRoot, "overview"}
-	lines = renderDocLines(d, 80)
-	if lines[0] != "/***" || lines[len(lines)-1] != "***/" {
-		t.Errorf("root not blocked: %v", lines)
+	got = strings.Join(renderDocLines(d, 80), "\n")
+	if got != "/// overview" {
+		t.Errorf("root render = %q", got)
 	}
 }
 
