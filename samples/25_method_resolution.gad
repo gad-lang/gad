@@ -1,5 +1,7 @@
 /**
-25_method_resolution.gad — how a call chooses a method.
+# Method Resolution
+
+How a call chooses a method.
 
 A function may hold several methods (overloads). A call dispatches to the
 method whose parameter types match the arguments, Julia-style: every argument

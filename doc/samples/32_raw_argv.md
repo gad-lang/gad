@@ -1,6 +1,7 @@
-# 32_raw_argv
 
-32_raw_argv.gad — raw argument passthrough with `param (*argv)`.
+# Raw Arguments (argv)
+
+Raw argument passthrough with `param (*argv)`.
 
 A script whose params are exactly one variadic positional param and no named
 params opts into RAW argument handling: every CLI argument is passed straight

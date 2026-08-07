@@ -1,10 +1,11 @@
-# 30_assign_and_append
+
+# Assignment and Append
+
+Assignment lists and array append operators.
 
 ## Example — `30_assign_and_append.gad`
 
 ```gad
-// Assignment lists and array append operators.
-
 // --- A comma-separated right-hand side is an array (single target) ---
 x := 1, 2, 3
 println("x := 1, 2, 3        ->", x)               // [1, 2, 3]

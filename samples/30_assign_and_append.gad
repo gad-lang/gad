@@ -1,4 +1,8 @@
-// Assignment lists and array append operators.
+/**
+# Assignment and Append
+
+Assignment lists and array append operators.
+**/
 
 // --- A comma-separated right-hand side is an array (single target) ---
 x := 1, 2, 3
