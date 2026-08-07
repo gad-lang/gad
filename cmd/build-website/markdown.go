@@ -267,6 +267,10 @@ func rewriteLink(url string) string {
 	switch {
 	case strings.EqualFold(url, "README.md"):
 		url = "index.html"
+	case strings.HasPrefix(url, "samples/") && strings.HasSuffix(url, ".md"):
+		// The language chapters are published from doc/samples as lang-<name>.html
+		// (see collectLangPages), so a `samples/NN_name.md` link points there.
+		url = "lang-" + strings.TrimSuffix(strings.TrimPrefix(url, "samples/"), ".md") + ".html"
 	case strings.HasSuffix(url, ".md"):
 		url = strings.TrimSuffix(url, ".md") + ".html"
 	}

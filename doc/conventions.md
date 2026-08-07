@@ -39,10 +39,10 @@ Style recommendations for writing idiomatic Gad (beyond what the formatter
 enforces).
 
 * **Access a property through its `.v` field, not an explicit call.** For a
-  [property](properties.md) `x`, prefer `x.v` / `x.v = n` over `x()` / `x(n)`.
+  [property](samples/31_properties.md) `x`, prefer `x.v` / `x.v = n` over `x()` / `x(n)`.
   It reads as a value rather than a call and costs the same — `.v` invokes the
   same accessor with no extra call overhead (reads are even marginally cheaper;
-  see the benchmark in [Properties](properties.md#the-virtual-v-field)). Reserve
+  see the benchmark in [Properties](samples/31_properties.md)). Reserve
   the call form for props with typed/overloaded setters that you dispatch by
   argument type.
 

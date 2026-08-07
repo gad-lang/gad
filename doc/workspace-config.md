@@ -80,7 +80,7 @@ port: "${PORT:-8080}"                # becomes the integer 8080
 ## The `env` section
 
 The `env` section defines environment variables that seed the [`env`
-keyword](operators.md) available to scripts run in the workspace. It may be a
+keyword](samples/14_user_operators.md) available to scripts run in the workspace. It may be a
 mapping or a list of `NAME=value` entries, and its values are expanded as above
 (later entries can reference earlier ones). The `env` table **extends** the
 process environment: a script sees the host's variables plus these.

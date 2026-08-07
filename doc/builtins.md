@@ -43,7 +43,7 @@ isCallable(println)// true
 `sortReverse`, `keys`, `values`, `items`, `zip`, `enumerate`.
 
 Appending and deleting are **operators / statements**, not builtins:
-the `+` / `++` / `+=` / `++=` operators (see [operators](operators.md)) append, and the
+the `+` / `++` / `+=` / `++=` operators (see [operators](samples/14_user_operators.md)) append, and the
 `delete` statement removes keys.
 
 ```gad
@@ -81,7 +81,7 @@ collect(filter([10, 11, 12, 13], func(v, k, it) { return v % 2 == 0 }))  // [10,
 Mind the callback argument order: `each` receives `(key, value)`, while
 `map` receives `(value, key)`, `filter` receives `(value, key, iterable)` and
 `reduce` receives `(accumulator, value, key)`. Comprehensions are often clearer
-than `map`/`filter` — see [Collections](collections.md#comprehensions).
+than `map`/`filter` — see [Collections](samples/04_collections.md).
 
 ## I/O and Formatting
 
@@ -100,8 +100,8 @@ repr("hi")               // a debug representation
 `cast`, `wrap`, `addMethod`, `Class`, `userData`.
 
 The host-provided globals object is reached with the `@g` keyword (see
-[Special `@` Keywords](special-keywords.md) and
-[Variables → global](variables-and-scopes.md#global)); `Class` and `addMethod`
+[Special `@` Keywords](samples/29_special_keywords.md) and
+[Variables → global](samples/33_variables_and_scopes.md)); `Class` and `addMethod`
 support the object/class system.
 
 ## Builtin Modules

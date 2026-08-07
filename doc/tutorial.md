@@ -653,7 +653,7 @@ if isError(err1) {           // 'isError' is a builtin function
 Builtin errors do not have message but have name. With `.New(message)` function
 call on an error value creates a new error by wrapping the error.
 
-Note: See [error handling](error-handling.md) for more information about errors.
+Note: See [error handling](samples/07_error_handling.md) for more information about errors.
 
 * WrongNumArgumentsError
 * InvalidOperatorError
@@ -873,7 +873,7 @@ f3 := flag("a")       // yes
 f4 := flag("")        // no
 ```
 
-See [Operators](operators.md) for more details on type conversions/coercions as
+See [Operators](samples/14_user_operators.md) for more details on type conversions/coercions as
 well.
 
 ## Order of evaluation
@@ -938,7 +938,7 @@ _* In Gad, all values can be either
 |   `>`    |       greater than       |
 |   `>=`   | greater than or equal to |
 
-_See [Operators](operators.md) for more details._
+_See [Operators](samples/14_user_operators.md) for more details._
 
 ### Ternary Operators
 

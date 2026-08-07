@@ -48,7 +48,7 @@ Hello, Gad!
 ## Main Function, Parameters and Return
 
 A Gad script is itself a function. It can declare parameters with
-[`param`](variables-and-scopes.md#param) and produce a result with `return`. If
+[`param`](samples/33_variables_and_scopes.md) and produce a result with `return`. If
 no `return` is reached, the script returns `nil`.
 
 ```gad
@@ -151,12 +151,12 @@ The CLI is organised as subcommands. Run `gad help` for the list, or
 | `-disabled-modules a,b`    | Disable specific modules.                          |
 | `-timeout 5s`              | Abort the script after a duration.                 |
 | `-trace parser,compiler`   | Trace the parse/optimize/compile steps.            |
-| `-template`                | Run the input as a template (see [Templates](templates.md)). |
+| `-template`                | Run the input as a template (see [Templates](samples/09_template.md)). |
 | `-template-start-delimiter` / `-template-end-delimiter` | Override the `{%`/`%}` code delimiters. |
 
 A `.gadt` file is run as a template automatically (mixed mode). A `.gadx` file is
 compiled with the [Gadx](../gadx) engine — the indentation/pug-style HTML
-template language. See **[Templates](templates.md)** for the full mixed-mode
+template language. See **[Templates](samples/09_template.md)** for the full mixed-mode
 reference and the [`gadx`](../gadx) submodule for the template engine.
 
 ### Formatting with `gad fmt`

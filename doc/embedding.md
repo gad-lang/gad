@@ -257,7 +257,7 @@ without it, `ain` falls back to testing each value with `in`. To run an operator
 generically from Go, call `gad.BinaryOp(vm, tok, left, right)`.
 
 The same operators are also overridable from Gad with
-`met gad.binOp{Op}(left T, right U)` (see [Operators](operators.md)).
+`met gad.binOp{Op}(left T, right U)` (see [Operators](samples/14_user_operators.md)).
 
 Unary and self-assign operators follow the same pattern with their own generated
 interfaces:
@@ -328,7 +328,7 @@ To make modules importable, build a module map and pass it through the compile
 options. Source modules are added as bytes; builtin modules are
 `map[string]Object`; any value implementing `Importable` can serve as a custom
 module. The CLI wires a file-system importer that resolves `.gad` files along
-`GADPATH` — see [Modules](modules.md) for the script-side view.
+`GADPATH` — see [Modules](samples/26_embed.md) for the script-side view.
 
 ## Safety
 
