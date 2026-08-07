@@ -34,7 +34,11 @@ more doc/sample drift.
       generator rules — mirrored tree, per-dir README.json/.yaml indexes; `--out -`
       streams the whole nested tree to stdout. Tests TestDocCommandJSONYAML,
       TestDocCommandStdoutTree. Commits c0d8a80, fd0f204.
-- [ ] Follow-up: gadt/gadx shebang round-trip on format; .gadt module prose
+- [x] Shebang round-trip on format for all dialects: FormatSource / `gad fmt`
+      split off a leading `#!…` line, format the rest and prepend it, so `.gad`,
+      `.gadt` and `.gadx` all preserve the shebang (runtime already ignores it).
+      Test TestFormatSourceShebang.
+- [ ] Follow-up: .gadt module prose (leading `/*** */` is literal text in mixed)
 
 ## Log
 ### 2026-08-07 (migration COMPLETE + website + link repointing)

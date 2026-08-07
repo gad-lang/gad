@@ -26,6 +26,7 @@ import (
 	"github.com/gad-lang/gad/parser"
 	"github.com/gad-lang/gad/parser/node"
 	"github.com/gad-lang/gad/parser/source"
+	"github.com/gad-lang/gad/web/gadbridge"
 	cc "github.com/moisespsena-go/command-context"
 	"gopkg.in/yaml.v3"
 )
@@ -946,10 +947,14 @@ func matchAnyRe(res reList, candidates ...string) bool {
 }
 
 // formatSource parses src and returns its formatted form using the configured
-// code flags and transpile options. name is used for error positions.
+// code flags and transpile options. name is used for error positions. A leading
+// `#!…` shebang is split off before formatting and prepended to the result so it
+// round-trips verbatim in every dialect.
 func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (string, error) {
+	shebang, rest := gadbridge.SplitShebang(string(src))
+
 	fileSet := source.NewFileSet()
-	srcFile := fileSet.AddFileData(name, -1, src)
+	srcFile := fileSet.AddFileData(name, -1, []byte(rest))
 
 	// `.gadt` files are templates: parse them in mixed mode (the `# gad: …`
 	// config directives are disabled since the file is template from byte 0).
@@ -977,7 +982,7 @@ func (o *fmtOptions) formatSource(name string, src []byte, transpile bool) (stri
 	if !strings.HasSuffix(out, "\n") {
 		out += "\n"
 	}
-	return out, nil
+	return shebang + out, nil
 }
 
 // formatTarget formats a single target and writes the result to its

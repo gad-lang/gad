@@ -240,3 +240,37 @@ func TestRunSourceArgs(t *testing.T) {
 		t.Fatalf("no-args result = %q (ok=%v), want []", r.Result, r.OK)
 	}
 }
+
+// TestFormatSourceShebang verifies a leading `#!…` line round-trips through the
+// formatter in every dialect and is ignored at run time.
+func TestFormatSourceShebang(t *testing.T) {
+	cases := []struct {
+		st, src, wantRun string
+	}{
+		{"gad", "#!/usr/bin/env gad\nx:=1\nreturn x\n", ""},
+		{"gadTemplate", "#!/usr/bin/env gad\n{% x := 1 %}v={%= x %}\n", "v=1\n"},
+		{"gadx", "#!/usr/bin/env gad\ndiv Hello\n", "<div>Hello</div>"},
+	}
+	for _, c := range cases {
+		f := FormatSource(c.src, c.st)
+		if !f.OK {
+			t.Fatalf("%s: format failed: %v", c.st, f.Diagnostics)
+		}
+		if want := "#!/usr/bin/env gad\n"; f.Source[:len(want)] != want {
+			t.Fatalf("%s: shebang not preserved: %q", c.st, f.Source)
+		}
+		// Formatting is idempotent (re-formatting keeps the shebang).
+		if f2 := FormatSource(f.Source, c.st); f2.Source != f.Source {
+			t.Fatalf("%s: format not idempotent:\n%q\n%q", c.st, f.Source, f2.Source)
+		}
+		// The shebang does not leak into run output.
+		if r := RunSource(c.src, c.st); r.Stdout != c.wantRun {
+			t.Fatalf("%s: run output %q, want %q", c.st, r.Stdout, c.wantRun)
+		}
+	}
+
+	// A source without a shebang is unaffected.
+	if f := FormatSource("x:=1\n", "gad"); f.Source != "x := 1\n" {
+		t.Fatalf("no-shebang changed: %q", f.Source)
+	}
+}

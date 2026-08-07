@@ -71,7 +71,21 @@ func Format(src string) FormatResult { return FormatSource(src, "") }
 // "gadx" formats Gadx (indentation) source, "gadTemplate"/"template" formats a
 // mixed template, and "gad"/"" formats plain Gad. On a parse error the source is
 // returned unchanged with the diagnostics.
+//
+// A leading `#!…` shebang line (executable scripts) is preserved verbatim: it is
+// split off before formatting and prepended to the result, so `gad fmt` round-
+// trips it in every dialect (the parser/compiler already ignores it at run time).
 func FormatSource(src, sourceType string) FormatResult {
+	shebang, rest := SplitShebang(src)
+	res := formatByType(rest, sourceType)
+	if shebang != "" && res.OK {
+		res.Source = shebang + res.Source
+	}
+	return res
+}
+
+// formatByType dispatches to the per-dialect formatter.
+func formatByType(src, sourceType string) FormatResult {
 	switch sourceType {
 	case "gadx":
 		return formatGadx(src)
@@ -80,6 +94,18 @@ func FormatSource(src, sourceType string) FormatResult {
 	default:
 		return formatGad(src, false)
 	}
+}
+
+// SplitShebang splits a leading `#!…` line (including its trailing newline) from
+// src, returning ("", src) when there is none.
+func SplitShebang(src string) (shebang, rest string) {
+	if !strings.HasPrefix(src, "#!") {
+		return "", src
+	}
+	if i := strings.IndexByte(src, '\n'); i >= 0 {
+		return src[:i+1], src[i+1:]
+	}
+	return src + "\n", "" // shebang-only file: keep it, add the newline
 }
 
 // formatGad formats plain Gad (or a mixed template when mixed is set), preserving
