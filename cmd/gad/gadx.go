@@ -8,8 +8,8 @@ import (
 )
 
 // isGadxFile reports whether path names a Gadx template (.gadx), which is
-// compiled with gad's native Gadx front-end (gad.CompileOptions.GadxOptions)
-// instead of the plain Gad compiler.
+// compiled with gad's native Gadx front-end (selected by the .gadx ModuleFile
+// extension) instead of the plain Gad compiler.
 func isGadxFile(path string) bool { return strings.HasSuffix(path, ".gadx") }
 
 // gadxBuiltins returns a builtins set with the gadx namespace (gadx.attr,

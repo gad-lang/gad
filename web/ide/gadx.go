@@ -8,8 +8,8 @@ import (
 )
 
 // isGadx reports whether path names a Gadx template (.gadx). Gadx files are
-// compiled with gad's native Gadx front-end (gad.CompileOptions.GadxOptions)
-// rather than the plain Gad compiler.
+// compiled with gad's native Gadx front-end (selected by the .gadx ModuleFile
+// extension) rather than the plain Gad compiler.
 func isGadx(path string) bool { return strings.HasSuffix(path, ".gadx") }
 
 // newBuiltins returns a builtins set suitable for compiling and running path.
@@ -27,7 +27,8 @@ func newBuiltins(path string) *gad.Builtins {
 // plain Gad path. The caller is responsible for template (.gadt) mode on opts.
 func compileFor(st *gad.SymbolTable, src []byte, path string, opts gad.CompileOptions) (*gad.CompileResult, error) {
 	if isGadx(path) {
-		opts.GadxOptions = &gad.GadxOptions{}
+		// A .gadx ModuleFile selects gad's native Gadx front-end.
+		opts.ModuleFile = path
 	}
 	return gad.Compile(st, src, opts)
 }

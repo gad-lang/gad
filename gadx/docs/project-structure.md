@@ -24,8 +24,8 @@ gadx/
 The package path is `github.com/gad-lang/gad/gadx`.
 
 This package holds the Gadx **runtime** — the render tree and the `gadx`
-builtins. Gadx **compilation** is part of Gad itself
-(`gad.CompileOptions.GadxOptions`), not this package.
+builtins. Gadx **compilation** is part of Gad itself (selected by a `.gadx`
+`gad.CompileOptions.ModuleFile`), not this package.
 
 Important exported names:
 

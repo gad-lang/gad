@@ -16,15 +16,12 @@ import (
 	"github.com/gad-lang/gad/token"
 )
 
-// GadxOptions configures Gadx (.gadx) template compilation. A non-nil
-// *GadxOptions on CompileOptions selects the Gadx front-end: the source is
-// parsed with Gadx's indentation-based syntax (tags, components, slots) and
-// lowered to Gad statements before the ordinary Gad compiler runs. The lowered
-// code references the `gadx` builtin namespace (gadx.Tag, gadx.attr, …), so the
-// symbol table and VM must have those builtins registered (gadx.AppendBuiltins).
-type GadxOptions struct {
-	// Reserved for future Gadx-specific compile settings.
-}
+// Gadx (.gadx) compilation is selected by the ModuleFile extension on
+// CompileOptions: a ".gadx" ModuleFile is parsed with Gadx's indentation-based
+// syntax (tags, components, slots) and lowered to Gad statements before the
+// ordinary Gad compiler runs. The lowered code references the `gadx` builtin
+// namespace (gadx.Tag, gadx.attr, …), so the symbol table and VM must have
+// those builtins registered (gadx.AppendBuiltins).
 
 // parseGadxFile parses Gadx source into a Gad *parser.File by running the Gadx
 // parser and lowering the resulting Gadx AST to Gad statements.

@@ -39,13 +39,13 @@ is indexable and iterable, and its elements can be replaced in place.
 
 The `.gadx` template engine is compiled by Gad itself — no separate compiler:
 `gad page.gadx` runs a Gadx template, a `.gad` script may `import("./p.gadx")`,
-and a Go host sets `GadxOptions` on `gad.CompileOptions` and registers the Gadx
-builtins.
+and a Go host selects the Gadx front-end by giving `gad.CompileOptions` a
+`.gadx` `ModuleFile` and registering the Gadx builtins.
 
 ```
 builtins := gadx.AppendBuiltins(gad.NewBuiltins())
 opts := gad.CompileOptions{}
-opts.GadxOptions = &gad.GadxOptions{} // parse & lower as Gadx
+opts.ModuleFile = "page.gadx" // a .gadx ModuleFile parses & lowers as Gadx
 cr, err := gad.Compile(st, []byte("p Hello {= name }"), opts)
 ```
 **/

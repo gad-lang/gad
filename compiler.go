@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strconv"
@@ -114,13 +115,9 @@ type (
 		MixedWriteFunction  node.Expr
 		MixedExprToTextFunc node.Expr
 		FallbackFunc        func(c *Compiler, nd ast.Node) error
-		// GadxOptions, when non-nil, compiles the source as a Gadx (.gadx)
-		// template: it is parsed with the Gadx front-end and lowered to Gad
-		// before compilation (see compiler_gadx.go). Nil means plain Gad.
-		GadxOptions   *GadxOptions
-		embeddedStore map[string]int
-		moduleStore   *moduleStore
-		constsCache   map[Object]int
+		embeddedStore       map[string]int
+		moduleStore         *moduleStore
+		constsCache         map[Object]int
 	}
 
 	// CompilerError represents a compiler error.
@@ -320,11 +317,16 @@ func Compile(st *SymbolTable, script []byte, opts CompileOptions) (*CompileResul
 func CompileModule(st *SymbolTable, module *ModuleSpec, script []byte, opts CompileOptions) (*CompileResult, error) {
 	fileSet := source.NewFileSet()
 
+	// A .gadx ModuleFile selects the Gadx front-end (see below); the compiler is
+	// always Gadx-capable, so the dialect is chosen by extension rather than an
+	// explicit option.
+	gadx := filepath.Ext(opts.ModuleFile) == ".gadx"
+
 	// Gadx source positions read best when the file carries the template's own
-	// path; use ModuleFile as the source name when set (the module itself keeps
-	// its spec name, e.g. the main module).
+	// path; use ModuleFile as the source name (the module itself keeps its spec
+	// name, e.g. the main module).
 	srcName := module.Name
-	if opts.GadxOptions != nil && opts.ModuleFile != "" {
+	if gadx {
 		srcName = opts.ModuleFile
 	}
 	srcFile := fileSet.AppendFileData(srcName, script)
@@ -339,7 +341,7 @@ func CompileModule(st *SymbolTable, module *ModuleSpec, script []byte, opts Comp
 
 	// Gadx (.gadx) templates are parsed with the Gadx front-end and lowered to
 	// Gad statements, then compiled through the Gadx fallback (compiler_gadx.go).
-	if opts.GadxOptions != nil {
+	if gadx {
 		pf, err = parseGadxFile(srcFile)
 		if err != nil {
 			return nil, err
@@ -360,11 +362,11 @@ func CompileModule(st *SymbolTable, module *ModuleSpec, script []byte, opts Comp
 // CompileFile compiles given module file, returning a CompileResult (the input
 // File, the Bytecode and any compiler Warnings) and an error.
 func CompileFile(st *SymbolTable, module *ModuleSpec, pf *parser.File, opts CompileOptions) (*CompileResult, error) {
-	// Always enable Gadx node lowering: even when GadxOptions is nil the AST may
-	// carry Gadx nodes (e.g. an imported .gadx module lowered into a plain-Gad
-	// compilation), so the Gadx fallback is installed by default when the caller
-	// has not supplied one. It only fires for nodes the Gad compiler does not
-	// handle natively, so plain Gad sources are unaffected.
+	// Always enable Gadx node lowering: even a plain-Gad compilation may carry
+	// Gadx nodes (e.g. an imported .gadx module lowered into it), so the Gadx
+	// fallback is installed by default when the caller has not supplied one. It
+	// only fires for nodes the Gad compiler does not handle natively, so plain
+	// Gad sources are unaffected.
 	if opts.FallbackFunc == nil {
 		opts.FallbackFunc = gadxCompileFallback
 	}
@@ -1105,8 +1107,7 @@ func (c *Compiler) compileSourceModule(
 	module *ModuleSpec,
 	moduleMap *ModuleMap,
 	src []byte,
-	parserOptions *parser.ParserOptions,
-	scannerOptions *parser.ScannerOptions,
+	kind SourceKind,
 ) (bc *Bytecode, err error) {
 	modFile := c.file.Set().AddFileData(module.URL, -1, src)
 	var trace io.Writer
@@ -1114,16 +1115,29 @@ func (c *Compiler) compileSourceModule(
 		trace = c.trace
 	}
 
-	if parserOptions == nil {
-		parserOptions = &parser.ParserOptions{Trace: trace}
-	}
-
-	p := parser.NewParserWithOptions(modFile, parserOptions, scannerOptions)
-
+	// The dialect of the imported source drives how it is parsed; the Gadx
+	// fallback is always installed, so lowered Gadx nodes compile regardless.
 	var file *parser.File
-	file, err = p.ParseFile()
-	if err != nil {
-		return
+	switch kind {
+	case SourceKindGadx:
+		if file, err = parseGadxFile(modFile); err != nil {
+			return
+		}
+	default:
+		parserOptions := &parser.ParserOptions{Trace: trace}
+		var scannerOptions *parser.ScannerOptions
+		if kind == SourceKindGadt {
+			// A .gadt module is a mixed template: literal text with {% … %} code.
+			parserOptions.Mode |= parser.ParseMixed
+			scannerOptions = &parser.ScannerOptions{
+				Mode:           parser.ScanMixed | parser.ScanConfigDisabled,
+				MixedDelimiter: parser.DefaultMixedDelimiter,
+			}
+		}
+		p := parser.NewParserWithOptions(modFile, parserOptions, scannerOptions)
+		if file, err = p.ParseFile(); err != nil {
+			return
+		}
 	}
 
 	symbolTable := NewSymbolTable(c.symbolTable.builtins).
@@ -1155,13 +1169,14 @@ func (c *Compiler) compileModule(
 	module *ModuleSpec,
 	moduleMap *ModuleMap,
 	src []byte,
+	kind SourceKind,
 ) (err error) {
 	var bc *Bytecode
 	if cimp, ok := importable.(CompilableImporter); ok {
 		if bc, err = cimp.CompileModule(c, nd, module, moduleMap, src); err != nil {
 			return
 		}
-	} else if bc, err = c.compileSourceModule(nd, module, moduleMap, src, nil, nil); err != nil {
+	} else if bc, err = c.compileSourceModule(nd, module, moduleMap, src, kind); err != nil {
 		return
 	}
 

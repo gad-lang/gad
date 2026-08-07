@@ -237,11 +237,8 @@ func (r *Render) compile(filePath string, src []byte, globalNames []string) (*te
 		ModuleMap:   mm,
 		EmbededdMap: gad.NewEmbedMap().SetExtImporter(&importers.EmbeddedFileImporter{WorkDirs: []string{workDir}}),
 	}}
-	// A .gadx entry compiles through gad's native Gadx front-end; a plain .gad
-	// entry compiles as ordinary Gad.
-	if filepath.Ext(filePath) == ".gadx" {
-		opts.GadxOptions = &gad.GadxOptions{}
-	}
+	// A .gadx ModuleFile compiles through gad's native Gadx front-end; a plain
+	// .gad entry compiles as ordinary Gad. The dialect is chosen by extension.
 
 	st := gad.NewSymbolTable(r.cachedBuiltins.NameSet)
 	if _, err := st.DefineGlobals(globalNames); err != nil {

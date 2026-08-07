@@ -827,10 +827,9 @@ func (s *Script) execute() error {
 		opts.TraceOptimizer = traceOptimizer
 	}
 
-	// .gadx entrypoints compile through gad's native Gadx front-end; nested
-	// .gadx imports resolve natively via the default file importer.
+	// A .gadx ModuleFile selects gad's native Gadx front-end; nested .gadx
+	// imports resolve natively via the default file importer.
 	if isGadxFile(s.modulePath) {
-		opts.GadxOptions = &gad.GadxOptions{}
 		opts.CompilerOptions.ModuleFile = s.modulePath
 	}
 	res, err := gad.CompileModule(defaultSymbolTable(s.builtins.Builtins().NameSet), module, s.script, opts)

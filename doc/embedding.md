@@ -325,10 +325,34 @@ the context the same way. For running a whole *script* under a deadline,
 ## Modules from Go
 
 To make modules importable, build a module map and pass it through the compile
-options. Source modules are added as bytes; builtin modules are
-`map[string]Object`; any value implementing `Importable` can serve as a custom
-module. The CLI wires a file-system importer that resolves `.gad` files along
-`GADPATH` — see [Modules](samples/26_embed.md) for the script-side view.
+options. Builtin modules are `map[string]Object`; any value implementing
+`Importable` can serve as a custom module. The CLI wires a file-system importer
+(`importers.FileImporter`) that resolves module files along `GADPATH` — see
+[Modules](samples/26_embed.md) for the script-side view.
+
+### Source modules and dialects
+
+A source module carries the dialect it must be compiled as. An importer returns
+a `gad.SourceCode` pairing the bytes with a `gad.SourceKind`, and the compiler
+parses each module with the matching front-end:
+
+| `SourceKind`     | `String()` | `Ext()` | Parsed as          |
+| ---------------- | ---------- | ------- | ------------------ |
+| `SourceKindGad`  | `GAD`      | `.gad`  | plain Gad          |
+| `SourceKindGadt` | `GADT`     | `.gadt` | mixed template     |
+| `SourceKindGadx` | `GADX`     | `.gadx` | Gadx (indentation) |
+
+`importers.FileImporter` derives the kind from the file extension
+(`gad.SourceKindForExt`), so `.gadt` and `.gadx` modules import correctly
+alongside `.gad`. In-memory modules pick their dialect explicitly; a bare
+`[]byte` returned by an importer is compiled as `SourceKindGad` for backward
+compatibility:
+
+```go
+opts.ModuleMap = gad.NewModuleMap().
+    AddSourceModule("util", []byte(`export add = func(a, b) => a + b`)).
+    AddSourceModuleKind("page", []byte(`{% export title = "Hi" %}`), gad.SourceKindGadt)
+```
 
 ## Safety
 

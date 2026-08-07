@@ -44,6 +44,67 @@ more doc/sample drift.
       23_template.gadt updated; test TestExtractDocGadtModuleProse.
 
 ## Log
+### 2026-08-07 (compile dialects: remove GadxOptions + add SourceCode)
+- Removed the empty `GadxOptions` struct + `CompilerOptions.GadxOptions` field.
+  The Gadx front-end is now selected by a `.gadx` `ModuleFile` extension
+  (CompileModule). Updated all callers (gadx/render, cmd/gad, web/gadbridge,
+  web/ide), the two gadx native tests, and every doc (gadx docs, CLAUDE.md,
+  sample 34 regenerated). `go test ./...` (core+cmd+gadx+web) exit 0.
+- Dialect-aware module imports: `SourceKind uint8` (SourceKindGad/Gadt/Gadx) got
+  `String()` ("GAD"/"GADT"/"GADX") and keeps `Ext()`; new `SourceCode{Data []byte;
+  Kind SourceKind}`. `compileImportExpr` handles `SourceCode` (and a bare []byte
+  as GAD, back-compat); `compileSourceModule` parses per kind (mixed for gadt,
+  Gadx front-end for gadx — the fork inherits the always-installed gadx fallback).
+  `importers.FileImporter.Import` and `ModuleMap.SourceModule`/`AddSourceModuleKind`
+  now return SourceCode with the kind from the extension. web/gadbridge maps its
+  "gad"/"gadTemplate"/"gadx" strings to gad.SourceKind (bridge sourceKind()).
+  Tests: TestSourceKindStringExt, TestSourceCodeImportDialects (.gadt exports 42;
+  wrong kind fails to parse; .gadx compiles under GADX only),
+  TestSourceCodePlainByteBackCompat, TestFileImporterSourceCode. Documented in
+  doc/embedding.md ("Source modules and dialects"). All module suites exit 0.
+
+### 2026-08-07 (website md renderer: underscores in links)
+- "Language chapters" table (doc/samples/README.md → lang-README.html) rendered
+  every sample link corrupted: renderInlineNoCode applied `_emphasis_` BEFORE
+  resolving links and matched intra-word underscores, so
+  `[01_hello](lang-01_hello.html)` → `<a href="lang-01</em>hello.html">01<em>hello</a>`
+  (broken href + text). Fix: resolve links first via segment-walk (URLs never
+  emphasized) + italicRe now requires non-word flanking (CommonMark intra-word
+  rule). Zero real `_emphasis_` in docs, so no regression. Test
+  TestRenderLinkUnderscores. `go test ./...` exit 0. Committed 76d3da8 → pushed
+  → website.yml deploy success. Live lang-README.html verified: 0 hrefs with a
+  stray <em>, 34 clean chapter links (CDN propagated on 2nd poll).
+
+### 2026-08-07 (website md renderer: width-aware fences)
+- The corrupted "forms" section persisted on the live site: the fence fix was in
+  the `.md` (cmd/gad), but the SITE has its own minimal md→HTML renderer
+  (cmd/build-website/markdown.go) that treated any ```-prefixed line as a fence
+  boundary — so the 4-backtick outer fence was closed early by the inner ```gad
+  doctest, and ```` opened a block with lang="`gad". Fix: backtickRun +
+  isClosingFence track the opening width; close only on a run of >= that width
+  alone on the line (CommonMark). Test TestRenderNestedFence. `go test ./...`
+  exit 0. Committed 2c85b00, pushed to main → website.yml deploy success. Live
+  page verified: `grep 'language-\`gad'` = 0, clean `language-gad` = 3 (CDN took
+  ~25s to propagate). Root cause was md→HTML, not the .md itself.
+
+### 2026-08-07 (fence-nesting fix in generated docs)
+- Generated doc pages corrupted when a snippet/Example source embedded a ```
+  run (a doctest fence inside a `/** **/` doc comment in 16_doc_comments; a raw
+  ```…``` heredoc in 21_heredocs): the inner run closed the outer ```gad fence
+  early. Fix: `fenceFor(content…)` returns a backtick run one longer than the
+  longest run in the content (min 3); renderSnippet + the Example (doc.fence in
+  md.gadx) size fences dynamically. Test TestSnippetEmbeddedFence (`go test
+  ./cmd/gad/ -run TestSnippetEmbeddedFence` → PASS). All 35 doc/samples/*.md
+  verified fence-balanced by a CommonMark nesting check. `go test ./...` exit 0.
+  Committed 723d460.
+- NOTE (not acted on): `gad fmt FILE` formats **in place by default** (prints the
+  path to stdout) — a read-only-looking `gad fmt f >/dev/null` still rewrites f.
+  And `gadbridge.FormatSource` uses `CodeWriteContextFlagFormat` (force-multiline)
+  not `CodeNewLineCalc` (column-aware), so it explodes every multi-arg call / array
+  literal onto one-item-per-line, comma-less. Accidentally mangled all samples this
+  way during a parse check; reverted via `git checkout -- samples/`. Worth a
+  follow-up: switch `gad fmt` to NEW_LINE_CALC so short lists stay inline.
+
 ### 2026-08-07 (interface funcs { … } section)
 - Interface context-function checks moved from the `:FnExpr <header>` prefix to a
   `funcs { FnExpr <header>; … }` section (2ee234b). The `:` prefix no longer

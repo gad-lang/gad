@@ -87,9 +87,9 @@ func (o *SourceFileObject) IndexGet(_ *VM, index Object) (Object, error) {
 func sourceKindEnumValue(k SourceKind) Object {
 	name := "GAD"
 	switch k {
-	case SourceTemplate:
+	case SourceKindGadt:
 		name = "TEMPLATE"
-	case SourceGadx:
+	case SourceKindGadx:
 		name = "GADX"
 	}
 	if v, ok := SourceTypeEnum.Values[name]; ok {

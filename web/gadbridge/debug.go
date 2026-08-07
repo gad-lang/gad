@@ -142,7 +142,7 @@ func (m *DebugManager) Start(req DebugStartRequest) DebugResponse {
 	}
 	switch {
 	case strings.HasSuffix(req.Path, ".gadx"):
-		opts.GadxOptions = &gad.GadxOptions{}
+		// The .gadx ModuleFile selects gad's native Gadx front-end.
 		opts.ModuleFile = req.Path
 	case strings.HasSuffix(req.Path, ".gadt"):
 		opts.ParserOptions.Mode |= parser.ParseMixed

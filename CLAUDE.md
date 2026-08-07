@@ -13,8 +13,9 @@ The Gad family uses three source extensions (all compile to the same bytecode/VM
 - **`.gadt`** — Gad **template** (mixed mode): literal text interleaved with code
   islands (`{% … %}` statements, `{%= … %}` output), parsed with `ParseMixed`.
 - **`.gadx`** — **Gadx** template: the indentation/pug-style HTML template engine
-  (the `gadx` submodule, `github.com/gad-lang/gad/gadx`), lowered to Gad via
-  `GadxOptions`. Compiled through `gadx.AppendBuiltins` (the `gadx.*` namespace:
+  (the `gadx` submodule, `github.com/gad-lang/gad/gadx`), lowered to Gad — the
+  front-end is selected by a `.gadx` `CompileOptions.ModuleFile`. Compiled through
+  `gadx.AppendBuiltins` (the `gadx.*` namespace:
   `gadx.Tag`, `gadx.attr`, `gadx.write`, …). *Renamed from the former `giom` /
   `.giom` — the tsx/jsx analog for Gad; do not reintroduce the `giom` name.*
 

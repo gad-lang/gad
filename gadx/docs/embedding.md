@@ -26,9 +26,9 @@ func Render(src []byte, globals gad.Dict) (string, error) {
         return "", err
     }
 
-    // GadxOptions selects Gad's native Gadx front-end.
+    // A .gadx ModuleFile selects Gad's native Gadx front-end.
     opts := gad.CompileOptions{}
-    opts.GadxOptions = &gad.GadxOptions{}
+    opts.ModuleFile = "template.gadx"
     _, bc, err := gad.Compile(st, src, opts)
     if err != nil {
         return "", err
@@ -65,7 +65,7 @@ compiles.
 for _, src := range sources {
     st := gad.NewSymbolTable(builtins.NameSet)
     opts := gad.CompileOptions{}
-    opts.GadxOptions = &gad.GadxOptions{}
+    opts.ModuleFile = "template.gadx"
     _, bc, err := gad.Compile(st, src, opts)
     if err != nil {
         return err
@@ -223,7 +223,7 @@ mm := gad.NewModuleMap().SetExtImporter(&importers.FileImporter{
 })
 
 opts := gad.CompileOptions{}
-opts.GadxOptions = &gad.GadxOptions{}
+opts.ModuleFile = "template.gadx"
 opts.ModuleMap = mm
 ```
 

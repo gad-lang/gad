@@ -3244,7 +3244,15 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 			return c.error(nd, err)
 		}
 		switch v := mod.(type) {
-		case []byte:
+		case []byte, SourceCode:
+			// A bare []byte is plain Gad (back-compat); a SourceCode carries its
+			// own dialect (.gad / .gadt / .gadx) so the module is parsed with the
+			// matching front-end.
+			sc, ok := v.(SourceCode)
+			if !ok {
+				sc = SourceCode{Data: mod.([]byte), Kind: SourceKindGad}
+			}
+
 			var moduleMap *ModuleMap
 			if isExt {
 				moduleMap = c.moduleMap.Fork(moduleName)
@@ -3254,7 +3262,7 @@ func (c *Compiler) compileImportExpr(nd *node.ImportExpr) (err error) {
 
 			spec.URL = url
 
-			err = c.compileModule(nd, importer, spec, moduleMap, v)
+			err = c.compileModule(nd, importer, spec, moduleMap, sc.Data, sc.Kind)
 			if err != nil {
 				return err
 			}

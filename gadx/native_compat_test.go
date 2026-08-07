@@ -1,6 +1,8 @@
 package gadx
 
 import (
+	"path/filepath"
+
 	gad "github.com/gad-lang/gad"
 	gadxnode "github.com/gad-lang/gad/gadx/node"
 	"github.com/gad-lang/gad/parser/ast"
@@ -8,19 +10,22 @@ import (
 
 // This file provides thin test-only shims mirroring the former isolated gadx
 // compiler API (Compile / NewCompiler / CompileFallback), now backed by gad's
-// native Gadx front-end (gad.CompileOptions.GadxOptions). The real compilation
-// logic lives in the gad module; these exist only so the existing gadx test
-// suite keeps exercising Gadx compilation through a familiar entry point.
+// native Gadx front-end (selected by the .gadx ModuleFile extension). The real
+// compilation logic lives in the gad module; these exist only so the existing
+// gadx test suite keeps exercising Gadx compilation through a familiar entry
+// point.
 
 // CompileFallback is a retained sentinel: assigning it to
 // CompilerOptions.FallbackFunc is a no-op because Compile forces gad's native
-// Gadx fallback via GadxOptions.
+// Gadx front-end via the .gadx ModuleFile.
 var CompileFallback func(*gad.Compiler, ast.Node) error
 
 // Compile compiles Gadx source to Gad bytecode through gad's native Gadx
 // front-end, preserving any ModuleMap / EmbededdMap on opts.
 func Compile(st *gad.SymbolTable, src []byte, opts gad.CompileOptions) (*gadxnode.File, *gad.Bytecode, error) {
-	opts.GadxOptions = &gad.GadxOptions{}
+	if filepath.Ext(opts.ModuleFile) != ".gadx" {
+		opts.ModuleFile = "module.gadx"
+	}
 	opts.FallbackFunc = nil
 	res, err := gad.Compile(st, src, opts)
 	return nil, res.BC(), err

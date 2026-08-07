@@ -256,8 +256,8 @@ func renderDocTemplate(tmplSrc []byte, tmplPath string, docDict gad.Dict) (strin
 	opts.ModuleFile = tmplPath
 	switch sourceTypeFor(tmplPath) {
 	case "gadx":
+		// opts.ModuleFile (tmplPath) ends in .gadx, selecting the Gadx front-end.
 		builtins = gadx.AppendBuiltins(builtins)
-		opts.GadxOptions = &gad.GadxOptions{}
 	case "gadTemplate":
 		opts.ParserOptions.Mode |= parser.ParseMixed
 		opts.ScannerOptions.Mode |= parser.ScanMixed | parser.ScanConfigDisabled

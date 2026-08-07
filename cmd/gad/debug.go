@@ -103,10 +103,9 @@ func loadProgram(file string) (*gad.Bytecode, *gad.Builtins, []string, error) {
 	st := defaultSymbolTable(builtins.NameSet)
 	opts := gad.CompileOptions{CompilerOptions: gad.DefaultCompilerOptions}
 	opts.ModuleMap = DefaultModuleMap(filepath.Dir(file), &sourcePath)
-	// .gadx entrypoints compile through gad's native Gadx front-end; nested
-	// .gadx imports resolve natively via the default file importer.
+	// A .gadx ModuleFile selects gad's native Gadx front-end; nested .gadx
+	// imports resolve natively via the default file importer.
 	if isGadxFile(file) {
-		opts.GadxOptions = &gad.GadxOptions{}
 		opts.CompilerOptions.ModuleFile = file
 	}
 	res, err := gad.Compile(st, src, opts)

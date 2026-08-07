@@ -46,9 +46,9 @@ builtins := gadx.AppendBuiltins(gad.NewBuiltins())
 st := gad.NewSymbolTable(builtins.NameSet)
 _, _ = st.DefineGlobals([]string{"Name"})
 
-// GadxOptions selects Gad's native Gadx front-end.
+// A .gadx ModuleFile selects Gad's native Gadx front-end.
 opts := gad.CompileOptions{}
-opts.GadxOptions = &gad.GadxOptions{}
+opts.ModuleFile = "template.gadx"
 _, bc, err := gad.Compile(st, src, opts)
 if err != nil {
     return err

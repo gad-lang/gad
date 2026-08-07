@@ -12,29 +12,56 @@ import (
 	"github.com/gad-lang/gad/parser/source"
 )
 
-// SourceKind selects how gad.parse / gad.parseFile interpret their source: plain
-// Gad, a Gad template (mixed / `.gadt`) or a Gadx (`.gadx`) template.
-type SourceKind int
+// SourceKind selects how source is parsed and compiled: plain Gad, a Gad
+// template (mixed / `.gadt`) or a Gadx (`.gadx`) template. It is carried by
+// SourceCode (module imports) and by gad.parse / gad.parseFile.
+type SourceKind uint8
 
 const (
-	// SourceGad parses the input as ordinary Gad source.
-	SourceGad SourceKind = iota
-	// SourceTemplate parses the input as a Gad template (mixed mode).
-	SourceTemplate
-	// SourceGadx parses the input with the Gadx front-end.
-	SourceGadx
+	// SourceKindGad parses the input as ordinary Gad source.
+	SourceKindGad SourceKind = iota
+	// SourceKindGadt parses the input as a Gad template (mixed mode).
+	SourceKindGadt
+	// SourceKindGadx parses the input with the Gadx front-end.
+	SourceKindGadx
 )
+
+// String returns the canonical upper-case dialect name: "GAD", "GADT" or "GADX".
+func (k SourceKind) String() string {
+	switch k {
+	case SourceKindGadt:
+		return "GADT"
+	case SourceKindGadx:
+		return "GADX"
+	default:
+		return "GAD"
+	}
+}
 
 // Ext returns the file extension conventionally associated with the source kind.
 func (k SourceKind) Ext() string {
 	switch k {
-	case SourceTemplate:
+	case SourceKindGadt:
 		return ".gadt"
-	case SourceGadx:
+	case SourceKindGadx:
 		return ".gadx"
 	default:
 		return ".gad"
 	}
+}
+
+// SourceKindForExt maps a file extension (or path) to a SourceKind: `.gadx` ->
+// Gadx, `.gadt` -> template, anything else -> plain Gad.
+func SourceKindForExt(pth string) SourceKind { return sourceKindForExt(pth) }
+
+// SourceCode is a unit of module source paired with the dialect it must be
+// compiled as. An ExtImporter (e.g. importers.FileImporter) returns it from
+// Import so the compiler parses the bytes with the right front-end — plain Gad,
+// a `.gadt` mixed template, or a `.gadx` Gadx template. A bare []byte returned by
+// an importer is treated as SourceKindGad for backward compatibility.
+type SourceCode struct {
+	Data []byte
+	Kind SourceKind
 }
 
 // SourceTypeEnum is the builtin `enum SourceType (GAD, TEMPLATE, GADX)` exposed
@@ -43,18 +70,18 @@ var SourceTypeEnum = newSourceTypeEnum()
 
 func newSourceTypeEnum() *Enum {
 	e := NewEnum("SourceType", gadModuleSpec)
-	e.AddValue("GAD", Int(SourceGad))
-	e.AddValue("TEMPLATE", Int(SourceTemplate))
-	e.AddValue("GADX", Int(SourceGadx))
+	e.AddValue("GAD", Int(SourceKindGad))
+	e.AddValue("TEMPLATE", Int(SourceKindGadt))
+	e.AddValue("GADX", Int(SourceKindGadx))
 	return e
 }
 
 // sourceKindFromArg reads a gad.SourceType member (or a plain int) into a
-// SourceKind, defaulting to SourceGad when the argument is nil.
+// SourceKind, defaulting to SourceKindGad when the argument is nil.
 func sourceKindFromArg(o Object) (SourceKind, error) {
 	switch v := o.(type) {
 	case nil:
-		return SourceGad, nil
+		return SourceKindGad, nil
 	case *EnumValue:
 		if iv, ok := v.Value.(Int); ok {
 			return SourceKind(iv), nil
@@ -64,7 +91,7 @@ func sourceKindFromArg(o Object) (SourceKind, error) {
 	case Uint:
 		return SourceKind(v), nil
 	}
-	return SourceGad, NewArgumentTypeError("type", "SourceType", o.Type().Name())
+	return SourceKindGad, NewArgumentTypeError("type", "SourceType", o.Type().Name())
 }
 
 // sourceKindForExt maps a file extension to a SourceKind: `.gadx` -> Gadx,
@@ -72,11 +99,11 @@ func sourceKindFromArg(o Object) (SourceKind, error) {
 func sourceKindForExt(pth string) SourceKind {
 	switch {
 	case strings.HasSuffix(pth, ".gadx"):
-		return SourceGadx
+		return SourceKindGadx
 	case strings.HasSuffix(pth, ".gadt"):
-		return SourceTemplate
+		return SourceKindGadt
 	default:
-		return SourceGad
+		return SourceKindGad
 	}
 }
 
@@ -86,7 +113,7 @@ func parseToStmts(src []byte, name string, kind SourceKind) (StmtsObject, error)
 	fileSet := source.NewFileSet()
 	srcFile := fileSet.AppendFileData(name, src)
 
-	if kind == SourceGadx {
+	if kind == SourceKindGadx {
 		pf, err := parseGadxFile(srcFile)
 		if err != nil {
 			return nil, err
@@ -96,7 +123,7 @@ func parseToStmts(src []byte, name string, kind SourceKind) (StmtsObject, error)
 
 	po := parser.ParserOptions{}
 	so := parser.ScannerOptions{}
-	if kind == SourceTemplate {
+	if kind == SourceKindGadt {
 		po.Mode |= parser.ParseMixed
 		so.Mode |= parser.ScanMixed | parser.ScanConfigDisabled
 	}

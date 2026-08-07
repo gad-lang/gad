@@ -10,7 +10,8 @@ import "github.com/gad-lang/gad/gadx"
 
 Gadx ships inside the Gad module. Its runtime (the render tree and the `gadx`
 builtins) lives in this package; Gadx **compilation** is built into Gad itself
-(`gad.CompileOptions.GadxOptions`), so there is no separate Gadx compiler.
+(selected by a `.gadx` `gad.CompileOptions.ModuleFile`), so there is no separate
+Gadx compiler.
 
 ## `AppendBuiltins`
 
@@ -63,15 +64,15 @@ otherwise it is the first content argument. The tag-building operators are
 `tag[name] = value` (set one attribute) and `tag.attrs += kva` (merge
 attributes).
 
-## Compilation (`gad.Compile` with `GadxOptions`)
+## Compilation (`gad.Compile` with a `.gadx` `ModuleFile`)
 
-Gadx source is compiled with Gad's own compiler by setting `GadxOptions` on the
-compile options — the Gadx front-end parses the indentation-based syntax and
+Gadx source is compiled with Gad's own compiler by giving the compile options a
+`.gadx` `ModuleFile` — the Gadx front-end parses the indentation-based syntax and
 lowers it to Gad before compilation:
 
 ```go
 opts := gad.CompileOptions{}
-opts.GadxOptions = &gad.GadxOptions{}
+opts.ModuleFile = "template.gadx"
 _, bc, err := gad.Compile(st, src, opts)
 ```
 

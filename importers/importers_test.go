@@ -2,6 +2,7 @@ package importers_test
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,6 +14,37 @@ import (
 
 	"github.com/gad-lang/gad/importers"
 )
+
+// TestFileImporterSourceCode verifies Import returns a gad.SourceCode whose Kind
+// is chosen from the file extension (.gad / .gadt / .gadx).
+func TestFileImporterSourceCode(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) string {
+		p := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(p, []byte(content), 0o644))
+		return p
+	}
+	cases := []struct {
+		file string
+		kind gad.SourceKind
+	}{
+		{write("a.gad", "return 1"), gad.SourceKindGad},
+		{write("b.gadt", "{%= 1 %}"), gad.SourceKindGadt},
+		{write("c.gadx", "span Hi"), gad.SourceKindGadx},
+	}
+	imp := &importers.FileImporter{WorkDir: dir}
+	for _, c := range cases {
+		ei := imp.Get(c.file)
+		require.NotNil(t, ei)
+		data, uri, err := ei.Import(context.Background(),
+			&gad.ModuleSpec{ModuleInfo: gad.ModuleInfo{Name: c.file}})
+		require.NoError(t, err)
+		sc, ok := data.(gad.SourceCode)
+		require.Truef(t, ok, "want gad.SourceCode, got %T", data)
+		require.Equal(t, c.kind, sc.Kind)
+		require.NotEmpty(t, uri)
+	}
+}
 
 func TestFileImporter(t *testing.T) {
 	buf := bytes.NewBuffer(nil)

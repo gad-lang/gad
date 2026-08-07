@@ -105,9 +105,16 @@ func (m *ModuleMap) AddBuiltinCompilableModule(
 	return m
 }
 
-// AddSourceModule adds a source module.
+// AddSourceModule adds a plain Gad source module.
 func (m *ModuleMap) AddSourceModule(name string, src []byte) *ModuleMap {
 	m.m[name] = &SourceModule{Src: src}
+	return m
+}
+
+// AddSourceModuleKind adds a source module compiled as the given dialect
+// (SourceKindGad / SourceKindGadt / SourceKindGadx).
+func (m *ModuleMap) AddSourceModuleKind(name string, src []byte, kind SourceKind) *ModuleMap {
+	m.m[name] = &SourceModule{Src: src, Kind: kind}
 	return m
 }
 
@@ -144,14 +151,17 @@ func (m *ModuleMap) Copy() *ModuleMap {
 	return c
 }
 
-// SourceModule is an importable module that's written in Gad.
+// SourceModule is an importable module that's written in Gad. Kind selects the
+// dialect it is compiled as (plain Gad by default, a .gadt template or a .gadx
+// template).
 type SourceModule struct {
-	Src []byte
+	Src  []byte
+	Kind SourceKind
 }
 
-// Import returns a module source code.
+// Import returns the module source paired with its dialect as a SourceCode.
 func (m *SourceModule) Import(_ context.Context, module *ModuleSpec) (any, string, error) {
-	return m.Src, module.Name, nil
+	return SourceCode{Data: m.Src, Kind: m.Kind}, module.Name, nil
 }
 
 // BuiltinModule is an importable module that's written in ToInterface.

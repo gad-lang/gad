@@ -13,9 +13,9 @@ import (
 // FileImporter is an implemention of gad.ExtImporter to import files from file
 // system. It uses absolute paths of module as import names.
 //
-// Files ending in ".gadx" are compiled natively with the Gadx front-end: Import
-// returns a gad.BuiltinCompileModuleFunc so they are parsed and lowered to Gad
-// during import compilation. Other files are returned as source bytes.
+// Import returns a gad.SourceCode pairing the file bytes with the dialect chosen
+// from its extension (.gadt -> template, .gadx -> Gadx, otherwise plain Gad), so
+// the compiler parses each module with the matching front-end.
 type FileImporter struct {
 	NameResolver func(cwd, name string) (string, error)
 	WorkDir      string
@@ -58,9 +58,10 @@ func (m *FileImporter) Name() (string, error) {
 	return path, nil
 }
 
-// Import returns the content of the path determined by Name call. Empty name
-// will return an error. A ".gadx" module is returned as a
-// gad.BuiltinCompileModuleFunc that compiles the file with the Gadx front-end.
+// Import returns the module source paired with its dialect as a gad.SourceCode.
+// The dialect is chosen from the file extension (.gadt -> template, .gadx ->
+// Gadx, otherwise plain Gad); the compiler parses the bytes with the matching
+// front-end. Empty name returns an error.
 func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data any, uri string, err error) {
 	// Note that; moduleName == Literal()
 	if m.name == "" || module.Name == "" {
@@ -68,39 +69,28 @@ func (m *FileImporter) Import(ctx context.Context, module *gad.ModuleSpec) (data
 		return
 	}
 
+	var src []byte
 	if m.FileReader == nil {
-		if data, err = os.ReadFile(module.Name); err != nil {
+		if src, err = os.ReadFile(module.Name); err != nil {
 			return
 		}
 		// Gad addresses modules with forward slashes; normalise so uris are
 		// consistent across OSes (Windows filepath.Join yields backslashes).
 		uri = "file:" + filepath.ToSlash(module.Name)
-	} else if data, uri, err = m.FileReader(module.Name); err != nil {
+	} else if src, uri, err = m.FileReader(module.Name); err != nil {
 		return
 	}
 
-	// Gadx templates are compiled natively during import compilation.
-	if filepath.Ext(module.Name) == ".gadx" {
-		src, _ := data.([]byte)
-		name := module.Name
-		if rel, rerr := filepath.Rel(m.WorkDir, module.Name); rerr == nil {
-			name = rel
-		}
-		if m.TranspilePath != nil {
-			if outPath := m.TranspilePath(module.Name); outPath != "" {
-				if terr := gad.TranspileGadx(module.Name, src, outPath); terr != nil {
-					return nil, "", terr
-				}
+	kind := gad.SourceKindForExt(module.Name)
+	// A .gadx module may additionally be transpiled to readable Gad on import.
+	if kind == gad.SourceKindGadx && m.TranspilePath != nil {
+		if outPath := m.TranspilePath(module.Name); outPath != "" {
+			if terr := gad.TranspileGadx(module.Name, src, outPath); terr != nil {
+				return nil, "", terr
 			}
 		}
-		data = gad.BuiltinCompileModuleFunc(func(cc *gad.BuiltinCompileModuleContext) (*gad.Bytecode, error) {
-			cc.Spec.URL = name
-			if err := gad.CompileGadxModule(cc, src); err != nil {
-				return nil, err
-			}
-			return cc.Compiler.Bytecode(), nil
-		})
 	}
+	data = gad.SourceCode{Data: src, Kind: kind}
 	return
 }
 

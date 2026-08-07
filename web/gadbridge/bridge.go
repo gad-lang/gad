@@ -556,17 +556,31 @@ func encodeElement(el gadx.Element, format string) (string, error) {
 	return string(out), err
 }
 
+// sourceKind maps a bridge/wasm dialect string ("gad"/"gadTemplate"/"gadx", plus
+// the "template" and "gadt" aliases) to the core gad.SourceKind, so the bridge
+// selects dialects through the same enum the compiler and importers use.
+func sourceKind(sourceType string) gad.SourceKind {
+	switch sourceType {
+	case "gadx":
+		return gad.SourceKindGadx
+	case "gadTemplate", "template", "gadt":
+		return gad.SourceKindGadt
+	default:
+		return gad.SourceKindGad
+	}
+}
+
 // compileSource builds the bytecode for src in the given dialect, returning the
 // result and the builtins the VM must run with (gadx adds its namespace).
 func compileSource(src, sourceType string) (*gad.CompileResult, *gad.Builtins, error) {
 	builtins := gad.NewBuiltins()
 	opts := gad.CompileOptions{}
-	switch sourceType {
-	case "gadx":
+	switch sourceKind(sourceType) {
+	case gad.SourceKindGadx:
+		// The .gadx ModuleFile selects gad's native Gadx front-end.
 		builtins = gadx.AppendBuiltins(builtins)
-		opts.GadxOptions = &gad.GadxOptions{}
 		opts.ModuleFile = sourceName + ".gadx"
-	case "gadTemplate", "template":
+	case gad.SourceKindGadt:
 		opts.ParserOptions.Mode |= parser.ParseMixed
 		opts.ScannerOptions.Mode |= parser.ScanMixed | parser.ScanConfigDisabled
 		opts.ScannerOptions.MixedDelimiter = parser.DefaultMixedDelimiter

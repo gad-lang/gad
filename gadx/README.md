@@ -73,9 +73,9 @@ func main() {
         log.Fatal(err)
     }
 
-    // GadxOptions selects Gad's native Gadx front-end.
+    // A .gadx ModuleFile selects Gad's native Gadx front-end.
     opts := gad.CompileOptions{}
-    opts.GadxOptions = &gad.GadxOptions{}
+    opts.ModuleFile = "template.gadx"
     _, bc, err := gad.Compile(st, src, opts)
     if err != nil {
         log.Fatal(err)
@@ -103,7 +103,7 @@ func main() {
 }
 ```
 
-Gadx source compiles through Gad's native front-end (`opts.GadxOptions`). Give
+Gadx source compiles through Gad's native front-end (a `.gadx` `opts.ModuleFile`). Give
 each independent template its own symbol table (a compiled template binds a root
 tag at the module top level), or use the caching [`Render`](docs/embedding.md)
 struct, which handles this for you.
@@ -133,8 +133,9 @@ gadx/
 └── docs/                # User documentation
 ```
 
-Compilation lives in the parent Gad module (`gad.CompileOptions.GadxOptions`,
-`importers.FileImporter`); runnable examples are in the repository's
+Compilation lives in the parent Gad module (a `.gadx`
+`gad.CompileOptions.ModuleFile`, `importers.FileImporter`); runnable examples
+are in the repository's
 [`samples/gadx/`](../samples/gadx).
 
 ## CMS Example

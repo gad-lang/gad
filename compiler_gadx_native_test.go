@@ -19,7 +19,8 @@ func runScript(t *testing.T, src string, gadxMode bool) (gad.Object, string) {
 	st := gad.NewSymbolTable(builtins.NameSet)
 	opts := gad.CompileOptions{}
 	if gadxMode {
-		opts.GadxOptions = &gad.GadxOptions{}
+		// A .gadx ModuleFile selects gad's native Gadx front-end.
+		opts.ModuleFile = "template.gadx"
 	}
 	cr1, err := gad.Compile(st, []byte(src), opts)
 	bc := cr1.BC()
@@ -41,7 +42,7 @@ func runScript(t *testing.T, src string, gadxMode bool) (gad.Object, string) {
 }
 
 func TestNativeGadxCompile(t *testing.T) {
-	// A .gadx template compiled through gad.CompileOptions.GadxOptions returns a
+	// A .gadx template (selected by the .gadx ModuleFile extension) returns a
 	// gadx.Tag; runScript writes its rendered HTML into the captured output.
 	_, html := runScript(t, `p Hello {= 1 + 2 }`, true)
 	if !strings.Contains(html, "Hello") || !strings.Contains(html, "3") {
