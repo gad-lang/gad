@@ -29,7 +29,7 @@ more doc/sample drift.
       doc/README.md (index → sample + generated doc)
 - [x] Incorporate doc/samples into the website (cmd/build-website "Language"
       section: lang-<name>.html, link rewriting)
-- [ ] JSON/YAML doc output (encode the DOC dict that feeds the templates)
+- [x] JSON/YAML doc output (`--json` / `--yaml` encode the doc structure)
 - [ ] Follow-up: gadt/gadx shebang round-trip on format; .gadt module prose
 
 ## Log

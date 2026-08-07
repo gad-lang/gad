@@ -161,18 +161,8 @@ func fenceLangFor(sourceType string) string {
 // executed and verified; a mismatch or run error aborts generation.
 func buildDocDict(doc *gadbridge.DocData, path string, src []byte, sourceType string, run bool) (gad.Dict, error) {
 	lang := fenceLangFor(sourceType)
-	snips := extractSnippets(src)
-
-	var err error
-	if doc.Prose, err = expandSnippets(doc.Prose, snips, lang, run); err != nil {
+	if err := expandDocSnippets(doc, src, lang, run); err != nil {
 		return nil, err
-	}
-	for si := range doc.Sections {
-		for yi := range doc.Sections[si].Symbols {
-			if doc.Sections[si].Symbols[yi].Doc, err = expandSnippets(doc.Sections[si].Symbols[yi].Doc, snips, lang, run); err != nil {
-				return nil, err
-			}
-		}
 	}
 
 	d := doc.GadDict()
@@ -184,6 +174,26 @@ func buildDocDict(doc *gadbridge.DocData, path string, src []byte, sourceType st
 	// already start with a Markdown heading (migrated samples lead with `# Title`).
 	d["proseHasTitle"] = gad.Bool(strings.HasPrefix(strings.TrimSpace(doc.Prose), "#"))
 	return d, nil
+}
+
+// expandDocSnippets expands the `@snippet NAME` placeholders in a DocData's prose
+// and in each symbol's doc, in place, from the source's `//snippet` regions (see
+// buildDocDict). When run is true a snippet's declared result is executed and
+// verified.
+func expandDocSnippets(doc *gadbridge.DocData, src []byte, lang string, run bool) error {
+	snips := extractSnippets(src)
+	var err error
+	if doc.Prose, err = expandSnippets(doc.Prose, snips, lang, run); err != nil {
+		return err
+	}
+	for si := range doc.Sections {
+		for yi := range doc.Sections[si].Symbols {
+			if doc.Sections[si].Symbols[yi].Doc, err = expandSnippets(doc.Sections[si].Symbols[yi].Doc, snips, lang, run); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // docOutput is one rendered documentation file: its destination path and body.

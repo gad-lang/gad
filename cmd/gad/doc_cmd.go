@@ -52,9 +52,12 @@ type docOptions struct {
 	docTemplateHTML string
 	// html enables the extra .html output using the workspace/embedded HTML
 	// template. noTemplate disables template rendering entirely (built-in Go
-	// Markdown renderer).
+	// Markdown renderer). json/yaml additionally encode the doc structure (the
+	// template `param (doc dict)` shape) to a .json / .yaml file per source.
 	html       bool
 	noTemplate bool
+	json       bool
+	yaml       bool
 
 	examplesFailed int // count of failed embedded examples
 
@@ -119,6 +122,8 @@ func (o *docOptions) registerFlags(fs *flag.FlagSet) {
 	fs.StringVar(&o.docTemplateHTML, "doc-template-html", "", "HTML doc template (.gad/.gadt/.gadx); overrides .gad/doc-templates/html.gadx")
 	fs.BoolVar(&o.html, "html", false, "also emit an .html file per source using the HTML doc template")
 	fs.BoolVar(&o.noTemplate, "no-template", false, "disable doc templates; use the built-in Markdown renderer")
+	fs.BoolVar(&o.json, "json", false, "also emit a .json file per source encoding the doc structure")
+	fs.BoolVar(&o.yaml, "yaml", false, "also emit a .yaml file per source encoding the doc structure")
 }
 
 // loadConfig reads the `doc:` section of the YAML config (unless --no-config) and
@@ -356,6 +361,16 @@ func (o *docOptions) processFile(ctx *cc.CommandContext, path, dst, base string)
 		// Record the Markdown output path so run() can build the directory
 		// indexes once every file is written.
 		o.written = append(o.written, res.OutPath)
+	}
+
+	// --json / --yaml additionally encode the doc structure alongside the
+	// Markdown/HTML outputs.
+	if o.json || o.yaml {
+		encoded, err := o.renderEncodedOutputs(path, src, res)
+		if err != nil {
+			return err
+		}
+		outputs = append(outputs, encoded...)
 	}
 
 	if o.noSave {
