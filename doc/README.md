@@ -4,109 +4,57 @@ Gad is a fast, dynamic scripting language designed to be embedded into Go
 applications. Source code is compiled to bytecode and run on a stack-based
 virtual machine written in native Go.
 
-This documentation is a hands-on, example-driven reference. Every example is
-written as runnable Gad code; most can be pasted directly into the REPL or a
-`.gad` file.
+The **language-feature documentation lives inside the samples**: each
+`samples/NN_topic.{gad,gadt,gadx}` carries its chapter as a doc comment and a
+runnable example, and `gad doc` generates the rendered pages under
+[`doc/samples/`](samples/) (index: [doc/samples/README.md](samples/README.md)).
+Regenerate them with `make samples-doc`.
 
-## Table of Contents
+## Language chapters (generated from the samples)
 
-1. [Getting Started](getting-started.md) — install, run scripts, the REPL.
-2. [Values and Types](values-and-types.md) — every value type and its literals
-   (int, uint, float, decimal, bool, flag, char, str, rawStr, bytes, array,
-   dict, nil, function, …).
-3. [Variables and Scopes](variables-and-scopes.md) — `param`, `global`, `var`,
-   `const`, `iota`, `:=` vs `=`, scoping rules.
-4. [Operators](operators.md) — unary, binary, ternary, assignment, nullish
-   (`??`, `?.`), precedence, selectors, indexers and slicing.
-5. [Control Flow](control-flow.md) — `if`, `for`, `for in`, `try/catch/finally`,
-   and the `match` expression/statement.
-6. [Functions](functions.md) — closures, variadics, named arguments, spreading,
-   `return =`, and `defer` / `deferb` handlers.
-   - [Properties](properties.md) — `prop` getters/setters, the virtual `.v`
-     field, computed container members, and module live bindings.
-7. [Collections](collections.md) — arrays, dicts, comprehensions, spread/merge
-   literals, and destructuring.
-8. [Classes and Objects](classes.md) — `Class(...)`, fields, methods,
-   properties, constructors, inheritance and `met` extensions.
-   - [Func Headers and Method Interfaces](method-interfaces.md) — `<…>` header
-     values, `meti` interfaces and `implements`.
-   - [Enums](enums.md) — the `enum` keyword: ordered named integer constants,
-     signs, bit flags and computed values.
-9. [Strings, Bytes and Regex](strings-bytes-regex.md) — string forms, raw
-   strings, heredocs, interpolated strings, **bytes literals** (`b"…"`, `h"…"`) and
-   `/regex/` literals.
-10. [Error Handling](error-handling.md) — error values, builtin errors,
-    `try/catch/finally`, and the `or` fallback operator.
-11. [Modules](modules.md) — `import`, `exports`, module parameters.
-12. [Builtin Functions](builtins.md) — overview of the builtin library.
-13. [Embedding in Go](embedding.md) — compile and run Gad from Go, pass
-    globals and arguments, expose Go functions.
-14. [Formatting](formatting.md) — the `gad fmt` source formatter, its flags and
-    the `.gad.yaml` config file.
-15. [Templates](templates.md) — mixed/template mode (`{% … %}`, `{%= … %}`,
-    `begin … end`, whitespace trim markers, `.gadt` files).
-16. [Doc Comments](doc-comments.md) — `///`, `/**` and `/***` doc comments,
-    what they attach to, and how the formatter reflows them.
-17. [Conventions](conventions.md) — how primitive types, constants, modules and
-    methods are cased, plus the code layout the formatter produces.
+| Chapter | Rendered doc | Sample source |
+|---------|--------------|---------------|
+| Getting Started | [getting-started.md](getting-started.md) | — |
+| Values and Types | [02](samples/02_values_and_types.md) | [`samples/02_values_and_types.gad`](../samples/02_values_and_types.gad) |
+| Variables and Scopes | [33](samples/33_variables_and_scopes.md) | [`samples/33_variables_and_scopes.gad`](../samples/33_variables_and_scopes.gad) |
+| Operators | [14](samples/14_user_operators.md) | [`samples/14_user_operators.gad`](../samples/14_user_operators.gad) (+ [13](samples/13_ranges.md)/[15](samples/15_in_operator.md)/[17](samples/17_unary_operators.md)/[28](samples/28_absent_coalescing.md)) |
+| Control Flow | [06](samples/06_control_flow.md) | [`samples/06_control_flow.gad`](../samples/06_control_flow.gad) (+ [18 with](samples/18_with.md)) |
+| Functions | [03](samples/03_functions.md) | [`samples/03_functions.gad`](../samples/03_functions.gad) (+ [10 methods](samples/10_functions_with_methods.md)) |
+| Properties | [31](samples/31_properties.md) | [`samples/31_properties.gad`](../samples/31_properties.gad) |
+| Collections | [04](samples/04_collections.md) | [`samples/04_collections.gad`](../samples/04_collections.gad) (+ [05](samples/05_comprehensions.md)/[22](samples/22_key_value_array.md)/[27](samples/27_destructuring.md)) |
+| Classes | [11](samples/11_classes.md) | [`samples/11_classes.gad`](../samples/11_classes.gad) (+ [19 class syntax](samples/19_class_syntax.md)) |
+| Method Interfaces | [12](samples/12_method_interfaces.md) | [`samples/12_method_interfaces.gad`](../samples/12_method_interfaces.gad) |
+| Interfaces | [24](samples/24_interfaces.md) | [`samples/24_interfaces.gad`](../samples/24_interfaces.gad) |
+| Enums | [20](samples/20_enum.md) | [`samples/20_enum.gad`](../samples/20_enum.gad) |
+| Strings, Bytes & Regex | [08](samples/08_strings_bytes_regex.md) | [`samples/08_strings_bytes_regex.gad`](../samples/08_strings_bytes_regex.gad) (+ [21 heredocs](samples/21_heredocs.md)) |
+| Error Handling | [07](samples/07_error_handling.md) | [`samples/07_error_handling.gad`](../samples/07_error_handling.gad) |
+| Modules and Embedding | [26](samples/26_embed.md) | [`samples/26_embed.gad`](../samples/26_embed.gad) |
+| Templates (mixed mode) | [09](samples/09_template.md) | [`samples/09_template.gad`](../samples/09_template.gad) (+ [23 .gadt](samples/23_template.md)) |
+| Doc Comments | [16](samples/16_doc_comments.md) | [`samples/16_doc_comments.gad`](../samples/16_doc_comments.gad) |
+| Special `@` Keywords | [29](samples/29_special_keywords.md) | [`samples/29_special_keywords.gad`](../samples/29_special_keywords.gad) |
+| Metaprogramming | [34](samples/34_metaprogramming.md) | [`samples/34_metaprogramming.gad`](../samples/34_metaprogramming.gad) |
 
-## Reference
+## Reference & tooling
 
-- [Special `@` Keywords](special-keywords.md) — `@fn`, `@args`, `@nargs`,
-  `@name`, `@file`, `@main`, `@module`, `@g`.
+- [Getting Started](getting-started.md) — install, run scripts, the REPL.
+- [Embedding in Go](embedding.md) — compile and run Gad from Go, pass globals and
+  arguments, expose Go functions and typed methods.
+- [Formatting](formatting.md) — the `gad fmt` source formatter and the `.gad.yaml`
+  config file.
+- [Workspace Configuration](workspace-config.md) — `.gad/gad.yaml` / `ide.yaml`,
+  the `env` section, `GADPATH`, and the `doc-templates` directory.
+- [Conventions](conventions.md) — how primitive types, constants, modules and
+  methods are cased, plus the layout the formatter produces.
+- [Builtin Functions](builtins.md) — overview of the builtin library.
+- [`reflect`](reflect.md) — raw, delegation-free index access.
+- [Testing](stdlib-test.md) — the `test` module and the `gad test` command.
 - [Tutorial](tutorial.md) — a guided walk-through of the language.
 - Generated standard-library references: [`time`](stdlib-time.md),
-  [`fmt`](stdlib-fmt.md), [`strings`](stdlib-strings.md),
-  [`json`](stdlib-json.md).
-- [`reflect`](reflect.md) — raw, delegation-free index access (the `Reflect.get`
-  / `Reflect.set` analog); pairs with computed
-  [properties](properties.md).
-- [Testing](stdlib-test.md) — the `test` module and the `gad test` command:
-  `*_test.gad` files, `test*`/`bench*` functions, assertions and benchmarks.
-- [Metaprogramming](metaprogramming.md) — the `gad` namespace: `gad.parse` /
-  `gad.parseFile` / `gad.eval`, the `SourceType` enum, `SourceFileObject` /
-  `StmtsObject`, and native Gadx (`.gadx`) compilation.
-- [Workspace Configuration](workspace-config.md) — `.gad.yaml` / `.gadide.yaml`,
-  the `env` section, `GADPATH`, and bash-style variable expansion of config
-  values.
+  [`fmt`](stdlib-fmt.md), [`strings`](stdlib-strings.md), [`json`](stdlib-json.md).
 
 ## Gadx Templates
 
 Gadx is an indentation-based HTML template language that embeds Gad, shipped in
-this repository as the [`gadx`](../gadx) submodule. `.gadx` files can be run and
-debugged with the `gad` CLI and the `gad ide`/VS Code tooling. Its full
-documentation lives in [`gadx/docs`](../gadx/docs):
-
-- [Getting Started](../gadx/docs/getting-started.md) — install and render a first template.
-- [Syntax](../gadx/docs/syntax.md) — tags, `.class`/`#id`, `[attr]` groups,
-  `@`-control keywords, `{= … }` interpolation and `~~` code blocks.
-- [Components and Slots](../gadx/docs/components-and-slots.md) — `@comp`, `@slot`
-  and component calls.
-- [Embedding in Go](../gadx/docs/embedding.md) and the [API](../gadx/docs/api.md).
-
-## A Taste of Gad
-
-```gad
-param *args
-
-// closures, named args and the `or` fallback operator
-greet := func(name; greeting="Hello") {
-    return greeting + ", " + name + "!"
-}
-
-// comprehensions and spread literals
-nums := [1, 2, 3, 4]
-doubled := [n * 2 for n in nums if n > 1]   // [4, 6, 8]
-all := [0, *doubled, 99]                    // [0, 4, 6, 8, 99]
-
-// match expression
-kind := match (len(args)) {
-    0: "empty"
-    1: "single"
-    else: "many"
-}
-
-println(greet("Gad"))            // Hello, Gad!
-println(greet("Gad"; greeting="Hi"))
-println(doubled, all, kind)
-```
+this repository as the [`gadx`](../gadx) submodule. `.gadx` files run and debug
+with the `gad` CLI and the IDE tooling. Its documentation lives in
+[`gadx/docs`](../gadx/docs).

@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -88,15 +89,32 @@ type navGroup struct {
 }
 
 // guideOrder / refOrder give the curated nav ordering (filenames without .md).
+// The language chapters now live in samples/ and are published from doc/samples
+// as the "Language" section (see langOrder / collectLangPages).
 var guideOrder = []string{
-	"README", "getting-started", "values-and-types", "variables-and-scopes",
-	"operators", "control-flow", "functions", "collections",
-	"strings-bytes-regex", "error-handling", "modules", "builtins",
-	"templates", "formatting", "embedding",
+	"README", "getting-started", "builtins", "formatting", "embedding",
 }
 
 var refOrder = []string{
-	"tutorial", "metaprogramming", "workspace-config", "stdlib-strings", "stdlib-fmt", "stdlib-json", "stdlib-time",
+	"tutorial", "workspace-config", "conventions", "reflect", "stdlib-test",
+	"stdlib-strings", "stdlib-fmt", "stdlib-json", "stdlib-time",
+}
+
+// langOrder is the curated nav ordering for the language chapters generated from
+// the samples into doc/samples (filenames without .md). Any doc/samples page not
+// listed here is appended after, sorted by name, so nothing is dropped.
+var langOrder = []string{
+	"README",
+	"02_values_and_types", "33_variables_and_scopes",
+	"14_user_operators", "13_ranges", "15_in_operator", "17_unary_operators", "28_absent_coalescing",
+	"06_control_flow", "18_with",
+	"03_functions", "10_functions_with_methods", "31_properties",
+	"04_collections", "05_comprehensions", "22_key_value_array", "27_destructuring",
+	"11_classes", "19_class_syntax",
+	"12_method_interfaces", "24_interfaces", "20_enum",
+	"08_strings_bytes_regex", "21_heredocs", "07_error_handling",
+	"26_embed", "09_template", "23_template",
+	"16_doc_comments", "29_special_keywords", "34_metaprogramming",
 }
 
 // gadxOrder is the curated nav ordering for the Gadx template docs, sourced from
@@ -120,6 +138,12 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 		return err
 	}
 	ref, err := collectPages(filepath.Join(repoRoot, "doc"), refOrder, "Reference", false)
+	if err != nil {
+		return err
+	}
+
+	// Language chapters generated from the samples into doc/samples.
+	lang, err := collectLangPages(filepath.Join(repoRoot, "doc", "samples"))
 	if err != nil {
 		return err
 	}
@@ -178,8 +202,11 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 
 	groups := []navGroup{
 		{Name: "Guide", Pages: guide},
-		{Name: "Reference", Pages: ref},
 	}
+	if len(lang) > 0 {
+		groups = append(groups, navGroup{Name: "Language", Pages: lang})
+	}
+	groups = append(groups, navGroup{Name: "Reference", Pages: ref})
 	if len(gadxPages) > 0 {
 		groups = append(groups, navGroup{Name: "Gadx", Pages: gadxPages})
 	}
@@ -199,7 +226,8 @@ func buildSite(repoRoot, outDir string, cfg siteConfig) error {
 		}
 	}
 
-	all := append(append([]*page{}, guide...), ref...)
+	all := append(append([]*page{}, guide...), lang...)
+	all = append(all, ref...)
 	all = append(all, gadxPages...)
 	all = append(all, jsPages...)
 
@@ -312,6 +340,77 @@ func collectGadxPages(dir string, order []string) ([]*page, error) {
 			Title:    title,
 			OutFile:  "gadx-" + name + ".html",
 			Section:  "Gadx",
+			BodyHTML: template.HTML(body),
+			Headings: headings,
+			plain:    plainText(rewritten),
+		})
+	}
+	return pages, nil
+}
+
+// langLinkRe matches a Markdown link to a sibling sample file (a `.gad`/`.gadt`/
+// `.gadx`/`.md` target with no scheme or path separator) so the cross-references
+// the samples use (`[03_functions.gad](03_functions.gad)`) resolve to the
+// prefixed `lang-<name>.html` pages.
+var langLinkRe = regexp.MustCompile(`\]\(([0-9A-Za-z_-]+)\.(?:gad|gadt|gadx|md)(#[A-Za-z0-9_-]+)?\)`)
+
+// collectLangPages renders the language chapters generated into doc/samples as the
+// "Language" nav section. Pages are emitted as `lang-<name>.html`; intra-sample
+// links (to `.gad`/`.gadt`/`.gadx`/`.md` siblings) are rewritten to the prefixed
+// names. langOrder curates the ordering; any other doc/samples page is appended
+// in name order so nothing is dropped. A missing dir yields no pages.
+func collectLangPages(dir string) ([]*page, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	// Names present on disk (without .md), curated order first then the rest.
+	present := map[string]bool{}
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
+			present[strings.TrimSuffix(e.Name(), ".md")] = true
+		}
+	}
+	var order []string
+	seen := map[string]bool{}
+	for _, n := range langOrder {
+		if present[n] {
+			order = append(order, n)
+			seen[n] = true
+		}
+	}
+	var rest []string
+	for n := range present {
+		if !seen[n] {
+			rest = append(rest, n)
+		}
+	}
+	sort.Strings(rest)
+	order = append(order, rest...)
+
+	var pages []*page
+	for _, name := range order {
+		src, err := os.ReadFile(filepath.Join(dir, name+".md"))
+		if err != nil {
+			return nil, err
+		}
+		rewritten := langLinkRe.ReplaceAllString(string(src), "](lang-$1.html$2)")
+		body, headings := renderMarkdown(rewritten)
+		title := firstHeading(headings)
+		if title == "" {
+			title = name
+		}
+		if name == "README" {
+			title = "Language chapters"
+		}
+		pages = append(pages, &page{
+			Slug:     "lang-" + name,
+			Title:    title,
+			OutFile:  "lang-" + name + ".html",
+			Section:  "Language",
 			BodyHTML: template.HTML(body),
 			Headings: headings,
 			plain:    plainText(rewritten),
