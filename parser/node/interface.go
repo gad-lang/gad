@@ -81,31 +81,30 @@ type InterfaceExpr struct {
 	ExtendsDoc     *ast.CommentGroup
 	Members        []*InterfaceMemberExpr      // fields, getters, setters, props (source order)
 	Methods        []*InterfaceMethodExpr      // required methods (one or more signatures each)
-	ContextFuncs   []*InterfaceContextFuncExpr // context-function checks (`:Expr <header>`)
+	ContextFuncs   []*InterfaceContextFuncExpr // context-function checks (`funcs { … }`)
 	LBrace         source.Pos
 	RBrace         source.Pos
 	Doc            *ast.CommentGroup // doc comment preceding the interface; or nil
 }
 
-// InterfaceContextFuncExpr is a context-function member of an interface:
-// `:Expr <(params)>` or `:Expr { (params); … }`. It requires that the function
-// value `Expr` (an ident, selector or any expression, captured by value where
+// InterfaceContextFuncExpr is one entry of an interface's `funcs { … }` section:
+// `FnExpr <(params)>` or `FnExpr { (params); … }`. It requires that the function
+// value `FnExpr` (an ident, selector or any expression, captured by value where
 // the interface is declared) has, for each header, a signature matching it —
 // with the special `@self` positional param standing for the interface's own
 // type. Every header must contain at least one `@self`.
 type InterfaceContextFuncExpr struct {
-	ColonPos source.Pos        // the `:` prefix
-	FnExpr   Expr              // the context function (ident or selector, …)
-	Headers  []*FuncHeaderExpr // required signature(s), anonymous
-	Block    bool              // written in the brace-block form `{ … }`
-	LBrace   source.Pos
-	RBrace   source.Pos
-	Doc      *ast.CommentGroup
+	FnExpr  Expr              // the context function (ident or selector, …)
+	Headers []*FuncHeaderExpr // required signature(s), anonymous
+	Block   bool              // written in the brace-block form `{ … }`
+	LBrace  source.Pos
+	RBrace  source.Pos
+	Doc     *ast.CommentGroup
 }
 
 func (e *InterfaceContextFuncExpr) ExprNode() {}
 
-func (e *InterfaceContextFuncExpr) Pos() source.Pos { return e.ColonPos }
+func (e *InterfaceContextFuncExpr) Pos() source.Pos { return e.FnExpr.Pos() }
 
 func (e *InterfaceContextFuncExpr) End() source.Pos {
 	if e.RBrace.IsValid() {
@@ -119,9 +118,11 @@ func (e *InterfaceContextFuncExpr) End() source.Pos {
 
 func (e *InterfaceContextFuncExpr) String() string { return Code(e) }
 
+// WriteCode writes one context-function entry `FnExpr <header>` (or the block
+// form `FnExpr { (…); … }`). It is emitted inside the interface's `funcs { … }`
+// section, so it carries no `:` prefix.
 func (e *InterfaceContextFuncExpr) WriteCode(ctx *CodeWriteContext) {
 	ctx.WriteLeadDoc(e.Doc)
-	ctx.WriteString(":")
 	e.FnExpr.WriteCode(ctx)
 	if e.Block {
 		ctx.WriteString(" {")
@@ -135,6 +136,7 @@ func (e *InterfaceContextFuncExpr) WriteCode(ctx *CodeWriteContext) {
 		return
 	}
 	if len(e.Headers) == 1 {
+		ctx.WriteString(" ")
 		ctx.WriteString(e.Headers[0].String())
 	}
 }
@@ -231,8 +233,15 @@ func (e *InterfaceExpr) WriteCode(ctx *CodeWriteContext) {
 		m.WriteCode(ctx)
 		ctx.WriteSemi()
 	}
-	for _, m := range e.ContextFuncs {
-		m.WriteCode(ctx)
+	if len(e.ContextFuncs) > 0 {
+		ctx.WriteString("funcs {")
+		ctx.Depth++
+		for _, m := range e.ContextFuncs {
+			m.WriteCode(ctx)
+			ctx.WriteSemi()
+		}
+		ctx.Depth--
+		ctx.WriteString("}")
 		ctx.WriteSemi()
 	}
 	ctx.Depth--

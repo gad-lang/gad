@@ -583,27 +583,40 @@ func TestVMInterfaceContextFunc(t *testing.T) {
 	// interface): the object satisfies the interface, so `::` yields it.
 	testExpectRun(t, `
 	handle := func(a int, obj) => obj
-	I := interface { :handle<(a int, @self)> }
+	I := interface { funcs { handle <(a int, @self)> } }
 	return ({name: "n"} :: I).name`, nil, Str("n"))
+
+	// The `funcs { … }` section is the preferred form (same semantics as `:`).
+	testExpectRun(t, `
+	handle := func(a int, obj) => obj
+	I := interface { funcs { handle <(a int, @self)> } }
+	return ({name: "n"} :: I).name`, nil, Str("n"))
+
+	// Several entries in one `funcs` section — all must be satisfied.
+	testExpectRun(t, `
+	a := func(n int, obj) => obj
+	b := func(obj, s str) => obj
+	I := interface { funcs { a <(n int, @self)>; b <(@self, s str)> } }
+	return "ok" :: I`, nil, Str("ok"))
 
 	// `@self` may sit in any positional slot.
 	testExpectRun(t, `
 	first := func(obj, n int) => obj
-	I := interface { :first<(@self, n int)> }
+	I := interface { funcs { first <(@self, n int)> } }
 	return "ok" :: I`, nil, Str("ok"))
 
 	// Wrong arity — the context function does not handle the object -> not
 	// assignable (catchable).
 	expectErrIs(t, `
 	bad := func(a int) => a
-	I := interface { :bad<(a int, @self)> }
+	I := interface { funcs { bad <(a int, @self)> } }
 	return {} :: I`, nil, ErrIncompatibleAssign)
 
 	// A concretely-typed `@self` slot (the function only accepts int there) does
 	// not accept the interface's objects -> not assignable.
 	expectErrIs(t, `
 	typed := func(a int, x int) => x
-	I := interface { :typed<(a int, @self)> }
+	I := interface { funcs { typed <(a int, @self)> } }
 	return {} :: I`, nil, ErrIncompatibleAssign)
 
 	// The context function is captured by value where the interface is declared,
@@ -611,7 +624,7 @@ func TestVMInterfaceContextFunc(t *testing.T) {
 	testExpectRun(t, `
 	r := func() {
 		fn := func(a int, obj) => obj
-		I := interface { :fn<(a int, @self)> }
+		I := interface { funcs { fn <(a int, @self)> } }
 		return {} :: I
 	}()
 	return typeName(r)`, nil, Str("dict"))
@@ -619,42 +632,42 @@ func TestVMInterfaceContextFunc(t *testing.T) {
 	// A selector context function (a func held in a dict).
 	testExpectRun(t, `
 	mod := {render: func(obj) => obj}
-	I := interface { :mod.render<(@self)> }
+	I := interface { funcs { mod.render <(@self)> } }
 	return "x" :: I`, nil, Str("x"))
 
 	// Several context-func members; all must be satisfied.
 	testExpectRun(t, `
 	a := func(x) => x
 	b := func(x, n int) => x
-	I := interface { :a<(@self)>; :b<(@self, n int)> }
+	I := interface { funcs { a <(@self)>; b <(@self, n int)> } }
 	return "ok" :: I`, nil, Str("ok"))
 	expectErrIs(t, `
 	a := func(x) => x
 	b := func(x) => x
-	I := interface { :a<(@self)>; :b<(@self, n int)> }
+	I := interface { funcs { a <(@self)>; b <(@self, n int)> } }
 	return "ok" :: I`, nil, ErrIncompatibleAssign)
 
 	// Block form with several headers — the function must implement every one.
 	testExpectRun(t, `
 	multi := func { (obj) => obj; (obj, n int) => obj }
-	I := interface { :multi { (@self); (@self, n int) } }
+	I := interface { funcs { multi { (@self); (@self, n int) } } }
 	return "ok" :: I`, nil, Str("ok"))
 
 	// Structural members combine with context-func members.
 	testExpectRun(t, `
 	handle := func(obj) => obj
-	I := interface { name str; :handle<(@self)> }
+	I := interface { name str; funcs { handle <(@self)> } }
 	return ({name: "n"} :: I).name`, nil, Str("n"))
 	expectErrIs(t, `
 	handle := func(obj) => obj
-	I := interface { name str; :handle<(@self)> }
+	I := interface { name str; funcs { handle <(@self)> } }
 	return {} :: I`, nil, ErrIncompatibleAssign) // missing the `name` field
 
 	// A header without any `@self` is a compile error (it would not reference the
 	// interface's object).
 	expectErrHas(t, `
 	f := func(a int) => a
-	I := interface { :f<(a int)> }
+	I := interface { funcs { f <(a int)> } }
 	return I`, newOpts().CompilerError(), "must have at least one `@self`")
 }
 

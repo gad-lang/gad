@@ -17,14 +17,16 @@ against any member-bearing value: class instances, dicts/key-value arrays (field
 match keys, methods match callable keys) and reflected Go values (fields matched
 structurally, methods optimistically / duck-typed).
 
-## Context-function members (`:Expr <header>`)
+## Context-function members (`funcs { … }`)
 
-A member written `:Expr <(params)>` (or the block form) requires a **free
-function in scope** — not a method on the object — to *handle* the interface's
-object. `Expr` is captured by value where the interface is declared; the special
-positional type **`@self`** marks where the object is passed (every header must
-contain at least one `@self`). Such an interface is a runtime value and can also
-be built directly in Go (set `Interface.ContextFuncs`).
+A `funcs { FnExpr <header>; … }` section requires, per entry, a **free function
+in scope** — `FnExpr`, not a method on the object — to *handle* the interface's
+object. Each entry is a function followed by its required header (or the block
+form `FnExpr { (…); … }` for several signatures). `FnExpr` is captured by value
+where the interface is declared; the special positional type **`@self`** marks
+where the object is passed (every header must contain at least one `@self`). Such
+an interface is a runtime value and can also be built directly in Go (set
+`Interface.ContextFuncs`).
 
 ## Caching (embedding)
 
@@ -122,14 +124,17 @@ try {
 /// satisfy Type, without a `try`/`catch`.
 println("or fallback: ", bad::Greeter or "is bad") // is bad
 
-/// Context-function members: `:Expr <header>` requires a free function in scope
-/// (not a method on the object) to handle the interface's object. `@self` is the
-/// interface's object; it is captured by value where the interface is declared.
+/// Context-function members live in a `funcs { … }` section: each entry is a free
+/// function in scope (not a method on the object) that must handle the interface's
+/// object. `@self` is the interface's object; the function is captured by value
+/// where the interface is declared.
 render := func(indent int, obj) => "<" + str(indent) + ":" + str(obj.name) + ">"
 
 Renderable := interface {
     name str
-    :render<(indent int, @self)>          // require render(int, <object>) in scope
+    funcs {
+        render <(indent int, @self)>      // require render(int, <object>) in scope
+    }
 }
 
 r := {name: "Ada"}
@@ -137,7 +142,7 @@ println("renderable:  ", (r :: Renderable).name)   // Ada — render handles it
 
 /// A function that does not take the object (no matching @self arity) fails.
 noObj := func(indent int) => indent
-NotRenderable := interface { :noObj<(indent int, @self)> }
+NotRenderable := interface { funcs { noObj <(indent int, @self)> } }
 println("ctx reject:  ", r :: NotRenderable or "no renderer")  // no renderer
 
 return ok

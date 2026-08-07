@@ -82,48 +82,32 @@ func (p *Parser) parseInterfaceBody(tok PToken, name node.Expr) *node.InterfaceE
 func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 	doc := p.leadComment
 
-	// `:Expr <header>` / `:Expr { … }` — a context-function check: the function
-	// `Expr` (captured by value where the interface is declared) must have a
-	// signature matching each header, with `@self` standing for the interface.
-	if p.Token.Token == token.Colon {
-		colon := p.Token.Pos
-		p.Next()
+	// `funcs { FnExpr <header>; … }` — the context-function section: each entry is
+	// a free function (captured by value where the interface is declared) that must
+	// handle the interface's object, with `@self` standing for the interface.
+	if p.Token.Token == token.Ident && p.Token.Literal == "funcs" && p.Peek().Token == token.LBrace {
+		p.Next() // consume `funcs`
 		p.SkipSpace()
-		fn := p.ParsePrimaryExpr()
-		if fn == nil {
-			return
-		}
-		cf := &node.InterfaceContextFuncExpr{ColonPos: colon, FnExpr: fn, Doc: doc}
-		switch p.Token.Token {
-		case token.Less:
-			// Shortcut form `:Expr<(params)>`.
-			h, _ := p.ParseFuncHeaderExpr().(*node.FuncHeaderExpr)
-			if h == nil || p.Failed() {
-				return
+		p.Expect(token.LBrace)
+		p.ExprLevel++
+		for {
+			p.skipClassSeps()
+			if p.Token.Token == token.RBrace || p.Token.Token == token.EOF {
+				break
 			}
-			cf.Headers = []*node.FuncHeaderExpr{h}
-		case token.LBrace:
-			cf.Block = true
-			cf.LBrace = p.Expect(token.LBrace)
-			p.ExprLevel++
-			for {
-				p.skipClassSeps()
-				if p.Token.Token == token.RBrace || p.Token.Token == token.EOF {
-					break
-				}
-				h := p.parseInterfaceMethodHeader()
-				if h == nil || p.Failed() {
-					break
-				}
-				cf.Headers = append(cf.Headers, h)
+			itemDoc := p.leadComment
+			fn := p.ParsePrimaryExpr()
+			if fn == nil || p.Failed() {
+				break
 			}
-			p.ExprLevel--
-			cf.RBrace = p.Expect(token.RBrace)
-		default:
-			p.Error(p.Token.Pos, "expected a function header `<(...)>` or `{ (...) }` after `:"+fn.String()+"`")
-			return
+			cf := &node.InterfaceContextFuncExpr{FnExpr: fn, Doc: itemDoc}
+			if !p.parseContextFuncHeaders(cf) {
+				break
+			}
+			iface.ContextFuncs = append(iface.ContextFuncs, cf)
 		}
-		iface.ContextFuncs = append(iface.ContextFuncs, cf)
+		p.ExprLevel--
+		p.Expect(token.RBrace)
 		return
 	}
 
@@ -210,6 +194,41 @@ func (p *Parser) parseInterfaceBodyItem(iface *node.InterfaceExpr) {
 			Doc:  doc,
 		})
 	}
+}
+
+// parseContextFuncHeaders parses the signature part of a context-function member
+// (cf.FnExpr already set): a shortcut `<(params)>` or a brace block
+// `{ (params); … }`. It reports whether parsing succeeded.
+func (p *Parser) parseContextFuncHeaders(cf *node.InterfaceContextFuncExpr) bool {
+	switch p.Token.Token {
+	case token.Less:
+		h, _ := p.ParseFuncHeaderExpr().(*node.FuncHeaderExpr)
+		if h == nil || p.Failed() {
+			return false
+		}
+		cf.Headers = []*node.FuncHeaderExpr{h}
+	case token.LBrace:
+		cf.Block = true
+		cf.LBrace = p.Expect(token.LBrace)
+		p.ExprLevel++
+		for {
+			p.skipClassSeps()
+			if p.Token.Token == token.RBrace || p.Token.Token == token.EOF {
+				break
+			}
+			h := p.parseInterfaceMethodHeader()
+			if h == nil || p.Failed() {
+				break
+			}
+			cf.Headers = append(cf.Headers, h)
+		}
+		p.ExprLevel--
+		cf.RBrace = p.Expect(token.RBrace)
+	default:
+		p.Error(p.Token.Pos, "expected a function header `<(...)>` or `{ (...) }` after `"+cf.FnExpr.String()+"`")
+		return false
+	}
+	return true
 }
 
 // parseInterfaceMethodHeader parses one anonymous method signature `(params)

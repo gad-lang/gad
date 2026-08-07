@@ -41,7 +41,7 @@ type Interface struct {
 	Fields  []*InterfaceField // typed fields
 	Props   []*InterfaceProp  // getter/setter properties
 	Methods []*InterfaceMethod
-	// ContextFuncs are `:Expr <header>` members: required context functions whose
+	// ContextFuncs are the `funcs { … }` members: required context functions whose
 	// captured value (bound at run time, see OpInterfaceBind) must have a
 	// signature matching each header, with `@self` standing for this interface.
 	ContextFuncs []*InterfaceContextFunc
