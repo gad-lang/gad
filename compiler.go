@@ -83,6 +83,7 @@ type (
 		trace                io.Writer
 		stack                CompileStack
 		selectorStack        [][][]func()
+		fallbackDepth        int // render/reparse fallback recursion guard
 		anonymousFuncIndex   uint
 		funcHeaderIndex      uint
 		methodInterfaceIndex uint

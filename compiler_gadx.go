@@ -143,6 +143,16 @@ func gadxCompileStmts(c *Compiler, stmts node.Stmts) error {
 }
 
 func gadxCompileRendered(c *Compiler, nd node.Coder) error {
+	// The fallback lowers a non-Gadx node by rendering it to source and
+	// recompiling. A node the Gad compiler genuinely cannot compile would render
+	// to source that re-parses to the same node, recursing forever; cap the depth
+	// so such a case fails with a clear error instead of a stack overflow.
+	if c.fallbackDepth >= 64 {
+		return fmt.Errorf("gadx fallback: %T cannot be compiled (rendered form does not lower)", nd)
+	}
+	c.fallbackDepth++
+	defer func() { c.fallbackDepth-- }()
+
 	var buf bytes.Buffer
 	node.CodeW(&buf, nd, node.CodeWithPrefix("\t"), node.CodeFormat())
 	parsed, err := parser.Parse(buf.String(), "", nil, nil)

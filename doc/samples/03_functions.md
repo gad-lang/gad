@@ -1,26 +1,35 @@
-# 03_functions
 
-03_functions.gad — functions, arrow closures, closures and variadics.
-See doc/functions.md for detailed documentation.
+# Functions
 
-## Example — `03_functions.gad`
+Functions are first-class values. A function literal is `func(params) { … }`,
+usually bound to a variable; a named `func name(params){…}` is a declaration that
+binds a `const`, with the shorthands `name(params){…}` / `name(params) => expr`.
+(Functions with several typed overloads live in
+[10_functions_with_methods.gad](10_functions_with_methods.gad); the `<…>` header
+and `meti` in [12_method_interfaces.gad](12_method_interfaces.gad).)
+
+## Arrow closures & closures
+
+`(params) => expr` is a shorthand closure whose body is a single expression.
+Inner functions capture variables from their enclosing scope.
 
 ```gad
-/// Regular function.
 sum := func(a, b) {
     return a + b
 }
-
-/// Arrow closure: (params) => expr
-double := (x) => x * 2
-
-/// Closure capturing an enclosing variable.
-adder := func(base) {
-    return (x) => base + x
-}
+double := (x) => x * 2       // arrow closure
+adder := func(base) => (x) => base + x // closure capturing `base`
 add5 := adder(5)
+println(sum(2, 3), double(21), add5(4)) // 5 42 9
+```
 
-/// Variadic: the last positional parameter (*rest) collects extra arguments.
+## Variadic parameters
+
+The last positional parameter may be variadic (`*name`); it collects the
+remaining positional arguments into an array. Only the last positional parameter
+may be variadic.
+
+```gad
 total := func(*nums) {
     acc := 0
     for _, n in nums {
@@ -28,78 +37,174 @@ total := func(*nums) {
     }
     return acc
 }
+println(total(1, 2, 3, 4)) // 10
+```
 
-/// A call may interleave several spreads (positional `*` and named `**`) in any
-/// position; positionals concatenate and named keys merge left to right.
-collect := func(*args; **kw) {
-    return [args, dict(kw)]
+## Spreading arguments
+
+At a **call**, `*` spreads an array as positional arguments and `**` spreads a
+dict as named arguments. Unlike a parameter list, a call may use several spreads,
+interleaved with plain arguments in any position; positionals concatenate and
+named keys merge left to right (a later source overrides an earlier key).
+
+```gad
+collect := func(*args; **kw) => [args, dict(kw)]
+println(str(collect(1, *[2, 3], 4, *[5, 6]; b = 1, **{x: 10}, c = 2)))
+// -> [[1, 2, 3, 4, 5, 6], {b: 1, c: 2, x: 10}]
+```
+
+## Named arguments
+
+Parameters after a `;` are **named**; they may have defaults, and a trailing
+`**name` collects extra named arguments. Callers pass them after a `;` as
+`name=value` and may spread a dict with `**`.
+
+```gad
+greet := func(name; greeting = "Hello", **rest) => greeting + ", " + name
+[greet("Gad"), greet("Gad"; greeting = "Hi"), greet("Gad"; **{greeting: "Hey"})]
+// => ["Hello, Gad", "Hi, Gad", "Hey, Gad"]
+```
+
+A call must supply the right number of positional arguments (variadics aside), or
+it raises `WrongNumArgumentsError`.
+
+## Computed values
+
+`(= expr)` — or `(= stmt; …; result)` for several statements — creates a
+**computed value**: a lazy callable that re-runs its body and yields the result
+on every call. They shine as class field defaults, where each instance gets its
+own freshly-evaluated value.
+
+```gad
+v := 10
+c := (= v * 2) // a lazy callable; body re-evaluated on each call
+before := c()  // 20
+v = 100
+[typeName(c), before, c()]
+// => ["ComputedValue", 20, 200]
+```
+
+## return = (assign the result)
+
+`return = expr` sets the function's result slot without leaving the function;
+execution continues, and mutating the bound value updates the result. It pairs
+with deferred handlers, which read/rewrite the result via `$ret`.
+
+```gad
+f := func(x) {
+    return = x // bind the result slot to x
+    x++        // keep running; mutating x updates the result
 }
+f(10)
+// => 11
+```
 
-// --- Deferred handlers ---
+## Deferred handlers
 
-/// `defer` runs when the enclosing function returns, in last-in-first-out order.
-/// Inside a handler `$ret` is the mutable return value (and `$err` the error
-/// being propagated, if any).
+`defer` registers a handler that runs when the enclosing **function** returns, in
+LIFO order. Inside a handler `$ret` is the mutable return value and `$err` the
+error being propagated. Variants: `defer` (always), `defer_ok` (normal return),
+`defer_err` (error). A handler may be a block or a single braceless statement
+(`defer cleanup($ret, $err)`, `defer $ret += 1`). A `defer_err` can **recover**
+by clearing `$err`.
+
+```gad
 deferOrder := func() {
-    defer { $ret += "defer-A" } // runs last (LIFO)
-    defer { $ret += "defer-B" } // runs first
-    return ["body"]
+    defer { $ret += "A" } // runs last (LIFO)
+    defer { $ret += "B" } // runs first
+    return ["body-"]
 }
-
-/// Shortcut form: `defer Expr` defers a single call (no braces), passing `$ret`
-/// and `$err` as arguments. The conditional variants run only on the matching
-/// exit:  defer (always) · defer_ok (no error) · defer_err (error).
-trace := func(label, *a) { println("  " + label, a) }
-audited := func(fail) {
-    defer trace("defer   ", $ret, $err) // always
-    defer_ok trace("defer_ok", $ret)    // only on success
-    defer_err trace("defer_err", $err)  // only on error
-    if fail {
-        throw "boom"
-    }
-    return 42
-}
-
-/// `defer_err` can recover by clearing `$err` (and optionally setting `$ret`).
 safeCall := func(fail) {
-    defer_err {
-        $ret = "recovered: " + str($err)
-        $err = nil // swallow the error
-    }
+    defer_err { $ret = "recovered: " + str($err); $err = nil } // swallow
     if fail {
         throw "boom"
     }
     return "ok"
 }
+[deferOrder(), safeCall(false), safeCall(true)]
+// => [["body-", "B", "A"], "ok", "recovered: error: boom"]
+```
 
-/// `deferb` (and `deferb_ok` / `deferb_err`) run when the enclosing *block*
-/// exits — not the whole function — also LIFO, and with no `$ret`. The shortcut
-/// form also accepts an assignment (`deferb out += "x"`) or `i++`, not just a
-/// call.
+`deferb` (and `deferb_ok` / `deferb_err`) run when the enclosing **block** exits
+rather than the whole function — LIFO, with no `$ret`.
+
+```gad
 blockCleanup := func() {
     out := ""
     {
-        deferb out += "b1 " // shortcut form (no braces); runs last
+        deferb out += "b1 " // shortcut form; runs last
         deferb out += "b2 " // runs first
         out += "body "
     }
     return out + "after"
 }
+blockCleanup()
+// => body b2 b1 after
+```
 
-println("sum(2, 3)       =", sum(2, 3))
-println("double(21)      =", double(21))
-println("add5(4)         =", add5(4))
-println("total(1..4)     =", total(1, 2, 3, 4))
-println("interleaved     =", str(collect(1, *[2, 3], 4, *[5, 6]; b=1, **{x: 10}, c=2)))
-// -> [[1, 2, 3, 4, 5, 6], {b: 1, x: 10, c: 2}]
-println("deferOrder()    =", deferOrder())     // [body, defer-B, defer-A]
-println("safeCall(false) =", safeCall(false))
-println("safeCall(true)  =", safeCall(true))   // recovered: error: boom
-println("blockCleanup()  =", blockCleanup())   // body b2 b1 after
-println("-- audited(false): defer_ok then defer (LIFO) --")
-audited(false)
-println("-- audited(true): defer_err then defer, error then propagates --")
-_ := audited(true) or println("  caught:", $err)
+## Example — `03_functions.gad`
+
+```gad
+sum := func(a, b) {
+    return a + b
+}
+double := (x) => x * 2       // arrow closure
+adder := func(base) => (x) => base + x // closure capturing `base`
+add5 := adder(5)
+println(sum(2, 3), double(21), add5(4)) // 5 42 9
+
+total := func(*nums) {
+    acc := 0
+    for _, n in nums {
+        acc += n
+    }
+    return acc
+}
+println(total(1, 2, 3, 4)) // 10
+
+collect := func(*args; **kw) => [args, dict(kw)]
+println(str(collect(1, *[2, 3], 4, *[5, 6]; b = 1, **{x: 10}, c = 2)))
+// -> [[1, 2, 3, 4, 5, 6], {b: 1, c: 2, x: 10}]
+
+greet := func(name; greeting = "Hello", **rest) => greeting + ", " + name
+[greet("Gad"), greet("Gad"; greeting = "Hi"), greet("Gad"; **{greeting: "Hey"})]
+
+v := 10
+c := (= v * 2) // a lazy callable; body re-evaluated on each call
+before := c()  // 20
+v = 100
+[typeName(c), before, c()]
+
+f := func(x) {
+    return = x // bind the result slot to x
+    x++        // keep running; mutating x updates the result
+}
+f(10)
+
+deferOrder := func() {
+    defer { $ret += "A" } // runs last (LIFO)
+    defer { $ret += "B" } // runs first
+    return ["body-"]
+}
+safeCall := func(fail) {
+    defer_err { $ret = "recovered: " + str($err); $err = nil } // swallow
+    if fail {
+        throw "boom"
+    }
+    return "ok"
+}
+[deferOrder(), safeCall(false), safeCall(true)]
+
+blockCleanup := func() {
+    out := ""
+    {
+        deferb out += "b1 " // shortcut form; runs last
+        deferb out += "b2 " // runs first
+        out += "body "
+    }
+    return out + "after"
+}
+blockCleanup()
 
 return total(1, 2, 3, 4)
 ```
