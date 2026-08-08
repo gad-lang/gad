@@ -88,7 +88,9 @@ func TestGadPathFromEnv(t *testing.T) {
 	writeGadYAML(t, dir, "env:\n    GADPATH: [\"/one\", \"/two\"]\n")
 	env := loadWorkspaceEnv(dir)
 	got := gadPathFromEnv(env)
-	want := []string{"/one", "/two"}
+	// GADPATH entries are converted to OS-native separators (filepath.FromSlash),
+	// so on Windows "/one" becomes "\one".
+	want := []string{filepath.FromSlash("/one"), filepath.FromSlash("/two")}
 	if len(got) != len(want) {
 		t.Fatalf("GADPATH dirs = %v, want %v", got, want)
 	}
