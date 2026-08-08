@@ -22,7 +22,7 @@ const layoutTemplate = `<!DOCTYPE html>
     {{if .HasRelease}}<a class="rel-chip" href="{{.Base}}download.html" title="Current release">{{.ReleaseName}}</a>{{end}}
     {{if .PlayHref}}<a href="{{.Base}}{{.PlayHref}}">Playground</a>{{end}}
     <a href="{{.Base}}download.html">Download</a>
-    <a href="{{.TasksURL}}" target="_blank" rel="noopener">Tasks</a>
+    <a href="{{.RepoURL}}/issues" target="_blank" rel="noopener">Issues</a>
     <a href="{{.RepoURL}}" target="_blank" rel="noopener">Repo</a>
   </nav>
   <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu" aria-controls="headerLinks" aria-expanded="false">⋯</button>
@@ -105,7 +105,7 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 #results .r-title{font-weight:600}#results .r-snip{color:var(--muted);font-size:.85rem}
 .theme-toggle{background:transparent;border:1px solid var(--border);color:var(--fg);border-radius:9px;padding:.35rem .6rem;cursor:pointer;transition:background .15s,border-color .15s}
 .theme-toggle:hover{background:var(--accent-soft);border-color:var(--accent)}
-.header-links{display:flex;align-items:center;gap:.4rem;font-size:.9rem}
+.header-links{display:flex;align-items:center;gap:.4rem;font-size:.9rem;margin-left:auto}
 .header-links a{color:var(--fg);padding:.3rem .6rem;border-radius:8px;transition:background .15s,color .15s}
 .header-links a:hover{color:var(--accent);background:var(--accent-soft);text-decoration:none}
 .rel-chip{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#04121b!important;border-radius:999px;padding:.2rem .7rem;font-weight:700;font-size:.8rem;white-space:nowrap}
@@ -202,7 +202,7 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 }
 @media(max-width:700px){
   .home-hero h1{font-size:2rem}
-  .menu-toggle{display:inline-flex}
+  .menu-toggle{display:inline-flex;margin-left:auto}
   .header-links{position:absolute;top:calc(100% + .35rem);right:.6rem;display:none;flex-direction:column;align-items:stretch;gap:.1rem;min-width:190px;padding:.5rem;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 30px rgba(13,27,42,.2);z-index:36}
   body.menu-open .header-links{display:flex}
   .header-links a{padding:.55rem .7rem}
