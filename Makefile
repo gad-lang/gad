@@ -202,7 +202,10 @@ lint: version check-delve
 	# -ST1000/-ST1020: the codebase uses intentional descriptive/group doc
 	# comments (e.g. one comment heading a type's operator-method group) that do
 	# not start with the symbol name.
-	staticcheck -checks all,-SA1019,-ST1000,-ST1020 ./...
+	# GOTOOLCHAIN pins the Go toolchain so staticcheck's analysis matches the
+	# language version the code targets (a staticcheck built against an older Go
+	# reports "requires newer Go version" instead of real findings).
+	GOTOOLCHAIN=go1.26.5 staticcheck -checks all,-SA1019,-ST1000,-ST1020 ./...
 	go vet ./...
 
 .PHONY: generate-docs
