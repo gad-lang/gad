@@ -153,7 +153,7 @@ export default defineComponent({
         </section>
         {props.runner.doc && showDoc.value && (
           <section class="gp-pane gp-pane--doc">
-            <DocPanel runner={props.runner} source={() => source.value} sourceType={sourceType.value}>
+            <DocPanel doc={props.runner.doc!} source={() => source.value} sourceType={sourceType.value}>
               <VBtn size="small" variant="text" title="Hide the doc panel" onClick={() => (showDoc.value = false)}>✕</VBtn>
             </DocPanel>
           </section>

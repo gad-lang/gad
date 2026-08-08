@@ -12,7 +12,10 @@ import "prismjs/components/prism-yaml";
 import "prismjs/components/prism-markdown";
 import { VBtn, VSelect } from "./vuetify";
 import { renderDocMarkdown } from "./docMarkdown";
-import type { DocMode, DocResult, GadRunner } from "./types";
+import type { DocMode, DocResult } from "./types";
+
+/** DocFn generates documentation for source in the given mode. */
+export type DocFn = (source: string, sourceType: string, mode: DocMode) => Promise<DocResult>;
 
 const MODES: { title: string; value: DocMode }[] = [
   { title: "Render Markdown", value: "render-md" },
@@ -37,7 +40,7 @@ function highlight(src: string, lang: string): string {
 export default defineComponent({
   name: "DocPanel",
   props: {
-    runner: { type: Object as PropType<GadRunner>, required: true },
+    doc: { type: Function as PropType<DocFn>, required: true },
     source: { type: Function as PropType<() => string>, required: true },
     sourceType: { type: String, default: "" },
   },
@@ -48,11 +51,10 @@ export default defineComponent({
     let seq = 0;
 
     async function generate() {
-      if (!props.runner.doc) return;
       const id = ++seq;
       busy.value = true;
       try {
-        const r = await props.runner.doc(props.source(), props.sourceType, mode.value);
+        const r = await props.doc(props.source(), props.sourceType, mode.value);
         if (id === seq) res.value = r;
       } finally {
         if (id === seq) busy.value = false;

@@ -5,7 +5,7 @@
 // workspace file paths, so the UI edits and documents any text file in the tree
 // regardless of backend.
 import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
-import type { FormatResult, RunResult } from "./types";
+import type { DocMode, DocResult, FormatResult, RunResult } from "./types";
 
 export interface Workspace {
   root: string;
@@ -157,6 +157,9 @@ export const ideApi = {
     jsonFetch<FormatResult>("POST", "api/ide/transpile", { source, path }),
   doc: (source: string) =>
     jsonFetch<{ docs: DocComment[] }>("POST", "api/ide/doc", { source }).then((r) => r.docs || []),
+  /** docGen generates documentation for source in the requested mode. */
+  docGen: (source: string, sourceType: string, mode: DocMode): Promise<DocResult> =>
+    jsonFetch<DocResult>("POST", "api/ide/doc-gen", { source, sourceType, mode }),
   eval: (req: { expr: string; repr?: boolean; source?: string; path?: string }) =>
     jsonFetch<EvalResult>("POST", "api/ide/eval", req),
   inspect: (req: { expr: string; session?: string; source?: string; path?: string }) =>
