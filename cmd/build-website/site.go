@@ -14,12 +14,11 @@ import (
 	"strings"
 )
 
-// siteConfig carries build-time site metadata: repository/tasks links and the
+// siteConfig carries build-time site metadata: the repository link and the
 // release info (tag, name, notes) surfaced in the header banner and the Download
 // page.
 type siteConfig struct {
 	RepoURL      string // e.g. https://github.com/gad-lang/gad
-	TasksURL     string // link to TASK.md (defaults to <RepoURL>/blob/main/TASK.md)
 	ReleaseTag   string // e.g. v1.2.3 (empty for a plain commit build)
 	ReleaseName  string // display name (defaults to the tag)
 	ReleaseNotes string // release notes as Markdown
@@ -32,14 +31,6 @@ type siteConfig struct {
 	// prism is set when the PrismJS bundle was built (loads prism.js + enables
 	// syntax highlighting).
 	prism bool
-}
-
-// tasksURL returns the effective Tasks link (the repository issues by default).
-func (c siteConfig) tasksURL() string {
-	if c.TasksURL != "" {
-		return c.TasksURL
-	}
-	return c.RepoURL + "/issues"
 }
 
 // releaseName returns the display name for the release banner (name, else tag).
@@ -567,7 +558,6 @@ type layoutData struct {
 	Base string
 	// Header links / release banner.
 	RepoURL     string
-	TasksURL    string
 	PlayHref    string
 	ReleaseName string
 	ReleaseURL  string
@@ -584,7 +574,6 @@ func writePage(outDir string, tmpl *template.Template, groups []navGroup, p *pag
 		TOC:         tocOf(p.Headings),
 		Base:        baseFor(p.OutFile),
 		RepoURL:     cfg.RepoURL,
-		TasksURL:    cfg.tasksURL(),
 		PlayHref:    cfg.playHref,
 		ReleaseName: cfg.releaseName(),
 		ReleaseURL:  cfg.releaseURL(),
