@@ -122,7 +122,7 @@ var langOrder = []string{
 // so they never collide with the Gad guide/reference pages.
 var gadxOrder = []string{
 	"getting-started", "syntax", "components-and-slots", "examples",
-	"embedding", "api", "conventions", "source-positions",
+	"embedding", "serving-http", "api", "conventions", "source-positions",
 	"project-structure", "benchmarks", "cms-example",
 }
 
@@ -786,7 +786,7 @@ func homeIntroHTML(cfg siteConfig, playHref string) template.HTML {
 	b.WriteString(`<div class="home-hero">`)
 	b.WriteString(`<img class="home-hero-logo" src="gad.svg" alt="Gad logo" width="96" height="96">`)
 	b.WriteString(`<div class="home-hero-text"><h1>Gad</h1>`)
-	b.WriteString(`<p class="tagline">A fast, dynamic scripting language embedded in Go — run it from the CLI, in the browser via WebAssembly, or embedded in your Go application.</p>`)
+	b.WriteString(`<p class="tagline">A fast, dynamic scripting language embedded in Go — run it from the CLI, in the browser via WebAssembly, or embedded in your Go application. It shines as a <strong>frontend for Go apps</strong> (Gadx templates served with <code>gadx.Render</code>) and for <strong>generating reports and dynamic content</strong> — Markdown, LaTeX and more, driven by scripts.</p>`)
 	b.WriteString(`<div class="home-cta">`)
 	b.WriteString(`<a class="btn btn-primary" href="getting-started.html">Get started</a>`)
 	fmt.Fprintf(&b, `<a class="btn btn-ghost" href="%s">Playground</a>`, template.HTMLEscapeString(playHref))
