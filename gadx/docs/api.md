@@ -173,6 +173,25 @@ re-checked. To share or pre-warm a cache across engines yourself, build one with
 `(*gad.VM).SetInterfaceSatCache` — the same cache the VM uses on its own (it
 otherwise lives on the root VM and is dropped with it).
 
+### `(*Render) HandlerFunc`
+
+```go
+func (r *Render) HandlerFunc(filePath string, model func(*http.Request) (gad.Dict, error)) http.HandlerFunc
+```
+
+Returns an `http.HandlerFunc` (ready for `http.HandleFunc` / `http.Handle`) that
+renders `filePath` for every request. `model` maps the request to the template
+globals (pass `nil` for none). Rendering goes through a buffer, so a model or
+render error yields a clean `500` with no partial body; success is written with a
+`text/html; charset=utf-8` Content-Type. See [Serving over HTTP](serving-http.md)
+for the full pattern (and when to call `Render` directly instead).
+
+```go
+http.HandleFunc("/", r.HandlerFunc("index.gadx", func(req *http.Request) (gad.Dict, error) {
+    return gad.Dict{"Path": gad.Str(req.URL.Path)}, nil
+}))
+```
+
 ### `OnRender`
 
 ```go

@@ -1,9 +1,11 @@
 package gadx
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -99,6 +101,36 @@ func (r *Render) WorkDir() string { return r.workDir }
 func (r *Render) OnRender(f ...func(first bool, mainFile string, files []string, lastTime time.Time, err error)) *Render {
 	r.onRenderFuncs = append(r.onRenderFuncs, f...)
 	return r
+}
+
+// HandlerFunc returns an http.HandlerFunc that renders filePath for every
+// request, ready to hand to http.HandleFunc / http.Handle. model builds the
+// template globals from the request (return a nil Dict for none); pass nil when
+// the template needs no request data.
+//
+// The template is rendered into a buffer first, so a model or render error
+// yields a clean 500 with no partial body. On success the HTML is written with a
+// "text/html; charset=utf-8" Content-Type. For full control over status codes,
+// streaming or headers, call Render directly from your own handler.
+func (r *Render) HandlerFunc(filePath string, model func(*http.Request) (gad.Dict, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		var globals gad.Dict
+		if model != nil {
+			g, err := model(req)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			globals = g
+		}
+		var buf bytes.Buffer
+		if err := r.Render(&buf, filePath, globals); err != nil {
+			http.Error(w, "template error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = buf.WriteTo(w)
+	}
 }
 
 // Render reads the Gadx template at filePath, compiles or retrieves cached
