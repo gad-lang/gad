@@ -20,6 +20,8 @@ interface GadGlobals {
   gadDiagnose?: (src: string) => string;
   gadDoc?: (src: string, sourceType: string) => string;
   gadDocData?: (src: string, sourceType: string) => string;
+  gadDocHTML?: (src: string, sourceType: string) => string;
+  gadDocEncode?: (src: string, sourceType: string, format: string) => string;
   gadDocComments?: (src: string) => string;
   gadEval?: (...a: unknown[]) => string;
   gadTranspile?: (...a: unknown[]) => string;

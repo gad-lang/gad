@@ -331,6 +331,16 @@
   height: 100%;
   min-height: 0;
 }
+/* When the Doc pane is shown, the playground becomes three columns. */
+.gp-split:has(.gp-pane--doc) { grid-template-columns: 1fr 1fr 1fr; }
+.gp-doc { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.gp-doc-title { font-weight: 600; }
+.gp-doc-body { flex: 1; min-height: 0; overflow: auto; }
+.gp-doc-rendered { padding: 10px 14px; font-size: 13px; line-height: 1.55; }
+.gp-doc-rendered pre { background: rgba(125,125,125,.12); padding: .7rem .9rem; border-radius: 8px; overflow: auto; }
+.gp-doc-rendered table { border-collapse: collapse; }
+.gp-doc-rendered th, .gp-doc-rendered td { border: 1px solid rgba(var(--v-border-color), 0.3); padding: .3rem .5rem; }
+.gp-doc-src { margin: 0; padding: 10px 14px; font-family: ui-monospace, monospace; font-size: 12px; white-space: pre; overflow: auto; }
 .gp-pane {
   display: flex;
   flex-direction: column;

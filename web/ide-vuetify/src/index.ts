@@ -30,7 +30,8 @@ export type {
   DebugVariable,
   DebugResponse,
 } from "./api";
-export type { FormatResult, RunResult, GadRunner } from "./types";
+export type { FormatResult, RunResult, GadRunner, DocMode, DocResult } from "./types";
+export { default as DocPanel } from "./DocPanel";
 
 // CodeMirror building blocks (for composing a custom shell).
 export {

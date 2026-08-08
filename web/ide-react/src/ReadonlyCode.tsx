@@ -14,7 +14,7 @@ import { html } from "@codemirror/lang-html";
 import { markdown } from "@codemirror/lang-markdown";
 
 /** Supported read-only viewer languages. */
-export type ReadonlyLanguage = "json" | "html" | "markdown";
+export type ReadonlyLanguage = "json" | "html" | "markdown" | "yaml";
 
 function langExtension(lang: ReadonlyLanguage): Extension {
   switch (lang) {
@@ -24,6 +24,7 @@ function langExtension(lang: ReadonlyLanguage): Extension {
       return html();
     case "markdown":
       return markdown();
+    // yaml has no dedicated grammar bundled; show it as plain text.
     default:
       return [];
   }

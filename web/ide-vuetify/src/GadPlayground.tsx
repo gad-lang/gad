@@ -5,6 +5,7 @@
 // React playground.
 import { computed, defineComponent, reactive, ref, type PropType } from "vue";
 import GadEditor from "./GadEditor";
+import DocPanel from "./DocPanel";
 import { VBtn, VBtnToggle, VSelect } from "./vuetify";
 import type { EditorLanguage } from "./codemirror";
 import type { FormatResult, GadRunner, RunResult } from "./types";
@@ -60,6 +61,8 @@ export default defineComponent({
     const busy = ref(false);
     // GADX only: encode the returned tag as JSON/YAML instead of rendering HTML.
     const tagEncode = ref<"" | "json" | "yaml">("");
+    // The Doc panel on the right is hidden by default.
+    const showDoc = ref(false);
     const left = ref<{ kind: "format"; fmt: FormatResult } | { kind: "run"; run: RunResult } | null>(null);
     const diagnose = props.runner.diagnose
       ? (src: string) => props.runner.diagnose!(src, sourceType.value)
@@ -116,6 +119,17 @@ export default defineComponent({
               <VBtn size="small" variant="tonal" loading={busy.value} onClick={() => doFormat(false)}>Format</VBtn>
               <VBtn size="small" variant="tonal" loading={busy.value} onClick={() => doFormat(true)}>Format &amp; apply</VBtn>
               <VBtn size="small" color="primary" prependIcon="mdi-play" loading={busy.value} onClick={doRun}>Run</VBtn>
+              {props.runner.doc && (
+                <VBtn
+                  size="small"
+                  variant={showDoc.value ? "flat" : "tonal"}
+                  color={showDoc.value ? "primary" : undefined}
+                  onClick={() => (showDoc.value = !showDoc.value)}
+                  title="Toggle the documentation panel"
+                >
+                  Doc
+                </VBtn>
+              )}
             </span>
           </div>
           <div class="gp-editor">
@@ -137,6 +151,13 @@ export default defineComponent({
             {left.value?.kind === "run" && <RunView run={left.value.run} />}
           </div>
         </section>
+        {props.runner.doc && showDoc.value && (
+          <section class="gp-pane gp-pane--doc">
+            <DocPanel runner={props.runner} source={() => source.value} sourceType={sourceType.value}>
+              <VBtn size="small" variant="text" title="Hide the doc panel" onClick={() => (showDoc.value = false)}>✕</VBtn>
+            </DocPanel>
+          </section>
+        )}
       </div>
     );
   },

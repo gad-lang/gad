@@ -7,6 +7,7 @@ import { useMemo, useRef, useState } from "react";
 import type { DiagnoseFn } from "@gad-lang/codemirror-gad";
 import { Editor, type EditorHandle, type EditorLanguage } from "./Editor";
 import { PlaygroundStyles } from "./playgroundStyles";
+import { DocPanel } from "./DocPanel";
 import type { FormatResult, GadRunner, RunResult } from "./types";
 
 type Dialect = "gad" | "gadt" | "gadx";
@@ -60,6 +61,9 @@ export function GadPlayground({ runner, dark = false }: GadPlaygroundProps) {
   const [out, setOut] = useState<Output>(null);
   // GADX only: encode the returned tag as JSON/YAML instead of rendering HTML.
   const [tagEncode, setTagEncode] = useState<TagEncode>("");
+  // The Doc panel on the right is hidden by default; toggled when the runner
+  // supports doc generation.
+  const [showDoc, setShowDoc] = useState(false);
 
   const sourceType = SOURCE_TYPE[dialect];
   const diagnose: DiagnoseFn | undefined = useMemo(
@@ -130,6 +134,17 @@ export function GadPlayground({ runner, dark = false }: GadPlaygroundProps) {
             <button type="button" className="gp-btn" disabled={busy} onClick={() => doFormat(false)}>Format</button>
             <button type="button" className="gp-btn" disabled={busy} onClick={() => doFormat(true)}>Format &amp; apply</button>
             <button type="button" className="gp-btn gp-btn--primary" disabled={busy} onClick={doRun}>▶ Run</button>
+            {runner.doc && (
+              <button
+                type="button"
+                className={"gp-btn" + (showDoc ? " gp-btn--active" : "")}
+                aria-pressed={showDoc}
+                onClick={() => setShowDoc((v) => !v)}
+                title="Toggle the documentation panel"
+              >
+                Doc
+              </button>
+            )}
           </span>
         </div>
         <div className="gp-editor">
@@ -152,6 +167,21 @@ export function GadPlayground({ runner, dark = false }: GadPlaygroundProps) {
           {out?.kind === "run" && <RunView run={out.run} />}
         </div>
       </section>
+      {runner.doc && showDoc && (
+        <section className="gp-pane gp-pane--doc">
+          <DocPanel
+            runner={runner}
+            source={source}
+            sourceType={sourceType}
+            dark={dark}
+            header={
+              <button type="button" className="gp-btn" title="Hide the doc panel" onClick={() => setShowDoc(false)}>
+                ✕
+              </button>
+            }
+          />
+        </section>
+      )}
     </div>
   );
 }

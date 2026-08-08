@@ -12,12 +12,31 @@ import { localIdeApi, resetWorkspace } from "./backends/localIde";
 import { sharedClient } from "./wasm/shared";
 import { base64ToBytes, extractArchive } from "./extract";
 
-// The Playground/Notebook backend: format/run/diagnose through the WASM worker.
+// The Playground/Notebook backend: format/run/diagnose/doc through the WASM worker.
+type DocST = "gad" | "gadTemplate" | "gadx";
 const runner: GadRunner = {
   name: "WebAssembly",
   format: (s, st) => sharedClient().format(s, st),
   run: (s, st, te) => sharedClient().run(s, st, [], te),
   diagnose: async (s, st) => (await sharedClient().diagnose(s, st)).diagnostics,
+  doc: async (s, st, mode) => {
+    const c = sharedClient();
+    const t = (st || "gad") as DocST;
+    try {
+      if (mode === "render-md" || mode === "md") {
+        const r = await c.doc(s, t);
+        return r.error ? { ok: false, mode, error: r.error } : { ok: true, mode, markdown: r.markdown };
+      }
+      if (mode === "render-html" || mode === "html") {
+        const r = await c.docHtml(s, t);
+        return r.error ? { ok: false, mode, error: r.error } : { ok: true, mode, html: r.html };
+      }
+      const r = await c.docEncode(s, t, mode);
+      return r.error ? { ok: false, mode, error: r.error } : { ok: true, mode, text: r.text };
+    } catch (e) {
+      return { ok: false, mode, error: String(e) };
+    }
+  },
 };
 
 // onUpload persists uploaded files to the in-browser workspace. A plain file is

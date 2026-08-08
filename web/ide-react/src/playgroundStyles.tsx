@@ -10,6 +10,8 @@ const STYLE_ID = "gad-playground-styles";
 const CSS = `
 .gp-split{display:grid;grid-template-columns:1fr 1fr;height:100%;min-height:0;
   background:var(--bg,#fff);color:var(--fg,#1d1d28);font-size:14px}
+/* When the Doc pane is shown, the playground becomes three columns. */
+.gp-split:has(.gp-pane--doc){grid-template-columns:1fr 1fr 1fr}
 .gp-pane{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--border,#e2e2ea)}
 .gp-pane:last-child{border-right:none}
 .gp-pane-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
@@ -35,6 +37,19 @@ const CSS = `
 .gp-muted{color:var(--muted,#6b6b80)}
 .gp-error{color:var(--error,#d64545)}
 .gp-return{font-family:ui-monospace,monospace;font-size:12px;color:var(--muted,#6b6b80)}
+.gp-btn--active{background:var(--accent,#3b5bdb);border-color:var(--accent,#3b5bdb);color:#fff}
+/* Doc panel */
+.gp-doc{display:flex;flex-direction:column;min-height:0;height:100%}
+.gp-doc-title{font-weight:600}
+.gp-doc-mode{font-size:.8rem;padding:.2rem .3rem;border:1px solid var(--border,#e2e2ea);border-radius:5px;
+  background:var(--panel,#fff);color:var(--fg,#1d1d28)}
+.gp-doc-body{flex:1;min-height:0;overflow:auto}
+.gp-doc-body .readonly-code{height:100%}
+.gp-doc-rendered{padding:10px 14px;font-size:13px;line-height:1.55}
+.gp-doc-rendered h1{font-size:1.5rem}.gp-doc-rendered h2{font-size:1.2rem}.gp-doc-rendered h3{font-size:1.05rem}
+.gp-doc-rendered pre{background:var(--code-bg,rgba(125,125,125,.12));padding:.7rem .9rem;border-radius:8px;overflow:auto}
+.gp-doc-rendered code{font-family:ui-monospace,monospace;font-size:.88em}
+.gp-doc-rendered table{border-collapse:collapse}.gp-doc-rendered th,.gp-doc-rendered td{border:1px solid var(--border,#e2e2ea);padding:.3rem .5rem}
 .gad-ide__diag{color:var(--error,#d64545);font-family:ui-monospace,monospace;font-size:12px}
 
 .gnb{padding:12px;overflow:auto;height:100%;background:var(--bg,#fff);color:var(--fg,#1d1d28)}

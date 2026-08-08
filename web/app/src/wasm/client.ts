@@ -81,6 +81,14 @@ export class WasmClient {
   docData(source: string, sourceType: "gad" | "gadTemplate" | "gadx") {
     return this.json<{ doc?: unknown; error?: string }>("gadDocData", [source, sourceType]);
   }
+  /** docHtml renders the documentation to an HTML fragment (goldmark). */
+  docHtml(source: string, sourceType: "gad" | "gadTemplate" | "gadx") {
+    return this.json<{ html?: string; error?: string }>("gadDocHTML", [source, sourceType]);
+  }
+  /** docEncode encodes the documentation (prose, sections, snippets) as JSON/YAML. */
+  docEncode(source: string, sourceType: "gad" | "gadTemplate" | "gadx", format: "json" | "yaml") {
+    return this.json<{ text?: string; error?: string }>("gadDocEncode", [source, sourceType, format]);
+  }
   /** docComments extracts the doc-comment list (for the IDE Docs panel). */
   docComments(source: string) {
     return this.json<{ docs: DocComment[] }>("gadDocComments", [source]);
