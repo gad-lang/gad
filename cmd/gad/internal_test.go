@@ -52,12 +52,12 @@ func TestREPL(t *testing.T) {
 	})
 	t.Run("assignment", func(t *testing.T) {
 		require.NoError(t, r.execute("test := 1"))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   nil\n")
+		testHasPrefix(t, string(cw.consume()), "\n↩   nil\n")
 	})
 	t.Run("bytecode", func(t *testing.T) {
 		require.NoError(t, r.execute("func x(){}; return x"))
 		require.Equal(t, string(cw.consume()), `
-⇦   ‹func ‹(repl).x› with 1 methods: [
+↩   ‹func ‹(repl).x› with 1 methods: [
 	0 🠆 ⨍() 🠆 ‹compiledFunction: (repl).x()›
 ]›
 `)
@@ -95,7 +95,7 @@ func TestREPL(t *testing.T) {
 		require.NoError(t, r.execute("test := 1"))
 		cw.consume()
 		require.NoError(t, r.execute("return test"))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   1\n")
+		testHasPrefix(t, string(cw.consume()), "\n↩   1\n")
 	})
 	t.Run("return", func(t *testing.T) {
 		r := newREPL(ctx, cw)
@@ -152,35 +152,35 @@ func TestREPL(t *testing.T) {
 	t.Run("import time", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`import("time")`))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"time\"")
+		testHasPrefix(t, string(cw.consume()), "\n↩   ‹module \"time\"")
 		require.NoError(t, r.execute(".modules_cache"))
 		testHasPrefix(t, string(cw.consume()), "[<nil> ‹module: time")
 	})
 	t.Run("import strings", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`import("strings")`))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"strings\"")
+		testHasPrefix(t, string(cw.consume()), "\n↩   ‹module \"strings\"")
 		require.NoError(t, r.execute(".modules_cache"))
 		testHasPrefix(t, string(cw.consume()), "[<nil> ‹module: strings")
 	})
 	t.Run("import fmt", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`import("fmt")`))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"fmt\"")
+		testHasPrefix(t, string(cw.consume()), "\n↩   ‹module \"fmt\"")
 		require.NoError(t, r.execute(".modules_cache"))
 		testHasPrefix(t, string(cw.consume()), "[<nil> ‹module: fmt ")
 	})
 	t.Run("import json", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`import("json")`))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"json\"")
+		testHasPrefix(t, string(cw.consume()), "\n↩   ‹module \"json\"")
 		require.NoError(t, r.execute(".modules_cache"))
 		testHasPrefix(t, string(cw.consume()), "[<nil> ‹module: json ")
 	})
 	t.Run("import encoding/base64", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`import("encoding/base64")`))
-		testHasPrefix(t, string(cw.consume()), "\n⇦   ‹module \"encoding/base64\" ")
+		testHasPrefix(t, string(cw.consume()), "\n↩   ‹module \"encoding/base64\" ")
 		require.NoError(t, r.execute(".modules_cache"))
 		testHasPrefix(t, string(cw.consume()), "[<nil> ‹module: encoding/base64 ")
 	})
@@ -202,15 +202,15 @@ func TestREPL(t *testing.T) {
 		require.NoError(t, r.execute("met int(p Point) => p.x * p.y"))
 		cw.consume()
 		require.NoError(t, r.execute("str(int)"))
-		require.Equal(t, "⇦   \"‹builtin type ‹int› with 10 methods›\"",
+		require.Equal(t, "↩   \"‹builtin type ‹int› with 10 methods›\"",
 			strings.TrimSpace(string(cw.consume())))
 		require.NoError(t, r.execute("int(Point(2,8))"))
-		require.Equal(t, "⇦   16", strings.TrimSpace(string(cw.consume())))
+		require.Equal(t, "↩   16", strings.TrimSpace(string(cw.consume())))
 	})
 	t.Run("funcs", func(t *testing.T) {
 		r := newREPL(ctx, cw)
 		require.NoError(t, r.execute(`func a { () => 1; (x) => 2 }`))
-		require.Equal(t, `⇦   ‹func ‹(repl).a› with 2 methods: [
+		require.Equal(t, `↩   ‹func ‹(repl).a› with 2 methods: [
 	0 🠆 ⨍() 🠆 ‹compiledFunction: (repl).#1()›,
 	1 🠆 ⨍(any) 🠆 ‹compiledFunction: (repl).#2(x any)›
 ]›`,

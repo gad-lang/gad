@@ -429,11 +429,11 @@ func (r *repl) executeScript() error {
 
 	switch v := r.lastResult.(type) {
 	case gad.Str:
-		r.writeString(fmt.Sprintf("\n⇦   %q", string(v)))
+		r.writeString(fmt.Sprintf("\n↩   %q", string(v)))
 	case gad.RawStr:
-		r.writeString(fmt.Sprintf("\n⇦   %q", string(v)))
+		r.writeString(fmt.Sprintf("\n↩   %q", string(v)))
 	case gad.Char:
-		r.writeString(fmt.Sprintf("\n⇦   %q", rune(v)))
+		r.writeString(fmt.Sprintf("\n↩   %q", rune(v)))
 	default:
 		if !gad.IsPrimitive(r.lastResult) {
 			r.setRet(r.lastResult)
@@ -452,7 +452,7 @@ func (r *repl) executeScript() error {
 			)
 			runRet(e)
 		}
-		r.writeString(fmt.Sprintf("\n⇦   %v", r.lastResult))
+		r.writeString(fmt.Sprintf("\n↩   %v", r.lastResult))
 	}
 	return nil
 }

@@ -397,7 +397,7 @@ function showRun(res) {
   let s = "";
   if (res.stdout) s += res.stdout;
   if (res.stderr) s += res.stderr;
-  if (res.ok && res.result) s += "\n⇦ " + res.result + "\n";
+  if (res.ok && res.result) s += "\n↩ " + res.result + "\n";
   if (res.diagnostics) res.diagnostics.forEach((d) => { s += `${d.line}:${d.column} ${d.message}\n`; });
   showText($("outPane"), s || "(no output)", res.ok ? "" : "diag");
 }
@@ -433,7 +433,7 @@ function applyDebugResponse(res) {
     renderLocals(res.locals || []);
     selectPane("stack");
   } else if (res.state === "terminated") {
-    if (res.result) appendText($("outPane"), "\n⇦ " + res.result + "\n");
+    if (res.result) appendText($("outPane"), "\n↩ " + res.result + "\n");
     if (res.error) appendText($("outPane"), "\n" + res.error + "\n");
     status("program exited"); endDebug();
   } else if (res.state === "error") {
