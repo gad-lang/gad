@@ -165,7 +165,7 @@ const RunView = defineComponent({
       <div class={props.run.ok ? "" : "gp-error"}>
         {props.run.stdout && <pre class="gp-out">{props.run.stdout}</pre>}
         {props.run.stderr && <pre class="gp-out gad-ide__diag">{props.run.stderr}</pre>}
-        {props.run.ok && props.run.result && <div class="pnl-return">⇦ {props.run.result}</div>}
+        {props.run.ok && props.run.result && <div class="pnl-return">↩ {props.run.result}</div>}
         {(props.run.diagnostics ?? []).map((d, i) => (
           <div class="gad-ide__diag" key={i}>{d.line}:{d.column} {d.message}</div>
         ))}

@@ -175,7 +175,7 @@ function RunView({ run }: { run: RunResult }) {
     <div className={run.ok ? "" : "error"}>
       {run.stdout && <pre className="stdout">{run.stdout}</pre>}
       {run.stderr && <pre className="stderr">{run.stderr}</pre>}
-      {run.ok && run.result && <div className="return">⇦ {run.result}</div>}
+      {run.ok && run.result && <div className="return">↩ {run.result}</div>}
       {(run.diagnostics ?? []).map((d, i) => (
         <div className="diag" key={i}>
           {d.line}:{d.column} {d.message}

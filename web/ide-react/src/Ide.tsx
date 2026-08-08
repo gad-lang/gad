@@ -1617,7 +1617,7 @@ export function Ide({
       clearOut();
       pushOut("out", res.stdout || "");
       pushOut("err", res.stderr || "");
-      if (res.ok && res.result) pushOut("out", "\n⇦ " + res.result + "\n");
+      if (res.ok && res.result) pushOut("out", "\n↩ " + res.result + "\n");
       const diag = (res.diagnostics || []).map((d) => `${d.line}:${d.column} ${d.message}`).join("\n");
       pushOut("err", diag);
       setStatus(res.ok ? "done" : "error");
@@ -1666,7 +1666,7 @@ export function Ide({
       activateBottomPanel("callstack");
       if (stopFile && stopFile !== activeTab?.path) void openFile(stopFile);
     } else if (res.state === "terminated") {
-      if (res.result) pushOut("out", "\n⇦ " + res.result + "\n");
+      if (res.result) pushOut("out", "\n↩ " + res.result + "\n");
       setDebug(null); setDebugLoc(null); setStatus("program exited");
     } else {
       pushOut("err", res.error || "debug error");
@@ -1691,7 +1691,7 @@ export function Ide({
       clearOut();
       pushOut("out", res.stdout || "");
       pushOut("err", res.stderr || "");
-      if (res.ok && res.result) pushOut("out", "\n⇦ " + res.result + "\n");
+      if (res.ok && res.result) pushOut("out", "\n↩ " + res.result + "\n");
       pushOut("err", (res.diagnostics || []).map((d) => `${d.line}:${d.column} ${d.message}`).join("\n"));
       setStatus(res.ok ? "done" : "error");
     } catch (e) {

@@ -118,7 +118,7 @@ export function GadNotebook({ runner, dark = false }: GadNotebookProps) {
             <div className={"gnb-out" + (cell.result.ok ? "" : " gp-error")}>
               {cell.result.stdout && <pre className="gp-out">{cell.result.stdout}</pre>}
               {cell.result.stderr && <pre className="gp-out gad-ide__diag">{cell.result.stderr}</pre>}
-              {cell.result.ok && cell.result.result && <div className="gp-return">⇦ {cell.result.result}</div>}
+              {cell.result.ok && cell.result.result && <div className="gp-return">↩ {cell.result.result}</div>}
               {(cell.result.diagnostics ?? []).map((d, i) => (
                 <div className="gad-ide__diag" key={i}>{d.line}:{d.column} {d.message}</div>
               ))}

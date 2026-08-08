@@ -84,7 +84,7 @@ function CellOutput({ result }: { result: RunResult }) {
     <div className={`cell-output ${result.ok ? "" : "error"}`}>
       {result.stdout && <pre className="stdout">{result.stdout}</pre>}
       {result.stderr && <pre className="stderr">{result.stderr}</pre>}
-      {result.ok && result.result && <div className="return">⇦ {result.result}</div>}
+      {result.ok && result.result && <div className="return">↩ {result.result}</div>}
       {(result.diagnostics ?? []).map((d, i) => (
         <div className="diag" key={i}>
           {d.line}:{d.column} {d.message}

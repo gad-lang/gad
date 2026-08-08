@@ -112,7 +112,7 @@ export default defineComponent({
               <div class={"gnb-out" + (cell.result.ok ? "" : " gp-error")}>
                 {cell.result.stdout && <pre class="gp-out">{cell.result.stdout}</pre>}
                 {cell.result.stderr && <pre class="gp-out gad-ide__diag">{cell.result.stderr}</pre>}
-                {cell.result.ok && cell.result.result && <div class="pnl-return">⇦ {cell.result.result}</div>}
+                {cell.result.ok && cell.result.result && <div class="pnl-return">↩ {cell.result.result}</div>}
                 {(cell.result.diagnostics ?? []).map((d, i) => (
                   <div class="gad-ide__diag" key={i}>{d.line}:{d.column} {d.message}</div>
                 ))}

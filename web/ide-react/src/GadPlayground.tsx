@@ -173,7 +173,7 @@ function RunView({ run }: { run: RunResult }) {
     <div className={run.ok ? "" : "gp-error"}>
       {run.stdout && <pre className="gp-out">{run.stdout}</pre>}
       {run.stderr && <pre className="gp-out gad-ide__diag">{run.stderr}</pre>}
-      {run.ok && run.result && <div className="gp-return">⇦ {run.result}</div>}
+      {run.ok && run.result && <div className="gp-return">↩ {run.result}</div>}
       {(run.diagnostics ?? []).map((d, i) => (
         <div className="gad-ide__diag" key={i}>{d.line}:{d.column} {d.message}</div>
       ))}
