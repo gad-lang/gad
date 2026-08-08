@@ -52,6 +52,41 @@ Regenerate them with `make samples-doc`.
 - Generated standard-library references: [`time`](stdlib-time.md),
   [`fmt`](stdlib-fmt.md), [`strings`](stdlib-strings.md), [`json`](stdlib-json.md).
 
+## How the documentation is built
+
+The docs are generated in two stages:
+
+1. **Samples → Markdown.** `gad doc` extracts each sample's doc comment and its
+   verified runnable example and renders a Markdown page (one per chapter) under
+   [`doc/samples/`](samples/), driven by the `doc-templates` (see
+   [Workspace Configuration › Documentation templates](workspace-config.md#documentation-templates)).
+   Regenerate with `make samples-doc`.
+2. **Markdown → website.** `cmd/build-website` assembles the static docs site
+   (nav, search index, per-page table of contents, syntax highlighting) from the
+   `doc/`, `doc/samples/` and `gadx/docs/` Markdown.
+
+The Markdown → HTML conversion in stage 2 is handled by
+[**goldmark**](https://github.com/yuin/goldmark) — a CommonMark-compliant,
+pure-Go parser/renderer — so the docs may use the full Markdown vocabulary:
+nested emphasis and links, fenced code with language info strings (highlighted
+with PrismJS), and everything the enabled extensions add.
+
+**Enabled goldmark extensions:**
+
+| Extension          | Adds                                                        |
+| ------------------ | ----------------------------------------------------------- |
+| GFM                | tables, strikethrough (`~~x~~`), autolinks, task-list items |
+| Typographer        | smart quotes and dashes (`--` → –, `---` → —, `...` → …)     |
+| Definition List    | `Term` / `: definition` definition lists                    |
+| Footnote           | `[^1]` references with a footnotes section                  |
+| Auto Heading ID    | stable `id` anchors on every heading (parser option)        |
+
+On top of goldmark the builder adds two site-specific passes: an AST transformer rewrites
+doc-relative links (`page.md` → `page.html`, `samples/NN.*` → the published
+`lang-NN.html` chapter) and headings are collected — with goldmark's
+auto-generated ids — into each page's on-this-page table of contents and the
+search index. The renderer lives in `cmd/build-website/markdown.go`.
+
 ## Gadx Templates
 
 Gadx is an indentation-based HTML template language that embeds Gad, shipped in
