@@ -1,0 +1,9 @@
+# Keep source and embedded templates LF on every platform so Windows (CRLF)
+# checkouts don't feed CRLF into go:embed'd content (doc templates, samples) or
+# the golden test fixtures. The parser tolerates CRLF, but LF keeps builds and
+# byte-for-byte drift tests deterministic across OSes.
+*.go    text eol=lf
+*.gad   text eol=lf
+*.gadt  text eol=lf
+*.gadx  text eol=lf
+*.md    text eol=lf
