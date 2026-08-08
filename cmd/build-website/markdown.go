@@ -25,7 +25,13 @@ var (
 	// are literal, never emphasis. The flanking chars are captured ($1,$3) and
 	// re-emitted. Without this, sample links were mangled into <em> spans.
 	italicRe = regexp.MustCompile(`(^|[^0-9A-Za-z_])_([^_]+?)_([^0-9A-Za-z_]|$)`)
-	linkRe   = regexp.MustCompile(`\[(.+?)\]\(([^)]+)\)`)
+	// italicStarRe matches `*emphasis*`: run after boldRe (so `**bold**` is already
+	// consumed). The outer flanks must be non-word/non-`*` (or a line boundary) and
+	// the content must start and end with a non-space char with no inner `*`, so an
+	// asterisk glued to a word — arithmetic like `x*this.x` or a spread `*argv` — is
+	// never treated as emphasis.
+	italicStarRe = regexp.MustCompile(`(^|[^0-9A-Za-z*])\*([^\s*](?:[^*]*[^\s*])?)\*([^0-9A-Za-z*]|$)`)
+	linkRe       = regexp.MustCompile(`\[(.+?)\]\(([^)]+)\)`)
 )
 
 // backtickRun returns the number of leading backticks in s (0 if it does not
@@ -294,9 +300,12 @@ func inlineSpans(s string) string {
 	return b.String()
 }
 
-// emphasize applies bold/italic markup to an already-escaped run of text.
+// emphasize applies bold/italic markup to an already-escaped run of text. Bold
+// (`**…**`) is resolved first so its inner stars are gone before single-star
+// italic (`*…*`) runs; `_…_` italic is independent.
 func emphasize(s string) string {
 	s = boldRe.ReplaceAllString(s, "<strong>$1</strong>")
+	s = italicStarRe.ReplaceAllString(s, "${1}<em>${2}</em>${3}")
 	s = italicRe.ReplaceAllString(s, "${1}<em>${2}</em>${3}")
 	return s
 }
@@ -338,6 +347,7 @@ func rewriteLink(url string) string {
 func stripInline(s string) string {
 	s = strings.ReplaceAll(s, "`", "")
 	s = boldRe.ReplaceAllString(s, "$1")
+	s = italicStarRe.ReplaceAllString(s, "${1}${2}${3}")
 	s = italicRe.ReplaceAllString(s, "${1}${2}${3}")
 	s = linkRe.ReplaceAllString(s, "$1")
 	return s

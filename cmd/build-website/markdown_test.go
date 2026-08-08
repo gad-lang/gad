@@ -130,6 +130,36 @@ func TestRenderCodeSpanLink(t *testing.T) {
 	}
 }
 
+// TestRenderStarEmphasis guards single-star `*emphasis*` rendering (the
+// getting-started "*raw*" showed literally) while leaving asterisks glued to
+// words — arithmetic and spreads in prose — untouched.
+func TestRenderStarEmphasis(t *testing.T) {
+	yes := map[string]string{
+		"it opts into *raw* argument\n": "into <em>raw</em> argument",
+		"a *b c* d\n":                   "a <em>b c</em> d",
+		"lead *directly* here\n":        "lead <em>directly</em> here",
+	}
+	for src, want := range yes {
+		if out, _ := renderMarkdown(src); !strings.Contains(out, want) {
+			t.Errorf("render(%q)\n  missing %q\n  got: %s", src, want, out)
+		}
+	}
+	// Asterisks glued to word chars (arithmetic / spreads) are NOT emphasis.
+	no := []string{
+		"compute x*this.x + this.y*t here\n",
+		"pass f(*a, *b) along\n",
+	}
+	for _, src := range no {
+		if out, _ := renderMarkdown(src); strings.Contains(out, "<em>") {
+			t.Errorf("render(%q) wrongly emphasized:\n%s", src, out)
+		}
+	}
+	// `**bold**` must still be bold, not eaten by the single-star rule.
+	if out, _ := renderMarkdown("**strong** stuff\n"); !strings.Contains(out, "<strong>strong</strong>") {
+		t.Errorf("bold broken:\n%s", out)
+	}
+}
+
 // TestRenderTerminates ensures the renderer never loops forever on assorted
 // block combinations (each rendered under the test's own timeout).
 func TestRenderTerminates(t *testing.T) {
