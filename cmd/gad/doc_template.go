@@ -169,6 +169,13 @@ func buildDocDict(doc *gadbridge.DocData, path string, src []byte, sourceType st
 	d["name"] = gad.Str(moduleName(path))
 	d["file"] = gad.Str(filepath.Base(path))
 	d["lang"] = gad.Str(lang)
+	// The file's snippets — with their `uses` references and verified
+	// result/output — are exposed so a template can render them itself.
+	infos, err := collectSnippets(src, run)
+	if err != nil {
+		return nil, err
+	}
+	d["snippets"] = snippetsGadArray(infos)
 	example := exampleSource(src)
 	d["source"] = gad.Str(example)
 	// The Markdown fence for the example must be wider than any backticks inside

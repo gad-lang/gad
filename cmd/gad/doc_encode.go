@@ -44,6 +44,9 @@ type docEncoded struct {
 	Prose    string                 `json:"prose,omitempty" yaml:"prose,omitempty"`
 	Sections []gadbridge.DocSection `json:"sections,omitempty" yaml:"sections,omitempty"`
 	Source   string                 `json:"source,omitempty" yaml:"source,omitempty"`
+	// Snippets are the file's `//snippet` regions with their `uses` references and
+	// verified result/output, so the encoded doc carries them too.
+	Snippets []snippetInfo `json:"snippets,omitempty" yaml:"snippets,omitempty"`
 }
 
 // renderEncodedOutputs builds the structured documentation for a source file and
@@ -79,6 +82,10 @@ func (o *docOptions) buildDocEncoded(path string, src []byte) (*docEncoded, erro
 	if err = expandDocSnippets(doc, src, lang, !o.noDoctest); err != nil {
 		return nil, err
 	}
+	snippets, err := collectSnippets(src, !o.noDoctest)
+	if err != nil {
+		return nil, err
+	}
 	return &docEncoded{
 		Name:     moduleName(path),
 		File:     filepath.Base(path),
@@ -86,6 +93,7 @@ func (o *docOptions) buildDocEncoded(path string, src []byte) (*docEncoded, erro
 		Prose:    doc.Prose,
 		Sections: doc.Sections,
 		Source:   exampleSource(src),
+		Snippets: snippets,
 	}, nil
 }
 

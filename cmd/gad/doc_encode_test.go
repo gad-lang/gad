@@ -22,7 +22,8 @@ import (
 func TestDocCommandJSONYAML(t *testing.T) {
 	dir := t.TempDir()
 	src := "/***\n# Demo\n\nprose <b> here.\n\n@snippet greet\n***/\n\n" +
-		"//snippet greet\ngreet := \"hi \" + \"Gad\"\ngreet\n/**= \"hi Gad\" **/\n//endsnippet\n"
+		"//snippet base\nname := \"Gad\"\n//endsnippet\n\n" +
+		"//snippet greet uses base\ngreet := \"hi \" + name\ngreet\n/**= \"hi Gad\" **/\n//endsnippet\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "m.gad"), []byte(src), 0o644))
 
 	orig, _ := os.Getwd()
@@ -49,7 +50,19 @@ func TestDocCommandJSONYAML(t *testing.T) {
 	require.Contains(t, got.Prose, "# Demo")
 	require.Contains(t, got.Prose, "```gad")       // the snippet was expanded
 	require.Contains(t, got.Prose, "// => hi Gad") // its verified result
-	require.Contains(t, got.Source, `greet := "hi " + "Gad"`)
+	require.Contains(t, got.Source, `greet := "hi " + name`)
+
+	// Snippets are carried in the encoded doc, with references and results.
+	require.Len(t, got.Snippets, 2)
+	byName := map[string]snippetInfo{}
+	for _, s := range got.Snippets {
+		byName[s.Name] = s
+	}
+	require.Equal(t, []string{"base"}, byName["greet"].Uses)
+	require.Equal(t, "value", byName["greet"].Kind)
+	require.Equal(t, `"hi Gad"`, byName["greet"].Expected) // raw marker EXPR
+	require.Equal(t, "hi Gad", byName["greet"].Result)     // actual value, verified via `base` context
+	require.Empty(t, byName["base"].Uses)
 
 	// YAML: unmarshal and assert the same core fields.
 	yb, err := os.ReadFile(filepath.Join(dir, "doc", "m.yaml"))

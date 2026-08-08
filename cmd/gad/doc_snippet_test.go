@@ -121,6 +121,38 @@ func TestDocCommandExpandsAndVerifiesSnippets(t *testing.T) {
 	require.Contains(t, s, "Output:")
 }
 
+// TestSnippetUsesContext covers the `//snippet NAME uses A B` execution-context
+// feature: the referenced snippets' code is prepended when the snippet runs (so
+// it can reference their definitions and the result verifies), while the
+// rendered block shows ONLY the snippet's own code, not the context.
+func TestSnippetUsesContext(t *testing.T) {
+	src := "//snippet base\n" +
+		"answer := 42\n" +
+		"//endsnippet\n" +
+		"//snippet use uses base\n" +
+		"answer + 1\n" +
+		"/**= 43 **/\n" +
+		"//endsnippet\n"
+	snips := extractSnippets([]byte(src))
+
+	require.Equal(t, []string{"base"}, snips["use"].uses)
+	require.Equal(t, "answer := 42", snippetPrelude(snips["use"], snips))
+
+	// Runs + verifies using the prelude (answer from base is in scope).
+	out, err := expandSnippets("@snippet use", snips, "gad", true)
+	require.NoError(t, err)
+	require.Contains(t, out, "// => 43")
+	// The rendered block shows the snippet's own code, not the context's.
+	require.Contains(t, out, "answer + 1")
+	require.NotContains(t, out, "answer := 42")
+
+	// Without the context the snippet would fail to compile (unresolved answer).
+	bad := strings.Replace(src, "//snippet use uses base", "//snippet use", 1)
+	badSnips := extractSnippets([]byte(bad))
+	_, err = expandSnippets("@snippet use", badSnips, "gad", true)
+	require.Error(t, err)
+}
+
 // TestSnippetEmbeddedFence is a regression test: a snippet whose code embeds a
 // ```` ``` ```` fence (e.g. a doctest inside a doc comment) must be wrapped in a
 // WIDER outer fence so the inner ``` does not close it early.

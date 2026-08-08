@@ -168,24 +168,22 @@ or an `obj :: Type` cast — dispatch and interface satisfaction enforce
 membership, so a value that is not one of the enum's members is rejected:
 
 ```gad
-enum Acl { None = 0, Read, Write, Exec }
-
 /// A parameter typed with the enum only accepts its members; dispatch rejects
-/// anything else.
-func isWrite(p Acl) => p == Acl.Write
-println("isWrite(Write):", isWrite(Acl.Write))
-println("isWrite(Read): ", isWrite(Acl.Read))
+/// anything else. (`Perm` is reused from the "Defining an enum" example above.)
+func isWrite(p Perm) => p == Perm.Write
+println("isWrite(Write):", isWrite(Perm.Write))
+println("isWrite(Read): ", isWrite(Perm.Read))
 try {
-    isWrite(42)                 // 42 is not an Acl member
+    isWrite(42)                 // 42 is not a Perm member
 } catch {
     println("isWrite(42):   rejected")
 }
 
 /// An interface can require a field typed with the enum; a value satisfies it
-/// only when its `perm` is an Acl member.
-interface User { name str; perm Acl }
-func canWrite(u User) => u.perm == Acl.Write
-ada := {name: "Ada", perm: Acl.Write}
+/// only when its `perm` is a Perm member.
+interface User { name str; perm Perm }
+func canWrite(u User) => u.perm == Perm.Write
+ada := {name: "Ada", perm: Perm.Write}
 println("canWrite(ada): ", canWrite(ada))
 ```
 
@@ -264,24 +262,22 @@ println(Bulk["@values"])  // [1, 2, 10]
 println(Bulk["@dict"])    // {Exec: 10, Read: 1, Write: 2} (dict prints keys sorted)
 println(dict(Bulk))       // same name -> value mapping
 
-enum Acl { None = 0, Read, Write, Exec }
-
 /// A parameter typed with the enum only accepts its members; dispatch rejects
-/// anything else.
-func isWrite(p Acl) => p == Acl.Write
-println("isWrite(Write):", isWrite(Acl.Write))
-println("isWrite(Read): ", isWrite(Acl.Read))
+/// anything else. (`Perm` is reused from the "Defining an enum" example above.)
+func isWrite(p Perm) => p == Perm.Write
+println("isWrite(Write):", isWrite(Perm.Write))
+println("isWrite(Read): ", isWrite(Perm.Read))
 try {
-    isWrite(42)                 // 42 is not an Acl member
+    isWrite(42)                 // 42 is not a Perm member
 } catch {
     println("isWrite(42):   rejected")
 }
 
 /// An interface can require a field typed with the enum; a value satisfies it
-/// only when its `perm` is an Acl member.
-interface User { name str; perm Acl }
-func canWrite(u User) => u.perm == Acl.Write
-ada := {name: "Ada", perm: Acl.Write}
+/// only when its `perm` is a Perm member.
+interface User { name str; perm Perm }
+func canWrite(u User) => u.perm == Perm.Write
+ada := {name: "Ada", perm: Perm.Write}
 println("canWrite(ada): ", canWrite(ada))
 
 return Perm.Delete.value

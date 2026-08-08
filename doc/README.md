@@ -87,6 +87,71 @@ doc-relative links (`page.md` → `page.html`, `samples/NN.*` → the published
 auto-generated ids — into each page's on-this-page table of contents and the
 search index. The renderer lives in `cmd/build-website/markdown.go`.
 
+### Snippets
+
+Rather than copy code into prose by hand (where it rots), a doc comment pulls in
+a **snippet**: a named region of the sample's own runnable source. `gad doc`
+replaces the `@snippet NAME` placeholder with a fenced code block holding that
+region, so the documented code is always real, compiling code.
+
+Delimit a region with `//snippet NAME` / `//endsnippet`, and reference it from
+the module prose or any `///` doc comment with `@snippet NAME`:
+
+```gad
+/**
+# Greetings
+
+@snippet greet
+**/
+
+//snippet greet
+greet := func(name) => "hi " + name
+greet("Gad")
+//endsnippet
+```
+
+A region may declare a **result that is verified at generation time** (a
+mismatch fails the build, so the docs cannot drift from the code):
+
+- `/**= EXPR **/` — the region's value must equal `EXPR`; the rendered block
+  gains a `// => <value>` line.
+- `/**< TEXT **/` — the region's STDOUT must equal `TEXT`; the block is followed
+  by an `Output:` block.
+
+```gad
+//snippet greet
+greet := func(name) => "hi " + name
+greet("Gad")
+/**= "hi Gad" **/
+//endsnippet
+```
+
+**Reusing code across snippets — `uses`.** A snippet runs standalone, so it must
+be self-contained. To reuse definitions from another snippet without repeating
+them, list it as an execution context on the open line:
+`//snippet NAME uses OTHER …` (several contexts allowed, resolved transitively).
+The context's code is prepended when the snippet runs — so the snippet can
+reference its definitions and its result still verifies — but the context is
+**not** rendered and its own result marker is ignored; the block shows only this
+snippet's code.
+
+```gad
+//snippet define
+enum Perm { Read, Write, Exec = 10, Delete }
+//endsnippet
+
+//snippet usage uses define
+// `Perm` comes from the `define` context; only these lines are shown.
+func isWrite(p Perm) => p == Perm.Write
+isWrite(Perm.Write)
+/**= true **/
+//endsnippet
+```
+
+The markers (`//snippet`, `//endsnippet`, `/**= **/`, `/**< **/`) never appear in
+the rendered code, nor in the sample's own "Example" block. See
+`samples/16_doc_comments.gad` and `samples/20_enum.gad` for live uses.
+
 ## Gadx Templates
 
 Gadx is an indentation-based HTML template language that embeds Gad, shipped in

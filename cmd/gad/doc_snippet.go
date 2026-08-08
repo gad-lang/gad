@@ -42,6 +42,17 @@ import (
 //     is followed by an `Output:` block with the captured output.
 //
 // The `/**= … **/` / `/**< … **/` markers may be single- or multi-line.
+//
+// A snippet runs standalone, so it must be self-contained. To reuse another
+// snippet's definitions without repeating them, list it as an execution context
+// on the open line:
+//
+//	//snippet usage uses define other
+//
+// The `uses` contexts' code is prepended when the snippet runs (transitively, in
+// order, each once), so the snippet can reference their definitions and its
+// result still verifies — but the context is not rendered and its own result
+// marker is ignored; only the snippet's own code appears in the block.
 
 // snippetResultKind classifies a snippet's expected-result marker.
 type snippetResultKind int
@@ -59,6 +70,11 @@ type snippet struct {
 	code     string
 	kind     snippetResultKind
 	expected string // raw expected text from the marker (an EXPR or STDOUT text)
+	// uses names other snippets whose code is prepended as an execution context
+	// (so this snippet can reuse their definitions), declared on the open line as
+	// `//snippet NAME uses A B C`. The context code runs but is NOT rendered and
+	// its own result marker is ignored — only this snippet's code and result show.
+	uses []string
 }
 
 // extractSnippets scans src for `//snippet NAME … //endsnippet` regions and
@@ -66,17 +82,18 @@ type snippet struct {
 func extractSnippets(src []byte) map[string]*snippet {
 	out := map[string]*snippet{}
 	var name string
+	var uses []string
 	var body []string
 	for _, ln := range strings.Split(string(src), "\n") {
 		t := strings.TrimSpace(ln)
 		switch {
 		case name == "":
-			if n, ok := snippetOpen(t); ok {
-				name, body = n, nil
+			if n, u, ok := snippetOpen(t); ok {
+				name, uses, body = n, u, nil
 			}
 		case snippetClose(t):
 			code, kind, expected := splitSnippetResult(body)
-			out[name] = &snippet{name: name, code: dedent(code), kind: kind, expected: expected}
+			out[name] = &snippet{name: name, code: dedent(code), kind: kind, expected: expected, uses: uses}
 			name = ""
 		default:
 			body = append(body, ln)
@@ -136,13 +153,23 @@ func parts0(first string, isFirst bool, body []string, j int) string {
 }
 
 // snippetOpen reports whether the trimmed line opens a snippet region and returns
-// its name. It matches `//snippet NAME` (any spacing after `//`).
-func snippetOpen(trimmed string) (string, bool) {
-	fields, ok := markerFields(trimmed)
-	if !ok || len(fields) != 2 || fields[0] != "snippet" {
-		return "", false
+// its name and its execution-context references. It matches `//snippet NAME` and
+// the optional `//snippet NAME uses A B C` form (the names after `uses` are other
+// snippets whose code is prepended when this one runs).
+func snippetOpen(trimmed string) (name string, uses []string, ok bool) {
+	fields, isComment := markerFields(trimmed)
+	if !isComment || len(fields) < 2 || fields[0] != "snippet" {
+		return "", nil, false
 	}
-	return fields[1], true
+	name = fields[1]
+	rest := fields[2:]
+	if len(rest) > 0 {
+		if rest[0] != "uses" || len(rest) < 2 {
+			return "", nil, false // malformed trailer: not a snippet open
+		}
+		uses = rest[1:]
+	}
+	return name, uses, true
 }
 
 // snippetClose reports whether the trimmed line closes a snippet region
@@ -182,13 +209,147 @@ func expandSnippets(text string, snippets map[string]*snippet, lang string, run 
 			out = append(out, ln)
 			continue
 		}
-		block, err := renderSnippet(snip, lang, run)
+		block, err := renderSnippet(snip, snippetPrelude(snip, snippets), lang, run)
 		if err != nil {
 			return "", err
 		}
 		out = append(out, block...)
 	}
 	return strings.Join(out, "\n"), nil
+}
+
+// snippetInfo is the serializable view of a snippet exposed on the doc object
+// (and in the JSON/YAML encoding): its name, `uses` context references, code,
+// result kind, the declared expected text and — when doctests run — the actual
+// verified value/output.
+type snippetInfo struct {
+	Name     string   `json:"name" yaml:"name"`
+	Uses     []string `json:"uses,omitempty" yaml:"uses,omitempty"`
+	Code     string   `json:"code" yaml:"code"`
+	Kind     string   `json:"kind,omitempty" yaml:"kind,omitempty"` // "value" | "output" | ""
+	Expected string   `json:"expected,omitempty" yaml:"expected,omitempty"`
+	Result   string   `json:"result,omitempty" yaml:"result,omitempty"` // actual value (value kind)
+	Output   string   `json:"output,omitempty" yaml:"output,omitempty"` // actual stdout (output kind)
+}
+
+// snippetOrder returns the snippet names in source (declaration) order.
+func snippetOrder(src []byte) []string {
+	var names []string
+	for _, ln := range strings.Split(string(src), "\n") {
+		if n, _, ok := snippetOpen(strings.TrimSpace(ln)); ok {
+			names = append(names, n)
+		}
+	}
+	return names
+}
+
+// collectSnippets returns every `//snippet` region in src as a snippetInfo, in
+// declaration order. When run is true a snippet with a result marker is executed
+// (with its `uses` context prepended) and its actual value/output is filled in;
+// a run error aborts. It is the source of the snippets exposed to templates and
+// encoded by --json/--yaml.
+func collectSnippets(src []byte, run bool) ([]snippetInfo, error) {
+	snips := extractSnippets(src)
+	names := snippetOrder(src)
+	infos := make([]snippetInfo, 0, len(names))
+	for _, name := range names {
+		s := snips[name]
+		if s == nil {
+			continue
+		}
+		info := snippetInfo{Name: s.name, Uses: s.uses, Code: s.code, Expected: s.expected}
+		prelude := snippetPrelude(s, snips)
+		switch s.kind {
+		case snippetValue:
+			info.Kind = "value"
+			if run {
+				got, err := evalGadExample(withPrelude(prelude, s.code))
+				if err != nil {
+					return nil, fmt.Errorf("snippet %q: %w", s.name, err)
+				}
+				info.Result = objectStr(got)
+			}
+		case snippetOutput:
+			info.Kind = "output"
+			if run {
+				_, stdout, err := evalGadExampleCapture(withPrelude(prelude, s.code))
+				if err != nil {
+					return nil, fmt.Errorf("snippet %q: %w", s.name, err)
+				}
+				info.Output = strings.TrimRight(stdout, "\n")
+			}
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
+}
+
+// snippetsGadArray converts snippet infos to the gad.Array of gad.Dict exposed as
+// `doc.snippets` to documentation templates.
+func snippetsGadArray(infos []snippetInfo) gad.Array {
+	arr := make(gad.Array, len(infos))
+	for i, s := range infos {
+		d := gad.Dict{"name": gad.Str(s.Name), "code": gad.Str(s.Code)}
+		if len(s.Uses) > 0 {
+			u := make(gad.Array, len(s.Uses))
+			for j, x := range s.Uses {
+				u[j] = gad.Str(x)
+			}
+			d["uses"] = u
+		}
+		if s.Kind != "" {
+			d["kind"] = gad.Str(s.Kind)
+		}
+		if s.Expected != "" {
+			d["expected"] = gad.Str(s.Expected)
+		}
+		if s.Result != "" {
+			d["result"] = gad.Str(s.Result)
+		}
+		if s.Output != "" {
+			d["output"] = gad.Str(s.Output)
+		}
+		arr[i] = d
+	}
+	return arr
+}
+
+// snippetPrelude returns the concatenated code of a snippet's `uses` execution
+// contexts (transitively, in declaration order, each included once), to be
+// prepended when the snippet runs so it can reference their definitions. A
+// context's own result marker is ignored — only its code is reused. An unknown
+// or self reference is skipped; cycles are broken by the seen set.
+func snippetPrelude(snip *snippet, snippets map[string]*snippet) string {
+	var (
+		parts []string
+		seen  = map[string]bool{snip.name: true}
+		add   func(names []string)
+	)
+	add = func(names []string) {
+		for _, n := range names {
+			if seen[n] {
+				continue
+			}
+			seen[n] = true
+			ctx, ok := snippets[n]
+			if !ok {
+				continue
+			}
+			add(ctx.uses) // context's own contexts come first
+			parts = append(parts, ctx.code)
+		}
+	}
+	add(snip.uses)
+	return strings.Join(parts, "\n")
+}
+
+// withPrelude prepends the execution-context prelude to code (nothing when the
+// prelude is empty), so a snippet runs with its `uses` definitions in scope.
+func withPrelude(prelude, code string) string {
+	if prelude == "" {
+		return code
+	}
+	return prelude + "\n" + code
 }
 
 // fenceFor returns the Markdown code-fence (a run of backticks) that safely wraps
@@ -222,16 +383,16 @@ func fenceFor(content ...string) string {
 // Python-docs style — the value inline as a `// => …` line inside the same code
 // block, and STDOUT in an `Output:` text block below it. Fence widths adapt to
 // any backticks inside the code/result so an embedded ``` never closes them.
-func renderSnippet(snip *snippet, lang string, run bool) ([]string, error) {
+func renderSnippet(snip *snippet, prelude, lang string, run bool) ([]string, error) {
 	switch snip.kind {
 	case snippetValue:
 		shown := snip.expected
 		if run {
-			got, err := evalGadExample(snip.code)
+			got, err := evalGadExample(withPrelude(prelude, snip.code))
 			if err != nil {
 				return nil, fmt.Errorf("snippet %q: %w", snip.name, err)
 			}
-			exp, err := evalGadExample("return " + snip.expected)
+			exp, err := evalGadExample(withPrelude(prelude, "return "+snip.expected))
 			if err != nil {
 				return nil, fmt.Errorf("snippet %q: evaluating expected %q: %w", snip.name, snip.expected, err)
 			}
@@ -247,7 +408,7 @@ func renderSnippet(snip *snippet, lang string, run bool) ([]string, error) {
 	case snippetOutput:
 		shown := snip.expected
 		if run {
-			_, stdout, err := evalGadExampleCapture(snip.code)
+			_, stdout, err := evalGadExampleCapture(withPrelude(prelude, snip.code))
 			if err != nil {
 				return nil, fmt.Errorf("snippet %q: %w", snip.name, err)
 			}
@@ -334,7 +495,7 @@ func stripSnippetMarkers(src string) string {
 			}
 			continue
 		}
-		if _, ok := snippetOpen(t); ok {
+		if _, _, ok := snippetOpen(t); ok {
 			continue
 		}
 		if snippetClose(t) {
