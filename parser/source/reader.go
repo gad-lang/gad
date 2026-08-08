@@ -149,7 +149,10 @@ next:
 
 		r, w = rune(s.Src[s.ReadOffset]), 1
 
-		for r == '\r' {
+		// Skip carriage returns (CRLF line endings). Stop at the end of the
+		// buffer so a trailing '\r' — e.g. from a Windows (CRLF) checkout — does
+		// not read past it.
+		for r == '\r' && s.ReadOffset+1 < len(s.Src) {
 			s.ReadOffset++
 			r = rune(s.Src[s.ReadOffset])
 		}
