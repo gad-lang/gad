@@ -161,6 +161,43 @@ Output:
 {Exec: 10, Read: 1, Write: 2}
 ```
 
+## Enums as types
+
+An enum name is a **type**. Use it for a function parameter, an interface field
+or an `obj :: Type` cast — dispatch and interface satisfaction enforce
+membership, so a value that is not one of the enum's members is rejected:
+
+```gad
+enum Acl { None = 0, Read, Write, Exec }
+
+/// A parameter typed with the enum only accepts its members; dispatch rejects
+/// anything else.
+func isWrite(p Acl) => p == Acl.Write
+println("isWrite(Write):", isWrite(Acl.Write))
+println("isWrite(Read): ", isWrite(Acl.Read))
+try {
+    isWrite(42)                 // 42 is not an Acl member
+} catch {
+    println("isWrite(42):   rejected")
+}
+
+/// An interface can require a field typed with the enum; a value satisfies it
+/// only when its `perm` is an Acl member.
+interface User { name str; perm Acl }
+func canWrite(u User) => u.perm == Acl.Write
+ada := {name: "Ada", perm: Acl.Write}
+println("canWrite(ada): ", canWrite(ada))
+```
+
+Output:
+
+```text
+isWrite(Write): true
+isWrite(Read):  false
+isWrite(42):   rejected
+canWrite(ada):  true
+```
+
 ## Example — `20_enum.gad`
 
 ```gad
@@ -226,6 +263,26 @@ println(Bulk["@names"])   // ["Read", "Write", "Exec"]
 println(Bulk["@values"])  // [1, 2, 10]
 println(Bulk["@dict"])    // {Exec: 10, Read: 1, Write: 2} (dict prints keys sorted)
 println(dict(Bulk))       // same name -> value mapping
+
+enum Acl { None = 0, Read, Write, Exec }
+
+/// A parameter typed with the enum only accepts its members; dispatch rejects
+/// anything else.
+func isWrite(p Acl) => p == Acl.Write
+println("isWrite(Write):", isWrite(Acl.Write))
+println("isWrite(Read): ", isWrite(Acl.Read))
+try {
+    isWrite(42)                 // 42 is not an Acl member
+} catch {
+    println("isWrite(42):   rejected")
+}
+
+/// An interface can require a field typed with the enum; a value satisfies it
+/// only when its `perm` is an Acl member.
+interface User { name str; perm Acl }
+func canWrite(u User) => u.perm == Acl.Write
+ada := {name: "Ada", perm: Acl.Write}
+println("canWrite(ada): ", canWrite(ada))
 
 return Perm.Delete.value
 ```

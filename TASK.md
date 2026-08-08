@@ -2,6 +2,13 @@
 
 > Created: 2026-08-06 | Updated: 2026-08-06
 
+- [x] create examples and docs for enum in func param/interface etc
+  Added an "Enums as types" section + `as_types` snippet to samples/20_enum.gad
+  (self-contained `enum Acl`, since the file already owns `Perm`): enum as a
+  function parameter type (dispatch rejects a non-member), as an interface field
+  type (`interface User { name str; perm Acl }`), verified via `/**<` output at
+  doc generation. `make samples-doc` exit 0; renders as lang-20_enum.html#enums-as-types.
+  
 ## Goal
 Make the samples the single source of truth for language documentation. Move
 language-feature docs into `samples/*.{gad,gadt,gadx}` as doc comments, and
