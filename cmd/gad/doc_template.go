@@ -51,10 +51,10 @@ type docTemplateSet struct {
 	htmlSrc, mdSrc   []byte
 	htmlPath, mdPath string
 	// Per-directory index templates (README.md / index.html). indexMdSrc is
-	// always set (workspace file or embedded default); indexHtmlSrc only when
+	// always set (workspace file or embedded default); indexHTMLSrc only when
 	// HTML output is enabled.
-	indexMdSrc, indexHtmlSrc   []byte
-	indexMdPath, indexHtmlPath string
+	indexMdSrc, indexHTMLSrc   []byte
+	indexMdPath, indexHTMLPath string
 }
 
 // any reports whether at least one documentation template is present.
@@ -114,12 +114,12 @@ func (o *docOptions) resolveDocTemplates() *docTemplateSet {
 		s.indexMdPath = "doctemplates/md-index.gadx"
 	}
 	if s.htmlSrc != nil {
-		s.indexHtmlPath = gadconfig.DocHTMLIndexTemplate(o.workspace)
-		if b, err := os.ReadFile(s.indexHtmlPath); err == nil {
-			s.indexHtmlSrc = b
+		s.indexHTMLPath = gadconfig.DocHTMLIndexTemplate(o.workspace)
+		if b, err := os.ReadFile(s.indexHTMLPath); err == nil {
+			s.indexHTMLSrc = b
 		} else {
-			s.indexHtmlSrc = defaultDocIndexHTML
-			s.indexHtmlPath = "doctemplates/html-index.gadx"
+			s.indexHTMLSrc = defaultDocIndexHTML
+			s.indexHTMLPath = "doctemplates/html-index.gadx"
 		}
 	}
 

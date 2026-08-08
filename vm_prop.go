@@ -21,16 +21,6 @@ func delegatesProps(target Object) bool {
 	return !raw
 }
 
-// indexGetProp resolves value read from container at an index: if the container
-// delegates props and value is a *Prop, it runs the prop's getter (via vm.Call,
-// a same-VM sub-run) and returns the result; otherwise value is returned as-is.
-func (vm *VM) indexGetProp(container, value Object) (Object, error) {
-	if p, ok := value.(*Prop); ok && delegatesProps(container) {
-		return vm.Call(p, Args{}, nil)
-	}
-	return value, nil
-}
-
 // indexSetProp writes value to container[index]. If the container delegates
 // props and already holds a *Prop at index, the prop's setter is invoked with
 // value (via vm.Call); otherwise a plain IndexSet is performed. Returns whether

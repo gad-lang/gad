@@ -43,8 +43,8 @@ func (o *docOptions) generateIndexes(ctx *cc.CommandContext, tset *docTemplateSe
 		if err := o.writeIndex(ctx, tset, dir, node, "md", indexFileName("md"), tset.indexMdSrc, tset.indexMdPath); err != nil {
 			return err
 		}
-		if tset.indexHtmlSrc != nil {
-			if err := o.writeIndex(ctx, tset, dir, node, "html", indexFileName("html"), tset.indexHtmlSrc, tset.indexHtmlPath); err != nil {
+		if tset.indexHTMLSrc != nil {
+			if err := o.writeIndex(ctx, tset, dir, node, "html", indexFileName("html"), tset.indexHTMLSrc, tset.indexHTMLPath); err != nil {
 				return err
 			}
 		}
