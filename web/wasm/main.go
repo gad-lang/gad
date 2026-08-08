@@ -53,6 +53,27 @@ func main() {
 		return map[string]any{"doc": d}
 	}))
 
+	// gadDocHTML(source, sourceType) -> { html } : documentation rendered to an
+	// HTML fragment (goldmark, the same conversion as the docs website).
+	js.Global().Set("gadDocHTML", jsonFuncN(func(args []js.Value) any {
+		html, err := gadbridge.DocHTML(argStr(args, 0), argStr(args, 1))
+		if err != nil {
+			return map[string]any{"error": err.Error()}
+		}
+		return map[string]any{"html": html}
+	}))
+
+	// gadDocEncode(source, sourceType, format) -> { text } : the documentation
+	// (prose, sections and snippets with their uses/result) encoded as JSON or
+	// YAML (format "json" | "yaml").
+	js.Global().Set("gadDocEncode", jsonFuncN(func(args []js.Value) any {
+		text, err := gadbridge.DocEncode(argStr(args, 0), argStr(args, 1), argStr(args, 2))
+		if err != nil {
+			return map[string]any{"error": err.Error()}
+		}
+		return map[string]any{"text": text}
+	}))
+
 	// gadDocComments(source) -> { docs } : the doc-comment list for the Docs panel.
 	js.Global().Set("gadDocComments", jsonFuncN(func(args []js.Value) any {
 		return map[string]any{"docs": gadbridge.DocComments(argStr(args, 0))}
