@@ -170,7 +170,7 @@ export function GadPlayground({ runner, dark = false }: GadPlaygroundProps) {
       {runner.doc && showDoc && (
         <section className="gp-pane gp-pane--doc">
           <DocPanel
-            runner={runner}
+            doc={runner.doc}
             source={source}
             sourceType={sourceType}
             dark={dark}

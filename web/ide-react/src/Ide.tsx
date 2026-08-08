@@ -131,6 +131,7 @@ import { marked } from "marked";
 import { ReadonlyCode } from "./ReadonlyCode";
 import { InspectDialog, type InspectFn } from "./TreeNavigator";
 import { renderDocMarkdown } from "./docMarkdown";
+import { DocPanel } from "./DocPanel";
 import { GadInput } from "./GadInput";
 import { useTheme } from "./useTheme";
 import { DirTree } from "./DirTree";
@@ -845,22 +846,57 @@ function EvaluateDockPanel(_: IDockviewPanelProps) {
 // Panel: Docs (left group tab — doc comments for active file)
 // ---------------------------------------------------------------------------
 
+// docSourceType maps the active file path to the doc dialect.
+function docSourceType(path?: string): string {
+  if (path?.endsWith(".gadx")) return "gadx";
+  if (path?.endsWith(".gadt")) return "gadTemplate";
+  return "gad";
+}
+
 function DocsPanel(_: IDockviewPanelProps) {
   const ide = useIde();
+  // Two views: the file's doc comments (default), or generated documentation
+  // (the shared DocPanel: Render Markdown/HTML, Markdown/HTML/JSON/YAML source).
+  const [view, setView] = useState<"comments" | "generate">("comments");
   return (
     <div className="doc-panel dock-panel-fill">
-      <div className="doc-body">
-        {ide.docs.length === 0 && <div className="muted" style={{ padding: ".4rem" }}>No doc comments in this file.</div>}
-        {ide.docs.map((d, i) => (
-          <div key={i} className="doc-entry">
-            <div className="doc-entry-head" onClick={() => ide.editorRef.current?.gotoLocation(d.line, 1)} title={`Go to line ${d.line}`}>
-              <span className={"doc-kind doc-kind-" + d.kind}>{d.kind}</span>
-              <span className="doc-title">{d.title || `line ${d.line}`}</span>
-            </div>
-            <div className="doc-content language-gad" dangerouslySetInnerHTML={{ __html: renderDocMarkdown(d.content) }} />
-          </div>
-        ))}
+      <div className="doc-view-toggle">
+        <button
+          type="button"
+          className={"doc-view-btn" + (view === "comments" ? " doc-view-btn--active" : "")}
+          onClick={() => setView("comments")}
+        >
+          Comments
+        </button>
+        <button
+          type="button"
+          className={"doc-view-btn" + (view === "generate" ? " doc-view-btn--active" : "")}
+          onClick={() => setView("generate")}
+        >
+          Generate
+        </button>
       </div>
+      {view === "generate" ? (
+        <DocPanel
+          doc={ide.api.docGen}
+          source={() => ide.activeTab?.content ?? ""}
+          sourceType={docSourceType(ide.activeTab?.path)}
+          dark={ide.dark}
+        />
+      ) : (
+        <div className="doc-body">
+          {ide.docs.length === 0 && <div className="muted" style={{ padding: ".4rem" }}>No doc comments in this file.</div>}
+          {ide.docs.map((d, i) => (
+            <div key={i} className="doc-entry">
+              <div className="doc-entry-head" onClick={() => ide.editorRef.current?.gotoLocation(d.line, 1)} title={`Go to line ${d.line}`}>
+                <span className={"doc-kind doc-kind-" + d.kind}>{d.kind}</span>
+                <span className="doc-title">{d.title || `line ${d.line}`}</span>
+              </div>
+              <div className="doc-content language-gad" dangerouslySetInnerHTML={{ __html: renderDocMarkdown(d.content) }} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -2978,6 +3014,11 @@ table.eval-list tr:hover td.eval-actions{opacity:.9}
 
 /* Docs / MD preview panel */
 .dock-panel-fill{height:100%;display:flex;flex-direction:column;background:var(--panel);overflow:hidden}
+.doc-view-toggle{display:flex;gap:4px;padding:4px 6px;border-bottom:1px solid var(--border)}
+.doc-view-btn{background:transparent;border:1px solid var(--border);color:var(--fg);border-radius:6px;
+  padding:.2rem .6rem;cursor:pointer;font-size:.8rem}
+.doc-view-btn--active{background:var(--accent);border-color:var(--accent);color:#fff}
+.doc-panel .gp-doc{flex:1;min-height:0}
 .doc-body{flex:1;overflow:auto;padding:.4rem .6rem}
 .doc-entry{margin-bottom:.7rem}
 .doc-entry-head{display:flex;align-items:center;gap:.4rem;cursor:pointer}

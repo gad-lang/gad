@@ -5,8 +5,12 @@
 // by the Playground's toggleable Doc pane and the IDE's Doc panel.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ReadonlyCode, type ReadonlyLanguage } from "./ReadonlyCode";
+import { PlaygroundStyles } from "./playgroundStyles";
 import { renderDocMarkdown } from "./docMarkdown";
-import type { DocMode, DocResult, GadRunner } from "./types";
+import type { DocMode, DocResult } from "./types";
+
+/** DocFn generates documentation for source in the given mode. */
+export type DocFn = (source: string, sourceType: string, mode: DocMode) => Promise<DocResult>;
 
 const MODES: { value: DocMode; label: string }[] = [
   { value: "render-md", label: "Render Markdown" },
@@ -18,7 +22,8 @@ const MODES: { value: DocMode; label: string }[] = [
 ];
 
 export interface DocPanelProps {
-  runner: GadRunner;
+  /** Generates the documentation (markdown/html/encoded per mode). */
+  doc: DocFn;
   /** Returns the current source to document. */
   source: () => string;
   sourceType: string;
@@ -27,8 +32,8 @@ export interface DocPanelProps {
   header?: React.ReactNode;
 }
 
-/** DocPanel renders the doc generator + viewer. Requires runner.doc. */
-export function DocPanel({ runner, source, sourceType, dark = false, header }: DocPanelProps) {
+/** DocPanel renders the doc generator + viewer. */
+export function DocPanel({ doc, source, sourceType, dark = false, header }: DocPanelProps) {
   const [mode, setMode] = useState<DocMode>("render-md");
   const [res, setRes] = useState<DocResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,17 +41,16 @@ export function DocPanel({ runner, source, sourceType, dark = false, header }: D
 
   const generate = useCallback(
     async (m: DocMode) => {
-      if (!runner.doc) return;
       const id = ++seq.current;
       setBusy(true);
       try {
-        const r = await runner.doc(source(), sourceType, m);
+        const r = await doc(source(), sourceType, m);
         if (id === seq.current) setRes(r);
       } finally {
         if (id === seq.current) setBusy(false);
       }
     },
-    [runner, source, sourceType],
+    [doc, source, sourceType],
   );
 
   // Generate on mount and whenever the mode changes.
@@ -57,6 +61,7 @@ export function DocPanel({ runner, source, sourceType, dark = false, header }: D
 
   return (
     <div className="gp-doc">
+      <PlaygroundStyles />
       <div className="gp-pane-head">
         <span className="gp-doc-title">Doc</span>
         <span className="gp-actions">

@@ -11,6 +11,8 @@ import type {
   Workspace,
   ModuleInfo,
   DocComment,
+  DocMode,
+  DocResult,
   EvalResult,
   InspectResult,
   BreakpointSpec,
@@ -18,6 +20,27 @@ import type {
 } from "@gad-lang/ide-react";
 import { WebFS } from "../webfs";
 import { sharedClient } from "./wasmWorker";
+
+// localDocGen backs IdeApi.docGen: it maps a DocMode to the WASM doc functions
+// (gadDoc / gadDocHTML / gadDocEncode), returning the markdown/html/encoded text.
+async function localDocGen(source: string, sourceType: string, mode: DocMode): Promise<DocResult> {
+  const c = sharedClient();
+  const t = (sourceType || "gad") as "gad" | "gadTemplate" | "gadx";
+  try {
+    if (mode === "render-md" || mode === "md") {
+      const r = await c.doc(source, t);
+      return r.error ? { ok: false, mode, error: r.error } : { ok: true, mode, markdown: r.markdown };
+    }
+    if (mode === "render-html" || mode === "html") {
+      const r = await c.docHtml(source, t);
+      return r.error ? { ok: false, mode, error: r.error } : { ok: true, mode, html: r.html };
+    }
+    const r = await c.docEncode(source, t, mode);
+    return r.error ? { ok: false, mode, error: r.error } : { ok: true, mode, text: r.text };
+  } catch (e) {
+    return { ok: false, mode, error: String(e) };
+  }
+}
 
 const fs = new WebFS();
 const CONFIG_KEY = "gad-webide-config-v1";
@@ -138,6 +161,8 @@ export const localIdeApi: IdeApi = {
   transpile: (source: string, path?: string) =>
     sharedClient().transpile(source, (path ?? "").endsWith(".gadt")),
   doc: async (source: string): Promise<DocComment[]> => (await sharedClient().docComments(source)).docs || [],
+  docGen: (source: string, sourceType: string, mode: DocMode): Promise<DocResult> =>
+    localDocGen(source, sourceType, mode),
   eval: (req: { expr: string; repr?: boolean; source?: string; path?: string }): Promise<EvalResult> =>
     sharedClient().evalExpr(req.source ?? "", req.expr, req.repr ?? false),
   inspect: (req: { expr: string; session?: string; source?: string; path?: string }): Promise<{

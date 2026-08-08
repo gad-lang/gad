@@ -1,7 +1,7 @@
 // Client for the `gad ide` backend (/api/ide/*). Used only when the app is
 // served by `gad ide` (detected via probeIde).
 import type { GadDiagnostic } from "@gad-lang/codemirror-gad";
-import type { FormatResult, RunResult } from "./types";
+import type { DocMode, DocResult, FormatResult, RunResult } from "./types";
 
 export interface Workspace {
   root: string;
@@ -173,6 +173,10 @@ export const ideApi = {
     jsonFetch<FormatResult>("POST", "api/ide/transpile", { source, path }),
   doc: (source: string) =>
     jsonFetch<{ docs: DocComment[] }>("POST", "api/ide/doc", { source }).then((r) => r.docs || []),
+  /** docGen generates documentation for source in the requested mode
+   * (render-md/md/render-html/html/json/yaml). */
+  docGen: (source: string, sourceType: string, mode: DocMode): Promise<DocResult> =>
+    jsonFetch<DocResult>("POST", "api/ide/doc-gen", { source, sourceType, mode }),
   eval: (req: { expr: string; repr?: boolean; source?: string; path?: string }) =>
     jsonFetch<EvalResult>("POST", "api/ide/eval", req),
   inspect: (req: { expr: string; session?: string; source?: string; path?: string }) =>

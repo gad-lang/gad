@@ -39,7 +39,7 @@ export type {
   DebugResponse,
 } from "./api";
 export type { FormatResult, RunResult, GadRunner, DocMode, DocResult } from "./types";
-export { DocPanel, type DocPanelProps } from "./DocPanel";
+export { DocPanel, type DocPanelProps, type DocFn } from "./DocPanel";
 
 // Editor and supporting building blocks (useful when composing a custom shell).
 export { Editor } from "./Editor";
