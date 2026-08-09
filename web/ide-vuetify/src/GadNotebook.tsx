@@ -22,6 +22,8 @@ interface Cell {
   running: boolean;
   showDoc: boolean;
   docRev: number;
+  gotoLine: number;
+  gotoSeq: number;
 }
 
 let nextId = 1;
@@ -34,6 +36,8 @@ const newCell = (source = "", dialect: Dialect = "gad"): Cell => ({
   running: false,
   showDoc: false,
   docRev: 0,
+  gotoLine: 0,
+  gotoSeq: 0,
 });
 
 // One sample cell per source type (GAD / GAD Template / GADx), so the notebook
@@ -74,7 +78,7 @@ var (name = "Gad", items = [1, 2, 3])
 
 An indentation-based HTML template; \`@main\` is its public entry.
 **/
-/// main renders the page.
+/** main renders the page. **/
 @main
     h1 Hello Gadx
     ul
@@ -125,6 +129,8 @@ export default defineComponent({
                   language={LANG[cell.dialect]}
                   dark={props.dark}
                   diagnose={diagnoseFor(cell)}
+                  gotoLine={cell.gotoLine}
+                  gotoSeq={cell.gotoSeq}
                 />
               </div>
               {props.runner.doc && cell.showDoc && (
@@ -134,6 +140,7 @@ export default defineComponent({
                     source={() => cell.source}
                     sourceType={SOURCE_TYPE[cell.dialect]}
                     revision={cell.docRev}
+                    onNavigate={(line: number) => { cell.gotoLine = line; cell.gotoSeq++; }}
                   >
                     <VBtn class="gp-doc-ctl" size="small" height="32" variant="tonal" title="Close the doc panel" onClick={() => (cell.showDoc = false)}>✕</VBtn>
                   </DocPanel>

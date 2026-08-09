@@ -31,12 +31,19 @@ export interface DocPanelProps {
   /** Bumped by the host whenever the source changes; the panel re-generates so it
    * stays in sync without a manual reload. */
   revision?: number;
+  /** Called when a documented symbol is clicked in the rendered doc, to focus the
+   * editor at its source position. */
+  onNavigate?: (line: number, column: number) => void;
   /** Optional header slot (e.g. a close button in the Playground). */
   header?: React.ReactNode;
 }
 
+// stripPos removes the `{data-src-pos="L,C"}` heading markers so the plain
+// Markdown source view stays clean.
+const stripPos = (md: string) => md.replace(/\s*\{data-src-pos="\d+,\d+"\}/g, "");
+
 /** DocPanel renders the doc generator + viewer. */
-export function DocPanel({ doc, source, sourceType, dark = false, revision = 0, header }: DocPanelProps) {
+export function DocPanel({ doc, source, sourceType, dark = false, revision = 0, onNavigate, header }: DocPanelProps) {
   const [mode, setMode] = useState<DocMode>("render-md");
   const [res, setRes] = useState<DocResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -95,7 +102,18 @@ export function DocPanel({ doc, source, sourceType, dark = false, revision = 0, 
           {header}
         </span>
       </div>
-      <div className="gp-doc-body">
+      <div
+        className="gp-doc-body"
+        onClick={(e) => {
+          if (!onNavigate) return;
+          const el = (e.target as HTMLElement).closest("[data-src-pos]");
+          const pos = el?.getAttribute("data-src-pos");
+          if (pos) {
+            const [line, col] = pos.split(",").map((n) => parseInt(n, 10));
+            if (line) onNavigate(line, col || 1);
+          }
+        }}
+      >
         <DocView mode={mode} res={res} dark={dark} />
       </div>
     </div>
@@ -118,7 +136,7 @@ function DocView({ mode, res, dark }: { mode: DocMode; res: DocResult | null; da
     case "render-html":
       return <div className="gp-doc-rendered" dangerouslySetInnerHTML={{ __html: res.html ?? "" }} />;
     case "md":
-      return <ReadonlyCode value={res.markdown ?? ""} language="markdown" dark={dark} />;
+      return <ReadonlyCode value={stripPos(res.markdown ?? "")} language="markdown" dark={dark} />;
     case "html":
       return <ReadonlyCode value={res.html ?? ""} language="html" dark={dark} />;
     case "json":

@@ -341,6 +341,9 @@
 .gp-doc-rendered table { border-collapse: collapse; }
 .gp-doc-rendered th, .gp-doc-rendered td { border: 1px solid rgba(var(--v-border-color), 0.3); padding: .3rem .5rem; }
 .gp-doc-src { margin: 0; padding: 10px 14px; font-family: ui-monospace, monospace; font-size: 12px; white-space: pre; overflow: auto; }
+/* Documented symbol headings are click-to-navigate. */
+.gp-doc-rendered [data-src-pos] { cursor: pointer; }
+.gp-doc-rendered [data-src-pos]:hover { text-decoration: underline dotted; }
 .gp-pane {
   display: flex;
   flex-direction: column;

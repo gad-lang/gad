@@ -57,7 +57,16 @@ function renderTextBlock(text: string): string {
       flushPara();
       flushList();
       const level = heading[1].length;
-      out += `<h${level}>${renderInline(heading[2])}</h${level}>`;
+      // A trailing `{data-src-pos="L,C"}` marks the heading as navigable — carry
+      // it onto the element as a data attribute (the Doc panel wires the click).
+      let text = heading[2];
+      let attr = "";
+      const pos = /\s*\{data-src-pos="(\d+,\d+)"\}\s*$/.exec(text);
+      if (pos) {
+        attr = ` data-src-pos="${pos[1]}"`;
+        text = text.slice(0, pos.index);
+      }
+      out += `<h${level}${attr}>${renderInline(text)}</h${level}>`;
     } else if (bullet) {
       flushPara();
       list.push(bullet[1]);

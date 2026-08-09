@@ -882,6 +882,7 @@ function DocsPanel(_: IDockviewPanelProps) {
           source={() => ide.activeTab?.content ?? ""}
           sourceType={docSourceType(ide.activeTab?.path)}
           dark={ide.dark}
+          onNavigate={(line, col) => ide.editorRef.current?.gotoLocation(line, col)}
         />
       ) : (
         <div className="doc-body">

@@ -72,7 +72,7 @@ var (name = "Gad", items = [1, 2, 3])
 
 An indentation-based HTML template; \`@main\` is its public entry.
 **/
-/// main renders the page.
+/** main renders the page. **/
 @main
     h1 Hello Gadx
     ul
@@ -92,6 +92,8 @@ export function GadNotebook({ runner, dark = false }: GadNotebookProps) {
   const [cells, setCells] = useState<Cell[]>(() => SAMPLES.map((s) => newCell(s.source, s.dialect)));
   // Live editor contents per cell (editors are uncontrolled; read on run).
   const contents = useRef<Record<number, string>>({});
+  // Per-cell editor handles, so the Doc panel can navigate the matching editor.
+  const editors = useRef<Record<number, EditorHandle | null>>({});
   // Per-cell Doc panel visibility, and a revision bumped on edit to keep it synced.
   const [docCells, setDocCells] = useState<Record<number, boolean>>({});
   const [docRev, setDocRev] = useState<Record<number, number>>({});
@@ -127,6 +129,9 @@ export function GadNotebook({ runner, dark = false }: GadNotebookProps) {
             <div className="gnb-editor">
               <Editor
                 key={cell.id + ":" + cell.dialect}
+                ref={(h) => {
+                  editors.current[cell.id] = h;
+                }}
                 initialDoc={cell.source}
                 language={LANG[cell.dialect]}
                 dark={dark}
@@ -145,6 +150,7 @@ export function GadNotebook({ runner, dark = false }: GadNotebookProps) {
                   sourceType={SOURCE_TYPE[cell.dialect]}
                   dark={dark}
                   revision={docRev[cell.id] ?? 0}
+                  onNavigate={(line, col) => editors.current[cell.id]?.gotoLocation(line, col)}
                   header={
                     <button
                       type="button"

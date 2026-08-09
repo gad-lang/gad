@@ -53,6 +53,9 @@ const CSS = `
 .gp-doc-rendered h1{font-size:1.5rem}.gp-doc-rendered h2{font-size:1.2rem}.gp-doc-rendered h3{font-size:1.05rem}
 .gp-doc-rendered pre{background:var(--code-bg,rgba(125,125,125,.12));padding:.7rem .9rem;border-radius:8px;overflow:auto}
 .gp-doc-rendered code{font-family:ui-monospace,monospace;font-size:.88em}
+/* Documented symbol headings are click-to-navigate. */
+.gp-doc-rendered [data-src-pos]{cursor:pointer}
+.gp-doc-rendered [data-src-pos]:hover{text-decoration:underline;text-decoration-style:dotted}
 .gp-doc-rendered table{border-collapse:collapse}.gp-doc-rendered th,.gp-doc-rendered td{border:1px solid var(--border,#e2e2ea);padding:.3rem .5rem}
 .gad-ide__diag{color:var(--error,#d64545);font-family:ui-monospace,monospace;font-size:12px}
 

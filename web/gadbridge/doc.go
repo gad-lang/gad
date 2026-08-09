@@ -102,7 +102,15 @@ func RenderMarkdown(d *DocData) string {
 		}
 		fmt.Fprintf(&b, "\n## %s\n", sec.Title)
 		for _, s := range sec.Symbols {
-			fmt.Fprintf(&b, "\n### %s%s\n", s.Name, s.Signature)
+			// A `{data-src-pos="L,C"}` heading attribute carries the symbol's source
+			// position so the rendered doc can navigate the editor on click (parsed
+			// by goldmark's heading-attribute support and the frontend renderer). It
+			// is stripped from the plain-Markdown source view.
+			if s.Line > 0 {
+				fmt.Fprintf(&b, "\n### %s%s {data-src-pos=\"%d,%d\"}\n", s.Name, s.Signature, s.Line, s.Column)
+			} else {
+				fmt.Fprintf(&b, "\n### %s%s\n", s.Name, s.Signature)
+			}
 			if s.Doc != "" {
 				b.WriteString("\n" + s.Doc + "\n")
 			}

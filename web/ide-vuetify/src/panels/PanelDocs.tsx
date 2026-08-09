@@ -46,6 +46,7 @@ export default defineComponent({
               doc={ctx.api.docGen}
               source={() => ctx.source.value}
               sourceType={docSourceType(ctx.openPath.value)}
+              onNavigate={(line: number) => ctx.goto(line)}
             />
           </div>
         ) : (

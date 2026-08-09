@@ -30,6 +30,10 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// stripPos removes `{data-src-pos="L,C"}` heading markers for the clean Markdown
+// source view.
+const stripPos = (md: string) => md.replace(/\s*\{data-src-pos="\d+,\d+"\}/g, "");
+
 // highlight returns Prism-highlighted HTML for the given Prism language, falling
 // back to escaped plain text when the grammar is unavailable.
 function highlight(src: string, lang: string): string {
@@ -45,6 +49,8 @@ export default defineComponent({
     sourceType: { type: String, default: "" },
     // Bumped by the host on every source edit so the panel re-generates in sync.
     revision: { type: Number, default: 0 },
+    // Called with a documented symbol's source position when it is clicked.
+    onNavigate: { type: Function as PropType<(line: number, column: number) => void>, default: undefined },
   },
   setup(props, { slots }) {
     const mode = ref<DocMode>("render-md");
@@ -81,7 +87,7 @@ export default defineComponent({
         case "render-html":
           return <div class="gp-doc-rendered" innerHTML={r.html ?? ""} />;
         case "md":
-          return <pre class="gp-doc-src language-markdown" innerHTML={highlight(r.markdown ?? "", "markdown")} />;
+          return <pre class="gp-doc-src language-markdown" innerHTML={highlight(stripPos(r.markdown ?? ""), "markdown")} />;
         case "html":
           return <pre class="gp-doc-src language-markup" innerHTML={highlight(r.html ?? "", "markup")} />;
         case "json":
@@ -113,7 +119,20 @@ export default defineComponent({
             {slots.default?.()}
           </span>
         </div>
-        <div class="gp-doc-body">{body()}</div>
+        <div
+          class="gp-doc-body"
+          onClick={(e: MouseEvent) => {
+            if (!props.onNavigate) return;
+            const el = (e.target as HTMLElement).closest("[data-src-pos]");
+            const pos = el?.getAttribute("data-src-pos");
+            if (pos) {
+              const [line, col] = pos.split(",").map((n) => parseInt(n, 10));
+              if (line) props.onNavigate(line, col || 1);
+            }
+          }}
+        >
+          {body()}
+        </div>
       </div>
     );
   },

@@ -46,7 +46,7 @@ var (name = "Gad", items = [1, 2, 3])
 An indentation-based HTML template; its \`@main\` component is the public entry.
 Open the *Doc* panel to see this rendered.
 **/
-/// main renders the page.
+/** main renders the page. **/
 @main
     h1 Hello Gadx
     ul
@@ -82,6 +82,9 @@ export default defineComponent({
     const showDoc = ref(false);
     // Bumped on every edit so the Doc panel re-generates in sync with the source.
     const docRev = ref(0);
+    // Editor navigation target (bump gotoSeq to re-trigger the same line).
+    const gotoLine = ref(0);
+    const gotoSeq = ref(0);
     const left = ref<{ kind: "format"; fmt: FormatResult } | { kind: "run"; run: RunResult } | null>(null);
     const diagnose = props.runner.diagnose
       ? (src: string) => props.runner.diagnose!(src, sourceType.value)
@@ -159,6 +162,8 @@ export default defineComponent({
               language={LANG[dialect.value]}
               dark={props.dark}
               diagnose={diagnose}
+              gotoLine={gotoLine.value}
+              gotoSeq={gotoSeq.value}
             />
           </div>
         </section>
@@ -172,7 +177,7 @@ export default defineComponent({
         </section>
         {props.runner.doc && showDoc.value && (
           <section class="gp-pane gp-pane--doc">
-            <DocPanel doc={props.runner.doc!} source={() => source.value} sourceType={sourceType.value} revision={docRev.value}>
+            <DocPanel doc={props.runner.doc!} source={() => source.value} sourceType={sourceType.value} revision={docRev.value} onNavigate={(line: number) => { gotoLine.value = line; gotoSeq.value++; }}>
               <VBtn class="gp-doc-ctl" size="small" height="32" variant="tonal" title="Close the doc panel" onClick={() => (showDoc.value = false)}>✕</VBtn>
             </DocPanel>
           </section>

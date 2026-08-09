@@ -46,7 +46,7 @@ var (name = "Gad", items = [1, 2, 3])
 An indentation-based HTML template; its \`@main\` component is the public entry.
 Open the *Doc* panel to see this rendered.
 **/
-/// main renders the page.
+/** main renders the page. **/
 @main
     h1 Hello Gadx
     ul
@@ -197,6 +197,7 @@ export function GadPlayground({ runner, dark = false }: GadPlaygroundProps) {
             sourceType={sourceType}
             dark={dark}
             revision={docRev}
+            onNavigate={(line, col) => editorRef.current?.gotoLocation(line, col)}
             header={
               <button
                 type="button"

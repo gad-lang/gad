@@ -19,7 +19,12 @@ var docMarkdown = goldmark.New(
 		extension.DefinitionList,
 		extension.Footnote,
 	),
-	goldmark.WithParserOptions(parser.WithAutoHeadingID()),
+	goldmark.WithParserOptions(
+		parser.WithAutoHeadingID(),
+		// `### name {data-src-pos="L,C"}` heading attributes carry source positions
+		// for click-to-navigate in the Doc panel.
+		parser.WithHeadingAttribute(),
+	),
 )
 
 // RenderMarkdownToHTML converts documentation Markdown to an HTML fragment using
