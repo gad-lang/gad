@@ -459,9 +459,22 @@ func (s *scanner) scanBlockComment() gadparser.PToken {
 	return pt
 }
 
-var rgxComment = regexp.MustCompile(`^\/\/(-)?\s*(.*)$`)
+var (
+	rgxDocComment = regexp.MustCompile(`^\/\/\/\s?(.*)$`)
+	rgxComment    = regexp.MustCompile(`^\/\/(-)?\s*(.*)$`)
+)
 
 func (s *scanner) scanComment() gadparser.PToken {
+	// `/// …` is a single-line doc comment (the gad convention): silent, and
+	// attached to the next documentable declaration like a `/** … **/` block doc.
+	// It must be checked before the general `//` comment.
+	if sm := rgxDocComment.FindStringSubmatch(s.buffer); len(sm) != 0 {
+		s.consume(len(sm[0]))
+		pt := s.newToken(gadxtoken.Comment, sm[0], strings.TrimSpace(sm[1]))
+		pt.Set("mode", "silent")
+		pt.Set("doc", "true")
+		return pt
+	}
 	if sm := rgxComment.FindStringSubmatch(s.buffer); len(sm) != 0 {
 		mode := "embed"
 		if len(sm[1]) != 0 {

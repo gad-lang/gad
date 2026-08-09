@@ -78,3 +78,25 @@ func TestBlockCommentWriteGadx(t *testing.T) {
 		}
 	}
 }
+
+// TestSingleLineDocComment verifies that a `/// …` single-line doc comment
+// attaches to the following @comp/@func like the `/** … **/` block form.
+func TestSingleLineDocComment(t *testing.T) {
+	f := parseLine(t, "/// greets a user\n@comp greeting(name)\n    p hi\n")
+	if c := findComp(f, "greeting"); c == nil || c.Doc != "greets a user" {
+		t.Fatalf("/// comp.Doc = %q, want %q", docOfComp(c), "greets a user")
+	}
+
+	// A plain `//` comment is not a doc comment (stays embedded, not attached).
+	f = parseLine(t, "// just a note\n@comp c2(name)\n    p hi\n")
+	if c := findComp(f, "c2"); c == nil || c.Doc != "" {
+		t.Fatalf("// comment must not attach as doc; got %q", docOfComp(c))
+	}
+}
+
+func docOfComp(c *gadxnode.CompDecl) string {
+	if c == nil {
+		return "<nil>"
+	}
+	return c.Doc
+}
