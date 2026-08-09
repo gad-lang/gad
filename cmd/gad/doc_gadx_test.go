@@ -57,7 +57,7 @@ func TestGadxDocExport(t *testing.T) {
 		t.Fatalf("FromContent: %v", err)
 	}
 	for _, want := range []string{
-		"## Exports",
+		"## Public API",
 		"total</span> = (1 + 2)", // value parsed as a real expression
 		"The sum.",
 		"label</span> = \"hi\"",

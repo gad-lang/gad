@@ -21,7 +21,7 @@ type DocData struct {
 	// Prose is the module-level description (a leading `/***` block or a gadx
 	// leading comment), or "".
 	Prose string `json:"prose,omitempty"`
-	// Sections group the documented symbols by kind ("Exports", "Components",
+	// Sections group the documented symbols by kind ("Public API", "Components",
 	// "Functions", "Parameters", "Constants", "Variables", "Enums").
 	Sections []DocSection `json:"sections,omitempty"`
 }
@@ -178,7 +178,7 @@ func gadDocData(src []byte, sourceType string) (*DocData, error) {
 		exports = append(exports, sym)
 	}
 	if len(exports) > 0 {
-		d.Sections = append(d.Sections, DocSection{Title: "Exports", Symbols: exports})
+		d.Sections = append(d.Sections, DocSection{Title: "Public API", Symbols: exports})
 	}
 	return d, nil
 }
@@ -299,7 +299,7 @@ func gadxDocData(src []byte) (*DocData, error) {
 			enums = append(enums, gadxSym(f, t.Name, "", t.Doc, t.Pos()))
 		}
 	}
-	add("Exports", exports)
+	add("Public API", exports)
 	add("Components", comps)
 	add("Functions", funcs)
 	add("Parameters", params)

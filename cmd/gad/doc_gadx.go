@@ -55,7 +55,7 @@ func gadxDoc(path string, src []byte) (string, error) {
 		}
 	}
 
-	gadxSection(&b, "Exports", exports)
+	gadxSection(&b, "Public API", exports)
 	gadxSection(&b, "Components", comps)
 	gadxSection(&b, "Functions", funcs)
 	gadxSection(&b, "Parameters", params)

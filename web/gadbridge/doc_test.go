@@ -16,7 +16,7 @@ func TestDocGad(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, w := range []string{
-		"greetings module.", "## Exports",
+		"greetings module.", "## Public API",
 		"hello", "= \"hi\"", "The greeting prefix.",
 		"add", "Adds two numbers.", `data-source-pos="4,1"`,
 	} {

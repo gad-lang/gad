@@ -33,7 +33,7 @@ func TestRenderDocTemplateDialects(t *testing.T) {
 			out, err := renderDocTemplate([]byte(c.src), c.path, dict)
 			require.NoError(t, err)
 			require.Contains(t, out, "# greetings")
-			require.Contains(t, out, "## Exports")
+			require.Contains(t, out, "## Public API")
 		})
 	}
 }

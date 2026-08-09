@@ -13,24 +13,41 @@ import type { FormatResult, GadRunner, RunResult } from "./types";
 type Dialect = "gad" | "gadt" | "gadx";
 
 const SAMPLES: Record<Dialect, string> = {
-  gad: `// edit me — errors are underlined as you type
-param *args
+  gad: `/**
+# Greetings
 
-greet := func(name; greeting="Hello") {
-  return greeting + ", " + name
-}
+A tiny module with a documented **public API**. Open the *Doc* panel (top-right)
+to see it rendered — try the Markdown, HTML and JSON/YAML views too.
+**/
 
-squares := [n*n for n in [1,2,3,4] if n>1]
-println(greet("Gad"), squares)
-return squares
+/// greet builds a friendly greeting; the \`greeting\` prefix defaults to "Hello".
+export greet = func(name; greeting = "Hello") => greeting + ", " + name
+
+/// squares holds n*n for each n in 1..4, kept where n > 1.
+export squares = [n * n for n in [1, 2, 3, 4] if n > 1]
 `,
-  gadt: `{% var (name = "Gad", items = [1, 2, 3]) %}
+  gadt: `{%
+/**
+# Greeting Template
+
+A **mixed-mode** template: literal HTML with \`{% … %}\` code islands and
+\`{%= … %}\` value output. Open the *Doc* panel to see this rendered.
+**/
+var (name = "Gad", items = [1, 2, 3])
+%}
 <h1>Hello, {%= name %}!</h1>
 <ul>
 {% for i in items %}  <li>item {%= i %}</li>
 {% end %}</ul>
 `,
-  gadx: `@main
+  gadx: `/**
+# Hello Gadx
+
+An indentation-based HTML template; its \`@main\` component is the public entry.
+Open the *Doc* panel to see this rendered.
+**/
+/// main renders the page.
+@main
     h1 Hello Gadx
     ul
         @for i in [1, 2, 3]

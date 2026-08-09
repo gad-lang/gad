@@ -39,9 +39,49 @@ const newCell = (source = "", dialect: Dialect = "gad"): Cell => ({
 // One sample cell per source type (GAD / GAD Template / GADx), so the notebook
 // opens with a runnable example of each dialect.
 const SAMPLES: { dialect: Dialect; source: string }[] = [
-  { dialect: "gad", source: `// GAD — plain script\nsquares := [n * n for n in [1, 2, 3, 4, 5]]\nprintln(squares)\nreturn squares` },
-  { dialect: "gadt", source: `{% /* GAD Template: literal text plus code islands and value output */ %}\n{% var (name = "Gad", items = [1, 2, 3]) %}\n<h1>Hello, {%= name %}!</h1>\n<ul>\n{% for i in items %}  <li>item {%= i %}</li>\n{% end %}</ul>\n` },
-  { dialect: "gadx", source: `//- GADx — indentation-based HTML template\n@main\n    h1 Hello Gadx\n    ul\n        @for i in [1, 2, 3]\n            li item {= i }\n` },
+  {
+    dialect: "gad",
+    source: `/**
+# Squares
+
+A documented module. Toggle the **Doc** button below to see its public API.
+**/
+
+/// squares holds n*n for each n in 1..5.
+export squares = [n * n for n in [1, 2, 3, 4, 5]]
+`,
+  },
+  {
+    dialect: "gadt",
+    source: `{%
+/**
+# Greeting Template
+
+A mixed-mode template. Toggle **Doc** to see this comment rendered.
+**/
+var (name = "Gad", items = [1, 2, 3])
+%}
+<h1>Hello, {%= name %}!</h1>
+<ul>
+{% for i in items %}  <li>item {%= i %}</li>
+{% end %}</ul>
+`,
+  },
+  {
+    dialect: "gadx",
+    source: `/**
+# Hello Gadx
+
+An indentation-based HTML template; \`@main\` is its public entry.
+**/
+/// main renders the page.
+@main
+    h1 Hello Gadx
+    ul
+        @for i in [1, 2, 3]
+            li item {= i }
+`,
+  },
 ];
 
 export default defineComponent({

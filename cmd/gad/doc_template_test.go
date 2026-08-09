@@ -30,7 +30,7 @@ func TestRenderDocTemplateMD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, w := range []string{"# greetings", "greetings module.", "## Exports", "### hello = \"hi\"", "The greeting prefix.", "### add", "Adds two numbers.", "## Example — `greetings.gad`", "```gad"} {
+	for _, w := range []string{"# greetings", "greetings module.", "## Public API", "### hello = \"hi\"", "The greeting prefix.", "### add", "Adds two numbers.", "## Example — `greetings.gad`", "```gad"} {
 		if !strings.Contains(out, w) {
 			t.Fatalf("md template missing %q:\n%s", w, out)
 		}
@@ -51,7 +51,7 @@ func TestRenderDocTemplateHTML(t *testing.T) {
 	}
 	for _, w := range []string{
 		"<article", "class=\"prose\"", "greetings module.",
-		"<h2>Exports</h2>", "<code>hello", "The greeting prefix.",
+		"<h2>Public API</h2>", "<code>hello", "The greeting prefix.",
 		"data-line=", "data-column=",
 	} {
 		if !strings.Contains(out, w) {
@@ -98,7 +98,7 @@ func TestDocCommandUsesTemplates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read doc/m.md: %v", err)
 	}
-	if !strings.Contains(string(md), "## Exports") || !strings.Contains(string(md), "### hello = \"hi\"") {
+	if !strings.Contains(string(md), "## Public API") || !strings.Contains(string(md), "### hello = \"hi\"") {
 		t.Fatalf("md output not from template:\n%s", md)
 	}
 	html, err := os.ReadFile(filepath.Join(dir, "doc", "m.html"))
