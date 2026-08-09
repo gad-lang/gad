@@ -43,6 +43,10 @@ const CSS = `
 .gp-doc-title{font-weight:600}
 .gp-doc-mode{font-size:.8rem;padding:.2rem .3rem;border:1px solid var(--border,#e2e2ea);border-radius:5px;
   background:var(--panel,#fff);color:var(--fg,#1d1d28)}
+/* Give the mode selector and the reload/close buttons the same height so the
+   Doc panel toolbar controls line up. */
+.gp-doc .gp-doc-ctl{height:28px;box-sizing:border-box;display:inline-flex;align-items:center;
+  padding-top:0;padding-bottom:0;line-height:1}
 .gp-doc-body{flex:1;min-height:0;overflow:auto}
 .gp-doc-body .readonly-code{height:100%}
 .gp-doc-rendered{padding:10px 14px;font-size:13px;line-height:1.55}
@@ -54,7 +58,12 @@ const CSS = `
 
 .gnb{padding:12px;overflow:auto;height:100%;background:var(--bg,#fff);color:var(--fg,#1d1d28)}
 .gnb-cell{border:1px solid var(--border,#e2e2ea);border-radius:8px;margin-bottom:12px;overflow:hidden}
-.gnb-editor{height:160px}
+/* Editor + (optional) Doc panel side by side within a cell. */
+.gnb-cell-main{display:grid;grid-template-columns:1fr;min-height:0}
+.gnb-cell-main--doc{grid-template-columns:1fr 1fr}
+.gnb-doc{border-left:1px solid var(--border,#e2e2ea);min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.gnb-doc .gp-doc{height:100%}
+.gnb-editor{height:220px}
 .gnb-editor .cm-editor{height:100%}
 .gnb-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 8px;
   border-top:1px solid var(--border,#e2e2ea)}

@@ -64,6 +64,8 @@ export function GadPlayground({ runner, dark = false }: GadPlaygroundProps) {
   // The Doc panel on the right is hidden by default; toggled when the runner
   // supports doc generation.
   const [showDoc, setShowDoc] = useState(false);
+  // Bumped on every edit so the Doc panel re-generates in sync with the source.
+  const [docRev, setDocRev] = useState(0);
 
   const sourceType = SOURCE_TYPE[dialect];
   const diagnose: DiagnoseFn | undefined = useMemo(
@@ -155,7 +157,10 @@ export function GadPlayground({ runner, dark = false }: GadPlaygroundProps) {
             language={LANG[dialect]}
             dark={dark}
             diagnose={diagnose}
-            onChange={(v) => (buffers.current[dialect] = v)}
+            onChange={(v) => {
+              buffers.current[dialect] = v;
+              if (showDoc) setDocRev((r) => r + 1);
+            }}
           />
         </div>
       </section>
@@ -174,8 +179,14 @@ export function GadPlayground({ runner, dark = false }: GadPlaygroundProps) {
             source={source}
             sourceType={sourceType}
             dark={dark}
+            revision={docRev}
             header={
-              <button type="button" className="gp-btn" title="Hide the doc panel" onClick={() => setShowDoc(false)}>
+              <button
+                type="button"
+                className="gp-btn gp-doc-ctl"
+                title="Close the doc panel"
+                onClick={() => setShowDoc(false)}
+              >
                 ✕
               </button>
             }

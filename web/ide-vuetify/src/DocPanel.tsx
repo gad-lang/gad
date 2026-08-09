@@ -43,12 +43,15 @@ export default defineComponent({
     doc: { type: Function as PropType<DocFn>, required: true },
     source: { type: Function as PropType<() => string>, required: true },
     sourceType: { type: String, default: "" },
+    // Bumped by the host on every source edit so the panel re-generates in sync.
+    revision: { type: Number, default: 0 },
   },
   setup(props, { slots }) {
     const mode = ref<DocMode>("render-md");
     const res = ref<DocResult | null>(null);
     const busy = ref(false);
     let seq = 0;
+    let debounce: ReturnType<typeof setTimeout> | undefined;
 
     async function generate() {
       const id = ++seq;
@@ -60,7 +63,13 @@ export default defineComponent({
         if (id === seq) busy.value = false;
       }
     }
-    watch(mode, generate, { immediate: true });
+    // Regenerate on mode/dialect change immediately, and (debounced) whenever the
+    // source revision changes, so the panel tracks edits automatically.
+    watch([mode, () => props.sourceType], generate, { immediate: true });
+    watch(() => props.revision, () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(generate, 250);
+    });
 
     function body() {
       const r = res.value;
@@ -88,8 +97,9 @@ export default defineComponent({
       <div class="gp-doc">
         <div class="gp-pane-head">
           <span class="gp-doc-title">Doc</span>
-          <span class="gp-actions">
+          <span class="gp-actions gp-doc-actions">
             <VSelect
+              class="gp-doc-ctl"
               modelValue={mode.value}
               {...{ "onUpdate:modelValue": (v: unknown) => (mode.value = (v as DocMode) ?? "render-md") }}
               items={MODES}
@@ -99,7 +109,7 @@ export default defineComponent({
               disabled={busy.value}
               style={{ maxWidth: "180px" }}
             />
-            <VBtn size="small" variant="tonal" loading={busy.value} onClick={generate}>↻</VBtn>
+            <VBtn class="gp-doc-ctl" size="small" height="32" variant="tonal" loading={busy.value} title="Reload documentation" onClick={generate}>↻</VBtn>
             {slots.default?.()}
           </span>
         </div>

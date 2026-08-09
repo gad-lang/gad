@@ -376,8 +376,16 @@
   margin-bottom: 12px;
   overflow: hidden;
 }
-.gnb-editor { height: 160px; }
+/* Editor + (optional) Doc panel side by side within a cell. */
+.gnb-cell-main { display: grid; grid-template-columns: 1fr; min-height: 0; }
+.gnb-cell-main--doc { grid-template-columns: 1fr 1fr; }
+.gnb-doc { border-left: 1px solid rgba(var(--v-border-color), 0.4); min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.gnb-doc .gp-doc { height: 100%; }
+.gnb-editor { height: 220px; }
 .gnb-editor .cm-editor { height: 100%; }
+/* Keep the Doc panel toolbar controls (selector + reload/close) the same height. */
+.gp-doc-actions .gp-doc-ctl { min-height: 32px; }
+.gp-doc-actions .gp-doc-ctl.v-select { --v-input-control-height: 32px; }
 .gnb-bar {
   display: flex;
   align-items: center;

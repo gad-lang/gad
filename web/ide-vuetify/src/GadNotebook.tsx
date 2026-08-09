@@ -4,6 +4,7 @@
 // the React notebook.
 import { defineComponent, ref, type PropType } from "vue";
 import GadEditor from "./GadEditor";
+import DocPanel from "./DocPanel";
 import { VBtn, VBtnToggle, VSelect } from "./vuetify";
 import type { EditorLanguage } from "./codemirror";
 import type { GadRunner, RunResult } from "./types";
@@ -19,6 +20,8 @@ interface Cell {
   tagEncode: "" | "json" | "yaml";
   result: RunResult | null;
   running: boolean;
+  showDoc: boolean;
+  docRev: number;
 }
 
 let nextId = 1;
@@ -29,6 +32,8 @@ const newCell = (source = "", dialect: Dialect = "gad"): Cell => ({
   tagEncode: "",
   result: null,
   running: false,
+  showDoc: false,
+  docRev: 0,
 });
 
 // One sample cell per source type (GAD / GAD Template / GADx), so the notebook
@@ -71,15 +76,29 @@ export default defineComponent({
         <p class="text-medium-emphasis">Each cell runs independently.</p>
         {cells.value.map((cell) => (
           <div class="gnb-cell" key={cell.id}>
-            <div class="gnb-editor">
-              <GadEditor
-                key={cell.id + ":" + cell.dialect}
-                modelValue={cell.source}
-                {...{ "onUpdate:modelValue": (v: string) => (cell.source = v) }}
-                language={LANG[cell.dialect]}
-                dark={props.dark}
-                diagnose={diagnoseFor(cell)}
-              />
+            <div class={"gnb-cell-main" + (cell.showDoc ? " gnb-cell-main--doc" : "")}>
+              <div class="gnb-editor">
+                <GadEditor
+                  key={cell.id + ":" + cell.dialect}
+                  modelValue={cell.source}
+                  {...{ "onUpdate:modelValue": (v: string) => { cell.source = v; if (cell.showDoc) cell.docRev++; } }}
+                  language={LANG[cell.dialect]}
+                  dark={props.dark}
+                  diagnose={diagnoseFor(cell)}
+                />
+              </div>
+              {props.runner.doc && cell.showDoc && (
+                <div class="gnb-doc">
+                  <DocPanel
+                    doc={props.runner.doc!}
+                    source={() => cell.source}
+                    sourceType={SOURCE_TYPE[cell.dialect]}
+                    revision={cell.docRev}
+                  >
+                    <VBtn class="gp-doc-ctl" size="small" height="32" variant="tonal" title="Close the doc panel" onClick={() => (cell.showDoc = false)}>✕</VBtn>
+                  </DocPanel>
+                </div>
+              )}
             </div>
             <div class="gnb-bar">
               <VBtnToggle
@@ -106,6 +125,17 @@ export default defineComponent({
                 />
               )}
               <VBtn size="small" color="primary" prependIcon="mdi-play" loading={cell.running} onClick={() => runCell(cell)}>Run</VBtn>
+              {props.runner.doc && (
+                <VBtn
+                  size="small"
+                  variant={cell.showDoc ? "flat" : "tonal"}
+                  color={cell.showDoc ? "primary" : undefined}
+                  title="Toggle the documentation panel for this cell"
+                  onClick={() => { cell.showDoc = !cell.showDoc; cell.docRev++; }}
+                >
+                  Doc
+                </VBtn>
+              )}
               <VBtn size="small" variant="text" onClick={() => removeCell(cell.id)}>Remove</VBtn>
             </div>
             {cell.result && (

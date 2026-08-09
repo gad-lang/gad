@@ -28,36 +28,42 @@ export interface DocPanelProps {
   source: () => string;
   sourceType: string;
   dark?: boolean;
+  /** Bumped by the host whenever the source changes; the panel re-generates so it
+   * stays in sync without a manual reload. */
+  revision?: number;
   /** Optional header slot (e.g. a close button in the Playground). */
   header?: React.ReactNode;
 }
 
 /** DocPanel renders the doc generator + viewer. */
-export function DocPanel({ doc, source, sourceType, dark = false, header }: DocPanelProps) {
+export function DocPanel({ doc, source, sourceType, dark = false, revision = 0, header }: DocPanelProps) {
   const [mode, setMode] = useState<DocMode>("render-md");
   const [res, setRes] = useState<DocResult | null>(null);
   const [busy, setBusy] = useState(false);
   const seq = useRef(0);
+  // Keep the latest source getter/doc/type in a ref so the (debounced) effect
+  // reads them fresh without re-subscribing on every host render.
+  const live = useRef({ doc, source, sourceType });
+  live.current = { doc, source, sourceType };
 
-  const generate = useCallback(
-    async (m: DocMode) => {
-      const id = ++seq.current;
-      setBusy(true);
-      try {
-        const r = await doc(source(), sourceType, m);
-        if (id === seq.current) setRes(r);
-      } finally {
-        if (id === seq.current) setBusy(false);
-      }
-    },
-    [doc, source, sourceType],
-  );
-
-  // Generate on mount and whenever the mode changes.
-  useEffect(() => {
-    void generate(mode);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const generate = useCallback(async () => {
+    const id = ++seq.current;
+    setBusy(true);
+    try {
+      const { doc, source, sourceType } = live.current;
+      const r = await doc(source(), sourceType, mode);
+      if (id === seq.current) setRes(r);
+    } finally {
+      if (id === seq.current) setBusy(false);
+    }
   }, [mode]);
+
+  // Regenerate on mount, on mode change, and (debounced) whenever the source
+  // revision or dialect changes, so the panel tracks edits automatically.
+  useEffect(() => {
+    const t = setTimeout(() => void generate(), 250);
+    return () => clearTimeout(t);
+  }, [generate, revision, sourceType]);
 
   return (
     <div className="gp-doc">
@@ -66,7 +72,7 @@ export function DocPanel({ doc, source, sourceType, dark = false, header }: DocP
         <span className="gp-doc-title">Doc</span>
         <span className="gp-actions">
           <select
-            className="gp-doc-mode"
+            className="gp-doc-mode gp-doc-ctl"
             value={mode}
             onChange={(e) => setMode(e.target.value as DocMode)}
             disabled={busy}
@@ -77,7 +83,13 @@ export function DocPanel({ doc, source, sourceType, dark = false, header }: DocP
               </option>
             ))}
           </select>
-          <button type="button" className="gp-btn" disabled={busy} onClick={() => generate(mode)}>
+          <button
+            type="button"
+            className="gp-btn gp-doc-ctl"
+            disabled={busy}
+            title="Reload documentation"
+            onClick={() => generate()}
+          >
             {busy ? "…" : "↻"}
           </button>
           {header}

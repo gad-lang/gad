@@ -63,6 +63,8 @@ export default defineComponent({
     const tagEncode = ref<"" | "json" | "yaml">("");
     // The Doc panel on the right is hidden by default.
     const showDoc = ref(false);
+    // Bumped on every edit so the Doc panel re-generates in sync with the source.
+    const docRev = ref(0);
     const left = ref<{ kind: "format"; fmt: FormatResult } | { kind: "run"; run: RunResult } | null>(null);
     const diagnose = props.runner.diagnose
       ? (src: string) => props.runner.diagnose!(src, sourceType.value)
@@ -136,7 +138,7 @@ export default defineComponent({
             <GadEditor
               key={dialect.value}
               modelValue={source.value}
-              {...{ "onUpdate:modelValue": (v: string) => (source.value = v) }}
+              {...{ "onUpdate:modelValue": (v: string) => { source.value = v; if (showDoc.value) docRev.value++; } }}
               language={LANG[dialect.value]}
               dark={props.dark}
               diagnose={diagnose}
@@ -153,8 +155,8 @@ export default defineComponent({
         </section>
         {props.runner.doc && showDoc.value && (
           <section class="gp-pane gp-pane--doc">
-            <DocPanel doc={props.runner.doc!} source={() => source.value} sourceType={sourceType.value}>
-              <VBtn size="small" variant="text" title="Hide the doc panel" onClick={() => (showDoc.value = false)}>✕</VBtn>
+            <DocPanel doc={props.runner.doc!} source={() => source.value} sourceType={sourceType.value} revision={docRev.value}>
+              <VBtn class="gp-doc-ctl" size="small" height="32" variant="tonal" title="Close the doc panel" onClick={() => (showDoc.value = false)}>✕</VBtn>
             </DocPanel>
           </section>
         )}

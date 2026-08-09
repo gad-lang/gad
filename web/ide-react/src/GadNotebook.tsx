@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import type { DiagnoseFn } from "@gad-lang/codemirror-gad";
 import { Editor, type EditorHandle, type EditorLanguage } from "./Editor";
 import { PlaygroundStyles } from "./playgroundStyles";
+import { DocPanel } from "./DocPanel";
 import type { GadRunner, RunResult } from "./types";
 
 type Dialect = "gad" | "gadt" | "gadx";
@@ -51,6 +52,10 @@ export function GadNotebook({ runner, dark = false }: GadNotebookProps) {
   const [cells, setCells] = useState<Cell[]>(() => SAMPLES.map((s) => newCell(s.source, s.dialect)));
   // Live editor contents per cell (editors are uncontrolled; read on run).
   const contents = useRef<Record<number, string>>({});
+  // Per-cell Doc panel visibility, and a revision bumped on edit to keep it synced.
+  const [docCells, setDocCells] = useState<Record<number, boolean>>({});
+  const [docRev, setDocRev] = useState<Record<number, number>>({});
+  const bumpDoc = (id: number) => setDocRev((r) => ({ ...r, [id]: (r[id] ?? 0) + 1 }));
 
   const update = (id: number, patch: Partial<Cell>) =>
     setCells((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -78,16 +83,43 @@ export function GadNotebook({ runner, dark = false }: GadNotebookProps) {
       <p className="gp-muted">Each cell runs independently.</p>
       {cells.map((cell) => (
         <div className="gnb-cell" key={cell.id}>
-          <div className="gnb-editor">
-            <Editor
-              key={cell.id + ":" + cell.dialect}
-              initialDoc={cell.source}
-              language={LANG[cell.dialect]}
-              dark={dark}
-              diagnose={diagnoseFor(cell)}
-              onChange={(v) => (contents.current[cell.id] = v)}
-            />
+          <div className={"gnb-cell-main" + (docCells[cell.id] ? " gnb-cell-main--doc" : "")}>
+            <div className="gnb-editor">
+              <Editor
+                key={cell.id + ":" + cell.dialect}
+                initialDoc={cell.source}
+                language={LANG[cell.dialect]}
+                dark={dark}
+                diagnose={diagnoseFor(cell)}
+                onChange={(v) => {
+                  contents.current[cell.id] = v;
+                  if (docCells[cell.id]) bumpDoc(cell.id);
+                }}
+              />
+            </div>
+            {runner.doc && docCells[cell.id] && (
+              <div className="gnb-doc">
+                <DocPanel
+                  doc={runner.doc}
+                  source={() => contents.current[cell.id] ?? cell.source}
+                  sourceType={SOURCE_TYPE[cell.dialect]}
+                  dark={dark}
+                  revision={docRev[cell.id] ?? 0}
+                  header={
+                    <button
+                      type="button"
+                      className="gp-btn gp-doc-ctl"
+                      title="Close the doc panel"
+                      onClick={() => setDocCells((d) => ({ ...d, [cell.id]: false }))}
+                    >
+                      ✕
+                    </button>
+                  }
+                />
+              </div>
+            )}
           </div>
+          {/* toolbar */}
           <div className="gnb-bar">
             <span className="gp-dialect">
               {(["gad", "gadt", "gadx"] as Dialect[]).map((d) => (
@@ -112,6 +144,20 @@ export function GadNotebook({ runner, dark = false }: GadNotebookProps) {
               </label>
             )}
             <button type="button" className="gp-btn gp-btn--primary" disabled={cell.running} onClick={() => runCell(cell)}>▶ Run</button>
+            {runner.doc && (
+              <button
+                type="button"
+                className={"gp-btn" + (docCells[cell.id] ? " gp-btn--active" : "")}
+                aria-pressed={!!docCells[cell.id]}
+                title="Toggle the documentation panel for this cell"
+                onClick={() => {
+                  setDocCells((d) => ({ ...d, [cell.id]: !d[cell.id] }));
+                  bumpDoc(cell.id);
+                }}
+              >
+                Doc
+              </button>
+            )}
             <button type="button" className="gp-btn" onClick={() => removeCell(cell.id)}>Remove</button>
           </div>
           {cell.result && (
